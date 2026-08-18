@@ -1,0 +1,851 @@
+<title>요리 320건</title>
+<style>
+  :root {
+    --ground: #F1F4F2;
+    --surface: #FFFFFF;
+    --surface-2: #F7F9F8;
+    --ink: #12201E;
+    --ink-2: #33443F;
+    --muted: #66756F;
+    --faint: #93A09B;
+    --line: #DBE3DF;
+    --line-strong: #C2CEC9;
+    --accent: #0B5F55;
+    --accent-soft: #E2EFEB;
+    --ok: #2E7358;
+    --warn: #A9762B;
+    --crit: #A33F30;
+    --crit-soft: #F6E5E1;
+    --ok-soft: #E3F0E9;
+    --warn-soft: #F7EDDD;
+    --dead: #B9C4BF;
+
+    --fs-xs: 0.75rem;
+    --fs-sm: 0.85rem;
+    --fs-base: 1rem;
+    --fs-lg: 1.15rem;
+    --fs-xl: 1.45rem;
+    --fs-2xl: 1.9rem;
+    --fs-3xl: clamp(2.1rem, 1.4rem + 2.6vw, 3.4rem);
+
+    --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+            "Noto Sans KR", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Mono",
+            "D2Coding", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0D1614;
+      --surface: #141F1C;
+      --surface-2: #18241F;
+      --ink: #E7EEEA;
+      --ink-2: #C3D0CB;
+      --muted: #92A19B;
+      --faint: #6E7C77;
+      --line: #26332E;
+      --line-strong: #35443E;
+      --accent: #5FBFAE;
+      --accent-soft: #14302B;
+      --ok: #63BC94;
+      --warn: #D8A052;
+      --crit: #E08272;
+      --crit-soft: #33201C;
+      --ok-soft: #16301F;
+      --warn-soft: #2E2517;
+      --dead: #3C4A45;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0D1614;
+    --surface: #141F1C;
+    --surface-2: #18241F;
+    --ink: #E7EEEA;
+    --ink-2: #C3D0CB;
+    --muted: #92A19B;
+    --faint: #6E7C77;
+    --line: #26332E;
+    --line-strong: #35443E;
+    --accent: #5FBFAE;
+    --accent-soft: #14302B;
+    --ok: #63BC94;
+    --warn: #D8A052;
+    --crit: #E08272;
+    --crit-soft: #33201C;
+    --ok-soft: #16301F;
+    --warn-soft: #2E2517;
+    --dead: #3C4A45;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--fs-base);
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: clamp(2rem, 1rem + 4vw, 4.5rem) clamp(1.1rem, 0.6rem + 2.4vw, 2.5rem) 6rem;
+  }
+
+  /* ── 헤더 ─────────────────────────────── */
+  .eyebrow {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1.1rem;
+    align-items: baseline;
+  }
+  .eyebrow .tag {
+    color: var(--crit);
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    padding: 0.05rem 0.4rem;
+    letter-spacing: 0.08em;
+  }
+
+  h1 {
+    font-size: var(--fs-3xl);
+    line-height: 1.12;
+    letter-spacing: -0.035em;
+    font-weight: 800;
+    margin: 1.4rem 0 0;
+    text-wrap: balance;
+  }
+
+  .quote-lead {
+    margin: 2.2rem 0 0;
+    padding: 1.1rem 0 1.1rem 1.3rem;
+    border-left: 3px solid var(--line-strong);
+    color: var(--ink-2);
+    font-size: var(--fs-lg);
+    line-height: 1.62;
+  }
+  .quote-lead b { color: var(--ink); font-weight: 700; }
+
+  .verdict {
+    margin-top: 2.2rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--crit);
+    padding: clamp(1.3rem, 1rem + 1.4vw, 2rem);
+  }
+  .verdict .k {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--crit);
+    font-weight: 700;
+  }
+  .verdict p {
+    margin: 0.7rem 0 0;
+    font-size: var(--fs-xl);
+    line-height: 1.5;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+  .verdict .sub { font-size: var(--fs-base); font-weight: 400; color: var(--ink-2); margin-top: 0.9rem; letter-spacing: 0; }
+
+  /* ── 섹션 ─────────────────────────────── */
+  section { margin-top: clamp(3.4rem, 2rem + 4vw, 5.5rem); }
+
+  .sec-head { display: flex; align-items: baseline; gap: 0.85rem; flex-wrap: wrap; }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    color: var(--faint);
+    letter-spacing: 0.06em;
+    padding-top: 0.35rem;
+  }
+  h2 {
+    font-size: var(--fs-2xl);
+    letter-spacing: -0.03em;
+    font-weight: 750;
+    margin: 0;
+    line-height: 1.25;
+    text-wrap: balance;
+    flex: 1 1 20rem;
+  }
+  .sec-sub { color: var(--muted); margin: 0.75rem 0 0; font-size: var(--fs-base); max-width: 46rem; }
+
+  h3 {
+    font-size: var(--fs-lg);
+    letter-spacing: -0.015em;
+    font-weight: 700;
+    margin: 2.6rem 0 0.8rem;
+    line-height: 1.4;
+  }
+
+  p { margin: 1rem 0 0; max-width: 46rem; }
+  strong { font-weight: 700; }
+  .em-crit { color: var(--crit); font-weight: 700; }
+  .em-ok { color: var(--ok); font-weight: 700; }
+
+  /* ── 코드 ─────────────────────────────── */
+  pre {
+    margin: 1.3rem 0 0;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--crit);
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: var(--fs-sm);
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+  pre.ok { border-left-color: var(--ok); }
+  pre b { color: var(--crit); font-weight: 700; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 0.06em 0.34em;
+    border-radius: 2px;
+  }
+  .filepath {
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    color: var(--muted);
+    margin: 1.4rem 0 0;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── 표 ───────────────────────────────── */
+  .tbl-wrap { overflow-x: auto; margin-top: 1.4rem; border: 1px solid var(--line); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); min-width: 30rem; }
+  th, td { text-align: left; padding: 0.72rem 0.95rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .hl td { background: var(--crit-soft); }
+  .hl td:first-child { box-shadow: inset 3px 0 0 var(--crit); }
+  .dim { color: var(--faint); }
+
+  /* ── 도트 그리드 (핵심 비주얼) ─────────── */
+  .grids {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1.6rem;
+    margin-top: 1.8rem;
+  }
+  .gridcard { background: var(--surface); border: 1px solid var(--line); padding: 1.1rem 1.1rem 1.25rem; }
+  .gridcard .cap {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .gridcard .cap.crit { color: var(--crit); }
+  .gridcard .headline { font-size: var(--fs-base); font-weight: 700; margin-top: 0.3rem; letter-spacing: -0.01em; }
+  .dots { display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; margin-top: 0.95rem; }
+  .dots i { display: block; aspect-ratio: 1; background: var(--dead); border-radius: 1px; }
+  .dots i.music { background: var(--crit); }
+  .dots i.film { background: var(--warn); }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.45rem 1rem; margin-top: 0.9rem; font-size: var(--fs-xs); color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .legend b { width: 0.62rem; height: 0.62rem; border-radius: 1px; display: inline-block; }
+
+  /* ── 막대 ─────────────────────────────── */
+  .bars { margin-top: 1.4rem; border: 1px solid var(--line); background: var(--surface); padding: 1.1rem 1.2rem 1.3rem; }
+  .bar { display: grid; grid-template-columns: 10.5rem 1fr 3rem; align-items: center; gap: 0.8rem; padding: 0.28rem 0; }
+  .bar .lb { font-size: var(--fs-sm); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .tr { background: var(--surface-2); height: 0.72rem; border-radius: 1px; overflow: hidden; }
+  .bar .fl { height: 100%; background: var(--accent); border-radius: 1px; }
+  .bar .vl { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: var(--fs-sm); text-align: right; color: var(--muted); }
+  .bar.zero .fl { background: var(--crit); }
+  .bar.zero .lb, .bar.zero .vl { color: var(--crit); font-weight: 700; }
+  .bar.missing .fl { background: var(--line-strong); }
+
+  /* ── 수치 강조 ────────────────────────── */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); margin-top: 1.6rem; }
+  .stat { background: var(--surface); padding: 1.15rem 1.1rem; }
+  .stat .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -0.045em; line-height: 1.1; }
+  .stat .l { font-size: var(--fs-xs); color: var(--muted); margin-top: 0.4rem; line-height: 1.45; }
+  .stat.crit .v { color: var(--crit); }
+  .stat.ok .v { color: var(--ok); }
+
+  /* ── 원인 목록 ────────────────────────── */
+  .causes { margin-top: 1.6rem; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .cause { background: var(--surface); padding: 1.15rem 1.2rem; display: grid; grid-template-columns: 2.4rem 1fr; gap: 0.5rem 0.9rem; }
+  .cause .n { font-family: var(--mono); font-size: var(--fs-sm); color: var(--crit); font-weight: 700; padding-top: 0.2rem; }
+  .cause h4 { margin: 0; font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.015em; line-height: 1.45; }
+  .cause p { margin: 0.45rem 0 0; font-size: var(--fs-sm); color: var(--ink-2); max-width: none; }
+  .cause .n2 { grid-column: 2; }
+
+  /* ── 사다리 ───────────────────────────── */
+  .ladder { margin-top: 1.6rem; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .rung { background: var(--surface); padding: 1.05rem 1.2rem; display: grid; grid-template-columns: 3.2rem 1fr; gap: 0.9rem; align-items: start; }
+  .rung .lv { font-family: var(--mono); font-size: var(--fs-sm); font-weight: 700; color: var(--accent); padding-top: 0.15rem; }
+  .rung.new { background: var(--accent-soft); }
+  .rung.human { background: var(--surface-2); }
+  .rung .t { font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.01em; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+  .rung .badge { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em; padding: 0.06rem 0.4rem; border: 1px solid var(--accent); color: var(--accent); border-radius: 2px; }
+  .rung p { margin: 0.4rem 0 0; font-size: var(--fs-sm); color: var(--ink-2); max-width: none; }
+  .rung .meta { margin-top: 0.5rem; font-family: var(--mono); font-size: var(--fs-xs); color: var(--muted); }
+
+  /* ── 비교 ─────────────────────────────── */
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); margin-top: 1.6rem; }
+  .compare > div { background: var(--surface); padding: 1.3rem 1.2rem; }
+  .compare .cap { font-size: var(--fs-xs); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; color: var(--muted); }
+  .compare .big { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: clamp(2rem, 1.4rem + 2vw, 2.9rem); font-weight: 700; letter-spacing: -0.05em; line-height: 1.1; margin-top: 0.55rem; }
+  .compare .now .big { color: var(--crit); }
+  .compare .aft .big { color: var(--ok); }
+  .compare .u { font-size: var(--fs-sm); color: var(--muted); margin-top: 0.35rem; }
+
+  /* ── 예시 카드 ────────────────────────── */
+  .example { margin-top: 1.4rem; border: 1px solid var(--line); background: var(--surface); padding: 1.15rem 1.2rem; }
+  .example .row1 { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; }
+  .example .topic { font-weight: 700; font-size: var(--fs-lg); letter-spacing: -0.015em; }
+  .example .pill { font-size: var(--fs-xs); font-weight: 700; border: 1px solid var(--warn); color: var(--warn); padding: 0.06rem 0.42rem; border-radius: 2px; letter-spacing: 0.04em; }
+  .example .basis { margin: 0.55rem 0 0; font-size: var(--fs-sm); color: var(--ink-2); max-width: none; }
+  .example .basis code { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+
+  /* ── 대비 박스 ────────────────────────── */
+  .swap { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); margin-top: 1.3rem; }
+  .swap > div { background: var(--surface); padding: 1.1rem 1.15rem; }
+  .swap .h { font-size: var(--fs-xs); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem; }
+  .swap .bad .h { color: var(--crit); }
+  .swap .good .h { color: var(--ok); }
+  .swap p { margin: 0; font-size: var(--fs-sm); color: var(--ink-2); max-width: none; }
+  .swap p + p { margin-top: 0.5rem; }
+
+  /* ── 순서 ─────────────────────────────── */
+  .steps { margin-top: 1.5rem; border: 1px solid var(--line); background: var(--surface); }
+  .step { display: grid; grid-template-columns: 2.3rem 1fr auto; gap: 0.9rem; padding: 0.82rem 1.1rem; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .step:last-child { border-bottom: none; }
+  .step .n { font-family: var(--mono); font-size: var(--fs-sm); color: var(--faint); font-weight: 700; }
+  .step .t { font-size: var(--fs-sm); }
+  .step .r { font-family: var(--mono); font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+  .step.safe { background: var(--ok-soft); }
+  .step.safe .n { color: var(--ok); }
+  .step.key .t { font-weight: 700; }
+
+  /* ── 마무리 ───────────────────────────── */
+  .closing {
+    margin-top: clamp(3.4rem, 2rem + 4vw, 5.5rem);
+    border-top: 3px solid var(--accent);
+    background: var(--surface);
+    padding: clamp(1.5rem, 1rem + 2vw, 2.4rem);
+  }
+  .closing p { font-size: var(--fs-lg); line-height: 1.62; letter-spacing: -0.012em; max-width: 48rem; }
+  .closing p:first-child { margin-top: 0; }
+
+  footer { margin-top: 3rem; padding-top: 1.3rem; border-top: 1px solid var(--line); font-size: var(--fs-xs); color: var(--faint); font-family: var(--mono); }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">
+      <span class="tag">진단 · 기획</span>
+      <span>콘텐츠 인텔리전스 / 수집함 주제 분류</span>
+      <span>2026-08-17</span>
+    </div>
+    <h1>수집함이 전부<br>&ldquo;요리&rdquo;인 이유</h1>
+
+    <blockquote class="quote-lead">
+      &ldquo;지금 수집함에 들어온 데이터 모든 카테고리가 요리인데,
+      이거 <b>하드코딩</b> 된 거니? <b>AI가 분석</b>한 거니?&rdquo;
+    </blockquote>
+
+    <div class="verdict">
+      <div class="k">답</div>
+      <p>둘 다 아닙니다. 시스템은 <em class="em-crit">아무것도 판단하지 않았습니다.</em></p>
+      <p class="sub">
+        이 워크스페이스에 등록된 주제가 <strong>&ldquo;요리&rdquo; 하나뿐</strong>이라,
+        코드가 &ldquo;주제가 하나뿐이면 그것으로 둔다&rdquo;는 조항에 따라 전건에 그 라벨을 찍었습니다.
+        판정이 아니라 <strong>기본값</strong>입니다.
+      </p>
+    </div>
+  </header>
+
+  <!-- 1 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>판정이 아니라 기본값이었다</h2>
+    </div>
+    <p class="sec-sub">분류 코드에 콜드스타트 배려 조항이 하나 있습니다. 주제가 하나뿐인 동안, 이 조항이 판정 전체를 대신합니다.</p>
+
+    <p class="filepath">apps/web/lib/ci/analysis/classify.ts:83</p>
+<pre><span class="dim">// 주제가 딱 하나뿐인 워크스페이스라면 그것으로 본다 — 콜드 스타트 구간 배려</span>
+<b>if (input.topics.length === 1) {</b>
+  return {
+    topicId: input.topics[0].id,
+    <b>confidence: 0.55,</b>
+    reason: '워크스페이스에 주제가 하나뿐이라 그것으로 두었습니다',
+  }
+}</pre>
+
+    <p>제목에 &ldquo;요리&rdquo;라는 글자가 없어도, 그 영상이 싸이의 강남스타일이어도, <strong>주제가 하나뿐이라는 이유만으로</strong> 요리가 됩니다. DB가 그대로 증명합니다.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>판정 출처</th><th class="num">확신도</th><th class="num">건수</th><th>실제로 무슨 일이 있었나</th></tr>
+        </thead>
+        <tbody>
+          <tr class="hl">
+            <td><code>auto</code></td><td class="num">0.550</td><td class="num">305</td>
+            <td>위 조항이 찍은 것 &mdash; <strong>아무것도 판단하지 않았다</strong></td>
+          </tr>
+          <tr><td><code>ai_verified</code></td><td class="num">0.80&ndash;1.00</td><td class="num">15</td><td>AI가 봤지만, 고를 주제가 &ldquo;요리&rdquo;뿐이었다</td></tr>
+          <tr><td><code>auto</code></td><td class="num">0.700</td><td class="num">1</td><td>제목에 실제로 &ldquo;요리&rdquo; 글자가 있었다</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>320건 중 305건은 판정이 아닙니다.</strong> 나머지 15건은 AI가 판정했지만, 정답지에 &ldquo;요리&rdquo; 하나만 놓고 물었으니 AI도 요리라고 답할 수밖에 없었습니다.</p>
+  </section>
+
+  <!-- 2 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>웹서치까지 갈 것도 없었습니다</h2>
+    </div>
+    <p class="sec-sub">필요한 정보는 이미 우리 DB에 저장돼 있거나, YouTube가 공짜로 주고 있습니다. 시스템이 읽지 않을 뿐입니다.</p>
+
+    <h3>채널 설명은 수집해 놓고 분류에 안 씁니다</h3>
+    <p><code>ci_channels.description</code> 컬럼에 이미 들어 있는 값입니다.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>채널</th><th>DB에 이미 저장된 설명</th></tr></thead>
+        <tbody>
+          <tr><td>LuisFonsiVEVO</td><td><em>Luis Fonsi en Vevo &ndash; Videoclips oficiales, Lyric videos, Sesiones en vivo&hellip;</em></td></tr>
+          <tr><td>officialpsy</td><td><em>PSY Official YouTube Channel</em></td></tr>
+          <tr><td>추성훈 ChooSungHoon</td><td><em>유튭 신입 아조씨임다. 추성훈의 여생 잘 부탁드림니다.</em></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="filepath">apps/web/lib/ci/jobs/stages.ts:123 &mdash; 분류가 실제로 읽는 것</p>
+<pre>.select('id, title, caption, topic_id, topic_source, ci_channels ( <b>topic_id</b> )')
+<span class="dim">//                                                    채널에서 topic_id만 가져온다.
+//                                                    description도, 채널 이름도 안 본다.</span></pre>
+
+    <p>&ldquo;Videoclips oficiales&rdquo;라고 스페인어로 써 있는 채널을 요리로 분류한 이유는, <strong>그 문장을 아예 읽지 않았기</strong> 때문입니다.</p>
+
+    <h3>YouTube가 주제를 구조화해 주는데 요청조차 안 합니다</h3>
+    <p class="filepath">apps/web/lib/ci/connectors/youtube.ts:101</p>
+<pre>`/videos?part=snippet,contentDetails,statistics&amp;id=...`
+<span class="dim">//              </span><b>topicDetails 가 없다</b></pre>
+
+    <p>같은 호출에 한 단어만 추가하면 무엇이 오는지, <strong>실제로 API를 호출해 확인했습니다.</strong></p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>영상</th><th class="num">categoryId</th><th>tags</th><th>topicCategories</th></tr></thead>
+        <tbody>
+          <tr><td>파퀴아오 600억 집공개</td><td class="num">22 인물·블로그</td><td>추성훈, 야노시호, 유도, <strong>ufc</strong></td><td><strong>Boxing, Lifestyle</strong></td></tr>
+          <tr><td>진심을 담아 말씀드립니다</td><td class="num">22</td><td class="dim">〃</td><td><strong>Sport</strong></td></tr>
+          <tr><td>박진영 편의점 먹방</td><td class="num">22</td><td class="dim">〃</td><td><strong>Food, Lifestyle</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>YouTube는 이미 <em>&ldquo;격투기 출신자의 라이프스타일 채널이고, 이 영상은 음식이다&rdquo;</em>라고 구조화된 데이터로 말해주고 있었습니다. 시스템은 이걸 한 글자도 요청하지 않고, 사람이 손으로 만든 &ldquo;요리&rdquo; 하나에 텍스트 매칭을 시도하다 실패하자 310건을 사람에게 넘겼습니다.</p>
+  </section>
+
+  <!-- 3 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>320건 전수 재검토</h2>
+    </div>
+    <p class="sec-sub">수집된 YouTube 콘텐츠 320건을 전량 재조회했습니다. 조회 성공 320/320 &mdash; 사람 검토 0건.</p>
+
+    <div class="grids">
+      <div class="gridcard">
+        <div class="cap crit">시스템이 붙인 라벨</div>
+        <div class="headline">요리 &mdash; 320건 전부</div>
+        <div class="dots" id="g-before" aria-label="320칸이 모두 같은 색으로 채워진 그리드"></div>
+        <div class="legend"><span><b style="background:var(--dead)"></b> 요리 320</span></div>
+      </div>
+      <div class="gridcard">
+        <div class="cap">YouTube가 이미 알려주던 것</div>
+        <div class="headline">최소 8건은 명백한 음악</div>
+        <div class="dots" id="g-after" aria-label="같은 320칸 중 8칸이 음악, 1칸이 영화로 구분된 그리드"></div>
+        <div class="legend">
+          <span><b style="background:var(--dead)"></b> 인물·블로그 311</span>
+          <span><b style="background:var(--crit)"></b> 음악 8</span>
+          <span><b style="background:var(--warn)"></b> 영화·애니 1</span>
+        </div>
+      </div>
+    </div>
+
+    <p>싸이 &middot; 루이스 폰시 &middot; 원리퍼블릭 &mdash; <strong>VEVO 공식 뮤직비디오 8건이 요리로 분류돼 있습니다.</strong> 이건 난해한 판단이 아닙니다.</p>
+
+    <h3>topicCategories 실제 분포 (중복 허용)</h3>
+    <div class="bars" id="bars"></div>
+    <p><strong>요리(Cooking)는 단 한 건도 없습니다.</strong> 가장 가까운 Food 71건조차 &ldquo;만드는 것&rdquo;이 아니라 &ldquo;먹는 것&rdquo;입니다. 신호가 아예 없는 77건(24%)은 다른 단서가 필요한 진짜 회색지대입니다 &mdash; 검토는 이런 곳에 써야 합니다.</p>
+
+    <h3>그래서 이 워크스페이스의 실제 주제 체계는</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>제안 주제</th><th class="num">건수</th><th>근거</th></tr></thead>
+        <tbody>
+          <tr><td>음악</td><td class="num">8</td><td>3개 공식 채널 &mdash; 카테고리 · 주제신호 · 태그 3중 일치</td></tr>
+          <tr><td>먹방 · 여행 · 셀럽 라이프스타일</td><td class="num">311</td><td>추성훈 채널. Food · Lifestyle · Entertainment 혼합</td></tr>
+          <tr><td>아카이브 · 기타</td><td class="num">1</td><td>jawed &mdash; 유튜브 최초 영상</td></tr>
+          <tr class="hl"><td><s>요리</s></td><td class="num">0</td><td><strong>해당 없음</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>채널 단위로 보면 이미 끝나 있다</h2>
+    </div>
+    <p class="sec-sub">콘텐츠를 한 건도 개별 판정하지 않고, 채널 단위 집계만으로 나온 결과입니다.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>채널</th><th class="num">건수</th><th class="num">카테고리 일치도</th><th>주제 신호</th><th>태그</th></tr></thead>
+        <tbody>
+          <tr><td>추성훈 ChooSungHoon</td><td class="num">311</td><td class="num"><strong>100%</strong></td><td>Entertainment×132, Lifestyle×79, Food×71, Film×22</td><td>추성훈, 야노시호, 유도, ufc</td></tr>
+          <tr><td>LuisFonsiVEVO</td><td class="num">6</td><td class="num"><strong>100%</strong></td><td>Music×6, Music_of_Latin_America×6</td><td>Luis Fonsi, Feid, salsa</td></tr>
+          <tr><td>officialpsy</td><td class="num">1</td><td class="num"><strong>100%</strong></td><td>Music, Music_of_Asia, Pop_music</td><td>PSY, 싸이, 강남스타일</td></tr>
+          <tr><td>OneRepublicVEVO</td><td class="num">1</td><td class="num"><strong>100%</strong></td><td>Music, Pop_music, Rock_music</td><td>OneRepublic, Counting Stars</td></tr>
+          <tr><td>jawed</td><td class="num">1</td><td class="num"><strong>100%</strong></td><td class="dim">(없음)</td><td>me at the zoo, jawed karim</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="stats">
+      <div class="stat ok"><div class="v">5 / 5</div><div class="l">채널 일치도 100%<br>&mdash; 자동 확정 가능</div></div>
+      <div class="stat ok"><div class="v">311</div><div class="l">채널 1개 확정으로<br>한 번에 해결되는 건수</div></div>
+      <div class="stat crit"><div class="v">96.6%</div><div class="l">현재 검토 대기 비율<br>310 / 321건</div></div>
+      <div class="stat crit"><div class="v">0</div><div class="l">채널에 지정된 주제<br>14개 채널 전부 NULL</div></div>
+    </div>
+  </section>
+
+  <!-- 5 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>한 줄 버그가 아니다 &mdash; 구조 원인 여섯</h2>
+    </div>
+    <p class="sec-sub">설계가 여섯 군데에서 같은 방향으로 기울어 있습니다. 하나만 고치면 다른 다섯이 같은 결과를 만듭니다.</p>
+
+    <div class="causes">
+      <div class="cause">
+        <span class="n">01</span>
+        <h4>콜드스타트 조항이 판정을 대체했다</h4>
+        <p class="n2">&ldquo;주제가 하나면 그것으로 본다&rdquo;는 배려가, 주제가 하나인 동안 <strong>모든 판정을 무력화</strong>합니다. 배려가 아니라 우회로입니다.</p>
+      </div>
+      <div class="cause">
+        <span class="n">02</span>
+        <h4>두 단계 판정이 같은 것을 본다</h4>
+        <p class="n2">설계는 &ldquo;1차 규칙 → 2차 AI&rdquo; 깔때기인데, <strong>두 단계의 입력이 제목+설명으로 동일</strong>합니다. 같은 증거를 두 번 보면 두 번째는 첫 번째를 못 이깁니다.</p>
+      </div>
+      <div class="cause">
+        <span class="n">03</span>
+        <h4>후보가 하나면 AI를 불러도 의미가 없다</h4>
+        <p class="n2">프롬프트의 후보 주제 목록이 <code>["요리"]</code> 한 줄입니다. &ldquo;요리인가 아닌가&rdquo;를 물으면서 정답지에 요리만 놓았습니다.</p>
+      </div>
+      <div class="cause">
+        <span class="n">04</span>
+        <h4>가장 강한 증거인 채널을 안 쓴다</h4>
+        <p class="n2"><code>ci_channels.topic_id</code>가 <strong>14개 채널 전부 NULL</strong>입니다. 채널 귀속 경로는 코드에 있으나 데이터가 없어 한 번도 작동하지 않았습니다.</p>
+      </div>
+      <div class="cause">
+        <span class="n">05</span>
+        <h4>검토 단위가 콘텐츠다</h4>
+        <p class="n2">임계값 0.85, 콜드스타트 경로 0.55 &rarr; <strong>구조적으로 100% 미달.</strong> 확정 API는 <code>POST /contents/[id]/topic</code> 1건 단위뿐입니다. 채널 묶어보기는 있으나 묶어서 확정하는 기능은 없습니다.</p>
+      </div>
+      <div class="cause">
+        <span class="n">06</span>
+        <h4>근거를 저장은 하는데 화면에 안 보인다</h4>
+        <p class="n2">판정 시도 기록(<code>ai_attempts</code>)을 저장하면서, 목록에는 <strong>주제 셀렉트와 &ldquo;55%&rdquo;만</strong> 보여줍니다. <em class="em-crit">&ldquo;하드코딩이니 AI니&rdquo;라는 질문 자체가 화면이 근거를 감춘 결과입니다.</em></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>재설계 &mdash; 판정 사다리</h2>
+    </div>
+    <p class="sec-sub">현재는 2단이고 둘 다 같은 것을 봅니다. 새 사다리는 <strong>단마다 보는 증거가 다릅니다.</strong></p>
+
+    <div class="ladder">
+      <div class="rung new">
+        <span class="lv">L0</span>
+        <div>
+          <div class="t">플랫폼 신호 <span class="badge">신설</span></div>
+          <p>수집 호출에 <code>topicDetails</code> 한 단어 추가. <code>categoryId</code> · <code>topicCategories</code> · <code>tags</code>를 콘텐츠에 저장합니다. 지금은 받고도 버립니다.</p>
+          <div class="meta">비용 0 (같은 호출, 추가 쿼터 없음) · 전건</div>
+        </div>
+      </div>
+      <div class="rung new">
+        <span class="lv">L1</span>
+        <div>
+          <div class="t">채널 정체성 <span class="badge">신설 · 핵심</span></div>
+          <p>채널의 콘텐츠 신호를 집계해 &ldquo;이 채널은 무엇인가&rdquo;를 먼저 판정합니다. 일치도가 100%면 자동 확정, 60% 미만이면 사람에게. <strong>웹검색이 실제로 유효한 자리가 여기입니다</strong> &mdash; 신호가 결측인 24%와 API가 빈약한 TikTok · Instagram은 채널 프로필과 공개 검색이 유일한 단서입니다.</p>
+          <div class="meta">채널당 1회 · 결과를 ci_channels.topic_id에 기록</div>
+        </div>
+      </div>
+      <div class="rung">
+        <span class="lv">L2</span>
+        <div>
+          <div class="t">콘텐츠 텍스트 규칙</div>
+          <p>기존 유지. 단 <strong>콜드스타트 조항은 삭제</strong>합니다. 주제가 하나뿐이면 &ldquo;그것이 맞는지&rdquo;를 판정해야지 &ldquo;무조건 그것&rdquo;이 아닙니다. 주제 0개도 정상 상태로 인정합니다.</p>
+          <div class="meta">비용 0 · 전건</div>
+        </div>
+      </div>
+      <div class="rung">
+        <span class="lv">L3</span>
+        <div>
+          <div class="t">AI 판정 <span class="badge">입력 교체</span></div>
+          <p>지금은 제목 + 설명 + 주제이름만 넘깁니다. 바꾼 뒤에는 <strong>채널명 · 채널설명 · 채널태그 · 영상 카테고리 · topicCategories</strong>를 함께 넘깁니다. 후보 주제가 1개 이하면 아예 호출하지 않습니다.</p>
+          <div class="meta">호출 단위를 콘텐츠 → 채널로 · 이탈분만 추가</div>
+        </div>
+      </div>
+      <div class="rung human">
+        <span class="lv">L4</span>
+        <div>
+          <div class="t">사람</div>
+          <p>사람이 답할 질문은 하나입니다 &mdash; <strong>&ldquo;이 채널 뭐 하는 채널이에요?&rdquo;</strong> 근거를 함께 보여주고, 채널 카드 한 장으로 끝냅니다.</p>
+          <div class="meta">채널당 1회 · 애매한 채널만</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="swap">
+      <div class="bad">
+        <div class="h">지금 사람에게 묻는 것</div>
+        <p>&ldquo;이 영상 주제 뭐예요?&rdquo;</p>
+        <p><strong>× 10,000번</strong></p>
+      </div>
+      <div class="good">
+        <div class="h">바꾼 뒤 묻는 것</div>
+        <p>&ldquo;이 채널 뭐 하는 채널이에요?&rdquo;</p>
+        <p><strong>× 10~50번</strong></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2>게시물 1만 개일 때 실제로 무슨 일이</h2>
+    </div>
+    <p class="sec-sub">&ldquo;엄청난 건수를 그걸 다 검토해? 사람이?&rdquo; &mdash; 채널 1개에 게시물 1만 건을 가정한 계산입니다.</p>
+
+    <div class="compare">
+      <div class="now">
+        <div class="cap">지금</div>
+        <div class="big">9,660</div>
+        <div class="u">사람 클릭 횟수 (96.6%가 검토 대기)</div>
+      </div>
+      <div class="aft">
+        <div class="cap">재설계 후</div>
+        <div class="big">1</div>
+        <div class="u">사람 클릭 횟수 (채널 1개 확인)</div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>단계</th><th class="num">처리량</th><th class="num">사람</th><th class="num">AI 호출</th></tr></thead>
+        <tbody>
+          <tr><td>L0 플랫폼 신호</td><td class="num">10,000</td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>L1 채널 정체성</td><td class="num">1채널</td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>L2 텍스트 규칙</td><td class="num">10,000</td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>채널 주제 상속</td><td class="num">10,000</td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>이탈 감지 <span class="dim">(순수 계산)</span></td><td class="num">10,000</td><td class="num">0</td><td class="num">0</td></tr>
+          <tr><td>L3 AI &mdash; 이탈분만</td><td class="num">수십~수백</td><td class="num">0</td><td class="num">수십~수백</td></tr>
+          <tr class="hl"><td>L4 사람</td><td class="num">채널 1개</td><td class="num"><strong>1</strong></td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>이탈 감지란</h3>
+    <p>채널 주제가 정해지면 콘텐츠는 그것을 <strong>상속</strong>합니다. 개별 판정은 콘텐츠 신호가 채널 정체성과 <strong>다를 때만</strong> 합니다.</p>
+    <div class="swap">
+      <div class="good">
+        <div class="h">이탈 아님</div>
+        <p>추성훈 채널의 Food 71건 · Film 22건 &mdash; 라이프스타일 채널의 정상 스펙트럼입니다.</p>
+      </div>
+      <div class="bad">
+        <div class="h">이탈 &mdash; 이때만 개별 판정</div>
+        <p>그 채널에 Music 영상이 하나 섞이는 경우. 집계 비교이므로 <strong>AI도 사람도 필요 없습니다.</strong></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">08</span>
+      <h2>지적하지 않으셨지만 같이 고쳐야 할 것</h2>
+    </div>
+
+    <h3>주제 체계를 맨손으로 만들게 두면 안 된다</h3>
+    <p>지금 온보딩은 빈칸을 주고 &ldquo;주제를 만드세요&rdquo;라고 합니다. 사용자는 &ldquo;요리&rdquo; 하나를 넣었고, 시스템은 그때부터 <strong>세상을 요리 하나로</strong> 봤습니다. 바꾼 뒤에는 채널을 등록하면 시스템이 먼저 읽고 제안합니다.</p>
+
+    <div class="example">
+      <div class="row1"><span class="topic">채널 5개를 분석했습니다</span></div>
+      <p class="basis"><strong>음악</strong> 3채널 8건 · <strong>먹방·여행·셀럽</strong> 1채널 311건 · <strong>기타</strong> 1채널 1건<br>이대로 주제를 만들까요? &nbsp;[이름 수정] &nbsp;[만들기]</p>
+    </div>
+    <p>사용자는 <strong>만드는 게 아니라 확인</strong>합니다. 주제 체계가 데이터에서 올라옵니다.</p>
+
+    <h3>콘텐츠 하나에 주제 하나는 애초에 무리다</h3>
+    <p>현재 스키마는 <code>topic_id</code> 단일 FK입니다. 그런데 추성훈 채널 하나 안에 Entertainment 132 · Lifestyle 79 · Food 71 · Film 22가 섞여 있습니다. <strong>주 주제 1 + 부 주제 N</strong>으로 갑니다 &mdash; 통계·비교는 주 주제로, 검색·필터는 부 주제까지.</p>
+
+    <h3>확신도를 숫자로 던지지 말고 세 구간으로 말한다</h3>
+    <p>&ldquo;55%&rdquo;는 사용자에게 아무 의미가 없습니다.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>구간</th><th>화면 표기</th><th>동작</th></tr></thead>
+        <tbody>
+          <tr><td>확정</td><td class="dim">(표시 없음)</td><td>그냥 쓴다</td></tr>
+          <tr><td>추정</td><td><strong>추정</strong> 배지 + 근거 한 줄</td><td>쓰되 통계 가중치를 낮춘다</td></tr>
+          <tr><td>미분류</td><td><strong>미분류</strong></td><td>쌓아 두고, 일정 수 넘으면 한 번에 묻는다</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>미분류를 검토 큐로 밀어 넣지 않습니다. <strong>모르는 것은 모르는 채로 두는 것이 정상 상태</strong>입니다.</p>
+
+    <h3>근거를 화면에 올린다 &mdash; 이번 질문의 직접 원인</h3>
+    <p>판정 근거는 <strong>이미 저장되고 있습니다.</strong> 목록에 한 줄만 보이면 됩니다.</p>
+
+    <div class="example">
+      <div class="row1">
+        <span class="topic">먹방 · 여행</span>
+        <span class="pill">추정</span>
+      </div>
+      <p class="basis">채널 태그 <code>유도 · ufc</code>, 영상 카테고리 <code>인물·블로그 100%</code>, 주제 신호 <code>Food · Lifestyle</code> &mdash; 그래서 이렇게 봤습니다.</p>
+    </div>
+    <p>이 한 줄이 있었으면 &ldquo;하드코딩이니 AI니&rdquo;를 물으실 일이 없었습니다.</p>
+
+    <h3>채널 중복 5쌍 &mdash; 별개 결함이지만 분류를 망친다</h3>
+    <p><code>ci_channels</code> 14행 중 <strong>5쌍이 같은 채널의 중복</strong>입니다. 추성훈 · officialpsy는 각각 메타가 있는 행과 <strong>없는 행</strong>이 따로 있습니다. 채널 단위 판정으로 가면 중복 채널은 곧 <strong>판정 분열</strong>입니다 &mdash; 채널 키 통합이 L1의 선행 조건입니다.</p>
+
+    <h3>정정 학습 루프가 한 번도 안 돌았다</h3>
+    <p><code>ci_corrections</code> <strong>0건.</strong> 설계상 사용자 정정이 다음 분류 프롬프트에 들어가게 돼 있는데, 사용자가 310건 앞에서 손을 놓았으니 학습 재료가 0입니다. <strong>검토 부담을 낮추는 것이 곧 학습을 살리는 길입니다</strong> &mdash; 채널 단위로 5번 확정하면 정정 5건이 즉시 쌓입니다.</p>
+
+    <h3>수집 편향 &mdash; 311 대 9</h3>
+    <p>한 채널이 97%입니다. 이 상태에서는 &ldquo;평소 대비&rdquo; 같은 비교 지표도 사실상 한 채널 내부 비교입니다. 채널이 확보되기 전에는 비교 지표를 <strong>표시하지 않거나 표본 부족을 명시</strong>해야 합니다.</p>
+  </section>
+
+  <!-- 9 ───────────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">09</span>
+      <h2>구현 순서</h2>
+    </div>
+    <p class="sec-sub">1~3번은 되돌릴 수 있는 형태입니다 &mdash; 신호를 추가로 저장하고 재분류하는 것이라 무손실입니다. 4번부터가 설계 변경입니다.</p>
+
+    <div class="steps">
+      <div class="step safe"><span class="n">01</span><span class="t"><code>classify.ts:83</code> 콜드스타트 조항 삭제</span><span class="r">1줄 · 오분류 생산 중단</span></div>
+      <div class="step safe"><span class="n">02</span><span class="t">L0 &mdash; <code>topicDetails</code> 요청 + 신호 저장</span><span class="r">커넥터 + 마이그 1</span></div>
+      <div class="step safe"><span class="n">03</span><span class="t">기존 320건 신호 백필 + 재분류</span><span class="r">배치 1회</span></div>
+      <div class="step key"><span class="n">04</span><span class="t">L1 &mdash; 채널 정체성 판정 + <code>ci_channels.topic_id</code></span><span class="r">신규 모듈 · 핵심</span></div>
+      <div class="step key"><span class="n">05</span><span class="t">채널 단위 확정 API + 화면</span><span class="r">클릭 9,660 → 1</span></div>
+      <div class="step"><span class="n">06</span><span class="t">L3 프롬프트 입력 교체 (채널 맥락 주입)</span><span class="r">프롬프트</span></div>
+      <div class="step"><span class="n">07</span><span class="t">주제 체계 자동 제안 (온보딩)</span><span class="r">신규 화면 · 재발 방지</span></div>
+      <div class="step"><span class="n">08</span><span class="t">근거 한 줄 표시</span><span class="r">UI · 신뢰 회복</span></div>
+      <div class="step"><span class="n">09</span><span class="t">다중 라벨 + 3구간</span><span class="r">마이그 + 전면</span></div>
+      <div class="step"><span class="n">10</span><span class="t">채널 중복 통합</span><span class="r">별건 · L1 선행 조건</span></div>
+    </div>
+  </section>
+
+  <div class="closing">
+    <p>시스템은 판단하지 않았습니다. <strong>주제가 하나뿐이라 그 하나를 찍었고</strong>, 확신이 없다는 이유로 96.6%를 사람에게 넘겼습니다. 그러면서 YouTube가 공짜로 주는 주제 신호도, 자기가 이미 저장해 둔 채널 설명도 읽지 않았습니다.</p>
+    <p>고칠 곳은 분류 알고리즘이 아니라 <strong>&ldquo;무엇을 보고 판단하는가&rdquo;</strong>와 <strong>&ldquo;누구에게 무엇을 묻는가&rdquo;</strong>입니다.</p>
+  </div>
+
+  <footer>
+    실측 2026-08-17 · ci_contents 321행 · YouTube Data API v3 재조회 320/320 성공 · 사람 검토 0건<br>
+    코드 근거 classify.ts:83 · stages.ts:123,152 · youtube.ts:101 · InboxView.tsx:186 · contents/[id]/topic/route.ts
+  </footer>
+
+</div>
+
+<script>
+  // 320칸 그리드 — 실제 카테고리 분포(인물·블로그 311 / 음악 8 / 영화·애니 1)를 반영한다.
+  // 음악 8건이 어디에 섞여 있는지가 이 그림의 요점이므로, 고르게 흩어 배치한다.
+  (function () {
+    var TOTAL = 320;
+    var before = document.getElementById('g-before');
+    var after = document.getElementById('g-after');
+    if (!before || !after) return;
+
+    var musicAt = {}, filmAt = {};
+    // 8칸을 균등 간격으로 흩는다(결정적 배치 — 새로고침해도 같은 그림)
+    for (var m = 0; m < 8; m++) musicAt[Math.floor((m + 0.5) * TOTAL / 8)] = true;
+    filmAt[TOTAL - 5] = true;
+
+    var fragB = document.createDocumentFragment();
+    var fragA = document.createDocumentFragment();
+    for (var i = 0; i < TOTAL; i++) {
+      fragB.appendChild(document.createElement('i'));
+      var a = document.createElement('i');
+      if (musicAt[i]) a.className = 'music';
+      else if (filmAt[i]) a.className = 'film';
+      fragA.appendChild(a);
+    }
+    before.appendChild(fragB);
+    after.appendChild(fragA);
+  })();
+
+  // topicCategories 분포 막대
+  (function () {
+    var host = document.getElementById('bars');
+    if (!host) return;
+    var data = [
+      ['Entertainment', 132], ['Lifestyle', 79], ['Food', 71], ['Film', 22],
+      ['Music', 9], ['Pop music', 8], ['Pet', 7], ['Music of Latin America', 6],
+      ['Music of Asia', 4], ['Tourism', 4], ['Sport', 2],
+      ['신호 없음 (결측)', 77, 'missing'], ['요리 / Cooking', 0, 'zero']
+    ];
+    var max = 132;
+    data.forEach(function (d) {
+      var row = document.createElement('div');
+      row.className = 'bar' + (d[2] ? ' ' + d[2] : '');
+      var lb = document.createElement('span'); lb.className = 'lb'; lb.textContent = d[0];
+      var tr = document.createElement('span'); tr.className = 'tr';
+      var fl = document.createElement('span'); fl.className = 'fl';
+      fl.style.width = (d[1] / max * 100) + '%';
+      tr.appendChild(fl);
+      var vl = document.createElement('span'); vl.className = 'vl'; vl.textContent = d[1];
+      row.appendChild(lb); row.appendChild(tr); row.appendChild(vl);
+      host.appendChild(row);
+    });
+  })();
+</script>

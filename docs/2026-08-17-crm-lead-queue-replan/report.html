@@ -1,0 +1,955 @@
+<title>리드 큐 재기획</title>
+<style>
+  :root {
+    --bg: #F5F6F7;
+    --surface: #FFFFFF;
+    --surface-2: #EDF0F2;
+    --ink: #11161A;
+    --ink-soft: #333C44;
+    --muted: #5C6874;
+    --line: #DDE3E7;
+    --line-soft: #E9EDF0;
+    --accent: #1A5A54;
+    --accent-soft: #E2EFED;
+    --alert: #A5361A;
+    --alert-soft: #F7E7E1;
+    --amber: #7E5D0C;
+    --amber-soft: #F6EFDC;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Source Serif Pro", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Roboto Mono", monospace;
+
+    --wrap: 940px;
+    --prose: 40rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1113;
+      --surface: #16191C;
+      --surface-2: #1C2125;
+      --ink: #E7EBEE;
+      --ink-soft: #C3CBD2;
+      --muted: #939EA8;
+      --line: #262C31;
+      --line-soft: #1F252A;
+      --accent: #6BBFB2;
+      --accent-soft: #16302D;
+      --alert: #E2825F;
+      --alert-soft: #33201A;
+      --amber: #D3AA4E;
+      --amber-soft: #2C2617;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0E1113;
+    --surface: #16191C;
+    --surface-2: #1C2125;
+    --ink: #E7EBEE;
+    --ink-soft: #C3CBD2;
+    --muted: #939EA8;
+    --line: #262C31;
+    --line-soft: #1F252A;
+    --accent: #6BBFB2;
+    --accent-soft: #16302D;
+    --alert: #E2825F;
+    --alert-soft: #33201A;
+    --amber: #D3AA4E;
+    --amber-soft: #2C2617;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--wrap);
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ── masthead ────────────────────────────── */
+  .masthead {
+    padding: 64px 0 40px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.1rem, 1.2rem + 3.6vw, 3.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: clamp(1.02rem, 0.96rem + 0.3vw, 1.16rem);
+    color: var(--ink-soft);
+    max-width: var(--prose);
+    margin: 0 0 28px;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .meta .stamp {
+    color: var(--alert);
+    font-weight: 600;
+  }
+
+  /* ── reduction ladder (thesis) ───────────── */
+  .ladder {
+    margin: 56px 0 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 32px clamp(20px, 4vw, 40px) 34px;
+  }
+  .ladder-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 24px;
+    margin-bottom: 30px;
+  }
+  .ladder-head h2 {
+    font-family: var(--serif);
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .ladder-head .scale-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .rung {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr;
+    align-items: center;
+    gap: 0 18px;
+    padding: 13px 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .rung:first-of-type { border-top: 0; }
+  .rung .num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.35rem;
+    font-weight: 600;
+    text-align: right;
+    letter-spacing: -0.02em;
+  }
+  .rung .track { min-width: 0; }
+  .bar {
+    height: 15px;
+    border-radius: 2px;
+    min-width: 3px;
+    margin-bottom: 7px;
+  }
+  .rung .label {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+  }
+  .rung .label b { font-weight: 600; color: var(--ink); }
+
+  .r-all   .num { color: var(--alert); }
+  .r-all   .bar { background: var(--alert); }
+  .r-real  .num { color: var(--amber); }
+  .r-real  .bar { background: var(--amber); }
+  .r-worth .num { color: var(--accent); }
+  .r-worth .bar { background: var(--accent); }
+  .r-reach .num { color: var(--muted); }
+  .r-reach .bar { background: var(--muted); }
+
+  .ladder-foot {
+    margin: 26px 0 0;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 14.5px;
+    color: var(--ink-soft);
+  }
+  .ladder-foot b { color: var(--ink); font-weight: 600; }
+
+  /* ── sections ────────────────────────────── */
+  section { margin-top: 76px; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sec-head .idx {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    flex: none;
+  }
+  .sec-head h2 {
+    font-family: var(--serif);
+    font-size: clamp(1.45rem, 1.15rem + 1.1vw, 1.95rem);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-size: 1.02rem;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+    margin: 38px 0 10px;
+  }
+  p { max-width: var(--prose); margin: 0 0 16px; }
+  p.wide { max-width: none; }
+  .lede { font-size: 1.05rem; color: var(--ink-soft); margin-top: 22px; }
+  strong { font-weight: 650; }
+  em { font-style: normal; background: var(--amber-soft); padding: 0 3px; border-radius: 2px; }
+
+  /* ── pull quote ──────────────────────────── */
+  blockquote {
+    margin: 30px 0;
+    padding: 4px 0 4px 22px;
+    border-left: 3px solid var(--accent);
+    max-width: var(--prose);
+  }
+  blockquote p {
+    font-family: var(--serif);
+    font-size: 1.16rem;
+    line-height: 1.5;
+    color: var(--ink);
+    margin: 0 0 10px;
+  }
+  blockquote p:last-child { margin-bottom: 0; }
+
+  /* ── tables ──────────────────────────────── */
+  .scroll { overflow-x: auto; margin: 24px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    min-width: 460px;
+  }
+  caption {
+    caption-side: top;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 9px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+  thead th {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  td.n, th.n {
+    text-align: right;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    padding-right: 0;
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  .hot { color: var(--alert); font-weight: 600; }
+  .good { color: var(--accent); font-weight: 600; }
+  .dim { color: var(--muted); }
+
+  /* ── code ────────────────────────────────── */
+  pre {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    margin: 20px 0;
+    color: var(--ink-soft);
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .cmt { color: var(--muted); }
+  .bad { color: var(--alert); }
+
+  /* ── finding cards ───────────────────────── */
+  .findings { display: grid; gap: 14px; margin: 26px 0; }
+  .finding {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--alert);
+    border-radius: 3px;
+    padding: 18px 20px;
+  }
+  .finding .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--alert);
+    letter-spacing: 0.06em;
+    padding-top: 3px;
+  }
+  .finding h4 {
+    font-size: 15px;
+    font-weight: 650;
+    margin: 0 0 5px;
+    letter-spacing: -0.005em;
+  }
+  .finding p { margin: 0; font-size: 13.8px; color: var(--ink-soft); max-width: none; }
+  .finding p + p { margin-top: 7px; }
+
+  /* ── two-col compare ─────────────────────── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 28px 0;
+  }
+  .compare > div { background: var(--surface); padding: 22px 22px 24px; }
+  .compare h4 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0 0 14px;
+  }
+  .compare .q h4 { color: var(--alert); }
+  .compare .l h4 { color: var(--accent); }
+  .compare dl { margin: 0; font-size: 13.6px; }
+  .compare dt {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 13px;
+  }
+  .compare dt:first-child { margin-top: 0; }
+  .compare dd { margin: 2px 0 0; color: var(--ink-soft); }
+  @media (max-width: 640px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+
+  /* ── principles ──────────────────────────── */
+  .principles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 26px 0;
+  }
+  .principles > div { background: var(--surface); padding: 20px; }
+  .principles .p-id {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 9px;
+  }
+  .principles p { margin: 0; font-size: 13.6px; color: var(--ink-soft); max-width: none; }
+  .principles b { color: var(--ink); font-weight: 650; }
+
+  /* ── step list ───────────────────────────── */
+  .steps { margin: 26px 0; display: grid; gap: 0; }
+  .step {
+    display: grid;
+    grid-template-columns: 2.4rem 1fr;
+    gap: 0 18px;
+    padding: 22px 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .step:first-child { border-top: 1px solid var(--line); }
+  .step .s-n {
+    font-family: var(--serif);
+    font-size: 1.6rem;
+    line-height: 1;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .step h4 { font-size: 15.5px; font-weight: 650; margin: 0 0 7px; letter-spacing: -0.005em; }
+  .step p { margin: 0 0 8px; font-size: 14px; color: var(--ink-soft); }
+  .step p:last-child { margin-bottom: 0; }
+  .step ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.8px; color: var(--ink-soft); }
+  .step li { margin-bottom: 5px; }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 2px;
+    vertical-align: 2px;
+    margin-left: 8px;
+  }
+  .pill.ok { background: var(--accent-soft); color: var(--accent); }
+  .pill.gate { background: var(--alert-soft); color: var(--alert); }
+
+  /* ── questions ───────────────────────────── */
+  .qs { margin: 26px 0; display: grid; gap: 14px; }
+  .q-item {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber);
+    border-radius: 3px;
+    padding: 18px 20px;
+  }
+  .q-item .q-id {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--amber);
+    letter-spacing: 0.07em;
+  }
+  .q-item h4 { font-size: 15px; font-weight: 650; margin: 5px 0 6px; }
+  .q-item p { margin: 0; font-size: 13.8px; color: var(--ink-soft); max-width: none; }
+
+  footer {
+    margin-top: 84px;
+    padding-top: 24px;
+    border-top: 2px solid var(--ink);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.9;
+  }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="kicker">dacrm · 리드 파이프라인 진단</p>
+    <h1>1,514건은 처음부터 사람이 볼 숫자가 아니었다</h1>
+    <p class="standfirst">
+      지적 두 개 — “나아진 게 없다”와 “인박스 1,500개를 어떻게 하나씩 보나” — 는
+      같은 문제 하나다. 회사의 영업 자산 378곳이 아무도 통과할 수 없는 큐 안에 갇혀 있고,
+      그래서 CRM의 모든 새 화면이 빈 화면으로 렌더된다.
+    </p>
+    <div class="meta">
+      <span>2026-08-17</span>
+      <span>v0.7.539</span>
+      <span>운영 DB 실측 · 코드 전수 · 실브라우저</span>
+      <span class="stamp">구현하지 않음 — 분석과 기획</span>
+    </div>
+  </header>
+
+  <div class="ladder">
+    <div class="ladder-head">
+      <h2>같은 큐를 네 가지로 세면</h2>
+      <span class="scale-note">막대 = 1,514 대비 실제 비율</span>
+    </div>
+
+    <div class="rung r-all">
+      <div class="num">1,514</div>
+      <div class="track">
+        <div class="bar" style="width:100%"></div>
+        <div class="label"><b>화면이 남았다고 말하는 건수</b> — 인박스 배지 “1,514건 남음”</div>
+      </div>
+    </div>
+
+    <div class="rung r-real">
+      <div class="num">378</div>
+      <div class="track">
+        <div class="bar" style="width:24.97%"></div>
+        <div class="label"><b>실제 원본</b> — 나머지 1,136건(75%)은 같은 엑셀 행을 네 번 복사한 것</div>
+      </div>
+    </div>
+
+    <div class="rung r-worth">
+      <div class="num">86</div>
+      <div class="track">
+        <div class="bar" style="width:5.68%"></div>
+        <div class="label"><b>사람이 판단할 가치가 있는 것</b> — 금액이 있거나 적합도 70점 이상</div>
+      </div>
+    </div>
+
+    <div class="rung r-reach">
+      <div class="num">20</div>
+      <div class="track">
+        <div class="bar" style="width:1.32%"></div>
+        <div class="label"><b>화면이 실제로 도달할 수 있는 것</b> — 페이지 없음 · 건너뛰기 없음 · 정렬 무작위</div>
+      </div>
+    </div>
+
+    <p class="ladder-foot">
+      마지막 두 줄이 겹치지 않는다는 것이 이 진단의 전부다.
+      도달 가능한 20건 안에 <b>가치 있는 86건이 한 건도 없다</b> —
+      상위 20건은 적합도 40~60, 수요 Low, 그중 절반이 중복이다.
+    </p>
+  </div>
+
+  <!-- ─────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="idx">01</span>
+      <h2>“나아진 게 없다” — 관찰이 정확하다</h2>
+    </div>
+
+    <p class="lede">
+      지난 판에서 만든 것은 실재한다. <code>오늘</code> 화면, 알림 종, <code>Cmd+K</code>,
+      딜 카드의 다음 할 일, 멈춘 딜 AI 제안, 들여오기, 단계 CRUD — 코드에 있고 라우트도 산다.
+    </p>
+
+    <p><strong>그런데 전부 “데이터를 보여 주는 화면”이다. 그리고 볼 데이터가 없다.</strong></p>
+
+    <div class="scroll">
+      <table>
+        <caption>운영 DB 실측 · 2026-08-17</caption>
+        <thead>
+          <tr><th>테이블</th><th class="n">건수</th><th>화면에서 이게 뜻하는 것</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>crm_deal</code></td><td class="n hot">2</td><td>딜 보드 · 예상 매출 · 멈춘 딜 · 체류 시간이 전부 켜지지 않는다</td></tr>
+          <tr><td><code>crm_company</code></td><td class="n">14</td><td>회사 목록이 한 화면에 다 들어간다</td></tr>
+          <tr><td><code>crm_person</code></td><td class="n">4</td><td>연락처가 사실상 비어 있다</td></tr>
+          <tr><td><code>crm_task</code></td><td class="n">14</td><td>—</td></tr>
+          <tr><td><code>crm_meeting</code></td><td class="n">11</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><code>/crm/today</code>를 실제로 열어 읽은 문구 그대로다.</p>
+
+    <pre><code>김도현님, 급한 건 다 처리하셨어요.
+지금 볼 게 없어요
+진행 중인 딜 1건 · 13곳이 등록돼 있어요</code></pre>
+
+    <blockquote>
+      <p>딜 1건짜리 CRM에서는 어떤 기능을 더 붙여도 화면이 달라지지 않는다.</p>
+      <p>개선은 전부 파이프라인 <em>하류</em>에 했는데, 막힌 곳은 <em>상류</em>였다.</p>
+    </blockquote>
+
+    <p>
+      그 딜을 만들 재료 — 회사 378곳, 담당자, 금액, 수요 등급 — 은 <strong>이미 시스템 안에 있다.</strong>
+      <code>lead_intakes</code>에 1,514행으로 들어와 있고, 5월 26일부터 <strong>82일째</strong> 큐에 갇혀
+      한 발짝도 못 나왔다.
+    </p>
+  </section>
+
+  <!-- ─────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="idx">02</span>
+      <h2>인박스 1,514건 해부</h2>
+    </div>
+
+    <div class="findings">
+
+      <div class="finding">
+        <span class="tag">F1</span>
+        <div>
+          <h4>4분의 3이 바이트 단위로 동일한 사본이다</h4>
+          <p>전체 1,514건 · 고유 <code>bulk_import_row</code> <strong>378</strong>건.
+             회사 376곳이 정확히 4행씩 갖고 있다.</p>
+          <p>2026-05-26 엑셀 대량 들여오기가 <strong>네 번 실행</strong>됐고,
+             <code>lead_intakes</code>에 멱등키가 없다 — 유니크 제약은 <code>id</code>(PK) 하나뿐이라
+             <strong>다음 엑셀에서도 똑같이 배수가 된다.</strong></p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <span class="tag">F2</span>
+        <div>
+          <h4>21번째 행에 도달할 방법이 없다</h4>
+          <p><code>/api/crm/lead-import</code>가 받는 파라미터는 <code>limit</code> 하나다 —
+             <strong><code>offset</code>도 커서도 없다.</strong> UI는 파라미터 없이 부르므로 언제나 20건.</p>
+          <p>카드의 액션은 <code>회사만 옮기기</code> / <code>딜까지 만들기</code> 둘뿐이다.
+             <strong>건너뛰기·보관·제외가 없다.</strong> 마음에 안 드는 리드는 영원히 맨 위에 남고,
+             다음 20건을 보려면 지금 20건을 CRM에 집어넣는 수밖에 없다. 큐가 아니라 <em>막힌 관</em>이다.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <span class="tag">F3</span>
+        <div>
+          <h4>정렬이 주석과 다르고, 하필 최악이 위로 온다</h4>
+          <pre><code><span class="cmt">// 적합도가 높은 것부터 — 1,517건을 위에서부터 훑을 때 쓸모 있는 것이 먼저 나와야 한다</span>
+<span class="bad">.order('created_at', { ascending: false })</span></code></pre>
+          <p>1,510건이 전부 같은 날 생성됐으므로 이 정렬은 사실상 무작위다.
+             API로 뽑은 상위 20건은 <strong>고유 회사 10곳이 2벌씩</strong>, 적합도 전부 40~60,
+             수요 전부 <code>Low</code>, 금액 전부 없음. <strong>적합도 70+ 86건은 도달 불가능하다.</strong></p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <span class="tag">F4</span>
+        <div>
+          <h4>화면이 “다 옮겼어요”라고 말한다 — 1,514건이 남은 채로</h4>
+          <p>실브라우저 시각별 측정: <strong>5초 → “다 옮겼어요”</strong> · 8초 → “1,514건 남음”.</p>
+          <p>초기 state가 <code>pending = 0</code>이고 배지가
+             <code>pending === 0 ? '다 옮겼어요' : …</code>이라 <strong>로딩 중에 완료를 주장한다.</strong>
+             거짓말의 방향이 나쁘다 — 사용자가 그 화면을 닫게 만든다.</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <span class="tag">F5</span>
+        <div>
+          <h4>378건이 “CRM에 등록됨”이라 주장하는데 연결된 레코드가 없다</h4>
+          <p><code>status='crm_registered'</code>인 378건 전부 <code>crm_company_id</code>·
+             <code>linked_account_id</code>가 <code>NULL</code>이다. 옛 <code>accounts</code> 테이블 실제 건수는 12건.
+             <strong>그 상태값을 믿고 만든 어떤 판단도 틀린다.</strong></p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <span class="tag">F6</span>
+        <div>
+          <h4>같은 데이터 위 화면이 둘인데, 둘 다 20건에서 막힌다</h4>
+          <p>옛 <code>/lead-intake</code>도 <code>.order('created_at', desc).limit(20)</code> —
+             검색·필터·페이지 없음. 1,514행 위에 창이 둘 있고 <strong>어느 쪽도 21번째를 못 본다.</strong></p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="idx">03</span>
+      <h2>진짜 원인 — 목록을 큐로 만들었다</h2>
+    </div>
+
+    <p class="lede">
+      위 여섯 개는 전부 증상이다. 원인은 설계 판단 하나다.
+    </p>
+
+    <div class="compare">
+      <div class="q">
+        <h4>인박스 = 큐</h4>
+        <dl>
+          <dt>성격</dt><dd>비워야 하는 것</dd>
+          <dt>성공</dt><dd>0건</dd>
+          <dt>정렬</dt><dd>도착순</dd>
+          <dt>안 고른 것</dt><dd>남는다 — 압박이 된다</dd>
+          <dt>예</dt><dd>승인 대기, 결재함</dd>
+        </dl>
+      </div>
+      <div class="l">
+        <h4>리드 = 목록</h4>
+        <dl>
+          <dt>성격</dt><dd>찾아 쓰는 것</dd>
+          <dt>성공</dt><dd>필요할 때 원하는 걸 찾음</dd>
+          <dt>정렬</dt><dd>관련도순</dd>
+          <dt>안 고른 것</dt><dd>그냥 있는다</dd>
+          <dt>예</dt><dd>주소록, 카탈로그</dd>
+        </dl>
+      </div>
+    </div>
+
+    <p>
+      <strong>리드 1,514건은 목록이다.</strong> 그런데 인박스 안에, 진척 배지
+      <code>1,514건 남음</code>과 함께 넣었다. 그 순간 세 가지가 자동으로 따라온다.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>큐로 본 결과</th><th>그래서 안 만든 것</th><th>사용자가 겪은 것</th></tr></thead>
+        <tbody>
+          <tr><td>전량 처리가 목표가 됨</td><td>—</td><td class="hot">“1,500개를 하나씩”이라는 일이 생김</td></tr>
+          <tr><td>“안 함”이 선택지가 아님</td><td>건너뛰기 · 보관</td><td class="hot">큐가 20건에서 막힘</td></tr>
+          <tr><td>위에서부터 처리하면 됨</td><td>검색 · 필터 · 정렬</td><td class="hot">쓸모 있는 86건에 도달 불가</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <blockquote>
+      <p>“정신이 나간거야?”는 UI 비판이 아니라 <strong>모델 오류를 정확히 짚은 것</strong>이다.
+         지금 화면의 결함 셋이 전부 이 판단 하나에서 나왔다.</p>
+    </blockquote>
+  </section>
+
+  <!-- ─────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="idx">04</span>
+      <h2>더 좋은 방법</h2>
+    </div>
+
+    <div class="principles">
+      <div>
+        <div class="p-id">P1</div>
+        <p><b>사본은 사람에게 보여 주지 않는다.</b> 기계가 접을 수 있는 것을 사람에게 세게 하지 않는다.</p>
+      </div>
+      <div>
+        <div class="p-id">P2</div>
+        <p><b>전량 처리라는 목표를 없앤다.</b> 리드는 비우는 것이 아니라 꺼내 쓰는 것이다.</p>
+      </div>
+      <div>
+        <div class="p-id">P3</div>
+        <p><b>등급이 다르면 처리 방식이 다르다.</b> 86건과 225건에 같은 카드를 쓰지 않는다.</p>
+      </div>
+      <div>
+        <div class="p-id">P4</div>
+        <p><b>사람에게는 하루치만 준다.</b> 1,514도 378도 사람이 볼 숫자가 아니다.</p>
+      </div>
+    </div>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="s-n">1</div>
+        <div>
+          <h4>사본을 접는다 <span class="dim">1,514 → 378</span></h4>
+          <ul>
+            <li><code>(user_id, source, bulk_import_row)</code>가 같은 그룹의 <strong>최초 1건만 대표</strong>로 삼는다</li>
+            <li>나머지 1,136건은 <strong>지우지 않는다</strong> — <code>superseded_by</code>를 채워 숨긴다(되돌릴 수 있음)</li>
+            <li>화면이 사실을 밝힌다: <code>사본 1,136건을 접었습니다 · 펼쳐 보기</code></li>
+            <li><strong>재발도 같이 막는다</strong> — 부분 유니크 인덱스 + 대량 들여오기를 <code>upsert</code>로.
+                이걸 안 하면 다음 엑셀에서 또 배수가 된다</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="s-n">2</div>
+        <div>
+          <h4>인박스에서 리드를 뺀다</h4>
+          <p><code>/crm/inbox</code>는 <strong>AI 제안 확인 전용</strong>으로 되돌린다 — 원래 용도이자
+             화면 설명 문구 그대로다. 리드는 <code>/crm/leads</code>라는 자기 화면으로 나가고,
+             사이드바에서 <code>회사</code> 위에 선다.</p>
+          <p>이것만으로 <code>1,514건 남음</code> 진척 배지가 사라진다.
+             <strong>압박의 출처가 그 배지였다.</strong></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="s-n">3</div>
+        <div>
+          <h4><code>/crm/leads</code>는 표준 목록으로 만든다 — 새로 그리지 않는다</h4>
+          <pre><code>useListQuery   URL이 진실 — 공유·새로고침에 조건이 살아남는다
+ListToolbar    검색 · 필터 · 정렬 · 보기 · 선택 작업
+ListSurface    ColumnDef 한 벌 (표/카드 동시)
+ListPager      pages</code></pre>
+          <p><strong>필터 축은 이미 데이터에 있다. 새로 만들 것이 없다.</strong></p>
+          <div class="scroll">
+            <table>
+              <caption>이미 존재하는 분류 축 · 실측 분포</caption>
+              <thead><tr><th>축</th><th>값</th></tr></thead>
+              <tbody>
+                <tr><td>세그먼트</td><td class="dim">Mid-Market 1,381 · Enterprise 48 · 공공 46 · 파트너 12 · 스타트업 2</td></tr>
+                <tr><td>수요 강도</td><td class="dim">High 412 · Medium 1,038 · Low 50</td></tr>
+                <tr><td>적합도</td><td class="dim">80+ 80 · 60–79 530 · 40–59 902</td></tr>
+                <tr><td>금액</td><td class="dim">있음 231</td></tr>
+                <tr><td>연락 가능</td><td class="dim">이메일 있음 1,374</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li><strong>정렬 기본값 = 적합도 내림차순</strong> — 지금 코드 주석이 말하던 그대로. 코드만 그렇지 않았다</li>
+            <li>행 클릭 → 리드 상세(원문 그대로 + 무엇이 만들어질지 미리보기)</li>
+            <li><strong>행 액션 3개</strong>: <code>영업으로 올리기</code> · <code>나중에</code>(스누즈) · <code>제외</code>(보관)
+                → 안 고른 것도 처리가 된다. <strong>이게 없어서 큐가 막혔다</strong></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="s-n">4</div>
+        <div>
+          <h4>등급마다 다른 처리</h4>
+          <div class="scroll">
+            <table>
+              <caption>원본 378건 · 실측 등급 분포</caption>
+              <thead>
+                <tr><th>등급</th><th>기준</th><th class="n">건수</th><th class="n">평균 적합도</th><th>사람이 하는 일</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="good">A</td><td>금액 있음 또는 적합도 70+</td><td class="n good">86</td><td class="n">77</td><td><strong>하나씩 본다</strong></td></tr>
+                <tr><td>B</td><td>수요 High</td><td class="n">31</td><td class="n">68</td><td>묶음 승인</td></tr>
+                <tr><td>C</td><td>나머지</td><td class="n">36</td><td class="n">60</td><td>묶음 승인</td></tr>
+                <tr><td>D</td><td>설명이 <code>프로스펙트:</code> 상투구</td><td class="n">225</td><td class="n">55</td><td><strong>옮기지 않는다</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><strong>D 225건을 회사로 등록하지 않는 이유</strong>: 회사 목록이 14곳에서 239곳이 되고
+             그중 225곳은 대화가 시작된 적 없는 이름이다. 그러면 이번엔 <strong>회사 목록이 막힌다</strong> —
+             지금 리드 큐가 겪는 일을 회사 목록에 옮겨 붙이는 셈이다.</p>
+          <p>D는 검색 가능한 리드 목록에 그대로 둔다. 필요해지면 그때 한 건 올린다.
+             <strong>이것이 “전량 이관”을 버린다는 말의 실제 내용이다.</strong></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="s-n">5</div>
+        <div>
+          <h4>사람에게는 하루치만 준다</h4>
+          <pre><code>오늘 화면 · 새 리드 3건
+  A등급 · 아직 아무도 연락 안 한 것 중 위에서 3건
+  각 카드: 회사 · 담당자 · 적합도 · 금액 · 근거 한 줄
+  [영업으로 올리기]  [나중에]  [제외]
+  3건 처리하면 다음 3건</code></pre>
+          <p>A등급 86건 = <strong>약 4주치</strong>.
+             사용자는 1,514도 378도 86도 보지 않는다. <strong>3을 본다.</strong></p>
+        </div>
+      </div>
+
+    </div>
+
+    <h3>부수 수정 — 같은 작업에 포함</h3>
+    <div class="scroll">
+      <table>
+        <tbody>
+          <tr><td class="dim">a</td><td>로딩 중 <code>다 옮겼어요</code> 렌더 금지 — <code>loading</code>이면 배지 자체를 숨긴다</td></tr>
+          <tr><td class="dim">b</td><td><code>status='crm_registered'</code> 378건 정합성 정리 — 연결이 없으면 그 상태를 주장하지 않는다</td></tr>
+          <tr><td class="dim">c</td><td>옛 <code>/lead-intake</code>를 <code>/crm/leads</code>로 일원화 (같은 데이터 위 화면 2개 = F6 그 자체)</td></tr>
+          <tr><td class="dim">d</td><td>이관 후 <code>load()</code> 전체 재조회 → 옮긴 행만 목록에서 제거</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="idx">05</span>
+      <h2>무엇이 달라지나</h2>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>&nbsp;</th><th class="n">지금</th><th class="n">재기획 후</th></tr></thead>
+        <tbody>
+          <tr><td>화면이 말하는 남은 건수</td><td class="n hot">1,514</td><td class="n good">378</td></tr>
+          <tr><td>사람이 도달 가능한 건수</td><td class="n hot">20</td><td class="n good">378</td></tr>
+          <tr><td>사람의 개별 판단 횟수</td><td class="n hot">1,514</td><td class="n good">86</td></tr>
+          <tr><td>묶음 결정</td><td class="n dim">없음</td><td class="n good">2</td></tr>
+          <tr><td>안 고른 리드</td><td class="dim">큐에 영원히 남음</td><td>스누즈 · 보관으로 빠짐</td></tr>
+          <tr><td>상위 20건 품질</td><td class="dim">적합도 40–60 · 수요 Low · 절반 중복</td><td>적합도 순 상위</td></tr>
+          <tr><td><strong>하루에 마주하는 숫자</strong></td><td class="n hot">1,514</td><td class="n good">3</td></tr>
+          <tr><td>파이프라인 재료</td><td class="dim">갇힘</td><td>A 86건이 딜로 흐름</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <blockquote>
+      <p>그리고 <strong><code>오늘</code>·딜 보드·예상 매출·멈춘 딜·체류 시간이 비로소 켜진다</strong> —
+         그 화면들이 안 켜졌던 이유가 딜 2건이었기 때문이다.</p>
+    </blockquote>
+  </section>
+
+  <!-- ─────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="idx">06</span>
+      <h2>구현 순서 — 승인 대기, 착수하지 않음</h2>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th class="n">#</th><th>무엇</th><th>되돌릴 수 있나</th><th>승인</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td>사본 접기 마이그레이션(<code>superseded_by</code> 표시) + 멱등 유니크 인덱스</td><td>표시만 — 삭제 아님</td><td><span class="pill gate">운영 DB · 필요</span></td></tr>
+          <tr><td class="n">2</td><td><code>/crm/leads</code> 표준 목록 신설 + 인박스에서 리드 분리</td><td>예</td><td><span class="pill ok">불요</span></td></tr>
+          <tr><td class="n">3</td><td>등급 판정 SSOT + 3액션(올리기 · 나중에 · 제외)</td><td>예</td><td><span class="pill ok">불요</span></td></tr>
+          <tr><td class="n">4</td><td><code>오늘</code>에 <code>새 리드 3건</code> 카드</td><td>예</td><td><span class="pill ok">불요</span></td></tr>
+          <tr><td class="n">5</td><td>부수 수정 a~d</td><td>예</td><td><span class="pill ok">불요</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>1번만 사용자 승인이 필요하다. 2~5는 되돌릴 수 있는 형태라 승인 없이 갈 수 있다.</p>
+  </section>
+
+  <!-- ─────────────────────────────────────── -->
+  <section>
+    <div class="sec-head">
+      <span class="idx">07</span>
+      <h2>결정이 필요한 것 — 사용자만 아는 사실</h2>
+    </div>
+
+    <div class="qs">
+      <div class="q-item">
+        <div class="q-id">Q1</div>
+        <h4>그 엑셀 378곳은 실제 영업 대상 명단인가, 수집한 후보 리스트인가?</h4>
+        <p>실제 명단이면 D 225건도 회사로 올려야 한다. 후보 리스트면 지금 안이 맞다.
+           <strong>이 답에 따라 4단계가 통째로 달라진다.</strong></p>
+      </div>
+      <div class="q-item">
+        <div class="q-id">Q2</div>
+        <h4>A등급 기준을 “금액 있음 또는 적합도 70+”(86건)로 잡았다. 더 좁혀도 되나?</h4>
+        <p>86건은 하루 3건 기준 약 4주치다. 2주치를 원하면 적합도 80+로 좁힌다.</p>
+      </div>
+      <div class="q-item">
+        <div class="q-id">Q3</div>
+        <h4>사본 1,136건을 표시로 숨길지, 물리 삭제할지?</h4>
+        <p>표시 숨김을 권한다 — 되돌릴 수 있고 원본 대조가 남는다. 삭제를 원하면 별도 승인이 필요하다.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    조사 근거 · 운영 DB 직접 질의(lead_intakes 1,517행 전수) · <code>app/api/crm/lead-import/route.ts</code> ·
+    <code>app/(crm)/crm/inbox/LeadImport.tsx</code> · <code>app/(member)/lead-intake/page.tsx</code> ·
+    실브라우저 <code>localhost:3000/crm/inbox</code>, <code>/crm/today</code> 시각별 측정<br>
+    문서 SSOT · <code>docs/2026-08-17-crm-lead-queue-replan/00-REPORT.md</code>
+  </footer>
+
+</div>

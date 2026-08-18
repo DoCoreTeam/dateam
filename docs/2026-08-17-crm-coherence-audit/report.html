@@ -1,0 +1,762 @@
+<title>CRM 유기성 감사</title>
+<style>
+  :root {
+    --bg:#F5F6F7; --surface:#FFFFFF; --surface-2:#EDF0F2; --surface-3:#E4E8EB;
+    --ink:#11161A; --ink-soft:#333C44; --muted:#5C6874;
+    --line:#DDE3E7; --line-soft:#E9EDF0;
+    --accent:#1A5A54; --accent-soft:#E2EFED;
+    --alert:#A5361A; --alert-soft:#F8E9E3;
+    --amber:#7E5D0C; --amber-soft:#F7F0DC;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Noto Sans KR","Apple SD Gothic Neo",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,"Roboto Mono",monospace;
+    --wrap:1020px; --prose:40rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#0E1113; --surface:#16191C; --surface-2:#1C2125; --surface-3:#232A2F;
+      --ink:#E7EBEE; --ink-soft:#C3CBD2; --muted:#939EA8;
+      --line:#262C31; --line-soft:#1F252A;
+      --accent:#6BBFB2; --accent-soft:#16302D;
+      --alert:#E2825F; --alert-soft:#33201A;
+      --amber:#D3AA4E; --amber-soft:#2C2617;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0E1113; --surface:#16191C; --surface-2:#1C2125; --surface-3:#232A2F;
+    --ink:#E7EBEE; --ink-soft:#C3CBD2; --muted:#939EA8;
+    --line:#262C31; --line-soft:#1F252A;
+    --accent:#6BBFB2; --accent-soft:#16302D;
+    --alert:#E2825F; --alert-soft:#33201A;
+    --amber:#D3AA4E; --amber-soft:#2C2617;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+         font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 24px 96px; }
+
+  .masthead { padding:56px 0 32px; border-bottom:2px solid var(--ink); }
+  .kicker { font-family:var(--mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+            color:var(--muted); margin:0 0 18px; }
+  h1 { font-family:var(--serif); font-size:clamp(2rem,1.2rem+3.2vw,3.2rem); line-height:1.1;
+       letter-spacing:-.02em; font-weight:600; margin:0 0 18px; text-wrap:balance; }
+  .standfirst { font-size:clamp(1rem,.95rem+.3vw,1.14rem); color:var(--ink-soft);
+                max-width:var(--prose); margin:0 0 24px; }
+  .meta { display:flex; flex-wrap:wrap; gap:6px 20px; font-family:var(--mono);
+          font-size:11.5px; color:var(--muted); }
+  .meta .stamp { color:var(--alert); font-weight:600; }
+
+  .glance-label { font-family:var(--mono); font-size:11px; letter-spacing:.13em;
+                  text-transform:uppercase; color:var(--muted); margin:44px 0 14px; }
+  .verdicts { display:grid; grid-template-columns:repeat(auto-fit,minmax(228px,1fr)); gap:13px; }
+  .v { background:var(--surface); border:1px solid var(--line); border-top:3px solid var(--alert);
+       border-radius:3px; padding:18px 18px 20px; display:flex; flex-direction:column; }
+  .v .v-n { font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--muted);
+            margin-bottom:10px; text-transform:uppercase; }
+  .v .v-big { font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:600;
+              font-size:2.1rem; line-height:1; letter-spacing:-.035em; color:var(--alert);
+              margin-bottom:3px; }
+  .v .v-unit { font-size:11.5px; color:var(--muted); margin-bottom:11px; font-family:var(--mono); }
+  .v h3 { font-size:14px; font-weight:650; margin:0 0 5px; letter-spacing:-.005em; line-height:1.4; }
+  .v p { font-size:12.6px; color:var(--ink-soft); margin:0; line-height:1.55; }
+  .v.amber { border-top-color:var(--amber); }
+  .v.amber .v-big { color:var(--amber); }
+
+  .headline { margin:44px 0 0; background:var(--surface); border:1px solid var(--line);
+              border-left:4px solid var(--alert); border-radius:3px;
+              padding:28px clamp(20px,3.5vw,34px) 30px; }
+  .headline .h-eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+                         text-transform:uppercase; color:var(--alert); margin:0 0 10px; }
+  .headline h2 { font-family:var(--serif); font-size:clamp(1.35rem,1.1rem+1vw,1.8rem);
+                 font-weight:600; letter-spacing:-.015em; margin:0 0 16px; text-wrap:balance; }
+  .headline p { max-width:none; margin:0 0 14px; color:var(--ink-soft); }
+  .headline p:last-child { margin-bottom:0; }
+  .headline b { color:var(--ink); font-weight:650; }
+
+  .lost { display:grid; grid-template-columns:repeat(auto-fit,minmax(176px,1fr)); gap:1px;
+          background:var(--line); border:1px solid var(--line); border-radius:3px;
+          overflow:hidden; margin:20px 0 6px; }
+  .lost > div { background:var(--surface-2); padding:14px 16px; }
+  .lost .l-v { font-size:14px; font-weight:650; margin-bottom:3px; letter-spacing:-.005em; }
+  .lost .l-k { font-family:var(--mono); font-size:10.5px; color:var(--muted); letter-spacing:.06em; }
+  .lost .l-c { font-family:var(--mono); font-size:11px; color:var(--alert); font-weight:600; }
+
+  section { margin-top:72px; }
+  .sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:6px;
+              padding-bottom:12px; border-bottom:1px solid var(--line); }
+  .sec-head .idx { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--accent);
+                   letter-spacing:.08em; flex:none; }
+  .sec-head h2 { font-family:var(--serif); font-size:clamp(1.4rem,1.15rem+1vw,1.9rem);
+                 font-weight:600; letter-spacing:-.015em; margin:0; text-wrap:balance; }
+  .sec-sub { font-size:14px; color:var(--muted); margin:12px 0 0; max-width:var(--prose); }
+  h3 { font-family:var(--sans); font-size:1rem; font-weight:650; letter-spacing:-.005em;
+       margin:32px 0 10px; }
+  p { max-width:var(--prose); margin:0 0 14px; }
+  strong { font-weight:650; }
+
+  .scroll { overflow-x:auto; margin:20px 0; }
+  table { width:100%; border-collapse:collapse; font-size:13.6px; min-width:520px; }
+  caption { caption-side:top; text-align:left; font-family:var(--mono); font-size:11px;
+            letter-spacing:.09em; text-transform:uppercase; color:var(--muted); padding-bottom:9px; }
+  th,td { text-align:left; padding:10px 14px 10px 0; border-bottom:1px solid var(--line-soft);
+          vertical-align:top; }
+  thead th { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+             color:var(--muted); border-bottom:1px solid var(--line); white-space:nowrap; }
+  td.n, th.n { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums;
+               padding-right:0; white-space:nowrap; }
+  td.c, th.c { text-align:center; padding-right:0; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody th { font-weight:650; font-size:13.4px; white-space:nowrap; }
+  .hot { color:var(--alert); font-weight:600; }
+  .good { color:var(--accent); font-weight:600; }
+  .warn { color:var(--amber); font-weight:600; }
+  .dim { color:var(--muted); }
+  .yes { color:var(--accent); font-weight:700; }
+  .no  { color:var(--alert); font-weight:700; }
+
+  .findings { margin:22px 0; }
+  .f { display:grid; grid-template-columns:auto 1fr; gap:0 16px;
+       padding:17px 0; border-top:1px solid var(--line-soft); }
+  .f:first-child { border-top:1px solid var(--line); }
+  .sev { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.08em;
+         padding:3px 7px; border-radius:2px; height:fit-content; white-space:nowrap; margin-top:2px; }
+  .sev.hi { background:var(--alert-soft); color:var(--alert); }
+  .sev.md { background:var(--amber-soft); color:var(--amber); }
+  .f h4 { font-size:14.4px; font-weight:650; margin:0 0 5px; letter-spacing:-.005em; }
+  .f p { font-size:13.3px; color:var(--ink-soft); margin:0; max-width:none; line-height:1.6; }
+  .f .ev { font-family:var(--mono); font-size:11.5px; color:var(--muted); margin-top:6px; }
+
+  .plan { background:var(--surface); border:1px solid var(--line); border-radius:3px;
+          padding:24px clamp(18px,3vw,28px) 26px; margin:18px 0; }
+  .plan .p-head { display:flex; align-items:baseline; gap:12px; margin-bottom:6px; }
+  .plan .p-id { font-family:var(--mono); font-size:12px; font-weight:700; color:var(--accent);
+                letter-spacing:.06em; }
+  .plan h3 { margin:0; font-size:1.06rem; font-weight:650; letter-spacing:-.01em; }
+  .plan .p-why { font-size:13.3px; color:var(--muted); margin:0 0 16px; max-width:none; }
+  .plan ul { margin:12px 0 0; padding-left:19px; font-size:13.6px; color:var(--ink-soft); }
+  .plan li { margin-bottom:6px; }
+  .plan li b { color:var(--ink); font-weight:650; }
+  .plan h4 { font-size:13.5px; font-weight:650; margin:22px 0 8px; }
+
+  .shift { display:grid; grid-template-columns:1fr auto 1fr; gap:0 16px; align-items:center;
+           background:var(--surface-2); border-radius:3px; padding:15px 18px; margin:16px 0; }
+  .shift .s-old { font-size:13.3px; color:var(--muted); text-align:right; }
+  .shift .s-arw { font-family:var(--mono); color:var(--accent); font-size:15px; }
+  .shift .s-new { font-size:13.3px; color:var(--ink); font-weight:600; }
+  @media (max-width:560px){ .shift{grid-template-columns:1fr;gap:6px}
+    .shift .s-old,.shift .s-arw{text-align:left} }
+
+  /* nav mock */
+  .navs { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+          border:1px solid var(--line); border-radius:3px; overflow:hidden; margin:22px 0; }
+  .navs > div { background:var(--surface); padding:20px 20px 24px; }
+  .navs h4 { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+             margin:0 0 14px; }
+  .navs .now h4 { color:var(--alert); }
+  .navs .next h4 { color:var(--accent); }
+  .navmock { font-family:var(--mono); font-size:12.3px; line-height:1.95; color:var(--ink-soft); }
+  .navmock .g { color:var(--muted); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+                display:block; margin-top:11px; }
+  .navmock .g:first-child { margin-top:0; }
+  .navmock .it { display:block; padding-left:12px; }
+  .navmock .cut { color:var(--alert); text-decoration:line-through; opacity:.75; }
+  .navmock .add { color:var(--accent); font-weight:600; }
+  .navmock .tot { display:block; margin-top:14px; padding-top:10px; border-top:1px solid var(--line);
+                  font-size:11.5px; color:var(--muted); }
+  @media (max-width:640px){ .navs{grid-template-columns:1fr} }
+
+  pre { background:var(--surface-2); border:1px solid var(--line); border-radius:3px;
+        padding:14px 16px; overflow-x:auto; font-family:var(--mono); font-size:12.2px;
+        line-height:1.6; margin:16px 0; color:var(--ink-soft); }
+  code { font-family:var(--mono); font-size:.88em; background:var(--surface-2);
+         padding:1px 5px; border-radius:2px; }
+  pre code { background:none; padding:0; font-size:inherit; }
+  .bad { color:var(--alert); }
+  .cmt { color:var(--muted); }
+
+  blockquote { margin:24px 0; padding:2px 0 2px 20px; border-left:3px solid var(--accent);
+               max-width:var(--prose); }
+  blockquote p { font-family:var(--serif); font-size:1.1rem; line-height:1.5; margin:0; }
+
+  details { background:var(--surface); border:1px solid var(--line); border-radius:3px; margin:14px 0; }
+  summary { cursor:pointer; padding:14px 18px; font-size:13.3px; font-weight:600;
+            font-family:var(--mono); letter-spacing:.02em; color:var(--accent); list-style:none; }
+  summary::-webkit-details-marker { display:none; }
+  summary::before { content:"▸ "; }
+  details[open] summary::before { content:"▾ "; }
+  details > *:not(summary) { padding:0 18px; }
+  details > .scroll { padding:0 18px 12px; }
+  details > pre { margin:0 18px 16px; }
+
+  .pill { display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700;
+          letter-spacing:.05em; padding:2px 7px; border-radius:2px; }
+  .pill.ok { background:var(--accent-soft); color:var(--accent); }
+  .pill.gate { background:var(--alert-soft); color:var(--alert); }
+
+  footer { margin-top:80px; padding-top:22px; border-top:2px solid var(--ink);
+           font-family:var(--mono); font-size:11.5px; color:var(--muted); line-height:1.9; }
+  a { color:var(--accent); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">dacrm · 전수 감사 2판 · 자율성 · 유기성 · 견적 · 셸</p>
+  <h1>AI는 판단을 못 한 게 아니라, 판단해도 반영할 길이 없다</h1>
+  <p class="standfirst">
+    “어렵지 않은 판단인데 AI가 그걸 못해서 사람에게 부탁하는 모습”이라는 지적을 데이터로 확인했다.
+    <b>확신 97%짜리 AI 판단 29건이 사람 확인을 못 받아 만료됐고, 되살릴 수 없다.</b>
+    그 안에 3억짜리 금액과 의사결정자 이름과 경쟁사 정보가 들어 있었다.
+  </p>
+  <div class="meta">
+    <span>2026-08-17</span><span>v0.7.539</span>
+    <span>API 51 · 서비스 51 · 화면 18 · 셸 4개 전수</span>
+    <span class="stamp">구현하지 않음 — 분석과 기획</span>
+  </div>
+</header>
+
+<p class="glance-label">한 눈에 · 판정 6개</p>
+<div class="verdicts">
+  <div class="v">
+    <div class="v-n">판정 1 · AI 자율성</div>
+    <div class="v-big">81%</div>
+    <div class="v-unit">제안 36건 중 29건 만료</div>
+    <h3>확인을 요구했더니 확인하지 않았다</h3>
+    <p>만료된 29건의 평균 신뢰도 <b>0.97</b>. AI가 헷갈려서가 아니라 반영 경로가 닫혀 있었다.</p>
+  </div>
+  <div class="v">
+    <div class="v-n">판정 2 · 리드</div>
+    <div class="v-big">75%</div>
+    <div class="v-unit">1,514건 중 1,136건이 사본</div>
+    <h3>지울 것과 남길 것이 정해졌다</h3>
+    <p>사본 삭제 · 회사 378곳 전량 등록 · 딜은 A등급 86건만. 지시대로 계획을 고쳤다.</p>
+  </div>
+  <div class="v">
+    <div class="v-n">판정 3 · 견적</div>
+    <div class="v-big">0</div>
+    <div class="v-unit">견적 테이블 · 화면 · API</div>
+    <h3>파는 회사인데 견적을 못 만든다</h3>
+    <p>딜이 가진 건 손으로 친 금액 숫자 하나. GPU 377종·전략판매가·공급가 99건은 옆방에 있다.</p>
+  </div>
+  <div class="v amber">
+    <div class="v-n">판정 4 · 일괄처리</div>
+    <div class="v-big">0</div>
+    <div class="v-unit">CRM 목록 13개 중 선택 가능 0</div>
+    <h3>한꺼번에 손댈 방법이 없다</h3>
+    <p><code>ListSurface</code>가 전체선택을 지원하는데 아무도 안 켰다. 미리보기는 CSV 1곳뿐.</p>
+  </div>
+  <div class="v amber">
+    <div class="v-n">판정 5 · 왼쪽 메뉴</div>
+    <div class="v-big">16</div>
+    <div class="v-unit">셸 4개 중 최다 (CI 12 · 관리자 13 · 업무 10)</div>
+    <h3>그룹 기준이 흐름이 아니라 빈도다</h3>
+    <p>‘기록 / 보기 / 설정’은 순서를 안 알려 준다. 돌아가기 3항목은 헤더 전체메뉴와 중복.</p>
+  </div>
+  <div class="v amber">
+    <div class="v-n">판정 6 · 유기성</div>
+    <div class="v-big">4</div>
+    <div class="v-unit">옛 CRM 화면이 아직 생존</div>
+    <h3>같은 개념이 두 벌로 서비스된다</h3>
+    <p><code>/accounts</code> <code>/contacts</code> <code>/deals</code> <code>/lead-intake</code>.
+       그리고 미팅 상세는 완전한 막다른 길이다.</p>
+  </div>
+</div>
+
+<!-- ══════════ 헤드라인 ══════════ -->
+<div class="headline">
+  <p class="h-eyebrow">가장 큰 발견</p>
+  <h2>“확인해 주세요”가 CRM의 기본값이라, AI가 찾아낸 것이 대부분 버려졌다</h2>
+
+  <p>
+    <code>crm_ai_suggestion</code> 전수 36건의 최종 상태다.
+    <b>PENDING 0 · ACCEPTED 4 · REJECTED 3 · EXPIRED 29.</b>
+    만료는 되돌릴 수 없다 — 수락 처리가 <code>PENDING이고 만료 전</code>을 요구하므로 그 29건은 영구히 죽었다.
+  </p>
+
+  <p>실제로 버려진 것들이다. 전부 신뢰도 <b>1.00</b>.</p>
+
+  <div class="lost">
+    <div><div class="l-k">WHAT · 금액</div><div class="l-v">3억 원</div><div class="l-c">신뢰도 1.00 · 만료</div></div>
+    <div><div class="l-k">WHO · 의사결정자</div><div class="l-v">박민수 구매팀장</div><div class="l-c">신뢰도 1.00 · 만료</div></div>
+    <div><div class="l-k">RISK · 경쟁</div><div class="l-v">클라우드브이와 함께 검토 중</div><div class="l-c">신뢰도 1.00 · 만료</div></div>
+    <div><div class="l-k">NEXT · 다음 할 일</div><div class="l-v">견적서 송부 · 8/25</div><div class="l-c">신뢰도 1.00 · 만료</div></div>
+  </div>
+
+  <p style="margin-top:18px">
+    <b>왜 전부 사람 확인으로 떨어졌나</b> — <code>lib/crm/ai/apply-policy.ts</code>의 관문 6개 중
+    두 개가 사실상 전부를 잡는다.
+  </p>
+
+  <pre><code><span class="cmt">// 관문 2 — 새 레코드 제안은 confidence 무관 항상 사람에게</span>
+if (isNewRecord) return { decision: <span class="bad">'PENDING'</span>, reason: 'NEW_RECORD_NEEDS_HUMAN' }
+
+<span class="cmt">// 관문 5 — 필드별 autoApply 기본 false</span>
+if (!autoApply)  return { decision: <span class="bad">'PENDING'</span>, reason: 'AUTO_APPLY_OFF' }</code></pre>
+
+  <p>
+    실측: 만료 29건 중 <b>22건이 <code>AUTO_APPLY_OFF</code></b>,
+    <b>7건이 <code>NEW_RECORD_NEEDS_HUMAN</code></b>.
+    그리고 <code>crm_ai_field_config</code>는 <b>행이 1개뿐이고 그마저 꺼져 있다</b> —
+    즉 <b>autoApply가 켜질 수 있는 필드가 사실상 존재하지 않는다.</b>
+  </p>
+
+  <blockquote>
+    <p>AI는 0.97로 확신했다. 제품은 그 확신에 아무 의미도 부여하지 않았다.<br>
+       신뢰도를 저장은 하는데, <b>판정에 쓰는 경로가 닫혀 있었다.</b></p>
+  </blockquote>
+</div>
+
+<!-- ══════════ 01 유기성 ══════════ -->
+<section>
+  <div class="sec-head"><span class="idx">01</span><h2>유기성 지도 — 어디서 무엇을 할 수 있나</h2></div>
+  <p class="sec-sub">상세 화면 4개에서 관련된 것을 <strong>그 자리에서 만들 수 있는지</strong> 전수 확인했다.
+     공용 패널(<code>TaskPanel</code>·<code>Timeline</code>)은 잘 공유돼 있다. 문제는 핵심 객체끼리다.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>그 화면에서 바로 만들 수 있나 · v0.7.539 코드 실측</caption>
+      <thead>
+        <tr><th>상세 화면</th><th class="c">할 일</th><th class="c">노트</th><th class="c">미팅</th>
+            <th class="c">인물</th><th class="c">딜</th><th class="c">견적</th><th>막다른 지점</th></tr>
+      </thead>
+      <tbody>
+        <tr><th>딜</th><td class="c yes">✅</td><td class="c yes">✅</td><td class="c no">✕</td>
+            <td class="c yes">✅</td><td class="dim c">—</td><td class="c no">✕</td>
+            <td class="dim">미팅 버튼이 목록으로 보내며 딜을 안 데려감</td></tr>
+        <tr><th>회사</th><td class="c yes">✅</td><td class="c yes">✅</td><td class="c no">✕</td>
+            <td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td>
+            <td class="hot">“인물 화면에서 등록하세요” · “딜 화면에서 만드세요”</td></tr>
+        <tr><th>인물</th><td class="c yes">✅</td><td class="c yes">✅</td><td class="c no">✕</td>
+            <td class="dim c">—</td><td class="c no">✕</td><td class="c no">✕</td>
+            <td class="hot">미팅 패널 자체가 없음</td></tr>
+        <tr><th>미팅</th><td class="c no">✕</td><td class="c no">✕</td><td class="dim c">—</td>
+            <td class="c no">✕</td><td class="c no">✕</td><td class="c no">✕</td>
+            <td class="hot">완전한 막다른 길 — AI 추출을 하는 바로 그 화면인데</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    <strong>미팅 상세가 막다른 길인 것이 특히 나쁘다.</strong>
+    AI 추출(<code>POST /meetings/[id]/extract</code>)이 실행되는 화면이 여기인데,
+    뽑아낸 결과를 <strong>그 자리에서 할 일이나 노트로 만들 수 없다.</strong>
+    결과는 인박스로 보내지고 — 위에서 본 대로 81%가 거기서 만료된다.
+  </p>
+
+  <div class="findings">
+    <div class="f"><span class="sev hi">HIGH</span><div>
+      <h4>옛 CRM 4개 화면이 아직 살아 있다</h4>
+      <p>거래처 <code>/accounts</code>(12건) · 담당자 <code>/contacts</code>(1건) ·
+         영업기회 <code>/deals</code>(1건) · 리드 인테이크 <code>/lead-intake</code>(1,517건)가
+         <code>ProjectTabs</code>로 묶여 그대로 서비스된다. 새 CRM에는 회사 14 · 인물 4 · 딜 2가 있다.</p>
+      <p class="ev">→ 어느 쪽이 정본인지 화면이 말하지 않는다</p>
+    </div></div>
+
+    <div class="f"><span class="sev hi">HIGH</span><div>
+      <h4>일괄 선택이 CRM 전체에 0곳</h4>
+      <p>목록 13개 중 표준 목록(<code>ListSurface</code>)을 쓰는 곳은 3개(딜·인물·회사)뿐이고,
+         그 3개도 selection을 안 켰다.</p>
+      <p class="ev">→ 회사 378곳이 들어오면 다음 병목이 정확히 여기다</p>
+    </div></div>
+
+    <div class="f"><span class="sev md">MED</span><div>
+      <h4>미리보기 패턴은 이미 있는데 한 곳에만 쓴다</h4>
+      <p><code>/api/crm/import</code>가 <code>mode: 'preview' | 'apply'</code> 2단계를 이미 구현했다 —
+         “새로 만들 것 · 이미 있는 것 · 못 넣는 것”을 세어 보여 준다.</p>
+      <p class="ev">→ 리드 이관·일괄 동작·병합이 이 패턴을 재사용하면 된다. 새로 만들 것이 없다</p>
+    </div></div>
+
+    <div class="f"><span class="sev md">MED</span><div>
+      <h4>제안 만료가 삭제와 같다</h4>
+      <p>TTL 7일이 지나면 <code>EXPIRED</code>가 되고, 수락 경로가 <code>PENDING</code>만 받으므로
+         되살릴 수 없다.</p>
+      <p class="ev">→ AI 산출물의 기본 운명이 “읽히지 않으면 소멸”이다</p>
+    </div></div>
+
+    <div class="f"><span class="sev md">MED</span><div>
+      <h4>AI 예산 $50 중 $0 사용 · 단계 진입조건 666개 중 0개 켜짐</h4>
+      <p>파이프라인 6 × 단계 37 → 조건 토글 <strong>666개</strong>가 전부 꺼져 있다.</p>
+      <p class="ev">→ 설정은 많은데 제품이 하는 일은 없다. 켜는 비용을 사람에게 떠넘긴 구조</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════ 02 견적 ══════════ -->
+<section>
+  <div class="sec-head"><span class="idx">02</span><h2>견적 — 없는 기능, 그런데 재료는 다 있다</h2></div>
+  <p class="sec-sub">CRM 전체에 견적 테이블·화면·API가 <strong>하나도 없다.</strong>
+     딜이 가진 금액 정보는 <code>amountMinor</code> 숫자 하나이고, 그건 <strong>사람이 손으로 친 값</strong>이다.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>파는 데 필요한 것 — 어디에 있고 어디가 비었나</caption>
+      <thead><tr><th>필요한 것</th><th>지금 있나</th><th>어디에</th></tr></thead>
+      <tbody>
+        <tr><td>팔 물건 목록</td><td class="yes">✅ 377종</td><td><code>gpu_products</code></td></tr>
+        <tr><td>우리 판매가</td><td class="yes">✅</td><td><code>strategic_price_krw</code> · 가격 콕핏</td></tr>
+        <tr><td>우리 원가(공급가)</td><td class="yes">✅ 99건</td><td><code>supply_quotes</code></td></tr>
+        <tr><td>딜에 붙은 금액</td><td class="warn">△ 숫자 하나</td><td><code>crm_deal.amountMinor</code> — 손 입력</td></tr>
+        <tr><td><strong>무엇을 몇 대 얼마에</strong></td><td class="no">✕ 없음</td><td class="hot">품목·수량·단가를 담을 곳이 없다</td></tr>
+        <tr><td><strong>고객에게 보낼 문서</strong></td><td class="no">✕ 없음</td><td class="hot">견적서 출력 경로 0</td></tr>
+        <tr><td><strong>견적 버전·상태</strong></td><td class="no">✕ 없음</td><td class="hot">보낸 견적이 무엇이었는지 남지 않는다</td></tr>
+        <tr><td>마진</td><td class="no">✕ 없음</td><td class="hot">원가는 아는데 딜과 이어지지 않음</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <blockquote>
+    <p>AI가 미팅에서 <b>“3억”</b>과 <b>“견적서 송부 8/25”</b>를 뽑아냈는데,
+       제품에는 그 3억을 담을 견적도, 송부할 견적서도 없었다.<br>
+       <b>그래서 그 제안은 숫자 하나로 남았고, 만료됐다.</b></p>
+  </blockquote>
+
+  <p><code>QuoteRegisterTab</code>이 GPU 쪽에 있지만 그건 <strong>우리가 받는 공급 견적을 등록</strong>하는 화면이지
+     고객에게 나가는 견적이 아니다. 방향이 반대다.</p>
+</section>
+
+<!-- ══════════ 03 셸 ══════════ -->
+<section>
+  <div class="sec-head"><span class="idx">03</span><h2>왼쪽 메뉴 — 왜 나열처럼 보이나</h2></div>
+
+  <div class="scroll">
+    <table>
+      <caption>셸 4개 비교 · 실측</caption>
+      <thead><tr><th>셸</th><th class="n">항목</th><th>그룹을 나눈 기준</th><th class="n">배지</th><th>밖으로 나가는 길</th></tr></thead>
+      <tbody>
+        <tr><th class="hot">CRM</th><td class="n hot">16</td>
+            <td class="hot">빈도 — 기록 / 보기 / 설정</td><td class="n">1</td>
+            <td class="hot">사이드바 3항목 + 헤더 전체메뉴 <strong>(중복)</strong></td></tr>
+        <tr><th>콘텐츠 인텔리전스</th><td class="n good">12</td>
+            <td class="good">업무 흐름 — 리서치 → 제작 → 게시 → 성과</td><td class="n good">4</td>
+            <td>헤더 전체메뉴만</td></tr>
+        <tr><th>관리자</th><td class="n">13</td><td class="dim">—</td><td class="n dim">—</td><td class="dim">헤더</td></tr>
+        <tr><th>업무</th><td class="n">10</td><td class="dim">—</td><td class="n dim">—</td><td class="dim">헤더</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>세 가지가 겹쳐서 “나열”로 읽힌다.</p>
+
+  <div class="findings">
+    <div class="f"><span class="sev hi">HIGH</span><div>
+      <h4>그룹 이름이 순서를 알려 주지 않는다</h4>
+      <p>CI는 <code>리서치 → 제작 → 게시 → 성과</code>라 <strong>이름만 읽어도 일하는 순서</strong>가 보인다.
+         CRM은 <code>기록 / 보기 / 설정</code> — 자주 여는 정도로 나눴다.
+         사용자는 “얼마나 자주 여는가”로 메뉴를 찾지 않는다.</p>
+    </div></div>
+    <div class="f"><span class="sev md">MED</span><div>
+      <h4>‘돌아가기’ 3항목이 헤더 전체메뉴와 중복이다</h4>
+      <p>CI에는 이 그룹이 없고 헤더로만 나간다. CRM만 사이드바에 홈·업무·캘린더를 또 뒀다.
+         <strong>16항목 중 3항목이 나가는 문이다.</strong></p>
+      <p class="ev">→ 지시대로 CI와 같은 방식(헤더 전체메뉴)으로 통일하면 13항목이 된다</p>
+    </div></div>
+    <div class="f"><span class="sev md">MED</span><div>
+      <h4>배지가 인박스 하나뿐이라 어디가 급한지 안 보인다</h4>
+      <p>CI는 수집함·트렌드·파이프라인·게시 4곳에 대기 수를 띄운다.
+         CRM은 인박스만 — 정작 <strong>기한 지난 할 일·멈춘 딜</strong>에는 없다.</p>
+    </div></div>
+  </div>
+
+  <div class="navs">
+    <div class="now">
+      <h4>지금 · 16항목</h4>
+      <div class="navmock">
+        <span class="it">오늘</span><span class="it">인박스</span><span class="it">딜</span>
+        <span class="it">회사</span><span class="it">인물</span>
+        <span class="g">기록</span><span class="it">미팅</span><span class="it">할 일</span>
+        <span class="g">보기</span><span class="it">리포트</span><span class="it">변경 이력</span>
+        <span class="g">설정</span><span class="it">영업 단계</span><span class="it">멤버</span><span class="it">설정</span>
+        <span class="g">돌아가기</span><span class="it cut">홈</span><span class="it cut">업무</span><span class="it cut">캘린더</span>
+        <span class="tot">그룹 기준 = 여는 빈도 · 배지 1곳</span>
+      </div>
+    </div>
+    <div class="next">
+      <h4>제안 · 12항목</h4>
+      <div class="navmock">
+        <span class="it">오늘 <span class="dim">← 인박스 흡수</span></span>
+        <span class="g">영업</span><span class="it">딜</span><span class="it">회사</span>
+        <span class="it">인물</span><span class="it add">리드</span>
+        <span class="g">기록</span><span class="it">미팅</span><span class="it">할 일</span><span class="it add">견적</span>
+        <span class="g">분석</span><span class="it">리포트</span>
+        <span class="g">설정</span><span class="it">영업 단계</span><span class="it">멤버 · 변경 이력 · 설정</span>
+        <span class="tot">그룹 기준 = 영업 흐름 · 돌아가기는 헤더(CI와 동일)</span>
+      </div>
+    </div>
+  </div>
+
+  <p><strong>인박스를 ‘오늘’로 흡수하는 것이 핵심이다.</strong>
+     기획 A를 적용하면 확인할 것이 금액·단계뿐으로 줄어든다. 하루 몇 건짜리를 위해 최상위 메뉴를 유지하면
+     “확인해 주세요”가 다시 제품의 중심에 선다.</p>
+</section>
+
+<!-- ══════════ 04 기획 ══════════ -->
+<section>
+  <div class="sec-head"><span class="idx">04</span><h2>기획 — 여섯 갈래</h2></div>
+  <p class="sec-sub">지시(사본 불필요 · 회사 전량 등록 · 의미 있는 것만 · 일괄 UI · 미리보기 ·
+     확인 재검토 · 유기성 · 견적 · 돌아가기 · 왼쪽 메뉴)를 전부 반영했다.</p>
+
+  <div class="plan">
+    <div class="p-head"><span class="p-id">A</span><h3>확인을 요구하지 않는다 — 하고 나서 알린다</h3></div>
+    <p class="p-why">근거: 확인을 요구한 결과가 만료 81%다. 사람이 게을러서가 아니라
+       <strong>확인은 원래 잘 안 되는 동작</strong>이라는 것이 실측으로 증명됐다.</p>
+    <div class="shift">
+      <div class="s-old">“AI가 이렇게 제안합니다. 확인해 주세요”</div>
+      <div class="s-arw">→</div>
+      <div class="s-new">“AI가 이렇게 했습니다. 아니면 되돌리세요”</div>
+    </div>
+    <div class="scroll">
+      <table>
+        <caption>자율성 4등급 — 되돌릴 수 있으면 그냥 한다</caption>
+        <thead><tr><th>등급</th><th>예</th><th>지금</th><th>바꿀 것</th></tr></thead>
+        <tbody>
+          <tr><td class="good">자동</td><td>인물 추가 · 노트 · 리스크 기록 · 다음 할 일 · 미팅 요약</td>
+              <td class="hot">사람 확인</td><td><strong>바로 반영 + 되돌리기</strong></td></tr>
+          <tr><td class="good">자동</td><td>빈 칸 채우기 — 직함 · 업종 · 도메인 · 지역</td>
+              <td class="hot">사람 확인</td><td><strong>신뢰도 0.9+ 바로 반영</strong></td></tr>
+          <tr><td class="warn">알림</td><td>이미 값이 있는 필드 덮어쓰기</td>
+              <td class="hot">사람 확인</td><td>반영 + <strong>“바뀌었어요” 알림</strong> · 원래 값 보존</td></tr>
+          <tr><td class="hot">확인</td><td>금액 · 단계 이동 · 수주/실주 · 사람이 확정한 필드</td>
+              <td>사람 확인</td><td><strong>유지</strong> — 여기는 물어야 맞다</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><b>관문 2를 바꾼다</b> — <code>isNewRecord → 항상 PENDING</code>을
+          <code>파괴적이지 않은 신규(인물·활동·할 일)는 자동</code>으로. 회사·딜 생성은 확인 유지</li>
+      <li><b>관문 5의 기본값을 뒤집는다</b> — <code>autoApply</code> 기본 <code>false</code> → <code>true</code>.
+          <code>NEVER_AUTO_APPLY_FIELDS</code>는 그대로. <strong>끄고 싶은 사람이 끈다</strong></li>
+      <li><b>만료를 소멸이 아니라 보류로</b> — TTL 후 <code>‘나중에 볼 것’</code>으로 옮기고 되살릴 수 있게</li>
+      <li><b>되돌리기가 전제다</b> — AI가 만든 것은 <code>source='AI'</code>로 표시하고 한 번에 되돌린다</li>
+    </ul>
+  </div>
+
+  <div class="plan">
+    <div class="p-head"><span class="p-id">B</span><h3>리드 1,514건 정리 — 지시대로 고친 계획</h3></div>
+    <p class="p-why">지난 안에서 셋을 바꿨다: 사본은 <strong>삭제</strong>(숨김 아님),
+       회사는 <strong>전량 등록</strong>(선별 아님), 처리는 <strong>일괄 + 미리보기</strong>(한 건씩 아님).</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th class="n">#</th><th>무엇</th><th class="n">건수</th><th>어떻게</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td>사본 삭제</td><td class="n hot">1,136</td>
+              <td><code>bulk_import_row</code> 그룹의 최초 1건만 남김 · <strong>삭제 전 백업 테이블 복사</strong></td></tr>
+          <tr><td class="n">2</td><td>재발 차단</td><td class="n">—</td>
+              <td><code>(user_id, source, bulk_import_row)</code> 유니크 + 들여오기를 <code>upsert</code>로</td></tr>
+          <tr><td class="n">3</td><td>회사 전량 등록</td><td class="n good">378</td>
+              <td>이름·도메인·지역·업종·세그먼트·수요·적합도를 <strong>정식 필드로</strong></td></tr>
+          <tr><td class="n">4</td><td>인물 등록</td><td class="n">약 340</td><td>이름 있는 것만 · 이메일·전화·직함 포함</td></tr>
+          <tr><td class="n">5</td><td>딜 생성</td><td class="n good">86</td>
+              <td>A등급만 — <strong>파이프라인을 더럽히지 않는다</strong></td></tr>
+          <tr><td class="n">6</td><td>원문 보존</td><td class="n">378</td><td>리드 원문을 회사 노트로 남겨 “왜 넣었는지”가 남게</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>“의미 있는 데이터만” — 실제로 무엇을 버리나</h4>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>필드</th><th>실태</th><th>처리</th></tr></thead>
+        <tbody>
+          <tr><td><code>region</code> · <code>product_recommendation</code></td>
+              <td class="dim">대부분 <code>""</code> / <code>null</code></td>
+              <td>빈 값이면 <strong>칸을 만들지 않는다</strong></td></tr>
+          <tr><td><code>deal_description</code></td><td>225건이 <code>프로스펙트:</code> 상투구</td>
+              <td>상투구는 <strong>노트로만</strong> · 딜 이름에 안 씀</td></tr>
+          <tr><td><code>fit_score</code>·<code>segment</code>·<code>gpu_demand_intensity</code></td>
+              <td class="good">1,510건 채워짐 — 유일하게 판별력 있는 축</td>
+              <td><strong>정식 필드로 승격</strong> — 지금은 문자열에 묻혀 필터가 안 된다</td></tr>
+          <tr><td><code>status='crm_registered'</code></td><td class="hot">378건이 주장하는데 연결 0</td>
+              <td>거짓 상태값 <strong>정리</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="plan">
+    <div class="p-head"><span class="p-id">C</span><h3>일괄처리 + 미리보기를 CRM 표준으로</h3></div>
+    <p class="p-why">회사 378곳이 들어오면 다음 병목은 목록이다.
+       일괄 수단 없이 넣으면 리드 큐가 겪던 일이 회사 목록에서 반복된다.</p>
+    <ul>
+      <li><b>모든 일괄 동작은 2단계다</b> — <code>미리보기 → 무엇이 바뀌는지 표 → 실행</code>.
+          <code>/api/crm/import</code>의 <code>preview|apply</code>를 <strong>공용 계약으로 승격</strong></li>
+      <li><b><code>ListSurface</code> 전체선택을 켠다</b> — 딜·인물·회사·리드. 부품은 이미 지원한다</li>
+      <li><b>일괄 동작 6종</b>: 담당자 지정 · 단계 이동 · 태그 · 삭제 · 병합 · 내보내기</li>
+      <li><b>리드 일괄 버튼</b>: <code>회사로 일괄 등록</code> · <code>딜까지 일괄 생성</code> · <code>일괄 제외</code> —
+          누르기 전 <strong>“회사 312곳 새로 만들고 66곳은 기존에 붙입니다”</strong>를 먼저 보여 준다</li>
+      <li><b>되돌리기</b>: 일괄 실행에 배치 ID를 붙여 <strong>배치 단위로 되돌린다</strong></li>
+    </ul>
+  </div>
+
+  <div class="plan">
+    <div class="p-head"><span class="p-id">D</span><h3>유기성 복구 — 막다른 길 없애기</h3></div>
+    <p class="p-why">규칙 하나로 정리된다:
+       <strong>어떤 상세 화면에서든, 거기 보이는 것은 거기서 만들 수 있어야 한다.</strong></p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>어디</th><th>지금</th><th>바꿀 것</th></tr></thead>
+        <tbody>
+          <tr><td>미팅 상세</td><td class="hot">막다른 길 — 추출만 하고 끝</td>
+              <td>추출 결과를 <strong>그 자리에서</strong> 할 일·노트·연락처로. 딜/회사 연결도 여기서</td></tr>
+          <tr><td>회사 상세</td><td class="hot">“인물 화면에서 등록하세요”</td>
+              <td>인물·딜 <strong>인라인 생성</strong>(회사 미리 채움) + 미팅 패널</td></tr>
+          <tr><td>인물 상세</td><td class="hot">“딜 화면에서 만드세요”</td><td>딜 인라인 생성 + 미팅 패널</td></tr>
+          <tr><td>미팅 패널</td><td class="hot">목록으로 보내며 맥락 잃음</td>
+              <td><code>?dealId=</code>·<code>?companyId=</code>를 갖고 가 <strong>바로 기록 모달</strong></td></tr>
+          <tr><td>옛 메뉴 4개</td><td class="hot">두 벌 병존</td>
+              <td>이관 후 <strong>읽기 전용 → 제거</strong>. 그때까지 “여기는 옛 화면입니다” 배너</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="plan">
+    <div class="p-head"><span class="p-id">E</span><h3>견적 — 딜과 가격 시스템을 잇는다</h3></div>
+    <p class="p-why">재료는 이미 다 있다. 없는 것은 <strong>둘을 잇는 표 하나</strong>다.</p>
+    <div class="shift">
+      <div class="s-old">딜 금액 = 사람이 친 숫자 하나</div>
+      <div class="s-arw">→</div>
+      <div class="s-new">딜 금액 = 견적 줄들의 합계 (자동)</div>
+    </div>
+    <ul>
+      <li><b><code>crm_quote</code> + <code>crm_quote_line</code> 신설</b> — 딜에 1:N.
+          줄마다 <code>gpu_products</code> 참조 · 수량 · 단가 · 할인</li>
+      <li><b>단가 기본값 = <code>strategic_price_krw</code></b> — 가격 콕핏이 SSOT다.
+          손으로 고칠 수 있되 <strong>기준가와의 차이를 표시</strong></li>
+      <li><b>마진을 내부에만 보여 준다</b> — <code>supply_quotes</code> 최저가 대비.
+          고객 문서에는 안 나간다</li>
+      <li><b>버전과 상태</b> — 보낸 견적은 <strong>고정(불변)</strong>, 수정은 새 버전.
+          초안 → 발송 → 수락 / 거절 / 만료</li>
+      <li><b>출력</b> — HTML·PDF. 기존 <code>/api/crm/export</code> 옆에 붙인다</li>
+      <li><b>금액이 확인 대상에서 빠진다</b> — 견적 합계가 딜 금액을 채우므로
+          AI가 뽑은 “3억”은 <strong>견적 초안 제안</strong>이 된다. 숫자 하나로 남아 만료되지 않는다</li>
+      <li><b>666개 죽은 토글의 첫 쓸모</b> — “‘제안’ 단계로 옮기려면 견적이 있어야 한다”가
+          <strong>실제로 켤 만한 첫 진입 조건</strong>이다</li>
+    </ul>
+  </div>
+
+  <div class="plan">
+    <div class="p-head"><span class="p-id">F</span><h3>왼쪽 메뉴와 돌아가기 — CI와 같은 방식으로</h3></div>
+    <p class="p-why">지시: 돌아가기를 콘텐츠 인텔리전스와 동일하게, 그리고 메뉴 나열을 줄일 것.</p>
+    <ul>
+      <li><b>그룹 기준을 빈도에서 흐름으로</b> — <code>영업 → 기록 → 분석 → 설정</code>.
+          CI의 <code>리서치 → 제작 → 게시 → 성과</code>와 같은 원리</li>
+      <li><b>돌아가기 3항목 제거</b> — 헤더 전체메뉴로 통일(CI와 동일). <strong>16 → 13</strong></li>
+      <li><b>인박스를 ‘오늘’로 흡수</b> — A 적용 후 확인할 것은 금액·단계뿐. <strong>13 → 12</strong></li>
+      <li><b>‘리드’와 ‘견적’ 신설</b>, <code>변경 이력</code>은 설정으로 이동 — 최종 <strong>12항목</strong></li>
+      <li><b>배지를 늘린다</b> — 오늘(기한 지난 할 일) · 딜(멈춘 딜) · 리드(미검토).
+          CI는 4곳에 있는데 CRM은 1곳뿐이다</li>
+      <li><b>표면 전환은 한 곳에서만</b> — CRM·CI·관리자가 각자 다르게 풀지 않도록
+          <strong>셸 계약으로 고정</strong>하고 가드를 붙인다</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════ 05 실행 ══════════ -->
+<section>
+  <div class="sec-head"><span class="idx">05</span><h2>실행 순서</h2></div>
+  <div class="scroll">
+    <table>
+      <thead><tr><th class="n">#</th><th>무엇</th><th>왜 이 순서</th><th>승인</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td>사본 1,136건 삭제 + 멱등 인덱스</td>
+            <td>뒤 작업이 전부 378 기준</td><td><span class="pill gate">삭제 · 필요</span></td></tr>
+        <tr><td class="n">2</td><td>AI 자율성 정책 전환 <span class="dim">(A)</span></td>
+            <td>지금도 매일 제안이 만료된다. 손실이 가장 큰 곳</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">3</td><td>일괄 + 미리보기 공용 계약 <span class="dim">(C)</span></td>
+            <td>4번이 이걸 쓴다</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">4</td><td>리드 → 회사 378 · 인물 340 · 딜 86 일괄 이관 <span class="dim">(B)</span></td>
+            <td>미리보기 확인 후 배치 실행 · 배치 단위 되돌리기</td><td><span class="pill gate">데이터 생성 · 필요</span></td></tr>
+        <tr><td class="n">5</td><td>견적 <span class="dim">(E)</span></td>
+            <td>딜 86건이 생긴 뒤라야 실제로 쓸 수 있다</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">6</td><td>유기성 복구 + 메뉴 재편 <span class="dim">(D·F)</span></td>
+            <td>‘견적’ 메뉴가 생긴 뒤 한 번에 재편해야 두 번 안 흔든다</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">7</td><td>옛 메뉴 4개 제거</td>
+            <td>이관 검증 후 마지막</td><td><span class="pill gate">필요</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>1 · 4 · 7만 승인이 필요하다.</strong> 나머지는 되돌릴 수 있어 승인 없이 간다.</p>
+</section>
+
+<!-- ══════════ 06 근거 ══════════ -->
+<section>
+  <div class="sec-head"><span class="idx">06</span><h2>근거 — 필요할 때만 펼쳐 보기</h2></div>
+
+  <details>
+    <summary>AI 제안 36건 전수 상태</summary>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>상태</th><th class="n">건수</th><th class="n">평균 신뢰도</th><th>막힌 관문</th></tr></thead>
+        <tbody>
+          <tr><td class="hot">EXPIRED</td><td class="n hot">29</td><td class="n">0.97</td>
+              <td><code>AUTO_APPLY_OFF</code> 22 · <code>NEW_RECORD_NEEDS_HUMAN</code> 7</td></tr>
+          <tr><td>ACCEPTED</td><td class="n">4</td><td class="n">0.88</td><td class="dim">사람이 수락</td></tr>
+          <tr><td>REJECTED</td><td class="n">3</td><td class="n">0.97</td><td class="dim">사람이 거절</td></tr>
+          <tr><td>PENDING</td><td class="n">0</td><td class="n dim">—</td><td class="dim">대기 없음</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="dim" style="font-size:13px;padding-bottom:14px">
+      축별 만료: WHO 7 · RISK 7 · WHAT 5 · NEXT 5 · WHERE 5 — 5축 전부에서 고르게 버려졌다.
+    </p>
+  </details>
+
+  <details>
+    <summary>리드 1,514건 구성</summary>
+    <div class="scroll">
+      <table>
+        <tbody>
+          <tr><th>전체</th><td class="n">1,514</td><td class="dim">고유 <code>bulk_import_row</code> 378 → 사본 1,136(75%)</td></tr>
+          <tr><th>회사당 행 수</th><td class="n">4</td><td class="dim">376곳이 정확히 4행 · 내용 완전 동일</td></tr>
+          <tr><th>A 등급</th><td class="n good">86</td><td class="dim">금액 있음 또는 적합도 70+ · 평균 77</td></tr>
+          <tr><th>B 수요 High</th><td class="n">31</td><td class="dim">평균 68</td></tr>
+          <tr><th>C 나머지</th><td class="n">36</td><td class="dim">평균 60</td></tr>
+          <tr><th>D 콜드</th><td class="n">225</td><td class="dim"><code>프로스펙트:</code> 상투구 · 평균 55</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>CRM 현재 규모 · 설정 실태</summary>
+    <div class="scroll">
+      <table>
+        <tbody>
+          <tr><th>딜</th><td class="n hot">2</td><th>회사</th><td class="n">14</td><th>인물</th><td class="n">4</td></tr>
+          <tr><th>미팅</th><td class="n">11</td><th>할 일</th><td class="n">14</td><th>활동</th><td class="n">24</td></tr>
+          <tr><th>파이프라인</th><td class="n">6</td><th>단계</th><td class="n">37</td><th>진입조건</th><td class="n hot">666 / 켜짐 0</td></tr>
+          <tr><th>AI 예산</th><td class="n">$50</td><th>사용</th><td class="n hot">$0</td><th>자동반영</th><td class="n hot">1행 / 켜짐 0</td></tr>
+          <tr><th>GPU 카탈로그</th><td class="n">377</td><th>공급가</th><td class="n">99</td><th>견적</th><td class="n hot">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>조사 방법 · 재현</summary>
+    <pre><code><span class="cmt">-- AI 제안이 어느 관문에 걸렸나</span>
+select status,
+  case when "targetId" is null then 'NEW_RECORD_NEEDS_HUMAN' else 'AUTO_APPLY_OFF' end,
+  count(*), round(avg(confidence)::numeric,2)
+from crm_ai_suggestion group by 1,2;
+
+<span class="cmt">-- 사본 비율</span>
+select count(*), count(distinct parsed_data->>'bulk_import_row')
+from lead_intakes where crm_migrated_at is null;</code></pre>
+    <p style="font-size:13px;color:var(--muted);padding-bottom:16px">
+      코드: <code>lib/crm/ai/apply-policy.ts</code> · <code>lib/crm/services/suggestion.ts</code> ·
+      <code>app/api/crm/import/route.ts</code> · <code>app/(crm)/layout.tsx</code> ·
+      <code>app/(ci)/layout.tsx</code> · <code>app/(crm)/crm/**/[id]/*Detail.tsx</code> ·
+      <code>components/ui/crm/{Task,Meeting}Panel.tsx</code> · <code>components/ui/ProjectTabs.tsx</code>
+    </p>
+  </details>
+</section>
+
+<footer>
+  전수 범위 · CRM API 51개 · 서비스 51개 · 화면 18개 · 셸 4개 · 운영 DB 직접 질의 · 실브라우저 확인<br>
+  이전 보고 · <code>docs/2026-08-17-crm-lead-queue-replan/</code> (리드 큐 1판 — 기획 B가 이를 대체한다)
+</footer>
+
+</div>

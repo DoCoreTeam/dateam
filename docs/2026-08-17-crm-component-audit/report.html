@@ -1,0 +1,590 @@
+<title>CRM 구성요소 감사</title>
+<style>
+  :root {
+    --bg:#F5F6F7; --surface:#FFFFFF; --surface-2:#EDF0F2; --surface-3:#E4E8EB;
+    --ink:#11161A; --ink-soft:#333C44; --muted:#5C6874;
+    --line:#DDE3E7; --line-soft:#E9EDF0;
+    --accent:#1A5A54; --accent-soft:#E2EFED;
+    --alert:#A5361A; --alert-soft:#F8E9E3;
+    --amber:#7E5D0C; --amber-soft:#F7F0DC;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Noto Sans KR","Apple SD Gothic Neo",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,"Roboto Mono",monospace;
+    --wrap:1040px; --prose:40rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#0E1113; --surface:#16191C; --surface-2:#1C2125; --surface-3:#232A2F;
+      --ink:#E7EBEE; --ink-soft:#C3CBD2; --muted:#939EA8;
+      --line:#262C31; --line-soft:#1F252A;
+      --accent:#6BBFB2; --accent-soft:#16302D;
+      --alert:#E2825F; --alert-soft:#33201A;
+      --amber:#D3AA4E; --amber-soft:#2C2617;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0E1113; --surface:#16191C; --surface-2:#1C2125; --surface-3:#232A2F;
+    --ink:#E7EBEE; --ink-soft:#C3CBD2; --muted:#939EA8;
+    --line:#262C31; --line-soft:#1F252A;
+    --accent:#6BBFB2; --accent-soft:#16302D;
+    --alert:#E2825F; --alert-soft:#33201A;
+    --amber:#D3AA4E; --amber-soft:#2C2617;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+         font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 24px 96px; }
+
+  .masthead { padding:56px 0 32px; border-bottom:2px solid var(--ink); }
+  .kicker { font-family:var(--mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+            color:var(--muted); margin:0 0 18px; }
+  h1 { font-family:var(--serif); font-size:clamp(2rem,1.2rem+3.2vw,3.2rem); line-height:1.1;
+       letter-spacing:-.02em; font-weight:600; margin:0 0 18px; text-wrap:balance; }
+  .standfirst { font-size:clamp(1rem,.95rem+.3vw,1.14rem); color:var(--ink-soft);
+                max-width:var(--prose); margin:0 0 24px; }
+  .meta { display:flex; flex-wrap:wrap; gap:6px 20px; font-family:var(--mono);
+          font-size:11.5px; color:var(--muted); }
+  .meta .stamp { color:var(--alert); font-weight:600; }
+
+  section { margin-top:72px; }
+  .sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:6px;
+              padding-bottom:12px; border-bottom:1px solid var(--line); }
+  .sec-head .idx { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--accent);
+                   letter-spacing:.08em; flex:none; }
+  .sec-head h2 { font-family:var(--serif); font-size:clamp(1.4rem,1.15rem+1vw,1.9rem);
+                 font-weight:600; letter-spacing:-.015em; margin:0; text-wrap:balance; }
+  .sec-sub { font-size:14px; color:var(--muted); margin:12px 0 0; max-width:var(--prose); }
+  h3 { font-family:var(--sans); font-size:1rem; font-weight:650; margin:32px 0 10px;
+       letter-spacing:-.005em; }
+  p { max-width:var(--prose); margin:0 0 14px; }
+  strong { font-weight:650; }
+
+  /* 자기감사 카드 */
+  .selfaudit { margin:40px 0 0; background:var(--surface); border:1px solid var(--line);
+               border-left:4px solid var(--alert); border-radius:3px;
+               padding:28px clamp(20px,3.5vw,34px) 24px; }
+  .selfaudit .h-eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+                          text-transform:uppercase; color:var(--alert); margin:0 0 10px; }
+  .selfaudit h2 { font-family:var(--serif); font-size:clamp(1.3rem,1.1rem+1vw,1.75rem);
+                  font-weight:600; letter-spacing:-.015em; margin:0 0 18px; text-wrap:balance; }
+  .flaws { display:grid; gap:0; }
+  .flaw { display:grid; grid-template-columns:auto 1fr; gap:0 16px; padding:16px 0;
+          border-top:1px solid var(--line-soft); }
+  .flaw:first-child { border-top:0; padding-top:0; }
+  .flaw .fn { font-family:var(--serif); font-size:1.5rem; line-height:1; color:var(--alert);
+              font-weight:600; }
+  .flaw h4 { font-size:14.6px; font-weight:650; margin:0 0 5px; }
+  .flaw p { font-size:13.4px; color:var(--ink-soft); margin:0; max-width:none; line-height:1.6; }
+  .flaw .ev { font-family:var(--mono); font-size:11.5px; color:var(--muted); margin-top:6px; }
+
+  /* 오탐 표 */
+  .scroll { overflow-x:auto; margin:20px 0; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:520px; }
+  caption { caption-side:top; text-align:left; font-family:var(--mono); font-size:11px;
+            letter-spacing:.09em; text-transform:uppercase; color:var(--muted); padding-bottom:9px; }
+  th,td { text-align:left; padding:9px 14px 9px 0; border-bottom:1px solid var(--line-soft);
+          vertical-align:top; }
+  thead th { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+             color:var(--muted); border-bottom:1px solid var(--line); white-space:nowrap; }
+  td.n,th.n { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums;
+              padding-right:0; white-space:nowrap; }
+  td.c,th.c { text-align:center; padding-right:0; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody th { font-weight:650; font-size:13.3px; white-space:nowrap; }
+  .hot{color:var(--alert);font-weight:600} .good{color:var(--accent);font-weight:600}
+  .warn{color:var(--amber);font-weight:600} .dim{color:var(--muted)}
+
+  /* FR 매트릭스 */
+  .frtable td:first-child { font-family:var(--mono); font-size:11.5px; color:var(--muted);
+                            white-space:nowrap; }
+  .st { display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700;
+        letter-spacing:.05em; padding:2px 7px; border-radius:2px; white-space:nowrap; }
+  .st.ok { background:var(--accent-soft); color:var(--accent); }
+  .st.part { background:var(--amber-soft); color:var(--amber); }
+  .st.no { background:var(--alert-soft); color:var(--alert); }
+  .p0 { font-family:var(--mono); font-size:10px; font-weight:700; color:var(--alert); }
+  .p1 { font-family:var(--mono); font-size:10px; color:var(--muted); }
+
+  /* 요약 바 */
+  .tally { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px;
+           background:var(--line); border:1px solid var(--line); border-radius:3px;
+           overflow:hidden; margin:26px 0; }
+  .tally > div { background:var(--surface); padding:18px 18px 20px; }
+  .tally .t-big { font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:600;
+                  font-size:1.9rem; line-height:1; letter-spacing:-.03em; margin-bottom:5px; }
+  .tally .t-k { font-size:12.5px; color:var(--muted); line-height:1.45; }
+  .tally .a .t-big { color:var(--alert); }
+  .tally .m .t-big { color:var(--amber); }
+  .tally .g .t-big { color:var(--accent); }
+
+  .findings { margin:22px 0; }
+  .f { display:grid; grid-template-columns:auto 1fr; gap:0 16px; padding:17px 0;
+       border-top:1px solid var(--line-soft); }
+  .f:first-child { border-top:1px solid var(--line); }
+  .sev { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.08em;
+         padding:3px 7px; border-radius:2px; height:fit-content; white-space:nowrap; margin-top:2px; }
+  .sev.hi { background:var(--alert-soft); color:var(--alert); }
+  .sev.md { background:var(--amber-soft); color:var(--amber); }
+  .f h4 { font-size:14.4px; font-weight:650; margin:0 0 5px; }
+  .f p { font-size:13.3px; color:var(--ink-soft); margin:0; max-width:none; line-height:1.6; }
+  .f .ev { font-family:var(--mono); font-size:11.5px; color:var(--muted); margin-top:6px; }
+
+  .plan { background:var(--surface); border:1px solid var(--line); border-radius:3px;
+          padding:22px clamp(18px,3vw,26px) 24px; margin:16px 0; }
+  .plan .p-head { display:flex; align-items:baseline; gap:12px; margin-bottom:6px; }
+  .plan .p-id { font-family:var(--mono); font-size:12px; font-weight:700; color:var(--accent); }
+  .plan h3 { margin:0; font-size:1.04rem; font-weight:650; letter-spacing:-.01em; }
+  .plan .p-why { font-size:13.2px; color:var(--muted); margin:0 0 14px; max-width:none; }
+  .plan ul { margin:10px 0 0; padding-left:19px; font-size:13.5px; color:var(--ink-soft); }
+  .plan li { margin-bottom:6px; }
+  .plan li b { color:var(--ink); font-weight:650; }
+  .plan.new { border-left:3px solid var(--amber); }
+  .newtag { font-family:var(--mono); font-size:9.5px; font-weight:700; letter-spacing:.06em;
+            background:var(--amber-soft); color:var(--amber); padding:2px 6px; border-radius:2px; }
+
+  pre { background:var(--surface-2); border:1px solid var(--line); border-radius:3px;
+        padding:14px 16px; overflow-x:auto; font-family:var(--mono); font-size:12.2px;
+        line-height:1.6; margin:16px 0; color:var(--ink-soft); }
+  code { font-family:var(--mono); font-size:.88em; background:var(--surface-2);
+         padding:1px 5px; border-radius:2px; }
+  pre code { background:none; padding:0; font-size:inherit; }
+  .cmt{color:var(--muted)} .bad{color:var(--alert)}
+
+  blockquote { margin:24px 0; padding:2px 0 2px 20px; border-left:3px solid var(--accent);
+               max-width:var(--prose); }
+  blockquote p { font-family:var(--serif); font-size:1.1rem; line-height:1.5; margin:0; }
+
+  details { background:var(--surface); border:1px solid var(--line); border-radius:3px; margin:14px 0; }
+  summary { cursor:pointer; padding:14px 18px; font-size:13.3px; font-weight:600;
+            font-family:var(--mono); color:var(--accent); list-style:none; }
+  summary::-webkit-details-marker { display:none; }
+  summary::before { content:"▸ "; }
+  details[open] summary::before { content:"▾ "; }
+  details > *:not(summary) { padding:0 18px; }
+  details > .scroll { padding:0 18px 12px; }
+
+  .pill { display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700;
+          padding:2px 7px; border-radius:2px; }
+  .pill.ok { background:var(--accent-soft); color:var(--accent); }
+  .pill.gate { background:var(--alert-soft); color:var(--alert); }
+
+  footer { margin-top:80px; padding-top:22px; border-top:2px solid var(--ink);
+           font-family:var(--mono); font-size:11.5px; color:var(--muted); line-height:1.9; }
+  a { color:var(--accent); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">dacrm · 3판 · 구성요소 정본 대조 + 자기감사</p>
+  <h1>정본 문서에 답이 있었는데 나는 화면만 보고 기획했다</h1>
+  <p class="standfirst">
+    “왜 매번 기획할 때마다 문제가 생기지?”의 답을 찾았다. 방법이 틀렸다.
+    <b>기획서에 구성요소 19개(FR-01~19)와 확정 결정 8개와 P2 목록이 이미 다 적혀 있었는데, 나는 그 문서를 열지 않았다.</b>
+    견적도 거기 있었다 — “<code>product, deal_line_item</code> (P2) 견적 기능 확장 시”.
+  </p>
+  <div class="meta">
+    <span>2026-08-17</span><span>v0.7.539</span>
+    <span>정본 문서 3종 + 코드 전수 + 운영 DB + 외부 표준(Salesforce·CPQ·HITL)</span>
+    <span class="stamp">구현하지 않음 — 분석과 기획</span>
+  </div>
+</header>
+
+<!-- ══════ 자기감사 ══════ -->
+<div class="selfaudit">
+  <p class="h-eyebrow">먼저, 내 기획 방식의 결함 3개</p>
+  <h2>없는 것은 화면에 안 보인다 — 그래서 관찰로는 절대 못 찾는다</h2>
+
+  <div class="flaws">
+    <div class="flaw">
+      <div class="fn">1</div>
+      <div>
+        <h4>정본이 아니라 화면을 근거로 삼았다</h4>
+        <p>1·2판 모두 “브라우저에서 본 것 + 코드에서 읽은 것”으로 기획했다.
+           그 방법은 <strong>있는 것의 결함</strong>은 잘 찾지만 <strong>없는 구성요소</strong>는 원리적으로 못 찾는다.
+           그래서 견적·일괄처리·미리보기·사이드바가 전부 <strong>지적받은 뒤에야</strong> 목록에 올랐다.</p>
+        <p class="ev">정본 <code>dacrm_AI_CRM_통합기획서_v0.2.1.md</code>(73KB)에 FR-01~19 · D-01~08 · 그룹A~G 엔터티 · Non-goals가 전부 있었다</p>
+      </div>
+    </div>
+    <div class="flaw">
+      <div class="fn">2</div>
+      <div>
+        <h4>grep 결과를 구현 증거로 착각했다</h4>
+        <p>이번에 하나씩 열어 확인하니 <strong>9개가 전부 오탐</strong>이었다.
+           검증 안 했으면 “구현됨”으로 보고할 뻔했다.</p>
+        <div class="scroll" style="margin:12px 0 0">
+          <table>
+            <thead><tr><th>항목</th><th>grep</th><th>열어 보니</th></tr></thead>
+            <tbody>
+              <tr><td>태그</td><td class="good">✅ 69파일</td><td class="hot"><code>stageId</code>·<code>lifecycleStage</code>가 <code>tag</code>에 걸린 것 — 태그 테이블 없음</td></tr>
+              <tr><td>담당자 지정</td><td class="good">✅ 10파일</td><td class="hot">서비스·API에만 · <strong>화면 0건</strong> · 딜 2건 중 소유자 지정 0건</td></tr>
+              <tr><td>딜 건강 점수</td><td class="good">✅ 1파일</td><td class="hot">마이그레이션 매핑 파일뿐 · 읽는 코드 0</td></tr>
+              <tr><td>메일 초안</td><td class="good">✅ 4파일</td><td class="hot">5축 스키마의 <code>emailDraftGist</code> 필드명일 뿐</td></tr>
+              <tr><td>이메일 다이제스트</td><td class="good">✅ 1파일</td><td class="hot">설정 키 문자열만</td></tr>
+              <tr><td>웹훅 발신</td><td class="good">✅ 1파일</td><td class="hot"><strong>테스트 파일에만</strong></td></tr>
+              <tr><td>Google Calendar</td><td class="good">✅ 1파일</td><td class="hot">사이드바 <code>CalendarDays</code> 아이콘 + OAuth 스코프 테스트</td></tr>
+              <tr><td>마이그레이션 프리셋</td><td class="good">✅ 2파일</td><td class="hot">코드 <strong>주석</strong>의 “HubSpot Sales Workspace” 언급</td></tr>
+              <tr><td>공개 REST API</td><td class="good">✅ 3파일</td><td class="hot">AI 어댑터의 LLM <code>apiKey</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="flaw">
+      <div class="fn">3</div>
+      <div>
+        <h4>“구현됨”의 정의가 없었다</h4>
+        <p>코드가 있으면 ✅로 셌다. 그런데 이 저장소에서 실제로 갈리는 단계는 넷이다 —
+           <strong>코드 있음 → 호출됨 → 데이터 있음 → 화면에 보임.</strong>
+           Gmail 동기화는 코드가 있지만 <code>crm_integration_connection</code>이 <strong>0행</strong>이라 한 번도 안 돌았다.</p>
+        <p class="ev">이 저장소가 <code>/ci</code>에서 두 번, CRM에서 세 번 겪은 “만들었는데 부르는 데가 없다” 패턴과 같은 뿌리</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ 01 FR 매트릭스 ══════ -->
+<section>
+  <div class="sec-head"><span class="idx">01</span><h2>구성요소 정본 19개 × 실제 구현</h2></div>
+  <p class="sec-sub">기획서 §3.5가 정의한 FR-01~19 전부를 코드·DB·화면으로 대조했다.
+     <strong>이 표가 앞으로 기획의 출발점이다.</strong></p>
+
+  <div class="tally">
+    <div class="a"><div class="t-big">6</div><div class="t-k">P0(없으면 출시 불가) 10개 중<br><strong>미완성</strong></div></div>
+    <div class="g"><div class="t-big">4</div><div class="t-k">P0 중 완전 구현</div></div>
+    <div class="m"><div class="t-big">9</div><div class="t-k">FR 19개 중<br>부분 구현</div></div>
+    <div class="a"><div class="t-big">4</div><div class="t-k">FR 19개 중<br>전혀 없음</div></div>
+  </div>
+
+  <div class="scroll">
+    <table class="frtable">
+      <thead><tr><th>FR</th><th>구성요소</th><th class="c">우선</th><th class="c">상태</th><th>빠진 것 (실측)</th></tr></thead>
+      <tbody>
+        <tr><td>FR-01</td><td>코어 객체·레코드 관리</td><td class="c p0">P0</td><td class="c"><span class="st part">부분</span></td>
+            <td class="hot">태그 · 소유자 지정 UI · 저장된 뷰 · 컬럼 선택 · 인라인 편집 · 벌크 편집/삭제 · 테이블↔보드 전환</td></tr>
+        <tr><td>FR-02</td><td>파이프라인과 프로세스</td><td class="c p0">P0</td><td class="c"><span class="st part">부분</span></td>
+            <td class="hot">React Flow 프로세스 캔버스 <strong>(D-06 확정 결정인데 0건)</strong> · 진입조건 666개 켜짐 0</td></tr>
+        <tr><td>FR-03</td><td>활동 자동 캡처</td><td class="c p0">P0</td><td class="c"><span class="st part">부분</span></td>
+            <td class="hot">Google Calendar 연동 · 캡처 제외 규칙 · <strong>Gmail은 코드만 (연결 계정 0)</strong></td></tr>
+        <tr><td>FR-04</td><td>Meeting Mode 2.0</td><td class="c p0">P0</td><td class="c"><span class="st part">부분</span></td>
+            <td class="warn">녹음·STT·플레이어 ✅ / 승인 UX가 만료 81%로 무력화 · 미팅 상세가 막다른 길</td></tr>
+        <tr><td>FR-05</td><td>AI 코어</td><td class="c p1">P0~P1</td><td class="c"><span class="st part">부분</span></td>
+            <td class="hot">AI 속성(필드별 프롬프트) · 딜 건강 점수 · 어시스턴트 · 에이전트 v1(메일 초안·리서치·주간 리뷰)</td></tr>
+        <tr><td>FR-06</td><td>데이터 보강</td><td class="c p1">P1</td><td class="c"><span class="st no">없음</span></td>
+            <td class="hot">회사 웹 리서치 · 사업자 조회 · 서명 파싱 전부 없음</td></tr>
+        <tr><td>FR-07</td><td>데이터 품질</td><td class="c p0">P0</td><td class="c"><span class="st ok">구현</span></td><td class="dim">—</td></tr>
+        <tr><td>FR-08</td><td>자동화 워크플로우</td><td class="c p1">P1</td><td class="c"><span class="st part">부분</span></td>
+            <td class="hot">웹훅 호출 액션 없음 · 실패 재시도 없음 · 실제 규칙 0개</td></tr>
+        <tr><td>FR-09</td><td>리포트와 포캐스트</td><td class="c p1">P1</td><td class="c"><span class="st ok">구현</span></td>
+            <td class="warn">forecast category(Commit/Best Case) 없음 — 외부 표준 대비</td></tr>
+        <tr><td>FR-10</td><td>검색과 커맨드 팔레트</td><td class="c p1">P1</td><td class="c"><span class="st ok">구현</span></td><td class="dim">—</td></tr>
+        <tr><td>FR-11</td><td>팀과 권한</td><td class="c p0">P0</td><td class="c"><span class="st part">부분</span></td>
+            <td class="hot">역할 4종 ✅ / <strong>소유자 지정·이전 UI 0건</strong></td></tr>
+        <tr><td>FR-12</td><td>알림</td><td class="c p1">P1</td><td class="c"><span class="st part">부분</span></td>
+            <td class="hot">인앱 ✅ / 이메일 다이제스트 · Slack 없음</td></tr>
+        <tr><td>FR-13</td><td>임포트와 엑스포트</td><td class="c p0">P0</td><td class="c"><span class="st part">부분</span></td>
+            <td class="hot">CSV·미리보기 ✅ / <strong>롤백 없음</strong> · 마이그레이션 프리셋 없음</td></tr>
+        <tr><td>FR-14</td><td>커스텀 필드·객체</td><td class="c p1">P1·P2</td><td class="c"><span class="st no">없음</span></td>
+            <td class="hot">명세가 요구한 <code>custom(jsonb)</code> 칸조차 스키마에 없다</td></tr>
+        <tr><td>FR-15</td><td>API·웹훅·MCP</td><td class="c p1">P1~P2</td><td class="c"><span class="st no">없음</span></td>
+            <td class="hot">공개 API · 웹훅 발신 · MCP 서버 전부 없음</td></tr>
+        <tr><td>FR-16</td><td>내부 시스템 탑재</td><td class="c p0">P0</td><td class="c"><span class="st ok">구현</span></td><td class="dim">—</td></tr>
+        <tr><td>FR-17</td><td>다국어</td><td class="c p1">P2</td><td class="c"><span class="st no">없음</span></td>
+            <td class="dim">문자열 외부화 안 됨 — P2라 지금은 문제 아님</td></tr>
+        <tr><td>FR-18</td><td>온보딩</td><td class="c p0">P0</td><td class="c"><span class="st ok">구현</span></td><td class="dim">—</td></tr>
+        <tr><td>FR-19</td><td>설정 관리</td><td class="c p0">P0</td><td class="c"><span class="st ok">구현</span></td><td class="dim">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════ 02 결정 위반 ══════ -->
+<section>
+  <div class="sec-head"><span class="idx">02</span><h2>확정 결정인데 지켜지지 않은 것</h2></div>
+  <p class="sec-sub">기획서 §10.1이 “확정”이라고 못 박은 8개(D-01~08) 중 둘이 코드에서 뒤집혔다.
+     <strong>이게 리드 1,514건 사태의 진짜 뿌리다.</strong></p>
+
+  <div class="findings">
+    <div class="f"><span class="sev hi">D-02</span><div>
+      <h4>“Lead 엔터티 미도입 — <code>person.lifecycle_stage</code>로 통합, 입력 화면과 중복 원천 제거”</h4>
+      <p>스키마는 결정대로 만들어졌다 — <code>crm_person.lifecycleStage</code>에
+         <code>LEAD · PROSPECT · CUSTOMER · PARTNER · INACTIVE</code>가 있고 화면 4곳이 쓴다.
+         <strong>그런데 실제 리드는 그 구조로 안 들어왔다.</strong></p>
+      <div class="scroll" style="margin:12px 0 0">
+        <table>
+          <tbody>
+            <tr><th>CRM 안 (<code>crm_person</code> · LEAD)</th><td class="n good">4</td></tr>
+            <tr><th>CRM 밖 (<code>lead_intakes</code>)</th><td class="n hot">1,514</td></tr>
+            <tr><th>입력 화면 (<code>/lead-intake</code>)</th><td class="hot">결정은 “제거”인데 아직 서비스 중</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="ev">→ “리드 이관”이라는 작업 자체가 결정 위반의 산물이다. 원래는 이관이 아니라
+         <strong><code>crm_person</code>을 <code>lifecycleStage='LEAD'</code>로 만드는 일</strong>이었다</p>
+    </div></div>
+
+    <div class="f"><span class="sev hi">D-06</span><div>
+      <h4>“React Flow 캔버스 JSON을 단일 원천으로 하는 FR-02 방향 확정”</h4>
+      <p>React Flow·dagre 관련 코드 <strong>0건</strong>. 기획서가 “보드 뷰 일색인 경쟁 제품과 구분되는
+         <strong>고유 자산</strong>”이라고 지목한 핵심 차별화가 통째로 없다.</p>
+      <p class="ev">→ 지금 <code>/crm/process</code>는 그 캔버스 자리에 <strong>666개 토글 목록</strong>이 들어가 있다.
+         “342개 스위치” 문제의 구조적 원인</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════ 03 외부 표준 ══════ -->
+<section>
+  <div class="sec-head"><span class="idx">03</span><h2>기획서조차 놓친 것 — 외부 표준 대조</h2></div>
+  <p class="sec-sub">지시대로 외부 리서치를 했다. Salesforce 표준 객체 모델과 CPQ 표준, 그리고
+     2026년 HITL(사람 개입) 설계 기준으로 대조했다.</p>
+
+  <h3>B2B 판매 전주기 객체 — 우리는 절반에서 끊긴다</h3>
+  <div class="scroll">
+    <table>
+      <caption>Salesforce 표준 흐름 대비</caption>
+      <thead><tr><th>표준 객체</th><th>우리</th><th class="c">상태</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>Account</td><td><code>crm_company</code></td><td class="c"><span class="st ok">있음</span></td><td class="dim">—</td></tr>
+        <tr><td>Contact</td><td><code>crm_person</code></td><td class="c"><span class="st ok">있음</span></td><td class="dim">—</td></tr>
+        <tr><td>Opportunity</td><td><code>crm_deal</code></td><td class="c"><span class="st ok">있음</span></td><td class="dim">—</td></tr>
+        <tr><td>Product2 / Pricebook2 / PricebookEntry</td><td><code>gpu_products</code> 377 · <code>strategic_price_krw</code></td>
+            <td class="c"><span class="st part">단절</span></td><td class="warn">있는데 CRM과 연결 안 됨</td></tr>
+        <tr><td><strong>OpportunityLineItem</strong></td><td class="hot">없음</td><td class="c"><span class="st no">없음</span></td>
+            <td class="warn">기획서 P2 <code>deal_line_item</code></td></tr>
+        <tr><td><strong>Quote / QuoteLineItem</strong></td><td class="hot">없음</td><td class="c"><span class="st no">없음</span></td>
+            <td class="warn">기획서 “견적 기능 확장 시”</td></tr>
+        <tr><td><strong>Order / Contract</strong></td><td class="hot">없음</td><td class="c"><span class="st no">없음</span></td>
+            <td class="hot">기획서에도 없다 — <strong>확인 필요</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <blockquote>
+    <p>AI 5축의 <b>기회(What)</b> 축은 출력 대상을 <code>Deal, <b>DealLineItem</b></code>으로 정식화해 놨는데,
+       <code>DealLineItem</code>이 없다.<br>
+       <b>그래서 “3억”이 담길 곳이 숫자 칸 하나뿐이었고, 확인을 못 받아 만료됐다.</b></p>
+  </blockquote>
+
+  <h3>CPQ 표준 — 우리 상품이 구성형이라 특히 해당한다</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>표준 기능</th><th class="c">우리</th><th>왜 우리에게 필요한가</th></tr></thead>
+      <tbody>
+        <tr><td>제품 구성(configuration)</td><td class="c"><span class="st no">없음</span></td>
+            <td>GPU는 모델 × 대수 × 구성(1/2/4/8)로 팔린다 — 정확히 구성형 상품</td></tr>
+        <tr><td>다단계 가격 · 할인 통제</td><td class="c"><span class="st no">없음</span></td><td>공급가 99건이 있는데 마진 통제 경로가 없다</td></tr>
+        <tr><td><strong>할인 승인 워크플로</strong></td><td class="c"><span class="st no">없음</span></td>
+            <td class="hot">한도 초과 할인은 승인을 받아야 한다 — <strong>기획서에도 없다</strong></td></tr>
+        <tr><td>번들 · 가이드 셀링</td><td class="c"><span class="st no">없음</span></td><td class="dim">P2로 미뤄도 된다</td></tr>
+        <tr><td>forecast category (Commit / Best Case)</td><td class="c"><span class="st no">없음</span></td>
+            <td>지금은 스테이지 확률 가중만 — 담당자의 판단이 안 들어간다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>2026 HITL 기준 — 내 A안이 표준과 맞는지 검증했다</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>외부 기준</th><th class="c">우리</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td>“일상 동작을 게이트하지 말 것 — <strong>확인 피로</strong>를 만든다”</td>
+            <td class="c hot">위반</td><td class="hot">만료 81%가 정확히 확인 피로의 결과</td></tr>
+        <tr><td>“<strong>되돌릴 수 있는</strong> 변경은 자동 승인, 되돌릴 수 없는 것만 검토 큐”</td>
+            <td class="c hot">위반</td><td class="good">A안이 이 기준과 일치 — 표준으로 검증됨</td></tr>
+        <tr><td>항상 승인 필요 5종: 프로덕션 배포 · <strong>외부 발신</strong> · 임계 초과 금융 · <strong>삭제</strong> · <strong>권한 변경</strong></td>
+            <td class="c warn">불일치</td><td class="hot">우리 <code>NEVER_AUTO_APPLY</code>엔 <strong>외부 발신·삭제·권한 변경이 없다</strong> — 새 누락</td></tr>
+        <tr><td>Progressive autonomy — 오류율 5% 미만이면 자동 승격</td>
+            <td class="c hot">없음</td><td class="hot">우리 정책은 고정이라 <strong>영원히 안 바뀐다</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>외부 대조가 두 가지를 바꿨다.</strong> ① A안(되돌릴 수 있으면 자동)은 표준과 맞다 — 그대로 간다.
+     ② 다만 <strong>금액을 전면 금지</strong>한 건 표준과 다르다. 표준은 “<strong>임계 초과</strong> 금융”이다.
+     견적이 생기면 금액은 견적 합계에서 나오므로, 금지 대상은 <strong>임계 초과 할인</strong>으로 옮겨야 맞다.</p>
+</section>
+
+<!-- ══════ 04 통합 기획 ══════ -->
+<section>
+  <div class="sec-head"><span class="idx">04</span><h2>통합 기획 — 이전 6갈래 + 새로 찾은 4갈래</h2></div>
+  <p class="sec-sub">A~F는 2판에서 확정된 것(요지만), G~J는 이번 감사로 <strong>새로 추가</strong>된 것.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>2판에서 이미 확정 — 변경 없음</caption>
+      <thead><tr><th>안</th><th>내용</th><th>이번 감사로 달라진 점</th></tr></thead>
+      <tbody>
+        <tr><th>A</th><td>AI 자율성 — “확인해 주세요” → “했어요, 되돌리세요”</td>
+            <td class="good">외부 HITL 표준과 일치 확인 · 단 금지 목록에 <strong>외부 발신·삭제·권한 변경 추가</strong></td></tr>
+        <tr><th>B</th><td>리드 1,514 → 사본 삭제 · 회사 378 전량 · 딜 86</td>
+            <td class="hot">틀을 바꾼다 — “이관”이 아니라 <strong><code>person.lifecycleStage='LEAD'</code></strong>(D-02 준수)</td></tr>
+        <tr><th>C</th><td>일괄처리 + 미리보기 표준</td><td class="good">FR-01 “벌크 편집·삭제”가 P0 요구사항임을 확인 — 우선순위 상승</td></tr>
+        <tr><th>D</th><td>유기성 복구 — 막다른 길 없애기</td><td class="dim">변경 없음</td></tr>
+        <tr><th>E</th><td>견적</td><td class="hot">범위 확대 — 아래 G로 승격</td></tr>
+        <tr><th>F</th><td>왼쪽 메뉴 12항목 · 돌아가기 CI와 통일</td><td class="dim">변경 없음</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="plan new">
+    <div class="p-head"><span class="p-id">G</span><h3>제품–가격–견적 축을 세운다</h3><span class="newtag">신규</span></div>
+    <p class="p-why">E(견적)를 확대했다. 견적만 만들면 품목이 없어 또 끊긴다 — 표준 순서는 <strong>제품 → 가격표 → 라인아이템 → 견적</strong>이다.</p>
+    <ul>
+      <li><b><code>crm_product</code></b> — <code>gpu_products</code>(377종)를 참조하는 얇은 연결 테이블.
+          GPU 외 품목(구축·유지보수)도 담을 수 있게</li>
+      <li><b><code>crm_price_book</code></b> — 기본 가격표는 <code>strategic_price_krw</code>(콕핏 SSOT).
+          고객별·기간별 특가를 별도 가격표로</li>
+      <li><b><code>crm_deal_line_item</code></b> — 기획서 P2 항목 그대로. 딜에 품목·수량·단가.
+          <strong>AI 5축 What 축의 출력 대상이 비로소 실재한다</strong></li>
+      <li><b><code>crm_quote</code> + <code>crm_quote_line</code></b> — 버전·상태(초안/발송/수락/거절/만료)·PDF 출력.
+          보낸 견적은 불변</li>
+      <li><b>딜 금액 = 라인아이템 합계</b> — 손 입력 제거. <strong>금액이 AI 확인 대상에서 빠진다</strong></li>
+      <li><b>할인 승인</b> — 기준가 대비 N% 초과 시 승인 요청(외부 CPQ 표준, 기획서 누락분)</li>
+      <li><b>진입 조건의 첫 쓸모</b> — “‘제안’ 단계로 가려면 견적 필요”가 666개 토글 중 실제로 켤 첫 조건</li>
+    </ul>
+  </div>
+
+  <div class="plan new">
+    <div class="p-head"><span class="p-id">H</span><h3>FR-01 코어 목록 기능을 채운다 (P0인데 7개가 비었다)</h3><span class="newtag">신규</span></div>
+    <p class="p-why">C(일괄처리)의 상위 항목이다. 기획서가 P0으로 요구한 목록 기능 중 7개가 없다.</p>
+    <ul>
+      <li><b>태그</b> — 테이블 자체가 없다. 리드 378곳이 들어오면 분류 수단이 태그밖에 없다</li>
+      <li><b>소유자 지정 UI</b> — 딜 2건 중 소유자 지정 0건. <strong>진입 조건 ‘담당자 필수’를 켜면 그 단계가 영원히 잠긴다</strong></li>
+      <li><b>저장된 뷰 · 컬럼 선택 · 인라인 편집 · 테이블↔보드 전환</b> — 목록 표준(<code>useListQuery</code>)에 얹는다</li>
+      <li><b>벌크 편집·삭제(휴지통 경유)</b> — C와 같은 작업</li>
+    </ul>
+  </div>
+
+  <div class="plan new">
+    <div class="p-head"><span class="p-id">I</span><h3>프로세스 캔버스 — 666개 토글을 그림 하나로</h3><span class="newtag">신규</span></div>
+    <p class="p-why">D-06 확정 결정이자 기획서가 “고유 자산”이라 부른 차별화인데 0건이다.
+       그리고 “342개 스위치” 문제의 구조적 해법이다.</p>
+    <ul>
+      <li><b>React Flow + dagre 캔버스</b> — 스테이지·조건 분기·자동화 노드를 한 화면에</li>
+      <li><b>캔버스 JSON이 단일 원천</b> — 그림에서 정한 조건이 곧 검증 규칙이자 자동화 트리거(D-06)</li>
+      <li><b>토글 목록은 캔버스의 상세 편집으로 강등</b> — 666개를 한꺼번에 보여 주지 않는다</li>
+      <li><b>켜기 전 영향 미리보기</b> — “이 조건을 켜면 지금 이 단계 딜 N건 중 M건이 걸립니다”</li>
+    </ul>
+  </div>
+
+  <div class="plan new">
+    <div class="p-head"><span class="p-id">J</span><h3>재발 방지 — 이 표를 저장소에 넣고 가드로 지킨다</h3><span class="newtag">신규</span></div>
+    <p class="p-why">가장 중요한 항목이다. 이걸 안 하면 4판에서 또 “없네요”가 나온다.</p>
+    <ul>
+      <li><b><code>docs/crm/FR-STATUS.md</code></b> — FR-01~19 × 상태 × 근거 파일을 저장소에 둔다.
+          기획은 <strong>항상 이 표에서 시작</strong>한다</li>
+      <li><b>“구현됨”의 정의를 4단계로 명시</b> —
+          <code>코드 있음 → 호출됨 → 데이터 있음 → 화면에 보임</code>. 4단계 다 통과해야 ✅</li>
+      <li><b>정본 대조를 착수 조건으로</b> — 새 기획 착수 전 통합기획서 FR·D·엔터티 그룹·Non-goals를 연다.
+          호스트 정책 <code>CLAUDE.md</code>에 규칙으로 올린다</li>
+      <li><b>grep 금지 규칙</b> — 구현 여부 판정에 grep 개수를 쓰지 않는다.
+          테스트·스키마·주석·매핑 파일을 제외하고 <strong>실제 호출 경로를 연다</strong></li>
+      <li><b>결정 위반 감지</b> — D-01~08 각각에 대응하는 가드 테스트.
+          예: “<code>lead_intakes</code>에 미이관 행이 있으면 실패”가 D-02를 지킨다</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════ 05 실행 ══════ -->
+<section>
+  <div class="sec-head"><span class="idx">05</span><h2>실행 순서</h2></div>
+  <div class="scroll">
+    <table>
+      <thead><tr><th class="n">#</th><th>무엇</th><th>왜 이 순서</th><th>승인</th></tr></thead>
+      <tbody>
+        <tr><td class="n">0</td><td><b>J</b> FR 상태표를 저장소에 등재</td><td>이후 모든 기획의 출발점</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">1</td><td>사본 1,136건 삭제 + 멱등 인덱스</td><td>뒤 작업이 전부 378 기준</td><td><span class="pill gate">삭제 · 필요</span></td></tr>
+        <tr><td class="n">2</td><td><b>A</b> AI 자율성 전환 (+외부발신·삭제·권한 금지 추가)</td><td>지금도 매일 만료된다</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">3</td><td><b>H</b>+<b>C</b> 태그·소유자 UI·벌크·미리보기</td><td>4번이 이걸 쓴다 · FR-01 P0</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">4</td><td><b>B</b> 리드 → <code>person.lifecycleStage='LEAD'</code> 378 + 딜 86</td><td>D-02 준수 형태로</td><td><span class="pill gate">데이터 · 필요</span></td></tr>
+        <tr><td class="n">5</td><td><b>G</b> 제품·가격표·라인아이템·견적</td><td>딜 86건이 생긴 뒤라야 쓸 수 있다</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">6</td><td><b>I</b> 프로세스 캔버스</td><td>견적이 진입 조건의 첫 대상</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">7</td><td><b>D</b>+<b>F</b> 유기성 복구 + 메뉴 재편</td><td>‘견적’ 메뉴 생긴 뒤 한 번에</td><td><span class="pill ok">불요</span></td></tr>
+        <tr><td class="n">8</td><td>옛 메뉴 4개 제거 (D-02 완결)</td><td>이관 검증 후 마지막</td><td><span class="pill gate">필요</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>1 · 4 · 8만 승인이 필요하다.</strong> 나머지는 되돌릴 수 있다.</p>
+</section>
+
+<!-- ══════ 06 확인 필요 ══════ -->
+<section>
+  <div class="sec-head"><span class="idx">06</span><h2>사용자만 아는 사실 — 확인 필요</h2></div>
+  <div class="scroll">
+    <table>
+      <thead><tr><th class="n">Q</th><th>질문</th><th>왜 물어야 하나</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td><b>수주 이후(Order·Contract)를 CRM이 맡나?</b></td>
+            <td>표준엔 있는데 기획서엔 없다. 다른 시스템(ERP·회계)이 맡는다면 딜 won에서 끊는 게 맞고,
+                아니면 G에 Order를 추가해야 한다</td></tr>
+        <tr><td class="n">2</td><td>엑셀 378곳이 <b>실제 영업 명단</b>인가, 수집한 후보인가?</td>
+            <td>명단이면 전부 <code>PROSPECT</code>, 후보면 <code>LEAD</code>로 넣는다. 라이프사이클 값이 달라진다</td></tr>
+        <tr><td class="n">3</td><td><b>할인 승인 한도</b>는 몇 %인가?</td>
+            <td>G의 승인 워크플로 기준값. 기준가 대비 몇 % 넘으면 승인받아야 하는지는 회사 정책이다</td></tr>
+        <tr><td class="n">4</td><td>Gmail·Calendar를 <b>실제로 연결할</b> 것인가?</td>
+            <td>코드는 있는데 연결 계정 0. FR-03 P0인데 안 쓸 거면 목록에서 빼고,
+                쓸 거면 OAuth 연결이 먼저다</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════ 근거 ══════ -->
+<section>
+  <div class="sec-head"><span class="idx">07</span><h2>근거</h2></div>
+  <details>
+    <summary>정본 문서 위치</summary>
+    <p style="font-size:13.3px;color:var(--ink-soft);padding-bottom:14px">
+      <code>newplan/CRM/plan/dacrm_AI_CRM_통합기획서_v0.2.1.md</code> — §3.5 FR-01~19 ·
+      §5.3 엔터티 그룹 A~G · §10.1 확정 결정 D-01~08 · §3.10 Non-goals<br>
+      <code>newplan/CRM/plan/dacrm_구현명세서_v0.1.0.md</code> — F1~F5만 정의(견적 없음) ·
+      §4.3 판정 규칙<br>
+      <code>newplan/CRM/plan/crm_schema_v0.1.0.prisma</code> · <code>CLAUDE_dacrm.md</code>
+    </p>
+  </details>
+  <details>
+    <summary>Non-goals — 만들지 않기로 확정된 것 (계획에서 제외함)</summary>
+    <p style="font-size:13.3px;color:var(--ink-soft);padding-bottom:14px">
+      구독·결제·플랜 과금 · 마케팅 사이트/SEO · 대량 메일 캠페인 · 고객 지원 티케팅 ·
+      아웃바운드 콜드메일 대량 발송 · 온프레미스 설치형 · 네이티브 모바일 앱(Phase 3까지 PWA)
+    </p>
+  </details>
+  <details>
+    <summary>이번 감사에서 새로 확인한 실측값</summary>
+    <div class="scroll">
+      <table>
+        <tbody>
+          <tr><th>AI 제안</th><td class="n">36</td><td class="dim">만료 29(81%) · 평균 신뢰도 0.97 · PENDING 0</td></tr>
+          <tr><th>리드</th><td class="n">1,514</td><td class="dim">원본 378 · CRM 안 LEAD 4명</td></tr>
+          <tr><th>딜 소유자 지정</th><td class="n hot">0 / 2</td><td class="dim">ownerId UI 0건</td></tr>
+          <tr><th>외부 연동 계정</th><td class="n hot">0</td><td class="dim"><code>crm_integration_connection</code> 0행</td></tr>
+          <tr><th>진입 조건 토글</th><td class="n hot">666 / 켜짐 0</td><td class="dim">파이프라인 6 × 단계 37 × 조건 6 × 수준 3</td></tr>
+          <tr><th>커스텀 필드 칸</th><td class="n hot">0</td><td class="dim">명세가 요구한 <code>custom(jsonb)</code> 없음</td></tr>
+          <tr><th>GPU 카탈로그 / 공급가</th><td class="n">377 / 99</td><td class="dim">CRM과 연결 0</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <details>
+    <summary>외부 출처</summary>
+    <p style="font-size:13.3px;color:var(--ink-soft);padding-bottom:14px">
+      <a href="https://developer.salesforce.com/docs/platform/data-models/guide/product-price-book.html">Salesforce · Product &amp; Price Book 데이터 모델</a> ·
+      <a href="https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_quotelineitem.htm">Salesforce · QuoteLineItem</a> ·
+      <a href="https://www.salesforce.com/sales/cpq/what-is-cpq/">Salesforce · CPQ 정의</a> ·
+      <a href="https://www.gartner.com/reviews/market/configure-price-quote-applications">Gartner · CPQ 시장</a> ·
+      <a href="https://explainx.ai/blog/human-in-the-loop-ai-when-to-let-agent-run-2026">HITL · 언제 에이전트를 풀어 줄 것인가 (2026)</a> ·
+      <a href="https://www.digitalapplied.com/blog/human-in-the-loop-escalation-design-ai-agents-2026">HITL · 에스컬레이션 설계 (2026)</a> ·
+      <a href="https://leadscale.com/insights/demand-generation/system-foundations/core-data-objects/">CRM 코어 데이터 객체 · Lead vs Contact</a>
+    </p>
+  </details>
+</section>
+
+<footer>
+  감사 6회차 · 정본 문서 3종 · CRM API 51 · 서비스 51 · 화면 18 · 셸 4 · 운영 DB 직접 질의 · 외부 표준 3종<br>
+  이전 보고 · <code>docs/2026-08-17-crm-lead-queue-replan/</code> (1판) ·
+  <code>docs/2026-08-17-crm-coherence-audit/</code> (2판)
+</footer>
+
+</div>
