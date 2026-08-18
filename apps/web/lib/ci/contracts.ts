@@ -79,6 +79,13 @@ export interface CiContentListItem {
    * 플랫폼 메타(제목·설명)와 **다른 출처**다. 요청한 화면에서만 채워 내려보낸다.
    */
   media?: CiMediaInfo | null
+  /**
+   * 검색으로 찾은 경우 **어디서 걸렸는지**('제목'·'영상 대사'…).
+   * 검색이 아니면 undefined. 화면이 이유를 말할 수 있어야 한다.
+   */
+  matchedIn?: string | null
+  /** 검색어 주변을 잘라낸 문구. 사용자가 눈으로 확인하는 근거다 */
+  matchedSnippet?: string | null
 }
 
 /**

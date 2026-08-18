@@ -96,6 +96,14 @@ export interface ContentListParams {
   cursor?: string | null
   /** "왜 터졌나"를 함께 붙일지. 떡상 목록처럼 그게 본론인 화면에서만 켠다. */
   withCreative?: boolean
+  /**
+   * 검색어. 제목·설명뿐 아니라 **영상에서 읽은 대사·화면 자막**까지 함께 찾는다
+   * (ci_search_contents RPC, 마이그 212·213).
+   *
+   * 숏폼은 제목이 짧고 설명문이 비어 있어(실측 423건 중 227건) 제목 검색만으로는
+   * 사실상 아무것도 못 찾는다. 대사를 읽어 둔 것이 여기서 값을 한다.
+   */
+  q?: string | null
 }
 
 export interface ContentListResult {
@@ -105,8 +113,65 @@ export interface ContentListResult {
   population: number
 }
 
+/** 검색어가 걸린 자리를 사람 말로. 화면이 "왜 이게 나왔는지"를 말할 수 있어야 한다. */
+export function matchedInLabel(where: string | null): string | null {
+  switch (where) {
+    case 'title': return '제목'
+    case 'caption': return '설명'
+    case 'transcript': return '영상 대사'
+    case 'on_screen_text': return '화면 자막'
+    default: return null
+  }
+}
+
+export interface SearchHit {
+  contentId: string
+  matchedIn: string
+  snippet: string | null
+}
+
+/**
+ * 통합 검색. 제목·설명·대사·화면 자막을 한 번에 본다(DB의 ci_search_contents가 SSOT).
+ * 같은 게시물이 여러 자리에서 걸리면 **영상 쪽을 앞세운다** — 제목 일치는 사용자가 이미 알고 있고,
+ * 대사에서 걸린 것이 새로운 정보다.
+ */
+const MATCH_PRIORITY: Record<string, number> = {
+  transcript: 0, on_screen_text: 1, title: 2, caption: 3,
+}
+
+export async function searchContentIds(
+  workspaceId: string, query: string, limit = 200,
+): Promise<Map<string, SearchHit>> {
+  const adminClient = createAdminClient() as any
+  const { data } = await adminClient.rpc('ci_search_contents', {
+    p_workspace_id: workspaceId,
+    p_query: query,
+    p_limit: limit,
+  })
+
+  const out = new Map<string, SearchHit>()
+  for (const row of (data ?? []) as { content_id: string; matched_in: string; snippet: string | null }[]) {
+    const prev = out.get(row.content_id)
+    if (prev && (MATCH_PRIORITY[prev.matchedIn] ?? 9) <= (MATCH_PRIORITY[row.matched_in] ?? 9)) continue
+    out.set(row.content_id, {
+      contentId: row.content_id, matchedIn: row.matched_in, snippet: row.snippet,
+    })
+  }
+  return out
+}
+
 export async function listContents(p: ContentListParams): Promise<ContentListResult> {
   const adminClient = createAdminClient() as any
+
+  // 검색어가 있으면 먼저 후보를 좁힌다. 결과가 0건이면 조회 자체를 하지 않는다 —
+  // 빈 in() 필터는 PostgREST에서 전체 조회가 되어 "검색했는데 전부 나오는" 사고가 된다.
+  let searchHits: Map<string, SearchHit> | null = null
+  if (p.q && p.q.trim()) {
+    searchHits = await searchContentIds(p.workspaceId, p.q.trim())
+    if (searchHits.size === 0) {
+      return { items: [], total: 0, cursor: null, population: 0 }
+    }
+  }
 
   let q = adminClient
     .from('ci_contents')
@@ -122,6 +187,7 @@ export async function listContents(p: ContentListParams): Promise<ContentListRes
   // 실패는 **진짜 실패**만이다. partial(일부만 확보)을 실패로 세면
   // 댓글 수 하나 못 얻은 것까지 실패로 보여 제품이 고장난 것처럼 보인다.
   if (p.tab === 'failed') q = q.eq('ingest_status', 'failed')
+  if (searchHits) q = q.in('id', Array.from(searchHits.keys()))
   if (p.topicId) q = q.eq('topic_id', p.topicId)
   if (p.platform) q = q.eq('platform', p.platform)
   if (p.format) q = q.eq('format', p.format)
@@ -160,6 +226,18 @@ export async function listContents(p: ContentListParams): Promise<ContentListRes
   if (p.withCreative && items.length > 0) {
     const map = await getCreativeMap(p.workspaceId, items.map((i) => i.id))
     items = items.map((i) => ({ ...i, creative: map[i.id] ?? null }))
+  }
+
+  // 검색으로 좁혔으면 **왜 걸렸는지**를 함께 내려보낸다.
+  // 이유 없는 결과는 빈 결과보다 나쁘다 — 제품이 엉뚱한 걸 찾았다고 읽힌다.
+  // (실측: '우니'로 검색하니 제목에 없는 게시물이 나왔는데, 실제로는 설명문 138번째 글자였다)
+  if (searchHits) {
+    items = items.map((i) => {
+      const hit = searchHits.get(i.id)
+      return hit
+        ? { ...i, matchedIn: matchedInLabel(hit.matchedIn), matchedSnippet: hit.snippet }
+        : i
+    })
   }
 
   const nextOffset = start + rows.length

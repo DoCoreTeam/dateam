@@ -31,11 +31,25 @@ interface Row {
   } | null
 }
 
+export interface ChannelContentsPage {
+  items: CiContentListItem[]
+  /** 이 채널이 가진 전체 건수 — 화면이 "50건 중 50건"이 아니라 진짜 수를 말해야 한다 */
+  total: number
+}
+
+/**
+ * 채널의 게시물 한 페이지.
+ *
+ * 예전에는 limit 50 고정에 페이지가 없었다. 그래서 114건짜리 채널을 열면
+ * **뒤쪽 64건에 화면에서 도달할 방법이 아예 없었다**(실측으로 잡음).
+ * 목록 표준(§2-6)대로 페이지를 두고, 총 건수를 함께 돌려준다.
+ */
 export async function listChannelContents(
   workspaceId: string,
   channelId: string,
   limit = 50,
-): Promise<CiContentListItem[]> {
+  offset = 0,
+): Promise<ChannelContentsPage> {
   const adminClient = createAdminClient() as any
   const { data, count } = await adminClient
     .from('ci_contents')
@@ -50,7 +64,7 @@ export async function listChannelContents(
     .is('deleted_at', null)
     .order('published_at', { ascending: false, nullsFirst: false })
     .order('first_seen_at', { ascending: false })
-    .limit(limit)
+    .range(offset, offset + limit - 1)
 
   const population = count ?? 0
   const rows = (data ?? []) as Row[]
@@ -58,7 +72,7 @@ export async function listChannelContents(
   // 채널 상세는 "이 채널에서 뭐가 통했나"를 보는 화면이다 — 떡상 목록과 같은 것을 보여준다.
   const creativeMap = await getCreativeMap(workspaceId, rows.map((r) => r.id))
 
-  return rows.map((row) => {
+  const items = rows.map((row) => {
     const d = row.ci_content_derived
     return {
       id: row.id,
@@ -82,4 +96,6 @@ export async function listChannelContents(
       creative: creativeMap[row.id] ?? null,
     }
   })
+
+  return { items, total: population }
 }

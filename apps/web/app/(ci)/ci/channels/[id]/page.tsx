@@ -13,9 +13,16 @@ import ChannelDetailView from './ChannelDetailView'
 
 export const dynamic = 'force-dynamic'
 
+/** 한 페이지에 보여줄 게시물 수. 목록 표준 기본값보다 크게 잡는다 — 카드 그리드라 한 줄에 4장이다. */
+const PAGE_SIZE = 40
+
 export default async function ChannelDetailPage({
   params,
-}: { params: Promise<{ id: string }> }) {
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ page?: string }>
+}) {
   const supabase = await createClient()
   const user = await getRequestUser()
   if (!user) redirect('/login')
@@ -29,8 +36,13 @@ export default async function ChannelDetailPage({
   // 목록·대조·주제 목록은 서로를 기다릴 이유가 없다
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   const adminClient = createAdminClient() as any
+  // 페이지는 URL이 진실이다(§2-6). 링크를 공유하면 받는 사람도 같은 쪽을 본다.
+  const sp = await searchParams
+  const rawPage = Number(sp.page ?? '1')
+  const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.trunc(rawPage) : 1
+
   const [contents, contrast, topicRes] = await Promise.all([
-    listChannelContents(workspace.id, id),
+    listChannelContents(workspace.id, id, PAGE_SIZE, (page - 1) * PAGE_SIZE),
     getAccountContrast(workspace.id, id),
     // 채널 주제를 고르려면 고를 것이 화면에 있어야 한다 — 목록을 함께 내려보낸다
     adminClient.from('ci_topics')
@@ -55,7 +67,10 @@ export default async function ChannelDetailPage({
       <ChannelDetailView
         workspaceId={workspace.id}
         channel={channel}
-        contents={contents}
+        contents={contents.items}
+        page={page}
+        pageSize={PAGE_SIZE}
+        totalContents={contents.total}
         topics={topics}
         insight={<AccountWhyPanel contrast={contrast} />}
       />

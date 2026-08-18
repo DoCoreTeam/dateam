@@ -24,6 +24,9 @@ export async function GET(req: Request) {
       platform: url.searchParams.get('platform') as CiPlatform | null,
       format: url.searchParams.get('format') as CiContentFormat | null,
       sort: 'recent',
+      // 제목뿐 아니라 영상 대사·화면 자막까지 함께 찾는다(마이그 212·213).
+      // 숏폼은 제목이 짧아 제목 검색만으로는 사실상 아무것도 못 찾는다.
+      q: url.searchParams.get('q'),
       limit,
       cursor,
     })

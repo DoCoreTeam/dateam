@@ -1,0 +1,35 @@
+/* components/ci/search-hit.module.css — 검색 근거 표시
+ * globals.css에 넣지 않는다: 화면 전용 CSS는 CSS Module로(디자인 시스템 §0-1).
+ * 값은 전부 토큰을 거친다.
+ */
+
+.hit {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  min-width: 0;
+}
+
+/* 걸린 자리 — '영상 대사'인지 '제목'인지가 이 기능의 값어치를 결정한다 */
+.where {
+  flex: 0 0 auto;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  border: var(--hairline) solid var(--info-border);
+  color: var(--info);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+/* 문구는 한 줄로 자른다 — 대사는 길어서 목록 리듬을 깨뜨린다 */
+.snippet {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}

@@ -3,9 +3,10 @@
 // app/(ci)/ci/channels/[id]/ChannelDetailView.tsx — R03 채널 상세 뷰
 
 import { useState, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import type { CiChannelListItem, CiContentListItem } from '@/lib/ci/contracts'
 import ContentCard from '@/components/ci/ContentCard'
+import ListPager from '@/components/ui/list/ListPager'
 import DetailSheet from '@/components/ci/DetailSheet'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
@@ -17,6 +18,11 @@ interface Props {
   workspaceId: string
   channel: CiChannelListItem
   contents: CiContentListItem[]
+  /** 1-based. 서버가 URL에서 읽어 넘긴다 */
+  page: number
+  pageSize: number
+  /** 이 채널이 가진 전체 게시물 수 — 화면이 진짜 수를 말해야 한다 */
+  totalContents: number
   /**
    * 이 채널을 두고 하는 분석("이 계정에서 왜 잘 됐나").
    *
@@ -30,8 +36,11 @@ interface Props {
   topics: { id: string; name: string }[]
 }
 
-export default function ChannelDetailView({ workspaceId, channel, contents, insight, topics }: Props) {
+export default function ChannelDetailView({
+  workspaceId, channel, contents, insight, topics, page, pageSize, totalContents,
+}: Props) {
   const router = useRouter()
+  const pathname = usePathname()
   // 목록에서만 지울 수 있고 상세에서는 못 지우던 것을 맞춘다 —
   // 상세까지 들어와서 판단을 끝내는 흐름이 자연스럽다
   const del_ = useCiDelete(workspaceId, () => router.push('/ci/monitoring'))
@@ -277,7 +286,7 @@ export default function ChannelDetailView({ workspaceId, channel, contents, insi
       )}
 
       <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-3)' }}>
-        게시물
+        게시물{totalContents > 0 ? ` ${totalContents.toLocaleString()}건` : ''}
       </h2>
 
       {contents.length === 0 ? (
@@ -297,6 +306,23 @@ export default function ChannelDetailView({ workspaceId, channel, contents, insi
             />
           ))}
         </div>
+      )}
+
+      {/* 페이지 이동 — 예전엔 50건 고정에 페이지가 없어서 114건짜리 채널의
+          뒤쪽 64건에 화면에서 도달할 방법이 아예 없었다(실측). */}
+      {totalContents > pageSize && (
+        <ListPager
+          query={{
+            q: '', sort: { key: 'recent', dir: 'desc' }, filters: {},
+            view: 'card', size: pageSize as never, mode: 'pages', page,
+          }}
+          total={totalContents}
+          onChange={(patch) => {
+            if (patch.page == null) return
+            const qs = patch.page > 1 ? `?page=${patch.page}` : ''
+            router.push(`${pathname}${qs}`, { scroll: true })
+          }}
+        />
       )}
 
       <DetailSheet
