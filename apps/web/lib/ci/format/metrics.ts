@@ -144,3 +144,38 @@ export function formatCount(n: number | null | undefined): string | null {
   if (n == null || !Number.isFinite(n) || n < 0) return null
   return n.toLocaleString('ko-KR')
 }
+
+/**
+ * 미확보 항목의 사람 이름. DB에는 컬럼명이 그대로 들어 있다.
+ * 화면이 'published_at 없음'이라고 말하면 사용자는 그게 무엇인지 모른다.
+ */
+export const MISSING_FIELD_LABEL: Record<string, string> = {
+  title: '제목',
+  caption: '설명',
+  published_at: '게시일',
+  views: '조회수',
+  likes: '좋아요',
+  comments: '댓글',
+  shares: '공유',
+  saves: '저장',
+  thumbnail_url: '썸네일',
+  duration_sec: '재생시간',
+}
+
+/** 배지에 한 줄로 담을 최대 항목 수. 넘으면 '외 N개'로 접는다. */
+const MISSING_INLINE_MAX = 3
+
+/**
+ * 무엇이 안 들어왔는지 한 문장으로. 없으면 null(배지를 달지 않는다).
+ *
+ * 왜 완전도 %가 아니라 항목 이름인가: 상태 배지가 이미 '일부만 수집됨'이라고 말한다.
+ * 그 옆에 같은 말을 한 번 더 붙이면 칩만 두 개가 되고 정보는 그대로다(실측: 완전도
+ * 0.333인 행에 똑같은 칩이 나란히 떴다). 사용자가 알아야 하는 것은 '얼마나'가 아니라
+ * **무엇이 비었나**다 — 조회수가 없으면 배수를 못 내고, 게시일이 없으면 추세를 못 낸다.
+ */
+export function formatMissingFields(missing: readonly string[] | null | undefined): string | null {
+  if (!missing || missing.length === 0) return null
+  const names = missing.map((f) => MISSING_FIELD_LABEL[f] ?? f)
+  if (names.length <= MISSING_INLINE_MAX) return `${names.join('·')} 없음`
+  return `${names.slice(0, MISSING_INLINE_MAX).join('·')} 외 ${names.length - MISSING_INLINE_MAX}개 없음`
+}

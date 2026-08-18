@@ -14,7 +14,7 @@ import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import type { CiContentListItem, CiEvidence, ApiResponse } from '@/lib/ci/contracts'
 import MetricBadge, { MetricBasis } from './MetricBadge'
 import CreativeSummary from './CreativeSummary'
-import { ComparabilityBadge, CompletenessBadge, ConfidenceBadge, IngestStatusBadge } from './StatusBadge'
+import { ComparabilityBadge, MissingFieldsBadge, ConfidenceBadge, IngestStatusBadge } from './StatusBadge'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
@@ -251,8 +251,8 @@ export default function DetailSheet({
                 <MetricBadge text={data.percentileText} onOpenEvidence={openEvidence} />
                 <ConfidenceBadge confidence={data.confidence} />
                 <ComparabilityBadge cls={data.comparability} />
-                <CompletenessBadge
-                  completeness={data.completeness}
+                <MissingFieldsBadge
+                  status={data.ingestStatus}
                   missingFields={data.missingFields}
                   onOpenMissing={openEvidence}
                 />

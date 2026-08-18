@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import {
   STALE_LOCK_MS, CLAIM_BATCH, WEB_DRAIN_LIMIT, WEB_DRAIN_BUDGET_MS,
   DRIVER_MAX_ERRORS, DRIVER_IDLE_MS, DRIVER_BUSY_MS,
-  isStaleLock, nextDriverDelayMs, shouldRunBackstop,
+  isStaleLock, nextDriverDelayMs, shouldRunBackstop, DRIVER_TOO_SOON_MS,
 } from './drain-policy.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -157,4 +157,29 @@ test('가드: 구동기는 보이지 않는 탭에서 때리지 않고, 앞 요�
   assert.match(driver, /visibilityState/, '배경 탭에서도 요청을 보낸다 — 조용히 쿼터를 태운다')
   assert.match(driver, /inFlight/, '앞 요청이 끝나기 전에 다음 요청을 보낸다')
   assert.match(driver, /nextDriverDelayMs/, '간격 정책 SSOT를 쓰지 않는다')
+})
+
+// ── 문턱(too_soon)을 '큐 비었음'으로 읽지 않는다 ──────────────────────
+//
+// 왜 잠그나: 서버가 과호출을 막고 돌려보내면 응답에 남은 잡 수가 없다(remaining=null).
+// 구동기가 그것을 0으로 읽어 idle(45초) 간격을 자면, 큐에 잡이 남아 있는데도 화면은
+// '수집 중' 칩을 끄고 45초를 논다. 탭이 두 개면 서로를 문턱으로 밀어내 상시화된다.
+// 실측 v0.7.565: 처리량 분당 6건 — 정상(6건/2초)의 1/20. 링크를 넣어도 분류까지
+// 몇 분이 걸려 사용자가 "왜 미분류지"를 묻게 된 실제 원인이 이것이다.
+
+test('문턱에 걸린 응답은 idle이 아니라 짧은 재시도다 — 남은 잡을 모르는 상태다', () => {
+  // remaining 0(=모름)이어도 throttled면 45초를 자면 안 된다
+  const throttled = nextDriverDelayMs({ remaining: 0, consecutiveErrors: 0, throttled: true })
+  assert.equal(throttled, DRIVER_TOO_SOON_MS)
+  assert.ok(throttled !== null && throttled < DRIVER_IDLE_MS)
+})
+
+test('문턱 재시도 간격은 서버 문턱보다 커야 한다 — 곧바로 또 튕기면 제자리다', () => {
+  // app/api/ci/queue/drain/route.ts 의 MIN_INTERVAL_MS = 1_500
+  assert.ok(DRIVER_TOO_SOON_MS > 1_500)
+})
+
+test('연속 실패 중이면 문턱보다 백오프가 우선이다 — 아픈 서버를 더 때리지 않는다', () => {
+  const d = nextDriverDelayMs({ remaining: 0, consecutiveErrors: 2, throttled: true })
+  assert.ok(d !== null && d > DRIVER_TOO_SOON_MS)
 })

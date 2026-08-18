@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   formatOutlier, formatPercentile, formatLift, formatConfidence,
-  formatComparability, formatCompleteness, formatBasis,
+  formatComparability, formatCompleteness, formatMissingFields, formatBasis,
   judgeConfidence, allowsAssertiveNarrative,
   OUTLIER_MIN_BASELINE, PERCENTILE_MIN_POPULATION,
 } from './metrics.ts'
@@ -78,4 +78,34 @@ test('근거가 부족하면 AI 단정 서술을 허용하지 않는다', () => 
   assert.equal(allowsAssertiveNarrative('insufficient'), false)
   assert.equal(allowsAssertiveNarrative('medium'), true)
   assert.equal(allowsAssertiveNarrative('high'), true)
+})
+
+// ── 미확보 항목 표기 ──────────────────────────────────────────────────
+//
+// 왜 잠그나: 예전 배지는 완전도 숫자만 보고 '일부만 수집됨'을 달았다. DB 기본값이 0이라
+// **아직 수집을 시작도 안 한 행**이 전부 그 배지를 달았고(실측 v0.7.565), 상태 배지의
+// 'partial' 라벨과 문구까지 같아 칩이 두 개 겹쳤다. 지금은 축을 나눠 이 함수가
+// **무엇이 비었는지**만 말한다.
+
+test('미확보 항목이 없으면 배지를 달지 않는다', () => {
+  assert.equal(formatMissingFields([]), null)
+  assert.equal(formatMissingFields(null), null)
+  assert.equal(formatMissingFields(undefined), null)
+})
+
+test('컬럼명이 아니라 사람 말로 적는다 — published_at은 사용자에게 아무 뜻이 없다', () => {
+  assert.equal(formatMissingFields(['views', 'likes']), '조회수·좋아요 없음')
+  assert.equal(formatMissingFields(['published_at']), '게시일 없음')
+})
+
+test('많으면 접는다 — 배지 하나가 행 높이를 무너뜨리지 않게', () => {
+  // 실측 TikTok 행: published_at·views·likes·comments 4개
+  assert.equal(
+    formatMissingFields(['published_at', 'views', 'likes', 'comments']),
+    '게시일·조회수·좋아요 외 1개 없음',
+  )
+})
+
+test('모르는 컬럼명은 지어내지 않고 그대로 보여준다', () => {
+  assert.equal(formatMissingFields(['weird_new_field']), 'weird_new_field 없음')
 })

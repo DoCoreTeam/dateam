@@ -249,9 +249,12 @@ async function upsertChannel(workspaceId: string, ucm: UcmContent): Promise<stri
     subscriber_count: ch.subscriberCount,
     subscriber_provenance: ch.subscriberCount != null ? 'platform' : null,
     ownership: 'tracked',
-    // 수집으로 자동 생성된 채널을 몰래 과금(모니터링) 대상으로 만들지 않는다.
-    // 사용자가 모니터링에서 직접 켜야 지켜보기가 시작된다.
-    is_monitored: false,
+    // 링크를 넣었다는 것은 "이 채널을 보겠다"는 뜻이다(사용자 지시 2026-08-18).
+    // 예전엔 꺼진 채로 만들어서, 링크를 넣어도 그 채널의 새 게시물이 영원히 안 들어왔다 —
+    // 사용자가 모니터링 화면에서 한 번 더 켜야 한다는 사실을 화면 어디에서도 알리지 않았다.
+    // 끄는 것은 모니터링 화면에서 언제든 되돌릴 수 있다.
+    is_monitored: true,
+    monitored_since: new Date().toISOString(),
     last_seen_at: new Date().toISOString(),
   }).select('id').single()
 

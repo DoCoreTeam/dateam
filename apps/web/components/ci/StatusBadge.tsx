@@ -4,7 +4,7 @@
 
 import type { CiComparability, CiConfidence, CiIngestStatus } from '@/lib/ci/types'
 import { CI_INGEST_STATUS_LABEL } from '@/lib/ci/types'
-import { formatComparability, formatConfidence, formatCompleteness } from '@/lib/ci/format/metrics'
+import { formatComparability, formatConfidence, formatMissingFields } from '@/lib/ci/format/metrics'
 
 type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'neutral'
 
@@ -46,19 +46,27 @@ export function ComparabilityBadge({ cls }: { cls: CiComparability | null }) {
 }
 
 /**
- * 완전도는 임계 미만일 때만 배지를 단다.
- * 정상 데이터에 '완료' 배지를 붙여 화면을 시끄럽게 만들지 않는다.
+ * 무엇이 안 들어왔는지 알린다. **수집이 끝난 뒤에만** 단다.
+ *
+ * 예전에는 완전도(0~1)가 임계 미만이면 '일부만 수집됨'을 달았는데, DB 기본값이 0이라
+ * **아직 수집을 시작조차 안 한 행**(queued)이 전부 그 배지를 달고 나왔다 —
+ * 화면은 "일부만 받았다"고 말하는데 실제로는 "하나도 안 받았다"였다(실측 v0.7.565).
+ * 게다가 ingest_status='partial'의 라벨도 같은 '일부만 수집됨'이라 칩이 두 개 겹쳤다.
+ *
+ * 그래서 축을 나눴다 — **상태는 상태 배지가**, 이 배지는 **빠진 항목 이름만** 말한다.
  */
-export function CompletenessBadge({
-  completeness, missingFields, onOpenMissing,
+export function MissingFieldsBadge({
+  status, missingFields, onOpenMissing,
 }: {
-  completeness: number | null
-  missingFields?: string[]
+  status: CiIngestStatus
+  missingFields?: string[] | null
   onOpenMissing?: () => void
 }) {
-  const text = formatCompleteness(completeness)
+  // 아직 안 받은 것과 받아 봤더니 없던 것은 다른 사실이다. 전자는 말할 것이 없다.
+  if (status !== 'done' && status !== 'partial') return null
+  const text = formatMissingFields(missingFields)
   if (!text) return null
-  const title = missingFields?.length ? `미확보: ${missingFields.join(', ')}` : undefined
+  const title = '이 항목은 플랫폼이 주지 않아 확보하지 못했습니다'
   if (!onOpenMissing) return <Badge tone="warn" title={title}>{text}</Badge>
   return (
     <button type="button" className={TONE_CLASS.warn} title={title} onClick={onOpenMissing}>

@@ -54,6 +54,19 @@ export const DRIVER_IDLE_MS = 45_000
 export const DRIVER_BUSY_MS = 2_000
 
 /**
+ * 서버가 "너무 빨리 다시 왔다"(too_soon)고 돌려보냈을 때 다시 물을 간격.
+ *
+ * 왜 별도 상수인가: too_soon 응답에는 남은 잡 수가 없다(remaining=null).
+ * 그것을 0으로 읽으면 **큐가 빈 것으로 오해**해 idle 간격(45초)을 자 버린다.
+ * 탭을 두 개 열어두면 서로를 too_soon으로 밀어내므로 이 오독이 상시화되고,
+ * 처리량이 6건/2초에서 **6건/47초로 떨어진다**(실측 v0.7.565: 분당 6건, 큐 38건이
+ * 5분 동안 안 줄었다 — 링크를 넣어도 '수집 중'에서 멈춘 것처럼 보인 실제 원인).
+ *
+ * 서버 문턱(MIN_INTERVAL_MS 1.5초)보다 커야 곧바로 또 튕기지 않는다.
+ */
+export const DRIVER_TOO_SOON_MS = 2_000
+
+/**
  * 다음 드레인까지 기다릴 시간.
  *
  * - 연속 실패 중이면 지수 백오프(5s → 10s → 20s …, 상한 60s).
@@ -65,11 +78,15 @@ export const DRIVER_BUSY_MS = 2_000
 export function nextDriverDelayMs(input: {
   remaining: number
   consecutiveErrors: number
+  /** 서버가 too_soon으로 돌려보냈는가. 남은 잡 수를 모르는 상태다 */
+  throttled?: boolean
 }): number | null {
   if (input.consecutiveErrors >= DRIVER_MAX_ERRORS) return null
   if (input.consecutiveErrors > 0) {
     return Math.min(60_000, 5_000 * 2 ** (input.consecutiveErrors - 1))
   }
+  // 문턱에 걸린 것은 "일이 없다"가 아니라 "방금 누가 돌렸다"다. 곧 다시 묻는다.
+  if (input.throttled) return DRIVER_TOO_SOON_MS
   return input.remaining > 0 ? DRIVER_BUSY_MS : DRIVER_IDLE_MS
 }
 

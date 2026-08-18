@@ -68,6 +68,21 @@ export default function QueueDriver({ workspaceId }: { workspaceId: string }) {
   const inFlight = useRef(false)
   const errors = useRef(0)
   const stopped = useRef(false)
+  /** 직전 응답이 서버 문턱에 걸렸는가. 걸렸으면 남은 잡 수를 모르는 상태다 */
+  const throttled = useRef(false)
+  /**
+   * 남은 잡 수의 **최신값**. 화면용 state와 별도로 ref에도 둔다.
+   *
+   * 왜 필요한가: tick은 마운트 시 한 번 만들어지고(deps=[workspaceId]) 그 안에서
+   * schedule을 부른다. schedule이 state인 remaining을 읽으면 tick이 붙잡은 것은
+   * **첫 렌더의 schedule**, 즉 remaining=0인 클로저다. 그래서 큐에 202건이 남아 있어도
+   * 간격이 영원히 idle(45초)로 계산됐다 — 실측 v0.7.565: 드레인 1회 6건·3초인데
+   * 20초에 1회만 호출되어 처리량이 분당 8건이었다(정상이면 분당 100건 이상).
+   * 사용자가 "링크를 넣었는데 계속 수집 중"으로 겪은 지연의 실제 크기가 이것이다.
+   */
+  const remainingRef = useRef(0)
+  /** 최신 schedule을 가리킨다 — tick이 옛 클로저를 부르지 않게 하는 유일한 통로 */
+  const scheduleRef = useRef<() => void>(() => {})
 
   const tick = useCallback(async () => {
     if (stopped.current || inFlight.current) return
@@ -84,9 +99,21 @@ export default function QueueDriver({ workspaceId }: { workspaceId: string }) {
       if (!res.success) throw new Error(res.error.message)
 
       errors.current = 0
+
+      // 서버가 문턱(1.5초)에 걸어 돌려보낸 경우다. **일이 없다는 뜻이 아니다.**
+      // 이 응답에는 남은 잡 수가 없으므로(remaining=null) 0으로 읽으면 안 된다 —
+      // 그러면 '큐가 비었다'로 판단해 45초를 자고, 그동안 잡이 그대로 쌓인다.
+      // 탭을 두 개 열면 서로를 이 상태로 밀어내 상시화된다(실측: 처리량 1/20).
+      if (res.data.skipped === 'too_soon') {
+        throttled.current = true
+        return
+      }
+      throttled.current = false
+
       const left = res.data.remaining ?? 0
       // 비어 있음을 확인한 시각을 남긴다 — 다음 화면에서 다시 묻지 않기 위해
       lastIdleAt = left > 0 ? 0 : Date.now()
+      remainingRef.current = left
       setRemaining(left)
       setPhase(left > 0 ? 'working' : 'idle')
     } catch {
@@ -98,22 +125,26 @@ export default function QueueDriver({ workspaceId }: { workspaceId: string }) {
       }
     } finally {
       inFlight.current = false
-      schedule()
+      // **ref를 거쳐 부른다.** 직접 부르면 첫 렌더의 schedule에 갇힌다(위 remainingRef 주석).
+      scheduleRef.current()
     }
-    // schedule은 아래에서 정의되며 ref만 읽으므로 의존성에 넣지 않는다
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId])
 
   const schedule = useCallback(() => {
     if (timer.current) clearTimeout(timer.current)
     if (stopped.current) return
     const delay = nextDriverDelayMs({
-      remaining,
+      // state가 아니라 ref를 읽는다 — 이 함수는 tick의 옛 클로저에서도 불릴 수 있다
+      remaining: remainingRef.current,
       consecutiveErrors: errors.current,
+      throttled: throttled.current,
     })
     if (delay === null) return
     timer.current = setTimeout(() => { void tick() }, delay)
-  }, [remaining, tick])
+  }, [tick])
+
+  // 매 렌더마다 최신 schedule을 꽂는다
+  scheduleRef.current = schedule
 
   useEffect(() => {
     // 화면에 들어오는 순간 한 번 — 링크를 넣고 바로 결과를 보려면 첫 틱이 즉시여야 한다.
