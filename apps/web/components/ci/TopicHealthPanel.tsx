@@ -14,12 +14,18 @@
 // 「신호 다시 받아오기로 근거를 채우면 제안이 나타납니다」라고 안내했다. 눌러도 아무 일이
 // 없었고 화면은 영원히 같은 상태였다(사용자 지적 "주제점검쪽 화면 왜 계속 그대로지?").
 // 이제 버튼은 **채울 수 있을 때만** 뜨고, 못 채우는 것은 이유를 밝힌다.
+//
+// **생김새는 topic-health.module.css 한 곳에서 정한다**: 예전엔 이 파일이 인라인 style 로
+// 여백과 배치를 흩뿌리고 크기는 아예 안 적었다. 그래서 .card 의 안쪽 여백이 통째로 빠져
+// 글자가 테두리에 붙었고(실측 padding:0px), 크기를 안 적은 <p>가 브라우저 기본 16px 로
+// 떨어져 **카드 자기 제목(15px)보다 큰 본문**이 됐다. 위계는 모듈에서 한 번만 정한다.
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import type { ApiResponse } from '@/lib/ci/contracts'
+import s from './topic-health.module.css'
 
 interface Proposal {
   name: string
@@ -173,7 +179,7 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
    */
   function channelCounts(d: ProposeData) {
     return (
-      <p className="ci-basis">
+      <p className={s.note}>
         채널 <span className="ci-num">{d.totalChannels}</span>곳 가운데{' '}
         <span className="ci-num">{d.unjudgedChannels}</span>곳은 게시물에 플랫폼 신호가 담기지
         않아 무엇에 대한 채널인지 아직 판정하지 못했습니다
@@ -186,8 +192,8 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
 
   if (loading) {
     return (
-      <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
-        <span className="ci-basis"><AXDotLoader size={5} /> 주제 현황을 확인합니다</span>
+      <div className={`card ${s.panel}`}>
+        <span className={s.loading}><AXDotLoader size={5} /> 주제 현황을 확인합니다</span>
       </div>
     )
   }
@@ -217,37 +223,30 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
   if (missing === 0 && !hasTopicSection && !notice && !error) return null
 
   return (
-    <section className="card" style={{ marginBottom: 'var(--space-4)' }}>
-      <h2 style={{
-        fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-1)',
-        display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-      }}>
+    <section className={`card ${s.panel}`}>
+      <h2 className={s.head}>
         <Sparkles size={16} aria-hidden /> 주제 점검
       </h2>
-      <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>
+      <p className={s.lede}>
         게시물이 어떤 주제인지 판정하려면 ① 플랫폼이 준 신호와 ② 고를 수 있는 주제가 둘 다 있어야 합니다
       </p>
 
       {/* ① 판단 근거 — 신호가 비어 있으면 무엇을 넣어도 분류가 안 된다.
           **채울 수 있을 때만** 그린다. 못 채우는 것을 여기 세면 눌러도 안 변하는 줄이 남는다. */}
       {missing > 0 && (
-        <div style={{
-          display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-end',
-          justifyContent: 'space-between', flexWrap: 'wrap',
-          paddingBottom: 'var(--space-3)',
-          borderBottom: hasTopicSection ? 'var(--hairline) solid var(--border-light)' : undefined,
-          marginBottom: hasTopicSection ? 'var(--space-3)' : 0,
-        }}>
-          <div style={{ minWidth: 0 }}>
-            <strong className="ci-num">게시물 {missing}건</strong>
-            <span>은 플랫폼 신호 없이 담겼습니다 (전체 <span className="ci-num">{health?.total ?? 0}</span>건)</span>
-            <p className="ci-basis">
+        <div className={`${s.actionRow} ${hasTopicSection ? s.sectionSplit : ''}`}>
+          <div className={s.actionText}>
+            <p className={s.statement}>
+              <span className="ci-num">게시물 {missing}건</span>은 플랫폼 신호 없이 담겼습니다
+              {' '}(전체 <span className="ci-num">{health?.total ?? 0}</span>건)
+            </p>
+            <p className={s.note}>
               담을 때 카테고리·태그를 받아오지 않던 시절의 게시물입니다. 다시 읽어 오면 판정 근거가 생깁니다
             </p>
             {unfillable > 0 && (
-              <p className="ci-basis">
+              <p className={s.note}>
                 이와 별개로 <span className="ci-num">{unfillable}</span>건은 유튜브가 아니어서
-                유튜브가 아니어서 이 버튼으로는 신호를 채우지 못합니다
+                {' '}이 버튼으로는 신호를 채우지 못합니다
               </p>
             )}
           </div>
@@ -260,9 +259,9 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
       {/* ②-a 제안이 0건일 때 — 왜 없는지 말한다. 빈 화면은 사용자에게 아무것도 알려 주지 않는다 */}
       {stalled && propose && (
         <div>
-          <p style={{ marginBottom: 'var(--space-1)' }}>{propose.summaryText}</p>
+          <p className={s.statement}>{propose.summaryText}</p>
           {channelCounts(propose)}
-          <p className="ci-basis">
+          <p className={s.note}>
             {missing > 0
               ? '위의 「신호 다시 받아오기」로 근거를 채우면 판정되는 채널부터 제안이 나타납니다'
               : unfillable > 0
@@ -275,48 +274,45 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
       {/* ②-b 주제 체계 — 데이터가 이미 답을 주고 있다. 사람은 확인만 한다 */}
       {proposals.length > 0 && propose && (
         <div>
-          <p style={{ marginBottom: 'var(--space-2)' }}>
+          <p className={s.statement}>
             수집한 채널을 보니 이렇게 나뉩니다. 이대로 주제를 만들까요?
           </p>
           {/* 제안이 있을 때도 남은 채널을 밝힌다 — "왜 이것뿐이지"의 답이다(G3 발견 ③) */}
           {propose.unjudgedChannels > 0 && channelCounts(propose)}
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 'var(--space-2)' }}>
+          <ul className={s.list}>
             {proposals.map((p) => (
-              <li key={p.name} style={{
-                display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start',
-              }}>
+              <li key={p.name} className={s.item}>
                 <input
                   type="checkbox"
                   id={`tp-${p.name}`}
+                  className={s.check}
                   checked={Boolean(picked[p.name])}
-                  onChange={(e) => setPicked((s) => ({ ...s, [p.name]: e.target.checked }))}
-                  style={{ marginTop: '0.7rem' }}
+                  onChange={(e) => setPicked((prev) => ({ ...prev, [p.name]: e.target.checked }))}
                 />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <label className="label" htmlFor={`tn-${p.name}`} style={{ position: 'absolute', left: '-9999px' }}>
+                <div className={s.itemBody}>
+                  <label className={`label ${s.srOnly}`} htmlFor={`tn-${p.name}`}>
                     주제 이름
                   </label>
                   <input
-                    className="input-field" id={`tn-${p.name}`}
+                    className={`input-field ${s.nameInput}`} id={`tn-${p.name}`}
                     value={names[p.name] ?? p.name}
                     disabled={!picked[p.name] || busy}
-                    onChange={(e) => setNames((s) => ({ ...s, [p.name]: e.target.value }))}
-                    style={{ maxWidth: '18rem' }}
+                    onChange={(e) => setNames((prev) => ({ ...prev, [p.name]: e.target.value }))}
                   />
                   {/* 근거를 같이 보여 준다 — 근거 없이 물으면 사용자도 답할 수가 없다 */}
-                  <p className="ci-basis">{p.reason}</p>
+                  <p className={s.note}>{p.reason}</p>
                 </div>
               </li>
             ))}
           </ul>
 
           {propose.unassigned.length > 0 && (
-            <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>
+            <p className={s.note}>
               채널 {propose.unassigned.length}곳은 아직 신호가 모이지 않아 어디에도 넣지 않았습니다
             </p>
           )}
 
-          <div style={{ marginTop: 'var(--space-3)' }}>
+          <div className={s.footRow}>
             <button type="button" className="btn-primary" onClick={createPicked} disabled={busy || pickedCount === 0}>
               선택한 주제 {pickedCount}개 만들기
             </button>
@@ -325,8 +321,8 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
       )}
 
       {/* 결과는 반드시 화면에 남긴다 — 눌러도 아무 일 없어 보이면 두 번째부터 아무도 안 누른다 */}
-      {notice && <p className="ci-status ci-status-info" style={{ marginTop: 'var(--space-3)' }}>{notice}</p>}
-      {error && <p className="ci-status ci-status-danger" style={{ marginTop: 'var(--space-3)' }}>{error}</p>}
+      {notice && <p className={`${s.result} ${s.resultInfo}`} role="status">{notice}</p>}
+      {error && <p className={`${s.result} ${s.resultError}`} role="alert">{error}</p>}
     </section>
   )
 }

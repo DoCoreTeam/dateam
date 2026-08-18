@@ -1,0 +1,163 @@
+/* components/ci/topic-health.module.css — 주제 점검 카드의 생김새
+ *
+ * 왜 CSS 모듈인가: globals.css 는 이미 94%가 화면 전용 규칙이라 더 넣지 않는다(§0-1 규칙 3).
+ * 여기 있는 것은 전부 이 카드 하나의 스타일이므로 이 폴더에 둔다.
+ *
+ * 왜 여기에 padding 이 있나 — 이 파일이 생긴 이유이기도 하다:
+ * globals.css 의 .card 는 배경·모서리·그림자·테두리만 준다. **안쪽 여백은 쓰는 쪽이 준다.**
+ * 이 카드는 그걸 빠뜨린 채로 살아 있었다(실측 v0.7.561 /ci/inbox: section.card 의
+ * computed padding = 0px · 자식 left 253 vs 카드 left 252 → 글자가 1px 테두리에 그대로 붙고
+ * 「신호 다시 받아오기」 버튼 오른끝 1527 vs 카드 오른끝 1528). 16px 둥근 모서리 안쪽으로
+ * 글자가 파고들어 카드가 깨진 것처럼 보였다.
+ *
+ * 글자 크기도 같은 이유로 여기서 정한다: 크기를 안 적은 <p>·<div>는 토큰이 아니라
+ * **브라우저 기본 16px**로 떨어진다. 그래서 본문이 카드 자기 제목(--fs-md 15px)보다 커졌다.
+ * 위계는 제목 15 > 사실 14 > 근거 12 순으로 이 파일에서 한 번만 정한다.
+ */
+
+.panel {
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 var(--space-1);
+}
+
+/* 이 카드가 무엇을 하는 곳인지 — 제목 밑 한 줄 */
+.lede {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0 0 var(--space-3);
+}
+
+/* 사용자가 지금 알아야 할 사실 한 문장. 제목보다 작다 — 제목이 제목으로 보이게 */
+.statement {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 그 사실의 근거·부연.
+ * 예전엔 .ci-basis(11px · --text-faint)를 썼는데, 그 클래스는 주석 그대로
+ * "수치에 병기하는 기준(기간 창·표본 수)"용이다. 설명 산문에 쓰면 카드 내용의
+ * 대부분이 11px 흐린 글씨가 되고, --text-faint 는 흰 배경에서 2.56:1 이라
+ * 본문으로 읽을 수 없다(G3 확정 발견). 숫자 병기는 그대로 .ci-num 이 맡는다. */
+.note {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  margin: var(--space-1) 0 0;
+}
+
+/* 설명 묶음 + 실행 버튼이 한 줄에 선다.
+ * align-items: flex-end — 라벨 높이만큼 버튼이 밀리지 않게(§2-3-1(3)). */
+.actionRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.actionRow .actionText {
+  min-width: 0;
+  flex: 1 1 24rem;
+}
+
+/* 아래에 다음 구획이 이어질 때만 선을 긋는다 */
+.sectionSplit {
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-bottom: var(--hairline) solid var(--border-light);
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-2) 0 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+/* 체크박스를 이름 입력칸의 세로 가운데에 맞춘다 — 입력 높이는 --control-h(44px) */
+.check {
+  margin-top: calc((var(--control-h) - 1rem) / 2);
+  flex-shrink: 0;
+}
+
+.itemBody {
+  min-width: 0;
+  flex: 1;
+}
+
+.nameInput {
+  max-width: 18rem;
+}
+
+/* 화면에는 안 보이되 스크린리더는 읽는 라벨 */
+.srOnly {
+  position: absolute;
+  left: -9999px;
+}
+
+.footRow {
+  margin-top: var(--space-3);
+}
+
+/* 눌렀을 때 무슨 일이 일어났는지 — **뱃지가 아니라 문장이다.**
+ * 예전엔 .ci-status 를 그대로 붙였는데 그건 목록의 상태 알약이다
+ * (inline-flex · --fs-2xs 11px · min-height 20px · padding 2px 8px · weight 600).
+ * 그래서 "게시물 12건에 신호를 채우고 채널 3곳을 다시 판정했어요 (남은 40건은 …)" 같은
+ * 한 문장이 11px 알약 하나로 눌려 나왔다. 색은 같은 의미 토큰을 그대로 쓰되
+ * 크기·줄바꿈은 읽는 글의 것으로 돌린다. */
+.result {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: var(--hairline) solid transparent;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.resultInfo {
+  background: var(--info-bg);
+  color: var(--info);
+  border-color: var(--info-border);
+}
+
+.resultError {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+@media (max-width: 767px) {
+  .panel { padding: var(--space-3); }
+  .actionRow > .actionText { flex-basis: 100%; }
+  .nameInput { max-width: 100%; }
+}
