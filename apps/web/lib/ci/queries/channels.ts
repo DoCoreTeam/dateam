@@ -119,7 +119,17 @@ export type AddChannelResult =
   | { ok: true; item: CiChannelListItem; created: boolean }
   | { ok: false; code: 'INVALID_URL' | 'PLAN_LIMIT_EXCEEDED'; message: string; limit?: number; current?: number }
 
-/** 플랜 한도 조회. 구독이 없으면 무료 플랜 기본값을 쓴다. */
+/** 구독이 아예 없는 워크스페이스에 적용하는 한도. 플랜 시드(마이그 190)의 무료 체험과 같은 값이다. */
+const NO_SUBSCRIPTION_CHANNEL_LIMIT = 3
+
+/**
+ * 플랜 한도 조회.
+ *
+ * **`tracked_channels`가 null이면 한도가 없다는 뜻이다.**
+ * 예전에는 값이 없으면 무조건 3으로 떨어졌다. 그래서 한도를 두지 않으려 해도 둘 수가 없었고,
+ * 사용자가 설정한 적 없는 "채널 3곳" 벽이 화면에 떴다(실측 2026-08-18: 4번째 채널 등록 거부).
+ * 무제한을 표현할 방법이 없는 것이 문제였지, 값이 3인 것이 문제가 아니었다.
+ */
 async function trackedChannelLimit(workspaceId: string): Promise<number> {
   const adminClient = createAdminClient() as any
   const { data } = await adminClient
@@ -127,9 +137,16 @@ async function trackedChannelLimit(workspaceId: string): Promise<number> {
     .select('ci_plans ( limits )')
     .eq('workspace_id', workspaceId)
     .maybeSingle()
-  const limits = (data?.ci_plans?.limits ?? {}) as Record<string, unknown>
+
+  // 구독 자체가 없으면 무료 플랜 기본값
+  if (!data?.ci_plans) return NO_SUBSCRIPTION_CHANNEL_LIMIT
+
+  const limits = (data.ci_plans.limits ?? {}) as Record<string, unknown>
+  // 키가 없거나 null이면 무제한. 플랜이 "한도를 두지 않는다"고 말할 수 있어야 한다.
+  if (limits.tracked_channels == null) return Number.POSITIVE_INFINITY
+
   const n = Number(limits.tracked_channels)
-  return Number.isFinite(n) && n > 0 ? n : 3
+  return Number.isFinite(n) && n > 0 ? n : Number.POSITIVE_INFINITY
 }
 
 /**
