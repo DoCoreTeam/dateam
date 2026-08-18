@@ -1,6 +1,6 @@
 {
   "name": "newax",
-  "version": "0.7.567",
+  "version": "0.7.568",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -11,6 +11,8 @@
     "ralph:once": "node scripts/ralph-codex.mjs --once",
     "ralph:status": "node scripts/ralph-codex.mjs --status",
     "design:check": "node scripts/check-design-tokens.mjs",
+    "ci:orphans": "node --experimental-strip-types scripts/ci-orphans.mjs",
+    "ci:orphans": "node scripts/ci-orphans.mjs",
     "changelog:gen": "node apps/web/scripts/changelog-gen.mjs",
     "test": "echo \"No tests configured\""
   },
