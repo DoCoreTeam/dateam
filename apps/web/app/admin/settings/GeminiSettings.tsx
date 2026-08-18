@@ -134,6 +134,9 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
         </div>
       )}
 
+      {/* 모델 선택 — 앱 전역 AI 기능이 쓰는 메인 모델 */}
+      <GeminiModelPicker hasKey={hasKey} savedModel={savedModel} />
+
       <IntegrationTest
         onRun={handleHealth}
         pending={healthPending}
