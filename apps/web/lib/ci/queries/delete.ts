@@ -16,6 +16,10 @@
 //   이 파일은 그대로다.
 
 import { createAdminClient } from '@/lib/supabase/server'
+import {
+  type CiRelation, type CiRelationParent,
+  ownedBy, referencedBy, polymorphicRefs,
+} from '../relation-contract.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -51,6 +55,31 @@ export function isCiId(v: string): boolean { return UUID.test(v) }
 async function count(adminClient: any, table: string, col: string, val: string): Promise<number> {
   const { count: n } = await adminClient.from(table).select('id', { count: 'exact', head: true }).eq(col, val)
   return n ?? 0
+}
+
+/**
+ * 계약(relation-contract.ts)이 선언한 관계를 실제로 세어 확인창 목록을 만든다.
+ *
+ * 왜 계약에서 뽑나: 예전엔 화면마다 "무엇이 함께 사라지는지"를 손으로 적었다.
+ * 그래서 FK를 바꿔도 문구는 그대로였고, **화면이 사실과 다른 말을 했다**
+ * (채널 삭제창이 "게시물은 남습니다"라고 안내하던 것이 정확히 그 상태다).
+ * 계약에서 뽑으면 그 어긋남이 구조적으로 불가능하다.
+ */
+async function countRelations(
+  adminClient: any,
+  parent: CiRelationParent,
+  id: string,
+  which: 'owns' | 'refs' = 'owns',
+): Promise<{ what: string; count: number }[]> {
+  const relations: CiRelation[] = which === 'owns' ? ownedBy(parent) : referencedBy(parent)
+  const visible = relations.filter((r) => r.countForUser)
+  const counted = await Promise.all(visible.map(async (r) => {
+    let q = adminClient.from(r.table).select('id', { count: 'exact', head: true }).eq(r.column, id)
+    if (r.discriminator) q = q.eq(r.discriminator.column, r.discriminator.value)
+    const { count: n } = await q
+    return { what: r.label, count: n ?? 0 }
+  }))
+  return counted.filter((c) => c.count > 0)
 }
 
 /** 폴리모픽 보드 항목 수 — FK가 없어 직접 센다. */
@@ -100,12 +129,13 @@ export async function previewDelete(
       const { data } = await adminClient.from('ci_channels')
         .select('id, display_name').eq('id', id).eq('workspace_id', workspaceId).maybeSingle()
       if (!data) return { ...empty, blocked: '이 워크스페이스에 없는 채널입니다' }
-      const contents = await count(adminClient, 'ci_contents', 'channel_id', id)
+      // 게시물은 **함께 사라진다**(마이그 208에서 CASCADE로 바로잡음).
+      // 예전엔 SET NULL이라 "채널 미확인" 게시물이 남았고, 그 게시물은 비교군이 없어
+      // 배수가 영원히 안 나오면서 화면과 비용만 갉아먹었다(실측 55건).
       return {
         label: data.display_name ?? '이름 미확인',
-        cascades: [],
-        // 게시물은 살아남는다 — FK가 SET NULL이다. 이 사실을 반드시 밝힌다.
-        detaches: [{ what: '이 채널에서 수집한 게시물(남아 있고 채널 연결만 끊깁니다)', count: contents }],
+        cascades: await countRelations(adminClient, 'channel', id),
+        detaches: await countRelations(adminClient, 'channel', id, 'refs'),
         blocked: null,
       }
     }
@@ -208,11 +238,17 @@ export async function deleteCiEntity(
     } as Record<string, string>)[kind]
     if (!table) return { ok: false, deleted: 0, errorMessage: '지원하지 않는 대상입니다' }
 
-    // 폴리모픽 참조는 DB가 안 치워 준다 — 본체를 지우기 **전에** 먼저 지운다.
-    // 순서가 중요하다: 본체를 먼저 지우면 어떤 보드 항목이 고아인지 알 방법이 없다.
-    if (kind === 'content' || kind === 'idea' || kind === 'brief') {
-      await adminClient.from('ci_board_items').delete()
-        .eq('item_type', kind === 'content' ? 'content' : kind).eq('item_id', id)
+    // 폴리모픽 참조(FK를 걸 수 없는 자리)를 본체보다 **먼저** 지운다.
+    //
+    // 마이그 208의 DB 트리거가 같은 일을 하므로 이건 두 번째 방어선이다. 그래도 남기는 이유:
+    //   ⓐ 마이그레이션이 아직 안 간 환경(로컬·새 브랜치)에서도 고아를 만들지 않는다
+    //   ⓑ 순서가 중요하다 — 본체를 먼저 지우면 어떤 항목이 고아인지 알 방법이 사라진다
+    // 예전엔 여기서 content·idea·brief 3종만 다뤄 **채널이 통째로 빠져 있었다**.
+    // 이제 종류를 손으로 적지 않고 계약에서 뽑는다 — 새 참조가 생겨도 자동으로 포함된다.
+    for (const rel of polymorphicRefs(kind as CiRelationParent)) {
+      await adminClient.from(rel.table).delete()
+        .eq(rel.discriminator!.column, rel.discriminator!.value)
+        .eq(rel.column, id)
     }
 
     const { data, error } = await adminClient.from(table).delete()

@@ -63,8 +63,13 @@ test('★ SSOT가 워크스페이스 조건을 항상 건다 — 서비스 롤�
 
 test('★ 폴리모픽 고아를 코드가 치운다 — ci_board_items에는 FK가 없다', () => {
   const src = read('lib/ci/queries/delete.ts')
-  assert.match(src, /from\('ci_board_items'\)\s*\.delete\(\)[\s\S]{0,200}?item_type/,
-    '본체를 지울 때 보드 항목을 함께 치우지 않는다 — 없는 게시물이 보드에 남는다')
+  // 예전엔 여기서 `from('ci_board_items').delete()`를 손으로 찾았다. 그 형태는
+  // **종류를 손으로 나열해야만** 성립했고, 그래서 채널이 통째로 빠져 있었다(실측 v0.7.567).
+  // 지금은 계약(relation-contract.ts)에서 뽑으므로 새 참조가 생겨도 자동으로 포함된다.
+  assert.match(src, /for \(const rel of polymorphicRefs\(/,
+    '본체를 지울 때 폴리모픽 참조를 계약에서 뽑아 치우지 않는다 — 없는 대상이 보드·큐에 남는다')
+  assert.match(src, /\.from\(rel\.table\)\s*\.delete\(\)/,
+    'polymorphicRefs를 돌기만 하고 실제로 지우지 않는다')
 })
 
 test('★ 확인 없이 지우는 길이 없다 — 되돌릴 수 없으므로 확인이 유일한 안전장치다', () => {
