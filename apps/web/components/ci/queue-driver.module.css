@@ -1,0 +1,14 @@
+/* components/ci/queue-driver.module.css — 수집 중 칩
+ * .ci-status 위에 **누를 수 있음**만 얹는다. 색·모양은 그대로 둔다.
+ */
+
+.chip {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  /* 눌리는 것이라고 보이게 — 아무 반응이 없으면 장식으로 읽힌다 */
+  transition: filter var(--duration-fast, 150ms) ease;
+}
+
+.chip:hover { filter: brightness(0.96); }
+.chip:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }

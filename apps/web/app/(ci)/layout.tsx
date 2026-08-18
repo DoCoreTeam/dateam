@@ -23,6 +23,7 @@ import CiOnboardingGate from '@/components/ci/CiOnboardingGate'
 import AssistantPanel from '@/components/ci/AssistantPanel'
 import NotificationBell from '@/components/ci/NotificationBell'
 import QueueDriver from '@/components/ci/QueueDriver'
+import { countPendingJobs } from '@/lib/ci/jobs/queue'
 import type { CiLoopMinimap } from '@/lib/ci/contracts'
 
 const NAV_ITEMS = [
@@ -102,6 +103,10 @@ export default async function CiLayout({ children }: { children: React.ReactNode
   }
 
   const counts = await getLoopCounts(workspace.id)
+  // 남은 잡 수 — 셸이 그릴 때 이미 알 수 있는 값이다.
+  // 조회 1회를 더 쓰지만, 화면을 열자마자 상태를 아는 값이 그보다 크다.
+  const pendingJobs = await countPendingJobs(workspace.id).catch(() => 0)
+
 
   return (
     <AppShell
@@ -124,7 +129,12 @@ export default async function CiLayout({ children }: { children: React.ReactNode
           { slot: 'assistant', node: <AssistantPanel workspaceId={workspace.id} /> },
           // 큐 구동기. 크론을 늘리지 않고 큐를 돌리는 주 경로다(설계 §7-0 A).
           // 화면이 열려 있는 동안만 짧은 요청을 반복하고, 진행 중이거나 멈췄을 때만 보인다.
-          { slot: 'utility', node: <QueueDriver workspaceId={workspace.id} /> },
+          // 서버가 아는 남은 건수를 함께 넘긴다 — 첫 tick을 기다리는 동안,
+          // 그리고 탭이 배경에 있는 동안 화면이 "아무 일도 없음"으로 보이지 않게.
+          {
+            slot: 'utility',
+            node: <QueueDriver workspaceId={workspace.id} initialRemaining={pendingJobs} />,
+          },
         ],
       }}
     >

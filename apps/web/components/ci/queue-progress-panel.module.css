@@ -1,0 +1,43 @@
+/* components/ci/queue-progress-panel.module.css — 수집 진행 상황 패널
+ * globals.css에 넣지 않는다(디자인 시스템 §0-1). 값은 전부 토큰.
+ */
+
+.stack { display: flex; flex-direction: column; gap: var(--space-5); }
+.section { display: flex; flex-direction: column; gap: var(--space-3); }
+.head { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+
+/* 패널을 연 이유에 먼저 답하는 자리 */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--surface-bg);
+}
+
+.big { margin: 0; font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -0.02em; }
+.eta { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.6; }
+
+.stages { display: flex; flex-direction: column; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.stage { display: flex; flex-direction: column; gap: var(--space-1); }
+
+.stageTop { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.stageLabel { font-size: var(--fs-sm); font-weight: 600; }
+.stageCount { font-size: var(--fs-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.stageNote { margin: 0; font-size: var(--fs-xs); color: var(--text-faint); line-height: 1.6; }
+
+/* 막대는 "얼마나 남았나"가 아니라 "어디에 몰려 있나"를 보여준다 */
+.bar {
+  height: 6px;
+  border-radius: var(--radius);
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+.barFill { display: block; height: 100%; background: var(--brand); }
+
+.fails { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.fail { display: flex; flex-direction: column; gap: var(--space-1); }
+.failMsg { font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.6; word-break: break-word; }

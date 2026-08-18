@@ -16,6 +16,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import QueueProgressPanel from './QueueProgressPanel'
+import styles from './queue-driver.module.css'
 import {
   nextDriverDelayMs, DRIVER_MAX_ERRORS,
 } from '@/lib/ci/jobs/drain-policy'
@@ -32,6 +34,19 @@ interface DrainResponse {
 }
 
 type Phase = 'idle' | 'working' | 'stalled'
+
+interface QueueDriverProps {
+  workspaceId: string
+  /**
+   * 서버가 이미 아는 남은 건수.
+   *
+   * 왜 필요한가: 예전에는 첫 tick이 끝나야 상태를 알았다. 그런데 이 부품은
+   * **보이지 않으면 때리지 않는다**(아래 규칙). 그래서 다른 탭을 보다가 돌아오면
+   * 그 순간까지 화면이 "아무 일도 없음"으로 보였다 — 실제로는 1,017건이 밀려 있는데도.
+   * 서버가 페이지를 그릴 때 이미 아는 값이므로 그대로 받아 시작한다.
+   */
+  initialRemaining?: number
+}
 
 /**
  * 마지막으로 "할 일 없음"을 확인한 시각. 탭이 살아 있는 동안 유지된다.
@@ -59,9 +74,14 @@ export function wakeQueueDriver(): void {
   lastIdleAt = 0
 }
 
-export default function QueueDriver({ workspaceId }: { workspaceId: string }) {
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [remaining, setRemaining] = useState(0)
+export default function QueueDriver({ workspaceId, initialRemaining = 0 }: QueueDriverProps) {
+  // 서버가 아는 값으로 시작한다 — 첫 tick을 기다리는 동안 "아무 일도 없음"으로 보이지 않게
+  const [phase, setPhase] = useState<Phase>(initialRemaining > 0 ? 'working' : 'idle')
+  const [remaining, setRemaining] = useState(initialRemaining)
+  const [panelOpen, setPanelOpen] = useState(false)
+  // 닫기 함수를 고정한다 — 이 부품은 몇 초마다 다시 그려지는데,
+  // 매번 새 함수를 넘기면 패널의 포커스 트랩 effect가 그때마다 재등록된다.
+  const closePanel = useCallback(() => setPanelOpen(false), [])
 
   // 렌더와 무관한 구동 상태는 ref로 둔다 — 상태로 두면 매 틱마다 effect가 재생성된다
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -170,19 +190,36 @@ export default function QueueDriver({ workspaceId }: { workspaceId: string }) {
 
   if (phase === 'idle') return null
 
-  if (phase === 'stalled') {
-    return (
-      <span className="ci-status ci-status-danger" role="status" aria-live="polite">
-        <AlertTriangle size={14} aria-hidden="true" />
-        수집이 멈춰 있습니다
-      </span>
-    )
-  }
+  // 칩은 **누를 수 있어야 한다.** 숫자 하나로는 무엇을 하는 중인지·언제 끝나는지·
+  // 뭔가 막혔는지를 알 수 없다. 사용자는 실제로 눌러 보려 했다(지적 2026-08-18).
+  const label = phase === 'stalled'
+    ? '수집이 멈춰 있습니다'
+    : `수집 중 ${remaining.toLocaleString()}건 남음`
 
   return (
-    <span className="ci-status ci-status-info" role="status" aria-live="polite">
-      <AXDotLoader size={5} />
-      수집 중 {remaining}건 남음
-    </span>
+    <>
+      <button
+        type="button"
+        className={`ci-status ${phase === 'stalled' ? 'ci-status-danger' : 'ci-status-info'} ${styles.chip}`}
+        onClick={() => setPanelOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={panelOpen}
+        title="눌러서 진행 상황 보기"
+      >
+        {phase === 'stalled'
+          ? <AlertTriangle size={14} aria-hidden="true" />
+          : <AXDotLoader size={5} />}
+        {label}
+      </button>
+      {/* 상태를 읽어 주는 것은 버튼이 아니라 이 줄이다 —
+          버튼에 aria-live를 걸면 누를 때마다 다시 읽어 시끄럽다 */}
+      <span className="visually-hidden" role="status" aria-live="polite">{label}</span>
+
+      <QueueProgressPanel
+        isOpen={panelOpen}
+        onClose={closePanel}
+        workspaceId={workspaceId}
+      />
+    </>
   )
 }
