@@ -10,6 +10,7 @@
 
 import type { CiMediaInfo } from '@/lib/ci/contracts'
 import EmptyState from '@/components/ui/EmptyState'
+import FormulaNote from './FormulaNote'
 import styles from './media-summary.module.css'
 
 interface Props {
@@ -57,9 +58,7 @@ export default function MediaSummary({ media, variant = 'full' }: Props) {
         />
       ) : (
         <>
-          {media.replicableFormula && (
-            <p className={styles.formula}>따라 만든다면 — {media.replicableFormula}</p>
-          )}
+          <FormulaNote formula={media.replicableFormula} />
 
           <dl className="ci-creative-grid">
             {media.topicGuess && (

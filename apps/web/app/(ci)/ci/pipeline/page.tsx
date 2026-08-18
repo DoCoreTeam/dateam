@@ -23,14 +23,35 @@ export default async function PipelinePage({
   const sp = await searchParams
   const ideas = await listIdeas(workspace.id)
 
-  // 트렌드·홈에서 "아이디어 만들기"로 넘어온 경우, 근거로 삼을 콘텐츠 제목을 미리 채운다
-  let seed: { contentId: string; title: string } | null = null
+  // 트렌드·홈에서 "아이디어 만들기"로 넘어온 경우, 근거로 삼을 콘텐츠를 미리 채운다.
+  //
+  // 제목만 넘기면 사용자는 빈 화면 앞에서 다시 생각해야 한다.
+  // 영상을 읽어 뒀다면 **왜 통했고 어떻게 따라 만드는지**를 이미 알고 있으므로 함께 넘긴다 —
+  // 이것이 "영상을 읽는다"가 기획으로 이어지는 지점이다.
+  let seed: {
+    contentId: string
+    title: string
+    formula?: string | null
+    whyItWorks?: string | null
+    hookMessage?: string | null
+  } | null = null
   if (sp.from) {
     const adminClient = createAdminClient() as any
     const { data } = await adminClient.from('ci_contents')
       .select('id, title').eq('id', sp.from).eq('workspace_id', workspace.id)
       .is('deleted_at', null).maybeSingle()
-    if (data) seed = { contentId: data.id, title: data.title ?? '' }
+    if (data) {
+      const { data: media } = await adminClient.from('ci_content_media')
+        .select('replicable_formula, why_it_works, hook_message')
+        .eq('content_id', data.id).maybeSingle()
+      seed = {
+        contentId: data.id,
+        title: data.title ?? '',
+        formula: media?.replicable_formula ?? null,
+        whyItWorks: media?.why_it_works ?? null,
+        hookMessage: media?.hook_message ?? null,
+      }
+    }
   }
 
   return (

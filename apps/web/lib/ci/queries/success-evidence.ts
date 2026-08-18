@@ -52,13 +52,20 @@ export async function getSuccessEvidence(workspaceId: string): Promise<SuccessEv
   const rows = (hot ?? []) as { content_id: string; ci_contents: { duration_sec: number | null } }[]
   const ids = rows.map((r) => r.content_id)
 
-  const [creativeRes, patternRes] = await Promise.all([
+  const [creativeRes, patternRes, mediaRes] = await Promise.all([
     ids.length > 0
       ? adminClient.from('ci_content_creative').select('hook_type').in('content_id', ids)
       : Promise.resolve({ data: [] }),
     adminClient.from('ci_patterns')
       .select('statement').eq('workspace_id', workspaceId).eq('is_archived', false)
       .order('lift', { ascending: false }).limit(5),
+    // 영상 실체 — 연출을 말할 수 있는 유일한 출처다.
+    // 썸네일(ci_content_creative)로는 컷 리듬도 자막 유무도 알 수 없다.
+    ids.length > 0
+      ? adminClient.from('ci_content_media')
+          .select('content_id, hook_device, cut_count, has_subtitle, beats')
+          .in('content_id', ids)
+      : Promise.resolve({ data: [] }),
   ])
 
   const hookTypes = ((creativeRes.data ?? []) as { hook_type: string | null }[]).map((r) => r.hook_type)
@@ -66,10 +73,49 @@ export async function getSuccessEvidence(workspaceId: string): Promise<SuccessEv
     .map((r) => r.ci_contents?.duration_sec)
     .filter((v): v is number => typeof v === 'number')
 
+  // ── 영상 실체 집계 ───────────────────────────────────────────────
+  //
+  // 길이를 함께 봐야 컷 수가 리듬이 된다 — 컷 24회는 30초면 빠르고 5분이면 느리다.
+  const durationOf = new Map<string, number | null>(
+    rows.map((r) => [r.content_id, r.ci_contents?.duration_sec ?? null]),
+  )
+  const mediaRows = (mediaRes.data ?? []) as {
+    content_id: string
+    hook_device: string | null
+    cut_count: number | null
+    has_subtitle: boolean | null
+    beats: unknown
+  }[]
+
+  const cutsPerMin: number[] = []
+  const beatCounts: number[] = []
+  let subtitleKnown = 0
+  let subtitleYes = 0
+
+  for (const m of mediaRows) {
+    const dur = durationOf.get(m.content_id)
+    if (m.cut_count != null && dur != null && dur > 0) {
+      cutsPerMin.push((m.cut_count / dur) * 60)
+    }
+    if (Array.isArray(m.beats) && m.beats.length > 0) beatCounts.push(m.beats.length)
+    // null(모름)은 세지 않는다 — 모르는 것을 "자막 없음"으로 세면 비율이 낮게 거짓말한다
+    if (m.has_subtitle != null) {
+      subtitleKnown += 1
+      if (m.has_subtitle) subtitleYes += 1
+    }
+  }
+
   return {
     medianDurationSec: median(durations),
     topHookTypes: topByCount(hookTypes),
     patternStatements: ((patternRes.data ?? []) as { statement: string }[]).map((r) => r.statement),
     sampleSize: rows.length,
+
+    topHookDevices: topByCount(mediaRows.map((m) => m.hook_device)),
+    medianCutsPerMin: median(cutsPerMin),
+    subtitleRatio: subtitleKnown > 0 ? subtitleYes / subtitleKnown : null,
+    medianBeats: median(beatCounts),
+    // 읽은 것만 센다. 위 sampleSize는 "잘 된 것"이고 이것은 "잘 됐고 읽기까지 한 것"이다.
+    mediaSampleSize: mediaRows.length,
   }
 }

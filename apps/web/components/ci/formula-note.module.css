@@ -1,0 +1,19 @@
+/* components/ci/formula-note.module.css — 재현 공식 표시
+ * globals.css에 넣지 않는다(디자인 시스템 §0-1). 값은 전부 토큰.
+ */
+
+.wrap { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* 사용자가 이 화면에서 실제로 들고 나가는 한 줄이다. 눈에 띄어야 한다 */
+.formula {
+  margin: 0;
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--info-border);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.why { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.6; }

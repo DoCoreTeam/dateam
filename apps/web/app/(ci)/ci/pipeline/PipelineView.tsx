@@ -9,6 +9,7 @@ import type { ApiResponse, CiIdeaCard } from '@/lib/ci/contracts'
 import { CI_PIPELINE_STAGES, CI_STAGE_LABEL, type CiPipelineStage } from '@/lib/ci/types'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
+import FormulaNote from '@/components/ci/FormulaNote'
 import { isEnterKey } from '@/lib/ui/ime'
 import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
 import { useCiDelete } from '@/lib/ci/use-delete'
@@ -23,7 +24,28 @@ const COLUMN_HINT: Record<CiPipelineStage, string> = {
 interface Props {
   workspaceId: string
   ideas: CiIdeaCard[]
-  seed: { contentId: string; title: string } | null
+  seed: {
+    contentId: string
+    title: string
+    /** 영상을 읽어 뽑은 "따라 만든다면" 한 줄. 없으면 null */
+    formula?: string | null
+    whyItWorks?: string | null
+    hookMessage?: string | null
+  } | null
+}
+
+/**
+ * 근거 콘텐츠에서 읽은 것을 아이디어 메모로 옮긴다.
+ * 없는 항목은 줄 자체를 만들지 않는다 — 빈 라벨만 남으면 읽는 사람이 혼란스럽다.
+ */
+function seedNote(seed: Props['seed']): string {
+  if (!seed) return ''
+  const lines: string[] = []
+  if (seed.formula) lines.push(`따라 만든다면 — ${seed.formula}`)
+  if (seed.whyItWorks) lines.push(`통한 이유 — ${seed.whyItWorks}`)
+  if (seed.hookMessage) lines.push(`원본의 첫 3초 — "${seed.hookMessage}"`)
+  if (seed.title) lines.push(`원본 — ${seed.title}`)
+  return lines.join('\n')
 }
 
 export default function PipelineView({ workspaceId, ideas, seed }: Props) {
@@ -46,6 +68,9 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
         headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
         body: JSON.stringify({
           title: title.trim(),
+          // 영상에서 읽은 것을 메모로 이어붙인다 — 빈 아이디어 카드 앞에서
+          // 사용자가 "왜 이걸 담았더라"를 다시 떠올리지 않아도 되게.
+          note: seedNote(seed) || undefined,
           evidence: seed ? [{ sourceType: 'content', sourceId: seed.contentId }] : [],
         }),
       }).then((r) => r.json() as Promise<ApiResponse<{ id: string }>>)
@@ -105,9 +130,17 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
       </div>
 
       {seed && (
-        <p className="ci-status ci-status-info" style={{ marginBottom: 'var(--space-4)', display: 'inline-flex' }}>
-          근거를 이어받았습니다 — 만들면 어디서 왔는지 카드에 남습니다
-        </p>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <p className="ci-status ci-status-info" style={{ display: 'inline-flex' }}>
+            근거를 이어받았습니다 — 만들면 어디서 왔는지 카드에 남습니다
+          </p>
+          {/* 영상을 읽어 둔 것이 있으면 그대로 보여준다. 이것이 "영상을 읽는다"가
+              기획으로 이어지는 지점이다 — 제목만 넘기면 사용자는 다시 생각해야 한다.
+              상세 시트와 **같은 부품**을 쓴다(§0: 두 번째 사용처가 생기면 이미 늦다). */}
+          <div style={{ marginTop: 'var(--space-2)' }}>
+            <FormulaNote formula={seed.formula} why={seed.whyItWorks} />
+          </div>
+        </div>
       )}
 
       {error && (

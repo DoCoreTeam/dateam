@@ -23,6 +23,11 @@ function evidence(over: Partial<SuccessEvidence> = {}): SuccessEvidence {
     topHookTypes: [],
     patternStatements: [],
     sampleSize: 0,
+    topHookDevices: [],
+    medianCutsPerMin: null,
+    subtitleRatio: null,
+    medianBeats: null,
+    mediaSampleSize: 0,
     ...over,
   }
 }
@@ -180,4 +185,93 @@ test('화면을 못 훑었으면 "화면이 그대로"라고 단정하지 않는
 
   const seen = buildEditPoints(signals({ durationSec: 120, framesSampled: 240 }), evidence())
   assert.ok(seen.some((p) => p.kind === 'cut'), '실제로 훑었으면 제안해야 한다')
+})
+
+/* ───────── 영상 실체 근거 (lib/ci/media) ─────────
+ *
+ * 왜 이 규칙들이 따로 있나: 위 근거(길이·후킹 유형)는 썸네일과 지표에서 나온 것이라
+ * **연출을 말하지 못한다.** "후킹 유형 질문형"은 무엇을 하라는 말이 아니다.
+ * 영상을 실제로 읽으면 몇 초에 한 번 자르는지·자막을 넣는지·몇 토막인지가 나오고,
+ * 그건 그대로 제작 지시가 된다.
+ */
+
+/** 화면·소리를 다 본 60초 영상. 컷은 8번(분당 8회) — 느린 편이다. */
+function slowVideo(): VideoSignals {
+  return {
+    durationSec: 60,
+    sceneChanges: Array.from({ length: 8 }, (_, i) => ({ atSec: i * 7 + 3, score: 0.5 })),
+    silences: [], loudPeaks: [], framesSampled: 120, audioAnalyzed: true,
+  }
+}
+
+test('★ 컷 리듬을 숫자로 말한다 — "컷을 더 넣어라"는 지시가 아니다', () => {
+  const pts = buildEditPoints(slowVideo(), evidence({ medianCutsPerMin: 24, mediaSampleSize: 12 }))
+  const p = pts.find((x) => x.action.includes('분당'))
+  assert.ok(p, '컷 리듬 제안이 없다')
+  assert.match(p.action, /컷을 \d+번쯤 더 넣으세요/)
+  assert.match(p.action, /분당 8회 → 분당 24회/)
+  assert.match(p.reason, /12건/)
+})
+
+test('표본이 적으면 리듬을 말하지 않는다 — 서너 건으로 공식을 팔지 않는다', () => {
+  const pts = buildEditPoints(slowVideo(), evidence({ medianCutsPerMin: 24, mediaSampleSize: 4 }))
+  assert.equal(pts.filter((x) => x.action.includes('분당')).length, 0)
+})
+
+test('화면을 못 봤으면 내 컷 수를 모른다 — 모르는 것을 비교하지 않는다', () => {
+  const blind = { ...slowVideo(), framesSampled: 0 }
+  const pts = buildEditPoints(blind, evidence({ medianCutsPerMin: 24, mediaSampleSize: 12 }))
+  assert.equal(pts.filter((x) => x.action.includes('분당')).length, 0)
+})
+
+test('이미 충분히 빠르면 말하지 않는다', () => {
+  const fast = { ...slowVideo(), sceneChanges: Array.from({ length: 30 }, (_, i) => ({ atSec: i * 2, score: 0.5 })) }
+  const pts = buildEditPoints(fast, evidence({ medianCutsPerMin: 24, mediaSampleSize: 12 }))
+  assert.equal(pts.filter((x) => x.action.includes('분당')).length, 0)
+})
+
+test('★ 자막은 "넣으세요"가 아니라 비율로 말한다 — 내 영상의 자막 유무를 우리는 모른다', () => {
+  const pts = buildEditPoints(slowVideo(), evidence({ subtitleRatio: 0.85, mediaSampleSize: 12 }))
+  const p = pts.find((x) => x.action.includes('자막'))
+  assert.ok(p)
+  assert.match(p.reason, /85%가 자막을 넣습니다/)
+})
+
+test('대부분이 자막을 안 넣으면 말하지 않는다', () => {
+  const pts = buildEditPoints(slowVideo(), evidence({ subtitleRatio: 0.4, mediaSampleSize: 12 }))
+  assert.equal(pts.filter((x) => x.action.includes('자막이 없다면')).length, 0)
+})
+
+test('★ 첫 3초를 여는 "장치"가 유형보다 먼저다 — 유형은 실행할 수 없다', () => {
+  const v: VideoSignals = {
+    durationSec: 60, sceneChanges: [], silences: [],
+    loudPeaks: [{ atSec: 4, level: 0.9 }], framesSampled: 60, audioAnalyzed: true,
+  }
+  const pts = buildEditPoints(v, evidence({
+    topHookTypes: ['질문형'], topHookDevices: ['자막 선언', '결과 먼저'], mediaSampleSize: 9,
+  }))
+  const hook = pts.find((x) => x.kind === 'hook')
+  assert.ok(hook)
+  assert.match(hook.reason, /자막 선언·결과 먼저/)
+  assert.ok(!hook.reason.includes('질문형'), '장치가 있는데 유형을 말했다')
+})
+
+test('장치가 없으면 예전대로 유형으로 말한다 — 회귀 방지', () => {
+  const v: VideoSignals = {
+    durationSec: 60, sceneChanges: [], silences: [],
+    loudPeaks: [{ atSec: 4, level: 0.9 }], framesSampled: 60, audioAnalyzed: true,
+  }
+  const pts = buildEditPoints(v, evidence({ topHookTypes: ['질문형'] }))
+  assert.match(pts.find((x) => x.kind === 'hook')?.reason ?? '', /질문형/)
+})
+
+test('작성자가 이미 챕터를 찍었으면 토막 수를 참견하지 않는다', () => {
+  const withCh = { ...slowVideo(), chapters: [{ atSec: 0, label: '인트로' }, { atSec: 30, label: '본론' }] }
+  const pts = buildEditPoints(withCh, evidence({ medianBeats: 5, mediaSampleSize: 12 }))
+  assert.equal(pts.filter((x) => x.action.includes('토막')).length, 0)
+})
+
+test('영상 근거가 하나도 없으면 새 제안이 하나도 안 나온다 — 회귀 방지', () => {
+  const before = buildEditPoints(slowVideo(), evidence())
+  assert.equal(before.filter((x) => /분당|자막이 없다면|토막/.test(x.action)).length, 0)
 })

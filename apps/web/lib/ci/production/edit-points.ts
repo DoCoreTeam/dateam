@@ -8,6 +8,18 @@
 //  ② 근거(evidence): 우리가 수집한 잘된 콘텐츠의 패턴 — 후킹 유형·길이·성공 공식
 // 둘을 겹쳐 "여기를 이렇게" 를 만든다. 신호가 없으면 지점을 지어내지 않는다.
 
+/**
+ * 영상 실체 근거를 쓰기 시작하는 최소 표본.
+ * 두세 건으로 "잘 된 영상은 이렇게 합니다"라고 말하면 우연을 공식으로 파는 것이 된다.
+ */
+const MEDIA_MIN_SAMPLE = 5
+
+/** 이 비율 아래로 느리면 늘어진 것으로 본다(잘 된 것의 60%). */
+const RHYTHM_SLOW_RATIO = 0.6
+
+/** 이 비율을 넘으면 "대부분이 그렇게 한다"고 말할 수 있다. */
+const SUBTITLE_DOMINANT_RATIO = 0.7
+
 /** 브라우저 분석이 만들어 내는 관측 신호. 모두 초 단위. */
 export interface VideoSignals {
   durationSec: number
@@ -46,6 +58,23 @@ export interface SuccessEvidence {
   patternStatements: string[]
   /** 근거가 된 콘텐츠 수 — 숫자를 밝혀야 사용자가 믿을지 말지 정한다 */
   sampleSize: number
+
+  // ── 영상 실체에서 얻은 근거 (lib/ci/media) ────────────────────────
+  //
+  // 위 넷은 썸네일과 지표에서 나온 것이라 **연출을 말하지 못한다.**
+  // "후킹 유형 질문형"은 무엇을 하라는 말이 아니다. 아래는 영상을 실제로 읽어서 나온 것이라
+  // 그대로 제작 지시가 된다 — 몇 초에 한 번 자르는지, 자막을 넣는지, 몇 토막으로 나누는지.
+
+  /** 첫 3초를 여는 방식 (자막 선언·결과 먼저 …). 유형이 아니라 **장치**다 */
+  topHookDevices: string[]
+  /** 분당 컷 수 중앙값. 리듬을 숫자로 말할 수 있는 유일한 값 */
+  medianCutsPerMin: number | null
+  /** 잘 된 것 중 자막을 넣은 비율 0~1. null이면 표본이 없다 */
+  subtitleRatio: number | null
+  /** 몇 토막으로 나누는가 (구간 전개 개수 중앙값) */
+  medianBeats: number | null
+  /** 영상을 **실제로 읽은** 표본 수. 위 sampleSize와 다르다 — 읽지 못한 것이 있다 */
+  mediaSampleSize: number
 }
 
 export type EditPointKind =
@@ -118,9 +147,12 @@ function hookPoints(s: VideoSignals, e: SuccessEvidence): EditPoint[] {
     .sort((a, b) => b.level - a.level)[0]
 
   if (earlyPeak) {
-    const hookLabel = e.topHookTypes.length > 0
-      ? `잘 된 콘텐츠에서 가장 많이 통한 후킹은 ${e.topHookTypes.slice(0, 2).join('·')}입니다`
-      : '가장 강한 순간을 앞으로 당기면 초반 이탈이 줄어듭니다'
+    // 장치(자막 선언·결과 먼저)가 유형(질문형)보다 먼저다 — 유형은 무엇을 하라는 말이 아니다.
+    const hookLabel = e.topHookDevices.length > 0
+      ? `잘 된 영상은 첫 3초를 ${e.topHookDevices.slice(0, 2).join('·')}(으)로 엽니다 (영상 ${e.mediaSampleSize}건 기준)`
+      : e.topHookTypes.length > 0
+        ? `잘 된 콘텐츠에서 가장 많이 통한 후킹은 ${e.topHookTypes.slice(0, 2).join('·')}입니다`
+        : '가장 강한 순간을 앞으로 당기면 초반 이탈이 줄어듭니다'
     out.push({
       kind: 'hook',
       startSec: round(earlyPeak.atSec),
@@ -187,6 +219,73 @@ function emphasisPoints(s: VideoSignals): EditPoint[] {
       reason: '소리가 크게 튀는 지점입니다. 말의 강조점일 확률이 높습니다',
       confidence: 0.5,
     }))
+}
+
+/**
+ * 컷 리듬 — 잘 된 영상이 몇 초에 한 번 자르는지와 비교한다.
+ *
+ * 이것이 영상 실체를 읽어서 생기는 값이다. 썸네일로는 절대 알 수 없다.
+ * "컷을 더 넣어라"가 아니라 "분당 8회인데 잘 된 것은 24회"라고 말할 수 있게 된다.
+ */
+function rhythmPoint(s: VideoSignals, e: SuccessEvidence): EditPoint | null {
+  if (e.medianCutsPerMin == null || e.mediaSampleSize < MEDIA_MIN_SAMPLE) return null
+  // 화면을 못 봤으면 내 컷 수를 모른다. 모르는 것을 비교하지 않는다.
+  if (s.framesSampled <= 0 || s.durationSec < 10) return null
+
+  const mine = (s.sceneChanges.length / s.durationSec) * 60
+  if (mine >= e.medianCutsPerMin * RHYTHM_SLOW_RATIO) return null
+
+  const needed = Math.max(1, Math.round(((e.medianCutsPerMin - mine) * s.durationSec) / 60))
+  return {
+    kind: 'cut',
+    startSec: 0,
+    endSec: round(s.durationSec),
+    action: `컷을 ${needed}번쯤 더 넣으세요 (지금 분당 ${round(mine)}회 → 분당 ${round(e.medianCutsPerMin)}회)`,
+    reason: `잘 된 영상 ${e.mediaSampleSize}건은 분당 ${round(e.medianCutsPerMin)}회로 자릅니다. 지금은 그 절반에도 못 미쳐 늘어져 보입니다`,
+    confidence: 0.75,
+  }
+}
+
+/**
+ * 자막 — 잘 된 영상 대부분이 자막을 넣는데 내 영상에 없으면 말한다.
+ *
+ * 내 영상의 자막 유무는 브라우저 신호로 알 수 없다. 그래서 **비율만 알려주고 판단은 넘긴다** —
+ * "넣으세요"가 아니라 "몇 %가 넣습니다"라고 말하는 것이 정직하다.
+ */
+function subtitlePoint(s: VideoSignals, e: SuccessEvidence): EditPoint | null {
+  if (e.subtitleRatio == null || e.mediaSampleSize < MEDIA_MIN_SAMPLE) return null
+  if (e.subtitleRatio < SUBTITLE_DOMINANT_RATIO) return null
+
+  return {
+    kind: 'emphasis',
+    startSec: 0,
+    endSec: round(s.durationSec),
+    action: '자막이 없다면 전체에 넣으세요',
+    reason: `잘 된 영상 ${e.mediaSampleSize}건 중 ${Math.round(e.subtitleRatio * 100)}%가 자막을 넣습니다`,
+    confidence: 0.65,
+  }
+}
+
+/**
+ * 구성 — 몇 토막으로 나누는가.
+ * 작성자 챕터가 있으면 그걸 쓰고(chapterPoints), 없을 때 잘 된 영상의 토막 수와 비교한다.
+ */
+function structurePoint(s: VideoSignals, e: SuccessEvidence): EditPoint | null {
+  if (e.medianBeats == null || e.mediaSampleSize < MEDIA_MIN_SAMPLE) return null
+  if ((s.chapters?.length ?? 0) > 0) return null      // 작성자가 이미 나눴다
+  if (s.framesSampled <= 0) return null               // 화면을 못 봤으면 장면 수를 모른다
+
+  const mine = s.sceneChanges.length
+  if (mine >= e.medianBeats) return null
+
+  return {
+    kind: 'structure',
+    startSec: 0,
+    endSec: round(s.durationSec),
+    action: `이야기를 ${Math.round(e.medianBeats)}토막으로 나눠 보세요`,
+    reason: `잘 된 영상 ${e.mediaSampleSize}건은 평균 ${Math.round(e.medianBeats)}개 구간으로 전개합니다. 지금은 장면 변화가 ${mine}번뿐입니다`,
+    confidence: 0.55,
+  }
 }
 
 /** 길이 — 잘된 콘텐츠의 길이와 비교한다. 근거가 없으면 말하지 않는다. */
@@ -281,8 +380,9 @@ export function buildEditPoints(s: VideoSignals, e: SuccessEvidence): EditPoint[
     ...emphasisPoints(s),
     ...chapterPoints(s),
   ]
-  const len = lengthPoint(s, e)
-  if (len) all.push(len)
+  for (const p of [lengthPoint(s, e), rhythmPoint(s, e), subtitlePoint(s, e), structurePoint(s, e)]) {
+    if (p) all.push(p)
+  }
 
   // 확신도 높은 순 → 같은 확신도면 앞선 시각 순
   all.sort((a, b) => (b.confidence - a.confidence) || (a.startSec - b.startSec))

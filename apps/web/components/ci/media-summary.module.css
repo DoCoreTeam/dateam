@@ -83,17 +83,6 @@
 
 .beatWhat { font-size: var(--fs-sm); line-height: 1.6; }
 
-/* 재현 공식 — 이 화면에서 사용자가 실제로 들고 나가는 한 줄이다. 눈에 띄어야 한다 */
-.formula {
-  padding: var(--space-3);
-  border: var(--border-w) solid var(--info-border);
-  border-radius: var(--radius);
-  background: var(--info-bg);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  line-height: 1.6;
-}
-
 .section {
   display: flex;
   flex-direction: column;
