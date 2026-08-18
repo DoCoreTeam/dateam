@@ -548,6 +548,18 @@
   .btn-ghost:disabled:hover,
   .btn-ghost:disabled:active { background-color: transparent; }
 
+  /* 못 고치는 입력칸도 못 고치게 **보여야** 한다 — 위 버튼 규약을 입력에도 그대로 준다.
+     v0.7.518이 버튼만 손봐서 입력은 그대로 남았다(실측 v0.7.561 /ci/inbox 주제 점검:
+     체크를 풀면 이름칸이 disabled 가 되는데 opacity 1 · 배경 흰색 · cursor default 라
+     켜진 칸과 눈으로 구분되지 않았다).
+     버튼처럼 opacity 로 흐리지 않는 이유: 입력은 안에 든 **글자를 읽어야** 하므로
+     투명도 대신 배경·글자색을 죽인 상태 토큰으로 바꾼다. */
+  .input-field:disabled {
+    background-color: var(--surface-muted);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
+
   /* 파괴적 동작 — `NbButton variant="danger"`가 `btn-primary nb-danger`를 붙인다.
      이 규칙이 없어서 삭제 버튼이 일반 버튼과 똑같은 파란색으로 렌더됐다(v0.7.456 실브라우저에서 발견).
      되돌릴 수 없는 동작은 눌리기 전에 색으로 구분돼야 한다. */
