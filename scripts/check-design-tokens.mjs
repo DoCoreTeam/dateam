@@ -7,7 +7,7 @@
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 // 상태 문구·이름색 판정은 화면 스캐너와 **같은 정의**를 쓴다(scripts/ui-phrases.mjs = SSOT).
-import { EMPTY, LOADING, NAMED_COLOR_RE, NAMED_COLOR_PROP_RE, isSelfMadeStateText, stripComments } from './ui-phrases.mjs'
+import { EMPTY, LOADING, NAMED_COLOR_RE, NAMED_COLOR_PROP_RE, isSelfMadeStateText, stripComments, maskComments } from './ui-phrases.mjs'
 // 커밋 문맥의 판정 범위 — 공유 작업 트리에서 남의 진행 중 파일을 내 판정에 섞지 않는다.
 import { commitScope, readFromHead } from './git-scope.mjs'
 
@@ -123,7 +123,11 @@ function openTag(text, start) {
  * 태그를 통째로 잘라 판정한다 — 줄 단위로 보면 여러 줄에 걸친 태그의
  * `type="file"`·`display:'none'`을 못 봐서 정상 입력을 위반으로 센다.
  */
-function rawInputHits(text) {
+function rawInputHits(src) {
+  // 주석 속 `<select>`는 위반이 아니다 — 대개 "예전엔 <select>였다"는 **설명**이라
+  // 그 자리를 공용 부품으로 바꾼 변경이 도리어 위반으로 잡힌다(실측: RecordPicker 도입분 4건 오탐).
+  // 줄 번호를 그대로 쓰려고 지우지 않고 **같은 길이로 덮는다**.
+  const text = maskComments(src)
   const hits = []
   for (const m of text.matchAll(/<(input|select|textarea)\b/g)) {
     const tag = openTag(text, m.index)

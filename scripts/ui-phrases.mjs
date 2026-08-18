@@ -14,6 +14,52 @@ export function stripComments(src) {
 }
 
 /**
+ * 주석을 **같은 길이의 공백**으로 덮는다(줄바꿈 보존).
+ *
+ * 왜 정규식이 아니라 훑기인가: `accept="image/*"` 의 `/*` 가 블록주석을 여는 것으로 읽히면
+ * 그 뒤 속성이 통째로 사라진다 — 실측 ContactForm.tsx 에서 `style={{ display: 'none' }}` 이
+ * 지워져 **숨김 입력이 위반으로 둔갑**했다. 문자열 안인지 아닌지는 훑어야만 알 수 있다.
+ *
+ * stripComments 는 주석을 지우므로 뒤쪽 오프셋이 밀린다 — 위반 **줄 번호**를 함께 보고하는
+ * 판정에서는 쓸 수 없다. 여기서는 길이를 유지해 `slice(0, i).split('\n').length` 가 그대로 맞는다.
+ */
+export function maskComments(src) {
+  let out = ''
+  let i = 0
+  while (i < src.length) {
+    const c = src[i]
+    if (c === '"' || c === "'" || c === '`') {
+      out += c
+      i++
+      while (i < src.length) {
+        if (src[i] === '\\') { out += src.slice(i, i + 2); i += 2; continue }
+        out += src[i]
+        i++
+        if (src[i - 1] === c) break
+      }
+      continue
+    }
+    if (c === '/' && src[i + 1] === '*') {
+      const hit = src.indexOf('*/', i + 2)
+      const stop = hit === -1 ? src.length : hit + 2
+      out += src.slice(i, stop).replace(/[^\n]/g, ' ')
+      i = stop
+      continue
+    }
+    if (c === '/' && src[i + 1] === '/') {
+      let stop = src.indexOf('\n', i)
+      if (stop === -1) stop = src.length
+      out += ' '.repeat(stop - i)
+      i = stop
+      continue
+    }
+    out += c
+    i++
+  }
+  return out
+}
+
+/**
  * JSX 텍스트 노드에 문구가 있는가(= 화면에 직접 찍은 자작 문구).
  * - `<div …>없습니다</div>` → 닫는 `>` 뒤에 글자가 온다 → 자작
  * - `title="…없어요"`       → 앞에 `<`가 끼어 이어지지 않는다 → 표준(공용 부품의 props)

@@ -50,3 +50,11 @@ theme-*.jpeg
 *.jpeg
 /cockpit-edit.yml
 .ralph/snapshots/
+.gstack/
+
+# 세션별 격리 dev 서버 산출물 (NEXT_DIST_DIR=.next-<이름>) — 커밋 대상 아님
+.next-*/
+apps/web/.next-*/
+# 로컬 도구 상태
+.domangcha/
+.diagram-design
