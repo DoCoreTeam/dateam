@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
-import { Key, CheckCircle, XCircle, RefreshCw, Cpu } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { Key, CheckCircle, XCircle } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveOpenAiKey, saveOpenAiModel, getOpenAiModels, deleteOpenAiKey } from './actions'
+import ModelSelectField from './ModelSelectField'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
-import EmptyState from '@/components/ui/EmptyState'
 
 interface OpenAiSettingsProps {
   hasKey: boolean
@@ -20,22 +20,6 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
   const [showInput, setShowInput] = useState(!initialHasKey)
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [savePending, startSave] = useTransition()
-
-  const [models, setModels] = useState<string[]>([])
-  const [selectedModel, setSelectedModel] = useState<string>(savedModel ?? '')
-  const [currentSavedModel, setCurrentSavedModel] = useState<string | null>(savedModel)
-  const [modelsLoaded, setModelsLoaded] = useState(false)
-  const [modelMsg, setModelMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const [modelsPending, startModels] = useTransition()
-  const [modelSavePending, startModelSave] = useTransition()
-
-  useEffect(() => {
-    if (!hasKey) {
-      setModels([])
-      setModelsLoaded(false)
-      setModelMsg(null)
-    }
-  }, [hasKey])
 
   const [disconnectPending, startDisconnect] = useTransition()
 
@@ -80,36 +64,6 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
         setMaskedKey(k.slice(0, 7) + '••••••••' + k.slice(-4))
       } else {
         setSaveMsg({ ok: false, text: result.error ?? '저장 실패' })
-      }
-    })
-  }
-
-  function handleLoadModels() {
-    setModelMsg(null)
-    startModels(async () => {
-      const result = await getOpenAiModels()
-      if (result.ok && result.models) {
-        setModels(result.models)
-        setModelsLoaded(true)
-        const current = selectedModel
-        if (result.models.length > 0 && (!current || !result.models.includes(current))) {
-          setSelectedModel(result.models[0])
-        }
-      } else {
-        setModelMsg({ ok: false, text: result.error ?? '모델 목록 조회 실패' })
-      }
-    })
-  }
-
-  function handleSaveModel() {
-    setModelMsg(null)
-    startModelSave(async () => {
-      const result = await saveOpenAiModel(selectedModel)
-      if (result.ok) {
-        setCurrentSavedModel(selectedModel)
-        setModelMsg({ ok: true, text: `모델이 저장되었습니다: ${selectedModel}` })
-      } else {
-        setModelMsg({ ok: false, text: result.error ?? '저장 실패' })
       }
     })
   }
@@ -178,97 +132,9 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
         </div>
       )}
 
-      {/* 모델 선택 (OpenAI는 기본 모델 없음 — 반드시 선택) */}
-      <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: 'var(--space-4)', marginTop: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Cpu size={14} color="var(--brand)" />
-            <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>모델 선택</span>
-            {currentSavedModel && !modelsLoaded && (
-              <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                (현재: {currentSavedModel})
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={handleLoadModels}
-            disabled={!hasKey || modelsPending}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              padding: '0.5rem 0.875rem',
-              backgroundColor: hasKey ? 'var(--surface-muted)' : 'var(--color-border)',
-              color: hasKey ? 'var(--text)' : 'var(--text-faint)',
-              border: 'var(--border-w-2) solid var(--border-color)',
-              borderRadius: 'var(--radius)',
-              fontSize: 'var(--fs-sm)',
-              fontWeight: 600,
-              cursor: hasKey ? 'pointer' : 'not-allowed',
-            }}
-          >
-            {modelsPending ? <AXDotLoader size={4} color="var(--brand-fg)" /> : <RefreshCw size={13} />}
-            모델 목록 불러오기
-          </button>
-        </div>
+      {/* 모델 선택 — AI 채팅과 같은 부품(§2-5) */}
+      <ModelSelectField provider="openai" hasKey={hasKey} savedModel={savedModel} onSave={saveOpenAiModel} />
 
-        {!modelsLoaded && !modelMsg && (
-          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>
-            {hasKey ? '모델을 선택하지 않으면 채팅에서 OpenAI를 사용할 수 없습니다' : 'API 키를 먼저 저장해주세요'}
-          </p>
-        )}
-
-        {modelsLoaded && models.length === 0 && (
-          <EmptyState title="쓸 수 있는 모델이 없어요" description="키 권한이나 결제 상태를 확인한 뒤 다시 불러와 주세요" />
-        )}
-
-        {modelsLoaded && models.length > 0 && (
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-            <select className="input-field"
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              style={{ flex: 1, fontFamily: 'monospace', fontSize: 'var(--fs-sm)' }}
-            >
-              {models.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={handleSaveModel}
-              disabled={modelSavePending || !selectedModel}
-              className="btn-primary"
-              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem' }}
-            >
-              {modelSavePending ? <AXDotLoader size={4} color="var(--brand-fg)" /> : null}
-              적용
-            </button>
-          </div>
-        )}
-
-        {modelMsg && (
-          <div
-            role="status"
-            style={{
-              marginTop: '0.625rem',
-              padding: '0.625rem 0.875rem',
-              borderRadius: 'var(--radius)',
-              fontSize: 'var(--fs-sm)',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              backgroundColor: modelMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-              color: modelMsg.ok ? 'var(--success)' : 'var(--danger)',
-              border: `var(--hairline) solid ${modelMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
-            }}
-          >
-            {modelMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
-            {modelMsg.text}
-          </div>
-        )}
-      </div>
       <IntegrationTest
         onRun={handleHealth}
         pending={healthPending}

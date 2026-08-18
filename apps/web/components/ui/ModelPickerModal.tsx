@@ -3,16 +3,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X, RefreshCw, Eye, BookOpenText, Brain, CircleCheck, CircleAlert, CircleX, CircleHelp } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import type { AiChatProviderId } from '@/types/database'
-import { listModelCatalog, refreshModelCatalog, type ModelCatalogItem } from './actions'
-import type { ProviderView } from './AiChatClient'
+import { listModelCatalog, refreshModelCatalog, type ModelCatalogItem } from '@/app/admin/ai-chat/actions'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
-import SegmentedTabs from '@/components/ui/SegmentedTabs'
-import EmptyState from '@/components/ui/EmptyState'
-import AXDotLoader from '@/components/ui/AXDotLoader'
+import SegmentedTabs from './SegmentedTabs'
+import EmptyState from './EmptyState'
+import AXDotLoader from './AXDotLoader'
+
+/** 탭에 세울 프로바이더 — 라우트 타입(ProviderView)에 묶이지 않도록 최소 형태만 받는다 */
+export interface ModelPickerProvider {
+  id: AiChatProviderId
+  label?: string
+}
 
 interface Props {
-  providers: ProviderView[] // 키가 설정된(가용) 프로바이더만 — 탭 소스
+  providers: ModelPickerProvider[] // 키가 설정된(가용) 프로바이더만 — 탭 소스. 1개면 탭을 숨긴다
   currentProvider: AiChatProviderId | null
   currentModel: string | null
   onSelect: (provider: AiChatProviderId, model: string) => void
@@ -81,6 +86,17 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
       topReason,
     }
   }, [allForTab])
+  // 지금 쓰고 있는 모델은 가용성과 무관하게 항상 보여준다.
+  // 없으면 "내가 뭘 쓰는지"와 "고를 수 있는 것"이 화면에서 끊긴다 — 실제로 메인 모델이
+  // unavailable로 판정된 순간 목록에서 사라져, 왜 없는지 알 길이 없었다.
+  const currentItem = useMemo(
+    () => (currentModel && tab === currentProvider
+      ? allForTab.find((i) => i.modelId === currentModel) ?? null
+      : null),
+    [allForTab, currentModel, currentProvider, tab],
+  )
+  const currentIsHidden = !!currentItem && !isSelectableModelAvailability(currentItem.availability)
+
   const pickedItem = items.find((item) => item.provider === tab && item.modelId === picked)
   const canConfirm = !!pickedItem && isSelectableModelAvailability(pickedItem.availability)
 
@@ -159,12 +175,15 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
 
         {/* 프로바이더 탭 — 탭 렌더러 SSOT(§2). 새로고침 중에는 전환을 막는다(기존 disabled 동작 유지) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
-          <SegmentedTabs
-            ariaLabel="프로바이더"
-            tabs={providers.map((p) => ({ id: p.id, label: PROVIDER_LABELS[p.id] }))}
-            activeId={tab ?? undefined}
-            onSelect={(id) => { if (!refreshing) handleTabChange(id as AiChatProviderId) }}
-          />
+          {/* 프로바이더가 1개뿐이면(설정 카드처럼 고정된 경우) 탭은 고를 것이 없으므로 감춘다 */}
+          {providers.length > 1 && (
+            <SegmentedTabs
+              ariaLabel="프로바이더"
+              tabs={providers.map((p) => ({ id: p.id, label: p.label ?? PROVIDER_LABELS[p.id] }))}
+              activeId={tab ?? undefined}
+              onSelect={(id) => { if (!refreshing) handleTabChange(id as AiChatProviderId) }}
+            />
+          )}
           <button
             type="button"
             onClick={handleRefresh}
@@ -215,6 +234,38 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
               action={{ label: '모델 새로고침', onClick: handleRefresh }}
             />
           )}
+          {/* 선택 가능한 게 있어도 가려진 것이 있으면 개수를 밝힌다 — 조용히 숨기면
+              "내가 아는 모델이 왜 없지?"가 된다(실측: 45개 중 5개만 노출) */}
+          {!loading && !refreshing && itemsForTab.length > 0 && blockedForTab.total > 0 && (
+            <p style={{ margin: 0, fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', lineHeight: 1.5 }}>
+              지금 쓸 수 없는 모델 {blockedForTab.total}개는 숨겼어요
+              (사용 불가 {blockedForTab.unavailable} · 한도 도달 {blockedForTab.limited})
+              {blockedForTab.topReason ? ` — ${blockedForTab.topReason}` : ''}
+            </p>
+          )}
+
+          {/* 지금 쓰는 모델이 숨김 대상이면 맨 위에 그대로 세우고 이유를 보여준다 */}
+          {!loading && !refreshing && currentIsHidden && currentItem && (
+            <div
+              role="alert"
+              style={{
+                padding: 'var(--space-3) var(--space-4)',
+                background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)',
+                borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.6,
+              }}
+            >
+              <strong style={{ display: 'block', marginBottom: 'var(--space-1)' }}>
+                지금 쓰는 모델 {currentItem.label}은(는) 현재 쓸 수 없는 상태입니다
+              </strong>
+              {currentItem.availabilityReason && (
+                <span style={{ display: 'block', color: 'var(--text-muted)' }}>{currentItem.availabilityReason}</span>
+              )}
+              <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
+                아래에서 쓸 수 있는 모델로 바꾸거나, 결제 상태를 확인한 뒤 모델 새로고침을 눌러 주세요
+              </span>
+            </div>
+          )}
+
           {!loading && !refreshing && itemsForTab.length === 0 && blockedForTab.total > 0 && (
             <div
               role="alert"

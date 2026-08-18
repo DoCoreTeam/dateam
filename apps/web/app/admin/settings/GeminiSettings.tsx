@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react'
 import { Key, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
-import { saveGeminiKey, deleteGeminiKey, checkGeminiHealth } from './actions'
-import GeminiModelPicker from './GeminiModelPicker'
+import { saveGeminiKey, deleteGeminiKey, checkGeminiHealth, saveGeminiModel } from './actions'
+import ModelSelectField from './ModelSelectField'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
 
 interface GeminiSettingsProps {
@@ -135,7 +135,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
       )}
 
       {/* 모델 선택 — 앱 전역 AI 기능이 쓰는 메인 모델 */}
-      <GeminiModelPicker hasKey={hasKey} savedModel={savedModel} />
+      <ModelSelectField provider="gemini" hasKey={hasKey} savedModel={savedModel} onSave={saveGeminiModel} />
 
       <IntegrationTest
         onRun={handleHealth}

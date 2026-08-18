@@ -171,6 +171,7 @@ CI의 삭제는 **물리 삭제**라 되돌리기가 없다(사용자 결정 202
 | 부품 | 사용 |
 |---|---|
 | `ui/nb/NbModal` | **8** (가운데 카드 표준 — v0.7.456 org-chart·세션모달 흡수) |
+| `ui/ModelPickerModal` | **2** (AI 모델 선택 유일 렌더러 — v0.7.570 `app/admin/ai-chat`에서 공용 승격. 능력·컨텍스트·출시일·**실가용성**을 함께 보여준다. `providers` 1개면 탭이 숨는다. 설정 카드는 `admin/settings/ModelSelectField`로 감싸 쓴다 — 카드마다 드롭다운을 만들지 않는다) |
 | `ui/EditorModal` | 3 |
 | 개별 모달 파일 | **26개** (`*Modal.tsx`) |
 | 모달 표준 준수 | `useEscClose` **91** · `tape-title` **118** (§2-2 — 채택률 높음) |
