@@ -40,12 +40,24 @@ export interface ClassifyInput {
   /** 이 콘텐츠의 플랫폼 신호 (L0) */
   signals?: ChannelSignalSample | null
   platform?: string
+  /**
+   * 영상 실체에서 관측된 텍스트 — 대사·화면 자막·장소.
+   * lib/ci/media가 채운다. 없으면 이 단(LM)을 밟지 않는다.
+   *
+   * 이것이 왜 title·caption과 별개인가: 숏폼은 플랫폼이 설명을 주지 않는다
+   * (실측 423건 중 227건 설명문 없음). 그동안 L2도 L3도 **같은 빈 상자**를 봤고,
+   * 그래서 두 단이 있어도 실제로는 한 단도 없는 것과 같았다.
+   */
+  mediaText?: string | null
+  /** 영상이 스스로 말한 주제 한 단어. 근거(topicEvidence)가 있을 때만 채워진다 */
+  mediaTopicGuess?: string | null
   topics: TopicCandidate[]
 }
 
 /** 사다리 각 단이 남긴 기록. 화면이 사용자에게 그대로 보여준다. */
 export interface BasisRung {
-  level: 'L0' | 'L1' | 'L2' | 'L3'
+  /** LM = 영상 실체(대사·화면 자막). L2(제목·설명)와 **다른 증거**다 */
+  level: 'L0' | 'L1' | 'L2' | 'LM' | 'L3'
   ok: boolean
   detail: string
 }
@@ -175,6 +187,35 @@ export function classifyByRules(input: ClassifyInput): ClassifyVerdict {
       : '제목·설명에서 주제 규칙을 찾지 못했습니다',
   })
 
+  // ── LM · 영상 실체 ───────────────────────────────────────────
+  //
+  // 제목이 낚시여도, 설명이 비어 있어도, **영상 안에서 실제로 무슨 말이 오갔는지**는 남는다.
+  // 숏폼에서 이것이 사실상 유일한 본문이다.
+  const mediaText = `${norm(input.mediaText ?? null)} ${norm(input.mediaTopicGuess ?? null)}`.trim()
+  let lm: { topic: TopicCandidate; score: number } | null = null
+  let lmTie = false
+
+  if (mediaText) {
+    for (const t of topics) {
+      if (countMatches(mediaText, t.excludePatterns) > 0) continue
+      const hits = countMatches(mediaText, t.includePatterns)
+      if (hits === 0) continue
+      // 제목 규칙(L2)보다 조금 높게 본다 — 제목은 낚시일 수 있지만 영상은 실체다.
+      const score = hits >= 3 ? 0.92 : hits === 2 ? 0.85 : 0.75
+      if (!lm || score > lm.score) { lm = { topic: t, score }; lmTie = false }
+      else if (lm && score === lm.score) lmTie = true
+    }
+    rungs.push({
+      level: 'LM',
+      ok: lm != null,
+      detail: lm
+        ? `영상 내용이 '${lm.topic.name}'을 가리킵니다${lmTie ? ' (다른 주제와 동점)' : ''}`
+        : '영상을 읽었지만 맞는 주제 규칙을 찾지 못했습니다',
+    })
+  } else {
+    rungs.push({ level: 'LM', ok: false, detail: '영상 내용을 아직 읽지 않았습니다' })
+  }
+
   // ── L1 · 채널 정체성 ──────────────────────────────────────────
   const chTopic = input.channelTopicId
     ? topics.find((t) => t.id === input.channelTopicId) ?? null
@@ -197,6 +238,63 @@ export function classifyByRules(input: ClassifyInput): ClassifyVerdict {
   // 서로 다른 증거가 같은 답을 내면 강하다. 다른 답을 내면 그때가 사람을 부를 자리다.
 
   const secondary = new Set<string>()
+
+  // 0) 영상이 말한 것이 있다 — 가장 실체에 가까운 증거이므로 먼저 본다.
+  //
+  //    LM이 없을 때는 이 블록을 한 줄도 타지 않는다 → 예전 판정이 그대로 보존된다.
+  if (lm) {
+    const agree = [l0, l2].filter((c) => c && c.topic.id === lm.topic.id).length
+    const disagree = [l0, l2].filter((c) => c && c.topic.id !== lm.topic.id)
+
+    // 0-a) 영상이 다른 증거와 같은 답을 냈다 — 가장 강하다
+    if (agree > 0) {
+      for (const d of disagree) if (d) secondary.add(d.topic.id)
+      return {
+        topicId: lm.topic.id,
+        secondaryTopicIds: Array.from(secondary),
+        confidence: agree >= 2 ? 0.97 : 0.95,
+        source: 'auto',
+        reason: agree >= 2
+          ? `영상 내용·플랫폼 신호·제목이 모두 '${lm.topic.name}'을 가리킵니다`
+          : `영상 내용과 ${l0 && l0.topic.id === lm.topic.id ? '플랫폼 신호' : '제목'}가 '${lm.topic.name}'으로 일치합니다`,
+        rungs,
+        needsHuman: false,
+      }
+    }
+
+    // 0-b) 신호와 제목이 서로 달라 예전에는 **사람을 불렀던** 자리다.
+    //      영상이 어느 쪽도 편들지 않고 제3의 답을 냈다면 그건 여전히 사람의 일이다.
+    if (l0 && l2 && l0.topic.id !== l2.topic.id) {
+      secondary.add(l0.topic.id)
+      secondary.add(l2.topic.id)
+      return {
+        topicId: lm.topic.id,
+        secondaryTopicIds: Array.from(secondary).filter((id) => id !== lm.topic.id),
+        confidence: 0.6,
+        source: 'auto',
+        reason: `영상은 '${lm.topic.name}', 신호는 '${l0.topic.name}', 제목은 '${l2.topic.name}'을 가리켜 셋이 갈립니다`,
+        rungs,
+        needsHuman: true,
+      }
+    }
+
+    // 0-c) 영상만 있거나, 영상이 하나뿐인 다른 증거와 어긋난다.
+    //      어긋날 때 영상을 택하는 이유: 제목은 낚시일 수 있고 설명은 비어 있을 수 있지만
+    //      영상 안에서 오간 말은 그 콘텐츠 자체다. 다만 갈렸다는 사실은 사람에게 알린다.
+    const other = disagree[0] ?? null
+    for (const d of disagree) if (d) secondary.add(d.topic.id)
+    return {
+      topicId: lm.topic.id,
+      secondaryTopicIds: Array.from(secondary),
+      confidence: other ? Math.min(lm.score, 0.72) : (lmTie ? 0.65 : lm.score),
+      source: 'auto',
+      reason: other
+        ? `영상 내용은 '${lm.topic.name}'인데 ${l0 === other ? '플랫폼 신호' : '제목'}는 '${other.topic.name}'을 가리킵니다`
+        : `영상 내용이 '${lm.topic.name}'을 가리킵니다`,
+      rungs,
+      needsHuman: Boolean(other) || lmTie,
+    }
+  }
 
   // 1) L0과 L2가 같은 주제를 가리킨다 — 가장 강한 자동 확정
   if (l0 && l2 && l0.topic.id === l2.topic.id) {
@@ -338,6 +436,11 @@ export interface ClassifyPromptInput {
   } | null
   /** 이 게시물의 플랫폼 신호를 사람 말로 옮긴 것 */
   signalText?: string | null
+  /**
+   * 영상 안에서 관측된 것 — 대사·화면 자막·장소.
+   * 숏폼에서는 제목·설명이 비어 있으므로 **이것이 사실상 유일한 본문**이다.
+   */
+  mediaText?: string | null
   correctionExamples?: readonly string[]
 }
 
@@ -366,6 +469,11 @@ export function buildClassifyPrompt(input: ClassifyPromptInput): string {
     `제목: ${input.title ?? '(없음)'}`,
     `설명: ${(input.caption ?? '(없음)').slice(0, 800)}`,
     ...(input.signalText ? [`플랫폼이 준 주제 신호: ${input.signalText}`] : []),
+    ...(input.mediaText ? [
+      '',
+      '[영상에서 실제로 관측된 것] — 제목·설명이 비어 있어도 이것은 사실이다',
+      input.mediaText.slice(0, 2000),
+    ] : []),
     '',
     '후보 주제:',
     list,
@@ -380,6 +488,7 @@ export function buildClassifyPrompt(input: ClassifyPromptInput): string {
     '',
     '판단 지침:',
     '- 채널 성격과 게시물 신호를 함께 보세요. 제목만으로 단정하지 마세요.',
+    '- 영상에서 관측된 것이 있으면 그것을 가장 무겁게 보세요. 제목은 낚시일 수 있지만 영상은 실체입니다.',
     '- 확실하지 않으면 confidence를 낮게 주고 topicId를 null로 두세요. 억지로 고르지 마세요.',
   ].join('\n')
 }

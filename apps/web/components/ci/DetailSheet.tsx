@@ -11,9 +11,10 @@ import { X, Pencil } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { isEnterKey } from '@/lib/ui/ime'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
-import type { CiContentListItem, CiEvidence, ApiResponse } from '@/lib/ci/contracts'
+import type { CiContentListItem, CiEvidence, CiMediaInfo, ApiResponse } from '@/lib/ci/contracts'
 import MetricBadge, { MetricBasis } from './MetricBadge'
 import CreativeSummary from './CreativeSummary'
+import MediaSummary from './MediaSummary'
 import { ComparabilityBadge, MissingFieldsBadge, ConfidenceBadge, IngestStatusBadge } from './StatusBadge'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
@@ -35,6 +36,8 @@ export interface DetailSheetData extends CiContentListItem {
   isStatExcluded: boolean
   /** 근거가 부족하면 서버가 null을 준다 — 단정 문구를 만들지 않는다(§7.4) */
   analysis: string | null
+  /** 영상을 실제로 읽은 결과. 아직 안 읽었으면 null */
+  media?: CiMediaInfo | null
   groupSiblings: { id: string; platform: string; title: string | null }[]
   provenanceMethod: string | null
   fetchedAt: string | null
@@ -375,15 +378,18 @@ export default function DetailSheet({
               )}
 
               {tab === 'analysis' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
                   {data.analysis && (
                     <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.7 }}>{data.analysis}</p>
                   )}
+                  {/* 영상 실체가 먼저다 — 숏폼에서는 이것이 유일한 본문이고,
+                      썸네일 분석(아래)은 그 표지에 대한 이야기다 */}
+                  <MediaSummary media={data.media} />
                   <CreativeSummary creative={data.creative} />
-                  {!data.analysis && !data.creative && (
+                  {!data.analysis && !data.creative && !data.media && (
                     <EmptyState
-                      title="아직 근거가 충분하지 않아 분석을 단정하지 않습니다"
-                      description="비교 표본이 쌓이고 평소 대비 1.5배를 넘으면 무엇이 통했는지 분석합니다."
+                      title="아직 이 게시물의 영상을 읽지 않았습니다"
+                      description="수집이 한 바퀴 돌면 영상 안의 대사·자막·구성을 읽어 여기에 보여줍니다."
                     />
                   )}
                 </div>

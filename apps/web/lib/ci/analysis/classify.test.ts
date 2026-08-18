@@ -176,13 +176,123 @@ test('신호가 채널 주제와 다르고 이탈이면 묻되, 판정 자체는
   assert.equal(v.needsHuman, true)
 })
 
-test('사다리 기록(rungs)에 L0·L1·L2가 모두 남는다 — 화면이 근거로 그대로 쓴다', () => {
+test('사다리 기록(rungs)에 L0·L1·L2·LM이 모두 남는다 — 화면이 근거로 그대로 쓴다', () => {
   const v = classifyByRules(input({
     title: '음악', topics: [MUSIC],
     signals: sample({ topicSignals: ['Music'] }),
   }))
-  assert.deepEqual(v.rungs.map((r) => r.level).sort(), ['L0', 'L1', 'L2'])
+  assert.deepEqual(v.rungs.map((r) => r.level).sort(), ['L0', 'L1', 'L2', 'LM'])
   assert.ok(v.rungs.every((r) => r.detail.length > 0))
+})
+
+test('영상을 안 읽었으면 LM 단이 그렇게 말한다 — 빈 칸은 고장으로 읽힌다', () => {
+  const v = classifyByRules(input({
+    title: '음악', topics: [MUSIC], signals: sample({ topicSignals: ['Music'] }),
+  }))
+  const lm = v.rungs.find((r) => r.level === 'LM')
+  assert.equal(lm?.ok, false)
+  assert.match(lm?.detail ?? '', /아직 읽지 않았습니다/)
+})
+
+// ── LM · 영상 실체 (숏폼이 굶던 자리) ──────────────────────────
+//
+// 왜 이 단이 생겼나: 숏폼은 플랫폼이 설명을 주지 않는다(실측 423건 중 227건 설명문 없음,
+// 키워드 전 건 0개). 그래서 L2(제목·설명)도 L3(AI)도 **같은 빈 상자**를 봤고,
+// 2단 깔때기가 아니라 0단이었다. 영상 안에서 오간 말은 완전히 다른 증거다.
+
+test('★ 제목이 무의미해도 영상 대사로 주제를 정한다 — 숏폼이 굶던 바로 그 자리', () => {
+  const v = classifyByRules(input({
+    title: '유치뽕짝', caption: null, topics: [COOK, MUSIC],
+    mediaText: '오늘은 집에서 간단한 레시피 하나 알려드릴게요',
+  }))
+  assert.equal(v.topicId, COOK.id)
+  assert.equal(v.needsHuman, false)
+  assert.match(v.reason, /영상 내용/)
+})
+
+test('★ 영상과 제목이 어긋나면 영상을 따르되 사람에게 알린다 — 제목은 낚시일 수 있다', () => {
+  const v = classifyByRules(input({
+    title: '레시피 대공개', topics: [COOK, MUSIC],
+    mediaText: '이번에 발매한 신곡 음악 들려드릴게요',
+  }))
+  assert.equal(v.topicId, MUSIC.id)
+  assert.equal(v.needsHuman, true)
+  assert.ok(v.secondaryTopicIds.includes(COOK.id))
+  assert.ok(v.confidence <= 0.72, '갈렸는데 확신도가 높으면 사용자가 검토할 이유를 못 느낀다')
+})
+
+test('★ 신호·제목이 갈려 사람을 부르던 자리를 영상이 깬다 — 검토 큐가 줄어드는 지점', () => {
+  const withoutMedia = classifyByRules(input({
+    title: '레시피 공개', topics: [MUSIC, COOK],
+    signals: sample({ topicSignals: ['Music'] }),
+  }))
+  assert.equal(withoutMedia.needsHuman, true)   // 예전 동작
+
+  const withMedia = classifyByRules(input({
+    title: '레시피 공개', topics: [MUSIC, COOK],
+    signals: sample({ topicSignals: ['Music'] }),
+    mediaText: '오늘 레시피는 이렇게 만듭니다',
+  }))
+  assert.equal(withMedia.topicId, COOK.id)
+  assert.equal(withMedia.needsHuman, false)
+  assert.ok(withMedia.confidence >= 0.95)
+})
+
+test('세 증거가 전부 갈리면 그때는 여전히 사람의 일이다 — 영상이 만능이 아니다', () => {
+  // TRAVEL은 signalPatterns만 있어 텍스트 규칙에 안 걸린다 — LM은 텍스트 단이므로 별도 후보를 쓴다
+  const TRIP = topic({ id: 't-trip', name: '여행', includePatterns: ['여행'] })
+  const v = classifyByRules(input({
+    title: '레시피 공개', topics: [MUSIC, COOK, TRIP],
+    signals: sample({ topicSignals: ['Music'] }),
+    mediaText: '이번 여행 코스를 소개합니다',
+  }))
+  assert.equal(v.topicId, TRIP.id)
+  assert.equal(v.needsHuman, true)
+  assert.match(v.reason, /셋이 갈립니다/)
+})
+
+test('셋이 모두 같으면 가장 강하다', () => {
+  const v = classifyByRules(input({
+    title: '음악 커버', topics: [MUSIC, COOK],
+    signals: sample({ topicSignals: ['Music'] }),
+    mediaText: '오늘 부를 음악은 이겁니다',
+  }))
+  assert.equal(v.confidence, 0.97)
+  assert.equal(v.needsHuman, false)
+})
+
+test('영상이 스스로 말한 주제(topicGuess)도 증거로 쓴다', () => {
+  const v = classifyByRules(input({
+    title: '무제', topics: [COOK],
+    mediaText: null, mediaTopicGuess: '레시피',
+  }))
+  assert.equal(v.topicId, COOK.id)
+})
+
+test('영상 증거가 없으면 예전 판정이 한 글자도 안 바뀐다 — 회귀 방지', () => {
+  const before = classifyByRules(input({
+    title: '레시피 공개', topics: [MUSIC, COOK],
+    signals: sample({ topicSignals: ['Music'] }),
+  }))
+  const withEmpty = classifyByRules(input({
+    title: '레시피 공개', topics: [MUSIC, COOK],
+    signals: sample({ topicSignals: ['Music'] }),
+    mediaText: '   ', mediaTopicGuess: null,
+  }))
+  assert.equal(before.topicId, withEmpty.topicId)
+  assert.equal(before.confidence, withEmpty.confidence)
+  assert.equal(before.needsHuman, withEmpty.needsHuman)
+})
+
+test('영상을 읽었지만 맞는 주제가 없으면 그 사실을 남기고 다른 단으로 내려간다', () => {
+  const v = classifyByRules(input({
+    title: '음악 커버', topics: [MUSIC],
+    mediaText: '완전히 관계없는 이야기입니다',
+  }))
+  assert.equal(v.topicId, MUSIC.id)          // L2가 받는다
+  const lm = v.rungs.find((r) => r.level === 'LM')
+  assert.equal(lm?.ok, false)
+  assert.match(lm?.detail ?? '', /맞는 주제 규칙을 찾지 못했습니다/)
 })
 
 // ── 표시 3구간 — "55%"는 사용자에게 아무 뜻이 없다 ────────────────

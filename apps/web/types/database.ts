@@ -401,6 +401,8 @@ export type AiFeature =
   // 콘텐츠 인텔리전스 — 사용량은 기존 ai_token_logs에 함께 적재한다(별도 로깅 테이블 없음)
   | 'ci-classify'
   | 'ci-verify'
+  // 영상 실체 이해 — 토큰 단가가 다른 모달리티(VIDEO)라 따로 센다
+  | 'ci-media'
   | 'ci-brief'
   | 'ci-assistant'
   | 'ci-embedding'

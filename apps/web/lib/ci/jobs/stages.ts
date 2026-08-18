@@ -25,6 +25,9 @@ import {
 } from '../connectors/youtube-uploads.ts'
 import { isProvisionalKey } from '../ucm/channel-key.ts'
 import { analyzeCreative } from '../ai/creative-server.ts'
+import { understandMedia, recordSkip } from '../media/understand-server.ts'
+import { understandingToEvidenceText, type MediaUnderstanding } from '../media/understand.ts'
+import { shouldUnderstand, MEDIA_MAX_PER_PASS, type AnalyzedRecord } from '../media/policy.ts'
 import { enqueueJob } from './queue.ts'
 import { OUTLIER_MIN_BASELINE } from '../format/metrics.ts'
 
@@ -161,6 +164,34 @@ async function loadChannelContext(channelId: string | null): Promise<{
  * 분류 단계. 1차 규칙으로 판정하고, 저확신이면 2차 LLM으로 재판정한다.
  * LLM 키가 없거나 예산이 막히면 1차 결과로 진행한다 — 기능이 통째로 죽지 않는다.
  */
+/**
+ * 영상에서 관측된 것을 분류가 쓸 텍스트로 꺼낸다.
+ *
+ * 없으면 null이다 — "안 읽었다"와 "읽었는데 아무것도 없었다"를 구분해야
+ * 사다리가 LM 단에서 정직한 말을 할 수 있다.
+ */
+async function loadMediaEvidence(contentId: string): Promise<{
+  text: string | null; topicGuess: string | null
+}> {
+  const adminClient = createAdminClient() as any
+  const { data } = await adminClient
+    .from('ci_content_media')
+    .select('transcript, on_screen_text, setting, topic_guess, topic_evidence')
+    .eq('content_id', contentId).maybeSingle()
+  if (!data) return { text: null, topicGuess: null }
+
+  const u = {
+    transcript: data.transcript ?? null,
+    onScreenText: Array.isArray(data.on_screen_text) ? data.on_screen_text : [],
+    setting: data.setting ?? null,
+    topicGuess: data.topic_guess ?? null,
+    topicEvidence: data.topic_evidence ?? null,
+  } as MediaUnderstanding
+
+  const text = understandingToEvidenceText(u)
+  return { text: text || null, topicGuess: data.topic_guess ?? null }
+}
+
 export async function runClassify(workspaceId: string, contentId: string): Promise<StageResult> {
   const adminClient = createAdminClient() as any
 
@@ -173,10 +204,11 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
   // 사용자가 직접 정한 주제는 건드리지 않는다
   if (content.topic_source === 'user') return { ok: true }
 
-  const [topics, threshold, channel] = await Promise.all([
+  const [topics, threshold, channel, media] = await Promise.all([
     loadTopics(workspaceId),
     loadThreshold(workspaceId),
     loadChannelContext(content.channel_id ?? null),
+    loadMediaEvidence(contentId),
   ])
   if (topics.length === 0) return { ok: true }   // 주제가 없으면 분류할 것도 없다
 
@@ -194,6 +226,8 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
     channelIdentity: channel?.identity ?? null,
     signals,
     platform: content.platform,
+    mediaText: media.text,
+    mediaTopicGuess: media.topicGuess,
     topics,
   })
   const rungs: BasisRung[] = [...verdict.rungs]
@@ -218,6 +252,8 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
           identityText: channel.identity ? describeIdentity(channel.identity) : null,
         } : null,
         signalText: describeSample(content.platform, signals),
+        // 숏폼에서는 이것이 AI가 볼 수 있는 유일한 본문이다
+        mediaText: media.text,
         correctionExamples,
       })
       const res = await callGemini({ apiKey: meta.geminiApiKey, model: meta.geminiModel, prompt })
@@ -824,4 +860,147 @@ export async function runCreativeBacklog(workspaceId: string): Promise<StageResu
     ok: true,
     errorMessage: `${pending.length - failed}건 분석${failed ? ` · ${failed}건 실패` : ''}`,
   }
+}
+
+/* ───────────────────── 영상 실체 이해 ───────────────────── */
+
+interface MediaAttemptRow {
+  content_id?: string
+  attempt_count: number | null
+  transcript: string | null
+  topic_guess: string | null
+  on_screen_text: string[] | null
+}
+
+/**
+ * 저장된 행을 "다시 읽을 것인가" 판단 입력으로 바꾼다. **한 곳에서만** 만든다 —
+ * 단건 경로와 백로그가 다르게 판정하면 같은 게시물이 경로에 따라 다르게 처리된다.
+ */
+function toAnalyzedRecord(row: MediaAttemptRow): AnalyzedRecord {
+  return {
+    hasEvidence: Boolean(
+      row.transcript || row.topic_guess || (row.on_screen_text?.length ?? 0) > 0,
+    ),
+    attempts: row.attempt_count ?? 1,
+  }
+}
+
+/**
+ * 밀린 영상을 읽는다.
+ *
+ * 왜 백로그가 따로 있나: 파이프라인은 새로 들어온 것만 지나간다.
+ * 이 기능이 생기기 전에 수집된 것(실측 503건)은 파이프라인을 다시 타지 않으므로
+ * 영원히 안 읽힌다 — 사용자 눈에는 "새 것만 되고 옛 것은 안 되는" 상태가 된다.
+ * 적재가 돌 때마다 밀린 것을 함께 훑어 스스로 메운다(크리에이티브 분석과 같은 구조).
+ *
+ * 순서는 **숏폼 먼저, 최신 먼저**다. 숏폼이 증거가 굶은 쪽이고,
+ * 사용자가 지금 보는 화면이 최신이라 거기서 먼저 달라져야 "됐다"고 느낀다.
+ */
+export async function runMediaBacklog(workspaceId: string): Promise<StageResult> {
+  const adminClient = createAdminClient() as any
+
+  const { data: rows } = await adminClient
+    .from('ci_contents')
+    .select('id, format, caption, duration_sec')
+    .eq('workspace_id', workspaceId)
+    .is('deleted_at', null)
+    .in('format', ['short', 'long', 'live'])
+    .order('format', { ascending: true })        // 'live' < 'long' < 'short'가 아니므로 아래에서 다시 정렬한다
+    .order('published_at', { ascending: false, nullsFirst: false })
+    .limit(300)
+
+  const candidates = (rows ?? []) as {
+    id: string; format: string; caption: string | null; duration_sec: number | null
+  }[]
+  if (candidates.length === 0) return { ok: true }
+
+  const { data: done } = await adminClient
+    .from('ci_content_media')
+    .select('content_id, attempt_count, transcript, topic_guess, on_screen_text')
+    .in('content_id', candidates.map((c) => c.id))
+  const analyzed = new Map<string, AnalyzedRecord>(
+    ((done ?? []) as MediaAttemptRow[]).map((r) => [r.content_id as string, toAnalyzedRecord(r)]),
+  )
+
+  // 배수는 있으면 쓰고 없으면 없는 대로 판단한다 — 배수를 기다리면 숏폼이 영원히 대기한다.
+  const { data: derived } = await adminClient
+    .from('ci_content_derived')
+    .select('content_id, outlier_index')
+    .in('content_id', candidates.map((c) => c.id))
+  const indexOf = new Map<string, number | null>(
+    ((derived ?? []) as { content_id: string; outlier_index: number | null }[])
+      .map((r) => [r.content_id, r.outlier_index]),
+  )
+
+  const pending = candidates
+    .filter((c) => shouldUnderstand({
+      format: c.format as never,
+      captionLength: (c.caption ?? '').trim().length,
+      durationSec: c.duration_sec,
+      outlierIndex: indexOf.get(c.id) ?? null,
+      analyzed: analyzed.get(c.id) ?? null,
+    }).should)
+    // 숏폼을 앞으로. 굶은 쪽부터 먹인다.
+    .sort((a, b) => (a.format === 'short' ? 0 : 1) - (b.format === 'short' ? 0 : 1))
+    .slice(0, MEDIA_MAX_PER_PASS)
+
+  if (pending.length === 0) return { ok: true }
+
+  let analyzed_ok = 0
+  let failed = 0
+  let stoppedBy: string | null = null
+
+  for (const c of pending) {
+    const r = await understandMedia(c.id)
+    if (r.ok) { analyzed_ok += 1; continue }
+    // 우리 쪽 문제면 이 회차를 멈춘다 — 다음 건도 같은 이유로 실패한다.
+    // 계속 두드리면 실패만 쌓이고, 사용자는 "왜 다 실패했지"를 보게 된다.
+    if (r.serviceFailure) { stoppedBy = r.note ?? '일시적인 문제로 중단'; break }
+    failed += 1
+  }
+
+  return {
+    ok: true,
+    errorMessage: stoppedBy
+      ? `영상 ${analyzed_ok}건 분석 후 중단 — ${stoppedBy.slice(0, 120)}`
+      : `영상 ${analyzed_ok}건 분석${failed ? ` · ${failed}건 실패` : ''}`,
+  }
+}
+
+/**
+ * 게시물 하나의 영상을 읽는다 — 파이프라인 enrich 단계가 부른다.
+ * 읽을 가치가 없으면 이유를 남기고 통과시킨다. 조용히 건너뛰면 고장과 구분되지 않는다.
+ */
+export async function runMediaUnderstanding(contentId: string): Promise<StageResult> {
+  const adminClient = createAdminClient() as any
+
+  const { data: content } = await adminClient
+    .from('ci_contents')
+    .select('id, format, caption, duration_sec')
+    .eq('id', contentId).maybeSingle()
+  if (!content) return { ok: true }
+
+  // 행이 있다고 읽은 것이 아니다 — 실패해도 행은 남는다(왜 못 읽었는지를 화면이 말해야 하므로).
+  // 그 둘을 같게 보면 쿼터 초과 한 번에 영구히 포기한다(실측 32건).
+  const { data: existing } = await adminClient
+    .from('ci_content_media')
+    .select('attempt_count, transcript, topic_guess, on_screen_text')
+    .eq('content_id', contentId).maybeSingle()
+
+  const decision = shouldUnderstand({
+    format: content.format,
+    captionLength: (content.caption ?? '').trim().length,
+    durationSec: content.duration_sec ?? null,
+    outlierIndex: null,     // 적재 직후에는 배수가 아직 없다. 그래서 숏폼 규칙이 중요하다.
+    analyzed: existing ? toAnalyzedRecord(existing) : null,
+  })
+  if (!decision.should) {
+    // 왜 안 읽는지를 화면이 말할 수 있게 남긴다. 잡 이력에만 적으면 사용자는 못 본다.
+    // "이미 읽었습니다"는 남길 것이 없다 — 이미 결과가 있다.
+    if (!existing) await recordSkip(contentId, decision.reason)
+    return { ok: true, errorMessage: decision.reason }
+  }
+
+  const r = await understandMedia(contentId)
+  return { ok: true, errorMessage: r.note ?? decision.reason }
 }

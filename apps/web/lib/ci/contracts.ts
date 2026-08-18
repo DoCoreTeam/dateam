@@ -74,6 +74,37 @@ export interface CiContentListItem {
    * 요청한 화면(트렌드 떡상·상세)에서만 채워 내려보낸다. 없으면 undefined.
    */
   creative?: CiCreativeInfo | null
+  /**
+   * "영상 안에 무엇이 있었나" — 영상을 실제로 읽은 결과.
+   * 플랫폼 메타(제목·설명)와 **다른 출처**다. 요청한 화면에서만 채워 내려보낸다.
+   */
+  media?: CiMediaInfo | null
+}
+
+/**
+ * 영상 실체 이해 결과의 표시용 형태.
+ * 저장은 `ci_content_media`, 채우는 곳은 `lib/ci/queries/media.ts`(SSOT).
+ */
+export interface CiMediaInfo {
+  /** 무엇으로 봤는가 — 신뢰도가 다르므로 화면이 구분해 말한다 */
+  access: 'remote_video' | 'still_image' | 'none'
+  accessLabel: string
+  transcript: string | null
+  onScreenText: string[]
+  beats: { t: string; what: string }[]
+  hookDevice: string | null
+  hookMessage: string | null
+  ending: string | null
+  /** 연출 스펙을 사람 말 한 줄로 — "세로 · 컷 12회 · 자막 있음 · 대화" */
+  productionText: string | null
+  setting: string | null
+  topicGuess: string | null
+  topicEvidence: string | null
+  whyItWorks: string | null
+  replicableFormula: string | null
+  /** 실패·한계 고지. 없으면 null */
+  note: string | null
+  analyzedAtText: string | null
 }
 
 /**

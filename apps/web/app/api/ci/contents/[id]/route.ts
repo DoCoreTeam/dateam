@@ -4,6 +4,7 @@ import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import { toListItem } from '@/lib/ci/queries/contents'
 import { getCreative } from '@/lib/ci/queries/creative'
+import { getMedia } from '@/lib/ci/queries/media'
 import { getLatestMetrics } from '@/lib/ci/queries/metrics'
 import { allowsAssertiveNarrative, formatDuration } from '@/lib/ci/format/metrics'
 import { deleteCiEntity } from '@/lib/ci/queries/delete'
@@ -58,8 +59,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     }
 
     const provenance = (row.provenance ?? {}) as Record<string, unknown>
-    const [creative, metrics] = await Promise.all([
+    const [creative, media, metrics] = await Promise.all([
       getCreative(session.workspaceId, id),
+      // 영상 실체 — 숏폼에서는 이것이 사실상 유일한 본문이다
+      getMedia(session.workspaceId, id),
       getLatestMetrics(id),
     ])
 
@@ -75,6 +78,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       analysisAllowed: allowsAssertiveNarrative(base.confidence),
       // "왜 터졌나"는 지어낸 서술이 아니라 관측한 요소다 — 위 게이트와 무관하게 있으면 준다.
       creative,
+      media,
       // 메타 정보 — 상세는 "무엇을 근거로 이 판단이 나왔나"를 보여주는 자리다.
       keywords: (row.keywords ?? []) as string[],
       durationText: formatDuration(row.duration_sec),

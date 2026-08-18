@@ -13,6 +13,7 @@ import { computeDerived, recomputeChannelDerived } from '../analysis/derive.ts'
 import {
   runClassify, runVerify, runPatterns, runChannelSweep, runCreativeBacklog,
   enrichChannelMetaBacklog, runChannelIdentity,
+  runMediaUnderstanding, runMediaBacklog,
 } from './stages.ts'
 import { enrichContextBacklog } from '../analysis/context-enrich.ts'
 import { runAlertBacklog } from '../alerts/evaluate.ts'
@@ -277,6 +278,9 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
     // 배수가 나온 뒤에야 "왜 터졌나"를 볼 수 있다. 순서가 중요하다.
     // 이번 건만이 아니라 형제 재계산으로 이제 막 자격을 얻은 것들까지 함께 훑는다.
     await runCreativeBacklog(job.workspace_id)
+    // 이 기능이 생기기 전에 수집된 것은 enrich를 지나간 적이 없다.
+    // 재훑기가 없으면 "새 것만 되고 옛 것은 안 되는" 상태로 굳는다.
+    await runMediaBacklog(job.workspace_id)
     // 콘텐츠 수집이 만든 채널은 이름과 URL뿐이다. 정보를 못 채운 채널을 함께 메운다.
     await enrichChannelMetaBacklog(job.workspace_id)
     // "언제의 트렌드인가" — 계절·요일·시간대·지역·날씨를 채운다
@@ -289,9 +293,27 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
   return { ok: true }
 }
 
-/** 정규화·보강은 수집 단계에서 UCM으로 이미 끝난다. 이력만 남기고 통과한다. */
+/** 정규화는 수집 단계에서 UCM으로 이미 끝난다. 이력만 남기고 통과한다. */
 async function handlePassthrough(): Promise<HandlerResult> {
   return { ok: true }
+}
+
+/**
+ * 보강 — **영상 실체를 읽는다.**
+ *
+ * 이 단계는 설계서가 자리만 잡아두고 오래 비어 있었다(handlePassthrough).
+ * 그 결과 분류(classify)가 보는 증거는 언제나 '플랫폼이 준 것'뿐이었고,
+ * 플랫폼이 아무것도 안 주는 숏폼에서는 볼 것이 없어 굶었다.
+ * (실측: 숏폼 423건 중 227건 설명문 없음 · 키워드 전 건 0개 →
+ *  화면이 "설명문을 확보하지 못했습니다"라고만 말했다)
+ *
+ * 순서가 핵심이다 — enrich는 classify **앞**에 있다.
+ * 그래서 여기서 읽은 대사·자막이 곧바로 주제 판정의 증거가 된다.
+ */
+async function handleEnrich(job: ClaimedJob): Promise<HandlerResult> {
+  // 채널 잡에는 읽을 영상이 없다. 통과시킨다.
+  if (job.target_type !== 'content' || !job.target_id) return { ok: true }
+  return runMediaUnderstanding(job.target_id)
 }
 
 async function handleClassify(job: ClaimedJob): Promise<HandlerResult> {
@@ -312,7 +334,7 @@ async function handleVerify(job: ClaimedJob): Promise<HandlerResult> {
 const HANDLERS = {
   ingest: handleIngest,
   normalize: handlePassthrough,
-  enrich: handlePassthrough,
+  enrich: handleEnrich,
   classify: handleClassify,
   verify: handleVerify,
   project: handleProject,

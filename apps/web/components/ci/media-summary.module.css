@@ -1,0 +1,111 @@
+/* components/ci/media-summary.module.css — 영상 실체 표시 전용
+ *
+ * globals.css에 넣지 않는다: 화면 전용 CSS는 CSS Module로 둔다(디자인 시스템 §0-1).
+ * 값은 전부 토큰을 거친다 — 하드코딩 금지.
+ */
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* 대사는 길다. 페이지를 밀어내지 않게 자기 안에서 스크롤한다
+   (무한 증식 목록을 페이지에 전량 렌더하지 않는다는 원칙과 같은 이유) */
+.transcript {
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  font-size: var(--fs-sm);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 화면 자막 — 나온 순서가 정보이므로 순서를 시각적으로 유지한다 */
+.captions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 12rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.caption {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.captionIndex {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 구간 전개 — 왼쪽에 시간, 오른쪽에 무슨 일이. 편집점 화면이 쓸 타임라인의 원형 */
+.beats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.beat {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding-left: var(--space-3);
+  border-left: var(--border-w-2) solid var(--border-light);
+}
+
+.beatTime {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.beatWhat { font-size: var(--fs-sm); line-height: 1.6; }
+
+/* 재현 공식 — 이 화면에서 사용자가 실제로 들고 나가는 한 줄이다. 눈에 띄어야 한다 */
+.formula {
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--info-border);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (max-width: 767px) {
+  .beat { grid-template-columns: 1fr; gap: var(--space-1); }
+}
