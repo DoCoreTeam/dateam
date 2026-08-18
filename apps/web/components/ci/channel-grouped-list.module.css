@@ -1,0 +1,94 @@
+/* components/ci/channel-grouped-list.module.css — 채널별로 묶은 목록의 생김새
+ *
+ * 왜 접히는가: 묶기만 하면 화면에 놓이는 카드 수가 그대로다. 채널 10곳 × 게시물 수십 개면
+ * "어느 채널의 무엇이 잘 됐나"를 보려고 묶었는데 정작 채널 목록을 한눈에 볼 수가 없다
+ * (사용자 지적: "채널별로 접는 것도 필요할 것 같은데 그냥 묶기만 하면 뭐해").
+ * 접힌 상태의 머리줄이 채널 이름·건수·최고 배수를 들고 있어, 그 자체가 채널 색인이 된다.
+ */
+
+.group {
+  margin-bottom: var(--space-4);
+}
+
+/* 머리줄 — 접혀 있을 때는 이 줄이 채널 요약 카드 노릇을 한다 */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-w-2) solid var(--border-color);
+}
+
+.title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  margin: 0;
+  min-width: 0;
+}
+
+/* 채널 이름 자체가 여닫는 손잡이다 — 누를 수 있는 것은 button 이어야
+   키보드(Enter·Space)와 스크린리더(aria-expanded)가 함께 따라온다.
+   링크를 button 안에 넣으면 안 되므로 채널 페이지로 가는 길은 오른쪽에 따로 둔다. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  margin: 0;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  min-height: var(--control-h);
+}
+
+.toggle:hover .name,
+.toggle:focus-visible .name {
+  text-decoration: underline;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 열림 방향을 화살표가 말한다 — 텍스트 없이도 지금 상태를 알 수 있게 */
+.chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron { transition: none; }
+}
+
+/* 채널 상세로 가는 길. 여닫기(이름)와 섞이지 않게 뱃지 뒤에 둔다.
+ * 오른쪽 끝(margin-left:auto)에 붙이지 않는 이유: 그 자리는 우측 하단 Dock이 덮는 자리다
+ * (실측 /ci/trends 접힌 목록 — '어시스턴트' 버튼이 마지막 줄의 링크 위에 얹혔다).
+ * 게다가 그 채널에 속한 정보이므로 채널 이름 곁에 있는 편이 읽기에도 맞다. */
+.openLink {
+  font-size: var(--fs-xs);
+  color: var(--brand);
+  white-space: nowrap;
+}
+
+.body {
+  margin-top: var(--space-3);
+}
+
+/* 전체 여닫기 — 채널이 많을 때 하나씩 누르지 않게 */
+.bulkBar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}

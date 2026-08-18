@@ -11,6 +11,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
 import { useCiDelete } from '@/lib/ci/use-delete'
+import s from './channel-detail.module.css'
 
 interface Props {
   workspaceId: string
@@ -229,33 +230,26 @@ export default function ChannelDetailView({ workspaceId, channel, contents, insi
 
       {/* 사람에게 물어야 할 질문은 이것 하나다 — "이 채널 뭐 하는 채널이에요?"
           게시물마다 묻지 않는다. 여기서 한 번 고르면 소속 게시물이 함께 다시 판정된다. */}
-      <section className="card" style={{ marginBottom: 'var(--space-6)' }}>
-        <div style={{
-          display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap',
-          alignItems: 'flex-end', justifyContent: 'space-between',
-        }}>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{
-              fontSize: 'var(--fs-md)', fontWeight: 700,
-              marginBottom: 'var(--space-1)',
-              display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-            }}>
+      <section className={`card ${s.topicCard}`}>
+        <div className={s.topicRow}>
+          <div className={s.topicMain}>
+            <h2 className={s.topicHead}>
               채널 주제
               <span className={`ci-status ${channel.topicSource === 'user' ? 'ci-status-info' : 'ci-status-warn'}`}>
                 {channel.topicSource === 'user' ? '확정' : channel.topic ? '추정' : '미분류'}
               </span>
             </h2>
             {/* 근거를 같이 보여준다 — 근거 없이 물으면 사용자도 답할 수가 없다 */}
-            <p className="ci-basis">
+            <p className={s.topicBasis}>
               {channel.identityText ?? '아직 판정할 만큼 신호가 모이지 않았습니다'}
               {channel.identityAgreement != null && channel.identitySampleSize != null && (
                 ` · 일치도 ${Math.round(channel.identityAgreement * 100)}% · 게시물 ${channel.identitySampleSize}건 기준`
               )}
             </p>
           </div>
-          <div>
-            <label className="label" htmlFor="ch-topic" style={{ margin: 0 }}>주제 고르기</label>
-            <select className="input-field" id="ch-topic" style={{ width: 'auto' }}
+          <div className={s.topicPicker}>
+            <label className="label" htmlFor="ch-topic">주제 고르기</label>
+            <select className={`input-field ${s.topicSelect}`} id="ch-topic"
               value={channel.topic?.id ?? ''} disabled={busy}
               onChange={(e) => void changeTopic(e.target.value)}>
               <option value="">주제 없음</option>

@@ -1,0 +1,73 @@
+/* app/(ci)/ci/channels/[id]/channel-detail.module.css — 채널 상세의 생김새
+ *
+ * 왜 이 파일이 생겼나: 「채널 주제」 카드가 .card 를 쓰면서 안쪽 여백을 주지 않았다.
+ * globals.css 의 .card 는 배경·모서리·그림자·테두리만 준다 — 여백은 쓰는 쪽 몫이다.
+ * 실측 v0.7.565 /ci/channels/[id]: section.card computed padding = 0px ·
+ * 카드 top 661 인데 「주제 고르기」 라벨 top 662(테두리 위에 얹힘) ·
+ * 셀렉트 bottom 725 vs 카드 bottom 726(아래 테두리에 붙음) · 내용 left 253 vs 카드 left 252.
+ * 그래서 라벨이 카드 밖으로 삐져나온 것처럼 보였다.
+ *
+ * 화면 전용 스타일이라 globals.css 가 아니라 이 폴더에 둔다(§0-1 규칙 3).
+ */
+
+.topicCard {
+  padding: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.topicRow {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+/* 판정과 근거 묶음. 좁아지면 셀렉트 위로 접힌다 */
+.topicMain {
+  min-width: 0;
+  flex: 1 1 28rem;
+}
+
+.topicHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 var(--space-1);
+}
+
+/* 왜 그 주제로 봤는지 — 사용자가 셀렉트를 고치기 전에 **읽어야 하는 문장**이다.
+ * 예전엔 .ci-basis(11px · --text-faint)였는데 그 클래스는 주석 그대로
+ * "수치에 병기하는 기준"용이고, --text-faint 는 흰 배경에서 2.56:1 이라
+ * 판단 근거를 담기에는 읽히지 않는다. 한 줄이 길어 line-height 도 함께 준다. */
+.topicBasis {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.topicPicker {
+  flex: 0 0 auto;
+}
+
+.topicPicker > label {
+  margin: 0;
+}
+
+/* width:auto 면 고른 주제 이름 길이에 따라 셀렉트가 늘었다 줄었다 하며 줄이 흔들린다
+   (실측 '엔터테인먼트' 선택 시 138.5px). 최소 폭을 줘서 자리를 고정한다. */
+.topicSelect {
+  width: auto;
+  min-width: 12rem;
+}
+
+@media (max-width: 767px) {
+  .topicCard { padding: var(--space-3); }
+  .topicPicker { flex-basis: 100%; }
+  .topicSelect { width: 100%; min-width: 0; }
+}
