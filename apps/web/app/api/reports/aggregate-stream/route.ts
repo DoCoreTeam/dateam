@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { createHash } from 'node:crypto'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
   const { data: metaRow } = await admin.from('org_content').select('value').eq('key', 'META').single()
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = meta.gemini_api_key as string | undefined
-  const model = (meta.gemini_model as string | undefined) ?? 'gemini-2.0-flash'
+  const model = (meta.gemini_model as string | undefined) ?? DEFAULT_GEMINI_MODEL
   if (!apiKey) return new Response('Gemini 키 없음', { status: 400 })
 
   const input = sorted.map((r, i) => ({

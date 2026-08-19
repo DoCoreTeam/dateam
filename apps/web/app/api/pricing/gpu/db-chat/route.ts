@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -16,7 +17,7 @@ async function getGeminiConfig(adminClient: ReturnType<typeof createAdminClient>
   const meta = (data?.value as Record<string, unknown>) ?? {}
   return {
     apiKey: typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : '',
-    model: typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash',
+    model: typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL,
   }
 }
 

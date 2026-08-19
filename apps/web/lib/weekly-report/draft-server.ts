@@ -9,6 +9,7 @@ import { generateWeeklyDraft } from '@/lib/weekly-report/generate-draft'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import type { CalendarInput, DraftItem } from '@/lib/weekly-report/draft-types'
 import type { DailyTaskInput } from '@/lib/gemini-daily-to-weekly'
+import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 
 // content(plain 필드)에 HTML 태그가 섞여 저장된 오염행 감지용.
 const HTML_TAG_RE = /<[a-z][^>]*>/i
@@ -200,7 +201,7 @@ export async function generateForWeek(
   const { data: metaRow } = await admin.from('org_content').select('value').eq('key', 'META').single()
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
+  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL
 
   const prevCategories = await loadPrevCategories(admin, userId)
   const deptCategories = await loadDeptCategories(admin, userId)

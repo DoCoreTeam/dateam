@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { extractMeetingItems } from '@/lib/gemini-meeting'
 import { htmlToPlain } from '@/lib/html-to-plain'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
+import { GeminiCallError } from '@/lib/ai/gemini-call'
 
 // 회의노트 AI 항목추출(추출형): POST { meetingNoteId } → { success, data:{ tasks, events, highlights } }
 // 권한: 본인 노트만(RLS + 명시 조건). today 기준으로 상대표현 → 절대일자 변환(lib/gemini-meeting).
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
   const { data: metaRow } = await admin.from('org_content').select('value').eq('key', 'META').single()
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || 'gemini-2.0-flash'
+  const model = (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || DEFAULT_GEMINI_MODEL
   if (!apiKey) {
     return NextResponse.json({ success: false, error: 'Gemini API 키가 설정되지 않았습니다.' }, { status: 400 })
   }
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().slice(0, 10)
 
   try {
-    const { tasks, events, highlights, attendees } = await extractMeetingItems({
+    const { tasks, events, highlights, attendees, notice } = await extractMeetingItems({
       userId: user.id,
       bodyPlain,
       apiKey,
@@ -63,11 +65,16 @@ export async function POST(req: NextRequest) {
       today,
     })
     return NextResponse.json(
-      { success: true, data: { tasks, events, highlights, attendees } },
+      { success: true, data: { tasks, events, highlights, attendees, notice } },
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (e) {
+    // 요약 라우트와 같은 계약 — 원인을 숨기지 않는다(v0.7.571).
     console.error('[meeting-extract]', e)
+    if (e instanceof GeminiCallError) {
+      console.error('[meeting-extract] 시도 경로:', e.attempts.join(' → '))
+      return NextResponse.json({ success: false, error: e.userMessage }, { status: 502 })
+    }
     return NextResponse.json({ success: false, error: '회의 항목 추출에 실패했습니다. 다시 시도해 주세요.' }, { status: 500 })
   }
 }

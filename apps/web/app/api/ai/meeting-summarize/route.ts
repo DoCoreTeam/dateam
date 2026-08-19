@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { summarizeMeeting } from '@/lib/gemini-meeting'
 import { htmlToPlain } from '@/lib/html-to-plain'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
+import { GeminiCallError } from '@/lib/ai/gemini-call'
 
 // 회의노트 AI 요약(생성형): POST { meetingNoteId } → { success, data:{ summary, decisions } }
 // 권한: 본인 노트만(RLS + 명시 조건). bodyPlain 없으면 body_html→plain 변환.
@@ -47,19 +49,25 @@ export async function POST(req: NextRequest) {
   const { data: metaRow } = await admin.from('org_content').select('value').eq('key', 'META').single()
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || 'gemini-2.0-flash'
+  const model = (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || DEFAULT_GEMINI_MODEL
   if (!apiKey) {
     return NextResponse.json({ success: false, error: 'Gemini API 키가 설정되지 않았습니다.' }, { status: 400 })
   }
 
   try {
-    const { summary, decisions } = await summarizeMeeting({ userId: user.id, bodyPlain, apiKey, model })
+    const { summary, decisions, notice } = await summarizeMeeting({ userId: user.id, bodyPlain, apiKey, model })
     return NextResponse.json(
-      { success: true, data: { summary, decisions } },
+      { success: true, data: { summary, decisions, notice } },
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (e) {
+    // 실패 원인을 그대로 사용자에게 전한다. 예전의 "다시 시도해 주세요"는 모델 설정 문제일 때
+    // 100% 또 실패하는 안내라, 사용자를 84초짜리 무한 재시도로 끌고 갔다(v0.7.571).
     console.error('[meeting-summarize]', e)
+    if (e instanceof GeminiCallError) {
+      console.error('[meeting-summarize] 시도 경로:', e.attempts.join(' → '))
+      return NextResponse.json({ success: false, error: e.userMessage }, { status: 502 })
+    }
     return NextResponse.json({ success: false, error: '회의 요약에 실패했습니다. 다시 시도해 주세요.' }, { status: 500 })
   }
 }

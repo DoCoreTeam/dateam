@@ -5,6 +5,7 @@ import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
 import { safeFetchText } from '@/lib/security/safe-fetch'
 import { renderUrlHtml } from '@/lib/security/headless-fetch'
 import { htmlToStructuredText } from '@/lib/gpu/html-table-extract'
+import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -19,7 +20,7 @@ export async function getGeminiConfig(adminClient: ReturnType<typeof createAdmin
   const meta = (data?.value as Record<string, unknown>) ?? {}
   return {
     apiKey: typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : '',
-    model: typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash',
+    model: typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL,
   }
 }
 

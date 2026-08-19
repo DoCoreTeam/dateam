@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cosineSimilarity } from '@/lib/gemini-embedding'
 import { logTokenUsage } from '@/lib/token-logger'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const SIM_THRESHOLD = 0.78  // 코사인 유사도 임계 — 같은 주제로 묶는 기준
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -116,7 +117,7 @@ async function batchLabel(
   const { data } = await (adm as any).from('org_content').select('value').eq('key', 'META').single()
   const meta = (data?.value ?? {}) as Record<string, unknown>
   const apiKey = (meta.gemini_api_key as string) || process.env.GEMINI_API_KEY || ''
-  const model = (meta.gemini_model as string) || 'gemini-2.0-flash'
+  const model = (meta.gemini_model as string) || DEFAULT_GEMINI_MODEL
   if (!apiKey) return groups.map((g) => `주제 ${g.idx + 1}`)
 
   const prompt = `다음은 업무 메모를 주제별로 묶은 그룹들이다. 각 그룹에 2~6자 한국어 짧은 라벨을 붙여라.

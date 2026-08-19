@@ -4,6 +4,7 @@ import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { suggestProjects, type ProjectLogInput, type ProjectWeeklyInput } from '@/lib/gemini-suggest-projects'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 // GET /api/work/projects/suggest — 본인 일일업무(+주간보고 맥락)를 AI가 읽어 "예상 프로젝트 후보" 제안.
 //  ⚠️ 자동 생성 금지(§5-3). 후보 리스트만 반환 → 사용자가 확인 후 confirm 으로 생성.
@@ -75,7 +76,7 @@ export async function GET() {
   const { data: metaRow } = await admin.from('org_content').select('value').eq('key', 'META').single()
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || 'gemini-2.0-flash'
+  const model = (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || DEFAULT_GEMINI_MODEL
   if (!apiKey) return NextResponse.json({ suggestions: [], message: 'AI 키가 설정되지 않았습니다' })
 
   // 6) LLM 군집화 → ref를 실제 log id로 환원해 후보 구성

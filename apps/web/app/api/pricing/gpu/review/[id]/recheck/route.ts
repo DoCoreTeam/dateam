@@ -6,6 +6,7 @@ import { loadSchemaDigest } from '@/lib/gpu/extract-helpers'
 import { diffExtracted, normalizeReanalysis } from '@/lib/gpu/extract-diff'
 import { normalizeExtractedModel } from '@/lib/gpu/canonical-model'
 import { BILLING_EXTRACT_HINT } from '@/lib/gpu/billing'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -59,7 +60,7 @@ export async function POST(
 
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
+  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL
 
   if (!apiKey) return NextResponse.json({ error: 'AI 키 없음' }, { status: 500 })
   if (!promptRow) return NextResponse.json({ error: '프롬프트 없음' }, { status: 500 })

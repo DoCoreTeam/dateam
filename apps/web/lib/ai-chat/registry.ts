@@ -2,6 +2,7 @@ import type { ChatProvider, ProviderId } from './provider.ts'
 import { geminiProvider } from './providers/gemini.ts'
 import { claudeProvider } from './providers/claude.ts'
 import { openaiProvider } from './providers/openai.ts'
+import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 
 // META 기반 프로바이더 가용성/설정 (순수 함수 — 단위테스트 대상, 04 §7)
 // META 조회 자체는 호출측(route/action)에서 createAdminClient()로 읽어 전달.
@@ -16,7 +17,7 @@ export const META_DEFAULT_PROVIDER_KEY = 'ai_chat_default_provider'
 
 // 모델 미설정 시 폴백. openai는 하드코딩 기본 없음 — 어드민이 상위 모델 직접 선택 필수(미설정 시 제외).
 export const DEFAULT_MODELS: Record<ProviderId, string | null> = {
-  gemini: 'gemini-2.0-flash', // 기존 saveGeminiModel 미설정 시 폴백(기존 컨벤션)
+  gemini: DEFAULT_GEMINI_MODEL, // 기존 saveGeminiModel 미설정 시 폴백(기존 컨벤션)
   claude: 'claude-opus-4-8', // 고급 모델 기본 (확정 계약)
   openai: null, // 하드코딩 기본 없음
 }

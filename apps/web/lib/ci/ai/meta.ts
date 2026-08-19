@@ -3,6 +3,7 @@
 // CI가 별도 키 저장소를 만들지 않는다. 키 이중 관리는 회전 누락의 원인이다.
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { DEFAULT_GEMINI_MODEL } from '../../ai/gemini-model.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -25,12 +26,12 @@ export async function getGeminiMeta(): Promise<CiExternalKeys> {
     const meta = (data?.value ?? {}) as Record<string, unknown>
     return {
       geminiApiKey: typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : '',
-      geminiModel: typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash',
+      geminiModel: typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL,
       youtubeApiKey: typeof meta.youtube_api_key === 'string' && meta.youtube_api_key
         ? meta.youtube_api_key
         : undefined,
     }
   } catch {
-    return { geminiApiKey: '', geminiModel: 'gemini-2.0-flash', youtubeApiKey: undefined }
+    return { geminiApiKey: '', geminiModel: DEFAULT_GEMINI_MODEL, youtubeApiKey: undefined }
   }
 }

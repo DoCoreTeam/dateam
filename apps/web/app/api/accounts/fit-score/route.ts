@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { scoreFit } from '@/lib/gemini-lead'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 export async function POST(req: NextRequest) {
   const auth = await requireAdminApi()
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const meta = (settingsRes.data?.value as any) ?? {}
   const apiKey: string = meta.gemini_api_key ?? process.env.GEMINI_API_KEY ?? ''
-  const model: string = meta.gemini_model ?? 'gemini-2.0-flash'
+  const model: string = meta.gemini_model ?? DEFAULT_GEMINI_MODEL
 
   if (!apiKey) return NextResponse.json({ error: 'Gemini API 키 미설정' }, { status: 500 })
 

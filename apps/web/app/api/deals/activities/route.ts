@@ -4,6 +4,7 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { probabilityForStage } from '@/lib/crm'
 import type { AiFeature } from '@/types/database'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -34,7 +35,7 @@ async function extractActivity(
   const settingsRes = await adm.from('org_content').select('value').eq('key', 'META').single()
   const meta = settingsRes.data?.value ?? {}
   const apiKey: string = meta.gemini_api_key ?? process.env.GEMINI_API_KEY ?? ''
-  const model: string = meta.gemini_model ?? 'gemini-2.0-flash'
+  const model: string = meta.gemini_model ?? DEFAULT_GEMINI_MODEL
   if (!apiKey) return null
 
   const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {

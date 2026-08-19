@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { parseLeadInput, parseLeadFromVision, isVisionMimeType, scoreFit } from '@/lib/gemini-lead'
 import type { ParsedLeadData } from '@/lib/gemini-lead'
 import { handleBulkMode, isBulkMimeType } from '@/lib/lead-bulk-import'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 export const maxDuration = 300
 
@@ -53,7 +54,7 @@ async function getSettings(adm: ReturnType<typeof createAdminClient>) {
   const meta = (settingsRes.data?.value as any) ?? {}
   return {
     apiKey: (meta.gemini_api_key ?? process.env.GEMINI_API_KEY ?? '') as string,
-    model: (meta.gemini_model ?? 'gemini-2.0-flash') as string,
+    model: (meta.gemini_model ?? DEFAULT_GEMINI_MODEL) as string,
   }
 }
 

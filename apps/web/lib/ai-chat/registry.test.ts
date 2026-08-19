@@ -5,6 +5,7 @@ import {
   getProviderConfig,
   getDefaultProvider,
 } from './registry.ts'
+import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 
 test('available: 키 3개 모두 있으면 3개', () => {
   const meta = {
@@ -20,11 +21,13 @@ test('available: 키 3개 모두 있으면 3개', () => {
   )
 })
 
-test('available: gemini 키만 → 1개 + 모델 폴백 gemini-2.0-flash', () => {
+// v0.7.571: 폴백 모델을 SSOT(lib/ai/gemini-model.ts)로 옮겼다. 죽은 'gemini-2.0-flash'를
+// 여기 문자열로 다시 박으면, SSOT를 고쳐도 이 가드만 옛 모델을 붙들어 드리프트가 생긴다.
+test('available: gemini 키만 → 1개 + 모델은 SSOT 기본값으로 폴백', () => {
   const list = getAvailableProviders({ gemini_api_key: 'g' })
   assert.equal(list.length, 1)
   assert.equal(list[0].id, 'gemini')
-  assert.equal(list[0].model, 'gemini-2.0-flash')
+  assert.equal(list[0].model, DEFAULT_GEMINI_MODEL)
 })
 
 test('available: claude 키만·모델 미설정 → 모델 claude-opus-4-8 폴백', () => {

@@ -14,6 +14,7 @@ import {
   DATE_RE,
   TIME_RE,
 } from './parse-helpers.ts'
+import { JsonRecoverError } from '../ai/json-recover.ts'
 
 // ============================================================
 // asRecord
@@ -142,8 +143,10 @@ describe('parseJsonSafe', () => {
     assert.deepEqual(result, { a: 1 })
   })
 
-  test('유효하지 않은 JSON → SyntaxError 던짐', () => {
-    assert.throws(() => parseJsonSafe('{invalid}'), SyntaxError)
+  // v0.7.571: 구현이 lib/ai/json-recover.ts(SSOT)로 이관되면서 실패 예외가 JsonRecoverError로 바뀌었다.
+  // 산문 속 JSON까지 건지므로 "정말 JSON이 없을 때"만 던진다 — 그때 원인 진단용 sample을 함께 담는다.
+  test('유효하지 않은 JSON → JsonRecoverError 던짐(원문 sample 동봉)', () => {
+    assert.throws(() => parseJsonSafe('{invalid}'), JsonRecoverError)
   })
 })
 

@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { logTokenUsage } from '@/lib/token-logger'
 import { loadSchemaDigest } from '@/lib/gpu/extract-helpers'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -36,7 +37,7 @@ export async function POST(
   const { data: metaRow } = await (adminClient as any).from('org_content').select('value').eq('key', 'META').single()
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
+  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL
   if (!apiKey) return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
 
   const prod = q.gpu_products as Record<string, unknown> | null

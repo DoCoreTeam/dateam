@@ -23,6 +23,8 @@ export interface ExtractResult {
   events: EventCandidate[]
   highlights: HighlightCandidate[]
   attendees: AttendeeCandidate[]
+  /** 설정 모델을 못 써서 다른 모델로 처리했을 때의 안내(없으면 null). 서버가 채운다. */
+  notice?: string | null
 }
 
 interface Props {

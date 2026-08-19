@@ -4,6 +4,8 @@
 // datetime 규약: toStartAt 은 lib/datetime/kst.ts 와 동일한 +09:00 앵커를 사용한다.
 //   (이 파일은 의존성 없는 순수 헬퍼 — node 단위테스트 직접 실행 위해 import 미추가. 가드가 lib/meeting 스캔으로 naive 회귀 차단.)
 
+import { recoverJson } from '../ai/json-recover.ts'
+
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 export const TIME_RE = /^\d{2}:\d{2}$/
 
@@ -20,10 +22,13 @@ export function numConfidence(v: unknown): number {
   return typeof v === 'number' ? v : 0
 }
 
-// ---- JSON 파싱 (마크다운 코드펜스 제거 포함) ----
+// ---- JSON 파싱 ----
+// 구현은 lib/ai/json-recover.ts(SSOT)로 이관했다(v0.7.571). 여기서는 기존 호출처를 위해 위임만 한다.
+// 예전 구현은 코드펜스만 벗기고 바로 JSON.parse를 해서, 모델이 앞뒤에 설명 한 줄만 붙여도
+// 통째로 실패했다(실측: Gemma가 산문을 반환해 회의노트 AI가 100% 실패). 이제는 산문 속 JSON도 건진다.
+// 실패 시 던지는 예외는 SyntaxError가 아니라 JsonRecoverError다(원인 진단용 sample을 담는다).
 export function parseJsonSafe(text: string): unknown {
-  const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
-  return JSON.parse(stripped)
+  return recoverJson(text)
 }
 
 // ---- 추출 후보 타입 ----

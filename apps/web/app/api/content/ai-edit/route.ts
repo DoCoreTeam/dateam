@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { aiEditContentSection, type ColumnSchema } from '@/lib/gemini-content-edit'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
+  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL
 
   if (!apiKey) {
     return NextResponse.json(

@@ -4,6 +4,7 @@ import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
 import { suggestDeptTasks } from '@/lib/gemini-suggest-tasks'
 import { htmlToPlain } from '@/lib/html-to-plain'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 // AI 부서업무 후보 추출: 일일업무+주간보고(org-scope 범위) → 후보 배열 반환.
 // 수동 트리거 전용. 권한: scope='dept'는 부서장(editable/executive)만. 비용: 기간 캡(최대 4주)+상태필터.
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
   const { data: metaRow } = await admin.from('org_content').select('value').eq('key', 'META').single()
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || 'gemini-2.0-flash'
+  const model = (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || DEFAULT_GEMINI_MODEL
   if (!apiKey) return NextResponse.json({ error: 'Gemini API 키가 설정되지 않았습니다' }, { status: 400 })
 
   try {

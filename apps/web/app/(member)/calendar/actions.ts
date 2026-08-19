@@ -3,6 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { recordFeedbackSignal } from '@/lib/daily/feedback-signals'
 import { normalizeKstWallString } from '@/lib/datetime/kst'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -52,7 +53,7 @@ export async function getCalendarRecommendations(): Promise<{ ok: boolean; items
     const { data: metaRow } = await (admin as any).from('org_content').select('value').eq('key', 'META').single()
     const meta = (metaRow?.value as Record<string, unknown>) ?? {}
     const apiKey = meta.gemini_api_key as string | undefined
-    const model = (meta.gemini_model as string | undefined) ?? 'gemini-2.0-flash'
+    const model = (meta.gemini_model as string | undefined) ?? DEFAULT_GEMINI_MODEL
     if (!apiKey) return { ok: false, error: 'Gemini API 키가 설정되지 않았습니다' }
 
     // 다음 주 월요일 기준

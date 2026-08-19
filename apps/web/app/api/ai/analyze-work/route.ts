@@ -5,6 +5,7 @@ import { loadCrmCandidates } from '@/lib/crm/link/candidates'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { recordDailyOutcome, maybeSelfTuneDaily } from '@/lib/daily-prompt-governance'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const PROMPT_KEY = 'daily.analyze-work'
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
 
   const meta = (metaResult.data?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
+  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL
 
   if (!apiKey) {
     return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다 (관리자에게 문의)' }, { status: 500 })

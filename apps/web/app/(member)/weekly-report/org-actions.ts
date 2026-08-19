@@ -11,6 +11,7 @@ import { prevWeekStart } from '@/lib/week'
 import { computeDeptTimeliness } from '@/lib/weekly-report/timeliness-server'
 import { formatKst, formatDelay } from '@/lib/weekly-report/timeliness'
 import { TIMELINESS_COLORS } from '@/lib/tokens/status-colors'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 /** dept body(jsonb) → MergedCategoryReport[] 안전 정규화 */
 function normalizeBody(raw: unknown): MergedCategoryReport[] {
@@ -88,7 +89,7 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
     const { data: metaRow } = await admin.from('org_content').select('value').eq('key', 'META').single()
     const meta = (metaRow?.value as Record<string, unknown>) ?? {}
     const apiKey = meta.gemini_api_key as string | undefined
-    const model = (meta.gemini_model as string | undefined) ?? 'gemini-2.0-flash'
+    const model = (meta.gemini_model as string | undefined) ?? DEFAULT_GEMINI_MODEL
     if (!apiKey) return { ok: false, error: 'Gemini API 키가 설정되지 않았습니다' }
 
     // 보수: 지난주 취합본(구분·계획 기준)과 현재 편집본을 읽어 병합·보존 컨텍스트로 주입한다.

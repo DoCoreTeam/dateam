@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { generateWeeklyFromDailyTasks, type DailyTaskInput } from '@/lib/gemini-daily-to-weekly'
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 function loadStyleGuide(): string {
   try {
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   const meta = (metaRow?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
+  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL
 
   if (!apiKey) {
     return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다 (관리자에게 문의)' }, { status: 500 })

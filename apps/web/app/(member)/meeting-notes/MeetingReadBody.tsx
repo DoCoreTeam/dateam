@@ -39,8 +39,13 @@ export default function MeetingReadBody({
   const hasRefined = Boolean(summary.trim() || decisions.trim())
   const [tab, setTab] = useState<'refined' | 'original'>(hasRefined ? 'refined' : 'original')
   const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
+  const [elapsed, setElapsed] = useState(0)
+  // 요약·추출이 각각 실패할 수 있으므로 배열이다 — 한쪽만 터진 것을 뭉뚱그리지 않는다.
+  const [errs, setErrs] = useState<string[]>([])
   const [info, setInfo] = useState('')
+  // 설정 모델을 못 써서 다른 모델로 처리했을 때 서버가 보내는 안내 — 조용히 바꾸지 않는다.
+  const [notice, setNotice] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
   const [modalResult, setModalResult] = useState<ExtractResult | null>(null)
   // 내보내기는 미리보기를 먼저 보여주고 형식을 고르게 한다 — 저장 뒤 파일을 열어보고서야
   // "이게 아닌데"를 알게 되는 흐름을 없앤다. 실제 다운로드는 모달이 수행한다.
@@ -51,47 +56,86 @@ export default function MeetingReadBody({
 
   async function runAnalyze() {
     if (!hasBody || busy) return
-    setBusy(true); setErr(''); setInfo('')
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setBusy(true); setElapsed(0); setErrs([]); setInfo(''); setNotice('')
     try {
-      const [sumRes, extRes] = await Promise.all([
-        fetch('/api/ai/meeting-summarize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meetingNoteId }) }),
-        fetch('/api/ai/meeting-extract', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meetingNoteId }) }),
+      // allSettled — 한쪽이 네트워크 오류로 reject해도 다른 쪽 결과는 살린다.
+      // (예전엔 Promise.all이라 하나만 터져도 둘 다 버려졌다)
+      const post = (url: string) =>
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ meetingNoteId }),
+          signal: ctrl.signal,
+        }).then((r) => r.json())
+
+      const [sumS, extS] = await Promise.allSettled([
+        post('/api/ai/meeting-summarize') as Promise<ApiEnvelope<{ summary: string; decisions: string; notice: string | null }>>,
+        post('/api/ai/meeting-extract') as Promise<ApiEnvelope<ExtractResult>>,
       ])
-      const sum = (await sumRes.json()) as ApiEnvelope<{ summary: string; decisions: string }>
-      const ext = (await extRes.json()) as ApiEnvelope<ExtractResult>
+      if (ctrl.signal.aborted) return
+
+      const sum: ApiEnvelope<{ summary: string; decisions: string; notice: string | null }> =
+        sumS.status === 'fulfilled' ? sumS.value : { success: false, error: 'AI 서버 연결에 실패했습니다.' }
+      const ext: ApiEnvelope<ExtractResult> =
+        extS.status === 'fulfilled' ? extS.value : { success: false, error: 'AI 서버 연결에 실패했습니다.' }
 
       if (sum.success && sum.data) {
         const nextSummary = sum.data.summary ?? ''
         const nextDecisions = sum.data.decisions ?? ''
         setSummary(nextSummary)
         setDecisions(nextDecisions)
+        if (sum.data.notice) setNotice(sum.data.notice)
         if (nextSummary.trim() || nextDecisions.trim()) {
           setTab('refined')
           // 정제본을 즉시 저장 → 새로고침/재방문에도 읽기표시 유지. 실패 시 사용자에게 안내.
           const saveRes = await saveMeetingSummary(meetingNoteId, { summary: nextSummary.trim(), decisions: nextDecisions.trim() })
-          if (!saveRes.ok) setErr('정제본 자동저장에 실패했습니다 — [편집]에서 직접 저장해 주세요.')
+          if (!saveRes.ok) setErrs(['정제본 자동저장에 실패했습니다 — [편집]에서 직접 저장해 주세요.'])
           else router.refresh()
         }
       }
+      if (ext.success && ext.data?.notice) setNotice(ext.data.notice)
 
-      if (!sum.success && !ext.success) {
-        setErr(sum.error ?? ext.error ?? 'AI 분석에 실패했습니다.')
-        return
-      }
+      // 부분 실패를 삼키지 않는다. 예전엔 `!sum.success && !ext.success`라 **둘 다** 실패해야
+      // 에러가 떴고, 추출만 터지면 "추출할 후보는 없습니다"라고 잘못 안내했다(v0.7.571).
+      const problems: string[] = []
+      if (!sum.success) problems.push(`요약 실패 — ${sum.error ?? '알 수 없는 오류'}`)
+      if (!ext.success) problems.push(`업무·일정 추출 실패 — ${ext.error ?? '알 수 없는 오류'}`)
+      if (problems.length) setErrs(problems)
 
       // 추출 후보가 있으면 확정 모달 오픈(자동등록 금지 — 사용자 선택분만).
-      const hasCandidates = !!ext.data && (ext.data.tasks.length > 0 || ext.data.events.length > 0 || (ext.data.attendees?.length ?? 0) > 0 || ext.data.highlights.length > 0)
-      if (ext.success && hasCandidates && ext.data) {
-        setModalResult(ext.data)
-      } else {
-        setInfo('AI가 본문을 정제했습니다. 추출할 업무·일정 후보는 없습니다.')
+      if (ext.success && ext.data) {
+        const hasCandidates =
+          ext.data.tasks.length > 0 ||
+          ext.data.events.length > 0 ||
+          (ext.data.attendees?.length ?? 0) > 0 ||
+          ext.data.highlights.length > 0
+        if (hasCandidates) setModalResult(ext.data)
+        else if (sum.success) setInfo('AI가 본문을 정제했습니다. 추출할 업무·일정 후보는 없습니다.')
       }
-    } catch {
-      setErr('AI 서버 연결에 실패했습니다.')
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return
+      setErrs(['AI 서버 연결에 실패했습니다.'])
     } finally {
-      setBusy(false)
+      if (abortRef.current === ctrl) abortRef.current = null
+      if (!ctrl.signal.aborted) setBusy(false)
     }
   }
+
+  function cancelAnalyze() {
+    abortRef.current?.abort()
+    abortRef.current = null
+    setBusy(false)
+    setInfo('분석을 취소했습니다.')
+  }
+
+  // 경과 시간 표시 — 응답이 수십 초 걸릴 수 있어(실측 15~85초) 숫자가 없으면 멈춘 것과 구별되지 않는다.
+  useEffect(() => {
+    if (!busy) return
+    const t = setInterval(() => setElapsed((n) => n + 1), 1000)
+    return () => clearInterval(t)
+  }, [busy])
 
   // 저장 직후 자동분석(C안) — autoAnalyze일 때 1회만. ?analyze=1을 URL에서 제거.
   const autoRan = useRef(false)
@@ -123,9 +167,16 @@ export default function MeetingReadBody({
             </NbButton>
           )}
           {hasBody && (
-            <NbButton onClick={runAnalyze} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <Sparkles size={15} /> {busy ? '분석 중…' : 'AI 분석'}
-            </NbButton>
+            <>
+              <NbButton onClick={runAnalyze} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <Sparkles size={15} /> {busy ? `분석 중… ${elapsed}초` : 'AI 분석'}
+              </NbButton>
+              {busy && (
+                <NbButton variant="secondary" onClick={cancelAnalyze} title="진행 중인 AI 분석을 중단합니다">
+                  취소
+                </NbButton>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -151,7 +202,7 @@ export default function MeetingReadBody({
             <EmptyState
               title="아직 AI 정제본이 없어요"
               description="[AI 분석]을 실행하면 요약·결정사항을 자동으로 정리합니다"
-              action={{ label: 'AI 분석 실행', onClick: () => { void runAnalyze() } }}
+              action={{ label: busy ? `분석 중… ${elapsed}초` : 'AI 분석 실행', onClick: () => { void runAnalyze() } }}
             />
           ) : (
             // 편집 전용 라우트는 없다(같은 페이지의 [편집] 토글) — 죽은 링크를 만들지 않고 그 버튼을 가리킨다
@@ -167,7 +218,12 @@ export default function MeetingReadBody({
         </div>
       )}
 
-      <InlineError>{err}</InlineError>
+      {notice && (
+        <p role="status" style={{ margin: 0, color: 'var(--warning)', fontSize: 'var(--fs-sm)' }}>{notice}</p>
+      )}
+      {errs.map((m) => (
+        <InlineError key={m} banner>{m}</InlineError>
+      ))}
       {info && <p role="status" style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{info}</p>}
 
       {exportOpen && (

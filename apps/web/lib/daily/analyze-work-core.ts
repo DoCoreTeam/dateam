@@ -2,6 +2,7 @@
 // 라우트는 스트리밍(신규 입력 실시간 UX), 이 함수는 수정 시 '해당 항목만 재분석'(비스트리밍)에 쓴다.
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const PROMPT_KEY = 'daily.analyze-work'
@@ -30,7 +31,7 @@ export async function analyzeWorkOnce(text: string, date: string): Promise<WorkI
   if (!promptRow?.content) throw new Error('AI 프롬프트가 설정되지 않았습니다')
   const meta = (metaRow?.value ?? {}) as Record<string, unknown>
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
-  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
+  const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL
   if (!apiKey) throw new Error('Gemini 키가 설정되지 않았습니다')
 
   const tomorrow = new Date(date + 'T00:00:00')
