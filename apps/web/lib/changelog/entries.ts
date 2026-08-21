@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.581',
+    date: '2026-08-22',
+    title: '회의 녹음 파일은 한 달 뒤에 알아서 정리돼요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '\u{1F5C3}\uFE0F',
+        headline: '전사가 끝난 녹음 원본은 30일 뒤 자동으로 지워져요',
+        detail: '받아쓰기가 끝난 녹음은 한 달이 지나면 저장소에서 자동으로 정리됩니다. 회의 내용을 글로 옮긴 기록과 요약은 그대로 남으니 안심하세요. 아직 전사되지 않았거나 실패한 녹음은 지우지 않습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.579',
     date: '2026-08-22',
     title: 'AI가 몇 곳째 하고 있는지 보이고, 한 모델이 막혀도 멈추지 않아요',

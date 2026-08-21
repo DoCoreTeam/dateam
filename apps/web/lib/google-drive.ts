@@ -280,6 +280,30 @@ export async function streamFile(
   }
 }
 
+// ── 파일 삭제 ────────────────────────────────────────────────
+/**
+ * 드라이브 파일을 지운다.
+ *
+ * **이미 없는 파일(404)은 성공으로 본다.** 사람이 드라이브에서 먼저 지웠을 수 있고,
+ * 그때 잡이 매번 실패하면 그 행은 영원히 `audio_deleted_at` 을 못 받아
+ * 정리 대상 목록에 영구히 남는다 — 큐가 막히는 자리다.
+ */
+export async function deleteFile(fileId: string): Promise<{ deleted: boolean; alreadyGone: boolean }> {
+  const auth = await refreshTokenIfNeeded()
+  const drive = google.drive({ version: 'v3', auth })
+  try {
+    await drive.files.delete({ fileId })
+    return { deleted: true, alreadyGone: false }
+  } catch (e) {
+    // googleapis 는 판마다 code(number|string)·status·response.status 로 제각각 실어 보낸다.
+    // 한 자리만 보면 404 를 놓치고, 놓치면 그 행이 영원히 정리 목록에 남는다.
+    const err = e as { code?: number | string; status?: number; response?: { status?: number } }
+    const status = String(err?.code ?? err?.status ?? err?.response?.status ?? '')
+    if (status === '404') return { deleted: false, alreadyGone: true }
+    throw e
+  }
+}
+
 // ── Drive 연동 상태 확인 ──────────────────────────────────────
 export async function getDriveConnectionStatus(): Promise<{
   connected: boolean

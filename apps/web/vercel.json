@@ -34,6 +34,10 @@
     {
       "path": "/api/meeting-notes/jobs/transcribe",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/meeting-notes/jobs/audio-purge",
+      "schedule": "30 4 * * *"
     }
   ]
 }
