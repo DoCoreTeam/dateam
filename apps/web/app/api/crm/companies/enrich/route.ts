@@ -5,6 +5,16 @@
 // 한 건이 실패해도 나머지는 계속한다. 무엇이 됐고 무엇이 안 됐는지를 응답으로 돌려주므로,
 // 화면은 "N곳 채웠고 M곳은 이래서 못 했어요"라고 말할 수 있다 — 조용히 삼키지 않는다.
 import type { NextRequest } from 'next/server'
+
+/**
+ * 회사당 웹검색 AI 호출이 실측 15~30초이고 **순차로** 돈다(예산 선점이 동시에 통과하지 않도록).
+ * 상한 20곳이면 최악 5~10분이라, 선언이 없으면 프로덕션에서 **응답이 오기 전에 함수가 죽는다.**
+ *
+ * 이 결함은 개발 중에 절대 안 보인다 — 로컬 dev 에는 함수 시간 상한이 없기 때문이다.
+ * 형제 AI 라우트(analyze/stream · cron/analyze-drain · leads/parse)가 전부 300 인데
+ * 여기만 선언이 0줄이었다(v0.7.574 에서 발견).
+ */
+export const maxDuration = 300
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { CrmError } from '@/lib/crm/domain/errors'
 import { adapterFromSetting } from '@/lib/crm/services/quick-create'

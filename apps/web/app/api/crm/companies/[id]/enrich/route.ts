@@ -2,6 +2,9 @@
 //
 // 쓰기 경로다(빈 칸이 실제로 채워질 수 있다) — READONLY 는 부를 수 없다.
 import type { NextRequest } from 'next/server'
+
+/** 한 곳이라도 웹검색 AI 는 실측 15~30초다. 기본 상한으로는 끊긴다(v0.7.574). */
+export const maxDuration = 60
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { adapterFromSetting } from '@/lib/crm/services/quick-create'
 import { enrichCompanyFromWeb } from '@/lib/crm/services/enrich-web'

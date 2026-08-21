@@ -44,6 +44,10 @@ interface EnrichSummary {
   applied: number
   suggested: number
   failed: { companyId: string; message: string }[]
+  /** 중단돼서 시작조차 못 한 회사들 — 예전엔 조용히 사라졌다(v0.7.574) */
+  notStarted?: { companyId: string; reason: string }[]
+  /** 중단 사유. 있으면 회사별로 반복하지 않고 한 번만 말한다 */
+  stoppedReason?: string | null
 }
 
 export interface CompanyItem {
@@ -94,6 +98,17 @@ export default function CompanyListView() {
   const [enriching, setEnriching] = useState(false)
   const [enrichResult, setEnrichResult] = useState<EnrichSummary | null>(null)
   const [enrichError, setEnrichError] = useState<string | null>(null)
+  /**
+   * 보낼 때의 id → 이름.
+   *
+   * 서버는 실패·미시작 건을 `companyId` 로만 돌려주는데, 화면이 그걸 이름으로 못 바꾸면
+   * 사용자는 **어느 회사가 안 됐는지 알 수 없다**(v0.7.574). 정작 이름이 필요한 쪽은 실패다.
+   *
+   * 왜 `rows` 에서 그때그때 찾지 않고 스냅샷을 뜨나: 보강이 끝나면 목록을 다시 불러오는데,
+   * '더 보기'로 쌓아 둔 상태에서 고른 회사는 **재조회 뒤 목록에 없을 수 있다.**
+   * 그러면 결과 카드가 열려 있는 채로 이름만 사라진다.
+   */
+  const [enrichNames, setEnrichNames] = useState<Record<string, string>>({})
 
   const q = query.q ?? ''
   const trash = isTrashView(query)
@@ -144,6 +159,10 @@ export default function CompanyListView() {
     setEnriching(true)
     setEnrichError(null)
     setEnrichResult(null)
+    // 재조회로 목록이 바뀌기 전에 이름을 떠 둔다
+    setEnrichNames(Object.fromEntries(
+      rows.filter((r) => ids.includes(r.id)).map((r) => [r.id, r.name]),
+    ))
     try {
       const res = await fetch('/api/crm/companies/enrich', {
         method: 'POST',
@@ -164,7 +183,7 @@ export default function CompanyListView() {
     } finally {
       setEnriching(false)
     }
-  }, [selection, enriching, load])
+  }, [selection, enriching, load, rows])
 
   const { restore, restoreError } = useRestore('/api/crm/companies', () => void load(false, null))
   const columns = useMemo<ColumnDef<CompanyItem>[]>(
@@ -207,7 +226,19 @@ export default function CompanyListView() {
 
       {enrichError && <InlineError banner onDismiss={() => setEnrichError(null)}>{enrichError}</InlineError>}
 
-      {enrichResult && (
+      {enrichResult && (() => {
+        /**
+         * 중단됐으면 **마지막 실패가 중단을 일으킨 회사**다(서버가 거기서 break 한다).
+         * 그 한 건은 개별 줄에서 빼고 아래 배너가 사유와 함께 말한다 —
+         * 둘 다 찍으면 같은 문장이 연달아 두 줄 나온다.
+         */
+        const stopped = Boolean(enrichResult.stoppedReason)
+        const stopper = stopped ? enrichResult.failed[enrichResult.failed.length - 1] ?? null : null
+        const perCompanyFailures = stopped ? enrichResult.failed.slice(0, -1) : enrichResult.failed
+        const notStarted = enrichResult.notStarted ?? []
+        const hasLines = enrichResult.results.length > 0 || perCompanyFailures.length > 0
+
+        return (
         <div className="card" style={{ marginBottom: 'var(--space-4)' }}>
           <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>
             {/*
@@ -226,6 +257,7 @@ export default function CompanyListView() {
             회사별 결과를 그대로 보여 준다. 합계만 말하면 "왜 우리 회사는 안 채워졌지"를
             사용자가 알 길이 없고, 그 답이 바로 matchReason 이다.
           */}
+          {hasLines && (
           <ul style={{ margin: 'var(--space-3) 0 0', paddingLeft: 'var(--space-5)', display: 'grid', gap: 'var(--space-1)' }}>
             {enrichResult.results.map((r) => (
               <li key={r.companyId} style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
@@ -238,18 +270,56 @@ export default function CompanyListView() {
                     : (r.matchReason ?? '웹에서 이 회사를 특정하지 못했어요')}
               </li>
             ))}
-            {enrichResult.failed.map((f) => (
+            {/*
+              실패는 **회사 이름과 함께** 보여 준다. 예전엔 `companyId` 만 받아 메시지만 찍었는데,
+              그러면 "AI 사용량 한도를 초과했습니다."가 이름 없이 여러 줄 쌓였다 —
+              어느 회사가 안 됐는지 알 수 없는 목록이었다(v0.7.574).
+
+              중단을 일으킨 회사(`stopper`)는 여기서 뺀다 — 아래 배너가 사유와 함께 말한다.
+              둘 다 찍으면 같은 문장이 **연달아 두 줄** 나온다(실측: 그렇게 보였다).
+            */}
+            {perCompanyFailures.map((f) => (
               <li key={f.companyId} style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
+                <strong>{enrichNames[f.companyId] ?? '이름을 알 수 없는 회사'}</strong>
+                {' — '}
                 {f.message}
               </li>
             ))}
           </ul>
+          )}
+
+          {/*
+            **중단은 한 번만 말한다. 그리고 하지 않은 일은 하지 않았다고 말한다.**
+
+            한도·예산에 걸리면 ① 어디서 멈췄고 ② 남은 곳은 시작조차 못 했다는 두 사실을
+            사용자가 알아야 한다. 예전에는 ②가 결과 어디에도 없어서 20곳을 골랐는데
+            "성공 2건"만 보고 나머지 17곳의 행방을 알 수 없었다.
+            사유는 회사마다 반복하지 않고 **여기 한 줄에서만** 말한다.
+          */}
+          {stopper && (
+            <div style={{ marginTop: 'var(--space-3)' }}>
+              <InlineError compact>
+                {stopper.message}
+                {' '}
+                <strong>{enrichNames[stopper.companyId] ?? '첫 회사'}</strong>에서 멈췄어요
+                {notStarted.length > 0 && (
+                  <>
+                    {`. 남은 ${notStarted.length}곳은 시작하지 못했어요`}
+                    {notStarted.length <= 5 &&
+                      ` (${notStarted.map((n) => enrichNames[n.companyId] ?? '?').join(' · ')})`}
+                  </>
+                )}
+                .
+              </InlineError>
+            </div>
+          )}
 
           <div style={{ marginTop: 'var(--space-3)' }}>
             <NbButton variant="secondary" onClick={() => setEnrichResult(null)}>닫기</NbButton>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       <ListSurface
         rows={rows}

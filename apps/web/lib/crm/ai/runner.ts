@@ -210,7 +210,22 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
      * "You exceeded your current quota..."` 가 통째로 떴다. 원인은 맞았지만 **읽을 수 있는 말이 아니다** —
      * 사용자는 무엇을 해야 하는지 알 수 없다.
      */
-    throw new CrmError('VALIDATION_FAILED', classifyProviderError(lastError).message)
+    const provider = classifyProviderError(lastError)
+    /**
+     * **한도·모델 사용불가는 다른 코드로 던진다**(v0.7.574).
+     *
+     * 예전엔 전부 `VALIDATION_FAILED`(400) 였다. 그래서 두 가지가 동시에 잘못됐다:
+     *   ① 화면에 "입력값을 확인해 주세요" 계열로 나갔다 — 입력은 멀쩡했다
+     *   ② 여러 건을 도는 호출부의 **중단 조건에 안 걸렸다** — 한도가 소진됐는데도
+     *      20곳을 끝까지 돌아 회사당 2회 재시도, **최대 40번의 확정된 실패 호출**이 나갔다.
+     *
+     * `availability` 가 있다는 것은 프로바이더가 "지금은 이 모델을 못 쓴다"고 말했다는 뜻이다
+     * (`limited` = 한도 초과 · `unavailable` = 요금제에서 사용 불가). 다시 물어도 결과가 같다.
+     */
+    throw new CrmError(
+      provider.availability ? 'PROVIDER_QUOTA' : 'VALIDATION_FAILED',
+      provider.message,
+    )
   }
 
   throw new CrmError('AI_PARSE_FAILED',

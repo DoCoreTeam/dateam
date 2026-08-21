@@ -30,7 +30,7 @@
  */
 
 import type { CrmDb } from '../db/client.ts'
-import { CrmError } from '../domain/errors.ts'
+import { CrmError, stopsBatch } from '../domain/errors.ts'
 import { runAi, type AiAdapter, type AiSource } from '../ai/runner.ts'
 import { COMPANY_ENRICH_V1, buildCompanyEnrichInput } from '../ai/prompts/company-enrich.v1.ts'
 import { parseCompanyEnrich, ENRICHABLE_FIELDS } from '../ai/schemas/company-enrich.ts'
@@ -196,6 +196,20 @@ export interface EnrichCompaniesResult {
   suggested: number
   /** 아예 실패한 건 — 조용히 삼키지 않는다 */
   failed: { companyId: string; message: string }[]
+  /**
+   * 중단돼서 **시작조차 못 한** 회사들.
+   *
+   * 왜 필요한가(v0.7.574): 예전에는 `break` 로 멈추면 남은 회사가 `results` 에도 `failed` 에도
+   * 없었다. 20곳을 골랐는데 3번째에서 멈추면 요약은 **17곳에 대해 아무 말도 하지 않았다** —
+   * 사용자는 "성공 2건"만 보고 나머지가 됐는지 안 됐는지 알 방법이 없었다.
+   * 하지 않은 일은 **하지 않았다고 말해야** 한다.
+   */
+  notStarted: { companyId: string; reason: string }[]
+  /**
+   * 중단 사유(있으면). 화면이 회사별로 같은 문장을 N번 반복하지 않고
+   * **한 번만 말하기 위해** 쓴다.
+   */
+  stoppedReason: string | null
 }
 
 /**
@@ -225,20 +239,36 @@ export async function enrichCompaniesFromWeb(
 
   const results: EnrichCompanyResult[] = []
   const failed: { companyId: string; message: string }[] = []
+  const notStarted: { companyId: string; reason: string }[] = []
+  let stoppedReason: string | null = null
 
-  for (const id of companyIds) {
+  for (let i = 0; i < companyIds.length; i += 1) {
+    const id = companyIds[i]
     try {
       results.push(await enrichCompanyFromWeb(db, workspaceId, actorId, id, adapter))
     } catch (e) {
-      /**
-       * 예산이 막혔으면 **거기서 멈춘다.**
-       *
-       * 남은 회사도 전부 같은 이유로 실패할 것이 확실한데 계속 돌면,
-       * 사용자는 같은 실패 문구를 17번 받는다. 한 번 말하고 멈추는 것이 맞다.
-       */
       const message = e instanceof CrmError ? e.message : '보강에 실패했습니다.'
       failed.push({ companyId: id, message })
-      if (e instanceof CrmError && e.code === 'BUDGET_BLOCKED') break
+
+      /**
+       * **더 해 봐야 소용없는 실패면 거기서 멈춘다.**
+       *
+       * 남은 회사도 전부 같은 이유로 실패할 것이 확실한데 계속 돌면
+       * ① 사용자는 같은 실패 문구를 17번 받고
+       * ② 회사당 재시도까지 곱해져 **확정된 실패 호출이 수십 번** 나간다(실측: 최대 40회).
+       *
+       * 판정은 `stopsBatch`(errors.ts SSOT)에 맡긴다 — 여기에 코드 이름을 직접 적었더니
+       * 새 중단 사유(PROVIDER_QUOTA)가 생겼을 때 **이 줄만 모르고 계속 돌았다.**
+       *
+       * 그리고 **남은 회사를 명시한다.** 멈추는 것과 조용히 사라지는 것은 다르다.
+       */
+      if (stopsBatch(e)) {
+        stoppedReason = message
+        for (const rest of companyIds.slice(i + 1)) {
+          notStarted.push({ companyId: rest, reason: message })
+        }
+        break
+      }
     }
   }
 
@@ -248,5 +278,7 @@ export async function enrichCompaniesFromWeb(
     applied: results.reduce((a, r) => a + r.applied, 0),
     suggested: results.reduce((a, r) => a + r.suggested, 0),
     failed,
+    notStarted,
+    stoppedReason,
   }
 }
