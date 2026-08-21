@@ -17,6 +17,8 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import { useRowSelection } from '@/hooks/useRowSelection'
+import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
 import {
   TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
 } from '@/components/ui/crm/trash'
@@ -56,7 +58,7 @@ interface Props {
 }
 
 export default function DealTableView({ pipelines, onCreate, reloadKey }: Props) {
-  const { query, set } = useListQuery({
+  const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
     filterKeys: ['pipelineId', 'status', ...TRASH_FILTER_KEYS],
   })
@@ -80,6 +82,9 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
   }, [pipelines])
 
   const load = useCallback(async (append: boolean, nextCursor: string | null) => {
+    // 조회 조건의 서명. 아래는 개별 필드를 읽지만, **기본값으로 되돌리는 조작**은
+    // 주소가 그대로라 개별 필드로는 보이지 않는다 — 그 변화는 queryKey 로만 들어온다.
+    void queryKey
     setLoading(true)
     setError(null)
     try {
@@ -102,9 +107,25 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
     } finally {
       setLoading(false)
     }
-  }, [q, pipelineId, status, trash, query.size])
+  }, [queryKey, q, pipelineId, status, trash, query.size])
 
   useEffect(() => { void load(false, null) }, [load, reloadKey])
+
+  /** 골라서 한 번에 — 회사 목록과 같은 한 벌을 쓴다(§2-5) */
+  const selection = useRowSelection(rows, (r) => r.id)
+  const nameOf = useCallback(
+    (id: string) => {
+      const row = rows.find((r) => r.id === id)
+      return row ? row.name : '이름을 알 수 없는 딜'
+    },
+    [rows],
+  )
+  const crmBulk = useCrmBulk({
+    endpoint: '/api/crm/deals',
+    entity: '딜', unit: '건',
+    selection, labelOf: nameOf, trash: trash,
+    onReload: () => void load(false, null),
+  })
 
   const { restore, restoreError } = useRestore('/api/crm/deals', () => void load(false, null))
 
@@ -162,8 +183,11 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
         views={['table', 'card']}
         filters={filters}
         showSize={false}
+        selection={crmBulk.toolbarSelection}
         actions={<NbButton onClick={onCreate}><Plus size={16} /> 딜 추가</NbButton>}
       />
+
+      {crmBulk.panels}
 
       <ListSurface
         rows={rows}
@@ -171,6 +195,7 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
         query={query}
         onChange={set}
         rowKey={(r) => r.id}
+        selection={crmBulk.surfaceSelection}
         rowHref={trash ? undefined : (r) => `/crm/deals/${r.id}`}
         loading={loading && rows.length === 0}
         error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}

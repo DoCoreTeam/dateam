@@ -44,8 +44,6 @@ export interface BulkFailure {
 export interface BulkResult {
   ok: number
   failed: BulkFailure[]
-  /** 무엇을 한 것인지 — 결과 문구를 화면이 다시 쓰지 않게 */
-  verb: string
 }
 
 interface Options {
@@ -53,8 +51,13 @@ interface Options {
   run: (id: string) => Promise<void>
   /** id → 사용자가 알아보는 이름. 실패 줄에 붙는다 */
   labelOf: (id: string) => string
-  /** 결과 문구에 들어갈 말 — "삭제했어요"의 "삭제" */
-  verb: string
+  /**
+   * 서버가 아무 말도 안 했을 때 쓸 **완성된 문장**.
+   *
+   * 어간에 "하지 못했습니다"를 붙이는 방식이면 "되살리기하지 못했습니다"가 나온다 —
+   * 한국어는 그렇게 붙지 않는다. 부르는 쪽이 이미 다듬은 말을 준다.
+   */
+  fallbackMessage: string
   /** 다 끝난 뒤 한 번. 보통 목록 재조회 */
   onDone?: () => void
 }
@@ -65,7 +68,7 @@ interface Options {
  * 이름을 **미리 떠 둔다**: 끝나면 목록을 다시 부르는데, 그 사이 지워진 행은
  * 목록에서 사라져 이름을 찾을 수 없다. 그러면 결과 카드에 id 만 남는다.
  */
-export function useBulkAction({ run, labelOf, verb, onDone }: Options) {
+export function useBulkAction({ run, labelOf, fallbackMessage, onDone }: Options) {
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(0)
   const [total, setTotal] = useState(0)
@@ -96,17 +99,17 @@ export function useBulkAction({ run, labelOf, verb, onDone }: Options) {
         failed.push({
           id,
           label: labels.get(id) ?? '이름을 알 수 없는 항목',
-          message: s?.error instanceof Error ? s.error.message : `${verb}하지 못했습니다.`,
+          message: s?.error instanceof Error ? s.error.message : fallbackMessage,
         })
       })
 
-      setResult({ ok: ids.length - failed.length, failed, verb })
+      setResult({ ok: ids.length - failed.length, failed })
       onDone?.()
     } finally {
       running.current = false
       setBusy(false)
     }
-  }, [run, labelOf, verb, onDone])
+  }, [run, labelOf, fallbackMessage, onDone])
 
   return {
     start,

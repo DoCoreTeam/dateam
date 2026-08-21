@@ -11,7 +11,7 @@
 // count 는 첫 페이지 1회뿐이다(lib/crm/db/cursor.ts countIfFirstPage).
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Sparkles, Trash2, RotateCcw } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
@@ -24,9 +24,7 @@ import InlineError from '@/components/ui/InlineError'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import { useListQuery } from '@/lib/ui/use-list-query'
-import { useBulkAction, callCrmRecord, BULK_MAX } from '@/lib/ui/use-bulk-action'
-import BulkResultPanel, { BulkProgress, bulkHeadline } from '@/components/ui/list/BulkResultPanel'
-import BulkDeleteConfirm from '@/components/ui/crm/BulkDeleteConfirm'
+import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
 import { ENRICH_BULK_MAX } from '@/lib/crm/domain/enrich-limits'
 import CompanyFormModal from './CompanyFormModal'
 
@@ -117,6 +115,9 @@ export default function CompanyListView() {
   const trash = isTrashView(query)
 
   const load = useCallback(async (append: boolean, nextCursor: string | null) => {
+    // 조회 조건의 서명. 아래는 개별 필드를 읽지만, **기본값으로 되돌리는 조작**은
+    // 주소가 그대로라 개별 필드로는 보이지 않는다 — 그 변화는 queryKey 로만 들어온다.
+    void queryKey
     setLoading(true)
     setError(null)
     try {
@@ -200,26 +201,31 @@ export default function CompanyListView() {
    * 그래야 관계·삭제 계약(R-1~R-6)·감사 기록·워크스페이스 가드가 갈릴 여지가 없다
    * (근거는 `lib/ui/use-bulk-action.ts` 머리말).
    */
-  const [confirmOpen, setConfirmOpen] = useState(false)
   const nameOf = useCallback(
     (id: string) => rows.find((r) => r.id === id)?.name ?? '이름을 알 수 없는 회사',
     [rows],
   )
-  const afterBulk = useCallback(() => {
-    selection.clear()
-    void load(false, null)
-  }, [selection, load])
-
-  const bulkDelete = useBulkAction({
-    run: (id) => callCrmRecord(`/api/crm/companies/${id}`, 'DELETE'),
-    labelOf: nameOf, verb: '삭제', onDone: afterBulk,
+  const crmBulk = useCrmBulk({
+    endpoint: '/api/crm/companies',
+    entity: '회사', unit: '곳',
+    selection, labelOf: nameOf, trash,
+    onReload: () => void load(false, null),
+    // 회사만 갖는 것 — 빈 칸을 AI가 채운다
+    extraActions: (
+      <>
+        <NbButton
+          onClick={() => void runEnrich()}
+          disabled={enriching || selection.count > ENRICH_BULK_MAX}
+        >
+          {enriching ? <AXDotLoader /> : <Sparkles size={16} />}
+          {enriching ? 'AI가 찾는 중…' : 'AI로 채우기'}
+        </NbButton>
+        {selection.count > ENRICH_BULK_MAX && (
+          <InlineError compact>한 번에 {ENRICH_BULK_MAX}곳까지예요. 나눠서 눌러 주세요.</InlineError>
+        )}
+      </>
+    ),
   })
-  const bulkRestore = useBulkAction({
-    run: (id) => callCrmRecord(`/api/crm/companies/${id}/restore`, 'POST'),
-    labelOf: nameOf, verb: '복구', onDone: afterBulk,
-  })
-  /** 지금 화면에서 도는 쪽 — 휴지통이면 복구, 아니면 삭제 */
-  const bulk = trash ? bulkRestore : bulkDelete
   const columns = useMemo<ColumnDef<CompanyItem>[]>(
     () => (trash ? [...COLUMNS, restoreColumn<CompanyItem>((id) => void restore(id))] : COLUMNS),
     [trash, restore],
@@ -233,51 +239,7 @@ export default function CompanyListView() {
         searchPlaceholder="회사명·도메인으로 검색"
         views={['table', 'card']}
         filters={[TRASH_FILTER]}
-        selection={{
-          count: selection.count,
-          onClear: selection.clear,
-          actions: (
-            <>
-              {/* 휴지통에서는 되살리기만 — 이미 지운 것을 또 지울 일은 없다 */}
-              {trash ? (
-                <NbButton
-                  onClick={() => void bulkRestore.start(selection.selectedIds)}
-                  disabled={bulkRestore.busy || selection.count > BULK_MAX}
-                >
-                  {bulkRestore.busy ? <AXDotLoader /> : <RotateCcw size={16} />}
-                  {bulkRestore.busy ? '되돌리는 중…' : '선택 되돌리기'}
-                  <BulkProgress {...bulkRestore.progress} />
-                </NbButton>
-              ) : (
-                <>
-                  <NbButton
-                    onClick={() => void runEnrich()}
-                    disabled={enriching || selection.count > ENRICH_BULK_MAX}
-                  >
-                    {enriching ? <AXDotLoader /> : <Sparkles size={16} />}
-                    {enriching ? 'AI가 찾는 중…' : 'AI로 채우기'}
-                  </NbButton>
-                  {/* 되돌릴 수 없는 일이므로 곧장 실행하지 않고 확인을 받는다(R-5) */}
-                  <NbButton
-                    variant="danger"
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={bulkDelete.busy || selection.count > BULK_MAX}
-                  >
-                    {bulkDelete.busy ? <AXDotLoader /> : <Trash2 size={16} />}
-                    {bulkDelete.busy ? '지우는 중…' : '선택 삭제'}
-                    <BulkProgress {...bulkDelete.progress} />
-                  </NbButton>
-                </>
-              )}
-              {selection.count > ENRICH_BULK_MAX && !trash && (
-                <InlineError compact>한 번에 {ENRICH_BULK_MAX}곳까지예요. 나눠서 눌러 주세요.</InlineError>
-              )}
-              {selection.count > BULK_MAX && (
-                <InlineError compact>한 번에 {BULK_MAX}곳까지예요. 나눠서 눌러 주세요.</InlineError>
-              )}
-            </>
-          ),
-        }}
+        selection={crmBulk.toolbarSelection}
         actions={
           <NbButton onClick={() => setFormOpen(true)}>
             <Plus size={16} /> 회사 추가
@@ -285,23 +247,7 @@ export default function CompanyListView() {
         }
       />
 
-      {bulk.result && (
-        <BulkResultPanel
-          headline={bulkHeadline(bulk.result.ok, bulk.result.failed.length, bulk.result.verb, '곳')}
-          failures={bulk.result.failed}
-          onClose={bulk.clearResult}
-        />
-      )}
-
-      {confirmOpen && (
-        <BulkDeleteConfirm
-          entity="회사"
-          names={selection.selectedIds.map(nameOf)}
-          busy={bulkDelete.busy}
-          onConfirm={() => { setConfirmOpen(false); void bulkDelete.start(selection.selectedIds) }}
-          onClose={() => setConfirmOpen(false)}
-        />
-      )}
+      {crmBulk.panels}
 
       {enrichError && <InlineError banner onDismiss={() => setEnrichError(null)}>{enrichError}</InlineError>}
 
@@ -407,14 +353,7 @@ export default function CompanyListView() {
         onChange={set}
         rowKey={(r) => r.id}
         rowHref={trash ? undefined : (r) => `/crm/companies/${r.id}`}
-        selection={{
-          selected: new Set(selection.selectedIds),
-          onToggle: selection.toggle,
-          onToggleAll: selection.toggleAll,
-          allSelected: selection.allSelected,
-          someSelected: selection.someSelected,
-          rowLabel: (r) => `${r.name} 선택`,
-        }}
+        selection={crmBulk.surfaceSelection}
         loading={loading && rows.length === 0}
         error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}
         empty={trash ? TRASH_EMPTY : {

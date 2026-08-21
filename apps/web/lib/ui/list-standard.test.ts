@@ -90,12 +90,26 @@ test('일괄작업은 서버 bulk 엔드포인트를 새로 만들지 않는다 
 })
 
 test('되돌릴 수 없는 일괄작업은 확인창을 거친다 — 확인이 유일한 안전장치다(R-5)', () => {
-  const view = read('app/(crm)/crm/companies/CompanyListView.tsx')
-  assert.ok(view.includes('BulkDeleteConfirm'), '일괄 삭제 앞에 확인창이 있어야 한다')
+  const hook = read('components/ui/crm/useCrmBulk.tsx')
+  assert.match(hook, /<BulkDeleteConfirm\b/, '일괄 삭제 앞에 확인창이 있어야 한다')
   // 확인 없이 곧장 실행하는 길이 없다 — 삭제 버튼은 확인창을 연다
-  assert.match(view, /onClick=\{\(\) => setConfirmOpen\(true\)\}/)
+  assert.match(hook, /onClick=\{\(\) => setConfirmOpen\(true\)\}/)
   // 되돌리기는 확인이 필요 없다 — 되돌릴 수 있는 일이다
-  assert.match(view, /bulkRestore\.start\(selection\.selectedIds\)/)
+  assert.match(hook, /bulkRestore\.start\(selection\.selectedIds\)/)
+})
+
+test('CRM 목록은 일괄작업을 저마다 짜지 않는다 — 한 벌(useCrmBulk)만 쓴다(§2-5)', () => {
+  // 왜: 화면마다 조립하면 넷이 조금씩 달라지고, 사용자에겐 **다른 기능**으로 보인다.
+  const views = walkFiles('app/(crm)/crm', ['.tsx'])
+    .filter((f) => /(ListView|TableView)\.tsx$/.test(f))
+  assert.ok(views.length >= 4, `CRM 목록 화면을 찾지 못했다: ${views.length}`)
+  for (const f of views) {
+    const src = read(f)
+    if (!/\buseRowSelection\b/.test(src)) continue   // 선택이 없는 목록은 대상이 아니다
+    // \b 로 잠근다 — `includes` 로 세면 `useCrmBulkXX` 같은 딴 이름도 통과한다(실측)
+    assert.match(src, /\buseCrmBulk\b/, `${f}: 선택은 있는데 한 벌(useCrmBulk)을 안 쓴다`)
+    assert.ok(!/\buseBulkAction\(/.test(src), `${f}: 일괄 실행을 직접 조립하고 있다`)
+  }
 })
 
 test('일괄 실패는 이름과 함께 나간다 — id 만 남으면 어느 것이 안 됐는지 모른다', () => {
@@ -110,4 +124,10 @@ test('한 번에 고를 수 있는 수를 화면과 훅이 같은 상수로 본�
   const view = read('app/(crm)/crm/companies/CompanyListView.tsx')
   assert.match(view, /BULK_MAX/, '화면이 상한 상수를 import 해서 써야 한다')
   assert.ok(!/selection\.count > \d+/.test(view), '상한을 화면에 숫자로 적지 않는다')
+})
+
+test('queryKey 는 보기 전환을 빼고 만든다 — 표/카드는 같은 데이터를 다르게 그리는 것뿐이다', () => {
+  const src = read('lib/ui/use-list-query.ts')
+  assert.match(src, /params\.delete\('view'\)/,
+    'view 를 빼지 않으면 보기만 바꿔도 목록 조회가 한 번 더 나간다')
 })

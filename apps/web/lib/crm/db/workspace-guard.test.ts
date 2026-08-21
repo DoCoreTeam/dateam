@@ -333,3 +333,35 @@ function modelsFromSchema2(): { name: string; hasDeletedAt: boolean }[] {
   }
   return out
 }
+
+// ── 삭제 범위 판정은 AND 로 감싼 조건도 본다 (v0.7.576) ────────────────
+//
+// 실측: 견적 휴지통이 `?trash=1` 이면 15건, `?trash=1&q=…` 면 0건이었다.
+// 검색이 붙으면 조건이 `{ AND: [where, search, cursor] }` 로 감싸이는데,
+// 그때 `deletedAt` 이 맨 위에서 사라져 가드가 `deletedAt: null` 을 덧붙였다.
+// 지운 것이 있는데 검색만 하면 사라지니 되돌릴 길이 없었다.
+
+test('AND 로 감싼 휴지통 조건에 삭제 필터를 덧붙이지 않는다', () => {
+  const out = injectWorkspaceFilter(
+    { where: { AND: [{ deletedAt: { not: null } }, { title: { contains: 'x' } }] } },
+    WS, 'findMany', 'CrmQuote',
+  ) as Record<string, any>
+  assert.equal('deletedAt' in out.where, false,
+    'AND 바깥에 deletedAt: null 이 붙으면 안쪽 {not: null} 과 모순되어 0건이 된다')
+})
+
+test('AND 안에 삭제 범위가 없으면 여전히 살아 있는 행만 본다', () => {
+  const out = injectWorkspaceFilter(
+    { where: { AND: [{ status: 'DRAFT' }, { title: { contains: 'x' } }] } },
+    WS, 'findMany', 'CrmQuote',
+  ) as Record<string, any>
+  assert.equal(out.where.deletedAt, null, '지운 견적이 일반 목록에 되살아난다')
+})
+
+test('OR·NOT 안의 deletedAt 은 범위 선언으로 읽지 않는다 — 깊이 뒤지면 되살아난다', () => {
+  const out = injectWorkspaceFilter(
+    { where: { OR: [{ deletedAt: { not: null } }, { title: { contains: 'x' } }] } },
+    WS, 'findMany', 'CrmQuote',
+  ) as Record<string, any>
+  assert.equal(out.where.deletedAt, null)
+})

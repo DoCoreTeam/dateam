@@ -125,13 +125,36 @@ function guardWhere(model: string, where: unknown, key: string, workspaceId: str
 }
 
 /**
+ * 호출부가 삭제 범위를 **어디에 적었든** 찾아낸다.
+ *
+ * 왜 맨 위만 보면 안 되나(v0.7.576 실측): 검색·커서가 붙는 목록은 조건을
+ * `{ AND: [where, search, cursor] }` 로 감싼다. 그러면 `deletedAt` 은 `AND[0]` 안으로
+ * 들어가고 맨 위에서는 사라진다. 맨 위만 보는 판정은 "호출부가 안 정했다"고 읽어
+ * `deletedAt: null` 을 **덧붙이고**, `{not: null}` 과 만나 모순이 되어 **0건**이 된다.
+ *
+ * 실제로 견적 휴지통이 그랬다 — `?trash=1` 만이면 15건, `?trash=1&q=…` 면 0건.
+ * 지운 것이 분명히 있는데 검색만 하면 사라지니, 사용자는 되돌릴 방법이 없었다.
+ *
+ * 한 겹만 본다(AND 배열의 직계). 더 깊은 중첩까지 뒤지면 `NOT`·`OR` 안의 조건을
+ * "범위를 정했다"고 잘못 읽어 **삭제된 행이 일반 목록에 되살아난다.**
+ */
+function declaresDeleteScope(w: Args): boolean {
+  if ('deletedAt' in w) return true
+  const and = w.AND
+  if (Array.isArray(and)) {
+    return and.some((p) => p !== null && typeof p === 'object' && 'deletedAt' in (p as Args))
+  }
+  return and !== null && typeof and === 'object' && 'deletedAt' in (and as Args)
+}
+
+/**
  * 살아 있는 행만 보이게 한다. 호출부가 deletedAt 을 명시했으면 손대지 않는다(휴지통 등).
  */
 function applySoftDelete(model: string, operation: string, where: unknown): Args {
   const w: Args = (where && typeof where === 'object' ? { ...(where as Args) } : {})
   if (!SOFT_DELETE_MODELS.has(model)) return w
   if (!SOFT_DELETE_OPS.has(operation)) return w
-  if ('deletedAt' in w) return w // 호출부가 스코프를 정했다 — 존중한다
+  if (declaresDeleteScope(w)) return w // 호출부가 스코프를 정했다 — 존중한다
   return { ...w, deletedAt: null }
 }
 

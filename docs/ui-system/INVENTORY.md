@@ -107,6 +107,10 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | `ui/list/ListPager` | **28** | 페이지 이동(`pages` 기본 / 피드형만 `more`) |
 | `ui/list/RowActions` | **2** | **행 작업 묶음.** 주요 하나만 한 줄에 두고 나머지는 더보기로 접는다 |
 | `lib/ui/useListQuery` | **30** | URL이 진실인 목록 상태 |
+| `ui/list/BulkResultPanel` | **1** | **여러 건 처리 결과 한 벌.** 같은 사유는 한 줄로 접고, 실패에는 **이름**을 붙인다. `BulkProgress`(3/20)·`bulkHeadline` 동봉 |
+| `ui/crm/BulkDeleteConfirm` | **1** | 되돌릴 수 없는 일괄 삭제 확인창(R-5) — 이름 5개 + 「외 N건」 + 휴지통 보관 기간 |
+| `ui/crm/useCrmBulk` | **4** | **CRM 목록의 「골라서 한 번에」 조립본.** `toolbarSelection`·`surfaceSelection`·`panels` 셋만 꽂으면 삭제·되돌리기가 같은 모습으로 붙는다 |
+| `lib/ui/useBulkAction` | **1** | 고른 것들에 같은 일을 시키는 SSOT. 한 건짜리 경로를 4개씩 동시 호출 — **서버 bulk 엔드포인트를 만들지 않는다**(삭제 규칙이 두 벌이 되지 않게) |
 
 > `RowActions`가 왜 필요했나: 행 작업을 `flexWrap: 'wrap'`으로 늘어놓으면 좁은 칸에서 접혀
 > **그 행만 세로로 커진다.** 실측 `/admin/members` 관리 칸 135px에 버튼 5개 → 5줄, 행 216px(다른 정보는 50px).

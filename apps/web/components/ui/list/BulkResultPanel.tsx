@@ -101,9 +101,14 @@ export function BulkProgress({ done, total }: { done: number; total: number }) {
   )
 }
 
-/** 결과 한 줄을 화면마다 다시 쓰지 않게 — "12곳을 삭제했어요. 3곳은 실패했어요." */
-export function bulkHeadline(ok: number, failedCount: number, verb: string, unit = '건'): string {
-  if (ok === 0) return `${verb}하지 못했어요.`
-  const base = `${ok.toLocaleString()}${unit}을 ${verb}했어요.`
+/**
+ * 결과 한 줄을 화면마다 다시 쓰지 않게 — "12곳을 삭제했어요. 3곳은 실패했어요."
+ *
+ * `done` 은 **이미 활용된 말**을 받는다("삭제했어요" · "되살렸어요").
+ * 어간에 "했어요"를 붙이는 방식이면 "되살리했어요" 같은 말이 나온다 — 한국어는 그렇게 안 붙는다.
+ */
+export function bulkHeadline(ok: number, failedCount: number, done: string, unit = '건'): string {
+  if (ok === 0) return `하나도 ${done.replace(/어요\.?$/, '지 못했어요.')}`
+  const base = `${ok.toLocaleString()}${unit}을 ${done}`
   return failedCount > 0 ? `${base} ${failedCount.toLocaleString()}${unit}은 실패했어요.` : base
 }

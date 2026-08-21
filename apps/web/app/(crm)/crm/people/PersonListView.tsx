@@ -11,6 +11,8 @@ import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import NbButton from '@/components/ui/nb/NbButton'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import { useRowSelection } from '@/hooks/useRowSelection'
+import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
 import {
   TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
 } from '@/components/ui/crm/trash'
@@ -52,7 +54,7 @@ const COLUMNS: ColumnDef<PersonItem>[] = [
 ]
 
 export default function PersonListView() {
-  const { query, set } = useListQuery({
+  const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
     filterKeys: [...TRASH_FILTER_KEYS],
   })
@@ -68,6 +70,9 @@ export default function PersonListView() {
   const trash = isTrashView(query)
 
   const load = useCallback(async (append: boolean, nextCursor: string | null) => {
+    // 조회 조건의 서명. 아래는 개별 필드를 읽지만, **기본값으로 되돌리는 조작**은
+    // 주소가 그대로라 개별 필드로는 보이지 않는다 — 그 변화는 queryKey 로만 들어온다.
+    void queryKey
     setLoading(true)
     setError(null)
     try {
@@ -91,9 +96,25 @@ export default function PersonListView() {
     } finally {
       setLoading(false)
     }
-  }, [q, trash, query.size])
+  }, [queryKey, q, trash, query.size])
 
   useEffect(() => { void load(false, null) }, [load])
+
+  /** 골라서 한 번에 — 회사 목록과 같은 한 벌을 쓴다(§2-5) */
+  const selection = useRowSelection(rows, (r) => r.id)
+  const nameOf = useCallback(
+    (id: string) => {
+      const row = rows.find((r) => r.id === id)
+      return row ? row.name : '이름을 알 수 없는 인물'
+    },
+    [rows],
+  )
+  const crmBulk = useCrmBulk({
+    endpoint: '/api/crm/people',
+    entity: '인물', unit: '명',
+    selection, labelOf: nameOf, trash: trash,
+    onReload: () => void load(false, null),
+  })
 
   const { restore, restoreError } = useRestore('/api/crm/people', () => void load(false, null))
   const columns = useMemo(
@@ -109,6 +130,7 @@ export default function PersonListView() {
         searchPlaceholder="이름·이메일로 검색"
         views={['table', 'card']}
         filters={[TRASH_FILTER]}
+        selection={crmBulk.toolbarSelection}
         actions={
           <NbButton onClick={() => setFormOpen(true)}>
             <Plus size={16} /> 인물 추가
@@ -116,12 +138,15 @@ export default function PersonListView() {
         }
       />
 
+      {crmBulk.panels}
+
       <ListSurface
         rows={rows}
         columns={columns}
         query={query}
         onChange={set}
         rowKey={(r) => r.id}
+        selection={crmBulk.surfaceSelection}
         rowHref={trash ? undefined : (r) => `/crm/people/${r.id}`}
         loading={loading && rows.length === 0}
         error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}

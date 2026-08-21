@@ -53,7 +53,7 @@ const getDocumentId = (d: AnalysisDocumentSummary) => d.id
 
 export default function DocumentListClient() {
   const router = useRouter()
-  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/ai-chat/analyze/documents' })
+  const { query, set, queryKey } = useListQuery(LIST_DEFAULTS, { persistKey: '/ai-chat/analyze/documents' })
   const showDeleted = query.filters.deleted === '1'
   const sortKey: DocumentSortKey = query.sort.key === 'created' ? 'created' : 'updated'
 
@@ -72,6 +72,9 @@ export default function DocumentListClient() {
 
   const load = useCallback(
     async (cursor?: string) => {
+    // 조회 조건의 서명. 아래는 개별 필드를 읽지만, **기본값으로 되돌리는 조작**은
+    // 주소가 그대로라 개별 필드로는 보이지 않는다 — 그 변화는 queryKey 로만 들어온다.
+    void queryKey
       cursor ? setLoadingMore(true) : setLoading(true)
       setError(null)
       const r = await listDocuments({
@@ -96,7 +99,7 @@ export default function DocumentListClient() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query.q, sortKey, query.filters.docType, showDeleted])
+  }, [queryKey, query.q, sortKey, query.filters.docType, showDeleted])
 
   /** 1건·N건 공용 확정 처리 — 서버가 실제 반영한 id(affectedIds)만 목록·선택에서 뺀다(부분 성공 정합). */
   async function handleConfirmed() {

@@ -134,11 +134,14 @@ export function useListQuery(defaults: ListDefaults, options: Options = {}) {
    *
    * 주소에 남는 파라미터만 담는다 — 남의 파라미터(`tab` 등)가 바뀔 때까지 목록을 다시 부르지 않는다.
    */
-  const queryKey = useMemo(
+  const queryKey = useMemo(() => {
+    const params = listQueryToParams(query, defaults)
+    // 표/카드 전환은 **같은 데이터를 다르게 그리는 것**이라 서버에 다시 물을 이유가 없다.
+    // 빼지 않으면 보기만 바꿔도 목록 조회가 한 번 더 나간다.
+    params.delete('view')
+    return `${params.toString()}#${revision}`
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    () => `${listQueryToParams(query, defaults).toString()}#${revision}`,
-    [query, revision],
-  )
+  }, [query, revision])
 
   return { query, set, queryKey }
 }

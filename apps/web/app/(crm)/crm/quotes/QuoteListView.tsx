@@ -13,7 +13,7 @@
 //
 // 목록 표준(§2-6)을 그대로 쓴다 — ListToolbar·ListSurface·ListPager + useListQuery.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
@@ -23,6 +23,11 @@ import { kstDateKey } from '@/lib/datetime/kst'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE_STATUS_META, QUOTE_STATUS_ORDER, quoteStatusMeta } from '@/lib/crm/ui/quote-status'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import { useRowSelection } from '@/hooks/useRowSelection'
+import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
+import {
+  TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
+} from '@/components/ui/crm/trash'
 
 export interface QuoteItem {
   id: string
@@ -116,9 +121,9 @@ const STATUS_FILTER = {
 }
 
 export default function QuoteListView() {
-  const { query, set } = useListQuery({
+  const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
-    filterKeys: ['status'],
+    filterKeys: ['status', ...TRASH_FILTER_KEYS],
   })
   const [rows, setRows] = useState<QuoteItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -128,14 +133,19 @@ export default function QuoteListView() {
 
   const q = query.q ?? ''
   const status = query.filters?.status ?? ''
+  const trash = isTrashView(query)
 
   const load = useCallback(async (append: boolean, nextCursor: string | null) => {
+    // 조회 조건의 서명. 아래는 개별 필드를 읽지만, **기본값으로 되돌리는 조작**은
+    // 주소가 그대로라 개별 필드로는 보이지 않는다 — 그 변화는 queryKey 로만 들어온다.
+    void queryKey
     setLoading(true)
     setError(null)
     try {
       const sp = new URLSearchParams()
       if (q) sp.set('q', q)
       if (status) sp.set('status', status)
+      if (trash) sp.set('trash', '1')
       sp.set('limit', String(query.size))
       if (nextCursor) sp.set('cursor', nextCursor)
 
@@ -154,10 +164,31 @@ export default function QuoteListView() {
     } finally {
       setLoading(false)
     }
-  }, [q, status, query.size])
+  }, [queryKey, q, status, trash, query.size])
 
   // 조건이 바뀌면 처음부터 다시 — 커서를 이어 쓰면 조건이 섞인다
   useEffect(() => { void load(false, null) }, [load])
+
+  /** 골라서 한 번에 — 회사 목록과 같은 한 벌을 쓴다(§2-5) */
+  const selection = useRowSelection(rows, (r) => r.id)
+  const nameOf = useCallback(
+    (id: string) => {
+      const row = rows.find((r) => r.id === id)
+      return row ? `${row.quoteNo} ${row.title}`.trim() : '번호를 알 수 없는 견적'
+    },
+    [rows],
+  )
+  const { restore, restoreError } = useRestore('/api/crm/quotes', () => void load(false, null))
+  const columns = useMemo(
+    () => (trash ? [...COLUMNS, restoreColumn<QuoteItem>((id) => void restore(id))] : COLUMNS),
+    [trash, restore],
+  )
+  const crmBulk = useCrmBulk({
+    endpoint: '/api/crm/quotes',
+    entity: '견적', unit: '건',
+    selection, labelOf: nameOf, trash,
+    onReload: () => void load(false, null),
+  })
 
   return (
     <>
@@ -166,20 +197,24 @@ export default function QuoteListView() {
         onChange={set}
         searchPlaceholder="견적번호·제목·딜 이름으로 검색"
         views={['table', 'card']}
-        filters={[STATUS_FILTER]}
+        filters={[STATUS_FILTER, TRASH_FILTER]}
+        selection={crmBulk.toolbarSelection}
       />
+
+      {crmBulk.panels}
 
       <ListSurface
         rows={rows}
-        columns={COLUMNS}
+        columns={columns}
         query={query}
         onChange={set}
         rowKey={(r) => r.id}
+        selection={crmBulk.surfaceSelection}
         // 견적 자체의 상세 화면은 없다 — 견적을 고치는 자리는 딜 상세다. 거기로 보낸다
-        rowHref={(r) => `/crm/deals/${r.dealId}`}
+        rowHref={trash ? undefined : (r) => `/crm/deals/${r.dealId}`}
         loading={loading && rows.length === 0}
-        error={error ? { message: error, onRetry: () => void load(false, null) } : null}
-        empty={{
+        error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}
+        empty={trash ? TRASH_EMPTY : {
           title: q || status ? '조건에 맞는 견적이 없어요' : '아직 쓴 견적이 없어요',
           description: q || status
             ? '검색어나 상태를 바꿔 보세요.'
