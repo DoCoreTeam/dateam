@@ -45,6 +45,8 @@ const SELECT = {
   id: true, title: true, startedAt: true, endedAt: true,
   companyId: true, dealId: true, location: true, summaryMd: true,
   attendeesJson: true, createdAt: true, updatedAt: true,
+  // 원본 회의노트 연결 — 화면이 "원본이 그 뒤 수정됨"을 판단하려면 둘 다 필요하다
+  noteId: true, noteSyncedAt: true,
 } as const
 
 export async function createMeeting(
@@ -100,10 +102,106 @@ export async function createMeeting(
   })
 }
 
-export async function listMeetings(db: CrmDb, opts: { dealId?: string; companyId?: string; limit?: number } = {}) {
+export interface MeetingPatch {
+  title?: string
+  startedAt?: string
+  endedAt?: string | null
+  companyId?: string | null
+  dealId?: string | null
+  location?: string | null
+}
+
+/**
+ * 미팅 고치기 (부분 수정 — 안 보낸 필드는 건드리지 않는다).
+ *
+ * **왜 뒤늦게 생겼나**: 이 라우트에는 GET·DELETE 만 있었다.
+ * 제목에 오타가 나거나 딜을 잘못 고르면 **지우고 다시 만드는 것 말고 방법이 없었고**,
+ * 지우면 그 미팅에서 나온 미처리 제안까지 함께 사라졌다(실측 v0.7.573 조사).
+ *
+ * 회사·딜 실재 확인은 `createMeeting` 과 같은 이유로 한다 — 이 관계에는 FK 가 없다.
+ * `null` 을 명시로 보내면 **연결을 끊는다**(빼는 것도 수정이다).
+ */
+export async function updateMeeting(
+  workspaceId: string,
+  actorId: string | null,
+  id: string,
+  patch: MeetingPatch,
+): Promise<{ id: string }> {
+  const data: Record<string, unknown> = {}
+
+  if (patch.title !== undefined) {
+    const title = requireText(patch.title)
+    if (!title) throw new CrmError('VALIDATION_FAILED', '미팅 제목을 입력해 주세요.', { field: 'title' })
+    data.title = title
+  }
+  if (patch.startedAt !== undefined) {
+    const started = new Date(patch.startedAt)
+    if (Number.isNaN(started.getTime())) {
+      throw new CrmError('VALIDATION_FAILED', '미팅 시각을 다시 확인해 주세요.', { field: 'startedAt' })
+    }
+    data.startedAt = started
+  }
+  if (patch.endedAt !== undefined) {
+    if (patch.endedAt === null) data.endedAt = null
+    else {
+      const ended = new Date(patch.endedAt)
+      if (Number.isNaN(ended.getTime())) {
+        throw new CrmError('VALIDATION_FAILED', '끝난 시각을 다시 확인해 주세요.', { field: 'endedAt' })
+      }
+      data.endedAt = ended
+    }
+  }
+  if (patch.location !== undefined) data.location = normalizeText(patch.location)
+  if (patch.companyId !== undefined) data.companyId = patch.companyId || null
+  if (patch.dealId !== undefined) data.dealId = patch.dealId || null
+
+  if (Object.keys(data).length === 0) {
+    throw new CrmError('VALIDATION_FAILED', '바꿀 내용이 없습니다.')
+  }
+
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const before = await (tx as any).crmMeeting.findFirst({
+      where: { id },
+      select: { id: true, title: true, startedAt: true, companyId: true, dealId: true, location: true },
+    })
+    if (!before) throw new CrmError('NOT_FOUND', '미팅을 찾을 수 없습니다.')
+
+    // 지워진 회사·딜을 가리키는 유령 미팅을 만들지 않는다 (FK 가 없어 DB 가 안 막아 준다)
+    if (data.companyId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const co = await (tx as any).crmCompany.findFirst({ where: { id: data.companyId }, select: { id: true } })
+      if (!co) throw new CrmError('NOT_FOUND', '회사를 찾을 수 없습니다.', { field: 'companyId' })
+    }
+    if (data.dealId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = await (tx as any).crmDeal.findFirst({ where: { id: data.dealId }, select: { id: true } })
+      if (!d) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.', { field: 'dealId' })
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await (tx as any).crmMeeting.updateMany({ where: { id }, data })
+    if (res.count === 0) throw new CrmError('NOT_FOUND', '미팅을 찾을 수 없습니다.')
+
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'meeting.updated',
+      targetType: 'meeting', targetId: id,
+      beforeJson: before, afterJson: data,
+    })
+    return { id }
+  })
+}
+
+export async function listMeetings(
+  db: CrmDb,
+  opts: { dealId?: string; companyId?: string; noteId?: string; limit?: number } = {},
+) {
   const where: Record<string, unknown> = {}
   if (opts.dealId) where.dealId = opts.dealId
   if (opts.companyId) where.companyId = opts.companyId
+  // 회의노트 화면이 "이 노트가 이미 영업 CRM 에 올라갔나"를 묻는 통로다.
+  // 이게 없으면 노트 쪽은 발행 여부를 알 방법이 없어 버튼이 늘 "올리기"로 남는다.
+  if (opts.noteId) where.noteId = opts.noteId
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (db as any).crmMeeting.findMany({

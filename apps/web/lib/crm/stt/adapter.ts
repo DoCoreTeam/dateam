@@ -61,9 +61,11 @@ export function mockSttAdapter(): SttAdapter {
  *
  * 줄 하나가 구간 하나다. `이름: 말` 형태면 화자를 갈라 읽는다.
  */
-export function pastedTranscriptAdapter(text: string): SttAdapter {
+export function pastedTranscriptAdapter(text: string, vendor = 'pasted'): SttAdapter {
   return {
-    vendor: 'pasted',
+    // 어디서 온 글인지 기록에 남는다. 회의노트 발행은 'note-snapshot' 을 넘긴다 —
+    // 사람이 붙여넣은 것과 원본에서 떠 온 것은 나중에 구분할 수 있어야 한다.
+    vendor,
     async transcribe() {
       const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
       const segments: TranscriptSegment[] = lines.map((line, i) => {

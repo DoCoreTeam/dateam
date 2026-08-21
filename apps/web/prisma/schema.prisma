@@ -433,7 +433,12 @@ model CrmMeeting {
   dealId        String?
   location      String?
   attendeesJson Json     @default("[]") // { memberIds: [], personIds: [], externalNames: [] }
-  summaryMd     String? // AI 요약 확정본
+  summaryMd     String? // AI 요약 확정본 — 발행 시 회의노트의 summary+decisions 를 스냅샷으로 받는다
+  // 원본 회의노트(meeting_notes.id). FK 없음 — 관계 계약 refs(마이그 215 주석 참조).
+  // 노트가 지워져도 남긴다. 화면이 "원본 없음"이라고 말할 수 있어야 하기 때문.
+  noteId        String?
+  // 스냅샷을 뜬 시각. 노트의 updated_at 이 이보다 크면 "원본이 그 뒤 수정됨" 배지가 뜬다.
+  noteSyncedAt  DateTime?
   createdById   String?
   source        CrmDataSource @default(HUMAN)
   createdAt     DateTime      @default(now())
@@ -446,6 +451,7 @@ model CrmMeeting {
 
   @@index([workspaceId, startedAt])
   @@index([workspaceId, dealId])
+  @@index([noteId])
   @@map("crm_meeting")
 }
 

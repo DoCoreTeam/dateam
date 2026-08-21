@@ -33,9 +33,16 @@ interface Suggestion {
   proposedValueJson: unknown; confidence: number
   evidenceJson: { quote?: string; segmentIds?: string[] } | null
 }
+/** 원본 회의노트 상태 — 본문은 안 온다(공개 범위 때문에). 살아 있나·언제 바뀌었나·열어도 되나만 */
+interface NoteMeta {
+  id: string; exists: boolean; title: string | null
+  updatedAt: string | null; visibility: 'private' | 'crm' | null
+  canOpen: boolean; isStale: boolean
+}
 interface Meeting {
   id: string; title: string; startedAt: string; location: string | null
   companyId: string | null; dealId: string | null; summaryMd: string | null
+  noteId: string | null; noteSyncedAt: string | null; note: NoteMeta | null
   recordings: Recording[]; segments: Segment[]; suggestions: Suggestion[]
 }
 
@@ -100,6 +107,35 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
     }
   }
 
+  /**
+   * 원본에서 다시 가져오기.
+   *
+   * 노트가 발행 뒤에 바뀌면 CRM 스냅샷은 옛것이 된다. 조용히 두면 사람은
+   * 없어진 내용을 사실로 읽는다 — 그래서 배지로 알리고 여기서 따라잡는다.
+   * 옛 미처리 제안은 서버가 거둔다(사람이 이미 판단한 것은 건드리지 않는다).
+   */
+  async function resync() {
+    setBusy('resync')
+    setError(null)
+    setNotice(null)
+    try {
+      const res = await fetch(`/api/crm/meetings/${meetingId}/resync`, { method: 'POST' })
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? '원본을 다시 가져오지 못했습니다.'); return }
+      setNotice(
+        `원본에서 다시 가져왔어요.${body.segmentCount ? ` 회의 내용 ${body.segmentCount}줄.` : ''}` +
+        (body.expiredSuggestions > 0
+          ? ` 옛 제안 ${body.expiredSuggestions}건은 거뒀습니다 — 지금은 "AI로 정리하기"를 다시 눌러 주세요.`
+          : ''),
+      )
+      await load()
+    } catch {
+      setError('원본을 다시 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function extract() {
     setBusy('extract')
     setError(null)
@@ -148,6 +184,23 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
         <p className={styles.failed}>전사에 실패했어요: {failed.error}</p>
       )}
 
+      {/* 원본이 그 뒤 수정됐다 — 조용히 어긋나게 두지 않는다 */}
+      {m.note?.isStale && (
+        <p className={styles.notice}>
+          원본 회의노트가 {formatKstDateTimeShort(m.note.updatedAt ?? '')}에 수정됐어요.{' '}
+          <NbButton onClick={() => void resync()} disabled={busy === 'resync'}>
+            {busy === 'resync' ? '가져오는 중…' : '다시 가져오기'}
+          </NbButton>
+        </p>
+      )}
+
+      {/* 원본이 사라졌다 — 스냅샷은 그대로 보이지만 사실을 말한다 */}
+      {m.noteId && m.note && !m.note.exists && (
+        <p className={styles.failed}>
+          원본 회의노트가 삭제됐습니다. 아래 내용은 올릴 때 떠 둔 사본입니다.
+        </p>
+      )}
+
       <RecordLayout
         fields={
           <RecordPanel title="이 미팅은">
@@ -160,6 +213,15 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
               </RecordField>
               <RecordField label="전사">
                 {transcribed ? `${m.segments.length}줄` : null}
+              </RecordField>
+              <RecordField label="회의노트">
+                {/* 열어 볼 수 있을 때만 링크를 그린다 — '나만 보기'로 둔 원본은 열리지 않는다.
+                    CRM 은 스냅샷을 갖고 있어 링크가 없어도 화면이 비지 않는다. */}
+                {m.note?.exists && m.note.canOpen
+                  ? <Link href={`/meeting-notes/${m.note.id}`}>{m.note.title || '원본 열기'}</Link>
+                  : m.note?.exists
+                    ? <span className={styles.conf}>비공개 원본</span>
+                    : null}
               </RecordField>
             </RecordFieldList>
           </RecordPanel>

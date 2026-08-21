@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import MeetingEditor from './MeetingEditor'
 import MeetingReadBody from './MeetingReadBody'
+import CrmPublishCard from './CrmPublishCard'
 import { deleteMeetingNote } from './actions'
 
 export interface MeetingNoteRecord {
@@ -172,6 +173,10 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
           autoAnalyze={autoAnalyze}
         />
 
+        {/* 영업 CRM 연결 — 이 회의가 고객사 건일 때만 쓴다.
+            CRM 멤버가 아니면 카드 자체가 안 보인다(못 쓰는 버튼을 보여 주지 않는다).
+            본문 아래에 두는 이유: 회의록을 읽고 나서 "이건 영업 건이네"를 판단하는 순서다. */}
+        <CrmPublishCard noteId={note.id} />
       </div>
     </div>
   )

@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
       items: await listMeetings(db, {
         dealId: req.nextUrl.searchParams.get('dealId') ?? undefined,
         companyId: req.nextUrl.searchParams.get('companyId') ?? undefined,
+        noteId: req.nextUrl.searchParams.get('noteId') ?? undefined,
         limit: Number(req.nextUrl.searchParams.get('limit') ?? 50) || 50,
       }),
     }
