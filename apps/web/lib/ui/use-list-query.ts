@@ -42,6 +42,18 @@ export function useListQuery(defaults: ListDefaults, options: Options = {}) {
   const searchParams = useSearchParams()
   const [restored, setRestored] = useState<SavedListPrefs | null>(options.saved ?? null)
   const restoreDone = useRef(Boolean(options.saved))
+  /**
+   * "조건을 다시 확정했다"를 세는 수.
+   *
+   * 왜 필요한가(v0.7.574 실측): `listQueryToParams` 는 **기본값과 같은 값을 주소에 쓰지 않는다**
+   * (주소를 짧게 유지하려는 의도된 설계). 그래서 기본값으로 되돌리는 조작은 주소가 그대로고,
+   * `router.replace` 가 같은 주소로 가면 `searchParams` 도 안 바뀌어 **재조회가 아예 안 일어난다.**
+   *
+   * 실측: 회사 목록에서 '더 보기'로 60행을 쌓은 뒤 "20개씩"(=기본값)을 고르면
+   * 행 수가 60 그대로였다. `mode:'pages'` 목록들이 멀쩡해 보였던 것은 `shouldResetPage` 가
+   * `page` 를 함께 바꿔 주소가 우연히 달라졌기 때문이지, 이 구멍이 없어서가 아니다.
+   */
+  const [revision, setRevision] = useState(0)
 
   const query = useMemo(
     () => resolveListQuery(searchParams, defaults, restored),
@@ -84,8 +96,23 @@ export function useListQuery(defaults: ListDefaults, options: Options = {}) {
       filters: patch.filters ? { ...query.filters, ...patch.filters } : query.filters,
       page: shouldResetPage(patch) ? 1 : (patch.page ?? query.page),
     }
+    /**
+     * 주소가 실제로 달라지는지 **먼저 본다.**
+     *
+     * 같은 함수로 양쪽을 만들어 비교한다 — 주소에 적힌 순서로 비교하면
+     * 순서만 다른 같은 조건을 "달라졌다"고 오판한다.
+     */
+    const nextParams = listQueryToParams(next, defaults).toString()
+    const nowParams = listQueryToParams(query, defaults).toString()
+
     // 목록이 소유하지 않은 파라미터(`tab` 등)는 그대로 둔다 — 표준이 남의 상태를 부수면 아무도 안 쓴다.
     router.replace(`${pathname}?${listQueryToParams(next, defaults, searchParams)}`, { scroll: false })
+
+    /**
+     * 주소가 안 바뀌면 `searchParams` 도 안 바뀌고, 화면은 아무 일도 없었다고 읽는다.
+     * 그때만 리비전을 올려 **"조건을 다시 확정했다"는 사실 자체를 신호로** 만든다.
+     */
+    if (nextParams === nowParams) setRevision((r) => r + 1)
 
     if (!options.persistKey) return
     // 방금 쓴 값을 캐시에도 반영한다 — 안 하면 다음 방문에 옛 값으로 되돌아간다
@@ -99,5 +126,19 @@ export function useListQuery(defaults: ListDefaults, options: Options = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, pathname, router, searchParams, options.persistKey])
 
-  return { query, set }
+  /**
+   * **화면이 조회 의존성으로 쓸 값 하나.**
+   *
+   * 화면이 `query.size`·`query.q` 를 개별로 나열하면 ① 새 필터를 더할 때 빠뜨리고
+   * ② 기본값 되돌리기(위 revision)를 통째로 못 본다. 문자열 하나로 주면 둘 다 안 생긴다.
+   *
+   * 주소에 남는 파라미터만 담는다 — 남의 파라미터(`tab` 등)가 바뀔 때까지 목록을 다시 부르지 않는다.
+   */
+  const queryKey = useMemo(
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => `${listQueryToParams(query, defaults).toString()}#${revision}`,
+    [query, revision],
+  )
+
+  return { query, set, queryKey }
 }

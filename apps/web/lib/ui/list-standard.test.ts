@@ -75,3 +75,39 @@ test('목록 표준 부품은 상태 3종을 스스로 강제한다', () => {
     assert.ok(surface.includes(part), `ListSurface가 ${part}를 쓰지 않는다`)
   }
 })
+
+// ── 목록 일괄작업 표준 (v0.7.574) ────────────────────────────────
+//
+// 실측: 회사 목록에서 여러 건을 골라도 할 수 있는 일이 "AI로 채우기" 하나뿐이었다.
+// 20건을 지우려면 상세를 20번 열어야 했다.
+
+test('일괄작업은 서버 bulk 엔드포인트를 새로 만들지 않는다 — 삭제 규칙이 두 벌이 되면 한쪽이 낡는다', () => {
+  const bulkRoutes = walkFiles('app/api/crm', ['.ts'])
+    .filter((f) => /\/bulk\/route\.ts$/.test(f))
+  assert.deepEqual(bulkRoutes, [],
+    '한 건짜리 경로를 여러 번 부른다(lib/ui/use-bulk-action.ts). ' +
+    'bulk 를 따로 짜면 관계·삭제 계약·감사·워크스페이스 가드 중 하나를 조용히 빠뜨린다')
+})
+
+test('되돌릴 수 없는 일괄작업은 확인창을 거친다 — 확인이 유일한 안전장치다(R-5)', () => {
+  const view = read('app/(crm)/crm/companies/CompanyListView.tsx')
+  assert.ok(view.includes('BulkDeleteConfirm'), '일괄 삭제 앞에 확인창이 있어야 한다')
+  // 확인 없이 곧장 실행하는 길이 없다 — 삭제 버튼은 확인창을 연다
+  assert.match(view, /onClick=\{\(\) => setConfirmOpen\(true\)\}/)
+  // 되돌리기는 확인이 필요 없다 — 되돌릴 수 있는 일이다
+  assert.match(view, /bulkRestore\.start\(selection\.selectedIds\)/)
+})
+
+test('일괄 실패는 이름과 함께 나간다 — id 만 남으면 어느 것이 안 됐는지 모른다', () => {
+  const panel = read('components/ui/list/BulkResultPanel.tsx')
+  assert.match(panel, /nameList\(g\.labels\)/, '실패 줄이 label 을 렌더해야 한다')
+  const hook = read('lib/ui/use-bulk-action.ts')
+  // 목록이 다시 그려지기 전에 이름을 떠 둔다 — 지워진 뒤에는 못 찾는다
+  assert.match(hook, /const labels = new Map\(ids\.map/)
+})
+
+test('한 번에 고를 수 있는 수를 화면과 훅이 같은 상수로 본다 — 갈리면 눌러 놓고 서버에서 잘린다', () => {
+  const view = read('app/(crm)/crm/companies/CompanyListView.tsx')
+  assert.match(view, /BULK_MAX/, '화면이 상한 상수를 import 해서 써야 한다')
+  assert.ok(!/selection\.count > \d+/.test(view), '상한을 화면에 숫자로 적지 않는다')
+})

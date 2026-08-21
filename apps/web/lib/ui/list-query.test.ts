@@ -146,3 +146,51 @@ test('보존 인자를 안 주면 목록 파라미터만 남는다(구 동작 �
   const q = resolveListQuery(current, DEFAULTS)
   assert.equal(listQueryToParams(q, DEFAULTS).get('tab'), null)
 })
+
+// ── "기본값으로 되돌리기"가 조용히 죽던 구멍 (v0.7.574) ──────────────────
+//
+// 실측: 회사 목록에서 '더 보기'로 60행을 쌓은 뒤 "20개씩"(=기본값)을 고르면
+// 행 수가 **60 그대로**였다. 아래 두 테스트가 그 원인을 코드로 증명하고,
+// 세 번째가 훅이 실제로 그것을 메우는지 확인한다.
+
+test('기본값과 같은 값을 고르면 주소가 한 글자도 안 바뀐다 — 이것이 원인이다', () => {
+  const base = { ...resolveListQuery(new URLSearchParams(''), DEFAULTS) }
+  // 사용자가 "20개씩"(기본값)을 고른 상태
+  const picked = { ...base, size: 20 as const }
+  assert.equal(
+    listQueryToParams(picked, DEFAULTS).toString(),
+    listQueryToParams(base, DEFAULTS).toString(),
+    '주소가 같으면 searchParams 가 안 바뀌고 화면은 아무 일도 없었다고 읽는다',
+  )
+})
+
+test('기본값이 아닌 값은 주소가 바뀐다 — 그래서 이 구멍이 오래 안 보였다', () => {
+  const base = resolveListQuery(new URLSearchParams(''), DEFAULTS)
+  const picked = { ...base, size: 100 as const }
+  assert.notEqual(
+    listQueryToParams(picked, DEFAULTS).toString(),
+    listQueryToParams(base, DEFAULTS).toString(),
+  )
+})
+
+test('훅이 그 구멍을 메운다 — 주소가 같을 때만 리비전을 올리고 queryKey 로 내보낸다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('./use-list-query.ts', import.meta.url), 'utf8')
+
+  // 양쪽을 같은 함수로 만들어 비교해야 한다 — 주소 순서로 비교하면 오판한다
+  assert.match(src, /const nextParams = listQueryToParams\(next, defaults\)\.toString\(\)/)
+  assert.match(src, /const nowParams = listQueryToParams\(query, defaults\)\.toString\(\)/)
+  assert.match(src, /if \(nextParams === nowParams\) setRevision/)
+
+  // 화면이 쓸 의존성 하나로 나가야 한다 — 안 나가면 훅만 알고 화면은 모른다
+  assert.match(src, /queryKey/)
+  assert.match(src, /return \{ query, set, queryKey \}/)
+})
+
+test('목록 화면은 조건 의존성을 queryKey 로 받는다 — 개별 필드 나열은 빠뜨린다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const view = readFileSync(
+    new URL('../../app/(crm)/crm/companies/CompanyListView.tsx', import.meta.url), 'utf8')
+  assert.match(view, /useListQuery\(/)
+  assert.ok(view.includes('queryKey'), '조회 콜백이 queryKey 를 의존성으로 받아야 한다')
+})
