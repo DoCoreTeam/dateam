@@ -6,6 +6,7 @@ import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import SettingsSection from './SettingsSection'
 import GeminiSettings from './GeminiSettings'
 import YoutubeSettings from './YoutubeSettings'
+import SttSettings from './SttSettings'
 import ClaudeSettings from './ClaudeSettings'
 import OpenAiSettings from './OpenAiSettings'
 import AiChatDefaultProviderPicker from './AiChatDefaultProviderPicker'
@@ -27,6 +28,7 @@ const YOUTUBE_KEY = 'youtube_api_key'
 const KOREAEXIM_KEY = 'koreaexim_api_key'
 const CLAUDE_KEY = 'claude_api_key'
 const OPENAI_KEY = 'openai_api_key'
+const STT_KEY = 'stt_api_key'
 
 const AI_PROVIDER_LABELS: Record<AiChatProviderId, string> = {
   gemini: 'Gemini',
@@ -75,6 +77,11 @@ export default async function AdminSettingsPage({
   const hasKey = !!storedKey
   const maskedKey = storedKey ? maskKey(storedKey) : null
   const savedModel = (meta.gemini_model as string | undefined) ?? null
+
+  // 음성 인식(STT) — 회의노트·CRM 미팅이 같은 키 하나를 쓴다
+  const sttKey = meta[STT_KEY] as string | undefined
+  const sttMasked = sttKey ? maskKey(sttKey) : null
+  const sttModel = (meta.stt_model as string | undefined) ?? null
 
   const storedClaudeKey = meta[CLAUDE_KEY] as string | undefined
   const hasClaudeKey = !!storedClaudeKey
@@ -153,6 +160,7 @@ export default async function AdminSettingsPage({
           <SettingsSection title="데이터 수집·저장 연동" desc="콘텐츠 수집과 자료 보관에 쓰이는 외부 서비스입니다.">
             <div className="settings-grid">
               <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />
+              <SttSettings hasKey={Boolean(sttKey)} maskedKey={sttMasked} savedModel={sttModel} />
               <GoogleDriveSettings
                 connected={driveStatus.connected}
                 email={driveStatus.email}

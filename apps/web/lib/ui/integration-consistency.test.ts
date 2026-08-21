@@ -17,6 +17,7 @@ const INTEGRATION_CARDS = [
   'ClaudeSettings.tsx',
   'OpenAiSettings.tsx',
   'YoutubeSettings.tsx',
+  'SttSettings.tsx',
   'KoraeximSettings.tsx',
   'GoogleDriveSettings.tsx',
   'DbSettings.tsx',

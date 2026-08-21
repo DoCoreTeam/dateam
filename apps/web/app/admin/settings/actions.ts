@@ -543,3 +543,78 @@ export async function checkYoutubeHealth(): Promise<{ ok: boolean; message: stri
     return { ok: false, message: '네트워크 오류가 발생했습니다' }
   }
 }
+
+// ── 음성 인식(STT) 키 — 회의 녹음 전사에 쓴다 ──
+// 왜 여기인가: CRM 은 키를 갖지 않는다는 기존 원칙과 같은 자리다. Gemini·Claude·OpenAI 키가
+// 이미 여기 있고, 회의노트(사내)와 영업 CRM 이 **같은 키 하나**를 쓴다.
+// 키가 없으면 녹음은 되는데 전사가 영영 안 된다 — 그래서 입력 자리가 반드시 있어야 한다.
+
+export async function saveSttKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = (formData.get('apiKey') as string)?.trim()
+  if (!apiKey) return { ok: false, error: 'API 키를 입력해주세요' }
+  const model = ((formData.get('model') as string) ?? '').trim()
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const next: Record<string, unknown> = { ...meta, stt_api_key: apiKey, stt_provider: 'groq' }
+  // 모델은 비워 두면 코드 기본값(정확도 우선)을 쓴다 — 빈 문자열을 저장해 두면
+  // "설정했는데 왜 이 모델이지"를 아무도 설명 못 한다.
+  if (model) next.stt_model = model
+  else delete next.stt_model
+
+  const { error } = await setMetaValue(client, next)
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+export async function deleteSttKey(): Promise<{ ok: boolean; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  delete meta.stt_api_key
+  delete meta.stt_model
+  delete meta.stt_provider
+  const { error } = await setMetaValue(client, meta)
+
+  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+/**
+ * 음성 인식 연결 확인.
+ *
+ * 모델 목록을 한 번 불러 본다 — 오디오를 올리지 않고도 키가 살아 있는지 알 수 있다.
+ * 연결 테스트가 카드마다 있고 없고가 갈리면 안 된다(§2-5 동종 UI 통일).
+ */
+export async function checkSttHealth(): Promise<{ ok: boolean; message: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const apiKey = meta.stt_api_key as string | undefined
+  if (!apiKey) return { ok: false, message: '저장된 API 키가 없습니다' }
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      cache: 'no-store',
+    })
+    if (res.ok) {
+      const model = (meta.stt_model as string | undefined) ?? 'whisper-large-v3'
+      return { ok: true, message: `연결 성공 — ${model} 으로 회의 녹음을 전사합니다` }
+    }
+    if (res.status === 401 || res.status === 403) {
+      return { ok: false, message: 'API 키가 올바르지 않습니다' }
+    }
+    return { ok: false, message: `연결 실패 (${res.status})` }
+  } catch {
+    return { ok: false, message: '네트워크 오류가 발생했습니다' }
+  }
+}
