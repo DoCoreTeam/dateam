@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.578',
+    date: '2026-08-22',
+    title: '회의를 녹음하면 전사까지 알아서 돼요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '\u{1F399}\uFE0F',
+        headline: '회의노트에서 바로 녹음할 수 있어요',
+        detail: '회의노트를 열고 [녹음 시작]을 누르면 그때부터 녹음돼요. 10분마다 자동으로 저장되니 중간에 창이 닫혀도 그때까지는 남습니다.',
+      },
+      {
+        kind: 'feature',
+        emoji: '\u{1F4DD}',
+        headline: '녹음이 끝나면 전사가 알아서 시작돼요',
+        detail: '종료를 누르면 받아쓰기가 자동으로 돌아갑니다. 자리를 떠도 계속 진행되고, 다시 들어오면 결과가 준비돼 있어요. 정리는 전사를 확인한 뒤 [AI로 정리하기]를 누르면 됩니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '\u{1F50A}',
+        headline: '마이크가 소리를 받고 있는지 눈으로 보여요',
+        detail: '녹음 중에 입력 세기가 막대로 표시돼요. 소리가 안 잡히면 바로 알려드리니, 한 시간을 녹음하고 나서야 아는 일이 없습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.577',
     date: '2026-08-22',
     title: '인물·딜·견적에서도 골라서 한 번에 지우고 되살릴 수 있어요',

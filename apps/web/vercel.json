@@ -30,6 +30,10 @@
     {
       "path": "/api/crm/jobs/stalled-deals",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/meeting-notes/jobs/transcribe",
+      "schedule": "*/2 * * * *"
     }
   ]
 }

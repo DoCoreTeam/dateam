@@ -2,12 +2,13 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Pencil, Trash2, CalendarClock, Users } from 'lucide-react'
+import { Pencil, Trash2, CalendarClock, Users, Mic } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import MeetingEditor from './MeetingEditor'
 import MeetingReadBody from './MeetingReadBody'
 import CrmPublishCard from './CrmPublishCard'
+import RecordingPanel from './RecordingPanel'
 import { deleteMeetingNote } from './actions'
 
 export interface MeetingNoteRecord {
@@ -160,6 +161,16 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
             </ul>
           )}
         </section>
+        {/* 녹음 — 회의노트가 원본이므로 녹음도 여기 붙는다(사내 회의도 녹음할 수 있다).
+            본문 위에 두는 이유: 회의를 하는 중에 여는 화면이고, 그때 필요한 건 녹음 버튼뿐이다. */}
+        <section className="card" style={{ padding: 'var(--space-5) var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }} aria-labelledby="mn-rec-h">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <Mic size={16} color="var(--brand)" />
+            <h2 id="mn-rec-h" className="tape-title" style={{ margin: 0 }}>녹음</h2>
+          </div>
+          <RecordingPanel noteId={note.id} />
+        </section>
+
         {/* 본문(읽기) + AI 분석 액션 */}
         <MeetingReadBody
           meetingNoteId={note.id}

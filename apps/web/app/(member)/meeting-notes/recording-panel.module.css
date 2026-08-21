@@ -1,0 +1,96 @@
+/* 회의 녹음 패널 — 도메인 전용 스타일은 globals.css 가 아니라 여기(§0-1) */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+
+.idle { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+.live { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.timerRow { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+/* 녹음 중이라는 사실이 한눈에 보여야 한다 */
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dot { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.25; } }
+}
+
+.timer {
+  font-size: var(--fs-2xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+/* 레벨 미터 — 장식이 아니라 "마이크가 살아 있나"의 유일한 증거다 */
+.meter {
+  flex: 1 1 8rem;
+  min-width: 6rem;
+  height: 8px;
+  border-radius: var(--radius);
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+.meterFill {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+  transition: width 80ms linear;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.warn {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--warning);
+}
+
+.parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--fs-2xs);
+}
+
+.parts li {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--border-light);
+  color: var(--text-muted);
+}
+
+.uploading { border-color: var(--info-border); color: var(--info); }
+.uploaded { border-color: var(--success-border); color: var(--success); }
+.failed { border-color: var(--danger-border); color: var(--danger); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+}
