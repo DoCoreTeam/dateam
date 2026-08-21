@@ -9,9 +9,10 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   PART_MS, partOffsetMs, isAllowedAudioMime, extensionForMime, summarizeProgress,
-} from './recording.ts'
+} from './recording-core.ts'
 import { mapVerboseJson, classifyHttpFailure, readSttSettings } from '../stt/provider.ts'
 
 // ------------------------------------------------------------
@@ -188,4 +189,23 @@ test('★ 기본 모델은 turbo 가 아니다 — 정확도를 요구받았고 
 test('어드민이 고른 모델이 있으면 그걸 존중한다', () => {
   const s = readSttSettings({ stt_api_key: 'k', stt_model: 'whisper-large-v3-turbo' })
   assert.equal(s?.model, 'whisper-large-v3-turbo')
+})
+
+// ------------------------------------------------------------
+// 번들 경계 — 정적 검사도 단위 테스트도 못 잡고 **실화면만** 잡았던 자리
+// ------------------------------------------------------------
+
+test('★ 브라우저가 쓰는 훅은 드라이브 모듈을 끌고 오지 않는다 — 앱 전체가 500 이 됐던 원인', () => {
+  // 실측 v0.7.578: use-recorder → recording.ts → (동적) google-drive → googleapis 를
+  // 번들러가 그래프로 따라가 `Can't resolve 'net'` 으로 컴파일이 죽었고, /login 까지 안 열렸다.
+  // tsc·lint·단위테스트는 전부 초록이었다.
+  const hook = readFileSync(new URL('./use-recorder.ts', import.meta.url), 'utf-8')
+  assert.ok(!/from '\.\/recording\.ts'/.test(hook), 'use-recorder 가 서버 모듈(recording.ts)을 가져온다')
+  assert.ok(/from '\.\/recording-core\.ts'/.test(hook), 'use-recorder 는 순수 모듈만 가져와야 한다')
+})
+
+test('★ 순수 모듈에는 드라이브·DB 가 한 줄도 없다 — 여기 들어오면 다시 클라이언트로 샌다', () => {
+  const core = readFileSync(new URL('./recording-core.ts', import.meta.url), 'utf-8')
+  assert.ok(!core.includes('google-drive'), 'recording-core 가 드라이브를 참조한다')
+  assert.ok(!core.includes('supabase'), 'recording-core 가 DB 를 참조한다')
 })

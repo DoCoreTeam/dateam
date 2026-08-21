@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.584',
+    date: '2026-08-22',
+    title: '회의노트가 열리지 않던 문제를 고쳤어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '\u{1F527}',
+        headline: '회의노트 목록이 다시 정상적으로 보여요',
+        detail: '어제 추가한 「영업 CRM에 공개」 기능 때문에 회의노트 목록이 통째로 열리지 않던 문제를 고쳤습니다. 내 회의노트는 원래대로 나만 볼 수 있고, CRM에 올린 회의만 팀에서 함께 읽습니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '\u{1F3A4}',
+        headline: '녹음 버튼이 있는 화면이 열리지 않던 문제를 고쳤어요',
+        detail: '회의노트에서 녹음을 쓸 수 있게 하면서 화면이 뜨지 않던 문제를 바로잡았습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.583',
     date: '2026-08-22',
     title: '시스템에서 뭐가 안 됐는지 관리자 화면에서 한눈에 볼 수 있어요',

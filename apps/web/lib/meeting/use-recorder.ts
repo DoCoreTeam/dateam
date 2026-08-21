@@ -19,7 +19,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { PART_MS } from './recording.ts'
+import { PART_MS } from './recording-core.ts'
+// ⚠️ recording.ts 를 가리키면 안 된다 — 그 파일은 드라이브 저장을 함께 갖고 있어,
+// 동적 import 라도 번들러가 googleapis 를 클라이언트로 끌고 들어와 앱 전체가 500 이 된다(v0.7.578 실측).
 
 /** 우선순위대로 시도한다. Safari 는 webm 을 못 만들어 mp4 로 떨어진다. */
 const MIME_CANDIDATES = [

@@ -33,6 +33,9 @@ export default function SttSettings({ hasKey: initialHasKey, maskedKey: initialM
 
   function handleSave(formData: FormData) {
     setMsg(null)
+    // 지난 연결 테스트 결과를 지운다 — 키를 바꿨는데 옛 결과가 남아 있으면
+    // 그 문장이 **지금 상태인 척**한다(실측: 해제한 뒤에도 '키가 올바르지 않습니다'가 남았다)
+    setHealthMsg(null)
     startSave(async () => {
       const result = await saveSttKey(formData)
       if (result.ok) {
@@ -49,6 +52,7 @@ export default function SttSettings({ hasKey: initialHasKey, maskedKey: initialM
 
   function handleDelete() {
     setMsg(null)
+    setHealthMsg(null)
     startDelete(async () => {
       const result = await deleteSttKey()
       if (result.ok) {

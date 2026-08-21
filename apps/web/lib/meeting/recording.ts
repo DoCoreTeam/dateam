@@ -14,74 +14,22 @@
  * 예약해 둔 방식 그대로다 — 새 저장소를 만들지 않는다.
  */
 
+/**
+ * 상수·순수 판정은 recording-core.ts 에 있다 — 클라이언트가 그것만 가져갈 수 있어야 하기 때문.
+ * 여기서 그대로 재수출한다: 서버 쪽 호출부는 import 경로를 바꾸지 않는다(SSOT 한 곳 유지).
+ */
+export {
+  PART_MS, MAX_PART_BYTES, ALLOWED_AUDIO_MIMES,
+  isAllowedAudioMime, extensionForMime, partOffsetMs, summarizeProgress,
+} from './recording-core.ts'
+export type { PartStatus, RecordingPart, RecordingProgress } from './recording-core.ts'
 
-/** 한 구간의 길이. 이 값이 바뀌면 시간축 오프셋도 같이 움직인다 — 그래서 한 곳에만 둔다. */
-export const PART_MS = 10 * 60 * 1000
-
-/** 구간 하나의 상한. 10분 음성 모노 opus 는 3MB 안쪽이라 여유 있게 잡되, 본문 한도 밑이다. */
-export const MAX_PART_BYTES = 4 * 1024 * 1024
-
-/** 받아 주는 오디오 형식. Safari 는 webm 을 못 만들어 mp4 로 온다. */
-export const ALLOWED_AUDIO_MIMES: readonly string[] = [
-  'audio/webm',
-  'audio/mp4',
-  'audio/mpeg',
-  'audio/wav',
-  'audio/x-m4a',
-  'audio/m4a',
-  'audio/ogg',
-]
+import { extensionForMime } from './recording-core.ts'
+import type { RecordingPart } from './recording-core.ts'
 
 /** 드라이브 폴더 — 명함 업로드가 쓰는 루트를 공유한다(새 루트를 만들지 않는다) */
 const ROOT_FOLDER = 'AX사업본부'
 const RECORDING_FOLDER = '회의녹음'
-
-export type PartStatus = 'UPLOADED' | 'TRANSCRIBING' | 'TRANSCRIBED' | 'FAILED'
-
-export interface RecordingPart {
-  id: string
-  note_id: string
-  part_idx: number
-  drive_file_id: string | null
-  mime: string
-  duration_sec: number | null
-  status: PartStatus
-  error: string | null
-  retry_count: number
-  audio_deleted_at: string | null
-  created_at: string
-}
-
-/**
- * mime 이 우리가 다룰 수 있는 것인가.
- *
- * 브라우저는 `audio/webm;codecs=opus` 처럼 파라미터를 붙여 보낸다 — 앞부분만 본다.
- * 모르는 형식을 그냥 받으면 전사 단계에서 실패하는데, 그때는 이미 회의가 끝난 뒤다.
- */
-export function isAllowedAudioMime(mime: string | null | undefined): boolean {
-  const base = (mime ?? '').split(';')[0].trim().toLowerCase()
-  return ALLOWED_AUDIO_MIMES.includes(base)
-}
-
-/** mime → 확장자. 드라이브에서 사람이 찾아 들을 수 있어야 한다 */
-export function extensionForMime(mime: string | null | undefined): string {
-  const base = (mime ?? '').split(';')[0].trim().toLowerCase()
-  if (base === 'audio/mp4' || base === 'audio/m4a' || base === 'audio/x-m4a') return 'm4a'
-  if (base === 'audio/mpeg') return 'mp3'
-  if (base === 'audio/wav') return 'wav'
-  if (base === 'audio/ogg') return 'ogg'
-  return 'webm'
-}
-
-/**
- * 이 구간의 전체 시간축 오프셋(ms).
- *
- * 구간마다 0 부터 다시 세면 전사를 이어 붙였을 때 시각이 뒤죽박죽이 된다.
- * 순수 함수로 뺀 이유: 화면으로 밟기 어려운 계산이라 단정으로 고정해야 한다(완료 조건 E-6).
- */
-export function partOffsetMs(partIdx: number): number {
-  return Math.max(0, Math.trunc(partIdx)) * PART_MS
-}
 
 /** 녹음이 저장될 드라이브 폴더 — 월별로 나눠 담는다(한 폴더에 수천 개가 쌓이지 않게) */
 export async function ensureRecordingFolder(yearMonth: string): Promise<string> {
@@ -179,37 +127,6 @@ export async function listRecordingParts(noteId: string): Promise<RecordingPart[
     .eq('note_id', noteId)
     .order('part_idx', { ascending: true })
   return (data ?? []) as RecordingPart[]
-}
-
-export interface RecordingProgress {
-  total: number
-  transcribed: number
-  failed: number
-  /** 전부 끝났나 — 이게 true 여야 "AI로 정리하기"가 열린다 */
-  done: boolean
-  /** 사람이 읽는 한 줄. 부분 실패를 숨기지 않는다 */
-  label: string
-}
-
-/**
- * 진행 상태를 사람 말로.
- *
- * **부분 실패를 숨기지 않는다.** "6구간 중 1구간 실패"를 말해야 사용자가
- * 전사가 왜 짧은지 안다. 조용히 5구간만 보여 주면 나머지 10분이 없어진 걸 아무도 모른다.
- */
-export function summarizeProgress(parts: Pick<RecordingPart, 'status'>[]): RecordingProgress {
-  const total = parts.length
-  const transcribed = parts.filter((p) => p.status === 'TRANSCRIBED').length
-  const failed = parts.filter((p) => p.status === 'FAILED').length
-  const done = total > 0 && transcribed + failed === total
-
-  let label: string
-  if (total === 0) label = '녹음 없음'
-  else if (!done) label = `전사 중 ${transcribed}/${total}구간`
-  else if (failed === 0) label = `전사 완료 · ${total}구간`
-  else label = `전사 완료 · ${total}구간 중 ${failed}구간 실패`
-
-  return { total, transcribed, failed, done, label }
 }
 
 /** 전사 잡이 오디오를 받아 가는 자리 */
