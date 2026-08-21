@@ -31,6 +31,8 @@ export const FEATURE_LABELS: Record<string, string> = {
   QUICK_CREATE: '붙여넣기로 등록',
   MEETING_EXTRACT: '미팅 기록 추출',
   ASSISTANT: 'CRM AI 도우미',
+  'ai-budget': 'AI 예산 감시',
+  'system-log-remedy': '시스템 로그 해결책',
 }
 
 export function featureLabel(feature: string | null | undefined): string {

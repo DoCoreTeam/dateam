@@ -7,7 +7,8 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { TrendingUp, Activity, Database, AlertTriangle, DollarSign } from 'lucide-react'
+import { TrendingUp, Activity, Database, AlertTriangle, DollarSign, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
@@ -75,6 +76,17 @@ export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUs
   const logPage = query.page
   const logSize = query.size
 
+  /**
+   * **프로바이더 한도(429)** 는 우리 예산 임계치와 다른 것이다.
+   *
+   * 임계치는 "우리가 정한 선을 넘었다"(우리가 조절할 수 있다),
+   * 429 는 "AI 쪽이 더 안 받는다"(우리가 못 고친다 — 기다리거나 모델을 바꿔야 한다).
+   * 둘을 같은 배너로 묶으면 관리자가 할 일을 잘못 고른다.
+   *
+   * 새 엔드포인트를 만들지 않고 시스템 로그(v0.7.583)를 그대로 읽는다.
+   */
+  const [providerQuota, setProviderQuota] = useState<{ count: number; detail: string } | null>(null)
+
   const [summary, setSummary] = useState<Summary | null>(null)
   const [features, setFeatures] = useState<FeatureRow[]>([])
   const [users, setUsers] = useState<UserRow[]>([])
@@ -123,6 +135,20 @@ export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUs
   }, [days, logPage, logSize])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  useEffect(() => {
+    let alive = true
+    // 못 읽어도 조용히 넘어간다 — 이 배너가 없다고 사용량 화면이 못 열리면 안 된다
+    fetch('/api/admin/system-log?reason=quota&days=1&limit=5')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (!alive || !body?.items?.length) return
+        const count = body.items.reduce((n: number, i: { count: number }) => n + i.count, 0)
+        setProviderQuota({ count, detail: body.items[0].detail as string })
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
 
   const daysPicker = (
     <label className="list-filter">
@@ -213,6 +239,27 @@ export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUs
           <span style={{ fontSize: 'var(--fs-base)', color: 'var(--warning)', fontWeight: 500 }}>
             이번 달 토큰 사용량이 임계치({fmt(summary.alert_threshold)}개)를 초과했습니다.
           </span>
+        </div>
+      )}
+
+      {/* 프로바이더가 더 안 받는 상태 — 임계치 초과와 **다른 일**이라 따로 말한다 */}
+      {providerQuota && (
+        <div role="alert" style={{
+          display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-5)',
+          backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)',
+          flexWrap: 'wrap',
+        }}>
+          <AlertTriangle size={18} color="var(--danger)" />
+          <span style={{ fontSize: 'var(--fs-base)', color: 'var(--danger)', fontWeight: 500 }}>
+            AI 쪽에서 한도를 넘겼다고 거절한 일이 최근 하루 동안 {providerQuota.count.toLocaleString()}번 있었습니다.
+            이건 아래 사용량 임계치와 다른 문제라, 기다리거나 모델을 바꿔야 합니다.
+          </span>
+          <Link href="/admin/system-log?reason=quota" style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+            color: 'var(--danger)', fontSize: 'var(--fs-sm)', fontWeight: 600,
+          }}>
+            <ExternalLink size={14} /> 시스템 로그에서 보기
+          </Link>
         </div>
       )}
 

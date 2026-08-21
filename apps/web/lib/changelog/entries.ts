@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.587',
+    date: '2026-08-22',
+    title: 'AI 한도 문제를 어디서 확인하고 무엇을 하면 되는지 알려 드려요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🚦',
+        headline: '「우리가 정한 사용량 한도」와 「AI 쪽이 거절한 것」을 나눠서 보여 드려요',
+        detail: '둘은 해야 할 일이 달라요. 앞은 우리가 조절할 수 있고, 뒤는 기다리거나 모델을 바꿔야 해요. 지금까지는 한 가지로만 표시돼서 무엇을 해야 할지 알기 어려웠어요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🔔',
+        headline: '토큰 사용량이 임계치를 넘으면 이제 실제로 알려 드려요',
+        detail: '예전에는 「알렸다」는 표시만 남기고 아무 데도 알리지 않았어요. 이제 시스템 로그에 남아서 관리자가 볼 수 있어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.584',
     date: '2026-08-22',
     title: '회의노트가 열리지 않던 문제를 고쳤어요',
