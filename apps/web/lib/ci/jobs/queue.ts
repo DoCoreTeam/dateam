@@ -259,6 +259,8 @@ export interface FinishInput {
   errorMessage?: string
   durationMs?: number
   tokensUsed?: number
+  /** 관리자 로그에 어느 워크스페이스 일인지 남기려고. 안 주면 안 남긴다 — 지어내지 않는다 */
+  workspaceId?: string | null
 }
 
 /**
@@ -303,6 +305,24 @@ export async function finishJob(input: FinishInput): Promise<CiJobStatus> {
     }
   } catch {
     // 잡 기록 실패는 삼킨다 — 이미 처리한 작업을 되돌리지 않는다
+  }
+
+  /**
+   * **더 못 하고 끝난 것만** 관리자 로그에 올린다.
+   *
+   * 재시도 대기(`pending`)는 사건이 아니다 — 다음 차례에 될 수도 있는데 그때마다 올리면
+   * 로그가 재시도 횟수만큼 부풀고, 정작 진짜로 죽은 잡이 그 안에 묻힌다.
+   * `ci_jobs` 는 그대로 두고 **투영만** 한다(도메인 진실은 거기가 맡는다).
+   */
+  if (finalStatus === 'dead') {
+    const { recordSystemEventAsync } = await import('../../system-log/record.ts')
+    recordSystemEventAsync({
+      source: 'ci_job',
+      error: new Error(input.errorMessage ?? '작업이 실패했습니다'),
+      feature: 'ci-collect',
+      workspaceId: input.workspaceId ?? null,
+      context: { jobId: input.jobId, attempt: input.attempt, errorCode: input.errorCode ?? null },
+    })
   }
 
   return finalStatus

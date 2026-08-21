@@ -275,5 +275,21 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
           ? 'AI 응답이 제한 시간을 넘겼습니다. 잠시 후 다시 시도해 주세요.'
           : 'AI 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
 
+  /**
+   * 관리자가 읽는 곳에 남긴다 — 여기까지 왔다는 것은 **사슬의 모든 모델이 실패했다**는 뜻이다.
+   * 한 모델이 막혀 다음으로 넘어간 것은 사건이 아니다(그건 정상 동작이다).
+   * 기다리지 않는다: 로그가 AI 호출을 더 느리게 만들면 안 된다.
+   */
+  const { recordSystemEventAsync } = await import('../system-log/record.ts')
+  recordSystemEventAsync({
+    source: 'host_ai',
+    error: new Error(`${lastReason}: ${hint}`),
+    reason: lastReason === 'no_model' ? 'config' : lastReason === 'truncated' ? 'bad_json' : lastReason,
+    feature,
+    blocksUser: true,
+    hint: configured ?? undefined,
+    context: { attempts, chain },
+  })
+
   throw new GeminiCallError(lastReason, hint, attempts)
 }

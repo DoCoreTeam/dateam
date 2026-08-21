@@ -7,7 +7,7 @@
 // 직접 렌더(188건)하거나 오류를 그냥 삼켰다.
 // 표는 `.table-card`를 쓴다 — 모바일 카드 변환은 이미 그 클래스가 한다(가로 스크롤 금지).
 
-import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import EmptyState, { type EmptyStateAction } from '@/components/ui/EmptyState'
@@ -39,6 +39,13 @@ interface Props<T> {
    * 화면마다 기억해야 하는 규칙은 반드시 빠뜨린다 — 그래서 여기서 강제한다.
    */
   rowHref?: (row: T) => string
+  /**
+   * 행 아래에 펼쳐 보일 것. `null` 을 돌려주면 접힌 상태다.
+   *
+   * 왜 부품이 맡나: 표에서 "행 아래 한 칸"을 그리려면 `colSpan` 이 컬럼 수와 선택칸 유무에
+   * 정확히 맞아야 한다. 화면마다 세면 컬럼을 하나 더할 때 **그 화면만** 어긋난다.
+   */
+  renderExpanded?: (row: T) => ReactNode
   /** 선택(일괄 작업)을 쓰는 화면만 넘긴다 */
   selection?: ListSelection<T>
 }
@@ -74,7 +81,7 @@ function SelectAllCheckbox({ checked, indeterminate, onChange }: { checked: bool
 }
 
 export default function ListSurface<T>({
-  rows, columns, query, rowKey, onChange, loading, error, empty, onRowClick, rowHref, selection,
+  rows, columns, query, rowKey, onChange, loading, error, empty, onRowClick, rowHref, selection, renderExpanded,
 }: Props<T>) {
   const router = useRouter()
   // 행 열기 = 라우트 이동(rowHref) 또는 그 자리 열기(onRowClick). 둘 다 같은 제스처로 동작한다.
@@ -172,7 +179,7 @@ export default function ListSurface<T>({
       <tbody>
         {rows.map((row) => {
           const id = rowKey(row)
-          return (
+          const main = (
             <tr
               key={id}
               className={[rowOpens ? 'is-clickable' : '', selection?.selected.has(id) ? 'is-selected' : ''].filter(Boolean).join(' ') || undefined}
@@ -207,6 +214,17 @@ export default function ListSurface<T>({
                 </td>
               ))}
             </tr>
+          )
+          const extra = renderExpanded?.(row)
+          // 펼침이 없으면 줄 자체를 만들지 않는다 — 빈 <tr> 이 표에 여백을 만든다
+          if (!extra) return main
+          return (
+            <Fragment key={id}>
+              {main}
+              <tr className="list-expanded-row">
+                <td colSpan={columns.length + (selection ? 1 : 0)}>{extra}</td>
+              </tr>
+            </Fragment>
           )
         })}
       </tbody>

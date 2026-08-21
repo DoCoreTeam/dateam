@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server'
 import { CrmError } from '../domain/errors.ts'
+import { recordSystemEventAsync } from '../../system-log/record.ts'
 import { getCrmDb, type CrmDb } from '../db/client.ts'
 import { resolveCrmAccess, hasCrmRole, type CrmRole, type CrmSession } from '../auth/requireCrmMember.ts'
 
@@ -63,6 +64,16 @@ export async function withCrmApi<T>(
       return NextResponse.json(err.toResponseBody(), { status: err.status })
     }
     console.error('[crm/api]', msg)
+    /**
+     * 관리자가 읽는 곳에도 남긴다 — `console.error` 는 **아무도 안 본다.**
+     * 여기가 CRM API 전체의 단일 통로라 한 줄이면 CRM 이 통째로 덮인다(C-8).
+     * 기다리지 않는다: 로그 저장이 응답을 늦추면 안 된다.
+     */
+    recordSystemEventAsync({
+      source: 'crm_api', error: e, blocksUser: true,
+      feature: 'crm-api',
+      context: { handledAs: 'unhandled' },
+    })
     // 코드가 없는 실패도 사용자에게는 읽히는 말이어야 한다
     const err = new CrmError('VALIDATION_FAILED', '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     return NextResponse.json(err.toResponseBody(), { status: 500 })

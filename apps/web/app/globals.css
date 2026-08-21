@@ -10047,3 +10047,12 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
   font-size: var(--fs-2xs);
   opacity: 0.75;
 }
+
+/* 목록 펼침 줄 — ListSurface renderExpanded (v0.7.580)
+   왜 여기인가: 표 안의 한 줄이라 화면이 아니라 **부품**의 스타일이다.
+   화면마다 인라인으로 그리면 표마다 여백이 달라진다. */
+.list-expanded-row > td {
+  background: var(--surface-bg);
+  border-top: var(--hairline) solid var(--border-light);
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}

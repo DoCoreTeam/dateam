@@ -1,0 +1,43 @@
+/* app/admin/system-log/system-log.module.css
+   화면 전용 스타일은 globals.css 에 넣지 않는다(§0-1) — 이미 94%가 화면 전용이라 더 넣으면 계속 비대해진다. */
+
+/* 원문 블록 — 감추지 않고 접어서 보여 준다. 요약이 틀렸을 때 확인할 유일한 단서다. */
+.raw {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-bg);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  /* 스택은 길다 — 가로 스크롤은 이 블록 안에서만 일어난다(페이지가 옆으로 밀리면 안 된다) */
+  overflow-x: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.rawSummary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* '지금 막혀 있는 것' — 관리자가 화면을 열자마자 3초 안에 읽어야 하는 한 칸 */
+.blocking {
+  border-color: var(--danger-border);
+  margin-bottom: var(--space-4);
+}
+
+.blockingTitle {
+  margin: 0;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.blockingList {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}

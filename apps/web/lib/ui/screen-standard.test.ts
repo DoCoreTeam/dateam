@@ -20,12 +20,25 @@ function sources(): { file: string; src: string }[] {
   return out
 }
 
+/**
+ * PageHeader 가 **성립하지 않는** 자리. 이유 없이 늘리지 않는다.
+ *
+ * `global-error.tsx` 는 루트 레이아웃을 **대체하는** 최후의 경계다.
+ * 셸도 없고 페이지 헤더라는 개념 자체가 없다 — 제목·설명·액션이 가로로 놓이는 PageHeader 를
+ * 여기 쓰면 "앱 안의 한 페이지"처럼 보여서, 오히려 무슨 일이 났는지가 흐려진다.
+ * 토큰은 그대로 쓰므로 글자 크기·색은 다른 화면과 같다.
+ */
+const H1_EXEMPT = new Set<string>([
+  'components/ui/PageHeader.tsx',
+  'app/global-error.tsx',
+])
+
 test('페이지 제목은 PageHeader로만 그린다 — raw <h1> 금지(§2-3)', () => {
   // 왜: raw <h1>은 토큰을 하나만 빠뜨려도 다른 화면과 크기·자간이 달라진다.
   //   실제로 헤더가 페이지마다 갈려 같은 성격의 화면이 서로 다르게 보였다.
   //   PageHeader에 없는 슬롯(뒤로가기·아이콘) 때문에 자작한 곳이 있었고, 그건 부품을 고쳐서 해결했다.
   const offenders = sources()
-    .filter(({ file }) => file !== 'components/ui/PageHeader.tsx')
+    .filter(({ file }) => !H1_EXEMPT.has(file))
     .filter(({ src }) => /<h1[\s>]/.test(src))
     .map(({ file }) => file)
   assert.deepEqual(offenders, [], `raw <h1>을 쓰는 화면이 생겼다. PageHeader를 쓸 것:\n  ${offenders.join('\n  ')}`)

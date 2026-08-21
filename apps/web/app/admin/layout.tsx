@@ -18,8 +18,7 @@ import {
   Bot,
   Building2,
   ShieldCheck,
-  MessageSquare,
-} from 'lucide-react'
+  MessageSquare, ScrollText } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { getBranding } from '@/lib/branding'
 
@@ -45,6 +44,7 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
       { href: '/admin/ai-prompts', label: 'AI 프롬프트', icon: <Bot size={16} /> },
       { href: '/admin/ai-chat', label: 'AI 채팅', icon: <MessageSquare size={16} /> },
       { href: '/admin/data-quality', label: '데이터 품질', icon: <ShieldCheck size={16} /> },
+      { href: '/admin/system-log', label: '시스템 로그', icon: <ScrollText size={16} /> },
       { href: '/admin/settings', label: '시스템 설정', icon: <SlidersHorizontal size={16} /> },
     ],
   },

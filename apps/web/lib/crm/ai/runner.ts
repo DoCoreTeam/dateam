@@ -128,6 +128,19 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
       },
     }).catch(() => undefined)
 
+    /**
+     * 관리자가 읽는 곳에도 남긴다.
+     *
+     * `crm_ai_run` 은 실패를 제대로 쌓고 있었는데 **읽는 화면이 0개**였다(C-3).
+     * 표에 있는 것과 사람이 보는 것은 다른 문제다 — 아무도 안 보면 없는 것과 같다.
+     */
+    const { recordSystemEventAsync } = await import('../../system-log/record.ts')
+    recordSystemEventAsync({
+      source: 'crm_ai', error: lastError, feature: kind, blocksUser: true,
+      workspaceId, hint: adapter.model,
+      context: { kind, promptVersion: prompt.version, tokensIn, tokensOut },
+    })
+
     // 실패해도 쓴 토큰만큼은 정산한다 — 실패한 호출도 돈이 나간다.
     // 선점분을 그대로 두면 실패가 쌓일수록 남은 예산이 실제보다 적게 보인다.
     await settleBudget(
