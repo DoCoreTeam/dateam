@@ -20,6 +20,8 @@ import type { AiAdapter, AiSource } from '../runner.ts'
 import { getAvailableProviders, getProviderConfig, getDefaultProvider } from '../../../ai-chat/registry.ts'
 import type { ProviderId } from '../../../ai-chat/provider.ts'
 import { CrmError } from '../../domain/errors.ts'
+import { resolveGeminiModelChain } from '../../../ai/gemini-model.ts'
+import { classifyProviderError } from '../../../ai-chat/provider-errors.ts'
 
 /** 사람이 기다릴 수 있는 한계. 넘으면 실패로 말한다 — 무한정 도는 건 실패보다 나쁘다 */
 const TIMEOUT_MS = 60_000
@@ -128,6 +130,22 @@ export async function hostAdapter(
       `${provider.label}는 웹 검색을 지원하지 않습니다. CRM 설정의 ai.model.extract 를 gemini 또는 claude 로 바꿔 주세요.`)
   }
 
+  /**
+   * 시도할 모델 순서.
+   *
+   * **왜 하나로는 안 되나**(v0.7.577 실측): 설정 모델 하나만 부르면, 그 모델의 할당량이
+   * 바닥났을 때 기능이 통째로 죽는다. 다른 모델은 멀쩡한데도 그렇다 —
+   * Gemini 는 모델마다 할당량 바구니가 따로다. 사용자에게는 "AI 가 계속 한도"로만 보이고,
+   * 고치는 길은 어드민이 설정을 바꾸는 것뿐이었다.
+   *
+   * 호스트에는 이미 폴백 사슬 SSOT(`lib/ai/gemini-model.ts`)가 있었는데
+   * CRM 만 그것을 안 쓰고 `cfg.model` 을 직접 불렀다. 이제 같은 사슬을 쓴다.
+   *
+   * `requireJson: false` — 여기 응답은 JSON 모드 강제가 아니라 프롬프트로 받는다.
+   * gemini 가 아닌 프로바이더는 사슬이 없으므로 설정 모델 하나 그대로다.
+   */
+  const modelChain = id === 'gemini' ? resolveGeminiModelChain(cfg.model, { requireJson: false }) : [cfg.model]
+
   return {
     model: cfg.model,
     async complete(prompt: string) {
@@ -140,20 +158,43 @@ export async function hostAdapter(
       const sources: AiSource[] = []
       const seen = new Set<string>()
 
-      const res = await provider.streamChat({
-        apiKey: cfg.apiKey,
-        model: cfg.model,
-        turns: [{ role: 'user', content: prompt }],
-        // 추출은 창작이 아니다. 같은 명함이 매번 다르게 읽히면 사용자가 결과를 못 믿는다.
-        signal: AbortSignal.timeout(webSearch ? WEB_SEARCH_TIMEOUT_MS : TIMEOUT_MS),
-        tools: webSearch ? { webSearch: true } : undefined,
-        onDelta: () => {},
-        onCitation: (c) => {
-          if (!c.url || seen.has(c.url)) return
-          seen.add(c.url)
-          sources.push({ url: c.url, title: c.title || c.url })
-        },
-      })
+      /**
+       * 모델이 못 쓰는 상태면 **다음 모델로 넘어간다.**
+       * 넘어가는 것은 `fatalModel`(할당량 0 · 404 삭제) 과 한도 초과뿐이다 —
+       * 키 문제·타임아웃은 모델을 바꿔도 같으니 그대로 올린다(헛된 재시도는 돈만 쓴다).
+       */
+      let res: Awaited<ReturnType<typeof provider.streamChat>> | null = null
+      let lastError: unknown = null
+      for (let i = 0; i < modelChain.length; i += 1) {
+        // 앞 모델에서 모은 출처가 섞이지 않게 비운다 — 실패한 시도의 인용은 이 답의 근거가 아니다
+        sources.length = 0
+        seen.clear()
+        try {
+          res = await provider.streamChat({
+            apiKey: cfg.apiKey,
+            model: modelChain[i],
+            turns: [{ role: 'user', content: prompt }],
+            // 추출은 창작이 아니다. 같은 명함이 매번 다르게 읽히면 사용자가 결과를 못 믿는다.
+            signal: AbortSignal.timeout(webSearch ? WEB_SEARCH_TIMEOUT_MS : TIMEOUT_MS),
+            tools: webSearch ? { webSearch: true } : undefined,
+            onDelta: () => {},
+            onCitation: (c) => {
+              if (!c.url || seen.has(c.url)) return
+              seen.add(c.url)
+              sources.push({ url: c.url, title: c.title || c.url })
+            },
+          })
+          break
+        } catch (e) {
+          lastError = e
+          const { fatalModel, availability } = classifyProviderError(e)
+          const worthAnotherModel = fatalModel || availability === 'limited'
+          if (!worthAnotherModel || i === modelChain.length - 1) throw e
+          console.warn('[crm/ai] 모델 교체', modelChain[i], '→', modelChain[i + 1],
+            e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120))
+        }
+      }
+      if (!res) throw lastError ?? new CrmError('VALIDATION_FAILED', 'AI 응답을 받지 못했습니다.')
 
       if (res.stopped) {
         throw new CrmError('VALIDATION_FAILED',

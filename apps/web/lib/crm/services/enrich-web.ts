@@ -222,12 +222,28 @@ export interface EnrichCompaniesResult {
  * **순차로 돈다.** 병렬로 던지면 예산 선점(reserveBudget)이 동시에 통과해
  * 상한을 넘긴 뒤에야 정산에서 드러나고, 프로바이더 쪽 분당 한도에도 걸린다.
  */
+/**
+ * 한 곳이 끝날 때마다 부른다 — 화면이 "3/20"을 보여 줄 수 있게.
+ *
+ * 왜 필요한가(v0.7.577): 회사당 웹검색이 실측 15~30초라 20곳이면 최악 10분이다.
+ * 그동안 화면에는 "AI가 찾는 중…"만 떠 있어서, 사용자는 **멈춘 것과 구분할 수 없었다.**
+ * 이 콜백이 없으면 진행 상황을 알릴 방법이 응답이 다 끝난 뒤밖에 없다.
+ */
+export interface EnrichProgress {
+  done: number
+  total: number
+  companyId: string
+  ok: boolean
+}
+
 export async function enrichCompaniesFromWeb(
   db: CrmDb,
   workspaceId: string,
   actorId: string | null,
   companyIds: string[],
   adapter: AiAdapter,
+  /** 선택 — 안 주면 예전과 똑같이 동작한다(추가 전용) */
+  onProgress?: (p: EnrichProgress) => void,
 ): Promise<EnrichCompaniesResult> {
   if (companyIds.length === 0) {
     throw new CrmError('VALIDATION_FAILED', '보강할 회사를 골라 주세요.')
@@ -246,9 +262,12 @@ export async function enrichCompaniesFromWeb(
     const id = companyIds[i]
     try {
       results.push(await enrichCompanyFromWeb(db, workspaceId, actorId, id, adapter))
+      onProgress?.({ done: i + 1, total: companyIds.length, companyId: id, ok: true })
     } catch (e) {
       const message = e instanceof CrmError ? e.message : '보강에 실패했습니다.'
       failed.push({ companyId: id, message })
+      // 실패도 **한 곳 지나간 것**이다 — 안 세면 진행률이 그 자리에 멈춰 보인다
+      onProgress?.({ done: i + 1, total: companyIds.length, companyId: id, ok: false })
 
       /**
        * **더 해 봐야 소용없는 실패면 거기서 멈춘다.**

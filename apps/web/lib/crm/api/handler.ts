@@ -26,7 +26,7 @@ export type RequiredRole = CrmRole
 export async function withCrmApi<T>(
   required: RequiredRole,
   fn: (ctx: CrmApiContext) => Promise<T>,
-): Promise<NextResponse> {
+): Promise<Response> {
   try {
     const access = await resolveCrmAccess()
     if (!access.ok) {
@@ -43,6 +43,14 @@ export async function withCrmApi<T>(
     }
 
     const data = await fn({ session: access.session, db: getCrmDb(access.session.workspaceId) })
+    /**
+     * 스트리밍 응답은 **그대로 흘려보낸다.**
+     *
+     * `NextResponse.json` 으로 감싸면 스트림이 통째로 문자열이 되어 진행률이 끝난 뒤에야 온다.
+     * 라우트가 직접 `new Response(stream)` 을 만들되, 인증·권한·오류 처리는 여기 한 곳에 남긴다
+     * (스트리밍 전용 핸들러를 따로 만들면 그 셋이 두 벌이 된다).
+     */
+    if (data instanceof Response) return data as Response
     return NextResponse.json(data)
   } catch (e) {
     if (e instanceof CrmError) {

@@ -25,6 +25,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
+import { BulkProgress } from '@/components/ui/list/BulkResultPanel'
 import { ENRICH_BULK_MAX } from '@/lib/crm/domain/enrich-limits'
 import CompanyFormModal from './CompanyFormModal'
 
@@ -97,6 +98,11 @@ export default function CompanyListView() {
   // AI 보강 — 진행 중 여부·결과·실패를 따로 든다.
   // 실패를 결과 안에 섞으면 "성공 0건"과 "아예 못 불렀다"가 같은 화면이 된다.
   const [enriching, setEnriching] = useState(false)
+  /**
+   * 몇 곳째인지 — 회사당 웹검색이 15~30초라 20곳이면 최악 10분이다.
+   * 끝을 모르는 문구만 두면 사용자는 **멈춘 것과 구분하지 못한다.**
+   */
+  const [enrichProgress, setEnrichProgress] = useState({ done: 0, total: 0 })
   const [enrichResult, setEnrichResult] = useState<EnrichSummary | null>(null)
   const [enrichError, setEnrichError] = useState<string | null>(null)
   /**
@@ -170,19 +176,66 @@ export default function CompanyListView() {
     setEnrichNames(Object.fromEntries(
       rows.filter((r) => ids.includes(r.id)).map((r) => [r.id, r.name]),
     ))
+    setEnrichProgress({ done: 0, total: ids.length })
     try {
       const res = await fetch('/api/crm/companies/enrich', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
         body: JSON.stringify({ companyIds: ids }),
       })
-      const body = await res.json()
-      if (!res.ok) {
-        // 서버가 준 문장을 그대로 보여 준다 — 우리 말로 바꾸면 원인이 흐려진다
-        setEnrichError(body?.error?.message ?? 'AI 보강에 실패했습니다.')
+      /**
+       * 인증·검증 실패는 **스트림이 열리기 전**에 온다 — 그때는 예전처럼 JSON 이다.
+       * 서버가 준 문장을 그대로 보여 준다(우리 말로 바꾸면 원인이 흐려진다).
+       */
+      if (!res.ok || !res.body || !(res.headers.get('content-type') ?? '').includes('text/event-stream')) {
+        const body = await res.json().catch(() => null)
+        if (!res.ok) {
+          setEnrichError(body?.error?.message ?? 'AI 보강에 실패했습니다.')
+          return
+        }
+        setEnrichResult(body as EnrichSummary)   // 스트림이 아니면 한 덩어리로 온 것
+        selection.clear()
+        await load(false, null)
         return
       }
-      setEnrichResult(body as EnrichSummary)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      let summary: EnrichSummary | null = null
+      let streamError: string | null = null
+
+      for (;;) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        // 이벤트는 빈 줄로 끊긴다 — 마지막 조각은 다음 청크와 이어 붙인다
+        const chunks = buf.split('\n\n')
+        buf = chunks.pop() ?? ''
+        for (const chunk of chunks) {
+          const ev = /^event: (.+)$/m.exec(chunk)?.[1]
+          const raw = /^data: (.+)$/m.exec(chunk)?.[1]
+          if (!ev || !raw) continue
+          let data: Record<string, unknown>
+          try { data = JSON.parse(raw) } catch { continue }
+          if (ev === 'progress') {
+            setEnrichProgress({ done: Number(data.done) || 0, total: Number(data.total) || ids.length })
+          } else if (ev === 'done') {
+            summary = data as unknown as EnrichSummary
+          } else if (ev === 'failed') {
+            streamError = String(data.message ?? 'AI 보강에 실패했습니다.')
+          }
+        }
+      }
+
+      if (streamError) { setEnrichError(streamError); return }
+      if (!summary) {
+        // 연결이 중간에 끊겼다 — 조용히 넘어가면 사용자는 됐는지 안 됐는지 모른다
+        setEnrichError('AI 보강이 끝나기 전에 연결이 끊겼어요. 목록을 새로고침해 확인해 주세요.')
+        await load(false, null)
+        return
+      }
+      setEnrichResult(summary)
       selection.clear()
       await load(false, null)
     } catch {
@@ -219,6 +272,7 @@ export default function CompanyListView() {
         >
           {enriching ? <AXDotLoader /> : <Sparkles size={16} />}
           {enriching ? 'AI가 찾는 중…' : 'AI로 채우기'}
+          {enriching && <BulkProgress {...enrichProgress} />}
         </NbButton>
         {selection.count > ENRICH_BULK_MAX && (
           <InlineError compact>한 번에 {ENRICH_BULK_MAX}곳까지예요. 나눠서 눌러 주세요.</InlineError>

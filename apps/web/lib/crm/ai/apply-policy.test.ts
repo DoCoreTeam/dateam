@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 
 import {
   decideApply,
@@ -169,4 +170,31 @@ test('금지 필드 목록에 돈·단계·삭제·권한이 모두 들어 있�
     'deletedAt', 'ownerId', 'role']) {
     assert.equal(NEVER_AUTO_APPLY_FIELDS.has(f), true, `${f} 가 목록에서 빠졌다`)
   }
+})
+
+// ── 모델 할당량이 바닥나면 다음 모델로 간다 (v0.7.577) ────────────────
+//
+// 실측: 설정 모델(`gemini-3-flash-preview`) 하나만 부르고 있었다. 그 모델의 할당량이
+// 바닥나자 CRM 의 AI 가 통째로 죽었고, 다른 모델은 멀쩡한데도 그랬다.
+// 호스트에는 폴백 사슬 SSOT 가 이미 있었는데 CRM 만 그걸 안 썼다.
+
+test('호스트 어댑터는 폴백 사슬을 쓴다 — 설정 모델 하나만 부르지 않는다', async () => {
+  const src = await readFile(new URL('./adapters/host.ts', import.meta.url), 'utf8')
+  assert.match(src, /resolveGeminiModelChain\(cfg\.model/,
+    '설정 모델을 1순위로 둔 사슬을 만들어야 한다(어드민 선택 존중)')
+  assert.match(src, /model: modelChain\[i\]/, '사슬을 실제로 걸어야 한다')
+  assert.ok(!/model: cfg\.model,\n\s+turns:/.test(src), '설정 모델을 직접 부르는 길이 남아 있다')
+})
+
+test('모델을 바꿔도 소용없는 실패는 그대로 올린다 — 헛된 재시도는 돈만 쓴다', async () => {
+  const src = await readFile(new URL('./adapters/host.ts', import.meta.url), 'utf8')
+  // 넘어가는 조건이 fatalModel(할당량 0·404) 또는 한도초과로 한정돼 있는가
+  assert.match(src, /const worthAnotherModel = fatalModel \|\| availability === 'limited'/)
+  assert.match(src, /if \(!worthAnotherModel \|\| i === modelChain\.length - 1\) throw e/)
+})
+
+test('앞 모델에서 모은 출처는 다음 시도로 넘어가지 않는다 — 이 답의 근거가 아니다', async () => {
+  const src = await readFile(new URL('./adapters/host.ts', import.meta.url), 'utf8')
+  assert.match(src, /sources\.length = 0/)
+  assert.match(src, /seen\.clear\(\)/)
 })
