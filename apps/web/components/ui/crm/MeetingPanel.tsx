@@ -42,6 +42,19 @@ export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
 
   const { dealId, companyId } = scope
 
+  /**
+   * 보던 건을 데려가는 주소.
+   *
+   * 예전엔 '미팅 기록하기'가 `/crm/meetings` 목록으로만 보냈다. 딜 상세에서 눌렀는데
+   * 그 딜을 안 데려가니 사용자는 회사·딜을 처음부터 다시 골라야 했다.
+   * URL 상태로 넘긴다 — 죽어 있던 `fixedDealId` prop 이 하던 일을 주소가 대신한다.
+   */
+  const newMeetingHref = dealId
+    ? `/crm/meetings/new?dealId=${encodeURIComponent(dealId)}`
+    : companyId
+      ? `/crm/meetings/new?companyId=${encodeURIComponent(companyId)}`
+      : '/crm/meetings/new'
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -72,7 +85,8 @@ export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
         title="아직 기록된 미팅이 없어요"
         description="미팅을 기록하고 전사를 붙여넣으면 AI가 누가 나왔고 무엇이 걸림돌인지 뽑아 줍니다."
         icon={<Mic size={24} />}
-        action={{ label: '미팅 기록하기', href: '/crm/meetings' }}
+        /* 보던 딜·회사를 데려간다. 예전엔 목록으로만 보내서 처음부터 다시 골라야 했다. */
+        action={{ label: '미팅 기록하기', href: newMeetingHref }}
       />
     )
   }

@@ -7,6 +7,7 @@
 // 미팅만 나열하면 "이게 어느 건이었지"를 매번 눌러 봐야 한다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Mic, Plus } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -15,7 +16,6 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
-import MeetingFormModal from './MeetingFormModal'
 import styles from './meetings.module.css'
 
 interface Meeting {
@@ -29,11 +29,11 @@ interface Meeting {
 }
 
 export default function MeetingsClient() {
+  const router = useRouter()
   const [items, setItems] = useState<Meeting[]>([])
   const [names, setNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -84,7 +84,9 @@ export default function MeetingsClient() {
   return (
     <>
       <div className={styles.toolbar}>
-        <NbButton onClick={() => setCreating(true)}>
+        {/* 모달이 아니라 캡처 화면으로 간다 — 예전엔 모달에서 저장하면 목록으로 돌아와
+            방금 만든 미팅을 눈으로 찾아 다시 클릭해야 내용을 넣을 수 있었다. */}
+        <NbButton onClick={() => router.push('/crm/meetings/new')}>
           <Plus size={16} /> 미팅 기록
         </NbButton>
       </div>
@@ -94,7 +96,7 @@ export default function MeetingsClient() {
           title="기록된 미팅이 아직 없어요"
           description="미팅을 기록하고 전사를 붙여넣으면, AI가 누가 나왔고 무엇이 걸림돌인지 뽑아 인박스로 보냅니다."
           icon={<Mic size={28} />}
-          action={{ label: '미팅 기록하기', onClick: () => setCreating(true) }}
+          action={{ label: '미팅 기록하기', href: '/crm/meetings/new' }}
         />
       ) : (
         <ul className={styles.list}>
@@ -116,12 +118,6 @@ export default function MeetingsClient() {
         </ul>
       )}
 
-      {creating && (
-        <MeetingFormModal
-          onClose={() => setCreating(false)}
-          onSaved={() => { setCreating(false); void load() }}
-        />
-      )}
     </>
   )
 }

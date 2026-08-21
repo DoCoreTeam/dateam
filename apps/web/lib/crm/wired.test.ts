@@ -56,6 +56,26 @@ function callersOf(symbol: string, definedIn: string): string[] {
  */
 const MUST_BE_WIRED: { symbol: string; definedIn: string; why: string }[] = [
   {
+    symbol: 'publishFromNote', definedIn: 'lib/crm/services/meeting-publish.ts',
+    why: '회의노트를 CRM 에 올릴 통로가 없어 같은 회의를 두 번 적게 된다',
+  },
+  {
+    symbol: 'resyncFromNote', definedIn: 'lib/crm/services/meeting-publish.ts',
+    why: '원본이 바뀌어도 따라잡을 수 없어 CRM 이 조용히 옛 내용을 사실로 보여 준다',
+  },
+  {
+    symbol: 'createMeetingWithNote', definedIn: 'lib/crm/services/meeting-publish.ts',
+    why: 'CRM 에서 만든 미팅에 원본 회의노트가 없어 같은 회의가 또 두 벌이 된다',
+  },
+  {
+    symbol: 'updateMeeting', definedIn: 'lib/crm/services/meeting.ts',
+    why: '제목 오타 하나에 미팅을 지우고 다시 만들어야 하고, 지우면 제안까지 함께 사라진다',
+  },
+  {
+    symbol: 'loadNoteMeta', definedIn: 'lib/crm/services/meeting-publish.ts',
+    why: '원본이 지워졌는지·바뀌었는지를 화면이 몰라 옛 스냅샷을 최신인 척 보여 준다',
+  },
+  {
     symbol: 'syncGmail', definedIn: 'lib/crm/integrations/gmail.ts',
     why: '계정을 연결해도 메일이 안 들어온다',
   },

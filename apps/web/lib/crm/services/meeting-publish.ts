@@ -371,6 +371,149 @@ export async function unpublishNote(
   })
 }
 
+export interface CreateWithNoteInput {
+  title: string
+  startedAt: string
+  companyId?: string | null
+  dealId?: string | null
+  location?: string | null
+}
+
+/**
+ * CRM 에서 미팅을 만들면 **회의노트도 함께 생긴다** (사용자 결정 D5).
+ *
+ * 왜: 원본은 회의노트 하나라고 정해 놓고 CRM 에서 시작하면 원본이 없는 미팅이 생긴다.
+ * 그러면 같은 회의가 또 두 벌이 된다 — 이 기획이 없애려던 바로 그 상태다.
+ *
+ * 두 가지를 코드가 정한다.
+ *   · `status='draft'` — 개인 회의노트 목록을 어지럽히지 않는다. 내용을 채우면 사람이 확정한다
+ *   · `visibility='crm'` — **여기서 만든 것은 기본 공개다**(D6 원문: "미팅에서 생성하면 기본으로 공개").
+ *     회의노트에서 만들면 컬럼 기본값 'private' 이 된다 — 출처에 따라 기본값이 다른 게 핵심이다
+ *
+ * 노트를 못 만들면 **미팅도 만들지 않는다.** 반쪽만 생기면 화면이 "원본 없음"을 띄우는데
+ * 사용자는 방금 만든 것이라 이유를 알 수 없다.
+ */
+export async function createMeetingWithNote(
+  workspaceId: string,
+  actorId: string | null,
+  hostUserId: string,
+  input: CreateWithNoteInput,
+): Promise<{ id: string; noteId: string }> {
+  const started = new Date(input.startedAt)
+  if (Number.isNaN(started.getTime())) {
+    throw new CrmError('VALIDATION_FAILED', '미팅 시각을 다시 확인해 주세요.', { field: 'startedAt' })
+  }
+  const title = normalizeText(input.title) ?? '(제목 없음)'
+
+  const { createAdminClient } = await import('../../supabase/server.ts')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('meeting_notes')
+    .insert({
+      user_id: hostUserId,
+      title,
+      meeting_at: started.toISOString(),
+      status: 'draft',
+      visibility: 'crm',
+    })
+    .select('id')
+    .single()
+
+  if (error || !data?.id) {
+    throw new CrmError('CONFLICT', '회의노트를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+  }
+  const noteId = data.id as string
+
+  const created = await withCrmTx(workspaceId, async (tx) => {
+    if (input.companyId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const co = await (tx as any).crmCompany.findFirst({ where: { id: input.companyId }, select: { id: true } })
+      if (!co) throw new CrmError('NOT_FOUND', '회사를 찾을 수 없습니다.', { field: 'companyId' })
+    }
+    if (input.dealId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = await (tx as any).crmDeal.findFirst({ where: { id: input.dealId }, select: { id: true } })
+      if (!d) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.', { field: 'dealId' })
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const m = await (tx as any).crmMeeting.create({
+      data: {
+        title,
+        startedAt: started,
+        companyId: input.companyId ?? null,
+        dealId: input.dealId ?? null,
+        location: normalizeText(input.location),
+        noteId,
+        noteSyncedAt: new Date(),
+        createdById: actorId,
+        source: 'HUMAN',
+      },
+      select: { id: true },
+    })
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'meeting.created_with_note',
+      targetType: 'meeting', targetId: m.id, afterJson: { noteId, title },
+    })
+    return m as { id: string }
+  })
+
+  return { id: created.id, noteId }
+}
+
+export interface PickableNote {
+  id: string
+  title: string | null
+  meetingAt: string | null
+  /** 이미 CRM 에 올라간 노트인가 — 목록에서 회색으로 보여 준다(숨기면 "왜 없지"가 된다) */
+  published: boolean
+}
+
+/**
+ * "회의노트에서 가져오기" 목록 — 내 노트만.
+ *
+ * 이미 올린 것을 **숨기지 않는다.** 숨기면 사용자는 "분명 있었는데"를 겪는다.
+ * 대신 표시해 두고 고르면 기존 미팅으로 데려간다(발행이 멱등이라 그렇게 된다).
+ */
+export async function listMyNotesForPicker(
+  workspaceId: string,
+  hostUserId: string,
+  opts: { q?: string; limit?: number } = {},
+): Promise<PickableNote[]> {
+  const { createAdminClient } = await import('../../supabase/server.ts')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  let query = admin
+    .from('meeting_notes')
+    .select('id, title, meeting_at')
+    .eq('user_id', hostUserId)
+    .is('deleted_at', null)
+    .order('meeting_at', { ascending: false, nullsFirst: false })
+    .limit(Math.min(opts.limit ?? 20, 50))
+  const q = (opts.q ?? '').trim()
+  if (q) query = query.ilike('title', `%${q}%`)
+
+  const { data } = await query
+  const rows = (data ?? []) as { id: string; title: string | null; meeting_at: string | null }[]
+  if (rows.length === 0) return []
+
+  const db = getCrmDb(workspaceId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const published = await (db as any).crmMeeting.findMany({
+    where: { noteId: { in: rows.map((r) => r.id) }, deletedAt: null },
+    select: { noteId: true },
+  }) as { noteId: string | null }[]
+  const publishedSet = new Set(published.map((p) => p.noteId).filter(Boolean) as string[])
+
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    meetingAt: r.meeting_at,
+    published: publishedSet.has(r.id),
+  }))
+}
+
 export interface NoteMeta {
   id: string
   /** 원본이 아직 살아 있나 (소프트 삭제도 없는 것으로 본다) */
