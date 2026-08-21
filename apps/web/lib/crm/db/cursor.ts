@@ -94,6 +94,52 @@ export function toPage<T extends { updatedAt: Date; id: string }>(
   return { items, nextCursor: encodeCursor(items[items.length - 1]), total }
 }
 
+/* ── 정렬 축이 updatedAt 이 아닌 목록 ───────────────────────────
+ *
+ * 미팅 목록이 답하는 질문은 "지난주에 누구를 만났나"다. 그 순서는 **만난 시각**이지
+ * 마지막으로 고친 시각이 아니다 — updatedAt 로 세우면 지난달 미팅에 오타 하나 고친 것이
+ * 어제 미팅보다 위로 올라온다.
+ *
+ * 그래서 커서 축을 바꿀 수 있게 열되, **기존 함수는 한 글자도 건드리지 않는다**(추가 전용).
+ * 커서 문자열 모양(`${ISO}|${id}`)과 해독기는 그대로 공유한다 — 축만 다르고 규칙은 같다.
+ */
+
+/** 커서보다 오래된 것만 — 축을 지정한다. 같은 시각이면 id 로 가른다 */
+export function cursorWhereOn(field: string, decoded: DecodedCursor | null): Record<string, unknown> | undefined {
+  if (!decoded) return undefined
+  return {
+    OR: [
+      { [field]: { lt: decoded.updatedAt } },
+      { [field]: decoded.updatedAt, id: { lt: decoded.id } },
+    ],
+  }
+}
+
+/** 지정한 축의 최신순 정렬 */
+export function orderDescOn(field: string): Record<string, 'desc'>[] {
+  return [{ [field]: 'desc' }, { id: 'desc' }]
+}
+
+/**
+ * limit + 1 로 다음 페이지를 판정하고, **지정한 축**으로 커서를 만든다.
+ *
+ * 축과 커서가 어긋나면 다음 페이지가 엉뚱한 자리에서 시작해 **행이 통째로 건너뛰어진다** —
+ * 그리고 사용자는 없어진 줄이 있다는 것을 알 방법이 없다. 그래서 한 함수 안에서 둘을 묶는다.
+ */
+export function toPageOn<T extends { id: string }>(
+  field: string,
+  rows: T[],
+  limit: number,
+  total?: number,
+): CursorPage<T> {
+  if (rows.length <= limit) return { items: rows, nextCursor: null, total }
+  const items = rows.slice(0, limit)
+  const last = items[items.length - 1] as unknown as Record<string, unknown>
+  const at = last[field]
+  const iso = at instanceof Date ? at.toISOString() : String(at)
+  return { items, nextCursor: `${iso}|${items[items.length - 1].id}`, total }
+}
+
 /**
  * 첫 페이지일 때만 총 건수를 센다. 이어 볼 때는 세지 않는다(같은 조건이라 값도 같다).
  *

@@ -4,23 +4,38 @@
 // 미팅은 "그날 무슨 이야기가 오갔는지"를 딜에 붙이는 자리다.
 // 이게 없으면 딜은 금액과 단계만 남은 껍데기가 된다.
 import type { NextRequest } from 'next/server'
-import { withCrmApi, readJson } from '@/lib/crm/api/handler'
+import { withCrmApi, readJson, readListQuery } from '@/lib/crm/api/handler'
 import { getCrmDb } from '@/lib/crm/db/client'
-import { listMeetings, createMeeting } from '@/lib/crm/services/meeting'
+import { listMeetings, listMeetingsPage, createMeeting } from '@/lib/crm/services/meeting'
 import { createMeetingWithNote } from '@/lib/crm/services/meeting-publish'
 import { CrmError } from '@/lib/crm/domain/errors'
 
 export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ session }) => {
     const db = getCrmDb(session.workspaceId)
-    return {
-      items: await listMeetings(db, {
-        dealId: req.nextUrl.searchParams.get('dealId') ?? undefined,
-        companyId: req.nextUrl.searchParams.get('companyId') ?? undefined,
-        noteId: req.nextUrl.searchParams.get('noteId') ?? undefined,
-        limit: Number(req.nextUrl.searchParams.get('limit') ?? 50) || 50,
-      }),
+    const sp = req.nextUrl.searchParams
+
+    /**
+     * `noteId` 로 부를 때는 **딱 한 가지**를 묻는 것이다 — "이 회의노트가 이미 올라갔나".
+     * 커서·검색이 끼면 답이 페이지에 따라 달라진다. 그래서 예전 경로를 그대로 둔다.
+     */
+    const noteId = sp.get('noteId')
+    if (noteId) {
+      return { items: await listMeetings(db, { noteId, limit: 5 }) }
     }
+
+    /**
+     * 그 밖은 훑는 목록이다 — 딜·회사 상세의 패널도 여기로 온다.
+     * 예전엔 상한 50 을 통째로 내려보내고 회사·딜 이름은 화면이 건당 다시 물었다(N+1).
+     * 이제 커서·검색·상태가 붙고 이름은 서버가 함께 준다.
+     */
+    const { cursor, limit, q } = readListQuery(req)
+    return listMeetingsPage(db, {
+      cursor, limit, q,
+      status: sp.get('status'),
+      dealId: sp.get('dealId'),
+      companyId: sp.get('companyId'),
+    })
   })
 }
 

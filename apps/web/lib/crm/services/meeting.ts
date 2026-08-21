@@ -31,6 +31,12 @@ import type { FiveAxisOutput } from '../ai/schemas/five-axis.ts'
 import { fiveAxisToSuggestions } from './five-axis-suggest.ts'
 import { loadExtractContext } from './extract-context.ts'
 import { kstDateKey } from '../../datetime/kst.ts'
+import {
+  clampLimit, decodeCursor, cursorWhereOn, orderDescOn, toPageOn, countIfFirstPage,
+} from '../db/cursor.ts'
+import type { CursorInput, CursorPage } from '../db/cursor.ts'
+import { meetingStatusKey, MEETING_STATUS_ORDER } from '../ui/meeting-status.ts'
+import type { MeetingStatusKey } from '../ui/meeting-status.ts'
 
 export interface MeetingInput {
   title: string
@@ -210,6 +216,168 @@ export async function listMeetings(
     orderBy: { startedAt: 'desc' },
     take: Math.min(opts.limit ?? 50, 100),
     select: SELECT,
+  })
+}
+
+/* ── 훑는 목록 ──────────────────────────────────────────────── */
+
+export interface MeetingListRow {
+  id: string
+  title: string
+  startedAt: Date
+  companyId: string | null
+  dealId: string | null
+  location: string | null
+  summaryMd: string | null
+  noteId: string | null
+  /** 붙어 있는 회사·딜의 이름. id 만 보이면 "어느 건이었지"를 매번 눌러 봐야 한다 */
+  companyName: string | null
+  dealName: string | null
+  /** 읽는 시점 판정 상태 — meeting-status.ts 가 말과 색을 정한다 */
+  statusKey: MeetingStatusKey
+}
+
+export interface ListMeetingPageInput extends CursorInput {
+  /** 제목·장소 부분 일치 */
+  q?: string | null
+  /** 상태 하나로 좁히기. 저장된 컬럼이 아니라 읽는 시점 판정이라 여기서 조건으로 번역한다 */
+  status?: string | null
+  dealId?: string | null
+  companyId?: string | null
+}
+
+/**
+ * 미팅 목록(커서·검색·상태) — 훑는 화면용.
+ *
+ * **정렬 축이 startedAt 인 이유**: 이 화면이 답하는 질문은 "지난주에 누구를 만났나"다.
+ * updatedAt 으로 세우면 지난달 미팅의 오타 수정 하나가 어제 미팅보다 위로 올라온다.
+ *
+ * **회사·딜 이름을 왜 서버가 붙이나**: 예전엔 화면이 미팅 20건을 받은 뒤
+ * 회사·딜마다 상세 API 를 따로 불렀다 — 한 화면에 최대 40번의 왕복(N+1)이었고,
+ * 그중 하나만 실패해도 그 줄만 이름이 빈 채로 남았다. 여기서 한 번에 묶어 준다.
+ * (CrmMeeting 은 회사·딜에 Prisma 관계가 없어 조인 대신 id 묶음 조회를 쓴다.)
+ */
+export async function listMeetingsPage(
+  db: CrmDb,
+  input: ListMeetingPageInput = {},
+): Promise<CursorPage<MeetingListRow>> {
+  const limit = clampLimit(input.limit)
+  const decoded = decodeCursor(input.cursor)
+  const q = normalizeText(input.q)
+  const status = normalizeText(input.status)
+
+  // 모르는 상태는 여기서 막는다 — 그대로 넘기면 조건이 조용히 무시돼
+  // "필터를 걸었는데 전부 나오는" 화면이 된다.
+  if (status && !MEETING_STATUS_ORDER.includes(status as MeetingStatusKey)) {
+    throw new CrmError(
+      'VALIDATION_FAILED',
+      `모르는 미팅 상태입니다: ${status}. ${MEETING_STATUS_ORDER.join(' · ')} 중에서 골라 주세요.`,
+      { field: 'status' },
+    )
+  }
+
+  const where: Record<string, unknown> = {}
+  if (input.dealId) where.dealId = input.dealId
+  if (input.companyId) where.companyId = input.companyId
+
+  // 검색은 AND 로 따로 묶는다 — where.OR 에 그냥 넣으면 다른 OR 조건을 덮어쓴다
+  const search = q
+    ? { OR: [
+      { title: { contains: q, mode: 'insensitive' } },
+      { location: { contains: q, mode: 'insensitive' } },
+    ] }
+    : null
+
+  /**
+   * 상태 조건을 DB 조건으로 번역한다.
+   *
+   * '정리됨'만 컬럼으로 판정할 수 있다(summaryMd). 나머지는 녹음의 상태 조합이라
+   * 관계 조건(some/none/every)으로 옮긴다 — 화면에서 거르면 페이지마다 개수가 달라진다.
+   */
+  const statusWhere = statusCondition(status as MeetingStatusKey | null)
+
+  const cur = cursorWhereOn('startedAt', decoded)
+  const parts = [where, search, statusWhere, cur].filter(Boolean) as Record<string, unknown>[]
+  const finalWhere = parts.length > 1 ? { AND: parts } : (parts[0] ?? {})
+  const countWhere = [where, search, statusWhere].filter(Boolean) as Record<string, unknown>[]
+
+  const [rows, total] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).crmMeeting.findMany({
+      where: finalWhere,
+      select: { ...SELECT, recordings: { select: { status: true } } },
+      orderBy: orderDescOn('startedAt'),
+      take: limit + 1,
+    }),
+    countIfFirstPage(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (db as any).crmMeeting,
+      countWhere.length > 1 ? { AND: countWhere } : (countWhere[0] ?? {}),
+      decoded,
+    ),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ]) as [any[], number | undefined]
+
+  const named = await attachNames(db, rows)
+  return toPageOn('startedAt', named, limit, total)
+}
+
+/** 읽는 시점 상태를 DB 조건으로 — 화면에서 거르면 페이지마다 개수가 달라진다 */
+function statusCondition(status: MeetingStatusKey | null): Record<string, unknown> | null {
+  if (!status) return null
+  const summarized = { NOT: [{ summaryMd: null }, { summaryMd: '' }] }
+  if (status === 'SUMMARIZED') return summarized
+  // 정리된 건은 다른 상태로 세지 않는다 — 겹치면 같은 미팅이 두 필터에 다 나온다
+  const notSummarized = { OR: [{ summaryMd: null }, { summaryMd: '' }] }
+  if (status === 'EMPTY') return { AND: [notSummarized, { recordings: { none: {} } }] }
+  if (status === 'TRANSCRIBED') {
+    return { AND: [notSummarized, { recordings: { some: { status: { in: ['TRANSCRIBED', 'SUMMARIZED'] } } } }] }
+  }
+  if (status === 'TRANSCRIBING') {
+    return { AND: [
+      notSummarized,
+      { recordings: { none: { status: { in: ['TRANSCRIBED', 'SUMMARIZED'] } } } },
+      { recordings: { some: { status: { in: ['UPLOADED', 'TRANSCRIBING'] } } } },
+    ] }
+  }
+  // 전부 실패 — 하나라도 살아 있으면 실패라고 부르지 않는다
+  return { AND: [
+    notSummarized,
+    { recordings: { some: { status: 'FAILED' } } },
+    { recordings: { none: { status: { not: 'FAILED' } } } },
+  ] }
+}
+
+/** 회사·딜 이름을 한 번에 붙인다(목록 왕복 N+1 제거) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function attachNames(db: CrmDb, rows: any[]): Promise<MeetingListRow[]> {
+  const companyIds = Array.from(new Set(rows.map((r) => r.companyId).filter(Boolean))) as string[]
+  const dealIds = Array.from(new Set(rows.map((r) => r.dealId).filter(Boolean))) as string[]
+
+  const [companies, deals] = await Promise.all([
+    companyIds.length
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (db as any).crmCompany.findMany({ where: { id: { in: companyIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    dealIds.length
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (db as any).crmDeal.findMany({ where: { id: { in: dealIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+  ]) as [{ id: string; name: string }[], { id: string; name: string }[]]
+
+  const nameOf = new Map<string, string>()
+  for (const c of companies) nameOf.set(`c:${c.id}`, c.name)
+  for (const d of deals) nameOf.set(`d:${d.id}`, d.name)
+
+  return rows.map((r) => {
+    const { recordings, ...rest } = r
+    const statuses = ((recordings ?? []) as { status: string }[]).map((x) => x.status)
+    return {
+      ...rest,
+      companyName: r.companyId ? nameOf.get(`c:${r.companyId}`) ?? null : null,
+      dealName: r.dealId ? nameOf.get(`d:${r.dealId}`) ?? null : null,
+      statusKey: meetingStatusKey({ summaryMd: r.summaryMd ?? null, recordingStatuses: statuses }),
+    } as MeetingListRow
   })
 }
 
