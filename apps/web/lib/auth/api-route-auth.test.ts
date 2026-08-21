@@ -32,7 +32,13 @@ const SESSION = /auth\.get(?:User|Session)\(\)|\bresolveCrmAccess\s*\(/
 /** 거부까지 하는지 — 세션을 읽고 통과시키면 인증이 아니다 */
 const DENY = /status:\s*40[13]|['"]UNAUTHORIZED['"]|['"]FORBIDDEN['"]|redirect\(/
 /** 사용자 세션이 아니라 서비스 토큰으로 인증하는 경우(크론·워커) */
-const SERVICE_TOKEN = /CI_WORKER_TOKEN|CRON_SECRET|AUTOLINK_WORKER_TOKEN|process\.env\.[A-Z_]*TOKEN/
+/**
+ * `isMachineCall` 도 인증이다 — v0.7.572 에서 크론·잡 인증을 SSOT(`machine-auth.ts`)로 모았다.
+ * 그 SSOT 를 쓰면 라우트 파일에 `CRON_SECRET` 이라는 글자가 안 남는데,
+ * 이 가드가 글자만 보고 있어서 **SSOT 를 채택한 라우트가 오히려 미인증으로 보였다**(v0.7.588 실측).
+ * 규칙을 지킬수록 가드에 걸리는 상태라, 그건 가드가 틀린 것이다.
+ */
+const SERVICE_TOKEN = /CI_WORKER_TOKEN|CRON_SECRET|AUTOLINK_WORKER_TOKEN|process\.env\.[A-Z_]*TOKEN|\bisMachineCall\(/
 
 /**
  * 인증 코드가 라우트 파일에 없어도 되는 예외.

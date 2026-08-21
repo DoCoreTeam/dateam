@@ -36,6 +36,10 @@
       "schedule": "*/2 * * * *"
     },
     {
+      "path": "/api/cron/system-log-prune",
+      "schedule": "30 4 * * *"
+    },
+    {
       "path": "/api/meeting-notes/jobs/audio-purge",
       "schedule": "30 4 * * *"
     }
