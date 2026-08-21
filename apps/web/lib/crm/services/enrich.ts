@@ -29,8 +29,36 @@ import type { SuggestionAxis } from './suggestion.ts'
 const FIELD_AXIS: Record<string, SuggestionAxis> = {
   // 회사
   domain: 'WHO', industry: 'WHAT', region: 'WHERE',
+  // 회사 — 웹 보강이 채우는 나머지(enrich-web.ts). 축이 없으면 인박스가 묶어서 못 보여 준다
+  employeeRange: 'WHAT', descriptionMd: 'WHAT',
   // 인물
   email: 'WHO', phone: 'WHO', title: 'WHO',
+}
+
+/**
+ * 붙여넣기 경로가 쓰던 기본 신뢰도.
+ *
+ * 원문에서 그대로 읽어낸 값이라 확신이 높다. 다만 1.0 은 쓰지 않는다 —
+ * 사람이 검토할 여지를 남기는 게 이 관문의 목적이다.
+ */
+const DEFAULT_CONFIDENCE = 0.8
+
+export interface EnrichOptions {
+  /**
+   * 이 제안들의 신뢰도.
+   *
+   * **왜 인자로 받나**: 근거의 강도가 경로마다 다르다. 명함에 적힌 전화번호와
+   * 이름만으로 웹에서 찾은 회사는 확신이 같을 수 없다. 하나로 고정해 두면
+   * 둘 중 하나는 반드시 틀린 값이 되고, 그 값이 자동 반영 문턱(0.85)을 좌우한다.
+   */
+  confidence?: number
+  /**
+   * 근거에 함께 남길 것.
+   *
+   * 붙여넣기는 **원문 인용**이 근거였다. 웹 보강은 인용할 원문이 없고
+   * 대신 **출처 URL** 이 근거다 — 화면이 그걸 보여 줘야 사람이 수락을 판단한다.
+   */
+  evidence?: Record<string, unknown>
 }
 
 export interface EnrichCandidate {
@@ -61,9 +89,11 @@ export async function enrichFromText(
   runId: string,
   quote: string,
   candidates: EnrichCandidate[],
+  opts: EnrichOptions = {},
 ): Promise<EnrichResult> {
   let suggested = 0
   let applied = 0
+  const confidence = opts.confidence ?? DEFAULT_CONFIDENCE
 
   for (const c of candidates) {
     for (const [field, raw] of Object.entries(c.proposed)) {
@@ -89,10 +119,8 @@ export async function enrichFromText(
           field,
           currentValue: cur ?? null,
           proposedValue: value,
-          // 원문에서 그대로 읽어낸 값이라 확신이 높다. 다만 1.0 은 쓰지 않는다 —
-          // 사람이 검토할 여지를 남기는 게 이 관문의 목적이다.
-          confidence: 0.8,
-          evidence: { quote: quote.slice(0, 500) },
+          confidence,
+          evidence: { quote: quote.slice(0, 500), ...(opts.evidence ?? {}) },
         })
         if (res.suggestion) suggested += 1
         if (res.verdict.decision === 'AUTO_APPLIED') applied += 1

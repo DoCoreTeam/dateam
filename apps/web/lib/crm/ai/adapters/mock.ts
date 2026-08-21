@@ -115,3 +115,33 @@ export function mockAdapter(): AiAdapter {
     },
   }
 }
+
+/**
+ * 웹 보강용 mock 어댑터.
+ *
+ * 이 어댑터도 **AI 인 척하지 않는다.** 그런데 여기서는 한 걸음 더 나간다 —
+ * 그럴듯한 회사 정보를 만들어 돌려주면, 그 값이 **진짜 회사 레코드에 저장된다.**
+ * 명함 추출 mock 은 화면에 후보로 뜰 뿐이지만, 보강은 빈 칸을 채우는 경로다.
+ * 픽스처가 운영 데이터가 되는 셈이라 그 위험이 다르다.
+ *
+ * 그래서 "찾지 못했다"고 정직하게 답한다. 흐름(러너 → 판정 → 화면 표시)은 그대로 돌아
+ * **특정 실패 경로가 실제로 되는지**를 키 없이도 확인할 수 있다 —
+ * 그 경로는 실제 모델에서도 자주 밟게 되는 길이다.
+ */
+export function mockWebSearchAdapter(): AiAdapter {
+  return {
+    model: 'mock',
+    async complete() {
+      const output = {
+        matched: false,
+        matchReason: 'mock 어댑터는 인터넷을 볼 수 없습니다. 시스템 설정 → 통합에서 Gemini 또는 Claude 키를 등록한 뒤 다시 시도해 주세요.',
+        domain: null,
+        industry: null,
+        region: null,
+        employeeRange: null,
+        descriptionMd: null,
+      }
+      return { text: jsonOf(output), tokensIn: 0, tokensOut: 0, sources: [] }
+    },
+  }
+}

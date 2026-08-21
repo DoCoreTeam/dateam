@@ -21,8 +21,8 @@ import { normalizeDomain, normalizeEmail, normalizePhone, normalizeText } from '
 import { runAi } from '../ai/runner.ts'
 import { QUICK_CREATE_V1 } from '../ai/prompts/quick-create.v1.ts'
 import { parseQuickCreate, type QuickCreateOutput } from '../ai/schemas/quick-create.ts'
-import { mockAdapter } from '../ai/adapters/mock.ts'
-import { hostAdapter } from '../ai/adapters/host.ts'
+import { mockAdapter, mockWebSearchAdapter } from '../ai/adapters/mock.ts'
+import { hostAdapter, type HostAdapterOptions } from '../ai/adapters/host.ts'
 import { enrichFromText } from './enrich.ts'
 import type { EnrichCandidate } from './enrich.ts'
 import type { AiAdapter } from '../ai/runner.ts'
@@ -311,12 +311,17 @@ export async function applyQuickCreate(
  * `mock` 은 남겨 둔다. 키가 없는 환경(테스트·초기 세팅)에서도 흐름이 돌아야
  * "AI 를 못 붙여서 아무것도 못 해 본다"가 안 된다.
  */
-export async function adapterFromSetting(db: ReturnType<typeof getCrmDb>): Promise<AiAdapter> {
+export async function adapterFromSetting(
+  db: ReturnType<typeof getCrmDb>,
+  opts: HostAdapterOptions = {},
+): Promise<AiAdapter> {
   const setting = await resolveSetting(db, 'ai.model.extract')
   const name = typeof setting.value === 'string' ? setting.value.trim().toLowerCase() : 'auto'
-  if (name === 'mock') return mockAdapter()
+  // mock 도 용도에 맞는 것을 준다 — 명함 추출용 픽스처로 회사 보강을 돌리면
+  // 스키마가 안 맞아 "AI 가 이해하지 못했습니다"가 뜨고, 원인이 mock 이라는 걸 아무도 모른다.
+  if (name === 'mock') return opts.webSearch ? mockWebSearchAdapter() : mockAdapter()
 
-  return hostAdapter(readHostMeta, name)
+  return hostAdapter(readHostMeta, name, opts)
 }
 
 /**

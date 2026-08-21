@@ -18,6 +18,9 @@
 import type { CrmDb } from '../db/client.ts'
 import { CrmError } from '../domain/errors.ts'
 import { reserveBudget, settleBudget } from '../services/budget.ts'
+// 프로바이더 실패 → 사람이 읽을 문장. 호스트에 이미 있는 SSOT 를 그대로 쓴다
+// (재사용·단일구현 정책 — CRM 이 같은 표를 따로 만들면 언젠가 한쪽만 갱신된다)
+import { classifyProviderError } from '../../ai-chat/provider-errors.ts'
 
 export type AiRunKind = 'MEETING_EXTRACT' | 'QUICK_CREATE' | 'ENRICH' | 'FIELD_FILL' | 'ASSISTANT'
 
@@ -27,10 +30,29 @@ export interface AiPrompt {
   build: (input: string) => string
 }
 
+/**
+ * 웹 검색으로 답을 만들었을 때의 **출처**.
+ *
+ * 붙여넣기 경로는 근거가 원문 인용이었다(enrich 규칙 ③). 그런데 웹 경로에는
+ * 인용할 원문이 없다 — 대신 **어느 페이지에서 읽었는지**가 근거다.
+ * 근거가 없으면 사람은 제안을 수락할지 판단할 수 없고, 판단할 수 없는 제안은
+ * 인박스를 안 보게 만든다.
+ */
+export interface AiSource {
+  url: string
+  title: string
+}
+
 export interface AiAdapter {
   /** 모델 별칭 — CrmAppSetting 에서 온다. 코드에 모델명을 하드코딩하지 않는다(명세 §351) */
   readonly model: string
-  complete(prompt: string): Promise<{ text: string; tokensIn: number; tokensOut: number }>
+  complete(prompt: string): Promise<{
+    text: string
+    tokensIn: number
+    tokensOut: number
+    /** 웹 검색을 켠 어댑터만 채운다. 안 켰으면 undefined — "출처 없음"과 "검색 안 함"은 다르다 */
+    sources?: AiSource[]
+  }>
 }
 
 export interface RunOptions<T> {
@@ -59,6 +81,8 @@ export interface RunOptions<T> {
 export interface RunResult<T> {
   output: T
   runId: string
+  /** 웹 검색을 썼다면 출처 — 이 값이 제안의 근거로 그대로 넘어간다 */
+  sources?: AiSource[]
 }
 
 /** 명세 3.1-8 "AI 파싱 2회 실패" — 한 번 더 묻고 끝낸다. 무한 재시도는 비용만 태운다 */
@@ -79,17 +103,70 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
   let lastError: unknown = null
   let tokensIn = 0
   let tokensOut = 0
+  let sources: AiSource[] | undefined
+
+  /**
+   * 마지막 실패가 **모델에 닿지 못한** 실패였나(키 없음·할당량 소진·시간 초과),
+   * 아니면 답은 왔는데 **못 읽은** 실패였나.
+   *
+   * 둘을 구분하지 않으면 어느 쪽이든 "AI 가 내용을 이해하지 못했습니다"로 끝난다.
+   * 실측(2026-08-21): Gemini 가 429(할당량 소진)를 줬는데 화면에는 그 문구가 떴다 —
+   * 읽은 사람은 프롬프트나 입력을 의심하며 **원인이 아닌 곳을 고친다.**
+   * 이 파일은 DB 쓰기 실패에 대해 이미 같은 경고를 적어 뒀는데(아래), 정작 모델 호출 쪽이 안 막혀 있었다.
+   */
+  let transportFailed = false
+
+  /** 실패로 끝낼 때 남길 것 — 기록과 정산은 어느 실패든 똑같이 해야 한다 */
+  const recordFailure = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).crmAiRun.create({
+      data: {
+        kind, model: adapter.model, promptVersion: prompt.version,
+        status: 'FAILED', inputRef, tokensIn, tokensOut,
+        latencyMs: Date.now() - startedAt,
+        error: lastError instanceof Error ? lastError.message.slice(0, 500) : String(lastError).slice(0, 500),
+      },
+    }).catch(() => undefined)
+
+    // 실패해도 쓴 토큰만큼은 정산한다 — 실패한 호출도 돈이 나간다.
+    // 선점분을 그대로 두면 실패가 쌓일수록 남은 예산이 실제보다 적게 보인다.
+    await settleBudget(
+      workspaceId, estimate, opts.costOf ? opts.costOf(tokensIn, tokensOut) : BigInt(0),
+    ).catch(() => undefined)
+  }
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    let output: T
+    let text: string
     try {
       const res = await adapter.complete(prompt.build(input))
       tokensIn += res.tokensIn
       tokensOut += res.tokensOut
-      output = parse(res.text)
+      // 출처는 파싱보다 **먼저** 잡는다 — 파싱이 실패해 한 번 더 물었을 때
+      // 첫 시도에서 본 페이지가 사라지면 근거 없는 제안이 된다.
+      if (res.sources && res.sources.length > 0) sources = res.sources
+      text = res.text
     } catch (e) {
-      // 모델 호출·파싱 실패만 여기서 삼킨다 — 다시 물어볼 가치가 있는 실패다
       lastError = e
+      transportFailed = true
+      /**
+       * 어댑터가 **사람에게 할 말을 이미 만들어 놨으면**(CrmError) 그대로 올린다.
+       * "키가 없다"·"이 AI 는 웹 검색을 못 한다"는 다시 물어도 같은 결과라
+       * 재시도가 시간만 쓰고, 우리가 다시 쓴 문구는 원래 문구보다 반드시 덜 구체적이다.
+       */
+      if (e instanceof CrmError) {
+        await recordFailure()
+        throw e
+      }
+      continue
+    }
+
+    let output: T
+    try {
+      output = parse(text)
+    } catch (e) {
+      // 답은 왔는데 못 읽었다 — 이건 다시 물어볼 값어치가 있는 실패다
+      lastError = e
+      transportFailed = false
       continue
     }
 
@@ -113,26 +190,28 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
     // 안 그러면 mock 어댑터가 도는 것만으로 예산이 줄어든다.
     await settleBudget(workspaceId, estimate, opts.costOf ? opts.costOf(tokensIn, tokensOut) : BigInt(0))
 
-    return { output, runId: run.id }
+    return { output, runId: run.id, sources }
   }
 
   // 실패도 기록한다 — 실패가 안 남으면 "왜 안 됐지"를 사용자에게 물어보게 된다.
-  // 이 기록마저 실패하면 원래 실패(AI_PARSE_FAILED)를 덮지 않도록 조용히 넘어간다.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).crmAiRun.create({
-    data: {
-      kind, model: adapter.model, promptVersion: prompt.version,
-      status: 'FAILED', inputRef, tokensIn, tokensOut,
-      latencyMs: Date.now() - startedAt,
-      error: lastError instanceof Error ? lastError.message.slice(0, 500) : String(lastError).slice(0, 500),
-    },
-  }).catch(() => undefined)
+  await recordFailure()
 
-  // 실패해도 쓴 토큰만큼은 정산한다 — 실패한 호출도 돈이 나간다.
-  // 선점분을 그대로 두면 실패가 쌓일수록 남은 예산이 실제보다 적게 보인다.
-  await settleBudget(
-    workspaceId, estimate, opts.costOf ? opts.costOf(tokensIn, tokensOut) : BigInt(0),
-  ).catch(() => undefined)
+  /**
+   * **모델에 닿지 못한** 실패는 그렇게 말한다.
+   *
+   * 프로바이더가 준 사유(429 할당량 소진, 5xx 등)를 짧게 실어 보낸다 —
+   * 그게 없으면 사용자도 다음 사람도 어디를 봐야 할지 모른다.
+   */
+  if (transportFailed) {
+    /**
+     * 원문을 그대로 올리지 않는다.
+     *
+     * 실측(2026-08-21): 화면에 `Gemini API 오류 (429): { "error": { "code": 429, "message":
+     * "You exceeded your current quota..."` 가 통째로 떴다. 원인은 맞았지만 **읽을 수 있는 말이 아니다** —
+     * 사용자는 무엇을 해야 하는지 알 수 없다.
+     */
+    throw new CrmError('VALIDATION_FAILED', classifyProviderError(lastError).message)
+  }
 
   throw new CrmError('AI_PARSE_FAILED',
     'AI 가 내용을 이해하지 못했습니다. 원문은 그대로 두었으니 다시 시도하거나 직접 입력해 주세요.')
