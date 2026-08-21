@@ -20,6 +20,7 @@ import { googleGmailAdapter } from '@/lib/crm/integrations/gmail-google'
 import { getCrmAccessToken } from '@/lib/crm/integrations/connect'
 import { createAdminClient } from '@/lib/supabase/server'
 import { resolveCrmAccess } from '@/lib/crm/auth/requireCrmMember'
+import { isMachineCall, machineAuthUnconfigured } from '@/lib/crm/jobs/machine-auth'
 
 export const maxDuration = 60
 
@@ -72,11 +73,10 @@ async function runFor(conns: ConnRow[]) {
 
 /** 크론·외부 스케줄러 전용 — 전 워크스페이스 */
 export async function POST(req: NextRequest) {
-  const expected = process.env.CI_WORKER_TOKEN
-  if (!expected) {
+  if (machineAuthUnconfigured()) {
     return Response.json({ error: { message: '워커 토큰이 설정되지 않았습니다' } }, { status: 500 })
   }
-  if (req.headers.get('Authorization') !== `Bearer ${expected}`) {
+  if (!isMachineCall(req)) {
     return Response.json({ error: { message: '워커 토큰이 올바르지 않습니다' } }, { status: 401 })
   }
 
@@ -90,7 +90,14 @@ export async function POST(req: NextRequest) {
  * 방금 연결한 사람이 첫 메일을 보려고 15분을 기다리게 두면
  * 사용자는 연동이 안 되는 줄 안다.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Vercel 크론은 **GET** 으로 온다 — 기계 호출이면 POST 와 같은 전 워크스페이스 경로다.
+  // 이 분기가 없어서 vercel.json 에 등록해 둔 크론이 계속 403 이었다(실측 2026-08-21).
+  if (isMachineCall(req)) {
+    const all = await activeConnections()
+    return Response.json({ connections: all.length, results: await runFor(all) })
+  }
+
   const access = await resolveCrmAccess()
   if (!access.ok) {
     return Response.json({ error: { message: '영업 CRM 멤버만 실행할 수 있습니다' } }, { status: 403 })

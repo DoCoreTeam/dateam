@@ -16,6 +16,7 @@ import type { NextRequest } from 'next/server'
 import { expireSuggestions } from '@/lib/crm/services/suggestion'
 import { createAdminClient } from '@/lib/supabase/server'
 import { resolveCrmAccess } from '@/lib/crm/auth/requireCrmMember'
+import { isMachineCall, machineAuthUnconfigured } from '@/lib/crm/jobs/machine-auth'
 
 export const maxDuration = 60
 
@@ -54,11 +55,10 @@ async function runFor(ids: string[]) {
 
 /** 크론·외부 스케줄러 전용 — 전 워크스페이스 */
 export async function POST(req: NextRequest) {
-  const expected = process.env.CI_WORKER_TOKEN
-  if (!expected) {
+  if (machineAuthUnconfigured()) {
     return Response.json({ error: { message: '워커 토큰이 설정되지 않았습니다' } }, { status: 500 })
   }
-  if (req.headers.get('Authorization') !== `Bearer ${expected}`) {
+  if (!isMachineCall(req)) {
     return Response.json({ error: { message: '워커 토큰이 올바르지 않습니다' } }, { status: 401 })
   }
 
@@ -72,7 +72,14 @@ export async function POST(req: NextRequest) {
  * 크론이 주 경로지만, 크론이 아직 안 붙은 환경에서도 인박스가
  * 지난 제안으로 차 있으면 안 된다. 화면이 열릴 때 자기 것만 정리한다.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Vercel 크론은 **GET** 으로 온다 — 기계 호출이면 POST 와 같은 전 워크스페이스 경로다.
+  // 이 분기가 없어서 vercel.json 에 등록해 둔 크론이 계속 403 이었다(실측 2026-08-21).
+  if (isMachineCall(req)) {
+    const ids = await allWorkspaceIds()
+    return Response.json({ workspaces: ids.length, results: await runFor(ids) })
+  }
+
   const access = await resolveCrmAccess()
   if (!access.ok) {
     return Response.json({ error: { message: '영업 CRM 멤버만 실행할 수 있습니다' } }, { status: 403 })

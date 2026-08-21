@@ -13,6 +13,7 @@ import { withCrmTx } from '@/lib/crm/db/tx'
 import { runStalledSweep } from '@/lib/crm/services/automation'
 import { createAdminClient } from '@/lib/supabase/server'
 import { resolveCrmAccess } from '@/lib/crm/auth/requireCrmMember'
+import { isMachineCall, machineAuthUnconfigured } from '@/lib/crm/jobs/machine-auth'
 
 export const maxDuration = 60
 
@@ -31,16 +32,11 @@ async function sweep(workspaceId: string) {
   return runStalledSweep(db, (fn) => withCrmTx(workspaceId, fn))
 }
 
-/** 크론 전용 — 전 워크스페이스 */
-export async function POST(req: NextRequest) {
-  const expected = process.env.CI_WORKER_TOKEN
-  if (!expected) {
-    return Response.json({ error: { message: '워커 토큰이 설정되지 않았습니다' } }, { status: 500 })
-  }
-  if (req.headers.get('Authorization') !== `Bearer ${expected}`) {
-    return Response.json({ error: { message: '워커 토큰이 올바르지 않습니다' } }, { status: 401 })
-  }
-
+/**
+ * 전 워크스페이스 훑기 — 크론(GET)과 외부 스케줄러(POST)가 **같은 함수**를 쓴다.
+ * 예전엔 이 루프가 POST 안에만 있어서, GET 으로 오는 Vercel 크론은 닿을 수가 없었다.
+ */
+async function runAll() {
   const ids = await allWorkspaceIds()
   const results: Record<string, unknown>[] = []
   for (const id of ids) {
@@ -52,7 +48,19 @@ export async function POST(req: NextRequest) {
       results.push({ workspaceId: id, error: e instanceof Error ? e.message : String(e) })
     }
   }
-  return Response.json({ workspaces: ids.length, results })
+  return { workspaces: ids.length, results }
+}
+
+/** 크론 전용 — 전 워크스페이스 */
+export async function POST(req: NextRequest) {
+  if (machineAuthUnconfigured()) {
+    return Response.json({ error: { message: '워커 토큰이 설정되지 않았습니다' } }, { status: 500 })
+  }
+  if (!isMachineCall(req)) {
+    return Response.json({ error: { message: '워커 토큰이 올바르지 않습니다' } }, { status: 401 })
+  }
+
+  return Response.json(await runAll())
 }
 
 /**
@@ -61,7 +69,11 @@ export async function POST(req: NextRequest) {
  * 크론이 주 경로지만, 크론이 아직 안 붙은 환경에서도 규칙을 만든 사람이
  * "이게 진짜 도나"를 확인할 수 있어야 한다.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Vercel 크론은 **GET** 으로 온다 — 기계 호출이면 POST 와 같은 전 워크스페이스 경로다.
+  // 이 분기가 없어서 vercel.json 에 등록해 둔 크론이 계속 403 이었다(실측 2026-08-21).
+  if (isMachineCall(req)) return Response.json(await runAll())
+
   const access = await resolveCrmAccess()
   if (!access.ok) {
     return Response.json({ error: { message: '영업 CRM 멤버만 실행할 수 있습니다' } }, { status: 403 })

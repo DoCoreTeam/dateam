@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.572',
+    date: '2026-08-21',
+    title: '영업 CRM이 열리지 않던 문제를 고치고, 자동으로 돌아야 할 일들이 진짜 돌게 했어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🩹',
+        headline: '영업 CRM 메뉴가 오류 화면 대신 정상으로 열려요',
+        detail: '영업 CRM을 누르면 알 수 없는 오류 화면이 뜨던 문제를 해결했어요. 오늘·인박스·딜·견적·회사·인물·미팅·할 일까지 모든 화면을 다시 확인했어요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '📬',
+        headline: '연결해 둔 Gmail이 이제 알아서 들어와요',
+        detail: '구글 계정을 연결해도 메일이 자동으로 들어오지 않던 문제를 고쳤어요. 이제 15분마다 스스로 가져오고, 지난 제안 정리와 오래 멈춘 영업 건 살피기도 제때 돌아요.',
+      },
+    ],
+  },
+  {
     version: '0.7.571',
     date: '2026-08-19',
     title: '회의노트 AI가 멈추던 문제를 고치고, 정제본을 진짜 회의록으로 바꿨어요',

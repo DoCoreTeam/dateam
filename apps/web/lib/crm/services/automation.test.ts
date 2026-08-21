@@ -227,7 +227,14 @@ test('★ 오래 머문 딜을 훑는 잡이 실재한다 — 없으면 그 트�
   const route = readFileSync(
     new URL('../../../app/api/crm/jobs/stalled-deals/route.ts', import.meta.url), 'utf8')
   assert.ok(route.includes('runStalledSweep('), '잡이 훑기를 부르지 않는다')
-  assert.ok(route.includes('CI_WORKER_TOKEN'), '크론 입구가 잠겨 있지 않다')
+  // 잠금 판정을 **문자열이 아니라 호출**로 본다. 예전엔 파일에 'CI_WORKER_TOKEN' 이
+  // 적혀 있는지로 봤는데, 판정이 lib/crm/jobs/machine-auth(SSOT) 로 옮겨가면서
+  // 그 문자열이 사라졌다 — 잠금은 더 강해졌는데 가드는 깨졌다(v0.7.572).
+  assert.ok(route.includes('machineAuthUnconfigured('), '토큰 미설정인데 거부하지 않는다')
+  assert.ok(route.includes('isMachineCall('), '크론 입구가 잠겨 있지 않다')
+  // GET 도 잠긴 채 열려 있어야 한다 — Vercel 크론은 GET 으로 온다
+  const get = route.slice(route.indexOf('export async function GET'))
+  assert.ok(get.includes('isMachineCall(req)'), 'GET 이 크론 호출을 못 받는다')
 })
 
 test('★ 그 잡이 크론에 실제로 올라 있다 — 라우트만 만들면 아무도 안 부른다', () => {
