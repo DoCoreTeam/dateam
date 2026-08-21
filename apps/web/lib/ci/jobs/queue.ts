@@ -316,7 +316,7 @@ export async function finishJob(input: FinishInput): Promise<CiJobStatus> {
    */
   if (finalStatus === 'dead') {
     const { recordSystemEventAsync } = await import('../../system-log/record.ts')
-    recordSystemEventAsync({
+    await recordSystemEventAsync({
       source: 'ci_job',
       error: new Error(input.errorMessage ?? '작업이 실패했습니다'),
       feature: 'ci-collect',

@@ -18,6 +18,7 @@
 // ⑥ 영향받은 사람을 말한다 — 관리자가 "이거 심각한가"를 판단하는 유일한 근거다
 
 import { featureLabel, sourceLabel, reasonLabel } from './labels.ts'
+import { iGa } from '../ui/josa.ts'
 import type { SystemReason } from './reason.ts'
 
 export interface NarrateInput {
@@ -29,10 +30,15 @@ export interface NarrateInput {
   hint?: string | null
 }
 
-/** 첫 줄 — **무엇이 안 됐나.** 원인은 여기 안 쓴다(둘째 줄이 맡는다) */
+/**
+ * 첫 줄 — **무엇이 안 됐나.** 원인은 여기 안 쓴다(둘째 줄이 맡는다).
+ *
+ * 조사는 `lib/ui/josa.ts`(SSOT)에 맡긴다. "이(가)"처럼 둘 다 적으면
+ * 기계가 쓴 티가 나고, 그 순간 관리자는 이 문장을 **자동 생성된 잡음**으로 읽는다.
+ */
 export function headlineOf(input: NarrateInput): string {
   const what = input.feature ? featureLabel(input.feature) : sourceLabel(input.source)
-  return `${what}이(가) 실패했습니다`
+  return `${what}${iGa(what)} 실패했습니다`
 }
 
 /**

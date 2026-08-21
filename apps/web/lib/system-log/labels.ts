@@ -26,6 +26,11 @@ export const FEATURE_LABELS: Record<string, string> = {
   // 회의·업무
   'meeting-summary': '회의록 정리',
   'daily-suggest': '일일업무 AI 제안',
+  // CRM AI 런의 kind — `crm_ai_run.kind` 가 그대로 넘어온다(실측: 'ENRICH')
+  ENRICH: '회사 정보 AI 보강',
+  QUICK_CREATE: '붙여넣기로 등록',
+  MEETING_EXTRACT: '미팅 기록 추출',
+  ASSISTANT: 'CRM AI 도우미',
 }
 
 export function featureLabel(feature: string | null | undefined): string {

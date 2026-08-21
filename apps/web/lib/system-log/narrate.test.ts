@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { headlineOf, detailOf, occurrenceLine, truncateRaw, maskSecrets, RAW_MAX } from './narrate.ts'
 import { classifySystemReason, severityOf, normalizeMessage, fingerprintOf } from './reason.ts'
 import { featureLabel, sourceLabel, reasonLabel } from './labels.ts'
+import { read } from '../ui/component-scan.ts'
 
 const at = (iso: string) => iso.slice(11, 16)
 
@@ -175,4 +176,46 @@ test('모르는 기능 키는 코드 이름을 그대로 보여 준다 — 지�
   assert.equal(featureLabel('some-new-thing'), 'some-new-thing')
   assert.equal(featureLabel(''), '알 수 없는 기능')
   assert.equal(sourceLabel('crm_api'), 'CRM 화면')
+})
+
+// ── 침묵 금지 (v0.7.584 실측 사고) ───────────────────────────
+//
+// 시스템 로그는 **침묵을 없애려고** 만든 것이다. 그런데 그 자신이 조용히 실패했다:
+// `workspace_id` 칼럼이 uuid 인데 CRM 워크스페이스 id 는 `ws_dataalliance` 라
+// 모든 insert 가 거절당했다. supabase-js 는 오류를 **던지지 않고 반환**하는데
+// 코드가 그 값을 안 봐서, 화면에는 0건이 쌓였고 아무도 몰랐다.
+
+test('insert 의 반환 오류를 반드시 본다 — supabase-js 는 실패를 던지지 않는다', () => {
+  const src = read('lib/system-log/record.ts')
+  assert.match(src, /if \(raced\?\.error\) throw new Error/,
+    '반환된 { error } 를 안 보면 저장 실패가 조용히 지나간다')
+  assert.match(src, /console\.error\('\[system-log\] 기록 실패/,
+    '실패는 console.error 로 남긴다 — warn 은 로그에서 묻힌다')
+})
+
+test('기록은 기다린다 — fire-and-forget 은 응답과 함께 사라진다', () => {
+  const src = read('lib/system-log/record.ts')
+  // 실측: `void recordSystemEvent(...)` 였을 때 AI 한도 실패가 한 건도 안 남았다
+  assert.ok(!/^\s*void recordSystemEvent\(/m.test(src), 'fire-and-forget 으로 되돌아갔다')
+  assert.match(src, /export async function recordSystemEventAsync/)
+  assert.match(src, /await recordSystemEvent\(input\)/)
+})
+
+test('길목 넷은 전부 await 한다 — 하나라도 빠지면 그 경로만 조용해진다', () => {
+  const funnels = [
+    'lib/crm/api/handler.ts',
+    'lib/crm/ai/runner.ts',
+    'lib/ai/gemini-call.ts',
+    'lib/ci/jobs/queue.ts',
+  ]
+  for (const f of funnels) {
+    const src = read(f)
+    assert.match(src, /await recordSystemEventAsync\(/, `${f}: 기다리지 않는다`)
+    assert.ok(!/(?<!await )\brecordSystemEventAsync\(\{/.test(src), `${f}: await 없는 호출이 남아 있다`)
+  }
+})
+
+test('워크스페이스 id 는 text 다 — UUID 가 아니다(ws_dataalliance)', () => {
+  const sql = read('../../supabase/migrations/219_system_events_workspace_text.sql')
+  assert.match(sql, /ALTER COLUMN workspace_id TYPE text/)
 })

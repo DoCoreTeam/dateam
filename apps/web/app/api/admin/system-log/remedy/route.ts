@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { playbookFor, shouldAskAi, type Remedy } from '@/lib/system-log/playbook'
 import { callGeminiJson } from '@/lib/ai/gemini-call'
+import { readGeminiKey } from '@/lib/ai/gemini-key'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -67,8 +68,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ remedy, model: null, cached: false, isPlaybook: true })
   }
 
-  const { data: meta } = await adm.from('org_content').select('content').eq('key', 'META').maybeSingle()
-  const apiKey = typeof meta?.content?.gemini_api_key === 'string' ? meta.content.gemini_api_key : ''
+  const apiKey = await readGeminiKey(adm)
   if (!apiKey) {
     return NextResponse.json({
       error: { message: 'AI 키가 없어 해결 방법을 만들지 못했습니다. 시스템 설정 → 통합에서 키를 등록해 주세요.' },

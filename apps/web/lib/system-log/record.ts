@@ -4,6 +4,7 @@
 //
 // ① **원래 요청을 막지 않는다.** 로그 저장이 실패해도 사용자 작업은 그대로 끝난다.
 //    (감사·로깅이 사용자 저장을 막으면 안 된다 — 이 저장소가 이미 한 번 배운 것)
+//    단 "막지 않는다"가 "기다리지 않는다"는 아니다 — 아래 참조.
 // ② **같은 지문은 분당 상한.** 초당 수십 번 터지는 오류가 로그 쓰기로 DB 를 한 번 더 때리면
 //    장애가 장애를 키운다. 상한을 넘으면 **버리는 게 아니라 세기만 한다.**
 // ③ **키·토큰을 지운다.** 로그가 유출 경로가 되면 안 된다(`maskSecrets`).
@@ -40,6 +41,9 @@ export interface RecordInput {
  */
 const PER_FINGERPRINT_PER_MINUTE = 3
 const WINDOW_MS = 60_000
+
+/** 로그 한 줄 쓰는 데 이보다 오래 걸리면 포기한다 — 로그가 응답을 붙들면 안 된다 */
+const WRITE_TIMEOUT_MS = 3_000
 
 interface Throttle { count: number; suppressed: number; windowStart: number }
 const throttle = new Map<string, Throttle>()
@@ -104,7 +108,7 @@ export async function recordSystemEvent(input: RecordInput): Promise<void> {
     const { createAdminClient } = await import('../supabase/server.ts')
     const admin = createAdminClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (admin as any).from('system_events').insert({
+    const insert = (admin as any).from('system_events').insert({
       fingerprint,
       source: input.source,
       severity: severityOf(reason, { blocksUser: input.blocksUser }),
@@ -118,16 +122,41 @@ export async function recordSystemEvent(input: RecordInput): Promise<void> {
       raw: truncateRaw(maskSecrets(stack)),
       context: { ...(input.context ?? {}), ...(suppressed > 0 ? { suppressed } : {}) },
     })
+
+    /**
+     * DB 가 느려도 응답이 무한정 늦어지지 않게 — 못 남기는 것보다 늦게 답하는 게 낫지만, 한도는 있다.
+     *
+     * **반환된 오류를 반드시 본다.** supabase-js 는 실패를 던지지 않고 `{ error }` 로 돌려준다.
+     * 처음엔 그 값을 안 봐서, `workspace_id` 타입이 안 맞아 모든 insert 가 거절당하는데도
+     * 아무 소리 없이 0건이 쌓였다(v0.7.584 실측). **침묵을 없애려고 만든 것이 침묵했다.**
+     */
+    const raced = await Promise.race([
+      insert,
+      new Promise<{ error: { message: string } }>((resolve) =>
+        setTimeout(() => resolve({ error: { message: `${WRITE_TIMEOUT_MS}ms 안에 못 썼습니다` } }), WRITE_TIMEOUT_MS)),
+    ]) as { error?: { message?: string } | null }
+    if (raced?.error) throw new Error(raced.error.message ?? '알 수 없는 오류')
   } catch (e) {
     /**
      * 여기서 던지면 **로그 때문에 사용자 작업이 실패한다.** 그건 로그를 남긴 목적을 뒤집는 일이다.
      * 표가 아직 없는 환경(마이그레이션 전)에서도 앱은 그대로 돌아야 한다.
      */
-    console.warn('[system-log] 기록 실패(무시함)', e instanceof Error ? e.message : String(e))
+    console.error('[system-log] 기록 실패(사용자 작업은 계속됨)',
+      e instanceof Error ? e.message : String(e))
   }
 }
 
-/** 기다리지 않고 남긴다 — 원래 요청의 응답 시간에 영향을 주지 않는다 */
-export function recordSystemEventAsync(input: RecordInput): void {
-  void recordSystemEvent(input)
+/**
+ * **기다린다.** 이름은 남겨 두되(호출부 다수) 동작은 await 다.
+ *
+ * 처음엔 `void recordSystemEvent(input)` 이었다. 그런데 실측(v0.7.584)에서
+ * AI 한도 실패가 **한 건도 안 남았다** — 라우트가 응답을 돌려주는 순간
+ * 뒤에 남은 promise 가 그대로 사라졌기 때문이다.
+ * 로그가 정작 필요한 순간에만 사라지는 구조라, 그건 로그가 없는 것과 같다.
+ *
+ * 대신 `WRITE_TIMEOUT_MS` 로 상한을 둔다 — DB 가 느려도 응답이 그만큼만 늦어진다.
+ * 이 경로는 **이미 실패한 요청**이라 수백 ms 는 사용자 체감에 들어오지 않는다.
+ */
+export async function recordSystemEventAsync(input: RecordInput): Promise<void> {
+  await recordSystemEvent(input)
 }

@@ -135,7 +135,7 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
      * 표에 있는 것과 사람이 보는 것은 다른 문제다 — 아무도 안 보면 없는 것과 같다.
      */
     const { recordSystemEventAsync } = await import('../../system-log/record.ts')
-    recordSystemEventAsync({
+    await recordSystemEventAsync({
       source: 'crm_ai', error: lastError, feature: kind, blocksUser: true,
       workspaceId, hint: adapter.model,
       context: { kind, promptVersion: prompt.version, tokensIn, tokensOut },

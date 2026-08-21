@@ -69,7 +69,7 @@ export async function withCrmApi<T>(
      * 여기가 CRM API 전체의 단일 통로라 한 줄이면 CRM 이 통째로 덮인다(C-8).
      * 기다리지 않는다: 로그 저장이 응답을 늦추면 안 된다.
      */
-    recordSystemEventAsync({
+    await recordSystemEventAsync({
       source: 'crm_api', error: e, blocksUser: true,
       feature: 'crm-api',
       context: { handledAs: 'unhandled' },

@@ -281,7 +281,7 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
    * 기다리지 않는다: 로그가 AI 호출을 더 느리게 만들면 안 된다.
    */
   const { recordSystemEventAsync } = await import('../system-log/record.ts')
-  recordSystemEventAsync({
+  await recordSystemEventAsync({
     source: 'host_ai',
     error: new Error(`${lastReason}: ${hint}`),
     reason: lastReason === 'no_model' ? 'config' : lastReason === 'truncated' ? 'bad_json' : lastReason,
