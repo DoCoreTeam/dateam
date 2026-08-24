@@ -10,6 +10,14 @@
 //
 // **모르는 것은 지어내지 않는다**: 한글이 아닌 말(영문·숫자·기호)로 끝나면 발음을 알 수 없다.
 // 그때만 예전처럼 두 형태를 병기한다 — 틀린 조사를 붙이는 것보다 낫다.
+//
+// **다만 아는 것까지 모른다고 하지는 않는다**(v0.7.595):
+// 대문자로만 이어진 꼬리(`API`·`CRM`·`GPU`)와 숫자는 한국어에서 **한 글자씩 읽는 법이 정해져 있다**
+// — API는 '에이피아이', CRM은 '씨알엠', 3은 '삼'. 발음이 정해져 있으니 받침도 정해져 있다.
+// 이걸 '모른다'로 두는 바람에 시스템 로그가 **"CRM 화면·API이(가) 실패했습니다"**를 그대로 띄웠다
+// (실측 2026-08-24 /admin/system-log). 이 병기가 바로 위 주석이 막으려던 그 모양이다.
+//
+// 소문자가 섞인 말(`Vercel`·`Google`)은 통째로 읽는지 한 글자씩 읽는지 알 수 없으므로 **그대로 병기한다.**
 
 const HANGUL_START = 0xac00
 const HANGUL_END = 0xd7a3
@@ -17,13 +25,39 @@ const JONGSEONG_COUNT = 28
 /** ㄹ 받침 — '로/으로'만 이걸 받침 없는 것처럼 다룬다(서울로, 학교로) */
 const JONG_RIEUL = 8
 
-/** 마지막 글자의 받침. 한글이 아니면 판정 불가라 null */
+/**
+ * 알파벳 한 글자를 한국어로 읽었을 때의 받침. 값은 한글 종성 인덱스다
+ * (0=없음 · 1=ㄱ · 4=ㄴ · 8=ㄹ · 16=ㅁ). 받침이 있는 것은 다섯뿐이다 — L엘 · M엠 · N엔 · R알.
+ */
+const LATIN_JONG: Record<string, number> = {
+  A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0, J: 0, K: 0,
+  L: JONG_RIEUL, M: 16, N: 4, O: 0, P: 0, Q: 0, R: JONG_RIEUL, S: 0,
+  T: 0, U: 0, V: 0, W: 0, X: 0, Y: 0, Z: 0,
+}
+
+/** 숫자를 한국어로 읽었을 때의 받침 — 영(ㅇ) 일(ㄹ) 이 삼(ㅁ) 사 오 육(ㄱ) 칠(ㄹ) 팔(ㄹ) 구 */
+const DIGIT_JONG: Record<string, number> = {
+  '0': 21, '1': JONG_RIEUL, '2': 0, '3': 16, '4': 0,
+  '5': 0, '6': 1, '7': JONG_RIEUL, '8': JONG_RIEUL, '9': 0,
+}
+
+/** 마지막 글자의 받침. 읽는 법을 모르는 말이면 판정 불가라 null */
 function finalJong(word: string): number | null {
-  const last = word.trimEnd().slice(-1)
+  const trimmed = word.trimEnd()
+  const last = trimmed.slice(-1)
   if (!last) return null
+
   const code = last.charCodeAt(0)
-  if (code < HANGUL_START || code > HANGUL_END) return null
-  return (code - HANGUL_START) % JONGSEONG_COUNT
+  if (code >= HANGUL_START && code <= HANGUL_END) return (code - HANGUL_START) % JONGSEONG_COUNT
+
+  const digit = DIGIT_JONG[last]
+  if (digit !== undefined) return digit
+
+  // 대문자로만 이어진 꼬리여야 약어다. 소문자가 하나라도 섞이면(Vercel) 읽는 법을 모른다
+  const tail = /[A-Za-z]+$/.exec(trimmed)?.[0]
+  if (tail && tail === tail.toUpperCase()) return LATIN_JONG[last] ?? null
+
+  return null
 }
 
 /** 받침 있을 때 / 없을 때 형태 — 판정 불가면 둘 다 보여 준다 */

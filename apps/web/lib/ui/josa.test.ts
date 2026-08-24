@@ -41,11 +41,32 @@ test('ㄹ 받침은 "로"다 — 으로를 붙이면 서울으로가 된다', ()
   assert.equal(euroRo('블록'), '으로')
 })
 
-test('★ 한글이 아니면 지어내지 않고 두 형태를 보여 준다 — 틀린 조사보다 낫다', () => {
+test('★ 읽는 법을 모르는 말은 지어내지 않고 두 형태를 보여 준다 — 틀린 조사보다 낫다', () => {
   // 발음을 알 수 없는 말에 조사를 찍으면 반은 틀린다. 그 절반이 사용자 눈에 남는다.
-  assert.equal(eulReul('CRM'), '을(를)')
-  assert.equal(iGa('GPU'), '이(가)')
-  assert.equal(euroRo('API'), '(으)로')
+  // 소문자가 섞이면 통째로 읽는지(베르셀) 한 글자씩 읽는지 알 수 없다.
+  assert.equal(eulReul('Vercel'), '을(를)')
+  assert.equal(iGa('Google'), '이(가)')
+  assert.equal(euroRo('IoT'), '(으)로')
+  assert.equal(iGa('#'), '이(가)', '기호는 읽는 법이 없다')
+})
+
+test('★ 대문자 약어는 읽는 법이 정해져 있다 — 아는 것까지 모른다고 하지 않는다', () => {
+  // 실측 사고(2026-08-24 /admin/system-log): "CRM 화면·API이(가) 실패했습니다"가 그대로 렌더됐다.
+  assert.equal(iGa('CRM 화면·API'), '가', 'API=에이피아이 → 받침 없음')
+  assert.equal(eulReul('CRM'), '을', 'CRM=씨알엠 → ㅁ 받침')
+  assert.equal(iGa('GPU'), '가', 'GPU=지피유 → 받침 없음')
+  assert.equal(euroRo('API'), '로')
+  assert.equal(euroRo('URL'), '로', 'URL=유알엘 → ㄹ 받침이라 "으로"가 아니다')
+  assert.equal(iGa('DB'), '가', 'DB=디비 → 받침 없음')
+  assert.equal(eunNeun('AI'), '는', 'AI=에이아이 → 받침 없음')
+})
+
+test('★ 숫자로 끝나는 말도 읽는 법이 정해져 있다', () => {
+  assert.equal(iGa('채널 3'), '이', '3=삼 → ㅁ 받침')
+  assert.equal(iGa('구성 4'), '가', '4=사 → 받침 없음')
+  assert.equal(eulReul('블록 1'), '을', '1=일 → ㄹ 받침')
+  assert.equal(euroRo('블록 1'), '로', 'ㄹ 받침은 "로"다')
+  assert.equal(iGa('IPv6'), '이', '6=육 → ㄱ 받침')
 })
 
 test('빈 값·공백에서 터지지 않는다 — 이름이 비는 경로가 실제로 있다', () => {

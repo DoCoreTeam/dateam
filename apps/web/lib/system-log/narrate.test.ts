@@ -20,6 +20,15 @@ test('첫 줄은 사용자가 부르는 기능 이름으로 말한다 — 코드
   assert.ok(!h.includes('enrich-web'), '코드 이름이 새어 나오면 관리자는 무슨 기능인지 모른다')
 })
 
+test('★ 영문 약어로 끝나는 이름에도 조사를 제대로 붙인다 — 병기가 새면 기계가 쓴 티가 난다', () => {
+  // 실측 사고(2026-08-24 /admin/system-log): 화면이 21건 내내
+  // **"CRM 화면·API이(가) 실패했습니다"**를 그대로 띄웠다. 이 파일 위 주석이 막으려던 그 모양이다.
+  // 원인은 조사 SSOT(lib/ui/josa.ts)가 대문자 약어를 '읽는 법 모름'으로 두고 병기한 것이었다.
+  const h = headlineOf({ source: 'crm_api', reason: 'db', feature: 'crm-api' })
+  assert.equal(h, 'CRM 화면·API가 실패했습니다', h)
+  assert.ok(!h.includes('(가)'), '두 형태 병기가 사용자 화면에 남으면 안 된다')
+})
+
 test('기능을 모르면 어디서 났는지라도 말한다 — 빈 문장은 안 만든다', () => {
   const h = headlineOf({ source: 'cron', reason: 'timeout' })
   assert.ok(h.includes('정기 작업'), h)
