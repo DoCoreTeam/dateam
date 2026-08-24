@@ -240,6 +240,22 @@ CI의 삭제는 **물리 삭제**라 되돌리기가 없다(사용자 결정 202
 - **GPU/가격** `components/pricing/gpu/**` 23파일 — `UnifiedTable`(403줄) · `DetailPanel`(633줄) · `BulkReflectPanel` · 각종 Modal · `cockpit/*`
 - **CI** `components/ci/**` — `states.tsx`의 빈상태/오류/골격은 v0.7.445에 `components/ui/`로 승격했고, `CiPageHeader`는 삭제했다. 남은 `InsufficientData`("모집단이 얇아 계산 불가")만 CI 고유 판정이라 도메인에 둔다
 - **온보딩** `components/onboarding/**` 2파일 — `OnboardingProvider`(driver.js)
+- **회의** `components/meeting/**` 7파일 (v0.7.592 신설) — **두 셸이 공유하므로 화면 폴더에 두지 않는다.**
+  `/meeting-notes/[id]`(개인)와 `/crm/meetings/[id]`(팀)가 같은 부품을 그린다 — 가운데가 갈리면
+  "같은 플랫폼을 공유"가 깨진다(사용자 지시 2026-08-24).
+
+| 부품 | 하는 일 | 안에서 쓰는 공용 부품 |
+|---|---|---|
+| `MeetingWorkbench` | 작성·녹음/전사·정리 3탭 껍데기. 본문·권한·공개범위를 **스스로 읽는다**(prop 으로 넘기면 한쪽이 빠뜨린다) | `SegmentedTabs`(탭 렌더러 SSOT) · `SkelCard` · `ErrorState` |
+| `MeetingMemoEditor` | 본문 편집 + **5초 자동저장**(저장 버튼 없음) | `TiptapEditor` · `useDraftPersist` · `DraftRestoreBanner` · `RichText`(읽기 전용) |
+| `MeetingTranscriptView` | 전사 목록 + 화자 이름 교정 + 붙여넣기 | `EmptyState` · `ErrorState` · `SkelList` · `isEnterKey`(IME SSOT) |
+| `MeetingDigestPanel` | 메모+녹음 합본 정리 실행·결과·**출처 뱃지**·이전 정리 | `EmptyState` · `AXDotLoader` · `NbButton` |
+| `NoteVisibilitySwitch` | 나만 보기 / 영업팀 공개 (마이그 216·220) | `InlineError` |
+| `RecordingPanel` | 녹음 시작·정지·구간 진행. 레코더는 셸이 소유한다 | `EmptyState` · `NbButton` · `InlineError` |
+| `RecordingBar` | **녹음 중이면 어느 화면에서든** 좌하단 상주(우하단은 Dock 독점) | — |
+
+녹음 상태는 `lib/meeting/recording-context.tsx` 의 `RecordingProvider` 가 **`AppShell` 안에서 한 번만** 소유한다.
+화면이 들고 있으면 라우트를 옮길 때 언마운트돼 진행 중 구간(최대 10분)이 사라진다(v0.7.588 실측).
 
 ---
 
@@ -247,6 +263,8 @@ CI의 삭제는 **물리 삭제**라 되돌리기가 없다(사용자 결정 202
 
 | 가드 | 검사 항목 | 방식 |
 |---|---|---|
+| `lib/meeting/workbench-wiring.test.ts` | 회의 작업대 배선 — 셸의 녹음 제공자 · 죽은 `?record=` 재유입 · 두 셸이 같은 작업대 · 진입 4개 · 붙여넣기가 원본으로 · 정리/공개범위/요약 렌더 | 정적 스캔 |
+| `lib/meeting/digest.test.ts` | 합본 정리 계산 — 출처 판정 · 지어낸 근거 id 차단 · 충돌 보존 · 구간 분할 · 프롬프트 계약(수량 상한 금지) | 단위 |
 | `scripts/check-design-tokens.mjs` (`pnpm design:check`) | ① hex 색 **즉시 차단** ② swr 전역 `mutate` **즉시 차단** ③ `rgba()` ④ 미정의 토큰(`--text-sm` 등) ⑤ **raw `<input/select/textarea>`에 `input-field` 누락** | ratchet + baseline **294건** |
 | `lib/ui/integration-consistency.test.ts` | 연동 카드 용어·기능 일관성 (CLAUDE.md §2-5) | 정적 스캔 |
 | `lib/ui/shell-contract.test.ts` | 새 셸 신설 금지 · 모든 화면이 셸 아래 (공개 4경로만 면제) | 정적 스캔 |
