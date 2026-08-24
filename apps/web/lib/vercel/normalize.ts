@@ -13,12 +13,12 @@
 
 import { maskSecrets } from '../system-log/narrate.ts'
 import type { StatusKey } from '../tokens/status-colors.ts'
-import type { VercelDeployment, VercelRuntimeLog } from './api.ts'
+import type { VercelDeployEvent, VercelDeployment } from './api.ts'
 
 /** 로그 한 줄 본문 상한 — 스택이 그대로 오면 목록이 한 건으로 꽉 찬다 */
 const MESSAGE_MAX = 2000
 
-/* ── 런타임 로그 ────────────────────────────────────────────── */
+/* ── 배포 로그(빌드) ────────────────────────────────────────── */
 
 export interface LogRow {
   id: string
@@ -26,61 +26,63 @@ export interface LogRow {
   status: StatusKey
   /** 배지 글자 — 색만으로 구분하지 않는다(흑백 출력·색각) */
   levelLabel: string
-  level: VercelRuntimeLog['level']
+  level: 'error' | 'warning' | 'info'
   /** ISO — 표시는 화면이 KST 로 바꾼다(`lib/datetime/kst.ts`) */
   at: string
-  method: string
-  path: string
-  status_: number
+  /** 빌드 단계 이름 등. 없으면 스트림 이름(stdout/stderr) */
   sourceLabel: string
   message: string
   truncated: boolean
 }
 
-/** 어디서 난 로그인지 — `serverless` 는 관리자에게 아무 뜻이 없다 */
-const SOURCE_LABELS: Record<VercelRuntimeLog['source'], string> = {
-  serverless: '서버 함수',
-  'edge-function': '엣지 함수',
-  'edge-middleware': '미들웨어',
-  request: '요청',
-  delimiter: '구분',
-}
-
-const LEVEL: Record<VercelRuntimeLog['level'], { label: string; status: StatusKey }> = {
-  fatal: { label: '치명', status: 'blocker' },
-  error: { label: '실패', status: 'blocker' },
+const LEVEL: Record<LogRow['level'], { label: string; status: StatusKey }> = {
+  error: { label: '오류', status: 'blocker' },
   warning: { label: '주의', status: 'note' },
-  info: { label: '정보', status: 'planned' },
-  debug: { label: '디버그', status: 'planned' },
-  trace: { label: '추적', status: 'planned' },
+  info: { label: '진행', status: 'planned' },
 }
 
-export function normalizeRuntimeLog(row: VercelRuntimeLog): LogRow {
-  const lv = LEVEL[row.level] ?? LEVEL.info
-  // 상태 코드가 5xx 면 level 이 info 라도 실패다 — Vercel 은 요청 로그를 info 로 준다
-  const failedByStatus = row.responseStatusCode >= 500
-  const body = maskSecrets(row.message ?? '')
+/** 어디서 난 줄인지 — `stdout` 은 관리자에게 아무 뜻이 없다 */
+const STREAM_LABELS: Record<string, string> = {
+  stdout: '빌드 출력',
+  stderr: '빌드 오류 출력',
+  command: '명령',
+  exit: '종료',
+  fatal: '치명',
+  'deployment-state': '배포 상태',
+  middleware: '미들웨어',
+  'middleware-invocation': '미들웨어 호출',
+  'edge-function-invocation': '엣지 함수 호출',
+  report: '보고',
+  metric: '지표',
+}
+
+export function normalizeDeployEvent(e: VercelDeployEvent): LogRow {
+  // Vercel 이 붙인 level 이 유일한 판정 근거다.
+  // stderr 라는 것만으로 실패로 세면 안 된다 — npm·next 가 경고를 stderr 로 뱉는다
+  // (실측: stderr 129줄 중 Vercel 이 오류로 표시한 것은 33줄뿐이었다).
+  const level: LogRow['level'] = e.level === 'error' || e.type === 'fatal'
+    ? 'error'
+    : e.level === 'warning' ? 'warning' : 'info'
+  const lv = LEVEL[level]
+  const body = maskSecrets(e.text ?? '')
   return {
-    id: row.rowId,
-    status: failedByStatus ? 'blocker' : lv.status,
-    levelLabel: failedByStatus && lv.status !== 'blocker' ? '서버 오류' : lv.label,
-    level: row.level,
-    at: new Date(row.timestampInMs).toISOString(),
-    method: row.requestMethod ?? '',
-    path: row.requestPath ?? '',
-    status_: row.responseStatusCode ?? 0,
-    sourceLabel: SOURCE_LABELS[row.source] ?? row.source,
+    id: e.id,
+    status: lv.status,
+    levelLabel: lv.label,
+    level,
+    at: new Date(e.date).toISOString(),
+    sourceLabel: e.info?.name ?? STREAM_LABELS[e.type] ?? e.type,
     message: body.length > MESSAGE_MAX ? `${body.slice(0, MESSAGE_MAX)}…` : body,
-    truncated: Boolean(row.messageTruncated) || body.length > MESSAGE_MAX,
+    truncated: body.length > MESSAGE_MAX,
   }
 }
 
 /**
  * 관리자가 이 화면에서 찾는 것은 **실패**다(시스템 로그의 전제).
- * 그래서 기본은 실패만 남긴다 — 다 보고 싶을 때만 켠다.
+ * 그래서 기본은 오류·경고만 남긴다 — 다 보고 싶을 때만 켠다.
  */
 export function isFailure(row: LogRow): boolean {
-  return row.status === 'blocker' || row.level === 'warning' || row.status_ >= 400
+  return row.level !== 'info'
 }
 
 /* ── 배포 ──────────────────────────────────────────────────── */

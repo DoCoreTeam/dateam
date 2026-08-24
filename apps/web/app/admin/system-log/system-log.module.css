@@ -83,3 +83,11 @@
   font-size: var(--fs-xs);
   color: var(--text-faint);
 }
+
+/* 시각 줄 — 로그에서 시각은 부가정보가 아니라 사실 그 자체다.
+   숫자가 뭉치지 않게 고정폭 숫자를 쓴다(같은 자리에서 자릿수가 흔들리면 눈으로 비교가 안 된다). */
+.when {
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}

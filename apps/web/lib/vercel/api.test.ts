@@ -10,9 +10,9 @@ import assert from 'node:assert/strict'
 import {
   VercelApiError,
   type VercelFailReason,
+  fetchDeployEvents,
   fetchProject,
   listDeployments,
-  readNdjsonStream,
 } from './api.ts'
 import type { VercelConfig } from './config.ts'
 
@@ -124,59 +124,45 @@ describe('실패는 사람 말로', () => {
   }
 })
 
-describe('readNdjsonStream — 스트림은 우리가 끊는다', () => {
-  const row = (i: number, extra: Record<string, unknown> = {}) =>
-    JSON.stringify({ rowId: `r${i}`, level: 'error', message: `m${i}`, source: 'serverless', timestampInMs: 1_700_000_000_000 + i, domain: 'd', requestMethod: 'GET', requestPath: '/x', responseStatusCode: 500, messageTruncated: false, ...extra })
+describe('fetchDeployEvents — 되는 endpoint 를 쓴다', () => {
+  // 왜 이 endpoint 인가: 문서가 말하는 runtime-logs 는 이 계정에서 **응답 헤더조차 오지 않았다**
+  // (실측 2026-08-24: 파라미터 4조합 · Accept 헤더 · 실트래픽 30초 → 전부 AbortError).
+  // v3 events 는 498ms 에 649건을 준다.
 
-  it('줄 수 상한에 닿으면 자르고 capped 로 밝힌다', async () => {
-    const body = streamOf([`${row(1)}\n${row(2)}\n${row(3)}\n`])
-    const out = await readNdjsonStream(body, 2, 2000)
-    assert.equal(out.logs.length, 2)
-    assert.equal(out.capped, true)
+  const ev = (over: Record<string, unknown> = {}) => ({
+    id: 'e1', type: 'stdout', text: 'hello', date: 1_700_000_000_000, ...over,
   })
 
-  it('끝나지 않는 스트림은 시간 상한에서 끊는다', async () => {
-    const body = streamOf([`${row(1)}\n`], { keepOpen: true })
-    const started = Date.now()
-    const out = await readNdjsonStream(body, 100, 300)
-    assert.equal(out.logs.length, 1)
-    assert.equal(out.capped, true)
-    assert.ok(Date.now() - started < 2000, '상한을 넘겨 매달리면 안 된다')
+  it('follow=0 을 반드시 붙인다 — 빼면 이 endpoint 도 스트림으로 열려 끝나지 않는다', async () => {
+    stub(() => ({ status: 200, body: [ev()] }))
+    await fetchDeployEvents(CONFIG, 'dpl_1')
+    assert.ok(calls[0].includes('follow=0'), calls[0])
+    assert.ok(calls[0].includes('direction=backward'), '최신부터 받아야 한다')
+    assert.ok(calls[0].includes('/v3/deployments/dpl_1/events'), calls[0])
   })
 
-  it('조용해지면 상한을 다 기다리지 않고 끊는다 — 그리고 그건 자른 게 아니다', async () => {
-    // Vercel 런타임 로그는 최근 것을 뱉고 **계속 열려 있는다**. 상한만 두면 매번 그만큼 멈춘다.
-    const body = streamOf([`${row(1)}\n${row(2)}\n`], { keepOpen: true })
-    const started = Date.now()
-    const out = await readNdjsonStream(body, 100, 5000, 200)
-    const elapsed = Date.now() - started
-    assert.equal(out.logs.length, 2)
-    assert.equal(out.capped, false, '더 없는 것과 우리가 자른 것은 다른 사실이다')
-    assert.ok(elapsed < 2000, `조용한 스트림을 상한까지 붙들면 안 된다 (${elapsed}ms)`)
+  it('payload 로 감싼 모양(v2)도 같은 결과로 편다', async () => {
+    stub(() => ({ status: 200, body: [{ type: 'stderr', created: 5, payload: { id: 'p1', text: 'boom', date: 7, level: 'error' } }] }))
+    const { events } = await fetchDeployEvents(CONFIG, 'dpl_1')
+    assert.deepEqual(events, [{ id: 'p1', type: 'stderr', text: 'boom', date: 7, level: 'error', info: undefined }])
   })
 
-  it('개행 없이 끝난 마지막 줄도 잃지 않는다', async () => {
-    const body = streamOf([`${row(1)}\n`, row(2)])
-    const out = await readNdjsonStream(body, 100, 2000)
-    assert.deepEqual(out.logs.map((l) => l.rowId), ['r1', 'r2'])
+  it('빈 줄과 시각 없는 줄은 버린다 — 화면에 빈 행을 만들지 않는다', async () => {
+    stub(() => ({ status: 200, body: [ev(), ev({ id: 'e2', text: '   ' }), ev({ id: 'e3', date: undefined })] }))
+    const { events } = await fetchDeployEvents(CONFIG, 'dpl_1')
+    assert.deepEqual(events.map((e) => e.id), ['e1'])
   })
 
-  it('깨진 줄 하나가 나머지를 죽이지 않는다', async () => {
-    const body = streamOf([`${row(1)}\n{ not json\n${row(2)}\n`])
-    const out = await readNdjsonStream(body, 100, 2000)
-    assert.deepEqual(out.logs.map((l) => l.rowId), ['r1', 'r2'])
+  it('배열이 아닌 응답에도 터지지 않는다', async () => {
+    stub(() => ({ status: 200, body: { error: 'nope' } }))
+    const { events } = await fetchDeployEvents(CONFIG, 'dpl_1')
+    assert.deepEqual(events, [])
   })
 
-  it('구분자(delimiter) 줄은 로그가 아니다', async () => {
-    const body = streamOf([`${row(1, { source: 'delimiter' })}\n${row(2)}\n`])
-    const out = await readNdjsonStream(body, 100, 2000)
-    assert.deepEqual(out.logs.map((l) => l.rowId), ['r2'])
-  })
-
-  it('청크가 줄 중간에서 잘려도 이어 붙인다', async () => {
-    const line = row(7)
-    const body = streamOf([line.slice(0, 20), `${line.slice(20)}\n`])
-    const out = await readNdjsonStream(body, 100, 2000)
-    assert.deepEqual(out.logs.map((l) => l.rowId), ['r7'])
+  it('줄 수 상한에 닿으면 잘랐다고 밝힌다', async () => {
+    stub(() => ({ status: 200, body: [ev({ id: 'a' }), ev({ id: 'b' }), ev({ id: 'c' })] }))
+    const { events, capped } = await fetchDeployEvents(CONFIG, 'dpl_1', 2)
+    assert.equal(events.length, 2)
+    assert.equal(capped, true)
   })
 })

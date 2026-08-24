@@ -16,11 +16,11 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { readVercelConfig } from '@/lib/vercel/config'
 import {
   VercelApiError,
-  fetchRuntimeLogs,
+  fetchDeployEvents,
   findLatestProductionDeployment,
   listDeployments,
 } from '@/lib/vercel/api'
-import { isFailure, normalizeDeployment, normalizeRuntimeLog } from '@/lib/vercel/normalize'
+import { isFailure, normalizeDeployEvent, normalizeDeployment } from '@/lib/vercel/normalize'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   }
 
   const sp = req.nextUrl.searchParams
-  const kind = sp.get('kind') === 'runtime' ? 'runtime' : 'deployments'
+  const kind = sp.get('kind') === 'logs' ? 'logs' : 'deployments'
 
   try {
     if (kind === 'deployments') {
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 런타임 로그는 배포 하나를 지목해야 볼 수 있다 — 지정이 없으면 지금 프로덕션에 떠 있는 것
+    // 배포 로그는 배포 하나를 지목해야 볼 수 있다 — 지정이 없으면 지금 프로덕션에 떠 있는 것
     const explicit = sp.get('deploymentId')
     const deployment = explicit ? null : await findLatestProductionDeployment(cfg.config)
     const deploymentId = explicit ?? deployment?.uid ?? null
@@ -75,20 +75,21 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const { logs, capped } = await fetchRuntimeLogs(cfg.config, deploymentId)
-    const rows = logs.map(normalizeRuntimeLog)
+    const { events, capped } = await fetchDeployEvents(cfg.config, deploymentId)
+    const rows = events.map(normalizeDeployEvent)
     const onlyFailures = sp.get('all') !== '1'
     const items = onlyFailures ? rows.filter(isFailure) : rows
 
     return NextResponse.json({
       configured: true,
-      items: items.sort((a, b) => (a.at < b.at ? 1 : -1)),
+      items: items.sort((a: { at: string }, b: { at: string }) => (a.at < b.at ? 1 : -1)),
       deploymentId,
-      deploymentUrl: deployment?.url ? `https://${deployment.url}` : null,
+      deploymentUrl: deployment?.url ?? null,
+      // 몇 줄을 훑어 몇 줄이 남았는지 밝힌다 — '0건'만 보이면 안 훑은 것과 구분이 안 된다
       scanned: rows.length,
       capped,
       notice: capped
-        ? `최근 로그 ${rows.length}건까지만 훑었습니다. Vercel 로그는 계속 흐르는 기록이라 여기서 끊습니다.`
+        ? `이 배포의 로그가 많아 최근 ${rows.length}줄까지만 가져왔습니다.`
         : null,
     })
   } catch (e) {

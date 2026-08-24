@@ -6,16 +6,12 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { isFailure, normalizeDeployment, normalizeRuntimeLog } from './normalize.ts'
+import { isFailure, normalizeDeployEvent, normalizeDeployment } from './normalize.ts'
 import { readVercelConfig, maskToken } from './config.ts'
-import type { VercelDeployment, VercelRuntimeLog } from './api.ts'
+import type { VercelDeployEvent, VercelDeployment } from './api.ts'
 
-function log(over: Partial<VercelRuntimeLog> = {}): VercelRuntimeLog {
-  return {
-    rowId: 'r1', level: 'info', message: 'hello', messageTruncated: false,
-    source: 'serverless', timestampInMs: 1_700_000_000_000, domain: 'app.example.com',
-    requestMethod: 'GET', requestPath: '/api/x', responseStatusCode: 200, ...over,
-  }
+function log(over: Partial<VercelDeployEvent> = {}): VercelDeployEvent {
+  return { id: 'e1', type: 'stdout', text: 'hello', date: 1_700_000_000_000, ...over }
 }
 
 function deploy(over: Partial<VercelDeployment> = {}): VercelDeployment {
@@ -25,44 +21,50 @@ function deploy(over: Partial<VercelDeployment> = {}): VercelDeployment {
   }
 }
 
-describe('런타임 로그', () => {
-  it('5xx 는 level 이 info 라도 실패로 읽는다', () => {
-    const r = normalizeRuntimeLog(log({ level: 'info', responseStatusCode: 500 }))
+describe('배포 로그', () => {
+  it('Vercel 이 오류라고 표시한 줄만 실패로 센다', () => {
+    const r = normalizeDeployEvent(log({ level: 'error', text: 'Build failed' }))
     assert.equal(r.status, 'blocker')
-    assert.equal(r.levelLabel, '서버 오류')
+    assert.equal(r.levelLabel, '오류')
     assert.equal(isFailure(r), true)
   })
 
-  it('정상 요청은 실패가 아니다', () => {
-    const r = normalizeRuntimeLog(log({ level: 'info', responseStatusCode: 200 }))
-    assert.equal(r.status, 'planned')
+  it('★ stderr 라는 것만으로 실패로 세지 않는다 — npm·next 가 경고를 stderr 로 뱉는다', () => {
+    // 실측: 한 배포의 stderr 129줄 중 Vercel 이 오류로 표시한 것은 33줄뿐이었다.
+    // 이 구분이 없으면 목록이 통째로 빨개져서 진짜 오류가 묻힌다.
+    const r = normalizeDeployEvent(log({ type: 'stderr', text: 'npm warn deprecated' }))
+    assert.equal(r.level, 'info')
     assert.equal(isFailure(r), false)
   })
 
-  it('4xx 도 실패 목록에 남긴다 — 사용자가 못 하는 일이 있었다는 뜻이다', () => {
-    const r = normalizeRuntimeLog(log({ level: 'info', responseStatusCode: 404 }))
+  it('경고는 경고로 남긴다', () => {
+    const r = normalizeDeployEvent(log({ level: 'warning' }))
+    assert.equal(r.levelLabel, '주의')
     assert.equal(isFailure(r), true)
   })
 
-  it('심각도는 색만이 아니라 **말**로도 구분된다', () => {
-    assert.equal(normalizeRuntimeLog(log({ level: 'fatal' })).levelLabel, '치명')
-    assert.equal(normalizeRuntimeLog(log({ level: 'error' })).levelLabel, '실패')
-    assert.equal(normalizeRuntimeLog(log({ level: 'warning' })).levelLabel, '주의')
+  it('fatal 은 level 이 없어도 오류다', () => {
+    assert.equal(normalizeDeployEvent(log({ type: 'fatal' })).level, 'error')
+  })
+
+  it('빌드 단계 이름이 있으면 그것을 보여 준다 — stdout 은 관리자에게 뜻이 없다', () => {
+    assert.equal(normalizeDeployEvent(log({ info: { name: 'bld_abc' } })).sourceLabel, 'bld_abc')
+    assert.equal(normalizeDeployEvent(log({ type: 'stdout' })).sourceLabel, '빌드 출력')
   })
 
   it('본문의 키를 지운다 — 시스템 로그와 같은 마스커를 쓴다', () => {
-    const r = normalizeRuntimeLog(log({ message: 'boom key=AIzaSyD1234567890abcdefghijklmnopqrstu end' }))
+    const r = normalizeDeployEvent(log({ text: 'boom key=AIzaSyD1234567890abcdefghijklmnopqrstu end' }))
     assert.doesNotMatch(r.message, /AIzaSyD1234567890abcdefghijklmnopqrstu/)
   })
 
   it('아주 긴 본문은 자르고 잘랐다고 말한다', () => {
-    const r = normalizeRuntimeLog(log({ message: 'x'.repeat(5000) }))
+    const r = normalizeDeployEvent(log({ text: 'x'.repeat(5000) }))
     assert.ok(r.message.length < 5000)
     assert.equal(r.truncated, true)
   })
 
   it('시각은 ISO 로 준다 — KST 변환은 화면이 SSOT 로 한다', () => {
-    const r = normalizeRuntimeLog(log({ timestampInMs: Date.UTC(2026, 7, 24, 6, 57, 52) }))
+    const r = normalizeDeployEvent(log({ date: Date.UTC(2026, 7, 24, 6, 57, 52) }))
     assert.equal(r.at, '2026-08-24T06:57:52.000Z')
   })
 })

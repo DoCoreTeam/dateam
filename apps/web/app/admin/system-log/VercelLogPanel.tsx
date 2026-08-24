@@ -26,11 +26,11 @@ import EmptyState from '@/components/ui/EmptyState'
 import InlineError from '@/components/ui/InlineError'
 import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
-import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { formatKstAgo, formatKstDateTimeExact } from '@/lib/datetime/kst'
 import type { DeployRow, LogRow } from '@/lib/vercel/normalize'
 import styles from './system-log.module.css'
 
-type Kind = 'runtime' | 'deployments'
+type Kind = 'logs' | 'deployments'
 type Row = (LogRow | DeployRow) & { id: string }
 
 interface Payload {
@@ -47,8 +47,7 @@ interface Payload {
 const LEVEL_FILTER: ListFilterDef = {
   key: 'level', label: '심각도',
   options: [
-    { value: 'fatal', label: '치명' },
-    { value: 'error', label: '실패' },
+    { value: 'error', label: '오류' },
     { value: 'warning', label: '주의' },
   ],
 }
@@ -61,7 +60,7 @@ const TARGET_FILTER: ListFilterDef = {
 export default function VercelLogPanel({ kind }: { kind: Kind }) {
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'at', dir: 'desc' }, mode: 'more',
-    filterKeys: kind === 'runtime' ? ['level', 'all'] : ['target'],
+    filterKeys: kind === 'logs' ? ['level', 'all'] : ['target'],
   }, { persistKey: `/admin/system-log:${kind}` })
 
   const [payload, setPayload] = useState<Payload>({})
@@ -82,7 +81,7 @@ export default function VercelLogPanel({ kind }: { kind: Kind }) {
       const sp = new URLSearchParams({ kind })
       sp.set('limit', String(query.size))
       if (kind === 'deployments' && target) sp.set('target', target)
-      if (kind === 'runtime' && showAll) sp.set('all', '1')
+      if (kind === 'logs' && showAll) sp.set('all', '1')
       const res = await fetch(`/api/admin/vercel-logs?${sp}`)
       const body = (await res.json()) as Payload
       if (!res.ok) {
@@ -115,13 +114,13 @@ export default function VercelLogPanel({ kind }: { kind: Kind }) {
    */
   const rows = useMemo(() => {
     let items = payload.items ?? []
-    if (kind === 'runtime' && level) items = items.filter((r) => (r as LogRow).level === level)
+    if (kind === 'logs' && level) items = items.filter((r) => (r as LogRow).level === level)
     if (!q) return items
     return items.filter((r) => JSON.stringify(r).toLowerCase().includes(q))
   }, [payload.items, kind, level, q])
 
   const columns = useMemo<ColumnDef<Row>[]>(
-    () => (kind === 'runtime' ? runtimeColumns(open, toggle) : deployColumns(open, toggle)),
+    () => (kind === 'logs' ? logColumns(open, toggle) : deployColumns(open, toggle)),
     [kind, open, toggle],
   )
 
@@ -143,9 +142,9 @@ export default function VercelLogPanel({ kind }: { kind: Kind }) {
       <ListToolbar
         query={query}
         onChange={set}
-        searchPlaceholder={kind === 'runtime' ? '경로·내용으로 검색' : '커밋·브랜치로 검색'}
+        searchPlaceholder={kind === 'logs' ? '로그 내용으로 검색' : '커밋·브랜치로 검색'}
         views={['table', 'card']}
-        filters={kind === 'runtime' ? [LEVEL_FILTER, ALL_FILTER] : [TARGET_FILTER]}
+        filters={kind === 'logs' ? [LEVEL_FILTER, ALL_FILTER] : [TARGET_FILTER]}
         total={loading ? undefined : rows.length}
         actions={payload.deploymentUrl ? (
           <a className="btn-ghost" href={payload.deploymentUrl} target="_blank" rel="noopener noreferrer">
@@ -163,17 +162,17 @@ export default function VercelLogPanel({ kind }: { kind: Kind }) {
         loading={loading && rows.length === 0}
         error={error ? { message: error, onRetry: () => void load() } : null}
         empty={{
-          title: kind === 'runtime'
-            ? (showAll ? '기록된 로그가 없어요' : '최근 서버 오류가 없어요')
+          title: kind === 'logs'
+            ? (showAll ? '이 배포에 남은 로그가 없어요' : '최근 배포에서 오류가 없었어요')
             : '배포 기록이 없어요',
-          description: kind === 'runtime'
+          description: kind === 'logs'
             ? (showAll
-              ? 'Vercel은 최근 것만 보관합니다. 오래된 것은 Vercel에서 확인해 주세요.'
-              : '실패만 골라 보고 있습니다. 「전체 보기」를 켜면 정상 요청까지 함께 나옵니다.')
+              ? 'Vercel은 배포별로 로그를 보관합니다. 다른 배포의 로그는 「배포」 탭에서 골라 보세요.'
+              : '오류·주의만 골라 보고 있습니다. 「진행 로그까지」를 켜면 빌드 과정 전체가 나옵니다.')
             : '이 프로젝트에 아직 배포가 없습니다.',
         }}
         renderExpanded={(r) => (open.has(r.id)
-          ? (kind === 'runtime' ? <LogDetail row={r as LogRow} /> : <DeployDetail row={r as DeployRow} />)
+          ? (kind === 'logs' ? <LogDetail row={r as LogRow} /> : <DeployDetail row={r as DeployRow} />)
           : null)}
       />
     </>
@@ -183,7 +182,7 @@ export default function VercelLogPanel({ kind }: { kind: Kind }) {
 /** 기본은 실패만 본다 — 이 화면의 전제가 "무엇이 안 됐나"다 */
 const ALL_FILTER: ListFilterDef = {
   key: 'all', label: '보기',
-  options: [{ value: '1', label: '정상 요청까지' }],
+  options: [{ value: '1', label: '진행 로그까지' }],
 }
 
 /* ── 컬럼 ──────────────────────────────────────────────────── */
@@ -202,7 +201,7 @@ function moreColumn(open: Set<string>, toggle: (id: string) => void): ColumnDef<
   }
 }
 
-function runtimeColumns(open: Set<string>, toggle: (id: string) => void): ColumnDef<Row>[] {
+function logColumns(open: Set<string>, toggle: (id: string) => void): ColumnDef<Row>[] {
   return [
     {
       key: 'message', header: '무슨 일', primary: true,
@@ -212,14 +211,11 @@ function runtimeColumns(open: Set<string>, toggle: (id: string) => void): Column
           <span style={{ display: 'grid', gap: 'var(--space-1)' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               <NbBadge status={r.status}>{r.levelLabel}</NbBadge>
-              <strong style={{ color: 'var(--text)' }}>
-                {[r.method, r.path].filter(Boolean).join(' ') || '(경로 없음)'}
-              </strong>
-              {r.status_ > 0 && <NbBadge status={r.status_ >= 400 ? 'blocker' : 'note'}>{r.status_}</NbBadge>}
+              <strong style={{ color: 'var(--text)' }}>{firstLine(r.message) || '(내용 없음)'}</strong>
             </span>
-            <span className={styles.logLine}>{firstLine(r.message) || '(내용 없음)'}</span>
-            <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>
-              {formatKstDateTimeShort(r.at)} · {r.sourceLabel}
+            {/* 로그에서 시각은 부가정보가 아니라 사실 그 자체다 — 초까지 적고 경과를 함께 준다 */}
+            <span className={styles.when}>
+              {formatKstDateTimeExact(r.at)} ({formatKstAgo(r.at)}) · {r.sourceLabel}
             </span>
           </span>
         )
@@ -242,8 +238,9 @@ function deployColumns(open: Set<string>, toggle: (id: string) => void): ColumnD
               <NbBadge status={r.status}>{r.stateLabel}</NbBadge>
               <strong style={{ color: 'var(--text)' }}>{r.commitMessage ?? '(커밋 메시지 없음)'}</strong>
             </span>
-            <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>
-              {[formatKstDateTimeShort(r.at), r.branch, r.author, r.target].filter(Boolean).join(' · ')}
+            <span className={styles.when}>
+              {[`${formatKstDateTimeExact(r.at)} (${formatKstAgo(r.at)})`, r.branch, r.author, r.target]
+                .filter(Boolean).join(' · ')}
             </span>
           </span>
         )

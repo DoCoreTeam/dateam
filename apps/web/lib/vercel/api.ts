@@ -7,9 +7,11 @@
 //    읽혀 오탐까지 냈다. 문서가 정한 커서는 `pagination.next`(타임스탬프)를 다음 요청의 `until` 로
 //    넘기는 것이다. 그리고 그것만으로는 부족해서 — 커서가 안 움직이는 응답을 만나면 **멈춘다**(seen 가드).
 //
-// ② **런타임 로그는 끝나지 않는 스트림이다.** `application/stream+json` 은 최근 것을 뱉고 나서
-//    계속 열려 있는다. 상한(시간·줄 수) 없이 읽으면 우리 API 라우트가 그대로 매달린다.
-//    그래서 둘 다 건다 — 그리고 잘랐으면 **잘랐다고 말한다**(조용히 자르면 "이게 전부"로 읽힌다).
+// ② **런타임 로그 endpoint 는 이 계정에서 응답하지 않는다.**
+//    문서가 말하는 `/v1/projects/{id}/deployments/{id}/runtime-logs` 는 **응답 헤더조차 오지 않는다.**
+//    실측(2026-08-24): 파라미터 조합 4가지 · `Accept` 헤더 · **프로덕션에 실제 트래픽을 쏘면서** 30초 대기
+//    — 전부 AbortError. 반면 `/v3/deployments/{id}/events` 는 **498ms 에 649건**을 준다.
+//    그래서 되는 것을 쓴다. 안 되는 것을 붙여 놓고 "느립니다"라고 말하는 것은 기능이 아니다.
 //
 // ③ **모든 호출에 타임아웃.** 이 저장소는 타임아웃 없는 외부 호출로 화면이 33초·84초 매달린 적이 있다.
 //
@@ -21,17 +23,8 @@ const API_BASE = 'https://api.vercel.com'
 
 /** 한 번의 REST 호출 상한 */
 const REQUEST_TIMEOUT_MS = 10_000
-/** 스트림을 붙들고 있을 최대 시간 — 이 endpoint 는 스스로 끝나지 않는다 */
-const STREAM_TIMEOUT_MS = 8_000
-/**
- * 첫 줄을 받은 뒤 이만큼 조용하면 "지금 있는 건 다 왔다"로 보고 끊는다.
- *
- * 상한만 두면 **매번 최대 시간을 꽉 채운다** — 이 endpoint 는 최근 것을 뱉고 나서
- * 새 요청이 오기를 계속 기다리기 때문이다. 그러면 탭을 열 때마다 8초씩 멈춘 것처럼 보인다.
- */
-const STREAM_IDLE_MS = 1_500
-/** 한 번에 가져올 런타임 로그 줄 수 상한 */
-export const RUNTIME_LOG_MAX_ROWS = 300
+/** 한 번에 가져올 로그 줄 수 상한 — 한 배포의 빌드 로그는 수백 줄이다 */
+export const BUILD_LOG_MAX_ROWS = 500
 /** 배포 목록을 커서로 훑을 때의 최대 페이지 수 — 무한 루프 최후 방어선 */
 const MAX_PAGES = 20
 
@@ -182,123 +175,70 @@ export async function findLatestProductionDeployment(config: VercelConfig): Prom
   return deployments[0] ?? null
 }
 
-/* ── 런타임 로그 ────────────────────────────────────────────── */
+/* ── 배포 로그(빌드) ────────────────────────────────────────── */
 
-export interface VercelRuntimeLog {
-  rowId: string
-  level: 'debug' | 'error' | 'fatal' | 'info' | 'trace' | 'warning'
-  message: string
-  messageTruncated: boolean
-  source: 'delimiter' | 'edge-function' | 'edge-middleware' | 'request' | 'serverless'
-  timestampInMs: number
-  domain: string
-  requestMethod: string
-  requestPath: string
-  responseStatusCode: number
+/**
+ * 한 배포가 남긴 로그 한 줄.
+ *
+ * `level` 은 Vercel 이 오류·경고로 판정한 것에만 붙는다(실측: 649건 중 33건).
+ * 안 붙은 줄은 그냥 진행 로그다 — 그걸 실패로 세면 목록이 전부 빨개진다.
+ */
+export interface VercelDeployEvent {
+  id: string
+  type: string
+  text: string
+  date: number
+  level?: 'error' | 'warning'
+  info?: { type?: string; name?: string; entrypoint?: string }
+}
+
+/** v2 는 payload 로 한 겹 감싸서 준다. 두 모양을 여기서 하나로 편다 */
+interface RawEvent extends VercelDeployEvent {
+  created?: number
+  payload?: Partial<VercelDeployEvent> & { created?: number }
 }
 
 /**
- * 배포 하나의 런타임 로그. **스스로 끝나지 않는 스트림**이라 우리가 끊는다(②).
+ * 배포 하나의 로그. `direction=backward` 로 **최신부터** 받는다.
  *
- * `capped` 는 상한에 닿아 잘랐다는 뜻이다. 화면이 그 사실을 반드시 표시한다.
+ * `follow=0` 이 중요하다 — 빼면 이 endpoint 도 스트림으로 열려 끝나지 않는다.
  */
-export async function fetchRuntimeLogs(
+export async function fetchDeployEvents(
   config: VercelConfig,
   deploymentId: string,
-  maxRows = RUNTIME_LOG_MAX_ROWS,
-): Promise<{ logs: VercelRuntimeLog[]; capped: boolean }> {
+  maxRows = BUILD_LOG_MAX_ROWS,
+): Promise<{ events: VercelDeployEvent[]; capped: boolean }> {
   const sp = withTeam(new URLSearchParams(), config)
-  const qs = sp.toString()
-  const path = `/v1/projects/${encodeURIComponent(config.projectId)}/deployments/${encodeURIComponent(deploymentId)}/runtime-logs${qs ? `?${qs}` : ''}`
+  sp.set('direction', 'backward')
+  sp.set('follow', '0')
+  sp.set('limit', String(Math.min(maxRows, 1000)))
 
-  const res = await call(path, config, STREAM_TIMEOUT_MS)
-  if (!res.ok) throw describe(res.status, await res.text().catch(() => ''))
-  if (!res.body) return { logs: [], capped: false }
-
-  return readNdjsonStream(res.body, maxRows, STREAM_TIMEOUT_MS, STREAM_IDLE_MS)
+  const raw = await callJson<RawEvent[]>(
+    `/v3/deployments/${encodeURIComponent(deploymentId)}/events?${sp}`,
+    config,
+  )
+  const list = Array.isArray(raw) ? raw : []
+  const events = list.map(flattenEvent).filter((e): e is VercelDeployEvent => e !== null)
+  return { events: events.slice(0, maxRows), capped: events.length > maxRows }
 }
 
-/**
- * NDJSON 스트림을 줄 단위로 읽는다. 줄 수 또는 시간 중 **먼저 닿는 쪽**에서 끊는다.
- *
- * 별도 함수인 이유: 이 규칙은 네트워크 없이 검증할 수 있어야 한다(테스트가 스트림만 넣어 본다).
- */
-export async function readNdjsonStream(
-  body: ReadableStream<Uint8Array>,
-  maxRows: number,
-  timeoutMs: number,
-  idleMs = timeoutMs,
-): Promise<{ logs: VercelRuntimeLog[]; capped: boolean }> {
-  const reader = body.getReader()
-  const decoder = new TextDecoder()
-  const logs: VercelRuntimeLog[] = []
-  const deadline = Date.now() + timeoutMs
-  let buffer = ''
-  let capped = false
-
-  try {
-    while (logs.length < maxRows) {
-      const remaining = deadline - Date.now()
-      // 상한을 넘겼다 — 더 있는데 우리가 끊은 것이므로 잘랐다고 밝힌다
-      if (remaining <= 0) { capped = true; break }
-
-      // 스트림이 조용해도 영원히 기다리지 않는다.
-      // 이미 받은 게 있으면 짧게(idle), 아직 한 줄도 못 받았으면 상한까지 기다린다.
-      const wait = logs.length > 0 ? Math.min(remaining, idleMs) : remaining
-      const step = await Promise.race([
-        reader.read(),
-        new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), wait)),
-      ])
-      // 조용해서 끊은 것은 **자른 게 아니다** — 지금 있는 것이 그게 전부다
-      if (step === 'timeout') { capped = wait >= remaining && logs.length > 0; break }
-      if (step.done) break
-
-      buffer += decoder.decode(step.value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-      for (const line of lines) {
-        const row = parseLogLine(line)
-        if (!row) continue
-        logs.push(row)
-        if (logs.length >= maxRows) { capped = true; break }
-      }
-    }
-    // 마지막 줄이 개행 없이 끝났을 수 있다 — 버리면 한 건이 조용히 사라진다
-    if (logs.length < maxRows) {
-      const tail = parseLogLine(buffer)
-      if (tail) logs.push(tail)
-    }
-  } finally {
-    await reader.cancel().catch(() => {})
-  }
-
-  return { logs, capped }
-}
-
-/** 한 줄 → 로그. 깨진 줄은 **버리되 전체를 죽이지 않는다** — 스트림 한 줄 때문에 화면이 비면 안 된다 */
-function parseLogLine(line: string): VercelRuntimeLog | null {
-  const s = line.trim()
-  if (!s) return null
-  let parsed: unknown
-  try { parsed = JSON.parse(s) } catch { return null }
-  const o = parsed as Partial<VercelRuntimeLog>
-  if (typeof o?.timestampInMs !== 'number') return null
-  // 구분자 줄은 로그가 아니다 — 화면에 빈 줄로 나타난다
-  if (o.source === 'delimiter') return null
+/** 두 응답 모양(평평한 v3 · payload 로 감싼 v2)을 하나로. 모르면 버린다 — 빈 줄을 만들지 않는다 */
+function flattenEvent(e: RawEvent): VercelDeployEvent | null {
+  const src = e.payload ?? e
+  const date = src.date ?? e.date ?? e.created ?? src.created
+  if (typeof date !== 'number') return null
+  const text = typeof src.text === 'string' ? src.text : ''
+  if (!text.trim()) return null
   return {
-    rowId: String(o.rowId ?? `${o.timestampInMs}-${logSeq()}`),
-    level: (o.level ?? 'info') as VercelRuntimeLog['level'],
-    message: String(o.message ?? ''),
-    messageTruncated: Boolean(o.messageTruncated),
-    source: (o.source ?? 'serverless') as VercelRuntimeLog['source'],
-    timestampInMs: o.timestampInMs,
-    domain: String(o.domain ?? ''),
-    requestMethod: String(o.requestMethod ?? ''),
-    requestPath: String(o.requestPath ?? ''),
-    responseStatusCode: Number(o.responseStatusCode ?? 0),
+    id: String(src.id ?? `${date}-${eventSeq()}`),
+    type: String(e.type ?? src.type ?? 'stdout'),
+    text,
+    date,
+    level: src.level ?? e.level,
+    info: src.info ?? e.info,
   }
 }
 
-/** rowId 가 없는 줄에도 안정적인 키를 준다 — React 목록이 키 없이 흔들리면 안 된다 */
+/** id 가 없는 줄에도 안정적인 키를 준다 — React 목록이 키 없이 흔들리면 안 된다 */
 let seq = 0
-function logSeq(): number { seq = (seq + 1) % 1_000_000; return seq }
+function eventSeq(): number { seq = (seq + 1) % 1_000_000; return seq }
