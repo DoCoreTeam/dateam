@@ -46,6 +46,16 @@ export default function MeetingMemoEditor({
   noteId, initialHtml, canEdit, userId, onStateChange, onLengthChange,
 }: Props) {
   const [html, setHtml] = useState(initialHtml)
+  /**
+   * 에디터에 **밀어 넣는** 값. 내가 친 글을 되먹이지 않는다.
+   *
+   * `TiptapEditor` 는 `value !== editor.getHTML()` 이면 `setContent` 로 되돌린다.
+   * 내 state 를 그대로 `value` 로 주면, 빠르게 칠 때 ProseMirror 가 먼저 앞서 나가고
+   * 그 순간 옛 값으로 되돌려져 **onUpdate ↔ setContent 핑퐁**이 난다
+   * (실측: "Maximum update depth exceeded", 실브라우저에서만 잡혔다).
+   * 그래서 이 값은 **복원처럼 일부러 밀어 넣을 때만** 바꾼다.
+   */
+  const [pushedHtml, setPushedHtml] = useState(initialHtml)
   const [state, setState] = useState<SaveState>('clean')
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -61,12 +71,16 @@ export default function MeetingMemoEditor({
     userId: userId ?? '',
     value: html,
     initial: initialHtml,
-    onRestore: (v) => { setHtml(v); latest.current = v; setState('dirty') },
+    onRestore: (v) => { setHtml(v); setPushedHtml(v); latest.current = v; setState('dirty') },
     enabled: canEdit,
   })
 
   useEffect(() => { onStateChange?.(state, savedAt) }, [state, savedAt, onStateChange])
   useEffect(() => { onLengthChange?.(plainLength(html)) }, [html, onLengthChange])
+
+  /** `useDraftPersist` 는 매 렌더 새 객체를 준다 — 그대로 의존하면 콜백 신원이 계속 바뀐다 */
+  const clearDraft = useRef(draft.clear)
+  clearDraft.current = draft.clear
 
   const push = useCallback(async () => {
     const value = latest.current
@@ -89,12 +103,12 @@ export default function MeetingMemoEditor({
       setState('saved')
       setError(null)
       // 서버가 받았으니 로컬 사본은 지운다 — 남겨 두면 다음 방문에 복원 배너가 헛되이 뜬다
-      draft.clear()
+      clearDraft.current()
     } catch {
       setError('저장하지 못했어요. 연결을 확인해 주세요. 쓰던 글은 이 브라우저에 남아 있습니다.')
       setState('error')
     }
-  }, [noteId, draft])
+  }, [noteId])
 
   const onChange = useCallback((next: string) => {
     setHtml(next)
@@ -133,7 +147,7 @@ export default function MeetingMemoEditor({
       <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
       {error && <InlineError spaced onDismiss={() => setError(null)}>{error}</InlineError>}
       <TiptapEditor
-        value={html}
+        value={pushedHtml}
         onChange={onChange}
         placeholder="회의 중에 들리는 대로 적어 두세요. 5초마다 저절로 저장됩니다."
         minHeight={320}

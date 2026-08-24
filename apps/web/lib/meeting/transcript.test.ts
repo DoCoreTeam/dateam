@@ -9,7 +9,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   segmentsToPlain, groupSegmentsByPart, formatSegmentTime,
-  distinctSpeakers, transcriptMinutes, type TranscriptSegment,
+  distinctSpeakers, transcriptMinutes, sortSegments, lastEndMs,
+  type TranscriptSegment,
 } from './transcript.ts'
 import { parseSpeakerLines, UNKNOWN_SPEAKER } from './paste-transcript.ts'
 
@@ -101,4 +102,38 @@ test('end_ms 는 항상 start_ms 보다 크다 — DB CHECK(마이그 217)를 �
   for (const l of parseSpeakerLines('A: 하나\nB: 둘\nC: 셋')) {
     assert.ok(l.endMs > l.startMs, `구간 ${l.idx} 가 CHECK 를 어긴다`)
   }
+})
+
+// ── 줄 세우기 — 붙여넣기가 녹음 앞으로 끼어들던 결함(v0.7.593 실측) ──
+
+test('구간이 뒤면 시각이 작아도 뒤에 선다 — part_idx 가 시간축의 1차 키', () => {
+  // 붙여넣기 구간(partIdx 1)의 시각은 자리표시라 녹음(partIdx 0)보다 작을 수 있다.
+  // start_ms 만으로 세우면 나중에 넣은 줄이 목록 맨 위로 온다 — 실제로 그랬다.
+  const out = sortSegments([
+    seg({ id: 'paste', partIdx: 1, partId: 'p1', startMs: 0, endMs: 999, text: '나중에 붙여넣음' }),
+    seg({ id: 'rec', partIdx: 0, partId: 'p0', startMs: 5_000, endMs: 6_000, text: '녹음 첫 줄' }),
+  ])
+  assert.deepEqual(out.map((s) => s.id), ['rec', 'paste'])
+})
+
+test('같은 구간 안에서는 시각순, 시각이 같으면 넣은 순서', () => {
+  const out = sortSegments([
+    seg({ id: 'c', idx: 1, startMs: 1_000 }),
+    seg({ id: 'a', idx: 0, startMs: 0 }),
+    seg({ id: 'b', idx: 0, startMs: 1_000 }),
+  ])
+  assert.deepEqual(out.map((s) => s.id), ['a', 'b', 'c'])
+})
+
+test('마지막 시각은 최대 endMs — 붙여넣기를 그 뒤에 놓기 위한 값', () => {
+  assert.equal(lastEndMs([]), 0)
+  assert.equal(lastEndMs([seg({ endMs: 900 }), seg({ id: '2', endMs: 12_345 }), seg({ id: '3', endMs: 4 })]), 12_345)
+})
+
+test('붙여넣기에 기준 시각을 주면 그 뒤에서 시작한다', () => {
+  const out = parseSpeakerLines('A: 하나\nB: 둘', 60_000)
+  assert.equal(out[0].startMs, 60_000)
+  assert.equal(out[1].startMs, 61_000)
+  // 기준을 안 주면 예전 그대로 0 부터 — 기존 호출처(CRM 어댑터)의 동작이 바뀌면 안 된다
+  assert.equal(parseSpeakerLines('A: 하나')[0].startMs, 0)
 })

@@ -17,6 +17,7 @@
  */
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { NotebookPen, Mic, Sparkles, Check, Loader2, CircleAlert } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ErrorState from '@/components/ui/ErrorState'
@@ -70,6 +71,7 @@ function saveLabel(state: SaveState, at: number | null): string {
 }
 
 export default function MeetingWorkbench({ noteId, title, href, onBodySaved, onDigested }: Props) {
+  const router = useRouter()
   const [note, setNote] = useState<NoteState | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -102,15 +104,19 @@ export default function MeetingWorkbench({ noteId, title, href, onBodySaved, onD
     setHighlight(ids)
     const url = new URL(window.location.href)
     url.searchParams.set('wb', 'transcript')
-    window.history.pushState(null, '', url.toString())
-    window.dispatchEvent(new PopStateEvent('popstate'))
+    /**
+     * `history.pushState` + `popstate` 로는 탭이 안 넘어간다 — 주소만 바뀌고 화면은 그대로다
+     * (실측 v0.7.593). Next 의 `useSearchParams` 는 자체 라우터 상태를 보므로
+     * 라우터를 거쳐야 `SegmentedTabs` 가 새 값을 읽는다.
+     */
+    router.replace(`${url.pathname}${url.search}`, { scroll: false })
     if (ids[0]) {
       window.setTimeout(
         () => document.getElementById(`seg-${ids[0]}`)?.scrollIntoView({ block: 'center' }),
-        80,
+        150,
       )
     }
-  }, [])
+  }, [router])
 
   const load = useCallback(async () => {
     setLoadError(null)
@@ -164,7 +170,14 @@ export default function MeetingWorkbench({ noteId, title, href, onBodySaved, onD
 
       {/* 녹음은 탭 위에 둔다 — 회의 중에 여는 화면이고 그때 필요한 건 녹음 버튼뿐이다 */}
       <div className={styles.recordRow}>
-        <RecordingPanel noteId={noteId} title={title} href={href} onTranscribed={onTranscribed} />
+        {/**
+          * 녹음은 **주인만.** 남의 회의노트에서도 버튼이 눌리던 것을 막는다(실측 v0.7.593).
+          * 서버가 어차피 막지만, 회의를 다 녹음한 뒤 저장이 실패하면 그 회의는 통째로 사라진다 —
+          * 못 하는 일은 **누르기 전에** 안 보여야 한다.
+          */}
+        {canEdit && (
+          <RecordingPanel noteId={noteId} title={title} href={href} onTranscribed={onTranscribed} />
+        )}
       </div>
 
       <SegmentedTabs

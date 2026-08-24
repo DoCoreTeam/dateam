@@ -27,7 +27,12 @@ export interface PastedLine {
   text: string
 }
 
-export function parseSpeakerLines(text: string): PastedLine[] {
+/**
+ * @param baseMs 이 회의에서 이미 쓰인 마지막 시각. 붙여넣기를 **그 뒤에** 놓는다.
+ *   0 이면 처음부터다. 안 주면 녹음이 있는 회의에서 붙여넣은 줄이 맨 앞으로 끼어든다
+ *   (실측 v0.7.593).
+ */
+export function parseSpeakerLines(text: string, baseMs = 0): PastedLine[] {
   return text
     .split('\n')
     .map((l) => l.trim())
@@ -37,8 +42,8 @@ export function parseSpeakerLines(text: string): PastedLine[] {
       return {
         idx: i,
         speaker: m ? m[1].trim() : UNKNOWN_SPEAKER,
-        startMs: i * 1000,
-        endMs: i * 1000 + 999,
+        startMs: baseMs + i * 1000,
+        endMs: baseMs + i * 1000 + 999,
         text: m ? m[2].trim() : line,
       }
     })

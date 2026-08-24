@@ -12,7 +12,7 @@
 // 이제 붙여넣기도 원본에 먼저 들어가고, CRM 은 발행으로 스냅샷을 받는다.
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { listTranscriptSegments, distinctSpeakers } from '@/lib/meeting/transcript'
+import { listTranscriptSegments, distinctSpeakers, segmentsToPlain, lastEndMs } from '@/lib/meeting/transcript'
 import { parseSpeakerLines } from '@/lib/meeting/paste-transcript'
 
 export const runtime = 'nodejs'
@@ -80,7 +80,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 
   // 평문 캐시도 같이 고친다 — 안 고치면 AI 입력만 옛 이름을 계속 읽는다
-  await refreshPlainCache(admin, id, partIds)
+  await refreshPlainCache(admin, id)
 
   return NextResponse.json({ ok: true, changed: ((updated ?? []) as unknown[]).length })
 }
@@ -100,11 +100,16 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if (!text.trim()) return NextResponse.json({ error: '회의 내용을 붙여넣어 주세요.' }, { status: 400 })
   if (text.length > 1_000_000) return NextResponse.json({ error: '내용이 너무 깁니다.' }, { status: 400 })
 
-  const lines = parseSpeakerLines(text)
-  if (lines.length === 0) return NextResponse.json({ error: '넣을 내용을 찾지 못했어요.' }, { status: 400 })
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
+
+  /**
+   * 시각은 **이미 쓰인 마지막 시각 뒤**에서 시작한다.
+   * 0 부터 매기면 녹음이 있는 회의에서 붙여넣은 줄이 목록 맨 위로 끼어든다(실측 v0.7.593).
+   */
+  const already = await listTranscriptSegments(admin, id)
+  const lines = parseSpeakerLines(text, lastEndMs(already) + 1000)
+  if (lines.length === 0) return NextResponse.json({ error: '넣을 내용을 찾지 못했어요.' }, { status: 400 })
 
   /**
    * 붙여넣기는 **한 구간**으로 들어간다(오디오 없음).
@@ -144,24 +149,21 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: `회의 내용을 넣지 못했습니다: ${segErr.message}` }, { status: 500 })
   }
 
-  const { data: allParts } = await admin
-    .from('meeting_recording_part').select('id').eq('note_id', id)
-  await refreshPlainCache(admin, id, ((allParts ?? []) as { id: string }[]).map((p) => p.id))
+  await refreshPlainCache(admin, id)
 
   return NextResponse.json({ ok: true, segmentCount: rows.length })
 }
 
-/** `meeting_notes.transcript` 평문 캐시를 세그먼트에서 다시 만든다 */
+/**
+ * `meeting_notes.transcript` 평문 캐시를 세그먼트에서 다시 만든다.
+ *
+ * 읽기·정렬은 **SSOT 를 그대로 부른다.** 예전엔 여기서 `order('start_ms')` 를 다시 써서
+ * 화면과 캐시의 줄 순서가 갈렸다 — 화면은 고쳤는데 AI 입력은 옛 순서를 읽는 상태.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function refreshPlainCache(admin: any, noteId: string, partIds: string[]): Promise<void> {
-  if (partIds.length === 0) return
-  const { data } = await admin
-    .from('meeting_transcript_segment')
-    .select('speaker, text, start_ms')
-    .in('part_id', partIds)
-    .order('start_ms', { ascending: true })
-  const rows = (data ?? []) as { speaker: string; text: string }[]
-  if (rows.length === 0) return
-  const plain = rows.map((r) => `${r.speaker}: ${r.text}`).join('\n')
-  await admin.from('meeting_notes').update({ transcript: plain }).eq('id', noteId)
+async function refreshPlainCache(admin: any, noteId: string): Promise<void> {
+  const segments = await listTranscriptSegments(admin, noteId)
+  if (segments.length === 0) return
+  await admin.from('meeting_notes')
+    .update({ transcript: segmentsToPlain(segments) }).eq('id', noteId)
 }

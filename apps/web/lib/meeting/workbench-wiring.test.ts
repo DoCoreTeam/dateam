@@ -97,3 +97,23 @@ test('본문 자동저장이 실제로 서버로 간다 — 로컬에만 남으�
   assert.ok(src.includes('useDraftPersist'), '로컬 임시저장은 두 번째 방어선이다')
   assert.ok(src.includes('keepalive'), '떠날 때 마지막 한 번을 밀어 넣어야 한다')
 })
+
+test('녹음은 주인만 — 남의 회의노트에서 「녹음 시작」이 보이면 안 된다', () => {
+  // 실측 v0.7.593: 남의 노트를 열었는데 녹음 버튼이 눌렸다. 서버는 403 으로 막지만,
+  // 회의를 다 녹음한 뒤 저장이 실패하면 그 회의는 통째로 사라진다.
+  const wb = code('components/meeting/MeetingWorkbench.tsx')
+  assert.match(wb, /canEdit\s*&&\s*\(\s*<RecordingPanel/,
+    'RecordingPanel 이 canEdit 게이트 밖에 있다')
+})
+
+test('탭 렌더러는 밖에서 바뀐 주소를 따라간다 — 「근거」가 전사로 못 넘어가던 결함', () => {
+  // 실측 v0.7.593: URL 은 ?wb=transcript 로 바뀌는데 화면은 정리 탭 그대로였다.
+  // SegmentedTabs 가 URL 을 마운트 때 한 번만 읽고 그 뒤로는 쓰기만 했다.
+  const st = code('components/ui/SegmentedTabs.tsx')
+  assert.match(st, /if\s*\(fromUrl\s*!==\s*seenUrl\)/,
+    'SegmentedTabs 가 외부 URL 변화를 따라가지 않는다')
+  // 그리고 이동은 라우터를 거쳐야 한다 — history.pushState 로는 useSearchParams 가 안 깨어난다
+  const wb = code('components/meeting/MeetingWorkbench.tsx')
+  assert.ok(!/pushState/.test(wb), '근거 이동에 history.pushState 를 쓰면 탭이 안 넘어간다')
+  assert.match(wb, /router\.replace\(/, '근거 이동이 라우터를 거치지 않는다')
+})

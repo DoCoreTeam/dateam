@@ -6,8 +6,11 @@
  * 즉 받아적기는 되는데 **볼 화면이 없었다.** 그래서 읽는 경로를 여기 하나로 만든다 —
  * 화면·정리 AI·내보내기가 각자 조회하면 정렬 규칙이 셋으로 갈린다.
  *
- * 시간축은 하나다: `start_ms` 에 구간 오프셋(`part_idx × 10분`)이 이미 더해져 있다(마이그 217).
- * 그래서 정렬은 `start_ms` 하나면 되고, 구간 경계는 표시용으로만 쓴다.
+ * **시간축의 1차 키는 `part_idx` 다.** 녹음 구간은 `start_ms` 에 오프셋(`part_idx × 10분`)이
+ * 이미 더해져 있지만(마이그 217), **붙여넣기 구간은 오디오가 없어 시각이 자리표시**다.
+ * `start_ms` 만으로 줄을 세우면 나중에 붙여넣은 줄이 **첫 줄 앞으로 끼어든다**
+ * (실측 v0.7.593: 4번째로 넣은 줄이 목록 맨 위에 떴다).
+ * 그래서 `part_idx → start_ms → idx` 로 세운다.
  */
 
 import { partOffsetMs, type RecordingPart } from './recording-core.ts'
@@ -61,7 +64,7 @@ export async function listTranscriptSegments(
     speaker: string; start_ms: number; end_ms: number; text: string
   }[]
 
-  return segs.map((s) => ({
+  return sortSegments(segs.map((s) => ({
     id: s.id,
     partId: s.part_id,
     partIdx: partIdxById.get(s.part_id) ?? 0,
@@ -70,7 +73,23 @@ export async function listTranscriptSegments(
     startMs: s.start_ms,
     endMs: s.end_ms,
     text: s.text,
-  }))
+  })))
+}
+
+/**
+ * 줄 세우기 SSOT — `part_idx → start_ms → idx`.
+ *
+ * DB 의 `order('start_ms')` 만으로는 부족하다: 붙여넣기 구간의 시각은 자리표시라
+ * 구간이 뒤여도 값이 작다. 구간을 먼저 보지 않으면 순서가 뒤집힌다.
+ */
+export function sortSegments(segments: TranscriptSegment[]): TranscriptSegment[] {
+  return [...segments].sort((a, b) =>
+    a.partIdx - b.partIdx || a.startMs - b.startMs || a.idx - b.idx)
+}
+
+/** 이 회의에서 이미 쓰인 마지막 시각 — 붙여넣기를 그 뒤에 놓기 위해 */
+export function lastEndMs(segments: TranscriptSegment[]): number {
+  return segments.reduce((max, s) => Math.max(max, s.endMs), 0)
 }
 
 /** `화자: 말` 줄로 잇는다 — AI 입력과 내보내기가 같은 모양을 쓰게 */
