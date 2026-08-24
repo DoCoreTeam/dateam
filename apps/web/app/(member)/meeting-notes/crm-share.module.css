@@ -1,0 +1,91 @@
+/**
+ * 영업팀 공개 범위 손잡이 — 회의노트 상세 전용.
+ * §0-1: 화면 전용 스타일은 globals.css 가 아니라 그 폴더의 CSS Module 에 둔다.
+ */
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.open {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--fs-sm);
+}
+
+/* 셋을 나란히 — 범위가 좁은 것부터 넓은 것 순서라 가로가 맞다 */
+.choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 640px) {
+  .choices { grid-template-columns: 1fr; }
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.choice:hover:not(:disabled) { border-color: var(--brand); color: var(--text); }
+.choice:focus-visible { outline: var(--border-w-2) solid var(--accent); outline-offset: 2px; }
+.choice:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--nb-white);
+  font-weight: 600;
+}
+
+.choiceLabel { white-space: nowrap; }
+
+.hint {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.modalLead {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* 되돌릴 수 없는 쪽 말고 다른 길이 있다는 것을 확인창에서 알린다 */
+.modalAlt {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-bg);
+  border-left: var(--border-w-2) solid var(--brand);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.modalActions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}

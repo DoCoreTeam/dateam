@@ -22,9 +22,13 @@ import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText } from '../domain/normalize.ts'
-import { transcribe } from './meeting.ts'
+import { transcribe, deleteMeeting } from './meeting.ts'
 import { pastedTranscriptAdapter } from '../stt/adapter.ts'
 import { htmlToPlain } from '../../html-to-plain.ts'
+import { NOTE_VISIBILITY } from '../../meeting/note-visibility.ts'
+import {
+  readShareState, planShareState, type MeetingShareState,
+} from '../../meeting/share-state.ts'
 
 /** 스냅샷 출처를 기록에 남긴다 — 사람이 붙여넣은 것과 구분할 수 있어야 한다 */
 export const NOTE_SNAPSHOT_VENDOR = 'note-snapshot'
@@ -337,38 +341,66 @@ export async function resyncFromNote(
 }
 
 /**
- * 발행 취소 — 연결만 끊는다.
+ * 발행 취소 — **원본을 잠근다. 링크는 끊지 않는다.**
  *
- * **미팅을 지우지 않는다.** 되돌릴 수 있어야 사람이 부담 없이 발행한다.
- * 스냅샷과 이미 반영된 제안은 그대로 남는다 — 그건 팀이 이미 본 사실이다.
+ * ## 예전에 무엇을 했고 왜 바꿨나
+ *
+ * 예전엔 `noteId = null` 을 했다. "연결만 끊고 기록은 남긴다"는 뜻이었는데
+ * 두 가지가 어긋났다(사용자 지적 2026-08-24: *"연결 해제와 연결이 의미가 있나?"*).
+ *
+ *   ① 사용자가 기대한 것과 반대였다 — 미팅도 요약도 전사도 팀에 **그대로 남았다.**
+ *      "해제"라는 말이 약속하는 것을 하나도 하지 않았다.
+ *   ② 재발행의 멱등 판정이 그 `noteId` 로 기존 미팅을 찾는다(`findPublished`).
+ *      지워 버리니 못 찾아서 **같은 회의가 CRM 에 두 벌** 생겼다 —
+ *      v0.7.576 이 없애려던 바로 그 상태다.
+ *
+ * 지금은 같은 목적("기록은 남기고 원본은 닫는다")을 링크가 아니라 **읽기 범위**로 이룬다.
+ * 그것이 손잡이 SSOT 의 `RECORD_ONLY` 다.
+ *
+ * @deprecated 새 코드는 `setNoteShareState` 를 부른다. 이 함수는 옛 라우트의 하위호환이다.
  */
 export async function unpublishNote(
   workspaceId: string,
   actorId: string | null,
   meetingId: string,
 ): Promise<{ meetingId: string }> {
-  return withCrmTx(workspaceId, async (tx) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const before = await (tx as any).crmMeeting.findFirst({
-      where: { id: meetingId, deletedAt: null },
-      select: { id: true, noteId: true },
-    }) as { id: string; noteId: string | null } | null
-    if (!before) throw new CrmError('NOT_FOUND', '미팅을 찾을 수 없습니다.')
-    if (!before.noteId) throw new CrmError('VALIDATION_FAILED', '연결된 회의노트가 없습니다.')
+  const db = getCrmDb(workspaceId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const before = await (db as any).crmMeeting.findFirst({
+    where: { id: meetingId, deletedAt: null },
+    select: { id: true, noteId: true, createdById: true },
+  }) as { id: string; noteId: string | null; createdById: string | null } | null
+  if (!before) throw new CrmError('NOT_FOUND', '미팅을 찾을 수 없습니다.')
+  if (!before.noteId) throw new CrmError('VALIDATION_FAILED', '연결된 회의노트가 없습니다.')
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (tx as any).crmMeeting.updateMany({
-      where: { id: meetingId },
-      data: { noteId: null, noteSyncedAt: null },
-    })
-
-    await writeAudit(tx, {
-      actorType: 'HUMAN', actorId, action: 'meeting.unpublished',
-      targetType: 'meeting', targetId: meetingId,
-      beforeJson: { noteId: before.noteId },
-    })
-    return { meetingId }
+  // 원본 주인만 읽기 범위를 바꿀 수 있다 — 그 판정은 SSOT 안에 있다
+  const { hostUserId } = await resolveNoteOwner(before.noteId)
+  await setNoteShareState(workspaceId, actorId, hostUserId, {
+    noteId: before.noteId,
+    next: 'RECORD_ONLY',
   })
+  return { meetingId }
+}
+
+/**
+ * 회의노트의 주인을 찾는다.
+ *
+ * 옛 `/unpublish` 라우트는 미팅 id 만 준다. 읽기 범위를 바꾸려면 원본 주인이 필요한데,
+ * 그 정보가 요청에 없다. 여기서 한 번 찾아 새 SSOT 로 넘긴다 —
+ * 라우트를 고치지 않고도 동작을 통일할 수 있게 한다(M-4 추가 전용).
+ */
+async function resolveNoteOwner(noteId: string): Promise<{ hostUserId: string }> {
+  const { createAdminClient } = await import('../../supabase/server.ts')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data } = await admin
+    .from('meeting_notes')
+    .select('user_id')
+    .eq('id', noteId)
+    .maybeSingle()
+  const row = data as { user_id: string } | null
+  if (!row) throw new CrmError('NOT_FOUND', '회의노트를 찾을 수 없습니다.')
+  return { hostUserId: row.user_id }
 }
 
 export interface CreateWithNoteInput {
@@ -607,4 +639,187 @@ export function isNoteNewerThanSnapshot(
   if (Number.isNaN(updated) || Number.isNaN(synced)) return false
   // 같은 시각은 "안 바뀐 것"이다. 발행 직후 배지가 뜨면 아무도 안 믿는다.
   return updated > synced
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * 공개 상태 — 손잡이 하나로 모은 자리 (v0.7.596)
+ *
+ * 사용자 지적(2026-08-24): *"영업 CRM 연결 해제와 연결이 의미가 있나?
+ * 어차피 나만보기로 했을때는 변화가 있나?"*
+ *
+ * 예전엔 셋이 흩어져 있었다 — `visibility`(원본 읽기) · `noteId`(원본 링크) ·
+ * CRM 사본(끌 방법 없음). 여기서 하나로 받는다. 판정 규칙은 `lib/meeting/share-state.ts`.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * 휴지통에 있는 그 회의의 미팅을 **되살린다.** 없으면 null.
+ *
+ * ## 왜 필요한가
+ *
+ * 확인창이 *"지운 미팅은 30일 안에 되살릴 수 있습니다"* 라고 약속한다. 그런데
+ * 다시 올릴 때 `findPublished` 는 살아 있는 것만 찾으므로(`deletedAt: null`)
+ * **새 미팅을 만들었다.** 목록에 중복이 뜨지는 않지만, 그 미팅에 붙여 둔
+ * 회사·딜·AI 제안이 휴지통에 남고 새 미팅은 빈 채로 시작한다 — 약속이 반만 지켜진 것이다.
+ *
+ * 되살리면 붙여 둔 것이 그대로 돌아온다. 이것이 "되돌릴 수 있다"의 온전한 뜻이다.
+ */
+async function restorePublished(
+  workspaceId: string,
+  actorId: string | null,
+  noteId: string,
+): Promise<{ id: string } | null> {
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const trashed = await (tx as any).crmMeeting.findFirst({
+      // 휴지통을 일부러 들여다본다 — 명시하지 않으면 가드가 살아 있는 것만 보여 준다
+      where: { noteId, deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      select: { id: true },
+    }) as { id: string } | null
+    if (!trashed) return null
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (tx as any).crmMeeting.updateMany({
+      /**
+       * **삭제된 행임을 여기서도 명시한다.** 워크스페이스 가드는 소프트 삭제 모델의
+       * 조회에 `deletedAt: null` 을 자동으로 붙인다 — 명시하지 않으면 되살릴 대상이
+       * 조건에서 빠져 **0건이 갱신되고 응답은 200 이다**(아무 일도 안 일어난다).
+       */
+      where: { id: trashed.id, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    })
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'meeting.restored',
+      targetType: 'meeting', targetId: trashed.id,
+    })
+    return { id: trashed.id }
+  })
+}
+
+/** 지금 이 회의노트가 팀에게 어디까지 보이는지 읽는다 */
+export async function readNoteShareState(
+  workspaceId: string,
+  noteId: string,
+  hostUserId: string,
+): Promise<{ state: MeetingShareState; meetingId: string | null }> {
+  const meeting = await findPublished(workspaceId, noteId)
+
+  const { createAdminClient } = await import('../../supabase/server.ts')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data } = await admin
+    .from('meeting_notes')
+    .select('user_id, visibility, deleted_at')
+    .eq('id', noteId)
+    .maybeSingle()
+
+  const row = data as { user_id: string; visibility: string | null; deleted_at: string | null } | null
+  // 원본이 없거나 남의 것이면 이 사람이 상태를 정할 자격이 없다 — 화면이 스위치를 감춘다
+  const owned = !!row && !row.deleted_at && row.user_id === hostUserId
+
+  return {
+    state: readShareState({
+      hasLiveMeeting: !!meeting,
+      hasNoteLink: !!meeting,
+      visibility: owned && row.visibility === NOTE_VISIBILITY.CRM
+        ? NOTE_VISIBILITY.CRM
+        : NOTE_VISIBILITY.PRIVATE,
+    }),
+    meetingId: meeting?.id ?? null,
+  }
+}
+
+export interface SetShareStateInput {
+  noteId: string
+  next: MeetingShareState
+  /** 새로 올릴 때만 쓴다 — 이미 올라간 건은 미팅 화면에서 바꾼다 */
+  companyId?: string | null
+  dealId?: string | null
+}
+
+/**
+ * 공개 상태를 **바꾼다.**
+ *
+ * ## 순서가 규칙이다
+ *
+ * 두 저장소(회의노트 = Supabase, 미팅 = Prisma)를 건드리므로 한 트랜잭션으로 못 묶는다.
+ * 그래서 **중간에 끊겨도 더 닫힌 쪽으로 남도록** 순서를 정한다:
+ *
+ *   · 좁히는 방향(→ PRIVATE): **원본을 먼저 잠그고** 미팅을 지운다.
+ *     중간에 끊기면 "원본 잠김 + 미팅 남음" = `RECORD_ONLY` — 열려 있지 않다.
+ *   · 넓히는 방향(→ TEAM):    **미팅을 먼저 만들고** 원본을 연다.
+ *     중간에 끊기면 "미팅 있음 + 원본 잠김" = `RECORD_ONLY` — 역시 열려 있지 않다.
+ *
+ * 어느 쪽으로 실패해도 착지점이 `RECORD_ONLY` 다. 조용히 더 열리는 일이 없다.
+ *
+ * ## `noteId` 를 지우지 않는다
+ *
+ * 예전 "연결 해제"는 `noteId = null` 을 했고, 그 탓에 재발행이 기존 미팅을 못 찾아
+ * **같은 회의를 두 벌** 만들었다. 여기에는 링크를 끊는 코드가 없다.
+ */
+export async function setNoteShareState(
+  workspaceId: string,
+  actorId: string | null,
+  hostUserId: string,
+  input: SetShareStateInput,
+): Promise<{ state: MeetingShareState; meetingId: string | null }> {
+  const plan = planShareState(input.next)
+  const before = await readNoteShareState(workspaceId, input.noteId, hostUserId)
+
+  // 원본 주인만 정할 수 있다 — 남의 회의 공개 범위를 바꾸는 창구가 되면 안 된다
+  await loadOwnNote(input.noteId, hostUserId)
+
+  const setVisibility = async () => {
+    const { createAdminClient } = await import('../../supabase/server.ts')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    const { error } = await admin
+      .from('meeting_notes')
+      .update({ visibility: plan.visibility })
+      .eq('id', input.noteId)
+      .eq('user_id', hostUserId)
+    // supabase-js 는 실패를 던지지 않는다 — 반환 오류를 반드시 본다
+    if (error) throw new CrmError('CONFLICT', '공개 범위를 바꾸지 못했습니다.')
+  }
+
+  let meetingId = before.meetingId
+
+  if (!plan.wantMeeting) {
+    await setVisibility()                                   // ① 먼저 잠근다
+    if (meetingId) await deleteMeeting(workspaceId, actorId, meetingId)  // ② 그다음 내린다
+    meetingId = null
+  } else {
+    if (!meetingId) {
+      /**
+       * **되살리기가 먼저다.** 예전에 올렸다가 내린 회의면 휴지통에 그 미팅이 있고,
+       * 거기에 회사·딜·AI 제안이 붙어 있다. 새로 만들면 그게 전부 두고 온 것이 된다.
+       */
+      const restored = await restorePublished(workspaceId, actorId, input.noteId)
+      if (restored) {
+        meetingId = restored.id
+      } else {
+        // 처음 올리는 건이다. 발행은 멱등이라 두 번 눌러도 안전하다
+        const published = await publishFromNote(workspaceId, actorId, hostUserId, {
+          noteId: input.noteId,
+          companyId: input.companyId ?? null,
+          dealId: input.dealId ?? null,
+        })
+        meetingId = published.meetingId
+      }
+    }
+    await setVisibility()                                   // ② 미팅이 선 다음 연다
+  }
+
+  if (meetingId) {
+    await withCrmTx(workspaceId, async (tx) => {
+      await writeAudit(tx, {
+        actorType: 'HUMAN', actorId, action: 'meeting.share_state_changed',
+        targetType: 'meeting', targetId: meetingId as string,
+        beforeJson: { state: before.state },
+        afterJson: { state: input.next },
+      })
+    })
+  }
+
+  return { state: input.next, meetingId }
 }

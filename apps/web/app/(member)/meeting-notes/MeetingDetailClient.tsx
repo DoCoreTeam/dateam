@@ -170,9 +170,19 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
           noteId={note.id}
           title={note.title}
           href={`/meeting-notes/${note.id}`}
+          /* 공개 범위는 아래 카드 하나가 정한다 — 두 곳에서 정하면 서로를 모른다 */
+          showVisibility={false}
         />
 
-        {/* 본문(읽기) + AI 분석 액션 */}
+        {/**
+          * **읽을 본문이 있을 때만 그린다.**
+          *
+          * 예전엔 늘 그렸다. 그런데 이 카드의 버튼은 전부 `hasBody &&` 안에 있고
+          * `actionsOnly` 라 탭·본문도 안 그리므로, 본문이 비면 **제목만 남은 빈 상자**가 됐다
+          * (사용자 지적 2026-08-24: "AI로 뽑기는 어떻게? 쓰는거야?").
+          * 못 하는 일은 누르기 전에 안 보이는 것이 이 저장소의 방식이다.
+          */}
+        {(note.body_plain ?? '').trim().length > 0 && (
         <MeetingReadBody
           meetingNoteId={note.id}
           body={note.body}
@@ -185,6 +195,7 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
           autoAnalyze={autoAnalyze}
           actionsOnly
         />
+        )}
 
         {/* 영업 CRM 연결 — 이 회의가 고객사 건일 때만 쓴다.
             CRM 멤버가 아니면 카드 자체가 안 보인다(못 쓰는 버튼을 보여 주지 않는다).

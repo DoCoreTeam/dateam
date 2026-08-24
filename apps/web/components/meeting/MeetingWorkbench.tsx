@@ -39,6 +39,14 @@ interface Props {
   href: string
   /** 본문이 서버에 저장될 때마다 — CRM 은 여기서 조용히 스냅샷을 따라잡는다 */
   onBodySaved?: () => void
+  /**
+   * 공개 범위 스위치를 여기서 보여줄까. **기본은 보여 준다**(하위호환).
+   *
+   * 회의노트 화면(/meeting-notes)에는 하단에 손잡이 하나(CrmPublishCard)가 따로 있다 —
+   * 거기서도 켜면 **같은 것을 정하는 자리가 두 곳**이 되고, 그게 이 사고의 원인이었다
+   * (사용자 지적 2026-08-24). CRM 미팅 화면에는 그 카드가 없어 여기가 유일한 자리라 켠다.
+   */
+  showVisibility?: boolean
   /** 정리가 끝났을 때 — CRM 은 요약 스냅샷을 다시 가져온다 */
   onDigested?: () => void
 }
@@ -70,7 +78,9 @@ function saveLabel(state: SaveState, at: number | null): string {
   return ''
 }
 
-export default function MeetingWorkbench({ noteId, title, href, onBodySaved, onDigested }: Props) {
+export default function MeetingWorkbench({
+  noteId, title, href, onBodySaved, onDigested, showVisibility = true,
+}: Props) {
   const router = useRouter()
   const [note, setNote] = useState<NoteState | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -159,7 +169,7 @@ export default function MeetingWorkbench({ noteId, title, href, onBodySaved, onD
       <div className={styles.headRow}>
         <h2 className="tape-title" style={{ margin: 0 }}>회의 기록</h2>
         <div className={styles.headRight}>
-          {canEdit && <NoteVisibilitySwitch noteId={noteId} initial={note.visibility} />}
+          {canEdit && showVisibility && <NoteVisibilitySwitch noteId={noteId} initial={note.visibility} />}
           {label && (
             <span className={styles.saveState} data-state={saveState} role="status">
               {SAVE_ICON[saveState]} {label}

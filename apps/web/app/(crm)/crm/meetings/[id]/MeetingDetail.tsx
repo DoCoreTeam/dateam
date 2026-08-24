@@ -259,7 +259,15 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
            * 원본이 없거나(발행 전·삭제됨) 남의 노트면 CRM 이 가진 **스냅샷**을 보여 준다 —
            * 스냅샷 구조라서 원본이 사라져도 팀의 영업 기록은 산다.
            */
-          m.note?.exists ? (
+          /**
+           * **열어도 되는 원본일 때만** 작업대를 그린다.
+           *
+           * 예전엔 `exists` 만 봤다(v0.7.595 이전). 그래서 남이 '나만 보기'로 둔 원본이
+           * 붙은 미팅을 팀원이 열면: 작업대가 그려지고 → 원본을 요청하고 → 권한이 없어
+           * 404 를 받고 → **오류 상자**를 그렸다. 사본이 있는데도 안 보여 준 것이다.
+           * 사본 구조를 만든 이유("원본이 사라져도 팀의 영업 기록은 산다")가 바로 그 자리에서 무력해졌다.
+           */
+          m.note?.exists && m.note.canOpen ? (
             <MeetingWorkbench
               noteId={m.note.id}
               title={m.title}
