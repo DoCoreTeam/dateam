@@ -76,6 +76,25 @@ function prismaCodeOf(error: unknown): string | null {
   return typeof c === 'string' && /^P\d{4}$/.test(c) ? c : null
 }
 
+/** CrmError 는 코드로 사유를 이미 말한다 — 문장을 추측하지 않는다 */
+function crmCodeOf(error: unknown): string | null {
+  const c = (error as { code?: unknown })?.code
+  return typeof c === 'string' && /^[A-Z_]{4,}$/.test(c) ? c : null
+}
+
+/**
+ * 이건 실패가 아니다 — 남기면 진짜 실패가 그 안에 묻힌다.
+ *
+ * `Dynamic server usage` 는 Next 가 **정적 렌더를 포기하고 동적으로 가겠다**고
+ * 스스로에게 던지는 제어 흐름 신호다. 사용자에게는 아무 일도 일어나지 않는다.
+ * 실측(2026-08-21): 이 한 줄이 시스템 로그의 대부분을 차지했다.
+ */
+const NOT_A_FAILURE = [
+  /Dynamic server usage/i,
+  /DYNAMIC_SERVER_USAGE/,
+  /NEXT_(REDIRECT|NOT_FOUND)/,
+]
+
 /**
  * 사건 하나를 남긴다. **절대 던지지 않는다.**
  *
@@ -85,8 +104,15 @@ export async function recordSystemEvent(input: RecordInput): Promise<void> {
   try {
     const rawMessage = messageOf(input.error)
     const message = maskSecrets(rawMessage)
+    // 프레임워크가 자기에게 던지는 신호는 로그가 아니다
+    if (NOT_A_FAILURE.some((re) => re.test(rawMessage))) return
+
     const reason = input.reason
-      ?? classifySystemReason({ prismaCode: prismaCodeOf(input.error), message })
+      ?? classifySystemReason({
+        crmCode: crmCodeOf(input.error),
+        prismaCode: prismaCodeOf(input.error),
+        message,
+      })
     const fingerprint = fingerprintOf(input.source, reason, message)
 
     const { allow, suppressed } = passesThrottle(fingerprint, Date.now())
@@ -96,6 +122,8 @@ export async function recordSystemEvent(input: RecordInput): Promise<void> {
       source: input.source, reason,
       feature: input.feature ?? null, route: input.route ?? null,
       hint: input.hint ?? null,
+      // 사실 문장과 해결책이 같은 말을 하도록 — 안 넘기면 둘이 서로를 뒤집는다
+      webSearch: input.context?.webSearch === true,
     }
 
     const stack = input.error instanceof Error && input.error.stack ? input.error.stack : rawMessage

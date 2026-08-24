@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { headlineOf, detailOf, occurrenceLine, truncateRaw, maskSecrets, RAW_MAX } from './narrate.ts'
 import { classifySystemReason, severityOf, normalizeMessage, fingerprintOf } from './reason.ts'
 import { featureLabel, sourceLabel, reasonLabel } from './labels.ts'
-import { read } from '../ui/component-scan.ts'
+import { read, stripComments } from '../ui/component-scan.ts'
 
 const at = (iso: string) => iso.slice(11, 16)
 
@@ -218,4 +218,91 @@ test('길목 넷은 전부 await 한다 — 하나라도 빠지면 그 경로만
 test('워크스페이스 id 는 text 다 — UUID 가 아니다(ws_dataalliance)', () => {
   const sql = read('../../supabase/migrations/219_system_events_workspace_text.sql')
   assert.match(sql, /ALTER COLUMN workspace_id TYPE text/)
+})
+
+// ── 웹 검색 한도는 다른 바구니다 (2026-08-24 실측) ────────────
+//
+// 같은 키로 일반 호출은 65초 뒤 200 으로 회복되는데(분당 한도),
+// `google_search` 를 켠 호출은 기다려도 계속 429였다.
+// 그래서 일반 한도용 조언("다른 모델로 바꾸세요")을 그대로 주면 **틀린 답**이 된다 —
+// 모든 모델이 같은 그라운딩 한도를 나눠 쓰기 때문이다.
+
+test('웹 검색 실패에는 웹 검색용 답을 준다 — 모델 교체 조언은 여기서 안 먹힌다', async () => {
+  const { playbookFor } = await import('./playbook.ts')
+  const web = playbookFor('quota', { webSearch: true })
+  const plain = playbookFor('quota', { webSearch: false })
+  assert.ok(web && plain)
+  assert.notEqual(web!.diagnosis, plain!.diagnosis, '두 한도를 같은 말로 설명하면 안 된다')
+  assert.match(web!.diagnosis, /웹 검색/)
+  const webActions = web!.actions.map((a) => a.what).join(' ')
+  assert.ok(!/다른 모델/.test(webActions), '웹 검색 한도에는 모델 교체가 답이 아니다')
+  assert.match(plain!.actions.map((a) => a.what).join(' '), /다른 모델/)
+})
+
+test('맥락이 없으면 일반 한도 답으로 돌아간다 — 없는 정보를 지어내지 않는다', async () => {
+  const { playbookFor } = await import('./playbook.ts')
+  assert.equal(playbookFor('quota')?.diagnosis, playbookFor('quota', null)?.diagnosis)
+  assert.match(playbookFor('quota')!.diagnosis, /키 하나를 여러 기능이/)
+})
+
+test('웹 검색 한도면 모델 사슬을 더 걷지 않는다 — 전부 같은 이유로 실패한다', () => {
+  const src = read('lib/crm/ai/adapters/host.ts')
+  assert.match(src, /if \(webSearch && availability === 'limited'\)/,
+    '사슬을 끝까지 걸면 사용자만 4배 더 기다린다')
+  assert.match(src, /AI 웹 검색 한도를 다 썼습니다/)
+})
+
+test('실패 기록에 webSearch 를 실어 보낸다 — 안 실으면 해결책을 고를 수 없다', () => {
+  const runner = read('lib/crm/ai/runner.ts')
+  assert.match(runner, /webSearch: adapter\.webSearch === true/)
+  assert.match(read('lib/crm/ai/adapters/host.ts'), /^\s+webSearch,$/m, '어댑터가 값을 채워야 한다')
+  const route = read('app/api/admin/system-log/remedy/route.ts')
+  assert.match(route, /playbookFor\(sample\.reason, sample\.context\)/, '해결책이 맥락을 봐야 한다')
+})
+
+// ── 사유는 코드로 안다, 잡음은 안 남긴다 (2026-08-24 실측) ────
+
+test('CrmError 코드가 문장 추측보다 먼저다 — 우리말 메시지는 영어 패턴에 안 걸린다', () => {
+  // 실측: `CrmError('PROVIDER_QUOTA', 'AI 웹 검색 한도를 다 썼습니다…')` 가 unknown 으로 잡혔다
+  assert.equal(classifySystemReason({
+    crmCode: 'PROVIDER_QUOTA',
+    message: 'AI 웹 검색 한도를 다 썼습니다. 이건 모델을 바꿔도 풀리지 않습니다',
+  }), 'quota')
+  assert.equal(classifySystemReason({ crmCode: 'UNAUTHORIZED', message: '권한이 없습니다' }), 'auth')
+  // 사용자 입력 문제는 장애가 아니다
+  assert.equal(classifySystemReason({ crmCode: 'VALIDATION_FAILED', message: '값이 올바르지 않습니다' }), 'unknown')
+})
+
+test('Gemini 사유가 CrmError 코드보다 먼저다 — 더 구체적인 신호가 이긴다', () => {
+  assert.equal(classifySystemReason({ geminiReason: 'bad_json', crmCode: 'PROVIDER_QUOTA' }), 'bad_json')
+})
+
+test('프레임워크가 자기에게 던지는 신호는 로그가 아니다 — 진짜 실패가 묻힌다', () => {
+  const src = read('lib/system-log/record.ts')
+  assert.match(src, /Dynamic server usage/, 'Next 의 동적 렌더 신호를 걸러야 한다')
+  assert.match(src, /NEXT_\(REDIRECT\|NOT_FOUND\)/, 'redirect·notFound 도 제어 흐름이지 실패가 아니다')
+  // 거르는 자리가 저장 **전**이어야 한다 — 뒤에 두면 이미 한 줄 쌓인 뒤다
+  const filterAt = src.indexOf('NOT_A_FAILURE.some')
+  const insertAt = src.indexOf("from('system_events').insert")
+  assert.ok(filterAt > 0 && filterAt < insertAt, '거르기가 저장보다 먼저여야 한다')
+})
+
+test('사실 문장과 해결책이 같은 말을 한다 — 웹 검색 한도에 "모델을 바꾸라"고 하지 않는다', () => {
+  const web = detailOf({ source: 'crm_ai', reason: 'quota', webSearch: true })
+  const plain = detailOf({ source: 'crm_ai', reason: 'quota' })
+  assert.ok(!/다른 모델로 바꾸면/.test(web), `화면이 자기 말을 뒤집는다: ${web}`)
+  assert.match(web, /웹 검색/)
+  assert.match(plain, /다른 모델로 바꾸면/)
+})
+
+test('기록이 webSearch 를 문장 조립까지 넘긴다 — 안 넘기면 위 규칙이 무의미하다', () => {
+  assert.match(read('lib/system-log/record.ts'), /webSearch: input\.context\?\.webSearch === true/)
+})
+
+test('플레이북 문장에 마크다운 표시를 넣지 않는다 — 화면이 그대로 별표를 보여 준다', () => {
+  // 실측(2026-08-24): "**다른 한도**"가 화면에 별표째 떴다. 이 문장들은 plain text 로 렌더된다.
+  // 주석을 먼저 걷어낸다 — 안 그러면 주석 양옆의 따옴표가 짝지어져 없는 위반을 만든다(실측)
+  const src = stripComments(read('lib/system-log/playbook.ts'))
+  const inStrings = src.match(/'[^'\n]*\*\*[^'\n]*'/g) ?? []
+  assert.deepEqual(inStrings, [], `문장 안에 마크다운 강조가 남아 있다:\n  ${inStrings.join('\n  ')}`)
 })

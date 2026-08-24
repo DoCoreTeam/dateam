@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
   // 최근 사건 하나를 근거로 삼는다 — 원문 없이 물으면 "일반적인 조언"만 돌아온다
   const { data: sample } = await adm.from('system_events')
-    .select('source,reason,feature,route,headline,detail,raw')
+    .select('source,reason,feature,route,headline,detail,raw,context')
     .eq('fingerprint', fingerprint)
     .order('occurred_at', { ascending: false }).limit(1).maybeSingle()
   if (!sample) {
@@ -58,8 +58,8 @@ export async function POST(req: Request) {
   }
 
   // ③ 우리가 답을 아는 사유는 AI 를 부르지 않는다
-  const playbook = playbookFor(sample.reason)
-  if (playbook || !shouldAskAi(sample.reason)) {
+  const playbook = playbookFor(sample.reason, sample.context)
+  if (playbook || !shouldAskAi(sample.reason, sample.context)) {
     const remedy = playbook as Remedy
     await adm.from('system_event_remedies').insert({
       fingerprint, model: null, confidence: remedy.confidence,

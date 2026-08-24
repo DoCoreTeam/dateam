@@ -46,6 +46,13 @@ export interface AiSource {
 export interface AiAdapter {
   /** 모델 별칭 — CrmAppSetting 에서 온다. 코드에 모델명을 하드코딩하지 않는다(명세 §351) */
   readonly model: string
+  /**
+   * 웹 검색을 켜고 부르는 어댑터인가.
+   *
+   * 실패를 기록할 때 이 값이 필요하다 — 웹 검색 한도는 일반 한도와 **다른 바구니**라
+   * 관리자에게 줄 답도 다르다("모델을 바꾸세요"는 웹 검색 한도에는 안 먹힌다).
+   */
+  readonly webSearch?: boolean
   complete(prompt: string): Promise<{
     text: string
     tokensIn: number
@@ -138,7 +145,8 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
     await recordSystemEventAsync({
       source: 'crm_ai', error: lastError, feature: kind, blocksUser: true,
       workspaceId, hint: adapter.model,
-      context: { kind, promptVersion: prompt.version, tokensIn, tokensOut },
+      // webSearch 를 실어 보낸다 — 해결책이 이 값으로 갈린다(playbook.ts)
+      context: { kind, promptVersion: prompt.version, tokensIn, tokensOut, webSearch: adapter.webSearch === true },
     })
 
     // 실패해도 쓴 토큰만큼은 정산한다 — 실패한 호출도 돈이 나간다.

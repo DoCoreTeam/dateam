@@ -28,6 +28,13 @@ export interface NarrateInput {
   route?: string | null
   /** 원문에서 뽑은 짧은 단서(표 이름·모델 이름 등). 없으면 안 쓴다 */
   hint?: string | null
+  /**
+   * 웹 검색을 켜고 부른 호출이었나.
+   *
+   * 한도 문장이 갈린다. 이걸 안 보면 사실 문장은 "다른 모델로 바꾸면 됩니다"라고 하고
+   * 해결책은 "모델을 바꿔도 안 됩니다"라고 해서 **화면이 자기 말을 뒤집는다.**
+   */
+  webSearch?: boolean
 }
 
 /**
@@ -52,7 +59,10 @@ export function detailOf(input: NarrateInput): string {
   const tail = hint ? ` (${hint})` : ''
   switch (input.reason) {
     case 'quota':
-      return `AI 사용 한도를 다 썼습니다${tail}. 한도가 풀리기를 기다리거나, 시스템 설정에서 다른 모델로 바꾸면 됩니다.`
+      // 웹 검색 한도는 모델별이 아니라 키 단위라, 모델을 바꾸라는 안내가 여기선 틀린 말이다
+      return input.webSearch
+        ? `AI 웹 검색 한도를 다 썼습니다${tail}. 일반 AI 호출과 다른 한도라, 모델을 바꿔도 풀리지 않습니다 — 한도가 초기화되기를 기다리거나 요금제를 올려야 합니다.`
+        : `AI 사용 한도를 다 썼습니다${tail}. 한도가 풀리기를 기다리거나, 시스템 설정에서 다른 모델로 바꾸면 됩니다.`
     case 'auth':
       return `AI 키나 접근 권한에 문제가 있습니다${tail}. 시스템 설정 → 통합에서 키를 다시 넣어 주세요.`
     case 'config':

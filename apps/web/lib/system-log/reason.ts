@@ -47,6 +47,21 @@ const FROM_PRISMA: Record<string, SystemReason> = {
   P2024: 'timeout',   // 커넥션 풀 대기 초과
 }
 
+/**
+ * CRM 도메인 오류 코드 → 사유.
+ *
+ * **왜 필요한가**(2026-08-24 실측): 어댑터가 `CrmError('PROVIDER_QUOTA', 'AI 웹 검색 한도를…')`
+ * 를 던지자 사유가 `unknown` 으로 잡혔다. 메시지가 **우리말**이라 영어 패턴(429·quota)에
+ * 하나도 안 걸렸기 때문이다. 코드가 이미 사유를 말하고 있는데 문장을 추측한 셈이다.
+ */
+const FROM_CRM: Record<string, SystemReason> = {
+  PROVIDER_QUOTA: 'quota',
+  UNAUTHORIZED: 'auth',
+  FORBIDDEN: 'auth',
+  AI_PARSE_FAILED: 'bad_json',
+  VALIDATION_FAILED: 'unknown',   // 사용자 입력 문제라 장애가 아니다
+}
+
 const PATTERNS: [RegExp, SystemReason][] = [
   [/\b429\b|quota|resource_exhausted|rate.?limit/i, 'quota'],
   [/\b401\b|\b403\b|api.?key|unauthorized|permission|invalid.?credential/i, 'auth'],
@@ -67,9 +82,11 @@ const PATTERNS: [RegExp, SystemReason][] = [
 export function classifySystemReason(input: {
   geminiReason?: GeminiFailureReason | null
   prismaCode?: string | null
+  crmCode?: string | null
   message?: string | null
 }): SystemReason {
   if (input.geminiReason && FROM_GEMINI[input.geminiReason]) return FROM_GEMINI[input.geminiReason]
+  if (input.crmCode && FROM_CRM[input.crmCode]) return FROM_CRM[input.crmCode]
   if (input.prismaCode && FROM_PRISMA[input.prismaCode]) return FROM_PRISMA[input.prismaCode]
   const msg = input.message ?? ''
   for (const [re, reason] of PATTERNS) if (re.test(msg)) return reason

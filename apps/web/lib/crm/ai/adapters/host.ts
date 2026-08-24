@@ -148,6 +148,7 @@ export async function hostAdapter(
 
   return {
     model: cfg.model,
+    webSearch,
     async complete(prompt: string) {
       /**
        * 호스트 프로바이더는 스트리밍 계약이다(화면이 글자를 흘려 보여 주려고).
@@ -189,6 +190,20 @@ export async function hostAdapter(
           lastError = e
           const { fatalModel, availability } = classifyProviderError(e)
           const worthAnotherModel = fatalModel || availability === 'limited'
+          /**
+           * **웹검색 한도는 모델을 바꿔도 소용없다.**
+           *
+           * 실측(2026-08-24): 같은 키로 일반 호출은 65초 뒤 200으로 회복되는데
+           * (분당 한도), `google_search` 를 켠 호출은 기다려도 계속 429였다.
+           * 그라운딩 한도는 **모델별이 아니라 키 단위 별도 바구니**라, 사슬을 끝까지 걸어도
+           * 전부 같은 이유로 실패한다 — 그동안 사용자는 4배 오래 기다린다.
+           * 그래서 여기서 멈추고, 무엇이 막힌 것인지 다르게 말한다.
+           */
+          if (webSearch && availability === 'limited') {
+            throw new CrmError('PROVIDER_QUOTA',
+              'AI 웹 검색 한도를 다 썼습니다. 이건 모델을 바꿔도 풀리지 않습니다 — '
+              + '한도가 초기화될 때까지 기다리거나 요금제를 올려야 합니다.')
+          }
           if (!worthAnotherModel || i === modelChain.length - 1) throw e
           console.warn('[crm/ai] 모델 교체', modelChain[i], '→', modelChain[i + 1],
             e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120))

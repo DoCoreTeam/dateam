@@ -58,7 +58,7 @@ const PLAYBOOKS: Partial<Record<string, Remedy>> = {
     checks: [
       '`apps/web/.env.example` 과 배포 환경변수를 대조 — 어떤 값이 필요한지가 여기 적혀 있습니다',
       '배포 대시보드의 환경변수 개수가 `.env.example` 항목 수와 맞는지 확인',
-      '값을 넣은 뒤 **재배포**했는지 확인 — 환경변수는 새 빌드부터 적용됩니다',
+      '값을 넣은 뒤 재배포했는지 확인 — 환경변수는 새 빌드부터 적용됩니다',
     ],
     actions: [
       { what: '배포 환경변수에 빠진 값을 채우고 재배포', risk: 'safe', reversible: true },
@@ -107,8 +107,38 @@ const PLAYBOOKS: Partial<Record<string, Remedy>> = {
   },
 }
 
-/** 이 사유는 우리가 답을 안다 — AI 를 부르지 않는다 */
-export function playbookFor(reason: string): Remedy | null {
+/**
+ * 웹 검색(그라운딩) 한도는 **일반 한도와 다른 바구니**다.
+ *
+ * 실측(2026-08-24): 같은 키로 일반 호출은 65초 뒤 200 으로 돌아오는데(분당 한도),
+ * `google_search` 를 켠 호출은 기다려도 계속 429였다. 그래서 일반 한도용 조언
+ * ("다른 모델로 바꾸세요")을 그대로 주면 **틀린 답**이 된다 —
+ * 모든 모델이 같은 그라운딩 한도를 나눠 쓰기 때문이다.
+ */
+const WEB_SEARCH_QUOTA: Remedy = {
+  diagnosis: 'AI 웹 검색 한도를 다 썼습니다. 일반 AI 호출과 다른 한도라, 채팅·요약 같은 기능은 멀쩡한데 웹에서 찾아오는 기능(회사 정보 보강 등)만 안 되는 상태입니다.',
+  confidence: 'high',
+  checks: [
+    'AI 채팅이나 요약 기능은 되는지 확인 — 그것들이 되면 일반 한도가 아니라 웹 검색 한도 문제가 맞습니다',
+    'Google AI Studio 콘솔에서 Grounding with Google Search 항목의 잔여 한도 확인',
+    '시스템 로그에서 실패한 기능이 전부 「웹에서 찾는」 기능인지 확인',
+  ],
+  actions: [
+    { what: '한도가 초기화될 때까지 기다린다(보통 하루 단위)', risk: 'safe', reversible: true },
+    { what: '요금제를 올려 웹 검색 한도를 늘린다', risk: 'careful', reversible: true },
+  ],
+  files: ['apps/web/lib/crm/ai/adapters/host.ts'],
+  isPlaybook: true,
+}
+
+/**
+ * 이 사유는 우리가 답을 안다 — AI 를 부르지 않는다.
+ *
+ * `context.webSearch` 가 켜져 있던 실패면 웹 검색 한도용 답을 준다.
+ * 안 그러면 "다른 모델로 바꾸세요"라는 **먹히지 않는 조언**을 하게 된다.
+ */
+export function playbookFor(reason: string, context?: Record<string, unknown> | null): Remedy | null {
+  if (reason === 'quota' && context?.webSearch === true) return WEB_SEARCH_QUOTA
   return PLAYBOOKS[reason] ?? null
 }
 
@@ -118,6 +148,6 @@ export function playbookFor(reason: string): Remedy | null {
  * **한도 사유에는 절대 묻지 않는다** — 그 요청이 또 429 로 돌아오고,
  * 화면은 "해결 방법을 가져오지 못했습니다"만 남긴다. 정작 그때가 답이 가장 필요한 순간이다.
  */
-export function shouldAskAi(reason: string): boolean {
-  return playbookFor(reason) === null
+export function shouldAskAi(reason: string, context?: Record<string, unknown> | null): boolean {
+  return playbookFor(reason, context) === null
 }
