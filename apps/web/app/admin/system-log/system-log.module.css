@@ -21,23 +21,65 @@
   font-size: var(--fs-sm);
 }
 
-/* '지금 막혀 있는 것' — 관리자가 화면을 열자마자 3초 안에 읽어야 하는 한 칸 */
+/* '지금 막혀 있는 것' — 관리자가 화면을 열자마자 3초 안에 읽어야 하는 한 칸
+   ⚠️ `.card` 는 배경·테두리·그림자만 준다. **패딩이 없다**(globals.css `@layer components`).
+   그래서 쓰는 쪽이 매번 붙인다(예: SttSettings 의 `padding: var(--space-6)`).
+   여기서 빠뜨려서 제목이 테두리에 1px 붙어 렌더됐다 — 실측: 카드 top 163.6 / 제목 top 164.6.
+   화면에서 인라인으로 붙이지 않고 이 클래스가 갖는다(§0-1: 모양은 클래스가 맡는다). */
 .blocking {
   border-color: var(--danger-border);
+  background: var(--danger-bg);
+  padding: var(--space-5);
   margin-bottom: var(--space-4);
 }
 
 .blockingTitle {
-  margin: 0;
+  margin: 0 0 var(--space-3);
   font-weight: 700;
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* globals 가 목록 마커를 지운다. 그래서 들여쓰기만 남으면 제목과 어긋난 채로 이유 없이 밀린다 —
+   마커를 되살려 들여쓰기에 뜻을 주고, 마커 색으로 '막힘'이라는 성격을 잇는다. */
+.blockingList {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text);
+  /* grid/flex 로 두면 li 가 격자 항목이 되어 바깥 마커가 그려지지 않는다 — 일반 흐름을 유지한다 */
+  list-style: disc;
+}
+
+.blockingList li + li {
+  margin-top: var(--space-2);
+}
+
+.blockingList li::marker {
   color: var(--danger);
 }
 
-.blockingList {
-  margin: var(--space-2) 0 0;
-  padding-left: var(--space-5);
-  display: grid;
-  gap: var(--space-1);
+.blockingMore {
+  margin: var(--space-3) 0 0;
   font-size: var(--fs-sm);
-  color: var(--text);
+  color: var(--text-muted);
+}
+
+/* 목록 한 줄에 실리는 로그 본문 — 스택 첫 줄이라 길다. 줄바꿈으로 행 높이를 늘리지 않는다 */
+.logLine {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 펼친 줄의 보조 설명 */
+.detailNote {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
 }

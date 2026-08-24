@@ -11,8 +11,7 @@
 // 목록 표준(§2-6) 그대로다 — ListToolbar + ListSurface + ListPager + useListQuery.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ExternalLink, Check, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
-import PageHeader from '@/components/ui/PageHeader'
+import { Check, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -186,22 +185,7 @@ export default function SystemLogClient() {
   ], [open, toggle])
 
   return (
-    <div className="page-inner">
-      <PageHeader
-        title="시스템 로그"
-        description="시스템에서 실패한 일을 한곳에 모았습니다. 무엇이 왜 안 됐는지 사람 말로 적혀 있고, 해결 방법은 눌렀을 때만 AI가 만듭니다."
-        actions={
-          <a
-            href="https://vercel.com/dashboard"
-            target="_blank" rel="noopener noreferrer"
-            className="btn-ghost"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', minHeight: '44px', padding: '0 var(--space-4)' }}
-          >
-            <ExternalLink size={16} /> Vercel 로그 열기
-          </a>
-        }
-      />
-
+    <>
       {notice && <InlineError banner>{notice}</InlineError>}
 
       {/* 지금 막혀 있는 것 — AI 없이, 항상 */}
@@ -214,9 +198,7 @@ export default function SystemLogClient() {
             ))}
           </ul>
           {blocking.length > 5 && (
-            <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-              외 {blocking.length - 5}건이 더 있습니다.
-            </p>
+            <p className={styles.blockingMore}>외 {blocking.length - 5}건이 더 있습니다.</p>
           )}
         </div>
       )}
@@ -254,7 +236,7 @@ export default function SystemLogClient() {
           <EventDetail row={r} onResolve={resolve} />
         ) : null)}
       />
-    </div>
+    </>
   )
 }
 

@@ -21,6 +21,7 @@ const INTEGRATION_CARDS = [
   'KoraeximSettings.tsx',
   'GoogleDriveSettings.tsx',
   'DbSettings.tsx',
+  'VercelSettings.tsx',
 ]
 
 function read(file: string): string {
@@ -52,6 +53,18 @@ test('§2-5(2) 저장 버튼 라벨은 언제나 "저장" — 카드별 변형 �
   const files = readdirSync(SETTINGS_DIR).filter((f) => f.endsWith('.tsx'))
   const offenders = files.filter((f) => /테마 적용|적용하기|등록하기/.test(visibleText(read(f))))
   assert.deepEqual(offenders, [], `저장 라벨 변형 발견: ${offenders.join(', ')}`)
+})
+
+test('★ 목록 자체를 검사한다 — 새 연동 카드가 조용히 빠지면 아래 가드가 전부 무력해진다', () => {
+  // 실측(v0.7.595): VercelSettings.tsx 를 새로 만들었는데 이 손목록에 없어서
+  // "삭제 서버액션을 UI가 안 부른다"는 **틀린 판정**이 나왔다. 반대 방향(진짜 위반을 놓치는 것)이
+  // 더 위험하다 — 목록에 없는 카드는 §2-5 검사를 통째로 건너뛴다.
+  const declared = new Set(INTEGRATION_CARDS)
+  const missing = readdirSync(SETTINGS_DIR)
+    .filter((f) => f.endsWith('Settings.tsx') && !declared.has(f))
+    .filter((f) => /from '\.\/integration-ui'/.test(read(f)))
+  assert.deepEqual(missing, [],
+    `연동 카드인데 INTEGRATION_CARDS 에 없다(§2-5 검사를 건너뛴다): ${missing.join(', ')}`)
 })
 
 test('§2-5(1) 연동 카드는 공용 부품(integration-ui)을 쓴다 — 상태 블록 자작 금지', () => {

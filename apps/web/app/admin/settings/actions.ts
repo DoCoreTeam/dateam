@@ -5,6 +5,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getTokens, refreshTokenIfNeeded } from '@/lib/google-drive'
 import type { AiChatProviderId } from '@/types/database'
+import { readVercelConfig, VERCEL_META } from '@/lib/vercel/config'
+import { fetchProject, VercelApiError } from '@/lib/vercel/api'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1'
@@ -616,5 +618,79 @@ export async function checkSttHealth(): Promise<{ ok: boolean; message: string }
     return { ok: false, message: `연결 실패 (${res.status})` }
   } catch {
     return { ok: false, message: '네트워크 오류가 발생했습니다' }
+  }
+}
+
+// ── Vercel 로그 연동 — 배포·서버 로그를 우리 화면에서 읽는다 ──
+//
+// 왜 여기인가: 다른 외부 연동과 **같은 자리·같은 모양**이다(§2-5). 카드마다 저장 방식이 갈리면
+// 관리자는 매번 "이건 어떻게 저장하지"를 다시 배운다.
+//
+// 왜 환경변수가 아닌가: 이 값이 필요한 이유가 "배포 대시보드에 안 들어가고 보려고"인데,
+// 환경변수로 두면 넣을 수 있는 사람이 다시 대시보드에 들어갈 수 있는 사람으로 좁혀진다.
+
+export async function saveVercelKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const token = (formData.get('token') as string)?.trim()
+  const projectId = (formData.get('projectId') as string)?.trim()
+  const teamId = ((formData.get('teamId') as string) ?? '').trim()
+
+  if (!token) return { ok: false, error: '토큰을 입력해주세요' }
+  if (!projectId) return { ok: false, error: '프로젝트 ID(또는 이름)를 입력해주세요' }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const next: Record<string, unknown> = {
+    ...meta,
+    [VERCEL_META.token]: token,
+    [VERCEL_META.projectId]: projectId,
+  }
+  // 팀 ID 는 개인 프로젝트엔 없다. 빈 문자열을 남겨 두면 "설정했는데 왜 안 되지"가 된다
+  if (teamId) next[VERCEL_META.teamId] = teamId
+  else delete next[VERCEL_META.teamId]
+
+  const { error } = await setMetaValue(client, next)
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  revalidatePath('/admin/system-log')
+  return { ok: true }
+}
+
+export async function deleteVercelKey(): Promise<{ ok: boolean; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  delete meta[VERCEL_META.token]
+  delete meta[VERCEL_META.projectId]
+  delete meta[VERCEL_META.teamId]
+  const { error } = await setMetaValue(client, meta)
+
+  if (error) return { ok: false, error: '연결 해제 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  revalidatePath('/admin/system-log')
+  return { ok: true }
+}
+
+/**
+ * 연결 확인. 프로젝트 한 건을 읽어 본다 — 토큰·프로젝트·팀 셋을 **한 번에** 검증하는
+ * 가장 싼 호출이고, 아무것도 바꾸지 않는다.
+ */
+export async function checkVercelHealth(): Promise<{ ok: boolean; message: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
+
+  const cfg = readVercelConfig(await getMetaValue(client))
+  if (!cfg.ok) return { ok: false, message: cfg.message }
+
+  try {
+    const project = await fetchProject(cfg.config)
+    return { ok: true, message: `연결 성공 — 프로젝트 「${project.name}」의 배포·서버 로그를 읽습니다` }
+  } catch (e) {
+    // 실패 사유를 그대로 전한다. "연결 실패"만 말하면 관리자가 다음에 할 일을 모른다
+    return { ok: false, message: e instanceof VercelApiError ? e.message : 'Vercel에 연결하지 못했습니다' }
   }
 }

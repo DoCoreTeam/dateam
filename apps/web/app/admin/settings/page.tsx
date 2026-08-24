@@ -7,6 +7,7 @@ import SettingsSection from './SettingsSection'
 import GeminiSettings from './GeminiSettings'
 import YoutubeSettings from './YoutubeSettings'
 import SttSettings from './SttSettings'
+import VercelSettings from './VercelSettings'
 import ClaudeSettings from './ClaudeSettings'
 import OpenAiSettings from './OpenAiSettings'
 import AiChatDefaultProviderPicker from './AiChatDefaultProviderPicker'
@@ -22,6 +23,7 @@ import DriveConnectedBanner from './DriveConnectedBanner'
 import { getBranding } from '@/lib/branding'
 import { getActiveTheme } from '@/lib/theme'
 import { getDriveConnectionStatus } from '@/lib/google-drive'
+import { VERCEL_META, maskToken } from '@/lib/vercel/config'
 
 const GEMINI_KEY = 'gemini_api_key'
 const YOUTUBE_KEY = 'youtube_api_key'
@@ -82,6 +84,11 @@ export default async function AdminSettingsPage({
   const sttKey = meta[STT_KEY] as string | undefined
   const sttMasked = sttKey ? maskKey(sttKey) : null
   const sttModel = (meta.stt_model as string | undefined) ?? null
+
+  // Vercel 토큰은 화면으로 나가지 않는다 — 마스킹은 lib/vercel/config 의 것을 쓴다(SSOT)
+  const vercelToken = meta[VERCEL_META.token] as string | undefined
+  const vercelProject = (meta[VERCEL_META.projectId] as string | undefined) ?? null
+  const vercelTeam = (meta[VERCEL_META.teamId] as string | undefined) ?? null
 
   const storedClaudeKey = meta[CLAUDE_KEY] as string | undefined
   const hasClaudeKey = !!storedClaudeKey
@@ -168,6 +175,12 @@ export default async function AdminSettingsPage({
                 reason={typeof params.reason === 'string' ? params.reason : undefined}
               />
               <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
+              <VercelSettings
+                hasToken={Boolean(vercelToken)}
+                maskedToken={vercelToken ? maskToken(vercelToken) : null}
+                projectId={vercelProject}
+                teamId={vercelTeam}
+              />
             </div>
           </SettingsSection>
         </div>
