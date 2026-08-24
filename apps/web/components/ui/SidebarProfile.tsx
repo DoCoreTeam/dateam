@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, Radar } from 'lucide-react'
+import { surfaceOf, exitLinkFor, adminEntryFor } from '@/lib/nav/surface'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import { clearPersistedSwrCache } from '@/lib/swr-persist'
 
@@ -20,7 +21,17 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
   const pathname = usePathname()
   // 관리자 화면 안에서는 나가는 길이 필요하다 — 예전 AdminUserMenu가 하던 일.
   // 셸이 하나로 합쳐졌으니 계정 메뉴가 위치에 맞는 링크를 고른다.
-  const inAdmin = pathname?.startsWith('/admin') ?? false
+  /**
+   * 지금 어느 표면에 있나 — 판정은 SSOT 가 한다(`lib/nav/surface.ts`).
+   *
+   * 예전엔 여기서 `pathname.startsWith('/admin')` 한 줄로 끝냈다. 그래서
+   * CRM·CI 에서는 계정 메뉴에 **나가는 문이 아니라 관리자 패널로 들어가는 문**이 떴고,
+   * 그마저 관리자 전용이라 **일반 멤버는 갈 곳이 0개**였다
+   * (사용자 지적 2026-08-24: "CRM에서는 멤버화면 가는 메뉴가 안나오면 되겠니?").
+   */
+  const surface = surfaceOf(pathname)
+  const exit = exitLinkFor(surface)
+  const adminEntry = adminEntryFor(surface, isAdmin)
   const [open, setOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
   const [activeTheme, setActiveTheme] = useState<ThemeId | undefined>(currentTheme)
@@ -108,10 +119,37 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             zIndex: 100,
           }}
         >
-          {isAdmin && (
+          {/**
+            * **나가는 문이 먼저다.** 관리자 여부와 무관하게 그린다 —
+            * 여기에 `isAdmin &&` 을 걸면 일반 멤버가 다시 갇힌다.
+            */}
+          {(exit || adminEntry) && (
             <>
+              {exit && (
+                <Link
+                  href={exit.href}
+                  onClick={() => setOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.625rem',
+                    padding: 'var(--space-3) var(--space-4)',
+                    fontSize: 'var(--fs-sm)',
+                    color: 'var(--text)',
+                    textDecoration: 'none',
+                    transition: 'background 120ms',
+                  }}
+                  /* 주변 항목은 rgba 인라인이지만 새로 넣는 것은 토큰으로 — 테마 전환에서 안 빠진다 */
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-bg)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <LayoutDashboard size={14} />
+                  {exit.label}
+                </Link>
+              )}
+              {adminEntry && (
               <Link
-                href={inAdmin ? '/home' : '/admin/users'}
+                href={adminEntry.href}
                 onClick={() => setOpen(false)}
                 style={{
                   display: 'flex',
@@ -127,8 +165,9 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 <LayoutDashboard size={14} />
-                {inAdmin ? '멤버 화면으로' : '관리자 패널'}
+                {adminEntry.label}
               </Link>
+              )}
               <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
             </>
           )}
