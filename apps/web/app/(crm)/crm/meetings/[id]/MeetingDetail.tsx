@@ -21,6 +21,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import MeetingWorkbench from '@/components/meeting/MeetingWorkbench'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { describeSuggestionValue, TARGET_LABEL } from '@/lib/crm/format/suggestion'
 import type { StatusKey } from '@/lib/tokens/status-colors'
@@ -37,7 +38,7 @@ interface Suggestion {
 interface NoteMeta {
   id: string; exists: boolean; title: string | null
   updatedAt: string | null; visibility: 'private' | 'crm' | null
-  canOpen: boolean; isStale: boolean
+  canOpen: boolean; isOwner: boolean; isStale: boolean
 }
 interface Meeting {
   id: string; title: string; startedAt: string; location: string | null
@@ -227,47 +228,72 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
           </RecordPanel>
         }
         timeline={
-          <RecordPanel
-            title="전사"
-            action={transcribed ? (
-              <NbButton onClick={() => void extract()} disabled={busy === 'extract'}>
-                {busy === 'extract' ? 'AI가 읽는 중…' : 'AI로 정리하기'}
-              </NbButton>
-            ) : undefined}
-          >
-            {!transcribed ? (
-              <>
-                <p className={styles.hint}>
-                  회의 내용을 붙여넣으세요. <code>이름: 말</code> 형태면 화자를 알아봅니다.
-                  녹음 파일 업로드는 음성 인식 업체를 연결하면 열립니다.
-                </p>
-                <textarea
-                  className="input-field"
-                  rows={10}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder={'김대표: 예산은 3억으로 품의 올렸습니다.\n윤수석: 보안 검토가 남아서 다음 달은 어려울 것 같아요.'}
-                  aria-label="전사 내용"
-                />
-                <NbButton onClick={() => void saveTranscript()} disabled={busy === 'transcript'}>
-                  {busy === 'transcript' ? '넣는 중…' : '전사 넣기'}
+          /**
+           * 원본이 살아 있으면 **여기서 바로 쓰고·녹음하고·정리한다.**
+           * 회의노트 화면과 같은 부품이다 — 화면을 옮기지 않아도 되는 것이 이 변경의 목적이다
+           * (사용자 지시 2026-08-24: "같은 플랫폼을 공유해서 여기서도 바로 작성").
+           *
+           * 원본이 없거나(발행 전·삭제됨) 남의 노트면 CRM 이 가진 **스냅샷**을 보여 준다 —
+           * 스냅샷 구조라서 원본이 사라져도 팀의 영업 기록은 산다.
+           */
+          m.note?.exists ? (
+            <MeetingWorkbench
+              noteId={m.note.id}
+              title={m.title}
+              href={`/crm/meetings/${meetingId}`}
+              onDigested={() => { void resync() }}
+            />
+          ) : (
+            <RecordPanel
+              title="회의 내용"
+              action={transcribed ? (
+                <NbButton onClick={() => void extract()} disabled={busy === 'extract'}>
+                  {busy === 'extract' ? 'AI가 읽는 중…' : 'AI로 정리하기'}
                 </NbButton>
-              </>
-            ) : (
-              <ul className={styles.transcript}>
-                {m.segments.map((s) => (
-                  <li
-                    key={s.id}
-                    className={`${styles.segment}${highlight.has(s.id) ? ` ${styles.segmentOn}` : ''}`}
-                    id={`seg-${s.id}`}
-                  >
-                    <span className={styles.speaker}>{s.speaker}</span>
-                    <span className={styles.segText}>{s.text}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </RecordPanel>
+              ) : undefined}
+            >
+              {/* 발행해 온 요약 — 예전엔 타입으로만 받고 **화면에 안 그렸다**(v0.7.588 실측 F-6).
+                  목록 배지와 회사·딜 패널은 이 값을 쓰는데 정작 상세에서 안 보였다. */}
+              {m.summaryMd?.trim() && (
+                <div className={styles.snapshotSummary}>
+                  <h3 className={styles.snapshotHead}>정리된 내용</h3>
+                  <p className={styles.snapshotBody}>{m.summaryMd}</p>
+                </div>
+              )}
+
+              {!transcribed ? (
+                <>
+                  <p className={styles.hint}>
+                    회의 내용을 붙여넣으세요. <code>이름: 말</code> 형태면 화자를 알아봅니다.
+                  </p>
+                  <textarea
+                    className="input-field"
+                    rows={10}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder={'김대표: 예산은 3억으로 품의 올렸습니다.\n윤수석: 보안 검토가 남아서 다음 달은 어려울 것 같아요.'}
+                    aria-label="회의 내용"
+                  />
+                  <NbButton onClick={() => void saveTranscript()} disabled={busy === 'transcript'}>
+                    {busy === 'transcript' ? '넣는 중…' : '넣기'}
+                  </NbButton>
+                </>
+              ) : (
+                <ul className={styles.transcript}>
+                  {m.segments.map((s) => (
+                    <li
+                      key={s.id}
+                      className={`${styles.segment}${highlight.has(s.id) ? ` ${styles.segmentOn}` : ''}`}
+                      id={`seg-${s.id}`}
+                    >
+                      <span className={styles.speaker}>{s.speaker}</span>
+                      <span className={styles.segText}>{s.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </RecordPanel>
+          )
         }
         related={
           <RecordPanel title="AI가 찾은 것">

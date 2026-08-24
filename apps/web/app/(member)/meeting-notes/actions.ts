@@ -10,6 +10,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveOrgScope } from '@/lib/org-scope'
 import type { OrgPickerNode } from '@/lib/org/picker-types'
 import { htmlToPlain } from '@/lib/html-to-plain'
+import { NOTE_VISIBILITY, isNoteVisibility, type NoteVisibility } from '@/lib/meeting/note-visibility'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { createCalendarEvent } from '@/app/(member)/calendar/actions'
 import { sanitizeSearchQuery, toStartAt } from '@/lib/meeting/parse-helpers'
@@ -509,6 +510,8 @@ export interface MeetingNoteDetail {
   created_at: string
   /** 작성자 — 회의록 문서에 "작성자"로 표기한다. */
   user_id: string | null
+  /** 공개 범위(마이그 216). 작업대가 "나만 보기 / 영업팀 공개" 스위치를 그린다 */
+  visibility: NoteVisibility
 }
 
 export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | null> {
@@ -522,7 +525,7 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
   if (!user) return null
 
   const { data, error } = await (supabase.from('meeting_notes') as any)
-    .select('id, title, meeting_at, status, attendees, attendee_user_ids, department_id, tags, body_html, body_plain, summary, decisions, created_at, user_id')
+    .select('id, title, meeting_at, status, attendees, attendee_user_ids, department_id, tags, body_html, body_plain, summary, decisions, created_at, user_id, visibility')
     .eq('id', idCheck.data)
     .is('deleted_at', null)
     .maybeSingle()
@@ -553,6 +556,7 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
     decisions: data.decisions ?? null,
     created_at: data.created_at,
     user_id: data.user_id ?? null,
+    visibility: isNoteVisibility(data.visibility) ? data.visibility : NOTE_VISIBILITY.PRIVATE,
   }
 }
 

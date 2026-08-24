@@ -26,12 +26,21 @@ interface Props {
   currentAttendees: string[]
   currentUserIds: string[]
   autoAnalyze?: boolean
+  /**
+   * 본문·정제본 표시를 끄고 **AI 동작만** 남긴다.
+   *
+   * 회의 작업대(v0.7.592)가 본문 편집과 정리 표시를 가져갔다. 여기서 또 그리면
+   * 같은 화면에 본문이 두 벌이 된다 — 사용자가 어느 쪽이 진짜인지 알 수 없다.
+   * 대신 이 부품만 가진 기능(업무·일정 추출 · 문서 내보내기)은 그대로 남긴다.
+   * 기본값 false — 다른 호출처는 한 글자도 안 바뀐다.
+   */
+  actionsOnly?: boolean
 }
 
 type ApiEnvelope<T> = { success: boolean; data?: T; error?: string }
 
 export default function MeetingReadBody({
-  meetingNoteId, body, bodyPlain, initialSummary, initialDecisions, people, currentAttendees, currentUserIds, autoAnalyze,
+  meetingNoteId, body, bodyPlain, initialSummary, initialDecisions, people, currentAttendees, currentUserIds, autoAnalyze, actionsOnly = false,
 }: Props) {
   const router = useRouter()
   const [summary, setSummary] = useState(initialSummary)
@@ -152,15 +161,18 @@ export default function MeetingReadBody({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <FileText size={16} color="var(--brand)" />
-          <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>회의 본문</h2>
+          <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>{actionsOnly ? 'AI로 뽑기' : '회의 본문'}</h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          <SegmentedTabs
-            ariaLabel="본문 보기 전환"
-            tabs={[{ id: 'refined', label: 'AI 정제본' }, { id: 'original', label: '원본' }]}
-            activeId={tab}
-            onSelect={(id) => setTab(id === 'original' ? 'original' : 'refined')}
-          />
+          {/* 작업대가 본문·정리를 그리는 화면에서는 여기서 또 고르게 하지 않는다 */}
+          {!actionsOnly && (
+            <SegmentedTabs
+              ariaLabel="본문 보기 전환"
+              tabs={[{ id: 'refined', label: 'AI 정제본' }, { id: 'original', label: '원본' }]}
+              activeId={tab}
+              onSelect={(id) => setTab(id === 'original' ? 'original' : 'refined')}
+            />
+          )}
           {canExport && (
             <NbButton variant="secondary" onClick={() => setExportOpen(true)} title={`${tab === 'refined' ? 'AI 정제본' : '원본'}을 문서로 내보내기`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <FileDown size={15} /> 내보내기
@@ -181,7 +193,7 @@ export default function MeetingReadBody({
         </div>
       </div>
 
-      {tab === 'refined' ? (
+      {actionsOnly ? null : tab === 'refined' ? (
         <div role="tabpanel">
           {hasRefined ? (
             <>

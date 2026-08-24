@@ -523,6 +523,12 @@ export interface NoteMeta {
   visibility: 'private' | 'crm' | null
   /** 이 사람이 원본을 열어 볼 수 있나 — 본인이거나, 공개(crm)로 열어 뒀거나 */
   canOpen: boolean
+  /**
+   * 이 사람이 원본을 **고칠** 수 있나 — 작성한 사람뿐이다.
+   * 읽기 공개(crm)와 편집 권한은 다른 명제다(마이그 216 주석).
+   * CRM 화면의 작업대가 편집기를 그릴지 읽기로 그릴지를 이 값으로 정한다.
+   */
+  isOwner: boolean
   /** 원본이 스냅샷보다 새로운가 */
   isStale: boolean
 }
@@ -558,7 +564,7 @@ export async function loadNoteMeta(
 
   if (!row || row.deleted_at) {
     // 지워진 원본도 "없다"고 정직하게 말한다 — 화면이 "원본 없음"을 띄울 수 있어야 한다
-    return { id: noteId, exists: false, title: null, updatedAt: null, visibility: null, canOpen: false, isStale: false }
+    return { id: noteId, exists: false, title: null, updatedAt: null, visibility: null, canOpen: false, isOwner: false, isStale: false }
   }
 
   const visibility = row.visibility === 'crm' ? 'crm' : 'private'
@@ -570,6 +576,7 @@ export async function loadNoteMeta(
     visibility,
     // 워크스페이스 멤버십은 CRM 세션이 이미 보장한다. 여기서는 공개 범위만 본다.
     canOpen: row.user_id === hostUserId || visibility === 'crm',
+    isOwner: row.user_id === hostUserId,
     isStale: isNoteNewerThanSnapshot(row.updated_at, noteSyncedAt ?? null),
   }
 }

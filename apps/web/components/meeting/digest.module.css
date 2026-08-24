@@ -1,0 +1,131 @@
+/* 전체 정리 — 출처 뱃지가 이 화면의 핵심이다. 합치되 섞지 않는다. */
+
+.stack { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stamp { font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.sources { font-size: var(--fs-2xs); color: var(--text-faint); }
+
+.notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--info-border);
+  background: var(--info-bg);
+  color: var(--info);
+  font-size: var(--fs-sm);
+}
+
+/* ── 출처 뱃지 ──────────────────────────────────────── */
+.origin {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.memo       { color: var(--info);    background: var(--info-bg); }
+.transcript { color: var(--success); background: var(--success-bg); }
+.both       { color: var(--warning); background: var(--warning-bg); }
+
+/* ── 안건 ───────────────────────────────────────────── */
+.agenda { display: flex; flex-direction: column; gap: var(--space-2); }
+.agendaTitle {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  padding-bottom: var(--space-1);
+  border-bottom: var(--hairline) solid var(--border-light);
+}
+.facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.fact {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  line-height: 1.75;
+}
+.factText { color: var(--text); word-break: break-word; }
+
+.evidence {
+  flex: none;
+  min-height: 20px;
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+}
+.evidence:hover { border-color: var(--brand); color: var(--brand); }
+
+/* ── 어긋난 대목 ────────────────────────────────────── */
+.conflicts {
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+}
+.conflictHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  color: var(--warning);
+}
+.conflictList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.conflictItem { display: flex; flex-direction: column; gap: 4px; }
+.conflictLine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: 1.7;
+}
+
+/* ── 이전 정리 ──────────────────────────────────────── */
+.history {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-top: var(--space-3);
+  border-top: var(--hairline) solid var(--border-light);
+}
+.historyLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+.historyItem {
+  min-height: 26px;
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+}
+.historyItem:hover { border-color: var(--brand); color: var(--brand); }
+.historyOn { border-color: var(--brand); color: var(--brand); font-weight: 700; }

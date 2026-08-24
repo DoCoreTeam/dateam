@@ -8,7 +8,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import MeetingEditor from './MeetingEditor'
 import MeetingReadBody from './MeetingReadBody'
 import CrmPublishCard from './CrmPublishCard'
-import RecordingPanel from './RecordingPanel'
+import MeetingWorkbench from '@/components/meeting/MeetingWorkbench'
 import { deleteMeetingNote } from './actions'
 
 export interface MeetingNoteRecord {
@@ -25,6 +25,8 @@ export interface MeetingNoteRecord {
   summary: string | null
   decisions: string | null
   created_at: string
+  /** 공개 범위 — 작업대가 "나만 보기 / 영업팀 공개" 스위치를 그린다(마이그 216) */
+  visibility?: 'private' | 'crm'
 }
 
 const STATUS_META: Record<string, { label: string; status: 'done' | 'doing' | 'planned' }> = {
@@ -161,15 +163,14 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
             </ul>
           )}
         </section>
-        {/* 녹음 — 회의노트가 원본이므로 녹음도 여기 붙는다(사내 회의도 녹음할 수 있다).
-            본문 위에 두는 이유: 회의를 하는 중에 여는 화면이고, 그때 필요한 건 녹음 버튼뿐이다. */}
-        <section className="card" style={{ padding: 'var(--space-5) var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }} aria-labelledby="mn-rec-h">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <Mic size={16} color="var(--brand)" />
-            <h2 id="mn-rec-h" className="tape-title" style={{ margin: 0 }}>녹음</h2>
-          </div>
-          <RecordingPanel noteId={note.id} title={note.title} href={`/meeting-notes/${note.id}`} />
-        </section>
+        {/* 회의 작업대 — 쓰기·녹음·전사·정리를 한 자리에서.
+            CRM 미팅 화면(/crm/meetings/[id])이 **같은 부품**을 쓴다 — 가운데가 같아야
+            "같은 플랫폼을 공유"가 성립한다(사용자 지시 2026-08-24). */}
+        <MeetingWorkbench
+          noteId={note.id}
+          title={note.title}
+          href={`/meeting-notes/${note.id}`}
+        />
 
         {/* 본문(읽기) + AI 분석 액션 */}
         <MeetingReadBody
@@ -182,6 +183,7 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
           currentAttendees={attendeeNames}
           currentUserIds={userIds}
           autoAnalyze={autoAnalyze}
+          actionsOnly
         />
 
         {/* 영업 CRM 연결 — 이 회의가 고객사 건일 때만 쓴다.

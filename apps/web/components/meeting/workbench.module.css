@@ -1,0 +1,177 @@
+/* 회의 작업대 — 작성·전사·정리 세 층을 한 화면에 두는 부품들의 스타일.
+   화면 전용 CSS 를 globals.css 에 넣지 않는다(§0-1). */
+
+.stack { display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* ── 헤더 줄: 탭 옆 저장 상태 ─────────────────────────── */
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.saveState {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.saveState[data-state='saving'] { color: var(--info); }
+.saveState[data-state='saved']  { color: var(--success); }
+.saveState[data-state='error']  { color: var(--danger); font-weight: 700; }
+
+/* ── 읽기 전용 안내 ──────────────────────────────────── */
+.readonlyNote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--border-light);
+  background: var(--surface-2, var(--surface-bg));
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.hint { margin: 0 0 var(--space-2); font-size: var(--fs-sm); color: var(--text-muted); }
+.notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--info-border);
+  background: var(--info-bg);
+  color: var(--info);
+  font-size: var(--fs-sm);
+}
+
+/* ── 붙여넣기 상자 ──────────────────────────────────── */
+.pasteBox { display: flex; flex-direction: column; gap: var(--space-2); }
+.rowActions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+
+/* ── 화자 교정 줄 ───────────────────────────────────── */
+.speakerBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-2);
+  border-bottom: var(--hairline) solid var(--border-light);
+}
+.speakerLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.speakerChip { display: inline-flex; align-items: center; gap: 4px; }
+.speakerName {
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-bg);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.speakerName:hover { border-color: var(--brand); color: var(--brand); }
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.iconBtn:hover { color: var(--brand); border-color: var(--brand); }
+
+/* ── 전사 목록 ──────────────────────────────────────── */
+.transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.segment {
+  display: grid;
+  grid-template-columns: 3.5rem 5.5rem minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+}
+.segment:hover { background: var(--surface-2, var(--border-light)); }
+.segmentOn {
+  background: var(--warning-bg);
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+.segTime {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  padding-top: 3px;
+}
+.segSpeaker {
+  font-weight: 700;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.segText { color: var(--text); white-space: pre-wrap; word-break: break-word; }
+
+@media (max-width: 767px) {
+  .segment { grid-template-columns: 3.2rem minmax(0, 1fr); }
+  .segSpeaker { grid-column: 2; }
+  .segText { grid-column: 2; }
+}
+
+/* ── 헤더 오른쪽: 공개범위 + 저장 상태 ─────────────────── */
+.headRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.recordRow { margin-bottom: var(--space-4); }
+
+/* ── 공개 범위 스위치 ────────────────────────────────── */
+.visWrap { display: flex; flex-direction: column; gap: var(--space-1); }
+.vis {
+  display: inline-flex;
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.visBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.visBtn + .visBtn { border-left: var(--hairline) solid var(--border-color); }
+.visBtn:disabled { opacity: 0.6; cursor: default; }
+.visOn { background: var(--brand); color: var(--surface-bg); font-weight: 700; }

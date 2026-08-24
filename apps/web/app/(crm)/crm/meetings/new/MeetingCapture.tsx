@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Mic, ClipboardPaste, NotebookPen, ChevronDown, ChevronUp } from 'lucide-react'
+import { Mic, ClipboardPaste, NotebookPen, PenLine, ChevronDown, ChevronUp } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
@@ -25,6 +25,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
+import { useRecordingSession, useBusyWithOther } from '@/lib/meeting/recording-context'
 import { kstTodayKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './capture.module.css'
 
@@ -67,12 +68,16 @@ export default function MeetingCapture() {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // 녹음은 셸이 들고 있다 — 이 화면은 켜기만 하고, 주소가 바뀌어도 계속 돈다
+  const rec = useRecordingSession()
+  const recordingOther = useBusyWithOther('')
+
   /**
    * 미팅을 만든다 — **누른 그 순간이 저장이다.**
    * 미리 만들지 않는 이유: 들어왔다 나간 사람마다 빈 미팅이 쌓인다.
    * 회의노트도 함께 생긴다(D5) — 원본이 없는 미팅을 만들지 않기 위해서다.
    */
-  const createMeeting = useCallback(async (): Promise<string | null> => {
+  const createMeeting = useCallback(async (): Promise<{ id: string; noteId: string } | null> => {
     const res = await fetch('/api/crm/meetings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -88,17 +93,50 @@ export default function MeetingCapture() {
     })
     const body = await res.json()
     if (!res.ok) { setError(body?.error?.message ?? '미팅을 만들지 못했습니다.'); return null }
-    return body.id as string
+    // `withNote:true` 라 회의노트도 함께 생긴다(D5) — 붙여넣기·작성은 그 원본으로 간다
+    return { id: body.id as string, noteId: body.noteId as string }
   }, [title, date, time, companyId, dealId, location])
 
+  /**
+   * 녹음 — **여기서 바로 켠다.**
+   *
+   * 예전에는 미팅만 만들고 `?record=1` 을 붙여 상세로 보냈는데, 그 쿼리를 읽는 코드가
+   * **어디에도 없었다**(v0.7.588 실측). 미팅은 생기고 화면은 넘어가는데 녹음은 시작되지 않았다.
+   * 지금은 레코더가 셸에 있어(`RecordingProvider`) 주소가 바뀌어도 안 끊긴다 —
+   * 그래서 **켜고 나서** 옮긴다.
+   */
   async function startRecording() {
     setBusy('record')
     setError(null)
     try {
-      const id = await createMeeting()
-      if (!id) return
-      // 화면은 그대로, 주소만 바뀐다 — 목록으로 돌아갔다 다시 들어오지 않는다
-      router.replace(`/crm/meetings/${id}?record=1`)
+      const created = await createMeeting()
+      if (!created) return
+      await rec.start({
+        noteId: created.noteId,
+        title: title.trim() || fallbackTitle(date),
+        href: `/crm/meetings/${created.id}`,
+      })
+      router.replace(`/crm/meetings/${created.id}`)
+    } catch {
+      setError('미팅을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /**
+   * 직접 쓰기 — 진입 넷째.
+   *
+   * 사용자 지시(2026-08-24): *"회의노트가져오기도 좋은데 회의노트를 쓸 수도 있어야 할 것 같고"*.
+   * 예전엔 녹음·붙여넣기·가져오기 셋뿐이라, 손으로 쓰려면 다른 셸의 회의노트로 나가야 했다.
+   */
+  async function startWriting() {
+    setBusy('write')
+    setError(null)
+    try {
+      const created = await createMeeting()
+      if (!created) return
+      router.replace(`/crm/meetings/${created.id}?wb=memo`)
     } catch {
       setError('미팅을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -111,9 +149,15 @@ export default function MeetingCapture() {
     setBusy('paste')
     setError(null)
     try {
-      const id = await createMeeting()
-      if (!id) return
-      const res = await fetch(`/api/crm/meetings/${id}/transcript`, {
+      const created = await createMeeting()
+      if (!created) return
+      /**
+       * **원본에 먼저 넣는다.**
+       * 예전엔 CRM 전사 API 로만 보내서, 함께 만들어진 회의노트가 **영원히 빈 껍데기**로 남았다
+       * (v0.7.588 실측 F-5). "원본은 회의노트 하나"라는 원칙이 이 경로에서만 깨져 있었다.
+       * 이제 노트가 원본을 갖고, CRM 은 그것을 다시 가져와 스냅샷으로 받는다.
+       */
+      const res = await fetch(`/api/meeting-notes/${created.noteId}/transcript`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       })
@@ -121,11 +165,13 @@ export default function MeetingCapture() {
       if (!res.ok) {
         // 미팅은 이미 만들어졌다. 버리지 말고 데려가서 거기서 다시 넣게 한다 —
         // 여기서 멈추면 사용자가 붙여넣은 글이 통째로 사라진다.
-        setError(`${body?.error?.message ?? '회의 내용을 넣지 못했습니다.'} 미팅은 만들어졌어요.`)
-        router.replace(`/crm/meetings/${id}`)
+        setError(`${body?.error ?? '회의 내용을 넣지 못했습니다.'} 미팅은 만들어졌어요.`)
+        router.replace(`/crm/meetings/${created.id}`)
         return
       }
-      router.replace(`/crm/meetings/${id}`)
+      // 스냅샷 따라잡기 — 실패해도 원본은 이미 남았으므로 화면을 막지 않는다
+      await fetch(`/api/crm/meetings/${created.id}/resync`, { method: 'POST' }).catch(() => {})
+      router.replace(`/crm/meetings/${created.id}`)
     } catch {
       setError('회의 내용을 넣지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -266,13 +312,16 @@ export default function MeetingCapture() {
               type="button"
               className={styles.primaryEntry}
               onClick={() => void startRecording()}
-              disabled={working}
+              disabled={working || Boolean(recordingOther)}
             >
               <Mic size={22} aria-hidden />
               <span>{busy === 'record' ? '미팅을 만드는 중…' : '녹음 시작'}</span>
             </button>
 
             <div className={styles.otherEntries}>
+              <NbButton variant="ghost" onClick={() => void startWriting()} disabled={working}>
+                <PenLine size={16} /> {busy === 'write' ? '만드는 중…' : '직접 쓰기'}
+              </NbButton>
               <NbButton variant="ghost" onClick={() => setPasting(true)} disabled={working}>
                 <ClipboardPaste size={16} /> 회의 내용 붙여넣기
               </NbButton>
@@ -282,7 +331,9 @@ export default function MeetingCapture() {
             </div>
 
             <p className={styles.hint}>
-              녹음은 10분마다 자동으로 저장돼요. 중간에 끊겨도 그때까지는 남습니다.
+              {recordingOther
+                ? `다른 회의("${recordingOther.title}")를 녹음하는 중이라 여기서는 시작할 수 없어요.`
+                : '녹음은 10분마다 자동으로 저장돼요. 다른 화면으로 옮겨도 계속됩니다.'}
             </p>
           </div>
         ) : (
