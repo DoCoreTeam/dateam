@@ -82,6 +82,23 @@ function SegmentedTabsInner({
   const initial = tabs.some((t) => t.id === fromUrl) ? (fromUrl as string) : tabs[0]?.id
   const [ownActive, setOwnActive] = useState(initial)
 
+  /**
+   * **밖에서 주소가 바뀌면 따라간다.**
+   *
+   * 예전엔 URL 을 마운트 때 한 번 심고 그 뒤로는 `select()` 가 쓰기만 했다.
+   * 그래서 화면이 `router.replace('?tab=…')` 로 탭을 옮기면 **주소만 바뀌고 탭은 그대로**였고,
+   * 브라우저 뒤로가기도 같은 이유로 죽어 있었다.
+   * (실측 v0.7.593: 정리 결과의 「근거」를 누르면 `?wb=transcript` 가 됐는데 화면은 정리 탭.)
+   *
+   * 렌더 중 조정이라 이펙트가 필요 없다 —
+   * `select()` 자신이 만든 URL 변화는 `ownActive` 가 이미 같은 값이라 아무 일도 안 일어난다.
+   */
+  const [seenUrl, setSeenUrl] = useState(fromUrl)
+  if (fromUrl !== seenUrl) {
+    setSeenUrl(fromUrl)
+    if (fromUrl && tabs.some((t) => t.id === fromUrl)) setOwnActive(fromUrl)
+  }
+
   const isNav = tabs.some((t) => t.href)
   const skin = SKIN[variant]
 
