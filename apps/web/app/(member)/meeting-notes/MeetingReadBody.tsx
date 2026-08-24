@@ -161,7 +161,7 @@ export default function MeetingReadBody({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <FileText size={16} color="var(--brand)" />
-          <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>{actionsOnly ? 'AI로 뽑기' : '회의 본문'}</h2>
+          <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>{actionsOnly ? 'AI로 할 일·일정 뽑기' : '회의 본문'}</h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           {/* 작업대가 본문·정리를 그리는 화면에서는 여기서 또 고르게 하지 않는다 */}
