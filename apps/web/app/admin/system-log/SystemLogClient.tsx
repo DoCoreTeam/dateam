@@ -20,8 +20,9 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import InlineError from '@/components/ui/InlineError'
 import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
-import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { formatKstDateTimeExact, formatKstTimeExact, formatKstAgo } from '@/lib/datetime/kst'
 import { REASON_LABELS, SOURCE_LABELS } from '@/lib/system-log/labels'
+import { occurrenceLine } from '@/lib/system-log/narrate'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import RemedyPanel from './RemedyPanel'
 import styles from './system-log.module.css'
@@ -155,16 +156,21 @@ export default function SystemLogClient() {
             {r.resolvedAt && <NbBadge status="done">처리함</NbBadge>}
           </span>
           <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{r.detail}</span>
-          <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>
-            {[
-              r.actorSample
-                ? (r.actorCount && r.actorCount > 1 ? `${r.actorSample} 외 ${r.actorCount - 1}명` : r.actorSample)
-                : null,
-              r.count > 1
-                ? `${formatKstDateTimeShort(r.firstAt)}부터 ${r.count.toLocaleString()}번`
-                : formatKstDateTimeShort(r.lastAt),
-              r.route,
-            ].filter(Boolean).join(' · ')}
+          {/* 시각·횟수·누가 — 문장 조립은 lib/system-log/narrate 의 SSOT가 한다.
+              예전엔 이 자리에 같은 로직을 손으로 복붙해 뒀고(그래서 SSOT는 만들어 놓고 아무도 안 썼다),
+              그 복붙본이 '처음 시각'만 보여 주고 **마지막 발생을 통째로 숨기고** 있었다. */}
+          <span className={styles.when}>
+            {occurrenceLine({
+              count: r.count,
+              firstAt: r.firstAt,
+              lastAt: r.lastAt,
+              actorCount: r.actorCount,
+              actorSample: r.actorSample,
+              route: r.route,
+              formatTime: formatKstDateTimeExact,
+              formatTimeOnly: formatKstTimeExact,
+              formatAgo: (iso) => formatKstAgo(iso),
+            })}
           </span>
         </span>
       ),

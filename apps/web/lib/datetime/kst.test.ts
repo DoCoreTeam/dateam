@@ -12,7 +12,9 @@ import {
   kstTodayKey,
   kstRangeToUtc,
   formatKstDateTimeShort,
-} from './kst.ts'
+  formatKstDateTimeExact,
+  formatKstTimeExact,
+  formatKstAgo,} from './kst.ts'
 
 // 핵심 회귀: 사용자가 13:00 선택 → 22:00 표시 사고. 라운드트립이 13:00을 보존해야 한다.
 test('kstWallToIso: KST 벽시계를 +09:00 앵커 ISO로 (UTC 적재 정확)', () => {
@@ -81,4 +83,42 @@ test('formatKstDateTimeKorean: 문서용 전체 표기 — 2026년 8월 12일 14
   // 자정이면 시각을 붙이지 않는다 — 미지정을 00시로 단정해 보이지 않게
   assert.equal(formatKstDateTimeKorean('2026-08-11T15:00:00Z'), '2026년 8월 12일')
   assert.equal(formatKstDateTimeKorean('bad'), '')
+})
+
+
+// ── 로그용 정확 시각 (v0.7.596) ────────────────────────────────
+// 왜: 로그 화면이 '8/24 14:15'까지만 보여 줬다. 같은 분에 여러 번 난 실패가 같은 시각으로 보이고,
+// 연도가 없어 언제 것인지 알 수 없었다(사용자 지적: "시간이 완전 핵심인데 정확한 시간으로 안 나오네").
+
+test('★ 로그 시각은 초까지·연도까지 KST로 준다', () => {
+  // 2026-08-24T06:57:52Z = KST 15:57:52
+  assert.equal(formatKstDateTimeExact('2026-08-24T06:57:52.068Z'), '2026-08-24 15:57:52')
+  assert.equal(formatKstTimeExact('2026-08-24T06:57:52.068Z'), '15:57:52')
+})
+
+test('★ 자정을 넘는 시각도 KST 날짜로 맞게 넘어간다', () => {
+  // 2026-08-24T15:30:05Z = KST 다음날 00:30:05
+  assert.equal(formatKstDateTimeExact('2026-08-24T15:30:05Z'), '2026-08-25 00:30:05')
+  assert.equal(formatKstTimeExact('2026-08-24T15:30:05Z'), '00:30:05')
+})
+
+test('★ 같은 분 안의 두 사건이 다른 시각으로 구분된다 — 이게 안 되면 로그가 아니다', () => {
+  const a = formatKstDateTimeExact('2026-08-24T06:57:02Z')
+  const b = formatKstDateTimeExact('2026-08-24T06:57:52Z')
+  assert.notEqual(a, b)
+})
+
+test('잘못된 값에서 터지지 않는다', () => {
+  assert.equal(formatKstDateTimeExact('아무말'), '')
+  assert.equal(formatKstTimeExact(''), '')
+  assert.equal(formatKstAgo('아무말'), '')
+})
+
+test('★ 경과 시간은 "아직도 나고 있나"에 답한다', () => {
+  const now = new Date('2026-08-24T10:00:00Z')
+  assert.equal(formatKstAgo('2026-08-24T09:59:30Z', now), '방금')
+  assert.equal(formatKstAgo('2026-08-24T09:45:00Z', now), '15분 전')
+  assert.equal(formatKstAgo('2026-08-24T07:00:00Z', now), '3시간 전')
+  assert.equal(formatKstAgo('2026-08-22T10:00:00Z', now), '2일 전')
+  assert.equal(formatKstAgo('2026-08-24T10:00:30Z', now), '방금', '미래 시각도 터지지 않는다')
 })

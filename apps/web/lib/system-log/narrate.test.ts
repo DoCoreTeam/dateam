@@ -76,8 +76,39 @@ test('한 번이면 횟수를 말하지 않는다 — "1번"은 사람이 안 �
 
 test('영향 인원을 모르면 그 자리를 아예 비운다 — "0명"은 틀린 사실이다', () => {
   const line = occurrenceLine({ count: 3, firstAt: '2026-08-22T21:34:00Z', lastAt: '2026-08-22T21:40:00Z', formatTime: at })
+  // 단정을 `!line.includes('0')` 으로 두면 **시각의 0**('21:40')까지 잡는다.
+  // 그때 실패는 결함이 아니라 단정이 틀린 것이다 — 잡으려던 것만 정확히 잡는다.
+  assert.ok(!/\d+\s*명/.test(line), `지어낸 인원이 들어갔다: ${line}`)
   assert.ok(!line.includes('명'), line)
-  assert.ok(!line.includes('0'), `지어낸 숫자가 들어갔다: ${line}`)
+})
+
+test('★ 여러 번 난 사건은 마지막 발생을 먼저 말한다 — "아직도 나고 있나"가 첫 질문이다', () => {
+  // 예전엔 '처음 시각부터 N번'만 적어서, 3시간 전에 끝난 일과 방금까지 나던 일이 똑같이 생겼다
+  // (사용자 지적 2026-08-24: "시간이 완전 핵심인데 시간이 정확한 시간으로 안 나오네").
+  const line = occurrenceLine({
+    count: 13,
+    firstAt: '2026-08-24T05:15:03Z',
+    lastAt: '2026-08-24T06:57:52Z',
+    formatTime: (iso) => iso.replace('T', ' ').replace('Z', ''),
+    formatTimeOnly: (iso) => iso.slice(11, 19),
+    formatAgo: () => '3시간 전',
+  })
+  assert.ok(line.startsWith('마지막 '), line)
+  assert.ok(line.includes('06:57:52'), `마지막 발생 시각이 빠졌다: ${line}`)
+  assert.ok(line.includes('(3시간 전)'), `경과가 빠졌다: ${line}`)
+  assert.ok(line.includes('처음 05:15:03'), `처음 시각은 같은 날이면 시각만 적는다: ${line}`)
+  assert.ok(line.endsWith('13번'), line)
+})
+
+test('처음과 마지막이 다른 날이면 처음에도 날짜를 적는다', () => {
+  const line = occurrenceLine({
+    count: 4,
+    firstAt: '2026-08-23T05:15:03Z',
+    lastAt: '2026-08-24T06:57:52Z',
+    formatTime: (iso) => iso.replace('T', ' ').replace('Z', ''),
+    formatTimeOnly: (iso) => iso.slice(11, 19),
+  })
+  assert.ok(line.includes('처음 2026-08-23'), `날짜가 다르면 생략하면 안 된다: ${line}`)
 })
 
 // ── 원문은 감추지 않는다 ─────────────────────────────────────

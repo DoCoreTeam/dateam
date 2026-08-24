@@ -21,6 +21,11 @@ const TIME_FMT = new Intl.DateTimeFormat('en-GB', { timeZone: KST_TZ, hour: '2-d
 // en-CA → 'YYYY-MM-DD'
 const DATE_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: KST_TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
 
+// 초까지 — 로그·감사처럼 **몇 초에 났는지가 곧 사실**인 화면 전용
+const SECOND_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: KST_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+})
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^\d{2}:\d{2}$/
 const HAS_TZ_RE = /[zZ]$|[+-]\d{2}:\d{2}$/
@@ -109,6 +114,48 @@ export function formatKstDateTimeKorean(iso: string): string {
   const date = `${p.year}년 ${p.month}월 ${p.day}일`
   if (p.hour === 0 && p.minute === 0) return date
   return `${date} ${p.hour}시 ${String(p.minute).padStart(2, '0')}분`
+}
+
+/**
+ * ISO → KST 'YYYY-MM-DD HH:MM:SS'. **분 단위로 잘라 쓰면 안 되는 화면** 전용.
+ *
+ * 왜 따로 두나: `formatKstDateTimeShort`는 '8/24 14:15'까지만 준다 — 일정·카드 라벨에는 맞지만
+ * 로그에서는 틀린 표기다. 같은 분 안에서 여러 번 난 실패가 **같은 시각으로 보이고**,
+ * 연도가 없어 어제 것인지 작년 것인지 구분되지 않는다.
+ * (사용자 지적 2026-08-24: "시간이 완전 핵심인데 시간이 정확한 시간으로 안 나오네")
+ */
+export function formatKstDateTimeExact(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${DATE_FMT.format(d)} ${SECOND_FMT.format(d).replace(/^24:/, '00:')}`
+}
+
+/** ISO → KST 'HH:MM:SS'. 같은 날 안에서 앞뒤를 비교할 때 날짜를 반복하지 않는다. */
+export function formatKstTimeExact(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return SECOND_FMT.format(d).replace(/^24:/, '00:')
+}
+
+/**
+ * '지금으로부터 얼마나 전인가' — 로그에서 절대시각만큼 중요한 사실이다.
+ * 관리자가 목록을 보고 가장 먼저 판단하는 것은 "이거 아직도 나고 있나"이고,
+ * 그 답은 절대시각이 아니라 **경과**가 준다.
+ */
+export function formatKstAgo(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const sec = Math.floor((now.getTime() - d.getTime()) / 1000)
+  if (sec < 0) return '방금'
+  if (sec < 60) return '방금'
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}분 전`
+  const hour = Math.floor(min / 60)
+  if (hour < 24) return `${hour}시간 전`
+  const day = Math.floor(hour / 24)
+  if (day < 30) return `${day}일 전`
+  const month = Math.floor(day / 30)
+  return month < 12 ? `${month}달 전` : `${Math.floor(month / 12)}년 전`
 }
 
 /** 월/일 + 선택적 시각 KST 라벨('6/17' 또는 '6/17 14:00'). 00:00이면 시각 생략. */

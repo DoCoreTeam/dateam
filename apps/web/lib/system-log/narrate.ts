@@ -85,6 +85,17 @@ export function detailOf(input: NarrateInput): string {
 /**
  * 얼마나·언제·누가 — **묶인 한 줄의 꼬리표.**
  *
+ * ## 왜 '마지막'이 앞에 오나 (v0.7.596에 뒤집었다)
+ *
+ * 예전에는 여러 번 난 사건을 `"14:15부터 13번"`으로만 적었다. **처음** 시각만 보인다.
+ * 그런데 관리자가 목록을 보고 가장 먼저 판단하는 것은 "이거 **아직도** 나고 있나"이고,
+ * 그 답은 처음이 아니라 **마지막**에 있다. 처음만 보여 주면 3시간 전에 끝난 일과
+ * 방금까지 나던 일이 화면에서 똑같이 생겼다.
+ * (사용자 지적 2026-08-24: "시간이 완전 핵심인데 시간이 정확한 시간으로 안 나오네")
+ *
+ * 그래서 순서를 **마지막 → 경과 → 처음 → 횟수**로 잡고, 시각은 초까지 적는다.
+ * 분까지만 적으면 같은 분에 난 실패 여러 건이 화면에서 같은 시각이 된다.
+ *
  * 숫자를 지어내지 않는다: 영향 인원을 모르면 그 부분을 아예 안 쓴다.
  * "0명"이라고 쓰면 "아무도 안 겪었다"는 **틀린 사실**이 되기 때문이다.
  */
@@ -95,7 +106,12 @@ export function occurrenceLine(input: {
   actorCount?: number | null
   actorSample?: string | null
   route?: string | null
+  /** 절대시각(초까지). KST 변환은 호출부가 SSOT(`lib/datetime/kst.ts`)로 넘긴다 */
   formatTime: (iso: string) => string
+  /** 같은 날이면 날짜를 반복하지 않기 위한 시각 전용 포맷. 없으면 formatTime을 쓴다 */
+  formatTimeOnly?: (iso: string) => string
+  /** '3시간 전'. 없으면 경과를 안 쓴다 — 모르는 것을 지어내지 않는다 */
+  formatAgo?: (iso: string) => string
 }): string {
   const parts: string[] = []
 
@@ -104,10 +120,18 @@ export function occurrenceLine(input: {
     parts.push(others > 0 ? `${input.actorSample} 외 ${others}명` : input.actorSample)
   }
 
-  // 한 번이면 "언제", 여러 번이면 "언제부터 몇 번" — 사람이 세는 방식과 같게
-  parts.push(input.count > 1
-    ? `${input.formatTime(input.firstAt)}부터 ${input.count.toLocaleString()}번`
-    : input.formatTime(input.lastAt))
+  const ago = input.formatAgo?.(input.lastAt)
+  const last = `${input.formatTime(input.lastAt)}${ago ? ` (${ago})` : ''}`
+
+  if (input.count > 1) {
+    // 처음 시각은 마지막과 같은 날이면 날짜를 반복하지 않는다 — 한 줄이 길어지면 아무도 안 읽는다
+    const timeOnly = input.formatTimeOnly ?? input.formatTime
+    const sameDay = input.formatTime(input.firstAt).slice(0, 10) === input.formatTime(input.lastAt).slice(0, 10)
+    const first = sameDay ? timeOnly(input.firstAt) : input.formatTime(input.firstAt)
+    parts.push(`마지막 ${last}`, `처음 ${first}`, `${input.count.toLocaleString()}번`)
+  } else {
+    parts.push(last)
+  }
 
   if (input.route) parts.push(input.route)
   return parts.join(' · ')
