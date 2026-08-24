@@ -168,7 +168,7 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
             <Mic size={16} color="var(--brand)" />
             <h2 id="mn-rec-h" className="tape-title" style={{ margin: 0 }}>녹음</h2>
           </div>
-          <RecordingPanel noteId={note.id} />
+          <RecordingPanel noteId={note.id} title={note.title} href={`/meeting-notes/${note.id}`} />
         </section>
 
         {/* 본문(읽기) + AI 분석 액션 */}

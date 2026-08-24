@@ -9,6 +9,8 @@
  * "STT 를 못 붙여서 미팅 기능을 한 번도 못 써 봤다"가 안 된다(절대규칙 7).
  */
 
+import { parseSpeakerLines } from '../../meeting/paste-transcript.ts'
+
 /** 전사 한 조각 — 이 id 가 5축 추출의 근거가 된다 */
 export interface TranscriptSegment {
   idx: number
@@ -67,19 +69,9 @@ export function pastedTranscriptAdapter(text: string, vendor = 'pasted'): SttAda
     // 사람이 붙여넣은 것과 원본에서 떠 온 것은 나중에 구분할 수 있어야 한다.
     vendor,
     async transcribe() {
-      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
-      const segments: TranscriptSegment[] = lines.map((line, i) => {
-        const m = line.match(/^([^:：]{1,20})[:：]\s*(.+)$/)
-        return {
-          idx: i,
-          speaker: m ? m[1].trim() : '화자',
-          // 붙여넣은 글에는 시각이 없다. 순서를 지키는 값만 넣는다 —
-          // DB 가 end > start 를 요구하므로(DI-23) 0 으로 두면 저장이 막힌다.
-          startMs: i * 1000,
-          endMs: i * 1000 + 999,
-          text: m ? m[2].trim() : line,
-        }
-      })
+      // 파싱 규칙은 lib/meeting/paste-transcript.ts(SSOT). 회의노트 쪽 붙여넣기와 같은 규칙을 쓴다 —
+      // 여기에 정규식을 다시 두면 같은 글이 두 화면에서 다르게 갈린다.
+      const segments: TranscriptSegment[] = parseSpeakerLines(text)
       return { segments, durationSec: null }
     },
   }

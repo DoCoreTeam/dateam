@@ -11,6 +11,8 @@
 //   - 우측 하단 Dock(§4) = 좌표를 Dock이 독점. 화면은 슬롯 등록만.
 //   - 새 셸을 만들지 않는다. CI도 이 셸을 쓰고 `workspace`만 주입한다.
 //   - `MobileShell`은 이 컴포넌트의 **내부 구현**으로 남는다(395줄 재작성 회피).
+//   - 녹음 세션(§회의 작업대) = 항상. 네 표면이 이 셸을 공유하므로 제공자를 여기 **한 번만** 둔다.
+//     화면이 들고 있으면 라우트를 옮길 때 언마운트돼 진행 중 구간(최대 10분)이 사라진다.
 //
 // 가드: lib/ui/shell-contract.test.ts
 
@@ -26,6 +28,8 @@ import SidebarProfile from '@/components/ui/SidebarProfile'
 import GlobalSearchBox from '@/components/ui/GlobalSearchBox'
 import QuickNav from '@/components/ui/QuickNav'
 import type { DockItem } from './Dock'
+import { RecordingProvider } from '@/lib/meeting/recording-context'
+import RecordingBar from '@/components/meeting/RecordingBar'
 import type { ThemeId } from '@/lib/themes'
 
 /** 계정 메뉴에 필요한 최소 정보 — 옵션이 아니라 필수다(빠뜨리면 admin 사고 재발). */
@@ -115,7 +119,12 @@ export default function AppShell({
         </>
       }
     >
-      {children}
+      {/* 녹음은 화면보다 오래 산다 — 제공자가 셸에 있어야 라우트를 옮겨도 안 끊긴다.
+          바는 `.app-shell` 안에 둔다(`--dock-safe-area` 를 상속받아야 모바일에서 Dock 을 안 가린다). */}
+      <RecordingProvider>
+        {children}
+        <RecordingBar />
+      </RecordingProvider>
     </MobileShell>
   )
 }

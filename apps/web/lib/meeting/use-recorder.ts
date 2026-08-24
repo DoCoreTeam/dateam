@@ -126,7 +126,25 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     setLevel(0)
   }, [])
 
-  useEffect(() => cleanup, [cleanup])
+  /**
+   * 언마운트 — **트랙부터 끊지 않는다.**
+   *
+   * 예전에는 여기서 바로 `getTracks().stop()` 을 했다. 그러면 진행 중 구간의
+   * `ondataavailable` 가 정상 경로로 발화하지 않아 **그 구간이 통째로 사라졌다**(최대 10분).
+   * 게다가 `stoppingRef` 가 false 라 `onstop` 이 죽은 스트림으로 다음 구간을 열려고 했다.
+   *
+   * 지금은 제공자가 셸에 있어 라우트 이동으로는 여기 오지 않는다(`lib/meeting/recording-context.tsx`).
+   * 그래도 마지막 방어선은 남긴다 — 먼저 레코더를 닫아 조각을 흘려보내고, 정리는 `onstop` 이 한다.
+   */
+  useEffect(() => () => {
+    const rec = recorderRef.current
+    if (rec && rec.state === 'recording') {
+      stoppingRef.current = true
+      try { rec.stop() } catch { /* 이미 죽은 레코더 */ }
+      return
+    }
+    cleanup()
+  }, [cleanup])
 
   /** 구간 하나를 올린다. 실패해도 녹음은 계속된다 — 한 구간 때문에 회의를 멈추지 않는다 */
   const uploadPart = useCallback(async (blob: Blob, idx: number, durationSec: number) => {

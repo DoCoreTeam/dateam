@@ -1,0 +1,106 @@
+/* 녹음 상주 바 — 좌하단. 우하단은 Dock 이 좌표를 독점한다. */
+
+.bar {
+  position: fixed;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: min(420px, calc(100vw - var(--space-8)));
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-w) solid var(--danger-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-bg);
+  box-shadow: var(--shadow-lg);
+}
+
+.dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dot { animation: recPulse 1.9s ease-in-out infinite; }
+}
+@keyframes recPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+.body { min-width: 0; flex: 1; }
+
+.title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  margin: 2px 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.timer { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
+
+.meter {
+  display: inline-block;
+  width: 44px;
+  height: 4px;
+  border-radius: var(--radius);
+  background: var(--border-light);
+  overflow: hidden;
+}
+.meterFill { display: block; height: 100%; background: var(--success); }
+
+.failed { color: var(--danger); font-weight: 700; }
+
+.go,
+.stop {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.go {
+  border: var(--hairline) solid var(--border-color);
+  background: var(--surface-bg);
+  color: var(--text);
+}
+.go:hover { border-color: var(--brand); color: var(--brand); }
+
+.stop {
+  border: var(--border-w) solid var(--danger);
+  background: var(--danger);
+  color: var(--surface-bg);
+}
+.stop:disabled { opacity: 0.6; cursor: default; }
+
+/* 모바일: 가로로 펴고 Dock 높이만큼 띄운다 — 좌표를 손으로 계산하지 않는다 */
+@media (max-width: 767px) {
+  .bar {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--dock-safe-area, 5.5rem);
+    max-width: none;
+  }
+}
