@@ -417,7 +417,16 @@ export async function createMeetingWithNote(
       status: 'draft',
       visibility: 'crm',
     })
-    .select('id')
+    /**
+     * `updated_at` 도 함께 받는다 — 스냅샷 시각을 **DB 시계로** 찍기 위해서다.
+     *
+     * 실측(v0.7.595): 앱 서버 시계로 `new Date()` 를 찍었더니 DB 시계와 2초 어긋나
+     * 방금 만든 빈 미팅에도 "원본 회의노트가 …에 수정됐어요"가 **항상** 떴다.
+     * 노트는 한 번도 수정된 적이 없었다(created_at == updated_at). 시계 오차가
+     * 그대로 "수정됨"으로 읽힌 것이다. 발행·재동기화는 원래 `note.updated_at` 을
+     * 쓰고 있었는데 여기만 갈려 있었다(§재사용·단일구현).
+     */
+    .select('id, updated_at')
     .single()
 
   if (error || !data?.id) {
@@ -446,7 +455,8 @@ export async function createMeetingWithNote(
         dealId: input.dealId ?? null,
         location: normalizeText(input.location),
         noteId,
-        noteSyncedAt: new Date(),
+        // 같은 시계의 같은 값이라 절대 어긋나지 않는다 — 위 select 주석 참조
+        noteSyncedAt: new Date(data.updated_at as string),
         createdById: actorId,
         source: 'HUMAN',
       },

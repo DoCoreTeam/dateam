@@ -8,6 +8,7 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { read, stripComments } from '../../ui/component-scan.ts'
 import {
   isNoteNewerThanSnapshot,
   pickTranscriptSource,
@@ -128,4 +129,45 @@ test('결정사항만 있어도 값이 나온다', () => {
 test('★ 둘 다 없으면 null — 빈 문자열을 넣으면 목록 배지가 "정리됨"으로 거짓말한다', () => {
   assert.equal(composeSummary({ summary: null, decisions: null }), null)
   assert.equal(composeSummary({ summary: '  ', decisions: '\n' }), null)
+})
+
+
+/**
+ * 스냅샷 시각은 **DB 시계로만** 찍는다.
+ *
+ * 실측(v0.7.595): `createMeetingWithNote` 만 앱 서버 시계(`new Date()`)를 썼다.
+ * 로컬 맥과 Supabase 의 시계가 2초 어긋나 있었고, 그 오차가 그대로
+ * "원본 회의노트가 …에 수정됐어요" 배너로 나갔다 — 방금 만든 **빈 미팅에도** 항상.
+ * 노트는 한 번도 수정된 적이 없었다(created_at == updated_at, 차이 0).
+ *
+ * 단위 테스트로는 안 잡힌다("발행 직후 같은 시각이면 배지가 안 뜬다"는 이미 초록이었다).
+ * 두 시계를 섞었는지는 **코드를 보는 수밖에** 없다.
+ */
+test('★ 스냅샷 시각은 DB 시계다 — 앱 시계를 섞으면 시계 오차가 "수정됨"으로 둔갑한다', () => {
+  const src = stripComments(read('lib/crm/services/meeting-publish.ts'))
+  // **값을 대입하는 자리만** 본다. 함수 파라미터의 타입 선언
+  // (`noteSyncedAt: string | Date | null`)까지 세면 타입을 위반으로 잡는다.
+  const writes = [...src.matchAll(/noteSyncedAt:\s*([^,\n}]+)/g)]
+    .map((m) => m[1].trim())
+    .filter((w) => !w.includes('|'))
+  assert.ok(writes.length > 0, 'noteSyncedAt 을 쓰는 곳이 있어야 한다')
+  for (const w of writes) {
+    if (w === 'null') continue // 연결 해제는 시각을 지운다
+    assert.ok(
+      w.includes('updated_at'),
+      `noteSyncedAt 은 노트의 updated_at(DB 시계)으로 찍어야 한다 — 발견: ${w}`,
+    )
+    assert.ok(
+      !/new Date\(\s*\)/.test(w),
+      `앱 서버 시계(new Date())를 쓰면 안 된다 — 발견: ${w}`,
+    )
+  }
+})
+
+test('★ 노트를 만들 때 updated_at 을 함께 받아 온다 — 안 받으면 위 규칙을 지킬 수가 없다', () => {
+  const src = stripComments(read('lib/crm/services/meeting-publish.ts'))
+  assert.ok(
+    src.includes("select('id, updated_at')"),
+    '회의노트 insert 는 updated_at 을 함께 select 해야 한다',
+  )
 })
