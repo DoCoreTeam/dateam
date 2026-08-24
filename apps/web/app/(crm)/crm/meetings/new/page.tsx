@@ -1,14 +1,20 @@
-import { Suspense } from 'react'
-import AXDotLoader from '@/components/ui/AXDotLoader'
-import MeetingCapture from './MeetingCapture'
+import { redirect } from 'next/navigation'
 
-export const metadata = { title: '미팅 기록 · 영업 CRM' }
-
-// useSearchParams 를 쓰는 클라이언트 컴포넌트라 Suspense 경계가 필요하다(Next App Router).
+/**
+ * 이 화면은 폐지됐다 — 목록에서 「미팅 기록」을 누르면 곧장 작업대로 간다.
+ *
+ * **왜 없앴나**: 사용자 지시(2026-08-24) —
+ * *"미팅기록 누르면 직접작성 누르면 화면이 또 다르고 왜 화면을 여러번 전환하게 하는거야?
+ *   단일 화면에서 다 움직이게 해야지 미팅 갔는데 화면이 이리저리 전환 되면 안되는거야"*
+ *
+ * 여기서 하던 일(제목·시각·회사·딜·장소를 묻고 진입 방식을 고르게 함)은 전부
+ * 작업대(`/crm/meetings/{id}`)가 이미 할 수 있다 — 녹음·직접 쓰기·붙여넣기는
+ * `MeetingWorkbench` 안에 있고, 나머지는 상세의 "이 미팅은" 패널이다.
+ *
+ * 라우트를 지우지 않고 남겨 두는 이유: 북마크·뒤로가기·남이 보낸 링크가 살아 있다.
+ * 404 를 주면 "있던 화면이 사라졌다"가 되지만, 목록으로 보내면 하던 일을 이어갈 수 있다.
+ * 여기서 미팅을 만들지는 않는다 — 주소창으로 들어온 것만으로 빈 미팅이 생기면 안 된다.
+ */
 export default function CrmMeetingNewPage() {
-  return (
-    <Suspense fallback={<AXDotLoader />}>
-      <MeetingCapture />
-    </Suspense>
-  )
+  redirect('/crm/meetings')
 }

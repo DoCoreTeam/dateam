@@ -15,7 +15,14 @@ import { read, stripComments } from '../ui/component-scan.ts'
 /** 주석 속 사고 기록을 위반으로 세지 않는다 — 왜 그랬는지를 못 적게 되면 다음 사람이 또 한다 */
 function code(file: string): string { return stripComments(read(file)) }
 
-const CAPTURE = 'app/(crm)/crm/meetings/new/MeetingCapture.tsx'
+// 캡처 화면(new/MeetingCapture.tsx)은 v0.7.595 에 폐지됐다 — 목록에서 곧장 작업대로 간다.
+// 그 화면이 지키던 계약은 사라진 게 아니라 **자리를 옮겼다.** 여기서 새 자리를 겨냥한다.
+const LIST = 'app/(crm)/crm/meetings/MeetingsClient.tsx'
+const PANEL = 'components/ui/crm/MeetingPanel.tsx'
+const NEW_ROUTE = 'app/(crm)/crm/meetings/new/page.tsx'
+const START_SSOT = 'lib/crm/ui/start-meeting.ts'
+const TRANSCRIPT_VIEW = 'components/meeting/MeetingTranscriptView.tsx'
+const RECORD_PANEL = 'components/meeting/RecordingPanel.tsx'
 const CRM_DETAIL = 'app/(crm)/crm/meetings/[id]/MeetingDetail.tsx'
 const NOTE_DETAIL = 'app/(member)/meeting-notes/MeetingDetailClient.tsx'
 const SHELL = 'components/ui/shell/AppShell.tsx'
@@ -28,17 +35,27 @@ test('★ 녹음 제공자가 셸에 실제로 마운트돼 있다 — 없으면
 })
 
 test('★ 죽은 ?record= 쿼리가 되살아나지 않는다 — 읽는 곳이 없는 신호를 붙이지 않는다', () => {
-  const src = code(CAPTURE)
-  assert.ok(!/record=1/.test(src), '쿼리로 다른 화면에 "녹음해라"를 시키지 않는다 — 여기서 켠다')
-  assert.ok(src.includes('rec.start('), '녹음은 이 화면에서 직접 시작한다')
+  for (const f of [LIST, PANEL]) {
+    assert.ok(!/record=1/.test(code(f)), `${f}: 쿼리로 다른 화면에 "녹음해라"를 시키지 않는다`)
+  }
+  // 녹음은 작업대 안에서 켠다 — 켜는 자리와 보는 자리가 같아야 화면이 안 바뀐다
+  assert.ok(code(RECORD_PANEL).includes('rec.start('), '녹음은 작업대의 녹음 패널이 직접 시작한다')
 })
 
-test('★ 녹음 시작이 주소 교체보다 먼저다 — 순서가 뒤집히면 예전 사고로 되돌아간다', () => {
-  const src = code(CAPTURE)
-  const startAt = src.indexOf('await rec.start(')
-  const replaceAt = src.indexOf('router.replace', startAt)
-  assert.ok(startAt > 0, 'rec.start 호출이 있어야 한다')
-  assert.ok(replaceAt > startAt, 'router.replace 는 rec.start 뒤에 와야 한다')
+test('★ 미팅을 시작하면 곧장 작업대다 — 중간에 묻는 화면을 다시 끼워 넣지 않는다', () => {
+  // 사용자 지시(2026-08-24): "단일 화면에서 다 움직이게 해야지 미팅 갔는데
+  // 화면이 이리저리 전환 되면 안되는거야". 목록 → 작업대, 전환은 한 번뿐이다.
+  for (const f of [LIST, PANEL]) {
+    const src = code(f)
+    assert.ok(src.includes('startMeeting('), `${f}: 미팅 시작은 SSOT 를 부른다`)
+    assert.ok(src.includes('meetingHref('), `${f}: 만든 뒤 작업대로 간다`)
+    assert.ok(
+      !/['"`]\/crm\/meetings\/new/.test(src),
+      `${f}: 폐지된 캡처 화면으로 다시 보내지 않는다`,
+    )
+  }
+  // SSOT 도 중간 화면을 모른다 — 여기서 새면 화면 둘이 다시 갈린다
+  assert.ok(!code(START_SSOT).includes('/new'), 'start-meeting SSOT 는 /new 를 가리키지 않는다')
 })
 
 test('★ 두 셸이 같은 작업대를 쓴다 — 가운데가 갈리면 "같은 플랫폼 공유"가 깨진다', () => {
@@ -47,15 +64,23 @@ test('★ 두 셸이 같은 작업대를 쓴다 — 가운데가 갈리면 "같�
   }
 })
 
-test('★ 진입 넷이 다 있다 — 쓰기가 빠져 사용자가 다른 셸로 나가야 했다', () => {
-  const src = read(CAPTURE)
-  for (const label of ['녹음 시작', '직접 쓰기', '회의 내용 붙여넣기', '회의노트에서 가져오기']) {
-    assert.ok(src.includes(label), `진입 "${label}" 이 있어야 한다`)
-  }
+test('★ 진입 넷이 다 있다 — 하나라도 빠지면 사용자가 다른 화면으로 나가야 한다', () => {
+  // 셋은 작업대 안에 있다(녹음·작성·붙여넣기). 화면을 옮기지 않고 다 된다.
+  assert.ok(read(RECORD_PANEL).includes('녹음 시작'), '작업대에서 녹음을 켤 수 있어야 한다')
+  assert.ok(read(WORKBENCH).includes('작성'), '작업대에 직접 쓰는 층이 있어야 한다')
+  assert.ok(read(TRANSCRIPT_VIEW).includes('회의 내용 붙여넣기'), '작업대에서 붙여넣을 수 있어야 한다')
+  // 넷째는 "새로 만들기"가 아니라 이미 쓴 노트의 발행이라 목록에 둔다(모달이므로 전환 아님)
+  assert.ok(read(LIST).includes('회의노트에서 가져오기'), '목록에서 회의노트를 올릴 수 있어야 한다')
+})
+
+test('★ 폐지된 캡처 라우트는 404 가 아니라 목록으로 보낸다 — 북마크·뒤로가기가 죽지 않게', () => {
+  const src = code(NEW_ROUTE)
+  assert.ok(src.includes("redirect('/crm/meetings')"), '목록으로 되돌려 하던 일을 이어가게 한다')
+  assert.ok(!src.includes('startMeeting'), '주소창으로 들어온 것만으로 빈 미팅을 만들지 않는다')
 })
 
 test('★ 붙여넣기는 원본(회의노트)으로 간다 — CRM 에만 넣으면 노트가 빈 껍데기로 남는다', () => {
-  const src = code(CAPTURE)
+  const src = code(TRANSCRIPT_VIEW)
   assert.ok(
     /\/api\/meeting-notes\/\$\{[^}]*noteId\}\/transcript/.test(src),
     '붙여넣기가 회의노트 전사 API 로 가야 한다',

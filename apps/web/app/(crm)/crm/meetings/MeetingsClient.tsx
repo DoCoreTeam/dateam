@@ -15,15 +15,21 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mic, Plus } from 'lucide-react'
+import { Mic, Plus, NotebookPen } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import NbModal from '@/components/ui/nb/NbModal'
+import AXDotLoader from '@/components/ui/AXDotLoader'
+import EmptyState from '@/components/ui/EmptyState'
+import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { startMeeting, meetingHref } from '@/lib/crm/ui/start-meeting'
+import notePick from './note-pick.module.css'
 import {
   MEETING_STATUS_META, MEETING_STATUS_ORDER, meetingStatusMeta,
 } from '@/lib/crm/ui/meeting-status'
@@ -41,6 +47,14 @@ interface Meeting {
   companyName: string | null
   dealName: string | null
   statusKey: MeetingStatusKey
+}
+
+/** 발행 후보로 고를 수 있는 회의노트 */
+interface PickableNote {
+  id: string
+  title: string | null
+  meetingAt: string | null
+  published: boolean
 }
 
 const FAINT = { color: 'var(--text-faint)' }
@@ -111,6 +125,17 @@ export default function MeetingsClient() {
     filterKeys: ['status'],
   })
   const [rows, setRows] = useState<Meeting[]>([])
+  /**
+   * 미팅 시작 상태.
+   *
+   * 예전엔 여기서 `/crm/meetings/new` 로 보냈다 — 제목·시각·회사·딜을 묻고,
+   * 진입 방식을 고르게 한 뒤, 그제서야 작업대로 넘어갔다. 화면이 셋이었다.
+   * 지금은 누르는 순간 미팅이 생기고 곧장 작업대로 간다(사용자 지시 2026-08-24).
+   */
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
+  const [pickingNote, setPickingNote] = useState(false)
+  const [notes, setNotes] = useState<PickableNote[] | null>(null)
   const [cursor, setCursor] = useState<string | null>(null)
   const [total, setTotal] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState(true)
@@ -118,6 +143,55 @@ export default function MeetingsClient() {
 
   const q = query.q ?? ''
   const status = query.filters?.status ?? ''
+
+  /** 미팅을 만들고 곧장 작업대로 — 중간에 묻는 화면이 없다 */
+  const begin = useCallback(async () => {
+    setStarting(true)
+    setStartError(null)
+    try {
+      const created = await startMeeting()
+      router.push(meetingHref(created.id))
+    } catch (e) {
+      setStartError(e instanceof Error ? e.message : '미팅을 만들지 못했습니다.')
+      setStarting(false)
+    }
+  }, [router])
+
+  /** 이미 쓴 회의노트를 올린다 — 새로 만드는 게 아니라 발행이라 모달이 맞다 */
+  const loadNotes = useCallback(async () => {
+    setNotes(null)
+    try {
+      const res = await fetch('/api/crm/meetings/notes?limit=20')
+      const body = await res.json()
+      setNotes(res.ok ? (body.items ?? []) : [])
+    } catch {
+      setNotes([])
+    }
+  }, [])
+
+  useEffect(() => { if (pickingNote) void loadNotes() }, [pickingNote, loadNotes])
+
+  const publishNote = useCallback(async (noteId: string) => {
+    setStarting(true)
+    setStartError(null)
+    try {
+      const res = await fetch('/api/crm/meetings/from-note', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId }),
+      })
+      const body = await res.json()
+      if (!res.ok) {
+        setStartError(body?.error?.message ?? '회의노트를 가져오지 못했습니다.')
+        setStarting(false)
+        return
+      }
+      setPickingNote(false)
+      router.push(meetingHref(body.meetingId as string))
+    } catch {
+      setStartError('회의노트를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      setStarting(false)
+    }
+  }, [router])
 
   const load = useCallback(async (append: boolean, nextCursor: string | null) => {
     // 기본값으로 되돌리는 조작은 주소가 그대로라 개별 필드로는 안 보인다 — queryKey 로만 들어온다
@@ -151,6 +225,8 @@ export default function MeetingsClient() {
 
   return (
     <>
+      <FormErrorBanner message={startError} />
+
       <ListToolbar
         query={query}
         onChange={set}
@@ -158,11 +234,22 @@ export default function MeetingsClient() {
         views={['table', 'card']}
         filters={[STATUS_FILTER]}
         actions={(
-          // 모달이 아니라 캡처 화면으로 간다 — 예전엔 모달에서 저장하면 목록으로 돌아와
-          // 방금 만든 미팅을 눈으로 찾아 다시 클릭해야 내용을 넣을 수 있었다.
-          <NbButton onClick={() => router.push('/crm/meetings/new')}>
-            <Plus size={16} /> 미팅 기록
-          </NbButton>
+          /**
+           * **누르면 바로 작업대다.** 중간에 묻는 화면이 없다.
+           *
+           * 예전엔 `/crm/meetings/new` 로 보내 제목·시각·회사·딜을 묻고 진입 방식을 고르게 했다.
+           * 그런데 그 화면이 하던 일은 전부 작업대가 이미 할 수 있는 것이다 —
+           * 녹음·직접 쓰기·붙여넣기는 `MeetingWorkbench` 안에 있고 나머지는 상세의 "이 미팅은"이다.
+           * 회의 중에 화면이 두 번 갈아엎히면 사용자는 기록을 놓친다(사용자 지시 2026-08-24).
+           */
+          <>
+            <NbButton variant="ghost" onClick={() => setPickingNote(true)} disabled={starting}>
+              <NotebookPen size={16} /> 회의노트에서 가져오기
+            </NbButton>
+            <NbButton onClick={() => void begin()} disabled={starting}>
+              <Plus size={16} /> {starting ? '여는 중…' : '미팅 기록'}
+            </NbButton>
+          </>
         )}
       />
 
@@ -180,9 +267,46 @@ export default function MeetingsClient() {
           description: q || status
             ? '검색어나 상태를 바꿔 보세요.'
             : '미팅을 기록하고 전사를 붙여넣으면, AI가 누가 나왔고 무엇이 걸림돌인지 뽑아 인박스로 보냅니다.',
-          action: q || status ? undefined : { label: '미팅 기록하기', href: '/crm/meetings/new' },
+          action: q || status ? undefined : { label: '미팅 기록하기', onClick: () => void begin() },
         }}
       />
+
+      {pickingNote && (
+        <NbModal title="회의노트에서 가져오기" onClose={() => setPickingNote(false)}>
+          <p style={{ ...FAINT, marginTop: 0, fontSize: 'var(--fs-sm)' }}>
+            내가 쓴 회의노트를 영업 CRM에 올립니다. 회의 내용과 요약이 함께 넘어와요.
+          </p>
+          {notes === null ? (
+            <AXDotLoader />
+          ) : notes.length === 0 ? (
+            <EmptyState
+              title="가져올 회의노트가 없어요"
+              description="회의노트에 먼저 기록하면 여기서 고를 수 있습니다."
+              icon={<NotebookPen size={28} />}
+            />
+          ) : (
+            <ul className={notePick.noteList}>
+              {notes.map((n) => (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    className={notePick.noteItem}
+                    onClick={() => void publishNote(n.id)}
+                    disabled={starting}
+                  >
+                    <span className={notePick.noteTitle}>{n.title || '(제목 없음)'}</span>
+                    <span className={notePick.noteMeta}>
+                      {n.meetingAt ? formatKstDateTimeShort(n.meetingAt) : '일시 미지정'}
+                    </span>
+                    {/* 이미 올린 것을 숨기지 않는다 — 숨기면 "분명 있었는데"가 된다 */}
+                    {n.published && <NbBadge status="done">올라감</NbBadge>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </NbModal>
+      )}
 
       <ListPager
         query={query}

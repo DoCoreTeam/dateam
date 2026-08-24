@@ -12,6 +12,7 @@
 // 각자 만들면 한쪽만 고치게 된다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Mic } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -19,6 +20,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { startMeeting, meetingHref } from '@/lib/crm/ui/start-meeting'
 import styles from './meeting-panel.module.css'
 
 interface Meeting {
@@ -36,24 +38,32 @@ export interface MeetingPanelScope {
 }
 
 export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
+  const router = useRouter()
   const [items, setItems] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
 
   const { dealId, companyId } = scope
 
   /**
-   * 보던 건을 데려가는 주소.
+   * **누르면 바로 작업대다.** 보던 딜·회사를 물려서 미팅을 만들고 곧장 그리로 간다.
    *
-   * 예전엔 '미팅 기록하기'가 `/crm/meetings` 목록으로만 보냈다. 딜 상세에서 눌렀는데
-   * 그 딜을 안 데려가니 사용자는 회사·딜을 처음부터 다시 골라야 했다.
-   * URL 상태로 넘긴다 — 죽어 있던 `fixedDealId` prop 이 하던 일을 주소가 대신한다.
+   * 예전엔 `/crm/meetings/new?dealId=…` 로 보내 제목·시각을 한 번 더 물었다.
+   * 회의 중에 화면이 두 번 갈아엎히면 사용자는 기록을 놓친다(사용자 지시 2026-08-24).
+   * 딜·회사는 여기서 이미 아는 값이라 물을 이유가 없다.
    */
-  const newMeetingHref = dealId
-    ? `/crm/meetings/new?dealId=${encodeURIComponent(dealId)}`
-    : companyId
-      ? `/crm/meetings/new?companyId=${encodeURIComponent(companyId)}`
-      : '/crm/meetings/new'
+  const begin = useCallback(async () => {
+    setStarting(true)
+    setError(null)
+    try {
+      const created = await startMeeting({ dealId, companyId })
+      router.push(meetingHref(created.id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '미팅을 만들지 못했습니다.')
+      setStarting(false)
+    }
+  }, [router, dealId, companyId])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -85,8 +95,8 @@ export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
         title="아직 기록된 미팅이 없어요"
         description="미팅을 기록하고 전사를 붙여넣으면 AI가 누가 나왔고 무엇이 걸림돌인지 뽑아 줍니다."
         icon={<Mic size={24} />}
-        /* 보던 딜·회사를 데려간다. 예전엔 목록으로만 보내서 처음부터 다시 골라야 했다. */
-        action={{ label: '미팅 기록하기', href: newMeetingHref }}
+        /* 보던 딜·회사를 물려 바로 작업대를 연다 — 중간에 묻는 화면이 없다 */
+        action={{ label: starting ? '여는 중…' : '미팅 기록하기', onClick: () => void begin() }}
       />
     )
   }

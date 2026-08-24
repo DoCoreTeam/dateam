@@ -1,0 +1,51 @@
+/**
+ * 회의노트 고르기 목록 — 미팅 목록의 「회의노트에서 가져오기」 모달 전용.
+ *
+ * §0-1: 화면 전용 스타일은 globals.css 가 아니라 그 폴더의 CSS Module 에 둔다.
+ * 예전엔 지금은 없어진 캡처 화면(capture.module.css)에 있었다.
+ */
+
+.noteList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+/* 행 전체가 눌린다 — 목록에서 '열기' 버튼을 따로 두면 행이 죽는다(§2-3-1) */
+.noteItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.noteItem:hover:not(:disabled) { border-color: var(--brand); }
+.noteItem:focus-visible { outline: var(--border-w-2) solid var(--accent); outline-offset: 2px; }
+.noteItem:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.noteTitle {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noteMeta {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}

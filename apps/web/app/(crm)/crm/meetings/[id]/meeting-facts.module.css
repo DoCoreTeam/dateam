@@ -1,0 +1,32 @@
+/**
+ * "이 미팅은" 인라인 편집 — 미팅 상세 전용.
+ * §0-1: 화면 전용 스타일은 globals.css 가 아니라 그 폴더의 CSS Module 에 둔다.
+ */
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* 날짜·시각은 한 줄이다 — 좁은 화면에서만 접힌다 */
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-width: 767px) {
+  .pair { grid-template-columns: 1fr; }
+}
+
+.error {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}

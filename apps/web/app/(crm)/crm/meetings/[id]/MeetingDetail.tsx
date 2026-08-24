@@ -22,6 +22,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import MeetingWorkbench from '@/components/meeting/MeetingWorkbench'
+import MeetingFacts from './MeetingFacts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { describeSuggestionValue, TARGET_LABEL } from '@/lib/crm/format/suggestion'
 import type { StatusKey } from '@/lib/tokens/status-colors'
@@ -43,6 +44,7 @@ interface NoteMeta {
 interface Meeting {
   id: string; title: string; startedAt: string; location: string | null
   companyId: string | null; dealId: string | null; summaryMd: string | null
+  companyName: string | null; dealName: string | null
   noteId: string | null; noteSyncedAt: string | null; note: NoteMeta | null
   recordings: Recording[]; segments: Segment[]; suggestions: Suggestion[]
 }
@@ -204,28 +206,49 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
 
       <RecordLayout
         fields={
-          <RecordPanel title="이 미팅은">
-            <RecordFieldList>
-              <RecordField label="회사">
-                {m.companyId ? <Link href={`/crm/companies/${m.companyId}`}>회사 열기</Link> : null}
-              </RecordField>
-              <RecordField label="딜">
-                {m.dealId ? <Link href={`/crm/deals/${m.dealId}`}>딜 열기</Link> : null}
-              </RecordField>
-              <RecordField label="전사">
-                {transcribed ? `${m.segments.length}줄` : null}
-              </RecordField>
-              <RecordField label="회의노트">
-                {/* 열어 볼 수 있을 때만 링크를 그린다 — '나만 보기'로 둔 원본은 열리지 않는다.
-                    CRM 은 스냅샷을 갖고 있어 링크가 없어도 화면이 비지 않는다. */}
-                {m.note?.exists && m.note.canOpen
-                  ? <Link href={`/meeting-notes/${m.note.id}`}>{m.note.title || '원본 열기'}</Link>
-                  : m.note?.exists
-                    ? <span className={styles.conf}>비공개 원본</span>
-                    : null}
-              </RecordField>
-            </RecordFieldList>
-          </RecordPanel>
+          <>
+            {/**
+              * **여기서 바로 고친다.** 예전엔 읽기 전용이라, 제목 하나 고치려면
+              * 미팅을 만들기 전에 `/crm/meetings/new` 에서 미리 적어야 했다.
+              * 그 화면을 없애려면(사용자 지시 2026-08-24) 이 자리가 먼저 있어야 했다.
+              */}
+            <MeetingFacts
+              meetingId={meetingId}
+              value={{
+                title: m.title,
+                startedAt: m.startedAt,
+                location: m.location,
+                companyId: m.companyId,
+                companyName: m.companyName,
+                dealId: m.dealId,
+                dealName: m.dealName,
+              }}
+              onSaved={() => { void load() }}
+            />
+
+            <RecordPanel title="붙은 것">
+              <RecordFieldList>
+                <RecordField label="회사">
+                  {m.companyId ? <Link href={`/crm/companies/${m.companyId}`}>회사 열기</Link> : null}
+                </RecordField>
+                <RecordField label="딜">
+                  {m.dealId ? <Link href={`/crm/deals/${m.dealId}`}>딜 열기</Link> : null}
+                </RecordField>
+                <RecordField label="전사">
+                  {transcribed ? `${m.segments.length}줄` : null}
+                </RecordField>
+                <RecordField label="회의노트">
+                  {/* 열어 볼 수 있을 때만 링크를 그린다 — '나만 보기'로 둔 원본은 열리지 않는다.
+                      CRM 은 스냅샷을 갖고 있어 링크가 없어도 화면이 비지 않는다. */}
+                  {m.note?.exists && m.note.canOpen
+                    ? <Link href={`/meeting-notes/${m.note.id}`}>{m.note.title || '원본 열기'}</Link>
+                    : m.note?.exists
+                      ? <span className={styles.conf}>비공개 원본</span>
+                      : null}
+                </RecordField>
+              </RecordFieldList>
+            </RecordPanel>
+          </>
         }
         timeline={
           /**

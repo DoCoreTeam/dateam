@@ -421,7 +421,20 @@ export async function getMeeting(db: CrmDb, id: string) {
     orderBy: { createdAt: 'desc' },
   })
 
-  return { ...meeting, recordings }
+  /**
+   * 회사·딜 **이름**을 함께 준다(추가 전용).
+   *
+   * 상세가 이 값을 읽기만 할 때는 id 만으로 "회사 열기" 링크를 그리면 됐다.
+   * 그런데 이제 상세에서 회사·딜을 **고칠 수 있어야 하고**(사용자 지시 2026-08-24),
+   * 고르는 상자는 지금 무엇이 골라져 있는지를 이름으로 보여 줘야 한다.
+   * 화면이 건당 다시 물으면 목록에서 없앤 N+1 이 상세에서 되살아난다 —
+   * 목록과 같은 방식으로 서버가 한 번에 붙인다.
+   */
+  const [named] = await attachNames(db, [meeting])
+
+  // meeting 을 먼저 펼친다 — attachNames 의 반환 타입(MeetingListRow)이 목록용이라
+  // noteSyncedAt 같은 상세 전용 필드를 타입에서 떨어뜨린다. 값은 같지만 타입이 좁아진다.
+  return { ...meeting, ...named, recordings }
 }
 
 /** 전사 구간 — 미팅 상세가 근거를 보여 주려면 필요하다 */
