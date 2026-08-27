@@ -71,7 +71,7 @@ export const CHANGELOG: ChangelogNote[
     ],
   },
   {
-    version: '0.7.615',
+    version: '0.7.614',
     date: '2026-08-27',
     title: '실제로 써 보고 발견한 것 셋을 고쳤어요',
     items: [
