@@ -33,6 +33,21 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.607',
+    date: '2026-08-27',
+    title: 'AI가 그 거래처를 기억하고 읽어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🧠',
+        headline: '이미 등록된 사람·할 일·지난 회의를 함께 보고 정리해요',
+        detail:
+          '같은 분이 회의마다 새 연락처로 쌓이거나 「견적서 보내기」가 매번 새 할 일로 생기던 일이 줄어요. ' +
+          '지난 회의에서 이미 정리된 내용도 오늘 결정처럼 다시 올라오지 않습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.606',
     date: '2026-08-27',
     title: '미팅이 끝나면 버튼 하나로 정리돼요',

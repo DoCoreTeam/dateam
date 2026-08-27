@@ -12,7 +12,7 @@
  *   ③ **모르면 null** — 빈칸을 채우는 것보다 비워 두는 게 낫다
  */
 
-export const MEETING_EXTRACT_VERSION = 'meeting_extract@v1.3.0'
+export const MEETING_EXTRACT_VERSION = 'meeting_extract@v1.4.0'
 
 /**
  * 같은 5축을 **활동 노트**에서도 읽는다(v1.3.0).
@@ -53,6 +53,22 @@ export interface MeetingContext {
   stageNames?: string[]
   /** 우리 쪽 사람 이름 — 이들을 고객사 인물로 제안하면 CRM 이 오염된다 */
   ourNames?: string[]
+
+  /**
+   * 이 회사에 **이미 등록된** 사람 — 같은 사람을 또 만들지 않게.
+   * 없으면 "김 부장"이 회의마다 새 인물로 쌓인다.
+   */
+  knownPeople?: { name: string; title?: string | null }[]
+  /**
+   * 이 딜에 **이미 잡혀 있는** 할 일 — 같은 일을 또 제안하지 않게.
+   * 없으면 매 회의마다 "견적서 보내기"가 새로 쌓여 목록을 아무도 안 믿게 된다.
+   */
+  openTasks?: string[]
+  /**
+   * **지난 회의에서 이미 정리된 것** — 그때 나온 말을 오늘 결정처럼 다시 올리지 않게.
+   * 그리고 "지난번에 말씀하신"의 대상을 AI 가 알아볼 수 있게 한다.
+   */
+  recentMeetings?: { date: string; title: string; summary?: string | null }[]
 }
 
 /** 전사 한 조각 — id 가 근거가 된다 */
@@ -84,6 +100,20 @@ function contextBlock(ctx: MeetingContext): string {
   }
   if (ctx.ourNames?.length) {
     lines.push(`우리 쪽 사람(고객이 아니다): ${ctx.ourNames.join(', ')}`)
+  }
+  if (ctx.knownPeople?.length) {
+    lines.push('이 회사에 이미 등록된 사람(같은 사람을 또 만들지 마라): '
+      + ctx.knownPeople.map((p) => p.title ? `${p.name}(${p.title})` : p.name).join(', '))
+  }
+  if (ctx.openTasks?.length) {
+    lines.push('이 딜에 이미 잡혀 있는 할 일(같은 일을 또 제안하지 마라):\n'
+      + ctx.openTasks.map((t) => `  - ${t}`).join('\n'))
+  }
+  if (ctx.recentMeetings?.length) {
+    lines.push('지난 회의(그때 나온 말을 오늘 결정처럼 올리지 마라):\n'
+      + ctx.recentMeetings
+          .map((m) => `  - ${m.date} ${m.title}${m.summary ? `: ${m.summary}` : ''}`)
+          .join('\n'))
   }
   return lines.length > 0
     ? lines.join('\n')
