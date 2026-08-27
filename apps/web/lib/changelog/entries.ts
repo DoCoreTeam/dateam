@@ -33,6 +33,29 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.611',
+    date: '2026-08-27',
+    title: '한 번 하고 끝나는 안내는 이제 사라져요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🧹',
+        headline: 'CRM 첫 화면의 「시작하기」를 걷어냈어요',
+        detail:
+          '처음 한 번만 필요한 안내가 매일 여는 화면 맨 위를 차지하고 있었어요. ' +
+          '이제 첫 화면은 미팅 기록과 오늘 손댈 것으로 바로 시작합니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '📥',
+        headline: '옛 리드를 다 옮기면 그 카드가 사라져요',
+        detail:
+          '인박스 맨 위의 「옛 리드 옮기기」가 남은 게 없어도 계속 떠 있었고, 개수도 ' +
+          '「세는 중…」에서 멈춰 있었어요. 이제 열지 않아도 개수를 세고, 다 옮겼으면 카드가 없어집니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.610',
     date: '2026-08-27',
     title: '콘텐츠 인텔리전스가 "오늘 뭘 만들까"에 답합니다',

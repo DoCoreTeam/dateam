@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
-  AlertTriangle, Clock, Inbox, PauseCircle, Sparkles, Plus, ArrowRight, Check, Circle,
+  AlertTriangle, Clock, Inbox, PauseCircle, Sparkles, Plus, ArrowRight,
 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
@@ -36,21 +36,6 @@ const ICON: Record<AttentionKind, React.ReactNode> = {
   stalled: <PauseCircle size={14} />,
 }
 
-interface SetupStep {
-  id: string
-  title: string
-  why: string
-  done: boolean
-  status: string
-  action: { label: string; href: string }
-  alt?: { label: string; href: string }
-}
-interface Setup {
-  steps: SetupStep[]
-  doneCount: number
-  current: string | null
-}
-
 interface AiSuggestion {
   dealId: string
   dealName: string
@@ -66,7 +51,6 @@ export default function TodayClient() {
   const [total, setTotal] = useState(0)
   const [unplanned, setUnplanned] = useState(0)
   const [name, setName] = useState('')
-  const [setup, setSetup] = useState<Setup | null>(null)
   const [todayMeetings, setTodayMeetings] = useState<TodayMeeting[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +73,6 @@ export default function TodayClient() {
       setTotal(a.total ?? 0)
       setUnplanned(body.unplanned ?? 0)
       setName(body.displayName ?? '')
-      setSetup(body.setup ?? null)
       setTodayMeetings(body.todayMeetings ?? [])
     } catch {
       setError('불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -162,51 +145,6 @@ export default function TodayClient() {
         「무엇이 밀렸지」가 아니다. 밀린 것은 그 아래에서 기다려도 된다.
       */}
       <MeetingIntakeBox todayMeetings={todayMeetings} />
-
-      {/*
-        시작하기 — 처음 온 사람이 가장 먼저 봐야 할 것.
-        **다 끝나면 서버가 안 보낸다**(계속 뜨면 그때부터는 장식이다).
-        순서는 업계 정설 그대로: 프로세스 → 데이터 → 운영.
-      */}
-      {setup && (
-        <section className={`card ${styles.setup}`}>
-          <div className={styles.setupHead}>
-            <h2 className={styles.setupTitle}>시작하기</h2>
-            <span className={styles.setupCount}>{setup.doneCount} / {setup.steps.length}</span>
-          </div>
-
-          <ol className={styles.setupList}>
-            {setup.steps.map((st) => (
-              <li
-                key={st.id}
-                className={styles.setupStep}
-                data-done={st.done ? '1' : '0'}
-                /* 지금 할 것 하나만 강조한다 — 넷을 다 읽게 하면 아무것도 안 한다 */
-                data-current={st.id === setup.current ? '1' : '0'}
-              >
-                <span className={styles.setupMark}>
-                  {st.done ? <Check size={14} /> : <Circle size={14} />}
-                </span>
-                <span className={styles.setupBody}>
-                  <span className={styles.setupStepTitle}>{st.title}</span>
-                  {/* 이유 없는 지시는 사람이 안 따른다 */}
-                  <span className={styles.setupWhy}>{st.why}</span>
-                  <span className={styles.setupStatus}>{st.status}</span>
-                </span>
-                {!st.done && (
-                  <span className={styles.setupActions}>
-                    {/* 이동이라 버튼이 아니라 링크다 — 새 탭·우클릭·키보드가 전부 된다 */}
-                    <Link href={st.action.href} className="btn-primary">{st.action.label}</Link>
-                    {st.alt && (
-                      <Link href={st.alt.href} className="btn-ghost">{st.alt.label}</Link>
-                    )}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
 
       {/*
         영업 규율 지표. 이 숫자가 크면 딜이 조용히 멈춰 있다는 뜻이다 —

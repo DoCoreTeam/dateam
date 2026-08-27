@@ -108,11 +108,19 @@ test('★ 첫 화면이 포착 상자를 실제로 그린다', () => {
   assert.match(TODAY_UI, /<MeetingIntakeBox/, 'import 만 하고 안 그린다')
 })
 
-test('★ 포착이 「시작하기」보다 위다 — 먼저 찾는 것이 위여야 한다', () => {
+test('★ 포착이 맨 위다 — 노트북을 펼친 사람이 먼저 찾는 것은 「어디에 적지」다', () => {
   const box = TODAY_UI.indexOf('<MeetingIntakeBox')
-  const setup = TODAY_UI.indexOf('{setup && (')
-  assert.ok(box > 0 && setup > 0, '둘 다 있어야 한다')
-  assert.ok(box < setup, '포착 상자가 시작하기 아래로 밀렸다')
+  assert.ok(box > 0, '포착 상자가 없다')
+  // 이 화면에서 포착보다 위에 올 수 있는 것은 인사말뿐이다
+  for (const below of ['unplanned > 0', 'aiPicks', 'items.map']) {
+    const at = TODAY_UI.indexOf(below)
+    if (at > 0) assert.ok(box < at, `포착 상자가 ${below} 아래로 밀렸다`)
+  }
+})
+
+test('걷어낸 「시작하기」가 되살아나지 않는다 — 한 번 하고 끝나는 안내는 상주하지 않는다', () => {
+  assert.ok(!/setup/i.test(TODAY_UI), '첫 화면에 시작하기가 되돌아왔다')
+  assert.ok(!/setup/i.test(TODAY_API), '서버가 아직 시작하기를 보낸다')
 })
 
 test('★ 서버가 오늘 미팅을 실제로 보낸다', () => {

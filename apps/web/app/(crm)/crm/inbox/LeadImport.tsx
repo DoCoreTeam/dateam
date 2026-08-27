@@ -123,6 +123,38 @@ export default function LeadImport() {
 
   useEffect(() => { if (open) void load() }, [open, load])
 
+  /**
+   * **남은 게 없으면 이 카드는 그리지 않는다.**
+   *
+   * 사용자 지적(2026-08-27): *"옛리드도 계속 있는건 아니니깐 안맞는거지 —
+   * 일시적인게 아니라 항상 있는거 같자나"*.
+   * 옛 시스템에서 옮겨오는 일은 **한 번 하고 끝나는 일**이다. 다 옮긴 뒤에도 인박스 맨 위에
+   * 남아 있으면 그때부터는 장식이고, 장식이 위에 있으면 정작 확인할 제안이 아래로 밀린다.
+   *
+   * 그래서 열지 않아도 **처음에 한 번은 세어 본다**. 예전엔 펼쳐야 세기 시작해서
+   * 뱃지가 영원히 「세는 중…」이었다(실화면). 세어 보고 0건이면 사라진다 —
+   * 이관이 끝나는 날 이 카드도 저절로 없어진다.
+   */
+  const [counted, setCounted] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const res = await fetch('/api/crm/lead-import?view=queue&limit=1&offset=0')
+        const body = await res.json()
+        if (!alive || !res.ok) return
+        setPending(body.pending ?? 0)
+        setMigrated(body.migrated ?? 0)
+        setSkipped(body.skipped ?? 0)
+      } catch {
+        // 세지 못했으면 카드를 띄우지 않는다 — 있는지 모르는 것을 있다고 말하지 않는다
+      } finally {
+        if (alive) setCounted(true)
+      }
+    })()
+    return () => { alive = false }
+  }, [])
+
   // 조건이 바뀌면 1페이지로 — 3페이지에서 검색하면 빈 화면이 된다
   useEffect(() => { setOffset(0); setSelected(new Set()) }, [view, sort, q])
 
@@ -238,12 +270,16 @@ export default function LeadImport() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE))
   const page = Math.floor(offset / PAGE) + 1
 
+  // 세기 전에는 아무것도 안 보여 준다 — 있다가 사라지면 그게 더 어수선하다.
+  // 다 옮겼으면(펼쳐 보는 중이 아닌 한) 카드 자체가 없다.
+  if (!counted || (pending === 0 && !open)) return null
+
   return (
     <section className={`card ${styles.leadCard}`}>
       <div className={styles.leadHead}>
         <h2 className={styles.leadTitle}>옛 리드 옮기기</h2>
-        <NbBadge status={loading ? 'planned' : pending === 0 ? 'done' : 'planned'}>
-          {loading ? '세는 중…' : pending === 0 ? '다 정리했어요' : `${pending.toLocaleString('ko-KR')}건 남음`}
+        <NbBadge status={pending === 0 ? 'done' : 'planned'}>
+          {pending === 0 ? '다 정리했어요' : `${pending.toLocaleString('ko-KR')}건 남음`}
         </NbBadge>
         <NbButton variant="ghost" onClick={() => setOpen((v) => !v)}>
           {open ? '접기' : '보기'}

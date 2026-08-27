@@ -11,7 +11,6 @@ import { getCrmDb } from '@/lib/crm/db/client'
 import { buildAttention, attentionSummary } from '@/lib/crm/services/attention'
 import { countUnplanned } from '@/lib/crm/services/next-action'
 import { suggestNextBestActions } from '@/lib/crm/services/next-best-action'
-import { buildSetupProgress } from '@/lib/crm/services/setup-progress'
 import { listTodayMeetings } from '@/lib/crm/services/today-meetings'
 
 export const maxDuration = 60
@@ -27,7 +26,7 @@ export async function GET(req: NextRequest) {
       return { ai: await suggestNextBestActions(db, session.workspaceId) }
     }
 
-    const [attention, unplanned, setup, todayMeetings] = await Promise.all([
+    const [attention, unplanned, todayMeetings] = await Promise.all([
       buildAttention(db),
       // 다음 할 일이 없는 딜 수 — 이 숫자가 영업 규율의 지표다
       countUnplanned(db).catch(() => 0),
@@ -37,7 +36,6 @@ export async function GET(req: NextRequest) {
        * **다 끝나면 안 보낸다.** 계속 뜨면 그때부터는 화면을 차지하는 장식일 뿐이고,
        * 사람은 "이거 왜 안 없어지지"를 신경 쓰게 된다.
        */
-      buildSetupProgress(db).catch(() => null),
       /**
        * 오늘 잡혀 있는 미팅.
        *
@@ -50,7 +48,6 @@ export async function GET(req: NextRequest) {
     return {
       attention: { ...attention, summary: attentionSummary(attention) },
       unplanned,
-      setup: setup && !setup.complete ? setup : null,
       todayMeetings,
       displayName: session.displayName,
     }
