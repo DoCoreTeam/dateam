@@ -70,7 +70,18 @@ export const MIN_CALL_INTERVAL_MS = 3_200
 /** 무료 티어 실측 일일 한도(모델당). 화면·로그가 사용자에게 숫자로 말할 때 쓴다. */
 export const FREE_TIER_DAILY_LIMIT = 20
 
-export const DEFAULT_MAX_SETS = 24
+/**
+ * 한 주제에서 한 번에 설명할 떡상 수.
+ *
+ * 실측(2026-08-27)으로 정한 값이다. **채널당 표본 수가 결과를 가른다.**
+ *   12건(채널당 4) → 군집이 전부 1채널 → 승격 0건
+ *   30건(채널당 10) → 군집 3개가 채널 3곳 → 승격 3건
+ * 같은 채널의 발견끼리 먼저 뭉치기 때문에, 채널을 가로지르는 반복이 잡히려면
+ * 채널마다 충분히 여러 건을 봐야 한다. 적게 부르면 돈은 아끼지만 **결과가 0이다.**
+ *
+ * 위로는 시간이 제약이다 — 30건 × 3.2초 ≈ 100초/주제.
+ */
+export const DEFAULT_MAX_SETS = 30
 
 export interface DiscoverySample {
   contentId: string
@@ -152,7 +163,44 @@ export function buildContrastSets(samples: readonly DiscoverySample[]): Contrast
   }
 
   // 배수가 큰 것부터 — AI 예산이 한정될 때 설명 가치가 큰 것을 먼저 쓴다
-  return sets.sort((a, b) => (b.winner.outlierIndex ?? 0) - (a.winner.outlierIndex ?? 0))
+  sets.sort((a, b) => (b.winner.outlierIndex ?? 0) - (a.winner.outlierIndex ?? 0))
+
+  // 그런데 배수만으로 자르면 **한 채널이 표본을 독점한다.**
+  // 실측(2026-08-27): 장사의 신이 떡상 354건이라 상위 12개가 전부 그 채널이었고,
+  // 그 결과 발견 11건이 모두 "1개 채널에서만 나타남"으로 탈락했다(승격 0).
+  // 승격 조건이 "서로 다른 채널 3곳"인데 표본이 한 채널이면 **구조적으로 아무것도 못 올린다.**
+  // 그래서 채널을 돌아가며 뽑는다 — 각 채널의 1등, 2등, … 순서.
+  return roundRobinByChannel(sets)
+}
+
+/**
+ * 채널을 돌아가며 하나씩 뽑아 재배열한다.
+ *
+ * 채널 안의 순서(배수 내림차순)는 유지하면서, 앞쪽에 여러 채널이 고루 들어오게 한다.
+ * 호출부가 앞에서 N개를 잘라도 표본이 한 채널로 쏠리지 않는다.
+ */
+export function roundRobinByChannel(sets: readonly ContrastSet[]): ContrastSet[] {
+  const byChannel = new Map<string, ContrastSet[]>()
+  for (const s of sets) {
+    const k = s.winner.channelId ?? '(unknown)'
+    const list = byChannel.get(k) ?? []
+    list.push(s)
+    byChannel.set(k, list)
+  }
+
+  // 채널 순서는 "가장 높은 배수를 가진 채널"부터 — 설명 가치가 큰 쪽을 앞에 둔다
+  const queues = Array.from(byChannel.values())
+    .sort((a, b) => (b[0]?.winner.outlierIndex ?? 0) - (a[0]?.winner.outlierIndex ?? 0))
+
+  const out: ContrastSet[] = []
+  for (let i = 0; out.length < sets.length; i += 1) {
+    let moved = false
+    for (const q of queues) {
+      if (i < q.length) { out.push(q[i]); moved = true }
+    }
+    if (!moved) break
+  }
+  return out
 }
 
 /** AI가 대조쌍 1개를 읽고 낸 결과 */
@@ -177,6 +225,106 @@ export interface FindingCluster {
   statement: string
   /** 이 군집에 속한 RawFinding의 contentId */
   contentIds: string[]
+}
+
+/**
+ * 묶기 폴백 — AI 2차 패스가 실패했을 때 쓰는 결정론 군집.
+ *
+ * 왜 필요한가(실측 2026-08-27): 묶기는 **마지막 호출**이라 그때쯤 할당량이 바닥난다.
+ * 실패하면 각 문장이 홀로 남고, 홀로 남으면 채널이 1곳이라
+ * 승격 조건("서로 다른 채널 3곳")에 **구조적으로 전부 탈락**한다 — 결과가 언제나 0건이다.
+ * 발견 12건을 만들어 놓고 0건을 보여주는 것은 만들지 않은 것과 같다.
+ *
+ * 그래서 글자가 겹치는 정도로라도 묶는다. AI 묶기보다 거칠지만,
+ * **승격 문턱(채널 3곳)이 그대로 남아 있어** 잘못 묶여도 아무거나 올라가지 않는다.
+ */
+const STOPWORDS = new Set([
+  '하는', '한다', '하여', '해서', '있는', '있다', '것을', '것이', '통해', '위해',
+  '사용', '활용', '제목', '콘텐츠', '영상', '시청자', '유발', '유도',
+])
+
+/** 한국어 문장에서 의미 토큰만 성기게 뽑는다. 형태소 분석기 없이 어절 앞부분을 쓴다. */
+export function statementTokens(text: string): Set<string> {
+  const words = text
+    // \p{L} 같은 유니코드 속성은 이 tsconfig 타깃에서 못 쓴다 — 한글·영숫자 범위로 직접 적는다
+    .replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+  const out = new Set<string>()
+  for (const w of words) {
+    // 조사·어미가 붙은 어절이라 앞 2~4글자만 쓴다 ("유명인의" -> "유명인")
+    const stem = w.length > 4 ? w.slice(0, 4) : w
+    if (stem.length < 2) continue
+    if (STOPWORDS.has(stem) || STOPWORDS.has(w)) continue
+    out.add(stem)
+  }
+  return out
+}
+
+/** 두 문장이 같은 뜻인지 성기게 판정. 겹치는 의미 토큰이 이 수 이상이면 같은 묶음으로 본다. */
+export const OVERLAP_MIN_SHARED_TOKENS = 2
+
+export function clusterByOverlap(findings: readonly RawFinding[]): FindingCluster[] {
+  const groups: { tokens: Set<string>; statement: string; contentIds: string[] }[] = []
+
+  for (const f of findings) {
+    const t = statementTokens(f.statement)
+    let joined = false
+    for (const g of groups) {
+      let shared = 0
+      for (const tok of Array.from(t)) if (g.tokens.has(tok)) shared += 1
+      if (shared >= OVERLAP_MIN_SHARED_TOKENS) {
+        g.contentIds.push(f.contentId)
+        for (const tok of Array.from(t)) g.tokens.add(tok)
+        // 대표 문장은 더 긴 쪽 — 짧은 문장은 대개 정보가 덜 들어 있다
+        if (f.statement.length > g.statement.length) g.statement = f.statement
+        joined = true
+        break
+      }
+    }
+    if (!joined) groups.push({ tokens: t, statement: f.statement, contentIds: [f.contentId] })
+  }
+
+  return groups.map((g) => ({ statement: g.statement, contentIds: g.contentIds }))
+}
+
+/**
+ * AI가 묶은 결과를 한 번 더 합친다.
+ *
+ * 왜 필요한가(실측 2026-08-27): AI 묶기는 **일관되지 않다.** 같은 12개 문장을 두고
+ * 한 번은 4건짜리 군집을 만들었고, 다음 실행에서는 11개를 거의 전부 홀로 두었다.
+ * 홀로 남으면 채널이 1곳이라 승격 문턱(3곳)에 전부 탈락한다 — 결과가 0건이 된다.
+ *
+ * 파이프라인이 **AI의 그날 기분에 좌우되면 안 된다.** 그래서 AI 묶기 뒤에
+ * 글자 겹침으로 한 번 더 합친다. AI가 이미 잘 묶었으면 이 단계는 아무것도 안 바꾼다.
+ * 승격 문턱은 그대로라, 합쳐도 아무거나 올라가지 않는다.
+ */
+export function mergeClusters(clusters: readonly FindingCluster[]): FindingCluster[] {
+  const groups: { tokens: Set<string>; statement: string; contentIds: string[] }[] = []
+
+  for (const c of clusters) {
+    const t = statementTokens(c.statement)
+    let joined = false
+    for (const g of groups) {
+      let shared = 0
+      for (const tok of Array.from(t)) if (g.tokens.has(tok)) shared += 1
+      if (shared >= OVERLAP_MIN_SHARED_TOKENS) {
+        g.contentIds.push(...c.contentIds)
+        for (const tok of Array.from(t)) g.tokens.add(tok)
+        if (c.statement.length > g.statement.length) g.statement = c.statement
+        joined = true
+        break
+      }
+    }
+    if (!joined) {
+      groups.push({ tokens: t, statement: c.statement, contentIds: [...c.contentIds] })
+    }
+  }
+
+  return groups.map((g) => ({
+    statement: g.statement,
+    contentIds: Array.from(new Set(g.contentIds)),
+  }))
 }
 
 export type DiscoveryKind = 'hook' | 'subject' | 'format' | 'timing' | 'presentation' | 'other'

@@ -22,6 +22,12 @@ export const GEMINI_MODEL_FALLBACKS: readonly string[] = [
   DEFAULT_GEMINI_MODEL,
   'gemini-3.7-flash',
   'gemini-flash-latest',
+  // 최후 안전망. **할당량 버킷이 flash 계열과 다르다** — 무료 티어 한도는
+  // 모델당(GenerateRequestsPerDayPerProjectPerModel-FreeTier) 걸리므로,
+  // 위 셋이 전부 429여도 이 모델은 살아 있다.
+  // 실측(2026-08-27): flash 4종 전부 429일 때 lite 만 200, JSON 모드도 정상.
+  // 품질은 낮지만 **기능이 죽는 것보다 낫다** — 화면이 먼저 살아야 한다.
+  'gemini-flash-lite-latest',
 ]
 
 /**

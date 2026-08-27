@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   WINNER_MIN_INDEX, PEERS_PER_WINNER, PEER_MAX_DAYS_APART, DISCOVERY_MIN_CHANNELS,
-  buildContrastSets, promoteDiscoveries, formatDiscoveryBasis,
+  buildContrastSets, promoteDiscoveries, formatDiscoveryBasis, clusterByOverlap, mergeClusters,
   type DiscoverySample, type RawFinding, type FindingCluster,
 } from './discovery.ts'
 
@@ -173,4 +173,133 @@ test('널리 반복된 것이 위로 온다', () => {
 
 test('근거 표기는 개수와 채널 수를 반드시 함께 낸다', () => {
   assert.equal(formatDiscoveryBasis(7, 4), '근거 7건 · 채널 4곳')
+})
+
+// ── 표본 다양성 ────────────────────────────────────────────
+// 실측 사고(2026-08-27): 배수 내림차순으로만 자르자 떡상 354건인 한 채널이
+// 상위 12개를 독점했고, 발견 11건이 전부 "1개 채널에서만"으로 탈락해 승격 0이 됐다.
+// 승격 조건이 "서로 다른 채널 3곳"인데 표본이 한 채널이면 구조적으로 아무것도 못 올린다.
+
+test('★ 한 채널이 표본을 독점하지 않는다 — 승격 조건을 스스로 못 채우던 자리', () => {
+  const big = Array.from({ length: 10 }, (_, i) =>
+    channelWithWinner('big', `big-w${i}`, 40 - i)).flat()
+  const sets = buildContrastSets([
+    ...big,
+    ...channelWithWinner('B', 'b1', 3),
+    ...channelWithWinner('C', 'c1', 2.5),
+  ])
+  const head = sets.slice(0, 3)
+  const channels = new Set(head.map((s) => s.winner.channelId))
+  assert.equal(channels.size, 3, `앞 3개가 ${channels.size}개 채널 — 한 채널이 독점했다`)
+})
+
+test('채널 안에서는 배수 순서가 유지된다 — 설명 가치가 큰 것이 먼저다', () => {
+  const sets = buildContrastSets([
+    ...channelWithWinner('A', 'a-low', 3),
+    ...channelWithWinner('A', 'a-high', 9),
+    ...channelWithWinner('B', 'b1', 5),
+  ])
+  const aOrder = sets.filter((s) => s.winner.channelId === 'A').map((s) => s.winner.contentId)
+  assert.deepEqual(aOrder, ['a-high', 'a-low'])
+})
+
+test('배수가 가장 높은 채널이 첫 자리를 가져간다', () => {
+  const sets = buildContrastSets([
+    ...channelWithWinner('low', 'l1', 3),
+    ...channelWithWinner('top', 't1', 30),
+  ])
+  assert.equal(sets[0].winner.channelId, 'top')
+})
+
+test('재배열이 항목을 잃거나 더하지 않는다', () => {
+  const sets = buildContrastSets([
+    ...channelWithWinner('A', 'a1', 5), ...channelWithWinner('A', 'a2', 4),
+    ...channelWithWinner('B', 'b1', 6), ...channelWithWinner('C', 'c1', 2.2),
+  ])
+  assert.equal(sets.length, 4)
+  assert.equal(new Set(sets.map((s) => s.winner.contentId)).size, 4)
+})
+
+// ── 묶기 폴백 ──────────────────────────────────────────────
+// 실측 사고(2026-08-27): AI 묶기는 파이프라인의 **마지막 호출**이라 그때쯤 할당량이 바닥난다.
+// 실패하면 각 문장이 홀로 남고, 홀로 남으면 채널이 1곳이라 전부 탈락한다 —
+// 발견 12건을 만들어 놓고 화면엔 0건이 뜬다. 아래 문장들은 그때 실제로 나온 것이다.
+
+const REAL_FINDINGS: [string, string, string][] = [
+  ['c1', 'A', '유명 연예인이나 방송 출연진의 이름을 해시태그로 활용하여 호기심을 유발한다.'],
+  ['c2', 'B', '유명 인물의 실명과 극단적인 갈등 상황을 제목에 배치해 호기심을 극대화했다.'],
+  ['c3', 'C', '인지도가 높은 유명인의 이름이나 콘텐츠의 구체적인 출처를 제목에 명시한다.'],
+  ['c4', 'D', '유명인의 이름을 전면에 내세워 호기심을 유발한다'],
+  ['c5', 'A', '시의성 있는 신제품 출시일에 맞춰 현장 구매 과정을 콘텐츠로 다룬다.'],
+]
+
+test('★ AI 묶기가 죽어도 같은 뜻은 묶인다 — 안 묶으면 결과가 언제나 0건이다', () => {
+  const f: RawFinding[] = REAL_FINDINGS.map(([contentId, channelId, statement]) => ({
+    contentId, channelId, statement, observation: '',
+  }))
+  const clusters = clusterByOverlap(f)
+  const big = clusters.find((c) => c.contentIds.length >= 3)
+  assert.ok(big, `가장 큰 묶음이 ${Math.max(...clusters.map((c) => c.contentIds.length))}건 — 유명인 계열 4개가 안 묶였다`)
+
+  // 그리고 그 묶음이 실제로 승격까지 간다 (채널 3곳 이상)
+  const r = promoteDiscoveries(clusters, f)
+  assert.ok(r.promoted.length >= 1, '묶였는데도 승격이 0건이다')
+  assert.ok(r.promoted[0].channelCount >= DISCOVERY_MIN_CHANNELS)
+})
+
+test('뜻이 다른 문장은 억지로 묶지 않는다 — 문턱이 무의미해지면 안 된다', () => {
+  const f: RawFinding[] = [
+    { contentId: 'x1', channelId: 'A', statement: '유명인의 이름을 제목에 내세운다', observation: '' },
+    { contentId: 'x2', channelId: 'B', statement: '주말 아침에 올린다', observation: '' },
+  ]
+  assert.equal(clusterByOverlap(f).length, 2)
+})
+
+test('대표 문장은 더 긴 쪽을 쓴다 — 짧은 문장은 정보가 덜 들어 있다', () => {
+  const f: RawFinding[] = [
+    { contentId: 'y1', channelId: 'A', statement: '유명인 이름을 쓴다', observation: '' },
+    { contentId: 'y2', channelId: 'B', statement: '유명인 이름을 제목 맨 앞에 배치해 호기심을 자극한다', observation: '' },
+  ]
+  const [c] = clusterByOverlap(f)
+  assert.match(c.statement, /맨 앞에/)
+})
+
+test('빈 입력에서 터지지 않는다', () => {
+  assert.deepEqual(clusterByOverlap([]), [])
+})
+
+// ── AI 묶기 보정 ───────────────────────────────────────────
+// 실측(2026-08-27): 같은 12개 문장을 두고 AI가 한 번은 4건 군집을 만들고,
+// 다음 실행에서는 11개를 거의 전부 홀로 뒀다. 파이프라인이 AI의 그날 결과에
+// 좌우되면 결과가 0건이 된다 — 그래서 뒤에서 한 번 더 합친다.
+
+test('★ AI가 홀로 둔 같은 뜻을 다시 합친다 — 승격 0건의 실제 원인이었다', () => {
+  const aiSaid: FindingCluster[] = [
+    { statement: '유명 연예인의 이름을 해시태그로 활용해 호기심을 유발한다', contentIds: ['c1'] },
+    { statement: '유명 인물의 실명을 제목에 배치해 호기심을 극대화했다', contentIds: ['c2'] },
+    { statement: '인지도가 높은 유명인의 이름을 제목에 명시한다', contentIds: ['c3'] },
+    { statement: '주말 아침 시간대에 올린다', contentIds: ['c4'] },
+  ]
+  const merged = mergeClusters(aiSaid)
+  assert.equal(merged.length, 2, '유명인 계열 셋이 안 합쳐졌다')
+  assert.equal(merged.find((c) => /유명/.test(c.statement))?.contentIds.length, 3)
+})
+
+test('AI가 이미 잘 묶었으면 아무것도 바꾸지 않는다 — 멀쩡한 것을 흔들지 않는다', () => {
+  const good: FindingCluster[] = [
+    { statement: '실패담으로 시작한다', contentIds: ['a', 'b', 'c'] },
+    { statement: '주말에 올린다', contentIds: ['d'] },
+  ]
+  const merged = mergeClusters(good)
+  assert.equal(merged.length, 2)
+  assert.deepEqual(merged[0].contentIds, ['a', 'b', 'c'])
+})
+
+test('합치면서 같은 콘텐츠를 두 번 세지 않는다', () => {
+  const dup: FindingCluster[] = [
+    { statement: '유명인 이름을 제목에 쓴다', contentIds: ['x', 'y'] },
+    { statement: '유명인 이름을 제목 앞에 둔다', contentIds: ['y', 'z'] },
+  ]
+  const [c] = mergeClusters(dup)
+  assert.deepEqual(c.contentIds.sort(), ['x', 'y', 'z'])
 })

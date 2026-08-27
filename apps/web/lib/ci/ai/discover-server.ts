@@ -12,7 +12,7 @@ import { callGeminiJson } from '../../ai/gemini-call.ts'
 import { asJsonRecord } from '../../ai/json-recover.ts'
 import { getGeminiMeta } from './meta.ts'
 import {
-  MIN_CALL_INTERVAL_MS, DEFAULT_MAX_SETS, FREE_TIER_DAILY_LIMIT,
+  MIN_CALL_INTERVAL_MS, DEFAULT_MAX_SETS, FREE_TIER_DAILY_LIMIT, clusterByOverlap, mergeClusters,
   type ContrastSet, type RawFinding, type FindingCluster, type DiscoveryKind,
 } from '../analysis/discovery.ts'
 
@@ -217,8 +217,15 @@ export async function discoverFromContrasts(
     clusters = []
   }
 
+  // AI가 묶었더라도 한 번 더 합친다 — AI 묶기는 실행마다 결과가 달라진다(실측).
+  // 파이프라인이 그날 AI 기분에 좌우되면 안 된다.
+  if (clusters.length > 0) clusters = mergeClusters(clusters)
+
   if (clusters.length === 0) {
-    clusters = findings.map((f) => ({ statement: f.statement, contentIds: [f.contentId] }))
+    // AI 묶기가 실패했다. 문장 하나씩 홀로 두면 채널이 1곳이라 **전부 탈락**한다 —
+    // 그건 발견을 만들어 놓고 버리는 것이다. 글자 겹침으로라도 묶는다.
+    // 승격 문턱(채널 3곳)은 그대로라 거칠게 묶여도 아무거나 올라가지 않는다.
+    clusters = clusterByOverlap(findings)
   }
 
   return { findings, clusters, kinds, blocked: null }

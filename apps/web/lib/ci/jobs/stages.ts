@@ -622,11 +622,24 @@ export async function runPatterns(workspaceId: string): Promise<StageResult> {
  *
  * runPatterns 는 그대로 둔다 — 읽는 코드가 아직 있고, 폐기는 그것을 옮긴 뒤에 한다(M-4 추가 전용).
  */
-export async function runDiscovery(workspaceId: string): Promise<StageResult> {
+export async function runDiscovery(
+  workspaceId: string,
+  /**
+   * 이번 실행에 쓸 예산. 안 주면 주제별 기본 상한을 쓴다.
+   *
+   * 왜 필요한가(실측 2026-08-27): 주제 8개 × 상한 24 = 최대 192회다.
+   * 무료 티어는 모델당 하루 20회라 한 번 돌리면 그날 예산이 통째로 사라지고,
+   * 그러는 동안 회의노트·CRM 등 **같은 키를 쓰는 다른 기능이 전부 죽는다**(키 공유).
+   * 그래서 호출부가 "이번엔 여기까지"를 정할 수 있어야 한다.
+   */
+  opts?: { maxSetsPerTopic?: number; topicIds?: readonly string[] },
+): Promise<StageResult> {
   const adminClient = createAdminClient() as any
 
-  const { data: topics } = await adminClient.from('ci_topics')
+  let topicQuery = adminClient.from('ci_topics')
     .select('id').eq('workspace_id', workspaceId).is('deleted_at', null)
+  if (opts?.topicIds?.length) topicQuery = topicQuery.in('id', opts.topicIds)
+  const { data: topics } = await topicQuery
 
   let promotedTotal = 0
   let blocked: string | null = null
@@ -654,7 +667,7 @@ export async function runDiscovery(workspaceId: string): Promise<StageResult> {
     const sets = buildContrastSets(samples)
     if (sets.length === 0) continue
 
-    const found = await discoverFromContrasts(sets)
+    const found = await discoverFromContrasts(sets, { maxSets: opts?.maxSetsPerTopic })
     if (found.blocked) { blocked = found.blocked; continue }
 
     const { promoted } = promoteDiscoveries(found.clusters, found.findings, found.kinds)
