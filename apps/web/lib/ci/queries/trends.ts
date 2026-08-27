@@ -2,10 +2,11 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { CORPUS_FILTER } from '../corpus.ts'
-import { formatBasis, formatLift, formatOutlier, SEASON_MIN_WINDOW_DAYS } from '../format/metrics.ts'
+import { formatBasis, formatOutlier, SEASON_MIN_WINDOW_DAYS } from '../format/metrics.ts'
 import { median } from '../analysis/outlier.ts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { CI_PLATFORM_LABEL, type CiConfidence, type CiPlatform } from '../types.ts'
+import { formatDiscoveryBasis } from '../analysis/discovery.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -131,22 +132,38 @@ export interface PatternRow {
   topicName: string | null
 }
 
+/**
+ * "성공 공식" 목록 — **ci_discoveries(발견)** 를 읽는다.
+ *
+ * 왜 소스가 바뀌었나(2026-08-27): 예전에는 ci_patterns 를 읽었다. 그 표는
+ * patterns.ts 에 하드코딩된 규칙 7개를 데이터에 대조한 결과라, 617행이 전부
+ * 같은 7문장의 중복이었고 효과는 1.21~1.25배 — 근거 104건으로 "쓸모없음"이 증명된 상태였다.
+ * 게다가 617행 전부 is_archived=true 라 이 화면은 **구조적으로 늘 0건**이었다.
+ *
+ * 지금은 대조가 이유를 만든다(discovery.ts). 표만 바꾸면 화면·타입은 그대로 쓴다 —
+ * 읽는 곳을 옮기는 것이 폐기의 첫 단계다(ci_patterns 자체는 아직 지우지 않는다, M-4).
+ */
 export async function getPatterns(workspaceId: string, topicId?: string | null): Promise<PatternRow[]> {
   const adminClient = createAdminClient() as any
-  let q = adminClient.from('ci_patterns')
-    .select('id, statement, kind, lift, evidence_count, channel_count, confidence, ci_topics ( name )')
+  let q = adminClient.from('ci_discoveries')
+    .select('id, statement, kind, evidence_count, channel_count, ci_topics ( name )')
     .eq('workspace_id', workspaceId).eq('is_archived', false)
-    .order('lift', { ascending: false }).limit(50)
+    // 넓게 반복된 것이 먼저다 — 채널 수가 "우연이 아니다"의 근거이기 때문이다.
+    .order('channel_count', { ascending: false })
+    .order('evidence_count', { ascending: false })
+    .limit(50)
   if (topicId) q = q.eq('topic_id', topicId)
 
   const { data } = await q
-  return ((data ?? []) as any[]).map((p) => ({
-    id: p.id,
-    statement: p.statement,
-    kind: p.kind,
-    liftText: formatLift(p.lift, p.evidence_count, p.channel_count),
-    confidence: p.confidence as CiConfidence,
-    topicName: p.ci_topics?.name ?? null,
+  return ((data ?? []) as any[]).map((d) => ({
+    id: d.id,
+    statement: d.statement,
+    kind: d.kind,
+    // 발견에는 배수(lift)가 없다. 있지도 않은 숫자를 만들지 않고 **근거의 넓이**를 그대로 쓴다.
+    liftText: formatDiscoveryBasis(d.evidence_count, d.channel_count),
+    // 확신도는 채널 수로 본다 — 한 채널의 습관과 시장의 반복을 가르는 축이 그것이다.
+    confidence: (d.channel_count >= 5 ? 'high' : 'medium') as CiConfidence,
+    topicName: d.ci_topics?.name ?? null,
   }))
 }
 
