@@ -125,7 +125,9 @@ test('행이 열리는 목록의 액션 칸은 클릭 전파를 멈춘다 — �
   const offenders = sources()
     .filter(({ src }) => /\browHref=\{|\bonRowClick=\{/.test(src))
     .filter(({ src }) => /key: 'action|key: 'actions/.test(src))
-    .filter(({ src }) => !/stopPropagation/.test(src))
+    // RowActions 는 감싼 칸의 클릭을 스스로 멈춘다(그 부품의 존재 이유다).
+    // 문자열만 찾으면 부품으로 이관한 화면이 오히려 위반으로 잡힌다 — 지표가 틀리면 가드가 거짓말한다.
+    .filter(({ src }) => !/stopPropagation/.test(src) && !/<RowActions\b/.test(src))
     .map(({ file }) => file)
   assert.deepEqual(offenders, [],
     `행이 열리는 목록의 액션 칸에 stopPropagation이 없다:\n  ${offenders.join('\n  ')}`)

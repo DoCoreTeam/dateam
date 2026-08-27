@@ -15,6 +15,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
+import RowActions from '@/components/ui/list/RowActions'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
@@ -27,6 +28,13 @@ interface ChannelListViewProps {
   items: CiChannelListItem[]
   /** 'tracked' = 관심 채널(모니터링), 'owned' = 내 채널 */
   mode: 'tracked' | 'owned'
+  /**
+   * 채널별 최근 활동 — 화면 제목이 약속한 "새 게시물과 성과 변화"의 실체다.
+   * 안 주면 그 칸을 아예 그리지 않는다(빈 칸을 만들지 않는다).
+   */
+  activity?: Record<string, { newCount: number; medianOutlierText: string | null; hitCount: number }>
+  /** 활동 집계의 기간 — 숫자 옆에 무엇을 근거로 셌는지 붙인다 */
+  activityWindowDays?: number
 }
 
 const LIST_DEFAULTS: ListDefaults = { sort: { key: 'name', dir: 'asc' }, view: 'table' }
@@ -37,7 +45,9 @@ const SORT_OPTIONS = [
   { key: 'platform', label: '플랫폼' },
 ]
 
-export default function ChannelListView({ workspaceId, items, mode }: ChannelListViewProps) {
+export default function ChannelListView({
+  workspaceId, items, mode, activity, activityWindowDays = 28,
+}: ChannelListViewProps) {
   const router = useRouter()
   const del_ = useCiDelete(workspaceId, () => router.refresh())
   const { query, set } = useListQuery(LIST_DEFAULTS, {
@@ -91,9 +101,13 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
       {
         // 제목 칸의 링크는 ListSurface가 rowHref로 그린다 — 화면이 또 감싸면 링크가 겹친다
         key: 'name', header: '채널', primary: true, sortable: true,
-        cell: (ch) => ch.displayName,
+        cell: (ch) => (
+          <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
+            <span>{ch.displayName}</span>
+            <span className="ci-basis">{CI_PLATFORM_LABEL[ch.platform]}</span>
+          </span>
+        ),
       },
-      { key: 'platform', header: '플랫폼', sortable: true, cell: (ch) => CI_PLATFORM_LABEL[ch.platform] },
       {
         key: 'subscribers', header: '구독자', align: 'right', sortable: true,
         cell: (ch) => (ch.subscriberCount != null
@@ -102,6 +116,42 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
       },
       { key: 'topic', header: '주제', cell: (ch) => ch.topic?.name ?? '미지정' },
     ]
+
+    // 화면이 "새 게시물과 성과 변화를 따라갑니다"라고 약속했는데 예전엔 구독자 수와
+    // 배지뿐이었다. 약속한 것을 여기서 지킨다 — 없는 숫자는 지어내지 않고 '—'로 둔다.
+    if (mode === 'tracked' && activity) {
+      base.push({
+        key: 'newCount', header: '새 게시물', align: 'right', sortable: true,
+        cell: (ch) => {
+          const a = activity[ch.id]
+          return a && a.newCount > 0
+            ? <span className="ci-num" title={`최근 ${activityWindowDays}일`}>{a.newCount}</span>
+            : <span className="ci-basis" title={`최근 ${activityWindowDays}일에 새로 들어온 게시물이 없습니다`}>—</span>
+        },
+      })
+      base.push({
+        key: 'perf', header: '평소 대비',
+        cell: (ch) => {
+          const a = activity[ch.id]
+          // 비교군이 얇으면 배수를 내지 않는다 — 이 규칙은 전 화면이 공유한다
+          if (!a?.medianOutlierText) return <span className="ci-basis">근거 부족</span>
+          return (
+            // 배지를 쌓으면 이 칸이 행 높이를 정하게 된다 — 한 줄에 붙인다(§2-3-1 (3))
+            <span style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'nowrap', alignItems: 'center' }}>
+              <span className="ci-status ci-status-neutral" style={{ whiteSpace: 'nowrap' }}>
+                {a.medianOutlierText}
+              </span>
+              {a.hitCount > 0 && (
+                <span className="ci-status ci-status-ok" style={{ whiteSpace: 'nowrap' }}
+                  title="평소의 2배를 넘은 게시물">
+                  떡상 {a.hitCount}건
+                </span>
+              )}
+            </span>
+          )
+        },
+      })
+    }
 
     if (mode === 'tracked') {
       base.push({
@@ -120,8 +170,9 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
       base.push({
         key: 'action', header: '작업', noLabel: true, align: 'right',
         cell: (ch) => (
-          // 행 클릭(상세 이동)과 겹치지 않게 이 칸의 클릭은 여기서 멈춘다
-          <span onClick={(e) => e.stopPropagation()}>
+          // RowActions 가 전파 차단과 "접히지 않음"을 함께 맡는다.
+          // 활동 칸이 늘면서 이 칸이 좁아졌고, 예전 구조는 버튼이 세로로 접혀 행 높이가 터졌다(§2-3-1 (3)).
+          <RowActions inline={1} subject={ch.displayName}>
             <button type="button" className="btn-ghost" onClick={() => toggleMonitor(ch)}>
               {ch.isMonitored ? '중지' : '지켜보기'}
             </button>
@@ -130,14 +181,14 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
             <button type="button" className="btn-ghost"
               onClick={() => del_.ask({ kind: 'channel', id: ch.id, title: '이 채널을 지울까요?' })}
               aria-label="채널 지우기" title="지우기">지우기</button>
-          </span>
+          </RowActions>
         ),
       })
     }
 
     return base
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, del_])
+  }, [mode, del_, activity, activityWindowDays])
 
   // 서버가 전체 목록을 한 번에 넘긴다 — 걸러내기·정렬·자르기는 표현 계층에서 한다(§2-6)
   const rows = useMemo(() => {
