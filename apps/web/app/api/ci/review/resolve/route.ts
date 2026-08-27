@@ -80,17 +80,47 @@ export async function POST(req: Request) {
 
     // 사람이 답한 것이므로 topic_source='user' · 확신도 1.0 · 검토 완료.
     // 주제가 바뀌었으면 그 사실도 함께 남는다(topic_id 변경).
-    const { error: upErr } = await db
-      .from('ci_contents')
-      .update({
-        topic_id: topic.id,
-        topic_source: 'user',
-        topic_confidence: 1,
-        review_state: 'resolved',
+    const patch = {
+      topic_id: topic.id,
+      topic_source: 'user',
+      topic_confidence: 1,
+      review_state: 'resolved',
+    }
+
+    // 전부 확정할 때는 **id 목록을 보내지 않고 조건으로** 갱신한다.
+    //
+    // 왜: PostgREST 는 필터를 URL 쿼리스트링에 싣는다. UUID 하나가 36자라
+    // `.in('id', ids)` 는 500건이면 2만 자, 5,000건이면 **18만 자**가 되어 요청 자체가 죽는다.
+    // 채널 하나에 게시물이 몇천~몇만 건인 경우가 이 제품의 정상 상황이므로,
+    // 그때 «정리하지 못했습니다»만 뜨고 원인을 알 수 없게 된다.
+    // 조건 갱신은 길이가 일정하고, limit(5000) 상한도 함께 사라진다
+    // — 예전에는 5,001번째부터 조용히 남으면서 «전부 정리했다»고 말했다.
+    //
+    // 일부만 고른 경우에만 id 목록을 쓴다. 그때는 화면에 보이는 것뿐이라 12건 이하다.
+    let upErr: unknown = null
+    if (partial) {
+      const r = await db.from('ci_contents').update(patch).in('id', ids)
+      upErr = r.error
+    } else {
+      let uq = db
+        .from('ci_contents')
+        .update(patch)
+        .eq('workspace_id', session.workspaceId)
+        .eq('review_state', 'pending')
+        .eq('topic_id', g.topicId)
+        .is('deleted_at', null)
+      uq = g.channelId ? uq.eq('channel_id', g.channelId) : uq.is('channel_id', null)
+      const r = await uq
+      upErr = r.error
+    }
+    // supabase-js 는 실패를 던지지 않고 반환한다 — 검사하지 않으면 0건 처리가 성공으로 보인다.
+    // 무엇이 실패했는지 남기지 않으면 화면의 «잠시 뒤 다시 시도»만 남고 원인을 영영 못 찾는다.
+    if (upErr) {
+      console.error('[ci/review/resolve] 확정 실패', {
+        groupKey, topicId: topic.id, ids: ids.length, error: upErr,
       })
-      .in('id', ids)
-    // supabase-js 는 실패를 던지지 않고 반환한다 — 검사하지 않으면 0건 처리가 성공으로 보인다
-    if (upErr) return fail('INTERNAL', '정리하지 못했습니다. 잠시 뒤 다시 시도해 주세요')
+      return fail('INTERNAL', '정리하지 못했습니다. 잠시 뒤 다시 시도해 주세요')
+    }
 
     // 주제가 바뀐 경우에만 학습에 남긴다 — "맞다고 인정한 것"은 학습을 오염시키지 않는다
     let corrections = 0
@@ -135,7 +165,9 @@ export async function POST(req: Request) {
     }
 
     return ok({
-      resolved: ids.length,
+      // 조건 갱신은 상한이 없으므로 실제로 바뀐 수는 count 다.
+      // 일부만 골랐을 때만 고른 수가 곧 처리 수다.
+      resolved: partial ? ids.length : (count ?? ids.length),
       total: count ?? ids.length,
       topicName: topic.name,
       corrections,
