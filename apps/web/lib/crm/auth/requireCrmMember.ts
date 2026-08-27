@@ -58,13 +58,26 @@ export async function resolveCrmAccess(): Promise<CrmAccess> {
   if (profile?.role === 'api_user') return { ok: false, reason: 'api_user' }
   if (profile?.deleted_at) return { ok: false, reason: 'deleted_account' }
 
+  return resolveCrmAccessForUser(user.id)
+}
+
+/**
+ * 쿠키 없이 **사용자 id 만으로** 같은 판정을 한다 — 공개 API(키 인증)가 쓴다.
+ *
+ * 위 `resolveCrmAccess()` 와 몸통이 하나여야 한다. 두 벌이 되면 언젠가 한쪽만 조여지고
+ * 느슨한 쪽이 문이 된다 — 그래서 쿠키 경로도 여기로 위임한다.
+ *
+ * 호출 전에 **계정 상태(삭제·역할)를 먼저 확인**하는 것은 호출부의 몫이다.
+ * 쿠키 경로는 `getRequestProfile()` 로, 키 경로는 `authenticatePublicApi()` 가 이미 본다.
+ */
+export async function resolveCrmAccessForUser(hostUserId: string): Promise<CrmAccess> {
   const workspaceId = resolveCrmWorkspaceId()
   const db = getCrmDb(workspaceId)
 
   // 소프트 삭제된 멤버는 가드가 자동으로 걸러 낸다(deletedAt: null 주입).
   // 즉 "내보낸 멤버"는 다시 초대하기 전까지 들어올 수 없다.
   const member = await db.crmMember.findFirst({
-    where: { hostUserId: user.id },
+    where: { hostUserId },
     select: { id: true, role: true, displayName: true },
   })
   if (!member) return { ok: false, reason: 'not_a_member' }
@@ -72,7 +85,7 @@ export async function resolveCrmAccess(): Promise<CrmAccess> {
   return {
     ok: true,
     session: {
-      hostUserId: user.id,
+      hostUserId,
       memberId: member.id,
       workspaceId,
       role: member.role as CrmRole,

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
+import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { responseHeaders } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 
-export async function OPTIONS() {
-  return optionsResponse()
+export async function OPTIONS(request: NextRequest) {
+  return optionsResponse(request)
 }
 
 export async function GET(request: NextRequest) {
@@ -30,13 +31,13 @@ export async function GET(request: NextRequest) {
           updated_by: settingsRes.data?.updated_by ?? null,
         },
       },
-      { headers: corsHeaders() }
+      { headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   } catch (err) {
     console.error('[public/v1/settings GET]', err)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
-      { status: 500, headers: corsHeaders() }
+      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   }
 }
@@ -51,7 +52,7 @@ export async function PATCH(request: NextRequest) {
     if (isNaN(margin_pct) || margin_pct < 0 || margin_pct > 999) {
       return NextResponse.json(
         { success: false, error: 'margin_pct must be a number between 0 and 999' },
-        { status: 400, headers: corsHeaders() }
+        { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
       )
     }
 
@@ -73,13 +74,13 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(
       { success: true, data },
-      { headers: corsHeaders() }
+      { headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   } catch (err) {
     console.error('[public/v1/settings PATCH]', err)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
-      { status: 500, headers: corsHeaders() }
+      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   }
 }

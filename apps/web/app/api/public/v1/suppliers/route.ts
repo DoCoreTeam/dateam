@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
+import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { responseHeaders } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 
-export async function OPTIONS() {
-  return optionsResponse()
+export async function OPTIONS(request: NextRequest) {
+  return optionsResponse(request)
 }
 
 export async function GET(request: NextRequest) {
@@ -63,13 +64,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { success: true, data: result, meta: { total: result.length } },
-      { headers: corsHeaders() }
+      { headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   } catch (err) {
     console.error('[public/v1/suppliers GET]', err)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
-      { status: 500, headers: corsHeaders() }
+      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   }
 }
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (!name?.trim()) {
       return NextResponse.json(
         { success: false, error: 'name is required' },
-        { status: 400, headers: corsHeaders() }
+        { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
       )
     }
 
@@ -103,13 +104,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { success: true, data },
-      { status: 201, headers: corsHeaders() }
+      { status: 201, headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   } catch (err) {
     console.error('[public/v1/suppliers POST]', err)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
-      { status: 500, headers: corsHeaders() }
+      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   }
 }

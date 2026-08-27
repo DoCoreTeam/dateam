@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
+import type { NextRequest } from 'next/server'
+import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { ok, okList, fail, serverError } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 
 const LIMIT = 20
 const SORT_ALLOW = new Set(['created_at', 'name', 'title', 'department'])
 const ALLOWED_FIELDS = ['account_id', 'name', 'title', 'department', 'email', 'phone', 'mobile', 'linkedin', 'notes', 'business_card_drive_id', 'role'] as const
 
-export async function OPTIONS() {
-  return optionsResponse()
+export async function OPTIONS(request: NextRequest) {
+  return optionsResponse(request)
 }
 
 export async function GET(request: NextRequest) {
@@ -49,9 +50,10 @@ export async function GET(request: NextRequest) {
 
     if (hasFilters) {
       const capped = data.length > CAP
-      return NextResponse.json(
-        { success: true, data: capped ? data.slice(0, CAP) : data, nextCursor: null, hasMore: false, capped },
-        { headers: corsHeaders() }
+      return okList(
+        capped ? data.slice(0, CAP) : data,
+        { nextCursor: null, hasMore: false, capped },
+        { ctx: auth.ctx, request }
       )
     }
 
@@ -59,10 +61,9 @@ export async function GET(request: NextRequest) {
     const items = hasMore ? data.slice(0, LIMIT) : data
     const last = items[items.length - 1]
     const nextCursor = hasMore && last ? `${last.created_at}__${last.id}` : null
-    return NextResponse.json({ success: true, data: items, nextCursor, hasMore }, { headers: corsHeaders() })
+    return okList(items, { nextCursor, hasMore }, { ctx: auth.ctx, request })
   } catch (err) {
-    console.error('[public/v1/contacts GET]', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders() })
+    return serverError('contacts GET', err, { ctx: auth.ctx, request })
   }
 }
 
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
   try {
     const raw = await request.json() as Record<string, unknown>
     if (!raw.name || String(raw.name).trim() === '') {
-      return NextResponse.json({ success: false, error: 'name is required' }, { status: 400, headers: corsHeaders() })
+      return fail(400, 'name is required', { ctx: auth.ctx, request })
     }
 
     const body = Object.fromEntries(ALLOWED_FIELDS.filter(k => k in raw).map(k => [k, raw[k]]))
@@ -81,9 +82,8 @@ export async function POST(request: NextRequest) {
     const admin = createAdminClient() as any
     const { data, error } = await admin.from('contacts').insert({ ...body, user_id: auth.ctx.userId }).select().single()
     if (error) throw error
-    return NextResponse.json({ success: true, data }, { status: 201, headers: corsHeaders() })
+    return ok(data, { ctx: auth.ctx, request, status: 201 })
   } catch (err) {
-    console.error('[public/v1/contacts POST]', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders() })
+    return serverError('contacts POST', err, { ctx: auth.ctx, request })
   }
 }

@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: '신청 처리 중 오류가 발생했습니다' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, message: '신청이 완료되었습니다. 승인 후 이메일로 안내드립니다.' })
+    // 메일 발송 장치가 아직 없다(의존성·코드 0건). 지킬 수 없는 약속을 하지 않는다.
+    return NextResponse.json({ success: true, message: '신청이 접수되었습니다. 승인되면 관리자가 직접 연락드립니다.' })
   } catch (err) {
     console.error('[api-access POST] unexpected', err)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })

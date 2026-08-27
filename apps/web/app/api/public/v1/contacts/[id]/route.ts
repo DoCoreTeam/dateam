@@ -1,13 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
+import type { NextRequest } from 'next/server'
+import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { ok, notFound, serverError } from '@/lib/public-api/respond'
+import { guardOwnedRow } from '@/lib/public-api/owned-row'
 import { createAdminClient } from '@/lib/supabase/server'
 
 interface Ctx { params: Promise<{ id: string }> }
 
 const ALLOWED_FIELDS = ['account_id', 'name', 'title', 'department', 'email', 'phone', 'mobile', 'linkedin', 'notes', 'business_card_drive_id', 'role'] as const
 
-export async function OPTIONS() {
-  return optionsResponse()
+export async function OPTIONS(request: NextRequest) {
+  return optionsResponse(request)
 }
 
 export async function GET(request: NextRequest, { params }: Ctx) {
@@ -20,11 +22,10 @@ export async function GET(request: NextRequest, { params }: Ctx) {
     const admin = createAdminClient() as any
     const { data, error } = await admin.from('contacts').select('*, accounts(name)').eq('id', id).maybeSingle()
     if (error) throw error
-    if (!data) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: corsHeaders() })
-    return NextResponse.json({ success: true, data }, { headers: corsHeaders() })
+    if (!data) return notFound({ ctx: auth.ctx, request })
+    return ok(data, { ctx: auth.ctx, request })
   } catch (err) {
-    console.error('[public/v1/contacts/:id GET]', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders() })
+    return serverError('contacts/:id GET', err, { ctx: auth.ctx, request })
   }
 }
 
@@ -39,13 +40,16 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any
+    // RLS 의 contacts_update_own·contacts_delete_own 과 같은 판정 — 서비스 롤이라 앱이 다시 본다
+    const denied = await guardOwnedRow(admin, 'contacts', id, auth.ctx, request)
+    if (denied) return denied
+
     const { data, error } = await admin.from('contacts').update(body).eq('id', id).select().maybeSingle()
     if (error) throw error
-    if (!data) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: corsHeaders() })
-    return NextResponse.json({ success: true, data }, { headers: corsHeaders() })
+    if (!data) return notFound({ ctx: auth.ctx, request })
+    return ok(data, { ctx: auth.ctx, request })
   } catch (err) {
-    console.error('[public/v1/contacts/:id PATCH]', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders() })
+    return serverError('contacts/:id PATCH', err, { ctx: auth.ctx, request })
   }
 }
 
@@ -57,11 +61,14 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
     const { id } = await params
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any
+    // RLS 의 contacts_update_own·contacts_delete_own 과 같은 판정 — 서비스 롤이라 앱이 다시 본다
+    const denied = await guardOwnedRow(admin, 'contacts', id, auth.ctx, request)
+    if (denied) return denied
+
     const { error } = await admin.from('contacts').delete().eq('id', id)
     if (error) throw error
-    return NextResponse.json({ success: true }, { headers: corsHeaders() })
+    return ok(null, { ctx: auth.ctx, request })
   } catch (err) {
-    console.error('[public/v1/contacts/:id DELETE]', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders() })
+    return serverError('contacts/:id DELETE', err, { ctx: auth.ctx, request })
   }
 }

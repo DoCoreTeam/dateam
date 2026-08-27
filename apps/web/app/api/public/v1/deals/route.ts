@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
+import type { NextRequest } from 'next/server'
+import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { ok, okList, fail, serverError } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 import { probabilityForStage } from '@/lib/crm'
 
 const LIMIT = 20
 const SORT_ALLOW = new Set(['created_at', 'title', 'stage', 'value', 'probability'])
 
-export async function OPTIONS() {
-  return optionsResponse()
+export async function OPTIONS(request: NextRequest) {
+  return optionsResponse(request)
 }
 
 export async function GET(request: NextRequest) {
@@ -57,9 +58,10 @@ export async function GET(request: NextRequest) {
 
     if (hasFilters) {
       const capped = data.length > CAP
-      return NextResponse.json(
-        { success: true, data: capped ? data.slice(0, CAP) : data, nextCursor: null, hasMore: false, capped, total },
-        { headers: corsHeaders() }
+      return okList(
+        capped ? data.slice(0, CAP) : data,
+        { nextCursor: null, hasMore: false, capped, total },
+        { ctx: auth.ctx, request }
       )
     }
 
@@ -67,10 +69,9 @@ export async function GET(request: NextRequest) {
     const items = hasMore ? data.slice(0, LIMIT) : data
     const last = items[items.length - 1]
     const nextCursor = hasMore && last ? `${last.created_at}__${last.id}` : null
-    return NextResponse.json({ success: true, data: items, nextCursor, hasMore, total }, { headers: corsHeaders() })
+    return okList(items, { nextCursor, hasMore, total }, { ctx: auth.ctx, request })
   } catch (err) {
-    console.error('[public/v1/deals GET]', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders() })
+    return serverError('deals GET', err, { ctx: auth.ctx, request })
   }
 }
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     if (!body.title?.trim()) {
-      return NextResponse.json({ success: false, error: 'title is required' }, { status: 400, headers: corsHeaders() })
+      return fail(400, 'title is required', { ctx: auth.ctx, request })
     }
 
     const stage = typeof body.stage === 'string' ? body.stage : '신규'
@@ -96,9 +97,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) throw error
-    return NextResponse.json({ success: true, data }, { status: 201, headers: corsHeaders() })
+    return ok(data, { ctx: auth.ctx, request, status: 201 })
   } catch (err) {
-    console.error('[public/v1/deals POST]', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500, headers: corsHeaders() })
+    return serverError('deals POST', err, { ctx: auth.ctx, request })
   }
 }

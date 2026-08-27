@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
+import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { responseHeaders } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getGpuCatalog } from '@/lib/gpu/pricing'
 import { z } from 'zod'
@@ -15,8 +16,8 @@ const quoteSchema = z.object({
   currency: z.enum(['USD', 'KRW']).default('USD'),
 })
 
-export async function OPTIONS() {
-  return optionsResponse()
+export async function OPTIONS(request: NextRequest) {
+  return optionsResponse(request)
 }
 
 export async function POST(request: NextRequest) {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: 'Validation error', details: parsed.error.flatten() },
-        { status: 400, headers: corsHeaders() }
+        { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
       )
     }
 
@@ -106,12 +107,12 @@ export async function POST(request: NextRequest) {
       },
     }
 
-    return NextResponse.json(response, { headers: corsHeaders() })
+    return NextResponse.json(response, { headers: responseHeaders({ ctx: auth.ctx, request }) })
   } catch (err) {
     console.error('[public/v1/quote POST]', err)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
-      { status: 500, headers: corsHeaders() }
+      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   }
 }

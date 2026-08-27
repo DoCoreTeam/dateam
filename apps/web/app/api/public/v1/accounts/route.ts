@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
+import type { NextRequest } from 'next/server'
+import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { ok, okList, fail, serverError } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 
 const LIMIT = 20
 const SORT_ALLOW = new Set(['created_at', 'name', 'fit_score', 'industry', 'region', 'segment', 'gpu_demand_intensity'])
 
-export async function OPTIONS() {
-  return optionsResponse()
+export async function OPTIONS(request: NextRequest) {
+  return optionsResponse(request)
 }
 
 export async function GET(request: NextRequest) {
@@ -54,9 +55,10 @@ export async function GET(request: NextRequest) {
 
     if (hasFilters) {
       const capped = data.length > CAP
-      return NextResponse.json(
-        { success: true, data: capped ? data.slice(0, CAP) : data, nextCursor: null, hasMore: false, capped },
-        { headers: corsHeaders() }
+      return okList(
+        capped ? data.slice(0, CAP) : data,
+        { nextCursor: null, hasMore: false, capped },
+        { ctx: auth.ctx, request }
       )
     }
 
@@ -64,16 +66,9 @@ export async function GET(request: NextRequest) {
     const items = hasMore ? data.slice(0, LIMIT) : data
     const last = items[items.length - 1]
     const nextCursor = hasMore && last ? `${last.created_at}__${last.id}` : null
-    return NextResponse.json(
-      { success: true, data: items, nextCursor, hasMore },
-      { headers: corsHeaders() }
-    )
+    return okList(items, { nextCursor, hasMore }, { ctx: auth.ctx, request })
   } catch (err) {
-    console.error('[public/v1/accounts GET]', err)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500, headers: corsHeaders() }
-    )
+    return serverError('accounts GET', err, { ctx: auth.ctx, request })
   }
 }
 
@@ -84,10 +79,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     if (!body.name?.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'name is required' },
-        { status: 400, headers: corsHeaders() }
-      )
+      return fail(400, 'name is required', { ctx: auth.ctx, request })
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,12 +91,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) throw error
-    return NextResponse.json({ success: true, data }, { status: 201, headers: corsHeaders() })
+    return ok(data, { ctx: auth.ctx, request, status: 201 })
   } catch (err) {
-    console.error('[public/v1/accounts POST]', err)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500, headers: corsHeaders() }
-    )
+    return serverError('accounts POST', err, { ctx: auth.ctx, request })
   }
 }

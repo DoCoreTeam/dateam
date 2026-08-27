@@ -66,7 +66,8 @@ export async function approveRequest(requestId: string): Promise<{ success: bool
       status: 'approved',
       approved_by: admin.id,
       approved_at: new Date().toISOString(),
-      temp_password: tempPassword,
+      // 임시 비밀번호는 저장하지 않는다 — 승인 화면이 한 번 보여 주고 끝낸다(마이그 223·224).
+      // 예전엔 여기 평문으로 남겨 두고 승인 뒤에도 안 지웠다(실측 2026-08-27: 2건 잔존).
     })
     .eq('id', requestId)
 

@@ -268,7 +268,7 @@ export default function ApiKeysPage() {
     <div className="page-inner">
       <PageHeader
         title="API Keys"
-        description="GPU 가격 데이터에 프로그램으로 접근할 키를 만들고 관리합니다"
+        description="사내 시스템을 스크립트로 다룰 키를 만들고 관리합니다. 키는 내 계정의 권한을 그대로 씁니다"
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             <a href="/develop" target="_blank" rel="noreferrer" className="btn-ghost"

@@ -1,17 +1,34 @@
 'use client'
 
-import { SERVICE_LABEL } from '@/lib/terms'
+/**
+ * 개발자센터 — **문서를 코드에서 뽑는다**
+ *
+ * 예전 판은 940줄짜리 손으로 쓴 JSX 였다. 엔드포인트를 추가해도 문서는 저절로 늘지 않고,
+ * 문서를 고쳐도 코드는 변하지 않았다. 그래서 v0.7.117(2026-06-15) 이후 664커밋 동안
+ * `app/api` 에 라우트 167개가 생기는 사이 이 화면은 한 문장도 바뀌지 않았고,
+ * 「분당 60회」처럼 **없는 기능을 약속**하고 있었다.
+ *
+ * 이제 엔드포인트 목록·설명·파라미터·예시는 전부 `lib/api-docs/registry.ts` 에서 온다.
+ * 라우트를 만들고 등재를 잊으면 `lib/api-docs/registry.test.ts` 가 커밋을 막는다.
+ *
+ * 이 화면은 v0.7.617부터 **로그인이 필요하다** — 공개 API 가 사내 자동화용으로 확정됐다.
+ */
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import PageHeader from '@/components/ui/PageHeader'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
+import { SERVICE_LABEL } from '@/lib/terms'
 import DemoSection from './DemoSection'
 import CodeTabs from './CodeTabs'
-import type { RequestSpec } from '@/lib/api-docs/snippets'
+import {
+  API_GROUPS, endpointsOf, REQUIRES_LABEL,
+  type ApiGroupKey, type ApiEndpoint, type ApiParam,
+} from '@/lib/api-docs/registry'
 
-type Section = 'overview' | 'auth' | 'products' | 'quote' | 'inventory' | 'fx' | 'suppliers' | 'market' | 'settings' | 'pool-stock' | 'accounts' | 'contacts' | 'deals' | 'demo' | 'errors'
+/** 왼쪽 목록의 항목 — registry 묶음 + 화면 전용 두 개(데모·오류) */
+type Section = ApiGroupKey | 'demo' | 'errors'
 
 function useOrigin(fallback = 'https://your-domain.com') {
   const [origin, setOrigin] = useState(fallback)
@@ -19,9 +36,7 @@ function useOrigin(fallback = 'https://your-domain.com') {
   return origin
 }
 
-const EXAMPLE_KEY = 'ax_live_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
-
-// ─── 공통 컴포넌트 ────────────────────────────────────────────────────────────
+/* ── 공통 조판 ─────────────────────────────────────────────────────────────── */
 
 function SidebarItem({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
   return (
@@ -58,21 +73,16 @@ function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string
 }
 
 /** HTTP 메서드 → 뱃지 의미색. 색맵을 화면에서 만들지 않는다(NbBadge SSOT) */
-const METHOD_STATUS: Record<string, StatusKey> = { GET: 'done', POST: 'planned', PATCH: 'note', DELETE: 'blocker' }
+const METHOD_STATUS: Record<string, StatusKey> = { GET: 'done', POST: 'planned', PATCH: 'note', PUT: 'note', DELETE: 'blocker' }
 
-function Badge({ method }: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE' }) {
-  return <NbBadge status={METHOD_STATUS[method]}>{method}</NbBadge>
-}
-
-/** 섹션 제목 — 공용 PageHeader(SSOT)로 그린다. raw h1 금지(§2-3) */
-function H1({ children }: { children: string }) {
-  return <PageHeader title={children} />
-}
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, color: 'var(--text)', marginBottom: 'var(--space-3)', marginTop: 'var(--space-8)', letterSpacing: '-0.01em' }}>{children}</h2>
 }
 function P({ children }: { children: React.ReactNode }) {
   return <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontSize: 'var(--fs-md)', marginBottom: 'var(--space-4)' }}>{children}</p>
+}
+function Code({ children }: { children: React.ReactNode }) {
+  return <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>{children}</code>
 }
 function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 'tip'; title: string; children: React.ReactNode }) {
   const cfg = {
@@ -87,773 +97,239 @@ function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 
     </div>
   )
 }
-function EndpointHeader({ method, path, desc }: { method: 'GET'|'POST'|'PATCH'|'DELETE'; path: string; desc: string }) {
-  return (
-    <div className="card" style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: 'var(--space-5)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
-        <Badge method={method} />
-        <code style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', background: 'var(--surface-muted)', padding: 'var(--space-1) var(--space-3)' }}>/api/public/v1{path}</code>
-      </div>
-      <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', margin: 0 }}>{desc}</p>
-    </div>
-  )
-}
-function ParamTable({ children, title = '파라미터' }: { children: React.ReactNode; title?: string }) {
+
+function ParamTable({ params, title }: { params: ApiParam[]; title: string }) {
   return (
     <>
       <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 'var(--space-2)', fontSize: 'var(--fs-base)' }}>{title}</div>
       <div style={{ marginBottom: 'var(--space-5)' }}>
         {/* 모바일에서 카드로 변환되는 공용 표 스타일(.table-card) — 가로 스크롤 금지 */}
         <table className="table-base table-card">
-          <thead><tr>
-            <th>필드</th>
-            <th>타입</th>
-            <th>설명</th>
-          </tr></thead>
-          <tbody>{children}</tbody>
+          <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+          <tbody>
+            {params.map((p) => (
+              <tr key={p.name}>
+                <td className="card-header">
+                  <code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{p.name}</code>
+                  {p.required && <span style={{ marginLeft: 'var(--space-2)', fontSize: 'var(--fs-2xs)', color: 'var(--danger)', fontWeight: 700, background: 'var(--danger-bg)', padding: '1px 5px' }}>필수</span>}
+                </td>
+                <td data-label="타입" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{p.type}</td>
+                <td data-label="설명" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{p.desc}</td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
     </>
   )
 }
-function PR({ name, type, required, desc }: { name: string; type: string; required?: boolean; desc: string }) {
+
+/* ── 엔드포인트 한 건 — registry 가 유일한 입력 ────────────────────────────── */
+
+function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
+  e: ApiEndpoint; baseUrl: string; onCopy: (t: string, id: string) => void; copiedId: string | null
+}) {
   return (
-    <tr>
-      <td className="card-header">
-        <code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{name}</code>
-        {required && <span style={{ marginLeft: 'var(--space-2)', fontSize: 'var(--fs-2xs)', color: 'var(--danger)', fontWeight: 700, background: 'var(--danger-bg)', padding: '1px 5px' }}>필수</span>}
-      </td>
-      <td data-label="타입" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{type}</td>
-      <td data-label="설명" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{desc}</td>
-    </tr>
+    <section id={e.id} style={{ marginBottom: 'var(--space-10)' }}>
+      <div className="card" style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+          <NbBadge status={METHOD_STATUS[e.method]}>{e.method}</NbBadge>
+          <code style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', background: 'var(--surface-muted)', padding: 'var(--space-1) var(--space-3)' }}>
+            /api/public/v1{e.path}
+          </code>
+          {e.status === 'deprecated' && <NbBadge status="blocker">이관 중</NbBadge>}
+        </div>
+        <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 'var(--space-1)', fontSize: 'var(--fs-base)' }}>{e.title}</div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', margin: 0 }}>{e.desc}</p>
+        {e.requires && (
+          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', margin: 'var(--space-2) 0 0' }}>
+            🔒 {REQUIRES_LABEL[e.requires]}
+          </p>
+        )}
+      </div>
+
+      {e.deprecatedNote && (
+        <Callout type="warn" title="이 엔드포인트는 이관 중입니다">{e.deprecatedNote}</Callout>
+      )}
+
+      {e.query?.length ? <ParamTable params={[...e.query]} title="쿼리 파라미터" /> : null}
+      {e.body?.length ? <ParamTable params={[...e.body]} title="요청 본문" /> : null}
+
+      <CodeTabs
+        id={e.id}
+        baseUrl={baseUrl}
+        spec={{ method: e.method, path: e.path.replace(/\{(\w+)\}/g, ':$1') }}
+        onCopy={onCopy}
+        copiedId={copiedId}
+      />
+
+      {e.sample && <CodeBlock id={`${e.id}-res`} lang="json" code={e.sample} onCopy={onCopy} copiedId={copiedId} />}
+    </section>
   )
 }
 
-// ─── 섹션: 개요 ──────────────────────────────────────────────────────────────
-
-function OverviewSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id: string) => void; copiedId: string | null; brandName: string }) {
-  const origin = useOrigin()
+function GroupSection({ group, baseUrl, onCopy, copiedId }: {
+  group: ApiGroupKey; baseUrl: string; onCopy: (t: string, id: string) => void; copiedId: string | null
+}) {
+  const meta = API_GROUPS.find((g) => g.key === group)!
+  const list = endpointsOf(group)
   return (
     <div>
-      <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{brandName ? `${brandName} GPU 가격 API` : 'GPU 가격 API'}</div>
-      <H1>개발자 문서</H1>
-      <P>{brandName ? `${brandName} API` : 'API'}는 GPU 실시간 가격 조회, 동적 견적 계산, 재고·공급사·경쟁사 데이터에 프로그래밍 방식으로 접근하게 해줍니다. 외부 시스템 연동, 견적 자동화, ERP/CRM 통합에 활용하세요.</P>
+      <PageHeader title={meta.label} description={meta.desc} />
+      {list.map((e) => (
+        <EndpointDoc key={e.id} e={e} baseUrl={baseUrl} onCopy={onCopy} copiedId={copiedId} />
+      ))}
+    </div>
+  )
+}
 
-      <div className="responsive-grid-cols-3" style={{ marginBottom: 'var(--space-8)' }}>
-        {[
-          { icon: '⚡', title: '실시간 가격', desc: '지속 업데이트되는 156개 GPU 모델 시장 가격. 경쟁사 비교 포함.' },
-          { icon: '🔐', title: 'API Key 인증', desc: 'X-API-Key 헤더 방식. 언제든지 발급·폐기 가능. 분당 60회 기본 제공.' },
-          { icon: '📊', title: '동적 견적', desc: '커스텀 마진 적용, USD/KRW 통화 선택, 항목별 가용성 확인.' },
-          { icon: '🏭', title: '재고 추적', desc: 'Tier별 재고 수량 실시간 조회. 풀 재고(Tier 3) 직접 업데이트 지원.' },
-          { icon: '🌐', title: 'CRM 연동', desc: '거래처·담당자·영업기회 CRUD. 스테이지별 확률 자동 계산.' },
-          { icon: '💱', title: '환율 동기화', desc: 'USD/KRW 환율 이력(최근 7일). 가격 계산에 자동 반영.' },
-        ].map(({ icon, title, desc }) => (
-          <div key={title} className="card" style={{ padding: 'var(--space-5)' }}>
-            <div style={{ fontSize: 'var(--fs-2xl)', marginBottom: 'var(--space-2)' }}>{icon}</div>
-            <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 'var(--space-1)', fontSize: 'var(--fs-base)' }}>{title}</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', lineHeight: 1.5 }}>{desc}</div>
-          </div>
-        ))}
+/* ── 시작하기 ──────────────────────────────────────────────────────────────── */
+
+function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id: string) => void; copiedId: string | null; brandName: string }) {
+  const origin = useOrigin()
+  const base = `${origin}/api/public/v1`
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        {brandName ? `${brandName} 사내 자동화 API` : '사내 자동화 API'}
       </div>
+      <PageHeader
+        title="개발자 문서"
+        description="사내 시스템을 스크립트로 다루기 위한 API입니다. 사내 계정으로 발급한 키를 씁니다."
+      />
+
+      <Callout type="info" title="이 API는 사내용입니다">
+        키는 <strong style={{ color: 'var(--text)' }}>그 키를 만든 계정의 권한을 그대로 상속</strong>합니다.
+        화면에서 볼 수 있는 것을 API로도 볼 수 있고, 화면에서 못 하는 것은 API로도 못 합니다.
+        별도의 권한 체계가 없으므로 계정 권한만 관리하면 됩니다.
+      </Callout>
 
       <H2>Base URL</H2>
-      <CodeBlock id="baseurl" code={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} />
+      <CodeBlock id="baseurl" code={base} onCopy={onCopy} copiedId={copiedId} />
 
       <H2>빠른 시작 (30초)</H2>
-      <P>발급받은 키를 <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>AX_API_KEY</code> 환경변수에 넣고, 아래에서 사용하는 언어 탭을 골라 그대로 복사하면 첫 요청이 완성됩니다.</P>
-      <CodeTabs id="quickstart" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
-      <P>다음 단계 — 위 응답의 <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>id</code>로 견적을 계산하려면 <strong style={{ color: 'var(--text)' }}>견적 계산</strong> 섹션의 예시를 참고하세요.</P>
+      <P>
+        발급받은 키를 <Code>AX_API_KEY</Code> 환경변수에 넣고, 쓰는 언어 탭을 골라 그대로 복사하면 첫 요청이 완성됩니다.
+        키는 <strong style={{ color: 'var(--text)' }}>서버에서만</strong> 씁니다 — 브라우저에 두면 사용자에게 노출됩니다.
+      </P>
+      <CodeTabs id="quickstart" baseUrl={base} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
 
-      <H2>응답 공통 포맷</H2>
-      <P>모든 응답은 아래 구조를 따릅니다. 에러 시에도 동일한 포맷으로 반환됩니다.</P>
+      <H2>인증</H2>
+      <P>
+        모든 요청에 <Code>X-API-Key</Code> 헤더가 필요합니다. <Code>Authorization: Bearer &lt;키&gt;</Code> 도 같게 동작합니다.
+        키는 HMAC-SHA256으로 해시해 저장하며, <strong style={{ color: 'var(--text)' }}>내 키 관리</strong>에서 발급·폐기합니다.
+      </P>
+      <P>
+        키를 발급한 계정이 비활성화되면 그 키도 즉시 막힙니다 — 퇴사자의 키가 계속 살아 있는 것을 막습니다.
+      </P>
+
+      <H2>응답 형식</H2>
+      <P>성공·실패 모두 같은 봉투를 씁니다. 목록은 <Code>meta</Code>에 커서와 총 건수가 들어갑니다.</P>
       <CodeBlock id="resp-format" lang="json" onCopy={onCopy} copiedId={copiedId} code={`// 성공
 {
   "success": true,
-  "data": { ... },           // 단건 또는 배열
-  "meta": {                  // 목록 API에만 포함
-    "total": 156,
-    "nextCursor": "2026-05-31T00:00:00Z__uuid",  // null이면 마지막 페이지
-    "hasMore": false
-  }
+  "data": [ … ],
+  "meta": { "total": 373, "nextCursor": "…", "hasMore": true }
 }
 
-// 실패
+// 실패 — 사람이 읽을 수 있는 말로 옵니다
 {
   "success": false,
-  "error": "Invalid API key."
+  "error": "분당 요청 한도(60회)를 넘었습니다. 12초 후 다시 시도해 주세요."
 }`} />
+      <Callout type="info" title="예전 최상위 필드는 당분간 함께 나갑니다">
+        구 CRM 목록(<Code>/accounts</Code>·<Code>/contacts</Code>·<Code>/deals</Code>)은 예전에
+        <Code>nextCursor</Code>·<Code>hasMore</Code>를 최상위에 뒀습니다. 쓰던 스크립트가 깨지지 않게
+        지금은 <Code>meta</Code>와 <strong style={{ color: 'var(--text)' }}>둘 다</strong> 내보냅니다.
+        새 코드는 <Code>meta</Code>를 읽으세요.
+      </Callout>
 
       <H2>페이지네이션</H2>
-      <P>목록 API는 커서 기반 페이지네이션을 사용합니다. 응답의 <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>nextCursor</code> 값을 다음 요청의 <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>cursor</code> 파라미터로 전달하세요.</P>
-      <CodeBlock id="pagination" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 첫 페이지 (기본 20건)
-curl "${origin}/api/public/v1/accounts" -H "X-API-Key: KEY"
-# → { "nextCursor": "2026-05-30T12:00:00Z__uuid", "hasMore": true }
+      <P>목록은 커서 방식입니다. 응답의 <Code>meta.nextCursor</Code>를 다음 요청의 <Code>cursor</Code>에 그대로 넣습니다.</P>
+      <CodeBlock id="pagination" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 첫 페이지 (기본 20건, 최대 100)
+curl "${base}/crm/companies?limit=50" -H "X-API-Key: $AX_API_KEY"
 
 # 다음 페이지
-curl "${origin}/api/public/v1/accounts?cursor=2026-05-30T12:00:00Z__uuid" \\
-  -H "X-API-Key: KEY"`} />
+curl "${base}/crm/companies?limit=50&cursor=<meta.nextCursor>" -H "X-API-Key: $AX_API_KEY"`} />
 
-      <H2>Rate Limiting</H2>
-      <div style={{ marginBottom: 'var(--space-5)' }}>
-        <table className="table-base table-card">
-          <thead><tr>
-            <th>플랜</th>
-            <th>한도</th>
-            <th>최대 키 수</th>
-            <th>응답 헤더</th>
-          </tr></thead>
-          <tbody>
-            <tr>
-              <td className="card-header">기본</td>
-              <td data-label="한도" style={{ color: 'var(--text-muted)' }}>분당 60회</td>
-              <td data-label="최대 키 수" style={{ color: 'var(--text-muted)' }}>10개</td>
-              <td data-label="응답 헤더"><code style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>X-RateLimit-*</code></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <Callout type="warn" title="한도 초과 시">
-        HTTP 429를 반환합니다. Retry-After 헤더를 확인하고 지수 백오프(exponential backoff)를 구현하세요.
-        대량 데이터 조회는 필터+커서 조합으로 청크 단위로 처리하세요.
+      <H2>요청 한도</H2>
+      <P>
+        키마다 분당 한도가 있습니다(기본 60회, 키별로 조정 가능). 모든 응답에 남은 횟수가 실립니다.
+      </P>
+      <CodeBlock id="ratelimit" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 41
+X-RateLimit-Reset: 1756281600   # 이 분 창이 끝나는 시각(Unix)`} />
+      <Callout type="warn" title="한도를 넘으면">
+        HTTP 429와 <Code>Retry-After</Code>(초)를 돌려줍니다. 그 시간만큼 기다린 뒤 다시 부르세요.
+        많은 데이터를 받을 때는 <Code>limit</Code>을 키우고 커서로 이어 받는 편이 재시도보다 빠릅니다.
       </Callout>
     </div>
   )
 }
 
-// ─── 섹션: 인증 ──────────────────────────────────────────────────────────────
-
-function AuthSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>인증</H1>
-      <P>모든 API 요청에는 유효한 API 키가 필요합니다. <strong style={{ color: 'var(--text)' }}>설정 → API Keys</strong>에서 키를 발급하세요. 키는 HMAC-SHA256으로 해시되어 저장되며 언제든지 재복사할 수 있습니다.</P>
-
-      <H2>X-API-Key 헤더 (권장) — 언어별 예시</H2>
-      <P>키를 <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>AX_API_KEY</code> 환경변수에 넣고, 사용하는 언어 탭을 선택해 복사하세요. (모든 엔드포인트가 동일한 인증 방식을 씁니다.)</P>
-      <CodeTabs id="auth" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
-
-      <H2>Authorization Bearer (대안)</H2>
-      <P>헤더 이름 대신 <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>Authorization: Bearer &lt;키&gt;</code> 형식도 동일하게 동작합니다.</P>
-      <CodeBlock id="auth-bearer" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/products \\
-  -H "Authorization: Bearer $AX_API_KEY"`} />
-
-      <H2>인증 오류 응답</H2>
-      <CodeBlock id="auth-err" lang="json" onCopy={onCopy} copiedId={copiedId} code={`// 401 — 키 없음 또는 잘못된 형식
-{ "success": false, "error": "Unauthorized" }
-
-// 403 — 키가 폐기된 경우
-{ "success": false, "error": "API key has been revoked." }`} />
-
-      <Callout type="warn" title="보안 필수 사항">
-        API 키를 클라이언트 코드(브라우저 JS, 모바일 앱)에 절대 노출하지 마세요.
-        서버사이드 환경변수(<code>process.env.AX_API_KEY</code>)를 사용하세요.
-        유출 시 즉시 폐기하고 새 키를 발급하세요.
-      </Callout>
-
-      <Callout type="tip" title="키 순환(Key Rotation) 전략">
-        프로덕션에서는 구 키를 폐기하기 전에 신 키를 먼저 배포해 다운타임 없이 교체하세요.
-        한 계정에 최대 10개의 활성 키를 유지할 수 있습니다.
-      </Callout>
-    </div>
-  )
-}
-
-// ─── 섹션: 제품 ──────────────────────────────────────────────────────────────
-
-function ProductsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>제품 목록 (Products)</H1>
-      <P>실시간 가격 데이터가 포함된 GPU 제품 카탈로그를 조회합니다. 모든 제품은 현재 공급사 가격과 마진이 적용된 판매가를 함께 반환합니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        견적 계산 전 <code>product_id</code>를 조회할 때, 가용 GPU 목록을 UI에 표시할 때, 외부 ERP에 제품 카탈로그를 동기화할 때 사용합니다.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/products" desc="모든 GPU 제품의 현재 가격, 공급사 정보, 가용 여부를 반환합니다." />
-      <CodeTabs id="products" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
-
-      <ParamTable title="응답 필드 (data[])">
-        <PR name="id" type="uuid" desc="제품 고유 ID. 견적·재고 API에서 product_id로 사용." />
-        <PR name="model_name" type="string" desc="GPU 모델명 (예: H100 SXM5, A100 80GB)" />
-        <PR name="tier" type="1 | 2 | 3" desc="Tier 1=최상위, 2=중간, 3=직접 공급 풀" />
-        <PR name="memory" type="string" desc="GPU VRAM (예: 80GB, 40GB)" />
-        <PR name="gpu_count" type="integer" desc="묶음 GPU 수량 (단품=1, 서버팩=8 등)" />
-        <PR name="pricing_mode" type="dynamic | fixed" desc="dynamic=시장가 연동, fixed=고정가" />
-        <PR name="price_per_unit_usd" type="number" desc="단위당 판매가 (USD). 마진 포함." />
-        <PR name="price_per_unit_krw" type="number" desc="단위당 판매가 (KRW). 당일 환율 적용." />
-        <PR name="supplier" type="string" desc="공급사 이름" />
-        <PR name="valid_until" type="ISO 8601" desc="가격 유효 기한. 이후에는 재조회 권장." />
-        <PR name="available" type="boolean" desc="현재 주문 가능 여부" />
-      </ParamTable>
-
-      <CodeBlock id="products-resp" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{
-  "success": true,
-  "data": [
-    {
-      "id": "b3f2a1c4-...",
-      "model_name": "H100 SXM5",
-      "tier": 1,
-      "memory": "80GB",
-      "gpu_count": 1,
-      "pricing_mode": "dynamic",
-      "price_per_unit_usd": 34500.00,
-      "price_per_unit_krw": 51907500,
-      "supplier": "NVIDIA 공인 파트너",
-      "valid_until": "2026-06-30T00:00:00Z",
-      "available": true
-    }
-  ],
-  "meta": { "total": 156, "currency": "USD", "fx_usd_krw": 1504.0 }
-}`} />
-
-      <EndpointHeader method="GET" path="/products/{id}" desc="단일 GPU 제품의 상세 정보를 반환합니다." />
-      <CodeTabs id="product-single" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/products/b3f2a1c4-...' }} onCopy={onCopy} copiedId={copiedId} />
-    </div>
-  )
-}
-
-// ─── 섹션: 견적 ──────────────────────────────────────────────────────────────
-
-function QuoteSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>견적 계산 (Quote)</H1>
-      <P>하나 이상의 GPU 제품에 대한 상세 견적을 계산합니다. 제품별 커스텀 마진 설정과 USD/KRW 통화 선택이 지원됩니다. 계산은 실시간 가격 + 최신 환율을 사용합니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        고객 제안서 자동 생성, ERP 연동 견적 워크플로, 실시간 가격 비교 UI에 활용하세요.
-        <code>custom_margin_pct</code>로 고객사별 마진을 개별 설정할 수 있습니다.
-      </Callout>
-
-      <EndpointHeader method="POST" path="/quote" desc="여러 제품·수량 조합의 견적을 한 번에 계산합니다." />
-
-      <ParamTable title="요청 바디">
-        <PR name="items" type="array" required desc="견적 항목 목록 (1~50개)" />
-        <PR name="items[].product_id" type="uuid" required desc="제품 ID (GET /products에서 조회)" />
-        <PR name="items[].quantity" type="integer" required desc="수량 (1 이상)" />
-        <PR name="items[].custom_margin_pct" type="number" desc="마진율 오버라이드 (0~200%). 미지정 시 시스템 기본 마진 사용." />
-        <PR name="currency" type="'USD' | 'KRW'" desc="출력 통화. 기본값: USD. KRW 선택 시 당일 환율 자동 적용." />
-      </ParamTable>
-
-      <CodeTabs id="quote" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{
-        method: 'POST', path: '/quote',
-        body: { items: [{ product_id: 'b3f2a1c4-...', quantity: 4 }, { product_id: 'a2e1b3d5-...', quantity: 8, custom_margin_pct: 20 }], currency: 'KRW' },
-      }} />
-
-      <ParamTable title="응답 필드 (data.items[])">
-        <PR name="model_name" type="string" desc="GPU 모델명" />
-        <PR name="quantity" type="integer" desc="요청 수량" />
-        <PR name="unit_price_usd" type="number" desc="단위당 공급가 (USD, 마진 적용 전)" />
-        <PR name="unit_price_krw" type="number" desc="단위당 공급가 (KRW)" />
-        <PR name="total_usd" type="number" desc="소계 (USD)" />
-        <PR name="total_krw" type="number" desc="소계 (KRW)" />
-        <PR name="margin_pct" type="number" desc="적용된 마진율 (%)" />
-        <PR name="available" type="boolean" desc="현재 재고 가용 여부" />
-      </ParamTable>
-
-      <ParamTable title="응답 필드 (data.summary)">
-        <PR name="total" type="number" desc="선택 통화 기준 최종 합계" />
-        <PR name="currency" type="string" desc="출력 통화" />
-        <PR name="fx_usd_krw" type="number" desc="적용된 USD/KRW 환율" />
-        <PR name="quoted_at" type="ISO 8601" desc="견적 생성 시각" />
-      </ParamTable>
-
-      <CodeBlock id="quote-resp" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "model_name": "H100 SXM5",
-        "quantity": 4,
-        "unit_price_usd": 34500.00,
-        "unit_price_krw": 51907500,
-        "total_usd": 138000.00,
-        "total_krw": 207630000,
-        "margin_pct": 18,
-        "available": true
-      }
-    ],
-    "summary": {
-      "total": 207630000,
-      "currency": "KRW",
-      "fx_usd_krw": 1504.0,
-      "quoted_at": "2026-05-31T10:00:00.000Z"
-    }
-  }
-}`} />
-    </div>
-  )
-}
-
-// ─── 섹션: 재고 ──────────────────────────────────────────────────────────────
-
-function InventorySection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>재고 조회 (Inventory)</H1>
-      <P>GPU 제품의 실시간 재고 수량과 가용 여부를 확인합니다. 모든 Tier를 포함한 통합 재고 현황입니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        고객 주문 전 재고 확인, 품절 알림 시스템 구축, 재고 대시보드 구성에 사용하세요.
-        풀 재고(Tier 3) 업데이트는 <code>POST /pool-stock</code>을 사용하세요.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/inventory" desc="모든 GPU 제품의 현재 재고 수량과 가용 여부를 반환합니다." />
-      <CodeTabs id="inventory" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/inventory' }} onCopy={onCopy} copiedId={copiedId} />
-
-      <ParamTable title="응답 필드 (data[])">
-        <PR name="product_id" type="uuid" desc="제품 ID" />
-        <PR name="model_name" type="string" desc="GPU 모델명" />
-        <PR name="tier" type="1 | 2 | 3" desc="공급 Tier" />
-        <PR name="memory" type="string" desc="VRAM 용량" />
-        <PR name="available_qty" type="integer" desc="현재 가용 수량 (0이면 품절)" />
-        <PR name="in_stock" type="boolean" desc="true면 즉시 공급 가능" />
-        <PR name="updated_at" type="ISO 8601" desc="재고 정보 마지막 업데이트 시각" />
-      </ParamTable>
-
-      <CodeBlock id="inv-resp" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{
-  "success": true,
-  "data": [
-    {
-      "product_id": "b3f2a1c4-...",
-      "model_name": "H100 SXM5",
-      "tier": 1,
-      "memory": "80GB",
-      "available_qty": 12,
-      "in_stock": true,
-      "updated_at": "2026-05-31T08:00:00Z"
-    }
-  ],
-  "meta": { "total": 156, "as_of": "2026-05-31T10:00:00.000Z" }
-}`} />
-    </div>
-  )
-}
-
-// ─── 섹션: 환율 ──────────────────────────────────────────────────────────────
-
-function FxSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>환율 (FX Rates)</H1>
-      <P>최근 7일간의 USD/KRW 환율 이력을 조회합니다. 가격 계산에 사용되는 환율 데이터로, 매일 자동 업데이트됩니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        환율 변동에 따른 가격 변화를 추적하거나, 별도 환율 소스 없이 당일 환율을 빠르게 조회할 때 사용하세요.
-        가격 API(<code>/products</code>, <code>/quote</code>)는 이 환율을 자동 반영합니다.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/fx" desc="최근 7일간의 USD/KRW 환율 이력을 반환합니다." />
-      <CodeTabs id="fx" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/fx' }} onCopy={onCopy} copiedId={copiedId} />
-
-      <ParamTable title="응답 필드 (data[])">
-        <PR name="rate_date" type="YYYY-MM-DD" desc="환율 적용일" />
-        <PR name="usd_krw" type="number" desc="1 USD 기준 KRW 환율 (예: 1504.5)" />
-        <PR name="source" type="string" desc="환율 데이터 출처 (예: koreaexim, manual)" />
-      </ParamTable>
-
-      <CodeBlock id="fx-resp" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{
-  "success": true,
-  "data": [
-    { "rate_date": "2026-05-31", "usd_krw": 1504.0, "source": "koreaexim" },
-    { "rate_date": "2026-05-30", "usd_krw": 1501.3, "source": "koreaexim" }
-  ],
-  "meta": { "total": 7 }
-}`} />
-    </div>
-  )
-}
-
-// ─── 섹션: 공급사 ─────────────────────────────────────────────────────────────
-
-function SuppliersSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>공급사 (Suppliers)</H1>
-      <P>GPU 공급사 목록과 통계(활성 견적 수, 최저가 달성 수, 마지막 견적 수신일)를 조회하고 신규 공급사를 등록합니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        공급사 포털 연동, 입고 알림 시스템, 조달 자동화 워크플로에 사용하세요.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/suppliers" desc="등록된 모든 공급사와 통계를 반환합니다." />
-      <CodeTabs id="sup-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/suppliers' }} onCopy={onCopy} copiedId={copiedId} />
-
-      <ParamTable title="응답 필드 (data[])">
-        <PR name="id" type="uuid" desc="공급사 고유 ID" />
-        <PR name="name" type="string" desc="공급사 이름" />
-        <PR name="location" type="string | null" desc="위치/지역" />
-        <PR name="contact" type="string | null" desc="연락처 (이메일 또는 전화)" />
-        <PR name="active_quotes" type="integer" desc="현재 활성 견적 수" />
-        <PR name="lowest_count" type="integer" desc="최저가 달성 횟수" />
-        <PR name="last_received" type="ISO 8601 | null" desc="마지막 견적 수신 일시" />
-      </ParamTable>
-
-      <EndpointHeader method="POST" path="/suppliers" desc="신규 공급사를 등록합니다." />
-      <ParamTable title="요청 바디">
-        <PR name="name" type="string" required desc="공급사 이름 (고유값)" />
-        <PR name="location" type="string" desc="위치 (선택)" />
-        <PR name="contact" type="string" desc="연락처 (선택)" />
-      </ParamTable>
-      <CodeTabs id="sup-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/suppliers', body: { name: 'ABC Corp', location: '서울', contact: 'supply@abc.com' } }} />
-    </div>
-  )
-}
-
-// ─── 섹션: 시장 비교 ──────────────────────────────────────────────────────────
-
-function MarketSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>시장 비교 (Market)</H1>
-      <P>경쟁사 가격과 자사 가격을 비교한 시장 분석 데이터를 반환합니다. 전략 포지셔닝, 공급 이력 중앙값, 데이터 신선도를 포함합니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        가격 경쟁력 분석, 임원 보고서 자동화, 가격 알림 시스템에 활용하세요.
-        <code>is_fresh</code> 필드로 오래된 경쟁사 데이터를 필터링할 수 있습니다.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/market" desc="전체 제품에 대한 시장 비교 데이터를 반환합니다." />
-      <CodeTabs id="market" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/market' }} onCopy={onCopy} copiedId={copiedId} />
-
-      <ParamTable title="응답 필드 (data.products[])">
-        <PR name="product" type="object" desc="GPU 제품 기본 정보 (id, model_name, memory, tier)" />
-        <PR name="our_price_usd" type="number" desc="자사 판매가 (USD)" />
-        <PR name="market_min" type="number" desc="시장 최저가 (USD, 신선 데이터 기준)" />
-        <PR name="market_max" type="number" desc="시장 최고가 (USD)" />
-        <PR name="market_median" type="number" desc="시장 중앙값 (USD)" />
-        <PR name="competitors" type="array" desc="경쟁사별 가격 목록" />
-        <PR name="competitors[].price_usd" type="number" desc="경쟁사 가격 (USD/hr)" />
-        <PR name="competitors[].is_fresh" type="boolean" desc="7일 이내 수집된 신선 데이터 여부" />
-        <PR name="competitors[].collected_at" type="ISO 8601" desc="데이터 수집 시각" />
-        <PR name="strategy" type="object | null" desc="가격 전략 설정값 (edge_pct_normal, edge_pct_aggressive)" />
-        <PR name="supply_history" type="object | null" desc="공급사 이력 통계 (median_usd, min_usd, quote_count)" />
-      </ParamTable>
-
-      <CodeBlock id="mkt-resp" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{
-  "success": true,
-  "data": {
-    "usd_krw": 1504.0,
-    "summary": { "low_count": 5, "mid_count": 10, "high_count": 2, "competitor_count": 12 },
-    "products": [
-      {
-        "product": { "id": "b3f2a1c4-...", "model_name": "H100 SXM5", "memory": "80GB" },
-        "our_price_usd": 2.95,
-        "market_min": 2.80,
-        "market_max": 3.50,
-        "market_median": 3.10,
-        "competitors": [
-          { "competitor": { "name": "A사" }, "price_usd": 3.20, "is_fresh": true, "collected_at": "2026-05-30T..." }
-        ],
-        "strategy": { "edge_pct_normal": 3, "edge_pct_aggressive": 8 }
-      }
-    ]
-  }
-}`} />
-    </div>
-  )
-}
-
-// ─── 섹션: 가격 설정 ──────────────────────────────────────────────────────────
-
-function SettingsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>가격 설정 (Settings)</H1>
-      <P>전역 마진율과 최신 환율 정보를 조회하거나 업데이트합니다. 마진율 변경은 <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>gpu_audit_logs</code>에 기록됩니다.</P>
-      <Callout type="warn" title="주의">
-        마진율 변경은 즉시 모든 견적 계산에 반영됩니다. 변경 전 기존 견적이 있다면 재발행을 검토하세요.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/settings" desc="현재 전역 마진율과 환율 정보를 반환합니다." />
-      <CodeTabs id="set-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/settings' }} onCopy={onCopy} copiedId={copiedId} />
-
-      <ParamTable title="응답 필드 (data)">
-        <PR name="margin_pct" type="number" desc="현재 전역 마진율 (%)" />
-        <PR name="usd_krw" type="number" desc="오늘 적용 환율" />
-        <PR name="fx_date" type="YYYY-MM-DD" desc="환율 기준일" />
-        <PR name="updated_at" type="ISO 8601" desc="마진율 마지막 변경 시각" />
-        <PR name="updated_by" type="string" desc="마지막 변경자 이메일" />
-      </ParamTable>
-
-      <EndpointHeader method="PATCH" path="/settings" desc="전역 마진율을 업데이트합니다." />
-      <ParamTable title="요청 바디">
-        <PR name="margin_pct" type="number" required desc="새 마진율 (0~999 사이의 숫자)" />
-      </ParamTable>
-      <CodeTabs id="set-patch" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'PATCH', path: '/settings', body: { margin_pct: 20 } }} />
-    </div>
-  )
-}
-
-// ─── 섹션: 풀 재고 ───────────────────────────────────────────────────────────
-
-function PoolStockSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>풀 재고 (Pool Stock)</H1>
-      <P>직접 공급 풀(Tier 3)의 재고 수량을 조회하거나 업데이트합니다. 수량을 변경하면 재고 현황(<code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>/inventory</code>)에 즉시 반영됩니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        입고 처리 자동화, WMS 연동, 재고 수량 실시간 업데이트에 사용하세요.
-        <code>sell_price_krw</code>를 함께 전달하면 판매가도 동시에 업데이트됩니다.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/pool-stock" desc="현재 풀 재고(Tier 3) 목록을 반환합니다. 쿼리 product_id로 특정 제품만 조회할 수 있습니다." />
-      <CodeTabs id="ps-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/pool-stock', query: { product_id: 'b3f2a1c4-...' } }} onCopy={onCopy} copiedId={copiedId} />
-
-      <ParamTable title="쿼리 파라미터">
-        <PR name="product_id" type="uuid" desc="특정 제품 필터 (선택)" />
-      </ParamTable>
-
-      <EndpointHeader method="POST" path="/pool-stock" desc="풀 재고 수량을 업데이트합니다." />
-      <ParamTable title="요청 바디">
-        <PR name="product_id" type="uuid" required desc="업데이트할 제품 ID" />
-        <PR name="pool_qty" type="integer" required desc="새 재고 수량 (0 이상. 0 입력 시 품절 처리)" />
-        <PR name="sell_price_krw" type="number" desc="판매가 KRW (선택. 입력 시 direct_prices도 동시 업데이트)" />
-        <PR name="note" type="string" desc="메모 (선택. 예: '5월 입고분')" />
-      </ParamTable>
-      <CodeTabs id="ps-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/pool-stock', body: { product_id: 'b3f2a1c4-...', pool_qty: 10, sell_price_krw: 5000000, note: '5월 입고분' } }} />
-    </div>
-  )
-}
-
-// ─── 섹션: 거래처 ─────────────────────────────────────────────────────────────
-
-function AccountsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>거래처 (Accounts)</H1>
-      <P>CRM 거래처 데이터를 조회·생성·수정·삭제합니다. 커서 기반 페이지네이션과 복합 필터를 지원합니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        외부 CRM·ERP 시스템 연동, 거래처 동기화, 영업 분석 데이터 추출에 활용하세요.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/accounts" desc="거래처 목록을 커서 기반 페이지네이션으로 반환합니다." />
-      <ParamTable title="쿼리 파라미터">
-        <PR name="cursor" type="string" desc="다음 페이지 커서 (이전 응답의 nextCursor)" />
-        <PR name="search" type="string" desc="거래처명 부분 검색" />
-        <PR name="segment" type="string" desc="세그먼트 필터 (T1, T2, 공공, 스타트업 등)" />
-        <PR name="industry" type="string" desc="업종 필터 (부분 일치)" />
-        <PR name="region" type="string" desc="지역 필터 (부분 일치)" />
-        <PR name="sort" type="string" desc="정렬 기준: created_at, name, fit_score, industry, region" />
-        <PR name="dir" type="asc | desc" desc="정렬 방향 (기본: desc)" />
-      </ParamTable>
-      <CodeTabs id="acc-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/accounts', query: { segment: 'T1', sort: 'name', dir: 'asc' } }} onCopy={onCopy} copiedId={copiedId} />
-
-      <EndpointHeader method="POST" path="/accounts" desc="신규 거래처를 생성합니다." />
-      <ParamTable title="요청 바디">
-        <PR name="name" type="string" required desc="거래처명" />
-        <PR name="industry" type="string" desc="업종" />
-        <PR name="segment" type="string" desc="세그먼트 (T1, T2, 공공 등)" />
-        <PR name="region" type="string" desc="지역" />
-        <PR name="description" type="string" desc="설명" />
-        <PR name="fit_score" type="0~100" desc="적합도 점수" />
-      </ParamTable>
-      <CodeTabs id="acc-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/accounts', body: { name: '주식회사 테스트', industry: 'AI/ML', segment: 'T2', region: '서울', fit_score: 75 } }} />
-
-      <EndpointHeader method="PATCH" path="/accounts/{id}" desc="거래처 정보를 부분 수정합니다." />
-      <CodeTabs id="acc-patch" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'PATCH', path: '/accounts/ACCOUNT_ID', body: { fit_score: 90, description: '핵심 고객' } }} />
-      <EndpointHeader method="DELETE" path="/accounts/{id}" desc="거래처를 삭제합니다." />
-      <CodeTabs id="acc-delete" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'DELETE', path: '/accounts/ACCOUNT_ID' }} onCopy={onCopy} copiedId={copiedId} />
-    </div>
-  )
-}
-
-// ─── 섹션: 담당자 ─────────────────────────────────────────────────────────────
-
-function ContactsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>담당자 (Contacts)</H1>
-      <P>거래처 담당자를 조회하거나 등록합니다. 담당자는 반드시 거래처(<code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>account_id</code>)와 연결됩니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        명함 관리 시스템 연동, 거래처별 담당자 포털, 이메일 자동화 워크플로에 활용하세요.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/contacts" desc="담당자 목록을 반환합니다. 거래처 이름 포함." />
-      <ParamTable title="쿼리 파라미터">
-        <PR name="cursor" type="string" desc="다음 페이지 커서" />
-        <PR name="search" type="string" desc="담당자명 검색" />
-        <PR name="account_id" type="uuid" desc="특정 거래처의 담당자만 조회" />
-      </ParamTable>
-      <CodeTabs id="con-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/contacts', query: { search: '김' } }} onCopy={onCopy} copiedId={copiedId} />
-
-      <EndpointHeader method="POST" path="/contacts" desc="신규 담당자를 생성합니다." />
-      <ParamTable title="요청 바디">
-        <PR name="name" type="string" required desc="담당자 이름" />
-        <PR name="account_id" type="uuid" desc="연결 거래처 ID" />
-        <PR name="email" type="string" desc="이메일 주소" />
-        <PR name="phone" type="string" desc="전화번호" />
-        <PR name="title" type="string" desc="직함 (예: CTO, 구매팀장)" />
-        <PR name="department" type="string" desc="부서" />
-      </ParamTable>
-      <CodeTabs id="con-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/contacts', body: { name: '홍길동', account_id: 'ACCOUNT_ID', email: 'hong@example.com', title: 'CTO' } }} />
-
-      <EndpointHeader method="PATCH" path="/contacts/{id}" desc="담당자 정보를 수정합니다." />
-      <CodeTabs id="con-patch" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'PATCH', path: '/contacts/CONTACT_ID', body: { title: '구매팀장', phone: '010-1234-5678' } }} />
-      <EndpointHeader method="DELETE" path="/contacts/{id}" desc="담당자를 삭제합니다." />
-      <CodeTabs id="con-delete" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'DELETE', path: '/contacts/CONTACT_ID' }} onCopy={onCopy} copiedId={copiedId} />
-    </div>
-  )
-}
-
-// ─── 섹션: 영업기회 ──────────────────────────────────────────────────────────
-
-function DealsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  const origin = useOrigin()
-  return (
-    <div>
-      <H1>영업기회 (Deals)</H1>
-      <P>영업기회를 조회·생성·수정합니다. 스테이지를 변경하면 성공 확률이 자동으로 재계산됩니다.</P>
-      <Callout type="tip" title="언제 사용하나요?">
-        Slack 봇으로 영업기회 업데이트, 외부 견적 시스템과 CRM 동기화, 주간 파이프라인 리포트 자동 생성에 활용하세요.
-      </Callout>
-
-      <EndpointHeader method="GET" path="/deals" desc="영업기회 목록을 커서 기반 페이지네이션으로 반환합니다." />
-      <ParamTable title="쿼리 파라미터">
-        <PR name="cursor" type="string" desc="다음 페이지 커서" />
-        <PR name="search" type="string" desc="제목 검색" />
-        <PR name="stage" type="string" desc="스테이지 필터 (신규, 컨택, PoC, 제안, 협상, 수주 등)" />
-        <PR name="sort" type="string" desc="정렬: created_at, title, stage, value, probability" />
-        <PR name="dir" type="asc | desc" desc="정렬 방향" />
-      </ParamTable>
-      <CodeTabs id="dea-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/deals', query: { stage: '제안' } }} onCopy={onCopy} copiedId={copiedId} />
-
-      <EndpointHeader method="POST" path="/deals" desc="신규 영업기회를 생성합니다." />
-      <ParamTable title="요청 바디">
-        <PR name="title" type="string" required desc="영업기회 제목" />
-        <PR name="account_id" type="uuid" desc="거래처 ID" />
-        <PR name="contact_id" type="uuid" desc="담당자 ID" />
-        <PR name="stage" type="string" desc="스테이지 (기본: 신규). probability 자동 설정." />
-        <PR name="value" type="number" desc="예상 금액 (KRW)" />
-        <PR name="close_date" type="YYYY-MM-DD" desc="예상 클로즈 날짜" />
-        <PR name="product" type="string" desc="관련 GPU 제품명" />
-        <PR name="lead_type" type="string" desc="리드 유형 (Inbound, Outbound 등)" />
-      </ParamTable>
-      <CodeTabs id="dea-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/deals', body: { title: 'H100 서버 임대 계약', account_id: 'ACCOUNT_ID', value: 50000000, stage: '컨택', product: 'H100 SXM5', close_date: '2026-07-31' } }} />
-
-      <H2>스테이지 → 확률 자동 변환</H2>
-      <P>스테이지를 변경하면 <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>probability</code> 필드가 자동으로 업데이트됩니다.</P>
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <table className="table-base table-card">
-          <thead><tr>
-            <th>stage</th>
-            <th>probability</th>
-            <th>의미</th>
-          </tr></thead>
-          <tbody>
-            {[
-              ['신규', '5%', '초기 인식 단계'],
-              ['검증', '15%', '잠재 고객 검증 중'],
-              ['컨택', '30%', '실제 미팅·연락 완료'],
-              ['PoC', '50%', '기술 검증 진행 중'],
-              ['제안', '65%', '견적/제안서 발송'],
-              ['협상', '80%', '조건 협상 진행 중'],
-              ['수주', '100%', '계약 완료'],
-              ['실패', '0%', '기회 종료'],
-            ].map(([s, p, m]) => (
-              <tr key={s}>
-                <td className="card-header"><code style={{ color: 'var(--brand)' }}>{s}</code></td>
-                <td data-label="probability" style={{ color: 'var(--success)', fontWeight: 700 }}>{p}</td>
-                <td data-label="의미" style={{ color: 'var(--text-muted)' }}>{m}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <EndpointHeader method="PATCH" path="/deals/{id}" desc="영업기회를 수정합니다. 스테이지 변경 시 probability 자동 재계산." />
-      <CodeTabs id="dea-patch" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'PATCH', path: '/deals/DEAL_ID', body: { stage: '제안', value: 80000000 } }} />
-      <EndpointHeader method="DELETE" path="/deals/{id}" desc="영업기회를 삭제합니다." />
-      <CodeTabs id="dea-delete" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'DELETE', path: '/deals/DEAL_ID' }} onCopy={onCopy} copiedId={copiedId} />
-    </div>
-  )
-}
-
-// ─── 섹션: 오류 코드 ─────────────────────────────────────────────────────────
+/* ── 오류 ──────────────────────────────────────────────────────────────────── */
+
+const ERRORS: { code: number; name: string; cause: string; fix: string }[] = [
+  { code: 400, name: 'Bad Request', cause: '필수 파라미터 누락·형식 오류', fix: '응답의 error 문장이 무엇이 잘못됐는지 알려 줍니다.' },
+  { code: 401, name: 'Unauthorized', cause: 'X-API-Key 없음 또는 형식 오류', fix: '헤더 이름과 키 앞자리(ax_live_)를 확인하세요.' },
+  { code: 403, name: 'Forbidden', cause: '폐기된 키 · 비활성 계정 · 권한 부족', fix: '키를 발급한 계정의 권한을 확인하세요. 남의 레코드는 관리자만 고칠 수 있습니다.' },
+  { code: 404, name: 'Not Found', cause: '없는 id', fix: '목록 API로 id를 다시 확인하세요.' },
+  { code: 429, name: 'Too Many Requests', cause: '분당 한도 초과', fix: 'Retry-After 초만큼 기다린 뒤 재시도하세요.' },
+  { code: 500, name: 'Server Error', cause: '서버 처리 실패', fix: '잠시 후 다시 시도하고, 계속되면 관리자에게 알려 주세요.' },
+]
 
 function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) => void; copiedId: string | null }) {
   return (
     <div>
-      <H1>오류 코드</H1>
-      <P>모든 오류는 HTTP 상태 코드와 함께 아래 포맷으로 반환됩니다. <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>error</code> 필드에 사람이 읽을 수 있는 메시지가 포함됩니다.</P>
-      <CodeBlock id="err-fmt" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{ "success": false, "error": "Invalid API key." }`} />
-
+      <PageHeader title="오류 코드" description="실패도 성공과 같은 봉투로 옵니다. error 문장은 사람이 읽을 수 있는 말입니다." />
       <div style={{ marginBottom: 'var(--space-6)' }}>
         <table className="table-base table-card">
-          <thead><tr>
-            <th>코드</th>
-            <th>이름</th>
-            <th>원인</th>
-            <th>해결</th>
-          </tr></thead>
+          <thead><tr><th>코드</th><th>이름</th><th>원인</th><th>대응</th></tr></thead>
           <tbody>
-            {[
-              { code: 400, color: 'var(--warning)', name: 'Bad Request', cause: '요청 바디 형식 오류 또는 필수 필드 누락', fix: 'details 필드에서 구체적인 오류 위치 확인' },
-              { code: 401, color: 'var(--warning)', name: 'Unauthorized', cause: 'X-API-Key 헤더 없음 또는 잘못된 키 형식', fix: 'ax_live_ 접두사 포함 전체 키 값 확인' },
-              { code: 403, color: 'var(--warning)', name: 'Forbidden', cause: 'API 키가 폐기된 상태', fix: '새 키를 발급하고 코드 업데이트' },
-              { code: 404, color: 'var(--text-muted)', name: 'Not Found', cause: '요청한 리소스 ID가 존재하지 않음', fix: 'ID 값이 올바른지 확인' },
-              { code: 429, color: 'var(--danger)', name: 'Too Many Requests', cause: '분당 요청 한도 초과', fix: 'Retry-After 헤더 대기 후 재시도. 지수 백오프 적용.' },
-              { code: 500, color: 'var(--danger)', name: 'Internal Server Error', cause: '서버 내부 오류', fix: '잠시 후 재시도. 지속 시 관리자에게 문의' },
-            ].map(({ code, color, name, cause, fix }) => (
-              <tr key={code}>
-                <td className="card-header"><code style={{ color, fontWeight: 700, fontSize: 'var(--fs-sm)' }}>{code}</code></td>
-                <td data-label="이름" style={{ color: 'var(--text)', fontWeight: 500 }}>{name}</td>
-                <td data-label="원인" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{cause}</td>
-                <td data-label="해결" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{fix}</td>
+            {ERRORS.map((e) => (
+              <tr key={e.code}>
+                <td className="card-header"><code style={{ color: 'var(--brand)' }}>{e.code}</code></td>
+                <td data-label="이름" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.name}</td>
+                <td data-label="원인" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.cause}</td>
+                <td data-label="대응" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.fix}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <H2>재시도 예시</H2>
+      <CodeBlock id="retry" lang="javascript" onCopy={onCopy} copiedId={copiedId} code={`const res = await fetch(url, { headers: { 'X-API-Key': process.env.AX_API_KEY } })
 
-      <H2>재시도(Retry) 권장 패턴</H2>
-      <CodeBlock id="retry-js" lang="typescript" onCopy={onCopy} copiedId={copiedId} code={`async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3) {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const res = await fetch(url, options)
-
-    if (res.status === 429) {
-      const retryAfter = parseInt(res.headers.get('Retry-After') ?? '5')
-      await new Promise(r => setTimeout(r, retryAfter * 1000))
-      continue
-    }
-
-    if (res.status >= 500 && attempt < maxRetries - 1) {
-      await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000))
-      continue
-    }
-
-    return res
-  }
-  throw new Error('Max retries exceeded')
+if (res.status === 429) {
+  const wait = Number(res.headers.get('Retry-After') ?? 60)
+  await new Promise((r) => setTimeout(r, wait * 1000))
+  return retry()
 }`} />
     </div>
   )
 }
 
-// ─── 메인 페이지 ──────────────────────────────────────────────────────────────
+/* ── 화면 ──────────────────────────────────────────────────────────────────── */
+
+/** 왼쪽 목록 — 묶음 이름은 registry 에서 온다. 화면이 서비스 이름을 짓지 않는다(§0-2) */
+const groupLabel = (k: ApiGroupKey) => API_GROUPS.find((g) => g.key === k)!.label
+
+const NAV: { label: string; items: { id: Section; l: string }[] }[] = [
+  { label: '시작하기', items: [{ id: 'start', l: '개요 · 인증 · 한도' }] },
+  { label: '엔드포인트', items: (['gpu', 'crm', 'ci', 'legacy'] as const).map((k) => ({ id: k as Section, l: groupLabel(k) })) },
+  { label: '참고', items: [{ id: 'ref', l: 'OpenAPI' }, { id: 'demo', l: '직접 실행' }, { id: 'errors', l: '오류 코드' }] },
+]
 
 export default function DevelopPage() {
-  const [activeSection, setActiveSection] = useState<Section>('overview')
+  const [activeSection, setActiveSection] = useState<Section>('start')
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [showDashboardLink, setShowDashboardLink] = useState(false)
-  const [showApplyLink, setShowApplyLink] = useState(false)
   const [brandName, setBrandName] = useState('')
+  const origin = useOrigin()
+  const base = `${origin}/api/public/v1`
 
   useEffect(() => {
     const sb = createClient()
-    sb.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { setShowApplyLink(true); return }
-      const { data } = await sb.from('profiles').select('role').eq('id', user.id).single()
-      const role = (data as { role?: string } | null)?.role
-      if (role === 'admin' || role === 'member') setShowDashboardLink(true)
-    })
-    // 어드민에 설정된 서비스명(SSOT: system_settings.brand_name, public_read) 로드
+    // 어드민에 설정된 서비스명(SSOT: system_settings.brand_name, public_read)
     sb.from('system_settings').select('value').eq('key', 'brand_name').maybeSingle()
       .then(({ data }) => {
         const v = (data as { value?: string | null } | null)?.value
@@ -871,9 +347,10 @@ export default function DevelopPage() {
     }
   }
 
+  const isGroup = (s: Section): s is ApiGroupKey => s !== 'demo' && s !== 'errors' && s !== 'start'
+
   return (
-    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: 'var(--surface-muted)', minHeight: '100vh', color: 'var(--text)' }}>
-      {/* 헤더 — 상단 nav 제거, 로고 + CTA만 */}
+    <div style={{ background: 'var(--surface-muted)', minHeight: '100vh', color: 'var(--text)' }}>
       <header style={{ borderBottom: 'var(--hairline) solid var(--border-light)', padding: 'var(--space-0) var(--space-8)', position: 'sticky', top: 0, background: 'var(--color-surface)', backdropFilter: 'blur(12px)', zIndex: 'var(--z-sticky)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -883,56 +360,38 @@ export default function DevelopPage() {
             <NbBadge>v1</NbBadge>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {showDashboardLink && (
-              <a href="/home" className="btn-ghost">← 대시보드</a>
-            )}
-            {showApplyLink && (
-              <a href="/api-access" className="btn-primary">API 키 신청</a>
-            )}
-            <a href="/api-keys" className="btn-ghost">내 키 관리</a>
+            {/* 로그인 뒤 화면이므로 나갈 길을 항상 둔다(§2-3-3 N-2) */}
+            <a href="/home" className="btn-ghost">← {SERVICE_LABEL.member}</a>
+            <a href="/api-keys" className="btn-primary">내 키 관리</a>
           </div>
         </div>
       </header>
 
       {/* 좁은 화면에서는 사이드바가 위로 접힌다(고정 2열 금지 — 반응형 정책) */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'var(--space-10) var(--space-8)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-8)', alignItems: 'flex-start' }}>
-        {/* 사이드바 */}
         <aside style={{ flex: '1 1 200px', maxWidth: 240 }}>
           <nav style={{ position: 'sticky', top: 76 }}>
-            {[
-              { label: '시작하기', items: [{ id: 'overview' as Section, l: '개요' }, { id: 'auth' as Section, l: '인증' }] },
-              { label: 'GPU 가격', items: [{ id: 'products' as Section, l: '제품 목록' }, { id: 'quote' as Section, l: '견적 계산' }, { id: 'inventory' as Section, l: '재고 조회' }, { id: 'fx' as Section, l: '환율' }, { id: 'suppliers' as Section, l: '공급사' }, { id: 'market' as Section, l: '시장 비교' }, { id: 'settings' as Section, l: '가격 설정' }, { id: 'pool-stock' as Section, l: '풀 재고' }] },
-              { label: 'CRM', items: [{ id: 'accounts' as Section, l: '거래처' }, { id: 'contacts' as Section, l: '담당자' }, { id: 'deals' as Section, l: '영업기회' }] },
-              { label: '체험', items: [{ id: 'demo' as Section, l: '🧪 라이브 데모' }] },
-              { label: '참조', items: [{ id: 'errors' as Section, l: '오류 코드' }] },
-            ].map(({ label, items }) => (
+            {NAV.map(({ label, items }) => (
               <div key={label} style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 12px' }}>{label}</div>
                 {items.map(({ id, l }) => (
-                  <SidebarItem key={id} active={activeSection === id} onClick={() => setActiveSection(id)}>{l}</SidebarItem>
+                  <SidebarItem key={id} active={activeSection === id} onClick={() => setActiveSection(id)}>
+                    {/* 개수는 손으로 적지 않는다 — registry 에 등재된 수가 그대로 나온다 */}
+                    {isGroup(id) ? `${l} (${endpointsOf(id).length})` : l}
+                  </SidebarItem>
                 ))}
               </div>
             ))}
           </nav>
         </aside>
 
-        {/* 메인 콘텐츠 */}
         <main style={{ flex: '999 1 480px', minWidth: 0 }}>
-          {activeSection === 'overview'   && <OverviewSection onCopy={copy} copiedId={copiedId} brandName={brandName} />}
-          {activeSection === 'auth'       && <AuthSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'products'   && <ProductsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'quote'      && <QuoteSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'inventory'  && <InventorySection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'fx'         && <FxSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'suppliers'  && <SuppliersSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'market'     && <MarketSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'settings'   && <SettingsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'pool-stock' && <PoolStockSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'accounts'   && <AccountsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'contacts'   && <ContactsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'deals'      && <DealsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
-          {activeSection === 'demo'       && <DemoSection />}
-          {activeSection === 'errors'     && <ErrorsSection onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'start' && <StartSection onCopy={copy} copiedId={copiedId} brandName={brandName} />}
+          {activeSection === 'demo' && <DemoSection />}
+          {activeSection === 'errors' && <ErrorsSection onCopy={copy} copiedId={copiedId} />}
+          {isGroup(activeSection) && (
+            <GroupSection group={activeSection} baseUrl={base} onCopy={copy} copiedId={copiedId} />
+          )}
         </main>
       </div>
     </div>
