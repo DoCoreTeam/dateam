@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { formatPhone, telHref, mailtoHref } from './format.ts'
+import { formatPhone, telHref, mailtoHref, formatDomain, siteHref } from './format.ts'
 
 test('저장된 숫자열을 사람이 읽는 형태로 자른다', () => {
   // 실측 앵커 — /crm/people 목록에 실제로 들어 있는 값(v0.7.598)
@@ -66,4 +66,24 @@ test('mailto 는 주소 꼴일 때만 만든다', () => {
   assert.equal(mailtoHref('사내메일'), null)
   assert.equal(mailtoHref('a@b'), null)
   assert.equal(mailtoHref(null), null)
+})
+
+test('도메인은 스킴과 끝 슬래시를 걷어 내고 보여 준다', () => {
+  // 실측 앵커 — /crm/companies 에 실제로 들어 있는 값(v0.7.599)
+  assert.equal(formatDomain('e-gate.co.kr'), 'e-gate.co.kr')
+  assert.equal(formatDomain('https://e-gate.co.kr'), 'e-gate.co.kr')
+  assert.equal(formatDomain('http://example.com/'), 'example.com')
+  assert.equal(formatDomain(null), '')
+})
+
+test('홈페이지 주소는 스킴이 없으면 붙여 준다', () => {
+  assert.equal(siteHref('e-gate.co.kr'), 'https://e-gate.co.kr')
+  assert.equal(siteHref('https://example.com/'), 'https://example.com')
+})
+
+test('열 수 없는 값이면 링크를 만들지 않는다', () => {
+  assert.equal(siteHref('사내망'), null)
+  assert.equal(siteHref('e gate'), null)
+  assert.equal(siteHref(''), null)
+  assert.equal(siteHref(null), null)
 })

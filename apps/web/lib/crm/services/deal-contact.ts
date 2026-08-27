@@ -32,7 +32,9 @@ export interface DealContactRow {
   personId: string
   name: string
   title: string | null
+  // 화면이 여기서 바로 연락한다 — email 만 주고 화면이 안 그리던 시절엔 딜에서 연락할 길이 없었다
   email: string | null
+  phone: string | null
   role: DealContactRole
 }
 
@@ -47,8 +49,8 @@ export async function listDealContacts(db: CrmDb, dealId: string): Promise<DealC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const people = await (db as any).crmPerson.findMany({
     where: { id: { in: rows.map((r) => r.personId) } },
-    select: { id: true, name: true, title: true, email: true },
-  }) as { id: string; name: string; title: string | null; email: string | null }[]
+    select: { id: true, name: true, title: true, email: true, phone: true },
+  }) as { id: string; name: string; title: string | null; email: string | null; phone: string | null }[]
   const byId = new Map(people.map((p) => [p.id, p]))
 
   return rows
@@ -56,7 +58,7 @@ export async function listDealContacts(db: CrmDb, dealId: string): Promise<DealC
     .filter((r) => byId.has(r.personId))
     .map((r) => {
       const p = byId.get(r.personId)!
-      return { personId: p.id, name: p.name, title: p.title, email: p.email, role: r.role as DealContactRole }
+      return { personId: p.id, name: p.name, title: p.title, email: p.email, phone: p.phone, role: r.role as DealContactRole }
     })
     // 결정권자를 맨 위로 — 딜을 볼 때 가장 먼저 알아야 하는 사람이다
     .sort((a, b) => DEAL_CONTACT_ROLES.indexOf(a.role) - DEAL_CONTACT_ROLES.indexOf(b.role))

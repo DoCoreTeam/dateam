@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Globe, MapPin, Users, TrendingUp } from 'lucide-react'
+import { MapPin, Users, TrendingUp } from 'lucide-react'
 import ContactLink from '@/components/ui/ContactLink'
 import type { Account, Contact, Deal } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
@@ -89,8 +89,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               {account.website && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
-                  <Globe size={15} color="var(--brand)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <a href={account.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)', fontSize: 'var(--fs-base)', wordBreak: 'break-all' }}>{account.website}</a>
+                  <ContactLink kind="domain" value={account.website} />
                 </div>
               )}
               {account.phone && (

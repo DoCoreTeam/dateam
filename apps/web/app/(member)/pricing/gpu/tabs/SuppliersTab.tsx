@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pencil, Link2 } from 'lucide-react'
+import ContactLink from '@/components/ui/ContactLink'
 import { GPU_TERMS as T } from '@/lib/gpu/terms'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { countryFlag } from '@/lib/gpu/country-flag'
@@ -352,7 +353,10 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                   {[['국가', s?.country], ['웹사이트', s?.website], ['연락처(레거시)', s?.contact], ['소개', s?.description]].map(([label, val]) => (
                     <div key={label as string} style={{ fontSize: 12.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600 }}>{label}</span>
-                      <span style={{ fontWeight: 600 }}>{(val as string) || '—'}</span>
+                      {/* 웹사이트는 열 수 있어야 한다 — 여는 버튼이 편집 모드에만 있어서 평소엔 갈 길이 없었다 */}
+                      {label === '웹사이트'
+                        ? <ContactLink kind="domain" value={val as string | null} icon={false} />
+                        : <span style={{ fontWeight: 600 }}>{(val as string) || '—'}</span>}
                     </div>
                   ))}
                 </div>

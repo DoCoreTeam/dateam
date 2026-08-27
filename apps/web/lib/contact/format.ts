@@ -90,3 +90,27 @@ export function mailtoHref(raw: string | null | undefined): string | null {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return null
   return `mailto:${value}`
 }
+
+/**
+ * 화면에 그릴 도메인. `https://` 와 끝 슬래시를 걷어 낸다 — 사람은 `e-gate.co.kr` 로 읽는다.
+ *
+ * **왜 전화·이메일과 같은 파일인가**: 셋 다 "이 상대에게 닿는 길"이고, 화면에서 같은 자리에 선다.
+ * 따로 두면 도메인만 또 평문으로 남는다 — 실제로 v0.7.598 에서 전화·이메일만 고치고
+ * 도메인 3곳을 그대로 뒀다(회사 속성 · 회사 목록 · 인물의 소속).
+ */
+export function formatDomain(raw: string | null | undefined): string {
+  const trimmed = (raw ?? '').trim()
+  if (!trimmed) return ''
+  return trimmed.replace(/^https?:\/\//i, '').replace(/\/+$/, '')
+}
+
+/**
+ * 회사 홈페이지 주소. 스킴이 없으면 `https://` 를 붙인다.
+ * 열 수 없는 값이면 `null` — 눌러도 아무 데도 안 가는 링크를 만들지 않는다.
+ */
+export function siteHref(raw: string | null | undefined): string | null {
+  const host = formatDomain(raw)
+  // 최소 조건: 점이 있고 공백이 없다. 과한 검증은 사내 주소를 막는다
+  if (!host || /\s/.test(host) || !/^[^./]+\.[^./]/.test(host)) return null
+  return `https://${host}`
+}

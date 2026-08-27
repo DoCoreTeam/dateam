@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import ContactLink from '@/components/ui/ContactLink'
 import EmptyState from '@/components/ui/EmptyState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import type { StatusKey } from '@/lib/tokens/status-colors'
@@ -23,6 +24,7 @@ interface Contact {
   name: string
   title: string | null
   email: string | null
+  phone: string | null
   role: string
 }
 
@@ -135,6 +137,9 @@ export default function DealContacts({ dealId, companyId }: Props) {
               <Link href={`/crm/people/${c.personId}`} className={styles.name}>{c.name}</Link>
               <NbBadge status={ROLE_STATUS[c.role] ?? 'note'}>{ROLE_LABEL[c.role] ?? c.role}</NbBadge>
               {c.title && <span className={styles.title}>{c.title}</span>}
+              {/* 회사 상세의 인물 목록과 같은 부품 — 딜 화면에서도 그 자리에서 연락한다 */}
+              {c.email && <ContactLink kind="email" value={c.email} />}
+              {c.phone && <ContactLink kind="phone" value={c.phone} />}
               <NbButton variant="ghost" disabled={busy === c.personId} onClick={() => void remove(c.personId)}>
                 빼기
               </NbButton>

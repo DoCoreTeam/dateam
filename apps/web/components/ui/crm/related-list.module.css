@@ -1,0 +1,54 @@
+/* components/ui/crm/related-list.module.css — 상세 우측 관련 목록
+ * 화면 전용 스타일을 globals.css 에 더 넣지 않는다(§0-1). 부품 옆에 둔다.
+ */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* 줄과 줄 사이에 선을 둔다 — 연락처가 붙으면 한 줄이 두 층이 되어, 선이 없으면 어디까지가
+   한 사람인지 안 보인다 */
+.row + .row {
+  padding-top: var(--space-3);
+  border-top: var(--hairline) solid var(--border-light);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--duration-fast, 150ms) ease;
+}
+
+a.title:hover,
+a.title:focus-visible { text-decoration-color: currentColor; }
+
+.meta {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.contacts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  margin-top: 0.25rem;
+  font-size: var(--fs-2xs);
+}

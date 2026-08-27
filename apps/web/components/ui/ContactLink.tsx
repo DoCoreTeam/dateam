@@ -14,11 +14,15 @@
 // 인물 상세의 `mailto:` 가 그 상태였다(있는데 아무도 누를 수 있는 줄 몰랐다).
 
 import { useCallback, useState, type ReactNode } from 'react'
-import { Check, Copy, Mail, Phone } from 'lucide-react'
-import { formatPhone, mailtoHref, telHref } from '@/lib/contact/format'
+import { Check, Copy, Globe, Mail, Phone } from 'lucide-react'
+import { formatDomain, formatPhone, mailtoHref, siteHref, telHref } from '@/lib/contact/format'
 import styles from './contact-link.module.css'
 
-type Kind = 'phone' | 'email'
+/**
+ * 셋 다 "이 상대에게 닿는 길"이다. 도메인을 뺐더니 도메인만 평문으로 남았다 —
+ * 종류를 늘리는 자리는 여기 하나여야 화면이 안 갈린다.
+ */
+type Kind = 'phone' | 'email' | 'domain'
 
 interface Props {
   kind: Kind
@@ -36,8 +40,12 @@ const COPIED_MS = 1500
 export default function ContactLink({ kind, value, icon = true, copyable = true, fallback }: Props) {
   const [copied, setCopied] = useState<'idle' | 'done' | 'fail'>('idle')
 
-  const text = kind === 'phone' ? formatPhone(value) : (value ?? '').trim()
-  const href = kind === 'phone' ? telHref(value) : mailtoHref(value)
+  const text = kind === 'phone' ? formatPhone(value)
+    : kind === 'domain' ? formatDomain(value)
+    : (value ?? '').trim()
+  const href = kind === 'phone' ? telHref(value)
+    : kind === 'domain' ? siteHref(value)
+    : mailtoHref(value)
 
   const copy = useCallback(async () => {
     try {
@@ -53,8 +61,10 @@ export default function ContactLink({ kind, value, icon = true, copyable = true,
 
   if (!text) return <>{fallback ?? <span className={styles.empty}>—</span>}</>
 
-  const Icon = kind === 'phone' ? Phone : Mail
-  const actionLabel = kind === 'phone' ? `${text}로 전화 걸기` : `${text}로 메일 쓰기`
+  const Icon = kind === 'phone' ? Phone : kind === 'domain' ? Globe : Mail
+  const actionLabel = kind === 'phone' ? `${text}로 전화 걸기`
+    : kind === 'domain' ? `${text} 새 탭으로 열기`
+    : `${text}로 메일 쓰기`
 
   return (
     <span className={styles.root}>
@@ -65,6 +75,9 @@ export default function ContactLink({ kind, value, icon = true, copyable = true,
           href={href}
           className={styles.link}
           title={actionLabel}
+          /* 홈페이지는 우리 화면을 떠나는 이동이라 새 탭으로 연다(작업 중이던 것을 잃지 않게) */
+          target={kind === 'domain' ? '_blank' : undefined}
+          rel={kind === 'domain' ? 'noopener noreferrer' : undefined}
           /* 행 전체가 상세로 이동하는 목록에서도 이 링크가 먼저다(ListSurface 가 앵커 위 클릭은 비켜선다) */
         >
           {text}

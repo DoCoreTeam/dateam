@@ -9,15 +9,15 @@
 // 두 결과가 다르므로 확인 문구도 다르다 — describeDelete 가 그 문장의 SSOT 다.
 
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
-import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import MeetingPanel from '@/components/ui/crm/MeetingPanel'
+import RelatedList from '@/components/ui/crm/RelatedList'
+import ContactLink from '@/components/ui/ContactLink'
 import { useVerified } from '@/lib/crm/use-verified'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import Timeline from '@/components/ui/crm/Timeline'
@@ -38,7 +38,8 @@ interface Company {
   updatedAt: string
 }
 
-interface PersonRow { id: string; name: string; title: string | null; email: string | null }
+// 연락처까지 받는다 — 예전엔 email 을 받아 놓고 화면에서 버려, 회사에서 담당자에게 연락할 길이 없었다
+interface PersonRow { id: string; name: string; title: string | null; email: string | null; phone: string | null }
 interface DealRow { id: string; name: string; status: string }
 
 export default function CompanyDetail({ companyId }: { companyId: string }) {
@@ -114,7 +115,9 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
             <RecordFieldList>
               <RecordField label="도메인" field="domain"
                 verified={verify.verified.includes('domain')}
-                onToggleVerified={verify.toggle}>{company.domain}</RecordField>
+                onToggleVerified={verify.toggle}>
+                <ContactLink kind="domain" value={company.domain} icon={false} />
+              </RecordField>
               <RecordField label="산업" field="industry"
                 verified={verify.verified.includes('industry')}
                 onToggleVerified={verify.toggle}>{company.industry}</RecordField>
@@ -140,34 +143,26 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
             </RecordPanel>
 
             <RecordPanel title={`인물 ${people.length}명`}>
-              {people.length === 0 ? (
-                <EmptyState title="담당자가 없어요" description="인물 화면에서 이 회사로 담당자를 등록하세요." />
-              ) : (
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-2)' }}>
-                  {people.map((p) => (
-                    <li key={p.id} style={{ fontSize: 'var(--fs-sm)' }}>
-                      <Link href={`/crm/people/${p.id}`}>{p.name}</Link>
-                      {p.title && (
-                        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-2xs)' }}> · {p.title}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <RelatedList
+                loading={loading}
+                items={people.map((p) => ({
+                  id: p.id,
+                  href: `/crm/people/${p.id}`,
+                  title: p.name,
+                  meta: p.title,
+                  // 회사 화면에서 그 회사 사람에게 바로 연락한다 — 인물 상세로 한 번 더 들어가지 않는다
+                  contacts: { email: p.email, phone: p.phone },
+                }))}
+                empty={{ title: '담당자가 없어요', description: '인물 화면에서 이 회사로 담당자를 등록하세요.' }}
+              />
             </RecordPanel>
 
             <RecordPanel title={`딜 ${deals.length}건`}>
-              {deals.length === 0 ? (
-                <EmptyState title="진행 중인 딜이 없어요" description="딜 화면에서 이 회사의 영업 건을 만드세요." />
-              ) : (
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-2)' }}>
-                  {deals.map((d) => (
-                    <li key={d.id} style={{ fontSize: 'var(--fs-sm)' }}>
-                      <Link href={`/crm/deals/${d.id}`}>{d.name}</Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <RelatedList
+                loading={loading}
+                items={deals.map((d) => ({ id: d.id, href: `/crm/deals/${d.id}`, title: d.name, meta: d.status }))}
+                empty={{ title: '진행 중인 딜이 없어요', description: '딜 화면에서 이 회사의 영업 건을 만드세요.' }}
+              />
             </RecordPanel>
 
             {/* 이 회사와 무슨 이야기가 오갔나 — 딜별로 흩어져 있으면 못 본다 */}

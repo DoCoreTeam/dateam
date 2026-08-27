@@ -17,6 +17,7 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import NbButton from '@/components/ui/nb/NbButton'
+import ContactLink from '@/components/ui/ContactLink'
 import {
   TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
 } from '@/components/ui/crm/trash'
@@ -64,11 +65,8 @@ export interface CompanyItem {
 
 const COLUMNS: ColumnDef<CompanyItem>[] = [
   { key: 'name', header: '회사명', primary: true, cell: (r) => r.name },
-  {
-    key: 'domain',
-    header: '도메인',
-    cell: (r) => r.domain ?? <span style={{ color: 'var(--text-faint)' }}>—</span>,
-  },
+  // 인물 목록의 이메일 칸과 같은 부품이다 — 목록에서 바로 홈페이지를 연다
+  { key: 'domain', header: '도메인', cell: (r) => <ContactLink kind="domain" value={r.domain} icon={false} /> },
   {
     key: 'industry',
     header: '산업',

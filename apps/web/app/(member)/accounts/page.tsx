@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { Plus, Globe, MapPin, ExternalLink, Sparkles } from 'lucide-react'
+import { Plus, MapPin, ExternalLink, Sparkles } from 'lucide-react'
 import ContactLink from '@/components/ui/ContactLink'
 import type { Account } from '@/types/database'
 import AccountActions from './AccountActions'
@@ -206,11 +206,7 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
       <div className="detail-info-list">
         {account.website && (
           <div className="detail-info-row">
-            <Globe size={14} color="var(--brand)" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <a href={account.website} target="_blank" rel="noopener noreferrer"
-              style={{ color: 'var(--brand)', wordBreak: 'break-all', fontSize: 'var(--fs-base)' }}>
-              {account.website}
-            </a>
+            <ContactLink kind="domain" value={account.website} />
           </div>
         )}
         {account.phone && (

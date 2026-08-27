@@ -7,18 +7,17 @@
 // 인물 자체에는 딜이 직접 붙지 않으므로, 이어지는 길을 회사를 거쳐 보여 준다.
 
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
-import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import ContactLink from '@/components/ui/ContactLink'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import { useVerified } from '@/lib/crm/use-verified'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import Timeline from '@/components/ui/crm/Timeline'
+import RelatedList from '@/components/ui/crm/RelatedList'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import PersonFormModal from '../PersonFormModal'
@@ -156,34 +155,29 @@ export default function PersonDetail({ personId }: { personId: string }) {
             </RecordPanel>
 
             <RecordPanel title="소속">
-              {company ? (
-                <div style={{ fontSize: 'var(--fs-sm)' }}>
-                  <Link href={`/crm/companies/${company.id}`}>{company.name}</Link>
-                  {company.domain && (
-                    <div style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-2xs)' }}>{company.domain}</div>
-                  )}
-                </div>
-              ) : (
-                <EmptyState
-                  title="소속 회사가 없어요"
-                  description="수정에서 회사를 지정하면 딜과 이어집니다."
-                  action={{ label: '수정', onClick: () => setEditing(true) }}
-                />
-              )}
+              {/* 회사 상세의 인물 목록과 같은 부품이다 — 같은 성격의 자리는 같은 모양이어야 한다(§2-5) */}
+              <RelatedList
+                loading={loading}
+                items={company ? [{
+                  id: company.id,
+                  href: `/crm/companies/${company.id}`,
+                  title: company.name,
+                  contacts: { domain: company.domain },
+                }] : []}
+                empty={{
+                  title: '소속 회사가 없어요',
+                  description: '수정에서 회사를 지정하면 딜과 이어집니다.',
+                  action: { label: '수정', onClick: () => setEditing(true) },
+                }}
+              />
             </RecordPanel>
 
             <RecordPanel title={`회사의 딜 ${deals.length}건`}>
-              {deals.length === 0 ? (
-                <EmptyState title="진행 중인 딜이 없어요" description="딜 화면에서 영업 건을 만드세요." />
-              ) : (
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-2)' }}>
-                  {deals.map((d) => (
-                    <li key={d.id} style={{ fontSize: 'var(--fs-sm)' }}>
-                      <Link href={`/crm/deals/${d.id}`}>{d.name}</Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <RelatedList
+                loading={loading}
+                items={deals.map((d) => ({ id: d.id, href: `/crm/deals/${d.id}`, title: d.name }))}
+                empty={{ title: '진행 중인 딜이 없어요', description: '딜 화면에서 영업 건을 만드세요.' }}
+              />
             </RecordPanel>
           </>
         }

@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Users, UserPlus, UserMinus } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import ContactLink from '@/components/ui/ContactLink'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
@@ -153,7 +154,8 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
             <li key={m.id} className={styles.item}>
               <span className={styles.who}>
                 <span className={styles.name}>{m.displayName}</span>
-                {m.email && <span className={styles.email}>{m.email}</span>}
+                {/* 팀원에게도 같은 방식으로 닿는다 — 화면마다 이메일 그리는 법이 다르면 안 된다(§2-5) */}
+                {m.email && <ContactLink kind="email" value={m.email} />}
               </span>
 
               {m.id === myMemberId && <NbBadge status="doing">나</NbBadge>}
