@@ -18,16 +18,67 @@
  * 표면을 하나 더 만들 때 또 한 곳이 빠진다. 실제로 그렇게 빠졌다.
  */
 
-/** 사이드바가 통째로 그 표면 것으로 바뀌는 곳 — 여기서는 나갈 문이 따로 있어야 한다 */
-const SUB_SURFACES = ['/crm', '/ci'] as const
+import { SERVICE_LABEL, type ServiceKey } from '../terms/index.ts'
+
+/**
+ * 경로 → 서비스. **경로 표는 여기 한 곳뿐이다.**
+ *
+ * `surfaceOf`(아래)는 이 표에서 유도한다 — 두 함수가 각자 경로를 판정하면
+ * 서비스를 하나 더 만들 때 한쪽만 고쳐지고, 그게 이 파일이 생긴 이유다.
+ *
+ * 순서가 규칙이다: 위에서부터 먼저 맞는 것을 쓴다.
+ */
+const SERVICE_ROUTES: { key: ServiceKey; prefixes: string[] }[] = [
+  { key: 'admin', prefixes: ['/admin'] },
+  { key: 'crm', prefixes: ['/crm'] },
+  { key: 'ci', prefixes: ['/ci'] },
+  // 셸 밖 공개 화면 — 로그인 없이 외부인이 본다
+  { key: 'develop', prefixes: ['/develop', '/api-access'] },
+]
+
+export interface Service {
+  key: ServiceKey
+  /** 로고 자리에 거는 간판 */
+  label: string
+  /** 그 서비스의 첫 화면 */
+  home: string
+}
+
+const SERVICE_HOME: Record<ServiceKey, string> = {
+  member: '/home',
+  crm: '/crm',
+  ci: '/ci',
+  admin: '/admin/users',
+  develop: '/develop',
+}
+
+/** 경계를 본다 — `/crm` 은 CRM 이지만 `/crmx` 는 아니다 */
+function hits(p: string, prefix: string): boolean {
+  return p === prefix || p.startsWith(`${prefix}/`)
+}
+
+/**
+ * 지금 어느 **서비스**인가 — 셸의 로고 자리가 이걸로 간판을 건다.
+ *
+ * **왜 `surfaceOf` 로 부족한가**: 그건 "나갈 문이 필요한가"를 묻느라 CRM 과 CI 를
+ * 똑같이 `sub` 로 뭉갠다. 로고 자리는 **둘을 구분해야** 한다 — 사용자가 보는 것은
+ * "하위 표면"이 아니라 「영업 CRM」이거나 「콘텐츠 인텔리전스」다.
+ */
+export function serviceOf(pathname: string | null | undefined): Service {
+  const p = pathname ?? ''
+  const hit = SERVICE_ROUTES.find((s) => s.prefixes.some((x) => hits(p, x)))
+  const key: ServiceKey = hit?.key ?? 'member'
+  return { key, label: SERVICE_LABEL[key], home: SERVICE_HOME[key] }
+}
 
 export type Surface = 'admin' | 'sub' | 'member'
 
 export function surfaceOf(pathname: string | null | undefined): Surface {
-  const p = pathname ?? ''
-  if (p.startsWith('/admin')) return 'admin'
-  // `/crm` 과 `/crmx` 를 구분한다 — 경계를 안 보면 엉뚱한 경로가 하위 표면이 된다
-  if (SUB_SURFACES.some((s) => p === s || p.startsWith(`${s}/`))) return 'sub'
+  // 경로 판정은 serviceOf 한 곳에서만 한다
+  const { key } = serviceOf(pathname)
+  if (key === 'admin') return 'admin'
+  // 사이드바가 통째로 그 서비스 것으로 바뀌는 곳 — 나갈 문이 따로 있어야 한다
+  if (key === 'crm' || key === 'ci') return 'sub'
   return 'member'
 }
 

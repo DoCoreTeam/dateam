@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.609',
+    date: '2026-08-27',
+    title: '지금 어느 서비스에 있는지 로고 자리에서 바로 보여요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '\uD83D\uDEA9',
+        headline: '왼쪽 위에 지금 쓰는 서비스 이름이 떠요',
+        detail: '어느 화면에 있든 회사 이름만 똑같이 떠 있어서, 지금이 영업 CRM인지 콘텐츠 인텔리전스인지 화면만 봐서는 알기 어려웠어요. 이제 그 자리에 서비스 이름이 나오고, 회사 이름은 바로 아래 버전과 함께 표시됩니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '\uD83C\uDFE0',
+        headline: '로고를 누르면 그 서비스의 첫 화면으로 가요',
+        detail: '전에는 어디서 눌러도 업무 홈으로 나갔어요. 이제 영업 CRM에서 누르면 CRM 첫 화면, 콘텐츠 인텔리전스에서 누르면 그 첫 화면으로 갑니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.608',
     date: '2026-08-27',
     title: '홈이 캘린더가 됐어요',

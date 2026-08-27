@@ -1,5 +1,7 @@
 'use client'
 
+import { SERVICE_LABEL } from '@/lib/terms'
+
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import PageHeader from '@/components/ui/PageHeader'
@@ -876,7 +878,7 @@ export default function DevelopPage() {
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <a href="/home" style={{ fontWeight: 700, fontSize: 'var(--fs-md)', color: 'var(--text)', textDecoration: 'none' }}>
-              {brandName ? `${brandName} 개발자센터` : '개발자센터'}
+              {brandName ? `${brandName} ${SERVICE_LABEL.develop}` : SERVICE_LABEL.develop}
             </a>
             <NbBadge>v1</NbBadge>
           </div>

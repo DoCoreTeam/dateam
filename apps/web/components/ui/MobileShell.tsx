@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname } from 'next/navigation'
+import { serviceOf } from '@/lib/nav/surface'
 import Link from 'next/link'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import NbNavItem from './nb/NbNavItem'
@@ -78,6 +79,9 @@ export default function MobileShell({
   // 마지막으로 확인한 업데이트 버전. undefined=localStorage 미독(하이드레이션 전), null=처음.
   const [seenVersion, setSeenVersion] = useState<string | null | undefined>(undefined)
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? ''
+  // 지금 어느 서비스인가 — 경로 판정은 lib/nav/surface 한 곳에서만 한다
+  const service = serviceOf(pathname)
+  const isMain = service.key === 'member'
 
   // 미확인 신규 업데이트 존재 여부(N 배지·자동 안내 기준).
   const hasNewChangelog = seenVersion !== undefined && isChangelogPending(seenVersion)
@@ -182,19 +186,39 @@ export default function MobileShell({
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.125rem', minWidth: 0 }}>
-            <Link href="/home" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoUrl}
-                  alt={brandName}
-                  style={{ maxHeight: '32px', maxWidth: '160px', objectFit: 'contain' }}
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.125rem', minWidth: 0, overflow: 'hidden' }}>
+            {/*
+              간판 — **지금 어느 서비스인가**를 여기서 말한다(§0-2 SERVICE_LABEL).
+              예전엔 네 셸이 회사 브랜드만 똑같이 띄워서, 화면만 봐서는 CRM 인지
+              콘텐츠 인텔리전스인지 알 수 없었다. `/develop` 만 「개발자센터」를 달고 있었다.
+              메인(업무)에서는 브랜드가 곧 간판이라 서비스명을 따로 달지 않는다 — 같은 말을 두 번 쓴다.
+            */}
+            <Link href={service.home} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', minWidth: 0, maxWidth: '100%' }}>
+              {isMain ? (
+                logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logoUrl}
+                    alt={brandName}
+                    style={{ maxHeight: '32px', maxWidth: '160px', objectFit: 'contain' }}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                ) : (
+                  <span className="font-tape" style={{ color: 'var(--sidebar-fg)', fontSize: 'var(--brand-logo-size)', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
+                    {brandName}
+                  </span>
+                )
               ) : (
-                <span className="font-tape" style={{ color: 'var(--sidebar-fg)', fontSize: 'var(--brand-logo-size)', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
-                  {brandName}
+                <span
+                  className="font-tape"
+                  title={`${brandName} · ${service.label}`}
+                  style={{
+                    color: 'var(--sidebar-fg)', fontSize: 'var(--brand-logo-size)', fontWeight: 700,
+                    letterSpacing: '-0.02em', lineHeight: 1.1,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%',
+                  }}
+                >
+                  {service.label}
                 </span>
               )}
             </Link>
@@ -207,6 +231,12 @@ export default function MobileShell({
               className="app-version-btn"
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
+              {!isMain && (
+                <>
+                  <span style={{ color: 'var(--text-faint)', fontWeight: 600, letterSpacing: 0 }}>{brandName}</span>
+                  <span aria-hidden style={{ color: 'var(--text-faint)' }}>·</span>
+                </>
+              )}
               v{appVersion || '—'}
               {hasNewChangelog && (
                 <span

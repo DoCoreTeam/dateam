@@ -88,3 +88,45 @@ test('상세 화면은 폭을 클램프하지 않는다 (§2-4)', () => {
   }
   assert.deepEqual(bad, [], `상세는 전체폭 반응형입니다(§2-4). 폭 제한을 지우세요:\n${bad.join('\n')}`)
 })
+
+test('서비스 간판은 SERVICE_LABEL 에서 온다 — 화면이 직접 적지 않는다', () => {
+  // 왜: 로고 자리가 네 셸에서 회사 브랜드만 똑같이 띄워, 지금 CRM 인지 콘텐츠 인텔리전스인지
+  // 알 수 없었다. 고친 뒤에도 화면이 이름을 직접 적으면 또 갈린다 — `/develop` 이 실제로
+  // 「개발자센터」를 하드코딩하고 있었다(§0-2).
+  const NAMES = ['영업 CRM', '콘텐츠 인텔리전스', '개발자센터', '업무 워크스페이스']
+  const bad: string[] = []
+  for (const { file, src } of scan()) {
+    if (file.includes('lib/terms/')) continue
+    for (const n of NAMES) {
+      // 문자열 리터럴로 적은 것만 잡는다(주석은 stripComments 가 이미 걷어냈다).
+      // **파일이 아니라 등장 횟수를 센다** — 파일 단위로 세면 이미 위반인 파일에는
+      // 몇 개를 더 넣어도 통과한다(design:check 가 v0.7.477 에 같은 이유로 고친 구멍이다).
+      const hits = src.match(new RegExp(`['"\`]${n}['"\`]`, 'g'))
+      if (hits) for (const _ of hits) bad.push(`${file} — ${n}`)
+    }
+  }
+  /**
+   * **ratchet — 늘면 차단, 줄이면 잠근다.**
+   *
+   * 지금 CRM 화면 대부분이 `eyebrow="영업 CRM"` 을 직접 적고 있다. 한 번에 다 바꾸면
+   * 리뷰가 불가능하고 다중 세션과 충돌한다(그 파일 일부는 지금 다른 세션이 쓰고 있다).
+   * **그 화면을 다른 일로 건드릴 때 함께 이관**하고 이 숫자를 내린다(§2-6 (5)과 같은 방식).
+   */
+  const BASELINE = 25
+  assert.ok(
+    bad.length <= BASELINE,
+    `서비스 이름을 직접 적은 화면이 ${bad.length}곳으로 늘었습니다(기준 ${BASELINE}). ` +
+    `SERVICE_LABEL 을 import 하세요:\n${bad.join('\n')}`,
+  )
+  assert.equal(
+    bad.length, BASELINE,
+    `줄었습니다(${bad.length}). BASELINE 을 ${bad.length} 로 낮춰 되돌아가지 못하게 잠그세요.`,
+  )
+})
+
+test('셸의 로고 자리는 경로를 스스로 판정하지 않는다', () => {
+  // 경로 표는 lib/nav/surface 한 곳뿐이다 — 셸이 또 판정하면 서비스를 하나 더 만들 때 어긋난다
+  const src = stripComments(read('components/ui/MobileShell.tsx'))
+  assert.ok(/serviceOf\(/.test(src), '로고 자리는 serviceOf(pathname) 로 간판을 정합니다')
+  assert.ok(!/startsWith\(['"`]\/crm/.test(src), '셸이 경로를 직접 판정하고 있습니다 — surfaceOf/serviceOf 를 쓰세요')
+})
