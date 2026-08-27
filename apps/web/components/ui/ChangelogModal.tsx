@@ -67,7 +67,10 @@ export default function ChangelogModal({ currentVersion, onClose, newOnly = fals
               {notes.map((note, idx) => {
                 const isCurrent = idx === currentIdx
                 return (
-                  <div key={note.version} style={{ borderLeft: `var(--border-w-2) solid ${isCurrent ? 'var(--brand)' : 'var(--border-color)'}`, paddingLeft: 'var(--space-3)' }}>
+                  // 버전만으로는 키가 겹친다 — 두 세션이 같은 번호로 블록을 올리면
+                  // React 가 「같은 키의 자식 둘」 경고를 내고 **한 블록을 빼먹을 수 있다**
+                  // (실측 v0.7.617: 0.7.616 이 둘, 0.7.205 도 둘). 자리(idx)를 함께 쓴다.
+                  <div key={`${note.version}-${idx}`} style={{ borderLeft: `var(--border-w-2) solid ${isCurrent ? 'var(--brand)' : 'var(--border-color)'}`, paddingLeft: 'var(--space-3)' }}>
                     {/* 버전 헤더 */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-1)' }}>
                       <span style={{ fontWeight: 700, fontSize: 'var(--fs-md)', color: 'var(--text)' }}>v{note.version}</span>

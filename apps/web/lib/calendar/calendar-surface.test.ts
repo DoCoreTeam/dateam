@@ -236,3 +236,35 @@ test('★ 홈 인사말은 compact — 가장 안 눌리는 자리가 가장 컸
   const head = HOME.slice(HOME.indexOf('home-section-header'), HOME.indexOf('home-section-calendar'))
   assert.match(head, /page-header--compact/, '인사말이 다시 두 줄 밀도로 돌아갔다(실측 84px)')
 })
+
+/* ── ⑥ 「보기 기억」이 실제로 저장되는 자리에 간다 ─────────────────
+ *
+ * v0.7.613 이 일간/주간/월간 선택을 기억하겠다고 했지만 **한 번도 저장된 적이 없었다**
+ * (실측 v0.7.617 콘솔: GET·POST 둘 다 400). 원인이 둘이었다 —
+ *   ① ui-preferences 가 슬래시로 시작하는 라우트 경로만 받았는데 보드의 키는 `calendar.board` 다
+ *      (홈과 /calendar 가 한 부품을 쓰므로 라우트를 키로 쓸 수 없다)
+ *   ② 값 sanitizer 가 목록 전용이라 허용값이 table·card·compact 뿐 — month·week·day 를 통째로 버렸다
+ * 클라이언트가 실패를 조용히 삼켜(.catch(() => {})) 아무도 몰랐다.
+ */
+
+const PREF_ROUTE = readFileSync(new URL('../../app/api/ui-preferences/route.ts', import.meta.url), 'utf8')
+
+test('★ 보드의 저장 키를 ui-preferences 가 받아 준다 — 400 이면 「보기 기억」은 죽은 기능이다', () => {
+  const key = BOARD.match(/const VIEW_SCOPE_KEY = "([^"]+)"/)?.[1]
+  assert.ok(key, '보드에 저장 키가 없다')
+  const route = /^\/[\w\-/[\]().]{0,120}$/
+  const ns = /^[a-z][a-z0-9]*(\.[a-z0-9]+){1,3}$/
+  assert.ok(route.test(key!) || ns.test(key!), `키 "${key}" 를 서버가 400 으로 튕긴다`)
+  assert.match(PREF_ROUTE, /\^\[a-z\]\[a-z0-9\]\*\(\\\.\[a-z0-9\]\+\)\{1,3\}\$/,
+    '서버가 점 네임스페이스를 다시 막았다 — 목록이 아닌 표면은 보기를 저장할 곳이 없어진다')
+})
+
+test('★ 캘린더 보기 값이 sanitizer 를 통과한다 — 목록 허용값은 table·card·compact 뿐이다', () => {
+  assert.match(PREF_ROUTE, /NON_LIST_VIEWS/, '목록 아닌 보기를 따로 통과시키는 자리가 없다')
+  for (const v of ['month', 'week', 'day']) {
+    assert.ok(new RegExp(`'${v}'`).test(PREF_ROUTE.slice(PREF_ROUTE.indexOf('NON_LIST_VIEWS'), PREF_ROUTE.indexOf('NON_LIST_VIEWS') + 120)),
+      `${v} 보기가 저장 중에 버려진다`)
+  }
+  assert.ok(!/value: sanitizeSavedPrefs\(value\)/.test(PREF_ROUTE),
+    '저장이 목록 전용 sanitizer 로 되돌아갔다 — 캘린더 보기가 다시 빈 값으로 저장된다')
+})
