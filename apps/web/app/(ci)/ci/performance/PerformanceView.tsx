@@ -207,8 +207,8 @@ export default function PerformanceView({
             </h2>
             {learning.patterns.length === 0 ? (
               <EmptyState
-                title="공식으로 부를 만한 반복 패턴이 아직 없어요"
-                description="근거 20개·채널 5곳을 넘어야 공식으로 승격합니다. 관심 채널을 늘리면 그만큼 빨리 모입니다."
+                title="공식으로 부를 만한 발견이 아직 없어요"
+                description="서로 다른 채널 3곳 이상에서 같은 차이가 반복돼야 공식으로 올립니다. 관심 채널을 늘리면 그만큼 빨리 모입니다."
                 action={{ label: '관심 채널 추가', href: '/ci/monitoring' }}
               />
             ) : (

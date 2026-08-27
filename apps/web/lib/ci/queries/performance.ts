@@ -3,10 +3,11 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { CORPUS_FILTER } from '../corpus.ts'
-import { formatBasis, formatLift, formatOutlier, formatPercentile } from '../format/metrics.ts'
+import { formatBasis, formatOutlier, formatPercentile } from '../format/metrics.ts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { suggestRulePromotions, type RulePromotion } from '../analysis/corrections.ts'
 import type { CiConfidence, CiPlatform } from '../types.ts'
+import { formatDiscoveryBasis } from '../analysis/discovery.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -178,10 +179,13 @@ export async function getLearningPerformance(workspaceId: string): Promise<Learn
   const adminClient = createAdminClient() as any
 
   const [{ data: patterns }, { data: corrections }, { data: contents }, { data: topics }] = await Promise.all([
-    adminClient.from('ci_patterns')
-      .select('id, statement, lift, evidence_count, channel_count, confidence')
+    // 발견(ci_discoveries)을 읽는다. 옛 ci_patterns 는 하드코딩 규칙 7개의 중복이라
+    // 전부 보관 처리돼 이 화면도 늘 0건이었다 — 소스를 옮기는 것이 폐기의 첫 단계다(M-4).
+    adminClient.from('ci_discoveries')
+      .select('id, statement, evidence_count, channel_count')
       .eq('workspace_id', workspaceId).eq('is_archived', false)
-      .order('lift', { ascending: false }).limit(20),
+      .order('channel_count', { ascending: false })
+      .order('evidence_count', { ascending: false }).limit(20),
     adminClient.from('ci_corrections')
       .select('kind, before_value, after_value, created_at')
       .eq('workspace_id', workspaceId).limit(1000),
@@ -221,8 +225,9 @@ export async function getLearningPerformance(workspaceId: string): Promise<Learn
     patterns: ((patterns ?? []) as any[]).map((p) => ({
       id: p.id,
       statement: p.statement,
-      liftText: formatLift(p.lift, p.evidence_count, p.channel_count),
-      confidence: p.confidence as CiConfidence,
+      // 발견에는 배수가 없다 — 없는 숫자를 만들지 않고 근거의 넓이를 그대로 쓴다
+      liftText: formatDiscoveryBasis(p.evidence_count, p.channel_count),
+      confidence: (p.channel_count >= 5 ? 'high' : 'medium') as CiConfidence,
     })),
     corrections: Array.from(counts.entries()).map(([kind, count]) => ({
       kind: CORRECTION_LABEL[kind] ?? kind, count,
