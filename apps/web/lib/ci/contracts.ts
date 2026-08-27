@@ -151,6 +151,17 @@ export interface CiLoopMinimap {
   producing: number
   ready: number
   tracking: number
+  /**
+   * 사이드바가 «아직 안 쓰는 화면»을 접는 데 쓴다(2026-08-27).
+   *
+   * 왜: 메뉴 13개 중 5개가 완전히 빈 화면이었다(편집점 0 · 보드 0 · 게시 0 · 내 채널 0).
+   * 매일 보는 메뉴의 절반이 아무것도 없는 곳으로 갔다. 건수가 0이면 접고,
+   * 하나라도 생기면 저절로 올라온다 — 사람이 메뉴를 관리하지 않아도 된다.
+   */
+  editPlans: number
+  boards: number
+  publications: number
+  ownChannels: number
 }
 
 export interface CiRefreshState {

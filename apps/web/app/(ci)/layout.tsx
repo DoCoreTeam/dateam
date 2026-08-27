@@ -18,7 +18,7 @@ import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getLoopCounts } from '@/lib/ci/queries/home'
 import AppShell from '@/components/ui/shell/AppShell'
-import type { NavGroup } from '@/components/ui/shell/AppShell'
+import type { NavGroup, NavItem } from '@/components/ui/shell/AppShell'
 import CiOnboardingGate from '@/components/ci/CiOnboardingGate'
 import AssistantPanel from '@/components/ci/AssistantPanel'
 import NotificationBell from '@/components/ci/NotificationBell'
@@ -37,42 +37,62 @@ function badge(count?: number): number | undefined {
 }
 
 function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
-  return [
-    {
-      label: '리서치',
-      items: [
-        // 맨 앞이다 — 사용자가 매일 처음 던지는 질문이 "뭘 만들까"이기 때문이다.
-        // 수집함·모니터링은 그 답을 만들기 위한 재료이지 매일 볼 화면이 아니다.
-        { href: '/ci/recommend', label: '오늘 뭘 만들까', icon: <Sparkles size={16} /> },
-        { href: '/ci/inbox', label: '수집함', icon: <Inbox size={16} />, badge: badge(counts?.review) },
-        { href: '/ci/monitoring', label: '모니터링', icon: <Radar size={16} />, match: ['/ci/channels'] },
-        { href: '/ci/trends', label: '트렌드', icon: <TrendingUp size={16} />, badge: badge(counts?.newOutliers) },
-      ],
-    },
-    {
-      label: '제작',
-      items: [
-        { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, match: ['/ci/briefs'], badge: badge(counts?.producing) },
-        { href: '/ci/studio', label: '편집점', icon: <Scissors size={16} /> },
-        { href: '/ci/boards', label: '보드', icon: <Layers size={16} /> },
-        { href: '/ci/assets', label: '자료', icon: <Layers size={16} /> },
-      ],
-    },
-    {
-      label: '게시',
-      items: [
-        { href: '/ci/publish', label: '게시', icon: <Send size={16} />, badge: badge(counts?.ready) },
-        { href: '/ci/my-channels', label: '내 채널', icon: <Radio size={16} /> },
-      ],
-    },
-    {
-      label: '성과',
-      items: [
-        { href: '/ci/performance', label: '성과', icon: <BarChart3 size={16} /> },
-        { href: '/ci/settings', label: '설정', icon: <Settings size={16} /> },
-      ],
-    },
+  /**
+   * 아직 아무것도 없는 화면은 메뉴에 올리지 않는다 — 하나라도 생기면 저절로 올라온다.
+   *
+   * 왜(2026-08-27 실측): 메뉴 13개 중 5개가 **완전히 빈 화면**이었다
+   * (편집점 0 · 보드 0 · 게시 0 · 내 채널 0). 매일 보는 메뉴의 절반이 빈 방이었다.
+   * 그렇다고 지울 수는 없다 — 만드는 흐름의 뒷단계라 언젠가 쓴다.
+   * 그래서 «필요할 때 나타나게» 한다. 사람이 메뉴를 관리하지 않아도 된다.
+   *
+   * counts 를 못 읽었으면(undefined) 접지 않는다 — 조회 실패로 메뉴가 사라지면 안 된다.
+   */
+  const has = (n: number | undefined) => counts === undefined || (n ?? 0) > 0
+
+  const research: NavItem[] = [
+    // 맨 앞이다 — 사용자가 매일 처음 던지는 질문이 "뭘 만들까"이기 때문이다.
+    { href: '/ci/recommend', label: '오늘 뭘 만들까', icon: <Sparkles size={16} /> },
+    { href: '/ci/inbox', label: '수집함', icon: <Inbox size={16} />, badge: badge(counts?.review) },
+    // 채널을 등록하는 곳과 그 결과가 쌓이는 곳은 한 흐름이다 — 수집함 바로 다음에 둔다
+    { href: '/ci/monitoring', label: '모니터링', icon: <Radar size={16} />, match: ['/ci/channels'] },
+    { href: '/ci/trends', label: '트렌드', icon: <TrendingUp size={16} />, badge: badge(counts?.newOutliers) },
   ]
+
+  const make: NavItem[] = [
+    { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, match: ['/ci/briefs'], badge: badge(counts?.producing) },
+    // 편집점·보드는 파이프라인의 뒷단계다. 기획이 생겨야 쓸 일이 있다.
+    ...(has(counts?.editPlans) ? [{ href: '/ci/studio', label: '편집점', icon: <Scissors size={16} /> }] : []),
+    ...(has(counts?.boards) ? [{ href: '/ci/boards', label: '보드', icon: <Layers size={16} /> }] : []),
+    { href: '/ci/assets', label: '자료', icon: <Layers size={16} /> },
+  ]
+
+  // 게시는 내보낼 것이 있거나 내 채널을 연결했을 때부터 뜻이 있다
+  const publish: NavItem[] = [
+    ...(has(counts?.publications) ? [{ href: '/ci/publish', label: '게시', icon: <Send size={16} />, badge: badge(counts?.ready) }] : []),
+    ...(has(counts?.ownChannels) ? [{ href: '/ci/my-channels', label: '내 채널', icon: <Radio size={16} /> }] : []),
+  ]
+
+  const groups: NavGroup[] = [
+    { label: '리서치', items: research },
+    { label: '제작', items: make },
+  ]
+  // 그룹은 항목 2개 이상일 때만 — 하나짜리 그룹은 이름만 차지한다(§2-3-3 N-3)
+  if (publish.length >= 2) groups.push({ label: '게시', items: publish })
+  else if (publish.length === 1) make.push(publish[0])
+
+  // 「성과」 그룹 안에 「성과」 항목이 있었다 — 그룹 이름과 항목 이름이 같으면 그 그룹은 없앤다(N-3).
+  // 성과와 설정은 성격도 다르다. 묶지 않고 최상위에 둔다.
+  groups.push({
+    // 이름이 「성과」였고 그 안에 「성과」 항목이 있었다 — 같은 말이 두 번 나오면 헷갈린다(N-3).
+    // 성과와 설정은 성격도 달라 하나로 묶을 이름이 없다. 그러면 «그 밖»이 정직한 이름이다.
+    label: '그 밖',
+    items: [
+      { href: '/ci/performance', label: '성과', icon: <BarChart3 size={16} /> },
+      { href: '/ci/settings', label: '설정', icon: <Settings size={16} /> },
+    ],
+  })
+
+  return groups
 }
 
 export default async function CiLayout({ children }: { children: React.ReactNode }) {

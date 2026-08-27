@@ -6,7 +6,10 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { CORPUS_FILTER } from '../corpus.ts'
 import type { CiLoopMinimap, CiRefreshState } from '../contracts.ts'
 
-const EMPTY: CiLoopMinimap = { review: 0, newOutliers: 0, producing: 0, ready: 0, tracking: 0 }
+const EMPTY: CiLoopMinimap = {
+  review: 0, newOutliers: 0, producing: 0, ready: 0, tracking: 0,
+  editPlans: 0, boards: 0, publications: 0, ownChannels: 0,
+}
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -53,7 +56,10 @@ export async function getLoopCounts(workspaceId: string): Promise<CiLoopMinimap>
 async function computeLoopCounts(workspaceId: string): Promise<CiLoopMinimap> {
   const since = new Date(Date.now() - NEW_OUTLIER_WINDOW_DAYS * 86400_000).toISOString()
 
-  const [review, newOutliers, producing, ready, tracking] = await Promise.all([
+  const [
+    review, newOutliers, producing, ready, tracking,
+    editPlans, boards, publications, ownChannels,
+  ] = await Promise.all([
     // 검토 대기 — 저확신으로 검토 큐에 들어온 것
     countRows('ci_contents', (q) =>
       q.eq('workspace_id', workspaceId).eq('review_state', 'pending').is('deleted_at', null)),
@@ -77,9 +83,19 @@ async function computeLoopCounts(workspaceId: string): Promise<CiLoopMinimap> {
     // 추적 중 — 모니터링 켜진 관심 채널
     countRows('ci_channels', (q) =>
       q.eq('workspace_id', workspaceId).eq('is_monitored', true).is('deleted_at', null)),
+
+    // ── 아래 넷은 «메뉴에 올릴지»를 정하는 값이다. 0이면 사이드바가 그 항목을 접는다.
+    countRows('ci_edit_plans', (q) => q.eq('workspace_id', workspaceId)),
+    countRows('ci_boards', (q) => q.eq('workspace_id', workspaceId)),
+    countRows('ci_publications', (q) => q.eq('workspace_id', workspaceId)),
+    countRows('ci_channels', (q) =>
+      q.eq('workspace_id', workspaceId).eq('ownership', 'owned').is('deleted_at', null)),
   ])
 
-  return { review, newOutliers, producing, ready, tracking }
+  return {
+    review, newOutliers, producing, ready, tracking,
+    editPlans, boards, publications, ownChannels,
+  }
 }
 
 /** "최근"의 정의. 이 창 밖의 일은 지금 화면과 무관하다. */
