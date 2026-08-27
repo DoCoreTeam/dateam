@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   WINNER_MIN_INDEX, PEERS_PER_WINNER, PEER_MAX_DAYS_APART, DISCOVERY_MIN_CHANNELS,
-  buildContrastSets, promoteDiscoveries, formatDiscoveryBasis, clusterByOverlap, mergeClusters,
+  buildContrastSets, promoteDiscoveries, formatDiscoveryBasis, clusterByOverlap, mergeClusters, pickRepresentative,
   type DiscoverySample, type RawFinding, type FindingCluster,
 } from './discovery.ts'
 
@@ -226,10 +226,10 @@ test('재배열이 항목을 잃거나 더하지 않는다', () => {
 // 발견 12건을 만들어 놓고 화면엔 0건이 뜬다. 아래 문장들은 그때 실제로 나온 것이다.
 
 const REAL_FINDINGS: [string, string, string][] = [
-  ['c1', 'A', '유명 연예인이나 방송 출연진의 이름을 해시태그로 활용하여 호기심을 유발한다.'],
-  ['c2', 'B', '유명 인물의 실명과 극단적인 갈등 상황을 제목에 배치해 호기심을 극대화했다.'],
-  ['c3', 'C', '인지도가 높은 유명인의 이름이나 콘텐츠의 구체적인 출처를 제목에 명시한다.'],
-  ['c4', 'D', '유명인의 이름을 전면에 내세워 호기심을 유발한다'],
+  ['c1', 'A', '대중적 인지도가 높은 유명인의 이름을 제목에 직접 언급하여 호기심을 유발한다.'],
+  ['c2', 'B', '대중적 화제성이 높은 유명인의 이름을 제목에 배치하여 호기심을 극대화했다.'],
+  ['c3', 'C', '대중적 인지도가 높은 유명인의 이름을 제목에 명시하여 호기심을 자극한다.'],
+  ['c4', 'D', '유명인의 이름을 제목에 내세워 호기심을 유발한다'],
   ['c5', 'A', '시의성 있는 신제품 출시일에 맞춰 현장 구매 과정을 콘텐츠로 다룬다.'],
 ]
 
@@ -255,13 +255,19 @@ test('뜻이 다른 문장은 억지로 묶지 않는다 — 문턱이 무의미
   assert.equal(clusterByOverlap(f).length, 2)
 })
 
-test('대표 문장은 더 긴 쪽을 쓴다 — 짧은 문장은 정보가 덜 들어 있다', () => {
-  const f: RawFinding[] = [
-    { contentId: 'y1', channelId: 'A', statement: '유명인 이름을 쓴다', observation: '' },
-    { contentId: 'y2', channelId: 'B', statement: '유명인 이름을 제목 맨 앞에 배치해 호기심을 자극한다', observation: '' },
-  ]
-  const [c] = clusterByOverlap(f)
-  assert.match(c.statement, /맨 앞에/)
+test('★ 대표 문장은 뭉뚱그린 것을 피한다 — "다양한 형태의 제목 전략"이 실제로 뽑혔던 자리', () => {
+  // 실측: 근거 21건짜리 대표가 뭉뚱그린 문장으로 뽑혀 따라 만들 수가 없었다.
+  // 원인은 문턱이 아니라 "가장 긴 것"을 고른 규칙이었다.
+  const picked = pickRepresentative([
+    '시청자의 호기심을 유발하는 다양한 형태의 제목 전략을 여러 방식으로 활용한다',
+    '유명인의 이름을 제목 맨 앞에 배치해 호기심을 자극한다',
+  ])
+  assert.match(picked, /맨 앞에/, `뭉뚱그린 문장이 뽑혔다: ${picked}`)
+})
+
+test('구체적인 문장이 여럿이면 정보가 많은 쪽을 고른다', () => {
+  const picked = pickRepresentative(['짧게 만든다', '60초 이내로 줄여 이탈을 막는다'])
+  assert.match(picked, /60초/)
 })
 
 test('빈 입력에서 터지지 않는다', () => {
@@ -275,9 +281,9 @@ test('빈 입력에서 터지지 않는다', () => {
 
 test('★ AI가 홀로 둔 같은 뜻을 다시 합친다 — 승격 0건의 실제 원인이었다', () => {
   const aiSaid: FindingCluster[] = [
-    { statement: '유명 연예인의 이름을 해시태그로 활용해 호기심을 유발한다', contentIds: ['c1'] },
-    { statement: '유명 인물의 실명을 제목에 배치해 호기심을 극대화했다', contentIds: ['c2'] },
-    { statement: '인지도가 높은 유명인의 이름을 제목에 명시한다', contentIds: ['c3'] },
+    { statement: '대중적 인지도가 높은 유명인의 이름을 제목에 언급해 호기심을 유발한다', contentIds: ['c1'] },
+    { statement: '대중적 인지도가 높은 유명인의 이름을 제목에 배치해 호기심을 자극한다', contentIds: ['c2'] },
+    { statement: '대중적 인지도가 높은 유명인의 이름을 제목에 명시해 호기심을 끈다', contentIds: ['c3'] },
     { statement: '주말 아침 시간대에 올린다', contentIds: ['c4'] },
   ]
   const merged = mergeClusters(aiSaid)
@@ -298,7 +304,7 @@ test('AI가 이미 잘 묶었으면 아무것도 바꾸지 않는다 — 멀쩡�
 test('합치면서 같은 콘텐츠를 두 번 세지 않는다', () => {
   const dup: FindingCluster[] = [
     { statement: '유명인 이름을 제목에 쓴다', contentIds: ['x', 'y'] },
-    { statement: '유명인 이름을 제목 앞에 둔다', contentIds: ['y', 'z'] },
+    { statement: '유명인 이름을 제목에 앞세운다', contentIds: ['y', 'z'] },
   ]
   const [c] = mergeClusters(dup)
   assert.deepEqual(c.contentIds.sort(), ['x', 'y', 'z'])

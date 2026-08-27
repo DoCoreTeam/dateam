@@ -261,11 +261,50 @@ export function statementTokens(text: string): Set<string> {
   return out
 }
 
-/** 두 문장이 같은 뜻인지 성기게 판정. 겹치는 의미 토큰이 이 수 이상이면 같은 묶음으로 본다. */
-export const OVERLAP_MIN_SHARED_TOKENS = 2
+/**
+ * 두 문장이 같은 뜻인지 성기게 판정. 겹치는 의미 토큰이 이 수 이상이면 같은 묶음으로 본다.
+ *
+ * 실측(2026-08-27, 실제 발견 30건·채널 3곳으로 비교):
+ *   2 → 군집 10, 승격 2건 (더 많이 잡지만 서로 다른 뜻이 섞일 여지가 크다)
+ *   3 → 군집 17, 승격 1건 (묶인 것은 확실히 같은 뜻이다)
+ *   4 → 군집 24, 승격 0건 (아무것도 안 묶인다)
+ * 3을 고른다 — 틀리게 묶느니 덜 올린다. 승격은 "시장의 경향"이라고 말하는 일이라
+ * 한 번 틀리면 그 뒤 모든 문장을 사용자가 안 믿는다.
+ */
+export const OVERLAP_MIN_SHARED_TOKENS = 3
+
+/**
+ * 대표 문장에서 피해야 할 말.
+ *
+ * 실측: 군집 21건짜리 대표가 "시청자의 호기심을 유발하는 **다양한 형태의 제목 전략**을
+ * 사용한다"로 뽑혔다. 근거는 충분한데 **따라 만들 수가 없는 문장**이다.
+ * 원인은 문턱이 아니라 대표를 "가장 긴 것"으로 고른 규칙이었다 —
+ * 뭉뚱그린 문장이 대개 더 길기 때문이다.
+ */
+const VAGUE_TOKENS = new Set([
+  '다양한', '여러', '등을', '등의', '전략', '요소', '형태', '방식', '내용을', '활용',
+])
+
+/**
+ * 군집을 대표할 문장을 고른다 — **가장 구체적인 것**.
+ *
+ * 뭉뚱그린 말이 들어 있으면 점수를 깎는다. 길이로 고르면 뭉뚱그린 문장이 이긴다(실측).
+ */
+export function pickRepresentative(statements: readonly string[]): string {
+  let best = statements[0] ?? ''
+  let bestScore = -Infinity
+  for (const st of statements) {
+    const toks = Array.from(statementTokens(st))
+    const vague = toks.filter((t) => VAGUE_TOKENS.has(t)).length
+    // 구체 토큰은 +1, 뭉뚱그린 토큰은 -3 — 하나만 섞여도 밀리게 한다
+    const score = (toks.length - vague) - vague * 3
+    if (score > bestScore) { bestScore = score; best = st }
+  }
+  return best
+}
 
 export function clusterByOverlap(findings: readonly RawFinding[]): FindingCluster[] {
-  const groups: { tokens: Set<string>; statement: string; contentIds: string[] }[] = []
+  const groups: { tokens: Set<string>; statements: string[]; contentIds: string[] }[] = []
 
   for (const f of findings) {
     const t = statementTokens(f.statement)
@@ -275,17 +314,19 @@ export function clusterByOverlap(findings: readonly RawFinding[]): FindingCluste
       for (const tok of Array.from(t)) if (g.tokens.has(tok)) shared += 1
       if (shared >= OVERLAP_MIN_SHARED_TOKENS) {
         g.contentIds.push(f.contentId)
+        g.statements.push(f.statement)
         for (const tok of Array.from(t)) g.tokens.add(tok)
-        // 대표 문장은 더 긴 쪽 — 짧은 문장은 대개 정보가 덜 들어 있다
-        if (f.statement.length > g.statement.length) g.statement = f.statement
         joined = true
         break
       }
     }
-    if (!joined) groups.push({ tokens: t, statement: f.statement, contentIds: [f.contentId] })
+    if (!joined) groups.push({ tokens: t, statements: [f.statement], contentIds: [f.contentId] })
   }
 
-  return groups.map((g) => ({ statement: g.statement, contentIds: g.contentIds }))
+  return groups.map((g) => ({
+    statement: pickRepresentative(g.statements),
+    contentIds: g.contentIds,
+  }))
 }
 
 /**
@@ -300,7 +341,7 @@ export function clusterByOverlap(findings: readonly RawFinding[]): FindingCluste
  * 승격 문턱은 그대로라, 합쳐도 아무거나 올라가지 않는다.
  */
 export function mergeClusters(clusters: readonly FindingCluster[]): FindingCluster[] {
-  const groups: { tokens: Set<string>; statement: string; contentIds: string[] }[] = []
+  const groups: { tokens: Set<string>; statements: string[]; contentIds: string[] }[] = []
 
   for (const c of clusters) {
     const t = statementTokens(c.statement)
@@ -310,19 +351,19 @@ export function mergeClusters(clusters: readonly FindingCluster[]): FindingClust
       for (const tok of Array.from(t)) if (g.tokens.has(tok)) shared += 1
       if (shared >= OVERLAP_MIN_SHARED_TOKENS) {
         g.contentIds.push(...c.contentIds)
+        g.statements.push(c.statement)
         for (const tok of Array.from(t)) g.tokens.add(tok)
-        if (c.statement.length > g.statement.length) g.statement = c.statement
         joined = true
         break
       }
     }
     if (!joined) {
-      groups.push({ tokens: t, statement: c.statement, contentIds: [...c.contentIds] })
+      groups.push({ tokens: t, statements: [c.statement], contentIds: [...c.contentIds] })
     }
   }
 
   return groups.map((g) => ({
-    statement: g.statement,
+    statement: pickRepresentative(g.statements),
     contentIds: Array.from(new Set(g.contentIds)),
   }))
 }
