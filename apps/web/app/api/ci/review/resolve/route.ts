@@ -14,6 +14,7 @@ import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import { parseGroupKey } from '@/lib/ci/queries/review-groups'
 import { reclassifyChannelContents } from '@/lib/ci/jobs/stages'
+import { dropSecondaryOverlap, userTopicPatch } from '@/lib/ci/topic-assign'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -80,11 +81,24 @@ export async function POST(req: Request) {
 
     // 사람이 답한 것이므로 topic_source='user' · 확신도 1.0 · 검토 완료.
     // 주제가 바뀌었으면 그 사실도 함께 남는다(topic_id 변경).
-    const patch = {
-      topic_id: topic.id,
-      topic_source: 'user',
-      topic_confidence: 1,
-      review_state: 'resolved',
+    const patch = userTopicPatch(topic.id)
+
+    // 고른 주제가 부 주제에 남아 있으면 DB 가 확정을 **통째로 거부한다**(23514 · 마이그 204).
+    // 그런데 화면의 「다른 주제로 확정」 버튼에 걸린 후보가 바로 그 부 주제다
+    // (review-groups.ts) — 겹치는 것은 예외가 아니라 정상 경로이므로 먼저 정리한다.
+    // 이걸 빠뜨렸을 때 사용자에게는 «자꾸 안 되는 버튼»으로만 보였다.
+    const secErr = await dropSecondaryOverlap(
+      db,
+      topic.id,
+      partial
+        ? { kind: 'ids', ids }
+        : { kind: 'group', match: { workspaceId: session.workspaceId, fromTopicId: g.topicId, channelId: g.channelId } },
+    )
+    if (secErr) {
+      console.error('[ci/review/resolve] 부 주제 정리 실패', {
+        groupKey, topicId: topic.id, error: secErr,
+      })
+      return fail('INTERNAL', '정리하지 못했습니다. 잠시 뒤 다시 시도해 주세요')
     }
 
     // 전부 확정할 때는 **id 목록을 보내지 않고 조건으로** 갱신한다.
