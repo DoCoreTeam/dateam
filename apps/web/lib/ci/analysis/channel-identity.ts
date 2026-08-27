@@ -18,6 +18,15 @@ export interface ChannelSignalSample {
   platformCategory: string | null
   topicSignals: string[]
   keywords: string[]
+  /**
+   * 게시물 설명문. 채널 안에서 **반복되는 줄**을 찾는 데만 쓴다(captionBoilerplate).
+   *
+   * 왜: 실측 「장사의 신」 645건의 캡션은 서로 다른 것이 11개뿐이었다 —
+   * 나머지는 홍보 링크와 법적 고지가 통째로 복사된 것이다. 그 고지 안에
+   * 「비평·패러디·풍자·교육적 설명의 목적」이 있어서 645건 전부가 '교육' 규칙에 걸렸다.
+   * 플랫폼 카테고리와 **똑같은 종류의 오염**이다: 전건에 같으면 게시물을 구별하지 못한다.
+   */
+  caption?: string | null
 }
 
 export interface SignalCount { label: string; count: number }
@@ -39,7 +48,35 @@ export interface ChannelIdentity {
   sampleSize: number
   /** 신호가 아예 없어 판정에 못 쓴 표본 수 */
   unknownCount: number
+  /**
+   * 채널 대부분의 게시물 설명문에 똑같이 들어 있는 줄 — 홍보 링크·법적 고지·정기 안내.
+   *
+   * 예전에 저장된 정체성에는 없다(optional). 없으면 아무것도 걷어내지 않는다 —
+   * 채널을 다시 훑으면 채워진다.
+   */
+  captionBoilerplate?: string[]
 }
+
+/** 설명문을 줄 단위로 자른다. 이 함수가 보일러플레이트 판정의 단위를 정한다 */
+export function captionLines(caption: string | null | undefined): string[] {
+  if (!caption) return []
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const raw of caption.split(/\r?\n/)) {
+    const line = raw.trim()
+    // 너무 짧은 줄은 우연히 겹친다("---", "📌"). 판정 단위로 쓰지 않는다
+    if (line.length < 8) continue
+    if (seen.has(line)) continue
+    seen.add(line)
+    out.push(line)
+  }
+  return out
+}
+
+/** 채널 게시물 대부분에 반복되는 줄의 하한. 신호 변별력과 같은 기준을 쓴다 */
+const BOILERPLATE_SHARE = 0.8
+/** 이보다 표본이 적으면 반복인지 우연인지 가릴 수 없다 */
+const BOILERPLATE_MIN_SAMPLES = 5
 
 /** 판정에 최소한 필요한 표본 수. 1~2건으로 채널 성격을 단정하지 않는다. */
 export const IDENTITY_MIN_SAMPLES = 3
@@ -72,6 +109,20 @@ function ranked(counts: ReadonlyMap<string, number>): SignalCount[] {
  * 각 콘텐츠의 신호는 **한 번만** 센다 — 한 영상이 Music과 Pop_music을 둘 다 가져도
  * '음악'을 2로 세면 영상 하나가 두 영상인 척하게 된다.
  */
+/**
+ * 채널 게시물 대부분에 똑같이 들어 있는 설명문 줄을 찾는다.
+ *
+ * 분모는 **설명문이 있는 표본**이다 — 설명문이 없는 게시물까지 세면
+ * 숏폼이 많은 채널에서 어떤 줄도 임계를 넘지 못한다(실측 423건 중 227건 설명문 없음).
+ */
+function computeCaptionBoilerplate(samples: readonly ChannelSignalSample[]): string[] {
+  const withCaption = samples.filter((s) => (s.caption ?? '').trim().length > 0)
+  if (withCaption.length < BOILERPLATE_MIN_SAMPLES) return []
+  const counts = tally(withCaption.flatMap((s) => captionLines(s.caption)))
+  const floor = withCaption.length * BOILERPLATE_SHARE
+  return ranked(counts).filter((c) => c.count >= floor).map((c) => c.label).slice(0, 40)
+}
+
 export function computeChannelIdentity(
   platform: string,
   samples: readonly ChannelSignalSample[],
@@ -102,6 +153,7 @@ export function computeChannelIdentity(
     dominantCategoryLabel: categoryLabel(platform, dominantCategory),
     categoryAgreement,
     topSignals: ranked(sigCounts).slice(0, 6),
+    captionBoilerplate: computeCaptionBoilerplate(samples),
     dominantSignal: dominant?.label ?? null,
     keywordProfile,
     sampleSize: withSignal,

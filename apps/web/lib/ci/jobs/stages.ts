@@ -145,6 +145,8 @@ async function loadChannelContext(channelId: string | null): Promise<{
   platform: string
   topicId: string | null
   topicConfidence: number | null
+  /** 사람이 «이 채널의 게시물 주제»로 굳힌 값(마이그 226). 있으면 분류가 다시 묻지 않는다 */
+  contentTopicId: string | null
   displayName: string | null
   description: string | null
   identity: ChannelIdentity | null
@@ -154,7 +156,7 @@ async function loadChannelContext(channelId: string | null): Promise<{
     const adminClient = createAdminClient() as any
     const { data: ch } = await adminClient
       .from('ci_channels')
-      .select('id, platform, topic_id, topic_confidence, display_name, description, identity')
+      .select('id, platform, topic_id, topic_confidence, content_topic_id, display_name, description, identity')
       .eq('id', channelId).is('deleted_at', null).maybeSingle()
     if (!ch) return null
 
@@ -163,6 +165,7 @@ async function loadChannelContext(channelId: string | null): Promise<{
       platform: ch.platform,
       topicId: ch.topic_id ?? null,
       topicConfidence: ch.topic_confidence != null ? Number(ch.topic_confidence) : null,
+      contentTopicId: ch.content_topic_id ?? null,
       displayName: ch.display_name ?? null,
       description: ch.description ?? null,
       identity: stored && typeof stored === 'object' && 'sampleSize' in stored ? stored : null,
@@ -235,6 +238,7 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
     caption: content.caption,
     channelTopicId: channel?.topicId ?? null,
     channelTopicConfidence: channel?.topicConfidence ?? null,
+    channelContentTopicId: channel?.contentTopicId ?? null,
     channelIdentity: channel?.identity ?? null,
     signals,
     platform: content.platform,
@@ -390,6 +394,7 @@ export async function reclassifyChannelContents(
       caption: c.caption,
       channelTopicId: channel?.topicId ?? null,
       channelTopicConfidence: channel?.topicConfidence ?? null,
+      channelContentTopicId: channel?.contentTopicId ?? null,
       channelIdentity: channel?.identity ?? null,
       signals: {
         platformCategory: c.platform_category ?? null,
@@ -436,7 +441,7 @@ export async function runChannelIdentity(workspaceId: string, channelId: string)
 
   const { data: rows } = await adminClient
     .from('ci_contents')
-    .select('platform_category, topic_signals, keywords')
+    .select('platform_category, topic_signals, keywords, caption')
     .eq('channel_id', channelId).is('deleted_at', null)
     .limit(500)
 
@@ -444,6 +449,8 @@ export async function runChannelIdentity(workspaceId: string, channelId: string)
     platformCategory: r.platform_category ?? null,
     topicSignals: Array.isArray(r.topic_signals) ? r.topic_signals : [],
     keywords: Array.isArray(r.keywords) ? r.keywords : [],
+    // 채널 고정 문구(홍보·법적 고지)를 찾기 위해 함께 넘긴다 — 저장되는 것은 반복되는 줄뿐이다
+    caption: r.caption ?? null,
   }))
 
   const identity = computeChannelIdentity(ch.platform, samples)

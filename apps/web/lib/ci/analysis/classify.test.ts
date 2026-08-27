@@ -79,10 +79,33 @@ test('★ 신호와 제목이 다른 주제를 가리키면 그때가 사람을 
     title: '레시피 공개', topics: [MUSIC, COOK],
     signals: sample({ topicSignals: ['Music'] }),
   }))
-  assert.equal(v.topicId, MUSIC.id)
+  // 갈릴 때 택하는 것은 **이 게시물의 제목**이다(v0.7.626).
+  // 신호는 채널 여러 게시물에 걸친 증거이고 제목은 이 게시물만의 증거다 —
+  // 갈릴 때 채널 쪽을 택하면 게시물별 판정이라는 말이 성립하지 않는다.
+  // (실측: 그래서 「김세의 깜빵 두달차」가 '음식'이 됐다)
+  assert.equal(v.topicId, COOK.id)
   assert.equal(v.needsHuman, true)
-  assert.deepEqual(v.secondaryTopicIds, [COOK.id])
+  assert.deepEqual(v.secondaryTopicIds, [MUSIC.id], '택하지 않은 쪽은 버리지 않고 남긴다')
   assert.match(v.reason, /갈립니다/)
+})
+
+test('★ 채널 전체에 똑같이 붙은 신호는 게시물 판정에서 빠진다 — 제목이 판정한다', () => {
+  // 「장사의 신」 실측 재현: 카테고리 22가 전건 동일, 그런데 제목은 제각각
+  const identity = computeChannelIdentity('youtube', Array.from({ length: 8 }, () => ({
+    platformCategory: '22', topicSignals: [] as string[], keywords: [],
+  })))
+  const MUSIC_CAT = topic({ ...MUSIC, categoryPatterns: ['22'] })
+  const v = classifyByRules(input({
+    title: '레시피 공개',
+    topics: [MUSIC_CAT, COOK],
+    signals: sample({ platformCategory: '22', topicSignals: [] }),
+    channelIdentity: identity,
+  }))
+  assert.equal(v.topicId, COOK.id, '전건 동일 카테고리는 이 게시물을 구별하지 못한다')
+  assert.equal(v.needsHuman, false, '갈릴 상대가 사라졌으니 물을 일도 없다')
+  const l0 = v.rungs.find((r) => r.level === 'L0')
+  assert.equal(l0?.ok, false)
+  assert.match(l0?.detail ?? '', /판단에서 뺀 것/, '무엇을 왜 뺐는지 사용자에게 밝힌다')
 })
 
 test('신호 규칙은 원문(Music)과 한국어 이름(음악) 양쪽으로 맞춰본다', () => {

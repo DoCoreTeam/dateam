@@ -15,6 +15,7 @@ import {
   detectDivergence, describeSample,
 } from './channel-identity.ts'
 import { foldSignals, signalLabel } from './signal-taxonomy.ts'
+import { discriminatingSample, describeDiscrimination, stripBoilerplate } from './signal-discrimination.ts'
 
 export interface TopicCandidate {
   id: string
@@ -31,6 +32,14 @@ export interface TopicCandidate {
 export interface ClassifyInput {
   title: string | null
   caption: string | null
+  /**
+   * 사람이 «이 채널의 게시물은 이 주제»라고 답해 굳힌 값(마이그 226).
+   *
+   * 왜 필요한가: 채널 고정 태그가 게시물마다 같은 신호를 내면 L0(신호)와 L2(제목)가
+   * 매번 같은 자리에서 갈린다 — 실측 634건 중 629건이 그렇게 한 채널에서 나왔다.
+   * 사람이 한 번 답했으면 그 채널은 다시 묻지 않는다.
+   */
+  channelContentTopicId?: string | null
   /** 채널이 확정한 주제 (L1 결과) */
   channelTopicId: string | null
   /** 채널 주제의 확신도. 사람이 확정했으면 1 */
@@ -140,10 +149,21 @@ export function classifyByRules(input: ClassifyInput): ClassifyVerdict {
   let l0: { topic: TopicCandidate; score: number } | null = null
   const l0Others: TopicCandidate[] = []
 
-  if (sig) {
+  // 채널 전체에 똑같이 붙은 신호는 **이 게시물**을 구별하지 못하므로 여기서 뺀다.
+  //
+  // 그것은 채널을 설명하는 증거이지 게시물을 설명하는 증거가 아니다 — 그리고 채널을
+  // 설명하는 일은 이미 L1이 한다. 같은 증거를 두 단이 보면 사다리가 한 단으로 줄어든다
+  // (이 파일 첫 줄의 설계 원칙: **각 단은 서로 다른 증거를 본다**).
+  //
+  // 실측: 이 필터가 없어서 category 22 하나가 645건 전부를 '음식'으로 만들었고,
+  // 제목은 게시물마다 다르니 매번 갈려 634건이 검토 대기로 쌓였다.
+  const disc = sig ? discriminatingSample(input.channelIdentity, sig) : null
+  const useSig = disc ? disc.sample : null
+
+  if (sig && useSig) {
     for (const t of topics) {
-      const bySignal = signalHits(sig.topicSignals, t.signalPatterns)
-      const byCategory = sig.platformCategory && t.categoryPatterns.includes(sig.platformCategory) ? 1 : 0
+      const bySignal = signalHits(useSig.topicSignals, t.signalPatterns)
+      const byCategory = useSig.platformCategory && t.categoryPatterns.includes(useSig.platformCategory) ? 1 : 0
       const total = bySignal + byCategory
       if (total === 0) continue
       // 카테고리와 신호가 함께 맞으면 가장 강한 증거다
@@ -153,21 +173,31 @@ export function classifyByRules(input: ClassifyInput): ClassifyVerdict {
         l0 = { topic: t, score }
       } else l0Others.push(t)
     }
+    const dropNote = disc ? describeDiscrimination(disc) : ''
+    const suffix = dropNote ? ` (${dropNote})` : ''
     rungs.push({
       level: 'L0',
       ok: l0 != null,
       detail: l0
-        ? `플랫폼 신호가 '${l0.topic.name}'을 가리킵니다 — ${describeSample(platform, sig)}`
-        : (mySignals.length > 0 || sig.platformCategory
-          ? `플랫폼 신호(${describeSample(platform, sig)})에 맞는 주제 규칙이 없습니다`
-          : '플랫폼이 주제 신호를 주지 않았습니다'),
+        ? `플랫폼 신호가 '${l0.topic.name}'을 가리킵니다 — ${describeSample(platform, sig)}${suffix}`
+        : (dropNote
+          ? `${dropNote} — 남은 신호로는 주제를 가릴 수 없습니다`
+          : (mySignals.length > 0 || sig.platformCategory
+            ? `플랫폼 신호(${describeSample(platform, sig)})에 맞는 주제 규칙이 없습니다`
+            : '플랫폼이 주제 신호를 주지 않았습니다')),
     })
   } else {
     rungs.push({ level: 'L0', ok: false, detail: '플랫폼 신호가 아직 수집되지 않았습니다' })
   }
 
   // ── L2 · 텍스트 규칙 ──────────────────────────────────────────
-  const text = `${norm(input.title)} ${norm(input.caption)}`
+  //
+  // 설명문에서 **채널 고정 문구**를 먼저 걷어낸다. 신호에 한 것과 같은 이유다 —
+  // 전건에 똑같이 들어 있는 줄은 이 게시물을 구별하지 못한다.
+  // (실측: 한 채널의 캡션 645건 중 서로 다른 것이 11개였고, 그 안의 법적 고지에
+  //  「비평·패러디·풍자·교육적 설명의 목적」이 있어 전건이 '교육' 규칙에 걸렸다)
+  const ownCaption = stripBoilerplate(input.caption, input.channelIdentity?.captionBoilerplate)
+  const text = `${norm(input.title)} ${norm(ownCaption)}`
   let l2: { topic: TopicCandidate; score: number } | null = null
   let l2Tie = false
 
@@ -232,6 +262,35 @@ export function classifyByRules(input: ClassifyInput): ClassifyVerdict {
       ? `채널 주제는 '${chTopic.name}'입니다${divergence.diverged ? ` — 다만 ${divergence.reason}` : ''}`
       : '이 채널의 주제가 아직 정해지지 않았습니다',
   })
+
+  // ── L1.5 · 사람이 이 채널에 답해 둔 것 ─────────────────────────
+  //
+  // 어떤 자동 증거보다 앞선다. 사람이 이미 "이 채널의 영상은 이 주제"라고 답했다면
+  // 같은 채널의 다음 게시물에 같은 질문을 다시 하는 것은 시스템의 잘못이다.
+  // (실측: 이 한 줄이 없어서 한 채널이 629개의 질문이 됐다)
+  const contentTopic = input.channelContentTopicId
+    ? topics.find((t) => t.id === input.channelContentTopicId) ?? null
+    : null
+
+  if (contentTopic) {
+    rungs.push({
+      level: 'L1',
+      ok: true,
+      detail: `이 채널의 게시물 주제를 '${contentTopic.name}'으로 정해 두셨습니다`,
+    })
+    const others = new Set<string>()
+    for (const c of [l0, l2, lm]) if (c && c.topic.id !== contentTopic.id) others.add(c.topic.id)
+    return {
+      topicId: contentTopic.id,
+      // 갈린 후보는 버리지 않고 남긴다 — 나중에 마음이 바뀌면 근거가 필요하다
+      secondaryTopicIds: Array.from(others),
+      confidence: 1,
+      source: 'user',
+      reason: `이 채널의 게시물 주제로 '${contentTopic.name}'을 정해 두셨습니다`,
+      rungs,
+      needsHuman: false,
+    }
+  }
 
   // ── 판정 조합 ────────────────────────────────────────────────
   //
@@ -309,15 +368,22 @@ export function classifyByRules(input: ClassifyInput): ClassifyVerdict {
     }
   }
 
-  // 2) L0과 L2가 서로 다른 주제를 가리킨다 — 진짜 애매한 경우다. 사람을 부른다.
+  // 2) L0과 L2가 서로 다른 주제를 가리킨다 — 갈릴 때는 **이 게시물의 제목**을 택한다.
+  //
+  //    예전에는 신호(L0)를 택했다. 그래서 「김세의 깜빵 두달차」가 '음식'이 됐다 —
+  //    신호는 채널 여러 게시물에 걸친 증거이고 제목은 이 게시물만의 증거인데,
+  //    갈릴 때 채널 쪽을 택하면 **게시물별 판정이라는 말 자체가 성립하지 않는다.**
+  //    LM(영상 실체)이 어긋날 때 영상을 택하는 것(0-c)과 같은 이유다.
+  //
+  //    다만 갈렸다는 사실은 남기고 사람에게 알린다 — 택한 것이 확정은 아니다.
   if (l0 && l2 && l0.topic.id !== l2.topic.id) {
-    secondary.add(l2.topic.id)
+    secondary.add(l0.topic.id)
     return {
-      topicId: l0.topic.id,
+      topicId: l2.topic.id,
       secondaryTopicIds: Array.from(secondary),
       confidence: 0.6,
       source: 'auto',
-      reason: `신호는 '${l0.topic.name}', 제목은 '${l2.topic.name}'을 가리켜 판단이 갈립니다`,
+      reason: `제목은 '${l2.topic.name}', 신호는 '${l0.topic.name}'을 가리켜 판단이 갈립니다`,
       rungs,
       needsHuman: true,
     }
