@@ -25,6 +25,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { KIND_LABEL, type AttentionKind, type AttentionItem } from '@/lib/crm/services/attention'
+import MeetingIntakeBox from '@/components/crm/MeetingIntakeBox'
+import type { TodayMeeting } from '@/lib/crm/services/today-meetings'
 import styles from './today.module.css'
 
 const ICON: Record<AttentionKind, React.ReactNode> = {
@@ -65,6 +67,7 @@ export default function TodayClient() {
   const [unplanned, setUnplanned] = useState(0)
   const [name, setName] = useState('')
   const [setup, setSetup] = useState<Setup | null>(null)
+  const [todayMeetings, setTodayMeetings] = useState<TodayMeeting[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -87,6 +90,7 @@ export default function TodayClient() {
       setUnplanned(body.unplanned ?? 0)
       setName(body.displayName ?? '')
       setSetup(body.setup ?? null)
+      setTodayMeetings(body.todayMeetings ?? [])
     } catch {
       setError('불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -151,6 +155,13 @@ export default function TodayClient() {
         {name ? `${name}님, ` : ''}
         {total > 0 ? summary : '급한 건 다 처리하셨어요.'}
       </p>
+
+      {/*
+        포착이 맨 위다.
+        노트북을 펼치고 고객 앞에 앉은 사람이 가장 먼저 찾는 것은 「어디에 적지」이지
+        「무엇이 밀렸지」가 아니다. 밀린 것은 그 아래에서 기다려도 된다.
+      */}
+      <MeetingIntakeBox todayMeetings={todayMeetings} />
 
       {/*
         시작하기 — 처음 온 사람이 가장 먼저 봐야 할 것.

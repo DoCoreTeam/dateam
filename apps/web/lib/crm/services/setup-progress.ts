@@ -15,8 +15,22 @@
 // 회사를 만들면 그 항목이 저절로 체크된다.
 
 import type { CrmDb } from '../db/client.ts'
+import { ENTITY, count, createLabel } from '../../terms/index.ts'
 
-export type SetupStepId = 'pipeline' | 'company' | 'deal' | 'next_action'
+/**
+ * 셋업 단계 — **셋뿐이다.**
+ *
+ * 예전엔 `next_action`(딜마다 다음 할 일)이 넷째로 있었다. 그런데 그건 셋업이 아니라
+ * **운영 지표**다 — 영업을 하는 한 그 숫자는 계속 0과 1 사이를 오간다.
+ * 딜을 하나 새로 만드는 순간 `complete` 가 풀려 **「시작하기」가 다시 떴다.**
+ * 사용자 지적(2026-08-27): *"이건 계속 나와있는거야? 온보딩?"*
+ *
+ * 게다가 같은 숫자를 바로 아래 배너(`TodayClient` 의 `unplanned`)가 이미 말하고 있어
+ * **한 화면이 같은 사실을 두 번** 말했다.
+ *
+ * 셋업은 **한 번 하면 끝나는 것**만 담는다. 그래야 다 하면 화면에서 사라진다.
+ */
+export type SetupStepId = 'pipeline' | 'company' | 'deal'
 
 export interface SetupStep {
   id: SetupStepId
@@ -50,14 +64,13 @@ const SEED_PIPELINE_NAMES = new Set(['GPU 인프라', '파트너십', '공공', 
 
 export async function buildSetupProgress(db: CrmDb): Promise<SetupProgress> {
   // 실패해도 화면이 떠야 한다 — 안내가 못 뜬다고 CRM 을 못 쓰면 그게 더 나쁘다
-  const [pipelines, companies, deals, unplanned] = await Promise.all([
+  const [pipelines, companies, deals] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db as any).crmPipeline.findMany({ select: { name: true } }).catch(() => []) as Promise<{ name: string }[]>,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db as any).crmCompany.count().catch(() => 0) as Promise<number>,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db as any).crmDeal.count({ where: { status: 'OPEN' } }).catch(() => 0) as Promise<number>,
-    countDealsWithoutTask(db).catch(() => 0),
   ])
 
   const seedLeft = pipelines.filter((p) => SEED_PIPELINE_NAMES.has(p.name)).length
@@ -80,7 +93,8 @@ export async function buildSetupProgress(db: CrmDb): Promise<SetupProgress> {
       title: '회사와 연락처를 등록하세요',
       why: '딜은 회사에 붙습니다. 회사가 없으면 딜을 만들 수 없어요.',
       done: companies > 0,
-      status: companies > 0 ? `${companies}곳이 등록돼 있어요` : '아직 한 곳도 없어요',
+      // 조수사는 용어집이 정한다 — 화면·서비스가 고르면 같은 개체가 곳/개로 갈린다
+      status: companies > 0 ? `${count('company', companies)}이 등록돼 있어요` : '아직 한 곳도 없어요',
       action: { label: '엑셀로 한 번에 올리기', href: '/crm/settings' },
       alt: { label: '하나씩 만들기', href: '/crm/companies' },
     },
@@ -89,19 +103,9 @@ export async function buildSetupProgress(db: CrmDb): Promise<SetupProgress> {
       title: '첫 딜을 만들어 보세요',
       why: '진행 중인 영업 건을 딜로 만들면 단계별로 어디까지 왔는지 보입니다.',
       done: deals > 0,
-      status: deals > 0 ? `진행 중인 딜 ${deals}건` : '아직 딜이 없어요',
-      action: { label: '딜 만들기', href: '/crm/deals' },
-    },
-    {
-      id: 'next_action',
-      title: '딜마다 다음에 할 일을 정하세요',
-      why: '다음 할 일이 없는 딜은 조용히 멈춥니다. 이게 CRM 을 쓰는 진짜 이유예요.',
-      // 딜이 없으면 이 단계는 아직 물을 수 없다 — 미리 체크해 두면 거짓이 된다
-      done: deals > 0 && unplanned === 0,
-      status: deals === 0
-        ? '딜을 만들면 여기서 알려 드릴게요'
-        : unplanned > 0 ? `${unplanned}건이 아직 안 정해졌어요` : '모든 딜에 다음 할 일이 있어요',
-      action: { label: '딜 보러 가기', href: '/crm/deals' },
+      status: deals > 0 ? `진행 중인 ${count('deal', deals)}` : '아직 딜이 없어요',
+      // 「딜 만들기」는 금지어다 — 새로 만드는 진입은 「새 {개체}」 (용어집 §02)
+      action: { label: createLabel(ENTITY.deal.label), href: '/crm/deals' },
     },
   ]
 
@@ -115,19 +119,3 @@ export async function buildSetupProgress(db: CrmDb): Promise<SetupProgress> {
   }
 }
 
-/** 다음 할 일이 없는 열린 딜 수 — next-action 의 것과 같은 뜻이지만 여기서는 가볍게 센다 */
-async function countDealsWithoutTask(db: CrmDb): Promise<number> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const open = await (db as any).crmDeal.findMany({
-    where: { status: 'OPEN' }, select: { id: true }, take: 500,
-  }) as { id: string }[]
-  if (open.length === 0) return 0
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const withTask = await (db as any).crmTask.findMany({
-    where: { dealId: { in: open.map((d) => d.id) }, status: { in: ['TODO', 'DOING'] } },
-    select: { dealId: true }, distinct: ['dealId'],
-  }) as { dealId: string }[]
-
-  return open.length - withTask.length
-}

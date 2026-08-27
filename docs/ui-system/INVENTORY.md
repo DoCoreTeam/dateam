@@ -254,6 +254,15 @@ CI의 삭제는 **물리 삭제**라 되돌리기가 없다(사용자 결정 202
 | `RecordingPanel` | 녹음 시작·정지·구간 진행. 레코더는 셸이 소유한다 | `EmptyState` · `NbButton` · `InlineError` |
 | `RecordingBar` | **녹음 중이면 어느 화면에서든** 좌하단 상주(우하단은 Dock 독점) | — |
 
+- **CRM** `components/crm/**` — `AttentionBell` · `CommandPalette` · **`MeetingIntakeBox`**(v0.7.600 신설)
+
+| 부품 | 하는 일 | 안에서 쓰는 공용 부품 |
+|---|---|---|
+| `MeetingIntakeBox` | **`/crm/today` 맨 위 포착 자리** — 녹음/직접 작성/붙여넣기 한 번에 작업대로. 오늘 잡힌 미팅은 새로 만들지 않고 이어간다 | `NbButton` · `FormErrorBanner` · `startMeeting`(진입 SSOT) · `@/lib/terms`(말 SSOT) |
+
+> **표면마다 첫 화면에 포착 자리가 하나씩 있다** — 홈 `HomeQuickEntry` · CRM `MeetingIntakeBox` · CI `LinkIntakeBox`.
+> 예전엔 CRM 만 없어서 `/crm/today` 가 읽기 전용이었다(사용자 지시 2026-08-27).
+
 녹음 상태는 `lib/meeting/recording-context.tsx` 의 `RecordingProvider` 가 **`AppShell` 안에서 한 번만** 소유한다.
 화면이 들고 있으면 라우트를 옮길 때 언마운트돼 진행 중 구간(최대 10분)이 사라진다(v0.7.588 실측).
 

@@ -12,6 +12,7 @@ import { buildAttention, attentionSummary } from '@/lib/crm/services/attention'
 import { countUnplanned } from '@/lib/crm/services/next-action'
 import { suggestNextBestActions } from '@/lib/crm/services/next-best-action'
 import { buildSetupProgress } from '@/lib/crm/services/setup-progress'
+import { listTodayMeetings } from '@/lib/crm/services/today-meetings'
 
 export const maxDuration = 60
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
       return { ai: await suggestNextBestActions(db, session.workspaceId) }
     }
 
-    const [attention, unplanned, setup] = await Promise.all([
+    const [attention, unplanned, setup, todayMeetings] = await Promise.all([
       buildAttention(db),
       // 다음 할 일이 없는 딜 수 — 이 숫자가 영업 규율의 지표다
       countUnplanned(db).catch(() => 0),
@@ -37,12 +38,20 @@ export async function GET(req: NextRequest) {
        * 사람은 "이거 왜 안 없어지지"를 신경 쓰게 된다.
        */
       buildSetupProgress(db).catch(() => null),
+      /**
+       * 오늘 잡혀 있는 미팅.
+       *
+       * 화면 이름이 「오늘」인데 오늘의 미팅이 없었다 — `attention` 은 할 일과 제안만 본다.
+       * 실패해도 화면은 뜬다(포착 상자는 이것 없이도 새 미팅을 만들 수 있다).
+       */
+      listTodayMeetings(db).catch(() => []),
     ])
 
     return {
       attention: { ...attention, summary: attentionSummary(attention) },
       unplanned,
       setup: setup && !setup.complete ? setup : null,
+      todayMeetings,
       displayName: session.displayName,
     }
   })

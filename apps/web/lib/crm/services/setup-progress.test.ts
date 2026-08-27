@@ -58,7 +58,7 @@ function fakeDb(o: {
 
 const SEED = ['GPU 인프라', '파트너십', '공공', 'KDC 제품']
 
-test('★ 아무것도 없으면 넷 다 남는다 — 처음 온 사람이 볼 화면이다', async () => {
+test('★ 아무것도 없으면 셋 다 남는다 — 처음 온 사람이 볼 화면이다', async () => {
   const p = await buildSetupProgress(fakeDb({ pipelines: SEED }))
   assert.equal(p.doneCount, 0)
   assert.equal(p.complete, false)
@@ -67,7 +67,7 @@ test('★ 아무것도 없으면 넷 다 남는다 — 처음 온 사람이 볼 
 
 test('★ 순서가 업계 정설과 같다 — 프로세스 → 데이터 → 운영', async () => {
   const p = await buildSetupProgress(fakeDb({ pipelines: SEED }))
-  assert.deepEqual(p.steps.map((s) => s.id), ['pipeline', 'company', 'deal', 'next_action'])
+  assert.deepEqual(p.steps.map((s) => s.id), ['pipeline', 'company', 'deal'])
 })
 
 test('★ 시드 이름이 그대로면 "아직 자기 것으로 안 만들었다"로 본다', async () => {
@@ -90,21 +90,44 @@ test('시드를 다 지웠어도 체크된다 — 지운 것도 정리한 것이
 test('★ 사용자가 "했다"를 누르지 않아도 저절로 체크된다 — 상태로 판정한다', async () => {
   const p = await buildSetupProgress(fakeDb({ pipelines: SEED, companies: 12 }))
   assert.equal(p.steps[1].done, true)
-  assert.match(p.steps[1].status, /12곳/)
+  // 조수사는 용어집(ENTITY.company.counter='곳')이 정한다 — 화면·서비스가 안 고른다
+  assert.match(p.steps[1].status, /회사 12곳이 등록돼 있어요/)
 })
 
-test('★ 딜이 없으면 "다음 할 일" 단계를 미리 체크하지 않는다 — 미리 체크하면 거짓이다', async () => {
-  const p = await buildSetupProgress(fakeDb({ pipelines: SEED, companies: 5, openDeals: 0 }))
-  assert.equal(p.steps[3].done, false)
-  assert.match(p.steps[3].status, /딜을 만들면/)
-})
-
-test('실측 재현: 회사 12·딜 1·계획 없음 1 → 2/4 (브라우저에서 본 값)', async () => {
-  const p = await buildSetupProgress(fakeDb({
-    pipelines: SEED, companies: 12, openDeals: 1, dealsWithTask: 0,
-  }))
+test('실측 재현: 회사 12·딜 1 → 2/3 (4단계를 뺀 뒤)', async () => {
+  const p = await buildSetupProgress(fakeDb({ pipelines: SEED, companies: 12, openDeals: 1 }))
   assert.equal(p.doneCount, 2)
-  assert.match(p.steps[3].status, /1건이 아직 안 정해졌어요/)
+  assert.equal(p.steps.length, 3)
+  assert.equal(p.current, 'pipeline')
+})
+
+test('★ 셋업에 운영 지표를 넣지 않는다 — 넣으면 완료가 계속 풀린다', async () => {
+  // 사용자 지적(2026-08-27): "이건 계속 나와있는거야? 온보딩?"
+  // 예전 4단계 `next_action`(딜마다 다음 할 일)은 영업하는 한 0↔1 을 오가는 값이라
+  // 딜을 새로 만들 때마다 complete 가 풀려 「시작하기」가 다시 떴다.
+  const ids = (await buildSetupProgress(fakeDb({ pipelines: SEED }))).steps.map((s) => s.id)
+  assert.ok(!ids.includes('next_action' as never), '운영 지표가 셋업 단계에 다시 들어왔다')
+
+  const src = readFileSync(new URL('./setup-progress.ts', import.meta.url), 'utf8')
+  assert.ok(!/countDealsWithoutTask/.test(src), '쓰지 않는 조회가 남아 있다(죽은 코드)')
+})
+
+test('★★ 한 번 끝나면 다시 미완이 되지 않는다 — 회귀 잠금', async () => {
+  // 셋업을 마친 상태
+  const done = fakeDb({ pipelines: ['우리 영업'], companies: 3, openDeals: 2, dealsWithTask: 2 })
+  assert.equal((await buildSetupProgress(done)).complete, true)
+
+  // 그 뒤 영업이 계속 돌아간다 — 딜이 늘고, 그중 다음 할 일이 없는 것이 생긴다.
+  // 예전 판은 여기서 complete 가 false 로 풀렸다.
+  const later = fakeDb({ pipelines: ['우리 영업'], companies: 9, openDeals: 7, dealsWithTask: 0 })
+  assert.equal((await buildSetupProgress(later)).complete, true,
+    '딜이 늘었다고 셋업이 다시 미완이 되면 안 된다 — 「시작하기」가 영영 안 사라진다')
+})
+
+test('같은 사실을 화면이 두 번 말하지 않는다 — 미계획 딜은 배너만', () => {
+  const src = readFileSync(new URL('./setup-progress.ts', import.meta.url), 'utf8')
+  assert.ok(!/다음에 할 일을 정하세요/.test(src), '셋업이 배너와 같은 말을 한다')
+  assert.match(TODAY_UI, /unplanned > 0 &&/, '배너가 그 역할을 하고 있어야 한다')
 })
 
 test('★ 다 끝나면 complete — 화면이 사라진다(계속 뜨면 그때부턴 장식이다)', async () => {
