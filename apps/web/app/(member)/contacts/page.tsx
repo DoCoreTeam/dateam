@@ -7,9 +7,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { Plus, Mail, Phone, ExternalLink, Briefcase, Sparkles } from 'lucide-react'
+import { Plus, ExternalLink, Briefcase, Sparkles } from 'lucide-react'
 import type { Contact, Account } from '@/types/database'
 import SlidePanel from '@/components/ui/SlidePanel'
+import ContactLink from '@/components/ui/ContactLink'
 import PageHeader from '@/components/ui/PageHeader'
 import ProjectTabs from '@/components/ui/ProjectTabs'
 import ListToolbar from '@/components/ui/list/ListToolbar'
@@ -55,20 +56,10 @@ const COLUMNS: ColumnDef<ContactWithAccount>[] = [
   {
     key: 'contact', header: '연락처',
     cell: (c) => (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-        {c.email && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Mail size={12} color="var(--text-faint)" />
-            <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()}
-              style={{ fontSize: 'var(--fs-sm)', color: 'var(--brand)', textDecoration: 'none' }}>{c.email}</a>
-          </span>
-        )}
-        {(c.mobile ?? c.phone) && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Phone size={12} color="var(--text-faint)" />
-            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>{c.mobile ?? c.phone}</span>
-          </span>
-        )}
+      // 전화가 평문이라 걸 수 없었다 — CRM 인물 목록과 같은 부품으로 모은다(§2-5)
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)' }}>
+        {c.email && <ContactLink kind="email" value={c.email} />}
+        {(c.mobile ?? c.phone) && <ContactLink kind="phone" value={c.mobile ?? c.phone} />}
       </div>
     ),
   },
@@ -194,20 +185,19 @@ function ContactDetail({ contact: c, onClose, onDeleted }: { contact: ContactWit
         )}
         {c.email && (
           <div className="detail-info-row">
-            <Mail size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
-            <a href={`mailto:${c.email}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{c.email}</a>
+            <ContactLink kind="email" value={c.email} />
           </div>
         )}
         {c.mobile && (
           <div className="detail-info-row">
-            <Phone size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
-            <span>📱 {c.mobile}</span>
+            <ContactLink kind="phone" value={c.mobile} />
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>휴대폰</span>
           </div>
         )}
         {c.phone && (
           <div className="detail-info-row">
-            <Phone size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
-            <span>{c.phone}</span>
+            <ContactLink kind="phone" value={c.phone} />
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>직통</span>
           </div>
         )}
         {c.notes && (

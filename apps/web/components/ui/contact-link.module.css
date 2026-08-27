@@ -1,0 +1,86 @@
+/* components/ui/contact-link.module.css — 연락처 한 칸
+ *
+ * 화면 전용 스타일을 globals.css 에 더 넣지 않는다(§0-1). 부품 옆에 둔다.
+ */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.icon {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+/* 링크는 링크로 보여야 한다 — Tailwind preflight 가 a 의 색·밑줄을 지운다.
+   밑줄은 평소 투명하게 두고 호버·포커스에서 켠다: 목록에 밑줄이 20줄 깔리면 표가 시끄럽다. */
+.link {
+  color: var(--brand);
+  font-size: inherit;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: text-decoration-color var(--duration-fast, 150ms) ease;
+}
+
+.link:hover,
+.link:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+/* 걸 수 없는 값 — 링크처럼 보이면 눌러 보고 아무 일도 안 일어난다 */
+.plain {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty { color: var(--text-faint); }
+
+.copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color var(--duration-fast, 150ms) ease, background var(--duration-fast, 150ms) ease;
+}
+
+.copy:hover { color: var(--text); background: var(--border-light); }
+.copy:focus-visible { color: var(--text); background: var(--border-light); }
+.copy[data-state='done'] { color: var(--success); }
+.copy[data-state='fail'] { color: var(--danger); }
+
+/* 손가락으로 누르는 화면에서는 44px 를 준다(터치 최소치).
+   표는 이 폭에서 카드로 바뀌므로 행 높이를 밀지 않는다. */
+@media (max-width: 767px) {
+  .copy { width: 2.75rem; height: 2.75rem; }
+  .link, .plain { white-space: normal; word-break: break-all; }
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

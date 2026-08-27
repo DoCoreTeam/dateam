@@ -10,6 +10,7 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import NbButton from '@/components/ui/nb/NbButton'
+import ContactLink from '@/components/ui/ContactLink'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
@@ -44,8 +45,10 @@ const dash = <span style={{ color: 'var(--text-faint)' }}>—</span>
 const COLUMNS: ColumnDef<PersonItem>[] = [
   { key: 'name', header: '이름', primary: true, cell: (r) => r.name },
   { key: 'title', header: '직함', cell: (r) => r.title ?? dash },
-  { key: 'email', header: '이메일', cell: (r) => r.email ?? dash },
-  { key: 'phone', header: '연락처', hideOnCard: true, cell: (r) => r.phone ?? dash },
+  // 목록에서 바로 메일을 쓰고 전화를 건다 — 상세로 한 번 더 들어가게 하지 않는다
+  { key: 'email', header: '이메일', cell: (r) => <ContactLink kind="email" value={r.email} icon={false} /> },
+  // 폰에서 가장 필요한 칸이라 카드에서 숨기지 않는다(예전엔 hideOnCard 로 아예 안 보였다)
+  { key: 'phone', header: '연락처', cell: (r) => <ContactLink kind="phone" value={r.phone} icon={false} /> },
   {
     key: 'lifecycleStage',
     header: '단계',

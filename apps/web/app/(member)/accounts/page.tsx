@@ -6,7 +6,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { Plus, Globe, Phone, MapPin, ExternalLink, Sparkles } from 'lucide-react'
+import { Plus, Globe, MapPin, ExternalLink, Sparkles } from 'lucide-react'
+import ContactLink from '@/components/ui/ContactLink'
 import type { Account } from '@/types/database'
 import AccountActions from './AccountActions'
 import SlidePanel from '@/components/ui/SlidePanel'
@@ -214,8 +215,7 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
         )}
         {account.phone && (
           <div className="detail-info-row">
-            <Phone size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
-            <span>{account.phone}</span>
+            <ContactLink kind="phone" value={account.phone} />
           </div>
         )}
         {(account.region || account.address) && (

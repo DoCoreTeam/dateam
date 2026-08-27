@@ -1,7 +1,8 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Mail, Phone, Linkedin } from 'lucide-react'
+import { Linkedin } from 'lucide-react'
+import ContactLink from '@/components/ui/ContactLink'
 import type { Contact, Account } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
 import ProjectTabs from '@/components/ui/ProjectTabs'
@@ -53,22 +54,19 @@ export default async function ContactDetailPage({ params }: PageProps) {
         <h2 className="tape-title" style={{ margin: 0 }}>연락처 정보</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {data.email && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              <Mail size={16} color="var(--brand)" />
-              <a href={`mailto:${data.email}`} style={{ color: 'var(--text)', textDecoration: 'none', fontSize: '0.9rem' }}>{data.email}</a>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--fs-base)' }}>
+              <ContactLink kind="email" value={data.email} />
             </div>
           )}
           {data.phone && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              <Phone size={16} color="var(--brand)" />
-              <span style={{ color: 'var(--text)', fontSize: '0.9rem' }}>{data.phone}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--fs-base)' }}>
+              <ContactLink kind="phone" value={data.phone} />
               <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>직통</span>
             </div>
           )}
           {data.mobile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              <Phone size={16} color="var(--brand)" />
-              <span style={{ color: 'var(--text)', fontSize: '0.9rem' }}>{data.mobile}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--fs-base)' }}>
+              <ContactLink kind="phone" value={data.mobile} />
               <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>휴대폰</span>
             </div>
           )}

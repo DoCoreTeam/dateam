@@ -14,6 +14,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
+import ContactLink from '@/components/ui/ContactLink'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import { useVerified } from '@/lib/crm/use-verified'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -128,12 +129,13 @@ export default function PersonDetail({ personId }: { personId: string }) {
               <RecordField label="이메일" field="email"
                 verified={verify.verified.includes('email')}
                 onToggleVerified={verify.toggle}>
-                {person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : null}
+                {/* 예전엔 여기 mailto 앵커가 있었지만 클래스가 없어 평문으로 보였다 — 누를 수 있는 줄 아무도 몰랐다 */}
+                <ContactLink kind="email" value={person.email} icon={false} />
               </RecordField>
               <RecordField label="전화" field="phone"
                 verified={verify.verified.includes('phone')}
                 onToggleVerified={verify.toggle}>
-                {person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : null}
+                <ContactLink kind="phone" value={person.phone} icon={false} />
               </RecordField>
               <RecordField label="단계">
                 {STAGE_LABEL[person.lifecycleStage] ?? person.lifecycleStage}
