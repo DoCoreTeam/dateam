@@ -22,6 +22,7 @@ import Timeline from '@/components/ui/crm/Timeline'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import QuotePanel from '@/components/ui/crm/QuotePanel'
 import DealContacts from './DealContacts'
+import LedgerPanel from './LedgerPanel'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { formatKstDateTimeShort, kstDateKey } from '@/lib/datetime/kst'
 import { formatAmount } from '../amount'
@@ -146,38 +147,72 @@ export default function DealDetail({ dealId }: { dealId: string }) {
       />
 
       <RecordLayout
-        fields={
-          <RecordPanel title="속성">
-            <RecordFieldList>
-              <RecordField label="상태"><NbBadge status={meta.status}>{meta.label}</NbBadge></RecordField>
-              <RecordField label="회사">
-                {company
-                  ? <Link href={`/crm/companies/${company.id}`}>{company.name}</Link>
-                  : null}
-              </RecordField>
-              <RecordField label="파이프라인">{pipelineName}</RecordField>
-              <RecordField label="현재 단계">{stageName.get(deal.stageId) ?? null}</RecordField>
-              <RecordField label="금액">
-                <Sensitive>{formatAmount(deal.amountMinor, deal.currency)}</Sensitive>
-              </RecordField>
-              {/* 마감일·성사일은 **날짜**다 — 시각을 붙이면 "9시까지"로 읽힌다(실브라우저에서 잡음) */}
-              <RecordField label="예상 마감일">
-                {deal.expectedCloseDate ? kstDateKey(deal.expectedCloseDate) : null}
-              </RecordField>
-              {deal.status === 'WON' && (
-                <RecordField label="성사일">
-                  {deal.wonAt ? kstDateKey(deal.wonAt) : null}
-                </RecordField>
-              )}
-              {deal.status === 'LOST' && (
-                <RecordField label="실주 사유">{deal.lostReason}</RecordField>
-              )}
-              <RecordField label="최근 변경">{formatKstDateTimeShort(deal.updatedAt)}</RecordField>
-            </RecordFieldList>
-          </RecordPanel>
-        }
-        timeline={
+        info={
           <>
+            <RecordPanel title="속성">
+              <RecordFieldList>
+                <RecordField label="상태"><NbBadge status={meta.status}>{meta.label}</NbBadge></RecordField>
+                <RecordField label="회사">
+                  {company
+                    ? <Link href={`/crm/companies/${company.id}`}>{company.name}</Link>
+                    : null}
+                </RecordField>
+                <RecordField label="파이프라인">{pipelineName}</RecordField>
+                <RecordField label="현재 단계">{stageName.get(deal.stageId) ?? null}</RecordField>
+                <RecordField label="금액">
+                  <Sensitive>{formatAmount(deal.amountMinor, deal.currency)}</Sensitive>
+                </RecordField>
+                {/* 마감일·성사일은 **날짜**다 — 시각을 붙이면 "9시까지"로 읽힌다(실브라우저에서 잡음) */}
+                <RecordField label="예상 마감일">
+                  {deal.expectedCloseDate ? kstDateKey(deal.expectedCloseDate) : null}
+                </RecordField>
+                {deal.status === 'WON' && (
+                  <RecordField label="성사일">
+                    {deal.wonAt ? kstDateKey(deal.wonAt) : null}
+                  </RecordField>
+                )}
+                {deal.status === 'LOST' && (
+                  <RecordField label="실주 사유">{deal.lostReason}</RecordField>
+                )}
+                <RecordField label="최근 변경">{formatKstDateTimeShort(deal.updatedAt)}</RecordField>
+              </RecordFieldList>
+            </RecordPanel>
+
+            {/*
+              매출 인식 장부 — 「금액」 한 칸이 답하지 못하던 것들.
+              수주 매출·현물 제외·부가세·재원이 여기 모인다.
+              기본은 숫자 둘만 보이고 나머지는 접혀 있다(사용자 지시).
+            */}
+            <RecordPanel title="매출 인식 장부">
+              <LedgerPanel dealId={dealId} />
+            </RecordPanel>
+
+            {/*
+              이 딜의 사람들 — 회사 인물 전체가 아니다.
+              예전엔 회사의 인물을 전부 뿌려서 "누구를 설득해야 하나"에 답을 못 했다.
+            */}
+            <RecordPanel title="이 딜의 사람들">
+              <DealContacts dealId={dealId} companyId={deal?.companyId ?? null} />
+            </RecordPanel>
+
+            {/*
+              견적 — 딜 금액이 어디서 나왔는지에 대한 답.
+              수락된 견적의 총액은 딜 금액으로 옮겨지므로, 바뀌면 상세를 다시 읽는다.
+            */}
+            <RecordPanel title="견적">
+              <QuotePanel
+                dealId={dealId}
+                dealName={deal.name}
+                dealCurrency={deal.currency}
+                onChanged={() => { setTimelineKey((k) => k + 1); void load() }}
+              />
+            </RecordPanel>
+
+            {/* 딜을 여는 사람이 가장 자주 하는 질문 — "지난번에 뭐라고 했지?" */}
+            <RecordPanel title="이 딜의 미팅">
+              <MeetingPanel scope={{ dealId }} />
+            </RecordPanel>
+
             <RecordPanel title="단계 이동 이력">
             {history.length === 0 ? (
               <EmptyState
@@ -210,38 +245,10 @@ export default function DealDetail({ dealId }: { dealId: string }) {
             </RecordPanel>
           </>
         }
-        related={
-          <>
-            <RecordPanel title="다음 할 일">
-              <TaskPanel scope={{ dealId }} onChanged={() => setTimelineKey((k) => k + 1)} />
-            </RecordPanel>
-
-            {/*
-              견적 — 딜 금액이 어디서 나왔는지에 대한 답.
-              수락된 견적의 총액은 딜 금액으로 옮겨지므로, 바뀌면 상세를 다시 읽는다.
-            */}
-            <RecordPanel title="견적">
-              <QuotePanel
-                dealId={dealId}
-                dealName={deal.name}
-                dealCurrency={deal.currency}
-                onChanged={() => { setTimelineKey((k) => k + 1); void load() }}
-              />
-            </RecordPanel>
-
-            {/*
-              이 딜의 사람들 — 회사 인물 전체가 아니다.
-              예전엔 회사의 인물을 전부 뿌려서 "누구를 설득해야 하나"에 답을 못 했다.
-            */}
-            <RecordPanel title="이 딜의 사람들">
-              <DealContacts dealId={dealId} companyId={deal?.companyId ?? null} />
-            </RecordPanel>
-
-            {/* 딜을 여는 사람이 가장 자주 하는 질문 — "지난번에 뭐라고 했지?" */}
-            <RecordPanel title="이 딜의 미팅">
-              <MeetingPanel scope={{ dealId }} />
-            </RecordPanel>
-          </>
+        actions={
+          <RecordPanel title="다음 할 일">
+            <TaskPanel scope={{ dealId }} onChanged={() => setTimelineKey((k) => k + 1)} />
+          </RecordPanel>
         }
       />
 

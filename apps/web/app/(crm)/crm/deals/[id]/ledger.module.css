@@ -1,0 +1,110 @@
+/* 매출 인식 장부 — 영업이 매일 보는 숫자는 둘뿐이고 나머지는 접혀 있다 */
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.primary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.label {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.amount {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.secondary .amount {
+  font-size: var(--fs-lg);
+  color: var(--text-muted);
+}
+
+.source {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+.detail {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--hairline) solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  padding: var(--space-1) 0;
+}
+
+.rowLabel {
+  color: var(--text-muted);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rowName {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.rowValue {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.basis {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+.note {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.locked {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  padding: var(--space-2) 0;
+}

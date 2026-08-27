@@ -146,6 +146,76 @@ enum CrmDupStatus {
   DISMISSED
 }
 
+/// 부가세를 어느 쪽으로 푸는가. 이 한 칸이 방향을 기록하고 세 값은 계산된다
+enum CrmTaxBasis {
+  NET // 공급가액이 원본 — 견적 라인은 이쪽으로 쌓아 올린다
+  GROSS // 총액이 원본 — 국가 과제 사업비·고객 예산은 이쪽이다
+}
+
+enum CrmTaxKind {
+  TAXABLE
+  ZERO_RATED // 수출·해외 공급. 과세 대상이나 세율 0 — 매입세액 공제 가능
+  EXEMPT // 면세. 과세 대상이 아님 — 매입세액 공제 불가
+}
+
+/// 사업 기간. 고르면 따라오는 칸이 달라진다(단기·중기에는 연차 칸이 안 보인다)
+enum CrmTermType {
+  SHORT // 주·월
+  MID // 몇 개월
+  LONG // 1년 이상 — 연차 구분이 열린다
+}
+
+enum CrmBusinessType {
+  GPU
+  SI
+  SOLUTION
+  HARDWARE
+  MSP
+  PROJECT // 국가 과제
+  OTHER
+}
+
+/// 재원 네 갈래. 성질(현금 유입·회계 수익·별도 계좌)은 종류에서 파생된다
+enum CrmFundingSourceType {
+  NATIONAL // 국비 — 현금 유입 · 회계 수익
+  LOCAL // 지방비 — 현금 유입 · 회계 수익
+  OWN_CASH // 자부담 현금 — 현금 유출 · 회계 수익 아님 · 법령상 별도 계좌
+  IN_KIND // 자부담 현물 — 돈이 안 움직인다. «현물 제외»에서 빠지는 유일한 재원
+}
+
+/// 현물 종류. 환산 근거가 종류마다 다르다(연구개발비 사용기준)
+enum CrmInKindKind {
+  LABOR // 인건비 — 연봉 × 참여율 × 기간
+  EQUIPMENT // 장비사용료 — 취득가 감가상각 또는 시간당 사용료
+  MATERIAL // 연구재료 — 장부가
+  FACILITY // 시설 — 면적 × 단가 × 기간
+}
+
+enum CrmAttachmentTarget {
+  DEAL
+  COMPANY
+  PERSON
+  MEETING
+  QUOTE
+  DEAL_COST
+  IN_KIND
+}
+
+enum CrmAttachmentKind {
+  BUSINESS_CARD
+  SUPPLY_QUOTE // 매입 견적서 — 원가 근거라 민감도가 restricted 다
+  CONTRACT
+  IN_KIND_EVIDENCE
+  OTHER
+}
+
+/// 민감 등급. lib/crm/security/sensitivity.ts 의 Sensitivity 와 같은 말이다
+enum CrmSensitivity {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+}
+
 // ------------------------------------------------------------
 // 그룹 A 테넌시와 조직
 // ------------------------------------------------------------
@@ -185,6 +255,9 @@ model CrmMember {
   role        CrmMemberRole @default(MEMBER)
   displayName String
   email       String
+  /// 역할 기본값에 더하는 능력(cost.view · margin.view · quote.approve …).
+  /// 역할을 늘리면 조합이 폭발한다 — 능력을 사람마다 더하거나 뺀다.
+  capabilities String[]     @default([])
   createdAt   DateTime      @default(now())
   deletedAt   DateTime?
 
@@ -289,6 +362,8 @@ model CrmStage {
   kind              CrmStageKind @default(OPEN)
   position          Int
   entryCriteriaJson Json? // 진입 조건 정의, 갭필 모달의 근거
+  /// 성사 확률(%). 없으면 가중 파이프라인을 못 만든다 — 리드 1억과 계약직전 1억이 같은 무게가 된다
+  winProbabilityPct Int?
 
   pipeline CrmPipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   deals    CrmDeal[]
@@ -306,8 +381,36 @@ model CrmDeal {
   stageId           String
   name              String
   status            CrmDealStatus @default(OPEN)
+  /// ⚠️ 이관 중(expand→contract). 뜻이 모호해 폐기 예정 — 새 코드는 아래 3금액을 쓴다
   amountMinor       BigInt?
   currency          String?       @db.Char(3)
+
+  /// ── 금액 셋 — 시간축이 다른 숫자다 ──────────────────────────────
+  /// 예산: 고객이 말한 금액·우리 추정. 견적 전에도 있다
+  budgetNetMinor    BigInt?
+  /// 견적: 대표 견적에서 자동으로 온다. 바뀌면 이력이 남는다(I8)
+  quotedNetMinor    BigInt?
+  /// 계약: 실제 도장 찍은 금액. 매출 인식·마감의 기준
+  contractNetMinor  BigInt?
+  /// 수주 매출 — 계약 > 견적 > 예산 중 «가장 확실한 것». 서버가 계산해 저장한다
+  bookedNetMinor    BigInt?
+  /// 현물 합계 — 명세(crm_in_kind)에서 계산된 저장본. «현물 제외»는 저장하지 않는다
+  inKindTotalMinor  BigInt        @default(0)
+  /// 부가세 방향. 국가 과제 사업비는 GROSS 가 기본이고 세 값은 언제나 계산된다
+  taxBasis          CrmTaxBasis   @default(NET)
+  taxRatePct        Decimal       @default(10) @db.Decimal(5, 2)
+
+  /// ── 기간 ──────────────────────────────────────────────────────
+  termType          CrmTermType?
+  startDate         DateTime?
+  endDate           DateTime?
+  /// 시작·종료에서 계산된 개월 수. 연차 배분의 근거
+  termMonths        Int?
+
+  businessType      CrmBusinessType?
+  /// 대표 견적 — 이 견적의 제안가가 quotedNetMinor 가 된다
+  primaryQuoteId    String?
+
   expectedCloseDate DateTime?
   wonAt             DateTime?
   lostReason        String?
@@ -328,6 +431,9 @@ model CrmDeal {
   history   CrmStageHistory[]
   activity  CrmActivity[]
   quotes    CrmQuote[]
+  funding   CrmFundingSource[]
+  inKind    CrmInKind[]
+  amountLog CrmDealAmountHistory[]
 
   @@index([workspaceId, pipelineId, stageId])
   @@index([workspaceId, status, expectedCloseDate])
@@ -793,6 +899,141 @@ model CrmQuoteLine {
 
   @@index([quoteId, position])
   @@map("crm_quote_line")
+}
+
+// ------------------------------------------------------------
+// 그룹 F 매출 인식 장부 — 견적이 아니라 «딜»에 붙는다
+//
+// 현물은 고객에게 나가는 문서(견적서)의 개념이 아니라
+// **우리가 매출을 얼마로 인식하느냐**의 문제다. 그래서 여기 산다.
+// ------------------------------------------------------------
+
+/// 재원 구성. 국가 과제에서만 쓰인다 — 보통 딜에는 행이 없다.
+///
+/// 성질(현금 유입·회계 수익·별도 계좌)은 **sourceType 에서 파생**한다.
+/// 행마다 손으로 넣으면 종류와 성질이 언젠가 어긋난다.
+model CrmFundingSource {
+  id          String               @id @default(cuid())
+  workspaceId String
+  dealId      String
+  sourceType  CrmFundingSourceType
+  amountMinor BigInt               @default(0)
+  /// 부처·지자체 이름. 정산 서류에 그대로 쓰인다
+  agencyName  String?
+  /// 연차 배분은 여기서 **계산**한다 — yearAllocationJson 을 손으로 넣지 않는다
+  startDate   DateTime?
+  endDate     DateTime?
+  position    Int                  @default(0)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  deal CrmDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, dealId])
+  @@map("crm_funding_source")
+}
+
+/// 현물 명세 — «별도로 셋업»의 실물.
+///
+/// 숫자 한 칸으로 두면 다음 달에 그 2.6억이 뭐였는지 아무도 모른다.
+/// «장부가 명확해야 해»는 **무엇을 뺐나**가 남아야 한다는 뜻이었다.
+///
+/// 관계는 **소유(owns)** — 딜이 없으면 존재 이유가 없다(Cascade).
+/// 민감도는 **restricted** — 평가액 명세로 인건비 단가를 역산할 수 있다.
+model CrmInKind {
+  id          String        @id @default(cuid())
+  workspaceId String
+  dealId      String
+  kind        CrmInKindKind
+  name        String
+  valueMinor  BigInt        @default(0)
+  quantity    Decimal?      @db.Decimal(12, 3)
+  unit        String?
+  /// 환산 근거 — «연봉 × 참여율 × 기간». 정산 때 그대로 쓰인다(법령상 산정근거 필수)
+  basisNote   String?
+  /// 연차 배분의 근거. 현물은 협약으로 고정되지 않고 실제 투입에 따라 매년 정산된다
+  startDate   DateTime?
+  endDate     DateTime?
+  position    Int           @default(0)
+  createdById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  deal CrmDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, dealId, position])
+  @@map("crm_in_kind")
+}
+
+/// 딜 금액이 왜 바뀌었나. 파이프라인 총액이 출렁이는 이유를 나중에 설명할 수 있어야 한다
+model CrmDealAmountHistory {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  dealId        String
+  /// budget · quoted · contract · booked · inKind
+  field         String
+  fromMinor     BigInt?
+  toMinor       BigInt?
+  reason        String?
+  sourceQuoteId String?
+  changedById   String?
+  changedAt     DateTime @default(now())
+
+  deal CrmDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, dealId, changedAt])
+  @@map("crm_deal_amount_history")
+}
+
+/// 우리 회사 — 견적서 헤더에 찍히는 것. 지금은 저장할 자리가 0곳이다
+/// ⚠️ 모델 이름이 `Crm` 으로 시작해야 한다 — workspace-guard 의 isCrmModel 이
+/// 접두사로 판정하므로, 다른 이름이면 워크스페이스 필터가 **주입되지 않는다**.
+/// 표 이름은 da_company_profile 그대로 둔다(@@map).
+model CrmCompanyProfile {
+  id                  String   @id @default(cuid())
+  workspaceId         String   @unique
+  name                String
+  ceoName             String?
+  bizRegNo            String?
+  address             String?
+  tel                 String?
+  fax                 String?
+  email               String?
+  /// 직인은 «생략» 고정(결정 4) — 이미지 업로드·권한 설계가 통째로 빠진다
+  sealMode            String   @default("OMIT")
+  quotePrefix         String   @default("DA")
+  logoUrl             String?
+  defaultPaymentTerms String?
+  defaultValidDays    Int      @default(10)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("da_company_profile")
+}
+
+/// 첨부 — 어디에나 붙는다. **민감도를 함께 갖는다**.
+///
+/// 매입 견적서를 딜 첨부함에 그냥 두면 원가를 못 보는 사람도 파일은 열 수 있다.
+/// 등급은 lib/crm/security/sensitivity.ts 와 같은 말을 쓴다.
+model CrmAttachment {
+  id           String              @id @default(cuid())
+  workspaceId  String
+  targetType   CrmAttachmentTarget
+  targetId     String
+  fileUrl      String
+  fileName     String
+  mimeType     String?
+  sizeBytes    Int?
+  kind         CrmAttachmentKind   @default(OTHER)
+  sensitivity  CrmSensitivity      @default(INTERNAL)
+  ocrStatus    String?
+  ocrResultJson Json?
+  uploadedById String?
+  createdAt    DateTime            @default(now())
+  deletedAt    DateTime?
+
+  @@index([workspaceId, targetType, targetId])
+  @@map("crm_attachment")
 }
 
 // Phase 2 예정(본 파일에 미포함): CrmAutomation, CrmAutomationRun, CrmEnrichmentCache,

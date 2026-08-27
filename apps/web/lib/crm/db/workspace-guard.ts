@@ -76,6 +76,8 @@ export const SOFT_DELETE_MODELS: ReadonlySet<string> = new Set([
   // 견적·상품도 휴지통을 갖는다 — 보낸 견적을 실수로 지웠을 때 되돌릴 수 있어야 한다.
   // (항목 CrmQuoteLine 은 견적을 따라가므로 자체 삭제 시각을 두지 않는다)
   'CrmProduct', 'CrmQuote',
+  // 첨부도 휴지통을 갖는다 — 계약서·매입 견적서를 실수로 지우면 되돌릴 길이 없다.
+  'CrmAttachment',
 ])
 
 /**

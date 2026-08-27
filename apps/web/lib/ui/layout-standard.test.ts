@@ -24,7 +24,6 @@ const ROOTS = ['app', 'components']
  * · MeetingDetail — 슬롯 뜻이 뒤집혀 있어 단순 이관이 아니라 **재배치**가 필요하다
  */
 const LEGACY_PENDING = [
-  'app/(crm)/crm/deals/[id]/DealDetail.tsx',
   'app/(crm)/crm/meetings/[id]/MeetingDetail.tsx',
 ]
 
