@@ -26,6 +26,8 @@ import {
   type RecorderPartStatus,
   type RecorderState,
 } from './use-recorder.ts'
+import * as blobStore from '../offline/blob-store.ts'
+import { uploadOnePart } from '../offline/sync-parts.ts'
 
 /** 지금 녹음이 붙어 있는 회의 — 화면이 바뀌어도 이건 안 바뀐다 */
 export interface RecordingTarget {
@@ -87,18 +89,47 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<RecordingTarget | null>(null)
   const [uploadTick, setUploadTick] = useState(0)
 
+  /**
+   * 구간 하나를 남긴다 — **기기에 먼저 쓰고 나서 올린다.**
+   *
+   * 예전에는 곧장 올렸고, 실패하면 `use-recorder` 가 상태만 `'failed'` 로 바꾸고
+   * **blob 을 버렸다.** 회의실 와이파이가 흔들리면 그 10분이 영원히 사라졌다.
+   * 사용자 지시(2026-08-27): *"녹음 하는것도 로컬에서 우선 저장을 하는 방식으로"*.
+   *
+   * 순서가 곧 계약이다 — `로컬에 쓰기 → 올리기 → 성공한 것만 지우기`.
+   * 실패해도 **원본은 기기에 남고**, 연결되면 `syncPendingParts` 가 다시 올린다.
+   */
   const uploadPart = useCallback(async (blob: Blob, partIdx: number, durationSec: number) => {
     const t = targetRef.current
     if (!t) throw new Error('녹음 대상이 없어요')
-    const form = new FormData()
-    form.append('audio', blob, `part-${partIdx}.webm`)
-    form.append('partIdx', String(partIdx))
-    form.append('durationSec', String(durationSec))
-    const res = await fetch(`/api/meeting-notes/${t.noteId}/recordings`, { method: 'POST', body: form })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      throw new Error(body?.error ?? '녹음을 올리지 못했어요')
+
+    // ① 기기에 먼저. 여기서 실패해도 업로드는 해 본다 — 둘 다 못 하는 것보다 낫다
+    let savedLocally = false
+    if (blobStore.isSupported()) {
+      try {
+        await blobStore.put({ noteId: t.noteId, partIdx, durationSec, blob })
+        savedLocally = true
+      } catch {
+        // 로컬 보관 없이 도는 중이라는 뜻 — 화면이 "이 기기에 저장 중"이라고 말하면 안 된다
+        console.error('[recording] 로컬 보관 실패 — 업로드만 시도합니다')
+      }
     }
+
+    // ② 올린다
+    try {
+      await uploadOnePart(t.noteId, partIdx, durationSec, blob)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '녹음을 올리지 못했어요'
+      if (savedLocally) await blobStore.markTried(t.noteId, partIdx, msg).catch(() => {})
+      throw new Error(
+        savedLocally
+          ? `${msg} — 이 기기에 저장해 뒀어요. 연결되면 자동으로 올립니다.`
+          : msg,
+      )
+    }
+
+    // ③ 올라간 것은 기기에서 지운다 — 남기면 회의 음성이 노트북에 쌓인다(결정 5)
+    if (savedLocally) await blobStore.remove(t.noteId, partIdx).catch(() => {})
     setUploadTick((n) => n + 1)
   }, [])
 

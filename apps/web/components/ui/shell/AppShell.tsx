@@ -30,6 +30,7 @@ import QuickNav from '@/components/ui/QuickNav'
 import type { DockItem } from './Dock'
 import { RecordingProvider } from '@/lib/meeting/recording-context'
 import RecordingBar from '@/components/meeting/RecordingBar'
+import OfflineBar from '@/components/ui/OfflineBar'
 import type { ThemeId } from '@/lib/themes'
 
 /** 계정 메뉴에 필요한 최소 정보 — 옵션이 아니라 필수다(빠뜨리면 admin 사고 재발). */
@@ -122,6 +123,8 @@ export default function AppShell({
       {/* 녹음은 화면보다 오래 산다 — 제공자가 셸에 있어야 라우트를 옮겨도 안 끊긴다.
           바는 `.app-shell` 안에 둔다(`--dock-safe-area` 를 상속받아야 모바일에서 Dock 을 안 가린다). */}
       <RecordingProvider>
+        {/* 연결이 끊기면 어느 화면에 있든 여기서 말한다 — 회의는 이동 중에 끊긴다 */}
+        <OfflineBar />
         {children}
         <RecordingBar />
       </RecordingProvider>

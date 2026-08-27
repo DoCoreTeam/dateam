@@ -1,0 +1,62 @@
+/* 연결 상태 줄 — 셸 상단. 어느 화면에 있든 같은 자리다.
+   상태색은 StatusKey 가 정한다(SYNC_STATUS_META) — 여기서 색을 새로 고르지 않는다. */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  border-bottom: var(--hairline) solid var(--border-light);
+}
+
+.bar[data-status='note'] {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.bar[data-status='planned'],
+.bar[data-status='doing'] {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.bar[data-status='done'] {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.bar[data-status='blocker'] {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.detail {
+  font-weight: 500;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.retry {
+  margin-left: auto;
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: var(--hairline) solid currentColor;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.retry:hover {
+  background: color-mix(in oklab, currentColor 12%, transparent);
+}
