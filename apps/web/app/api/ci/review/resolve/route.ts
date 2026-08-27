@@ -77,7 +77,18 @@ export async function POST(req: Request) {
     const ids = picked && picked.length > 0
       ? inGroup.filter((id) => picked.includes(id))
       : inGroup
-    if (ids.length === 0) return fail('NOT_FOUND', '이 묶음은 이미 정리됐습니다')
+
+    // 묶음에 남은 것이 없다 = **이미 그렇게 돼 있다**. 이것은 실패가 아니라 멱등이다.
+    //
+    // 예전에는 여기서 404 를 냈고 화면은 그것을 빨간 오류 + «다시 눌러 보세요»로 띄웠다.
+    // 그래서 사용자는 이미 끝난 일을 다시 누르고, 또 같은 답을 받고,
+    // 화면이 영원히 고장난 것처럼 보였다(실측 2026-08-27 — 정리는 됐는데 오류만 남았다).
+    // 200 으로 답하면 화면은 «이미 정리돼 있었습니다»를 말하고 목록만 다시 읽으면 된다.
+    if (inGroup.length === 0) {
+      return ok({ resolved: 0, total: 0, topicName: topic.name, corrections: 0, remembered: null })
+    }
+    // 묶음에는 남아 있는데 고른 것이 하나도 안 걸렸다 — 이건 잘못된 요청이다(화면에서는 생기지 않는다)
+    if (ids.length === 0) return fail('VALIDATION_FAILED', '고르신 게시물이 이 묶음에 없습니다')
 
     // 사람이 답한 것이므로 topic_source='user' · 확신도 1.0 · 검토 완료.
     // 주제가 바뀌었으면 그 사실도 함께 남는다(topic_id 변경).

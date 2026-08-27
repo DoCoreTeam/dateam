@@ -16,7 +16,7 @@
 // 그래서 카드는 **게시물을 하나씩 빼고 답할 수 있어야** 한다(사용자 지적:
 // "같은 채널에 같은 주제가 아닌게 엄청 많아"). 보이지 않는 것은 뺄 수도 없으므로 목록을 보여준다.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check } from 'lucide-react'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
@@ -66,6 +66,14 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
   const [actionError, setActionError] = useState<{ key: string; message: string } | null>(null)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [done, setDone] = useState<string[]>([])
+  /**
+   * 지금 보내는 중인 묶음. **버튼 disabled 로는 못 막는다** — `setBusyKey` 는 상태라
+   * 다시 그려질 때까지 한 박자가 있고, 그 사이에 들어온 두 번째 클릭은 그대로 나간다.
+   * 특히 dev 서버가 라우트를 다시 컴파일하면 응답이 4초씩 걸려(실측 2026-08-27)
+   * 「아무 일도 안 일어났다」고 느낀 사용자가 한 번 더 누른다.
+   * ref 는 즉시 반영되므로 같은 묶음이 두 번 나가는 일이 없다.
+   */
+  const inFlight = useRef<Set<string>>(new Set())
 
   const load = useCallback(() => {
     setLoadError(null)
@@ -93,6 +101,8 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
    *   이 구분이 화면에 그대로 보여야 한다 — 「전부」와 「고른 것만」은 다른 일이다.
    */
   async function resolve(g: ReviewGroup, topicId: string, remember: boolean, contentIds?: string[]) {
+    if (inFlight.current.has(g.key)) return   // 같은 묶음을 두 번 보내지 않는다
+    inFlight.current.add(g.key)
     setBusyKey(g.key)
     setActionError(null)
     try {
@@ -112,12 +122,10 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
       // 사용자가 같은 버튼을 두 번 누르게 만들 이유가 없으므로 한 번은 조용히 다시 보낸다.
       //
       // 안전한 이유: 확정은 «pending 인 것만» 바꾸므로 두 번 보내도 두 번 적용되지 않는다.
-      // 첫 요청이 실제로는 성공했고 응답만 못 받은 경우 두 번째는 NOT_FOUND 가 오는데,
-      // 그것은 «이미 정리됨»이므로 실패가 아니다 — 그때는 목록만 다시 읽는다.
+      // 첫 요청이 실제로는 성공했고 응답만 못 받은 경우 두 번째는 resolved:0 으로 돌아온다.
       if (!res.success && res.error.code === 'INTERNAL') {
         await new Promise((r) => setTimeout(r, 600))
         res = await send()
-        if (!res.success && res.error.code === 'NOT_FOUND') { load(); router.refresh(); return }
       }
 
       // 이 묶음만 실패한 것이다. 목록은 그대로 두고 이 카드 안에서 다시 누를 수 있게 한다.
@@ -125,6 +133,16 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
 
       // 무슨 일이 일어났는지 말한다 — 사라지기만 하면 눌린 건지 알 수 없다
       const d = res.data
+
+      // 바꾼 것이 없다 = **이미 정리돼 있었다**. 실패가 아니므로 오류로 띄우지 않는다.
+      // 「다시 눌러 보세요」라고 말하면 사용자는 이미 끝난 일을 계속 다시 누른다(실측).
+      // 할 일은 재시도가 아니라 목록을 다시 읽는 것 — 그러면 그 카드는 사라진다.
+      if (d.resolved === 0) {
+        setDone((prev) => [`${g.channelName} · 이미 정리돼 있었습니다`, ...prev])
+        load()
+        router.refresh()
+        return
+      }
       setDone((prev) => [
         `${g.channelName} · ${d.resolved}건을 '${d.topicName}'으로 정리했습니다`
         + (d.remembered ? ` — 앞으로 이 채널은 묻지 않습니다` : ''),
@@ -142,6 +160,7 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
         message: e instanceof Error ? e.message : '정리하지 못했습니다. 다시 눌러 주세요',
       })
     } finally {
+      inFlight.current.delete(g.key)
       setBusyKey(null)
     }
   }
