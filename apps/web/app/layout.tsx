@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { getBranding } from '@/lib/branding'
 import { getEffectiveTheme } from '@/lib/theme'
+import ServiceWorkerBoot from '@/components/ui/ServiceWorkerBoot'
 
 // 브라우저 탭 타이틀 = 시스템 설정(brand_name). 하드코딩 제거.
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,7 +29,11 @@ export default async function RootLayout({
             (근거: docs/2026-08-16-performance-audit/PLAN.md §2-3) */}
         <link rel="stylesheet" href="/fonts/fonts.css" />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* 네트워크가 없어도 화면이 뜨게 한다. 프로덕션에서만 켠다 — 이유는 컴포넌트 주석 참조 */}
+        <ServiceWorkerBoot />
+        {children}
+      </body>
     </html>
   )
 }

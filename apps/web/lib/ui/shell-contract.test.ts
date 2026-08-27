@@ -34,6 +34,8 @@ const PUBLIC_SURFACES = [
   'app/change-password',
   'app/develop',
   'app/api-access',
+  // 오프라인 안내 — 셸이 필요로 하는 조회가 애초에 안 되는 상태에서 뜨는 화면이다
+  'app/offline',
 ]
 
 /** 아직 AppShell로 안 옮긴 셸 — Phase 1이 이 목록을 **비운다**. */

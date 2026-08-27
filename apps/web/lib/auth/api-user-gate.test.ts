@@ -29,6 +29,9 @@ const OPEN_TO_API_USER = ['/api-keys', '/change-password', '/develop', '/api-acc
  */
 const OUTSIDE_OK: Record<string, string> = {
   '/': "redirect('/home')만 한다 — (member) 레이아웃으로 들어가 거기서 막힌다",
+  '/offline':
+    '연결이 끊겼을 때 서비스 워커가 대신 주는 화면이다. 데이터를 한 글자도 담지 않고 ' +
+    '"연결이 없다"만 말한다 — 게이트 조회 자체가 오프라인에서 불가능하다',
 }
 
 function walk(dir: string, name: string, out: string[] = []): string[] {

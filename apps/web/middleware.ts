@@ -9,6 +9,9 @@ type CookieItem = { name: string; value: string; options?: Record<string, unknow
  * /api/public/*      : API 키로 인증한다(lib/publicApiAuth).
  * /api/ci/internal/* : 서비스 토큰(CI_WORKER_TOKEN). 크론·큐가 부르므로 쿠키가 없다.
  * /develop·/api-access : 로그인 없이 외부인이 보는 화면.
+ * /sw.js·/manifest.webmanifest·/offline : 오프라인 대비 3종. **데이터가 한 글자도 없다.**
+ *   막으면 서비스 워커 등록이 302 를 받아 실패하고, /offline 자리에 로그인 화면이
+ *   캐시된다 — 연결이 끊겼을 때 '연결이 없다' 대신 로그인 화면을 보게 된다.
  *
  * 지금은 matcher가 /api/*를 아예 태우지 않으므로 앞의 두 줄은 실행되지 않는다.
  * 그래도 남겨 둔다 — matcher를 되돌리는 순간 공개 API가 세션 게이트에 막히기 때문이다.
@@ -18,7 +21,8 @@ function isPublicPath(pathname: string): boolean {
     pathname.startsWith('/api/public/') ||
     pathname.startsWith('/api/ci/internal/') ||
     pathname === '/develop' || pathname.startsWith('/develop/') ||
-    pathname === '/api-access' || pathname.startsWith('/api-access/')
+    pathname === '/api-access' || pathname.startsWith('/api-access/') ||
+    pathname === '/sw.js' || pathname === '/manifest.webmanifest' || pathname === '/offline'
   )
 }
 
