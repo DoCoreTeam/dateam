@@ -140,3 +140,45 @@ test('라벨을 화면에서 새로 짓지 않는다 — 같은 행위가 화면
   assert.equal(a.find((x) => x.key === 'event')?.label, `새 ${ENTITY.event.label}`)
   assert.equal(a.find((x) => x.key === 'crmTask')?.label, `새 ${ENTITY.task.label}`)
 })
+
+/* ── 일간·주간·월간 + 커스터마이즈 ─────────────────────── */
+
+test('★ 보기 셋이 다 있다 — 사용자 지시: "일간 주간 월간 이렇게 볼 수 있어야"', () => {
+  for (const id of ['"day"', '"week"', '"month"']) {
+    assert.ok(BOARD.includes(`{ id: ${id}, label:`), `${id} 보기가 없다`)
+  }
+})
+
+test('★ 어떤 보기를 쓰는지 기억한다 — "사용자가 커스터마이즈도 할 수 있게"', () => {
+  assert.match(BOARD, /api\/ui-preferences/, '보기 설정을 저장하지 않는다')
+  assert.match(BOARD, /VIEW_SCOPE_KEY = "calendar\.board"/, '저장 자리가 없다')
+})
+
+test('★ 날짜는 저장하지 않는다 — 다음 방문에 지난달이 열려 있으면 "왜 데이터가 없지"가 된다', () => {
+  const save = BOARD.slice(BOARD.indexOf('const save = useCallback'), BOARD.indexOf('return [saved, save]'))
+  assert.match(save, /value: \{ view: v \}/, '보기 말고 다른 것도 저장한다')
+  assert.ok(!/date|day/.test(save.replace(/\/\/[^\n]*/g, '')), '날짜를 저장한다')
+})
+
+test('주소가 저장된 설정을 이긴다 — 공유 링크가 남의 설정에 덮이면 안 된다(§2-6(3))', () => {
+  assert.match(BOARD, /viewParam === "week" \|\| viewParam === "day" \? viewParam : \(savedView \?\? "month"\)/,
+    '우선순위가 주소 > 저장 > 기본값이 아니다')
+})
+
+test('★ 일간에서도 그 날의 작업대가 먼저다 — 「무엇이 있었나」보다 「이제 뭘 하지」다', () => {
+  const dayBlock = BOARD.slice(BOARD.indexOf('{viewMode === "day" && ('))
+  const wb = dayBlock.indexOf('<DayWorkbench')
+  const agenda = dayBlock.indexOf('<DayAgenda')
+  assert.ok(wb > 0 && agenda > wb, '작업대가 목록 아래에 있다')
+})
+
+test('일간의 「새 일정」은 그 자리에서 연다 — 화면 전환 0회', () => {
+  assert.match(BOARD, /onNewEvent=\{\(\) => setDayModal\(true\)\}/, '다른 화면으로 보낸다')
+  assert.match(BOARD, /startsWith\("\/api\/calendar\/events"\)/,
+    '저장하고 나서 다시 안 읽는다 — 방금 만든 일정이 안 보인다')
+})
+
+test('월간에서 누른 날짜가 일간으로 그대로 이어진다', () => {
+  assert.match(BOARD, /const dayStr = selectedDate \?\? toDateStr\(anchor\)/,
+    '보기를 바꾸면 다른 날이 열린다')
+})

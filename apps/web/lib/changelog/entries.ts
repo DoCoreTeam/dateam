@@ -33,6 +33,29 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.613',
+    date: '2026-08-27',
+    title: '캘린더를 일간으로도 볼 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📆',
+        headline: '일간 · 주간 · 월간 중에 고를 수 있어요',
+        detail:
+          '회의가 몰린 날은 월간 칸에서 제목이 안 보였죠. 일간으로 보면 그 날 하나만 크게 펼쳐지고, ' +
+          '맨 위에서 바로 미팅·일정·할 일을 시작할 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '⭐',
+        headline: '고른 보기를 기억해요',
+        detail:
+          '주로 쓰는 보기가 다음에 열 때도 그대로 나옵니다. 날짜는 기억하지 않아요 — ' +
+          '다음에 열었을 때 지난달이 떠 있으면 오히려 헷갈리니까요.',
+      },
+    ],
+  },
+  {
     version: '0.7.612',
     date: '2026-08-27',
     title: 'CRM 메뉴에서 매일 여는 것만 위로 올렸어요',

@@ -179,3 +179,41 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* 일간 보기 — 그 날 하나만 크게. 월간 셀에서는 제목이 안 보이는 날을 위한 자리다. */
+.dayNav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.dayAgenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dayRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.dayTime {
+  flex-shrink: 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.dayTitle {
+  font-size: var(--fs-base);
+  color: var(--text);
+  word-break: break-word;
+}

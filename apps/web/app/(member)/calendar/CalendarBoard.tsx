@@ -12,9 +12,9 @@
  *   ?view=month|week · ?date=YYYY-MM-DD(기준일) · ?day=YYYY-MM-DD(열린 날짜 패널)
  */
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { ChevronLeft, ChevronRight, CalendarClock, CheckSquare, StickyNote } from "lucide-react";
 import type { DayLogSummary } from "../daily/actions";
 import type { DailyLog, DailyLogEntryType } from "@/types/database";
@@ -22,11 +22,14 @@ import { fetcher } from "@/lib/swr-config";
 import { formatKstTime } from "@/lib/calendar/format-time";
 import { kstDateKey } from "@/lib/datetime/kst";
 import DayDetailPanel from "./DayDetailPanel";
+import EventModal from "./EventModal";
+import DayWorkbench from "@/components/calendar/DayWorkbench";
 import RecommendPanel from "./RecommendPanel";
 import { STATUS_COLORS } from "@/lib/tokens/status-colors";
 import PageHeader from "@/components/ui/PageHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import AXDotLoader from "@/components/ui/AXDotLoader";
+import EmptyState from "@/components/ui/EmptyState";
 import styles from "./calendar.module.css";
 
 interface CalEventLite {
@@ -73,6 +76,45 @@ function calDdayLabel(scheduledDate: string, todayStr: string): string | null {
   return null
 }
 
+type ViewMode = "month" | "week" | "day";
+
+/** 저장 자리 — 목록 표준과 같은 곳을 쓴다(§2-6(3): 보기만 저장, 조건은 저장하지 않는다) */
+const VIEW_SCOPE_KEY = "calendar.board";
+
+/**
+ * 어떤 보기를 쓰는지는 사람마다 다르다 — 그것만 기억한다.
+ * **날짜·열린 패널은 저장하지 않는다.** 다음 방문에 지난달이 열려 있으면 "왜 데이터가 없지"가 된다.
+ * 우선순위는 목록 표준 그대로 **주소 > 저장된 설정 > 화면 기본값**이다.
+ */
+function useSavedView(): [ViewMode | null, (v: ViewMode) => void] {
+  const [saved, setSaved] = useState<ViewMode | null>(null);
+  const done = useRef(false);
+
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    // 복원 실패는 조용히 넘어간다 — 기본값으로 도는 게 캘린더를 못 보는 것보다 낫다
+    fetch(`/api/ui-preferences?scopeKey=${VIEW_SCOPE_KEY}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        const v = body?.value?.view;
+        if (v === "week" || v === "day" || v === "month") setSaved(v);
+      })
+      .catch(() => {});
+  }, []);
+
+  const save = useCallback((v: ViewMode) => {
+    setSaved(v);
+    void fetch("/api/ui-preferences", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scopeKey: VIEW_SCOPE_KEY, value: { view: v } }),
+    }).catch(() => {});
+  }, []);
+
+  return [saved, save];
+}
+
 export interface CalendarBoardProps {
   /**
    * 이 보드가 사는 주소 — 상태를 어디에 쓸지 정한다.
@@ -89,6 +131,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
   const params = useSearchParams();
   const today = new Date();
   const todayStr = toDateStr(today);
+  const [savedView, saveView] = useSavedView();
 
   /**
    * 주소를 고쳐 쓴다 — 목록 표준과 같은 규칙이다.
@@ -104,8 +147,19 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
     router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
   }, [params, pathname, router]);
 
-  const viewMode: "month" | "week" = params.get("view") === "week" ? "week" : "month";
-  const setViewMode = (v: "month" | "week") => setParams({ view: v === "week" ? "week" : null });
+  /**
+   * 보기 셋 — 사용자 지시(2026-08-27): *"일간 주간 월간 이렇게 볼 수 있어야 하고
+   * 사용자가 커스터마이즈도 할 수 있게"*.
+   *
+   * 「일간」은 그 날 하나만 크게 본다 — 회의가 몰린 날 월간 셀에서는 제목이 안 보인다.
+   */
+  const viewParam = params.get("view");
+  const viewMode: ViewMode =
+    viewParam === "week" || viewParam === "day" ? viewParam : (savedView ?? "month");
+  const setViewMode = (v: ViewMode) => {
+    setParams({ view: v === "month" ? null : v });
+    saveView(v);
+  };
 
   // 기준일 하나로 월·주를 모두 정한다 — 셋을 따로 두면 서로 어긋난다
   const anchorParam = params.get("date");
@@ -123,6 +177,14 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
   const dayParam = params.get("day");
   const selectedDate = dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : null;
   const setSelectedDate = (d: string | null) => setParams({ day: d });
+
+  /**
+   * 일간 보기가 보는 날 — 열린 날짜가 있으면 그 날, 없으면 기준일이다.
+   * 월간에서 8/30 을 눌러 패널을 열고 「일간」으로 바꾸면 **그 날이 그대로** 열린다.
+   */
+  const dayStr = selectedDate ?? toDateStr(anchor);
+  const [dayModal, setDayModal] = useState(false);
+  const { mutate: mutateSwr } = useSWRConfig();
 
   // SWR: 월간 요약
   const monthKey = viewMode === "month"
@@ -227,16 +289,21 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
       {/* 헤더 — 공용 PageHeader(compact 밀도) + 보기 전환은 SegmentedTabs(탭 렌더러 SSOT) */}
       <PageHeader
         className="page-header--compact"
-        title={viewMode === "month" ? formatMonth(year, month) : `${weekDates[0]} ~ ${weekEnd}`}
+        title={
+          viewMode === "month" ? formatMonth(year, month)
+            : viewMode === "day" ? formatDayTitle(dayStr)
+              : `${weekDates[0]} ~ ${weekEnd}`
+        }
         actions={
           <SegmentedTabs
             ariaLabel="캘린더 보기"
             tabs={[
-              { id: "month", label: "월간" },
+              { id: "day", label: "일간" },
               { id: "week", label: "주간" },
+              { id: "month", label: "월간" },
             ]}
             activeId={viewMode}
-            onSelect={(id) => setViewMode(id === "week" ? "week" : "month")}
+            onSelect={(id) => setViewMode(id as ViewMode)}
           />
         }
       />
@@ -609,6 +676,122 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
           </div>
         </>
       )}
+
+      {/* ===== 일간 뷰 ===== */}
+      {viewMode === "day" && (
+        <>
+          {/* 날짜 이동 */}
+          <div className={styles.dayNav}>
+            <button
+              type="button"
+              onClick={() => setParams({ day: shiftDay(dayStr, -1) })}
+              className="calendar-nav-btn"
+              aria-label="이전 날"
+            >
+              <ChevronLeft size={16} strokeWidth={2.4} />
+            </button>
+            <span className="calendar-period-label">{formatDayTitle(dayStr)}</span>
+            <button
+              type="button"
+              onClick={() => setParams({ day: shiftDay(dayStr, 1) })}
+              className="calendar-nav-btn"
+              aria-label="다음 날"
+            >
+              <ChevronRight size={16} strokeWidth={2.4} />
+            </button>
+            {dayStr !== todayStr && (
+              <button
+                type="button"
+                onClick={() => setParams({ day: null, date: null })}
+                className="calendar-nav-btn is-today-btn"
+              >
+                오늘
+              </button>
+            )}
+          </div>
+
+          {/**
+            * **그 날 할 수 있는 것부터.** 일간은 "무엇이 있었나"보다
+            * "이제 뭘 하지"를 보러 여는 화면이다.
+            */}
+          <DayWorkbench date={dayStr} onNewEvent={() => setDayModal(true)} />
+
+          <DayAgenda date={dayStr} />
+
+          {dayModal && (
+            <EventModal
+              date={dayStr}
+              onClose={() => setDayModal(false)}
+              onSaved={() => {
+                setDayModal(false);
+                // 보이는 범위의 일정 SWR 을 전부 다시 읽는다 — 안 하면 방금 만든 것이 안 보인다
+                void mutateSwr((k) => typeof k === "string" && k.startsWith("/api/calendar/events"));
+              }}
+            />
+          )}
+        </>
+      )}
     </div>
   );
+}
+
+/** 그 날의 일정과 기록 — 일간 보기의 본문. 패널(모달)과 같은 API 를 읽는다 */
+function DayAgenda({ date }: { date: string }) {
+  const { data: events = [] } = useSWR<CalEventLite[]>(
+    `/api/calendar/events?start=${date}&end=${date}`, fetcher,
+  );
+  const { data: logs = [] } = useSWR<DailyLog[]>(`/api/daily/logs?date=${date}`, fetcher);
+
+  if (events.length === 0 && logs.length === 0) {
+    return (
+      <EmptyState
+        title="이 날은 아직 비어 있어요"
+        description="위에서 미팅을 기록하거나 일정을 추가하면 여기에 쌓입니다."
+      />
+    );
+  }
+
+  return (
+    <div className={styles.dayAgenda}>
+      {events.map((ev) => (
+        <div key={ev.id} className={styles.dayRow}>
+          <span className={styles.dayTime}>
+            {ev.all_day ? "종일" : formatKstTime(ev.start_at)}
+          </span>
+          <span className={styles.dayTitle}>{ev.title}</span>
+        </div>
+      ))}
+      {logs.map((log) => {
+        const t = ENTRY_TYPES[log.entry_type];
+        return (
+          <div
+            key={log.id}
+            className={styles.weekLogRow}
+            style={{
+              "--log-color": t.color,
+              "--log-bg": t.bg,
+              "--log-border": t.border,
+            } as React.CSSProperties}
+          >
+            <span className={styles.weekLogBadge}>{t.label}</span>
+            <span className={styles.weekLogTime}>{formatKstTime(log.logged_at)}</span>
+            <p className={styles.weekLogText}>{log.content}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 8월 27일 (수) — 일간 제목 */
+function formatDayTitle(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEK_DAYS[d.getDay()]})`;
+}
+
+/** 하루 이동 — Date 산술로 월·연 경계를 맡긴다 */
+function shiftDay(dateStr: string, delta: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + delta);
+  return toDateStr(d);
 }
