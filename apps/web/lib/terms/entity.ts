@@ -61,12 +61,38 @@ export const ENTITY: Record<EntityKey, EntityMeta> = {
   weeklyReport: { label: '주간보고', id: 'weekly_report', counter: '건', surface: 'member' },
 }
 
+/** 어느 시스템의 일인가 — 캘린더가 표면 배지를 붙일 때 쓴다 */
+export type SurfaceKey = EntityMeta['surface']
+
 /** 표면의 말 — 캘린더 배지·이동 안내가 쓴다 */
-export const SURFACE_LABEL: Record<EntityMeta['surface'], string> = {
+export const SURFACE_LABEL: Record<SurfaceKey, string> = {
   member: '업무',
   crm: 'CRM',
   ci: '콘텐츠',
 }
+
+/**
+ * 서비스 **간판** — 셸의 로고 자리가 "지금 어느 서비스인가"를 말할 때 쓴다.
+ *
+ * `SURFACE_LABEL`(위)과 **쓰임이 다르다**: 저건 항목 옆에 붙는 **배지**라 짧아야 하고
+ * (`CRM` · `콘텐츠`), 이건 **간판**이라 정식 이름이어야 한다(`영업 CRM` · `콘텐츠 인텔리전스`).
+ * 두 벌인 이유를 안 적어 두면 다음 사람이 "중복"이라며 하나로 합치고, 그러면 배지가 길어지거나
+ * 간판이 짧아진다.
+ *
+ * **왜 생겼나**: 셸 넷이 로고 자리에 **회사 브랜드만** 똑같이 띄워서, 화면만 봐서는
+ * 지금 CRM 인지 콘텐츠 인텔리전스인지 알 수 없었다(사용자 지적 2026-08-27:
+ * "각각 로고 위치에 정확히 지금 보여주고 있는게 어떤 서비스인지 표시 되야 하는게
+ * 명확한거 아닌가? 메인로고 텍스트가 아니라"). `/develop` 만 이미 「개발자센터」를 달고 있었다.
+ */
+export const SERVICE_LABEL = {
+  member: '업무 워크스페이스',
+  crm: '영업 CRM',
+  ci: '콘텐츠 인텔리전스',
+  admin: '관리자',
+  develop: '개발자센터',
+} as const
+
+export type ServiceKey = keyof typeof SERVICE_LABEL
 
 /**
  * 개수를 사람이 읽는 말로 — `딜 3건` · `회사 372곳`.

@@ -1,5 +1,7 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
+
 // 할 일 목록 (dacrm F2 뒤끝)
 //
 // **왜 이 화면이 필요한가**: 미팅에서 "8월 25일까지 보안 문서 보내기"를 뽑아
@@ -58,7 +60,14 @@ export default function TasksClient() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [title, setTitle] = useState('')
-  const [dueDate, setDueDate] = useState('')
+  /**
+   * 캘린더에서 날짜를 눌러 들어오면 그 날이 마감일이다(`?due=`).
+   *
+   * 안 받으면 사용자는 8월 30일을 눌러 놓고 **오늘 마감인 할 일**을 만든다 —
+   * 눌러서 들어온 화면이 그 날을 모르는 것이 문제였다(§2-6 "URL이 진실").
+   */
+  const dueParam = useSearchParams().get('due') ?? ''
+  const [dueDate, setDueDate] = useState(/^\d{4}-\d{2}-\d{2}$/.test(dueParam) ? dueParam : '')
 
   const load = useCallback(async () => {
     setLoading(true)

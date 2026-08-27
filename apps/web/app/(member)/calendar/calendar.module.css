@@ -17,3 +17,165 @@
     display: none;
   }
 }
+
+/* D-day 배지 — 인라인 style 로 있던 것을 클래스로 옮긴다(§1 토큰·§4 가드).
+   급한 것(D-day)과 남은 것(D-N)은 색이 달라야 한 눈에 갈린다. */
+.dday {
+  flex-shrink: 0;
+  padding: 0 0.2rem;
+  border-radius: var(--radius);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.dday[data-today='true'] {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* 주간 뷰의 날짜 열기 버튼 — 자작 인라인 버튼이던 자리 */
+.weekOpen {
+  min-height: 32px;
+  padding: 0.125rem 0.5rem;
+  border: var(--hairline) solid var(--info-border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--info);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.weekOpen:hover,
+.weekOpen:focus-visible { background: var(--info-bg); }
+
+/* 범례 — 인라인 style 뭉치를 클래스로. 색만 인라인 커스텀 프로퍼티로 넘긴다
+   (상태색은 STATUS_COLORS SSOT 라 CSS 에 다시 적을 수 없다). */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: var(--hairline) solid var(--surface-muted);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.legendDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--legend-dot);
+}
+
+.legendLabel {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* 주간 뷰 날짜 카드 — 인라인 style 뭉치를 클래스로. 오늘은 테두리·바탕이 달라진다. */
+.weekCard {
+  overflow: hidden;
+  border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.weekCard[data-today='true'] {
+  border: var(--hairline) solid var(--info);
+  background: var(--surface-bg);
+}
+
+.weekCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+}
+
+.weekCard[data-today='true'] .weekCardHead { background: var(--info-bg); }
+.weekCardHead[data-divided='true'] { border-bottom: var(--border-w-2) solid var(--border-color); }
+
+/* 주간 뷰 — 날짜 이름·오늘 표시·건수 */
+.weekDayName {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+}
+.weekDayName[data-dow='sun'] { color: var(--danger); }
+.weekDayName[data-dow='sat'] { color: var(--info); }
+.weekDayName[data-today='true'] { color: var(--info); font-weight: 700; }
+
+.todayPill {
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--info);
+  background: var(--info-bg);
+}
+
+.weekHeadLeft,
+.weekHeadRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.weekCount {
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+/* 주간 뷰 — 그 날의 기록 줄. 상태색은 STATUS_COLORS SSOT 에서 인라인 변수로 받는다 */
+.weekLogs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.weekLogRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-left: var(--space-2);
+  border-left: var(--border-w-2) solid var(--log-color);
+}
+
+.weekLogBadge {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  padding: 0.1rem 0.35rem;
+  border: var(--hairline) solid var(--log-border);
+  border-radius: var(--radius);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--log-color);
+  background: var(--log-bg);
+}
+
+.weekLogTime {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.weekLogText {
+  flex: 1;
+  margin: 0;
+  font-size: var(--fs-base);
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -1,9 +1,10 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
-import { getCalendarDayLogs, getMonthLogSummary } from '../daily/actions'
+import { getCalendarDayLogs } from '../daily/actions'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import type { WeeklyReport } from '@/types/database'
-import HomeMiniCalendar from './HomeMiniCalendar'
+import CalendarBoard from '../calendar/CalendarBoard'
 import HomeQuickEntry from './HomeQuickEntry'
 import HomeDeptTaskWidget from './HomeDeptTaskWidget'
 import { listHomeDeptTasks } from '../dept-tasks/actions'
@@ -12,6 +13,7 @@ import { FileText, BarChart2, CheckSquare, Building2 } from 'lucide-react'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 import { isMemberOfDivisionByName } from '@/lib/org-scope'
 
@@ -23,15 +25,12 @@ export default async function HomePage() {
   const adminClient = createAdminClient()
   const now = new Date()
   const todayStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Seoul' })
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1
   const weekStart = getWeekStart()
   const weekStartStr = toDateString(weekStart)
 
-  const [profileResult, todayLogs, monthSummary, reportsResult, deptTasks] = await Promise.all([
+  const [profileResult, todayLogs, reportsResult, deptTasks] = await Promise.all([
     adminClient.from('profiles').select('name, role, position').eq('id', user.id).single(),
     getCalendarDayLogs(todayStr),
-    getMonthLogSummary(year, month),
     supabase
       .from('weekly_reports')
       .select('week_start, category, created_at')
@@ -105,7 +104,23 @@ export default async function HomePage() {
           />
         </div>
 
-        {/* 부서업무 와이드 섹션 — 중요도 높음, 헤더 직하 배치 */}
+        {/**
+          * **캘린더가 메인이다.** 사용자 지시(2026-08-27):
+          * *"지금 홈화면에 캘린더를 메인으로 두자는 거야 ... 캘린더에 날짜를 누르면
+          *   할 수 있는 모든 펑션이 나오는거고, CRM에 접속은 뭔가를 세부 확인하고 할때"*.
+          *
+          * 예전엔 위젯 셋을 지나 맨 아래에 **읽기 전용 미니 달력**이 있었다 — 날짜를 눌러도
+          * 아무 일이 없었고, 무언가를 시작하려면 메뉴를 찾아 들어가야 했다.
+          * 지금은 `/calendar` 와 **같은 보드**다(부품 하나 · §재사용·단일구현).
+          * 날짜를 누르면 그 날의 작업대가 열리고 거기서 미팅·일정·할 일을 바로 시작한다.
+          */}
+        <div className="home-section-calendar">
+          <Suspense fallback={<AXDotLoader />}>
+            <CalendarBoard basePath="/home" compact />
+          </Suspense>
+        </div>
+
+        {/* 부서업무 와이드 섹션 */}
         <div className="home-section-dept">
           <HomeDeptTaskWidget initial={deptTasks} today={todayStr} />
         </div>
@@ -156,16 +171,6 @@ export default async function HomePage() {
               />
             )}
           </div>
-        </div>
-
-        {/* 미니 캘린더 — 위젯 아래 전체폭 */}
-        <div className="home-section-calendar">
-          <HomeMiniCalendar
-            year={year}
-            month={month}
-            todayStr={todayStr}
-            monthSummary={monthSummary}
-          />
         </div>
 
       </div>

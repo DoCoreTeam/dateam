@@ -51,6 +51,14 @@ export interface StartMeetingInput {
   companyId?: string | null
   /** 테스트에서 시각을 고정하기 위한 자리 */
   now?: Date
+  /**
+   * 캘린더에서 **다른 날짜를 눌러** 시작할 때 그 날(YYYY-MM-DD).
+   *
+   * 없으면 지금이다(기존 동작 그대로). 지난 날짜의 회의를 뒤늦게 적을 때
+   * 이걸 안 주면 **그 회의가 오늘 일어난 것으로 기록된다.**
+   * 시각은 모르므로 그 날 09:00 로 둔다 — 작업대에서 언제든 고친다.
+   */
+  dateKey?: string | null
 }
 
 export interface StartedMeeting {
@@ -65,7 +73,11 @@ export interface StartedMeeting {
  * CRM 에서만 만들면 원본 없는 미팅이 생기고, 같은 회의가 두 벌이 된다.
  */
 export function buildStartBody(input: StartMeetingInput = {}): Record<string, unknown> {
-  const { date, time } = nowKstWall(input.now)
+  const now = nowKstWall(input.now)
+  // 다른 날짜를 눌러 시작했으면 그 날이다. 시각은 모르니 업무 시작 시각으로 둔다
+  const isOtherDay = Boolean(input.dateKey) && input.dateKey !== now.date
+  const date = input.dateKey || now.date
+  const time = isOtherDay ? '09:00' : now.time
   return {
     title: defaultMeetingTitle(date),
     // KST 벽시계를 +09:00 앵커로 보낸다 — 서버가 UTC 로 정확히 적재한다(datetime SSOT)

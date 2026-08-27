@@ -14,6 +14,7 @@ import { CalendarPlus, Trash2, CalendarClock, CheckSquare, StickyNote, X } from 
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { STATUS_COLORS } from '@/lib/tokens/status-colors'
+import DayWorkbench from '@/components/calendar/DayWorkbench'
 
 interface CalEvent {
   id: string; base_id?: string; title: string; start_at: string; end_at: string | null; all_day: boolean
@@ -194,6 +195,13 @@ export default function DayDetailPanel({ date, onClose }: Props) {
 
         {/* 본문 */}
         <div className="day-panel-body">
+          {/**
+            * **이 날 할 수 있는 것부터.** 예전엔 「일정」과 「작성」 둘뿐이라
+            * 미팅을 시작하려면 CRM 메뉴를 찾아 들어가야 했다 — 회의 직전에 아무도 그걸 안 한다.
+            * 「새 일정」은 화면을 옮기지 않고 이 자리에서 연다(화면 전환 0회).
+            */}
+          <DayWorkbench date={date} onNewEvent={() => setShowModal(true)} />
+
           {/* 일정 (calendar_events) — 시작시각 기준 */}
           {events.length > 0 && (
             <section className="day-panel-section">

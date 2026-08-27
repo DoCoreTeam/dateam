@@ -12,8 +12,8 @@ export {
 } from './action.ts'
 
 export {
-  ENTITY, SURFACE_LABEL, count, countOnly,
-  type EntityKey, type EntityMeta, type Counter,
+  ENTITY, SURFACE_LABEL, SERVICE_LABEL, count, countOnly,
+  type EntityKey, type EntityMeta, type Counter, type ServiceKey, type SurfaceKey,
 } from './entity.ts'
 
 export {

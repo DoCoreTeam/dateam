@@ -1,0 +1,50 @@
+/* 그 날의 작업대 — 날짜 패널 맨 위. 표면 색은 토큰이 정한다(자작 hex 없음). */
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 var(--space-4);
+  border-bottom: var(--hairline) solid var(--border-light);
+  margin-bottom: var(--space-3);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* 터치 최소치 — 회의 직전에 손가락으로 누른다 */
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.action:hover:not(:disabled),
+.action:focus-visible { border-color: var(--brand); color: var(--brand); }
+.action:disabled { opacity: 0.6; cursor: default; }
+
+.label { white-space: nowrap; }
+
+.surface {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.action[data-surface='crm'] .surface { background: var(--brand-soft); color: var(--brand); }
+.action[data-surface='ci'] .surface { background: var(--info-bg); color: var(--info); }
