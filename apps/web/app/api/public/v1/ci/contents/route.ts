@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { optionsResponse } from '@/lib/publicApiAuth'
-import { withPublicCiApi } from '@/lib/public-api/ci-bridge'
+import { withPublicCiList } from '@/lib/public-api/ci-bridge'
 import { listContents } from '@/lib/ci/queries/contents'
 import { readLimit } from '@/lib/public-api/respond'
 
@@ -11,14 +11,18 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return withPublicCiApi('viewer', request, ({ workspace }) => {
+  return withPublicCiList('viewer', request, async ({ workspace }) => {
     const sp = request.nextUrl.searchParams
     const days = Number(sp.get('windowDays'))
-    return listContents({
+    const res = await listContents({
       workspaceId: workspace.id,
       limit: readLimit(request),
       topicId: sp.get('topicId') || null,
       ...(Number.isFinite(days) && days > 0 ? { windowDays: Math.floor(days) } : {}),
     })
+    return {
+      items: res.items,
+      meta: { total: res.total, nextCursor: res.cursor, hasMore: res.cursor !== null },
+    }
   })
 }

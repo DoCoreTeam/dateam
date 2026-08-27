@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { optionsResponse } from '@/lib/publicApiAuth'
-import { withPublicCiApi } from '@/lib/public-api/ci-bridge'
+import { withPublicCiList } from '@/lib/public-api/ci-bridge'
 import { listChannels } from '@/lib/ci/queries/channels'
 import type { CiChannelOwnership } from '@/lib/ci/types'
 
@@ -11,8 +11,9 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return withPublicCiApi('viewer', request, ({ workspace }) => {
+  return withPublicCiList('viewer', request, async ({ workspace }) => {
     const ownership = request.nextUrl.searchParams.get('ownership') as CiChannelOwnership | null
-    return listChannels(workspace.id, ownership ?? undefined)
+    const items = await listChannels(workspace.id, ownership ?? undefined)
+    return { items, meta: { total: items.length } }
   })
 }

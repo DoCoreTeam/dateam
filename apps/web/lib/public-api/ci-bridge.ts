@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server'
 import { listCiWorkspaces, type CiWorkspaceRef } from '@/lib/ci/workspace'
 import { ciRoleAtLeast, type CiMemberRole } from '@/lib/ci/types'
 import { authenticatePublicApi, type ApiKeyContext } from '@/lib/publicApiAuth'
-import { fail, serverError, responseHeaders } from './respond.ts'
+import { fail, serverError, okList, responseHeaders, type ListMeta } from './respond.ts'
 
 export interface PublicCiContext {
   workspace: CiWorkspaceRef
@@ -22,10 +22,29 @@ export interface PublicCiContext {
   request: NextRequest
 }
 
+/**
+ * 목록 응답 — **봉투는 한 벌이다**(`lib/public-api/respond.ts`).
+ *
+ * 실측 v0.7.623: 게시물 목록이 `{ success, data: { items, total, cursor } }` 로 나갔다.
+ * CRM 은 `{ success, data: [...], meta }` 다. 문서는 「목록은 meta 를 따릅니다」라고 말하는데
+ * CI 만 달랐고, 그 결과 「직접 실행」이 1,685건 있는 워크스페이스에서 **0건**을 그렸다.
+ * 봉투를 라우트마다 손으로 만들면 반드시 이렇게 갈린다 — 그래서 여기 한 곳을 지난다.
+ */
+export async function withPublicCiList<T>(
+  minRole: CiMemberRole,
+  request: NextRequest,
+  fn: (ctx: PublicCiContext) => Promise<{ items: T[]; meta?: ListMeta }>,
+): Promise<Response> {
+  return withPublicCiApi(minRole, request, fn, (result, ctx) =>
+    okList(result.items, result.meta ?? { total: result.items.length }, { ctx: ctx.key, request: ctx.request }))
+}
+
 export async function withPublicCiApi<T>(
   minRole: CiMemberRole,
   request: NextRequest,
   fn: (ctx: PublicCiContext) => Promise<T>,
+  /** 응답 조립기 — 안 주면 단건 봉투(`{ success, data }`)로 싼다 */
+  respond?: (result: T, ctx: PublicCiContext) => Response,
 ): Promise<Response> {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
@@ -59,7 +78,9 @@ export async function withPublicCiApi<T>(
       return fail(403, '이 작업을 할 권한이 없습니다.', { ctx: key, request })
     }
 
-    const data = await fn({ workspace, key, request })
+    const ctx: PublicCiContext = { workspace, key, request }
+    const data = await fn(ctx)
+    if (respond) return respond(data, ctx)
     return NextResponse.json({ success: true, data }, { headers: responseHeaders({ ctx: key, request }) })
   } catch (e) {
     return serverError('ci', e, { ctx: key, request })

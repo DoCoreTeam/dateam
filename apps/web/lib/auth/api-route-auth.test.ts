@@ -16,7 +16,7 @@ import { join } from 'node:path'
 
 /**
  * 라우트가 인증했다고 인정하는 신호.
- * withPublicCrmApi·withPublicCiApi 는 공개 API(키 인증)의 껍데기다. 안에서
+ * withPublicCrmApi·withPublicCiApi·withPublicCiList 는 공개 API(키 인증)의 껍데기다. 안에서
  * authenticatePublicApi 로 키를 확인하고 그 계정의 CRM·CI 멤버십까지 본다 —
  * 라우트가 직접 부르지 않아도 인증이 없는 것이 아니다.
  *
@@ -24,7 +24,7 @@ import { join } from 'node:path'
  * 안에서 resolveCrmAccess 로 로그인·api_user·삭제계정·CRM 멤버십을 판정하고
  * 실패하면 401/403 을 낸다(lib/crm/api/handler.ts).
  */
-const AUTH_HELPER = /\b(require[A-Za-z]*Api|requireCiMember[A-Za-z]*|authenticatePublicApi|verifyApiKey|withCrmApi|withPublicCrmApi|withPublicCiApi)\s*\(/
+const AUTH_HELPER = /\b(require[A-Za-z]*Api|requireCiMember[A-Za-z]*|authenticatePublicApi|verifyApiKey|withCrmApi|withPublicCrmApi|withPublicCiApi|withPublicCiList)\s*\(/
 /**
  * 라우트 안에서 직접 세션을 확인하는 경우.
  *
