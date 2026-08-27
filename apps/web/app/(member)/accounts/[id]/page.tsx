@@ -5,6 +5,7 @@ import { MapPin, Users, TrendingUp } from 'lucide-react'
 import ContactLink from '@/components/ui/ContactLink'
 import type { Account, Contact, Deal } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
+import RecordLayout from '@/components/ui/crm/RecordLayout'
 import ProjectTabs from '@/components/ui/ProjectTabs'
 import EmptyState from '@/components/ui/EmptyState'
 
@@ -81,9 +82,11 @@ export default async function AccountDetailPage({ params }: PageProps) {
         </>}
       />
 
-      <div className="responsive-grid-2" style={{ gap: 'var(--space-5)', alignItems: 'flex-start' }}>
+      {/* CRM 상세와 같은 뼈대 — 표면이 달라도 상세는 한 벌(§2-3-2 L-7).
+          이 화면은 행동 레일에 넣을 것이 없어 한 열이다(편집은 제목 우측에 있다). */}
+      <RecordLayout info={<>
         {/* 기본 정보 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+
           <div className="card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
             <h2 className="tape-title" style={{ margin: 0 }}>기본 정보</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -159,7 +162,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
               </div>
             )}
           </div>
-        </div>
+
 
         {/* 영업기회 */}
         <div className="card">
@@ -199,7 +202,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
             </div>
           )}
         </div>
-      </div>
+      </>} />
     </div>
   )
 }

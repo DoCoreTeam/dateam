@@ -109,8 +109,10 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
 
       {verify.error && <FormErrorBanner message={verify.error} />}
 
+      {/* 왼쪽=읽는 것(속성→관계→이력) · 오른쪽=하는 것 — 정책 §2-3-2 */}
       <RecordLayout
-        fields={
+        info={
+          <>
           <RecordPanel title="속성">
             <RecordFieldList>
               <RecordField label="도메인" field="domain"
@@ -130,19 +132,9 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
               <RecordField label="최근 변경">{formatKstDateTimeShort(company.updatedAt)}</RecordField>
             </RecordFieldList>
           </RecordPanel>
-        }
-        timeline={
-          <RecordPanel title="타임라인">
-            <Timeline key={timelineKey} scope={{ companyId }} />
-          </RecordPanel>
-        }
-        related={
-          <>
-            <RecordPanel title="다음 할 일">
-              <TaskPanel scope={{ companyId }} onChanged={() => setTimelineKey((k) => k + 1)} />
-            </RecordPanel>
 
-            <RecordPanel title={`인물 ${people.length}명`}>
+          {/* L-3 — 회사 화면에 오는 이유의 대부분은 "누구에게 연락하지?"다. 속성 바로 다음에 둔다 */}
+          <RecordPanel title={`인물 ${people.length}명`}>
               <RelatedList
                 loading={loading}
                 items={people.map((p) => ({
@@ -155,21 +147,30 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
                 }))}
                 empty={{ title: '담당자가 없어요', description: '인물 화면에서 이 회사로 담당자를 등록하세요.' }}
               />
-            </RecordPanel>
+          </RecordPanel>
 
-            <RecordPanel title={`딜 ${deals.length}건`}>
+          <RecordPanel title={`딜 ${deals.length}건`}>
               <RelatedList
                 loading={loading}
                 items={deals.map((d) => ({ id: d.id, href: `/crm/deals/${d.id}`, title: d.name, meta: d.status }))}
                 empty={{ title: '진행 중인 딜이 없어요', description: '딜 화면에서 이 회사의 영업 건을 만드세요.' }}
               />
-            </RecordPanel>
+          </RecordPanel>
 
-            {/* 이 회사와 무슨 이야기가 오갔나 — 딜별로 흩어져 있으면 못 본다 */}
-            <RecordPanel title="이 회사의 미팅">
-              <MeetingPanel scope={{ companyId }} />
-            </RecordPanel>
+          {/* 이 회사와 무슨 이야기가 오갔나 — 딜별로 흩어져 있으면 못 본다 */}
+          <RecordPanel title="이 회사의 미팅">
+            <MeetingPanel scope={{ companyId }} />
+          </RecordPanel>
+
+          <RecordPanel title="타임라인">
+            <Timeline key={timelineKey} scope={{ companyId }} />
+          </RecordPanel>
           </>
+        }
+        actions={
+          <RecordPanel title="다음 할 일">
+            <TaskPanel scope={{ companyId }} onChanged={() => setTimelineKey((k) => k + 1)} />
+          </RecordPanel>
         }
       />
 

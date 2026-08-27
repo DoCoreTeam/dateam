@@ -1,28 +1,60 @@
 'use client'
 
-// 레코드 3열 표준 (dacrm 구현명세 §6.2)
+// 레코드 상세 골격 — **읽는 곳 / 하는 곳** (정책 §2-3-2 「자리의 축」)
 //
-// 회사·인물·딜 상세가 **같은 골격**을 쓴다. 화면마다 3열을 다시 짜면
-// 속성이 어디 있는지, 이력이 어느 쪽인지가 화면마다 달라진다 — 사용자는 매번 다시 찾는다.
+//   왼쪽(info)   — 읽는 것: 속성 → 관계 → 이력 (L-2 순서)
+//   오른쪽(actions) — 하는 것: 다음 할 일 · 생성 진입 · 상태 변경
 //
-//   좌: 필드 패널   — 이 레코드가 무엇인가
-//   중: 타임라인    — 이 레코드에 무슨 일이 있었나
-//   우: 연결 패널   — 이 레코드가 무엇과 이어져 있나
+// **왜 두 열인가**: 예전 3열은 "무엇인가 / 무슨 일 / 무엇과 이어짐"으로 나뉘어 있었는데,
+// 그 계약이 **이 파일 주석에만** 있어서 화면마다 다르게 해석됐다(실측 v0.7.599):
+//   · 오른쪽 `related` 칸에 「다음 할 일」(입력 폼)이 얹혀 **행동과 정보가 한 열에 섞였다**
+//   · 회사의 인물이 300px 좁은 칸으로 밀려 **연락하려면 스크롤**해야 했다
+//     (같은 개념이 거래처 상세에서는 왼쪽 넓은 칸에 있었다 — 정반대)
+//   · 미팅 상세는 슬롯 뜻을 **정반대로** 채웠다(관계를 '무엇인가' 자리에)
+// 슬롯 이름이 `related` 인 한 사람은 거기에 관계를 넣는다. **이름이 바뀌어야 행동이 바뀐다.**
 //
-// 좁은 화면에서는 한 줄로 접힌다. 접히는 순서는 좌 → 중 → 우 —
-// 폰에서 먼저 알아야 하는 것은 "무엇인가"이지 "무엇과 이어져 있나"가 아니다.
+// **폰에서는 행동이 먼저 온다(L-4).** 좌우를 그대로 상하로 접으면 제일 급한 것이 제일 아래로
+// 간다 — 영업은 밖에서 하는 일인데 「다음 할 일」이 타임라인 전체 뒤에 있었다.
+// 이 뒤집기는 **부품이 한다.** 화면이 매번 기억할 규칙으로 두지 않는다.
 
 import type { ReactNode } from 'react'
 import { Lock, Unlock } from 'lucide-react'
 import styles from './record-layout.module.css'
 
 interface Props {
-  fields: ReactNode
-  timeline: ReactNode
-  related: ReactNode
+  /** 왼쪽 — 읽는 것. 속성 → 관계 → 이력 순으로 넣는다(L-2) */
+  info?: ReactNode
+  /** 오른쪽 — 하는 것. 입력 폼·생성 진입만. 읽을 것을 넣지 않는다(L-1) */
+  actions?: ReactNode
+
+  /**
+   * @deprecated 레거시 3슬롯. 새 화면은 `info`/`actions` 를 쓴다.
+   * 아직 이관하지 않은 화면(미팅 상세 — 슬롯 뜻이 뒤집혀 있어 단순 이관이 아니라 재배치가 필요하다)이
+   * 남아 있어 함께 받는다. 그 화면을 다른 일로 건드릴 때 이관한다.
+   */
+  fields?: ReactNode
+  /** @deprecated `info` 안으로 */
+  timeline?: ReactNode
+  /** @deprecated `info`(읽을 것) 또는 `actions`(할 것)로 나눠 넣는다 */
+  related?: ReactNode
 }
 
-export default function RecordLayout({ fields, timeline, related }: Props) {
+export default function RecordLayout({ info, actions, fields, timeline, related }: Props) {
+  // 새 슬롯을 하나라도 주면 2열이다 — 레거시와 섞어 쓰지 않는다
+  if (info !== undefined || actions !== undefined) {
+    // 행동 레일에 넣을 것이 없는 화면(읽기 위주)은 한 열이다 —
+    // 빈 레일이 320px 를 먹으면 그게 바로 L-5 가 막으려는 상태다
+    const hasRail = actions !== undefined
+    return (
+      <div className={hasRail ? styles.record2 : styles.recordSolo}>
+        <section className={styles.colInfo} aria-label="정보">{info}</section>
+        {hasRail && (
+          <aside className={styles.colActions} aria-label="할 수 있는 것">{actions}</aside>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={styles.record}>
       <aside className={styles.col} aria-label="속성">{fields}</aside>

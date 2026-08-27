@@ -5,6 +5,7 @@ import { Linkedin } from 'lucide-react'
 import ContactLink from '@/components/ui/ContactLink'
 import type { Contact, Account } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
+import RecordLayout, { RecordPanel } from '@/components/ui/crm/RecordLayout'
 import ProjectTabs from '@/components/ui/ProjectTabs'
 import EmptyState from '@/components/ui/EmptyState'
 
@@ -50,8 +51,11 @@ export default async function ContactDetailPage({ params }: PageProps) {
         />
       </div>
 
-      <div className="card" style={{ maxWidth: '480px', padding: 'var(--space-6)' }}>
-        <h2 className="tape-title" style={{ margin: 0 }}>연락처 정보</h2>
+      {/* CRM 상세와 같은 뼈대다 — 표면이 달라도 상세는 한 벌(§2-3-2 L-7).
+          예전엔 maxWidth 480px 카드라 §2-4(폭 제한 금지)를 어기고 있었다. */}
+      <RecordLayout
+        info={
+          <RecordPanel title="연락처 정보">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {data.email && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--fs-base)' }}>
@@ -89,11 +93,12 @@ export default async function ContactDetailPage({ params }: PageProps) {
             />
           )}
         </div>
-      </div>
-
+          </RecordPanel>
+        }
+        actions={
+      <>
       {data.business_card_drive_id && (
-        <div className="card" style={{ maxWidth: '480px', padding: 'var(--space-6)', marginTop: '1rem' }}>
-          <h2 className="tape-title" style={{ margin: 0 }}>명함 이미지</h2>
+        <RecordPanel title="명함 이미지">
           <div style={{ position: 'relative', width: '100%', aspectRatio: '1.7 / 1', overflow: 'hidden', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', backgroundColor: 'var(--color-bg)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -102,8 +107,11 @@ export default async function ContactDetailPage({ params }: PageProps) {
               style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
             />
           </div>
-        </div>
+        </RecordPanel>
       )}
+      </>
+        }
+      />
     </div>
   )
 }

@@ -118,8 +118,10 @@ export default function PersonDetail({ personId }: { personId: string }) {
 
       {verify.error && <FormErrorBanner message={verify.error} />}
 
+      {/* 왼쪽=읽는 것(속성→관계→이력) · 오른쪽=하는 것 — 정책 §2-3-2 */}
       <RecordLayout
-        fields={
+        info={
+          <>
           <RecordPanel title="속성">
             <RecordFieldList>
               <RecordField label="직함" field="title"
@@ -142,19 +144,8 @@ export default function PersonDetail({ personId }: { personId: string }) {
               <RecordField label="최근 변경">{formatKstDateTimeShort(person.updatedAt)}</RecordField>
             </RecordFieldList>
           </RecordPanel>
-        }
-        timeline={
-          <RecordPanel title="타임라인">
-            <Timeline key={timelineKey} scope={{ personId }} />
-          </RecordPanel>
-        }
-        related={
-          <>
-            <RecordPanel title="다음 할 일">
-              <TaskPanel scope={{ personId }} onChanged={() => setTimelineKey((k) => k + 1)} />
-            </RecordPanel>
 
-            <RecordPanel title="소속">
+          <RecordPanel title="소속">
               {/* 회사 상세의 인물 목록과 같은 부품이다 — 같은 성격의 자리는 같은 모양이어야 한다(§2-5) */}
               <RelatedList
                 loading={loading}
@@ -170,16 +161,25 @@ export default function PersonDetail({ personId }: { personId: string }) {
                   action: { label: '수정', onClick: () => setEditing(true) },
                 }}
               />
-            </RecordPanel>
+          </RecordPanel>
 
-            <RecordPanel title={`회사의 딜 ${deals.length}건`}>
+          <RecordPanel title={`회사의 딜 ${deals.length}건`}>
               <RelatedList
                 loading={loading}
                 items={deals.map((d) => ({ id: d.id, href: `/crm/deals/${d.id}`, title: d.name }))}
                 empty={{ title: '진행 중인 딜이 없어요', description: '딜 화면에서 영업 건을 만드세요.' }}
               />
-            </RecordPanel>
+          </RecordPanel>
+
+          <RecordPanel title="타임라인">
+            <Timeline key={timelineKey} scope={{ personId }} />
+          </RecordPanel>
           </>
+        }
+        actions={
+          <RecordPanel title="다음 할 일">
+            <TaskPanel scope={{ personId }} onChanged={() => setTimelineKey((k) => k + 1)} />
+          </RecordPanel>
         }
       />
 
