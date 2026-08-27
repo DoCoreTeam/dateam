@@ -83,6 +83,9 @@ export const CI_RELATIONS: Record<CiRelationParent, CiRelation[]> = {
     { kind: 'owns', table: 'ci_content_creative', column: 'content_id', label: '크리에이티브 분석', countForUser: false },
     { kind: 'owns', table: 'ci_content_media', column: 'content_id', label: '영상 실체 분석', countForUser: false },
     { kind: 'owns', table: 'ci_pattern_evidence', column: 'content_id', label: '성공 공식의 근거', countForUser: false },
+    // 발견(ci_discoveries)의 근거. 공식의 근거와 같은 성격이라 같은 계약을 쓴다 —
+    // 콘텐츠가 사라지면 그 콘텐츠를 가리키던 근거도 함께 사라진다(마이그 222 CASCADE).
+    { kind: 'owns', table: 'ci_discovery_evidence', column: 'content_id', label: '발견의 근거', countForUser: false },
     { kind: 'owns', table: 'ci_snapshot_schedules', column: 'content_id', label: '예약된 지표 촬영', countForUser: false },
     { kind: 'owns', table: 'ci_notifications', column: 'content_id', label: '이 게시물에 대한 알림', countForUser: false },
     // 그룹의 대표가 사라지면 NULL이 된다. 옳은 동작은 형제로 승계지만, CASCADE로 바꾸면

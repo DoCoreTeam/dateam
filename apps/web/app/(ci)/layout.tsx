@@ -9,7 +9,7 @@
 import { redirect } from 'next/navigation'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
-  Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors,
+  Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors, Sparkles,
 } from 'lucide-react'
 import { getRequestUser } from '@/lib/supabase/server'
 import { getRequestProfile } from '@/lib/auth/request-profile'
@@ -41,6 +41,9 @@ function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
     {
       label: '리서치',
       items: [
+        // 맨 앞이다 — 사용자가 매일 처음 던지는 질문이 "뭘 만들까"이기 때문이다.
+        // 수집함·모니터링은 그 답을 만들기 위한 재료이지 매일 볼 화면이 아니다.
+        { href: '/ci/recommend', label: '오늘 뭘 만들까', icon: <Sparkles size={16} /> },
         { href: '/ci/inbox', label: '수집함', icon: <Inbox size={16} />, badge: badge(counts?.review) },
         { href: '/ci/monitoring', label: '모니터링', icon: <Radar size={16} />, match: ['/ci/channels'] },
         { href: '/ci/trends', label: '트렌드', icon: <TrendingUp size={16} />, badge: badge(counts?.newOutliers) },

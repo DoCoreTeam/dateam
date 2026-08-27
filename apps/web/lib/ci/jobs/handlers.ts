@@ -11,7 +11,7 @@ import { completenessFor } from '../connectors/meta-tags.ts'
 import { getGeminiMeta } from '../ai/meta.ts'
 import { computeDerived, recomputeChannelDerived } from '../analysis/derive.ts'
 import {
-  runClassify, runVerify, runPatterns, runChannelSweep, runCreativeBacklog,
+  runClassify, runVerify, runPatterns, runDiscovery, runChannelSweep, runCreativeBacklog,
   enrichChannelMetaBacklog, runChannelIdentity,
   runMediaUnderstanding, runMediaBacklog,
 } from './stages.ts'
@@ -287,6 +287,7 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
     await enrichContextBacklog(job.workspace_id)
     // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
     await runPatterns(job.workspace_id)
+    await runDiscovery(job.workspace_id)
     // 떡상 알림도 배수에 딸린 파생 처리라 같은 함정을 갖는다 — 단건이 아니라 재훑기다.
     await runAlertBacklog(job.workspace_id)
   }

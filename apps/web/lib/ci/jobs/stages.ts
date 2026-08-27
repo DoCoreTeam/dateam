@@ -15,6 +15,10 @@ import {
   type ChannelIdentity, type ChannelSignalSample,
 } from '../analysis/channel-identity.ts'
 import { computePatterns, type PatternSample } from '../analysis/patterns.ts'
+import {
+  buildContrastSets, promoteDiscoveries, type DiscoverySample,
+} from '../analysis/discovery.ts'
+import { discoverFromContrasts } from '../ai/discover-server.ts'
 import { buildCorrectionExamples, type CorrectionRecord } from '../analysis/corrections.ts'
 import { resolveSettings, type SettingRow } from '../settings/resolve.ts'
 import { CORPUS_FILTER } from '../corpus.ts'
@@ -603,6 +607,96 @@ export async function runPatterns(workspaceId: string): Promise<StageResult> {
     }
   }
 
+  return { ok: true }
+}
+
+
+/**
+ * 발견 — "왜 이것만 잘됐나"를 대조로 찾는다 (runPatterns 의 후계)
+ *
+ * runPatterns 와의 차이는 하나다: **보기를 주지 않는다.**
+ *   runPatterns 는 규칙 7개를 미리 적어 두고 데이터를 그 7칸에 넣었다(효과 1.2배 = 노이즈).
+ *   여기서는 떡상 1건과 같은 채널·같은 포맷·비슷한 시기의 평범 3건을 AI에게 나란히 보여 주고
+ *   "이 1건만 가진 것"을 자유 문장으로 쓰게 한다. 그리고 **서로 다른 채널 3곳 이상에서
+ *   반복된 것만** 공식으로 올린다.
+ *
+ * runPatterns 는 그대로 둔다 — 읽는 코드가 아직 있고, 폐기는 그것을 옮긴 뒤에 한다(M-4 추가 전용).
+ */
+export async function runDiscovery(workspaceId: string): Promise<StageResult> {
+  const adminClient = createAdminClient() as any
+
+  const { data: topics } = await adminClient.from('ci_topics')
+    .select('id').eq('workspace_id', workspaceId).is('deleted_at', null)
+
+  let promotedTotal = 0
+  let blocked: string | null = null
+
+  for (const t of (topics ?? []) as { id: string }[]) {
+    const { data } = await adminClient.from('ci_contents')
+      .select('id, channel_id, title, caption, format, duration_sec, published_at, thumbnail_url, ci_content_derived ( outlier_index, outlier_baseline_n )')
+      .eq('workspace_id', workspaceId).eq('topic_id', t.id)
+      .eq('source', CORPUS_FILTER.source).eq('is_stat_excluded', CORPUS_FILTER.is_stat_excluded)
+      .is('deleted_at', null).limit(1000)
+
+    const samples: DiscoverySample[] = ((data ?? []) as any[]).map((r) => ({
+      contentId: r.id,
+      channelId: r.channel_id,
+      title: r.title,
+      caption: r.caption,
+      format: r.format,
+      durationSec: r.duration_sec,
+      publishedAt: r.published_at,
+      thumbnailUrl: r.thumbnail_url,
+      outlierIndex: r.ci_content_derived?.outlier_index ?? null,
+      baselineN: r.ci_content_derived?.outlier_baseline_n ?? 0,
+    }))
+
+    const sets = buildContrastSets(samples)
+    if (sets.length === 0) continue
+
+    const found = await discoverFromContrasts(sets)
+    if (found.blocked) { blocked = found.blocked; continue }
+
+    const { promoted } = promoteDiscoveries(found.clusters, found.findings, found.kinds)
+
+    // 이번 계산에서 살아남지 못한 발견은 보관 처리한다.
+    // (patterns 와 같은 순서지만, 아래 insert 가 0건이어도 화면이 "0건"과 "못 돌았다"를
+    //  구분할 수 있게 blocked 를 따로 들고 나간다 — 617건이 조용히 사라진 사고의 교훈)
+    await adminClient.from('ci_discoveries')
+      .update({ is_archived: true })
+      .eq('workspace_id', workspaceId).eq('topic_id', t.id)
+
+    for (const d of promoted) {
+      const { data: saved } = await adminClient.from('ci_discoveries').insert({
+        workspace_id: workspaceId,
+        topic_id: t.id,
+        statement: d.statement,
+        kind: d.kind,
+        evidence_count: d.evidenceCount,
+        channel_count: d.channelCount,
+        is_archived: false,
+      }).select('id').single()
+
+      if (!saved?.id) continue
+      promotedTotal += 1
+
+      const obsOf = new Map<string, string>()
+      for (const f of found.findings) if (f.observation) obsOf.set(f.contentId, f.observation)
+
+      await adminClient.from('ci_discovery_evidence').insert(
+        d.contentIds.slice(0, 200).map((cid) => ({
+          discovery_id: saved.id,
+          content_id: cid,
+          observation: obsOf.get(cid) ?? null,
+        })),
+      )
+    }
+  }
+
+  // 못 돈 이유가 있으면 실패로 올린다 — 0건으로 위장하지 않는다
+  if (promotedTotal === 0 && blocked) {
+    return { ok: false, errorCode: 'AI_UNAVAILABLE', errorMessage: blocked }
+  }
   return { ok: true }
 }
 
