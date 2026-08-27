@@ -11,9 +11,12 @@
 import { callGeminiJson } from '../../ai/gemini-call.ts'
 import { asJsonRecord } from '../../ai/json-recover.ts'
 import { getGeminiMeta } from './meta.ts'
-import type {
-  ContrastSet, RawFinding, FindingCluster, DiscoveryKind,
+import {
+  MIN_CALL_INTERVAL_MS, DEFAULT_MAX_SETS, FREE_TIER_DAILY_LIMIT,
+  type ContrastSet, type RawFinding, type FindingCluster, type DiscoveryKind,
 } from '../analysis/discovery.ts'
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 const KINDS: readonly DiscoveryKind[] = [
   'hook', 'subject', 'format', 'timing', 'presentation', 'other',
@@ -120,12 +123,20 @@ export async function discoverFromContrasts(
   }
 
   // 배수가 큰 것부터(analysis 계층이 이미 정렬해 준다). 예산이 한정될 때 설명 가치가 큰 것을 먼저 쓴다.
-  const targets = sets.slice(0, opts?.maxSets ?? 60)
+  const targets = sets.slice(0, opts?.maxSets ?? DEFAULT_MAX_SETS)
 
   const findings: RawFinding[] = []
   let lastError: string | null = null
 
+  let lastCallAt = 0
+
   for (const set of targets) {
+    // 분당 한도를 넘기지 않게 간격을 맞춘다. 몰아치면 429가 나고,
+    // 429는 재시도까지 부르므로 **빨리 가려다 아예 못 가게 된다**(실측).
+    const wait = lastCallAt === 0 ? 0 : MIN_CALL_INTERVAL_MS - (Date.now() - lastCallAt)
+    if (wait > 0) await sleep(wait)
+    lastCallAt = Date.now()
+
     try {
       const res = await callGeminiJson({
         prompt: buildFindingPrompt(set),
@@ -150,6 +161,15 @@ export async function discoverFromContrasts(
     } catch (e) {
       // 개별 실패는 나머지를 멈추지 않는다. 다만 마지막 사유는 들고 있는다.
       lastError = e instanceof Error ? e.message : String(e)
+
+      // 단, **한도는 다르다.** 한도에 걸리면 다음 건도 100% 같은 이유로 실패한다.
+      // 계속 두드리면 남은 하루치를 재시도로 태우고, 사용자는 몇 분을 더 기다린 뒤
+      // 같은 답을 받는다. 실측: 한도 상태에서 123회를 두드려 성공 0회였다.
+      if (/quota|한도|429|RESOURCE_EXHAUSTED/i.test(lastError)) {
+        lastError = `AI 호출 한도를 다 썼습니다(무료 티어는 모델당 하루 ${FREE_TIER_DAILY_LIMIT}회). `
+          + '유료 키로 바꾸거나 한도가 초기화된 뒤 다시 시도해 주세요.'
+        break
+      }
     }
   }
 
@@ -157,7 +177,11 @@ export async function discoverFromContrasts(
     return { ...empty, blocked: lastError ? `분석을 시작하지 못했습니다 — ${lastError}` : null }
   }
 
-  // 2차 — 같은 뜻끼리 묶는다
+  // 2차 — 같은 뜻끼리 묶는다 (여기도 같은 한도를 쓴다)
+  {
+    const wait = MIN_CALL_INTERVAL_MS - (Date.now() - lastCallAt)
+    if (wait > 0) await sleep(wait)
+  }
   const numbered = findings.map((f, i) => ({ id: i + 1, text: f.statement }))
   const kinds: Record<string, DiscoveryKind> = {}
   let clusters: FindingCluster[] = []

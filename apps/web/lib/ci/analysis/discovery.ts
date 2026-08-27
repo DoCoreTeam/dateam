@@ -53,6 +53,25 @@ export const DISCOVERY_MIN_CHANNELS = 3
 /** 승격 최소 근거 수(떡상 건수). 채널 수 조건과 함께 걸린다. */
 export const DISCOVERY_MIN_EVIDENCE = 3
 
+/**
+ * AI 호출 간 최소 간격(ms).
+ *
+ * 왜 있나: 간격 없이 60건을 쏘자 429가 나고 재시도까지 겹쳐
+ * **123회 호출에 성공 0회**였다(실측 2026-08-27). 몰아치면 빨리 가려다 아예 못 간다.
+ *
+ * ⚠️ 무료 티어의 진짜 벽은 분당이 아니라 **하루**다. 실측 quotaId:
+ *   `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, value **20** (모델당 하루 20회)
+ * 즉 이 간격만으로는 무료 티어에서 이 기능이 돌지 않는다 — 유료 키가 있어야 한다.
+ * 간격은 그때(분당 한도가 실제 벽이 되는 유료 구간)를 위한 것이고,
+ * 무료 구간에서는 **남은 하루치를 재시도로 태우지 않게** 하는 역할을 한다.
+ */
+export const MIN_CALL_INTERVAL_MS = 3_200
+
+/** 무료 티어 실측 일일 한도(모델당). 화면·로그가 사용자에게 숫자로 말할 때 쓴다. */
+export const FREE_TIER_DAILY_LIMIT = 20
+
+export const DEFAULT_MAX_SETS = 24
+
 export interface DiscoverySample {
   contentId: string
   channelId: string | null

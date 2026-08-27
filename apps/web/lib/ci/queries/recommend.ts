@@ -69,7 +69,7 @@ export async function getRecommendations(
 
   let q = adminClient.from('ci_contents')
     .select(`
-      id, title, url, thumbnail_url, format, published_at, topic_id,
+      id, title, canonical_url, thumbnail_url, format, published_at, topic_id,
       ci_channels ( display_name, subscriber_count ),
       ci_content_derived ( outlier_index, outlier_baseline_n )
     `)
@@ -155,7 +155,7 @@ export async function getRecommendations(
       id: r.id,
       title: r.title ?? '(제목 미확인)',
       thumbnailUrl: r.thumbnail_url ?? null,
-      url: r.url ?? null,
+      url: r.canonical_url ?? null,
       channelName: r.ci_channels?.display_name ?? '채널 미확인',
       outlierText: formatOutlier(idx, base),
       // 축이 미확인이면 describeCohort 가 "미확인"이라고 말한다 — 숨기지 않는다
