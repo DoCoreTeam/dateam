@@ -27,6 +27,14 @@ export interface NavItem {
    * "홈이 항상 활성"으로 보인다. 그런 항목에만 켠다.
    */
   exact?: boolean
+  /**
+   * 관리자에게만 보인다.
+   *
+   * **왜 항목에 붙나**: 예전엔 **그룹이 권한을 겸했다** — 「AI」 그룹 하나에 항목 하나를 넣고
+   * 그룹 필터로 비관리자에게서 숨겼다. 그래서 그룹을 정리하려 하면(§2-3-3 N-3)
+   * **권한이 함께 바뀌어** 손댈 수 없었다. 묶음과 권한은 다른 일이므로 다른 장치로 나눈다.
+   */
+  adminOnly?: boolean
 }
 
 // 와이드 페이지(표/그리드 多) — 콘텐츠 폭 클램프(1200) 예외. 그 외 전 페이지는 1200 통일.
@@ -266,7 +274,7 @@ export default function MobileShell({
         <nav id="onboarding-sidebar-nav" style={{ flex: 1, padding: 'var(--space-3)', overflowY: 'auto' }} aria-label="주 메뉴">
           {/* 기본 아이템 */}
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-            {items.map((item, idx) => {
+            {items.filter((item) => !item.adminOnly || isAdmin).map((item, idx) => {
               const isActive = isNavActive(pathname, item)
               return (
                 <li key={item.href}>

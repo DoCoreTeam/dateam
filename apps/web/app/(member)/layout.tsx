@@ -29,6 +29,8 @@ const NAV_ITEMS = [
   { href: '/calendar', label: navLabel('/calendar'), icon: <CalendarDays size={16} /> },
   { href: '/meeting-notes', label: navLabel('/meeting-notes'), icon: <NotebookPen size={16} /> },
   { href: '/org', label: navLabel('/org'), icon: <Network size={16} /> },
+  // 그룹이 권한을 겸하던 것을 항목 플래그로 옮겼다 — 이제 1개짜리 그룹이 아니어도 관리자 전용이다(§2-3-3 N-3)
+  { href: '/ai-chat', label: navLabel('/ai-chat'), icon: <Sparkles size={16} />, adminOnly: true },
 ]
 
 /** 하위 서비스로 들어가는 아이콘 — 이름은 표가, 그림은 화면이 정한다 */
@@ -54,17 +56,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: SERVICE_NAV.map((s) => ({
       href: s.href, label: s.label, icon: SERVICE_ICON[s.href], match: [s.href],
     })),
-  },
-  {
-    /**
-     * AI — 항목이 하나라 N-3 상 최상위로 올려야 하지만, **지금 그룹이 권한을 겸하고 있다**
-     * (아래 필터가 비관리자에게 '가격정책'만 남긴다). 올리면 모두에게 보이므로 **권한이 바뀐다.**
-     * 항목별 권한 플래그가 생기면 그때 올린다 — 그 전에 올리면 메뉴 정리가 권한 사고가 된다.
-     */
-    label: 'AI',
-    items: [
-      { href: '/ai-chat', label: navLabel('/ai-chat'), icon: <Sparkles size={16} /> },
-    ],
   },
   {
     label: '가격정책',

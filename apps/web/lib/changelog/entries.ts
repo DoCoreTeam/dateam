@@ -33,7 +33,26 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.7.611',
+    version: '0.7.616',
+    date: '2026-08-27',
+    title: '어느 화면이 진짜인지 헷갈리지 않게 정리했어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '\uD83E\uDDED',
+        headline: '거래처·담당자·영업기회 화면이 어디로 옮겨가는지 알려드려요',
+        detail: '영업 CRM에도 회사·인물·딜이 있어서 어느 쪽에 적어야 할지 헷갈렸어요. 이제 그 화면 위에 「영업 CRM으로 옮겨가는 중」이라고 적히고, 바로 가는 링크도 있습니다. 기존 자료는 그대로 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '\u2728',
+        headline: 'AI 채팅이 메뉴 위쪽으로 올라왔어요',
+        detail: '항목 하나짜리 「AI」 묶음 안에 들어 있어서 한 번 더 눈이 가야 했어요. 이제 회의노트·조직도와 같은 줄에 있습니다.',
+      },
+    ],
+  },
+  {
+    version: '0.7.616',
     date: '2026-08-27',
     title: 'AI 한도에 걸렸을 때 몇 분씩 기다리지 않고 바로 알려드려요',
     items: [
@@ -52,7 +71,7 @@ export const CHANGELOG: ChangelogNote[
     ],
   },
   {
-    version: '0.7.614',
+    version: '0.7.615',
     date: '2026-08-27',
     title: '실제로 써 보고 발견한 것 셋을 고쳤어요',
     items: [

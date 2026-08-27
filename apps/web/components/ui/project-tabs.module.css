@@ -1,0 +1,39 @@
+/* components/ui/project-tabs.module.css — 구 영업 화면 안내
+   화면 전용 스타일을 globals.css 에 넣지 않는다(§0-1). 부품 옆에 둔다. */
+
+.legacy {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--warning-border);
+  background: var(--warning-bg);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.legacy b { color: var(--text); }
+
+.go {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--duration-fast, 150ms) ease;
+}
+
+.go:hover, .go:focus-visible { text-decoration-color: currentColor; }
+
+@media (max-width: 767px) {
+  .go { margin-left: 0; min-height: 44px; }
+}
