@@ -10,6 +10,7 @@
 // CSV 이스케이프(수식 인젝션 방어)를 화면이 또 구현하게 된다.
 
 import { useState } from 'react'
+import { downloadFromApi } from '@/lib/crm/api/download'
 import { Download } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -28,34 +29,14 @@ export default function ExportCard() {
     setError(null)
     setNotice(null)
     try {
-      const res = await fetch(`/api/crm/export?kind=${kind}`)
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        setError(body?.error?.message ?? '내려받지 못했습니다.')
-        return
-      }
+      // 내려받기·실패 표시·파일명 꺼내기는 공용 SSOT 가 한다(lib/crm/api/download)
+      const out = await downloadFromApi(
+        `/api/crm/export?kind=${kind}`, `crm_${kind}.csv`, '내려받지 못했습니다.',
+      )
+      if (!out.ok) { setError(out.message ?? '내려받지 못했습니다.'); return }
 
-      const rows = res.headers.get('X-Crm-Rows') ?? '?'
-      const truncated = res.headers.get('X-Crm-Truncated') === '1'
-      const blob = await res.blob()
-
-      /**
-       * 파일명은 서버가 정한 것을 쓴다.
-       * 헤더에서 꺼내지 못하면 날짜만이라도 붙인다 — `download.csv` 가 여러 개 쌓이면
-       * 받는 사람이 어느 게 무엇인지 알 수 없다.
-       */
-      const cd = res.headers.get('Content-Disposition') ?? ''
-      const m = cd.match(/filename\*=UTF-8''([^;]+)/)
-      const filename = m ? decodeURIComponent(m[1]) : `crm_${kind}.csv`
-
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+      const rows = out.headers?.get('X-Crm-Rows') ?? '?'
+      const truncated = out.headers?.get('X-Crm-Truncated') === '1'
 
       setNotice(
         `${EXPORT_LABEL[kind]} ${rows}건을 받았어요.` +

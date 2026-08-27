@@ -24,8 +24,14 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
+import { SUPPLIER_SETTING_KEY, type SupplierField } from '../../terms/quote.ts'
+import type { SettingGroupKey } from '../domain/setting-group.ts'
 
 export type SettingScope = 'GLOBAL' | 'WORKSPACE'
+
+// 카드 묶음은 domain/setting-group.ts 에 있다 — 화면(클라이언트)도 읽어야 하는데
+// 이 파일은 node:crypto 를 물고 있어 클라이언트가 import 할 수 없다
+export { SETTING_GROUP, SETTING_GROUP_ORDER, type SettingGroupKey } from '../domain/setting-group.ts'
 
 /**
  * 등록된 설정 키만 쓴다.
@@ -36,8 +42,17 @@ export type SettingScope = 'GLOBAL' | 'WORKSPACE'
 export interface SettingDef {
   key: string
   label: string
+  /**
+   * 어느 카드에 묶일지.
+   *
+   * **왜 필요한가**: 설정이 하나였을 땐 카드도 하나면 됐다. 그런데 성격이 다른 설정
+   * (AI 모델 / 견적서에 인쇄되는 우리 회사 정보)을 한 목록에 늘어놓으면
+   * 사용자는 「사업자등록번호」와 「추출에 쓸 AI」를 같은 종류로 읽는다.
+   * 카드 제목이 무엇을 설정하는지 말해 줘야 한다.
+   */
+  group: SettingGroupKey
   /** 값 종류 — 화면이 어떤 입력을 그릴지 정한다 */
-  kind: 'text' | 'number' | 'secret' | 'choice'
+  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline'
   /**
    * `choice` 일 때 고를 수 있는 것.
    *
@@ -61,7 +76,7 @@ export interface SettingContext {
 
 export const SETTING_DEFS: readonly SettingDef[] = [
   {
-    key: 'ai.model.extract', label: '추출에 쓸 AI', kind: 'choice',
+    key: 'ai.model.extract', label: '추출에 쓸 AI', kind: 'choice', group: 'ai',
     fallback: 'auto',
     description: '명함·미팅에서 정보를 뽑을 때 쓸 AI입니다. 키는 시스템 설정에 등록된 것을 그대로 씁니다.',
     choices: (ctx) => [
@@ -82,6 +97,47 @@ export const SETTING_DEFS: readonly SettingDef[] = [
       },
     ],
   },
+
+  // ── 견적서 공급자 정보 ──────────────────────────────────────
+  //
+  // **왜 설정인가**: 회사 정보는 견적마다 다르지 않다. 견적 폼에 칸을 두면
+  // 영업이 매번 사업자등록번호를 외워서 치고, 한 글자 틀린 문서가 고객에게 간다.
+  // 한 번 넣으면 모든 견적서·거래명세서가 같은 값을 쓴다.
+  //
+  // 키 이름은 `lib/terms/quote.ts` 의 SupplierField 와 **같은 말**을 쓴다 —
+  // 설정 표와 문서가 다른 이름을 쓰면 대조가 안 된다.
+  {
+    key: 'quote.supplier.name', label: '상호', kind: 'text', group: 'quote',
+    fallback: '', description: '견적서 「공급자」 칸의 회사 이름입니다. 법인명을 그대로 넣어 주세요.',
+  },
+  {
+    key: 'quote.supplier.bizNo', label: '사업자등록번호', kind: 'text', group: 'quote',
+    fallback: '', description: '000-00-00000 형식입니다. 고객이 이 번호로 세금계산서를 발행합니다.',
+  },
+  {
+    key: 'quote.supplier.ceo', label: '대표자', kind: 'text', group: 'quote',
+    fallback: '', description: '대표이사 성명입니다.',
+  },
+  {
+    key: 'quote.supplier.address', label: '주소', kind: 'text', group: 'quote',
+    fallback: '', description: '사업장 주소입니다.',
+  },
+  {
+    key: 'quote.supplier.bizType', label: '업태', kind: 'text', group: 'quote',
+    fallback: '', description: '사업자등록증의 업태입니다. 예: 서비스업',
+  },
+  {
+    key: 'quote.supplier.bizItem', label: '종목', kind: 'text', group: 'quote',
+    fallback: '', description: '사업자등록증의 종목입니다. 예: 소프트웨어 개발 및 공급',
+  },
+  {
+    key: 'quote.supplier.contact', label: '담당', kind: 'text', group: 'quote',
+    fallback: '', description: '고객이 문의할 연락처입니다. 예: 영업팀 02-0000-0000',
+  },
+  {
+    key: 'quote.supplier.terms', label: '기본 거래 조건', kind: 'multiline', group: 'quote',
+    fallback: '', description: '모든 견적서 아래에 한 줄씩 인쇄됩니다. 줄바꿈으로 나눠 주세요. 예: 결제: 검수 후 30일 이내',
+  },
 ] as const
 
 /**
@@ -98,6 +154,11 @@ export const PLANNED_SETTINGS = [
   { key: 'stt.vendor', label: '음성 인식 업체', reason: '미팅 녹음 기능이 붙으면 씁니다' },
   { key: 'stt.api_key', label: '음성 인식 키', reason: '미팅 녹음 기능이 붙으면 씁니다' },
 ] as const
+
+/** 공급자 설정 키의 뒷부분. 문서 쪽 `SupplierField` 와 **같은 이름**이라 대조가 된다 */
+const SUPPLIER_FIELDS: readonly SupplierField[] = [
+  'name', 'bizNo', 'ceo', 'address', 'bizType', 'bizItem', 'contact', 'terms',
+]
 
 const DEF_BY_KEY = new Map(SETTING_DEFS.map((d) => [d.key, d]))
 
@@ -199,6 +260,33 @@ export async function resolveSetting(db: CrmDb, key: string): Promise<ResolvedSe
 }
 
 /** 서버가 실제로 쓸 시크릿 값. 화면으로 나가는 경로에서는 절대 부르지 않는다 */
+/**
+ * 견적서 공급자 정보를 **한 번에** 읽는다.
+ *
+ * 키마다 `resolveSetting` 을 부르면 견적 한 장에 조회가 8번이다.
+ * 견적 목록에서 미리보기를 그리면 그게 그대로 곱해진다.
+ *
+ * 반환은 `SupplierField` 이름이다 — 설정 키(`quote.supplier.bizNo`)를
+ * 문서 쪽으로 흘려보내지 않는다. 키 이름이 바뀌어도 문서는 안 바뀐다.
+ */
+export async function readQuoteSupplier(db: CrmDb): Promise<Record<SupplierField, string>> {
+  const keys = SUPPLIER_FIELDS.map((f) => SUPPLIER_SETTING_KEY[f])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await (db as any).crmAppSetting.findMany({
+    where: { key: { in: keys } },
+    select: { scope: true, key: true, valueJson: true },
+  }) as { scope: SettingScope; key: string; valueJson: unknown }[]
+
+  const out = {} as Record<SupplierField, string>
+  for (const f of SUPPLIER_FIELDS) {
+    const mine = rows.filter((r) => r.key === SUPPLIER_SETTING_KEY[f])
+    // WORKSPACE 가 GLOBAL 을 덮는다 — resolveSetting 과 같은 규칙이다
+    const hit = mine.find((r) => r.scope === 'WORKSPACE') ?? mine.find((r) => r.scope === 'GLOBAL')
+    out[f] = hit ? String(hit.valueJson ?? '') : ''
+  }
+  return out
+}
+
 export async function readSecret(db: CrmDb, key: string): Promise<string | null> {
   const def = settingDef(key)
   if (def.kind !== 'secret') {
@@ -219,6 +307,7 @@ export async function listSettings(db: CrmDb, ctx?: SettingContext): Promise<{
   key: string
   label: string
   kind: SettingDef['kind']
+  group: SettingGroupKey
   description: string
   value: string | null
   masked: string | null
@@ -260,7 +349,7 @@ export async function listSettings(db: CrmDb, ctx?: SettingContext): Promise<{
  */
 function pick(d: SettingDef, ctx?: SettingContext) {
   return {
-    key: d.key, label: d.label, kind: d.kind, description: d.description,
+    key: d.key, label: d.label, kind: d.kind, group: d.group, description: d.description,
     choices: d.choices && ctx ? d.choices(ctx) : undefined,
   }
 }

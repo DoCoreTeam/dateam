@@ -193,6 +193,33 @@ test('★ 설정에 노출한 키는 전부 읽는 코드가 있다 — 안 읽�
 })
 
 /**
+ * 설정 정의의 키와 **읽는 쪽이 쓰는 키**가 같아야 한다.
+ *
+ * 둘이 어긋나면 아무도 오류를 못 본다 — 읽는 쪽은 없는 키를 조회해 **빈 문자열**을 얻고,
+ * 화면은 「공급자 정보가 비어 있어요」라고 말한다. 사용자는 분명히 채웠는데도.
+ * 위 가드(「읽는 코드가 있다」)는 문자열이 어딘가 존재하기만 하면 통과하므로
+ * **오타까지는 못 잡는다.** 이 가드가 그 자리를 맡는다.
+ */
+test('★ 공급자 설정 키가 정의와 읽는 쪽에서 같다 — 어긋나면 채워도 빈칸으로 보인다', () => {
+  const setting = readFileSync(join(ROOT, 'lib/crm/services/setting.ts'), 'utf8')
+  const terms = readFileSync(join(ROOT, 'lib/terms/quote.ts'), 'utf8')
+
+  const defsBlock = setting.slice(
+    setting.indexOf('export const SETTING_DEFS'),
+    setting.indexOf('export const PLANNED_SETTINGS'),
+  )
+  const defined = Array.from(defsBlock.matchAll(/key: '(quote\.supplier\.[\w]+)'/g)).map((m) => m[1]).sort()
+
+  const keyBlock = terms.slice(terms.indexOf('export const SUPPLIER_SETTING_KEY'))
+  const read = Array.from(keyBlock.matchAll(/'(quote\.supplier\.[\w]+)'/g)).map((m) => m[1]).sort()
+
+  assert.ok(defined.length >= 8, `설정 정의에서 공급자 키를 못 읽었다(${defined.length}개) — 가드가 헛돌고 있다`)
+  assert.deepEqual(read, defined,
+    '설정에 정의한 공급자 키와 읽는 쪽 키가 다르다.\n' +
+    '읽는 쪽에만 있는 키는 언제나 빈 값이 되고, 화면은 «채우지 않았다»고 말한다.')
+})
+
+/**
  * 크론에 등록된 잡은 실재해야 한다.
  *
  * 경로를 오타 내면 크론은 조용히 404 를 받고, 아무도 그 사실을 모른다.

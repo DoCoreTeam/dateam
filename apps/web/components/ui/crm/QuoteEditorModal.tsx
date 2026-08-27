@@ -19,6 +19,14 @@ import DateField, { todayPlus } from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
 import { computeLine, computeTotals, needsApproval, DEFAULT_DISCOUNT_APPROVAL_PCT } from '@/lib/crm/domain/quote-math'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
+import {
+  ACTION,
+  progress,
+  QUOTE,
+  quoteEditTitle,
+  QUOTE_LINES_LOCKED,
+  approvalNeeded,
+} from '@/lib/terms'
 import styles from './quote-panel.module.css'
 
 export interface QuoteLineDraft {
@@ -26,6 +34,8 @@ export interface QuoteLineDraft {
   /** 카탈로그의 어느 품목인지. 손으로 적기만 한 옛 항목은 null 이다 */
   productId?: string | null
   name: string
+  /** 규격·설명 — 견적서에 품목 아래 작게 인쇄된다 */
+  descriptionMd: string
   quantity: string
   unit: string
   unitPriceMinor: string
@@ -68,7 +78,7 @@ function toOption(p: ProductJson): RecordOption {
 }
 
 function emptyLine(): QuoteLineDraft {
-  return { productId: null, name: '', quantity: '1', unit: '', unitPriceMinor: '', discountPercent: '0', taxRate: '10' }
+  return { productId: null, name: '', descriptionMd: '', quantity: '1', unit: '', unitPriceMinor: '', discountPercent: '0', taxRate: '10' }
 }
 
 export function newQuoteDraft(dealName: string, currency: string | null): QuoteDraft {
@@ -178,6 +188,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         // 카탈로그와의 연결 — 안 실으면 고른 품목이 저장 순간 다시 손으로 친 이름이 된다
         productId: l.productId ?? null,
         name: l.name.trim(),
+        descriptionMd: l.descriptionMd.trim() || null,
         quantity: l.quantity || '1',
         unit: l.unit.trim() || null,
         unitPriceMinor: l.unitPriceMinor || '0',
@@ -220,14 +231,14 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
 
   return (
     <NbModal
-      title={isEdit ? '견적 수정' : '견적 작성'}
+      title={quoteEditTitle(isEdit)}
       onClose={onClose}
       maxWidth={980}
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-          <NbButton variant="ghost" onClick={onClose} disabled={saving}>취소</NbButton>
+          <NbButton variant="ghost" onClick={onClose} disabled={saving}>{ACTION.cancel}</NbButton>
           <NbButton onClick={() => void save()} disabled={saving}>
-            {saving ? '저장하는 중…' : '저장'}
+            {saving ? progress(ACTION.save) : ACTION.save}
           </NbButton>
         </div>
       }
@@ -237,7 +248,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
 
         <div className={styles.headFields}>
           <div className={styles.field}>
-            <label className="label" htmlFor="quote-title">제목</label>
+            <label className="label" htmlFor="quote-title">{QUOTE.title}</label>
             <input
               id="quote-title"
               className="input-field"
@@ -247,7 +258,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             />
           </div>
           <div className={styles.field}>
-            <label className="label" htmlFor="quote-valid">유효기간</label>
+            <label className="label" htmlFor="quote-valid">{QUOTE.validUntil}</label>
             <DateField
               id="quote-valid"
               value={draft.validUntil}
@@ -257,20 +268,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         </div>
 
         <div className={styles.linesHead}>
-          <span className={styles.sectionTitle}>항목</span>
+          <span className={styles.sectionTitle}>{QUOTE.lines}</span>
           {!linesLocked && (
             <NbButton
               variant="ghost"
               onClick={() => setDraft((d) => ({ ...d, lines: [...d.lines, emptyLine()] }))}
             >
-              <Plus size={16} /> 항목 추가
+              <Plus size={16} /> {QUOTE.addLine}
             </NbButton>
           )}
         </div>
 
         {linesLocked && (
           <div className={styles.approvalNote}>
-            이미 보낸 견적이라 항목은 수정할 수 없어요. 금액을 바꾸려면 새 견적을 만들어 주세요.
+            {QUOTE_LINES_LOCKED}
           </div>
         )}
 
@@ -285,7 +296,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             return (
               <div className={styles.line} key={line.id ?? `new-${i}`}>
                 <div className={styles.field}>
-                  <label className="label" htmlFor={`ln-name-${i}`}>품목</label>
+                  <label className="label" htmlFor={`ln-name-${i}`}>{QUOTE.lineName}</label>
                   {/*
                     카탈로그에서 고른다 — 늘어나는 목록이라 검색 모달이 표준이다.
                     value 에 이름을 폴백으로 넣는 이유: 옛 항목은 productId 가 없어
@@ -304,7 +315,23 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={styles.field}>
-                  <label className="label" htmlFor={`ln-qty-${i}`}>수량</label>
+                  {/*
+                    규격·설명 — 견적서에서 품목 이름 아래 작게 인쇄된다.
+                    DB 에는 자리가 있었는데 폼에 칸이 없어 **아무도 못 채웠다**.
+                    「H100 80GB」만으로는 SXM 인지 PCIe 인지 고객이 알 수 없다.
+                  */}
+                  <label className="label" htmlFor={`ln-spec-${i}`}>{QUOTE.lineSpec}</label>
+                  <input
+                    id={`ln-spec-${i}`}
+                    className="input-field"
+                    value={line.descriptionMd}
+                    disabled={linesLocked}
+                    onChange={(e) => setLine(i, { descriptionMd: e.target.value })}
+                    placeholder="예: SXM5 · 3년 무상보증"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className="label" htmlFor={`ln-qty-${i}`}>{QUOTE.lineQuantity}</label>
                   <input
                     id={`ln-qty-${i}`}
                     className="input-field"
@@ -315,7 +342,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={styles.field}>
-                  <label className="label" htmlFor={`ln-unit-${i}`}>단위</label>
+                  <label className="label" htmlFor={`ln-unit-${i}`}>{QUOTE.lineUnit}</label>
                   <input
                     id={`ln-unit-${i}`}
                     className="input-field"
@@ -326,7 +353,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={styles.field}>
-                  <label className="label" htmlFor={`ln-price-${i}`}>단가</label>
+                  <label className="label" htmlFor={`ln-price-${i}`}>{QUOTE.lineUnitPrice}</label>
                   <input
                     id={`ln-price-${i}`}
                     className="input-field"
@@ -338,7 +365,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={styles.field}>
-                  <label className="label" htmlFor={`ln-disc-${i}`}>할인 %</label>
+                  <label className="label" htmlFor={`ln-disc-${i}`}>{QUOTE.lineDiscount} %</label>
                   <input
                     id={`ln-disc-${i}`}
                     className="input-field"
@@ -349,7 +376,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={styles.field}>
-                  <label className="label" htmlFor={`ln-tax-${i}`}>부가세 %</label>
+                  <label className="label" htmlFor={`ln-tax-${i}`}>{QUOTE.tax} %</label>
                   <input
                     id={`ln-tax-${i}`}
                     className="input-field"
@@ -367,7 +394,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     <button
                       type="button"
                       className={styles.lineRemove}
-                      aria-label={`${line.name || `${i + 1}번`} 항목 지우기`}
+                      aria-label={`${line.name || `${i + 1}번`} ${QUOTE.removeLine}`}
                       onClick={() => setDraft((d) => ({ ...d, lines: d.lines.filter((_, idx) => idx !== i) }))}
                     >
                       <X size={16} />
@@ -381,36 +408,33 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
 
         <div className={styles.totals}>
           <div className={styles.totalRow}>
-            <span>소계</span><span>{formatAmount(totals.subtotalMinor.toString(), draft.currency)}</span>
+            <span>{QUOTE.subtotal}</span><span>{formatAmount(totals.subtotalMinor.toString(), draft.currency)}</span>
           </div>
           <div className={styles.totalRow}>
-            <span>할인</span>
+            <span>{QUOTE.discount}</span>
             <span>{totals.discountMinor > BigInt(0) ? '− ' : ''}{formatAmount(totals.discountMinor.toString(), draft.currency)}</span>
           </div>
           <div className={styles.totalRow}>
-            <span>부가세</span><span>{formatAmount(totals.taxMinor.toString(), draft.currency)}</span>
+            <span>{QUOTE.tax}</span><span>{formatAmount(totals.taxMinor.toString(), draft.currency)}</span>
           </div>
           <div className={styles.grandRow}>
-            <span>합계</span><span>{formatAmount(totals.totalMinor.toString(), draft.currency)}</span>
+            <span>{QUOTE.total}</span><span>{formatAmount(totals.totalMinor.toString(), draft.currency)}</span>
           </div>
         </div>
 
         {approval && (
-          <div className={styles.approvalNote}>
-            할인율이 {DEFAULT_DISCOUNT_APPROVAL_PCT}%를 넘었어요. 저장은 되지만,
-            보내기 전에 승인을 받아야 합니다.
-          </div>
+          <div className={styles.approvalNote}>{approvalNeeded(DEFAULT_DISCOUNT_APPROVAL_PCT)}</div>
         )}
 
         <div className={styles.field}>
-          <label className="label" htmlFor="quote-notes">메모</label>
+          <label className="label" htmlFor="quote-notes">{QUOTE.customerNote}</label>
           <textarea
             id="quote-notes"
             className="input-field"
             rows={3}
             value={draft.notesMd}
             onChange={(e) => setDraft((d) => ({ ...d, notesMd: e.target.value }))}
-            placeholder="납기·결제 조건처럼 견적서에 함께 적을 내용"
+            placeholder="견적서에 그대로 인쇄됩니다. 납기·설치 범위처럼 고객이 알아야 할 것을 적어 주세요."
           />
         </div>
       </div>

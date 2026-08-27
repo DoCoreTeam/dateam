@@ -19,11 +19,18 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import { kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { quoteStatusMeta } from '@/lib/crm/ui/quote-status'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
+import {
+  ACTION,
+  ENTITY,
+  createLabel,
+  QUOTE,
+} from '@/lib/terms'
 import QuoteEditorModal, { newQuoteDraft, type QuoteDraft } from './QuoteEditorModal'
 import styles from './quote-panel.module.css'
 
 interface QuoteLine {
   id: string
+  descriptionMd?: string | null
   /** 카탈로그의 어느 품목인지. 손으로 적기만 한 옛 항목은 null 이다 */
   productId: string | null
   name: string
@@ -161,6 +168,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
           // 카탈로그 연결을 들고 가지 않으면 저장하는 순간 손으로 친 이름으로 되돌아간다
           productId: l.productId ?? null,
           name: l.name,
+          descriptionMd: l.descriptionMd ?? '',
           quantity: String(l.quantity),
           unit: l.unit ?? '',
           unitPriceMinor: String(l.unitPriceMinor),
@@ -183,8 +191,8 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
       {items.length === 0 ? (
         trash ? (
           <EmptyState
-            title="지운 견적이 없어요"
-            description="지운 견적은 여기에 남고, 언제든 되살릴 수 있습니다."
+            title="삭제한 견적이 없어요"
+            description="삭제한 견적은 여기에 남고, 언제든 되돌릴 수 있습니다."
             action={{ label: '견적으로 돌아가기', onClick: () => setTrash(false) }}
           />
         ) : (
@@ -192,7 +200,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
             title="아직 견적이 없어요"
             description="무엇을 얼마에 제안했는지 적어 두면, 딜 금액의 근거가 남습니다."
             action={{
-              label: '견적 작성',
+              label: createLabel(ENTITY.quote.label),
               onClick: () => setEditing(newQuoteDraft(dealName, dealCurrency)),
             }}
           />
@@ -271,10 +279,18 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
                         <FileText size={14} /> 내용 보기
                       </NbButton>
                     )}
+                    {/*
+                      고객이 받는 문서. 편집 모달과 **다른 것**이다 —
+                      모달은 우리가 숫자를 맞추는 자리이고 이쪽은 나가는 문서다.
+                      경로가 없어서 영업이 화면을 캡처해 보내고 있었다.
+                    */}
+                    <NbButton variant="ghost" href={`/crm/quotes/${q.id}`}>
+                      <FileText size={14} /> {QUOTE.documentTitle}
+                    </NbButton>
                     {/* 지우기는 초안에만 — 보낸 견적은 있었던 일의 기록이라 목록에서 치우지 않는다 */}
                     {q.status === 'DRAFT' && (
                       <NbButton variant="ghost" onClick={() => void remove(q)} disabled={busy}>
-                        <Trash2 size={14} /> 지우기
+                        <Trash2 size={14} /> {ACTION.delete}
                       </NbButton>
                     )}
                     </>
@@ -287,7 +303,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
 
           {!trash && (
             <NbButton variant="ghost" onClick={() => setEditing(newQuoteDraft(dealName, dealCurrency))}>
-              <Plus size={16} /> 견적 작성
+              <Plus size={16} /> {createLabel(ENTITY.quote.label)}
             </NbButton>
           )}
         </>
@@ -295,7 +311,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
 
       {/* 지운 것을 찾으러 다른 메뉴로 보내지 않는다 — 같은 자리에서 보기만 바꾼다 */}
       <button type="button" className={styles.trashToggle} onClick={() => setTrash((t) => !t)}>
-        {trash ? '견적으로 돌아가기' : '지운 견적 보기'}
+        {trash ? '견적으로 돌아가기' : '삭제한 견적 보기'}
       </button>
 
       {editing && (

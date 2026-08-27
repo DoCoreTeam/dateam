@@ -212,7 +212,8 @@ export default function QuoteListView() {
         rowKey={(r) => r.id}
         selection={crmBulk.surfaceSelection}
         // 견적 자체의 상세 화면은 없다 — 견적을 고치는 자리는 딜 상세다. 거기로 보낸다
-        rowHref={trash ? undefined : (r) => `/crm/deals/${r.dealId}`}
+        // 행은 **그 견적**을 연다 — 딜로 보내면 방금 고른 견적이 어느 것인지 다시 찾아야 한다(§2-3-1)
+        rowHref={trash ? undefined : (r) => `/crm/quotes/${r.id}`}
         loading={loading && rows.length === 0}
         error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}
         empty={trash ? TRASH_EMPTY : {

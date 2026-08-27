@@ -1,0 +1,272 @@
+/*
+  견적서 — 화면과 종이가 같은 문서다.
+
+  **왜 CSS 모듈인가**: 이 스타일은 이 문서에만 쓴다. globals.css 에 넣으면
+  전역 규칙이 또 1,000줄 늘어난다(§0-1).
+
+  **인쇄 규칙이 핵심이다.** 인쇄 경로가 없어 영업이 화면을 캡처해 보내고 있었다 —
+  캡처는 사이드바와 버튼이 함께 찍힌다.
+*/
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+/* 종이 한 장. 화면에서도 종이처럼 보여야 «이대로 나간다»를 알 수 있다 */
+.sheet {
+  background: var(--surface-bg);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  padding: var(--space-8);
+  max-width: 210mm;   /* A4 폭 — 이 화면만의 예외다(종이를 그리는 중이다) */
+  margin: 0 auto;
+  color: var(--text);
+}
+
+.docTitle {
+  text-align: center;
+  font-size: var(--fs-3xl);
+  font-weight: 700;
+  letter-spacing: 0.5em;      /* 「견 적 서」 — 한국 양식의 관례 */
+  text-indent: 0.5em;         /* 자간 때문에 오른쪽으로 밀리는 것을 되돌린다 */
+  margin: 0 0 var(--space-6);
+}
+
+/* 두 당사자를 나란히 — 고객이 왼쪽, 우리가 오른쪽(세금계산서와 같은 배치) */
+.parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.partyTitle {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin: 0 0 var(--space-2);
+}
+
+.customerName {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-1);
+}
+
+.supplierRows { display: grid; gap: var(--space-1); }
+
+.supplierRow {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.supplierRow dt { color: var(--text-muted); margin: 0; }
+.supplierRow dd { margin: 0; }
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  padding: var(--space-2) 0;
+  border-top: var(--hairline) solid var(--border-light);
+  border-bottom: var(--hairline) solid var(--border-light);
+  margin-bottom: var(--space-6);
+}
+
+.meta b { color: var(--text); font-weight: 600; }
+
+.tableWrap { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.table th,
+.table td {
+  border-bottom: var(--hairline) solid var(--border-light);
+  padding: var(--space-2);
+  text-align: left;
+}
+
+.table thead th {
+  border-bottom: var(--border-w) solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+  숫자 열은 오른쪽 정렬 + 자릿수 고정 — 세로로 자릿수가 맞아야 눈으로 검산이 된다.
+
+  `.table` 을 앞에 붙이는 이유: 위의 `.table th, .table td { text-align: left }` 는
+  (클래스1 + 타입1) 이라 `.num` (클래스1) 보다 **명시도가 높다**.
+  그래서 그냥 `.num` 으로 쓰면 왼쪽 정렬이 이기고, 금액이 자릿수가 안 맞은 채로 인쇄된다
+  (실브라우저에서 잡았다 — 45,000,000 과 12,500,000 이 왼쪽에 붙어 있었다).
+*/
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 품목은 넓게, 숫자는 필요한 만큼만 — 안 정하면 단가 칸이 표의 절반을 먹는다 */
+.table th.num,
+.table td.num { width: 1%; }
+
+.table th:nth-child(2) { width: auto; }
+
+.spec { color: var(--text-muted); font-size: var(--fs-xs); }
+
+.totals {
+  margin-top: var(--space-4);
+  margin-left: auto;
+  width: min(22rem, 100%);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--fs-sm);
+}
+
+.grandRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-top: var(--border-w) solid var(--border-color);
+  padding-top: var(--space-2);
+  margin-top: var(--space-1);
+  font-size: var(--fs-price);
+  font-weight: 700;
+}
+
+.inWords {
+  text-align: right;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.terms {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: var(--hairline) solid var(--border-light);
+}
+
+.termsTitle {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin: 0 0 var(--space-2);
+}
+
+.termsList { margin: 0; padding-left: var(--space-5); font-size: var(--fs-sm); }
+.termsList li { margin-bottom: var(--space-1); }
+
+.note { font-size: var(--fs-sm); white-space: pre-wrap; }
+
+.warn {
+  border: var(--border-w) solid var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-sm);
+}
+
+.danger {
+  border: var(--border-w) solid var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+}
+
+/*
+  종이로 나갈 때 — 화면 장치는 전부 사라진다.
+
+  `:global` 인 이유: 지우려는 대상(사이드바·Dock·페이지 헤더)은 이 모듈이
+  만든 것이 아니라 셸이 만든 것이다. 모듈 스코프로는 닿지 않는다.
+*/
+/*
+  폰 — 종이를 흉내 내던 2단 구성을 푼다.
+
+  실측(390px): 두 당사자를 1fr 1fr 로 두면 회사명 칸이 ~100px 이 되어
+  「__검증 한 / 국지능정 / 보사회진 / 흥원 귀중」처럼 **글자마다 줄이 바뀐다**.
+  종이 배치를 좁은 화면에 그대로 밀어 넣으면 읽을 수 없는 문서가 된다.
+*/
+@media (max-width: 767px) {
+  .sheet { padding: var(--space-4); }
+
+  .parties {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .docTitle {
+    font-size: var(--fs-2xl);
+    letter-spacing: 0.3em;
+    text-indent: 0.3em;
+  }
+
+  /* 라벨 폭을 고정하면 값이 잘게 쪼개진다 — 라벨을 값 위로 올린다 */
+  .supplierRow {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .supplierRow dt { font-size: var(--fs-xs); }
+
+  .meta { gap: var(--space-2); }
+
+  .totals { width: 100%; }
+
+  /* 표는 카드로 접지 않는다 — 견적서의 «표»는 문서 구조 그 자체라
+     카드로 바꾸면 열의 뜻(단가 vs 금액)이 사라진다. 대신 가로 스크롤을 허용한다.
+     `.tableWrap` 이 이미 overflow-x:auto 라 본문은 옆으로 안 밀린다. */
+  .table { min-width: 34rem; }
+}
+
+@media print {
+  /*
+    셸(사이드바·Dock·페이지 여백)을 숨기는 것은 **셸의 책임**이라 globals.css 에 있다.
+    CSS Modules 는 이 모듈 밖의 클래스를 가리키는 셀렉터를 허용하지 않는다
+    («pure selectors must contain at least one local class») — `:global()` 도 `:global{}` 도 거부한다.
+    여기 남는 것은 이 문서가 스스로 아는 것뿐이다.
+  */
+  .screenOnly,
+  .toolbar {
+    display: none !important;
+  }
+
+  .sheet {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    max-width: none;
+  }
+
+  /* 항목이 많으면 표가 쪽을 넘는다 — 머리글을 매 쪽에 다시 찍는다 */
+  .table thead { display: table-header-group; }
+  .table tr { break-inside: avoid; }
+
+  /* 합계가 항목과 갈라져 다음 쪽 혼자 남지 않게 */
+  .totals { break-inside: avoid; }
+}

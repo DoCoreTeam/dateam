@@ -548,6 +548,21 @@
   .btn-ghost:disabled:hover,
   .btn-ghost:disabled:active { background-color: transparent; }
 
+  /* 이동하는 버튼(NbButton href) — `<a>` 라 밑줄이 기본으로 붙는다.
+     이 규약이 없어서 화면들이 `<Link className="btn-ghost">` 에
+     textDecoration·padding·minHeight 를 저마다 인라인으로 다시 적었고,
+     그 값이 서로 달랐다(minHeight 36 vs 44 공존). */
+  .nb-btn { text-decoration: none; }
+
+  /* 못 누르는 링크는 `<a>` 가 아니라 `<span>` 으로 그린다 —
+     `<a disabled>` 는 없는 속성이라 여전히 눌린다. */
+  .nb-btn-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
   /* 못 고치는 입력칸도 못 고치게 **보여야** 한다 — 위 버튼 규약을 입력에도 그대로 준다.
      v0.7.518이 버튼만 손봐서 입력은 그대로 남았다(실측 v0.7.561 /ci/inbox 주제 점검:
      체크를 풀면 이름칸이 disabled 가 되는데 opacity 1 · 배경 흰색 · cursor default 라
@@ -10105,4 +10120,42 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+
+/* ============================================================
+   인쇄 — 셸은 종이에 안 찍힌다
+
+   **왜 전역인가**: 사이드바·Dock·햄버거는 **셸이** 만든 것이라
+   화면의 CSS 모듈이 가릴 수 없다(모듈은 자기 클래스만 가리킬 수 있다).
+   그리고 이건 견적서만의 문제가 아니다 — 지금은 **어느 화면을 인쇄해도**
+   왼쪽 200px 이 사이드바로 채워진 종이가 나온다.
+   그래서 인쇄 경로가 없던 동안 영업은 화면을 캡처해서 보냈다.
+
+   각 화면은 자기만의 «화면 전용 장치»를 자기 모듈에서 마저 숨긴다.
+   ============================================================ */
+@media print {
+  .app-sidebar,
+  .mobile-menu-btn,
+  .app-dock,
+  .intake-fab,
+  .quickadd-fab-wrap {
+    display: none !important;
+  }
+
+  .app-content,
+  .page-inner {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* 종이에는 배경을 깔지 않는다 — 잉크를 쓰고 글자 대비만 떨어진다 */
+  body,
+  .app-shell,
+  .app-content {
+    background: white !important;
+  }
+
+  /* 링크 뒤에 URL 을 붙이지 않는다 — 견적서에 http://localhost 가 찍힌다 */
+  a[href]::after { content: none !important; }
 }

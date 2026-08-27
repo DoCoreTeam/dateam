@@ -41,6 +41,20 @@ const PENDING = new Set<string>([
   'components/ui/DynamicTable.tsx',
 ])
 
+/**
+ * 목록이 아니라 **문서**인 표면 — 면제이며 «나중에 이관»이 아니다.
+ *
+ * PENDING 과 섞지 않는다: PENDING 은 «아직 안 옮긴 것»이라 언젠가 0이 되어야 하지만,
+ * 이쪽은 성격이 달라 옮기면 오히려 나빠진다. 한 목록에 두면 잔여가 영원히 안 줄고
+ * «왜 안 줄지?»를 매번 다시 조사하게 된다.
+ *
+ * 견적서는 고객에게 인쇄돼 나가는 문서다. ListSurface 는 검색·정렬·선택·페이지가 붙은
+ * **읽는 목록**이라 종이에 그대로 옮겨지지 않는다(정렬 화살표가 인쇄된다).
+ */
+const DOCUMENT_SURFACES = new Set<string>([
+  'app/(crm)/crm/quotes/[id]/QuoteDocumentView.tsx',
+])
+
 function rawTableFiles(): string[] {
   const hits: string[] = []
   // components/도 함께 본다 — 예전엔 app/만 봐서 공용 폴더에 새 표 부품이 생겨도 통과했다
@@ -56,7 +70,7 @@ function rawTableFiles(): string[] {
 }
 
 test('새 화면은 표를 직접 짜지 않는다 — ListSurface를 쓴다', () => {
-  const offenders = rawTableFiles().filter((f) => !PENDING.has(f))
+  const offenders = rawTableFiles().filter((f) => !PENDING.has(f) && !DOCUMENT_SURFACES.has(f))
   assert.deepEqual(offenders, [],
     `목록 표준을 쓰지 않은 새 화면이 생겼다. ListToolbar/ListSurface/ListPager + useListQuery를 쓸 것:\n  ${offenders.join('\n  ')}`)
 })

@@ -13,7 +13,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { walkFiles, read } from './component-scan.ts'
+import { walkFiles, read, stripComments } from './component-scan.ts'
 
 const SSOT = 'components/ui/DateField.tsx'
 
@@ -21,7 +21,10 @@ function rawDateInputs(): string[] {
   const hits: string[] = []
   for (const file of [...walkFiles('app', ['.tsx']), ...walkFiles('components', ['.tsx'])]) {
     if (file === SSOT) continue // 부품 자신은 raw input을 쓴다 — 그게 이 부품의 일이다
-    if (/type=["']date["']/.test(read(file))) hits.push(file)
+    // **주석은 벗기고 센다.** 안 그러면 «raw <input type="date"> 를 쓰지 마라»고
+    // 이유를 적은 주석까지 위반으로 잡혀, 왜 안 되는지 적을 수 없게 된다
+    // (실제로 그렇게 잡혔다 — 다른 가드는 전부 stripComments 를 쓴다).
+    if (/type=["']date["']/.test(stripComments(read(file)))) hits.push(file)
   }
   return hits
 }

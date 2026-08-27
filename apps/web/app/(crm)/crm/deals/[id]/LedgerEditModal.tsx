@@ -17,6 +17,7 @@ import { useState } from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
+import DateField from '@/components/ui/DateField'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import {
@@ -310,15 +311,19 @@ export default function LedgerEditModal({
             value={draft.basisNote}
             onChange={(e) => setDraft((d) => ({ ...d, basisNote: e.target.value }))}
           />
-          <input
-            className="input-field" type="date" aria-label={LEDGER.startDate}
+          {/*
+            날 <input type="date"> 는 **6자리 연도를 그대로 받는다**(202026 년).
+            DateField 는 min/max 와 범위 검사를 함께 들고 온다(§2-1 가드).
+          */}
+          <DateField
+            aria-label={LEDGER.startDate}
             value={draft.startDate}
-            onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))}
+            onValueChange={(v) => setDraft((d) => ({ ...d, startDate: v }))}
           />
-          <input
-            className="input-field" type="date" aria-label={LEDGER.endDate}
+          <DateField
+            aria-label={LEDGER.endDate}
             value={draft.endDate}
-            onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
+            onValueChange={(v) => setDraft((d) => ({ ...d, endDate: v }))}
           />
           <NbButton variant="ghost" disabled={busy === 'add'} onClick={() => void addRow()}>
             {busy === 'add' ? progress(ACTION.create) : <><Plus size={16} /> {addInKindLabel}</>}

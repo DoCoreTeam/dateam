@@ -23,6 +23,24 @@ test('★ 배선 — 프로바이더와 토글이 CRM 레이아웃에 실제로 
   assert.match(LAYOUT, /<MeetingModeToggle \/>/, '토글이 헤더에 없다 — 켤 방법이 없다')
 })
 
+/**
+ * 회의 모드를 **거치면 안 되는** 화면.
+ *
+ * 회의 모드는 «고객 앞에서 우리 숫자를 가린다»는 기능이다.
+ * 그런데 견적서는 **고객에게 보여 주려고 만든 문서**다 —
+ * 여기서 금액을 가리면 영업이 고객 앞에서 견적서를 띄우는 순간
+ * 합계가 ●●● 로 덮여 그 화면이 쓸모없어진다.
+ *
+ * 가릴 것이 애초에 없다는 뜻이기도 하다: 이 화면이 그리는 값은
+ * `QuoteDocument` 가 가진 것뿐이고, 그 타입에는 원가·마진이 들어올 자리가 없다.
+ * (`lib/crm/domain/quote-document.ts` — 지우는 것이 아니라 **담을 수 없게** 만든다)
+ *
+ * **이 목록은 «아직 안 한 것»이 아니다.** 늘리려면 위와 같은 수준의 이유가 있어야 한다.
+ */
+const CUSTOMER_FACING = new Set<string>([
+  'app/(crm)/crm/quotes/[id]/QuoteDocumentView.tsx',
+])
+
 test('★ 금액을 그리는 자리는 전부 Sensitive 를 거친다', () => {
   const offenders: string[] = []
   for (const file of walkFiles('app/(crm)')) {
@@ -32,6 +50,7 @@ test('★ 금액을 그리는 자리는 전부 Sensitive 를 거친다', () => {
     // 포매터를 **정의**만 하는 파일은 렌더가 아니다
     if (/export function formatAmount/.test(src) && !/<[A-Z]/.test(src)) continue
     // 감싸는 방법은 둘이다 — 부품(`Sensitive`)이거나, 문장 안이면 훅(`useMaskAmount`)
+    if (CUSTOMER_FACING.has(file)) continue
     if (!/Sensitive|useMaskAmount/.test(src)) offenders.push(file)
   }
   assert.deepEqual(offenders, [],

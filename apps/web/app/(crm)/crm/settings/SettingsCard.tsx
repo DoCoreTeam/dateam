@@ -13,6 +13,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import { SETTING_GROUP as GROUP, SETTING_GROUP_ORDER as GROUP_ORDER } from '@/lib/crm/domain/setting-group'
 import styles from './settings.module.css'
 
 interface Choice { value: string; label: string; hint?: string }
@@ -20,7 +21,9 @@ interface Choice { value: string; label: string; hint?: string }
 interface SettingItem {
   key: string
   label: string
-  kind: 'text' | 'number' | 'secret' | 'choice'
+  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline'
+  /** 어느 카드에 설지 — 성격이 다른 설정을 한 목록에 늘어놓지 않는다 */
+  group: string
   description: string
   value: string | null
   masked: string | null
@@ -84,16 +87,20 @@ export default function SettingsCard() {
 
   if (loading && items.length === 0) return <AXDotLoader />
 
+  // 순서는 상수가 정한다 — 화면이 정하면 카드가 늘어날 때마다 여기가 갈린다
+  const groups = GROUP_ORDER.filter((g) => items.some((s) => s.group === g))
+
   return (
-    <div className={`card ${styles.card}`}>
+    <>
+      <FormErrorBanner message={error} />
+      {groups.map((g) => (
+    <div className={`card ${styles.card}`} key={g}>
       <div className={styles.head}>
-        <h2 className={styles.title}>AI·연동 설정</h2>
+        <h2 className={styles.title}>{GROUP[g].label}</h2>
       </div>
 
-      <FormErrorBanner message={error} />
-
       <div className={styles.settings}>
-        {items.map((s) => (
+        {items.filter((s) => s.group === g).map((s) => (
           <div key={s.key} className={styles.setting}>
             <div className={styles.settingHead}>
               <label className="label" htmlFor={`set-${s.key}`}>{s.label}</label>
@@ -120,6 +127,18 @@ export default function SettingsCard() {
                       <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </select>
+                ) : s.kind === 'multiline' ? (
+                  /*
+                    여러 줄이 들어갈 값(거래 조건)을 한 줄 칸에 받으면 사용자는
+                    줄바꿈을 못 넣고 전부 한 줄로 적는다 — 그게 그대로 인쇄된다.
+                  */
+                  <textarea
+                    id={`set-${s.key}`}
+                    className="input-field"
+                    rows={3}
+                    value={drafts[s.key] ?? ''}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
+                  />
                 ) : (
                   <input
                     id={`set-${s.key}`}
@@ -149,16 +168,16 @@ export default function SettingsCard() {
         ))}
       </div>
 
-      {items.some((s) => s.kind === 'choice' && (s.choices ?? []).length <= 2) && (
+      {g === 'ai' && items.some((s) => s.kind === 'choice' && (s.choices ?? []).length <= 2) && (
         <p className={styles.blocked}>
           아직 등록된 AI 키가 없어 &quot;AI 안 씀&quot;으로만 돌아갑니다.
           시스템 설정 → 통합에서 Gemini·Claude·OpenAI 중 하나를 등록하면 여기에 나타납니다.
         </p>
       )}
 
-      <p className={styles.hint}>
-        AI 키는 시스템 설정에 등록된 것을 그대로 씁니다 — 여기서 따로 넣지 않습니다.
-      </p>
+      <p className={styles.hint}>{GROUP[g].description}</p>
     </div>
+      ))}
+    </>
   )
 }
