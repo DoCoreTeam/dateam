@@ -25,10 +25,26 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = (await req.json().catch(() => ({}))) as {
-      workspaceId?: string
-      maxSetsPerTopic?: number
-      topicIds?: string[]
+    // 본문이 JSON 이 아니면 **거절한다.** 예전에는 {} 로 넘겨서 그대로 진행했는데,
+    // 그러면 오타 하나로 전체 주제(8개 × 대조 30건 = AI 240회)가 조용히 돌아
+    // 그날 예산을 태운다(실측 2026-08-27: 쓰레기 본문에 전체 배치가 시작됐다).
+    const raw = await req.text()
+    let body: { workspaceId?: string; maxSetsPerTopic?: number; topicIds?: string[] } = {}
+    if (raw.trim()) {
+      try {
+        body = JSON.parse(raw)
+      } catch {
+        return fail('VALIDATION_FAILED', '요청 본문이 올바른 JSON 이 아닙니다')
+      }
+      if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+        return fail('VALIDATION_FAILED', '요청 본문은 JSON 객체여야 합니다')
+      }
+    }
+
+    // 예산도 검사한다 — 음수·NaN 이 그대로 내려가면 상한이 사라진 것과 같다.
+    const budget = body.maxSetsPerTopic
+    if (budget !== undefined && (!Number.isInteger(budget) || budget < 1 || budget > 200)) {
+      return fail('VALIDATION_FAILED', 'maxSetsPerTopic 은 1~200 사이의 정수여야 합니다')
     }
 
     let workspaceId = body.workspaceId
