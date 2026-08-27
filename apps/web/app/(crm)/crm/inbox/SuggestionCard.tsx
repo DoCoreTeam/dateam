@@ -17,6 +17,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { describeSuggestionValue, TARGET_LABEL, FIELD_LABEL } from '@/lib/crm/format/suggestion'
+import { axisMeta } from '@/lib/crm/ui/suggestion-axis'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './inbox.module.css'
 
@@ -33,11 +34,6 @@ export interface SuggestionItem {
   status: string
   expiresAt: string
   createdAt: string
-}
-
-/** 5축 — 스키마 CrmSuggestionAxis 와 같은 다섯 */
-const AXIS_LABEL: Record<string, string> = {
-  WHO: '누가', WHAT: '무엇을', WHERE: '어디까지', RISK: '무엇이 막나', NEXT: '다음에',
 }
 
 const TARGET_HREF: Record<string, string> = {
@@ -112,7 +108,7 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
       <FormErrorBanner message={error} />
 
       <div className={styles.head}>
-        <NbBadge>{AXIS_LABEL[item.axis] ?? item.axis}</NbBadge>
+        <NbBadge>{axisMeta(item.axis).label}</NbBadge>
         <span className={styles.target}>
           {TARGET_LABEL[item.targetType] ?? item.targetType}
           {item.targetId && (

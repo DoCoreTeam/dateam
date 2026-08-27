@@ -46,6 +46,6 @@
   "components/ui/crm/QuoteEditorModal.tsx::지우기": 1,
   "components/ui/crm/Timeline.tsx::지우기": 1,
   "components/ui/list/ListToolbar.tsx::지우기": 1,
-  "__labelMaps": 32,
+  "__labelMaps": 31,
   "__nameClashes": 7
 }

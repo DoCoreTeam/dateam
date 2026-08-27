@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Mic } from 'lucide-react'
+import { Mic, CheckCircle2, HelpCircle } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
@@ -25,7 +25,9 @@ import MeetingWorkbench from '@/components/meeting/MeetingWorkbench'
 import MeetingFacts from './MeetingFacts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { describeSuggestionValue, TARGET_LABEL } from '@/lib/crm/format/suggestion'
-import type { StatusKey } from '@/lib/tokens/status-colors'
+import { axisMeta } from '@/lib/crm/ui/suggestion-axis'
+import { useRecordingSession, useIsRecording } from '@/lib/meeting/recording-context'
+import type { FinishResult } from '@/lib/crm/services/meeting-finish'
 import styles from './meeting-detail.module.css'
 
 interface Segment { id: string; idx: number; speaker: string; text: string }
@@ -42,21 +44,13 @@ interface NoteMeta {
   canOpen: boolean; isOwner: boolean; isStale: boolean
 }
 interface Meeting {
-  id: string; title: string; startedAt: string; location: string | null
+  id: string; title: string; startedAt: string; endedAt: string | null; location: string | null
   companyId: string | null; dealId: string | null; summaryMd: string | null
   companyName: string | null; dealName: string | null
   noteId: string | null; noteSyncedAt: string | null; note: NoteMeta | null
   recordings: Recording[]; segments: Segment[]; suggestions: Suggestion[]
 }
 
-/** 축을 사람 말로 — enum 을 그대로 보여 주면 무슨 뜻인지 모른다 */
-const AXIS: Record<string, { label: string; status: StatusKey }> = {
-  WHO: { label: '누가', status: 'doing' },
-  WHAT: { label: '무엇을', status: 'planned' },
-  WHERE: { label: '어디까지', status: 'note' },
-  RISK: { label: '걸림돌', status: 'blocker' },
-  NEXT: { label: '다음에', status: 'done' },
-}
 
 /** 어디에 붙는 제안인지 — 이게 없으면 "왜 금액이 여기 있지"가 된다 */
 const WHERE_IT_GOES: Record<string, string> = { deal: '딜', person: '인물', company: '회사', meeting: '이 미팅' }
@@ -70,6 +64,11 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   const [busy, setBusy] = useState<string | null>(null)
   /** 근거를 클릭하면 그 구간을 띄운다 — 결론만 보여 주지 않는다 */
   const [highlight, setHighlight] = useState<Set<string>>(new Set())
+  /** 「미팅 끝내기」의 결과 — 무엇이 됐고 무엇이 안 됐는지 그대로 보여 준다 */
+  const [finished, setFinished] = useState<FinishResult | null>(null)
+
+  const rec = useRecordingSession()
+  const recordingHere = useIsRecording(m?.note?.id ?? '')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -139,6 +138,39 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
     }
   }
 
+  /**
+   * 「미팅 끝내기」 — 녹음을 멈추고, 정리하고, 5축을 뽑고, 모르는 것을 되묻는다.
+   *
+   * **녹음 정지가 먼저다.** 마지막 구간이 아직 안 올라간 상태에서 정리를 시작하면
+   * 그 몇 분이 정리에 빠진다 — 그리고 사용자는 그 사실을 모른다.
+   */
+  async function finish() {
+    setBusy('finish')
+    setError(null)
+    setNotice(null)
+    setFinished(null)
+    try {
+      if (recordingHere) {
+        try {
+          await rec.stop()
+        } catch {
+          // 정지에 실패해도 여기서 멈추지 않는다 — 이미 올라간 구간까지로 정리한다.
+          // 남은 구간은 기기에 있고 연결이 돌아오면 올라간다(lib/offline).
+          setNotice('녹음을 멈추지 못해 지금까지 올라간 부분으로 정리했어요.')
+        }
+      }
+      const res = await fetch(`/api/crm/meetings/${meetingId}/finish`, { method: 'POST' })
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? '미팅을 끝내지 못했습니다.'); return }
+      setFinished(body as FinishResult)
+      await load()
+    } catch {
+      setError('미팅을 끝내지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function extract() {
     setBusy('extract')
     setError(null)
@@ -179,10 +211,60 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
         icon={<Mic size={20} />}
         description={formatKstDateTimeShort(m.startedAt) + (m.location ? ` · ${m.location}` : '')}
         back={{ href: '/crm/meetings', label: '미팅' }}
+        actions={
+          /**
+           * 회의가 끝나고 차에 타면서 누르는 버튼 하나. 여기가 그 자리다.
+           * 예전엔 같은 결과를 얻으려면 화면 셋을 오가며 세 번 눌러야 했다.
+           */
+          <NbButton variant="primary" onClick={() => void finish()} disabled={busy === 'finish'}>
+            {busy === 'finish'
+              ? '정리하는 중…'
+              : m.endedAt ? '다시 정리하기' : '미팅 끝내기'}
+          </NbButton>
+        }
       />
 
       <FormErrorBanner message={error} />
       {notice && <p className={styles.notice}>{notice}</p>}
+
+      {/**
+        * 끝내기 결과. **된 것과 안 된 것을 함께 말한다** — 한 단계가 넘어져도 나머지는 갔다는
+        * 사실을 사용자가 알아야 다음 행동을 정할 수 있다. 「완료」만 띄우면 실패가 묻힌다.
+        */}
+      {finished && (
+        <section className={styles.finish} aria-live="polite">
+          <h3 className={styles.finishHead}>
+            <CheckCircle2 size={16} aria-hidden /> 미팅을 정리했어요
+          </h3>
+          <ul className={styles.stepList}>
+            {finished.steps.map((st) => (
+              <li key={st.key} className={styles.step} data-status={st.status}>
+                {st.detail}
+              </li>
+            ))}
+          </ul>
+
+          {/**
+            * **모르는 것을 되묻는다.** AI 가 채운 것만 보여 주고 못 채운 자리를 말하지 않으면
+            * 사용자는 다 된 줄 안다 — 그 빈칸은 리포트가 틀린 숫자를 낼 때야 발견된다.
+            */}
+          {finished.questions.length > 0 && (
+            <div className={styles.asks}>
+              <h4 className={styles.asksHead}>
+                <HelpCircle size={15} aria-hidden /> 이건 제가 몰라요 — 채워 주시겠어요?
+              </h4>
+              <ul className={styles.askList}>
+                {finished.questions.map((q) => (
+                  <li key={q.key} className={styles.ask}>
+                    <Link href={q.href} className={styles.askLink}>{q.ask}</Link>
+                    <span className={styles.askWhy}>{q.why}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
       {failed?.error && (
         <p className={styles.failed}>전사에 실패했어요: {failed.error}</p>
       )}
@@ -338,7 +420,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
             ) : (
               <ul className={styles.found}>
                 {m.suggestions.map((s) => {
-                  const axis = AXIS[s.axis] ?? { label: s.axis, status: 'note' as StatusKey }
+                  const axis = axisMeta(s.axis)
                   const ids = s.evidenceJson?.segmentIds ?? []
                   return (
                     <li key={s.id} className={styles.foundItem}>
