@@ -242,3 +242,41 @@ test('BigInt 는 문자열로 나간다 — JSON 은 BigInt 를 못 싣는다', 
   assert.doesNotThrow(() => JSON.stringify(json))
   assert.equal(typeof json.bookedMinor, 'string')
 })
+
+test('★ 넘치는 현물은 **저장되기 전에** 막힌다 — 저장 뒤에 검사하면 잘못된 행이 남는다', async () => {
+  // 실브라우저에서 잡았다: 20억 현물이 저장된 뒤 검사가 던져서
+  // 오류는 떴지만 행은 남았고, 화면이 「현물 제외 −9.6억」을 그렸다.
+  const f = fakeDb({
+    deal: baseDeal({ contractNetMinor: 억(13), bookedNetMinor: 억(13) }),
+    funding: [],
+    inKind: [],
+  })
+  await assert.rejects(
+    () => addInKind(f.db, 'ws', 'd1', { kind: 'LABOR', name: '과다 현물', valueMinor: 억(20) }),
+    /현물 합계가 수주 매출을 넘습니다/,
+  )
+  assert.equal(f.rows.inKind.length, 0, '막혔으면 행이 남아서는 안 된다')
+})
+
+test('이미 있는 현물과 합쳐서 넘치면 그것도 막는다 — 한 줄씩은 작아도 합이 넘는다', async () => {
+  const f = fakeDb({
+    deal: baseDeal({ contractNetMinor: 억(13), bookedNetMinor: 억(13) }),
+    funding: [],
+    inKind: [{ id: 'k1', kind: 'LABOR', name: '기존', valueMinor: 억(10), quantity: null, unit: null, basisNote: null, startDate: null, endDate: null, position: 0 }],
+  })
+  await assert.rejects(
+    () => addInKind(f.db, 'ws', 'd1', { kind: 'MATERIAL', name: '추가', valueMinor: 억(5) }),
+    /현물 합계가 수주 매출을 넘습니다/,
+  )
+  assert.equal(f.rows.inKind.length, 1, '기존 한 줄만 남는다')
+})
+
+test('딱 맞으면 통과한다 — 과하게 막으면 정상 입력이 안 된다', async () => {
+  const f = fakeDb({
+    deal: baseDeal({ contractNetMinor: 억(13), bookedNetMinor: 억(13) }),
+    funding: [],
+    inKind: [],
+  })
+  await addInKind(f.db, 'ws', 'd1', { kind: 'LABOR', name: '딱 13억', valueMinor: 억(13) })
+  assert.equal(f.rows.inKind.length, 1)
+})

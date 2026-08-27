@@ -16,10 +16,10 @@ import { normalizeText, requireText } from '../domain/normalize.ts'
 import {
   computeBooked, pickBooked, isCashInflow, countsAsAccountingRevenue,
   needsSeparateAccount, FUNDING_LABEL,
-  type FundingSourceType, type BookedAmounts, BOOKED_FROM_LABEL,
+  type FundingSourceType, type BookedAmounts, type BookedFrom, BOOKED_FROM_LABEL,
 } from '../domain/booked-amount.ts'
 import { checkI9, assertNoViolation } from '../domain/invariants.ts'
-import { canView, type Viewer } from '../security/sensitivity.ts'
+import { canView, hasCapability, type Viewer } from '../security/sensitivity.ts'
 import { sumByYear, monthSpan, type PeriodAllocation } from '../domain/allocation.ts'
 import type { TaxBasis } from '../domain/money.ts'
 
@@ -72,7 +72,9 @@ export interface Ledger extends BookedAmounts {
   dealId: string
   taxBasis: TaxBasis
   taxRatePct: string
-  bookedFrom: 'contract' | 'quote' | 'budget' | 'none'
+  bookedFrom: BookedFrom
+  budgetMinor: bigint | null
+  contractMinor: bigint | null
   funding: FundingRow[]
   inKind: InKindRow[]
   /** 현물의 연차 배분 — 기간에서 계산한다 */
@@ -108,7 +110,7 @@ export async function getLedger(db: CrmDb, dealId: string): Promise<Ledger> {
     select: {
       id: true, taxBasis: true, taxRatePct: true,
       budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
-      bookedNetMinor: true, inKindTotalMinor: true,
+      bookedNetMinor: true, inKindTotalMinor: true, amountMinor: true,
     },
   })
   if (!deal) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.')
@@ -137,6 +139,8 @@ export async function getLedger(db: CrmDb, dealId: string): Promise<Ledger> {
     taxBasis: deal.taxBasis as TaxBasis,
     taxRatePct: String(deal.taxRatePct),
     bookedFrom: picked.from,
+    budgetMinor: deal.budgetNetMinor,
+    contractMinor: deal.contractNetMinor,
     funding: funding.map(decorate),
     inKind: inKind.map((k) => ({
       id: k.id, kind: k.kind as InKindKind, name: k.name, valueMinor: k.valueMinor,
@@ -160,7 +164,7 @@ export async function recalcLedger(db: CrmDb, dealId: string, actorId?: string |
     where: { id: dealId },
     select: {
       id: true, workspaceId: true, bookedNetMinor: true, inKindTotalMinor: true,
-      budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
+      budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true, amountMinor: true,
     },
   })
   if (!deal) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.')
@@ -221,6 +225,27 @@ function toDate(v: string | Date | null | undefined): Date | null {
 }
 
 /**
+ * 저장하면 현물이 사업비를 넘는지 **미리** 본다.
+ *
+ * `recalcLedger` 의 검사는 마지막 방어선일 뿐이다 — 거기서 던지면
+ * **행은 이미 저장된 뒤**라 잘못된 값이 그대로 남는다.
+ * 실브라우저에서 「현물 제외 −9.6억」이 그려진 것이 그 결과였다.
+ */
+async function assertFitsBooked(db: CrmDb, dealId: string, deltaMinor: bigint, excludeId?: string): Promise<void> {
+  const deal = await db.crmDeal.findFirst({
+    where: { id: dealId },
+    select: {
+      id: true, budgetNetMinor: true, quotedNetMinor: true,
+      contractNetMinor: true, amountMinor: true,
+    },
+  })
+  if (!deal) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.')
+  const rows = await db.crmInKind.findMany({ where: { dealId }, select: { id: true, valueMinor: true } })
+  const others = rows.reduce<bigint>((a, r) => (r.id === excludeId ? a : a + r.valueMinor), BigInt(0))
+  assertNoViolation(checkI9(others + deltaMinor, pickBooked(deal).minor))
+}
+
+/**
  * 기간 역전 검사.
  *
  * `monthSpan` 으로는 못 잡는다 — 그 함수는 0 나눗셈을 막으려 **1로 클램프**하므로
@@ -251,6 +276,7 @@ export async function addInKind(
   const start = toDate(dto.startDate)
   const end = toDate(dto.endDate)
   assertRange(start, end)
+  await assertFitsBooked(db, dealId, value)
   const last = await db.crmInKind.findFirst({ where: { dealId }, orderBy: { position: 'desc' }, select: { position: true } })
   await db.crmInKind.create({
     data: {
@@ -276,6 +302,10 @@ export async function updateInKind(
     dto.startDate !== undefined ? toDate(dto.startDate) : (cur.startDate ?? null),
     dto.endDate !== undefined ? toDate(dto.endDate) : (cur.endDate ?? null),
   )
+  if (dto.valueMinor !== undefined) {
+    // 고치는 줄은 빼고 나머지 합에 새 값을 더해 본다
+    await assertFitsBooked(db, dealId, toBig(dto.valueMinor), id)
+  }
   await db.crmInKind.update({
     where: { id },
     data: {
@@ -385,7 +415,74 @@ export function toLedgerJson(l: Ledger, viewer: Viewer | null | undefined): Reco
         }))
       : null,
     inKindCount: l.inKind.length,
+    /** 화면이 역할로 다시 판정하지 않게 서버가 답한다 */
+    canEdit: hasCapability(viewer, 'cost.edit'),
+    budgetMinor: l.budgetMinor === null ? null : l.budgetMinor.toString(),
+    contractMinor: l.contractMinor === null ? null : l.contractMinor.toString(),
     inKindByYear: l.inKindByYear.map((y) => ({ year: y.year, months: y.months, amountMinor: y.amountMinor.toString() })),
     inKindUndatedMinor: l.inKindUndatedMinor.toString(),
   }
+}
+
+export interface LedgerMetaInput {
+  /** 원본이 공급가액인가 총액인가 — 이 한 칸이 방향을 기록하고 세 값은 계산된다 */
+  taxBasis?: 'NET' | 'GROSS'
+  taxRatePct?: number | string
+  budgetNetMinor?: bigint | number | string | null
+  contractNetMinor?: bigint | number | string | null
+}
+
+/**
+ * 장부의 «기준»을 고친다 — 부가세 방향과 예산·계약 금액.
+ *
+ * **견적 금액은 여기서 못 고친다.** 그건 대표 견적에서 와야 하고(I8),
+ * 손으로 고칠 수 있게 두면 견적과 딜이 서로를 반박한다.
+ */
+export async function updateLedgerMeta(
+  db: CrmDb, dealId: string, dto: LedgerMetaInput, actorId?: string | null,
+): Promise<Ledger> {
+  const deal = await db.crmDeal.findFirst({
+    where: { id: dealId },
+    select: { id: true, workspaceId: true, budgetNetMinor: true, contractNetMinor: true },
+  })
+  if (!deal) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.')
+
+  if (dto.taxRatePct !== undefined) {
+    const n = Number(dto.taxRatePct)
+    // 100%를 넘는 세율은 입력 실수다 — 조용히 받으면 총액이 두 배가 된다
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      throw new CrmError('VALIDATION_FAILED', '부가세율은 0에서 100 사이로 입력해 주세요.')
+    }
+  }
+
+  const budget = dto.budgetNetMinor === undefined ? undefined
+    : dto.budgetNetMinor === null || dto.budgetNetMinor === '' ? null : toBig(dto.budgetNetMinor)
+  const contract = dto.contractNetMinor === undefined ? undefined
+    : dto.contractNetMinor === null || dto.contractNetMinor === '' ? null : toBig(dto.contractNetMinor)
+
+  // 금액이 바뀌면 왜 바뀌었는지 남긴다 — 파이프라인 총액이 출렁이는 이유다
+  const logs: { field: string; from: bigint | null; to: bigint | null }[] = []
+  if (budget !== undefined && budget !== deal.budgetNetMinor) logs.push({ field: 'budget', from: deal.budgetNetMinor, to: budget })
+  if (contract !== undefined && contract !== deal.contractNetMinor) logs.push({ field: 'contract', from: deal.contractNetMinor, to: contract })
+
+  await db.crmDeal.update({
+    where: { id: dealId },
+    data: {
+      ...(dto.taxBasis ? { taxBasis: dto.taxBasis } : {}),
+      ...(dto.taxRatePct !== undefined ? { taxRatePct: String(dto.taxRatePct) } : {}),
+      ...(budget !== undefined ? { budgetNetMinor: budget } : {}),
+      ...(contract !== undefined ? { contractNetMinor: contract } : {}),
+    },
+  })
+
+  if (logs.length > 0) {
+    await db.crmDealAmountHistory.createMany({
+      data: logs.map((l) => ({
+        workspaceId: deal.workspaceId, dealId,
+        field: l.field, fromMinor: l.from, toMinor: l.to,
+        reason: '장부 수정', changedById: actorId ?? null,
+      })),
+    })
+  }
+  return recalcLedger(db, dealId, actorId)
 }

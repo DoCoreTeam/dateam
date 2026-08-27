@@ -134,24 +134,39 @@ export function inKindFromFunding(funding: readonly FundingSourceInput[]): bigin
   return funding.reduce<bigint>((a, f) => (f.sourceType === 'IN_KIND' ? a + big(f.amountMinor) : a), BigInt(0))
 }
 
-/** 수주 매출은 «가장 확실한 것»을 쓴다 — 계약 > 견적 > 예산 */
+export type BookedFrom = 'contract' | 'quote' | 'budget' | 'legacy' | 'none'
+
+/**
+ * 수주 매출은 «가장 확실한 것»을 쓴다 — 계약 > 견적 > 예산.
+ *
+ * **`amountMinor` 는 마지막 폴백이다.** 뜻이 모호해 폐기할 칸이지만
+ * 이관이 끝날 때까지는 **화면에 실제로 떠 있는 숫자**다.
+ * 안 보면 속성에는 「13억」이 뜨는데 장부는 「0원 · 금액 미정」이라고 말해
+ * 같은 화면의 두 숫자가 서로를 반박한다(실브라우저에서 잡았다).
+ */
 export function pickBooked(d: {
   contractNetMinor?: bigint | number | string | null
   quotedNetMinor?: bigint | number | string | null
   budgetNetMinor?: bigint | number | string | null
-}): { minor: bigint; from: 'contract' | 'quote' | 'budget' | 'none' } {
+  /** 이관 중인 옛 칸 — 새 셋이 다 비었을 때만 본다 */
+  amountMinor?: bigint | number | string | null
+}): { minor: bigint; from: BookedFrom } {
   const c = big(d.contractNetMinor)
   if (c > BigInt(0)) return { minor: c, from: 'contract' }
   const q = big(d.quotedNetMinor)
   if (q > BigInt(0)) return { minor: q, from: 'quote' }
   const b = big(d.budgetNetMinor)
   if (b > BigInt(0)) return { minor: b, from: 'budget' }
+  const a = big(d.amountMinor)
+  if (a > BigInt(0)) return { minor: a, from: 'legacy' }
   return { minor: BigInt(0), from: 'none' }
 }
 
-export const BOOKED_FROM_LABEL: Record<'contract' | 'quote' | 'budget' | 'none', string> = {
+export const BOOKED_FROM_LABEL: Record<BookedFrom, string> = {
   contract: '계약 금액',
   quote: '견적 금액',
   budget: '예산 금액',
+  // 사용자에게는 «옛 칸»이라고 말하지 않는다 — 화면의 「금액」과 같은 말을 쓴다
+  legacy: '금액',
   none: '금액 미정',
 }

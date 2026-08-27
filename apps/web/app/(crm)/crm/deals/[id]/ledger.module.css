@@ -53,6 +53,13 @@
   gap: var(--space-2);
 }
 
+/* 절끼리는 숨 쉴 자리가 필요하다 — 붙으면 다음 제목이 앞 절의 마지막 줄처럼 읽힌다 */
+.section + .section {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: var(--hairline) solid var(--border-light);
+}
+
 .sectionTitle {
   font-size: var(--fs-sm);
   font-weight: 600;
@@ -107,4 +114,49 @@
   font-size: var(--fs-xs);
   color: var(--text-faint);
   padding: var(--space-2) 0;
+}
+
+/* 편집 — 입력과 버튼은 같은 높이(--control-h)를 쓰고, 줄은 라벨 바닥에 맞춘다 */
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.formRow .label {
+  min-width: 6rem;
+}
+
+.formRow input,
+.formRow select {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+/* 확정은 오른쪽 끝, 취소는 그 왼쪽 (L-6) */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--hairline) solid var(--border-light);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* 오류는 누른 자리에서 보여야 한다 — 모달이 스크롤 컨테이너라 sticky 로 따라온다 */
+.alert {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--color-surface);
+  padding-bottom: var(--space-2);
 }

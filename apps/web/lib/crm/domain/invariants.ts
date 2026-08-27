@@ -9,6 +9,7 @@
  */
 
 import { computeTax, pctToBp, type TaxBasis, type TaxKind } from './money.ts'
+import { CrmError } from './errors.ts'
 
 export interface Violation {
   /** I1 ~ I9 */
@@ -195,11 +196,19 @@ export function checkDeal(input: DealCheckInput): Violation[] {
   ]
 }
 
-/** 위반이 있으면 던진다. 저장 경로가 이걸 부른다 */
+/**
+ * 위반이 있으면 던진다. 저장 경로가 이걸 부른다.
+ *
+ * **CrmError 로 던지는 것이 핵심이다.** 평범한 Error 로 던지면 API 껍데기가
+ * 「저장하지 못했습니다. 잠시 후 다시 시도해 주세요」로 뭉개서 내보낸다 —
+ * 사용자는 **왜 막혔는지 모른 채 같은 값을 다시 넣는다**(실브라우저에서 잡았다).
+ * 불변식 위반은 서버 장애가 아니라 **입력이 서로 맞지 않는다**는 뜻이다.
+ */
 export function assertNoViolation(vs: readonly Violation[]): void {
   if (vs.length === 0) return
-  const err = new Error(vs.map((v) => `[${v.code}] ${v.message}`).join('\n'))
-  ;(err as Error & { violations?: readonly Violation[] }).violations = vs
+  // 코드([I9])는 사용자에게 뜻이 없다 — 사람이 읽는 문장만 보낸다
+  const err = new CrmError('VALIDATION_FAILED', vs.map((v) => v.message).join('\n'))
+  ;(err as CrmError & { violations?: readonly Violation[] }).violations = vs
   throw err
 }
 

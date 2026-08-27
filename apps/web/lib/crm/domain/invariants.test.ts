@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { CrmError } from './errors.ts'
 import {
   checkI1, checkI2, checkI3, checkI4, checkI5, checkI6, checkI7, checkI8, checkI9,
   checkQuote, checkDeal, assertNoViolation,
@@ -122,7 +123,26 @@ test('assertNoViolation — 위반이 있으면 던지고 목록을 붙인다', 
     assert.fail('던져야 한다')
   } catch (e) {
     const err = e as Error & { violations?: { code: string }[] }
-    assert.match(err.message, /\[I9\]/)
+    // 사람이 읽는 문장에는 코드가 없고, 코드는 violations 로 따로 온다 —
+    // 기계는 code 로 분기하고 사람은 문장을 읽는다
+    assert.match(err.message, /현물 합계가 수주 매출을 넘습니다/)
+    assert.equal(err.message.includes('[I9]'), false)
     assert.equal(err.violations?.[0].code, 'I9')
+  }
+})
+
+
+test('★ 불변식 위반은 CrmError 다 — 평범한 Error 면 API 가 「잠시 후 다시」로 뭉갠다', () => {
+  // 실브라우저에서 잡았다: 현물이 수주 매출을 넘겨 저장이 막혔는데
+  // 화면에는 「장부를 저장하지 못했습니다」만 떠서 왜 막혔는지 알 수 없었다.
+  try {
+    assertNoViolation(checkI9(BigInt(2_000_000_000), BigInt(1_300_000_000)))
+    assert.fail('던져야 한다')
+  } catch (e) {
+    assert.ok(e instanceof CrmError, 'CrmError 여야 API 가 문장을 그대로 내보낸다')
+    assert.equal(e.code, 'VALIDATION_FAILED')
+    assert.equal(e.status < 500, true, '서버 장애가 아니라 입력 문제다')
+    assert.match(e.message, /현물 합계가 수주 매출을 넘습니다/)
+    assert.equal(e.message.includes('[I9]'), false, '코드는 사용자에게 뜻이 없다')
   }
 })
