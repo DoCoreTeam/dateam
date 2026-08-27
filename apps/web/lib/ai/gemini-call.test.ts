@@ -11,6 +11,7 @@ import {
   GEMINI_MAX_OUTPUT_TOKENS,
   GeminiCallError,
   callGeminiJson,
+  isQuotaCooling, resetQuotaCooling, QUOTA_COOLDOWN_MS,
 } from './gemini-call.ts'
 import { DEFAULT_GEMINI_MODEL } from './gemini-model.ts'
 
@@ -200,5 +201,77 @@ describe('전부 실패했을 때', () => {
       }
     )
     assert.equal(calls.length, 0, '데드라인이 지났으면 한 번도 부르지 않는다')
+  })
+})
+
+/* ── 두 번째 공급자 폴백 + 한도 회로 차단기 ─────────────────────────
+ * 왜(실측 2026-08-27): 조직 키가 무료 티어였다 — quotaId …PerProjectPerModel-FreeTier, 값 20.
+ * 한도가 **프로젝트 단위**라 모델을 바꿔도 같이 막힌다. 모델 폴백만으로는 못 푼다.
+ * 여기서 잠그는 계약:
+ *   ① 폴백 키를 준 호출만 다른 공급자로 나간다(주지 않은 기능이 몰래 새면 안 된다)
+ *   ② 사슬 전체가 한도로 막힌 직후에는 두드리지 않고 건너뛴다(헛호출 270회를 막는다)
+ *   ③ Gemini 가 다시 답하면 냉각은 즉시 풀린다
+ */
+describe('두 번째 공급자 폴백', () => {
+  afterEach(() => { resetQuotaCooling() })
+
+  it('★ 폴백 키를 주지 않으면 다른 공급자로 나가지 않는다 — 데이터가 몰래 새면 안 된다', async () => {
+    resetQuotaCooling()
+    stubFetch([{ status: 429 }])
+    await assert.rejects(() => callGeminiJson({ prompt: 'p', apiKey: 'k' }))
+    assert.ok(
+      calls.every((c) => c.url.includes('generativelanguage')),
+      'Gemini 외의 호스트로 나간 요청이 있으면 안 된다',
+    )
+  })
+
+  it('★ 사슬이 전부 한도로 막히면 폴백 공급자로 넘어가 결과를 낸다', async () => {
+    resetQuotaCooling()
+    let i = 0
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), init })
+      i += 1
+      if (String(url).includes('generativelanguage')) {
+        return { ok: false, status: 429, json: async () => ({}) }
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"found":true}' } }] }),
+      }
+    }) as unknown as typeof fetch
+
+    const res = await callGeminiJson({ prompt: 'p', apiKey: 'k', fallbackApiKey: 'fb' })
+    assert.deepEqual(res.value, { found: true })
+    assert.ok(res.fallbackNotice, '다른 공급자로 처리했으면 화면에 그 사실이 전달돼야 한다')
+    assert.ok(i > 1)
+  })
+
+  it('★ 한도로 막힌 직후의 호출은 Gemini 를 두드리지 않는다', async () => {
+    resetQuotaCooling()
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), init })
+      if (String(url).includes('generativelanguage')) {
+        return { ok: false, status: 429, json: async () => ({}) }
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"ok":1}' } }] }),
+      }
+    }) as unknown as typeof fetch
+
+    await callGeminiJson({ prompt: 'p', apiKey: 'k', fallbackApiKey: 'fb' })
+    assert.ok(isQuotaCooling(), '한도를 확인했으면 기억한다')
+
+    calls.length = 0
+    await callGeminiJson({ prompt: 'p2', apiKey: 'k', fallbackApiKey: 'fb' })
+    assert.equal(
+      calls.filter((c) => c.url.includes('generativelanguage')).length, 0,
+      '두 번째 호출은 Gemini 를 한 번도 부르지 않는다',
+    )
+  })
+
+  it('냉각 창은 분 단위다 — 너무 짧으면 무의미하고 너무 길면 안 돌아온다', () => {
+    assert.ok(QUOTA_COOLDOWN_MS >= 60_000)
+    assert.ok(QUOTA_COOLDOWN_MS <= 60 * 60_000)
   })
 })

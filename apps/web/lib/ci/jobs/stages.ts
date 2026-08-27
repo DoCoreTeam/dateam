@@ -41,6 +41,14 @@ export interface StageResult {
   ok: boolean
   errorCode?: string
   errorMessage?: string
+  /**
+   * 무슨 일이 있었는지 사람이 읽는 한 줄.
+   *
+   * 왜 필요한가(실측 2026-08-27): 발견을 8분 돌리고 0건이 나왔는데 응답은 `ran:true` 뿐이라,
+   * **성공했는데 아무 일도 안 일어난 것**과 구분할 방법이 없었다. 대조를 몇 개 봤고,
+   * 이유를 몇 개 찾았고, 몇 개가 승격됐는지를 숫자로 말한다.
+   */
+  note?: string
 }
 
 async function loadThreshold(workspaceId: string): Promise<number> {
@@ -643,6 +651,11 @@ export async function runDiscovery(
 
   let promotedTotal = 0
   let blocked: string | null = null
+  // 계측 — 0건일 때 "어디서 끊겼는지"를 말할 수 있어야 한다.
+  let setsTotal = 0
+  let findingsTotal = 0
+  let clustersTotal = 0
+  let topicsWithData = 0
 
   for (const t of (topics ?? []) as { id: string }[]) {
     const { data } = await adminClient.from('ci_contents')
@@ -666,9 +679,13 @@ export async function runDiscovery(
 
     const sets = buildContrastSets(samples)
     if (sets.length === 0) continue
+    topicsWithData += 1
+    setsTotal += Math.min(sets.length, opts?.maxSetsPerTopic ?? sets.length)
 
     const found = await discoverFromContrasts(sets, { maxSets: opts?.maxSetsPerTopic })
     if (found.blocked) { blocked = found.blocked; continue }
+    findingsTotal += found.findings.length
+    clustersTotal += found.clusters.length
 
     const { promoted } = promoteDiscoveries(found.clusters, found.findings, found.kinds)
 
@@ -706,11 +723,14 @@ export async function runDiscovery(
     }
   }
 
+  const note = `주제 ${topicsWithData}개 · 대조 ${setsTotal}건 → 이유 ${findingsTotal}개 `
+    + `→ 묶음 ${clustersTotal}개 → 승격 ${promotedTotal}건`
+
   // 못 돈 이유가 있으면 실패로 올린다 — 0건으로 위장하지 않는다
   if (promotedTotal === 0 && blocked) {
-    return { ok: false, errorCode: 'AI_UNAVAILABLE', errorMessage: blocked }
+    return { ok: false, errorCode: 'AI_UNAVAILABLE', errorMessage: blocked, note }
   }
-  return { ok: true }
+  return { ok: true, note }
 }
 
 

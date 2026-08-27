@@ -141,6 +141,7 @@ export async function discoverFromContrasts(
       const res = await callGeminiJson({
         prompt: buildFindingPrompt(set),
         apiKey: meta.geminiApiKey,
+        fallbackApiKey: meta.fallbackApiKey,
         model: meta.geminiModel,
         temperature: 0,           // 같은 대조에 같은 답이 나와야 근거로 쓸 수 있다
         maxOutputTokens: 400,
@@ -190,6 +191,7 @@ export async function discoverFromContrasts(
     const res = await callGeminiJson({
       prompt: buildClusterPrompt(numbered),
       apiKey: meta.geminiApiKey,
+      fallbackApiKey: meta.fallbackApiKey,
       model: meta.geminiModel,
       temperature: 0,
       maxOutputTokens: 2000,

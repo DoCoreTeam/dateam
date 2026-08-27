@@ -74,6 +74,9 @@ function collectEndpoints(): { path: string; method: string }[] {
 const SERVER_ONLY: Record<string, string> = {
   '/api/ci/internal/worker/tick POST': '서비스 토큰 전용(CI_WORKER_TOKEN). 화면이 부르면 안 된다',
   '/api/ci/alerts/sweep POST': '알림 평가는 잡 파이프라인(handlers.ts)이 돌린다. 이 라우트는 수동 트리거',
+  '/api/ci/internal/worker/discover POST':
+    '서비스 토큰 전용(CI_WORKER_TOKEN). 전체 주제 훑기는 13분이 넘어 화면이 부를 일이 아니다 '
+    + '— 화면은 /api/ci/patterns/recompute 로 지금 보는 주제 하나만 돌린다',
 }
 
 test('★ 스캐너가 실제로 동작한다 — 지표가 틀리면 이 가드 전체가 거짓말이 된다', () => {

@@ -17,6 +17,7 @@ import {
   resolveGeminiModelChain,
 } from './gemini-model.ts'
 import { JsonRecoverError, recoverJson } from './json-recover.ts'
+import { callFallbackJson } from './fallback-text.ts'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -87,6 +88,13 @@ export interface CallGeminiJsonOptions {
   maxOutputTokens?: number
   /** 로그 라벨(기능 이름). */
   feature?: string
+  /**
+   * 두 번째 공급자 키(Groq). 주면 **Gemini 사슬이 전부 실패한 뒤에만** 시도한다.
+   *
+   * 왜 옵션인가: 모든 기능이 자동으로 다른 공급자로 새어 나가면 안 된다.
+   * 어디로 무엇이 가는지는 호출부가 알고 정해야 한다(추가 전용, M-4).
+   */
+  fallbackApiKey?: string
 }
 
 interface RawCallOutcome {
@@ -95,6 +103,29 @@ interface RawCallOutcome {
   usage?: GeminiUsage
   reason?: GeminiFailureReason
   detail: string
+}
+
+/**
+ * 한도 차단 기억 — 사슬 전체가 429로 끝나면 그 사실을 잠시 기억한다.
+ *
+ * 왜 필요한가: 무료 티어 한도는 **프로젝트 단위**라 모델을 바꿔도 같이 막힌다.
+ * 기억하지 않으면 호출마다 모델 3개 × 재시도 3회 = 9번을 두드리고 백오프까지 기다린 뒤
+ * 매번 같은 곳에 도착한다(실측: 대조 30건이면 헛호출 270회 + 백오프만 4분).
+ *
+ * **폴백 키를 준 호출에서만** 이 기억을 쓴다. 폴백이 없는 호출까지 건너뛰면
+ * 그 기능은 갈 곳이 없어져 그냥 실패한다 — 지금보다 나빠진다.
+ */
+let quotaBlockedUntil = 0
+/** 차단 유지 시간. 분당 한도면 곧 풀리고, 일일 한도면 어차피 계속 막힌다 — 그 사이 값. */
+export const QUOTA_COOLDOWN_MS = 10 * 60_000
+
+/** 테스트·운영 점검용. 지금 Gemini를 건너뛰는 상태인지. */
+export function isQuotaCooling(now = Date.now()): boolean {
+  return now < quotaBlockedUntil
+}
+/** 테스트에서 상태를 초기화한다(모듈 레벨 상태는 테스트 간에 샌다). */
+export function resetQuotaCooling(): void {
+  quotaBlockedUntil = 0
 }
 
 function sleep(ms: number): Promise<void> {
@@ -190,6 +221,7 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
     overallTimeoutMs = GEMINI_OVERALL_TIMEOUT_MS,
     maxOutputTokens = GEMINI_MAX_OUTPUT_TOKENS,
     feature = 'gemini',
+    fallbackApiKey,
   } = opts
 
   if (!apiKey) {
@@ -202,7 +234,11 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
   const deadline = Date.now() + overallTimeoutMs
   let lastReason: GeminiFailureReason = 'server'
 
-  for (const model of chain) {
+  // 방금 전에 사슬 전체가 한도로 막혔고 갈 곳(폴백)이 있으면, 두드리지 않고 바로 넘어간다.
+  const skipGemini = Boolean(fallbackApiKey) && isQuotaCooling()
+  if (skipGemini) attempts.push('Gemini: 최근 한도 초과가 확인돼 건너뜀')
+
+  for (const model of skipGemini ? [] : chain) {
     for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt++) {
       if (Date.now() >= deadline) {
         throw new GeminiCallError(
@@ -245,6 +281,7 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
       // ok — 이제 JSON을 건져낸다.
       try {
         const value = recoverJson(out.text ?? '')
+        quotaBlockedUntil = 0   // Gemini 가 답했다 = 한도가 풀렸다
         const usedFallback = model !== (configured ?? '').trim()
         return {
           value,
@@ -262,6 +299,37 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
         console.warn(`[${feature}] ${model}이 JSON을 내지 않아 폴백: ${sample}`)
         attempts.push(`${model}: JSON 형식 아님`)
         break // 다음 모델로
+      }
+    }
+  }
+
+  // ── 여기까지 왔다 = Gemini 사슬의 **모든 모델이 실패**했다.
+  // 한도(429)는 모델을 바꿔도 안 풀린다 — 무료 티어 한도가 프로젝트 단위로 걸리기 때문이다
+  // (실측 2026-08-27: 3개 모델 전부 429, quotaId …PerProjectPerModel-FreeTier, 값 20).
+  // 공급자를 바꾸는 것만이 남은 길이다. 호출부가 키를 준 경우에만 간다.
+  if (lastReason === 'quota' && !skipGemini) quotaBlockedUntil = Date.now() + QUOTA_COOLDOWN_MS
+
+  if (fallbackApiKey) {
+    const fb = await callFallbackJson({
+      prompt, apiKey: fallbackApiKey, temperature, maxOutputTokens,
+      timeoutMs: Math.max(1_000, Math.min(timeoutMs, deadline - Date.now())),
+      feature,
+    })
+    attempts.push(...(fb.ok ? [`${fb.model}: ok(폴백 공급자)`] : fb.attempts))
+
+    if (fb.ok) {
+      try {
+        return {
+          value: recoverJson(fb.text),
+          usage: fb.usage,
+          model: fb.model,
+          fallbackNotice:
+            `Gemini 호출 한도에 걸려 보조 공급자('${fb.model}')로 처리했습니다. ` +
+            '한도가 풀리면 자동으로 원래 모델로 돌아갑니다.',
+        }
+      } catch {
+        // 폴백도 JSON을 안 냈다 — 원래 실패 원인을 덮지 않고 아래 공통 경로로 내려간다.
+        attempts.push(`${fb.model}: JSON 형식 아님(폴백)`)
       }
     }
   }
