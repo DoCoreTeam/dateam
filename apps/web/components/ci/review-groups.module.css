@@ -1,0 +1,122 @@
+/* components/ci/review-groups.module.css — 검토 묶음 카드
+ *
+ * 화면 전용 스타일은 globals.css 에 넣지 않는다(§0-1) — 거기 94%가 이미 화면 전용이라
+ * 더 넣으면 계속 비대해진다. 이 폴더의 모듈에 둔다. 값은 전부 토큰이다. */
+
+.list { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.notice {
+  display: block;
+  padding: var(--space-3);
+  line-height: 1.7;
+}
+
+.card { padding: var(--space-4); }
+.card[data-idle='true'] { opacity: .5; }
+
+.head {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.headMain { min-width: 0; flex: 1; }
+
+.question {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.45;
+}
+.sub { margin-top: 4px; }
+.count { white-space: nowrap; align-self: flex-start; }
+
+/* 왜 물어보는지 — 이유 없이 뜬 질문은 사용자가 답할 수 없다 */
+.reason {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-bg);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.samples {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.samples li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: var(--space-4);
+}
+/* 갈린 둘 다 아닐 수 있다 — 그 길을 좁은 화면에서도 누를 수 있게 */
+.other { width: auto; min-width: 160px; }
+
+.remember {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.remember input { width: auto; min-height: auto; }
+
+/* 스크린리더 전용 — 셀렉트에 이름을 주되 화면에서는 안 보이게 */
+.srOnly {
+  position: absolute;
+  left: -9999px;
+}
+
+/* 게시물 하나를 고르는 줄. 체크는 답에서 빼기 위한 것이지 «선택»이 아니다 —
+   그래서 기본이 켜짐이고, 푸는 것이 사용자의 행동이다 */
+.pick {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  cursor: pointer;
+  line-height: 1.5;
+}
+.pick input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin-top: 2px;
+  flex: 0 0 auto;
+  accent-color: var(--brand);
+}
+/* 뺀 것은 남아 있되 답에 들어가지 않는다는 게 보여야 한다 */
+.dropped {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.hidden {
+  padding-left: calc(16px + var(--space-2));
+}
+/* 새 주제를 만드는 줄 — 확정은 오른쪽, 취소는 그 왼쪽(§2-3-2 L-6은 모달 기준이므로
+   여기서는 입력 다음에 «만들고 확정» → «취소» 순으로 둔다) */
+.create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.create input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}

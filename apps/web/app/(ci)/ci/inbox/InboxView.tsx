@@ -409,7 +409,8 @@ export default function InboxView({
       {tab === 'review' ? (
         <>
           <p className="ci-basis" style={{ margin: '0 0 var(--space-3)' }}>
-            AI가 정한 주제가 갈린 것들입니다. 같은 판정끼리 묶여 있어 한 번만 답하면 됩니다.
+            AI가 정한 주제가 갈린 것들입니다. 같은 판정끼리 묶어 두었으니 한 번에 답하되,
+            다른 것이 섞여 있으면 체크를 풀어 빼면 됩니다.
           </p>
           <ReviewGroups workspaceId={workspaceId} topics={topics} />
           {detailSheet}
