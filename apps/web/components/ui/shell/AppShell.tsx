@@ -9,7 +9,7 @@
 //   - 좌측 하단 계정 메뉴(이름·비밀번호·테마·패치노트·로그아웃) = 항상. 끄는 옵션 없음.
 //   - 우측 상단 전역검색 + 전체메뉴 = 항상. `extras.headerExtra`는 **추가만** 가능.
 //   - 우측 하단 Dock(§4) = 좌표를 Dock이 독점. 화면은 슬롯 등록만.
-//   - 새 셸을 만들지 않는다. CI도 이 셸을 쓰고 `workspace`만 주입한다.
+//   - 새 셸을 만들지 않는다. 나가는 문은 셸이 스스로 판정해 그린다(ShellExit · §2-3-3 N-2).
 //   - `MobileShell`은 이 컴포넌트의 **내부 구현**으로 남는다(395줄 재작성 회피).
 //   - 녹음 세션(§회의 작업대) = 항상. 네 표면이 이 셸을 공유하므로 제공자를 여기 **한 번만** 둔다.
 //     화면이 들고 있으면 라우트를 옮길 때 언마운트돼 진행 중 구간(최대 10분)이 사라진다.
@@ -18,7 +18,6 @@
 
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import MobileShell from '@/components/ui/MobileShell'
 import type { NavGroup, NavItem } from '@/components/ui/MobileShell'
 
@@ -28,6 +27,7 @@ import SidebarProfile from '@/components/ui/SidebarProfile'
 import GlobalSearchBox from '@/components/ui/GlobalSearchBox'
 import QuickNav from '@/components/ui/QuickNav'
 import type { DockItem } from './Dock'
+import ShellExit from './ShellExit'
 import { RecordingProvider } from '@/lib/meeting/recording-context'
 import RecordingBar from '@/components/meeting/RecordingBar'
 import OfflineBar from '@/components/ui/OfflineBar'
@@ -43,18 +43,11 @@ export interface ShellSession {
 }
 
 /** CI처럼 "워크스페이스 안에 들어와 있는" 표면일 때만. 나가는 길과 현재 위치를 보여준다. */
-export interface WorkspaceContext {
-  name: string
-  exitHref?: string
-  exitLabel?: string
-}
-
 export interface AppShellProps {
   items?: NavItem[]
   groups?: NavGroup[]
   session: ShellSession
   branding?: { logoUrl?: string | null; brandName?: string }
-  workspace?: WorkspaceContext
   /**
    * 검색이 어디를 찾을지.
    *
@@ -76,7 +69,6 @@ export default function AppShell({
   groups,
   session,
   branding,
-  workspace,
   search,
   extras,
   children,
@@ -101,15 +93,15 @@ export default function AppShell({
       }
       footer={
         <>
-          {workspace && (
-            <div className="shell-workspace">
-              <Link className="shell-workspace-exit" href={workspace.exitHref ?? '/home'}>
-                <ArrowLeft size={16} />
-                {workspace.exitLabel ?? '사내 업무로'}
-              </Link>
-              <p className="shell-workspace-name">{workspace.name}</p>
-            </div>
-          )}
+          {/*
+            나가는 문 (§2-3-3 N-2) — **하위 서비스면 셸이 항상 그린다.**
+            예전엔 화면이 `workspace` 를 넘길 때만 그려서 CI 에만 있었고, CRM 은 계정 메뉴에만 있었다.
+            문구도 「사내 업무로」·「홈으로 나가기」·「멤버 화면으로」 셋이었는데 **셋 다 같은 곳으로 간다.**
+
+            워크스페이스 이름은 **안 그린다**(N-5) — 한 서비스만 보여 주면 그 서비스만 특별해 보인다.
+            넷 다 보여 줄지는 따로 정한다.
+          */}
+          <ShellExit />
           <SidebarProfile
             name={session.name}
             email={session.email}

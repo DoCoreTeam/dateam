@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.614',
+    date: '2026-08-27',
+    title: '메뉴에서 서비스를 한 자리에 모았어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '\uD83D\uDCE1',
+        headline: '콘텐츠 인텔리전스가 메뉴에 생겼어요',
+        detail: '전에는 「전체 메뉴」를 열어야만 들어갈 수 있어서, 있는 줄 모르면 못 찾았어요. 이제 왼쪽 「서비스」 묶음에 영업 CRM과 나란히 있습니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '\uD83D\uDEAA',
+        headline: '나가는 길이 어디서나 같은 자리, 같은 말이에요',
+        detail: '「사내 업무로」·「홈으로 나가기」·「멤버 화면으로」 세 가지가 섞여 있었고 자리도 둘이었어요. 셋 다 같은 곳으로 가는데 말이 달라 헷갈렸죠. 이제 왼쪽 아래 「업무로 나가기」 하나입니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '\uD83D\uDCC1',
+        headline: '메뉴 묶음을 정리했어요',
+        detail: '항목이 하나뿐인 묶음이 여럿이었고, 「프로젝트관리」 묶음 안에 「프로젝트관리」가 또 있었어요. 그 화면은 사실 「리드 인테이크」였습니다. 이름을 바로잡고 묶음을 정리했어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.613',
     date: '2026-08-27',
     title: '캘린더를 일간으로도 볼 수 있어요',

@@ -112,7 +112,7 @@ test('서비스 간판은 SERVICE_LABEL 에서 온다 — 화면이 직접 적�
    * 리뷰가 불가능하고 다중 세션과 충돌한다(그 파일 일부는 지금 다른 세션이 쓰고 있다).
    * **그 화면을 다른 일로 건드릴 때 함께 이관**하고 이 숫자를 내린다(§2-6 (5)과 같은 방식).
    */
-  const BASELINE = 25
+  const BASELINE = 24
   assert.ok(
     bad.length <= BASELINE,
     `서비스 이름을 직접 적은 화면이 ${bad.length}곳으로 늘었습니다(기준 ${BASELINE}). ` +

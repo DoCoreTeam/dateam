@@ -165,9 +165,18 @@ test('★ "기록만"으로 가는 길이 확인창 안에 있다 — 내리기 
   assert.ok(src.includes("apply('RECORD_ONLY')"), '확인창에서 기록만으로 두는 길을 준다')
 })
 
-test('★ 계정 메뉴의 나가는 문은 관리자 조건 안에 있지 않다 — 일반 멤버가 갇히던 자리', () => {
-  const src = stripComments(read('components/ui/SidebarProfile.tsx'))
-  assert.ok(src.includes('exitLinkFor('), '판정은 SSOT 가 한다')
+test('★ 나가는 문은 관리자 조건 안에 있지 않다 — 일반 멤버가 갇히던 자리', () => {
+  /**
+   * **문이 옮겨졌다**(v0.7.610 · §2-3-3 N-2): 계정 메뉴 → **사이드바 하단 `ShellExit`**.
+   * 예전엔 CI 사이드바(「사내 업무로」)와 계정 메뉴(「홈으로 나가기」) **두 자리**에 있었고
+   * 문구가 셋이었다 — 셋 다 `/home` 으로 간다. 같은 곳으로 가는 문이 둘이면 다른 곳으로 읽힌다.
+   *
+   * **지키는 것은 그대로다**: 일반 멤버가 CRM·CI 에서 갇히면 안 된다.
+   * 그래서 ①판정은 SSOT 가 하고 ②관리자 조건 안에 있지 않은지를 본다.
+   */
+  const src = stripComments(read('components/ui/shell/ShellExit.tsx'))
+  assert.ok(src.includes('surfaceOf('), '판정은 SSOT 가 한다')
+  assert.ok(!/isAdmin/.test(src), '나가는 문에 관리자 조건이 붙으면 일반 멤버가 다시 갇힌다')
   assert.ok(
     !/const inAdmin = pathname/.test(src),
     '/admin 한 줄 판정이 되돌아오면 CRM·CI 에서 다시 나갈 길이 사라진다',

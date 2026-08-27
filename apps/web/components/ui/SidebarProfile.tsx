@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, Radar } from 'lucide-react'
-import { surfaceOf, exitLinkFor, adminEntryFor } from '@/lib/nav/surface'
+import { surfaceOf, adminEntryFor } from '@/lib/nav/surface'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import { clearPersistedSwrCache } from '@/lib/swr-persist'
 
@@ -30,7 +30,11 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
    * (사용자 지적 2026-08-24: "CRM에서는 멤버화면 가는 메뉴가 안나오면 되겠니?").
    */
   const surface = surfaceOf(pathname)
-  const exit = exitLinkFor(surface)
+  /**
+   * 나가는 문은 여기 없다 — **사이드바 하단 한 자리**로 옮겼다(§2-3-3 N-2 · `ShellExit`).
+   * 여기 두면 같은 곳으로 가는 문이 두 개가 되고, 문구가 다르면 **다른 곳으로 읽힌다.**
+   * 계정 메뉴는 «내 계정»만 다룬다.
+   */
   const adminEntry = adminEntryFor(surface, isAdmin)
   const [open, setOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
@@ -123,30 +127,9 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             * **나가는 문이 먼저다.** 관리자 여부와 무관하게 그린다 —
             * 여기에 `isAdmin &&` 을 걸면 일반 멤버가 다시 갇힌다.
             */}
-          {(exit || adminEntry) && (
+          {adminEntry && (
             <>
-              {exit && (
-                <Link
-                  href={exit.href}
-                  onClick={() => setOpen(false)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.625rem',
-                    padding: 'var(--space-3) var(--space-4)',
-                    fontSize: 'var(--fs-sm)',
-                    color: 'var(--text)',
-                    textDecoration: 'none',
-                    transition: 'background 120ms',
-                  }}
-                  /* 주변 항목은 rgba 인라인이지만 새로 넣는 것은 토큰으로 — 테마 전환에서 안 빠진다 */
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-bg)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <LayoutDashboard size={14} />
-                  {exit.label}
-                </Link>
-              )}
+
               {adminEntry && (
               <Link
                 href={adminEntry.href}

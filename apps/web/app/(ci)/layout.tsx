@@ -123,7 +123,6 @@ export default async function CiLayout({ children }: { children: React.ReactNode
         currentTheme,
         defaultTheme: globalTheme,
       }}
-      workspace={{ name: workspace.name }}
       extras={{
         // 떡상 알림은 "매일 접속할 이유의 1번"(§8.1)이라 화면이 아니라 셸에 붙는다.
         headerExtra: <NotificationBell workspaceId={workspace.id} />,

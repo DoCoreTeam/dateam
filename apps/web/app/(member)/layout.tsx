@@ -17,62 +17,60 @@ import { getRoutineWeeklyStatus } from './routine/actions'
 import { getTodayPlannedCount } from './daily/actions'
 import { countMyOpenDeptTasks } from './dept-tasks/actions'
 import { cookies } from 'next/headers'
-import {
-  Home,
-  Briefcase,
-  Inbox,
-  CalendarDays,
-  NotebookPen,
-  DollarSign,
-  Tag,
-  Network,
-  Sparkles, Handshake } from 'lucide-react'
+import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Network, Sparkles, Handshake, Radar } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
+import { navLabel, SERVICE_NAV, SERVICE_GROUP_LABEL } from '@/lib/nav/menu'
 
+// 이름은 lib/nav/menu 에서 온다 — 사이드바와 전체 메뉴가 갈리지 않게(§2-3-3 N-4)
 const NAV_ITEMS = [
-  { href: '/home', label: '홈', icon: <Home size={16} /> },
-  { href: '/work', label: '업무', icon: <Briefcase size={16} />, match: ['/daily', '/dept-tasks', '/weekly-report', '/work'] },
-  { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
-  { href: '/meeting-notes', label: '회의노트', icon: <NotebookPen size={16} /> },
-  { href: '/org', label: '조직도', icon: <Network size={16} /> },
+  { href: '/home', label: navLabel('/home'), icon: <Home size={16} /> },
+  { href: '/work', label: navLabel('/work'), icon: <Briefcase size={16} />, match: ['/daily', '/dept-tasks', '/weekly-report', '/work'] },
+  { href: '/calendar', label: navLabel('/calendar'), icon: <CalendarDays size={16} /> },
+  { href: '/meeting-notes', label: navLabel('/meeting-notes'), icon: <NotebookPen size={16} /> },
+  { href: '/org', label: navLabel('/org'), icon: <Network size={16} /> },
 ]
+
+/** 하위 서비스로 들어가는 아이콘 — 이름은 표가, 그림은 화면이 정한다 */
+const SERVICE_ICON: Record<string, React.ReactNode> = {
+  '/crm': <Handshake size={16} />,
+  '/ci': <Radar size={16} />,
+}
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    // admin 전용 — 비관리자는 아래 groups 필터(가격정책만)에서 제외됨. /ai-chat 라우트도 admin 게이트(requireAdmin).
+    /**
+     * 서비스 (§2-3-3 N-1) — 사이드바가 통째로 그 서비스 것으로 바뀌는 곳을 **한 자리에** 모은다.
+     *
+     * 예전엔 「영업」 그룹에 CRM 하나만 있었고 **콘텐츠 인텔리전스는 아예 없었다** —
+     * 전체 메뉴로만 들어갈 수 있어서, 있는 줄 모르면 못 찾았다.
+     *
+     * ⚠️ 아래 groups 필터가 비관리자에게 '가격정책'만 남기므로 지금은 admin 에게만 보인다.
+     *    실제 접근 판정은 각 서비스의 멤버십이 한다(CRM=CrmMember · CI=워크스페이스).
+     *    비관리자 멤버가 생기면 그때 필터가 멤버십을 함께 봐야 한다 —
+     *    지금 미리 조회하면 화면마다 왕복이 한 번 는다(v0.7.492 에서 줄인 그 왕복이다).
+     */
+    label: SERVICE_GROUP_LABEL,
+    items: SERVICE_NAV.map((s) => ({
+      href: s.href, label: s.label, icon: SERVICE_ICON[s.href], match: [s.href],
+    })),
+  },
+  {
+    /**
+     * AI — 항목이 하나라 N-3 상 최상위로 올려야 하지만, **지금 그룹이 권한을 겸하고 있다**
+     * (아래 필터가 비관리자에게 '가격정책'만 남긴다). 올리면 모두에게 보이므로 **권한이 바뀐다.**
+     * 항목별 권한 플래그가 생기면 그때 올린다 — 그 전에 올리면 메뉴 정리가 권한 사고가 된다.
+     */
     label: 'AI',
     items: [
-      { href: '/ai-chat', label: 'AI 채팅', icon: <Sparkles size={16} /> },
-    ],
-  },
-  {
-    label: '프로젝트관리',
-    items: [
-      { href: '/lead-intake', label: '프로젝트관리', icon: <Inbox size={16} /> },
-    ],
-  },
-  {
-    // dacrm 진입점 (구현명세서 1.2 허용 수정 ①). 하위 8개 항목은 CRM 셸이 그린다.
-    //
-    // 명세는 "프로젝트관리 섹션 자리에"라고 썼지만 지금 치우지 않는다 —
-    // CRM 화면이 아직 채워지는 중이라, 먼저 없애면 쓰던 기능만 사라진다.
-    // 은퇴는 T1-12(실사용 시작) 에서 판단한다.
-    //
-    // ⚠️ 아래 groups 필터가 비관리자에게 '가격정책'만 남기므로 지금은 admin 에게만 보인다.
-    //    실제 접근 판정은 CrmMember 멤버십이 한다(lib/crm/auth/requireCrmMember).
-    //    비관리자 CRM 멤버가 생기면 그때 필터가 멤버십을 함께 봐야 한다 —
-    //    지금 미리 조회하면 화면마다 왕복이 한 번 늘어난다(v0.7.492 에서 줄인 그 왕복이다).
-    label: '영업',
-    items: [
-      { href: '/crm', label: '영업 CRM', icon: <Handshake size={16} />, match: ['/crm'] },
+      { href: '/ai-chat', label: navLabel('/ai-chat'), icon: <Sparkles size={16} /> },
     ],
   },
   {
     label: '가격정책',
     items: [
-      { href: '/pricing/gpu', label: 'GPU 관리', icon: <DollarSign size={16} /> },
-      { href: '/pricing/catalog', label: '판매가격표', icon: <Tag size={16} /> },
+      { href: '/pricing/gpu', label: navLabel('/pricing/gpu'), icon: <DollarSign size={16} /> },
+      { href: '/pricing/catalog', label: navLabel('/pricing/catalog'), icon: <Tag size={16} /> },
     ],
   },
 ]
