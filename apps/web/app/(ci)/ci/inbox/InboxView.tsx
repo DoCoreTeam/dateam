@@ -8,6 +8,7 @@
 
 import { RotateCcw, ExternalLink, Trash2, Check } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import ControlRow from '@/components/ui/ControlRow'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
@@ -22,6 +23,7 @@ import ChannelGroupedList, { type ChannelGroup } from '@/components/ci/ChannelGr
 import MetricBadge from '@/components/ci/MetricBadge'
 import { MissingFieldsBadge, IngestStatusBadge } from '@/components/ci/StatusBadge'
 import ListSurface from '@/components/ui/list/ListSurface'
+import ReviewGroups from '@/components/ci/ReviewGroups'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListPager from '@/components/ui/list/ListPager'
 import SearchHit from '@/components/ci/SearchHit'
@@ -149,7 +151,6 @@ export default function InboxView({
   const [openId, setOpenId] = useState<string | null>(null)
   const [retrying, setRetrying] = useState<string | null>(null)
   const [savingTopic, setSavingTopic] = useState<string | null>(null)
-  const [confirmingAll, setConfirmingAll] = useState(false)
   // 삭제는 진짜 삭제다 — 확인 대화상자가 유일한 안전장치라 공용 흐름을 그대로 쓴다
   const del_ = useCiDelete(workspaceId, () => router.refresh())
 
@@ -169,33 +170,6 @@ export default function InboxView({
       })
       router.refresh()
     } finally { setSavingTopic(null) }
-  }
-
-  /**
-   * 보이는 검토 대상을 **AI 판정 그대로** 확정한다.
-   *
-   * 왜 필요한가: 검토 큐에서 빠져나가는 유일한 길이 주제 셀렉트의 onChange였다.
-   * onChange는 값이 **바뀌어야** 발화하므로, AI 판정이 이미 맞는 건은 목록에서 뺄 수가
-   * 없었다 — 맞는 것을 일부러 틀리게 바꿨다가 되돌려야 처리되는 상태였다.
-   * (사용자 지적 2026-08-18: "뭘 처리하는 방법이 있어야 처리하고 완료시킬 거 아니냐")
-   * API는 같은 주제를 다시 보내도 review_state를 resolved로 내리고, 값이 안 바뀌면
-   * 정정 기록도 남기지 않는다 — 그래서 '맞다고 인정하는 것'이 학습을 오염시키지 않는다.
-   */
-  async function confirmAllVisible() {
-    const targets = items.filter((i) => i.topic?.id)
-    if (targets.length === 0) return
-    setConfirmingAll(true)
-    try {
-      // 한 번에 몰아치지 않는다 — 검토 큐는 수십 건이고 서버는 공유 자원이다
-      for (const it of targets) {
-        await fetch(`/api/ci/contents/${it.id}/topic`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
-          body: JSON.stringify({ topicId: it.topic!.id }),
-        })
-      }
-      router.refresh()
-    } finally { setConfirmingAll(false) }
   }
 
   function goTab(next: Tab) {
@@ -370,6 +344,29 @@ export default function InboxView({
     },
   ]
 
+  // 상세 시트와 삭제 확인은 검토 탭·목록 탭이 함께 쓴다 — 한 벌만 둔다
+  const detailSheet = (
+    <>
+      <DetailSheet
+        contentId={openId}
+        workspaceId={workspaceId}
+        onClose={() => setOpenId(null)}
+        onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
+      />
+      {del_.pending && (
+        <ConfirmDeleteDialog
+          title={del_.pending.title}
+          impact={del_.impact}
+          loading={del_.loading}
+          busy={del_.busy}
+          errorMessage={del_.errorMessage}
+          onConfirm={del_.confirm}
+          onClose={del_.close}
+        />
+      )}
+    </>
+  )
+
   return (
     <>
       <PageHeader
@@ -384,26 +381,14 @@ export default function InboxView({
           할 일이 없으면 스스로 그리지 않으므로 평소엔 화면을 차지하지 않는다. */}
       <TopicHealthPanel workspaceId={workspaceId} />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-6) 0 var(--space-4)', flexWrap: 'wrap' }}>
+      <div style={{ margin: 'var(--space-6) 0 var(--space-4)' }}>
+      <ControlRow gap={false}>
         <SegmentedTabs
           ariaLabel="수집함 분류"
           tabs={TABS.map((t) => ({ id: t.id, label: t.count ? `${t.label} ${t.count}` : t.label }))}
           activeId={tab}
           onSelect={(id) => goTab(id as Tab)}
         />
-
-        {/* 검토 탭에서만: 지금 무엇을 하면 되는지. 없으면 '검토 필요'는 뜻만 있고 방법이 없다. */}
-        {tab === 'review' && items.length > 0 && (
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={confirmAllVisible}
-            disabled={confirmingAll || items.every((i) => !i.topic?.id)}
-            title="이 화면에 보이는 게시물의 AI 주제를 모두 그대로 확정합니다"
-          >
-            {confirmingAll ? '확정 중…' : '보이는 것 모두 확정'}
-          </button>
-        )}
 
         {/* 콘텐츠는 채널에 귀속된다. 평평한 목록만으로는 어느 채널이 뭘 올렸는지 안 보인다. */}
         <button
@@ -415,14 +400,22 @@ export default function InboxView({
         >
           {grouped ? '표로 보기' : '채널별로 묶기'}
         </button>
+      </ControlRow>
       </div>
 
-      {tab === 'review' && items.length > 0 && (
-        <p className="ci-basis" style={{ margin: '0 0 var(--space-3)' }}>
-          AI가 주제를 정했지만 근거가 갈린 게시물입니다.
-          주제가 맞으면 <strong>✓</strong>(이대로 확정)을, 틀리면 주제를 바꾸면 목록에서 빠집니다.
-        </p>
-      )}
+      {/* 검토 탭은 목록이 아니다 — 답해야 할 «질문»의 목록이다.
+          634건이 전부 같은 판정이었는데 화면이 634줄을 늘어놓아, 같은 답을 634번 하게 했다(실측).
+          같은 판정끼리 묶어 카드 한 장으로 세우고, 답하면 서버가 한 번에 정리한다. */}
+      {tab === 'review' ? (
+        <>
+          <p className="ci-basis" style={{ margin: '0 0 var(--space-3)' }}>
+            AI가 정한 주제가 갈린 것들입니다. 같은 판정끼리 묶여 있어 한 번만 답하면 됩니다.
+          </p>
+          <ReviewGroups workspaceId={workspaceId} topics={topics} />
+          {detailSheet}
+        </>
+      ) : (
+      <>
 
       <ListToolbar
         query={query}
@@ -508,23 +501,8 @@ export default function InboxView({
         />
       )}
 
-      <DetailSheet
-        contentId={openId}
-        workspaceId={workspaceId}
-        onClose={() => setOpenId(null)}
-        onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
-      />
-
-      {del_.pending && (
-        <ConfirmDeleteDialog
-          title={del_.pending.title}
-          impact={del_.impact}
-          loading={del_.loading}
-          busy={del_.busy}
-          errorMessage={del_.errorMessage}
-          onConfirm={del_.confirm}
-          onClose={del_.close}
-        />
+      {detailSheet}
+      </>
       )}
     </>
   )

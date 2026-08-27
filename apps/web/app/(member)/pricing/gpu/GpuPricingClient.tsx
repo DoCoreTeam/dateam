@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import ControlRow from '@/components/ui/ControlRow'
 import PageHeader from '@/components/ui/PageHeader'
 import { useSearchParams } from 'next/navigation'
 import useSWR, { SWRConfig } from 'swr'
@@ -314,7 +315,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
            예전엔 메인은 .gpu-tab, 관리는 인라인 style(정의 없는 .gpu-admin-tab)로 그려
            같은 줄의 탭이 서로 다른 모양이었고, 관리 탭은 규칙이 없어 스타일이 통째로 빠져 있었다.
            모바일 전용 select도 함께 걷어냈다 — 탭 자체가 가로 스크롤된다. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+      <ControlRow>
         <SegmentedTabs
           ariaLabel="GPU 관리 화면"
           activeId={activeTab}
@@ -338,7 +339,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           ]}
         />
 
-      </div>
+      </ControlRow>
 
       {/* 탭 컨텐츠 — gpu-tab-content: flex:1 min-height:0 overflow:hidden display:flex flex-direction:column
            자식은 gpu-tab-panel(overflow:hidden) 또는 gpu-tab-panel--scroll(overflowY:auto) 사용 */}

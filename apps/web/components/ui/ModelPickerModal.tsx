@@ -7,6 +7,7 @@ import { listModelCatalog, refreshModelCatalog, type ModelCatalogItem } from '@/
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
 import SegmentedTabs from './SegmentedTabs'
+import ControlRow from './ControlRow'
 import EmptyState from './EmptyState'
 import AXDotLoader from './AXDotLoader'
 
@@ -174,7 +175,7 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
         </div>
 
         {/* 프로바이더 탭 — 탭 렌더러 SSOT(§2). 새로고침 중에는 전환을 막는다(기존 disabled 동작 유지) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
+        <ControlRow>
           {/* 프로바이더가 1개뿐이면(설정 카드처럼 고정된 경우) 탭은 고를 것이 없으므로 감춘다 */}
           {providers.length > 1 && (
             <SegmentedTabs
@@ -195,7 +196,7 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
             <RefreshCw size={13} className={refreshing ? 'ai-chat-spin' : undefined} />
             {refreshing ? '새로고침 중…' : '모델 새로고침'}
           </button>
-        </div>
+        </ControlRow>
 
         <div style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', lineHeight: 1.5 }}>
           토큰 한도는 한 요청에 담을 수 있는 최대 컨텍스트입니다. 공급자가 계정의 정확한 잔여 쿼터를 제공하지 않아,

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import ControlRow from '@/components/ui/ControlRow'
 import Link from 'next/link'
 import { Building2, AlertTriangle } from 'lucide-react'
 import type { DailyLog } from '@/types/database'
@@ -55,7 +56,7 @@ export default function HomeDeptTaskWidget({ initial, today }: Props) {
           <Building2 size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>부서 업무</h2>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <ControlRow gap={false}>
           {canViewDept && (
             <SegmentedTabs
               ariaLabel="조회 모드"
@@ -67,7 +68,7 @@ export default function HomeDeptTaskWidget({ initial, today }: Props) {
           <Link href="/dept-tasks" style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}>
             전체보기 →
           </Link>
-        </div>
+        </ControlRow>
       </div>
 
       {/* 요약 타일 — 일일요약 핵심 */}

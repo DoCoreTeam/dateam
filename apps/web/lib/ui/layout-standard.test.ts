@@ -112,7 +112,9 @@ test('서비스 간판은 SERVICE_LABEL 에서 온다 — 화면이 직접 적�
    * 리뷰가 불가능하고 다중 세션과 충돌한다(그 파일 일부는 지금 다른 세션이 쓰고 있다).
    * **그 화면을 다른 일로 건드릴 때 함께 이관**하고 이 숫자를 내린다(§2-6 (5)과 같은 방식).
    */
-  const BASELINE = 24
+  // v0.7.618: 전체 메뉴(QuickNav)가 라벨을 `navLabel()`(lib/nav/menu SSOT)에서 가져오도록
+  // 바꾸면서 3곳이 줄었다(24 → 21). 되돌아가지 못하게 잠근다.
+  const BASELINE = 21
   assert.ok(
     bad.length <= BASELINE,
     `서비스 이름을 직접 적은 화면이 ${bad.length}곳으로 늘었습니다(기준 ${BASELINE}). ` +
@@ -129,4 +131,54 @@ test('셸의 로고 자리는 경로를 스스로 판정하지 않는다', () =>
   const src = stripComments(read('components/ui/MobileShell.tsx'))
   assert.ok(/serviceOf\(/.test(src), '로고 자리는 serviceOf(pathname) 로 간판을 정합니다')
   assert.ok(!/startsWith\(['"`]\/crm/.test(src), '셸이 경로를 직접 판정하고 있습니다 — surfaceOf/serviceOf 를 쓰세요')
+})
+
+/* ─── 가로 줄 표준 (ControlRow) ─────────────────────────────────────────────
+   사용자 지적 2026-08-27: 「옆에 탭이든 버튼이든 있으면 세로 정렬을 중앙으로 해야
+   밸런스가 맞지 ... 지금 우리 디자인시스템에 이 문제가 있는거 같아 다 확인해」
+
+   실측 /develop 「코드 언어」 — 라벨만 탭보다 아래로 내려앉아 있었다. 원인은
+   `align-items` 가 아니라 **여백의 소유자**였다: `.seg-tabs` 가 자기 안에
+   margin-bottom 을 들고 있어서 가운데 정렬이 마진 박스를 기준으로 맞췄다.
+   같은 형태가 6곳에 있었다. 규칙을 문서로 두면 또 빠뜨리므로 **부품과 가드로** 잠근다. */
+
+/** 바깥 아래 여백을 들고 있어 한 줄에 세울 수 없는 공용 클래스 */
+function marginOwningClasses(css: string): string[] {
+  const out: string[] = []
+  // `.name { … margin-bottom: … }` 형태의 최상위 규칙만 본다
+  for (const m of css.matchAll(/(^|\n)((?:\.[a-z][a-z0-9-]*,?\s*)+)\{([^}]*)\}/g)) {
+    if (!/margin-bottom:\s*var\(--space/.test(m[3])) continue
+    for (const sel of m[2].split(',')) {
+      const name = sel.trim().replace(/^\./, '')
+      if (/^(seg-tabs|work-subtabs-row|work-tabbar-wrap)/.test(name)) out.push(name)
+    }
+  }
+  return [...new Set(out)]
+}
+
+test('★ 한 줄에 세우는 부품은 자기 바깥 여백을 내려놓는다 — 안 그러면 옆 글자만 아래로 내려앉는다', () => {
+  const css = read('app/globals.css')
+  const row = css.match(/\.control-row > \*,([\s\S]*?)\{\s*margin-bottom:\s*0;?\s*\}/)
+  assert.ok(row, '.control-row 의 여백 되돌리기 규칙이 없다 — 부품 여백이 그대로 정렬을 깬다')
+
+  const missing = marginOwningClasses(css).filter((c) => !row![1].includes(`.${c}`))
+  assert.deepEqual(missing, [],
+    '이 클래스가 자기 margin-bottom 을 들고 있는데 .control-row 안에서 0 으로 되돌리지 않는다.\n' +
+    'globals.css 의 「가로 줄 표준」 선택자 목록에 추가할 것:\n  ' + missing.join('\n  '))
+})
+
+test('★ 탭을 인라인 flex 줄에 직접 세우지 않는다 — ControlRow 를 쓴다', () => {
+  const bad: string[] = []
+  for (const { file: f, src } of scan()) {
+    if (!src.includes('<SegmentedTabs')) continue
+    const lines = src.split('\n')
+    lines.forEach((ln, i) => {
+      if (!ln.includes('<SegmentedTabs')) return
+      const ctx = lines.slice(Math.max(0, i - 12), i).join('\n')
+      if (/display:\s*'flex'/.test(ctx) && !ctx.includes('<ControlRow')) bad.push(`${f}:${i + 1}`)
+    })
+  }
+  assert.deepEqual(bad, [],
+    '탭 옆에 라벨·버튼을 세울 때는 components/ui/ControlRow 를 쓴다.\n' +
+    '인라인 flex 로 만들면 부품이 든 바깥 여백 때문에 세로 가운데가 어긋난다:\n  ' + bad.join('\n  '))
 })

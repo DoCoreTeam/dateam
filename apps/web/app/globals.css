@@ -10070,3 +10070,39 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
   border-top: var(--hairline) solid var(--border-light);
   padding: var(--space-2) var(--space-4) var(--space-4);
 }
+
+/* ─── 가로 줄 표준 (라벨·컨트롤이 한 줄에 설 때) — components/ui/ControlRow ────
+   왜 생겼나 (사용자 지적 2026-08-27, 실측 /develop 「코드 언어」):
+     공용 부품이 **자기 바깥 여백**을 들고 있으면 한 줄에 세울 수 없다.
+     `.seg-tabs` 는 margin-bottom: var(--space-5) 를 갖는데, 가운데 정렬은
+     여백까지 포함한 **마진 박스**를 기준으로 맞춘다 — 그래서 탭 알약은 위에,
+     옆의 라벨만 그 여백의 절반만큼 **아래로 내려앉았다.**
+     같은 형태가 6곳에 있었다(개발자센터·홈 부서업무·GPU·회의노트·수집함·모델 선택).
+
+   규칙: **간격은 줄이 정하고, 부품은 자기 여백을 내려놓는다.**
+   그래서 이 줄 안에서는 부품의 바깥 아래 여백을 0으로 되돌린다. */
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+/* 이 줄 안의 부품은 자기 바깥 아래 여백을 내려놓는다(탭 3종 + 흔한 블록) */
+.control-row > *,
+.control-row .seg-tabs,
+.control-row .seg-tabs-primary,
+.control-row .seg-tabs-stage,
+.control-row .work-subtabs-row,
+.control-row .work-tabbar-wrap { margin-bottom: 0; }
+
+/* 줄 자체의 아래 간격 — 안 주면 붙고, 주면 부품 대신 줄이 정한다 */
+.control-row--gap { margin-bottom: var(--space-5); }
+/* 왼쪽 묶음과 오른쪽 묶음으로 갈릴 때 */
+.control-row-spacer { margin-left: auto; }
+
+.control-row-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}

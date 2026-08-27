@@ -81,7 +81,6 @@ test('목록에 상세 진입 수단이 있으면 행 자체도 열린다 — �
 const ROW_ACTIONS_PENDING = new Set<string>([
   'app/(ci)/ci/assets/AssetsView.tsx',
   'app/(ci)/ci/briefs/[id]/BriefEditor.tsx',
-  'app/(ci)/ci/inbox/InboxView.tsx',
   'app/(ci)/ci/publish/PublishView.tsx',
   'app/(ci)/ci/trends/TrendsView.tsx',
   'app/(member)/accounts/page.tsx',

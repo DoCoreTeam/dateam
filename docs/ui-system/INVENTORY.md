@@ -78,6 +78,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | `ui/PageHeader` | **32** | 제목·설명·액션·`below`(스테이지/탭)·`icon`·`back`(v0.7.477) | **표준** — raw `<h1>` 0건, `screen-standard` 가드가 잠금 |
 | `ui/WorkPageShell` | **7** | 업무영역 페이지 골격 (globals.css §3007 SSOT와 한 쌍) | **PageScaffold 유사품 — 이미 존재** |
 | `ui/SegmentedTabs` | **16** | 탭을 그리는 유일한 곳(이동형/제어형/패널형 × segment·primary·stage) | **표준** |
+| `ui/ControlRow` | **6** | **라벨 + 컨트롤이 한 줄에 서는 자리**(세로 가운데). 이 줄 안에서는 부품의 바깥 아래 여백을 0으로 되돌린다 — `.seg-tabs` 가 자기 `margin-bottom` 을 들고 있어 옆 라벨만 내려앉던 것을 막는다(v0.7.624) | **표준** — `layout-standard` 가드가 인라인 flex 자작을 차단 |
 | `ui/WorkSubTabs` | 7 | 업무 하위 탭 **데이터** | 어댑터 |
 | `ui/WorkTabBar` | 1 | 업무 상위 탭 **데이터** | 어댑터 |
 | `ui/ProjectTabs` | 4 | CRM 탭 **데이터** | 어댑터 |

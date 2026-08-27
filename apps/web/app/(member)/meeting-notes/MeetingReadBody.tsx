@@ -10,6 +10,7 @@ import { FileText, Sparkles, FileDown } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import RichText from '@/components/ui/RichText'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import ControlRow from '@/components/ui/ControlRow'
 import EmptyState from '@/components/ui/EmptyState'
 import { saveMeetingSummary } from './actions'
 import ExtractConfirmModal, { type ExtractResult } from './ExtractConfirmModal'
@@ -163,7 +164,7 @@ export default function MeetingReadBody({
           <FileText size={16} color="var(--brand)" />
           <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>{actionsOnly ? 'AI로 할 일·일정 뽑기' : '회의 본문'}</h2>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+        <ControlRow gap={false}>
           {/* 작업대가 본문·정리를 그리는 화면에서는 여기서 또 고르게 하지 않는다 */}
           {!actionsOnly && (
             <SegmentedTabs
@@ -190,7 +191,7 @@ export default function MeetingReadBody({
               )}
             </>
           )}
-        </div>
+        </ControlRow>
       </div>
 
       {actionsOnly ? null : tab === 'refined' ? (
