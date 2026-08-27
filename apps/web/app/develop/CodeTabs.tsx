@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { LANGUAGES, type RequestSpec } from '@/lib/api-docs/snippets'
+import { useApiLang, useApiLanguage } from './api-lang'
 
 interface CodeTabsProps {
   spec: RequestSpec
@@ -16,8 +16,9 @@ interface CodeTabsProps {
 // 탭 렌더러는 SegmentedTabs(SSOT) — 여기서 tablist를 자작하지 않는다.
 // 스니펫은 lib/api-docs/snippets(SSOT)에서 생성 — 화면에서 손코딩하지 않는다.
 export default function CodeTabs({ spec, baseUrl, id, onCopy, copiedId }: CodeTabsProps) {
-  const [activeLang, setActiveLang] = useState(LANGUAGES[0].id)
-  const lang = LANGUAGES.find(l => l.id === activeLang) ?? LANGUAGES[0]
+  // 언어는 화면 전체가 한 벌을 쓴다 — 블록마다 다시 고르게 두지 않는다(api-lang.tsx)
+  const { langId, setLangId } = useApiLang()
+  const lang = useApiLanguage()
   const code = lang.generate(spec, baseUrl)
   const copyId = `${id}-${lang.id}`
   // 한 화면에 CodeTabs가 여러 개 뜬다(엔드포인트마다 1개).
@@ -30,8 +31,8 @@ export default function CodeTabs({ spec, baseUrl, id, onCopy, copiedId }: CodeTa
       <SegmentedTabs
         ariaLabel="언어 선택"
         tabs={LANGUAGES.map(l => ({ id: ns + l.id, label: l.label }))}
-        activeId={ns + activeLang}
-        onSelect={(tabId) => setActiveLang(tabId.slice(ns.length))}
+        activeId={ns + langId}
+        onSelect={(tabId) => setLangId(tabId.slice(ns.length))}
       />
 
       <div className="card" style={{ overflow: 'hidden' }}>

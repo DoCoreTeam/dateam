@@ -21,6 +21,7 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { SERVICE_LABEL } from '@/lib/terms'
 import DemoSection from './DemoSection'
+import { ApiLangPicker, ApiLangProvider } from './api-lang'
 import CodeTabs from './CodeTabs'
 import {
   API_GROUPS, endpointsOf, REQUIRES_LABEL,
@@ -261,7 +262,7 @@ X-RateLimit-Remaining: 41
 X-RateLimit-Reset: 1756281600   # 이 분 창이 끝나는 시각(Unix)`} />
       <Callout type="warn" title="한도를 넘으면">
         HTTP 429와 <Code>Retry-After</Code>(초)를 돌려줍니다. 그 시간만큼 기다린 뒤 다시 부르세요.
-        많은 데이터를 받을 때는 <Code>limit</Code>을 키우고 커서로 이어 받는 편이 재시도보다 빠릅니다.
+        많은 데이터를 받을 때는 <Code>limit</Code>을 키우고 커서로 이어 받는 편이 다시 시도하는 것보다 빠릅니다.
       </Callout>
     </div>
   )
@@ -274,7 +275,7 @@ const ERRORS: { code: number; name: string; cause: string; fix: string }[] = [
   { code: 401, name: 'Unauthorized', cause: 'X-API-Key 없음 또는 형식 오류', fix: '헤더 이름과 키 앞자리(ax_live_)를 확인하세요.' },
   { code: 403, name: 'Forbidden', cause: '폐기된 키 · 비활성 계정 · 권한 부족', fix: '키를 발급한 계정의 권한을 확인하세요. 남의 레코드는 관리자만 고칠 수 있습니다.' },
   { code: 404, name: 'Not Found', cause: '없는 id', fix: '목록 API로 id를 다시 확인하세요.' },
-  { code: 429, name: 'Too Many Requests', cause: '분당 한도 초과', fix: 'Retry-After 초만큼 기다린 뒤 재시도하세요.' },
+  { code: 429, name: 'Too Many Requests', cause: '분당 한도 초과', fix: 'Retry-After 초만큼 기다린 뒤 다시 시도하세요.' },
   { code: 500, name: 'Server Error', cause: '서버 처리 실패', fix: '잠시 후 다시 시도하고, 계속되면 관리자에게 알려 주세요.' },
 ]
 
@@ -297,7 +298,7 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
           </tbody>
         </table>
       </div>
-      <H2>재시도 예시</H2>
+      <H2>다시 시도 예시</H2>
       <CodeBlock id="retry" lang="javascript" onCopy={onCopy} copiedId={copiedId} code={`const res = await fetch(url, { headers: { 'X-API-Key': process.env.AX_API_KEY } })
 
 if (res.status === 429) {
@@ -350,6 +351,7 @@ export default function DevelopPage() {
   const isGroup = (s: Section): s is ApiGroupKey => s !== 'demo' && s !== 'errors' && s !== 'start'
 
   return (
+    <ApiLangProvider>
     <div style={{ background: 'var(--surface-muted)', minHeight: '100vh', color: 'var(--text)' }}>
       <header style={{ borderBottom: 'var(--hairline) solid var(--border-light)', padding: 'var(--space-0) var(--space-8)', position: 'sticky', top: 0, background: 'var(--color-surface)', backdropFilter: 'blur(12px)', zIndex: 'var(--z-sticky)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
@@ -386,6 +388,8 @@ export default function DevelopPage() {
         </aside>
 
         <main style={{ flex: '999 1 480px', minWidth: 0 }}>
+          {/* 언어를 여기서 한 번 고르면 이 화면의 모든 코드 예시가 따라온다 */}
+          <ApiLangPicker />
           {activeSection === 'start' && <StartSection onCopy={copy} copiedId={copiedId} brandName={brandName} />}
           {activeSection === 'demo' && <DemoSection />}
           {activeSection === 'errors' && <ErrorsSection onCopy={copy} copiedId={copiedId} />}
@@ -395,5 +399,6 @@ export default function DevelopPage() {
         </main>
       </div>
     </div>
+    </ApiLangProvider>
   )
 }

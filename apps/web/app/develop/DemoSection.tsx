@@ -6,6 +6,10 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
+import {
+  API_GROUPS, DEMO_ENDPOINTS, REQUIRES_LABEL,
+  type ApiDemo, type ApiEndpoint,
+} from '@/lib/api-docs/registry'
 
 function useOrigin(fallback = '') {
   const [origin, setOrigin] = useState(fallback)
@@ -318,7 +322,8 @@ function GenericTableResult({ data, title }: { data: { data?: Record<string, unk
     <div>
       <div style={{ marginBottom: 12 }}>
         <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{title}</span>
-        <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>총 {(data as { total?: number }).total ?? items.length}건</span>
+        <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>총 {(data as { meta?: { total?: number }; total?: number }).meta?.total
+            ?? (data as { total?: number }).total ?? items.length}건</span>
       </div>
       <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
         <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-xs)' }}>
@@ -346,163 +351,141 @@ function GenericTableResult({ data, title }: { data: { data?: Record<string, unk
   )
 }
 
-function renderDemoResult(activeDemo: string, parsed: Record<string, unknown>) {
+/**
+ * 결과 렌더러 — **분기는 엔드포인트 id 로 한다.**
+ *
+ * 예전엔 화면에 뜬 한글 라벨의 부분문자열로 골랐다. 라벨을 한 글자만 다듬어도
+ * 조용히 raw JSON 으로 떨어지는데 화면은 아무 말도 하지 않는다.
+ * id 는 registry 의 안정 식별자라 문구를 바꿔도 안 깨진다.
+ */
+function renderDemoResult(e: ApiEndpoint, parsed: Record<string, unknown>) {
   if (!parsed.success) {
     return (
       <ErrorState
-        message={String(parsed.error ?? 'Unknown error')}
+        message={String(parsed.error ?? '요청을 처리하지 못했습니다.')}
         helpHref="/api-keys"
         helpLabel="API 키 확인"
       />
     )
   }
 
-  if (activeDemo.includes('제품')) return <ProductsResult data={parsed as Parameters<typeof ProductsResult>[0]['data']} />
-  if (activeDemo.includes('견적')) return <QuoteResult data={parsed as Parameters<typeof QuoteResult>[0]['data']} />
-  if (activeDemo.includes('재고')) return <InventoryResult data={parsed as Parameters<typeof InventoryResult>[0]['data']} />
-  if (activeDemo.includes('환율')) return <FxResult data={parsed as Parameters<typeof FxResult>[0]['data']} />
-  if (activeDemo.includes('공급사')) return <SuppliersResult data={parsed as Parameters<typeof SuppliersResult>[0]['data']} />
-  if (activeDemo.includes('거래처')) return <GenericTableResult data={parsed as Parameters<typeof GenericTableResult>[0]['data']} title="거래처 목록" />
-  if (activeDemo.includes('담당자')) return <GenericTableResult data={parsed as Parameters<typeof GenericTableResult>[0]['data']} title="담당자 목록" />
-  if (activeDemo.includes('영업기회')) return <GenericTableResult data={parsed as Parameters<typeof GenericTableResult>[0]['data']} title="영업기회 목록" />
-
-  return (
-    <pre style={{ margin: 0, fontSize: 12, color: 'var(--text)', overflowX: 'auto' }}>
-      {JSON.stringify(parsed, null, 2)}
-    </pre>
-  )
+  switch (e.id) {
+    case 'gpu.products.list':
+      return <ProductsResult data={parsed as Parameters<typeof ProductsResult>[0]['data']} />
+    case 'gpu.quote.create':
+      return <QuoteResult data={parsed as Parameters<typeof QuoteResult>[0]['data']} />
+    case 'gpu.inventory.list':
+      return <InventoryResult data={parsed as Parameters<typeof InventoryResult>[0]['data']} />
+    case 'gpu.fx.list':
+      return <FxResult data={parsed as Parameters<typeof FxResult>[0]['data']} />
+    case 'gpu.suppliers.list':
+      return <SuppliersResult data={parsed as Parameters<typeof SuppliersResult>[0]['data']} />
+    default:
+      // 목록은 전부 같은 봉투를 쓴다 — 표 하나로 그리고 제목은 registry 에서 온다
+      return <GenericTableResult data={parsed as Parameters<typeof GenericTableResult>[0]['data']} title={e.title} />
+  }
 }
 
-// ─── 메인 데모 섹션 ───────────────────────────────────────────────────────────
+// ─── 메인 데모 섹션 ───────────────────────────────────────────────────────
 
 /** HTTP 메서드 → 뱃지 의미색. 색맵을 화면에서 만들지 않는다(NbBadge SSOT) */
-const METHOD_STATUS: Record<string, StatusKey> = { GET: 'done', POST: 'planned', PATCH: 'note', DELETE: 'blocker' }
+const METHOD_STATUS: Record<string, StatusKey> = { GET: 'done', POST: 'planned', PATCH: 'note', PUT: 'note', DELETE: 'blocker' }
 
-interface Demo {
-  label: string
-  emoji: string
-  desc: string
-  method: string
-  endpoint: string
-  fn: () => Promise<Response>
+/**
+ * 앞선 응답에서 값을 꺼내 와야 하는 요청 — registry 가 **이름으로** 가리킨 것을 여기서 푼다.
+ * 표는 순수 데이터라야 한다(서버의 openapi 라우트도 그 파일을 읽는다). 함수는 화면 몫이다.
+ */
+async function resolveNeeds(
+  need: NonNullable<ApiDemo['needs']>,
+  base: string,
+  apiKey: string,
+): Promise<Record<string, unknown>> {
+  if (need === 'gpu-product-id') {
+    const res = await fetch(`${base}/products`, { headers: { 'X-API-Key': apiKey } })
+    const json = (await res.json()) as { data?: { id?: string; available?: boolean }[] }
+    const rows = json.data ?? []
+    const pick = rows.find((r) => r.available) ?? rows[0]
+    if (!pick?.id) throw new Error('견적을 낼 GPU 구성을 찾지 못했습니다. 먼저 「GPU 목록」을 실행해 보세요.')
+    return { product_id: pick.id }
+  }
+  return {}
+}
+
+/**
+ * 헤더에 실을 수 있는 키인가 — **부르기 전에 본다.**
+ *
+ * 실측 v0.7.622: 한글이 섞인 키를 넣고 누르면 브라우저가
+ * 「Failed to read the 'headers' property from 'RequestInit': String contains
+ * non ISO-8859-1 code point」를 던지고, 그 원문이 그대로 화면에 나갔다.
+ * 사용자가 고칠 수 있는 말이 아니다 — 무엇이 잘못됐는지 우리가 말해야 한다.
+ */
+function keyProblem(key: string): string | null {
+  if (!/^[\x21-\x7E]+$/.test(key)) return '키에 쓸 수 없는 문자가 있습니다. 발급받은 키를 그대로 붙여넣어 주세요.'
+  if (!key.startsWith('ax_live_')) return '키 형식이 다릅니다. ax_live_ 로 시작하는 키를 붙여넣어 주세요.'
+  return null
+}
+
+/** 고정 본문의 items 에 앞 단계에서 얻은 값을 채워 넣는다 */
+function fillBody(body: Record<string, unknown>, extra: Record<string, unknown>): Record<string, unknown> {
+  if (!Object.keys(extra).length) return body
+  const items = Array.isArray(body.items) ? body.items : null
+  if (!items) return { ...body, ...extra }
+  return { ...body, items: items.map((it) => ({ ...(it as Record<string, unknown>), ...extra })) }
 }
 
 export default function DemoSection() {
   const [apiKey, setApiKey] = useState('')
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeDemo, setActiveDemo] = useState<string | null>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [showRaw, setShowRaw] = useState(false)
   const origin = useOrigin('')
 
-  const run = useCallback(async (label: string, fn: () => Promise<Response>) => {
-    if (!apiKey.trim()) { setResult({ success: false, error: 'API 키를 입력해주세요' }); setActiveDemo(label); return }
-    setLoading(true); setActiveDemo(label); setResult(null); setShowRaw(false)
+  const active = DEMO_ENDPOINTS.find((e) => e.id === activeId) ?? null
+
+  const run = useCallback(async (e: ApiEndpoint) => {
+    const demo = e.demo
+    if (!demo) return
+    if (!apiKey.trim()) {
+      setActiveId(e.id)
+      setResult({ success: false, error: 'API 키를 입력해 주세요. 「내 키 관리」에서 발급할 수 있습니다.' })
+      return
+    }
+    const problem = keyProblem(apiKey.trim())
+    if (problem) {
+      setActiveId(e.id)
+      setResult({ success: false, error: problem })
+      return
+    }
+    setLoading(true); setActiveId(e.id); setResult(null); setShowRaw(false)
+    const base = `${origin}/api/public/v1`
     try {
-      const res = await fn()
-      const json = await res.json()
-      setResult(json)
-    } catch (e) {
-      setResult({ success: false, error: e instanceof Error ? e.message : String(e) })
+      const extra = demo.needs ? await resolveNeeds(demo.needs, base, apiKey) : {}
+      const qs = demo.query ? `?${new URLSearchParams(demo.query).toString()}` : ''
+      const res = await fetch(`${base}${e.path}${qs}`, {
+        method: e.method,
+        headers: {
+          'X-API-Key': apiKey,
+          ...(demo.body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        body: demo.body ? JSON.stringify(fillBody(demo.body, extra)) : undefined,
+      })
+      setResult(await res.json())
+    } catch (err) {
+      setResult({ success: false, error: err instanceof Error ? err.message : String(err) })
     } finally {
       setLoading(false)
     }
   }, [apiKey, origin])
 
-  const demos: Demo[] = [
-    {
-      label: '제품 목록 조회',
-      emoji: '📦',
-      desc: '전체 GPU 카탈로그 + 실시간 가격',
-      method: 'GET',
-      endpoint: '/products',
-      fn: () => fetch(`${origin}/api/public/v1/products`, { headers: { 'X-API-Key': apiKey } }),
-    },
-    {
-      label: '재고 현황',
-      emoji: '🏭',
-      desc: '가용 재고 수량 실시간 조회',
-      method: 'GET',
-      endpoint: '/inventory',
-      fn: () => fetch(`${origin}/api/public/v1/inventory`, { headers: { 'X-API-Key': apiKey } }),
-    },
-    {
-      label: '견적 계산 (A100 × 4)',
-      emoji: '🧮',
-      desc: 'A100 40GB 4장 기본 마진 견적',
-      method: 'POST',
-      endpoint: '/quote',
-      fn: async () => {
-        const pr = await fetch(`${origin}/api/public/v1/products`, { headers: { 'X-API-Key': apiKey } })
-        const pd = await pr.json()
-        const a100 = (pd.data ?? []).find((p: Product) => p.model_name?.includes('A100'))
-        if (!a100) return new Response(JSON.stringify({ success: false, error: 'A100 제품을 찾을 수 없습니다' }))
-        return fetch(`${origin}/api/public/v1/quote`, {
-          method: 'POST',
-          headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: [{ product_id: a100.id, quantity: 4 }], currency: 'KRW' }),
-        })
-      },
-    },
-    {
-      label: '마진 20% 견적',
-      emoji: '💰',
-      desc: '커스텀 마진 20% 적용 USD 견적',
-      method: 'POST',
-      endpoint: '/quote',
-      fn: async () => {
-        const pr = await fetch(`${origin}/api/public/v1/products`, { headers: { 'X-API-Key': apiKey } })
-        const pd = await pr.json()
-        const available = (pd.data ?? []).filter((p: Product) => p.available).slice(0, 2)
-        if (!available.length) return new Response(JSON.stringify({ success: false, error: '가용 제품 없음' }))
-        return fetch(`${origin}/api/public/v1/quote`, {
-          method: 'POST',
-          headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: available.map((p: Product) => ({ product_id: p.id, quantity: 2, custom_margin_pct: 20 })), currency: 'USD' }),
-        })
-      },
-    },
-    {
-      label: '환율 이력',
-      emoji: '💱',
-      desc: '최근 7일 USD/KRW 환율',
-      method: 'GET',
-      endpoint: '/fx',
-      fn: () => fetch(`${origin}/api/public/v1/fx`, { headers: { 'X-API-Key': apiKey } }),
-    },
-    {
-      label: '공급사 목록',
-      emoji: '🏢',
-      desc: '등록된 GPU 공급사 조회',
-      method: 'GET',
-      endpoint: '/suppliers',
-      fn: () => fetch(`${origin}/api/public/v1/suppliers`, { headers: { 'X-API-Key': apiKey } }),
-    },
-    {
-      label: '거래처 목록',
-      emoji: '🏦',
-      desc: 'CRM 거래처 데이터',
-      method: 'GET',
-      endpoint: '/accounts',
-      fn: () => fetch(`${origin}/api/public/v1/accounts`, { headers: { 'X-API-Key': apiKey } }),
-    },
-    {
-      label: '영업기회 목록',
-      emoji: '📊',
-      desc: '진행 중인 영업기회 조회',
-      method: 'GET',
-      endpoint: '/deals',
-      fn: () => fetch(`${origin}/api/public/v1/deals`, { headers: { 'X-API-Key': apiKey } }),
-    },
-  ]
-
-  // HTTP 메서드 뱃지 — 색은 NbBadge(.badge[data-status])가 토큰으로 준다
+  /** 버튼은 registry 에서 나온다 — 화면이 목록을 따로 들지 않는다 */
+  const groups = API_GROUPS.filter((g) => DEMO_ENDPOINTS.some((e) => e.group === g.key))
 
   return (
     <div>
       <PageHeader
-        title="라이브 API 테스트"
-        description="실제 API 키를 입력하고 버튼을 누르면 라이브 데이터가 아래에 구조화된 UI로 표시됩니다. JSON 원문은 결과 우측 상단의 'JSON 보기'로 확인하세요."
+        title="직접 실행"
+        description="발급받은 키를 넣고 버튼을 누르면 실제 응답이 아래에 표시됩니다. 원문 JSON은 결과 오른쪽 위 「JSON 보기」로 볼 수 있습니다."
       />
 
       {/* API Key 입력 */}
@@ -510,7 +493,7 @@ export default function DemoSection() {
         <label htmlFor="ax-demo-key" className="label">
           API Key <span style={{ color: 'var(--danger)' }}>*</span>
         </label>
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
           <input className="input-field"
             id="ax-demo-key"
             type="password"
@@ -521,41 +504,49 @@ export default function DemoSection() {
           />
           <a href="/api-keys" className="btn-ghost" style={{ whiteSpace: 'nowrap' }}>키 발급</a>
         </div>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' }}>
-          입력한 키는 이 브라우저에서만 사용됩니다. 서버에 저장되지 않습니다.
+        <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 'var(--space-2) 0 0' }}>
+          입력한 키는 이 브라우저에서만 쓰입니다. 서버에 저장하지 않습니다.
         </p>
       </div>
 
-      {/* 데모 버튼 그리드 */}
-      {/* 고정 4열 금지(반응형 정책) — 공용 그리드 클래스가 모바일에서 2열로 접는다 */}
-      <div className="responsive-grid-cols-4" style={{ marginBottom: 'var(--space-6)' }}>
-        {demos.map(({ label, emoji, desc, method, endpoint }) => {
-          const isActive = activeDemo === label
-          return (
-            <button
-              key={label}
-              type="button"
-              className="card"
-              onClick={() => run(label, demos.find(d => d.label === label)!.fn)}
-              disabled={loading && isActive}
-              style={{
-                padding: 'var(--space-4)',
-                background: isActive ? 'var(--brand-soft)' : undefined,
-                color: 'var(--text)', cursor: loading && isActive ? 'wait' : 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ fontSize: 'var(--fs-xl)', marginBottom: 'var(--space-2)' }}>{loading && isActive ? '⏳' : emoji}</div>
-              <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-1)' }}>{label}</div>
-              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{desc}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                <NbBadge status={METHOD_STATUS[method]}>{method}</NbBadge>
-                <code style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>{endpoint}</code>
-              </div>
-            </button>
-          )
-        })}
-      </div>
+      {/* 데모 버튼 — 묶음은 registry 의 API_GROUPS 를 그대로 따른다 */}
+      {groups.map((g) => (
+        <div key={g.key} style={{ marginBottom: 'var(--space-6)' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>
+            {g.label}
+          </div>
+          {/* 고정 4열 금지(반응형 정책) — 공용 그리드 클래스가 모바일에서 2열로 접는다 */}
+          <div className="responsive-grid-cols-4">
+            {DEMO_ENDPOINTS.filter((e) => e.group === g.key).map((e) => {
+              const isActive = activeId === e.id
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  className="card"
+                  onClick={() => run(e)}
+                  disabled={loading && isActive}
+                  title={e.requires ? REQUIRES_LABEL[e.requires] : undefined}
+                  style={{
+                    padding: 'var(--space-4)',
+                    background: isActive ? 'var(--brand-soft)' : undefined,
+                    color: 'var(--text)', cursor: loading && isActive ? 'wait' : 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ fontSize: 'var(--fs-xl)', marginBottom: 'var(--space-2)' }}>{loading && isActive ? '⏳' : e.demo?.emoji}</div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-1)' }}>{e.title}</div>
+                  <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{e.desc}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                    <NbBadge status={METHOD_STATUS[e.method]}>{e.method}</NbBadge>
+                    <code style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>{e.path}</code>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
 
       {/* 결과 */}
       {result !== null && (
@@ -563,7 +554,7 @@ export default function DemoSection() {
           <div style={{ padding: '12px 20px', background: 'var(--surface-muted)', borderBottom: 'var(--hairline) solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: result.success ? 'var(--success)' : 'var(--danger)', display: 'inline-block' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{activeDemo}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{active?.title ?? ''}</span>
               {result.success === true && <span style={{ fontSize: 11, color: 'var(--success)', background: 'var(--success-bg)', padding: '2px 7px', borderRadius: 100 }}>200 OK</span>}
               {!result.success && <span style={{ fontSize: 11, color: 'var(--danger)', background: 'var(--danger-bg)', padding: '2px 7px', borderRadius: 100 }}>오류</span>}
             </div>
@@ -582,7 +573,7 @@ export default function DemoSection() {
                 {JSON.stringify(result, null, 2)}
               </pre>
             ) : (
-              activeDemo && renderDemoResult(activeDemo, result)
+              active && renderDemoResult(active, result)
             )}
           </div>
         </div>

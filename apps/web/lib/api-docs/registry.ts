@@ -49,6 +49,29 @@ export interface ApiParam {
   desc: string
 }
 
+/**
+ * 라이브 데모 — **문을 선언한 자리에서 데모도 선언한다.**
+ *
+ * 왜 여기 있나 (실측 v0.7.621): `DemoSection.tsx` 가 자기 목록 8개를 따로 들고 있었다.
+ * 그래서 이 표에 문을 24개 등재하는 동안 데모는 8개에 멈춰 있었고, 그중 둘은
+ * **이관 중인 구 표**(`/accounts`·`/deals`)를 두드렸다 — 같은 페이지 위쪽 문서가
+ * 「새 코드는 `/crm/companies` 를 쓰세요」라고 말하는 바로 아래에서.
+ * 목록이 두 벌이면 반드시 갈린다. 이 표가 940줄 수기 JSX 를 없앤 이유와 같은 이유다.
+ *
+ * ⚠️ **함수를 담지 않는다.** 이 파일은 `/api/public/v1/openapi.json` 라우트(서버)도 읽는다.
+ *    앞선 응답에서 값을 꺼내 와야 하는 요청은 **이름으로 가리키고**(`needs`),
+ *    그 이름을 푸는 코드는 화면이 갖는다.
+ */
+export interface ApiDemo {
+  emoji: string
+  /** 데모가 붙일 쿼리. 운영 데이터를 통째로 끌지 않게 데모는 조금만 가져온다 */
+  query?: Record<string, string>
+  /** 고정 요청 본문. 값이 실데이터에 따라 달라지면 여기 두지 말고 `needs` 를 쓴다 */
+  body?: Record<string, unknown>
+  /** 먼저 실데이터에서 얻어야 하는 값 — 화면이 이 이름을 푼다 */
+  needs?: 'gpu-product-id'
+}
+
 export interface ApiEndpoint {
   /** 안정 식별자 — OpenAPI operationId 이자 화면 앵커 */
   id: string
@@ -67,6 +90,8 @@ export interface ApiEndpoint {
   body?: ApiParam[]
   /** 응답 예시(JSON 문자열). 없으면 공통 봉투만 보여 준다 */
   sample?: string
+  /** 「직접 실행」에 버튼으로 뜬다. 없으면 문서에만 나온다 */
+  demo?: ApiDemo
 }
 
 /** 목록 API 가 공통으로 받는 것 — 같은 설명을 엔드포인트마다 다시 적지 않는다 */
@@ -80,6 +105,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   /* ── GPU 가격 ─────────────────────────────────────────────────────────── */
   {
     id: 'gpu.products.list', group: 'gpu', method: 'GET', path: '/products', status: 'stable',
+    demo: { emoji: '📦' },
     title: 'GPU 목록', desc: '취급 중인 GPU 구성과 우리 판매가. 내부 가격표와 같은 계산(getGpuCatalog)을 씁니다.',
     query: [{ name: 'cursor', type: 'string', desc: '이어 보기 커서' }],
     sample: `{
@@ -97,6 +123,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   },
   {
     id: 'gpu.quote.create', group: 'gpu', method: 'POST', path: '/quote', status: 'stable',
+    demo: { emoji: '🧮', needs: 'gpu-product-id', body: { items: [{ quantity: 4 }], currency: 'KRW' } },
     title: '견적 계산', desc: '구성과 수량으로 견적을 계산합니다. 마진·통화를 지정할 수 있습니다.',
     body: [
       { name: 'items', type: 'array', required: true, desc: '{ product_id, quantity } 목록' },
@@ -106,14 +133,17 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   },
   {
     id: 'gpu.inventory.list', group: 'gpu', method: 'GET', path: '/inventory', status: 'stable',
+    demo: { emoji: '🏭' },
     title: '재고', desc: 'Tier 별 재고 수량.',
   },
   {
     id: 'gpu.fx.list', group: 'gpu', method: 'GET', path: '/fx', status: 'stable',
+    demo: { emoji: '💱' },
     title: '환율', desc: 'USD/KRW 환율 이력(최근 7일). 가격 계산에 쓰인 값과 같습니다.',
   },
   {
     id: 'gpu.suppliers.list', group: 'gpu', method: 'GET', path: '/suppliers', status: 'stable',
+    demo: { emoji: '🏢' },
     title: '공급사 목록', desc: '등록된 공급사.',
   },
   {
@@ -150,6 +180,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   /* ── 영업 CRM (신규) ───────────────────────────────────────────────────── */
   {
     id: 'crm.companies.list', group: 'crm', method: 'GET', path: '/crm/companies', status: 'stable',
+    demo: { emoji: '🏛', query: { limit: '5' } },
     requires: 'crm-member', title: '회사 목록', desc: '워크스페이스의 회사. 최신순 커서 페이지.',
     query: [...CURSOR_QUERY],
     sample: `{
@@ -164,6 +195,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   },
   {
     id: 'crm.people.list', group: 'crm', method: 'GET', path: '/crm/people', status: 'stable',
+    demo: { emoji: '👤', query: { limit: '5' } },
     requires: 'crm-member', title: '인물 목록', desc: '회사에 속한 사람. 「담당자」가 아니라 「인물」입니다.',
     query: [...CURSOR_QUERY],
   },
@@ -173,6 +205,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   },
   {
     id: 'crm.deals.list', group: 'crm', method: 'GET', path: '/crm/deals', status: 'stable',
+    demo: { emoji: '📈', query: { limit: '5' } },
     requires: 'crm-member', title: '딜 목록', desc: '진행 중인 영업 건. 「영업기회」가 아니라 「딜」입니다.',
     query: [...CURSOR_QUERY],
   },
@@ -182,16 +215,19 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   },
   {
     id: 'crm.meetings.list', group: 'crm', method: 'GET', path: '/crm/meetings', status: 'stable',
+    demo: { emoji: '🗓', query: { limit: '5' } },
     requires: 'crm-member', title: '미팅 목록', desc: '기록된 미팅. 요약·전사 상태를 함께 줍니다.',
     query: [...CURSOR_QUERY],
   },
   {
     id: 'crm.quotes.list', group: 'crm', method: 'GET', path: '/crm/quotes', status: 'stable',
+    demo: { emoji: '🧾', query: { limit: '5' } },
     requires: 'crm-member', title: '견적 목록', desc: 'CRM 견적(딜에 붙는 문서). GPU 견적 계산과는 다릅니다.',
     query: [...CURSOR_QUERY],
   },
   {
     id: 'crm.tasks.list', group: 'crm', method: 'GET', path: '/crm/tasks', status: 'stable',
+    demo: { emoji: '✅', query: { limit: '5' } },
     requires: 'crm-member', title: '할 일 목록', desc: '딜·회사에 붙은 할 일.',
     query: [...CURSOR_QUERY],
   },
@@ -199,6 +235,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   /* ── 콘텐츠 인텔리전스 ─────────────────────────────────────────────────── */
   {
     id: 'ci.channels.list', group: 'ci', method: 'GET', path: '/ci/channels', status: 'stable',
+    demo: { emoji: '📡' },
     requires: 'ci-member', title: '채널 목록', desc: '모니터링 중인 채널.',
     query: [
       { name: 'workspace', type: 'string', desc: '워크스페이스 id. 속한 곳이 하나면 생략할 수 있습니다' },
@@ -207,6 +244,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   },
   {
     id: 'ci.contents.list', group: 'ci', method: 'GET', path: '/ci/contents', status: 'stable',
+    demo: { emoji: '🎬', query: { limit: '5' } },
     requires: 'ci-member', title: '게시물 목록', desc: '수집된 게시물. 「콘텐츠」가 아니라 「게시물」입니다.',
     query: [
       { name: 'workspace', type: 'string', desc: '워크스페이스 id' },
@@ -269,6 +307,14 @@ export function endpointsOf(group: ApiGroupKey): ApiEndpoint[] {
 export function toRoutePath(path: string): string {
   return path.replace(/\{(\w+)\}/g, ':$1')
 }
+
+/**
+ * 「직접 실행」에 버튼으로 뜨는 것 — 화면이 목록을 따로 들지 않는다.
+ *
+ * 이관 중인 문은 여기 오지 않는다. 새 코드에 권하지 않는 것을 눌러 보게 두면
+ * 문서는 「/crm/companies 를 쓰세요」라고 말하는데 손은 구 표를 두드리게 된다.
+ */
+export const DEMO_ENDPOINTS = ENDPOINTS.filter((e) => e.demo && e.status === 'stable')
 
 /** 살아 있는 것만 — 이관 중인 것을 새로 쓰라고 권하지 않는다 */
 export const STABLE_ENDPOINTS = ENDPOINTS.filter((e) => e.status === 'stable')
