@@ -24,7 +24,12 @@ const DUE_TONE_COLOR: Record<DueTone, string> = {
   none: 'var(--text-faint)',
 }
 
-const DISPLAY_LIMIT = 8
+/**
+ * 홈에서는 **일부만** 보여 준다(사용자 지시 2026-08-27: *"일부만 보이게 해서 바로 누를 수 있게"*).
+ * 8건이면 이 카드 혼자 자라서 옆의 오늘업무·메모·주간보고를 첫 화면 밖으로 밀어낸다.
+ * 나머지는 「+N건 더 보기」와 「전체보기」가 맡는다.
+ */
+const DISPLAY_LIMIT = 4
 
 export default function HomeDeptTaskWidget({ initial, today }: Props) {
   const [data, setData] = useState<DeptHomeResult>(initial)

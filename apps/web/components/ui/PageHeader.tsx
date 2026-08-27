@@ -13,6 +13,16 @@ interface PageHeaderProps {
   /** 제목 위 한 줄 분류(예: '가격정책'). 화면이 속한 묶음을 밝힐 때만 쓴다 */
   eyebrow?: string
   description?: string
+  /**
+   * 제목 **바로 옆**에 붙는 조작 — 제목이 가리키는 대상을 바꾸는 것만 넣는다.
+   * (예: 캘린더의 `< 2026년 8월 > 오늘` — 이전/다음이 곧 제목을 바꾼다)
+   *
+   * `actions`(우측)와 다르다. 우측은 **화면 전체**에 대한 행동이고,
+   * 여기는 **제목 그 자체**에 대한 조작이다. 이 슬롯이 없어서 화면들이
+   * 제목 아래에 같은 글자를 한 번 더 적은 네비 줄을 따로 만들었다
+   * (실측 v0.7.617 홈: 「2026년 8월」이 93px 간격으로 두 번).
+   */
+  titleAfter?: ReactNode
   actions?: ReactNode
   // 페이지별 여백 압축 등 추가 클래스(예: daily 상단 밀도 개선). 기본 동작은 불변.
   className?: string
@@ -21,7 +31,13 @@ interface PageHeaderProps {
   below?: ReactNode
 }
 
-export default function PageHeader({ title, icon, back, eyebrow, description, actions, className, descClassName, below }: PageHeaderProps) {
+export default function PageHeader({ title, icon, back, eyebrow, description, titleAfter, actions, className, descClassName, below }: PageHeaderProps) {
+  const heading = (
+    <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+      {icon}
+      {title}
+    </h1>
+  )
   const header = (
     <header
       className={`page-header${className ? ` ${className}` : ''}`}
@@ -47,10 +63,13 @@ export default function PageHeader({ title, icon, back, eyebrow, description, ac
         {eyebrow && (
           <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginBottom: '0.125rem' }}>{eyebrow}</div>
         )}
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          {icon}
-          {title}
-        </h1>
+        {titleAfter ? (
+          // 제목과 그 조작은 **한 줄**이다 — 아래로 내리면 같은 말을 두 번 적게 된다
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+            {heading}
+            {titleAfter}
+          </div>
+        ) : heading}
         {description && (
           <p className={descClassName} style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>{description}</p>
         )}

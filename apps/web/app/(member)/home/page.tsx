@@ -64,11 +64,21 @@ export default async function HomePage() {
       */}
       <div className="home-layout">
 
-        {/* 헤더 — 공용 PageHeader(제목 타이포 SSOT). 바로가기 칩은 헤더 액션으로. */}
+        {/*
+          헤더 — 공용 PageHeader(제목 타이포 SSOT). 바로가기 칩은 헤더 액션으로.
+          **compact 밀도**: 인사말은 첫 화면에서 가장 안 눌리는 자리다. 예전엔 제목·날짜가
+          두 줄로 84px 를 먹어 그리드 시작을 화면의 40.8% 까지 밀어냈다(실측 v0.7.617).
+          오늘 날짜는 캘린더가 이미 강조해 보여 준다 — 제목 옆 한 줄로 붙인다.
+        */}
         <div className="home-section-header">
           <PageHeader
+            className="page-header--compact"
             title={`안녕하세요, ${displayName}님`}
-            description={now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+            titleAfter={
+              <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+                {now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
+              </span>
+            }
             actions={showAxTiles ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                 {[
@@ -120,13 +130,25 @@ export default async function HomePage() {
           </Suspense>
         </div>
 
-        {/* 부서업무 와이드 섹션 */}
-        <div className="home-section-dept">
-          <HomeDeptTaskWidget initial={deptTasks} today={todayStr} />
-        </div>
+        {/*
+          위젯 4종 **한 줄** — 부서업무 · 오늘업무 · 확인안한메모 · 주간보고.
 
-        {/* 위젯 3종 횡배치 — 오늘업무 · 확인안한메모 · 주간보고 (모바일: 세로 스택 순서 유지) */}
+          사용자 지시(2026-08-27): *"부서업무나 주간업무나 **일부만 보이게 해서 바로 누를 수
+          있게**"*. 예전엔 부서업무가 캘린더 아래 **와이드 한 줄을 통째로** 쓰고(508px) 그
+          아래에 위젯 3종이 또 있어서, 첫 화면에서 부서업무는 y848(뷰포트 819) — **1px 도
+          안 보였고** 주간보고는 y1376 이었다. 넷을 한 줄로 세우면 캘린더 바로 밑에서
+          네 카드의 머리가 함께 보인다 — 스크롤 없이 눌린다.
+
+          카드 안에서 **다 보여 주지 않는다.** 부서업무는 요약 타일 + 상위 몇 건까지고
+          나머지는 「전체보기」다. 좁은 열에서 목록을 길게 뽑으면 그 카드만 혼자 자라
+          다시 나머지가 화면 밖으로 밀린다.
+        */}
         <div className="home-section-widgets">
+          {/* 부서 업무 */}
+          <div className="home-widget-col home-widget-dept">
+            <HomeDeptTaskWidget initial={deptTasks} today={todayStr} />
+          </div>
+
           {/* 오늘 업무 */}
           <div className="home-widget-col home-widget-quick">
             <HomeQuickEntry todayStr={todayStr} initialLogs={todayLogs} />

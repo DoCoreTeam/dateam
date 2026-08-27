@@ -1458,21 +1458,26 @@
   gap: 1.25rem;
 }
 
-/* 위젯 3종: 데스크탑 횡배치(작은 카드 3컬럼) */
+/* 위젯 4종: 데스크탑 횡배치 — 부서업무 · 오늘업무 · 메모 · 주간보고.
+   부서업무는 목록을 이고 있어 조금 넓다(1.4fr). 넷이 한 줄이어야 캘린더 바로 밑에서
+   네 카드의 머리가 함께 보인다 — 두 줄이면 아랫줄은 첫 화면 밖이다. */
 .home-section-widgets {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
   gap: 1.25rem;
   align-items: start;
 }
 .home-widget-col { min-width: 0; }
 
-/* 태블릿(768~1023px): 동일 3컬럼 유지하되 간격 축소 */
+/* 태블릿(768~1023px): 넷을 2×2 로 — 4열은 목록 제목이 남지 않는다 */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .home-section-widgets { gap: 0.875rem; }
+  .home-section-widgets {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.875rem;
+  }
 }
 
-/* 모바일(<768px): 세로 스택 — 오늘업무 → 확인안한메모 → 주간보고 순서 유지 */
+/* 모바일(<768px): 세로 스택 — 부서업무 → 오늘업무 → 확인안한메모 → 주간보고 순서 유지 */
 @media (max-width: 767px) {
   .home-section-widgets {
     grid-template-columns: 1fr;
@@ -1543,11 +1548,19 @@
   font-size: var(--fs-sm);
 }
 .home-dept-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+/* 한 행 = 2줄. 부서업무가 와이드 한 줄을 통째로 쓰던 시절엔 `64px 1fr auto 72px` 한 줄이었는데,
+   위젯 열(≈430px)로 들어오면서 1fr 이 눌려 **제목이 통째로 …** 이 됐다.
+   제목을 살리는 쪽을 택한다 — 상태·담당자는 아랫줄, 진행률은 바닥 한 줄. */
 .home-dept-row-link {
   display: grid;
-  grid-template-columns: 64px 1fr auto 72px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-areas:
+    "due title"
+    "due meta"
+    "prog prog";
   align-items: center;
-  gap: var(--space-3);
+  column-gap: var(--space-3);
+  row-gap: 0.2rem;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius);
   text-decoration: none;
@@ -1555,9 +1568,9 @@
   min-height: 44px;
 }
 .home-dept-row-link:hover { background: var(--surface-bg); }
-.home-dept-due { font-size: var(--fs-xs); font-weight: 700; text-align: center; white-space: nowrap; }
-.home-dept-title { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.home-dept-meta { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.home-dept-due { grid-area: due; font-size: var(--fs-xs); font-weight: 700; text-align: center; white-space: nowrap; }
+.home-dept-title { grid-area: title; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-dept-meta { grid-area: meta; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; min-width: 0; }
 .home-dept-prio {
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -1566,7 +1579,7 @@
   border: var(--hairline) solid;
 }
 .home-dept-assignee { font-size: var(--fs-xs); color: var(--text-muted); }
-.home-dept-progress { display: block; height: 6px; border-radius: var(--radius); background: var(--surface-bg); overflow: hidden; }
+.home-dept-progress { grid-area: prog; display: block; height: 6px; border-radius: var(--radius); background: var(--surface-bg); overflow: hidden; }
 .home-dept-progress-bar { display: block; height: 100%; background: var(--brand); }
 .home-dept-empty { font-size: var(--fs-sm); color: var(--text-faint); margin: 0; text-align: center; padding: var(--space-4) 0; }
 .home-dept-more { font-size: var(--fs-xs); color: var(--brand); font-weight: 600; text-decoration: none; align-self: center; }
@@ -1574,8 +1587,8 @@
 @media (max-width: 767px) {
   .home-dept-tiles { grid-template-columns: repeat(2, 1fr); }
   /* 모바일: 진행률바 숨기고 2줄 흐름 */
-  .home-dept-row-link { grid-template-columns: 56px 1fr; grid-auto-rows: auto; row-gap: 0.15rem; }
-  .home-dept-meta { grid-column: 2; }
+  /* 행 2줄 배치는 이제 **기본값**이다 — 위젯 열(≈430px)도 모바일과 같은 폭 사정이라
+     여기서 따로 정의하던 것을 기본으로 올렸다. 진행률만 모바일에서 접는다. */
   .home-dept-progress { display: none; }
 }
 
@@ -2278,6 +2291,7 @@ label.intake-tool-btn {
 .calendar-weekday.is-sat {
   color: var(--info);
 }
+/* compact(홈)에서 칸을 더 조이는 규칙은 도메인 CSS Module(calendar.module.css `compactBoard`)에 있다 — §0-1 */
 .calendar-day-cell {
   min-height: max(4rem, min(7.75rem, calc((100dvh - 380px) / 6)));
   border: none;

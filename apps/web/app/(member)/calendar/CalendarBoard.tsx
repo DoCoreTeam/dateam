@@ -30,6 +30,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import AXDotLoader from "@/components/ui/AXDotLoader";
 import EmptyState from "@/components/ui/EmptyState";
+import { SkelList } from "@/components/ui/LoadingSkeleton";
 import styles from "./calendar.module.css";
 
 interface CalEventLite {
@@ -278,6 +279,47 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
   const monthFirstLoad = monthLoading && monthSummary.length === 0;
   const weekFirstLoad = weekLoading && weekLogs.length === 0;
 
+  /**
+   * 기간 이동 — **제목 옆 한 자리**다(§PageHeader titleAfter).
+   *
+   * 예전엔 보기마다 제목 아래에 네비 줄을 따로 두었고, 그 줄이 제목과 **똑같은 글자**를
+   * 한 번 더 적었다(실측 v0.7.617 홈: 「2026년 8월」이 y184·y277 두 번 · 그리드 시작이
+   * 화면의 40.8%). 이전/다음은 제목을 바꾸는 조작이므로 제목 옆이 제자리다.
+   */
+  /**
+   * 한 칸에 그릴 칩 수 — 홈은 달력 **아래에도 볼 것이 있는** 자리라 더 조인다.
+   * 넘치는 것은 「+N건 더」로 합산되고, 날짜를 누르면 그 날 작업대에서 전부 나온다.
+   */
+  const cellChipLimit = compact ? 2 : 4;
+
+  const periodNav = (() => {
+    const step = (delta: -1 | 1) => {
+      if (viewMode === "month") setAnchor(new Date(year, month - 1 + delta, 1));
+      else if (viewMode === "week") (delta === -1 ? prevWeek : nextWeek)();
+      else setParams({ day: shiftDay(dayStr, delta) });
+    };
+    const atToday =
+      viewMode === "month" ? isCurrentMonth : viewMode === "week" ? isCurrentWeek : dayStr === todayStr;
+    const goToday = () =>
+      setParams(viewMode === "day" ? { day: null, date: null } : { date: null });
+    const unit = viewMode === "month" ? "달" : viewMode === "week" ? "주" : "날";
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+        <button type="button" onClick={() => step(-1)} className="calendar-nav-btn" aria-label={`이전 ${unit}`}>
+          <ChevronLeft size={16} strokeWidth={2.4} />
+        </button>
+        <button type="button" onClick={() => step(1)} className="calendar-nav-btn" aria-label={`다음 ${unit}`}>
+          <ChevronRight size={16} strokeWidth={2.4} />
+        </button>
+        {!atToday && (
+          <button type="button" onClick={goToday} className="calendar-nav-btn is-today-btn">
+            오늘
+          </button>
+        )}
+      </div>
+    );
+  })();
+
   return (
     <div>
       {selectedDate && (
@@ -294,6 +336,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
             : viewMode === "day" ? formatDayTitle(dayStr)
               : `${weekDates[0]} ~ ${weekEnd}`
         }
+        titleAfter={periodNav}
         actions={
           <SegmentedTabs
             ariaLabel="캘린더 보기"
@@ -314,41 +357,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
       {/* ===== 월간 뷰 ===== */}
       {viewMode === "month" && (
         <>
-          {/* 월 네비게이션 */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              marginBottom: "1rem",
-            }}
-          >
-            <button
-              onClick={() => setAnchor(new Date(year, month - 2, 1))}
-              className="calendar-nav-btn"
-              aria-label="이전 달"
-            >
-              <ChevronLeft size={16} strokeWidth={2.4} />
-            </button>
-            <span className="calendar-period-label">
-              {formatMonth(year, month)}
-            </span>
-            <button
-              onClick={() => setAnchor(new Date(year, month, 1))}
-              className="calendar-nav-btn"
-              aria-label="다음 달"
-            >
-              <ChevronRight size={16} strokeWidth={2.4} />
-            </button>
-            {!isCurrentMonth && (
-              <button
-                onClick={() => setParams({ date: null })}
-                className="calendar-nav-btn is-today-btn"
-              >
-                오늘
-              </button>
-            )}
-          </div>
+          {/* 월 네비게이션은 제목 옆(periodNav)으로 옮겼다 — 같은 달 이름을 두 번 적지 않는다 */}
 
           {/* 일정 비동기 로딩 표시 — 그리드는 항상 즉시 렌더, 데이터만 나중에 채움 */}
           {monthFirstLoad && (
@@ -364,7 +373,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
           )}
           {/* 요일 헤더 + 날짜 그리드 — 데이터 없이 즉시 렌더 */}
           <section
-            className="calendar-month-board"
+            className={`calendar-month-board${compact ? ` ${styles.compactBoard}` : ""}`}
             aria-label={`${formatMonth(year, month)} 월간 캘린더`}
           >
             <div className="calendar-weekday-row">
@@ -397,11 +406,24 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
                       .filter((ev) => ev.link_kind === "daily" && ev.link_id)
                       .map((ev) => ev.link_id as string),
                   );
-                  // 셀 합계 = 전체 업무/메모 건수 − 미리보기 노출(억제분 제외 2건 한도)
-                  const visiblePreviewCount = summary
-                    ? summary.preview.filter((p) => !linkedTaskIds.has(p.id)).length
-                    : 0;
-                  const moreCount = summary ? summary.total - visiblePreviewCount : 0;
+                  /**
+                   * **한 칸이 담는 칩 수에 상한을 둔다.**
+                   *
+                   * 일정 칩(`dayEvents`)에는 상한이 없었다. 미리보기는 서버에서 2건으로
+                   * 잘리는데 일정은 그대로 다 그려서, 회의가 몰린 날 **그 행 하나가 통째로
+                   * 자라** 달력이 화면을 다 먹었다(실측 v0.7.617 홈 8/24: 칩 5개 · 행 145px ·
+                   * 그리드 573px → 부서업무·주간보고가 첫 화면 밖).
+                   * 넘치는 것은 버리지 않고 **「+N건 더」로 합산**한다 — 날짜를 누르면 전부 나온다.
+                   */
+                  const shownEvents = dayEvents?.slice(0, cellChipLimit) ?? [];
+                  const hiddenEventCount = (dayEvents?.length ?? 0) - shownEvents.length;
+                  const previewBudget = Math.max(0, cellChipLimit - shownEvents.length);
+                  const visiblePreviews = summary
+                    ? summary.preview.filter((p) => !linkedTaskIds.has(p.id)).slice(0, previewBudget)
+                    : [];
+                  // 셀 합계 = (전체 업무/메모 − 노출분) + 못 그린 일정
+                  const moreCount =
+                    (summary ? summary.total - visiblePreviews.length : 0) + hiddenEventCount;
                   const isToday = dateStr === todayStr;
                   const dayOfWeek = (firstDay + day - 1) % 7;
                   const isSun = dayOfWeek === 0;
@@ -420,7 +442,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
                         {day}
                       </span>
                       {/* 일정(calendar_events) 칩 — KST 시각(SSOT) + 일정 아이콘 + 업무연동 배지 */}
-                      {dayEvents?.map((ev) => (
+                      {shownEvents.map((ev) => (
                         <div
                           key={ev.id}
                           className="cal-event-chip"
@@ -440,17 +462,16 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
                           )}
                         </div>
                       ))}
-                      {summary && (
+                      {(summary || moreCount > 0) && (
                         <div className="calendar-event-stack">
                           {/* 블로커 표시 */}
-                          {summary.hasBlocker && (
+                          {summary?.hasBlocker && (
                             <span className="calendar-blocker-chip">
                               블로커
                             </span>
                           )}
                           {/* 미리보기 — A안: 같은 업무가 일정 칩으로 이미 대표 표시되면 숨김 */}
-                          {summary.preview
-                            .filter((p) => !linkedTaskIds.has(p.id))
+                          {visiblePreviews
                             .map((p) => {
                               const t = ENTRY_TYPES[p.entry_type];
                               const isNote = p.entry_type === "note";
@@ -543,48 +564,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
       {/* ===== 주간 뷰 ===== */}
       {viewMode === "week" && (
         <>
-          {/* 주 네비게이션 */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              marginBottom: "1rem",
-            }}
-          >
-            <button
-              onClick={prevWeek}
-              className="calendar-nav-btn"
-              aria-label="이전 주"
-            >
-              <ChevronLeft size={16} strokeWidth={2.4} />
-            </button>
-            <span
-              style={{
-                fontSize: "0.875rem",
-                color: "var(--text-muted)",
-                minWidth: "8rem",
-                textAlign: "center",
-              }}
-            >
-              {weekDates[0]} ~ {weekEnd}
-            </span>
-            <button
-              onClick={nextWeek}
-              className="calendar-nav-btn"
-              aria-label="다음 주"
-            >
-              <ChevronRight size={16} strokeWidth={2.4} />
-            </button>
-            {!isCurrentWeek && (
-              <button
-                onClick={() => setParams({ date: null })}
-                className="calendar-nav-btn is-today-btn"
-              >
-                오늘
-              </button>
-            )}
-          </div>
+          {/* 주 네비게이션은 제목 옆(periodNav)으로 — 같은 기간을 두 번 적지 않는다 */}
 
           {/* 일정 비동기 로딩 표시 — 주간 프레임/날짜는 항상 즉시 렌더 */}
           {weekFirstLoad && (
@@ -681,34 +661,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
       {viewMode === "day" && (
         <>
           {/* 날짜 이동 */}
-          <div className={styles.dayNav}>
-            <button
-              type="button"
-              onClick={() => setParams({ day: shiftDay(dayStr, -1) })}
-              className="calendar-nav-btn"
-              aria-label="이전 날"
-            >
-              <ChevronLeft size={16} strokeWidth={2.4} />
-            </button>
-            <span className="calendar-period-label">{formatDayTitle(dayStr)}</span>
-            <button
-              type="button"
-              onClick={() => setParams({ day: shiftDay(dayStr, 1) })}
-              className="calendar-nav-btn"
-              aria-label="다음 날"
-            >
-              <ChevronRight size={16} strokeWidth={2.4} />
-            </button>
-            {dayStr !== todayStr && (
-              <button
-                type="button"
-                onClick={() => setParams({ day: null, date: null })}
-                className="calendar-nav-btn is-today-btn"
-              >
-                오늘
-              </button>
-            )}
-          </div>
+          {/* 날짜 네비게이션은 제목 옆(periodNav)으로 — 같은 날짜를 두 번 적지 않는다 */}
 
           {/**
             * **그 날 할 수 있는 것부터.** 일간은 "무엇이 있었나"보다
@@ -737,10 +690,22 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
 
 /** 그 날의 일정과 기록 — 일간 보기의 본문. 패널(모달)과 같은 API 를 읽는다 */
 function DayAgenda({ date }: { date: string }) {
-  const { data: events = [] } = useSWR<CalEventLite[]>(
+  const { data: events = [], isLoading: evLoading } = useSWR<CalEventLite[]>(
     `/api/calendar/events?start=${date}&end=${date}`, fetcher,
   );
-  const { data: logs = [] } = useSWR<DailyLog[]>(`/api/daily/logs?date=${date}`, fetcher);
+  const { data: logs = [], isLoading: logLoading } = useSWR<DailyLog[]>(
+    `/api/daily/logs?date=${date}`, fetcher,
+  );
+
+  /**
+   * **아직 안 온 것을 「없다」고 말하지 않는다.**
+   *
+   * 실화면에서 잡힌 결함(v0.7.614): 초기값이 `[]` 라 데이터가 도착하기 전에
+   * "이 날은 아직 비어 있어요"를 먼저 그렸다. 사용자는 **있는 것을 없다고 읽었다가**
+   * 갑자기 목록이 나타나는 화면을 본다 — 그때부터 이 화면의 빈 상태를 아무도 안 믿는다.
+   * (§2-6(2): 빈·오류·로딩 3상태는 부품이 강제한다)
+   */
+  if (evLoading || logLoading) return <SkelList />;
 
   if (events.length === 0 && logs.length === 0) {
     return (

@@ -182,3 +182,57 @@ test('월간에서 누른 날짜가 일간으로 그대로 이어진다', () => 
   assert.match(BOARD, /const dayStr = selectedDate \?\? toDateStr\(anchor\)/,
     '보기를 바꾸면 다른 날이 열린다')
 })
+
+test('★ 아직 안 온 것을 「없다」고 말하지 않는다 — 실화면에서 잡힌 결함(v0.7.614)', () => {
+  const agenda = BOARD.slice(BOARD.indexOf('function DayAgenda'))
+  const loadingAt = agenda.indexOf('if (evLoading || logLoading) return <SkelList />')
+  // 렌더 위치로 본다 — 주석에도 같은 문구가 있어 그냥 찾으면 주석을 코드로 오인한다
+  const emptyAt = agenda.indexOf('title="이 날은 아직 비어 있어요"')
+  assert.ok(loadingAt > 0, '로딩 상태를 안 그린다 — 빈 상태를 먼저 보여 준다')
+  assert.ok(loadingAt < emptyAt, '빈 상태 판정이 로딩 판정보다 먼저다')
+})
+
+/* ── ⑤ 첫 화면의 자리 — 위가 비면 아래가 안 보인다 ───────────────
+ *
+ * 사용자 지적(2026-08-27): *"여기 메인데 이미 화면 3분의 1이 쓸모없는 공간이네?
+ * 그리고 부서업무나 주간업무나 일부만 보이게 해서 바로 누를 수 있게 한다고 했던거 같은데"*.
+ *
+ * 실측(v0.7.617 · 뷰포트 819px) — 고치기 전:
+ *   그리드 시작 y334(화면의 40.8%) · 「2026년 8월」이 y184·y277 **두 번** ·
+ *   부서업무 y848(뷰포트 밖) · 주간보고 y1376.
+ * 고친 뒤: 그리드 y248 · 월 이름 한 번 · 위젯 줄 y705(부서업무·오늘업무·주간보고 제목 전부 화면 안).
+ */
+
+test('★ 기간 이름을 두 번 적지 않는다 — 제목과 네비 줄이 같은 글자였다', () => {
+  assert.ok(!/calendar-period-label/.test(BOARD),
+    '제목 아래 네비 줄이 되살아났다 — 이전/다음은 제목을 바꾸는 조작이라 제목 옆(titleAfter)이 제자리다')
+  assert.match(BOARD, /titleAfter=\{periodNav\}/, '기간 이동이 제목 옆에 없다')
+})
+
+test('★ 한 칸이 담는 칩에 상한이 있다 — 회의가 몰린 날 그 행이 통째로 자랐다', () => {
+  assert.match(BOARD, /const cellChipLimit = compact \? \d+ : \d+/, '칩 상한이 없다')
+  assert.ok(!/\{dayEvents\?\.map\(/.test(BOARD),
+    '일정 칩을 상한 없이 전부 그린다 — 달력이 화면을 다 먹는다(실측 8/24 칩 5개·행 145px)')
+  assert.match(BOARD, /shownEvents\.map\(/, '상한이 걸린 목록을 안 쓴다')
+})
+
+test('★ 넘친 것은 버리지 않고 「+N건 더」에 합산한다 — 날짜를 누르면 전부 나온다', () => {
+  assert.match(BOARD, /hiddenEventCount/, '못 그린 일정이 어디에도 안 세어진다')
+  const more = BOARD.slice(BOARD.indexOf('const moreCount'), BOARD.indexOf('const moreCount') + 200)
+  assert.match(more, /hiddenEventCount/, '「+N건 더」가 못 그린 일정을 빠뜨린다 — 사용자는 그 일정이 사라진 줄 안다')
+})
+
+test('★ 홈의 위젯은 캘린더 바로 다음 **한 줄**이다 — 두 줄이면 아랫줄은 첫 화면 밖', () => {
+  assert.ok(!/home-section-dept/.test(HOME),
+    '부서업무가 다시 자기 줄을 통째로 쓴다 — 그러면 주간보고가 첫 화면 밖으로 밀린다(실측 y1376)')
+  const rowAt = HOME.indexOf('home-section-widgets')
+  assert.ok(rowAt > 0, '위젯 줄이 없다')
+  for (const w of ['HomeDeptTaskWidget', 'HomeQuickEntry', 'UnreviewedMemoWidget', '주간보고']) {
+    assert.ok(HOME.indexOf(w, rowAt) > rowAt, `${w} 가 위젯 줄 밖에 있다`)
+  }
+})
+
+test('★ 홈 인사말은 compact — 가장 안 눌리는 자리가 가장 컸다', () => {
+  const head = HOME.slice(HOME.indexOf('home-section-header'), HOME.indexOf('home-section-calendar'))
+  assert.match(head, /page-header--compact/, '인사말이 다시 두 줄 밀도로 돌아갔다(실측 84px)')
+})
