@@ -10,6 +10,7 @@
 // "무엇이 문제였나"의 유일한 재료다. 사유 없는 거절은 통계로만 남는다.
 
 import { useState } from 'react'
+import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
 import { Check, Pencil, X, Undo2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -50,6 +51,11 @@ const REJECT_REASONS = ['부정확', '중복', '불필요'] as const
 /** 표시는 SSOT 를 거친다 — 인박스가 원시 JSON 을 보여 주면 사람은 읽지 않고 승인한다 */
 function show(v: unknown, item: SuggestionItem): string {
   return describeSuggestionValue(v, item, '(비어 있음)')
+}
+
+/** 금액에 관한 제안인가 — WHAT 축은 언제나 금액이다(five-axis-suggest.ts) */
+function isMoney(item: SuggestionItem): boolean {
+  return item.axis === 'WHAT' || item.field === 'amountMinor'
 }
 
 interface Props {
@@ -124,7 +130,14 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
 
       {/* 현재 값 → 제안 값. 둘을 나란히 놓지 않으면 "무엇이 달라지나"를 머리로 계산해야 한다 */}
       <div className={styles.change}>
-        <span className={styles.current}>{show(item.currentValueJson, item)}</span>
+        {/*
+          금액 제안은 회의 모드에서 가린다 — 「15억 → 40억」이 고객 화면에 그대로 보인다.
+          금액이 아닌 제안(사람 이름·단계)은 가리지 않는다: 다 가리면 회의 중에 아무것도 못 한다.
+        */}
+        <span className={styles.current}>
+          {isMoney(item) ? <Sensitive>{show(item.currentValueJson, item)}</Sensitive>
+                         : show(item.currentValueJson, item)}
+        </span>
         <span className={styles.arrow} aria-hidden>→</span>
         {editing ? (
           <input

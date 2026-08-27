@@ -7,6 +7,7 @@
 // 타임라인은 세 상세가 공유하는 사실(무슨 일이 있었나)이라 둘 다 필요하다.
 
 import { useCallback, useEffect, useState } from 'react'
+import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
@@ -156,7 +157,9 @@ export default function DealDetail({ dealId }: { dealId: string }) {
               </RecordField>
               <RecordField label="파이프라인">{pipelineName}</RecordField>
               <RecordField label="현재 단계">{stageName.get(deal.stageId) ?? null}</RecordField>
-              <RecordField label="금액">{formatAmount(deal.amountMinor, deal.currency)}</RecordField>
+              <RecordField label="금액">
+                <Sensitive>{formatAmount(deal.amountMinor, deal.currency)}</Sensitive>
+              </RecordField>
               {/* 마감일·성사일은 **날짜**다 — 시각을 붙이면 "9시까지"로 읽힌다(실브라우저에서 잡음) */}
               <RecordField label="예상 마감일">
                 {deal.expectedCloseDate ? kstDateKey(deal.expectedCloseDate) : null}

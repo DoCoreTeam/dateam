@@ -1,0 +1,47 @@
+/* 회의 모드에서 가려진 값 — 자리는 두고 값만 덮는다 */
+
+.masked {
+  display: inline-block;
+  min-width: 3.5ch;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  user-select: none;
+  cursor: help;
+}
+
+/* 회의 모드 토글 — 켜져 있음이 한눈에 보여야 한다.
+   꺼져 있는데 켜진 줄 알면 그게 더 위험하다. */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.toggle:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+.toggle[data-on='1'] {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning);
+}
+
+@media (max-width: 767px) {
+  /* 헤더가 좁다 — 켜졌을 때만 글자를 남긴다 */
+  .toggle[data-on='0'] .label {
+    display: none;
+  }
+}

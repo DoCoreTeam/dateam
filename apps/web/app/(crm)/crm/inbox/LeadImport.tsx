@@ -12,6 +12,7 @@
 // 맞다. 그래서 **고르고 · 미리 보고 · 한 번에 처리하는** 화면으로 바꿨다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Sensitive from '@/components/crm/Sensitive'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -332,7 +333,7 @@ export default function LeadImport() {
                   <span className={styles.leadStatLabel}>딜(선택 시)</span>
                 </div>
                 <div className={styles.leadStat}>
-                  <span className={styles.leadStatValue}>{formatAmount(preview.totalAmountMinor)}</span>
+                  <span className={styles.leadStatValue}><Sensitive>{formatAmount(preview.totalAmountMinor)}</Sensitive></span>
                   <span className={styles.leadStatLabel}>딜 금액 합계</span>
                 </div>
               </div>

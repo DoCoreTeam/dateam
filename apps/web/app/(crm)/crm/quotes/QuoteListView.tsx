@@ -14,6 +14,7 @@
 // 목록 표준(§2-6)을 그대로 쓴다 — ListToolbar·ListSurface·ListPager + useListQuery.
 
 import { useCallback, useEffect, useState, useMemo } from 'react'
+import Sensitive from '@/components/crm/Sensitive'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
@@ -95,7 +96,7 @@ const COLUMNS: ColumnDef<QuoteItem>[] = [
     header: '금액',
     cell: (r) => (
       <>
-        {formatAmount(r.totalMinor, r.currency)}
+        <Sensitive>{formatAmount(r.totalMinor, r.currency)}</Sensitive>
         {r.discountRate > 0 && (
           <span style={{ ...FAINT, marginLeft: 'var(--space-2)' }}>할인 {r.discountRate}%</span>
         )}

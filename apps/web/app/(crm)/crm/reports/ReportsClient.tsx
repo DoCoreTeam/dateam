@@ -11,6 +11,7 @@
 // 숫자 옆에 같이 써야 사람이 그 숫자를 믿을지 말지 정할 수 있다.
 
 import { useCallback, useEffect, useState } from 'react'
+import Sensitive, { useMaskAmount } from '@/components/crm/Sensitive'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
@@ -88,7 +89,8 @@ function Money({ sums, count }: { sums: CurrencySum[]; count: number }) {
     <span className={styles.money}>
       {sums.map((s) => (
         <span key={s.currency} className={styles.moneyLine}>
-          {formatAmount(s.totalMinor, s.currency) ?? `${s.totalMinor} ${s.currency}`}
+          {/* 회의 모드에서 가린다 — 리포트는 우리 쪽 예측이라 고객이 볼 것이 아니다 */}
+          <Sensitive>{formatAmount(s.totalMinor, s.currency) ?? `${s.totalMinor} ${s.currency}`}</Sensitive>
         </span>
       ))}
     </span>
@@ -96,6 +98,11 @@ function Money({ sums, count }: { sums: CurrencySum[]; count: number }) {
 }
 
 export default function ReportsClient() {
+  /**
+   * 문장 안에 섞인 금액(`예상 3억`)은 컴포넌트로 감쌀 수 없다 — 값을 먼저 가린다.
+   * `Sensitive` 와 같은 표시를 쓰므로 화면에서 두 방식이 달라 보이지 않는다.
+   */
+  const mask = useMaskAmount()
   const [items, setItems] = useState<PipelineReport[]>([])
   const [velocity, setVelocity] = useState<Velocity[]>([])
   const [forecast, setForecast] = useState<Forecast[]>([])
@@ -239,14 +246,14 @@ export default function ReportsClient() {
 
                 {f.weightedTotal.length > 0 && (
                   <p className={styles.total}>
-                    예상 {f.weightedTotal.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · ')}
+                    예상 {mask(f.weightedTotal.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · '))}
                   </p>
                 )}
 
                 {/* 근거가 부족해 못 센 금액을 숨기지 않는다 — 숨기면 합계가 조용히 작아진다 */}
                 {f.unknownTotal.length > 0 && (
                   <p className={styles.note}>
-                    근거가 부족한 단계에 {f.unknownTotal.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · ')}가
+                    근거가 부족한 단계에 {mask(f.unknownTotal.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · '))}가
                     걸려 있어요 (예상에 넣지 않았습니다)
                   </p>
                 )}
@@ -264,7 +271,7 @@ export default function ReportsClient() {
                           <span className={styles.stageCount}>성사율 {Math.round(d.winRate * 100)}%</span>
                           <span className={styles.note}>
                             표본 {d.sample}건
-                            {d.weighted.length > 0 && ` · 예상 ${d.weighted.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · ')}`}
+                            {d.weighted.length > 0 && ` · 예상 ${mask(d.weighted.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · '))}`}
                           </span>
                         </>
                       )}

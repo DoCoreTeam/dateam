@@ -26,6 +26,8 @@ import { resolveCrmAccess, CRM_DENY_MESSAGE } from '@/lib/crm/auth/requireCrmMem
 import { countPendingSuggestions } from '@/lib/crm/services/suggestion'
 import CommandPalette from '@/components/crm/CommandPalette'
 import AttentionBell from '@/components/crm/AttentionBell'
+import MeetingModeToggle from '@/components/crm/MeetingModeToggle'
+import { MeetingModeProvider } from '@/lib/crm/ui/meeting-mode'
 
 /**
  * 사이드바 8개 항목 (구현명세서 1.1 라우트 구조 그대로).
@@ -166,6 +168,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
   ))
 
   return (
+    <MeetingModeProvider>
     <AppShell
       items={navItems}
       groups={NAV_GROUPS}
@@ -193,13 +196,23 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
             </strong>
           </span>
         ),
-        // 검색·전체메뉴 앞에 놓는다 — 지금 봐야 할 것이 먼저 눈에 들어와야 한다
-        headerExtra: <AttentionBell />,
+        /**
+          * 검색·전체메뉴 앞에 놓는다 — 지금 봐야 할 것이 먼저 눈에 들어와야 한다.
+          * 회의 모드도 같은 자리다 — 둘 다 "지금 이 순간"에 관한 것이고,
+          * 고객 앞에서 켜야 하므로 **어느 CRM 화면에서든 같은 자리**에 있어야 한다.
+          */
+        headerExtra: (
+          <>
+            <MeetingModeToggle />
+            <AttentionBell />
+          </>
+        ),
       }}
     >
       <CommandPalette />
       {children}
     </AppShell>
+    </MeetingModeProvider>
   )
 }
 

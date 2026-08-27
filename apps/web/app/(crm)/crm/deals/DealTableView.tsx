@@ -8,6 +8,7 @@
 // 목록 표준(§2-6)을 그대로 쓴다: ListToolbar·ListSurface·ListPager + useListQuery.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Sensitive from '@/components/crm/Sensitive'
 import { Plus } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
@@ -144,8 +145,14 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
     },
     {
       key: 'amount', header: '금액', align: 'right',
-      cell: (r) => formatAmount(r.amountMinor, r.currency)
-        ?? <span style={{ color: 'var(--text-faint)' }}>미정</span>,
+      // 회의 모드에서 가린다 — 고객 앞에서 목록을 열면 이 열이 그대로 보인다.
+      // 값이 없으면 가릴 것도 없다 — 「미정」은 그대로 둔다(가리면 있는 줄 안다)
+      cell: (r) => {
+        const amount = formatAmount(r.amountMinor, r.currency)
+        return amount
+          ? <Sensitive>{amount}</Sensitive>
+          : <span style={{ color: 'var(--text-faint)' }}>미정</span>
+      },
     },
     {
       key: 'updatedAt', header: '최근 변경', hideOnCard: true,

@@ -15,6 +15,7 @@
 //   화면이 먼저 물어보지 않으면 사용자는 서버 오류를 보고서야 무엇이 필요한지 안다.
 
 import { useCallback, useEffect, useState } from 'react'
+import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
 import { AlertTriangle, Clock, CheckCircle2, X } from 'lucide-react'
 import { Plus } from 'lucide-react'
@@ -322,7 +323,7 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
                     <Link href={`/crm/deals/${d.id}`} className={styles.cardLink}>
                       <div className={styles.cardName}>{d.name}</div>
                       <div className={styles.cardMeta}>
-                        {amount ? <span className={styles.amount}>{amount}</span> : <span>금액 미정</span>}
+                        {amount ? <span className={styles.amount}><Sensitive>{amount}</Sensitive></span> : <span>금액 미정</span>}
                       </div>
 
                       {/*
