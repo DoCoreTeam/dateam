@@ -33,6 +33,21 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.612',
+    date: '2026-08-27',
+    title: 'CRM 메뉴에서 매일 여는 것만 위로 올렸어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '📚',
+        headline: '회사와 인물을 [거래처] 하나로 묶었어요',
+        detail:
+          '늘 함께 보는 둘이 매일 여는 메뉴와 나란히 서 있어서 목록이 길어 보였어요. ' +
+          '이제 맨 위는 오늘·인박스·딜·견적 넷이고, 회사와 인물은 [거래처] 안에 있습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.611',
     date: '2026-08-27',
     title: '한 번 하고 끝나는 안내는 이제 사라져요',

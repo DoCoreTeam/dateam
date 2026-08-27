@@ -30,8 +30,8 @@ import MeetingModeToggle from '@/components/crm/MeetingModeToggle'
 import { MeetingModeProvider } from '@/lib/crm/ui/meeting-mode'
 
 /**
- * 사이드바 8개 항목 (구현명세서 1.1 라우트 구조 그대로).
- * 일상 동선 4개는 최상위에, 나머지는 성격별로 묶는다.
+ * 최상위에는 **매일 여는 것만** 넷. 나머지는 성격별로 묶는다.
+ * (거래처 · 기록 · 보기 · 설정 — 그룹 주석에 각각의 이유가 있다)
  */
 /**
  * 매일 여는 것만 최상위에 둔다. 순서는 **여는 빈도**다.
@@ -48,11 +48,29 @@ const NAV_ITEMS = [
   // 견적이 딜 바로 뒤 — 견적은 딜 금액의 **근거 문서**라 둘은 같이 본다.
   // 예전엔 딜 상세 안에만 있어서 사이드바에서 보이지 않았고, 그래서 "견적이 없다"고 읽혔다.
   { href: '/crm/quotes', label: '견적', icon: <FileText size={16} /> },
-  { href: '/crm/companies', label: '회사', icon: <Building2 size={16} /> },
-  { href: '/crm/people', label: '인물', icon: <Users size={16} /> },
 ]
 
 const NAV_GROUPS: NavGroup[] = [
+  {
+    /**
+     * **회사와 인물은 한 덩어리다.** 사용자 지적(2026-08-27):
+     * *"현재 CRM에 메뉴가 상당히 많은데 **연관성 있는건 묶는 작업**이 되었는지 모르겠고"*.
+     *
+     * 둘은 늘 함께 본다 — 인물은 회사에 붙어 있고, 회사를 열면 그 사람들을 본다.
+     * 그런데 최상위에 나란히 서 있으면 매일 여는 것(오늘·인박스·딜·견적)과 **같은 무게**로
+     * 늘어서서, 목록이 길어질수록 정작 매일 여는 것이 눈에 안 들어온다.
+     * 최상위를 6개에서 4개로 줄이는 것이 이 묶음의 목적이다.
+     *
+     * 묶음 이름이 「거래처」인 것은 용어집이 정한 그대로다 —
+     * *"「거래처」는 **메뉴 묶음 이름**이고 개체 이름은 「회사」다 — 둘을 섞지 않는다"*
+     * (`lib/terms/entity.ts`). 그래서 그룹은 거래처, 항목은 회사·인물이다.
+     */
+    label: '거래처',
+    items: [
+      { href: '/crm/companies', label: '회사', icon: <Building2 size={16} /> },
+      { href: '/crm/people', label: '인물', icon: <Users size={16} /> },
+    ],
+  },
   {
     // 매일은 아니지만 자주 여는 것
     label: '기록',

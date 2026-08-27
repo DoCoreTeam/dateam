@@ -17,6 +17,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
 import { SEED_PIPELINES } from '../../../prisma/seed-data.ts'
+import { ENTITY } from '../../terms/index.ts'
 
 const TODAY_UI = readFileSync(
   new URL('../../../app/(crm)/crm/today/TodayClient.tsx', import.meta.url), 'utf8')
@@ -149,4 +150,24 @@ test('★ 펼치지 않아도 한 번은 세어 본다 — 예전엔 뱃지가 �
     new URL('../../../app/(crm)/crm/inbox/LeadImport.tsx', import.meta.url), 'utf8')
   assert.match(LEAD, /const \[counted, setCounted\] = useState\(false\)/, '센 적이 있는지를 모른다')
   assert.ok(!/'세는 중…'/.test(LEAD), '아직도 「세는 중…」을 띄운다')
+})
+
+test('★ 최상위는 매일 여는 넷뿐이다 — 늘어설수록 매일 여는 것이 눈에 안 들어온다', () => {
+  const top = LAYOUT.slice(LAYOUT.indexOf('const NAV_ITEMS = ['), LAYOUT.indexOf('const NAV_GROUPS'))
+  const hrefs = [...top.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
+  assert.deepEqual(hrefs, ['/crm/today', '/crm/inbox', '/crm/deals', '/crm/quotes'],
+    '최상위가 늘었다 — 연관 있는 것은 그룹으로 묶는다')
+})
+
+test('★ 회사와 인물은 [거래처] 한 묶음이다 — 늘 함께 보는 것을 따로 세우지 않는다', () => {
+  const group = LAYOUT.slice(LAYOUT.indexOf("label: '거래처'"), LAYOUT.indexOf("label: '기록'"))
+  for (const h of ['/crm/companies', '/crm/people']) {
+    assert.ok(group.includes(`href: '${h}'`), `${h} 가 거래처 묶음에 없다`)
+  }
+})
+
+test('묶음 이름은 용어집이 정한 그대로다 — 「거래처」는 메뉴 이름, 「회사」는 개체 이름', () => {
+  assert.ok(LAYOUT.includes("label: '거래처'"), '묶음 이름이 다르다')
+  assert.ok(LAYOUT.includes("label: '회사'"), '개체 이름을 묶음 이름으로 바꿔 버렸다')
+  assert.equal(ENTITY.company.label, '회사')
 })
