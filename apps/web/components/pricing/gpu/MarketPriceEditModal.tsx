@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { pricingModelLabel } from '@/lib/gpu/ui/pricing-model'
 import { useEscClose } from '@/lib/use-esc-close'
 import { X, Pencil } from 'lucide-react'
 import ImpactDeleteDialog from './ImpactDeleteDialog'
@@ -21,13 +22,6 @@ interface MarketPriceEditModalProps {
   onSaved?: () => void
 }
 
-const PRICING_MODEL_LABEL: Record<string, string> = {
-  on_demand: 'On-Demand',
-  reserved_1y: '1년 약정',
-  reserved_3y: '3년 약정',
-  spot: 'Spot',
-  committed: '커밋',
-}
 
 type DeleteState =
   | { phase: 'idle' }
@@ -106,7 +100,7 @@ export default function MarketPriceEditModal({ price, onClose, onSaved }: Market
             <div style={{ flex: 1 }}>
               <strong id="mp-edit-title" className="gpu-modal-title">경쟁가 수정</strong>
               <span className="gpu-modal-subtitle">
-                {price.competitor_name} · {PRICING_MODEL_LABEL[price.pricing_model] ?? price.pricing_model}
+                {price.competitor_name} · {pricingModelLabel(price.pricing_model)}
                 {price.sku ? ` · ${price.sku}` : ''}
               </span>
             </div>
@@ -188,7 +182,7 @@ export default function MarketPriceEditModal({ price, onClose, onSaved }: Market
       {(deleteState.phase === 'confirm' || deleteState.phase === 'busy') && (
         <ImpactDeleteDialog
           title="경쟁가 삭제"
-          subject={`${price.competitor_name} ${PRICING_MODEL_LABEL[price.pricing_model] ?? price.pricing_model} $${price.price_usd} 경쟁가`}
+          subject={`${price.competitor_name} ${pricingModelLabel(price.pricing_model)} $${price.price_usd} 경쟁가`}
           busy={deleteState.phase === 'busy'}
           error={deleteError}
           onCancel={() => { setDeleteState({ phase: 'idle' }); setDeleteError(null) }}

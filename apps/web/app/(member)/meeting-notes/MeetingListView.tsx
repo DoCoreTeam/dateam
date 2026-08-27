@@ -5,6 +5,7 @@
 // 그리는 건 ListToolbar/ListSurface/ListPager 한 벌뿐이다. 데이터는 서버(page.tsx)가 준다.
 
 import type { ReactNode } from 'react'
+import { noteStatusMeta } from '@/lib/meeting/ui/note-status'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CalendarClock, Users } from 'lucide-react'
@@ -35,11 +36,6 @@ const FILTERS = [{
   ],
 }]
 
-const STATUS_META: Record<string, { label: string; status: 'done' | 'doing' | 'planned' }> = {
-  draft: { label: '작성중', status: 'planned' },
-  final: { label: '확정', status: 'done' },
-  archived: { label: '보관', status: 'doing' },
-}
 
 function formatMeetingAt(value: string | null): string {
   if (!value) return '일시 미지정'
@@ -101,7 +97,7 @@ export default function MeetingListView({ items, total, deptNames, loadError, mo
     {
       key: 'status', header: '상태',
       cell: (m) => {
-        const meta = STATUS_META[m.status] ?? { label: m.status, status: 'planned' as const }
+        const meta = noteStatusMeta(m.status)
         return <span className="badge" data-status={meta.status}>{meta.label}</span>
       },
     },

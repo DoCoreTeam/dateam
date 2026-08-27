@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import { noteStatusMeta } from '@/lib/meeting/ui/note-status'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Pencil, Trash2, CalendarClock, Users, Mic } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
@@ -29,11 +30,6 @@ export interface MeetingNoteRecord {
   visibility?: 'private' | 'crm'
 }
 
-const STATUS_META: Record<string, { label: string; status: 'done' | 'doing' | 'planned' }> = {
-  draft: { label: '작성중', status: 'planned' },
-  final: { label: '확정', status: 'done' },
-  archived: { label: '보관', status: 'doing' },
-}
 
 function formatMeetingAt(value: string | null): string {
   if (!value) return '일시 미지정'
@@ -106,7 +102,7 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
     )
   }
 
-  const meta = STATUS_META[note.status] ?? { label: note.status, status: 'planned' as const }
+  const meta = noteStatusMeta(note.status)
   const isEmptyAttendees = memberChips.length === 0 && externalChips.length === 0
 
   return (

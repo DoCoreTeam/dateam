@@ -1,5 +1,6 @@
 'use client'
 import { useEscClose } from '@/lib/use-esc-close'
+import { PRICING_MODEL_LABEL, pricingModelLabel } from '@/lib/gpu/ui/pricing-model'
 
 import { useState, useMemo, useEffect } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
@@ -144,13 +145,6 @@ function productMargin(p: ProductGroup): number {
   return p.strategy.margin_pct
 }
 
-const PRICING_MODEL_LABEL: Record<string, string> = {
-  on_demand: 'On-Demand',
-  reserved_1y: '1년 약정',
-  reserved_3y: '3년 약정',
-  spot: 'Spot',
-  committed: '커밋',
-}
 
 const TIER_CONFIG: Record<number, { label: string; name: string; badge: string; chipColor: string }> = {
   1: { label: 'Tier 1', name: '전용 고성능', badge: 'gpu-badge-t1', chipColor: 'var(--text)' },
@@ -427,7 +421,7 @@ function AnalyzePanel({ p, activeGroups, fmt, fmtOrig, onGoToPriceTable, onOpenA
                         fontSize: 'var(--fs-2xs)', fontWeight: 600, padding: '1px 6px', borderRadius: 4,
                         background: 'var(--surface-bg)', color: 'var(--gpu-ink-2)',
                       }}>
-                        {PRICING_MODEL_LABEL[x.pricing_model] ?? x.pricing_model}
+                        {pricingModelLabel(x.pricing_model)}
                       </span>
                       <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5 }}>
                         {x.price_usd != null ? fmtOrig(x) : '—'}
@@ -1030,7 +1024,7 @@ function PriceRegisterModal({
           >
             {mappings.map(m => (
               <option key={m.id} value={m.id}>
-                {m.competitors?.name ?? '?'} — {m.gpu_products?.model_name} {formatCardMemory(m.gpu_products?.memory, m.gpu_products?.gpu_count)} ({PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model})
+                {m.competitors?.name ?? '?'} — {m.gpu_products?.model_name} {formatCardMemory(m.gpu_products?.memory, m.gpu_products?.gpu_count)} ({pricingModelLabel(m.pricing_model)})
               </option>
             ))}
           </select>
@@ -1162,7 +1156,7 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
                 <span style={{ fontWeight: 700, flex: '0 1 auto', minWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.competitors?.name ?? undefined}>{m.competitors?.name ?? '?'}</span>
                 <span style={{ flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={memoryTitle(m.gpu_products?.memory, m.gpu_products?.gpu_count) || undefined}>{m.gpu_products?.model_name} {formatCardMemory(m.gpu_products?.memory, m.gpu_products?.gpu_count)}</span>
-                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', flexShrink: 0 }}>{PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model}</span>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', flexShrink: 0 }}>{pricingModelLabel(m.pricing_model)}</span>
                 {/* 삭제 버튼이 밀려 가려지면 매핑을 지울 방법이 없어진다 — 절대 줄이지 않는다 */}
                 <button onClick={() => del(m.id)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)', flexShrink: 0 }} aria-label="매핑 삭제">🗑</button>
               </div>

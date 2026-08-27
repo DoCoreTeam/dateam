@@ -11,7 +11,7 @@
 - TypeScript
 
 ## 버전
-v0.7.599
+v0.7.600
 
 버전 변경 시 아래 **모든** 항목을 반드시 업데이트한다:
 
@@ -484,7 +484,7 @@ UI/표시 수정 착수 전, 코드 손대기 전에 반드시:
 
 **무엇을 만들지 정해지면, 코드를 쓰기 전에 반드시 이 순서를 따른다.**
 
-1. **`docs/ui-system/INVENTORY.md`(부품)와 `docs/2026-08-27-crm-capture-first/02-GLOSSARY.md`(말)를 함께 연다**
+1. **`docs/ui-system/INVENTORY.md`(부품)와 `docs/ui-system/GLOSSARY.md`(말)를 함께 연다**
    — 앞은 **무엇으로 그리는가**, 뒤는 **무엇이라고 부르는가**. 둘이 짝이어야 같은 제품이 된다(§0-2).
 2. **동일 성격 부품이 있으면 그대로 쓴다.** 부족하면 **그 부품을 고쳐서** 쓴다. 새로 만들지 않는다.
 3. **INVENTORY §1 "중복 경보" 성격이면**(로딩·탭·표·빈상태·헤더·상세표면·셸) **신규 제작 금지.** 통일 대상을 쓴다.
@@ -524,9 +524,9 @@ node docs/ui-system/scan-inventory.mjs --dead    # 사용 0건
 
 | 층 | 어디 | 누가 보나 |
 |---|---|---|
-| **1층 사전** | `docs/2026-08-27-crm-capture-first/02-GLOSSARY.md` | **사람이 읽는다.** 화면 만들기 전에 여는 곳 |
+| **1층 사전** | `docs/ui-system/GLOSSARY.md` | **사람이 읽는다.** 화면 만들기 전에 여는 곳 |
 | **2층 상수** | `apps/web/lib/terms/` — `action`·`entity`·`sentence`·`index` | **화면이 import한다** |
-| **3층 가드** | `lib/ui/glossary.test.ts` *(미신설)* | 기계가 막는다 |
+| **3층 가드** | `lib/ui/glossary.test.ts` + `scripts/.glossary-baseline.json` | 기계가 막는다 |
 
 **규칙은 넷이다.**
 
@@ -543,7 +543,8 @@ node docs/ui-system/scan-inventory.mjs --dead    # 사용 0건
 2. **없는 말이 필요하면 `lib/terms`에 먼저 추가하고 화면이 쓴다.** 화면에 먼저 적고 나중에
    올리는 순서는 없다 — 두 번째 화면이 쓰는 순간 복붙된다.
 3. **조수사는 넷뿐** — **건**(사건·기록·문서) · **곳**(장소성) · **명**(사람) · **개**(설정·구조물).
-   `ENTITY[key].counter`가 정한다. 받침도 여기 있다(조사 `이/가`를 화면이 고르지 않게 —
+   `ENTITY[key].counter`가 정한다. **받침은 여기 안 적는다** — `lib/ui/josa.ts`가 유니코드로 계산하므로
+   표에 또 두면 두 벌이 되고 어긋난다(조사 `이/가`를 화면이 고르지 않게 —
    실제로 화면이 **21번 "API이(가)"**라고 말한 적이 있다).
 4. **상태 라벨은 반드시 `StatusKey`에 매핑**한다(`lib/tokens/status-colors.ts`).
    그래야 **색이 자동으로 따라오고** 화면이 색을 정하지 않는다.

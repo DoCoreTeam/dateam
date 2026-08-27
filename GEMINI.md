@@ -460,9 +460,9 @@ node scripts/session.mjs broadcast <내이름> --kind ask \
 
 | 층 | 어디 | 누가 보나 |
 |---|---|---|
-| **1층 사전** | `docs/2026-08-27-crm-capture-first/02-GLOSSARY.md` | **사람이 읽는다.** 화면 만들기 전에 여는 곳 |
+| **1층 사전** | `docs/ui-system/GLOSSARY.md` | **사람이 읽는다.** 화면 만들기 전에 여는 곳 |
 | **2층 상수** | `apps/web/lib/terms/` — `action`·`entity`·`sentence`·`index` | **화면이 import한다** |
-| **3층 가드** | `lib/ui/glossary.test.ts` *(미신설)* | 기계가 막는다 |
+| **3층 가드** | `lib/ui/glossary.test.ts` + `scripts/.glossary-baseline.json` | 기계가 막는다 |
 
 **규칙은 넷이다.**
 
@@ -479,7 +479,8 @@ node scripts/session.mjs broadcast <내이름> --kind ask \
 2. **없는 말이 필요하면 `lib/terms`에 먼저 추가하고 화면이 쓴다.** 화면에 먼저 적고 나중에
    올리는 순서는 없다 — 두 번째 화면이 쓰는 순간 복붙된다.
 3. **조수사는 넷뿐** — **건**(사건·기록·문서) · **곳**(장소성) · **명**(사람) · **개**(설정·구조물).
-   `ENTITY[key].counter`가 정한다. 받침도 여기 있다(조사 `이/가`를 화면이 고르지 않게 —
+   `ENTITY[key].counter`가 정한다. **받침은 여기 안 적는다** — `lib/ui/josa.ts`가 유니코드로 계산하므로
+   표에 또 두면 두 벌이 되고 어긋난다(조사 `이/가`를 화면이 고르지 않게 —
    실제로 화면이 **21번 "API이(가)"**라고 말한 적이 있다).
 4. **상태 라벨은 반드시 `StatusKey`에 매핑**한다(`lib/tokens/status-colors.ts`).
    그래야 **색이 자동으로 따라오고** 화면이 색을 정하지 않는다.
@@ -562,7 +563,7 @@ git commit -m "gemini v0.4.6: 거래처 목록 검색 필터 추가"  # 위치 �
 - TypeScript
 
 ## 버전
-v0.7.599
+v0.7.600
 
 ## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
 

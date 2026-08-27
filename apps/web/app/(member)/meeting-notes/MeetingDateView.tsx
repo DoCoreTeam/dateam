@@ -1,14 +1,10 @@
 // 날짜별 보기(일일업무 스타일) — meeting_at 기준 날짜 그룹 섹션 + 회의 카드.
 import Link from 'next/link'
+import { noteStatusMeta } from '@/lib/meeting/ui/note-status'
 import { CalendarClock, Users } from 'lucide-react'
 import { groupByMeetingDate } from '@/lib/meeting/group-by-date'
 import type { MeetingListItemView } from './list-types'
 
-const STATUS_META: Record<string, { label: string; status: 'done' | 'doing' | 'planned' }> = {
-  draft: { label: '작성중', status: 'planned' },
-  final: { label: '확정', status: 'done' },
-  archived: { label: '보관', status: 'doing' },
-}
 
 function timeOf(iso: string | null): string {
   if (!iso) return ''
@@ -30,7 +26,7 @@ export default function MeetingDateView({ items, deptNameById }: { items: Meetin
           </div>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             {g.items.map((m) => {
-              const meta = STATUS_META[m.status] ?? { label: m.status, status: 'planned' as const }
+              const meta = noteStatusMeta(m.status)
               const deptName = m.department_id ? deptNameById.get(m.department_id) : null
               const attendeeCount = (m.attendees?.length ?? 0)
               return (
