@@ -19,3 +19,14 @@ export {
 export {
   emptyTitle, failedTo, confirmDelete, notEnough,
 } from './sentence.ts'
+
+export {
+  LEDGER, BOOKED_FROM_LABEL, AMOUNT_LABEL, AMOUNT_HINT,
+  FUNDING_LABEL, FUNDING_AGENCY_HINT, IN_KIND_LABEL, IN_KIND_BASIS_HINT,
+  TAX_BASIS_LABEL, IN_KIND_LOCKED,
+  taxBasisNote, inKindShare, undatedInKindNote, yearLabel, monthsLabel, basisPlaceholder,
+  BUSINESS_TYPE_LABEL, BUSINESS_TYPE_ORDER, BUSINESS_TYPE_LABEL_TEXT,
+  TERM_TYPE_LABEL, TERM_TYPE_ORDER, TERM_TYPE_LABEL_TEXT,
+  type BookedFromKey, type FundingKey, type InKindKindKey,
+  type BusinessTypeKey, type TermTypeKey,
+} from './ledger.ts'

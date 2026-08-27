@@ -18,6 +18,7 @@
  */
 
 import type { CrmDb } from '../db/client.ts'
+import { pickBooked } from '../domain/booked-amount.ts'
 
 export interface StageSum {
   stageId: string
@@ -89,10 +90,25 @@ export async function buildPipelineReport(db: CrmDb, pipelineId?: string): Promi
     }) as { id: string; name: string; position: number; kind: string }[]
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const deals = await (db as any).crmDeal.findMany({
+    const raw = await (db as any).crmDeal.findMany({
       where: { pipelineId: p.id },
-      select: { id: true, stageId: true, status: true, amountMinor: true, currency: true },
+      select: {
+        id: true, stageId: true, status: true, amountMinor: true, currency: true,
+        // 「금액」은 이 셋에서 나온다 — 안 실으면 새 3금액만 채운 딜이 전부 「금액 미정」이 된다
+        budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
+      },
     }) as DealRow[]
+
+    /**
+     * 「금액」을 **수주 매출로 통일한다.**
+     * 딜 API 는 `toDealJson` 에서 파생하는데 리포트·예측은 DB 를 직접 읽는다 —
+     * 안 하면 새 3금액만 채운 딜이 전부 「금액 미정」이 되어
+     * 화면이 「9건은 금액 미정이라 합계에서 빠졌어요」라고 **거짓말한다**(실브라우저에서 잡았다).
+     */
+    const deals = raw.map((d) => {
+      const picked = pickBooked(d)
+      return picked.from === 'none' ? d : { ...d, amountMinor: picked.minor }
+    })
 
     const open = deals.filter((d) => d.status === 'OPEN')
     const won = deals.filter((d) => d.status === 'WON')

@@ -23,22 +23,12 @@ import { canView, hasCapability, type Viewer } from '../security/sensitivity.ts'
 import { sumByYear, monthSpan, type PeriodAllocation } from '../domain/allocation.ts'
 import type { TaxBasis } from '../domain/money.ts'
 
-export type InKindKind = 'LABOR' | 'EQUIPMENT' | 'MATERIAL' | 'FACILITY'
+import { IN_KIND_LABEL, IN_KIND_BASIS_HINT, type InKindKindKey } from '../../terms/ledger.ts'
 
-export const IN_KIND_LABEL: Record<InKindKind, string> = {
-  LABOR: '인건비',
-  EQUIPMENT: '장비사용료',
-  MATERIAL: '연구재료',
-  FACILITY: '시설',
-}
+export type InKindKind = InKindKindKey
 
-/** 환산 근거의 표준 문구 — 화면이 문자열을 직접 적지 않는다 */
-export const IN_KIND_BASIS_HINT: Record<InKindKind, string> = {
-  LABOR: '연봉 × 참여율 × 기간',
-  EQUIPMENT: '취득가 감가상각 또는 시간당 사용료',
-  MATERIAL: '장부가',
-  FACILITY: '면적 × 단가 × 기간',
-}
+/** 말은 용어집이 정한다(§0-2) — 여기서 다시 적지 않고 그대로 내보낸다 */
+export { IN_KIND_LABEL, IN_KIND_BASIS_HINT }
 
 export interface InKindRow {
   id: string
@@ -72,6 +62,8 @@ export interface Ledger extends BookedAmounts {
   dealId: string
   taxBasis: TaxBasis
   taxRatePct: string
+  /** 딜의 통화 — 화면이 「원」을 붙이지 않게 함께 보낸다 */
+  currency: string | null
   bookedFrom: BookedFrom
   budgetMinor: bigint | null
   contractMinor: bigint | null
@@ -110,7 +102,7 @@ export async function getLedger(db: CrmDb, dealId: string): Promise<Ledger> {
     select: {
       id: true, taxBasis: true, taxRatePct: true,
       budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
-      bookedNetMinor: true, inKindTotalMinor: true, amountMinor: true,
+      bookedNetMinor: true, inKindTotalMinor: true, amountMinor: true, currency: true,
     },
   })
   if (!deal) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.')
@@ -138,6 +130,7 @@ export async function getLedger(db: CrmDb, dealId: string): Promise<Ledger> {
     dealId,
     taxBasis: deal.taxBasis as TaxBasis,
     taxRatePct: String(deal.taxRatePct),
+    currency: deal.currency ?? null,
     bookedFrom: picked.from,
     budgetMinor: deal.budgetNetMinor,
     contractMinor: deal.contractNetMinor,
@@ -381,6 +374,7 @@ export function toLedgerJson(l: Ledger, viewer: Viewer | null | undefined): Reco
     dealId: l.dealId,
     taxBasis: l.taxBasis,
     taxRatePct: l.taxRatePct,
+    currency: l.currency,
     bookedFrom: l.bookedFrom,
     bookedFromLabel: BOOKED_FROM_LABEL[l.bookedFrom],
     bookedMinor: l.bookedMinor.toString(),

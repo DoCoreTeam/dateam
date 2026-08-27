@@ -38,12 +38,8 @@ export function needsSeparateAccount(t: FundingSourceType): boolean {
   return t === 'OWN_CASH'
 }
 
-export const FUNDING_LABEL: Record<FundingSourceType, string> = {
-  NATIONAL: '국비',
-  LOCAL: '지방비',
-  OWN_CASH: '자부담 현금',
-  IN_KIND: '자부담 현물',
-}
+/** 말은 용어집이 정한다 — 도메인이 화면 문자열을 또 들면 두 벌이 된다(§0-2) */
+export { FUNDING_LABEL } from '../../terms/ledger.ts'
 
 export interface InKindInput {
   valueMinor: bigint | number | string
@@ -162,11 +158,4 @@ export function pickBooked(d: {
   return { minor: BigInt(0), from: 'none' }
 }
 
-export const BOOKED_FROM_LABEL: Record<BookedFrom, string> = {
-  contract: '계약 금액',
-  quote: '견적 금액',
-  budget: '예산 금액',
-  // 사용자에게는 «옛 칸»이라고 말하지 않는다 — 화면의 「금액」과 같은 말을 쓴다
-  legacy: '금액',
-  none: '금액 미정',
-}
+export { BOOKED_FROM_LABEL } from '../../terms/ledger.ts'

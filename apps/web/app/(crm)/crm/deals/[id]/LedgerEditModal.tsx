@@ -19,25 +19,28 @@ import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
-import { ACTION, failedTo, progress } from '@/lib/terms'
+import {
+  ACTION, LEDGER, AMOUNT_LABEL, AMOUNT_HINT, FUNDING_LABEL, FUNDING_AGENCY_HINT,
+  IN_KIND_LABEL, TAX_BASIS_LABEL,
+  createLabel, failedTo, progress, basisPlaceholder,
+  type FundingKey, type InKindKindKey,
+} from '@/lib/terms'
 import { formatMinor } from '@/lib/crm/domain/money'
 import { readApiError } from '@/lib/crm/api/read-error'
 import styles from './ledger.module.css'
 
-/** 재원 네 갈래는 고정이다 — 사용자가 종류를 만들지 않는다 */
-const FUNDING_ROWS = [
-  { type: 'NATIONAL', label: '국비', agency: true },
-  { type: 'LOCAL', label: '지방비', agency: true },
-  { type: 'OWN_CASH', label: '자부담 현금', agency: false },
-  { type: 'IN_KIND', label: '자부담 현물', agency: false },
-] as const
+/**
+ * 재원 네 갈래는 고정이다 — 사용자가 종류를 만들지 않는다.
+ * **말은 여기서 짓지 않는다**(§0-2) — 용어집이 정한 라벨만 순서대로 세운다.
+ */
+const FUNDING_ROWS: readonly { type: FundingKey; agency: boolean }[] = [
+  { type: 'NATIONAL', agency: true },
+  { type: 'LOCAL', agency: true },
+  { type: 'OWN_CASH', agency: false },
+  { type: 'IN_KIND', agency: false },
+]
 
-const IN_KIND_KINDS = [
-  { value: 'LABOR', label: '인건비' },
-  { value: 'EQUIPMENT', label: '장비사용료' },
-  { value: 'MATERIAL', label: '연구재료' },
-  { value: 'FACILITY', label: '시설' },
-] as const
+const IN_KIND_KINDS: readonly InKindKindKey[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'FACILITY']
 
 export interface LedgerEditRow {
   id: string
@@ -78,6 +81,10 @@ function fmt(minor: string): string {
   try { return formatMinor(BigInt(minor)) } catch { return '0' }
 }
 
+/** 「현물」은 개체가 아니라 재원의 한 갈래다 — 개체 표에 넣지 않고 그 라벨을 쓴다 */
+const addInKindLabel = createLabel(FUNDING_LABEL.IN_KIND)
+const emptyInKind = `${FUNDING_LABEL.IN_KIND}이 아직 없어요`
+
 export default function LedgerEditModal({
   dealId, funding, inKind, taxBasis, taxRatePct, budgetMinor, contractMinor, onClose, onSaved,
 }: Props) {
@@ -107,12 +114,12 @@ export default function LedgerEditModal({
   async function call(url: string, init: RequestInit): Promise<Record<string, unknown>> {
     const res = await fetch(url, { ...init, headers: { 'content-type': 'application/json' } })
     const body = await res.json()
-    if (!res.ok) throw new Error(readApiError(body, failedTo('장부', '저장하지')))
+    if (!res.ok) throw new Error(readApiError(body, failedTo(LEDGER.title, '저장하지')))
     return body as Record<string, unknown>
   }
 
   async function addRow() {
-    if (!draft.name.trim()) { setError('현물 이름을 입력해 주세요.'); return }
+    if (!draft.name.trim()) { setError(LEDGER.inKindNameRequired); return }
     setBusy('add'); setError(null)
     try {
       const body = await call(`/api/crm/deals/${dealId}/ledger/in-kind`, {
@@ -127,7 +134,7 @@ export default function LedgerEditModal({
       setDraft({ kind: 'LABOR', name: '', value: '', basisNote: '', startDate: '', endDate: '' })
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : failedTo('현물', '추가하지'))
+      setError(e instanceof Error ? e.message : failedTo(FUNDING_LABEL.IN_KIND, '추가하지'))
     } finally { setBusy(null) }
   }
 
@@ -138,7 +145,7 @@ export default function LedgerEditModal({
       setRows((body.inKind as LedgerEditRow[]) ?? [])
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : failedTo('현물', '삭제하지'))
+      setError(e instanceof Error ? e.message : failedTo(FUNDING_LABEL.IN_KIND, '삭제하지'))
     } finally { setBusy(null) }
   }
 
@@ -161,12 +168,12 @@ export default function LedgerEditModal({
       onSaved()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : failedTo('재원 구성', '저장하지'))
+      setError(e instanceof Error ? e.message : failedTo(LEDGER.fundingSection, '저장하지'))
     } finally { setBusy(null) }
   }
 
   return (
-    <NbModal title="장부 수정" onClose={onClose} maxWidth={720}>
+    <NbModal title={`${LEDGER.title} ${ACTION.edit}`} onClose={onClose} maxWidth={720}>
       {/*
         오류는 **누른 자리에서 보여야 한다.**
         모달 맨 위에만 두면 아래쪽에서 「현물 추가」를 눌렀을 때 스크롤 밖이라
@@ -180,55 +187,47 @@ export default function LedgerEditModal({
       )}
 
       <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>금액 기준</h3>
-        <p className={styles.note}>
-          국가 과제 사업비는 보통 부가세가 포함된 금액입니다.
-          「포함」을 고르면 공급가액과 세액을 그 금액에서 나눠 계산합니다.
-        </p>
+        <h3 className={styles.sectionTitle}>{LEDGER.amountBasis}</h3>
+        <p className={styles.note}>{LEDGER.basisWhy}</p>
         <div className={styles.formRow}>
-          <label className="label" htmlFor="tax-basis">부가세</label>
+          <label className="label" htmlFor="tax-basis">{LEDGER.tax}</label>
           <select
             id="tax-basis"
             className="input-field"
             value={basis}
             onChange={(e) => setBasis(e.target.value === 'GROSS' ? 'GROSS' : 'NET')}
           >
-            <option value="NET">별도 — 이 금액이 공급가액입니다</option>
-            <option value="GROSS">포함 — 이 금액에 부가세가 들어 있습니다</option>
+            <option value="NET">{TAX_BASIS_LABEL.NET}</option>
+            <option value="GROSS">{TAX_BASIS_LABEL.GROSS}</option>
           </select>
           <input
-            className="input-field" inputMode="decimal" aria-label="부가세율(%)"
+            className="input-field" inputMode="decimal" aria-label={`${LEDGER.tax}율(%)`}
             value={rate} onChange={(e) => setRate(e.target.value)}
           />
         </div>
         <div className={styles.formRow}>
-          <label className="label" htmlFor="amt-budget">예산</label>
+          <label className="label" htmlFor="amt-budget">{AMOUNT_LABEL.budget}</label>
           <input
-            id="amt-budget" className="input-field" inputMode="numeric" placeholder="고객이 말한 금액"
+            id="amt-budget" className="input-field" inputMode="numeric" placeholder={AMOUNT_HINT.budget}
             value={budget} onChange={(e) => setBudget(e.target.value.trim() === '' ? '' : fmt(toMinor(e.target.value)))}
           />
         </div>
         <div className={styles.formRow}>
-          <label className="label" htmlFor="amt-contract">계약</label>
+          <label className="label" htmlFor="amt-contract">{AMOUNT_LABEL.contract}</label>
           <input
-            id="amt-contract" className="input-field" inputMode="numeric" placeholder="도장 찍은 금액"
+            id="amt-contract" className="input-field" inputMode="numeric" placeholder={AMOUNT_HINT.contract}
             value={contract} onChange={(e) => setContract(e.target.value.trim() === '' ? '' : fmt(toMinor(e.target.value)))}
           />
         </div>
-        <p className={styles.note}>
-          수주 매출은 계약 &gt; 견적 &gt; 예산 중 가장 확실한 것을 씁니다.
-          견적 금액은 대표 견적에서 와야 해서 여기서 고치지 않습니다.
-        </p>
+        <p className={styles.note}>{LEDGER.quotedReadOnlyWhy}</p>
       </section>
 
       <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>재원 구성</h3>
-        <p className={styles.note}>
-          국가 과제에서만 씁니다. 비워 두면 재원 구성을 쓰지 않는 딜로 봅니다.
-        </p>
+        <h3 className={styles.sectionTitle}>{LEDGER.fundingSection}</h3>
+        <p className={styles.note}>{LEDGER.fundingWhy}</p>
         {FUNDING_ROWS.map((r) => (
           <div key={r.type} className={styles.formRow}>
-            <label className="label" htmlFor={`amt-${r.type}`}>{r.label}</label>
+            <label className="label" htmlFor={`amt-${r.type}`}>{FUNDING_LABEL[r.type]}</label>
             <input
               id={`amt-${r.type}`}
               className="input-field"
@@ -240,8 +239,8 @@ export default function LedgerEditModal({
             {r.agency && (
               <input
                 className="input-field"
-                placeholder="부처·지자체"
-                aria-label={`${r.label} 부처·지자체`}
+                placeholder={FUNDING_AGENCY_HINT}
+                aria-label={`${FUNDING_LABEL[r.type]} ${FUNDING_AGENCY_HINT}`}
                 value={agencies[r.type] ?? ''}
                 onChange={(e) => setAgencies((m) => ({ ...m, [r.type]: e.target.value }))}
               />
@@ -251,14 +250,11 @@ export default function LedgerEditModal({
       </section>
 
       <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>현물 명세</h3>
-        <p className={styles.note}>
-          숫자 한 칸으로 두면 다음 달에 그 금액이 무엇이었는지 아무도 모릅니다.
-          정산 서류에 그대로 쓰이는 환산 근거를 함께 적어 주세요.
-        </p>
+        <h3 className={styles.sectionTitle}>{LEDGER.inKindSection}</h3>
+        <p className={styles.note}>{LEDGER.inKindWhy}</p>
 
         {rows.length === 0 ? (
-          <EmptyState title="현물이 아직 없어요" description="아래에서 한 줄씩 더하면 여기에 쌓입니다." />
+          <EmptyState title={emptyInKind} description={LEDGER.inKindEmptyHint} />
         ) : (
           <div className={styles.rows}>
             {rows.map((k) => (
@@ -284,24 +280,24 @@ export default function LedgerEditModal({
         <div className={styles.formRow}>
           <select
             className="input-field"
-            aria-label="현물 종류"
+            aria-label={`${FUNDING_LABEL.IN_KIND} 종류`}
             value={draft.kind}
             onChange={(e) => setDraft((d) => ({ ...d, kind: e.target.value }))}
           >
-            {IN_KIND_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+            {IN_KIND_KINDS.map((k) => <option key={k} value={k}>{IN_KIND_LABEL[k]}</option>)}
           </select>
           <input
             className="input-field"
-            placeholder="이름 (예: 연구원 3명)"
-            aria-label="현물 이름"
+            placeholder={LEDGER.inKindNamePlaceholder}
+            aria-label={LEDGER.inKindName}
             value={draft.name}
             onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
           />
           <input
             className="input-field"
             inputMode="numeric"
-            placeholder="평가액"
-            aria-label="현물 평가액"
+            placeholder={LEDGER.inKindValue}
+            aria-label={LEDGER.inKindValue}
             value={draft.value}
             onChange={(e) => setDraft((d) => ({ ...d, value: fmt(toMinor(e.target.value)) }))}
           />
@@ -309,23 +305,23 @@ export default function LedgerEditModal({
         <div className={styles.formRow}>
           <input
             className="input-field"
-            placeholder="환산 근거 (예: 연봉 × 참여율 × 기간)"
-            aria-label="환산 근거"
+            placeholder={basisPlaceholder(draft.kind as InKindKindKey)}
+            aria-label={LEDGER.inKindBasis}
             value={draft.basisNote}
             onChange={(e) => setDraft((d) => ({ ...d, basisNote: e.target.value }))}
           />
           <input
-            className="input-field" type="date" aria-label="현물 시작일"
+            className="input-field" type="date" aria-label={LEDGER.startDate}
             value={draft.startDate}
             onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))}
           />
           <input
-            className="input-field" type="date" aria-label="현물 종료일"
+            className="input-field" type="date" aria-label={LEDGER.endDate}
             value={draft.endDate}
             onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
           />
           <NbButton variant="ghost" disabled={busy === 'add'} onClick={() => void addRow()}>
-            {busy === 'add' ? progress('추가') : <><Plus size={16} /> 현물 추가</>}
+            {busy === 'add' ? progress(ACTION.create) : <><Plus size={16} /> {addInKindLabel}</>}
           </NbButton>
         </div>
       </section>

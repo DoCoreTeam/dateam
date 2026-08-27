@@ -19,11 +19,13 @@ import { ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import Sensitive from '@/components/crm/Sensitive'
-import { failedTo } from '@/lib/terms'
-import { formatMinor } from '@/lib/crm/domain/money'
+import {
+  ACTION, LEDGER, FUNDING_LABEL, IN_KIND_LOCKED,
+  failedTo, inKindShare, taxBasisNote, undatedInKindNote, yearLabel, monthsLabel,
+} from '@/lib/terms'
+import { formatAmount } from '../amount'
 import NbButton from '@/components/ui/nb/NbButton'
 import LedgerEditModal, { type LedgerEditRow, type LedgerEditFunding } from './LedgerEditModal'
-import { ACTION } from '@/lib/terms'
 import { readApiError } from '@/lib/crm/api/read-error'
 import styles from './ledger.module.css'
 
@@ -62,15 +64,14 @@ interface LedgerJson {
   inKindCount: number
   inKindByYear: YearRowJson[]
   inKindUndatedMinor: string
+  currency: string | null
   /** 서버가 판정한다 — 화면이 역할로 다시 판정하면 답이 갈린다 */
   canEdit: boolean
   budgetMinor: string | null
   contractMinor: string | null
 }
 
-function won(minor: string): string {
-  return `${formatMinor(BigInt(minor))}원`
-}
+
 
 export default function LedgerPanel({ dealId }: { dealId: string }) {
   const [data, setData] = useState<LedgerJson | null>(null)
@@ -106,26 +107,30 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
   if (error) return <ErrorState message={error} onRetry={() => { void load() }} />
   if (!data) return null
 
+  /**
+   * 금액 표기는 **딜 통화를 따라간다.**
+   * 「원」을 박아 넣으면 USD 딜에서 「120,000,000원」이라고 말한다(실브라우저에서 잡았다).
+   * 표시 변환은 보드·표와 같은 SSOT 를 쓴다(§2 «표시 로직도 SSOT»).
+   */
+  const money = (minor: string): string => formatAmount(minor, data.currency) ?? '—'
+
   const hasFunding = data.funding.length > 0
 
   return (
     <div>
       <div className={styles.head}>
         <div className={styles.primary}>
-          <span className={styles.label}>수주 매출</span>
-          <span className={styles.amount}><Sensitive>{won(data.bookedMinor)}</Sensitive></span>
+          <span className={styles.label}>{LEDGER.booked}</span>
+          <span className={styles.amount}><Sensitive>{money(data.bookedMinor)}</Sensitive></span>
           <span className={styles.source}>{data.bookedFromLabel} 기준</span>
         </div>
 
         {/* 현물이 없으면 이 줄 자체를 그리지 않는다 — 대부분의 딜에 현물은 없다 */}
         {data.hasInKind && (
           <div className={`${styles.primary} ${styles.secondary}`}>
-            <span className={styles.label}>현물 제외</span>
-            <span className={styles.amount}><Sensitive>{won(data.exInKindMinor)}</Sensitive></span>
-            <span className={styles.source}>
-              현물 {won(data.inKindMinor)}
-              {data.inKindRatioPct !== null && ` · 사업비의 ${data.inKindRatioPct}%`}
-            </span>
+            <span className={styles.label}>{LEDGER.exInKind}</span>
+            <span className={styles.amount}><Sensitive>{money(data.exInKindMinor)}</Sensitive></span>
+            <span className={styles.source}>{inKindShare(money(data.inKindMinor), data.inKindRatioPct)}</span>
           </div>
         )}
       </div>
@@ -138,7 +143,7 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          {open ? '접기' : '자세히'}
+          {open ? LEDGER.collapse : LEDGER.expand}
         </button>
         {data.canEdit && (
           <NbButton variant="ghost" onClick={() => setEditing(true)}>
@@ -150,47 +155,44 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
       {open && (
         <div className={styles.detail}>
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>부가세</h3>
+            <h3 className={styles.sectionTitle}>{LEDGER.tax}</h3>
             <div className={styles.rows}>
               <div className={styles.row}>
-                <span className={styles.rowLabel}>공급가액</span>
-                <span className={styles.rowValue}><Sensitive>{won(data.netMinor)}</Sensitive></span>
+                <span className={styles.rowLabel}>{LEDGER.net}</span>
+                <span className={styles.rowValue}><Sensitive>{money(data.netMinor)}</Sensitive></span>
               </div>
               <div className={styles.row}>
-                <span className={styles.rowLabel}>부가세</span>
-                <span className={styles.rowValue}><Sensitive>{won(data.taxMinor)}</Sensitive></span>
+                <span className={styles.rowLabel}>{LEDGER.tax}</span>
+                <span className={styles.rowValue}><Sensitive>{money(data.taxMinor)}</Sensitive></span>
               </div>
               <div className={styles.row}>
-                <span className={styles.rowLabel}>합계</span>
-                <span className={styles.rowValue}><Sensitive>{won(data.grossMinor)}</Sensitive></span>
+                <span className={styles.rowLabel}>{LEDGER.gross}</span>
+                <span className={styles.rowValue}><Sensitive>{money(data.grossMinor)}</Sensitive></span>
               </div>
             </div>
-            <p className={styles.note}>
-              {data.taxBasis === 'GROSS'
-                ? '수주 매출이 부가세 포함 금액입니다. 공급가액과 세액은 여기서 나눠 계산했습니다.'
-                : '수주 매출이 공급가액입니다. 세액은 여기서 더해 계산했습니다.'}
-            </p>
+            <p className={styles.note}>{taxBasisNote(data.taxBasis)}</p>
           </section>
 
           {hasFunding && (
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>재원 구성</h3>
+              <h3 className={styles.sectionTitle}>{LEDGER.fundingSection}</h3>
               <div className={styles.rows}>
                 {data.funding.map((f) => (
                   <div key={f.id} className={styles.row}>
                     <span className={styles.rowLabel}>
                       <span className={styles.rowName}>{f.label}</span>
                       {f.agencyName && <span className={styles.basis}>{f.agencyName}</span>}
-                      {f.needsSeparateAccount && <span className={styles.basis}>별도 계좌</span>}
+                      {f.needsSeparateAccount && <span className={styles.basis}>{LEDGER.separateAccount}</span>}
                     </span>
-                    <span className={styles.rowValue}><Sensitive>{won(f.amountMinor)}</Sensitive></span>
+                    <span className={styles.rowValue}><Sensitive>{money(f.amountMinor)}</Sensitive></span>
                   </div>
                 ))}
               </div>
               {data.accountingRevenueMinor !== null && (
                 <p className={styles.note}>
-                  회계 수익 인식 <Sensitive>{won(data.accountingRevenueMinor)}</Sensitive> (국비 + 지방비)
-                  {data.cashInflowMinor !== null && <> · 현금 유입 <Sensitive>{won(data.cashInflowMinor)}</Sensitive></>}
+                  {LEDGER.accountingRevenue} <Sensitive>{money(data.accountingRevenueMinor)}</Sensitive>
+                  {` (${FUNDING_LABEL.NATIONAL} + ${FUNDING_LABEL.LOCAL})`}
+                  {data.cashInflowMinor !== null && <> · {LEDGER.cashInflow} <Sensitive>{money(data.cashInflowMinor)}</Sensitive></>}
                 </p>
               )}
             </section>
@@ -198,11 +200,9 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
 
           {data.hasInKind && (
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>현물 명세</h3>
+              <h3 className={styles.sectionTitle}>{LEDGER.inKindSection}</h3>
               {data.inKind === null ? (
-                <p className={styles.locked}>
-                  현물 명세는 관리자만 볼 수 있습니다. 합계는 위에 있습니다.
-                </p>
+                <p className={styles.locked}>{IN_KIND_LOCKED}</p>
               ) : (
                 <div className={styles.rows}>
                   {data.inKind.map((k) => (
@@ -211,7 +211,7 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
                         <span className={styles.rowName}>{k.name}</span>
                         <span className={styles.basis}>{k.kindLabel}{k.basisNote ? ` · ${k.basisNote}` : ''}</span>
                       </span>
-                      <span className={styles.rowValue}><Sensitive>{won(k.valueMinor)}</Sensitive></span>
+                      <span className={styles.rowValue}><Sensitive>{money(k.valueMinor)}</Sensitive></span>
                     </div>
                   ))}
                 </div>
@@ -219,24 +219,22 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
             </section>
           )}
 
-          {data.inKindByYear.length > 0 && (
+          {(data.inKindByYear.length > 0 || BigInt(data.inKindUndatedMinor) > BigInt(0)) && (
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>현물 연차 배분</h3>
+              <h3 className={styles.sectionTitle}>{LEDGER.inKindByYear}</h3>
               <div className={styles.rows}>
                 {data.inKindByYear.map((y) => (
                   <div key={y.year} className={styles.row}>
                     <span className={styles.rowLabel}>
-                      <span className={styles.rowName}>{y.year}년</span>
-                      <span className={styles.basis}>{y.months}개월</span>
+                      <span className={styles.rowName}>{yearLabel(y.year)}</span>
+                      <span className={styles.basis}>{monthsLabel(y.months)}</span>
                     </span>
-                    <span className={styles.rowValue}><Sensitive>{won(y.amountMinor)}</Sensitive></span>
+                    <span className={styles.rowValue}><Sensitive>{money(y.amountMinor)}</Sensitive></span>
                   </div>
                 ))}
               </div>
               {BigInt(data.inKindUndatedMinor) > BigInt(0) && (
-                <p className={styles.note}>
-                  기간을 정하지 않은 현물 <Sensitive>{won(data.inKindUndatedMinor)}</Sensitive>은 연차에 배분하지 않았습니다.
-                </p>
+                <p className={styles.note}>{undatedInKindNote(money(data.inKindUndatedMinor))}</p>
               )}
             </section>
           )}

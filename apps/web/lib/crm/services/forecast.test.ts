@@ -163,3 +163,69 @@ test('★ 리포트 화면이 실제로 포캐스트를 부른다 — 계산만 
   assert.ok(ui.includes('얼마나 들어올까'), '화면이 그리지 않는다')
   assert.ok(ui.includes('unknownTotal'), '못 센 금액을 화면이 숨긴다')
 })
+
+test('★ 실적이 먼저다 — 설정 확률이 실적을 이기면 「우리가 겪은 것」이라는 원칙이 무너진다', () => {
+  const stages: StageDef[] = [
+    { id: 's1', name: '리드', position: 1, kind: 'OPEN', winProbabilityPct: 10 },
+    { id: 'won', name: '수주', position: 2, kind: 'WON' },
+    { id: 'lost', name: '실패', position: 3, kind: 'LOST' },
+  ]
+  // 끝난 딜 5건 중 3건 성사 → 실적 60%
+  const deals: DealRow[] = [
+    { id: 'o1', stageId: 's1', status: 'OPEN', amountMinor: '100000000', currency: 'KRW' },
+    ...['w1', 'w2', 'w3'].map((id) => ({ id, stageId: 'won', status: 'WON', amountMinor: '1', currency: 'KRW' })),
+    ...['l1', 'l2'].map((id) => ({ id, stageId: 'lost', status: 'LOST', amountMinor: '1', currency: 'KRW' })),
+  ]
+  const visits: VisitRow[] = ['w1', 'w2', 'w3', 'l1', 'l2', 'o1'].map((dealId) => ({ dealId, stageId: 's1' }))
+
+  const f = buildForecast({ id: 'p', name: 'P' }, stages, deals, visits)
+  const lead = f.stages.find((r) => r.stageId === 's1')!
+  assert.equal(lead.rateSource, 'history', '설정값 10%가 아니라 실적을 써야 한다')
+  assert.equal(lead.winRate, 0.6)
+})
+
+test('실적이 없으면 설정 확률로 떨어지되 **출처를 밝힌다** — 새 워크스페이스도 예측을 본다', () => {
+  const stages: StageDef[] = [
+    { id: 's1', name: '리드', position: 1, kind: 'OPEN', winProbabilityPct: 10 },
+    { id: 'won', name: '수주', position: 2, kind: 'WON' },
+  ]
+  const deals: DealRow[] = [{ id: 'o1', stageId: 's1', status: 'OPEN', amountMinor: '100000000', currency: 'KRW' }]
+  const f = buildForecast({ id: 'p', name: 'P' }, stages, deals, [{ dealId: 'o1', stageId: 's1' }])
+  const lead = f.stages.find((r) => r.stageId === 's1')!
+  assert.equal(lead.rateSource, 'stage')
+  assert.equal(lead.winRate, 0.1)
+  assert.equal(lead.weighted[0].totalMinor, '10000000', '1억 × 10% = 1천만')
+  assert.match(f.summary, /설정 확률/, '요약이 출처를 밝혀야 한다')
+  assert.equal(f.summary.includes('**'), false, '화면은 마크다운을 별표로 그대로 보여 준다')
+})
+
+test('설정 확률도 없으면 여전히 「모른다」 — 없는 숫자를 지어내지 않는다', () => {
+  const stages: StageDef[] = [
+    { id: 's1', name: '리드', position: 1, kind: 'OPEN' },
+    { id: 'won', name: '수주', position: 2, kind: 'WON' },
+  ]
+  const deals: DealRow[] = [{ id: 'o1', stageId: 's1', status: 'OPEN', amountMinor: '100000000', currency: 'KRW' }]
+  const f = buildForecast({ id: 'p', name: 'P' }, stages, deals, [{ dealId: 'o1', stageId: 's1' }])
+  const lead = f.stages.find((r) => r.stageId === 's1')!
+  assert.equal(lead.rateSource, null)
+  assert.equal(lead.winRate, null)
+  assert.equal(f.unknownTotal.length, 1, '못 센 금액은 숨기지 않는다')
+})
+
+test('범위 밖 설정값은 없는 것으로 본다 — 잘못 저장된 값이 예상 매출을 부풀리면 안 된다', () => {
+  const mk = (pct: number) => {
+    const stages: StageDef[] = [
+      { id: 's1', name: '리드', position: 1, kind: 'OPEN', winProbabilityPct: pct },
+      { id: 'won', name: '수주', position: 2, kind: 'WON' },
+    ]
+    const deals: DealRow[] = [{ id: 'o1', stageId: 's1', status: 'OPEN', amountMinor: '100', currency: 'KRW' }]
+    return buildForecast({ id: 'p', name: 'P' }, stages, deals, [{ dealId: 'o1', stageId: 's1' }])
+  }
+  assert.equal(mk(150).stages[0].winRate, null)
+  assert.equal(mk(-10).stages[0].winRate, null)
+  assert.equal(mk(100).stages[0].winRate, 1, '100%는 정상값이다')
+})
+
+test('★ 데이터 로딩이 그 칸을 실제로 싣는다 — 안 실으면 위 규칙이 전부 헛돈다', () => {
+  assert.match(SRC, /winProbabilityPct:\s*true/, 'select 에 없으면 언제나 undefined 다')
+})

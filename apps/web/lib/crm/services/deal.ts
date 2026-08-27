@@ -27,6 +27,9 @@ import {
   type CursorInput, type CursorPage,
 } from '../db/cursor.ts'
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
+import { pickBooked } from '../domain/booked-amount.ts'
+import { monthSpan } from '../domain/allocation.ts'
+import { BUSINESS_TYPE_ORDER, TERM_TYPE_ORDER } from '../../terms/ledger.ts'
 import {
   parseCriteria, evaluateCriteria, blockingMessage,
   type CriteriaVerdict,
@@ -47,6 +50,14 @@ export interface DealRow {
   ownerId: string | null
   version: number
   updatedAt: Date
+  /** 장부의 세 금액 — 「금액」은 이 셋에서 파생한다 */
+  budgetNetMinor?: bigint | null
+  quotedNetMinor?: bigint | null
+  contractNetMinor?: bigint | null
+  businessType?: string | null
+  termType?: string | null
+  startDate?: Date | null
+  endDate?: Date | null
   /** 단계 이동에서만 채워진다 — 막지는 않았지만 사람이 알아야 하는 것 */
   entryWarnings?: { key: string; message: string }[]
 }
@@ -55,7 +66,31 @@ const SELECT = {
   id: true, companyId: true, pipelineId: true, stageId: true, name: true, status: true,
   amountMinor: true, currency: true, expectedCloseDate: true, wonAt: true, lostReason: true,
   ownerId: true, version: true, updatedAt: true,
+  // 장부의 세 금액 — 화면이 보는 「금액」은 이 셋에서 나온다(아래 withBooked)
+  budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
+  businessType: true, termType: true, startDate: true, endDate: true,
 } as const
+
+/**
+ * 화면이 보는 「금액」을 **수주 매출로 통일한다.**
+ *
+ * **왜**: 딜 금액이 보이는 자리가 일곱이다(속성·보드·표·리포트·예측·검색·알림).
+ * 전부 `amountMinor` 를 보는데 그 칸은 이관 중이라, 새 3금액만 채운 딜은
+ * 보드에서 금액이 통째로 사라지고 상세에서는 「금액 —」과 「수주 매출 20억」이
+ * **같은 화면에서 서로를 반박한다**(실브라우저에서 잡았다).
+ *
+ * 읽기에서 한 번 파생하면 일곱 자리가 한꺼번에 맞는다.
+ * 쓰기는 건드리지 않는다 — 이관이 끝나면 이 함수만 지우면 된다.
+ */
+function withBooked<T extends {
+  amountMinor?: bigint | null
+  budgetNetMinor?: bigint | null
+  quotedNetMinor?: bigint | null
+  contractNetMinor?: bigint | null
+}>(row: T): T {
+  const picked = pickBooked(row)
+  return picked.from === 'none' ? row : { ...row, amountMinor: picked.minor }
+}
 
 export interface DealInput {
   companyId: string
@@ -66,6 +101,12 @@ export interface DealInput {
   currency?: string | null
   expectedCloseDate?: string | null
   ownerId?: string | null
+  /** 무엇을 파는 일인가 — 유형마다 원가 구조도 계약 형태도 다르다 */
+  businessType?: string | null
+  /** 사업 기간 — 장기를 고르면 연차 구분이 열린다 */
+  termType?: string | null
+  startDate?: string | null
+  endDate?: string | null
 }
 
 /**
@@ -81,6 +122,15 @@ function toAmountMinor(v: string | number | null | undefined): bigint | null {
   } catch {
     throw new CrmError('VALIDATION_FAILED', '금액은 0 이상의 정수여야 합니다.', { field: 'amountMinor' })
   }
+}
+
+/** 목록 밖 값은 거부한다 — 빈 값은 «안 정했다»는 뜻이라 허용한다 */
+function pickEnum<T extends string>(
+  v: string | null | undefined, allowed: readonly T[], label: string,
+): T | null {
+  if (v === null || v === undefined || v === '') return null
+  if ((allowed as readonly string[]).includes(v)) return v as T
+  throw new CrmError('VALIDATION_FAILED', `${label}을 목록에서 골라 주세요.`)
 }
 
 function normalizeInput(input: Partial<DealInput>, requireName: boolean): Record<string, unknown> {
@@ -99,6 +149,27 @@ function normalizeInput(input: Partial<DealInput>, requireName: boolean): Record
     out.expectedCloseDate = input.expectedCloseDate ? new Date(input.expectedCloseDate) : null
   }
   if (input.ownerId !== undefined) out.ownerId = input.ownerId || null
+
+  // 목록에 없는 값은 조용히 받지 않는다 — 오타가 유형이 되면 집계가 통째로 흐려진다
+  if (input.businessType !== undefined) {
+    out.businessType = pickEnum(input.businessType, BUSINESS_TYPE_ORDER, '사업 유형')
+  }
+  if (input.termType !== undefined) {
+    out.termType = pickEnum(input.termType, TERM_TYPE_ORDER, '사업 기간')
+  }
+  if (input.startDate !== undefined) out.startDate = input.startDate ? new Date(input.startDate) : null
+  if (input.endDate !== undefined) out.endDate = input.endDate ? new Date(input.endDate) : null
+
+  const s = out.startDate as Date | null | undefined
+  const e = out.endDate as Date | null | undefined
+  if (s && e && e.getTime() < s.getTime()) {
+    throw new CrmError('VALIDATION_FAILED', '종료일이 시작일보다 앞섭니다.', { field: 'endDate' })
+  }
+
+  // 기간이 둘 다 있으면 개월 수는 **계산이다** — 손으로 넣지 않는다
+  if (s && e) out.termMonths = monthSpan(s, e)
+  else if (input.startDate !== undefined || input.endDate !== undefined) out.termMonths = null
+
   return out
 }
 
@@ -514,8 +585,27 @@ function serialize(row: Record<string, unknown> | null): Record<string, unknown>
 }
 
 /** 화면으로 나갈 때도 BigInt 를 문자열로 (JSON.stringify 가 던진다) */
+/**
+ * 화면으로 나가는 모양.
+ *
+ * **여기가 유일한 JSON 경계다** — 목록·상세·생성·수정이 전부 이걸 거친다.
+ * 그래서 「금액」 파생도 여기 한 곳에서 한다(withBooked).
+ */
 export function toDealJson(row: DealRow): Record<string, unknown> {
-  return { ...row, amountMinor: row.amountMinor === null ? null : row.amountMinor.toString() }
+  const r = withBooked(row)
+  return {
+    ...r,
+    amountMinor: r.amountMinor === null || r.amountMinor === undefined ? null : r.amountMinor.toString(),
+    budgetNetMinor: bigOrNull(r.budgetNetMinor),
+    quotedNetMinor: bigOrNull(r.quotedNetMinor),
+    contractNetMinor: bigOrNull(r.contractNetMinor),
+    /** 「금액」이 어느 칸에서 왔나 — 화면이 근거를 밝힐 수 있게 */
+    bookedFrom: pickBooked(r).from,
+  }
+}
+
+function bigOrNull(v: bigint | null | undefined): string | null {
+  return v === null || v === undefined ? null : v.toString()
 }
 
 export interface StageHistoryRow {

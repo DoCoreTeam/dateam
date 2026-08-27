@@ -17,6 +17,7 @@
 // 그러면 같은 화면에서 "근거 있음"과 "근거 없음"이 동시에 뜬다.
 
 import { MIN_SAMPLE } from './velocity.ts'
+import { pickBooked } from '../domain/booked-amount.ts'
 
 /** 통화별 금액 — 섞어서 더하지 않는다(리포트와 같은 규칙) */
 export interface CurrencySum {
@@ -37,6 +38,8 @@ export interface StageForecast {
    * null 이면 이 단계는 예상 매출에 넣지 않는다 — 모르는 것을 0.5 로 치면 안 된다.
    */
   winRate: number | null
+  /** 이 확률이 어디서 왔나 — 화면이 «실적»과 «설정»을 구분해 말해야 한다 */
+  rateSource: 'history' | 'stage' | null
   /** 확률을 판단한 근거 건수 — 사람이 믿을지 말지 정할 재료 */
   sample: number
   /** 확률을 곱한 금액. winRate 가 null 이면 빈 배열 */
@@ -117,6 +120,14 @@ export interface StageDef {
   name: string
   position: number
   kind: string
+  /**
+   * 관리자가 정한 성사 확률(%). **실적이 없을 때만 쓴다.**
+   *
+   * 이걸 실적보다 먼저 쓰면 위 원칙이 무너진다 — 설정값은 «우리가 겪은 것»이 아니다.
+   * 다만 딜이 없는 새 워크스페이스에서 예상 매출이 통째로 «모른다»가 되면
+   * 리더는 그 화면을 다시 안 연다. 그래서 **폴백으로만** 두고 출처를 밝힌다.
+   */
+  winProbabilityPct?: number | null
 }
 
 /**
@@ -156,6 +167,19 @@ export function winRates(
   return out
 }
 
+/**
+ * 설정 확률을 비율로 바꾼다.
+ *
+ * 범위 밖·비정상 값은 **없는 것으로 본다** — 잘못 저장된 값이 예상 매출을
+ * 조용히 부풀리는 것보다 «모른다»가 낫다.
+ */
+function stageRate(pct: number | null | undefined): number | null {
+  if (pct === null || pct === undefined) return null
+  const n = Number(pct)
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null
+  return n / 100
+}
+
 export function buildForecast(
   pipeline: { id: string; name: string },
   stages: StageDef[],
@@ -175,15 +199,22 @@ export function buildForecast(
     const pipelineSum = sumByCurrency(here)
     const r = rates.get(s.id) ?? { rate: null, sample: 0 }
 
+    // 실적이 먼저다. 없을 때만 관리자가 정한 값으로 떨어지고, 그 사실을 남긴다
+    const configured = stageRate(s.winProbabilityPct)
+    const rate = r.rate ?? configured
+    const rateSource: 'history' | 'stage' | null =
+      r.rate !== null ? 'history' : configured !== null ? 'stage' : null
+
     rows.push({
       stageId: s.id,
       stageName: s.name,
       position: s.position,
       openCount: here.length,
       pipeline: pipelineSum,
-      winRate: r.rate,
+      winRate: rate,
+      rateSource,
       sample: r.sample,
-      weighted: r.rate === null ? [] : weigh(pipelineSum, r.rate),
+      weighted: rate === null ? [] : weigh(pipelineSum, rate),
     })
   }
 
@@ -208,6 +239,8 @@ export function forecastSummary(
   unknownTotal: CurrencySum[],
 ): string {
   const known = rows.filter((r) => r.winRate !== null).length
+  const fromStage = rows.filter((r) => r.rateSource === 'stage').length
+  const fromHistory = rows.filter((r) => r.rateSource === 'history').length
 
   if (known === 0) {
     const why = rows.some((r) => r.sample > 0)
@@ -216,8 +249,15 @@ export function forecastSummary(
     return `예상 매출을 아직 낼 수 없습니다. ${why}`
   }
 
-  const head = weightedTotal.length > 0
+  // 어디서 온 확률인지 밝힌다 — 실적과 설정을 같은 말로 부르면 근거가 흐려진다
+  const basis = fromStage === 0
     ? `단계 ${known}곳의 성사율로 계산한 예상 매출입니다.`
+    : fromHistory === 0
+      ? `단계 ${known}곳의 설정 확률로 계산한 예상 매출입니다. 딜이 쌓이면 실제 성사율로 바뀝니다.`
+      : `단계 ${known}곳으로 계산한 예상 매출입니다. ${fromHistory}곳은 실제 성사율, ${fromStage}곳은 설정 확률입니다.`
+
+  const head = weightedTotal.length > 0
+    ? basis
     : '성사율은 냈지만 금액이 걸려 있지 않습니다.'
 
   return unknownTotal.length > 0
@@ -234,17 +274,35 @@ export async function buildForecasts(
     where: pipelineId ? { id: pipelineId } : {},
     select: {
       id: true, name: true,
-      stages: { select: { id: true, name: true, position: true, kind: true }, orderBy: { position: 'asc' } },
+      stages: {
+        select: { id: true, name: true, position: true, kind: true, winProbabilityPct: true },
+        orderBy: { position: 'asc' },
+      },
     },
     orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
   }) as { id: string; name: string; stages: StageDef[] }[]
 
   const out: Forecast[] = []
   for (const p of pipelines) {
-    const deals = await db.crmDeal.findMany({
+    const raw = await db.crmDeal.findMany({
       where: { pipelineId: p.id },
-      select: { id: true, stageId: true, status: true, amountMinor: true, currency: true },
+      select: {
+        id: true, stageId: true, status: true, amountMinor: true, currency: true,
+        // 「금액」은 이 셋에서 나온다 — 안 실으면 새 3금액만 채운 딜이 전부 「금액 미정」이 된다
+        budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
+      },
     }) as DealRow[]
+
+    /**
+     * 「금액」을 **수주 매출로 통일한다.**
+     * 딜 API 는 `toDealJson` 에서 파생하는데 리포트·예측은 DB 를 직접 읽는다 —
+     * 안 하면 새 3금액만 채운 딜이 전부 「금액 미정」이 되어
+     * 화면이 「9건은 금액 미정이라 합계에서 빠졌어요」라고 **거짓말한다**(실브라우저에서 잡았다).
+     */
+    const deals = raw.map((d) => {
+      const picked = pickBooked(d)
+      return picked.from === 'none' ? d : { ...d, amountMinor: picked.minor }
+    })
 
     /**
      * 어느 딜이 어느 단계를 거쳤나.

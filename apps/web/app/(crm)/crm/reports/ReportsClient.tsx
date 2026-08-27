@@ -39,6 +39,8 @@ interface StageForecast {
   pipeline: CurrencySum[]
   winRate: number | null
   sample: number
+  /** 이 확률이 어디서 왔나 — 실적과 설정을 같은 말로 부르면 근거가 흐려진다 */
+  rateSource?: 'history' | 'stage' | null
   weighted: CurrencySum[]
 }
 interface Forecast {
@@ -223,7 +225,7 @@ export default function ReportsClient() {
                           <span className={styles.note}>가장 오래 {d.maxDays}일 · 표본 {d.samples}건</span>
                         </>
                       )}
-                      {d.standing > 0 && <span className={styles.note}>지금 {d.standing}건 서 있음</span>}
+                      {d.standing > 0 && <span className={styles.stageNow}>지금 {d.standing}건 서 있음</span>}
                     </li>
                   ))}
                 </ul>
@@ -270,12 +272,16 @@ export default function ReportsClient() {
                         <>
                           <span className={styles.stageCount}>성사율 {Math.round(d.winRate * 100)}%</span>
                           <span className={styles.note}>
-                            표본 {d.sample}건
+                            {/*
+                              어디서 온 확률인지 밝힌다 — 「표본 0건」만 보이면
+                              사람은 그 숫자가 실적인 줄 알고 채용을 결정한다.
+                            */}
+                            {d.rateSource === 'stage' ? '관리자가 정한 값' : `실제 성사율 · 표본 ${d.sample}건`}
                             {d.weighted.length > 0 && ` · 예상 ${mask(d.weighted.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · '))}`}
                           </span>
                         </>
                       )}
-                      {d.openCount > 0 && <span className={styles.note}>지금 {d.openCount}건</span>}
+                      {d.openCount > 0 && <span className={styles.stageNow}>지금 {d.openCount}건</span>}
                     </li>
                   ))}
                 </ul>

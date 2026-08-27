@@ -16,6 +16,15 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import type { BoardPipeline } from './DealBoard'
+import {
+  BUSINESS_TYPE_LABEL, BUSINESS_TYPE_ORDER, BUSINESS_TYPE_LABEL_TEXT,
+  TERM_TYPE_LABEL, TERM_TYPE_ORDER, TERM_TYPE_LABEL_TEXT,
+} from '@/lib/terms'
+
+/** 안 고른 상태 — 「없음」이 아니다. 아직 정하지 않았다는 뜻이다 */
+const NOT_SET = '아직 안 정함'
+const TERM_START = '사업 시작일'
+const TERM_END = '사업 종료일'
 
 export interface DealDraft {
   id?: string
@@ -28,6 +37,10 @@ export interface DealDraft {
   amountMinor?: string | null
   currency?: string | null
   expectedCloseDate?: string | null
+  businessType?: string | null
+  termType?: string | null
+  startDate?: string | null
+  endDate?: string | null
   version?: number
 }
 
@@ -52,6 +65,10 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
   const [amount, setAmount] = useState(initial?.amountMinor ?? '')
   const [currency, setCurrency] = useState(initial?.currency ?? 'KRW')
   const [expectedCloseDate, setExpectedCloseDate] = useState(initial?.expectedCloseDate ?? '')
+  const [businessType, setBusinessType] = useState(initial?.businessType ?? '')
+  const [termType, setTermType] = useState(initial?.termType ?? '')
+  const [startDate, setStartDate] = useState(initial?.startDate ?? '')
+  const [endDate, setEndDate] = useState(initial?.endDate ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -114,6 +131,10 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
         amountMinor: amount ? String(amount) : null,
         currency: amount ? currency : null,
         expectedCloseDate: expectedCloseDate || null,
+        businessType: businessType || null,
+        termType: termType || null,
+        startDate: startDate || null,
+        endDate: endDate || null,
       }
       if (editing) payload.version = initial?.version
 
@@ -221,6 +242,51 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
             </select>
           </div>
         </div>
+
+        {/*
+          사업 유형 — 유형마다 원가 구조도 계약 형태도 다르다.
+          안 적어 두면 나중에 「어떤 사업이 남는 장사였나」에 답할 수 없다.
+        */}
+        <div className="responsive-grid-cols-2">
+          <div>
+            <label className="label" htmlFor="crm-deal-biz">{BUSINESS_TYPE_LABEL_TEXT}</label>
+            <select
+              id="crm-deal-biz" className="input-field"
+              value={businessType ?? ''} onChange={(e) => setBusinessType(e.target.value)}
+            >
+              <option value="">{NOT_SET}</option>
+              {BUSINESS_TYPE_ORDER.map((k) => (
+                <option key={k} value={k}>{BUSINESS_TYPE_LABEL[k]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="crm-deal-term">{TERM_TYPE_LABEL_TEXT}</label>
+            <select
+              id="crm-deal-term" className="input-field"
+              value={termType ?? ''} onChange={(e) => setTermType(e.target.value)}
+            >
+              <option value="">{NOT_SET}</option>
+              {TERM_TYPE_ORDER.map((k) => (
+                <option key={k} value={k}>{TERM_TYPE_LABEL[k]}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* 장기를 고를 때만 연차가 뜻이 있다 — 단기·중기에 기간 칸을 띄우면 안 채우는 칸이 는다 */}
+        {termType === 'LONG' && (
+          <div className="responsive-grid-cols-2">
+            <div>
+              <label className="label" htmlFor="crm-deal-start">{TERM_START}</label>
+              <DateField id="crm-deal-start" value={startDate ?? ''} onValueChange={setStartDate} />
+            </div>
+            <div>
+              <label className="label" htmlFor="crm-deal-end">{TERM_END}</label>
+              <DateField id="crm-deal-end" value={endDate ?? ''} onValueChange={setEndDate} />
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="label" htmlFor="crm-deal-close">예상 마감일</label>

@@ -25,7 +25,10 @@ import DealContacts from './DealContacts'
 import LedgerPanel from './LedgerPanel'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { formatKstDateTimeShort, kstDateKey } from '@/lib/datetime/kst'
-import { formatAmount } from '../amount'
+import {
+  BUSINESS_TYPE_LABEL, BUSINESS_TYPE_LABEL_TEXT, TERM_TYPE_LABEL, TERM_TYPE_LABEL_TEXT,
+  type BusinessTypeKey, type TermTypeKey,
+} from '@/lib/terms'
 import type { BoardPipeline } from '../DealBoard'
 import DealFormModal from '../DealFormModal'
 import DeleteRecordModal from '../../DeleteRecordModal'
@@ -38,6 +41,10 @@ interface Deal {
   stageId: string
   status: string
   amountMinor: string | null
+  businessType?: string | null
+  termType?: string | null
+  startDate?: string | null
+  endDate?: string | null
   currency: string | null
   expectedCloseDate: string | null
   wonAt: string | null
@@ -71,6 +78,13 @@ function formatDuration(sec: number | null): string {
   const hour = Math.floor(min / 60)
   if (hour < 24) return `${hour}시간 머무름`
   return `${Math.floor(hour / 24)}일 머무름`
+}
+
+/** 기간 표기 — 장기면 실제 기간까지 함께 보여 준다 */
+function termText(d: { termType?: string | null; startDate?: string | null; endDate?: string | null }): string {
+  const label = TERM_TYPE_LABEL[d.termType as TermTypeKey] ?? d.termType ?? ''
+  if (!d.startDate || !d.endDate) return label
+  return `${label} · ${kstDateKey(d.startDate)} ~ ${kstDateKey(d.endDate)}`
 }
 
 export default function DealDetail({ dealId }: { dealId: string }) {
@@ -159,8 +173,16 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                 </RecordField>
                 <RecordField label="파이프라인">{pipelineName}</RecordField>
                 <RecordField label="현재 단계">{stageName.get(deal.stageId) ?? null}</RecordField>
-                <RecordField label="금액">
-                  <Sensitive>{formatAmount(deal.amountMinor, deal.currency)}</Sensitive>
+                {/*
+                  「금액」은 여기서 말하지 않는다 — 바로 아래 장부가 수주 매출·현물 제외로
+                  더 정확히 답한다. 두 곳에서 말하면 언젠가 서로를 반박한다
+                  (실브라우저: 속성 「금액 —」과 장부 「20억」이 같은 화면에 떴다).
+                */}
+                <RecordField label={BUSINESS_TYPE_LABEL_TEXT}>
+                  {deal.businessType ? BUSINESS_TYPE_LABEL[deal.businessType as BusinessTypeKey] ?? deal.businessType : null}
+                </RecordField>
+                <RecordField label={TERM_TYPE_LABEL_TEXT}>
+                  {deal.termType ? termText(deal) : null}
                 </RecordField>
                 {/* 마감일·성사일은 **날짜**다 — 시각을 붙이면 "9시까지"로 읽힌다(실브라우저에서 잡음) */}
                 <RecordField label="예상 마감일">
@@ -262,6 +284,10 @@ export default function DealDetail({ dealId }: { dealId: string }) {
             pipelineId: deal.pipelineId, stageId: deal.stageId,
             amountMinor: deal.amountMinor, currency: deal.currency,
             expectedCloseDate: deal.expectedCloseDate?.slice(0, 10) ?? '',
+            businessType: deal.businessType ?? '',
+            termType: deal.termType ?? '',
+            startDate: deal.startDate?.slice(0, 10) ?? '',
+            endDate: deal.endDate?.slice(0, 10) ?? '',
             version: deal.version,
           }}
           onClose={() => setEditing(false)}
