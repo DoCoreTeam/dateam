@@ -21,7 +21,7 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { SERVICE_LABEL } from '@/lib/terms'
 import DemoSection from './DemoSection'
-import { ApiLangPicker, ApiLangProvider } from './api-lang'
+import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
 import {
   API_GROUPS, endpointsOf, REQUIRES_LABEL,
@@ -189,6 +189,7 @@ function GroupSection({ group, baseUrl, onCopy, copiedId }: {
 function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id: string) => void; copiedId: string | null; brandName: string }) {
   const origin = useOrigin()
   const base = `${origin}/api/public/v1`
+  const lang = useApiLanguage()
   return (
     <div>
       <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -247,11 +248,8 @@ function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id:
 
       <H2>페이지네이션</H2>
       <P>목록은 커서 방식입니다. 응답의 <Code>meta.nextCursor</Code>를 다음 요청의 <Code>cursor</Code>에 그대로 넣습니다.</P>
-      <CodeBlock id="pagination" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 첫 페이지 (기본 20건, 최대 100)
-curl "${base}/crm/companies?limit=50" -H "X-API-Key: $AX_API_KEY"
-
-# 다음 페이지
-curl "${base}/crm/companies?limit=50&cursor=<meta.nextCursor>" -H "X-API-Key: $AX_API_KEY"`} />
+      {/* 예시도 고른 언어를 따른다 — 언어를 물어 놓고 다른 언어를 보여 주면 물어본 뜻이 없다 */}
+      <CodeBlock id="pagination" lang={lang.hl} onCopy={onCopy} copiedId={copiedId} code={lang.paginate(base)} />
 
       <H2>요청 한도</H2>
       <P>
@@ -280,6 +278,8 @@ const ERRORS: { code: number; name: string; cause: string; fix: string }[] = [
 ]
 
 function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  const lang = useApiLanguage()
   return (
     <div>
       <PageHeader title="오류 코드" description="실패도 성공과 같은 봉투로 옵니다. error 문장은 사람이 읽을 수 있는 말입니다." />
@@ -299,13 +299,8 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
         </table>
       </div>
       <H2>다시 시도 예시</H2>
-      <CodeBlock id="retry" lang="javascript" onCopy={onCopy} copiedId={copiedId} code={`const res = await fetch(url, { headers: { 'X-API-Key': process.env.AX_API_KEY } })
-
-if (res.status === 429) {
-  const wait = Number(res.headers.get('Retry-After') ?? 60)
-  await new Promise((r) => setTimeout(r, wait * 1000))
-  return retry()
-}`} />
+      {/* 이 예시도 고른 언어를 따른다(lib/api-docs/snippets.ts 가 만든다) */}
+      <CodeBlock id="retry" lang={lang.hl} onCopy={onCopy} copiedId={copiedId} code={lang.retry(`${origin}/api/public/v1`)} />
     </div>
   )
 }

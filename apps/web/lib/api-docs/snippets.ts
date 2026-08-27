@@ -20,6 +20,15 @@ export interface LanguageDef {
   /** CodeBlock에 넘길 구문 강조 라벨 */
   hl: string
   generate: (spec: RequestSpec, baseUrl: string) => string
+  /**
+   * 한도(429)에 걸렸을 때 다시 시도하는 법 — **고른 언어로 보여 준다.**
+   *
+   * 실측 v0.7.624: 「다시 시도 예시」가 언어와 무관하게 JavaScript 로 고정돼 있었다.
+   * Python 을 고른 사람이 JS 를 읽는다 — 문서가 언어를 물어본 의미가 없다.
+   */
+  retry: (baseUrl: string) => string
+  /** 커서로 이어 받는 법 — 같은 이유로 언어를 따라간다 */
+  paginate: (baseUrl: string) => string
 }
 
 const ENV_HINT = 'YOUR_API_KEY'
@@ -214,14 +223,231 @@ function pascalMethod(m: HttpMethod): string {
   return m.charAt(0) + m.slice(1).toLowerCase()
 }
 
+/* ─── 한도(429) 재시도 · 커서 이어보기 ───────────────────────────────────────
+   요청 하나를 그리는 generate 와 달리 **흐름**을 보여 준다. 손으로 언어별로
+   복붙하면 또 갈리므로 여기 한 곳에 둔다. */
+
+const RETRY: Record<string, (b: string) => string> = {
+  curl: (b) => [
+    `# 429 면 Retry-After 초만큼 기다렸다가 다시 부른다`,
+    `for i in 1 2 3; do`,
+    `  code=$(curl -s -o /tmp/ax.json -D /tmp/ax.head -w '%{http_code}' \\`,
+    `    "${b}/products" -H "X-API-Key: $AX_API_KEY")`,
+    `  [ "$code" != "429" ] && break`,
+    `  sleep "$(awk 'tolower($1)=="retry-after:"{print $2}' /tmp/ax.head)"`,
+    `done`,
+  ].join('\n'),
+
+  javascript: (b) => [
+    `async function callWithRetry(attempt = 1) {`,
+    `  const res = await fetch('${b}/products', {`,
+    `    headers: { 'X-API-Key': process.env.AX_API_KEY },`,
+    `  })`,
+    `  if (res.status === 429 && attempt < 3) {`,
+    `    const wait = Number(res.headers.get('Retry-After') ?? 60)`,
+    `    await new Promise((r) => setTimeout(r, wait * 1000))`,
+    `    return callWithRetry(attempt + 1)`,
+    `  }`,
+    `  return res.json()`,
+    `}`,
+  ].join('\n'),
+
+  python: (b) => [
+    `import os, time, requests`,
+    ``,
+    `headers = {"X-API-Key": os.environ["AX_API_KEY"]}`,
+    `for _ in range(3):`,
+    `    res = requests.get("${b}/products", headers=headers)`,
+    `    if res.status_code != 429:`,
+    `        break`,
+    `    time.sleep(int(res.headers.get("Retry-After", 60)))`,
+    ``,
+    `res.raise_for_status()`,
+    `data = res.json()["data"]`,
+  ].join('\n'),
+
+  go: (b) => [
+    `req, _ := http.NewRequest("GET", "${b}/products", nil)`,
+    `req.Header.Set("X-API-Key", os.Getenv("AX_API_KEY"))`,
+    ``,
+    `var res *http.Response`,
+    `for i := 0; i < 3; i++ {`,
+    `\tres, _ = http.DefaultClient.Do(req)`,
+    `\tif res.StatusCode != http.StatusTooManyRequests { break }`,
+    `\twait, _ := strconv.Atoi(res.Header.Get("Retry-After"))`,
+    `\tres.Body.Close()`,
+    `\ttime.Sleep(time.Duration(wait) * time.Second)`,
+    `}`,
+    `defer res.Body.Close()`,
+  ].join('\n'),
+
+  php: (b) => [
+    `<?php`,
+    `for ($i = 0; $i < 3; $i++) {`,
+    `    $ch = curl_init('${b}/products');`,
+    `    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);`,
+    `    curl_setopt($ch, CURLOPT_HEADER, true);`,
+    `    curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-API-Key: ' . getenv('AX_API_KEY')]);`,
+    `    $raw  = curl_exec($ch);`,
+    `    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);`,
+    `    curl_close($ch);`,
+    `    if ($code !== 429) break;`,
+    `    preg_match('/retry-after:\\s*(\\d+)/i', $raw, $m);`,
+    `    sleep((int) ($m[1] ?? 60));`,
+    `}`,
+  ].join('\n'),
+
+  java: (b) => [
+    `HttpClient client = HttpClient.newHttpClient();`,
+    `HttpRequest request = HttpRequest.newBuilder()`,
+    `    .uri(URI.create("${b}/products"))`,
+    `    .header("X-API-Key", System.getenv("AX_API_KEY"))`,
+    `    .build();`,
+    ``,
+    `HttpResponse<String> res = null;`,
+    `for (int i = 0; i < 3; i++) {`,
+    `    res = client.send(request, HttpResponse.BodyHandlers.ofString());`,
+    `    if (res.statusCode() != 429) break;`,
+    `    long wait = Long.parseLong(res.headers().firstValue("Retry-After").orElse("60"));`,
+    `    Thread.sleep(wait * 1000);`,
+    `}`,
+  ].join('\n'),
+
+  csharp: (b) => [
+    `var client = new HttpClient();`,
+    `client.DefaultRequestHeaders.Add("X-API-Key", Environment.GetEnvironmentVariable("AX_API_KEY"));`,
+    ``,
+    `HttpResponseMessage res = null;`,
+    `for (var i = 0; i < 3; i++) {`,
+    `    res = await client.GetAsync("${b}/products");`,
+    `    if ((int)res.StatusCode != 429) break;`,
+    `    var wait = res.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(60);`,
+    `    await Task.Delay(wait);`,
+    `}`,
+  ].join('\n'),
+}
+
+const PAGINATE: Record<string, (b: string) => string> = {
+  curl: (b) => [
+    `# 첫 페이지 (기본 20건, 최대 100)`,
+    `curl "${b}/crm/companies?limit=50" -H "X-API-Key: $AX_API_KEY"`,
+    ``,
+    `# 응답의 meta.nextCursor 를 그대로 cursor 에 넣는다`,
+    `curl "${b}/crm/companies?limit=50&cursor=<meta.nextCursor>" \\`,
+    `  -H "X-API-Key: $AX_API_KEY"`,
+  ].join('\n'),
+
+  javascript: (b) => [
+    `let cursor = null`,
+    `const all = []`,
+    `do {`,
+    `  const url = new URL('${b}/crm/companies')`,
+    `  url.searchParams.set('limit', '50')`,
+    `  if (cursor) url.searchParams.set('cursor', cursor)`,
+    ``,
+    `  const res = await fetch(url, { headers: { 'X-API-Key': process.env.AX_API_KEY } })`,
+    `  const { data, meta } = await res.json()`,
+    `  all.push(...data)`,
+    `  cursor = meta.nextCursor`,
+    `} while (cursor)`,
+  ].join('\n'),
+
+  python: (b) => [
+    `import os, requests`,
+    ``,
+    `headers = {"X-API-Key": os.environ["AX_API_KEY"]}`,
+    `params = {"limit": 50}`,
+    `rows = []`,
+    ``,
+    `while True:`,
+    `    res = requests.get("${b}/crm/companies", headers=headers, params=params)`,
+    `    res.raise_for_status()`,
+    `    body = res.json()`,
+    `    rows += body["data"]`,
+    `    if not body["meta"].get("nextCursor"):`,
+    `        break`,
+    `    params["cursor"] = body["meta"]["nextCursor"]`,
+  ].join('\n'),
+
+  go: (b) => [
+    `cursor := ""`,
+    `for {`,
+    `\turl := "${b}/crm/companies?limit=50"`,
+    `\tif cursor != "" { url += "&cursor=" + cursor }`,
+    ``,
+    `\treq, _ := http.NewRequest("GET", url, nil)`,
+    `\treq.Header.Set("X-API-Key", os.Getenv("AX_API_KEY"))`,
+    `\tres, err := http.DefaultClient.Do(req)`,
+    `\tif err != nil { panic(err) }`,
+    ``,
+    `\tvar body struct {`,
+    `\t\tData []map[string]any \`json:"data"\``,
+    `\t\tMeta struct{ NextCursor string \`json:"nextCursor"\` } \`json:"meta"\``,
+    `\t}`,
+    `\tjson.NewDecoder(res.Body).Decode(&body)`,
+    `\tres.Body.Close()`,
+    ``,
+    `\tif body.Meta.NextCursor == "" { break }`,
+    `\tcursor = body.Meta.NextCursor`,
+    `}`,
+  ].join('\n'),
+
+  php: (b) => [
+    `<?php`,
+    `$cursor = null;`,
+    `do {`,
+    `    $url = '${b}/crm/companies?limit=50' . ($cursor ? '&cursor=' . urlencode($cursor) : '');`,
+    `    $ch = curl_init($url);`,
+    `    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);`,
+    `    curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-API-Key: ' . getenv('AX_API_KEY')]);`,
+    `    $body = json_decode(curl_exec($ch), true);`,
+    `    curl_close($ch);`,
+    ``,
+    `    $cursor = $body['meta']['nextCursor'] ?? null;`,
+    `} while ($cursor);`,
+  ].join('\n'),
+
+  java: (b) => [
+    `HttpClient client = HttpClient.newHttpClient();`,
+    `String cursor = null;`,
+    ``,
+    `do {`,
+    `    String url = "${b}/crm/companies?limit=50"`,
+    `        + (cursor == null ? "" : "&cursor=" + cursor);`,
+    `    HttpRequest req = HttpRequest.newBuilder()`,
+    `        .uri(URI.create(url))`,
+    `        .header("X-API-Key", System.getenv("AX_API_KEY"))`,
+    `        .build();`,
+    ``,
+    `    HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());`,
+    `    // res.body() 의 meta.nextCursor 를 읽어 cursor 에 넣는다`,
+    `} while (cursor != null);`,
+  ].join('\n'),
+
+  csharp: (b) => [
+    `var client = new HttpClient();`,
+    `client.DefaultRequestHeaders.Add("X-API-Key", Environment.GetEnvironmentVariable("AX_API_KEY"));`,
+    ``,
+    `string cursor = null;`,
+    `do {`,
+    `    var url = $"${b}/crm/companies?limit=50"`,
+    `        + (cursor is null ? "" : $"&cursor={cursor}");`,
+    `    var body = await client.GetFromJsonAsync<JsonElement>(url);`,
+    ``,
+    `    cursor = body.GetProperty("meta").TryGetProperty("nextCursor", out var c)`,
+    `        ? c.GetString() : null;`,
+    `} while (cursor is not null);`,
+  ].join('\n'),
+}
+
 export const LANGUAGES: LanguageDef[] = [
-  { id: 'curl', label: 'cURL', hl: 'bash', generate: toCurl },
-  { id: 'javascript', label: 'JavaScript', hl: 'javascript', generate: toJavaScript },
-  { id: 'python', label: 'Python', hl: 'python', generate: toPython },
-  { id: 'go', label: 'Go', hl: 'go', generate: toGo },
-  { id: 'php', label: 'PHP', hl: 'php', generate: toPHP },
-  { id: 'java', label: 'Java', hl: 'java', generate: toJava },
-  { id: 'csharp', label: 'C#', hl: 'csharp', generate: toCSharp },
+  { id: 'curl', label: 'cURL', hl: 'bash', generate: toCurl , retry: RETRY.curl, paginate: PAGINATE.curl },
+  { id: 'javascript', label: 'JavaScript', hl: 'javascript', generate: toJavaScript , retry: RETRY.javascript, paginate: PAGINATE.javascript },
+  { id: 'python', label: 'Python', hl: 'python', generate: toPython , retry: RETRY.python, paginate: PAGINATE.python },
+  { id: 'go', label: 'Go', hl: 'go', generate: toGo , retry: RETRY.go, paginate: PAGINATE.go },
+  { id: 'php', label: 'PHP', hl: 'php', generate: toPHP , retry: RETRY.php, paginate: PAGINATE.php },
+  { id: 'java', label: 'Java', hl: 'java', generate: toJava , retry: RETRY.java, paginate: PAGINATE.java },
+  { id: 'csharp', label: 'C#', hl: 'csharp', generate: toCSharp , retry: RETRY.csharp, paginate: PAGINATE.csharp },
 ]
 
 export { ENV_HINT }

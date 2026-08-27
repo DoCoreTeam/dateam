@@ -20,6 +20,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import ControlRow from '@/components/ui/ControlRow'
 import { LANGUAGES } from '@/lib/api-docs/snippets'
 
 const STORE_KEY = 'ax.develop.lang'
@@ -82,18 +83,13 @@ export function ApiLangPicker() {
   const { langId, setLangId } = useApiLang()
   const ns = 'devlang__'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 'var(--space-5)' }}>
-      <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-        코드 언어
-      </span>
-      <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-        <SegmentedTabs
-          ariaLabel="코드 언어 선택"
-          tabs={LANGUAGES.map((l) => ({ id: ns + l.id, label: l.label }))}
-          activeId={ns + langId}
-          onSelect={(tabId) => setLangId(tabId.slice(ns.length))}
-        />
-      </div>
-    </div>
+    <ControlRow label="코드 언어">
+      <SegmentedTabs
+        ariaLabel="코드 언어 선택"
+        tabs={LANGUAGES.map((l) => ({ id: ns + l.id, label: l.label }))}
+        activeId={ns + langId}
+        onSelect={(tabId) => setLangId(tabId.slice(ns.length))}
+      />
+    </ControlRow>
   )
 }
