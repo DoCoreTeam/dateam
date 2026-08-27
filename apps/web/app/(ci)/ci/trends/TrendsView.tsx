@@ -23,6 +23,7 @@ import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import ContentCard from '@/components/ci/ContentCard'
 import ChannelGroupedList, { groupByChannel as toChannelGroups } from '@/components/ci/ChannelGroupedList'
 import DetailSheet from '@/components/ci/DetailSheet'
+import DiscoveryEvidenceSheet from '@/components/ci/DiscoveryEvidenceSheet'
 import { ConfidenceBadge } from '@/components/ci/StatusBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
@@ -150,6 +151,8 @@ export default function TrendsView(p: Props) {
   const [error, setError] = useState<{ code: string; message: string } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  // 성공 공식 행을 눌렀을 때 열 근거. 문장을 함께 들고 가야 시트 헤더가 비지 않는다.
+  const [openDiscovery, setOpenDiscovery] = useState<PatternRow | null>(null)
   const [groupByChannel, setGroupByChannel] = useState(false)
   // 시장 탭의 집계표는 **근거**다 — 결론보다 먼저 보이면 무엇을 하라는 화면인지 사라진다.
   const [showBasis, setShowBasis] = useState(false)
@@ -183,10 +186,17 @@ export default function TrendsView(p: Props) {
   async function recomputePatterns() {
     setBusy(true); setError(null)
     try {
-      const res = await fetch('/api/ci/patterns/recompute', {
+      // 지금 보고 있는 주제만 다시 계산한다 — 전체를 한 번에 돌리면 몇 분이 걸리고,
+      // 그동안 화면은 멈춘 것처럼 보인다. 전체 훑기는 워커가 한다.
+      const qs = p.topicId ? `?topicId=${encodeURIComponent(p.topicId)}` : ''
+      // 경로를 리터럴로 둔다 — 템플릿으로 조립하면 배선 가드가 이 호출을 못 본다
+      const res = await fetch('/api/ci/patterns/recompute' + qs, {
         method: 'POST', headers: { 'X-CI-Workspace': p.workspaceId },
-      }).then((r) => r.json() as Promise<ApiResponse<unknown>>)
+      }).then((r) => r.json() as Promise<ApiResponse<{ discoveryNotice: string | null }>>)
       if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
+      // 발견이 갱신되지 않았으면 그 사실을 말한다 — 목록이 그대로인 이유를
+      // 사용자가 추측하게 두지 않는다(조용한 성공은 고장과 구분되지 않는다).
+      setNotice(res.data?.discoveryNotice ?? null)
       router.refresh()
     } finally { setBusy(false) }
   }
@@ -276,8 +286,11 @@ export default function TrendsView(p: Props) {
     { key: 'occurred', header: '시점', cell: (s) => s.occurredAtText ?? '—' },
     {
       key: 'actions', header: '작업',
+      // 같은 화면의 다른 목록은 행이 열린다(성공 공식). 액션 칸은 행 클릭을 발화시키면 안 된다 —
+      // 「삭제」를 눌렀는데 상세가 열리는 사고가 실제로 있었다(§2-3-1 (1)).
       cell: (s) => (
-        <button type="button" className="btn-ghost" onClick={() => removeSignal(s.id)}>삭제</button>
+        <button type="button" className="btn-ghost"
+          onClick={(e) => { e.stopPropagation(); removeSignal(s.id) }}>삭제</button>
       ),
     },
   ]
@@ -536,11 +549,12 @@ export default function TrendsView(p: Props) {
             columns={PATTERN_COLUMNS}
             query={query}
             rowKey={(pt) => pt.id}
+            onRowClick={(pt) => setOpenDiscovery(pt)}
             empty={needle
               ? { title: '검색어에 맞는 공식이 없습니다', description: '다른 낱말로 찾아보세요.' }
               : {
-                title: '아직 공식으로 부를 만한 패턴이 없습니다',
-                description: '근거 20개·채널 5곳을 넘고 효과가 1.2배 이상일 때만 공식으로 승격합니다. 한 채널의 우연을 공식으로 팔지 않기 위해서입니다.',
+                title: '아직 공식으로 부를 만한 발견이 없습니다',
+                description: '떡상 1건과 같은 채널의 평범한 게시물을 나란히 놓고 차이를 찾습니다. 서로 다른 채널 3곳 이상에서 같은 차이가 반복될 때만 공식으로 올립니다 — 한 채널의 습관을 시장의 공식으로 팔지 않기 위해서입니다.',
                 action: { label: '관심 채널 추가', href: '/ci/monitoring' },
               }}
           />
@@ -603,6 +617,16 @@ export default function TrendsView(p: Props) {
       <DetailSheet contentId={openId} workspaceId={p.workspaceId}
         onClose={closeDetail}
         onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)} />
+
+      {/* 성공 공식의 "근거 N건"을 실제로 여는 자리. 숫자만 보여주고 못 열면 "믿어라"와 같다. */}
+      {openDiscovery && (
+        <DiscoveryEvidenceSheet
+          discoveryId={openDiscovery.id}
+          workspaceId={p.workspaceId}
+          statement={openDiscovery.statement}
+          onClose={() => setOpenDiscovery(null)}
+        />
+      )}
     </>
   )
 }

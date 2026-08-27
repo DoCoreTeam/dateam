@@ -6,6 +6,7 @@ import { toListItem } from '@/lib/ci/queries/contents'
 import { getCreative } from '@/lib/ci/queries/creative'
 import { getMedia } from '@/lib/ci/queries/media'
 import { getLatestMetrics } from '@/lib/ci/queries/metrics'
+import { getDiscoveriesForContent } from '@/lib/ci/queries/discovery-evidence'
 import { allowsAssertiveNarrative, formatDuration } from '@/lib/ci/format/metrics'
 import { deleteCiEntity } from '@/lib/ci/queries/delete'
 
@@ -59,11 +60,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     }
 
     const provenance = (row.provenance ?? {}) as Record<string, unknown>
-    const [creative, media, metrics] = await Promise.all([
+    const [creative, media, metrics, discoveries] = await Promise.all([
       getCreative(session.workspaceId, id),
       // 영상 실체 — 숏폼에서는 이것이 사실상 유일한 본문이다
       getMedia(session.workspaceId, id),
       getLatestMetrics(id),
+      // "이 게시물이 무엇의 근거였나" — 상세가 원본 덤프로 끝나던 자리다.
+      // 인덱스 idx_ci_discovery_evidence_content 가 이 조회를 위해 이미 있었다.
+      getDiscoveriesForContent(session.workspaceId, id),
     ])
 
     return ok({
@@ -76,6 +80,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       // AI 서술이 붙는 시점에도 이 게이트를 통과한 경우에만 단정 문구를 허용한다.
       analysis: null,
       analysisAllowed: allowsAssertiveNarrative(base.confidence),
+      // 지어낸 서술이 아니라 **관측을 근거로 승격된 발견**이다 — 위 게이트와 무관하게 있으면 준다.
+      discoveries,
       // "왜 터졌나"는 지어낸 서술이 아니라 관측한 요소다 — 위 게이트와 무관하게 있으면 준다.
       creative,
       media,

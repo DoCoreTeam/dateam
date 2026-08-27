@@ -9,6 +9,8 @@ import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import Link from 'next/link'
 import { X, Pencil } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
+import { formatKstDateTimeExact } from '@/lib/datetime/kst'
+import type { ContentDiscoveryRef } from '@/lib/ci/queries/discovery-evidence'
 import { isEnterKey } from '@/lib/ui/ime'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import type { CiContentListItem, CiEvidence, CiMediaInfo, ApiResponse } from '@/lib/ci/contracts'
@@ -39,6 +41,8 @@ export interface DetailSheetData extends CiContentListItem {
   /** 영상을 실제로 읽은 결과. 아직 안 읽었으면 null */
   media?: CiMediaInfo | null
   groupSiblings: { id: string; platform: string; title: string | null }[]
+  /** 이 게시물을 근거로 삼은 살아 있는 발견들 — 없으면 빈 배열 */
+  discoveries?: ContentDiscoveryRef[]
   provenanceMethod: string | null
   fetchedAt: string | null
   keywords: string[]
@@ -379,6 +383,34 @@ export default function DetailSheet({
 
               {tab === 'analysis' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+                  {/* 이 게시물이 무엇의 근거였나 — 상세를 열었을 때 가장 먼저 답해야 하는 질문이다.
+                      예전엔 조회수·유튜브 원본 키워드·설명란 원문뿐이라 "왜 잘됐나"가 한 줄도 없었다. */}
+                  {(data.discoveries?.length ?? 0) > 0 && (
+                    <section>
+                      <h4 className="ci-creative-head">이 게시물에서 발견한 것</h4>
+                      <ul style={{
+                        display: 'flex', flexDirection: 'column',
+                        gap: 'var(--space-3)', marginTop: 'var(--space-2)',
+                      }}>
+                        {data.discoveries!.map((d) => (
+                          <li key={d.id} className="card" style={{ padding: 'var(--space-3)' }}>
+                            <p style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.6 }}>
+                              {d.statement}
+                            </p>
+                            <p className="ci-basis" style={{ marginTop: '2px' }}>{d.basisText}</p>
+                            {d.observation && (
+                              <p style={{
+                                marginTop: 'var(--space-2)', fontSize: 'var(--fs-sm)',
+                                lineHeight: 1.7, color: 'var(--text-muted)',
+                              }}>
+                                {d.observation}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
                   {data.analysis && (
                     <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.7 }}>{data.analysis}</p>
                   )}
@@ -386,7 +418,8 @@ export default function DetailSheet({
                       썸네일 분석(아래)은 그 표지에 대한 이야기다 */}
                   <MediaSummary media={data.media} />
                   <CreativeSummary creative={data.creative} />
-                  {!data.analysis && !data.creative && !data.media && (
+                  {!data.analysis && !data.creative && !data.media
+                    && (data.discoveries?.length ?? 0) === 0 && (
                     <EmptyState
                       title="아직 이 게시물의 영상을 읽지 않았습니다"
                       description="수집이 한 바퀴 돌면 영상 안의 대사·자막·구성을 읽어 여기에 보여줍니다."
@@ -410,7 +443,9 @@ export default function DetailSheet({
               {tab === 'ingest' && (
                 <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)' }}>
                   <dt className="ci-basis">수집 방법</dt><dd>{data.provenanceMethod ?? '—'}</dd>
-                  <dt className="ci-basis">수집 시각</dt><dd>{data.fetchedAt ?? '—'}</dd>
+                  <dt className="ci-basis">수집 시각</dt>
+                  {/* 화면은 언제나 KST다 — 예전엔 2026-08-26T15:50:12.890Z 가 그대로 나갔다 */}
+                  <dd>{data.fetchedAt ? formatKstDateTimeExact(data.fetchedAt) : '—'}</dd>
                   <dt className="ci-basis">미확보 항목</dt>
                   <dd>{data.missingFields.length ? data.missingFields.join(', ') : '없음'}</dd>
                 </dl>
