@@ -1,5 +1,6 @@
 import { Users } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
+import CrmGroupTabs from '@/components/crm/CrmGroupTabs'
 import { resolveCrmAccess, hasCrmRole } from '@/lib/crm/auth/requireCrmMember'
 import MembersClient from './MembersClient'
 
@@ -18,6 +19,7 @@ export default async function CrmMembersPage() {
         title="멤버"
         icon={<Users size={20} />}
         description="이 CRM을 누가 쓰는지 정합니다. 내보내도 그 사람이 남긴 기록은 그대로 남아요."
+        below={<CrmGroupTabs />}
       />
       <MembersClient canEdit={canEdit} myMemberId={myMemberId} />
     </>

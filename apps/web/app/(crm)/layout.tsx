@@ -12,12 +12,12 @@
 import { redirect } from 'next/navigation'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
-  Inbox, Building2, Users, Handshake, Mic, Workflow, BarChart3, Settings,
-  CheckSquare, History, Sun, FileText
+  Building2, Handshake, Mic, BarChart3, Sun, FileText
 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import AppShell from '@/components/ui/shell/AppShell'
-import type { NavGroup } from '@/components/ui/shell/AppShell'
+import type { NavItem } from '@/components/ui/shell/AppShell'
+import { CRM_NAV_GROUPS, crmGroupMatchPaths, CRM_ACCOUNT_ITEMS } from '@/lib/crm/nav/groups'
 import { getBranding } from '@/lib/branding'
 import { getRequestProfile } from '@/lib/auth/request-profile'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
@@ -41,84 +41,43 @@ import { MeetingModeProvider } from '@/lib/crm/ui/meeting-mode'
  * - `딜`이 회사·인물보다 앞 — 영업이 하루에 가장 많이 보는 것은 딜이다.
  *   예전엔 회사 → 인물 → 딜 순서였는데 그건 **데이터 모델 순서**이지 사람의 순서가 아니다.
  */
-const NAV_ITEMS = [
-  { href: '/crm/today', label: '오늘', icon: <Sun size={16} /> },
-  { href: '/crm/inbox', label: '인박스', icon: <Inbox size={16} /> },
-  { href: '/crm/deals', label: '딜', icon: <Handshake size={16} /> },
-  // 견적이 딜 바로 뒤 — 견적은 딜 금액의 **근거 문서**라 둘은 같이 본다.
-  // 예전엔 딜 상세 안에만 있어서 사이드바에서 보이지 않았고, 그래서 "견적이 없다"고 읽혔다.
-  { href: '/crm/quotes', label: '견적', icon: <FileText size={16} /> },
-]
+/**
+ * 사이드바 — **묶음 다섯.** 정의는 `lib/crm/nav/groups.ts`(SSOT)에 있고 여기서는 그림만 그린다.
+ *
+ * 왜 13개에서 5개가 됐나 (기획 `docs/2026-08-27-crm-capture-first` 설계 3):
+ *   사용자 지적(2026-08-27) *"메뉴가 너무 많은것도 문제야"* · *"연관성 있는건 묶는 작업이
+ *   되었는지 모르겠고"*. 실측하면 더 분명하다 — 13개 중 **딜 0건 · 견적 0건 · 할 일 0건**이다.
+ *   매일 여는 것과 아직 비어 있는 것이 같은 무게로 늘어서 있어서, 목록이 길어질수록
+ *   정작 매일 여는 것이 눈에 안 들어온다.
+ *
+ * **화면은 하나도 안 없앴다.** 라우트 20개가 그대로 살아 있고 북마크·공유 링크도 그대로다.
+ * 바뀐 것은 **어디서 들어가느냐** 하나다 — 묶음 안의 다른 화면으로는
+ * 화면 머리의 탭바(`components/crm/CrmGroupTabs.tsx`)로 건너간다.
+ *
+ * 설정 3개(영업 단계·멤버·설정)는 **계정 메뉴**로 내려갔다. 처음 한 번 정하고 가끔 손보는
+ * 것이라, 매일 쓰는 것 옆에 두면 매일 쓰는 것이 안 보인다.
+ */
+const NAV_ICON: Record<string, React.ReactNode> = {
+  '/crm/today': <Sun size={16} />,
+  '/crm/deals': <Handshake size={16} />,
+  '/crm/companies': <Building2 size={16} />,
+  '/crm/meetings': <Mic size={16} />,
+  '/crm/reports': <BarChart3 size={16} />,
+}
 
-const NAV_GROUPS: NavGroup[] = [
-  {
-    /**
-     * **회사와 인물은 한 덩어리다.** 사용자 지적(2026-08-27):
-     * *"현재 CRM에 메뉴가 상당히 많은데 **연관성 있는건 묶는 작업**이 되었는지 모르겠고"*.
-     *
-     * 둘은 늘 함께 본다 — 인물은 회사에 붙어 있고, 회사를 열면 그 사람들을 본다.
-     * 그런데 최상위에 나란히 서 있으면 매일 여는 것(오늘·인박스·딜·견적)과 **같은 무게**로
-     * 늘어서서, 목록이 길어질수록 정작 매일 여는 것이 눈에 안 들어온다.
-     * 최상위를 6개에서 4개로 줄이는 것이 이 묶음의 목적이다.
-     *
-     * 묶음 이름이 「거래처」인 것은 용어집이 정한 그대로다 —
-     * *"「거래처」는 **메뉴 묶음 이름**이고 개체 이름은 「회사」다 — 둘을 섞지 않는다"*
-     * (`lib/terms/entity.ts`). 그래서 그룹은 거래처, 항목은 회사·인물이다.
-     */
-    label: '거래처',
-    items: [
-      { href: '/crm/companies', label: '회사', icon: <Building2 size={16} /> },
-      { href: '/crm/people', label: '인물', icon: <Users size={16} /> },
-    ],
-  },
-  {
-    // 매일은 아니지만 자주 여는 것
-    label: '기록',
-    items: [
-      { href: '/crm/meetings', label: '미팅', icon: <Mic size={16} /> },
-      { href: '/crm/tasks', label: '할 일', icon: <CheckSquare size={16} /> },
-    ],
-  },
-  {
-    // 가끔 열어 보는 것 — 변경 이력도 성격상 "본다"에 가깝다
-    label: '보기',
-    items: [
-      { href: '/crm/reports', label: '리포트', icon: <BarChart3 size={16} /> },
-      // 그룹 이름이 "기록"인데 항목도 "기록"이면 같은 말이 두 번 나온다
-      { href: '/crm/audit', label: '변경 이력', icon: <History size={16} /> },
-    ],
-  },
-  {
-    // 처음 한 번 정하고 가끔 손보는 것
-    label: '설정',
-    items: [
-      /**
-       * 영업 단계는 **처음에 한 번 정하고 가끔 손보는 것**이다.
-       * 예전엔 [기록] 그룹에 "프로세스"라는 이름으로 8번째에 있었다 —
-       * 매일 쓰는 것 사이에 끼어 있어 처음 온 사람이 못 찾았다.
-       * 통상의 CRM 도 이걸 설정 안에 둔다(Pipedrive: 설정 → 회사 설정 → Pipelines and stages).
-       */
-      { href: '/crm/process', label: '영업 단계', icon: <Workflow size={16} /> },
-      { href: '/crm/members', label: '멤버', icon: <Users size={16} /> },
-      { href: '/crm/settings', label: '설정', icon: <Settings size={16} /> },
-    ],
-  },
-  /**
-   * **밖으로 나가는 길은 사이드바에 두지 않는다** (v0.7.540, 사용자 지시:
-   * "돌아가기도 콘텐츠 인텔리전스랑 동일하게").
-   *
-   * 예전엔 [돌아가기] 그룹에 홈·업무·캘린더 3개를 뒀다. 이유는 있었다 —
-   * 사이드바가 통째로 CRM 것으로 바뀌어 나갈 문이 없다는 지적을 받았기 때문이다.
-   * 그런데 그렇게 고치니 **메뉴가 15개가 됐다.** 매일 쓰는 5개가
-   * 가끔 쓰는 것·나가는 문과 같은 무게로 늘어서서, 목록이 길어질수록
-   * 정작 매일 여는 것이 눈에 안 들어온다(사용자 지적: "메뉴가 너무 나열되어 있다").
-   *
-   * 콘텐츠 인텔리전스는 같은 문제를 다르게 풀었다 — **나가는 문을 상단
-   * `전체 메뉴`에 두고 사이드바는 그 표면의 일만 담는다.** 그 메뉴에 홈·일일업무·
-   * 캘린더·주간보고가 이미 다 있으므로(QuickNav) 나갈 길은 그대로 살아 있다.
-   * 함정이 되지 않으면서 사이드바는 12개로 줄어든다 — CI 와 같은 수다.
-   */
-]
+/**
+ * 그룹을 만들지 않는다 — 다섯이면 묶음 머리글 없이도 한눈에 들어온다.
+ * 항목이 둘뿐인 묶음에 이름을 붙이면 이름이 항목보다 많아진다(§2-3-3 N-3).
+ */
+const NAV_ITEMS: NavItem[] = CRM_NAV_GROUPS.map((g) => ({
+  href: g.href,
+  label: g.label,
+  icon: NAV_ICON[g.href] ?? <FileText size={16} />,
+  // 묶음 안의 어느 화면에 있어도 이 자리가 켜져 있어야 한다 — 안 그러면
+  // 「견적」에 들어간 순간 사이드바에서 내가 어디 있는지 사라진다.
+  match: crmGroupMatchPaths(g),
+}))
+
 
 /**
  * 못 들어온 이유를 사용자의 말로 알려 주는 화면. 셸을 씌우지 않는다 — 셸은 멤버의 것이다.
@@ -182,17 +141,20 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
    * 그러면 대개 안 열어 보고, AI 가 찾아낸 것은 아무도 모르는 채로 만료된다.
    */
   const navItems = NAV_ITEMS.map((it) => (
-    it.href === '/crm/inbox' && pendingInbox > 0 ? { ...it, badge: pendingInbox } : it
+    // 인박스가 「오늘」에 흡수됐으므로 배지도 「오늘」에 붙는다.
+    // 안 옮기면 배지가 갈 곳이 없어져 **조용히 사라진다** — 그러면 AI 가 찾아낸 것을
+    // 아무도 모르는 채로 만료된다(배지를 단 이유가 그것이다).
+    it.href === '/crm/today' && pendingInbox > 0 ? { ...it, badge: pendingInbox } : it
   ))
 
   return (
     <MeetingModeProvider>
     <AppShell
       items={navItems}
-      groups={NAV_GROUPS}
       branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
       // CRM 안에서는 CRM 을 찾는다 — 밖으로 데리고 나가지 않는다
       search={{ action: '/crm/search', placeholder: '회사·사람·딜 찾기…' }}
+      settings={{ label: '영업 CRM 설정', items: CRM_ACCOUNT_ITEMS }}
       session={{
         name: access.session.displayName || profile?.name || '팀원',
         email: user?.email ?? '',

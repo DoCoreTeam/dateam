@@ -39,10 +39,10 @@ test('★ 홈과 /calendar 가 같은 보드를 쓴다 — 두 벌이면 한쪽�
 test('★ 홈에서 캘린더가 맨 위다 — 아래에 있으면 「메인」이 아니다', () => {
   const calAt = HOME.indexOf('<CalendarBoard')
   // 렌더 위치로 본다 — import 줄을 세면 항상 파일 맨 위라 순서 검사가 무의미해진다
-  const deptAt = HOME.indexOf('<HomeDeptTaskWidget')
-  const widgetAt = HOME.indexOf('home-section-widgets')
+  const drawerAt = HOME.indexOf('<HomeDrawer')
   assert.ok(calAt > 0, '홈에 보드가 없다')
-  assert.ok(calAt < deptAt && calAt < widgetAt, '캘린더가 위젯 아래에 있다')
+  assert.ok(drawerAt > 0, '홈에 오늘 서랍이 없다')
+  assert.ok(calAt < drawerAt, '캘린더가 서랍 아래에 있다')
 })
 
 test('읽기 전용 미니 달력이 되살아나지 않는다 — 눌러도 아무 일이 없던 자리다', () => {
@@ -222,14 +222,31 @@ test('★ 넘친 것은 버리지 않고 「+N건 더」에 합산한다 — 날
   assert.match(more, /hiddenEventCount/, '「+N건 더」가 못 그린 일정을 빠뜨린다 — 사용자는 그 일정이 사라진 줄 안다')
 })
 
-test('★ 홈의 위젯은 캘린더 바로 다음 **한 줄**이다 — 두 줄이면 아랫줄은 첫 화면 밖', () => {
+/*
+ * v0.7.624 부터 위젯 넷은 **한 줄이 아니라 한 장**이다(«오늘 서랍»).
+ *
+ * 한 줄로 세웠더니 넷의 높이가 제각각이었다 —
+ * 실측(v0.7.617 · 뷰포트 819px) 부서 609 · 오늘 283 · 메모 245 · 주간보고 206, **최대/최소 2.96배**.
+ * 넷이 동시에 다 보일 필요가 없다. 한 번에 하나만 보이면 높이가 하나로 정해진다.
+ */
+test('★ 홈의 위젯 넷은 «오늘 서랍» 한 장 안에 있다 — 나란히 세우면 높이가 제각각이 된다', () => {
   assert.ok(!/home-section-dept/.test(HOME),
     '부서업무가 다시 자기 줄을 통째로 쓴다 — 그러면 주간보고가 첫 화면 밖으로 밀린다(실측 y1376)')
-  const rowAt = HOME.indexOf('home-section-widgets')
-  assert.ok(rowAt > 0, '위젯 줄이 없다')
+  assert.ok(!/home-section-widgets/.test(HOME),
+    '위젯이 다시 한 줄로 늘어섰다 — 넷의 바닥이 어긋나 화면이 어수선해진다')
+  const drawerAt = HOME.indexOf('<HomeDrawer')
+  assert.ok(drawerAt > 0, '오늘 서랍이 없다')
   for (const w of ['HomeDeptTaskWidget', 'HomeQuickEntry', 'UnreviewedMemoWidget', '주간보고']) {
-    assert.ok(HOME.indexOf(w, rowAt) > rowAt, `${w} 가 위젯 줄 밖에 있다`)
+    assert.ok(HOME.indexOf(w, drawerAt) > drawerAt, `${w} 가 서랍 밖에 있다`)
   }
+})
+
+test('★ 서랍 배지는 서버가 센다 — 클라이언트가 세면 접힌 탭이 「볼 것 없음」으로 읽힌다', () => {
+  for (const v of ['deptOverdue', 'unreadMemos', 'todayOpen']) {
+    assert.ok(HOME.includes(v), `${v} 를 서버에서 세지 않는다`)
+  }
+  // 뜻이 넷 다 같아야 한다 — 「아직 손대지 않은 것」. 그리고 그 뜻이 화면에 적혀 있어야 한다
+  assert.ok(HOME.includes('badgeTitle'), '배지에 뜻이 안 붙었다 — 사용자가 「1 2 6이 뭐야」를 묻게 된다')
 })
 
 test('★ 홈 인사말은 compact — 가장 안 눌리는 자리가 가장 컸다', () => {

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, Radar } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, Radar, SlidersHorizontal } from 'lucide-react'
 import { surfaceOf, adminEntryFor } from '@/lib/nav/surface'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import { clearPersistedSwrCache } from '@/lib/swr-persist'
@@ -15,9 +15,20 @@ interface SidebarProfileProps {
   isAdmin?: boolean
   currentTheme?: ThemeId
   defaultTheme?: ThemeId
+  /**
+   * 이 표면의 **설정** 링크들. «내 계정»과 구분선으로 나뉘어 위에 붙는다.
+   *
+   * 왜 여기인가: 영업 단계·멤버·설정은 처음 한 번 정하고 가끔 손보는 것이다.
+   * 매일 쓰는 것 옆(사이드바)에 두면 매일 쓰는 것이 안 보인다
+   * (기획 `docs/2026-08-27-crm-capture-first` 설계 3).
+   * **지우는 게 아니라 옮기는 것** — 링크는 그대로 살아 있다.
+   */
+  settingsItems?: readonly { href: string; label: string }[]
+  /** 그 묶음의 이름. 무엇의 설정인지 안 밝히면 «내 계정» 설정으로 읽힌다 */
+  settingsLabel?: string
 }
 
-export default function SidebarProfile({ name, email, isAdmin = false, currentTheme, defaultTheme }: SidebarProfileProps) {
+export default function SidebarProfile({ name, email, isAdmin = false, currentTheme, defaultTheme, settingsItems, settingsLabel }: SidebarProfileProps) {
   const pathname = usePathname()
   // 관리자 화면 안에서는 나가는 길이 필요하다 — 예전 AdminUserMenu가 하던 일.
   // 셸이 하나로 합쳐졌으니 계정 메뉴가 위치에 맞는 링크를 고른다.
@@ -152,6 +163,36 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
               </Link>
               )}
               <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
+            </>
+          )}
+          {settingsItems && settingsItems.length > 0 && (
+            <>
+              <div style={{
+                padding: 'var(--space-2) var(--space-4) var(--space-1)',
+                fontSize: 'var(--fs-2xs)', fontWeight: 700, letterSpacing: '0.04em',
+                color: 'var(--text-faint)',
+              }}>
+                {settingsLabel ?? '설정'}
+              </div>
+              {settingsItems.map((it) => (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  onClick={() => setOpen(false)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.625rem',
+                    padding: 'var(--space-3) var(--space-4)',
+                    fontSize: 'var(--fs-sm)', color: 'var(--text)',
+                    textDecoration: 'none', transition: 'background 120ms',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-muted)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <SlidersHorizontal size={14} />
+                  {it.label}
+                </Link>
+              ))}
+              <div style={{ height: '1px', background: 'var(--border-light)', margin: '0 0.75rem' }} />
             </>
           )}
           <Link

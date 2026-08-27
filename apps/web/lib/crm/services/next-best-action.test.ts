@@ -14,6 +14,7 @@
 // 그리고 **두 번째 물음에서는 그 딜이 빠졌다**(이미 정해 둔 사람에게 또 제안하지 않는다).
 
 import { test } from 'node:test'
+import { CRM_NAV_GROUPS } from '../nav/groups.ts'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
@@ -197,8 +198,11 @@ test('★ 오늘 화면이 첫 화면이다 — 인박스는 처음 온 사람�
   const index = readFileSync(
     new URL('../../../app/(crm)/crm/page.tsx', import.meta.url), 'utf8')
   assert.ok(index.includes("redirect('/crm/today')"), '첫 화면이 오늘이 아니다')
-  const layout = readFileSync(new URL('../../../app/(crm)/layout.tsx', import.meta.url), 'utf8')
-  assert.ok(layout.indexOf("'/crm/today'") < layout.indexOf("'/crm/inbox'"), '메뉴에서 오늘이 뒤에 있다')
+  // v0.7.625: 인박스는 **「오늘」 묶음 안의 탭**이 됐다. 따로 세우면 안 열어 보고 제안이 만료된다.
+  // 그러니 '오늘이 인박스보다 앞인가'가 아니라 '인박스가 오늘 묶음에 들어 있는가'를 본다.
+  const today = CRM_NAV_GROUPS[0]
+  assert.equal(today.href, '/crm/today', '첫 묶음이 오늘이 아니다')
+  assert.ok(today.tabs.some((t) => t.href === '/crm/inbox'), '인박스가 오늘 묶음 밖에 있다')
 })
 
 test('★ 규율 지표를 첫 화면에 띄운다 — 안 띄우면 딜은 계속 조용히 멈춰 있다', () => {

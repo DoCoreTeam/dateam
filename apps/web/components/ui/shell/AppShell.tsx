@@ -47,6 +47,11 @@ export interface AppShellProps {
   items?: NavItem[]
   groups?: NavGroup[]
   session: ShellSession
+  /**
+   * 이 표면의 설정 링크들 — 계정 메뉴로 내려간다.
+   * 매일 쓰지 않는 것을 사이드바에서 빼되 **찾을 길은 남긴다**(§2-3-3 N-2).
+   */
+  settings?: { label: string; items: readonly { href: string; label: string }[] }
   branding?: { logoUrl?: string | null; brandName?: string }
   /**
    * 검색이 어디를 찾을지.
@@ -68,6 +73,7 @@ export default function AppShell({
   items = [],
   groups,
   session,
+  settings,
   branding,
   search,
   extras,
@@ -88,7 +94,7 @@ export default function AppShell({
         <>
           {extras?.headerExtra}
           <GlobalSearchBox action={search?.action} placeholder={search?.placeholder} />
-          <QuickNav />
+          <QuickNav isAdmin={session.isAdmin} />
         </>
       }
       footer={
@@ -108,6 +114,8 @@ export default function AppShell({
             isAdmin={session.isAdmin}
             currentTheme={session.currentTheme}
             defaultTheme={session.defaultTheme}
+            settingsItems={settings?.items}
+            settingsLabel={settings?.label}
           />
         </>
       }

@@ -1,5 +1,6 @@
 import { Users } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
+import CrmGroupTabs from '@/components/crm/CrmGroupTabs'
 import PersonListView from './PersonListView'
 
 export const metadata = { title: '인물 · 영업 CRM' }
@@ -12,6 +13,7 @@ export default function CrmPeoplePage() {
         title="인물"
         icon={<Users size={20} />}
         description="담당자와 의사결정자를 관리합니다."
+        below={<CrmGroupTabs />}
       />
       <PersonListView />
     </>

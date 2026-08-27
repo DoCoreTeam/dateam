@@ -1,5 +1,6 @@
 import { Workflow } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
+import CrmGroupTabs from '@/components/crm/CrmGroupTabs'
 import { resolveCrmAccess, hasCrmRole } from '@/lib/crm/auth/requireCrmMember'
 import ProcessClient from './ProcessClient'
 
@@ -18,6 +19,7 @@ export default async function CrmProcessPage() {
         title="영업 단계"
         icon={<Workflow size={20} />}
         description="우리 영업이 어떤 순서로 흐르는지 정합니다. 단계를 만들고 이름과 순서를 고칠 수 있어요."
+        below={<CrmGroupTabs />}
       />
       <ProcessClient canEdit={canEdit} />
     </>

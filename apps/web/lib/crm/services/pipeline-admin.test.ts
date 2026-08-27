@@ -11,6 +11,7 @@
 // →단계삭제(번호 빈틈없이 재정렬)→딜 걸린 것 삭제 거부→치운 뒤 삭제 성공.
 
 import { test } from 'node:test'
+import { CRM_ACCOUNT_ITEMS } from '../nav/groups.ts'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { DEFAULT_STAGES, MAX_PIPELINES, MAX_STAGES } from './pipeline-admin.ts'
@@ -137,14 +138,15 @@ test('한글 조합 중 엔터로 만들어지지 않는다 — "파트너"를 �
 })
 
 test('★ 메뉴에서 찾을 수 있는 자리에 있다 — 매일 쓰는 것 사이에 끼어 있으면 못 찾는다', () => {
+  // v0.7.625: 설정 3개는 사이드바에서 **계정 메뉴**로 내려갔다 —
+  // 처음 한 번 정하고 가끔 손보는 것이라, 매일 쓰는 것 옆에 두면 매일 쓰는 것이 안 보인다.
+  // **지운 게 아니라 옮긴 것**이므로 «찾을 수 있는 자리»는 계정 메뉴다.
+  const item = CRM_ACCOUNT_ITEMS.find((i) => i.href === '/crm/process')
+  assert.ok(item, '영업 단계가 계정 메뉴에 없다 — 그러면 갈 길이 사라진다')
+  assert.equal(item!.label, '영업 단계', '이름이 "프로세스"인 채다')
+  // 셸까지 실제로 연결됐는지 — 상수만 만들고 안 넘기면 화면에선 사라진 것과 같다
   const layout = readFileSync(new URL('../../../app/(crm)/layout.tsx', import.meta.url), 'utf8')
-  // [설정] 그룹 안에 있어야 한다 — 처음 한 번 정하고 가끔 손보는 것이다
-  // (예전엔 [기록] 그룹에 "프로세스"라는 이름으로 8번째에 있었다)
-  const admin = layout.slice(layout.indexOf("label: '설정'"))
-  assert.ok(admin.includes("href: '/crm/process'"), '설정 그룹에 없다')
-  assert.ok(layout.includes("label: '영업 단계'"), '이름이 "프로세스"인 채다')
-  // 그룹 이름과 항목 이름이 같으면 같은 말이 두 번 나온다
-  assert.ok(!layout.includes("label: '기록', icon: <History"), '항목 이름이 그룹과 겹친다')
+  assert.ok(layout.includes('settings={{ label:'), 'layout 이 settings 를 셸에 안 넘긴다')
 })
 
 // ── G3 실사용 검증(v0.7.555)에서 나온 발견 4건을 여기서 잠근다 ──────────────

@@ -14,6 +14,7 @@
  */
 
 import { test } from 'node:test'
+import { CRM_NAV_GROUPS, CRM_ACCOUNT_ITEMS } from '../nav/groups.ts'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
 import { SEED_PIPELINES } from '../../../prisma/seed-data.ts'
@@ -98,28 +99,54 @@ test('★ 찾는 회사가 없으면 그 자리에서 만든다 (실측: 만들�
 
 // ── 사이드바 ───────────────────────────────────────────────
 
-test('★ 매일 여는 순서로 정렬한다 — 오늘 → 인박스 → 딜 → 회사 → 인물', () => {
-  const order = ['/crm/today', '/crm/inbox', '/crm/deals', '/crm/companies', '/crm/people']
-  const idx = order.map((h) => LAYOUT.indexOf(`href: '${h}'`))
-  for (let i = 1; i < idx.length; i++) {
-    assert.ok(idx[i - 1] < idx[i], `${order[i - 1]} 가 ${order[i]} 뒤에 있다`)
-  }
+/*
+ * 사이드바는 v0.7.625 부터 **묶음 다섯**이다(13개 → 5개).
+ * 정의는 `lib/crm/nav/groups.ts`(SSOT)에 있고 layout 은 그림만 그린다 —
+ * 그래서 여기서 layout 문자열을 뒤지는 대신 **SSOT 를 직접 단정**한다.
+ * 묶음 계약 자체(고아 화면 없음·중복 없음)는 `lib/crm/nav/groups.test.ts` 가 본다.
+ */
+test('★ 매일 여는 순서로 정렬한다 — 오늘 → 딜 → 거래처 → 기록 → 리포트', () => {
+  assert.deepEqual(
+    CRM_NAV_GROUPS.map((g) => g.label),
+    ['오늘', '딜', '거래처', '기록', '리포트'],
+    '데이터 모델 순서가 아니라 하루에 여는 횟수 순서다',
+  )
 })
 
-test('★ 딜이 회사보다 앞이다 — 영업이 하루에 가장 많이 보는 것은 딜이다', () => {
-  assert.ok(LAYOUT.indexOf("href: '/crm/deals'") < LAYOUT.indexOf("href: '/crm/companies'"))
+test('★ 딜이 거래처보다 앞이다 — 영업이 하루에 가장 많이 보는 것은 딜이다', () => {
+  const labels = CRM_NAV_GROUPS.map((g) => g.label)
+  assert.ok(labels.indexOf('딜') < labels.indexOf('거래처'))
+})
+
+test('★ 인박스는 「오늘」에 흡수됐다 — 따로 두면 안 열어 보고 제안이 만료된다', () => {
+  const today = CRM_NAV_GROUPS.find((g) => g.label === '오늘')
+  assert.ok(today?.tabs.some((t) => t.href === '/crm/inbox'), '인박스가 오늘 묶음에 없다')
+  // 배지도 함께 옮겨져야 한다 — 안 옮기면 배지가 갈 곳이 없어 조용히 사라진다
+  assert.ok(LAYOUT.includes("it.href === '/crm/today' && pendingInbox > 0"),
+    '인박스 배지가 「오늘」로 안 옮겨졌다')
 })
 
 test('그룹 이름과 항목 이름이 겹치지 않는다 — 같은 말이 두 번 나오면 헷갈린다', () => {
-  assert.ok(!LAYOUT.includes("label: '기록', icon: <History"), '"기록" 안에 "기록"이 있다')
-  assert.ok(LAYOUT.includes("label: '변경 이력'"), '변경 이력으로 안 바뀌었다')
+  /*
+   * **대표 탭(첫 탭)은 묶음과 같은 이름이 맞다.** 「딜」을 누르면 「딜 | 견적」이 뜨는 것이고,
+   * 이때 첫 탭이 「딜」이 아니면 오히려 어디에 있는지 알 수 없다.
+   * 막아야 하는 것은 **대표가 아닌 탭**이 묶음 이름을 또 쓰는 경우다 —
+   * 예전에 「기록」 묶음 안에 「기록」 항목이 있어 같은 말이 두 번 나왔다.
+   */
+  for (const g of CRM_NAV_GROUPS) {
+    const rest = g.tabs.slice(1)
+    assert.ok(!rest.some((t) => t.label === g.label),
+      `「${g.label}」 안에 같은 이름의 항목이 또 있다`)
+  }
 })
 
-test('설정해야 쓰는 것은 [설정] 그룹에 모인다 — 매일 쓰는 것 사이에 끼면 못 찾는다', () => {
-  const settings = LAYOUT.slice(LAYOUT.indexOf("label: '설정'"))
+test('설정해야 쓰는 것은 계정 메뉴로 내려갔다 — 매일 쓰는 것 사이에 끼면 못 찾는다', () => {
+  const hrefs = CRM_ACCOUNT_ITEMS.map((i) => i.href)
   for (const h of ['/crm/process', '/crm/members', '/crm/settings']) {
-    assert.ok(settings.includes(`href: '${h}'`), `${h} 가 설정 그룹에 없다`)
+    assert.ok(hrefs.includes(h), `${h} 가 계정 메뉴에 없다`)
   }
+  // 셸까지 실제로 연결됐는지 — 상수만 만들고 안 넘기면 화면에선 사라진 것과 같다
+  assert.ok(LAYOUT.includes('settings={{ label:'), 'layout 이 settings 를 셸에 안 넘긴다')
 })
 
 // ── 상주하지 않는 안내 ─────────────────────────────────────
@@ -152,22 +179,48 @@ test('★ 펼치지 않아도 한 번은 세어 본다 — 예전엔 뱃지가 �
   assert.ok(!/'세는 중…'/.test(LEAD), '아직도 「세는 중…」을 띄운다')
 })
 
-test('★ 최상위는 매일 여는 넷뿐이다 — 늘어설수록 매일 여는 것이 눈에 안 들어온다', () => {
-  const top = LAYOUT.slice(LAYOUT.indexOf('const NAV_ITEMS = ['), LAYOUT.indexOf('const NAV_GROUPS'))
-  const hrefs = [...top.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
-  assert.deepEqual(hrefs, ['/crm/today', '/crm/inbox', '/crm/deals', '/crm/quotes'],
-    '최상위가 늘었다 — 연관 있는 것은 그룹으로 묶는다')
+test('★ 최상위는 매일 여는 다섯뿐이다 — 늘어설수록 매일 여는 것이 눈에 안 들어온다', () => {
+  assert.equal(CRM_NAV_GROUPS.length, 5, '최상위가 늘었다 — 연관 있는 것은 묶음 안 탭으로 내린다')
+  // 예전엔 13개였다. 실측(2026-08-27) 그중 딜·견적·할 일이 0건이라,
+  // 매일 여는 것과 아직 비어 있는 것이 같은 무게로 늘어서 있었다.
+  const all = CRM_NAV_GROUPS.flatMap((g) => g.tabs.length)
+  assert.ok(all.reduce((a, b) => a + b, 0) >= 10, '화면을 없앤 게 아니라 탭으로 내린 것이다')
 })
 
 test('★ 회사와 인물은 [거래처] 한 묶음이다 — 늘 함께 보는 것을 따로 세우지 않는다', () => {
-  const group = LAYOUT.slice(LAYOUT.indexOf("label: '거래처'"), LAYOUT.indexOf("label: '기록'"))
+  const g = CRM_NAV_GROUPS.find((x) => x.label === '거래처')
+  const hrefs = g?.tabs.map((t) => t.href) ?? []
   for (const h of ['/crm/companies', '/crm/people']) {
-    assert.ok(group.includes(`href: '${h}'`), `${h} 가 거래처 묶음에 없다`)
+    assert.ok(hrefs.includes(h), `${h} 가 거래처 묶음에 없다`)
   }
 })
 
+test('★ 견적은 [딜] 묶음이다 — 견적은 딜 금액의 근거 문서다', () => {
+  const g = CRM_NAV_GROUPS.find((x) => x.label === '딜')
+  assert.ok(g?.tabs.some((t) => t.href === '/crm/quotes'), '견적이 딜 묶음에 없다')
+})
+
 test('묶음 이름은 용어집이 정한 그대로다 — 「거래처」는 메뉴 이름, 「회사」는 개체 이름', () => {
-  assert.ok(LAYOUT.includes("label: '거래처'"), '묶음 이름이 다르다')
-  assert.ok(LAYOUT.includes("label: '회사'"), '개체 이름을 묶음 이름으로 바꿔 버렸다')
+  const g = CRM_NAV_GROUPS.find((x) => x.label === '거래처')
+  assert.ok(g, '묶음 이름이 다르다')
+  assert.ok(g!.tabs.some((t) => t.label === '회사'), '개체 이름을 묶음 이름으로 바꿔 버렸다')
   assert.equal(ENTITY.company.label, '회사')
+})
+
+// ── 실화면에서 잡힌 것 (v0.7.614 브라우저 검증) ───────────
+
+test('★ 할 일을 지울 길이 있다 — DELETE API 는 있는데 화면이 안 불렀다(§2-5(3))', () => {
+  const TASKS = readFileSync(
+    new URL('../../../app/(crm)/crm/tasks/TasksClient.tsx', import.meta.url), 'utf8')
+  assert.match(TASKS, /method: 'DELETE'/, '삭제를 부르지 않는다 — 잘못 만든 것이 영원히 남는다')
+  assert.match(TASKS, /confirmDelete\('task'/, '확인 없이 지운다')
+  assert.match(TASKS, /aria-label=\{`\$\{t\.title\} \$\{ACTION\.delete\}`\}/,
+    '어느 할 일을 지우는지 낭독기가 말하지 못한다')
+})
+
+test('같은 오류를 화면이 두 번 말하지 않는다 — 배너와 빈 상태가 동시에 떴다', () => {
+  const TASKS = readFileSync(
+    new URL('../../../app/(crm)/crm/tasks/TasksClient.tsx', import.meta.url), 'utf8')
+  assert.ok(!/ErrorState message=\{error\}/.test(TASKS), '오류를 두 곳에서 그린다')
+  assert.match(TASKS, /FormErrorBanner message=\{error\}/, '오류를 아예 안 보여 준다')
 })

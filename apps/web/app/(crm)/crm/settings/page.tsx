@@ -1,5 +1,6 @@
 import { Settings } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
+import CrmGroupTabs from '@/components/crm/CrmGroupTabs'
 import BudgetCard from './BudgetCard'
 import SettingsCard from './SettingsCard'
 import DuplicatesCard from './DuplicatesCard'
@@ -21,6 +22,7 @@ export default function CrmSettingsPage() {
         title="설정"
         icon={<Settings size={20} />}
         description="파이프라인·필드·AI·연동을 관리합니다."
+        below={<CrmGroupTabs />}
       />
       {/* 카드마다 저장한다(§2-5-4) — 탭 하단 일괄 저장 바를 두지 않는다 */}
       <div className={styles.grid}>
