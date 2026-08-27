@@ -52,12 +52,23 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
     const seen = new Set(topics.map((t) => t.id))
     return [...topics, ...extraTopics.filter((t) => !seen.has(t.id))]
   }, [topics, extraTopics])
-  const [error, setError] = useState<{ code: string; message: string } | null>(null)
+  /**
+   * 오류는 두 종류이고 **화면에서 하는 일이 다르다**.
+   *
+   *   loadError  — 목록 자체를 못 읽었다. 보여줄 것이 없으니 화면 전체가 오류다.
+   *   actionError — 이 묶음 하나를 확정하지 못했다. **나머지 묶음은 멀쩡하다.**
+   *
+   * 예전에는 둘을 한 상태에 담고 `if (error) return <ErrorState/>` 했다.
+   * 그래서 확정이 한 번 실패하면 **묶음 8장이 통째로 사라지고** 오류 한 줄만 남았고,
+   * 새로고침하기 전까지 그 화면이 계속 유지됐다 — 사용자에게는 «계속 에러»로 보인다.
+   */
+  const [loadError, setLoadError] = useState<{ code: string; message: string } | null>(null)
+  const [actionError, setActionError] = useState<{ key: string; message: string } | null>(null)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [done, setDone] = useState<string[]>([])
 
   const load = useCallback(() => {
-    setError(null)
+    setLoadError(null)
     // no-store 가 없으면 답한 직후 다시 읽을 때 **옛 응답**이 온다 —
     // 화면은 방금 정리한 건수를 그대로 들고 있어 «눌렸나?»가 된다(실측).
     fetch('/api/ci/review/groups', {
@@ -67,9 +78,9 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
       .then((r) => r.json() as Promise<ApiResponse<{ groups: ReviewGroup[] }>>)
       .then((res) => {
         if (res.success) setGroups(res.data.groups)
-        else setError({ code: res.error.code, message: res.error.message })
+        else setLoadError({ code: res.error.code, message: res.error.message })
       })
-      .catch((e: unknown) => setError({
+      .catch((e: unknown) => setLoadError({
         code: 'NETWORK',
         message: e instanceof Error ? e.message : '검토할 것을 불러오지 못했습니다.',
       }))
@@ -83,8 +94,9 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
    */
   async function resolve(g: ReviewGroup, topicId: string, remember: boolean, contentIds?: string[]) {
     setBusyKey(g.key)
+    setActionError(null)
     try {
-      const res = await fetch('/api/ci/review/resolve', {
+      const send = () => fetch('/api/ci/review/resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
         body: JSON.stringify({
@@ -93,7 +105,23 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
         }),
       }).then((r) => r.json() as Promise<ApiResponse<ResolveResult>>)
 
-      if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
+      let res = await send()
+
+      // INTERNAL 은 «서버가 이번에 못 했다»이지 «할 수 없다»가 아니다 —
+      // 공유 dev 서버 재컴파일·연결 순간 고갈처럼 다시 보내면 되는 것이 섞여 있다.
+      // 사용자가 같은 버튼을 두 번 누르게 만들 이유가 없으므로 한 번은 조용히 다시 보낸다.
+      //
+      // 안전한 이유: 확정은 «pending 인 것만» 바꾸므로 두 번 보내도 두 번 적용되지 않는다.
+      // 첫 요청이 실제로는 성공했고 응답만 못 받은 경우 두 번째는 NOT_FOUND 가 오는데,
+      // 그것은 «이미 정리됨»이므로 실패가 아니다 — 그때는 목록만 다시 읽는다.
+      if (!res.success && res.error.code === 'INTERNAL') {
+        await new Promise((r) => setTimeout(r, 600))
+        res = await send()
+        if (!res.success && res.error.code === 'NOT_FOUND') { load(); router.refresh(); return }
+      }
+
+      // 이 묶음만 실패한 것이다. 목록은 그대로 두고 이 카드 안에서 다시 누를 수 있게 한다.
+      if (!res.success) { setActionError({ key: g.key, message: res.error.message }); return }
 
       // 무슨 일이 일어났는지 말한다 — 사라지기만 하면 눌린 건지 알 수 없다
       const d = res.data
@@ -107,13 +135,19 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
       if (contentIds && contentIds.length > 0) load()
       else setGroups((prev) => prev?.filter((x) => x.key !== g.key) ?? null)
       router.refresh()   // 사이드바 뱃지·탭 건수도 함께 줄어야 한다
+    } catch (e: unknown) {
+      // 예전에는 catch 가 없어 요청이 끊기면 **아무 일도 일어나지 않은 것처럼** 보였다
+      setActionError({
+        key: g.key,
+        message: e instanceof Error ? e.message : '정리하지 못했습니다. 다시 눌러 주세요',
+      })
     } finally {
       setBusyKey(null)
     }
   }
 
   /** 없는 주제는 여기서 만든다 — 만들러 다른 화면에 다녀오게 하지 않는다 */
-  async function createTopic(name: string): Promise<{ id: string; name: string } | null> {
+  async function createTopic(name: string, key: string): Promise<{ id: string; name: string } | null> {
     const res = await fetch('/api/ci/topics', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
@@ -121,16 +155,17 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
     }).then((r) => r.json() as Promise<ApiResponse<{ id: string; name: string }>>)
       .catch(() => null)
     if (!res || !res.success) {
-      setError(res && !res.success
-        ? { code: res.error.code, message: res.error.message }
-        : { code: 'NETWORK', message: '주제를 만들지 못했습니다.' })
+      setActionError({
+        key,
+        message: res && !res.success ? res.error.message : '주제를 만들지 못했습니다.',
+      })
       return null
     }
     setExtraTopics((prev) => [...prev, res.data])
     return res.data
   }
 
-  if (error) return <ErrorState message={error.message} code={error.code} onRetry={load} />
+  if (loadError) return <ErrorState message={loadError.message} code={loadError.code} onRetry={load} />
   if (!groups) return <SkelList rows={3} />
 
   return (
@@ -156,19 +191,22 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
           disabled={busyKey != null && busyKey !== g.key}
           onResolve={resolve}
           onCreateTopic={createTopic}
+          error={actionError?.key === g.key ? actionError.message : null}
         />
       ))}
     </div>
   )
 }
 
-function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic }: {
+function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error }: {
   g: ReviewGroup
   topics: { id: string; name: string }[]
   busy: boolean
   disabled: boolean
   onResolve: (g: ReviewGroup, topicId: string, remember: boolean, contentIds?: string[]) => void
-  onCreateTopic: (name: string) => Promise<{ id: string; name: string } | null>
+  onCreateTopic: (name: string, key: string) => Promise<{ id: string; name: string } | null>
+  /** 이 묶음을 정리하지 못했을 때의 말. 다른 묶음은 영향받지 않는다 */
+  error: string | null
 }) {
   // 기본은 **꺼짐**이다. 채널 안에도 서로 다른 주제가 많다 —
   // 실측 「장사의 신」 645건은 인물·블로그 506 · 음식 102 · 엔터 30 · 교육 4 · 이슈 2로 갈렸다.
@@ -203,7 +241,7 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic }: {
     if (!name || creating) return
     setCreating(true)
     try {
-      const t = await onCreateTopic(name)
+      const t = await onCreateTopic(name, g.key)
       if (t) { setNewName(null); onResolve(g, t.id, remember, targetIds) }
     } finally { setCreating(false) }
   }
@@ -256,6 +294,12 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic }: {
             </li>
           )}
         </ul>
+      )}
+
+      {error && (
+        <p className={`ci-status ci-status-danger ${s.actionError}`} role="alert">
+          {error} — 다시 눌러 보세요
+        </p>
       )}
 
       <div className={s.actions}>

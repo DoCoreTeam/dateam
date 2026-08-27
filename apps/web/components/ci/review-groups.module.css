@@ -120,3 +120,9 @@
   flex: 1 1 12rem;
   min-width: 0;
 }
+
+/* 이 묶음만 실패했다는 표시. 목록은 그대로 남는다 */
+.actionError {
+  margin: 0 0 var(--space-3);
+  display: block;
+}
