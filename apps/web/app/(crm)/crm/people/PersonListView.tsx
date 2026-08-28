@@ -18,6 +18,7 @@ import {
   TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
 } from '@/components/ui/crm/trash'
 import PersonFormModal from './PersonFormModal'
+import IntakeModal from '@/components/ui/crm/IntakeModal'
 
 export interface PersonItem {
   id: string
@@ -68,6 +69,8 @@ export default function PersonListView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
+  /** 명함·서명·엑셀 — 회사 화면과 같은 입구 */
+  const [intakeOpen, setIntakeOpen] = useState(false)
 
   const q = query.q ?? ''
   const trash = isTrashView(query)
@@ -135,7 +138,12 @@ export default function PersonListView() {
         filters={[TRASH_FILTER]}
         selection={crmBulk.toolbarSelection}
         actions={
-          <NbButton onClick={() => setFormOpen(true)}>
+          /*
+            **회사 화면과 같은 입구다.** 명함·서명·엑셀은 회사와 사람을 함께 만들므로
+            어느 쪽에서 열든 하는 일이 같다 — 한쪽에만 두면 인물 화면에 온 사람은
+            명함을 넣을 길이 없다(사용자 지적).
+          */
+          <NbButton onClick={() => setIntakeOpen(true)}>
             <Plus size={16} /> 인물 추가
           </NbButton>
         }
@@ -158,7 +166,7 @@ export default function PersonListView() {
           description: q
             ? '다른 이름이나 이메일로 찾아보세요.'
             : '담당자를 등록하면 미팅·딜에 이어 붙일 수 있습니다.',
-          action: q ? undefined : { label: '인물 추가', onClick: () => setFormOpen(true) },
+          action: q ? undefined : { label: '인물 추가', onClick: () => setIntakeOpen(true) },
         }}
       />
 
@@ -170,6 +178,15 @@ export default function PersonListView() {
         loading={loading}
         onChange={() => void load(true, cursor)}
       />
+
+      {intakeOpen && (
+        <IntakeModal
+          surface="person"
+          onClose={() => setIntakeOpen(false)}
+          onDone={() => void load(false, null)}
+          onManual={() => { setIntakeOpen(false); setFormOpen(true) }}
+        />
+      )}
 
       {formOpen && (
         <PersonFormModal

@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.653',
+    date: '2026-08-28',
+    title: '명함 사진으로 한 번에 등록해요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📇',
+        headline: '명함을 찍어 올리면 회사와 사람이 만들어져요',
+        detail: '한 번에 열 장까지 올릴 수 있어요. 읽은 글자를 화면에서 확인하고 고친 뒤 등록하니, 흐린 사진도 손보면 그대로 쓸 수 있습니다.',
+      },
+      {
+        kind: 'feature',
+        emoji: '📋',
+        headline: '메일 서명을 그대로 붙여넣어도 돼요',
+        detail: '정해진 양식이 없어도 됩니다. 받은 메일 하단 서명을 복사해 붙여넣으면 회사·이름·직함·연락처를 알아서 나눠 담아요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🎯',
+        headline: '등록 방법이 한 자리에 모였어요',
+        detail: '「회사 추가」·「인물 추가」를 누르면 직접 입력·명함 사진·서명 붙여넣기·엑셀 중에서 고를 수 있어요. 회사 화면과 인물 화면 어디서든 같습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.652',
     date: '2026-08-28',
     title: '보드와 목록이 할 말을 다 해요',

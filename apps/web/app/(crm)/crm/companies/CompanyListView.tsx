@@ -11,8 +11,9 @@
 // count 는 첫 페이지 1회뿐이다(lib/crm/db/cursor.ts countIfFirstPage).
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Sparkles } from 'lucide-react'
+import { Plus, Sparkles, Upload} from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
+import IntakeModal from '@/components/ui/crm/IntakeModal'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
@@ -92,6 +93,8 @@ export default function CompanyListView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
+  /** 명함·서명·엑셀 — 한 번에 등록하는 입구 */
+  const [intakeOpen, setIntakeOpen] = useState(false)
 
   // AI 보강 — 진행 중 여부·결과·실패를 따로 든다.
   // 실패를 결과 안에 섞으면 "성공 0건"과 "아예 못 불렀다"가 같은 화면이 된다.
@@ -293,7 +296,12 @@ export default function CompanyListView() {
         filters={[TRASH_FILTER]}
         selection={crmBulk.toolbarSelection}
         actions={
-          <NbButton onClick={() => setFormOpen(true)}>
+          /*
+            **버튼은 하나다.** 넣는 방법이 넷(직접·명함·서명·엑셀)인데 버튼을 넷으로 나누면
+            도구 줄이 버튼밭이 되고, 정작 «회사를 넣으려면 어디를 누르지»가 어려워진다.
+            하나를 누르고 방법을 고르는 것이 손이 덜 간다(사용자 지시).
+          */
+          <NbButton onClick={() => setIntakeOpen(true)}>
             <Plus size={16} /> 회사 추가
           </NbButton>
         }
@@ -413,7 +421,8 @@ export default function CompanyListView() {
           description: q
             ? '다른 이름이나 도메인으로 찾아보세요.'
             : '거래처를 추가하면 담당자와 딜을 이어서 만들 수 있습니다.',
-          action: q ? undefined : { label: '회사 추가', onClick: () => setFormOpen(true) },
+          // 빈 상태에서도 같은 입구로 — 여기만 폼을 바로 열면 방법 넷 중 셋을 못 만난다
+          action: q ? undefined : { label: '회사 추가', onClick: () => setIntakeOpen(true) },
         }}
       />
 
@@ -425,6 +434,15 @@ export default function CompanyListView() {
         loading={loading}
         onChange={() => void load(true, cursor)}
       />
+
+      {intakeOpen && (
+        <IntakeModal
+          surface="company"
+          onClose={() => setIntakeOpen(false)}
+          onDone={() => void load(false, null)}
+          onManual={() => { setIntakeOpen(false); setFormOpen(true) }}
+        />
+      )}
 
       {formOpen && (
         <CompanyFormModal

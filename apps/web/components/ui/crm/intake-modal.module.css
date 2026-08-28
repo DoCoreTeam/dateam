@@ -1,0 +1,75 @@
+/* 한 번에 등록 — 명함 · 서명 붙여넣기 · 엑셀 */
+
+.wrap { display: grid; gap: var(--space-3); }
+
+.pane { display: grid; gap: var(--space-3); }
+
+.hint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.tools { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+/* 브라우저 기본 파일 입력은 우리 화면과 너무 다르다 — 버튼으로 대신 연다 */
+.hiddenFile { display: none; }
+
+.failed {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+}
+
+.done {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--success-bg);
+  color: var(--success);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+/* 읽은 명함 — 등록 전에 고칠 수 있다 */
+.cardList { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+
+.cardItem {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.cardHead { display: flex; align-items: center; gap: var(--space-2); }
+
+.cardName {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.remove {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.remove:hover { color: var(--danger); background: var(--danger-bg); }
+
+/* 확정은 오른쪽 끝, 취소는 그 왼쪽 — §2-3-2 L-6 */
+.foot { display: flex; justify-content: flex-end; gap: var(--space-2); }
