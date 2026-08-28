@@ -16,10 +16,13 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import type { BoardPipeline } from './DealBoard'
+import MoneyField from '@/components/ui/MoneyField'
 import {
   BUSINESS_TYPE_LABEL, BUSINESS_TYPE_ORDER, BUSINESS_TYPE_LABEL_TEXT,
   TERM_TYPE_LABEL, TERM_TYPE_ORDER, TERM_TYPE_LABEL_TEXT,
+  EXPECTED_CLOSE_LABEL, END_DATE_UNKNOWN_LABEL, END_DATE_UNKNOWN_HINT,
 } from '@/lib/terms'
+import styles from './board.module.css'
 
 /** 안 고른 상태 — 「없음」이 아니다. 아직 정하지 않았다는 뜻이다 */
 const NOT_SET = '아직 안 정함'
@@ -42,6 +45,8 @@ export interface DealDraft {
   startDate?: string | null
   endDate?: string | null
   version?: number
+  /** 종료일을 정할 수 없는 사업(크레딧 소진 시까지 등) */
+  endDateUnknown?: boolean
 }
 
 interface Props {
@@ -69,6 +74,7 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
   const [termType, setTermType] = useState(initial?.termType ?? '')
   const [startDate, setStartDate] = useState(initial?.startDate ?? '')
   const [endDate, setEndDate] = useState(initial?.endDate ?? '')
+  const [endDateUnknown, setEndDateUnknown] = useState(initial?.endDateUnknown ?? false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -135,6 +141,7 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
         termType: termType || null,
         startDate: startDate || null,
         endDate: endDate || null,
+        endDateUnknown,
       }
       if (editing) payload.version = initial?.version
 
@@ -226,9 +233,9 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
           <div>
             <label className="label" htmlFor="crm-deal-amount">예상 금액</label>
-            <input
-              id="crm-deal-amount" className="input-field" value={amount ?? ''} inputMode="numeric"
-              onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))}
+            <MoneyField
+              id="crm-deal-amount" value={amount ?? ''}
+              onValueChange={setAmount}
               placeholder="아직 몰라도 됩니다"
             />
           </div>
@@ -283,14 +290,33 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
             </div>
             <div>
               <label className="label" htmlFor="crm-deal-end">{TERM_END}</label>
-              <DateField id="crm-deal-end" value={endDate ?? ''} onValueChange={setEndDate} />
+              <DateField
+                id="crm-deal-end" value={endDate ?? ''} onValueChange={setEndDate}
+                disabled={endDateUnknown}
+              />
+              {/*
+                **«아직 안 적었다»와 «정할 수 없다»는 다르다.**
+                크레딧 사업은 소진될 때까지가 기간이라 끝나는 날이 없다 —
+                빈 칸으로 두면 화면이 계속 채우라고 재촉하게 된다.
+              */}
+              <label className={styles.checkLine} htmlFor="crm-deal-end-unknown">
+                <input
+                  id="crm-deal-end-unknown" type="checkbox" checked={endDateUnknown}
+                  onChange={(e) => {
+                    setEndDateUnknown(e.target.checked)
+                    if (e.target.checked) setEndDate('')
+                  }}
+                />
+                <span>{END_DATE_UNKNOWN_LABEL}</span>
+              </label>
+              <p className={styles.checkHint}>{END_DATE_UNKNOWN_HINT}</p>
             </div>
           </div>
         )}
 
         <div>
-          <label className="label" htmlFor="crm-deal-close">예상 마감일</label>
-          {/* 선택 항목이라 기본값을 넣지 않는다 — 오늘을 찍으면 '오늘 마감되는 딜'로 읽혀 예측이 오염된다. */}
+          <label className="label" htmlFor="crm-deal-close">{EXPECTED_CLOSE_LABEL}</label>
+          {/* 선택 항목이라 기본값을 넣지 않는다 — 오늘을 찍으면 '오늘 수주하는 딜'로 읽혀 예측이 오염된다. */}
           <DateField
             id="crm-deal-close" value={expectedCloseDate ?? ''}
             onValueChange={setExpectedCloseDate}

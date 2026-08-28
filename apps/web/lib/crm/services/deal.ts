@@ -68,7 +68,7 @@ const SELECT = {
   ownerId: true, version: true, updatedAt: true,
   // 장부의 세 금액 — 화면이 보는 「금액」은 이 셋에서 나온다(아래 withBooked)
   budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
-  businessType: true, termType: true, startDate: true, endDate: true,
+  businessType: true, termType: true, startDate: true, endDate: true, endDateUnknown: true,
 } as const
 
 /**
@@ -107,6 +107,8 @@ export interface DealInput {
   termType?: string | null
   startDate?: string | null
   endDate?: string | null
+  /** 종료일을 정할 수 없는 사업(크레딧 소진 시까지 등) */
+  endDateUnknown?: boolean
 }
 
 /**
@@ -159,6 +161,8 @@ function normalizeInput(input: Partial<DealInput>, requireName: boolean): Record
   }
   if (input.startDate !== undefined) out.startDate = input.startDate ? new Date(input.startDate) : null
   if (input.endDate !== undefined) out.endDate = input.endDate ? new Date(input.endDate) : null
+  // 「정할 수 없다」와 「아직 안 적었다」는 다르다 — 크레딧 사업은 소진될 때까지가 기간이다
+  if (input.endDateUnknown !== undefined) out.endDateUnknown = Boolean(input.endDateUnknown)
 
   const s = out.startDate as Date | null | undefined
   const e = out.endDate as Date | null | undefined

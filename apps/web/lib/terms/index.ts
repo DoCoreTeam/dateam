@@ -27,13 +27,14 @@ export {
   taxBasisNote, inKindShare, undatedInKindNote, yearLabel, monthsLabel, basisPlaceholder,
   BUSINESS_TYPE_LABEL, BUSINESS_TYPE_ORDER, BUSINESS_TYPE_LABEL_TEXT,
   TERM_TYPE_LABEL, TERM_TYPE_ORDER, TERM_TYPE_LABEL_TEXT,
+  EXPECTED_CLOSE_LABEL, END_DATE_UNKNOWN_LABEL, END_DATE_UNKNOWN_HINT,
   type BookedFromKey, type FundingKey, type InKindKindKey,
   type BusinessTypeKey, type TermTypeKey,
 } from './ledger.ts'
 
 export {
   QUOTE, QUOTE_LINES_LOCKED, SUPPLIER_SETUP_HINT, EXPORT_SAFE_NOTE, EXPORT_BLOCKED_NOTE, PRINT_HINT,
-  SUPPLIER_LABEL, SUPPLIER_ORDER, SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY,
+  SUPPLIER_LABEL, SUPPLIER_ORDER, SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY, QUOTE_SETTING_KEY,
   quoteEditTitle, approvalNeeded, expiredNote, hangulAmount,
   type SupplierField,
 } from './quote.ts'

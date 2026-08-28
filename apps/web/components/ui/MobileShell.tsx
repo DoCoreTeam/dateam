@@ -47,6 +47,11 @@ function isNavActive(pathname: string, item: NavItem): boolean {
 }
 
 export interface NavGroup {
+  /**
+   * 묶음을 가리키는 **키** — 권한 판정이 이걸 본다. 이름은 바뀌어도 키는 안 바뀐다.
+   * 선택 항목이다(다른 셸 넷은 권한 판정을 안 해서 필요 없다) — 권한을 거는 묶음만 붙인다.
+   */
+  key?: string
   label: string
   items: NavItem[]
 }

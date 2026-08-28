@@ -86,6 +86,8 @@ export function RecordPanel({ title, action, children }: {
  * 그래서 없으면 '—'를 그린다.
  */
 export interface RecordFieldProps {
+  /** 긴 값(주소·설명)은 한 줄을 통째로 쓴다 */
+  wide?: boolean
   label: string
   children?: ReactNode
   /**
@@ -104,12 +106,12 @@ export interface RecordFieldProps {
   onToggleVerified?: (field: string, next: boolean) => void
 }
 
-export function RecordField({ label, children, field, verified, onToggleVerified }: RecordFieldProps) {
+export function RecordField({ label, children, field, verified, onToggleVerified, wide }: RecordFieldProps) {
   const empty = children === null || children === undefined || children === ''
   const canToggle = !!field && !!onToggleVerified
 
   return (
-    <div className={styles.field}>
+    <div className={wide ? `${styles.field} ${styles.fieldWide}` : styles.field}>
       <dt className={styles.fieldLabel}>
         {label}
         {canToggle && (

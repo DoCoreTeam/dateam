@@ -213,6 +213,23 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
                       <dd>{doc.supplier[f]}</dd>
                     </Fragment>
                   ))}
+                  {/*
+                    담당은 **이 견적을 만든 사람**이다 — 회사 설정의 고정 연락처가 아니다.
+                    고객이 이 번호로 걸면 그 사람이 받는다.
+                  */}
+                  {doc.owner.name && (
+                    <>
+                      <dt>{QUOTE.supplierContact}</dt>
+                      <dd>
+                        {doc.owner.name}{doc.owner.title ? ` ${doc.owner.title}` : ''}
+                        {(doc.owner.phone || doc.owner.email) && (
+                          <div className={styles.spec}>
+                            {[doc.owner.phone, doc.owner.email].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                      </dd>
+                    </>
+                  )}
                 </dl>
               </>
             )}

@@ -41,7 +41,28 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   }) as { name: string; company: { name: string } | null } | null
   if (!deal) throw new CrmError('NOT_FOUND', '견적이 붙은 딜을 찾을 수 없습니다.')
 
-  const [supplier, images] = await Promise.all([readQuoteSupplier(db), readQuoteImages(db)])
+  // 담당자는 **견적을 만든 사람**이다 — 회사 설정의 고정 연락처가 아니다(기획 결정 3)
+  // 이 견적이 고른 거래 조건. 하나도 안 골랐으면 설정의 기본 조건으로 떨어진다 —
+  // 조건을 등록하기 전에 만든 견적이 갑자기 조건 없는 문서가 되면 안 된다
+  const termIds = (quote as { termIds?: string[] }).termIds ?? []
+  const [supplier, images, owner, terms] = await Promise.all([
+    readQuoteSupplier(db),
+    readQuoteImages(db),
+    quote.ownerId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (db as any).crmMember.findFirst({
+          where: { id: quote.ownerId },
+          select: { displayName: true, title: true, phone: true, email: true },
+        }) as Promise<{ displayName: string; title: string | null; phone: string | null; email: string } | null>
+      : Promise.resolve(null),
+    termIds.length > 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (db as any).crmQuoteTerm.findMany({
+          where: { id: { in: termIds } },
+          select: { id: true, body: true },
+        }) as Promise<{ id: string; body: string }[]>
+      : Promise.resolve([]),
+  ])
 
   const document = buildQuoteDocument({
     quote: {
@@ -74,6 +95,13 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       fallbackName: deal.name,
     },
     supplier,
+    // **고른 순서대로** 인쇄한다 — DB 가 준 순서가 아니라 termIds 의 순서다
+    selectedTerms: termIds
+      .map((id) => terms.find((t) => t.id === id)?.body)
+      .filter((b): b is string => Boolean(b)),
+    owner: owner
+      ? { name: owner.displayName, title: owner.title, email: owner.email, phone: owner.phone }
+      : undefined,
     todayKey: kstDateKey(new Date().toISOString()),
   })
 

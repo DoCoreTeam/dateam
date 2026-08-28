@@ -45,6 +45,11 @@ import {
 export interface QuoteLineRow {
   id: string
   productId: string | null
+  /** 라인 종류 여섯. 종류마다 «수량·단가»가 뜻하는 것이 다르다 */
+  kind: string
+  /** 공수 라인: 역할·등급 */
+  roleLabel: string | null
+  laborGradeId: string | null
   name: string
   descriptionMd: string | null
   quantity: string
@@ -72,6 +77,8 @@ export interface QuoteRow {
   approvedById: string | null
   approvedAt: Date | null
   notesMd: string | null
+  /** 이 견적이 고른 거래 조건. 순서가 곧 인쇄 순서다 */
+  termIds: string[]
   ownerId: string | null
   sentAt: Date | null
   decidedAt: Date | null
@@ -86,12 +93,14 @@ export interface QuoteRow {
 const LINE_SELECT = {
   id: true, productId: true, name: true, descriptionMd: true, quantity: true, unit: true,
   unitPriceMinor: true, discountPercent: true, taxRate: true, lineTotalMinor: true, position: true,
+  kind: true, roleLabel: true, laborGradeId: true,
 } as const
 
 const SELECT = {
   id: true, dealId: true, quoteNo: true, title: true, status: true, currency: true,
   validUntil: true, subtotalMinor: true, discountMinor: true, taxMinor: true, totalMinor: true,
-  approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true, ownerId: true,
+  approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
+  termIds: true, ownerId: true,
   sentAt: true, decidedAt: true, version: true, createdAt: true, updatedAt: true,
 } as const
 
@@ -103,6 +112,10 @@ export interface QuoteLineData {
   /** 기존 항목이면 id. 없으면 새로 만든다 */
   id?: string | null
   productId?: string | null
+  /** 라인 종류. 안 주면 수량 라인으로 본다(지금까지의 유일한 종류) */
+  kind?: string | null
+  roleLabel?: string | null
+  laborGradeId?: string | null
   name: string
   descriptionMd?: string | null
   quantity: number | string
@@ -123,9 +136,10 @@ export interface QuoteLineData {
 const LINE_KEYS = new Set([
   'id', 'productId', 'name', 'descriptionMd', 'quantity', 'unit',
   'unitPriceMinor', 'discountPercent', 'taxRate',
+  'kind', 'roleLabel', 'laborGradeId',
 ])
 const QUOTE_KEYS = new Set([
-  'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines',
+  'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
   // 수정 경로가 함께 보내는 것들
   'version', 'status',
 ])
@@ -400,6 +414,8 @@ async function nextQuoteNo(tx: any, year: number): Promise<string> {
 // ------------------------------------------------------------
 
 export interface CreateQuoteInput {
+  /** 고른 거래 조건. 순서가 곧 인쇄 순서다 */
+  termIds?: string[]
   dealId: string
   title?: string | null
   currency?: string | null
@@ -449,6 +465,8 @@ export async function createQuote(
           currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
           notesMd: normalizeText(input.notesMd),
+          // 고른 조건. 순서를 그대로 저장한다 — 그 순서가 인쇄 순서다
+          termIds: Array.isArray(input.termIds) ? input.termIds.filter((v) => typeof v === 'string') : [],
           ownerId: input.ownerId || null,
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor,
@@ -471,6 +489,9 @@ export async function createQuote(
           dealId: input.dealId, quoteNo, title, currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
           notesMd: normalizeText(input.notesMd), ownerId: input.ownerId || null,
+          ...(Array.isArray(input.termIds)
+            ? { termIds: input.termIds.filter((v) => typeof v === 'string') }
+            : {}),
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor,
           taxMinor: totals.taxMinor, totalMinor: totals.totalMinor,
@@ -517,6 +538,7 @@ async function approvalThreshold(tx: any): Promise<number> {
 }
 
 export interface UpdateQuoteInput {
+  termIds?: string[]
   version: number
   title?: string | null
   validUntil?: string | null

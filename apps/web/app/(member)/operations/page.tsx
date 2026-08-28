@@ -1,4 +1,6 @@
-import { createAdminClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { createAdminClient, getRequestUser } from '@/lib/supabase/server'
+import { isMemberOfDivisionByName } from '@/lib/org-scope'
 import PageHeader from '@/components/ui/PageHeader'
 import RrMatrixTable from './RrMatrixTable'
 
@@ -62,6 +64,18 @@ function getPhaseBadgeStyle(phase: string): React.CSSProperties {
 
 export default async function OperationsPage() {
   const adminClient = createAdminClient()
+
+  /**
+   * **숨긴 기준과 막는 기준을 같게 한다.**
+   *
+   * 홈의 「본부 운영」 칩은 AX사업본부 소속에게만 그려진다(`home/page.tsx`). 그런데 이 화면은
+   * 로그인만 하면 열려서, 주소를 아는 사람은 누구나 본부 운영 자료를 봤다(실측 v0.7.618:
+   * `requireAdmin`·소속 판정 0건). **숨기는 것과 막는 것은 다르다** — 링크를 안 보여 주는
+   * 것은 접근 제어가 아니다. 칩과 같은 판정을 화면에도 건다.
+   */
+  const user = await getRequestUser()
+  if (!user) redirect('/login')
+  if (!(await isMemberOfDivisionByName(adminClient, user.id, 'AX사업본부'))) redirect('/home')
 
   const { data: projectsRow } = await adminClient
     .from('org_content')

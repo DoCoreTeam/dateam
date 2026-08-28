@@ -35,6 +35,14 @@ export const LEDGER = {
   separateAccount: '별도 계좌',
   /** 접힌 상세를 여는 말 — `더보기`·`상세` 금지(같은 행위가 화면마다 다른 이름이 된다) */
   expand: '자세히',
+  /**
+   * 장부에 아직 아무것도 안 적혔을 때의 버튼.
+   *
+   * ~~「수정」~~ 은 **고칠 것이 이미 있다**는 뜻이라, 재원도 현물도 없는 딜에서
+   * 무엇을 고치라는 건지 알 수 없다(사용자 지적).
+   * 채운 뒤에는 「수정」이 맞다 — 같은 버튼이 상태에 따라 다른 말을 한다.
+   */
+  registerDetail: '상세 등록',
   collapse: '접기',
   /** 현물 입력 안내 — 왜 근거를 적어야 하는지까지 말한다 */
   inKindWhy: '숫자 한 칸으로 두면 다음 달에 그 금액이 무엇이었는지 아무도 모릅니다. 정산 서류에 그대로 쓰이는 환산 근거를 함께 적어 주세요.',
@@ -164,7 +172,7 @@ export function basisPlaceholder(kind: InKindKindKey): string {
  * 유형을 안 적어 두면 나중에 「어떤 사업이 남는 장사였나」에 답할 수 없다.
  */
 export type BusinessTypeKey =
-  | 'GPU' | 'SI' | 'SOLUTION' | 'HARDWARE' | 'MSP' | 'PROJECT' | 'OTHER'
+  | 'GPU' | 'SI' | 'SOLUTION' | 'HARDWARE' | 'MSP' | 'PROJECT' | 'CREDIT' | 'OTHER'
 
 export const BUSINESS_TYPE_LABEL: Record<BusinessTypeKey, string> = {
   GPU: 'GPU',
@@ -174,12 +182,21 @@ export const BUSINESS_TYPE_LABEL: Record<BusinessTypeKey, string> = {
   MSP: 'MSP',
   /** 국가 과제 — 재원 구성과 현물이 붙는 유일한 유형이다 */
   PROJECT: '국책',
+  /**
+   * 크레딧 충전 — 고객이 미리 충전하고 쓰는 만큼 소진한다.
+   *
+   * **영업과 회계가 다른 말을 하는 유일한 유형이다.**
+   * 영업: 충전한 순간 수주이고 이미 수금됐다.
+   * 회계: 소진되기 전까지는 선수금(부채)이고 매출이 아니다.
+   * 지금은 **영업 관점만** 담는다 — 소진에 따른 수익 인식은 아직 구현하지 않았다.
+   */
+  CREDIT: '크레딧 충전',
   OTHER: '기타',
 }
 
 /** 화면이 세우는 순서 — 자주 쓰는 것부터 */
 export const BUSINESS_TYPE_ORDER: readonly BusinessTypeKey[] =
-  ['GPU', 'SI', 'SOLUTION', 'HARDWARE', 'MSP', 'PROJECT', 'OTHER']
+  ['GPU', 'SI', 'SOLUTION', 'HARDWARE', 'MSP', 'PROJECT', 'CREDIT', 'OTHER']
 
 export const BUSINESS_TYPE_LABEL_TEXT = '사업 유형'
 
@@ -195,3 +212,16 @@ export const TERM_TYPE_LABEL: Record<TermTypeKey, string> = {
 
 export const TERM_TYPE_ORDER: readonly TermTypeKey[] = ['SHORT', 'MID', 'LONG']
 export const TERM_TYPE_LABEL_TEXT = '사업 기간'
+
+/**
+ * 딜이 **성사될 것으로 보는 날**.
+ *
+ * ~~「예상 마감일」~~ 은 «일이 끝나는 날»로 읽힌다 — 바로 위에 「사업 종료일」이 있어
+ * 더 헷갈렸다(사용자 지적: 「예상 마감일은 영업 수주일 이야기하는거야?」).
+ * 우리가 이 날짜로 하는 일은 **언제 수주할지 예측**하는 것이므로 그렇게 부른다.
+ */
+export const EXPECTED_CLOSE_LABEL = '수주 예상일'
+
+/** 종료일을 알 수 없는 사업 — 크레딧은 소진될 때까지가 기간이라 날짜를 못 적는다 */
+export const END_DATE_UNKNOWN_LABEL = '종료일 미정'
+export const END_DATE_UNKNOWN_HINT = '크레딧 소진 시까지처럼 끝나는 날을 정할 수 없는 사업'

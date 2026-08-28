@@ -32,9 +32,21 @@ export interface DocumentSupplier {
   address: string
   bizType: string
   bizItem: string
-  contact: string
   /** 기본 거래 조건 — 견적마다 안 적어도 되도록 */
   terms: string
+}
+
+/**
+ * 담당자 — **견적을 만든 사람**이다(기획 결정 3).
+ *
+ * 회사 설정에 고정 연락처를 두면 누가 만들었든 같은 번호가 찍히고,
+ * 고객은 그 번호로 걸어 「누구 찾으세요?」를 듣는다.
+ */
+export interface DocumentOwner {
+  name: string
+  title: string
+  email: string
+  phone: string
 }
 
 export interface DocumentCustomer {
@@ -69,6 +81,8 @@ export interface DocumentTotals {
 export interface QuoteDocument {
   documentTitle: string
   supplier: DocumentSupplier
+  /** 이 견적을 만든 사람. 비어 있으면 그 줄을 안 그린다 */
+  owner: DocumentOwner
   customer: DocumentCustomer
   meta: {
     quoteNo: string
@@ -125,6 +139,14 @@ export interface BuildQuoteDocumentInput {
     fallbackName: string
   }
   supplier: Partial<Record<SupplierField, string | null>>
+  /**
+   * 이 견적이 **고른** 거래 조건(순서대로).
+   * 비어 있으면 설정의 기본 조건(`supplier.terms`)으로 떨어진다 —
+   * 조건 항목을 등록하기 전에 만든 견적이 갑자기 조건 없는 문서가 되면 안 된다
+   */
+  selectedTerms?: readonly string[]
+  /** 견적 소유자의 프로필. 없으면 담당 줄이 안 나온다 */
+  owner?: { name?: string | null; title?: string | null; email?: string | null; phone?: string | null }
   /** 오늘 — KST 기준 날짜 문자열을 호출부가 만들어 넘긴다(이 파일은 시간을 모른다) */
   todayKey: string
 }
@@ -135,8 +157,21 @@ function s(v: bigint | string | number | null | undefined): string {
 }
 
 function text(v: string | null | undefined): string {
-  const t = (v ?? '').trim()
-  return t
+  return (v ?? '').trim()
+}
+
+/**
+ * 여러 줄로 등록된 값에서 **대표 한 줄**만.
+ *
+ * 사업자등록증에는 업태·종목이 여러 쌍 적혀 있다(실물 확인: 업태 5줄·종목 5줄).
+ * 전부 등록해 두는 것은 맞지만, **견적서에는 단일로 찍는다** —
+ * 다섯 줄을 다 찍으면 공급자 칸이 문서의 절반을 먹는다.
+ * 등록은 여럿, 인쇄는 하나. 어느 줄이 대표인지는 **순서**가 정한다(첫 줄).
+ */
+function primaryLine(v: string | null | undefined): string {
+  const all = text(v)
+  if (all === '') return ''
+  return all.split('\n')[0].trim()
 }
 
 /** 날짜를 `YYYY-MM-DD` 로. 이미 그 모양이면 그대로 둔다 */
@@ -166,10 +201,15 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       bizNo: text(input.supplier.bizNo),
       ceo: text(input.supplier.ceo),
       address: text(input.supplier.address),
-      bizType: text(input.supplier.bizType),
-      bizItem: text(input.supplier.bizItem),
-      contact: text(input.supplier.contact),
+      bizType: primaryLine(input.supplier.bizType),
+      bizItem: primaryLine(input.supplier.bizItem),
       terms: text(input.supplier.terms),
+    },
+    owner: {
+      name: text(input.owner?.name),
+      title: text(input.owner?.title),
+      email: text(input.owner?.email),
+      phone: text(input.owner?.phone),
     },
     customer: {
       // 회사가 없는 딜도 있다(개인·기관). 그럴 때 「귀중」 앞을 비우면 문서가 아니다
@@ -215,8 +255,10 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       totalMinor: s(input.quote.totalMinor),
       totalInWords: hangulAmount(input.quote.totalMinor, currency),
     },
-    // 조건은 공급자 기본값에서 온다. 줄바꿈으로 나눠 한 줄씩 그린다
-    terms: text(input.supplier.terms).split('\n').map((t) => t.trim()).filter((t) => t !== ''),
+    // 고른 조건이 있으면 그것을, 없으면 설정의 기본 조건을 줄 단위로
+    terms: (input.selectedTerms && input.selectedTerms.length > 0)
+      ? input.selectedTerms.map((t) => t.trim()).filter((t) => t !== '')
+      : text(input.supplier.terms).split('\n').map((t) => t.trim()).filter((t) => t !== ''),
     customerNote: text(input.quote.notesMd) || null,
   }
 }

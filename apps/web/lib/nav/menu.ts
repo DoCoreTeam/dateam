@@ -62,6 +62,31 @@ export function navLabel(href: string): string {
 }
 
 /**
+ * 누가 이 링크를 보는가 — **메뉴 권한의 유일한 자리**.
+ *
+ * 예전엔 사이드바가 `그룹 이름 === '가격정책'` 으로 판정했다. 즉 **메뉴 이름을 바꾸면
+ * 권한이 바뀌는 상태**였다(§2-3-3 N-3 이 "묶음과 권한을 같은 장치로 처리하지 말라"고
+ * 정한 바로 그 패턴). 그리고 전체 메뉴(QuickNav)는 **누가 보는지 아예 받지 않아서**
+ * 두 메뉴가 같은 경로에 다른 권한을 갖고 있었다.
+ *
+ * 여기 없는 경로는 `'all'` 이다 — **막는 것은 명시할 때만** 일어난다.
+ * ⚠️ 이 표는 **메뉴에 그릴지**만 정한다. 실제 접근 차단은 각 라우트가 한다
+ *    (숨기는 것과 막는 것은 다르다 — 주소는 직접 칠 수 있다).
+ */
+export type NavAudience = 'all' | 'admin'
+
+export const NAV_AUDIENCE: Record<string, NavAudience> = {
+  '/ai-chat': 'admin',
+}
+
+export function canSeeNav(href: string, isAdmin: boolean): boolean {
+  return NAV_AUDIENCE[href] !== 'admin' || isAdmin
+}
+
+/** 그룹 통째로 관리자 전용인 묶음 — 이름이 아니라 **키**로 정한다 */
+export const ADMIN_ONLY_GROUPS = new Set<string>(['service'])
+
+/**
  * 「서비스」 그룹에 들어갈 하위 서비스 (N-1).
  *
  * 사이드바가 통째로 그 서비스 것으로 바뀌는 곳만 여기 온다.

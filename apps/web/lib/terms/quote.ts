@@ -33,6 +33,11 @@ export const QUOTE = {
   supplierAddress: '주소',
   supplierBizType: '업태',
   supplierBizItem: '종목',
+  /**
+   * 담당 — **회사 설정이 아니라 견적을 만든 사람**이다(기획 결정 3).
+   * 회사 설정에 고정 연락처를 두면 누가 만들었든 같은 번호가 찍히고,
+   * 고객은 그 번호로 걸어 「누구 찾으세요?」를 듣는다.
+   */
   supplierContact: '담당',
 
   // ── 문서 메타 ────────────────────────────────
@@ -205,7 +210,7 @@ export function hangulAmount(minor: bigint | string | number, currency: string):
 // ------------------------------------------------------------
 
 export type SupplierField =
-  | 'name' | 'bizNo' | 'ceo' | 'address' | 'bizType' | 'bizItem' | 'contact' | 'terms'
+  | 'name' | 'bizNo' | 'ceo' | 'address' | 'bizType' | 'bizItem' | 'terms'
 
 /** 설정 키(`quote.supplier.*`) → 문서에 찍히는 라벨 */
 export const SUPPLIER_LABEL: Record<SupplierField, string> = {
@@ -215,7 +220,6 @@ export const SUPPLIER_LABEL: Record<SupplierField, string> = {
   address: QUOTE.supplierAddress,
   bizType: QUOTE.supplierBizType,
   bizItem: QUOTE.supplierBizItem,
-  contact: QUOTE.supplierContact,
   terms: QUOTE.terms,
 }
 
@@ -235,7 +239,6 @@ export const SUPPLIER_SETTING_KEY: Record<SupplierField, string> = {
   address: 'quote.supplier.address',
   bizType: 'quote.supplier.bizType',
   bizItem: 'quote.supplier.bizItem',
-  contact: 'quote.supplier.contact',
   terms: 'quote.supplier.terms',
 }
 
@@ -252,7 +255,18 @@ export const SUPPLIER_IMAGE_KEY = {
   logo: 'quote.supplier.logo',
 } as const
 
+/**
+ * 견적 자체의 설정 키.
+ *
+ * 공급자 정보(`quote.supplier.*`)와 나눈 이유: 이건 **우리 회사 정보가 아니라
+ * 견적을 만드는 방식**이다. 한 묶음에 섞으면 「공급자 정보」 카드에
+ * 유효기간이 끼어 무엇을 설정하는 카드인지 흐려진다.
+ */
+export const QUOTE_SETTING_KEY = {
+  validDays: 'quote.validDays',
+} as const
+
 /** 문서에 찍히는 순서 — 세금계산서와 같은 순서다(사람이 눈으로 대조한다) */
 export const SUPPLIER_ORDER: readonly SupplierField[] = [
-  'name', 'bizNo', 'ceo', 'address', 'bizType', 'bizItem', 'contact',
+  'name', 'bizNo', 'ceo', 'address', 'bizType', 'bizItem',
 ]

@@ -87,3 +87,23 @@
   color: var(--text-faint);
   white-space: nowrap;
 }
+
+/* 지우기 — 행 오른쪽 끝. DELETE API 는 있는데 화면이 안 부르던 자리(§2-5(3)) */
+.remove {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.remove:hover:not(:disabled),
+.remove:focus-visible { background: var(--danger-bg); color: var(--danger); }
+.remove:disabled { opacity: 0.5; cursor: default; }

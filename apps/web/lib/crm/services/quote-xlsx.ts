@@ -184,6 +184,19 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     ws.getCell(`F${row}`).alignment = { wrapText: true, vertical: 'top' }
   })
 
+  // 담당 — 이 견적을 만든 사람. 화면에 있는 것이 파일에도 있어야 한다
+  if (doc.owner.name) {
+    const row = partyTop + 1 + filled.length
+    ws.getCell(`E${row}`).value = QUOTE.supplierContact
+    ws.getCell(`E${row}`).font = { size: 9, color: { argb: MUTED } }
+    ws.mergeCells(`F${row}:${LAST_COL}${row}`)
+    const who = `${doc.owner.name}${doc.owner.title ? ` ${doc.owner.title}` : ''}`
+    const how = [doc.owner.phone, doc.owner.email].filter(Boolean).join(' · ')
+    ws.getCell(`F${row}`).value = how ? `${who} · ${how}` : who
+    ws.getCell(`F${row}`).font = { size: 10 }
+    ws.getCell(`F${row}`).alignment = { wrapText: true, vertical: 'top' }
+  }
+
   // ── 날인 자리 — 도장 이미지 대신 문구 ────────────────────
   // 전자로 보내는 문서에 도장을 박으면 받은 사람이 오려내 다른 문서에 쓸 수 있다.
   // 「(직인생략)」은 실무 관례이고, 그 표기 자체가 «원본에는 날인이 있다»는 뜻으로 통용된다.
@@ -195,7 +208,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   }
 
   // 고객 쪽(회사 + 부속 줄)과 공급자 쪽(채운 항목 수) 중 **긴 쪽**을 따라간다
-  const partyBottom = Math.max(r + customerRowsData.length, partyTop + filled.length)
+  const ownerRows = doc.owner.name ? 1 : 0
+  const partyBottom = Math.max(r + customerRowsData.length, partyTop + filled.length + ownerRows)
 
   // 긴 값(주소·종목·담당)은 한 줄에 안 들어간다 — 행 높이를 안 키우면 **잘려서 인쇄된다**
   for (let row = partyTop; row <= partyBottom; row += 1) {

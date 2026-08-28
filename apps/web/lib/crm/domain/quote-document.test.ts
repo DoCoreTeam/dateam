@@ -98,6 +98,23 @@ test('회사가 없는 딜이면 딜 이름이 「귀중」 앞에 선다 — �
   assert.equal(doc.customer.companyName, '한국전자 국책과제')
 })
 
+test('업태·종목을 여러 줄로 등록해도 견적서엔 첫 줄만 — 다섯 줄이면 공급자 칸이 문서 절반을 먹는다', () => {
+  const doc = buildQuoteDocument(input({
+    supplier: {
+      name: '데이터얼라이언스 주식회사',
+      bizType: '서비스\n도소매\n소매\n서비스',
+      bizItem: '소프트웨어 개발 및 공급\n단말기\n전자상거래\n컴퓨터시스템 통합 자문',
+    },
+  }))
+  assert.equal(doc.supplier.bizType, '서비스')
+  assert.equal(doc.supplier.bizItem, '소프트웨어 개발 및 공급')
+})
+
+test('한 줄만 등록한 기존 값도 그대로 동작한다', () => {
+  const doc = buildQuoteDocument(input({ supplier: { name: '우리', bizType: '서비스업', bizItem: '소프트웨어' } }))
+  assert.equal(doc.supplier.bizType, '서비스업')
+})
+
 test('빈 값은 «—» 로 채우지 않는다 — 그리는 쪽이 줄을 안 그린다', () => {
   const doc = buildQuoteDocument(input({ supplier: { name: '주식회사 우리' } }))
   assert.equal(doc.supplier.bizNo, '')
@@ -242,7 +259,7 @@ test('가드를 일부러 깬다: 항목이 0건이면 소계도 0이어야 한�
 
 test('공급자 정보가 비면 무엇이 비었는지 이름으로 말한다', () => {
   const doc = buildQuoteDocument(input({ supplier: { name: '주식회사 우리', ceo: '홍길동' } }))
-  assert.deepEqual(missingSupplierFields(doc), ['bizNo', 'address', 'bizType', 'bizItem', 'contact'])
+  assert.deepEqual(missingSupplierFields(doc), ['bizNo', 'address', 'bizType', 'bizItem'])
 })
 
 test('공급자 정보가 다 차면 빈 목록', () => {

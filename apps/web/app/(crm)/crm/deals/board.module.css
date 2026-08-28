@@ -258,3 +258,21 @@
   flex-shrink: 0;
   color: var(--text-faint);
 }
+
+/* 「종료일 미정」 같은 보조 체크 — 입력칸 아래 붙는다.
+   체크박스와 글자를 같은 label 로 묶어 글자를 눌러도 켜지게 한다(터치 영역) */
+.checkLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  min-height: 1.75rem;
+}
+
+.checkHint {
+  margin: 0.15rem 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}

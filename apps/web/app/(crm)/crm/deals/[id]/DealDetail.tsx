@@ -28,6 +28,8 @@ import { formatKstDateTimeShort, kstDateKey } from '@/lib/datetime/kst'
 import {
   BUSINESS_TYPE_LABEL, BUSINESS_TYPE_LABEL_TEXT, TERM_TYPE_LABEL, TERM_TYPE_LABEL_TEXT,
   type BusinessTypeKey, type TermTypeKey,
+
+  EXPECTED_CLOSE_LABEL, END_DATE_UNKNOWN_LABEL,
 } from '@/lib/terms'
 import type { BoardPipeline } from '../DealBoard'
 import DealFormModal from '../DealFormModal'
@@ -47,6 +49,7 @@ interface Deal {
   endDate?: string | null
   currency: string | null
   expectedCloseDate: string | null
+  endDateUnknown?: boolean
   wonAt: string | null
   lostReason: string | null
   version: number
@@ -81,9 +84,15 @@ function formatDuration(sec: number | null): string {
 }
 
 /** 기간 표기 — 장기면 실제 기간까지 함께 보여 준다 */
-function termText(d: { termType?: string | null; startDate?: string | null; endDate?: string | null }): string {
+function termText(d: {
+  termType?: string | null; startDate?: string | null; endDate?: string | null; endDateUnknown?: boolean
+}): string {
   const label = TERM_TYPE_LABEL[d.termType as TermTypeKey] ?? d.termType ?? ''
-  if (!d.startDate || !d.endDate) return label
+  if (!d.startDate) return label
+  // 「정할 수 없다」와 「아직 안 적었다」는 다르게 보여야 한다 —
+  // 크레딧 사업에 빈 칸을 두면 덜 채운 것처럼 읽힌다
+  if (d.endDateUnknown) return `${label} · ${kstDateKey(d.startDate)} ~ ${END_DATE_UNKNOWN_LABEL}`
+  if (!d.endDate) return label
   return `${label} · ${kstDateKey(d.startDate)} ~ ${kstDateKey(d.endDate)}`
 }
 
@@ -185,7 +194,7 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                   {deal.termType ? termText(deal) : null}
                 </RecordField>
                 {/* 마감일·성사일은 **날짜**다 — 시각을 붙이면 "9시까지"로 읽힌다(실브라우저에서 잡음) */}
-                <RecordField label="예상 마감일">
+                <RecordField label={EXPECTED_CLOSE_LABEL}>
                   {deal.expectedCloseDate ? kstDateKey(deal.expectedCloseDate) : null}
                 </RecordField>
                 {deal.status === 'WON' && (
@@ -284,6 +293,7 @@ export default function DealDetail({ dealId }: { dealId: string }) {
             pipelineId: deal.pipelineId, stageId: deal.stageId,
             amountMinor: deal.amountMinor, currency: deal.currency,
             expectedCloseDate: deal.expectedCloseDate?.slice(0, 10) ?? '',
+            endDateUnknown: deal.endDateUnknown ?? false,
             businessType: deal.businessType ?? '',
             termType: deal.termType ?? '',
             startDate: deal.startDate?.slice(0, 10) ?? '',

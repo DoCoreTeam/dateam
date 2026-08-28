@@ -217,7 +217,7 @@ test('★ 공급자 설정 키가 정의와 읽는 쪽에서 같다 — 어긋�
     Array.from(terms.matchAll(/'(quote\.supplier\.[\w]+)'/g)).map((m) => m[1]),
   )).sort()
 
-  assert.ok(defined.length >= 9, `설정 정의에서 공급자 키를 못 읽었다(${defined.length}개) — 가드가 헛돌고 있다`)
+  assert.ok(defined.length >= 8, `설정 정의에서 공급자 키를 못 읽었다(${defined.length}개) — 가드가 헛돌고 있다`)
   assert.deepEqual(read, defined,
     '설정에 정의한 공급자 키와 읽는 쪽 키가 다르다.\n' +
     '읽는 쪽에만 있는 키는 언제나 빈 값이 되고, 화면은 «채우지 않았다»고 말한다.')

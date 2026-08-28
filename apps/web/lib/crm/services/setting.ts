@@ -24,7 +24,7 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY, type SupplierField } from '../../terms/quote.ts'
+import { SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY, QUOTE_SETTING_KEY, type SupplierField } from '../../terms/quote.ts'
 import type { SettingGroupKey } from '../domain/setting-group.ts'
 
 export type SettingScope = 'GLOBAL' | 'WORKSPACE'
@@ -123,20 +123,23 @@ export const SETTING_DEFS: readonly SettingDef[] = [
     fallback: '', description: '사업장 주소입니다.',
   },
   {
-    key: 'quote.supplier.bizType', label: '업태', kind: 'text', group: 'quote',
-    fallback: '', description: '사업자등록증의 업태입니다. 예: 서비스업',
+    key: 'quote.supplier.bizType', label: '업태', kind: 'multiline', group: 'quote',
+    fallback: '',
+    description: '사업자등록증에 적힌 대로 한 줄에 하나씩. 종목과 **줄 순서가 짝**입니다. 견적서에는 첫 줄만 인쇄됩니다. 예: 서비스 / 도소매 / 소매',
   },
   {
-    key: 'quote.supplier.bizItem', label: '종목', kind: 'text', group: 'quote',
-    fallback: '', description: '사업자등록증의 종목입니다. 예: 소프트웨어 개발 및 공급',
-  },
-  {
-    key: 'quote.supplier.contact', label: '담당', kind: 'text', group: 'quote',
-    fallback: '', description: '고객이 문의할 연락처입니다. 예: 영업팀 02-0000-0000',
+    key: 'quote.supplier.bizItem', label: '종목', kind: 'multiline', group: 'quote',
+    fallback: '',
+    description: '업태와 같은 순서로 한 줄에 하나씩. 견적서에는 첫 줄만 인쇄됩니다. 예: 소프트웨어 개발 및 공급 / 단말기 / 전자상거래',
   },
   {
     key: 'quote.supplier.terms', label: '기본 거래 조건', kind: 'multiline', group: 'quote',
     fallback: '', description: '모든 견적서 아래에 한 줄씩 인쇄됩니다. 줄바꿈으로 나눠 주세요. 예: 결제: 검수 후 30일 이내',
+  },
+  {
+    key: 'quote.validDays', label: '견적 유효기간', kind: 'text', group: 'quote',
+    fallback: '30',
+    description: '새 견적을 만들 때 기본으로 잡히는 기간입니다. 「30」이면 30일, 「3개월」이면 3개월. 견적마다 바꿀 수 있습니다.',
   },
   {
     key: 'quote.supplier.logo', label: '로고', kind: 'image', group: 'quote',
@@ -161,7 +164,7 @@ export const PLANNED_SETTINGS = [
 
 /** 공급자 설정 키의 뒷부분. 문서 쪽 `SupplierField` 와 **같은 이름**이라 대조가 된다 */
 const SUPPLIER_FIELDS: readonly SupplierField[] = [
-  'name', 'bizNo', 'ceo', 'address', 'bizType', 'bizItem', 'contact', 'terms',
+  'name', 'bizNo', 'ceo', 'address', 'bizType', 'bizItem', 'terms',
 ]
 
 const DEF_BY_KEY = new Map(SETTING_DEFS.map((d) => [d.key, d]))
@@ -314,6 +317,41 @@ export function assertImage(dataUri: string, key: string): void {
  * **목록 조회(listSettings)는 이 값을 싣지 않는다.** 로고 하나가 수백 KB 라
  * 설정 화면을 열 때마다 그게 따라오면 화면이 느려진다 — 거기서는 «있음/없음»만 보여 준다.
  */
+/**
+ * 견적 유효기간 기본값을 **일수**로.
+ *
+ * **왜 문자열로 받나**: 사용자는 「30」이라고도 「3개월」이라고도 쓴다.
+ * 단위를 고르는 드롭다운을 따로 두면 칸이 둘이 되고, 둘이 어긋날 수 있다 —
+ * 한 칸에 쓰게 하고 여기서 읽는다.
+ *
+ * 30일을 기본으로 둔 이유: 예전에는 이 값이 **코드에 박혀 있었다**(`todayPlus(30)`).
+ * 바꾸려면 배포를 해야 했다.
+ */
+export async function readQuoteValidDays(db: CrmDb): Promise<number> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await (db as any).crmAppSetting.findMany({
+    where: { key: QUOTE_SETTING_KEY.validDays },
+    select: { scope: true, valueJson: true },
+  }) as { scope: SettingScope; valueJson: unknown }[]
+  const hit = rows.find((r) => r.scope === 'WORKSPACE') ?? rows.find((r) => r.scope === 'GLOBAL')
+  return parseValidDays(hit ? String(hit.valueJson ?? '') : '')
+}
+
+/** 「30」·「30일」·「3개월」·「1년」 을 일수로. 못 읽으면 30 */
+export function parseValidDays(raw: string): number {
+  const t = (raw ?? '').trim()
+  if (t === '') return 30
+  const m = /^(\d+)\s*(일|개월|달|월|년)?$/.exec(t)
+  if (!m) return 30
+  const n = Number(m[1])
+  if (!Number.isFinite(n) || n <= 0) return 30
+  const unit = m[2] ?? '일'
+  // 개월·년은 «달력상 개월»이라 30·365 로 환산한다 — 견적 기한에 하루 이틀 차이는 뜻이 없다
+  const days = unit === '일' ? n : unit === '년' ? n * 365 : n * 30
+  // 상한을 둔다 — 「9999개월」 이 들어오면 날짜 칸이 감당 못 한다
+  return Math.min(days, 3650)
+}
+
 export async function readQuoteImages(db: CrmDb): Promise<{ logo: string }> {
   const keys = [SUPPLIER_IMAGE_KEY.logo]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

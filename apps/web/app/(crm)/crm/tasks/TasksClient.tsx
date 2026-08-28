@@ -13,15 +13,15 @@ import { useSearchParams } from 'next/navigation'
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { CheckSquare, Square } from 'lucide-react'
+import { CheckSquare, Square, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
-import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import DateField from '@/components/ui/DateField'
+import { ACTION, confirmDelete, failedTo } from '@/lib/terms'
 import { kstTodayKey, kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { isEnterKey } from '@/lib/ui/ime'
 import styles from './tasks.module.css'
@@ -107,6 +107,31 @@ export default function TasksClient() {
     }
   }
 
+  /**
+   * 지울 길이 없었다 — `DELETE /api/crm/tasks/:id` 는 있는데 **화면이 안 불렀다**(§2-5(3)).
+   * 캘린더에서 할 일을 만들 수 있게 해 놓고 지울 수 없으면, 잘못 만든 것이 영원히 남는다.
+   *
+   * 휴지통이라 되돌릴 수 있지만(30일) 확인은 받는다 — 목록에서 사라지는 건 같다.
+   */
+  async function remove(t: Task) {
+    if (!window.confirm(confirmDelete('task', 1, { stays: '딜과 미팅 기록은 그대로 남아요.' }))) return
+    setBusy(t.id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/crm/tasks/${t.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const b = await res.json().catch(() => null)
+        setError(b?.error?.message ?? failedTo('할 일', '삭제'))
+        return
+      }
+      await load()
+    } catch {
+      setError(failedTo('할 일', '삭제', '잠시 후 다시 시도해 주세요.'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function add() {
     if (!title.trim()) { setError('무엇을 할지 적어 주세요.'); return }
     setBusy('new')
@@ -159,7 +184,6 @@ export default function TasksClient() {
       </div>
 
       {loading && items.length === 0 ? <AXDotLoader />
-        : error && items.length === 0 ? <ErrorState message={error} onRetry={() => void load()} />
         : items.length === 0 ? (
           <EmptyState
             title={scope === 'open' ? '지금 할 일이 없어요' : '할 일이 아직 없어요'}
@@ -193,6 +217,16 @@ export default function TasksClient() {
                   {done && t.completedAt && (
                     <span className={styles.at}>{formatKstDateTimeShort(t.completedAt)}</span>
                   )}
+                  <button
+                    type="button"
+                    className={styles.remove}
+                    onClick={() => void remove(t)}
+                    disabled={busy === t.id}
+                    aria-label={`${t.title} ${ACTION.delete}`}
+                    title={ACTION.delete}
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </li>
               )
             })}

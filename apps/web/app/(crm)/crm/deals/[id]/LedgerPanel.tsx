@@ -78,6 +78,13 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+
+  /**
+   * 장부에 «사람이 적은 것»이 하나라도 있나.
+   *
+   * 금액(수주 매출)은 딜에서 파생될 수 있으므로 판정에 넣지 않는다 —
+   * 예상 금액만 있는 딜을 «상세를 적었다»고 보면 버튼이 처음부터 「수정」이 된다.
+   */
   const [editing, setEditing] = useState(false)
 
   /**
@@ -115,6 +122,9 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
   const money = (minor: string): string => formatAmount(minor, data.currency) ?? '—'
 
   const hasFunding = data.funding.length > 0
+  // 사람이 적은 것이 하나라도 있나 — 예산·계약·재원·현물 중 하나
+  const hasDetail = hasFunding || data.inKindCount > 0
+    || data.budgetMinor !== null || data.contractMinor !== null
 
   return (
     <div>
@@ -147,7 +157,11 @@ export default function LedgerPanel({ dealId }: { dealId: string }) {
         </button>
         {data.canEdit && (
           <NbButton variant="ghost" onClick={() => setEditing(true)}>
-            <Pencil size={16} /> {ACTION.edit}
+            {/*
+            아직 아무것도 안 적혔으면 「상세 등록」, 한 번이라도 적었으면 「수정」.
+            비어 있는데 「수정」이라고 하면 무엇을 고치라는 건지 알 수 없다.
+          */}
+          <Pencil size={16} /> {hasDetail ? ACTION.edit : LEDGER.registerDetail}
           </NbButton>
         )}
       </div>

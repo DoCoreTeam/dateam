@@ -3,15 +3,18 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar, Handshake } from 'lucide-react'
+import { navLabel, canSeeNav } from '@/lib/nav/menu'
 
 const PAGES = [
   {
     group: '기본',
     items: [
-      { href: '/home', label: '홈', icon: <Home size={14} /> },
-      { href: '/daily', label: '일일업무', icon: <NotebookPen size={14} /> },
-      { href: '/calendar', label: '캘린더', icon: <CalendarDays size={14} /> },
-      { href: '/weekly-report', label: '주간보고', icon: <FileText size={14} /> },
+      { href: '/home', label: navLabel('/home'), icon: <Home size={14} /> },
+      { href: '/daily', label: navLabel('/daily'), icon: <NotebookPen size={14} /> },
+      { href: '/calendar', label: navLabel('/calendar'), icon: <CalendarDays size={14} /> },
+      { href: '/weekly-report', label: navLabel('/weekly-report'), icon: <FileText size={14} /> },
+      // 관리자 전용 — 사이드바에만 있어서 전체 메뉴로는 못 찾았다. 권한은 canSeeNav 가 본다
+      { href: '/ai-chat', label: navLabel('/ai-chat'), icon: <Sparkles size={14} /> },
     ],
   },
   {
@@ -24,37 +27,44 @@ const PAGES = [
      */
     group: '영업',
     items: [
-      { href: '/crm', label: '영업 CRM', icon: <Handshake size={14} /> },
+      { href: '/crm', label: navLabel('/crm'), icon: <Handshake size={14} /> },
     ],
   },
   {
     group: '프로젝트관리',
     items: [
-      { href: '/accounts', label: '거래처', icon: <Briefcase size={14} /> },
-      { href: '/contacts', label: '담당자', icon: <Users size={14} /> },
-      { href: '/deals', label: '영업기회', icon: <TrendingUp size={14} /> },
-      { href: '/lead-intake', label: '리드 인테이크', icon: <Inbox size={14} /> },
+      { href: '/accounts', label: navLabel('/accounts'), icon: <Briefcase size={14} /> },
+      { href: '/contacts', label: navLabel('/contacts'), icon: <Users size={14} /> },
+      { href: '/deals', label: navLabel('/deals'), icon: <TrendingUp size={14} /> },
+      { href: '/lead-intake', label: navLabel('/lead-intake'), icon: <Inbox size={14} /> },
     ],
   },
   {
     group: '가격정책',
     items: [
-      { href: '/pricing/gpu', label: 'GPU 관리', icon: <DollarSign size={14} /> },
-      { href: '/pricing/catalog', label: '판매가격표', icon: <Tag size={14} /> },
+      { href: '/pricing/gpu', label: navLabel('/pricing/gpu'), icon: <DollarSign size={14} /> },
+      { href: '/pricing/catalog', label: navLabel('/pricing/catalog'), icon: <Tag size={14} /> },
     ],
   },
   {
     // 사내 업무와 별개로 도는 독립 표면들. 개발자센터와 같은 성격이라 같은 자리에 둔다.
     group: '별도 서비스',
     items: [
-      { href: '/ci', label: '콘텐츠 인텔리전스', icon: <Radar size={14} /> },
-      { href: '/api-keys', label: 'API Keys', icon: <Key size={14} /> },
-      { href: '/develop', label: '개발자센터', icon: <Code2 size={14} />, external: true },
+      { href: '/ci', label: navLabel('/ci'), icon: <Radar size={14} /> },
+      { href: '/api-keys', label: navLabel('/api-keys'), icon: <Key size={14} /> },
+      { href: '/develop', label: navLabel('/develop'), icon: <Code2 size={14} />, external: true },
     ],
   },
 ]
 
-export default function QuickNav() {
+/**
+ * 전체 메뉴 — **권한을 받는다.**
+ *
+ * 예전엔 `isAdmin` 을 아예 받지 않아서, 사이드바에서 막은 화면이 여기서는 그대로 보였다.
+ * 같은 경로에 두 메뉴가 **다른 권한**을 갖고 있던 셈이다. 판정은 사이드바와 같은 표
+ * (`NAV_AUDIENCE`)를 읽는다 — 한 곳만 고치면 둘이 함께 바뀐다.
+ */
+export default function QuickNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -105,7 +115,10 @@ export default function QuickNav() {
             </button>
           </div>
           <div style={{ padding: '8px 0' }}>
-            {PAGES.map(({ group, items }) => (
+            {PAGES
+              .map((g) => ({ ...g, items: g.items.filter((i) => canSeeNav(i.href, isAdmin)) }))
+              .filter((g) => g.items.length > 0)
+              .map(({ group, items }) => (
               <div key={group}>
                 <div style={{ padding: '6px 16px 2px', fontSize: 11, fontWeight: 600, color: 'var(--border-subtle)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{group}</div>
                 {items.map(({ href, label, icon, external }) => (

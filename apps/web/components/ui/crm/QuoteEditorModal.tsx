@@ -81,13 +81,13 @@ function emptyLine(): QuoteLineDraft {
   return { productId: null, name: '', descriptionMd: '', quantity: '1', unit: '', unitPriceMinor: '', discountPercent: '0', taxRate: '10' }
 }
 
-export function newQuoteDraft(dealName: string, currency: string | null): QuoteDraft {
+export function newQuoteDraft(dealName: string, currency: string | null, validDays = 30): QuoteDraft {
   return {
     title: `${dealName} 견적`,
     currency: (currency ?? 'KRW').toUpperCase(),
     // 빈 칸으로 두면 사용자가 연도부터 타이핑하게 되고, 거기서 6자리 연도가 들어간다.
-    // 견적 유효기간의 관례값(30일)을 미리 넣어 두고 필요하면 고치게 한다.
-    validUntil: todayPlus(30),
+    // **기본 일수는 설정에서 온다** — 예전엔 30이 여기 박혀 있어 바꾸려면 배포를 해야 했다.
+    validUntil: todayPlus(validDays),
     notesMd: '',
     lines: [emptyLine()],
   }

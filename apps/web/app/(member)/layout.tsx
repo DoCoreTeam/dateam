@@ -20,7 +20,7 @@ import { cookies } from 'next/headers'
 import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Network, Sparkles, Handshake, Radar } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
-import { navLabel, SERVICE_NAV, SERVICE_GROUP_LABEL } from '@/lib/nav/menu'
+import { navLabel, SERVICE_NAV, SERVICE_GROUP_LABEL, ADMIN_ONLY_GROUPS, canSeeNav } from '@/lib/nav/menu'
 
 // 이름은 lib/nav/menu 에서 온다 — 사이드바와 전체 메뉴가 갈리지 않게(§2-3-3 N-4)
 const NAV_ITEMS = [
@@ -29,8 +29,9 @@ const NAV_ITEMS = [
   { href: '/calendar', label: navLabel('/calendar'), icon: <CalendarDays size={16} /> },
   { href: '/meeting-notes', label: navLabel('/meeting-notes'), icon: <NotebookPen size={16} /> },
   { href: '/org', label: navLabel('/org'), icon: <Network size={16} /> },
-  // 그룹이 권한을 겸하던 것을 항목 플래그로 옮겼다 — 이제 1개짜리 그룹이 아니어도 관리자 전용이다(§2-3-3 N-3)
-  { href: '/ai-chat', label: navLabel('/ai-chat'), icon: <Sparkles size={16} />, adminOnly: true },
+  // 관리자 전용 여부는 여기 안 적는다 — `NAV_AUDIENCE`(lib/nav/menu) 한 곳이 정하고
+  // 사이드바·전체 메뉴가 **같은 표**를 읽는다. 화면마다 플래그를 들면 또 갈린다.
+  { href: '/ai-chat', label: navLabel('/ai-chat'), icon: <Sparkles size={16} /> },
 ]
 
 /** 하위 서비스로 들어가는 아이콘 — 이름은 표가, 그림은 화면이 정한다 */
@@ -47,17 +48,19 @@ const NAV_GROUPS: NavGroup[] = [
      * 예전엔 「영업」 그룹에 CRM 하나만 있었고 **콘텐츠 인텔리전스는 아예 없었다** —
      * 전체 메뉴로만 들어갈 수 있어서, 있는 줄 모르면 못 찾았다.
      *
-     * ⚠️ 아래 groups 필터가 비관리자에게 '가격정책'만 남기므로 지금은 admin 에게만 보인다.
-     *    실제 접근 판정은 각 서비스의 멤버십이 한다(CRM=CrmMember · CI=워크스페이스).
-     *    비관리자 멤버가 생기면 그때 필터가 멤버십을 함께 봐야 한다 —
-     *    지금 미리 조회하면 화면마다 왕복이 한 번 는다(v0.7.492 에서 줄인 그 왕복이다).
+     * ⚠️ 지금은 admin 에게만 보인다(`ADMIN_ONLY_GROUPS`). 실제 접근 판정은 각 서비스의
+     *    멤버십이 한다(CRM=CrmMember · CI=워크스페이스). 비관리자 멤버가 생기면
+     *    그때 그 표만 고치면 된다 — 지금 미리 조회하면 화면마다 왕복이 한 번 는다
+     *    (v0.7.492 에서 줄인 그 왕복이다).
      */
+    key: 'service',
     label: SERVICE_GROUP_LABEL,
     items: SERVICE_NAV.map((s) => ({
       href: s.href, label: s.label, icon: SERVICE_ICON[s.href], match: [s.href],
     })),
   },
   {
+    key: 'pricing',
     label: '가격정책',
     items: [
       { href: '/pricing/gpu', label: navLabel('/pricing/gpu'), icon: <DollarSign size={16} /> },
@@ -127,23 +130,33 @@ export default async function MemberLayout({ children }: { children: React.React
   const onboardingDone = Boolean(profile?.onboarding_completed_at) || Boolean(profile?.onboarding_skipped_at)
   const shouldStartOnboarding = !onboardingBlockedByModal && !onboardingDone
 
-  const navItemsWithBadge = NAV_ITEMS.map((item) => {
-    if (item.href === '/routine') return { ...item, badge: routineBadge }
-    if (item.href === '/calendar') return { ...item, badge: calendarBadge }
-    if (item.href === '/work') return { ...item, badge: workBadge }
-    return item
-  })
+  const isAdmin = profile?.role === 'admin'
+
+  const navItemsWithBadge = NAV_ITEMS
+    // 항목 권한도 표 하나에서 온다 — `adminOnly` prop 을 화면이 따로 해석하지 않는다
+    .filter((item) => canSeeNav(item.href, isAdmin))
+    .map((item) => {
+      if (item.href === '/routine') return { ...item, badge: routineBadge }
+      if (item.href === '/calendar') return { ...item, badge: calendarBadge }
+      if (item.href === '/work') return { ...item, badge: workBadge }
+      return item
+    })
 
   return (
     <>
       <AppShell
         items={navItemsWithBadge}
-        groups={profile?.role === 'admin' ? NAV_GROUPS : NAV_GROUPS.filter(g => g.label === '가격정책')}
+        // 권한은 **키**로 판정한다 — 예전엔 `g.label === '가격정책'` 이라 메뉴 이름만 바꿔도
+        // 권한이 바뀌었다(§2-3-3 N-3). 항목 권한은 `canSeeNav` 가 같은 표를 읽는다.
+        groups={NAV_GROUPS
+          .filter((g) => isAdmin || !(g.key && ADMIN_ONLY_GROUPS.has(g.key)))
+          .map((g) => ({ ...g, items: g.items.filter((i) => canSeeNav(i.href, isAdmin)) }))
+          .filter((g) => g.items.length > 0)}
         branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
         session={{
           name: displayName,
           email: userEmail,
-          isAdmin: profile?.role === 'admin',
+          isAdmin,
           currentTheme,
           defaultTheme: globalTheme,
         }}

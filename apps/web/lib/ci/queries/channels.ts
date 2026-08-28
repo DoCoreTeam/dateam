@@ -13,7 +13,14 @@ import type { CiChannelOwnership, CiPlatform } from '../types.ts'
 
 /** 채널 조회에서 항상 같은 칸을 읽는다 — 목록과 상세가 다른 칸을 읽으면 화면마다 다른 말을 한다 */
 const CHANNEL_COLUMNS =
-  'id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, collect_window, topic_confidence, topic_source, identity, ci_topics ( id, name )'
+  // ⚠️ ci_topics 는 **반드시 FK 이름을 붙여** 임베드한다.
+  //
+  // ci_channels → ci_topics 로 가는 FK 가 둘이다(topic_id · content_topic_id — 마이그 226).
+  // 이름을 안 붙이면 PostgREST 가 어느 쪽인지 몰라 **쿼리 전체가 PGRST201 로 죽는다.**
+  // 그런데 아래 조회들이 error 를 검사하지 않던 시절에는 그것이 «채널 0곳»으로 보였고,
+  // 화면은 채널 8곳이 멀쩡히 있는데도 「아직 등록한 관심 채널이 없습니다」라고 말했다
+  // (실측 2026-08-28 — 모니터링 화면이 통째로 비어 있었다).
+  'id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, collect_window, topic_confidence, topic_source, identity, ci_topics!ci_channels_topic_id_fkey ( id, name )'
 
 interface Row {
   id: string
@@ -98,7 +105,15 @@ export async function listChannels(
 
   if (ownership) q = q.eq('ownership', ownership)
 
-  const { data } = await q
+  // supabase-js 는 실패를 던지지 않고 돌려준다. 검사하지 않으면 `data`가 null 이고
+  // `?? []` 가 그것을 빈 목록으로 바꿔 화면이 「아직 등록한 관심 채널이 없습니다」라고 말한다.
+  // 채널 8곳이 멀쩡히 있는데 그렇게 보였다(실측 2026-08-28 · PGRST201).
+  // 조회가 실패한 것과 정말 0곳인 것은 다른 사실이므로 여기서 갈라 준다.
+  const { data, error } = await q
+  if (error) {
+    console.error('[ci/channels] 목록 조회 실패', { workspaceId, ownership, error })
+    throw new Error('채널을 불러오지 못했습니다')
+  }
   return ((data ?? []) as Row[]).map(toItem)
 }
 

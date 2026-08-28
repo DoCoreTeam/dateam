@@ -82,6 +82,8 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
    * 지운 것을 찾으러 다른 메뉴로 가게 하면 사람은 지우기를 무서워한다.
    */
   const [trash, setTrash] = useState(false)
+  /** 새 견적의 기본 유효기간(일). 설정에서 오고, 서버가 목록과 함께 준다 */
+  const [validDays, setValidDays] = useState(30)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -93,6 +95,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '견적을 불러오지 못했습니다.'); return }
       setItems(body.items ?? [])
+      if (typeof body.defaultValidDays === 'number') setValidDays(body.defaultValidDays)
     } catch {
       setError('견적을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -201,7 +204,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
             description="무엇을 얼마에 제안했는지 적어 두면, 딜 금액의 근거가 남습니다."
             action={{
               label: createLabel(ENTITY.quote.label),
-              onClick: () => setEditing(newQuoteDraft(dealName, dealCurrency)),
+              onClick: () => setEditing(newQuoteDraft(dealName, dealCurrency, validDays)),
             }}
           />
         )
@@ -302,7 +305,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
           </ul>
 
           {!trash && (
-            <NbButton variant="ghost" onClick={() => setEditing(newQuoteDraft(dealName, dealCurrency))}>
+            <NbButton variant="ghost" onClick={() => setEditing(newQuoteDraft(dealName, dealCurrency, validDays))}>
               <Plus size={16} /> {createLabel(ENTITY.quote.label)}
             </NbButton>
           )}

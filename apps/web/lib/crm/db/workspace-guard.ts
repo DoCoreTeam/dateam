@@ -71,6 +71,11 @@ export function isCrmModel(model: string | undefined): boolean {
  * (`where: { deletedAt: { not: null } }`). 명시하면 그대로 존중한다.
  */
 export const SOFT_DELETE_MODELS: ReadonlySet<string> = new Set([
+  // 원가·조건도 소프트 삭제다 — 이미 보낸 견적이 이것들을 가리키고 있어
+  // 물리 삭제하면 그 견적서를 다시 열 때 항목이 사라진다
+  'CrmLaborGrade',
+  'CrmDealCost',
+  'CrmQuoteTerm',
   'CrmWorkspace', 'CrmMember', 'CrmCompany', 'CrmPerson',
   'CrmPipeline', 'CrmDeal', 'CrmActivity', 'CrmTask', 'CrmMeeting',
   // 견적·상품도 휴지통을 갖는다 — 보낸 견적을 실수로 지웠을 때 되돌릴 수 있어야 한다.

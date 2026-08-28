@@ -172,6 +172,9 @@ enum CrmBusinessType {
   HARDWARE
   MSP
   PROJECT // 국가 과제
+  /// 크레딧 충전 — 고객이 gcube 에 미리 충전하고 쓰는 만큼 소진한다.
+  /// 회계로는 소진 전까지 선수금(부채)이지만 **영업으로는 수주이자 수금된 매출**이다.
+  CREDIT
   OTHER
 }
 
@@ -255,6 +258,10 @@ model CrmMember {
   role        CrmMemberRole @default(MEMBER)
   displayName String
   email       String
+  /// 직위 — 견적서 담당자 줄에 이름과 함께 찍힌다
+  title       String?
+  /// 연락처 — 고객이 이 사람에게 직접 건다
+  phone       String?
   /// 역할 기본값에 더하는 능력(cost.view · margin.view · quote.approve …).
   /// 역할을 늘리면 조합이 폭발한다 — 능력을 사람마다 더하거나 뺀다.
   capabilities String[]     @default([])
@@ -404,6 +411,9 @@ model CrmDeal {
   termType          CrmTermType?
   startDate         DateTime?
   endDate           DateTime?
+  /// 종료일을 **알 수 없는** 사업(크레딧 소진 시까지 등).
+  /// NULL 인 endDate 가 «미입력»인지 «미정»인지 구분한다 — 안 그러면 화면이 계속 채우라고 재촉한다
+  endDateUnknown    Boolean            @default(false)
   /// 시작·종료에서 계산된 개월 수. 연차 배분의 근거
   termMonths        Int?
 
@@ -434,6 +444,9 @@ model CrmDeal {
   funding   CrmFundingSource[]
   inKind    CrmInKind[]
   amountLog CrmDealAmountHistory[]
+  /// 이 딜의 원가. 견적 없이도 쌓인다(기획 결정 6)
+  costs             CrmDealCost[]
+
 
   @@index([workspaceId, pipelineId, stageId])
   @@index([workspaceId, status, expectedCloseDate])
@@ -851,6 +864,9 @@ model CrmQuote {
   approvedAt       DateTime?
 
   notesMd     String?
+  /// 이 견적이 고른 거래 조건. **순서가 곧 인쇄 순서**다.
+  /// 연결 표로 만들면 순서를 또 저장해야 하고, 그 순서가 어긋난다
+  termIds     String[] @default([])
   ownerId     String? // CrmMember.id
   sentAt      DateTime?
   decidedAt   DateTime? // 수락·거절 시각
@@ -891,11 +907,22 @@ model CrmQuoteLine {
   lineTotalMinor  BigInt  @default(0)
   position        Int     @default(0)
 
+  /// 라인 종류 여섯. 새 유형은 enum 에 하나 더 — 표·화면·계산은 그대로다(기획 §08)
+  kind            CrmQuoteLineKind @default(QUANTITY)
+  /// 공수 라인: 역할과 등급이 품목 옆에 붙는다(M/M 견적서 양식)
+  roleLabel       String?
+  laborGradeId    String?
+  /// 비율 라인: 어느 라인의 몇 %인지
+  ratioOfLineId   String?
+  ratioPct        Decimal? @db.Decimal(7, 4)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  quote   CrmQuote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  product CrmProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  quote      CrmQuote       @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product    CrmProduct?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  laborGrade CrmLaborGrade? @relation(fields: [laborGradeId], references: [id], onDelete: SetNull)
+  costs      CrmDealCost[]
 
   @@index([quoteId, position])
   @@map("crm_quote_line")
@@ -1038,3 +1065,139 @@ model CrmAttachment {
 
 // Phase 2 예정(본 파일에 미포함): CrmAutomation, CrmAutomationRun, CrmEnrichmentCache,
 // CrmEmbedding(pgvector Unsupported 타입), CrmSavedView, CrmTag, CrmWebhook, CrmApiKey
+
+
+/// 견적 라인 종류 여섯 (기획 「원가에서 견적까지」 §08)
+enum CrmQuoteLineKind {
+  USAGE    // 사용량: GPU-hour 처럼 쓴 만큼
+  QUANTITY // 수량: 개수 × 단가
+  EFFORT   // 공수: M/M × 등급 단가 — 역할·등급이 함께 붙는다
+  LICENSE  // 라이선스: User × 기간
+  PERIOD   // 기간요금: 월 단가 × 개월
+  RATIO    // 비율: 다른 라인의 N%
+}
+
+/// 원가 갈래 열. 표준 원가회계 분류를 그대로 쓴다 —
+/// 우리가 지어내면 회계·세무와 말이 안 통한다(기획 §03)
+enum CrmCostCategory {
+  MATERIAL    // 재료비 — 직접비
+  LABOR       // 노무비 — 직접비. M/M × 등급단가
+  EXPENSE     // 경비 — 직접비
+  SUBCONTRACT // 하도급 — 외주비
+  PARTNER_FEE // 파트너 수수료 — 외주비. 매출·원가의 %
+  OVERHEAD    // 일반관리비 — 간접비. 매출의 %
+  INFRA       // 공통 인프라 — 간접비
+  FINANCE     // 금융비용 — 기간·위험
+  WARRANTY    // 하자보수 충당 — 기간·위험. 무상이지만 원가는 든다
+  CONTINGENCY // 예비비 — 기간·위험
+}
+
+/// 원가 시점 셋 — 같은 원가를 세 번 본다.
+/// 추정과 실적의 차이가 **다음 견적의 정확도**가 된다
+enum CrmCostStage {
+  ESTIMATE  // 추정: 견적 시점
+  COMMITTED // 확정: 계약 시점. 매입 견적서·계약서로 고정
+  ACTUAL    // 실적: 집행 시점
+}
+
+/// 원가를 어떻게 넣었나 — 무엇으로 넣든 amountMinor 로 수렴한다
+enum CrmCostInputMode {
+  AMOUNT // 금액을 직접
+  EFFORT // M/M × 등급 단가
+  RATIO  // 매출(또는 원가)의 %
+}
+
+/// 인건비 등급 — 「고급 소프트웨어 엔지니어 1.0 M/M」의 단가가 여기서 온다
+model CrmLaborGrade {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  name            String   // 초급·중급·고급·특급
+  roleLabel       String?  // 소프트웨어 엔지니어 · UI/UX 디자이너 · PM
+  /// 우리가 쓰는 원가 (대외비)
+  costPerMmMinor  BigInt   @default(0)
+  /// 고객에게 제시하는 단가. 없으면 원가에 마진을 얹는다
+  pricePerMmMinor BigInt?
+  currency        String   @default("KRW") @db.Char(3)
+  position        Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  costs      CrmDealCost[]
+  quoteLines CrmQuoteLine[]
+
+  @@index([workspaceId, position])
+  @@map("crm_labor_grade")
+}
+
+/// 딜 원가 — **딜에 붙는다.** 견적 라인과는 선택적으로 연결된다.
+/// 견적 없이 원가만 쌓아도 되고, 나중에 견적을 만들어 연결하면 그때부터 마진이 계산된다
+/// (기획 결정 6: 순서 무관 · 데이터로 갖고 있다 반영)
+model CrmDealCost {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  dealId        String
+  quoteLineId   String?
+
+  category      CrmCostCategory
+  stage         CrmCostStage     @default(ESTIMATE)
+  inputMode     CrmCostInputMode @default(AMOUNT)
+
+  name          String
+  descriptionMd String?
+
+  /// 계산 결과. 입력 방식이 무엇이든 여기로 수렴한다
+  amountMinor   BigInt   @default(0)
+  currency      String   @default("KRW") @db.Char(3)
+
+  /// EFFORT 로 넣었을 때
+  laborGradeId  String?
+  effortMm      Decimal? @db.Decimal(10, 2)
+
+  /// RATIO 로 넣었을 때
+  ratioPct      Decimal? @db.Decimal(7, 4)
+  ratioBase     String?  // 'REVENUE' | 'COST'
+
+  /// 근거. 「추정」이라도 왜 그 숫자인지는 남는다
+  basisNote     String?
+
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  deal       CrmDeal        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  quoteLine  CrmQuoteLine?  @relation(fields: [quoteLineId], references: [id], onDelete: SetNull)
+  laborGrade CrmLaborGrade? @relation(fields: [laborGradeId], references: [id], onDelete: SetNull)
+
+  @@index([dealId, category])
+  @@index([quoteLineId])
+  @@map("crm_deal_cost")
+}
+
+
+/// 거래 조건 항목 — 사업 스타일마다 조건이 다르다.
+/// 관리자가 하나씩 등록하고 영업이 견적마다 고른다
+/// (한 덩어리 텍스트면 GPU 조건이 SI 견적서에도 나간다)
+model CrmQuoteTerm {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  /// 목록에서 고를 때 보이는 이름. 본문이 길어 그대로는 못 고른다
+  title        String
+  /// 견적서에 실제로 인쇄되는 문장
+  body         String
+  /// 이 사업 유형에서 주로 쓰는 조건. null 이면 모든 유형에서 보인다
+  businessType CrmBusinessType?
+  /// 새 견적을 만들 때 기본으로 켜지는가
+  isDefault    Boolean  @default(false)
+  position     Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@index([workspaceId, position])
+  @@map("crm_quote_term")
+}

@@ -13,7 +13,7 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { requireText } from '../domain/normalize.ts'
+import { requireText, normalizeText } from '../domain/normalize.ts'
 import type { CrmRole } from '../auth/requireCrmMember.ts'
 
 export const ROLES: CrmRole[] = ['OWNER', 'ADMIN', 'MEMBER', 'READONLY']
@@ -40,6 +40,10 @@ export interface MemberRow {
   hostUserId: string
   displayName: string
   email: string
+  /** 직위 — 견적서 담당자 줄에 이름과 함께 찍힌다 */
+  title: string | null
+  /** 연락처 — 고객이 이 사람에게 직접 건다 */
+  phone: string | null
   role: string
   createdAt: Date
   deletedAt: Date | null
@@ -47,6 +51,7 @@ export interface MemberRow {
 
 const SELECT = {
   id: true, hostUserId: true, displayName: true, email: true,
+  title: true, phone: true,
   role: true, createdAt: true, deletedAt: true,
 } as const
 
@@ -222,5 +227,52 @@ export async function removeMember(
       targetType: 'member', targetId: memberId,
       beforeJson: { displayName: before.displayName, role: before.role },
     })
+  })
+}
+
+
+/**
+ * 프로필 수정 — 직위·연락처.
+ *
+ * **왜 필요한가**: 견적서의 담당자는 «견적을 만든 사람»인데(기획 결정 3),
+ * 그 사람의 직위·연락처를 넣을 자리가 없었다. 그래서 회사 설정에
+ * 고정 연락처를 두는 방식으로 메워 놨었고, 그러면 누가 만들었든 같은 번호가 찍힌다.
+ *
+ * **누가 고치나**: 본인 또는 관리자. 남의 연락처를 아무나 바꾸면 안 되고,
+ * 관리자는 퇴사자 정리 같은 이유로 고쳐야 한다.
+ */
+export interface MemberProfileInput {
+  title?: string | null
+  phone?: string | null
+}
+
+export async function updateMemberProfile(
+  workspaceId: string,
+  actorId: string | null,
+  memberId: string,
+  input: MemberProfileInput,
+): Promise<MemberRow> {
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const before = await (tx as any).crmMember.findFirst({ where: { id: memberId }, select: SELECT })
+    if (!before) throw new CrmError('NOT_FOUND', '멤버를 찾을 수 없습니다.')
+
+    const data: Record<string, unknown> = {}
+    if (input.title !== undefined) data.title = normalizeText(input.title)
+    if (input.phone !== undefined) data.phone = normalizeText(input.phone)
+    if (Object.keys(data).length === 0) return before as MemberRow
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (tx as any).crmMember.updateMany({ where: { id: memberId }, data })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const after = await (tx as any).crmMember.findFirst({ where: { id: memberId }, select: SELECT })
+
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'member.profile_updated',
+      targetType: 'member', targetId: memberId,
+      beforeJson: { title: before.title, phone: before.phone },
+      afterJson: { title: after.title, phone: after.phone },
+    })
+    return after as MemberRow
   })
 }

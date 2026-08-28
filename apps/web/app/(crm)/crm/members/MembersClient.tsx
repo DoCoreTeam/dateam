@@ -11,21 +11,34 @@
 // 그건 사용자가 할 수 있는 일이 아니다. 그래서 서버가 막고, 화면은 이유를 말한다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Users, UserPlus, UserMinus } from 'lucide-react'
+import { Users, UserPlus, UserMinus, Pencil } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import NbModal from '@/components/ui/nb/NbModal'
+import { ACTION, progress } from '@/lib/terms'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import ContactLink from '@/components/ui/ContactLink'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
+import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { ROLES, ROLE_LABEL, ROLE_HINT } from '@/lib/crm/services/member'
 import styles from './members.module.css'
 
+/** 견적서에 찍히는 자기 정보 — 「내 정보」가 아니라 무엇을 고치는지 밝힌다 */
+const PROFILE_LABEL = '직위·연락처'
+const TITLE_LABEL = '직위'
+const PHONE_LABEL = '연락처'
+const TITLE_HINT = '견적서 담당자 줄에 이름과 함께 찍힙니다. 예: 팀장'
+const PHONE_HINT = '고객이 이 번호로 직접 겁니다. 예: 010-0000-0000'
+
 interface Member {
   id: string; hostUserId: string; displayName: string; email: string
+  /** 견적서 담당자 줄에 이름과 함께 찍힌다 */
+  title: string | null
+  phone: string | null
   role: string; createdAt: string; deletedAt: string | null
 }
 interface Candidate { id: string; name: string; email: string }
@@ -38,6 +51,7 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
   const [pickRole, setPickRole] = useState('MEMBER')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
+  const [editing, setEditing] = useState<Member | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -154,8 +168,10 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
             <li key={m.id} className={styles.item}>
               <span className={styles.who}>
                 <span className={styles.name}>{m.displayName}</span>
+                {m.title && <span className={styles.title}>{m.title}</span>}
                 {/* 팀원에게도 같은 방식으로 닿는다 — 화면마다 이메일 그리는 법이 다르면 안 된다(§2-5) */}
                 {m.email && <ContactLink kind="email" value={m.email} />}
+                {m.phone && <ContactLink kind="phone" value={m.phone} />}
               </span>
 
               {m.id === myMemberId && <NbBadge status="doing">나</NbBadge>}
@@ -182,6 +198,16 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
                 {formatKstDateTimeShort(m.createdAt)}부터
               </time>
 
+              {/*
+                직위·연락처는 **견적서에 찍히는 자기 정보**라 본인도 고칠 수 있다.
+                권한 변경만 관리자다 — 둘을 한 게이트로 묶으면 자기 전화번호를 못 고친다.
+              */}
+              {(canEdit || m.id === myMemberId) && (
+                <NbButton variant="ghost" disabled={busy === m.id} onClick={() => setEditing(m)}>
+                  <Pencil size={14} /> {PROFILE_LABEL}
+                </NbButton>
+              )}
+
               {canEdit && (
                 <NbButton
                   variant="ghost"
@@ -204,6 +230,85 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
           멤버를 들이거나 권한을 바꾸려면 관리자 권한이 필요합니다.
         </p>
       )}
+    {editing && (
+        <ProfileModal
+          member={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); void load() }}
+        />
+      )}
     </>
+  )
+}
+
+
+/**
+ * 직위·연락처 편집.
+ *
+ * **왜 별도 모달인가**: 목록 행에 입력칸을 두면 행이 두 배로 높아지고,
+ * 열 명이면 화면이 입력칸으로 덮인다. 고치는 일은 드물다 — 드문 일은 모달이 맞다.
+ */
+function ProfileModal({ member, onClose, onSaved }: {
+  member: Member
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [title, setTitle] = useState(member.title ?? '')
+  const [phone, setPhone] = useState(member.phone ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save() {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/crm/members/${member.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim(), phone: phone.trim() }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setError(readApiError(body, '저장하지 못했습니다.')); return }
+      onSaved()
+    } catch {
+      setError(describeFetchFailure(PROFILE_LABEL))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <NbModal
+      title={`${member.displayName} · ${PROFILE_LABEL}`}
+      onClose={onClose}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+          <NbButton variant="ghost" onClick={onClose} disabled={saving}>{ACTION.cancel}</NbButton>
+          <NbButton onClick={() => void save()} disabled={saving}>
+            {saving ? progress(ACTION.save) : ACTION.save}
+          </NbButton>
+        </div>
+      }
+    >
+      {error && <ErrorState message={error} />}
+      <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+        <div>
+          <label className="label" htmlFor="mp-title">{TITLE_LABEL}</label>
+          <input
+            id="mp-title" className="input-field" value={title}
+            onChange={(e) => setTitle(e.target.value)} placeholder="팀장"
+          />
+          <p style={{ margin: '0.25rem 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{TITLE_HINT}</p>
+        </div>
+        <div>
+          <label className="label" htmlFor="mp-phone">{PHONE_LABEL}</label>
+          <input
+            id="mp-phone" className="input-field" value={phone} inputMode="tel"
+            onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000"
+          />
+          <p style={{ margin: '0.25rem 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{PHONE_HINT}</p>
+        </div>
+      </div>
+    </NbModal>
   )
 }

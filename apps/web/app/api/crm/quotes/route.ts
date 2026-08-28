@@ -6,6 +6,7 @@ import { withCrmApi, readJson, readListQuery } from '@/lib/crm/api/handler'
 import {
   listQuotesByDeal, listQuotes, createQuote, toQuoteJson, type CreateQuoteInput,
 } from '@/lib/crm/services/quote'
+import { readQuoteValidDays } from '@/lib/crm/services/setting'
 
 export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ db }) => {
@@ -16,7 +17,8 @@ export async function GET(req: NextRequest) {
     // 딜 상세 안에서 부를 때 — 그 딜 것만, 페이지 없이
     if (dealId) {
       const items = await listQuotesByDeal(db, dealId, { trash })
-      return { items: items.map(toQuoteJson) }
+      // 새 견적의 기본 유효기간도 함께 준다 — 화면이 30일을 자기 코드에 박지 않게
+      return { items: items.map(toQuoteJson), defaultValidDays: await readQuoteValidDays(db) }
     }
 
     /**
