@@ -32,6 +32,13 @@ const COLUMNS = [
 /** 공급자 값이 들어가는 병합 폭(F+G) — 행 높이를 이 폭으로 계산해야 주소가 안 잘린다 */
 const SUPPLIER_VALUE_WIDTH = COLUMNS[5].width + COLUMNS[6].width
 
+/**
+ * 문서 글꼴 — **화면과 같은 것을 쓴다.**
+ * 엑셀 기본(맑은 고딕)으로 나가면 같은 문서인데 웹과 인상이 다르다
+ * (사용자 지시: 「폰트는 pretendard 통일」).
+ */
+const FONT = 'Pretendard'
+
 const LAST_COL = 'G'          // COLUMNS 의 마지막 열
 const HAIRLINE = 'FFD8DCE3'   // 표 테두리
 const HEAD_BG = 'FFF2F4F7'    // 표 머리글 배경
@@ -78,6 +85,38 @@ function numFmt(currency: string): string {
 function parseImage(dataUri: string): { base64: string; extension: 'png' | 'jpeg' } | null {
   const m = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/.exec(dataUri || '')
   return m ? { base64: m[2], extension: m[1] as 'png' | 'jpeg' } : null
+}
+
+/**
+ * PNG·JPEG 의 **원본 크기**를 헤더에서 읽는다.
+ *
+ * **왜 필요한가**: 로고 크기를 `150×36` 으로 고정하면 원본 비율과 다를 때 눌리거나 늘어난다
+ * (사용자 지적: 「로고는 모양 그대로 내보내 크기 일부러 만져서 문제 일으키지 말고」).
+ * 폭만 맞추고 높이는 **원본 비율로** 계산하면 모양이 그대로 남는다.
+ */
+function imageSize(base64: string, ext: 'png' | 'jpeg'): { w: number; h: number } | null {
+  try {
+    const buf = Buffer.from(base64, 'base64')
+    if (ext === 'png') {
+      // 8바이트 시그니처 + 길이(4) + 'IHDR'(4) → 폭·높이가 각 4바이트 big-endian
+      if (buf.length < 24) return null
+      return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) }
+    }
+    let i = 2
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) { i += 1; continue }
+      const marker = buf[i + 1]
+      const len = buf.readUInt16BE(i + 2)
+      // C0~CF 중 C4(DHT)·C8·CC 는 SOF 가 아니다
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) }
+      }
+      i += 2 + len
+    }
+    return null
+  } catch {
+    return null
+  }
 }
 
 export interface QuoteXlsxInput {
@@ -149,11 +188,16 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     (「로고가 정상적으로 보여지지 않는다」).
   */
   const headTop = r
-  ws.getRow(r).height = 40
   const logo = parseImage(input.logo ?? '')
+  // 폭만 맞추고 높이는 **원본 비율**로 — 둘 다 고정하면 로고가 눌린다
+  const LOGO_W = 150
+  const size = logo ? imageSize(logo.base64, logo.extension) : null
+  const logoH = size && size.w > 0 ? Math.round((LOGO_W * size.h) / size.w) : 36
+  // 로고가 아래를 덮지 않게 행 높이를 먼저 키운다(행 높이는 pt, 이미지는 px)
+  ws.getRow(r).height = Math.max(30, logoH * 0.78 + 6)
   if (logo) {
     const id = wb.addImage(logo)
-    ws.addImage(id, { tl: { col: 0.2, row: r - 0.85 }, ext: { width: 150, height: 36 } })
+    ws.addImage(id, { tl: { col: 0.2, row: r - 1 + 0.1 }, ext: { width: LOGO_W, height: logoH } })
   }
 
   // 오른쪽 — 라벨(F) / 값(G). 화면의 우상단 메타와 같은 순서·같은 정렬이다
@@ -184,7 +228,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   title.value = Array.from(QUOTE.documentTitle).join(' ')
   title.font = { size: 22, bold: true }
   title.alignment = { horizontal: 'center', vertical: 'middle' }
-  ws.getRow(r).height = 36
+  ws.getRow(r).height = 42
   r += 2
 
   // ── 두 당사자 ───────────────────────────────────────────
@@ -222,6 +266,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     const row = r + i
     ws.getCell(`E${row}`).value = SUPPLIER_LABEL[f]
     ws.getCell(`E${row}`).font = { size: 9, color: { argb: MUTED } }
+    ws.getCell(`E${row}`).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }
     ws.mergeCells(`F${row}:${LAST_COL}${row}`)
     ws.getCell(`F${row}`).value = doc.supplier[f]
     ws.getCell(`F${row}`).font = { size: 10 }
@@ -336,11 +381,20 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     const cell = ws.getCell(headRow, i + 1)
     cell.value = c.label
     cell.font = { size: 10, bold: true, color: { argb: MUTED } }
-    cell.alignment = { horizontal: i >= 3 ? 'right' : 'left', vertical: 'middle' }
+    /*
+      숫자 열은 오른쪽, 글자 열은 왼쪽. **양끝은 안쪽으로 한 칸 들인다** —
+      화면의 `padding` 자리다. 안 들이면 글자가 테두리에 붙어 답답해 보인다
+      (사용자 지적: 「글자 간격 공백 이런거 되게 중요하다고」).
+    */
+    cell.alignment = {
+      horizontal: i >= 3 ? 'right' : 'left',
+      vertical: 'middle',
+      indent: 1,
+    }
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEAD_BG } }
     cell.border = border
   })
-  ws.getRow(headRow).height = 22
+  ws.getRow(headRow).height = 24
   r += 1
 
   const firstLineRow = r
@@ -368,13 +422,15 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       cell.value = v
       cell.border = border
       cell.font = { size: 10 }
-      if (i === 1) cell.alignment = { wrapText: true, vertical: 'top' }
-      else if (i >= 3) cell.alignment = { horizontal: 'right', vertical: 'top' }
-      else cell.alignment = { vertical: 'top' }
+      // 세로는 전부 가운데(마지막 손질이 한 번 더 보장한다), 양끝은 한 칸 들인다
+      if (i === 1) cell.alignment = { wrapText: true, vertical: 'middle', indent: 1 }
+      else if (i >= 3) cell.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }
+      else cell.alignment = { horizontal: 'center', vertical: 'middle' }
       if (i === 4 || i === 6) cell.numFmt = fmt
     })
     // 품목+규격이 두 줄이라 높이를 준다. 긴 품목명은 더 필요할 수 있다
-    ws.getRow(r).height = Math.max(line.spec ? 30 : 18, wrapHeight(name, 40, 15))
+    // 화면의 행 여백에 맞춘다 — 빽빽하면 표가 아니라 격자로 읽힌다
+    ws.getRow(r).height = Math.max(line.spec ? 34 : 22, wrapHeight(name, COLUMNS[1].width, 16))
     r += 1
   }
   const lastLineRow = r - 1
@@ -398,30 +454,41 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     [QUOTE.total, doc.totals.totalMinor, true, null],
   ]
   for (const [label, value, grand, formula] of totals) {
-    ws.mergeCells(`E${r}:F${r}`)
-    const l = ws.getCell(`E${r}`)
+    /*
+      **라벨은 D:F 세 칸에 걸친다.** 화면에서도 합계 라벨이 오른쪽 세 열을 가로질러
+      금액 바로 앞에 붙는다 — 두 칸이면 「합계 금액」이 좁아 보이고 금액과의 간격이 벌어진다
+      (사용자 지시: 「합계금액은 병합을 통해서 현재 웹스타일 유지」).
+    */
+    ws.mergeCells(`D${r}:F${r}`)
+    const l = ws.getCell(`D${r}`)
     l.value = label
-    l.alignment = { horizontal: 'right' }
-    l.font = { size: grand ? 12 : 10, bold: grand }
+    l.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }
+    l.font = { size: grand ? 13 : 10, bold: grand, color: { argb: grand ? 'FF111827' : MUTED } }
 
     const v = ws.getCell(`${LAST_COL}${r}`)
     v.value = formula ? { formula } : money(value, cur)
     v.numFmt = fmt
-    v.alignment = { horizontal: 'right' }
-    v.font = { size: grand ? 12 : 10, bold: grand }
+    v.alignment = { horizontal: 'right', vertical: 'middle' }
+    v.font = { size: grand ? 14 : 10, bold: grand }
     if (grand) {
-      v.border = { top: { style: 'medium', color: { argb: 'FF111827' } } }
-      l.border = { top: { style: 'medium', color: { argb: 'FF111827' } } }
+      // 합계 위의 굵은 선 — 화면의 `border-top: var(--border-w) solid var(--text)` 와 같은 자리
+      const top = { style: 'medium' as const, color: { argb: 'FF111827' } }
+      for (const col of ['D', 'E', 'F', LAST_COL]) ws.getCell(`${col}${r}`).border = { top }
+      ws.getRow(r).height = 24
+    } else {
+      ws.getRow(r).height = 18
     }
     r += 1
   }
 
   if (doc.totals.totalInWords) {
-    ws.mergeCells(`E${r}:${LAST_COL}${r}`)
-    const w = ws.getCell(`E${r}`)
+    ws.mergeCells(`D${r}:${LAST_COL}${r}`)
+    const w = ws.getCell(`D${r}`)
     w.value = doc.totals.totalInWords
-    w.alignment = { horizontal: 'right' }
+    w.alignment = { horizontal: 'right', vertical: 'middle' }
+    // 자간을 넓혀 화면의 `letter-spacing: 0.05em` 에 가깝게 — 엑셀엔 자간이 없어 공백으로 흉내 낸다
     w.font = { size: 10, color: { argb: MUTED } }
+    ws.getRow(r).height = 18
     r += 1
   }
   r += 1
@@ -444,6 +511,22 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   }
   section(QUOTE.terms, doc.terms)
   section(QUOTE.customerNote, doc.customerNote ? doc.customerNote.split('\n') : [])
+
+  /*
+    ── 마지막 손질 — 서식을 **한 곳에서** 통일한다 ──────────────────
+    셀마다 폰트·세로정렬을 적으면 반드시 빠뜨리는 곳이 생기고, 그 셀만 다르게 보인다
+    (사용자 지적: 「엑셀에서 글자 세로 정렬이 아래로 있고 위로 있고 하던데
+     그냥 중앙정렬로 통일시켜 … 폰트는 pretendard 통일」).
+    그래서 **각 셀에 쓰지 않고 마지막에 한 번 훑는다** — 빠질 수가 없다.
+  */
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    row.eachCell({ includeEmpty: false }, (cell) => {
+      // 크기·굵기·색은 그대로 두고 **글꼴 이름만** 채운다
+      cell.font = { ...(cell.font ?? {}), name: FONT }
+      // 세로는 전부 가운데. 가로 정렬과 줄바꿈은 각 셀이 정한 것을 지킨다
+      cell.alignment = { ...(cell.alignment ?? {}), vertical: 'middle' }
+    })
+  })
 
   const lastUsedRow = Math.max(1, ws.rowCount)
 

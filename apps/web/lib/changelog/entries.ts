@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.646',
+    date: '2026-08-28',
+    title: '견적서 마감을 다듬었어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '✂️',
+        headline: '맨 아래 합계 금액이 안 잘려요',
+        detail: '「330,000,000원」에서 「원」이 잘려 나갔어요. 금액 칸을 넓히고 줄바꿈을 막았습니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🎨',
+        headline: '엑셀 서식이 화면과 비슷해졌어요',
+        detail: '글꼴을 화면과 같은 것으로 통일하고, 셀마다 위·아래로 흩어져 있던 세로 정렬을 전부 가운데로 맞췄어요. 표 여백과 행 높이도 화면 리듬에 맞췄습니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🖼',
+        headline: '엑셀 로고가 원래 모양 그대로 나가요',
+        detail: '크기를 임의로 정해 로고가 눌려 보였어요. 이제 가로 폭만 맞추고 높이는 원본 비율로 계산합니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.645',
     date: '2026-08-28',
     title: '왔던 길로 돌아가고, 그 자리에서 만들어요',

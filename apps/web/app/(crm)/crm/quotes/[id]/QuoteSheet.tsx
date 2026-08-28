@@ -154,13 +154,17 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
             */}
             <colgroup>
               <col style={{ width: '5%' }} />
-              <col style={{ width: '34%' }} />
+              <col style={{ width: '31%' }} />
               <col style={{ width: '7%' }} />
-              <col style={{ width: '8%' }} />
+              <col style={{ width: '7%' }} />
               <col style={{ width: '17%' }} />
               <col style={{ width: '8%' }} />
-              {/* 합계(굵고 큰 글씨)가 들어갈 칸이라 항목 금액보다 넉넉해야 한다 */}
-              <col style={{ width: '21%' }} />
+              {/*
+                합계(굵고 큰 글씨)가 들어갈 칸이라 항목 금액보다 넉넉해야 한다.
+                21% 였을 때 「330,000,000원」의 **「원」이 잘렸다**(사용자 지적) —
+                굵은 큰 글씨는 같은 자릿수라도 폭을 더 먹는다.
+              */}
+              <col style={{ width: '25%' }} />
             </colgroup>
             <thead>
               <tr>

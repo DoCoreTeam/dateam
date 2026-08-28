@@ -181,6 +181,9 @@
 
 /* 숫자 열 — 오른쪽 정렬 + 자릿수 고정. 세로로 자릿수가 맞아야 눈으로 검산이 된다.
    `.table` 을 앞에 붙이는 이유: 위의 `.table th, .table td` 가 명시도가 더 높다. */
+/* 금액은 절대 줄바꿈하지 않는다 — 「330,000,000 / 원」으로 쪼개지면 문서가 아니다 */
+.table .num { white-space: nowrap; }
+
 .table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
