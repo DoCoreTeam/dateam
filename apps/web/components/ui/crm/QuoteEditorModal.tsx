@@ -10,7 +10,7 @@
 // 두 곳이 같은 함수를 쓰므로 눈에 보이는 값과 저장되는 값이 갈리지 않고,
 // 브라우저를 조작해도 총액은 바뀌지 않는다.
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -62,6 +62,12 @@ export interface QuoteDraft {
   validUntil: string
   notesMd: string
   status?: string
+  /**
+   * 공급받는 곳의 담당자 — 「○○ 귀하」로 문서에 찍힌다.
+   * **안 고르면 안 나온다.** 회사 앞으로만 보내는 견적이 흔하고,
+   * 억지로 채우게 하면 아무나 골라 넣는다(사용자 지시).
+   */
+  recipientPersonId: string | null
   lines: QuoteLineDraft[]
 }
 
@@ -89,12 +95,69 @@ export function newQuoteDraft(dealName: string, currency: string | null, validDa
     // **기본 일수는 설정에서 온다** — 예전엔 30이 여기 박혀 있어 바꾸려면 배포를 해야 했다.
     validUntil: todayPlus(validDays),
     notesMd: '',
+    recipientPersonId: null,
     lines: [emptyLine()],
+  }
+}
+
+/**
+ * 서버가 준 견적을 **편집 초안**으로.
+ *
+ * **왜 여기 있나**: 딜 상세(QuotePanel)와 견적 상세가 같은 모달을 여는데,
+ * 이 변환을 각자 하면 한쪽에만 새 칸을 더하는 날이 온다 —
+ * 그러면 그 화면에서 고친 값이 **저장하는 순간 조용히 사라진다**.
+ * 모달이 쓰는 모양이니 모달이 정의한다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function quoteToDraft(body: any): QuoteDraft {
+  return {
+    id: body.id,
+    version: body.version,
+    title: body.title,
+    currency: body.currency,
+    validUntil: body.validUntil ? String(body.validUntil).slice(0, 10) : '',
+    notesMd: body.notesMd ?? '',
+    status: body.status,
+    recipientPersonId: body.recipientPersonId ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    lines: (body.lines ?? []).map((l: any) => ({
+      id: l.id,
+      // 카탈로그 연결을 들고 가지 않으면 저장하는 순간 손으로 친 이름으로 되돌아간다
+      productId: l.productId ?? null,
+      name: l.name,
+      descriptionMd: l.descriptionMd ?? '',
+      quantity: String(l.quantity),
+      unit: l.unit ?? '',
+      unitPriceMinor: String(l.unitPriceMinor),
+      discountPercent: String(l.discountPercent),
+      taxRate: String(l.taxRate),
+    })),
   }
 }
 
 export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: Props) {
   const [draft, setDraft] = useState<QuoteDraft>(initial)
+  /**
+   * 이 딜에 붙은 사람들 — 견적을 «누구 앞으로» 보내는지 고르는 후보다.
+   * 회사 전체 인물이 아니라 **딜에 붙은 사람만** 준다: 견적은 이 건의 문서이고,
+   * 회사에 100명이 있어도 이 건과 상관없는 사람을 고를 이유가 없다.
+   */
+  const [people, setPeople] = useState<{ id: string; name: string; title: string | null }[]>([])
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const res = await fetch(`/api/crm/deals/${dealId}/contacts`)
+        if (!res.ok) return
+        const body = await res.json()
+        if (!alive) return
+        setPeople((body.items ?? []).map((c: { personId: string; name?: string; personName?: string; title?: string | null }) => ({
+          id: c.personId, name: c.personName ?? c.name ?? '(이름 없음)', title: c.title ?? null,
+        })))
+      } catch { /* 후보를 못 불러와도 견적은 저장된다 — 담당자는 선택 사항이다 */ }
+    })()
+    return () => { alive = false }
+  }, [dealId])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -207,6 +270,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         currency: draft.currency,
         validUntil: draft.validUntil || null,
         notesMd: draft.notesMd.trim() || null,
+        recipientPersonId: draft.recipientPersonId,
         ...(linesLocked ? {} : { lines }),
         ...(isEdit ? { version: draft.version } : {}),
       }
@@ -265,6 +329,26 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
               onValueChange={(v) => setDraft((d) => ({ ...d, validUntil: v }))}
             />
           </div>
+          {/*
+            받는 사람. 딜에 사람이 하나도 안 붙어 있으면 고를 것이 없으므로 자리를 만들지 않는다 —
+            빈 드롭다운은 «고를 수 있는데 비었다»로 읽혀 사람을 헤매게 한다.
+          */}
+          {people.length > 0 && (
+            <div className={styles.field}>
+              <label className="label" htmlFor="quote-recipient">{QUOTE.recipient}</label>
+              <select
+                id="quote-recipient"
+                className="input-field"
+                value={draft.recipientPersonId ?? ''}
+                onChange={(e) => setDraft((d) => ({ ...d, recipientPersonId: e.target.value || null }))}
+              >
+                <option value="">{QUOTE.recipientNone}</option>
+                {people.map((p) => (
+                  <option key={p.id} value={p.id}>{p.title ? `${p.name} ${p.title}` : p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className={styles.linesHead}>

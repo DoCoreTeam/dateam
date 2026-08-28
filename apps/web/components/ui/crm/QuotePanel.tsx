@@ -25,7 +25,7 @@ import {
   createLabel,
   QUOTE,
 } from '@/lib/terms'
-import QuoteEditorModal, { newQuoteDraft, type QuoteDraft } from './QuoteEditorModal'
+import QuoteEditorModal, { newQuoteDraft, quoteToDraft, type QuoteDraft } from './QuoteEditorModal'
 import styles from './quote-panel.module.css'
 
 interface QuoteLine {
@@ -158,27 +158,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
       const res = await fetch(`/api/crm/quotes/${quote.id}`)
       const body = await res.json()
       if (!res.ok) { setActionError(body?.error?.message ?? '견적을 불러오지 못했습니다.'); return }
-      setEditing({
-        id: body.id,
-        version: body.version,
-        title: body.title,
-        currency: body.currency,
-        validUntil: body.validUntil ? String(body.validUntil).slice(0, 10) : '',
-        notesMd: body.notesMd ?? '',
-        status: body.status,
-        lines: (body.lines ?? []).map((l: QuoteLine) => ({
-          id: l.id,
-          // 카탈로그 연결을 들고 가지 않으면 저장하는 순간 손으로 친 이름으로 되돌아간다
-          productId: l.productId ?? null,
-          name: l.name,
-          descriptionMd: l.descriptionMd ?? '',
-          quantity: String(l.quantity),
-          unit: l.unit ?? '',
-          unitPriceMinor: String(l.unitPriceMinor),
-          discountPercent: String(l.discountPercent),
-          taxRate: String(l.taxRate),
-        })),
-      })
+      setEditing(quoteToDraft(body))
     } catch {
       setActionError('견적을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }

@@ -333,6 +333,8 @@ model CrmPerson {
   company      CrmCompany?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
   dealContacts CrmDealContact[]
   activity     CrmActivity[]
+  /// 이 사람 앞으로 나간 견적 — 사람을 지워도 견적은 남는다(SetNull)
+  quotesAsRecipient CrmQuote[] @relation("QuoteRecipient")
 
   // 유일성은 DB 의 부분 유니크 인덱스가 지킨다(마이그 201) — Prisma 는 부분·함수 인덱스를 표현하지 못한다.
   // 여기서는 조회용 인덱스로만 선언한다. upsert 는 id 기준으로, 조회는 findFirst 로 한다.
@@ -868,6 +870,9 @@ model CrmQuote {
   /// 연결 표로 만들면 순서를 또 저장해야 하고, 그 순서가 어긋난다
   termIds     String[] @default([])
   ownerId     String? // CrmMember.id
+  /// 공급받는 곳의 담당자 — 「○○ 귀하」로 문서에 찍힌다. 안 고르면 회사 앞으로만 나간다
+  recipientPersonId String?
+  recipientPerson   CrmPerson? @relation("QuoteRecipient", fields: [recipientPersonId], references: [id], onDelete: SetNull)
   sentAt      DateTime?
   decidedAt   DateTime? // 수락·거절 시각
   version     Int       @default(0)

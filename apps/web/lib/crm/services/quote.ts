@@ -100,7 +100,8 @@ const SELECT = {
   id: true, dealId: true, quoteNo: true, title: true, status: true, currency: true,
   validUntil: true, subtotalMinor: true, discountMinor: true, taxMinor: true, totalMinor: true,
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
-  termIds: true, ownerId: true,
+  // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
+  termIds: true, ownerId: true, createdById: true, recipientPersonId: true,
   sentAt: true, decidedAt: true, version: true, createdAt: true, updatedAt: true,
 } as const
 
@@ -140,6 +141,7 @@ const LINE_KEYS = new Set([
 ])
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
+  'recipientPersonId',
   // 수정 경로가 함께 보내는 것들
   'version', 'status',
 ])
@@ -422,6 +424,8 @@ export interface CreateQuoteInput {
   validUntil?: string | null
   notesMd?: string | null
   ownerId?: string | null
+  /** 공급받는 곳의 담당자. 안 고르면 null — 회사 앞으로만 나간다 */
+  recipientPersonId?: string | null
   lines?: QuoteLineData[]
 }
 
@@ -489,6 +493,7 @@ export async function createQuote(
           dealId: input.dealId, quoteNo, title, currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
           notesMd: normalizeText(input.notesMd), ownerId: input.ownerId || null,
+          recipientPersonId: input.recipientPersonId || null,
           ...(Array.isArray(input.termIds)
             ? { termIds: input.termIds.filter((v) => typeof v === 'string') }
             : {}),
@@ -544,6 +549,7 @@ export interface UpdateQuoteInput {
   validUntil?: string | null
   notesMd?: string | null
   ownerId?: string | null
+  recipientPersonId?: string | null
   /**
    * 항목 전체. 주면 통째로 맞춘다(있는 것은 고치고, 없어진 것은 지우고, 새 것은 만든다).
    * 안 주면 항목은 손대지 않는다 — 제목만 고칠 때 항목이 날아가면 안 된다.
@@ -585,6 +591,8 @@ export async function updateQuote(
       data.validUntil = input.validUntil ? new Date(input.validUntil) : null
     }
     if (input.notesMd !== undefined) data.notesMd = normalizeText(input.notesMd)
+    // 빈 문자열은 «고르지 않음»이다 — null 로 눕혀야 FK 가 받는다
+    if (input.recipientPersonId !== undefined) data.recipientPersonId = input.recipientPersonId || null
     if (input.ownerId !== undefined) data.ownerId = input.ownerId || null
 
     // 한 번만 계산한다 — 두 번 계산하면 그 사이 규칙이 갈릴 자리가 생긴다

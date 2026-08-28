@@ -4,6 +4,7 @@
 // «화면에 있는 것이 파일에도 있나»와 «인쇄했을 때 문서로 보이나»다.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { QUOTE } from '../../terms/quote.ts'
 import ExcelJS from 'exceljs'
 import { quoteDocumentToXlsx } from './quote-xlsx.ts'
 import { buildQuoteDocument, type BuildQuoteDocumentInput } from '../domain/quote-document.ts'
@@ -62,8 +63,10 @@ test('화면에 있는 것이 파일에도 있다 — 담당자까지', async ()
     '한국지능정보사회진흥원 귀중',
     // 인쇄본에는 나오는데 엑셀에만 빠졌던 값 — 빠지면 같은 문서가 아니다
     '이준희 팀장',
-    // 건명 — 무엇에 대한 견적인지. 화면에 있는데 파일에 없으면 같은 문서가 아니다
-    '건명', 'GPU 인프라 구축 견적',
+    // 무엇에 대한 견적인지. 화면에 있는데 파일에 없으면 같은 문서가 아니다.
+    // **말은 상수에서 가져온다** — 여기 글자를 박아 두면 용어를 고칠 때 가드가 막는다
+    // (실제로 「건명」→「사업명」으로 바꿀 때 이 줄이 실패했다).
+    QUOTE.subject, 'GPU 인프라 구축 견적',
     '주식회사 데이터얼라이언스', '123-45-67890', '김도현',
     'NVIDIA H100 80GB', 'SXM5 · 3년 무상보증 포함', '구축 및 최적화 용역',
     '공급가액', '할인', '부가세', '합계 금액',

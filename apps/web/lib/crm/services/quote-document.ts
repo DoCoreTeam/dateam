@@ -45,13 +45,25 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   // 이 견적이 고른 거래 조건. 하나도 안 골랐으면 설정의 기본 조건으로 떨어진다 —
   // 조건을 등록하기 전에 만든 견적이 갑자기 조건 없는 문서가 되면 안 된다
   const termIds = (quote as { termIds?: string[] }).termIds ?? []
-  const [supplier, images, owner, terms] = await Promise.all([
+  const ownerMemberId = quote.ownerId
+    ?? (quote as { createdById?: string | null }).createdById
+    ?? null
+  const recipientId = (quote as { recipientPersonId?: string | null }).recipientPersonId ?? null
+
+  const [supplier, images, owner, terms, recipient] = await Promise.all([
     readQuoteSupplier(db),
     readQuoteImages(db),
-    quote.ownerId
+    /*
+      **`ownerId` 가 비면 «만든 사람»이 담당이다.**
+      `ownerId` 는 나중에 담당을 넘길 때 쓰는 칸이라 대부분 비어 있다 —
+      그걸 그대로 읽으면 **모든 견적에 담당자가 안 나온다**(실측: 견적 14건 전부 null 이라
+      고객에게 나가는 문서에 연락할 사람이 없었다). 기획 결정 3 이 정한 「영업대표 = 견적을 만든
+      로그인 사용자」가 곧 `createdById` 다.
+    */
+    ownerMemberId
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (db as any).crmMember.findFirst({
-          where: { id: quote.ownerId },
+          where: { id: ownerMemberId },
           select: { displayName: true, title: true, phone: true, email: true },
         }) as Promise<{ displayName: string; title: string | null; phone: string | null; email: string } | null>
       : Promise.resolve(null),
@@ -61,7 +73,19 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
           where: { id: { in: termIds } },
           select: { id: true, body: true },
         }) as Promise<{ id: string; body: string }[]>
-      : Promise.resolve([]),
+      : Promise.resolve([] as { id: string; body: string }[]),
+    /*
+      **공급받는 곳의 담당자.** 고르지 않았으면 안 읽는다 —
+      「○○ 귀중」만으로도 문서는 성립하고, 억지로 아무나 넣으면 그 사람 앞으로
+      간 문서가 되어 버린다(사용자 지시: 「체크를 안하면 안나와도 되고」).
+    */
+    recipientId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (db as any).crmPerson.findFirst({
+          where: { id: recipientId },
+          select: { name: true, title: true },
+        }) as Promise<{ name: string; title: string | null } | null>
+      : Promise.resolve(null),
   ])
 
   const document = buildQuoteDocument({
@@ -91,7 +115,8 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
     })),
     customer: {
       companyName: deal.company?.name ?? null,
-      personName: null,
+      // 직책이 있으면 「김도현 교수」처럼 함께 적는다 — 문서에서 사람을 지목하는 자리다
+      personName: recipient ? [recipient.name, recipient.title].filter(Boolean).join(' ') : null,
       fallbackName: deal.name,
     },
     supplier,

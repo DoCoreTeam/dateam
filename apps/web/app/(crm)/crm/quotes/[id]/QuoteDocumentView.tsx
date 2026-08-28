@@ -10,7 +10,7 @@
 // 같은 `QuoteDocument` 를 보므로 둘이 다른 말을 할 수 없다.
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
-import { Printer, Download } from 'lucide-react'
+import { Printer, Download, Pencil } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -32,6 +32,8 @@ import {
   PRINT_HINT,
   expiredNote,
 } from '@/lib/terms'
+import QuoteEditorModal, { quoteToDraft, type QuoteDraft } from '@/components/ui/crm/QuoteEditorModal'
+import { ACTION } from '@/lib/terms'
 import type { QuoteDocument } from '@/lib/crm/domain/quote-document'
 import styles from './quote-document.module.css'
 
@@ -49,6 +51,29 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
   // 내려받기 실패는 **이 화면 안에서** 말한다. 페이지를 떠나 보내면 JSON 이 화면을 덮는다
   const [exportError, setExportError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  /**
+   * 편집 초안. 모달은 **딜 id 와 초안**을 받으므로 견적을 한 번 더 읽어야 한다 —
+   * 문서 응답은 «인쇄용»이라 편집에 필요한 원본 값(항목 id·버전)을 담지 않는다.
+   */
+  const [draft, setDraft] = useState<QuoteDraft | null>(null)
+  const [draftDealId, setDraftDealId] = useState<string | null>(null)
+  const [loadingDraft, setLoadingDraft] = useState(false)
+
+  const openEdit = useCallback(async () => {
+    setLoadingDraft(true)
+    setExportError(null)
+    try {
+      const res = await fetch(`/api/crm/quotes/${quoteId}`)
+      const body = await res.json()
+      if (!res.ok) { setExportError(body?.error?.message ?? '견적을 불러오지 못했습니다.'); return }
+      setDraftDealId(body.dealId ?? null)
+      setDraft(quoteToDraft(body))
+    } catch {
+      setExportError('견적을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setLoadingDraft(false)
+    }
+  }, [quoteId])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -116,6 +141,15 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           같은 오류를 두 자리에서 읽게 된다 — 위반 배너와 실패 배너가 같은 문장을 반복한다.
           이유는 이미 위 배너에 있으므로 여기서는 못 누르는 것으로 충분하다.
         */}
+        {/*
+          **문서를 보는 자리에서 바로 고친다.**
+          예전엔 견적을 고치려면 딜 상세로 돌아가 그 견적을 찾아 「수정」을 눌러야 했다 —
+          문서를 읽다가 틀린 곳을 찾는 것이 정상적인 순서인데, 고칠 길이 그 자리에 없었다
+          (사용자 지적: 「여기도 수정버튼을 두고 견적수정 화면으로 들어가야지」).
+        */}
+        <NbButton variant="ghost" disabled={loadingDraft} onClick={() => void openEdit()}>
+          <Pencil size={16} /> {loadingDraft ? progress(ACTION.edit) : ACTION.edit}
+        </NbButton>
         <NbButton variant="ghost" disabled={exporting || blocked} onClick={() => void exportCsv()} title={EXPORT_SAFE_NOTE}>
           <Download size={16} /> {exporting ? progress(QUOTE.exportXlsx) : QUOTE.exportXlsx}
         </NbButton>
@@ -340,6 +374,16 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           </section>
         )}
       </article>
+
+      {/* 저장하면 문서를 다시 읽는다 — 고쳤는데 화면이 그대로면 저장이 안 된 줄 안다 */}
+      {draft && draftDealId && (
+        <QuoteEditorModal
+          dealId={draftDealId}
+          initial={draft}
+          onClose={() => setDraft(null)}
+          onSaved={() => { setDraft(null); void load() }}
+        />
+      )}
     </div>
   )
 }

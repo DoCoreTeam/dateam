@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.642',
+    date: '2026-08-28',
+    title: '견적서에 사람이 들어가요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🙋',
+        headline: '견적서에 우리 담당자가 나와요',
+        detail: '고객에게 나가는 문서인데 연락할 사람이 없었어요. 견적을 만든 분이 담당자로 찍힙니다. 직위·연락처는 「멤버」 화면에서 채워 두시면 함께 나와요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '📮',
+        headline: '받는 분을 고를 수 있어요',
+        detail: '견적을 고칠 때 이 딜에 붙은 사람 중에서 받는 분을 고르면 「○○ 귀하」로 문서에 찍혀요. 안 고르면 회사 앞으로만 나갑니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '✏️',
+        headline: '견적서를 보다가 바로 고칠 수 있어요',
+        detail: '틀린 곳을 찾아도 딜 화면으로 돌아가 그 견적을 다시 찾아야 했어요. 이제 견적서 위에 「수정」이 있습니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📝',
+        headline: '「건명」이 「사업명」이 됐어요',
+        detail: '관공서 서식에서 쓰는 말이라 우리 문서에는 「사업명」이 맞습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.640',
     date: '2026-08-28',
     title: '리포트가 세 가지 눈으로 답해요',
