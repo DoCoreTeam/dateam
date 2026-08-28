@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.7.650",
+  "version": "0.7.651",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
@@ -47,6 +47,7 @@
     "driver.js": "^1.4.0",
     "exceljs": "^4.4.0",
     "googleapis": "^172.0.0",
+    "jspdf": "^4.2.1",
     "katex": "^0.17.0",
     "lucide-react": "^0.460.0",
     "mammoth": "^1.12.0",

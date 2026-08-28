@@ -168,19 +168,24 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
             </colgroup>
             <thead>
               <tr>
+                {/* **제목만 가운데다**(사용자 지시). 값은 각자의 정렬을 지킨다 */}
                 <th className={styles.center} scope="col">{QUOTE.lineNo}</th>
-                <th className={styles.left} scope="col">{QUOTE.lineName}</th>
+                <th className={styles.center} scope="col">{QUOTE.lineName}</th>
                 <th className={styles.center} scope="col">{QUOTE.lineUnit}</th>
-                <th className={styles.num} scope="col">{QUOTE.lineQuantity}</th>
-                <th className={styles.num} scope="col">{QUOTE.lineUnitPrice}</th>
-                <th className={styles.num} scope="col">{QUOTE.lineDiscount}</th>
-                <th className={styles.num} scope="col">{QUOTE.lineAmount}</th>
+                <th className={styles.center} scope="col">{QUOTE.lineQuantity}</th>
+                <th className={styles.center} scope="col">{QUOTE.lineUnitPrice}</th>
+                <th className={styles.center} scope="col">{QUOTE.lineDiscount}</th>
+                <th className={styles.center} scope="col">{QUOTE.lineAmount}</th>
               </tr>
             </thead>
             <tbody>
               {doc.lines.map((l) => (
                 <tr key={l.no}>
                   <td className={styles.center}>{l.no}</td>
+                  {/*
+                    **값은 원래 정렬을 지킨다.** 가운데로 바꾸는 것은 «제목(머리글)»뿐이다 —
+                    금액을 가운데로 두면 자릿수가 세로로 안 맞아 크기를 눈으로 비교할 수 없다.
+                  */}
                   <td>
                     <div className={styles.lineName}>{l.name}</div>
                     {l.spec && <div className={styles.spec}>{l.spec}</div>}

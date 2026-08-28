@@ -21,19 +21,26 @@ export const QUOTE_NO_TOKENS = [
   { token: '{MM}', desc: '월 두 자리', sample: '08' },
   { token: '{DD}', desc: '일 두 자리', sample: '28' },
   { token: '{MMDD}', desc: '월일 네 자리', sample: '0828' },
+  { token: '{YYYYMMDD}', desc: '연월일 여덟 자리', sample: '20260828' },
   { token: '{SEQ}', desc: '일련번호 (기본 네 자리)', sample: '0001' },
   { token: '{SEQ:2}', desc: '일련번호 자릿수 지정', sample: '01' },
 ] as const
 
 /** 아무것도 설정 안 했을 때 — 사용자가 요청한 `DA-연-월일-번호` */
-export const DEFAULT_QUOTE_NO_PATTERN = 'DA-{YYYY}-{MMDD}-{SEQ:2}'
+/**
+ * 아무것도 설정 안 했을 때.
+ *
+ * **연월일이 통째로 들어간다** — 번호만 보고 언제 낸 견적인지 알 수 있어야 한다
+ * (사용자 지시: 「견적번호 자체를 년월일 포함 시켜줘 … 20260828 이렇게」).
+ */
+export const DEFAULT_QUOTE_NO_PATTERN = 'DA-{YYYYMMDD}-{SEQ:2}'
 
 /** 골라 쓰기 좋은 몇 가지. 자유 입력을 막지는 않는다 */
 export const QUOTE_NO_PRESETS: readonly { label: string; pattern: string }[] = [
+  { label: 'DA-20260828-01', pattern: 'DA-{YYYYMMDD}-{SEQ:2}' },
   { label: 'DA-2026-0828-01', pattern: 'DA-{YYYY}-{MMDD}-{SEQ:2}' },
   { label: 'Q-2026-0001', pattern: 'Q-{YYYY}-{SEQ}' },
   { label: '견적-26-001', pattern: '견적-{YY}-{SEQ:3}' },
-  { label: 'Q26080001', pattern: 'Q{YY}{MM}{SEQ}' },
 ]
 
 /**
@@ -51,9 +58,9 @@ export function seqScopeOf(pattern: string): SeqScope {
     실제로 저장되는 번호는 「날마다 1번부터」다(실브라우저에서 잡았다).
   */
   const p = pattern || DEFAULT_QUOTE_NO_PATTERN
-  const hasDay = /\{DD\}|\{MMDD\}/.test(p)
-  const hasMonth = /\{MM\}|\{MMDD\}/.test(p)
-  const hasYear = /\{YYYY\}|\{YY\}/.test(p)
+  const hasDay = /\{DD\}|\{MMDD\}|\{YYYYMMDD\}/.test(p)
+  const hasMonth = /\{MM\}|\{MMDD\}|\{YYYYMMDD\}/.test(p)
+  const hasYear = /\{YYYY\}|\{YY\}|\{YYYYMMDD\}/.test(p)
   if (hasDay) return 'DAY'
   if (hasMonth) return 'MONTH'
   if (hasYear) return 'YEAR'
@@ -86,6 +93,8 @@ const pad = (n: number, w: number) => String(n).padStart(w, '0')
 export function renderQuoteNo(pattern: string, dateKey: string, seq: number): string {
   const p = partsOf(dateKey)
   return (pattern || DEFAULT_QUOTE_NO_PATTERN)
+    // **긴 토큰부터** 바꾼다 — `{YYYY}` 를 먼저 바꾸면 `{YYYYMMDD}` 가 `2026MMDD}` 가 된다
+    .replace(/\{YYYYMMDD\}/g, `${p.year}${pad(p.month, 2)}${pad(p.day, 2)}`)
     .replace(/\{YYYY\}/g, String(p.year))
     .replace(/\{YY\}/g, pad(p.year % 100, 2))
     .replace(/\{MMDD\}/g, `${pad(p.month, 2)}${pad(p.day, 2)}`)
@@ -136,7 +145,7 @@ export function validateQuoteNoPattern(pattern: string): string | null {
     return '{SEQ} 가 있어야 합니다. 없으면 모든 견적이 같은 번호가 됩니다.'
   }
   const unknown = (p.match(/\{[^}]*\}/g) ?? [])
-    .filter((t) => !/^\{(YYYY|YY|MM|DD|MMDD|SEQ(:\d)?)\}$/.test(t))
+    .filter((t) => !/^\{(YYYYMMDD|YYYY|YY|MM|DD|MMDD|SEQ(:\d)?)\}$/.test(t))
   if (unknown.length > 0) return `모르는 표시가 있습니다: ${unknown.join(' · ')}`
   return null
 }

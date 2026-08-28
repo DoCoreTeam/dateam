@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildQuoteDocument, verifyDocument, missingSupplierFields,
+  exportFileName,
   type BuildQuoteDocumentInput,
 } from './quote-document.ts'
 import { hangulAmount, QUOTE } from '../../terms/quote.ts'
@@ -269,4 +270,40 @@ test('공급자 정보가 다 차면 빈 목록', () => {
 test('공백만 넣은 값은 채운 것으로 치지 않는다', () => {
   const doc = buildQuoteDocument(input({ supplier: { ...input().supplier, bizNo: '   ' } }))
   assert.deepEqual(missingSupplierFields(doc), ['bizNo'])
+})
+
+// ── 내보내기 파일명 (v0.7.651) ────────────────────────────
+// 엑셀·PDF·이미지가 **같은 규칙**을 쓴다. 세 곳이 각자 만들면 언젠가 하나만 달라진다.
+
+test('파일명 — [우리회사]고객사_견적번호_견적서', () => {
+  const name = exportFileName({
+    supplier: { name: '데이터얼라이언스 주식회사' },
+    customer: { companyName: '숙명여대' },
+    meta: { quoteNo: 'DA-2026-0828-01' },
+  }, '견적서', 'pdf')
+  assert.equal(name, '[데이터얼라이언스 주식회사]숙명여대_DA-2026-0828-01_견적서.pdf')
+})
+
+test('★ 파일명에 못 쓰는 글자를 걷어낸다 — 안 그러면 파일이 아예 안 만들어진다', () => {
+  const name = exportFileName({
+    supplier: { name: 'A/B: 주식회사' },
+    customer: { companyName: '고객<사>' },
+    meta: { quoteNo: 'Q?1' },
+  }, '견적서', 'xlsx')
+  assert.ok(!/[/\\:*?"<>|]/.test(name), `못 쓰는 글자가 남았다 — ${name}`)
+  assert.equal(name, '[AB 주식회사]고객사_Q1_견적서.xlsx')
+})
+
+test('공급자 이름이 비면 대괄호를 만들지 않는다 — 「[]」 만 남으면 이상하다', () => {
+  const name = exportFileName({
+    supplier: { name: '' }, customer: { companyName: '고객' }, meta: { quoteNo: 'Q-1' },
+  }, '견적서', 'png')
+  assert.equal(name, '고객_Q-1_견적서.png')
+})
+
+test('고객사가 비어도 밑줄이 겹치지 않는다', () => {
+  const name = exportFileName({
+    supplier: { name: '우리' }, customer: { companyName: '' }, meta: { quoteNo: 'Q-1' },
+  }, '견적서', 'pdf')
+  assert.equal(name, '[우리]Q-1_견적서.pdf')
 })

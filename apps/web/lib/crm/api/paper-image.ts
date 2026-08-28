@@ -118,3 +118,61 @@ export async function downloadPaperAsPng(paper: HTMLElement, filename: string): 
   // 곧바로 지우면 다운로드가 시작되기 전에 사라진다
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+
+// ------------------------------------------------------------
+// PDF
+// ------------------------------------------------------------
+
+/** A4 (mm) */
+const A4_W = 210
+const A4_H = 297
+
+/**
+ * 종이 → **PDF 파일**.
+ *
+ * **왜 인쇄 대화상자를 안 쓰나**: 「인쇄 → PDF로 저장」은 사용자가 대화상자에서
+ * 여백·배율·머리글을 매번 골라야 하고, 고르는 자리를 모르면 두 장짜리 견적서가
+ * 그대로 나간다. 그리고 브라우저마다 대화상자가 다르다
+ * (사용자 지적: 「인쇄 PDF말고 바로 PDF로 할 수 있는걸로 아는데 … 계속 페이지 넘어가고 있는데」).
+ *
+ * **여기서는 우리가 페이지를 정한다.** 한 장에 들어가면 한 장, 넘치면 그때만 나눈다.
+ *
+ * **왜 이미지로 넣나**: 화면에서 보는 그대로가 나가야 «미리보기»다.
+ * 글자를 다시 배치하는 방식은 폰트·줄바꿈이 미묘하게 달라져 다른 문서가 된다.
+ */
+export async function downloadPaperAsPdf(paper: HTMLElement, filename: string): Promise<void> {
+  // 동적 import — 견적서를 안 뽑는 사람에게 PDF 라이브러리를 실어 보내지 않는다
+  const { jsPDF } = await import('jspdf')
+
+  const blob = await paperToPng(paper)
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(String(fr.result))
+    fr.onerror = () => reject(new Error('read failed'))
+    fr.readAsDataURL(blob)
+  })
+
+  const rect = paper.getBoundingClientRect()
+  // 종이 폭을 A4 폭에 맞춘다 — 그 비율로 높이가 정해진다
+  const imgH = (rect.height / rect.width) * A4_W
+
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true })
+
+  if (imgH <= A4_H + 1) {
+    // 한 장에 들어간다 — 위쪽부터 그대로 앉힌다
+    pdf.addImage(dataUrl, 'PNG', 0, 0, A4_W, imgH, undefined, 'FAST')
+  } else {
+    /*
+      **넘칠 때만 나눈다.** 한 장 높이만큼씩 위로 밀어 올리며 새 쪽에 같은 그림을 앉힌다 —
+      잘린 자리가 글자 한가운데일 수 있지만, 여백을 두려고 배율을 줄이면 글자가 작아진다.
+      내용이 길면 두 장이 되는 것이 정직하다(사용자도 그렇게 말했다).
+    */
+    const pages = Math.ceil(imgH / A4_H)
+    for (let i = 0; i < pages; i += 1) {
+      if (i > 0) pdf.addPage()
+      pdf.addImage(dataUrl, 'PNG', 0, -(A4_H * i), A4_W, imgH, undefined, 'FAST')
+    }
+  }
+
+  pdf.save(filename)
+}

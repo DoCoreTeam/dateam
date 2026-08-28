@@ -14,7 +14,7 @@
  * **이 파일도 원가를 모른다.** 입력이 `QuoteDocument` 뿐이고, 그 타입에 원가 자리가 없다.
  */
 
-import type { QuoteDocument } from '../domain/quote-document.ts'
+import { exportFileName, type QuoteDocument } from '../domain/quote-document.ts'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '../../terms/quote.ts'
 import { minorDigits, currencyAffix } from '../../../app/(crm)/crm/deals/amount.ts'
 
@@ -412,15 +412,11 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     cell.value = c.label
     cell.font = { size: 10, bold: true, color: { argb: MUTED } }
     /*
-      숫자 열은 오른쪽, 글자 열은 왼쪽. **양끝은 안쪽으로 한 칸 들인다** —
-      화면의 `padding` 자리다. 안 들이면 글자가 테두리에 붙어 답답해 보인다
-      (사용자 지적: 「글자 간격 공백 이런거 되게 중요하다고」).
+      **머리글은 전부 가운데다**(사용자 지시: 「제목만 중앙정렬로」).
+      값은 각자의 정렬을 지킨다 — 금액을 가운데로 두면 자릿수가 세로로 안 맞는다.
+      화면(QuoteSheet)과 같은 규칙이라 두 문서가 같아 보인다.
     */
-    cell.alignment = {
-      horizontal: i >= 3 ? 'right' : 'left',
-      vertical: 'middle',
-      indent: 1,
-    }
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEAD_BG } }
     cell.border = border
   })
@@ -658,5 +654,6 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     : [{ showGridLines: false }]
 
   const buffer = Buffer.from(await wb.xlsx.writeBuffer())
-  return { filename: `${doc.meta.quoteNo}_${QUOTE.documentTitle}.xlsx`, buffer }
+  // 파일명은 **한 규칙**이다 — 엑셀·PDF·이미지가 같은 함수를 쓴다
+  return { filename: exportFileName(doc, QUOTE.documentTitle, 'xlsx'), buffer }
 }

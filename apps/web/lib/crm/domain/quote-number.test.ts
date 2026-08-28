@@ -5,9 +5,15 @@ import {
   DEFAULT_QUOTE_NO_PATTERN, QUOTE_NO_PRESETS,
 } from './quote-number.ts'
 
-test('기본 형식은 사용자가 요청한 DA-연-월일-번호다', () => {
-  assert.equal(renderQuoteNo(DEFAULT_QUOTE_NO_PATTERN, '2026-08-28', 1), 'DA-2026-0828-01')
-  assert.equal(renderQuoteNo(DEFAULT_QUOTE_NO_PATTERN, '2026-08-28', 12), 'DA-2026-0828-12')
+test('기본 형식에 연월일이 통째로 들어간다 — 번호만 보고 언제 낸 견적인지 안다', () => {
+  assert.equal(renderQuoteNo(DEFAULT_QUOTE_NO_PATTERN, '2026-08-28', 1), 'DA-20260828-01')
+  assert.equal(renderQuoteNo(DEFAULT_QUOTE_NO_PATTERN, '2026-08-28', 12), 'DA-20260828-12')
+})
+
+test('★ 긴 토큰이 먼저 바뀐다 — {YYYY} 를 먼저 바꾸면 {YYYYMMDD} 가 깨진다', () => {
+  assert.equal(renderQuoteNo('{YYYYMMDD}-{SEQ:2}', '2026-08-28', 3), '20260828-03')
+  // 둘이 함께 있어도 각자 맞는다
+  assert.equal(renderQuoteNo('{YYYY}/{YYYYMMDD}', '2026-01-05', 1), '2026/20260105')
 })
 
 test('토큰이 전부 치환된다', () => {
@@ -20,11 +26,12 @@ test('모르는 토큰은 지우지 않고 그대로 둔다 — 조용히 짧아
 })
 
 test('빈 형식은 기본값으로 떨어진다 — 번호 없는 견적을 만들지 않는다', () => {
-  assert.equal(renderQuoteNo('', '2026-08-28', 1), 'DA-2026-0828-01')
+  assert.equal(renderQuoteNo('', '2026-08-28', 1), 'DA-20260828-01')
 })
 
 test('채번 범위는 형식이 정한다 — 사용자가 따로 고르면 둘이 어긋난다', () => {
   assert.equal(seqScopeOf('DA-{YYYY}-{MMDD}-{SEQ:2}'), 'DAY')
+  assert.equal(seqScopeOf('DA-{YYYYMMDD}-{SEQ:2}'), 'DAY')
   assert.equal(seqScopeOf('Q-{YYYY}{MM}-{SEQ}'), 'MONTH')
   assert.equal(seqScopeOf('Q-{YYYY}-{SEQ}'), 'YEAR')
   assert.equal(seqScopeOf('Q{SEQ}'), 'FOREVER')
@@ -37,6 +44,7 @@ test('채번 범위는 형식이 정한다 — 사용자가 따로 고르면 둘
 
 test('앞자리로 같은 범위의 번호를 찾는다', () => {
   assert.equal(seqPrefix('DA-{YYYY}-{MMDD}-{SEQ:2}', '2026-08-28'), 'DA-2026-0828-')
+  assert.equal(seqPrefix('DA-{YYYYMMDD}-{SEQ:2}', '2026-08-28'), 'DA-20260828-')
   assert.equal(seqPrefix('Q-{YYYY}-{SEQ}', '2026-08-28'), 'Q-2026-')
   // SEQ 가 맨 앞이면 공통 앞자리가 없다
   assert.equal(seqPrefix('{SEQ}-X', '2026-08-28'), '')

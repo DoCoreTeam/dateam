@@ -86,6 +86,8 @@ export const QUOTE = {
   openPreview: '미리보기 · 내보내기',
   /** 그림 파일로. 메신저에 바로 붙일 수 있어야 한다 */
   exportImage: '이미지로 저장',
+  /** 인쇄 대화상자를 거치지 않고 파일이 바로 떨어진다 */
+  exportPdf: 'PDF로 저장',
   /** 고르지 않았을 때 — 「없음」이 아니라 «회사 앞으로만 간다»는 사실을 말한다 */
   recipientNone: '회사 앞으로만 (담당자 없이)',
   lines: '항목',
@@ -99,7 +101,8 @@ export const QUOTE = {
    * 버튼이 「인쇄」라고만 하면 사용자는 **PDF 가 되는 줄 모른다** —
    * 실제로 견적서를 보낼 때 오가는 형식은 PDF 다.
    */
-  print: '인쇄 · PDF 저장',
+  /** 종이에 찍거나 다른 프린터로 보낼 때. PDF 파일은 exportPdf 가 따로 만든다 */
+  print: '인쇄',
   exportXlsx: '엑셀로 내려받기',
   /** 로고 */
   logo: '로고',

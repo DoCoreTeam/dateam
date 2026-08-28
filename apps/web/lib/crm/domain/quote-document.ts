@@ -42,6 +42,43 @@ export interface DocumentSupplier {
  * 회사 설정에 고정 연락처를 두면 누가 만들었든 같은 번호가 찍히고,
  * 고객은 그 번호로 걸어 「누구 찾으세요?」를 듣는다.
  */
+/**
+ * 내보내는 파일의 이름 (SSOT) — **엑셀·PDF·이미지가 같은 규칙**을 쓴다
+ *
+ * `[데이터얼라이언스]숙명여대_Q-2026-0014_견적서.pdf`
+ *
+ * **왜 이 순서인가**: 받은 사람의 다운로드 폴더에서 **우리 회사가 먼저** 보이고,
+ * 그 다음이 고객사다 — 여러 회사와 일하는 사람도 우리 파일을 한 덩어리로 찾는다.
+ * 대괄호는 그 묶음을 눈으로 갈라 준다(사용자 지시).
+ *
+ * **파일명에 못 쓰는 글자를 걷어낸다.** `/`·`\`·`:` 같은 것이 들어가면
+ * 운영체제가 파일을 아예 안 만들거나 이름을 제멋대로 바꾼다.
+ */
+export function exportFileName(doc: {
+  supplier: { name: string }
+  customer: { companyName: string }
+  meta: { quoteNo: string }
+}, docTitle: string, ext: string): string {
+  const parts = [
+    doc.supplier.name ? `[${safeName(doc.supplier.name)}]` : '',
+    safeName(doc.customer.companyName),
+    safeName(doc.meta.quoteNo),
+    safeName(docTitle),
+  ]
+  // 빈 조각은 밑줄을 만들지 않는다 — 「__」 가 낀 이름이 나오면 안 된다
+  const head = parts[0]
+  const rest = parts.slice(1).filter(Boolean).join('_')
+  return `${head}${rest}.${ext}`
+}
+
+/** 파일명에 쓸 수 없는 글자를 걷어낸다. 공백은 남긴다 — 사람이 읽는 이름이다 */
+export function safeName(raw: string): string {
+  return (raw ?? '')
+    .replace(/[/\\:*?"<>|\u0000-\u001f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export interface DocumentOwner {
   name: string
   title: string

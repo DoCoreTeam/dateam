@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.651',
+    date: '2026-08-28',
+    title: 'PDF가 바로 떨어져요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📄',
+        headline: '인쇄 대화상자 없이 PDF로 저장해요',
+        detail: '「PDF로 저장」을 누르면 파일이 바로 받아집니다. 여백·배율을 매번 고를 필요가 없고, 웬만하면 한 장으로 나가요. 종이에 찍을 때만 「인쇄」를 쓰시면 됩니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🏷',
+        headline: '파일 이름에 우리 회사와 고객사가 들어가요',
+        detail: '「[데이터얼라이언스 주식회사]숙명여대_DA-20260828-01_견적서.pdf」처럼 나갑니다. 엑셀·PDF·이미지가 모두 같은 규칙이에요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔢',
+        headline: '견적번호에 날짜가 들어가요',
+        detail: '「DA-20260828-01」처럼 번호만 보고 언제 낸 견적인지 알 수 있어요. 쓰고 계신 견적 번호도 함께 바꿔 드렸습니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📐',
+        headline: '표 제목이 가운데로 정렬됐어요',
+        detail: '화면과 엑셀 둘 다 항목표 제목이 가운데에 섭니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.650',
     date: '2026-08-28',
     title: '명함과 계약서를 붙여 둬요',

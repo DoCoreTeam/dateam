@@ -10,7 +10,7 @@
 // 같은 `QuoteDocument` 를 보므로 둘이 다른 말을 할 수 없다.
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
-import { Printer, Download, Pencil, FileText, Image as ImageIcon } from 'lucide-react'
+import { Printer, Download, Pencil, FileText, FileDown, Image as ImageIcon } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
@@ -38,8 +38,8 @@ import QuoteEditorModal, { quoteToDraft, type QuoteDraft } from '@/components/ui
 import { ACTION } from '@/lib/terms'
 import DocSurface from '@/components/ui/doc/DocSurface'
 import QuoteSheet from './QuoteSheet'
-import { downloadPaperAsPng } from '@/lib/crm/api/paper-image'
-import type { QuoteDocument } from '@/lib/crm/domain/quote-document'
+import { downloadPaperAsPng, downloadPaperAsPdf } from '@/lib/crm/api/paper-image'
+import { exportFileName, type QuoteDocument } from '@/lib/crm/domain/quote-document'
 import styles from './quote-document.module.css'
 
 interface DocumentResponse {
@@ -72,6 +72,7 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
   /** 미리보기가 열렸나 — 내보내기는 전부 그 안에서 일어난다 */
   const [preview, setPreview] = useState(false)
   const [imaging, setImaging] = useState(false)
+  const [pdfing, setPdfing] = useState(false)
 
   /**
    * 종이를 이미지로.
@@ -94,12 +95,37 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
         받은 사람도, 저장한 사람도 뭘 여는 건지 모른다(사용자 지적).
         엑셀과 같은 규칙을 쓴다 — 「Q-2026-0014_견적서.png」
       */
-      const no = data?.document.meta.quoteNo ?? quoteId
-      await downloadPaperAsPng(paper, `${no}_${QUOTE.documentTitle}.png`)
+      if (!data) { setExportError('문서를 아직 불러오지 못했습니다.'); return }
+      await downloadPaperAsPng(paper, exportFileName(data.document, QUOTE.documentTitle, 'png'))
     } catch {
       setExportError('이미지를 만들지 못했습니다. 인쇄로 PDF 저장을 대신 써 주세요.')
     } finally {
       setImaging(false)
+    }
+  }, [quoteId, data])
+
+  /**
+   * 종이를 **PDF 파일로 바로** 만든다.
+   *
+   * 인쇄 대화상자를 거치면 사용자가 여백·배율·머리글을 매번 골라야 하고,
+   * 고르는 자리를 모르면 두 장짜리 견적서가 그대로 나간다
+   * (사용자 지적: 「인쇄 PDF말고 바로 PDF로 할 수 있는걸로 아는데」).
+   */
+  const savePdf = useCallback(async () => {
+    setPdfing(true)
+    setExportError(null)
+    try {
+      const paper = document.querySelector('.doc-paper')
+      if (!(paper instanceof HTMLElement)) {
+        setExportError('미리보기를 먼저 열어 주세요.')
+        return
+      }
+      if (!data) { setExportError('문서를 아직 불러오지 못했습니다.'); return }
+      await downloadPaperAsPdf(paper, exportFileName(data.document, QUOTE.documentTitle, 'pdf'))
+    } catch {
+      setExportError('PDF 를 만들지 못했습니다. 「인쇄」로 저장을 대신 써 주세요.')
+    } finally {
+      setPdfing(false)
     }
   }, [quoteId, data])
 
@@ -244,8 +270,15 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
               <NbButton variant="ghost" disabled={imaging || blocked} onClick={() => void saveImage()}>
                 <ImageIcon size={16} /> {imaging ? progress(QUOTE.exportImage) : QUOTE.exportImage}
               </NbButton>
-              <NbButton onClick={() => window.print()} title={PRINT_HINT}>
+              {/*
+                **PDF 가 주 버튼이다.** 대화상자를 거치지 않고 파일이 바로 떨어진다.
+                「인쇄」는 종이에 찍거나 다른 프린터로 보낼 때만 쓴다 — 그래서 보조로 내린다.
+              */}
+              <NbButton variant="ghost" onClick={() => window.print()} title={PRINT_HINT}>
                 <Printer size={16} /> {QUOTE.print}
+              </NbButton>
+              <NbButton disabled={pdfing || blocked} onClick={() => void savePdf()}>
+                <FileDown size={16} /> {pdfing ? progress(QUOTE.exportPdf) : QUOTE.exportPdf}
               </NbButton>
             </>
           }

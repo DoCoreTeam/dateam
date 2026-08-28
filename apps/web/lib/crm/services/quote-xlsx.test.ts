@@ -52,7 +52,11 @@ async function sheetOf(buffer: Buffer) {
 test('진짜 xlsx 파일이다 — zip 서명으로 시작한다', async () => {
   const out = await quoteDocumentToXlsx({ document: doc() })
   assert.equal(out.buffer.subarray(0, 2).toString('hex'), '504b', 'xlsx 가 아니다')
-  assert.equal(out.filename, 'Q-2026-0014_견적서.xlsx')
+  /*
+    파일명은 **한 규칙**이다(exportFileName) — 엑셀·PDF·이미지가 같은 함수를 쓴다.
+    받은 사람의 다운로드 폴더에서 우리 회사가 먼저 보이고, 그 다음이 고객사다.
+  */
+  assert.equal(out.filename, '[주식회사 데이터얼라이언스]한국지능정보사회진흥원_Q-2026-0014_견적서.xlsx')
 })
 
 test('화면에 있는 것이 파일에도 있다 — 담당자까지', async () => {
