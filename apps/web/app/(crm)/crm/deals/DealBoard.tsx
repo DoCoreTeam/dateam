@@ -19,12 +19,11 @@ import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
 import { AlertTriangle, Clock, CheckCircle2, X } from 'lucide-react'
-import { Plus } from 'lucide-react'
-import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import SectionSurface from '@/components/ui/SectionSurface'
 import DealCloseModal from './DealCloseModal'
 import { formatAmount } from './amount'
 import styles from './board.module.css'
@@ -77,13 +76,35 @@ export interface BoardDeal {
 interface Props {
   pipelines: BoardPipeline[]
   pipelineId: string
-  onPipelineChange: (id: string) => void
-  onCreate: () => void
   /** 목록을 다시 읽어야 할 때 바뀌는 값(저장 직후 등) */
   reloadKey: number
 }
 
-export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onCreate, reloadKey }: Props) {
+/**
+ * 보드에 보이는 딜의 합계.
+ *
+ * **여기서 세도 되는 이유**: 보드는 페이지를 나누지 않고 열린 딜을 전부 들고 있다.
+ * 목록(표)은 페이지가 있어 서버가 세야 한다 — 그래서 둘의 방식이 다르다.
+ *
+ * **통화를 섞지 않는다.** 더한 숫자는 아무 뜻이 없다.
+ */
+function boardSum(deals: BoardDeal[], pipeline: BoardPipeline) {
+  const mine = deals.filter((d) => pipeline.stages.some((st) => st.id === d.stageId))
+  const byCurrency: Record<string, bigint> = {}
+  let unpriced = 0
+  for (const d of mine) {
+    if (!d.amountMinor) { unpriced += 1; continue }
+    const cur = (d.currency ?? 'KRW').toUpperCase()
+    byCurrency[cur] = (byCurrency[cur] ?? BigInt(0)) + BigInt(d.amountMinor)
+  }
+  return {
+    count: mine.length,
+    unpriced,
+    byCurrency: Object.fromEntries(Object.entries(byCurrency).map(([k, v]) => [k, v.toString()])),
+  }
+}
+
+export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
   const [deals, setDeals] = useState<BoardDeal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -103,15 +124,17 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
   const [closing, setClosing] = useState<{ deal: BoardDeal; stage: BoardStage } | null>(null)
 
   const loadDeals = useCallback(async (pid: string) => {
-    if (!pid) return
     setLoading(true)
     setError(null)
     try {
       // 보드는 열린 딜만 본다 — 닫힌 딜까지 쌓으면 지금 할 일이 안 보인다.
       // 성사·실주 칸은 "방금 닫힌 것"을 보여 주려고 따로 가져온다.
+      // pid 가 비면 **전체**다 — 파이프라인마다 단계가 달라 한 보드에 못 그리므로
+      // 데이터는 한 번에 받고, 그리는 쪽에서 파이프라인별 섹션으로 나눈다
+      const scope = pid ? `pipelineId=${pid}&` : ''
       const [openRes, closedRes] = await Promise.all([
-        fetch(`/api/crm/deals?pipelineId=${pid}&status=OPEN&limit=100`),
-        fetch(`/api/crm/deals?pipelineId=${pid}&limit=100`),
+        fetch(`/api/crm/deals?${scope}status=OPEN&limit=200`),
+        fetch(`/api/crm/deals?${scope}limit=200`),
       ])
       const openBody = await openRes.json()
       const allBody = await closedRes.json()
@@ -127,7 +150,17 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
 
   useEffect(() => { void loadDeals(pipelineId) }, [pipelineId, loadDeals, reloadKey])
 
-  const pipeline = pipelines.find((p) => p.id === pipelineId)
+  /**
+   * 그릴 파이프라인.
+   *
+   * **파이프라인마다 단계가 다르다.** 「전체」를 한 보드에 그리려면 단계를 억지로
+   * 합쳐야 하는데, 그러면 「기술검증(PoC)」과 「계약 협상」이 같은 칸에 섞인다.
+   * 그래서 **파이프라인별 섹션으로 세로로 쌓는다** — 각 섹션이 자기 단계를 갖는다
+   * (사용자 지적: 「파이프라인 단계가 다르면 전체를 보여주든 보여주는 방식에 대해 고민해서」).
+   */
+  const shown = pipelineId
+    ? pipelines.filter((p) => p.id === pipelineId)
+    : pipelines
 
   /**
    * 옮긴 딜을 AI 가 본다.
@@ -198,7 +231,7 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
     return <ErrorState message={error} onRetry={() => void loadDeals(pipelineId)} />
   }
   if (loading && deals.length === 0) return <AXDotLoader />
-  if (!pipeline) {
+  if (shown.length === 0) {
     return (
       <EmptyState
         title="파이프라인이 아직 없어요"
@@ -210,41 +243,6 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
-        <div>
-          <label className="label" htmlFor="crm-board-pipeline">파이프라인</label>
-          <select
-            id="crm-board-pipeline"
-            className="input-field"
-            value={pipelineId}
-            onChange={(e) => onPipelineChange(e.target.value)}
-            style={{ minWidth: 200 }}
-          >
-            {/*
-              쓰는 것만 먼저. 딜 0건인 파이프라인이 목록을 채우면
-              **고를 때마다 빈 보드**를 만나게 된다. 지금 보고 있는 것은 항상 남긴다.
-            */}
-            {pipelines
-              .filter((p) => p.id === pipelineId || p.stages.some((s) => (s.dealCount ?? 0) > 0))
-              .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-
-            {/* 접은 것을 숨기지 않는다 — 몇 개가 있는지는 말한다 */}
-            {(() => {
-              const hidden = pipelines.filter(
-                (p) => p.id !== pipelineId && !p.stages.some((s) => (s.dealCount ?? 0) > 0))
-              return hidden.length === 0 ? null : (
-                <optgroup label={`아직 안 쓰는 것 ${hidden.length}개`}>
-                  {hidden.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </optgroup>
-              )
-            })()}
-          </select>
-        </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <NbButton onClick={onCreate}><Plus size={16} /> 딜 추가</NbButton>
-        </div>
-      </div>
-
       <FormErrorBanner message={moveError} />
       {moveNotice && <p className={styles.moveNotice}>{moveNotice}</p>}
 
@@ -286,7 +284,29 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
         </div>
       )}
 
-      <div className={styles.board}>
+      {/*
+        파이프라인마다 **자기 단계**로 한 판을 그린다.
+        전체를 볼 때 단계를 억지로 합치면 「기술검증(PoC)」과 「계약 협상」이 같은 칸에 섞인다.
+      */}
+      {shown.map((pipeline) => (
+        /*
+          한 파이프라인 = 한 «면».
+          예전엔 제목 글자만으로 나눴는데 **어디서 끊기는지 안 보였다**
+          (사용자 지적: 「구분이 글자로만 되니깐」). 면·머리띠는 SectionSurface 가 갖는다.
+          건수와 금액을 머리띠에 함께 적는다 — 보드는 카드가 흩어져 있어
+          «다 합치면 얼마인지»가 안 보이고, 그걸 사람이 세게 두면 안 된다.
+        */
+        <SectionSurface
+          key={pipeline.id}
+          title={shown.length > 1 ? pipeline.name : '열린 딜'}
+          meta={`${boardSum(deals, pipeline).count}건`}
+          figure={Object.entries(boardSum(deals, pipeline).byCurrency)
+            .map(([cur, minor]) => formatAmount(minor, cur)).join(' · ') || undefined}
+          note={boardSum(deals, pipeline).unpriced > 0
+            ? `금액 미정 ${boardSum(deals, pipeline).unpriced}건 제외` : undefined}
+          bleed
+        >
+          <div className={styles.board}>
         {pipeline.stages.map((stage) => {
           const rows = deals.filter((d) => d.stageId === stage.id)
           const kindClass = stage.kind === 'WON' ? styles.kindWon : stage.kind === 'LOST' ? styles.kindLost : ''
@@ -382,6 +402,9 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
           onDone={() => { setClosing(null); void loadDeals(pipelineId) }}
         />
       )}
+        </SectionSurface>
+      ))}
+
     </>
   )
 }

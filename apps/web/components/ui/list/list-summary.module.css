@@ -1,0 +1,34 @@
+/* 목록 위 간략 합계 — 한 줄. 목록보다 커지면 목록을 못 본다 */
+.bar {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+
+.label { font-size: var(--fs-sm); font-weight: 700; }
+.count { font-size: var(--fs-sm); color: var(--text-muted); }
+
+/* 통화가 여럿이면 나란히 — 더하지 않는다 */
+.amounts { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-left: auto; }
+
+.amount {
+  font-size: var(--fs-price);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.none { margin-left: auto; font-size: var(--fs-sm); color: var(--text-faint); }
+
+/* 빠진 것을 숨기지 않는다 */
+.unpriced { font-size: var(--fs-xs); color: var(--warning); }
+.note { font-size: var(--fs-xs); color: var(--text-muted); }
+
+@media (max-width: 767px) {
+  .amounts { margin-left: 0; width: 100%; }
+}

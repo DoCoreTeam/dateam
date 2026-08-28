@@ -13,6 +13,7 @@ import Sensitive from '@/components/crm/Sensitive'
 import { Plus } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
+import ListSummary from '@/components/ui/list/ListSummary'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -68,6 +69,8 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
   const [cursor, setCursor] = useState<string | null>(null)
   // 서버는 첫 페이지에서만 총 건수를 준다 — 이어 볼 때는 이미 아는 값을 그대로 쓴다
   const [total, setTotal] = useState<number | undefined>(undefined)
+  /** 서버가 센 금액 합계 — 화면에서 더하면 「지금 보이는 20건」의 합이 된다 */
+  const [sums, setSums] = useState<{ byCurrency: Record<string, string>; countedDeals: number; unpricedDeals: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -103,7 +106,10 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
       if (!res.ok) { setError(readApiError(body, '딜을 불러오지 못했습니다.')); return }
       setRows((prev) => (append ? [...prev, ...body.items] : body.items))
       setCursor(body.nextCursor)
-      if (!append) setTotal(typeof body.total === 'number' ? body.total : undefined)
+      if (!append) {
+        setTotal(typeof body.total === 'number' ? body.total : undefined)
+        setSums(body.sums ?? null)
+      }
     } catch {
       setError(describeFetchFailure('딜'))
     } finally {
@@ -196,6 +202,25 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
       />
 
       {crmBulk.panels}
+
+      {/* 간략 합계 — 목록 위 한 줄. 서버가 센 값이라 페이지를 넘겨도 안 바뀐다 */}
+
+      {sums && (
+
+        <ListSummary
+
+          label="수주 총액"
+
+          count={sums.countedDeals}
+
+          byCurrency={sums.byCurrency}
+
+          unpriced={sums.unpricedDeals}
+
+        />
+
+      )}
+
 
       <ListSurface
         rows={rows}

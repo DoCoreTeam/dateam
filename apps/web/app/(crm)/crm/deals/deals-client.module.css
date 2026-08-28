@@ -1,0 +1,21 @@
+/* 딜 화면 도구 줄 — 보기·파이프라인(왼쪽) · 등록·추가(오른쪽) */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.toolbarRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 767px) {
+  /* 좁은 화면에서는 «하는 것»이 먼저 온다 — §2-3-2 L-4 */
+  .toolbarRight { margin-left: 0; width: 100%; order: -1; }
+}

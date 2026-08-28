@@ -11,7 +11,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { LayoutGrid, List as ListIcon } from 'lucide-react'
+import { LayoutGrid, List as ListIcon, Plus, Sparkles } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
@@ -20,6 +21,7 @@ import DealBoard, { type BoardPipeline } from './DealBoard'
 import DealTableView from './DealTableView'
 import DealFormModal from './DealFormModal'
 import QuickCreateBar from './QuickCreateBar'
+import styles from './deals-client.module.css'
 
 type Mode = 'board' | 'list'
 
@@ -30,12 +32,32 @@ export default function DealsClient() {
 
   const mode: Mode = searchParams.get('mode') === 'list' ? 'list' : 'board'
   const [pipelines, setPipelines] = useState<BoardPipeline[]>([])
-  const [pipelineId, setPipelineId] = useState('')
+  /**
+   * 어느 파이프라인을 보고 있나 — **URL 이 기억한다**(§2-6 (1)).
+   *
+   * 예전엔 화면 상태로만 들고 있어서 **새로고침하면 기본 파이프라인으로 돌아갔다.**
+   * 「전체」로 훑던 사람이 뒤로 갔다 오면 한 파이프라인만 보고 있게 되는데,
+   * 화면은 아무 말도 하지 않아 딜이 사라진 것처럼 보인다.
+   *
+   * 규칙: 주소에 `pipeline` 이 없으면 기본 파이프라인, `all` 이면 전체, 그 밖이면 그 파이프라인.
+   */
+  const pipelineParam = searchParams.get('pipeline')
+  const [defaultPipelineId, setDefaultPipelineId] = useState('')
+  const pipelineId = pipelineParam === 'all' ? '' : (pipelineParam ?? defaultPipelineId)
+
+  function setPipelineId(next: string) {
+    const sp = new URLSearchParams(searchParams.toString())
+    // 「전체」는 빈 문자열이 아니라 `all` 로 적는다 — 빈 값은 «지정 안 함»과 구분이 안 된다
+    sp.set('pipeline', next === '' ? 'all' : next)
+    router.replace(`${pathname}?${sp.toString()}`, { scroll: false })
+  }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   // 저장하면 두 뷰가 함께 다시 읽는다 — 표에서 만든 딜이 보드에 안 보이면 사용자는 저장이 안 된 줄 안다
   const [reloadKey, setReloadKey] = useState(0)
+  // 붙여넣기 입력이 펼쳐졌나 — 트리거가 도구 줄에 있으므로 상태도 여기 있다
+  const [quickOpen, setQuickOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -46,7 +68,7 @@ export default function DealsClient() {
       if (!res.ok) { setError(body?.error?.message ?? '파이프라인을 불러오지 못했습니다.'); return }
       const items: BoardPipeline[] = body.items ?? []
       setPipelines(items)
-      setPipelineId((cur) => cur || items.find((p) => p.isDefault)?.id || items[0]?.id || '')
+      setDefaultPipelineId(items.find((p) => p.isDefault)?.id || items[0]?.id || '')
     } catch {
       setError('파이프라인을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -64,6 +86,16 @@ export default function DealsClient() {
    */
   const dealCount = pipelines.reduce(
     (n, p) => n + p.stages.reduce((m, s) => m + (s.dealCount ?? 0), 0), 0)
+
+  /*
+    딜이 한 건도 없으면 붙여넣기를 펼쳐 둔다 — 이 제품에서 가장 강한 기능인데
+    접혀 있으면 처음 온 사람은 그게 뭔지 모르고 지나간다.
+    **불러오기가 끝난 뒤에** 판단한다 — 처음 렌더에는 파이프라인이 비어 있어
+    건수가 0으로 보이므로, 그때 열면 딜이 있는 워크스페이스에서도 열린다.
+  */
+  useEffect(() => {
+    if (!loading && pipelines.length > 0 && dealCount === 0) setQuickOpen(true)
+  }, [loading, pipelines.length, dealCount])
 
   function setMode(next: Mode) {
     const sp = new URLSearchParams(searchParams.toString())
@@ -88,16 +120,14 @@ export default function DealsClient() {
 
   return (
     <>
-      {/* 붙여넣기 입력은 탭보다 위에 둔다 — 명함을 받고 가장 먼저 하는 일이다 */}
-      <QuickCreateBar
-        pipelines={pipelines}
-        pipelineId={pipelineId}
-        onDone={() => setReloadKey((k) => k + 1)}
-        /* 딜이 하나도 없을 때는 펼쳐 둔다 — 접혀 있으면 처음 온 사람이 그냥 지나친다 */
-        defaultOpen={dealCount === 0}
-      />
-
-      <div style={{ marginBottom: 'var(--space-4)' }}>
+      {/*
+        도구는 **한 줄**이다.
+        예전엔 붙여넣기 한 줄 · 보기 탭 한 줄 · 파이프라인+추가 한 줄로 세 줄을 먹었고,
+        위의 표면 탭까지 더하면 내용이 시작되기 전에 네 줄이 지나갔다
+        (사용자 지적: 「쓸데없는 공간 너무 많고」).
+        왼쪽은 **무엇을 어떻게 보나**(보기·파이프라인), 오른쪽은 **무엇을 하나**(등록·추가)다 — §2-3-2 L-1.
+      */}
+      <div className={styles.toolbar}>
         <SegmentedTabs
           tabs={[
             { id: 'board', label: '보드', icon: <LayoutGrid size={14} /> },
@@ -107,14 +137,45 @@ export default function DealsClient() {
           activeId={mode}
           onSelect={(id) => setMode(id as Mode)}
         />
+
+        {/* 파이프라인은 보드에서만 고른다 — 표는 자기 필터를 갖는다 */}
+        {mode === 'board' && pipelines.length > 1 && (
+          <select
+            id="crm-board-pipeline"
+            className="input-field"
+            aria-label="파이프라인"
+            value={pipelineId}
+            onChange={(e) => setPipelineId(e.target.value)}
+            style={{ minWidth: 180, width: 'auto' }}
+          >
+            <option value="">파이프라인 전체 ({pipelines.length}개)</option>
+            {pipelines.map((p) => {
+              const n = p.stages.reduce((a, st) => a + (st.dealCount ?? 0), 0)
+              return <option key={p.id} value={p.id}>{p.name} ({n})</option>
+            })}
+          </select>
+        )}
+
+        <div className={styles.toolbarRight}>
+          <NbButton variant="ghost" onClick={() => setQuickOpen((v) => !v)} aria-expanded={quickOpen}>
+            <Sparkles size={16} /> 붙여넣기로 등록
+          </NbButton>
+          <NbButton onClick={() => setFormOpen(true)}><Plus size={16} /> 딜 추가</NbButton>
+        </div>
       </div>
+
+      <QuickCreateBar
+        pipelines={pipelines}
+        pipelineId={pipelineId}
+        onDone={() => setReloadKey((k) => k + 1)}
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+      />
 
       {mode === 'board' ? (
         <DealBoard
           pipelines={pipelines}
           pipelineId={pipelineId}
-          onPipelineChange={setPipelineId}
-          onCreate={() => setFormOpen(true)}
           reloadKey={reloadKey}
         />
       ) : (

@@ -2,20 +2,22 @@
 // POST /api/crm/deals — 생성
 import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson, readListQuery } from '@/lib/crm/api/handler'
-import { listDeals, createDeal, toDealJson, type DealInput } from '@/lib/crm/services/deal'
+import { listDeals, sumDeals, createDeal, toDealJson, type DealInput } from '@/lib/crm/services/deal'
 import { nextActions } from '@/lib/crm/services/next-action'
 
 export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ db }) => {
     const { cursor, limit, q } = readListQuery(req)
     const sp = new URL(req.url).searchParams
-    const page = await listDeals(db, {
-      cursor, limit, q,
+    // 목록과 합계가 **같은 조건**을 본다 — 따로 적으면 둘이 어긋나고 합계가 틀린다
+    const filter = {
+      q,
       pipelineId: sp.get('pipelineId'),
       companyId: sp.get('companyId'),
       status: sp.get('status'),
       trash: sp.get('trash') === '1',
-    })
+    }
+    const page = await listDeals(db, { cursor, limit, ...filter })
     /**
      * 다음에 할 일을 함께 준다.
      *
@@ -24,7 +26,12 @@ export async function GET(req: NextRequest) {
      * 눌러 들어가야 보이면 사람은 안 본다(그래서 우리 보드가 정적인 목록이었다).
      */
     const items = page.items.map(toDealJson)
-    const actions = await nextActions(db, page.items.map((d) => d.id))
+    // 합계는 **서버가** 센다 — 화면에서 더하면 「지금 보이는 20건」의 합이 되고,
+    // 사람은 그걸 전체 합계로 읽는다
+    const [actions, sums] = await Promise.all([
+      nextActions(db, page.items.map((d) => d.id)),
+      sumDeals(db, filter),
+    ])
 
     return {
       items: items.map((d) => ({ ...d, nextAction: actions.get(String(d.id)) ?? null })),
@@ -32,6 +39,7 @@ export async function GET(req: NextRequest) {
       // 응답을 손으로 다시 조립하는 곳이라 total 을 빠뜨리기 쉽다 —
       // 실제로 회사·인물만 총 건수가 뜨고 딜만 안 뜨는 상태였다
       total: page.total,
+      sums,
     }
   })
 }

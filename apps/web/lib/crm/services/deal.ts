@@ -187,17 +187,78 @@ export interface ListDealInput extends CursorInput {
   status?: string | null
 }
 
-export async function listDeals(db: CrmDb, input: ListDealInput = {}): Promise<CursorPage<DealRow>> {
-  const limit = clampLimit(input.limit)
-  const decoded = decodeCursor(input.cursor)
-  const q = normalizeText(input.q)
+/**
+ * 목록의 **금액 합계** — 통화별로.
+ *
+ * **왜 서버에서 세나**: 목록은 페이지로 끊어 오므로 화면에서 더하면
+ * «지금 보이는 20건»의 합이 된다. 그런데 사람은 그걸 «전체 합계»로 읽는다.
+ * 그 오차는 조용하고, 발견되면 그 뒤로 어떤 숫자도 안 믿게 된다.
+ *
+ * **통화를 섞지 않는다**(report.ts 와 같은 규칙). 1,200 USD 와 1,200,000원을
+ * 더한 숫자는 아무 뜻이 없다 — 통화마다 따로 준다.
+ *
+ * **금액 미정은 세지 않고 «몇 건인지»를 말한다.** 0으로 치면 합계가 실제보다 작아지고,
+ * 화면은 그 사실을 숨긴다.
+ */
+export interface DealSums {
+  /** 통화 → 수주 총액 합계(문자열 — BigInt 는 JSON 에 못 싣는다) */
+  byCurrency: Record<string, string>
+  /** 합계에 든 딜 수 */
+  countedDeals: number
+  /** 금액이 없어 합계에서 빠진 딜 수 */
+  unpricedDeals: number
+}
 
+export async function sumDeals(db: CrmDb, input: ListDealInput = {}): Promise<DealSums> {
+  const where = listDealsWhere(input)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await (db as any).crmDeal.findMany({
+    where,
+    select: {
+      currency: true, amountMinor: true,
+      budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
+    },
+    // 합계는 상한을 두지 않는다 — 「앞의 200건만 더한 합계」는 틀린 합계다.
+    // 딜이 수만 건이 되면 그때 집계 쿼리로 옮긴다(지금은 백 단위)
+  }) as { currency: string | null; amountMinor: bigint | null;
+          budgetNetMinor: bigint | null; quotedNetMinor: bigint | null; contractNetMinor: bigint | null }[]
+
+  const byCurrency: Record<string, bigint> = {}
+  let counted = 0
+  let unpriced = 0
+
+  for (const r of rows) {
+    // 「수주 총액」은 계약 > 견적 > 예산 순으로 가장 확실한 것 — 화면과 같은 SSOT 를 쓴다
+    const booked = pickBooked(r)
+    if (booked.minor === null) { unpriced += 1; continue }
+    const cur = (r.currency ?? 'KRW').toUpperCase()
+    byCurrency[cur] = (byCurrency[cur] ?? BigInt(0)) + booked.minor
+    counted += 1
+  }
+
+  return {
+    byCurrency: Object.fromEntries(Object.entries(byCurrency).map(([k, v]) => [k, v.toString()])),
+    countedDeals: counted,
+    unpricedDeals: unpriced,
+  }
+}
+
+/** 목록과 합계가 **같은 조건**을 본다 — 따로 적으면 둘이 어긋나고 합계가 틀린다 */
+function listDealsWhere(input: ListDealInput): Record<string, unknown> {
+  const q = normalizeText(input.q)
   const where: Record<string, unknown> = {}
   if (input.trash) where.deletedAt = { not: null }
   if (input.pipelineId) where.pipelineId = input.pipelineId
   if (input.companyId) where.companyId = input.companyId
   if (input.status) where.status = input.status
   if (q) where.name = { contains: q, mode: 'insensitive' }
+  return where
+}
+
+export async function listDeals(db: CrmDb, input: ListDealInput = {}): Promise<CursorPage<DealRow>> {
+  const limit = clampLimit(input.limit)
+  const decoded = decodeCursor(input.cursor)
+  const where = listDealsWhere(input)
 
   const cur = cursorWhere(decoded)
   const finalWhere = cur ? { AND: [where, cur] } : where

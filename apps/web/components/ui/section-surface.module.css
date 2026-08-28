@@ -1,0 +1,62 @@
+/* 섹션 면 — 머리띠(제목·건수·금액) + 본문 */
+
+.surface {
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg, #fff);
+  /* 머리띠 배경이 둥근 모서리를 따라간다 */
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-muted);
+  border-bottom: var(--border-w) solid var(--border-color);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.meta {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* 오른쪽 — 금액은 크게, 단서는 그 아래 작게 */
+.right {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.figure {
+  font-size: var(--fs-price);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.note {
+  font-size: var(--fs-2xs);
+  color: var(--warning);
+}
+
+.body { padding: var(--space-4); }
+.bodyBleed { padding: 0; }
+
+@media (max-width: 767px) {
+  .head { padding: var(--space-3); flex-wrap: wrap; }
+  .body { padding: var(--space-3); }
+}

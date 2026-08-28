@@ -8,7 +8,6 @@
 // 실패해도 **붙여넣은 글은 지우지 않는다.** 다시 찾아오게 만들면 사용자는 두 번 다시 안 쓴다.
 
 import { useState } from 'react'
-import { Sparkles } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import GapFillModal, { type QuickCreateResult } from './GapFillModal'
@@ -20,17 +19,17 @@ interface Props {
   pipelineId: string
   onDone: () => void
   /**
-   * 처음부터 펼쳐 둘까.
+   * 펼쳐졌나 — **부모가 쥔다.**
    *
-   * **왜 필요한가**: 이건 이 제품에서 가장 강한 기능인데(텍스트를 붙여넣으면
-   * 회사·인물·딜이 한 번에 생긴다) **접혀 있어서 처음 온 사람은 그게 뭔지 모르고 지나갔다.**
-   * 딜이 0건일 때만 펼친다 — 늘 펼쳐 두면 익숙한 사람에게는 자리만 차지한다.
+   * 트리거 버튼이 부모의 도구 줄에 있으므로 상태도 부모에 있어야 한다.
+   * (예전엔 이 부품이 자기 트리거와 상태를 함께 들고 화면 위쪽 한 줄을 통째로 썼다)
    */
-  defaultOpen?: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export default function QuickCreateBar({ pipelines, pipelineId, onDone, defaultOpen = false }: Props) {
-  const [open, setOpen] = useState(defaultOpen)
+export default function QuickCreateBar({ pipelines, pipelineId, onDone, open, onOpenChange }: Props) {
+  const setOpen = onOpenChange
   const [text, setText] = useState('')
   const [withDeal, setWithDeal] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -70,16 +69,13 @@ export default function QuickCreateBar({ pipelines, pipelineId, onDone, defaultO
     }
   }
 
-  if (!open) {
-    return (
-      <div className={styles.collapsed}>
-        <NbButton variant="ghost" onClick={() => setOpen(true)}>
-          <Sparkles size={16} /> 붙여넣기로 등록
-        </NbButton>
-        <span className={styles.hint}>명함·메일 서명을 그대로 붙여넣으면 회사와 담당자를 만들어 둡니다.</span>
-      </div>
-    )
-  }
+  /*
+    접혀 있을 때는 **아무것도 그리지 않는다.**
+    예전엔 여기서 트리거 버튼과 설명 한 줄을 그렸는데, 위에 이미 탭 두 줄이 있어
+    도구만 네 줄을 먹었다(사용자 지적: 「쓸데없는 공간 너무 많고」).
+    트리거는 부모의 도구 한 줄에 들어간다 — 이 부품은 **펼쳐졌을 때의 입력**만 맡는다.
+  */
+  if (!open) return null
 
   return (
     <div className={`card ${styles.wrap}`}>
