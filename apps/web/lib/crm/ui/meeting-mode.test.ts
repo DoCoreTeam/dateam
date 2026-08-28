@@ -39,6 +39,9 @@ test('★ 배선 — 프로바이더와 토글이 CRM 레이아웃에 실제로 
  */
 const CUSTOMER_FACING = new Set<string>([
   'app/(crm)/crm/quotes/[id]/QuoteDocumentView.tsx',
+  // 문서 «종이» 그 자체 — v0.7.643 에서 상세 화면과 미리보기가 함께 쓰려고 분리했다.
+  // 같은 마크업이라 같은 이유로 면제된다(파일이 갈라졌다고 성격이 바뀌지 않는다).
+  'app/(crm)/crm/quotes/[id]/QuoteSheet.tsx',
 ])
 
 test('★ 금액을 그리는 자리는 전부 Sensitive 를 거친다', () => {

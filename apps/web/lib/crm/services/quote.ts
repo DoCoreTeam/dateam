@@ -33,10 +33,13 @@ import {
 } from '../db/cursor.ts'
 import {
   computeLine, computeTotals, needsApproval, discountRateOf,
-  formatQuoteNo, seqOfQuoteNo, isExpired,
+  isExpired,
   DEFAULT_DISCOUNT_APPROVAL_PCT,
   type QuoteLineInput,
 } from '../domain/quote-math.ts'
+import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
+import { kstTodayKey } from '../../datetime/kst.ts'
+import { readQuoteNoPattern } from './setting.ts'
 
 // ------------------------------------------------------------
 // 모양
@@ -397,10 +400,16 @@ export async function getQuote(db: CrmDb, id: string): Promise<QuoteRow> {
  * 아래에서 한 번 더 시도한다.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function nextQuoteNo(tx: any, year: number): Promise<string> {
+async function nextQuoteNo(tx: any, pattern: string, todayKey: string): Promise<string> {
+  /*
+    **형식이 채번 범위를 정한다.** `{MMDD}` 가 있으면 앞자리가 오늘까지 포함하므로
+    어제 번호가 안 걸리고 오늘 1번부터 시작한다 — 범위를 따로 설정하지 않아도 맞는다.
+  */
+  const prefix = seqPrefix(pattern, todayKey)
   const last = await tx.crmQuote.findFirst({
     where: {
-      quoteNo: { startsWith: `Q-${year}-` },
+      // 앞자리가 없는 형식(`{SEQ}` 가 맨 앞)이면 전부 훑는다 — 그 형식은 «계속 이어서»다
+      ...(prefix ? { quoteNo: { startsWith: prefix } } : {}),
       // 삭제된 것도 번호는 이미 쓴 것이다 — 재사용하면 감사 로그의 한 번호가 두 문서를 가리킨다.
       // 키를 명시하면 가드가 기본 필터(deletedAt: null)를 넣지 않는다(workspace-guard 참조).
       deletedAt: undefined,
@@ -408,7 +417,7 @@ async function nextQuoteNo(tx: any, year: number): Promise<string> {
     orderBy: { quoteNo: 'desc' },
     select: { quoteNo: true },
   })
-  return formatQuoteNo(year, seqOfQuoteNo(last?.quoteNo, year) + 1)
+  return renderQuoteNo(pattern, todayKey, seqOf(last?.quoteNo, prefix) + 1)
 }
 
 // ------------------------------------------------------------
@@ -454,8 +463,11 @@ export async function createQuote(
     const totals = computeTotals(lines as unknown as QuoteLineInput[])
     const threshold = await approvalThreshold(tx)
 
-    const year = new Date().getFullYear()
-    let quoteNo = await nextQuoteNo(tx, year)
+    // 형식은 설정에서 온다 — 회사마다 다르고, 바꾸려고 배포를 기다릴 일이 아니다
+    const pattern = await readQuoteNoPattern(tx)
+    // 「오늘」은 KST 다. UTC 로 재면 한국 자정~아침 9시에 어제 번호가 나간다
+    const todayKey = kstTodayKey()
+    let quoteNo = await nextQuoteNo(tx, pattern, todayKey)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let created: any
@@ -486,7 +498,7 @@ export async function createQuote(
       // 같은 번호를 동시에 집었다 — 한 번만 다시 시도한다.
       // 무한 재시도는 하지 않는다(트랜잭션을 오래 잡으면 다른 요청이 줄을 선다)
       if (!isUniqueViolation(e)) throw e
-      quoteNo = await nextQuoteNo(tx, year)
+      quoteNo = await nextQuoteNo(tx, pattern, todayKey)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       created = await (tx as any).crmQuote.create({
         data: {

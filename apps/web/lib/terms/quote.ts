@@ -38,7 +38,8 @@ export const QUOTE = {
    * 회사 설정에 고정 연락처를 두면 누가 만들었든 같은 번호가 찍히고,
    * 고객은 그 번호로 걸어 「누구 찾으세요?」를 듣는다.
    */
-  supplierContact: '담당',
+  /** 이 견적을 만든 사람. 「담당」만으로는 무엇의 담당인지 모른다 */
+  supplierContact: '담당자',
 
   // ── 문서 메타 ────────────────────────────────
   quoteNo: '견적번호',
@@ -81,6 +82,10 @@ export const QUOTE = {
   subject: '사업명',
   /** 견적을 받는 쪽의 사람 — 「○○ 귀하」 */
   recipient: '받는 분',
+  /** 미리보기 열기 — 내보내기는 전부 그 안에서 한다 */
+  openPreview: '미리보기 · 내보내기',
+  /** 그림 파일로. 메신저에 바로 붙일 수 있어야 한다 */
+  exportImage: '이미지로 저장',
   /** 고르지 않았을 때 — 「없음」이 아니라 «회사 앞으로만 간다»는 사실을 말한다 */
   recipientNone: '회사 앞으로만 (담당자 없이)',
   lines: '항목',
@@ -269,6 +274,8 @@ export const SUPPLIER_IMAGE_KEY = {
  */
 export const QUOTE_SETTING_KEY = {
   validDays: 'quote.validDays',
+  /** 견적번호 형식 — 회사의 얼굴이라 배포 없이 바꿀 수 있어야 한다 */
+  numberFormat: 'quote.numberFormat',
 } as const
 
 /** 문서에 찍히는 순서 — 세금계산서와 같은 순서다(사람이 눈으로 대조한다) */

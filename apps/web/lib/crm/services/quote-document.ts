@@ -13,6 +13,7 @@ import type { CrmDb } from '../db/client.ts'
 import { CrmError } from '../domain/errors.ts'
 import { getQuote } from './quote.ts'
 import { readQuoteSupplier, readQuoteImages } from './setting.ts'
+import { pickTitle, readOrgTitle } from './member-title.ts'
 import {
   buildQuoteDocument, verifyDocument, missingSupplierFields,
   type QuoteDocument,
@@ -64,8 +65,9 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (db as any).crmMember.findFirst({
           where: { id: ownerMemberId },
-          select: { displayName: true, title: true, phone: true, email: true },
-        }) as Promise<{ displayName: string; title: string | null; phone: string | null; email: string } | null>
+          // hostUserId 로 조직 프로필(직위·직급)을 한 번 더 읽는다 — 사람이 두 번 입력할 일이 아니다
+          select: { displayName: true, title: true, phone: true, email: true, hostUserId: true },
+        }) as Promise<{ displayName: string; title: string | null; phone: string | null; email: string; hostUserId: string | null } | null>
       : Promise.resolve(null),
     termIds.length > 0
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,6 +89,13 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
         }) as Promise<{ name: string; title: string | null } | null>
       : Promise.resolve(null),
   ])
+
+  /*
+    직함은 **조직에서 온다.** `crm_member.title` 은 손으로 채우는 칸이라 대부분 비어 있고,
+    호스트 프로필에는 이미 직위(본부장)·직급(상무)이 들어 있다.
+    실패해도 문서는 나가야 한다 — `readOrgTitle` 이 조용히 null 을 준다.
+  */
+  const ownerOrg = await readOrgTitle(owner?.hostUserId ?? null)
 
   const document = buildQuoteDocument({
     quote: {
@@ -125,7 +134,8 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       .map((id) => terms.find((t) => t.id === id)?.body)
       .filter((b): b is string => Boolean(b)),
     owner: owner
-      ? { name: owner.displayName, title: owner.title, email: owner.email, phone: owner.phone }
+      // 직함은 조직에서 온다 — CRM 이 직접 지정한 것이 있으면 그것이 먼저다(pickTitle)
+      ? { name: owner.displayName, title: pickTitle(owner.title, ownerOrg), email: owner.email, phone: owner.phone }
       : undefined,
     todayKey: kstDateKey(new Date().toISOString()),
   })

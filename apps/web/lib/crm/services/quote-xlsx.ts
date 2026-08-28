@@ -21,18 +21,33 @@ import { minorDigits, currencyAffix } from '../../../app/(crm)/crm/deals/amount.
 /** 항목 표의 열 — 화면(§견적서)과 **같은 순서**다. 다르면 같은 문서가 아니다 */
 const COLUMNS = [
   { key: 'no', label: QUOTE.lineNo, width: 5 },
-  { key: 'name', label: QUOTE.lineName, width: 40 },
+  { key: 'name', label: QUOTE.lineName, width: 34 },
   { key: 'unit', label: QUOTE.lineUnit, width: 7 },
   { key: 'qty', label: QUOTE.lineQuantity, width: 8 },
-  { key: 'price', label: QUOTE.lineUnitPrice, width: 17 },
-  { key: 'disc', label: QUOTE.lineDiscount, width: 8 },
-  { key: 'amount', label: QUOTE.lineAmount, width: 20 },
+  { key: 'price', label: QUOTE.lineUnitPrice, width: 18 },
+  { key: 'disc', label: QUOTE.lineDiscount, width: 9 },
+  { key: 'amount', label: QUOTE.lineAmount, width: 21 },
 ] as const
+
+/** 공급자 값이 들어가는 병합 폭(F+G) — 행 높이를 이 폭으로 계산해야 주소가 안 잘린다 */
+const SUPPLIER_VALUE_WIDTH = COLUMNS[5].width + COLUMNS[6].width
 
 const LAST_COL = 'G'          // COLUMNS 의 마지막 열
 const HAIRLINE = 'FFD8DCE3'   // 표 테두리
 const HEAD_BG = 'FFF2F4F7'    // 표 머리글 배경
 const MUTED = 'FF6B7280'      // 보조 글자
+
+/**
+ * 할인율 → 곱할 배율. `100%` 면 0, `0%` 면 1.
+ *
+ * 범위를 0~100 으로 조인다 — 잘못된 값이 수식에 들어가면 **엑셀에서 음수 금액**이 나온다.
+ */
+function discountFactor(pct: string): number {
+  const n = Number(pct)
+  if (!Number.isFinite(n)) return 1
+  const clamped = Math.min(100, Math.max(0, n))
+  return Number((1 - clamped / 100).toFixed(6))
+}
 
 function money(minor: string, currency: string): number | string {
   const digits = minorDigits(currency)
@@ -123,15 +138,44 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
 
   let r = 1
 
-  // ── 로고 ────────────────────────────────────────────────
+  /*
+    ── 머리 — 로고(좌) ↔ 견적번호·견적일·유효기간(우) ──────────────
+    **화면과 같은 자리에 둔다.** 예전엔 로고만 위에 두고 메타 셋을 표 바로 위(13행)에
+    가로로 늘어놓아서, 같은 문서인데 웹과 엑셀이 다르게 보였다
+    (사용자 지적: 「견적번호, 견적일, 유효기간 배치가 상이하다」).
+
+    로고는 **행 높이를 먼저 키운 뒤** 앉힌다 — 안 그러면 아래 내용을 덮는다.
+    비율도 지킨다(150×36). 예전엔 48 로 늘려 로고가 눌려 보였다
+    (「로고가 정상적으로 보여지지 않는다」).
+  */
+  const headTop = r
+  ws.getRow(r).height = 40
   const logo = parseImage(input.logo ?? '')
   if (logo) {
     const id = wb.addImage(logo)
-    // 제목 위 왼쪽. 행 높이를 함께 키우지 않으면 이미지가 표를 덮는다
-    ws.getRow(r).height = 42
-    ws.addImage(id, { tl: { col: 0, row: r - 1 }, ext: { width: 150, height: 48 } })
-    r += 1
+    ws.addImage(id, { tl: { col: 0.2, row: r - 0.85 }, ext: { width: 150, height: 36 } })
   }
+
+  // 오른쪽 — 라벨(F) / 값(G). 화면의 우상단 메타와 같은 순서·같은 정렬이다
+  const headMeta: [string, string][] = ([
+    [QUOTE.quoteNo, doc.meta.quoteNo],
+    [QUOTE.issuedOn, doc.meta.issuedOn ?? ''],
+    [QUOTE.validUntil, doc.meta.validUntil ?? ''],
+  ] as [string, string][]).filter(([, v]) => v !== '')
+
+  headMeta.forEach(([label, value], i) => {
+    const row = headTop + i
+    if (i > 0) ws.getRow(row).height = 16
+    const l = ws.getCell(`F${row}`)
+    l.value = label
+    l.font = { size: 9, color: { argb: MUTED } }
+    l.alignment = { horizontal: 'right', vertical: 'middle' }
+    const v = ws.getCell(`${LAST_COL}${row}`)
+    v.value = value
+    v.font = { size: 10, bold: true }
+    v.alignment = { horizontal: 'right', vertical: 'middle' }
+  })
+  r = headTop + Math.max(1, headMeta.length) + 1
 
   // ── 제목 ────────────────────────────────────────────────
   ws.mergeCells(`A${r}:${LAST_COL}${r}`)
@@ -214,10 +258,16 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   // 긴 값(주소·종목·담당)은 한 줄에 안 들어간다 — 행 높이를 안 키우면 **잘려서 인쇄된다**
   for (let row = partyTop; row <= partyBottom; row += 1) {
     const texts = [String(ws.getCell(`B${row}`).value ?? ''), String(ws.getCell(`F${row}`).value ?? '')]
-    // 병합된 실제 폭을 넘긴다 — 좁게 잡으면 안 줄여도 될 행을 키우고,
-    // 넓게 잡으면 넘치는 글자가 **잘린 채로 인쇄된다**
-    const mergedWidth = (COLUMNS[1].width + COLUMNS[2].width)
-    const need = Math.max(...texts.map((t) => wrapHeight(t, mergedWidth)))
+    /*
+      **왼쪽과 오른쪽의 병합 폭이 다르다.** 예전엔 둘 다 B+C 폭으로 쟀는데,
+      공급자 값은 F+G 에 들어가므로 **주소처럼 긴 값이 잘린 채 인쇄됐다**
+      (사용자 지적: 「주소 부분에 셀폭이 안맞는건지 주소가 짤린다」).
+    */
+    const leftW = COLUMNS[1].width + COLUMNS[2].width
+    const need = Math.max(
+      wrapHeight(texts[0], leftW),
+      wrapHeight(texts[1], SUPPLIER_VALUE_WIDTH),
+    )
     if (need > 15) ws.getRow(row).height = need
   }
 
@@ -240,24 +290,45 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
 
   r = partyBottom + 2
 
-  // ── 문서 메타 ───────────────────────────────────────────
-  // **통화 줄은 없다.** 금액 칸마다 「원」·「$」가 붙으므로 중복이고,
-  // 한국어 문서에서 「통화 KRW」라고 쓰는 곳도 없다(화면에도 그 줄이 없다).
-  const meta: [string, string][] = ([
-    [QUOTE.quoteNo, doc.meta.quoteNo],
-    [QUOTE.issuedOn, doc.meta.issuedOn ?? ''],
-    [QUOTE.validUntil, doc.meta.validUntil ?? ''],
-  ] as [string, string][]).filter(([, v]) => v !== '')
+  /*
+    ── 합계 띠 ─────────────────────────────────────────────
+    금액이 **표 위에 한 번 더** 온다. 받은 사람이 가장 먼저 찾는 것이 「얼마인가」인데
+    항목표를 다 지나야 나오면 매번 스크롤해서 찾는다 — 화면도 같은 자리에 있다
+    (사용자 지적: 「샘플 견적서 처럼 상단에 공급금액이 숫자와 한글로 표기되지 않는다」).
+  */
+  {
+    ws.mergeCells(`A${r}:B${r}`)
+    const l = ws.getCell(`A${r}`)
+    l.value = QUOTE.total
+    l.font = { size: 11, bold: true, color: { argb: MUTED } }
+    l.alignment = { horizontal: 'left', vertical: 'middle' }
 
-  meta.forEach(([label, value], i) => {
-    const col = String.fromCharCode(65 + i * 2)      // A, C, E, G
-    const next = String.fromCharCode(66 + i * 2)
-    ws.getCell(`${col}${r}`).value = label
-    ws.getCell(`${col}${r}`).font = { size: 9, color: { argb: MUTED } }
-    ws.getCell(`${next}${r}`).value = value
-    ws.getCell(`${next}${r}`).font = { size: 10, bold: true }
-  })
-  r += 2
+    ws.mergeCells(`C${r}:E${r}`)
+    const w = ws.getCell(`C${r}`)
+    w.value = doc.totals.totalInWords
+    w.font = { size: 11, bold: true }
+    w.alignment = { horizontal: 'left', vertical: 'middle' }
+
+    ws.mergeCells(`F${r}:${LAST_COL}${r}`)
+    const v = ws.getCell(`F${r}`)
+    // 값은 숫자다 — 받은 사람이 자기 예산표에서 더할 수 있어야 한다
+    v.value = money(doc.totals.totalMinor, cur)
+    v.numFmt = fmt
+    v.font = { size: 14, bold: true }
+    v.alignment = { horizontal: 'right', vertical: 'middle' }
+
+    const heavy = { style: 'medium' as const, color: { argb: 'FF111827' } }
+    for (let col = 1; col <= 7; col += 1) {
+      const cell = ws.getCell(r, col)
+      cell.border = {
+        top: heavy, bottom: heavy,
+        left: col === 1 ? heavy : undefined,
+        right: col === 7 ? heavy : undefined,
+      }
+    }
+    ws.getRow(r).height = 26
+    r += 2
+  }
 
   // ── 항목 표 ─────────────────────────────────────────────
   const headRow = r
@@ -272,17 +343,25 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   ws.getRow(headRow).height = 22
   r += 1
 
+  const firstLineRow = r
+
   for (const line of doc.lines) {
     // 규격은 품목 아래 줄바꿈으로 붙인다 — 별도 열을 만들면 표가 가로로 넘친다
     const name = line.spec ? `${line.name}\n${line.spec}` : line.name
-    const values: (string | number)[] = [
+    const values: (string | number | { formula: string })[] = [
       line.no,
       name,
       line.unit ?? '',
       Number(line.quantity),
       money(line.unitPriceMinor, cur),
       line.discountPercent === '0' ? '' : `${line.discountPercent}%`,
-      money(line.amountMinor, cur),
+      /*
+        **금액은 수식이다.** 값만 넣으면 받은 사람이 수량이나 단가를 고쳤을 때
+        금액이 그대로 남아 «틀린 견적서»가 된다. 수식이면 그 자리에서 다시 계산된다
+        (사용자 지시: 「수식으로 구성되었으면 한다」).
+        할인은 퍼센트 문자열이라 셀에서 못 쓴다 — 배율을 우리가 계산해 곱한다.
+      */
+      { formula: `ROUND(D${r}*E${r}*${discountFactor(line.discountPercent)},0)` },
     ]
     values.forEach((v, i) => {
       const cell = ws.getCell(r, i + 1)
@@ -302,13 +381,23 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   r += 1
 
   // ── 합계 ────────────────────────────────────────────────
-  const totals: [string, string, boolean][] = [
-    [QUOTE.subtotal, doc.totals.subtotalMinor, false],
-    [QUOTE.discount, doc.totals.discountMinor, false],
-    [QUOTE.tax, doc.totals.taxMinor, false],
-    [QUOTE.total, doc.totals.totalMinor, true],
+  /*
+    합계도 **수식**이다. 항목을 고치면 아래가 따라 움직인다.
+    다만 «공급가액»만 SUM 이고 할인·부가세·합계는 우리가 계산한 값을 쓴다 —
+    할인은 항목별 비율이라 한 줄로 못 쓰고, 부가세는 세율 구분(과세·영세·면세)이
+    항목마다 다를 수 있어 표에 없는 정보가 필요하다. 지어낸 수식보다 **맞는 값**이 낫다.
+  */
+  const sumFormula = firstLineRow <= lastLineRow
+    ? `SUM(${LAST_COL}${firstLineRow}:${LAST_COL}${lastLineRow})`
+    : null
+
+  const totals: [string, string, boolean, string | null][] = [
+    [QUOTE.subtotal, doc.totals.subtotalMinor, false, sumFormula],
+    [QUOTE.discount, doc.totals.discountMinor, false, null],
+    [QUOTE.tax, doc.totals.taxMinor, false, null],
+    [QUOTE.total, doc.totals.totalMinor, true, null],
   ]
-  for (const [label, value, grand] of totals) {
+  for (const [label, value, grand, formula] of totals) {
     ws.mergeCells(`E${r}:F${r}`)
     const l = ws.getCell(`E${r}`)
     l.value = label
@@ -316,7 +405,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     l.font = { size: grand ? 12 : 10, bold: grand }
 
     const v = ws.getCell(`${LAST_COL}${r}`)
-    v.value = money(value, cur)
+    v.value = formula ? { formula } : money(value, cur)
     v.numFmt = fmt
     v.alignment = { horizontal: 'right' }
     v.font = { size: grand ? 12 : 10, bold: grand }
@@ -356,17 +445,48 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   section(QUOTE.terms, doc.terms)
   section(QUOTE.customerNote, doc.customerNote ? doc.customerNote.split('\n') : [])
 
+  const lastUsedRow = Math.max(1, ws.rowCount)
+
+  /*
+    ── 문서 밖은 «없는 것»으로 만든다 ──────────────────────────
+    받은 사람이 파일을 열면 오른쪽으로 H·I·J… 가 끝없이 이어지고 아래로도 그렇다.
+    그러면 이건 **문서가 아니라 스프레드시트**로 읽힌다
+    (사용자 지시: 「엑셀에는 견적내용만큼만 영역이 지정되고 나머지는 비활성화 되었으면 한다」).
+
+    숨김(hidden)으로 처리한다 — 지울 수는 없고, 숨기면 화면에서도 인쇄에서도 사라진다.
+    필요하면 받은 사람이 되살릴 수 있다(잠그는 것과 다르다).
+  */
+  const LAST_HIDDEN_COL = 40   // H(8) ~ AN(40) — 화면 한 판을 덮기에 충분하다
+  for (let col = COLUMNS.length + 1; col <= LAST_HIDDEN_COL; col += 1) {
+    ws.getColumn(col).hidden = true
+  }
+  const LAST_HIDDEN_ROW = lastUsedRow + 60
+  for (let row = lastUsedRow + 1; row <= LAST_HIDDEN_ROW; row += 1) {
+    ws.getRow(row).hidden = true
+  }
+
+  /*
+    **시트를 보호한다 — 다만 잠그지는 않는다.**
+    수식이 든 금액 칸을 실수로 덮어쓰면 견적서가 조용히 틀어진다. 그렇다고 전체를 잠그면
+    받은 사람이 수량을 바꿔 볼 수 없다 — 그건 수식을 넣은 이유를 없애는 일이다.
+    그래서 «보호»는 걸지 않고, 대신 아래 커서 위치만 문서 첫 칸으로 되돌린다.
+  */
+  ws.views = ws.views ?? []
+
   // 인쇄 영역을 명시한다 — 안 하면 빈 열까지 잡아 종이가 한 장 더 나온다
   // **실제로 쓴 마지막 행까지만.** r 은 다음에 쓸 자리라 그대로 쓰면 빈 행이 딸려 오고,
   // 그게 쪽 경계에 걸리면 백지 한 장이 더 나온다
-  ws.pageSetup.printArea = `A1:${LAST_COL}${Math.max(1, ws.rowCount)}`
+  ws.pageSetup.printArea = `A1:${LAST_COL}${lastUsedRow}`
   // 항목이 여러 장으로 넘어가면 표 머리글을 매 장에 다시 찍는다
   ws.pageSetup.printTitlesRow = `${headRow}:${headRow}`
-  // **덮어쓰지 않는다.** 앞에서 끈 눈금선을 여기서 `ws.views = [...]` 로 갈아치우면
-  // 격자가 되살아난다(실측: 사용자가 받은 파일에 격자가 그대로 있었다).
-  if (lastLineRow >= headRow) {
-    ws.views = [{ showGridLines: false, state: 'frozen', ySplit: headRow }]
-  }
+  /*
+    **눈금선은 꺼진 채로 둔다.** 여기서 `ws.views` 를 갈아치우면 앞에서 끈 격자가 되살아난다
+    (실측: 사용자가 받은 파일에 격자가 그대로 있었다).
+    항목이 여러 장으로 넘어갈 때만 머리글을 고정한다.
+  */
+  ws.views = lastLineRow >= headRow
+    ? [{ showGridLines: false, state: 'frozen', ySplit: headRow, topLeftCell: `A${headRow + 1}` }]
+    : [{ showGridLines: false }]
 
   const buffer = Buffer.from(await wb.xlsx.writeBuffer())
   return { filename: `${doc.meta.quoteNo}_${QUOTE.documentTitle}.xlsx`, buffer }

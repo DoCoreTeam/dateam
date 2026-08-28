@@ -10135,6 +10135,18 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
    각 화면은 자기만의 «화면 전용 장치»를 자기 모듈에서 마저 숨긴다.
    ============================================================ */
 @media print {
+  /*
+    ── 문서 미리보기가 열려 있을 때 ────────────────────────────
+    **보일 것만 남긴다.** 숨길 것을 세는 방식은 앱에 요소가 하나 늘 때마다 다시 깨진다 —
+    실제로 그렇게 깨졌다: 사이드바는 숨겼는데 상단 바(회의 모드·알림·검색·전체 메뉴)와
+    회색 앱 배경이 견적서 PDF 에 그대로 찍혔다(사용자 지적 2026-08-28).
+    `DocSurface` 가 body 에 `doc-printing` 을 붙이고, 그때는 오버레이만 남는다.
+  */
+  body.doc-printing > *:not(.doc-overlay) { display: none !important; }
+  body.doc-printing { background: white !important; }
+  body.doc-printing .doc-overlay { position: static !important; }
+
+  /* 미리보기 없이 인쇄하는 화면(목록 등)을 위한 최소 정리 */
   .app-sidebar,
   .mobile-menu-btn,
   .app-dock,
@@ -10158,4 +10170,15 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
 
   /* 링크 뒤에 URL 을 붙이지 않는다 — 견적서에 http://localhost 가 찍힌다 */
   a[href]::after { content: none !important; }
+}
+
+/* 종이 여백은 브라우저가 아니라 우리가 정한다 — 머리글·바닥글(URL·날짜)도 끈다 */
+@page {
+  size: A4;
+  /*
+    **여백은 0 이다.** 종이(`.doc-paper`)가 자기 안쪽 여백을 갖는다 —
+    여기서 또 주면 이중이 되어 인쇄 폭이 화면보다 좁아지고, 줄바꿈 위치가 달라져
+    «미리보기와 다른 문서»가 나간다.
+  */
+  margin: 0;
 }

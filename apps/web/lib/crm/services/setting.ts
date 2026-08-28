@@ -26,6 +26,7 @@ import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY, QUOTE_SETTING_KEY, type SupplierField } from '../../terms/quote.ts'
 import type { SettingGroupKey } from '../domain/setting-group.ts'
+import { DEFAULT_QUOTE_NO_PATTERN, validateQuoteNoPattern } from '../domain/quote-number.ts'
 
 export type SettingScope = 'GLOBAL' | 'WORKSPACE'
 
@@ -335,6 +336,25 @@ export async function readQuoteValidDays(db: CrmDb): Promise<number> {
   }) as { scope: SettingScope; valueJson: unknown }[]
   const hit = rows.find((r) => r.scope === 'WORKSPACE') ?? rows.find((r) => r.scope === 'GLOBAL')
   return parseValidDays(hit ? String(hit.valueJson ?? '') : '')
+}
+
+/**
+ * 견적번호 형식.
+ *
+ * 못 읽거나 쓸 수 없는 형식이면 **기본값으로 떨어진다** — 설정이 망가졌다고
+ * 견적을 못 만들면 안 된다. 잘못된 형식은 설정 화면이 저장 전에 막는다.
+ */
+// 트랜잭션 안에서도 불린다 — tx 클라이언트는 CrmDb 와 타입이 달라 여기서 넓게 받는다
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function readQuoteNoPattern(db: CrmDb | any): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await (db as any).crmAppSetting.findMany({
+    where: { key: QUOTE_SETTING_KEY.numberFormat },
+    select: { scope: true, valueJson: true },
+  }) as { scope: SettingScope; valueJson: unknown }[]
+  const hit = rows.find((r) => r.scope === 'WORKSPACE') ?? rows.find((r) => r.scope === 'GLOBAL')
+  const raw = hit ? String(hit.valueJson ?? '').trim() : ''
+  return raw && validateQuoteNoPattern(raw) === null ? raw : DEFAULT_QUOTE_NO_PATTERN
 }
 
 /** 「30」·「30일」·「3개월」·「1년」 을 일수로. 못 읽으면 30 */

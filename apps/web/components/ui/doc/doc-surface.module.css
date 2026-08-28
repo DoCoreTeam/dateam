@@ -1,0 +1,117 @@
+/* 문서 표면 — 셸을 덮는 미리보기. 인쇄되는 것은 종이 한 장뿐이다 */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  /* 종이가 도드라지도록 뒤는 어둡게 — 앱의 회색 배경과 구분된다 */
+  background: var(--doc-backdrop, #33415580);
+  backdrop-filter: blur(2px);
+}
+
+.bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--card-bg, #fff);
+  border-bottom: var(--border-w) solid var(--border-color);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.close:hover { color: var(--text); border-color: var(--text-faint); }
+
+.scroll {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: var(--space-5) var(--space-4);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/*
+  A4 폭(210mm) — 화면에서 보는 배치가 종이와 같아야 «미리보기»다.
+  최대폭이 아니라 **고정폭**인 이유: 넓은 화면에서 늘어나면 줄바꿈 위치가 달라져
+  화면과 인쇄물이 서로 다른 문서가 된다.
+*/
+.paper {
+  width: 210mm;
+  max-width: 100%;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 20px 60px rgb(15 23 42 / 0.25);
+  padding: 15mm 14mm;
+}
+
+@media (max-width: 767px) {
+  .scroll { padding: var(--space-3) 0; }
+  .paper { padding: 8mm 6mm; box-shadow: none; }
+}
+
+/*
+  ── 인쇄 ──────────────────────────────────────────────
+  **보일 것만 남긴다.** 숨길 것을 세면 앱에 요소가 하나 늘 때마다 다시 깨진다.
+*/
+@media print {
+  .overlay {
+    position: static;
+    background: none;
+    backdrop-filter: none;
+    display: block;
+  }
+  /* 도구는 종이에 안 나온다 */
+  .bar { display: none !important; }
+  .scroll { overflow: visible; padding: 0; display: block; }
+
+  /*
+    **여백은 종이가 갖는다.** `@page` 여백과 종이 안쪽 여백을 둘 다 주면 이중이 되고,
+    인쇄 폭이 화면보다 좁아져 **줄바꿈 위치가 달라진다** — 미리보기와 다른 문서가 나온다.
+    그래서 `@page` 는 0 이고(globals.css) 여기서만 여백을 준다.
+  */
+  .paper {
+    width: 210mm;
+    box-shadow: none;
+    /* 화면과 같은 여백 — 보는 것이 곧 나가는 것이다 */
+    padding: 15mm 14mm;
+  }
+
+  /*
+    **한 장에 거의 들어가면 한 장으로.**
+    A4 한 장을 조금 넘겨 두 번째 쪽에 표 꼬리만 남는 것이 실무에서 가장 성가시다
+    (사용자 지적: 「pdf로 했을때 한장으로 안나와 … 한장에 다 표시 하는 설정」).
+    `--doc-fit` 은 화면이 실제 높이를 재서 넣는 배율이다 — 많이 넘치면 1 이라 그대로 두 장이 된다.
+  */
+  .paper {
+    transform: scale(var(--doc-fit, 1));
+    transform-origin: top left;
+  }
+}
