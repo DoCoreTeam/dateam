@@ -8,9 +8,11 @@
 // 삭제는 두 갈래다(사용자 결정): 휴지통(되돌릴 수 있음)과 완전 삭제(되돌릴 수 없음).
 // 두 결과가 다르므로 확인 문구도 다르다 — describeDelete 가 그 문장의 SSOT 다.
 
-import { useCallback, useEffect, useState } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Pencil, Trash2, Plus } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -24,6 +26,10 @@ import Timeline from '@/components/ui/crm/Timeline'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import CompanyFormModal from '../CompanyFormModal'
+import PersonFormModal from '../../people/PersonFormModal'
+import DealFormModal from '../../deals/DealFormModal'
+import type { BoardPipeline } from '../../deals/DealBoard'
+import { ENTITY, createLabel, emptyTitle } from '@/lib/terms'
 import DeleteRecordModal from '../../DeleteRecordModal'
 
 interface Company {
@@ -43,6 +49,12 @@ interface PersonRow { id: string; name: string; title: string | null; email: str
 interface DealRow { id: string; name: string; status: string }
 
 export default function CompanyDetail({ companyId }: { companyId: string }) {
+  /*
+    돌아갈 곳은 **주소가 정한다**. 고정으로 적으면 딜에서 회사로 들어온 사람이
+    뒤로 갔을 때 목록으로 튕긴다(사용자 지적). `returnTo` 가 있으면 그리로 간다.
+  */
+  const backParams = useSearchParams()
+  const back = backTarget(backParams, { href: '/crm/companies', label: '회사 목록' })
   const [company, setCompany] = useState<Company | null>(null)
   /**
    * 필드 확정 — "이 값은 내가 확인했다"(절대규칙 2).
@@ -51,6 +63,34 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
   const verify = useVerified('company', companyId)
   const [people, setPeople] = useState<PersonRow[]>([])
   const [deals, setDeals] = useState<DealRow[]>([])
+  /*
+    이 화면에서 만드는 것들. 저장하면 목록을 다시 읽는다 —
+    만들었는데 화면이 그대로면 사용자는 저장이 안 된 줄 안다.
+  */
+  const [addingPerson, setAddingPerson] = useState(false)
+  const [addingDeal, setAddingDeal] = useState(false)
+
+  /*
+    딜 폼은 파이프라인 목록이 있어야 뜬다. **누를 때** 불러온다 —
+    화면을 열 때마다 부르면 딜을 안 만드는 사람에게도 요청이 하나 더 나간다.
+  */
+  const openDealForm = useCallback(async () => {
+    setAddingDeal(true)
+    if (pipelinesRef.current.length > 0) return
+    try {
+      const res = await fetch('/api/crm/pipelines')
+      if (!res.ok) return
+      const body = await res.json()
+      pipelinesRef.current = body.items ?? []
+      setPipelines(body.items ?? [])
+    } catch {
+      // 못 불러오면 폼이 안 뜬다 — 목록 화면에서 만들 수 있으므로 막다른 길은 아니다
+    }
+  }, [])
+  // 딜 폼은 파이프라인 목록이 있어야 뜬다. 딜을 만들 때만 불러온다 — 이 화면의 첫 그리기를 늦추지 않게
+  const [pipelines, setPipelines] = useState<BoardPipeline[]>([])
+  // 두 번 부르지 않기 위한 표시 — state 는 콜백이 만들어진 시점 값이라 못 쓴다
+  const pipelinesRef = useRef<BoardPipeline[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -80,13 +120,16 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
     }
   }, [companyId])
 
+  // 여기서 다른 상세로 나갈 때 실어 보낼 «돌아올 곳»
+  const here = { path: `/crm/companies/${companyId}`, label: company?.name ?? '회사' }
+
   useEffect(() => { void load() }, [load])
 
   if (loading && !company) return <AXDotLoader />
   if (error || !company) {
     return (
       <>
-        <PageHeader eyebrow="영업 CRM" title="회사" back={{ href: '/crm/companies', label: '회사 목록' }} />
+        <PageHeader eyebrow="영업 CRM" title="회사" back={back} />
         <ErrorState message={error ?? '회사를 찾을 수 없습니다.'} onRetry={() => void load()} />
       </>
     )
@@ -97,7 +140,7 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
       <PageHeader
         eyebrow="영업 CRM"
         title={company.name}
-        back={{ href: '/crm/companies', label: '회사 목록' }}
+        back={back}
         description={company.domain ?? undefined}
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
@@ -134,26 +177,58 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
           </RecordPanel>
 
           {/* L-3 — 회사 화면에 오는 이유의 대부분은 "누구에게 연락하지?"다. 속성 바로 다음에 둔다 */}
-          <RecordPanel title={`인물 ${people.length}명`}>
+          {/*
+            **여기서 바로 만든다.**
+            예전엔 「인물 화면에서 이 회사로 담당자를 등록하세요」라고 **안내만** 했다.
+            그런데 딜 상세의 「회사에 담당자 추가」가 이 화면으로 보내므로, 사용자는
+            도착해서 다시 인물 화면을 찾아가야 했다 — **가라는 곳에 할 수 있는 것이 없었다**
+            (사용자 지적: 「릴레이션 상태로 시스템이 되어 있으면 CRUD 쪽도 릴레이션을 충분히
+            고려해야지 … 회사에 담당자 추가 누르면 바로 추가 되는 프로세스가 아니라
+            회사 상세로 들어감 이것도 큰문제」).
+          */}
+          <RecordPanel
+            title={`인물 ${people.length}명`}
+            action={
+              <NbButton variant="ghost" onClick={() => setAddingPerson(true)}>
+                <Plus size={14} /> {createLabel(ENTITY.person.label)}
+              </NbButton>
+            }
+          >
               <RelatedList
                 loading={loading}
                 items={people.map((p) => ({
                   id: p.id,
-                  href: `/crm/people/${p.id}`,
+                  // 여기서 나갔다는 것을 실어 준다 — 그래야 그 화면의 「뒤로」가 이 회사로 돌아온다
+                  href: linkWithBack(`/crm/people/${p.id}`, here),
                   title: p.name,
                   meta: p.title,
                   // 회사 화면에서 그 회사 사람에게 바로 연락한다 — 인물 상세로 한 번 더 들어가지 않는다
                   contacts: { email: p.email, phone: p.phone },
                 }))}
-                empty={{ title: '담당자가 없어요', description: '인물 화면에서 이 회사로 담당자를 등록하세요.' }}
+                empty={{
+                  title: emptyTitle('person'),
+                  description: '이 회사에서 연락할 사람을 여기서 바로 등록할 수 있어요.',
+                  action: { label: createLabel(ENTITY.person.label), onClick: () => setAddingPerson(true) },
+                }}
               />
           </RecordPanel>
 
-          <RecordPanel title={`딜 ${deals.length}건`}>
+          <RecordPanel
+            title={`딜 ${deals.length}건`}
+            action={
+              <NbButton variant="ghost" onClick={() => void openDealForm()}>
+                <Plus size={14} /> {createLabel(ENTITY.deal.label)}
+              </NbButton>
+            }
+          >
               <RelatedList
                 loading={loading}
-                items={deals.map((d) => ({ id: d.id, href: `/crm/deals/${d.id}`, title: d.name, meta: d.status }))}
-                empty={{ title: '진행 중인 딜이 없어요', description: '딜 화면에서 이 회사의 영업 건을 만드세요.' }}
+                items={deals.map((d) => ({ id: d.id, href: linkWithBack(`/crm/deals/${d.id}`, here), title: d.name, meta: d.status }))}
+                empty={{
+                  title: emptyTitle('deal'),
+                  description: '이 회사의 영업 건을 여기서 바로 만들 수 있어요.',
+                  action: { label: createLabel(ENTITY.deal.label), onClick: () => void openDealForm() },
+                }}
               />
           </RecordPanel>
 
@@ -179,6 +254,28 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
           initial={{ ...company }}
           onClose={() => setEditing(false)}
           onSaved={() => { setEditing(false); void load() }}
+        />
+      )}
+
+      {/*
+        인물 — 회사가 **고정**된다. 회사 상세에서 만드는데 회사를 다시 고르라고 하면
+        그건 인물 화면과 같은 것이고, 여기서 만드는 뜻이 없다(PersonFormModal 의 fixedCompanyId).
+      */}
+      {addingPerson && (
+        <PersonFormModal
+          fixedCompanyId={companyId}
+          onClose={() => setAddingPerson(false)}
+          onSaved={() => { setAddingPerson(false); void load() }}
+        />
+      )}
+
+      {/* 딜 — 회사를 미리 채워 둔다. 이 회사 화면에서 시작했으니 다시 고를 이유가 없다 */}
+      {addingDeal && pipelines.length > 0 && (
+        <DealFormModal
+          pipelines={pipelines}
+          initial={{ companyId, companyName: company.name }}
+          onClose={() => setAddingDeal(false)}
+          onSaved={() => { setAddingDeal(false); void load() }}
         />
       )}
 

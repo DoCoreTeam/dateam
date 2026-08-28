@@ -8,7 +8,9 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -47,6 +49,12 @@ const STAGE_LABEL: Record<string, string> = {
 }
 
 export default function PersonDetail({ personId }: { personId: string }) {
+  /*
+    돌아갈 곳은 **주소가 정한다**. 고정으로 적으면 딜에서 회사로 들어온 사람이
+    뒤로 갔을 때 목록으로 튕긴다(사용자 지적). `returnTo` 가 있으면 그리로 간다.
+  */
+  const backParams = useSearchParams()
+  const back = backTarget(backParams, { href: '/crm/people', label: '인물 목록' })
   const [person, setPerson] = useState<Person | null>(null)
   /**
    * 필드 확정 — "이 값은 내가 확인했다"(절대규칙 2).
@@ -89,13 +97,16 @@ export default function PersonDetail({ personId }: { personId: string }) {
     }
   }, [personId])
 
+  // 여기서 다른 상세로 나갈 때 실어 보낼 «돌아올 곳»
+  const here = { path: `/crm/people/${personId}`, label: person?.name ?? '인물' }
+
   useEffect(() => { void load() }, [load])
 
   if (loading && !person) return <AXDotLoader />
   if (error || !person) {
     return (
       <>
-        <PageHeader eyebrow="영업 CRM" title="인물" back={{ href: '/crm/people', label: '인물 목록' }} />
+        <PageHeader eyebrow="영업 CRM" title="인물" back={back} />
         <ErrorState message={error ?? '인물을 찾을 수 없습니다.'} onRetry={() => void load()} />
       </>
     )
@@ -106,7 +117,7 @@ export default function PersonDetail({ personId }: { personId: string }) {
       <PageHeader
         eyebrow="영업 CRM"
         title={person.name}
-        back={{ href: '/crm/people', label: '인물 목록' }}
+        back={back}
         description={[person.title, company?.name].filter(Boolean).join(' · ') || undefined}
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
@@ -151,7 +162,7 @@ export default function PersonDetail({ personId }: { personId: string }) {
                 loading={loading}
                 items={company ? [{
                   id: company.id,
-                  href: `/crm/companies/${company.id}`,
+                  href: linkWithBack(`/crm/companies/${company.id}`, here),
                   title: company.name,
                   contacts: { domain: company.domain },
                 }] : []}
@@ -166,7 +177,7 @@ export default function PersonDetail({ personId }: { personId: string }) {
           <RecordPanel title={`회사의 딜 ${deals.length}건`}>
               <RelatedList
                 loading={loading}
-                items={deals.map((d) => ({ id: d.id, href: `/crm/deals/${d.id}`, title: d.name }))}
+                items={deals.map((d) => ({ id: d.id, href: linkWithBack(`/crm/deals/${d.id}`, here), title: d.name }))}
                 empty={{ title: '진행 중인 딜이 없어요', description: '딜 화면에서 영업 건을 만드세요.' }}
               />
           </RecordPanel>

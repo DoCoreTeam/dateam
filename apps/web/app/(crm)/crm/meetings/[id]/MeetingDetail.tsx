@@ -13,7 +13,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Mic, CheckCircle2, HelpCircle } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -56,6 +58,12 @@ interface Meeting {
 const WHERE_IT_GOES: Record<string, string> = { deal: '딜', person: '인물', company: '회사', meeting: '이 미팅' }
 
 export default function MeetingDetail({ meetingId }: { meetingId: string }) {
+  /*
+    돌아갈 곳은 **주소가 정한다**. 고정으로 적으면 딜에서 회사로 들어온 사람이
+    뒤로 갔을 때 목록으로 튕긴다(사용자 지적). `returnTo` 가 있으면 그리로 간다.
+  */
+  const backParams = useSearchParams()
+  const back = backTarget(backParams, { href: '/crm/meetings', label: '미팅' })
   const [m, setM] = useState<Meeting | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -210,7 +218,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
         title={m.title}
         icon={<Mic size={20} />}
         description={formatKstDateTimeShort(m.startedAt) + (m.location ? ` · ${m.location}` : '')}
-        back={{ href: '/crm/meetings', label: '미팅' }}
+        back={back}
         actions={
           /**
            * 회의가 끝나고 차에 타면서 누르는 버튼 하나. 여기가 그 자리다.

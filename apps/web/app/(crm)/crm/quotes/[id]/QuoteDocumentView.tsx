@@ -11,7 +11,9 @@
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Printer, Download, Pencil, FileText, Image as ImageIcon } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
@@ -48,6 +50,12 @@ interface DocumentResponse {
 }
 
 export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
+  /*
+    돌아갈 곳은 **주소가 정한다**. 고정으로 적으면 딜에서 회사로 들어온 사람이
+    뒤로 갔을 때 목록으로 튕긴다(사용자 지적). `returnTo` 가 있으면 그리로 간다.
+  */
+  const backParams = useSearchParams()
+  const back = backTarget(backParams, { href: '/crm/quotes', label: ENTITY.quote.label })
   const [data, setData] = useState<DocumentResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -161,7 +169,7 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
         */}
         <PageHeader
           title={doc.meta.quoteNo}
-          back={{ href: '/crm/quotes', label: ENTITY.quote.label }}
+          back={back}
         />
       </div>
 

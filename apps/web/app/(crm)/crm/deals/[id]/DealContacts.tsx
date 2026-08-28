@@ -10,11 +10,14 @@
 // 그건 어느 필드에도 안 적히고 사람 머릿속에만 있다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { Plus } from 'lucide-react'
 import Link from 'next/link'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import ContactLink from '@/components/ui/ContactLink'
 import EmptyState from '@/components/ui/EmptyState'
+import PersonFormModal from '../../people/PersonFormModal'
+import { ENTITY, createLabel } from '@/lib/terms'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import styles from './deal-contacts.module.css'
@@ -56,6 +59,8 @@ export default function DealContacts({ dealId, companyId }: Props) {
   const [items, setItems] = useState<Contact[]>([])
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [adding, setAdding] = useState(false)
+  /** 새 사람을 만드는 중인가 — 만들면 곧바로 이 딜에 붙인다 */
+  const [creating, setCreating] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -153,13 +158,27 @@ export default function DealContacts({ dealId, companyId }: Props) {
           사람 넣기
         </NbButton>
       ) : pickable.length === 0 ? (
+        /*
+          **여기서 바로 만든다.** 예전엔 회사 상세로 보내는 링크였는데,
+          도착한 화면에는 인물을 만들 길이 없어서 **사용자는 다시 인물 화면을 찾아가야 했다**
+          (사용자 지적: 「사람 더 넣기를 누르고 화면이 열리고 회사에 담당자추가를 누르는
+          UX는 너무 단계가 많음 … 바로 추가 되는 프로세스가 아니라 회사 상세로 들어감」).
+        */
         <EmptyState
           title="더 넣을 사람이 없어요"
-          description="이 회사에 등록된 담당자를 이미 다 넣었습니다."
-          action={companyId ? { label: '회사에 담당자 추가', href: `/crm/companies/${companyId}` } : undefined}
+          description="이 회사에 등록된 사람을 이미 다 넣었습니다. 새 사람을 여기서 바로 만들 수 있어요."
+          action={companyId
+            ? { label: createLabel(ENTITY.person.label), onClick: () => setCreating(true) }
+            : undefined}
         />
       ) : (
         <ul className={styles.list}>
+          {/* 목록 위에도 둔다 — 찾는 사람이 없을 때 다시 나가지 않게 */}
+          <li className={styles.item}>
+            <NbButton variant="ghost" onClick={() => setCreating(true)}>
+              <Plus size={14} /> {createLabel(ENTITY.person.label)}
+            </NbButton>
+          </li>
           {pickable.map((p) => (
             <li key={p.id} className={styles.item}>
               <span className={styles.name}>{p.name}</span>
@@ -178,6 +197,18 @@ export default function DealContacts({ dealId, companyId }: Props) {
             </li>
           ))}
         </ul>
+      )}
+
+      {/*
+        만들면 **곧바로 이 딜에 붙인다.** 사람만 만들고 끝나면 사용자는 다시 「사람 넣기」를
+        눌러 방금 만든 사람을 찾아야 한다 — 그게 예전의 단계 많은 흐름이었다.
+      */}
+      {creating && companyId && (
+        <PersonFormModal
+          fixedCompanyId={companyId}
+          onClose={() => setCreating(false)}
+          onSaved={(id) => { setCreating(false); void add(id, 'OTHER') }}
+        />
       )}
     </>
   )

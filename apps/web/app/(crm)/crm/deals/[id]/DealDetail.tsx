@@ -10,7 +10,9 @@ import { useCallback, useEffect, useState } from 'react'
 import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
@@ -97,6 +99,12 @@ function termText(d: {
 }
 
 export default function DealDetail({ dealId }: { dealId: string }) {
+  /*
+    돌아갈 곳은 **주소가 정한다**. 고정으로 적으면 딜에서 회사로 들어온 사람이
+    뒤로 갔을 때 목록으로 튕긴다(사용자 지적). `returnTo` 가 있으면 그리로 간다.
+  */
+  const backParams = useSearchParams()
+  const back = backTarget(backParams, { href: '/crm/deals', label: '딜 목록' })
   const [deal, setDeal] = useState<Deal | null>(null)
   const [pipelines, setPipelines] = useState<BoardPipeline[]>([])
   const [history, setHistory] = useState<HistoryRow[]>([])
@@ -137,13 +145,16 @@ export default function DealDetail({ dealId }: { dealId: string }) {
     }
   }, [dealId])
 
+  // 여기서 다른 상세로 나갈 때 실어 보낼 «돌아올 곳»
+  const here = { path: `/crm/deals/${dealId}`, label: deal?.name ?? '딜' }
+
   useEffect(() => { void load() }, [load])
 
   if (loading && !deal) return <AXDotLoader />
   if (error || !deal) {
     return (
       <>
-        <PageHeader eyebrow="영업 CRM" title="딜" back={{ href: '/crm/deals', label: '딜 목록' }} />
+        <PageHeader eyebrow="영업 CRM" title="딜" back={back} />
         <ErrorState message={error ?? '딜을 찾을 수 없습니다.'} onRetry={() => void load()} />
       </>
     )
@@ -159,7 +170,7 @@ export default function DealDetail({ dealId }: { dealId: string }) {
       <PageHeader
         eyebrow="영업 CRM"
         title={deal.name}
-        back={{ href: '/crm/deals', label: '딜 목록' }}
+        back={back}
         description={`${pipelineName ?? '파이프라인'} · ${stageName.get(deal.stageId) ?? '단계 미상'}`}
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
@@ -177,7 +188,8 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                 <RecordField label="상태"><NbBadge status={meta.status}>{meta.label}</NbBadge></RecordField>
                 <RecordField label="회사">
                   {company
-                    ? <Link href={`/crm/companies/${company.id}`}>{company.name}</Link>
+                    // 여기서 나갔다는 것을 실어 준다 — 회사 화면의 「뒤로」가 이 딜로 돌아온다
+                    ? <Link href={linkWithBack(`/crm/companies/${company.id}`, here)}>{company.name}</Link>
                     : null}
                 </RecordField>
                 <RecordField label="파이프라인">{pipelineName}</RecordField>
