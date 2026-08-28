@@ -43,6 +43,7 @@ const LAST_COL = 'G'          // COLUMNS 의 마지막 열
 const HAIRLINE = 'FFD8DCE3'   // 표 테두리
 const HEAD_BG = 'FFF2F4F7'    // 표 머리글 배경
 const MUTED = 'FF6B7280'      // 보조 글자
+const SPECIAL = 'FFDC2626'    // 특별 할인 — 화면의 var(--danger) 와 같은 자리
 
 /**
  * 할인율 → 곱할 배율. `100%` 면 0, `0%` 면 1.
@@ -54,6 +55,27 @@ function discountFactor(pct: string): number {
   if (!Number.isFinite(n)) return 1
   const clamped = Math.min(100, Math.max(0, n))
   return Number((1 - clamped / 100).toFixed(6))
+}
+
+/**
+ * 할인 칸에 들어갈 글자.
+ *
+ * 특별 할인이 있으면 **가는 길을 그대로** 적는다 — 화면의 「30% → 80%」와 같은 말이다.
+ * 엑셀 셀 안에서는 색을 부분만 다르게 줄 수 없으므로(리치텍스트가 필요하다)
+ * 뜻은 글자로 밝힌다. 강조는 아래 `특별` 표시가 맡는다.
+ */
+function discountCellText(line: {
+  discountPercent: string
+  isSpecialDiscount?: boolean
+  baseDiscountPercent?: string
+  specialDiscountPercent?: string
+}): string {
+  if (line.isSpecialDiscount) {
+    const base = line.baseDiscountPercent && line.baseDiscountPercent !== '0'
+      ? `${line.baseDiscountPercent}% → ` : ''
+    return `${base}특별 ${line.specialDiscountPercent}%`
+  }
+  return line.discountPercent === '0' ? '' : `${line.discountPercent}%`
 }
 
 function money(minor: string, currency: string): number | string {
@@ -434,7 +456,12 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       line.unit ?? '',
       Number(line.quantity),
       money(line.unitPriceMinor, cur),
-      line.discountPercent === '0' ? '' : `${line.discountPercent}%`,
+      /*
+        **할인 칸은 두 비율을 함께 말한다** — 「30% → 80%」.
+        실효율(86%)만 적으면 고객은 어디서 얼마나 깎였는지 모르고,
+        기본 할인만 적으면 금액과 어긋난다(화면에서 그 사고가 났다).
+      */
+      discountCellText(line),
       /*
         **금액은 수식이다.** 값만 넣으면 받은 사람이 수량이나 단가를 고쳤을 때
         금액이 그대로 남아 «틀린 견적서»가 된다. 수식이면 그 자리에서 다시 계산된다
@@ -442,12 +469,16 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
         할인은 퍼센트 문자열이라 셀에서 못 쓴다 — 배율을 우리가 계산해 곱한다.
       */
       { formula: `ROUND(D${r}*E${r}*${discountFactor(line.discountPercent)},0)` },
+      // ↑ 배율은 **실효 할인율**로 낸다 — 기본과 특별이 겹친 결과가 이미 그 값이다
     ]
     values.forEach((v, i) => {
       const cell = ws.getCell(r, i + 1)
       cell.value = v
       cell.border = border
-      cell.font = { size: 10 }
+      // 특별가 줄의 할인 칸(F)은 굵은 빨강 — 화면에서 크게 강조한 그 자리다
+      cell.font = (i === 5 && line.isSpecialDiscount)
+        ? { size: 10, bold: true, color: { argb: SPECIAL } }
+        : { size: 10 }
       // 세로는 전부 가운데(마지막 손질이 한 번 더 보장한다), 양끝은 한 칸 들인다
       if (i === 1) cell.alignment = { wrapText: true, vertical: 'middle', indent: 1 }
       else if (i >= 3) cell.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }

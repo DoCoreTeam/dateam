@@ -19,6 +19,7 @@
 
 import { QUOTE, hangulAmount, SUPPLIER_ORDER, SUPPLIER_LABEL, type SupplierField } from '../../terms/quote.ts'
 import { checkI2, checkI5, type Violation } from './invariants.ts'
+import { computeLine } from './quote-math.ts'
 
 // ------------------------------------------------------------
 // 문서의 모양
@@ -101,7 +102,22 @@ export interface DocumentLine {
   unit: string | null
   quantity: string
   unitPriceMinor: string
+  /**
+   * **실제로 적용된 할인율(%).**
+   *
+   * 예전엔 기본 할인율을 그대로 실었는데, 특별가를 준 줄에서는 그게 거짓말이 됐다 —
+   * 「할인 30%」라고 적힌 줄의 금액이 80% 할인가였다(사용자 지적: 「저장하면 즉시
+   * 반영되야지 화면이 그대로네」). 문서는 **금액과 같은 근거**를 말해야 한다.
+   */
   discountPercent: string
+  /** 특별 할인이 적용됐나 — 「정상가 …」를 함께 인쇄할지 정한다 */
+  isSpecialDiscount: boolean
+  /** 기본(통상) 할인율(%) — 특별가여도 **함께 인쇄한다**. 둘 다 붙기 때문이다 */
+  baseDiscountPercent: string
+  /** 특별 할인율(%). 없으면 빈 문자열 */
+  specialDiscountPercent: string
+  /** 기본 할인만 적용했다면 얼마였을지. 특별가가 아니면 amountMinor 와 같다 */
+  baseAmountMinor: string
   /** 할인 반영, 세금 제외 — 저장된 값 */
   amountMinor: string
 }
@@ -167,6 +183,8 @@ export interface BuildQuoteDocumentInput {
     quantity: string | number
     unitPriceMinor: bigint | string
     discountPercent?: string | number
+    /** 특별 할인율(%) — null·undefined 면 없음 */
+    specialDiscountPercent?: string | number | null
     lineTotalMinor: bigint | string
   }[]
   customer: {
@@ -226,6 +244,34 @@ function dateKey(v: Date | string | null | undefined): string | null {
  * 그리는 쪽이 그 줄을 통째로 안 그린다 — 문서에 «—» 가 늘어서면
  * 준비가 안 된 문서를 보낸 것처럼 보인다.
  */
+/**
+ * 그 줄의 할인을 **금액과 같은 근거로** 계산한다.
+ *
+ * `computeLine` 을 다시 부르는 이유: 「어느 할인이 적용됐나」를 판정하는 규칙은
+ * 계산 SSOT 에 이미 있다. 여기서 `if (special) …` 를 다시 쓰면 두 곳이 언젠가 갈리고,
+ * 갈린 날 문서에 적힌 할인율과 금액이 서로를 반박한다.
+ */
+function discountOf(l: {
+  quantity: string | number
+  unitPriceMinor: bigint | string
+  discountPercent?: string | number
+  specialDiscountPercent?: string | number | null
+}): Pick<DocumentLine, 'discountPercent' | 'isSpecialDiscount' | 'baseDiscountPercent' | 'specialDiscountPercent' | 'baseAmountMinor'> {
+  const a = computeLine({
+    quantity: l.quantity,
+    unitPriceMinor: l.unitPriceMinor,
+    discountPercent: l.discountPercent ?? 0,
+    specialDiscountPercent: l.specialDiscountPercent ?? null,
+  })
+  return {
+    discountPercent: String(a.appliedDiscountPct),
+    isSpecialDiscount: a.isSpecial,
+    baseDiscountPercent: String(Number(l.discountPercent ?? 0)),
+    specialDiscountPercent: a.isSpecial ? String(Number(l.specialDiscountPercent)) : '',
+    baseAmountMinor: a.baseLineTotalMinor.toString(),
+  }
+}
+
 export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocument {
   const currency = (input.quote.currency ?? 'KRW').toUpperCase()
   const validUntil = dateKey(input.quote.validUntil)
@@ -282,7 +328,7 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       unit: text(l.unit) || null,
       quantity: s(l.quantity),
       unitPriceMinor: s(l.unitPriceMinor),
-      discountPercent: s(l.discountPercent ?? 0),
+      ...discountOf(l),
       amountMinor: s(l.lineTotalMinor),
     })),
     totals: {

@@ -154,11 +154,21 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
             */}
             <colgroup>
               <col style={{ width: '5%' }} />
-              <col style={{ width: '31%' }} />
+              <col style={{ width: '26%' }} />
               <col style={{ width: '7%' }} />
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '17%' }} />
-              <col style={{ width: '8%' }} />
+              <col style={{ width: '6%' }} />
+              <col style={{ width: '15%' }} />
+              {/*
+                할인 칸은 **두 비율과 화살표가 한 줄에 서야** 한다. 8% 였을 때
+                「30% →」 다음 줄로 「100%」가 접혀 화살표가 아무것도 가리키지 못했다
+                (사용자 지적: 「퍼센트가 좀 가르켜야 하는데 지금은 줄바꿈이 되어 버렸네」).
+              */}
+              {/*
+                실측으로 정한 값이다. 13% 였을 때 쓸 수 있는 폭이 73px 인데
+                「30% → 100%」에 87px 이 필요해 14px 이 모자라 접혔다.
+                16% 면 96px 이라 한 줄에 선다.
+              */}
+              <col style={{ width: '16%' }} />
               {/*
                 합계(굵고 큰 글씨)가 들어갈 칸이라 항목 금액보다 넉넉해야 한다.
                 21% 였을 때 「330,000,000원」의 **「원」이 잘렸다**(사용자 지적) —
@@ -193,8 +203,56 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                   <td className={styles.center}>{l.unit ?? ''}</td>
                   <td className={styles.num}>{Number(l.quantity).toLocaleString('ko-KR')}</td>
                   <td className={styles.num}>{money(l.unitPriceMinor)}</td>
-                  <td className={styles.num}>{l.discountPercent === '0' ? '' : `${l.discountPercent}%`}</td>
-                  <td className={styles.num}>{money(l.amountMinor)}</td>
+                  {/*
+                    **특별가는 그 사실이 보여야 값이 있다.** 「80%」만 적으면 무엇에서
+                    80% 인지 알 수 없다 — 정상가를 함께 적어야 고객이 혜택을 읽는다.
+                  */}
+                  <td className={styles.num}>
+                    {/*
+                      **둘 다 적는다.** 기본 할인은 늘 들어가는 것이고 특별 할인은 이번 건에만
+                      주는 것이라, 하나만 적으면 고객은 나머지 하나를 못 본다
+                      (사용자 지시: 「기본 할인과 특별할인이 다 붙어야지」).
+                    */}
+                    {l.isSpecialDiscount ? (
+                      // 비율도 금액과 **같은 흐름**으로 읽힌다 — 기본에서 특별로 간다
+                      <>
+                        {/*
+                          **태그는 흐름 밖이다.** 「특별 할인」 글자가 비율 옆에 붙으면
+                          그 폭 때문에 「30% → 100%」가 두 줄로 접혀 화살표가 아무것도
+                          가리키지 못했다(사용자 지적). 뜻은 아래 줄에서 말한다.
+                        */}
+                        <span className={styles.priceFlow}>
+                          {l.baseDiscountPercent !== '0' && (
+                            <>
+                              <span className={styles.wasPct}>{l.baseDiscountPercent}%</span>
+                              <span className={styles.srOnly}>에서</span>
+                              <span className={styles.arrow} aria-hidden>→</span>
+                            </>
+                          )}
+                          <span className={styles.special}>{l.specialDiscountPercent}%</span>
+                        </span>
+                        <div className={styles.specialTag}>{QUOTE.lineSpecialDiscount}</div>
+                      </>
+                    ) : (
+                      l.discountPercent === '0' ? '' : `${l.discountPercent}%`
+                    )}
+                  </td>
+                  <td className={styles.num}>
+                    {/*
+                      **「원래는 이만큼인데 이렇게 해 드립니다」가 한눈에 읽혀야 한다.**
+                      위아래로 쌓으면 두 숫자가 각자 서 있을 뿐 관계가 안 보인다 —
+                      화살표가 그 관계를 만든다(사용자 지시: 「이렇게 방향처럼 표시 해도 되고」).
+                      화살표는 글자로 읽히지 않으므로 뜻은 sr 전용 글자로 따로 준다.
+                    */}
+                    {l.isSpecialDiscount && l.baseAmountMinor !== l.amountMinor ? (
+                      <span className={styles.priceFlow}>
+                        <span className={styles.wasAmount}>{money(l.baseAmountMinor)}</span>
+                        <span className={styles.srOnly}>에서</span>
+                        <span className={styles.arrow} aria-hidden>→</span>
+                        <span className={styles.nowAmount}>{money(l.amountMinor)}</span>
+                      </span>
+                    ) : money(l.amountMinor)}
+                  </td>
                 </tr>
               ))}
             </tbody>

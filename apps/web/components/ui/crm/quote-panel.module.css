@@ -135,11 +135,60 @@
   grid-template-columns: 1fr;
 }
 
+/*
+  **12칼럼 두 행.**
+
+  예전엔 칼럼을 7개로 못 박아 뒀는데 그 사이 「종류」·「규격」·「역할」이 늘어
+  자식이 10개가 됐다 — 남는 자식이 제멋대로 흘러넘쳐 한 줄에 하나씩 서고,
+  금액이 「280,000,000 / 원」으로 끊기고, 부가세와 삭제 버튼이 아래로 떨어졌다
+  (사용자 지적: 「디자인 다 깨진거 보이지?」).
+
+  칸 수를 세어 맞추는 방식은 **또 깨진다** — 칸은 앞으로도 는다.
+  그래서 12칼럼 위에 각 칸이 «자기 몫»을 선언하는 방식으로 바꾼다.
+  칸이 하나 늘어도 그 칸만 span 을 말하면 되고, 나머지는 그대로 있는다.
+
+    행1  종류(2)  품목(5)         규격(5)
+    행2  수량(2)  단위(1) 단가(2) 할인(2) 특별할인(2) 부가세(1) 합계(2)
+*/
 @media (min-width: 900px) {
   .line {
-    grid-template-columns: minmax(0, 3fr) 88px 84px minmax(0, 1.6fr) 84px 84px auto;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--space-2);
+    row-gap: var(--space-3);
     align-items: flex-end;
   }
+
+  .colKind    { grid-column: span 2; }
+  .colName    { grid-column: span 5; }
+  .colSpec    { grid-column: span 5; }
+  /* 역할이 끼면 앞 행이 좁아진다 — 역할은 품목에서 한 칸, 규격에서 두 칸을 빌린다 */
+  .colRole    { grid-column: span 3; }
+  .colRole ~ .colName { grid-column: span 4; }
+  .colRole ~ .colSpec { grid-column: span 3; }
+
+  .colQty     { grid-column: span 2; }
+  .colUnit    { grid-column: span 1; }
+  .colPrice   { grid-column: span 2; }
+  .colDisc    { grid-column: span 2; }
+  .colSpecial { grid-column: span 2; }
+  .colTax     { grid-column: span 1; }
+  .colTotal   { grid-column: span 2; }
+}
+
+/* 합계 칸 — 금액과 삭제가 한 덩어리다. 「280,000,000 / 원」으로 끊기지 않게 */
+.colTotal {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+/* 특별가일 때 원래 금액 — 취소선으로 «이건 지난 값»임을 말한다 */
+.lineWas {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  text-decoration: line-through;
 }
 
 .lineTotal {
@@ -246,3 +295,9 @@
 .termOn { border-color: var(--brand); background: var(--surface-muted); }
 
 .termBody { color: var(--text); line-height: 1.5; }
+
+/* 편집 화면도 견적서와 같은 흐름을 쓴다 — 「정상가 → 특별가」 */
+.lineArrow {
+  color: var(--danger);
+  font-weight: 700;
+}

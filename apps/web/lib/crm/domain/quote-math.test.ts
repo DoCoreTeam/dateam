@@ -117,3 +117,69 @@ test('유효기간은 읽는 시점에 판정한다 — 배치가 실패해도 �
   assert.equal(isExpired(null, now), false, '기간을 안 정한 견적은 만료되지 않는다')
   assert.equal(isExpired('깨진값', now), false, '판정 불가를 만료로 치지 않는다')
 })
+
+test('특별 할인은 기본 할인 «위에» 겹쳐 적용된다', () => {
+  // 사용자 지시의 실제 예: 1억 · 기본 30% · 특별 80%
+  const a = computeLine({
+    quantity: 1, unitPriceMinor: 100_000_000,
+    discountPercent: 30, specialDiscountPercent: 80, taxRate: 10,
+  })
+  assert.equal(a.grossMinor, BigInt(100_000_000))
+  assert.equal(a.baseLineTotalMinor, BigInt(70_000_000))   // 기본만 적용했다면
+  assert.equal(a.lineTotalMinor, BigInt(14_000_000))       // 그 위에 특별 80%
+  assert.equal(a.discountMinor, BigInt(86_000_000))
+  assert.equal(a.appliedDiscountPct, 86)                   // 정가 대비 실효
+  assert.equal(a.isSpecial, true)
+})
+
+test('대체가 아니다 — 특별 할인만 적용하면 안 된다', () => {
+  // 예전 판이 이랬다. 「기본 할인과 특별할인이 다 붙어야지」로 바로잡았고,
+  // 되돌아가면 이 단정이 깨진다
+  const a = computeLine({
+    quantity: 1, unitPriceMinor: 100_000_000,
+    discountPercent: 30, specialDiscountPercent: 80,
+  })
+  assert.notEqual(a.lineTotalMinor, BigInt(20_000_000), '특별 할인만 적용하면 안 된다')
+})
+
+test('특별 할인이 없으면 기본 할인만 — 0 과 «없음»은 다르다', () => {
+  const none = computeLine({ quantity: 1, unitPriceMinor: 1000, discountPercent: 30 })
+  assert.equal(none.lineTotalMinor, BigInt(700))
+  assert.equal(none.isSpecial, false)
+  assert.equal(none.baseLineTotalMinor, none.lineTotalMinor)
+
+  // 0% 특별 할인은 «있는» 것이다 — 기본 할인 위에 0% 를 더 얹어 금액이 그대로다
+  const zero = computeLine({
+    quantity: 1, unitPriceMinor: 1000, discountPercent: 30, specialDiscountPercent: 0,
+  })
+  assert.equal(zero.isSpecial, true)
+  assert.equal(zero.lineTotalMinor, BigInt(700))
+
+  // null·빈 문자열은 «없음»이다
+  for (const v of [null, undefined, '', '  ']) {
+    assert.equal(computeLine({
+      quantity: 1, unitPriceMinor: 1000, discountPercent: 30, specialDiscountPercent: v,
+    }).isSpecial, false, `${JSON.stringify(v)} 는 «없음» 이어야 한다`)
+  }
+})
+
+test('겹쳐도 금액이 음수가 되지 않는다', () => {
+  const a = computeLine({
+    quantity: 1, unitPriceMinor: 1000, discountPercent: 100, specialDiscountPercent: 100,
+  })
+  assert.equal(a.lineTotalMinor, BigInt(0))
+  assert.equal(a.appliedDiscountPct, 100)
+  // 범위 밖 값도 접힌다
+  const over = computeLine({
+    quantity: 1, unitPriceMinor: 1000, discountPercent: 150, specialDiscountPercent: 150,
+  })
+  assert.equal(over.lineTotalMinor, BigInt(0))
+})
+
+test('0원 줄에서 실효 할인율을 0으로 나누지 않는다', () => {
+  const a = computeLine({
+    quantity: 1, unitPriceMinor: 0, discountPercent: 30, specialDiscountPercent: 80,
+  })
+  assert.equal(a.appliedDiscountPct, 0)
+  assert.ok(Number.isFinite(a.appliedDiscountPct))
+})

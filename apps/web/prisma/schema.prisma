@@ -906,7 +906,13 @@ model CrmQuoteLine {
   unit           String?
   unitPriceMinor BigInt  @default(0)
   /// 항목 할인율(%). 금액 할인이 아니라 비율인 이유: 수량이 바뀌면 같이 따라가야 한다.
+  /// 이것은 **기본(통상) 할인**이다 — 등급·정책에서 오는, 늘 들어가는 그 할인.
   discountPercent Decimal @default(0) @db.Decimal(5, 2)
+  /// 특별 할인율(%). NULL 이면 없음. 값이 있으면 **이 값이 적용 할인율**이고
+  /// 기본 할인율은 「원래는 이랬다」는 근거로만 남는다(곱하지 않는다).
+  specialDiscountPercent Decimal? @db.Decimal(5, 2)
+  /// 왜 특별가를 줬는지 — 승인·감사에서 이것이 근거가 된다
+  specialDiscountReason  String?
   taxRate         Decimal @default(10) @db.Decimal(5, 2)
   /// 서버가 계산한 이 줄의 합계(할인 반영, 세금 제외)
   lineTotalMinor  BigInt  @default(0)

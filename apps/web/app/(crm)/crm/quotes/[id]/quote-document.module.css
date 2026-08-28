@@ -366,3 +366,73 @@
   border: 0;
   padding: 0;
 }
+
+/* 특별가 표시 — 「무엇에서 깎았는지」가 보여야 할인이 뜻을 갖는다 */
+/*
+  **특별 할인이 이 표에서 제일 크다.**
+  이 줄에서 고객이 봐야 하는 것은 「원래 30%」가 아니라 「이번엔 80%」다 —
+  둘이 같은 크기면 무엇이 혜택인지 안 읽힌다(사용자 지시: 「특별할인이 더 크고 강조되게」).
+*/
+.special {
+  display: inline-block;
+  line-height: 1.15;
+  font-size: var(--fs-md);
+  font-weight: 800;
+  color: var(--danger);
+  letter-spacing: -0.02em;
+}
+.specialTag {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--danger);
+  line-height: 1.2;
+}
+/* 원래 비율은 «지난 값»이다 — 금액의 정상가와 같은 취급 */
+.wasPct {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.wasAmount {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+/* 「정상가 → 특별가」 — 두 숫자를 관계로 잇는다 */
+/*
+  「30% → 100%」는 **한 덩어리다.** 접히면 화살표가 아무것도 가리키지 못한다.
+
+  `wrap` 을 쓰면 칸 폭에 따라 접히는데, 같은 표가 화면(넓음)과 A4 미리보기(좁음)
+  두 폭으로 그려져서 **한쪽을 맞추면 다른 쪽이 접혔다**(사용자가 둘 다 지적).
+  그래서 폭에 기대지 않고 `nowrap` 으로 못 박는다 — 좁으면 글자가 붙을 뿐 관계는 유지된다.
+*/
+.priceFlow {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+}
+.priceFlow > * { white-space: nowrap; }
+.arrow {
+  color: var(--danger);
+  font-weight: 700;
+}
+/* 최종 금액도 한 단계 키운다 — 「이렇게 해 드립니다」가 이 숫자다 */
+.nowAmount {
+  font-size: var(--fs-md);
+  font-weight: 800;
+  color: var(--text);
+}
+
+/* 화면에는 안 보이고 읽어 주는 글자만 — 화살표의 뜻 */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

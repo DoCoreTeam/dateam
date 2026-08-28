@@ -60,6 +60,9 @@ export interface QuoteLineRow {
   unit: string | null
   unitPriceMinor: bigint
   discountPercent: string
+  /** 특별 할인율(%) — null 이면 없음(기본 할인만 적용) */
+  specialDiscountPercent: string | null
+  specialDiscountReason: string | null
   taxRate: string
   lineTotalMinor: bigint
   position: number
@@ -97,6 +100,7 @@ export interface QuoteRow {
 const LINE_SELECT = {
   id: true, productId: true, name: true, descriptionMd: true, quantity: true, unit: true,
   unitPriceMinor: true, discountPercent: true, taxRate: true, lineTotalMinor: true, position: true,
+  specialDiscountPercent: true, specialDiscountReason: true,
   kind: true, roleLabel: true, laborGradeId: true,
 } as const
 
@@ -127,6 +131,9 @@ export interface QuoteLineData {
   unit?: string | null
   unitPriceMinor: number | string
   discountPercent?: number | string | null
+  /** 특별 할인율(%). **null·빈 문자열이면 «없음»** 이다 — 0 은 「0% 할인」이라 뜻이 다르다 */
+  specialDiscountPercent?: number | string | null
+  specialDiscountReason?: string | null
   taxRate?: number | string | null
 }
 
@@ -141,6 +148,7 @@ export interface QuoteLineData {
 const LINE_KEYS = new Set([
   'id', 'productId', 'name', 'descriptionMd', 'quantity', 'unit',
   'unitPriceMinor', 'discountPercent', 'taxRate',
+  'specialDiscountPercent', 'specialDiscountReason',
   'kind', 'roleLabel', 'laborGradeId',
 ])
 const QUOTE_KEYS = new Set([
@@ -207,7 +215,20 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
   const discountPercent = toRate(line.discountPercent, 'discountPercent', 0)
   const taxRate = toRate(line.taxRate, 'taxRate', 10)
 
-  const amounts = computeLine({ quantity, unitPriceMinor, discountPercent, taxRate })
+  /*
+    **특별 할인은 «있음/없음»이 먼저다.** null·빈 문자열이면 없는 것이고,
+    있으면 그 값이 적용 할인율이 된다(기본 할인은 근거로만 남는다).
+    0 을 «없음»으로 접으면 「이번엔 할인 없이 정가로」를 표현할 수 없다.
+  */
+  const sdRaw = line.specialDiscountPercent
+  const hasSpecial = sdRaw !== undefined && sdRaw !== null && String(sdRaw).trim() !== ''
+  const specialDiscountPercent = hasSpecial
+    ? toRate(sdRaw, 'specialDiscountPercent', 0)
+    : null
+
+  const amounts = computeLine({
+    quantity, unitPriceMinor, discountPercent, specialDiscountPercent, taxRate,
+  })
 
   /*
     **줄의 종류.** 「수량 × 단가」가 뜻하는 것을 정한다 — 「M/M」인지 「대」인지 「개월」인지.
@@ -232,6 +253,8 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
     unit: normalizeText(line.unit),
     unitPriceMinor,
     discountPercent,
+    specialDiscountPercent,
+    specialDiscountReason: normalizeText(line.specialDiscountReason),
     taxRate,
     lineTotalMinor: amounts.lineTotalMinor,
     position,

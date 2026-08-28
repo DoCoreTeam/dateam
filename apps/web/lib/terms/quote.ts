@@ -55,6 +55,10 @@ export const QUOTE = {
   lineQuantity: '수량',
   lineUnitPrice: '단가',
   lineDiscount: '할인',
+  /** 기본 할인과 구분해서 부른다 — 「이번 건에만」이라는 뜻이 이름에 있어야 한다 */
+  lineSpecialDiscount: '특별 할인',
+  /** 특별가를 줬을 때 견적서가 말하는 원래 금액 */
+  lineWasAmount: '정상가',
   lineAmount: '금액',
 
   // ── 합계 ─────────────────────────────────────

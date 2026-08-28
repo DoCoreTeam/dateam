@@ -89,8 +89,10 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
     setLoading(true)
     setError(null)
     try {
+      // 저장·삭제 직후에 다시 읽는 경로다 — 캐시를 받으면 방금 한 일이 화면에 안 나타난다
       const res = await fetch(
         `/api/crm/quotes?dealId=${encodeURIComponent(dealId)}${trash ? '&trash=1' : ''}`,
+        { cache: 'no-store' },
       )
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '견적을 불러오지 못했습니다.'); return }
@@ -155,7 +157,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
   const openEdit = async (quote: Quote) => {
     setActionError(null)
     try {
-      const res = await fetch(`/api/crm/quotes/${quote.id}`)
+      const res = await fetch(`/api/crm/quotes/${quote.id}`, { cache: 'no-store' })
       const body = await res.json()
       if (!res.ok) { setActionError(body?.error?.message ?? '견적을 불러오지 못했습니다.'); return }
       setEditing(quoteToDraft(body))

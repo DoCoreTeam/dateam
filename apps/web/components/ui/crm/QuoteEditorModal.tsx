@@ -55,6 +55,8 @@ export interface QuoteLineDraft {
   unit: string
   unitPriceMinor: string
   discountPercent: string
+  /** 특별 할인율(%) — **빈 문자열이면 «없음»** 이다. '0' 은 「0% 할인」이라 뜻이 다르다 */
+  specialDiscountPercent?: string
   taxRate: string
 }
 
@@ -157,6 +159,9 @@ export function quoteToDraft(body: any): QuoteDraft {
       unit: l.unit ?? '',
       unitPriceMinor: String(l.unitPriceMinor),
       discountPercent: String(l.discountPercent),
+      // null 이면 «없음» 이므로 빈 문자열이다 — String(null) 이 '\uc5c6\uc74c' 이 아니라 'null' 이 되면 안 된다
+      specialDiscountPercent: l.specialDiscountPercent === null || l.specialDiscountPercent === undefined
+        ? '' : String(l.specialDiscountPercent),
       taxRate: String(l.taxRate),
     })),
   }
@@ -287,6 +292,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
       quantity: l.quantity || 0,
       unitPriceMinor: l.unitPriceMinor || 0,
       discountPercent: l.discountPercent || 0,
+      specialDiscountPercent: l.specialDiscountPercent?.trim() ? l.specialDiscountPercent : null,
       taxRate: l.taxRate || 0,
     }))),
     [draft.lines],
@@ -310,6 +316,8 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         unit: l.unit.trim() || null,
         unitPriceMinor: l.unitPriceMinor || '0',
         discountPercent: l.discountPercent || '0',
+        // 빈 칸은 «특별 할인 없음» — 0 으로 바꾸면 「0% 특별할인」이 되어 뜻이 달라진다
+        specialDiscountPercent: l.specialDiscountPercent?.trim() ? l.specialDiscountPercent.trim() : null,
         taxRate: l.taxRate || '10',
         kind: l.kind ?? 'QUANTITY',
         roleLabel: (l.roleLabel ?? '').trim() || null,
@@ -432,6 +440,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
               quantity: line.quantity || 0,
               unitPriceMinor: line.unitPriceMinor || 0,
               discountPercent: line.discountPercent || 0,
+              specialDiscountPercent: line.specialDiscountPercent?.trim() ? line.specialDiscountPercent : null,
               taxRate: line.taxRate || 0,
             })
             return (
@@ -440,7 +449,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   **종류가 먼저다.** 이것이 아래 「수량」·「단가」 라벨을 바꾼다 —
                   「M/M」인지 「대」인지가 정해져야 사람이 무엇을 넣을지 안다.
                 */}
-                <div className={styles.field}>
+                <div className={`${styles.field} ${styles.colKind}`}>
                   <label className="label" htmlFor={`ln-kind-${i}`}>종류</label>
                   <select
                     id={`ln-kind-${i}`}
@@ -467,7 +476,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
 
                 {/* 공수 줄에서만 «누가» 를 묻는다 — 다른 종류에는 뜻이 없다 */}
                 {line.kind === 'EFFORT' && (
-                  <div className={styles.field}>
+                  <div className={`${styles.field} ${styles.colRole}`}>
                     <label className="label" htmlFor={`ln-role-${i}`}>역할</label>
                     <input
                       id={`ln-role-${i}`}
@@ -483,7 +492,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   </div>
                 )}
 
-                <div className={styles.field}>
+                <div className={`${styles.field} ${styles.colName}`}>
                   <label className="label" htmlFor={`ln-name-${i}`}>{QUOTE.lineName}</label>
                   {/*
                     카탈로그에서 고른다 — 늘어나는 목록이라 검색 모달이 표준이다.
@@ -502,7 +511,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     placeholder="예: H100 80GB SXM"
                   />
                 </div>
-                <div className={styles.field}>
+                <div className={`${styles.field} ${styles.colSpec}`}>
                   {/*
                     규격·설명 — 견적서에서 품목 이름 아래 작게 인쇄된다.
                     DB 에는 자리가 있었는데 폼에 칸이 없어 **아무도 못 채웠다**.
@@ -518,7 +527,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     placeholder="예: SXM5 · 3년 무상보증"
                   />
                 </div>
-                <div className={styles.field}>
+                <div className={`${styles.field} ${styles.colQty}`}>
                   <label className="label" htmlFor={`ln-qty-${i}`}>{LINE_KIND_QUANTITY_LABEL[line.kind ?? 'QUANTITY']}</label>
                   <input
                     id={`ln-qty-${i}`}
@@ -529,7 +538,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     onChange={(e) => setLine(i, { quantity: e.target.value })}
                   />
                 </div>
-                <div className={styles.field}>
+                <div className={`${styles.field} ${styles.colUnit}`}>
                   <label className="label" htmlFor={`ln-unit-${i}`}>{QUOTE.lineUnit}</label>
                   <input
                     id={`ln-unit-${i}`}
@@ -540,7 +549,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     placeholder="개월"
                   />
                 </div>
-                <div className={styles.field}>
+                <div className={`${styles.field} ${styles.colPrice}`}>
                   <label className="label" htmlFor={`ln-price-${i}`}>{LINE_KIND_PRICE_LABEL[line.kind ?? 'QUANTITY']}</label>
                   <input
                     id={`ln-price-${i}`}
@@ -552,7 +561,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     placeholder="0"
                   />
                 </div>
-                <div className={styles.field}>
+                <div className={`${styles.field} ${styles.colDisc}`}>
                   <label className="label" htmlFor={`ln-disc-${i}`}>{QUOTE.lineDiscount} %</label>
                   <input
                     id={`ln-disc-${i}`}
@@ -563,7 +572,24 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     onChange={(e) => setLine(i, { discountPercent: e.target.value })}
                   />
                 </div>
-                <div className={styles.field}>
+                {/*
+                  **특별 할인** — 「기본 30% 인데 이번 건은 80%」를 적는 자리.
+                  비워 두면 기본 할인만 적용된다. 넣으면 **그 값이 적용 할인율**이고
+                  기본 할인은 견적서에서 「원래는 …」의 근거가 된다(곱하지 않는다).
+                */}
+                <div className={`${styles.field} ${styles.colSpecial}`}>
+                  <label className="label" htmlFor={`ln-sdisc-${i}`}>{QUOTE.lineSpecialDiscount} %</label>
+                  <input
+                    id={`ln-sdisc-${i}`}
+                    className="input-field"
+                    inputMode="decimal"
+                    value={line.specialDiscountPercent ?? ''}
+                    disabled={linesLocked}
+                    placeholder="없음"
+                    onChange={(e) => setLine(i, { specialDiscountPercent: e.target.value })}
+                  />
+                </div>
+                <div className={`${styles.field} ${styles.colTax}`}>
                   <label className="label" htmlFor={`ln-tax-${i}`}>{QUOTE.tax} %</label>
                   <input
                     id={`ln-tax-${i}`}
@@ -574,7 +600,16 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     onChange={(e) => setLine(i, { taxRate: e.target.value })}
                   />
                 </div>
-                <div>
+                <div className={styles.colTotal}>
+                  {/* 특별가라면 «원래 얼마였는지»를 함께 보여 준다 — 그게 이 기능의 목적이다 */}
+                  {amounts.isSpecial && amounts.baseLineTotalMinor !== amounts.lineTotalMinor && (
+                    <>
+                      <span className={styles.lineWas}>
+                        {formatAmount(amounts.baseLineTotalMinor.toString(), draft.currency)}
+                      </span>
+                      <span className={styles.lineArrow} aria-hidden>→</span>
+                    </>
+                  )}
                   <div className={styles.lineTotal}>
                     {formatAmount(amounts.lineTotalMinor.toString(), draft.currency)}
                   </div>

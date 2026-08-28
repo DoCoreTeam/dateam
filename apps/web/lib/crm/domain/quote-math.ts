@@ -20,8 +20,20 @@ export type Numeric = number | string
 export interface QuoteLineInput {
   quantity: Numeric
   unitPriceMinor: bigint | number | string
-  /** 항목 할인율(%) 0~100 */
+  /** 기본(통상) 할인율(%) 0~100 — 등급·정책에서 오는, 늘 들어가는 그 할인 */
   discountPercent?: Numeric
+  /**
+   * 특별 할인율(%) 0~100. **없으면 null·undefined** 다 — 0 은 「0% 할인」이라는 뜻이라 다르다.
+   *
+   * **기본 할인 위에 겹쳐 적용된다**(사용자 지시: 「기본 할인과 특별할인이 다 붙어야지」).
+   * 순서는 기본 → 특별이고, 특별은 **기본을 적용하고 남은 금액**에 걸린다.
+   *
+   *   1억 → 기본 30% → 7,000만 → 특별 80% → 1,400만
+   *
+   * 더하지 않는 이유: 30+80 = 110% 라 금액이 음수가 된다.
+   * 대체하지 않는 이유: 기본 할인은 «늘 들어가는 것»이라 특별가를 준다고 사라지지 않는다.
+   */
+  specialDiscountPercent?: Numeric | null
   /** 부가세율(%) 0~100 */
   taxRate?: Numeric
 }
@@ -31,6 +43,15 @@ export interface QuoteLineAmounts {
   grossMinor: bigint
   /** 할인액 */
   discountMinor: bigint
+  /**
+   * 정가 대비 **실효 할인율(%)** — 기본과 특별이 겹친 결과다.
+   * 기본 30% + 특별 80% 면 86% 다(1 − 0.7×0.2). 소수 둘째 자리까지.
+   */
+  appliedDiscountPct: number
+  /** 특별 할인이 적용됐나 — 화면·문서가 「원래는 …」을 말할지 정하는 근거 */
+  isSpecial: boolean
+  /** 기본 할인만 적용했다면 얼마였을지 — 「이만큼 더 깎아 드립니다」의 근거 */
+  baseLineTotalMinor: bigint
   /** 할인 후 금액 — 이것이 그 줄의 합계다(세금 제외) */
   lineTotalMinor: bigint
   /** 그 줄의 세액 */
@@ -70,12 +91,35 @@ export function computeLine(line: QuoteLineInput): QuoteLineAmounts {
   const unit = toMinor(line.unitPriceMinor)
 
   const gross = mulQty(unit, qty)
-  const discount = pctOfMinor(gross, pct(line.discountPercent))
 
-  const lineTotal = gross - discount
+  /*
+    **두 할인이 겹친다.** 기본을 먼저 적용하고, 특별은 그 남은 금액에 건다.
+    금액을 두 번 깎지 않고 «남은 금액»에 한 번 더 거는 이유: 반올림이 두 번 일어나면
+    합계가 1원씩 어긋난다. 그래서 **최종 금액을 먼저 구하고 할인액은 그 차이**로 낸다.
+  */
+  const basePct = pct(line.discountPercent)
+  const isSpecial = line.specialDiscountPercent !== undefined && line.specialDiscountPercent !== null
+    && String(line.specialDiscountPercent).trim() !== ''
+  const specialPct = isSpecial ? pct(line.specialDiscountPercent) : 0
+
+  const afterBase = gross - pctOfMinor(gross, basePct)
+  const lineTotal = isSpecial ? afterBase - pctOfMinor(afterBase, specialPct) : afterBase
+  const discount = gross - lineTotal
+  // 정가 대비 실효 할인율 — 화면·문서가 「몇 % 깎였나」를 말할 때 쓰는 숫자
+  const appliedPct = gross === BigInt(0)
+    ? 0
+    : Math.round(Number(discount) / Number(gross) * 10000) / 100
   const tax = pctOfMinor(lineTotal, pct(line.taxRate))
 
-  return { grossMinor: gross, discountMinor: discount, lineTotalMinor: lineTotal, taxMinor: tax }
+  return {
+    grossMinor: gross,
+    discountMinor: discount,
+    lineTotalMinor: lineTotal,
+    taxMinor: tax,
+    appliedDiscountPct: appliedPct,
+    isSpecial,
+    baseLineTotalMinor: afterBase,
+  }
 }
 
 /**
