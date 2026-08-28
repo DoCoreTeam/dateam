@@ -16,7 +16,7 @@
  * 어긋나면 어느 쪽이 맞는지 아무도 모른다.
  */
 
-import { computeTax, type TaxAmounts, type TaxBasis } from './money.ts'
+import { computeTax, toMinor, ratioPct, type TaxAmounts, type TaxBasis } from './money.ts'
 
 /** 재원 네 갈래. 국가 과제에서만 쓰인다 */
 export type FundingSourceType = 'NATIONAL' | 'LOCAL' | 'OWN_CASH' | 'IN_KIND'
@@ -76,33 +76,26 @@ export interface BookedAmounts {
   inKindRatioPct: number | null
 }
 
-function big(v: bigint | number | string | null | undefined): bigint {
-  if (v === null || v === undefined || v === '') return BigInt(0)
-  if (typeof v === 'bigint') return v
-  const n = typeof v === 'number' ? v : Number(v)
-  return Number.isFinite(n) ? BigInt(Math.round(n)) : BigInt(0)
-}
-
 /**
  * 세 숫자를 한 번에 낸다. 화면도 서버도 이 함수만 부른다 —
  * **화면이 뺄셈을 하지 않는다.**
  */
 export function computeBooked(input: BookedInput): BookedAmounts {
-  const booked = big(input.amountMinor)
+  const booked = toMinor(input.amountMinor)
   const basis: TaxBasis = input.taxBasis ?? 'NET'
   const tax = computeTax({ amountMinor: booked, taxBasis: basis, taxRatePct: input.taxRatePct })
 
   const inKindList = input.inKind ?? []
-  const inKindMinor = inKindList.reduce<bigint>((a, x) => a + big(x.valueMinor), BigInt(0))
+  const inKindMinor = inKindList.reduce<bigint>((a, x) => a + toMinor(x.valueMinor), BigInt(0))
   const hasInKind = inKindMinor > BigInt(0)
 
   const funding = input.funding ?? []
   const hasFunding = funding.length > 0
   const accountingRevenueMinor = hasFunding
-    ? funding.reduce<bigint>((a, f) => (countsAsAccountingRevenue(f.sourceType) ? a + big(f.amountMinor) : a), BigInt(0))
+    ? funding.reduce<bigint>((a, f) => (countsAsAccountingRevenue(f.sourceType) ? a + toMinor(f.amountMinor) : a), BigInt(0))
     : null
   const cashInflowMinor = hasFunding
-    ? funding.reduce<bigint>((a, f) => (isCashInflow(f.sourceType) ? a + big(f.amountMinor) : a), BigInt(0))
+    ? funding.reduce<bigint>((a, f) => (isCashInflow(f.sourceType) ? a + toMinor(f.amountMinor) : a), BigInt(0))
     : null
 
   return {
@@ -113,9 +106,7 @@ export function computeBooked(input: BookedInput): BookedAmounts {
     accountingRevenueMinor,
     cashInflowMinor,
     hasInKind,
-    inKindRatioPct: hasInKind && booked > BigInt(0)
-      ? Math.round((Number(inKindMinor) / Number(booked)) * 1000) / 10
-      : null,
+    inKindRatioPct: hasInKind ? ratioPct(inKindMinor, booked) : null,
   }
 }
 
@@ -127,7 +118,7 @@ export function computeBooked(input: BookedInput): BookedAmounts {
  * 어긋나면 **명세를 믿는다**(무엇을 뺐는지가 남는 쪽이 진실이다).
  */
 export function inKindFromFunding(funding: readonly FundingSourceInput[]): bigint {
-  return funding.reduce<bigint>((a, f) => (f.sourceType === 'IN_KIND' ? a + big(f.amountMinor) : a), BigInt(0))
+  return funding.reduce<bigint>((a, f) => (f.sourceType === 'IN_KIND' ? a + toMinor(f.amountMinor) : a), BigInt(0))
 }
 
 export type BookedFrom = 'contract' | 'quote' | 'budget' | 'legacy' | 'none'
@@ -147,13 +138,13 @@ export function pickBooked(d: {
   /** 이관 중인 옛 칸 — 새 셋이 다 비었을 때만 본다 */
   amountMinor?: bigint | number | string | null
 }): { minor: bigint; from: BookedFrom } {
-  const c = big(d.contractNetMinor)
+  const c = toMinor(d.contractNetMinor)
   if (c > BigInt(0)) return { minor: c, from: 'contract' }
-  const q = big(d.quotedNetMinor)
+  const q = toMinor(d.quotedNetMinor)
   if (q > BigInt(0)) return { minor: q, from: 'quote' }
-  const b = big(d.budgetNetMinor)
+  const b = toMinor(d.budgetNetMinor)
   if (b > BigInt(0)) return { minor: b, from: 'budget' }
-  const a = big(d.amountMinor)
+  const a = toMinor(d.amountMinor)
   if (a > BigInt(0)) return { minor: a, from: 'legacy' }
   return { minor: BigInt(0), from: 'none' }
 }

@@ -20,6 +20,8 @@ import { MIN_SAMPLE } from './velocity.ts'
 import { pickBooked } from '../domain/booked-amount.ts'
 
 /** 통화별 금액 — 섞어서 더하지 않는다(리포트와 같은 규칙) */
+import { pctOfMinor } from '../domain/money.ts'
+
 export interface CurrencySum {
   currency: string
   totalMinor: string
@@ -95,9 +97,8 @@ function mergeSums(list: CurrencySum[][]): CurrencySum[] {
  */
 function weigh(sums: CurrencySum[], rate: number): CurrencySum[] {
   return sums.map((s) => {
-    // BigInt 에는 소수가 없다. 1만분율로 올렸다 내려 정밀도를 지킨다
-    const bp = BigInt(Math.round(rate * 10_000))
-    return { currency: s.currency, totalMinor: ((BigInt(s.totalMinor) * bp) / BigInt(10_000)).toString() }
+    // 내림은 pctOfMinor 의 'floor' 가 맡는다 — 규칙을 여기 다시 쓰지 않는다
+    return { currency: s.currency, totalMinor: pctOfMinor(BigInt(s.totalMinor), rate * 100, 'floor').toString() }
   })
 }
 

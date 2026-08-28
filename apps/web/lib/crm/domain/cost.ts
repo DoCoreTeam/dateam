@@ -11,7 +11,7 @@
  * `quote-math.ts` 와 같은 규약: BigInt 정수 · 순수 함수 · 화면도 서버도 이것만 부른다.
  */
 
-import { divRound } from './money.ts'
+import { divRound, toMinor, toNum, pctOfMinor } from './money.ts'
 import { costGroupOf, type CostCategory, type CostGroup, type CostInputMode, type CostStage } from '../../terms/cost.ts'
 
 /** 소수 두 자리까지 받는 공수를 정수 배수로 — 부동소수를 금액 계산에 들이지 않는다 */
@@ -31,19 +31,6 @@ export interface CostInput {
   ratioBase?: 'REVENUE' | 'COST' | null
 }
 
-function big(v: bigint | string | number | null | undefined): bigint {
-  if (v === null || v === undefined || v === '') return BigInt(0)
-  if (typeof v === 'bigint') return v
-  const n = typeof v === 'number' ? v : Number(v)
-  return Number.isFinite(n) ? BigInt(Math.round(n)) : BigInt(0)
-}
-
-function num(v: number | string | null | undefined): number {
-  if (v === null || v === undefined || v === '') return 0
-  const n = typeof v === 'number' ? v : Number(v)
-  return Number.isFinite(n) ? n : 0
-}
-
 /**
  * 한 항목의 금액.
  *
@@ -56,20 +43,18 @@ export function computeCostAmount(
 ): bigint {
   if (input.inputMode === 'EFFORT') {
     // 공수 × 등급 단가. 공수는 소수 둘까지라 정수로 올려 곱하고 마지막에 내린다
-    const mm = BigInt(Math.round(num(input.effortMm) * MM_SCALE))
-    const unit = big(input.gradeCostPerMmMinor)
+    const mm = BigInt(Math.round(toNum(input.effortMm) * MM_SCALE)) // minor-ok — 금액이 아니라 «공수»를 소수 둘까지 정수로 올린 값(0.25 M/M → 25)
+    const unit = toMinor(input.gradeCostPerMmMinor)
     return divRound(mm * unit, BigInt(MM_SCALE))
   }
 
   if (input.inputMode === 'RATIO') {
     if (!base) return BigInt(0)
-    const pct = num(input.ratioPct)
     const on = input.ratioBase === 'COST' ? base.costMinor : base.revenueMinor
-    // 소수 넷까지 받는 비율 — 10000 을 곱해 정수로 만든 뒤 나눈다
-    return divRound(on * BigInt(Math.round(pct * 10000)), BigInt(1_000_000))
+    return pctOfMinor(on, input.ratioPct)
   }
 
-  return big(input.amountMinor)
+  return toMinor(input.amountMinor)
 }
 
 export interface CostRow extends CostInput {

@@ -70,7 +70,7 @@ export function toAmountMinor(value: string | number | null): bigint | null {
   if (value === null || value === undefined || value === '') return null
   const n = Number(value)
   if (!Number.isFinite(n)) return null
-  return BigInt(Math.round(n))
+  return BigInt(Math.round(n)) // minor-ok — 이관은 «못 읽은 값»을 null 로 남긴다. toMinor 는 0 으로 삼켜 원본과 달라진다
 }
 
 /** 대응 필드가 없는 값들을 사람이 읽을 메모 한 덩어리로 만든다 (버리지 않는다) */

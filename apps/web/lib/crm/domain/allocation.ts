@@ -11,7 +11,7 @@
  * **1원도 잃지 않는다**: 월할로 나눈 뒤 잔차를 최대잔여법으로 배분한다(불변식 I7).
  */
 
-import { largestRemainder } from './money.ts'
+import { largestRemainder, toMinor} from './money.ts'
 
 export interface PeriodAllocation {
   year: number
@@ -112,7 +112,7 @@ export function sumByYear(items: readonly DatedAmount[]): {
   const acc = new Map<number, PeriodAllocation>()
   let undated = BigInt(0)
   for (const it of items) {
-    const amount = typeof it.amountMinor === 'bigint' ? it.amountMinor : BigInt(Math.round(Number(it.amountMinor) || 0))
+    const amount = toMinor(it.amountMinor)
     if (!it.startDate || !it.endDate) {
       undated += amount
       continue

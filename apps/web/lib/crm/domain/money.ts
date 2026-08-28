@@ -22,6 +22,79 @@ export type TaxBasis = 'NET' | 'GROSS'
 /** 세율 구분. 영세율과 면세는 세금계산서 종류가 다르므로 나눠 둔다 */
 export type TaxKind = 'TAXABLE' | 'ZERO_RATED' | 'EXEMPT'
 
+/**
+ * 무엇이 오든 **minor 단위 정수**로.
+ *
+ * **왜 여기 있나**: 이 함수가 `lib/crm/domain/cost.ts` 와 `booked-amount.ts` 에
+ * **글자까지 똑같이** 두 벌 있었다(각각 `big()`). 복붙된 변환은 언젠가 한쪽만 고쳐지고,
+ * 그날부터 원가 쪽 1원과 수주 쪽 1원이 달라진다 — 그건 결산 때나 발견된다.
+ *
+ * 규칙 셋:
+ *   · 빈 값·null·NaN 은 **0** 이다. 던지지 않는다 — 폼의 빈 칸이 계산을 멈추면 안 된다
+ *   · bigint 는 그대로 통과한다(이미 정수다)
+ *   · 소수는 **반올림**한다. 잘라 버리면 합계가 늘 작아진다
+ */
+export function toMinor(v: bigint | number | string | null | undefined): bigint {
+  if (v === null || v === undefined || v === '') return BigInt(0)
+  if (typeof v === 'bigint') return v
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? BigInt(Math.round(n)) : BigInt(0)
+}
+
+/** 숫자로. 빈 값·NaN 은 0 — `toMinor` 와 같은 규칙을 소수에도 적용한다 */
+export function toNum(v: number | string | null | undefined): number {
+  if (v === null || v === undefined || v === '') return 0
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+/**
+ * 「base 의 pct%」를 정수로.
+ *
+ * 소수 넷까지 받는다(0.0001% 단위). `pct` 를 그대로 곱하면 부동소수가 금액에 들어오므로
+ * **10,000 을 곱해 정수로 만든 뒤** 1,000,000 으로 나눈다(= ÷100 for %, ÷10,000 for 소수 넷).
+ */
+export function pctOfMinor(
+  base: bigint,
+  pct: number | string | null | undefined,
+  /**
+   * 기본은 반올림. **예상·전망은 `floor` 를 쓴다** — 넘겨 잡은 숫자로 사람을 뽑으면
+   * 그 차액은 사람의 월급이 된다(`forecast.ts` 가 그래서 내림이다).
+   */
+  mode: RoundMode = 'round',
+): bigint {
+  const p = toNum(pct)
+  if (p === 0 || base === BigInt(0)) return BigInt(0)
+  const num = base * BigInt(Math.round(p * 10_000))
+  const den = BigInt(1_000_000)
+  if (mode === 'floor') return divFloor(num, den)
+  if (mode === 'ceil') { const q = divFloor(num, den); return q * den === num ? q : q + BigInt(1) }
+  return divRound(num, den)
+}
+
+/**
+ * 「단가 × 수량」.
+ *
+ * 수량은 소수일 수 있다(0.5식 · 1.5개월 · 2.5 M/M). 그래서 곱한 뒤 **한 번** 반올림한다 —
+ * 단가를 먼저 반올림하면 그 오차가 수량만큼 증폭된다.
+ */
+export function mulQty(unitMinor: bigint, qty: number): bigint {
+  const q = toNum(qty)
+  if (q <= 0 || unitMinor === BigInt(0)) return BigInt(0)
+  return BigInt(Math.round(Number(unitMinor) * q))
+}
+
+/**
+ * 「part 가 whole 의 몇 %인가」 — 소수 한 자리.
+ *
+ * whole 이 0 이면 **null** 이다. 0% 가 아니라 «비율을 말할 수 없다»가 맞다 —
+ * 0% 로 두면 화면이 「현물 0%」라고 단정해 버린다.
+ */
+export function ratioPct(part: bigint, whole: bigint): number | null {
+  if (whole === BigInt(0)) return null
+  return Math.round((Number(part) / Number(whole)) * 1000) / 10
+}
+
 /** 퍼센트(10.00 같은 값)를 basis point 정수로. 소수 2자리까지 보존한다 */
 export function pctToBp(pct: number | string): bigint {
   const n = typeof pct === 'string' ? Number(pct) : pct

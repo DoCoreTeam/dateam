@@ -208,7 +208,7 @@ function toBig(v: bigint | number | string): bigint {
   const n = typeof v === 'number' ? v : Number(String(v).replace(/,/g, ''))
   if (!Number.isFinite(n)) throw new CrmError('VALIDATION_FAILED', '금액이 숫자가 아닙니다.')
   if (n < 0) throw new CrmError('VALIDATION_FAILED', '금액은 0보다 작을 수 없습니다.')
-  return BigInt(Math.round(n))
+  return BigInt(Math.round(n)) // minor-ok — 여기는 잘못된 입력에 «던져야» 한다. toMinor 는 0 으로 삼킨다
 }
 
 function toDate(v: string | Date | null | undefined): Date | null {

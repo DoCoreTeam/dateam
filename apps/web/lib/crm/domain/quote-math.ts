@@ -11,6 +11,8 @@
  * 비율(수량·할인율·세율)만 소수로 받아 **마지막에 한 번** 반올림한다.
  */
 
+import { toMinor, mulQty, pctOfMinor } from './money.ts'
+
 /** 소수를 다루는 값은 문자열·숫자로 섞여 들어온다(Prisma Decimal). 한 곳에서 받는다 */
 export type Numeric = number | string
 
@@ -49,13 +51,6 @@ function num(v: Numeric | bigint | undefined | null, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback
 }
 
-function big(v: bigint | number | string | undefined | null): bigint {
-  if (typeof v === 'bigint') return v
-  const n = num(v as Numeric)
-  // 소수가 섞여 들어와도 minor 단위는 정수다 — 반올림해서 받는다
-  return BigInt(Math.round(n))
-}
-
 /** 0~100 으로 접는다. 범위 밖 값이 계산에 흘러들면 음수 금액이 나온다 */
 function pct(v: Numeric | undefined | null): number {
   const n = num(v, 0)
@@ -72,17 +67,13 @@ function pct(v: Numeric | undefined | null): number {
  */
 export function computeLine(line: QuoteLineInput): QuoteLineAmounts {
   const qty = Math.max(0, num(line.quantity, 0))
-  const unit = big(line.unitPriceMinor)
+  const unit = toMinor(line.unitPriceMinor)
 
-  // 수량은 소수(0.5식·1.5개월)일 수 있으므로 여기서 한 번 반올림한다
-  const gross = BigInt(Math.round(Number(unit) * qty))
-
-  const discountRate = pct(line.discountPercent)
-  const discount = BigInt(Math.round(Number(gross) * (discountRate / 100)))
+  const gross = mulQty(unit, qty)
+  const discount = pctOfMinor(gross, pct(line.discountPercent))
 
   const lineTotal = gross - discount
-  const taxRate = pct(line.taxRate)
-  const tax = BigInt(Math.round(Number(lineTotal) * (taxRate / 100)))
+  const tax = pctOfMinor(lineTotal, pct(line.taxRate))
 
   return { grossMinor: gross, discountMinor: discount, lineTotalMinor: lineTotal, taxMinor: tax }
 }

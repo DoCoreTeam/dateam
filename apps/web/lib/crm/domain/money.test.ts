@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   computeTax, canUseGrossBasis, largestRemainder, roundToUnit,
-  divRound, divFloor, pctToBp, formatMinor, formatMinorShort,
+  divRound, divFloor, pctToBp, formatMinor, formatMinorShort, toMinor, pctOfMinor, ratioPct
 } from './money.ts'
 
 // ── 부가세 ─────────────────────────────────────────────────────────
@@ -159,4 +159,40 @@ test('formatMinorShort — 폰에서 자릿수 열 개를 읽게 하지 않는�
   assert.equal(formatMinorShort(24_260_000n), '2426만')
   assert.equal(formatMinorShort(5_200n), '5,200')
   assert.equal(formatMinorShort(-1_300_000_000n), '-13억')
+})
+
+// ── 변환 SSOT (v0.7.641) ────────────────────────────────
+// 이 셋이 없던 시절 `big()` 이 cost.ts 와 booked-amount.ts 에 글자까지 똑같이 두 벌 있었다.
+
+test('toMinor — 빈 값은 0이다. 던지면 폼의 빈 칸이 계산을 멈춘다', () => {
+  assert.equal(toMinor(null), BigInt(0))
+  assert.equal(toMinor(undefined), BigInt(0))
+  assert.equal(toMinor(''), BigInt(0))
+  assert.equal(toMinor('쓰레기'), BigInt(0))
+  assert.equal(toMinor(NaN), BigInt(0))
+})
+
+test('toMinor — bigint 는 그대로, 소수는 반올림한다', () => {
+  assert.equal(toMinor(BigInt(12345)), BigInt(12345))
+  assert.equal(toMinor(100.4), BigInt(100))
+  assert.equal(toMinor(100.5), BigInt(101))
+  assert.equal(toMinor('250'), BigInt(250))
+  // 잘라 버리면 합계가 늘 작아진다
+  assert.equal(toMinor(0.9), BigInt(1))
+})
+
+test('pctOfMinor — 소수 넷까지 정확하다', () => {
+  assert.equal(pctOfMinor(BigInt(1_000_000), 10), BigInt(100_000))
+  assert.equal(pctOfMinor(BigInt(1_000_000), 12.5), BigInt(125_000))
+  assert.equal(pctOfMinor(BigInt(1_000_000), 0.0001), BigInt(1))
+  assert.equal(pctOfMinor(BigInt(1_000_000), 0), BigInt(0))
+  assert.equal(pctOfMinor(BigInt(0), 50), BigInt(0))
+  assert.equal(pctOfMinor(BigInt(1_000_000), null), BigInt(0))
+})
+
+test('ratioPct — 분모가 0이면 «모른다»(null). 0% 라고 단정하지 않는다', () => {
+  assert.equal(ratioPct(BigInt(300), BigInt(1000)), 30)
+  assert.equal(ratioPct(BigInt(1), BigInt(3)), 33.3)
+  assert.equal(ratioPct(BigInt(0), BigInt(1000)), 0)
+  assert.equal(ratioPct(BigInt(500), BigInt(0)), null, '0으로 나눈 결과를 0% 라 부르면 화면이 거짓말한다')
 })

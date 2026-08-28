@@ -57,7 +57,7 @@ export function convertMinor(
   const fromScale = 10 ** minorDigits(from)
   const toScale = 10 ** minorDigits(target)
   const major = Number(money.amountMinor) / fromScale
-  return BigInt(Math.round(major * rate * toScale))
+  return BigInt(Math.round(major * rate * toScale)) // minor-ok — 통화 자릿수가 달라(KRW 0 ↔ USD 2) toMinor 로는 스케일을 못 바꾼다
 }
 
 /** 직접 환율 → 역방향 환율 순으로 찾는다. 삼각 환산은 하지 않는다(오차가 조용히 쌓인다). */
