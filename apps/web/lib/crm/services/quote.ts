@@ -38,6 +38,7 @@ import {
   type QuoteLineInput,
 } from '../domain/quote-math.ts'
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
+import { LINE_KIND_ORDER, type QuoteLineKind } from '../../terms/cost.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
 import { readQuoteNoPattern } from './setting.ts'
 
@@ -208,9 +209,24 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
 
   const amounts = computeLine({ quantity, unitPriceMinor, discountPercent, taxRate })
 
+  /*
+    **줄의 종류.** 「수량 × 단가」가 뜻하는 것을 정한다 — 「M/M」인지 「대」인지 「개월」인지.
+    모르는 값이 오면 거절한다: 조용히 QUANTITY 로 눕히면 M/M 줄이 「수량」으로 저장되고,
+    그때부터 화면 라벨이 실제와 다른 말을 한다.
+  */
+  const kind = line.kind === undefined || line.kind === null || line.kind === ''
+    ? 'QUANTITY'
+    : line.kind
+  if (!LINE_KIND_ORDER.includes(kind as QuoteLineKind)) {
+    throw new CrmError('VALIDATION_FAILED', `모르는 항목 종류입니다: ${kind}`, { field: 'kind' })
+  }
+
   return {
     productId: line.productId || null,
     name,
+    kind,
+    roleLabel: normalizeText(line.roleLabel),
+    laborGradeId: line.laborGradeId || null,
     descriptionMd: normalizeText(line.descriptionMd),
     quantity,
     unit: normalizeText(line.unit),

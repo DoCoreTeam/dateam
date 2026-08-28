@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.648',
+    date: '2026-08-28',
+    title: '견적 항목이 무엇인지 골라요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🧩',
+        headline: '항목 종류를 고르면 칸 이름이 따라 바뀌어요',
+        detail: '수량·공수·기간요금·사용량·라이선스·비율 중에서 고르면 「수량」이 「M/M」이나 「개월」로 바뀝니다. 공수 항목에는 역할 칸이 생겨요. 무엇을 넣어야 할지 헷갈릴 일이 없습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.647',
     date: '2026-08-28',
     title: '남는 장사인지 딜에서 바로 보여요',

@@ -217,3 +217,11 @@
   color: var(--text);
   font-size: var(--fs-sm);
 }
+
+/* 줄 종류 안내 — 「M/M」인지 「대」인지가 정해져야 사람이 무엇을 넣을지 안다 */
+.kindHint {
+  margin: 2px 0 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  line-height: 1.4;
+}

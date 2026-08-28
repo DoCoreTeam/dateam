@@ -20,6 +20,11 @@ import RecordPickerField, { type RecordOption, type RecordSearch } from '@/compo
 import { computeLine, computeTotals, needsApproval, DEFAULT_DISCOUNT_APPROVAL_PCT } from '@/lib/crm/domain/quote-math'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
+  LINE_KIND_LABEL, LINE_KIND_ORDER, LINE_KIND_QUANTITY_LABEL,
+  LINE_KIND_PRICE_LABEL, LINE_KIND_UNIT, LINE_KIND_HINT,
+  type QuoteLineKind,
+} from '@/lib/terms/cost'
+import {
   ACTION,
   progress,
   QUOTE,
@@ -36,6 +41,16 @@ export interface QuoteLineDraft {
   name: string
   /** 규격·설명 — 견적서에 품목 아래 작게 인쇄된다 */
   descriptionMd: string
+  /**
+   * 줄의 **종류** — 「수량 × 단가」가 뜻하는 것을 정한다.
+   *
+   * 같은 표에 「H100 2대」와 「PM 3 M/M」과 「유지보수 12개월」이 함께 서는데,
+   * 라벨이 전부 「수량·단가」면 사람이 잘못 넣는다 — 실제로 M/M 을 「수량」 칸에 넣고
+   * 단가를 월 단가로 적어 12배 틀린 견적이 나가는 사고가 이 업계의 고전이다.
+   */
+  kind: QuoteLineKind
+  /** 공수 줄에서 «누가» — 「백엔드 개발자」 */
+  roleLabel?: string
   quantity: string
   unit: string
   unitPriceMinor: string
@@ -84,7 +99,10 @@ function toOption(p: ProductJson): RecordOption {
 }
 
 function emptyLine(): QuoteLineDraft {
-  return { productId: null, name: '', descriptionMd: '', quantity: '1', unit: '', unitPriceMinor: '', discountPercent: '0', taxRate: '10' }
+  return {
+    productId: null, name: '', descriptionMd: '', kind: 'QUANTITY',
+    quantity: '1', unit: LINE_KIND_UNIT.QUANTITY, unitPriceMinor: '', discountPercent: '0', taxRate: '10',
+  }
 }
 
 export function newQuoteDraft(dealName: string, currency: string | null, validDays = 30): QuoteDraft {
@@ -125,6 +143,8 @@ export function quoteToDraft(body: any): QuoteDraft {
       // 카탈로그 연결을 들고 가지 않으면 저장하는 순간 손으로 친 이름으로 되돌아간다
       productId: l.productId ?? null,
       name: l.name,
+      kind: (l.kind ?? 'QUANTITY') as QuoteLineKind,
+      roleLabel: l.roleLabel ?? '',
       descriptionMd: l.descriptionMd ?? '',
       quantity: String(l.quantity),
       unit: l.unit ?? '',
@@ -257,6 +277,8 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         unitPriceMinor: l.unitPriceMinor || '0',
         discountPercent: l.discountPercent || '0',
         taxRate: l.taxRate || '10',
+        kind: l.kind ?? 'QUANTITY',
+        roleLabel: (l.roleLabel ?? '').trim() || null,
       }))
 
     if (!draft.title.trim()) { setError('견적 제목을 입력해 주세요.'); return }
@@ -379,6 +401,53 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             })
             return (
               <div className={styles.line} key={line.id ?? `new-${i}`}>
+                {/*
+                  **종류가 먼저다.** 이것이 아래 「수량」·「단가」 라벨을 바꾼다 —
+                  「M/M」인지 「대」인지가 정해져야 사람이 무엇을 넣을지 안다.
+                */}
+                <div className={styles.field}>
+                  <label className="label" htmlFor={`ln-kind-${i}`}>종류</label>
+                  <select
+                    id={`ln-kind-${i}`}
+                    className="input-field"
+                    value={line.kind ?? 'QUANTITY'}
+                    disabled={linesLocked}
+                    onChange={(e) => {
+                      const kind = e.target.value as QuoteLineKind
+                      setDraft((d) => ({
+                        ...d,
+                        lines: d.lines.map((l, j) => (j === i
+                          // 단위는 종류가 정하는 기본값으로 —— 사람이 고쳤으면 그대로 둔다
+                          ? { ...l, kind, unit: l.unit && l.unit !== LINE_KIND_UNIT[l.kind ?? 'QUANTITY'] ? l.unit : LINE_KIND_UNIT[kind] }
+                          : l)),
+                      }))
+                    }}
+                  >
+                    {LINE_KIND_ORDER.map((k) => (
+                      <option key={k} value={k}>{LINE_KIND_LABEL[k]}</option>
+                    ))}
+                  </select>
+                  <p className={styles.kindHint}>{LINE_KIND_HINT[line.kind ?? 'QUANTITY']}</p>
+                </div>
+
+                {/* 공수 줄에서만 «누가» 를 묻는다 — 다른 종류에는 뜻이 없다 */}
+                {line.kind === 'EFFORT' && (
+                  <div className={styles.field}>
+                    <label className="label" htmlFor={`ln-role-${i}`}>역할</label>
+                    <input
+                      id={`ln-role-${i}`}
+                      className="input-field"
+                      value={line.roleLabel ?? ''}
+                      disabled={linesLocked}
+                      placeholder="예: 백엔드 개발자"
+                      onChange={(e) => setDraft((d) => ({
+                        ...d,
+                        lines: d.lines.map((l, j) => (j === i ? { ...l, roleLabel: e.target.value } : l)),
+                      }))}
+                    />
+                  </div>
+                )}
+
                 <div className={styles.field}>
                   <label className="label" htmlFor={`ln-name-${i}`}>{QUOTE.lineName}</label>
                   {/*
@@ -415,7 +484,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={styles.field}>
-                  <label className="label" htmlFor={`ln-qty-${i}`}>{QUOTE.lineQuantity}</label>
+                  <label className="label" htmlFor={`ln-qty-${i}`}>{LINE_KIND_QUANTITY_LABEL[line.kind ?? 'QUANTITY']}</label>
                   <input
                     id={`ln-qty-${i}`}
                     className="input-field"
@@ -437,7 +506,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={styles.field}>
-                  <label className="label" htmlFor={`ln-price-${i}`}>{QUOTE.lineUnitPrice}</label>
+                  <label className="label" htmlFor={`ln-price-${i}`}>{LINE_KIND_PRICE_LABEL[line.kind ?? 'QUANTITY']}</label>
                   <input
                     id={`ln-price-${i}`}
                     className="input-field"
