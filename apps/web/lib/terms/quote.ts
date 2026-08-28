@@ -68,14 +68,35 @@ export const QUOTE = {
 
   // ── 편집 화면 ────────────────────────────────
   title: '제목',
+  /**
+   * 문서에 찍히는 이름. 편집 화면의 「제목」과 **같은 값이지만 다른 말**이다 —
+   * 견적서·계약서에서는 「건명」이라고 부른다(~~「제목」~~ 은 우리끼리 쓰는 말).
+   */
+  subject: '건명',
   lines: '항목',
   addLine: '항목 추가',
   removeLine: '항목 삭제',
   /** 우리만 보는 메모 — 인쇄되지 않는다 */
   internalMemo: '내부 메모',
   preview: '미리보기',
-  print: '인쇄',
-  exportCsv: '엑셀로 내려받기',
+  /**
+   * 인쇄 대화상자를 연다. 거기서 「PDF 로 저장」을 고를 수 있는데,
+   * 버튼이 「인쇄」라고만 하면 사용자는 **PDF 가 되는 줄 모른다** —
+   * 실제로 견적서를 보낼 때 오가는 형식은 PDF 다.
+   */
+  print: '인쇄 · PDF 저장',
+  exportXlsx: '엑셀로 내려받기',
+  /** 로고 */
+  logo: '로고',
+  /**
+   * 날인 자리. 이미지를 찍는 대신 **문구로 대체**한다.
+   *
+   * **왜 이미지가 아닌가**: 직인 이미지를 파일에 박아 보내면 그 파일을 받은 누구나
+   * 도장을 오려내 다른 문서에 붙일 수 있다 — 견적서는 메일로 다시 전달되고 출력된다.
+   * 그래서 실무에서는 전자 발송 문서에 「(직인생략)」이라고 적는 것이 관례이고,
+   * 이 표기 자체가 «원본에는 날인이 있다»는 뜻으로 통용된다.
+   */
+  sealOmitted: '(직인생략)',
 
   // ── 상태·안내 ────────────────────────────────
   supplierMissing: '공급자 정보가 아직 없어요',
@@ -107,6 +128,10 @@ export const SUPPLIER_SETUP_HINT =
 /** 내보낸 파일에 원가가 없다는 사실을 **미리** 알린다 */
 export const EXPORT_SAFE_NOTE =
   '고객에게 나가는 파일이라 원가·마진은 담기지 않습니다.'
+
+/** 인쇄 버튼 옆 — 무엇이 되는지 미리 말한다 */
+export const PRINT_HINT =
+  '인쇄 창에서 「PDF 로 저장」을 고르면 그대로 PDF 가 됩니다.'
 
 /**
  * 금액이 어긋나 내보낼 수 없을 때 — **막힌 이유 옆에** 둔다.
@@ -213,6 +238,19 @@ export const SUPPLIER_SETTING_KEY: Record<SupplierField, string> = {
   contact: 'quote.supplier.contact',
   terms: 'quote.supplier.terms',
 }
+
+/**
+ * 견적서에 찍히는 **이미지** 설정 키.
+ *
+ * `SupplierField` 와 분리한 이유: 로고는 문서의 «항목»이 아니라 그림이다.
+ * 순서·라벨 표에 섞으면 「상호 · 사업자등록번호 · … · 로고」처럼 인쇄된다.
+ * 키를 리터럴로 두는 이유는 위와 같다 — 배선 가드가 정적으로 찾을 수 있어야 한다.
+ *
+ * **직인은 여기 없다.** 이미지로 찍지 않고 `QUOTE.sealOmitted` 문구로 대체한다.
+ */
+export const SUPPLIER_IMAGE_KEY = {
+  logo: 'quote.supplier.logo',
+} as const
 
 /** 문서에 찍히는 순서 — 세금계산서와 같은 순서다(사람이 눈으로 대조한다) */
 export const SUPPLIER_ORDER: readonly SupplierField[] = [

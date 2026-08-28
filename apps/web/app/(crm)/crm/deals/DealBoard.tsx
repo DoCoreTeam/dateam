@@ -15,6 +15,7 @@
 //   화면이 먼저 물어보지 않으면 사용자는 서버 오류를 보고서야 무엇이 필요한지 안다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
 import { AlertTriangle, Clock, CheckCircle2, X } from 'lucide-react'
@@ -114,11 +115,11 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
       ])
       const openBody = await openRes.json()
       const allBody = await closedRes.json()
-      if (!openRes.ok) { setError(openBody?.error?.message ?? '딜을 불러오지 못했습니다.'); return }
+      if (!openRes.ok) { setError(readApiError(openBody, '딜을 불러오지 못했습니다.')); return }
       const all: BoardDeal[] = allRows(allBody, openBody)
       setDeals(all)
     } catch {
-      setError('딜을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      setError(describeFetchFailure('딜'))
     } finally {
       setLoading(false)
     }

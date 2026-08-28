@@ -1,20 +1,24 @@
-// GET /api/crm/quotes/[id]/document        — 표준 견적서 문서(JSON)
-// GET /api/crm/quotes/[id]/document?format=csv — 같은 문서를 CSV 파일로
+// GET /api/crm/quotes/[id]/document         — 표준 견적서 문서(JSON)
+// GET /api/crm/quotes/[id]/document?format=xlsx — 같은 문서를 엑셀 파일로
 //
 // **화면·인쇄·엑셀이 같은 경로를 쓴다.** 내보내기를 따로 만들면
 // 「화면에는 있는데 파일에는 없는」 항목이 생기고, 그걸 발견하는 것은 고객이다.
+//
+// **CSV 는 없앴다.** 견적서는 고객이 읽고 결재하는 문서인데 CSV 엔 서식이 없어
+// 배치·금액 정렬·한글 금액이 전부 사라진다(사용자 지적: 「csv 쓰는 회사 없어」).
 import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { resolveCrmAccess } from '@/lib/crm/auth/requireCrmMember'
 import { getCrmDb } from '@/lib/crm/db/client'
-import { getQuoteDocument, quoteDocumentToCsv } from '@/lib/crm/services/quote-document'
+import { getQuoteDocument } from '@/lib/crm/services/quote-document'
+import { quoteDocumentToXlsx } from '@/lib/crm/services/quote-xlsx'
 
 type Ctx = { params: { id: string } }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   const format = new URL(req.url).searchParams.get('format')
 
-  if (format !== 'csv') {
+  if (format !== 'xlsx') {
     return withCrmApi('READONLY', async ({ db }) => getQuoteDocument(db, params.id))
   }
 
@@ -25,7 +29,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   }
 
   const db = getCrmDb(access.session.workspaceId)
-  const { document, violations } = await getQuoteDocument(db, params.id)
+  const { document, violations, images } = await getQuoteDocument(db, params.id)
 
   // **어긋난 문서는 파일로 내보내지 않는다.** 화면은 경고를 띄우고 지나칠 수 있지만,
   // 파일은 그대로 고객에게 전달된다 — 되돌릴 방법이 없다.
@@ -35,12 +39,13 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     }, { status: 409 })
   }
 
-  const out = quoteDocumentToCsv(document)
-  return new Response(out.csv, {
+  const out = await quoteDocumentToXlsx({ document, logo: images.logo })
+
+  return new Response(new Uint8Array(out.buffer), {
     headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       // 한글 파일명은 그대로 못 싣는다 — RFC5987 로 함께 보낸다
-      'Content-Disposition': `attachment; filename="${document.meta.quoteNo}.csv"; filename*=UTF-8''${encodeURIComponent(out.filename)}`,
+      'Content-Disposition': `attachment; filename="${document.meta.quoteNo}.xlsx"; filename*=UTF-8''${encodeURIComponent(out.filename)}`,
       'Cache-Control': 'no-store',
     },
   })

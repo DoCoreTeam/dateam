@@ -24,7 +24,7 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { SUPPLIER_SETTING_KEY, type SupplierField } from '../../terms/quote.ts'
+import { SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY, type SupplierField } from '../../terms/quote.ts'
 import type { SettingGroupKey } from '../domain/setting-group.ts'
 
 export type SettingScope = 'GLOBAL' | 'WORKSPACE'
@@ -52,7 +52,7 @@ export interface SettingDef {
    */
   group: SettingGroupKey
   /** 값 종류 — 화면이 어떤 입력을 그릴지 정한다 */
-  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline'
+  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline' | 'image'
   /**
    * `choice` 일 때 고를 수 있는 것.
    *
@@ -137,6 +137,10 @@ export const SETTING_DEFS: readonly SettingDef[] = [
   {
     key: 'quote.supplier.terms', label: '기본 거래 조건', kind: 'multiline', group: 'quote',
     fallback: '', description: '모든 견적서 아래에 한 줄씩 인쇄됩니다. 줄바꿈으로 나눠 주세요. 예: 결제: 검수 후 30일 이내',
+  },
+  {
+    key: 'quote.supplier.logo', label: '로고', kind: 'image', group: 'quote',
+    fallback: '', description: '견적서 왼쪽 위에 들어갑니다. PNG·JPG, 512KB 이하. 가로로 긴 이미지가 잘 맞습니다.',
   },
 ] as const
 
@@ -269,6 +273,63 @@ export async function resolveSetting(db: CrmDb, key: string): Promise<ResolvedSe
  * 반환은 `SupplierField` 이름이다 — 설정 키(`quote.supplier.bizNo`)를
  * 문서 쪽으로 흘려보내지 않는다. 키 이름이 바뀌어도 문서는 안 바뀐다.
  */
+/** 견적서에 들어갈 이미지 상한 — 인코딩 후 기준 */
+export const IMAGE_MAX_BYTES = 512 * 1024
+
+/**
+ * 이미지 설정값 검증.
+ *
+ * **왜 형식을 좁히나**: 여기 들어온 값은 나중에 엑셀과 인쇄 화면에 **그대로 박힌다**.
+ * SVG 를 허용하면 그 안의 스크립트가 함께 실린다 — 견적서를 여는 사람의 브라우저에서 돈다.
+ * 그래서 래스터 둘(PNG·JPEG)만 받는다.
+ *
+ * **왜 상한이 필요한가**: 설정 한 줄이 몇 MB 가 되면 설정 화면을 열 때마다 그게 실려 나오고,
+ * 견적서를 만들 때마다 다시 실린다. 로고에 512KB 는 넉넉하다.
+ */
+export function assertImage(dataUri: string, key: string): void {
+  const m = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/.exec(dataUri)
+  if (!m) {
+    // **안 넣은 것을 탓하지 않는다.** 예전엔 무엇을 넣었든 「SVG 는 안 됩니다」라고 말해서,
+    // URL 을 붙여 넣은 사람은 자기가 뭘 잘못했는지 알 수 없었다(실브라우저에서 잡았다).
+    const isSvg = /^data:image\/svg/i.test(dataUri)
+    throw new CrmError('VALIDATION_FAILED',
+      isSvg
+        ? 'SVG 는 넣을 수 없어요. 그 안의 스크립트가 견적서를 여는 사람의 브라우저에서 함께 실릴 수 있습니다. PNG 나 JPG 로 바꿔 주세요.'
+        : 'PNG 또는 JPG 파일을 골라 주세요.',
+      { field: key })
+  }
+  // base64 4글자 = 3바이트. 끝의 `=` 는 실제 바이트가 아니다
+  const b64 = m[2]
+  const bytes = Math.floor(b64.length * 3 / 4) - (b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0)
+  if (bytes > IMAGE_MAX_BYTES) {
+    throw new CrmError('VALIDATION_FAILED',
+      `이미지가 너무 큽니다 — ${Math.round(bytes / 1024)}KB. ${Math.round(IMAGE_MAX_BYTES / 1024)}KB 이하로 줄여 주세요.`,
+      { field: key })
+  }
+}
+
+/**
+ * 견적서에 찍을 이미지를 읽는다(지금은 로고 하나).
+ *
+ * **목록 조회(listSettings)는 이 값을 싣지 않는다.** 로고 하나가 수백 KB 라
+ * 설정 화면을 열 때마다 그게 따라오면 화면이 느려진다 — 거기서는 «있음/없음»만 보여 준다.
+ */
+export async function readQuoteImages(db: CrmDb): Promise<{ logo: string }> {
+  const keys = [SUPPLIER_IMAGE_KEY.logo]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await (db as any).crmAppSetting.findMany({
+    where: { key: { in: keys } },
+    select: { scope: true, key: true, valueJson: true },
+  }) as { scope: SettingScope; key: string; valueJson: unknown }[]
+
+  const pick = (key: string): string => {
+    const mine = rows.filter((r) => r.key === key)
+    const hit = mine.find((r) => r.scope === 'WORKSPACE') ?? mine.find((r) => r.scope === 'GLOBAL')
+    return hit ? String(hit.valueJson ?? '') : ''
+  }
+  return { logo: pick(SUPPLIER_IMAGE_KEY.logo) }
+}
+
 export async function readQuoteSupplier(db: CrmDb): Promise<Record<SupplierField, string>> {
   const keys = SUPPLIER_FIELDS.map((f) => SUPPLIER_SETTING_KEY[f])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -336,6 +397,13 @@ export async function listSettings(db: CrmDb, ctx?: SettingContext): Promise<{
       return { ...pick(def, ctx), value: null, masked, source }
     }
 
+    if (def.kind === 'image') {
+      // 원본(수백 KB)을 목록에 싣지 않는다 — 크기만 알려 주면 «넣었나»는 판단이 된다
+      const raw = hit ? String(hit.valueJson ?? '') : ''
+      const kb = raw ? Math.round(raw.length * 3 / 4 / 1024) : 0
+      return { ...pick(def, ctx), value: null, masked: raw ? `${kb}KB` : null, source }
+    }
+
     const value = hit ? String(hit.valueJson ?? '') : (def.fallback === null ? '' : String(def.fallback))
     return { ...pick(def, ctx), value, masked: null, source }
   })
@@ -375,6 +443,8 @@ export async function setSetting(
   if (def.kind === 'number' && Number.isNaN(Number(rawValue))) {
     throw new CrmError('VALIDATION_FAILED', '숫자를 입력해 주세요.', { field: key })
   }
+
+  if (def.kind === 'image') assertImage(String(rawValue), key)
 
   const stored: unknown = isSecret ? encryptSecret(String(rawValue)) : rawValue
 

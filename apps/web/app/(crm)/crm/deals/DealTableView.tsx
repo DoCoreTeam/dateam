@@ -8,6 +8,7 @@
 // 목록 표준(§2-6)을 그대로 쓴다: ListToolbar·ListSurface·ListPager + useListQuery.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import Sensitive from '@/components/crm/Sensitive'
 import { Plus } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
@@ -99,12 +100,12 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
 
       const res = await fetch(`/api/crm/deals?${sp.toString()}`)
       const body = await res.json()
-      if (!res.ok) { setError(body?.error?.message ?? '딜을 불러오지 못했습니다.'); return }
+      if (!res.ok) { setError(readApiError(body, '딜을 불러오지 못했습니다.')); return }
       setRows((prev) => (append ? [...prev, ...body.items] : body.items))
       setCursor(body.nextCursor)
       if (!append) setTotal(typeof body.total === 'number' ? body.total : undefined)
     } catch {
-      setError('딜을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      setError(describeFetchFailure('딜'))
     } finally {
       setLoading(false)
     }

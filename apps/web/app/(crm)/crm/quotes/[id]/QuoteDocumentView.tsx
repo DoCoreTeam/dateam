@@ -9,14 +9,14 @@
 // **문서는 서버가 조립한다.** 화면은 그리기만 한다 — 인쇄본과 엑셀이
 // 같은 `QuoteDocument` 를 보므로 둘이 다른 말을 할 수 없다.
 
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Printer, Download } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
-import { readApiError } from '@/lib/crm/api/read-error'
+import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import { downloadFromApi } from '@/lib/crm/api/download'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
@@ -29,6 +29,7 @@ import {
   SUPPLIER_SETUP_HINT,
   EXPORT_SAFE_NOTE,
   EXPORT_BLOCKED_NOTE,
+  PRINT_HINT,
   expiredNote,
 } from '@/lib/terms'
 import type { QuoteDocument } from '@/lib/crm/domain/quote-document'
@@ -36,6 +37,7 @@ import styles from './quote-document.module.css'
 
 interface DocumentResponse {
   document: QuoteDocument
+  images: { logo: string }
   violations: { code: string; message: string }[]
   missingSupplier: string[]
 }
@@ -57,7 +59,8 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
       if (!res.ok) { setError(readApiError(body, failedTo(QUOTE.documentTitle, '불러오지'))); return }
       setData(body as DocumentResponse)
     } catch {
-      setError(failedTo(QUOTE.documentTitle, '불러오지'))
+      // 서버가 응답조차 못 한 것 — 「잠시 후 다시」와는 다른 상황이다
+      setError(describeFetchFailure(QUOTE.documentTitle))
     } finally {
       setLoading(false)
     }
@@ -70,8 +73,8 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
     setExportError(null)
     const fail = failedTo(QUOTE.documentTitle, '내려받지')
     const out = await downloadFromApi(
-      `/api/crm/quotes/${quoteId}/document?format=csv`,
-      `${quoteId}.csv`,
+      `/api/crm/quotes/${quoteId}/document?format=xlsx`,
+      `${quoteId}.xlsx`,
       fail,
     )
     if (!out.ok) setExportError(out.message ?? fail)
@@ -95,10 +98,15 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
         페이지 제목 한 번, 문서 제목 한 번.
       */}
       <div className={styles.screenOnly}>
+        {/*
+          머리글은 **어느 견적을 보는지**만 말한다.
+          건명은 문서 안에 이미 있고(공급받는자 칸), 「원가·마진은 안 담긴다」는
+          우리 내부 사정이라 문서를 보는 자리에 설명할 말이 아니다 —
+          그건 파일을 내보내는 순간에 필요한 말이라 그 버튼으로 옮겼다.
+        */}
         <PageHeader
           title={doc.meta.quoteNo}
           back={{ href: '/crm/quotes', label: ENTITY.quote.label }}
-          description={`${doc.meta.title} · ${EXPORT_SAFE_NOTE}`}
         />
       </div>
 
@@ -108,10 +116,10 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           같은 오류를 두 자리에서 읽게 된다 — 위반 배너와 실패 배너가 같은 문장을 반복한다.
           이유는 이미 위 배너에 있으므로 여기서는 못 누르는 것으로 충분하다.
         */}
-        <NbButton variant="ghost" disabled={exporting || blocked} onClick={() => void exportCsv()}>
-          <Download size={16} /> {exporting ? progress(QUOTE.exportCsv) : QUOTE.exportCsv}
+        <NbButton variant="ghost" disabled={exporting || blocked} onClick={() => void exportCsv()} title={EXPORT_SAFE_NOTE}>
+          <Download size={16} /> {exporting ? progress(QUOTE.exportXlsx) : QUOTE.exportXlsx}
         </NbButton>
-        <NbButton onClick={() => window.print()}>
+        <NbButton onClick={() => window.print()} title={PRINT_HINT}>
           <Printer size={16} /> {QUOTE.print}
         </NbButton>
       </div>
@@ -143,100 +151,160 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
       </div>
 
       <article className={`card ${styles.sheet}`}>
+        {/*
+          상단 — 로고(좌)와 문서 메타(우)가 마주 본다.
+          로고만 왼쪽에 두면 오른쪽이 비어 문서가 한쪽으로 쏠려 보인다.
+        */}
+        <header className={styles.topBar}>
+          {data.images.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={styles.logo} src={data.images.logo} alt={doc.supplier.name || QUOTE.logo} />
+          ) : (
+            <span />
+          )}
+
+          <dl className={styles.metaList}>
+            <dt>{QUOTE.quoteNo}</dt><dd>{doc.meta.quoteNo}</dd>
+            {doc.meta.issuedOn && (<><dt>{QUOTE.issuedOn}</dt><dd>{doc.meta.issuedOn}</dd></>)}
+            {doc.meta.validUntil && (<><dt>{QUOTE.validUntil}</dt><dd>{doc.meta.validUntil}</dd></>)}
+          </dl>
+        </header>
+
         <h2 className={styles.docTitle}>{QUOTE.documentTitle}</h2>
 
+        {/*
+          두 당사자 — **같은 구조의 박스**다. 라벨 열 폭이 같아 값의 시작점이 나란하고,
+          박스 높이도 맞춰 한쪽만 길어 보이지 않는다(세금계산서가 그렇게 생겼다).
+        */}
         <div className={styles.parties}>
-          <section>
+          <section className={styles.party}>
             <p className={styles.partyTitle}>{QUOTE.customer}</p>
-            <p className={styles.customerName}>
+            <p className={styles.partyName}>
               {doc.customer.companyName} {QUOTE.customerHonorific}
             </p>
-            {doc.customer.personName && <p className={styles.spec}>{doc.customer.personName}</p>}
+            <dl className={styles.partyRows}>
+              {doc.customer.personName && (
+                <>
+                  <dt>{QUOTE.supplierContact}</dt>
+                  <dd>{doc.customer.personName}</dd>
+                </>
+              )}
+              {/*
+                무엇에 대한 견적인지 — 고객도 알아야 하는 정보다.
+                이 칸이 비어 있으면 왼쪽 박스가 텅 비어 문서가 한쪽으로 기울어 보인다.
+              */}
+              <dt>{QUOTE.subject}</dt>
+              <dd>{doc.meta.title}</dd>
+            </dl>
           </section>
 
-          <section>
+          <section className={styles.party}>
             <p className={styles.partyTitle}>{QUOTE.supplier}</p>
             {filled.length === 0 ? (
-              /* 「—」 로 채우지 않는다. 비었으면 비었다고 말하고 어디로 가면 되는지 알려 준다 */
+              /* 「—」 로 채우지 않는다. 비었으면 비었다고 말한다 */
               <p className={styles.spec}>{QUOTE.supplierMissing}</p>
             ) : (
-              <dl className={styles.supplierRows}>
-                {filled.map((f) => (
-                  <div className={styles.supplierRow} key={f}>
-                    <dt>{SUPPLIER_LABEL[f]}</dt>
-                    <dd>{doc.supplier[f]}</dd>
-                  </div>
-                ))}
-              </dl>
+              <>
+                <p className={styles.partyName}>{doc.supplier.name}</p>
+                <dl className={styles.partyRows}>
+                  {filled.filter((f) => f !== 'name').map((f) => (
+                    <Fragment key={f}>
+                      <dt>{SUPPLIER_LABEL[f]}</dt>
+                      <dd>{doc.supplier[f]}</dd>
+                    </Fragment>
+                  ))}
+                </dl>
+              </>
             )}
+            {/*
+              날인 자리 — 도장 이미지 대신 문구.
+              전자로 보내는 문서에 도장을 박으면 받은 사람이 오려내 다른 문서에 쓸 수 있다.
+            */}
+            <span className={styles.sealOmitted}>{QUOTE.sealOmitted}</span>
           </section>
-        </div>
-
-        <div className={styles.meta}>
-          <span>{QUOTE.quoteNo} <b>{doc.meta.quoteNo}</b></span>
-          {doc.meta.issuedOn && <span>{QUOTE.issuedOn} <b>{doc.meta.issuedOn}</b></span>}
-          {doc.meta.validUntil && <span>{QUOTE.validUntil} <b>{doc.meta.validUntil}</b></span>}
-          <span>{QUOTE.currency} <b>{cur}</b></span>
         </div>
 
         {doc.lines.length === 0 ? (
           <EmptyState title={QUOTE.noLines} />
         ) : (
-          <>
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th className={styles.num}>{QUOTE.lineNo}</th>
-                    <th>{QUOTE.lineName}</th>
-                    <th>{QUOTE.lineUnit}</th>
-                    <th className={styles.num}>{QUOTE.lineQuantity}</th>
-                    <th className={styles.num}>{QUOTE.lineUnitPrice}</th>
-                    <th className={styles.num}>{QUOTE.lineDiscount}</th>
-                    <th className={styles.num}>{QUOTE.lineAmount}</th>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              {/* 열 폭을 여기서 정한다 — 내용이 정하게 두면 행마다 열이 흔들린다 */}
+              <colgroup>
+                <col style={{ width: '3rem' }} />
+                <col />
+                <col style={{ width: '3.5rem' }} />
+                <col style={{ width: '4rem' }} />
+                <col style={{ width: '8rem' }} />
+                <col style={{ width: '4rem' }} />
+                {/* 합계(굵고 큰 글씨)가 들어갈 칸이라 항목 금액보다 넉넉해야 한다 */}
+                <col style={{ width: '11.5rem' }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className={styles.center} scope="col">{QUOTE.lineNo}</th>
+                  <th className={styles.left} scope="col">{QUOTE.lineName}</th>
+                  <th className={styles.center} scope="col">{QUOTE.lineUnit}</th>
+                  <th className={styles.num} scope="col">{QUOTE.lineQuantity}</th>
+                  <th className={styles.num} scope="col">{QUOTE.lineUnitPrice}</th>
+                  <th className={styles.num} scope="col">{QUOTE.lineDiscount}</th>
+                  <th className={styles.num} scope="col">{QUOTE.lineAmount}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {doc.lines.map((l) => (
+                  <tr key={l.no}>
+                    <td className={styles.center}>{l.no}</td>
+                    <td>
+                      <div className={styles.lineName}>{l.name}</div>
+                      {l.spec && <div className={styles.spec}>{l.spec}</div>}
+                    </td>
+                    <td className={styles.center}>{l.unit ?? ''}</td>
+                    <td className={styles.num}>{Number(l.quantity).toLocaleString('ko-KR')}</td>
+                    <td className={styles.num}>{money(l.unitPriceMinor)}</td>
+                    <td className={styles.num}>{l.discountPercent === '0' ? '' : `${l.discountPercent}%`}</td>
+                    <td className={styles.num}>{money(l.amountMinor)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {doc.lines.map((l) => (
-                    <tr key={l.no}>
-                      <td className={styles.num}>{l.no}</td>
-                      <td>
-                        {l.name}
-                        {l.spec && <div className={styles.spec}>{l.spec}</div>}
-                      </td>
-                      <td>{l.unit ?? ''}</td>
-                      <td className={styles.num}>{l.quantity}</td>
-                      <td className={styles.num}>{money(l.unitPriceMinor)}</td>
-                      <td className={styles.num}>{l.discountPercent === '0' ? '' : `${l.discountPercent}%`}</td>
-                      <td className={styles.num}>{money(l.amountMinor)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className={styles.totals}>
-              <div className={styles.totalRow}>
-                <span>{QUOTE.subtotal}</span><span>{money(doc.totals.subtotalMinor)}</span>
-              </div>
-              <div className={styles.totalRow}>
-                <span>{QUOTE.discount}</span>
-                <span>
-                  {doc.totals.discountMinor !== '0' && '− '}{money(doc.totals.discountMinor)}
-                </span>
-              </div>
-              <div className={styles.totalRow}>
-                <span>{QUOTE.tax}</span><span>{money(doc.totals.taxMinor)}</span>
-              </div>
-              <div className={styles.grandRow}>
-                <span>{QUOTE.total}</span><span>{money(doc.totals.totalMinor)}</span>
-              </div>
-              {/* 한글 금액은 위조 방지가 목적이라 총액 바로 아래 붙는다 */}
-              {doc.totals.totalInWords && (
-                <p className={styles.inWords}>{doc.totals.totalInWords}</p>
-              )}
-            </div>
-          </>
+                ))}
+              </tbody>
+              {/*
+                합계는 **같은 표 안**이다. 밖에 두면 열 경계와 어긋나
+                금액이 위아래로 안 맞는다(앞 판이 그랬다).
+              */}
+              <tfoot>
+                {/* 라벨은 **두 칸에 걸친다** — 한 칸(할인 열)이면 「합계 금액」이 두 줄로 깨진다 */}
+                <tr className={styles.firstTotal}>
+                  <td colSpan={4} />
+                  <td className={styles.totalLabel} colSpan={2}>{QUOTE.subtotal}</td>
+                  <td className={styles.num}>{money(doc.totals.subtotalMinor)}</td>
+                </tr>
+                <tr>
+                  <td colSpan={4} />
+                  <td className={styles.totalLabel} colSpan={2}>{QUOTE.discount}</td>
+                  <td className={styles.num}>
+                    {doc.totals.discountMinor !== '0' && '− '}{money(doc.totals.discountMinor)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={4} />
+                  <td className={styles.totalLabel} colSpan={2}>{QUOTE.tax}</td>
+                  <td className={styles.num}>{money(doc.totals.taxMinor)}</td>
+                </tr>
+                <tr className={styles.grand}>
+                  <td colSpan={4} />
+                  <td className={styles.totalLabel} colSpan={2}>{QUOTE.total}</td>
+                  <td className={styles.num}>{money(doc.totals.totalMinor)}</td>
+                </tr>
+                {/* 한글 금액은 위조 방지가 목적이라 총액 바로 아래 붙는다 */}
+                {doc.totals.totalInWords && (
+                  <tr className={styles.inWords}>
+                    <td colSpan={3} />
+                    <td className={styles.num} colSpan={4}>{doc.totals.totalInWords}</td>
+                  </tr>
+                )}
+              </tfoot>
+            </table>
+          </div>
         )}
 
         {doc.terms.length > 0 && (

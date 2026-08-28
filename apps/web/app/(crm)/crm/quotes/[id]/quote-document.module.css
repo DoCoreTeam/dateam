@@ -1,11 +1,16 @@
 /*
   견적서 — 화면과 종이가 같은 문서다.
 
-  **왜 CSS 모듈인가**: 이 스타일은 이 문서에만 쓴다. globals.css 에 넣으면
-  전역 규칙이 또 1,000줄 늘어난다(§0-1).
+  **대칭이 이 문서의 규칙이다.** 앞 판은 왼쪽(고객)에 한 줄, 오른쪽(공급자)에 일곱 줄이
+  들어가 한쪽만 꽉 찬 모양이 됐고, 합계는 표와 무관한 자리에 떠 있어 열이 안 맞았다.
+  (사용자 지적: 「표는 정렬은 기본이고 전반적으로 대칭에 대한 이해도가 떨어지니?」)
 
-  **인쇄 규칙이 핵심이다.** 인쇄 경로가 없어 영업이 화면을 캡처해 보내고 있었다 —
-  캡처는 사이드바와 버튼이 함께 찍힌다.
+  그래서 셋을 고정했다:
+    ① 두 당사자는 **같은 구조의 박스** — 라벨 열 폭이 같고 높이가 같다(세금계산서가 그렇다)
+    ② 표는 `table-layout: fixed` + colgroup — 열 폭을 내용이 정하지 않는다
+    ③ 합계는 표의 `tfoot` — 같은 열을 쓰므로 어긋날 수가 없다
+
+  **왜 CSS 모듈인가**: 이 스타일은 이 문서에만 쓴다(§0-1).
 */
 
 .toolbar {
@@ -20,11 +25,45 @@
   background: var(--surface-bg);
   border: var(--border-w) solid var(--border-color);
   border-radius: var(--radius);
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-10);
+  width: 100%;
   max-width: 210mm;   /* A4 폭 — 이 화면만의 예외다(종이를 그리는 중이다) */
-  margin: 0 auto;
+  margin-inline: auto;
   color: var(--text);
 }
+
+/* ── 상단: 로고(좌) ↔ 문서 메타(우) ─────────────────────────
+   둘을 마주 보게 두면 위쪽이 균형을 잡는다. 로고만 왼쪽에 덩그러니 두면
+   오른쪽이 비어 문서가 한쪽으로 쏠려 보인다. */
+.topBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+  min-height: 2.5rem;
+}
+
+.logo {
+  display: block;
+  max-width: 13rem;
+  max-height: 2.75rem;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.metaList {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.15rem var(--space-3);
+  font-size: var(--fs-sm);
+  margin: 0;
+  /* 라벨은 오른쪽 끝에, 값도 오른쪽 끝에 — 두 열이 각각 정렬되어야 눈이 편하다 */
+  justify-content: end;
+}
+
+.metaList dt { color: var(--text-muted); margin: 0; text-align: right; }
+.metaList dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
 
 .docTitle {
   text-align: center;
@@ -32,15 +71,28 @@
   font-weight: 700;
   letter-spacing: 0.5em;      /* 「견 적 서」 — 한국 양식의 관례 */
   text-indent: 0.5em;         /* 자간 때문에 오른쪽으로 밀리는 것을 되돌린다 */
-  margin: 0 0 var(--space-6);
+  margin: 0 0 var(--space-7);
 }
 
-/* 두 당사자를 나란히 — 고객이 왼쪽, 우리가 오른쪽(세금계산서와 같은 배치) */
+/* ── 두 당사자 — 같은 크기·같은 구조 ──────────────────────── */
 .parties {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
-  margin-bottom: var(--space-6);
+  gap: var(--space-4);
+  margin-bottom: var(--space-7);
+  /* 두 박스의 높이를 맞춘다. 한쪽만 길면 문서가 기울어 보인다 */
+  align-items: stretch;
+}
+
+.party {
+  position: relative;
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  /* 아래쪽 여백은 날인 문구가 설 자리다 — 안 비우면 마지막 줄과 겹친다(실측) */
+  padding: var(--space-4) var(--space-4) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .partyTitle {
@@ -48,120 +100,119 @@
   font-weight: 700;
   color: var(--text-muted);
   letter-spacing: 0.1em;
-  margin: 0 0 var(--space-2);
+  margin: 0;
 }
 
-.customerName {
-  font-size: var(--fs-xl);
+.partyName {
+  font-size: var(--fs-lg);
   font-weight: 700;
-  margin: 0 0 var(--space-1);
+  margin: 0;
+  line-height: 1.4;
 }
 
-.supplierRows { display: grid; gap: var(--space-1); }
-
-.supplierRow {
+/* 라벨/값 두 열. **양쪽 박스가 같은 라벨 폭**을 쓰므로 값의 시작점이 나란하다 */
+.partyRows {
   display: grid;
-  grid-template-columns: 6rem 1fr;
-  gap: var(--space-2);
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.2rem var(--space-2);
   font-size: var(--fs-sm);
+  margin: 0;
 }
 
-.supplierRow dt { color: var(--text-muted); margin: 0; }
-.supplierRow dd { margin: 0; }
+.partyRows dt { color: var(--text-muted); margin: 0; }
+.partyRows dd { margin: 0; overflow-wrap: anywhere; }
 
-.meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-  padding: var(--space-2) 0;
-  border-top: var(--hairline) solid var(--border-light);
-  border-bottom: var(--hairline) solid var(--border-light);
-  margin-bottom: var(--space-6);
+/* 날인 자리 — 도장이 찍히던 그 위치(공급자 박스 오른쪽 아래) */
+.sealOmitted {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
-.meta b { color: var(--text); font-weight: 600; }
-
+/* ── 항목 표 ───────────────────────────────────────────────
+   `fixed` 가 핵심이다. auto 면 긴 품목명이 열 폭을 밀어내 행마다 열이 흔들린다. */
 .tableWrap { overflow-x: auto; }
 
 .table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--fs-sm);
 }
 
 .table th,
 .table td {
-  border-bottom: var(--hairline) solid var(--border-light);
-  padding: var(--space-2);
-  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  vertical-align: top;
 }
 
 .table thead th {
-  border-bottom: var(--border-w) solid var(--border-color);
+  border-top: var(--border-w) solid var(--text);
+  border-bottom: var(--hairline) solid var(--border-color);
+  background: var(--surface-muted);
   color: var(--text-muted);
-  font-weight: 600;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
   white-space: nowrap;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
 }
 
-/*
-  숫자 열은 오른쪽 정렬 + 자릿수 고정 — 세로로 자릿수가 맞아야 눈으로 검산이 된다.
+.table tbody td { border-bottom: var(--hairline) solid var(--border-light); }
 
-  `.table` 을 앞에 붙이는 이유: 위의 `.table th, .table td { text-align: left }` 는
-  (클래스1 + 타입1) 이라 `.num` (클래스1) 보다 **명시도가 높다**.
-  그래서 그냥 `.num` 으로 쓰면 왼쪽 정렬이 이기고, 금액이 자릿수가 안 맞은 채로 인쇄된다
-  (실브라우저에서 잡았다 — 45,000,000 과 12,500,000 이 왼쪽에 붙어 있었다).
-*/
+/* 숫자 열 — 오른쪽 정렬 + 자릿수 고정. 세로로 자릿수가 맞아야 눈으로 검산이 된다.
+   `.table` 을 앞에 붙이는 이유: 위의 `.table th, .table td` 가 명시도가 더 높다. */
 .table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* 품목은 넓게, 숫자는 필요한 만큼만 — 안 정하면 단가 칸이 표의 절반을 먹는다 */
-.table th.num,
-.table td.num { width: 1%; }
+.table .center { text-align: center; }
 
-.table th:nth-child(2) { width: auto; }
+/* 머리글 th 의 기본은 가운데다 — 글자 열은 왼쪽으로 되돌린다 */
+.table .left { text-align: left; }
 
-.spec { color: var(--text-muted); font-size: var(--fs-xs); }
+.lineName { font-weight: 500; }
+.spec { color: var(--text-muted); font-size: var(--fs-xs); margin-top: 0.15rem; }
 
-.totals {
-  margin-top: var(--space-4);
-  margin-left: auto;
-  width: min(22rem, 100%);
-  display: grid;
-  gap: var(--space-1);
+/* ── 합계 — 표의 tfoot 이라 열이 저절로 맞는다 ─────────────── */
+.table tfoot td {
+  border: none;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
 }
 
-.totalRow {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-  font-size: var(--fs-sm);
+.table tfoot .totalLabel {
+  text-align: right;
+  color: var(--text-muted);
 }
 
-.grandRow {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-  border-top: var(--border-w) solid var(--border-color);
-  padding-top: var(--space-2);
-  margin-top: var(--space-1);
+.table tfoot .firstTotal td { padding-top: var(--space-3); }
+
+.table tfoot .grand td {
+  border-top: var(--border-w) solid var(--text);
+  padding-top: var(--space-3);
   font-size: var(--fs-price);
   font-weight: 700;
 }
 
-.inWords {
-  text-align: right;
-  font-size: var(--fs-sm);
+.table tfoot .grand .totalLabel { color: var(--text); }
+
+.table tfoot .inWords td {
   color: var(--text-muted);
   letter-spacing: 0.05em;
+  padding-top: var(--space-1);
 }
 
+/* ── 조건·특기사항 ─────────────────────────────────────────── */
 .terms {
-  margin-top: var(--space-6);
+  margin-top: var(--space-7);
   padding-top: var(--space-4);
   border-top: var(--hairline) solid var(--border-light);
 }
@@ -177,8 +228,9 @@
 .termsList { margin: 0; padding-left: var(--space-5); font-size: var(--fs-sm); }
 .termsList li { margin-bottom: var(--space-1); }
 
-.note { font-size: var(--fs-sm); white-space: pre-wrap; }
+.note { font-size: var(--fs-sm); white-space: pre-wrap; margin: 0; }
 
+/* ── 화면 전용 알림 ────────────────────────────────────────── */
 .warn {
   border: var(--border-w) solid var(--warning-border);
   background: var(--warning-bg);
@@ -200,26 +252,16 @@
   white-space: pre-wrap;
 }
 
-/*
-  종이로 나갈 때 — 화면 장치는 전부 사라진다.
-
-  `:global` 인 이유: 지우려는 대상(사이드바·Dock·페이지 헤더)은 이 모듈이
-  만든 것이 아니라 셸이 만든 것이다. 모듈 스코프로는 닿지 않는다.
-*/
-/*
-  폰 — 종이를 흉내 내던 2단 구성을 푼다.
-
-  실측(390px): 두 당사자를 1fr 1fr 로 두면 회사명 칸이 ~100px 이 되어
-  「__검증 한 / 국지능정 / 보사회진 / 흥원 귀중」처럼 **글자마다 줄이 바뀐다**.
-  종이 배치를 좁은 화면에 그대로 밀어 넣으면 읽을 수 없는 문서가 된다.
-*/
+/* ── 폰 ────────────────────────────────────────────────────
+   종이 배치를 좁은 화면에 그대로 밀어 넣으면 회사명이 글자마다 줄바꿈된다(실측 390px). */
 @media (max-width: 767px) {
   .sheet { padding: var(--space-4); }
 
-  .parties {
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
-  }
+  .topBar { flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+  .metaList { justify-content: start; }
+  .metaList dt, .metaList dd { text-align: left; }
+
+  .parties { grid-template-columns: 1fr; }
 
   .docTitle {
     font-size: var(--fs-2xl);
@@ -227,29 +269,17 @@
     text-indent: 0.3em;
   }
 
-  /* 라벨 폭을 고정하면 값이 잘게 쪼개진다 — 라벨을 값 위로 올린다 */
-  .supplierRow {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-  .supplierRow dt { font-size: var(--fs-xs); }
-
-  .meta { gap: var(--space-2); }
-
-  .totals { width: 100%; }
+  .partyRows { grid-template-columns: 4.5rem 1fr; }
 
   /* 표는 카드로 접지 않는다 — 견적서의 «표»는 문서 구조 그 자체라
-     카드로 바꾸면 열의 뜻(단가 vs 금액)이 사라진다. 대신 가로 스크롤을 허용한다.
-     `.tableWrap` 이 이미 overflow-x:auto 라 본문은 옆으로 안 밀린다. */
+     카드로 바꾸면 열의 뜻(단가 vs 금액)이 사라진다. 대신 가로로 넘겨 본다. */
   .table { min-width: 34rem; }
 }
 
 @media print {
   /*
     셸(사이드바·Dock·페이지 여백)을 숨기는 것은 **셸의 책임**이라 globals.css 에 있다.
-    CSS Modules 는 이 모듈 밖의 클래스를 가리키는 셀렉터를 허용하지 않는다
-    («pure selectors must contain at least one local class») — `:global()` 도 `:global{}` 도 거부한다.
-    여기 남는 것은 이 문서가 스스로 아는 것뿐이다.
+    CSS Modules 는 이 모듈 밖의 클래스를 가리키는 셀렉터를 허용하지 않는다.
   */
   .screenOnly,
   .toolbar {
@@ -265,8 +295,6 @@
 
   /* 항목이 많으면 표가 쪽을 넘는다 — 머리글을 매 쪽에 다시 찍는다 */
   .table thead { display: table-header-group; }
+  .table tfoot { display: table-row-group; }
   .table tr { break-inside: avoid; }
-
-  /* 합계가 항목과 갈라져 다음 쪽 혼자 남지 않게 */
-  .totals { break-inside: avoid; }
 }

@@ -21,7 +21,7 @@ interface Choice { value: string; label: string; hint?: string }
 interface SettingItem {
   key: string
   label: string
-  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline'
+  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline' | 'image'
   /** 어느 카드에 설지 — 성격이 다른 설정을 한 목록에 늘어놓지 않는다 */
   group: string
   description: string
@@ -56,7 +56,10 @@ export default function SettingsCard() {
       const list: SettingItem[] = body.items ?? []
       setItems(list)
       // 시크릿은 초안을 비워 둔다 — 마스킹된 값을 그대로 저장하면 그게 키가 된다
-      setDrafts(Object.fromEntries(list.map((s) => [s.key, s.kind === 'secret' ? '' : (s.value ?? '')])))
+      // 시크릿과 이미지는 초안을 비워 둔다 — 목록이 원본을 주지 않는다(크기만 온다).
+      // 마스킹된 값을 그대로 저장하면 그게 값이 된다.
+      setDrafts(Object.fromEntries(list.map((s) =>
+        [s.key, s.kind === 'secret' || s.kind === 'image' ? '' : (s.value ?? '')])))
     } catch {
       setError('설정을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -65,6 +68,20 @@ export default function SettingsCard() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  /** 고른 파일을 data URI 로. 검증은 서버가 다시 한다 — 여기서는 빨리 알려 주는 것뿐이다 */
+  async function pickImage(key: string, file: File | null) {
+    if (!file) { setDrafts((d) => ({ ...d, [key]: '' })); return }
+    setError(null)
+    const uri = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader()
+      r.onload = () => resolve(String(r.result ?? ''))
+      r.onerror = () => reject(new Error('read'))
+      r.readAsDataURL(file)
+    }).catch(() => '')
+    if (!uri) { setError('이미지를 읽지 못했어요. 다른 파일로 시도해 주세요.'); return }
+    setDrafts((d) => ({ ...d, [key]: uri }))
+  }
 
   async function save(key: string) {
     setSavingKey(key)
@@ -127,6 +144,19 @@ export default function SettingsCard() {
                       <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </select>
+                ) : s.kind === 'image' ? (
+                  /*
+                    파일을 고르면 그 자리에서 data URI 로 바꿔 초안에 넣는다.
+                    별도 업로드 API 를 두지 않는 이유: 로고는 작고 자주 안 바뀐다 —
+                    버킷·권한·URL 수명을 따로 관리할 만큼의 일이 아니다.
+                  */
+                  <input
+                    id={`set-${s.key}`}
+                    className="input-field"
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={(e) => void pickImage(s.key, e.target.files?.[0] ?? null)}
+                  />
                 ) : s.kind === 'multiline' ? (
                   /*
                     여러 줄이 들어갈 값(거래 조건)을 한 줄 칸에 받으면 사용자는
@@ -159,6 +189,17 @@ export default function SettingsCard() {
             </div>
 
             {/* 고른 것이 무슨 뜻인지 그 자리에서 말한다 — 설명이 목록 밖에 있으면 아무도 안 읽는다 */}
+            {s.kind === 'image' && (drafts[s.key] || s.masked) && (
+              <div className={styles.imagePreview}>
+                {drafts[s.key] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={drafts[s.key]} alt={`${s.label} 미리보기`} />
+                ) : (
+                  <span className={styles.hint}>저장됨 · {s.masked} — 바꾸려면 새 파일을 고르세요</span>
+                )}
+              </div>
+            )}
+
             {s.kind === 'choice' && (
               <p className={styles.hint}>
                 {(s.choices ?? []).find((c) => c.value === (drafts[s.key] ?? ''))?.hint ?? ''}

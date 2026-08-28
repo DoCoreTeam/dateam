@@ -12,17 +12,18 @@
 import type { CrmDb } from '../db/client.ts'
 import { CrmError } from '../domain/errors.ts'
 import { getQuote } from './quote.ts'
-import { readQuoteSupplier } from './setting.ts'
+import { readQuoteSupplier, readQuoteImages } from './setting.ts'
 import {
   buildQuoteDocument, verifyDocument, missingSupplierFields,
   type QuoteDocument,
 } from '../domain/quote-document.ts'
-import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '../../terms/quote.ts'
+import { SUPPLIER_LABEL } from '../../terms/quote.ts'
 import { kstDateKey } from '../../datetime/kst.ts'
-import { minorDigits } from '../../../app/(crm)/crm/deals/amount.ts'
 
 export interface QuoteDocumentResult {
   document: QuoteDocument
+  /** 견적서에 찍히는 이미지(data URI). 없으면 빈 문자열. 직인은 이미지가 아니라 문구다 */
+  images: { logo: string }
   /** 저장본과 어긋난 곳 — 있으면 화면이 «이 문서는 보내면 안 된다»고 말한다 */
   violations: { code: string; message: string }[]
   /** 아직 안 채운 공급자 항목의 **사람이 읽는 이름** */
@@ -40,7 +41,7 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   }) as { name: string; company: { name: string } | null } | null
   if (!deal) throw new CrmError('NOT_FOUND', '견적이 붙은 딜을 찾을 수 없습니다.')
 
-  const supplier = await readQuoteSupplier(db)
+  const [supplier, images] = await Promise.all([readQuoteSupplier(db), readQuoteImages(db)])
 
   const document = buildQuoteDocument({
     quote: {
@@ -78,92 +79,8 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
 
   return {
     document,
+    images,
     violations: verifyDocument(document).map((v) => ({ code: v.code, message: v.message })),
     missingSupplier: missingSupplierFields(document).map((f) => SUPPLIER_LABEL[f]),
   }
-}
-
-// ------------------------------------------------------------
-// CSV — 같은 문서를 표로 편다
-// ------------------------------------------------------------
-
-/** 엑셀에서 수식으로 실행되지 않게 앞을 막는다(CSV 인젝션) */
-function csvCell(v: string): string {
-  const s = String(v ?? '')
-  const guarded = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
-  return /[",\n\r]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded
-}
-
-/** 금액을 계산 가능한 숫자로 — 천단위 구분을 넣으면 엑셀이 문자열로 읽는다 */
-function money(minor: string, currency: string): string {
-  const digits = minorDigits(currency)
-  const n = Number(minor) / 10 ** digits
-  if (!Number.isFinite(n) || !Number.isSafeInteger(Number(minor))) return minor
-  return String(n)
-}
-
-export interface QuoteCsvResult {
-  filename: string
-  csv: string
-}
-
-/**
- * 견적서를 CSV 로.
- *
- * **고객에게 보내는 파일이다.** 그래서 담기는 것은 `QuoteDocument` 가 가진 것뿐이고,
- * 그 타입에는 원가·마진이 애초에 없다 — 여기서 지울 것도 없다.
- */
-export function quoteDocumentToCsv(doc: QuoteDocument): QuoteCsvResult {
-  const cur = doc.meta.currency
-  const rows: string[][] = []
-
-  const head = (label: string, value: string) => { if (value) rows.push([label, value]) }
-
-  rows.push([QUOTE.documentTitle])
-  rows.push([])
-  head(QUOTE.quoteNo, doc.meta.quoteNo)
-  head(QUOTE.issuedOn, doc.meta.issuedOn ?? '')
-  head(QUOTE.validUntil, doc.meta.validUntil ?? '')
-  head(QUOTE.currency, cur)
-  rows.push([])
-
-  rows.push([QUOTE.customer, `${doc.customer.companyName} ${QUOTE.customerHonorific}`])
-  if (doc.customer.personName) rows.push(['', doc.customer.personName])
-  rows.push([])
-
-  rows.push([QUOTE.supplier])
-  for (const f of SUPPLIER_ORDER) head(SUPPLIER_LABEL[f], doc.supplier[f])
-  rows.push([])
-
-  rows.push([
-    QUOTE.lineNo, QUOTE.lineName, QUOTE.lineSpec, QUOTE.lineUnit,
-    QUOTE.lineQuantity, QUOTE.lineUnitPrice, `${QUOTE.lineDiscount}(%)`, QUOTE.lineAmount,
-  ])
-  for (const l of doc.lines) {
-    rows.push([
-      String(l.no), l.name, l.spec ?? '', l.unit ?? '',
-      l.quantity, money(l.unitPriceMinor, cur), l.discountPercent, money(l.amountMinor, cur),
-    ])
-  }
-  rows.push([])
-
-  rows.push([QUOTE.subtotal, money(doc.totals.subtotalMinor, cur)])
-  rows.push([QUOTE.discount, money(doc.totals.discountMinor, cur)])
-  rows.push([QUOTE.tax, money(doc.totals.taxMinor, cur)])
-  rows.push([QUOTE.total, money(doc.totals.totalMinor, cur)])
-  if (doc.totals.totalInWords) rows.push([QUOTE.totalInWords, doc.totals.totalInWords])
-
-  if (doc.terms.length > 0) {
-    rows.push([])
-    rows.push([QUOTE.terms])
-    for (const t of doc.terms) rows.push(['', t])
-  }
-  if (doc.customerNote) {
-    rows.push([])
-    rows.push([QUOTE.customerNote, doc.customerNote])
-  }
-
-  // 한글이 깨지지 않게 BOM — 엑셀은 이게 없으면 UTF-8 을 못 알아본다
-  const csv = '\uFEFF' + rows.map((r) => r.map(csvCell).join(',')).join('\n')
-  return { filename: `${doc.meta.quoteNo}_${QUOTE.documentTitle}.csv`, csv }
 }
