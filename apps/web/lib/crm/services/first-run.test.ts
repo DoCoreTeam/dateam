@@ -28,6 +28,9 @@ const DEALS = readFileSync(
   new URL('../../../app/(crm)/crm/deals/DealsClient.tsx', import.meta.url), 'utf8')
 const BOARD = readFileSync(
   new URL('../../../app/(crm)/crm/deals/DealBoard.tsx', import.meta.url), 'utf8')
+// 파이프라인 선택은 v0.7.639 부터 도구 한 줄(DealsClient)에 있다 — 보드와 표가 함께 쓰기 때문이다.
+// 둘을 합쳐 보는 이유: 어느 파일에 있든 **규칙이 지켜지는지**가 판정 대상이다
+const SHELL = DEALS + BOARD
 const FORM = readFileSync(
   new URL('../../../app/(crm)/crm/deals/DealFormModal.tsx', import.meta.url), 'utf8')
 const REPORTS = readFileSync(
@@ -71,11 +74,22 @@ test('★ 리포트가 안 쓰는 영업 단계를 접는다 (실측: 3개 접�
   assert.ok(REPORTS.includes('아직 안 쓰는 영업 단계'), '접었다는 사실을 안 알린다')
 })
 
-test('★ 딜 보드 선택도 접는다 — 고를 때마다 빈 보드를 만나면 안 된다', () => {
-  assert.ok(BOARD.includes('optgroup'), '접은 것을 따로 묶지 않는다')
-  assert.ok(BOARD.includes('아직 안 쓰는 것'), '접었다는 사실을 안 알린다')
-  // 지금 보고 있는 것은 접혀도 목록에 남아야 한다 — 아니면 선택이 사라진다
-  assert.ok(BOARD.includes('p.id === pipelineId ||'), '보고 있는 것이 사라질 수 있다')
+/**
+ * **규칙이 바뀌었다.** 예전엔 딜이 0건인 파이프라인을 `optgroup`「아직 안 쓰는 것」으로 접었다.
+ * 그런데 사용자가 방금 만든 파이프라인이 거기로 들어가서 **잘못 만든 것처럼 읽혔다**
+ * (지적 2026-08-28: 「공공에다가 파이프라인 등록했는데 왜 안쓰는것?」).
+ * 지금은 접지 않고 **딜 수를 옆에 적어** 비어 있다는 사실만 알린다.
+ *
+ * 이 가드는 그 뒤로 **9패치 동안 깨진 채 있었다** — 규칙을 바꾸면서 가드를 안 고치면
+ * 실패가 상수가 되고, 상수가 된 실패는 아무도 안 읽는다.
+ */
+test('★ 딜 보드 선택은 접지 않는다 — 방금 만든 파이프라인을 «안 쓰는 것»이라 부르지 않는다', () => {
+  assert.ok(!/optgroup/.test(SHELL), '다시 접기 시작했다 — 방금 만든 파이프라인이 거기로 들어간다')
+  assert.ok(!/아직 안 쓰는 것/.test(SHELL), '「아직 안 쓰는 것」은 잘못 만든 것처럼 읽힌다')
+  // 대신 몇 건인지는 말한다 — 비어 있다는 사실 자체는 숨기지 않는다
+  assert.ok(/dealCount \?\? 0/.test(SHELL), '파이프라인마다 딜 수를 안 적는다')
+  // 「전체」가 먼저다 — 「어디에 뭐가 있나」가 첫 질문이다
+  assert.ok(/파이프라인 전체/.test(SHELL), '전체를 고를 길이 없다')
 })
 
 test('접은 것을 숨기지 않는다 — 몇 개인지는 말한다', () => {
@@ -85,7 +99,15 @@ test('접은 것을 숨기지 않는다 — 몇 개인지는 말한다', () => {
 // ── 등록 동선 ──────────────────────────────────────────────
 
 test('★ 딜이 0건일 때 붙여넣기 입력을 펼친다 — 접혀 있으면 그게 뭔지 모르고 지나친다', () => {
-  assert.ok(DEALS.includes('defaultOpen={dealCount === 0}'), '딜이 없어도 접혀 있다')
+  /*
+    구현 문자열이 아니라 **규칙**을 검사한다.
+    예전 판은 `defaultOpen={dealCount === 0}` 를 그대로 찾았는데, 그 식은
+    첫 렌더(파이프라인이 아직 안 온 시점)에도 0 이라 **딜이 있는 곳에서도 펼쳐졌다.**
+    지금은 불러오기가 끝난 뒤에 판단한다 — 문자열을 박아 두면 이런 교정을 가드가 막는다.
+  */
+  assert.ok(/dealCount === 0/.test(DEALS), '딜이 0건인지 안 본다')
+  assert.ok(/setQuickOpen\(true\)/.test(DEALS), '0건일 때 펼치지 않는다')
+  assert.ok(/!loading/.test(DEALS), '불러오기 전에 판단하면 딜이 있는 곳에서도 펼쳐진다')
 })
 
 test('★ 찾는 회사가 없으면 그 자리에서 만든다 (실측: 만들자마자 자동 선택)', () => {

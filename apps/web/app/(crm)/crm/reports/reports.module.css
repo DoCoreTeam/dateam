@@ -201,3 +201,24 @@
   color: var(--text-muted);
   font-size: var(--fs-sm);
 }
+
+/* 사업 리포트와 영업 지표 사이의 구분 — 둘은 다른 질문에 답한다 */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin: var(--space-6) 0 0;
+  padding-top: var(--space-5);
+  border-top: var(--border-w) solid var(--border-color);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.sectionHint {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+}

@@ -536,9 +536,21 @@ export async function closeDeal(
     const before = await (tx as any).crmDeal.findFirst({ where: { id }, select: SELECT })
     if (!before) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.')
 
+    /**
+     * 성사에 필요한 「금액」은 **수주 매출**이다 — 옛 `amountMinor` 칸이 아니다.
+     *
+     * 예전엔 이 줄이 `before.amountMinor` 만 봤다. 그래서 새 금액 모델
+     * (예산·견적·계약)로만 채운 딜은 **성사로 옮길 수 없었다** — 화면은
+     * 「금액이 있어야 성사로 옮길 수 있어요」라고 하는데 사용자 눈에는 금액이 **적혀 있다.**
+     * DB 의 `chk_won` 도 같은 옛 칸을 요구하므로, 판정만 고치면 저장에서 다시 막힌다.
+     * 그래서 **판정과 저장 둘 다** 수주 매출(pickBooked)로 맞춘다.
+     */
     const amount = input.amountMinor !== undefined
       ? toAmountMinor(input.amountMinor)
-      : before.amountMinor
+      : before.amountMinor ?? (() => {
+        const picked = pickBooked(before)
+        return picked.from === 'none' ? null : picked.minor
+      })()
 
     // 판정을 먼저 한다 — 통과 못 하면 아무것도 쓰지 않는다
     assertTransit('deal', before.status as DealStatus, input.to, {

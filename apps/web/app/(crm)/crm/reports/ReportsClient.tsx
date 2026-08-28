@@ -17,6 +17,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import { formatAmount } from '../deals/amount'
+import BusinessPanel, { type BusinessReportJson } from './BusinessPanel'
+import type { PeriodKey, GroupKey } from '@/lib/crm/domain/report-axis'
 import styles from './reports.module.css'
 
 interface CurrencySum { currency: string; totalMinor: string }
@@ -108,6 +110,14 @@ export default function ReportsClient() {
   const [items, setItems] = useState<PipelineReport[]>([])
   const [velocity, setVelocity] = useState<Velocity[]>([])
   const [forecast, setForecast] = useState<Forecast[]>([])
+  const [business, setBusiness] = useState<BusinessReportJson | null>(null)
+  /**
+   * 기간·기준은 **주소가 기억한다**(§2-6 (1)).
+   * 「3분기 · 담당자별」을 보다가 링크를 보냈는데 받는 쪽이 다른 화면을 보면
+   * 두 사람이 같은 숫자를 놓고 다른 이야기를 하게 된다.
+   */
+  const [period, setPeriod] = useState<PeriodKey>('THIS_YEAR')
+  const [groupBy, setGroupBy] = useState<GroupKey>('BUSINESS_TYPE')
   /**
    * 안 쓰는 파이프라인을 펼쳐 볼지.
    *
@@ -123,18 +133,19 @@ export default function ReportsClient() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/crm/reports')
+      const res = await fetch(`/api/crm/reports?period=${period}&groupBy=${groupBy}`)
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '리포트를 불러오지 못했습니다.'); return }
       setItems(body.items ?? [])
       setVelocity(body.velocity ?? [])
       setForecast(body.forecast ?? [])
+      setBusiness(body.business ?? null)
     } catch {
       setError('리포트를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [period, groupBy])
 
   useEffect(() => { void load() }, [load])
 
@@ -159,6 +170,25 @@ export default function ReportsClient() {
 
   return (
     <div className={styles.wrap}>
+      {/*
+        **돈 이야기가 먼저다.** 파이프라인 단계 합계는 영업의 내부 지표이고,
+        「이번 기간에 얼마를 벌었나」는 회사 전체가 묻는 질문이다.
+        예전 리포트는 뒤엣것을 아예 답하지 않았다.
+      */}
+      {business && (
+        <BusinessPanel
+          data={business}
+          period={period}
+          onPeriodChange={setPeriod}
+          onGroupChange={setGroupBy}
+        />
+      )}
+
+      <h2 className={styles.sectionHead}>
+        영업 · 지금 걸려 있는 것
+        <span className={styles.sectionHint}>아직 안 끝난 딜을 단계로 본다 — 위의 금액과 다른 이야기다</span>
+      </h2>
+
       {shown.map((p) => (
         <section key={p.pipelineId} className={`card ${styles.card}`}>
           <div className={styles.head}>

@@ -1,0 +1,267 @@
+/* 사업 리포트 — 세 관점 카드 · 달마다 막대 · 대상 표 · 상세 */
+
+.wrap {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* ── 마감(기간) ─────────────────────────────── */
+.periodBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.periodTabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-muted);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.periodTab {
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: calc(var(--radius) - 1px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast, 150ms) ease, color var(--duration-fast, 150ms) ease;
+}
+.periodTab:hover { color: var(--text); }
+.periodTab:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.periodTabOn {
+  background: var(--card-bg, #fff);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.periodRange {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 금액 카드 ─────────────────────────────── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.card {
+  position: relative;
+  padding: var(--space-4);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* 관점마다 왼쪽에 색 띠 — 색이 «무엇을 보는 눈인지»를 말한다 */
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+}
+
+.cardSales::before { background: var(--brand); }
+.cardRevenue::before { background: var(--success); }
+.cardCash::before { background: var(--info); }
+.cardBacklog::before { background: var(--warning); }
+
+.cardQuestion {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* 설명은 여기 들어 있다 — 펼쳐 두면 숫자가 안 보인다(§3-1) */
+.hintBtn {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+.hintBtn:hover { color: var(--text); border-color: var(--text-faint); }
+
+.cardFoot {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ── 금액 ─────────────────────────────── */
+.figureBig {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.figure {
+  font-size: var(--fs-price);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.figureLine { display: block; }
+
+.none { color: var(--text-faint); }
+
+.caveat {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-w) solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+/* ── 달마다 ─────────────────────────────── */
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+.legendSales, .legendRevenue {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.legendSales { background: var(--brand); }
+.legendRevenue { background: var(--success); }
+
+.chart {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.chartRow {
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.chartLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chartBars {
+  display: grid;
+  gap: 3px;
+}
+
+.bar {
+  display: block;
+  height: 9px;
+  min-width: 2px;
+  border-radius: 2px;
+  transition: width var(--duration-normal, 300ms) var(--ease-out-expo, ease);
+}
+.barSales { background: var(--brand); }
+.barRevenue { background: var(--success); }
+
+.chartValue {
+  min-width: 9rem;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── 표 ─────────────────────────────── */
+/* 숫자는 오른쪽 — 자릿수가 세로로 맞아야 크기를 눈으로 비교할 수 있다.
+   `.table td` 가 클래스+타입이라 `.num` 하나로는 못 이긴다 */
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+:global(.table-base) .num { text-align: right; }
+
+.padded { padding: var(--space-4); margin: 0; color: var(--text-muted); }
+
+.dealLink { color: var(--text); font-weight: 600; text-decoration: none; }
+.dealLink:hover { text-decoration: underline; }
+
+.unknownTag {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 1023px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767px) {
+  .cards { grid-template-columns: 1fr; }
+  .chartRow { grid-template-columns: 70px 1fr; }
+  .chartValue { grid-column: 2; text-align: left; }
+}
+
+/* 문장 안에 섞이는 금액 — 줄을 만들지 않는다 */
+.figureInline {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 표 컬럼 폭 — 이름은 늘어나고 숫자는 고정. 자릿수가 세로로 맞아야 크기를 눈으로 비교할 수 있다 */
+.colMoney { width: 15rem; }
+.colCount { width: 6rem; }
+.colName { width: 7rem; }
+.colDate { width: 8rem; }
+
+@media (max-width: 767px) {
+  /* 카드 모드에서는 폭 지정이 뜻을 잃는다 */
+  .colMoney, .colCount, .colName, .colDate { width: auto; }
+}
