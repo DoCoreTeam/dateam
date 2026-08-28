@@ -154,3 +154,92 @@ export function toProductJson(row: ProductRow): Record<string, unknown> {
     taxRate: String(row.taxRate),
   }
 }
+
+export interface UpdateProductInput {
+  name?: string | null
+  sku?: string | null
+  unitPriceMinor?: string | number | null
+  currency?: string | null
+  taxRate?: string | number | null
+  unit?: string | null
+  descriptionMd?: string | null
+  isActive?: boolean
+}
+
+/**
+ * 품목을 고친다.
+ *
+ * **왜 필요했나**: 만들기만 있고 고칠 길이 없었다. 견적을 쓰다 급히 만든 품목은
+ * 오타가 나기 쉬운데 — 그 이름이 **모든 견적서에 인쇄되는 이름**이다.
+ * 고칠 수 없으니 사람은 «비슷한 이름을 하나 더» 만들었고, 그래서 카탈로그가 갈렸다
+ * (사용자 지적: 「품목명이 잘못되었다면 어떻게 수정해? 관리하는 화면이 없는거 같은데?」).
+ *
+ * **이미 나간 견적서는 안 바뀐다.** 견적 줄은 이름·단가를 스스로 들고 있다(스키마 주석 참조) —
+ * 보낸 문서의 금액이 나중에 바뀌면 그건 다른 문서다. 여기서 고치는 것은 **다음 견적부터**다.
+ */
+export async function updateProduct(
+  workspaceId: string,
+  actorId: string | null,
+  id: string,
+  input: UpdateProductInput,
+): Promise<ProductRow> {
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const before = await (tx as any).crmProduct.findUnique({ where: { id }, select: SELECT })
+    if (!before) throw new CrmError('NOT_FOUND', '품목을 찾을 수 없습니다.')
+
+    const data: Record<string, unknown> = {}
+    if (input.name !== undefined) {
+      const name = requireText(input.name)
+      if (!name) throw new CrmError('VALIDATION_FAILED', '품목 이름을 입력해 주세요.', { field: 'name' })
+      // 같은 이름이 두 벌이면 견적마다 다른 것을 고르게 된다 — 만들 때와 같은 규칙이다
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const clash = await (tx as any).crmProduct.findFirst({
+        where: { name, isActive: true, NOT: { id } }, select: { id: true },
+      })
+      if (clash) {
+        throw new CrmError('VALIDATION_FAILED',
+          `「${name}」은 이미 있는 품목입니다. 다른 이름을 쓰거나 그 품목을 쓰세요.`, { field: 'name' })
+      }
+      data.name = name
+    }
+    if (input.sku !== undefined) data.sku = normalizeText(input.sku)
+    if (input.unitPriceMinor !== undefined) data.unitPriceMinor = toMinor(input.unitPriceMinor)
+    if (input.currency !== undefined && normalizeText(input.currency)) {
+      data.currency = String(input.currency).toUpperCase().slice(0, 3)
+    }
+    if (input.taxRate !== undefined) data.taxRate = toRate(input.taxRate)
+    if (input.unit !== undefined) data.unit = normalizeText(input.unit)
+    if (input.descriptionMd !== undefined) data.descriptionMd = input.descriptionMd?.trim() || null
+    if (input.isActive !== undefined) data.isActive = input.isActive
+
+    if (Object.keys(data).length === 0) return before as ProductRow
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const after = await (tx as any).crmProduct.update({ where: { id }, data, select: SELECT })
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'product.updated',
+      targetType: 'product', targetId: id,
+      beforeJson: { ...before, unitPriceMinor: before.unitPriceMinor.toString() },
+      afterJson: { ...after, unitPriceMinor: after.unitPriceMinor.toString() },
+    })
+    return after as ProductRow
+  })
+}
+
+/**
+ * 품목을 그만 판다 — **지우지 않는다.**
+ *
+ * 지난 견적서가 이 품목을 가리키고 있다(`CrmQuoteLine.productId`). 행을 없애면
+ * 그 연결이 끊겨 「어느 카탈로그 품목이었나」를 영영 알 수 없다.
+ * 목록에서 빠지고 검색에도 안 걸리므로 사용자가 보기에는 사라진 것과 같고,
+ * 되돌릴 수 있다.
+ */
+export async function archiveProduct(
+  workspaceId: string,
+  actorId: string | null,
+  id: string,
+  active = false,
+): Promise<ProductRow> {
+  return updateProduct(workspaceId, actorId, id, { isActive: active })
+}

@@ -55,6 +55,9 @@ export const CRM_NAV_GROUPS: readonly CrmNavGroup[] = [
     tabs: [
       { href: '/crm/deals', label: '딜' },
       { href: '/crm/quotes', label: '견적' },
+      // 품목은 견적의 **재료**다. 설정으로 내리면 견적 쓰다가 오타를 발견해도
+      // 고치러 갈 길이 안 보인다 — 실제로 고칠 화면 자체가 없었다(사용자 지적)
+      { href: '/crm/products', label: '품목' },
     ],
   },
   {

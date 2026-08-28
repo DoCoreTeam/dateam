@@ -31,7 +31,7 @@ export interface EntityMeta {
 }
 
 export type EntityKey =
-  | 'company' | 'person' | 'deal' | 'quote' | 'meeting' | 'note'
+  | 'company' | 'person' | 'deal' | 'quote' | 'product' | 'meeting' | 'note'
   | 'task' | 'event' | 'pipeline' | 'stage'
   | 'channel' | 'content'
   | 'dailyLog' | 'weeklyReport'
@@ -44,6 +44,13 @@ export const ENTITY: Record<EntityKey, EntityMeta> = {
   /** `영업기회` 금지 — 구 화면(/deals) 잔재 */
   deal: { label: '딜', id: 'deal', counter: '건', surface: 'crm' },
   quote: { label: '견적', id: 'quote', counter: '건', surface: 'crm' },
+  /**
+   * 견적에 올릴 수 있는 것 하나. **`상품`·`제품` 금지** —
+   * 우리가 파는 것에는 장비도 라이선스도 사람의 공수도 있어서
+   * 「상품」이라 부르면 공수 줄이 그 목록에 없는 것처럼 읽힌다.
+   * 견적 표의 열 이름(`QUOTE.lineName`)과 같은 말을 쓴다.
+   */
+  product: { label: '품목', id: 'product', counter: '개', surface: 'crm' },
   /** 팀에 공개된 기록. **회의노트(원본)와 다르다** */
   meeting: { label: '미팅', id: 'meeting', counter: '건', surface: 'crm' },
   /** 개인 소유 **원본**. 미팅은 여기서 발행받는다 */
