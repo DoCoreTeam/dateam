@@ -17,7 +17,7 @@
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { normalizeDomain, normalizeEmail, normalizePhone, normalizeText } from '../domain/normalize.ts'
+import { companyMatchKey, normalizeDomain, normalizeEmail, normalizePhone, normalizeText } from '../domain/normalize.ts'
 import { runAi } from '../ai/runner.ts'
 import { QUICK_CREATE_V1 } from '../ai/prompts/quick-create.v1.ts'
 import { parseQuickCreate, type QuickCreateOutput } from '../ai/schemas/quick-create.ts'
@@ -139,6 +139,44 @@ export async function applyQuickCreate(
         companyId = hit.id
         linked.push({ type: 'company', id: hit.id, name: hit.name })
         // 이미 있는 회사다 — 새로 읽어낸 정보는 덮지 않고 제안으로 넘긴다(절대규칙 1)
+        enrich.push({
+          targetType: 'company', targetId: hit.id,
+          current: { domain: hit.domain, industry: hit.industry, region: hit.region },
+          proposed: {
+            domain,
+            industry: normalizeText(output.company?.industry),
+            region: normalizeText(output.company?.region),
+          },
+        })
+      }
+    }
+
+    /**
+     * 도메인이 없으면 **이름으로** 한 번 더 본다.
+     *
+     * 도메인만으로 판정하던 동안, 도메인이 없는 서명(공공기관·재단·연구원이 대부분이다)은
+     * 같은 회사를 붙여넣을 때마다 새로 만들었다 — 실제로 「konst tech」와 「Konsttech」가
+     * 두 벌로 남아 있었고, 그렇게 갈라진 회사는 매출 합계를 조용히 둘로 나눈다.
+     *
+     * **표기만 다른 같은 이름**만 잡는다(`companyMatchKey`). 비슷한 이름은 안 잡는다 —
+     * 과병합은 중복보다 고치기 어렵다(합친 것을 되돌릴 방법이 없다).
+     *
+     * 후보가 여럿이면 **아무것도 고르지 않는다.** 잘못 고르면 남의 회사에 사람이 붙는다.
+     */
+    const matchKey = companyMatchKey(companyName)
+    if (!companyId && matchKey) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows: { id: string; name: string; domain: string | null; industry: string | null; region: string | null }[] =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (tx as any).crmCompany.findMany({
+          select: { id: true, name: true, domain: true, industry: true, region: true },
+          take: 2000,
+        })
+      const hits = rows.filter((r) => companyMatchKey(r.name) === matchKey)
+      if (hits.length === 1) {
+        const hit = hits[0]
+        companyId = hit.id
+        linked.push({ type: 'company', id: hit.id, name: hit.name })
         enrich.push({
           targetType: 'company', targetId: hit.id,
           current: { domain: hit.domain, industry: hit.industry, region: hit.region },

@@ -35,6 +35,7 @@
   font-size: var(--fs-sm);
   font-weight: 600;
 }
+.done p { margin: 0; }
 
 /* 읽은 명함 — 등록 전에 고칠 수 있다 */
 .cardList { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
@@ -73,3 +74,91 @@
 
 /* 확정은 오른쪽 끝, 취소는 그 왼쪽 — §2-3-2 L-6 */
 .foot { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+/* 캡처 이미지를 붙여넣거나 끌어다 놓는 자리 — 셋(붙여넣기·드롭·고르기)이 한 곳에 있다 */
+.dropzone {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+  border: var(--border-w) dashed var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  transition: border-color var(--duration-fast, 150ms), background var(--duration-fast, 150ms);
+}
+.dropzoneOver {
+  border-color: var(--brand);
+  background: var(--info-bg);
+}
+.dropIcon { color: var(--text-faint); }
+.dropText {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+.kbd {
+  padding: 0 var(--space-1);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 4px;
+  background: var(--surface-bg);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  color: var(--text);
+}
+
+/* 이어 붙었다는 말은 «등록했다»보다 한 단계 낮게 — 새로 만든 것이 주인공이다 */
+.doneSub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* 붙여넣은 이미지 — 「이미지」라는 낱말이 아니라 그림으로 보인다 */
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.thumb {
+  position: relative;
+  width: 96px;
+  height: 64px;
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-bg);
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.thumb .remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--surface);
+  border-radius: 50%;
+}
+.thumbNote {
+  flex: 1 1 160px;
+  margin: 0;
+  align-self: center;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* 지금 무엇을 하는 중인가 — 「등록 중…」 하나로 뭉치지 않는다 */
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  color: var(--info);
+  font-size: var(--fs-sm);
+}

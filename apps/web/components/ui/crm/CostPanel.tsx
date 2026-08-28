@@ -258,6 +258,12 @@ export default function CostPanel({ dealId, currency, onChanged }: Props) {
         <NbModal
           title={COST.addCost}
           onClose={() => { setAdding(false); setFormError(null) }}
+          /*
+            넣는 방식(금액·공수·비율)마다 칸 수가 달라 모달이 출렁인다 — 높이를 고정한다.
+            가장 긴 것(공수·비율: 두 칸이 한 줄 더 생긴다)에 맞춘다.
+          */
+          fixedHeight="min(620px, 82vh)"
+          maxWidth={600}
           footer={
             <div className={styles.modalFoot}>
               <NbButton variant="ghost" onClick={() => setAdding(false)} disabled={saving}>{ACTION.cancel}</NbButton>

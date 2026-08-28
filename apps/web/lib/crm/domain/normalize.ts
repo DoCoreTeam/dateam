@@ -65,3 +65,32 @@ export function normalizeText(input: string | null | undefined): string | null {
 export function requireText(input: string | null | undefined): string | null {
   return normalizeText(input)
 }
+
+/**
+ * 회사명 **대조용** 열쇠 — 저장값이 아니라 «같은 회사인가»를 판정할 때만 쓴다.
+ *
+ * **왜 필요한가**: 중복 판정이 도메인에만 걸려 있어서, 도메인이 없는 서명
+ * (공공기관·재단·연구원이 대부분이다)은 같은 회사를 붙여넣을 때마다 새로 만들었다.
+ * 실제로 「konst tech」와 「Konsttech」가 두 벌로 남아 있었다 —
+ * 이런 것이 쌓이면 회사별 매출 합계가 조용히 갈라진다.
+ *
+ * **어디까지 지우는가**: 법인격 표기와 공백·구두점만. 그 이상은 지우지 않는다 —
+ * 「대한전선」과 「대한전기」를 같게 만들면 **병합해서는 안 될 것을 병합한다**.
+ * 즉 «표기만 다른 같은 이름»만 잡고, 비슷한 이름은 잡지 않는다.
+ *
+ *   "(주)가비아" · "㈜ 가비아" · "주식회사 가비아" → "가비아"
+ *   "KONST Tech." · "konst tech"                  → "konsttech"
+ */
+export function companyMatchKey(input: string | null | undefined): string | null {
+  const raw = (input ?? '').trim()
+  if (!raw) return null
+  const stripped = raw
+    // 법인격 — 앞뒤 어느 쪽에 붙어도 지운다
+    .replace(/\(주\)|\(유\)|\(재\)|\(사\)|㈜|㈐|주식회사|유한회사|재단법인|사단법인/g, ' ')
+    .replace(/\b(co\.?,?\s*ltd\.?|inc\.?|corp\.?|corporation|company|llc|gmbh|s\.?a\.?)\b/gi, ' ')
+    // 공백·구두점 — 표기 흔들림의 대부분이 여기다
+    .replace(/[\s.,'"`·・\-_/\\()[\]{}]/g, '')
+    .toLowerCase()
+  // 너무 짧아지면 판정하지 않는다 — 한 글자로 남은 이름은 아무거나 물어 온다
+  return stripped.length >= 2 ? stripped : null
+}
