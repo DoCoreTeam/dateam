@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.650',
+    date: '2026-08-28',
+    title: '명함과 계약서를 붙여 둬요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📎',
+        headline: '인물·회사·딜에 파일을 첨부해요',
+        detail: '명함 사진, 계약서, 증빙을 그 건과 함께 둡니다. 인물 화면은 「명함」이, 딜 화면은 「계약서」가 기본으로 잡혀 있어 대부분 고르지 않고 바로 올릴 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔐',
+        headline: '대외비 파일은 관리자만 봐요',
+        detail: '매입 견적서처럼 우리 원가가 드러나는 파일은 목록에서도 보이지 않습니다. 내려받기 주소는 5분 뒤 만료돼서 링크가 새어도 오래 열려 있지 않아요.',
+      },
+    ],
+  },
+  {
     version: '0.7.649',
     date: '2026-08-28',
     title: '거래 조건을 사업마다 골라 넣어요',

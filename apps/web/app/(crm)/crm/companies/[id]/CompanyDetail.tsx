@@ -27,6 +27,8 @@ import TaskPanel from '@/components/ui/crm/TaskPanel'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import CompanyFormModal from '../CompanyFormModal'
 import PersonFormModal from '../../people/PersonFormModal'
+import AttachmentPanel from '@/components/ui/crm/AttachmentPanel'
+import { ATTACHMENT } from '@/lib/terms/attachment'
 import DealFormModal from '../../deals/DealFormModal'
 import type { BoardPipeline } from '../../deals/DealBoard'
 import { ENTITY, createLabel, emptyTitle } from '@/lib/terms'
@@ -230,6 +232,10 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
                   action: { label: createLabel(ENTITY.deal.label), onClick: () => void openDealForm() },
                 }}
               />
+          </RecordPanel>
+
+          <RecordPanel title={ATTACHMENT.section}>
+            <AttachmentPanel target="COMPANY" targetId={companyId} />
           </RecordPanel>
 
           {/* 이 회사와 무슨 이야기가 오갔나 — 딜별로 흩어져 있으면 못 본다 */}

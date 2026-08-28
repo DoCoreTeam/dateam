@@ -20,6 +20,8 @@ import { useVerified } from '@/lib/crm/use-verified'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import Timeline from '@/components/ui/crm/Timeline'
 import RelatedList from '@/components/ui/crm/RelatedList'
+import AttachmentPanel from '@/components/ui/crm/AttachmentPanel'
+import { ATTACHMENT } from '@/lib/terms/attachment'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import PersonFormModal from '../PersonFormModal'
@@ -180,6 +182,14 @@ export default function PersonDetail({ personId }: { personId: string }) {
                 items={deals.map((d) => ({ id: d.id, href: linkWithBack(`/crm/deals/${d.id}`, here), title: d.name }))}
                 empty={{ title: '진행 중인 딜이 없어요', description: '딜 화면에서 영업 건을 만드세요.' }}
               />
+          </RecordPanel>
+
+          {/*
+            명함이 여기 자리다 — 사람과 함께 남아야 나중에 「이 사람 명함 어딨지」가 없다.
+            기본 종류를 명함으로 두므로 대부분 고르지 않고 바로 올린다.
+          */}
+          <RecordPanel title={ATTACHMENT.section}>
+            <AttachmentPanel target="PERSON" targetId={personId} defaultKind="BUSINESS_CARD" />
           </RecordPanel>
 
           <RecordPanel title="타임라인">

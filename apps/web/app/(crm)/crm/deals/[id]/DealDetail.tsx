@@ -25,6 +25,8 @@ import TaskPanel from '@/components/ui/crm/TaskPanel'
 import QuotePanel from '@/components/ui/crm/QuotePanel'
 import DealContacts from './DealContacts'
 import CostPanel from '@/components/ui/crm/CostPanel'
+import AttachmentPanel from '@/components/ui/crm/AttachmentPanel'
+import { ATTACHMENT } from '@/lib/terms/attachment'
 import { COST } from '@/lib/terms/cost'
 import LedgerPanel from './LedgerPanel'
 import type { StatusKey } from '@/lib/tokens/status-colors'
@@ -264,6 +266,11 @@ export default function DealDetail({ dealId }: { dealId: string }) {
             </RecordPanel>
 
             {/* 딜을 여는 사람이 가장 자주 하는 질문 — "지난번에 뭐라고 했지?" */}
+            {/* 계약서·발주서가 이 건과 함께 남는다 — 드라이브 링크는 폴더를 옮기면 끊긴다 */}
+            <RecordPanel title={ATTACHMENT.section}>
+              <AttachmentPanel target="DEAL" targetId={dealId} defaultKind="CONTRACT" />
+            </RecordPanel>
+
             <RecordPanel title="이 딜의 미팅">
               <MeetingPanel scope={{ dealId }} />
             </RecordPanel>
