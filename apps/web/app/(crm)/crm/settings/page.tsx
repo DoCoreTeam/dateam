@@ -3,6 +3,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import CrmGroupTabs from '@/components/crm/CrmGroupTabs'
 import BudgetCard from './BudgetCard'
 import SettingsCard from './SettingsCard'
+import QuoteTermsCard from './QuoteTermsCard'
 import DuplicatesCard from './DuplicatesCard'
 import DataCheckCard from './DataCheckCard'
 import IntegrationCard from './IntegrationCard'
@@ -28,6 +29,8 @@ export default function CrmSettingsPage() {
       <div className={styles.grid}>
         <BudgetCard />
         <SettingsCard />
+        {/* 거래 조건은 견적서에 인쇄되는 것이라 공급자 설정 바로 다음이다 */}
+        <QuoteTermsCard />
         <AutoApplyCard />
         <IntegrationCard />
         <DataCheckCard />

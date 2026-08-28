@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.649',
+    date: '2026-08-28',
+    title: '거래 조건을 사업마다 골라 넣어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📋',
+        headline: '거래 조건을 하나씩 등록해요',
+        detail: '설정에서 결제·납품·유효기간 같은 문장을 하나씩 등록합니다. 사업 유형을 지정하면 그 유형의 딜에서 먼저 보이고, 「기본」으로 표시하면 새 견적에 자동으로 붙어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '✅',
+        headline: '견적마다 필요한 조건만 골라요',
+        detail: '견적을 만들거나 고칠 때 등록된 조건 중에서 체크하면 그것만 견적서에 인쇄됩니다. 고른 순서가 곧 인쇄 순서예요.',
+      },
+    ],
+  },
+  {
     version: '0.7.648',
     date: '2026-08-28',
     title: '견적 항목이 무엇인지 골라요',

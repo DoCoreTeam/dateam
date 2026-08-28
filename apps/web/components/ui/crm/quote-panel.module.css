@@ -225,3 +225,24 @@
   color: var(--text-faint);
   line-height: 1.4;
 }
+
+/* 거래 조건 고르기 — 고른 순서가 인쇄 순서다 */
+.termList { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+
+.termItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  cursor: pointer;
+}
+.termItem:hover { border-color: var(--text-faint); }
+
+/* 고른 것은 눈에 띄어야 한다 — 체크박스만으로는 훑을 때 안 보인다 */
+.termOn { border-color: var(--brand); background: var(--surface-muted); }
+
+.termBody { color: var(--text); line-height: 1.5; }

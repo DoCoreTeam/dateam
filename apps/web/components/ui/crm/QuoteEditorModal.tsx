@@ -83,6 +83,11 @@ export interface QuoteDraft {
    * 억지로 채우게 하면 아무나 골라 넣는다(사용자 지시).
    */
   recipientPersonId: string | null
+  /**
+   * 이 견적에 실을 거래 조건 — **고른 순서가 곧 인쇄 순서**다.
+   * 통째로 적어 둔 한 덩어리가 아니라 항목이라, 사업마다 필요한 것만 나간다.
+   */
+  termIds: string[]
   lines: QuoteLineDraft[]
 }
 
@@ -114,6 +119,7 @@ export function newQuoteDraft(dealName: string, currency: string | null, validDa
     validUntil: todayPlus(validDays),
     notesMd: '',
     recipientPersonId: null,
+    termIds: [],
     lines: [emptyLine()],
   }
 }
@@ -137,6 +143,7 @@ export function quoteToDraft(body: any): QuoteDraft {
     notesMd: body.notesMd ?? '',
     status: body.status,
     recipientPersonId: body.recipientPersonId ?? null,
+    termIds: body.termIds ?? [],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     lines: (body.lines ?? []).map((l: any) => ({
       id: l.id,
@@ -163,6 +170,33 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
    * 회사에 100명이 있어도 이 건과 상관없는 사람을 고를 이유가 없다.
    */
   const [people, setPeople] = useState<{ id: string; name: string; title: string | null }[]>([])
+  /**
+   * 고를 수 있는 거래 조건.
+   *
+   * **새 견적이면 «기본» 조건을 미리 켜 둔다** — 매번 같은 것을 고르게 하면
+   * 언젠가 빠뜨리고, 빠진 조건은 계약 분쟁에서 문제가 된다.
+   */
+  const [terms, setTerms] = useState<{ id: string; title: string; body: string; isDefault: boolean }[]>([])
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const res = await fetch('/api/crm/quote-terms')
+        if (!res.ok) return
+        const body = await res.json()
+        if (!alive) return
+        const list = (body.items ?? []) as { id: string; title: string; body: string; isDefault: boolean; isActive: boolean }[]
+        const usable = list.filter((t) => t.isActive)
+        setTerms(usable)
+        // 새 견적일 때만 기본을 켠다 — 고친 견적에서 사용자가 뺀 조건을 되살리면 안 된다
+        setDraft((d) => (d.id || d.termIds.length > 0
+          ? d
+          : { ...d, termIds: usable.filter((t) => t.isDefault).map((t) => t.id) }))
+      } catch { /* 조건을 못 불러와도 견적은 저장된다 */ }
+    })()
+    return () => { alive = false }
+  }, [])
+
   useEffect(() => {
     let alive = true
     void (async () => {
@@ -293,6 +327,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         validUntil: draft.validUntil || null,
         notesMd: draft.notesMd.trim() || null,
         recipientPersonId: draft.recipientPersonId,
+        termIds: draft.termIds,
         ...(linesLocked ? {} : { lines }),
         ...(isEdit ? { version: draft.version } : {}),
       }
@@ -577,6 +612,43 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
 
         {approval && (
           <div className={styles.approvalNote}>{approvalNeeded(DEFAULT_DISCOUNT_APPROVAL_PCT)}</div>
+        )}
+
+        {/*
+          ── 거래 조건 ──────────────────────────────────────
+          관리자가 등록한 것 중에서 **이 견적에 필요한 것만** 고른다.
+          한 덩어리로 적어 두면 고객이 자기와 무관한 줄까지 읽는다
+          (사용자 지적: 「우리 사업 스타일별로 이 내용이 다 다르거든」).
+          조건이 하나도 등록돼 있지 않으면 자리를 만들지 않는다 — 빈 목록은 안내가 아니다.
+        */}
+        {terms.length > 0 && (
+          <div className={styles.field}>
+            <span className="label">{QUOTE.terms}</span>
+            <ul className={styles.termList}>
+              {terms.map((t) => {
+                const on = draft.termIds.includes(t.id)
+                return (
+                  <li key={t.id}>
+                    <label className={`${styles.termItem}${on ? ` ${styles.termOn}` : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={linesLocked}
+                        onChange={(e) => setDraft((d) => ({
+                          ...d,
+                          // **고른 순서가 인쇄 순서다** — 뺐다 다시 넣으면 맨 뒤로 간다
+                          termIds: e.target.checked
+                            ? [...d.termIds, t.id]
+                            : d.termIds.filter((x) => x !== t.id),
+                        }))}
+                      />
+                      <span className={styles.termBody}>{t.body}</span>
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         )}
 
         <div className={styles.field}>
