@@ -45,9 +45,15 @@ export const QUOTE_NO_PRESETS: readonly { label: string; pattern: string }[] = [
 export type SeqScope = 'DAY' | 'MONTH' | 'YEAR' | 'FOREVER'
 
 export function seqScopeOf(pattern: string): SeqScope {
-  const hasDay = /\{DD\}|\{MMDD\}/.test(pattern)
-  const hasMonth = /\{MM\}|\{MMDD\}/.test(pattern)
-  const hasYear = /\{YYYY\}|\{YY\}/.test(pattern)
+  /*
+    **빈 형식은 기본값으로 본다.** `renderQuoteNo` 가 그렇게 하므로 여기도 같아야 한다 —
+    안 그러면 설정 화면이 빈 칸에서 「계속 이어서」라고 안내하는데
+    실제로 저장되는 번호는 「날마다 1번부터」다(실브라우저에서 잡았다).
+  */
+  const p = pattern || DEFAULT_QUOTE_NO_PATTERN
+  const hasDay = /\{DD\}|\{MMDD\}/.test(p)
+  const hasMonth = /\{MM\}|\{MMDD\}/.test(p)
+  const hasYear = /\{YYYY\}|\{YY\}/.test(p)
   if (hasDay) return 'DAY'
   if (hasMonth) return 'MONTH'
   if (hasYear) return 'YEAR'

@@ -53,7 +53,7 @@ export interface SettingDef {
    */
   group: SettingGroupKey
   /** 값 종류 — 화면이 어떤 입력을 그릴지 정한다 */
-  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline' | 'image'
+  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline' | 'image' | 'quoteNo'
   /**
    * `choice` 일 때 고를 수 있는 것.
    *
@@ -141,6 +141,16 @@ export const SETTING_DEFS: readonly SettingDef[] = [
     key: 'quote.validDays', label: '견적 유효기간', kind: 'text', group: 'quote',
     fallback: '30',
     description: '새 견적을 만들 때 기본으로 잡히는 기간입니다. 「30」이면 30일, 「3개월」이면 3개월. 견적마다 바꿀 수 있습니다.',
+  },
+  {
+    /*
+      견적번호 형식 — **회사의 얼굴이라 배포를 기다릴 일이 아니다.**
+      전용 입력(`kind: 'quoteNo'`)이라 화면이 토큰 안내와 미리보기를 함께 보여 준다 —
+      `{SEQ}` 같은 표시를 설명 없이 자유 입력하게 두면 반드시 오타가 문서로 나간다.
+    */
+    key: 'quote.numberFormat', label: '견적번호 형식', kind: 'quoteNo', group: 'quote',
+    fallback: DEFAULT_QUOTE_NO_PATTERN,
+    description: '견적을 만들 때 붙는 번호입니다. 날짜 토큰이 들어가면 그 단위로 1번부터 다시 셉니다.',
   },
   {
     key: 'quote.supplier.logo', label: '로고', kind: 'image', group: 'quote',
@@ -503,6 +513,16 @@ export async function setSetting(
   }
 
   if (def.kind === 'image') assertImage(String(rawValue), key)
+
+  /*
+    번호 형식은 **서버도 막는다.** 화면이 이미 검사하지만 API 를 직접 부르는 길이 있고,
+    잘못된 형식이 들어가면 그 뒤로 만드는 견적마다 이상한 번호가 붙는다 —
+    되돌리려면 이미 나간 문서를 전부 찾아야 한다.
+  */
+  if (def.kind === 'quoteNo') {
+    const bad = validateQuoteNoPattern(String(rawValue))
+    if (bad) throw new CrmError('VALIDATION_FAILED', bad, { field: key })
+  }
 
   const stored: unknown = isSecret ? encryptSecret(String(rawValue)) : rawValue
 

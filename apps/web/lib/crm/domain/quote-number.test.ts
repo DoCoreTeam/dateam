@@ -28,6 +28,11 @@ test('채번 범위는 형식이 정한다 — 사용자가 따로 고르면 둘
   assert.equal(seqScopeOf('Q-{YYYY}{MM}-{SEQ}'), 'MONTH')
   assert.equal(seqScopeOf('Q-{YYYY}-{SEQ}'), 'YEAR')
   assert.equal(seqScopeOf('Q{SEQ}'), 'FOREVER')
+  /*
+    빈 형식은 기본값으로 본다 — `renderQuoteNo` 가 그렇게 하므로 여기도 같아야 한다.
+    안 맞추면 설정 화면이 「계속 이어서」라고 안내하는데 저장되는 번호는 「날마다」다(실측).
+  */
+  assert.equal(seqScopeOf(''), 'DAY', '빈 형식이 기본값과 다른 범위로 안내된다')
 })
 
 test('앞자리로 같은 범위의 번호를 찾는다', () => {

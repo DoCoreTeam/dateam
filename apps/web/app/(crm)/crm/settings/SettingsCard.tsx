@@ -14,6 +14,8 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { SETTING_GROUP as GROUP, SETTING_GROUP_ORDER as GROUP_ORDER } from '@/lib/crm/domain/setting-group'
+import QuoteNoField from './QuoteNoField'
+import { kstTodayKey } from '@/lib/datetime/kst'
 import styles from './settings.module.css'
 
 interface Choice { value: string; label: string; hint?: string }
@@ -21,7 +23,7 @@ interface Choice { value: string; label: string; hint?: string }
 interface SettingItem {
   key: string
   label: string
-  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline' | 'image'
+  kind: 'text' | 'number' | 'secret' | 'choice' | 'multiline' | 'image' | 'quoteNo'
   /** 어느 카드에 설지 — 성격이 다른 설정을 한 목록에 늘어놓지 않는다 */
   group: string
   description: string
@@ -40,6 +42,8 @@ const SOURCE_LABEL: Record<SettingItem['source'], string> = {
 }
 
 export default function SettingsCard() {
+  // 「오늘」은 KST 다 — 미리보기 번호가 한국 자정~아침 9시에 어제 날짜로 보이면 안 된다
+  const todayKey = kstTodayKey()
   const [items, setItems] = useState<SettingItem[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -156,6 +160,17 @@ export default function SettingsCard() {
                     type="file"
                     accept="image/png,image/jpeg"
                     onChange={(e) => void pickImage(s.key, e.target.files?.[0] ?? null)}
+                  />
+                ) : s.kind === 'quoteNo' ? (
+                  /*
+                    번호 형식은 **결과를 보면서** 고쳐야 한다 — 형식 문자열만 보고는
+                    무엇이 나올지 모르고, 틀린 채로 저장하면 고객 문서에 그 오타가 실린다.
+                  */
+                  <QuoteNoField
+                    id={`set-${s.key}`}
+                    value={drafts[s.key] ?? ''}
+                    onChange={(next) => setDrafts((d) => ({ ...d, [s.key]: next }))}
+                    todayKey={todayKey}
                   />
                 ) : s.kind === 'multiline' ? (
                   /*

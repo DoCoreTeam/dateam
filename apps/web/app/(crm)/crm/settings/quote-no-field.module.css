@@ -1,0 +1,89 @@
+/* 견적번호 형식 — 입력 + 미리보기 + 프리셋 + 쓸 수 있는 표시 */
+
+.wrap {
+  display: grid;
+  gap: var(--space-2);
+  /*
+    **카드 폭 안에 갇힌다.** 안 잡으면 토큰 목록이 카드보다 넓어져 옆의 「저장」 버튼을
+    밀어내고, 버튼이 「저 / 장」으로 세로로 짓눌린다(실측).
+    grid 자식은 기본이 `min-width: auto` 라 내용이 크면 칸을 늘린다 — 그걸 막는 값이다.
+  */
+  min-width: 0;
+}
+
+.preview {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.previewLabel { color: var(--text-faint); }
+
+.sample {
+  font-size: var(--fs-md);
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.next { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+.scope {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.presets { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.preset {
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.preset:hover { color: var(--text); border-color: var(--text-faint); }
+
+.presetOn {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--card-bg, #fff);
+}
+
+/* 쓸 수 있는 표시 — 접지 않는다. 접으면 아무도 안 편다 */
+.tokens {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px var(--space-3);
+  margin: var(--space-1) 0 0;
+  padding-top: var(--space-2);
+  border-top: var(--hairline) solid var(--border-light);
+  font-size: var(--fs-2xs);
+}
+
+.token { display: flex; gap: var(--space-2); }
+.token dt { font-weight: 700; color: var(--text); white-space: nowrap; }
+.token dd { margin: 0; color: var(--text-muted); }
+.tokenSample { color: var(--text-faint); }

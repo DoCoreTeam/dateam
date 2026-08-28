@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.644',
+    date: '2026-08-28',
+    title: '견적번호를 우리 방식대로 붙여요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🔢',
+        headline: '견적번호 형식을 직접 정할 수 있어요',
+        detail: '설정 → 견적서에서 「DA-{YYYY}-{MMDD}-{SEQ:2}」처럼 쓰면 「DA-2026-0828-01」로 나갑니다. 쓰면서 바로 결과가 보이고, 날짜를 넣으면 그 단위로 1번부터 다시 세요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🛡',
+        headline: '잘못된 형식은 저장 전에 막아요',
+        detail: '일련번호를 빠뜨리면 모든 견적이 같은 번호가 됩니다. 그런 형식은 저장되지 않고, 왜 안 되는지 그 자리에서 알려 드려요.',
+      },
+    ],
+  },
+  {
     version: '0.7.643',
     date: '2026-08-28',
     title: '견적서가 진짜 문서처럼 나가요',
