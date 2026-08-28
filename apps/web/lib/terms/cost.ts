@@ -157,6 +157,24 @@ export const COST_STAGE_LABEL: Record<CostStage, string> = {
   ACTUAL: '실적',
 }
 
+/**
+ * 넣는 방식 — **같은 금액도 «어떻게 나온 숫자인지»가 다르다.**
+ * 금액만 남기면 나중에 「이 3,600만원이 어디서 나왔지」를 아무도 모른다.
+ */
+export const COST_INPUT_MODE_LABEL: Record<CostInputMode, string> = {
+  AMOUNT: '금액으로',
+  EFFORT: '공수 × 단가',
+  RATIO: '비율로',
+}
+
+export const COST_INPUT_MODE_ORDER: readonly CostInputMode[] = ['AMOUNT', 'EFFORT', 'RATIO']
+
+export const COST_INPUT_MODE_HINT: Record<CostInputMode, string> = {
+  AMOUNT: '금액을 그대로 적습니다. 견적서·계약서에 적힌 값이 있을 때',
+  EFFORT: '공수(M/M)에 등급 단가를 곱합니다. 인건비가 대부분 이렇습니다',
+  RATIO: '매출이나 원가 합계의 몇 %로 잡습니다. 관리비·예비비가 그렇습니다',
+}
+
 export const COST_STAGE_ORDER: readonly CostStage[] = ['ESTIMATE', 'COMMITTED', 'ACTUAL']
 
 export const COST_STAGE_HINT: Record<CostStage, string> = {

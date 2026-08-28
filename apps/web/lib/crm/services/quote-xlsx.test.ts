@@ -59,7 +59,8 @@ test('화면에 있는 것이 파일에도 있다 — 담당자까지', async ()
   const text = await textOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
   for (const must of [
     // 제목은 자간 표기라 「견 적 서」다 — 엑셀엔 letter-spacing 이 없어 공백으로 만든다
-    '견 적 서', 'Q-2026-0014', '2026-09-27',
+    // 유효기간은 **날짜 값 + 수식**(`=G2+N`)이라 글자로는 안 나온다 — 아래 별도 테스트가 본다
+    '견 적 서', 'Q-2026-0014',
     '한국지능정보사회진흥원 귀중',
     // 인쇄본에는 나오는데 엑셀에만 빠졌던 값 — 빠지면 같은 문서가 아니다
     '이준희 팀장',
@@ -70,7 +71,6 @@ test('화면에 있는 것이 파일에도 있다 — 담당자까지', async ()
     '주식회사 데이터얼라이언스', '123-45-67890', '김도현',
     'NVIDIA H100 80GB', 'SXM5 · 3년 무상보증 포함', '구축 및 최적화 용역',
     '공급가액', '할인', '부가세', '합계 금액',
-    '금 오억사천삼십칠만오천원정',
     '결제: 30일', '납품: 8주', '상기 금액은 부가세 별도입니다.',
   ]) assert.ok(text.includes(must), `«${must}» 가 엑셀에 없다`)
 })
@@ -81,8 +81,53 @@ test('금액은 계산할 수 있는 숫자다 — 문자열로 넣으면 엑셀
   ws.eachRow((row) => row.eachCell({ includeEmpty: false }, (c) => {
     if (typeof c.value === 'number') nums.push(c.value)
   }))
-  assert.ok(nums.includes(540375000), '합계가 숫자로 안 들어갔다')
+  /*
+    **합계는 이제 수식이다**(`=G23-G24+G25`) — 받은 사람이 수량을 고치면 따라 움직인다.
+    그래서 «숫자로 들어갔나»가 아니라 «단가·수량이 숫자인가»를 본다.
+    합계가 계산되는지는 아래 수식 테스트가 검사한다.
+  */
   assert.ok(nums.includes(45000000), '단가가 숫자로 안 들어갔다')
+  assert.ok(nums.includes(1), '수량이 숫자로 안 들어갔다')
+})
+
+test('★ 금액과 날짜가 수식이다 — 항목을 고치면 아래가 따라 움직인다', async () => {
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  const formulas: string[] = []
+  ws.eachRow((row) => row.eachCell({ includeEmpty: false }, (c) => {
+    const v = c.value as { formula?: string } | null
+    if (v && typeof v === 'object' && v.formula) formulas.push(v.formula)
+  }))
+  const joined = formulas.join(' | ')
+
+  // 항목 금액 = 단가 × 수량 × (1−할인)
+  assert.ok(/ROUND\(D\d+\*E\d+/.test(joined), `항목 금액이 수식이 아니다 — ${joined}`)
+  // 공급가액은 **할인 전**이라 SUMPRODUCT 다. SUM(금액열)로 내면 화면과 달라진다(실제로 그랬다)
+  assert.ok(/SUMPRODUCT\(D/.test(joined), '공급가액이 «수량×단가»의 합이 아니다')
+  // 합계까지 연쇄
+  assert.ok(formulas.some((f) => /^G\d+-G\d+\+G\d+$/.test(f)), '합계가 수식이 아니다')
+  // 한글 금액도 합계를 참조한다(미지원 환경에서는 계산값으로 떨어진다)
+  assert.ok(/NUMBERSTRING/.test(joined), '한글 금액이 합계를 참조하지 않는다')
+  // 유효기간은 견적일 + 일수
+  assert.ok(/^G\d+\+\d+$/.test(formulas.find((f) => /^G\d+\+\d+$/.test(f)) ?? ''), '유효기간이 견적일을 참조하지 않는다')
+})
+
+test('한글 금액이 수식 안에 폴백으로 남아 있다 — NUMBERSTRING 이 없는 환경에서도 글자가 나온다', async () => {
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  let ok = false
+  ws.eachRow((row) => row.eachCell({ includeEmpty: false }, (c) => {
+    const v = c.value as { formula?: string } | null
+    if (v && typeof v === 'object' && v.formula?.includes('금 오억사천삼십칠만오천원정')) ok = true
+  }))
+  assert.ok(ok, '한글 금액 폴백이 없다 — 미지원 환경에서 #NAME? 만 보인다')
+})
+
+test('★ 견적일은 날짜 값이다 — 문자열이면 받은 사람이 정렬·계산을 못 한다', async () => {
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  let found = false
+  ws.eachRow((row) => row.eachCell({ includeEmpty: false }, (c) => {
+    if (c.value instanceof Date) found = true
+  }))
+  assert.ok(found, '날짜가 문자열로 들어갔다')
 })
 
 test('문서 어디에도 통화 코드를 쓰지 않는다 — 「통화 KRW」라고 적는 곳은 없다', async () => {

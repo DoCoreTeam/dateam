@@ -24,6 +24,8 @@ import Timeline from '@/components/ui/crm/Timeline'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import QuotePanel from '@/components/ui/crm/QuotePanel'
 import DealContacts from './DealContacts'
+import CostPanel from '@/components/ui/crm/CostPanel'
+import { COST } from '@/lib/terms/cost'
 import LedgerPanel from './LedgerPanel'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { formatKstDateTimeShort, kstDateKey } from '@/lib/datetime/kst'
@@ -228,6 +230,16 @@ export default function DealDetail({ dealId }: { dealId: string }) {
             */}
             <RecordPanel title="매출 인식 장부">
               <LedgerPanel dealId={dealId} />
+            </RecordPanel>
+
+            {/*
+              원가·마진 — **장부 바로 다음**이다.
+              「얼마에 팔았나」 옆에 「얼마가 들었나」가 있어야 «남는 장사인가»를 한 자리에서 본다.
+              권한이 없으면 이 패널은 **아예 안 그려진다**(CostPanel 이 403 에 null 을 준다) —
+              「볼 수 없습니다」를 띄우면 원가가 있다는 사실 자체가 샌다.
+            */}
+            <RecordPanel title={COST.section}>
+              <CostPanel dealId={dealId} currency={deal.currency ?? 'KRW'} onChanged={() => setTimelineKey((k) => k + 1)} />
             </RecordPanel>
 
             {/*

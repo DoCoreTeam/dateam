@@ -187,6 +187,10 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     비율도 지킨다(150×36). 예전엔 48 로 늘려 로고가 눌려 보였다
     (「로고가 정상적으로 보여지지 않는다」).
   */
+  // 상단 합계 띠가 참조할 자리 — 아래 합계 행이 정해진 뒤 채운다
+  let bandTotalCell = ''
+  let bandWordsCell = ''
+
   const headTop = r
   const logo = parseImage(input.logo ?? '')
   // 폭만 맞추고 높이는 **원본 비율**로 — 둘 다 고정하면 로고가 눌린다
@@ -207,6 +211,18 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     [QUOTE.validUntil, doc.meta.validUntil ?? ''],
   ] as [string, string][]).filter(([, v]) => v !== '')
 
+  /*
+    날짜는 **날짜 값**으로 넣는다(문자열이 아니라). 그래야 받은 사람이 정렬·계산할 수 있고,
+    **유효기간은 견적일을 참조하는 수식**이 된다 — 견적일을 고치면 유효기간이 따라 움직인다
+    (사용자 지시: 「견적일, 견적유효기간도 수식으로」).
+  */
+  const issuedRow = headTop + headMeta.findIndex(([l]) => l === QUOTE.issuedOn)
+  const validDays = doc.meta.issuedOn && doc.meta.validUntil
+    ? Math.round(
+      (Date.parse(`${doc.meta.validUntil}T00:00:00Z`) - Date.parse(`${doc.meta.issuedOn}T00:00:00Z`)) / 86_400_000,
+    )
+    : null
+
   headMeta.forEach(([label, value], i) => {
     const row = headTop + i
     if (i > 0) ws.getRow(row).height = 16
@@ -214,8 +230,17 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     l.value = label
     l.font = { size: 9, color: { argb: MUTED } }
     l.alignment = { horizontal: 'right', vertical: 'middle' }
+
     const v = ws.getCell(`${LAST_COL}${row}`)
-    v.value = value
+    if (label === QUOTE.issuedOn) {
+      v.value = new Date(`${value}T00:00:00Z`)
+      v.numFmt = 'yyyy-mm-dd'
+    } else if (label === QUOTE.validUntil && validDays !== null && issuedRow >= headTop) {
+      v.value = { formula: `${LAST_COL}${issuedRow}+${validDays}` }
+      v.numFmt = 'yyyy-mm-dd'
+    } else {
+      v.value = value
+    }
     v.font = { size: 10, bold: true }
     v.alignment = { horizontal: 'right', vertical: 'middle' }
   })
@@ -350,15 +375,20 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
 
     ws.mergeCells(`C${r}:E${r}`)
     const w = ws.getCell(`C${r}`)
-    w.value = doc.totals.totalInWords
     w.font = { size: 11, bold: true }
     w.alignment = { horizontal: 'left', vertical: 'middle' }
+    bandWordsCell = `C${r}`
 
     ws.mergeCells(`F${r}:${LAST_COL}${r}`)
     const v = ws.getCell(`F${r}`)
-    // 값은 숫자다 — 받은 사람이 자기 예산표에서 더할 수 있어야 한다
-    v.value = money(doc.totals.totalMinor, cur)
+    /*
+      **아래 합계를 참조한다.** 같은 금액을 두 번 적으면 항목을 고쳤을 때 위아래가 달라지고,
+      어느 쪽이 맞는지 받은 사람이 판단해야 한다(사용자 지시: 「G16의 금액도 수식」).
+      합계 행 번호는 뒤에서 정해지므로 자리만 잡아 두고 마지막에 채운다.
+    */
     v.numFmt = fmt
+    bandTotalCell = `F${r}`
+    v.font = { size: 14, bold: true }
     v.font = { size: 14, bold: true }
     v.alignment = { horizontal: 'right', vertical: 'middle' }
 
@@ -443,15 +473,47 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     할인은 항목별 비율이라 한 줄로 못 쓰고, 부가세는 세율 구분(과세·영세·면세)이
     항목마다 다를 수 있어 표에 없는 정보가 필요하다. 지어낸 수식보다 **맞는 값**이 낫다.
   */
-  const sumFormula = firstLineRow <= lastLineRow
-    ? `SUM(${LAST_COL}${firstLineRow}:${LAST_COL}${lastLineRow})`
+  const has = firstLineRow <= lastLineRow
+  const D = `D${firstLineRow}:D${lastLineRow}`
+  const E = `E${firstLineRow}:E${lastLineRow}`
+  const G = `${LAST_COL}${firstLineRow}:${LAST_COL}${lastLineRow}`
+
+  /*
+    **공급가액은 «할인 전»이다.**
+    표의 「금액」 열은 할인이 이미 빠진 값이라 그것을 더하면 화면과 달라진다 —
+    실제로 엑셀이 300,000,000, 화면이 350,000,000 이었다(같은 문서가 두 숫자를 말한 것).
+    그래서 «수량 × 단가»의 합으로 낸다.
+
+    **할인은 그 차이다.** 항목마다 할인율이 달라 한 줄로 못 쓰지만, 뺄셈이면 정확하다.
+    **부가세와 합계도 수식**이라 항목을 고치면 아래가 전부 따라 움직인다
+    (사용자 지시: 「G23,24,25,26,27 모두 수식으로 처리 할 수 있도록」).
+  */
+  const subtotalRow = r
+  const discountRow = r + 1
+  const taxRow = r + 2
+  const grandRow = r + 3
+
+  const subtotalF = has ? `SUMPRODUCT(${D},${E})` : null
+  const discountF = has ? `${LAST_COL}${subtotalRow}-SUM(${G})` : null
+  /*
+    부가세는 **지금 값에서 역산한 세율**로 건다. 항목마다 과세·영세·면세가 섞일 수 있어
+    10%를 박으면 틀린 문서가 나온다 — 우리가 이미 정확히 계산한 값의 비율을 쓴다.
+  */
+  const taxRate = Number(doc.totals.subtotalMinor) - Number(doc.totals.discountMinor) > 0
+    ? Number(doc.totals.taxMinor) / (Number(doc.totals.subtotalMinor) - Number(doc.totals.discountMinor))
+    : 0
+  const taxF = has
+    ? `ROUND((${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow})*${taxRate.toFixed(6)},0)`
+    : null
+  const grandF = has
+    ? `${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow}+${LAST_COL}${taxRow}`
     : null
 
   const totals: [string, string, boolean, string | null][] = [
-    [QUOTE.subtotal, doc.totals.subtotalMinor, false, sumFormula],
-    [QUOTE.discount, doc.totals.discountMinor, false, null],
-    [QUOTE.tax, doc.totals.taxMinor, false, null],
-    [QUOTE.total, doc.totals.totalMinor, true, null],
+    [QUOTE.subtotal, doc.totals.subtotalMinor, false, subtotalF],
+    [QUOTE.discount, doc.totals.discountMinor, false, discountF],
+    [QUOTE.tax, doc.totals.taxMinor, false, taxF],
+    [QUOTE.total, doc.totals.totalMinor, true, grandF],
   ]
   for (const [label, value, grand, formula] of totals) {
     /*
@@ -484,7 +546,15 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   if (doc.totals.totalInWords) {
     ws.mergeCells(`D${r}:${LAST_COL}${r}`)
     const w = ws.getCell(`D${r}`)
-    w.value = doc.totals.totalInWords
+    /*
+      **한글 금액도 합계를 참조한다.**
+      `NUMBERSTRING` 은 한국어 엑셀의 함수라 다른 환경에서는 `#NAME?` 이 뜬다 —
+      그래서 `IFERROR` 로 감싸고, 안 되는 환경에서는 우리가 계산한 문자열이 그대로 나온다.
+      되는 환경에서는 항목을 고치면 한글 금액도 함께 바뀐다(사용자 지시).
+    */
+    w.value = grandF
+      ? { formula: `IFERROR("금 "&NUMBERSTRING(${LAST_COL}${grandRow},1)&"원정","${doc.totals.totalInWords}")` }
+      : doc.totals.totalInWords
     w.alignment = { horizontal: 'right', vertical: 'middle' }
     // 자간을 넓혀 화면의 `letter-spacing: 0.05em` 에 가깝게 — 엑셀엔 자간이 없어 공백으로 흉내 낸다
     w.font = { size: 10, color: { argb: MUTED } }
@@ -527,6 +597,22 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       cell.alignment = { ...(cell.alignment ?? {}), vertical: 'middle' }
     })
   })
+
+  /*
+    **상단 합계 띠를 아래 합계에 묶는다.**
+    같은 금액을 두 번 적으면 항목을 고쳤을 때 위아래가 달라진다 — 어느 쪽이 맞는지
+    받은 사람이 판단해야 하는 문서는 문서가 아니다.
+  */
+  if (bandTotalCell && grandF) {
+    ws.getCell(bandTotalCell).value = { formula: `${LAST_COL}${grandRow}` }
+  } else if (bandTotalCell) {
+    ws.getCell(bandTotalCell).value = money(doc.totals.totalMinor, cur)
+  }
+  if (bandWordsCell) {
+    ws.getCell(bandWordsCell).value = grandF
+      ? { formula: `IFERROR("금 "&NUMBERSTRING(${LAST_COL}${grandRow},1)&"원정","${doc.totals.totalInWords}")` }
+      : doc.totals.totalInWords
+  }
 
   const lastUsedRow = Math.max(1, ws.rowCount)
 

@@ -89,13 +89,19 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
         setExportError('미리보기를 먼저 열어 주세요.')
         return
       }
-      await downloadPaperAsPng(paper, `${quoteId}.png`)
+      /*
+        파일명은 **사람이 읽는 이름**이다. 내부 id(`cmtcf9qn…`)로 저장되면
+        받은 사람도, 저장한 사람도 뭘 여는 건지 모른다(사용자 지적).
+        엑셀과 같은 규칙을 쓴다 — 「Q-2026-0014_견적서.png」
+      */
+      const no = data?.document.meta.quoteNo ?? quoteId
+      await downloadPaperAsPng(paper, `${no}_${QUOTE.documentTitle}.png`)
     } catch {
       setExportError('이미지를 만들지 못했습니다. 인쇄로 PDF 저장을 대신 써 주세요.')
     } finally {
       setImaging(false)
     }
-  }, [quoteId])
+  }, [quoteId, data])
 
   const openEdit = useCallback(async () => {
     setLoadingDraft(true)

@@ -1,0 +1,144 @@
+/* 딜 원가 — 답(합계·이익·마진)이 먼저, 내역이 그 아래 */
+
+.wrap { display: grid; gap: var(--space-3); }
+
+/* 대외비 표시 — 이 패널을 열 때마다 눈에 들어와야 한다 */
+.confidential {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+}
+
+/* ── 답 ─────────────────────────────────────── */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.metric {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.metricLabel {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.metricValue {
+  font-size: var(--fs-price);
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.unknown { font-size: var(--fs-sm); font-weight: 600; color: var(--text-faint); }
+
+/* 마진율은 색으로도 말한다 */
+.good { color: var(--success); }
+.warn { color: var(--warning); }
+.bad { color: var(--danger); }
+
+/* ── 내역 ───────────────────────────────────── */
+.group { display: grid; gap: var(--space-1); }
+
+.groupTitle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.groupSum {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+
+.item {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: var(--hairline) solid var(--border-light);
+  font-size: var(--fs-sm);
+}
+
+.itemName { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+
+.stage {
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 이 금액이 어디서 나왔나 — 흐리게, 그러나 지우지 않는다 */
+.basis {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.itemAmount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.remove:hover { color: var(--danger); background: var(--danger-bg); }
+
+/* ── 폼 ─────────────────────────────────────── */
+.form { display: grid; gap: var(--space-3); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.field { display: grid; gap: var(--space-1); min-width: 0; }
+
+.hint {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  line-height: 1.5;
+}
+
+/* 확정은 오른쪽 끝, 취소는 그 왼쪽 — §2-3-2 L-6 */
+.modalFoot { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+@media screen and (max-width: 767px) {
+  .summary { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 1fr; }
+  .item { grid-template-columns: 1fr auto auto; }
+  .basis { grid-column: 1 / -1; }
+}
