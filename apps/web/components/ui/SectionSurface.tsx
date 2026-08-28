@@ -7,7 +7,8 @@
 // **왜 card 가 아닌가**: `.card` 는 속을 채우는 상자다. 이건 **머리띠 + 본문**이라
 // 머리에만 배경이 깔리고 본문은 스스로 패딩을 갖는 것(보드 컬럼·표)까지 담아야 한다.
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { ChevronDown } from 'lucide-react'
 import styles from './section-surface.module.css'
 
 interface Props {
@@ -25,14 +26,46 @@ interface Props {
    * 보드 컬럼·표처럼 **스스로 여백을 갖는 것**을 넣을 때 쓴다 — 안 그러면 여백이 두 겹이 된다.
    */
   bleed?: boolean
+  /**
+   * 접을 수 있게 한다.
+   *
+   * **왜 필요한가**: 같은 성격의 판이 여럿 쌓이면(파이프라인 7개) 화면이 세로로
+   * 끝없이 길어지고, 비어 있는 판까지 자리를 다 차지한다
+   * (사용자 지적: 「전체로 하는경우는 스크롤이 아래로 엄청나게 늘어날 수도 있겠네」).
+   * 지우는 것이 아니라 **접는다** — 지금 안 볼 뿐 없는 것이 아니다.
+   */
+  collapsible?: boolean
+  /** 처음에 펴 둘까. 비어 있는 판은 접어 두는 것이 기본이다 */
+  defaultOpen?: boolean
   children: ReactNode
 }
 
-export default function SectionSurface({ title, meta, figure, note, action, bleed, children }: Props) {
+export default function SectionSurface({
+  title, meta, figure, note, action, bleed, collapsible, defaultOpen = true, children,
+}: Props) {
+  const [open, setOpen] = useState(defaultOpen)
+  const shown = collapsible ? open : true
+
   return (
     <section className={styles.surface}>
       <header className={styles.head}>
-        <h3 className={styles.title}>{title}</h3>
+        {collapsible ? (
+          /*
+            제목 전체가 여는 버튼이다 — 화살표만 누르게 하면 표적이 너무 작다.
+            `aria-expanded` 가 있어야 화면 낭독기도 접힘 상태를 읽는다.
+          */
+          <button
+            type="button"
+            className={styles.toggle}
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+          >
+            <ChevronDown size={16} className={open ? styles.chevOpen : styles.chev} aria-hidden />
+            <h3 className={styles.title}>{title}</h3>
+          </button>
+        ) : (
+          <h3 className={styles.title}>{title}</h3>
+        )}
         {meta != null && <span className={styles.meta}>{meta}</span>}
         {(figure != null || note != null || action != null) && (
           <div className={styles.right}>
@@ -42,7 +75,7 @@ export default function SectionSurface({ title, meta, figure, note, action, blee
           </div>
         )}
       </header>
-      <div className={bleed ? styles.bodyBleed : styles.body}>{children}</div>
+      {shown && <div className={bleed ? styles.bodyBleed : styles.body}>{children}</div>}
     </section>
   )
 }

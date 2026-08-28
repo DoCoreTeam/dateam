@@ -60,3 +60,23 @@
   .head { padding: var(--space-3); flex-wrap: wrap; }
   .body { padding: var(--space-3); }
 }
+
+/* 접기 — 제목 전체가 버튼이다. 화살표만 누르게 하면 표적이 너무 작다 */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+.toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+
+.chev, .chevOpen {
+  color: var(--text-faint);
+  transition: transform var(--duration-fast, 150ms) ease;
+}
+.chev { transform: rotate(-90deg); }
+.chevOpen { transform: rotate(0deg); }

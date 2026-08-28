@@ -23,6 +23,8 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import { kstDateKey } from '@/lib/datetime/kst'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE_STATUS_META, QUOTE_STATUS_ORDER, quoteStatusMeta } from '@/lib/crm/ui/quote-status'
+import { ENTITY } from '@/lib/terms'
+import { QUOTE } from '@/lib/terms/quote'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
@@ -45,6 +47,8 @@ export interface QuoteItem {
   expired?: boolean
   dealName: string
   companyName: string | null
+  /** 받는 분 — 직책이 있으면 함께 */
+  recipientName: string | null
   updatedAt: string
 }
 
@@ -63,15 +67,27 @@ const COLUMNS: ColumnDef<QuoteItem>[] = [
       </>
     ),
   },
+  /*
+    **고객사와 받는 분은 각자 칸을 갖는다.**
+    예전엔 회사가 「딜」 칸 안에 흐린 글씨로 붙어 있어 **훑을 때 안 보였다**
+    (사용자 지적: 「여기 목록에서 고객사랑 담당자가 안보이는게 이상하네」).
+    견적을 찾을 때 사람이 기억하는 것은 딜 이름보다 «어느 회사, 누구 앞»인 경우가 많다.
+  */
+  {
+    key: 'company',
+    header: ENTITY.company.label,
+    cell: (r) => r.companyName ?? '—',
+  },
+  {
+    key: 'recipient',
+    header: QUOTE.recipient,
+    cell: (r) => r.recipientName ?? <span style={FAINT}>—</span>,
+  },
   {
     key: 'deal',
-    header: '딜',
-    cell: (r) => (
-      <>
-        {r.dealName}
-        {r.companyName && <span style={{ ...FAINT, marginLeft: 'var(--space-2)' }}>{r.companyName}</span>}
-      </>
-    ),
+    header: ENTITY.deal.label,
+    cell: (r) => r.dealName,
+    hideOnCard: true,
   },
   {
     key: 'status',
@@ -196,7 +212,7 @@ export default function QuoteListView() {
       <ListToolbar
         query={query}
         onChange={set}
-        searchPlaceholder="견적번호·제목·딜 이름으로 검색"
+        searchPlaceholder="견적번호·제목·회사·받는 분·딜로 검색"
         views={['table', 'card']}
         filters={[STATUS_FILTER, TRASH_FILTER]}
         selection={crmBulk.toolbarSelection}

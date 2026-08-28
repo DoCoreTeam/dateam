@@ -42,6 +42,20 @@ export default function TaskPanel({ scope, onChanged }: Props) {
    * 모달로 막지는 않는다(그건 성가시다). 대신 **커서를 옮기고 한 줄로 알린다.**
    */
   const nextRef = useRef<HTMLInputElement>(null)
+
+  /*
+    주소에 `#crm-next-task` 가 붙어 들어오면 그 칸으로 데려간다.
+    스크롤만 하고 커서를 안 놓으면 사용자는 «여기서 뭘 하라는 거지»가 된다.
+  */
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.location.hash !== '#crm-next-task') return
+    const t = setTimeout(() => {
+      nextRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      nextRef.current?.focus()
+    }, 400)
+    return () => clearTimeout(t)
+  }, [])
   const [askNext, setAskNext] = useState(false)
   const [items, setItems] = useState<TaskItem[]>([])
   const [showDone, setShowDone] = useState(false)
@@ -151,6 +165,12 @@ export default function TaskPanel({ scope, onChanged }: Props) {
       <div className={styles.composer}>
         <input
           ref={nextRef}
+          /*
+            **주소로 이 칸을 지목할 수 있게 한다.**
+            보드의 「다음 할 일 적기」가 `#crm-next-task` 로 보내면, 상세 화면이
+            열리자마자 이 칸에 커서가 놓인다 — 사용자가 화면에서 다시 찾지 않는다.
+          */
+          id="crm-next-task"
           className="input-field" value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="다음에 할 일"

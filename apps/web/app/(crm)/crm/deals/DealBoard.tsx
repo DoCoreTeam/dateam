@@ -14,16 +14,18 @@
 //   WON 은 금액과 성사일 없이 존재할 수 없고(DI-06), LOST 는 사유 없이 존재할 수 없다(DI-07).
 //   화면이 먼저 물어보지 않으면 사용자는 서버 오류를 보고서야 무엇이 필요한지 안다.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
-import { AlertTriangle, Clock, CheckCircle2, X } from 'lucide-react'
+import { AlertTriangle, Clock, CheckCircle2, X, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import SectionSurface from '@/components/ui/SectionSurface'
+import { useScrollEdges } from '@/lib/ui/use-scroll-edges'
 import DealCloseModal from './DealCloseModal'
 import { formatAmount } from './amount'
 import styles from './board.module.css'
@@ -105,6 +107,8 @@ function boardSum(deals: BoardDeal[], pipeline: BoardPipeline) {
 }
 
 export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
+  // 카드에서 상세의 «다음 할 일» 칸으로 바로 보낸다
+  const router = useRouter()
   const [deals, setDeals] = useState<BoardDeal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -298,21 +302,41 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
         */
         <SectionSurface
           key={pipeline.id}
-          title={shown.length > 1 ? pipeline.name : '열린 딜'}
+          /*
+            **파이프라인 이름을 쓴다.** 하나뿐일 때 「열린 딜」이라고 부르던 것은
+            우리가 만든 말이라 사용자 사전에 없다 — 화면은 «GPU 인프라»라는
+            그 조직의 말로 불러야 한다(사용자 지적: 「열린 딜? 이런 용어는 맞지 않은데」).
+          */
+          title={pipeline.name}
           meta={`${boardSum(deals, pipeline).count}건`}
           figure={Object.entries(boardSum(deals, pipeline).byCurrency)
             .map(([cur, minor]) => formatAmount(minor, cur)).join(' · ') || undefined}
           note={boardSum(deals, pipeline).unpriced > 0
             ? `금액 미정 ${boardSum(deals, pipeline).unpriced}건 제외` : undefined}
           bleed
+          /*
+            **전체를 볼 때만 접을 수 있다.**
+            파이프라인이 7개면 판이 7개 세로로 쌓여 화면이 끝없이 길어진다
+            (사용자 지적: 「전체로 하는경우는 스크롤이 아래로 엄청나게 늘어날 수도 있겠네」).
+            **딜이 없는 판은 접어 둔다** — 「비어 있음」 다섯 칸이 자리를 다 차지할 이유가 없다.
+            하나만 볼 때는 접을 것이 없으므로 그대로 편다.
+          */
+          collapsible={shown.length > 1}
+          defaultOpen={boardSum(deals, pipeline).count > 0}
         >
-          <div className={styles.board}>
-        {pipeline.stages.map((stage) => {
+          <StageBoard>
+        {pipeline.stages.map((stage, si) => {
           const rows = deals.filter((d) => d.stageId === stage.id)
           const kindClass = stage.kind === 'WON' ? styles.kindWon : stage.kind === 'LOST' ? styles.kindLost : ''
           return (
             <div
               key={stage.id}
+              /*
+                단계마다 색이 조금씩 달라진다 — 어느 칸인지 이름을 읽기 전에 색으로 먼저 안다.
+                성사는 초록(145), 실패는 빨강(0)으로 고정하고, 진행 단계는 순서에 따라
+                파랑→보라로 돌린다. 색상만 바꾸고 진하기는 CSS 가 정한다(아주 옅게).
+              */
+              style={{ '--stage-hue': stageHue(stage.kind, si, pipeline.stages.length) } as CSSProperties}
               className={`${styles.column}${overStage === stage.id ? ` ${styles.columnOver}` : ''}`}
               onDragOver={(e) => { e.preventDefault(); setOverStage(stage.id) }}
               onDragLeave={() => setOverStage((s) => (s === stage.id ? null : s))}
@@ -353,10 +377,26 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
                       */}
                       <div className={styles.nextAction} data-state={d.nextAction?.state ?? 'none'}>
                         {(!d.nextAction || d.nextAction.state === 'none') ? (
-                          <>
-                            <AlertTriangle size={12} aria-hidden />
-                            <span>다음에 뭘 할지 정해 주세요</span>
-                          </>
+                          /*
+                            **말이 아니라 버튼이다.**
+                            「정해 주세요」는 부탁일 뿐, 어디서 정하는지 알려 주지 않는다 —
+                            사용자가 딜 상세로 들어가 할 일 칸을 찾아야 했다
+                            (사용자 지적: 「다음에 뭘 할지 정해주세요 → 다음 할일 작성 버튼을 띄우자」).
+                            그 자리에서 바로 적게 한다.
+                          */
+                          <button
+                            type="button"
+                            className={styles.nextActionBtn}
+                            onClick={(e) => {
+                              // 카드 자체가 상세로 가는 링크라 전파를 막는다 — 안 그러면 두 번 이동한다
+                              e.stopPropagation()
+                              e.preventDefault()
+                              router.push(`/crm/deals/${d.id}#crm-next-task`)
+                            }}
+                          >
+                            <Plus size={12} aria-hidden />
+                            <span>다음 할 일 적기</span>
+                          </button>
                         ) : (
                           <>
                             {d.nextAction.state === 'overdue'
@@ -392,7 +432,7 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
             </div>
           )
         })}
-      </div>
+          </StageBoard>
 
       {closing && (
         <DealCloseModal
@@ -407,6 +447,66 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
 
     </>
   )
+}
+
+/**
+ * 단계 칸이 늘어선 판.
+ *
+ * **가로로 넘길 수 있다는 것을 보여 준다.** 맥은 스크롤바를 숨겨서, 오른쪽에 단계가
+ * 더 있어도 «잘린 것»으로만 보인다(사용자 지적). 그래서 셋을 함께 둔다 —
+ *   ① 가장자리 그림자(넘길 수 있을 때만)
+ *   ② 좌우 이동 버튼
+ *   ③ **세로 휠로도 옆으로 간다** — 마우스에 가로 휠이 없는 사람이 대부분이다
+ *
+ * 파이프라인마다 판이 따로라 상태도 따로여야 한다 — 그래서 부품으로 나눈다.
+ */
+function StageBoard({ children }: { children: ReactNode }) {
+  const { ref, canLeft, canRight, scrollBy } = useScrollEdges()
+
+  /*
+    **휠은 가로채지 않는다.**
+    세로 휠을 옆으로 돌려 봤더니, 판 위에서 페이지를 내리려는데 옆으로 가 버려
+    아래 내용으로 못 갔다(사용자 지적). 이동은 **버튼으로만** 한다 —
+    그 대신 버튼을 크고 뚜렷하게 만들었다.
+  */
+
+  return (
+    <div className={styles.boardWrap}>
+      <div ref={ref as React.RefObject<HTMLDivElement>} className={styles.board}>
+        {children}
+      </div>
+
+      <span className={`${styles.edge} ${styles.edgeLeft}${canLeft ? ` ${styles.edgeOn}` : ''}`} aria-hidden />
+      <span className={`${styles.edge} ${styles.edgeRight}${canRight ? ` ${styles.edgeOn}` : ''}`} aria-hidden />
+
+      <button
+        type="button" className={`${styles.nav} ${styles.navLeft}`}
+        onClick={() => scrollBy(-1)} disabled={!canLeft} aria-label="이전 단계 보기"
+      >
+        <ChevronLeft size={16} />
+      </button>
+      <button
+        type="button" className={`${styles.nav} ${styles.navRight}`}
+        onClick={() => scrollBy(1)} disabled={!canRight} aria-label="다음 단계 보기"
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  )
+}
+
+/**
+ * 단계의 색상(hue).
+ *
+ * **진행 단계는 순서대로 돈다** — 첫 단계에서 마지막 단계까지 파랑(210)에서
+ * 보라(285)로 옮겨 가면, 오른쪽으로 갈수록 «진도가 나갔다»는 것이 색으로 읽힌다.
+ * 성사·실패는 뜻이 정해진 색이라 고정한다.
+ */
+function stageHue(kind: string, index: number, total: number): number {
+  if (kind === 'WON') return 145
+  if (kind === 'LOST') return 0
+  const span = Math.max(1, total - 1)
+  return Math.round(210 + (75 * index) / span)
 }
 
 /** 열린 딜 + 방금 닫힌 딜을 합친다(중복 없이) */

@@ -263,15 +263,39 @@ export async function listDeals(db: CrmDb, input: ListDealInput = {}): Promise<C
   const cur = cursorWhere(decoded)
   const finalWhere = cur ? { AND: [where, cur] } : where
 
-  const [rows, total] = await Promise.all([
+  const [rows, total, members] = await Promise.all([
+    /*
+      **회사 이름을 조인으로 가져온다.**
+      표에 회사가 안 보여서 사용자가 딜 이름만 보고 어느 회사 건인지 짐작해야 했다
+      (사용자 지적: 「여기도 표시 할건 다 표시 해야지? 왜 다 생략되었지?」).
+      행마다 따로 읽으면 N+1 이라 여기서 한 번에 받는다.
+    */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db as any).crmDeal.findMany({
-      where: finalWhere, select: SELECT, orderBy: CURSOR_ORDER, take: limit + 1,
+      where: finalWhere,
+      select: { ...SELECT, company: { select: { name: true } } },
+      orderBy: CURSOR_ORDER, take: limit + 1,
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     countIfFirstPage((db as any).crmDeal, where, decoded),
+    /*
+      담당자 이름은 **멤버 표를 통째로 한 번** 읽어 맞춘다.
+      팀은 수십 명이라 전부 읽어도 싸고, 딜마다 조인하는 것보다 가볍다.
+    */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).crmMember.findMany({ select: { id: true, displayName: true } }) as Promise<{ id: string; displayName: string }[]>,
   ])
-  return toPage(rows as DealRow[], limit, total)
+
+  const nameOf = new Map(members.map((m) => [m.id, m.displayName]))
+  const withNames = (rows as (DealRow & { company?: { name: string } | null })[]).map((r) => {
+    const { company, ...rest } = r
+    return {
+      ...rest,
+      companyName: company?.name ?? null,
+      ownerName: r.ownerId ? nameOf.get(r.ownerId) ?? null : null,
+    }
+  })
+  return toPage(withNames as DealRow[], limit, total)
 }
 
 export async function getDeal(db: CrmDb, id: string): Promise<DealRow> {

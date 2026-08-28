@@ -276,6 +276,8 @@ function markExpired(row: Pick<QuoteRow, 'status' | 'validUntil'>, now: Date): b
 export interface QuoteListRow extends QuoteRow {
   dealName: string
   companyName: string | null
+  /** 받는 분 — 직책이 있으면 함께(「전경선 연구교수」) */
+  recipientName: string | null
 }
 
 /**
@@ -350,12 +352,19 @@ export async function listQuotes(
    * where.OR 에 그냥 넣으면 상태 조건이 쓰는 OR 를 덮어써서
    * "보냄 + 검색어"가 조용히 "검색어만"이 된다 — 필터를 걸었는데 안 걸린 결과가 나온다.
    */
+  /*
+    **회사와 받는 분으로도 찾는다.**
+    목록에 그 두 칸이 보이는데 검색이 안 되면, 눈으로 본 것을 손으로 못 찾는다
+    (사용자 지적: 「여기 목록에서 고객사랑 담당자가 안보이는게 이상하네 당연히 검색도 되야겠지?」).
+  */
   const search = q
     ? {
       OR: [
         { quoteNo: { contains: q, mode: 'insensitive' } },
         { title: { contains: q, mode: 'insensitive' } },
         { deal: { is: { name: { contains: q, mode: 'insensitive' } } } },
+        { deal: { is: { company: { is: { name: { contains: q, mode: 'insensitive' } } } } } },
+        { recipientPerson: { is: { name: { contains: q, mode: 'insensitive' } } } },
       ],
     }
     : null
@@ -368,22 +377,34 @@ export async function listQuotes(
     (db as any).crmQuote.findMany({
       where: finalWhere,
       // 딜·회사 이름은 조인으로 한 번에 가져온다 — 목록에서 견적마다 따로 읽으면 N+1 이다
-      select: { ...SELECT, deal: { select: { name: true, company: { select: { name: true } } } } },
+      select: {
+        ...SELECT,
+        deal: { select: { name: true, company: { select: { name: true } } } },
+        // 목록에 「받는 분」을 보여 주려면 함께 읽어야 한다 — 행마다 따로 읽으면 N+1 이다
+        recipientPerson: { select: { name: true, title: true } },
+      },
       orderBy: CURSOR_ORDER,
       take: limit + 1,
     }),
     // 총 건수는 커서만 빼고 **같은 조건**으로 센다 — 검색을 빼먹으면 화면이 "3건 중 1건"처럼 어긋난다
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     countIfFirstPage((db as any).crmQuote, search ? { AND: [where, search] } : where, decoded),
-  ]) as [(QuoteRow & { deal: { name: string; company: { name: string } | null } | null })[], number | undefined]
+  ]) as [(QuoteRow & {
+    deal: { name: string; company: { name: string } | null } | null
+    recipientPerson: { name: string; title: string | null } | null
+  })[], number | undefined]
 
   const items = rows.map((r) => {
-    const { deal, ...rest } = r
+    const { deal, recipientPerson, ...rest } = r
     return {
       ...rest,
       expired: markExpired(r, now),
       dealName: deal?.name ?? '(딜 없음)',
       companyName: deal?.company?.name ?? null,
+      // 직책이 있으면 함께 — 「전경선 연구교수」가 「전경선」보다 누구인지 분명하다
+      recipientName: recipientPerson
+        ? [recipientPerson.name, recipientPerson.title].filter(Boolean).join(' ')
+        : null,
     }
   })
   return toPage(items, limit, total)

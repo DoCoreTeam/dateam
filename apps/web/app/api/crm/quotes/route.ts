@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
         ...toQuoteJson(row),
         dealName: row.dealName,
         companyName: row.companyName,
+        recipientName: row.recipientName,
       })),
     }
   })

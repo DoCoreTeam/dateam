@@ -28,6 +28,8 @@ import {
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import type { BoardPipeline } from './DealBoard'
 import { formatAmount } from './amount'
+import { ENTITY } from '@/lib/terms'
+import { BUSINESS_TYPE_LABEL, BUSINESS_TYPE_LABEL_TEXT, type BusinessTypeKey } from '@/lib/terms/ledger'
 
 export interface DealRowItem {
   id: string
@@ -39,6 +41,10 @@ export interface DealRowItem {
   amountMinor: string | null
   currency: string | null
   expectedCloseDate: string | null
+  /** 조인해서 온 것 — 표에 그대로 보여 준다 */
+  companyName?: string | null
+  ownerName?: string | null
+  businessType?: string | null
   version: number
   updatedAt: string
 }
@@ -139,6 +145,25 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
 
   const baseColumns: ColumnDef<DealRowItem>[] = useMemo(() => [
     { key: 'name', header: '딜 이름', primary: true, cell: (r) => r.name },
+    /*
+      **회사·담당자·사업 유형이 표에 있어야 한다.**
+      예전엔 딜 이름·단계·상태·금액뿐이라 «어느 회사 건인지·누가 맡는지»를
+      하나씩 열어 봐야 알 수 있었다(사용자 지적: 「왜 다 생략되었지?」).
+    */
+    {
+      key: 'company', header: ENTITY.company.label,
+      cell: (r) => r.companyName ?? <span style={{ color: 'var(--text-faint)' }}>—</span>,
+    },
+    {
+      key: 'owner', header: '담당자',
+      cell: (r) => r.ownerName ?? <span style={{ color: 'var(--text-faint)' }}>—</span>,
+    },
+    {
+      key: 'businessType', header: BUSINESS_TYPE_LABEL_TEXT, hideOnCard: true,
+      cell: (r) => (r.businessType
+        ? BUSINESS_TYPE_LABEL[r.businessType as BusinessTypeKey] ?? r.businessType
+        : <span style={{ color: 'var(--text-faint)' }}>—</span>),
+    },
     {
       key: 'stage', header: '단계',
       cell: (r) => stageName.get(r.stageId) ?? <span style={{ color: 'var(--text-faint)' }}>—</span>,
@@ -160,6 +185,13 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
           ? <Sensitive>{amount}</Sensitive>
           : <span style={{ color: 'var(--text-faint)' }}>미정</span>
       },
+    },
+    {
+      // 「언제 들어올 돈인가」 — 금액 옆에 있어야 예측이 읽힌다
+      key: 'expectedCloseDate', header: '수주 예상일', hideOnCard: true,
+      cell: (r) => (r.expectedCloseDate
+        ? String(r.expectedCloseDate).slice(0, 10)
+        : <span style={{ color: 'var(--text-faint)' }}>—</span>),
     },
     {
       key: 'updatedAt', header: '최근 변경', hideOnCard: true,

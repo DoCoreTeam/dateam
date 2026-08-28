@@ -2,23 +2,108 @@
    화면 전용 스타일이므로 globals.css 가 아니라 여기 둔다(§0-1).
    globals.css 의 94%가 이미 화면 전용이라 더 넣으면 계속 비대해진다. */
 
+/*
+  ── 가로로 넘겨 보는 판 ─────────────────────────────────
+  보드는 가로 스크롤이 정상이다 — 표가 아니라 칸반이라 열이 곧 단계다.
+  세로로 접으면 "지금 어느 단계에 몇 건"이라는 한눈 파악이 사라진다.
+
+  **다만 «더 있다»가 보여야 한다.** 스크롤바가 숨는 환경(맥)에서는 칸이 그냥
+  잘린 것처럼 보이고, 사용자는 오른쪽에 단계가 더 있다는 것을 모른다
+  (사용자 지적: 「좌우 스크롤이 없는데 우측에 더 있다는걸 파악 못하겠는데?」).
+  그래서 ① 가장자리 그림자와 ② 좌우 이동 버튼을 함께 둔다.
+*/
+.boardWrap { position: relative; }
+
 .board {
   display: flex;
   gap: var(--space-3);
   overflow-x: auto;
   padding-bottom: var(--space-3);
-  /* 보드는 가로 스크롤이 정상이다 — 표가 아니라 칸반이라 열이 곧 단계다.
-     세로로 접으면 "지금 어느 단계에 몇 건"이라는 한눈 파악이 사라진다. */
   align-items: flex-start;
+  /*
+    **스냅을 걸지 않는다.** `scroll-snap-type: x proximity` 를 걸었더니 계산값이 `x` 가 되어
+    브라우저가 mandatory 로 처리했고, **스크롤이 첫 칸에 강제로 붙어 아예 안 움직였다**
+    (실브라우저에서 `scrollLeft = 200` 이 0 으로 되돌아오는 것을 확인).
+    칸 폭이 280px 로 고른 판이라 스냅 없이도 걸리는 느낌이 자연스럽다.
+  */
+  scroll-behavior: smooth;
 }
 
+/*
+  가장자리 그림자 — **넘길 수 있을 때만** 뜬다(화면이 클래스를 붙인다).
+  늘 띄우면 끝까지 간 뒤에도 «더 있다»고 거짓말한다.
+*/
+.edge {
+  position: absolute;
+  top: 0;
+  bottom: var(--space-3);
+  width: 48px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-fast, 150ms) ease;
+}
+
+.edgeOn { opacity: 1; }
+
+.edgeLeft {
+  left: 0;
+  background: linear-gradient(to right, var(--card-bg, #fff), transparent);
+}
+
+.edgeRight {
+  right: 0;
+  background: linear-gradient(to left, var(--card-bg, #fff), transparent);
+}
+
+/*
+  좌우 이동 버튼 — **이것이 유일한 이동 수단이다.**
+  휠 가로채기는 걷어냈다: 판 위에서 아래로 내리려는데 옆으로 가 버려 페이지 스크롤을
+  방해했다(사용자 지적: 「좌우 스크롤이 들어가니깐 아래로 내리는거에 간섭이 심하네」).
+  그래서 버튼을 **크고 뚜렷하게** 만든다 — 작고 흐리면 못 찾는다.
+*/
+.nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: var(--border-w-2) solid var(--brand);
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transition: transform var(--duration-fast, 150ms) ease, opacity var(--duration-fast, 150ms) ease;
+}
+.nav:hover { transform: translateY(-50%) scale(1.08); }
+.nav:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+/* 끝까지 갔으면 흐려지되 자리는 지킨다 — 사라지면 판이 들썩인다 */
+.nav:disabled { opacity: 0.25; pointer-events: none; box-shadow: none; }
+
+.navLeft { left: calc(var(--space-3) * -1); }
+.navRight { right: calc(var(--space-3) * -1); }
+
+/*
+  ── 단계 칸 ─────────────────────────────────────────────
+  **회색 배경 대신 «옅은 색 테두리»로 나눈다.**
+  배경을 깔면 카드(흰 면)와 칸(회색 면)이 겹쳐 층이 두 겹이 되고, 화면이 무거워진다.
+  단계마다 색을 조금씩 달리하면 **어느 칸에 있는지가 색으로 먼저 읽힌다** —
+  단계 이름을 매번 읽지 않아도 된다(사용자 지시: 「회색 배경은 없애고 테두리로 구분하되
+  아주 옅은 투명도를 적용한 색깔로 … 투명도 80~90프로 정도」).
+
+  색은 `--stage-hue` 로 칸마다 들어온다(화면이 index 로 넣는다).
+*/
 .column {
   flex: 0 0 280px;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  background: var(--surface-bg);
-  border: var(--border-w) solid var(--border-light);
+  background: transparent;
+  border: var(--border-w) solid hsl(var(--stage-hue, 220) 60% 55% / 0.28);
   border-radius: var(--radius-lg);
   padding: var(--space-3);
   min-height: 200px;
@@ -36,6 +121,12 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  /* 머리만 아주 옅게 칠한다 — 칸 전체를 칠하면 카드가 묻힌다 */
+  margin: calc(var(--space-3) * -1) calc(var(--space-3) * -1) 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: hsl(var(--stage-hue, 220) 70% 55% / 0.08);
+  border-bottom: var(--hairline) solid hsl(var(--stage-hue, 220) 60% 55% / 0.2);
   font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text);
@@ -276,3 +367,56 @@
   font-size: var(--fs-xs);
   color: var(--text-muted);
 }
+
+/* 파이프라인별 판 — 「전체」를 볼 때 세로로 쌓인다.
+   단계가 파이프라인마다 다르므로 한 보드에 합칠 수 없다 */
+.pipelineSection + .pipelineSection { margin-top: var(--space-6); }
+
+.pipelineName {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.pipelineCount {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* 파이프라인 이름 줄의 금액 — 오른쪽 끝에 붙는다 */
+.pipelineAmounts {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--fs-price);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pipelineUnpriced {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+}
+
+/*
+  「다음 할 일 적기」 — 말이 아니라 **누를 수 있는 것**이다.
+  「정해 주세요」는 부탁일 뿐 어디서 정하는지 안 알려 준다(사용자 지적).
+*/
+.nextActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: var(--hairline) solid var(--warning-border);
+  border-radius: 9999px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.nextActionBtn:hover { border-color: var(--warning); }
