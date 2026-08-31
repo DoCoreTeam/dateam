@@ -60,10 +60,54 @@ export interface QuoteLineAmounts {
 
 export interface QuoteTotals {
   subtotalMinor: bigint
+  /** 항목 할인 + 절사액 — 견적서의 「할인」 한 줄이 이 값이다 */
   discountMinor: bigint
   taxMinor: bigint
   /** 최종 청구액 = 소계 − 할인 + 세금 */
   totalMinor: bigint
+  /** 절사로 깎인 금액. 0 이면 절사 안 함 */
+  roundingMinor: bigint
+}
+
+/** 절사 방식 셋. 늘리지 않는다 — 「대충 깎기」는 규칙이 아니다 */
+export type RoundingMode = 'DOWN' | 'NEAREST' | 'UP'
+
+/** 쓸 수 있는 절사 단위(원). DB CHECK 와 같은 목록이다 */
+export const ROUNDING_UNITS = [0, 1000, 10000, 100000, 1000000] as const
+export type RoundingUnit = typeof ROUNDING_UNITS[number]
+
+export interface RoundingInput {
+  /** 0 이면 절사하지 않는다 */
+  unit?: number | null
+  mode?: RoundingMode | string | null
+}
+
+/**
+ * 절사 — **금액을 단위에 맞춰 떨어뜨린다.**
+ *
+ * 협상 막바지에 「345,437,000원 말고 345,400,000원으로」가 반드시 나온다.
+ * 그때 **단가를 손으로 조작해 맞추면** 나중에 그 단가를 아무도 설명할 수 없고
+ * 원가 대비 마진도 거짓이 된다. 그래서 단가는 그대로 두고 절사액을 따로 남긴다.
+ *
+ * 기본이 버림인 이유: 고객에게 유리한 쪽이 협상에서 기본값이다.
+ * 음수가 되지 않게 조인다 — 올림으로 총액이 늘어나는 것은 허용하지만
+ * 버림으로 0 밑으로 내려가지는 않는다.
+ */
+export function roundAmount(amountMinor: bigint, input: RoundingInput): bigint {
+  const unit = Math.trunc(Number(input.unit ?? 0))
+  if (!Number.isFinite(unit) || unit <= 1) return amountMinor
+  if (amountMinor <= BigInt(0)) return amountMinor
+
+  const u = BigInt(unit)
+  const rest = amountMinor % u
+  if (rest === BigInt(0)) return amountMinor
+
+  const mode = (input.mode ?? 'DOWN') as RoundingMode
+  if (mode === 'UP') return amountMinor - rest + u
+  if (mode === 'NEAREST') {
+    return rest * BigInt(2) >= u ? amountMinor - rest + u : amountMinor - rest
+  }
+  return amountMinor - rest
 }
 
 function num(v: Numeric | bigint | undefined | null, fallback = 0): number {
@@ -128,7 +172,14 @@ export function computeLine(line: QuoteLineInput): QuoteLineAmounts {
  * 줄마다 계산한 것을 더한다 — 전체를 한 번에 계산하지 않는다.
  * 화면이 보여 주는 줄 합계를 더한 값과 총액이 달라지면 사람은 둘 다 못 믿는다.
  */
-export function computeTotals(lines: readonly QuoteLineInput[]): QuoteTotals {
+export function computeTotals(
+  lines: readonly QuoteLineInput[],
+  /*
+    절사는 **항목 할인을 다 적용한 뒤** 마지막에 한 번 건다.
+    줄마다 절사하면 합계가 단위에 안 맞는다(각 줄이 조금씩 남는다).
+  */
+  rounding: RoundingInput = {},
+): QuoteTotals {
   let subtotal = BigInt(0)
   let discount = BigInt(0)
   let tax = BigInt(0)
@@ -140,11 +191,35 @@ export function computeTotals(lines: readonly QuoteLineInput[]): QuoteTotals {
     tax += a.taxMinor
   }
 
+  /*
+    절사는 **공급가액(할인 후)** 에 건다. 세금은 절사된 금액으로 다시 계산한다 —
+    안 그러면 「소계 − 할인 + 세금 = 총액」이 어긋나 불변식 I5 가 깨진다.
+
+    세율이 줄마다 다를 수 있으므로 **비례로 줄인다**. 절사액이 소계의 0.1% 수준이라
+    이 근사가 만드는 오차는 1원 미만이고, 그 1원은 마지막 정수 연산에서 흡수된다.
+  */
+  const net = subtotal - discount
+  const rounded = roundAmount(net, rounding)
+  const roundingMinor = net - rounded
+
+  if (roundingMinor === BigInt(0)) {
+    return {
+      subtotalMinor: subtotal,
+      discountMinor: discount,
+      taxMinor: tax,
+      totalMinor: subtotal - discount + tax,
+      roundingMinor: BigInt(0),
+    }
+  }
+
+  const taxAfter = net === BigInt(0) ? BigInt(0) : (tax * rounded) / net
   return {
     subtotalMinor: subtotal,
-    discountMinor: discount,
-    taxMinor: tax,
-    totalMinor: subtotal - discount + tax,
+    // 절사도 할인이다 — 견적서의 「할인」 한 줄에 함께 실린다
+    discountMinor: discount + roundingMinor,
+    taxMinor: taxAfter,
+    totalMinor: rounded + taxAfter,
+    roundingMinor,
   }
 }
 

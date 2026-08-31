@@ -125,6 +125,8 @@ export interface DocumentLine {
 export interface DocumentTotals {
   subtotalMinor: string
   discountMinor: string
+  /** 절사로 깎인 금액. '0' 이면 절사 안 함 — 그때는 줄을 인쇄하지 않는다 */
+  roundingMinor: string
   taxMinor: string
   totalMinor: string
   /** 「금 일억이천만원정」. 원 단위가 아니면 빈 문자열 */
@@ -175,6 +177,8 @@ export interface BuildQuoteDocumentInput {
     /** 고객에게 나가는 특기사항 */
     notesMd: string | null
     expired?: boolean
+    /** 절사로 깎인 금액 — 저장된 값(서버가 계산한다) */
+    roundingMinor?: bigint | string | null
   }
   lines: readonly {
     name: string
@@ -333,7 +337,13 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
     })),
     totals: {
       subtotalMinor: s(input.quote.subtotalMinor),
-      discountMinor: s(input.quote.discountMinor),
+      /*
+        **절사는 할인에서 떼어 낸다.** 저장된 discountMinor 는 항목 할인 + 절사액인데,
+        견적서에 그대로 실으면 「할인 −86,437,000원」처럼 딱 떨어지지 않는 숫자가 되어
+        고객이 «무슨 계산이지»를 하게 된다. 항목 할인과 절사는 성격이 다르므로 줄을 나눈다.
+      */
+      discountMinor: s(BigInt(s(input.quote.discountMinor)) - BigInt(s(input.quote.roundingMinor ?? 0))),
+      roundingMinor: s(input.quote.roundingMinor ?? 0),
       taxMinor: s(input.quote.taxMinor),
       totalMinor: s(input.quote.totalMinor),
       totalInWords: hangulAmount(input.quote.totalMinor, currency),
@@ -372,12 +382,19 @@ export function verifyDocument(doc: QuoteDocument): Violation[] {
   // 항목의 amountMinor 는 **할인 후**이므로 비교 대상은 «소계 − 할인» 이다.
   const net = BigInt(doc.totals.subtotalMinor)
   const discount = BigInt(doc.totals.discountMinor)
+  /*
+    **절사도 금액을 줄인다.** 문서에서는 할인과 절사를 두 줄로 나눠 보여 주는데,
+    검사가 할인만 보면 절사액만큼 어긋난 것으로 읽어 «금액이 맞지 않는다»며
+    **내보내기를 막는다**(실측: 절사 37,000원에 위반 1건 — 계산은 맞는데 파일이 안 나갔다).
+    사람이 보는 두 줄과 검사가 보는 한 값이 같은 뜻이어야 한다.
+  */
+  const rounding = BigInt(doc.totals.roundingMinor ?? '0')
   const tax = BigInt(doc.totals.taxMinor)
   const gross = BigInt(doc.totals.totalMinor)
-  const proposed = net - discount
+  const proposed = net - discount - rounding
 
   return [
-    ...checkI2([{ id: '항목', subtotalMinor: lineSum }], proposed),
+    ...checkI2([{ id: '항목', subtotalMinor: lineSum }], net - discount),
     ...checkI5({ netMinor: net, proposedNetMinor: proposed, taxMinor: tax, grossMinor: gross }),
   ]
 }

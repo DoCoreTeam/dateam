@@ -33,6 +33,7 @@ import {
 } from '../db/cursor.ts'
 import {
   computeLine, computeTotals, needsApproval, discountRateOf,
+  ROUNDING_UNITS, type RoundingMode, type RoundingUnit,
   isExpired,
   DEFAULT_DISCOUNT_APPROVAL_PCT,
   type QuoteLineInput,
@@ -78,6 +79,11 @@ export interface QuoteRow {
   validUntil: Date | null
   subtotalMinor: bigint
   discountMinor: bigint
+  /** 절사 지시 — 0 이면 안 함 */
+  roundingUnit: number
+  roundingMode: string
+  /** 절사로 깎인 금액 */
+  roundingMinor: bigint
   taxMinor: bigint
   totalMinor: bigint
   approvalRequired: boolean
@@ -107,6 +113,7 @@ const LINE_SELECT = {
 const SELECT = {
   id: true, dealId: true, quoteNo: true, title: true, status: true, currency: true,
   validUntil: true, subtotalMinor: true, discountMinor: true, taxMinor: true, totalMinor: true,
+  roundingUnit: true, roundingMode: true, roundingMinor: true,
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
   // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
   termIds: true, ownerId: true, createdById: true, recipientPersonId: true,
@@ -153,7 +160,7 @@ const LINE_KEYS = new Set([
 ])
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
-  'recipientPersonId',
+  'recipientPersonId', 'roundingUnit', 'roundingMode',
   // 수정 경로가 함께 보내는 것들
   'version', 'status',
 ])
@@ -495,6 +502,10 @@ export interface CreateQuoteInput {
   ownerId?: string | null
   /** 공급받는 곳의 담당자. 안 고르면 null — 회사 앞으로만 나간다 */
   recipientPersonId?: string | null
+  /** 절사 단위(원). 0 = 안 함 */
+  roundingUnit?: number | string | null
+  /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
+  roundingMode?: string | null
   lines?: QuoteLineData[]
 }
 
@@ -520,7 +531,8 @@ export async function createQuote(
     const title = requireText(input.title) ?? `${deal.name} 견적`
 
     const lines = (input.lines ?? []).map((l, i) => toLineData(l, i))
-    const totals = computeTotals(lines as unknown as QuoteLineInput[])
+    const rounding = toRounding(input)
+    const totals = computeTotals(lines as unknown as QuoteLineInput[], rounding)
     const threshold = await approvalThreshold(tx)
 
     // 형식은 설정에서 온다 — 회사마다 다르고, 바꾸려고 배포를 기다릴 일이 아니다
@@ -549,6 +561,9 @@ export async function createQuote(
           discountMinor: totals.discountMinor,
           taxMinor: totals.taxMinor,
           totalMinor: totals.totalMinor,
+          roundingUnit: rounding.unit,
+          roundingMode: rounding.mode,
+          roundingMinor: totals.roundingMinor,
           approvalRequired: needsApproval(totals, threshold),
           ...(lines.length > 0 ? { lines: { create: lines } } : {}),
         },
@@ -572,6 +587,8 @@ export async function createQuote(
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor,
           taxMinor: totals.taxMinor, totalMinor: totals.totalMinor,
+          roundingUnit: rounding.unit, roundingMode: rounding.mode,
+          roundingMinor: totals.roundingMinor,
           approvalRequired: needsApproval(totals, threshold),
           ...(lines.length > 0 ? { lines: { create: lines } } : {}),
         },
@@ -585,6 +602,42 @@ export async function createQuote(
     })
     return created as QuoteRow
   })
+}
+
+/**
+ * 절사 지시를 읽는다 — **안 보냈으면 저장된 것을 그대로 쓴다.**
+ *
+ * 「끝자리만 떨어뜨려 주세요」는 그것 하나만 오는 협상이 흔하고,
+ * 반대로 항목만 고치는 저장도 흔하다. 어느 쪽이든 나머지가 조용히 0 으로 눕으면
+ * 사용자는 **자기가 안 건드린 것이 풀린 것**을 나중에야 안다.
+ *
+ * 모르는 값은 받지 않는다. DB CHECK 가 막아 주지만, 거기서 막히면
+ * 「저장하지 못했습니다」로 뭉개져 나가고 사용자는 왜인지 모른다.
+ */
+function toRounding(
+  input: { roundingUnit?: number | string | null; roundingMode?: string | null },
+  before?: { roundingUnit?: number | null; roundingMode?: string | null } | null,
+): { unit: RoundingUnit; mode: RoundingMode } {
+  const rawUnit = input.roundingUnit === undefined
+    ? (before?.roundingUnit ?? 0)
+    : Number(input.roundingUnit ?? 0)
+  const unit = ROUNDING_UNITS.includes(rawUnit as RoundingUnit) ? rawUnit as RoundingUnit : null
+  if (unit === null) {
+    throw new CrmError('VALIDATION_FAILED',
+      '절사 단위는 천원·만원·십만원·백만원 중에서 고를 수 있어요.', { field: 'roundingUnit' })
+  }
+
+  const rawMode = input.roundingMode === undefined
+    ? (before?.roundingMode ?? 'DOWN')
+    : (input.roundingMode ?? 'DOWN')
+  const mode = (['DOWN', 'NEAREST', 'UP'] as const).includes(rawMode as RoundingMode)
+    ? rawMode as RoundingMode
+    : null
+  if (mode === null) {
+    throw new CrmError('VALIDATION_FAILED',
+      '절사 방식은 버림·반올림·올림 중에서 고를 수 있어요.', { field: 'roundingMode' })
+  }
+  return { unit, mode }
 }
 
 function isUniqueViolation(e: unknown): boolean {
@@ -622,6 +675,9 @@ export interface UpdateQuoteInput {
   notesMd?: string | null
   ownerId?: string | null
   recipientPersonId?: string | null
+  /** 절사 단위(원). **안 주면 저장된 것을 그대로 둔다** — 0 으로 눕히지 않는다 */
+  roundingUnit?: number | string | null
+  roundingMode?: string | null
   /**
    * 항목 전체. 주면 통째로 맞춘다(있는 것은 고치고, 없어진 것은 지우고, 새 것은 만든다).
    * 안 주면 항목은 손대지 않는다 — 제목만 고칠 때 항목이 날아가면 안 된다.
@@ -647,10 +703,16 @@ export async function updateQuote(
     if (!before) throw new CrmError('NOT_FOUND', '견적을 찾을 수 없습니다.')
 
     const editingLines = input.lines !== undefined
-    if (editingLines && before.status !== 'DRAFT') {
+    /*
+      **절사만 바꾸는 저장이 있다.** 「끝자리만 떨어뜨려 주세요」는 항목을 하나도
+      안 건드린 채 온다. 항목을 고칠 때만 다시 계산하면 그 요청은 저장은 되는데
+      금액이 그대로라 «저장이 안 된 것»으로 보인다.
+    */
+    const editingRounding = input.roundingUnit !== undefined || input.roundingMode !== undefined
+    if ((editingLines || editingRounding) && before.status !== 'DRAFT') {
       throw new CrmError('VALIDATION_FAILED',
-        '이미 보낸 견적의 항목은 고칠 수 없습니다. 새 견적을 만들어 주세요.',
-        { field: 'lines', status: before.status })
+        '이미 보낸 견적의 금액은 고칠 수 없습니다. 새 견적을 만들어 주세요.',
+        { field: editingLines ? 'lines' : 'roundingUnit', status: before.status })
     }
 
     const data: Record<string, unknown> = { ...BUMP_VERSION }
@@ -671,14 +733,30 @@ export async function updateQuote(
     const nextLines = editingLines ? (input.lines ?? []).map((l, i) => toLineData(l, i)) : null
     const nextIds = editingLines ? (input.lines ?? []).map((l) => l.id ?? null) : null
 
-    if (editingLines && nextLines) {
-      const totals = computeTotals(nextLines as unknown as QuoteLineInput[])
+    if (editingLines || editingRounding) {
+      /*
+        절사 지시는 **항목을 안 고쳐도 바뀔 수 있다** — 그래서 보내지 않았으면
+        저장된 값을 그대로 쓴다. 항목을 안 보냈으면 **저장된 항목을 읽어** 계산한다.
+      */
+      const rounding = toRounding(input, before)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const calcLines = nextLines ?? await (tx as any).crmQuoteLine.findMany({
+        where: { quoteId: id },
+        select: {
+          quantity: true, unitPriceMinor: true, discountPercent: true,
+          specialDiscountPercent: true, taxRate: true,
+        },
+      })
+      const totals = computeTotals(calcLines as unknown as QuoteLineInput[], rounding)
       const threshold = await approvalThreshold(tx)
 
       data.subtotalMinor = totals.subtotalMinor
       data.discountMinor = totals.discountMinor
       data.taxMinor = totals.taxMinor
       data.totalMinor = totals.totalMinor
+      data.roundingUnit = rounding.unit
+      data.roundingMode = rounding.mode
+      data.roundingMinor = totals.roundingMinor
 
       const required = needsApproval(totals, threshold)
       data.approvalRequired = required
@@ -968,6 +1046,9 @@ export function toQuoteJson(row: QuoteRow): Record<string, unknown> {
     discountMinor: row.discountMinor.toString(),
     taxMinor: row.taxMinor.toString(),
     totalMinor: row.totalMinor.toString(),
+    // BigInt 를 빠뜨리면 JSON.stringify 가 그 자리에서 던진다 —
+    // 200 을 기대한 화면이 500 을 받고, 원인은 응답 본문에 안 나온다(실제로 그랬다)
+    roundingMinor: row.roundingMinor.toString(),
     discountRate: Number(discountRateOf(row).toFixed(2)),
     lines: row.lines?.map((l) => ({
       ...l,

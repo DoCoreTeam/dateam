@@ -860,6 +860,16 @@ model CrmQuote {
   taxMinor      BigInt @default(0)
   totalMinor    BigInt @default(0)
 
+  /// ── 절사 지시 ──────────────────────────────────────────────
+  /// 「끝자리를 떨어뜨려 주세요」를 견적이 기억한다. 단가를 손으로 조작해 맞추면
+  /// 나중에 그 단가를 아무도 설명할 수 없고 원가 대비 마진도 거짓이 된다.
+  /// 0 = 안 함. 그 외는 원 단위(1000·10000·100000·1000000).
+  roundingUnit  Int    @default(0)
+  /// DOWN(버림·기본) · NEAREST(반올림) · UP(올림)
+  roundingMode  String @default("DOWN")
+  /// 절사로 깎인 금액 — 서버가 계산해 저장한다(화면이 다시 계산하지 않는다)
+  roundingMinor BigInt @default(0)
+
   /// 할인 승인 — 임계를 넘은 견적은 승인 전까지 보낼 수 없다
   approvalRequired Boolean   @default(false)
   approvedById     String? // CrmMember.id

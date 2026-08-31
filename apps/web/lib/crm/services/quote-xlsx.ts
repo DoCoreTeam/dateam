@@ -515,30 +515,51 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     **부가세와 합계도 수식**이라 항목을 고치면 아래가 전부 따라 움직인다
     (사용자 지시: 「G23,24,25,26,27 모두 수식으로 처리 할 수 있도록」).
   */
+  /*
+    절사가 있으면 줄이 하나 는다 — **행 번호가 밀린다.**
+    수식이 행을 가리키므로 «있는 경우»를 먼저 계산해 두지 않으면
+    부가세가 엉뚱한 칸을 참조한다(엑셀에서만 틀리는, 화면으로는 안 보이는 사고다).
+  */
+  const hasRounding = doc.totals.roundingMinor !== '0'
   const subtotalRow = r
   const discountRow = r + 1
-  const taxRow = r + 2
-  const grandRow = r + 3
+  const roundingRow = hasRounding ? r + 2 : null
+  const taxRow = r + (hasRounding ? 3 : 2)
+  const grandRow = r + (hasRounding ? 4 : 3)
 
   const subtotalF = has ? `SUMPRODUCT(${D},${E})` : null
-  const discountF = has ? `${LAST_COL}${subtotalRow}-SUM(${G})` : null
+  /*
+    **할인은 절사를 뺀 값이다.** 저장된 discountMinor 에는 절사액이 함께 들어 있는데,
+    엑셀에서 둘을 한 줄로 합치면 화면(두 줄)과 다른 문서가 된다.
+  */
+  const discountF = has
+    ? (hasRounding
+      ? `${LAST_COL}${subtotalRow}-SUM(${G})`
+      : `${LAST_COL}${subtotalRow}-SUM(${G})`)
+    : null
   /*
     부가세는 **지금 값에서 역산한 세율**로 건다. 항목마다 과세·영세·면세가 섞일 수 있어
     10%를 박으면 틀린 문서가 나온다 — 우리가 이미 정확히 계산한 값의 비율을 쓴다.
   */
-  const taxRate = Number(doc.totals.subtotalMinor) - Number(doc.totals.discountMinor) > 0
-    ? Number(doc.totals.taxMinor) / (Number(doc.totals.subtotalMinor) - Number(doc.totals.discountMinor))
-    : 0
+  // 과세 대상 = 공급가액 − 할인 − 절사. 절사도 과세표준을 줄인다
+  const netBase = Number(doc.totals.subtotalMinor)
+    - Number(doc.totals.discountMinor) - Number(doc.totals.roundingMinor)
+  const taxRate = netBase > 0 ? Number(doc.totals.taxMinor) / netBase : 0
+  const minus = hasRounding ? `-${LAST_COL}${roundingRow}` : ''
   const taxF = has
-    ? `ROUND((${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow})*${taxRate.toFixed(6)},0)`
+    ? `ROUND((${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow}${minus})*${taxRate.toFixed(6)},0)`
     : null
   const grandF = has
-    ? `${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow}+${LAST_COL}${taxRow}`
+    ? `${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow}${minus}+${LAST_COL}${taxRow}`
     : null
 
   const totals: [string, string, boolean, string | null][] = [
     [QUOTE.subtotal, doc.totals.subtotalMinor, false, subtotalF],
     [QUOTE.discount, doc.totals.discountMinor, false, discountF],
+    // 절사가 없으면 줄을 만들지 않는다 — 「− 0원」은 종이만 먹는다
+    ...(hasRounding
+      ? [[QUOTE.rounding, doc.totals.roundingMinor, false, null] as [string, string, boolean, string | null]]
+      : []),
     [QUOTE.tax, doc.totals.taxMinor, false, taxF],
     [QUOTE.total, doc.totals.totalMinor, true, grandF],
   ]

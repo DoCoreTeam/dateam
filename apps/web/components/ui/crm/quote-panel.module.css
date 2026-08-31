@@ -301,3 +301,19 @@
   color: var(--danger);
   font-weight: 700;
 }
+
+/* 절사 지시 — 합계 줄 안에서 고른다. 협상 결과를 그 자리에 적는 자리다 */
+.roundingRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+.roundingRow .label { margin: 0; white-space: nowrap; }
+.roundingAmount {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-align: right;
+}

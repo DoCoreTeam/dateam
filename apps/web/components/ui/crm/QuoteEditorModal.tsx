@@ -17,7 +17,30 @@ import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField, { todayPlus } from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
-import { computeLine, computeTotals, needsApproval, DEFAULT_DISCOUNT_APPROVAL_PCT } from '@/lib/crm/domain/quote-math'
+import {
+  computeLine, computeTotals, needsApproval, DEFAULT_DISCOUNT_APPROVAL_PCT,
+  type RoundingMode,
+} from '@/lib/crm/domain/quote-math'
+
+/**
+ * 절사 단위·방식의 말.
+ *
+ * **원 단위 숫자를 화면에 그대로 보이지 않는다** — 「10000」은 읽는 데 시간이 걸리고
+ * 0 을 잘못 세면 열 배 틀린 절사를 고르게 된다.
+ */
+const ROUNDING_UNIT_LABEL = [
+  { value: 0, label: '안 함' },
+  { value: 1000, label: '천원 단위' },
+  { value: 10000, label: '만원 단위' },
+  { value: 100000, label: '십만원 단위' },
+  { value: 1000000, label: '백만원 단위' },
+] as const
+
+const ROUNDING_MODE_LABEL = [
+  { value: 'DOWN', label: '버림' },
+  { value: 'NEAREST', label: '반올림' },
+  { value: 'UP', label: '올림' },
+] as const
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
   LINE_KIND_LABEL, LINE_KIND_ORDER, LINE_KIND_QUANTITY_LABEL,
@@ -90,6 +113,10 @@ export interface QuoteDraft {
    * 통째로 적어 둔 한 덩어리가 아니라 항목이라, 사업마다 필요한 것만 나간다.
    */
   termIds: string[]
+  /** 절사 단위(원). 0 = 안 함 */
+  roundingUnit: number
+  /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
+  roundingMode: string
   lines: QuoteLineDraft[]
 }
 
@@ -122,6 +149,9 @@ export function newQuoteDraft(dealName: string, currency: string | null, validDa
     notesMd: '',
     recipientPersonId: null,
     termIds: [],
+    // 새 견적은 절사 안 함 — 협상 결과이지 기본값이 아니다
+    roundingUnit: 0,
+    roundingMode: 'DOWN',
     lines: [emptyLine()],
   }
 }
@@ -146,6 +176,8 @@ export function quoteToDraft(body: any): QuoteDraft {
     status: body.status,
     recipientPersonId: body.recipientPersonId ?? null,
     termIds: body.termIds ?? [],
+    roundingUnit: Number(body.roundingUnit ?? 0),
+    roundingMode: body.roundingMode ?? 'DOWN',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     lines: (body.lines ?? []).map((l: any) => ({
       id: l.id,
@@ -294,8 +326,8 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
       discountPercent: l.discountPercent || 0,
       specialDiscountPercent: l.specialDiscountPercent?.trim() ? l.specialDiscountPercent : null,
       taxRate: l.taxRate || 0,
-    }))),
-    [draft.lines],
+    })), { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode }),
+    [draft.lines, draft.roundingUnit, draft.roundingMode],
   )
   const approval = needsApproval(totals)
 
@@ -336,6 +368,11 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         notesMd: draft.notesMd.trim() || null,
         recipientPersonId: draft.recipientPersonId,
         termIds: draft.termIds,
+        // 절사 지시는 **항목과 함께** 잠긴다 — 보낸 견적의 금액은 못 고친다
+        ...(linesLocked ? {} : {
+          roundingUnit: draft.roundingUnit,
+          roundingMode: draft.roundingMode,
+        }),
         ...(linesLocked ? {} : { lines }),
         ...(isEdit ? { version: draft.version } : {}),
       }
@@ -636,6 +673,41 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           <div className={styles.totalRow}>
             <span>{QUOTE.discount}</span>
             <span>{totals.discountMinor > BigInt(0) ? '− ' : ''}{formatAmount(totals.discountMinor.toString(), draft.currency)}</span>
+          </div>
+          {/*
+            **절사를 여기서 고른다.** 협상 막바지에 「끝자리만 떨어뜨려 주세요」가 나오는데,
+            그때 단가를 손으로 조작해 맞추면 나중에 그 단가를 아무도 설명할 수 없다.
+            단가는 그대로 두고 절사액만 따로 남긴다.
+          */}
+          <div className={styles.roundingRow}>
+            <label className="label" htmlFor="q-round-unit">{QUOTE.rounding}</label>
+            <select
+              id="q-round-unit"
+              className="input-field"
+              value={String(draft.roundingUnit)}
+              disabled={linesLocked}
+              onChange={(e) => setDraft((d) => ({ ...d, roundingUnit: Number(e.target.value) }))}
+            >
+              {ROUNDING_UNIT_LABEL.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              id="q-round-mode"
+              className="input-field"
+              value={draft.roundingMode}
+              disabled={linesLocked || draft.roundingUnit === 0}
+              onChange={(e) => setDraft((d) => ({ ...d, roundingMode: e.target.value }))}
+            >
+              {ROUNDING_MODE_LABEL.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <span className={styles.roundingAmount}>
+              {totals.roundingMinor > BigInt(0)
+                ? `− ${formatAmount(totals.roundingMinor.toString(), draft.currency)}`
+                : ''}
+            </span>
           </div>
           <div className={styles.totalRow}>
             <span>{QUOTE.tax}</span><span>{formatAmount(totals.taxMinor.toString(), draft.currency)}</span>

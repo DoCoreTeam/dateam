@@ -274,6 +274,18 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                   {doc.totals.discountMinor !== '0' && '− '}{money(doc.totals.discountMinor)}
                 </td>
               </tr>
+              {/*
+                절사는 **할인과 줄을 나눈다.** 성격이 다르고, 합쳐 놓으면
+                「할인 −86,437,000원」처럼 딱 안 떨어지는 숫자가 되어 고객이 계산을 하게 된다.
+                절사가 없으면 줄 자체를 인쇄하지 않는다 — 빈 줄은 종이만 먹는다.
+              */}
+              {doc.totals.roundingMinor !== '0' && (
+                <tr>
+                  <td colSpan={4} />
+                  <td className={styles.totalLabel} colSpan={2}>{QUOTE.rounding}</td>
+                  <td className={styles.num}>− {money(doc.totals.roundingMinor)}</td>
+                </tr>
+              )}
               <tr>
                 <td colSpan={4} />
                 <td className={styles.totalLabel} colSpan={2}>{QUOTE.tax}</td>

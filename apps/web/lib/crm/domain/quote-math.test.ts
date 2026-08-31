@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  computeLine, computeTotals, discountRateOf, needsApproval,
+  computeLine, computeTotals, roundAmount, discountRateOf, needsApproval,
   formatQuoteNo, seqOfQuoteNo, isExpired, DEFAULT_DISCOUNT_APPROVAL_PCT,
 } from './quote-math.ts'
 
@@ -182,4 +182,58 @@ test('0원 줄에서 실효 할인율을 0으로 나누지 않는다', () => {
   })
   assert.equal(a.appliedDiscountPct, 0)
   assert.ok(Number.isFinite(a.appliedDiscountPct))
+})
+
+test('절사 — 끝자리를 단위에 맞춰 떨어뜨린다', () => {
+  // 협상 막바지의 실제 요청: 「345,437,000원 말고 345,400,000원으로」
+  assert.equal(roundAmount(BigInt(345_437_000), { unit: 100_000, mode: 'DOWN' }), BigInt(345_400_000))
+  assert.equal(roundAmount(BigInt(345_437_000), { unit: 10_000, mode: 'DOWN' }), BigInt(345_430_000))
+  assert.equal(roundAmount(BigInt(345_437_000), { unit: 1_000_000, mode: 'DOWN' }), BigInt(345_000_000))
+
+  // 반올림·올림
+  assert.equal(roundAmount(BigInt(345_437_000), { unit: 100_000, mode: 'NEAREST' }), BigInt(345_400_000))
+  assert.equal(roundAmount(BigInt(345_470_000), { unit: 100_000, mode: 'NEAREST' }), BigInt(345_500_000))
+  assert.equal(roundAmount(BigInt(345_437_000), { unit: 100_000, mode: 'UP' }), BigInt(345_500_000))
+
+  // 정확히 반이면 올린다(회계 관행)
+  assert.equal(roundAmount(BigInt(1_500), { unit: 1_000, mode: 'NEAREST' }), BigInt(2_000))
+})
+
+test('절사가 없거나 뜻이 없으면 금액을 건드리지 않는다', () => {
+  const v = BigInt(345_437_000)
+  assert.equal(roundAmount(v, { unit: 0 }), v)
+  assert.equal(roundAmount(v, {}), v)
+  assert.equal(roundAmount(v, { unit: null }), v)
+  assert.equal(roundAmount(v, { unit: 1 }), v)          // 1원 단위는 절사가 아니다
+  assert.equal(roundAmount(v, { unit: -1000 }), v)
+  assert.equal(roundAmount(BigInt(0), { unit: 10_000 }), BigInt(0))
+  // 이미 딱 떨어지면 그대로
+  assert.equal(roundAmount(BigInt(345_400_000), { unit: 100_000, mode: 'DOWN' }), BigInt(345_400_000))
+})
+
+test('절사해도 「소계 − 할인 + 세금 = 총액」이 유지된다', () => {
+  const lines = [
+    { quantity: 1, unitPriceMinor: 280_000_000, discountPercent: 0, taxRate: 10 },
+    { quantity: 1, unitPriceMinor: 100_000_000, discountPercent: 30, specialDiscountPercent: 80, taxRate: 10 },
+    { quantity: 2, unitPriceMinor: 10_000_000, discountPercent: 0, taxRate: 10 },
+  ]
+  const plain = computeTotals(lines)
+  const rounded = computeTotals(lines, { unit: 1_000_000, mode: 'DOWN' })
+
+  // 불변식 I5 — 두 경우 모두
+  assert.equal(plain.subtotalMinor - plain.discountMinor + plain.taxMinor, plain.totalMinor)
+  assert.equal(rounded.subtotalMinor - rounded.discountMinor + rounded.taxMinor, rounded.totalMinor)
+
+  // 절사액만큼 할인이 늘고, 과세표준이 백만원 단위로 떨어진다
+  assert.equal(rounded.discountMinor - plain.discountMinor, rounded.roundingMinor)
+  const net = rounded.subtotalMinor - rounded.discountMinor
+  assert.equal(net % BigInt(1_000_000), BigInt(0))
+  assert.ok(rounded.totalMinor <= plain.totalMinor, '버림인데 총액이 늘면 안 된다')
+})
+
+test('절사가 없으면 roundingMinor 는 0 이고 합계가 그대로다', () => {
+  const lines = [{ quantity: 1, unitPriceMinor: 1_000_000, discountPercent: 0, taxRate: 10 }]
+  const t = computeTotals(lines)
+  assert.equal(t.roundingMinor, BigInt(0))
+  assert.equal(t.totalMinor, BigInt(1_100_000))
 })
