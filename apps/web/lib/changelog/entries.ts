@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.662',
+    date: '2026-08-31',
+    title: '묻는 창이 우리 화면처럼 보여요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '💬',
+        headline: '브라우저 기본 팝업을 우리 모달로 바꿨어요',
+        detail: '단계 이름을 바꾸거나 삭제를 확인할 때 뜨던 밋밋한 브라우저 창이 우리 디자인의 모달로 바뀌었어요. ESC로 닫히고, 이름 칸에 커서가 바로 들어가고, 빈 이름이면 저장이 막힙니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🗑️',
+        headline: '「지우기」를 「삭제」로 통일했어요',
+        detail: '같은 일을 화면마다 「지우기」와 「삭제」로 다르게 부르고 있었어요. 데이터를 없애는 것은 「삭제」, 검색어처럼 입력을 비우는 것은 「비우기」로 뜻을 나눴습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.661',
     date: '2026-08-31',
     title: '주간보고 저장이 다시 됩니다',
