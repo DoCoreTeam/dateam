@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar, Handshake } from 'lucide-react'
-import { navLabel, canSeeNav } from '@/lib/nav/menu'
+import { navLabel, canSeeNav, LEGACY_SALES_GROUP_LABEL } from '@/lib/nav/menu'
 
 const PAGES = [
   {
@@ -31,7 +31,8 @@ const PAGES = [
     ],
   },
   {
-    group: '프로젝트관리',
+    // 이름이 CRM 과 겹치는 것은 정상이다 — 구분은 묶음이 진다(menu.ts 주석)
+    group: LEGACY_SALES_GROUP_LABEL,
     items: [
       { href: '/accounts', label: navLabel('/accounts'), icon: <Briefcase size={14} /> },
       { href: '/contacts', label: navLabel('/contacts'), icon: <Users size={14} /> },

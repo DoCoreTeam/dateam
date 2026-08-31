@@ -16,15 +16,40 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { walkFiles, read, stripComments } from './component-scan.ts'
 import { BANNED_TERMS } from '../terms/action.ts'
 
-const BASELINE = 'scripts/.glossary-baseline.json'
-const APP = 'app'
-const COMPONENTS = 'components'
+/**
+ * 경로는 **이 파일 기준**으로 잡는다 — 예전엔 `'app'` 같은 상대경로라 cwd 를 탔다.
+ *
+ * 그래서 저장소 루트에서 돌리면 `walkFiles('app')` 이 아무것도 못 찾아 **위반 0** 으로 보였고,
+ * 아래 자동 하향이 그 0 을 그대로 저장해 **baseline 을 통째로 비웠다.** 실제로 루트에
+ * `{"__labelMaps": 0, "__nameClashes": 0}` 짜리 두 번째 baseline 이 생겨 있었다
+ * (실측 2026-08-31). 그 상태로 루트에서 한 번 더 돌리면 라벨맵 31개가 전부 새 위반이 된다.
+ *
+ * 가드가 **어디서 실행되든 같은 것을 보게** 하는 것이 먼저다 — 기준이 cwd 를 타면 기준이 아니다.
+ */
+const WEB = join(import.meta.dirname, '..', '..')
+const BASELINE = join(WEB, 'scripts/.glossary-baseline.json')
+const APP = join(WEB, 'app')
+const COMPONENTS = join(WEB, 'components')
+
+/**
+ * 화면이 **읽는** 라벨 표도 스캔 대상이다.
+ *
+ * `lib/nav/menu.ts` 는 사이드바와 전체 메뉴가 그리는 이름의 출처인데 `app`·`components` 밖이라
+ * 가드가 못 봤다. 실제로 QuickNav 의 「영업기회」를 `navLabel('/deals')` 로 바꾸자 **화면에는
+ * 그대로 뜨는데** 카운트만 0이 되어 baseline 이 자동 하향으로 잠겼다(실측 2026-08-31).
+ * 리터럴을 스캔 밖으로 옮기는 것은 고친 것이 아니라 **숨긴 것**이다.
+ */
+const NAV = join(WEB, 'lib/nav')
 
 /** 용어집 자신과 가드는 금지어를 **정의**하는 자리라 스캔 대상이 아니다 */
 const SELF = ['lib/terms/', 'lib/ui/glossary.test.ts', 'scripts/ui-phrases.mjs']
+
+/** baseline 키는 `apps/web` 상대경로로 적는다 — 절대경로를 넣으면 기계마다 달라진다 */
+const rel = (f: string): string => (f.startsWith(WEB) ? f.slice(WEB.length + 1) : f)
 
 type Counts = Record<string, number>
 
@@ -60,7 +85,7 @@ function userFacingText(src: string): string[] {
 }
 
 function scanFiles(): string[] {
-  return [...walkFiles(APP), ...walkFiles(COMPONENTS)]
+  return [...walkFiles(APP), ...walkFiles(COMPONENTS), ...walkFiles(NAV)]
     .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
     .filter((f) => !SELF.some((s) => f.includes(s)))
 }
@@ -75,7 +100,7 @@ test('금지어가 지금보다 늘지 않는다 (용어집 §07)', () => {
     const texts = userFacingText(read(file))
     for (const { bad } of BANNED_TERMS) {
       const n = texts.reduce((acc, t) => acc + (t.includes(bad) ? 1 : 0), 0)
-      if (n > 0) now[`${file}::${bad}`] = n
+      if (n > 0) now[`${rel(file)}::${bad}`] = n
     }
   }
 
