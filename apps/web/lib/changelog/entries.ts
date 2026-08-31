@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.659',
+    date: '2026-08-31',
+    title: '「영업기회」 화면이 「딜」로 이름을 맞췄어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🏷️',
+        headline: '메뉴에서 「딜」을 눌렀는데 제목은 「영업기회」이던 것을 고쳤어요',
+        detail: '화면 제목·표 머리글·검색창·안내 문구를 모두 「딜」로 맞췄어요. 삭제할 때 뜨던 「을(를)」 같은 어색한 표기도 함께 정리했습니다. 데이터는 그대로예요.',
+      },
+    ],
+  },
+  {
     version: '0.7.658',
     date: '2026-08-31',
     title: '보낸 견적도 이어서 고칠 수 있어요',
