@@ -41,10 +41,19 @@ interface Suggestion {
   evidenceJson: { quote?: string; segmentIds?: string[] } | null
 }
 /** 원본 회의노트 상태 — 본문은 안 온다(공개 범위 때문에). 살아 있나·언제 바뀌었나·열어도 되나만 */
+/**
+ * 서버 `lib/crm/services/meeting-publish.ts` 의 `NoteMeta` 를 그대로 비춘 것.
+ * 그 모듈은 service_role 클라이언트를 끌고 오므로 클라이언트 컴포넌트가 직접 import 하지 않는다.
+ * **필드를 늘릴 때는 양쪽을 함께 고친다** — 안 맞으면 tsc 가 여기서 잡아 준다.
+ */
 interface NoteMeta {
   id: string; exists: boolean; title: string | null
   updatedAt: string | null; visibility: 'private' | 'crm' | null
   canOpen: boolean; isOwner: boolean; isStale: boolean
+  /** 원본에 사람이 쓴 본문이 있나 — AI 가 읽을 재료가 있는지 판정한다 */
+  hasBody: boolean
+  /** CRM 제목이 원본과 같은가. 원본이 없으면 null */
+  titleMatches: boolean | null
 }
 interface Meeting {
   id: string; title: string; startedAt: string; endedAt: string | null; location: string | null
@@ -113,6 +122,36 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
       await load()
     } catch {
       setError('전사를 넣지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /**
+   * 「원본에 맞추기」 — 이미 갈려 있던 제목을 원본 값으로 되돌린다.
+   *
+   * **자동으로 하지 않는다.** 어느 쪽이 사용자의 의도인지 코드는 모른다 —
+   * CRM 쪽이 더 자세한 제목일 수도 있다(실제로 그랬다: 「8/31 김해사업 미팅」).
+   * 그래서 사실만 보여 주고 사람이 한 번 누르게 한다.
+   *
+   * 저장 경로를 그대로 쓴다(`PATCH`). 같은 값이면 서버가 원본을 쓰지 않는다.
+   */
+  async function adoptNoteTitle(title: string) {
+    if (!title.trim()) return
+    setBusy('facts')
+    setError(null)
+    setNotice(null)
+    try {
+      const res = await fetch(`/api/crm/meetings/${meetingId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? '제목을 맞추지 못했습니다.'); return }
+      setNotice('원본 제목으로 맞췄어요.')
+      await load()
+    } catch {
+      setError('제목을 맞추지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setBusy(null)
     }
@@ -212,6 +251,21 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   const transcribed = m.recordings.some((r) => r.status === 'TRANSCRIBED')
   const failed = m.recordings.find((r) => r.status === 'FAILED')
 
+  /**
+   * AI 가 **읽을 재료가 있나.**
+   *
+   * 전사 사본만 보면 안 된다. 사용자가 원본에 쓴 본문도 재료다 —
+   * 추출 직전에 서버가 그것을 전사로 끌어온다(`snapshotNoteBodyForExtract`).
+   * 예전엔 이 판정이 `transcribed` 하나였고, 그래서 193자를 써 둔 회의에
+   * 「전사를 먼저 넣어 주세요」라고 답했다(사용자 지적 2026-08-31).
+   *
+   * `canOpen` 을 함께 본다 — 서버가 본문을 끌어오는 조건과 **같은 규칙**이어야 한다.
+   * 화면은 읽을 수 있다는데 AI 는 못 읽으면, 버튼을 눌러 보고서야 알게 된다.
+   */
+  const readable = transcribed || Boolean(m.note?.exists && m.note.canOpen && m.note.hasBody)
+  /** 원본이 살아 있는데 제목이 어긋난 상태 — 이미 갈려 있던 행을 사람이 한 번 눌러 맞춘다 */
+  const titleDiffers = Boolean(m.note?.exists && m.note.titleMatches === false)
+
   return (
     <>
       <PageHeader
@@ -282,9 +336,35 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
       {m.note?.isStale && (
         <p className={styles.notice}>
           원본 회의노트가 {formatKstDateTimeShort(m.note.updatedAt ?? '')}에 수정됐어요.{' '}
+          요약·참석자·회의 내용만 따라잡습니다 — 제목은 그대로 둡니다.{' '}
           <NbButton onClick={() => void resync()} disabled={busy === 'resync'}>
             {busy === 'resync' ? '가져오는 중…' : '다시 가져오기'}
           </NbButton>
+        </p>
+      )}
+
+      {/**
+        * 제목이 원본과 다르다 — **자동으로 덮지 않는다.**
+        * 어느 쪽이 사용자의 의도인지 코드는 모른다. 그래서 사실만 말하고 한 번 누르게 한다.
+        * 앞으로 갈리지 않게 하는 것은 저장 경로가 맡는다(`syncNoteTitle`).
+        */}
+      {titleDiffers && (
+        <p className={styles.notice}>
+          원본 회의노트의 제목은 「{m.note?.title || '(제목 없음)'}」이에요.{' '}
+          {m.note?.isOwner
+            ? '어느 쪽으로 맞출지 정해 주세요 — 「이 미팅은」에서 제목을 고치면 원본도 함께 바뀝니다.'
+            : '원본은 만든 사람만 고칠 수 있어요.'}
+          {m.note?.title && (
+            <>
+              {' '}
+              <NbButton
+                onClick={() => void adoptNoteTitle(m.note?.title ?? '')}
+                disabled={busy === 'facts'}
+              >
+                {busy === 'facts' ? '맞추는 중…' : '원본에 맞추기'}
+              </NbButton>
+            </>
+          )}
         </p>
       )}
 
@@ -305,6 +385,11 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
               */}
             <MeetingFacts
               meetingId={meetingId}
+              /**
+               * 제목을 여기서 고치면 원본도 함께 바뀐다 — 그래서 **원본 주인만** 고칠 수 있다.
+               * 원본이 없거나 지워진 미팅은 CRM 제목이 유일한 사본이라 그대로 고칠 수 있다.
+               */
+              canEditTitle={!m.note?.exists || m.note.isOwner}
               value={{
                 title: m.title,
                 startedAt: m.startedAt,
@@ -378,7 +463,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
           ) : (
             <RecordPanel
               title="회의 내용"
-              action={transcribed ? (
+              action={readable ? (
                 <NbButton onClick={() => void extract()} disabled={busy === 'extract'}>
                   {busy === 'extract' ? 'AI가 읽는 중…' : 'AI로 정리하기'}
                 </NbButton>
@@ -431,10 +516,12 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
           <RecordPanel title="AI가 찾은 것">
             {m.suggestions.length === 0 ? (
               <EmptyState
-                title={transcribed ? '아직 정리하지 않았어요' : '전사를 먼저 넣어 주세요'}
-                description={transcribed
-                  ? '"AI로 정리하기"를 누르면 누가 나왔고 무엇이 걸림돌인지 뽑아 인박스로 보냅니다.'
-                  : '회의 내용을 붙여넣으면 AI가 읽습니다.'}
+                title={readable ? '아직 정리하지 않았어요' : '읽을 회의 내용이 없어요'}
+                description={readable
+                  ? (transcribed
+                      ? '"AI로 정리하기"를 누르면 누가 나왔고 무엇이 걸림돌인지 뽑아 인박스로 보냅니다.'
+                      : '원본 회의노트에 적어 둔 내용을 읽습니다. "AI로 정리하기"를 눌러 주세요.')
+                  : '회의 내용을 붙여넣거나 「작성」 탭에 적으면 AI가 읽습니다.'}
               />
             ) : (
               <ul className={styles.found}>

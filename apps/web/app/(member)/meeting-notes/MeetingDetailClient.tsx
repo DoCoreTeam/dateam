@@ -3,7 +3,8 @@
 import { useMemo, useState, useTransition } from 'react'
 import { noteStatusMeta } from '@/lib/meeting/ui/note-status'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Pencil, Trash2, CalendarClock, Users, Mic } from 'lucide-react'
+import Link from 'next/link'
+import { Pencil, Trash2, CalendarClock, Users, Mic, Briefcase } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import MeetingEditor from './MeetingEditor'
@@ -43,7 +44,20 @@ function splitAttendees(raw: string | null): string[] {
   return raw.split(',').map((s) => s.trim()).filter(Boolean)
 }
 
-export default function MeetingDetailClient({ note, people }: { note: MeetingNoteRecord; people: { id: string; name: string }[] }) {
+/**
+ * 붙은 CRM 미팅의 사실. 서버가 준다(`loadCrmFactsForNote`).
+ * 이름만 온다 — 금액·단계는 여기로 넘어오지 않는다(권한 경계).
+ */
+export interface NoteCrmFactsView {
+  meetingId: string
+  companyId: string | null
+  companyName: string | null
+  dealId: string | null
+  dealName: string | null
+  location: string | null
+}
+
+export default function MeetingDetailClient({ note, people, crm }: { note: MeetingNoteRecord; people: { id: string; name: string }[]; crm?: NoteCrmFactsView | null }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [deleting, startDelete] = useTransition()
@@ -131,6 +145,33 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
         {note.tags && note.tags.length > 0 && (
           <span style={{ display: 'inline-flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
             {note.tags.map((t) => <span key={t} className="badge badge-slate" style={{ fontSize: 'var(--fs-2xs)' }}>#{t}</span>)}
+          </span>
+        )}
+
+        {/**
+          * 영업 CRM 쪽 사실 — 회사·딜·장소.
+          *
+          * **왜 메타 줄에 얹나**: 이건 이 회의의 «속성»이다(§2-3-2 L-2 속성 → 관계 → 이력).
+          * 그리고 회의 중에 폰으로 여는 화면이라, 카드를 하나 더 세우면 정작 적을 자리가
+          * 스크롤 밖으로 나간다. 한 줄이면 접는 장치 없이도 본문이 밀리지 않는다.
+          *
+          * 안 올린 회의·CRM 멤버가 아닌 사람에게는 이 줄이 아예 없다 — 빈 칸을 만들지 않는다.
+          */}
+        {crm && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+            <Briefcase size={14} color="var(--text-faint)" />
+            {crm.companyName
+              ? <Link href={`/crm/companies/${crm.companyId}`} style={{ color: 'var(--brand)' }}>{crm.companyName}</Link>
+              : <span style={{ color: 'var(--text-faint)' }}>회사 미정</span>}
+            {crm.dealName && (
+              <>
+                <span aria-hidden>·</span>
+                <Link href={`/crm/deals/${crm.dealId}`} style={{ color: 'var(--brand)' }}>{crm.dealName}</Link>
+              </>
+            )}
+            {crm.location && <><span aria-hidden>·</span><span>{crm.location}</span></>}
+            <span aria-hidden>·</span>
+            <Link href={`/crm/meetings/${crm.meetingId}`} style={{ color: 'var(--brand)' }}>영업 CRM에서 보기</Link>
           </span>
         )}
       </div>

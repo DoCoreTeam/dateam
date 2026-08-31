@@ -28,6 +28,7 @@ import MeetingDigestPanel from './MeetingDigestPanel'
 import NoteVisibilitySwitch from './NoteVisibilitySwitch'
 import RecordingPanel from './RecordingPanel'
 import { formatKstTime } from '@/lib/datetime/kst'
+import { hasBodyContent, pickDefaultWorkbenchTab } from '@/lib/meeting/workbench-tab'
 import type { NoteVisibility } from '@/lib/meeting/note-visibility'
 import type { TranscriptSegment } from '@/lib/meeting/transcript'
 import styles from './workbench.module.css'
@@ -60,6 +61,10 @@ interface NoteState {
   bodyHtml: string
   canEdit: boolean
   visibility: NoteVisibility
+  /** 사람이 쓴 본문이 있나 — 처음 열 탭을 정한다 */
+  hasBody: boolean
+  /** 기계가 받아적은 전사가 있나 — 같은 판정에 쓴다 */
+  hasTranscript: boolean
 }
 
 const SAVE_ICON: Record<SaveState, ReactNode> = {
@@ -138,6 +143,9 @@ export default function MeetingWorkbench({
         bodyHtml: body.bodyHtml ?? '',
         canEdit: Boolean(body.canEdit),
         visibility: body.visibility === 'crm' ? 'crm' : 'private',
+        // plain 으로 잰다 — Tiptap 은 빈 본문에도 <p></p> 를 남긴다(workbench-tab.ts 주석)
+        hasBody: hasBodyContent(body.bodyPlain),
+        hasTranscript: Boolean(body.hasTranscript),
       })
     } catch {
       setLoadError('회의 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -193,6 +201,11 @@ export default function MeetingWorkbench({
       <SegmentedTabs
         ariaLabel="회의 기록 보기"
         param="wb"
+        /**
+         * 주소에 `?wb=` 가 없으면 **내용이 있는 층**을 연다.
+         * 판정은 SSOT 가 한다 — 여기서 조건식을 쓰면 실브라우저 말고는 검증할 수단이 없다(E-6).
+         */
+        defaultId={pickDefaultWorkbenchTab({ hasBody: note.hasBody, hasTranscript: note.hasTranscript })}
         tabs={[
           {
             id: 'memo',

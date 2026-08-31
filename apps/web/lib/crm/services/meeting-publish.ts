@@ -76,6 +76,31 @@ const NOTE_COLUMNS =
  * service_role 로 읽으므로 RLS 를 우회한다 — 그래서 소유 확인을 코드가 명시로 한다.
  * 이걸 빼면 id 만 알면 남의 회의를 팀 CRM 에 올릴 수 있다.
  */
+/**
+ * 노트를 읽는다. **볼 수 있는 사람이면.** (주인 이거나 팀 공개)
+ *
+ * `loadOwnNote` 와 나란히 두는 이유: 둘의 경계가 다르다.
+ *   · `loadOwnNote` — **고치는** 일(발행·재동기화)의 경계. 주인만.
+ *   · 이 함수 — **읽는** 일(AI 재료)의 경계. 화면에서 볼 수 있는 사람과 같다.
+ * 못 읽으면 던지지 않고 null 이다 — 부르는 쪽이 「읽을 것이 없다」로 이어 가면 된다.
+ */
+async function loadReadableNote(noteId: string, hostUserId: string): Promise<NoteRow | null> {
+  const { createAdminClient } = await import('../../supabase/server.ts')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data } = await admin
+    .from('meeting_notes')
+    .select(`${NOTE_COLUMNS}, visibility`)
+    .eq('id', noteId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  const note = data as (NoteRow & { visibility: string | null }) | null
+  if (!note) return null
+  const canOpen = note.user_id === hostUserId || note.visibility === NOTE_VISIBILITY.CRM
+  return canOpen ? note : null
+}
+
 async function loadOwnNote(noteId: string, hostUserId: string): Promise<NoteRow> {
   const { createAdminClient } = await import('../../supabase/server.ts')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -286,10 +311,21 @@ export async function resyncFromNote(
 
   const expiredSuggestions = await withCrmTx(workspaceId, async (tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    /**
+     * **제목은 덮지 않는다.**
+     *
+     * 예전엔 여기서 `title` 을 노트 제목으로 되썼다. 그래서 CRM 에서 「8/31 김해사업 미팅」으로
+     * 고쳐 둔 미팅이 「다시 가져오기」 한 번에 「8/31 미팅」으로 되돌아갔다.
+     * 「정리」 탭을 쓰기만 해도 같은 일이 일어났다 — 정리가 끝나면 화면이 스스로 이 함수를 부른다.
+     * (사용자 지적 2026-08-31: 「제목부터가 다르고 … 일관성이 없다」)
+     *
+     * 원칙: **사람이 손으로 넣은 값은 기계가 덮지 않는다.** 따라잡을 것은 파생값뿐이다 —
+     * 요약·참석자·전사. 제목을 한 벌로 만드는 일은 «고치는 자리»를 하나로 모아서 한다
+     * (`PATCH /api/crm/meetings/:id` 가 원본 제목을 함께 고친다).
+     */
     await (tx as any).crmMeeting.updateMany({
       where: { id: meetingId },
       data: {
-        title: normalizeText(note.title) ?? '(제목 없음)',
         summaryMd,
         attendeesJson,
         noteSyncedAt: new Date(note.updated_at),
@@ -573,6 +609,17 @@ export interface NoteMeta {
   isOwner: boolean
   /** 원본이 스냅샷보다 새로운가 */
   isStale: boolean
+  /**
+   * 원본에 사람이 쓴 본문이 있나.
+   *
+   * **본문을 주는 것이 아니다** — 있는지 없는지만 준다. 화면이 「AI로 정리하기」를 켤지,
+   * 「전사를 먼저 넣어 주세요」라고 말할지 정하는 데 쓴다.
+   * 예전엔 이 값이 없어서 CRM 이 전사 사본(비어 있음)만 보고 «읽을 것이 없다»고 답했다 —
+   * 사용자가 쓴 193자가 원본에 그대로 있는데도(사용자 지적 2026-08-31).
+   */
+  hasBody: boolean
+  /** 원본 제목 — CRM 제목과 어긋났는지 화면이 스스로 판단할 수 있게 */
+  titleMatches: boolean | null
 }
 
 /**
@@ -589,24 +636,29 @@ export async function loadNoteMeta(
   noteId: string,
   hostUserId: string,
   noteSyncedAt: string | Date | null | undefined,
+  /** 지금 CRM 이 들고 있는 제목. 주면 어긋났는지 함께 판정한다 */
+  meetingTitle?: string,
 ): Promise<NoteMeta> {
   const { createAdminClient } = await import('../../supabase/server.ts')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
   const { data } = await admin
     .from('meeting_notes')
-    .select('id, user_id, title, updated_at, visibility, deleted_at')
+    .select('id, user_id, title, body_plain, updated_at, visibility, deleted_at')
     .eq('id', noteId)
     .maybeSingle()
 
   const row = data as {
-    id: string; user_id: string; title: string | null
+    id: string; user_id: string; title: string | null; body_plain: string | null
     updated_at: string; visibility: string | null; deleted_at: string | null
   } | null
 
   if (!row || row.deleted_at) {
     // 지워진 원본도 "없다"고 정직하게 말한다 — 화면이 "원본 없음"을 띄울 수 있어야 한다
-    return { id: noteId, exists: false, title: null, updatedAt: null, visibility: null, canOpen: false, isOwner: false, isStale: false }
+    return {
+      id: noteId, exists: false, title: null, updatedAt: null, visibility: null,
+      canOpen: false, isOwner: false, isStale: false, hasBody: false, titleMatches: null,
+    }
   }
 
   const visibility = row.visibility === 'crm' ? 'crm' : 'private'
@@ -620,7 +672,233 @@ export async function loadNoteMeta(
     canOpen: row.user_id === hostUserId || visibility === 'crm',
     isOwner: row.user_id === hostUserId,
     isStale: isNoteNewerThanSnapshot(row.updated_at, noteSyncedAt ?? null),
+    hasBody: Boolean((row.body_plain ?? '').trim()),
+    // 비교는 서버가 한다 — 화면마다 정규화 규칙이 갈리면 같은 상태가 다르게 읽힌다
+    titleMatches: meetingTitle === undefined
+      ? null
+      : (normalizeText(row.title) ?? '') === (normalizeText(meetingTitle) ?? ''),
   }
+}
+
+/** 노트 화면이 보여 줄 «영업 CRM 쪽 사실» — 이름만, 한 건만 */
+export interface NoteCrmFacts {
+  meetingId: string
+  companyId: string | null
+  companyName: string | null
+  dealId: string | null
+  dealName: string | null
+  location: string | null
+}
+
+/**
+ * 이 회의노트에 붙은 **CRM 미팅 한 건**의 회사·딜·장소. `loadNoteMeta` 의 반대 방향이다.
+ *
+ * ## 왜 필요한가 (사용자 지적 2026-08-31)
+ * 같은 회의인데 CRM 은 「코나아이 · 코나아이 회의실」을 알고, 회의노트는 몰랐다.
+ * 노트 상세에 회사·딜·장소를 그리는 코드가 **0줄**이었다. 그래서 두 화면이 같은 회의를
+ * 두고 다른 사실을 말했다 — 「일관성이 없다」의 한 축이 이것이다.
+ *
+ * ## 왜 이렇게 좁은가
+ * 회의노트는 **개인 소유**(RLS `user_id`)이고 CRM 은 **워크스페이스 격리**다.
+ * 이 경계를 넘는 조회가 원래 «스냅샷 구조»를 만든 이유 ③이었다. 그래서 창구를 최소로 연다:
+ *   · **내 노트**에 붙은 **한 건**만 — 목록·검색·집계는 열지 않는다
+ *   · **이름만** — 금액·단계·인물 같은 것은 주지 않는다
+ * CRM 멤버가 아니면 `null` 이다. 화면은 그냥 패널을 안 그린다(오류가 아니다).
+ */
+export async function loadCrmFactsForNote(
+  noteId: string,
+  hostUserId: string,
+): Promise<NoteCrmFacts | null> {
+  try {
+    const { resolveCrmAccessForUser } = await import('../auth/requireCrmMember.ts')
+    const access = await resolveCrmAccessForUser(hostUserId)
+    if (!access.ok) return null
+
+    const db = getCrmDb(access.session.workspaceId)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meeting = await (db as any).crmMeeting.findFirst({
+      where: { noteId, deletedAt: null },
+      select: { id: true, companyId: true, dealId: true, location: true },
+    }) as {
+      id: string; companyId: string | null; dealId: string | null; location: string | null
+    } | null
+    if (!meeting) return null
+
+    // 이름은 각각 한 번씩만 — 없으면 null 로 둔다(지어내지 않는다)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const company = meeting.companyId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? await (db as any).crmCompany.findFirst({ where: { id: meeting.companyId }, select: { name: true } })
+      : null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deal = meeting.dealId
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? await (db as any).crmDeal.findFirst({ where: { id: meeting.dealId }, select: { name: true } })
+      : null
+
+    return {
+      meetingId: meeting.id,
+      companyId: meeting.companyId,
+      companyName: (company?.name as string | undefined) ?? null,
+      dealId: meeting.dealId,
+      dealName: (deal?.name as string | undefined) ?? null,
+      location: meeting.location,
+    }
+  } catch {
+    // 부가 정보다. 못 읽었다고 회의노트 화면이 통째로 안 뜨면 그게 더 큰 사고다
+    return null
+  }
+}
+
+/**
+ * 읽을 것이 없으면 **원본 본문을 전사 재료로 끌어온다.** 추출 직전에 부른다.
+ *
+ * ## 왜 필요한가 (사용자 지적 2026-08-31)
+ * 「AI가 찾은 것」이 「전사를 먼저 넣어 주세요」라고 답했다. 그런데 사용자가 쓴 193자는
+ * 원본 회의노트에 그대로 있었다. AI 는 `crm_transcript_segment`(발행 때만 채워지는 사본)만
+ * 보고 있었고, 그 표는 비어 있었다 — **발행 시점에는 본문이 없었기 때문이다.**
+ * 사용자는 그 뒤에 썼다. 화면은 「다시 가져오기」를 띄웠지만, 그것을 누르면 제목이 파괴됐다.
+ *
+ * ## 새 기계장치를 만들지 않는다
+ * 본문을 전사 재료로 바꾸는 코드는 이미 있다 — `pickTranscriptSource`(전사→본문 우선순위) +
+ * `pastedTranscriptAdapter`(줄을 세그먼트로). 발행·재동기화가 쓰는 그 경로를 그대로 부른다.
+ * 그래서 **AI 입력 경로가 두 벌이 되지 않는다.**
+ *
+ * ## 절대 막지 않는다
+ * 여기서 실패해도 추출은 그대로 진행한다(0 을 돌려준다). 재료를 못 구한 것은
+ * 추출이 「읽을 것이 없다」고 답할 이유이지, 사용자에게 오류를 띄울 이유가 아니다.
+ *
+ * @returns 새로 넣은 전사 줄 수. 이미 읽을 것이 있거나 본문이 비었으면 0
+ */
+export async function snapshotNoteBodyForExtract(
+  workspaceId: string,
+  actorId: string | null,
+  hostUserId: string,
+  meetingId: string,
+): Promise<number> {
+  try {
+    const db = getCrmDb(workspaceId)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meeting = await (db as any).crmMeeting.findFirst({
+      where: { id: meetingId, deletedAt: null },
+      select: { id: true, noteId: true },
+    }) as { id: string; noteId: string | null } | null
+    if (!meeting?.noteId) return 0
+
+    /**
+     * 이미 읽을 것이 있으면 손대지 않는다.
+     * 사람이 붙여넣은 전사를 본문으로 덮으면 그게 곧 유실이다.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = await (db as any).crmMeetingRecording.findFirst({
+      where: { meetingId, status: 'TRANSCRIBED' },
+      select: { id: true },
+    })
+    if (existing) return 0
+
+    /**
+     * **화면에서 볼 수 있는 사람이면 AI 도 읽는다.**
+     *
+     * `loadNoteMeta.canOpen` 과 같은 규칙이다 — 주인이거나 팀 공개(`crm`)일 때.
+     * 주인만으로 좁히면 팀원 화면에는 본문이 **보이는데** AI 는 「읽을 것이 없다」고 말한다.
+     * 반대로 넓히면 「나만 보기」로 둔 본문이 팀 AI 제안으로 새어 나간다.
+     * service_role 로 읽으므로 이 판정을 **코드가 명시로** 한다(RLS 가 안 막아 준다).
+     */
+    const note = await loadReadableNote(meeting.noteId, hostUserId)
+    if (!note) return 0
+    const source = pickTranscriptSource(note)
+    if (!source) return 0
+
+    const res = await transcribe(
+      workspaceId, actorId, meetingId,
+      pastedTranscriptAdapter(source, NOTE_SNAPSHOT_VENDOR),
+      `meeting_notes/${note.id}`,
+    )
+    return res.segmentCount
+  } catch {
+    // 재료를 못 구한 것이 추출을 막을 이유는 아니다 — 추출이 스스로 「읽을 것이 없다」고 답한다
+    return 0
+  }
+}
+
+/** 제목 동기화 결과 — 화면이 무엇을 말할지 정하는 데 쓴다 */
+export type TitleSyncResult = 'synced' | 'unchanged' | 'no_note' | 'not_owner'
+
+/**
+ * CRM 에서 제목을 고치면 **원본 회의노트 제목도 함께 고친다** — 제목은 한 벌이다.
+ *
+ * ## 왜 이 함수가 생겼나 (사용자 지적 2026-08-31)
+ * 회의노트는 「8/31 미팅」, CRM 미팅은 「8/31 김해사업 미팅」이었다. 같은 회의인데 이름이 둘이다.
+ * 원인은 `PATCH /api/crm/meetings/:id` 가 `crm_meeting.title` 만 썼기 때문이다 —
+ * 노트는 자기 제목이 바뀐 줄 몰랐다. 그리고 그 어긋남을 「다시 가져오기」가 반대 방향으로
+ * 덮으면서 **사용자가 고친 제목이 사라졌다.**
+ *
+ * ## 권한 경계 — 내 노트일 때만 고친다
+ * 회의노트는 개인 소유(RLS `user_id`)이고 CRM 미팅은 워크스페이스 공유다.
+ * 남의 노트까지 고치게 두면 팀원이 남의 개인 기록을 바꾸는 일이 된다.
+ * 그래서 소유 확인을 **코드가 명시로** 한다(service_role 이라 RLS 가 안 막아 준다).
+ * 남의 노트면 `not_owner` 를 돌려주고, 화면은 그 입력을 애초에 못 누르게 그린다.
+ *
+ * ## 스냅샷 시각을 왜 함께 만지나
+ * 노트를 고치면 `updated_at` 이 올라가고, 그러면 CRM 이 「원본이 수정됐어요」를 띄운다 —
+ * **내가 CRM 에서 방금 고친 것인데.** 그래서 원래 어긋나 있지 않았을 때만 스냅샷 시각을 따라 올린다.
+ * 이미 어긋나 있었다면(본문이 먼저 바뀌어 있었다면) 그 사실을 지우지 않는다.
+ */
+export async function syncNoteTitle(
+  workspaceId: string,
+  hostUserId: string,
+  meetingId: string,
+  title: string,
+): Promise<TitleSyncResult> {
+  const next = normalizeText(title)
+  if (!next) return 'unchanged'
+
+  const db = getCrmDb(workspaceId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const meeting = await (db as any).crmMeeting.findFirst({
+    where: { id: meetingId, deletedAt: null },
+    select: { id: true, noteId: true, noteSyncedAt: true },
+  }) as { id: string; noteId: string | null; noteSyncedAt: Date | null } | null
+  if (!meeting?.noteId) return 'no_note'
+
+  const { createAdminClient } = await import('../../supabase/server.ts')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data: before } = await admin
+    .from('meeting_notes')
+    .select('id, user_id, title, updated_at, deleted_at')
+    .eq('id', meeting.noteId)
+    .maybeSingle()
+
+  const row = before as {
+    id: string; user_id: string; title: string | null
+    updated_at: string; deleted_at: string | null
+  } | null
+  if (!row || row.deleted_at) return 'no_note'
+  if (row.user_id !== hostUserId) return 'not_owner'
+  // 같은 값이면 쓰지 않는다 — 쓰면 updated_at 만 올라가 「원본이 수정됐어요」가 헛되게 뜬다
+  if ((normalizeText(row.title) ?? '') === next) return 'unchanged'
+
+  const wasStale = isNoteNewerThanSnapshot(row.updated_at, meeting.noteSyncedAt ?? null)
+
+  const { data: after, error } = await admin
+    .from('meeting_notes')
+    .update({ title: next })
+    .eq('id', meeting.noteId)
+    .eq('user_id', hostUserId)
+    .select('updated_at')
+    .maybeSingle()
+  // supabase-js 는 실패를 던지지 않는다 — 반환 오류를 반드시 본다
+  if (error || !after?.updated_at) return 'no_note'
+
+  if (!wasStale) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).crmMeeting.updateMany({
+      where: { id: meetingId },
+      data: { noteSyncedAt: new Date(after.updated_at as string) },
+    })
+  }
+  return 'synced'
 }
 
 /**

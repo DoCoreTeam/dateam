@@ -17,6 +17,15 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   return withCrmApi('MEMBER', async ({ session }) => {
     const db = getCrmDb(session.workspaceId)
-    return extractFiveAxis(session.workspaceId, session.memberId, id, await adapterFromSetting(db))
+
+    /**
+     * `hostUserId` 를 넘기면 **읽을 것이 없을 때 원본 본문을 재료로 끌어온다.**
+     *
+     * 그 폴백은 `extractFiveAxis` **안**에 있다 — 이 라우트에만 두면
+     * 「미팅 끝내기」(`/finish`)가 같은 함수를 직접 불러 주 경로를 지나가지 않는다(실측 v0.7.666).
+     */
+    return extractFiveAxis(
+      session.workspaceId, session.memberId, id, await adapterFromSetting(db), session.hostUserId,
+    )
   })
 }

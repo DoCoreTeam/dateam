@@ -36,6 +36,14 @@ export interface MeetingFactsValue {
 interface Props {
   meetingId: string
   value: MeetingFactsValue
+  /**
+   * 제목을 고칠 수 있나. **기본은 고칠 수 있다**(하위호환).
+   *
+   * 왜 제목만 따로 판정하나: 여기서 제목을 고치면 **원본 회의노트 제목도 함께 바뀐다**
+   * (제목은 한 벌이다 — `syncNoteTitle`). 회의노트는 개인 소유라 남의 것을 고치게 두면
+   * 팀원이 남의 개인 기록을 바꾸는 일이 된다. 못 하는 일은 **누르기 전에** 안 보여야 한다.
+   */
+  canEditTitle?: boolean
   /** 저장이 끝나면 상세가 스스로 다시 읽는다 — 화면이 서버와 갈리지 않게 */
   onSaved: () => void
 }
@@ -51,7 +59,7 @@ function toWall(iso: string): { date: string; time: string } {
   }
 }
 
-export default function MeetingFacts({ meetingId, value, onSaved }: Props) {
+export default function MeetingFacts({ meetingId, value, canEditTitle = true, onSaved }: Props) {
   const wall = toWall(value.startedAt)
 
   const [title, setTitle] = useState(value.title)
@@ -124,8 +132,16 @@ export default function MeetingFacts({ meetingId, value, onSaved }: Props) {
           <label className="label" htmlFor="mf-title">무슨 미팅이었나요</label>
           <input
             id="mf-title" className="input-field" value={title}
+            readOnly={!canEditTitle}
+            aria-describedby={canEditTitle ? undefined : 'mf-title-why'}
             onChange={(e) => setTitle(e.target.value)}
           />
+          {/* 왜 못 고치는지 밝힌다 — 이유 없이 잠긴 칸은 고장으로 읽힌다 */}
+          {!canEditTitle && (
+            <p id="mf-title-why" className={styles.hint}>
+              제목은 원본 회의노트를 만든 사람만 고칠 수 있어요.
+            </p>
+          )}
         </div>
 
         <div className={styles.pair}>

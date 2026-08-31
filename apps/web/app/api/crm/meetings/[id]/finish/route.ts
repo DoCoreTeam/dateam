@@ -24,6 +24,8 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
     const db = getCrmDb(session.workspaceId)
     return finishMeeting(session.workspaceId, session.memberId, id, {
       adapter: await adapterFromSetting(db),
+      // 전사가 없으면 원본 본문을 재료로 끌어온다 — 볼 수 있는 사람인지 판정에 쓴다
+      hostUserId: session.hostUserId,
       // 원본 회의노트는 **주인만** 정리할 수 있다 — 남의 노트면 여기서 실패하고,
       // 서비스가 그걸 '정리 실패'로 기록한 뒤 5축은 그대로 진행한다
       digest: async (noteId: string) => {

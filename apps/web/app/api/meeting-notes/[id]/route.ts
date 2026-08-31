@@ -39,6 +39,24 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   if (error) return NextResponse.json({ error: '회의노트를 불러오지 못했습니다.' }, { status: 500 })
   if (!data) return NextResponse.json({ error: '회의노트를 찾을 수 없습니다.' }, { status: 404 })
 
+  /**
+   * 전사가 **있는지만** 함께 준다 — 작업대가 처음 열 탭을 정하는 데 쓴다.
+   *
+   * 내용은 주지 않는다. 전사 탭이 열릴 때 따로 읽으므로 여기서 실으면 같은 것을 두 번 보낸다.
+   * RLS 가 부모(회의노트) 권한을 그대로 따르므로 남의 노트에서는 0 이 나온다(마이그 217).
+   */
+  let hasTranscript = false
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: partRows } = await (supabase.from('meeting_recording_part') as any)
+    .select('id').eq('note_id', id)
+  const partIds = ((partRows ?? []) as { id: string }[]).map((p) => p.id)
+  if (partIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count } = await (supabase.from('meeting_transcript_segment') as any)
+      .select('id', { count: 'exact', head: true }).in('part_id', partIds)
+    hasTranscript = (count ?? 0) > 0
+  }
+
   return NextResponse.json({
     id: data.id,
     title: data.title,
@@ -51,6 +69,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     decisions: data.decisions ?? '',
     attendees: Array.isArray(data.attendees) ? data.attendees : [],
     updatedAt: data.updated_at,
+    /** 작업대가 처음 열 탭을 정한다(§lib/meeting/workbench-tab.ts) */
+    hasTranscript,
     /** 읽을 수는 있어도 고칠 수는 없는 사람이 있다 — 화면이 편집기를 그릴지 여기로 정한다 */
     canEdit: data.user_id === user.id,
   })

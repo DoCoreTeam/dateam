@@ -30,3 +30,13 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/**
+ * 못 고치는 칸의 이유. 이유 없이 잠긴 입력은 고장으로 읽힌다.
+ * 제목은 원본 회의노트와 한 벌이라 주인만 고칠 수 있다(§syncNoteTitle).
+ */
+.hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}

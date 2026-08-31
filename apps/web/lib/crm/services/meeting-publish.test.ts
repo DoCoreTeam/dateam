@@ -147,9 +147,15 @@ test('★ 스냅샷 시각은 DB 시계다 — 앱 시계를 섞으면 시계 �
   const src = stripComments(read('lib/crm/services/meeting-publish.ts'))
   // **값을 대입하는 자리만** 본다. 함수 파라미터의 타입 선언
   // (`noteSyncedAt: string | Date | null`)까지 세면 타입을 위반으로 잡는다.
+  //
+  // Prisma `select: { noteSyncedAt: true }` 도 뺀다 — 그건 **읽기**다.
+  // 이 규칙이 지키려는 것은 «찍는 시각이 DB 시계인가»이지 «어디서 읽나»가 아니다.
+  // (실측 v0.7.664: syncNoteTitle 이 wasStale 판정을 위해 이 값을 읽자 오탐이 났다.
+  //  계측이 거칠어 없는 위반을 잡으면, 통과시키려고 진짜 규칙을 무르게 만든다.)
+  // 불리언 리터럴을 «쓰기»로 넣는 실수는 Prisma 타입이 이미 막는다(Date | null).
   const writes = [...src.matchAll(/noteSyncedAt:\s*([^,\n}]+)/g)]
     .map((m) => m[1].trim())
-    .filter((w) => !w.includes('|'))
+    .filter((w) => !w.includes('|') && w !== 'true' && w !== 'false')
   assert.ok(writes.length > 0, 'noteSyncedAt 을 쓰는 곳이 있어야 한다')
   for (const w of writes) {
     if (w === 'null') continue // 연결 해제는 시각을 지운다

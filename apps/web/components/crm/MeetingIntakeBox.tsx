@@ -115,7 +115,12 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
         <ul className={styles.today}>
           {todayMeetings.map((m) => (
             <li key={m.id}>
-              <a href={`${meetingHref(m.id)}?wb=transcript`} className={styles.todayItem}>
+              {/**
+                * 탭을 지정하지 않는다 — 작업대가 «내용이 있는 곳»을 열게 둔다.
+                * 예전엔 여기서 `?wb=transcript` 를 조건 없이 붙여, 193자를 써 둔 회의를 눌러도
+                * 빈 전사 탭이 열렸다(사용자 지적 2026-08-31).
+                */}
+              <a href={meetingHref(m.id)} className={styles.todayItem}>
                 <span className={styles.todayTime}>{formatKstTime(m.startedAt)}</span>
                 <span className={styles.todayTitle}>
                   {m.title}

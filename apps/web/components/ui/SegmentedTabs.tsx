@@ -47,6 +47,14 @@ interface Props {
   variant?: SegmentedVariant
   /** 패널형 URL 쿼리 키. 탭도 공유 가능한 상태다(레포 관례) */
   param?: string
+  /**
+   * 주소에 `param` 이 **없을 때** 열 탭. 안 주면 첫 탭이다(기존 동작).
+   *
+   * 왜 필요한가(사용자 지적 2026-08-31): 첫 탭 고정은 «내용이 어디 있느냐»를 못 본다.
+   * 회의 작업대는 사람이 쓴 본문이 있으면 「작성」, 녹음만 했으면 「녹음·전사」가 맞다.
+   * 화면이 `?wb=` 를 억지로 붙여 해결하려던 것이 바로 그 사고였다.
+   */
+  defaultId?: string
   /** 제어형 — 부모가 활성 탭을 소유할 때 */
   activeId?: string
   onSelect?: (id: string) => void
@@ -72,14 +80,19 @@ export default function SegmentedTabs(props: Props) {
 }
 
 function SegmentedTabsInner({
-  tabs, ariaLabel, variant = 'segment', param = 'tab', activeId, onSelect,
+  tabs, ariaLabel, variant = 'segment', param = 'tab', defaultId, activeId, onSelect,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
 
   const fromUrl = searchParams.get(param)
-  const initial = tabs.some((t) => t.id === fromUrl) ? (fromUrl as string) : tabs[0]?.id
+  /**
+   * 주소가 먼저다. 없으면 화면이 정한 기본 탭, 그것도 없으면 첫 탭.
+   * `defaultId` 가 실재하는 탭인지 확인한다 — 오타가 들어오면 조용히 빈 탭이 열린다.
+   */
+  const fallbackId = defaultId && tabs.some((t) => t.id === defaultId) ? defaultId : tabs[0]?.id
+  const initial = tabs.some((t) => t.id === fromUrl) ? (fromUrl as string) : fallbackId
   const [ownActive, setOwnActive] = useState(initial)
 
   /**

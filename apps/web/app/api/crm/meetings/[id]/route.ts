@@ -8,7 +8,7 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { getCrmDb } from '@/lib/crm/db/client'
 import { getMeeting, listSegments, listMeetingSuggestions, deleteMeeting, updateMeeting } from '@/lib/crm/services/meeting'
-import { loadNoteMeta } from '@/lib/crm/services/meeting-publish'
+import { loadNoteMeta, syncNoteTitle } from '@/lib/crm/services/meeting-publish'
 import { CrmError } from '@/lib/crm/domain/errors'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -33,7 +33,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
      * 원본이 그 뒤 수정됐으면 화면이 "다시 가져오기"를 띄운다.
      */
     const note = meeting.noteId
-      ? await loadNoteMeta(meeting.noteId, session.hostUserId, meeting.noteSyncedAt)
+      // 지금 CRM 제목을 함께 넘긴다 — 원본과 어긋났는지 서버가 판정해 준다(§syncNoteTitle 주석)
+      ? await loadNoteMeta(meeting.noteId, session.hostUserId, meeting.noteSyncedAt, meeting.title)
       : null
 
     return { ...meeting, segments, suggestions, note }
@@ -53,7 +54,19 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.companyId === null || typeof body.companyId === 'string') patch.companyId = body.companyId
     if (body.dealId === null || typeof body.dealId === 'string') patch.dealId = body.dealId
     if (body.location === null || typeof body.location === 'string') patch.location = body.location
-    return updateMeeting(session.workspaceId, session.memberId, id, patch)
+    const updated = await updateMeeting(session.workspaceId, session.memberId, id, patch)
+
+    /**
+     * **제목은 한 벌이다.** CRM 에서 고쳤으면 원본 회의노트도 같이 고친다.
+     *
+     * 미팅 저장이 성공한 뒤에 한다 — 순서를 뒤집으면 미팅 저장이 실패했는데 원본만 바뀐다.
+     * 내 노트가 아니면 `not_owner` 가 돌아오고 아무것도 쓰지 않는다(권한 경계).
+     * 결과를 응답에 실어 화면이 무슨 일이 일어났는지 말할 수 있게 한다 — 조용히 넘기지 않는다.
+     */
+    const titleSync = typeof body.title === 'string'
+      ? await syncNoteTitle(session.workspaceId, session.hostUserId, id, body.title)
+      : null
+    return { ...updated, titleSync }
   })
 }
 

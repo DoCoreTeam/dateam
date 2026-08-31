@@ -49,6 +49,14 @@ export interface FinishDeps {
   adapter: AiAdapter
   /** 없으면 정리 단계를 건너뛴다(원본 회의노트가 없는 옛 미팅) */
   digest?: DigestRunner
+  /**
+   * 부른 사람의 호스트 사용자 id.
+   *
+   * 5축 추출에 그대로 넘긴다 — 전사가 없을 때 원본 회의노트 본문을 재료로 끌어오려면
+   * «이 사람이 그 노트를 볼 수 있나»를 판정해야 한다(§extractFiveAxis 주석).
+   * 없으면 그 폴백만 안 돈다. 나머지 단계는 그대로다.
+   */
+  hostUserId?: string
 }
 
 function why(e: unknown, fallback: string): string {
@@ -116,7 +124,7 @@ export async function finishMeeting(
   let suggested = 0
   let dropped = 0
   try {
-    const out = await extractFiveAxis(workspaceId, actorId, meetingId, deps.adapter)
+    const out = await extractFiveAxis(workspaceId, actorId, meetingId, deps.adapter, deps.hostUserId)
     axes = out.axes
     suggested = out.suggested
     dropped = out.dropped

@@ -550,8 +550,28 @@ export async function extractFiveAxis(
   actorId: string | null,
   meetingId: string,
   adapter: AiAdapter,
+  /**
+   * 부른 사람의 호스트 사용자 id. 주면 **읽을 것이 없을 때 원본 본문을 재료로 끌어온다.**
+   *
+   * 왜 여기인가(실측 v0.7.666): 처음에는 `/extract` 라우트에 꽂았는데, 사용자가 실제로
+   * 누르는 버튼은 「미팅 끝내기」(`/finish`)였고 그 경로는 이 함수를 **직접** 부른다.
+   * 라우트에 꽂으면 주 경로를 지나가지 않는다 — 이 저장소가 반복한 「만들고 안 꽂음」이다.
+   * 그래서 두 경로가 다 지나가는 이 자리에 둔다.
+   */
+  hostUserId?: string,
 ): Promise<ExtractResult> {
   const db = getCrmDb(workspaceId)
+
+  /**
+   * 읽을 것이 없으면 원본 회의노트 본문을 전사 재료로 끌어온다.
+   *
+   * 순환 import 를 피해 동적으로 부른다 — `meeting-publish` 가 이 모듈의 `transcribe` 를 쓴다.
+   * 이미 전사가 있거나, 본문이 비었거나, 볼 수 없는 노트면 아무 일도 하지 않는다(0).
+   */
+  if (hostUserId) {
+    const { snapshotNoteBodyForExtract } = await import('./meeting-publish.ts')
+    await snapshotNoteBodyForExtract(workspaceId, actorId, hostUserId, meetingId)
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const meeting = await (db as any).crmMeeting.findFirst({
