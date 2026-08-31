@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.655',
+    date: '2026-08-31',
+    title: '「끝자리만 떨어뜨려 주세요」를 견적이 기억해요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '✂️',
+        headline: '절사를 골라 두면 금액이 딱 떨어져요',
+        detail: '견적 수정 화면의 합계 옆에서 천원·만원·십만원·백만원 단위와 버림·반올림·올림을 고를 수 있어요. 단가는 그대로 두고 「절사 −37,000원」 한 줄만 붙어서, 나중에 왜 이 가격인지 설명할 수 있어요. 견적서·엑셀·PDF에도 그대로 나갑니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.654',
     date: '2026-08-28',
     title: '특별가를 견적서에 담고, 품목을 고칠 수 있게 했어요',
