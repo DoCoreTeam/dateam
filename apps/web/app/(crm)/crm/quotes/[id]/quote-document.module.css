@@ -465,3 +465,12 @@
   font-weight: 700;
   color: var(--text-muted);
 }
+
+/* 환율 근거 — 숫자보다 작게. 근거 없이 환산액만 있으면 믿을 수 없다 */
+.fxNote {
+  display: block;
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+  color: var(--text-faint);
+  white-space: nowrap;
+}

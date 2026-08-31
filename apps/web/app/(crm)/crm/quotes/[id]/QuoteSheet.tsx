@@ -346,6 +346,25 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                 <td className={styles.totalLabel} colSpan={2}>{QUOTE.tax}</td>
                 <td className={styles.num}>{money(doc.totals.taxMinor)}</td>
               </tr>
+              {/*
+                **원화 환산은 총액 바로 위에 선다.** 외화 견적을 받은 사람이 제일 먼저
+                하는 계산이 그것이고, 환율을 밝히지 않으면 그 숫자를 믿을 수 없다.
+              */}
+              {doc.totals.totalKrwMinor && (
+                <tr>
+                  <td colSpan={4} />
+                  <td className={styles.totalLabel} colSpan={2}>
+                    원화 환산
+                    <span className={styles.fxNote}>
+                      1 {doc.meta.currency} = {Number(doc.totals.fxRate).toLocaleString('ko-KR')}원
+                      {doc.totals.fxDate && ` · ${doc.totals.fxDate} 매매기준율`}
+                    </span>
+                  </td>
+                  <td className={styles.num}>
+                    {Number(doc.totals.totalKrwMinor).toLocaleString('ko-KR')}원
+                  </td>
+                </tr>
+              )}
               <tr className={styles.grand}>
                 <td colSpan={4} />
                 <td className={styles.totalLabel} colSpan={2}>{QUOTE.total}</td>

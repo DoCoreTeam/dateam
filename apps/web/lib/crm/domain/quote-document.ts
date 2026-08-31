@@ -20,6 +20,7 @@
 import { QUOTE, hangulAmount, SUPPLIER_ORDER, SUPPLIER_LABEL, type SupplierField } from '../../terms/quote.ts'
 import { checkI2, checkI5, type Violation } from './invariants.ts'
 import { computeLine } from './quote-math.ts'
+import { convertMinor } from './currency.ts'
 
 // ------------------------------------------------------------
 // 문서의 모양
@@ -137,6 +138,17 @@ export interface DocumentTotals {
   discountMinor: string
   /** 절사로 깎인 금액. '0' 이면 절사 안 함 — 그때는 줄을 인쇄하지 않는다 */
   roundingMinor: string
+  /**
+   * 원화 환산 총액. **외화 견적일 때만** 값이 있다.
+   *
+   * 「그래서 원화로 얼마인가」는 고객도 우리도 묻는다. 그런데 환율은 매일 바뀌므로
+   * **만든 날의 환율**로 한 번 환산해 두고 그 값을 인쇄한다 — 어제 보낸 종이와
+   * 오늘 연 화면이 같은 숫자여야 한다.
+   */
+  totalKrwMinor: string
+  /** 「1 USD = 1,393.00원 · 2026-08-27 매매기준율」에 쓸 값들. 없으면 빈 문자열 */
+  fxRate: string
+  fxDate: string
   taxMinor: string
   totalMinor: string
   /** 「금 일억이천만원정」. 원 단위가 아니면 빈 문자열 */
@@ -196,6 +208,9 @@ export interface BuildQuoteDocumentInput {
     /** 고객에게 나가는 특기사항 */
     notesMd: string | null
     expired?: boolean
+    /** 만든 날의 환율(1 통화당 원). KRW 견적이면 null */
+    fxRate?: string | number | null
+    fxDate?: string | Date | null
     /** 개정 차수. 1 이면 표시하지 않는다 */
     revision?: number | null
     /** 다른 안의 이름 */
@@ -307,6 +322,41 @@ function discountOf(l: {
   }
 }
 
+/**
+ * 원화 환산 — **외화 견적일 때만**.
+ *
+ * 환율을 못 박아 둔 견적(옛 데이터·환율 조회 실패)은 빈 값으로 둔다.
+ * 지어내지 않는 이유: 1:1로 환산하면 달러 견적이 원화로 1/1400 이 되어
+ * **틀린 줄도 모르고 그럴듯한 숫자**가 문서에 찍힌다.
+ */
+function fxOf(
+  q: { fxRate?: string | number | null; fxDate?: string | Date | null; totalMinor: bigint | string },
+  currency: string,
+): { totalKrwMinor: string; fxRate: string; fxDate: string } {
+  const empty = { totalKrwMinor: '', fxRate: '', fxDate: '' }
+  if (currency.toUpperCase() === 'KRW') return empty
+  const rate = Number(q.fxRate ?? 0)
+  if (!Number.isFinite(rate) || rate <= 0) return empty
+
+  /*
+    **자릿수는 `convertMinor` 가 안다**(KRW 0 ↔ USD 2).
+    직접 곱하면 센트를 달러로 취급해 100배 틀린다 — 실제로 그랬다.
+  */
+  const fxDate = q.fxDate
+    ? (q.fxDate instanceof Date ? q.fxDate.toISOString().slice(0, 10) : String(q.fxDate).slice(0, 10))
+    : ''
+  const krw = convertMinor({ amountMinor: BigInt(s(q.totalMinor)), currency }, 'KRW', [
+    { base: currency.toUpperCase(), quote: 'KRW', rate, date: fxDate },
+  ])
+  if (krw === null) return empty
+  return {
+    totalKrwMinor: krw.toString(),
+    fxRate: String(rate),
+    // Date 를 String() 으로 자르면 「Thu Aug 27」이 된다(실측) — 위에서 ISO 로 만들어 뒀다
+    fxDate,
+  }
+}
+
 export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocument {
   const currency = (input.quote.currency ?? 'KRW').toUpperCase()
   const validUntil = dateKey(input.quote.validUntil)
@@ -383,6 +433,7 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       */
       discountMinor: s(BigInt(s(input.quote.discountMinor)) - BigInt(s(input.quote.roundingMinor ?? 0))),
       roundingMinor: s(input.quote.roundingMinor ?? 0),
+      ...fxOf(input.quote, currency),
       taxMinor: s(input.quote.taxMinor),
       totalMinor: s(input.quote.totalMinor),
       totalInWords: hangulAmount(input.quote.totalMinor, currency),

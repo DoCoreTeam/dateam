@@ -107,6 +107,8 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       subtotalMinor: quote.subtotalMinor,
       discountMinor: quote.discountMinor,
       roundingMinor: quote.roundingMinor,
+      fxRate: quote.fxRate,
+      fxDate: quote.fxDate,
       taxMinor: quote.taxMinor,
       totalMinor: quote.totalMinor,
       notesMd: quote.notesMd,

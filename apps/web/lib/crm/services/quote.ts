@@ -24,6 +24,7 @@ import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText, requireText } from '../domain/normalize.ts'
+import { latestFxRate, needsFx } from './fx.ts'
 import { assertTransit, type QuoteStatus } from '../domain/state-machines.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
@@ -89,6 +90,10 @@ export interface QuoteRow {
   validUntil: Date | null
   subtotalMinor: bigint
   discountMinor: bigint
+  /** 외화 견적의 환율 — KRW 면 null */
+  fxRate: string | null
+  fxDate: Date | null
+  fxSource: string | null
   /** 어디서 복제됐나 */
   sourceQuoteId: string | null
   /** 개정 차수. 1 이면 첫 판 */
@@ -133,6 +138,7 @@ const SELECT = {
   validUntil: true, subtotalMinor: true, discountMinor: true, taxMinor: true, totalMinor: true,
   roundingUnit: true, roundingMode: true, roundingMinor: true,
   sourceQuoteId: true, revision: true, variantLabel: true,
+  fxRate: true, fxDate: true, fxSource: true,
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
   // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
   termIds: true, ownerId: true, createdById: true, recipientPersonId: true,
@@ -585,6 +591,11 @@ export async function createQuote(
 
     const lines = (input.lines ?? []).map((l, i) => toLineData(l, i))
     const rounding = toRounding(input)
+    /*
+      **환율은 만드는 시점에 박는다.** 나중에 조회하며 환산하면 매일 금액이 달라진다.
+      못 찾으면 null 로 둔다 — 1.0 으로 눕히면 달러 견적이 원화로 1/1400 이 된다.
+    */
+    const fx = needsFx(currency) ? await latestFxRate(currency) : null
     const totals = computeTotals(lines as unknown as QuoteLineInput[], rounding)
     const threshold = await approvalThreshold(tx)
 
@@ -618,6 +629,9 @@ export async function createQuote(
           roundingMode: rounding.mode,
           roundingMinor: totals.roundingMinor,
           approvalRequired: needsApproval(totals, threshold),
+          fxRate: fx?.rate ?? null,
+          fxDate: fx ? new Date(fx.date) : null,
+          fxSource: fx?.source ?? null,
         },
         select: SELECT,
       })
@@ -642,6 +656,9 @@ export async function createQuote(
           roundingUnit: rounding.unit, roundingMode: rounding.mode,
           roundingMinor: totals.roundingMinor,
           approvalRequired: needsApproval(totals, threshold),
+          fxRate: fx?.rate ?? null,
+          fxDate: fx ? new Date(fx.date) : null,
+          fxSource: fx?.source ?? null,
         },
         select: SELECT,
       })
@@ -1331,6 +1348,7 @@ export function toQuoteJson(row: QuoteRow): Record<string, unknown> {
     // BigInt 를 빠뜨리면 JSON.stringify 가 그 자리에서 던진다 —
     // 200 을 기대한 화면이 500 을 받고, 원인은 응답 본문에 안 나온다(실제로 그랬다)
     roundingMinor: row.roundingMinor.toString(),
+    fxRate: row.fxRate === null ? null : String(row.fxRate),
     sections: row.sections?.map((x) => ({ ...x, subtotalMinor: x.subtotalMinor.toString() })),
     discountRate: Number(discountRateOf(row).toFixed(2)),
     lines: row.lines?.map((l) => ({
