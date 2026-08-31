@@ -28,6 +28,7 @@ import CommandPalette from '@/components/crm/CommandPalette'
 import AttentionBell from '@/components/crm/AttentionBell'
 import MeetingModeToggle from '@/components/crm/MeetingModeToggle'
 import { MeetingModeProvider } from '@/lib/crm/ui/meeting-mode'
+import AttentionSync from '@/components/crm/AttentionSync'
 
 /**
  * 최상위에는 **매일 여는 것만** 넷. 나머지는 성격별로 묶는다.
@@ -149,6 +150,12 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
 
   return (
     <MeetingModeProvider>
+    {/*
+      사이드바 「오늘 N」은 이 레이아웃이 **서버에서** 센다. 레이아웃은 클라이언트 이동으로
+      다시 그려지지 않아, 할 일을 끝내도 숫자가 그대로 남았다(사용자 지적).
+      이 줄이 「바뀌었다」 신호를 듣고 레이아웃을 다시 받아 온다.
+    */}
+    <AttentionSync />
     <AppShell
       items={navItems}
       branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}

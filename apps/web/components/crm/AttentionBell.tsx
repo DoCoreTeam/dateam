@@ -14,6 +14,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import { KIND_LABEL, type AttentionKind, type AttentionItem } from '@/lib/crm/services/attention'
 import styles from './attention-bell.module.css'
+import { useAttentionChanged } from '@/lib/crm/ui/attention-signal'
 
 const ICON: Record<AttentionKind, React.ReactNode> = {
   overdue: <AlertTriangle size={14} />,
@@ -51,6 +52,10 @@ export default function AttentionBell() {
 
   // 열 때마다 다시 읽는다 — 그사이 할 일을 끝냈을 수 있다
   useEffect(() => { if (open) void load() }, [open, load])
+
+  // **열지 않아도 줄어든다.** 예전엔 여기서만 다시 세서, 할 일을 끝내도
+  // 벨을 다시 눌러야 숫자가 사라졌다(사용자 지적).
+  useAttentionChanged(load)
 
   // 바깥을 누르면 닫는다. ESC 도 받는다 — 여는 법만 있으면 갇힌다
   useEffect(() => {

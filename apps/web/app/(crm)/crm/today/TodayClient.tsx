@@ -28,6 +28,7 @@ import { KIND_LABEL, type AttentionKind, type AttentionItem } from '@/lib/crm/se
 import MeetingIntakeBox from '@/components/crm/MeetingIntakeBox'
 import type { TodayMeeting } from '@/lib/crm/services/today-meetings'
 import styles from './today.module.css'
+import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
 
 const ICON: Record<AttentionKind, React.ReactNode> = {
   overdue: <AlertTriangle size={14} />,
@@ -120,6 +121,8 @@ export default function TodayClient() {
       }
       setApplied((prev) => new Set(prev).add(s.dealId))
       void load()
+      // 사이드바 배지·알림 벨도 같은 사실을 센다 — 알려 주지 않으면 그 둘만 옛 숫자로 남는다
+      emitAttentionChanged()
     } catch {
       setError('할 일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }

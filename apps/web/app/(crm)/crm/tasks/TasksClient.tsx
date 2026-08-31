@@ -26,6 +26,7 @@ import { kstTodayKey, kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/
 import { isEnterKey } from '@/lib/ui/ime'
 import { useAskDialog } from '@/components/ui/useAskDialog'
 import styles from './tasks.module.css'
+import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
 
 interface Task {
   id: string
@@ -114,6 +115,8 @@ export default function TasksClient() {
         return
       }
       await load()
+      // 사이드바 배지·알림 벨도 같은 사실을 센다 — 알려 주지 않으면 그 둘만 옛 숫자로 남는다
+      emitAttentionChanged()
     } catch {
       setError('바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -142,6 +145,8 @@ export default function TasksClient() {
         return
       }
       await load()
+      // 사이드바 배지·알림 벨도 같은 사실을 센다 — 알려 주지 않으면 그 둘만 옛 숫자로 남는다
+      emitAttentionChanged()
     } catch {
       setError(failedTo('할 일', '삭제', '잠시 후 다시 시도해 주세요.'))
     } finally {
@@ -164,6 +169,8 @@ export default function TasksClient() {
       setTitle('')
       setDueDate('')
       await load()
+      // 사이드바 배지·알림 벨도 같은 사실을 센다 — 알려 주지 않으면 그 둘만 옛 숫자로 남는다
+      emitAttentionChanged()
     } catch {
       setError('만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {

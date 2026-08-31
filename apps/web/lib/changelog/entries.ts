@@ -38,6 +38,12 @@ export const CHANGELOG: ChangelogNote[
     title: '묻는 창이 우리 화면처럼 보여요',
     items: [
       {
+        kind: 'fix',
+        emoji: '🔔',
+        headline: '할 일을 끝내면 뱃지 숫자가 바로 줄어요',
+        detail: '메뉴의 숫자와 알림 종 숫자가 처리 즉시 함께 줄어듭니다. 전에는 다 정리해도 한참 남아 있거나, 종을 다시 눌러야 사라졌어요. 같은 것을 세는 세 자리가 서로를 몰라서 생긴 문제였습니다.',
+      },
+      {
         kind: 'improve',
         emoji: '💬',
         headline: '브라우저 기본 팝업을 우리 모달로 바꿨어요',

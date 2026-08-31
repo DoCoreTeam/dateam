@@ -20,6 +20,7 @@ import { describeSuggestionValue, TARGET_LABEL, FIELD_LABEL } from '@/lib/crm/fo
 import { axisMeta } from '@/lib/crm/ui/suggestion-axis'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './inbox.module.css'
+import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
 
 export interface SuggestionItem {
   id: string
@@ -85,6 +86,8 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
         return
       }
       onDone()
+      // 사이드바 배지·알림 벨도 같은 사실을 센다
+      emitAttentionChanged()
     } catch {
       setError('처리하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {

@@ -18,6 +18,7 @@ import DateField from '@/components/ui/DateField'
 import { kstDateKey, kstTodayKey } from '@/lib/datetime/kst'
 import type { TimelineScope } from './Timeline'
 import styles from './task-panel.module.css'
+import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
 
 export interface TaskItem {
   id: string
@@ -106,6 +107,8 @@ export default function TaskPanel({ scope, onChanged }: Props) {
       setDue('')
       void load()
       onChanged?.()
+      // 사이드바 배지·알림 벨도 같은 사실을 센다
+      emitAttentionChanged()
     } catch {
       setError('추가하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -141,6 +144,7 @@ export default function TaskPanel({ scope, onChanged }: Props) {
         setAskNext(true)
         setTimeout(() => nextRef.current?.focus(), 60)
       }
+      emitAttentionChanged()
     } catch {
       setError('바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }
