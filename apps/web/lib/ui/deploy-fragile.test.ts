@@ -23,8 +23,8 @@ import { stripComments } from './component-scan.ts'
 const ROOT = join(import.meta.dirname, '..', '..')
 const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
-/** app/** 아래 소스 파일을 전부 훑는다(주석 제거본과 함께). */
-function scanApp(exts: readonly string[]): { file: string; src: string }[] {
+/** 주어진 루트 아래 소스 파일을 전부 훑는다(주석 제거본과 함께). */
+function scanApp(exts: readonly string[], roots: readonly string[] = ['app']): { file: string; src: string }[] {
   const out: { file: string; src: string }[] = []
   const walk = (dir: string): void => {
     for (const name of readdirSync(join(ROOT, dir))) {
@@ -35,7 +35,7 @@ function scanApp(exts: readonly string[]): { file: string; src: string }[] {
       out.push({ file: rel, src: stripComments(readFileSync(join(ROOT, rel), 'utf8')) })
     }
   }
-  walk('app')
+  for (const r of roots) walk(r)
   return out
 }
 
@@ -163,5 +163,43 @@ test('⑥ 주간보고 저장 실패는 로그에 남는다 — 화면에도 로
   assert.ok(
     !/from ['"]next\/navigation['"]/.test(stripComments(src)),
     '저장 액션이 아직 next/navigation(redirect)을 씁니다 — 화면이 결과를 못 읽습니다',
+  )
+})
+
+/**
+ * ⑦ **사용자를 막는 제출은 무방비로 두지 않는다** (ratchet — 늘면 차단).
+ *
+ * 진행 표시를 켜 놓고 `try/finally` 도 시간 제한도 없으면, 본문이 던지는 순간
+ * 끄는 줄에 **도달하지 못한다** — 버튼이 영원히 「저장 중…」이 된다.
+ * 주간보고가 그랬고, 전수 조사 결과 같은 모양이 화면 20곳에 있었다.
+ * 17곳을 `lib/forms/submit-guard` 한 벌로 이관했고, 나머지는 아래에 이유와 함께 적는다.
+ */
+const SUBMIT_GUARD_PENDING = new Set([
+  // 다른 세션이 지금 쓰고 있어 건드리지 않았다(M-9 ④) — 그 세션이 끝나면 이관 대상이다
+  'app/(member)/daily/page.tsx',
+  'app/(member)/lead-intake/IntakeActions.tsx',
+  // 제출이 아니다 — 라우트 이동 로더다(타이머를 cleanup 에서 정리한다)
+  'components/ui/NavigationLoader.tsx',
+])
+
+test('⑦ 진행 표시를 켜는 화면은 반드시 끝을 보장한다 (ratchet)', () => {
+  const unguarded: string[] = []
+  for (const { file, src } of scanApp(['.tsx'], ['app', 'components'])) {
+    if (!/set(Pending|Loading|Saving|Submitting)\(true\)/.test(src)) continue
+    if (/\bfinally\b|withSubmitGuard/.test(src)) continue
+    unguarded.push(file)
+  }
+  const extra = unguarded.filter((f) => !SUBMIT_GUARD_PENDING.has(f))
+  assert.deepEqual(
+    extra, [],
+    '진행 표시를 켜 놓고 끝을 보장하지 않는 화면이 늘었습니다:\n' +
+    extra.map((f) => `  ${f}`).join('\n') +
+    '\n  → lib/forms/submit-guard 의 withSubmitGuard 로 감싸세요(시간 제한·try/catch·finally 한 벌).',
+  )
+  const gone = [...SUBMIT_GUARD_PENDING].filter((f) => !unguarded.includes(f))
+  assert.deepEqual(
+    gone, [],
+    `이관이 끝난 항목이 예외 목록에 남아 있습니다: ${gone.join(', ')}\n` +
+    '  → SUBMIT_GUARD_PENDING 에서 지워 되돌아가지 못하게 잠그세요.',
   )
 })

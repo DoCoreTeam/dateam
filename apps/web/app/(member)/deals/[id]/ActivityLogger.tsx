@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import InlineError from '@/components/ui/InlineError'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 const TYPES = [
   { value: 'call', label: '통화' },
@@ -31,22 +32,24 @@ export default function ActivityLogger({ dealId }: Props) {
     e.preventDefault()
     if (!content.trim()) return
     setLoading(true)
-    setError('')
-    const res = await fetch('/api/deals/activities', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deal_id: dealId, type, content }),
-    })
-    if (res.ok) {
-      setContent('')
-      draft.clear()
-      setOpen(false)
-      router.refresh()
-    } else {
-      const d = await res.json() as { error?: string }
-      setError(d.error ?? '오류')
-    }
-    setLoading(false)
+    await withSubmitGuard(async (signal) => {
+      setError('')
+      const res = await fetch('/api/deals/activities', { signal,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deal_id: dealId, type, content }),
+      })
+      if (res.ok) {
+        setContent('')
+        draft.clear()
+        setOpen(false)
+        router.refresh()
+      } else {
+        const d = await res.json() as { error?: string }
+        setError(d.error ?? '오류')
+      }
+      setLoading(false)
+    }, { onError: setError, onDone: () => setLoading(false) })
   }
 
   async function handleAiParse() {

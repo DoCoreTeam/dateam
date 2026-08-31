@@ -3,6 +3,7 @@ import type { DailyLog } from '@/types/database'
 import { splitOriginGroup, type LogGroup } from './grouping'
 import { findDuplicateCandidates } from '@/lib/daily/duplicate'
 import { DuplicateSection } from './DuplicateSection'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 interface OriginGroupCardProps {
   /** 그룹화된 입력 묶음 (origin_group_id 기준) */
@@ -48,14 +49,18 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(originalText)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const startEdit = () => { setDraft(originalText); setEditing(true) }
   const saveEdit = async () => {
     if (!headLog || !draft.trim() || saving) return
     setSaving(true)
-    const ok = await onEditOrigin(headLog.id, draft.trim())
-    setSaving(false)
-    if (ok) setEditing(false)
+    setSaveError('')
+    await withSubmitGuard(async () => {
+      const ok = await onEditOrigin(headLog.id, draft.trim())
+      if (ok) setEditing(false)
+      else setSaveError('저장하지 못했습니다. 쓰신 내용은 그대로 있으니 다시 시도해 주세요.')
+    }, { onError: setSaveError, onDone: () => setSaving(false) })
   }
   const noteCount = childLogs.filter((l) => l.entry_type === 'note').length
   // 놓친 메모: note + memo_status='new' (미확인)

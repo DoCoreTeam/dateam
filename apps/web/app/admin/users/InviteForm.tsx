@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { UserPlus } from 'lucide-react'
 import { inviteUser } from './actions'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 export default function InviteForm() {
   const [pending, setPending] = useState(false)
@@ -15,15 +16,18 @@ export default function InviteForm() {
 
     const form = e.currentTarget
     const formData = new FormData(form)
-    const res = await inviteUser(formData)
-
-    if (res.success) {
-      setResult({ ok: true, msg: '구성원 계정이 생성되었습니다. 첫 로그인 시 비밀번호를 설정해야 합니다.' })
-      form.reset()
-    } else {
-      setResult({ ok: false, msg: res.error ?? '오류가 발생했습니다' })
-    }
-    setPending(false)
+    await withSubmitGuard(async () => {
+      const res = await inviteUser(formData)
+      if (res.success) {
+        setResult({ ok: true, msg: '구성원 계정이 생성되었습니다. 첫 로그인 시 비밀번호를 설정해야 합니다.' })
+        form.reset()
+      } else {
+        setResult({ ok: false, msg: res.error ?? '오류가 발생했습니다' })
+      }
+    }, {
+      onError: (msg) => setResult({ ok: false, msg }),
+      onDone: () => setPending(false),
+    })
   }
 
   return (

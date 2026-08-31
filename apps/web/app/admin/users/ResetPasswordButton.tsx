@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { resetUserPassword } from './actions'
 import { RefreshCw } from 'lucide-react'
 import InlineError from '@/components/ui/InlineError'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 interface Props {
   userId: string
@@ -19,15 +20,17 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
   const handleReset = async () => {
     if (!confirm(`${userName}님의 비밀번호를 초기화하시겠습니까?\n이후 빈 비밀번호로 로그인하면 새 비밀번호를 설정하게 됩니다.`)) return
     setLoading(true)
-    setDone(false)
-    setError(null)
-    const result = await resetUserPassword(userId, userEmail)
-    setLoading(false)
-    if (result.ok) {
-      setDone(true)
-    } else {
-      setError(result.error)
-    }
+    await withSubmitGuard(async () => {
+      setDone(false)
+      setError(null)
+      const result = await resetUserPassword(userId, userEmail)
+      setLoading(false)
+      if (result.ok) {
+        setDone(true)
+      } else {
+        setError(result.error)
+      }
+    }, { onError: setError, onDone: () => setLoading(false) })
   }
 
   if (done) {

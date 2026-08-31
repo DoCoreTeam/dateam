@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { changePasswordAction, getOrgMemberNames, getMyProfileData } from '@/app/change-password/actions'
 import NbModal from '@/components/ui/nb/NbModal'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 export default function PasswordChangeModal() {
   const router = useRouter()
@@ -46,13 +47,15 @@ export default function PasswordChangeModal() {
     }
 
     setPending(true)
-    const result = await changePasswordAction(password, name)
-    if (result.ok) {
-      router.refresh()
-    } else {
-      setError(result.error)
-      setPending(false)
-    }
+    await withSubmitGuard(async () => {
+      const result = await changePasswordAction(password, name)
+      if (result.ok) {
+        router.refresh()
+      } else {
+        setError(result.error)
+        setPending(false)
+      }
+    }, { onError: setError, onDone: () => setPending(false) })
   }
 
   // 첫 로그인 강제 모달 — 닫을 수 없다(disableClose).

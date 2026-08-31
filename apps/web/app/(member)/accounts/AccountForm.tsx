@@ -7,6 +7,7 @@ import { ACCOUNT_SEGMENTS, ACCOUNT_TYPES, GPU_DEMAND_LEVELS } from '@/lib/crm'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import InlineError from '@/components/ui/InlineError'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 interface Props {
   account?: Account
@@ -64,35 +65,37 @@ export default function AccountForm({ account }: Props) {
     e.preventDefault()
     if (!form.name.trim()) { setError('거래처명을 입력하세요'); return }
     setLoading(true)
-    setError('')
+    await withSubmitGuard(async (signal) => {
+      setError('')
 
-    const payload = {
-      name: form.name.trim(),
-      industry: form.industry || null,
-      segment: form.segment || null,
-      size: form.size || null,
-      region: form.region || null,
-      website: form.website || null,
-      phone: form.phone || null,
-      address: form.address || null,
-      description: form.description || null,
-      account_type: form.account_type || null,
-      gpu_demand_intensity: form.gpu_demand_intensity || null,
-      registration_number: form.registration_number || null,
-      source: form.source || null,
-      tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-      fit_score: fitScore,
-      fit_reason: fitReason || null,
-    }
+      const payload = {
+        name: form.name.trim(),
+        industry: form.industry || null,
+        segment: form.segment || null,
+        size: form.size || null,
+        region: form.region || null,
+        website: form.website || null,
+        phone: form.phone || null,
+        address: form.address || null,
+        description: form.description || null,
+        account_type: form.account_type || null,
+        gpu_demand_intensity: form.gpu_demand_intensity || null,
+        registration_number: form.registration_number || null,
+        source: form.source || null,
+        tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+        fit_score: fitScore,
+        fit_reason: fitReason || null,
+      }
 
-    const url = account ? `/api/accounts/${account.id}` : '/api/accounts'
-    const method = account ? 'PATCH' : 'POST'
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    const data = await res.json() as { id?: string; error?: string }
-    if (!res.ok) { setError(data.error ?? '저장 실패'); setLoading(false); return }
-    fc.clear()
-    router.push(`/accounts/${data.id ?? account?.id}`)
-    router.refresh()
+      const url = account ? `/api/accounts/${account.id}` : '/api/accounts'
+      const method = account ? 'PATCH' : 'POST'
+      const res = await fetch(url, { signal, method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const data = await res.json() as { id?: string; error?: string }
+      if (!res.ok) { setError(data.error ?? '저장 실패'); setLoading(false); return }
+      fc.clear()
+      router.push(`/accounts/${data.id ?? account?.id}`)
+      router.refresh()
+    }, { onError: setError, onDone: () => setLoading(false) })
   }
 
   const inputStyle = { width: '100%', padding: 'var(--space-2) var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', outline: 'none', boxSizing: 'border-box' as const }

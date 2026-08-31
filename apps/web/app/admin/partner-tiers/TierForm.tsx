@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createTier, updateTier } from './actions'
 import { X, Save } from 'lucide-react'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 type Mode = 'create' | 'edit'
 
@@ -32,23 +33,25 @@ export default function TierForm({
     e.preventDefault()
     const form = e.currentTarget
     setPending(true)
-    setError(null)
+    await withSubmitGuard(async () => {
+      setError(null)
 
-    const formData = new FormData(form)
-    const result = mode === 'create'
-      ? await createTier(formData)
-      : await updateTier(tierId!, formData)
+      const formData = new FormData(form)
+      const result = mode === 'create'
+        ? await createTier(formData)
+        : await updateTier(tierId!, formData)
 
-    if (result.error) {
-      setError(result.error)
-    } else if (mode === 'create') {
-      form.reset()
-      onSaved?.()
-    } else {
-      onSaved?.()
-      onCancel?.()
-    }
-    setPending(false)
+      if (result.error) {
+        setError(result.error)
+      } else if (mode === 'create') {
+        form.reset()
+        onSaved?.()
+      } else {
+        onSaved?.()
+        onCancel?.()
+      }
+      setPending(false)
+    }, { onError: setError, onDone: () => setPending(false) })
   }
 
   return (

@@ -20,6 +20,7 @@ import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
 import InlineError from '@/components/ui/InlineError'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 function downloadTextFile(filename: string, content: string, mime: string): void {
   const blob = new Blob([content], { type: mime })
@@ -176,9 +177,11 @@ export function SessionDetailDrawer({ sessionId, onClose }: { sessionId: string;
   async function handleSave(): Promise<void> {
     if (!detail || saving) return
     setSaving(true)
-    const r = await createDocument({ sessionId, title, bodyMd: body, docType: detail.docType })
-    setSaving(false)
-    if (r.ok) setSavedId(r.id)
+    await withSubmitGuard(async () => {
+      const r = await createDocument({ sessionId, title, bodyMd: body, docType: detail.docType })
+      if (r.ok) setSavedId(r.id)
+      else setError(r.error ?? '저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    }, { onError: setError, onDone: () => setSaving(false) })
   }
 
   return (

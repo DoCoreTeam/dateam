@@ -28,6 +28,7 @@ import {
 } from './document-actions'
 import DocumentDetailDrawer from './DocumentDetailDrawer'
 import { ConfirmModal } from './SessionListModals'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 const LIST_DEFAULTS: ListDefaults = {
   sort: { key: 'updated', dir: 'desc' },
@@ -76,22 +77,27 @@ export default function DocumentListClient() {
     // 주소가 그대로라 개별 필드로는 보이지 않는다 — 그 변화는 queryKey 로만 들어온다.
     void queryKey
       cursor ? setLoadingMore(true) : setLoading(true)
-      setError(null)
-      const r = await listDocuments({
-        q: query.q || undefined,
-        sort: sortKey,
-        filter: { docType: query.filters.docType || undefined, deleted: showDeleted },
-        cursor,
-        limit: 30,
-      })
-      if (!r.ok) {
-        setError(r.error)
+      await withSubmitGuard(async () => {
+        setError(null)
+        const r = await listDocuments({
+          q: query.q || undefined,
+          sort: sortKey,
+          filter: { docType: query.filters.docType || undefined, deleted: showDeleted },
+          cursor,
+          limit: 30,
+        })
+        if (!r.ok) {
+          setError(r.error)
+          cursor ? setLoadingMore(false) : setLoading(false)
+          return
+        }
+        setDocuments((prev) => (cursor ? [...prev, ...r.documents] : r.documents))
+        setNextCursor(r.nextCursor)
         cursor ? setLoadingMore(false) : setLoading(false)
-        return
-      }
-      setDocuments((prev) => (cursor ? [...prev, ...r.documents] : r.documents))
-      setNextCursor(r.nextCursor)
-      cursor ? setLoadingMore(false) : setLoading(false)
+      }, {
+        onError: setError,
+        onDone: () => { if (cursor) setLoadingMore(false); else setLoading(false) },
+      })
     },
     [query.q, sortKey, query.filters.docType, showDeleted],
   )

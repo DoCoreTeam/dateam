@@ -11,6 +11,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import { createDocument } from './document-actions'
 import WorkflowHandoffModal from './WorkflowHandoffModal'
 import InlineError from '@/components/ui/InlineError'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 interface Props {
   sessionId: string
@@ -31,11 +32,13 @@ export default function AnalysisOutcomeActions({ sessionId, docType, title, body
 
   async function handleSave() {
     setSaving(true)
-    setError(null)
-    const r = await createDocument({ sessionId, title, bodyMd: bodyMd ?? '', docType })
-    setSaving(false)
-    if (!r.ok) { setError(r.error); return }
-    setSavedId(r.id)
+    await withSubmitGuard(async () => {
+      setError(null)
+      const r = await createDocument({ sessionId, title, bodyMd: bodyMd ?? '', docType })
+      setSaving(false)
+      if (!r.ok) { setError(r.error); return }
+      setSavedId(r.id)
+    }, { onError: setError, onDone: () => setSaving(false) })
   }
 
   // 종합 패널 상단 액션 줄에 인라인으로 배치(다운로드/복사와 한 곳). 카드 래퍼·헤더 없음.

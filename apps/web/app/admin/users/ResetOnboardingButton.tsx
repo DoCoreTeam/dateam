@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { resetUserOnboarding } from './actions'
 import { Compass } from 'lucide-react'
 import InlineError from '@/components/ui/InlineError'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 interface Props {
   userId: string
@@ -18,12 +19,14 @@ export default function ResetOnboardingButton({ userId, userName }: Props) {
   const handleReset = async () => {
     if (!confirm(`${userName}님의 온보딩을 초기화하시겠습니까?\n다음 로그인 시 온보딩 가이드가 다시 표시됩니다.`)) return
     setLoading(true)
-    setDone(false)
-    setError(null)
-    const result = await resetUserOnboarding(userId)
-    setLoading(false)
-    if (result.ok) setDone(true)
-    else setError(result.error)
+    await withSubmitGuard(async () => {
+      setDone(false)
+      setError(null)
+      const result = await resetUserOnboarding(userId)
+      setLoading(false)
+      if (result.ok) setDone(true)
+      else setError(result.error)
+    }, { onError: setError, onDone: () => setLoading(false) })
   }
 
   if (done) {

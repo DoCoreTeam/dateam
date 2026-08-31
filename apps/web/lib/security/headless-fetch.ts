@@ -3,6 +3,7 @@
 // 정책: 평소엔 일반 fetch(호출부 하이브리드), 빈손일 때만 렌더. SSRF는 assertSafeUrl로 초기 URL 게이트.
 // 환경: Vercel/Lambda = @sparticuz/chromium, 로컬 = 시스템 Chrome. 실패는 throw 안 하고 '' 반환(우아한 폴백 → 회귀0).
 import { assertSafeUrl } from './safe-fetch'
+import { recordSystemEvent } from '@/lib/system-log/record'
 
 const RENDER_TIMEOUT_MS = 22_000
 const SETTLE_MS = 1_500
@@ -36,6 +37,27 @@ export async function launchOptions(): Promise<{ args: string[]; executablePath:
  * JS 렌더 후 HTML 반환. 실패/차단/타임아웃 시 '' (호출부가 일반 fetch 결과로 폴백).
  * SSRF: 초기 URL을 assertSafeUrl로 검증(사설망/비허용 스킴 차단). 통과 못하면 '' 반환(렌더 안 함).
  */
+/**
+ * 렌더가 실패했을 때 **조용히 넘어가지 않는다**.
+ *
+ * 이 함수의 계약은 「실패하면 '' 를 돌려주고 호출부가 일반 fetch 로 폴백」이다 — 그건 유지한다.
+ * 문제는 그 폴백이 **환경 전체가 죽은 상태까지 가려 준다**는 것이다.
+ * 실측 2026-08-31: 배포본에 크로미움이 안 실려 이 경로가 프로덕션에서 100% 실패했는데,
+ * 화면에는 「아무것도 못 찾았다」로만 보여 두 주 동안 아무도 몰랐다.
+ * 그래서 **폴백은 그대로 두고, 왜 폴백했는지만** 남긴다.
+ */
+async function noteRenderFailure(url: string, err: unknown): Promise<void> {
+  await recordSystemEvent({
+    source: 'host_api',
+    error: err,
+    feature: 'headless-render',
+    route: '/lib/security/headless-fetch',
+    // 사용자를 직접 막지는 않는다(일반 fetch 로 폴백한다) — 다만 수집 품질이 조용히 나빠진다
+    blocksUser: false,
+    context: { url: url.slice(0, 200) },
+  }).catch(() => { /* 기록 실패가 수집을 막지 않는다 */ })
+}
+
 export async function renderUrlHtml(url: string): Promise<string> {
   try { await assertSafeUrl(url) } catch { return '' }  // 안전하지 않은 URL → 렌더 안 함
 
@@ -61,7 +83,8 @@ export async function renderUrlHtml(url: string): Promise<string> {
     await new Promise((r) => setTimeout(r, SETTLE_MS))
     const html = await page.content()
     return typeof html === 'string' ? html.slice(0, RENDER_MAX_CHARS) : ''
-  } catch {
+  } catch (err) {
+    await noteRenderFailure(url, err)
     return ''
   } finally {
     try { await browser?.close() } catch { /* noop */ }

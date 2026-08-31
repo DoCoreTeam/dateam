@@ -26,6 +26,7 @@ import {
   type SessionSortKey,
 } from './session-list-actions'
 import { RenameModal, ConfirmModal, SessionDetailDrawer } from './SessionListModals'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 const LIST_DEFAULTS: ListDefaults = {
   sort: { key: 'updated', dir: 'desc' },
@@ -94,26 +95,31 @@ export default function SessionListClient() {
     // 주소가 그대로라 개별 필드로는 보이지 않는다 — 그 변화는 queryKey 로만 들어온다.
     void queryKey
       cursor ? setLoadingMore(true) : setLoading(true)
-      setError(null)
-      const r = await listAnalysisSessions({
-        q: query.q || undefined,
-        sort: sortKey,
-        filter: {
-          phase: query.filters.phase || undefined,
-          synthStatus: query.filters.synth || undefined,
-          deleted: showDeleted,
-        },
-        cursor,
-        limit: 30,
-      })
-      if (!r.ok) {
-        setError(r.error)
+      await withSubmitGuard(async () => {
+        setError(null)
+        const r = await listAnalysisSessions({
+          q: query.q || undefined,
+          sort: sortKey,
+          filter: {
+            phase: query.filters.phase || undefined,
+            synthStatus: query.filters.synth || undefined,
+            deleted: showDeleted,
+          },
+          cursor,
+          limit: 30,
+        })
+        if (!r.ok) {
+          setError(r.error)
+          cursor ? setLoadingMore(false) : setLoading(false)
+          return
+        }
+        setSessions((prev) => (cursor ? [...prev, ...r.sessions] : r.sessions))
+        setNextCursor(r.nextCursor)
         cursor ? setLoadingMore(false) : setLoading(false)
-        return
-      }
-      setSessions((prev) => (cursor ? [...prev, ...r.sessions] : r.sessions))
-      setNextCursor(r.nextCursor)
-      cursor ? setLoadingMore(false) : setLoading(false)
+      }, {
+        onError: setError,
+        onDone: () => { if (cursor) setLoadingMore(false); else setLoading(false) },
+      })
     },
     [query.q, sortKey, query.filters.phase, query.filters.synth, showDeleted],
   )

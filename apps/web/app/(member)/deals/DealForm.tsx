@@ -8,6 +8,7 @@ import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import InlineError from '@/components/ui/InlineError'
 import DateField from '@/components/ui/DateField'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 const STAGES = ['신규', '검증', '컨택', 'PoC', '제안', '협상', '수주', '실패'] as const
 
@@ -60,38 +61,40 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
     e.preventDefault()
     if (!form.title.trim()) { setError('제목을 입력하세요'); return }
     setLoading(true)
-    setError('')
+    await withSubmitGuard(async (signal) => {
+      setError('')
 
-    const payload = {
-      title: form.title.trim(),
-      account_id: form.account_id || null,
-      contact_id: form.contact_id || null,
-      stage: form.stage,
-      value: form.value ? parseFloat(form.value) : null,
-      close_date: form.close_date || null,
-      expected_date: form.expected_date || null,
-      description: form.description || null,
-      next_action: form.next_action || null,
-      next_action_date: form.next_action_date || null,
-      lead_type: form.lead_type || null,
-      product: form.product || null,
-      fit_score: form.fit_score ? parseInt(form.fit_score) : null,
-      hw_included: form.hw_included === 'true',
-      is_new_deal: form.is_new_deal !== '계속',
-      funding_source: form.funding_source || null,
-      procurement_status: form.procurement_status || null,
-      source: form.source || null,
-      tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-    }
+      const payload = {
+        title: form.title.trim(),
+        account_id: form.account_id || null,
+        contact_id: form.contact_id || null,
+        stage: form.stage,
+        value: form.value ? parseFloat(form.value) : null,
+        close_date: form.close_date || null,
+        expected_date: form.expected_date || null,
+        description: form.description || null,
+        next_action: form.next_action || null,
+        next_action_date: form.next_action_date || null,
+        lead_type: form.lead_type || null,
+        product: form.product || null,
+        fit_score: form.fit_score ? parseInt(form.fit_score) : null,
+        hw_included: form.hw_included === 'true',
+        is_new_deal: form.is_new_deal !== '계속',
+        funding_source: form.funding_source || null,
+        procurement_status: form.procurement_status || null,
+        source: form.source || null,
+        tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+      }
 
-    const url = deal ? `/api/deals/${deal.id}` : '/api/deals'
-    const method = deal ? 'PATCH' : 'POST'
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-    const data = await res.json() as { id?: string; error?: string }
-    if (!res.ok) { setError(data.error ?? '저장 실패'); setLoading(false); return }
-    fc.clear()
-    router.push(`/deals/${data.id ?? deal?.id}`)
-    router.refresh()
+      const url = deal ? `/api/deals/${deal.id}` : '/api/deals'
+      const method = deal ? 'PATCH' : 'POST'
+      const res = await fetch(url, { signal, method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const data = await res.json() as { id?: string; error?: string }
+      if (!res.ok) { setError(data.error ?? '저장 실패'); setLoading(false); return }
+      fc.clear()
+      router.push(`/deals/${data.id ?? deal?.id}`)
+      router.refresh()
+    }, { onError: setError, onDone: () => setLoading(false) })
   }
 
   const inputStyle = { width: '100%', padding: 'var(--space-2) var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', boxSizing: 'border-box' as const }

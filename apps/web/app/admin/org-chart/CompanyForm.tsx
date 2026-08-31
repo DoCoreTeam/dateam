@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { updateCompany } from './actions'
 import { Building2, Save } from 'lucide-react'
 import InlineError from '@/components/ui/InlineError'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 interface CompanyFormProps {
   defaultName: string
@@ -19,14 +20,16 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
     e.preventDefault()
     const form = e.currentTarget
     setPending(true)
-    setError(null)
-    const result = await updateCompany(new FormData(form))
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setEditing(false)
-    }
-    setPending(false)
+    await withSubmitGuard(async () => {
+      setError(null)
+      const result = await updateCompany(new FormData(form))
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setEditing(false)
+      }
+      setPending(false)
+    }, { onError: setError, onDone: () => setPending(false) })
   }
 
   return (

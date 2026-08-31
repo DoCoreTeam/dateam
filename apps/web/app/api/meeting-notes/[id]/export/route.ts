@@ -6,6 +6,7 @@ import { formatKstDateTimeKorean } from '@/lib/datetime/kst'
 import { exportFailureMessage } from '@/lib/meeting/export-failure'
 import { buildMeetingExportHtml, type MeetingExportView } from '@/lib/meeting/export-html'
 import { launchOptions } from '@/lib/security/headless-fetch'
+import { recordSystemEvent } from '@/lib/system-log/record'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -99,6 +100,13 @@ export async function GET(
   } catch (err) {
     // 원문을 삼키면 원인을 영영 못 찾는다 — 서버 로그에 남기고, 화면에는 사람이 읽을 사유를 준다.
     console.error('[meeting-notes/export] render failed', { format, view, noteId: params.id, err })
+    // 이 경로는 프로덕션에서만 죽은 전례가 있다(배포본 누락) — 콘솔은 서버 로그에만 남아
+    // 아무도 안 본다. 시스템 로그에 남겨야 관리자가 「무엇이 왜 안 되는지」를 알 수 있다.
+    await recordSystemEvent({
+      source: 'host_api', error: err, feature: `meeting-note-export:${format}`,
+      route: '/api/meeting-notes/[id]/export', blocksUser: true,
+      context: { format, view, noteId: params.id },
+    }).catch(() => { /* 기록 실패가 응답을 막지 않는다 */ })
     return NextResponse.json({ error: exportFailureMessage(format, err) }, { status: 500 })
   } finally {
     try { await browser?.close() } catch { /* noop */ }

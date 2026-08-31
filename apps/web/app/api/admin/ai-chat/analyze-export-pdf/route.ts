@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { conversationToHtmlDocument, sanitizeFilename } from '@/lib/ai-chat/export'
 import { launchOptions } from '@/lib/security/headless-fetch'
+import { recordSystemEvent } from '@/lib/system-log/record'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -75,7 +76,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const page = await browser.newPage()
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
     pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' } })
-  } catch {
+  } catch (err) {
+    // 예전엔 `catch {` 로 오류를 통째로 버렸다 — 프로덕션에서 죽어도 남는 게 없었다.
+    await recordSystemEvent({
+      source: 'host_api', error: err, feature: 'analyze-export-pdf',
+      route: '/api/admin/ai-chat/analyze-export-pdf', blocksUser: true,
+    }).catch(() => { /* 기록 실패가 응답을 막지 않는다 */ })
     return NextResponse.json({ error: 'PDF 생성 중 오류가 발생했습니다' }, { status: 500 })
   } finally {
     try {

@@ -5,6 +5,7 @@ import { Sparkles, AlertTriangle, Check } from 'lucide-react'
 import InfoHint from '@/components/ui/InfoHint'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
+import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 // AI 예상 프로젝트 제안 (§5-3 추출형) — 후보를 "제목+근거+업무수+체크박스" 리스트로 제시.
 // 사용자가 선택 → 확정(confirm)으로만 생성(자동 생성 금지). 날짜·예산은 생성 후 수정으로 채운다.
@@ -29,15 +30,17 @@ export default function ProjectAiSuggest({ onConfirmed }: Props) {
 
   async function load() {
     setOpen(true); setLoading(true); setError(null); setPicked(new Set())
-    try {
-      const res = await fetch('/api/work/projects/suggest')
-      if (!res.ok) { setError('제안을 불러오지 못했습니다'); setLoading(false); return }
-      const data = await res.json()
-      setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : [])
-    } catch {
-      setError('서버 연결에 실패했습니다')
-    }
-    setLoading(false)
+    await withSubmitGuard(async () => {
+      try {
+        const res = await fetch('/api/work/projects/suggest')
+        if (!res.ok) { setError('제안을 불러오지 못했습니다'); setLoading(false); return }
+        const data = await res.json()
+        setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : [])
+      } catch {
+        setError('서버 연결에 실패했습니다')
+      }
+      setLoading(false)
+    }, { onError: setError, onDone: () => setLoading(false) })
   }
 
   function toggle(i: number) {
