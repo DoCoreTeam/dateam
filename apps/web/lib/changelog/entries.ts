@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.663',
+    date: '2026-08-31',
+    title: '외화 견적에 원화 환산이 함께 나와요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '💱',
+        headline: '달러 견적도 「원화로 얼마인지」 바로 보여요',
+        detail: '견적 통화가 원화가 아니면 견적서에 원화 환산액이 함께 인쇄됩니다. 환율은 견적을 만든 날 기준으로 고정돼요 — 어제 보낸 견적서를 오늘 열어도 금액이 그대로입니다. 「1 USD = 1,384.6원 · 2026-08-27 매매기준율」처럼 근거도 함께 적습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.662',
     date: '2026-08-31',
     title: '묻는 창이 우리 화면처럼 보여요',
