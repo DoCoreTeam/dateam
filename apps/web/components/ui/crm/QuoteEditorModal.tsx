@@ -11,7 +11,7 @@
 // 브라우저를 조작해도 총액은 바뀌지 않는다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Sparkles, Plus, X } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -213,6 +213,15 @@ export function quoteToDraft(body: any): QuoteDraft {
 export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: Props) {
   const [draft, setDraft] = useState<QuoteDraft>(initial)
   /**
+   * 말로 채우기 — 「H100 2대 3개월, 20% 할인」을 항목으로 옮긴다.
+   *
+   * **AI 가 저장하지 않는다.** 폼에 채워 넣기만 하고, 사람이 보고 고친 뒤 저장한다(§5-3).
+   */
+  const [sayOpen, setSayOpen] = useState(false)
+  const [sayText, setSayText] = useState('')
+  const [saying, setSaying] = useState(false)
+  const [sayUnclear, setSayUnclear] = useState<string[]>([])
+  /**
    * 이 딜에 붙은 사람들 — 견적을 «누구 앞으로» 보내는지 고르는 후보다.
    * 회사 전체 인물이 아니라 **딜에 붙은 사람만** 준다: 견적은 이 건의 문서이고,
    * 회사에 100명이 있어도 이 건과 상관없는 사람을 고를 이유가 없다.
@@ -341,6 +350,73 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
     [draft.lines, draft.roundingUnit, draft.roundingMode],
   )
   const approval = needsApproval(totals)
+
+  /** AI 초안을 폼에 **얹는다** — 지금 있는 항목을 지우지 않고 뒤에 붙인다 */
+  const applySaid = async () => {
+    if (!sayText.trim()) return
+    setSaying(true)
+    setError(null)
+    setSayUnclear([])
+    try {
+      const res = await fetch('/api/crm/quotes/draft', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: sayText.trim() }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? '읽지 못했습니다.'); return }
+      const d = (body.draft ?? body) as {
+        title: string | null
+        lines: {
+          name: string | null; spec: string | null; kind: string | null
+          quantity: number | null; unit: string | null; unitPriceMinor: number | null
+          discountPercent: number | null; specialDiscountPercent: number | null
+        }[]
+        roundingUnit: number
+        unclear: string[]
+      }
+      const made: QuoteLineDraft[] = (d.lines ?? [])
+        .filter((l) => l.name)
+        .map((l) => {
+          const k = (LINE_KIND_ORDER as readonly string[]).includes(l.kind ?? '')
+            ? l.kind as QuoteLineKind : 'QUANTITY'
+          return {
+            productId: null,
+            name: l.name ?? '',
+            descriptionMd: l.spec ?? '',
+            kind: k,
+            quantity: l.quantity === null ? '1' : String(l.quantity),
+            unit: l.unit ?? LINE_KIND_UNIT[k],
+            unitPriceMinor: l.unitPriceMinor === null ? '' : String(l.unitPriceMinor),
+            discountPercent: l.discountPercent === null ? '0' : String(l.discountPercent),
+            specialDiscountPercent: l.specialDiscountPercent === null
+              ? '' : String(l.specialDiscountPercent),
+            taxRate: '10',
+          }
+        })
+      if (made.length === 0) {
+        setError('견적 항목을 찾지 못했어요. 품목과 수량이 들어가게 적어 주세요.')
+        return
+      }
+      setDraft((prev) => ({
+        ...prev,
+        // 제목은 **비어 있을 때만** 채운다 — 사람이 적은 제목을 AI 가 덮으면 안 된다
+        title: prev.title.trim() ? prev.title : (d.title ?? prev.title),
+        roundingUnit: d.roundingUnit || prev.roundingUnit,
+        // 빈 줄 하나뿐이면 갈아 끼우고, 아니면 뒤에 붙인다
+        lines: prev.lines.length === 1 && !prev.lines[0].name.trim()
+          ? made
+          : [...prev.lines, ...made],
+      }))
+      // **못 알아본 말은 버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다
+      setSayUnclear(d.unclear ?? [])
+      setSayText('')
+      setSayOpen(false)
+    } catch {
+      setError('읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setSaying(false)
+    }
+  }
 
   const save = async () => {
     setError(null)
@@ -472,6 +548,15 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             **묶음은 선택이다.** 안 만들면 예전과 똑같은 한 표다.
             항목이 스무 줄 넘어가면 고객이 무엇이 무엇인지 모르는데, 그때 쓰라고 둔다.
           */}
+          {/*
+            **말로 채우기.** 「H100 2대 3개월, 20% 할인」을 그대로 적으면 항목으로 옮긴다.
+            AI 가 저장하지는 않는다 — 폼에 채워 넣기만 하고 사람이 보고 고친다(§5-3).
+          */}
+          {!linesLocked && (
+            <NbButton variant="ghost" onClick={() => setSayOpen((v) => !v)}>
+              <Sparkles size={16} /> 말로 채우기
+            </NbButton>
+          )}
           {!linesLocked && (
             <NbButton
               variant="ghost"
@@ -495,6 +580,39 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         {linesLocked && (
           <div className={styles.approvalNote}>
             {QUOTE_LINES_LOCKED}
+          </div>
+        )}
+
+        {sayOpen && !linesLocked && (
+          <div className={styles.sayBox}>
+            <p className={styles.sayHint}>
+              항목을 말하듯 적어 주세요. 품목·수량·단가·할인을 알아봅니다.
+              <b> 저장은 하지 않아요</b> — 채운 뒤에 확인하고 고치면 됩니다.
+            </p>
+            <textarea
+              className="input-field"
+              rows={3}
+              value={sayText}
+              autoFocus
+              placeholder={'예) H100 SXM 2대 대당 5천만원, 3개월 구독, 기본 20% 할인\n     PM 1명 3 M/M, 만원 단위로 잘라 주세요'}
+              onChange={(e) => setSayText(e.target.value)}
+            />
+            <div className={styles.sayFoot}>
+              <NbButton variant="ghost" onClick={() => { setSayOpen(false); setSayText('') }} disabled={saying}>
+                {ACTION.cancel}
+              </NbButton>
+              <NbButton onClick={() => void applySaid()} disabled={saying || !sayText.trim()}>
+                {saying ? progress('읽는') : '항목으로 옮기기'}
+              </NbButton>
+            </div>
+          </div>
+        )}
+
+        {/* 못 알아본 말은 **버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다 */}
+        {sayUnclear.length > 0 && (
+          <div className={styles.sayUnclear}>
+            <b>이 부분은 못 알아봤어요 — 직접 넣어 주세요</b>
+            <ul>{sayUnclear.map((u, i) => <li key={i}>{u}</li>)}</ul>
           </div>
         )}
 

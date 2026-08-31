@@ -358,3 +358,30 @@
 }
 /* 확정은 오른쪽 끝, 취소는 그 왼쪽 (§2-3-2 L-6) */
 .variantFoot { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+/* 말로 채우기 — 폼 안에 잠깐 열리는 입력. 모달 위 모달을 만들지 않는다 */
+.sayBox {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-w) dashed var(--brand);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+}
+.sayHint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+/* 확정은 오른쪽 끝, 취소는 그 왼쪽 (§2-3-2 L-6) */
+.sayFoot { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+/* 못 알아본 말 — 버리지 않고 보여 준다 */
+.sayUnclear {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: var(--fs-sm);
+}
+.sayUnclear ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); }
