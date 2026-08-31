@@ -23,8 +23,10 @@ import {
   ACTION,
   ENTITY,
   createLabel,
+  progress,
   QUOTE,
 } from '@/lib/terms'
+import NbModal from '@/components/ui/nb/NbModal'
 import QuoteEditorModal, { newQuoteDraft, quoteToDraft, type QuoteDraft } from './QuoteEditorModal'
 import styles from './quote-panel.module.css'
 
@@ -80,6 +82,14 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  /**
+   * 「다른 안」 이름을 받는 중인 견적.
+   *
+   * **`window.prompt` 를 쓰지 않는다.** 브라우저 기본 대화상자는 우리 디자인 밖이고,
+   * 페이지의 다른 동작을 통째로 막는다. 물어볼 것이 한 칸이어도 우리 모달을 쓴다.
+   */
+  const [variantOf, setVariantOf] = useState<Quote | null>(null)
+  const [variantLabel, setVariantLabel] = useState('2안')
   const [editing, setEditing] = useState<QuoteDraft | null>(null)
   /**
    * 휴지통은 별도 화면이 아니라 **보기 전환**이다(trash.tsx 와 같은 약속).
@@ -165,15 +175,10 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
    * 그렇게 만든 것과 보낸 것 사이엔 아무 연결도 없었다 —
    * 나중에 「이게 그 건의 몇 번째지?」를 아무도 답할 수 없었다.
    */
-  const duplicate = async (quote: Quote, mode: 'revision' | 'variant') => {
+  const duplicate = async (quote: Quote, mode: 'revision' | 'variant', label: string | null) => {
     setActionError(null)
     setBusyId(quote.id)
     try {
-      const label = mode === 'variant'
-        // 이름은 사람이 정한다 — 「2안」인지 「대용량 구성」인지는 협상 맥락이 정한다
-        ? window.prompt('이 안의 이름을 적어 주세요.', '2안')
-        : null
-      if (mode === 'variant' && label === null) return
       const res = await fetch(`/api/crm/quotes/${quote.id}/duplicate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,6 +192,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
       setActionError('만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setBusyId(null)
+      setVariantOf(null)
     }
   }
 
@@ -304,10 +310,14 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
                     */}
                     {q.status !== 'DRAFT' && (
                       <>
-                        <NbButton variant="ghost" onClick={() => void duplicate(q, 'revision')} disabled={busy}>
+                        <NbButton variant="ghost" onClick={() => void duplicate(q, 'revision', null)} disabled={busy}>
                           <Copy size={14} /> 개정본 만들기
                         </NbButton>
-                        <NbButton variant="ghost" onClick={() => void duplicate(q, 'variant')} disabled={busy}>
+                        <NbButton
+                          variant="ghost"
+                          onClick={() => { setVariantOf(q); setVariantLabel('2안') }}
+                          disabled={busy}
+                        >
                           다른 안 만들기
                         </NbButton>
                       </>
@@ -359,6 +369,47 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); void load(); onChanged?.() }}
         />
+      )}
+
+      {/*
+        **한 칸을 물어보는 자리도 우리 모달이다.**
+        `window.prompt` 는 우리 디자인 밖이고 페이지의 다른 동작을 통째로 막는다.
+      */}
+      {variantOf && (
+        <NbModal
+          title="다른 안 만들기"
+          onClose={() => setVariantOf(null)}
+          maxWidth={420}
+          footer={
+            <div className={styles.variantFoot}>
+              <NbButton variant="ghost" onClick={() => setVariantOf(null)} disabled={Boolean(busyId)}>
+                {ACTION.cancel}
+              </NbButton>
+              <NbButton
+                onClick={() => void duplicate(variantOf, 'variant', variantLabel.trim() || '다른 안')}
+                disabled={Boolean(busyId)}
+              >
+                {busyId ? progress('만드는') : '만들기'}
+              </NbButton>
+            </div>
+          }
+        >
+          <div className={styles.variantForm}>
+            <label className="label" htmlFor="variant-label">이 안의 이름</label>
+            <input
+              id="variant-label"
+              className="input-field"
+              value={variantLabel}
+              autoFocus
+              placeholder="예: 2안 · 대용량 구성"
+              onChange={(e) => setVariantLabel(e.target.value)}
+            />
+            <p className={styles.variantHint}>
+              {variantOf.quoteNo} 의 항목·금액을 그대로 복사해 초안으로 만듭니다.
+              앞 견적은 그대로 남아요.
+            </p>
+          </div>
+        </NbModal>
       )}
     </div>
   )

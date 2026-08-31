@@ -348,3 +348,13 @@
   font-weight: 700;
   color: var(--text-muted);
 }
+
+/* 다른 안 이름 묻기 — 한 칸짜리 모달 */
+.variantForm { display: grid; gap: var(--space-2); }
+.variantHint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+/* 확정은 오른쪽 끝, 취소는 그 왼쪽 (§2-3-2 L-6) */
+.variantFoot { display: flex; justify-content: flex-end; gap: var(--space-2); }

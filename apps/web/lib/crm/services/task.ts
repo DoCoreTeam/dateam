@@ -15,6 +15,7 @@
  */
 
 import type { CrmDb } from '../db/client.ts'
+import { attachRelationNames, type RelationNames } from './relation-names.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
@@ -45,6 +46,15 @@ export interface TaskRow {
   createdAt: Date
   updatedAt: Date
 }
+
+/**
+ * 목록에 나가는 모양 — **붙어 있는 것의 이름이 함께 간다.**
+ *
+ * id 만 주면 화면은 「어느 딜의 할 일인지」를 그릴 수 없고, 사용자는 매번 눌러 봐야 한다
+ * (사용자 지적: 「이거 너는 어떤 딜인지 알겠니? 왜 친절하지가 않아?」).
+ * 미팅 목록은 이미 이렇게 하고 있었다 — 같은 성격인데 여기만 빠져 있었다.
+ */
+export type TaskListRow = TaskRow & RelationNames
 
 const SELECT = {
   id: true, title: true, status: true, dueAt: true, assigneeId: true,
@@ -98,7 +108,7 @@ export interface ListTaskInput extends CursorInput {
   trash?: boolean
 }
 
-export async function listTasks(db: CrmDb, input: ListTaskInput = {}): Promise<CursorPage<TaskRow>> {
+export async function listTasks(db: CrmDb, input: ListTaskInput = {}): Promise<CursorPage<TaskListRow>> {
   const limit = clampLimit(input.limit)
   const decoded = decodeCursor(input.cursor)
   const q = normalizeText(input.q)
@@ -110,7 +120,34 @@ export async function listTasks(db: CrmDb, input: ListTaskInput = {}): Promise<C
   if (input.dealId) where.dealId = input.dealId
   if (input.status) where.status = normalizeStatus(input.status)
   else if (input.scope === 'open') where.status = { in: ['TODO', 'DOING'] }
-  if (q) where.title = { contains: q, mode: 'insensitive' }
+  /*
+    **검색은 이름까지 훑는다.** 「수원시」로 찾으면 그 회사의 할 일이 나와야 하는데,
+    제목만 보면 제목에 회사명이 안 적힌 할 일은 영영 못 찾는다.
+    id 목록으로 좁히는 이유: 관계를 타고 들어가는 조건은 표를 통째로 읽게 만든다.
+  */
+  if (q) {
+    const [cs, ds, ps] = await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (db as any).crmCompany.findMany({
+        where: { name: { contains: q, mode: 'insensitive' } }, select: { id: true }, take: 200,
+      }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (db as any).crmDeal.findMany({
+        where: { name: { contains: q, mode: 'insensitive' } }, select: { id: true }, take: 200,
+      }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (db as any).crmPerson.findMany({
+        where: { name: { contains: q, mode: 'insensitive' } }, select: { id: true }, take: 200,
+      }),
+    ]) as [{ id: string }[], { id: string }[], { id: string }[]]
+
+    where.OR = [
+      { title: { contains: q, mode: 'insensitive' } },
+      ...(cs.length ? [{ companyId: { in: cs.map((x) => x.id) } }] : []),
+      ...(ds.length ? [{ dealId: { in: ds.map((x) => x.id) } }] : []),
+      ...(ps.length ? [{ personId: { in: ps.map((x) => x.id) } }] : []),
+    ]
+  }
 
   const cur = cursorWhere(decoded)
   const finalWhere = cur ? { AND: [where, cur] } : where
@@ -119,7 +156,9 @@ export async function listTasks(db: CrmDb, input: ListTaskInput = {}): Promise<C
   const rows = await (db as any).crmTask.findMany({
     where: finalWhere, select: SELECT, orderBy: CURSOR_ORDER, take: limit + 1,
   })
-  return toPage(rows as TaskRow[], limit)
+  const page = toPage(rows as TaskRow[], limit)
+  // 이름은 **자르고 난 뒤에** 붙인다 — 버리는 행까지 조회할 이유가 없다
+  return { ...page, items: await attachRelationNames(db, page.items) }
 }
 
 export async function getTask(db: CrmDb, id: string): Promise<TaskRow> {

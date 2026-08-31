@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { ENTITY } from '@/lib/terms'
 import { Mic, CheckCircle2, HelpCircle } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
@@ -318,11 +319,21 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
 
             <RecordPanel title="붙은 것">
               <RecordFieldList>
-                <RecordField label="회사">
-                  {m.companyId ? <Link href={`/crm/companies/${m.companyId}`}>회사 열기</Link> : null}
+                {/*
+                  **이름이 곧 링크다.** 「회사 열기」는 눌러 봐야 어느 회사인지 알 수 있다 —
+                  붙은 것을 보러 온 자리에서 무엇이 붙었는지를 안 알려 주는 셈이었다
+                  (사용자 지적: 「이거 너는 어떤 딜인지 알겠니? 왜 친절하지가 않아?」).
+                  서버는 이름을 이미 주고 있었다.
+                */}
+                <RecordField label={ENTITY.company.label}>
+                  {m.companyId
+                    ? <Link href={`/crm/companies/${m.companyId}`}>{m.companyName ?? '이름 없음'}</Link>
+                    : null}
                 </RecordField>
-                <RecordField label="딜">
-                  {m.dealId ? <Link href={`/crm/deals/${m.dealId}`}>딜 열기</Link> : null}
+                <RecordField label={ENTITY.deal.label}>
+                  {m.dealId
+                    ? <Link href={`/crm/deals/${m.dealId}`}>{m.dealName ?? '이름 없음'}</Link>
+                    : null}
                 </RecordField>
                 <RecordField label="전사">
                   {transcribed ? `${m.segments.length}줄` : null}

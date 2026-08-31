@@ -34,6 +34,10 @@ interface Task {
   dealId: string | null
   companyId: string | null
   personId: string | null
+  /** 붙어 있는 것의 **이름**. id 만 있으면 「어느 건이지」를 매번 눌러 봐야 한다 */
+  dealName: string | null
+  companyName: string | null
+  personName: string | null
   completedAt: string | null
   createdAt: string
 }
@@ -59,6 +63,12 @@ export default function TasksClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  /**
+   * 검색어. **서버가 이미 받고 있었는데 화면에 칸이 없었다** —
+   * 「수원시 건 할 일이 뭐였지」를 찾을 길이 아예 없는 상태였다.
+   * 서버는 제목뿐 아니라 회사·딜·인물 이름까지 훑는다.
+   */
+  const [q, setQ] = useState('')
   const [title, setTitle] = useState('')
   /**
    * 캘린더에서 날짜를 눌러 들어오면 그 날이 마감일이다(`?due=`).
@@ -73,7 +83,9 @@ export default function TasksClient() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/crm/tasks?scope=${scope}&limit=50`)
+      const sp = new URLSearchParams({ scope, limit: '50' })
+      if (q.trim()) sp.set('q', q.trim())
+      const res = await fetch(`/api/crm/tasks?${sp.toString()}`, { cache: 'no-store' })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '할 일을 불러오지 못했습니다.'); return }
       setItems(body.items ?? [])
@@ -82,7 +94,7 @@ export default function TasksClient() {
     } finally {
       setLoading(false)
     }
-  }, [scope])
+  }, [scope, q])
 
   useEffect(() => { void load() }, [load])
 
@@ -165,6 +177,17 @@ export default function TasksClient() {
           activeId={scope}
           onSelect={(id) => setScope(id as 'open' | 'all')}
         />
+        {/*
+          **회사·딜·인물 이름으로도 찾는다.** 제목만 훑으면 제목에 회사명이 안 적힌
+          할 일은 영영 못 찾는다 — 그게 대부분이다.
+        */}
+        <input
+          className={`input-field ${styles.search}`}
+          value={q}
+          placeholder="할 일·회사·딜·인물로 검색"
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="할 일 검색"
+        />
       </div>
 
       <div className={styles.add}>
@@ -207,12 +230,36 @@ export default function TasksClient() {
                   >
                     {done ? <CheckSquare size={18} /> : <Square size={18} />}
                   </button>
-                  <span className={done ? styles.titleDone : styles.title}>{t.title}</span>
+                  <span className={styles.main}>
+                    <span className={done ? styles.titleDone : styles.title}>{t.title}</span>
+                    {/*
+                      **무엇에 딸린 할 일인지 제목 아래에 적는다.**
+                      예전엔 「딜」이라는 글자 링크 하나뿐이라 «어느» 딜인지 알 수 없었다
+                      (사용자 지적: 「이거 너는 어떤 딜인지 알겠니? 왜 친절하지가 않아?」).
+                      이름이 곧 링크다 — 「딜」을 눌러야 이름을 아는 구조를 되돌리지 않는다.
+                    */}
+                    {(t.dealName || t.companyName || t.personName) && (
+                      <span className={styles.rel}>
+                        {t.dealId && t.dealName && (
+                          <Link href={`/crm/deals/${t.dealId}`} className={styles.relLink}>
+                            {t.dealName}
+                          </Link>
+                        )}
+                        {t.companyId && t.companyName && (
+                          <Link href={`/crm/companies/${t.companyId}`} className={styles.relLink}>
+                            {t.companyName}
+                          </Link>
+                        )}
+                        {t.personId && t.personName && (
+                          <Link href={`/crm/people/${t.personId}`} className={styles.relLink}>
+                            {t.personName}
+                          </Link>
+                        )}
+                      </span>
+                    )}
+                  </span>
                   {d && (
                     <NbBadge status={d.late ? 'blocker' : 'planned'}>{d.text}</NbBadge>
-                  )}
-                  {t.dealId && (
-                    <Link href={`/crm/deals/${t.dealId}`} className={styles.link}>딜</Link>
                   )}
                   {done && t.completedAt && (
                     <span className={styles.at}>{formatKstDateTimeShort(t.completedAt)}</span>
