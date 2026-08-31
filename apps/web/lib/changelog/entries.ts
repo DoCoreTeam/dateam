@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.657',
+    date: '2026-08-31',
+    title: '전체 메뉴가 CRM과 같은 말을 써요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🧭',
+        headline: '「담당자」·「영업기회」를 「인물」·「딜」로 맞췄어요',
+        detail: '같은 것을 화면마다 다르게 부르고 있었어요. 전체 메뉴(좌측 하단 격자 아이콘)의 이름을 CRM과 똑같이 맞췄고, 이관 중인 예전 화면들은 「구 영업」 묶음으로 모아 어느 쪽인지 한눈에 보이게 했어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.656',
     date: '2026-08-31',
     title: '견적 항목을 묶음으로 나눌 수 있어요',
