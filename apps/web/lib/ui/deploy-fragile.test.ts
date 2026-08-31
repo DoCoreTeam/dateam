@@ -203,3 +203,41 @@ test('⑦ 진행 표시를 켜는 화면은 반드시 끝을 보장한다 (ratch
     '  → SUBMIT_GUARD_PENDING 에서 지워 되돌아가지 못하게 잠그세요.',
   )
 })
+
+/**
+ * ⑧ **오류 화면은 일어나지 않는 일을 말하지 않는다.**
+ *
+ * 실측 2026-08-31: 오류 화면이 「방금 무슨 일이 있었는지 관리자에게 자동으로 전달했어요」라고 했다.
+ * 실제로 하는 일은 `system_events` 에 한 줄 남기는 것뿐이고 **누구에게도 알림이 가지 않는다.**
+ * 관리자 본인이 그 화면을 보고 물었다 — "나에게 오는 알림은 없는데? 내가 관리자인데".
+ *
+ * 화면이 사실 아닌 말을 하면 사용자는 오지 않을 것을 기다리고,
+ * 그 뒤로는 **사실인 말까지 같이 못 믿는다.** 그래서 문구를 코드로 잠근다.
+ */
+const NOTIFY_CLAIMS = [
+  '관리자에게 자동으로 전달',
+  '관리자에게 전달했',
+  '알림을 보냈',
+  '메일을 보냈',
+]
+
+test('⑧ 오류 화면이 「알림을 보냈다」고 말하지 않는다 — 알림 보내는 코드가 없다', () => {
+  const bad: string[] = []
+  for (const { file, src } of scanApp(['.tsx'], ['app', 'components'])) {
+    if (!/error\.tsx$|RouteError\.tsx$/.test(file)) continue
+    // 주석은 뺀다 — 왜 그렇게 썼었는지 설명하는 줄까지 잡으면 기록을 못 남긴다
+    const rendered = src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+    for (const c of NOTIFY_CLAIMS) if (rendered.includes(c)) bad.push(`${file} — 「${c}…」`)
+  }
+  assert.deepEqual(
+    bad, [],
+    '오류 화면이 일어나지 않는 일을 말합니다:\n' + bad.map((x) => `  ${x}`).join('\n') +
+    '\n  → 실제로 하는 일은 system_events 에 기록하는 것뿐입니다. 알림을 보내려면 먼저 보내는 코드를 만드세요.',
+  )
+})
+
+test('⑧-2 기록에 실패했으면 「남겼다」고 말하지 않는다', () => {
+  const src = read('components/ui/RouteError.tsx')
+  assert.match(src, /setLogged/, '기록 결과를 안 보고 문구를 정한다 — 실패해도 성공처럼 말하게 된다')
+  assert.match(src, /logged === false/, '실패했을 때의 다른 문구가 없다')
+})
