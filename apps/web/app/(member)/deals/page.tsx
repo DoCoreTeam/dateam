@@ -13,6 +13,7 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import { ENTITY, confirmDelete, failedTo, emptyTitle } from '@/lib/terms'
 import type { ListDefaults } from '@/lib/ui/list-query'
 
 type DealWithAccount = Deal & { accounts: Pick<Account, 'id' | 'name'> | null }
@@ -49,7 +50,7 @@ const LIST_DEFAULTS: ListDefaults = {
 }
 const SORT_OPTIONS = [
   { key: 'created_at', label: '등록일' },
-  { key: 'title', label: '영업기회명' },
+  { key: 'title', label: `${ENTITY.deal.label} 이름` },
   { key: 'stage', label: '단계' },
   { key: 'value', label: '금액' },
   { key: 'probability', label: '확률' },
@@ -60,7 +61,7 @@ const dash = <span style={{ color: 'var(--text-faint)' }}>-</span>
 
 const COLUMNS: ColumnDef<DealWithAccount>[] = [
   {
-    key: 'title', header: '영업기회', primary: true, sortable: 'title',
+    key: 'title', header: ENTITY.deal.label, primary: true, sortable: 'title',
     cell: (d) => (
       <div>
         <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-md)' }}>{d.title}</span>
@@ -140,7 +141,7 @@ export default function DealsPage() {
 
   return (
     <div className="page-inner">
-      <PageHeader title="영업기회" description="영업 파이프라인 관리" actions={
+      <PageHeader title={ENTITY.deal.label} description="영업 파이프라인 관리" actions={
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           <Link href="/lead-intake?target=deal" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
@@ -222,7 +223,7 @@ export default function DealsPage() {
           <ListToolbar
             query={query}
             onChange={set}
-            searchPlaceholder="영업기회명 검색"
+            searchPlaceholder={`${ENTITY.deal.label} 이름 검색`}
             filters={FILTERS}
             sortOptions={SORT_OPTIONS}
             showSize={false}
@@ -236,10 +237,10 @@ export default function DealsPage() {
             rowKey={(d) => d.id}
             onChange={set}
             loading={isLoading}
-            error={error ? { message: '영업기회 목록을 불러오지 못했습니다', onRetry: () => { void mutate() } } : null}
+            error={error ? { message: failedTo(`${ENTITY.deal.label} 목록`, '조회'), onRetry: () => { void mutate() } } : null}
             empty={hasFilters
-              ? { title: '조건에 맞는 영업기회가 없어요', description: '검색어나 단계를 바꿔보세요' }
-              : { title: '아직 등록된 영업기회가 없어요', description: '거래처와 나눈 이야기를 넣으면 AI가 기회로 정리합니다', action: { label: 'AI로 영업기회 추가', href: '/lead-intake?target=deal' } }}
+              ? { title: `조건에 맞는 ${ENTITY.deal.label}이 없어요`, description: '검색어나 단계를 바꿔보세요' }
+              : { title: emptyTitle('deal'), description: '거래처와 나눈 이야기를 넣으면 AI가 정리합니다', action: { label: `AI로 ${ENTITY.deal.label} 만들기`, href: '/lead-intake?target=deal' } }}
             onRowClick={(d) => setSelected(d)}
           />
 
@@ -263,10 +264,10 @@ export default function DealsPage() {
 function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; onClose: () => void; onDeleted: () => void }) {
   const st = STAGE_STYLE[d.stage] ?? STAGE_STYLE['신규']
   async function handleDelete() {
-    if (!confirm(`영업기회 "${d.title}"을(를) 삭제하시겠습니까?`)) return
+    if (!confirm(confirmDelete('deal', 1, { stays: '거래처와 연결된 기록은 남아요.' }))) return
     const res = await fetch(`/api/deals/${d.id}`, { method: 'DELETE' })
     if (res.ok) onDeleted()
-    else alert('삭제에 실패했습니다')
+    else alert(failedTo(ENTITY.deal.label, '삭제'))
   }
   return (
     <div>

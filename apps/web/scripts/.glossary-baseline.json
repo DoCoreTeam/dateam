@@ -19,7 +19,6 @@
   "app/(member)/deals/[id]/edit/page.tsx::영업기회": 2,
   "app/(member)/deals/[id]/page.tsx::영업기회": 1,
   "app/(member)/deals/new/page.tsx::영업기회": 3,
-  "app/(member)/deals/page.tsx::영업기회": 9,
   "app/(member)/lead-intake/BulkImportProgress.tsx::영업기회": 1,
   "app/(member)/lead-intake/LeadIntakeForm.tsx::영업기회": 2,
   "app/(member)/lead-intake/page.tsx::영업기회": 2,
