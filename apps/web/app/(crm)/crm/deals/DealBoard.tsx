@@ -106,6 +106,9 @@ function boardSum(deals: BoardDeal[], pipeline: BoardPipeline) {
   }
 }
 
+/** 성사·실주 칸에 보여 줄 「방금 닫힌 딜」 건수 — 보드는 지난 딜의 창고가 아니다 */
+const CLOSED_SHOWN = 30
+
 export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
   // 카드에서 상세의 «다음 할 일» 칸으로 바로 보낸다
   const router = useRouter()
@@ -135,10 +138,16 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
       // 성사·실주 칸은 "방금 닫힌 것"을 보여 주려고 따로 가져온다.
       // pid 가 비면 **전체**다 — 파이프라인마다 단계가 달라 한 보드에 못 그리므로
       // 데이터는 한 번에 받고, 그리는 쪽에서 파이프라인별 섹션으로 나눈다
+      //
+      // **두 번째 호출은 좁혀서 묻는다**(실측 2026-08-31 · 프로덕션):
+      // 예전엔 상태를 안 걸고 전체를 다시 받았다 — 첫 호출의 **상위집합**이라 딜을 두 번 실어 왔고,
+      // 서버는 그때마다 상한 없는 합계까지 계산해 이 한 호출이 **1,248ms**(첫 호출은 235ms)였다.
+      // 정작 보드는 그 합계도, 총 건수도 화면에 쓰지 않는다 → `agg=0`.
+      // 닫힌 딜은 「방금 닫힌 것」만 보이면 되므로 최신 30건이면 충분하다.
       const scope = pid ? `pipelineId=${pid}&` : ''
       const [openRes, closedRes] = await Promise.all([
-        fetch(`/api/crm/deals?${scope}status=OPEN&limit=200`),
-        fetch(`/api/crm/deals?${scope}limit=200`),
+        fetch(`/api/crm/deals?${scope}status=OPEN&limit=200&agg=0`),
+        fetch(`/api/crm/deals?${scope}status=WON,LOST&limit=${CLOSED_SHOWN}&agg=0`),
       ])
       const openBody = await openRes.json()
       const allBody = await closedRes.json()
@@ -365,7 +374,8 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
                     onDragStart={() => setDragId(d.id)}
                     onDragEnd={() => { setDragId(null); setOverStage(null) }}
                   >
-                    <Link href={`/crm/deals/${d.id}`} className={styles.cardLink}>
+                    {/* 카드마다 상세를 미리 받지 않는다 — 보드는 카드가 수십 개다(ListSurface 와 같은 이유) */}
+                    <Link href={`/crm/deals/${d.id}`} className={styles.cardLink} prefetch={false}>
                       <div className={styles.cardName}>{d.name}</div>
                       <div className={styles.cardMeta}>
                         {amount ? <span className={styles.amount}><Sensitive>{amount}</Sensitive></span> : <span>금액 미정</span>}

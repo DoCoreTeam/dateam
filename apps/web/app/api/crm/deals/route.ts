@@ -17,7 +17,16 @@ export async function GET(req: NextRequest) {
       status: sp.get('status'),
       trash: sp.get('trash') === '1',
     }
-    const page = await listDeals(db, { cursor, limit, ...filter })
+    /**
+     * `agg=0` 이면 총 건수·합계를 계산하지 않는다.
+     *
+     * **왜**: 합계는 상한 없이 딜을 전부 읽는다(그래야 「앞의 200건만 더한 합계」가 안 된다).
+     * 그런데 **보드는 그 숫자를 화면에 쓰지 않는다** — 실측에서 보드의 두 번째 호출이
+     * 1,248ms 였고 그중 대부분이 아무도 안 보는 합계였다.
+     * 기본값은 예전과 같다(계산한다) — 끄는 쪽이 명시한다.
+     */
+    const agg = sp.get('agg') !== '0'
+    const page = await listDeals(db, { cursor, limit, ...filter, agg })
     /**
      * 다음에 할 일을 함께 준다.
      *
@@ -30,7 +39,7 @@ export async function GET(req: NextRequest) {
     // 사람은 그걸 전체 합계로 읽는다
     const [actions, sums] = await Promise.all([
       nextActions(db, page.items.map((d) => d.id)),
-      sumDeals(db, filter),
+      agg ? sumDeals(db, filter) : Promise.resolve(undefined),
     ])
 
     return {

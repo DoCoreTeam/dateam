@@ -54,11 +54,27 @@ export async function resolveCrmAccess(): Promise<CrmAccess> {
   const user = await getRequestUser()
   if (!user) return { ok: false, reason: 'no_session' }
 
+  /**
+   * 프로필 조회와 멤버 조회를 **나란히** 보낸다.
+   *
+   * **왜**: 둘은 서로를 필요로 하지 않는다 — 각자 `user.id` 만 있으면 된다.
+   * 그런데 예전엔 프로필을 **다 받고 나서** 멤버를 물어, 요청마다 왕복이 하나 더 붙었다.
+   * 그 비용은 화면당 API 호출 수만큼 곱해진다(실측 2026-08-31: 딜 화면은 API 4개 —
+   * 딜이 **2건**뿐인데 한 호출이 356ms 였고, 그중 대부분이 데이터가 아니라 이 앞단이었다).
+   *
+   * **판정 순서는 그대로다** — api_user → 삭제된 계정 → 멤버 여부.
+   * 나란히 보내는 것은 «묻는 순서»이지 «막는 순서»가 아니다. 거부는 예전과 똑같이 난다.
+   */
+  const memberPromise = resolveCrmAccessForUser(user.id)
+  // 아래에서 먼저 돌아가면 이 약속은 버려진다 — 그때 터진 오류가 unhandled 로 뜨지 않게 미리 받아 둔다.
+  // (진짜 오류는 아래 `await memberPromise` 에서 그대로 다시 던져진다)
+  memberPromise.catch(() => {})
+
   const profile = await getRequestProfile()
   if (profile?.role === 'api_user') return { ok: false, reason: 'api_user' }
   if (profile?.deleted_at) return { ok: false, reason: 'deleted_account' }
 
-  return resolveCrmAccessForUser(user.id)
+  return memberPromise
 }
 
 /**

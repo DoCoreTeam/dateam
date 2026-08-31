@@ -183,8 +183,18 @@ export interface ListDealInput extends CursorInput {
   q?: string | null
   pipelineId?: string | null
   companyId?: string | null
-  /** 보드는 열린 딜만 본다 */
+  /** 보드는 열린 딜만 본다. **쉼표로 여러 개**를 줄 수 있다 — `WON,LOST` */
   status?: string | null
+  /**
+   * 총 건수·합계를 함께 계산하나. 기본은 `true`(예전과 같다).
+   *
+   * **왜 끄는 자리가 필요한가**(실측 2026-08-31 · 프로덕션):
+   * 보드는 `total`도 `sums`도 **쓰지 않는데**, 목록을 한 번 부를 때마다
+   * 합계가 **상한 없이 전체 딜을 읽는다**. 그래서 열린 딜만 받는 호출은 235ms 인데
+   * 닫힌 딜까지 포함한 호출은 **1,248ms** 였다 — 화면에 뜨지도 않는 숫자를 위해서.
+   * 쓰는 화면은 그대로 두고, **안 쓰는 화면만** 끈다.
+   */
+  agg?: boolean
 }
 
 /**
@@ -250,7 +260,11 @@ function listDealsWhere(input: ListDealInput): Record<string, unknown> {
   if (input.trash) where.deletedAt = { not: null }
   if (input.pipelineId) where.pipelineId = input.pipelineId
   if (input.companyId) where.companyId = input.companyId
-  if (input.status) where.status = input.status
+  // 쉼표면 여럿이다 — 「성사 또는 실주」를 한 번에 묻기 위해서(예전의 단일 값도 그대로 동작한다)
+  if (input.status) {
+    const many = input.status.split(',').map((v) => v.trim()).filter(Boolean)
+    where.status = many.length > 1 ? { in: many } : many[0]
+  }
   if (q) where.name = { contains: q, mode: 'insensitive' }
   return where
 }
@@ -277,7 +291,7 @@ export async function listDeals(db: CrmDb, input: ListDealInput = {}): Promise<C
       orderBy: CURSOR_ORDER, take: limit + 1,
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    countIfFirstPage((db as any).crmDeal, where, decoded),
+    input.agg === false ? Promise.resolve(undefined) : countIfFirstPage((db as any).crmDeal, where, decoded),
     /*
       담당자 이름은 **멤버 표를 통째로 한 번** 읽어 맞춘다.
       팀은 수십 명이라 전부 읽어도 싸고, 딜마다 조인하는 것보다 가볍다.

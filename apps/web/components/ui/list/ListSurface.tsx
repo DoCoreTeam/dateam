@@ -84,6 +84,14 @@ export default function ListSurface<T>({
   rows, columns, query, rowKey, onChange, loading, error, empty, onRowClick, rowHref, selection, renderExpanded,
 }: Props<T>) {
   const router = useRouter()
+  /*
+    **행 링크는 미리 받아 두지 않는다**(`prefetch={false}`).
+
+    Next 의 `Link` 는 화면에 보이는 링크를 **전부** 미리 받는다. 목록에서는 그게 행 수만큼이다 —
+    실측(2026-08-31 · 프로덕션 거래처 목록): 화면을 열자마자 상세 주소로 요청이 **줄줄이** 나가고,
+    정작 목록 자신의 데이터 요청과 대역을 다툰다. 상세 하나를 여는 이득보다
+    **목록이 늦게 뜨는 손해**가 크다 — 사람은 목록을 먼저 본다.
+  */
   // 행 열기 = 라우트 이동(rowHref) 또는 그 자리 열기(onRowClick). 둘 다 같은 제스처로 동작한다.
   const openRow = rowHref ? (row: T) => router.push(rowHref(row)) : onRowClick
   const rowOpens = Boolean(openRow)
@@ -123,7 +131,7 @@ export default function ListSurface<T>({
               onClick={rowClick?.(row)}
             >
               <h3 className="list-card-title">
-                {rowHref ? <Link href={rowHref(row)}>{primary.cell(row)}</Link> : primary.cell(row)}
+                {rowHref ? <Link href={rowHref(row)} prefetch={false}>{primary.cell(row)}</Link> : primary.cell(row)}
               </h3>
               <dl className="list-card-fields">
                 {rest.map((c) => (
@@ -209,7 +217,7 @@ export default function ListSurface<T>({
                   style={{ textAlign: c.align }}
                 >
                   {rowHref && c === (columns.find((x) => x.primary) ?? columns[0])
-                    ? <Link href={rowHref(row)} className="list-row-link">{c.cell(row)}</Link>
+                    ? <Link href={rowHref(row)} className="list-row-link" prefetch={false}>{c.cell(row)}</Link>
                     : c.cell(row)}
                 </td>
               ))}
