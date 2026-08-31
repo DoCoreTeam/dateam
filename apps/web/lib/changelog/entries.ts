@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.665',
+    date: '2026-08-31',
+    title: '할 일도 조건이 주소에 남아요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🔖',
+        headline: '검색·범위가 새로고침해도 그대로예요',
+        detail: '할 일 목록을 다른 화면들과 같은 방식으로 바꿨어요. 검색어와 범위가 주소에 남아서 새로고침해도 유지되고, 링크를 보내면 받는 사람도 같은 화면을 봅니다. 표·카드 보기 전환과 「더 보기」도 생겼어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '👆',
+        headline: '할 일 줄을 누르면 그 딜로 갑니다',
+        detail: '전에는 줄을 눌러도 아무 일이 없었어요. 이제 그 할 일이 붙어 있는 딜·회사·인물로 바로 갑니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.664',
     date: '2026-08-31',
     title: '견적을 말하듯 적으면 항목으로 옮겨 줘요',
