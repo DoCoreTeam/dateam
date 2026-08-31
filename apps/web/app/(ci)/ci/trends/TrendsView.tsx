@@ -271,12 +271,21 @@ export default function TrendsView(p: Props) {
         : `${res.data.changed}건을 버렸습니다`)
       setPicked(new Set())
       router.refresh()
+    } catch {
+      // 여기서 잡지 않으면 진행 표시만 꺼지고 사용자는 «아무 일도 안 일어났다»를 본다
+      setError({ code: 'NETWORK', message: '이슈를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요' })
     } finally { setBusy(false) }
   }
 
   async function removeSignal(id: string) {
-    await fetch(`/api/ci/signals?id=${id}`, { method: 'DELETE', headers: { 'X-CI-Workspace': p.workspaceId } })
-    router.refresh()
+    try {
+      const res = await fetch(`/api/ci/signals?id=${id}`, { method: 'DELETE', headers: { 'X-CI-Workspace': p.workspaceId } })
+        .then((r) => r.json() as Promise<ApiResponse<{ id: string }>>)
+      if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
+      router.refresh()
+    } catch {
+      setError({ code: 'NETWORK', message: '이슈를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요' })
+    }
   }
 
   const topicSelect = (

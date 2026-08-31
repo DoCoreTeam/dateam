@@ -96,7 +96,10 @@ export async function DELETE(req: Request) {
     const id = new URL(req.url).searchParams.get('id')
     if (!id) return fail('VALIDATION_FAILED', 'id가 필요합니다')
     const adminClient = createAdminClient() as any
-    await adminClient.from('ci_signals').delete().eq('id', id).eq('workspace_id', session.workspaceId)
+    // supabase-js 는 실패를 던지지 않고 돌려준다 — 검사하지 않으면 «지웠다»고 답한 뒤 그대로 남는다
+    const { error: dbError } = await adminClient
+      .from('ci_signals').delete().eq('id', id).eq('workspace_id', session.workspaceId)
+    if (dbError) return fail('INTERNAL', '이슈를 삭제하지 못했습니다', dbError.message)
     return ok({ id })
   } catch (e) {
     return failUnexpected(e)
