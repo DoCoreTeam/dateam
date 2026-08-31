@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.660',
+    date: '2026-08-31',
+    title: '할 일이 어느 딜의 것인지 보여요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔗',
+        headline: '「딜」이 아니라 딜 이름이 보여요',
+        detail: '할 일 목록에 어느 딜·회사·인물의 것인지 이름으로 나옵니다. 전에는 「딜」이라는 글자 링크뿐이라 눌러 봐야 알 수 있었어요. 미팅 상세의 「회사 열기」도 회사 이름으로 바뀌었습니다.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🔍',
+        headline: '할 일을 회사·딜 이름으로 찾을 수 있어요',
+        detail: '할 일 화면에 검색이 생겼어요. 제목뿐 아니라 붙어 있는 회사·딜·인물 이름으로도 찾습니다 — 「수원시」로 치면 그 회사의 할 일이 나와요.',
+      },
+    ],
+  },
+  {
     version: '0.7.659',
     date: '2026-08-31',
     title: '「영업기회」 화면이 「딜」로 이름을 맞췄어요',
