@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.658',
+    date: '2026-08-31',
+    title: '보낸 견적도 이어서 고칠 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📄',
+        headline: '개정본과 다른 안을 한 번에 만들어요',
+        detail: '이미 보낸 견적에서 「개정본 만들기」를 누르면 같은 내용으로 Rev.2 가 생기고, 「다른 안 만들기」는 1안·2안처럼 나란히 놓을 수 있어요. 견적서와 목록에 어느 판인지 표시되고 앞 판은 그대로 남습니다. 할인 승인은 따라오지 않아요 — 금액이 달라질 문서라 다시 받아야 하거든요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '✏️',
+        headline: '거래 조건을 고칠 수 있게 됐어요',
+        detail: '설정의 거래 조건에 수정 버튼이 생겼어요. 전에는 오타가 나면 지우고 다시 만들어야 했습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.657',
     date: '2026-08-31',
     title: '전체 메뉴가 CRM과 같은 말을 써요',
