@@ -67,10 +67,23 @@ export default function OfflineBar() {
     setOnline(navigator.onLine)
     void refresh()
 
-    const goOnline = () => { setOnline(true); void sync() }
+    const goOnline = () => { setOnline(true); setStatus(null); void sync() }
     const goOffline = () => { setOnline(false); setStatus('OFFLINE'); void refresh() }
     window.addEventListener('online', goOnline)
     window.addEventListener('offline', goOffline)
+
+    // **이벤트만 믿지 않는다.** 탭이 배경에 있는 동안 일어난 복구는 `online` 이벤트를
+    // 놓치는 일이 잦고(개발 중 StrictMode 재마운트 사이에도 샌다), 한 번 놓치면
+    // 배너가 영원히 「연결 없음」에 붙박인다 — 인터넷은 멀쩡한데 화면만 고장난 것처럼 보인다.
+    // 그래서 사용자가 화면으로 돌아올 때마다 **다시 잰다**.
+    const recheck = () => {
+      if (document.visibilityState === 'hidden') return
+      const now = navigator.onLine
+      setOnline(now)
+      if (now) { setStatus((prev) => (prev === 'OFFLINE' ? null : prev)); void sync() }
+    }
+    document.addEventListener('visibilitychange', recheck)
+    window.addEventListener('focus', recheck)
 
     // 처음 열 때도 한 번 — 지난 세션에서 못 올린 것이 남아 있을 수 있다
     if (navigator.onLine) void sync()
@@ -79,12 +92,23 @@ export default function OfflineBar() {
     return () => {
       window.removeEventListener('online', goOnline)
       window.removeEventListener('offline', goOffline)
+      document.removeEventListener('visibilitychange', recheck)
+      window.removeEventListener('focus', recheck)
     }
   }, [refresh, sync])
 
-  // 연결도 멀쩡하고 밀린 것도 없으면 아무 말도 안 한다 — 늘 떠 있으면 아무도 안 본다
-  const key: SyncStatusKey | null = !online ? 'OFFLINE'
-    : status ?? (pending > 0 ? 'QUEUED' : null)
+  // 연결도 멀쩡하고 밀린 것도 없으면 아무 말도 안 한다 — 늘 떠 있으면 아무도 안 본다.
+  //
+  // **연결이 없어도 잃을 것이 없으면 말하지 않는다.** 이 줄의 일은
+  // 「끊겼지만 당신이 쓴 것은 안전하다」를 말하는 것이다 — 밀린 것이 0건이면 안심시킬 것도 없고,
+  // 상시로 뜬 「연결 없음」은 안내가 아니라 **고장 신호로 읽힌다**
+  // (실제 지적: "이거 연결 없음 뭐야? 장애인 거 같은데 인터넷 다 연결 되어 있어").
+  //
+  // 온라인인데 OFFLINE 이 남아 있으면 **버린다** — 상태가 붙박이면 영원히 안 사라진다.
+  const live: SyncStatusKey | null = online && status === 'OFFLINE' ? null : status
+  const key: SyncStatusKey | null = !online
+    ? (pending > 0 ? 'OFFLINE' : null)
+    : live ?? (pending > 0 ? 'QUEUED' : null)
   if (!key) return null
 
   const meta = SYNC_STATUS_META[key]

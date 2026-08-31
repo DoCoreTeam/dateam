@@ -120,7 +120,34 @@ test('★ 연결 상태 줄이 셸에 실제로 꽂혀 있다', () => {
 
 test('★ 연결이 돌아오면 아무것도 안 눌러도 올라간다', () => {
   assert.match(BAR, /addEventListener\('online'/, '복구를 감지하지 않는다')
-  assert.match(BAR, /goOnline = \(\) => \{ setOnline\(true\); void sync\(\) \}/, '복구해도 안 올린다')
+  assert.match(BAR, /const goOnline = \(\) => \{[^}]*void sync\(\)/, '복구해도 안 올린다')
+})
+
+test('★ 복구할 때 「연결 없음」을 반드시 지운다 — 안 지우면 영원히 붙박인다', () => {
+  // 실측 2026-08-31: 인터넷이 멀쩡한데 배너가 계속 「연결 없음」이었다.
+  // goOnline 이 setOnline(true) 만 하고 status 를 안 건드려서, 한 번 켜진 OFFLINE 이
+  // 밀린 것이 0건일 때(=sync 가 조기 반환) 아무도 안 지웠다.
+  assert.match(BAR, /const goOnline = \(\) => \{[^}]*setStatus\(null\)/,
+    '복구해도 OFFLINE 상태를 안 지운다 — 배너가 영원히 남는다')
+})
+
+test('★ 온라인이면 OFFLINE 상태가 화면에 살아남지 못한다 — 파생으로 못 박는다', () => {
+  assert.match(BAR, /online && status === 'OFFLINE' \? null : status/,
+    '상태가 붙박이면 지우는 코드를 하나 놓쳤을 때 그대로 새어 나간다')
+})
+
+test('★ 이벤트를 놓쳐도 화면으로 돌아오면 다시 잰다 — 배경 탭에서 흔히 샌다', () => {
+  assert.match(BAR, /addEventListener\('visibilitychange'/, '돌아왔을 때 다시 재지 않는다')
+  assert.match(BAR, /addEventListener\('focus'/, '창을 다시 잡았을 때 다시 재지 않는다')
+  assert.match(BAR, /removeEventListener\('visibilitychange'/, '정리하지 않으면 리스너가 쌓인다')
+  assert.match(BAR, /removeEventListener\('focus'/, '정리하지 않으면 리스너가 쌓인다')
+})
+
+test('★ 잃을 것이 없으면 「연결 없음」을 띄우지 않는다 — 상시 배너는 고장으로 읽힌다', () => {
+  // 이 줄의 일은 「끊겼지만 쓴 것은 안전하다」를 말하는 것이다.
+  // 밀린 것이 0건이면 안심시킬 것이 없고, 늘 떠 있는 경고는 장애 신호로 읽힌다.
+  assert.match(BAR, /!online\s*\n?\s*\? \(pending > 0 \? 'OFFLINE' : null\)/,
+    '밀린 것이 없어도 연결 없음을 띄운다')
 })
 
 test('밀린 것이 없으면 아무 말도 안 한다 — 늘 떠 있으면 아무도 안 본다', () => {
