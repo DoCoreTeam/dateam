@@ -6,6 +6,8 @@ import { prevWeekStart } from '@/lib/week'
 import { orgScopeKey } from '@/lib/reports/org-scope-key'
 import { reportsSourceHash } from '@/lib/reports/source-hash'
 import type { WeeklyReport } from '@/types/database'
+// 설정이 비었을 때의 폴백은 공용 기본값을 쓴다 — 하드코딩한 옛 모델은 실측 404 였다(2026-08-31)
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 type ReportWithProfile = WeeklyReport & { profiles: { name: string } | null }
 
@@ -120,7 +122,7 @@ export async function POST(req: NextRequest) {
       .from('org_content').select('value').eq('key', 'META').single()
     const meta = (metaData?.value as Record<string, unknown>) ?? {}
     const apiKey = meta.gemini_api_key as string | undefined
-    const model = (meta.gemini_model as string | undefined) ?? 'gemini-1.5-flash'
+    const model = (meta.gemini_model as string | undefined) ?? DEFAULT_GEMINI_MODEL
     const orgName = (meta.org as string | undefined) || (meta.title as string | undefined) || ''
     if (!apiKey) {
       return NextResponse.json({ error: 'Gemini API 키가 설정되지 않았습니다' }, { status: 400 })

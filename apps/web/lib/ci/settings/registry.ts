@@ -104,6 +104,24 @@ export const CI_SETTING_DEFS: readonly CiSettingDef<unknown>[] = [
     schema: z.enum(['1m', '3m', '1y', 'all']), defaultValue: '1y',
   }),
   def({
+    key: 'signals.enabled', scope: 'workspace', group: 'data',
+    label: '이슈 자동 수집',
+    help: '뉴스·검색 급상승·커뮤니티 화제를 주기적으로 찾아 「확인 대기」로 담아 둡니다. 등록은 사람이 확인한 뒤에만 됩니다.',
+    schema: z.boolean(), defaultValue: true,
+  }),
+  def({
+    key: 'signals.interval_hours', scope: 'workspace', group: 'data',
+    label: '이슈 수집 주기',
+    help: '몇 시간마다 바깥 웹을 훑을지입니다. 웹 검색은 AI 한도를 다른 기능과 나눠 쓰므로 너무 짧게 두지 마세요.',
+    schema: z.number().int().min(1).max(168), defaultValue: 12,
+  }),
+  def({
+    key: 'signals.keywords', scope: 'workspace', group: 'data',
+    label: '이슈 검색어',
+    help: '무엇을 지켜볼지 쉼표로 적습니다. 비워 두면 등록된 주제 이름을 그대로 씁니다.',
+    schema: z.string().max(500), defaultValue: '',
+  }),
+  def({
     key: 'snapshot.preset', scope: 'workspace', group: 'data',
     label: '스냅샷 정밀도', help: '지표를 얼마나 자주 기록할지입니다. 정밀할수록 비용이 늘어납니다.',
     schema: z.enum(['economy', 'standard', 'precise']), defaultValue: 'economy',
@@ -278,6 +296,7 @@ export const CI_SETTING_CONTROLS: Record<string, CiControl> = {
   'alert.brief.send_at': { type: 'time' },
   'alert.quiet_hours': { type: 'quiet_hours' },
   'ingest.refresh_interval_hours': { type: 'number', min: 1, max: 168, step: 1, unit: '시간' },
+  'signals.interval_hours': { type: 'number', min: 1, max: 168, step: 1, unit: '시간' },
   'ingest.collect_window': { type: 'select', options: [
     { value: '1m', label: '최근 1개월' }, { value: '3m', label: '최근 3개월' },
     { value: '1y', label: '최근 1년' }, { value: 'all', label: '전체' },

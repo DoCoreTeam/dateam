@@ -405,6 +405,8 @@ export type AiFeature =
   | 'ci-media'
   | 'ci-brief'
   | 'ci-assistant'
+  // 이슈 자동 수집 — 웹 검색을 켠 호출이라 단가·한도 성격이 다르다. 따로 센다
+  | 'ci-signals'
   | 'ci-embedding'
   | 'project-suggest'
   | 'meeting_summarize'

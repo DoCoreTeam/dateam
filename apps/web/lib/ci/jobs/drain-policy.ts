@@ -106,9 +106,17 @@ export function shouldRunBackstop(input: {
   stalledJobs: number
   /** 다시 훑을 때가 된 관심 채널. 사람이 없는 동안에도 이게 밀리면 모니터링이 멈춘다. */
   dueSweeps?: number
+  /**
+   * 이슈를 다시 훑을 때가 된 워크스페이스.
+   *
+   * 이걸 안 세면 사람이 화면을 열어 둔 동안에만 이슈가 모인다 —
+   * 뉴스는 밤에도 나므로 그건 자동 수집이라고 부를 수 없다.
+   */
+  dueSignalSweeps?: number
 }): boolean {
   return input.dueJobs > 0
     || input.dueSnapshots > 0
     || input.stalledJobs > 0
     || (input.dueSweeps ?? 0) > 0
+    || (input.dueSignalSweeps ?? 0) > 0
 }

@@ -21,6 +21,7 @@ export const COMMANDS: CommandSpec[] = [
   { name: 'inbox.list', risk: 'safe', description: '수집함을 봅니다' },
   { name: 'inbox.review', risk: 'safe', description: '검토가 필요한 항목을 봅니다' },
   { name: 'channels.list', risk: 'safe', description: '관심 채널 목록을 봅니다' },
+  { name: 'channels.latest', risk: 'safe', description: '특정 관심 채널에 새로 올라온 게시물과 마지막 수집 시각을 봅니다' },
   { name: 'pipeline.list', risk: 'safe', description: '제작 중인 아이디어를 봅니다' },
   { name: 'performance.mine', risk: 'safe', description: '내 콘텐츠 성과를 봅니다' },
   { name: 'ingest.add', risk: 'write', description: '링크를 수집함에 넣습니다' },
@@ -100,6 +101,25 @@ export function parseIntent(message: string): Intent | null {
   }
   if (/수집함|모은 것|담은/.test(m)) {
     return { command: 'inbox.list', args: {}, say: '수집함을 보여드릴게요' }
+  }
+  // "추성훈 채널 신규 컨텐츠 올라왔어?" — 그 채널에 새로 들어온 게시물.
+  //
+  // 왜 규칙이 먼저인가(실측 2026-08-31): 이 문장은 정규식에 걸리는 것이 없어 AI로 내려갔고,
+  // 같은 프롬프트가 2초~60초를 오갔다. 그런데 정작 AI 는 정확히 `command: null` 을 냈다 —
+  // **카탈로그에 이 일을 할 명령이 없었기 때문**이다. 모델이 틀린 게 아니라 할 수 있는 일이 없었다.
+  // 명령을 만들고 규칙으로 먼저 잡으면 같은 질문이 AI 호출 없이 즉답된다.
+  //
+  // channels.list 보다 위에 둔다 — "관심 채널에 새 거 올라왔나"가 목록으로 새면 답이 어긋난다.
+  if (/올라왔|올라온|새로 ?올|업로드|신규|새 ?(영상|게시물|콘텐츠|컨텐츠|거|것)|최근 ?(영상|게시물|콘텐츠|컨텐츠)/.test(m)) {
+    // 채널 이름은 「… 채널」 앞자리에서만 읽는다. 없으면 전체 관심 채널을 훑는다 —
+    // 문장 전체를 이름으로 삼으면 어떤 채널과도 안 맞아 "없다"고 답하게 된다.
+    const named = m.match(/^(.*?)\s*채널/)
+    const query = named ? named[1].trim() : ''
+    return {
+      command: 'channels.latest',
+      args: query ? { query } : {},
+      say: query ? `${query} 채널에 새로 올라온 게시물을 확인할게요` : '관심 채널에 새로 올라온 게시물을 확인할게요',
+    }
   }
   if (/관심\s*채널|채널 목록|지켜보/.test(m)) {
     return { command: 'channels.list', args: {}, say: '관심 채널을 보여드릴게요' }

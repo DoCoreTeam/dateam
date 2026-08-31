@@ -15,8 +15,10 @@ import { redirect } from 'next/navigation'
 import { getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getRecommendations } from '@/lib/ci/queries/recommend'
+import { getSignals, signalKindLabel } from '@/lib/ci/queries/trends'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
+import SignalSpark from '@/components/ci/SignalSpark'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,8 +28,13 @@ export default async function RecommendPage() {
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')
 
-  const { cards, basisText, emptyReason, discoveryNotice } =
-    await getRecommendations(workspace.id)
+  // 「지금 바깥에서 무슨 일이 있나」와 「우리 판에서 무엇이 통했나」는 다른 질문이다.
+  // 둘 다 «오늘 뭘 만들까»의 답이므로 한 화면에서 함께 본다.
+  const [{ cards, basisText, emptyReason, discoveryNotice }, signals] = await Promise.all([
+    getRecommendations(workspace.id),
+    getSignals(workspace.id),
+  ])
+  const topSignals = signals.slice(0, 5)
 
   return (
     <>
@@ -35,6 +42,51 @@ export default async function RecommendPage() {
         title="오늘 뭘 만들까"
         description="평소보다 잘된 것과, 왜 잘됐는지"
       />
+
+      {/*
+        지금 바깥에서 화제인 것.
+        이슈를 등록해도 아무 데도 안 쓰이던 자리를 여기서 닫는다 —
+        확인한 이슈가 곧바로 기획으로 넘어간다.
+      */}
+      {topSignals.length > 0 && (
+        <section className="card" style={{ padding: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+          <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, margin: '0 0 var(--space-1)' }}>
+            지금 바깥에서 화제인 것
+          </h2>
+          <p className="ci-basis" style={{ margin: '0 0 var(--space-3)' }}>
+            확인을 마친 이슈 {topSignals.length}건 · 트렌드의 「이슈」 탭에서 관리합니다
+          </p>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            {topSignals.map((sg) => (
+              <li key={sg.id}>
+                <div style={{ fontWeight: 600 }}>{sg.title}</div>
+                <p className="ci-basis" style={{ margin: 'var(--space-1) 0 var(--space-2)' }}>
+                  {signalKindLabel(sg.kind)}
+                  {sg.source ? ` · ${sg.source}` : ''}
+                  {sg.occurredAtText ? ` · ${sg.occurredAtText}` : ''}
+                  {sg.topicName ? ` · 주제 ${sg.topicName}` : ''}
+                </p>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <SignalSpark
+                    workspaceId={workspace.id}
+                    title={sg.title}
+                    note={[
+                      `출처: ${sg.source ?? '미상'}`,
+                      sg.url ? `주소: ${sg.url}` : null,
+                      sg.reason ? `왜: ${sg.reason}` : null,
+                    ].filter(Boolean).join('\n')}
+                  />
+                  {sg.url && (
+                    <a href={sg.url} target="_blank" rel="noopener noreferrer" className="ci-metric">
+                      원문 보기
+                    </a>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* 숫자에는 항상 기준을 병기한다(설계서 §6.6 정상 상태 규칙) */}
       {basisText && <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>{basisText}</p>}

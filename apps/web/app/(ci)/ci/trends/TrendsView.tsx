@@ -14,6 +14,10 @@ import type { ApiResponse, CiContentListItem } from '@/lib/ci/contracts'
 import type {
   MarketOverview, MarketSlice, PatternRow, SignalRow, TimingOverview, TimingSlice,
 } from '@/lib/ci/queries/trends'
+// 종류 이름은 서버·화면이 같은 SSOT 를 쓴다 — 화면이 한글을 직접 적으면 말이 갈린다(§0-2).
+// **순수 모듈**에서 가져온다: queries/trends 는 서버 전용(createAdminClient)이라
+// 클라이언트가 값을 import 하면 빌드가 깨진다(crud-coverage 가드가 잡아낸 자리).
+import { signalKindLabel } from '@/lib/ci/analysis/signals'
 import { MARKET_MIN_CHANNELS, type MarketContrast } from '@/lib/ci/analysis/market-contrast'
 import { SEASON_MIN_WINDOW_DAYS } from '@/lib/ci/format/metrics'
 import AccountWhyPanel from '@/components/ci/AccountWhyPanel'
@@ -138,6 +142,8 @@ interface Props {
   marketWhy: MarketContrast | null
   patterns: PatternRow[] | null
   signals: SignalRow[] | null
+  /** AI 가 찾아온 확인 대기 후보. 확정본과 섞지 않는다 */
+  signalCandidates: SignalRow[] | null
 }
 
 export default function TrendsView(p: Props) {
@@ -229,6 +235,41 @@ export default function TrendsView(p: Props) {
       }).then((r) => r.json() as Promise<ApiResponse<unknown>>)
       if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
       setSTitle(''); setSUrl('')
+      router.refresh()
+    } finally { setBusy(false) }
+  }
+
+  /** 확인 대기에서 고른 것. 사람이 «전부»가 아니라 «고른 것»만 등록한다 */
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  function togglePick(id: string) {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  /**
+   * 고른 후보를 확정하거나, 남은 것을 버린다.
+   *
+   * 버리는 것을 삭제가 아니라 «폐기»로 두는 이유: 지우면 다음 훑기에서 같은 주소가
+   * 다시 올라온다. 사람이 이미 «아니다»라고 한 것을 매번 다시 보여 주면 후보함을 안 본다.
+   */
+  async function decideSignals(action: 'confirm' | 'dismiss', ids: string[]) {
+    if (ids.length === 0) return
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch('/api/ci/signals', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': p.workspaceId },
+        body: JSON.stringify({ ids, action }),
+      }).then((r) => r.json() as Promise<ApiResponse<{ changed: number }>>)
+      if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
+      setNotice(action === 'confirm'
+        ? `${res.data.changed}건을 이슈로 등록했습니다`
+        : `${res.data.changed}건을 버렸습니다`)
+      setPicked(new Set())
       router.refresh()
     } finally { setBusy(false) }
   }
@@ -566,10 +607,82 @@ export default function TrendsView(p: Props) {
       {/* ── 이슈 ── */}
       {p.tab === 'signals' && p.signals && (
         <>
+          {/*
+            AI 가 찾아온 확인 대기.
+            자동 등록하지 않는다 — 추출·제안형 AI 는 후보를 보여주고 사람이 확정한다(§5-3).
+            손입력 폼보다 **위**에 둔다: 먼저 할 일이 먼저 보여야 한다.
+          */}
+          {p.signalCandidates && p.signalCandidates.length > 0 && (
+            <section className="card" style={{ padding: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 'var(--space-3)',
+              }}>
+                <strong>AI가 찾은 이슈 · 확인 대기 {p.signalCandidates.length}건</strong>
+                <span className="ci-basis">
+                  출처가 없는 것은 담지 않았습니다 · 고른 것만 등록됩니다
+                </span>
+              </div>
+
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {p.signalCandidates.map((c) => (
+                  <li key={c.id} className="card" style={{
+                    display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 'var(--space-3)',
+                    alignItems: 'start', padding: 'var(--space-3)',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={picked.has(c.id)}
+                      onChange={() => togglePick(c.id)}
+                      aria-label={`${c.title} 선택`}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{c.title}</div>
+                      <p className="ci-basis" style={{ margin: 'var(--space-1) 0 0' }}>
+                        {signalKindLabel(c.kind)}
+                        {c.source ? ` · ${c.source}` : ''}
+                        {c.occurredAtText ? ` · ${c.occurredAtText}` : ''}
+                        {c.topicName ? ` · 주제 ${c.topicName}` : ' · 주제 미정'}
+                      </p>
+                      {c.reason && (
+                        <p className="ci-basis" style={{ margin: 'var(--space-1) 0 0' }}>{c.reason}</p>
+                      )}
+                    </div>
+                    {c.url && (
+                      <a href={c.url} target="_blank" rel="noopener noreferrer" className="ci-metric">
+                        원문 보기
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              <div style={{
+                display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end',
+                marginTop: 'var(--space-3)', flexWrap: 'wrap',
+              }}>
+                <button type="button" className="btn-ghost" disabled={busy}
+                  onClick={() => decideSignals('dismiss', p.signalCandidates!.map((c) => c.id))}>
+                  전부 버리기
+                </button>
+                <button type="button" className="btn-primary" disabled={busy || picked.size === 0}
+                  onClick={() => decideSignals('confirm', Array.from(picked))}>
+                  선택한 {picked.size}건 등록
+                </button>
+              </div>
+            </section>
+          )}
+
           <section className="card" style={{
             display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end',
             padding: 'var(--space-3)', marginBottom: 'var(--space-4)',
           }}>
+            <div style={{ width: '100%' }}>
+              <strong style={{ fontSize: 'var(--fs-sm)' }}>직접 적기</strong>
+              <p className="ci-basis" style={{ margin: 'var(--space-1) 0 0' }}>
+                AI가 못 본 것을 여기에 적습니다.
+              </p>
+            </div>
             <div>
               <label className="label" htmlFor="s-kind">종류</label>
               <select className="input-field" id="s-kind" value={sKind} onChange={(e) => setSKind(e.target.value)}>
@@ -605,8 +718,8 @@ export default function TrendsView(p: Props) {
             empty={needle
               ? { title: '검색어에 맞는 이슈가 없습니다', description: '다른 낱말로 찾아보세요.' }
               : {
-                title: '등록된 이슈가 없습니다',
-                description: '뉴스·검색 급상승·커뮤니티 화제처럼 콘텐츠 소재가 될 만한 것을 위에서 기록해 두면 기획할 때 근거로 씁니다.',
+                title: '등록된 이슈가 아직 없어요',
+                description: 'AI가 주기적으로 뉴스·검색 급상승·커뮤니티 화제를 찾아 위에 「확인 대기」로 담아 둡니다. 직접 적어 둘 수도 있어요.',
               }}
           />
 

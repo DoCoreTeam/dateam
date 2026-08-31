@@ -16,7 +16,19 @@ export type CiTopicSource = 'auto' | 'ai_verified' | 'user'
 export type CiPipelineStage = 'idea' | 'brief' | 'edit' | 'ready'
 export type CiPublishRoute = 'manual' | 'api'
 export type CiPublishStatus = 'draft' | 'scheduled' | 'exported' | 'published' | 'failed'
-export type CiJobStage = 'ingest' | 'normalize' | 'enrich' | 'classify' | 'verify' | 'project'
+/**
+ * 잡 단계.
+ *
+ * 'signals' 는 콘텐츠 파이프라인의 한 칸이 아니라 **워크스페이스 단위 주기 작업**이다
+ * (바깥 웹을 훑어 이슈 후보를 모은다). 큐에 태우는 이유는 재시도·백오프·실패 큐를
+ * 새로 짜지 않기 위해서다. 체인은 여기서 끝난다(policy.nextStage 가 null 을 준다).
+ */
+export type CiJobStage =
+  | 'ingest' | 'normalize' | 'enrich' | 'classify' | 'verify' | 'project'
+  | 'signals'
+
+/** 이슈의 종류. DB의 ci_signals.kind check 제약과 같은 값이다. */
+export type CiSignalKind = 'news' | 'search_spike' | 'community'
 export type CiJobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'dead'
 export type CiCorrectionKind =
   | 'topic' | 'group_unlink' | 'outlier_dismiss' | 'channel_link' | 'field_fix'
@@ -28,7 +40,7 @@ export const CI_PIPELINE_STAGES: readonly CiPipelineStage[] =
   ['idea', 'brief', 'edit', 'ready'] as const
 
 export const CI_JOB_STAGES: readonly CiJobStage[] =
-  ['ingest', 'normalize', 'enrich', 'classify', 'verify', 'project'] as const
+  ['ingest', 'normalize', 'enrich', 'classify', 'verify', 'project', 'signals'] as const
 
 /** 역할 서열. 숫자가 클수록 권한이 넓다. */
 export const CI_ROLE_RANK: Record<CiMemberRole, number> = {

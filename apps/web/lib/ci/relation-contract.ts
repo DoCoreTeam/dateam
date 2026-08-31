@@ -43,9 +43,17 @@ export interface CiRelation {
   countForUser: boolean
 }
 
-/** 삭제할 수 있는 대상. `CiDeletableKind`(delete.ts)와 같은 집합이어야 한다. */
+/**
+ * 삭제할 수 있는 대상.
+ *
+ * `signal`(이슈)은 `CiDeletableKind` 에 아직 없다 — 이슈 삭제는 전용 라우트가 처리한다.
+ * 그래도 여기 선언하는 이유는 **가리키는 것이 있기 때문**이다: 보드에 담긴 이슈와
+ * 처리 대기 잡이 이슈를 폴리모픽으로 가리킨다. 선언하지 않으면 그 둘은
+ * 「아무도 안 보는 곳」이 되고, 채널 삭제 사고(게시물 55건 잔류)가 그 자리에서 반복된다.
+ */
 export type CiRelationParent =
   | 'content' | 'channel' | 'board' | 'idea' | 'brief' | 'editPlan' | 'publication'
+  | 'signal'
 
 /** 부모 테이블 이름 — 가드가 실제 SQL과 대조할 때 쓴다. */
 export const CI_PARENT_TABLE: Record<CiRelationParent, string> = {
@@ -56,6 +64,7 @@ export const CI_PARENT_TABLE: Record<CiRelationParent, string> = {
   brief: 'ci_briefs',
   editPlan: 'ci_edit_plans',
   publication: 'ci_publications',
+  signal: 'ci_signals',
 }
 
 /**
@@ -117,6 +126,18 @@ export const CI_RELATIONS: Record<CiRelationParent, CiRelation[]> = {
   // ── 보드 ────────────────────────────────────────────────
   board: [
     { kind: 'owns', table: 'ci_board_items', column: 'board_id', label: '보드에 담긴 항목', countForUser: true },
+  ],
+
+  // ── 이슈 ────────────────────────────────────────────────
+  // 이슈를 지우면 그 이슈를 담아 둔 보드 항목과 처리 대기 잡도 함께 사라진다.
+  // 둘 다 폴리모픽이라 FK 를 걸 수 없다 → 마이그 239 의 트리거가 지운다(R-3).
+  //
+  // 주제(ci_topics)와의 관계는 **refs 다** — 주제를 지워도 「추성훈 신규 예능 편성」이라는
+  // 사실은 남는다(제목·주소·날짜가 그대로 쓸모 있다). 대신 주제 칸이 비므로
+  // 화면이 「주제 미정」으로 보여 사람이 다시 담을 수 있어야 한다.
+  signal: [
+    { kind: 'work', table: 'ci_jobs', column: 'target_id', discriminator: { column: 'target_type', value: 'signal' }, label: '처리 대기 중인 작업', countForUser: false },
+    { kind: 'work', table: 'ci_board_items', column: 'item_id', discriminator: { column: 'item_type', value: 'signal' }, label: '보드에 담긴 항목', countForUser: true },
   ],
 
   // ── 잎(자식이 없는 것) ──────────────────────────────────

@@ -107,7 +107,10 @@ test('args가 배열·문자열이어도 빈 객체로 안전하게 떨어진다
 test('가드: 어시스턴트가 규칙 실패 시 LLM을 실제로 부른다 — 만들어놓고 안 부르면 그대로다', () => {
   const src = readFileSync(join(here, 'assistant-server.ts'), 'utf8')
   assert.match(src, /parseIntent\(input\.message\)/, '규칙 파서를 먼저 부르지 않는다')
-  assert.match(src, /if \(!intent\) intent = await resolveIntentWithLlm/, 'LLM 폴백이 배선돼 있지 않다')
+  // 한 줄이든 블록이든 «규칙이 실패했을 때만 LLM 을 부른다»가 지켜지면 된다.
+  // 문법을 그대로 요구하면, 실패 사유를 함께 받으려고 블록으로 바꾸는 순간 가드가 깨진다.
+  assert.match(src, /if \(!intent\)[\s\S]{0,200}?resolveIntentWithLlm\(input\.message\)/,
+    'LLM 폴백이 규칙 실패 자리에 배선돼 있지 않다')
   assert.match(src, /parseIntentResponse\(/, '응답 검증(환각 차단)을 거치지 않는다')
 })
 

@@ -176,27 +176,29 @@ export interface SignalRow {
   occurredAtText: string | null
   score: number | null
   topicName: string | null
+  /**
+   * AI 가 찾아온 후보에만 붙는다 — 왜 이걸 골랐는지.
+   * 근거 없는 줄을 사람에게 확인시키면 확인이 아니라 받아쓰기가 된다.
+   */
+  reason?: string | null
+  /** 후보의 확신도(0~1). 사람이 손으로 넣은 확정본에는 없다 */
+  confidence?: number | null
+  /** 언제 찾아왔나 */
+  collectedAtText?: string | null
 }
 
-const SIGNAL_KIND_LABEL: Record<string, string> = {
-  news: '뉴스', search_spike: '검색 급상승', community: '커뮤니티 화제',
-}
+// 종류 이름의 SSOT 는 순수 모듈에 있다(analysis/signals).
+// 여기 두면 클라이언트가 이 서버 전용 파일에서 값을 가져오게 되고, 그 순간 빌드가 깨진다.
+// 서버 쪽 호출부가 두 곳을 import 하지 않도록 그대로 다시 내보낸다.
+export { signalKindLabel } from '../analysis/signals.ts'
 
-export function signalKindLabel(kind: string): string {
-  return SIGNAL_KIND_LABEL[kind] ?? kind
-}
+const SIGNAL_SELECT =
+  'id, kind, title, url, source, occurred_at, score, status, confidence, evidence, '
+  + 'collected_at, ci_topics ( name )'
 
-export async function getSignals(workspaceId: string, topicId?: string | null): Promise<SignalRow[]> {
-  const adminClient = createAdminClient() as any
-  let q = adminClient.from('ci_signals')
-    .select('id, kind, title, url, source, occurred_at, score, ci_topics ( name )')
-    .eq('workspace_id', workspaceId)
-    .order('occurred_at', { ascending: false, nullsFirst: false })
-    .limit(100)
-  if (topicId) q = q.eq('topic_id', topicId)
-
-  const { data } = await q
-  return ((data ?? []) as any[]).map((s) => ({
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function toSignalRow(s: any): SignalRow {
+  return {
     id: s.id,
     kind: s.kind,
     title: s.title,
@@ -205,7 +207,56 @@ export async function getSignals(workspaceId: string, topicId?: string | null): 
     occurredAtText: s.occurred_at ? formatKstDateTimeShort(s.occurred_at) : null,
     score: s.score,
     topicName: s.ci_topics?.name ?? null,
-  }))
+    reason: typeof s.evidence?.reason === 'string' ? s.evidence.reason : null,
+    confidence: s.confidence != null ? Number(s.confidence) : null,
+    collectedAtText: s.collected_at ? formatKstDateTimeShort(s.collected_at) : null,
+  }
+}
+
+/**
+ * 확정된 이슈만. **후보는 섞지 않는다.**
+ *
+ * 섞으면 아직 사람이 확인하지 않은 줄이 화면에서 사실처럼 읽히고,
+ * 그게 기획의 근거가 된다. 후보는 `getSignalCandidates` 로 따로 본다.
+ */
+export async function getSignals(workspaceId: string, topicId?: string | null): Promise<SignalRow[]> {
+  const adminClient = createAdminClient() as any
+  let q = adminClient.from('ci_signals')
+    .select(SIGNAL_SELECT)
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'confirmed')
+    .order('occurred_at', { ascending: false, nullsFirst: false })
+    .limit(100)
+  if (topicId) q = q.eq('topic_id', topicId)
+
+  const { data } = await q
+  return ((data ?? []) as any[]).map(toSignalRow)
+}
+
+/**
+ * AI 가 찾아온 확인 대기 후보.
+ *
+ * 등록·폐기는 사람이 한다(CLAUDE.md §5-3 추출/제안형). 자동 등록하지 않는 이유는
+ * 근거 없는 줄이 쌓이면 사람이 목록 전체를 안 보게 되고, 그 순간 이 기능은
+ * 이슈 1건이던 시절과 정확히 같아지기 때문이다.
+ */
+export async function getSignalCandidates(
+  workspaceId: string,
+  topicId?: string | null,
+): Promise<SignalRow[]> {
+  const adminClient = createAdminClient() as any
+  let q = adminClient.from('ci_signals')
+    .select(SIGNAL_SELECT)
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'candidate')
+    // 찾아온 순서가 아니라 **최근에 일어난 것**부터 본다
+    .order('occurred_at', { ascending: false, nullsFirst: false })
+    .order('collected_at', { ascending: false, nullsFirst: false })
+    .limit(30)
+  if (topicId) q = q.eq('topic_id', topicId)
+
+  const { data } = await q
+  return ((data ?? []) as any[]).map(toSignalRow)
 }
 
 // ── 언제 통했나 (게시 맥락별 집계) ────────────────────────────

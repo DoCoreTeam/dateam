@@ -21,10 +21,20 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(here, '..', '..', '..', '..')
-const MIGRATION = join(repoRoot, 'supabase', 'migrations', '208_ci_delete_contract.sql')
+/**
+ * 계약을 거는 SQL 은 **한 파일에만 있지 않다.**
+ *
+ * 208 이 처음 걸었고, 그 뒤 새 표가 생길 때마다 그 표의 마이그레이션이 자기 몫을 건다.
+ * 208 만 읽으면 나중에 더한 트리거가 «선언만 하고 안 걸었다»로 잘못 잡힌다 —
+ * 그러면 다음 사람은 가드를 고치는 대신 **계약에서 선언을 지운다.** 그게 최악이다.
+ */
+const MIGRATIONS = [
+  '208_ci_delete_contract.sql',
+  '239_ci_signal_candidates.sql',
+].map((f) => join(repoRoot, 'supabase', 'migrations', f))
 const DELETE_TS = join(here, 'queries', 'delete.ts')
 
-const migrationSql = readFileSync(MIGRATION, 'utf8')
+const migrationSql = MIGRATIONS.map((f) => readFileSync(f, 'utf8')).join('\n')
 const deleteTs = readFileSync(DELETE_TS, 'utf8')
 
 const PARENTS = Object.keys(CI_RELATIONS) as CiRelationParent[]

@@ -23,6 +23,7 @@ export const CI_JOB_STAGE_LABEL: Record<CiJobStage, string> = {
   classify: '주제 분류',
   verify: '확인',
   project: '지표 계산',
+  signals: '이슈 찾기',
 }
 
 /** 한 줄 설명 — 왜 이 단계가 필요한지. 오래 걸릴 때 사용자가 납득할 수 있어야 한다. */
@@ -33,6 +34,7 @@ export const CI_JOB_STAGE_NOTE: Record<CiJobStage, string> = {
   classify: '어떤 주제인지 판정합니다',
   verify: '애매한 판정을 다시 살핍니다',
   project: '평소 대비 배수와 순위를 계산합니다',
+  signals: '바깥 웹을 훑어 지금 화제가 된 것을 후보로 담습니다',
 }
 
 export interface StageCount {

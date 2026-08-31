@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listContents } from '@/lib/ci/queries/contents'
-import { getMarketOverview, getPatterns, getSignals, getTimingOverview } from '@/lib/ci/queries/trends'
+import { getMarketOverview, getPatterns, getSignals, getSignalCandidates, getTimingOverview } from '@/lib/ci/queries/trends'
 import { getMarketContrast } from '@/lib/ci/queries/market-why'
 import { normalizeWindowDays } from '@/lib/ci/window'
 import { formatBasis } from '@/lib/ci/format/metrics'
@@ -44,7 +44,7 @@ export default async function TrendsPage({
     .is('deleted_at', null).is('merged_into_id', null).order('name')
   const topics = (topicRows ?? []) as { id: string; name: string }[]
 
-  const [outliers, market, timing, marketWhy, patterns, signals] = await Promise.all([
+  const [outliers, market, timing, marketWhy, patterns, signals, signalCandidates] = await Promise.all([
     tab === 'outliers'
       ? listContents({
           workspaceId: workspace.id,
@@ -65,6 +65,7 @@ export default async function TrendsPage({
     tab === 'market' ? getMarketContrast(workspace.id, windowDays, topicId) : Promise.resolve(null),
     tab === 'patterns' ? getPatterns(workspace.id, topicId) : Promise.resolve(null),
     tab === 'signals' ? getSignals(workspace.id, topicId) : Promise.resolve(null),
+    tab === 'signals' ? getSignalCandidates(workspace.id, topicId) : Promise.resolve(null),
   ])
 
   return (
@@ -85,6 +86,7 @@ export default async function TrendsPage({
       marketWhy={marketWhy}
       patterns={patterns}
       signals={signals}
+      signalCandidates={signalCandidates}
     />
   )
 }

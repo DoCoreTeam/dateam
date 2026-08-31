@@ -15,6 +15,7 @@ import {
 import { runJob } from './handlers.ts'
 import { runDueSnapshots, SNAPSHOT_DUE_MAX_PER_TICK } from './snapshot.ts'
 import { runDueChannelSweeps, SWEEP_DUE_MAX_PER_TICK } from './channel-sweep.ts'
+import { runDueSignalSweeps, SIGNAL_SWEEP_MAX_PER_TICK } from './signals-sweep.ts'
 import {
   STALE_LOCK_MS, RECOVER_MAX_PER_PASS, CLAIM_BATCH,
   WEB_DRAIN_LIMIT, WEB_DRAIN_BUDGET_MS,
@@ -39,6 +40,9 @@ export interface DrainResult {
   /** 다시 훑을 때가 된 관심 채널 수 */
   sweepsDue: number
   sweepsEnqueued: number
+  /** 이슈를 다시 훑을 때가 된 워크스페이스 수 */
+  signalSweepsDue: number
+  signalSweepsEnqueued: number
   claimed: number
   succeeded: number
   failed: number
@@ -77,6 +81,8 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
     snapshotsEnqueued: 0,
     sweepsDue: 0,
     sweepsEnqueued: 0,
+    signalSweepsDue: 0,
+    signalSweepsEnqueued: 0,
     claimed: 0,
     succeeded: 0,
     failed: 0,
@@ -104,6 +110,13 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
   const sweeps = await runDueChannelSweeps(SWEEP_DUE_MAX_PER_TICK, ws)
   result.sweepsDue = sweeps.due
   result.sweepsEnqueued = sweeps.enqueued
+
+  // 2-3) 바깥 웹을 주기적으로 훑어 이슈 후보를 담는다.
+  //      이게 없으면 「이슈」 탭은 사람이 손으로 적는 메모장으로 남는다 —
+  //      실측 2026-08-31 기준 이슈 1건, 같은 시점 게시물 1,709건이었다.
+  const signalSweeps = await runDueSignalSweeps(SIGNAL_SWEEP_MAX_PER_TICK, ws)
+  result.signalSweepsDue = signalSweeps.due
+  result.signalSweepsEnqueued = signalSweeps.enqueued
 
   // 3) 예산 안에서 작게 여러 번 집어 실행한다.
   const prefix = options.workerPrefix ?? (ws ? 'web' : 'srv')

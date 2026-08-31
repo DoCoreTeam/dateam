@@ -16,6 +16,7 @@ import {
   runMediaUnderstanding, runMediaBacklog,
 } from './stages.ts'
 import { enrichContextBacklog } from '../analysis/context-enrich.ts'
+import { runSignalSweep } from '../ai/signals-server.ts'
 import { runAlertBacklog } from '../alerts/evaluate.ts'
 import { scheduleSnapshot, type SnapshotPreset } from './snapshot.ts'
 import { resolveSettings, getResolved, type SettingRow } from '../settings/resolve.ts'
@@ -332,6 +333,20 @@ async function handleVerify(job: ClaimedJob): Promise<HandlerResult> {
   return runVerify(job.workspace_id, job.target_id)
 }
 
+/**
+ * 이슈 자동 수집 — 바깥 웹을 훑어 «지금 무엇이 화제인가»를 후보로 담는다.
+ *
+ * 대상이 워크스페이스라 콘텐츠 체인을 타지 않는다(policy.nextStage 가 null 을 준다).
+ * 실패해도 다른 잡을 막지 않는다 — 재시도·백오프는 큐가 알아서 한다.
+ */
+async function handleSignals(job: ClaimedJob): Promise<HandlerResult> {
+  if (!job.workspace_id) return { ok: true }
+  const r = await runSignalSweep(job.workspace_id)
+  return r.ok
+    ? { ok: true }
+    : { ok: false, errorCode: r.errorCode ?? 'INTERNAL', errorMessage: r.errorMessage ?? r.note }
+}
+
 const HANDLERS = {
   ingest: handleIngest,
   normalize: handlePassthrough,
@@ -339,6 +354,7 @@ const HANDLERS = {
   classify: handleClassify,
   verify: handleVerify,
   project: handleProject,
+  signals: handleSignals,
 } as const
 
 export async function runJob(job: ClaimedJob): Promise<HandlerResult> {

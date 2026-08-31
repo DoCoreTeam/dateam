@@ -4,6 +4,8 @@ import { buildDocx } from '@/lib/docx-builder'
 import { mergeAndRefineByCategory } from '@/lib/gemini-refine'
 import { Packer } from 'docx'
 import type { WeeklyReport } from '@/types/database'
+// 설정이 비었을 때의 폴백은 공용 기본값을 쓴다 — 하드코딩한 옛 모델은 실측 404 였다(2026-08-31)
+import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 type ReportWithProfile = WeeklyReport & { profiles: { name: string } | null }
 
@@ -45,7 +47,7 @@ export async function GET(req: NextRequest) {
     .single()
   const meta = (metaData?.value as Record<string, unknown>) ?? {}
   const geminiKey = meta.gemini_api_key as string | undefined
-  const geminiModel = (meta.gemini_model as string | undefined) ?? 'gemini-1.5-flash'
+  const geminiModel = (meta.gemini_model as string | undefined) ?? DEFAULT_GEMINI_MODEL
   const orgName = (meta.org as string | undefined) || (meta.title as string | undefined) || ''
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

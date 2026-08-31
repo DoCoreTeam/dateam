@@ -48,6 +48,19 @@ interface CallInput {
    * (실측 2026-08-18: 21건 중 1건이 그렇게 실패). 지정하지 않으면 모델 기본값 그대로다.
    */
   maxOutputTokens?: number
+  /**
+   * 모델이 답하기 전에 **얼마나 오래 생각할지**.
+   *
+   * 왜 필요한가(실측 2026-08-31): 어시스턴트의 명령 해석은 목록에서 하나 고르는 일인데,
+   * 기본 설정의 `gemini-3-flash-preview` 는 생각에 1,295토큰을 써서 **7.5초**가 걸렸고
+   * 같은 프롬프트가 한 번은 **60초를 채우고 죽었다**. 사용자는 그 사이 빈 화면을 본다.
+   * `low` 로 내리면 같은 답을 **4.7초**에 준다 — 고를 항목이 12개뿐인 일에
+   * 오래 생각해서 얻는 것이 없다.
+   *
+   * 반대로 영상 이해·크리에이티브 분석처럼 **판단이 어려운 일에는 주지 않는다.**
+   * 지정하지 않으면 모델 기본값 그대로라 기존 호출은 한 글자도 안 바뀐다.
+   */
+  thinkingLevel?: 'low' | 'high'
 }
 
 export async function callGemini(input: CallInput): Promise<GeminiResult> {
@@ -73,6 +86,8 @@ export async function callGemini(input: CallInput): Promise<GeminiResult> {
           generationConfig: {
             temperature: input.temperature ?? 0.4,
             ...(input.maxOutputTokens ? { maxOutputTokens: input.maxOutputTokens } : {}),
+            // 생각 수준을 지정한 호출만 실어 보낸다 — 안 주면 요청 본문이 예전과 한 글자도 같다
+            ...(input.thinkingLevel ? { thinkingConfig: { thinkingLevel: input.thinkingLevel } } : {}),
           },
         }),
       },

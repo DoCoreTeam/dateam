@@ -11,6 +11,7 @@ import { drainQueue } from '@/lib/ci/jobs/drain'
 import { countPendingJobs, countStalledJobs } from '@/lib/ci/jobs/queue'
 import { countDueSnapshots } from '@/lib/ci/jobs/snapshot'
 import { countDueChannelSweeps } from '@/lib/ci/jobs/channel-sweep'
+import { countDueSignalSweeps } from '@/lib/ci/jobs/signals-sweep'
 import {
   shouldRunBackstop, STALE_LOCK_MS, CRON_DRAIN_LIMIT, CRON_DRAIN_BUDGET_MS,
 } from '@/lib/ci/jobs/drain-policy'
@@ -117,15 +118,16 @@ export async function GET(req: NextRequest) {
 
 /** 할 일이 있을 때만 CI 큐를 돌린다. 없으면 즉시 반환한다. */
 async function runCiBackstop() {
-  const [dueJobs, dueSnapshots, stalledJobs, dueSweeps] = await Promise.all([
+  const [dueJobs, dueSnapshots, stalledJobs, dueSweeps, dueSignalSweeps] = await Promise.all([
     countPendingJobs(),
     countDueSnapshots(),
     countStalledJobs(STALE_LOCK_MS),
     countDueChannelSweeps(),
+    countDueSignalSweeps(),
   ])
 
-  if (!shouldRunBackstop({ dueJobs, dueSnapshots, stalledJobs, dueSweeps })) {
-    return { skipped: 'idle' as const, dueJobs, dueSnapshots, stalledJobs, dueSweeps }
+  if (!shouldRunBackstop({ dueJobs, dueSnapshots, stalledJobs, dueSweeps, dueSignalSweeps })) {
+    return { skipped: 'idle' as const, dueJobs, dueSnapshots, stalledJobs, dueSweeps, dueSignalSweeps }
   }
 
   return drainQueue({
