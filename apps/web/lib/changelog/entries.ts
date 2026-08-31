@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.656',
+    date: '2026-08-31',
+    title: '견적 항목을 묶음으로 나눌 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🗂️',
+        headline: '「하드웨어 / 구축 / 유지보수」처럼 묶어서 보여줘요',
+        detail: '견적 수정 화면에서 「묶음 추가」를 누르고 항목마다 어느 묶음인지 고르면, 견적서에 묶음 이름과 묶음별 소계가 함께 인쇄돼요. 엑셀에도 똑같이 나갑니다. 묶음을 안 만들면 예전 그대로 한 표예요.',
+      },
+    ],
+  },
+  {
     version: '0.7.655',
     date: '2026-08-31',
     title: '「끝자리만 떨어뜨려 주세요」를 견적이 기억해요',
