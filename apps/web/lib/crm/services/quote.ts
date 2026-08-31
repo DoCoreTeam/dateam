@@ -57,6 +57,8 @@ export interface QuoteLineRow {
   laborGradeId: string | null
   name: string
   descriptionMd: string | null
+  /** 어느 묶음인지. null 이면 묶이지 않은 항목 */
+  sectionId: string | null
   quantity: string
   unit: string | null
   unitPriceMinor: bigint
@@ -67,6 +69,14 @@ export interface QuoteLineRow {
   taxRate: string
   lineTotalMinor: bigint
   position: number
+}
+
+/** 견적 안의 묶음 하나(읽기) */
+export interface QuoteSectionRow {
+  id: string
+  name: string
+  position: number
+  subtotalMinor: bigint
 }
 
 export interface QuoteRow {
@@ -101,12 +111,14 @@ export interface QuoteRow {
   /** 유효기간이 지났는가 — 읽는 시점에 판정한다(배치가 아니다) */
   expired?: boolean
   lines?: QuoteLineRow[]
+  /** 묶음. 없으면 예전처럼 한 표로 그린다 */
+  sections?: QuoteSectionRow[]
 }
 
 const LINE_SELECT = {
   id: true, productId: true, name: true, descriptionMd: true, quantity: true, unit: true,
   unitPriceMinor: true, discountPercent: true, taxRate: true, lineTotalMinor: true, position: true,
-  specialDiscountPercent: true, specialDiscountReason: true,
+  specialDiscountPercent: true, specialDiscountReason: true, sectionId: true,
   kind: true, roleLabel: true, laborGradeId: true,
 } as const
 
@@ -120,13 +132,30 @@ const SELECT = {
   sentAt: true, decidedAt: true, version: true, createdAt: true, updatedAt: true,
 } as const
 
+/** 섹션을 함께 읽는 select — 상세·문서가 쓴다 */
+const SECTION_SELECT = {
+  id: true, name: true, position: true, subtotalMinor: true,
+} as const
+
 // ------------------------------------------------------------
 // 입력 정규화
 // ------------------------------------------------------------
 
+/** 견적 안의 묶음 하나 */
+export interface QuoteSectionData {
+  /** 기존 묶음이면 id. 없으면 새로 만든다 */
+  id?: string | null
+  name: string
+}
+
 export interface QuoteLineData {
   /** 기존 항목이면 id. 없으면 새로 만든다 */
   id?: string | null
+  /**
+   * 몇 번째 묶음에 들어가나 — **보낸 sections 배열의 인덱스**다.
+   * null·undefined 면 묶이지 않은 항목(섹션 표 아래에 그대로 선다).
+   */
+  sectionIndex?: number | null
   productId?: string | null
   /** 라인 종류. 안 주면 수량 라인으로 본다(지금까지의 유일한 종류) */
   kind?: string | null
@@ -155,12 +184,12 @@ export interface QuoteLineData {
 const LINE_KEYS = new Set([
   'id', 'productId', 'name', 'descriptionMd', 'quantity', 'unit',
   'unitPriceMinor', 'discountPercent', 'taxRate',
-  'specialDiscountPercent', 'specialDiscountReason',
+  'specialDiscountPercent', 'specialDiscountReason', 'sectionIndex',
   'kind', 'roleLabel', 'laborGradeId',
 ])
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
-  'recipientPersonId', 'roundingUnit', 'roundingMode',
+  'recipientPersonId', 'roundingUnit', 'roundingMode', 'sections',
   // 수정 경로가 함께 보내는 것들
   'version', 'status',
 ])
@@ -265,6 +294,12 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
     taxRate,
     lineTotalMinor: amounts.lineTotalMinor,
     position,
+    /*
+      **인덱스는 여기서 id 로 바뀌지 않는다.** 섹션이 아직 안 만들어졌기 때문이다.
+      저장 직전에 «인덱스 → id» 표로 바꾼다(withSectionIds).
+    */
+    sectionIndex: typeof line.sectionIndex === 'number' && line.sectionIndex >= 0
+      ? line.sectionIndex : null,
   }
 }
 
@@ -450,8 +485,17 @@ export async function getQuote(db: CrmDb, id: string): Promise<QuoteRow> {
   const lines = await (db as any).crmQuoteLine.findMany({
     where: { quoteId: id }, select: LINE_SELECT, orderBy: { position: 'asc' },
   })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sections = await (db as any).crmQuoteSection.findMany({
+    where: { quoteId: id }, select: SECTION_SELECT, orderBy: { position: 'asc' },
+  })
 
-  return { ...(row as QuoteRow), lines: lines as QuoteLineRow[], expired: markExpired(row, new Date()) }
+  return {
+    ...(row as QuoteRow),
+    lines: lines as QuoteLineRow[],
+    sections: sections as QuoteSectionRow[],
+    expired: markExpired(row, new Date()),
+  }
 }
 
 // ------------------------------------------------------------
@@ -506,6 +550,8 @@ export interface CreateQuoteInput {
   roundingUnit?: number | string | null
   /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
   roundingMode?: string | null
+  /** 묶음. 안 주면 묶음 없는 견적이다(지금 있는 견적 전부가 그렇다) */
+  sections?: QuoteSectionData[]
   lines?: QuoteLineData[]
 }
 
@@ -565,7 +611,6 @@ export async function createQuote(
           roundingMode: rounding.mode,
           roundingMinor: totals.roundingMinor,
           approvalRequired: needsApproval(totals, threshold),
-          ...(lines.length > 0 ? { lines: { create: lines } } : {}),
         },
         select: SELECT,
       })
@@ -590,11 +635,22 @@ export async function createQuote(
           roundingUnit: rounding.unit, roundingMode: rounding.mode,
           roundingMinor: totals.roundingMinor,
           approvalRequired: needsApproval(totals, threshold),
-          ...(lines.length > 0 ? { lines: { create: lines } } : {}),
         },
         select: SELECT,
       })
     }
+
+    /*
+      **항목은 견적을 만든 뒤에 넣는다.** 예전엔 `lines: { create }` 로 한 번에 만들었는데,
+      묶음이 생기면서 순서가 바뀌었다 — 항목이 묶음을 가리키므로 묶음이 먼저 있어야 한다.
+    */
+    const sectionIds = await syncSections(tx, workspaceId, created.id, input.sections ?? [])
+    const withIds = withSectionIds(lines, sectionIds)
+    for (const l of withIds) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (tx as any).crmQuoteLine.create({ data: { ...l, quoteId: created.id } })
+    }
+    await recalcSectionSubtotals(tx, created.id)
 
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: 'quote.created',
@@ -678,6 +734,8 @@ export interface UpdateQuoteInput {
   /** 절사 단위(원). **안 주면 저장된 것을 그대로 둔다** — 0 으로 눕히지 않는다 */
   roundingUnit?: number | string | null
   roundingMode?: string | null
+  /** 묶음 전체. 항목과 함께 준다 — 항목이 인덱스로 묶음을 가리키기 때문이다 */
+  sections?: QuoteSectionData[]
   /**
    * 항목 전체. 주면 통째로 맞춘다(있는 것은 고치고, 없어진 것은 지우고, 새 것은 만든다).
    * 안 주면 항목은 손대지 않는다 — 제목만 고칠 때 항목이 날아가면 안 된다.
@@ -774,7 +832,14 @@ export async function updateQuote(
     assertUpdated(res.count, { exists: true, version: before.version }, '견적')
 
     if (nextLines && nextIds) {
-      await syncLines(tx, id, nextLines, nextIds)
+      // 묶음이 먼저다 — 항목이 인덱스로 묶음을 가리킨다
+      const sectionIds = input.sections !== undefined
+        ? await syncSections(tx, workspaceId, id, input.sections)
+        : (await (tx as any).crmQuoteSection.findMany({
+          where: { quoteId: id }, select: { id: true }, orderBy: { position: 'asc' },
+        })).map((x: { id: string }) => x.id)
+      await syncLines(tx, id, withSectionIds(nextLines, sectionIds), nextIds)
+      await recalcSectionSubtotals(tx, id)
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -804,6 +869,27 @@ function amountsChanged(
  * 실수로 빈 배열이 와도 지워지는 것은 "이번에 안 온 항목"뿐이라 원인이 분명하다.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/**
+ * 라인의 `sectionIndex` 를 실제 `sectionId` 로 바꾼다.
+ *
+ * 표에 없는 인덱스는 **묶이지 않음(null)** 으로 눕힌다 — 던지지 않는 이유는
+ * 화면에서 섹션을 지우는 순간 그 섹션을 가리키던 라인이 잠깐 붕 뜨는데,
+ * 그때 저장을 막으면 사용자는 «지웠는데 저장이 안 된다»를 겪는다.
+ */
+function withSectionIds(
+  lines: Record<string, unknown>[],
+  sectionIds: readonly string[],
+): Record<string, unknown>[] {
+  return lines.map((l) => {
+    const { sectionIndex, ...rest } = l as { sectionIndex?: number | null }
+    const idx = typeof sectionIndex === 'number' ? sectionIndex : null
+    return {
+      ...rest,
+      sectionId: idx !== null && idx < sectionIds.length ? sectionIds[idx] : null,
+    }
+  })
+}
+
 async function syncLines(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tx: any,
@@ -828,6 +914,79 @@ async function syncLines(
     } else {
       await tx.crmQuoteLine.create({ data: { ...lines[i], quoteId } })
     }
+  }
+}
+
+/**
+ * 섹션을 맞춘다 — **인덱스로 가리킨다.**
+ *
+ * 새 섹션은 아직 id 가 없으므로 화면이 임시 id 를 지어내야 하는데, 그러면
+ * 화면과 서버가 «임시 id 규칙»을 공유하게 되고 그 규칙은 반드시 언젠가 어긋난다.
+ * 대신 **보낸 배열의 순서(인덱스)** 로 가리키게 한다 — 순서는 화면이 이미 들고 있다.
+ *
+ * 돌려주는 것은 «인덱스 → 실제 id» 표다. 라인은 그걸로 sectionId 를 채운다.
+ */
+async function syncSections(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any,
+  workspaceId: string,
+  quoteId: string,
+  sections: readonly QuoteSectionData[],
+): Promise<string[]> {
+  const existing: { id: string }[] = await tx.crmQuoteSection.findMany({
+    where: { quoteId }, select: { id: true }, orderBy: { position: 'asc' },
+  })
+  const keep = new Set(sections.map((x) => x.id).filter((v): v is string => Boolean(v)))
+  const gone = existing.filter((e) => !keep.has(e.id)).map((e) => e.id)
+  if (gone.length > 0) {
+    // 섹션이 사라져도 **항목은 남는다** — FK 가 SetNull 이라 자동으로 풀린다
+    await tx.crmQuoteSection.deleteMany({ where: { quoteId, id: { in: gone } } })
+  }
+
+  const ids: string[] = []
+  for (let i = 0; i < sections.length; i++) {
+    const name = requireText(sections[i].name)
+    if (!name) {
+      throw new CrmError('VALIDATION_FAILED',
+        `${i + 1}번째 묶음의 이름을 입력해 주세요.`, { field: 'sections' })
+    }
+    const data = { name, position: i }
+    const id = sections[i].id
+    if (id && existing.some((e) => e.id === id)) {
+      await tx.crmQuoteSection.updateMany({ where: { id, quoteId }, data })
+      ids.push(id)
+    } else {
+      const made = await tx.crmQuoteSection.create({
+        data: { ...data, quoteId, workspaceId }, select: { id: true },
+      })
+      ids.push(made.id)
+    }
+  }
+  return ids
+}
+
+/** 섹션 소계를 다시 낸다 — 불변식 I1(라인 합 = 섹션 소계)이 이 값을 본다 */
+async function recalcSectionSubtotals(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any,
+  quoteId: string,
+): Promise<void> {
+  const rows: { sectionId: string | null; lineTotalMinor: bigint }[] =
+    await tx.crmQuoteLine.findMany({
+      where: { quoteId }, select: { sectionId: true, lineTotalMinor: true },
+    })
+  const sum = new Map<string, bigint>()
+  for (const r of rows) {
+    if (!r.sectionId) continue
+    sum.set(r.sectionId, (sum.get(r.sectionId) ?? BigInt(0)) + r.lineTotalMinor)
+  }
+  const sections: { id: string }[] = await tx.crmQuoteSection.findMany({
+    where: { quoteId }, select: { id: true },
+  })
+  for (const sec of sections) {
+    await tx.crmQuoteSection.updateMany({
+      where: { id: sec.id }, data: { subtotalMinor: sum.get(sec.id) ?? BigInt(0) },
+    })
   }
 }
 
@@ -1049,6 +1208,7 @@ export function toQuoteJson(row: QuoteRow): Record<string, unknown> {
     // BigInt 를 빠뜨리면 JSON.stringify 가 그 자리에서 던진다 —
     // 200 을 기대한 화면이 500 을 받고, 원인은 응답 본문에 안 나온다(실제로 그랬다)
     roundingMinor: row.roundingMinor.toString(),
+    sections: row.sections?.map((x) => ({ ...x, subtotalMinor: x.subtotalMinor.toString() })),
     discountRate: Number(discountRateOf(row).toFixed(2)),
     lines: row.lines?.map((l) => ({
       ...l,

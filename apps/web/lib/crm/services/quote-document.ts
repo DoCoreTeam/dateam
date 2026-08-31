@@ -120,11 +120,15 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       unit: l.unit,
       quantity: l.quantity,
       unitPriceMinor: l.unitPriceMinor,
+      sectionId: l.sectionId,
       discountPercent: l.discountPercent,
       // 특별 할인은 «금액이 왜 이런지»의 근거다 — 이게 빠지면 문서가 기본 할인율을 말하면서
       // 특별가 금액을 인쇄해 서로를 반박한다
       specialDiscountPercent: l.specialDiscountPercent,
       lineTotalMinor: l.lineTotalMinor,
+    })),
+    sections: (quote.sections ?? []).map((sec) => ({
+      id: sec.id, name: sec.name, subtotalMinor: sec.subtotalMinor,
     })),
     customer: {
       companyName: deal.company?.name ?? null,

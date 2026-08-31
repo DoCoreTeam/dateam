@@ -158,9 +158,13 @@
     align-items: flex-end;
   }
 
+  /* 묶음이 있으면 앞 행이 넷이 된다 — 품목·규격이 한 칸씩 내준다 */
+  .colSection { grid-column: span 2; }
   .colKind    { grid-column: span 2; }
   .colName    { grid-column: span 5; }
   .colSpec    { grid-column: span 5; }
+  .colSection ~ .colName { grid-column: span 4; }
+  .colSection ~ .colSpec { grid-column: span 4; }
   /* 역할이 끼면 앞 행이 좁아진다 — 역할은 품목에서 한 칸, 규격에서 두 칸을 빌린다 */
   .colRole    { grid-column: span 3; }
   .colRole ~ .colName { grid-column: span 4; }
@@ -316,4 +320,31 @@
   color: var(--text-muted);
   white-space: nowrap;
   text-align: right;
+}
+
+/* 묶음 목록 — 항목 표 위에 선다. 이름만 고치는 자리라 한 줄이면 충분하다 */
+.sectionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.sectionItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+.sectionNo {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-bg);
+  border: var(--hairline) solid var(--border-color);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
 }

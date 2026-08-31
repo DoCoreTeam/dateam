@@ -80,6 +80,8 @@ export interface QuoteLineDraft {
   discountPercent: string
   /** 특별 할인율(%) — **빈 문자열이면 «없음»** 이다. '0' 은 「0% 할인」이라 뜻이 다르다 */
   specialDiscountPercent?: string
+  /** 몇 번째 묶음인가. null 이면 묶이지 않은 항목 */
+  sectionIndex?: number | null
   taxRate: string
 }
 
@@ -113,6 +115,8 @@ export interface QuoteDraft {
    * 통째로 적어 둔 한 덩어리가 아니라 항목이라, 사업마다 필요한 것만 나간다.
    */
   termIds: string[]
+  /** 묶음. 비어 있으면 묶음 없는 견적이다 */
+  sections: { id?: string | null; name: string }[]
   /** 절사 단위(원). 0 = 안 함 */
   roundingUnit: number
   /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
@@ -149,6 +153,7 @@ export function newQuoteDraft(dealName: string, currency: string | null, validDa
     notesMd: '',
     recipientPersonId: null,
     termIds: [],
+    sections: [],
     // 새 견적은 절사 안 함 — 협상 결과이지 기본값이 아니다
     roundingUnit: 0,
     roundingMode: 'DOWN',
@@ -176,6 +181,7 @@ export function quoteToDraft(body: any): QuoteDraft {
     status: body.status,
     recipientPersonId: body.recipientPersonId ?? null,
     termIds: body.termIds ?? [],
+    sections: (body.sections ?? []).map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })),
     roundingUnit: Number(body.roundingUnit ?? 0),
     roundingMode: body.roundingMode ?? 'DOWN',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -194,6 +200,11 @@ export function quoteToDraft(body: any): QuoteDraft {
       // null 이면 «없음» 이므로 빈 문자열이다 — String(null) 이 '\uc5c6\uc74c' 이 아니라 'null' 이 되면 안 된다
       specialDiscountPercent: l.specialDiscountPercent === null || l.specialDiscountPercent === undefined
         ? '' : String(l.specialDiscountPercent),
+      // 서버는 id 로 주고 화면은 인덱스로 다룬다 — 새 묶음은 아직 id 가 없기 때문이다
+      sectionIndex: (() => {
+        const idx = (body.sections ?? []).findIndex((x: { id: string }) => x.id === l.sectionId)
+        return idx >= 0 ? idx : null
+      })(),
       taxRate: String(l.taxRate),
     })),
   }
@@ -353,6 +364,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         taxRate: l.taxRate || '10',
         kind: l.kind ?? 'QUANTITY',
         roleLabel: (l.roleLabel ?? '').trim() || null,
+        sectionIndex: typeof l.sectionIndex === 'number' ? l.sectionIndex : null,
       }))
 
     if (!draft.title.trim()) { setError('견적 제목을 입력해 주세요.'); return }
@@ -372,6 +384,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         ...(linesLocked ? {} : {
           roundingUnit: draft.roundingUnit,
           roundingMode: draft.roundingMode,
+          sections: draft.sections.map((x) => ({ id: x.id ?? null, name: x.name })),
         }),
         ...(linesLocked ? {} : { lines }),
         ...(isEdit ? { version: draft.version } : {}),
@@ -455,6 +468,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
 
         <div className={styles.linesHead}>
           <span className={styles.sectionTitle}>{QUOTE.lines}</span>
+          {/*
+            **묶음은 선택이다.** 안 만들면 예전과 똑같은 한 표다.
+            항목이 스무 줄 넘어가면 고객이 무엇이 무엇인지 모르는데, 그때 쓰라고 둔다.
+          */}
+          {!linesLocked && (
+            <NbButton
+              variant="ghost"
+              onClick={() => setDraft((d) => ({
+                ...d, sections: [...d.sections, { name: `묶음 ${d.sections.length + 1}` }],
+              }))}
+            >
+              <Plus size={16} /> 묶음 추가
+            </NbButton>
+          )}
           {!linesLocked && (
             <NbButton
               variant="ghost"
@@ -469,6 +496,50 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           <div className={styles.approvalNote}>
             {QUOTE_LINES_LOCKED}
           </div>
+        )}
+
+        {draft.sections.length > 0 && (
+          <ul className={styles.sectionList}>
+            {draft.sections.map((sec, si) => (
+              <li key={si} className={styles.sectionItem}>
+                <span className={styles.sectionNo}>{si + 1}</span>
+                <input
+                  className="input-field"
+                  value={sec.name}
+                  disabled={linesLocked}
+                  aria-label={`${si + 1}번째 묶음 이름`}
+                  onChange={(e) => setDraft((d) => ({
+                    ...d,
+                    sections: d.sections.map((x, j) => (j === si ? { ...x, name: e.target.value } : x)),
+                  }))}
+                />
+                {!linesLocked && (
+                  <button
+                    type="button"
+                    className={styles.lineRemove}
+                    aria-label={`${sec.name} 묶음 빼기`}
+                    /*
+                      묶음을 빼도 **항목은 남는다.** 뒤 묶음을 가리키던 항목의 인덱스가
+                      하나씩 당겨지므로 여기서 함께 고친다 — 안 그러면 엉뚱한 묶음에 붙는다.
+                    */
+                    onClick={() => setDraft((d) => ({
+                      ...d,
+                      sections: d.sections.filter((_, j) => j !== si),
+                      lines: d.lines.map((l) => {
+                        if (l.sectionIndex === si) return { ...l, sectionIndex: null }
+                        if (typeof l.sectionIndex === 'number' && l.sectionIndex > si) {
+                          return { ...l, sectionIndex: l.sectionIndex - 1 }
+                        }
+                        return l
+                      }),
+                    }))}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
 
         <div className={styles.lines}>
@@ -486,6 +557,25 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   **종류가 먼저다.** 이것이 아래 「수량」·「단가」 라벨을 바꾼다 —
                   「M/M」인지 「대」인지가 정해져야 사람이 무엇을 넣을지 안다.
                 */}
+                {draft.sections.length > 0 && (
+                  <div className={`${styles.field} ${styles.colSection}`}>
+                    <label className="label" htmlFor={`ln-sec-${i}`}>묶음</label>
+                    <select
+                      id={`ln-sec-${i}`}
+                      className="input-field"
+                      value={line.sectionIndex === null || line.sectionIndex === undefined ? '' : String(line.sectionIndex)}
+                      disabled={linesLocked}
+                      onChange={(e) => setLine(i, {
+                        sectionIndex: e.target.value === '' ? null : Number(e.target.value),
+                      })}
+                    >
+                      <option value="">묶지 않음</option>
+                      {draft.sections.map((sec, si) => (
+                        <option key={si} value={si}>{sec.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className={`${styles.field} ${styles.colKind}`}>
                   <label className="label" htmlFor={`ln-kind-${i}`}>종류</label>
                   <select

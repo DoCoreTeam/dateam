@@ -10,7 +10,7 @@ import { Fragment } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '@/lib/terms/quote'
-import type { QuoteDocument } from '@/lib/crm/domain/quote-document'
+import type { QuoteDocument, DocumentLine, DocumentSection } from '@/lib/crm/domain/quote-document'
 import styles from './quote-document.module.css'
 
 interface Props {
@@ -30,6 +30,96 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
   const money = (minor: string) => formatAmount(minor, doc.meta.currency) ?? '0'
   // 공급자는 «비어 있지 않은 것만» 줄을 만든다 — 「—」 가 늘어선 문서를 보내지 않는다
   const filled = SUPPLIER_ORDER.filter((f) => doc.supplier[f] !== '')
+
+  /**
+   * 묶음별로 항목을 나눈다.
+   *
+   * **묶음이 하나도 없으면 그룹 하나**(section=null)가 되어 예전과 똑같이 그려진다.
+   * 묶이지 않은 항목은 묶음들 **뒤에** 따로 선다 — 앞에 두면 묶음의 첫 줄로 오해된다.
+   */
+  const groups: { key: string; section: DocumentSection | null; lines: DocumentLine[] }[] = (() => {
+    if (doc.sections.length === 0) return [{ key: 'all', section: null, lines: [...doc.lines] }]
+    type G = { key: string; section: DocumentSection | null; lines: DocumentLine[] }
+    const out: G[] = doc.sections.map((sec): G => ({
+      key: sec.id,
+      section: sec,
+      lines: doc.lines.filter((l) => l.sectionId === sec.id),
+    }))
+    const loose = doc.lines.filter((l) => !l.sectionId || !doc.sections.some((x) => x.id === l.sectionId))
+    if (loose.length > 0) out.push({ key: 'loose', section: null, lines: loose })
+    return out
+  })()
+
+  /**
+   * 항목 한 줄. **묶음이 있든 없든 같은 함수가 그린다** —
+   * 두 벌로 두면 묶음 있는 견적서와 없는 견적서가 서서히 다른 문서가 된다.
+   */
+  const renderLine = (l: DocumentLine) => (
+                  <tr key={l.no}>
+                    <td className={styles.center}>{l.no}</td>
+                    {/*
+                      **값은 원래 정렬을 지킨다.** 가운데로 바꾸는 것은 «제목(머리글)»뿐이다 —
+                      금액을 가운데로 두면 자릿수가 세로로 안 맞아 크기를 눈으로 비교할 수 없다.
+                    */}
+                    <td>
+                      <div className={styles.lineName}>{l.name}</div>
+                      {l.spec && <div className={styles.spec}>{l.spec}</div>}
+                    </td>
+                    <td className={styles.center}>{l.unit ?? ''}</td>
+                    <td className={styles.num}>{Number(l.quantity).toLocaleString('ko-KR')}</td>
+                    <td className={styles.num}>{money(l.unitPriceMinor)}</td>
+                    {/*
+                      **특별가는 그 사실이 보여야 값이 있다.** 「80%」만 적으면 무엇에서
+                      80% 인지 알 수 없다 — 정상가를 함께 적어야 고객이 혜택을 읽는다.
+                    */}
+                    <td className={styles.num}>
+                      {/*
+                        **둘 다 적는다.** 기본 할인은 늘 들어가는 것이고 특별 할인은 이번 건에만
+                        주는 것이라, 하나만 적으면 고객은 나머지 하나를 못 본다
+                        (사용자 지시: 「기본 할인과 특별할인이 다 붙어야지」).
+                      */}
+                      {l.isSpecialDiscount ? (
+                        // 비율도 금액과 **같은 흐름**으로 읽힌다 — 기본에서 특별로 간다
+                        <>
+                          {/*
+                            **태그는 흐름 밖이다.** 「특별 할인」 글자가 비율 옆에 붙으면
+                            그 폭 때문에 「30% → 100%」가 두 줄로 접혀 화살표가 아무것도
+                            가리키지 못했다(사용자 지적). 뜻은 아래 줄에서 말한다.
+                          */}
+                          <span className={styles.priceFlow}>
+                            {l.baseDiscountPercent !== '0' && (
+                              <>
+                                <span className={styles.wasPct}>{l.baseDiscountPercent}%</span>
+                                <span className={styles.srOnly}>에서</span>
+                                <span className={styles.arrow} aria-hidden>→</span>
+                              </>
+                            )}
+                            <span className={styles.special}>{l.specialDiscountPercent}%</span>
+                          </span>
+                          <div className={styles.specialTag}>{QUOTE.lineSpecialDiscount}</div>
+                        </>
+                      ) : (
+                        l.discountPercent === '0' ? '' : `${l.discountPercent}%`
+                      )}
+                    </td>
+                    <td className={styles.num}>
+                      {/*
+                        **「원래는 이만큼인데 이렇게 해 드립니다」가 한눈에 읽혀야 한다.**
+                        위아래로 쌓으면 두 숫자가 각자 서 있을 뿐 관계가 안 보인다 —
+                        화살표가 그 관계를 만든다(사용자 지시: 「이렇게 방향처럼 표시 해도 되고」).
+                        화살표는 글자로 읽히지 않으므로 뜻은 sr 전용 글자로 따로 준다.
+                      */}
+                      {l.isSpecialDiscount && l.baseAmountMinor !== l.amountMinor ? (
+                        <span className={styles.priceFlow}>
+                          <span className={styles.wasAmount}>{money(l.baseAmountMinor)}</span>
+                          <span className={styles.srOnly}>에서</span>
+                          <span className={styles.arrow} aria-hidden>→</span>
+                          <span className={styles.nowAmount}>{money(l.amountMinor)}</span>
+                        </span>
+                      ) : money(l.amountMinor)}
+                    </td>
+                  </tr>
+  )
 
   return (
     <article className={surface === 'paper' ? styles.sheetBare : `card ${styles.sheet}`}>
@@ -189,73 +279,29 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
               </tr>
             </thead>
             <tbody>
-              {doc.lines.map((l) => (
-                <tr key={l.no}>
-                  <td className={styles.center}>{l.no}</td>
-                  {/*
-                    **값은 원래 정렬을 지킨다.** 가운데로 바꾸는 것은 «제목(머리글)»뿐이다 —
-                    금액을 가운데로 두면 자릿수가 세로로 안 맞아 크기를 눈으로 비교할 수 없다.
-                  */}
-                  <td>
-                    <div className={styles.lineName}>{l.name}</div>
-                    {l.spec && <div className={styles.spec}>{l.spec}</div>}
-                  </td>
-                  <td className={styles.center}>{l.unit ?? ''}</td>
-                  <td className={styles.num}>{Number(l.quantity).toLocaleString('ko-KR')}</td>
-                  <td className={styles.num}>{money(l.unitPriceMinor)}</td>
-                  {/*
-                    **특별가는 그 사실이 보여야 값이 있다.** 「80%」만 적으면 무엇에서
-                    80% 인지 알 수 없다 — 정상가를 함께 적어야 고객이 혜택을 읽는다.
-                  */}
-                  <td className={styles.num}>
-                    {/*
-                      **둘 다 적는다.** 기본 할인은 늘 들어가는 것이고 특별 할인은 이번 건에만
-                      주는 것이라, 하나만 적으면 고객은 나머지 하나를 못 본다
-                      (사용자 지시: 「기본 할인과 특별할인이 다 붙어야지」).
-                    */}
-                    {l.isSpecialDiscount ? (
-                      // 비율도 금액과 **같은 흐름**으로 읽힌다 — 기본에서 특별로 간다
-                      <>
-                        {/*
-                          **태그는 흐름 밖이다.** 「특별 할인」 글자가 비율 옆에 붙으면
-                          그 폭 때문에 「30% → 100%」가 두 줄로 접혀 화살표가 아무것도
-                          가리키지 못했다(사용자 지적). 뜻은 아래 줄에서 말한다.
-                        */}
-                        <span className={styles.priceFlow}>
-                          {l.baseDiscountPercent !== '0' && (
-                            <>
-                              <span className={styles.wasPct}>{l.baseDiscountPercent}%</span>
-                              <span className={styles.srOnly}>에서</span>
-                              <span className={styles.arrow} aria-hidden>→</span>
-                            </>
-                          )}
-                          <span className={styles.special}>{l.specialDiscountPercent}%</span>
-                        </span>
-                        <div className={styles.specialTag}>{QUOTE.lineSpecialDiscount}</div>
-                      </>
-                    ) : (
-                      l.discountPercent === '0' ? '' : `${l.discountPercent}%`
-                    )}
-                  </td>
-                  <td className={styles.num}>
-                    {/*
-                      **「원래는 이만큼인데 이렇게 해 드립니다」가 한눈에 읽혀야 한다.**
-                      위아래로 쌓으면 두 숫자가 각자 서 있을 뿐 관계가 안 보인다 —
-                      화살표가 그 관계를 만든다(사용자 지시: 「이렇게 방향처럼 표시 해도 되고」).
-                      화살표는 글자로 읽히지 않으므로 뜻은 sr 전용 글자로 따로 준다.
-                    */}
-                    {l.isSpecialDiscount && l.baseAmountMinor !== l.amountMinor ? (
-                      <span className={styles.priceFlow}>
-                        <span className={styles.wasAmount}>{money(l.baseAmountMinor)}</span>
-                        <span className={styles.srOnly}>에서</span>
-                        <span className={styles.arrow} aria-hidden>→</span>
-                        <span className={styles.nowAmount}>{money(l.amountMinor)}</span>
-                      </span>
-                    ) : money(l.amountMinor)}
-                  </td>
-                </tr>
+              {/*
+                **묶음이 있으면 묶음 머리와 소계를 끼워 넣는다.**
+                항목이 스무 줄 넘어가면 고객은 무엇이 무엇인지 모른 채 총액만 본다.
+                묶음이 하나도 없으면 이 자리가 비어 예전과 똑같은 한 표가 된다.
+              */}
+              {groups.map((g) => (
+                <Fragment key={g.key}>
+                  {g.section && (
+                    <tr className={styles.sectionHead}>
+                      <td colSpan={7}>{g.section.name}</td>
+                    </tr>
+                  )}
+                  {g.lines.map((l) => renderLine(l))}
+                  {g.section && g.lines.length > 0 && (
+                    <tr className={styles.sectionSum}>
+                      <td colSpan={6}>{g.section.name} {QUOTE.subtotal}</td>
+                      <td className={styles.num}>{money(g.section.subtotalMinor)}</td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
+
             {/*
               합계는 **같은 표 안**이다. 밖에 두면 열 경계와 어긋나
               금액이 위아래로 안 맞는다(앞 판이 그랬다).

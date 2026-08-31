@@ -94,8 +94,18 @@ export interface DocumentCustomer {
   personName: string | null
 }
 
+/** 견적서에 인쇄되는 묶음 하나 */
+export interface DocumentSection {
+  id: string
+  name: string
+  /** 이 묶음에 속한 항목의 합(할인 후) */
+  subtotalMinor: string
+}
+
 export interface DocumentLine {
   no: number
+  /** 어느 묶음인지. null 이면 묶이지 않은 항목 */
+  sectionId: string | null
   name: string
   /** 규격·설명 */
   spec: string | null
@@ -135,6 +145,8 @@ export interface DocumentTotals {
 
 export interface QuoteDocument {
   documentTitle: string
+  /** 묶음. 비어 있으면 한 표로 그린다 — 지금 있는 견적은 전부 그렇다 */
+  sections: readonly DocumentSection[]
   supplier: DocumentSupplier
   /** 이 견적을 만든 사람. 비어 있으면 그 줄을 안 그린다 */
   owner: DocumentOwner
@@ -189,7 +201,15 @@ export interface BuildQuoteDocumentInput {
     discountPercent?: string | number
     /** 특별 할인율(%) — null·undefined 면 없음 */
     specialDiscountPercent?: string | number | null
+    /** 어느 묶음인지 */
+    sectionId?: string | null
     lineTotalMinor: bigint | string
+  }[]
+  /** 묶음. 없으면 견적서는 한 표로 그려진다 */
+  sections?: readonly {
+    id: string
+    name: string
+    subtotalMinor?: bigint | string | null
   }[]
   customer: {
     companyName: string | null
@@ -325,8 +345,14 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       expired: (input.quote.expired ?? false)
         || (validUntil !== null && validUntil < input.todayKey),
     },
+    sections: (input.sections ?? []).map((sec) => ({
+      id: sec.id,
+      name: sec.name,
+      subtotalMinor: s(sec.subtotalMinor ?? 0),
+    })),
     lines: input.lines.map((l, i) => ({
       no: i + 1,
+      sectionId: l.sectionId ?? null,
       name: l.name,
       spec: text(l.descriptionMd) || null,
       unit: text(l.unit) || null,

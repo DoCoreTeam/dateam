@@ -446,8 +446,50 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   r += 1
 
   const firstLineRow = r
+  /*
+    **항목이 있는 행 번호만 모은다.**
+    묶음 머리와 소계 행이 표 한가운데 끼어들기 때문에, 첫 행~끝 행을 통째로 더하면
+    **소계가 두 번 세어진다**(할인이 음수가 되는 사고다). 그래서 범위를 손으로 만든다.
+  */
+  const lineRows: number[] = []
 
-  for (const line of doc.lines) {
+  /*
+    **묶음이 있으면 화면과 같은 순서로 그린다.**
+    엑셀만 순서가 다르면 같은 문서가 두 얼굴을 갖는다 —
+    고객이 화면을 보고 결재했는데 파일은 다른 배열인 상태가 된다.
+  */
+  const groups: { section: { id: string; name: string; subtotalMinor: string } | null;
+                  lines: typeof doc.lines[number][] }[] =
+    doc.sections.length === 0
+      ? [{ section: null, lines: [...doc.lines] }]
+      : [
+        ...doc.sections.map((sec) => ({
+          section: sec,
+          lines: doc.lines.filter((l) => l.sectionId === sec.id),
+        })),
+        ...(() => {
+          const loose = doc.lines.filter((l) => !l.sectionId
+            || !doc.sections.some((x) => x.id === l.sectionId))
+          return loose.length > 0 ? [{ section: null, lines: loose }] : []
+        })(),
+      ]
+
+  for (const group of groups) {
+    if (group.section) {
+      // 묶음 머리 — 한 줄을 통째로 쓰고 굵게. 화면의 굵은 윗선과 같은 자리다
+      ws.mergeCells(`A${r}:${LAST_COL}${r}`)
+      const head = ws.getCell(`A${r}`)
+      head.value = group.section.name
+      head.font = { size: 11, bold: true }
+      head.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }
+      head.border = border
+      head.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEAD_BG } }
+      ws.getRow(r).height = 22
+      r += 1
+    }
+
+  for (const line of group.lines) {
+    lineRows.push(r)
     // 규격은 품목 아래 줄바꿈으로 붙인다 — 별도 열을 만들면 표가 가로로 넘친다
     const name = line.spec ? `${line.name}\n${line.spec}` : line.name
     const values: (string | number | { formula: string })[] = [
@@ -489,6 +531,25 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     // 화면의 행 여백에 맞춘다 — 빽빽하면 표가 아니라 격자로 읽힌다
     ws.getRow(r).height = Math.max(line.spec ? 34 : 22, wrapHeight(name, COLUMNS[1].width, 16))
     r += 1
+    }
+
+    if (group.section && group.lines.length > 0) {
+      // 묶음 소계 — 화면과 같은 말(「{묶음} 공급가액」)
+      ws.mergeCells(`A${r}:F${r}`)
+      const l = ws.getCell(`A${r}`)
+      l.value = `${group.section.name} ${QUOTE.subtotal}`
+      l.font = { size: 10, bold: true, color: { argb: MUTED } }
+      l.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }
+      l.border = border
+      const v = ws.getCell(`${LAST_COL}${r}`)
+      v.value = Number(group.section.subtotalMinor)
+      v.numFmt = fmt
+      v.font = { size: 10, bold: true }
+      v.alignment = { horizontal: 'right', vertical: 'middle' }
+      v.border = border
+      ws.getRow(r).height = 20
+      r += 1
+    }
   }
   const lastLineRow = r - 1
   r += 1
@@ -500,10 +561,22 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     할인은 항목별 비율이라 한 줄로 못 쓰고, 부가세는 세율 구분(과세·영세·면세)이
     항목마다 다를 수 있어 표에 없는 정보가 필요하다. 지어낸 수식보다 **맞는 값**이 낫다.
   */
-  const has = firstLineRow <= lastLineRow
-  const D = `D${firstLineRow}:D${lastLineRow}`
-  const E = `E${firstLineRow}:E${lastLineRow}`
-  const G = `${LAST_COL}${firstLineRow}:${LAST_COL}${lastLineRow}`
+  const has = lineRows.length > 0
+  /** 연속한 행끼리 묶어 `A2:A4` 꼴로 — 셀을 하나씩 나열하면 수식이 금세 길어진다 */
+  const spans = (col: string): string[] => {
+    const out: string[] = []
+    let i = 0
+    while (i < lineRows.length) {
+      let j = i
+      while (j + 1 < lineRows.length && lineRows[j + 1] === lineRows[j] + 1) j++
+      out.push(i === j ? `${col}${lineRows[i]}` : `${col}${lineRows[i]}:${col}${lineRows[j]}`)
+      i = j + 1
+    }
+    return out
+  }
+  const dS = spans('D')
+  const eS = spans('E')
+  const G = spans(LAST_COL).join(',')
 
   /*
     **공급가액은 «할인 전»이다.**
@@ -527,7 +600,10 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   const taxRow = r + (hasRounding ? 3 : 2)
   const grandRow = r + (hasRounding ? 4 : 3)
 
-  const subtotalF = has ? `SUMPRODUCT(${D},${E})` : null
+  // 구간이 여럿이면 SUMPRODUCT 를 구간마다 더한다 — 한 번에 못 쓰는 함수다
+  const subtotalF = has
+    ? dS.map((d, i) => `SUMPRODUCT(${d},${eS[i]})`).join('+')
+    : null
   /*
     **할인은 절사를 뺀 값이다.** 저장된 discountMinor 에는 절사액이 함께 들어 있는데,
     엑셀에서 둘을 한 줄로 합치면 화면(두 줄)과 다른 문서가 된다.

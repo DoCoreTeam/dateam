@@ -246,6 +246,7 @@ model CrmWorkspace {
   budgets     CrmAiBudget[]
   products    CrmProduct[]
   quotes      CrmQuote[]
+  quoteSections CrmQuoteSection[]
 
   @@map("crm_workspace")
 }
@@ -894,6 +895,7 @@ model CrmQuote {
   workspace CrmWorkspace   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   deal      CrmDeal        @relation(fields: [dealId], references: [id], onDelete: Cascade)
   lines     CrmQuoteLine[]
+  sections  CrmQuoteSection[]
 
   @@unique([workspaceId, quoteNo])
   @@index([workspaceId, dealId, createdAt])
@@ -940,13 +942,44 @@ model CrmQuoteLine {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  quote      CrmQuote       @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  product    CrmProduct?    @relation(fields: [productId], references: [id], onDelete: SetNull)
-  laborGrade CrmLaborGrade? @relation(fields: [laborGradeId], references: [id], onDelete: SetNull)
+  /// 어느 묶음인지. NULL 이면 묶이지 않은 항목 — 섹션 표 아래에 그대로 선다.
+  /// **SetNull 이다**: 섹션을 지워도 항목은 남는다(묶음만 푸는 것이지 물건을 버리는 게 아니다).
+  sectionId String?
+
+  quote      CrmQuote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  section    CrmQuoteSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  product    CrmProduct?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  laborGrade CrmLaborGrade?  @relation(fields: [laborGradeId], references: [id], onDelete: SetNull)
   costs      CrmDealCost[]
 
   @@index([quoteId, position])
+  @@index([sectionId])
   @@map("crm_quote_line")
+}
+
+/// 견적 안의 묶음 — 「1. 하드웨어 / 2. 구축 / 3. 유지보수」.
+///
+/// **섹션은 선택이다.** 하나도 없으면 견적서는 예전처럼 한 표로 그려진다 —
+/// 그래야 지금 있는 견적이 그대로 살아 있다.
+model CrmQuoteSection {
+  id          String @id @default(cuid())
+  workspaceId String
+  quoteId     String
+  name        String
+  /// 인쇄 순서
+  position    Int    @default(0)
+  /// 서버가 계산해 저장한다(불변식 I1 이 이 값과 라인 합을 대조한다)
+  subtotalMinor BigInt @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace CrmWorkspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  quote     CrmQuote       @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  lines     CrmQuoteLine[]
+
+  @@index([quoteId, position])
+  @@map("crm_quote_section")
 }
 
 // ------------------------------------------------------------
