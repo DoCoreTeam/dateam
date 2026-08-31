@@ -22,6 +22,13 @@ const OnboardingProvider = dynamic(() => import('@/components/onboarding/Onboard
 /** 주간보고 작성 가이드 1회 노출 게이트(기존 SpotlightOnboarding localStorage 키 흡수). */
 const WEEKLY_GUIDE_GATE = 'weekly_report_onboarding_done'
 
+/**
+ * 저장이 이보다 오래 걸리면 실패로 본다.
+ * 왜 필요한가: 서버가 아무 응답도 안 주면 화면은 영원히 기다린다 — 그게 「저장 중…」 2주의 정체였다.
+ * 정상 저장은 실측 0.3~1.5초라 15초는 넉넉하다.
+ */
+const SAVE_TIMEOUT_MS = 15_000
+
 const REFINE_STEPS = [
   { label: '내용 분석 중…',    detail: '입력 내용과 전주 데이터 비교 중' },
   { label: 'AI 정비 중…',      detail: 'AI가 내용을 다듬는 중' },
@@ -112,6 +119,8 @@ export default function WeeklyReportForm({
   }, [])
   const [pending, setPending] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  /** 실패의 성격 — 'auth'면 화면이 재로그인까지 안내한다 */
+  const [submitReason, setSubmitReason] = useState<'auth' | 'server' | ''>('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetError, setResetError] = useState('')
   const [resetPending, startResetTransition] = useTransition()
@@ -272,6 +281,7 @@ export default function WeeklyReportForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError('')
+    setSubmitReason('')
 
     // 구분 필수 검증 — 내용이 있는 행 중 구분이 빈 행만 차단 (actions.ts skip 조건과 동기화)
     const isEmptyHtml = (v: string) => !v || v === '<p></p>' || v === '<p><br></p>' || !v.trim()
@@ -299,19 +309,44 @@ export default function WeeklyReportForm({
       formData.set(`row_issues_${i}`, r.issues)
     })
 
-    const result = await upsertWeeklyReport(formData)
+    // 「저장 중…」은 반드시 끝난다.
+    //
+    // 왜 이렇게까지 하나 (실측 2026-08-31): 예전엔 `await` 한 줄이었고 try/catch 도 시간 제한도 없었다.
+    //   서버가 500 을 주거나(배포본 고장) 세션이 끊겨 응답이 값으로 안 오면 `result.ok` 에서 터져
+    //   아래 `setPending(false)` 에 도달하지 못했다 — 버튼이 **영원히 「저장 중…」**.
+    //   프로덕션에서 7번 눌러 7번 다 그랬고, 화면에는 오류 문구가 **한 글자도** 뜨지 않았다.
+    //   그래서 세 겹으로 막는다: ① 시간 제한 ② try/catch ③ finally.
+    //   그리고 **무슨 일이 있어도 쓴 글은 지우지 않는다**(성공했을 때만 임시저장을 비운다).
+    try {
+      const result = await Promise.race([
+        upsertWeeklyReport(formData),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('SAVE_TIMEOUT')), SAVE_TIMEOUT_MS)),
+      ])
 
-    if (result.ok) {
-      weeklyDraft.clear()
-      const dest = selectedWeek !== thisWeek
-        ? `/weekly-report?tab=mine&week=${selectedWeek}&saved=1`
-        : '/weekly-report?tab=mine&saved=1'
-      router.push(dest, { scroll: false })
-    } else {
-      setSubmitError(result.error)
+      if (result?.ok) {
+        weeklyDraft.clear()
+        const dest = selectedWeek !== thisWeek
+          ? `/weekly-report?tab=mine&week=${selectedWeek}&saved=1`
+          : '/weekly-report?tab=mine&saved=1'
+        router.push(dest, { scroll: false })
+      } else if (result) {
+        setSubmitError(result.error)
+        setSubmitReason(result.reason === 'auth' ? 'auth' : 'server')
+      } else {
+        // 서버 액션이 값이 아닌 것을 돌려준 경우(리다이렉트로 화면을 이탈했을 때 실제로 일어난다)
+        setSubmitError('저장 결과를 받지 못했습니다. 다시 시도해 주세요.')
+        setSubmitReason('server')
+      }
+    } catch (err) {
+      const timedOut = err instanceof Error && err.message === 'SAVE_TIMEOUT'
+      setSubmitError(timedOut
+        ? '저장이 제시간에 끝나지 않았습니다. 쓰신 내용은 그대로 있으니 다시 시도해 주세요.'
+        : '저장하지 못했습니다. 쓰신 내용은 그대로 있으니 다시 시도해 주세요.')
+      setSubmitReason('server')
+    } finally {
+      setPending(false)
     }
-
-    setPending(false)
   }
 
   const TH: React.CSSProperties = {
@@ -420,7 +455,25 @@ export default function WeeklyReportForm({
       {/* 알림 */}
       {submitError && (
         <div role="alert" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
-          {submitError}
+          <div style={{ fontWeight: 600 }}>{submitError}</div>
+          {/* 실패했을 때 사용자가 가장 먼저 걱정하는 것은 "쓴 게 날아갔나"다. 그것부터 답한다. */}
+          {submitReason && (
+            <div style={{ marginTop: 'var(--space-2)', color: 'var(--text-muted)', fontWeight: 400 }}>
+              쓰신 내용은 이 기기에 그대로 남아 있어요.
+            </div>
+          )}
+          {submitReason && (
+            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
+              {/* 새 탭으로 연다 — 이 탭을 떠나면 쓰던 내용이 화면에서 사라진다.
+                  로그인만 하고 돌아와 「다시 저장」을 누르면 그대로 저장된다. */}
+              {submitReason === 'auth' && (
+                <a href="/login" target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ textDecoration: 'none' }}>
+                  다시 로그인 (새 탭)
+                </a>
+              )}
+              <button type="submit" className="btn-ghost" disabled={pending}>다시 저장</button>
+            </div>
+          )}
         </div>
       )}
       {refineError && (

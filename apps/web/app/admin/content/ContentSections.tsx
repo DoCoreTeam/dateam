@@ -1,5 +1,7 @@
 'use client'
 
+import type { ContentActionResult } from './actions'
+
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sparkles } from 'lucide-react'
@@ -92,16 +94,16 @@ interface MetaValue {
 interface ContentSectionsProps {
   data: Record<string, unknown>
   actions: {
-    updateMeta: (fd: FormData) => Promise<void>
-    updateProjects: (fd: FormData) => Promise<void>
-    updateMembers: (fd: FormData) => Promise<void>
-    updateMissions: (fd: FormData) => Promise<void>
-    updateOkr: (fd: FormData) => Promise<void>
-    updatePrinciples: (fd: FormData) => Promise<void>
-    updateKpiTargets: (fd: FormData) => Promise<void>
-    updateRhythm: (fd: FormData) => Promise<void>
-    updateRoutineTemplates: (fd: FormData) => Promise<void>
-    updateDevSplit: (fd: FormData) => Promise<void>
+    updateMeta: (fd: FormData) => Promise<ContentActionResult>
+    updateProjects: (fd: FormData) => Promise<ContentActionResult>
+    updateMembers: (fd: FormData) => Promise<ContentActionResult>
+    updateMissions: (fd: FormData) => Promise<ContentActionResult>
+    updateOkr: (fd: FormData) => Promise<ContentActionResult>
+    updatePrinciples: (fd: FormData) => Promise<ContentActionResult>
+    updateKpiTargets: (fd: FormData) => Promise<ContentActionResult>
+    updateRhythm: (fd: FormData) => Promise<ContentActionResult>
+    updateRoutineTemplates: (fd: FormData) => Promise<ContentActionResult>
+    updateDevSplit: (fd: FormData) => Promise<ContentActionResult>
   }
 }
 
@@ -175,10 +177,12 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
   // incremented on AI apply to force DynamicTable remount (uncontrolled component)
   const [tableKeys, setTableKeys] = useState<Record<string, number>>({})
 
-  const showToast = useCallback((ok: boolean) => {
+  // 실패는 **이유와 함께** 말한다 — 「저장 실패」만 뜨면 무엇을 고쳐야 할지 알 수 없다.
+  // 실패 토스트는 더 오래 띄운다(사용자가 읽고 조치해야 한다).
+  const showToast = useCallback((ok: boolean, reason?: string) => {
     if (timerRef.current) clearTimeout(timerRef.current)
-    setToast({ msg: ok ? '저장되었습니다' : '저장 실패', ok })
-    timerRef.current = setTimeout(() => setToast(null), 3000)
+    setToast({ msg: ok ? '저장되었습니다' : (reason ?? '저장하지 못했습니다'), ok })
+    timerRef.current = setTimeout(() => setToast(null), ok ? 3000 : 6000)
   }, [])
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
@@ -256,18 +260,30 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
   )
 
 
+  /**
+   * 저장 결과를 **반드시 읽는다**.
+   *
+   * 예전엔 `await action(fd)` 뒤에 무조건 성공 토스트를 띄웠다. 그래서 권한이 없거나
+   * JSON 이 깨졌을 때 서버가 조용히 아무것도 안 해도 화면은 「저장되었습니다」라고 말했다.
+   * 지금은 서버가 `{ ok, error }` 를 돌려주고 이 자리에서 그 값으로 판정한다.
+   */
   const submit = useCallback(
-    (action: (fd: FormData) => Promise<void>) =>
+    (action: (fd: FormData) => Promise<ContentActionResult>) =>
       async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         try {
-          await action(new FormData(e.currentTarget))
-          showToast(true)
+          const result = await action(new FormData(e.currentTarget))
+          if (result?.ok) {
+            showToast(true)
+            router.refresh()
+          } else {
+            showToast(false, result?.error)
+          }
         } catch {
-          showToast(false)
+          showToast(false, '저장하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.')
         }
       },
-    [showToast]
+    [showToast, router]
   )
 
   const meta = (data['META'] ?? {}) as MetaValue
