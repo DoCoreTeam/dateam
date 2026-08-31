@@ -32,4 +32,12 @@ export interface ListFilterDef {
   key: string
   label: string
   options: ListFilterOption[]
+  /**
+   * **「전체」를 붙이지 않는다.**
+   *
+   * 보통 필터는 「상태 전체」가 뜻이 있다(안 거른 상태). 그런데 **옵션 자체가 전 범위를
+   * 덮는** 필터가 있다 — 할 일의 「할 일 / 전부」가 그렇다. 거기에 「범위 전체」를 더하면
+   * 같은 뜻이 두 자리에 서고, 사용자는 **둘이 어떻게 다른지**를 고민하게 된다.
+   */
+  noAll?: boolean
 }

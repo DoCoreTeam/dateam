@@ -86,7 +86,8 @@ export default function ListToolbar({
             aria-label={f.label}
             onChange={(e) => onChange({ filters: { [f.key]: e.target.value } })}
           >
-            <option value="">{f.label} 전체</option>
+            {/* 옵션이 이미 전 범위를 덮는 필터는 「전체」를 붙이지 않는다(뜻이 겹친다) */}
+            {!f.noAll && <option value="">{f.label} 전체</option>}
             {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </label>

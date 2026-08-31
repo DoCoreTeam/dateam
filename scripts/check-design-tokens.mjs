@@ -235,8 +235,25 @@ if (UPDATE) {
   process.exit(0)
 }
 
-/** 구판(배열=키 목록)도 읽는다. 개수를 모르므로 이번 실행 값으로 1회 이관한다. */
+/**
+ * 구판(배열=키 목록)도 읽는다. 개수를 모르므로 이번 실행 값으로 1회 이관한다.
+ *
+ * **`--commit-scope` 에서는 baseline 도 HEAD 에서 읽는다.**
+ *
+ * 왜: 소스는 «커밋된 내용»으로 판정하는데(남의 미커밋을 내 커밋에 물리지 않으려고)
+ * baseline 만 디스크에서 읽으면 **둘의 시점이 어긋난다.**
+ * 실측(v0.7.665): 다른 세션이 baseline 을 2→1 로 낮춘 채 미커밋으로 두었더니,
+ * HEAD 소스는 2건인데 baseline 은 1건이라 **내 커밋이 남의 중간 상태 때문에 막혔다** —
+ * 정책이 명시적으로 「남의 미커밋 파일이 ratchet baseline 을 조이지 않는다」고 한 그 자리다.
+ */
 function loadBaseline() {
+  if (COMMIT_SCOPE) {
+    const fromHead = readFromHead(BASELINE_PATH)
+    if (fromHead) {
+      const raw = JSON.parse(fromHead)
+      if (!Array.isArray(raw)) return { counts: new Map(Object.entries(raw)), legacy: false }
+    }
+  }
   if (!existsSync(BASELINE_PATH)) return { counts: new Map(), legacy: false }
   const raw = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
   if (Array.isArray(raw)) {
