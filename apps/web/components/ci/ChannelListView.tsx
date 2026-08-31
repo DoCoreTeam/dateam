@@ -179,8 +179,8 @@ export default function ChannelListView({
             {/* 지켜보기를 멈추는 것과 목록에서 없애는 것은 다른 일이다.
                 예전엔 중지만 있어 그만 볼 채널이 목록에 영원히 남았다. */}
             <button type="button" className="btn-ghost"
-              onClick={() => del_.ask({ kind: 'channel', id: ch.id, title: '이 채널을 지울까요?' })}
-              aria-label="채널 지우기" title="지우기">지우기</button>
+              onClick={() => del_.ask({ kind: 'channel', id: ch.id, title: '이 채널을 삭제할까요?' })}
+              aria-label="채널 삭제" title="삭제">삭제</button>
           </RowActions>
         ),
       })

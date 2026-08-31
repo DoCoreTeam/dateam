@@ -220,8 +220,8 @@ export default function ChannelDetailView({
           {/* 지켜보기를 멈추는 것과 없애는 것은 다른 일이다.
               내 채널이든 관심 채널이든 지울 수 있어야 목록을 정리할 수 있다. */}
           <button type="button" className="btn-ghost"
-            onClick={() => del_.ask({ kind: 'channel', id: channel.id, title: '이 채널을 지울까요?' })}
-            disabled={busy}>지우기</button>
+            onClick={() => del_.ask({ kind: 'channel', id: channel.id, title: '이 채널을 삭제할까요?' })}
+            disabled={busy}>삭제</button>
           {notice && <span className="ci-basis" role="status">{notice}</span>}
           {channel.metaError && !notice && !error && (
             <span className="ci-status ci-status-warn">{channel.metaError}</span>

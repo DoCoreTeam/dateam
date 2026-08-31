@@ -16,6 +16,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './timeline.module.css'
+import { ACTION } from '@/lib/terms'
 
 export interface ActivityItem {
   id: string
@@ -250,11 +251,11 @@ export default function Timeline({ scope }: { scope: TimelineScope }) {
                     </button>
                   )}
                   {/* 사람이 남길 수 있는 종류만 지울 수 있다 — 서버 판정과 같은 기준이다.
-                      다르면 지우기 버튼을 눌렀는데 서버가 거절하는 화면이 된다 */}
+                      다르면 삭제 버튼을 눌렀는데 서버가 거절하는 화면이 된다 */}
                   {MANUAL_VALUES.has(a.type) && (
                     <button
                       type="button" className={styles.remove}
-                      aria-label={`${a.title} 지우기`}
+                      aria-label={`${a.title} ${ACTION.delete}`}
                       onClick={() => void remove(a.id)}
                     >
                       <Trash2 size={13} />

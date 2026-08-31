@@ -29,7 +29,7 @@ export interface DeleteImpactView {
 }
 
 interface Props {
-  /** 대화상자 제목 — "게시물을 지울까요?"처럼 무엇인지 드러낸다 */
+  /** 대화상자 제목 — "게시물을 삭제할까요?"처럼 무엇인지 드러낸다 */
   title: string
   /** 영향을 아직 세는 중이면 null */
   impact: DeleteImpactView | null

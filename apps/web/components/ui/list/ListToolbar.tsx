@@ -71,7 +71,7 @@ export default function ListToolbar({
           onBlur={() => { if (draft.trim() !== query.q) onChange({ q: draft.trim() }) }}
         />
         {query.q && (
-          <button type="button" className="list-search-clear" aria-label="검색어 지우기"
+          <button type="button" className="list-search-clear" aria-label="검색어 비우기"
             onClick={() => onChange({ q: '' })}>
             <X size={14} />
           </button>

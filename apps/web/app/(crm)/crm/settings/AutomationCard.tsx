@@ -21,6 +21,7 @@ import {
   type AutomationRule, type TriggerKind,
 } from '@/lib/crm/services/automation'
 import styles from './settings.module.css'
+import { ACTION } from '@/lib/terms'
 
 interface Stage { id: string; name: string; pipelineName: string }
 
@@ -173,7 +174,7 @@ export default function AutomationCard() {
                 <NbButton
                   variant="ghost"
                   onClick={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
-                  aria-label="규칙 지우기"
+                  aria-label={`규칙 ${ACTION.delete}`}
                 >
                   <Trash2 size={14} />
                 </NbButton>

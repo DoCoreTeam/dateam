@@ -30,6 +30,8 @@ import {
   CONFIGURABLE_CRITERIA, CRITERION_LABEL, MAX_MEANING_LEN,
   type CriterionKey, type CriterionLevel,
 } from '@/lib/crm/domain/entry-criteria'
+import { useAskDialog } from '@/components/ui/useAskDialog'
+import { ACTION, count, createLabel } from '@/lib/terms'
 import styles from './process.module.css'
 
 interface Criterion { key: CriterionKey; level: CriterionLevel }
@@ -70,6 +72,8 @@ function activeRules(s: Stage): Criterion[] {
 }
 
 export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 — 묻는 자리가 일곱이라 한 벌로 쓴다
+  const { ask, dialog } = useAskDialog()
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -145,13 +149,15 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
   }
 
   async function renamePipeline(p: Pipeline) {
-    const name = window.prompt('영업 단계 이름', p.name)?.trim()
+    const name = await ask.text({
+      title: '파이프라인 이름 바꾸기', label: '이름', defaultValue: p.name, confirmLabel: ACTION.save,
+    })
     if (!name || name === p.name) return
     await send(`rn:${p.id}`, `/api/crm/pipelines/${p.id}`, json({ name }, 'PATCH'), '이름을 바꿨어요.')
   }
 
   /**
-   * 지우기 전에 **무엇이 걸려 있는지 먼저 세어 보여 준다.**
+   * 삭제하기 전에 **무엇이 걸려 있는지 먼저 세어 보여 준다.**
    * 개수를 모른 채 "정말 지울까요?"만 물으면 사람은 확인할 방법이 없다.
    */
   async function removePipeline(p: Pipeline) {
@@ -162,10 +168,17 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
       const u = body?.data?.usage ?? body?.usage
       const total = (u?.openDeals ?? 0) + (u?.closedDeals ?? 0)
       const msg = total > 0
-        ? `"${p.name}"에 딜 ${total}건(진행 ${u.openDeals}건)이 있어요.\n\n먼저 옮기거나 닫아야 지울 수 있습니다.`
-        : `"${p.name}"을(를) 지울까요?\n단계 ${u?.stages ?? p.stages.length}개가 함께 사라집니다. 딜은 없습니다.`
-      if (total > 0) { window.alert(msg); return }
-      if (!window.confirm(msg)) return
+        ? `"${p.name}"에 ${count('deal', total)}(진행 ${u.openDeals}건)이 있어요.\n\n먼저 옮기거나 닫아야 삭제할 수 있습니다.`
+        : `단계 ${u?.stages ?? p.stages.length}개가 함께 사라집니다. 딜은 없습니다.`
+      if (total > 0) {
+        // 지울 수 없는 상태다 — «확인/취소»를 물으면 취소해도 되는 것처럼 읽힌다
+        await ask.notice({ title: '아직 삭제할 수 없어요', body: msg })
+        return
+      }
+      if (!await ask.confirm({
+        title: `"${p.name}"${eulReul(p.name)} 삭제할까요?`, body: msg,
+        confirmLabel: ACTION.delete, danger: true,
+      })) return
     } finally {
       setBusy(null)
     }
@@ -178,24 +191,35 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
   }
 
   async function addStage(pipelineId: string) {
-    const name = window.prompt('새 단계 이름 (예: 기술 검토)')?.trim()
+    const name = await ask.text({
+      title: createLabel('단계'), label: '단계 이름', placeholder: '예: 기술 검토',
+      confirmLabel: ACTION.save,
+    })
     if (!name) return
     await send('add-stage', '/api/crm/stages', json({ pipelineId, name }, 'POST'),
       `"${name}" 단계를 넣었어요.`)
   }
 
   async function renameStage(st: Stage) {
-    const name = window.prompt('단계 이름', st.name)?.trim()
+    const name = await ask.text({
+      title: '단계 이름 바꾸기', label: '이름', defaultValue: st.name, confirmLabel: ACTION.save,
+    })
     if (!name || name === st.name) return
     await send(`sn:${st.id}`, `/api/crm/stages/${st.id}`, json({ name }, 'PATCH'), '단계 이름을 바꿨어요.')
   }
 
   async function removeStage(st: Stage) {
     if (st.dealCount > 0) {
-      window.alert(`"${st.name}"에 딜 ${st.dealCount}건이 있어요.\n\n다른 단계로 옮긴 뒤에 지울 수 있습니다.`)
+      await ask.notice({
+        title: '아직 삭제할 수 없어요',
+        body: `"${st.name}"에 ${count('deal', st.dealCount)}이 있어요.\n\n다른 단계로 옮긴 뒤에 삭제할 수 있습니다.`,
+      })
       return
     }
-    if (!window.confirm(`"${st.name}" 단계를 지울까요?`)) return
+    if (!await ask.confirm({
+      title: `"${st.name}" 단계를 삭제할까요?`,
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
     await send(`sd:${st.id}`, `/api/crm/stages/${st.id}`, { method: 'DELETE' }, `"${st.name}" 단계를 지웠어요.`)
   }
 
@@ -317,7 +341,7 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
               </NbButton>
             )}
             <NbButton variant="ghost" onClick={() => void removePipeline(active)}
-              disabled={busy === `del:${active.id}`} aria-label="지우기" title="지우기">
+              disabled={busy === `del:${active.id}`} aria-label={ACTION.delete} title={ACTION.delete}>
               <Trash2 size={14} />
             </NbButton>
             <NbButton variant="ghost" onClick={() => setAdding((v) => !v)}>
@@ -389,7 +413,7 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
                   {s.kind === 'OPEN' && (
                     <button type="button" className={styles.iconBtn}
                       onClick={() => void removeStage(s)}
-                      disabled={busy === `sd:${s.id}`} aria-label="지우기" title="지우기">
+                      disabled={busy === `sd:${s.id}`} aria-label={ACTION.delete} title={ACTION.delete}>
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -521,6 +545,9 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
       <div className={styles.foot}>
         <NbButton variant="ghost" onClick={() => void load()}>새로고침</NbButton>
       </div>
+
+      {/* 대화상자는 마지막에 — 렌더하지 않으면 물어도 안 뜬다 */}
+      {dialog}
     </>
   )
 }

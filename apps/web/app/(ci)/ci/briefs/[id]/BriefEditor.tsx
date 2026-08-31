@@ -179,8 +179,8 @@ export default function BriefEditor({
           <button type="button" className="btn-ghost" onClick={() => exportPlan(p)}>내보내기</button>
           {/* 여러 안을 만들어 비교하는 화면이라, 버린 안을 없앨 길이 있어야 목록이 쓸모 있다 */}
           <button type="button" className="btn-ghost"
-            onClick={() => del_.ask({ kind: 'editPlan', id: p.id, title: '이 편집안을 지울까요?' })}>
-            지우기
+            onClick={() => del_.ask({ kind: 'editPlan', id: p.id, title: '이 편집안을 삭제할까요?' })}>
+            삭제
           </button>
         </span>
       ),
@@ -386,8 +386,8 @@ export default function BriefEditor({
       }}>
         <Link href="/ci/publish" className="btn-primary">게시 준비로 보내기</Link>
         <button type="button" className="btn-ghost"
-          onClick={() => del_.ask({ kind: 'brief', id: state.id, title: '이 기획을 지울까요?' })}>
-          지우기
+          onClick={() => del_.ask({ kind: 'brief', id: state.id, title: '이 기획을 삭제할까요?' })}>
+          삭제
         </button>
       </p>
 

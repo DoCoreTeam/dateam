@@ -263,7 +263,7 @@ export default function ConversationSidebar({
           aria-label="대화 검색"
         />
         {searchQuery && (
-          <button type="button" className="ai-chat-search-clear" onClick={() => setSearchQuery('')} aria-label="검색어 지우기">
+          <button type="button" className="ai-chat-search-clear" onClick={() => setSearchQuery('')} aria-label="검색어 비우기">
             <X size={14} />
           </button>
         )}

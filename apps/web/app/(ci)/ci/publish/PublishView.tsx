@@ -148,8 +148,8 @@ export default function PublishView({
         // 지우는 것은 **우리 기록**이고 플랫폼의 실제 게시물은 그대로다(대화상자가 밝힌다).
         <span onClick={(e) => e.stopPropagation()}>
           <button type="button" className="btn-ghost"
-            onClick={() => del_.ask({ kind: 'publication', id: p.id, title: '이 게시 기록을 지울까요?' })}
-            aria-label="게시 기록 지우기" title="지우기">지우기</button>
+            onClick={() => del_.ask({ kind: 'publication', id: p.id, title: '이 게시 기록을 삭제할까요?' })}
+            aria-label="게시 기록 삭제" title="삭제">삭제</button>
         </span>
       ) : (
         <span style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>

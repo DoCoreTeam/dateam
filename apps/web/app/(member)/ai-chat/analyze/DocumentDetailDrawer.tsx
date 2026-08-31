@@ -17,6 +17,8 @@ import { getDocument, updateDocument, deleteDocument, type AnalysisDocumentSumma
 import { setAnalyzeChatHandoff } from '@/lib/ai-chat/analyze-chat-bridge'
 import WorkflowHandoffModal from './WorkflowHandoffModal'
 import ExportMenu, { type ExportFormat } from './ExportMenu'
+import { useAskDialog } from '@/components/ui/useAskDialog'
+import { ACTION } from '@/lib/terms'
 
 interface Props {
   documentId: string
@@ -38,6 +40,8 @@ function downloadTextFile(filename: string, content: string, mime: string): void
 }
 
 export default function DocumentDetailDrawer({ documentId, onClose, onChanged, onDeleted }: Props) {
+  // 브라우저 기본 대화상자 대신 우리 모달(§2-5·§2-2)
+  const { ask, dialog } = useAskDialog()
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [bodyMd, setBodyMd] = useState('')
@@ -83,7 +87,11 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
   }
 
   async function handleDelete() {
-    if (deleting || !window.confirm('이 문서를 삭제할까요? 나중에 휴지통에서 되돌릴 수 있습니다.')) return
+    if (deleting) return
+    if (!await ask.confirm({
+      title: '이 문서를 삭제할까요?', body: '나중에 휴지통에서 되돌릴 수 있습니다.',
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
     setDeleting(true)
     const r = await deleteDocument(documentId)
     setDeleting(false)
@@ -186,6 +194,8 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
     </SlidePanel>
     {/* 전체화면 모달은 패널 **바깥**에 둔다 — 패널의 transform이 fixed 기준을 뺏는다 */}
     {showHandoff && <WorkflowHandoffModal title={title} bodyMd={bodyMd} onClose={() => setShowHandoff(false)} />}
+    {/* 대화상자도 패널 바깥이다 — 같은 이유로 */}
+    {dialog}
     </>
   )
 }

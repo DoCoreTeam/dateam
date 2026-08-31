@@ -33,6 +33,8 @@ import { useListQuery } from '@/lib/ui/use-list-query'
 import type { ListDefaults } from '@/lib/ui/list-query'
 import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
 import { useCiDelete } from '@/lib/ci/use-delete'
+import { useAskDialog } from '@/components/ui/useAskDialog'
+import { ACTION, createLabel } from '@/lib/terms'
 
 /** 셀렉트에서 '새로 만들기'를 뜻하는 값. 실제 id와 겹치지 않는다(uuid가 아니다). */
 const NEW_TOPIC = '__new__'
@@ -146,6 +148,8 @@ export default function InboxView({
   groups = null, groupTotal = 0,
 }: InboxViewProps) {
   const router = useRouter()
+  // 브라우저 기본 대화상자 대신 우리 모달(§2-5·§2-2)
+  const { ask, dialog } = useAskDialog()
   const searchParams = useSearchParams()
   const { query, set } = useListQuery(LIST_DEFAULTS)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -181,7 +185,10 @@ export default function InboxView({
 
   /** 셀렉트에서 "새 주제 만들기"를 고르면 이름을 받아 만들고 그대로 지정한다. */
   async function createTopicAndAssign(contentId: string) {
-    const name = window.prompt('새 주제 이름')?.trim()
+    const name = await ask.text({
+      title: createLabel('주제'), label: '주제 이름', placeholder: '예: 클라우드 비용 절감',
+      confirmLabel: ACTION.save,
+    })
     if (!name) { router.refresh(); return }   // 취소하면 셀렉트를 원래대로 되돌린다
     const res = await fetch('/api/ci/topics', {
       method: 'POST',
@@ -335,8 +342,8 @@ export default function InboxView({
           </Link>
           {/* 잘못 들어온 게시물을 없앨 길. 예전엔 재시도밖에 없어 실패한 링크가 영원히 남았다 */}
           <button type="button" className="btn-ghost"
-            onClick={() => del_.ask({ kind: 'content', id: item.id, title: '이 게시물을 지울까요?' })}
-            aria-label="게시물 지우기" title="지우기">
+            onClick={() => del_.ask({ kind: 'content', id: item.id, title: '이 게시물을 삭제할까요?' })}
+            aria-label="게시물 삭제" title="삭제">
             <Trash2 size={15} />
           </button>
         </span>
@@ -505,6 +512,9 @@ export default function InboxView({
       {detailSheet}
       </>
       )}
+
+      {/* 대화상자는 렌더해야 뜬다 — 안 그리면 물어도 안 나오고 그대로 멈춘다 */}
+      {dialog}
     </>
   )
 }

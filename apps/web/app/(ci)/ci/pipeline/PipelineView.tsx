@@ -217,8 +217,8 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
                           안 할 아이디어가 보드에 계속 쌓였다.
                           이 아이디어로 만든 기획·편집안도 함께 사라진다(대화상자가 미리 알려 준다). */}
                       <button type="button" className="ci-metric"
-                        onClick={() => del_.ask({ kind: 'idea', id: card.id, title: '이 아이디어를 지울까요?' })}
-                        title="지우기">지우기</button>
+                        onClick={() => del_.ask({ kind: 'idea', id: card.id, title: '이 아이디어를 삭제할까요?' })}
+                        title="삭제">삭제</button>
                     </div>
                   </article>
                 ))}

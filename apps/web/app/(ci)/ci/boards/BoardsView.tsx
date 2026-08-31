@@ -141,8 +141,8 @@ export default function BoardsView({
             onClick={() => { setNameDraft(b.name); setRenaming(b.id) }}
             aria-label="보드 이름 바꾸기" title="이름 바꾸기">이름 바꾸기</button>
           <button type="button" className="btn-ghost"
-            onClick={() => del_.ask({ kind: 'board', id: b.id, title: '이 보드를 지울까요?' })}
-            aria-label="보드 지우기" title="지우기">지우기</button>
+            onClick={() => del_.ask({ kind: 'board', id: b.id, title: '이 보드를 삭제할까요?' })}
+            aria-label="보드 삭제" title="삭제">삭제</button>
         </span>
       ),
     }]),
@@ -193,7 +193,7 @@ export default function BoardsView({
         // 담을 항목을 들고 왔을 때는 "여기에 담기"가 우선이라 링크를 끈다.
         rowHref={pendingContentId ? undefined : (b) => `/ci/boards/${b.id}`}
         empty={query.q
-          ? { title: '찾는 보드가 없어요', description: '다른 이름으로 찾아보세요', action: { label: '검색 지우기', onClick: () => set({ q: '' }) } }
+          ? { title: '찾는 보드가 없어요', description: '다른 이름으로 찾아보세요', action: { label: '검색 비우기', onClick: () => set({ q: '' }) } }
           : {
             title: '아직 만든 보드가 없어요',
             description: '트렌드나 수집함에서 “보드 담기”를 누르면 여기에 모입니다. 제작의 아이디어 열이 이 보드를 소스로 씁니다.',

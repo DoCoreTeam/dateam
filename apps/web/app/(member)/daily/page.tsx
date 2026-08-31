@@ -32,6 +32,8 @@ import MemoListView from '@/components/ui/memo/MemoListView'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 
 import { STATUS_LIST } from '@/lib/tokens/status-colors'
+import { useAskDialog } from '@/components/ui/useAskDialog'
+import { ACTION } from '@/lib/terms'
 const ENTRY_TYPES = STATUS_LIST as { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[]
 const ENTRY_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.value, t])) as Record<DailyLogEntryType, typeof ENTRY_TYPES[number]>
 // 일일업무에서는 '블로커' 제외(부서업무 전용 개념 — 일일엔 혼란). 배지맵(ENTRY_MAP)엔 유지: 레거시 blocker 행 렌더용.
@@ -84,6 +86,8 @@ function getMondayOfWeek(date: Date) {
 }
 
 export default function DailyPage() {
+  // 브라우저 기본 대화상자 대신 우리 모달(§2-5·§2-2)
+  const { ask, dialog } = useAskDialog()
   // Context-aware mutate — SWRProvider가 주입한 영속 캐시(createPersistentProvider) 인스턴스를
   // 정확히 타겟한다. swr의 모듈 레벨 전역 mutate는 글로벌 기본 캐시만 무효화해 Context 캐시를
   // 건드리지 못하므로(저장 후 목록 미반영 회귀의 원인), 반드시 useSWRConfig().mutate를 사용한다.
@@ -478,11 +482,11 @@ export default function DailyPage() {
   }
 
   // 묶음(원본+분해 전체) 삭제 — confirm 후 deleteLogGroup. 단건이면 1건만.
-  const handleDeleteGroup = (headLogId: string, count: number) => {
+  const handleDeleteGroup = async (headLogId: string, count: number) => {
     const msg = count > 1
       ? `원본 입력과 분해 항목 ${count}개가 함께 삭제됩니다. 계속할까요?`
       : '이 업무를 삭제할까요? 삭제하면 되돌릴 수 없습니다.'
-    if (!window.confirm(msg)) return
+    if (!await ask.confirm({ title: msg, confirmLabel: ACTION.delete, danger: true })) return
     startTransition(async () => {
       const result = await deleteLogGroup(headLogId)
       if (result.ok) {
@@ -572,6 +576,8 @@ export default function DailyPage() {
 
   return (
     <>
+    {/* 대화상자는 렌더해야 뜬다 — 안 그리면 물어도 안 나오고 그대로 멈춘다 */}
+    {dialog}
     {confirmModal.open && (
       <DeleteConfirmModal
         onConfirm={handleDeleteConfirm}

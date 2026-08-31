@@ -24,6 +24,7 @@ import DateField from '@/components/ui/DateField'
 import { ACTION, confirmDelete, failedTo } from '@/lib/terms'
 import { kstTodayKey, kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { isEnterKey } from '@/lib/ui/ime'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 import styles from './tasks.module.css'
 
 interface Task {
@@ -69,6 +70,7 @@ export default function TasksClient() {
    * 서버는 제목뿐 아니라 회사·딜·인물 이름까지 훑는다.
    */
   const [q, setQ] = useState('')
+  const { ask, dialog } = useAskDialog()
   const [title, setTitle] = useState('')
   /**
    * 캘린더에서 날짜를 눌러 들어오면 그 날이 마감일이다(`?due=`).
@@ -126,7 +128,10 @@ export default function TasksClient() {
    * 휴지통이라 되돌릴 수 있지만(30일) 확인은 받는다 — 목록에서 사라지는 건 같다.
    */
   async function remove(t: Task) {
-    if (!window.confirm(confirmDelete('task', 1, { stays: '딜과 미팅 기록은 그대로 남아요.' }))) return
+    if (!await ask.confirm({
+      title: confirmDelete('task', 1, { stays: '딜과 미팅 기록은 그대로 남아요.' }),
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
     setBusy(t.id)
     setError(null)
     try {
@@ -279,6 +284,9 @@ export default function TasksClient() {
             })}
           </ul>
         )}
+
+      {/* 대화상자는 렌더해야 뜬다 — 안 그리면 물어도 안 나오고 그대로 멈춘다 */}
+      {dialog}
     </>
   )
 }

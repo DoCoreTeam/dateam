@@ -16,7 +16,7 @@
 /** 행위 키 — 코드가 부르는 이름. 영문 식별자·API 동사와 같은 뜻으로 맞춘다 */
 export type ActionKey =
   | 'save' | 'delete' | 'disconnect' | 'create' | 'edit' | 'change'
-  | 'cancel' | 'close' | 'confirm' | 'apply' | 'restore' | 'retry'
+  | 'cancel' | 'close' | 'confirm' | 'apply' | 'restore' | 'retry' | 'clear'
 
 export const ACTION: Record<ActionKey, string> = {
   /** 폼·모달의 확정 버튼. **언제나 「저장」**이다(§2-5 (4)) — 카드별 변형 금지 */
@@ -35,6 +35,13 @@ export const ACTION: Record<ActionKey, string> = {
   cancel: '취소',
   /** 패널·시트를 닫는다 — **닫아도 한 일은 남는다.** 취소와 다르다 */
   close: '닫기',
+  /**
+   * **입력을 비우는 것** — 데이터를 없애는 「삭제」와 다르다.
+   *
+   * 검색어를 비우는 X 버튼에 「지우기」를 쓰면 금지어이기도 하고,
+   * 무엇보다 **데이터가 사라지는 줄 알고 손이 멈춘다.**
+   */
+  clear: '비우기',
   /** 알림을 읽었다는 응답 */
   confirm: '확인',
   /** **AI 제안을 실제 값으로** 옮긴다 */
