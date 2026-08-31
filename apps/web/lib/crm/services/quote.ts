@@ -89,6 +89,12 @@ export interface QuoteRow {
   validUntil: Date | null
   subtotalMinor: bigint
   discountMinor: bigint
+  /** 어디서 복제됐나 */
+  sourceQuoteId: string | null
+  /** 개정 차수. 1 이면 첫 판 */
+  revision: number
+  /** 다른 안의 이름 — 「1안」. null 이면 안 구분 없음 */
+  variantLabel: string | null
   /** 절사 지시 — 0 이면 안 함 */
   roundingUnit: number
   roundingMode: string
@@ -126,6 +132,7 @@ const SELECT = {
   id: true, dealId: true, quoteNo: true, title: true, status: true, currency: true,
   validUntil: true, subtotalMinor: true, discountMinor: true, taxMinor: true, totalMinor: true,
   roundingUnit: true, roundingMode: true, roundingMinor: true,
+  sourceQuoteId: true, revision: true, variantLabel: true,
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
   // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
   termIds: true, ownerId: true, createdById: true, recipientPersonId: true,
@@ -988,6 +995,122 @@ async function recalcSectionSubtotals(
       where: { id: sec.id }, data: { subtotalMinor: sum.get(sec.id) ?? BigInt(0) },
     })
   }
+}
+
+/** 복제가 «무엇»인가 — 뜻이 다르므로 갈래를 받는다 */
+export type DuplicateMode = 'revision' | 'variant'
+
+export interface DuplicateQuoteInput {
+  mode: DuplicateMode
+  /** 다른 안일 때의 이름 — 「2안」·「대용량 구성」 */
+  variantLabel?: string | null
+}
+
+/**
+ * 견적을 복제한다 — **개정본**이거나 **다른 안**이다.
+ *
+ * **왜 필요한가**: 보낸 견적은 고칠 수 없다(고치면 고객이 든 문서와 달라진다).
+ * 그래서 값을 바꾸려면 처음부터 다시 써야 했고, 새로 쓴 것과 보낸 것 사이에
+ * **아무 연결도 없어서** 「이게 그 건의 몇 번째지?」를 아무도 답할 수 없었다.
+ *
+ * 두 갈래의 차이:
+ *   · `revision` — 같은 제안의 다음 판. 앞 판을 **대체**한다. 차수가 1 오른다.
+ *   · `variant`  — 같은 시점의 선택지. **나란히** 산다. 차수는 그대로고 이름이 붙는다.
+ *
+ * **새 견적은 언제나 초안(DRAFT)이다.** 복제하자마자 「보냄」이면 고치지도 못한 채
+ * 보낸 것이 되어, 복제한 의미가 사라진다.
+ */
+export async function duplicateQuote(
+  workspaceId: string,
+  actorId: string | null,
+  id: string,
+  input: DuplicateQuoteInput,
+): Promise<QuoteRow> {
+  const mode: DuplicateMode = input.mode === 'variant' ? 'variant' : 'revision'
+
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const src = await (tx as any).crmQuote.findFirst({ where: { id }, select: SELECT })
+    if (!src) throw new CrmError('NOT_FOUND', '견적을 찾을 수 없습니다.')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const srcLines = await (tx as any).crmQuoteLine.findMany({
+      where: { quoteId: id }, select: LINE_SELECT, orderBy: { position: 'asc' },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const srcSections = await (tx as any).crmQuoteSection.findMany({
+      where: { quoteId: id }, select: { id: true, name: true }, orderBy: { position: 'asc' },
+    })
+
+    const pattern = await readQuoteNoPattern(tx)
+    const todayKey = kstTodayKey()
+    const quoteNo = await nextQuoteNo(tx, pattern, todayKey)
+
+    const title = mode === 'revision'
+      ? src.title
+      // 다른 안은 제목에서 구분된다 — 목록에서 둘이 나란히 서기 때문이다
+      : `${src.title} (${normalizeText(input.variantLabel) ?? '다른 안'})`
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const made = await (tx as any).crmQuote.create({
+      data: {
+        dealId: src.dealId, quoteNo, title, currency: src.currency,
+        validUntil: src.validUntil, notesMd: src.notesMd,
+        termIds: src.termIds, ownerId: src.ownerId,
+        recipientPersonId: src.recipientPersonId,
+        createdById: actorId,
+        subtotalMinor: src.subtotalMinor, discountMinor: src.discountMinor,
+        taxMinor: src.taxMinor, totalMinor: src.totalMinor,
+        roundingUnit: src.roundingUnit, roundingMode: src.roundingMode,
+        roundingMinor: src.roundingMinor,
+        approvalRequired: src.approvalRequired,
+        // 승인은 **따라오지 않는다** — 금액이 달라질 문서이므로 다시 받아야 한다
+        sourceQuoteId: src.id,
+        revision: mode === 'revision' ? src.revision + 1 : src.revision,
+        variantLabel: mode === 'variant'
+          ? (normalizeText(input.variantLabel) ?? '다른 안')
+          : src.variantLabel,
+      },
+      select: SELECT,
+    })
+
+    // 묶음을 먼저 만들고(항목이 가리킨다), 옛 id → 새 id 표를 만든다
+    const secMap = new Map<string, string>()
+    for (let i = 0; i < srcSections.length; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sec = await (tx as any).crmQuoteSection.create({
+        data: { quoteId: made.id, workspaceId, name: srcSections[i].name, position: i },
+        select: { id: true },
+      })
+      secMap.set(srcSections[i].id, sec.id)
+    }
+
+    for (const l of srcLines) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (tx as any).crmQuoteLine.create({
+        data: {
+          quoteId: made.id,
+          productId: l.productId, name: l.name, descriptionMd: l.descriptionMd,
+          quantity: l.quantity, unit: l.unit, unitPriceMinor: l.unitPriceMinor,
+          discountPercent: l.discountPercent,
+          specialDiscountPercent: l.specialDiscountPercent,
+          specialDiscountReason: l.specialDiscountReason,
+          taxRate: l.taxRate, lineTotalMinor: l.lineTotalMinor, position: l.position,
+          kind: l.kind, roleLabel: l.roleLabel, laborGradeId: l.laborGradeId,
+          sectionId: l.sectionId ? (secMap.get(l.sectionId) ?? null) : null,
+        },
+      })
+    }
+    await recalcSectionSubtotals(tx, made.id)
+
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId,
+      action: mode === 'revision' ? 'quote.revised' : 'quote.varianted',
+      targetType: 'quote', targetId: made.id,
+      afterJson: { from: src.quoteNo, to: quoteNo, revision: made.revision },
+    })
+    return made as QuoteRow
+  })
 }
 
 // ------------------------------------------------------------

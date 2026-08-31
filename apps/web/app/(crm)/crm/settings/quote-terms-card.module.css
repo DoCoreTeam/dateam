@@ -38,7 +38,8 @@
 
 .item {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  /* 버튼이 둘이 됐다 — 수정 · 삭제 */
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) 0;
@@ -78,4 +79,13 @@
 
 @media screen and (max-width: 767px) {
   .row { grid-template-columns: 1fr; }
+}
+
+
+/* 같은 폼이 «추가»와 «수정» 둘 다 하므로, 지금 무엇을 하는지 폼이 밝힌다 */
+.formTitle {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
 }

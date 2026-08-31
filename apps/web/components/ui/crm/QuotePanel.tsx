@@ -10,7 +10,7 @@
 // canTransitQuote 가 판정하므로, 여기서 버튼을 감추는 것은 안전장치가 아니라 안내다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { FileText, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react'
+import { Copy, FileText, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
@@ -57,6 +57,10 @@ interface Quote {
   approvedAt: string | null
   sentAt: string | null
   expired?: boolean
+  /** 개정 차수. 1 이면 첫 판 */
+  revision?: number
+  /** 다른 안의 이름 */
+  variantLabel?: string | null
   version: number
   updatedAt: string
   lines?: QuoteLine[]
@@ -154,6 +158,38 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
   }
 
   /** 수정하려면 항목까지 필요하다 — 목록에는 없으므로 그때 한 건만 더 읽는다 */
+  /**
+   * 개정본 · 다른 안 만들기.
+   *
+   * **보낸 견적을 고칠 길이 없어서** 영업은 견적을 처음부터 다시 썼고,
+   * 그렇게 만든 것과 보낸 것 사이엔 아무 연결도 없었다 —
+   * 나중에 「이게 그 건의 몇 번째지?」를 아무도 답할 수 없었다.
+   */
+  const duplicate = async (quote: Quote, mode: 'revision' | 'variant') => {
+    setActionError(null)
+    setBusyId(quote.id)
+    try {
+      const label = mode === 'variant'
+        // 이름은 사람이 정한다 — 「2안」인지 「대용량 구성」인지는 협상 맥락이 정한다
+        ? window.prompt('이 안의 이름을 적어 주세요.', '2안')
+        : null
+      if (mode === 'variant' && label === null) return
+      const res = await fetch(`/api/crm/quotes/${quote.id}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, variantLabel: label }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setActionError(body?.error?.message ?? '만들지 못했습니다.'); return }
+      await load()
+      onChanged?.()
+    } catch {
+      setActionError('만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const openEdit = async (quote: Quote) => {
     setActionError(null)
     try {
@@ -201,6 +237,9 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
                 <li className={styles.item} key={q.id}>
                   <div className={styles.itemTop}>
                     <span className={styles.quoteNo}>{q.quoteNo}</span>
+                    {/* 여러 판이 나란히 서므로 목록에서 바로 구분돼야 한다 */}
+                    {(q.revision ?? 1) > 1 && <NbBadge status="note">Rev.{q.revision}</NbBadge>}
+                    {q.variantLabel && <NbBadge status="note">{q.variantLabel}</NbBadge>}
                     <NbBadge status={meta.status}>{meta.label}</NbBadge>
                   </div>
                   <div className={styles.itemTitle}>{q.title}</div>
@@ -258,6 +297,20 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
                       <NbButton variant="ghost" onClick={() => void act(q, '/status', { to: 'DRAFT' })} disabled={busy}>
                         초안으로 되돌려 고치기
                       </NbButton>
+                    )}
+                    {/*
+                      **고칠 수 없는 견적에만 나온다.** 초안은 그냥 고치면 되므로
+                      여기에 두면 「수정」과 헷갈린다 — 둘 다 있으면 사람은 더 어려워한다.
+                    */}
+                    {q.status !== 'DRAFT' && (
+                      <>
+                        <NbButton variant="ghost" onClick={() => void duplicate(q, 'revision')} disabled={busy}>
+                          <Copy size={14} /> 개정본 만들기
+                        </NbButton>
+                        <NbButton variant="ghost" onClick={() => void duplicate(q, 'variant')} disabled={busy}>
+                          다른 안 만들기
+                        </NbButton>
+                      </>
                     )}
                     {(q.status === 'ACCEPTED' || q.status === 'REJECTED') && (
                       <NbButton variant="ghost" onClick={() => void openEdit(q)} disabled={busy}>

@@ -111,6 +111,8 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       totalMinor: quote.totalMinor,
       notesMd: quote.notesMd,
       expired: quote.expired,
+      revision: quote.revision,
+      variantLabel: quote.variantLabel,
     },
     // 항목은 **필요한 것만** 옮긴다. 통째로 넘기면 나중에 원가 칼럼이 생겼을 때
     // 아무도 모르게 문서로 흘러 들어간다

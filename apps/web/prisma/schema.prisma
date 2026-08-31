@@ -861,6 +861,15 @@ model CrmQuote {
   taxMinor      BigInt @default(0)
   totalMinor    BigInt @default(0)
 
+  /// ── 개정본과 다른 안 ────────────────────────────────────────
+  /// **두 가지는 뜻이 다르다.** 개정은 앞 판을 대체하고(Rev.2), 다른 안은 나란히 산다(1안/2안).
+  /// 하나로 합치면 「2안의 Rev.3」을 표현할 수 없다.
+  sourceQuoteId String?
+  /// 개정 차수. 1 이면 첫 판 — 견적서에 표시하지 않는다
+  revision      Int     @default(1)
+  /// 다른 안의 이름 — 「1안」·「대용량 구성」. NULL 이면 안 구분 없음
+  variantLabel  String?
+
   /// ── 절사 지시 ──────────────────────────────────────────────
   /// 「끝자리를 떨어뜨려 주세요」를 견적이 기억한다. 단가를 손으로 조작해 맞추면
   /// 나중에 그 단가를 아무도 설명할 수 없고 원가 대비 마진도 거짓이 된다.
@@ -896,6 +905,9 @@ model CrmQuote {
   deal      CrmDeal        @relation(fields: [dealId], references: [id], onDelete: Cascade)
   lines     CrmQuoteLine[]
   sections  CrmQuoteSection[]
+  /// 어디서 복제됐나. 출처가 지워져도 이 견적은 남는다 — 문서는 스스로 완결이다
+  source    CrmQuote?  @relation("QuoteRevision", fields: [sourceQuoteId], references: [id], onDelete: SetNull)
+  derived   CrmQuote[] @relation("QuoteRevision")
 
   @@unique([workspaceId, quoteNo])
   @@index([workspaceId, dealId, createdAt])

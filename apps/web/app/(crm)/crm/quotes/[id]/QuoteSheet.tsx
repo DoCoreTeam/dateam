@@ -136,7 +136,16 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
         )}
 
         <dl className={styles.metaList}>
-          <dt>{QUOTE.quoteNo}</dt><dd>{doc.meta.quoteNo}</dd>
+          <dt>{QUOTE.quoteNo}</dt>
+          <dd>
+            {doc.meta.quoteNo}
+            {/*
+              **개정과 안은 번호 옆에 붙는다.** 고객이 여러 판을 받았을 때
+              「어느 것이 최신인지」를 문서 자체가 말해야 한다 — 메일 본문은 남지 않는다.
+            */}
+            {doc.meta.revision && <span className={styles.revTag}>{doc.meta.revision}</span>}
+            {doc.meta.variantLabel && <span className={styles.revTag}>{doc.meta.variantLabel}</span>}
+          </dd>
           {doc.meta.issuedOn && (<><dt>{QUOTE.issuedOn}</dt><dd>{doc.meta.issuedOn}</dd></>)}
           {doc.meta.validUntil && (<><dt>{QUOTE.validUntil}</dt><dd>{doc.meta.validUntil}</dd></>)}
         </dl>

@@ -454,3 +454,14 @@
   text-align: right;
 }
 .sectionSum td:last-child { color: var(--text); }
+
+/* 개정·안 표시 — 번호 옆에 작게. 번호보다 커지면 무엇이 문서 번호인지 흐려진다 */
+.revTag {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 999px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--text-muted);
+}

@@ -160,6 +160,13 @@ export interface QuoteDocument {
     currency: string
     /** 유효기간이 지났나 — 인쇄 전에 알아야 한다 */
     expired: boolean
+    /**
+     * 개정 차수. **1 이면 빈 문자열**이다 — 첫 판에 「Rev.1」이 찍히면
+     * 고객은 «앞에 다른 판이 있었나»를 생각하게 된다.
+     */
+    revision: string
+    /** 다른 안의 이름 — 「2안」. 없으면 빈 문자열 */
+    variantLabel: string
   }
   lines: DocumentLine[]
   totals: DocumentTotals
@@ -189,6 +196,10 @@ export interface BuildQuoteDocumentInput {
     /** 고객에게 나가는 특기사항 */
     notesMd: string | null
     expired?: boolean
+    /** 개정 차수. 1 이면 표시하지 않는다 */
+    revision?: number | null
+    /** 다른 안의 이름 */
+    variantLabel?: string | null
     /** 절사로 깎인 금액 — 저장된 값(서버가 계산한다) */
     roundingMinor?: bigint | string | null
   }
@@ -326,6 +337,8 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
     meta: {
       quoteNo: input.quote.quoteNo,
       title: input.quote.title,
+      revision: Number(input.quote.revision ?? 1) > 1 ? `Rev.${input.quote.revision}` : '',
+      variantLabel: text(input.quote.variantLabel) || '',
       issuedOn,
       validUntil,
       currency,

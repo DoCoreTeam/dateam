@@ -11,7 +11,7 @@
 // 여기서 등록하고, 영업이 견적마다 고른다(QuoteEditorModal).
 
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
@@ -37,7 +37,13 @@ export default function QuoteTermsCard() {
   const [items, setItems] = useState<Term[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
+  /**
+   * 지금 폼이 무엇을 하고 있나 — `null` 은 닫힘, `'new'` 는 추가, 그 외는 **그 id 를 고치는 중**.
+   *
+   * 추가와 수정을 **한 폼으로** 두는 이유: 칸이 똑같은데 폼을 두 벌 만들면
+   * 한쪽에만 칸을 더하는 날이 오고, 그 화면에서 넣은 값이 조용히 사라진다(§2-5).
+   */
+  const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState({ ...EMPTY })
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -64,8 +70,14 @@ export default function QuoteTermsCard() {
     setSaving(true)
     setFormError(null)
     try {
-      const res = await fetch('/api/crm/quote-terms', {
-        method: 'POST',
+      /*
+        **고치는 길이 없었다.** API 는 PATCH 를 갖고 있었는데 화면이 안 불렀다 —
+        그래서 오타가 나면 지우고 다시 만들어야 했고, 그 문장을 쓰던 견적은 조건을 잃었다.
+        (서버가 할 수 있는데 화면이 안 부르는 상태를 방치하지 않는다 — §2-5 (3))
+      */
+      const isEdit = editing !== null && editing !== 'new'
+      const res = await fetch(isEdit ? `/api/crm/quote-terms/${editing}` : '/api/crm/quote-terms', {
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: draft.title.trim() || draft.body.trim().slice(0, 20),
@@ -76,7 +88,7 @@ export default function QuoteTermsCard() {
       })
       const body = await res.json()
       if (!res.ok) { setFormError(body?.error?.message ?? '저장하지 못했습니다.'); return }
-      setAdding(false)
+      setEditing(null)
       setDraft({ ...EMPTY })
       await load()
     } catch {
@@ -84,7 +96,7 @@ export default function QuoteTermsCard() {
     } finally {
       setSaving(false)
     }
-  }, [draft, load])
+  }, [draft, editing, load])
 
   const remove = useCallback(async (id: string) => {
     try {
@@ -106,7 +118,14 @@ export default function QuoteTermsCard() {
     <div className={`card ${styles.card}`}>
       <div className={styles.head}>
         <h3 className={styles.title}>거래 조건</h3>
-        <NbButton variant="ghost" onClick={() => setAdding((v) => !v)}>
+        <NbButton
+          variant="ghost"
+          onClick={() => {
+            setEditing((v) => (v === null ? 'new' : null))
+            setDraft({ ...EMPTY })
+            setFormError(null)
+          }}
+        >
           <Plus size={14} /> 조건 추가
         </NbButton>
       </div>
@@ -118,9 +137,13 @@ export default function QuoteTermsCard() {
 
       {error && <ErrorState message={error} onRetry={() => void load()} />}
 
-      {adding && (
+      {editing !== null && (
         <div className={styles.form}>
           <FormErrorBanner message={formError} />
+          {/* 무엇을 하는 중인지 폼이 말한다 — 같은 폼이 두 가지 일을 하기 때문이다 */}
+          <p className={styles.formTitle}>
+            {editing === 'new' ? '새 거래 조건' : '거래 조건 수정'}
+          </p>
           <div className={styles.field}>
             <label className="label" htmlFor="term-body">조건 내용</label>
             <textarea
@@ -153,7 +176,9 @@ export default function QuoteTermsCard() {
             </label>
           </div>
           <div className={styles.formFoot}>
-            <NbButton variant="ghost" onClick={() => setAdding(false)} disabled={saving}>{ACTION.cancel}</NbButton>
+            <NbButton variant="ghost" onClick={() => { setEditing(null); setDraft({ ...EMPTY }) }} disabled={saving}>
+              {ACTION.cancel}
+            </NbButton>
             <NbButton onClick={() => void save()} disabled={saving}>
               {saving ? progress(ACTION.save) : ACTION.save}
             </NbButton>
@@ -161,11 +186,11 @@ export default function QuoteTermsCard() {
         </div>
       )}
 
-      {items.length === 0 && !adding ? (
+      {items.length === 0 && editing === null ? (
         <EmptyState
           title="거래 조건이 아직 없어요"
           description="결제·납품·유효기간처럼 견적서마다 반복되는 문장을 등록해 두세요."
-          action={{ label: '조건 추가', onClick: () => setAdding(true) }}
+          action={{ label: '조건 추가', onClick: () => { setEditing('new'); setDraft({ ...EMPTY }) } }}
         />
       ) : (
         <ul className={styles.list}>
@@ -178,6 +203,22 @@ export default function QuoteTermsCard() {
                 )}
                 {t.isDefault && <span className={`${styles.tag} ${styles.tagDefault}`}>기본</span>}
               </span>
+              <button
+                type="button" className={styles.remove}
+                onClick={() => {
+                  setEditing(t.id)
+                  setFormError(null)
+                  setDraft({
+                    title: t.title ?? '',
+                    body: t.body,
+                    businessType: t.businessType ?? '',
+                    isDefault: t.isDefault,
+                  })
+                }}
+                aria-label={`${t.title} ${ACTION.edit}`}
+              >
+                <Pencil size={14} />
+              </button>
               <button
                 type="button" className={styles.remove}
                 onClick={() => void remove(t.id)}
