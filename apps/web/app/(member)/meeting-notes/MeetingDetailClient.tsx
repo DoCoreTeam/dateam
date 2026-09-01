@@ -7,6 +7,8 @@ import Link from 'next/link'
 import { Pencil, Trash2, CalendarClock, Users, Mic, Briefcase } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
+import InlineError from '@/components/ui/InlineError'
+import { ACTION, failedTo } from '@/lib/terms'
 import MeetingEditor from './MeetingEditor'
 import MeetingReadBody from './MeetingReadBody'
 import CrmPublishCard from './CrmPublishCard'
@@ -63,6 +65,40 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
   const [deleting, startDelete] = useTransition()
   const autoAnalyze = useSearchParams().get('analyze') === '1'
 
+  /**
+   * **편집 폼은 반드시 최신 본문으로 연다**(v0.7.677).
+   *
+   * 이 화면에는 본문을 쓰는 길이 둘이다 — 작업대(자동저장, `PATCH`)와 이 편집 폼(명시 저장).
+   * 그런데 작업대는 저장 뒤 `router.refresh()` 를 하지 않으므로 서버 컴포넌트가 넘겨준
+   * `note.body` 는 **페이지를 연 시점의 값**에 머문다. 그 값으로 폼을 열어 저장하면
+   * 회의 중에 작업대로 적은 글이 통째로 **옛 내용으로 덮인다.** 눈에 보이는 오류도 없다.
+   *
+   * 그래서 열기 전에 다시 읽는다. 못 읽으면 **열지 않는다** — 옛 본문으로 여는 것이
+   * 곧 그 사고이므로, 여기서 «그냥 열어 주는» 관대함은 데이터를 잃는 쪽이다.
+   */
+  const [openingEditor, setOpeningEditor] = useState(false)
+  const [openError, setOpenError] = useState<string | null>(null)
+  const [fresh, setFresh] = useState<{ body: string; summary: string; decisions: string } | null>(null)
+
+  async function openEditor() {
+    setOpeningEditor(true)
+    setOpenError(null)
+    try {
+      const res = await fetch(`/api/meeting-notes/${note.id}`)
+      const b = await res.json().catch(() => null)
+      if (!res.ok || !b) {
+        setOpenError(failedTo('최신 내용', '불러오지'))
+        return
+      }
+      setFresh({ body: b.bodyHtml ?? '', summary: b.summary ?? '', decisions: b.decisions ?? '' })
+      setEditing(true)
+    } catch {
+      setOpenError(failedTo('최신 내용', '불러오지', '연결을 확인해 주세요.'))
+    } finally {
+      setOpeningEditor(false)
+    }
+  }
+
   const attendeeNames = useMemo(() => splitAttendees(note.attendees), [note.attendees])
   const userIds = useMemo(() => note.attendee_user_ids ?? [], [note.attendee_user_ids])
 
@@ -92,10 +128,10 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
     })
   }
 
-  if (editing) {
+  if (editing && fresh) {
     return (
       <div>
-        <PageHeader title="회의노트 편집" description="제목·일시·부서·본문과 요약·결정사항·참석자·태그를 수정하세요" />
+        <PageHeader title={`회의노트 ${ACTION.edit}`} description="제목·일시·부서·본문과 요약·결정사항·참석자·태그를 수정하세요" />
         <MeetingEditor
           mode="edit"
           onExit={() => setEditing(false)}
@@ -105,9 +141,10 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
             meeting_at: note.meeting_at,
             department_id: note.department_id,
             tags: note.tags ?? [],
-            body: note.body ?? '',
-            summary: note.summary ?? '',
-            decisions: note.decisions ?? '',
+            /* 서버 렌더 값이 아니라 **방금 다시 읽은 값**이다 — 위 openEditor 주석 참조 */
+            body: fresh.body,
+            summary: fresh.summary,
+            decisions: fresh.decisions,
             attendees: attendeeNames,
             attendeeUserIds: userIds,
           }}
@@ -126,8 +163,8 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
         title={note.title || '(제목 없음)'}
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <NbButton onClick={() => setEditing(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <Pencil size={15} /> 편집
+            <NbButton onClick={() => void openEditor()} disabled={openingEditor} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <Pencil size={15} /> {ACTION.edit}
             </NbButton>
             <NbButton variant="danger" onClick={handleDelete} disabled={deleting} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <Trash2 size={15} /> {deleting ? '삭제 중…' : '삭제'}
@@ -135,6 +172,13 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
           </div>
         }
       />
+
+      {/* 최신 내용을 못 읽어 편집을 못 연 경우 — 조용히 실패하면 «버튼이 안 눌린다»로만 보인다 */}
+      {openError && (
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <InlineError onDismiss={() => setOpenError(null)}>{openError}</InlineError>
+        </div>
+      )}
 
       {/* 메타 (읽기) */}
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
@@ -177,7 +221,7 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-        {/* 참석자(읽기 전용 chips) — 수정은 [편집]에서.
+        {/* 참석자(읽기 전용 chips) — 고치는 곳은 [수정] 폼이다.
             본문보다 **위**에 둔다: 회의록은 "누가 있었나"를 알고 내용을 읽는 문서다.
             내보내는 문서 서식도 표제 → 메타(일시·작성자·참석자) → 본문 순이다
             (lib/meeting/export-html.ts). 화면만 참석자를 맨 아래 두면 같은 회의록이
@@ -188,7 +232,7 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
             <h2 id="mn-att-h" className="tape-title" style={{ margin: 0 }}>참석자</h2>
           </div>
           {isEmptyAttendees ? (
-            <p style={{ margin: 0, color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>등록된 참석자가 없습니다. [편집]에서 추가하세요.</p>
+            <p style={{ margin: 0, color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>등록된 참석자가 없습니다. [수정]에서 추가하세요.</p>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
               {memberChips.map((m) => (

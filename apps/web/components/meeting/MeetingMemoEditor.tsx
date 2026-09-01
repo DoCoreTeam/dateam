@@ -14,12 +14,25 @@
  *
  * **읽기 전용은 비활성 편집기가 아니라 읽기 컴포넌트다.** 못 쓰는 입력칸을 보여 주면
  * 사람은 고칠 수 있다고 믿고 쳤다가 잃는다(마이그 216: 읽기 공개이지 편집 공개가 아니다).
+ *
+ * **쓸 수 있는 사람에게도 기본은 읽기다**(v0.7.677).
+ * 그전에는 상세를 열면 곧바로 커서가 들어가는 편집기였다. 그런데 같은 화면이 위에서는
+ * 「[수정]에서 추가하세요」라고 말하고 있어서, 한 화면이 «읽는 곳»과 «쓰는 곳» 두 가지를
+ * 동시에 주장했다(사용자 지적: "수정을 눌러야 텍스트 수정이 되는 에디터 모드여야 하지 않아?").
+ * 끝난 회의를 다시 읽다가 실수로 글자가 지워져도 5초 뒤 저절로 저장되는 구조라 더 위험했다.
+ *
+ * 예외는 **본문이 비었을 때 하나뿐이다** — 읽을 것이 없는데 「수정」을 한 번 더 누르게 하면
+ * 회의 중에 받아적는 것을 막는다. 그리고 임시저장된 글이 있으면 그것도 곧장 쓰기로 연다
+ * (안 그러면 복원 배너가 읽기 모드 뒤에 숨어 글이 영영 안 돌아온다).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Lock } from 'lucide-react'
+import { Lock, Pencil } from 'lucide-react'
 import TiptapEditor from '@/components/ui/TiptapEditor'
 import RichText from '@/components/ui/RichText'
+import NbButton from '@/components/ui/nb/NbButton'
+import { ACTION } from '@/lib/terms'
+import { shouldStartWriting, plainTextLength } from '@/lib/meeting/memo-mode'
 import InlineError from '@/components/ui/InlineError'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import { useDraftPersist } from '@/lib/forms/useDraftPersist'
@@ -59,6 +72,10 @@ export default function MeetingMemoEditor({
   const [state, setState] = useState<SaveState>('clean')
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** 읽기 ↔ 쓰기. 판정은 `lib/meeting/memo-mode` 가 한다(SSOT · 가드가 잠근다) */
+  const [writing, setWriting] = useState(
+    () => shouldStartWriting({ hasBody: plainTextLength(initialHtml) > 0, hasDraft: false }),
+  )
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** 마지막으로 서버가 받은 값 — 같으면 안 보낸다(빈 요청이 5초마다 나가는 것을 막는다) */
@@ -76,7 +93,13 @@ export default function MeetingMemoEditor({
   })
 
   useEffect(() => { onStateChange?.(state, savedAt) }, [state, savedAt, onStateChange])
-  useEffect(() => { onLengthChange?.(plainLength(html)) }, [html, onLengthChange])
+  useEffect(() => { onLengthChange?.(plainTextLength(html)) }, [html, onLengthChange])
+
+  /**
+   * 임시저장된 글이 있으면 읽기 모드로 가두지 않는다.
+   * 복원 배너는 쓰기 화면에만 있다 — 읽기 뒤에 숨기면 브라우저에 남은 글이 영영 안 돌아온다.
+   */
+  useEffect(() => { if (draft.hasDraft) setWriting(true) }, [draft.hasDraft])
 
   /** `useDraftPersist` 는 매 렌더 새 객체를 준다 — 그대로 의존하면 콜백 신원이 계속 바뀐다 */
   const clearDraft = useRef(draft.clear)
@@ -142,8 +165,32 @@ export default function MeetingMemoEditor({
     )
   }
 
+  /**
+   * 읽기 모드 — 쓸 수 있는 사람이지만 지금은 읽는 중이다.
+   * 「수정」을 누르기 전에는 커서가 들어가지 않는다.
+   */
+  if (!writing) {
+    return (
+      <div>
+        <div className={styles.modeRow}>
+          <NbButton variant="secondary" onClick={() => setWriting(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <Pencil size={14} aria-hidden /> {ACTION.edit}
+          </NbButton>
+        </div>
+        <RichText html={html} placeholder="아직 적은 내용이 없어요." />
+      </div>
+    )
+  }
+
   return (
     <div>
+      {/* 「닫기」다 — 취소가 아니다. 자동저장이라 닫아도 쓴 글은 그대로 남는다(용어집 close) */}
+      <div className={styles.modeRow}>
+        <NbButton variant="ghost" onClick={() => setWriting(false)} title="쓴 글은 저장돼 있어요">
+          {ACTION.close}
+        </NbButton>
+      </div>
       <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
       {error && <InlineError spaced onDismiss={() => setError(null)}>{error}</InlineError>}
       <TiptapEditor
@@ -156,7 +203,3 @@ export default function MeetingMemoEditor({
   )
 }
 
-/** 태그를 뺀 글자 수 — 탭 배지가 "1,240자"를 말할 수 있게. 서버 파생값(body_plain)과 목적이 다르다 */
-function plainLength(html: string): number {
-  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length
-}

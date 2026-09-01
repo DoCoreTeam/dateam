@@ -175,3 +175,12 @@
 .visBtn + .visBtn { border-left: var(--hairline) solid var(--border-color); }
 .visBtn:disabled { opacity: 0.6; cursor: default; }
 .visOn { background: var(--brand); color: var(--surface-bg); font-weight: 700; }
+
+/* 본문 모드 줄 — 「수정」/「닫기」가 서는 자리.
+   본문 **위** 오른쪽이다: 읽는 사람의 눈이 글을 지나기 전에 «고칠 수 있다»를 알아야 한다.
+   (v0.7.677 — 그전에는 모드 자체가 없어 상세를 열면 바로 커서가 들어갔다) */
+.modeRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}

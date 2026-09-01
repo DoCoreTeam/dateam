@@ -101,7 +101,7 @@ export default function MeetingReadBody({
           setTab('refined')
           // 정제본을 즉시 저장 → 새로고침/재방문에도 읽기표시 유지. 실패 시 사용자에게 안내.
           const saveRes = await saveMeetingSummary(meetingNoteId, { summary: nextSummary.trim(), decisions: nextDecisions.trim() })
-          if (!saveRes.ok) setErrs(['정제본 자동저장에 실패했습니다 — [편집]에서 직접 저장해 주세요.'])
+          if (!saveRes.ok) setErrs(['정제본 자동저장에 실패했습니다 — [수정]에서 직접 저장해 주세요.'])
           else router.refresh()
         }
       }
@@ -218,10 +218,10 @@ export default function MeetingReadBody({
               action={{ label: busy ? `분석 중… ${elapsed}초` : 'AI 분석 실행', onClick: () => { void runAnalyze() } }}
             />
           ) : (
-            // 편집 전용 라우트는 없다(같은 페이지의 [편집] 토글) — 죽은 링크를 만들지 않고 그 버튼을 가리킨다
+            // 수정 전용 라우트는 없다(같은 페이지의 [수정] 토글) — 죽은 링크를 만들지 않고 그 버튼을 가리킨다
             <EmptyState
               title="본문이 비어 있어요"
-              description="위 [편집]으로 회의 내용을 적으면 AI 요약·업무 추출을 쓸 수 있습니다"
+              description="위 [수정]으로 회의 내용을 적으면 AI 요약·업무 추출을 쓸 수 있습니다"
             />
           )}
         </div>
