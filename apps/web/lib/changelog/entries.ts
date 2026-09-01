@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.676',
+    date: '2026-09-01',
+    title: '카드 안이 답답하게 붙어 보이던 곳들이 정리됐어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📦',
+        headline: '글과 버튼이 상자 가장자리에 딱 붙어 있던 문제를 고쳤어요',
+        detail: '트렌드의 「이슈」 화면처럼, 안내문과 버튼이 상자 끝에 붙어 디자인이 없는 것처럼 보이던 자리들이 있었어요. 이제 상자가 여백을 스스로 갖게 해서 어느 화면을 열어도 같은 간격으로 보여요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📐',
+        headline: '앞으로는 같은 문제가 다시 생기지 않아요',
+        detail: '새 화면을 만들 때 여백을 적는 걸 깜빡해도 이제 제대로 그려집니다. 혹시 되돌리려 하면 배포 전에 자동으로 막아요.',
+      },
+    ],
+  },
+  {
     version: '0.7.674',
     date: '2026-09-01',
     title: '딜 화면이 더 빨리 떠요',
