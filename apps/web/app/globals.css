@@ -77,6 +77,9 @@
 
   --radius-card: var(--radius);
   --shadow-card: var(--shadow-md);
+  /* 카드 안쪽 여백 — 화면이 정하지 않는다. 값은 저장소에서 가장 흔한 손글씨 값을 그대로 승격했다
+     (실측 v0.7.676: `var(--space-5) var(--space-6)` 27회 · `var(--space-6)` 32회). */
+  --card-pad: var(--space-5) var(--space-6);
 
   /* ── 시맨틱 토큰 카탈로그 — 값=가장 흔한 원본색 (identity 매핑 → 무회귀) ── */
   /* 텍스트 */
@@ -487,6 +490,26 @@
     box-shadow: var(--shadow-md);
     border: var(--border-w) solid var(--border-color);
   }
+
+  /* 카드는 **자기 여백을 스스로 갖는다.**
+     왜(실측 v0.7.676): 위 규칙에 padding 이 없어서 안쪽 여백이 174개 호출처 전부에게
+     떠넘겨져 있었다 — 손으로 적은 곳 145개에 값이 11가지, **아예 안 적은 곳 29개.**
+     안 적으면 글과 버튼이 카드 가장자리에 붙어 «디자인이 없는 것처럼» 렌더된다
+     (사용자 지적: /ci/trends?tab=signals 의 수집 상태 줄 — 실측 computed padding 0px).
+     tsc·lint·design:check 어느 것도 이 누락을 못 본다. 그래서 기본값을 부품이 갖는다.
+
+     `:where()` 로 특정도를 **0** 으로 둔 것이 핵심이다 — 이미 자기 값을 적어 둔 145곳은
+     인라인이든 CSS 모듈이든 globals 조합선택자든 **전부 그대로 이긴다**(무회귀).
+     `padding: 0` 을 일부러 준 전면(full-bleed) 카드도 그대로다.
+     안전 확인: `.card` 는 div·section·li·article·details 에만 쓰이므로
+     Tailwind preflight 의 `ul,ol,menu{padding:0}`·`button{padding:0}` 과 겹치지 않는다. */
+  :where(.card) { padding: var(--card-pad); }
+
+  /* 전면(full-bleed) 카드 — 안쪽에 **자기 여백을 가진 머리줄·표**가 들어가서
+     구분선이 카드 끝까지 닿아야 하는 경우. 여백 0 은 여기서 **말로** 밝힌다.
+     왜 클래스로 두나: 예전엔 "여백 없음"이 «전면형이다»와 «적는 걸 잊었다» **둘 다**를
+     뜻해서 구분할 방법이 없었다 — 그 모호함이 이 사고의 진짜 뿌리다(v0.7.676). */
+  .card-flush { padding: 0; }
 
   /* 입력과 버튼의 공용 높이 — 같은 줄에 놓였을 때 어긋나지 않게 한 곳에서 정한다.
      예전엔 이 규약이 없어 입력 41px · 버튼 39px로 달랐고(실측 /ci/channels 상세),

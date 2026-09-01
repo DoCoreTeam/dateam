@@ -131,7 +131,7 @@ export default async function DealDetailPage({ params }: PageProps) {
         </div>
 
         {/* 우측: 활동 로그 */}
-        <div className="card">
+        <div className="card card-flush">
           <div style={{ padding: 'var(--space-4) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
             <h2 className="tape-title" style={{ margin: 0 }}>활동 로그</h2>
           </div>

@@ -35,7 +35,7 @@ export default function CodeTabs({ spec, baseUrl, id, onCopy, copiedId }: CodeTa
         onSelect={(tabId) => setLangId(tabId.slice(ns.length))}
       />
 
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card card-flush" style={{ overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-3)', borderBottom: 'var(--hairline) solid var(--border-light)' }}>
           <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{lang.label}</span>
           <button type="button" className="btn-ghost" onClick={() => onCopy(code, copyId)}>

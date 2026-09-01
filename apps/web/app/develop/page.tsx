@@ -61,7 +61,7 @@ function SidebarItem({ children, active, onClick }: { children: React.ReactNode;
 
 function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string; id: string; onCopy: (t: string, id: string) => void; copiedId: string | null; lang?: string }) {
   return (
-    <div className="card" style={{ overflow: 'hidden', marginBottom: 'var(--space-4)' }}>
+    <div className="card card-flush" style={{ overflow: 'hidden', marginBottom: 'var(--space-4)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-2) var(--space-3)', borderBottom: 'var(--hairline) solid var(--border-light)' }}>
         <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{lang}</span>
         <button type="button" className="btn-ghost" onClick={() => onCopy(code, id)} style={{ color: copiedId === id ? 'var(--success)' : undefined }}>

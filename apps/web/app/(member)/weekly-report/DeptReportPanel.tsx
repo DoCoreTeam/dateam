@@ -141,7 +141,7 @@ export default function DeptReportPanel({ deptId, deptName, weekStart, editable,
   const activeValue = editingCell ? rows[editingCell.idx]?.[editingCell.field] ?? '' : ''
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
+    <div className="card card-flush" style={{ overflow: 'hidden', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
       {/* 헤더 — 기존 취합과 동일 톤 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', padding: 'var(--space-4) var(--space-5)', background: 'linear-gradient(to right, var(--surface-bg), var(--brand-soft))', borderBottom: 'var(--hairline) solid var(--brand-soft-2)', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>

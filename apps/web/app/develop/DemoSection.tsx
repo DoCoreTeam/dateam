@@ -550,7 +550,7 @@ export default function DemoSection() {
 
       {/* 결과 */}
       {result !== null && (
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="card card-flush" style={{ overflow: 'hidden' }}>
           <div style={{ padding: '12px 20px', background: 'var(--surface-muted)', borderBottom: 'var(--hairline) solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: result.success ? 'var(--success)' : 'var(--danger)', display: 'inline-block' }} />

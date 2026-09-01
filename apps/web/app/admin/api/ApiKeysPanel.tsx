@@ -138,7 +138,7 @@ export default function ApiKeysPanel({ activeKeys, revokedKeys, nameMap, emailMa
 
   return (
     <>
-      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="card card-flush" style={{ marginBottom: 'var(--space-6)' }}>
         <div style={{
           padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
@@ -171,7 +171,7 @@ export default function ApiKeysPanel({ activeKeys, revokedKeys, nameMap, emailMa
       </div>
 
       {revokedKeys.length > 0 && (
-        <div className="card">
+        <div className="card card-flush">
           <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
             <h2 className="tape-title" style={{ margin: 0 }}>폐기된 키 ({revokedKeys.length})</h2>
           </div>

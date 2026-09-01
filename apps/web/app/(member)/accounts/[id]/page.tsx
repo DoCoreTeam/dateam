@@ -132,7 +132,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
           </div>
 
           {/* 담당자 */}
-          <div className="card">
+          <div className="card card-flush">
             <div style={{ padding: 'var(--space-4) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <Users size={15} color="var(--brand)" />
@@ -165,7 +165,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
 
         {/* 영업기회 */}
-        <div className="card">
+        <div className="card card-flush">
           <div style={{ padding: 'var(--space-4) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <TrendingUp size={15} color="var(--brand)" />

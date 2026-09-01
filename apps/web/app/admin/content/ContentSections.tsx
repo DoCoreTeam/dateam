@@ -129,7 +129,7 @@ function SectionCard({
   headerAction?: React.ReactNode
 }) {
   return (
-    <section className="card" style={{ overflow: 'hidden', marginBottom: '1.5rem' }}>
+    <section className="card card-flush" style={{ overflow: 'hidden', marginBottom: '1.5rem' }}>
       <div style={CARD_HEADER}>
         <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
         <span

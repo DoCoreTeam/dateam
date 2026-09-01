@@ -43,7 +43,7 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
       />
 
       {/* 인테이크 폼 */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <div className="card card-flush" style={{ marginBottom: '1.5rem' }}>
         <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Inbox size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>새 리드 입력</h2>
@@ -54,7 +54,7 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
       </div>
 
       {/* 인테이크 히스토리 — 목록 표준(§2-6). 표현은 IntakeHistory가 맡는다 */}
-      <div className="card">
+      <div className="card card-flush">
         <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
           <h2 className="tape-title" style={{ margin: 0 }}>최근 인테이크</h2>
         </div>

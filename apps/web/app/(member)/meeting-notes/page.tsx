@@ -75,7 +75,7 @@ export default async function MeetingNotesPage({ searchParams }: { searchParams:
         }
       />
 
-      <div className="card">
+      <div className="card card-flush">
         <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             <NotebookPen size={16} color="var(--brand)" />

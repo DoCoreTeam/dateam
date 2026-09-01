@@ -253,7 +253,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
 
       {/* Preview panel */}
       {rows.length > 0 && (
-        <div className="card" style={{ marginTop: '1.5rem', overflow: 'hidden', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
+        <div className="card card-flush" style={{ marginTop: '1.5rem', overflow: 'hidden', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', background: 'linear-gradient(to right, var(--surface-bg), var(--brand-soft))', borderBottom: 'var(--hairline) solid var(--brand-soft-2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>

@@ -101,7 +101,7 @@ export default async function AdminMembersPage({
             </div>
             <InviteForm />
           </div>
-          <div className="card">
+          <div className="card card-flush">
             <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <Users size={16} color="var(--brand)" />
               <h2 className="tape-title" style={{ margin: 0 }}>전체 구성원</h2>

@@ -207,7 +207,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           아래는 취합 전 <strong>원본 멤버 보고</strong>입니다 (개별 작성분).
         </p>
       )}
-      <details className="card" open={!dept} style={{ padding: 0 }}>
+      <details className="card card-flush" open={!dept}>
         <summary
           style={{
             padding: 'var(--space-5) var(--space-6)',

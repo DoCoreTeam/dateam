@@ -36,7 +36,7 @@ export default function GroupList({ groups }: Props) {
       {groups.map((g, idx) => {
         const isOpen = openIds.has(g.id)
         return (
-          <li key={g.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <li key={g.id} className="card card-flush" style={{ overflow: 'hidden' }}>
             <button
               type="button"
               onClick={() => toggle(g.id)}

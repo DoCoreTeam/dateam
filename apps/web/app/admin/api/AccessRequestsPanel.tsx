@@ -141,7 +141,7 @@ export default function AccessRequestsPanel({ pending, processed }: Props) {
 
   return (
     <>
-      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="card card-flush" style={{ marginBottom: 'var(--space-6)' }}>
         <div style={{
           padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
@@ -161,7 +161,7 @@ export default function AccessRequestsPanel({ pending, processed }: Props) {
         />
       </div>
 
-      <div className="card">
+      <div className="card card-flush">
         <div style={{
           padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex', alignItems: 'center', gap: 'var(--space-2)',

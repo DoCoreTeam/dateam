@@ -177,7 +177,7 @@ export default function RoutineGrid({
 
       {/* 주간 루틴 (단일 체크박스) */}
       {weeklyItems.length > 0 && (
-        <div className="card" style={{ overflow: 'hidden', marginBottom: '1rem' }}>
+        <div className="card card-flush" style={{ overflow: 'hidden', marginBottom: '1rem' }}>
           <div style={{ padding: '0.875rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               주간 루틴
@@ -234,7 +234,7 @@ export default function RoutineGrid({
 
       {/* 일간 루틴 (7일 그리드) */}
       {dailyItems.length > 0 && (
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="card card-flush" style={{ overflow: 'hidden' }}>
           {dailyItems.length > 0 && weeklyItems.length > 0 && (
             <div style={{ padding: '0.875rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

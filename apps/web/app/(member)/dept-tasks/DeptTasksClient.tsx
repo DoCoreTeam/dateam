@@ -173,7 +173,7 @@ export default function DeptTasksClient({
       />
 
       <div className={`responsive-grid-2 dept-task-layout${selected ? ' has-selection' : ''}`}>
-        <div className="card dept-task-list" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="card card-flush dept-task-list" style={{ overflow: 'hidden' }}>
           <ListSurface
             rows={visible}
             columns={columns}

@@ -177,7 +177,7 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
         const weekLabel = new Date(group.weekStart).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
 
         return (
-          <div key={group.weekStart} className="card" style={{ overflow: 'hidden' }}>
+          <div key={group.weekStart} className="card card-flush" style={{ overflow: 'hidden' }}>
             <div
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',

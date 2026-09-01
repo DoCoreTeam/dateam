@@ -200,7 +200,7 @@ function PromptsTab() {
 
   return (
     <>
-      <div className="card">
+      <div className="card card-flush">
         <ListToolbar
           query={query}
           onChange={set}
@@ -308,7 +308,7 @@ function HistoryTab() {
           const isOpen = open.has(r.id)
           const diff = r.prev_content != null && r.content != null ? lineDiff(r.prev_content, r.content) : null
           return (
-            <div key={r.id} className="card" style={{ padding: 0 }}>
+            <div key={r.id} className="card card-flush">
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', fontSize: 'var(--fs-sm)', flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 700, color: ev.c, minWidth: '78px' }}>{ev.t}</span>
                 <span style={{ fontWeight: 600 }}>{r.prompt_key}</span>

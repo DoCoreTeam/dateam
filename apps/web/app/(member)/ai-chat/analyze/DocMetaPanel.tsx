@@ -14,7 +14,7 @@ export default function DocMetaPanel({ meta }: Props) {
   if (meta.length === 0) return null
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+    <div className="card card-flush" style={{ overflow: 'hidden' }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

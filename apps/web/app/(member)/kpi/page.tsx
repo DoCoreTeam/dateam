@@ -281,7 +281,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
       </div>
 
       {/* ── KPI 히스토리 ───────────────────────────────────── */}
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card card-flush" style={{ overflow: 'hidden' }}>
         <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <TrendingUp size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>

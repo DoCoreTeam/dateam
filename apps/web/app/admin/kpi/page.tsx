@@ -130,7 +130,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
       </div>
 
       {/* 팀원별 KPI 달성률 — 사람×지표 교차표(목록이 아니라 피벗이라 표를 유지) */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <div className="card card-flush" style={{ marginBottom: '1.5rem' }}>
         <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <BarChart2 size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>팀원별 KPI 달성률</h2>
