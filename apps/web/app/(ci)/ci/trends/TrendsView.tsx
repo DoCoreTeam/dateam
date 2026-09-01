@@ -17,7 +17,8 @@ import type {
 // 종류 이름은 서버·화면이 같은 SSOT 를 쓴다 — 화면이 한글을 직접 적으면 말이 갈린다(§0-2).
 // **순수 모듈**에서 가져온다: queries/trends 는 서버 전용(createAdminClient)이라
 // 클라이언트가 값을 import 하면 빌드가 깨진다(crud-coverage 가드가 잡아낸 자리).
-import { signalKindLabel } from '@/lib/ci/analysis/signals'
+import { signalKindLabel, type SignalSweepState } from '@/lib/ci/analysis/signals'
+import SignalSweepBar from '@/components/ci/SignalSweepBar'
 import { MARKET_MIN_CHANNELS, type MarketContrast } from '@/lib/ci/analysis/market-contrast'
 import { SEASON_MIN_WINDOW_DAYS } from '@/lib/ci/format/metrics'
 import AccountWhyPanel from '@/components/ci/AccountWhyPanel'
@@ -144,6 +145,8 @@ interface Props {
   signals: SignalRow[] | null
   /** AI 가 찾아온 확인 대기 후보. 확정본과 섞지 않는다 */
   signalCandidates: SignalRow[] | null
+  /** 수집이 지금 어떤 상태인지 — 후보가 0건인 이유를 화면이 말할 수 있게 */
+  signalSweep: SignalSweepState | null
 }
 
 export default function TrendsView(p: Props) {
@@ -621,6 +624,10 @@ export default function TrendsView(p: Props) {
             자동 등록하지 않는다 — 추출·제안형 AI 는 후보를 보여주고 사람이 확정한다(§5-3).
             손입력 폼보다 **위**에 둔다: 먼저 할 일이 먼저 보여야 한다.
           */}
+          {p.signalSweep && (
+            <SignalSweepBar workspaceId={p.workspaceId} state={p.signalSweep} />
+          )}
+
           {p.signalCandidates && p.signalCandidates.length > 0 && (
             <section className="card" style={{ padding: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
               <div style={{

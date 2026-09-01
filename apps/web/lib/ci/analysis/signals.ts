@@ -228,3 +228,59 @@ export function buildSignalPrompt(input: {
       + '"occurredDate":"2026-08-30","topicId":null,"reason":"..."}]}',
   ].join('\n')
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 수집 상태를 사람 말로
+ *
+ * 왜 여기(순수 모듈)인가: 화면이 문장을 조립하면 그 문장은 브라우저를 열어야만
+ * 검증된다. 실제로 이슈 수집이 사흘째 실패하는 동안 화면은 **아무 말도 하지 않았고**,
+ * 사용자는 「변한 게 없다」만 봤다. 실패를 말하는 일이야말로 가드가 필요하다.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/** 마지막 수집 시도의 결말. `ci_jobs` 의 status 를 화면이 이해하는 말로 좁힌 것. */
+export type SignalSweepOutcome = 'never' | 'ok' | 'running' | 'retrying' | 'failed' | 'off'
+
+export interface SignalSweepState {
+  outcome: SignalSweepOutcome
+  /** 마지막으로 훑은 시각(ISO). 없으면 null */
+  lastSweepAt: string | null
+  /** 마지막 실패 이유 — 사용자에게 그대로 보여줄 수 있는 말이어야 한다 */
+  reason: string | null
+  /** 확인을 기다리는 후보 수 */
+  pending: number
+}
+
+/**
+ * 상태 줄에 쓸 문장. **성공했을 때도 말한다** — 「언제 훑었는지」를 모르면
+ * 후보가 0건인 것이 «아직 안 돌았다»인지 «돌았는데 없다»인지 구분할 수 없다.
+ */
+export function signalSweepHeadline(state: SignalSweepState): string {
+  switch (state.outcome) {
+    case 'off':
+      return 'AI 이슈 수집이 꺼져 있어요'
+    case 'never':
+      return 'AI가 아직 바깥을 훑지 않았어요'
+    case 'running':
+      return 'AI가 지금 바깥을 훑고 있어요'
+    case 'retrying':
+      return '지난 시도가 실패해 다시 시도할 예정이에요'
+    case 'failed':
+      return '바깥을 훑지 못했어요'
+    case 'ok':
+      return state.pending > 0
+        ? `확인을 기다리는 이슈가 ${state.pending}건 있어요`
+        : '훑어봤지만 새로 담을 만한 것이 없었어요'
+  }
+}
+
+/**
+ * 다음에 무엇을 하면 되는지. 실패는 **이유와 다음 행동**이 함께 있어야 정보가 된다
+ * (§0-2 오류 문형 — 사과하지 않고 다음 조치를 말한다).
+ */
+export function signalSweepDetail(state: SignalSweepState): string | null {
+  if (state.outcome === 'off') return '설정에서 「이슈 자동 수집」을 켜면 AI가 주기적으로 훑어요.'
+  if (state.outcome === 'never') return '「지금 찾기」를 누르면 바로 훑어봐요.'
+  if (state.outcome === 'failed' || state.outcome === 'retrying') return state.reason
+  return null
+}
+

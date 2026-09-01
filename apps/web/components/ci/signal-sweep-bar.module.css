@@ -1,0 +1,37 @@
+/* 이슈 수집 상태 줄 — 화면 전용 스타일이므로 globals.css 가 아니라 여기(§0-1) */
+
+.bar {
+  display: flex;
+  align-items: center;      /* 한 줄짜리 컨트롤과 문장을 같은 축에 세운다 */
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;             /* 긴 실패 문구가 버튼을 밀어내지 않게 */
+}
+
+.headline {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.headlineDanger {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--danger);
+  margin: 0;
+}
+
+.detail {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+}

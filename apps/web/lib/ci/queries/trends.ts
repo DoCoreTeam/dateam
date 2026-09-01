@@ -7,6 +7,8 @@ import { median } from '../analysis/outlier.ts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { CI_PLATFORM_LABEL, type CiConfidence, type CiPlatform } from '../types.ts'
 import { formatDiscoveryBasis } from '../analysis/discovery.ts'
+import type { SignalSweepState } from '../analysis/signals.ts'
+import { loadWorkspaceSetting } from '../settings/load.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -257,6 +259,59 @@ export async function getSignalCandidates(
 
   const { data } = await q
   return ((data ?? []) as any[]).map(toSignalRow)
+}
+
+/**
+ * 이슈 수집이 지금 어떤 상태인지.
+ *
+ * **후보가 0건인 것만으로는 아무것도 알 수 없다** — 아직 안 돌았는지, 돌았는데 없었는지,
+ * 돌다가 실패했는지가 전부 「빈 화면」으로 똑같이 보인다. 실제로 사흘 동안 그랬다.
+ * 그래서 마지막 훑은 시각과 마지막 잡의 결말을 함께 읽어 화면에 넘긴다.
+ */
+export async function getSignalSweepState(workspaceId: string): Promise<SignalSweepState> {
+  const adminClient = createAdminClient() as any
+
+  const [wsRes, jobRes, pendingRes, enabled] = await Promise.all([
+    adminClient.from('ci_workspaces').select('last_signal_sweep_at').eq('id', workspaceId).maybeSingle(),
+    adminClient.from('ci_jobs')
+      .select('status, error_message, updated_at')
+      .eq('workspace_id', workspaceId).eq('stage', 'signals')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    adminClient.from('ci_signals')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId).eq('status', 'candidate'),
+    // 설정 해석은 scope 가 겹쳐 쌓이므로 반드시 공용 로더를 거친다(SSOT)
+    loadWorkspaceSetting<boolean>(workspaceId, 'signals.enabled'),
+  ])
+
+  const lastSweepAt: string | null = wsRes?.data?.last_signal_sweep_at ?? null
+  const pending: number = pendingRes?.count ?? 0
+  let job = jobRes?.data as { status?: string; error_message?: string | null; updated_at?: string } | null
+
+  // 잡보다 **나중에** 훑은 기록이 있으면 그 잡은 지나간 일이다.
+  // 「지금 찾기」로 성공한 뒤에도 죽은 잡 때문에 영영 「실패」로 보이던 것을 막는다.
+  if (job?.updated_at && lastSweepAt && lastSweepAt > job.updated_at) job = null
+
+  // 꺼져 있으면 나머지는 볼 필요가 없다 — 안 도는 것이 정상이라고 말해야 한다
+  if (enabled === false) {
+    return { outcome: 'off', lastSweepAt, reason: null, pending }
+  }
+
+  let outcome: SignalSweepState['outcome']
+  if (!job) outcome = lastSweepAt ? 'ok' : 'never'
+  else if (job.status === 'running' || job.status === 'pending') {
+    outcome = job.error_message ? 'retrying' : 'running'
+  } else if (job.status === 'failed') outcome = 'retrying'
+  else if (job.status === 'dead') outcome = 'failed'
+  else outcome = 'ok'
+
+  return {
+    outcome,
+    lastSweepAt,
+    // 실패 이유는 **잡이 남긴 말 그대로** 쓴다. 다시 쓰면 원인과 화면이 갈라진다
+    reason: outcome === 'failed' || outcome === 'retrying' ? (job?.error_message ?? null) : null,
+    pending,
+  }
 }
 
 // ── 언제 통했나 (게시 맥락별 집계) ────────────────────────────

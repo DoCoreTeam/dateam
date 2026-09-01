@@ -10,7 +10,7 @@
 //   3) 잡 실행     — 예산 안에서 작게 여러 번 집는다
 
 import {
-  claimJobs, startRun, finishJob, recoverStalledJobs, countPendingJobs,
+  claimJobs, startRun, finishJob, releaseJob, recoverStalledJobs, countPendingJobs,
 } from './queue.ts'
 import { runJob } from './handlers.ts'
 import { runDueSnapshots, SNAPSHOT_DUE_MAX_PER_TICK } from './snapshot.ts'
@@ -47,6 +47,8 @@ export interface DrainResult {
   succeeded: number
   failed: number
   dead: number
+  /** 이 워커가 모르는 단계라 손대지 않고 돌려둔 잡 수 (실패가 아니다) */
+  released: number
   /** 아직 처리를 기다리는 잡 수 — 브라우저가 "더 돌릴지"를 이 값으로 정한다 */
   remaining: number
   /** 예산이 모자라 남기고 반환했는가 */
@@ -87,6 +89,7 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
     succeeded: 0,
     failed: 0,
     dead: 0,
+    released: 0,
     remaining: 0,
     budgetExhausted: false,
   }
@@ -135,7 +138,7 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
       const jobStartedAt = Date.now()
       const runId = await startRun(job.id, job.attempt)
 
-      let outcome: { ok: boolean; errorCode?: string; errorMessage?: string }
+      let outcome: { ok: boolean; errorCode?: string; errorMessage?: string; unsupported?: boolean }
       try {
         outcome = await runJob(job)
       } catch (e) {
@@ -144,6 +147,13 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
           errorCode: 'INTERNAL',
           errorMessage: e instanceof Error ? e.message : '알 수 없는 오류',
         }
+      }
+
+      // 모르는 단계면 시도 횟수를 태우지 않고 돌려둔다 — 아는 워커가 다음에 집는다
+      if (outcome.unsupported) {
+        await releaseJob(job.id, runId)
+        result.released += 1
+        continue
       }
 
       const finalStatus = await finishJob({

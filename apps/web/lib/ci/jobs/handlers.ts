@@ -32,6 +32,11 @@ export interface HandlerResult {
   ok: boolean
   errorCode?: string
   errorMessage?: string
+  /**
+   * 「실패」가 아니라 「내가 못 하는 일」. 시도 횟수를 태우지 않고 잡을 그대로 돌려둔다.
+   * 배포본과 로컬이 서로 다른 시점의 코드로 같은 큐를 나눠 쓰기 때문에 필요하다(queue.releaseJob).
+   */
+  unsupported?: boolean
 }
 
 /**
@@ -359,7 +364,16 @@ const HANDLERS = {
 
 export async function runJob(job: ClaimedJob): Promise<HandlerResult> {
   const handler = HANDLERS[job.stage]
-  if (!handler) return { ok: false, errorCode: 'INTERNAL', errorMessage: `알 수 없는 단계: ${job.stage}` }
+  // 모르는 단계는 **실패가 아니다.** 아직 이 코드를 모르는 워커일 뿐이라,
+  // 실패로 세면 배포 전에 잡이 죽어 기능이 영영 안 돈다(실측 2026-09-01 signals).
+  if (!handler) {
+    return {
+      ok: false,
+      unsupported: true,
+      errorCode: 'UNSUPPORTED_STAGE',
+      errorMessage: `이 워커가 모르는 단계입니다: ${job.stage}`,
+    }
+  }
 
   const result = await handler(job)
 

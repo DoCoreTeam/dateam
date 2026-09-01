@@ -249,6 +249,44 @@ export async function startRun(jobId: string, attempt: number): Promise<string |
   }
 }
 
+/**
+ * 잡을 **손대지 않은 것으로** 되돌린다 — 시도 횟수를 태우지 않는다.
+ *
+ * 왜 필요한가(실측 2026-09-01): 큐는 워크스페이스 전체를 공유하는데, 배포본과 로컬은
+ * 서로 다른 시점의 코드로 돈다. 새 단계를 로컬에서 만들면 **아직 그 단계를 모르는 배포본**이
+ * 잡을 먼저 집어 「알 수 없는 단계」로 실패시키고, 세 번 반복되면 잡이 죽는다.
+ * 실제로 `signals` 잡이 그렇게 죽어 자동 수집이 영영 돌지 않았다.
+ *
+ * 「내가 못 하는 일」과 「해봤는데 실패한 일」은 다르다. 전자는 **다음 차례에 아는 워커가**
+ * 집으면 되므로 시도 횟수를 늘리지 않고 잠금만 푼다.
+ */
+export async function releaseJob(jobId: string, runId: string | null, delaySeconds = 60): Promise<void> {
+  const adminClient = createAdminClient() as any
+  const nowIso = new Date().toISOString()
+  try {
+    await adminClient.from('ci_jobs').update({
+      // 'queued' 여야 다시 집힌다 — claimJobs 는 queued·failed 만 본다
+      status: 'queued',
+      next_run_at: new Date(Date.now() + delaySeconds * 1000).toISOString(),
+      locked_at: null,
+      locked_by: null,
+      updated_at: nowIso,
+    }).eq('id', jobId)
+
+    // 실행 기록은 남긴다 — 왜 아무 일도 안 일어났는지 나중에 설명할 수 있어야 한다
+    if (runId) {
+      await adminClient.from('ci_job_runs').update({
+        finished_at: nowIso,
+        status: 'failed',
+        error_code: 'UNSUPPORTED_STAGE',
+        error_message: '이 워커가 모르는 단계라 넘겼습니다 (시도 횟수는 늘리지 않음)',
+      }).eq('id', runId)
+    }
+  } catch {
+    // 되돌리기 실패는 삼킨다 — 잠금이 남아도 좀비 회수가 다음 회차에 되살린다
+  }
+}
+
 export interface FinishInput {
   jobId: string
   runId: string | null

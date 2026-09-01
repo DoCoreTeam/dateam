@@ -10,6 +10,7 @@
 // ③ 받은 것을 **후보로만** 넣는다. 확정은 사람이 한다(CLAUDE.md §5-3).
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { loadWorkspaceSetting } from '../settings/load.ts'
 import { logTokenUsage } from '@/lib/token-logger'
 import { recordSystemEventAsync } from '@/lib/system-log/record'
 import { kstTodayKey, kstWallToIso } from '@/lib/datetime/kst'
@@ -48,18 +49,7 @@ async function readHostMeta(): Promise<Record<string, unknown>> {
   return (data?.value ?? {}) as Record<string, unknown>
 }
 
-async function loadSetting<T>(workspaceId: string, key: string): Promise<T | undefined> {
-  try {
-    const adminClient = createAdminClient() as any
-    const { data } = await adminClient
-      .from('ci_settings').select('scope, scope_id, key, value, is_encrypted, version')
-      .eq('key', key)
-    const resolved = resolveSettings((data ?? []) as SettingRow[], { userId: null, workspaceId })
-    return getResolved<T>(resolved, key)
-  } catch {
-    return undefined
-  }
-}
+const loadSetting = loadWorkspaceSetting
 
 /**
  * 한 워크스페이스의 이슈 후보를 훑어 담는다.
