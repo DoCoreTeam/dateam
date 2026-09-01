@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.673',
+    date: '2026-09-01',
+    title: '회의를 끝내면 회의노트도 「확정」이 돼요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '✅',
+        headline: '끝냈는데 「작성 중」으로 남던 것을 고쳤어요',
+        detail: '영업 CRM에서 「미팅 끝내기」를 누르면 회의노트 상태도 「확정」으로 함께 올라갑니다. 전에는 미팅만 끝난 것으로 기록되고 회의노트는 「작성 중」에 남아서, 같은 회의를 두 화면이 다르게 말했어요. 이미 확정인 노트는 건드리지 않고, 노트가 없으면 그 단계만 건너뜁니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.671',
     date: '2026-09-01',
     title: 'AI가 왜 아무것도 안 가져왔는지 화면이 말해 줘요',
