@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Workflow, Plus, Pencil, Trash2, Star, ChevronUp, ChevronDown } from 'lucide-react'
+import { clearCachedPipelines } from '@/lib/crm/ui/pipeline-cache'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -126,6 +127,13 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
       const body = await res.json().catch(() => null)
       if (!res.ok) { setError(body?.error?.message ?? '바꾸지 못했습니다.'); return false }
       setNotice(okMsg)
+      /*
+        딜 보드가 들고 있는 파이프라인 캐시를 버린다(§pipeline-cache).
+        여기가 파이프라인·단계를 바꾸는 **유일한 통로**라 한 줄이면 전부 덮인다 —
+        안 지우면 단계를 고쳐 놓고 딜 화면에 가면 옛 단계가 그려진다
+        («고쳤는데 안 바뀐다»는 캐시가 만드는 가장 흔한 사고다).
+      */
+      clearCachedPipelines()
       await load()
       return true
     } catch {

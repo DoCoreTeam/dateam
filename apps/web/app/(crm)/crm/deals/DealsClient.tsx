@@ -17,6 +17,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import { readCachedPipelines, writeCachedPipelines } from '@/lib/crm/ui/pipeline-cache'
 import DealBoard, { type BoardPipeline } from './DealBoard'
 import DealTableView from './DealTableView'
 import DealFormModal from './DealFormModal'
@@ -69,6 +70,8 @@ export default function DealsClient() {
       const items: BoardPipeline[] = body.items ?? []
       setPipelines(items)
       setDefaultPipelineId(items.find((p) => p.isDefault)?.id || items[0]?.id || '')
+      // 다음 방문에 곧바로 그리려고 받아 둔다(§pipeline-cache)
+      writeCachedPipelines(items)
     } catch {
       setError('파이프라인을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -76,7 +79,26 @@ export default function DealsClient() {
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  /**
+   * **가진 것으로 먼저 그리고, 최신값이 오면 갈아 끼운다.**
+   *
+   * 파이프라인이 와야 보드가 붙고, 보드가 붙어야 딜을 묻는다 — 그래서 이 왕복 하나가
+   * 딜 조회를 통째로 뒤로 밀었다(실측: 딜 요청이 1,553ms 에야 나갔다).
+   * 파이프라인은 거의 바뀌지 않는 값이라, 지난번에 받은 것으로 곧바로 그려도 된다.
+   *
+   * 캐시는 **여기(effect)에서** 읽는다 — 첫 렌더에서 읽으면 서버가 그린 HTML 과 달라져
+   * 하이드레이션이 깨진다.
+   */
+  useEffect(() => {
+    const cached = readCachedPipelines<BoardPipeline>()
+    if (cached.length > 0) {
+      setPipelines(cached)
+      setDefaultPipelineId(cached.find((p) => p.isDefault)?.id || cached[0]?.id || '')
+      setLoading(false)
+    }
+    // 캐시가 있어도 **항상** 다시 확인한다 — 화면은 이미 떠 있으므로 기다림이 보이지 않는다
+    void load()
+  }, [load])
 
   /**
    * 이 워크스페이스에 딜이 몇 건인가.
