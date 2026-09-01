@@ -146,7 +146,13 @@ export function parseSignalCandidates(raw: string, topics: TopicHint[]): SignalC
     const topicRaw = typeof o.topicId === 'string' ? o.topicId.trim() : ''
     const topicId = topicIds.has(topicRaw) ? topicRaw : null
 
-    const occurredRaw = typeof o.occurredDate === 'string' ? o.occurredDate.trim() : ''
+    // 프롬프트는 `occurredDate` 를 요구하지만 모델은 `date` 로 답하는 일이 잦다.
+    // 받지 않으면 **모델이 준 날짜를 우리가 버리는** 셈이고, 화면엔 날짜 없는 이슈만 쌓인다.
+    // (없는 날짜를 지어내는 것과 준 날짜를 버리는 것은 다른 문제다)
+    const occurredRaw =
+      typeof o.occurredDate === 'string' ? o.occurredDate.trim()
+      : typeof o.date === 'string' ? o.date.trim()
+      : ''
     const occurredDate = DATE_RE.test(occurredRaw) ? occurredRaw : null
 
     const source = typeof o.source === 'string' && o.source.trim()
