@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.670',
+    date: '2026-09-01',
+    title: '고쳐 놓은 제목이 되돌아가지 않아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📝',
+        headline: '미팅 제목을 원본에 맞춘 뒤 저장하면 옛 제목으로 되돌아가던 문제를 고쳤어요',
+        detail: '「원본에 맞추기」로 제목을 맞춰도 아래 「무슨 미팅이었나요」 칸은 옛 제목을 그대로 들고 있었어요. 그 상태에서 저장을 누르면 방금 맞춘 제목이 도로 옛 제목이 됐습니다. 이제 화면이 바뀐 값을 따라갑니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '✍️',
+        headline: '입력하던 내용이 사라지지 않아요',
+        detail: '장소를 쓰는 중에 「원본에 맞추기」나 「미팅 끝내기」를 눌러도, 쓰던 글은 그대로 있고 손대지 않은 칸만 새 값으로 바뀝니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.669',
     date: '2026-08-31',
     title: '화면이 더 빨리 떠요',
