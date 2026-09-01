@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { draftKey, serializeDraft, parseDraft, draftDiffers, DEFAULT_TTL_MS } from './draft-core.ts'
+import { draftKey, serializeDraft, parseDraft, draftDiffers, shouldPersistDraft, DEFAULT_TTL_MS } from './draft-core.ts'
 import { initHistory, pushHistory, undo, redo, canUndo, canRedo, resetHistory } from './history-core.ts'
 
 // ── draft-core ──
@@ -71,4 +71,20 @@ test('resetHistory: 복원 시작점', () => {
   h = resetHistory('restored')
   assert.equal(h.present, 'restored')
   assert.equal(canUndo(h), false)
+})
+
+/*
+ * 화면을 **열기만 해도** 임시저장본이 사라지던 것을 막는다(실측 v0.7.677).
+ * 저장 효과는 마운트 때도 한 번 돈다 — 그때 「서버에서 읽어 온 값」을 그대로 쓰면
+ * 복원 배너가 떠 있는 채로 지난 초안이 덮인다. 사용자에게 주어진 시간은 디바운스 0.6초뿐이었다.
+ */
+test('shouldPersistDraft: 원본과 같은 값은 저장하지 않는다 — 남의 초안을 덮지 않게', () => {
+  assert.equal(shouldPersistDraft('<p>회의 내용</p>', '<p>회의 내용</p>'), false)
+  assert.equal(shouldPersistDraft({ a: 1 }, { a: 1 }), false)
+})
+
+test('shouldPersistDraft: 실제로 고친 값은 저장한다 — 안 그러면 임시저장이 죽는다', () => {
+  assert.equal(shouldPersistDraft('<p>회의 내용 추가</p>', '<p>회의 내용</p>'), true)
+  assert.equal(shouldPersistDraft({ a: 2 }, { a: 1 }), true)
+  assert.equal(shouldPersistDraft('<p>쓴 것</p>', ''), true)
 })

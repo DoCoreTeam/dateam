@@ -45,3 +45,19 @@ export function draftDiffers(draftValue: unknown, current: unknown, exclude: str
   }
   return strip(draftValue) !== strip(current)
 }
+
+/**
+ * 이 값을 임시저장소에 **써도 되는가.**
+ *
+ * **왜 필요한가**(실측 v0.7.677): 저장 효과는 값이 바뀔 때만 도는 게 아니라
+ * **마운트 때도 한 번 돈다.** 그래서 예전에는 화면을 *열기만 해도* 디바운스(0.6초) 뒤
+ * 「서버에서 읽어 온 값」이 저장돼, **복원 배너가 떠 있는 채로 그 초안이 덮였다.**
+ * 사용자에게 주어진 시간은 0.6초였고, 그 뒤엔 되돌릴 곳이 없다
+ * (회의노트 한 건에서 실제로 그렇게 사라졌다).
+ *
+ * 규칙은 하나다 — **현재 값이 원본과 같으면 쓸 것이 없다.** 아직 아무것도 안 고쳤다는 뜻이므로
+ * 저장할 이유가 없고, 그 자리에 남의(=지난 세션의) 초안이 있을 수 있다.
+ */
+export function shouldPersistDraft(value: unknown, initial: unknown): boolean {
+  return draftDiffers(value, initial)
+}
