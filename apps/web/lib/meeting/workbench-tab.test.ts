@@ -254,3 +254,52 @@ test('역방향 창구는 좁다 — 목록·검색·집계를 열지 않는다(
   assert.ok(fn.includes('resolveCrmAccessForUser('), '워크스페이스 멤버십을 확인한다')
   assert.ok(/catch\s*\{/.test(fn), '부가 정보가 회의노트 화면을 죽이지 않는다')
 })
+
+// ───────────────────── 관계·삭제 계약: 미팅 ↔ 회의노트 (R-1 참조refs) ─────────────────────
+//
+// **왜 여기서 잠그나**: `lib/ci/relation-contract.ts` 는 이름 그대로 **CI 도메인 전용**이고
+// (`CiRelationParent` 가 content·channel·board… 로 닫혀 있다) 그 모듈은 다른 세션이 맡고 있다.
+// 그래서 모듈을 일반화하는 대신, 이 참조의 계약을 **여기서 사실로 고정**한다.
+// 계약이 어디에도 안 적혀 있으면 다음 사람이 "FK 를 안 걸었네"라며 CASCADE 를 걸고,
+// 그 순간 개인 회의노트를 지우면 **팀의 영업 기록이 함께 사라진다.**
+//
+// 계약: `crm_meeting.noteId` 는 **참조(refs)** 다. 소유(owns)가 아니다.
+//   ① FK 를 걸지 않는다 — meeting_notes 는 소프트 삭제라 FK 가 발화하지 않는다
+//   ② 원본이 사라져도 noteId 를 **지우지 않는다** — 어느 노트였는지를 잃으면 복구가 불가능하다
+//   ③ 화면은 「원본 없음」을 **말한다** — 조용히 빈칸으로 두지 않는다
+
+const MIG_215 = '../../supabase/migrations/215_crm_meeting_note_link.sql'
+
+test('★ 계약① crm_meeting.noteId 에 FK 를 걸지 않는다 — CASCADE 는 남의 영업 기록을 지운다', () => {
+  const sql = read(MIG_215)
+  assert.ok(
+    !/REFERENCES/i.test(sql),
+    'noteId 에 FK 가 생겼다. meeting_notes 는 소프트 삭제라 FK 가 발화하지 않고, ' +
+    'CASCADE 를 걸면 개인 노트 삭제가 팀의 CRM 미팅을 지운다(관계 계약 R-1: 이건 refs 다)',
+  )
+  assert.ok(/refs/.test(sql), '마이그레이션이 관계 종류를 밝히지 않았다 — 미분류는 다음 사람이 소유로 읽는다')
+})
+
+test('★ 계약② 원본이 사라져도 noteId 를 지우지 않는다 — 어느 노트였는지를 잃으면 복구가 불가능하다', () => {
+  for (const f of [PUBLISH, 'lib/meeting/share-state.ts', CRM_API]) {
+    const src = code(f)
+    assert.ok(
+      !/noteId:\s*null/.test(src),
+      `${f} 가 noteId 를 null 로 되돌린다 — 재발행이 기존 미팅을 못 찾아 같은 회의가 두 벌이 된다`,
+    )
+  }
+})
+
+test('★ 계약③ 원본이 사라지면 화면이 그렇게 말한다 — 조용한 빈칸은 사용자가 사고를 모르게 한다', () => {
+  const src = code(CRM_DETAIL)
+  assert.ok(/!m\.note\.exists/.test(src), '원본 없음 분기가 없다')
+  assert.ok(/원본 회의노트가 삭제됐습니다/.test(src), '원본이 사라진 사실을 화면이 말하지 않는다')
+})
+
+test('★ 계약④ 원본을 못 읽어도 던지지 않는다 — 미팅 상세 전체가 죽으면 스냅샷까지 못 본다', () => {
+  const src = code(PUBLISH)
+  assert.ok(
+    /exists:\s*false/.test(src),
+    'loadNoteMeta 가 「원본 없음」을 값으로 돌려주지 않는다 — 던지면 상세가 통째로 500 이 된다',
+  )
+})

@@ -21,6 +21,7 @@ import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import { RecordPanel } from '@/components/ui/crm/RecordLayout'
 import { kstParts } from '@/lib/datetime/kst'
+import { adoptUntouched, sameSnapshot } from '@/lib/forms/resync'
 import styles from './meeting-facts.module.css'
 
 export interface MeetingFactsValue {
@@ -59,6 +60,24 @@ function toWall(iso: string): { date: string; time: string } {
   }
 }
 
+/**
+ * 폼이 다루는 칸만 뽑아 문자열로 편다 — 재동기화 판정의 입력(`lib/forms/resync`).
+ *
+ * 이름(`companyName`)은 넣지 않는다. 사용자가 고르는 것은 **id** 이고 이름은 그 결과라,
+ * 이름까지 비교하면 서버가 같은 회사를 다른 표기로 돌려줄 때 «바뀌었다»로 오판한다.
+ */
+function snapshotOf(v: MeetingFactsValue): Record<string, string> {
+  const w = toWall(v.startedAt)
+  return {
+    title: v.title,
+    date: w.date,
+    time: w.time,
+    location: v.location ?? '',
+    companyId: v.companyId ?? '',
+    dealId: v.dealId ?? '',
+  }
+}
+
 export default function MeetingFacts({ meetingId, value, canEditTitle = true, onSaved }: Props) {
   const wall = toWall(value.startedAt)
 
@@ -73,6 +92,29 @@ export default function MeetingFacts({ meetingId, value, canEditTitle = true, on
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  // 서버 값이 **밖에서** 바뀌었을 때 따라잡는다 — 「원본에 맞추기」로 제목이 바뀌거나
+  // 「미팅 끝내기」 뒤 상세가 다시 읽었을 때. 안 하면 옛 값이 남아, 사용자가 「저장」을 누르는 순간
+  // **방금 맞춘 제목이 되돌아간다.** 통째로 덮지 않는 이유는 `lib/forms/resync` 주석에 있다.
+  const incoming = snapshotOf(value)
+  const [base, setBase] = useState(incoming)
+  if (!sameSnapshot(base, incoming)) {
+    const merged = adoptUntouched(base, incoming, { title, date, time, location, companyId, dealId })
+    setBase(incoming)
+    setTitle(merged.title)
+    setDate(merged.date)
+    setTime(merged.time)
+    setLocation(merged.location)
+    // 이름은 id 를 실제로 바꿀 때만 함께 간다 — 안 그러면 고르던 이름이 지워진다
+    if (merged.companyId !== companyId) {
+      setCompanyId(merged.companyId)
+      setCompanyName(value.companyName ?? '')
+    }
+    if (merged.dealId !== dealId) {
+      setDealId(merged.dealId)
+      setDealName(value.dealName ?? '')
+    }
+  }
 
   const dirty =
     title !== value.title ||
