@@ -22,7 +22,7 @@ import { updateMeeting, extractFiveAxis } from './meeting.ts'
 import { listOpenQuestions, type OpenQuestion } from './ask-suggest.ts'
 import type { AiAdapter } from '../ai/runner.ts'
 
-export type FinishStepKey = 'end' | 'digest' | 'extract'
+export type FinishStepKey = 'end' | 'digest' | 'note' | 'extract'
 export type FinishStepStatus = 'done' | 'skipped' | 'failed'
 
 export interface FinishStep {
@@ -63,6 +63,39 @@ function why(e: unknown, fallback: string): string {
   if (e instanceof CrmError) return e.message
   if (e instanceof Error && e.message) return e.message
   return fallback
+}
+
+/**
+ * 원본 회의노트를 「확정」으로 — **이미 확정이면 아무것도 하지 않는다.**
+ *
+ * 돌려주는 값은 «바꿨나»다. 화면이 「올렸어요」와 「이미 확정이에요」를 구분해 말할 수 있어야
+ * 사용자가 무슨 일이 있었는지 안다(둘 다 성공이지만 뜻이 다르다).
+ *
+ * 회의노트는 호스트(Supabase) 표라 서비스롤로 쓴다 — CRM 은 Prisma 라 같은 트랜잭션이 아니다.
+ * 그래서 실패해도 끝내기 전체를 되돌리지 않는다(호출부가 단계로 보고한다).
+ */
+async function confirmNote(noteId: string): Promise<boolean> {
+  const { createAdminClient } = await import('../../supabase/server.ts')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+
+  const { data, error: readErr } = await admin
+    .from('meeting_notes')
+    .select('id, status')
+    .eq('id', noteId)
+    .maybeSingle()
+  // supabase-js 는 오류를 **던지지 않고 반환한다** — 검사하지 않으면 조용히 넘어간다
+  if (readErr) throw new CrmError('CONFLICT', '회의노트를 읽지 못했습니다.')
+  const row = data as { id: string; status: string } | null
+  if (!row) throw new CrmError('NOT_FOUND', '회의노트를 찾을 수 없습니다.')
+  if (row.status === 'final') return false
+
+  const { error } = await admin
+    .from('meeting_notes')
+    .update({ status: 'final' })
+    .eq('id', noteId)
+  if (error) throw new CrmError('CONFLICT', '회의노트 상태를 바꾸지 못했습니다.')
+  return true
 }
 
 export async function finishMeeting(
@@ -119,7 +152,34 @@ export async function finishMeeting(
     }
   }
 
-  // ── ③ 5축을 뽑아 인박스로
+  /*
+    ── ③ **원본 회의노트도 「확정」으로 올린다.**
+
+    사용자 지적(2026-09-01): *「CRM에서 회의 끝내기까지 눌렀는데 작성 중? 설계가 잘못된 거 아냐?」*
+
+    회의노트(`meeting_notes`)와 미팅(`crm_meeting`)은 다른 표지만
+    **사용자에게는 같은 회의 한 건**이다. 그런데 끝내기가 미팅의 `endedAt` 만 남기고
+    노트의 `status` 는 `draft` 로 두어서, 같은 회의를 두 화면이 **다르게 말했다** —
+    한쪽은 끝났다고 하고 한쪽은 아직 쓰는 중이라고 한다.
+
+    노트는 개인 소유 «원본»이라 남의 노트를 함부로 확정하지 않는다:
+      · 이미 `final` 이면 손대지 않는다(두 번 눌러도 사실이 안 바뀐다)
+      · 실패해도 끝내기를 멈추지 않는다(이 서비스의 원칙)
+  */
+  if (!meeting.noteId) {
+    steps.push({ key: 'note', status: 'skipped', detail: '원본 회의노트가 없어요.' })
+  } else {
+    try {
+      const changed = await confirmNote(meeting.noteId)
+      steps.push(changed
+        ? { key: 'note', status: 'done', detail: '회의노트를 「확정」으로 올렸어요.' }
+        : { key: 'note', status: 'skipped', detail: '회의노트는 이미 확정이에요.' })
+    } catch (e) {
+      steps.push({ key: 'note', status: 'failed', detail: why(e, '회의노트 상태를 바꾸지 못했어요.') })
+    }
+  }
+
+  // ── ④ 5축을 뽑아 인박스로
   let axes: Record<string, number> = {}
   let suggested = 0
   let dropped = 0

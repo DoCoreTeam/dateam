@@ -197,3 +197,30 @@ test('모르는 축이 와도 화면이 비지 않는다', () => {
   assert.equal(axisMeta('WHO').label, '누가')
   assert.equal(axisMeta('SOMETHING_NEW').label, 'SOMETHING_NEW')
 })
+
+/* ── ⑤ 같은 회의는 두 화면에서 같은 상태여야 한다 ──────────────── */
+
+test('★ 미팅을 끝내면 원본 회의노트도 「확정」이 된다 — 두 화면이 다른 말을 하지 않게', () => {
+  /*
+    사용자 지적(2026-09-01): 「CRM에서 회의 끝내기까지 눌렀는데 작성 중? 설계가 잘못된 거 아냐?」
+
+    회의노트(`meeting_notes`)와 미팅(`crm_meeting`)은 다른 표지만 **사용자에게는 같은 회의 한 건**이다.
+    끝내기가 미팅의 `endedAt` 만 남기고 노트를 `draft` 로 두면, 같은 회의를 두 화면이 다르게 말한다.
+  */
+  // **호출**을 단정한다 — 함수 이름만 보면 정의가 남아 있는 한 통과한다(일부러 깨서 확인했다)
+  assert.match(FINISH, /await confirmNote\(meeting\.noteId\)/, '끝내기가 회의노트 상태를 올리지 않는다')
+  assert.match(FINISH, /status: 'final'/, "노트를 'final' 로 올리는 쓰기가 없다")
+
+  // 이미 확정이면 손대지 않는다 — 두 번 눌러도 사실이 안 바뀐다
+  assert.match(FINISH, /row\.status === 'final'/, '이미 확정인 노트를 다시 쓴다')
+
+  // 노트 단계가 실패해도 끝내기는 계속된다(이 서비스의 원칙)
+  const noteBlock = FINISH.slice(FINISH.indexOf("key: 'note'") - 800, FINISH.indexOf("key: 'note'") + 400)
+  assert.match(noteBlock, /catch/, '노트 실패가 끝내기를 통째로 실패로 만든다')
+})
+
+test('노트 단계가 결과에 실린다 — 무엇이 됐는지 화면이 말할 수 있어야 한다', () => {
+  assert.match(FINISH, /FinishStepKey = [^\n]*'note'/, "단계 키에 'note' 가 없다")
+  // 「올렸어요」와 「이미 확정이에요」는 둘 다 성공이지만 뜻이 다르다 — 구분해 말한다
+  assert.match(FINISH, /이미 확정이에요/, '이미 확정인 경우를 구분해 말하지 않는다')
+})
