@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.678',
+    date: '2026-09-02',
+    title: 'AI가 막혔을 때 「언제까지 기다리면 되는지」 알려드려요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '⏱️',
+        headline: '다음에 언제 다시 해보는지 화면에 나와요',
+        detail: '「기다려 주세요」만 있고 언제까지인지는 없었어요. 이제 마지막 시도와 다음 자동 시도 시각이 함께 보입니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔁',
+        headline: '막혀 있는 동안에는 더 자주 다시 해봐요',
+        detail: '예전에는 12시간마다만 시도해서, 이미 풀렸는데도 반나절을 그냥 보냈어요. 이제 막힌 동안에는 1시간마다 확인해서 풀리는 대로 바로 담아옵니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📅',
+        headline: '며칠째 안 되고 있는지 보여드려요',
+        detail: '몇 시간이면 기다리면 되지만 며칠째면 기다려서 풀릴 일이 아니에요. 하루가 넘으면 요금제나 키를 확인하시라고 알려드립니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.677',
     date: '2026-09-02',
     title: '회의노트를 읽을 때 실수로 고쳐지지 않아요',
