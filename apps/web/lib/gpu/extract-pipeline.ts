@@ -14,6 +14,7 @@ import { extractFormFactor } from './form-factor.ts'
 import { looksLikeGpuModel } from './validate.ts'
 import { providerFromUrl } from './provider-registry.ts'
 import type { FxKrwMap } from './normalize-money.ts'
+import { GeminiCallError } from '../ai/gemini-call.ts'
 
 // 추출 결과 1건 — CompetitorPriceItem(competitor-import.ts)의 상위집합. saveCompetitorPrices가 그대로 소비 가능.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +48,13 @@ export interface ExtractCompetitorObservationsParams {
 
 export interface ExtractCompetitorObservationsResult {
   items: ExtractPipelineItem[]
+  /**
+   * AI 를 **아예 못 부른** 경우의 원인. 없으면 null.
+   *
+   * `aiRejected`(AI 가 답했는데 내용이 계약에 안 맞음)와 반드시 구분한다 —
+   * 둘을 같은 칸에 적으면 한도 초과가 "AI 가 이해 못 함"으로 보인다(v0.7.678).
+   */
+  aiFailure: { reason: string; detail: string } | null
   aiRejected: Array<{ reason: string; detail: string }>
   completeness: ReconcileResult
   /** AI↔결정론 모델 판정 불일치 메시지(보류 처리된 항목의 근거). 없으면 []. */
@@ -112,6 +120,7 @@ export async function extractCompetitorObservations(
   let aiRes: { valid: AiObservation[]; rejected: Array<{ reason: string; detail: string }> } | null = null
   let aiItems: ExtractPipelineItem[] = []
   let aiRejected: Array<{ reason: string; detail: string }> = []
+  let aiFailure: { reason: string; detail: string } | null = null
 
   try {
     aiRes = await extractAiObservations({ apiKey, model, sourceText, specContext, catalogNames, geminiCaller })
@@ -171,7 +180,16 @@ export async function extractCompetitorObservations(
       }
     })
   } catch (e) {
-    aiRejected = [{ reason: 'invalid_type', detail: `AI 구조화 관측 실패: ${e instanceof Error ? e.message : 'unknown'}` }]
+    // AI 를 **부르지 못한 것**과 AI 응답을 **거절한 것**은 다른 사건이다.
+    //
+    // 왜 나눴나(v0.7.678 · 실측 2026-09-02): 여기가 어떤 예외든 `invalid_type` 으로 뭉개고 있었다.
+    // 그래서 자동 수집이 무료 티어 한도(HTTP 429)로 12개 URL 전부 실패한 날에도 기록은
+    // "AI 거절 11건"이었다 — 읽는 사람은 AI 가 내용을 이해 못 한 줄 안다. 8/27 에도 같은
+    // 기록이 남았지만 아무도 한도 문제로 읽지 못했다. **원인이 안 보이면 안 고쳐진다.**
+    aiFailure = e instanceof GeminiCallError
+      ? { reason: e.reason, detail: e.userMessage }
+      : { reason: 'unknown', detail: e instanceof Error ? e.message : 'unknown' }
+    aiRejected = [{ reason: `ai_unavailable:${aiFailure.reason}`, detail: `AI 호출 실패: ${aiFailure.detail}` }]
   }
 
   const aiItemsCount = aiItems.length
@@ -246,5 +264,5 @@ export async function extractCompetitorObservations(
   const rawAiAmounts = aiRes ? aiRes.valid.map((o) => o.amount).filter((n) => n > 0) : []
   const completeness = reconcileCompleteness(sourceText, [...collectAmounts(items), ...rawAiAmounts])
 
-  return { items, aiRejected, completeness, crosscheckConflicts, detSupplemented, aiItemsCount }
+  return { items, aiFailure, aiRejected, completeness, crosscheckConflicts, detSupplemented, aiItemsCount }
 }

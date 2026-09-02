@@ -76,6 +76,31 @@ export interface GeminiJsonResult {
   fallbackNotice: string | null
 }
 
+/**
+ * 멀티모달 입력 한 조각. 텍스트이거나 base64 바이너리(이미지·PDF)다.
+ *
+ * 왜 여기 있나(v0.7.678): GPU 통합입력이 PDF·이미지를 AI에 넘겨야 해서 공용부를 못 쓰고
+ * 자기 fetch 를 따로 갖고 있었다. 그 경로에만 재시도·모델 폴백·타임아웃이 없어
+ * 무료 티어 한도(모델당 하루 20회) 하나에 기능이 통째로 죽었다 — 실측 2026-09-02.
+ */
+export interface GeminiPart {
+  text?: string
+  inlineData?: { data: string; mimeType: string }
+}
+
+/** 텍스트 그대로가 필요한 호출(JSON 파싱 없음)의 결과. */
+export interface GeminiTextResult {
+  text: string
+  usage: GeminiUsage
+  model: string
+  fallbackNotice: string | null
+}
+
+/** 이 요청이 바이너리(이미지·PDF)를 싣고 있는가 — 텍스트 전용 폴백 공급자로 보낼 수 없다. */
+function hasBinaryPart(parts: GeminiPart[] | undefined): boolean {
+  return Boolean(parts?.some((p) => p.inlineData))
+}
+
 export interface CallGeminiJsonOptions {
   prompt: string
   apiKey: string
@@ -95,6 +120,35 @@ export interface CallGeminiJsonOptions {
    * 어디로 무엇이 가는지는 호출부가 알고 정해야 한다(추가 전용, M-4).
    */
   fallbackApiKey?: string
+
+  /**
+   * 멀티모달 입력. 주면 `prompt` 대신 이 parts 를 보낸다.
+   * `prompt` 는 그대로 받는다 — 폴백 공급자·로그가 쓸 텍스트가 필요하기 때문이다.
+   *
+   * 바이너리(이미지·PDF)가 섞이면 **폴백 공급자로는 나가지 않는다**(텍스트 전용이라
+   * 보내 봐야 그림을 못 본다). 그 사실은 attempts 에 남긴다 — 조용히 건너뛰지 않는다.
+   */
+  parts?: GeminiPart[]
+
+  /**
+   * 주면 스트리밍(`:streamGenerateContent`)으로 부르고 토큰이 도착할 때마다 호출한다.
+   *
+   * 재시도·모델 교체가 일어나면 **같은 자리부터 다시 흘러온다**(응답을 이어붙일 수 없다).
+   * 받는 쪽은 누적 버퍼를 굴리는 표시용으로만 쓰고, 확정값은 반환값에서 읽는다.
+   */
+  onDelta?: (delta: string) => void
+
+  /**
+   * 모델을 갈아타거나 재시도할 때 알려준다. 화면이 "다른 모델로 다시 시도합니다"라고
+   * 말할 수 있게 하기 위한 것 — 사용자가 멈춘 줄 알고 새로고침하는 것을 막는다.
+   */
+  onAttempt?: (info: { model: string; attempt: number; reason: GeminiFailureReason | null }) => void
+}
+
+/** `callGeminiText` 전용 옵션. JSON 형식을 요구할지 호출부가 정한다. */
+export interface CallGeminiTextOptions extends CallGeminiJsonOptions {
+  /** true 면 `responseMimeType: application/json` 을 요구한다. 기본 false(산문 허용). */
+  responseJson?: boolean
 }
 
 interface RawCallOutcome {
@@ -132,6 +186,63 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+interface CallOnceExtras {
+  /** 멀티모달 parts. 없으면 prompt 한 조각으로 보낸다. */
+  parts?: GeminiPart[]
+  /** JSON 형식을 요구할지. */
+  json: boolean
+  /** 주면 스트리밍으로 부른다. */
+  onDelta?: (delta: string) => void
+}
+
+/**
+ * SSE(`alt=sse`) 본문을 읽어 텍스트를 모은다.
+ *
+ * 청크가 반쪽으로 잘려 오는 것은 정상이라 버퍼에 이어 붙여 줄 단위로만 해석한다.
+ * 마지막 청크가 usage·finishReason 를 들고 오므로 매번 덮어써 최신을 남긴다.
+ */
+async function readSseStream(
+  res: Response,
+  onDelta: (delta: string) => void
+): Promise<{ text: string; usage: GeminiUsage; finishReason: string | null }> {
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  let full = ''
+  let usage: GeminiUsage = { prompt: 0, output: 0, total: 0 }
+  let finishReason: string | null = null
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    const lines = buf.split('\n')
+    buf = lines.pop() ?? ''
+    for (const line of lines) {
+      const t = line.trim()
+      if (!t.startsWith('data:')) continue
+      const payload = t.slice(5).trim()
+      if (!payload || payload === '[DONE]') continue
+      let j: {
+        candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]
+        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
+      }
+      try { j = JSON.parse(payload) } catch { continue }   // 부분 라인 — 다음 청크에서 완성된다
+      const delta = j?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+      if (delta) { full += delta; onDelta(delta) }
+      if (j?.candidates?.[0]?.finishReason) finishReason = j.candidates[0].finishReason!
+      if (j?.usageMetadata) {
+        usage = {
+          prompt: j.usageMetadata.promptTokenCount ?? 0,
+          output: j.usageMetadata.candidatesTokenCount ?? 0,
+          total: j.usageMetadata.totalTokenCount ?? 0,
+        }
+      }
+    }
+  }
+  return { text: full, usage, finishReason }
+}
+
 /** 한 모델에 한 번 호출한다. 성공/재시도가능/모델폐기/치명 중 하나로 분류해 돌려준다. */
 async function callOnce(
   model: string,
@@ -139,16 +250,27 @@ async function callOnce(
   apiKey: string,
   temperature: number,
   timeoutMs: number,
-  maxOutputTokens: number
+  maxOutputTokens: number,
+  extras: CallOnceExtras = { json: true }
 ): Promise<RawCallOutcome> {
+  const streaming = Boolean(extras.onDelta)
+  const endpoint = streaming
+    ? `${GEMINI_API_BASE}/models/${model}:streamGenerateContent?alt=sse`
+    : `${GEMINI_API_BASE}/models/${model}:generateContent`
+  const parts: GeminiPart[] = extras.parts && extras.parts.length > 0
+    ? extras.parts
+    : [{ text: prompt }]
+
   let res: Response
   try {
-    res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
+    res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature, maxOutputTokens },
+        contents: [{ role: 'user', parts }],
+        generationConfig: extras.json
+          ? { responseMimeType: 'application/json', temperature, maxOutputTokens }
+          : { temperature, maxOutputTokens },
       }),
       cache: 'no-store',
       signal: AbortSignal.timeout(timeoutMs),
@@ -175,6 +297,27 @@ async function callOnce(
   }
   if (!res.ok) {
     return { kind: 'retryable', reason: 'server', detail: `${model}: 서버 오류(HTTP ${res.status})` }
+  }
+
+  // ── 스트리밍 경로 — 토큰이 오는 대로 흘려보내고, 끝나면 같은 규칙으로 판정한다.
+  if (streaming) {
+    if (!res.body) return { kind: 'retryable', reason: 'server', detail: `${model}: 스트림 본문 없음` }
+    let acc: { text: string; usage: GeminiUsage; finishReason: string | null }
+    try {
+      acc = await readSseStream(res, extras.onDelta!)
+    } catch (e) {
+      const aborted = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')
+      return {
+        kind: 'retryable',
+        reason: aborted ? 'timeout' : 'network',
+        detail: aborted ? `${model}: 스트림 ${timeoutMs}ms 초과` : `${model}: 스트림 중단(${(e as Error).message})`,
+      }
+    }
+    if (!acc.text) return { kind: 'retryable', reason: 'server', detail: `${model}: 응답이 비어 있음` }
+    if (acc.finishReason === 'MAX_TOKENS') {
+      return { kind: 'fatal', reason: 'truncated', detail: `${model}: 출력 상한(${maxOutputTokens} 토큰)에서 잘림` }
+    }
+    return { kind: 'ok', text: acc.text, usage: acc.usage, detail: `${model}: ok(스트림)` }
   }
 
   const json = (await res.json().catch(() => null)) as {
@@ -205,13 +348,47 @@ async function callOnce(
   }
 }
 
+
 /**
- * JSON 응답을 요구하는 Gemini 호출. 설정 모델 → 폴백 모델 순으로 시도하고,
- * 일시적 실패는 지수 백오프로 재시도하며, 응답이 산문이면 그 안의 JSON을 건져낸다.
+ * 실패 원인 → 사용자가 읽을 문장. **한 곳에서만 만든다.**
  *
- * 실패하면 GeminiCallError를 던진다 — 호출처는 `userMessage`를 그대로 화면에 보여주면 된다.
+ * 왜(실측 v0.7.680): 데드라인 초과와 사슬 소진이 각자 문장을 갖고 있었다.
+ * 한도를 다 쓴 날 전체 예산이 먼저 끝나면 화면이 「본문이 길면 시간이 더 걸릴 수 있어요」라고
+ * 말했다 — 사용자는 본문을 줄이려 든다. 실제 원인은 한도였다.
+ * 그래서 **그때까지 본 마지막 원인**을 문장의 근거로 삼는다.
  */
-export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<GeminiJsonResult> {
+function hintFor(reason: GeminiFailureReason): string {
+  if (reason === 'bad_json') {
+    return `AI가 정해진 형식으로 답하지 않았습니다. 관리자 설정의 AI 모델을 '${DEFAULT_GEMINI_MODEL}' 같은 Gemini 계열로 바꿔 주세요(Gemma 계열은 이 기능을 지원하지 않습니다).`
+  }
+  if (reason === 'quota') {
+    return 'AI 호출 한도를 모두 썼습니다. 무료 등급은 모델마다 하루 사용량이 정해져 있어요 — 내일 다시 되거나, 관리자 설정에서 다른 AI 모델로 바꾸면 이어서 쓸 수 있습니다.'
+  }
+  if (reason === 'timeout') {
+    return 'AI 응답이 제한 시간을 넘겼습니다. 본문이 길면 시간이 더 걸릴 수 있어요 — 잠시 후 다시 시도해 주세요.'
+  }
+  return 'AI 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+}
+
+/** 사슬 실행 결과 — accept 가 만든 값과 원문 텍스트를 함께 준다. */
+interface ChainResult {
+  value: unknown
+  text: string
+  usage: GeminiUsage
+  model: string
+  fallbackNotice: string | null
+}
+
+/**
+ * 설정 모델 → 폴백 모델 순으로 시도하는 공통 사슬. 일시적 실패는 지수 백오프로 재시도한다.
+ *
+ * `accept` 가 던지면 그 모델은 **형식을 못 맞춘 것**으로 보고 재시도 없이 다음 모델로 간다
+ * (같은 모델에 또 물어야 같은 답이 온다).
+ */
+async function runGeminiChain(
+  opts: CallGeminiJsonOptions,
+  cfg: { json: boolean; accept: ((text: string) => unknown) | null }
+): Promise<ChainResult> {
   const {
     prompt,
     apiKey,
@@ -222,34 +399,53 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
     maxOutputTokens = GEMINI_MAX_OUTPUT_TOKENS,
     feature = 'gemini',
     fallbackApiKey,
+    parts,
+    onDelta,
+    onAttempt,
   } = opts
 
   if (!apiKey) {
     throw new GeminiCallError('auth', 'Gemini API 키가 설정되지 않았습니다. 관리자 설정에서 키를 등록해 주세요.', [])
   }
 
-  const chain = resolveGeminiModelChain(configured, { requireJson: true })
+  const chain = resolveGeminiModelChain(configured, { requireJson: cfg.json })
   const modelIssue = describeModelIssue(configured)
   const attempts: string[] = []
   const deadline = Date.now() + overallTimeoutMs
   let lastReason: GeminiFailureReason = 'server'
 
+  // 폴백 공급자(Groq)는 **텍스트 JSON 전용**이다. 그림을 못 보고, 산문 요청도 다루지 않는다.
+  // 갈 수 없다는 사실을 조용히 넘기지 않고 attempts 에 남긴다 — 안 간 이유가 보여야 한다.
+  const binary = hasBinaryPart(parts)
+  const canFallback = Boolean(fallbackApiKey) && cfg.json && !binary
+  if (fallbackApiKey && !canFallback) {
+    attempts.push(binary
+      ? '폴백 공급자: 이미지·PDF 가 포함돼 건너뜀(텍스트 전용)'
+      : '폴백 공급자: JSON 응답 호출이 아니라 건너뜀')
+  }
+
   // 방금 전에 사슬 전체가 한도로 막혔고 갈 곳(폴백)이 있으면, 두드리지 않고 바로 넘어간다.
-  const skipGemini = Boolean(fallbackApiKey) && isQuotaCooling()
+  const skipGemini = canFallback && isQuotaCooling()
   if (skipGemini) attempts.push('Gemini: 최근 한도 초과가 확인돼 건너뜀')
 
+  let overall = 0
   for (const model of skipGemini ? [] : chain) {
     for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt++) {
       if (Date.now() >= deadline) {
-        throw new GeminiCallError(
-          'timeout',
-          'AI 응답이 제한 시간을 넘겼습니다. 본문이 길면 시간이 더 걸릴 수 있어요 — 잠시 후 다시 시도해 주세요.',
-          attempts
-        )
+        // 예산이 끝났다고 무조건 「시간 초과」라고 하지 않는다 — 그때까지 계속 한도였다면
+        //   사용자가 할 일은 「잠시 후 다시」가 아니라 「모델을 바꾸거나 내일」이다.
+        const reason: GeminiFailureReason = lastReason === 'quota' ? 'quota' : 'timeout'
+        throw new GeminiCallError(reason, hintFor(reason), attempts)
       }
 
+      // 첫 시도는 알리지 않는다 — 정상 동작이지 사건이 아니다.
+      if (overall > 0) onAttempt?.({ model, attempt, reason: lastReason })
+      overall += 1
+
       const remaining = Math.max(1_000, Math.min(timeoutMs, deadline - Date.now()))
-      const out = await callOnce(model, prompt, apiKey, temperature, remaining, maxOutputTokens)
+      const out = await callOnce(model, prompt, apiKey, temperature, remaining, maxOutputTokens, {
+        parts, json: cfg.json, onDelta,
+      })
       attempts.push(out.detail)
 
       if (out.kind === 'fatal') {
@@ -257,7 +453,7 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
         throw new GeminiCallError(
           out.reason ?? 'server',
           out.reason === 'truncated'
-            ? '회의 본문이 길어 AI 응답이 중간에서 끊겼습니다. 본문을 나눠서 분석해 주세요.'
+            ? '내용이 길어 AI 응답이 중간에서 끊겼습니다. 나눠서 다시 시도해 주세요.'
             : 'Gemini API 키가 거부됐습니다. 관리자 설정에서 키를 다시 등록해 주세요.',
           attempts
         )
@@ -270,6 +466,15 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
 
       if (out.kind === 'retryable') {
         lastReason = out.reason ?? 'server'
+        // 한도(429)는 같은 모델을 1~2초 뒤에 다시 두드려도 안 풀린다 —
+        //   무료 티어는 **하루** 단위다(실측 quotaId …PerProjectPerModel-FreeTier).
+        //   백오프에 3초를 버리는 대신 곧바로 다음 모델로 간다. 모델마다 한도 버킷이 따로다.
+        //   (실측 v0.7.680: 이 3초 × 모델 4개 × 단계 4개 때문에 한 요청이 90초까지 늘어
+        //    Vercel 함수 상한 60초를 넘길 뻔했다 — 그러면 사용자는 아무 말도 못 듣는다.)
+        if (out.reason === 'quota') {
+          console.warn(`[${feature}] 한도 — 재시도 없이 다음 모델로: ${out.detail}`)
+          break
+        }
         console.warn(`[${feature}] 재시도(${attempt + 1}/${MAX_RETRIES_PER_MODEL}): ${out.detail}`)
         if (attempt < MAX_RETRIES_PER_MODEL) {
           await sleep(1_000 * 2 ** attempt)
@@ -278,13 +483,15 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
         break // 이 모델은 포기 — 다음 모델로
       }
 
-      // ok — 이제 JSON을 건져낸다.
+      // ok — 형식 검사(accept)가 있으면 여기서 통과해야 성공이다.
+      const text = out.text ?? ''
       try {
-        const value = recoverJson(out.text ?? '')
+        const value = cfg.accept ? cfg.accept(text) : text
         quotaBlockedUntil = 0   // Gemini 가 답했다 = 한도가 풀렸다
         const usedFallback = model !== (configured ?? '').trim()
         return {
           value,
+          text,
           usage: out.usage ?? { prompt: 0, output: 0, total: 0 },
           model,
           fallbackNotice: usedFallback
@@ -309,9 +516,9 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
   // 공급자를 바꾸는 것만이 남은 길이다. 호출부가 키를 준 경우에만 간다.
   if (lastReason === 'quota' && !skipGemini) quotaBlockedUntil = Date.now() + QUOTA_COOLDOWN_MS
 
-  if (fallbackApiKey) {
+  if (canFallback) {
     const fb = await callFallbackJson({
-      prompt, apiKey: fallbackApiKey, temperature, maxOutputTokens,
+      prompt, apiKey: fallbackApiKey!, temperature, maxOutputTokens,
       timeoutMs: Math.max(1_000, Math.min(timeoutMs, deadline - Date.now())),
       feature,
     })
@@ -320,7 +527,8 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
     if (fb.ok) {
       try {
         return {
-          value: recoverJson(fb.text),
+          value: cfg.accept ? cfg.accept(fb.text) : fb.text,
+          text: fb.text,
           usage: fb.usage,
           model: fb.model,
           fallbackNotice:
@@ -334,14 +542,7 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
     }
   }
 
-  const hint =
-    lastReason === 'bad_json'
-      ? `AI가 정해진 형식으로 답하지 않았습니다. 관리자 설정의 AI 모델을 '${DEFAULT_GEMINI_MODEL}' 같은 Gemini 계열로 바꿔 주세요(Gemma 계열은 이 기능을 지원하지 않습니다).`
-      : lastReason === 'quota'
-        ? 'AI 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.'
-        : lastReason === 'timeout'
-          ? 'AI 응답이 제한 시간을 넘겼습니다. 잠시 후 다시 시도해 주세요.'
-          : 'AI 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+  const hint = hintFor(lastReason)
 
   /**
    * 관리자가 읽는 곳에 남긴다 — 여기까지 왔다는 것은 **사슬의 모든 모델이 실패했다**는 뜻이다.
@@ -360,4 +561,27 @@ export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<Gemin
   })
 
   throw new GeminiCallError(lastReason, hint, attempts)
+}
+
+/**
+ * JSON 응답을 요구하는 Gemini 호출. 설정 모델 → 폴백 모델 순으로 시도하고,
+ * 일시적 실패는 지수 백오프로 재시도하며, 응답이 산문이면 그 안의 JSON을 건져낸다.
+ *
+ * 실패하면 GeminiCallError를 던진다 — 호출처는 `userMessage`를 그대로 화면에 보여주면 된다.
+ */
+export async function callGeminiJson(opts: CallGeminiJsonOptions): Promise<GeminiJsonResult> {
+  const r = await runGeminiChain(opts, { json: true, accept: recoverJson })
+  return { value: r.value, usage: r.usage, model: r.model, fallbackNotice: r.fallbackNotice }
+}
+
+/**
+ * 텍스트 그대로가 필요한 Gemini 호출 — 재시도·모델 폴백·타임아웃은 JSON 호출과 **같다**.
+ *
+ * 왜 따로 있나(v0.7.678): 응답을 호출부가 직접 파싱해야 하는 자리(스트리밍 미리보기·산문
+ * 프롬프트 생성)가 있어서 `callGeminiJson` 만으로는 공용부를 쓸 수 없었다. 그 자리들이
+ * 각자 fetch 를 갖고 있었고, 거기에만 안전망이 없었다.
+ */
+export async function callGeminiText(opts: CallGeminiTextOptions): Promise<GeminiTextResult> {
+  const r = await runGeminiChain(opts, { json: opts.responseJson ?? false, accept: null })
+  return { text: r.text, usage: r.usage, model: r.model, fallbackNotice: r.fallbackNotice }
 }

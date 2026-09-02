@@ -6,8 +6,35 @@ import { safeFetchText } from '@/lib/security/safe-fetch'
 import { renderUrlHtml } from '@/lib/security/headless-fetch'
 import { htmlToStructuredText } from '@/lib/gpu/html-table-extract'
 import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
+import { callGeminiJson, callGeminiText, type GeminiPart } from '../ai/gemini-call.ts'
 
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
+
+/**
+ * GPU 경로가 공용 호출부에 얹어 쓰는 선택지.
+ *
+ * 왜 생겼나(v0.7.678): 이 파일의 두 함수(`callGeminiOnce`·`callGeminiStream`)가
+ * 자기 `fetch` 를 갖고 있었고 **타임아웃도 재시도도 모델 폴백도 없었다**.
+ * 그래서 무료 티어 한도(모델당 하루 20회)에 걸린 날 GPU 통합입력·자동수집·카탈로그·
+ * 업무 자동연결·프롬프트 편집이 **한꺼번에** 죽었다(실측 2026-09-02: HTTP 429 즉시 실패,
+ * 같은 순간 `gemini-3.6-flash`·`3.7-flash`·`flash-lite-latest` 는 살아 있었다).
+ *
+ * 인자는 전부 선택이다 — 기존 호출부는 한 글자도 안 고쳐도 그대로 동작한다(M-4 추가 전용).
+ */
+export interface GpuGeminiOptions {
+  /** Gemini 사슬이 전부 막혔을 때 쓸 두 번째 공급자 키. 이미지·PDF 가 있으면 자동으로 건너뛴다. */
+  fallbackApiKey?: string
+  /** 로그 라벨. */
+  feature?: string
+  /** 한 번의 호출 상한(ms). */
+  timeoutMs?: number
+  /** 재시도·모델 폴백을 전부 합친 상한(ms). */
+  overallTimeoutMs?: number
+  /** 모델을 갈아타거나 재시도할 때 — 화면에 "다른 모델로 다시 시도합니다"를 띄우기 위한 것. */
+  onAttempt?: (info: { model: string; attempt: number }) => void
+  /** 설정 모델이 아닌 모델로 처리했을 때 그 사실. 화면이 사용자에게 알릴 수 있게. */
+  onNotice?: (notice: string) => void
+}
 
 // URL 본문 길이 상한 — 데이터 손실용(15K)이 아니라 보안/효율용 상한.
 // 보안 상한(2MB)은 safe-fetch에서 유지. 여기선 AI 입력에 들어갈 구조화 텍스트 상한.
@@ -21,6 +48,14 @@ export async function getGeminiConfig(adminClient: ReturnType<typeof createAdmin
   return {
     apiKey: typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : '',
     model: typeof meta.gemini_model === 'string' ? meta.gemini_model : DEFAULT_GEMINI_MODEL,
+    /**
+     * Gemini 사슬이 전부 막혔을 때 쓰는 두 번째 공급자 키(Groq).
+     * 조직이 이미 회의 녹음 STT에 쓰는 계정을 그대로 본다 — 새 키를 받지 않는다.
+     * 없으면 빈 값이고, 그러면 폴백 없이 원래대로 실패한다(lib/ci/ai/meta.ts와 같은 규칙).
+     */
+    fallbackApiKey: typeof meta.groq_api_key === 'string' && meta.groq_api_key
+      ? meta.groq_api_key
+      : typeof meta.stt_api_key === 'string' ? meta.stt_api_key : '',
   }
 }
 
@@ -128,20 +163,29 @@ export async function loadSchemaDigest(adminClient: ReturnType<typeof createAdmi
 
 // 비스트리밍 Gemini 호출(합성용) — 단일 텍스트 반환.
 export async function callGeminiOnce(
-  apiKey: string, model: string, text: string, jsonMode = false,
+  apiKey: string, model: string, text: string, jsonMode = false, opts: GpuGeminiOptions = {},
 ): Promise<string> {
-  const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text }] }], // JSON 추출은 행 수가 많으면 기본 출력한도(8k)에 걸려 **뒷부분이 조용히 잘린다**
-    //   (실사고 v0.7.363: verda 22관측 추출 시 V100·RTX PRO 6000 CC 행이 누락 — 완전성 게이트가 검출).
-    //   한도를 넉넉히 열어 절단 유실을 막는다.
-    generationConfig: jsonMode
-      ? { responseMimeType: 'application/json', temperature: 0, maxOutputTokens: 32768 }
-      : { temperature: 0.2 } }),
-  })
-  if (!res.ok) throw new Error(`gemini ${res.status}`)
-  const j = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
-  return j.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+  // JSON 추출은 행 수가 많으면 기본 출력한도(8k)에 걸려 **뒷부분이 조용히 잘린다**
+  //   (실사고 v0.7.363: verda 22관측 추출 시 V100·RTX PRO 6000 CC 행이 누락 — 완전성 게이트가 검출).
+  //   공용부 기본값(32,768)이 그 상한을 이미 열어 두고, 닿으면 'truncated'로 말한다.
+  const common = {
+    prompt: text, apiKey, model,
+    feature: opts.feature ?? 'gpu-intake',
+    fallbackApiKey: opts.fallbackApiKey,
+    timeoutMs: opts.timeoutMs,
+    overallTimeoutMs: opts.overallTimeoutMs,
+    onAttempt: opts.onAttempt,
+  }
+  if (jsonMode) {
+    const r = await callGeminiJson({ ...common, temperature: 0 })
+    if (r.fallbackNotice) opts.onNotice?.(r.fallbackNotice)
+    // 호출부는 지금까지 이 반환값을 JSON.parse 해 왔다 — 계약을 그대로 지킨다.
+    //   달라진 것은 산문에 섞여 온 JSON까지 건져낸다는 것뿐이다(recoverJson).
+    return JSON.stringify(r.value)
+  }
+  const r = await callGeminiText({ ...common, temperature: 0.2, responseJson: false })
+  if (r.fallbackNotice) opts.onNotice?.(r.fallbackNotice)
+  return r.text
 }
 
 // 짧은 결정적 해시(Date/random 미사용) — 합성 프롬프트 키 생성용
@@ -186,37 +230,25 @@ ${sampleInput.slice(0, 4000)}`
 // Gemini 스트리밍 호출 — streamGenerateContent(SSE). 텍스트 델타를 onDelta로 흘림.
 export async function callGeminiStream(
   apiKey: string, model: string,
-  parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }>,
+  parts: GeminiPart[],
   onDelta: (text: string) => void,
+  opts: GpuGeminiOptions = {},
 ): Promise<string> {
-  const url = `${GEMINI_API_BASE}/models/${model}:streamGenerateContent?alt=sse`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0 } }),
+  // 폴백 공급자에게 넘길 텍스트 — parts 의 text 조각만 이어 붙인다.
+  //   이미지·PDF 가 섞여 있으면 공용부가 알아서 폴백을 건너뛴다(그림을 못 보는 공급자라서).
+  const promptText = parts.map((p) => p.text ?? '').filter(Boolean).join('\n\n')
+  const r = await callGeminiJson({
+    prompt: promptText,
+    apiKey, model, parts, onDelta,
+    temperature: 0,
+    feature: opts.feature ?? 'gpu-intake',
+    fallbackApiKey: opts.fallbackApiKey,
+    timeoutMs: opts.timeoutMs,
+    overallTimeoutMs: opts.overallTimeoutMs,
+    onAttempt: opts.onAttempt,
   })
-  if (!res.ok || !res.body) throw new Error(`gemini stream ${res.status}`)
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buf = ''
-  let full = ''
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += decoder.decode(value, { stream: true })
-    const lines = buf.split('\n')
-    buf = lines.pop() ?? ''
-    for (const line of lines) {
-      const t = line.trim()
-      if (!t.startsWith('data:')) continue
-      const payload = t.slice(5).trim()
-      if (!payload || payload === '[DONE]') continue
-      try {
-        const j = JSON.parse(payload)
-        const delta = j?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-        if (delta) { full += delta; onDelta(delta) }
-      } catch { /* 부분 라인 무시 */ }
-    }
-  }
-  return full
+  if (r.fallbackNotice) opts.onNotice?.(r.fallbackNotice)
+  // 호출부는 이 반환값을 JSON.parse 해 왔다 — 계약 유지. 공용부가 이미 복구·검증했으므로
+  //   여기서 나가는 문자열은 항상 파싱 가능한 JSON 이다(산문만 낸 모델은 사슬에서 걸러졌다).
+  return JSON.stringify(r.value)
 }

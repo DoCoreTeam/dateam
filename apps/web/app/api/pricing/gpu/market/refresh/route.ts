@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { saveCompetitorPrices, type CompetitorPriceItem } from '@/lib/gpu/competitor-import'
-import { getGeminiConfig, fetchUrlText, loadSpecContext } from '@/lib/gpu/extract-helpers'
+import { getGeminiConfig, fetchUrlText, loadSpecContext, callGeminiOnce } from '@/lib/gpu/extract-helpers'
 import { extractCompetitorObservations } from '@/lib/gpu/extract-pipeline'
 import type { FxKrwMap } from '@/lib/gpu/normalize-money'
 import { kstTodayKey } from '@/lib/datetime/kst'
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   }
 
   // Gemini 설정(SSOT — review/stream과 동일 org_content META 조회 재사용, 복사본 금지)
-  const { apiKey, model } = await getGeminiConfig(adminClient)
+  const { apiKey, model, fallbackApiKey } = await getGeminiConfig(adminClient)
 
   if (!apiKey) {
     if (isAuto) await db.from('market_refresh_runs').update({ status: 'error', finished_at: new Date().toISOString(), error: 'AI 키가 설정되지 않았습니다' }).eq('run_date', runDate)
@@ -124,12 +124,20 @@ export async function POST(req: Request) {
       const pipeline = await extractCompetitorObservations({
         apiKey, model, sourceText: pageText, specContext, catalogNames: catalogModelNames,
         provider: compName, sourceUrl: url, krwPerUsd, fxMap, fxDate: fxRateDate,
+        // 재시도·모델 폴백·시간 제한을 태운다(v0.7.678). 예전엔 이 경로가 모델 하나만 부르고
+        //   429 하나에 12개 URL 이 전부 실패했다 — 그날 가격 갱신은 0건이었다.
+        geminiCaller: (k, m, t, j) => callGeminiOnce(k, m, t, j, {
+          fallbackApiKey, feature: 'gpu-market-refresh',
+        }),
       })
 
       if (pipeline.items.length === 0) {
         results.push({
           url, competitor: compName, prices_found: 0,
-          ...(pipeline.aiRejected.length ? { ai_rejected: pipeline.aiRejected.length } : {}),
+          // AI 를 **못 부른 것**은 「AI 가 거절함」이 아니다 — 이걸 뭉개서 한도 초과 11건이
+          //   「내용을 이해 못 함 11건」으로 기록됐다(v0.7.678). 원인이 안 보이면 안 고쳐진다.
+          ...(pipeline.aiFailure ? { ai_error: pipeline.aiFailure.reason, ai_error_detail: pipeline.aiFailure.detail } : {}),
+          ...(pipeline.aiRejected.length && !pipeline.aiFailure ? { ai_rejected: pipeline.aiRejected.length } : {}),
         })
         continue
       }
@@ -150,7 +158,8 @@ export async function POST(req: Request) {
         ...(fxUnresolved ? { fx_unresolved: fxUnresolved } : {}),
         ...(componentsSaved ? { components_saved: componentsSaved } : {}),
         ...(!pipeline.completeness.complete ? { completeness_uncovered: pipeline.completeness.uncovered.length } : {}),
-        ...(pipeline.aiRejected.length ? { ai_rejected: pipeline.aiRejected.length } : {}),
+        ...(pipeline.aiFailure ? { ai_error: pipeline.aiFailure.reason } : {}),
+        ...(pipeline.aiRejected.length && !pipeline.aiFailure ? { ai_rejected: pipeline.aiRejected.length } : {}),
       })
       totalPricesUpdated += saved.length
     } catch (err) {

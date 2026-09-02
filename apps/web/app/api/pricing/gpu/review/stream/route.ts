@@ -3,8 +3,10 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import {
   getGeminiConfig, getExtractPrompt, getClassifyPrompt, extractUrls, fetchUrlText,
-  loadSpecContext, callGeminiStream, loadSchemaDigest, synthesizeExtractPrompt,
+  loadSpecContext, callGeminiStream, callGeminiOnce, loadSchemaDigest, synthesizeExtractPrompt,
+  type GpuGeminiOptions,
 } from '@/lib/gpu/extract-helpers'
+import { GeminiCallError } from '@/lib/ai/gemini-call'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { INTAKE_LIMITS } from '@/lib/gpu/intake-files'
 import { resolveClassification, detectCompetitorProviders, providerFromUrl } from '@/lib/gpu/provider-registry'
@@ -24,6 +26,16 @@ import { HOURS_PER_PERIOD } from '@/lib/gpu/hours'
 // 헤드리스 렌더(@sparticuz/chromium)·전사·AI 호출에 시간 필요 → Node 런타임 + maxDuration 확대(Vercel 콜드스타트 여유).
 export const runtime = 'nodejs'
 export const maxDuration = 60
+
+/**
+ * 이 요청이 AI 에 쓸 수 있는 **전체** 시간(ms).
+ *
+ * 한 요청은 전사→분류→추출로 AI 를 3~5번 순차 호출한다. 호출마다 상한을 걸어도
+ * 합이 함수 상한(maxDuration)을 넘으면 플랫폼이 함수를 죽이고, 그때 사용자는
+ * 아무 말도 못 듣는다. 그래서 **우리가 먼저 끊고 이유를 말한다.**
+ * (실측 v0.7.680: 한도 소진일에 한 요청이 90.5초까지 늘었다 — 로컬이라 살았을 뿐이다.)
+ */
+const ROUTE_AI_BUDGET_MS = 50_000
 
 // 통합입력 실시간 스트리밍 분석 — SSE.
 // 추출 결과는 "미리보기"만 반환(저장 X). 사용자가 버튼을 눌러야 저장(경쟁사: market/import, 공급가: review POST).
@@ -57,6 +69,8 @@ async function runTranscription(
   imageParts: Array<{ inlineData: { data: string; mimeType: string } }>,
   contentText: string,
   onDelta: (delta: string) => void,
+  opts: GpuGeminiOptions = {},
+  onFail?: (reason: string) => void,
 ): Promise<TranscriptionResult> {
   const hasImages = imageParts.length > 0
   if (!hasImages && contentText.trim().length === 0) return { rows: [], source_row_count: 0 }
@@ -65,9 +79,12 @@ async function runTranscription(
   if (hasImages) parts.push(...imageParts)
   parts.push({ text: `${prompt}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지의 모든 가격표 행을 전사하세요.'}` })
   try {
-    const text = await callGeminiStream(apiKey, model, parts, onDelta)
+    const text = await callGeminiStream(apiKey, model, parts, onDelta, opts)
     return parseTranscription(text)
-  } catch {
+  } catch (e) {
+    // 전사는 실패해도 뒤 단계가 이어지지만, **조용히 넘어가면 안 된다** —
+    //   원본 0행으로 진행되어 누락 대조(reconciliation)가 꺼진 채 결과가 나온다.
+    onFail?.(e instanceof GeminiCallError ? e.userMessage : '원문 전사를 건너뛰었습니다.')
     return { rows: [], source_row_count: 0 }
   }
 }
@@ -135,6 +152,30 @@ export async function POST(req: NextRequest) {
       const send = (event: string, data: unknown) => {
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
       }
+
+      /**
+       * 이 요청의 모든 AI 호출이 공유하는 안전망(v0.7.678).
+       *
+       * 예전엔 이 라우트가 자기 fetch 로 모델 **하나만** 부르고 재시도도 폴백도 없었다.
+       * 무료 티어 한도(모델당 하루 20회)에 걸린 날 첫 호출부터 429 로 죽었고,
+       * 화면에는 「AI 분석 중 오류」만 떠서 사용자는 PDF 를 의심했다(실측 2026-09-02).
+       *
+       * 시간 상한을 route 의 maxDuration(60초)보다 짧게 잡는다 — 플랫폼이 함수를 죽이면
+       * 사용자는 아무 말도 못 듣는다. 우리가 먼저 끊고 이유를 말한다.
+       */
+      const aiDeadline = Date.now() + ROUTE_AI_BUDGET_MS
+      /** 호출할 때마다 **남은 예산**을 준다 — 앞 단계가 오래 끌면 뒤 단계가 그만큼 짧아진다. */
+      const gopts = (): GpuGeminiOptions => ({
+        fallbackApiKey: config.fallbackApiKey,
+        feature: 'gpu-intake',
+        timeoutMs: 40_000,
+        overallTimeoutMs: Math.max(3_000, aiDeadline - Date.now()),
+        onAttempt: ({ model }) => send('progress', { step: 'ai_retry', msg: `AI 응답을 받지 못해 다시 시도합니다 — ${model}` }),
+        onNotice: (notice) => send('progress', { step: 'ai_model_switched', msg: notice }),
+      })
+      /** 관측 추출(ai-observation)이 쓰는 호출기 — 같은 안전망·같은 예산을 태운다. */
+      const geminiCaller = (k: string, m: string, t: string, j?: boolean) => callGeminiOnce(k, m, t, j, gopts())
+
       try {
         send('progress', { step: 'start', msg: '입력을 분석하고 있습니다…' })
 
@@ -166,6 +207,8 @@ export async function POST(req: NextRequest) {
         const transcription = await runTranscription(
           config.apiKey, config.model, imageParts, contentText,
           (delta) => send('token', { phase: 'transcribe', delta }),
+          gopts(),
+          (reason) => send('progress', { step: 'transcribe_failed', msg: `원문 전사를 건너뜁니다 — ${reason} (누락 검사가 꺼진 채 진행됩니다)` }),
         )
         const sourceRowCount = transcription.source_row_count
         const sourceLabels = transcription.rows.map((r) => r.raw_label).filter((l) => l.length > 0)
@@ -197,6 +240,7 @@ export async function POST(req: NextRequest) {
         const classifyText = await callGeminiStream(
           config.apiKey, config.model, classifyParts,
           (delta) => send('token', { phase: 'classify', delta }),
+          gopts(),
         )
         try { classified = JSON.parse(classifyText) } catch { /* fallthrough */ }
         if (hasImages) send('progress', { step: 'ocr', msg: '이미지에서 견적 정보를 읽는 중…' })
@@ -310,6 +354,7 @@ export async function POST(req: NextRequest) {
               apiKey: config.apiKey, model: config.model, sourceText: contentText, specContext,
               catalogNames: catalogModelNames, provider, sourceUrl, krwPerUsd, fxMap, fxDate,
               deterministicItems: compItems,
+              geminiCaller,   // 같은 안전망(재시도·모델 폴백·시간 제한)을 관측 추출에도 태운다
             })
             compItems = pipeline.items
             if (pipeline.aiItemsCount > 0) {
@@ -473,6 +518,7 @@ export async function POST(req: NextRequest) {
           config.apiKey, config.model,
           extractParts,
           (delta) => send('token', { phase: 'extract', delta }),
+          gopts(),
         )
         let parsed: { items?: Array<{ extracted?: Record<string, unknown> }>; extracted?: Record<string, unknown> } = {}
         try { parsed = JSON.parse(extractText) } catch { send('error', { msg: 'AI 응답 파싱 실패' }); controller.close(); return }
@@ -498,6 +544,7 @@ export async function POST(req: NextRequest) {
               config.apiKey, config.model,
               [{ text: `${synth.content}\n\n${schemaDigest}${specContext}\n\n입력 텍스트:\n${contentText}` }],
               (delta) => send('token', { phase: 'retry', delta }),
+              gopts(),
             )
             let retryParsed: { items?: Array<{ extracted?: Record<string, unknown> }>; extracted?: Record<string, unknown> } = {}
             try { retryParsed = JSON.parse(retryText) } catch { /* ignore */ }
@@ -550,9 +597,15 @@ export async function POST(req: NextRequest) {
         send('done', { type: competitorEmitted ? 'mixed' : 'supplier', count: items.length, truncated, reconciliation: supplierRecon })
         controller.close()
       } catch (e) {
-        // 상세는 서버 로그만, 클라이언트엔 일반화 메시지(내부 경로·키 노출 방지).
+        // 상세는 서버 로그만, 클라이언트엔 안전한 문장(내부 경로·키 노출 방지).
         console.error('[gpu/review/stream] error:', e)
-        send('error', { msg: 'AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.' })
+        // 원인을 아는 실패는 원인을 말한다 — 「오류가 발생했습니다」는 사용자를
+        //   엉뚱한 곳(첨부 파일·입력 형식)으로 보낸다. 실제로 한도 초과를
+        //   PDF 결함으로 오인한 사고가 있었다(v0.7.678).
+        const msg = e instanceof GeminiCallError
+          ? e.userMessage
+          : 'AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+        send('error', { msg })
         controller.close()
       }
     },
