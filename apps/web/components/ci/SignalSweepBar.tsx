@@ -12,7 +12,7 @@ import { RefreshCw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { formatKstDateTimeShort, formatKstAgo } from '@/lib/datetime/kst'
 import {
-  signalSweepHeadline, signalSweepDetail, type SignalSweepState,
+  signalSweepHeadline, signalSweepDetail, signalSweepStuckText, type SignalSweepState,
 } from '@/lib/ci/analysis/signals'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import styles from './signal-sweep-bar.module.css'
@@ -66,6 +66,8 @@ export default function SignalSweepBar({
   const headline = message ?? signalSweepHeadline(state)
   const detail = message ? null : signalSweepDetail(state)
   const tone = failed ? 'danger' : 'muted'
+  // 방금 실행한 결과가 있으면 옛 상태의 «며칠째»는 말하지 않는다
+  const stuck = message ? null : signalSweepStuckText(state)
 
   return (
     <div className={`card ${styles.bar}`}>
@@ -74,10 +76,15 @@ export default function SignalSweepBar({
           {busy ? '바깥을 훑고 있어요… 최대 90초까지 걸려요' : headline}
         </p>
         {!busy && detail && <p className={styles.detail}>{detail}</p>}
-        {!busy && state.lastSweepAt && (
+        {!busy && stuck && <p className={styles.detail}>{stuck}</p>}
+        {!busy && (state.lastSweepAt || state.nextAttemptAt) && (
           <p className={styles.detail}>
-            마지막으로 훑은 때 · {formatKstDateTimeShort(state.lastSweepAt)}
-            {' '}({formatKstAgo(state.lastSweepAt)})
+            {state.lastSweepAt && (
+              <>마지막 시도 · {formatKstDateTimeShort(state.lastSweepAt)} ({formatKstAgo(state.lastSweepAt)})</>
+            )}
+            {/* 「기다리세요」는 언제까지인지 함께 말해야 지시가 된다 */}
+            {state.lastSweepAt && state.nextAttemptAt && ' · '}
+            {state.nextAttemptAt && <>다음 자동 시도 · {formatKstDateTimeShort(state.nextAttemptAt)}</>}
           </p>
         )}
       </div>

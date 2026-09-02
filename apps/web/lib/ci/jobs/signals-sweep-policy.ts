@@ -27,6 +27,45 @@ export function normalizeSignalIntervalHours(raw: unknown): number {
   return n
 }
 
+/**
+ * **한도에 막혔을 때만** 쓰는 짧은 주기.
+ *
+ * 왜 따로 두는가(실측 2026-09-02): 구글은 429 응답에 `retry-after` 도 초기화 시각도 주지 않는다.
+ * 즉 **언제 풀리는지 알 방법이 없다.** 그런데 정상 주기(12시간)로 기다리면 이미 풀린 한도를
+ * 최대 12시간 동안 모르고 지나간다 — 사용자에게는 「종일 아무것도 안 담기는」 상태다.
+ *
+ * 그래서 막혔을 때는 자주 찔러본다. 비용은 429 응답 하나(토큰 0)라 정상 호출보다 싸고,
+ * 풀린 순간을 1시간 안에 잡는다. 「기다리세요」를 **기다리지 않아도 되는 것**으로 바꾸는 장치다.
+ */
+export const BLOCKED_RETRY_INTERVAL_HOURS = 1
+
+/**
+ * 이번에 쓸 주기. 마지막 시도가 한도에 막혔으면 짧게, 아니면 설정대로.
+ * 설정값이 이미 더 짧으면 그것을 존중한다 — 정책이 사용자 설정을 늘리지 않는다.
+ */
+export function effectiveSignalIntervalHours(
+  configuredHours: number,
+  lastFailedByQuota: boolean,
+): number {
+  if (!lastFailedByQuota) return configuredHours
+  return Math.min(configuredHours, BLOCKED_RETRY_INTERVAL_HOURS)
+}
+
+/**
+ * 「다음 자동 시도」 시각(ISO). 화면이 «언제 다시 해보는지»를 말할 수 있어야
+ * 사용자가 기다릴지 손을 쓸지 정할 수 있다. 한 번도 안 훑었으면 지금이 그 시각이다.
+ */
+export function nextSignalSweepAt(
+  lastSweepAt: string | null | undefined,
+  intervalHours: number,
+  now: number = Date.now(),
+): string {
+  if (!lastSweepAt) return new Date(now).toISOString()
+  const t = Date.parse(lastSweepAt)
+  if (!Number.isFinite(t)) return new Date(now).toISOString()
+  return new Date(Math.max(now, t + intervalHours * 3600_000)).toISOString()
+}
+
 /** 지금 다시 훑어야 하나. 한 번도 안 훑었으면 훑는다. */
 export function isSignalSweepDue(
   lastSweepAt: string | null | undefined,

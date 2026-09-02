@@ -13,6 +13,7 @@ import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import { runSignalSweep } from '@/lib/ci/ai/signals-server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { isQuotaMessage } from '@/lib/ci/analysis/signals'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
     if (!r.ok) {
       // 한도 소진은 «고장»이 아니라 «지금은 못 한다»다 — 코드를 나눠야 화면이 다른 말을 할 수 있다
       const msg = r.errorMessage ?? r.note ?? '이슈를 찾지 못했습니다'
-      const quota = /한도|quota|RESOURCE_EXHAUSTED|429/i.test(msg)
+      const quota = isQuotaMessage(msg)
       return fail(quota ? 'QUOTA_EXHAUSTED' : 'INTERNAL', msg)
     }
     return ok({ found: r.found ?? 0, inserted: r.inserted ?? 0, note: r.note ?? null })

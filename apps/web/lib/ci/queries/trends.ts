@@ -9,6 +9,10 @@ import { CI_PLATFORM_LABEL, type CiConfidence, type CiPlatform } from '../types.
 import { formatDiscoveryBasis } from '../analysis/discovery.ts'
 import type { SignalSweepState } from '../analysis/signals.ts'
 import { loadWorkspaceSetting } from '../settings/load.ts'
+import { isQuotaMessage } from '../analysis/signals.ts'
+import {
+  effectiveSignalIntervalHours, normalizeSignalIntervalHours, nextSignalSweepAt,
+} from '../jobs/signals-sweep-policy.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -285,6 +289,17 @@ export async function getSignalSweepState(workspaceId: string): Promise<SignalSw
   ])
 
   const lastSweepAt: string | null = wsRes?.data?.last_signal_sweep_at ?? null
+
+  // 「며칠째」를 말하려면 **연속 실패의 시작점**이 필요하다. 마지막 성공 이후 첫 실패가 그 점이다.
+  const { data: lastOkRow } = await adminClient.from('ci_jobs')
+    .select('updated_at').eq('workspace_id', workspaceId).eq('stage', 'signals')
+    .eq('status', 'succeeded').order('updated_at', { ascending: false }).limit(1).maybeSingle()
+  let failingSinceQuery = adminClient.from('ci_jobs')
+    .select('created_at').eq('workspace_id', workspaceId).eq('stage', 'signals')
+    .in('status', ['failed', 'dead']).order('created_at', { ascending: true }).limit(1)
+  if (lastOkRow?.updated_at) failingSinceQuery = failingSinceQuery.gt('created_at', lastOkRow.updated_at)
+  const { data: failingRow } = await failingSinceQuery.maybeSingle()
+  const failingSince: string | null = failingRow?.created_at ?? null
   const pending: number = pendingRes?.count ?? 0
   let job = jobRes?.data as { status?: string; error_message?: string | null; updated_at?: string } | null
 
@@ -294,7 +309,10 @@ export async function getSignalSweepState(workspaceId: string): Promise<SignalSw
 
   // 꺼져 있으면 나머지는 볼 필요가 없다 — 안 도는 것이 정상이라고 말해야 한다
   if (enabled === false) {
-    return { outcome: 'off', lastSweepAt, reason: null, pending }
+    return {
+      outcome: 'off', lastSweepAt, reason: null, pending,
+      nextAttemptAt: null, blockedByQuota: false, failingSince: null,
+    }
   }
 
   let outcome: SignalSweepState['outcome']
@@ -305,12 +323,25 @@ export async function getSignalSweepState(workspaceId: string): Promise<SignalSw
   else if (job.status === 'dead') outcome = 'failed'
   else outcome = 'ok'
 
+  const reason = outcome === 'failed' || outcome === 'retrying' ? (job?.error_message ?? null) : null
+  const blockedByQuota = isQuotaMessage(reason)
+
+  // 한도면 짧은 주기로 다시 해본다 — 실행 정책과 **같은 계산**을 써야 화면이 거짓말하지 않는다
+  const intervalHours = effectiveSignalIntervalHours(
+    normalizeSignalIntervalHours(await loadWorkspaceSetting<number>(workspaceId, 'signals.interval_hours')),
+    blockedByQuota,
+  )
+
   return {
     outcome,
     lastSweepAt,
     // 실패 이유는 **잡이 남긴 말 그대로** 쓴다. 다시 쓰면 원인과 화면이 갈라진다
-    reason: outcome === 'failed' || outcome === 'retrying' ? (job?.error_message ?? null) : null,
+    reason,
     pending,
+    // 여기까지 왔으면 꺼진 경우는 위에서 이미 반환됐다 — 항상 다음 시도가 있다
+    nextAttemptAt: nextSignalSweepAt(lastSweepAt, intervalHours),
+    blockedByQuota,
+    failingSince,
   }
 }
 

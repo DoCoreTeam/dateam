@@ -254,6 +254,15 @@ export interface SignalSweepState {
   reason: string | null
   /** 확인을 기다리는 후보 수 */
   pending: number
+  /**
+   * 다음에 저절로 다시 해보는 시각(ISO).
+   * 이게 없으면 「기다리세요」가 **언제까지인지 모르는 지시**가 된다.
+   */
+  nextAttemptAt: string | null
+  /** 이 실패가 한도 때문인가 — 시간이 지나면 저절로 풀리는 종류인지 구분한다 */
+  blockedByQuota: boolean
+  /** 연속으로 실패하기 시작한 시각(ISO). 「며칠째」를 말하기 위한 것 */
+  failingSince: string | null
 }
 
 /**
@@ -290,3 +299,34 @@ export function signalSweepDetail(state: SignalSweepState): string | null {
   return null
 }
 
+/**
+ * 며칠째 안 되고 있는지. **이게 판단을 가른다** —
+ * 몇 시간이면 기다리면 되는 일이고, 며칠이면 기다려서 풀릴 일이 아니다(요금제·키 문제).
+ * 판단 근거를 화면이 주지 않으면 사용자는 영원히 기다린다.
+ */
+export function signalSweepStuckText(state: SignalSweepState, now: number = Date.now()): string | null {
+  if (!state.failingSince) return null
+  if (state.outcome !== 'failed' && state.outcome !== 'retrying') return null
+  const t = Date.parse(state.failingSince)
+  if (!Number.isFinite(t)) return null
+  const hours = Math.floor((now - t) / 3600_000)
+  if (hours < 1) return null
+  if (hours < 24) return `${hours}시간째 이 상태예요.`
+  const days = Math.floor(hours / 24)
+  // 하루를 넘겼으면 기다려서 풀릴 일이 아닐 수 있다고 분명히 말한다
+  return `${days}일째 이 상태예요. 기다려도 안 풀리면 요금제나 키를 확인해 주세요.`
+}
+
+
+/**
+ * 이 실패가 **한도** 때문인가.
+ *
+ * 왜 한 곳에 두는가: 이 판정이 세 자리에서 쓰인다 — ① 재시도를 얼마나 자주 할지
+ * ② 화면이 「기다리면 되는 일」이라고 말할지 ③ 오류 코드를 무엇으로 줄지.
+ * 세 곳이 각자 정규식을 들면 어느 하나만 고쳐져 «화면은 한도라는데 재시도는 안 하는» 상태가 된다.
+ */
+export function isQuotaMessage(message: string | null | undefined): boolean {
+  const m = (message ?? '').trim()
+  if (!m) return false
+  return /한도|quota|RESOURCE_EXHAUSTED|rate.?limit|\b429\b/i.test(m)
+}

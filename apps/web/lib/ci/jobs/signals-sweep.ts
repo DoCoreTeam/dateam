@@ -8,9 +8,10 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { enqueueJob } from './queue.ts'
+import { isQuotaMessage } from '../analysis/signals.ts'
 import { resolveSettings, getResolved, type SettingRow } from '../settings/resolve.ts'
 import {
-  isSignalSweepDue, normalizeSignalIntervalHours,
+  isSignalSweepDue, normalizeSignalIntervalHours, effectiveSignalIntervalHours,
   SIGNAL_SWEEP_MAX_PER_TICK, DEFAULT_SIGNAL_INTERVAL_HOURS,
   type DueSignalSweepResult,
 } from './signals-sweep-policy.ts'
@@ -66,9 +67,33 @@ async function pickDue(workspaceId?: string | null, limit = SIGNAL_SWEEP_MAX_PER
     if (due.length >= limit) break
     const s = await loadWorkspaceSettings(ws.id)
     if (!s.enabled) continue
-    if (isSignalSweepDue(ws.last_signal_sweep_at, s.intervalHours, now)) due.push(ws)
+    // 한도에 막혀 있으면 짧은 주기로 찔러본다 — 구글이 복구 시각을 안 알려주므로
+    // 정상 주기로 기다리면 이미 풀린 한도를 최대 12시간 모르고 지나간다
+    const blocked = await lastFailedByQuota(ws.id)
+    const hours = effectiveSignalIntervalHours(s.intervalHours, blocked)
+    if (isSignalSweepDue(ws.last_signal_sweep_at, hours, now)) due.push(ws)
   }
   return due
+}
+
+/**
+ * 마지막 이슈 수집이 **한도** 때문에 실패했나.
+ *
+ * 다른 실패(네트워크·파싱)와 구분하는 이유: 한도는 시간이 지나면 저절로 풀리므로
+ * 자주 찔러보는 것이 맞지만, 그 외 실패는 자주 반복해도 같은 결과라 한도만 태운다.
+ */
+async function lastFailedByQuota(workspaceId: string): Promise<boolean> {
+  try {
+    const adminClient = createAdminClient() as any
+    const { data } = await adminClient
+      .from('ci_jobs').select('status, error_message')
+      .eq('workspace_id', workspaceId).eq('stage', 'signals')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (!data || (data.status !== 'failed' && data.status !== 'dead')) return false
+    return isQuotaMessage(data.error_message)
+  } catch {
+    return false
+  }
 }
 
 /**

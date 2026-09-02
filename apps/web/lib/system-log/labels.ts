@@ -23,6 +23,10 @@ export const FEATURE_LABELS: Record<string, string> = {
   // 콘텐츠 인텔리전스
   'ci-collect': '콘텐츠 수집',
   'ci-analyze': '콘텐츠 분석',
+  // 등록하지 않으면 화면에 «ci.signals이(가) 실패했습니다»처럼 내부 이름이 그대로 나온다(§0-2)
+  'ci.signals': 'AI 이슈 수집',
+  'ci-signals': 'AI 이슈 수집',
+  'ci.assistant': 'CI 어시스턴트',
   // 회의·업무
   'meeting-summary': '회의록 정리',
   'daily-suggest': '일일업무 AI 제안',

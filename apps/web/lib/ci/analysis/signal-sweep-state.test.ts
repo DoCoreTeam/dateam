@@ -5,10 +5,17 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 import {
-  signalSweepHeadline, signalSweepDetail, type SignalSweepState,
+  signalSweepHeadline, signalSweepDetail, signalSweepStuckText, isQuotaMessage,
+  type SignalSweepState,
 } from './signals.ts'
+import {
+  effectiveSignalIntervalHours, nextSignalSweepAt, BLOCKED_RETRY_INTERVAL_HOURS,
+} from '../jobs/signals-sweep-policy.ts'
 
-const base: SignalSweepState = { outcome: 'never', lastSweepAt: null, reason: null, pending: 0 }
+const base: SignalSweepState = {
+  outcome: 'never', lastSweepAt: null, reason: null, pending: 0,
+  nextAttemptAt: null, blockedByQuota: false, failingSince: null,
+}
 const here = dirname(fileURLToPath(import.meta.url))
 const appRoot = join(here, '..', '..', '..')
 
@@ -100,4 +107,84 @@ test('가드: 설정 읽기가 두 벌이 되지 않는다 — 공용 로더만 
     assert.doesNotMatch(src, /from\('ci_settings'\)/, `${name} 가 설정 테이블을 직접 읽는다`)
     assert.match(src, /loadWorkspaceSetting/, `${name} 가 공용 로더를 쓰지 않는다`)
   }
+})
+
+// ── 「언제까지 기다리나」 ─────────────────────────────────────────────
+//
+// 구글은 429 에 retry-after 도 초기화 시각도 주지 않는다(실측 2026-09-02).
+// 그래서 «언제 풀리는지»는 못 보여준다 — 대신 «언제 다시 해보는지»와 «며칠째인지»를 말한다.
+
+test('★ 한도에 막히면 재시도 주기를 짧게 한다 — 풀린 순간을 12시간 뒤에 알면 종일 빈 화면이다', () => {
+  assert.equal(effectiveSignalIntervalHours(12, true), BLOCKED_RETRY_INTERVAL_HOURS)
+  assert.equal(effectiveSignalIntervalHours(12, false), 12)
+})
+
+test('설정이 이미 더 짧으면 정책이 늘리지 않는다', () => {
+  assert.equal(effectiveSignalIntervalHours(1, true), 1)
+  assert.ok(effectiveSignalIntervalHours(2, true) <= 2)
+})
+
+test('★ 다음 자동 시도 시각이 계산된다 — 「기다리세요」에 기한이 붙는다', () => {
+  const now = Date.parse('2026-09-02T00:00:00Z')
+  assert.equal(nextSignalSweepAt('2026-09-01T23:00:00Z', 12, now), '2026-09-02T11:00:00.000Z')
+  // 이미 지났으면 지금이 그 시각이다 — 과거를 「다음」이라고 말하지 않는다
+  assert.equal(nextSignalSweepAt('2026-08-01T00:00:00Z', 12, now), new Date(now).toISOString())
+  // 한 번도 안 훑었으면 지금
+  assert.equal(nextSignalSweepAt(null, 12, now), new Date(now).toISOString())
+})
+
+test('★ 하루를 넘기면 «기다려서 될 일이 아닐 수 있다»고 말한다 — 영원히 기다리지 않게', () => {
+  const now = Date.parse('2026-09-03T00:00:00Z')
+  const s: SignalSweepState = {
+    ...base, outcome: 'failed', reason: '한도', failingSince: '2026-09-01T00:00:00Z',
+  }
+  const t = signalSweepStuckText(s, now)
+  assert.match(t ?? '', /2일째/)
+  assert.match(t ?? '', /요금제|키/)
+})
+
+test('몇 시간짜리면 기간만 말한다 — 요금제를 의심시키지 않는다', () => {
+  const now = Date.parse('2026-09-02T05:00:00Z')
+  const t = signalSweepStuckText(
+    { ...base, outcome: 'failed', reason: '한도', failingSince: '2026-09-02T00:00:00Z' }, now)
+  assert.match(t ?? '', /5시간째/)
+  assert.doesNotMatch(t ?? '', /요금제/)
+})
+
+test('성공 중이거나 시작점이 없으면 「며칠째」를 말하지 않는다', () => {
+  assert.equal(signalSweepStuckText({ ...base, outcome: 'ok', failingSince: '2026-09-01T00:00:00Z' }), null)
+  assert.equal(signalSweepStuckText({ ...base, outcome: 'failed' }), null)
+})
+
+test('★ 한도 판정이 한 벌이다 — 재시도·화면·오류코드가 같은 함수를 본다', () => {
+  assert.ok(isQuotaMessage('AI 웹 검색 한도를 다 썼습니다'))
+  assert.ok(isQuotaMessage('429 RESOURCE_EXHAUSTED'))
+  assert.ok(isQuotaMessage('You exceeded your current quota'))
+  assert.ok(!isQuotaMessage('네트워크에 연결하지 못했습니다'))
+  assert.ok(!isQuotaMessage(''))
+  assert.ok(!isQuotaMessage(null))
+})
+
+test('★ 가드: 화면과 실행이 같은 주기 계산을 쓴다 — 다르면 화면이 거짓 시각을 말한다', () => {
+  const q = readFileSync(join(appRoot, 'lib/ci/queries/trends.ts'), 'utf8')
+  assert.match(q, /effectiveSignalIntervalHours/, '화면이 자기 계산을 따로 한다')
+  assert.match(q, /nextSignalSweepAt/, '다음 시도 시각을 계산하지 않는다')
+  const j = readFileSync(join(appRoot, 'lib/ci/jobs/signals-sweep.ts'), 'utf8')
+  assert.match(j, /effectiveSignalIntervalHours/, '실행이 한도 상태를 반영하지 않는다')
+})
+
+test('★ 가드: 시스템 로그가 내부 이름을 그대로 내보내지 않는다', () => {
+  const labels = readFileSync(join(appRoot, 'lib/system-log/labels.ts'), 'utf8')
+  const used = readFileSync(join(appRoot, 'lib/ci/ai/signals-server.ts'), 'utf8')
+  const keys = [...used.matchAll(/feature: '([^']+)'/g)].map((m) => m[1])
+  assert.ok(keys.length > 0, 'feature 키를 못 찾았다')
+  for (const k of keys) {
+    assert.ok(labels.includes(`'${k}'`), `${k} 의 사람 이름이 없다 — 화면에 코드 이름이 뜬다`)
+  }
+})
+
+test('★ 가드: 화면이 다음 시도 시각과 정체 기간을 실제로 그린다', () => {
+  const src = readFileSync(join(appRoot, 'components/ci/SignalSweepBar.tsx'), 'utf8')
+  assert.match(src, /nextAttemptAt/, '다음 시도 시각을 안 그린다')
+  assert.match(src, /signalSweepStuckText/, '며칠째인지 안 그린다')
 })
