@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { DailyLogEntryType } from '@/types/database'
-import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
+import { applyCalendarScopeFilters, calendarRangeOr } from '@/lib/daily/calendar-scope'
 
 interface DayLogSummary {
   date: string
@@ -38,14 +38,15 @@ export async function GET(req: NextRequest) {
   const lastDay = new Date(year, month, 0).getDate()
   const to = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
 
-  const { data, error } = await (supabase.from('daily_logs') as any)
-    .select('id, log_date, entry_type, content, target_date, target_end_date, scheduled_at, logged_at')
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .eq('is_onboarding', false)   // 온보딩 실습 행 제외(캘린더 오염 방지)
-    .or(EXCLUDE_RAW_HEAD_OR)      // 원문 raw 헤드(헤더 전용) 제외 — 캘린더 카운트 오염 방지
-    // log_date/target_date가 이 달이거나, 기간 밴드[target_date, target_end_date]가 이 달과 겹치는 행
-    .or(`and(log_date.gte.${from},log_date.lte.${to}),and(target_date.gte.${from},target_date.lte.${to}),and(target_date.lte.${to},target_end_date.gte.${from})`)
+  // 필터·범위 판정은 날짜 패널과 공유한다(lib/daily/calendar-scope) — 한쪽만 고쳐지면
+  // 칸엔 보이는데 눌러도 안 나오는 그 사고가 된다.
+  const { data, error } = await applyCalendarScopeFilters(
+    (supabase.from('daily_logs') as any)
+      .select('id, log_date, entry_type, content, target_date, target_end_date, scheduled_at, logged_at')
+      .eq('user_id', user.id)
+      .is('deleted_at', null),
+  )
+    .or(calendarRangeOr(from, to))
     .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })
     .limit(MONTH_LIMIT)

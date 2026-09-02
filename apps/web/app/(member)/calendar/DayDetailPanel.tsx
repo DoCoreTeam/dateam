@@ -10,6 +10,7 @@ import EventModal from './EventModal'
 import { deleteCalendarEvent } from './actions'
 import { formatKstTime, formatMonthDay } from '@/lib/calendar/format-time'
 import { kstTodayKey } from '@/lib/datetime/kst'
+import { CALENDAR_SCOPE } from '@/lib/daily/calendar-scope'
 import { CalendarPlus, Trash2, CalendarClock, CheckSquare, StickyNote, X } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
@@ -42,8 +43,14 @@ export default function DayDetailPanel({ date, onClose }: Props) {
   const { mutate } = useSWRConfig()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  /**
+   * **칸과 같은 판정으로 읽는다**(`scope=calendar`).
+   * 예전엔 이 패널만 개인 업무(`task_kind='personal'`)로 좁혀 읽어서,
+   * 달력 칸에 뜬 부서업무를 눌러 열면 「이 날 기록이 없어요」가 떴다.
+   * (실측 2026-09-02: 9/30 「시티큐브 용인」 — 칸 1건 / 패널 0건)
+   */
   const { data: logs = [], isLoading: loading } = useSWR<DailyLog[]>(
-    `/api/daily/logs?date=${date}`,
+    `/api/daily/logs?date=${date}&scope=${CALENDAR_SCOPE}`,
     fetcher
   )
   const { data: events = [], mutate: mutateEvents } = useSWR<CalEvent[]>(
@@ -83,6 +90,9 @@ export default function DayDetailPanel({ date, onClose }: Props) {
   const renderLogRow = (log: DailyLog) => {
     const t = ENTRY_TYPES[log.entry_type]
     const isNote = log.entry_type === 'note'
+    // 부서업무는 개인 일일 화면(/daily)에 없다 — 거기로 보내면 또 「없다」가 된다
+    const isDeptTask = log.task_kind === 'dept_task'
+    const openHref = isDeptTask ? `/dept-tasks?task=${log.id}` : `/daily?date=${date}`
     // 업무: 마감(target_date) > 예정(scheduled_at) 우선. 둘 다 없으면 작성만.
     const dueLabel = !isNote && log.target_date
       ? `마감 ${formatMonthDay(log.target_date)}`
@@ -93,7 +103,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
     return (
       <div
         key={log.id}
-        onClick={() => router.push(`/daily?date=${date}`)}
+        onClick={() => router.push(openHref)}
         style={{
           display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
           padding: '0.625rem 0.75rem',
@@ -113,6 +123,9 @@ export default function DayDetailPanel({ date, onClose }: Props) {
             }}>
               {t.label}
             </span>
+            {isDeptTask && (
+              <span className="cal-link-badge" title="부서 업무 관리에서 온 업무">부서업무</span>
+            )}
             {dueLabel && (
               <span className="day-panel-time day-panel-time--due">{dueLabel}</span>
             )}
