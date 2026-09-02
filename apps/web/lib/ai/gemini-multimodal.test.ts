@@ -200,6 +200,8 @@ describe('전부 막혔을 때 하는 말', () => {
   //     「원문 전사를 건너뜁니다 — AI 호출 한도를 모두 썼습니다. 무료 등급은 모델마다
   //      하루 사용량이 정해져 있어요 — 내일 다시 되거나, 관리자 설정에서 다른 AI 모델로
   //      바꾸면 이어서 쓸 수 있습니다. (누락 검사가 꺼진 채 진행됩니다)」
+  //   그 뒤 표준 #164(두괄식·키워드 우선)를 받아 「AI 한도 초과 · 오늘 사용량 소진 — …」으로
+  //   바꿨다. 뜻은 같고 첫 구절만 키워드가 됐다.
   //   아래 단정이 깨지면 그 문장이 화면에서 달라진 것이다.
 
   it('★ 한도로 전부 막히면 「모델을 바꾸거나 내일」이라고 말한다 — 「잠시 후 다시」가 아니다', async () => {
@@ -210,8 +212,8 @@ describe('전부 막혔을 때 하는 말', () => {
     } catch (e) {
       const err = e as { reason: string; userMessage: string }
       assert.equal(err.reason, 'quota')
-      assert.match(err.userMessage, /한도를 모두 썼습니다/)
-      assert.match(err.userMessage, /하루 사용량/, '왜 막혔는지 설명해야 한다')
+      assert.match(err.userMessage, /^AI 한도 초과 · /, '두괄식 — 첫 구절이 «상태 · 원인» 키워드다(표준 #164)')
+      assert.match(err.userMessage, /사용량 소진/, '왜 막혔는지 설명해야 한다')
       assert.match(err.userMessage, /다른 AI 모델로 바꾸면/, '지금 할 수 있는 일을 알려줘야 한다')
       assert.doesNotMatch(err.userMessage, /본문이 길면/, '본문 길이를 의심하게 만들면 안 된다')
     }
@@ -227,7 +229,7 @@ describe('전부 막혔을 때 하는 말', () => {
       const err = e as { reason: string; userMessage: string }
       // 아직 아무것도 못 불렀으면 timeout 이 맞다. 한 번이라도 한도를 봤으면 한도다.
       assert.ok(['quota', 'timeout'].includes(err.reason))
-      if (err.reason === 'quota') assert.match(err.userMessage, /한도를 모두 썼습니다/)
+      if (err.reason === 'quota') assert.match(err.userMessage, /^AI 한도 초과 · /)
     }
   })
 
@@ -238,7 +240,7 @@ describe('전부 막혔을 때 하는 말', () => {
       assert.fail('실패해야 한다')
     } catch (e) {
       const err = e as { userMessage: string }
-      assert.match(err.userMessage, /제한 시간을 넘겼습니다/)
+      assert.match(err.userMessage, /^AI 응답 지연 · /)
     }
   })
 })

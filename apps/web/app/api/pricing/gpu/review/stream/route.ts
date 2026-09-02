@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
         feature: 'gpu-intake',
         timeoutMs: 40_000,
         overallTimeoutMs: Math.max(3_000, aiDeadline - Date.now()),
-        onAttempt: ({ model }) => send('progress', { step: 'ai_retry', msg: `AI 응답을 받지 못해 다시 시도합니다 — ${model}` }),
+        onAttempt: ({ model }) => send('progress', { step: 'ai_retry', msg: `다시 시도 · AI 응답 없음 — ${model}` }),
         onNotice: (notice) => send('progress', { step: 'ai_model_switched', msg: notice }),
       })
       /** 관측 추출(ai-observation)이 쓰는 호출기 — 같은 안전망·같은 예산을 태운다. */
@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
           config.apiKey, config.model, imageParts, contentText,
           (delta) => send('token', { phase: 'transcribe', delta }),
           gopts(),
-          (reason) => send('progress', { step: 'transcribe_failed', msg: `원문 전사를 건너뜁니다 — ${reason} (누락 검사가 꺼진 채 진행됩니다)` }),
+          (reason) => send('progress', { step: 'transcribe_failed', msg: `전사 건너뜀 · ${reason} (누락 검사 꺼짐)` }),
         )
         const sourceRowCount = transcription.source_row_count
         const sourceLabels = transcription.rows.map((r) => r.raw_label).filter((l) => l.length > 0)

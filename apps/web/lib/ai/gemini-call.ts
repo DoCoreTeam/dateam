@@ -358,16 +358,17 @@ async function callOnce(
  * 그래서 **그때까지 본 마지막 원인**을 문장의 근거로 삼는다.
  */
 function hintFor(reason: GeminiFailureReason): string {
+  // 두괄식 — 첫 구절은 «상태 · 원인» 키워드, 설명과 다음 행동은 뒤에 (표준 #164).
   if (reason === 'bad_json') {
-    return `AI가 정해진 형식으로 답하지 않았습니다. 관리자 설정의 AI 모델을 '${DEFAULT_GEMINI_MODEL}' 같은 Gemini 계열로 바꿔 주세요(Gemma 계열은 이 기능을 지원하지 않습니다).`
+    return `AI 응답 형식 오류 · 설정 모델이 JSON을 내지 않음 — 관리자 설정의 AI 모델을 '${DEFAULT_GEMINI_MODEL}' 같은 Gemini 계열로 바꿔 주세요(Gemma 계열은 이 기능을 지원하지 않습니다).`
   }
   if (reason === 'quota') {
-    return 'AI 호출 한도를 모두 썼습니다. 무료 등급은 모델마다 하루 사용량이 정해져 있어요 — 내일 다시 되거나, 관리자 설정에서 다른 AI 모델로 바꾸면 이어서 쓸 수 있습니다.'
+    return 'AI 한도 초과 · 오늘 사용량 소진 — 관리자 설정에서 다른 AI 모델로 바꾸면 이어서 쓸 수 있어요. 그대로 두면 내일 다시 됩니다.'
   }
   if (reason === 'timeout') {
-    return 'AI 응답이 제한 시간을 넘겼습니다. 본문이 길면 시간이 더 걸릴 수 있어요 — 잠시 후 다시 시도해 주세요.'
+    return 'AI 응답 지연 · 제한 시간 초과 — 본문이 길면 더 걸릴 수 있어요. 잠시 후 다시 시도해 주세요.'
   }
-  return 'AI 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+  return 'AI 연결 실패 · 서버 응답 없음 — 잠시 후 다시 시도해 주세요.'
 }
 
 /** 사슬 실행 결과 — accept 가 만든 값과 원문 텍스트를 함께 준다. */
@@ -496,7 +497,7 @@ async function runGeminiChain(
           model,
           fallbackNotice: usedFallback
             ? modelIssue ??
-              `설정된 모델을 쓸 수 없어 '${model}'로 처리했습니다. 관리자 설정에서 모델을 확인해 주세요.`
+              `모델 대체 · 설정 모델 사용 불가 — '${model}'로 처리했어요. 관리자 설정에서 모델을 확인해 주세요.`
             : null,
         }
       } catch (e) {
@@ -532,7 +533,7 @@ async function runGeminiChain(
           usage: fb.usage,
           model: fb.model,
           fallbackNotice:
-            `Gemini 호출 한도에 걸려 보조 공급자('${fb.model}')로 처리했습니다. ` +
+            `공급자 대체 · Gemini 한도 초과 — 보조 공급자('${fb.model}')로 처리했어요. ` +
             '한도가 풀리면 자동으로 원래 모델로 돌아갑니다.',
         }
       } catch {
