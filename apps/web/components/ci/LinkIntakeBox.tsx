@@ -105,7 +105,7 @@ export default function LinkIntakeBox({
               계정 전체를 훑는 중인지 게시물 하나만 담았는지 알 수 없다 */}
           {acceptedChannels > 0 && (
             <p className="ci-status ci-status-ok" style={{ alignSelf: 'flex-start' }}>
-              계정 {acceptedChannels}곳을 등록하고 게시물을 훑는 중입니다
+              계정 {acceptedChannels}곳 등록 · 게시물 수집 중입니다
             </p>
           )}
           {acceptedContents > 0 && (

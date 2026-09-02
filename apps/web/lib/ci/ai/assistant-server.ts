@@ -333,7 +333,7 @@ export async function runAssistant(input: {
           label: ch.displayName,
           detail: swept
             ? `마지막 수집 ${formatKstDateTimeShort(swept)} (${formatKstAgo(swept)}) · 모인 게시물 ${r.total}건`
-            : `아직 한 번도 훑지 않았습니다 · 모인 게시물 ${r.total}건`,
+            : `아직 수집 전 · 모인 게시물 ${r.total}건`,
         })
         if (r.items.length === 0) {
           lines.push({ label: '— 이 채널에서 아직 모인 게시물이 없습니다' })

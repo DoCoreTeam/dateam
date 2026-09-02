@@ -35,3 +35,27 @@
   color: var(--text-muted);
   margin: 0;
 }
+
+/* 숫자 줄 — 문장이 아니라 «라벨 나열». 눈으로 훑어도 들어오게 가운뎃점으로 끊는다 */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+  font-variant-numeric: tabular-nums;   /* 시각이 자리를 옮기지 않게 */
+}
+
+.facts > span + span::before {
+  content: '·';
+  margin-right: var(--space-2);
+  color: var(--text-faint);
+}
+
+/* 「23시간째」처럼 판단을 가르는 숫자만 강조한다 */
+.factStrong {
+  color: var(--text);
+  font-weight: 600;
+}

@@ -266,43 +266,77 @@ export interface SignalSweepState {
 }
 
 /**
- * 상태 줄에 쓸 문장. **성공했을 때도 말한다** — 「언제 훑었는지」를 모르면
- * 후보가 0건인 것이 «아직 안 돌았다»인지 «돌았는데 없다»인지 구분할 수 없다.
+ * 상태를 **한 단어로**. 두괄식의 첫 칸이다.
+ *
+ * 왜 문장이 아니라 라벨인가(사용자 지적 2026-09-02): 「바깥을 훑지 못했어요」처럼
+ * 서술형으로 쓰면 ① 무슨 일인지 끝까지 읽어야 알고 ② 다른 화면과 말이 안 맞고
+ * ③ 제품에서 쓰지 않는 표현이 들어온다. 상태는 **먼저·짧게·같은 말로** 말한다.
  */
-export function signalSweepHeadline(state: SignalSweepState): string {
+export function signalStatusLabel(state: SignalSweepState): string {
   switch (state.outcome) {
-    case 'off':
-      return 'AI 이슈 수집이 꺼져 있어요'
-    case 'never':
-      return 'AI가 아직 바깥을 훑지 않았어요'
-    case 'running':
-      return 'AI가 지금 바깥을 훑고 있어요'
-    case 'retrying':
-      return '지난 시도가 실패해 다시 시도할 예정이에요'
-    case 'failed':
-      return '바깥을 훑지 못했어요'
-    case 'ok':
-      return state.pending > 0
-        ? `확인을 기다리는 이슈가 ${state.pending}건 있어요`
-        : '훑어봤지만 새로 담을 만한 것이 없었어요'
+    case 'off': return '자동 수집 꺼짐'
+    case 'never': return '수집 전'
+    case 'running': return '수집 중'
+    case 'retrying': return '수집 실패 · 재시도 예정'
+    case 'failed': return '수집 실패'
+    case 'ok': return state.pending > 0 ? `확인 대기 ${state.pending}건` : '새 이슈 없음'
   }
 }
 
 /**
- * 다음에 무엇을 하면 되는지. 실패는 **이유와 다음 행동**이 함께 있어야 정보가 된다
- * (§0-2 오류 문형 — 사과하지 않고 다음 조치를 말한다).
+ * 왜 실패했는지를 **키워드로**. 긴 설명은 그 아래 줄이 맡는다.
+ *
+ * 원인이 무엇이냐에 따라 사용자가 할 일이 갈린다 — 한도면 기다리거나 요금제,
+ * 연결이면 잠시 후, 설정이면 키 등록이다. 그 갈림을 첫 줄에서 보여준다.
  */
-export function signalSweepDetail(state: SignalSweepState): string | null {
-  if (state.outcome === 'off') return '설정에서 「이슈 자동 수집」을 켜면 AI가 주기적으로 훑어요.'
-  if (state.outcome === 'never') return '「지금 찾기」를 누르면 바로 훑어봐요.'
-  if (state.outcome === 'failed' || state.outcome === 'retrying') return state.reason
-  return null
+export function signalCauseLabel(reason: string | null | undefined): string | null {
+  const r = (reason ?? '').trim()
+  if (!r) return null
+  if (isQuotaMessage(r)) return 'AI 한도 초과'
+  if (/키가 설정|API 키|키를 등록|no_key/i.test(r)) return 'AI 키 없음'
+  if (/시간 안에|타임아웃|timeout|abort/i.test(r)) return '응답 지연'
+  if (/네트워크|연결|fetch|network/i.test(r)) return '연결 실패'
+  return 'AI 오류'
 }
 
 /**
- * 며칠째 안 되고 있는지. **이게 판단을 가른다** —
- * 몇 시간이면 기다리면 되는 일이고, 며칠이면 기다려서 풀릴 일이 아니다(요금제·키 문제).
- * 판단 근거를 화면이 주지 않으면 사용자는 영원히 기다린다.
+ * 첫 줄 전체. **상태 · 원인** 순으로 붙인다.
+ * 예: 「수집 실패 · AI 한도 초과」 — 이 한 줄만 읽어도 무슨 일인지 끝난다.
+ */
+export function signalSweepHeadline(state: SignalSweepState): string {
+  const label = signalStatusLabel(state)
+  const cause = (state.outcome === 'failed' || state.outcome === 'retrying')
+    ? signalCauseLabel(state.reason)
+    : null
+  return cause ? `${label} · ${cause}` : label
+}
+
+/**
+ * 그래서 무엇을 하면 되는지. 첫 줄이 «무슨 일»을 끝냈으므로 여기는 **다음 행동**만 말한다
+ * (§0-2 오류 문형 — 사과하지 않고 다음 조치를 말한다).
+ */
+export function signalSweepDetail(state: SignalSweepState): string | null {
+  switch (state.outcome) {
+    case 'off':
+      return '설정 › 데이터에서 「이슈 자동 수집」을 켜세요.'
+    case 'never':
+      return '「지금 수집」을 누르면 바로 시작합니다.'
+    case 'failed':
+    case 'retrying':
+      if (state.blockedByQuota) {
+        return '웹 검색 한도는 모델을 바꿔도 풀리지 않습니다. 한도가 풀리면 자동으로 다시 수집합니다.'
+      }
+      return state.reason
+    default:
+      return null
+  }
+}
+
+/**
+ * 얼마나 오래 이 상태인지 — **숫자 먼저**.
+ *
+ * 이게 판단을 가른다: 몇 시간이면 기다리면 되고, 며칠이면 기다려서 풀릴 일이 아니다.
+ * 근거를 안 주면 사용자는 영원히 기다린다.
  */
 export function signalSweepStuckText(state: SignalSweepState, now: number = Date.now()): string | null {
   if (!state.failingSince) return null
@@ -311,12 +345,18 @@ export function signalSweepStuckText(state: SignalSweepState, now: number = Date
   if (!Number.isFinite(t)) return null
   const hours = Math.floor((now - t) / 3600_000)
   if (hours < 1) return null
-  if (hours < 24) return `${hours}시간째 이 상태예요.`
-  const days = Math.floor(hours / 24)
-  // 하루를 넘겼으면 기다려서 풀릴 일이 아닐 수 있다고 분명히 말한다
-  return `${days}일째 이 상태예요. 기다려도 안 풀리면 요금제나 키를 확인해 주세요.`
+  if (hours < 24) return `${hours}시간째`
+  return `${Math.floor(hours / 24)}일째`
 }
 
+/** 하루를 넘겼으면 기다려서 풀릴 일이 아닐 수 있다 — 그때만 손을 쓰라고 말한다. */
+export function signalSweepEscalation(state: SignalSweepState, now: number = Date.now()): string | null {
+  if (!state.failingSince) return null
+  if (state.outcome !== 'failed' && state.outcome !== 'retrying') return null
+  const t = Date.parse(state.failingSince)
+  if (!Number.isFinite(t) || now - t < 24 * 3600_000) return null
+  return '하루가 넘었습니다. 요금제나 키를 확인해 주세요.'
+}
 
 /**
  * 이 실패가 **한도** 때문인가.
@@ -329,4 +369,18 @@ export function isQuotaMessage(message: string | null | undefined): boolean {
   const m = (message ?? '').trim()
   if (!m) return false
   return /한도|quota|RESOURCE_EXHAUSTED|rate.?limit|\b429\b/i.test(m)
+}
+
+/**
+ * 이 실패가 **일이 실제로 실패한 것**인가, 아니면 «그 워커가 이 단계를 몰랐던 것»인가.
+ *
+ * 왜 구분해야 하는가(실측 2026-09-02): 배포본과 로컬이 같은 큐를 나눠 쓰는데 배포본은
+ * 아직 새 단계를 모른다. 그 워커가 남긴 「알 수 없는 단계: signals」가 화면에 **실패 이유로**
+ * 그대로 떴고(내부 문구 노출), 게다가 «한도 실패가 아니다»로 읽혀 **1시간 재시도까지 꺼졌다**.
+ * 아무 일도 안 일어난 것을 실패로 세면, 진짜 원인이 그 뒤에 숨는다.
+ */
+export function isUnsupportedStageMessage(message: string | null | undefined): boolean {
+  const m = (message ?? '').trim()
+  if (!m) return false
+  return /알 수 없는 단계|모르는 단계|UNSUPPORTED_STAGE/i.test(m)
 }

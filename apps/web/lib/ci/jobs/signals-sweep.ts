@@ -8,7 +8,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { enqueueJob } from './queue.ts'
-import { isQuotaMessage } from '../analysis/signals.ts'
+import { isQuotaMessage, isUnsupportedStageMessage } from '../analysis/signals.ts'
 import { resolveSettings, getResolved, type SettingRow } from '../settings/resolve.ts'
 import {
   isSignalSweepDue, normalizeSignalIntervalHours, effectiveSignalIntervalHours,
@@ -88,9 +88,13 @@ async function lastFailedByQuota(workspaceId: string): Promise<boolean> {
     const { data } = await adminClient
       .from('ci_jobs').select('status, error_message')
       .eq('workspace_id', workspaceId).eq('stage', 'signals')
-      .order('created_at', { ascending: false }).limit(1).maybeSingle()
-    if (!data || (data.status !== 'failed' && data.status !== 'dead')) return false
-    return isQuotaMessage(data.error_message)
+      .order('created_at', { ascending: false }).limit(5)
+    // 배포본이 남긴 «모르는 단계» 기록은 건너뛴다 — 그게 앞에 서면 진짜 원인이 가려져
+    // 한도로 막힌 상태인데도 짧은 재시도가 꺼진다(화면 판정과 같은 규칙, 실측 2026-09-02)
+    const rows = (data ?? []) as { status?: string; error_message?: string | null }[]
+    const last = rows.find((r) => !isUnsupportedStageMessage(r.error_message))
+    if (!last || (last.status !== 'failed' && last.status !== 'dead')) return false
+    return isQuotaMessage(last.error_message)
   } catch {
     return false
   }

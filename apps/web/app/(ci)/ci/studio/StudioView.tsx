@@ -409,7 +409,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
             )}
             {signals && signals.durationSec > MAX_ANALYZE_SEC && signals.framesSampled > 0 && (
               <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>
-                앞 {Math.round(MAX_ANALYZE_SEC / 60)}분까지만 훑었습니다
+                앞 {Math.round(MAX_ANALYZE_SEC / 60)}분까지만 분석했습니다
               </p>
             )}
           </div>

@@ -119,17 +119,35 @@ export async function runSignalSweep(workspaceId: string): Promise<SignalSweepRe
 
   const candidates = parseSignalCandidates(text, topics)
   if (candidates.length === 0) {
+    // 0건도 성공이다 — 「돌았는데 없었다」와 「돌다가 실패했다」는 다른 사실이다
+    await stampSuccess(workspaceId)
     return {
       ok: true, found: 0, inserted: 0,
-      note: `검색어 ${queries.length}개를 훑었지만 담을 만한 것이 없었습니다`,
+      note: `검색어 ${queries.length}개로 찾았지만 담을 만한 이슈가 없었습니다`,
     }
   }
 
   const inserted = await insertCandidates(workspaceId, candidates)
+  await stampSuccess(workspaceId)
   return {
     ok: true, found: candidates.length, inserted,
     note: `후보 ${candidates.length}건 중 ${inserted}건을 새로 담았습니다`
       + (candidates.length > inserted ? ' (나머지는 이미 있던 것)' : ''),
+  }
+}
+
+/**
+ * 「성공한 때」를 찍는다. 「시도한 때」(`last_signal_sweep_at`)와 **다른 칸**이다 —
+ * 한 칸에 두 뜻을 담았더니 실패한 뒤에도 화면이 「새 이슈 없음」이라고 말했다(실측 2026-09-02).
+ */
+async function stampSuccess(workspaceId: string): Promise<void> {
+  try {
+    const adminClient = createAdminClient() as any
+    await adminClient.from('ci_workspaces')
+      .update({ last_signal_success_at: new Date().toISOString() })
+      .eq('id', workspaceId)
+  } catch {
+    // 기록 실패로 수집 결과를 버리지 않는다
   }
 }
 

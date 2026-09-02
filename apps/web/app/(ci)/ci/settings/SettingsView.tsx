@@ -186,7 +186,7 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
             query
               ? <EmptyState
                   title="찾는 설정이 안 보여요"
-                  description="다른 낱말로 찾아보세요. 검색은 탭과 상관없이 전체 설정을 훑습니다."
+                  description="다른 낱말로 찾아보세요. 검색은 탭과 상관없이 전체 설정에서 찾습니다."
                 />
               : <EmptyState
                   title="이 분류에는 설정이 없어요"

@@ -82,7 +82,7 @@ export default function ChannelDetailView({
         headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
         body: JSON.stringify({ collectWindow }),
       })
-      setNotice('수집 기간을 바꿨습니다. 다시 훑는 중입니다')
+      setNotice('수집 기간 변경됨 · 다시 수집 중입니다')
       router.refresh()
     } finally { setBusy(false) }
   }

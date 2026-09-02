@@ -112,7 +112,7 @@ export const CI_SETTING_DEFS: readonly CiSettingDef<unknown>[] = [
   def({
     key: 'signals.interval_hours', scope: 'workspace', group: 'data',
     label: '이슈 수집 주기',
-    help: '몇 시간마다 바깥 웹을 훑을지입니다. 웹 검색은 AI 한도를 다른 기능과 나눠 쓰므로 너무 짧게 두지 마세요.',
+    help: '몇 시간마다 웹에서 이슈를 수집할지입니다. 웹 검색은 AI 한도를 다른 기능과 나눠 쓰므로 너무 짧게 두지 마세요.',
     schema: z.number().int().min(1).max(168), defaultValue: 12,
   }),
   def({

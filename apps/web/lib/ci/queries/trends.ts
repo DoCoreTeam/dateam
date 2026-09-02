@@ -9,7 +9,7 @@ import { CI_PLATFORM_LABEL, type CiConfidence, type CiPlatform } from '../types.
 import { formatDiscoveryBasis } from '../analysis/discovery.ts'
 import type { SignalSweepState } from '../analysis/signals.ts'
 import { loadWorkspaceSetting } from '../settings/load.ts'
-import { isQuotaMessage } from '../analysis/signals.ts'
+import { isQuotaMessage, isUnsupportedStageMessage } from '../analysis/signals.ts'
 import {
   effectiveSignalIntervalHours, normalizeSignalIntervalHours, nextSignalSweepAt,
 } from '../jobs/signals-sweep-policy.ts'
@@ -276,7 +276,7 @@ export async function getSignalSweepState(workspaceId: string): Promise<SignalSw
   const adminClient = createAdminClient() as any
 
   const [wsRes, jobRes, pendingRes, enabled] = await Promise.all([
-    adminClient.from('ci_workspaces').select('last_signal_sweep_at').eq('id', workspaceId).maybeSingle(),
+    adminClient.from('ci_workspaces').select('last_signal_sweep_at, last_signal_success_at').eq('id', workspaceId).maybeSingle(),
     adminClient.from('ci_jobs')
       .select('status, error_message, updated_at')
       .eq('workspace_id', workspaceId).eq('stage', 'signals')
@@ -289,6 +289,8 @@ export async function getSignalSweepState(workspaceId: string): Promise<SignalSw
   ])
 
   const lastSweepAt: string | null = wsRes?.data?.last_signal_sweep_at ?? null
+  // **성공한 때**는 별도 칸이다. 시도 시각으로 성공을 판정하면 실패한 뒤에도 「새 이슈 없음」이 된다
+  const lastSuccessAt: string | null = wsRes?.data?.last_signal_success_at ?? null
 
   // 「며칠째」를 말하려면 **연속 실패의 시작점**이 필요하다. 마지막 성공 이후 첫 실패가 그 점이다.
   const { data: lastOkRow } = await adminClient.from('ci_jobs')
@@ -297,15 +299,30 @@ export async function getSignalSweepState(workspaceId: string): Promise<SignalSw
   let failingSinceQuery = adminClient.from('ci_jobs')
     .select('created_at').eq('workspace_id', workspaceId).eq('stage', 'signals')
     .in('status', ['failed', 'dead']).order('created_at', { ascending: true }).limit(1)
-  if (lastOkRow?.updated_at) failingSinceQuery = failingSinceQuery.gt('created_at', lastOkRow.updated_at)
+  // 자동(잡)·수동 어느 쪽이든 마지막 성공 이후만 «연속 실패»다
+  const okBoundary = [lastOkRow?.updated_at, lastSuccessAt].filter(Boolean).sort().pop()
+  if (okBoundary) failingSinceQuery = failingSinceQuery.gt('created_at', okBoundary)
   const { data: failingRow } = await failingSinceQuery.maybeSingle()
   const failingSince: string | null = failingRow?.created_at ?? null
+
+  // 배포본이 남긴 «모르는 단계» 기록을 건너뛰고 **실제로 시도한** 마지막 기록을 찾는다
+  const { data: realRows } = await adminClient.from('ci_jobs')
+    .select('status, error_message, updated_at')
+    .eq('workspace_id', workspaceId).eq('stage', 'signals')
+    .order('created_at', { ascending: false }).limit(5)
+  const lastRealJob = ((realRows ?? []) as { status?: string; error_message?: string | null; updated_at?: string }[])
+    .find((r) => !isUnsupportedStageMessage(r.error_message)) ?? null
   const pending: number = pendingRes?.count ?? 0
   let job = jobRes?.data as { status?: string; error_message?: string | null; updated_at?: string } | null
 
-  // 잡보다 **나중에** 훑은 기록이 있으면 그 잡은 지나간 일이다.
-  // 「지금 찾기」로 성공한 뒤에도 죽은 잡 때문에 영영 「실패」로 보이던 것을 막는다.
-  if (job?.updated_at && lastSweepAt && lastSweepAt > job.updated_at) job = null
+  // 「그 워커가 이 단계를 몰랐다」는 실패가 아니다. 실패로 세면 ① 내부 문구가 화면에 뜨고
+  // ② 진짜 원인(한도)이 가려져 짧은 재시도가 꺼진다. 그런 기록은 없는 것으로 본다.
+  if (job && isUnsupportedStageMessage(job.error_message)) job = lastRealJob
+
+  // 잡보다 **나중에 성공한** 기록이 있으면 그 잡은 지나간 일이다.
+  // 「지금 수집」으로 성공한 뒤에도 죽은 잡 때문에 영영 「실패」로 보이던 것을 막는다.
+  // 기준은 반드시 **성공 시각** — 시도 시각을 쓰면 실패한 시도가 성공으로 읽힌다.
+  if (job?.updated_at && lastSuccessAt && lastSuccessAt > job.updated_at) job = null
 
   // 꺼져 있으면 나머지는 볼 필요가 없다 — 안 도는 것이 정상이라고 말해야 한다
   if (enabled === false) {
@@ -316,7 +333,8 @@ export async function getSignalSweepState(workspaceId: string): Promise<SignalSw
   }
 
   let outcome: SignalSweepState['outcome']
-  if (!job) outcome = lastSweepAt ? 'ok' : 'never'
+  // 기록이 없으면 «성공했다»고 말하지 않는다 — 모르는 것을 좋은 쪽으로 지어내지 않는다
+  if (!job) outcome = lastSuccessAt ? 'ok' : 'never'
   else if (job.status === 'running' || job.status === 'pending') {
     outcome = job.error_message ? 'retrying' : 'running'
   } else if (job.status === 'failed') outcome = 'retrying'

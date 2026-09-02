@@ -12,7 +12,8 @@ import { RefreshCw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { formatKstDateTimeShort, formatKstAgo } from '@/lib/datetime/kst'
 import {
-  signalSweepHeadline, signalSweepDetail, signalSweepStuckText, type SignalSweepState,
+  signalSweepHeadline, signalSweepDetail, signalSweepStuckText, signalSweepEscalation,
+  type SignalSweepState,
 } from '@/lib/ci/analysis/signals'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import styles from './signal-sweep-bar.module.css'
@@ -48,14 +49,14 @@ export default function SignalSweepBar({
         return
       }
       setMessage(res.data.inserted > 0
-        ? `${res.data.inserted}건을 찾았어요. 아래에서 확인해 주세요`
-        : (res.data.note ?? '훑어봤지만 새로 담을 만한 것이 없었어요'))
+        ? `새 이슈 ${res.data.inserted}건 · 아래에서 확인해 주세요`
+        : (res.data.note ?? '새로 담을 만한 이슈가 없었어요'))
       router.refresh()
     } catch (e) {
       setFailed(true)
       setMessage(e instanceof Error && e.name === 'AbortError'
-        ? '시간 안에 끝나지 않았어요. 잠시 후 다시 시도해 주세요'
-        : '지금은 찾지 못했어요. 잠시 후 다시 시도해 주세요')
+        ? '응답 지연 · 잠시 후 다시 시도해 주세요'
+        : '수집 실패 · 잠시 후 다시 시도해 주세요')
     } finally {
       clearTimeout(timer)
       setBusy(false)
@@ -65,32 +66,37 @@ export default function SignalSweepBar({
   // 방금 실행한 결과가 있으면 그것이 가장 최신 사실이다 — 서버가 준 옛 상태보다 앞선다
   const headline = message ?? signalSweepHeadline(state)
   const detail = message ? null : signalSweepDetail(state)
-  const tone = failed ? 'danger' : 'muted'
-  // 방금 실행한 결과가 있으면 옛 상태의 «며칠째»는 말하지 않는다
   const stuck = message ? null : signalSweepStuckText(state)
+  const escalation = message ? null : signalSweepEscalation(state)
+  // 도는 중에는 실패 색을 쓰지 않는다 — 아직 결과가 없는데 빨간 글씨는 «실패했다»로 읽힌다
+  const bad = !busy && (failed || (!message && (state.outcome === 'failed' || state.outcome === 'retrying')))
 
   return (
     <div className={`card ${styles.bar}`}>
       <div className={styles.text}>
-        <p className={tone === 'danger' ? styles.headlineDanger : styles.headline}>
-          {busy ? '바깥을 훑고 있어요… 최대 90초까지 걸려요' : headline}
+        {/* 두괄식 — 상태·원인이 첫 줄에서 끝난다 */}
+        <p className={bad ? styles.headlineDanger : styles.headline}>
+          {busy ? '수집 중… 최대 90초' : headline}
         </p>
-        {!busy && detail && <p className={styles.detail}>{detail}</p>}
-        {!busy && stuck && <p className={styles.detail}>{stuck}</p>}
-        {!busy && (state.lastSweepAt || state.nextAttemptAt) && (
-          <p className={styles.detail}>
+
+        {/* 숫자는 라벨로 — 읽지 않고 훑어도 들어오게 */}
+        {!busy && (stuck || state.lastSweepAt || state.nextAttemptAt) && (
+          <p className={styles.facts}>
+            {stuck && <span className={styles.factStrong}>{stuck}</span>}
             {state.lastSweepAt && (
-              <>마지막 시도 · {formatKstDateTimeShort(state.lastSweepAt)} ({formatKstAgo(state.lastSweepAt)})</>
+              <span>마지막 {formatKstDateTimeShort(state.lastSweepAt)} ({formatKstAgo(state.lastSweepAt)})</span>
             )}
-            {/* 「기다리세요」는 언제까지인지 함께 말해야 지시가 된다 */}
-            {state.lastSweepAt && state.nextAttemptAt && ' · '}
-            {state.nextAttemptAt && <>다음 자동 시도 · {formatKstDateTimeShort(state.nextAttemptAt)}</>}
+            {state.nextAttemptAt && <span>다음 {formatKstDateTimeShort(state.nextAttemptAt)}</span>}
           </p>
         )}
+
+        {!busy && escalation && <p className={styles.detail}>{escalation}</p>}
+        {!busy && detail && <p className={styles.detail}>{detail}</p>}
       </div>
+
       <NbButton variant="ghost" onClick={sweep} disabled={busy}>
         <RefreshCw size={14} aria-hidden />
-        {busy ? '찾는 중…' : '지금 찾기'}
+        {busy ? '수집 중…' : '지금 수집'}
       </NbButton>
     </div>
   )

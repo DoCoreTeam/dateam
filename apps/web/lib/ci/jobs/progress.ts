@@ -34,7 +34,7 @@ export const CI_JOB_STAGE_NOTE: Record<CiJobStage, string> = {
   classify: '어떤 주제인지 판정합니다',
   verify: '애매한 판정을 다시 살핍니다',
   project: '평소 대비 배수와 순위를 계산합니다',
-  signals: '바깥 웹을 훑어 지금 화제가 된 것을 후보로 담습니다',
+  signals: '웹에서 지금 화제가 된 것을 찾아 이슈 후보로 담습니다',
 }
 
 export interface StageCount {

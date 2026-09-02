@@ -292,7 +292,7 @@ async function analyzeMedia(
           seekFails += 1
           if (seekFails >= MAX_CONSECUTIVE_SEEK_FAILS) {
             if (framesSampled === 0) {
-              frameSkipReason = '영상을 훑는 데 실패했습니다 — 소리만 분석했습니다'
+              frameSkipReason = '화면 분석 실패 — 소리만 분석했습니다'
             }
             break
           }

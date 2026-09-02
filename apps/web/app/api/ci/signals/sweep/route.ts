@@ -32,7 +32,8 @@ export async function POST(req: Request) {
     // 이번 실행이 성공하면 그 기록이 자연히 앞선다(getSignalSweepState).
     const r = await runSignalSweep(session.workspaceId)
 
-    // 다음 자동 주기의 기준을 지금으로 옮긴다 — 방금 돌았는데 또 도는 것을 막는다
+    // 다음 자동 주기의 기준을 지금으로 옮긴다 — 방금 돌았는데 또 도는 것을 막는다.
+    // 성공 시각은 runSignalSweep 이 직접 찍는다(성공 경로가 하나여야 판정이 안 갈린다).
     if (r.ok) {
       await adminClient.from('ci_workspaces')
         .update({ last_signal_sweep_at: new Date().toISOString() })

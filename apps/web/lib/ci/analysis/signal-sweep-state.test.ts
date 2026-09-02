@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 import {
-  signalSweepHeadline, signalSweepDetail, signalSweepStuckText, isQuotaMessage,
+  signalSweepHeadline, signalSweepDetail, signalSweepStuckText, signalSweepEscalation,
+  signalStatusLabel, signalCauseLabel, isQuotaMessage, isUnsupportedStageMessage,
   type SignalSweepState,
 } from './signals.ts'
 import {
@@ -22,41 +23,42 @@ const appRoot = join(here, '..', '..', '..')
 // ── 문장 ─────────────────────────────────────────────────────────────
 
 test('한 번도 안 돌았으면 그렇게 말한다 — 빈 화면과 구분되어야 한다', () => {
-  assert.match(signalSweepHeadline(base), /아직 바깥을 훑지 않았/)
-  assert.match(signalSweepDetail(base) ?? '', /지금 찾기/)
+  assert.equal(signalSweepHeadline(base), '수집 전')
+  assert.match(signalSweepDetail(base) ?? '', /지금 수집/)
 })
 
 test('★ 돌았는데 0건인 것과 아직 안 돈 것은 다른 문장이다', () => {
   const ran = signalSweepHeadline({ ...base, outcome: 'ok', lastSweepAt: '2026-09-01T00:00:00Z' })
   const never = signalSweepHeadline(base)
   assert.notEqual(ran, never)
-  assert.match(ran, /새로 담을 만한 것이 없/)
+  assert.equal(ran, '새 이슈 없음')
 })
 
 test('확인 대기가 있으면 건수를 말한다', () => {
   assert.match(signalSweepHeadline({ ...base, outcome: 'ok', pending: 3 }), /3건/)
 })
 
-test('★ 실패는 이유를 그대로 보여준다 — 사과하지 않고 사실을 말한다', () => {
-  const s: SignalSweepState = { ...base, outcome: 'failed', reason: 'AI 웹 검색 한도를 다 썼습니다' }
-  assert.match(signalSweepHeadline(s), /훑지 못했/)
-  assert.equal(signalSweepDetail(s), 'AI 웹 검색 한도를 다 썼습니다')
+test('★ 두괄식 — 첫 줄만 읽어도 상태와 원인이 끝난다', () => {
+  const s: SignalSweepState = {
+    ...base, outcome: 'failed', reason: 'AI 웹 검색 한도를 다 썼습니다', blockedByQuota: true,
+  }
+  assert.equal(signalSweepHeadline(s), '수집 실패 · AI 한도 초과')
   assert.doesNotMatch(signalSweepHeadline(s) + (signalSweepDetail(s) ?? ''), /죄송|미안/)
 })
 
-test('재시도 예정도 이유를 보여준다 — 「곧 됩니다」로 뭉개지 않는다', () => {
-  const s: SignalSweepState = { ...base, outcome: 'retrying', reason: '한도 초과' }
-  assert.equal(signalSweepDetail(s), '한도 초과')
+test('재시도 예정도 원인을 첫 줄에 싣는다 — 「곧 됩니다」로 뭉개지 않는다', () => {
+  const s: SignalSweepState = { ...base, outcome: 'retrying', reason: '한도 초과', blockedByQuota: true }
+  assert.equal(signalSweepHeadline(s), '수집 실패 · 재시도 예정 · AI 한도 초과')
 })
 
 test('꺼져 있으면 «실패»가 아니라 «꺼짐»이라고 말한다', () => {
   const s: SignalSweepState = { ...base, outcome: 'off' }
-  assert.match(signalSweepHeadline(s), /꺼져 있/)
+  assert.equal(signalSweepHeadline(s), '자동 수집 꺼짐')
   assert.match(signalSweepDetail(s) ?? '', /설정/)
 })
 
 test('돌고 있는 중도 말한다 — 아무 말 없는 상태를 만들지 않는다', () => {
-  assert.match(signalSweepHeadline({ ...base, outcome: 'running' }), /훑고 있/)
+  assert.equal(signalSweepHeadline({ ...base, outcome: 'running' }), '수집 중')
 })
 
 test('★ 어떤 상태에서도 빈 문장이 나오지 않는다', () => {
@@ -138,17 +140,15 @@ test('★ 하루를 넘기면 «기다려서 될 일이 아닐 수 있다»고 �
   const s: SignalSweepState = {
     ...base, outcome: 'failed', reason: '한도', failingSince: '2026-09-01T00:00:00Z',
   }
-  const t = signalSweepStuckText(s, now)
-  assert.match(t ?? '', /2일째/)
-  assert.match(t ?? '', /요금제|키/)
+  assert.equal(signalSweepStuckText(s, now), '2일째')
+  assert.match(signalSweepEscalation(s, now) ?? '', /요금제|키/)
 })
 
 test('몇 시간짜리면 기간만 말한다 — 요금제를 의심시키지 않는다', () => {
   const now = Date.parse('2026-09-02T05:00:00Z')
-  const t = signalSweepStuckText(
-    { ...base, outcome: 'failed', reason: '한도', failingSince: '2026-09-02T00:00:00Z' }, now)
-  assert.match(t ?? '', /5시간째/)
-  assert.doesNotMatch(t ?? '', /요금제/)
+  const s2: SignalSweepState = { ...base, outcome: 'failed', reason: '한도', failingSince: '2026-09-02T00:00:00Z' }
+  assert.equal(signalSweepStuckText(s2, now), '5시간째')
+  assert.equal(signalSweepEscalation(s2, now), null)
 })
 
 test('성공 중이거나 시작점이 없으면 「며칠째」를 말하지 않는다', () => {
@@ -187,4 +187,85 @@ test('★ 가드: 화면이 다음 시도 시각과 정체 기간을 실제로 �
   const src = readFileSync(join(appRoot, 'components/ci/SignalSweepBar.tsx'), 'utf8')
   assert.match(src, /nextAttemptAt/, '다음 시도 시각을 안 그린다')
   assert.match(src, /signalSweepStuckText/, '며칠째인지 안 그린다')
+  assert.match(src, /지금 수집/, '버튼이 표준 용어를 안 쓴다')
+})
+
+// ── 문구 표준 ────────────────────────────────────────────────────────
+//
+// 사용자 지적(2026-09-02): 「두괄식으로 명확하고 키워드 위주로 서비스를 구성해야지
+// 훑는다 이런 시스템은 본적도 없어」. 서술형·비표준어는 재발하면 다시 못 잡으므로 잠근다.
+
+test('★ 상태 라벨은 짧은 키워드다 — 문장이 아니다', () => {
+  for (const o of ['never', 'ok', 'running', 'retrying', 'failed', 'off'] as const) {
+    const label = signalStatusLabel({ ...base, outcome: o })
+    assert.ok(label.length <= 16, `${o}: 라벨이 길다(${label})`)
+    assert.doesNotMatch(label, /어요|습니다|해요/, `${o}: 서술형이다(${label})`)
+  }
+})
+
+test('★ 원인은 키워드로 나온다 — 긴 원문을 첫 줄에 싣지 않는다', () => {
+  assert.equal(signalCauseLabel('AI 웹 검색 한도를 다 썼습니다. 모델을 바꿔도…'), 'AI 한도 초과')
+  assert.equal(signalCauseLabel('AI 키가 설정되지 않았습니다'), 'AI 키 없음')
+  assert.equal(signalCauseLabel('시간 안에 오지 않았습니다'), '응답 지연')
+  assert.equal(signalCauseLabel(null), null)
+})
+
+test('★ 「훑다」는 화면에 쓰지 않는다 — 제품에서 쓰는 말이 아니다', () => {
+  const files = [
+    'lib/ci/analysis/signals.ts',
+    'components/ci/SignalSweepBar.tsx',
+    'lib/ci/jobs/progress.ts',
+    'lib/ci/settings/registry.ts',
+  ]
+  for (const f of files) {
+    const src = readFileSync(join(appRoot, f), 'utf8')
+    // 주석은 판정 대상이 아니다 — 화면에 나가는 문자열만 본다
+    const strings = [...src.matchAll(/'([^']*)'|"([^"]*)"|`([^`]*)`/g)].map((m) => m[1] ?? m[2] ?? m[3] ?? '')
+    for (const t of strings) {
+      assert.doesNotMatch(t, /훑/, `${f} 의 화면 문자열에 「훑」이 있다: ${t.slice(0, 40)}`)
+    }
+  }
+})
+
+test('★ 배포본이 남긴 «모르는 단계»는 실패가 아니다 — 내부 문구가 화면에 뜨면 안 된다', () => {
+  assert.ok(isUnsupportedStageMessage('알 수 없는 단계: signals'))
+  assert.ok(isUnsupportedStageMessage('이 워커가 모르는 단계입니다: signals'))
+  assert.ok(!isUnsupportedStageMessage('AI 웹 검색 한도를 다 썼습니다'))
+  assert.ok(!isUnsupportedStageMessage(null))
+})
+
+test('★ 가드: 화면·실행 양쪽이 «모르는 단계» 기록을 건너뛴다 — 한쪽만 하면 또 어긋난다', () => {
+  for (const f of ['lib/ci/queries/trends.ts', 'lib/ci/jobs/signals-sweep.ts']) {
+    const src = readFileSync(join(appRoot, f), 'utf8')
+    assert.match(src, /isUnsupportedStageMessage/, `${f} 가 가짜 실패를 걸러내지 않는다`)
+  }
+})
+
+test('★ 가드: 「시도한 때」로 성공을 판정하지 않는다 — 실패한 뒤에도 「새 이슈 없음」이 되던 원인', () => {
+  const q = readFileSync(join(appRoot, 'lib/ci/queries/trends.ts'), 'utf8')
+  assert.match(q, /last_signal_success_at/, '성공 시각 칸을 읽지 않는다')
+  // 성공 판정에 시도 시각(lastSweepAt)을 쓰면 안 된다
+  const at = q.indexOf('const outcome')
+  const decide = q.slice(q.indexOf('if (job?.updated_at'), at > 0 ? at : undefined).slice(0, 600)
+  assert.match(decide, /lastSuccessAt/, '성공 판정이 성공 시각을 안 본다')
+  assert.doesNotMatch(decide, /lastSweepAt\s*>/, '시도 시각으로 성공을 판정한다')
+})
+
+test('★ 가드: 성공했을 때만 성공 시각을 찍는다 — 성공 경로가 하나여야 판정이 안 갈린다', () => {
+  const src = readFileSync(join(appRoot, 'lib/ci/ai/signals-server.ts'), 'utf8')
+  assert.match(src, /last_signal_success_at/, '성공 시각을 안 찍는다')
+  const route = readFileSync(join(appRoot, 'app/api/ci/signals/sweep/route.ts'), 'utf8')
+  assert.doesNotMatch(route, /last_signal_success_at/,
+    '수동 경로가 성공 시각을 따로 찍는다 — 두 곳이 찍으면 한쪽만 고쳐져 어긋난다')
+})
+
+test('★ 가드: 마이그레이션이 성공 시각 칸을 만든다', () => {
+  const sql = readFileSync(join(appRoot, '..', '..', 'supabase/migrations/240_ci_signal_success_at.sql'), 'utf8')
+  assert.match(sql, /add column if not exists last_signal_success_at/i, '추가 전용이 아니다')
+  assert.doesNotMatch(sql, /drop column|delete from|update ci_workspaces set/i, '파괴적 구문이 있다')
+})
+
+test('★ 가드: 도는 중에는 실패 색을 쓰지 않는다 — 결과 전에 빨간 글씨는 실패로 읽힌다', () => {
+  const src = readFileSync(join(appRoot, 'components/ci/SignalSweepBar.tsx'), 'utf8')
+  assert.match(src, /const bad = !busy &&/, '진행 중에도 실패 색이 남는다')
 })
