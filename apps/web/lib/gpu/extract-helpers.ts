@@ -2,6 +2,7 @@
 // 기존 review/route.ts의 인라인 헬퍼와 동일 로직(무수정 보존을 위해 별도 추출).
 import type { createAdminClient } from '@/lib/supabase/server'
 import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
+import { scopeSchemaDigest } from '@/lib/gpu/schema-scope'
 import { safeFetchText } from '@/lib/security/safe-fetch'
 import { renderUrlHtml } from '@/lib/security/headless-fetch'
 import { htmlToStructuredText } from '@/lib/gpu/html-table-extract'
@@ -155,7 +156,9 @@ export async function loadSchemaDigest(adminClient: ReturnType<typeof createAdmi
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (adminClient as any).rpc('get_schema_digest')
     if (error || typeof data !== 'string' || data.trim().length === 0) return SCHEMA_CONTRACT
-    return `${SCHEMA_CONTRACT}\n\n【현재 DB 스키마 (런타임 자동 파생 — 이 구조에 정확히 맞춰 추출)】${data}`
+    // GPU 도메인만 남긴다 — 전체를 실으면 129,804자 중 95.4%가 잡음이고, 그 무게가
+    //   호출마다 붙어 라우트 예산이 본 추출에 닿기 전에 소진된다(lib/gpu/schema-scope.ts).
+    return `${SCHEMA_CONTRACT}\n\n【현재 DB 스키마 (런타임 자동 파생 — 이 구조에 정확히 맞춰 추출)】\n${scopeSchemaDigest(data)}`
   } catch {
     return SCHEMA_CONTRACT
   }

@@ -476,6 +476,15 @@ async function runGeminiChain(
           console.warn(`[${feature}] 한도 — 재시도 없이 다음 모델로: ${out.detail}`)
           break
         }
+        // 시간 초과도 같은 성질이다 — **같은 모델에 같은 프롬프트를 다시 물으면 또 같은 시간이 든다.**
+        //   (실측 v0.7.683: 재시도가 남은 예산을 마저 태워 **폴백 모델에 한 번도 못 갔다**.
+        //    견적서 분석 4회 전부 attempts 에 모델이 1종뿐이었다 — 사슬이 있는데 쓰이지 않았다.
+        //    「하나가 죽어도 다음이 받는다」가 timeout 경로에서만 무력했던 자리.)
+        //   뒤에 더 빠른 모델이 있으므로 백오프를 버리지 말고 곧장 다음 모델로 간다.
+        if (out.reason === 'timeout') {
+          console.warn(`[${feature}] 시간 초과 — 재시도 없이 다음 모델로: ${out.detail}`)
+          break
+        }
         console.warn(`[${feature}] 재시도(${attempt + 1}/${MAX_RETRIES_PER_MODEL}): ${out.detail}`)
         if (attempt < MAX_RETRIES_PER_MODEL) {
           await sleep(1_000 * 2 ** attempt)

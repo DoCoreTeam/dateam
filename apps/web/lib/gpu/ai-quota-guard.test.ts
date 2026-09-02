@@ -112,7 +112,8 @@ describe('시간 제한', () => {
     assert.ok(budget < maxDuration * 1000, `AI 예산(${budget}ms)이 함수 상한(${maxDuration * 1000}ms)보다 짧아야 한다`)
 
     // 호출마다 **남은** 예산을 준다 — 상수를 그대로 주면 단계가 3개일 때 합이 3배가 된다.
-    assert.match(src, /overallTimeoutMs:\s*Math\.max\([^)]*aiDeadline - Date\.now\(\)/,
-      '앞 단계가 쓴 시간을 빼고 남은 예산을 넘겨야 한다')
+    //   v0.7.683 부터 배분은 lib/gpu/ai-budget(SSOT)이 한다(본 추출 몫 예약).
+    assert.match(src, /overallTimeoutMs:\s*aiStageBudgetMs\(stage,\s*aiDeadline - Date\.now\(\)\)/,
+      '앞 단계가 쓴 시간을 빼고 남은 예산을 단계 배분 SSOT 로 넘겨야 한다')
   })
 })

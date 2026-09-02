@@ -18,6 +18,7 @@ import { reconcile as reconcileCompleteness } from '@/lib/gpu/completeness-recon
 import { validateCompetitorItem, looksLikeGpuModel } from '@/lib/gpu/validate'
 import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
 import { classifyObservation } from '@/lib/gpu/observation-classify'
+import { aiStageBudgetMs, type AiStage } from '@/lib/gpu/ai-budget'
 import { amountToKrw, pricingModelForUnit, type FxKrwMap } from '@/lib/gpu/normalize-money'
 import { canonicalizeModel } from '@/lib/gpu/canonical-model'
 import { extractFormFactor } from '@/lib/gpu/form-factor'
@@ -164,17 +165,21 @@ export async function POST(req: NextRequest) {
        * 사용자는 아무 말도 못 듣는다. 우리가 먼저 끊고 이유를 말한다.
        */
       const aiDeadline = Date.now() + ROUTE_AI_BUDGET_MS
-      /** 호출할 때마다 **남은 예산**을 준다 — 앞 단계가 오래 끌면 뒤 단계가 그만큼 짧아진다. */
-      const gopts = (): GpuGeminiOptions => ({
+      /**
+       * 호출할 때마다 **남은 예산**을 주되, **본 추출 몫을 먼저 떼어 둔다**(lib/gpu/ai-budget).
+       * 예전엔 먼저 오는 단계가 다 써 버려서 정작 결과를 만드는 본 추출이 6~17초만 받고
+       * 4회 전부 시간 초과했다(실측 v0.7.683).
+       */
+      const gopts = (stage: AiStage = 'main'): GpuGeminiOptions => ({
         fallbackApiKey: config.fallbackApiKey,
         feature: 'gpu-intake',
         timeoutMs: 40_000,
-        overallTimeoutMs: Math.max(3_000, aiDeadline - Date.now()),
+        overallTimeoutMs: aiStageBudgetMs(stage, aiDeadline - Date.now()),
         onAttempt: ({ model }) => send('progress', { step: 'ai_retry', msg: `다시 시도 · AI 응답 없음 — ${model}` }),
         onNotice: (notice) => send('progress', { step: 'ai_model_switched', msg: notice }),
       })
       /** 관측 추출(ai-observation)이 쓰는 호출기 — 같은 안전망·같은 예산을 태운다. */
-      const geminiCaller = (k: string, m: string, t: string, j?: boolean) => callGeminiOnce(k, m, t, j, gopts())
+      const geminiCaller = (k: string, m: string, t: string, j?: boolean) => callGeminiOnce(k, m, t, j, gopts('pre'))
 
       try {
         send('progress', { step: 'start', msg: '입력을 분석하고 있습니다…' })
@@ -207,7 +212,7 @@ export async function POST(req: NextRequest) {
         const transcription = await runTranscription(
           config.apiKey, config.model, imageParts, contentText,
           (delta) => send('token', { phase: 'transcribe', delta }),
-          gopts(),
+          gopts('pre'),
           (reason) => send('progress', { step: 'transcribe_failed', msg: `전사 건너뜀 · ${reason} (누락 검사 꺼짐)` }),
         )
         const sourceRowCount = transcription.source_row_count
@@ -240,7 +245,7 @@ export async function POST(req: NextRequest) {
         const classifyText = await callGeminiStream(
           config.apiKey, config.model, classifyParts,
           (delta) => send('token', { phase: 'classify', delta }),
-          gopts(),
+          gopts('pre'),
         )
         try { classified = JSON.parse(classifyText) } catch { /* fallthrough */ }
         if (hasImages) send('progress', { step: 'ocr', msg: '이미지에서 견적 정보를 읽는 중…' })
@@ -277,9 +282,12 @@ export async function POST(req: NextRequest) {
           const recParts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
           if (hasImages) recParts.push(...imageParts)
           recParts.push({ text: `${classifyPrompt}\n\n반드시 type을 competitor로 하고 items에 모델·가격을 추출하세요.\n\n${schemaDigest}${specContext}\n\n${contentText ? '입력:\n' + contentText : '위 이미지에서 추출하세요.'}` })
+          // 지시 외 발견(v0.7.683): 이 호출만 공용 안전망이 **아예 안 걸려 있었다** —
+          //   시간 제한·재시도·폴백 없이 모델 하나를 부르고, 실패하면 조용히 supplier 로 떨어졌다.
           const recText = await callGeminiStream(
             config.apiKey, config.model, recParts,
             (delta) => send('token', { phase: 'classify', delta }),
+            gopts(),
           )
           try {
             const rec = JSON.parse(recText) as { items?: unknown[] }
