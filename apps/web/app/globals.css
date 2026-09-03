@@ -10205,3 +10205,17 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
   */
   margin: 0;
 }
+
+/* ── 우클릭 대상(전역) ───────────────────────────────────────────────
+   **속성으로 건다.** className 으로 두면 화면마다 빼먹고, 빼먹으면 iOS 에서
+   길게 누를 때 «복사/공유» 네이티브 말풍선이 우리 메뉴를 덮는다.
+   `useContextMenu().triggerProps` 가 이 속성을 자동으로 붙이므로 화면이 기억할 것이 없다.
+
+   CSS Module(context-menu.module.css)이 아니라 여기 있는 이유: 이 선택자에는
+   로컬 클래스가 **없는 것이 설계 의도**라 모듈의 순수 선택자 규칙(pure mode)을
+   통과할 수 없다. `:global(...)`·`:global{}` 두 형태 모두 실측으로 거부됐고,
+   그 컴파일 오류 하나가 공유 dev 서버의 **전 라우트**를 죽였다(v0.7.684).
+   화면 전용 스타일이 아니라 공용 부품의 횡단 동작이므로 전역이 제자리다. */
+[data-ctx-target='true'] {
+  -webkit-touch-callout: none;
+}

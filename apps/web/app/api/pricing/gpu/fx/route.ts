@@ -4,15 +4,14 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { parseKoraeximRows, type FxRateNormalized } from '@/lib/gpu/fx-parse'
-
-const KOREAEXIM_BASE = 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON'
+import { fetchKoraeximJson } from '@/lib/gpu/koreaexim'
 
 // AP01 전통화 응답을 한 번에 받아 정규화(JPY 100단위·콤마 처리는 fx-parse SSOT). USD가 없으면 null(그 날짜 미고시).
+//   호출 자체는 lib/gpu/koreaexim(SSOT)이 한다 — 그 서버가 중간 인증서를 안 보내서
+//   기본 fetch 로는 Node 에서 TLS 검증에 실패한다(실측 2026-09-03, 일주일째 500).
 async function fetchKoraeximAll(authKey: string, date: string): Promise<FxRateNormalized[] | null> {
-  const url = `${KOREAEXIM_BASE}?authkey=${authKey}&searchdate=${date.replace(/-/g, '')}&data=AP01`
-  const res = await fetch(url, { next: { revalidate: 0 } })
-  if (!res.ok) return null
-  const json = await res.json()
+  const json = await fetchKoraeximJson(authKey, date.replace(/-/g, ''))
+  if (json == null) return null
   const parsed = parseKoraeximRows(json)
   // USD가 있어야 유효 고시일로 간주(휴일·미고시일은 빈 배열로 옴).
   return parsed.some((p) => p.currency === 'USD') ? parsed : null

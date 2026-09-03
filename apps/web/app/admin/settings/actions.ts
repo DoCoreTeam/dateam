@@ -7,6 +7,7 @@ import { getTokens, refreshTokenIfNeeded } from '@/lib/google-drive'
 import type { AiChatProviderId } from '@/types/database'
 import { readVercelConfig, VERCEL_META } from '@/lib/vercel/config'
 import { fetchProject, VercelApiError } from '@/lib/vercel/api'
+import { fetchKoraeximJson } from '@/lib/gpu/koreaexim'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1'
@@ -233,10 +234,11 @@ export async function checkKoraeximHealth(): Promise<{ ok: boolean; message: str
 
   try {
     const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Seoul' }).replace(/-/g, '')
-    const url = `https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${apiKey}&searchdate=${today}&data=AP01`
-    const res = await fetch(url, { cache: 'no-store' })
-    if (!res.ok) return { ok: false, message: `API 응답 오류: ${res.status}` }
-    const json = await res.json() as unknown[]
+    // 호출은 lib/gpu/koreaexim(SSOT) — 그 서버가 중간 인증서를 안 보내서 기본 fetch 는
+    //   Node 에서 TLS 검증에 실패한다. 예전엔 그 실패가 「네트워크 오류」로만 보여서
+    //   키가 멀쩡한데도 연결 테스트가 늘 빨간불이었다(실측 2026-09-03).
+    const json = await fetchKoraeximJson(apiKey, today) as unknown[] | null
+    if (json == null) return { ok: false, message: 'API 응답을 받지 못했습니다 (잠시 후 다시 시도해 주세요)' }
     if (!Array.isArray(json)) return { ok: false, message: '비정상 응답 (API 키를 확인해주세요)' }
     if (json.length === 0) return { ok: false, message: '데이터 없음 (휴장일이거나 키가 유효하지 않습니다)' }
     const usdRow = (json as Record<string, string>[]).find((r) => r.cur_unit === 'USD')
