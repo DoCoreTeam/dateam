@@ -1,0 +1,124 @@
+/*
+  우클릭 메뉴 — 공용 부품 전용 스타일.
+  화면 전용 CSS 를 globals.css 에 넣지 않는다(§0-1). 부품의 스타일은 부품 옆에 둔다.
+*/
+
+.menu {
+  position: fixed;
+  z-index: var(--z-toast);
+  min-width: 12rem;
+  max-width: min(18rem, calc(100vw - 1rem));
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  /* 항목이 많으면 스스로 스크롤한다 — 화면 밖으로 자라지 않는다 */
+  max-height: min(70vh, 32rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: ctx-in 0.09s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ctx-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu { animation: none; }
+}
+
+.head {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  /* 터치 최소 영역 — 길게 눌러 연 메뉴는 손가락으로 고른다 */
+  min-height: 36px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-family: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  outline: none;
+}
+
+.item:focus-visible {
+  box-shadow: inset 0 0 0 var(--border-w) var(--brand);
+}
+
+.item[data-danger='true'] {
+  color: var(--danger);
+}
+.item[data-danger='true']:hover,
+.item[data-danger='true']:focus-visible {
+  background: var(--danger-bg);
+  color: var(--danger);
+  box-shadow: inset 0 0 0 var(--border-w) var(--danger);
+}
+
+.item[disabled] {
+  color: var(--text-faint);
+  cursor: default;
+}
+.item[disabled]:hover {
+  background: none;
+  color: var(--text-faint);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.125rem;
+  color: currentColor;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 어느 시스템의 일인지 — day-actions 의 표면 배지와 같은 뜻 */
+.surface {
+  flex-shrink: 0;
+  padding: 0 0.3rem;
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.sep {
+  height: var(--hairline);
+  margin: var(--space-1) var(--space-2);
+  background: var(--border-light);
+}

@@ -173,7 +173,16 @@ test('★ 일간에서도 그 날의 작업대가 먼저다 — 「무엇이 있
 })
 
 test('일간의 「새 일정」은 그 자리에서 연다 — 화면 전환 0회', () => {
-  assert.match(BOARD, /onNewEvent=\{\(\) => setDayModal\(true\)\}/, '다른 화면으로 보낸다')
+  /*
+    「그 자리에서 연다」가 이 가드의 뜻이다. 예전에는 `setDayModal(true)` 였고
+    지금은 `setEventForm({ date })` 가 같은 일을 한다 — 둘 다 **화면을 안 옮기고**
+    같은 화면에 모달을 띄운다(CalendarBoard 의 `{eventForm && <EventModal …>}`).
+    구현 이름이 아니라 «이동이 없다»를 본다: 새 일정은 상태로 열려야 하고,
+    `router.push`·`<Link` 로 다른 주소에 보내면 안 된다.
+  */
+  assert.match(BOARD, /onNewEvent=\{\(\) => setEventForm\(\{ date: dayStr \}\)\}/,
+    '새 일정을 상태로 열지 않는다 — 다른 화면으로 보내면 그 자리에서 여는 게 아니다')
+  assert.doesNotMatch(BOARD, /onNewEvent=\{\(\) => router\.push/, '다른 화면으로 보낸다')
   assert.match(BOARD, /startsWith\("\/api\/calendar\/events"\)/,
     '저장하고 나서 다시 안 읽는다 — 방금 만든 일정이 안 보인다')
 })

@@ -147,6 +147,97 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Re
   }
 }
 
+/**
+ * 일정 수정 — **없던 기능이다.**
+ *
+ * 사용자 지시(2026-09-02): *"수정이 없으면 수정이 있어야지"*.
+ * 예전에는 만들기(`createCalendarEvent`)와 지우기(`deleteCalendarEvent`)뿐이라,
+ * 오타 하나를 고치려면 **지우고 다시 만들어야** 했다 — 그 사이 연동(link_kind)과
+ * 반복 설정이 함께 사라진다.
+ *
+ * **쓰기는 본인만.** RLS `cal_write` 가 `user_id = auth.uid()` 로 이미 막지만,
+ * 앱에서도 소유를 확인해 **「저장됐다」고 말한 뒤 아무 일도 안 일어나는 상태**를 없앤다
+ * (RLS 는 남의 행을 못 찾을 뿐 오류를 주지 않는다 — 0행 갱신이 조용한 성공이 된다).
+ *
+ * **반복 일정은 시리즈 전체가 바뀐다.** 화면에 전개된 가짜 id(`<base>:<날짜>`)가 아니라
+ * **원본 행 id(`base_id`)를 넘겨야 한다** — 삭제와 같은 규칙이다.
+ */
+export async function updateCalendarEvent(
+  id: string,
+  input: Omit<CalendarEventInput, 'link_kind' | 'link_id' | 'source'>,
+): Promise<Result> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: '인증이 필요합니다' }
+    if (!id) return { ok: false, error: '수정할 일정을 찾지 못했습니다' }
+    if (!input.title?.trim()) return { ok: false, error: '제목을 입력하세요' }
+    if (!input.start_at) return { ok: false, error: '시작 일시가 필요합니다' }
+
+    // 소유 확인 — 남의 일정이면 조용히 0행이 되는 대신 이유를 말한다
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: own } = await (supabase.from('calendar_events') as any)
+      .select('user_id, link_kind').eq('id', id).maybeSingle()
+    if (!own) return { ok: false, error: '일정을 찾지 못했습니다' }
+    if (own.user_id !== user.id) return { ok: false, error: '내 일정만 수정할 수 있습니다' }
+    /**
+     * 자동 생성된 일정은 여기서 고치지 않는다 — 원본(일일업무·회의)이 진실이라
+     * 제목만 바꾸면 **고칠 곳이 둘**이 되고 다음 동기화에 되돌아간다.
+     */
+    if (own.link_kind) {
+      return { ok: false, error: '업무·회의에서 만들어진 일정입니다. 원본에서 수정하세요' }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from('calendar_events') as any)
+      .update({
+        title: input.title.trim(),
+        description: input.description ?? null,
+        start_at: input.start_at,
+        end_at: input.end_at ?? null,
+        all_day: input.all_day ?? false,
+        rrule: input.rrule ?? null,
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+    if (error) return { ok: false, error: `저장 실패: ${error.message}` }
+    return { ok: true, id }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : '저장 실패' }
+  }
+}
+
+/**
+ * 수정 폼을 채울 값 하나를 읽는다.
+ *
+ * 목록(`/api/calendar/events`)이 이미 주는 값이지만, **반복 일정은 전개된 사본**이라
+ * 시각이 그 회차의 것이다. 원본을 고치려면 원본을 읽어야 한다.
+ */
+export async function getCalendarEvent(id: string): Promise<{
+  ok: boolean
+  error?: string
+  event?: {
+    id: string; title: string; description: string | null
+    start_at: string; end_at: string | null; all_day: boolean; rrule: string | null
+  }
+}> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: '인증이 필요합니다' }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from('calendar_events') as any)
+      .select('id, title, description, start_at, end_at, all_day, rrule, user_id')
+      .eq('id', id).maybeSingle()
+    if (error) return { ok: false, error: '일정을 불러오지 못했습니다' }
+    if (!data) return { ok: false, error: '일정을 찾지 못했습니다' }
+    if (data.user_id !== user.id) return { ok: false, error: '내 일정만 수정할 수 있습니다' }
+    return { ok: true, event: data }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : '일정을 불러오지 못했습니다' }
+  }
+}
+
 /** 캘린더에 연결된 일일업무 1건의 요약 (인라인 배지 표시용) */
 export interface LinkedDailyCalEntry {
   logId: string

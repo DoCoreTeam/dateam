@@ -62,9 +62,15 @@ export async function GET(req: NextRequest) {
   const out: any[] = []
   for (const ev of data ?? []) {
     if (isOrphanDailyEvent(ev, user.id, liveLogIds)) continue
+    /**
+     * 내 일정인가 — **화면이 「수정·삭제」를 그릴지 정하는 유일한 근거**다.
+     * 읽기는 조직 계층까지 열려 있고 쓰기는 본인만이다(RLS `cal_write`). 이 값이 없으면
+     * 화면은 남의 일정에도 수정을 띄우고, 사용자는 눌러 보고 나서야 못 한다는 것을 안다.
+     */
+    const isMine = ev.user_id === user.id
     const baseMs = new Date(ev.start_at).getTime()
     if (!ev.rrule) {
-      if (baseMs >= fromMs && baseMs <= toMs) out.push({ ...ev, base_id: ev.id })
+      if (baseMs >= fromMs && baseMs <= toMs) out.push({ ...ev, base_id: ev.id, is_mine: isMine })
       continue
     }
     const stepDays = /FREQ=WEEKLY/i.test(ev.rrule) ? 7 : 1
@@ -74,7 +80,7 @@ export async function GET(req: NextRequest) {
     while (occ <= toMs && guard < 400) {
       if (occ >= fromMs) {
         const iso = new Date(occ).toISOString()
-        out.push({ ...ev, id: `${ev.id}:${iso.slice(0, 10)}`, base_id: ev.id, start_at: iso })
+        out.push({ ...ev, id: `${ev.id}:${iso.slice(0, 10)}`, base_id: ev.id, start_at: iso, is_mine: isMine })
       }
       occ += stepMs
       guard++

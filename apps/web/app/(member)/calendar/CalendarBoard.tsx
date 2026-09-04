@@ -23,7 +23,16 @@ import { formatKstTime } from "@/lib/calendar/format-time";
 import { kstDateKey } from "@/lib/datetime/kst";
 import DayDetailPanel from "./DayDetailPanel";
 import EventModal from "./EventModal";
+import { deleteCalendarEvent } from "./actions";
 import DayWorkbench from "@/components/calendar/DayWorkbench";
+import CalendarContextMenu from "@/components/calendar/CalendarContextMenu";
+import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
+import { useContextMenu } from "@/components/ui/ContextMenu";
+import {
+  dayCellMenu, eventChipMenu, taskChipMenu, menuDateTitle,
+  type CalMenuItem, type CalMenuRun,
+} from "@/lib/calendar/day-menu";
+import { ENTITY, ACTION } from "@/lib/terms";
 import RecommendPanel from "./RecommendPanel";
 import { STATUS_COLORS } from "@/lib/tokens/status-colors";
 import PageHeader from "@/components/ui/PageHeader";
@@ -36,6 +45,10 @@ import styles from "./calendar.module.css";
 interface CalEventLite {
   id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; source: string;
   link_kind?: string | null; link_id?: string | null;
+  /** 반복 일정은 화면에 전개된 사본이라 `id` 가 가짜다 — 고치고 지울 때는 이 값을 쓴다 */
+  base_id?: string;
+  /** 내 일정인가 — 쓰기는 본인만이라(RLS) 남의 일정에는 수정·삭제를 띄우지 않는다 */
+  is_mine?: boolean;
 }
 
 // 상태 색은 SSOT(lib/tokens/status-colors)에서 — 7개 파일 복붙 제거
@@ -184,8 +197,20 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
    * 월간에서 8/30 을 눌러 패널을 열고 「일간」으로 바꾸면 **그 날이 그대로** 열린다.
    */
   const dayStr = selectedDate ?? toDateStr(anchor);
-  const [dayModal, setDayModal] = useState(false);
   const { mutate: mutateSwr } = useSWRConfig();
+
+  /**
+   * 우클릭 메뉴 — **날짜 칸과 칩 위에서만** 브라우저 메뉴를 막는다(§2-3-1 (6)).
+   * 헤더·여백에서는 「새로고침」·「번역」이 그대로 뜬다. Chrome 에는 우회가 없어서
+   * 전역으로 막으면 그 기능들을 이 화면에서 영영 못 쓴다.
+   */
+  const menu = useContextMenu();
+  /** 일정 폼 — 만들기(eventId 없음)와 고치기(eventId 있음)를 같은 자리에서 연다 */
+  const [eventForm, setEventForm] = useState<{ date: string; eventId?: string } | null>(null);
+  /** 되돌릴 수 없으므로 확인창이 유일한 안전장치다(§R-5) */
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // SWR: 월간 요약
   const monthKey = viewMode === "month"
@@ -222,6 +247,52 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
     if (!eventsByDate.has(d)) eventsByDate.set(d, []);
     eventsByDate.get(d)!.push(ev);
   }
+
+  /** 보이는 범위의 일정을 다시 읽는다 — 안 하면 방금 고친 것이 화면에 안 나온다 */
+  const revalidateEvents = () =>
+    void mutateSwr((k) => typeof k === "string" && k.startsWith("/api/calendar/events"));
+
+  /**
+   * 무엇을 우클릭했는지 → 무엇을 보여 줄지.
+   *
+   * 항목은 **화면이 짓지 않는다** — `lib/calendar/day-menu.ts`(SSOT)가 만든다.
+   * 여기서 새로 적으면 달력 넷이 서로 다른 메뉴를 갖게 된다.
+   */
+  const menuFor = (targetKey: string): { items: CalMenuItem[]; title: string } => {
+    const [kind, dateStr, eventId] = targetKey.split("|");
+    const title = menuDateTitle(dateStr);
+    if (kind === "event") {
+      const ev = calEvents.find((e) => e.id === eventId);
+      if (ev) {
+        return {
+          items: eventChipMenu(
+            {
+              id: ev.base_id ?? ev.id,
+              title: ev.title,
+              linkKind: ev.link_kind,
+              linkId: ev.link_id,
+              isMine: ev.is_mine,
+            },
+            dateStr,
+          ),
+          title,
+        };
+      }
+    }
+    if (kind === "task") return { items: taskChipMenu(dateStr), title };
+    return { items: dayCellMenu(dateStr, todayStr), title };
+  };
+
+  /** 이 화면에서만 뜻이 있는 실행 — 화면 이동·미팅 생성은 공용 실행기가 이미 처리했다 */
+  const runMenuAction = (run: CalMenuRun) => {
+    if (run.kind === "openDay") { setSelectedDate(run.dateKey); return; }
+    if (run.kind === "newEvent") { setEventForm({ date: run.dateKey }); return; }
+    if (run.kind === "editEvent") { setEventForm({ date: dayStr, eventId: run.eventId }); return; }
+    if (run.kind === "deleteEvent") {
+      setDeleteError(null);
+      setPendingDelete({ id: run.eventId, title: run.title });
+    }
+  };
 
   // 요약 맵
   const summaryMap = new Map<string, DayLogSummary>(
@@ -328,6 +399,50 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
           onClose={() => setSelectedDate(null)}
         />
       )}
+
+      {/* 우클릭 메뉴 — 항목은 SSOT 가 만들고, 실행은 공용 실행기가 한다 */}
+      {menu.state && (() => {
+        const m = menuFor(menu.state.targetKey);
+        return (
+          <CalendarContextMenu
+            state={menu.state}
+            items={m.items}
+            title={m.title}
+            onClose={menu.close}
+            onAction={runMenuAction}
+          />
+        );
+      })()}
+
+      {/* 일정 폼 — 만들기·고치기가 같은 자리다 */}
+      {eventForm && (
+        <EventModal
+          date={eventForm.date}
+          eventId={eventForm.eventId}
+          onClose={() => setEventForm(null)}
+          onSaved={() => { setEventForm(null); revalidateEvents(); }}
+        />
+      )}
+
+      {/* 삭제 확인 — 되돌릴 수 없으므로 무엇이 사라지는지 이름으로 밝힌다 */}
+      {pendingDelete && (
+        <ConfirmDeleteDialog
+          title={`${ENTITY.event.label}「${pendingDelete.title || "(제목 없음)"}」을(를) ${ACTION.delete}할까요?`}
+          impact={{ label: pendingDelete.title, cascades: [], detaches: [], blocked: null }}
+          busy={deleteBusy}
+          errorMessage={deleteError}
+          onClose={() => { if (!deleteBusy) setPendingDelete(null); }}
+          onConfirm={async () => {
+            setDeleteBusy(true);
+            setDeleteError(null);
+            const r = await deleteCalendarEvent(pendingDelete.id);
+            setDeleteBusy(false);
+            if (!r.ok) { setDeleteError(r.error ?? "삭제하지 못했습니다."); return; }
+            setPendingDelete(null);
+            revalidateEvents();
+          }}
+        />
+      )}
       {/* 헤더 — 공용 PageHeader(compact 밀도) + 보기 전환은 SegmentedTabs(탭 렌더러 SSOT) */}
       <PageHeader
         className="page-header--compact"
@@ -432,6 +547,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
                   return (
                     <button
                       key={day}
+                      {...menu.triggerProps(`day|${dateStr}`)}
                       onClick={() => setSelectedDate(dateStr)}
                       className={`calendar-day-cell ${isToday ? "is-today" : ""}`}
                       aria-label={`${dateStr}${summary ? `, 일정 ${summary.total}건` : ""}`}
@@ -447,6 +563,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
                           key={ev.id}
                           className="cal-event-chip"
                           title={ev.title}
+                          {...menu.triggerProps(`event|${dateStr}|${ev.id}`)}
                           onClick={(e) => { e.stopPropagation(); setSelectedDate(dateStr); }}
                         >
                           <span className="cal-type-icon cal-type-icon--event" aria-hidden="true">
@@ -482,6 +599,7 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
                                   key={p.id}
                                   className={`cal-preview-item cal-preview-${p.entry_type}`}
                                   title={`${t.label}: ${p.content}`}
+                                  {...menu.triggerProps(`task|${dateStr}`)}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     router.push(`/daily?date=${dateStr}`);
@@ -594,7 +712,12 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
                 const isSat = dow === 6;
 
                 return (
-                  <div key={dateStr} className={styles.weekCard} data-today={isToday}>
+                  <div
+                    key={dateStr}
+                    className={styles.weekCard}
+                    data-today={isToday}
+                    {...menu.triggerProps(`day|${dateStr}`)}
+                  >
                     {/* 날짜 헤더 */}
                     <div
                       className={styles.weekCardHead}
@@ -667,21 +790,10 @@ export default function CalendarBoard({ basePath, compact = false }: CalendarBoa
             * **그 날 할 수 있는 것부터.** 일간은 "무엇이 있었나"보다
             * "이제 뭘 하지"를 보러 여는 화면이다.
             */}
-          <DayWorkbench date={dayStr} onNewEvent={() => setDayModal(true)} />
+          {/* 일정 폼은 화면 위쪽 한 자리에서 연다 — 만들기·고치기가 두 벌이 되지 않게 */}
+          <DayWorkbench date={dayStr} onNewEvent={() => setEventForm({ date: dayStr })} />
 
           <DayAgenda date={dayStr} />
-
-          {dayModal && (
-            <EventModal
-              date={dayStr}
-              onClose={() => setDayModal(false)}
-              onSaved={() => {
-                setDayModal(false);
-                // 보이는 범위의 일정 SWR 을 전부 다시 읽는다 — 안 하면 방금 만든 것이 안 보인다
-                void mutateSwr((k) => typeof k === "string" && k.startsWith("/api/calendar/events"));
-              }}
-            />
-          )}
         </>
       )}
     </div>
