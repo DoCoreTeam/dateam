@@ -17,6 +17,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import ControlRow from '@/components/ui/ControlRow'
 import { readCachedPipelines, writeCachedPipelines } from '@/lib/crm/ui/pipeline-cache'
 import DealBoard, { type BoardPipeline } from './DealBoard'
 import DealTableView from './DealTableView'
@@ -149,7 +150,22 @@ export default function DealsClient() {
         (사용자 지적: 「쓸데없는 공간 너무 많고」).
         왼쪽은 **무엇을 어떻게 보나**(보기·파이프라인), 오른쪽은 **무엇을 하나**(등록·추가)다 — §2-3-2 L-1.
       */}
-      <div className={styles.toolbar}>
+      {/*
+        **ControlRow 를 쓴다**(§ControlRow).
+        `.seg-tabs` 가 자기 안에 `margin-bottom` 을 들고 있어, 손으로 `align-items: center` 를
+        적으면 그 여백까지 포함한 박스로 가운데를 잡는다 — 탭은 위로, 옆의 드롭다운은 아래로 밀린다
+        (사용자 지적: 「보드 표 보기 변경하는거 옆에 드롭다운 정렬 안맞아 이거 다 이런거 같은데」).
+      */}
+      <ControlRow
+        right={
+          <>
+            <NbButton variant="ghost" onClick={() => setQuickOpen((v) => !v)} aria-expanded={quickOpen}>
+              <Sparkles size={16} /> 붙여넣기로 등록
+            </NbButton>
+            <NbButton onClick={() => setFormOpen(true)}><Plus size={16} /> 딜 추가</NbButton>
+          </>
+        }
+      >
         <SegmentedTabs
           tabs={[
             { id: 'board', label: '보드', icon: <LayoutGrid size={14} /> },
@@ -178,13 +194,7 @@ export default function DealsClient() {
           </select>
         )}
 
-        <div className={styles.toolbarRight}>
-          <NbButton variant="ghost" onClick={() => setQuickOpen((v) => !v)} aria-expanded={quickOpen}>
-            <Sparkles size={16} /> 붙여넣기로 등록
-          </NbButton>
-          <NbButton onClick={() => setFormOpen(true)}><Plus size={16} /> 딜 추가</NbButton>
-        </div>
-      </div>
+      </ControlRow>
 
       <QuickCreateBar
         pipelines={pipelines}
