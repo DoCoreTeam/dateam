@@ -193,7 +193,12 @@
 .transcriptBox {
   max-height: 52vh;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  /*
+    `contain` 을 쓰지 않는다. 실브라우저 검증에서 잡힌 것(v0.7.686):
+    커서가 상자 위에 있으면 **페이지가 아예 안 내려가** 바로 아래 「전체 보기·화자 나누기·내보내기」에
+    닿을 수 없었다. 상자가 화면 대부분을 덮으므로 그건 «못 누르는 버튼»과 같다.
+    기본값(auto)이면 상자 끝에 닿은 뒤 페이지로 이어져, 읽는 사람이 기대하는 대로 움직인다.
+  */
   border: var(--hairline) solid var(--border-light);
   border-radius: var(--radius);
   padding: var(--space-2);

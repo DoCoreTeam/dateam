@@ -19,7 +19,13 @@ import { callGeminiJson } from '@/lib/ai/gemini-call'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+/*
+  정리 라우트와 같은 급(300초)이다. 실측(v0.7.686): 405줄짜리 회의를 41차례로 묶어 보냈더니
+  `gemini-3-flash-preview` 가 한 번 부르는 데만 56초를 넘겼다 — 120초 예산은 **첫 모델이
+  시간 초과한 순간 이미 소진**돼, 다음 모델로 넘어갈 여유가 없었다.
+  느린 것은 우리가 못 고치지만, 예산이 모자라 사슬이 못 도는 것은 우리 몫이다.
+*/
+export const maxDuration = 300
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -69,9 +75,13 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
       model: (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || DEFAULT_GEMINI_MODEL,
       feature: 'meeting-speaker-split',
       temperature: 0,
-      timeoutMs: 60_000,
-      overallTimeoutMs: 100_000,
-      maxOutputTokens: 8_192,
+      timeoutMs: 120_000,
+      overallTimeoutMs: 240_000,
+      /*
+        기본값(32,768)을 그대로 쓴다. 8,192 로 낮췄더니 **응답이 잘렸다**(실측 v0.7.686) —
+        41차례면 답 자체는 600토큰이면 충분한데, 지금 모델(`gemini-3-flash-preview`)은
+        **사고 토큰이 같은 상한을 먹는다.** 눈에 보이는 답 길이로 상한을 잡으면 안 된다.
+      */
     })
     raw = res.value
   } catch {

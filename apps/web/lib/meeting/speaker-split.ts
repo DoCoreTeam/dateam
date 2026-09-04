@@ -74,11 +74,27 @@ export function speakerLabel(index: number): string {
 /** 나누기 전 이름 — 이 값이면 «아직 안 나눴다»는 뜻이다(`lib/stt/provider.ts` 와 같은 값) */
 export const UNSPLIT_SPEAKER = '화자'
 
+/**
+ * 한 말차례에서 AI 에게 보여 줄 글자 수.
+ *
+ * 왜 자르나(실측 v0.7.686): 화자를 가리는 근거는 **말투·호칭·질문과 대답의 짝**이지
+ * 발언 전문이 아니다. 그런데 안 자르면 발표 구간 하나가 프롬프트의 절반을 먹는다.
+ * 405줄짜리 실제 회의로 재 보니 41차례에 13,939자였고, 그 프롬프트 하나로
+ * `gemini-3-flash-preview` 가 **56초를 넘겨 시간 초과**했다(같은 키로 「1+1」이 13초인 환경).
+ *
+ * 자른 자리는 「…」로 밝힌다 — 말이 끊긴 것처럼 보이면 AI 가 문장 완성을 시도한다.
+ */
+export const TURN_PROMPT_CHARS = 400
+
+function forPrompt(text: string): string {
+  return text.length <= TURN_PROMPT_CHARS ? text : `${text.slice(0, TURN_PROMPT_CHARS)}…`
+}
+
 export function buildSpeakerPrompt(turns: Turn[], attendees: string[]): string {
   const roster = attendees.length > 0
     ? `\n참석자로 적힌 사람: ${attendees.join(', ')}\n(이 명단은 참고용이다. 확신이 없으면 이름을 붙이지 말고 화자 A·B·C 로 두어라.)\n`
     : ''
-  const body = turns.map((t, i) => `[${i}] ${t.text}`).join('\n')
+  const body = turns.map((t, i) => `[${i}] ${forPrompt(t.text)}`).join('\n')
   return `너는 회의 녹취록에서 **말차례를 사람별로 묶는** 일을 한다.
 
 아래는 말이 끊긴 자리로 이미 나눠 둔 말차례 목록이다. 각 차례가 **누구의 것인지** 묶어라.

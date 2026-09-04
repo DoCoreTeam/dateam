@@ -254,3 +254,51 @@ describe('연속성 — 회의는 사실 목록이 아니라 하나의 사건이
     assert.match(read('app/api/meeting-notes/[id]/export/route.ts'), /outcome: latest\.digest\.outcome/)
   })
 })
+
+describe('진행 문구 — 탭을 안 거쳐 들어와도 무엇을 읽는지 말한다', () => {
+  it('★ 형제 탭이 안 떠 0 이면 지난 정리본의 값을 쓴다 (실브라우저에서 잡힌 결함)', () => {
+    const s = read('components/meeting/MeetingDigestPanel.tsx')
+    assert.match(s, /memoChars: memoChars \|\| latest\?\.sources\?\.memoChars \|\| 0/,
+      '?wb=digest 로 바로 열면 형제 탭이 안 떠 카운트가 0 이 된다')
+    assert.match(s, /segmentCount: segmentCount \|\| latest\?\.sources\?\.transcriptSegments \|\| 0/)
+  })
+
+  it('정말 처음 정리하는 회의는 폴백도 없다 — 그때는 모르는 게 맞다', () => {
+    assert.equal(readingWhat(0, 0), '회의 내용을 읽고 있어요')
+  })
+})
+
+describe('받아적은 내용 상자 — 페이지 스크롤을 가두지 않는다', () => {
+  it('★ overscroll-behavior: contain 을 쓰지 않는다 (실브라우저에서 잡힌 회귀)', () => {
+    const css = read('components/meeting/workbench.module.css')
+    const box = css.slice(css.indexOf('.transcriptBox'), css.indexOf('.transcriptFoot'))
+    assert.ok(box.length > 50, '상자 규칙을 못 찾았다 — 가드가 헛돈다')
+    assert.doesNotMatch(box, /overscroll-behavior:\s*contain/,
+      '커서가 상자 위에 있으면 페이지가 안 내려가 바로 아래 버튼에 닿을 수 없다')
+  })
+})
+
+describe('AI 예산 — 라우트가 준 시간을 다 쓴다', () => {
+  it('★ 정리가 예산을 명시한다 — 기본값(120초)에 맡기면 라우트가 4분 남았는데 포기한다', () => {
+    const s = read('lib/meeting/digest-run.ts')
+    assert.match(s, /timeoutMs: DIGEST_CALL_MS, overallTimeoutMs: DIGEST_OVERALL_MS/)
+    assert.match(s, /timeoutMs: CONDENSE_CALL_MS, overallTimeoutMs: CONDENSE_OVERALL_MS/)
+  })
+
+  it('★ 예산이 라우트 상한을 넘지 않는다 — 넘으면 함수가 먼저 죽어 사용자가 이유를 못 듣는다', () => {
+    const run = read('lib/meeting/digest-run.ts')
+    const route = read('app/api/meeting-notes/[id]/digest/route.ts')
+    const overall = Number(/DIGEST_OVERALL_MS = ([\d_]+)/.exec(run)?.[1]?.replace(/_/g, ''))
+    const max = Number(/maxDuration = (\d+)/.exec(route)?.[1]) * 1000
+    assert.ok(overall > 0 && max > 0, '값을 못 읽었다 — 가드가 헛돈다')
+    assert.ok(overall < max, `AI 예산 ${overall}ms 가 라우트 상한 ${max}ms 보다 크다`)
+  })
+
+  it('★ 화자 나누기도 마찬가지다', () => {
+    const s = read('app/api/meeting-notes/[id]/transcript/speakers/route.ts')
+    const overall = Number(/overallTimeoutMs: ([\d_]+)/.exec(s)?.[1]?.replace(/_/g, ''))
+    const max = Number(/maxDuration = (\d+)/.exec(s)?.[1]) * 1000
+    assert.ok(overall > 0 && max > 0)
+    assert.ok(overall < max, `AI 예산 ${overall}ms 가 라우트 상한 ${max}ms 보다 크다`)
+  })
+})

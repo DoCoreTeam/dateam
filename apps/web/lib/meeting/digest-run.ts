@@ -42,6 +42,22 @@ function admin(): any {
   return createAdminClient() as any
 }
 
+/**
+ * 정리에 쓸 AI 시간 예산.
+ *
+ * 왜 명시하나(실측 v0.7.686): 여기는 예산을 **아예 안 걸고** 기본값(호출 60초·전체 120초)에
+ * 맡기고 있었다. 그런데 라우트는 `maxDuration = 300` 을 준다 — 즉 **라우트가 아직 4분 남았는데
+ * AI 사슬이 2분에 포기**했다. 405줄짜리 실제 회의로 밟아 보니 그대로 「제한 시간 초과」였다.
+ * 느린 모델은 우리가 못 고치지만, 우리가 준 예산을 우리가 안 쓰는 것은 우리 몫이다.
+ *
+ * 구간 나눠 읽기(condense)는 여러 번 도므로 한 번당 예산을 짧게 준다 — 하나가 오래 물면
+ * 뒤 구간이 통째로 굶는다.
+ */
+const DIGEST_CALL_MS = 120_000
+const DIGEST_OVERALL_MS = 240_000
+const CONDENSE_CALL_MS = 60_000
+const CONDENSE_OVERALL_MS = 100_000
+
 async function loadGeminiConfig(): Promise<{ apiKey: string; model: string }> {
   const { data } = await admin().from('org_content').select('value').eq('key', 'META').single()
   const meta = (data?.value as Record<string, unknown>) ?? {}
@@ -114,6 +130,7 @@ export async function runMeetingDigest(noteId: string, userId: string): Promise<
         const out = await callGeminiJson({
           prompt: buildPartCondensePrompt(chunk.partIdx, chunk.text),
           apiKey, model, temperature: 0.0, feature: 'meeting_digest_condense',
+          timeoutMs: CONDENSE_CALL_MS, overallTimeoutMs: CONDENSE_OVERALL_MS,
         })
         condensed.push({ partIdx: chunk.partIdx, facts: parseCondensedFacts(out.value, knownIds) })
       } catch {
@@ -132,6 +149,7 @@ export async function runMeetingDigest(noteId: string, userId: string): Promise<
   const out = await callGeminiJson({
     prompt: buildMeetingDigestPrompt({ memo, transcript: transcriptForPrompt }),
     apiKey, model, temperature: 0.1, feature: 'meeting_digest',
+    timeoutMs: DIGEST_CALL_MS, overallTimeoutMs: DIGEST_OVERALL_MS,
   })
   if (out.fallbackNotice) notice = notice ? `${notice} ${out.fallbackNotice}` : out.fallbackNotice
 

@@ -132,8 +132,21 @@ export default function MeetingDigestPanel({
     </NbButton>
   ) : null
 
-  // 도는 동안 화면이 할 말. 분기 밖에서 한 번만 계산한다
-  const prog = digestProgress({ elapsedMs, memoChars, segmentCount })
+  /*
+    도는 동안 화면이 할 말. 분기 밖에서 한 번만 계산한다.
+
+    **왜 지난 정리본을 폴백으로 쓰나**(실브라우저 검증에서 잡힘, v0.7.686):
+    `memoChars`·`segmentCount` 는 형제 탭(작성·전사)이 **떠 있어야** 채워진다.
+    그런데 주소로 `?wb=digest` 를 열면 그 탭들이 안 뜨므로 둘 다 0 이 되고,
+    문구가 「회의 내용을 읽고 있어요」로 주저앉는다 — 틀린 말은 아니지만 아무것도 안 알려 준다.
+    지난 정리본은 그때 무엇을 읽었는지(`sources`)를 이미 갖고 있으니 그걸 쓴다.
+    정말 처음 정리하는 회의면 그때는 폴백도 없고, 그건 **모르는 게 맞다**.
+  */
+  const prog = digestProgress({
+    elapsedMs,
+    memoChars: memoChars || latest?.sources?.memoChars || 0,
+    segmentCount: segmentCount || latest?.sources?.transcriptSegments || 0,
+  })
 
   return (
     <div className={styles.stack}>
