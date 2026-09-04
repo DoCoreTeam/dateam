@@ -42,6 +42,7 @@ import {
 } from '@/lib/meeting/workbench-tab'
 import { hasDigestContent } from '@/lib/meeting/legacy-digest'
 import { plainTextLength } from '@/lib/meeting/memo-mode'
+import { isRecordingPinned } from '@/lib/meeting/recording-placement'
 import { EVIDENCE_LABEL, MEMO_LABEL, TRANSCRIPT_LABEL, digestMaterialLine } from '@/lib/terms'
 import type { NoteVisibility } from '@/lib/meeting/note-visibility'
 import type { TranscriptSegment } from '@/lib/meeting/transcript'
@@ -81,6 +82,11 @@ interface NoteState {
   hasTranscript: boolean
   /** 읽을 정리가 있나 — 근거를 **접은 채로 열지** 정한다 */
   hasDigest: boolean
+  /**
+   * 이 회의가 끝났나(`draft`·`final`·`archived`) — **녹음 버튼 자리**를 정한다.
+   * 판정은 `recording-placement.ts` 가 한다. 여기서 문자열을 비교하면 검증 수단이 없다(E-6).
+   */
+  status: string
   /**
    * 재료의 크기 — **서버가 잰 값.**
    *
@@ -194,6 +200,7 @@ export default function MeetingWorkbench({
         */
         bodyChars: plainTextLength(String(body.bodyHtml ?? '')),
         transcriptSegments: Number(body.transcriptSegments ?? 0),
+        status: typeof body.status === 'string' ? body.status : '',
       })
       /*
         접힌 채로 열까 펼친 채로 열까 — **한 번만 정한다.**
@@ -233,6 +240,8 @@ export default function MeetingWorkbench({
   const shownMemoChars = memoChars ?? note.bodyChars
   const shownSegCount = segCount ?? note.transcriptSegments
   const materialLine = digestMaterialLine(shownMemoChars, shownSegCount)
+  /* 녹음을 결과물 위에 세울지 — 판정은 SSOT 가 한다(E-6) */
+  const recordingPinned = isRecordingPinned(note.status)
 
   return (
     <section className="card" style={{ padding: 'var(--space-5)' }}>
@@ -248,17 +257,22 @@ export default function MeetingWorkbench({
         </div>
       </div>
 
-      {/* 녹음은 맨 위에 둔다 — 회의 중에 여는 화면이고 그때 필요한 건 녹음 버튼뿐이다 */}
-      <div className={styles.recordRow}>
-        {/**
-          * 녹음은 **주인만.** 남의 회의노트에서도 버튼이 눌리던 것을 막는다(실측 v0.7.593).
-          * 서버가 어차피 막지만, 회의를 다 녹음한 뒤 저장이 실패하면 그 회의는 통째로 사라진다 —
-          * 못 하는 일은 **누르기 전에** 안 보여야 한다.
-          */}
-        {canEdit && (
+      {/*
+        녹음은 **작성 중인 회의에서만** 맨 위에 둔다(v0.7.689).
+
+        회의가 시작되는 순간 노트를 열고 바로 누르는 흐름이라 그때는 맨 위가 맞다.
+        그런데 확정된 회의를 다시 읽으러 온 사람에게도 가장 큰 버튼이 「녹음 시작」이었다
+        (사용자 지적: *"이미 작성 완료 된거에 녹음시작이 떡하니 있는게 이상하지 않나?"*).
+        끝난 회의에서는 녹음도 **재료**이므로 아래 근거 접기 안으로 내려간다(§2-3-6 P-3).
+
+        녹음은 **주인만.** 남의 회의노트에서도 버튼이 눌리던 것을 막는다(실측 v0.7.593).
+        못 하는 일은 **누르기 전에** 안 보여야 한다.
+      */}
+      {canEdit && recordingPinned && (
+        <div className={styles.recordRow}>
           <RecordingPanel noteId={noteId} title={title} href={href} onTranscribed={onTranscribed} />
-        )}
-      </div>
+        </div>
+      )}
 
       {/*
         정리 — **이 화면에 온 이유.** 탭 뒤에 두지 않는다.
@@ -296,6 +310,15 @@ export default function MeetingWorkbench({
         */}
         {evidenceOpen && (
           <div className={styles.evidenceBody}>
+            {/*
+              끝난 회의의 녹음은 여기 있다 — 재료끼리도 순서가 있어서, 「무엇으로 남기나」가
+              「무엇이 남았나」보다 먼저다. 탭 아래로 내리면 스크롤 끝에 묻힌다.
+            */}
+            {canEdit && !recordingPinned && (
+              <div className={styles.recordRow}>
+                <RecordingPanel noteId={noteId} title={title} href={href} onTranscribed={onTranscribed} />
+              </div>
+            )}
             <SegmentedTabs
               ariaLabel={`${EVIDENCE_LABEL} 보기`}
               param="wb"

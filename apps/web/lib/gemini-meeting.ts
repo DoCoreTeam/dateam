@@ -33,8 +33,27 @@ interface MeetingArgs {
 export interface MeetingSummary {
   summary: string
   decisions: string
-  /** 설정 모델을 못 써서 다른 모델로 처리했을 때의 안내(없으면 null). 화면이 그대로 보여준다. */
+  /** 설정 모델을 못 써서 다른 모델로 처리했을 때의 안내(없으면 null). */
   notice: string | null
+  /**
+   * **실제로 답을 낸 모델.** 설정 모델과 다를 수 있다(사슬 폴백).
+   *
+   * 왜 돌려주나(실측 v0.7.688): 이 값을 안 돌려줘서 호출부가 «설정된» 모델을 이력에 적었다.
+   * 그 결과 DB 에는 `gemini-3-flash-preview` 가 적혀 있는데 화면은
+   * 「'gemini-flash-lite-latest'로 처리했어요」라고 말했다 — 같은 화면에 모순이 떠 있었고,
+   * 나중에 「왜 이 결과가 이런가」를 물을 때 이력이 **틀린 답**을 준다.
+   */
+  usedModel: string
+  /**
+   * 이 회의가 **어디로 갔는지** 한 문장. 근거가 없으면 빈 문자열이다.
+   *
+   * 왜 늘렸나(실측 v0.7.688): 정리본 15건 중 **14건이 결론 빈칸**이었다.
+   * 「연속성이 안 느껴진다」는 지적으로 만든 «이 회의는» 줄이, 녹음 있는 회의(전체의 6%)
+   * 에만 적용되고 있었다 — 이 경로가 `outcome: ''` 를 못 박아 두었기 때문이다.
+   */
+  outcome: string
+  /** 다음에 하는 일 한 줄. 본문에 없으면 빈 문자열 — 지어내지 않는다 */
+  nextStep: string
 }
 
 // ---- 추출형 출력(매핑·필터 로직은 lib/meeting/parse-helpers.ts가 SSOT) ----
@@ -57,7 +76,8 @@ export interface MeetingItems {
 // ============================================================
 export async function summarizeMeeting(args: MeetingArgs): Promise<MeetingSummary> {
   const { userId, bodyPlain, apiKey, model } = args
-  if (!bodyPlain.trim()) return { summary: '', decisions: '', notice: null }
+  // 부를 것이 없으면 부르지 않는다 — 그때는 쓴 모델도 없으므로 설정값을 그대로 돌려준다
+  if (!bodyPlain.trim()) return { summary: '', decisions: '', notice: null, usedModel: model, outcome: '', nextStep: '' }
 
   const { value, usage, model: usedModel, fallbackNotice } = await callGeminiJson({
     prompt: buildSummaryPrompt(bodyPlain),
@@ -81,6 +101,10 @@ export async function summarizeMeeting(args: MeetingArgs): Promise<MeetingSummar
     summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : '',
     decisions: typeof parsed.decisions === 'string' ? parsed.decisions.trim() : '',
     notice: fallbackNotice,
+    usedModel,
+    // 빈 문자열이 정상 답이다 — 모델이 안 주면 우리가 만들지 않는다
+    outcome: typeof parsed.outcome === 'string' ? parsed.outcome.trim() : '',
+    nextStep: typeof parsed.nextStep === 'string' ? parsed.nextStep.trim() : '',
   }
 }
 

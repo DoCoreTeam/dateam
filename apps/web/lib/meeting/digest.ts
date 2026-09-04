@@ -51,6 +51,23 @@ export interface DigestResult {
 
 export const EMPTY_DIGEST: DigestResult = { outcome: '', nextStep: '', agenda: [], decisions: [], conflicts: [] }
 
+/**
+ * 사실들의 출처가 **두 종류 이상**인가 — 배지를 그릴지 정한다.
+ *
+ * 왜(실측 v0.7.688): 회의 18건 중 17건이 녹음 없는 회의라, 그 화면들은 모든 줄에
+ * 「작성」 배지가 똑같이 붙어 있었다. 전부 같은 값인 표시는 알려 주는 것이 없고
+ * 글자만 늘린다. 출처를 밝히는 일의 뜻은 **둘이 섞였을 때 어느 쪽인지 가르는 것**이다.
+ *
+ * 컴포넌트 밖에 두는 이유(E-6): 화면 안의 조건식은 실브라우저 말고 검증 수단이 없다.
+ */
+export function hasMixedOrigins(digest: DigestResult): boolean {
+  const kinds = new Set<FactOrigin>()
+  for (const item of digest.agenda) for (const f of item.facts) kinds.add(f.origin)
+  for (const d of digest.decisions) kinds.add(d.origin)
+  for (const c of digest.conflicts) { void c; return true }  // 어긋남은 그 자체가 두 출처다
+  return kinds.size > 1
+}
+
 /* ── 파싱 ─────────────────────────────────────────────── */
 
 function asArray(v: unknown): unknown[] {

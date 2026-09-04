@@ -242,10 +242,25 @@ describe('연속성 — 회의는 사실 목록이 아니라 하나의 사건이
     assert.match(s, /지어내지 마라/, '근거 없는 인과를 막아야 한다')
   })
 
-  it('★ 메모만 있는 회의는 결론을 지어내지 않는다', () => {
-    const s = read('lib/meeting/digest-run.ts')
-    assert.match(s, /outcome: '',\s*\n\s*nextStep: '',/,
-      '안건 구조가 없으면 결론을 만들 근거가 없다 — 빈 문자열이 정답이다')
+  // v0.7.689: 「빈 문자열을 코드가 못 박는가」에서 「지어내지 않는 계약이 살아 있는가」로 바꿨다.
+  // 예전 판은 `outcome: ''` 라는 **글자**를 찾았는데, 그 상수가 곧 결함이었다 —
+  // 정리본 15건 중 14건이 결론 빈칸이 된 이유가 그 줄이다. 지켜야 할 것은 상수가 아니라 계약이다.
+  it('★ 메모만 있는 회의도 결론을 받되, 우리가 만들어 내지는 않는다', () => {
+    const src = read('lib/meeting/digest-run.ts')
+    assert.ok(
+      /outcome,\n\s*nextStep,/.test(src),
+      '녹음 없는 경로가 결론을 버리면 회의 94%가 다시 빈칸이 된다',
+    )
+    assert.ok(
+      !/outcome:\s*summary/.test(src),
+      '요약을 결론인 척 넣으면 지어낸 것이다',
+    )
+    // 제동은 프롬프트가 건다 — 근거가 없으면 모델이 빈 문자열을 준다
+    assert.match(
+      read('lib/meeting/summary-prompt.ts'),
+      /근거가 없으면 빈 문자열/,
+      '지어내기를 막는 문구가 사라졌다',
+    )
   })
 
   it('★ 화면과 문서가 같은 결론을 말한다 (§2-7 D-7)', () => {

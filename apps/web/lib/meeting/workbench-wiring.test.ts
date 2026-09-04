@@ -126,9 +126,18 @@ test('본문 자동저장이 실제로 서버로 간다 — 로컬에만 남으�
 test('녹음은 주인만 — 남의 회의노트에서 「녹음 시작」이 보이면 안 된다', () => {
   // 실측 v0.7.593: 남의 노트를 열었는데 녹음 버튼이 눌렸다. 서버는 403 으로 막지만,
   // 회의를 다 녹음한 뒤 저장이 실패하면 그 회의는 통째로 사라진다.
+  //
+  // 자리가 **둘로 늘었다**(v0.7.689): 작성 중이면 맨 위, 확정이면 근거 접기 안.
+  // 그래서 「canEdit && (<RecordingPanel」 한 모양만 찾던 정규식은 구조가 바뀌자
+  // 멀쩡한 코드를 실패로 만들었다. 지켜야 할 것은 **모양이 아니라 게이트**다 —
+  // 등장이 몇 곳이든 전부 canEdit 조건 아래인지를 본다.
   const wb = code('components/meeting/MeetingWorkbench.tsx')
-  assert.match(wb, /canEdit\s*&&\s*\(\s*<RecordingPanel/,
-    'RecordingPanel 이 canEdit 게이트 밖에 있다')
+  const spots = [...wb.matchAll(/<RecordingPanel/g)]
+  assert.ok(spots.length > 0, '녹음 패널이 통째로 사라졌다 — 녹음을 시작할 자리가 없다')
+  for (const m of spots) {
+    const before = wb.slice(Math.max(0, (m.index ?? 0) - 200), m.index)
+    assert.match(before, /canEdit\s*&&/, 'RecordingPanel 이 canEdit 게이트 밖에 있다')
+  }
 })
 
 test('탭 렌더러는 밖에서 바뀐 주소를 따라간다 — 「근거」가 전사로 못 넘어가던 결함', () => {

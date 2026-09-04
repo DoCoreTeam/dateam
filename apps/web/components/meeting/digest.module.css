@@ -58,7 +58,15 @@
   font-size: var(--fs-sm);
   line-height: 1.75;
 }
-.factText { color: var(--text); word-break: break-word; }
+/*
+  줄바꿈을 살린다 — **안전망**(v0.7.689).
+
+  AI 는 `[안건]⏎- 사실` 형식을 지켜 줬는데(실측: 이 회의 summary 에 줄바꿈 19개) HTML 이
+  기본값(`white-space: normal`)으로 그것을 공백으로 접어, 회의록이 한 줄로 흘렀다.
+  구조 복원은 `summary-structure.ts` 가 하지만 파서는 형식을 가정하고 AI 는 가끔 어긴다 —
+  파서가 못 읽어 통짜로 남는 사실에서도 **최소한 줄은 살아 있어야** 한다. 그래서 두 겹으로 건다.
+*/
+.factText { color: var(--text); word-break: break-word; white-space: pre-wrap; }
 
 .evidence {
   flex: none;

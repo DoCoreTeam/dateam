@@ -23,6 +23,7 @@
  */
 
 import type { DigestResult, DigestSources } from './digest.ts'
+import { parseSummaryOutline, parseDecisionLines } from './summary-structure.ts'
 
 /** `listMeetingDigests` 가 돌려주는 것과 같은 모양이어야 화면이 구분 없이 그린다 */
 export interface LegacyDigestVersion {
@@ -50,9 +51,9 @@ export function isLegacyDigest(v: { seq: number }): boolean {
 /**
  * `summary`/`decisions` 평문을 정리본 한 판으로 옮긴다.
  *
- * 옛 경로는 **안건 구조를 만들지 않았다.** 그래서 평문을 한 덩어리로 담는다 —
- * `runMeetingDigest` 의 전사 없는 경로가 이미 같은 모양으로 저장하고 있어(digest-run.ts),
- * 화면은 두 경우를 **구분 없이** 같은 부품으로 그린다.
+ * 옛 경로는 안건 구조를 **자료로는** 안 만들었지만 평문 안에는 담아 뒀다
+ * (`[안건]⏎- 사실`). 그 형식을 되읽어 구조로 돌려준다 — `runMeetingDigest` 의
+ * 전사 없는 경로도 같은 파서를 쓰므로, 화면은 두 경우를 **구분 없이** 같은 부품으로 그린다.
  *
  * 지어내지 않는 것: `outcome`·`nextStep` 은 빈 문자열이다. 옛 요약의 첫 문장을
  * 결론인 척 넣으면 **없는 것을 있다고 말하는 것**이다(§0-2 근거 부족 문형).
@@ -88,16 +89,18 @@ export function legacyDigestVersion(input: {
     digest: {
       outcome: '',
       nextStep: '',
-      agenda: summary
-        ? [{ title: '회의 내용', facts: [{ text: summary, origin: 'memo' as const, segmentIds: [] }] }]
-        : [],
-      decisions: decisions
-        ? decisions
-            .split('\n')
-            .map((l) => l.replace(/^[-•]\s*/, '').trim())
-            .filter(Boolean)
-            .map((text) => ({ text, origin: 'memo' as const, segmentIds: [] }))
-        : [],
+      /*
+        평문을 구조로 되돌린다 — 옛 경로도 `[안건]⏎- 사실` 형식으로 저장돼 있다(v0.7.689).
+        판정은 `summary-structure.ts` 하나가 한다: 여기서 다시 짜면 두 벌이 되고,
+        한쪽만 고쳐진 순간 같은 정리본이 저장 경로에 따라 다르게 보인다.
+      */
+      agenda: parseSummaryOutline(summary).map((a) => ({
+        title: a.title,
+        facts: a.facts.map((text) => ({ text, origin: 'memo' as const, segmentIds: [] })),
+      })),
+      decisions: parseDecisionLines(decisions).map((text) => ({
+        text, origin: 'memo' as const, segmentIds: [],
+      })),
       conflicts: [],
     },
   }

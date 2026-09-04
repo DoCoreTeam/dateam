@@ -22,9 +22,10 @@ import { FACT_ORIGIN_LABEL, type FactOrigin } from '@/lib/meeting/digest-prompt'
 import { digestProgress } from '@/lib/meeting/digest-progress'
 import {
   progress, ACTION,
-  DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_RERUN_LABEL, DIGEST_EMPTY_TITLE, digestMaterialLine, MEMO_LABEL,
+  DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_RERUN_LABEL, DIGEST_EMPTY_TITLE, digestMaterialLine, digestStaleLine, MEMO_LABEL,
 } from '@/lib/terms'
 import MeetingExportModal from '@/app/(member)/meeting-notes/MeetingExportModal'
+import { hasMixedOrigins } from '@/lib/meeting/digest'
 import type { DigestResult, DigestSources } from '@/lib/meeting/digest'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './digest.module.css'
@@ -100,14 +101,22 @@ export default function MeetingDigestPanel({
       const body = await res.json()
       if (!res.ok) { setError(body?.error ?? '정리하지 못했습니다.'); return }
 
+      /*
+        **성공했을 때는 아무 말도 하지 않는다**(v0.7.689).
+
+        예전에는 두 가지를 나란히 띄웠다 —
+          「녹음 없이 작성만으로 정리했어요」  ← 당연한 일을 변명처럼
+          「모델 대체 · 'gemini-flash-lite-latest'로 처리했어요. 관리자 설정에서…」 ← 관리자의 일
+
+        사용자 지적: *"녹음이 없으면 당연히 작성된걸로만 하는거야"*.
+        무엇을 읽었는지는 아래 재료 줄이 이미 밝히고, 정리가 화면에 나타나는 것이
+        곧 성공 신호다(완료 조건 E-3). 남길 것은 **내용이 빠졌을 때**뿐이다.
+      */
       const empty = (body.digest?.agenda ?? []).length === 0
       setNotice(
         empty
           ? `확실한 내용을 못 찾았어요. ${MEMO_LABEL}이 짧거나 대화가 분명하지 않으면 비워 둡니다.`
-          : [
-              body.legacy ? `녹음 없이 ${MEMO_LABEL}만으로 정리했어요.` : `${MEMO_LABEL}과 녹음을 함께 읽었어요.`,
-              body.notice,
-            ].filter(Boolean).join(' '),
+          : (body.notice ?? null),
       )
       setShowing(null)
       onDigested?.(new Date().toISOString())
@@ -145,6 +154,29 @@ export default function MeetingDigestPanel({
     지난 정리본은 그때 무엇을 읽었는지(`sources`)를 이미 갖고 있으니 그걸 쓴다.
     정말 처음 정리하는 회의면 그때는 폴백도 없고, 그건 **모르는 게 맞다**.
   */
+  /*
+    **정리 이후 본문이 바뀌었나** — 선언만 해 두고 부르는 곳이 0곳이던 값을 여기서 쓴다(v0.7.689).
+
+    세는 법을 서버·화면이 같게 맞췄으므로(digest-run.ts 의 `displayChars`), 두 숫자가 다르면
+    그건 **정리한 뒤 내용을 고쳤다**는 뜻뿐이다. 예전엔 그 차이가 「작성 750자 / 714자」라는
+    모순으로만 보였고 사용자는 어느 쪽을 믿을지 알 수 없었다.
+
+    옛 정리본은 `sources` 가 null 이라(당시 크기를 모른다) 이 줄이 안 나온다 — 모르는 것을
+    「안 바뀜」이라고 말하지 않는다.
+  */
+  const staleLine = latest?.sources
+    ? digestStaleLine(
+        { memoChars: latest.sources.memoChars, segmentCount: latest.sources.transcriptSegments },
+        { memoChars, segmentCount },
+      )
+    : null
+
+  /*
+    출처 배지는 **둘이 섞였을 때만** 그린다(v0.7.689). 녹음 없는 회의(실측 17/18)에서는
+    모든 줄에 「작성」이 똑같이 붙어, 알려 주는 것 없이 글자만 늘었다.
+  */
+  const showOrigin = current ? hasMixedOrigins(current.digest) : false
+
   const prog = digestProgress({
     elapsedMs,
     memoChars: memoChars || latest?.sources?.memoChars || 0,
@@ -155,6 +187,8 @@ export default function MeetingDigestPanel({
     <div className={styles.stack}>
       {error && <InlineError spaced onDismiss={() => setError(null)}>{error}</InlineError>}
       {notice && <p className={styles.notice}>{notice}</p>}
+      {/* 다시 정리할지 판단할 근거 — 「바뀌었어요」만 있으면 얼마나 바뀐 건지 모른다 */}
+      {!running && staleLine && <p className={styles.notice}>{staleLine}</p>}
 
       {/*
         진행 표시는 «결과 있음/없음» 분기 **밖**에 둔다.
@@ -249,7 +283,7 @@ export default function MeetingDigestPanel({
               <ul className={styles.facts}>
                 {a.facts.map((f, j) => (
                   <li key={j} className={styles.fact}>
-                    <OriginBadge origin={f.origin} />
+                    {showOrigin && <OriginBadge origin={f.origin} />}
                     <span className={styles.factText}>
                       {f.text}
                       {/* 다른 안건 때문에 이렇게 된 것이면 그 까닭을 잇는다 — 안건을 건너뛰는 연결이 값어치다 */}
@@ -272,7 +306,7 @@ export default function MeetingDigestPanel({
               <ul className={styles.facts}>
                 {current!.digest.decisions.map((d, i) => (
                   <li key={i} className={styles.fact}>
-                    <OriginBadge origin={d.origin} />
+                    {showOrigin && <OriginBadge origin={d.origin} />}
                     <span className={styles.factText}>{d.text}</span>
                   </li>
                 ))}

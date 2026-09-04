@@ -86,9 +86,21 @@ describe('공통 계약', () => {
     assert.match(P, /summary에서 빼지 마라/)
   })
 
-  it('출력은 순수 JSON 두 필드다 — 파서가 기대하는 모양과 같아야 한다', () => {
-    assert.match(P, /순수 JSON/)
-    assert.match(P, /"summary"/)
-    assert.match(P, /"decisions"/)
+  it('출력은 순수 JSON 네 필드다 — 파서가 기대하는 모양과 같아야 한다', () => {
+    const p = buildSummaryPrompt('본문')
+    assert.match(p, /순수 JSON/)
+    for (const field of ['summary', 'decisions', 'outcome', 'nextStep']) {
+      assert.ok(p.includes(`"${field}": string`), `출력 형식에 ${field} 가 없다`)
+    }
+  })
+
+  // v0.7.689: 결론·다음 할 일을 요구하되 **지어내기**를 같은 세기로 막는다.
+  // 정리본 15건 중 14건이 결론 빈칸이던 것을 고치면서 반대 사고(없는 결론을 만들어 냄)를
+  // 열지 않기 위한 짝 가드다 — 요구만 넣고 제동을 안 걸면 그게 더 나쁜 실패다.
+  it('★ 결론은 근거가 없으면 빈 문자열이라고 못 박는다 — 지어내면 가장 나쁜 실패다', () => {
+    const p = buildSummaryPrompt('본문')
+    assert.match(p, /근거가 없으면 빈 문자열/)
+    assert.match(p, /지어낸 것/)
+    assert.match(p, /요약의 첫 문장을 그대로 옮겨 적는 것도 결론이 아니다/)
   })
 })

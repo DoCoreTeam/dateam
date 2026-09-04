@@ -43,6 +43,8 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
       sources: out.sources,
       legacy: out.legacy,
       notice: out.notice,
+      // 관리자용 — 화면은 안 그린다(digest-run.ts 의 modelNotice 주석)
+      modelNotice: out.modelNotice,
     })
   } catch (e) {
     // AI 실패는 사람이 읽을 수 있는 말로 나간다 — 조용히 500 만 던지면 사용자는 이유를 모른다
