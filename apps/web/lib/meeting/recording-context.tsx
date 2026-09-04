@@ -42,7 +42,16 @@ interface RecordingContextValue {
   target: RecordingTarget | null
   state: RecorderState
   elapsedSec: number
-  level: number
+  /**
+   * 마이크 세기 구독 — **값이 아니라 통로다.**
+   *
+   * 세기를 값으로 실으면 이 컨텍스트를 쓰는 화면 전부가 초당 60번 다시 그려진다
+   * (실측 v0.7.685: CRM 미팅 상세 · 녹음 상주 바 · 녹음 패널). 미터는 DOM 에
+   * 직접 쓰면 되므로 구독만 내보낸다.
+   */
+  subscribeLevel: (fn: (level: number) => void) => () => void
+  /** 소리가 지속해서 안 잡히나 — 전환이 있을 때만 바뀐다 */
+  micQuiet: boolean
   parts: RecorderPartStatus[]
   error: string | null
   supported: boolean
@@ -57,7 +66,8 @@ const RecordingContext = createContext<RecordingContextValue | null>(null)
 
 /** 셸 밖(테스트·스토리)에서 부품만 그릴 때를 위한 조용한 기본값 — 던지지 않는다 */
 const IDLE: RecordingContextValue = {
-  target: null, state: 'idle', elapsedSec: 0, level: 0, parts: [], error: null,
+  target: null, state: 'idle', elapsedSec: 0, parts: [], error: null,
+  subscribeLevel: () => () => {}, micQuiet: false,
   supported: false, uploadTick: 0,
   start: async () => {}, stop: async () => {}, clearError: () => {},
 }
@@ -175,7 +185,8 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     target,
     state: rec.state,
     elapsedSec: rec.elapsedSec,
-    level: rec.level,
+    subscribeLevel: rec.subscribeLevel,
+    micQuiet: rec.micQuiet,
     parts: rec.parts,
     error: rec.error,
     supported: rec.supported,
@@ -183,7 +194,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     start,
     stop,
     clearError: () => {},
-  }), [target, rec.state, rec.elapsedSec, rec.level, rec.parts, rec.error, rec.supported, uploadTick, start, stop])
+  }), [target, rec.state, rec.elapsedSec, rec.subscribeLevel, rec.micQuiet, rec.parts, rec.error, rec.supported, uploadTick, start, stop])
 
   return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>
 }

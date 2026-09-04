@@ -69,6 +69,26 @@
   color: var(--warning);
 }
 
+/*
+ * 녹음 중 안내 줄 — **자리를 항상 차지한다.**
+ *
+ * 예전에는 「소리가 거의 안 잡혀요」가 조건부로 붙었다 떨어지며 `.live` 의 높이를
+ * 바꿨고(문단 한 줄 + gap), 그때마다 아래 에디터가 통째로 밀렸다 — 그게 «떨림»이었다.
+ * §2-3-4 C-1 과 같은 원리다: 화면이 잊으면 깨지는 값은 부품이 갖는다.
+ *
+ * 최소 높이 한 줄을 미리 잡아 두면 문구가 바뀌어도 아래가 움직이지 않는다.
+ */
+.micLine {
+  margin: 0;
+  min-height: calc(var(--fs-sm) * 1.5);
+  line-height: 1.5;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* 조용할 때만 경고색 — 색을 바꾸는 것은 높이를 바꾸지 않는다 */
+.micLine[data-quiet] { color: var(--warning); }
+
 .parts {
   list-style: none;
   margin: 0;

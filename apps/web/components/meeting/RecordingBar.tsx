@@ -15,6 +15,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Square, ArrowUpRight } from 'lucide-react'
+import LevelMeter from './LevelMeter'
 import { useRecordingSession } from '@/lib/meeting/recording-context'
 import styles from './recording-bar.module.css'
 
@@ -48,9 +49,11 @@ export default function RecordingBar() {
         </p>
         <p className={styles.meta}>
           <span className={styles.timer}>{mmss(rec.elapsedSec)}</span>
-          <span className={styles.meter} aria-hidden>
-            <span className={styles.meterFill} style={{ width: `${Math.round(rec.level * 100)}%` }} />
-          </span>
+          <LevelMeter
+            subscribe={rec.subscribeLevel}
+            className={styles.meter}
+            fillClassName={styles.meterFill}
+          />
           {uploading > 0 && <span>구간 {uploading}개 올리는 중</span>}
           {failed > 0 && <span className={styles.failed}>{failed}개 실패</span>}
         </p>

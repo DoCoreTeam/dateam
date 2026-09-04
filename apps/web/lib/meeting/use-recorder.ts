@@ -19,6 +19,11 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  nextMicSilence,
+  IDLE_MIC_SILENCE,
+  type MicSilenceState,
+} from './mic-silence.ts'
 import { PART_MS } from './recording-core.ts'
 // ⚠️ recording.ts 를 가리키면 안 된다 — 그 파일은 드라이브 저장을 함께 갖고 있어,
 // 동적 import 라도 번들러가 googleapis 를 클라이언트로 끌고 들어와 앱 전체가 500 이 된다(v0.7.578 실측).
@@ -51,8 +56,21 @@ export interface UseRecorder {
   state: RecorderState
   /** 녹음 경과(초) */
   elapsedSec: number
-  /** 0~1 마이크 입력 세기 */
-  level: number
+  /**
+   * 마이크 입력 세기(0~1) 구독 — **리액트 상태가 아니다.**
+   *
+   * 세기는 `requestAnimationFrame` 이 초당 60번 갱신한다. 이걸 상태로 들면
+   * 컨텍스트를 타고 소비자 전부가 초당 60번 다시 그려진다(실측: CRM 미팅 상세 전체).
+   * 미터는 그 값을 **DOM 에 직접** 쓰면 되므로 구독으로만 흘린다.
+   *
+   * 돌려주는 함수를 부르면 구독이 끊긴다. 구독 즉시 마지막 값을 한 번 준다.
+   */
+  subscribeLevel: (fn: (level: number) => void) => () => void
+  /**
+   * 소리가 **지속해서** 안 잡히나 — 순간값이 아니다(`mic-silence.ts`).
+   * 전환이 있을 때만 바뀌므로 이 값이 리렌더를 만들어도 초당 몇 번이 아니다.
+   */
+  micQuiet: boolean
   parts: RecorderPartStatus[]
   error: string | null
   /** 브라우저가 녹음을 지원하나 — 지원 안 하면 버튼을 그리지 않는다 */
@@ -95,7 +113,7 @@ export function describeMicFailure(err: unknown): string {
 export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder {
   const [state, setState] = useState<RecorderState>('idle')
   const [elapsedSec, setElapsedSec] = useState(0)
-  const [level, setLevel] = useState(0)
+  const [micQuiet, setMicQuiet] = useState(false)
   const [parts, setParts] = useState<RecorderPartStatus[]>([])
   const [error, setError] = useState<string | null>(null)
   const [supported, setSupported] = useState(true)
@@ -107,11 +125,27 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const rafRef = useRef<number | null>(null)
+  /** 미터 구독자 — 리액트를 거치지 않고 값을 받는다 */
+  const levelSubsRef = useRef<Set<(level: number) => void>>(new Set())
+  const lastLevelRef = useRef(0)
+  /** 무음 판정 상태 — 전환이 있을 때만 리액트로 올린다 */
+  const silenceRef = useRef<MicSilenceState>(IDLE_MIC_SILENCE)
   /** 사용자가 종료를 눌렀나 — 회전과 종료를 구분해야 마지막 구간 뒤에 다시 시작하지 않는다 */
   const stoppingRef = useRef(false)
 
   useEffect(() => {
     setSupported(typeof navigator !== 'undefined' && !!navigator.mediaDevices && pickMimeType() !== null)
+  }, [])
+
+  /**
+   * 미터가 값을 받아 가는 유일한 통로.
+   * 참조가 바뀌지 않아야 컨텍스트 memo 가 매 프레임 새로 만들어지지 않는다.
+   */
+  const subscribeLevel = useCallback((fn: (level: number) => void) => {
+    const subs = levelSubsRef.current
+    subs.add(fn)
+    fn(lastLevelRef.current) // 구독 즉시 현재 값 — 첫 프레임까지 0 으로 비어 보이지 않게
+    return () => { subs.delete(fn) }
   }, [])
 
   const cleanup = useCallback(() => {
@@ -123,7 +157,12 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     void audioCtxRef.current?.close().catch(() => {})
     audioCtxRef.current = null
     recorderRef.current = null
-    setLevel(0)
+    // 미터를 0 으로 되돌리고 무음 판정도 초기화한다 —
+    // 안 하면 다음 녹음이 «이미 조용한» 상태로 시작해 경고부터 뜬다
+    lastLevelRef.current = 0
+    levelSubsRef.current.forEach((fn) => { try { fn(0) } catch { /* 구독자 하나가 죽어도 정리는 계속된다 */ } })
+    silenceRef.current = IDLE_MIC_SILENCE
+    setMicQuiet(false)
   }, [])
 
   /**
@@ -220,6 +259,11 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     }
     streamRef.current = stream
 
+    // 시작 시각은 오디오 그래프보다 **먼저** 잡는다 — 무음 판정의 준비 시간 기준이다
+    const startedAt = Date.now()
+    silenceRef.current = IDLE_MIC_SILENCE
+    setMicQuiet(false)
+
     // 레벨 미터 — 마이크가 살아 있는지 눈으로 보이게 한다
     try {
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -238,15 +282,30 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
             const v = (buf[i] - 128) / 128
             sum += v * v
           }
-          setLevel(Math.min(1, Math.sqrt(sum / buf.length) * 4))
+          const lvl = Math.min(1, Math.sqrt(sum / buf.length) * 4)
+
+          // 미터는 리액트를 거치지 않는다 — 여기서 setState 를 하면 초당 60번 리렌더된다
+          lastLevelRef.current = lvl
+          levelSubsRef.current.forEach((fn) => {
+            try { fn(lvl) } catch { /* 구독자 하나가 죽어도 녹음은 계속된다 */ }
+          })
+
+          // 무음은 «지속»으로만 판정한다 — 전환이 있을 때만 리액트로 올린다
+          const nextSilence = nextMicSilence(silenceRef.current, {
+            level: lvl,
+            nowMs: Date.now(),
+            startedAtMs: startedAt,
+          })
+          if (nextSilence.quiet !== silenceRef.current.quiet) setMicQuiet(nextSilence.quiet)
+          silenceRef.current = nextSilence
+
           rafRef.current = requestAnimationFrame(loop)
         }
         rafRef.current = requestAnimationFrame(loop)
       }
     } catch { /* 레벨 미터가 없어도 녹음은 된다 */ }
 
-    const begin = Date.now()
-    tickRef.current = setInterval(() => setElapsedSec(Math.round((Date.now() - begin) / 1000)), 1000)
+    tickRef.current = setInterval(() => setElapsedSec(Math.round((Date.now() - startedAt) / 1000)), 1000)
     spawnRecorder(mime, Date.now())
     setState('recording')
   }, [spawnRecorder])
@@ -259,5 +318,5 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     else { cleanup(); setState('idle') }
   }, [cleanup])
 
-  return { state, elapsedSec, level, parts, error, supported, start, stop }
+  return { state, elapsedSec, subscribeLevel, micQuiet, parts, error, supported, start, stop }
 }

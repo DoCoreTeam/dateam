@@ -19,6 +19,7 @@ import { Mic, Square, Loader2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import InlineError from '@/components/ui/InlineError'
 import EmptyState from '@/components/ui/EmptyState'
+import LevelMeter from './LevelMeter'
 import { useRecordingSession, useBusyWithOther } from '@/lib/meeting/recording-context'
 import styles from './recording-panel.module.css'
 
@@ -29,6 +30,13 @@ interface ServerProgress {
   done: boolean
   label: string
 }
+
+/**
+ * 녹음 안내 — 대기 중과 녹음 중이 **같은 말**을 쓴다.
+ * 두 곳에 따로 적으면 한쪽만 고쳐진다.
+ */
+const AUTOSAVE_HINT = '10분마다 자동으로 저장돼요. 다른 화면으로 옮겨도 녹음은 계속됩니다.'
+const MIC_QUIET_HINT = '소리가 거의 안 잡히고 있어요. 마이크가 음소거돼 있지 않은지 확인해 주세요.'
 
 function mmss(sec: number): string {
   const m = Math.floor(sec / 60)
@@ -126,34 +134,39 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
           >
             <Mic size={16} /> {rec.state === 'requesting' ? '마이크 여는 중…' : '녹음 시작'}
           </NbButton>
-          <span className={styles.hint}>
-            10분마다 자동으로 저장돼요. 다른 화면으로 옮겨도 녹음은 계속됩니다.
-          </span>
+          <span className={styles.hint}>{AUTOSAVE_HINT}</span>
         </div>
       ) : (
         <div className={styles.live}>
           <div className={styles.timerRow}>
             <span className={styles.dot} aria-hidden />
             <strong className={styles.timer}>{mmss(rec.elapsedSec)}</strong>
-            {/* 레벨 미터 — 마이크가 소리를 받고 있는지 보여 주는 유일한 수단 */}
-            <span
+            {/* 레벨 미터 — 마이크가 소리를 받고 있는지 보여 주는 유일한 수단.
+                값은 구독으로 받아 DOM 에 직접 쓴다(LevelMeter 주석) */}
+            <LevelMeter
+              subscribe={rec.subscribeLevel}
               className={styles.meter}
-              role="img"
-              aria-label={`마이크 입력 세기 ${Math.round(rec.level * 100)}%`}
-            >
-              <span className={styles.meterFill} style={{ width: `${Math.round(rec.level * 100)}%` }} />
-            </span>
+              fillClassName={styles.meterFill}
+            />
           </div>
+
+          {/**
+            * **이 줄은 항상 있다.**
+            *
+            * 예전에는 「소리가 거의 안 잡혀요」가 나타났다 사라지며 패널 높이를 바꿨고,
+            * 그때마다 아래 에디터가 통째로 밀렸다(사용자 지적 2026-09-04:
+            * *"종료하고 정리 버튼 아래로 무슨 멘트가 자꾸 나와서 화면이 떨려"*).
+            * 자리만 비워 두면 빈칸이 생기므로, 평소에는 저장 안내가 그 자리를 지킨다.
+            *
+            * 판정도 순간값이 아니다 — `mic-silence.ts` 가 «몇 초 연속»으로만 뒤집는다.
+            */}
+          <p className={styles.micLine} data-quiet={rec.micQuiet ? '' : undefined} role="status">
+            {rec.micQuiet ? MIC_QUIET_HINT : AUTOSAVE_HINT}
+          </p>
 
           <NbButton variant="danger" onClick={() => void rec.stop()} disabled={stopping}>
             <Square size={16} /> {stopping ? '마무리 중…' : '종료하고 정리'}
           </NbButton>
-
-          {rec.level < 0.02 && rec.elapsedSec > 8 && (
-            <p className={styles.warn}>
-              소리가 거의 안 잡히고 있어요. 마이크가 음소거돼 있지 않은지 확인해 주세요.
-            </p>
-          )}
         </div>
       )}
 
