@@ -32,6 +32,7 @@
  */
 
 import { NOTE_VISIBILITY, type NoteVisibility } from './note-visibility.ts'
+import type { StatusKey } from '../tokens/status-colors.ts'
 
 /**
  * 회의 하나의 공개 상태.
@@ -111,6 +112,17 @@ export const SHARE_STATE_LABEL: Record<MeetingShareState, string> = {
  * 예전 화면은 "나만 보기"라고 해 놓고 팀에게 요약·전사를 그대로 보여 줬다.
  * 라벨만으로는 그 차이를 알 수 없으므로, 무엇이 보이는지를 함께 적는다.
  */
+/**
+ * 상태의 **색**. 화면이 색을 고르지 않는다(§0-2 규칙 4) —
+ * 고르게 두면 목록·상세·배지가 저마다 다른 색을 쓰고, 사용자는 같은 뜻을 다르게 읽는다.
+ */
+export const SHARE_STATE_STATUS: Record<MeetingShareState, StatusKey> = {
+  PRIVATE: 'note',      // 회색 — 아직 아무에게도 안 갔다
+  RECORD_ONLY: 'doing', // 진행 중 색 — 절반만 갔다
+  TEAM: 'done',         // 완료 색 — 팀이 다 본다
+  NO_SOURCE: 'note',
+}
+
 export const SHARE_STATE_HINT: Record<MeetingShareState, string> = {
   PRIVATE: '영업 CRM에 올라가지 않아요. 나와 관리자만 봅니다.',
   RECORD_ONLY: '영업팀이 요약과 전사는 보지만, 원본 회의노트는 열 수 없어요.',

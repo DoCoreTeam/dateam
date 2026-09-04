@@ -165,3 +165,52 @@ describe('공개 범위 — 열자마자 보인다', () => {
     assert.match(read(CARD), /작성한 사람만 할 수 있어요/)
   })
 })
+
+describe('CRM 미팅 목록 — 「가져오기」 버튼이 사라졌다', () => {
+  const LIST = 'app/(crm)/crm/meetings/MeetingsClient.tsx'
+
+  it('★ 가져오기 버튼과 고르기 모달이 없다 — 내가 쓴 것을 «가져올» 이유가 없다', () => {
+    const s = read(LIST)
+    assert.doesNotMatch(s, /회의노트에서 가져오기<\/NbButton>/, '버튼이 남아 있다')
+    assert.doesNotMatch(s, /NbModal title="회의노트에서 가져오기"/, '고르기 모달이 남아 있다')
+    assert.doesNotMatch(s, /setPickingNote/, '모달 상태가 남아 있다')
+  })
+
+  it('★ 안 올린 내 노트가 같은 목록에 선다', () => {
+    const s = read(LIST)
+    assert.match(s, /noteOnly: true/, '노트를 목록 행으로 만들어야 한다')
+    assert.match(s, /rows=\{merged\}/, '병합한 목록을 그려야 한다')
+    assert.match(s, /useEffect\(\(\) => \{ void loadNotes\(\) \}/,
+      '노트를 언제나 읽어야 한다 — 모달을 열 때만 읽으면 목록에 못 선다')
+  })
+
+  it('★ 이미 올린 노트는 안 끼운다 — 끼우면 같은 회의가 목록에 두 번 나온다', () => {
+    assert.match(read(LIST), /\.filter\(\(n\) => !n\.published\)/)
+  })
+
+  it('★ 노트 행은 원본으로 간다 — 없는 미팅으로 보내면 404 다', () => {
+    assert.match(read(LIST), /m\.noteOnly \? `\/meeting-notes\/\$\{m\.noteId\}`/)
+  })
+
+  it('★ 배지를 눌러도 행 이동이 안 일어난다 (§2-3-1 액션 칸 전파 차단)', () => {
+    assert.match(read(LIST), /e\.stopPropagation\(\)/)
+  })
+
+  it('★ 올린 뒤 목록이 갱신된다 — 그 자리에서 배지가 바뀌는 게 기대하는 결과다', () => {
+    const s = read(LIST)
+    assert.match(s, /await Promise\.all\(\[loadNotes\(\), load\(false, null\)\]\)/)
+    assert.doesNotMatch(s, /router\.push\(meetingHref\(body\.meetingId/,
+      '공개 범위를 바꿨을 뿐인데 다른 화면으로 끌고 가지 않는다')
+  })
+
+  it('배지 색을 화면이 정하지 않는다 — SSOT 가 정한다(§0-2 규칙 4)', () => {
+    const s = read(LIST)
+    assert.match(s, /SHARE_STATE_STATUS\[state\]/)
+    const share = read('lib/meeting/share-state.ts')
+    assert.match(share, /export const SHARE_STATE_STATUS/)
+  })
+
+  it('서버가 공개 상태를 함께 준다 — 건당 다시 물으면 노트 수만큼 왕복이다(N+1)', () => {
+    assert.match(read('lib/crm/services/meeting-publish.ts'), /shareState: readShareState\(/)
+  })
+})

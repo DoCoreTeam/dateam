@@ -564,7 +564,7 @@ export async function listMyNotesForPicker(
   const admin = createAdminClient() as any
   let query = admin
     .from('meeting_notes')
-    .select('id, title, meeting_at')
+    .select('id, title, meeting_at, visibility')
     .eq('user_id', hostUserId)
     .is('deleted_at', null)
     .order('meeting_at', { ascending: false, nullsFirst: false })
@@ -573,7 +573,7 @@ export async function listMyNotesForPicker(
   if (q) query = query.ilike('title', `%${q}%`)
 
   const { data } = await query
-  const rows = (data ?? []) as { id: string; title: string | null; meeting_at: string | null }[]
+  const rows = (data ?? []) as { id: string; title: string | null; meeting_at: string | null; visibility: string | null }[]
   if (rows.length === 0) return []
 
   const db = getCrmDb(workspaceId)
@@ -589,6 +589,13 @@ export async function listMyNotesForPicker(
     title: r.title,
     meetingAt: r.meeting_at,
     published: publishedSet.has(r.id),
+    /**
+     * 이 노트가 팀에게 어디까지 보이나 — 목록이 배지를 그리는 데 쓴다.
+     * 왜 함께 주나(사용자 지적 v0.7.686): *"내가 쓴거니깐 두개 동시에 보이고
+     * 현재 공개 상태만 표시 해주면 되는거 아냐?"* — 목록이 이 값을 건당 다시 물으면
+     * 노트 수만큼 왕복이 생긴다(N+1).
+     */
+    shareState: readShareState({ hasLiveMeeting: publishedSet.has(r.id), hasNoteLink: true, visibility: r.visibility === NOTE_VISIBILITY.CRM ? NOTE_VISIBILITY.CRM : NOTE_VISIBILITY.PRIVATE }),
   }))
 }
 

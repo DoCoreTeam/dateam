@@ -10219,3 +10219,16 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
 [data-ctx-target='true'] {
   -webkit-touch-callout: none;
 }
+
+/* ── 눌러서 바꾸는 배지 ────────────────────────────────
+   목록에서 공개 범위를 그 자리에서 바꾼다. 배지 모양은 `.badge` 가 그대로 주고,
+   여기서는 «누를 수 있다»만 더한다 — 색을 다시 정하면 상태색 SSOT 와 두 벌이 된다. */
+[class].badge-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+}
+[class].badge-btn:hover { filter: brightness(0.94); }
+[class].badge-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 9999px; }
