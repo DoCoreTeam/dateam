@@ -21,7 +21,7 @@ import { summarizeMeeting } from '../gemini-meeting.ts'
 import { listTranscriptSegments } from './transcript.ts'
 import { buildMeetingDigestPrompt, buildPartCondensePrompt } from './digest-prompt.ts'
 import { legacyDigestVersion, withLegacyFallback } from './legacy-digest.ts'
-import { parseSummaryOutline, parseDecisionLines } from './summary-structure.ts'
+import { assembleMemoDigest } from './summary-structure.ts'
 import {
   planDigest, fullTranscriptForPrompt, parseDigestResult, parseCondensedFacts,
   condensedToTranscript, digestToPlainSummary, digestDecisionsToPlain, parseStoredDigest,
@@ -130,32 +130,17 @@ export async function runMeetingDigest(noteId: string, userId: string): Promise<
     const { summary, decisions, notice: modelNotice, usedModel, outcome, nextStep } = await summarizeMeeting({
       userId, bodyPlain: memo, apiKey, model,
     })
-    const digest: DigestResult = {
-      /*
-        결론과 다음 할 일은 **AI 가 준 것만** 싣는다(v0.7.689).
+    /*
+      조립은 `summary-structure.ts` 가 한다(SSOT · v0.7.689).
+      여기 인라인으로 두면 Supabase 를 물고 있어 **실브라우저 + 살아 있는 Gemini 할당량**
+      말고는 검증할 방법이 없다 — 실제로 이 판에서 할당량이 소진돼 못 밟았다(E-6).
 
-        예전에는 여기서 `''` 로 못 박아, 정리본 15건 중 14건이 결론 빈칸이었다 —
-        「연속성이 안 느껴진다」는 지적으로 만든 «이 회의는» 줄이 녹음 있는 6% 에만 있었던 것이다.
-        지금은 프롬프트가 요구하고, **근거가 없으면 모델이 빈 문자열을 준다**.
-        우리가 요약 첫 문장을 결론인 척 채우지 않는 계약은 그대로다(§0-2 근거 부족 문형).
-      */
-      outcome,
-      nextStep,
-      /*
-        평문을 **구조로 되돌린다**(v0.7.689). 예전엔 여기서 통째로 한 덩어리에 담았고,
-        그 결과 정리본 15건 중 11건이 「회의 내용」 안건 하나로 저장됐다 —
-        AI 는 `[안건]⏎- 사실` 형식을 지켜 줬는데 우리가 그걸 파싱하지 않았다.
-        판정은 `summary-structure.ts` 가 한다(SSOT · 무손실 가드 있음).
-      */
-      agenda: parseSummaryOutline(summary).map((a) => ({
-        title: a.title,
-        facts: a.facts.map((text) => ({ text, origin: 'memo' as const, segmentIds: [] })),
-      })),
-      decisions: parseDecisionLines(decisions).map((text) => ({
-        text, origin: 'memo' as const, segmentIds: [],
-      })),
-      conflicts: [],
-    }
+      담기는 것 둘:
+        · 결론·다음 할 일 — **AI 가 준 것만.** 예전엔 `''` 로 못 박아 15건 중 14건이 빈칸이었다
+        · 안건 — 평문 `[안건]⏎- 사실` 을 **구조로 되돌린다.** 예전엔 통째로 한 덩어리에 담아
+          15건 중 11건이 「회의 내용」 안건 하나로 저장됐다(AI 는 형식을 지켜 줬다)
+    */
+    const digest: DigestResult = assembleMemoDigest({ summary, decisions, outcome, nextStep })
     const sources = { ...describeSources(memo, segments, 'single'), memoChars: displayChars(note.body_html) }
     /*
       **설정 모델이 아니라 실제로 답을 낸 모델**을 남긴다(v0.7.688 정정).

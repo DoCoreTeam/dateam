@@ -124,3 +124,46 @@ export function parseDecisionLines(decisions: string | null | undefined): string
     .map((l) => l.replace(BULLET, '').trim())
     .filter(Boolean)
 }
+
+/* ── AI 응답을 정리본으로 조립한다 ──────────────────────── */
+
+/** 요약 경로의 AI 응답. `summarizeMeeting` 이 돌려주는 것 중 내용에 해당하는 넷. */
+export interface MemoSummaryResponse {
+  summary: string
+  decisions: string
+  outcome: string
+  nextStep: string
+}
+
+/**
+ * 녹음 없는 회의(= 실측 18건 중 17건)의 정리본을 조립한다.
+ *
+ * **왜 밖으로 뺐나**(완료 조건 E-6): 이 조립은 `runMeetingDigest` 안에 있었는데
+ * 그 함수는 Supabase 를 물고 있어, 검증 수단이 **실브라우저 + 살아 있는 Gemini 할당량**뿐이었다.
+ * 실제로 v0.7.689 작업 중 계정 할당량이 소진돼(전 모델 429) 이 경로를 밟을 수 없었다.
+ * 조립을 순수 함수로 빼면 «AI 가 이렇게 답했을 때 무엇이 나오는가»를 숫자로 검증할 수 있다.
+ *
+ * 앵커: 아래 파싱은 운영 DB 의 실제 정리본으로 잠겨 있다(`summary-structure.test.ts`).
+ * 그 값이 화면에서 안건 3개로 그려지는 것을 브라우저에서 확인했다(v0.7.689).
+ */
+export function assembleMemoDigest(res: MemoSummaryResponse): {
+  outcome: string; nextStep: string
+  agenda: { title: string; facts: { text: string; origin: 'memo'; segmentIds: string[] }[] }[]
+  decisions: { text: string; origin: 'memo'; segmentIds: string[] }[]
+  conflicts: never[]
+} {
+  return {
+    // 결론·다음 할 일은 **AI 가 준 것만** 싣는다. 없으면 없는 대로 둔다 —
+    // 요약 첫 문장을 결론인 척 채우지 않는 계약(§0-2 근거 부족 문형)
+    outcome: res.outcome.trim(),
+    nextStep: res.nextStep.trim(),
+    agenda: parseSummaryOutline(res.summary).map((a) => ({
+      title: a.title,
+      facts: a.facts.map((text) => ({ text, origin: 'memo' as const, segmentIds: [] })),
+    })),
+    decisions: parseDecisionLines(res.decisions).map((text) => ({
+      text, origin: 'memo' as const, segmentIds: [],
+    })),
+    conflicts: [],
+  }
+}

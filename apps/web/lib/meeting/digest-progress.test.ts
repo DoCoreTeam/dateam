@@ -246,13 +246,18 @@ describe('연속성 — 회의는 사실 목록이 아니라 하나의 사건이
   // 예전 판은 `outcome: ''` 라는 **글자**를 찾았는데, 그 상수가 곧 결함이었다 —
   // 정리본 15건 중 14건이 결론 빈칸이 된 이유가 그 줄이다. 지켜야 할 것은 상수가 아니라 계약이다.
   it('★ 메모만 있는 회의도 결론을 받되, 우리가 만들어 내지는 않는다', () => {
+    // 조립은 v0.7.689 에 `summary-structure.ts` 로 옮겼다(E-6 — DB 를 물지 않는 자리라야
+    // 할당량 없이 검증된다). 겨냥할 자리는 옮겼지만 **지켜야 할 계약은 그대로**다.
     const src = read('lib/meeting/digest-run.ts')
-    assert.ok(
-      /outcome,\n\s*nextStep,/.test(src),
-      '녹음 없는 경로가 결론을 버리면 회의 94%가 다시 빈칸이 된다',
+    assert.match(
+      src,
+      /assembleMemoDigest\(\{ summary, decisions, outcome, nextStep \}\)/,
+      '녹음 없는 경로가 결론을 안 넘기면 회의 94%가 다시 빈칸이 된다',
     )
+    const asm = read('lib/meeting/summary-structure.ts')
+    assert.match(asm, /outcome:\s*res\.outcome\.trim\(\)/, '조립이 결론을 버렸다')
     assert.ok(
-      !/outcome:\s*summary/.test(src),
+      !/outcome:[^\n]*res\.summary/.test(asm),
       '요약을 결론인 척 넣으면 지어낸 것이다',
     )
     // 제동은 프롬프트가 건다 — 근거가 없으면 모델이 빈 문자열을 준다

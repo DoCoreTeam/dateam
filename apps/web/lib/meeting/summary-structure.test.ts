@@ -12,7 +12,8 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseSummaryOutline, parseDecisionLines } from './summary-structure.ts'
+import { readFileSync } from 'node:fs'
+import { parseSummaryOutline, parseDecisionLines, assembleMemoDigest } from './summary-structure.ts'
 
 /** 원문과 결과에서 공백·글머리표·대괄호를 뺀 «알맹이» — 무손실 비교용 */
 function core(s: string): string {
@@ -168,4 +169,64 @@ test('앵커: 운영 DB 의 통짜 정리본이 안건 3개로 복원된다', ()
   for (const token of ['3,000만 원', '1.5억 원', '산업단지공단', '대표공장']) {
     assert.ok(all.includes(token), `실측 원문의 「${token}」이 사라졌다`)
   }
+})
+
+/* ── AI 응답 조립 — 할당량이 막아 실화면으로 못 밟은 자리(E-6) ── */
+//
+// v0.7.689 작업 중 계정 Gemini 할당량이 **전 모델 429** 로 소진돼, 「다시 정리」를 눌러도
+// 새 응답을 받을 수 없었다. 그래서 이 경로는 **계산으로 밟는다.**
+// E-6 이 요구하는 순서를 지킨다:
+//   ① 실브라우저에서 입력·결과 한 쌍을 잰다 → 아래 「앵커」 시험(운영 DB 정리본 → 안건 3개,
+//      그 화면을 실제로 열어 3개로 그려지는 것을 확인했다)
+//   ② 그 입력을 계산 함수에 넣어 같은 값이 나오는지 본다 → 아래 앵커 조립 시험
+//   ③ 그 위에서 못 밟는 상태를 숫자로 검증한다 → 나머지 시험들
+// ②를 건너뛰면 ③은 아무것도 증명하지 않는다.
+
+test('★ 앵커: 실측 정리본을 AI 응답으로 넣으면 화면과 같은 안건 3개가 나온다', () => {
+  // 이 summary 는 운영 DB `meeting_note_digest.summary_text` 에서 그대로 가져왔고,
+  // 같은 값이 /meeting-notes/ffb69fc9…  화면에서 안건 3개로 그려지는 것을 눈으로 확인했다.
+  const out = assembleMemoDigest({
+    summary: '[데이터스테이션 ISP 및 예산 조정]\n- 금액을 3,000만 원에서 1.5억 원으로 변경함\n- 사업 범위를 조정하기로 함\n\n[설계 단계 필요성]\n- ISP 없이 본사업 추진은 어렵다고 판단함\n\n[기관 협의]\n- 산업부에 협조를 요청하기로 함',
+    decisions: '- 예산을 1.5억 원으로 확정함',
+    outcome: '데이터스테이션 ISP 예산을 1.5억 원으로 올리고 협의 방향을 정함',
+    nextStep: '산업부에 협조 요청 공문을 보냄',
+  })
+  assert.equal(out.agenda.length, 3, '화면에서 센 안건 수와 달라졌다 — 계산이 화면에서 떠났다')
+  assert.equal(out.agenda[0].facts.length, 2)
+  assert.equal(out.decisions.length, 1)
+  assert.equal(out.outcome, '데이터스테이션 ISP 예산을 1.5억 원으로 올리고 협의 방향을 정함')
+})
+
+test('★ 결론이 없으면 빈칸 그대로 — 요약 첫 문장을 결론인 척 채우지 않는다', () => {
+  const out = assembleMemoDigest({
+    summary: '[예산]\n- 3,000만 원을 논의함',
+    decisions: '', outcome: '', nextStep: '',
+  })
+  assert.equal(out.outcome, '', '없는 결론을 지어내면 그게 가장 나쁜 실패다')
+  assert.equal(out.nextStep, '')
+  assert.equal(out.agenda.length, 1, '결론이 없어도 안건은 살아 있어야 한다')
+})
+
+test('공백만 온 결론은 빈칸으로 정리한다 — 화면이 빈 줄을 그리지 않게', () => {
+  const out = assembleMemoDigest({ summary: '[A]\n- 1', decisions: '', outcome: '   \n ', nextStep: '\t' })
+  assert.equal(out.outcome, '')
+  assert.equal(out.nextStep, '')
+})
+
+test('출처는 전부 memo — 녹음이 없는 경로라 전사 근거가 있을 수 없다', () => {
+  const out = assembleMemoDigest({
+    summary: '[A]\n- 사실 1', decisions: '- 결정 1', outcome: '', nextStep: '',
+  })
+  assert.equal(out.agenda[0].facts[0].origin, 'memo')
+  assert.deepEqual(out.agenda[0].facts[0].segmentIds, [], '없는 근거를 만들지 않는다')
+  assert.equal(out.decisions[0].origin, 'memo')
+})
+
+test('★ 정리 실행이 이 조립을 실제로 거친다 — 만들고 안 부르면 옛 코드가 그대로 돈다', () => {
+  const src = readFileSync(new URL('./digest-run.ts', import.meta.url), 'utf-8')
+  assert.match(src, /assembleMemoDigest\(\{/, '조립 SSOT 를 부르지 않는다')
+  assert.ok(
+    !/agenda:\s*parseSummaryOutline\(/.test(src),
+    '조립을 다시 인라인으로 되돌리면 검증 수단이 실브라우저뿐인 상태로 돌아간다(E-6)',
+  )
 })
