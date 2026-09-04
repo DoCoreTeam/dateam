@@ -1302,7 +1302,7 @@
   "apps/web/app/globals.css::cssdomain::work-search-state-title": 1,
   "apps/web/app/globals.css::cssdomain::work-search-title": 1,
   "apps/web/app/globals.css::cssdomain::work-search-type": 1,
-  "apps/web/components/ci/AssistantPanel.tsx::inlinebutton": 2,
+  "apps/web/components/ci/AssistantPanel.tsx::inlinebutton": 1,
   "apps/web/components/ci/AssistantPanel.tsx::inlinecard": 1,
   "apps/web/components/ci/ContentCard.tsx::inlinebutton": 1,
   "apps/web/components/ci/EvidenceSheet.tsx::emptytext": 1,

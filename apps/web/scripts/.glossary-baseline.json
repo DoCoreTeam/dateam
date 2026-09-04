@@ -4,7 +4,6 @@
   "app/(member)/accounts/[id]/page.tsx::영업기회": 3,
   "app/(member)/accounts/new/page.tsx::영업기회": 1,
   "app/(member)/ai-chat/analyze/SessionListModals.tsx::저장중": 1,
-  "app/(member)/calendar/EventModal.tsx::저장중": 1,
   "app/(member)/contacts/ContactForm.tsx::저장중": 1,
   "app/(member)/deals/DealForm.tsx::저장중": 1,
   "app/(member)/deals/[id]/ActivityLogger.tsx::저장중": 1,
