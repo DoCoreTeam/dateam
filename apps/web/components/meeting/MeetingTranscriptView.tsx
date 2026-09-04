@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { ClipboardPaste, UserPen, Check, X } from 'lucide-react'
+import { ClipboardPaste, UserPen, Check, X, FileDown } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
@@ -22,6 +22,8 @@ import InlineError from '@/components/ui/InlineError'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { isEnterKey } from '@/lib/ui/ime'
 import { formatSegmentTime, type TranscriptSegment } from '@/lib/meeting/transcript'
+import { ACTION } from '@/lib/terms'
+import MeetingExportModal from '@/app/(member)/meeting-notes/MeetingExportModal'
 import styles from './workbench.module.css'
 
 interface Props {
@@ -37,6 +39,16 @@ interface Props {
 export default function MeetingTranscriptView({
   noteId, canEdit, reloadKey = 0, highlightIds = [], onLoaded,
 }: Props) {
+  /**
+   * 상자를 벗어나 전부 펼칠지.
+   *
+   * 왜 상자에 담나(사용자 지적): *"녹음 전사 쪽은 무한 아래로 내려가기 해야 하더라?"*
+   * 406줄을 통째로 그리면 페이지가 그만큼 길어져 **아래 있는 것에 영원히 못 닿는다.**
+   * 줄을 지우지는 않는다 — 정리의 「근거」가 `scrollIntoView` 로 이 줄들을 찾아가므로
+   * DOM 에서 빼면 그 기능이 죽는다. 그래서 «높이만» 가둔다.
+   */
+  const [exporting, setExporting] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const [segments, setSegments] = useState<TranscriptSegment[] | null>(null)
   const [speakers, setSpeakers] = useState<string[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -188,7 +200,7 @@ export default function MeetingTranscriptView({
             </div>
           )}
 
-          <ol className={styles.transcript}>
+          <ol className={`${styles.transcript}${expanded ? '' : ` ${styles.transcriptBox}`}`}>
             {segments.map((s) => (
               <li
                 key={s.id}
@@ -202,6 +214,27 @@ export default function MeetingTranscriptView({
             ))}
           </ol>
 
+          {/* 몇 줄인지 · 펼칠지 · 내보낼지 — 상자 바로 아래에서 한 줄로 */}
+          <div className={styles.transcriptFoot}>
+            <span className={styles.transcriptCount}>
+              {expanded
+                ? `${segments.length.toLocaleString()}줄 전체`
+                : `${segments.length.toLocaleString()}줄 — 상자 안에서 넘겨 보세요`}
+            </span>
+            <span className={styles.transcriptTools}>
+              {segments.length > 0 && (
+                <NbButton variant="ghost" onClick={() => setExpanded((v) => !v)}>
+                  {expanded ? '상자로 접기' : '전체 보기'}
+                </NbButton>
+              )}
+              {segments.length > 0 && (
+                <NbButton variant="ghost" onClick={() => setExporting(true)}>
+                  <FileDown size={15} /> {ACTION.export}
+                </NbButton>
+              )}
+            </span>
+          </div>
+
           {canEdit && (
             pasting ? pasteBox : (
               <NbButton variant="ghost" onClick={() => setPasting(true)}>
@@ -210,6 +243,11 @@ export default function MeetingTranscriptView({
             )
           )}
         </>
+      )}
+
+      {/* 받아적은 내용을 문서로. 같은 미리보기 부품을 쓴다 — 두 벌이면 «본 것과 받는 것»이 어긋난다 */}
+      {exporting && (
+        <MeetingExportModal meetingNoteId={noteId} view="transcript" onClose={() => setExporting(false)} />
       )}
     </div>
   )

@@ -184,3 +184,27 @@
   justify-content: flex-end;
   margin-bottom: var(--space-3);
 }
+
+/* ── 받아적은 내용 상자 ───────────────────────────────────
+   왜 높이를 가두나(사용자 지적 "무한 아래로 내려가기 해야 하더라"):
+   406줄을 통째로 그리면 페이지가 그만큼 길어져 아래 것에 영원히 못 닿는다.
+   줄을 **지우지는 않는다** — 정리의 「근거」가 scrollIntoView 로 이 줄을 찾아가므로
+   DOM 에서 빼면 그 기능이 죽는다. 그래서 높이만 가둔다. */
+.transcriptBox {
+  max-height: 52vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+}
+.transcriptFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+.transcriptCount { font-size: var(--fs-xs); color: var(--text-muted); }
+.transcriptTools { display: flex; gap: var(--space-2); flex-wrap: wrap; }

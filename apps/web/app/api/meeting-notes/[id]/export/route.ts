@@ -4,7 +4,11 @@ import { sanitizeRichHtml } from '@/components/ui/RichText'
 import { sanitizeFilename } from '@/lib/ai-chat/export'
 import { formatKstDateTimeKorean } from '@/lib/datetime/kst'
 import { exportFailureMessage } from '@/lib/meeting/export-failure'
-import { buildMeetingExportHtml, type MeetingExportView } from '@/lib/meeting/export-html'
+import { buildMeetingExportHtml, type MeetingExportView, type ExportDigest } from '@/lib/meeting/export-html'
+import { createClient } from '@/lib/supabase/server'
+import { listTranscriptSegments, formatSegmentTime } from '@/lib/meeting/transcript'
+import { listMeetingDigests } from '@/lib/meeting/digest-run'
+import { FACT_ORIGIN_LABEL } from '@/lib/meeting/digest-prompt'
 import { launchOptions } from '@/lib/security/headless-fetch'
 import { recordSystemEvent } from '@/lib/system-log/record'
 
@@ -35,7 +39,7 @@ function classifyAttendees(
 }
 
 /**
- * GET /api/meeting-notes/[id]/export?view=refined|original&format=pdf|png
+ * GET /api/meeting-notes/[id]/export?view=refined|original|digest|transcript&format=pdf|png
  * 현재 탭(정제본/원본)에 맞춰 회의록을 깔끔한 문서로 렌더 → PDF 또는 PNG 다운로드.
  * 인증·RLS는 getMeetingNote(본인/조직 접근 가능 노트만) + listOrgPeople에서 강제. 외부 URL 미로드(SSRF 무관).
  */
@@ -44,7 +48,13 @@ export async function GET(
   { params }: { params: { id: string } },
 ): Promise<NextResponse> {
   const url = new URL(req.url)
-  const view: MeetingExportView = url.searchParams.get('view') === 'original' ? 'original' : 'refined'
+  /**
+   * 담을 것 — 모르는 값이 오면 기존 기본값(정제본)으로 떨어진다.
+   * 손으로 나열하지 않고 배열에 담는다: 뷰가 하나 늘 때마다 여기를 고쳐야 하는 손목록이 되지 않게.
+   */
+  const rawView = url.searchParams.get('view')
+  const view: MeetingExportView =
+    (['original', 'digest', 'transcript'] as const).find((v) => v === rawView) ?? 'refined'
   const rawFormat = url.searchParams.get('format')
   // html = 미리보기. 실제 산출물과 같은 빌더를 쓰므로 "본 것과 받는 것"이 어긋날 수 없다(브라우저 렌더 불필요).
   const isPreview = rawFormat === 'html'
@@ -58,6 +68,31 @@ export async function GET(
   // 작성자·부서는 회의록 문서의 필수 표기다. 못 찾으면 빈 문자열 — 빌더가 그 행을 통째로 뺀다(지어내지 않는다).
   const authorName = people.find((p) => p.id === note.user_id)?.name ?? ''
 
+  /*
+    담을 것을 **실제로 읽어 온다.** 뷰만 늘리고 데이터를 안 실으면 문서는 비어 나가고,
+    그건 "내보내기가 생겼다"가 아니라 "빈 파일이 생겼다"이다.
+    권한 판정은 RLS 클라이언트에 맡긴다 — 여기서 규칙을 다시 쓰면 두 벌이 된다.
+  */
+  const supabase = view === 'transcript' || view === 'digest' ? await createClient() : null
+  const segments = view === 'transcript' && supabase
+    ? (await listTranscriptSegments(supabase, params.id).catch(() => []))
+      .map((sg) => ({ timeLabel: formatSegmentTime(sg.startMs), speaker: sg.speaker, text: sg.text }))
+    : undefined
+  let digest: ExportDigest | null = null
+  if (view === 'digest' && supabase) {
+    const latest = (await listMeetingDigests(supabase, params.id).catch(() => []))[0] ?? null
+    if (latest) {
+      digest = {
+        agenda: latest.digest.agenda.map((a) => ({
+          title: a.title,
+          facts: a.facts.map((f) => ({ text: f.text, originLabel: FACT_ORIGIN_LABEL[f.origin] })),
+        })),
+        decisions: latest.digest.decisions.map((d) => ({ text: d.text, originLabel: FACT_ORIGIN_LABEL[d.origin] })),
+        conflicts: latest.digest.conflicts.map((c) => ({ memo: c.memo, transcript: c.transcript })),
+      }
+    }
+  }
+
   const html = buildMeetingExportHtml({
     title: note.title ?? '',
     meetingAtLabel: note.meeting_at ? formatKstDateTimeKorean(note.meeting_at) : '일시 미지정',
@@ -68,6 +103,8 @@ export async function GET(
     summary: note.summary ?? '',
     decisions: note.decisions ?? '',
     bodyHtml: sanitizeRichHtml(note.body ?? ''),
+    segments,
+    digest,
   })
 
   // 미리보기는 여기서 끝 — 브라우저 엔진을 띄우지 않는다(빠르고, 엔진이 죽어도 미리보기는 뜬다).
@@ -112,7 +149,10 @@ export async function GET(
     try { await browser?.close() } catch { /* noop */ }
   }
 
-  const viewSuffix = view === 'refined' ? '정제본' : '원본'
+  const VIEW_SUFFIX: Record<MeetingExportView, string> = {
+    refined: '정제본', original: '원본', digest: '정리', transcript: '받아적은내용',
+  }
+  const viewSuffix = VIEW_SUFFIX[view]
   const base = sanitizeFilename(`${note.title || '회의록'}_${viewSuffix}`)
   const ext = format === 'png' ? 'png' : 'pdf'
   const asciiFallback = (base.replace(/[^\x20-\x7e]/g, '_').replace(/_+/g, '_') || 'meeting') + '.' + ext

@@ -16,7 +16,8 @@
 /** 행위 키 — 코드가 부르는 이름. 영문 식별자·API 동사와 같은 뜻으로 맞춘다 */
 export type ActionKey =
   | 'save' | 'delete' | 'disconnect' | 'create' | 'edit' | 'change'
-  | 'cancel' | 'close' | 'confirm' | 'apply' | 'restore' | 'retry' | 'clear'
+  | 'cancel' | 'close' | 'confirm' | 'apply' | 'restore' | 'retry' | 'clear' | 'open'
+  | 'export'
 
 export const ACTION: Record<ActionKey, string> = {
   /** 폼·모달의 확정 버튼. **언제나 「저장」**이다(§2-5 (4)) — 카드별 변형 금지 */
@@ -50,6 +51,18 @@ export const ACTION: Record<ActionKey, string> = {
   restore: '되돌리기',
   /** 실패한 것을 한 번 더 */
   retry: '다시 시도',
+  /**
+   * **이미 있는 것을 펼쳐 본다.** 「보기」와 뜻이 겹쳐 보이지만 자리가 다르다 —
+   * 「보기」는 목록/상세의 **전환**(주간 보기·일간 보기)이고, 「열기」는 **대상 하나**를 여는 것이다.
+   * 우클릭 메뉴가 이 말을 쓴다(`lib/calendar/day-menu.ts`).
+   */
+  open: '열기',
+  /**
+   * 「내보내기」 — 화면 밖으로 파일을 만들어 내는 것.
+   * ~~다운로드~~·~~저장~~ 을 쓰지 않는다: 「저장」은 이 시스템 안에 남기는 것이고(§0-2),
+   * 「다운로드」는 받는 쪽 동작이라 무엇이 만들어지는지 안 밝힌다.
+   */
+  export: '내보내기',
 }
 
 /**

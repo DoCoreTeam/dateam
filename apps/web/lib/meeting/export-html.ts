@@ -9,7 +9,42 @@
 //   · 순수 함수(부수효과·I/O 없음) → 단위 테스트 대상.
 import { escapeHtml } from '../ai-chat/export.ts'
 
-export type MeetingExportView = 'refined' | 'original'
+/**
+ * 무엇을 담아 내보낼지.
+ *
+ * `digest`·`transcript` 는 v0.7.685 에 **더한 것**이다 — 기존 둘은 그대로 둔다(M-4 추가 전용).
+ * 왜 더했나(사용자 지적): *"내보내는것도 없고"* — 내보내기가 **작성 탭에만** 있었고,
+ * 만들어지는 문서에 **전사도 정리도 들어가지 않았다**(제목·요약·본문뿐).
+ * 정작 밖으로 보낼 값어치가 있는 것은 받아적은 내용과 안건별 정리다.
+ */
+export type MeetingExportView = 'refined' | 'original' | 'digest' | 'transcript'
+
+/** 화면이 이 뷰를 뭐라고 부르나 — 화면마다 문자열을 지으면 어긋난다(§0-2) */
+export const EXPORT_VIEW_LABEL: Record<MeetingExportView, string> = {
+  refined: 'AI 정제본',
+  original: '원본',
+  digest: '안건별 정리',
+  transcript: '받아적은 내용',
+}
+
+/** 전사 한 줄 — 시각·화자·발언. 빌더는 표시만 하고 정렬은 호출부가 끝내 둔다 */
+export interface ExportSegment {
+  timeLabel: string
+  speaker: string
+  text: string
+}
+
+/** 정리 한 안건 — 화면과 같은 구조를 쓴다(두 벌이면 한쪽만 고쳐진다) */
+export interface ExportAgenda {
+  title: string
+  facts: { text: string; originLabel: string }[]
+}
+
+export interface ExportDigest {
+  agenda: ExportAgenda[]
+  decisions: { text: string; originLabel: string }[]
+  conflicts: { memo: string; transcript: string }[]
+}
 
 export interface MeetingExportInput {
   title: string
@@ -23,6 +58,10 @@ export interface MeetingExportInput {
   decisions: string
   /** 원본 뷰용 — 반드시 사전 소독된 HTML(라우트에서 sanitizeRichHtml 적용). */
   bodyHtml: string
+  /** transcript 뷰용. 없으면 «받아적은 내용이 없다»고 문서가 밝힌다 */
+  segments?: ExportSegment[]
+  /** digest 뷰용. 없으면 «정리하지 않았다»고 문서가 밝힌다 */
+  digest?: ExportDigest | null
 }
 
 const EMPTY_HTML = new Set(['', '<p></p>', '<p><br></p>', '<p><br/></p>', '<p><br /></p>'])
@@ -38,7 +77,48 @@ function renderTextBlock(text: string): string {
   return `<p class="pre">${escapeHtml(text)}</p>`
 }
 
-/** 문서 본문(탭별). refined=요약/결정사항, original=소독된 리치 HTML. */
+/**
+ * 받아적은 내용. **한 줄도 줄이지 않는다** — 밖으로 나가는 문서는 화면과 달리 스크롤이 없고,
+ * 「전체 보기」를 누를 사람도 없다. 화면의 상한(§전사 상자)은 읽기 편하자고 둔 것이지
+ * 내보내기에까지 적용할 이유가 없다.
+ */
+function renderTranscript(segments: ExportSegment[]): string {
+  if (segments.length === 0) return `<p class="empty">받아적은 내용이 없습니다.</p>`
+  const rows = segments.map((s) =>
+    `<tr><td class="tc">${escapeHtml(s.timeLabel)}</td><td class="sp">${escapeHtml(s.speaker)}</td><td>${escapeHtml(s.text)}</td></tr>`,
+  ).join('')
+  return `<section class="sec"><h2><span class="no">1</span>받아적은 내용 (${segments.length.toLocaleString()}줄)</h2>`
+    + `<table class="tr-table"><tbody>${rows}</tbody></table></section>`
+}
+
+/** 안건별 정리. 출처 표시(메모/녹음/둘 다)를 **문서에도 남긴다** — 어디서 나온 사실인지가 정리의 값어치다 */
+function renderDigest(d: ExportDigest | null): string {
+  if (!d || (d.agenda.length === 0 && d.decisions.length === 0)) {
+    return `<p class="empty">아직 정리하지 않았습니다.</p>`
+  }
+  const parts: string[] = []
+  let n = 0
+  if (d.conflicts.length > 0) {
+    n += 1
+    const items = d.conflicts.map((c) =>
+      `<li><span class="ol">메모</span> ${escapeHtml(c.memo)}<br/><span class="ol">녹음</span> ${escapeHtml(c.transcript)}</li>`,
+    ).join('')
+    parts.push(`<section class="sec"><h2><span class="no">${n}</span>메모와 녹음이 다르게 말한 곳 (${d.conflicts.length}건)</h2><ul class="bullets conflict">${items}</ul></section>`)
+  }
+  for (const a of d.agenda) {
+    n += 1
+    const items = a.facts.map((f) => `<li><span class="ol">${escapeHtml(f.originLabel)}</span> ${escapeHtml(f.text)}</li>`).join('')
+    parts.push(`<section class="sec"><h2><span class="no">${n}</span>${escapeHtml(a.title)}</h2><ul class="bullets">${items}</ul></section>`)
+  }
+  if (d.decisions.length > 0) {
+    n += 1
+    const items = d.decisions.map((x) => `<li><span class="ol">${escapeHtml(x.originLabel)}</span> ${escapeHtml(x.text)}</li>`).join('')
+    parts.push(`<section class="sec"><h2><span class="no">${n}</span>결정사항</h2><ul class="bullets">${items}</ul></section>`)
+  }
+  return parts.join('\n')
+}
+
+/** 문서 본문(탭별). refined=요약/결정사항, original=소독된 리치 HTML, digest=안건별 정리, transcript=받아적은 내용. */
 function renderBody(input: MeetingExportInput): string {
   if (input.view === 'refined') {
     const summary = input.summary.trim()
@@ -52,6 +132,9 @@ function renderBody(input: MeetingExportInput): string {
     }
     return parts.join('\n')
   }
+  if (input.view === 'transcript') return renderTranscript(input.segments ?? [])
+  if (input.view === 'digest') return renderDigest(input.digest ?? null)
+
   const html = input.bodyHtml.trim()
   if (EMPTY_HTML.has(html) || html === '') return `<p class="empty">본문이 비어 있습니다.</p>`
   const wrapped = html.startsWith('<') ? html : `<p>${escapeHtml(html)}</p>`
@@ -132,6 +215,14 @@ export function buildMeetingExportHtml(input: MeetingExportInput): string {
   .rich th { background: #f9fafb; font-weight: 700; }
   .rich h1, .rich h2, .rich h3 { font-size: 15px; font-weight: 700; color: #111827; margin: 16px 0 6px; text-align: left; letter-spacing: 0; border: 0; padding: 0; }
   .empty { color: #9ca3af; font-size: 14px; margin: 0; }
+  /* 받아적은 내용 — 시각·화자 칸 폭을 고정해 발언이 들쭉날쭉하지 않게 */
+  table.tr-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.tr-table td { padding: 4px 8px 4px 0; vertical-align: top; line-height: 1.6; }
+  table.tr-table td.tc { width: 52px; color: #9ca3af; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.tr-table td.sp { width: 92px; color: #374151; font-weight: 600; white-space: nowrap; }
+  /* 출처 표시 — 이 사실이 메모에서 왔는지 녹음에서 왔는지. 정리의 값어치가 여기 있다 */
+  .ol { display: inline-block; min-width: 34px; margin-right: 6px; font-size: 11px; color: #6b7280; }
+  ul.bullets.conflict li { margin: 9px 0; }
 
   /* 마무리 — 문서의 끝을 알리고 발행 주체를 밝힌다. */
   .end { text-align: center; font-size: 12.5px; color: #6b7280; letter-spacing: 0.3em; margin: 38px 0 0; padding-left: 0.3em; }

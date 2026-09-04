@@ -6,6 +6,7 @@
 // 그 어긋남은 파일을 열어봐야만 발견된다. 서버가 실제 산출과 같은 빌더로 만든 HTML을
 // 격리된 iframe(srcDoc·sandbox)에 그대로 띄워, 본 것과 받는 것을 같게 만든다.
 import { useCallback, useEffect, useState } from 'react'
+import { EXPORT_VIEW_LABEL, type MeetingExportView } from '@/lib/meeting/export-html'
 import { FileDown, ImageIcon } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -16,7 +17,8 @@ import styles from './meeting-export.module.css'
 interface Props {
   meetingNoteId: string
   /** 현재 보고 있는 탭 — 미리보기와 산출물이 같은 뷰를 쓴다. */
-  view: 'refined' | 'original'
+  /** 담을 것. 값 집합은 빌더가 정한다(SSOT) — 여기서 다시 나열하면 뷰가 늘 때 한쪽만 고쳐진다 */
+  view: MeetingExportView
   onClose: () => void
 }
 
@@ -105,7 +107,7 @@ export default function MeetingExportModal({ meetingNoteId, view, onClose }: Pro
       }
     >
       <p style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-        {view === 'refined' ? 'AI 정제본' : '원본'} 기준입니다. 아래 모습 그대로 저장됩니다.
+        {EXPORT_VIEW_LABEL[view]} 기준입니다. 아래 모습 그대로 저장됩니다.
       </p>
 
       <div>
