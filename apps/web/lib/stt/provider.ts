@@ -1,3 +1,4 @@
+import { UNSPLIT_SPEAKER } from '../meeting/speaker-split.ts'
 /**
  * 음성 인식(STT) 프로바이더 — 오픈소스 모델을 서버리스로 (사용자 결정 D1·D7)
  *
@@ -97,8 +98,10 @@ interface VerboseJson {
  * 순수 함수로 뺀 이유: 프로바이더 응답이 조금씩 다르고, 여기가 틀리면
  * **전사는 됐는데 화면이 비는** 상태가 된다. 그건 실브라우저에서 원인을 못 찾는다.
  *
- * 화자는 아직 안 나눈다. 지어내지 않고 '화자'로 두고, 사람이 이름을 지정하면 그걸 쓴다 —
+ * **여기서는 화자를 안 나눈다.** 지어내지 않고 `UNSPLIT_SPEAKER` 로 두고,
+ * 나중에 `lib/meeting/speaker-split.ts` 가 말차례로 나누거나 사람이 이름을 지정한다 —
  * 목소리로 사람을 특정해 틀리면 잘못된 참석자가 CRM 에 들어간다.
+ * (whisper-large-v3 는 화자 분리를 주지 않는다. 이건 «못 하는 것»이지 «안 한 것»이 아니다.)
  */
 export function mapVerboseJson(raw: unknown): SttSegment[] {
   const body = (raw ?? {}) as VerboseJson
@@ -113,13 +116,13 @@ export function mapVerboseJson(raw: unknown): SttSegment[] {
     // 여기서 막지 않으면 저장 단계에서 구간 전체가 통째로 실패한다.
     const rawEnd = Math.round((r.end ?? 0) * 1000)
     const endMs = rawEnd > startMs ? rawEnd : startMs + 1
-    out.push({ startMs, endMs, speaker: '화자', text })
+    out.push({ startMs, endMs, speaker: UNSPLIT_SPEAKER, text })
   }
 
   // segments 가 아예 없고 text 만 온 경우 — 통짜로라도 살린다. 버리면 회의가 통째로 사라진다.
   if (out.length === 0) {
     const whole = (body.text ?? '').trim()
-    if (whole) out.push({ startMs: 0, endMs: 1, speaker: '화자', text: whole })
+    if (whole) out.push({ startMs: 0, endMs: 1, speaker: UNSPLIT_SPEAKER, text: whole })
   }
   return out
 }

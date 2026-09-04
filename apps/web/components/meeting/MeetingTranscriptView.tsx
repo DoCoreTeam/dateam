@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { ClipboardPaste, UserPen, Check, X, FileDown } from 'lucide-react'
+import { ClipboardPaste, UserPen, Check, X, FileDown, Users } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
@@ -22,7 +22,8 @@ import InlineError from '@/components/ui/InlineError'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { isEnterKey } from '@/lib/ui/ime'
 import { formatSegmentTime, type TranscriptSegment } from '@/lib/meeting/transcript'
-import { ACTION } from '@/lib/terms'
+import { ACTION, progress } from '@/lib/terms'
+import { UNSPLIT_SPEAKER } from '@/lib/meeting/speaker-split'
 import MeetingExportModal from '@/app/(member)/meeting-notes/MeetingExportModal'
 import styles from './workbench.module.css'
 
@@ -48,6 +49,8 @@ export default function MeetingTranscriptView({
    * DOM 에서 빼면 그 기능이 죽는다. 그래서 «높이만» 가둔다.
    */
   const [exporting, setExporting] = useState(false)
+  /** 화자 나누는 중. 최대 2분짜리라 침묵하지 않는다 */
+  const [splitting, setSplitting] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [segments, setSegments] = useState<TranscriptSegment[] | null>(null)
   const [speakers, setSpeakers] = useState<string[]>([])
@@ -95,6 +98,25 @@ export default function MeetingTranscriptView({
     } catch {
       setError('회의 내용을 넣지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally { setBusy(null) }
+  }
+
+  /**
+   * 말차례로 화자를 나눈다.
+   *
+   * 이미 이름이 붙은 구간은 서버가 건드리지 않고, 확신 없는 차례도 그대로 둔다 —
+   * 즉 **잃는 것이 없다.** 그래서 되돌리기 확인을 묻지 않는다.
+   */
+  async function splitSpeakers() {
+    setSplitting(true); setNotice(null); setError(null)
+    try {
+      const res = await fetch(`/api/meeting-notes/${noteId}/transcript/speakers`, { method: 'POST' })
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error ?? '화자를 나누지 못했습니다.'); return }
+      setNotice(body.notice ?? null)
+      await load()
+    } catch {
+      setError('화자를 나누지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally { setSplitting(false) }
   }
 
   async function renameSpeaker(from: string) {
@@ -225,6 +247,17 @@ export default function MeetingTranscriptView({
               {segments.length > 0 && (
                 <NbButton variant="ghost" onClick={() => setExpanded((v) => !v)}>
                   {expanded ? '상자로 접기' : '전체 보기'}
+                </NbButton>
+              )}
+              {/*
+                아직 안 나눈 구간이 있을 때만 보인다 — 다 나눴는데 버튼이 남아 있으면
+                «또 뭔가 해야 하나»로 읽힌다. 목소리가 아니라 말차례로 나누므로
+                버튼 이름도 「화자 분리」가 아니라 「화자 나누기」다(할 수 있는 것만 말한다).
+              */}
+              {canEdit && segments.some((s) => s.speaker === UNSPLIT_SPEAKER) && (
+                <NbButton variant="ghost" onClick={() => void splitSpeakers()} disabled={splitting}
+                  title="말이 끊긴 자리로 말차례를 나눠 화자 A·B·C로 묶어요. 확신이 없는 곳은 그대로 둡니다">
+                  <Users size={15} /> {splitting ? progress('화자 나누기') : '화자 나누기'}
                 </NbButton>
               )}
               {segments.length > 0 && (
