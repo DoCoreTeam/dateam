@@ -13,12 +13,15 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Sparkles, History, TriangleAlert } from 'lucide-react'
+import { Sparkles, History, TriangleAlert, FileDown } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import InlineError from '@/components/ui/InlineError'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { FACT_ORIGIN_LABEL, type FactOrigin } from '@/lib/meeting/digest-prompt'
+import { digestProgress } from '@/lib/meeting/digest-progress'
+import { progress, ACTION } from '@/lib/terms'
+import MeetingExportModal from '@/app/(member)/meeting-notes/MeetingExportModal'
 import type { DigestResult, DigestSources } from '@/lib/meeting/digest'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './digest.module.css'
@@ -38,16 +41,28 @@ interface Props {
   onEvidence?: (segmentIds: string[]) => void
   /** 정리가 끝나면 알린다 — 헤더 배지가 "정리 8/24 15:02"로 바뀐다 */
   onDigested?: (at: string) => void
+  /**
+   * 도는 동안 «무엇을 읽는 중인지» 말하기 위한 것 — 상위가 이미 세어 둔 값이다.
+   * 여기서 다시 세면 탭 라벨(「218자」·「406줄」)과 어긋나 사용자가 둘 중 뭘 믿을지 모른다.
+   */
+  memoChars?: number
+  segmentCount?: number
 }
 
 function OriginBadge({ origin }: { origin: FactOrigin }) {
   return <span className={`${styles.origin} ${styles[origin]}`}>{FACT_ORIGIN_LABEL[origin]}</span>
 }
 
-export default function MeetingDigestPanel({ noteId, canEdit, onEvidence, onDigested }: Props) {
+export default function MeetingDigestPanel({
+  noteId, canEdit, onEvidence, onDigested, memoChars = 0, segmentCount = 0,
+}: Props) {
   const [versions, setVersions] = useState<Version[] | null>(null)
   const [showing, setShowing] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
   const [running, setRunning] = useState(false)
+  /** 실행을 누른 시각. 도는 동안만 값이 있다 — 경과를 화면에 찍기 위한 것이다 */
+  const [startedAt, setStartedAt] = useState<number | null>(null)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -63,8 +78,20 @@ export default function MeetingDigestPanel({ noteId, canEdit, onEvidence, onDige
 
   useEffect(() => { void load() }, [load])
 
+  /**
+   * 경과 시간을 1초마다 갱신한다 — **도는 동안만.**
+   * 정지 조건을 안 걸면 타이머가 남아 화면이 영원히 다시 그려진다.
+   */
+  useEffect(() => {
+    if (startedAt === null) return
+    setElapsedMs(Date.now() - startedAt)
+    const t = setInterval(() => setElapsedMs(Date.now() - startedAt), 1_000)
+    return () => clearInterval(t)
+  }, [startedAt])
+
   async function run() {
     setRunning(true); setError(null); setNotice(null)
+    setStartedAt(Date.now()); setElapsedMs(0)
     try {
       const res = await fetch(`/api/meeting-notes/${noteId}/digest`, { method: 'POST' })
       const body = await res.json()
@@ -84,7 +111,7 @@ export default function MeetingDigestPanel({ noteId, canEdit, onEvidence, onDige
       await load()
     } catch {
       setError('정리하지 못했습니다. 잠시 후 다시 시도해 주세요.')
-    } finally { setRunning(false) }
+    } finally { setRunning(false); setStartedAt(null) }
   }
 
   if (versions === null) return <AXDotLoader />
@@ -92,16 +119,42 @@ export default function MeetingDigestPanel({ noteId, canEdit, onEvidence, onDige
   const latest = versions[0] ?? null
   const current = showing === null ? latest : (versions.find((v) => v.seq === showing) ?? latest)
 
-  const runButton = canEdit ? (
-    <NbButton onClick={() => void run()} disabled={running}>
-      <Sparkles size={16} /> {running ? 'AI가 읽는 중…' : latest ? '다시 정리하기' : '전체 정리하기'}
+  /* 정리를 문서로. 정리가 없으면 내보낼 것이 없으므로 버튼을 그리지 않는다 */
+  const exportButton = latest ? (
+    <NbButton variant="ghost" onClick={() => setExporting(true)}>
+      <FileDown size={15} /> {ACTION.export}
     </NbButton>
   ) : null
+
+  const runButton = canEdit ? (
+    <NbButton onClick={() => void run()} disabled={running}>
+      <Sparkles size={16} /> {running ? progress('정리') : latest ? '다시 정리하기' : '전체 정리하기'}
+    </NbButton>
+  ) : null
+
+  // 도는 동안 화면이 할 말. 분기 밖에서 한 번만 계산한다
+  const prog = digestProgress({ elapsedMs, memoChars, segmentCount })
 
   return (
     <div className={styles.stack}>
       {error && <InlineError spaced onDismiss={() => setError(null)}>{error}</InlineError>}
       {notice && <p className={styles.notice}>{notice}</p>}
+
+      {/*
+        진행 표시는 «결과 있음/없음» 분기 **밖**에 둔다.
+        예전에는 분기 안(결과가 있을 때)에만 있어서 **첫 정리가 최대 5분 동안 침묵했다**(v0.7.684).
+        문구·단계는 `lib/meeting/digest-progress.ts` 가 정한다 — 여기서 식을 쓰면 검증할 수단이 없다(E-6).
+      */}
+      {running && (
+        <div className={styles.progress} role="status" aria-live="polite">
+          <AXDotLoader />
+          <div className={styles.progressBody}>
+            <span className={styles.progressMsg}>{prog.message}</span>
+            {prog.reassure && <span className={styles.progressHint}>{prog.reassure}</span>}
+          </div>
+          <span className={styles.progressClock}>{prog.elapsedLabel}</span>
+        </div>
+      )}
 
       {!latest ? (
         <EmptyState
@@ -110,7 +163,11 @@ export default function MeetingDigestPanel({ noteId, canEdit, onEvidence, onDige
             ? '누르면 메모와 받아적은 내용을 함께 읽어 안건별로 정리해 드려요. 어디서 나온 사실인지도 함께 표시됩니다.'
             : '작성한 사람이 정리를 실행하면 여기에 나타납니다.'}
           icon={<Sparkles size={28} />}
-          action={canEdit ? { label: '전체 정리하기', onClick: () => void run() } : undefined}
+          /*
+            실행 버튼은 **한 벌뿐이다**(`runButton`). 빈 상태가 자기 버튼을 따로 가지면
+            그 버튼은 `running` 을 모르고, 잠기지도 않아 같은 정리가 여러 번 돈다 — 그게 이번 결함이었다.
+          */
+          secondary={runButton}
         />
       ) : (
         <>
@@ -125,7 +182,7 @@ export default function MeetingDigestPanel({ noteId, canEdit, onEvidence, onDige
                 </span>
               )}
             </div>
-            {runButton}
+            <span className={styles.headActions}>{exportButton}{runButton}</span>
           </div>
 
           {/* 어긋난 대목 — 어느 쪽도 버리지 않는다. 위에 둔다: 사람이 먼저 판단해야 아래가 읽힌다 */}
@@ -202,6 +259,10 @@ export default function MeetingDigestPanel({ noteId, canEdit, onEvidence, onDige
             </div>
           )}
         </>
+      )}
+
+      {exporting && (
+        <MeetingExportModal meetingNoteId={noteId} view="digest" onClose={() => setExporting(false)} />
       )}
     </div>
   )

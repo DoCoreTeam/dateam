@@ -246,6 +246,9 @@ export default function MeetingWorkbench({
               <MeetingDigestPanel
                 noteId={noteId}
                 canEdit={canEdit}
+                /* 도는 동안 «무엇을 읽는 중인지» 말하기 위해 — 탭 라벨과 같은 값을 넘긴다 */
+                memoChars={memoChars}
+                segmentCount={segCount ?? 0}
                 onEvidence={onEvidence}
                 onDigested={() => { setDigested(true); onDigested?.() }}
               />

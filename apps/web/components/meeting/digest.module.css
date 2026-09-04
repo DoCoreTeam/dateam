@@ -129,3 +129,27 @@
 }
 .historyItem:hover { border-color: var(--brand); color: var(--brand); }
 .historyOn { border-color: var(--brand); color: var(--brand); font-weight: 700; }
+
+/* ── 정리가 도는 동안 ────────────────────────────────────
+   왜 여기 있나: 첫 정리에 진행 표시가 없어 화면이 최대 5분 침묵했다(v0.7.684).
+   문구는 `lib/meeting/digest-progress.ts` 가 정하고, 이 파일은 모양만 맡는다. */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-w) solid var(--brand);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+.progressBody { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.progressMsg { font-size: var(--fs-sm); color: var(--text); }
+.progressHint { font-size: var(--fs-xs); color: var(--text-muted); }
+/* 숫자가 1초마다 바뀌므로 폭이 고정돼야 옆 글자가 안 흔들린다 */
+.progressClock {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.headActions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
