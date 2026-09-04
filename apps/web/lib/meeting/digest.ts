@@ -7,6 +7,7 @@
 
 import { isFactOrigin, type FactOrigin } from './digest-prompt.ts'
 import { segmentsToPlain, groupSegmentsByPart, type TranscriptSegment } from './transcript.ts'
+import { parseSummaryOutline, UNTITLED_AGENDA } from './summary-structure.ts'
 
 export interface DigestFact {
   text: string
@@ -66,6 +67,40 @@ export function hasMixedOrigins(digest: DigestResult): boolean {
   for (const d of digest.decisions) kinds.add(d.origin)
   for (const c of digest.conflicts) { void c; return true }  // 어긋남은 그 자체가 두 출처다
   return kinds.size > 1
+}
+
+/**
+ * **이미 저장된** 통짜 정리본을 읽는 시점에 구조로 편다.
+ *
+ * 왜 필요한가(실브라우저에서 잡힘, v0.7.689): 저장 경로와 옛 폴백만 고쳤더니
+ * 화면은 그대로였다. 이 회의는 `meeting_note_digest` 에 이미 행이 있어
+ * `parseStoredDigest` 로 읽히는데, 그 경로가 저장된 통짜를 그대로 돌려주기 때문이다.
+ * 실측 11건이 그 상태다 — DB 를 안 건드리고 고치려면 **읽는 자리**에서 펴야 한다.
+ *
+ * **조건을 좁게 잡는다.** 안건 1개 · 제목이 기본값 · 사실 1개일 때만 —
+ * 즉 「구조를 못 만든 흔적」이 뚜렷할 때만 손댄다. 정상 정리본을 다시 파싱하면
+ * 이미 나뉜 사실을 또 쪼개 사실 수가 부풀 수 있다.
+ *
+ * 펼 것이 없으면 원본을 그대로 돌려준다 — 진짜 통짜 문단(형식 없는 회의)은 통짜가 맞다.
+ */
+export function restructureLumpDigest(digest: DigestResult): DigestResult {
+  if (digest.agenda.length !== 1) return digest
+  const only = digest.agenda[0]
+  if (only.title !== UNTITLED_AGENDA || only.facts.length !== 1) return digest
+
+  const lump = only.facts[0]
+  const outline = parseSummaryOutline(lump.text)
+  // 안건 하나에 사실 하나면 펴기 전과 같다 — 건드리지 않는다
+  if (outline.length === 1 && outline[0].facts.length <= 1) return digest
+
+  return {
+    ...digest,
+    // 출처·근거는 원래 사실의 것을 그대로 물려준다 — 없는 근거를 만들지 않는다
+    agenda: outline.map((a) => ({
+      title: a.title,
+      facts: a.facts.map((text) => ({ ...lump, text })),
+    })),
+  }
 }
 
 /* ── 파싱 ─────────────────────────────────────────────── */

@@ -25,7 +25,7 @@ import { parseSummaryOutline, parseDecisionLines } from './summary-structure.ts'
 import {
   planDigest, fullTranscriptForPrompt, parseDigestResult, parseCondensedFacts,
   condensedToTranscript, digestToPlainSummary, digestDecisionsToPlain, parseStoredDigest,
-  describeSources, isEmptyDigest, EMPTY_DIGEST,
+  describeSources, isEmptyDigest, restructureLumpDigest, EMPTY_DIGEST,
   type DigestResult, type DigestSources,
 } from './digest.ts'
 
@@ -301,7 +301,8 @@ export async function listMeetingDigests(
     createdAt: String(r.created_at),
     model: (r.model as string | null) ?? null,
     sources: (r.sources as DigestSources | null) ?? null,
-    digest: parseStoredDigest(r.agenda_json, String(r.decisions ?? '')),
+    // 저장된 통짜는 **읽을 때** 편다 — DB 를 안 건드리고 11건이 구조로 보인다
+    digest: restructureLumpDigest(parseStoredDigest(r.agenda_json, String(r.decisions ?? ''))),
   }))
   if (versions.length > 0) return versions
 

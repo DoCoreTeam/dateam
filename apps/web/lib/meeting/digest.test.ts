@@ -8,10 +8,13 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   parseDigestResult, parseStoredDigest, digestToPlainSummary, digestDecisionsToPlain,
   planDigest, withIdMarkers, condensedToTranscript, parseCondensedFacts,
-  describeSources, needsLegacySummary, isEmptyDigest, DIGEST_SINGLE_PASS_MAX_CHARS, EMPTY_DIGEST } from './digest.ts'
+  describeSources, needsLegacySummary, isEmptyDigest, restructureLumpDigest,
+  DIGEST_SINGLE_PASS_MAX_CHARS, EMPTY_DIGEST } from './digest.ts'
+import type { DigestResult } from './digest.ts'
 import { buildMeetingDigestPrompt, buildPartCondensePrompt, FACT_ORIGIN_LABEL } from './digest-prompt.ts'
 import { FACT_ORIGIN } from '../terms/digest.ts'
 import type { TranscriptSegment } from './transcript.ts'
@@ -258,4 +261,77 @@ test('구간 압축도 숫자·고유명사 보존을 요구한다 — 여기서
 test('출처 라벨은 상수에서 온다 — 화면이 문자열을 짓지 않는다(§2-5)', () => {
   assert.deepEqual(FACT_ORIGIN_LABEL, FACT_ORIGIN)
   assert.equal(FACT_ORIGIN_LABEL.memo, '작성', '탭 라벨과 배지가 같은 말을 써야 한다')
+})
+
+/* ── 저장된 통짜를 읽을 때 편다 (실브라우저가 잡은 결함) ── */
+
+// v0.7.689: 저장 경로와 옛 폴백만 고쳤더니 **화면은 그대로였다.**
+// 이 회의는 표에 행이 있어 `parseStoredDigest` 로 읽히는데 그 경로를 빠뜨렸기 때문이다.
+// tsc·단위테스트·design:check 가 전부 초록인 채 남아 있던 결함을 브라우저가 잡았다(E-1의 값).
+test('★ 저장된 통짜 정리본이 읽는 시점에 안건으로 펴진다 — 실화면에서 잡힌 누락', () => {
+  const stored: DigestResult = {
+    outcome: '', nextStep: '', conflicts: [], decisions: [],
+    agenda: [{
+      title: '회의 내용',
+      facts: [{
+        text: '[데이터스테이션 ISP 및 예산 조정]\n- 금액을 1.5억 원으로 변경함\n- 산업단지공단이 주관기관\n\n[기관 협의]\n- 산업부 협조를 요청함',
+        origin: 'memo', segmentIds: ['seg-1'],
+      }],
+    }],
+  }
+
+  const out = restructureLumpDigest(stored)
+  assert.equal(out.agenda.length, 2, '화면에서는 이것이 「회의 내용」 하나로 보였다')
+  assert.equal(out.agenda[0].title, '데이터스테이션 ISP 및 예산 조정')
+  assert.equal(out.agenda[0].facts.length, 2)
+  // 출처·근거는 원래 사실의 것을 물려받는다 — 없는 근거를 만들지 않는다
+  assert.equal(out.agenda[0].facts[0].origin, 'memo')
+  assert.deepEqual(out.agenda[0].facts[0].segmentIds, ['seg-1'])
+})
+
+test('이미 구조가 있는 정리본은 건드리지 않는다 — 다시 파싱하면 사실 수가 부푼다', () => {
+  const ok: DigestResult = {
+    outcome: '', nextStep: '', conflicts: [], decisions: [],
+    agenda: [
+      { title: '예산', facts: [{ text: '1.5억 원', origin: 'memo', segmentIds: [] }] },
+      { title: '협의', facts: [{ text: '산업부 협조', origin: 'memo', segmentIds: [] }] },
+    ],
+  }
+  assert.deepEqual(restructureLumpDigest(ok), ok)
+})
+
+// 파괴 검증에서 드러난 빈틈: `agenda.length !== 1` 을 지워도 위 두 테스트는 통과했다.
+// 진짜 위험은 **안건이 여럿인데 첫 번째가 통짜**일 때다 — 그때 첫 안건만 펴고
+// 나머지를 버리면 사실이 통째로 사라진다. 무손실 계약을 깨는 유일한 경로다.
+test('★ 안건이 여럿이면 손대지 않는다 — 첫 안건만 펴고 나머지를 버리면 사실이 사라진다', () => {
+  const mixed: DigestResult = {
+    outcome: '', nextStep: '', conflicts: [], decisions: [],
+    agenda: [
+      { title: '회의 내용', facts: [{ text: '[예산]\n- 1.5억 원\n- 60억 원', origin: 'memo', segmentIds: [] }] },
+      { title: '별도 안건', facts: [{ text: '이 줄이 사라지면 안 된다', origin: 'memo', segmentIds: [] }] },
+    ],
+  }
+  const out = restructureLumpDigest(mixed)
+  assert.deepEqual(out, mixed, '여러 안건 중 하나가 통짜여도 통째로 두는 편이 안전하다')
+  assert.ok(
+    out.agenda.some((a) => a.facts.some((f) => f.text.includes('이 줄이 사라지면 안 된다'))),
+    '두 번째 안건의 사실이 사라졌다',
+  )
+})
+
+test('진짜 통짜 문단은 통짜 그대로 — 형식이 없는 회의는 나눌 근거가 없다', () => {
+  const lump: DigestResult = {
+    outcome: '', nextStep: '', conflicts: [], decisions: [],
+    agenda: [{ title: '회의 내용', facts: [{ text: '예산 이야기가 오갔고 결론은 나지 않았다.', origin: 'memo', segmentIds: [] }] }],
+  }
+  assert.deepEqual(restructureLumpDigest(lump), lump)
+})
+
+test('★ 이력 조회가 이 복원을 실제로 거친다 — 만들고 안 부르면 화면이 또 그대로다', () => {
+  const src = readFileSync(new URL('./digest-run.ts', import.meta.url), 'utf-8')
+  assert.match(
+    src,
+    /restructureLumpDigest\(parseStoredDigest\(/,
+    '저장본을 읽는 자리에서 펴지 않으면 이미 쌓인 11건이 영원히 통짜다',
+  )
 })
