@@ -11,8 +11,7 @@ import assert from 'node:assert/strict'
 import {
   parseDigestResult, parseStoredDigest, digestToPlainSummary, digestDecisionsToPlain,
   planDigest, withIdMarkers, condensedToTranscript, parseCondensedFacts,
-  describeSources, needsLegacySummary, isEmptyDigest, DIGEST_SINGLE_PASS_MAX_CHARS,
-} from './digest.ts'
+  describeSources, needsLegacySummary, isEmptyDigest, DIGEST_SINGLE_PASS_MAX_CHARS, EMPTY_DIGEST } from './digest.ts'
 import { buildMeetingDigestPrompt, buildPartCondensePrompt, FACT_ORIGIN_LABEL } from './digest-prompt.ts'
 import type { TranscriptSegment } from './transcript.ts'
 
@@ -82,8 +81,9 @@ test('못 읽는 조각은 버리되 전체를 버리지 않는다 — 하나 �
 })
 
 test('응답이 객체가 아니면 빈 결과 — 예외로 화면을 죽이지 않는다', () => {
-  assert.deepEqual(parseDigestResult('쓰레기'), { agenda: [], decisions: [], conflicts: [] })
-  assert.deepEqual(parseDigestResult(null), { agenda: [], decisions: [], conflicts: [] })
+  // EMPTY_DIGEST 를 그대로 비교한다 — 손으로 나열하면 필드가 늘 때마다 여기가 깨진다
+  assert.deepEqual(parseDigestResult('쓰레기'), EMPTY_DIGEST)
+  assert.deepEqual(parseDigestResult(null), EMPTY_DIGEST)
 })
 
 /* ── 저장본 되읽기 ───────────────────────────────────── */

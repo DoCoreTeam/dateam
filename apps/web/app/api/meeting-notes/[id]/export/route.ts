@@ -83,6 +83,8 @@ export async function GET(
     const latest = (await listMeetingDigests(supabase, params.id).catch(() => []))[0] ?? null
     if (latest) {
       digest = {
+        outcome: latest.digest.outcome,
+        nextStep: latest.digest.nextStep,
         agenda: latest.digest.agenda.map((a) => ({
           title: a.title,
           facts: a.facts.map((f) => ({ text: f.text, originLabel: FACT_ORIGIN_LABEL[f.origin] })),

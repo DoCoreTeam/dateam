@@ -41,6 +41,9 @@ export interface ExportAgenda {
 }
 
 export interface ExportDigest {
+  /** 이 회의가 어디로 갔는지 한 줄. 화면과 같은 값이다 — 두 벌이면 파일이 다른 문서가 된다(§2-7 D-7) */
+  outcome: string
+  nextStep: string
   agenda: ExportAgenda[]
   decisions: { text: string; originLabel: string }[]
   conflicts: { memo: string; transcript: string }[]
@@ -93,10 +96,15 @@ function renderTranscript(segments: ExportSegment[]): string {
 
 /** 안건별 정리. 출처 표시(메모/녹음/둘 다)를 **문서에도 남긴다** — 어디서 나온 사실인지가 정리의 값어치다 */
 function renderDigest(d: ExportDigest | null): string {
-  if (!d || (d.agenda.length === 0 && d.decisions.length === 0)) {
+  if (!d || (d.agenda.length === 0 && d.decisions.length === 0 && !d.outcome)) {
     return `<p class="empty">아직 정리하지 않았습니다.</p>`
   }
   const parts: string[] = []
+  // 결론은 번호를 안 붙인다 — 안건이 아니라 «회의 전체가 어디로 갔나»라 층이 다르다
+  if (d.outcome) {
+    parts.push(`<section class="sec outcome"><h2>이 회의는</h2><p class="pre">${escapeHtml(d.outcome)}</p>`
+      + (d.nextStep ? `<p class="next">다음: ${escapeHtml(d.nextStep)}</p>` : '') + `</section>`)
+  }
   let n = 0
   if (d.conflicts.length > 0) {
     n += 1
@@ -223,6 +231,9 @@ export function buildMeetingExportHtml(input: MeetingExportInput): string {
   /* 출처 표시 — 이 사실이 메모에서 왔는지 녹음에서 왔는지. 정리의 값어치가 여기 있다 */
   .ol { display: inline-block; min-width: 34px; margin-right: 6px; font-size: 11px; color: #6b7280; }
   ul.bullets.conflict li { margin: 9px 0; }
+  .sec.outcome { border-left: 3px solid #374151; padding-left: 12px; }
+  .sec.outcome h2 { font-size: 12px; letter-spacing: 0.06em; color: #6b7280; }
+  .next { margin: 6px 0 0; font-size: 13px; color: #6b7280; }
 
   /* 마무리 — 문서의 끝을 알리고 발행 주체를 밝힌다. */
   .end { text-align: center; font-size: 12.5px; color: #6b7280; letter-spacing: 0.3em; margin: 38px 0 0; padding-left: 0.3em; }

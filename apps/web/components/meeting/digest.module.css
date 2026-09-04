@@ -153,3 +153,28 @@
   white-space: nowrap;
 }
 .headActions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+
+/* ── 이 회의는 (결론 한 줄) ───────────────────────────────
+   왜 맨 위인가: 안건별 사실만 있으면 «회의 전체가 어디로 갔나»를 읽는 사람이 매번
+   조립해야 한다. 폰에서는 이 한 줄이 사실상 화면 전체다(§2-3-2 L-4). */
+.outcome {
+  padding: var(--space-4);
+  border-left: var(--border-w-2) solid var(--brand);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-bg);
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.outcomeHead {
+  margin: 0; font-size: var(--fs-2xs); font-weight: 700;
+  letter-spacing: 0.08em; color: var(--brand);
+}
+.outcomeText { margin: 0; font-size: var(--fs-md); line-height: 1.6; color: var(--text); }
+.outcomeNext {
+  margin: 0; font-size: var(--fs-sm); color: var(--text-muted);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+/* 까닭 — 사실에 딸린 것이라 한 단 낮춘다. 사실과 같은 무게로 보이면 무엇이 사실인지 흐려진다 */
+.because {
+  display: block; margin-top: 2px;
+  font-size: var(--fs-xs); color: var(--text-faint); font-style: normal;
+}

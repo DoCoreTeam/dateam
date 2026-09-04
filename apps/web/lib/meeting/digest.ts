@@ -13,6 +13,16 @@ export interface DigestFact {
   origin: FactOrigin
   /** 전사 근거. 화면에서 누르면 그 대목으로 간다 */
   segmentIds: string[]
+  /**
+   * 이 사실이 **다른 안건 때문에** 그렇게 된 것이면 그 까닭 한 줄.
+   *
+   * 왜 생겼나(사용자 지적 v0.7.686): *"전반적으로 연속성? 릴레이션? 이런느낌이 안들어"*
+   * 정리가 안건별 «한 줄 사실 목록»이라, 예산이 줄어서 방향이 바뀐 것처럼
+   * **안건을 건너뛰며 이어지는 것**이 자료 구조 어디에도 담기지 않았다.
+   *
+   * 옛 정리본에는 이 값이 없다 — 그래서 optional 이다(M-4 추가 전용).
+   */
+  because?: string
 }
 
 export interface DigestAgendaItem {
@@ -27,12 +37,19 @@ export interface DigestConflict {
 }
 
 export interface DigestResult {
+  /**
+   * 이 회의가 **어디로 갔는지** 한 문장. 안건 하나가 아니라 회의 전체다.
+   * 없으면 빈 문자열 — 옛 정리본과 «결론 없이 끝난 회의»가 여기 해당한다.
+   */
+  outcome: string
+  /** 다음에 하는 일 한 줄. 자료에 없으면 빈 문자열 — 지어내지 않는다 */
+  nextStep: string
   agenda: DigestAgendaItem[]
   decisions: DigestFact[]
   conflicts: DigestConflict[]
 }
 
-export const EMPTY_DIGEST: DigestResult = { agenda: [], decisions: [], conflicts: [] }
+export const EMPTY_DIGEST: DigestResult = { outcome: '', nextStep: '', agenda: [], decisions: [], conflicts: [] }
 
 /* ── 파싱 ─────────────────────────────────────────────── */
 
@@ -66,6 +83,8 @@ function parseFact(v: unknown, known: Set<string>): DigestFact | null {
     // 전사가 아예 없으면 memo 가 사실이고, 있으면 both 가 가장 덜 틀린 답이다.
     origin: isFactOrigin(o.origin) ? o.origin : (known.size === 0 ? 'memo' : 'both'),
     segmentIds: keepRealIds(o.segmentIds, known),
+    // 까닭은 있으면 싣고 없으면 뺀다. 빈 문자열을 넣으면 화면이 빈 줄을 그린다
+    ...(str(o.because) ? { because: str(o.because) } : {}),
   }
 }
 
@@ -103,7 +122,7 @@ export function parseDigestResult(raw: unknown, knownSegmentIds: string[] = []):
     conflicts.push({ memo, transcript, segmentIds: keepRealIds(rec.segmentIds, known) })
   }
 
-  return { agenda, decisions, conflicts }
+  return { outcome: str(o.outcome), nextStep: str(o.nextStep), agenda, decisions, conflicts }
 }
 
 /**
@@ -128,6 +147,7 @@ export function parseStoredDigest(bundle: unknown, decisionsPlain: string): Dige
         text,
         origin: isFactOrigin(fr.origin) ? fr.origin : ('both' as FactOrigin),
         segmentIds: asArray(fr.segmentIds).map(str).filter(Boolean),
+        ...(str(fr.because) ? { because: str(fr.because) } : {}),
       }
     }).filter((f): f is DigestFact => f !== null)
     if (facts.length === 0) continue
@@ -164,7 +184,8 @@ export function parseStoredDigest(bundle: unknown, decisionsPlain: string): Dige
     conflicts.push({ memo, transcript, segmentIds: asArray(rec.segmentIds).map(str).filter(Boolean) })
   }
 
-  return { agenda, decisions, conflicts }
+  /* 옛 정리본에는 이 둘이 없다. 빈 문자열이면 화면이 그 줄을 아예 안 그린다 — 지어내지 않는다 */
+  return { outcome: str(o.outcome), nextStep: str(o.nextStep), agenda, decisions, conflicts }
 }
 
 /* ── 평문 사본 ────────────────────────────────────────── */

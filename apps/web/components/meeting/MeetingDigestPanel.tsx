@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Sparkles, History, TriangleAlert, FileDown } from 'lucide-react'
+import { Sparkles, History, TriangleAlert, FileDown, ArrowRight } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import InlineError from '@/components/ui/InlineError'
@@ -185,6 +185,24 @@ export default function MeetingDigestPanel({
             <span className={styles.headActions}>{exportButton}{runButton}</span>
           </div>
 
+          {/*
+            이 회의는 무엇이었나 — **맨 위 한 줄.**
+            사용자 지적(v0.7.686): *"전반적으로 연속성? 릴레이션? 이런느낌이 안들어"*
+            안건별 사실만 있으면 회의 전체가 어디로 갔는지는 읽는 사람이 매번 조립해야 한다.
+            옛 정리본에는 이 값이 없다 — 그때는 아예 안 그린다(빈 줄을 만들지 않는다).
+          */}
+          {current!.digest.outcome && (
+            <section className={styles.outcome} aria-labelledby="mw-outcome-h">
+              <h3 id="mw-outcome-h" className={styles.outcomeHead}>이 회의는</h3>
+              <p className={styles.outcomeText}>{current!.digest.outcome}</p>
+              {current!.digest.nextStep && (
+                <p className={styles.outcomeNext}>
+                  <ArrowRight size={13} aria-hidden /> {current!.digest.nextStep}
+                </p>
+              )}
+            </section>
+          )}
+
           {/* 어긋난 대목 — 어느 쪽도 버리지 않는다. 위에 둔다: 사람이 먼저 판단해야 아래가 읽힌다 */}
           {current!.digest.conflicts.length > 0 && (
             <section className={styles.conflicts} aria-labelledby="mw-conflict-h">
@@ -216,7 +234,11 @@ export default function MeetingDigestPanel({
                 {a.facts.map((f, j) => (
                   <li key={j} className={styles.fact}>
                     <OriginBadge origin={f.origin} />
-                    <span className={styles.factText}>{f.text}</span>
+                    <span className={styles.factText}>
+                      {f.text}
+                      {/* 다른 안건 때문에 이렇게 된 것이면 그 까닭을 잇는다 — 안건을 건너뛰는 연결이 값어치다 */}
+                      {f.because && <em className={styles.because}>← {f.because}</em>}
+                    </span>
                     {f.segmentIds.length > 0 && onEvidence && (
                       <button type="button" className={styles.evidence} onClick={() => onEvidence(f.segmentIds)}>
                         근거

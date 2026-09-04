@@ -214,3 +214,43 @@ describe('CRM 미팅 목록 — 「가져오기」 버튼이 사라졌다', () =
     assert.match(read('lib/crm/services/meeting-publish.ts'), /shareState: readShareState\(/)
   })
 })
+
+describe('연속성 — 회의는 사실 목록이 아니라 하나의 사건이다', () => {
+  it('★ 결론 한 줄이 자료 구조에 자리를 갖는다', () => {
+    const s = read('lib/meeting/digest.ts')
+    assert.match(s, /outcome: string/, 'DigestResult 에 결론이 있어야 한다')
+    assert.match(s, /nextStep: string/)
+    assert.match(s, /because\?: string/, '안건을 건너뛰는 인과가 담겨야 한다')
+  })
+
+  it('★ 옛 정리본이 깨지지 않는다 — because 는 optional, 결론은 빈 문자열', () => {
+    const s = read('lib/meeting/digest.ts')
+    assert.match(s, /EMPTY_DIGEST: DigestResult = \{ outcome: '', nextStep: ''/)
+    assert.doesNotMatch(s, /because: string\n/, 'because 를 필수로 만들면 옛 행이 전부 깨진다')
+  })
+
+  it('★ 저장한다 — 화면에서만 사는 값은 새로고침하면 사라진다', () => {
+    const s = read('lib/meeting/digest-run.ts')
+    assert.match(s, /agenda_json: \{\s*\n?\s*outcome: digest\.outcome, nextStep: digest\.nextStep/,
+      'jsonb 에 결론을 함께 담아야 한다')
+  })
+
+  it('★ AI 에게 실제로 시킨다 — 타입만 늘리면 영원히 빈 값이다', () => {
+    const s = read('lib/meeting/digest-prompt.ts')
+    assert.match(s, /"outcome":/, '출력 형식에 결론이 있어야 한다')
+    assert.match(s, /because/, '인과를 지시해야 한다')
+    assert.match(s, /지어내지 마라/, '근거 없는 인과를 막아야 한다')
+  })
+
+  it('★ 메모만 있는 회의는 결론을 지어내지 않는다', () => {
+    const s = read('lib/meeting/digest-run.ts')
+    assert.match(s, /outcome: '',\s*\n\s*nextStep: '',/,
+      '안건 구조가 없으면 결론을 만들 근거가 없다 — 빈 문자열이 정답이다')
+  })
+
+  it('★ 화면과 문서가 같은 결론을 말한다 (§2-7 D-7)', () => {
+    assert.match(read('components/meeting/MeetingDigestPanel.tsx'), /current!\.digest\.outcome/)
+    assert.match(read('lib/meeting/export-html.ts'), /d\.outcome/)
+    assert.match(read('app/api/meeting-notes/[id]/export/route.ts'), /outcome: latest\.digest\.outcome/)
+  })
+})

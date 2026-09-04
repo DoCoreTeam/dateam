@@ -78,6 +78,13 @@ export async function runMeetingDigest(noteId: string, userId: string): Promise<
       userId, bodyPlain: memo, apiKey, model,
     })
     const digest: DigestResult = {
+      /*
+        메모만 있는 회의다. 결론 한 줄은 «여러 안건에 걸친 흐름»을 잡는 것인데
+        안건 구조 자체가 없으므로 만들 근거가 없다 — 빈 문자열로 두면 화면이 그 줄을 안 그린다.
+        여기서 요약 첫 문장을 결론인 척 넣으면 그건 지어낸 것이다.
+      */
+      outcome: '',
+      nextStep: '',
       // 기존 경로는 안건 구조를 안 만든다. 평문을 한 덩어리로 담아 화면이 같은 부품으로 그린다
       agenda: summary.trim() ? [{ title: '회의 내용', facts: [{ text: summary.trim(), origin: 'memo', segmentIds: [] }] }] : [],
       decisions: decisions.trim()
@@ -163,7 +170,15 @@ async function persist(
     note_id: noteId,
     seq,
     // decisions 도 구조 그대로 담는다 — 평문 컬럼만 두면 이력에서 출처·근거가 사라진다
-    agenda_json: { agenda: digest.agenda, conflicts: digest.conflicts, decisions: digest.decisions },
+    /*
+      결론·다음 할 일도 함께 담는다. 안 담으면 정리 직후에는 보이다가
+      **새로고침하면 사라진다** — 화면에서만 사는 값은 없는 값이다.
+      컬럼을 새로 만들지 않는다: 이 jsonb 는 이미 구조를 담는 자리다(마이그 불필요).
+    */
+    agenda_json: {
+      outcome: digest.outcome, nextStep: digest.nextStep,
+      agenda: digest.agenda, conflicts: digest.conflicts, decisions: digest.decisions,
+    },
     decisions: decisionsPlain || null,
     sources,
     model,
