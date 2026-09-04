@@ -161,6 +161,11 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
       <PageHeader
         back={{ href: '/meeting-notes', label: '회의노트 목록' }}
         title={note.title || '(제목 없음)'}
+        /*
+          공개 범위는 «이 기록의 속성»이라 제목에 붙는다(§2-3-2 L-1: 읽는 것 왼쪽).
+          우측 `actions` 는 화면 전체에 대한 행동(수정·삭제) 자리라 여기가 아니다.
+        */
+        titleAfter={<CrmPublishCard noteId={note.id} visibility={note.visibility} />}
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             <NbButton onClick={() => void openEditor()} disabled={openingEditor} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -281,7 +286,6 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
         {/* 영업 CRM 연결 — 이 회의가 고객사 건일 때만 쓴다.
             CRM 멤버가 아니면 카드 자체가 안 보인다(못 쓰는 버튼을 보여 주지 않는다).
             본문 아래에 두는 이유: 회의록을 읽고 나서 "이건 영업 건이네"를 판단하는 순서다. */}
-        <CrmPublishCard noteId={note.id} />
       </div>
     </div>
   )

@@ -127,3 +127,18 @@ export const SHARE_STATE_HINT: Record<MeetingShareState, string> = {
 export function needsConfirm(from: MeetingShareState, to: MeetingShareState): boolean {
   return from !== to && to === 'PRIVATE' && from !== 'NO_SOURCE'
 }
+
+/**
+ * 서버가 이미 아는 것만으로 **첫 렌더에 쓸 상태**를 고른다.
+ *
+ * 왜(사용자 지적 v0.7.685): *"공개상태도 아래가 아니라 잘 보이는 곳에 젤 먼저 보이는 곳에"*
+ * 공개 범위 카드가 화면 **맨 아래**(288줄 중 284줄)에 있었고, 게다가 서버 왕복이 끝날 때까지
+ * `null` 을 그려 **뒤늦게 나타났다.** 늦게 나타나는 것은 사용자에게 「없다」로 읽힌다.
+ *
+ * 회의노트 행에는 `visibility` 가 이미 있으므로 **왕복 없이** 두 상태는 확정할 수 있다.
+ * 나머지 하나(`RECORD_ONLY` — 원본은 잠갔지만 미팅은 살아 있음)만 미팅 존재 여부가 필요해
+ * 왕복 뒤에 확정된다. 즉 **틀린 값을 잠깐 보여주는 것이 아니라, 덜 자세한 값을 먼저 보여준다.**
+ */
+export function initialShareState(visibility: NoteVisibility | undefined): MeetingShareState {
+  return visibility === NOTE_VISIBILITY.CRM ? 'TEAM' : 'PRIVATE'
+}

@@ -27,30 +27,42 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Briefcase, ExternalLink, Lock, FileText, Eye } from 'lucide-react'
+import { Briefcase, ExternalLink, Lock, FileText, Eye, ChevronDown, Ban } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbModal from '@/components/ui/nb/NbModal'
 import InlineError from '@/components/ui/InlineError'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import {
-  CHOOSABLE_SHARE_STATES, SHARE_STATE_LABEL, SHARE_STATE_HINT, needsConfirm,
+  CHOOSABLE_SHARE_STATES, SHARE_STATE_LABEL, SHARE_STATE_HINT, needsConfirm, initialShareState,
   type MeetingShareState,
 } from '@/lib/meeting/share-state'
+import { type NoteVisibility } from '@/lib/meeting/note-visibility'
+import { useEscClose } from '@/lib/use-esc-close'
 import styles from './crm-share.module.css'
 
 /** 아직 모름 → CRM 을 못 씀 → 정할 수 있음. 상태를 섞으면 카드가 깜빡인다 */
 type Phase = 'loading' | 'no-access' | 'ready'
 
 const ICON: Record<string, React.ReactNode> = {
-  PRIVATE: <Lock size={14} aria-hidden />,
-  RECORD_ONLY: <FileText size={14} aria-hidden />,
-  TEAM: <Eye size={14} aria-hidden />,
+  PRIVATE: <Lock size={13} aria-hidden />,
+  RECORD_ONLY: <FileText size={13} aria-hidden />,
+  TEAM: <Eye size={13} aria-hidden />,
+  NO_SOURCE: <Ban size={13} aria-hidden />,
 }
 
-export default function CrmPublishCard({ noteId }: { noteId: string }) {
+export default function CrmPublishCard({ noteId, visibility }: {
+  noteId: string
+  /**
+   * 서버가 이미 아는 공개 범위. 이걸 받으면 **첫 렌더부터** 배지를 그릴 수 있다 —
+   * 예전에는 왕복이 끝날 때까지 `null` 이라 뒤늦게 나타났고, 그건 「없다」로 읽혔다.
+   */
+  visibility?: NoteVisibility
+}) {
   const [phase, setPhase] = useState<Phase>('loading')
-  const [state, setState] = useState<MeetingShareState>('PRIVATE')
+  const [state, setState] = useState<MeetingShareState>(() => initialShareState(visibility))
+  /** 배지를 눌러 펼친 상태 — 자리를 늘 차지하지 않으면서 한 번에 닿는다 */
+  const [open, setOpen] = useState(false)
   const [meetingId, setMeetingId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -80,6 +92,7 @@ export default function CrmPublishCard({ noteId }: { noteId: string }) {
   }, [noteId])
 
   useEffect(() => { void load() }, [load])
+  useEscClose(() => setOpen(false))
 
   const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
     const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
@@ -128,27 +141,44 @@ export default function CrmPublishCard({ noteId }: { noteId: string }) {
     void apply(next)
   }
 
-  // CRM 을 못 쓰는 사람에게는 아무것도 안 보인다. 로딩 중에도 자리를 잡지 않는다 —
-  // 잠깐 떴다 사라지는 카드는 "뭔가 잘못됐나"로 읽힌다.
-  if (phase === 'loading' || phase === 'no-access') return null
+  /*
+    CRM 을 못 쓰는 사람에게는 아무것도 안 보인다 — 못 쓰는 손잡이를 보여 주지 않는다.
+    다만 **로딩 중에는 그리던 것을 계속 그린다.** 서버가 준 `visibility` 로 이미
+    맞는 배지를 그리고 있으므로, 여기서 감추면 배지가 깜빡였다가 다시 나타난다.
+  */
+  if (phase === 'no-access') return null
 
   return (
-    <div className="card" style={{ padding: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
-      <div className={styles.head}>
-        <Briefcase size={16} aria-hidden />
-        <strong style={{ fontSize: 'var(--fs-base)' }}>영업팀에 보이는 범위</strong>
-        {meetingId && (
-          <Link href={`/crm/meetings/${meetingId}`} className={styles.open}>
-            영업 CRM에서 열기 <ExternalLink size={14} aria-hidden />
-          </Link>
-        )}
-      </div>
+    <div className={styles.wrap}>
+      {/*
+        배지가 **제목 옆 첫 화면**에 선다. 열자마자 "누가 볼 수 있나"가 보인다 —
+        예전에는 288줄짜리 화면의 284번째 줄이라 스크롤해야 닿았다(v0.7.685).
+      */}
+      <button
+        type="button"
+        className={`${styles.badge} ${styles[`b_${state}`]}`}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((v) => !v)}
+        title={SHARE_STATE_HINT[state]}
+      >
+        {ICON[state]}
+        <span>{SHARE_STATE_LABEL[state]}</span>
+        {state !== 'NO_SOURCE' && <ChevronDown size={13} aria-hidden className={styles.caret} />}
+      </button>
 
-      {state === 'NO_SOURCE' ? (
-        // 원본이 없는 미팅은 범위를 정할 대상이 없다. 억지로 스위치를 그리지 않는다
-        <p className={styles.hint}>{SHARE_STATE_HINT.NO_SOURCE}</p>
-      ) : (
-        <>
+      {open && state !== 'NO_SOURCE' && (
+        <div className={styles.pop} role="dialog" aria-label="영업팀에 보이는 범위">
+          <div className={styles.popHead}>
+            <Briefcase size={14} aria-hidden />
+            <strong>영업팀에 보이는 범위</strong>
+            {meetingId && (
+              <Link href={`/crm/meetings/${meetingId}`} className={styles.open}>
+                영업 CRM에서 열기 <ExternalLink size={13} aria-hidden />
+              </Link>
+            )}
+          </div>
+
           <div className={styles.choices} role="radiogroup" aria-label="영업팀에 보이는 범위">
             {CHOOSABLE_SHARE_STATES.map((s) => (
               <button
@@ -168,11 +198,18 @@ export default function CrmPublishCard({ noteId }: { noteId: string }) {
 
           {/* 고른 것이 팀에게 무엇을 보이는지 그 자리에서 말한다 — 이걸 안 말한 게 사고였다 */}
           <p className={styles.hint}>{SHARE_STATE_HINT[state]}</p>
-        </>
+          {/* 보는 것과 고치는 것은 다르다. 안 밝히면 팀원이 "왜 수정이 안 되지"로 겪는다 */}
+          <p className={styles.hintFaint}>고치거나 지우는 건 언제나 작성한 사람만 할 수 있어요.</p>
+          {error && <InlineError spaced>{error}</InlineError>}
+          {busy && <AXDotLoader />}
+        </div>
       )}
 
-      {error && <InlineError spaced>{error}</InlineError>}
-      {busy && <AXDotLoader />}
+      {state === 'NO_SOURCE' && open && (
+        <div className={styles.pop} role="dialog" aria-label="영업팀에 보이는 범위">
+          <p className={styles.hint}>{SHARE_STATE_HINT.NO_SOURCE}</p>
+        </div>
+      )}
 
       {/* 처음 올릴 때만 — 회사·딜을 알면 AI 가 딜에 반영할 것을 찾아 준다 */}
       {picking && (
