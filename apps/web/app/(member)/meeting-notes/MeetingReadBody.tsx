@@ -1,21 +1,20 @@
 'use client'
 
 // 조회(읽기전용) 본문 카드.
-//  - [AI 정제본 | 원본] 탭은 모두 읽기 표시(정제본=요약/결정사항 텍스트, 원본=RichText). 편집 textarea 없음.
-//  - [AI 분석] 액션: 요약/결정사항 자동 생성·저장(읽기 갱신) + 추출 후보는 ExtractConfirmModal로 확정.
+//  - [할 일·일정 뽑기] 액션: 추출 후보를 ExtractConfirmModal로 확정(자동 등록 금지).
+//  - **정리(요약·결정사항)는 여기서 안 만든다** — 정리 패널 하나가 그 일을 맡는다(§2-3-6 P-4).
 //  - 수동 텍스트 수정은 편집(에디터) 화면에서 — 조회엔 편집 컨트롤을 두지 않는다(CRUD 모드 분리).
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { FileText, Sparkles, FileDown } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import RichText from '@/components/ui/RichText'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ControlRow from '@/components/ui/ControlRow'
 import EmptyState from '@/components/ui/EmptyState'
-import { saveMeetingSummary } from './actions'
 import ExtractConfirmModal, { type ExtractResult } from './ExtractConfirmModal'
 import MeetingExportModal from './MeetingExportModal'
 import InlineError from '@/components/ui/InlineError'
+import { DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_EMPTY_TITLE, EXTRACT_LABEL, EXTRACT_RUN_LABEL, progress } from '@/lib/terms'
 
 interface Props {
   meetingNoteId: string
@@ -43,9 +42,9 @@ type ApiEnvelope<T> = { success: boolean; data?: T; error?: string }
 export default function MeetingReadBody({
   meetingNoteId, body, bodyPlain, initialSummary, initialDecisions, people, currentAttendees, currentUserIds, autoAnalyze, actionsOnly = false,
 }: Props) {
-  const router = useRouter()
-  const [summary, setSummary] = useState(initialSummary)
-  const [decisions, setDecisions] = useState(initialDecisions)
+  // 저장된 정리 — **읽기 전용.** 만드는 것은 정리 패널이다(§2-3-6 P-4)
+  const [summary] = useState(initialSummary)
+  const [decisions] = useState(initialDecisions)
   const hasRefined = Boolean(summary.trim() || decisions.trim())
   const [tab, setTab] = useState<'refined' | 'original'>(hasRefined ? 'refined' : 'original')
   const [busy, setBusy] = useState(false)
@@ -70,49 +69,32 @@ export default function MeetingReadBody({
     abortRef.current = ctrl
     setBusy(true); setElapsed(0); setErrs([]); setInfo(''); setNotice('')
     try {
-      // allSettled — 한쪽이 네트워크 오류로 reject해도 다른 쪽 결과는 살린다.
-      // (예전엔 Promise.all이라 하나만 터져도 둘 다 버려졌다)
-      const post = (url: string) =>
-        fetch(url, {
+      /*
+        **요약은 여기서 안 만든다**(v0.7.688). 예전엔 요약과 추출을 함께 돌렸는데,
+        그 요약이 `meeting_notes.summary` 에 저장되는 동안 정리 탭은 `meeting_note_digest`
+        표만 봤다 — 같은 「정리」인데 **두 곳에 갈라져 쌓였고**, 이 버튼으로 만든 16건은
+        화면 어디에도 안 나왔다(`actionsOnly ? null` 로 그리는 코드가 막혀 있었다).
+
+        정리를 만드는 자리는 **정리 패널 하나**다(§2-3-6 P-4). 여기는 **뽑기**만 한다 —
+        정리는 읽을 것을 만들고, 뽑기는 다른 화면(할 일·일정)으로 옮길 후보를 만든다.
+      */
+      const extS = await Promise.allSettled([
+        fetch('/api/ai/meeting-extract', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ meetingNoteId }),
           signal: ctrl.signal,
-        }).then((r) => r.json())
-
-      const [sumS, extS] = await Promise.allSettled([
-        post('/api/ai/meeting-summarize') as Promise<ApiEnvelope<{ summary: string; decisions: string; notice: string | null }>>,
-        post('/api/ai/meeting-extract') as Promise<ApiEnvelope<ExtractResult>>,
+        }).then((r) => r.json() as Promise<ApiEnvelope<ExtractResult>>),
       ])
       if (ctrl.signal.aborted) return
 
-      const sum: ApiEnvelope<{ summary: string; decisions: string; notice: string | null }> =
-        sumS.status === 'fulfilled' ? sumS.value : { success: false, error: 'AI 서버 연결에 실패했습니다.' }
       const ext: ApiEnvelope<ExtractResult> =
-        extS.status === 'fulfilled' ? extS.value : { success: false, error: 'AI 서버 연결에 실패했습니다.' }
+        extS[0].status === 'fulfilled' ? extS[0].value : { success: false, error: 'AI 서버 연결에 실패했습니다.' }
 
-      if (sum.success && sum.data) {
-        const nextSummary = sum.data.summary ?? ''
-        const nextDecisions = sum.data.decisions ?? ''
-        setSummary(nextSummary)
-        setDecisions(nextDecisions)
-        if (sum.data.notice) setNotice(sum.data.notice)
-        if (nextSummary.trim() || nextDecisions.trim()) {
-          setTab('refined')
-          // 정제본을 즉시 저장 → 새로고침/재방문에도 읽기표시 유지. 실패 시 사용자에게 안내.
-          const saveRes = await saveMeetingSummary(meetingNoteId, { summary: nextSummary.trim(), decisions: nextDecisions.trim() })
-          if (!saveRes.ok) setErrs(['정제본 자동저장에 실패했습니다 — [수정]에서 직접 저장해 주세요.'])
-          else router.refresh()
-        }
-      }
       if (ext.success && ext.data?.notice) setNotice(ext.data.notice)
 
-      // 부분 실패를 삼키지 않는다. 예전엔 `!sum.success && !ext.success`라 **둘 다** 실패해야
-      // 에러가 떴고, 추출만 터지면 "추출할 후보는 없습니다"라고 잘못 안내했다(v0.7.571).
-      const problems: string[] = []
-      if (!sum.success) problems.push(`요약 실패 — ${sum.error ?? '알 수 없는 오류'}`)
-      if (!ext.success) problems.push(`업무·일정 추출 실패 — ${ext.error ?? '알 수 없는 오류'}`)
-      if (problems.length) setErrs(problems)
+      // 실패를 삼키지 않는다 — 조용히 넘기면 "뽑을 후보가 없습니다"로 잘못 읽힌다(v0.7.571)
+      if (!ext.success) setErrs([`${EXTRACT_LABEL} 실패 — ${ext.error ?? '알 수 없는 오류'}`])
 
       // 추출 후보가 있으면 확정 모달 오픈(자동등록 금지 — 사용자 선택분만).
       if (ext.success && ext.data) {
@@ -122,7 +104,8 @@ export default function MeetingReadBody({
           (ext.data.attendees?.length ?? 0) > 0 ||
           ext.data.highlights.length > 0
         if (hasCandidates) setModalResult(ext.data)
-        else if (sum.success) setInfo('AI가 본문을 정제했습니다. 추출할 업무·일정 후보는 없습니다.')
+        // 후보가 0건인 것은 **정상 답**이다 — 조용히 끝내면 눌렀는데 아무 일도 안 난 것으로 읽힌다
+        else setInfo('옮길 할 일·일정 후보를 찾지 못했어요.')
       }
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') return
@@ -162,7 +145,7 @@ export default function MeetingReadBody({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <FileText size={16} color="var(--brand)" />
-          <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>{actionsOnly ? 'AI로 할 일·일정 뽑기' : '회의 본문'}</h2>
+          <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>{actionsOnly ? EXTRACT_LABEL : '회의 본문'}</h2>
         </div>
         <ControlRow gap={false}>
           {/* 작업대가 본문·정리를 그리는 화면에서는 여기서 또 고르게 하지 않는다 */}
@@ -175,17 +158,17 @@ export default function MeetingReadBody({
             />
           )}
           {canExport && (
-            <NbButton variant="secondary" onClick={() => setExportOpen(true)} title={`${tab === 'refined' ? 'AI 정제본' : '원본'}을 문서로 내보내기`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <NbButton variant="secondary" onClick={() => setExportOpen(true)} title={`${tab === 'refined' ? DIGEST_LABEL : '원본'}을 문서로 내보내기`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <FileDown size={15} /> 내보내기
             </NbButton>
           )}
           {hasBody && (
             <>
               <NbButton onClick={runAnalyze} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <Sparkles size={15} /> {busy ? `분석 중… ${elapsed}초` : 'AI 분석'}
+                <Sparkles size={15} /> {busy ? `${progress(EXTRACT_RUN_LABEL)} ${elapsed}초` : EXTRACT_RUN_LABEL}
               </NbButton>
               {busy && (
-                <NbButton variant="secondary" onClick={cancelAnalyze} title="진행 중인 AI 분석을 중단합니다">
+                <NbButton variant="secondary" onClick={cancelAnalyze} title={`진행 중인 ${EXTRACT_LABEL}를 중단합니다`}>
                   취소
                 </NbButton>
               )}
@@ -213,9 +196,8 @@ export default function MeetingReadBody({
             </>
           ) : hasBody ? (
             <EmptyState
-              title="아직 AI 정제본이 없어요"
-              description="[AI 분석]을 실행하면 요약·결정사항을 자동으로 정리합니다"
-              action={{ label: busy ? `분석 중… ${elapsed}초` : 'AI 분석 실행', onClick: () => { void runAnalyze() } }}
+              title={DIGEST_EMPTY_TITLE}
+              description={`위 「회의 기록」의 [${DIGEST_RUN_LABEL}]를 누르면 안건·결정사항을 정리합니다`}
             />
           ) : (
             // 수정 전용 라우트는 없다(같은 페이지의 [수정] 토글) — 죽은 링크를 만들지 않고 그 버튼을 가리킨다

@@ -13,7 +13,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { read, stripComments } from '../ui/component-scan.ts'
 import {
-  WORKBENCH_TABS, hasBodyContent, isWorkbenchTab, pickDefaultWorkbenchTab,
+  EVIDENCE_TABS, hasBodyContent, isEvidenceTab, pickEvidenceTab, evidenceOpenByDefault,
 } from './workbench-tab.ts'
 
 /** 주석 속 사고 기록을 위반으로 세지 않는다 — 왜 그랬는지를 못 적게 되면 다음 사람이 또 한다 */
@@ -37,24 +37,31 @@ const NOTE_DETAIL = 'app/(member)/meeting-notes/MeetingDetailClient.tsx'
 // ─────────────────────────────── 판정 자체 ───────────────────────────────
 
 test('사람이 쓴 본문이 있으면 「작성」이 먼저다 — 사용자가 방금 쓴 것을 못 찾는 일이 없어야 한다', () => {
-  assert.equal(pickDefaultWorkbenchTab({ hasBody: true, hasTranscript: false }), 'memo')
-  assert.equal(pickDefaultWorkbenchTab({ hasBody: true, hasTranscript: true }), 'memo')
+  assert.equal(pickEvidenceTab({ hasBody: true, hasTranscript: false }), 'memo')
+  assert.equal(pickEvidenceTab({ hasBody: true, hasTranscript: true }), 'memo')
 })
 
 test('★ 본문이 없고 전사만 있으면 전사다 — 방향만 바꾼 같은 사고를 막는다', () => {
-  assert.equal(pickDefaultWorkbenchTab({ hasBody: false, hasTranscript: true }), 'transcript')
+  assert.equal(pickEvidenceTab({ hasBody: false, hasTranscript: true }), 'transcript')
 })
 
 test('둘 다 없으면 「작성」 — 빈 화면에서 할 일은 쓰기다(빈 전사 탭은 할 일이 없다)', () => {
-  assert.equal(pickDefaultWorkbenchTab({ hasBody: false, hasTranscript: false }), 'memo')
+  assert.equal(pickEvidenceTab({ hasBody: false, hasTranscript: false }), 'memo')
 })
 
-test('「정리」는 절대 기본값이 되지 않는다 — 결과물만 열리면 원문을 볼 수 없다', () => {
+test('★ 「정리」는 근거 탭의 후보가 아니다 — 결과물은 탭 밖 카드 본문이다(§2-3-6 P-1)', () => {
+  assert.deepEqual([...EVIDENCE_TABS], ['memo', 'transcript'])
   for (const hasBody of [true, false]) {
     for (const hasTranscript of [true, false]) {
-      assert.notEqual(pickDefaultWorkbenchTab({ hasBody, hasTranscript }), 'digest')
+      assert.notEqual(pickEvidenceTab({ hasBody, hasTranscript }) as string, 'digest')
     }
   }
+})
+
+test('★ 정리가 있으면 근거를 접고, 없으면 편다 — 회의 «중»에 적을 자리가 스크롤 뒤로 가면 안 된다', () => {
+  assert.equal(evidenceOpenByDefault({ hasBody: true, hasTranscript: true, hasDigest: true }), false)
+  assert.equal(evidenceOpenByDefault({ hasBody: false, hasTranscript: false, hasDigest: false }), true)
+  assert.equal(evidenceOpenByDefault({ hasBody: true, hasTranscript: false, hasDigest: false }), true)
 })
 
 test('★ 빈 Tiptap 본문을 「있다」로 세지 않는다 — <p></p> 는 한 글자도 안 쓴 상태다', () => {
@@ -65,13 +72,30 @@ test('★ 빈 Tiptap 본문을 「있다」로 세지 않는다 — <p></p> 는 
   assert.equal(hasBodyContent('전자영수증, 다회용기'), true)
 })
 
-test('탭 id 는 작업대가 실제로 그리는 세 층과 같다 — 갈리면 조용히 빈 탭이 열린다', () => {
-  assert.deepEqual([...WORKBENCH_TABS], ['memo', 'transcript', 'digest'])
+test('근거 탭 id 는 작업대가 실제로 그리는 두 층과 같다 — 갈리면 조용히 빈 탭이 열린다', () => {
   const src = code(WORKBENCH)
-  for (const id of WORKBENCH_TABS) {
+  for (const id of EVIDENCE_TABS) {
     assert.ok(src.includes(`id: '${id}'`), `작업대에 ${id} 탭이 있어야 한다`)
   }
-  assert.ok(isWorkbenchTab('memo') && !isWorkbenchTab('nope'))
+  assert.ok(isEvidenceTab('memo') && !isEvidenceTab('digest') && !isEvidenceTab('nope'))
+})
+
+test('★ 정리는 탭이 아니라 카드 본문이다 — 탭에 넣으면 기본 탭을 못 정하고 실행 버튼이 갇힌다', () => {
+  const src = code(WORKBENCH)
+  assert.ok(
+    !src.includes("id: 'digest'"),
+    'MeetingWorkbench: 정리를 탭으로 되돌리지 않는다(§2-3-6 P-1)',
+  )
+  assert.ok(src.includes('<MeetingDigestPanel'), '정리 패널을 상설로 그려야 한다')
+  const digestAt = src.indexOf('<MeetingDigestPanel')
+  const evidenceAt = src.indexOf('<details')
+  assert.ok(evidenceAt > 0 && digestAt < evidenceAt, '정리가 근거보다 위에 온다 — 결론이 먼저다')
+})
+
+test('★ 근거는 접기 안에 있고, 접혀 있으면 그리지 않는다 — 열지도 않은 전사를 매번 내려받지 않는다', () => {
+  const src = code(WORKBENCH)
+  assert.ok(src.includes('<details'), '근거는 <details> 로 접는다 — 키보드·스크린리더 규약을 얻는다')
+  assert.ok(src.includes('evidenceOpen &&'), '접혀 있으면 본문을 렌더하지 않는다')
 })
 
 // ────────────────────── ① 열리는 탭 (사용자 증상 ②) ──────────────────────
@@ -100,9 +124,11 @@ test('녹음·붙여넣기 진입은 여전히 전사 탭을 지정한다 — �
 
 test('★ 작업대가 기본 탭을 SSOT 로 정한다 — 컴포넌트 안의 조건식은 실브라우저 말고 검증 수단이 없다(E-6)', () => {
   const src = code(WORKBENCH)
-  assert.ok(src.includes('pickDefaultWorkbenchTab('), '작업대가 판정 SSOT 를 불러야 한다')
+  assert.ok(src.includes('pickEvidenceTab('), '작업대가 판정 SSOT 를 불러야 한다')
   assert.ok(src.includes('defaultId={'), 'SegmentedTabs 에 실제로 넘겨야 한다')
   assert.ok(src.includes('hasBodyContent('), '본문 유무도 SSOT 로 판정해야 한다')
+  assert.ok(src.includes('evidenceOpenByDefault('), '펼침 여부도 SSOT 가 정한다')
+  assert.ok(src.includes('hasDigestContent('), '정리 유무도 SSOT 가 판정한다')
 })
 
 test('탭 부품이 defaultId 를 실제로 쓴다 — 받아 놓고 안 쓰면 없는 기능이다', () => {
@@ -115,6 +141,11 @@ test('노트 API 가 전사 유무를 준다 — 없으면 작업대가 판정�
   const src = code(NOTE_API)
   assert.ok(src.includes('hasTranscript'), 'GET 응답에 hasTranscript 가 있어야 한다')
   assert.ok(src.includes('meeting_transcript_segment'), '노트 쪽 전사 표(마이그 217)를 본다')
+  /*
+    근거가 접혀 있으면 전사 뷰가 안 뜬다 — 화면이 스스로 줄 수를 셀 수 없다.
+    서버가 안 주면 정리 진행 문구가 「회의 내용을 읽고 있어요」로 주저앉는다(v0.7.686 과 같은 결함).
+  */
+  assert.ok(src.includes('transcriptSegments'), 'GET 응답에 줄 수도 있어야 한다')
 })
 
 // ────────────────────── ② 제목 한 벌 (사용자 증상 ①) ──────────────────────

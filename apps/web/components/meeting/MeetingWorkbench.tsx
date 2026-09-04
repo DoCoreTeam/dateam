@@ -7,10 +7,19 @@
  * 사용이 불편할 거 같으니 같은 플랫폼을 공유해서 여기서도 바로 작성할 수 있음 좋겠는데,
  * 그리고 더불어서 작성한 회의노트와 녹음된 회의 내용을 별도로 두고 전체적으로 정리"*.
  *
- * 그래서 층을 셋으로 나눠 탭으로 세운다 — 섞지 않고, 마지막에 합친다.
- *   작성      = 사람이 쓴 것 (meeting_notes.body_html)
- *   녹음·전사 = 기계가 받아적은 것 (meeting_transcript_segment)
- *   정리      = 둘을 함께 읽은 결과 (meeting_note_digest)
+ * ## 층위 (2026-09-05 재구성)
+ *
+ * 사용자 지적: *"결국 우리가 봐야되는건 정리된 내용일텐데 … 정리가 가장 먼저 보여야 하는거
+ * 아냐? 그리고 그러다 보니깐 이런식으로 동일 레벨의 탭으로 있는게 이상한데"*.
+ *
+ *   정리      = 그 둘을 읽어서 만든 것 (meeting_note_digest)  → **카드 본문 · 항상 보임**
+ *   ─ 근거 ────────────────────────────────────────────────  → 접기
+ *      작성      = 사람이 쓴 것 (meeting_notes.body_html)      ┐ 진짜 형제 —
+ *      녹음·전사 = 기계가 받아적은 것 (transcript_segment)     ┘ 여기만 탭이다
+ *
+ * 왜 탭에서 뺐는지는 `lib/meeting/workbench-tab.ts` 머리글에 있다(짧게: 자식을 형제 자리에
+ * 세우면 기본 탭을 못 정하고, 상태를 표시할 자리가 없고, 만드는 버튼이 탭 안에 갇힌다 —
+ * 셋 다 실제로 깨져 있었다). **새 내비게이션 장치를 만들지 않는다** — 탭은 그대로 두고 둘로 줄였다.
  *
  * **두 셸이 이 부품 하나를 그대로 쓴다** — `/meeting-notes/{id}` 와 `/crm/meetings/{id}`.
  * 가운데가 같아야 "같은 플랫폼을 공유"가 성립한다.
@@ -18,7 +27,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { NotebookPen, Mic, Sparkles, Check, Loader2, CircleAlert } from 'lucide-react'
+import { NotebookPen, Mic, ChevronRight, Check, Loader2, CircleAlert } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
@@ -28,7 +37,12 @@ import MeetingDigestPanel from './MeetingDigestPanel'
 import NoteVisibilitySwitch from './NoteVisibilitySwitch'
 import RecordingPanel from './RecordingPanel'
 import { formatKstTime } from '@/lib/datetime/kst'
-import { hasBodyContent, pickDefaultWorkbenchTab } from '@/lib/meeting/workbench-tab'
+import {
+  hasBodyContent, pickEvidenceTab, evidenceOpenByDefault, isEvidenceTab,
+} from '@/lib/meeting/workbench-tab'
+import { hasDigestContent } from '@/lib/meeting/legacy-digest'
+import { plainTextLength } from '@/lib/meeting/memo-mode'
+import { EVIDENCE_LABEL, MEMO_LABEL, TRANSCRIPT_LABEL, digestMaterialLine } from '@/lib/terms'
 import type { NoteVisibility } from '@/lib/meeting/note-visibility'
 import type { TranscriptSegment } from '@/lib/meeting/transcript'
 import styles from './workbench.module.css'
@@ -61,10 +75,22 @@ interface NoteState {
   bodyHtml: string
   canEdit: boolean
   visibility: NoteVisibility
-  /** 사람이 쓴 본문이 있나 — 처음 열 탭을 정한다 */
+  /** 사람이 쓴 본문이 있나 — 근거를 펼쳤을 때 어느 쪽을 열지 정한다 */
   hasBody: boolean
   /** 기계가 받아적은 전사가 있나 — 같은 판정에 쓴다 */
   hasTranscript: boolean
+  /** 읽을 정리가 있나 — 근거를 **접은 채로 열지** 정한다 */
+  hasDigest: boolean
+  /**
+   * 재료의 크기 — **서버가 잰 값.**
+   *
+   * 예전엔 탭이 떠 있어야 채워지는 값(`memoChars`·`segCount`)만 있었다. 그런데 이제
+   * 근거는 접혀 있는 것이 기본이라 그 값들은 **대개 0 이다.** 0 인 채로 정리 패널에 넘기면
+   * 진행 문구가 「회의 내용을 읽고 있어요」로 주저앉고(v0.7.686 과 같은 결함), 근거 줄도
+   * 무엇이 들었는지 못 밝힌다. 그래서 열려 있든 접혀 있든 답할 수 있는 서버 값을 함께 쥔다.
+   */
+  bodyChars: number
+  transcriptSegments: number
 }
 
 const SAVE_ICON: Record<SaveState, ReactNode> = {
@@ -92,12 +118,18 @@ export default function MeetingWorkbench({
 
   const [saveState, setSaveState] = useState<SaveState>('clean')
   const [savedAt, setSavedAt] = useState<number | null>(null)
-  const [memoChars, setMemoChars] = useState(0)
+  /**
+   * 편집기가 세는 글자 수. **`null` 은 「아직 안 세어 봤다」**이지 0 자가 아니다 —
+   * 근거가 접혀 있으면 편집기가 없어 영원히 `null` 이고, 그때는 서버 값을 쓴다.
+   * 0 으로 초기화하면 「0자」와 「모름」이 같은 값이 되어 구분할 수 없다.
+   */
+  const [memoChars, setMemoChars] = useState<number | null>(null)
 
   /** 전사가 새로 생기면 올린다 — 전사 탭이 다시 읽는다 */
   const [transcriptKey, setTranscriptKey] = useState(0)
   const [segCount, setSegCount] = useState<number | null>(null)
-  const [digested, setDigested] = useState(false)
+  /** 근거를 펼쳤나. `null` 은 아직 노트를 못 읽어 정할 수 없는 상태다 */
+  const [evidenceOpen, setEvidenceOpen] = useState<boolean | null>(null)
   /** 정리의 근거를 누르면 전사 탭으로 옮겨 그 줄을 비춘다 */
   const [highlight, setHighlight] = useState<string[]>([])
 
@@ -111,12 +143,17 @@ export default function MeetingWorkbench({
   const onSegments = useCallback((segs: TranscriptSegment[]) => setSegCount(segs.length), [])
 
   /**
-   * 근거를 누르면 전사 탭으로 간다.
+   * 근거를 누르면 **근거를 펼치고** 전사 탭으로 간다.
+   *
+   * 펼치는 것이 먼저다 — 접힌 상태에서는 전사 목록이 아예 안 그려져 있어(아래 `evidenceOpen &&`)
+   * 탭만 바꾸면 스크롤할 대상이 없다.
+   *
    * 탭 상태는 URL 이 쥔다(§2-6 "URL이 진실") — 로컬 state 로 옮기면 새로고침에서
    * 원래 탭으로 돌아가 근거가 사라진다.
    */
   const onEvidence = useCallback((ids: string[]) => {
     setHighlight(ids)
+    setEvidenceOpen(true)
     const url = new URL(window.location.href)
     url.searchParams.set('wb', 'transcript')
     /**
@@ -139,14 +176,35 @@ export default function MeetingWorkbench({
       const res = await fetch(`/api/meeting-notes/${noteId}`)
       const body = await res.json()
       if (!res.ok) { setLoadError(body?.error ?? '회의 기록을 불러오지 못했습니다.'); return }
+      const material = {
+        // plain 으로 잰다 — Tiptap 은 빈 본문에도 <p></p> 를 남긴다(workbench-tab.ts 주석)
+        hasBody: hasBodyContent(body.bodyPlain),
+        hasTranscript: Boolean(body.hasTranscript),
+        hasDigest: hasDigestContent(body.summary, body.decisions),
+      }
       setNote({
         bodyHtml: body.bodyHtml ?? '',
         canEdit: Boolean(body.canEdit),
         visibility: body.visibility === 'crm' ? 'crm' : 'private',
-        // plain 으로 잰다 — Tiptap 은 빈 본문에도 <p></p> 를 남긴다(workbench-tab.ts 주석)
-        hasBody: hasBodyContent(body.bodyPlain),
-        hasTranscript: Boolean(body.hasTranscript),
+        ...material,
+        /*
+          편집기와 **같은 함수로** 센다. 서버의 `bodyPlain` 은 `htmlToPlain` 이 만든 값이라
+          줄바꿈·글머리표가 더 붙어 30자쯤 더 세어졌다 — 접힘 「218자」가 펼치면 「188자」로
+          튀어 사용자가 어느 쪽을 믿을지 모르게 됐다(실측). 세는 법이 하나여야 안 튄다.
+        */
+        bodyChars: plainTextLength(String(body.bodyHtml ?? '')),
+        transcriptSegments: Number(body.transcriptSegments ?? 0),
       })
+      /*
+        접힌 채로 열까 펼친 채로 열까 — **한 번만 정한다.**
+        사용자가 손으로 접었는데 다시 불러오면서 되펴 버리면 그건 화면이 사용자를 이긴 것이다.
+
+        주소에 `?wb=memo|transcript` 가 붙어 있으면 그 자체가 「근거를 보러 왔다」는 뜻이라
+        기본값을 이긴다(진입 링크 `MeetingIntakeBox` 가 그 둘만 쓴다). 없어진 `?wb=digest`
+        같은 옛 주소는 여기서 조용히 걸러진다 — 정리는 어차피 늘 보이므로 접은 채로 열면 된다.
+      */
+      const wb = new URL(window.location.href).searchParams.get('wb')
+      setEvidenceOpen((cur) => cur ?? (isEvidenceTab(wb) || evidenceOpenByDefault(material)))
     } catch {
       setLoadError('회의 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }
@@ -171,6 +229,10 @@ export default function MeetingWorkbench({
     )
   }
   const canEdit = note.canEdit
+  /* 편집기가 세고 있으면 그 값이 맞다(방금 지운 글자까지 반영). 없으면 서버가 잰 값 */
+  const shownMemoChars = memoChars ?? note.bodyChars
+  const shownSegCount = segCount ?? note.transcriptSegments
+  const materialLine = digestMaterialLine(shownMemoChars, shownSegCount)
 
   return (
     <section className="card" style={{ padding: 'var(--space-5)' }}>
@@ -186,7 +248,7 @@ export default function MeetingWorkbench({
         </div>
       </div>
 
-      {/* 녹음은 탭 위에 둔다 — 회의 중에 여는 화면이고 그때 필요한 건 녹음 버튼뿐이다 */}
+      {/* 녹음은 맨 위에 둔다 — 회의 중에 여는 화면이고 그때 필요한 건 녹음 버튼뿐이다 */}
       <div className={styles.recordRow}>
         {/**
           * 녹음은 **주인만.** 남의 회의노트에서도 버튼이 눌리던 것을 막는다(실측 v0.7.593).
@@ -198,64 +260,86 @@ export default function MeetingWorkbench({
         )}
       </div>
 
-      <SegmentedTabs
-        ariaLabel="회의 기록 보기"
-        param="wb"
-        /**
-         * 주소에 `?wb=` 가 없으면 **내용이 있는 층**을 연다.
-         * 판정은 SSOT 가 한다 — 여기서 조건식을 쓰면 실브라우저 말고는 검증할 수단이 없다(E-6).
-         */
-        defaultId={pickDefaultWorkbenchTab({ hasBody: note.hasBody, hasTranscript: note.hasTranscript })}
-        tabs={[
-          {
-            id: 'memo',
-            label: '작성',
-            sub: memoChars > 0 ? `${memoChars.toLocaleString()}자` : undefined,
-            icon: <NotebookPen size={15} />,
-            content: (
-              <MeetingMemoEditor
-                noteId={noteId}
-                initialHtml={note.bodyHtml}
-                canEdit={canEdit}
-                onStateChange={onSaveState}
-                onLengthChange={setMemoChars}
-              />
-            ),
-          },
-          {
-            id: 'transcript',
-            label: '녹음·전사',
-            sub: segCount !== null && segCount > 0 ? `${segCount.toLocaleString()}줄` : undefined,
-            icon: <Mic size={15} />,
-            content: (
-              <MeetingTranscriptView
-                noteId={noteId}
-                canEdit={canEdit}
-                reloadKey={transcriptKey}
-                highlightIds={highlight}
-                onLoaded={onSegments}
-              />
-            ),
-          },
-          {
-            id: 'digest',
-            label: '정리',
-            sub: digested ? '방금' : undefined,
-            icon: <Sparkles size={15} />,
-            content: (
-              <MeetingDigestPanel
-                noteId={noteId}
-                canEdit={canEdit}
-                /* 도는 동안 «무엇을 읽는 중인지» 말하기 위해 — 탭 라벨과 같은 값을 넘긴다 */
-                memoChars={memoChars}
-                segmentCount={segCount ?? 0}
-                onEvidence={onEvidence}
-                onDigested={() => { setDigested(true); onDigested?.() }}
-              />
-            ),
-          },
-        ]}
+      {/*
+        정리 — **이 화면에 온 이유.** 탭 뒤에 두지 않는다.
+        재료 크기는 서버 값으로도 답할 수 있게 넘긴다(근거가 접혀 있어도 진행 문구가 정확하도록).
+      */}
+      <MeetingDigestPanel
+        noteId={noteId}
+        canEdit={canEdit}
+        memoChars={shownMemoChars}
+        segmentCount={shownSegCount}
+        onEvidence={onEvidence}
+        onDigested={() => { onDigested?.() }}
       />
+
+      {/*
+        근거 — 접기. 「그 말이 어디서 나왔나」를 확인하는 자리다.
+        `<details>` 를 쓰는 이유: 열고 닫는 키보드·스크린리더 규약이 브라우저에 이미 있다.
+        자작 토글은 그것을 다시 만들어야 하고, 대개 빠뜨린다.
+      */}
+      <details
+        className={styles.evidence}
+        open={evidenceOpen ?? false}
+        onToggle={(e) => setEvidenceOpen(e.currentTarget.open)}
+      >
+        <summary className={styles.evidenceHead}>
+          <ChevronRight size={15} className={styles.evidenceChevron} aria-hidden />
+          <span className={styles.evidenceLabel}>{EVIDENCE_LABEL}</span>
+          {/* 무엇이 들어 있는지 — 펼치기 전에 밝힌다. 재료가 없으면 부를 문장도 없다 */}
+          {materialLine && <span className={styles.evidenceSub}>{materialLine}</span>}
+        </summary>
+
+        {/*
+          접혀 있으면 **그리지 않는다.** `<details>` 는 닫아도 자식을 DOM 에 두므로,
+          그냥 두면 열지도 않은 전사를 매번 내려받고 편집기가 0 크기로 뜬다.
+        */}
+        {evidenceOpen && (
+          <div className={styles.evidenceBody}>
+            <SegmentedTabs
+              ariaLabel={`${EVIDENCE_LABEL} 보기`}
+              param="wb"
+              /**
+               * 주소에 `?wb=` 가 없으면 **내용이 있는 층**을 연다.
+               * 판정은 SSOT 가 한다 — 여기서 조건식을 쓰면 실브라우저 말고는 검증할 수단이 없다(E-6).
+               */
+              defaultId={pickEvidenceTab({ hasBody: note.hasBody, hasTranscript: note.hasTranscript })}
+              tabs={[
+                {
+                  id: 'memo',
+                  label: MEMO_LABEL,
+                  sub: shownMemoChars > 0 ? `${shownMemoChars.toLocaleString()}자` : undefined,
+                  icon: <NotebookPen size={15} />,
+                  content: (
+                    <MeetingMemoEditor
+                      noteId={noteId}
+                      initialHtml={note.bodyHtml}
+                      canEdit={canEdit}
+                      onStateChange={onSaveState}
+                      onLengthChange={setMemoChars}
+                    />
+                  ),
+                },
+                {
+                  id: 'transcript',
+                  label: TRANSCRIPT_LABEL,
+                  sub: shownSegCount > 0 ? `${shownSegCount.toLocaleString()}줄` : undefined,
+                  icon: <Mic size={15} />,
+                  content: (
+                    <MeetingTranscriptView
+                      noteId={noteId}
+                      canEdit={canEdit}
+                      reloadKey={transcriptKey}
+                      highlightIds={highlight}
+                      onLoaded={onSegments}
+                    />
+                  ),
+                },
+              ]}
+            />
+          </div>
+        )}
+      </details>
     </section>
   )
 }

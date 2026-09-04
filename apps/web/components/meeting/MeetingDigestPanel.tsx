@@ -20,7 +20,10 @@ import InlineError from '@/components/ui/InlineError'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { FACT_ORIGIN_LABEL, type FactOrigin } from '@/lib/meeting/digest-prompt'
 import { digestProgress } from '@/lib/meeting/digest-progress'
-import { progress, ACTION } from '@/lib/terms'
+import {
+  progress, ACTION,
+  DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_RERUN_LABEL, DIGEST_EMPTY_TITLE, digestMaterialLine, MEMO_LABEL,
+} from '@/lib/terms'
 import MeetingExportModal from '@/app/(member)/meeting-notes/MeetingExportModal'
 import type { DigestResult, DigestSources } from '@/lib/meeting/digest'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
@@ -100,9 +103,9 @@ export default function MeetingDigestPanel({
       const empty = (body.digest?.agenda ?? []).length === 0
       setNotice(
         empty
-          ? '확실한 내용을 못 찾았어요. 메모가 짧거나 대화가 분명하지 않으면 비워 둡니다.'
+          ? `확실한 내용을 못 찾았어요. ${MEMO_LABEL}이 짧거나 대화가 분명하지 않으면 비워 둡니다.`
           : [
-              body.legacy ? '녹음 없이 메모만으로 정리했어요.' : '메모와 녹음을 함께 읽었어요.',
+              body.legacy ? `녹음 없이 ${MEMO_LABEL}만으로 정리했어요.` : `${MEMO_LABEL}과 녹음을 함께 읽었어요.`,
               body.notice,
             ].filter(Boolean).join(' '),
       )
@@ -128,7 +131,7 @@ export default function MeetingDigestPanel({
 
   const runButton = canEdit ? (
     <NbButton onClick={() => void run()} disabled={running}>
-      <Sparkles size={16} /> {running ? progress('정리') : latest ? '다시 정리하기' : '전체 정리하기'}
+      <Sparkles size={16} /> {running ? progress(DIGEST_LABEL) : latest ? DIGEST_RERUN_LABEL : DIGEST_RUN_LABEL}
     </NbButton>
   ) : null
 
@@ -171,9 +174,9 @@ export default function MeetingDigestPanel({
 
       {!latest ? (
         <EmptyState
-          title="아직 정리하지 않았어요"
+          title={DIGEST_EMPTY_TITLE}
           description={canEdit
-            ? '누르면 메모와 받아적은 내용을 함께 읽어 안건별로 정리해 드려요. 어디서 나온 사실인지도 함께 표시됩니다.'
+            ? `누르면 ${MEMO_LABEL}과 받아적은 내용을 함께 읽어 안건별로 정리해 드려요. 어디서 나온 사실인지도 함께 표시됩니다.`
             : '작성한 사람이 정리를 실행하면 여기에 나타납니다.'}
           icon={<Sparkles size={28} />}
           /*
@@ -189,8 +192,8 @@ export default function MeetingDigestPanel({
               <span className={styles.stamp}>{formatKstDateTimeShort(current!.createdAt)} 정리</span>
               {current!.sources && (
                 <span className={styles.sources}>
-                  메모 {current!.sources.memoChars.toLocaleString()}자
-                  {current!.sources.transcriptSegments > 0 && ` · 녹음 ${current!.sources.transcriptSegments.toLocaleString()}줄`}
+                  {/* 무엇을 읽었나 — 말은 용어집이 정한다(§0-2). 배지·근거 줄과 같은 말을 써야 한다 */}
+                  {digestMaterialLine(current!.sources.memoChars, current!.sources.transcriptSegments)}
                   {current!.sources.mode === 'map-reduce' && ` · 구간 ${current!.sources.partIdxs.length}개로 나눠 읽음`}
                 </span>
               )}
@@ -220,7 +223,7 @@ export default function MeetingDigestPanel({
           {current!.digest.conflicts.length > 0 && (
             <section className={styles.conflicts} aria-labelledby="mw-conflict-h">
               <h3 id="mw-conflict-h" className={styles.conflictHead}>
-                <TriangleAlert size={14} aria-hidden /> 메모와 녹음이 다르게 말한 곳 {current!.digest.conflicts.length}건
+                <TriangleAlert size={14} aria-hidden /> {MEMO_LABEL}과 녹음이 다르게 말한 곳 {current!.digest.conflicts.length}건
               </h3>
               <ul className={styles.conflictList}>
                 {current!.digest.conflicts.map((c, i) => (

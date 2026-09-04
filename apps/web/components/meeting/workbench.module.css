@@ -213,3 +213,36 @@
 }
 .transcriptCount { font-size: var(--fs-xs); color: var(--text-muted); }
 .transcriptTools { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* ── 근거 접기 ────────────────────────────────────────────
+   정리는 카드 본문에 상설이고, 원문 둘(작성·전사)은 이 접기 안에서 고른다.
+   `<details>` 를 쓰는 이유: 열고 닫는 키보드·스크린리더 규약이 브라우저에 이미 있다. */
+.evidence {
+  margin-top: var(--space-5);
+  border-top: var(--hairline) solid var(--border-light);
+  padding-top: var(--space-3);
+}
+
+.evidenceHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  list-style: none;              /* 브라우저 기본 삼각형 제거 — 우리 셰브런을 쓴다 */
+  min-height: var(--control-h);  /* 터치 영역(§2-3-1 (3)) */
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.evidenceHead::-webkit-details-marker { display: none; }
+.evidenceHead:hover { color: var(--brand); }
+
+/* 펼치면 셰브런이 아래를 가리킨다 — 지금 상태를 모양으로 알린다 */
+.evidenceChevron { transition: transform var(--duration-fast, 150ms) ease; flex: none; }
+.evidence[open] .evidenceChevron { transform: rotate(90deg); }
+
+.evidenceLabel { font-weight: 700; color: var(--text); }
+
+/* 무엇이 들어 있는지 — 펼치기 전에 밝힌다 */
+.evidenceSub { font-size: var(--fs-xs); color: var(--text-faint); }
+
+.evidenceBody { margin-top: var(--space-3); }

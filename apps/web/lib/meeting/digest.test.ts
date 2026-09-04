@@ -13,6 +13,7 @@ import {
   planDigest, withIdMarkers, condensedToTranscript, parseCondensedFacts,
   describeSources, needsLegacySummary, isEmptyDigest, DIGEST_SINGLE_PASS_MAX_CHARS, EMPTY_DIGEST } from './digest.ts'
 import { buildMeetingDigestPrompt, buildPartCondensePrompt, FACT_ORIGIN_LABEL } from './digest-prompt.ts'
+import { FACT_ORIGIN } from '../terms/digest.ts'
 import type { TranscriptSegment } from './transcript.ts'
 
 function seg(over: Partial<TranscriptSegment> = {}): TranscriptSegment {
@@ -255,5 +256,6 @@ test('구간 압축도 숫자·고유명사 보존을 요구한다 — 여기서
 })
 
 test('출처 라벨은 상수에서 온다 — 화면이 문자열을 짓지 않는다(§2-5)', () => {
-  assert.deepEqual(FACT_ORIGIN_LABEL, { memo: '메모', transcript: '녹음', both: '둘 다' })
+  assert.deepEqual(FACT_ORIGIN_LABEL, FACT_ORIGIN)
+  assert.equal(FACT_ORIGIN_LABEL.memo, '작성', '탭 라벨과 배지가 같은 말을 써야 한다')
 })

@@ -14,6 +14,8 @@
  */
 
 /** 사실 한 줄이 어디서 나왔나 */
+import { FACT_ORIGIN } from '../terms/digest.ts'
+
 export type FactOrigin = 'memo' | 'transcript' | 'both'
 
 export const FACT_ORIGINS: FactOrigin[] = ['memo', 'transcript', 'both']
@@ -23,11 +25,13 @@ export function isFactOrigin(v: unknown): v is FactOrigin {
 }
 
 /** 화면에 쓰는 말 — 문자열을 화면에서 짓지 않는다(§2-5 용어 상수) */
-export const FACT_ORIGIN_LABEL: Record<FactOrigin, string> = {
-  memo: '메모',
-  transcript: '녹음',
-  both: '둘 다',
-}
+/**
+ * 사실이 어디서 나왔나 — **표시 전용**(프롬프트에는 안 들어간다).
+ *
+ * 값은 용어집이 정한다(`lib/terms/digest.ts`). 여기 다시 적으면 두 벌이 되고,
+ * 실제로 갈렸다 — 탭은 「작성」인데 배지만 「메모」라 사용자가 다른 것으로 읽었다.
+ */
+export const FACT_ORIGIN_LABEL: Record<FactOrigin, string> = FACT_ORIGIN
 
 export interface DigestInput {
   /** 사람이 쓴 메모(body_plain). 없으면 빈 문자열 */

@@ -19,6 +19,7 @@ import { htmlToPlain } from '../html-to-plain.ts'
 import { summarizeMeeting } from '../gemini-meeting.ts'
 import { listTranscriptSegments } from './transcript.ts'
 import { buildMeetingDigestPrompt, buildPartCondensePrompt } from './digest-prompt.ts'
+import { legacyDigestVersion, withLegacyFallback } from './legacy-digest.ts'
 import {
   planDigest, fullTranscriptForPrompt, parseDigestResult, parseCondensedFacts,
   condensedToTranscript, digestToPlainSummary, digestDecisionsToPlain, parseStoredDigest,
@@ -219,7 +220,13 @@ export interface DigestVersion {
   digest: DigestResult
 }
 
-/** 이력 — "이전 정리 보기". 되돌릴 수 있으면 사람이 부담 없이 다시 돌린다 */
+/**
+ * 이력 — "이전 정리 보기". 되돌릴 수 있으면 사람이 부담 없이 다시 돌린다.
+ *
+ * **표가 비면 옛 경로 산물을 메운다**(실측 16건). `meeting_notes.summary` 에만 정리가 든
+ * 회의가 있고, 그 회의는 목록에서는 요약이 보이는데 상세에서는 「아직 정리하지 않았어요」라고
+ * 말했다. 판정은 `legacy-digest.ts` 가 한다 — 여기서 조건식을 쓰면 검증 수단이 실브라우저뿐이다.
+ */
 export async function listMeetingDigests(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
@@ -231,11 +238,32 @@ export async function listMeetingDigests(
     .eq('note_id', noteId)
     .order('seq', { ascending: false })
 
-  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+  const versions = ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     seq: Number(r.seq),
     createdAt: String(r.created_at),
     model: (r.model as string | null) ?? null,
     sources: (r.sources as DigestSources | null) ?? null,
     digest: parseStoredDigest(r.agenda_json, String(r.decisions ?? '')),
   }))
+  if (versions.length > 0) return versions
+
+  /*
+    표가 비었을 때만 노트를 한 번 더 읽는다 — 정리본이 있는 회의(대부분이 될 것)는
+    쿼리가 늘지 않는다. 읽기 실패는 삼킨다: 옛 정리를 못 찾는 것은 「아직 안 함」과
+    같은 화면이라, 여기서 던지면 정상 동작하던 빈 상태까지 오류 상자로 바뀐다.
+  */
+  const { data: note } = await client
+    .from('meeting_notes')
+    .select('summary, decisions, updated_at')
+    .eq('id', noteId)
+    .maybeSingle()
+  if (!note) return versions
+
+  return withLegacyFallback(versions, () =>
+    legacyDigestVersion({
+      summary: note.summary as string | null,
+      decisions: note.decisions as string | null,
+      updatedAt: note.updated_at as string | null,
+    }),
+  )
 }

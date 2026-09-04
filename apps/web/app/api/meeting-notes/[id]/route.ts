@@ -46,6 +46,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
    * RLS 가 부모(회의노트) 권한을 그대로 따르므로 남의 노트에서는 0 이 나온다(마이그 217).
    */
   let hasTranscript = false
+  let transcriptSegments = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: partRows } = await (supabase.from('meeting_recording_part') as any)
     .select('id').eq('note_id', id)
@@ -54,7 +55,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { count } = await (supabase.from('meeting_transcript_segment') as any)
       .select('id', { count: 'exact', head: true }).in('part_id', partIds)
-    hasTranscript = (count ?? 0) > 0
+    transcriptSegments = count ?? 0
+    hasTranscript = transcriptSegments > 0
   }
 
   return NextResponse.json({
@@ -69,8 +71,13 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     decisions: data.decisions ?? '',
     attendees: Array.isArray(data.attendees) ? data.attendees : [],
     updatedAt: data.updated_at,
-    /** 작업대가 처음 열 탭을 정한다(§lib/meeting/workbench-tab.ts) */
+    /** 근거를 펼쳤을 때 어느 쪽을 열지 정한다(§lib/meeting/workbench-tab.ts) */
     hasTranscript,
+    /**
+     * 받아적은 줄 수 — 탭이 안 떠도 답할 수 있게 서버가 함께 준다.
+     * 근거가 접혀 있으면 전사 뷰가 마운트되지 않아 화면이 이 값을 스스로 셀 수 없다.
+     */
+    transcriptSegments,
     /** 읽을 수는 있어도 고칠 수는 없는 사람이 있다 — 화면이 편집기를 그릴지 여기로 정한다 */
     canEdit: data.user_id === user.id,
   })
