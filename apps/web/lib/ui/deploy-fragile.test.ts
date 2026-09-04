@@ -82,6 +82,67 @@ test('② external 로 남긴 패키지는 배포본 포함(outputFileTracingInc
 })
 
 /**
+ * ②-b 배포본 포함 glob 은 **패키지 실물 디렉터리까지** 내려가야 한다.
+ *
+ * 왜: pnpm 은 `.pnpm/<패키지>@<버전>/node_modules/` 아래에
+ * **패키지 실물과 의존성 심링크를 나란히** 둔다.
+ *   `@sparticuz+chromium@149.0.0/node_modules/` = `@sparticuz/`(실물) + `tar-fs`(심링크)
+ *   `puppeteer-core@25.2.0/node_modules/`       = `puppeteer-core/`(실물) + `ws` 외 4개(심링크)
+ *
+ * 그래서 그 한 단계 위를 통째로 훑는 glob 은 **심링크를 가로질러** 파일을 목록에 넣고,
+ * Vercel 이 λ 안에 그 경로를 만들려다 죽는다.
+ *
+ * 실측 2026-09-01~04 — 프로덕션 배포 **4연속 ERROR**:
+ *   `ENOENT: mkdir '/tmp/lambda-vhs-…/.pnpm/@sparticuz+chromium@149.0.0/node_modules/tar-fs'`
+ * 추적 1,901건 중 **529건이 심링크 경유**였다. 좁힌 뒤엔 0건.
+ *
+ * **빌드 로그는 끝까지 초록이었다** — 「Compiled successfully」·「305/305」·「Build Completed」.
+ * 실패는 그 뒤 λ 패키징(`direct:build`)이라 빌드 로그만 보면 성공으로 읽힌다.
+ * 그 나흘 동안 v0.7.660~686 이 프로덕션에 **하나도** 못 올라갔다 —
+ * 바로 위 ①②가 고친 주간보고 저장까지 포함해서. 그래서 이 가드가 ②와 짝이다.
+ */
+test('②-b 배포본 포함 glob 은 pnpm 심링크를 가로지르지 않는다 — 패키지 실물까지 내려간다', () => {
+  // `.pnpm/…` 을 지목하는 glob 을 **줄 단위로** 모은다. 두 가지를 동시에 피하려는 것이다.
+  //
+  //   ⓐ `stripComments()` 를 쓰면 **가드가 눈이 먼다** — glob 의 `/**/` 를 블록 주석으로 먹어
+  //      `chromium/**/*` 가 `chromium*` 이 되고, 넓은 glob 이 목록에서 사라져 조용히 통과한다.
+  //   ⓑ 여러 줄에 걸쳐 찾으면 서로 다른 줄의 따옴표가 이어져 한 덩어리로 잡히고,
+  //      정작 넓은 glob 이 그 덩어리에 묻혀 빠져나간다.
+  //
+  // 둘 다 **만든 뒤 일부러 깨뜨려 보고서야** 드러났다 — 그때까지 이 가드는 초록이면서 아무것도 안 봤다.
+  // 주석 줄은 여기서 걸러지므로, 주석에 적은 사고 사례 경로가 가드를 빨갛게 만들지도 않는다.
+  const globs = read('next.config.js')
+    .split('\n')
+    .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+    .flatMap((line) => [...line.matchAll(/['"]([^'"]*\.pnpm\/[^'"]*)['"]/g)].map((m) => m[1]))
+  if (globs.length === 0) return // .pnpm 을 직접 지목하지 않으면 이 위험 자체가 없다
+
+  const offenders = globs.filter((g) => {
+    // `.pnpm/<무언가>/` 다음에 곧바로 와일드카드가 오면 그 아래 심링크까지 훑는다.
+    // 안전한 모양은 `.pnpm/<패키지>@*/node_modules/<패키지 실물>/…` 처럼
+    // **node_modules 다음에 이름이 한 번 더** 나오는 것이다.
+    const after = g.split('.pnpm/')[1] ?? ''
+    const m = after.match(/^[^/]+\/(.*)$/) // `<패키지>@<버전>/` 이후
+    if (!m) return true // `.pnpm/**/*` 처럼 더 위를 훑는 것
+    const rest = m[1]
+    if (!rest.startsWith('node_modules/')) return true
+    const inner = rest.slice('node_modules/'.length)
+    // node_modules/ 바로 뒤가 와일드카드면 형제 심링크가 전부 걸린다
+    return inner.startsWith('*') || inner === ''
+  })
+
+  assert.deepEqual(
+    offenders, [],
+    '배포본 포함 glob 이 pnpm 심링크를 가로지릅니다:\n' +
+    offenders.map((g) => `  · ${g}`).join('\n') + '\n' +
+    '  → `.pnpm/<패키지>@*/node_modules/<패키지 실물>/**/*` 처럼 **실물 디렉터리까지** 내려가세요.\n' +
+    '  → 넓게 훑으면 형제 심링크(tar-fs·ws·chromium-bidi…)가 목록에 들어가고,\n' +
+    '     Vercel λ 패키징이 ENOENT 로 **배포 자체를 죽입니다**(2026-09-01~04 4연속 실패).\n' +
+    '  → 심링크 안쪽 의존성은 기본 추적이 실물 경로로 이미 잡습니다 — 넓힐 이유가 없습니다.',
+  )
+})
+
+/**
  * ③ **화면이 결과를 기다리는 서버 액션**은 redirect() 로 이탈하지 않는다.
  *
  * 왜: 서버 액션이 redirect 하면 Next 가 응답을 되돌려주지 못한다

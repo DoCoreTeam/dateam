@@ -51,19 +51,23 @@
 | | 규칙 |
 |---|---|
 | **B-1** | **번들 밖(external) 지정은 바이너리를 다루는 패키지만.** `serverComponentsExternalPackages` 는 「번들하지 마라」일 뿐 **「배포본에 넣어라」가 아니다.** 순수 JS 는 올리지 않는다 |
-| **B-2** | 정말 올려야 하면 **`outputFileTracingIncludes` 에 함께** 적어 배포본 포함을 강제한다 — 추적만 믿으면 pnpm 심링크 구조에서 누락된다 |
+| **B-2** | 정말 올려야 하면 **`outputFileTracingIncludes` 에 함께** 적어 배포본 포함을 강제한다 — 기본 추적은 `require()` 그래프만 따라가므로 **경로로 읽는 바이너리**는 못 본다(실측: 선언을 빼고 빌드하면 `@sparticuz/chromium` 의 `bin/*.br` 이 **0개**가 되고 PDF 내보내기가 죽는다) |
+| **B-2-b** | **그 glob 은 «패키지 실물 디렉터리»까지 내려간다.** pnpm 은 `.pnpm/<패키지>@<버전>/node_modules/` 아래에 **실물과 의존성 심링크를 나란히** 두므로, 한 단계 위를 훑는 `<패키지>@*/**/*` 는 심링크를 가로질러 파일을 목록에 넣고 **Vercel λ 패키징이 `ENOENT` 로 배포 자체를 죽인다.** 심링크 안쪽 의존성(`tar-fs`·`ws`·`chromium-bidi`)은 기본 추적이 실물 경로로 이미 잡으므로 넓힐 이유가 없다 |
 | **B-3** | **클라이언트가 결과를 기다리는 서버 액션은 `redirect()` 로 이탈하지 않는다.** redirect 하면 Next 가 응답을 못 돌려주고(`failed to forward action response`) 화면이 `undefined` 를 받아 **진행 표시가 영원히 안 꺼진다.** 실패는 `{ ok, error, reason }` 처럼 **값으로** 돌려준다 (`<form action={…}>` 처럼 **이동이 곧 결과**인 것은 예외) |
 | **B-4** | **사용자를 막는 실패는 반드시 셋을 갖춘다** — ① 시간 제한 ② try/catch ③ `finally` 로 진행 표시 되돌리기. 그리고 **쓴 글은 실패해도 지우지 않는다**(성공했을 때만 임시저장을 비운다) |
 | **B-5** | **그 실패를 로그에 남긴다**(`recordSystemEvent`). 화면에도 로그에도 안 남으면 2주가 지나도 아무도 모른다 |
 | **B-6** | **라우트 그룹마다 `error.tsx`** 를 둔다(`components/ui/RouteError` 를 감싼다). 없으면 화면 하나가 깨질 때 앱 전체가 최상위 오류 화면으로 떨어진다 |
 
+> **⚠️ 「빌드 성공」은 「배포 성공」이 아니다.** Vercel 로그가 `Compiled successfully` · `Generating static pages (305/305)` · `Build Completed` 까지 초록이어도 그 **다음 단계**(λ 패키징 `direct:build`)에서 죽을 수 있고, 그 실패는 **빌드 로그에 한 줄도 안 남는다** — 로그는 `Deploying outputs…` 에서 그냥 끊긴다.
+> 판정은 배포의 `readyState` 로 한다: `/v6/deployments?target=production` 의 `state`, 원인은 `/v13/deployments/{id}` 의 `errorMessage`·`errorStep`.
+> (실측 2026-09-01~04: **4연속 ERROR** 로 프로덕션이 나흘간 8/31 상태에 멈춰 있었고 **아무도 몰랐다** — 그 사이 v0.7.660~686 이 하나도 반영되지 않았다. 「배포했다」는 **push 했다**는 뜻이지 **떴다**는 뜻이 아니다.)
 - **가드**: `lib/ui/deploy-fragile.test.ts` 가 B-1~B-6 을 전부 검사한다(만든 뒤 **일부러 깨서** 6개 모두 확인했다).
 - **검증은 배포본으로 한다.** 이 부류는 dev 서버에서 절대 재현되지 않는다 —
   `NEXT_DIST_DIR=.next-<이름> … next build` 로 프로덕션 빌드를 내고,
   산출물에 `require("<패키지>")` 가 **남아 있는지**로 판정한다(남아 있으면 런타임 의존 = 사고 후보).
 
 ## 버전
-v0.7.686
+v0.7.687
 
 버전 변경 시 아래 **모든** 항목을 반드시 업데이트한다:
 

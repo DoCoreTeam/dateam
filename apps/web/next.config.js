@@ -9,6 +9,16 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
 ]
 
+// 서버리스 크로미움을 배포본에 싣는 경로.
+//
+// **패키지 실물 디렉터리까지 내려간 것이 핵심이다** — 한 단계 위(`.pnpm/<패키지>@<버전>/`)를
+// 통째로 훑으면 그 아래 나란히 있는 **의존성 심링크**까지 목록에 들어가고,
+// Vercel 이 λ 안에 그 경로를 만들려다 ENOENT 로 **배포 자체를 죽인다**.
+const SERVERLESS_CHROMIUM = [
+  '../../node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/**/*',
+  '../../node_modules/.pnpm/puppeteer-core@*/node_modules/puppeteer-core/**/*',
+]
+
 const nextConfig = {
   // dev 서버를 켠 채로 프로덕션 빌드를 검증할 수 있게 출력 경로를 열어 둔다.
   // (기본값은 그대로 '.next' — 환경변수를 안 주면 아무것도 달라지지 않는다)
@@ -31,12 +41,27 @@ const nextConfig = {
     serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
 
     // 위 external 패키지를 **배포본에 반드시 싣는다**(파일 추적 보강).
-    // @sparticuz/chromium 은 압축된 크로미움 바이너리를 런타임에 풀어 쓰므로 번들은 불가능하고,
-    // 추적만 믿으면 pnpm 심링크 구조에서 누락될 수 있다 — 그 누락이 이번 사고의 형태였다.
+    //
+    // 왜 추적만으로는 부족한가: Next 의 기본 추적은 `require()` 그래프를 따라간다.
+    // 그런데 @sparticuz/chromium 이 실제로 여는 것은 **경로로 읽는 압축 바이너리**라
+    // 어떤 require 에도 안 걸린다 — 실측: 이 선언을 빼고 빌드하면 `bin/*.br` 이 **0개**가 되고
+    // executablePath() 가 실패해 회의록 PDF·이미지 내보내기가 통째로 죽는다.
+    //
+    // ⚠️ glob 은 **패키지 실물 디렉터리까지 내려가서** 지목한다. `<pkg>@*/**/*` 로 훑으면 안 된다.
+    //    pnpm 은 `.pnpm/<pkg>@<ver>/node_modules/` 아래에 **패키지 실물과 의존성 심링크를 나란히** 둔다
+    //    (`@sparticuz+chromium@149.0.0/node_modules/` = `@sparticuz/`(실물) + `tar-fs`(심링크)).
+    //    넓은 glob 은 그 심링크를 가로질러 파일을 목록에 넣고, Vercel 이 λ 안에 그 경로를 만들려다
+    //    **ENOENT 로 배포 자체를 죽인다.**
+    //    (실측 2026-09-01~04: 프로덕션 배포 **4연속 ERROR** — `mkdir '/tmp/lambda-vhs-…/
+    //     .pnpm/@sparticuz+chromium@149.0.0/node_modules/tar-fs'`. 빌드 로그는 「Compiled successfully」
+    //     「305/305」까지 초록이고 실패는 그 뒤 λ 패키징 단계라 **빌드 로그만 보면 성공으로 읽힌다.**
+    //     그동안 v0.7.660~686 이 프로덕션에 하나도 못 올라갔다 — 위의 주간보고 수정까지 포함해서.)
+    //    심링크 안쪽 의존성(tar-fs·ws·chromium-bidi)은 기본 추적이 **실물 경로로 이미 잡는다**.
+    // 가드: lib/ui/deploy-fragile.test.ts ②-b 가 넓은 glob 을 차단한다.
     outputFileTracingIncludes: {
-      '/api/meeting-notes/[id]/export': ['../../node_modules/.pnpm/{puppeteer-core,@sparticuz+chromium}@*/**/*'],
-      '/api/admin/ai-chat/export-pdf': ['../../node_modules/.pnpm/{puppeteer-core,@sparticuz+chromium}@*/**/*'],
-      '/api/admin/ai-chat/analyze-export-pdf': ['../../node_modules/.pnpm/{puppeteer-core,@sparticuz+chromium}@*/**/*'],
+      '/api/meeting-notes/[id]/export': SERVERLESS_CHROMIUM,
+      '/api/admin/ai-chat/export-pdf': SERVERLESS_CHROMIUM,
+      '/api/admin/ai-chat/analyze-export-pdf': SERVERLESS_CHROMIUM,
     },
   },
   env: {
