@@ -36,9 +36,26 @@ const LIMIT = 200
 export interface AttendeeCandidates {
   people: { id: string; name: string; companyId: string | null; companyName: string | null; title: string | null }[]
   companies: { id: string; name: string }[]
+  /**
+   * 상한에 걸려 일부만 봤는가.
+   *
+   * **왜 밝혀야 하나**: 후보를 자르면 CRM 에 있는 사람이 「없는 사람」으로 판정된다.
+   * 그러면 같은 사람이 한 벌 더 생긴다 — 조용히 자르면 그 사고를 아무도 못 본다.
+   * (실측 2026-09-05: crm_person 210명인데 상한이 200이라 방금 만든 인물이 후보에서 빠졌다)
+   */
+  truncated: boolean
 }
 
-const EMPTY_ATTENDEE: AttendeeCandidates = { people: [], companies: [] }
+const EMPTY_ATTENDEE: AttendeeCandidates = { people: [], companies: [], truncated: false }
+
+/**
+ * 훑기용 상한.
+ *
+ * 훑기는 프롬프트가 아니라 **코드가** 대조하므로 토큰 제약이 없다. 반대로 여기서 자르면
+ * 판정이 틀린다 — 그래서 화면 검색(200)과 다른 값을 쓴다. 그래도 상한을 두는 이유는
+ * 무한정 읽으면 한 번의 화면 열기가 DB 를 통째로 훑기 때문이다. 자르면 `truncated` 로 말한다.
+ */
+export const SWEEP_CANDIDATE_LIMIT = 5000
 
 /**
  * 이름으로 후보를 좁혀 온다.
@@ -46,7 +63,7 @@ const EMPTY_ATTENDEE: AttendeeCandidates = { people: [], companies: [] }
  * `q` 를 주면 그것으로 거르고, 없으면 앞에서부터 `LIMIT` 만큼 — 화면이 타이핑에 맞춰 부른다.
  * 여기서도 실패가 호출부를 막지 않는다(`loadCrmCandidates` 와 같은 이유).
  */
-export async function loadAttendeeCandidates(q?: string): Promise<AttendeeCandidates> {
+export async function loadAttendeeCandidates(q?: string, limit: number = LIMIT): Promise<AttendeeCandidates> {
   try {
     const { resolveCrmWorkspaceId } = await import('../workspace.ts')
     const { getCrmDb } = await import('../db/client.ts')
@@ -60,9 +77,9 @@ export async function loadAttendeeCandidates(q?: string): Promise<AttendeeCandid
       db.crmPerson.findMany({
         where: personWhere,
         select: { id: true, name: true, title: true, companyId: true, company: { select: { name: true } } },
-        take: LIMIT,
+        take: limit,
       }),
-      db.crmCompany.findMany({ where: companyWhere, select: { id: true, name: true }, take: LIMIT }),
+      db.crmCompany.findMany({ where: companyWhere, select: { id: true, name: true }, take: limit }),
     ])
 
     return {
@@ -72,6 +89,8 @@ export async function loadAttendeeCandidates(q?: string): Promise<AttendeeCandid
           companyId: p.companyId, companyName: p.company?.name ?? null,
         })),
       companies: companies as { id: string; name: string }[],
+      // 딱 상한만큼 왔으면 더 있을 수 있다 — 「없다」와 「못 봤다」를 구분해 말한다
+      truncated: people.length >= limit || companies.length >= limit,
     }
   } catch (e) {
     console.error('[crm/candidates] 참석자 후보 조회 실패 — 잇기 없이 진행합니다:', e)
@@ -103,6 +122,7 @@ export async function loadAttendeePeopleByIds(ids: string[]): Promise<AttendeeCa
         companyId: p.companyId, companyName: p.company?.name ?? null,
       })),
       companies: [],
+      truncated: false,
     }
   } catch (e) {
     console.error('[crm/candidates] 이어 둔 인물 조회 실패:', e)

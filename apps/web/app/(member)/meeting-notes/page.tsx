@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { NotebookPen, Plus } from 'lucide-react'
+import { NotebookPen, Plus, Users } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import { listMeetingNotes, getMeetingDepartments } from './actions'
 import MeetingViewTabs from './MeetingViewTabs'
@@ -68,10 +68,17 @@ export default async function MeetingNotesPage({ searchParams }: { searchParams:
         title="회의노트"
         description="회의 기록을 정리하고 AI로 요약·업무 추출까지 한 번에"
         actions={
-          <Link href="/meeting-notes/new" className="btn-primary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44 }}>
-            <Plus size={16} /> 새 회의노트
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'nowrap' }}>
+            {/* 지난 회의에 적어 둔 이름을 영업 CRM 인물로 잇는 자리 — 안 만들면 옛 이름은 영영 글자로 남는다 */}
+            <Link href="/meeting-notes/attendees" className="btn-ghost"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44 }}>
+              <Users size={16} /> 지난 회의에서 사람 찾기
+            </Link>
+            <Link href="/meeting-notes/new" className="btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44 }}>
+              <Plus size={16} /> 새 회의노트
+            </Link>
+          </div>
         }
       />
 

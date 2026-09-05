@@ -9,6 +9,7 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { nameKey, matchByName, promptNames } from './name-match.ts'
 import type { Candidate } from './name-match.ts'
 
@@ -119,4 +120,37 @@ test('★ 병합이 "같다"고 본 이름을 연결도 같다고 본다', async
   for (const [a, b] of pairs) {
     assert.equal(nameKey(a), nameKey(b), `${a} 와 ${b} 의 판정이 병합과 다르다`)
   }
+})
+
+/* ── 후보 상한 (v0.7.691) ────────────────────────────────
+ *
+ * 실측 2026-09-05: crm_person 210명인데 훑기가 상한 200으로 후보를 읽어,
+ * 방금 만든 인물이 후보에서 빠졌다. 그러면 CRM 에 있는 사람이 「없는 사람」이 되고
+ * 같은 사람이 한 벌 더 생긴다 — 조용히 자르는 것이 사고의 형태다.
+ */
+
+test('★ 훑기 상한은 화면 검색 상한보다 넓다 — 자르면 있는 사람을 「없다」로 판정한다', async () => {
+  const src = await readFile(new URL('./candidates.ts', import.meta.url), 'utf8')
+  const { SWEEP_CANDIDATE_LIMIT } = await import('./candidates.ts')
+  const screenLimit = Number(/const LIMIT = (\d+)/.exec(src)?.[1])
+  assert.ok(Number.isFinite(screenLimit), '화면 검색 상한을 못 읽었다')
+  assert.ok(SWEEP_CANDIDATE_LIMIT > screenLimit,
+    `훑기 상한(${SWEEP_CANDIDATE_LIMIT})이 화면 검색 상한(${screenLimit}) 이하다`)
+})
+
+test('★ 잘랐으면 잘랐다고 말한다 — 조용히 자르면 같은 사람이 한 벌 더 생긴다', async () => {
+  const src = await readFile(new URL('./candidates.ts', import.meta.url), 'utf8')
+  assert.match(src, /truncated: people\.length >= limit \|\| companies\.length >= limit/,
+    '상한에 닿았는지를 호출부에 알려야 한다')
+
+  const view = await readFile(
+    new URL('../../../app/(member)/meeting-notes/attendee-actions.ts', import.meta.url), 'utf8')
+  // import 줄만 봐서는 안 된다 — 불러다 놓고 안 쓰면 상한이 그대로 200 이다
+  assert.match(view, /loadAttendeeCandidates\(undefined, SWEEP_CANDIDATE_LIMIT\)/,
+    '훑기가 넓은 상한을 **호출에서** 실제로 써야 한다')
+  assert.match(view, /candidatesTruncated: candidates\.truncated/, '잘림을 화면까지 전달해야 한다')
+
+  const screen = await readFile(
+    new URL('../../../app/(member)/meeting-notes/attendees/AttendeeSweepClient.tsx', import.meta.url), 'utf8')
+  assert.match(screen, /candidatesTruncated/, '화면이 그 사실을 실제로 말해야 한다')
 })
