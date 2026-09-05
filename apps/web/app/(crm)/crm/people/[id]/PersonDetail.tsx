@@ -16,6 +16,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import NbButton from '@/components/ui/nb/NbButton'
 import ContactLink from '@/components/ui/ContactLink'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import { useVerified } from '@/lib/crm/use-verified'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import Timeline from '@/components/ui/crm/Timeline'
@@ -190,6 +191,15 @@ export default function PersonDetail({ personId }: { personId: string }) {
           */}
           <RecordPanel title={ATTACHMENT.section}>
             <AttachmentPanel target="PERSON" targetId={personId} defaultKind="BUSINESS_CARD" />
+          </RecordPanel>
+
+          {/*
+            이 사람과 한 회의 — 회사 상세의 「이 회사의 미팅」과 같은 부품이다(§2-5).
+            예전엔 이 자리가 없어, 회의에서 나온 사람인데도 인물 화면엔 아무 흔적이 없었다.
+            자리는 관계(소속·딜) 다음 · 타임라인 앞 — 무엇과 이어졌나 다음에 무슨 일이 있었나다(§2-3-2 L-2).
+          */}
+          <RecordPanel title="이 사람과 한 회의">
+            <MeetingPanel scope={{ personId }} />
           </RecordPanel>
 
           <RecordPanel title="타임라인">

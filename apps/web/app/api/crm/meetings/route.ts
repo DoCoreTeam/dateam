@@ -29,6 +29,16 @@ export async function GET(req: NextRequest) {
      * 예전엔 상한 50 을 통째로 내려보내고 회사·딜 이름은 화면이 건당 다시 물었다(N+1).
      * 이제 커서·검색·상태가 붙고 이름은 서버가 함께 준다.
      */
+    /**
+     * `personId` 는 인물 상세의 「이 사람과 한 회의」다.
+     * 참석자가 JSON 배열이라 커서 목록(listMeetingsPage)의 where 와 모양이 달라
+     * noteId 와 같은 방식으로 예전 경로를 쓴다 — 패널은 최근 몇 건만 보면 된다.
+     */
+    const personId = sp.get('personId')
+    if (personId) {
+      return { items: await listMeetings(db, { personId, limit: 10 }) }
+    }
+
     const { cursor, limit, q } = readListQuery(req)
     return listMeetingsPage(db, {
       cursor, limit, q,

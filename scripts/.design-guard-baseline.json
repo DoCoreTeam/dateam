@@ -92,7 +92,6 @@
   "apps/web/app/(member)/lead-intake/IntakeActions.tsx::inlinecard": 1,
   "apps/web/app/(member)/lead-intake/LeadIntakeForm.tsx::inlinebutton": 4,
   "apps/web/app/(member)/lead-intake/LeadIntakeForm.tsx::inlinecard": 1,
-  "apps/web/app/(member)/meeting-notes/AttendeesEditor.tsx::inlinebutton": 2,
   "apps/web/app/(member)/meeting-notes/ExtractConfirmModal.tsx::inlinebutton": 1,
   "apps/web/app/(member)/meeting-notes/ExtractConfirmModal.tsx::inlinecard": 1,
   "apps/web/app/(member)/meeting-notes/MeetingDateView.tsx::inlinecard": 1,

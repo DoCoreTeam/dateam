@@ -35,6 +35,8 @@ interface Meeting {
 export interface MeetingPanelScope {
   dealId?: string
   companyId?: string
+  /** 인물 상세 — 「이 사람과 한 회의」. 참석자로 이어진 미팅만 본다 */
+  personId?: string
 }
 
 export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
@@ -44,7 +46,7 @@ export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
 
-  const { dealId, companyId } = scope
+  const { dealId, companyId, personId } = scope
 
   /**
    * **누르면 바로 작업대다.** 보던 딜·회사를 물려서 미팅을 만들고 곧장 그리로 간다.
@@ -70,7 +72,8 @@ export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
     setError(null)
     try {
       const sp = new URLSearchParams({ limit: '10' })
-      if (dealId) sp.set('dealId', dealId)
+      if (personId) sp.set('personId', personId)
+      else if (dealId) sp.set('dealId', dealId)
       else if (companyId) sp.set('companyId', companyId)
 
       const res = await fetch(`/api/crm/meetings?${sp}`)
@@ -82,7 +85,7 @@ export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
     } finally {
       setLoading(false)
     }
-  }, [dealId, companyId])
+  }, [dealId, companyId, personId])
 
   useEffect(() => { void load() }, [load])
 
@@ -90,6 +93,19 @@ export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
   if (error) return <ErrorState message={error} onRetry={() => void load()} />
 
   if (items.length === 0) {
+    /**
+     * 인물 화면에서는 여기서 미팅을 열지 않는다 — 사람만으로는 어느 회사·딜의 회의인지 정할 수 없다.
+     * 대신 **왜 비어 있는지**를 말해 준다. 「없다」와 「아직 안 이었다」는 다른 사실이다.
+     */
+    if (personId) {
+      return (
+        <EmptyState
+          title="이 사람과 한 회의가 아직 없어요"
+          description="회의노트 참석자에 이 사람을 이어 두면 여기에 쌓입니다."
+          icon={<Mic size={24} />}
+        />
+      )
+    }
     return (
       <EmptyState
         title="아직 기록된 미팅이 없어요"

@@ -58,6 +58,8 @@ export interface NoteRow {
   created_at: string
   attendees: string[] | null
   attendee_user_ids: string[] | null
+  /** CRM 인물과 이어 둔 외부 참석자(마이그 241) */
+  attendee_person_ids: string[] | null
   body_html: string | null
   body_plain: string | null
   transcript: string | null
@@ -67,7 +69,7 @@ export interface NoteRow {
 }
 
 const NOTE_COLUMNS =
-  'id, user_id, title, meeting_at, created_at, attendees, attendee_user_ids, ' +
+  'id, user_id, title, meeting_at, created_at, attendees, attendee_user_ids, attendee_person_ids, ' +
   'body_html, body_plain, transcript, summary, decisions, updated_at'
 
 /**
@@ -157,16 +159,38 @@ async function composeAttendees(
 ): Promise<{ memberIds: string[]; personIds: string[]; externalNames: string[] }> {
   const names = (note.attendees ?? []).map((n) => n.trim()).filter(Boolean)
   const uids = (note.attendee_user_ids ?? []).filter(Boolean)
-  if (uids.length === 0) return { memberIds: [], personIds: [], externalNames: names }
+  const pids = (note.attendee_person_ids ?? []).filter(Boolean)
 
   const db = getCrmDb(workspaceId)
+
+  /**
+   * 이어 둔 외부 참석자를 **인물로** 옮겨 담는다.
+   *
+   * 예전엔 여기가 `personIds: []` 로 박혀 있어, 외부인은 무슨 수를 써도 이름 문자열로만 남았다.
+   * 그래서 미팅 8건의 참석자 칸이 전부 비어 있었고(실측 2026-09-05),
+   * 인물 상세에서 「이 사람과 한 회의」를 물을 방법이 아예 없었다.
+   *
+   * 지워진 인물은 빼고 담는다 — 없는 사람 id 를 들고 있으면 그 미팅은 영영 아무에게도 안 걸린다.
+   */
+  let personIds: string[] = []
+  if (pids.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const alive = await (db as any).crmPerson.findMany({
+      where: { id: { in: pids }, deletedAt: null },
+      select: { id: true },
+    }) as { id: string }[]
+    personIds = alive.map((p) => p.id)
+  }
+
+  if (uids.length === 0) return { memberIds: [], personIds, externalNames: names }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const members = await (db as any).crmMember.findMany({
     where: { hostUserId: { in: uids }, deletedAt: null },
     select: { id: true },
   }) as { id: string }[]
 
-  return { memberIds: members.map((m) => m.id), personIds: [], externalNames: names }
+  return { memberIds: members.map((m) => m.id), personIds, externalNames: names }
 }
 
 /** 이 노트로 이미 만든 미팅이 있나 — 발행을 두 번 눌러도 두 벌이 생기지 않게 */

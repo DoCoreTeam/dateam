@@ -200,11 +200,20 @@ export async function updateMeeting(
 
 export async function listMeetings(
   db: CrmDb,
-  opts: { dealId?: string; companyId?: string; noteId?: string; limit?: number } = {},
+  opts: { dealId?: string; companyId?: string; noteId?: string; personId?: string; limit?: number } = {},
 ) {
   const where: Record<string, unknown> = {}
   if (opts.dealId) where.dealId = opts.dealId
   if (opts.companyId) where.companyId = opts.companyId
+  /**
+   * 「이 사람과 한 회의」 — 인물 상세가 묻는 것.
+   *
+   * 참석자는 `attendeesJson` 안의 배열이라 FK 가 없다(관계 계약 R-3 의 「작업」).
+   * 그래서 JSON 경로로 찾는다. 이 길이 없으면 인물 화면은 회의를 영영 못 본다.
+   */
+  if (opts.personId) {
+    where.attendeesJson = { path: ['personIds'], array_contains: opts.personId }
+  }
   // 회의노트 화면이 "이 노트가 이미 영업 CRM 에 올라갔나"를 묻는 통로다.
   // 이게 없으면 노트 쪽은 발행 여부를 알 방법이 없어 버튼이 늘 "올리기"로 남는다.
   if (opts.noteId) where.noteId = opts.noteId

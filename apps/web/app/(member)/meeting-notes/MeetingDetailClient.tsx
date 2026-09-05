@@ -22,6 +22,7 @@ export interface MeetingNoteRecord {
   status: string
   attendees: string | null
   attendee_user_ids: string[] | null
+  attendee_person_ids?: string[] | null
   department_id: string | null
   tags: string[] | null
   body: string | null // HTML
@@ -147,6 +148,7 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
             decisions: fresh.decisions,
             attendees: attendeeNames,
             attendeeUserIds: userIds,
+            attendeePersonIds: note.attendee_person_ids ?? [],
           }}
         />
       </div>

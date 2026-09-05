@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.690',
+    date: '2026-09-05',
+    title: '회의에서 만난 분을 거래처 인물로 바로 이어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '\uD83E\uDEAA',
+        headline: '참석자 이름을 치면 영업 CRM 에서 찾아 드려요',
+        detail: '회의노트 참석자 칸에 이름을 적으면 영업 CRM 에 있는 분을 아래에서 골라 이을 수 있어요. 고른 분은 초록 칩으로 소속까지 함께 보여요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '\uD83D\uDCC7',
+        headline: '인물 상세에 «이 사람과 한 회의»가 생겼어요',
+        detail: '거래처 인물을 열면 그분과 한 회의가 한자리에 모여요. 예전에는 회의에서 만난 분인데도 인물 화면에는 아무 흔적이 없었어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.689',
     date: '2026-09-05',
     title: '회의 정리가 «안건별»로 나뉘어 보여요',

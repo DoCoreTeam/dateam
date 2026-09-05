@@ -31,6 +31,8 @@ const createSchema = z.object({
   meeting_at: z.string().trim().min(1).nullish(),
   attendees: z.array(z.string().trim().min(1)).max(200).nullish(),
   attendee_user_ids: z.array(z.string().uuid()).max(200).nullish(),
+  // CRM 인물과 이어진 외부 참석자(crm_person.id · cuid 라 uuid 가 아니다). 마이그 241
+  attendee_person_ids: z.array(z.string().trim().min(1)).max(200).nullish(),
   department_id: z.string().uuid().nullish(),
   body_html: z.string().max(BODY_HTML_MAX, '본문이 너무 깁니다.').nullish(),
   tags: z.array(z.string().trim().min(1)).max(100).nullish(),
@@ -42,6 +44,7 @@ const updateSchema = z.object({
   meeting_at: z.string().trim().min(1).nullable().optional(),
   attendees: z.array(z.string().trim().min(1)).max(200).nullable().optional(),
   attendee_user_ids: z.array(z.string().uuid()).max(200).nullable().optional(),
+  attendee_person_ids: z.array(z.string().trim().min(1)).max(200).nullable().optional(),
   department_id: z.string().uuid().nullable().optional(),
   body_html: z.string().max(BODY_HTML_MAX, '본문이 너무 깁니다.').nullable().optional(),
   tags: z.array(z.string().trim().min(1)).max(100).nullable().optional(),
@@ -110,6 +113,7 @@ export async function createMeetingNote(
         meeting_at: v.meeting_at ?? null,
         attendees: v.attendees ?? null,
         attendee_user_ids: v.attendee_user_ids ?? null,
+        attendee_person_ids: v.attendee_person_ids ?? null,
         department_id: v.department_id ?? null,
         body_html: bodyHtml,
         body_plain: htmlToPlain(bodyHtml),
@@ -165,6 +169,7 @@ export async function updateMeetingNote(
     if (v.meeting_at !== undefined) payload.meeting_at = v.meeting_at
     if (v.attendees !== undefined) payload.attendees = v.attendees
     if (v.attendee_user_ids !== undefined) payload.attendee_user_ids = v.attendee_user_ids
+    if (v.attendee_person_ids !== undefined) payload.attendee_person_ids = v.attendee_person_ids
     if (v.department_id !== undefined) payload.department_id = v.department_id
     if (v.tags !== undefined) payload.tags = v.tags
     if (v.status !== undefined) payload.status = v.status
@@ -501,6 +506,8 @@ export interface MeetingNoteDetail {
   status: string
   attendees: string | null
   attendee_user_ids: string[] | null
+  /** CRM 인물과 이어진 외부 참석자(마이그 241). 없으면 예전 노트다 */
+  attendee_person_ids: string[] | null
   department_id: string | null
   tags: string[] | null
   body: string | null
@@ -525,7 +532,7 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
   if (!user) return null
 
   const { data, error } = await (supabase.from('meeting_notes') as any)
-    .select('id, title, meeting_at, status, attendees, attendee_user_ids, department_id, tags, body_html, body_plain, summary, decisions, created_at, user_id, visibility')
+    .select('id, title, meeting_at, status, attendees, attendee_user_ids, attendee_person_ids, department_id, tags, body_html, body_plain, summary, decisions, created_at, user_id, visibility')
     .eq('id', idCheck.data)
     .is('deleted_at', null)
     .maybeSingle()
@@ -548,6 +555,7 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
     status: data.status,
     attendees,
     attendee_user_ids: Array.isArray(data.attendee_user_ids) ? (data.attendee_user_ids as string[]) : null,
+    attendee_person_ids: Array.isArray(data.attendee_person_ids) ? (data.attendee_person_ids as string[]) : null,
     department_id: data.department_id ?? null,
     tags: data.tags ?? null,
     body: data.body_html ?? null,

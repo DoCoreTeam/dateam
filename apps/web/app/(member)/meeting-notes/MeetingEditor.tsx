@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Save, ArrowLeft, Trash2, X, CheckCircle2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import TiptapEditor from '@/components/ui/TiptapEditor'
-import AttendeesEditor, { type MemberChip } from './AttendeesEditor'
+import AttendeesEditor, { type MemberChip, type LinkedPerson } from './AttendeesEditor'
 import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments, getMyDefaultDepartmentId, listOrgPeople, getOrgTreeForPicker } from './actions'
 import type { OrgPickerNode } from '@/components/ui/OrgPeoplePicker'
 import { consumeWorkflowHandoff } from '@/lib/ai-chat/workflow-handoff'
@@ -23,6 +23,7 @@ export interface MeetingNoteDraft {
   decisions?: string
   attendees?: string[] // 이름(조직원 + 외부)
   attendeeUserIds?: string[] // 조직원 id
+  attendeePersonIds?: string[] // CRM 인물 id — 이어 둔 외부 참석자(마이그 241)
 }
 
 interface Props {
@@ -69,6 +70,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
   const [tagInput, setTagInput] = useState('')
   const [members, setMembers] = useState<MemberChip[]>([])
   const [externals, setExternals] = useState<string[]>([])
+  const [persons, setPersons] = useState<LinkedPerson[]>([])
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [deleting, startDelete] = useTransition()
@@ -91,6 +93,21 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
   // 부서 + 조직원 선택지 로드. 조직원 로드 후 초기 참석자 칩(조직원/외부) 분류.
   const initAttendees = useMemo(() => initial.attendees ?? [], [initial.attendees])
   const initUserIds = useMemo(() => initial.attendeeUserIds ?? [], [initial.attendeeUserIds])
+  const initPersonIds = useMemo(() => initial.attendeePersonIds ?? [], [initial.attendeePersonIds])
+
+  /**
+   * 이어 둔 인물을 되살린다. 저장된 것은 id 뿐이라 이름·소속을 다시 물어야 칩을 그린다.
+   * 실패해도 편집은 그대로 된다 — 그때는 이어진 표시만 안 보인다.
+   */
+  useEffect(() => {
+    if (initPersonIds.length === 0) { setPersons([]); return }
+    let alive = true
+    fetch(`/api/meeting-notes/attendee-candidates?ids=${encodeURIComponent(initPersonIds.join(','))}`)
+      .then((r) => (r.ok ? r.json() : { people: [] }))
+      .then((b: { people?: LinkedPerson[] }) => { if (alive) setPersons(b.people ?? []) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [initPersonIds])
   useEffect(() => {
     let alive = true
     getMeetingDepartments().then((rows) => {
@@ -130,12 +147,30 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
     setTagInput('')
   }
 
+  /**
+   * 이어진 사람은 글자 칩으로 **또** 보이지 않게 한다.
+   *
+   * 저장할 때 이어진 사람의 이름도 `attendees` 에 함께 남긴다 — 그래야 이 화면을 모르는
+   * 다른 화면(목록·정리·발행)이 참석자를 온전히 본다. 그래서 다시 열면 같은 사람이
+   * 인물 칩과 글자 칩으로 두 번 뜬다.
+   *
+   * 예전엔 인물 조회가 끝날 때 `setExternals` 로 빼려 했는데, 조직원 조회와 인물 조회가
+   * **둘 다 비동기**라 도착 순서에 따라 결과가 갈렸다(실브라우저에서 칩이 두 개로 떴다).
+   * 파생값으로 계산하면 순서에 기댈 일이 없다.
+   */
+  const linkedNames = useMemo(() => new Set(persons.map((p) => p.name)), [persons])
+  const visibleExternals = useMemo(
+    () => externals.filter((n) => !linkedNames.has(n)),
+    [externals, linkedNames],
+  )
+
   // 상태(작성중/확정)는 이 두 버튼으로만 움직인다. 저장이 하나뿐이면 status가 기본값에 영원히 머문다.
   function save(nextStatus: 'draft' | 'final') {
     if (!title.trim()) { setError('제목을 입력해 주세요.'); return }
     setError('')
-    const attendeeNames = [...members.map((m) => m.name), ...externals]
+    const attendeeNames = [...members.map((m) => m.name), ...persons.map((p) => p.name), ...visibleExternals]
     const attendeeUserIds = members.map((m) => m.id)
+    const attendeePersonIds = persons.map((p) => p.id)
     const base = {
       title: title.trim(),
       meeting_at: localInputToIso(meetingAtLocal),
@@ -144,6 +179,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
       tags: tags.length > 0 ? tags : null,
       attendees: attendeeNames.length > 0 ? attendeeNames : null,
       attendee_user_ids: attendeeUserIds.length > 0 ? attendeeUserIds : null,
+      attendee_person_ids: attendeePersonIds.length > 0 ? attendeePersonIds : null,
       status: nextStatus,
     }
     startTransition(async () => {
@@ -243,8 +279,8 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
         )}
 
         {/* 참석자 — 에디터 내장(저장 시 함께 저장) */}
-        <AttendeesEditor people={people} tree={orgTree} members={members} externals={externals}
-          onChange={({ members: m, externals: e }) => { setMembers(m); setExternals(e) }} />
+        <AttendeesEditor people={people} tree={orgTree} members={members} externals={visibleExternals} persons={persons}
+          onChange={({ members: m, externals: e, persons: p }) => { setMembers(m); setExternals(e); setPersons(p) }} />
 
         {/* 태그 */}
         <div>
