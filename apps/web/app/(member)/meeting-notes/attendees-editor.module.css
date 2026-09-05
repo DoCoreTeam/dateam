@@ -1,0 +1,83 @@
+/* 참석자 편집 — CRM 인물 잇기
+ *
+ * 화면 전용 스타일은 globals.css 에 넣지 않는다(§0-1). 여기 모듈로 둔다. */
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.candidates {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 15rem;
+  overflow-y: auto;
+  background: var(--surface-bg);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+.candidate {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  border-bottom: var(--hairline) solid var(--border-light);
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  min-height: 44px;
+}
+
+.candidate:last-child { border-bottom: none; }
+.candidate:hover,
+.candidate:focus-visible { background: var(--border-light); outline: none; }
+
+.candidateName { font-weight: 600; }
+.candidateMeta { color: var(--text-muted); font-size: var(--fs-xs); }
+
+.newPerson {
+  composes: candidate;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* 이어진 인물 칩 — 소속까지 함께 보여야 「누구인지」가 확실해진다 */
+.linked {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.linkedOrg {
+  font-size: var(--fs-2xs);
+  opacity: 0.75;
+}
+
+.chipRemove {
+  display: inline-flex;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+}
