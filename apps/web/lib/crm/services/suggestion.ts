@@ -44,6 +44,19 @@ const APPLIABLE: Record<string, string> = {
 /** 제안 유효기간 (명세 3.4 "EXPIRED(7일)") */
 export const SUGGESTION_TTL_DAYS = 7
 
+/**
+ * 「확인 필요」 제안의 유효기간.
+ *
+ * **왜 따로 두나**: 7일 시효의 근거는 「값이 낡는다」였다 — 몇 주 전 회의의 금액을
+ * 오늘 수락하면 틀린 값이 들어간다. 그런데 «이 사람의 소속을 모른다»는 낡지 않는다.
+ * 이름은 그대로 회의노트에 적혀 있고, 필요한 것은 사람의 한 번의 답이다.
+ *
+ * 그걸 7일에 지우면 아무도 안 본 사이 이름이 통째로 없던 일이 된다
+ * (실측 2026-09-05: 만료 29건 중 7건이 신뢰도 1.00 짜리 인물 제안이었다).
+ * 시효를 없애지는 않는다 — 영원히 쌓이면 그것도 인박스를 죽인다.
+ */
+export const SUGGESTION_CONTEXT_TTL_DAYS = 365
+
 export interface SuggestionRow {
   id: string
   runId: string
@@ -79,6 +92,11 @@ export interface SuggestionInput {
   confidence: number
   /** 근거는 필수다 — 근거 없는 제안은 사용자가 판단할 수 없다(스키마 evidenceJson) */
   evidence: { quote?: string; segmentIds?: string[] }
+  /**
+   * 사람만 답할 수 있는 빈칸이 남았는가(예: 소속을 모르는 인물).
+   * 자동으로 담지 않고 **묻고**, 시효도 길게 준다 — 값이 낡는 게 아니라 답을 기다리는 것이다.
+   */
+  needsContext?: boolean
 }
 
 export interface CreateSuggestionResult {
@@ -87,9 +105,9 @@ export interface CreateSuggestionResult {
   verdict: ApplyVerdict
 }
 
-function expiryFrom(now: Date): Date {
+function expiryFrom(now: Date, days: number = SUGGESTION_TTL_DAYS): Date {
   const d = new Date(now.getTime())
-  d.setUTCDate(d.getUTCDate() + SUGGESTION_TTL_DAYS)
+  d.setUTCDate(d.getUTCDate() + days)
   return d
 }
 
@@ -145,6 +163,7 @@ export async function createSuggestion(
       autoApply: cfg?.autoApply ?? undefined,
       minConfidence: cfg?.minConfidence ?? undefined,
       verifiedFields: verified,
+      needsContext: input.needsContext,
     })
 
     // 4.3-3행: 신뢰도 미달은 저장조차 하지 않는다 — 인박스가 쓰레기로 차면 아무도 안 본다
@@ -163,7 +182,7 @@ export async function createSuggestion(
         evidenceJson: input.evidence as never,
         status: verdict.decision === 'AUTO_APPLIED' ? 'AUTO_APPLIED' : 'PENDING',
         decidedAt: verdict.decision === 'AUTO_APPLIED' ? now : null,
-        expiresAt: expiryFrom(now),
+        expiresAt: expiryFrom(now, input.needsContext ? SUGGESTION_CONTEXT_TTL_DAYS : SUGGESTION_TTL_DAYS),
       },
       select: SELECT,
     })

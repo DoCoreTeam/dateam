@@ -84,6 +84,18 @@ export interface ApplyInput {
   minConfidence?: number
   /** 사람이 검증 확정한 필드 목록 (레코드의 verifiedFields) */
   verifiedFields?: readonly string[]
+  /**
+   * 사람만 답할 수 있는 빈칸이 남아 있는가 — 예: 소속을 모르는 인물.
+   *
+   * **왜 필요한가**: 예전에는 소속을 모르면 제안 자체를 **안 만들었다**.
+   * 그래서 회의에 이름이 적혀 있어도 CRM 에는 아무 일도 일어나지 않았고,
+   * 사용자는 그걸 「AI 가 못 읽었다」로 읽었다(실측 2026-09-05: 회의 18건 중
+   * 회사가 이어진 것 1건 · 이름 9명이 CRM 에 없음).
+   *
+   * 모르는 것은 **모른다고 말해야** 사람이 답할 수 있다. 대신 자동으로 담지는 않는다 —
+   * 소속 없는 인물을 자동 생성하면 목록에서 길을 잃는다.
+   */
+  needsContext?: boolean
 }
 
 export interface ApplyVerdict {
@@ -96,6 +108,7 @@ export interface ApplyVerdict {
     | 'FIELD_VERIFIED_BY_HUMAN'
     | 'AUTO_APPLY_OFF'
     | 'BELOW_FIELD_CONFIDENCE'
+    | 'MISSING_CONTEXT'
     | 'AUTO_APPLIED'
 }
 
@@ -109,11 +122,20 @@ export function decideApply(input: ApplyInput): ApplyVerdict {
     autoApply = DEFAULT_AUTO_APPLY,
     minConfidence = DEFAULT_MIN_CONFIDENCE,
     verifiedFields = [],
+    needsContext = false,
   } = input
 
   // 4.3-3행: confidence < 0.6 → 저장하지 않음 (ai_run outputJson 에만 남는다)
   if (confidence < MIN_SUGGESTION_CONFIDENCE) {
     return { decision: 'DISCARD', reason: 'BELOW_THRESHOLD' }
+  }
+
+  // 사람만 답할 수 있는 빈칸이 남았으면 **묻는다**. 버리지도, 자동으로 담지도 않는다.
+  //
+  // 이 한 줄이 「모르면 모른다고 말하는 자리」다. 예전에는 이 경우 호출부가
+  // 제안을 아예 만들지 않아 화면에 아무것도 안 뜨는 것과 구분되지 않았다.
+  if (needsContext) {
+    return { decision: 'PENDING', reason: 'MISSING_CONTEXT' }
   }
 
   // 신규 레코드 생성 — **되돌릴 수 있는 것만** 자동으로 만든다(v0.7.540).

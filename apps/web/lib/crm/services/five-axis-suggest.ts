@@ -8,7 +8,8 @@
  *
  * 원본(미팅)의 규칙을 그대로 유지한다:
  *   · WHAT(금액)·WHERE(단계)는 **딜이 연결돼 있을 때만** — 어느 딜의 값인지 모르면 제안할 수 없다
- *   · WHO(사람)는 **회사가 연결돼 있을 때만** — 소속 없는 인물은 CRM 을 오염시킨다
+ *   · WHO(사람)는 **회사를 몰라도 제안한다**(v0.7.691) — 대신 자동으로 담지 않고 사람에게 묻는다.
+ *     안 물으면 그 이름은 회의노트에만 글자로 남는다(실측: 회의 18건 중 회사 연결 1건)
  *   · RISK·NEXT 는 값이 아니라 읽을 거리다. 출처(미팅/활동)에 붙여 두고 사람이 정한다
  *   · 제안 하나가 실패해도 나머지는 보낸다 — 기록 하나가 통째로 헛되면 안 된다
  *
@@ -46,12 +47,14 @@ export async function fiveAxisToSuggestions(
     targetType: string, targetId: string | null,
     field: string | null, proposedValue: unknown,
     confidence: number, quote: string, segmentIds: string[],
+    needsContext = false,
   ) => {
     try {
       const r = await createSuggestion(workspaceId, actorId, {
         runId, axis, targetType, targetId, field,
         proposedValue, confidence,
         evidence: { quote, segmentIds },
+        needsContext,
       })
       if (r.suggestion) n += 1
     } catch (e) {
@@ -75,13 +78,21 @@ export async function fiveAxisToSuggestions(
       out.where.confidence, out.where.evidence.quote, out.where.evidence.segmentIds)
   }
 
-  // WHO — 사람. 회사가 연결돼 있을 때만 새 인물을 제안한다
-  if (anchor.companyId) {
-    for (const p of out.who) {
-      await send('WHO', 'person', null, null,
-        { name: p.name, title: p.title, email: p.email, role: p.role, companyId: anchor.companyId },
-        p.confidence, p.evidence.quote, p.evidence.segmentIds)
-    }
+  // WHO — 사람.
+  //
+  // 예전에는 **회사가 연결돼 있을 때만** 제안했다. 소속 없는 인물이 CRM 을 오염시킨다는
+  // 이유였는데, 그 규칙이 실제로 한 일은 **아무것도 안 하는 것**이었다 —
+  // 실측(2026-09-05) 회의 18건 중 회사가 이어진 것은 1건뿐이라, 나머지 회의에 적힌
+  // 이름 9명은 어디에도 나타나지 않았다. 사용자는 그걸 「AI 가 못 읽었다」로 읽었다.
+  //
+  // 그래서 **묻는 자리로 바꾼다**. 회사를 모르면 제안은 만들되 자동으로 담지 않고
+  // (needsContext → 항상 PENDING), 시효도 길게 준다. 소속은 사람이 한 번 답하면 끝나는 것이지
+  // 시간이 지난다고 낡는 값이 아니다.
+  for (const p of out.who) {
+    await send('WHO', 'person', null, null,
+      { name: p.name, title: p.title, email: p.email, role: p.role, companyId: anchor.companyId },
+      p.confidence, p.evidence.quote, p.evidence.segmentIds,
+      !anchor.companyId)
   }
 
   // RISK·NEXT — 값이 아니라 읽을 거리다. 출처에 붙여 두고 사람이 정한다

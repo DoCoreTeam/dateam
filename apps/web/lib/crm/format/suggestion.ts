@@ -93,7 +93,12 @@ export function describeSuggestionValue(
 
   if (s.axis === 'WHO') {
     const role = typeof o.role === 'string' ? ROLE_LABEL[o.role] ?? o.role : null
-    const line = [o.name, o.title, role || null, o.email].filter(Boolean).join(' · ')
+    const parts = [o.name, o.title, role || null, o.email].filter(Boolean)
+    // 소속을 모르면 모른다고 말한다 — 안 밝히면 사람은 회사까지 이어진 줄 알고 그냥 수락한다.
+    // **키가 없는 것**과 **키는 있는데 null 인 것**은 다르다 — 앞은 그 값이 회사를 안 담는 모양이고,
+    // 뒤는 우리가 찾아봤는데 못 찾은 것이다. 아는 것만 말한다.
+    if ('companyId' in o && !o.companyId) parts.push('소속 확인 필요')
+    const line = parts.join(' · ')
     return line || empty
   }
   if (s.axis === 'NEXT') {

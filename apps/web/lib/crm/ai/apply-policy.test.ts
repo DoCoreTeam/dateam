@@ -198,3 +198,61 @@ test('앞 모델에서 모은 출처는 다음 시도로 넘어가지 않는다 
   assert.match(src, /sources\.length = 0/)
   assert.match(src, /seen\.clear\(\)/)
 })
+
+/* ── 모르면 모른다고 말하는 자리 (v0.7.691) ─────────────────
+ *
+ * 실측(2026-09-05): 회의 18건 중 회사가 이어진 것은 1건. 나머지 회의에 적힌
+ * 외부인 이름 9명은 CRM 어디에도 나타나지 않았다 — 「회사가 있을 때만 제안」
+ * 규칙이 사실상 「아무것도 안 함」이었기 때문이다.
+ */
+
+test('★ 사람만 답할 수 있는 빈칸이 남으면 자동으로 담지 않는다 — 신뢰도 1.00 이어도', () => {
+  const v = decideApply({
+    confidence: 1, targetType: 'person', isNewRecord: true, axis: 'WHO',
+    needsContext: true,
+  })
+  assert.equal(v.decision, 'PENDING')
+  assert.equal(v.reason, 'MISSING_CONTEXT')
+})
+
+test('★ 그래도 버리지는 않는다 — 버리면 그 이름은 회의노트에만 글자로 남는다', () => {
+  const v = decideApply({
+    confidence: 0.95, targetType: 'person', isNewRecord: true, axis: 'WHO',
+    needsContext: true,
+  })
+  assert.notEqual(v.decision, 'DISCARD', '묻지도 않고 버리면 화면에 아무 일도 안 일어난다')
+})
+
+test('신뢰도 미달은 여전히 먼저 버린다 — 빈칸이 있다고 쓰레기까지 인박스에 넣지 않는다', () => {
+  const v = decideApply({
+    confidence: 0.3, targetType: 'person', isNewRecord: true, axis: 'WHO',
+    needsContext: true,
+  })
+  assert.equal(v.decision, 'DISCARD')
+  assert.equal(v.reason, 'BELOW_THRESHOLD')
+})
+
+test('빈칸이 없으면 예전 그대로 자동 반영된다 — 회귀 0', () => {
+  const v = decideApply({
+    confidence: 0.95, targetType: 'person', isNewRecord: true, axis: 'WHO',
+  })
+  assert.equal(v.decision, 'AUTO_APPLIED')
+})
+
+test('★ WHO 는 회사를 몰라도 제안한다 — 예전 게이트가 되살아나면 실패한다', async () => {
+  const src = await readFile(new URL('../services/five-axis-suggest.ts', import.meta.url), 'utf8')
+  assert.ok(
+    !/if \(anchor\.companyId\) \{/.test(src),
+    '회사가 있을 때만 WHO 를 보내는 게이트가 돌아왔다 — 그 규칙이 한 일은 「아무것도 안 함」이었다',
+  )
+  assert.match(src, /!anchor\.companyId\)/, '회사를 모른다는 사실을 needsContext 로 넘겨야 한다')
+})
+
+test('★ 「확인 필요」는 7일에 사라지지 않는다 — 값이 낡는 게 아니라 답을 기다리는 것이다', async () => {
+  const src = await readFile(new URL('../services/suggestion.ts', import.meta.url), 'utf8')
+  const { SUGGESTION_TTL_DAYS, SUGGESTION_CONTEXT_TTL_DAYS } = await import('../services/suggestion.ts')
+  assert.ok(SUGGESTION_CONTEXT_TTL_DAYS > SUGGESTION_TTL_DAYS,
+    '확인 필요 제안의 시효가 일반 제안보다 길어야 한다')
+  assert.match(src, /input\.needsContext \? SUGGESTION_CONTEXT_TTL_DAYS : SUGGESTION_TTL_DAYS/,
+    '상수만 만들고 안 쓰면 7일에 그대로 사라진다')
+})
