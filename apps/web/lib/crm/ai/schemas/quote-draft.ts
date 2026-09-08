@@ -9,6 +9,7 @@
  */
 
 import { z } from 'zod'
+import { ROUNDING_UNITS } from '../../domain/quote-math.ts'
 
 const UNKNOWN = new Set(['', '없음', '미상', '알 수 없음', 'unknown', 'n/a', 'na', 'null', '-'])
 
@@ -68,7 +69,8 @@ export const QuoteDraftOutputSchema = z.object({
   /** 「만원 단위로 잘라 주세요」 같은 말이 있으면 */
   roundingUnit: z.preprocess((v) => {
     const n = Number(v ?? 0)
-    return [0, 1000, 10000, 100000, 1000000].includes(n) ? n : 0
+    // 허용 목록은 quote-math 한 곳이다 — 여기 또 적으면 단위를 늘려도 AI 값만 버려진다
+    return (ROUNDING_UNITS as readonly number[]).includes(n) ? n : 0
   }, z.number().int()),
   /** AI 가 못 알아본 부분 — 화면이 그대로 보여 준다(조용히 버리지 않는다) */
   unclear: z.array(z.string().max(200)).max(10),

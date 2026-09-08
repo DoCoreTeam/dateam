@@ -152,3 +152,33 @@ test('절사 선택지가 결과 금액을 함께 보여준다 — 이름만으�
   assert.ok(src.includes('roundAmount(totals.netTotalMinor'), '선택지가 결과 금액을 안 보여준다')
   assert.ok(src.includes('roundingUnitLabel('), '라벨을 용어집에서 안 가져온다')
 })
+
+/*
+  ── 단위 목록은 한 벌이다 ──────────────────────────────────────────────────
+  실측(v0.7.700): 같은 목록이 **네 곳**에 있었다 —
+  ① `quote-math.ts`(값·DB CHECK 와 짝) ② 편집 화면 선택지 ③ 서버 검증 오류 문구
+  ④ AI 「말로 채우기」 스키마. 천만원을 하나 더할 때 ①만 고쳤다면
+  화면에는 뜨는데 AI 가 그 값을 버리고, 오류 문구는 옛 목록을 말했을 것이다.
+*/
+test('절사 단위 목록을 다시 적은 곳이 없다 — 늘릴 때 한 곳만 고치면 된다', () => {
+  const files = [
+    '../crm/ai/schemas/quote-draft.ts',
+    '../crm/services/quote.ts',
+    '../../components/ui/crm/QuoteEditorModal.tsx',
+  ]
+  for (const rel of files) {
+    const src = readFileSync(new URL(rel, import.meta.url), 'utf8')
+    assert.ok(
+      !/\[\s*0,\s*1000,\s*10000\b/.test(src) && !/1000,\s*10000,\s*100000,\s*1000000/.test(src),
+      `${rel} 이 단위 목록을 또 적었다 — quote-math 의 ROUNDING_UNITS 를 쓴다`,
+    )
+  }
+})
+
+test('DB 가 받는 단위와 코드가 아는 단위가 같다 — 마이그 244 와 짝이다', () => {
+  const sql = readFileSync(
+    new URL('../../../../supabase/migrations/244_crm_quote_rounding_ten_million.sql', import.meta.url), 'utf8')
+  for (const u of ROUNDING_UNITS) {
+    assert.ok(new RegExp(`\\b${u}\\b`).test(sql), `${u} 가 DB CHECK 에 없다 — 저장하면 거부당한다`)
+  }
+})

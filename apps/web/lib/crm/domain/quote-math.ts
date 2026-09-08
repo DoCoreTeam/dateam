@@ -78,8 +78,15 @@ export interface QuoteTotals {
 /** 절사 방식 셋. 늘리지 않는다 — 「대충 깎기」는 규칙이 아니다 */
 export type RoundingMode = 'DOWN' | 'NEAREST' | 'UP'
 
-/** 쓸 수 있는 절사 단위(원). DB CHECK 와 같은 목록이다 */
-export const ROUNDING_UNITS = [0, 1000, 10000, 100000, 1000000] as const
+/**
+ * 쓸 수 있는 절사 단위(원). **DB CHECK 와 같은 목록이다**(마이그 244) —
+ * 여기만 늘리면 화면 선택지·서버 검증·안내 문구가 전부 따라온다.
+ *
+ * 천만원이 있는 이유: 「백만원 단위」를 «백만원 자리를 없앤다»로 읽는 사람이 있는데
+ * (사용자 지적 2026-09-08), 그 결과를 원하면 **한 단계 큰 단위**를 고르면 된다 —
+ * 303,600,000 을 천만원 단위로 버리면 300,000,000 이다.
+ */
+export const ROUNDING_UNITS = [0, 1000, 10000, 100000, 1000000, 10000000] as const
 export type RoundingUnit = typeof ROUNDING_UNITS[number]
 
 export interface RoundingInput {
