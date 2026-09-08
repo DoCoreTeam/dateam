@@ -14,19 +14,23 @@ import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText, requireText } from '../domain/normalize.ts'
+import { isBuiltinBusinessTypeKey } from '../domain/business-type.ts'
 
 export interface QuoteTermRow {
   id: string
   title: string
   body: string
+  /** 예전 enum 칼럼. 마이그 242 로 businessTypeKey 로 옮겼다 */
   businessType: string | null
+  /** 사업 유형 키 — crm_business_type.key. 이것이 진실이다 */
+  businessTypeKey: string | null
   isDefault: boolean
   position: number
   isActive: boolean
 }
 
 const SELECT = {
-  id: true, title: true, body: true, businessType: true,
+  id: true, title: true, body: true, businessType: true, businessTypeKey: true,
   isDefault: true, position: true, isActive: true,
 } as const
 
@@ -46,8 +50,10 @@ export async function listQuoteTerms(db: CrmDb): Promise<QuoteTermRow[]> {
  */
 export async function listQuoteTermsFor(db: CrmDb, businessType: string | null): Promise<QuoteTermRow[]> {
   const all = await listQuoteTerms(db)
-  return all.filter((t) =>
-    t.isActive && (t.businessType === null || t.businessType === businessType))
+  return all.filter((t) => {
+    const key = t.businessTypeKey ?? t.businessType
+    return t.isActive && (key === null || key === businessType)
+  })
 }
 
 export interface QuoteTermInput {
@@ -76,7 +82,9 @@ export async function createQuoteTerm(
     const row = await (tx as any).crmQuoteTerm.create({
       data: {
         title, body,
-        businessType: input.businessType || null,
+        // enum 칼럼은 기본 8종일 때만 함께 채운다 — 사용자 추가 유형은 enum 에 값이 없다
+        businessType: isBuiltinBusinessTypeKey(input.businessType) ? input.businessType : null,
+        businessTypeKey: input.businessType || null,
         isDefault: input.isDefault ?? false,
         position: (last?.position ?? -1) + 1,
         createdById: actorId,
@@ -106,7 +114,11 @@ export async function updateQuoteTerm(
       if (!b) throw new CrmError('VALIDATION_FAILED', '견적서에 인쇄될 문장을 입력해 주세요.', { field: 'body' })
       data.body = b
     }
-    if (input.businessType !== undefined) data.businessType = normalizeText(input.businessType)
+    if (input.businessType !== undefined) {
+      const key = normalizeText(input.businessType)
+      data.businessTypeKey = key
+      data.businessType = isBuiltinBusinessTypeKey(key) ? key : null
+    }
     if (input.isDefault !== undefined) data.isDefault = Boolean(input.isDefault)
     if (input.isActive !== undefined) data.isActive = Boolean(input.isActive)
     if (input.position !== undefined) data.position = Number(input.position)

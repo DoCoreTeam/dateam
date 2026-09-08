@@ -18,7 +18,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { ACTION, progress } from '@/lib/terms'
-import { BUSINESS_TYPE_LABEL, BUSINESS_TYPE_ORDER, type BusinessTypeKey } from '@/lib/terms/ledger'
+import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
+import { selectableBusinessTypes } from '@/lib/crm/domain/business-type'
 import styles from './quote-terms-card.module.css'
 
 interface Term {
@@ -26,6 +27,7 @@ interface Term {
   title: string
   body: string
   businessType: string | null
+  businessTypeKey: string | null
   isDefault: boolean
   position: number
   isActive: boolean
@@ -34,6 +36,8 @@ interface Term {
 const EMPTY = { title: '', body: '', businessType: '', isDefault: false }
 
 export default function QuoteTermsCard() {
+  // 고를 수 있는 사업 유형은 설정의 표가 정한다(마이그 242) — 이 화면 바로 위 카드에서 관리한다
+  const { rows: bizTypes, labelOf: bizLabelOf } = useBusinessTypes()
   const [items, setItems] = useState<Term[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -161,8 +165,8 @@ export default function QuoteTermsCard() {
                 onChange={(e) => setDraft((d) => ({ ...d, businessType: e.target.value }))}
               >
                 <option value="">모든 유형</option>
-                {BUSINESS_TYPE_ORDER.map((t) => (
-                  <option key={t} value={t}>{BUSINESS_TYPE_LABEL[t as BusinessTypeKey]}</option>
+                {selectableBusinessTypes(bizTypes, draft.businessType || null).map((t) => (
+                  <option key={t.key} value={t.key}>{t.label}</option>
                 ))}
               </select>
             </div>
@@ -198,8 +202,8 @@ export default function QuoteTermsCard() {
             <li key={t.id} className={styles.item}>
               <span className={styles.body}>{t.body}</span>
               <span className={styles.tags}>
-                {t.businessType && (
-                  <span className={styles.tag}>{BUSINESS_TYPE_LABEL[t.businessType as BusinessTypeKey] ?? t.businessType}</span>
+                {(t.businessTypeKey ?? t.businessType) && (
+                  <span className={styles.tag}>{bizLabelOf(t.businessTypeKey ?? t.businessType)}</span>
                 )}
                 {t.isDefault && <span className={`${styles.tag} ${styles.tagDefault}`}>기본</span>}
               </span>
@@ -211,7 +215,7 @@ export default function QuoteTermsCard() {
                   setDraft({
                     title: t.title ?? '',
                     body: t.body,
-                    businessType: t.businessType ?? '',
+                    businessType: (t.businessTypeKey ?? t.businessType) ?? '',
                     isDefault: t.isDefault,
                   })
                 }}

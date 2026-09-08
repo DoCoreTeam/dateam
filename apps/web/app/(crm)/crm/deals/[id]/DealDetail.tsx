@@ -32,11 +32,13 @@ import LedgerPanel from './LedgerPanel'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { formatKstDateTimeShort, kstDateKey } from '@/lib/datetime/kst'
 import {
-  BUSINESS_TYPE_LABEL, BUSINESS_TYPE_LABEL_TEXT, TERM_TYPE_LABEL, TERM_TYPE_LABEL_TEXT,
-  type BusinessTypeKey, type TermTypeKey,
+  BUSINESS_TYPE_LABEL_TEXT, TERM_TYPE_LABEL, TERM_TYPE_LABEL_TEXT,
+  type TermTypeKey,
 
   EXPECTED_CLOSE_LABEL, END_DATE_UNKNOWN_LABEL,
 } from '@/lib/terms'
+import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
+import { dealBusinessTypeKey } from '@/lib/crm/domain/business-type'
 import type { BoardPipeline } from '../DealBoard'
 import DealFormModal from '../DealFormModal'
 import DeleteRecordModal from '../../DeleteRecordModal'
@@ -50,6 +52,8 @@ interface Deal {
   status: string
   amountMinor: string | null
   businessType?: string | null
+  /** 사업 유형 키 — crm_business_type.key(마이그 242). 이것이 진실이다 */
+  businessTypeKey?: string | null
   termType?: string | null
   startDate?: string | null
   endDate?: string | null
@@ -109,6 +113,8 @@ export default function DealDetail({ dealId }: { dealId: string }) {
   */
   const backParams = useSearchParams()
   const back = backTarget(backParams, { href: '/crm/deals', label: '딜 목록' })
+  // 사업 유형 이름은 설정의 표가 정한다 — 화면이 상수를 들고 있지 않는다(마이그 242)
+  const { labelOf: bizLabelOf } = useBusinessTypes()
   const [deal, setDeal] = useState<Deal | null>(null)
   const [pipelines, setPipelines] = useState<BoardPipeline[]>([])
   const [history, setHistory] = useState<HistoryRow[]>([])
@@ -204,7 +210,8 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                   (실브라우저: 속성 「금액 —」과 장부 「20억」이 같은 화면에 떴다).
                 */}
                 <RecordField label={BUSINESS_TYPE_LABEL_TEXT}>
-                  {deal.businessType ? BUSINESS_TYPE_LABEL[deal.businessType as BusinessTypeKey] ?? deal.businessType : null}
+                  {/* 이름은 설정의 표가 정한다 — 「기타」밖에 없던 목록을 우리가 정한다(마이그 242) */}
+                  {bizLabelOf(dealBusinessTypeKey(deal))}
                 </RecordField>
                 <RecordField label={TERM_TYPE_LABEL_TEXT}>
                   {deal.termType ? termText(deal) : null}
@@ -325,7 +332,7 @@ export default function DealDetail({ dealId }: { dealId: string }) {
             amountMinor: deal.amountMinor, currency: deal.currency,
             expectedCloseDate: deal.expectedCloseDate?.slice(0, 10) ?? '',
             endDateUnknown: deal.endDateUnknown ?? false,
-            businessType: deal.businessType ?? '',
+            businessType: dealBusinessTypeKey(deal) ?? '',
             termType: deal.termType ?? '',
             startDate: deal.startDate?.slice(0, 10) ?? '',
             endDate: deal.endDate?.slice(0, 10) ?? '',

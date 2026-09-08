@@ -29,7 +29,9 @@ import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import type { BoardPipeline } from './DealBoard'
 import { formatAmount } from './amount'
 import { ENTITY } from '@/lib/terms'
-import { BUSINESS_TYPE_LABEL, BUSINESS_TYPE_LABEL_TEXT, type BusinessTypeKey } from '@/lib/terms/ledger'
+import { BUSINESS_TYPE_LABEL_TEXT } from '@/lib/terms/ledger'
+import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
+import { dealBusinessTypeKey } from '@/lib/crm/domain/business-type'
 
 export interface DealRowItem {
   id: string
@@ -45,6 +47,8 @@ export interface DealRowItem {
   companyName?: string | null
   ownerName?: string | null
   businessType?: string | null
+  /** 사업 유형 키 — crm_business_type.key(마이그 242). 이것이 진실이다 */
+  businessTypeKey?: string | null
   version: number
   updatedAt: string
 }
@@ -84,6 +88,9 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
   const pipelineId = query.filters?.pipelineId ?? ''
   const status = query.filters?.status ?? ''
   const trash = isTrashView(query)
+
+  // 사업 유형 이름은 설정의 표가 정한다(마이그 242) — 화면이 상수를 들고 있지 않는다
+  const { labelOf: bizLabelOf } = useBusinessTypes()
 
   // 단계 이름은 파이프라인 전체에서 찾는다 — 표는 여러 파이프라인을 섞어 보여 줄 수 있다
   const stageName = useMemo(() => {
@@ -160,9 +167,9 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
     },
     {
       key: 'businessType', header: BUSINESS_TYPE_LABEL_TEXT, hideOnCard: true,
-      cell: (r) => (r.businessType
-        ? BUSINESS_TYPE_LABEL[r.businessType as BusinessTypeKey] ?? r.businessType
-        : <span style={{ color: 'var(--text-faint)' }}>—</span>),
+      // 이름은 설정의 표가 정한다 — 유형 이름을 바꾸면 표도 따라온다(마이그 242)
+      cell: (r) => (bizLabelOf(dealBusinessTypeKey(r))
+        ?? <span style={{ color: 'var(--text-faint)' }}>—</span>),
     },
     {
       key: 'stage', header: '단계',
@@ -197,7 +204,7 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
       key: 'updatedAt', header: '최근 변경', hideOnCard: true,
       cell: (r) => formatKstDateTimeShort(r.updatedAt),
     },
-  ], [stageName])
+  ], [stageName, bizLabelOf])
 
   const columns = useMemo(
     () => (trash ? [...baseColumns, restoreColumn<DealRowItem>((id) => void restore(id))] : baseColumns),

@@ -22,6 +22,7 @@ import type { CrmDb } from '../db/client.ts'
 import { pickBooked } from '../domain/booked-amount.ts'
 import { allocateByMonth } from '../domain/allocation.ts'
 import type { PeriodRange, GroupKey } from '../domain/report-axis.ts'
+import { dealBusinessTypeKey, businessTypeLabelOf } from '../domain/business-type.ts'
 
 export interface CurrencySum {
   currency: string
@@ -141,6 +142,7 @@ interface RawDeal {
   endDateUnknown: boolean
   termMonths: number | null
   businessType: string | null
+  businessTypeKey: string | null
   wonAt: Date | null
   ownerId: string | null
   pipelineId: string
@@ -186,6 +188,8 @@ export function recognitionSchedule(d: {
 
 function groupOf(d: RawDeal, by: GroupKey, names: {
   pipelines: Map<string, string>; stages: Map<string, string>; members: Map<string, string>
+  /** 사업 유형 이름 — 설정의 표가 정한다(마이그 242) */
+  businessTypes: Map<string, string>
 }): { key: string; label: string } {
   if (by === 'OWNER') {
     const label = d.ownerId ? names.members.get(d.ownerId) ?? '담당자 없음' : '담당자 없음'
@@ -194,7 +198,13 @@ function groupOf(d: RawDeal, by: GroupKey, names: {
   if (by === 'COMPANY') return { key: d.company?.name ?? '(없음)', label: d.company?.name ?? '회사 없음' }
   if (by === 'PIPELINE') return { key: d.pipelineId, label: names.pipelines.get(d.pipelineId) ?? d.pipelineId }
   if (by === 'STAGE') return { key: d.stageId, label: names.stages.get(`${d.pipelineId}:${d.stageId}`) ?? d.stageId }
-  return { key: d.businessType ?? '(없음)', label: d.businessType ?? '유형 없음' }
+  /*
+    예전에는 저장된 키를 **그대로** 라벨로 썼다 — 리포트 축에 「SOLUTION」·「PROJECT」가
+    영문 그대로 찍혔다. 이름은 설정의 표가 정한다(마이그 242).
+  */
+  const bizKey = dealBusinessTypeKey(d)
+  if (!bizKey) return { key: '(없음)', label: '유형 없음' }
+  return { key: bizKey, label: names.businessTypes.get(bizKey) ?? businessTypeLabelOf(bizKey, []) ?? bizKey }
 }
 
 export interface BusinessReportInput {
@@ -222,7 +232,7 @@ export async function buildBusinessReport(
       budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true, bookedNetMinor: true,
       inKindTotalMinor: true,
       startDate: true, endDate: true, endDateUnknown: true, termMonths: true,
-      businessType: true, wonAt: true, ownerId: true, pipelineId: true, stageId: true,
+      businessType: true, businessTypeKey: true, wonAt: true, ownerId: true, pipelineId: true, stageId: true,
       company: { select: { name: true } },
       // 담당자 이름은 **따로 읽는다** — crm_deal 은 ownerId 만 들고 관계가 없다
     },
@@ -243,6 +253,13 @@ export async function buildBusinessReport(
     select: { id: true, displayName: true },
   }) as { id: string; displayName: string }[]
   const memberNames = new Map(memberRows.map((m) => [m.id, m.displayName]))
+
+  // 사업 유형 이름 — 설정에서 바꾼 이름이 리포트 축에도 그대로 와야 한다(마이그 242)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bizRows = await (db as any).crmBusinessTypeOption.findMany({
+    select: { key: true, label: true },
+  }) as { key: string; label: string }[]
+  const businessTypeNames = new Map(bizRows.map((b) => [b.key, b.label]))
 
   const months = monthsBetween(period.from.slice(0, 7), period.to.slice(0, 7))
   const monthSet = new Set(months)
@@ -313,7 +330,10 @@ export async function buildBusinessReport(
 
     // ── 대상별
     if (inPeriodBooking || recInPeriod !== BigInt(0)) {
-      const g = groupOf(d, groupBy, { pipelines: pipelineNames, stages: stageNames, members: memberNames })
+      const g = groupOf(d, groupBy, {
+        pipelines: pipelineNames, stages: stageNames, members: memberNames,
+        businessTypes: businessTypeNames,
+      })
       const cur = groupAcc.get(g.key) ?? { label: g.label, count: 0, b: new Map(), r: new Map() }
       cur.count += 1
       if (inPeriodBooking) add(cur.b, currency, bookedMinor)
@@ -325,7 +345,7 @@ export async function buildBusinessReport(
         name: d.name,
         companyName: d.company?.name ?? null,
         ownerName: d.ownerId ? memberNames.get(d.ownerId) ?? null : null,
-        businessType: d.businessType,
+        businessType: dealBusinessTypeKey(d),
         wonAt: wonKey,
         currency,
         bookedMinor: bookedMinor.toString(),

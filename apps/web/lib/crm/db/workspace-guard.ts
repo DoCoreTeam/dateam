@@ -76,6 +76,9 @@ export const SOFT_DELETE_MODELS: ReadonlySet<string> = new Set([
   'CrmLaborGrade',
   'CrmDealCost',
   'CrmQuoteTerm',
+  // 사업 유형도 소프트 삭제다 — 예전 딜이 그 유형을 가리키고 있어
+  // 물리 삭제하면 그 딜의 유형이 「없음」으로 바뀐다(마이그 242)
+  'CrmBusinessTypeOption',
   'CrmWorkspace', 'CrmMember', 'CrmCompany', 'CrmPerson',
   'CrmPipeline', 'CrmDeal', 'CrmActivity', 'CrmTask', 'CrmMeeting',
   // 견적·상품도 휴지통을 갖는다 — 보낸 견적을 실수로 지웠을 때 되돌릴 수 있어야 한다.

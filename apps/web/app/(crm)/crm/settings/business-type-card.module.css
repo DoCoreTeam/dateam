@@ -1,0 +1,103 @@
+/* 사업 유형 — 딜에서 고르는 목록을 여기서 정한다 */
+
+/*
+  align-content: start — 카드가 옆 카드 높이에 맞춰 늘어날 때(§2-5 (5) 행 정렬),
+  남는 세로 공간이 «줄 사이»로 배분되면 설명과 목록이 갈라져 보인다(실브라우저에서 확인).
+  남는 공간은 아래에 모은다.
+*/
+.card { display: grid; gap: var(--space-3); align-content: start; }
+
+.head { display: flex; align-items: center; gap: var(--space-2); }
+.head > :last-child { margin-left: auto; }
+
+.title { margin: 0; font-size: var(--fs-md); font-weight: 700; color: var(--text); }
+
+.desc { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.6; }
+
+.form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+
+.formTitle { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.formRow { display: grid; grid-template-columns: 1fr; gap: var(--space-3); align-items: end; }
+.field { display: grid; gap: var(--space-1); min-width: 0; }
+
+/* 확정은 오른쪽 끝, 취소는 그 왼쪽 — §2-3-2 L-6 */
+.formFoot { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+
+.item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: var(--hairline) solid var(--border-light);
+  font-size: var(--fs-sm);
+  /* 컨트롤이 접히면 그 행만 커져 목록 리듬이 깨진다 — §2-3-1 (3) */
+  flex-wrap: nowrap;
+}
+
+/* 숨긴 유형은 지운 것이 아니다 — 흐리게 두되 목록에는 남긴다 */
+.hidden .name { color: var(--text-faint); text-decoration: line-through; }
+
+.order { display: inline-flex; flex-direction: column; }
+
+.arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.arrow:hover:not(:disabled) { color: var(--text); }
+.arrow:disabled { opacity: 0.25; cursor: default; }
+
+.name { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+
+.tags { display: flex; align-items: center; gap: var(--space-1); }
+
+.tag {
+  padding: 1px 8px;
+  border-radius: 9999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tagOff { background: var(--warning-bg); color: var(--warning); }
+
+.uses { font-size: var(--fs-2xs); color: var(--text-faint); white-space: nowrap; }
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.iconBtn:hover:not(:disabled) { color: var(--text); background: var(--surface-muted); }
+.iconBtn:disabled { opacity: 0.4; cursor: default; }
+
+.danger:hover:not(:disabled) { color: var(--danger); background: var(--danger-bg); }
+
+/* 기본 유형에는 삭제 버튼이 없다 — 자리만 비워 열을 맞춘다 */
+.iconGap { display: inline-block; width: 28px; }

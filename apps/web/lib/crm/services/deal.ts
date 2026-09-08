@@ -29,7 +29,8 @@ import {
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
 import { pickBooked } from '../domain/booked-amount.ts'
 import { monthSpan } from '../domain/allocation.ts'
-import { BUSINESS_TYPE_ORDER, TERM_TYPE_ORDER } from '../../terms/ledger.ts'
+import { TERM_TYPE_ORDER } from '../../terms/ledger.ts'
+import { isBuiltinBusinessTypeKey } from '../domain/business-type.ts'
 import {
   parseCriteria, evaluateCriteria, blockingMessage,
   type CriteriaVerdict,
@@ -54,7 +55,10 @@ export interface DealRow {
   budgetNetMinor?: bigint | null
   quotedNetMinor?: bigint | null
   contractNetMinor?: bigint | null
+  /** 예전 enum 칼럼. 기본 8종일 때만 채워진다 — 읽는 쪽은 businessTypeKey 를 본다 */
   businessType?: string | null
+  /** 사업 유형 키 — crm_business_type.key(마이그 242). **이것이 진실이다** */
+  businessTypeKey?: string | null
   termType?: string | null
   startDate?: Date | null
   endDate?: Date | null
@@ -68,7 +72,7 @@ const SELECT = {
   ownerId: true, version: true, updatedAt: true,
   // 장부의 세 금액 — 화면이 보는 「금액」은 이 셋에서 나온다(아래 withBooked)
   budgetNetMinor: true, quotedNetMinor: true, contractNetMinor: true,
-  businessType: true, termType: true, startDate: true, endDate: true, endDateUnknown: true,
+  businessType: true, businessTypeKey: true, termType: true, startDate: true, endDate: true, endDateUnknown: true,
 } as const
 
 /**
@@ -101,7 +105,11 @@ export interface DealInput {
   currency?: string | null
   expectedCloseDate?: string | null
   ownerId?: string | null
-  /** 무엇을 파는 일인가 — 유형마다 원가 구조도 계약 형태도 다르다 */
+  /**
+   * 무엇을 파는 일인가 — 유형마다 원가 구조도 계약 형태도 다르다.
+   * 값은 `crm_business_type.key`(영업 CRM 설정에서 관리한다).
+   * 예전 화면이 보내던 enum 이름(`GPU`·`SI`…)도 그대로 키라 함께 받는다.
+   */
   businessType?: string | null
   /** 사업 기간 — 장기를 고르면 연차 구분이 열린다 */
   termType?: string | null
@@ -152,9 +160,17 @@ function normalizeInput(input: Partial<DealInput>, requireName: boolean): Record
   }
   if (input.ownerId !== undefined) out.ownerId = input.ownerId || null
 
-  // 목록에 없는 값은 조용히 받지 않는다 — 오타가 유형이 되면 집계가 통째로 흐려진다
+  /*
+    사업 유형은 **표에서 온다**(마이그 242). 그래서 목록 대조를 여기(순수 함수)서 못 한다 —
+    호출부가 `assertBusinessTypeKey` 로 DB 에 물어본다.
+
+    enum 칼럼은 기본 8종일 때만 함께 채운다. 사용자가 추가한 유형은 enum 에 값이 없어
+    넣으면 Postgres 가 거절한다 — 그때는 비운다(expand 중간 상태, 마이그 242).
+  */
   if (input.businessType !== undefined) {
-    out.businessType = pickEnum(input.businessType, BUSINESS_TYPE_ORDER, '사업 유형')
+    const key = normalizeText(input.businessType)
+    out.businessTypeKey = key
+    out.businessType = isBuiltinBusinessTypeKey(key) ? key : null
   }
   if (input.termType !== undefined) {
     out.termType = pickEnum(input.termType, TERM_TYPE_ORDER, '사업 기간')
@@ -330,6 +346,19 @@ async function assertStageBelongs(tx: any, pipelineId: string, stageId: string):
   }
 }
 
+/**
+ * 사업 유형은 **표에 있는 것만** 받는다(마이그 242).
+ * 오타가 유형이 되면 집계가 통째로 흐려진다 — 예전 enum 이 막아 주던 것을 여기서 막는다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertBusinessTypeKey(tx: any, key: unknown): Promise<void> {
+  if (typeof key !== 'string' || key === '') return
+  const hit = await tx.crmBusinessTypeOption.findFirst({ where: { key }, select: { id: true } })
+  if (!hit) {
+    throw new CrmError('VALIDATION_FAILED', '사업 유형을 목록에서 골라 주세요.', { field: 'businessType' })
+  }
+}
+
 export async function createDeal(
   workspaceId: string,
   actorId: string | null,
@@ -339,6 +368,7 @@ export async function createDeal(
 
   return withCrmTx(workspaceId, async (tx) => {
     await assertStageBelongs(tx, input.pipelineId, input.stageId)
+    await assertBusinessTypeKey(tx, data.businessTypeKey)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const created = await (tx as any).crmDeal.create({ data, select: SELECT })
@@ -374,6 +404,7 @@ export async function updateDeal(
   const data = normalizeInput(rest, false)
 
   return withCrmTx(workspaceId, async (tx) => {
+    await assertBusinessTypeKey(tx, data.businessTypeKey)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const before = await (tx as any).crmDeal.findFirst({ where: { id }, select: SELECT })
     if (before && rest.stageId && rest.stageId !== before.stageId) {

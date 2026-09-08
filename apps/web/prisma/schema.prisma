@@ -420,7 +420,11 @@ model CrmDeal {
   /// 시작·종료에서 계산된 개월 수. 연차 배분의 근거
   termMonths        Int?
 
+  /// 예전 칼럼. 기본 8종일 때만 함께 채워진다(expand 중간 상태, 마이그 242).
+  /// 읽는 쪽은 businessTypeKey 를 본다 — 사용자가 추가한 유형은 enum 에 담기지 않는다
   businessType      CrmBusinessType?
+  /// 사업 유형 키 — crm_business_type.key. **이것이 진실이다**
+  businessTypeKey   String?
   /// 대표 견적 — 이 견적의 제안가가 quotedNetMinor 가 된다
   primaryQuoteId    String?
 
@@ -1251,6 +1255,35 @@ model CrmDealCost {
 }
 
 
+/// 사업 유형 — 무엇을 파는 일인가.
+///
+/// **왜 표인가**(사용자 지적 2026-09-08: 「사업유형 설정하는 곳이 없어」):
+/// 예전에는 `CrmBusinessType` enum + 코드 상수여서 화면에서 손댈 수 없었다.
+/// 그래서 「유지보수」 사업을 「기타」로 적을 수밖에 없었고,
+/// 「어떤 사업이 남는 장사였나」에 답할 수 없었다.
+/// 파이프라인·단계·거래 조건과 같은 방식으로 **데이터로 내렸다**(마이그 242).
+model CrmBusinessTypeOption {
+  id          String  @id
+  workspaceId String
+  /// 딜에 저장되는 값. 기본 8종은 예전 enum 문자열, 사용자 추가분은 행 id
+  key         String
+  /// 화면에 보이는 이름. 이것만 바뀐다
+  label       String
+  position    Int     @default(0)
+  /// 기본 8종인가 — 지울 수 없고 «숨김»만 된다
+  isBuiltin   Boolean @default(false)
+  /// 새 딜에서 고를 수 있나. 꺼도 이미 그 유형인 딜은 그대로 보인다
+  isActive    Boolean @default(true)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // 유일성은 DB 의 부분 유니크 인덱스가 지킨다(마이그 242) — Prisma 는 부분 인덱스를 표현하지 못한다
+  @@index([workspaceId, position])
+  @@map("crm_business_type")
+}
+
 /// 거래 조건 항목 — 사업 스타일마다 조건이 다르다.
 /// 관리자가 하나씩 등록하고 영업이 견적마다 고른다
 /// (한 덩어리 텍스트면 GPU 조건이 SI 견적서에도 나간다)
@@ -1261,8 +1294,10 @@ model CrmQuoteTerm {
   title        String
   /// 견적서에 실제로 인쇄되는 문장
   body         String
-  /// 이 사업 유형에서 주로 쓰는 조건. null 이면 모든 유형에서 보인다
+  /// 예전 칼럼. 마이그 242 로 businessTypeKey 로 옮겼다 — 읽는 쪽은 그것을 본다
   businessType CrmBusinessType?
+  /// 이 사업 유형에서 주로 쓰는 조건. null 이면 모든 유형에서 보인다
+  businessTypeKey String?
   /// 새 견적을 만들 때 기본으로 켜지는가
   isDefault    Boolean  @default(false)
   position     Int      @default(0)

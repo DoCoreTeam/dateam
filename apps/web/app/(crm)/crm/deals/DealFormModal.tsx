@@ -18,10 +18,12 @@ import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPick
 import type { BoardPipeline } from './DealBoard'
 import MoneyField from '@/components/ui/MoneyField'
 import {
-  BUSINESS_TYPE_LABEL, BUSINESS_TYPE_ORDER, BUSINESS_TYPE_LABEL_TEXT,
+  BUSINESS_TYPE_LABEL_TEXT,
   TERM_TYPE_LABEL, TERM_TYPE_ORDER, TERM_TYPE_LABEL_TEXT,
   EXPECTED_CLOSE_LABEL, END_DATE_UNKNOWN_LABEL, END_DATE_UNKNOWN_HINT,
 } from '@/lib/terms'
+import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
+import { selectableBusinessTypes } from '@/lib/crm/domain/business-type'
 import styles from './board.module.css'
 
 /** 안 고른 상태 — 「없음」이 아니다. 아직 정하지 않았다는 뜻이다 */
@@ -77,6 +79,17 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
   const [endDateUnknown, setEndDateUnknown] = useState(initial?.endDateUnknown ?? false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  /*
+    사업 유형 목록은 **설정에서 정한 표**에서 온다(마이그 242).
+    숨긴 유형은 안 보이지만, **이 딜이 이미 쓰고 있는 유형은 보인다** —
+    빼면 유형을 숨긴 뒤 그 딜을 수정할 때 값이 조용히 날아간다.
+  */
+  const { rows: bizTypes } = useBusinessTypes()
+  const bizOptions = useMemo(
+    () => selectableBusinessTypes(bizTypes, initial?.businessType ?? null),
+    [bizTypes, initial?.businessType],
+  )
 
   const pipeline = pipelines.find((p) => p.id === pipelineId)
   // 열린 단계만 고르게 한다 — 만들자마자 "수주"로 두면 금액·성사일 없는 WON 이 생긴다(DI-06)
@@ -262,8 +275,8 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
               value={businessType ?? ''} onChange={(e) => setBusinessType(e.target.value)}
             >
               <option value="">{NOT_SET}</option>
-              {BUSINESS_TYPE_ORDER.map((k) => (
-                <option key={k} value={k}>{BUSINESS_TYPE_LABEL[k]}</option>
+              {bizOptions.map((t) => (
+                <option key={t.key} value={t.key}>{t.label}</option>
               ))}
             </select>
           </div>
