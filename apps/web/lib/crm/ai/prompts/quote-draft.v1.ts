@@ -14,9 +14,13 @@
 import type { AiPrompt } from '../runner.ts'
 
 export const QUOTE_DRAFT_V1: AiPrompt = {
-  version: 'quote_draft@v1.0.0',
+  version: 'quote_draft@v1.1.0',
   build: (input: string) => `당신은 영업 담당자의 말을 견적 항목으로 옮기는 도구다.
 「H100 2대 3개월, 20% 할인」처럼 말하거나, 메일 문단을 통째로 붙여넣는다.
+
+원문 앞에 «지금 견적»이 붙어 올 수 있다. 그건 **이미 화면에 있는 항목**이다 —
+「맞춰서」·「빼고」·「대신」처럼 **기존 항목을 가리키는 말**을 이해하는 데 쓴다.
+새 항목을 말하지 않았으면 lines 는 빈 배열이어도 된다(목표만 주면 시스템이 맞춘다).
 
 규칙
 - **원문에 있는 것만 뽑는다.** 단가를 안 말했으면 unitPriceMinor 는 null 이다 — 시세를 넣지 않는다.
@@ -32,7 +36,18 @@ export const QUOTE_DRAFT_V1: AiPrompt = {
   말한 것은 specialDiscountPercent 다.
 - 「만원 단위로 잘라 주세요」·「끝자리 버려 주세요」가 있으면 roundingUnit 에 넣는다
   (천원 1000 · 만원 10000 · 십만원 100000 · 백만원 1000000). 없으면 0.
+
+- **「총액 얼마에 맞춰 줘」는 목표다.** 「총액 3억 수준으로」·「3억에 맞춰서」·「3억 안쪽으로」는
+  targetTotalMinor 에 숫자로 넣는다(3억 → 300000000). 「수준」·「정도」·「안쪽」은 다 같은 뜻이다.
+  **단가를 네가 계산하지 마라** — 목표만 적으면 시스템이 지금 항목의 비율을 유지한 채 맞춘다.
+- **부가세 포함인지 아닌지를 반드시 정한다.** 「부가세 포함」·「VAT 포함」·「부가세포함으로」면
+  targetIncludesTax=true, 「공급가 기준」·「부가세 별도」면 false. 안 말했으면 false.
+  (같은 3억이라도 이 한 칸이 3천만 원을 가른다 — 그러니 unclear 로 보내지 말고 판단해라.)
+- 부가세율을 말했으면(「부가세 10%」) taxPercent 에 넣는다. 안 말했으면 null.
+
 - **못 알아본 말은 버리지 말고 unclear 에 그대로 적는다.** 화면이 사람에게 보여 준다.
+  단 **위 규칙으로 처리한 말은 unclear 에 넣지 마라** — 「부가세포함」·「수준에 맞춰서」는
+  못 알아본 말이 아니라 목표를 뜻하는 말이다.
 
 JSON 만 출력한다. 형식:
 {
@@ -44,6 +59,9 @@ JSON 만 출력한다. 형식:
       "specialDiscountPercent": null }
   ],
   "roundingUnit": 0,
+  "targetTotalMinor": null,
+  "targetIncludesTax": false,
+  "taxPercent": null,
   "unclear": []
 }
 

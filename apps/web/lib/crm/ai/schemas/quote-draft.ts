@@ -53,6 +53,18 @@ export const QuoteDraftOutputSchema = z.object({
     /** 특별 할인율(%) — 「이번엔 80%」처럼 따로 말했을 때만 */
     specialDiscountPercent: ratio,
   })).max(50),
+  /**
+   * **「부가세 포함 3억에 맞춰 줘」의 의도**(v0.7.695).
+   *
+   * AI 는 «얼마에 맞춰 달라»는 뜻만 읽고, 단가는 `quote-target.ts` 가 낸다 —
+   * 견적은 고객에게 나가는 문서라 AI 가 푼 숫자를 그대로 제안가로 쓰지 않는다.
+   * 예전엔 이 자리가 없어 「부가세포함」·「수준에 맞춰서」가 통째로 unclear 로 갔다.
+   */
+  targetTotalMinor: amount,
+  /** 그 금액이 부가세를 포함한 값인가. 「부가세 포함」·「VAT 포함」이면 true */
+  targetIncludesTax: z.preprocess((v) => v === true || v === 'true', z.boolean()),
+  /** 항목마다 적용할 부가세율(%). 안 말했으면 null — 화면 기본값을 그대로 둔다 */
+  taxPercent: ratio,
   /** 「만원 단위로 잘라 주세요」 같은 말이 있으면 */
   roundingUnit: z.preprocess((v) => {
     const n = Number(v ?? 0)
