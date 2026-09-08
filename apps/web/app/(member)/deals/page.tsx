@@ -264,7 +264,7 @@ export default function DealsPage() {
 function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; onClose: () => void; onDeleted: () => void }) {
   const st = STAGE_STYLE[d.stage] ?? STAGE_STYLE['신규']
   async function handleDelete() {
-    if (!confirm(confirmDelete('deal', 1, { stays: '거래처와 연결된 기록은 남아요.' }))) return
+    if (!confirm(confirmDelete('deal', 1, { stays: '거래처와 연결된 기록' }))) return
     const res = await fetch(`/api/deals/${d.id}`, { method: 'DELETE' })
     if (res.ok) onDeleted()
     else alert(failedTo(ENTITY.deal.label, '삭제'))

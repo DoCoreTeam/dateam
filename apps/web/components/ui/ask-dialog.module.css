@@ -8,3 +8,13 @@
 .field { display: grid; gap: var(--space-1); }
 /* 확정은 오른쪽 끝, 취소는 그 왼쪽 (§2-3-2 L-6) */
 .foot { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+/*
+  제목 방어선 — `.tape-title` 은 nowrap 이라 긴 물음이 상자를 뚫는다.
+  호출부가 지켜야 할 규칙이지만(짧은 물음 + 본문), 지켜지지 않았을 때
+  **화면 밖으로 나가지는 않게** 부품이 막는다.
+*/
+.title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

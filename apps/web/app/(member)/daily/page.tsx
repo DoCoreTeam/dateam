@@ -483,10 +483,12 @@ export default function DailyPage() {
 
   // 묶음(원본+분해 전체) 삭제 — confirm 후 deleteLogGroup. 단건이면 1건만.
   const handleDeleteGroup = async (headLogId: string, count: number) => {
-    const msg = count > 1
-      ? `원본 입력과 분해 항목 ${count}개가 함께 삭제됩니다. 계속할까요?`
-      : '이 업무를 삭제할까요? 삭제하면 되돌릴 수 없습니다.'
-    if (!await ask.confirm({ title: msg, confirmLabel: ACTION.delete, danger: true })) return
+    // 물음은 제목, 결과는 본문 — 한 줄로 넘기면 `.tape-title`(nowrap)이 상자를 넘친다
+    const title = '이 업무를 삭제할까요?'
+    const body = count > 1
+      ? `원본 입력과 분해 항목 ${count}개가 함께 사라집니다. 되돌릴 수 없습니다.`
+      : '되돌릴 수 없습니다.'
+    if (!await ask.confirm({ title, body, confirmLabel: ACTION.delete, danger: true })) return
     startTransition(async () => {
       const result = await deleteLogGroup(headLogId)
       if (result.ok) {

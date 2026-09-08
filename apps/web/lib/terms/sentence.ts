@@ -9,7 +9,7 @@
  */
 
 import { ENTITY, count, type EntityKey } from './entity.ts'
-import { iGa, eulReul } from '../ui/josa.ts'
+import { iGa, eulReul, eunNeun } from '../ui/josa.ts'
 
 /**
  * 빈 상태 제목 — `딜이 아직 없어요`.
@@ -43,18 +43,55 @@ export function failedTo(objectLabel: string, verb: string, next = '잠시 후 �
  *
  * 조사는 조수사에 붙는다 — `3건을` 이지만 `4개를` 다. 손으로 적으면 반드시 틀린다.
  */
+export interface DeleteConfirmParts {
+  /** 물음 한 줄. **제목 자리에 그대로 들어간다** */
+  title: string
+  /** 결과 — 함께 사라지는 것과 남는 것. 없으면 `undefined` */
+  body?: string
+}
+
+/**
+ * 삭제 확인을 **물음과 결과로 나눠** 준다.
+ *
+ * **왜 나눠야 하나**: 대화상자의 제목은 `.tape-title` 이고 그 클래스는
+ * `white-space: nowrap` 이다(테이프 라벨이라 그렇다). 그래서 결과 문장까지 붙은
+ * 긴 한 줄을 제목으로 넘기면 **상자 밖으로 흘러넘친다** —
+ * 실측(2026-09-08 프로덕션 `/crm/tasks`): 「할 일 1건을 삭제할까요? 딜과 미팅 기록은
+ * 그대로 남아요.는 남습니…」가 모달을 뚫고 잘려 나갔다.
+ *
+ * 자리를 나눠 주면 화면이 「어디에 무엇을 넣을지」를 매번 정하지 않아도 된다(§2-3-4 C-1).
+ *
+ * `alsoGone`·`stays` 는 **명사구**를 준다 — 조사와 서술어는 여기서 붙인다.
+ * 완성된 문장을 넘기면 「…남아요.는 남습니다.」처럼 두 번 끝난다(그 사고가 위 실측이다).
+ */
+export function confirmDeleteParts(
+  key: EntityKey,
+  n: number,
+  opts?: { alsoGone?: string; stays?: string },
+): DeleteConfirmParts {
+  const phrase = count(key, n)              // 예: '미팅 1건'
+  const title = `${phrase}${eulReul(phrase)} 삭제할까요?`
+
+  const tail: string[] = []
+  if (opts?.alsoGone) tail.push(`${opts.alsoGone}${iGa(opts.alsoGone)} 함께 사라지고`)
+  // 받침은 `josa.ts` 가 센다 — 여기에 `는` 을 박아 두면 「기록는 남습니다」가 된다
+  if (opts?.stays) tail.push(`${opts.stays}${eunNeun(opts.stays)} 남습니다`)
+  return { title, body: tail.length ? `${tail.join(', ')}.` : undefined }
+}
+
+/**
+ * 한 줄로 필요한 자리(브라우저 `confirm()` 등)를 위한 조립본.
+ *
+ * **우리 대화상자에는 이걸 제목으로 넘기지 않는다** — `confirmDeleteParts` 를 써서
+ * 제목과 본문으로 나눈다. 그 규칙은 `lib/ui/ask-dialog-standard.test.ts` 가 지킨다.
+ */
 export function confirmDelete(
   key: EntityKey,
   n: number,
   opts?: { alsoGone?: string; stays?: string },
 ): string {
-  const phrase = count(key, n)              // 예: '미팅 1건'
-  const head = `${phrase}${eulReul(phrase)} 삭제할까요?`
-
-  const tail: string[] = []
-  if (opts?.alsoGone) tail.push(`${opts.alsoGone}${iGa(opts.alsoGone)} 함께 사라지고`)
-  if (opts?.stays) tail.push(`${opts.stays}는 남습니다`)
-  return tail.length ? `${head} ${tail.join(', ')}.` : head
+  const p = confirmDeleteParts(key, n, opts)
+  return p.body ? `${p.title} ${p.body}` : p.title
 }
 
 /**

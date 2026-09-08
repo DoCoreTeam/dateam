@@ -17,7 +17,8 @@ export {
 } from './entity.ts'
 
 export {
-  emptyTitle, failedTo, confirmDelete, notEnough,
+  emptyTitle, failedTo, confirmDelete, confirmDeleteParts, notEnough,
+  type DeleteConfirmParts,
 } from './sentence.ts'
 
 export {

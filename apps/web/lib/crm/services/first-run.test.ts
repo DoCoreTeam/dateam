@@ -243,7 +243,8 @@ test('★ 할 일을 지울 길이 있다 — DELETE API 는 있는데 화면이
   const TASKS = readFileSync(
     new URL('../../../app/(crm)/crm/tasks/TasksClient.tsx', import.meta.url), 'utf8')
   assert.match(TASKS, /method: 'DELETE'/, '삭제를 부르지 않는다 — 잘못 만든 것이 영원히 남는다')
-  assert.match(TASKS, /confirmDelete\('task'/, '확인 없이 지운다')
+  // 물음/본문을 나눈 뒤로는 confirmDeleteParts 를 쓴다 — 확인을 받는다는 뜻은 그대로다
+  assert.match(TASKS, /confirmDeleteParts?\('task'/, '확인 없이 지운다')
   assert.match(TASKS, /aria-label=\{`\$\{t\.title\} \$\{ACTION\.delete\}`\}/,
     '어느 할 일을 지우는지 낭독기가 말하지 못한다')
 })

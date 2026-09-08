@@ -88,7 +88,16 @@ export function useAskDialog(): { ask: AskApi; dialog: React.ReactNode } {
 
   const dialog = state ? (
     <NbModal
-      title={state.title}
+      /*
+        제목은 `.tape-title`(테이프 라벨)이라 `white-space: nowrap` 이다.
+        호출부가 긴 문장을 넘기면 **상자 밖으로 흘러넘친다**(실측 2026-09-08 프로덕션
+        `/crm/tasks` 삭제 확인). 호출부가 물음만 넘기는 것이 맞지만(그 규칙은
+        `lib/ui/ask-dialog-standard.test.ts` 가 지킨다), 부품이 자기 몫의 방어를 갖는다 —
+        화면이 무엇을 안 지키면 깨지는 값은 부품이 정한다(§2-3-4 C-1·C-4).
+      */
+      title={<span className={styles.title}>{state.title}</span>}
+      /* 제목을 감싸면 NbModal 이 문자열을 못 읽어 aria-label 이 「대화상자」가 된다 */
+      ariaLabel={state.title}
       onClose={() => close(cancelAnswer(state.kind))}
       maxWidth={440}
       footer={
