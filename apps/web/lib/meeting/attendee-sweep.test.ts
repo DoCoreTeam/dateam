@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sweepAttendees, planApply, type SweepNote } from './attendee-sweep.ts'
+import { sweepAttendees, planApply, collectLinked, type SweepNote } from './attendee-sweep.ts'
 import type { PersonCandidate, CompanyCandidate } from '../crm/link/attendee-link.ts'
 
 /** 후보·회의 모두 운영 데이터 실측(2026-09-05) */
@@ -165,4 +165,51 @@ test('아직 안 이은 다른 회의는 그대로 묻는다 — 과교정하면
   const r = sweepAttendees(notes, CAND)
   assert.equal(r.link.length, 1, '한쪽만 이었으면 나머지는 여전히 물어야 한다')
   assert.deepEqual(r.link[0].notes.map((n) => n.id), ['b'])
+})
+
+/* ── 이미 이은 사람 (D 를 위한 R) ───────────────────────────────────────── */
+
+const LINKED_NOTES: SweepNote[] = [
+  { id: 'n1', title: '칠곡군 미팅- 페달스테이션', meetingAt: '2026-09-01T01:00:00Z',
+    attendees: ['김도현', '제일엔지니어링 곽수영 상무'], linkedPersonIds: ['p-kwak'], memberNames: ['김도현'] },
+  { id: 'n2', title: '컬쳐랜드 지자체 미팅', meetingAt: '2026-09-02T01:00:00Z',
+    attendees: ['김도현', '우연컴퍼니 서명균 대표'], linkedPersonIds: ['p-seo', 'p-kwak'], memberNames: ['김도현'] },
+  { id: 'n3', title: '사라진 인물이 남은 회의', meetingAt: null,
+    attendees: ['김도현', '누군가'], linkedPersonIds: ['p-gone'], memberNames: ['김도현'] },
+]
+
+test('collectLinked: 같은 사람이 여러 회의에 이어져 있으면 한 줄로 모은다', () => {
+  const rows = collectLinked(LINKED_NOTES, PEOPLE)
+  const kwak = rows.find((r) => r.personId === 'p-kwak')
+  assert.ok(kwak)
+  assert.equal(kwak.name, '곽수영')
+  assert.equal(kwak.companyName, '제일엔지니어링')
+  assert.deepEqual(kwak.notes.map((n) => n.id), ['n1', 'n2'])
+})
+
+test('collectLinked: CRM 에서 못 찾은 id 를 걸러 버리지 않는다 — 안 보이면 못 치운다', () => {
+  const rows = collectLinked(LINKED_NOTES, PEOPLE)
+  const gone = rows.find((r) => r.personId === 'p-gone')
+  assert.ok(gone, '고아 id 가 목록에서 사라지면 안 된다')
+  assert.equal(gone.missing, true)
+  assert.equal(gone.name, null)
+})
+
+test('collectLinked: 고아가 맨 위로 온다 — 치워야 할 것이 먼저 보인다', () => {
+  const rows = collectLinked(LINKED_NOTES, PEOPLE)
+  assert.equal(rows[0].personId, 'p-gone')
+})
+
+test('collectLinked: 같은 회의의 같은 id 가 겹쳐도 회의는 한 번만 센다', () => {
+  const dup: SweepNote[] = [{
+    id: 'n1', title: '한 회의', meetingAt: null, attendees: ['곽수영'],
+    linkedPersonIds: ['p-kwak', 'p-kwak'], memberNames: [],
+  }]
+  const rows = collectLinked(dup, PEOPLE)
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].notes.length, 1)
+})
+
+test('collectLinked: 이은 것이 없으면 빈 목록이다', () => {
+  assert.deepEqual(collectLinked(NOTES, PEOPLE), [])
 })

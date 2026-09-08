@@ -191,3 +191,72 @@ export const SWEEP_TIER_LABEL: Record<SweepTier, { title: string; desc: string }
 
 /** 층 순서 — 판단할 게 없는 것부터 보여 준다 */
 export const SWEEP_TIER_ORDER: SweepTier[] = ['link', 'review', 'drop']
+
+/**
+ * 이미 이어 둔 사람 — **보여 준다.** 그래야 풀 수 있다.
+ *
+ * **왜 이게 필요한가**: 이은 사람은 후보 목록에서 사라진다(다시 안 묻는다). 그건 맞다.
+ * 그런데 그러면 **잘못 이은 것을 이 화면에서 풀 길이 없다** — 회의노트를 하나씩 열어
+ * 편집 모드로 들어가야 한다. 만들기(C)·잇기(U)만 있고 **지우기(D)가 없는 상태**다.
+ * (사용자 지적 2026-09-08: 「지우고 싶은게 있으면 지울 수도 있어야 하니 CRUD 지켜」)
+ *
+ * **CRM 에서 못 찾은 id 도 숨기지 않는다.** `attendee_person_ids` 는 FK 가 없는 참조라
+ * 인물을 지워도 id 는 그대로 남는다. 읽는 자리가 조용히 걸러 버리면 그 고아는
+ * **영원히 아무 화면에도 안 나온다** — 치울 수 있으려면 먼저 보여야 한다(R-5 와 같은 이유).
+ */
+export interface LinkedRow {
+  personId: string
+  /** CRM 에서 찾은 이름 — 못 찾으면 null */
+  name: string | null
+  companyName: string | null
+  title: string | null
+  /** CRM 에서 못 찾았다 — 지워졌거나 고아 id 다 */
+  missing: boolean
+  /** 이 사람이 이어져 있는 회의들 — 풀면 무엇이 달라지는지의 근거다 */
+  notes: { id: string; title: string; meetingAt: string | null }[]
+}
+
+/**
+ * 이어 둔 인물을 회의 건너 한 줄로 모은다.
+ *
+ * 정렬은 **고아 먼저, 그 다음 이름순**이다 — 치워야 할 것이 위로 온다.
+ * 순서를 고정해야 화면이 열 때마다 줄이 뒤바뀌지 않는다.
+ */
+export function collectLinked(notes: SweepNote[], people: PersonCandidate[]): LinkedRow[] {
+  const byId = new Map(people.map((p) => [p.id, p]))
+  const rows = new Map<string, LinkedRow>()
+
+  for (const note of notes) {
+    for (const personId of note.linkedPersonIds) {
+      if (!personId) continue
+      const found = byId.get(personId)
+      const row = rows.get(personId) ?? {
+        personId,
+        name: found?.name ?? null,
+        companyName: found?.companyName ?? null,
+        title: found?.title ?? null,
+        missing: !found,
+        notes: [],
+      }
+      // 같은 배열에 같은 id 가 겹쳐 있어도 회의는 한 번만 센다
+      if (!row.notes.some((n) => n.id === note.id)) {
+        row.notes.push({ id: note.id, title: note.title, meetingAt: note.meetingAt })
+      }
+      rows.set(personId, row)
+    }
+  }
+
+  return Array.from(rows.values()).sort((a, b) => {
+    if (a.missing !== b.missing) return a.missing ? -1 : 1
+    return (a.name ?? '').localeCompare(b.name ?? '', 'ko')
+  })
+}
+
+/** 이어 둔 사람 층의 이름과 안내 (SSOT · §0-2) */
+export const LINKED_SECTION_LABEL = {
+  title: '이미 이은 사람',
+  desc: '잘못 이었으면 연결을 해제하세요. 인물은 남고 이 회의와의 연결만 끊깁니다.',
+  /** CRM 에서 사라진 인물 — 「없다」가 아니라 「못 찾았다」로 말한다 */
+  missing: 'CRM 에서 찾을 수 없는 인물',
+  missingHint: '인물이 삭제됐거나 연결이 어긋났어요. 해제하면 이 이름은 다시 후보로 올라옵니다.',
+} as const

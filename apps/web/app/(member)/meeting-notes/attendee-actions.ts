@@ -10,13 +10,19 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { sweepAttendees, planApply, type SweepNote, type SweepRow } from '@/lib/meeting/attendee-sweep'
+import { sweepAttendees, planApply, collectLinked, type SweepNote, type SweepRow, type LinkedRow } from '@/lib/meeting/attendee-sweep'
 import { loadAttendeeCandidates, SWEEP_CANDIDATE_LIMIT } from '@/lib/crm/link/candidates'
+import { failedTo } from '@/lib/terms'
 
 export interface SweepView {
   link: SweepRow[]
   review: SweepRow[]
   drop: SweepRow[]
+  /**
+   * 이미 이어 둔 사람 — 풀 수 있으려면 먼저 보여야 한다.
+   * 후보 3층과 달리 **고르는 대상이 아니다**(체크박스가 아니라 해제 버튼이다).
+   */
+  linked: LinkedRow[]
   noteCount: number
   /** CRM 을 못 봤을 때 — 화면이 「없다」와 「못 봤다」를 구분해 말할 수 있어야 한다 */
   crmAvailable: boolean
@@ -70,6 +76,7 @@ export async function sweepMyNotes(): Promise<{ ok: true; view: SweepView } | { 
     ok: true,
     view: {
       ...result,
+      linked: collectLinked(notes, candidates.people),
       crmAvailable: candidates.people.length > 0 || candidates.companies.length > 0,
       candidatesTruncated: candidates.truncated,
     },
@@ -156,4 +163,66 @@ export async function applyAttendeeLinks(chosenKeys: string[]): Promise<ApplyRes
 
   revalidatePath('/meeting-notes')
   return { ok: true, linked, created, failed }
+}
+
+export interface UnlinkResult {
+  ok: boolean
+  /** 실제로 연결이 끊긴 회의 수 */
+  removed: number
+  error?: string
+}
+
+/**
+ * 이어 둔 인물을 회의노트에서 뗀다 (D).
+ *
+ * **인물은 지우지 않는다.** 여기서 지우는 것은 「이 회의에 그 사람이 있었다」는 연결뿐이고,
+ * CRM 인물은 그대로 남는다 — 그래서 되돌릴 수 있다(다시 이으면 된다).
+ * 인물 자체를 지우는 일은 인물 화면의 몫이다(`/crm/people/{id}`) — 지우는 자리가 둘이면
+ * 한쪽만 고쳐지고 그때부터 서로 다른 규칙이 된다.
+ *
+ * 참석자 **이름 글자**(`attendees`)도 건드리지 않는다. 잇기가 그것을 안 건드렸으므로
+ * 해제도 안 건드린다 — 그래야 해제한 이름이 다시 후보로 올라와 완전히 되돌아간다.
+ */
+export async function unlinkAttendeePerson(personId: string, noteIds: string[]): Promise<UnlinkResult> {
+  const id = personId.trim()
+  if (!id || noteIds.length === 0) return { ok: false, removed: 0, error: '해제할 대상이 없습니다.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, removed: 0, error: '인증이 필요합니다.' }
+
+  let removed = 0
+  for (const noteId of noteIds.slice(0, 200)) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: cur, error: readErr } = await (supabase.from('meeting_notes') as any)
+        .select('attendee_person_ids').eq('id', noteId).single()
+      if (readErr || !cur) continue
+
+      const prev: string[] = cur.attendee_person_ids ?? []
+      if (!prev.includes(id)) continue
+      const next = prev.filter((p) => p !== id)
+
+      /**
+       * `select('id')` 로 **몇 줄이 실제로 바뀌었는지** 받는다.
+       * RLS 로 막히면 supabase-js 는 오류 없이 0줄을 돌려준다 —
+       * 세지 않으면 「해제했어요」라고 말해 놓고 아무것도 안 바뀐다.
+       */
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: hit, error } = await (supabase.from('meeting_notes') as any)
+        .update({ attendee_person_ids: next.length > 0 ? next : null })
+        .eq('id', noteId)
+        .select('id')
+      if (error || !hit || hit.length === 0) continue
+      removed += 1
+    } catch {
+      // 한 건이 안 돼도 나머지는 시도한다. 결과는 removed 로 정직하게 돌려준다
+      continue
+    }
+  }
+
+  if (removed === 0) return { ok: false, removed: 0, error: failedTo('연결', '해제하지') }
+
+  revalidatePath('/meeting-notes')
+  return { ok: true, removed }
 }

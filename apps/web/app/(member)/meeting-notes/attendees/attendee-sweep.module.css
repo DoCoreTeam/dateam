@@ -168,3 +168,51 @@
   background: var(--warning-bg);
   color: var(--warning);
 }
+
+/* ── 이미 이은 사람 (되돌리는 자리) ─────────────────────────────────────── */
+
+.linked { color: var(--brand); }
+
+/*
+  체크박스가 없는 줄이라 `.label` 을 못 쓴다 — 여백은 같은 값을 쓰되
+  오른쪽에 행동 자리를 둔다(§2-3-2 L-1: 읽는 것 왼쪽, 하는 것 오른쪽).
+*/
+.linkedRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  min-height: 44px;
+}
+
+.linkedActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  /* 표 행의 컨트롤 묶음은 접지 않는다 — 접히면 그 행만 커져 목록 리듬이 깨진다(§2-3-1 (3)) */
+  flex-wrap: nowrap;
+}
+
+.missingName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--warning);
+}
+
+.missingHint { color: var(--text-muted); }
+
+.doneNote {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+@media (max-width: 767px) {
+  .linkedRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .linkedActions { justify-content: flex-end; }
+}
