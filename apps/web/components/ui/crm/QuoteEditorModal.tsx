@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Sparkles, Plus, X } from 'lucide-react'
+import { scaleLinesToTarget, describeScale } from '@/lib/crm/domain/quote-target'
+import ReorderList from '@/components/ui/ReorderList'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -221,6 +223,8 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
   const [sayText, setSayText] = useState('')
   const [saying, setSaying] = useState(false)
   const [sayUnclear, setSayUnclear] = useState<string[]>([])
+  /** 총액을 맞췄으면 무엇을 얼마로 맞췄는지 — **조용히 단가를 바꾸지 않는다** */
+  const [sayNote, setSayNote] = useState<string | null>(null)
   /**
    * 이 딜에 붙은 사람들 — 견적을 «누구 앞으로» 보내는지 고르는 후보다.
    * 회사 전체 인물이 아니라 **딜에 붙은 사람만** 준다: 견적은 이 건의 문서이고,
@@ -357,10 +361,25 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
     setSaying(true)
     setError(null)
     setSayUnclear([])
+    setSayNote(null)
     try {
       const res = await fetch('/api/crm/quotes/draft', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: sayText.trim() }),
+        /*
+          **지금 항목을 함께 보낸다**(v0.7.695). 「총액 3억에 맞춰서」는 맞출 대상이
+          있어야 성립하는 말인데, 예전엔 텍스트만 보내서 AI 입장에선 맞출 것이 없었다 —
+          그래서 그 말이 통째로 「못 알아봤어요」로 돌아왔다(사용자 지적 2026-09-08).
+        */
+        body: JSON.stringify({
+          text: sayText.trim(),
+          currentLines: draft.lines
+            .filter((l) => l.name.trim())
+            .map((l) => ({
+              name: l.name, quantity: l.quantity, unit: l.unit,
+              unitPriceMinor: l.unitPriceMinor,
+              discountPercent: l.discountPercent, taxRate: l.taxRate,
+            })),
+        }),
       })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '읽지 못했습니다.'); return }
@@ -372,6 +391,9 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           discountPercent: number | null; specialDiscountPercent: number | null
         }[]
         roundingUnit: number
+        targetTotalMinor: number | null
+        targetIncludesTax: boolean
+        taxPercent: number | null
         unclear: string[]
       }
       const made: QuoteLineDraft[] = (d.lines ?? [])
@@ -393,20 +415,81 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             taxRate: '10',
           }
         })
-      if (made.length === 0) {
+      /*
+        새 항목이 없어도 **목표만으로 성립한다**(v0.7.695) — 「지금 이대로 3억에 맞춰 줘」가
+        그 경우다. 예전엔 항목이 0개면 무조건 오류였다.
+      */
+      const hasTarget = typeof d.targetTotalMinor === 'number' && d.targetTotalMinor > 0
+      if (made.length === 0 && !hasTarget) {
         setError('견적 항목을 찾지 못했어요. 품목과 수량이 들어가게 적어 주세요.')
         return
       }
-      setDraft((prev) => ({
-        ...prev,
+
+      /*
+        **계산을 업데이터 밖에서 한다**(v0.7.695 정정).
+
+        처음엔 `setDraft((prev) => …)` 안에서 바깥 변수에 알림 문구를 대입했다.
+        업데이터는 순수해야 하고 React 가 두 번 부를 수 있어, 그 대입이 화면에 닿지 않았다 —
+        총액은 맞춰졌는데 **「맞췄어요」가 안 떴다**(실브라우저에서 잡힘).
+        지금 줄은 `draft.lines` 로 이미 알 수 있으므로 밖에서 계산해 둘 다에 쓴다.
+      */
+      let scaleNote: string | null = null
+      setDraft((prev) => {
         // 제목은 **비어 있을 때만** 채운다 — 사람이 적은 제목을 AI 가 덮으면 안 된다
-        title: prev.title.trim() ? prev.title : (d.title ?? prev.title),
-        roundingUnit: d.roundingUnit || prev.roundingUnit,
+        const title = prev.title.trim() ? prev.title : (d.title ?? prev.title)
+        const roundingUnit = d.roundingUnit || prev.roundingUnit
         // 빈 줄 하나뿐이면 갈아 끼우고, 아니면 뒤에 붙인다
-        lines: prev.lines.length === 1 && !prev.lines[0].name.trim()
-          ? made
-          : [...prev.lines, ...made],
-      }))
+        const merged = made.length === 0
+          ? prev.lines
+          : (prev.lines.length === 1 && !prev.lines[0].name.trim()
+            ? made
+            : [...prev.lines, ...made])
+
+        if (!hasTarget) return { ...prev, title, roundingUnit, lines: merged }
+
+        /*
+          **목표 총액은 우리가 맞춘다 — AI 가 아니라.**
+          견적은 고객에게 나가는 문서라, AI 가 푼 단가를 그대로 제안가로 쓰지 않는다.
+          계산은 `quote-target.ts`(SSOT · 가드 12개)가 하고 여기서는 결과만 얹는다.
+        */
+        const intent = { totalMinor: d.targetTotalMinor, includesTax: Boolean(d.targetIncludesTax) }
+        const r = scaleLinesToTarget(
+          merged.map((l) => ({
+            kind: l.kind, quantity: l.quantity, unitPriceMinor: l.unitPriceMinor,
+            discountPercent: l.discountPercent, specialDiscountPercent: l.specialDiscountPercent,
+            taxRate: l.taxRate,
+          })),
+          intent,
+          { unit: roundingUnit as 0, mode: 'DOWN' },
+        )
+        if (r.reason !== null) return { ...prev, title, roundingUnit, lines: merged }
+        return {
+          ...prev, title, roundingUnit,
+          // 단가만 갈아 끼운다 — 품목·규격·묶음은 사람이 정한 그대로 둔다
+          lines: merged.map((l, i) => ({ ...l, unitPriceMinor: String(r.lines[i]?.unitPriceMinor ?? l.unitPriceMinor) })),
+        }
+      })
+      /*
+        알림은 업데이터가 아니라 **여기서** 만든다 — 같은 입력으로 같은 계산을 한 번 더 하는
+        비용보다, 「맞췄는데 아무 말도 안 하는」 화면이 훨씬 나쁘다.
+      */
+      if (hasTarget) {
+        const intent = { totalMinor: d.targetTotalMinor, includesTax: Boolean(d.targetIncludesTax) }
+        const base = made.length === 0
+          ? draft.lines
+          : (draft.lines.length === 1 && !draft.lines[0].name.trim() ? made : [...draft.lines, ...made])
+        const r = scaleLinesToTarget(
+          base.map((l) => ({
+            kind: l.kind, quantity: l.quantity, unitPriceMinor: l.unitPriceMinor,
+            discountPercent: l.discountPercent, specialDiscountPercent: l.specialDiscountPercent,
+            taxRate: l.taxRate,
+          })),
+          intent,
+          { unit: (d.roundingUnit || draft.roundingUnit) as 0, mode: 'DOWN' },
+        )
+        scaleNote = describeScale(intent, r, d.roundingUnit || draft.roundingUnit)
+      }
+      setSayNote(scaleNote)
       // **못 알아본 말은 버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다
       setSayUnclear(d.unclear ?? [])
       setSayText('')
@@ -608,6 +691,12 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           </div>
         )}
 
+        {/*
+          **총액을 맞췄으면 말한다**(v0.7.695). 단가가 말없이 바뀌면 사람은 그 숫자를 못 믿는다 —
+          무엇을 어느 기준으로 얼마에 맞췄는지, 목표와 차이가 남았는지까지 밝힌다.
+        */}
+        {sayNote && <div className={styles.sayNote}>{sayNote}</div>}
+
         {/* 못 알아본 말은 **버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다 */}
         {sayUnclear.length > 0 && (
           <div className={styles.sayUnclear}>
@@ -660,8 +749,30 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           </ul>
         )}
 
-        <div className={styles.lines}>
-          {draft.lines.map((line, i) => {
+        {/*
+          **항목 순서를 사람이 정한다**(v0.7.695 · 사용자 지시 「항목들 위아래로 조정도 되야 하고」).
+
+          견적서는 읽는 순서가 곧 설득의 순서다 — 무엇을 먼저 보여 줄지는 만든 사람이 정한다.
+          그런데 지금까지는 «만든 순서»로 고정이라, 순서를 바꾸려면 지우고 다시 넣어야 했다.
+
+          `ReorderList` 는 영업 단계에서 만든 공용 부품을 그대로 쓴다(§0 — 같은 성격을
+          두 번 만들지 않는다). 손잡이로 끌거나 위/아래 버튼으로 옮긴다.
+        */}
+        <ReorderList
+          items={draft.lines}
+          getId={(l) => l.id ?? `new-${draft.lines.indexOf(l)}`}
+          getLabel={(l) => l.name || '이름 없는 항목'}
+          disabled={linesLocked}
+          className={styles.lines}
+          itemClassName={styles.line}
+          onReorder={(ids) => setDraft((prev) => {
+            const byId = new Map(prev.lines.map((l, i) => [l.id ?? `new-${i}`, l]))
+            const next = ids.map((id) => byId.get(id)).filter(Boolean) as QuoteLineDraft[]
+            // 하나라도 못 찾으면 순서를 바꾸지 않는다 — 항목이 사라지는 것보다 안 바뀌는 편이 낫다
+            return next.length === prev.lines.length ? { ...prev, lines: next } : prev
+          })}
+        >
+          {(line, i, controls) => {
             const amounts = computeLine({
               quantity: line.quantity || 0,
               unitPriceMinor: line.unitPriceMinor || 0,
@@ -670,7 +781,9 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
               taxRate: line.taxRate || 0,
             })
             return (
-              <div className={styles.line} key={line.id ?? `new-${i}`}>
+              <>
+                {/* 순서 컨트롤은 줄 맨 앞 — 무엇을 집는지가 분명해야 한다 */}
+                <div className={styles.colOrder}>{controls}</div>
                 {/*
                   **종류가 먼저다.** 이것이 아래 「수량」·「단가」 라벨을 바꾼다 —
                   「M/M」인지 「대」인지가 정해져야 사람이 무엇을 넣을지 안다.
@@ -846,18 +959,29 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={styles.colTotal}>
-                  {/* 특별가라면 «원래 얼마였는지»를 함께 보여 준다 — 그게 이 기능의 목적이다 */}
-                  {amounts.isSpecial && amounts.baseLineTotalMinor !== amounts.lineTotalMinor && (
-                    <>
-                      <span className={styles.lineWas}>
-                        {formatAmount(amounts.baseLineTotalMinor.toString(), draft.currency)}
+                  {/*
+                    금액 셋(원가·화살표·최종)을 **한 덩어리로 묶는다**(v0.7.695).
+
+                    예전엔 형제로 나란히 두고 `nowrap` 이라, 특별 할인이 붙어
+                    「262,737,262원 → 249,600,399원」이 되면 144px 칸을 넘어
+                    **왼쪽으로 112px 흘러나가 부가세 입력칸을 덮었다**(실측 · 사용자 지적).
+                    묶어 두면 칸 안에서 접히므로 옆 칸을 침범하지 않는다.
+                  */}
+                  <span className={styles.lineMoney}>
+                    {/* 특별가라면 «원래 얼마였는지»를 함께 보여 준다 — 그게 이 기능의 목적이다 */}
+                    {amounts.isSpecial && amounts.baseLineTotalMinor !== amounts.lineTotalMinor && (
+                      // 원가와 화살표는 떨어지지 않는다 — 화살표만 다음 줄로 가면 아무것도 안 가리킨다
+                      <span className={styles.lineFrom}>
+                        <span className={styles.lineWas}>
+                          {formatAmount(amounts.baseLineTotalMinor.toString(), draft.currency)}
+                        </span>
+                        <span className={styles.lineArrow} aria-hidden>→</span>
                       </span>
-                      <span className={styles.lineArrow} aria-hidden>→</span>
-                    </>
-                  )}
-                  <div className={styles.lineTotal}>
-                    {formatAmount(amounts.lineTotalMinor.toString(), draft.currency)}
-                  </div>
+                    )}
+                    <span className={styles.lineTotal}>
+                      {formatAmount(amounts.lineTotalMinor.toString(), draft.currency)}
+                    </span>
+                  </span>
                   {!linesLocked && draft.lines.length > 1 && (
                     <button
                       type="button"
@@ -869,10 +993,10 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     </button>
                   )}
                 </div>
-              </div>
+              </>
             )
-          })}
-        </div>
+          }}
+        </ReorderList>
 
         <div className={styles.totals}>
           <div className={styles.totalRow}>
