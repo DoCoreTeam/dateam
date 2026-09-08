@@ -20,6 +20,7 @@ import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ControlRow from '@/components/ui/ControlRow'
 import { readCachedPipelines, writeCachedPipelines } from '@/lib/crm/ui/pipeline-cache'
 import { dealsInPipeline, dealsInPipelines } from '@/lib/crm/ui/pipeline-count'
+import { resolvePipelineParam, pipelineParamOf } from '@/lib/crm/ui/deals-view-state'
 import { countOnly } from '@/lib/terms'
 import DealBoard, { type BoardPipeline } from './DealBoard'
 import DealTableView from './DealTableView'
@@ -43,17 +44,17 @@ export default function DealsClient() {
    * 「전체」로 훑던 사람이 뒤로 갔다 오면 한 파이프라인만 보고 있게 되는데,
    * 화면은 아무 말도 하지 않아 딜이 사라진 것처럼 보인다.
    *
-   * 규칙: 주소에 `pipeline` 이 없으면 기본 파이프라인, `all` 이면 전체, 그 밖이면 그 파이프라인.
+   * v0.7.692: **주소에 없으면 전체**다(예전엔 기본 파이프라인 하나였다).
+   * 판정은 `deals-view-state.ts` 가 한다 — 여기서 식을 쓰면 검증 수단이 실브라우저뿐이다(E-6).
    */
-  const pipelineParam = searchParams.get('pipeline')
-  const [defaultPipelineId, setDefaultPipelineId] = useState('')
-  const pipelineId = pipelineParam === 'all' ? '' : (pipelineParam ?? defaultPipelineId)
+  const pipelineId = resolvePipelineParam(searchParams.get('pipeline'))
 
   function setPipelineId(next: string) {
     const sp = new URLSearchParams(searchParams.toString())
-    // 「전체」는 빈 문자열이 아니라 `all` 로 적는다 — 빈 값은 «지정 안 함»과 구분이 안 된다
-    sp.set('pipeline', next === '' ? 'all' : next)
-    router.replace(`${pathname}?${sp.toString()}`, { scroll: false })
+    sp.set('pipeline', pipelineParamOf(next))
+    // **push 다**(v0.7.692). replace 로 덮어쓰면 「공공만 보다가 뒤로가기」가 화면 밖으로 나가 버린다 —
+    // 고른 것은 이동이므로 이력에 남아야 뒤로가기가 이전 상태로 돌아간다(사용자 지시).
+    router.push(`${pathname}?${sp.toString()}`, { scroll: false })
   }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +73,6 @@ export default function DealsClient() {
       if (!res.ok) { setError(body?.error?.message ?? '파이프라인을 불러오지 못했습니다.'); return }
       const items: BoardPipeline[] = body.items ?? []
       setPipelines(items)
-      setDefaultPipelineId(items.find((p) => p.isDefault)?.id || items[0]?.id || '')
       // 다음 방문에 곧바로 그리려고 받아 둔다(§pipeline-cache)
       writeCachedPipelines(items)
     } catch {
@@ -96,7 +96,6 @@ export default function DealsClient() {
     const cached = readCachedPipelines<BoardPipeline>()
     if (cached.length > 0) {
       setPipelines(cached)
-      setDefaultPipelineId(cached.find((p) => p.isDefault)?.id || cached[0]?.id || '')
       setLoading(false)
     }
     // 캐시가 있어도 **항상** 다시 확인한다 — 화면은 이미 떠 있으므로 기다림이 보이지 않는다
@@ -126,8 +125,9 @@ export default function DealsClient() {
     if (next === 'board') sp.delete('mode')
     else sp.set('mode', next)
     const qs = sp.toString()
-    // 스크롤을 되돌리지 않는다 — 보던 자리에서 눈만 바꾼 것이다
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    // 스크롤을 되돌리지 않는다 — 보던 자리에서 눈만 바꾼 것이다.
+    // 이력에는 남긴다(v0.7.692) — 표로 갔다가 뒤로가기 하면 보던 보드로 돌아와야 한다.
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
   if (loading && pipelines.length === 0) return <AXDotLoader />
