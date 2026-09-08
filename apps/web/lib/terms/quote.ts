@@ -199,31 +199,44 @@ export function expiredNote(dateText: string): string {
 export type RoundingModeKey = 'DOWN' | 'NEAREST' | 'UP'
 
 /**
- * 절사 단위 선택지.
+ * 절사 단위에 붙는 이름.
  *
- * **원 단위 숫자를 화면에 그대로 보이지 않는다** — 「1000000」은 읽는 데 시간이 걸리고
- * 0 을 잘못 세면 열 배 틀린 절사를 고르게 된다.
+ * **값 목록은 여기 없다** — `quote-math.ts` 의 목록이 유일한 자리이고
+ * (DB CHECK 와 같은 목록이다) 여기서는 그 값에 **이름만** 붙인다.
+ * 두 벌로 두면 단위를 하나 늘릴 때 한쪽만 늘어, 화면에는 있는데 서버가 거부하는
+ * 선택지가 생긴다.
  */
-export const ROUNDING_UNITS = [
-  { value: 0, label: '안 함' },
-  { value: 1000, label: '천원 단위' },
-  { value: 10000, label: '만원 단위' },
-  { value: 100000, label: '십만원 단위' },
-  { value: 1000000, label: '백만원 단위' },
-] as const
+const UNIT_NAME: Record<number, string> = {
+  1000: '천원',
+  10000: '만원',
+  100000: '십만원',
+  1000000: '백만원',
+  10000000: '천만원',
+}
+
+/** 단위 이름만 — 「백만원」. 「안 함」(0)·모르는 값은 null */
+export function roundingUnitName(unit: number): string | null {
+  return UNIT_NAME[unit] ?? null
+}
+
+/**
+ * 선택지 라벨 — 「백만원 단위」. 0 은 「안 함」이다.
+ *
+ * **이 라벨만으로는 부족하다.** 「백만원 단위」는 ⓐ 백만원의 배수로 맞춘다
+ * ⓑ 백만원 자리를 없앤다 **두 가지로 읽힌다**(사용자 지적 2026-09-08:
+ * *"백만원 단위면 백만원 단위가 없어져야지 … 300,000,000이 되어야지"*).
+ * 그래서 화면은 라벨 옆에 **결과 금액을 함께** 보여 준다 — 숫자를 보면 논쟁이 없다.
+ */
+export function roundingUnitLabel(unit: number): string {
+  const name = roundingUnitName(unit)
+  return name ? `${name} 단위` : '안 함'
+}
 
 export const ROUNDING_MODES: readonly { value: RoundingModeKey; label: string }[] = [
   { value: 'DOWN', label: '버림' },
   { value: 'NEAREST', label: '반올림' },
   { value: 'UP', label: '올림' },
 ] as const
-
-/** 단위 이름만 — 「백만원」. 「안 함」·모르는 값은 null */
-export function roundingUnitName(unit: number): string | null {
-  const found = ROUNDING_UNITS.find((u) => u.value === unit)
-  if (!found || found.value === 0) return null
-  return found.label.replace(' 단위', '')
-}
 
 /**
  * 절사가 **무엇을 했는지** 한 줄로. 고른 단위와 방식만 있으면 나온다.

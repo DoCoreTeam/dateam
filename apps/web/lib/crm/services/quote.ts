@@ -41,6 +41,7 @@ import {
 } from '../domain/quote-math.ts'
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
 import { LINE_KIND_ORDER, type QuoteLineKind } from '../../terms/cost.ts'
+import { roundingUnitName } from '../../terms/quote.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
 import { readQuoteNoPattern } from './setting.ts'
 
@@ -704,7 +705,9 @@ function toRounding(
   const unit = ROUNDING_UNITS.includes(rawUnit as RoundingUnit) ? rawUnit as RoundingUnit : null
   if (unit === null) {
     throw new CrmError('VALIDATION_FAILED',
-      '절사 단위는 천원·만원·십만원·백만원 중에서 고를 수 있어요.', { field: 'roundingUnit' })
+      // 문구를 손으로 적으면 단위를 늘렸을 때 안내만 옛 목록으로 남는다
+      `절사 단위는 ${ROUNDING_UNITS.filter((u) => u > 0).map(roundingUnitName).join('·')} 중에서 고를 수 있어요.`,
+      { field: 'roundingUnit' })
   }
 
   const rawMode = input.roundingMode === undefined

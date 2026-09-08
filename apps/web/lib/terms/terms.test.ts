@@ -10,7 +10,8 @@ import assert from 'node:assert/strict'
 import { ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, createLabel, progress } from './action.ts'
 import { ENTITY, SURFACE_LABEL, count, countOnly } from './entity.ts'
 import { emptyTitle, failedTo, confirmDelete, notEnough } from './sentence.ts'
-import { ROUNDING_UNITS, roundingUnitName, roundingNote } from './quote.ts'
+import { roundingUnitName, roundingUnitLabel, roundingNote } from './quote.ts'
+import { ROUNDING_UNITS } from '../crm/domain/quote-math.ts'
 import { readFileSync } from 'node:fs'
 
 test('진행 표기는 공백 + 말줄임표를 둘 다 갖는다', () => {
@@ -116,14 +117,15 @@ test('절사 설명은 «무엇에 맞췄는지»를 말한다 — 깎인 금액
   assert.equal(roundingUnitName(1_000_000), '백만원')
 })
 
-test('단위 이름은 라벨에서 나온다 — 두 벌이 되면 화면과 안내가 다른 말을 한다', () => {
+test('고를 수 있는 단위에는 **전부** 이름이 있다 — 목록만 늘리면 라벨이 빈칸이 된다', () => {
   for (const u of ROUNDING_UNITS) {
-    if (u.value === 0) continue
-    assert.equal(`${roundingUnitName(u.value)} 단위`, u.label, `${u.label} 이 이름과 어긋난다`)
+    if (u === 0) { assert.equal(roundingUnitLabel(0), '안 함'); continue }
+    assert.ok(roundingUnitName(u), `${u} 원 단위에 이름이 없다`)
+    assert.equal(roundingUnitLabel(u), `${roundingUnitName(u)} 단위`)
   }
 })
 
-test('화면이 절사 단위 목록을 다시 만들지 않는다 — 용어집이 유일한 자리다', () => {
+test('화면이 절사 단위 목록을 다시 만들지 않는다 — 값은 quote-math 한 곳이다', () => {
   const screens = [
     '../../components/ui/crm/QuoteEditorModal.tsx',
     '../../app/(crm)/crm/quotes/[id]/QuoteSheet.tsx',
@@ -142,4 +144,11 @@ test('견적 편집이 절사 결과를 말한다 — 숫자만 두면 오해가
   assert.ok(src.includes('roundingNote('), '절사 설명 줄이 사라졌다')
   // 올림이면 절사액이 음수라 «> 0» 으로 걸면 줄이 통째로 사라진다
   assert.ok(!src.includes('totals.roundingMinor > BigInt(0)\n'), '절사 줄이 양수일 때만 뜨면 올림에서 사라진다')
+})
+
+test('절사 선택지가 결과 금액을 함께 보여준다 — 이름만으로는 어느 쪽인지 못 고른다', () => {
+  const src = readFileSync(new URL('../../components/ui/crm/QuoteEditorModal.tsx', import.meta.url), 'utf8')
+  // 라벨 옆에 그 단위로 맞췄을 때의 합계를 계산해 붙인다
+  assert.ok(src.includes('roundAmount(totals.netTotalMinor'), '선택지가 결과 금액을 안 보여준다')
+  assert.ok(src.includes('roundingUnitLabel('), '라벨을 용어집에서 안 가져온다')
 })

@@ -308,3 +308,15 @@ test('★ 올림이면 절사액이 음수다 — 화면이 「− 」를 박으
   assert.ok(t.roundingMinor < BigInt(0), '올림은 더한 것이라 절사액이 음수여야 한다')
   assert.equal(t.netTotalMinor - t.roundingMinor, t.totalMinor, '계 − 절사 = 합계는 올림에서도 성립한다')
 })
+
+test('★ 「단위 버림」은 그 단위의 배수로 맞추는 것이다 — 그 자리를 없애는 것이 아니다', () => {
+  const net = BigInt(303_600_000)
+  /*
+    사용자 지적(2026-09-08): *"백만원 단위면 백만원 단위가 없어져야지 … 300,000,000이 되어야지"*
+    「백만원 단위」는 두 가지로 읽힌다 — ⓐ 백만원의 **배수**로 맞춘다 ⓑ 백만원 **자리**를 없앤다.
+    이 저장소는 ⓐ 다(회계 실무 표준이고, DB 에 저장된 견적이 그 뜻으로 계산돼 있다).
+    ⓑ 를 원하면 **한 단계 큰 단위**를 고르면 된다 — 그래서 선택지에 결과 금액을 함께 보여 준다.
+  */
+  assert.equal(roundAmount(net, { unit: 1_000_000, mode: 'DOWN' }), BigInt(303_000_000))
+  assert.equal(roundAmount(net, { unit: 10_000_000, mode: 'DOWN' }), BigInt(300_000_000))
+})

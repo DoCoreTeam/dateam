@@ -21,6 +21,7 @@ import DateField, { todayPlus } from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
 import {
   computeLine, computeTotals, needsApproval, DEFAULT_DISCOUNT_APPROVAL_PCT,
+  roundAmount, ROUNDING_UNITS,
   type RoundingMode,
 } from '@/lib/crm/domain/quote-math'
 
@@ -43,9 +44,9 @@ import {
   quoteEditTitle,
   QUOTE_LINES_LOCKED,
   approvalNeeded,
-  ROUNDING_UNITS,
   ROUNDING_MODES,
   roundingNote,
+  roundingUnitLabel,
   type RoundingModeKey,
 } from '@/lib/terms'
 import styles from './quote-panel.module.css'
@@ -1028,8 +1029,21 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
               disabled={linesLocked}
               onChange={(e) => setDraft((d) => ({ ...d, roundingUnit: Number(e.target.value) }))}
             >
-              {ROUNDING_UNITS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+              {/*
+                **결과를 라벨에 붙인다.** 「백만원 단위」는 ⓐ 백만원의 배수로 맞춘다
+                ⓑ 백만원 자리를 없앤다 두 가지로 읽혀서, 이름만으로는 어느 쪽인지
+                고르는 사람이 알 수 없다(사용자 지적 2026-09-08).
+                **숫자를 먼저 보여 주면 해석이 갈릴 자리가 없다.**
+              */}
+              {ROUNDING_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u === 0
+                    ? roundingUnitLabel(0)
+                    : `${roundingUnitLabel(u)} · ${formatAmount(
+                      roundAmount(totals.netTotalMinor, { unit: u, mode: draft.roundingMode as RoundingMode }).toString(),
+                      draft.currency,
+                    )}`}
+                </option>
               ))}
             </select>
             <select
