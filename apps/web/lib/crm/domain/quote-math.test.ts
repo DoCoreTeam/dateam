@@ -211,7 +211,33 @@ test('절사가 없거나 뜻이 없으면 금액을 건드리지 않는다', ()
   assert.equal(roundAmount(BigInt(345_400_000), { unit: 100_000, mode: 'DOWN' }), BigInt(345_400_000))
 })
 
-test('절사해도 「소계 − 할인 + 세금 = 총액」이 유지된다', () => {
+test('★ 절사는 «합계 금액»을 떨어뜨린다 — 고객이 보는 마지막 숫자다', () => {
+  /*
+    실측 앵커 v0.7.696 — 사용자가 지적한 화면의 합계 그대로:
+      공급가액 400,000,000 · 할인 124,000,000 · 부가세 27,600,000 · 합계 303,600,000
+    (화면에 보이던 두 줄은 그대로 옮겼고, 위로 잘려 안 보이던 첫 줄은
+     그 네 숫자가 나오도록 둔 값이다.)
+
+    예전엔 절사를 **공급가액에 걸어** 276,000,000 을 만들었는데,
+    거기 세금이 얹혀 합계가 **303,600,000** 이 됐다 — 백만원 버림인데 안 떨어진다.
+  */
+  const lines = [
+    { quantity: 1, unitPriceMinor: 280_000_000, discountPercent: 5, taxRate: 10 },
+    { quantity: 1, unitPriceMinor: 100_000_000, discountPercent: 30, specialDiscountPercent: 100, taxRate: 10 },
+    { quantity: 2, unitPriceMinor: 10_000_000, discountPercent: 0, specialDiscountPercent: 50, taxRate: 10 },
+  ]
+  const t = computeTotals(lines, { unit: 1_000_000, mode: 'DOWN' })
+
+  assert.equal(t.subtotalMinor, BigInt(400_000_000))
+  assert.equal(t.discountMinor, BigInt(124_000_000), '할인에 절사를 섞지 않는다')
+  assert.equal(t.taxMinor, BigInt(27_600_000), '세액은 줄마다의 계산 그대로다')
+  assert.equal(t.netTotalMinor, BigInt(303_600_000), '「계」 = 절사 직전 금액')
+  assert.equal(t.roundingMinor, BigInt(600_000))
+  assert.equal(t.totalMinor, BigInt(303_000_000), '★ 합계가 백만원 단위로 딱 떨어진다')
+  assert.equal(t.totalMinor % BigInt(1_000_000), BigInt(0))
+})
+
+test('절사해도 「계 − 절사 = 합계」와 「소계 − 할인 + 세금 = 계」가 유지된다', () => {
   const lines = [
     { quantity: 1, unitPriceMinor: 280_000_000, discountPercent: 0, taxRate: 10 },
     { quantity: 1, unitPriceMinor: 100_000_000, discountPercent: 30, specialDiscountPercent: 80, taxRate: 10 },
@@ -220,20 +246,30 @@ test('절사해도 「소계 − 할인 + 세금 = 총액」이 유지된다', (
   const plain = computeTotals(lines)
   const rounded = computeTotals(lines, { unit: 1_000_000, mode: 'DOWN' })
 
-  // 불변식 I5 — 두 경우 모두
-  assert.equal(plain.subtotalMinor - plain.discountMinor + plain.taxMinor, plain.totalMinor)
-  assert.equal(rounded.subtotalMinor - rounded.discountMinor + rounded.taxMinor, rounded.totalMinor)
+  for (const t of [plain, rounded]) {
+    assert.equal(t.subtotalMinor - t.discountMinor + t.taxMinor, t.netTotalMinor)
+    assert.equal(t.netTotalMinor - t.roundingMinor, t.totalMinor)
+  }
 
-  // 절사액만큼 할인이 늘고, 과세표준이 백만원 단위로 떨어진다
-  assert.equal(rounded.discountMinor - plain.discountMinor, rounded.roundingMinor)
-  const net = rounded.subtotalMinor - rounded.discountMinor
-  assert.equal(net % BigInt(1_000_000), BigInt(0))
+  // 할인·세액은 절사와 무관하게 같다 — 줄 계산을 건드리지 않는다
+  assert.equal(rounded.discountMinor, plain.discountMinor)
+  assert.equal(rounded.taxMinor, plain.taxMinor)
   assert.ok(rounded.totalMinor <= plain.totalMinor, '버림인데 총액이 늘면 안 된다')
 })
 
-test('절사가 없으면 roundingMinor 는 0 이고 합계가 그대로다', () => {
+test('절사가 없으면 roundingMinor 는 0 이고 계와 합계가 같다', () => {
   const lines = [{ quantity: 1, unitPriceMinor: 1_000_000, discountPercent: 0, taxRate: 10 }]
   const t = computeTotals(lines)
   assert.equal(t.roundingMinor, BigInt(0))
   assert.equal(t.totalMinor, BigInt(1_100_000))
+  assert.equal(t.netTotalMinor, t.totalMinor, '절사가 없으면 계와 합계는 같은 값이다')
+})
+
+test('올림 절사는 총액을 올린다 — 「끝을 채워 주세요」', () => {
+  const lines = [{ quantity: 1, unitPriceMinor: 1_234_567, discountPercent: 0, taxRate: 10 }]
+  const t = computeTotals(lines, { unit: 100_000, mode: 'UP' })
+  assert.equal(t.netTotalMinor, BigInt(1_358_024))
+  assert.equal(t.totalMinor, BigInt(1_400_000))
+  assert.equal(t.roundingMinor, BigInt(-41_976), '올림이면 조정액이 음수다')
+  assert.equal(t.netTotalMinor - t.roundingMinor, t.totalMinor)
 })

@@ -1006,10 +1006,27 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             <span>{QUOTE.discount}</span>
             <span>{totals.discountMinor > BigInt(0) ? '− ' : ''}{formatAmount(totals.discountMinor.toString(), draft.currency)}</span>
           </div>
+          <div className={styles.totalRow}>
+            <span>{QUOTE.tax}</span><span>{formatAmount(totals.taxMinor.toString(), draft.currency)}</span>
+          </div>
+          {/*
+            **「계」는 절사 직전 금액이다.** 절사가 걸렸을 때만 세운다 —
+            안 걸렸으면 합계와 같은 숫자라 같은 값이 두 줄이 된다.
+          */}
+          {totals.roundingMinor > BigInt(0) && (
+            <div className={styles.totalRow}>
+              <span>{QUOTE.netTotal}</span>
+              <span>{formatAmount(totals.netTotalMinor.toString(), draft.currency)}</span>
+            </div>
+          )}
           {/*
             **절사를 여기서 고른다.** 협상 막바지에 「끝자리만 떨어뜨려 주세요」가 나오는데,
             그때 단가를 손으로 조작해 맞추면 나중에 그 단가를 아무도 설명할 수 없다.
             단가는 그대로 두고 절사액만 따로 남긴다.
+
+            **자리가 세금 뒤인 이유**: 절사는 «합계 금액»에 건다. 앞에 두면 그 뒤에
+            부가세가 다시 얹혀 고객이 받는 숫자가 또 안 떨어진다
+            (실측 v0.7.696: 백만원 버림인데 합계가 303,600,000원이었다).
           */}
           <div className={styles.roundingRow}>
             <label className="label" htmlFor="q-round-unit">{QUOTE.rounding}</label>
@@ -1040,9 +1057,6 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                 ? `− ${formatAmount(totals.roundingMinor.toString(), draft.currency)}`
                 : ''}
             </span>
-          </div>
-          <div className={styles.totalRow}>
-            <span>{QUOTE.tax}</span><span>{formatAmount(totals.taxMinor.toString(), draft.currency)}</span>
           </div>
           <div className={styles.grandRow}>
             <span>{QUOTE.total}</span><span>{formatAmount(totals.totalMinor.toString(), draft.currency)}</span>

@@ -146,3 +146,28 @@ test('★ 불변식 위반은 CrmError 다 — 평범한 Error 면 API 가 「�
     assert.equal(e.message.includes('[I9]'), false, '코드는 사용자에게 뜻이 없다')
   }
 })
+
+test('★ I5 — 절사가 걸리면 «제안가 + 세액 − 절사»가 총액이다', () => {
+  // 절사는 세금 뒤 총액에 걸린다(quote-math). I5 가 그걸 모르면
+  // 계산이 맞는 견적이 절사액만큼 어긋난 것으로 잡혀 내보내기가 막힌다.
+  const q = {
+    netMinor: BigInt(400_000_000),
+    discountMinor: BigInt(124_000_000),
+    proposedNetMinor: BigInt(276_000_000),
+    taxMinor: BigInt(27_600_000),
+    grossMinor: BigInt(303_000_000),
+    roundingMinor: BigInt(600_000),
+  }
+  assert.deepEqual(checkI5(q), [])
+  // 절사를 안 알려 주면 60만원 어긋난 것으로 읽힌다 — 그게 예전 상태였다
+  assert.equal(checkI5({ ...q, roundingMinor: undefined }).length, 1)
+})
+
+test('I5 — 절사가 없으면 예전 그대로 «제안가 + 세액» 이다', () => {
+  const q = {
+    netMinor: BigInt(100_000_000), proposedNetMinor: BigInt(90_000_000),
+    taxMinor: BigInt(9_000_000), grossMinor: BigInt(99_000_000),
+  }
+  assert.deepEqual(checkI5(q), [])
+  assert.equal(checkI5({ ...q, grossMinor: BigInt(99_000_001) })[0].message.includes('− 절사'), false)
+})

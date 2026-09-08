@@ -239,3 +239,80 @@ test('항목이 0건이어도 파일은 만들어진다', async () => {
   const text = await textOf((await quoteDocumentToXlsx({ document: empty })).buffer)
   assert.ok(text.includes('품목'), '표 머리글이 없다')
 })
+
+/*
+  ── 절사 ────────────────────────────────────────────────────────────────────
+  절사가 걸리면 합계 줄이 **둘 늘어난다**(계 · 절사). 수식이 행 번호를 가리키므로
+  한 칸만 밀려도 부가세가 엉뚱한 칸을 참조한다 — **엑셀에서만 틀리고 화면으로는 안 보인다.**
+  기존 19개 테스트는 절사를 한 번도 안 걸어서 그 자리를 보지 못했다.
+*/
+
+/** 사용자 지적 화면(v0.7.696)의 합계 그대로 — 백만원 버림 */
+function roundedDoc() {
+  return doc({
+    quote: {
+      quoteNo: 'Q-2026-0014', title: 'GPU 인프라 구축 견적', currency: 'KRW',
+      validUntil: '2026-09-27', createdAt: '2026-08-27T00:00:00.000Z',
+      subtotalMinor: BigInt(400_000_000), discountMinor: BigInt(124_000_000),
+      taxMinor: BigInt(27_600_000), totalMinor: BigInt(303_000_000),
+      roundingMinor: BigInt(600_000),
+      notesMd: null,
+    } as never,
+    lines: [
+      { name: 'gcube 크레딧', descriptionMd: null, unit: '식', quantity: '1', unitPriceMinor: BigInt(280_000_000), discountPercent: '5', lineTotalMinor: BigInt(266_000_000) },
+      { name: 'gcube EDGE customizing', descriptionMd: null, unit: 'M/M', quantity: '2', unitPriceMinor: BigInt(10_000_000), discountPercent: '50', lineTotalMinor: BigInt(10_000_000) },
+    ],
+  })
+}
+
+test('★ 절사가 있으면 합계 줄이 여섯이다 — 계·절사가 함께 선다', async () => {
+  const cells = (await textOf((await quoteDocumentToXlsx({ document: roundedDoc() })).buffer)).split('\n')
+  // 「계」는 한 글자라 부분문자열로 세면 「합계 금액」에도 걸린다 — **칸 값이 통째로 같은지**로 본다
+  for (const label of [QUOTE.subtotal, QUOTE.discount, QUOTE.tax, QUOTE.netTotal, QUOTE.rounding, QUOTE.total]) {
+    assert.ok(cells.includes(label), `${label} 줄이 없다`)
+  }
+})
+
+test('★ 절사가 없으면 「계」 줄을 만들지 않는다 — 합계와 같은 숫자가 두 줄이 된다', async () => {
+  const text = await textOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  assert.ok(!text.includes(QUOTE.rounding), '절사 없는데 절사 줄이 있다')
+  assert.ok(!text.split('\n').includes(QUOTE.netTotal), '절사 없는데 계 줄이 있다')
+})
+
+test('★ 절사가 있어도 수식이 제 칸을 가리킨다 — 행이 밀리면 엑셀에서만 틀린다', async () => {
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: roundedDoc() })).buffer)
+
+  /** 라벨이 있는 줄의 금액 칸(마지막 열) — 값과 수식을 함께 본다 */
+  function amountOf(label: string) {
+    let found: { row: number; value: unknown; formula?: string } | null = null
+    ws.eachRow((row, r) => {
+      row.eachCell({ includeEmpty: false }, (c) => {
+        if (String(c.value ?? '') !== label) return
+        const last = row.getCell(row.cellCount)
+        const v = last.value as { formula?: string; result?: unknown } | number | null
+        found = {
+          row: r,
+          value: typeof v === 'object' && v && 'result' in v ? v.result : v,
+          formula: typeof v === 'object' && v && 'formula' in v ? v.formula : undefined,
+        }
+      })
+    })
+    assert.ok(found, `${label} 줄을 못 찾았다`)
+    return found!
+  }
+
+  const tax = amountOf(QUOTE.tax)
+  const net = amountOf(QUOTE.netTotal)
+  const round = amountOf(QUOTE.rounding)
+  const grand = amountOf(QUOTE.total)
+
+  assert.equal(net.row, tax.row + 1, '계는 부가세 바로 다음 줄이다')
+  assert.equal(round.row, net.row + 1, '절사는 계 바로 다음 줄이다')
+  assert.equal(grand.row, round.row + 1, '합계는 절사 바로 다음 줄이다')
+
+  // 합계 수식이 **계와 절사 줄**을 가리킨다 — 다른 행을 가리키면 받은 사람 화면에서 틀린다
+  assert.ok(grand.formula?.includes(String(net.row)), `합계 수식이 계 줄(${net.row})을 안 본다 — ${grand.formula}`)
+  assert.ok(grand.formula?.includes(String(round.row)), `합계 수식이 절사 줄(${round.row})을 안 본다 — ${grand.formula}`)
+  // 부가세 수식은 절사를 빼지 않는다 — 절사는 세금 뒤다
+  assert.ok(!tax.formula?.includes(String(round.row)), `부가세 수식이 절사를 빼고 있다 — ${tax.formula}`)
+})

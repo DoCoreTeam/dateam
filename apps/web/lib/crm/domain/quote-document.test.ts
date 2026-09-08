@@ -307,3 +307,51 @@ test('고객사가 비어도 밑줄이 겹치지 않는다', () => {
   }, '견적서', 'pdf')
   assert.equal(name, '[우리]Q-1_견적서.pdf')
 })
+
+/*
+  ── 절사 ────────────────────────────────────────────────────────────────────
+  이 아래 셋이 없어서, 절사를 «공급가액 → 총액» 으로 옮기는 동안 문서 테스트 36개가
+  **전부 통과하면서도** 그 자리를 한 번도 안 봤다. 가드가 못 보는 자리는 없는 것과 같다.
+*/
+
+/** 절사가 걸린 견적 — 사용자 지적 화면(v0.7.696)의 합계 그대로 */
+function roundedInput() {
+  return input({
+    quote: {
+      ...input().quote,
+      subtotalMinor: BigInt(400_000_000),
+      discountMinor: BigInt(124_000_000),
+      taxMinor: BigInt(27_600_000),
+      totalMinor: BigInt(303_000_000),
+      roundingMinor: BigInt(600_000),
+    },
+    lines: [{
+      name: 'GPU 인프라', unit: '식', quantity: '1',
+      unitPriceMinor: BigInt(400_000_000), discountPercent: '31',
+      lineTotalMinor: BigInt(276_000_000),
+    }],
+  })
+}
+
+test('★ 절사가 걸리면 「계」가 서고, 계 − 절사 = 합계다', () => {
+  const doc = buildQuoteDocument(roundedInput())
+  assert.equal(doc.totals.netTotalMinor, '303600000', '계 = 공급가액 − 할인 + 부가세')
+  assert.equal(doc.totals.roundingMinor, '600000')
+  assert.equal(doc.totals.totalMinor, '303000000')
+  assert.equal(
+    BigInt(doc.totals.netTotalMinor) - BigInt(doc.totals.roundingMinor),
+    BigInt(doc.totals.totalMinor),
+  )
+})
+
+test('★ 할인에서 절사를 되빼지 않는다 — 저장된 할인이 그대로 인쇄된다', () => {
+  // 예전엔 `discountMinor − roundingMinor` 로 되뺐다. 절사가 다른 축이 된 지금
+  // 그대로 두면 할인이 60만원 작게 인쇄된다 — 고객이 받는 문서의 숫자가 틀린다.
+  const doc = buildQuoteDocument(roundedInput())
+  assert.equal(doc.totals.discountMinor, '124000000')
+})
+
+test('★ 절사가 걸린 문서도 내보낼 수 있다 — 검사가 절사를 모르면 파일이 안 나간다', () => {
+  // 실측 전례: 절사 37,000원에 위반 1건이 떠서 계산이 맞는 견적이 안 나갔다.
+  assert.deepEqual(verifyDocument(buildQuoteDocument(roundedInput())), [])
+})

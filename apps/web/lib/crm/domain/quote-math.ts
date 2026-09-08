@@ -60,12 +60,18 @@ export interface QuoteLineAmounts {
 
 export interface QuoteTotals {
   subtotalMinor: bigint
-  /** 항목 할인 + 절사액 — 견적서의 「할인」 한 줄이 이 값이다 */
+  /** **항목 할인만.** 절사를 여기 섞지 않는다 — 섞으면 「할인 −124,545,455원」이 된다 */
   discountMinor: bigint
   taxMinor: bigint
-  /** 최종 청구액 = 소계 − 할인 + 세금 */
+  /**
+   * 절사 **직전** 금액 = 소계 − 할인 + 세금.
+   *
+   * 견적서의 「계」 줄이다. 이 줄이 있어야 「계 − 절사 = 합계」가 눈으로 따라진다.
+   */
+  netTotalMinor: bigint
+  /** 최종 청구액 = 계 − 절사. **이 값이 절사 단위에 딱 맞는다** */
   totalMinor: bigint
-  /** 절사로 깎인 금액. 0 이면 절사 안 함 */
+  /** 총액에서 깎인 금액. 0 이면 절사 안 함 */
   roundingMinor: bigint
 }
 
@@ -192,34 +198,28 @@ export function computeTotals(
   }
 
   /*
-    절사는 **공급가액(할인 후)** 에 건다. 세금은 절사된 금액으로 다시 계산한다 —
-    안 그러면 「소계 − 할인 + 세금 = 총액」이 어긋나 불변식 I5 가 깨진다.
+    절사는 **총액(세금까지 얹은 뒤)** 에 건다.
 
-    세율이 줄마다 다를 수 있으므로 **비례로 줄인다**. 절사액이 소계의 0.1% 수준이라
-    이 근사가 만드는 오차는 1원 미만이고, 그 1원은 마지막 정수 연산에서 흡수된다.
+    **왜 총액인가**: 예전엔 공급가액(할인 후)에 걸었다. 그러면 그 금액은 단위에 맞지만
+    세금이 얹히는 순간 다시 어긋난다 — 실측: 276,000,000 을 백만원 단위로 버렸는데
+    합계는 **303,600,000** 이 나왔다. 「백만원 단위로 잘랐다」고 해 놓고 고객이 받는
+    숫자는 안 잘려 있으니, 조정을 왜 했는지 아무도 설명할 수 없다
+    (사용자 지적: 「총액에 대해서 할 수 있도록 해야 금액 조정이 명확할 것 같아」).
+
+    총액에 걸면 고객이 보는 마지막 숫자가 딱 떨어진다. 그리고 공급가액·세액은
+    **건드리지 않는다** — 줄마다의 계산이 그대로 남아야 항목 합과 대조가 된다.
+    대신 견적서에 「계」 한 줄을 두어 «계 − 절사 = 합계» 가 눈으로 따라지게 한다.
   */
-  const net = subtotal - discount
-  const rounded = roundAmount(net, rounding)
-  const roundingMinor = net - rounded
+  const netTotal = subtotal - discount + tax
+  const rounded = roundAmount(netTotal, rounding)
 
-  if (roundingMinor === BigInt(0)) {
-    return {
-      subtotalMinor: subtotal,
-      discountMinor: discount,
-      taxMinor: tax,
-      totalMinor: subtotal - discount + tax,
-      roundingMinor: BigInt(0),
-    }
-  }
-
-  const taxAfter = net === BigInt(0) ? BigInt(0) : (tax * rounded) / net
   return {
     subtotalMinor: subtotal,
-    // 절사도 할인이다 — 견적서의 「할인」 한 줄에 함께 실린다
-    discountMinor: discount + roundingMinor,
-    taxMinor: taxAfter,
-    totalMinor: rounded + taxAfter,
-    roundingMinor,
+    discountMinor: discount,
+    taxMinor: tax,
+    netTotalMinor: netTotal,
+    totalMinor: rounded,
+    roundingMinor: netTotal - rounded,
   }
 }
 

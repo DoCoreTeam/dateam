@@ -136,7 +136,13 @@ export interface DocumentLine {
 export interface DocumentTotals {
   subtotalMinor: string
   discountMinor: string
-  /** 절사로 깎인 금액. '0' 이면 절사 안 함 — 그때는 줄을 인쇄하지 않는다 */
+  /**
+   * 절사 **직전** 금액 = 공급가액 − 할인 + 부가세.
+   *
+   * 절사가 있을 때만 인쇄한다 — 없으면 합계와 같은 값이라 같은 숫자가 두 줄이 된다.
+   */
+  netTotalMinor: string
+  /** 총액에서 깎인 금액. '0' 이면 절사 안 함 — 그때는 줄을 인쇄하지 않는다 */
   roundingMinor: string
   /**
    * 원화 환산 총액. **외화 견적일 때만** 값이 있다.
@@ -427,11 +433,20 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
     totals: {
       subtotalMinor: s(input.quote.subtotalMinor),
       /*
-        **절사는 할인에서 떼어 낸다.** 저장된 discountMinor 는 항목 할인 + 절사액인데,
-        견적서에 그대로 실으면 「할인 −86,437,000원」처럼 딱 떨어지지 않는 숫자가 되어
-        고객이 «무슨 계산이지»를 하게 된다. 항목 할인과 절사는 성격이 다르므로 줄을 나눈다.
+        **할인은 저장된 값 그대로다.** 예전엔 절사가 할인에 섞여 저장돼서 여기서 되뺐는데,
+        이제 절사는 세금 뒤 **총액**에 걸리므로 할인과 아예 다른 축이다(quote-math).
+        되빼면 오히려 할인이 절사액만큼 작아진다.
       */
-      discountMinor: s(BigInt(s(input.quote.discountMinor)) - BigInt(s(input.quote.roundingMinor ?? 0))),
+      discountMinor: s(input.quote.discountMinor),
+      /*
+        저장하지 않고 **여기서 만든다** — 파생값을 저장하면 두 값이 어긋날 수 있고,
+        어긋나면 어느 쪽이 진짜인지 아무도 모른다.
+      */
+      netTotalMinor: s(
+        BigInt(s(input.quote.subtotalMinor))
+        - BigInt(s(input.quote.discountMinor))
+        + BigInt(s(input.quote.taxMinor)),
+      ),
       roundingMinor: s(input.quote.roundingMinor ?? 0),
       ...fxOf(input.quote, currency),
       taxMinor: s(input.quote.taxMinor),
@@ -473,19 +488,22 @@ export function verifyDocument(doc: QuoteDocument): Violation[] {
   const net = BigInt(doc.totals.subtotalMinor)
   const discount = BigInt(doc.totals.discountMinor)
   /*
-    **절사도 금액을 줄인다.** 문서에서는 할인과 절사를 두 줄로 나눠 보여 주는데,
-    검사가 할인만 보면 절사액만큼 어긋난 것으로 읽어 «금액이 맞지 않는다»며
-    **내보내기를 막는다**(실측: 절사 37,000원에 위반 1건 — 계산은 맞는데 파일이 안 나갔다).
-    사람이 보는 두 줄과 검사가 보는 한 값이 같은 뜻이어야 한다.
+    **절사는 총액에서 뺀다.** 문서는 할인과 절사를 두 줄로 나눠 보여 주고,
+    절사는 세금 뒤에 온다 — 그러니 검사도 같은 순서로 봐야 한다.
+    한쪽만 절사를 모르면 계산이 맞는 견적이 위반으로 잡혀 **내보내기가 막힌다**
+    (실측: 절사 37,000원에 위반 1건 — 계산은 맞는데 파일이 안 나갔다).
   */
   const rounding = BigInt(doc.totals.roundingMinor ?? '0')
   const tax = BigInt(doc.totals.taxMinor)
   const gross = BigInt(doc.totals.totalMinor)
-  const proposed = net - discount - rounding
+  const proposed = net - discount
 
   return [
-    ...checkI2([{ id: '항목', subtotalMinor: lineSum }], net - discount),
-    ...checkI5({ netMinor: net, proposedNetMinor: proposed, taxMinor: tax, grossMinor: gross }),
+    ...checkI2([{ id: '항목', subtotalMinor: lineSum }], proposed),
+    ...checkI5({
+      netMinor: net, proposedNetMinor: proposed, taxMinor: tax,
+      grossMinor: gross, roundingMinor: rounding,
+    }),
   ]
 }
 

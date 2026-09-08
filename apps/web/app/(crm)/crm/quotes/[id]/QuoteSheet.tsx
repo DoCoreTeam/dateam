@@ -335,23 +335,32 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                   {doc.totals.discountMinor !== '0' && '− '}{money(doc.totals.discountMinor)}
                 </td>
               </tr>
-              {/*
-                절사는 **할인과 줄을 나눈다.** 성격이 다르고, 합쳐 놓으면
-                「할인 −86,437,000원」처럼 딱 안 떨어지는 숫자가 되어 고객이 계산을 하게 된다.
-                절사가 없으면 줄 자체를 인쇄하지 않는다 — 빈 줄은 종이만 먹는다.
-              */}
-              {doc.totals.roundingMinor !== '0' && (
-                <tr>
-                  <td colSpan={4} />
-                  <td className={styles.totalLabel} colSpan={2}>{QUOTE.rounding}</td>
-                  <td className={styles.num}>− {money(doc.totals.roundingMinor)}</td>
-                </tr>
-              )}
               <tr>
                 <td colSpan={4} />
                 <td className={styles.totalLabel} colSpan={2}>{QUOTE.tax}</td>
                 <td className={styles.num}>{money(doc.totals.taxMinor)}</td>
               </tr>
+              {/*
+                **절사는 세금 뒤, 합계 바로 앞이다.** 고객이 마지막으로 보는 숫자를
+                떨어뜨리는 조정이라 그 자리에 있어야 「계 − 절사 = 합계」로 읽힌다.
+                앞에 두면 부가세가 다시 얹혀 합계가 또 안 떨어진다(실측 303,600,000원).
+
+                절사가 없으면 「계」도 함께 인쇄하지 않는다 — 합계와 같은 숫자가 두 줄이 된다.
+              */}
+              {doc.totals.roundingMinor !== '0' && (
+                <>
+                  <tr>
+                    <td colSpan={4} />
+                    <td className={styles.totalLabel} colSpan={2}>{QUOTE.netTotal}</td>
+                    <td className={styles.num}>{money(doc.totals.netTotalMinor)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={4} />
+                    <td className={styles.totalLabel} colSpan={2}>{QUOTE.rounding}</td>
+                    <td className={styles.num}>− {money(doc.totals.roundingMinor)}</td>
+                  </tr>
+                </>
+              )}
               {/*
                 **원화 환산은 총액 바로 위에 선다.** 외화 견적을 받은 사람이 제일 먼저
                 하는 계산이 그것이고, 환율을 밝히지 않으면 그 숫자를 믿을 수 없다.

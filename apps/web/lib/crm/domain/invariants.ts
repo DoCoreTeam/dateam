@@ -41,6 +41,13 @@ export interface QuoteLike {
   proposedNetMinor: bigint
   taxMinor: bigint
   grossMinor: bigint
+  /**
+   * 총액에서 깎은 절사액. 안 주면 0 — 절사 없는 견적은 예전 그대로 검사된다.
+   *
+   * 절사는 **세금까지 얹은 뒤** 총액에 건다(quote-math). 그래서 이 값을 모르면
+   * 「제안가 + 세액 = 총액」이 절사액만큼 어긋난 것으로 읽혀 멀쩡한 견적이 위반으로 잡힌다.
+   */
+  roundingMinor?: bigint
 }
 
 /** I1 — 라인 합 = 섹션 소계 */
@@ -105,13 +112,15 @@ export function checkI4(lines: readonly LineLike[], taxMinor: bigint): Violation
   }]
 }
 
-/** I5 — 제안가 + 세액 = 총액 */
+/** I5 — 제안가 + 세액 − 절사 = 총액 */
 export function checkI5(q: QuoteLike): Violation[] {
-  const expected = q.proposedNetMinor + q.taxMinor
+  const rounding = q.roundingMinor ?? BigInt(0)
+  const expected = q.proposedNetMinor + q.taxMinor - rounding
   if (expected === q.grossMinor) return []
+  const basis = rounding === BigInt(0) ? '«제안가 + 세액»' : '«제안가 + 세액 − 절사»'
   return [{
     code: 'I5',
-    message: `총액이 «제안가 + 세액»과 다릅니다 — ${diff(q.grossMinor, expected)}`,
+    message: `총액이 ${basis}과 다릅니다 — ${diff(q.grossMinor, expected)}`,
     expectedMinor: expected, actualMinor: q.grossMinor,
   }]
 }
