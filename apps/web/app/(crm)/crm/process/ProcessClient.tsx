@@ -16,7 +16,7 @@
 // 그건 기능이 아니라 화면이다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Workflow, Plus, Pencil, Trash2, Star, ChevronUp, ChevronDown } from 'lucide-react'
+import { Workflow, Plus, Pencil, Trash2, Star } from 'lucide-react'
 import { clearCachedPipelines } from '@/lib/crm/ui/pipeline-cache'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
@@ -33,6 +33,7 @@ import {
 } from '@/lib/crm/domain/entry-criteria'
 import { useAskDialog } from '@/components/ui/useAskDialog'
 import { ACTION, count, createLabel } from '@/lib/terms'
+import ReorderList from '@/components/ui/ReorderList'
 import styles from './process.module.css'
 
 interface Criterion { key: CriterionKey; level: CriterionLevel }
@@ -232,20 +233,16 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
   }
 
   /** 위·아래로 한 칸 — 끌어다 놓기보다 정확하고, 키보드로도 된다 */
-  async function moveStage(pipeline: Pipeline, st: Stage, delta: -1 | 1) {
-    const opens = pipeline.stages.filter((x) => x.kind === 'OPEN')
-    const i = opens.findIndex((x) => x.id === st.id)
-    const j = i + delta
-    if (i < 0 || j < 0 || j >= opens.length) return
-
-    const next = [...opens]
-    ;[next[i], next[j]] = [next[j], next[i]]
-    const orderedIds = [
-      ...next.map((x) => x.id),
-      ...pipeline.stages.filter((x) => x.kind !== 'OPEN').map((x) => x.id),
-    ]
-    await send(`mv:${st.id}`, '/api/crm/stages', json({ pipelineId: pipeline.id, orderedIds }, 'PUT'),
-      '순서를 바꿨어요.')
+  /**
+   * 새 순서를 그대로 저장한다.
+   *
+   * 예전엔 화면이 «한 칸 위/아래»를 계산해 보냈다(`moveStage`). 지금은 순서 계산을
+   * `lib/ui/reorder.ts` 가 하고 부품이 **완성된 순서**를 준다 — 화면은 옮길 자리를 세지 않는다.
+   * 성사·실패는 서버가 다시 끝으로 몰아 준다(`reorderStages`) — 화면이 그 규칙을 또 알 필요가 없다.
+   */
+  async function applyStageOrder(pipeline: Pipeline, orderedIds: string[]) {
+    await send(`mv:${pipeline.id}`, '/api/crm/stages',
+      json({ pipelineId: pipeline.id, orderedIds }, 'PUT'), '순서를 바꿨어요.')
   }
 
   /** 단계의 뜻만 저장한다 — 조건은 그대로 실어 보낸다(한쪽만 저장되면 다른 쪽이 지워진다) */
@@ -380,11 +377,26 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
         그 문장은 검사하지 않고 보여만 줍니다 — 기계가 판정할 수 있는 것만 조건으로 겁니다.
       </p>
 
-      <ol className={styles.stages}>
-        {active.stages.map((s) => (
-          <li key={s.id} className={`card ${styles.stage}`}>
+      {/*
+        순서는 **집어서** 바꾼다(v0.7.692). 예전엔 28px 화살표 두 개가 행 오른쪽 끝에
+        연필·휴지통과 나란히 있었고, 첫 항목의 ∧ 는 눌려도 아무 일이 없었다 —
+        사용자에게는 「위치 이동이 안 되는」 화면이었다.
+        성사·실패는 자리를 못 바꾼다(`isFixed`) — 딜을 닫는 칸이라 끝에 있어야 한다.
+      */}
+      <ReorderList
+        items={active.stages}
+        getId={(s) => s.id}
+        getLabel={(s) => s.name}
+        isFixed={(s) => s.kind !== 'OPEN'}
+        disabled={!canEdit}
+        className={styles.stages}
+        itemClassName={`card ${styles.stage}`}
+        onReorder={(orderedIds) => void applyStageOrder(active, orderedIds)}
+      >
+        {(s, _i, controls) => (
+          <>
             <div className={styles.stageHead}>
-              <span className={styles.pos}>{s.position}</span>
+              {controls}
               <span className={styles.name}>{s.name}</span>
               {s.kind !== 'OPEN' && (
                 <NbBadge status={s.kind === 'WON' ? 'done' : 'blocker'}>
@@ -398,20 +410,6 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
               {/* 액션은 행 클릭과 섞이지 않게 오른쪽 끝에 모은다 */}
               {canEdit && (
                 <span className={styles.stageActions}>
-                  {s.kind === 'OPEN' && (
-                    <>
-                      <button type="button" className={styles.iconBtn}
-                        onClick={() => void moveStage(active, s, -1)}
-                        disabled={busy === `mv:${s.id}`} aria-label="위로" title="위로">
-                        <ChevronUp size={14} />
-                      </button>
-                      <button type="button" className={styles.iconBtn}
-                        onClick={() => void moveStage(active, s, 1)}
-                        disabled={busy === `mv:${s.id}`} aria-label="아래로" title="아래로">
-                        <ChevronDown size={14} />
-                      </button>
-                    </>
-                  )}
                   <button type="button" className={styles.iconBtn}
                     onClick={() => void renameStage(s)}
                     disabled={busy === `sn:${s.id}`} aria-label="이름 바꾸기" title="이름 바꾸기">
@@ -532,9 +530,9 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
                 )}
               </div>
             )}
-          </li>
-        ))}
-      </ol>
+          </>
+        )}
+      </ReorderList>
 
       {canEdit && (
         <div className={styles.foot}>

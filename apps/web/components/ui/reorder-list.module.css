@@ -1,0 +1,83 @@
+/* 순서 바꾸기 목록 — 「집어서 옮긴다」가 보이게 */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.item {
+  position: relative;
+  transition: opacity var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease;
+}
+
+/* 집어 든 것 — 손에 들려 있음을 옅게 표시한다 */
+.dragging { opacity: 0.45; }
+
+/* 놓을 자리 — 어디로 가는지 선으로 말한다. 두 방향을 구분해야 한 칸씩 어긋나지 않는다 */
+.overBefore::before,
+.overAfter::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--border-w-2);
+  background: var(--brand);
+  border-radius: var(--radius);
+}
+.overBefore::before { top: calc(var(--space-1) * -1); }
+.overAfter::after { bottom: calc(var(--space-1) * -1); }
+
+/* 손잡이 — 순번 자리를 겸한다. 여기가 「집는 곳」이라고 커서로 말한다 */
+.handle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: var(--control-h, 44px);
+  min-height: var(--control-h, 44px);
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+.handle:hover { border-color: var(--border-color); color: var(--text); }
+.handle:active { cursor: grabbing; }
+.handle:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
+
+.handleFixed { cursor: default; border-style: dashed; }
+.handleFixed:hover { border-color: var(--border-light); color: var(--text-muted); }
+
+.pos { font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* 위/아래 — 키보드로 옮기는 길.
+   **가로로** 둔다. 세로로 쌓으면 각 버튼이 22px 이 되어 터치 최소치(44px)를 못 지키는데,
+   28px 짜리 화살표가 「안 눌리는 버튼」이 됐던 것이 애초에 이 화면의 사고였다. */
+.steps { display: inline-flex; flex-direction: row; gap: 2px; }
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h, 44px);
+  height: var(--control-h, 44px);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.step:hover:not(:disabled) { color: var(--text); background: var(--border-light); }
+.step:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: -2px; }
+
+/* 못 옮기는 자리는 **못 옮긴다고 보여 준다** — 무반응은 고장으로 읽힌다 */
+.step:disabled { opacity: 0.3; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .item { transition: none; }
+}

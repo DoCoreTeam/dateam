@@ -144,6 +144,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | 휴지통 보기 | `ui/crm/trash` (`TRASH_FILTER`·`isTrashView`·`useRestore`·`restoreColumn`) | 신설 v0.7.496 (dacrm) — 휴지통은 **화면이 아니라 필터**다. 회사·인물·딜 목록이 같은 약속("30일 안에 되돌릴 수 있다")을 같은 방식으로 지킨다 |
 | 오류(한 줄) | **`ui/InlineError`** | **56** (v0.7.456 신설 — 폼·버튼 옆 한 줄. 예전엔 화면마다 인라인 style, 글자 크기 8종) |
 | 날짜 입력 | **`ui/DateField`** | **15** (v0.7.542 신설 — 화면이 날짜 입력을 직접 짜지 않는다. 브라우저 기본 날짜 칸은 연도 6자리를 그대로 받아 `202609`년이 저장됐다. `min`/`max`(2000-01-01 ~ 오늘+10년) + 범위검사가 부품에 붙어 있고, 오늘·오늘+N은 `lib/ui/date-range`가 KST SSOT를 거쳐 계산한다. 가드 `lib/ui/date-input-standard.test.ts` |
+| 순서 바꾸기 | **`ui/ReorderList`** | **1** (v0.7.692 신설 — 세로 목록의 순서를 **집어서** 바꾼다. 그전엔 네 곳이 각자 만들고 있었다(`OrgTree`=@dnd-kit · `DealBoard`·`PipelineView`·`Composer`=네이티브) — 공용 부품이 없어 다섯 번째(영업 단계)도 새로 만들 뻔했다. 손잡이·위/아래 버튼은 부품이, **배치는 화면이**(`controls` 슬롯) — 항목마다 머리 행 구성이 다르다. 위/아래는 **키보드 경로**라 없애지 않는다. 경계에서 버튼을 끈다 — 예전 영업 단계는 첫 항목의 ∧ 가 눌려도 조용히 무시해 「고장 난 버튼」으로 읽혔다. 순서 계산은 `lib/ui/reorder`(SSOT · `dropIndex` 한 칸 보정 포함), 가드 `lib/ui/reorder.test.ts` |
 | 로딩 | `ui/LoadingSkeleton→SkelPage/SkelCard/SkelList` | **11 / 9 / 7** |
 | 로딩 | `ui/AXDotLoader` | **35** |
 | 로딩 | `ui/AXLoadingOverlay` | 7 |
