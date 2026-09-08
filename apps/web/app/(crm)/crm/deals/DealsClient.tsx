@@ -19,6 +19,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ControlRow from '@/components/ui/ControlRow'
 import { readCachedPipelines, writeCachedPipelines } from '@/lib/crm/ui/pipeline-cache'
+import { dealsInPipeline, dealsInPipelines } from '@/lib/crm/ui/pipeline-count'
+import { countOnly } from '@/lib/terms'
 import DealBoard, { type BoardPipeline } from './DealBoard'
 import DealTableView from './DealTableView'
 import DealFormModal from './DealFormModal'
@@ -107,8 +109,7 @@ export default function DealsClient() {
    * 파이프라인 목록이 단계별 개수를 이미 주므로 따로 묻지 않는다 —
    * 화면 하나에 조회가 늘면 첫 그리기가 느려진다.
    */
-  const dealCount = pipelines.reduce(
-    (n, p) => n + p.stages.reduce((m, s) => m + (s.dealCount ?? 0), 0), 0)
+  const dealCount = dealsInPipelines(pipelines)
 
   /*
     딜이 한 건도 없으면 붙여넣기를 펼쳐 둔다 — 이 제품에서 가장 강한 기능인데
@@ -186,11 +187,18 @@ export default function DealsClient() {
             onChange={(e) => setPipelineId(e.target.value)}
             style={{ minWidth: 180, width: 'auto' }}
           >
-            <option value="">파이프라인 전체 ({pipelines.length}개)</option>
-            {pipelines.map((p) => {
-              const n = p.stages.reduce((a, st) => a + (st.dealCount ?? 0), 0)
-              return <option key={p.id} value={p.id}>{p.name} ({n})</option>
-            })}
+            {/*
+              괄호 안은 **언제나 딜 수**다(v0.7.692). 예전엔 첫 줄만 파이프라인 수(7개)여서,
+              바로 아래 줄들이 전부 딜 수인 목록에서 첫 줄만 다른 것을 세고 있었다.
+              세는 식은 `dealsInPipeline(s)` 한 곳에서 나오므로 둘이 어긋날 수 없다.
+              조수사는 용어집이 정한다 — 화면이 「건/개」를 고르지 않는다(§0-2).
+            */}
+            <option value="">파이프라인 전체 ({countOnly('deal', dealCount)})</option>
+            {pipelines.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({countOnly('deal', dealsInPipeline(p))})
+              </option>
+            ))}
           </select>
         )}
 

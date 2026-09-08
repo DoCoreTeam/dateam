@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.692',
+    date: '2026-09-08',
+    title: '딜 개수가 화면마다 다르게 보이던 것을 맞췄어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔢',
+        headline: '보드의 «파이프라인 전체» 옆 숫자가 딜 건수로 바뀌었어요',
+        detail: '표에서는 «5건»이라고 하는데 보드 위 선택 상자는 «전체 (7개)»라고 해서 헷갈리셨을 거예요. 그 7은 사실 딜 수가 아니라 영업 단계 묶음의 개수였어요. 이제 바로 아래 줄들과 똑같이 «고르면 몇 건이 보이는지»를 말해 드려요.',
+      },
+    ],
+  },
+  {
     version: '0.7.691',
     date: '2026-09-05',
     title: '지난 회의에 적어 둔 이름도 인물로 이어 드려요',
