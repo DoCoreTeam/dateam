@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { kstTodayKey } from '@/lib/datetime/kst'
 import type { DailyLog, DailyLogPriority } from '@/types/database'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
@@ -39,7 +40,11 @@ export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, ta
   const setContent = draft.set
   const [departmentId, setDepartmentId] = useState(task?.department_id ?? creatableDepts[0]?.id ?? '')
   const [priority, setPriority] = useState<DailyLogPriority>(task?.priority ?? 'normal')
-  const [targetDate, setTargetDate] = useState(task?.target_date ?? '')
+  /*
+    **목표일은 오늘부터**(v0.7.696 · 사용자 지시 「기본적으로 오늘 날짜 부터 잡아야지」).
+    편집일 때는 적어 둔 값을 그대로 둔다 — 남이 정한 날짜를 열기만 해도 오늘로 바꾸면 안 된다.
+  */
+  const [targetDate, setTargetDate] = useState(task?.target_date ?? kstTodayKey())
   const [assigneeUserId, setAssigneeUserId] = useState(task?.assignee_user_id ?? '')
   const [candidates, setCandidates] = useState<Array<{ userId: string; name: string }>>([])
   const [checklistText, setChecklistText] = useState(checklistToText(task))

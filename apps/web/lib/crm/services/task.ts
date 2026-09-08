@@ -37,6 +37,8 @@ export interface TaskRow {
   id: string
   title: string
   status: string
+  /** 시작하는 날. null 이면 안 정한 것 — 마감이 종료일이다 */
+  startAt: Date | null
   dueAt: Date | null
   assigneeId: string | null
   companyId: string | null
@@ -57,7 +59,7 @@ export interface TaskRow {
 export type TaskListRow = TaskRow & RelationNames
 
 const SELECT = {
-  id: true, title: true, status: true, dueAt: true, assigneeId: true,
+  id: true, title: true, status: true, startAt: true, dueAt: true, assigneeId: true,
   companyId: true, personId: true, dealId: true, completedAt: true,
   createdAt: true, updatedAt: true,
 } as const
@@ -65,6 +67,7 @@ const SELECT = {
 export interface TaskInput {
   title: string
   status?: string | null
+  startAt?: string | null
   dueAt?: string | null
   assigneeId?: string | null
   companyId?: string | null
@@ -90,6 +93,11 @@ function normalizeInput(input: Partial<TaskInput>, requireTitle: boolean): Recor
   }
   const status = normalizeStatus(input.status)
   if (status) out.status = status
+  /*
+    시작·마감 둘 다 **KST 벽시계로 받아** UTC 로 적재한다(§datetime 정책).
+    화면이 `YYYY-MM-DDT00:00:00+09:00` / `…T23:59:00+09:00` 형태로 앵커를 박아 보낸다.
+  */
+  if (input.startAt !== undefined) out.startAt = input.startAt ? new Date(input.startAt) : null
   if (input.dueAt !== undefined) out.dueAt = input.dueAt ? new Date(input.dueAt) : null
   for (const k of ['assigneeId', 'companyId', 'personId', 'dealId'] as const) {
     if (input[k] !== undefined) out[k] = normalizeText(input[k]) ?? null

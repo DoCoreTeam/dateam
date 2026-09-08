@@ -117,7 +117,17 @@ test('★ 할 일 마감일이 그 날로 채워진다 — 안 채우면 오늘 
   const a = dayActions('2026-09-01', TODAY).find((x) => x.key === 'crmTask')
   assert.equal(a?.href, '/crm/tasks?due=2026-09-01')
   assert.match(TASKS, /useSearchParams\(\)\.get\('due'\)/, '할 일 화면이 그 날짜를 안 읽는다')
-  assert.match(TASKS, /\\d\{4\}-\\d\{2\}-\\d\{2\}/, '주소로 들어온 값을 검사 없이 쓴다')
+  /*
+    검사는 v0.7.696 에 `lib/crm/ui/task-due.ts` 로 옮겼다 — 마감 기본값을 «오늘»로 바꾸면서
+    「주소값이 있으면 그것, 없으면 오늘」을 한 곳에서 정하게 했다(E-6).
+    겨냥할 자리는 옮겼지만 **지켜야 할 계약은 그대로**다: 주소로 들어온 값을 검사 없이 쓰지 않는다.
+  */
+  assert.match(TASKS, /initialDueDate\(dueParam\)/, '주소값을 검사하는 SSOT 를 안 거친다')
+  assert.match(
+    readFileSync(new URL('../crm/ui/task-due.ts', import.meta.url), 'utf8'),
+    /const DATE_ONLY = \/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$\//,
+    '주소로 들어온 값을 검사 없이 쓴다',
+  )
 })
 
 test('행동 키가 겹치지 않는다 — 겹치면 리액트가 목록을 잘못 그린다', () => {

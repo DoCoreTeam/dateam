@@ -1,5 +1,6 @@
 'use client'
 import { useEscClose } from '@/lib/use-esc-close'
+import { kstTodayKey } from '@/lib/datetime/kst'
 
 import { useState, useTransition } from 'react'
 import { X, ArrowUpRight } from 'lucide-react'
@@ -18,7 +19,8 @@ interface Props {
 export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
   useEscClose(onClose)
   const [newType, setNewType] = useState<'planned' | 'doing'>('planned')
-  const [targetDate, setTargetDate] = useState('')
+  /* 목표일은 오늘부터 — 비워 두면 승격한 업무가 목록 맨 아래로 가라앉는다(v0.7.696) */
+  const [targetDate, setTargetDate] = useState(kstTodayKey())
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 

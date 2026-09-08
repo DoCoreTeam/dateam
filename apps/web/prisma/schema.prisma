@@ -530,6 +530,8 @@ model CrmTask {
   workspaceId        String
   title              String
   status             CrmTaskStatus @default(TODO)
+  /// 시작하는 날. NULL 이면 안 정한 것 — 마감(dueAt)이 종료일 노릇을 한다
+  startAt            DateTime?
   dueAt              DateTime?
   assigneeId         String? // CrmMember.id
   companyId          String?
@@ -545,6 +547,7 @@ model CrmTask {
   workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
 
   @@index([workspaceId, assigneeId, status, dueAt])
+  @@index([workspaceId, startAt])
   @@index([workspaceId, dealId])
   @@map("crm_task")
 }

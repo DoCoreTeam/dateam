@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
+import InlineError from '@/components/ui/InlineError'
 
 // 할 일 목록 (dacrm F2 뒤끝)
 //
@@ -30,6 +31,7 @@ import { isEnterKey } from '@/lib/ui/ime'
 import { useAskDialog } from '@/components/ui/useAskDialog'
 import styles from './tasks.module.css'
 import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
+import { initialDueDate, initialStartDate, toStartIso, toDueIso, startsAfterDue } from '@/lib/crm/ui/task-due'
 import RecordPickerField, { RecordPickerModal, type RecordOption } from '@/components/ui/RecordPicker'
 import { searchDeals, searchHintFromTitle } from '@/lib/crm/ui/record-search'
 
@@ -37,6 +39,7 @@ interface Task {
   id: string
   title: string
   status: string
+  startAt: string | null
   dueAt: string | null
   dealId: string | null
   companyId: string | null
@@ -105,7 +108,14 @@ export default function TasksClient() {
    * 눌러서 들어온 화면이 그 날을 모르는 것이 문제였다(§2-6 "URL이 진실").
    */
   const dueParam = useSearchParams().get('due') ?? ''
-  const [dueDate, setDueDate] = useState(/^\d{4}-\d{2}-\d{2}$/.test(dueParam) ? dueParam : '')
+  /*
+    **마감은 오늘부터 잡는다**(v0.7.696 · 사용자 지시 「기본적으로 오늘 날짜 부터 잡아야지
+    비어 있으면 안되지」). 비어 있으면 사람은 그 칸을 지나치고, 마감 없는 할 일은
+    목록 맨 아래로 가라앉아 영원히 안 된다. 판정은 `task-due.ts` 가 한다(SSOT · E-6).
+  */
+  const [dueDate, setDueDate] = useState(() => initialDueDate(dueParam))
+  /* 시작일 — 마감과 같은 이유로 오늘부터다(v0.7.696 · 사용자 지시) */
+  const [startDate, setStartDate] = useState(() => initialStartDate(null))
   /**
    * 새로 만들 때 함께 이을 딜.
    *
@@ -236,7 +246,9 @@ export default function TasksClient() {
         // 날짜만 받았으면 그날 끝까지다 — KST 벽시계로 보내고 서버가 UTC 로 적재한다
         body: JSON.stringify({
           title: title.trim(),
-          dueAt: dueDate ? `${dueDate}T23:59:00+09:00` : null,
+          // 시작은 그날 00:00, 마감은 23:59 — 같은 날을 골라도 「시작이 마감보다 늦다」가 안 되게
+          startAt: toStartIso(startDate),
+          dueAt: toDueIso(dueDate),
           // 서버는 처음부터 받고 있었다 — 화면이 안 보내서 전부 «딜 없음»이 됐다(§2-5(3))
           dealId: newDeal?.id ?? null,
         }),
@@ -244,7 +256,9 @@ export default function TasksClient() {
       const b = await res.json()
       if (!res.ok) { setError(b?.error?.message ?? '만들지 못했습니다.'); return }
       setTitle('')
-      setDueDate('')
+      // 다음 것을 바로 적을 수 있게 **오늘로 되돌린다** — 빈 칸으로 두면 두 번째부터 마감이 없어진다
+      setDueDate(initialDueDate(null))
+      setStartDate(initialStartDate(null))
       setNewDeal(null)
       await load(false, null)
       // 사이드바 배지·알림 벨도 같은 사실을 센다 — 알려 주지 않으면 그 둘만 옛 숫자로 남는다
@@ -312,6 +326,19 @@ export default function TasksClient() {
             )}
           </span>
         )
+      },
+    },
+    {
+      /*
+        **시작일을 마감 앞에** 둔다(v0.7.696) — 「언제부터 언제까지」가 읽는 순서다.
+        안 정한 것은 「—」로 둔다. 마감처럼 늦었다고 표시하지 않는다 —
+        시작일이 지난 것은 «늦은 것»이 아니라 «이미 시작했어야 하는 것»이라 뜻이 다르다.
+      */
+      key: 'startAt',
+      header: '시작',
+      cell: (t) => {
+        const d = t.startAt ? kstDateKey(t.startAt) : null
+        return d ? <span className={styles.at}>{d}</span> : <span className={styles.at}>—</span>
       },
     },
     {
@@ -397,7 +424,8 @@ export default function TasksClient() {
           aria-label="할 일"
         />
         {/* 선택 항목이라 기본값을 넣지 않는다 — '마감 없음'과 '오늘 마감'은 다른 뜻이다. */}
-        <DateField value={dueDate} onValueChange={setDueDate} aria-label="마감일" />
+        <DateField value={startDate} onValueChange={setStartDate} aria-label="시작일" />
+        <DateField value={dueDate} onValueChange={setDueDate} min={startDate || undefined} aria-label="마감일" />
         {/*
           **어느 건의 일인지 여기서 정한다.** 필수가 아니다 — 딜이 없는 잡무도 있다.
           제목을 적어 두면 그 말로 후보를 좁혀 창이 열린다. 자동으로 고르지는 않는다(§5-3).
@@ -415,6 +443,14 @@ export default function TasksClient() {
           {busy === 'new' ? '만드는 중…' : '추가'}
         </NbButton>
       </div>
+
+      {/*
+        **막지 않고 알린다**(v0.7.696). 마감을 먼저 정하고 시작을 뒤로 미루는 일이 실제로 있고,
+        저장을 막으면 적던 것을 잃는다. 사람이 보고 판단하게 한 줄로 말해 준다.
+      */}
+      {startsAfterDue(startDate, dueDate) && (
+        <InlineError>시작일이 마감일보다 늦어요. 그대로 두셔도 되지만 한 번 확인해 주세요.</InlineError>
+      )}
 
       <ListSurface
         rows={items}

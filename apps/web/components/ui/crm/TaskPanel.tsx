@@ -10,6 +10,7 @@
 // 끝난 일은 타임라인에 활동으로 남으므로 여기서 또 쌓을 이유가 없다.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { initialDueDate, initialStartDate, toStartIso, toDueIso } from '@/lib/crm/ui/task-due'
 import { Plus, Check, RotateCcw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
@@ -63,7 +64,13 @@ export default function TaskPanel({ scope, onChanged }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
-  const [due, setDue] = useState('')
+  /*
+    **마감은 오늘부터**(v0.7.696 · 사용자 지시). 목록 화면(TasksClient)과 같은 성격의 칸이라
+    같은 규칙을 쓴다 — 한쪽만 고치면 같은 일을 두 화면이 다르게 시작한다.
+  */
+  const [due, setDue] = useState(() => initialDueDate(null))
+  /* 시작일 — 목록 화면과 같은 규칙(v0.7.696 · 사용자 지시 「할일도 시작과 종료일이」) */
+  const [start, setStart] = useState(() => initialStartDate(null))
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -98,13 +105,21 @@ export default function TaskPanel({ scope, onChanged }: Props) {
       const res = await fetch('/api/crm/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...scope, title: draft.trim(), dueAt: due || null }),
+        /*
+          **KST 앵커를 박아 보낸다**(v0.7.696 정정). 예전엔 `due` 를 그대로 넘겼는데
+          오프셋 없는 `YYYY-MM-DD` 는 UTC 자정으로 파싱돼 KST 로는 그날 아침 9시가 된다 —
+          같은 값을 목록 화면(TasksClient)은 `+09:00` 로 보내고 있어 **두 화면이 갈려 있었다**(§datetime).
+        */
+        body: JSON.stringify({
+          ...scope, title: draft.trim(),
+          startAt: toStartIso(start), dueAt: toDueIso(due),
+        }),
       })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '추가하지 못했습니다.'); return }
       setDraft('')
       setAskNext(false)
-      setDue('')
+      setDue(initialDueDate(null)); setStart(initialStartDate(null))
       void load()
       onChanged?.()
       // 사이드바 배지·알림 벨도 같은 사실을 센다
@@ -181,7 +196,8 @@ export default function TaskPanel({ scope, onChanged }: Props) {
           aria-label="다음에 할 일"
         />
         {/* 선택 항목이라 기본값을 넣지 않는다 — '마감 없음'과 '오늘 마감'은 다른 뜻이다. */}
-        <DateField value={due} onValueChange={setDue} aria-label="마감일" />
+        <DateField value={start} onValueChange={setStart} aria-label="시작일" />
+        <DateField value={due} onValueChange={setDue} min={start || undefined} aria-label="마감일" />
         <NbButton onClick={() => void add()} disabled={saving || !draft.trim()}>
           <Plus size={14} /> 추가
         </NbButton>
