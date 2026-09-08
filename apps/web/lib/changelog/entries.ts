@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.701',
+    date: '2026-09-08',
+    title: '절사에 「천만원 단위」가 생겼어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🎯',
+        headline: '천만원 단위로 맞추면 「3억」처럼 딱 떨어져요',
+        detail: '303,600,000원을 천만원 단위로 버리면 300,000,000원이 됩니다. 백만원 단위(303,000,000원)보다 더 크게 정리하고 싶을 때 쓰세요. 선택지에 결과 금액이 함께 나오니 보고 고르시면 됩니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🗣️',
+        headline: '「말로 채우기」도 천만원 단위를 알아들어요',
+        detail: '「천만원 단위로 잘라 주세요」라고 적으면 절사 설정에 그대로 들어갑니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.700',
     date: '2026-09-08',
     title: '절사 단위를 고르면 결과 금액이 바로 보여요',
