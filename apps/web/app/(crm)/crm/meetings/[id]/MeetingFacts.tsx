@@ -19,6 +19,7 @@ import { useCallback, useState } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
 import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
+import { searchCompanies, searchDeals } from '@/lib/crm/ui/record-search'
 import { RecordPanel } from '@/components/ui/crm/RecordLayout'
 import { kstParts } from '@/lib/datetime/kst'
 import { adoptUntouched, sameSnapshot } from '@/lib/forms/resync'
@@ -124,19 +125,7 @@ export default function MeetingFacts({ meetingId, value, canEditTitle = true, on
     companyId !== (value.companyId ?? '') ||
     dealId !== (value.dealId ?? '')
 
-  const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
-    const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 불러오지 못했습니다.')
-    return (body.items ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
-  }, [])
 
-  const searchDeals = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
-    const res = await fetch(`/api/crm/deals?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '딜을 불러오지 못했습니다.')
-    return (body.items ?? []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name }))
-  }, [])
 
   async function save() {
     setSaving(true)

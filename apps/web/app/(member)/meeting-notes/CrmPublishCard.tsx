@@ -33,6 +33,7 @@ import NbModal from '@/components/ui/nb/NbModal'
 import InlineError from '@/components/ui/InlineError'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
+import { searchCompanies, searchDeals } from '@/lib/crm/ui/record-search'
 import {
   CHOOSABLE_SHARE_STATES, SHARE_STATE_LABEL, SHARE_STATE_HINT, needsConfirm, initialShareState,
   type MeetingShareState,
@@ -94,19 +95,7 @@ export default function CrmPublishCard({ noteId, visibility }: {
   useEffect(() => { void load() }, [load])
   useEscClose(() => setOpen(false))
 
-  const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
-    const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 불러오지 못했습니다.')
-    return (body.items ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
-  }, [])
 
-  const searchDeals = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
-    const res = await fetch(`/api/crm/deals?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '딜을 불러오지 못했습니다.')
-    return (body.items ?? []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name }))
-  }, [])
 
   async function apply(next: MeetingShareState) {
     setBusy(true)

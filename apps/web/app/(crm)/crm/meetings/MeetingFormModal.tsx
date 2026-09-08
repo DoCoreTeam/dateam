@@ -14,6 +14,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
+import { searchCompanies, searchDeals } from '@/lib/crm/ui/record-search'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
 interface Props {
@@ -42,19 +43,7 @@ export default function MeetingFormModal({ onClose, onSaved, fixedDealId, fixedC
    * 101번째부터는 화면에 아예 없었고(없다는 말도 없이), 목록이 길어지면 눈으로 훑는 것 말고는
    * 고를 방법이 없었다.
    */
-  const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
-    const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 불러오지 못했습니다.')
-    return (body.items ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
-  }, [])
 
-  const searchDeals = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
-    const res = await fetch(`/api/crm/deals?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '딜을 불러오지 못했습니다.')
-    return (body.items ?? []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name }))
-  }, [])
 
   async function save() {
     if (!title.trim()) { setError('무슨 미팅이었는지 적어 주세요.'); return }

@@ -7,6 +7,7 @@ import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
+import { searchCompanies } from '@/lib/crm/ui/record-search'
 import { STAGE_LABEL } from './PersonListView'
 
 export interface PersonDraft {
@@ -47,12 +48,6 @@ export default function PersonFormModal({ initial, fixedCompanyId, onClose, onSa
    * 예전엔 `?limit=100`으로 통째로 받아 `<select>`에 쏟았다 —
    * 101번째 회사는 화면에 아예 없었고, 그 사실이 어디에도 안 적혀 있었다.
    */
-  const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
-    const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 불러오지 못했습니다.')
-    return (body.items ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
-  }, [])
 
   async function submit() {
     setSaving(true)

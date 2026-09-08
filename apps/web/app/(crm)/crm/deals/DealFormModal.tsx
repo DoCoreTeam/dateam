@@ -15,6 +15,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
+import { searchCompanies } from '@/lib/crm/ui/record-search'
 import type { BoardPipeline } from './DealBoard'
 import MoneyField from '@/components/ui/MoneyField'
 import {
@@ -109,12 +110,6 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
    * 예전엔 `?limit=100`으로 통째로 받아 `<select>`에 쏟았다. 그래서 ①목록이 모달 밖으로 넘쳐
    * 고를 수가 없었고 ②101번째 회사는 화면에 아예 없었다(없다는 말도 없이).
    */
-  const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
-    const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 불러오지 못했습니다.')
-    return (body.items ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
-  }, [])
 
   /**
    * 회사를 그 자리에서 만들기.

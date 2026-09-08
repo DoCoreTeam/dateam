@@ -1,13 +1,22 @@
 /* 할 일 (dacrm F2 뒤끝) — "내가 지금 뭘 해야 하나"에만 답한다 */
+/*
+  만들기 줄 — 제목·마감일·딜·버튼이 **한 줄**이다.
+
+  예전엔 `flex-wrap` 이라 마감일 칸이 `width: 100%`(`.input-field`) 그대로 늘어나
+  혼자 한 줄을 먹었다(실측 1,276px). 딜 고르기까지 붙으면서 한 줄이 셋으로 흩어졌다.
+  칸 폭은 **담을 내용**이 정한다 — 날짜는 날짜만큼, 딜은 이름이 보일 만큼.
+*/
 .add {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 11rem 13rem auto;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
-  flex-wrap: wrap;
+  align-items: center;
 }
 
-.add > :first-child {
-  flex: 1 1 18rem;
+/* 폰에서는 한 칸씩 쌓는다 — 좁은 화면에서 네 칸은 글자가 먼저 잘린다 */
+@media (max-width: 767px) {
+  .add { grid-template-columns: 1fr; }
 }
 
 .check {
@@ -69,6 +78,11 @@
 .remove:hover:not(:disabled),
 .remove:focus-visible { background: var(--danger-bg); color: var(--danger); }
 .remove:disabled { opacity: 0.5; cursor: default; }
+/*
+  작업이 둘이 되면서 묶음(`RowActions`)이 자리를 잡는다 — 버튼마다 `margin-left: auto` 면
+  둘이 양끝으로 갈라진다. 묶음 안에서는 자동 여백을 쓰지 않는다.
+*/
+:global(.row-actions) .remove { margin-left: 0; }
 
 /*
   제목과 «무엇에 딸린 것인지»가 한 덩어리다.

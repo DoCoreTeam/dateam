@@ -13,7 +13,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckSquare, Square, Trash2 } from 'lucide-react'
+import { CheckSquare, Square, Trash2, Link2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -21,14 +21,17 @@ import DateField from '@/components/ui/DateField'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
+import RowActions from '@/components/ui/list/RowActions'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
-import { ACTION, confirmDelete, failedTo } from '@/lib/terms'
+import { ACTION, confirmDeleteParts, failedTo } from '@/lib/terms'
 import { kstTodayKey, kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { isEnterKey } from '@/lib/ui/ime'
 import { useAskDialog } from '@/components/ui/useAskDialog'
 import styles from './tasks.module.css'
 import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
+import RecordPickerField, { RecordPickerModal, type RecordOption } from '@/components/ui/RecordPicker'
+import { searchDeals, searchHintFromTitle } from '@/lib/crm/ui/record-search'
 
 interface Task {
   id: string
@@ -83,6 +86,14 @@ export default function TasksClient() {
   const [cursor, setCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * **목록을 못 불러온 것**만 담는다.
+   *
+   * 예전엔 `error` 하나로 다 했다 — 그래서 빈 제목으로 「추가」를 누르면
+   * 「무엇을 할지 적어 주세요」가 배너와 목록 두 곳에 뜨고, **할 일 목록이 통째로 사라졌다**.
+   * 입력을 잘못한 것이 이미 있는 목록을 지울 이유는 없다.
+   */
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const router = useRouter()
   const { ask, dialog } = useAskDialog()
@@ -95,6 +106,15 @@ export default function TasksClient() {
    */
   const dueParam = useSearchParams().get('due') ?? ''
   const [dueDate, setDueDate] = useState(/^\d{4}-\d{2}-\d{2}$/.test(dueParam) ? dueParam : '')
+  /**
+   * 새로 만들 때 함께 이을 딜.
+   *
+   * **왜 필요한가**: 여기서 손으로 적은 할 일은 딜이 안 붙는다(실측 2026-09-08 `/crm/tasks` 4건 전부).
+   * 그러면 그 할 일은 어느 건의 일인지 모른 채 목록에만 쌓이고, 행을 눌러도 갈 곳이 없다.
+   */
+  const [newDeal, setNewDeal] = useState<RecordOption | null>(null)
+  /** 이미 있는 할 일에 딜을 잇거나 바꾸는 중 — 그 할 일 하나만 잡는다 */
+  const [linking, setLinking] = useState<Task | null>(null)
 
   const scope = (query.filters?.scope ?? 'open') as 'open' | 'all'
   const q = query.q ?? ''
@@ -104,17 +124,18 @@ export default function TasksClient() {
     void queryKey
     setLoading(true)
     setError(null)
+    setLoadError(null)
     try {
       const sp = new URLSearchParams({ scope, limit: String(query.size) })
       if (q.trim()) sp.set('q', q.trim())
       if (next) sp.set('cursor', next)
       const res = await fetch(`/api/crm/tasks?${sp.toString()}`, { cache: 'no-store' })
       const body = await res.json()
-      if (!res.ok) { setError(body?.error?.message ?? '할 일을 불러오지 못했습니다.'); return }
+      if (!res.ok) { setLoadError(body?.error?.message ?? failedTo('할 일', '불러오지')); return }
       setItems((prev) => (append ? [...prev, ...(body.items ?? [])] : (body.items ?? [])))
       setCursor(body.nextCursor ?? null)
     } catch {
-      setError('할 일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      setLoadError(failedTo('할 일', '불러오지'))
     } finally {
       setLoading(false)
     }
@@ -153,8 +174,10 @@ export default function TasksClient() {
    * 휴지통이라 되돌릴 수 있지만(30일) 확인은 받는다 — 목록에서 사라지는 건 같다.
    */
   async function remove(t: Task) {
+    // 제목은 물음만, 결과는 본문으로 — 한 줄로 넘기면 `.tape-title`(nowrap)이 넘친다
+    const c = confirmDeleteParts('task', 1, { stays: '딜과 미팅 기록' })
     if (!await ask.confirm({
-      title: confirmDelete('task', 1, { stays: '딜과 미팅 기록은 그대로 남아요.' }),
+      title: c.title, body: c.body,
       confirmLabel: ACTION.delete, danger: true,
     })) return
     setBusy(t.id)
@@ -176,6 +199,33 @@ export default function TasksClient() {
     }
   }
 
+  /**
+   * 이미 있는 할 일에 딜을 잇거나 뗀다.
+   *
+   * `null` 이면 떼는 것이다 — 붙이는 길만 만들면 잘못 이어 놓고 되돌릴 수가 없다(CRUD).
+   */
+  async function linkDeal(t: Task, deal: RecordOption | null) {
+    setLinking(null)
+    setBusy(t.id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/crm/tasks/${t.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealId: deal?.id ?? null }),
+      })
+      if (!res.ok) {
+        const b = await res.json().catch(() => null)
+        setError(b?.error?.message ?? failedTo('딜', '잇지'))
+        return
+      }
+      await load(false, null)
+    } catch {
+      setError(failedTo('딜', '잇지'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function add() {
     if (!title.trim()) { setError('무엇을 할지 적어 주세요.'); return }
     setBusy('new')
@@ -184,12 +234,18 @@ export default function TasksClient() {
       const res = await fetch('/api/crm/tasks', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         // 날짜만 받았으면 그날 끝까지다 — KST 벽시계로 보내고 서버가 UTC 로 적재한다
-        body: JSON.stringify({ title: title.trim(), dueAt: dueDate ? `${dueDate}T23:59:00+09:00` : null }),
+        body: JSON.stringify({
+          title: title.trim(),
+          dueAt: dueDate ? `${dueDate}T23:59:00+09:00` : null,
+          // 서버는 처음부터 받고 있었다 — 화면이 안 보내서 전부 «딜 없음»이 됐다(§2-5(3))
+          dealId: newDeal?.id ?? null,
+        }),
       })
       const b = await res.json()
       if (!res.ok) { setError(b?.error?.message ?? '만들지 못했습니다.'); return }
       setTitle('')
       setDueDate('')
+      setNewDeal(null)
       await load(false, null)
       // 사이드바 배지·알림 벨도 같은 사실을 센다 — 알려 주지 않으면 그 둘만 옛 숫자로 남는다
       emitAttentionChanged()
@@ -282,6 +338,22 @@ export default function TasksClient() {
       noLabel: true,
       align: 'right',
       cell: (t) => (
+        <RowActions inline={2} subject={t.title}>
+        {/*
+          **딜을 이 자리에서 잇는다.** 예전엔 붙일 길이 아예 없어서, 여기서 손으로 적은
+          할 일은 영원히 «어느 건인지 모르는 할 일»로 남았다.
+          창은 제목에서 뽑은 말로 미리 좁혀 열린다 — 고르는 것은 사람이다(§5-3).
+        */}
+        <button
+          type="button"
+          className={styles.remove}
+          onClick={(e) => { e.stopPropagation(); setLinking(t) }}
+          disabled={busy === t.id}
+          aria-label={t.dealId ? `${t.title} 딜 바꾸기` : `${t.title} 딜 잇기`}
+          title={t.dealId ? '딜 바꾸기' : '딜 잇기'}
+        >
+          <Link2 size={15} />
+        </button>
         <button
           type="button"
           className={styles.remove}
@@ -292,6 +364,7 @@ export default function TasksClient() {
         >
           <Trash2 size={15} />
         </button>
+        </RowActions>
       ),
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -299,6 +372,7 @@ export default function TasksClient() {
 
   return (
     <>
+      {/* 배너는 **방금 한 조작**의 실패만 — 목록을 못 불러온 것은 목록 자리에서 말한다 */}
       <FormErrorBanner message={error} />
 
       {/*
@@ -324,6 +398,19 @@ export default function TasksClient() {
         />
         {/* 선택 항목이라 기본값을 넣지 않는다 — '마감 없음'과 '오늘 마감'은 다른 뜻이다. */}
         <DateField value={dueDate} onValueChange={setDueDate} aria-label="마감일" />
+        {/*
+          **어느 건의 일인지 여기서 정한다.** 필수가 아니다 — 딜이 없는 잡무도 있다.
+          제목을 적어 두면 그 말로 후보를 좁혀 창이 열린다. 자동으로 고르지는 않는다(§5-3).
+        */}
+        <RecordPickerField
+          noun="딜"
+          value={newDeal?.id ?? ''}
+          valueName={newDeal?.name}
+          onChange={setNewDeal}
+          search={searchDeals}
+          initialQuery={searchHintFromTitle(title)}
+          placeholder="딜 (선택)"
+        />
         <NbButton onClick={() => void add()} disabled={busy === 'new'}>
           {busy === 'new' ? '만드는 중…' : '추가'}
         </NbButton>
@@ -349,7 +436,7 @@ export default function TasksClient() {
           if (to) router.push(to)
         }}
         loading={loading && items.length === 0}
-        error={error ? { message: error, onRetry: () => void load(false, null) } : null}
+        error={loadError ? { message: loadError, onRetry: () => void load(false, null) } : null}
         empty={{
           title: q
             ? '조건에 맞는 할 일이 없어요'
@@ -367,6 +454,22 @@ export default function TasksClient() {
         loading={loading}
         onChange={() => void load(true, cursor)}
       />
+
+      {/*
+        행에서 연 딜 고르기. 이미 이어 둔 것이 있으면 «연결 해제»가 함께 보인다 —
+        붙이는 길만 만들면 잘못 이어 놓고 되돌릴 수가 없다.
+      */}
+      {linking && (
+        <RecordPickerModal
+          noun="딜"
+          selectedId={linking.dealId ?? undefined}
+          search={searchDeals}
+          initialQuery={linking.dealId ? '' : searchHintFromTitle(linking.title)}
+          onPick={(opt) => void linkDeal(linking, opt)}
+          onClear={() => void linkDeal(linking, null)}
+          onClose={() => setLinking(null)}
+        />
+      )}
 
       {dialog}
     </>

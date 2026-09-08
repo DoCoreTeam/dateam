@@ -28,6 +28,8 @@ import ErrorState from '@/components/ui/ErrorState'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { useEscClose } from '@/lib/use-esc-close'
 import { isEnterKey } from '@/lib/ui/ime'
+import { iGa, gwaWa } from '@/lib/ui/josa'
+import { ACTION } from '@/lib/terms'
 import styles from './record-picker.module.css'
 
 export interface RecordOption {
@@ -60,6 +62,13 @@ interface FieldProps {
    * 만들고 나면 그대로 골라진 상태로 닫힌다 — 다시 찾아 고르게 하면 그게 또 한 걸음이다.
    */
   onCreate?: (name: string) => Promise<RecordOption | null>
+  /**
+   * 창을 열 때 **미리 넣어 둘 검색어**. 안 주면 예전 그대로 빈 칸이다.
+   *
+   * 자동으로 고르지 않는다 — 후보를 좁혀 보여 줄 뿐이고 확정은 사람이 한다(§5-3 추출/제안형).
+   * 예: 할 일 「숙명여대 견적 송부」에서 「숙명여대」를 뽑아 딜 후보를 미리 좁힌다.
+   */
+  initialQuery?: string
 }
 
 /**
@@ -68,7 +77,7 @@ interface FieldProps {
  */
 export default function RecordPickerField({
   id, noun, value, valueName, onChange, search,
-  placeholder, required = false, disabled = false, onCreate,
+  placeholder, required = false, disabled = false, onCreate, initialQuery,
 }: FieldProps) {
   const [open, setOpen] = useState(false)
   const label = value ? (valueName || '고른 항목') : ''
@@ -110,6 +119,7 @@ export default function RecordPickerField({
           selectedId={value}
           search={search}
           onCreate={onCreate}
+          initialQuery={initialQuery}
           onPick={(opt) => { onChange(opt); setOpen(false) }}
           onClose={() => setOpen(false)}
         />
@@ -125,6 +135,15 @@ interface ModalProps {
   onCreate?: (name: string) => Promise<RecordOption | null>
   onPick: (opt: RecordOption) => void
   onClose: () => void
+  /** 열자마자 넣어 둘 검색어 — 없으면 빈 칸(예전 동작) */
+  initialQuery?: string
+  /**
+   * 이미 고른 것을 **떼는** 길. 안 주면 그 버튼이 안 보인다(예전 동작).
+   *
+   * 잘못 이어 놓고 되돌릴 길이 없으면 그 자리에 갇힌다 — 붙이는 길을 만들 때
+   * 떼는 길을 같이 만든다(CRUD).
+   */
+  onClear?: () => void
 }
 
 const DEBOUNCE_MS = 250
@@ -133,9 +152,10 @@ const DEBOUNCE_MS = 250
  * 검색 모달. 폼 모달 **위에** 열릴 수 있으므로 자기 층을 가진다.
  * 부모 모달(NbModal)의 백드롭이 이미 스택 컨텍스트라, 그 안에서 `--z-modal`이면 카드 위로 온다.
  */
-export function RecordPickerModal({ noun, selectedId, search, onCreate, onPick, onClose }: ModalProps) {
+export function RecordPickerModal({ noun, selectedId, search, onCreate, onPick, onClose, initialQuery, onClear }: ModalProps) {
   useEscClose(onClose)
-  const [query, setQuery] = useState('')
+  // 처음 한 번만 씨앗으로 쓴다 — 이후엔 사용자가 지우거나 고쳐 쓸 수 있어야 한다
+  const [query, setQuery] = useState(initialQuery ?? '')
   const [items, setItems] = useState<RecordOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -232,7 +252,9 @@ export function RecordPickerModal({ noun, selectedId, search, onCreate, onPick, 
             </div>
           ) : items.length === 0 ? (
             <EmptyState
-              title={trimmed ? `'${trimmed}'와(과) 맞는 ${noun}이(가) 없습니다` : `${noun}이(가) 아직 없습니다`}
+              title={trimmed
+                ? `'${trimmed}'${gwaWa(trimmed)} 맞는 ${noun}${iGa(noun)} 없습니다`
+                : `${noun}${iGa(noun)} 아직 없습니다`}
               description={onCreate ? '아래에서 그 이름 그대로 만들 수 있습니다.' : '이름의 일부만 넣어도 찾습니다.'}
             />
           ) : (
@@ -263,7 +285,10 @@ export function RecordPickerModal({ noun, selectedId, search, onCreate, onPick, 
               <Plus size={15} /> {creating ? '만드는 중…' : `'${trimmed}' 만들기`}
             </NbButton>
           ) : <span />}
-          <NbButton variant="ghost" onClick={onClose}>취소</NbButton>
+          {onClear && selectedId && (
+            <NbButton variant="ghost" onClick={onClear}>{ACTION.disconnect}</NbButton>
+          )}
+          <NbButton variant="ghost" onClick={onClose}>{ACTION.cancel}</NbButton>
         </div>
       </div>
     </div>
