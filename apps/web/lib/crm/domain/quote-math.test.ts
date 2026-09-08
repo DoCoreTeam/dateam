@@ -273,3 +273,38 @@ test('올림 절사는 총액을 올린다 — 「끝을 채워 주세요」', (
   assert.equal(t.roundingMinor, BigInt(-41_976), '올림이면 조정액이 음수다')
   assert.equal(t.netTotalMinor - t.roundingMinor, t.totalMinor)
 })
+
+/*
+  ── 절사 단위가 무엇에 맞추는가 ────────────────────────────────────────────
+  사용자 지적(2026-09-08): *"백만단위 버림인데 왜 십만단위 버림이 되는건지?"*
+  계산은 맞았고 **화면이 말을 안 해서** 생긴 오해였다 — 깎인 600,000원이
+  십만 자리 숫자라, 읽는 사람이 깎인 금액의 자릿수로 단위를 역산했다.
+
+  그래서 여기에 **오해가 성립하지 않는다는 사실**을 숫자로 박는다:
+  같은 금액을 십만원 단위로 버리면 절사가 **0원**이다. 지금 600,000원이 깎인 것
+  자체가 백만원 단위로 버렸다는 증거다.
+*/
+test('★ 303,600,000 을 십만원 단위로 버리면 절사가 0원이다 — 백만원 단위와 헷갈릴 수 없다', () => {
+  const net = BigInt(303_600_000)   // 실측 견적 DA-2026-0908-01 의 「계」
+  assert.equal(roundAmount(net, { unit: 100_000, mode: 'DOWN' }), net, '십만원 단위면 이미 맞아서 안 깎인다')
+  assert.equal(roundAmount(net, { unit: 1_000_000, mode: 'DOWN' }), BigInt(303_000_000))
+  // 깎인 금액은 **단위 미만의 나머지**다 — 단위와 같은 크기가 아니다
+  assert.ok(net - roundAmount(net, { unit: 1_000_000, mode: 'DOWN' }) < BigInt(1_000_000))
+})
+
+test('★ 버림 결과는 그 단위로 나누어떨어진다 — 「무엇에 맞췄나」의 정의', () => {
+  for (const unit of [1_000, 10_000, 100_000, 1_000_000]) {
+    for (const amount of [303_600_000, 1, 999_999, 1_000_000_007]) {
+      const r = roundAmount(BigInt(amount), { unit, mode: 'DOWN' })
+      assert.equal(r % BigInt(unit), BigInt(0), `${amount} 를 ${unit} 로 버렸는데 안 떨어진다`)
+    }
+  }
+})
+
+test('★ 올림이면 절사액이 음수다 — 화면이 「− 」를 박으면 부호가 거꾸로 찍힌다', () => {
+  const lines = [{ quantity: 1, unitPriceMinor: 303_600_000, discountPercent: 0, taxRate: 0 }]
+  const t = computeTotals(lines, { unit: 1_000_000, mode: 'UP' })
+  assert.equal(t.totalMinor, BigInt(304_000_000))
+  assert.ok(t.roundingMinor < BigInt(0), '올림은 더한 것이라 절사액이 음수여야 한다')
+  assert.equal(t.netTotalMinor - t.roundingMinor, t.totalMinor, '계 − 절사 = 합계는 올림에서도 성립한다')
+})

@@ -30,19 +30,6 @@ import {
  * **원 단위 숫자를 화면에 그대로 보이지 않는다** — 「10000」은 읽는 데 시간이 걸리고
  * 0 을 잘못 세면 열 배 틀린 절사를 고르게 된다.
  */
-const ROUNDING_UNIT_LABEL = [
-  { value: 0, label: '안 함' },
-  { value: 1000, label: '천원 단위' },
-  { value: 10000, label: '만원 단위' },
-  { value: 100000, label: '십만원 단위' },
-  { value: 1000000, label: '백만원 단위' },
-] as const
-
-const ROUNDING_MODE_LABEL = [
-  { value: 'DOWN', label: '버림' },
-  { value: 'NEAREST', label: '반올림' },
-  { value: 'UP', label: '올림' },
-] as const
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
   LINE_KIND_LABEL, LINE_KIND_ORDER, LINE_KIND_QUANTITY_LABEL,
@@ -56,6 +43,10 @@ import {
   quoteEditTitle,
   QUOTE_LINES_LOCKED,
   approvalNeeded,
+  ROUNDING_UNITS,
+  ROUNDING_MODES,
+  roundingNote,
+  type RoundingModeKey,
 } from '@/lib/terms'
 import styles from './quote-panel.module.css'
 
@@ -1013,7 +1004,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             **「계」는 절사 직전 금액이다.** 절사가 걸렸을 때만 세운다 —
             안 걸렸으면 합계와 같은 숫자라 같은 값이 두 줄이 된다.
           */}
-          {totals.roundingMinor > BigInt(0) && (
+          {totals.roundingMinor !== BigInt(0) && (
             <div className={styles.totalRow}>
               <span>{QUOTE.netTotal}</span>
               <span>{formatAmount(totals.netTotalMinor.toString(), draft.currency)}</span>
@@ -1037,7 +1028,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
               disabled={linesLocked}
               onChange={(e) => setDraft((d) => ({ ...d, roundingUnit: Number(e.target.value) }))}
             >
-              {ROUNDING_UNIT_LABEL.map((o) => (
+              {ROUNDING_UNITS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
@@ -1048,16 +1039,33 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
               disabled={linesLocked || draft.roundingUnit === 0}
               onChange={(e) => setDraft((d) => ({ ...d, roundingMode: e.target.value }))}
             >
-              {ROUNDING_MODE_LABEL.map((o) => (
+              {ROUNDING_MODES.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
             <span className={styles.roundingAmount}>
-              {totals.roundingMinor > BigInt(0)
-                ? `− ${formatAmount(totals.roundingMinor.toString(), draft.currency)}`
-                : ''}
+              {totals.roundingMinor === BigInt(0)
+                ? ''
+                /*
+                  **부호를 값에서 읽는다.** 올림은 «깎은» 것이 아니라 더한 것이라
+                  절사액이 음수다 — 「−」를 박아 두면 올림에서 부호가 거꾸로 찍힌다.
+                */
+                : `${totals.roundingMinor > BigInt(0) ? '−' : '＋'} ${formatAmount(
+                  (totals.roundingMinor > BigInt(0) ? totals.roundingMinor : -totals.roundingMinor).toString(),
+                  draft.currency,
+                )}`}
             </span>
           </div>
+          {/*
+            **무엇에 맞췄는지 말한다.** 숫자만 두면 읽는 사람이 «깎인 금액의 자릿수»로
+            단위를 역산하게 되고, 그러면 백만원 버림이 십만원 버림으로 읽힌다
+            (실측 v0.7.698: 「− 600,000원」만 보고 십만원 단위로 오해).
+          */}
+          {roundingNote(draft.roundingUnit, draft.roundingMode as RoundingModeKey) && (
+            <p className={styles.roundingNote}>
+              {roundingNote(draft.roundingUnit, draft.roundingMode as RoundingModeKey)}
+            </p>
+          )}
           <div className={styles.grandRow}>
             <span>{QUOTE.total}</span><span>{formatAmount(totals.totalMinor.toString(), draft.currency)}</span>
           </div>

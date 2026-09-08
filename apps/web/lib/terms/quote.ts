@@ -179,6 +179,67 @@ export function expiredNote(dateText: string): string {
 }
 
 // ------------------------------------------------------------
+// 절사 — 「무엇에 맞추는가」를 말이 책임진다
+// ------------------------------------------------------------
+
+/*
+  **왜 여기 있나**(사용자 지적 2026-09-08 · v0.7.698):
+  「백만원 단위 버림」을 골랐는데 화면이 **「절사 − 600,000원」** 만 보여 줬다.
+  60만원은 십만 자리 숫자라 *"백만단위 버림인데 왜 십만단위 버림이 되는건지?"* 가 나왔다.
+
+  계산은 맞았다 — 303,600,000 을 백만원 단위로 버리면 303,000,000 이고, 이 값은
+  뒤 여섯 자리가 0 이라 백만원 단위에 정확히 맞는다(십만원 단위였다면 이미 맞아서 절사가 0 원이다).
+  **깎이는 금액은 단위 미만의 나머지**이지 단위와 같은 크기가 아니다.
+
+  그런데 화면이 깎인 금액만 말하고 «무엇에 맞췄는지» 는 말하지 않으니,
+  읽는 사람이 깎인 금액의 자릿수로 단위를 역산할 수밖에 없었다.
+  그래서 **결과를 말로 붙인다** — 숫자 옆에 한 줄이면 오해가 성립하지 않는다.
+*/
+
+export type RoundingModeKey = 'DOWN' | 'NEAREST' | 'UP'
+
+/**
+ * 절사 단위 선택지.
+ *
+ * **원 단위 숫자를 화면에 그대로 보이지 않는다** — 「1000000」은 읽는 데 시간이 걸리고
+ * 0 을 잘못 세면 열 배 틀린 절사를 고르게 된다.
+ */
+export const ROUNDING_UNITS = [
+  { value: 0, label: '안 함' },
+  { value: 1000, label: '천원 단위' },
+  { value: 10000, label: '만원 단위' },
+  { value: 100000, label: '십만원 단위' },
+  { value: 1000000, label: '백만원 단위' },
+] as const
+
+export const ROUNDING_MODES: readonly { value: RoundingModeKey; label: string }[] = [
+  { value: 'DOWN', label: '버림' },
+  { value: 'NEAREST', label: '반올림' },
+  { value: 'UP', label: '올림' },
+] as const
+
+/** 단위 이름만 — 「백만원」. 「안 함」·모르는 값은 null */
+export function roundingUnitName(unit: number): string | null {
+  const found = ROUNDING_UNITS.find((u) => u.value === unit)
+  if (!found || found.value === 0) return null
+  return found.label.replace(' 단위', '')
+}
+
+/**
+ * 절사가 **무엇을 했는지** 한 줄로. 고른 단위와 방식만 있으면 나온다.
+ *
+ * 금액은 이 문장에 넣지 않는다 — 바로 옆에 이미 숫자가 있고,
+ * 두 번 적으면 둘이 어긋났을 때 어느 쪽이 진짜인지 알 수 없어진다.
+ */
+export function roundingNote(unit: number, mode: RoundingModeKey): string | null {
+  const name = roundingUnitName(unit)
+  if (!name) return null
+  if (mode === 'UP') return `${name} 단위가 되도록 모자란 만큼 올렸어요.`
+  if (mode === 'NEAREST') return `합계를 ${name} 단위로 반올림했어요.`
+  return `${name} 미만을 버려서 합계가 ${name} 단위로 떨어져요.`
+}
+
+// ------------------------------------------------------------
 // 한글 금액 — 「금 일억이천만원정」
 // ------------------------------------------------------------
 

@@ -45,5 +45,6 @@ export {
   QUOTE, QUOTE_LINES_LOCKED, SUPPLIER_SETUP_HINT, EXPORT_SAFE_NOTE, EXPORT_BLOCKED_NOTE, PRINT_HINT,
   SUPPLIER_LABEL, SUPPLIER_ORDER, SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY, QUOTE_SETTING_KEY,
   quoteEditTitle, approvalNeeded, expiredNote, hangulAmount,
-  type SupplierField,
+  ROUNDING_UNITS, ROUNDING_MODES, roundingUnitName, roundingNote,
+  type SupplierField, type RoundingModeKey,
 } from './quote.ts'

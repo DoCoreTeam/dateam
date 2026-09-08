@@ -22,6 +22,7 @@
 
 import { computeTotals, type QuoteLineInput, type RoundingInput } from './quote-math.ts'
 import { toMinor } from './money.ts'
+import { roundingUnitName } from '../../terms/quote.ts'
 
 /** AI 가 읽어 낸 «맞춰 달라»는 의도. 숫자는 이 파일이 낸다 */
 export interface QuoteTargetIntent {
@@ -145,11 +146,6 @@ export function scaleLinesToTarget(
   }
 }
 
-/** 절사 단위를 사람 말로 — 「왜 딱 안 맞는지」를 설명할 때 쓴다 */
-const ROUND_LABEL: Record<number, string> = {
-  1000: '천원', 10000: '만원', 100000: '십만원', 1000000: '백만원',
-}
-
 /**
  * 사람에게 보여 줄 한 줄 — 「무엇을 얼마로 맞췄는지」를 말한다. 조용히 바꾸지 않는다.
  *
@@ -169,9 +165,9 @@ export function describeScale(
     return `${base} 총액을 ${won(r.achievedMinor)}원으로 맞췄어요. 단가는 확인하고 고치시면 됩니다.`
   }
   const diff = won(r.gapMinor < BigInt(0) ? -r.gapMinor : r.gapMinor)
-  const why = ROUND_LABEL[roundingUnit]
-    ? ` ${ROUND_LABEL[roundingUnit]} 단위 절사가 걸려 있어 딱 떨어지지는 않아요.`
-    : ''
+  // 단위 이름은 용어집이 갖는다 — 여기 또 적으면 화면과 다른 말이 생긴다(§0-2)
+  const unitName = roundingUnitName(roundingUnit)
+  const why = unitName ? ` ${unitName} 단위 절사가 걸려 있어 딱 떨어지지는 않아요.` : ''
   return `${base} 총액을 ${won(r.achievedMinor)}원으로 맞췄어요 (목표와 ${diff}원 차이).${why}`
     + ' 단가는 확인하고 고치시면 됩니다.'
 }

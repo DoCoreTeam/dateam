@@ -10,6 +10,8 @@ import assert from 'node:assert/strict'
 import { ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, createLabel, progress } from './action.ts'
 import { ENTITY, SURFACE_LABEL, count, countOnly } from './entity.ts'
 import { emptyTitle, failedTo, confirmDelete, notEnough } from './sentence.ts'
+import { ROUNDING_UNITS, roundingUnitName, roundingNote } from './quote.ts'
+import { readFileSync } from 'node:fs'
 
 test('진행 표기는 공백 + 말줄임표를 둘 다 갖는다', () => {
   assert.equal(progress(ACTION.save), '저장 중…')
@@ -94,4 +96,50 @@ test('표준 행위 라벨이 금지어 목록에 들어 있지 않다', () => {
     if (key === 'create') continue // '새' 는 단독으로 안 쓴다
     assert.ok(!bads.has(label), `표준어 「${label}」 가 금지어 목록에 있다`)
   }
+})
+
+/*
+  ── 절사 — 단위 이름과 「무엇에 맞췄나」 ──────────────────────────────────
+  사용자 지적(2026-09-08 · v0.7.698): 「백만원 단위 버림」인데 화면이 깎인 금액
+  「− 600,000원」만 보여 줘서 **십만원 단위로 읽혔다.**
+  숫자는 맞았고 말이 없었다 — 그래서 말을 상수로 만들고 여기서 잠근다.
+*/
+
+test('절사 설명은 «무엇에 맞췄는지»를 말한다 — 깎인 금액의 자릿수로 역산하지 않게', () => {
+  assert.equal(roundingNote(1_000_000, 'DOWN'), '백만원 미만을 버려서 합계가 백만원 단위로 떨어져요.')
+  assert.equal(roundingNote(100_000, 'DOWN'), '십만원 미만을 버려서 합계가 십만원 단위로 떨어져요.')
+  assert.equal(roundingNote(1_000_000, 'UP'), '백만원 단위가 되도록 모자란 만큼 올렸어요.')
+  assert.equal(roundingNote(1_000_000, 'NEAREST'), '합계를 백만원 단위로 반올림했어요.')
+  // 절사를 안 하면 할 말이 없다 — 빈 문장을 만들지 않는다
+  assert.equal(roundingNote(0, 'DOWN'), null)
+  assert.equal(roundingUnitName(0), null)
+  assert.equal(roundingUnitName(1_000_000), '백만원')
+})
+
+test('단위 이름은 라벨에서 나온다 — 두 벌이 되면 화면과 안내가 다른 말을 한다', () => {
+  for (const u of ROUNDING_UNITS) {
+    if (u.value === 0) continue
+    assert.equal(`${roundingUnitName(u.value)} 단위`, u.label, `${u.label} 이 이름과 어긋난다`)
+  }
+})
+
+test('화면이 절사 단위 목록을 다시 만들지 않는다 — 용어집이 유일한 자리다', () => {
+  const screens = [
+    '../../components/ui/crm/QuoteEditorModal.tsx',
+    '../../app/(crm)/crm/quotes/[id]/QuoteSheet.tsx',
+  ]
+  for (const rel of screens) {
+    const src = readFileSync(new URL(rel, import.meta.url), 'utf8')
+    assert.ok(
+      !/label:\s*'(천원|만원|십만원|백만원) 단위'/.test(src),
+      `${rel} 이 절사 단위 목록을 자기 안에 또 만들었다 — @/lib/terms 를 쓴다`,
+    )
+  }
+})
+
+test('견적 편집이 절사 결과를 말한다 — 숫자만 두면 오해가 다시 생긴다', () => {
+  const src = readFileSync(new URL('../../components/ui/crm/QuoteEditorModal.tsx', import.meta.url), 'utf8')
+  assert.ok(src.includes('roundingNote('), '절사 설명 줄이 사라졌다')
+  // 올림이면 절사액이 음수라 «> 0» 으로 걸면 줄이 통째로 사라진다
+  assert.ok(!src.includes('totals.roundingMinor > BigInt(0)\n'), '절사 줄이 양수일 때만 뜨면 올림에서 사라진다')
 })

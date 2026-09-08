@@ -357,7 +357,12 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                   <tr>
                     <td colSpan={4} />
                     <td className={styles.totalLabel} colSpan={2}>{QUOTE.rounding}</td>
-                    <td className={styles.num}>− {money(doc.totals.roundingMinor)}</td>
+                    <td className={styles.num}>
+                      {/* 올림은 더한 것이라 절사액이 음수다 — 부호를 값에서 읽는다 */}
+                      {doc.totals.roundingMinor.startsWith('-')
+                        ? `＋ ${money(doc.totals.roundingMinor.slice(1))}`
+                        : `− ${money(doc.totals.roundingMinor)}`}
+                    </td>
                   </tr>
                 </>
               )}
