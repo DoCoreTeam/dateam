@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.700',
+    date: '2026-09-08',
+    title: '절사 단위를 고르면 결과 금액이 바로 보여요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🔢',
+        headline: '「백만원 단위 · 303,000,000원」처럼 결과가 함께 나와요',
+        detail: '「백만원 단위」라는 말은 백만원의 배수로 맞춘다는 뜻인지, 백만원 자리를 없앤다는 뜻인지 사람마다 다르게 읽혀요. 이제 고르기 전에 그 단위로 맞추면 얼마가 되는지 선택지에 함께 보여드립니다. 방식(버림·반올림·올림)을 바꾸면 금액도 따라 바뀌어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.699',
     date: '2026-09-08',
     title: '절사가 무엇에 맞췄는지 화면이 말해줘요',
