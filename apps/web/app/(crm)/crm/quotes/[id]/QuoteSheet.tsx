@@ -111,9 +111,15 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                       */}
                       {l.isSpecialDiscount && l.baseAmountMinor !== l.amountMinor ? (
                         <span className={styles.priceFlow}>
-                          <span className={styles.wasAmount}>{money(l.baseAmountMinor)}</span>
-                          <span className={styles.srOnly}>에서</span>
-                          <span className={styles.arrow} aria-hidden>→</span>
+                          {/*
+                            원가와 화살표를 **한 덩어리로 묶는다**(v0.7.695).
+                            칸이 좁아 접힐 때 화살표만 다음 줄로 가면 아무것도 가리키지 못한다.
+                          */}
+                          <span className={styles.priceFrom}>
+                            <span className={styles.wasAmount}>{money(l.baseAmountMinor)}</span>
+                            <span className={styles.srOnly}>에서</span>
+                            <span className={styles.arrow} aria-hidden>→</span>
+                          </span>
                           <span className={styles.nowAmount}>{money(l.amountMinor)}</span>
                         </span>
                       ) : money(l.amountMinor)}
