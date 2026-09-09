@@ -1,7 +1,7 @@
 # PLAN newAX: RFP 분석 시스템 전 범위
 플랜 ID: P0001
 플랜 버전: v0.4.4
-상태: 진행중
+상태: 완료
 지시: ins_0006
 목표 버전: v0.8.0
 작성: 2026-09-09
@@ -511,7 +511,7 @@
 의존: I42
 
 ### I44 버전 올리기와 종합 정리
-상태: 대기
+상태: 통과
 모드: 경량
 범위: package.json, apps/web/package.json, apps/web/lib/changelog/entries.ts, LOOP.md
 감사 기준:
@@ -521,7 +521,51 @@
 의존: I43
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+
+### 설계서 F0~F12 대조표
+
+| 기능 | 어디에 | 상태 |
+|---|---|---|
+| F0 인입과 구조화 | `lib/rfp/parse/*`(hwp·office·image-text·bundle·role·quality·index), `lib/rfp/structure/*`, `app/api/rfp/cases/*`, `/rfp/new` | 됨 — 한글·PDF·오피스·ZIP·이미지 텍스트화·섹션 트리·요구사항 총괄표 |
+| F1 리포트 생성 | `lib/rfp/report/*`, `lib/rfp/analyze/*`, `/rfp/[id]` | 됨 — 최상위 11칸, 태스크 9종, 값마다 근거·확신·검증 배지 |
+| F2 축적과 유사 비교 | `lib/rfp/compare/*`, `app/api/rfp/cases/[id]/compare` | 됨(의미 검색 순위는 미결선 — 응답이 `semanticRanking:false` 로 그 사실을 말한다) |
+| F3 이상 조항 | `lib/rfp/anomaly/*`(rules·engine·stat·llm·merge), `/rfp/admin` | 됨 — 규칙 R01~R12, 통계 층(표본 20 미만 비활성), AI 층(단정 문장 차단), 병합 4등급 |
+| F4 어시스턴트 | `lib/rfp/assistant/*`, `/rfp/assistant` | 됨 — 화이트리스트 질의 빌더, 등급별 컨텍스트 차단, 인용 검증 |
+| F5 프로필과 적합도 | `lib/rfp/fit/*`, `/rfp/profile` | 됨 — 자동 초안, 하드 제약 3값, 가중치 40/25/15/-20/10, 판정 3분기 |
+| F6 교차검증 | `lib/rfp/cross/*`, `CrossVerifyDialog`, `app/api/rfp/cases/[id]/cross` | 됨 — 유형 6종 합의, 권장 점수, 비용 사전 고지, 새 판 생성 |
+| F7 결과 피드백과 학습 | `lib/rfp/learn/*`, `lib/rfp/g2b/award.ts`, `OutcomeForm` | 됨 — 정답지 기록, 표본 50 미만 보정 안 함, 개선 없으면 미채택 |
+| F8 레이더와 알림 | `lib/rfp/radar/*`, `lib/rfp/notify/*`, `/rfp/radar` | 됨 — 규칙은 DB, 중복 방지, 자동은 찾기까지, 알림 실패가 본 작업을 안 막음 |
+| F9 제안서 목차와 전략 | `lib/rfp/proposal/*`, `ProposalPanel` | 됨 — 배점표에서 목차 파생, 항목마다 근거 요구사항 |
+| F10 내부 모델 벤더 | `lib/rfp/ai/self-hosted.ts`, `lib/rfp/ai/rerank.ts`, `VendorSettings` | 됨 — OpenAI 호환 주소 하나로 등록, 등급 셋 다, 등록 전엔 후보에서 제외 |
+| F11 정정공고 버전 비교 | `lib/rfp/revision/*`, `RevisionDiffPanel` | 됨 — 앞 차수를 안 지우고 supersedes 로 이음, 필드 단위 diff + 양쪽 근거 |
+| F12 멀티테넌트 | `lib/rfp/tenant/*`, `app/api/rfp/orgs`, `UsageDashboard` | 됨(결제 연동은 범위 밖) — 역할 3종, 초대 기한·재사용 차단, 요금제 상한 |
+
+### 종합 검증 결과
+
+- `pnpm test` 5175개 통과, 실패 0 (RFP 테스트 33개 파일 등재)
+- `npx tsc --noEmit` 오류 0
+- `pnpm lint` 오류 0
+- `node scripts/check-design-tokens.mjs` 통과 (hex 0, 기준 초과 0)
+- 프로덕션 빌드 통과 (`NEXT_DIST_DIR=.next-rfp-final`)
+- 마이그레이션 246·247·248·249 운영 DB 적용 완료, `rfp_` 표 43개 전부 RLS 활성, 호스트 표로 나가는 FK 0건
+
+### 실호출로 확인한 것 (단위 테스트가 아님)
+
+- 미인증 401: `/api/rfp/cases`(GET·POST), `files`, `analyze`, `cross`, `compare`, `revisions`, `outcome`, `proposal`, `profile`, `profile/draft`, `assistant`, `g2b`, `g2b/award`, `radar`, `notifications`, `worker/tick`
+- 조직 격리: 서비스롤로 만든 남의 조직 케이스가 내 세션 GET 에 0건, anon REST 로 `rfp_orgs`·`rfp_invites`·`rfp_usage_ledger` 전부 `[]`
+- 첨부: 같은 SHA-256 재업로드 409 + 기존 파일 지목, 201MB 413, 150MB×4 의 4회째 413
+- 큐: 잡 1건이 틱 3회로 attempts 1→2→3 후 dead, 4회째 claimed 0, 같은 dedupe_key 는 같은 잡
+- 결과 기록: 저장 200, 안 냈는데 순위는 400
+- 화면: `/rfp`·`/rfp/new`·`/rfp/[id]`·`/rfp/radar`·`/rfp/profile`·`/rfp/assistant`·`/rfp/admin` 전부 200,
+  전체 메뉴와 사이드바에 「RFP 분석기」가 뜸
+
+### 못 채운 것
+
+- viewer·member 실계정 자격증명이 없어 403 경로는 로그인 실호출로 못 눌렀다(`requireMemberApi`·`requireAdmin` 계약과 기존 가드로 갈음)
+- 실제 벤더 호출(분석·교차검증·어시스턴트 답변 생성)은 AI 키와 비용이 들어 실행하지 않았다 — 게이트웨이·합의·인용 검증은 가짜 벤더로 검증
+- 유사 사업 비교의 임베딩 순위는 아직 최근순으로 대신한다(응답이 `semanticRanking:false` 로 밝힘)
+- 나라장터 실 API 호출은 서비스 키가 DB 에 없어 못 했다(응답 파싱·사상·실패 안내는 합성 응답으로 검증)
+
 
 ### 진행 중 발견 (범위 밖 · M-9 ③)
 - I14 통과 시점의 `pnpm test` 가 4602 중 2건 실패였고 그것을 통과 기록에 4601/4601 로 잘못 적었다
