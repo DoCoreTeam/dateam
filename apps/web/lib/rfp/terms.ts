@@ -172,3 +172,217 @@ export const CROSS_RECOMMEND_LABEL = '교차검증 권장'
 export function estimateLine(krw: number, minutes: number): string {
   return `약 ${krw.toLocaleString('ko-KR')}원, 약 ${minutes}분 (±30%)`
 }
+
+// ── 화면의 말 ────────────────────────────────────────────────
+//
+// 화면은 한글을 직접 적지 않는다(가드: lib/rfp/domain/domain.test.ts).
+// 같은 것을 두 화면이 다르게 부르면 사용자는 두 기능인 줄 안다.
+
+/** 메뉴와 화면 제목 */
+export const RFP_NAV = {
+  cases: '케이스',
+  newCase: '새 분석',
+  radar: '공고 레이더',
+  profile: '회사 프로필',
+  assistant: '어시스턴트',
+  admin: '설정',
+} as const
+
+/** 목록 화면 */
+export const RFP_LIST = {
+  title: '분석 케이스',
+  searchPlaceholder: '사업명으로 검색',
+  emptyTitle: '아직 분석한 공고가 없어요',
+  emptyDesc: '제안요청서를 올리면 파싱과 구조화를 거쳐 리포트를 만듭니다',
+  emptyAction: '공고 올리기',
+  emptySearchTitle: '조건에 맞는 케이스가 없어요',
+  emptySearchDesc: '검색어를 바꿔 보세요',
+  colTitle: '사업명',
+  colStage: '진행',
+  colDocClass: '등급',
+  colBudget: '사업 금액',
+  colDeadline: '제안 마감',
+  colCreated: '올린 날',
+  loadFailed: '목록을 불러오지 못했어요',
+  retry: '다시 시도',
+  limitNotice: '최근 것부터 보여 주고 있어요. 더 있으면 사업명을 검색해 주세요',
+} as const
+
+/** 인입 화면 */
+export const RFP_INTAKE = {
+  title: '공고 올리기',
+  subtitle: '한글·PDF·오피스 문서를 그대로 올리면 됩니다',
+  titleLabel: '사업명',
+  titlePlaceholder: '공고문에 적힌 사업명',
+  docClassLabel: '문서 등급',
+  docClassRequired: '문서 등급을 골라 주세요',
+  titleRequired: '사업명을 적어 주세요',
+  fileLabel: '첨부 파일',
+  filePick: '파일 고르기',
+  fileNone: '아직 고른 파일이 없어요',
+  fileTooLarge: '파일 하나는 200MB 까지예요',
+  caseQuota: '한 케이스에 500MB 까지 올릴 수 있어요',
+  duplicate: '같은 내용의 파일이 이미 있어요',
+  submit: '분석 시작',
+  submitting: '올리는 중',
+  uploaded: '올렸어요',
+  failed: '올리지 못했어요',
+  noticeNoLabel: '공고번호',
+  noticeNoHint: '적으면 나라장터에서 공고 정보를 함께 가져옵니다',
+  fetchNotice: '공고 가져오기',
+  goReport: '리포트 보기',
+} as const
+
+/** 리포트 화면 */
+export const RFP_REPORT = {
+  viewWork: '작업용',
+  viewReport: '보고용',
+  evidence: '근거',
+  noEvidence: '근거 미확인',
+  openSource: '원문에서 보기',
+  crossVerify: '교차검증',
+  editValue: '값 고치기',
+  anomalies: '이상 조항',
+  fit: '적합도',
+  comparisons: '유사 사업',
+  noValue: '확인 못 함',
+  exportMd: '마크다운으로 내보내기',
+  exportHtml: '인쇄용으로 내보내기',
+  sectionOverview: '사업 개요',
+  sectionScope: '과업 범위',
+  sectionSchedule: '일정',
+  sectionBudget: '사업 금액',
+  sectionConstraints: '제약과 자격',
+  sectionChecklist: '제출 서류',
+  sectionEvaluation: '평가 기준',
+  notReady: '아직 리포트가 없어요',
+  notReadyDesc: '분석이 끝나면 여기에 나타납니다',
+} as const
+
+/** 교차검증 대화 */
+export const RFP_CROSS = {
+  title: '교차검증',
+  desc: '고른 항목만 다른 모델에 다시 물어 값을 맞춰 봅니다',
+  pickFields: '검증할 항목',
+  pickVendors: '쓸 모델',
+  estimate: '예상',
+  confirm: '검증 시작',
+  cancel: '그만두기',
+  conflict: '값이 갈렸어요',
+  chooseFinal: '쓸 값 고르기',
+  noBase: '기본 분석이 끝난 뒤에 쓸 수 있어요',
+} as const
+
+/** 프로필과 적합도 */
+export const RFP_PROFILE = {
+  title: '회사 프로필',
+  desc: '적합도 판정이 이 정보를 씁니다',
+  draftUpload: '회사소개서로 초안 만들기',
+  draftHint: '회사소개서·사업자등록증·실적표를 올리면 대부분 채워집니다',
+  confirm: '확인하고 저장',
+  companyName: '회사 이름',
+  businessNumber: '사업자등록번호',
+  capital: '자본금',
+  revenue: '연간 매출',
+  headcount: '임직원 수',
+  region: '소재지',
+  certifications: '인증',
+  trackRecords: '수행 실적',
+  missing: '아직 못 채운 칸',
+  fitTitle: '적합도 판정',
+  fitScore: '점수',
+  fitConditional: '조건부',
+  hardChecks: '자격 요건',
+  gaps: '채워야 할 것',
+  recommendedRole: '권장 역할',
+  proposalOutline: '제안서 목차',
+  proposalStrategy: '제안 전략',
+  uncovered: '목차에 안 들어간 요구사항',
+} as const
+
+/** 레이더와 결과 */
+export const RFP_RADAR = {
+  title: '공고 레이더',
+  desc: '규칙에 맞는 새 공고를 찾아 둡니다. 케이스로 만드는 것은 직접 고릅니다',
+  rules: '레이더 규칙',
+  addRule: '규칙 추가',
+  ruleName: '규칙 이름',
+  keywords: '키워드',
+  budgetRange: '예산 범위',
+  agencies: '기관',
+  sweepNow: '지금 훑기',
+  hits: '찾은 공고',
+  score: '사전 점수',
+  reason: '걸린 이유',
+  openCase: '케이스로 만들기',
+  dismiss: '치우기',
+  emptyTitle: '아직 찾은 공고가 없어요',
+  emptyDesc: '규칙을 만들고 훑기를 눌러 보세요',
+  outcomeTitle: '결과 기록',
+  decision: '참여 결정',
+  submitted: '제출 여부',
+  result: '낙찰 결과',
+  awardedTo: '낙찰 업체',
+  awardedAmount: '낙찰 금액',
+  ourRank: '우리 순위',
+  save: '저장',
+  revisionTitle: '정정공고 비교',
+  revisionNone: '아직 정정공고가 없어요',
+} as const
+
+/** 관리자 설정 */
+export const RFP_ADMIN = {
+  title: '설정',
+  vendors: 'AI 공급자',
+  vendorKey: 'API 키',
+  vendorBaseUrl: '엔드포인트 주소',
+  vendorModel: '모델 이름',
+  internalVendor: '사내 서빙',
+  internalHint: '주소와 모델 이름만 넣으면 등급 높은 문서도 여기서 처리합니다',
+  notRegistered: '아직 등록 안 됨',
+  rules: '이상 조항 규칙',
+  ruleEnabled: '켜기',
+  transferLog: '외부 전송 기록',
+  usage: '사용량',
+  monthlyBudget: '월 예산 상한',
+  plan: '요금제',
+  members: '구성원',
+  invite: '초대',
+  inviteEmail: '이메일',
+  inviteRole: '역할',
+  adminOnly: '관리자만 볼 수 있어요',
+  saved: '저장했어요',
+  saveFailed: '저장하지 못했어요',
+} as const
+
+/** 어시스턴트 */
+export const RFP_ASSISTANT = {
+  title: '어시스턴트',
+  placeholder: '무엇이든 물어보세요',
+  send: '묻기',
+  thinking: '찾는 중',
+  citations: '근거',
+  noAnswer: '자료에서 찾지 못했어요',
+  droppedForClass: '등급 때문에 뺀 문서가 있어요',
+} as const
+
+/** 역할 이름 */
+export const ORG_ROLE_LABEL: Record<'admin' | 'member' | 'viewer', string> = {
+  admin: '관리자',
+  member: '구성원',
+  viewer: '보기 전용',
+}
+
+/** 공통 버튼과 상태 */
+export const RFP_COMMON = {
+  loading: '불러오는 중',
+  error: '문제가 생겼어요',
+  retry: '다시 시도',
+  cancel: '취소',
+  save: '저장',
+  close: '닫기',
+  back: '뒤로',
+  none: '없음',
+  yes: '예',
+  no: '아니오',
+} as const

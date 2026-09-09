@@ -13,48 +13,12 @@
  * 사용자는 자기가 뭘 잘못했는지 모른다 — **기존 파일을 가리켜 준다.**
  */
 
-/** 파일 하나 상한 */
-export const MAX_FILE_BYTES = 200 * 1024 * 1024
-/** 케이스 하나 총합 상한 */
-export const MAX_CASE_BYTES = 500 * 1024 * 1024
-
-export type FileRejectReason =
-  | 'file_too_large'
-  | 'case_quota_exceeded'
-  | 'empty_file'
-  | 'missing_name'
-
-export interface SizeCheckInput {
-  sizeBytes: number
-  /** 이 케이스에 이미 쌓인 바이트 */
-  caseBytes: number
-  fileName: string
-}
-
-export type SizeCheck =
-  | { ok: true }
-  | { ok: false; reason: FileRejectReason; limit: number; actual: number }
-
-/**
- * 크기와 이름을 본다 — **바이트를 읽기 전에** 부른다.
- *
- * 200MB 를 메모리에 올린 뒤 거절하면 거절 한 번에 200MB 를 쓴다.
- */
-export function checkFileSize(input: SizeCheckInput): SizeCheck {
-  if (!input.fileName.trim()) {
-    return { ok: false, reason: 'missing_name', limit: 0, actual: 0 }
-  }
-  if (input.sizeBytes <= 0) {
-    return { ok: false, reason: 'empty_file', limit: 0, actual: input.sizeBytes }
-  }
-  if (input.sizeBytes > MAX_FILE_BYTES) {
-    return { ok: false, reason: 'file_too_large', limit: MAX_FILE_BYTES, actual: input.sizeBytes }
-  }
-  if (input.caseBytes + input.sizeBytes > MAX_CASE_BYTES) {
-    return { ok: false, reason: 'case_quota_exceeded', limit: MAX_CASE_BYTES, actual: input.caseBytes + input.sizeBytes }
-  }
-  return { ok: true }
-}
+// 상한과 크기 검사는 **화면도 써야 해서** 따로 있다 —
+// 이 파일은 node:crypto 를 쓰므로 클라이언트가 import 하면 통째로 죽는다.
+export {
+  MAX_FILE_BYTES, MAX_CASE_BYTES, checkFileSize,
+  type FileRejectReason, type SizeCheckInput, type SizeCheck,
+} from './limits.ts'
 
 /** 파일 내용의 지문. 같은 파일인지는 이름이 아니라 이것으로 안다 */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {

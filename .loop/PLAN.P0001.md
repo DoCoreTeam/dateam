@@ -435,9 +435,9 @@
 의존: I16, I04
 
 ### I37 화면 셸과 케이스 목록과 인입
-상태: 대기
+상태: 통과
 모드: 경량
-범위: 신규 apps/web/app/(rfp)/rfp/page.tsx, 신규 apps/web/app/(rfp)/rfp/layout.tsx, 신규 apps/web/app/(rfp)/rfp/CaseListClient.tsx, 신규 apps/web/app/(rfp)/rfp/new/page.tsx, 신규 apps/web/components/rfp/UploadPanel.tsx
+범위: 신규 apps/web/app/(rfp)/rfp/page.tsx, 신규 apps/web/app/(rfp)/layout.tsx, 신규 apps/web/app/(rfp)/rfp/CaseListClient.tsx, 신규 apps/web/app/(rfp)/rfp/new/page.tsx, 신규 apps/web/components/rfp/UploadPanel.tsx
 감사 기준:
 - 브라우저에서 /rfp 진입, 파일 업로드, 진행률 표시, 완료 후 리포트 이동까지 실동작 확인
 - 셸이 CRM 과 같은 AppShell 한 벌이고 자작 셸을 만들지 않은 것을 shell-contract 가드 통과로 확인
@@ -537,6 +537,14 @@
 - 그 시점에 I18 은 이미 구현·검증·커밋(5883e198)까지 끝났는데 `loop pass` 기록만 빠졌다 — 여기서 통과로 되돌렸다
 - 이후 항목은 이 파일이 재개 근거다. loop CLI 의 활성 플랜은 다른 세션 것이므로 상태는 여기서 직접 적는다
 - 커밋 형식은 그대로 `vX.Y.Z-Ixx: 제목`
+- I37 에서 범위를 두 군데 고쳤다
+  - 레이아웃을 `app/(rfp)/rfp/layout.tsx` 가 아니라 `app/(rfp)/layout.tsx` 에 뒀다 —
+    `lib/auth/api-user-gate.test.ts` 의 GATED_LAYOUTS 가 **그룹 레벨** 레이아웃을 요구한다((crm)·(ai) 와 같다)
+  - `lib/rfp/nav/groups.ts`(메뉴 SSOT)와 `lib/rfp/terms.ts`(화면 문구) 를 함께 늘렸다 —
+    화면이 한글을 직접 못 적게 한 I01 가드 때문에 문구가 먼저 있어야 한다
+- I37 실화면에서 회귀 1건을 잡아 고쳤다(M-9 ①): `UploadPanel` 이 `lib/rfp/db/files.ts` 를 import 해
+  `node:crypto` 가 클라이언트 번들에 섞였고 `/rfp/new` 가 500 이었다
+  - 상한과 크기 검사를 `lib/rfp/db/limits.ts` 로 갈라 화면과 서버가 같은 함수를 쓰게 했다
 - I36 의 「다른 조직 데이터 0건」은 두 갈래로 확인했다
   - anon 키 REST 직조회로 `rfp_orgs`·`rfp_invites`·`rfp_usage_ledger` 가 전부 `[]`
   - I13 에서 이미 서비스롤로 남의 조직 케이스를 만들고 내 세션 GET 에 안 보이는 것을 실호출로 확인했다

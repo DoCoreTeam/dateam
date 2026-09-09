@@ -19,6 +19,7 @@ const GATED_LAYOUTS = [
   'app/(member)/layout.tsx', 'app/admin/layout.tsx', 'app/(ci)/layout.tsx',
   'app/(crm)/layout.tsx', // dacrm T1-01
   'app/(ai)/layout.tsx', // AI 스튜디오 — 관리자 전용이지만 api_user 차단은 같은 SSOT 를 쓴다
+  'app/(rfp)/layout.tsx', // RFP 분석기 — 임직원 전용, 같은 SSOT 를 쓴다
 ]
 
 /** api_user에게 원래 열려 있는 화면 — 막으면 안 된다 */
