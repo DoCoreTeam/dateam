@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.5
+플랜 버전: v0.2.6
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.9.0
@@ -100,6 +100,18 @@
 - mergeModelCatalogEntry 가 다섯 공급자 전부에 빈칸 없는 엔트리를 만드는 단정
 - probe 가 명세의 baseUrl 로 물어보고 공급자별 분기를 따로 적지 않는 단정
 의존: I01, I02
+
+### I04a 채팅 모델 걸러내기 규칙 점검
+상태: 대기
+모드: 경량
+범위: apps/web/lib/ai-chat/providers/groq.ts, apps/web/lib/ai-chat/providers/grok.ts, apps/web/lib/ai-chat/providers/openai.ts, apps/web/lib/ai-chat/providers/openai-compatible.test.ts
+감사 기준:
+- 실측 근거: 관리자 화면 연결 테스트에서 Groq 이 5개, OpenAI 가 112개, Gemini 가 40개로 나옴 (2026-09-09 dev 3001). Groq 5개는 실제보다 적을 것으로 의심됨
+- chatModelPattern 이 이름 맨 앞만 보므로 Groq 이 내려주는 meta-llama/... 와 groq/... 같은 소유자 붙은 id 가 통째로 빠지는지 확인 (빠지면 고침)
+- 실제 목록으로 확인한 개수를 pass notes 에 적음 (거른 것과 거르지 않은 것 둘 다)
+- 걸러진 이유를 이름별로 설명할 수 있는 단정 (whisper 는 전사 전용이라 뺀다, meta-llama 는 빼면 안 된다)
+- node --test 로 openai-compatible.test.ts 통과
+의존: I02
 
 ### I05 공급자 키 저장 창구 한 벌
 상태: 통과
@@ -237,3 +249,4 @@
 - v0.2.2 (2026-09-09) I02 는 어댑터 없이 감사 불가 - 타입만 넓히면 이미 저장된 Groq 키가 후보에 들어와 getProvider 가 던진다. I03 을 I02 로 병합 (audit:I02)
 - v0.2.4 (2026-09-09) I05 의 서버액션 철거 가드를 I11a 로 분리 - 화면이 아직 옛 액션을 부르는 동안은 걸 수 없다 (audit:I05)
 - v0.2.5 (2026-09-09) I06 의 「세 화면이 그 클래스를 씀」은 부품을 만드는 항목에서 확인 불가 - 정의가 한 곳인지만 I06 에서 보고 실제 사용은 I08 I09 I10 으로 넘김 (audit:I06)
+- v0.2.6 (2026-09-09) 실브라우저 연결 테스트에서 Groq 모델이 5개로 나옴 - chatModelPattern 이 이름 맨 앞만 봐서 meta-llama/ 같은 소유자 붙은 id 를 통째로 버리는지 점검할 항목 I04a 추가 (iv_0019)
