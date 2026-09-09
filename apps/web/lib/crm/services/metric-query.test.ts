@@ -143,7 +143,10 @@ test('★ 라우트가 서비스를 실제로 부른다 — 만들고 안 꽂으
   }
   // 화면이 그리는 것마다 실제로 값이 채워지는지 — 빈 배열을 내려보내면 카드가 영영 빈다
   assert.match(body, /const cards = runMetrics\(/, '카드를 엔진으로 만들지 않는다')
-  assert.match(body, /matrix = metric \? runMetrics\(/, '교차표를 엔진으로 만들지 않는다')
+  assert.match(body, /matrix = runnable \? runMetrics\(/, '교차표를 엔진으로 만들지 않는다')
+  // 카드를 눌렀을 때 「그 숫자가 무엇인지」 — 목록을 안 꽂으면 다시 «8건에 8건으로» 답한다
+  assert.match(body, /deals = runnable \? matchedDeals\(/, '딜 목록을 엔진으로 만들지 않는다')
+  assert.match(body, /cards, matrix, deals,/, '딜 목록이 응답에 안 실린다 — 만들고 안 보내면 없는 기능이다')
   assert.ok(!/cards: never\[\]|cards = \[\]/.test(body), '카드가 빈 배열로 나간다')
 })
 
@@ -166,6 +169,16 @@ test('★ 모르는 값에 500 을 주지 않는다 — 주소를 손으로 고�
   assert.ok(route.includes('parsePeriodKey('), '기간은 못 읽으면 기본값이다')
   assert.ok(route.includes('isKnownMetric('), '모르는 지표는 버린다')
   assert.ok(route.includes('isKnownDimension('), '모르는 축은 버린다')
+
+  /*
+    **아는 지표라고 다 표로 만들 수 있는 것은 아니다.**
+    `isKnownMetric` 은 파생 지표(달성률·승률·페이스)에도 참이다 — 그것들은 다른 지표를
+    나눈 값이라 딜을 직접 세지 않아서, 엔진에 넘기면 「모르는 지표입니다」로 던진다.
+    그 길은 열려 있다: `metrics/ask` 가 파생까지 담긴 목록을 AI 에게 주고 그 답이 그대로
+    주소에 들어간다 — 「올해 승률 보여줘」 한 마디에 리포트가 500 이 된다.
+  */
+  assert.match(route, /const runnable = metric && metricOf\(metric\) \? metric : null/,
+    '파생 지표를 안 거른다. metricOf 로 한 번 더 거른 뒤 matrix·deals 에 넘길 것')
 })
 
 test('★ 목표 저장은 관리자만 — 화면에서만 숨기면 API 로 새어 나간다', () => {

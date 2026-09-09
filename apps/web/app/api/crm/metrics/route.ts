@@ -17,7 +17,7 @@ import { loadDealsForMetrics, runMetrics, dimensionFill, filterLabel } from '@/l
 import { loadTargets, saveTargets } from '@/lib/crm/services/target-store'
 import { loadCloses, saveCloses } from '@/lib/crm/services/close-store'
 import { findClose, isClosable, closeBlockedReason, moveClose, isLive, type CloseStateKey } from '@/lib/crm/domain/close'
-import { metricCatalog, isKnownMetric } from '@/lib/crm/domain/metrics'
+import { metricCatalog, isKnownMetric, metricOf } from '@/lib/crm/domain/metrics'
 import { dimensionCatalog, isKnownDimension, DIMENSIONS } from '@/lib/crm/domain/dimensions'
 import { parsePeriodKey, periodOfToday, formatPeriodKey } from '@/lib/crm/domain/target'
 import { isTimeAxis, matchedDeals, type QuerySpec } from '@/lib/crm/domain/metric-agg'
@@ -65,15 +65,25 @@ export async function GET(req: NextRequest) {
 
     const base = { period, todayKey, filters }
     const cards = runMetrics(loaded, CARD_METRICS.map((m): QuerySpec => ({ ...base, metric: m })))
+    /*
+      **딜을 세어 낼 수 있는 지표만 표로 만든다.**
+
+      `isKnownMetric` 은 파생 지표(달성률·승률·페이스)에도 참이다 — 그것들은 다른 지표를
+      나눈 값이라 딜을 직접 세지 않는다. 그대로 넘기면 `모르는 지표입니다` 로 **500** 이 난다.
+      도우미가 그 길을 연다: `metrics/ask` 는 파생까지 담긴 목록을 AI 에게 주고, 그 답이
+      그대로 주소에 들어간다 — 「올해 승률 보여줘」 한 마디에 화면이 통째로 죽는다.
+      이 파일은 위에서 «주소를 손으로 고친 사람에게 500 을 주지 않는다»고 이미 정했다.
+    */
+    const runnable = metric && metricOf(metric) ? metric : null
     // 교차표는 고른 지표가 있을 때만 — 없으면 화면이 카드만 그린다
-    const matrix = metric ? runMetrics(loaded, [{ ...base, metric, rows, cols }])[0] : null
+    const matrix = runnable ? runMetrics(loaded, [{ ...base, metric: runnable, rows, cols }])[0] : null
     /*
       **그 숫자가 무엇인지도 같이 준다.**
       카드를 눌렀는데 쪼갠 합계만 돌려주면 「8건」에 「8건」으로 답하는 꼴이다.
       목록은 표와 **같은 코드**(`scanMetric`)가 고른 것이라 둘의 합이 어긋날 수 없다.
       상한은 화면이 한 번에 읽을 수 있는 만큼 — 잘렸으면 잘렸다고 말한다.
     */
-    const deals = metric ? matchedDeals(loaded.deals, { ...base, metric }, DEAL_LIST_LIMIT) : null
+    const deals = runnable ? matchedDeals(loaded.deals, { ...base, metric: runnable }, DEAL_LIST_LIMIT) : null
 
     // 축이 지금 쓸 만한지 함께 준다 — 「없음 한 줄」을 데이터가 없는 것으로 읽지 않게
     const fill: Record<string, { filled: number; total: number }> = {}

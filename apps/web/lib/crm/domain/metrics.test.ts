@@ -128,3 +128,22 @@ test('지표 선언은 순수하다 — DB 를 모른다', () => {
     assert.ok(!src.includes(banned), `지표 선언이 ${banned} 를 안다 — 화면에서 못 읽게 된다`)
   }
 })
+
+// ── 파생 지표는 표로 만들 수 없다 ──────────────────────────
+//
+// `isKnownMetric` 은 파생 지표(달성률·승률·페이스)에도 참이다. 그런데 그것들은
+// 다른 지표를 나눈 값이라 **딜을 직접 세지 않는다** — `aggregate`·`matchedDeals` 에
+// 넘기면 「모르는 지표입니다」로 던진다. 즉 `isKnownMetric` 만 보고 통과시키면 500 이다.
+//
+// 이 길은 열려 있다: `metrics/ask` 가 **파생까지 담긴 목록**을 AI 에게 주고 그 답이
+// 주소로 들어간다. 「올해 승률 보여줘」 한 마디에 리포트가 통째로 죽는 셈이다.
+// 그래서 라우트는 `metricOf` 로 한 번 더 거른다 — 라우트가 실제로 그러는지는
+// `services/metric-query.test.ts` 의 「모르는 값에 500 을 주지 않는다」가 본다.
+
+test('isKnownMetric 만으로는 표를 만들 수 없다 — 파생 지표가 섞여 있다', () => {
+  const derivedButKnown = ['attainment', 'win_rate', 'pace', 'coverage']
+    .filter((k) => isKnownMetric(k) && metricOf(k) === null)
+  assert.ok(derivedButKnown.length > 0,
+    '파생 지표가 하나도 없다면 이 가드의 전제가 바뀐 것이다 — 라우트의 걸름도 다시 볼 것')
+})
+
