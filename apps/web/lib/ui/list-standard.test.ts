@@ -56,6 +56,10 @@ const DOCUMENT_SURFACES = new Set<string>([
   // 문서 «종이» 그 자체 — v0.7.643 에서 상세 화면과 미리보기가 함께 쓰려고 분리했다.
   // 같은 마크업이라 같은 이유로 면제된다(파일이 갈라졌다고 성격이 바뀌지 않는다).
   'app/(crm)/crm/quotes/[id]/QuoteSheet.tsx',
+  // 공고문 **원문**의 표를 그대로 되살린 자리다. 목록이 아니라 남이 쓴 문서다 —
+  // ListSurface 를 붙이면 발주 기관의 표에 정렬 화살표와 쪽 넘김이 생긴다.
+  // 이 표를 안 그리던 동안 표 71개가 평문으로 뭉개져 원문이 글 덩어리로 보였다.
+  'components/rfp/SourceViewer.tsx',
 ])
 
 function rawTableFiles(): string[] {

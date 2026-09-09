@@ -326,3 +326,69 @@
   font-size: var(--fs-sm);
   line-height: 1.7;
 }
+
+/* 원문 — 파싱 결과를 문서처럼 보여 준다.
+   글자만 그리면 표 71개가 한 줄로 흐르고 절 100개가 본문과 구분이 안 된다 */
+
+.sourceScroll {
+  max-height: 68vh;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+}
+
+.sourceSection {
+  padding-bottom: var(--space-4);
+}
+
+/* 절 제목 — 본문과 눈에 띄게 갈라야 「어디쯤인지」가 보인다 */
+.sourceHeading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) 0;
+  background: var(--color-surface);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.sourceBlock {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+
+/* 표시는 배경으로 한다 — 글자색을 바꾸면 테마에 따라 안 보인다 */
+.sourceActive { background: var(--surface-active); }
+
+/* 넓은 표는 자기 안에서 가로로 넘긴다. 본문이 가로로 밀리면 안 된다 */
+.tableWrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.sourceTable {
+  border-collapse: collapse;
+  font-size: var(--fs-xs);
+  /* 폭을 내용이 정한다 — 100% 로 묶으면 좁은 자리에서 열이 뭉갠다 */
+  width: max-content;
+  max-width: none;
+}
+
+.sourceTable th,
+.sourceTable td {
+  border: var(--hairline) solid var(--border-subtle);
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+  /* 최소 폭을 줘야 **가로로 넘긴다.** 안 주면 열이 1글자 폭까지 줄어들어
+     글자가 세로로 한 자씩 쪼개진다(실측 2026-09-09: 「우/편/번/호」) */
+  min-width: 7ch;
+  max-width: 24ch;
+  overflow-wrap: anywhere;
+}
+
+.sourceTable th {
+  background: var(--surface-subtle);
+  font-weight: 600;
+}

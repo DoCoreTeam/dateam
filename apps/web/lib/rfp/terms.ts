@@ -262,6 +262,12 @@ export const RFP_REPORT = {
   fitScore: '점수',
   source: '원문',
   sourceHint: '근거를 누르면 그 문장으로 갑니다',
+  sourceBlocks: '문단',
+  sourceTables: '표',
+  sourceSections: '절',
+  sourceSearch: '원문에서 찾기',
+  sourceClear: '지우기',
+  sourceNoHit: '찾는 글자가 없습니다',
 } as const
 
 /** 교차검증 대화 */

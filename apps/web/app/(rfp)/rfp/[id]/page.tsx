@@ -114,7 +114,14 @@ async function loadVendors(db: unknown) {
     .map((m) => ({ id: m.id, label: m.display_name }))
 }
 
-interface BlockRow { block_key: string; text: string | null; page_no: number | null; type: string | null }
+interface BlockRow {
+  block_key: string
+  text: string | null
+  html: string | null
+  page_no: number | null
+  type: string | null
+  section_id: string | null
+}
 
 /** 케이스의 원문 블록 — 파일과 IR 을 거쳐 내려간다 */
 async function loadBlocks(db: unknown, caseId: string): Promise<SourceBlock[]> {
@@ -138,15 +145,42 @@ async function loadBlocks(db: unknown, caseId: string): Promise<SourceBlock[]> {
   const irIds = ((irs as { id: string }[] | null) ?? []).map((r) => r.id)
   if (irIds.length === 0) return []
 
-  const { data: rows } = await q.from('rfp_doc_blocks').select('block_key, text, page_no, type')
+  // **표와 섹션까지 읽는다.** 예전에는 글자만 읽어서 표 71개가 평문으로 뭉개졌고
+  // 섹션 100개(번호·제목이 다 있는)를 화면이 못 썼다 —
+  // 사용자가 「이게 문서로 나와 있는 건가」라고 물은 것의 정체다.
+  const { data: rows } = await q.from('rfp_doc_blocks')
+    .select('block_key, text, html, page_no, type, section_id')
     .in('ir_id', irIds).order('order_no', { ascending: true }).limit(2000)
 
-  return ((rows as BlockRow[] | null) ?? []).map((b) => ({
-    blockId: String(b.block_key),
-    text: String(b.text ?? ''),
-    pageNo: b.page_no ?? null,
-    type: String(b.type ?? 'paragraph'),
-  }))
+  const { data: sectionRows } = await q.from('rfp_doc_sections')
+    .select('id, number, title, level')
+    .in('ir_id', irIds).order('order_no', { ascending: true }).limit(1000)
+
+  const sections = new Map(
+    ((sectionRows as SectionRow[] | null) ?? []).map((r) => [String(r.id), r]),
+  )
+
+  return ((rows as BlockRow[] | null) ?? []).map((b) => {
+    const section = b.section_id ? sections.get(String(b.section_id)) : undefined
+    return {
+      blockId: String(b.block_key),
+      text: String(b.text ?? ''),
+      html: b.html ?? null,
+      pageNo: b.page_no ?? null,
+      type: String(b.type ?? 'paragraph'),
+      sectionId: b.section_id ? String(b.section_id) : null,
+      sectionNumber: section?.number ?? null,
+      sectionTitle: section?.title ?? null,
+      sectionLevel: section?.level ?? null,
+    }
+  })
+}
+
+interface SectionRow {
+  id: string
+  number: string | null
+  title: string | null
+  level: number | null
 }
 
 /** supabase-js 에서 이 화면이 쓰는 것만 */

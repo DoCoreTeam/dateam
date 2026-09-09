@@ -107,6 +107,8 @@ export function toInternalModel(
     enabled: over.enabled ?? true,
     // 사내를 먼저 시도한다 — 등급이 높은 문서일수록 여기밖에 길이 없다
     sortOrder: over.sortOrder ?? 1,
+    // 사내 서빙은 한도를 우리가 안다. 안 주면 모르는 것으로 보고 작게 보낸다
+    maxInputTokens: over.maxInputTokens ?? null,
   }
 }
 
