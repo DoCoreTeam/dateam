@@ -85,8 +85,30 @@ test('§2-5(3) 기능: 삭제 서버액션이 있으면 UI가 반드시 호출�
   assert.ok(deleteFns.length > 0, '삭제 서버액션을 하나도 못 찾았다 — 스캔이 깨졌다')
 
   const allCards = INTEGRATION_CARDS.map(read).join('\n')
+
+  // 화면이 직접 부르지 않아도, 화면이 부르는 다른 서버액션이 부르면 기능은 닿아 있다.
+  // (공급자 키 창구 한 벌 — 화면은 deleteGeminiKey 를 부르고 그것이 deleteProviderKey 를 부른다)
+  // 그래서 「카드가 부르는가」가 아니라 「카드에서 출발해 닿는가」를 본다.
   // 부분 문자열 매칭 금지 — deleteXKey2 같은 이름이 deleteXKey를 포함해 가드가 통과해 버린다
-  const unwired = deleteFns.filter((fn) => !new RegExp(`\\b${fn}\\b`).test(allCards))
+  const bodies = new Map<string, string>()
+  for (const part of actions.split('export async function ').slice(1)) {
+    const name = part.match(/^(\w+)/)?.[1]
+    if (name) bodies.set(name, part)
+  }
+  const reachable = new Set([...bodies.keys()].filter((n) => new RegExp(`\\b${n}\\b`).test(allCards)))
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const name of [...reachable]) {
+      for (const callee of bodies.keys()) {
+        if (reachable.has(callee) || callee === name) continue
+        if (new RegExp(`\\b${callee}\\b`).test(bodies.get(name) ?? '')) {
+          reachable.add(callee)
+          grew = true
+        }
+      }
+    }
+  }
+  const unwired = deleteFns.filter((fn) => !reachable.has(fn))
   assert.deepEqual(unwired, [],
     `서버액션은 있는데 UI가 호출하지 않는다(기능이 사라진 것처럼 보인다): ${unwired.join(', ')}`)
 })

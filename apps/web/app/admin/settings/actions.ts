@@ -8,10 +8,23 @@ import type { AiChatProviderId } from '@/types/database'
 import { readVercelConfig, VERCEL_META } from '@/lib/vercel/config'
 import { fetchProject, VercelApiError } from '@/lib/vercel/api'
 import { fetchKoraeximJson } from '@/lib/gpu/koreaexim'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
+import {
+  validateProviderKey,
+  withProviderKey,
+  withProviderModel,
+  withoutProviderKey,
+  readProviderKey,
+  describeKeySaved,
+  describeConnectionOk,
+  describeConnectionFailed,
+  describeMissingKey,
+} from '@/lib/ai/provider-keys'
+import { getProvider } from '@/lib/ai-chat/registry'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
-const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1'
-const OPENAI_API_BASE = 'https://api.openai.com/v1'
+// 회의 녹음 전사 설정 — 키가 아니라 전사 갈래의 값이라 공급자 창구와 따로 둔다
+// (키 자체는 Groq 공급자 키를 그대로 쓴다)
+const TRANSCRIPTION_MODEL_META = 'stt_model'
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -47,36 +60,6 @@ async function setMetaValue(
   return (client as any)
     .from('org_content')
     .upsert({ key: 'META', value: meta }, { onConflict: 'key' })
-}
-
-export async function saveGeminiKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = (formData.get('apiKey') as string)?.trim()
-  if (!apiKey) return { ok: false, error: 'API 키를 입력해주세요' }
-
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const { error } = await setMetaValue(client, { ...meta, gemini_api_key: apiKey })
-
-  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
-}
-
-export async function deleteGeminiKey(): Promise<{ ok: boolean; error?: string }> {
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  delete meta.gemini_api_key
-  const { error } = await setMetaValue(client, meta)
-
-  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
 }
 
 // ── DB 연결 설정 (PostgreSQL 연결 문자열) — Gemini 키와 동일 패턴 ──
@@ -133,48 +116,6 @@ export async function checkDbHealth(): Promise<{ ok: boolean; message: string }>
   } finally {
     try { await pg.end() } catch { /* noop */ }
   }
-}
-
-export async function getGeminiModels(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const apiKey = meta.gemini_api_key as string | undefined
-  if (!apiKey) return { ok: false, error: 'API 키를 먼저 저장해주세요' }
-
-  try {
-    const res = await fetch(`${GEMINI_API_BASE}/models`, {
-      headers: { 'x-goog-api-key': apiKey },
-      cache: 'no-store',
-    })
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({})) as { error?: { message?: string } }
-      return { ok: false, error: `API 오류: ${errJson?.error?.message ?? res.statusText}` }
-    }
-    const json = await res.json() as { models?: { name: string; supportedGenerationMethods?: string[] }[] }
-    const models = (json.models ?? [])
-      .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
-      .map((m) => m.name.replace('models/', ''))
-    return { ok: true, models }
-  } catch {
-    return { ok: false, error: '네트워크 오류가 발생했습니다' }
-  }
-}
-
-export async function saveGeminiModel(model: string): Promise<{ ok: boolean; error?: string }> {
-  if (!model) return { ok: false, error: '모델을 선택해주세요' }
-
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const { error } = await setMetaValue(client, { ...meta, gemini_model: model })
-
-  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
 }
 
 export async function saveTokenAlertThreshold(formData: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -287,181 +228,158 @@ export async function checkGoogleDriveHealth(): Promise<{ ok: boolean; message: 
   }
 }
 
-export async function checkGeminiHealth(): Promise<{ ok: boolean; message: string }> {
+// ── AI 채팅(세션1): Claude / OpenAI 키·모델 + 기본 프로바이더 (META, saveGeminiKey 패턴 재사용) ──
+
+
+/* ── AI 공급자 키 창구 한 벌 ─────────────────────────────────
+   저장 삭제 모델저장 연결확인 넷을 공급자 id 하나로 받는다. 규칙(접두사·무엇이 함께 멈추는지·
+   뭐라고 말할지)은 lib/ai/provider-keys 에, 모델 목록을 부르는 방법은 레지스트리 어댑터에 있다 —
+   여기서는 권한과 DB 왕복만 한다. 예전에는 이 넷이 공급자마다 한 벌씩, 모두 열여섯 벌이었다. */
+
+export async function saveProviderKey(
+  provider: AiProviderId,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string; message?: string }> {
+  const raw = (formData.get('apiKey') as string) ?? ''
+
+  const check = validateProviderKey(provider, raw)
+  if (!check.ok) return { ok: false, error: check.error }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const { error } = await setMetaValue(client, withProviderKey(provider, raw, meta))
+  if (error) {
+    console.error('[settings] 공급자 키 저장 실패', provider, error)
+    return { ok: false, error: '저장 중 오류가 발생했습니다' }
+  }
+
+  revalidatePath('/admin/settings')
+  return { ok: true, message: describeKeySaved(provider, raw) }
+}
+
+export async function deleteProviderKey(
+  provider: AiProviderId,
+): Promise<{ ok: boolean; error?: string; message?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const { meta: next, warning } = withoutProviderKey(provider, meta)
+  const { error } = await setMetaValue(client, next)
+  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  // 무엇이 함께 멈추는지 말한다 — Groq 을 「AI 공급자」로만 알고 해제하면 회의 전사가 조용히 멈춘다
+  return { ok: true, message: warning ?? undefined }
+}
+
+export async function saveProviderModel(
+  provider: AiProviderId,
+  model: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!model) return { ok: false, error: '모델을 선택해주세요' }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const { error } = await setMetaValue(client, withProviderModel(provider, model, meta))
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+/** 저장된 키로 모델 목록을 받아 온다. 부르는 방법은 공급자 어댑터가 안다 */
+export async function listProviderModels(
+  provider: AiProviderId,
+): Promise<{ ok: boolean; models?: string[]; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const apiKey = readProviderKey(provider, await getMetaValue(client))
+  if (!apiKey) return { ok: false, error: 'API 키를 먼저 저장해주세요' }
+
+  try {
+    return { ok: true, models: await getProvider(provider).listModels(apiKey) }
+  } catch (e) {
+    console.error('[settings] 모델 목록 조회 실패', provider, e)
+    return { ok: false, error: describeConnectionFailed(provider, statusOf(e)) }
+  }
+}
+
+export async function checkProviderConnection(
+  provider: AiProviderId,
+): Promise<{ ok: boolean; message: string }> {
   const client = await requireAdmin()
   if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
 
-  const meta = await getMetaValue(client)
-  const apiKey = meta.gemini_api_key as string | undefined
-
-  if (!apiKey) return { ok: false, message: '저장된 API 키가 없습니다' }
+  const apiKey = readProviderKey(provider, await getMetaValue(client))
+  if (!apiKey) return { ok: false, message: describeMissingKey(provider) }
 
   try {
-    const res = await fetch(`${GEMINI_API_BASE}/models`, {
-      headers: { 'x-goog-api-key': apiKey },
-      cache: 'no-store',
-    })
-
-    if (res.ok) {
-      const json = await res.json() as { models?: unknown[] }
-      return { ok: true, message: `연결 성공: ${json.models?.length ?? 0}개 모델 사용 가능` }
-    }
-
-    const errJson = await res.json().catch(() => ({})) as { error?: { message?: string } }
-    return { ok: false, message: `API 오류: ${errJson?.error?.message ?? res.statusText}` }
-  } catch {
-    return { ok: false, message: '네트워크 오류가 발생했습니다' }
+    const models = await getProvider(provider).listModels(apiKey)
+    return { ok: true, message: describeConnectionOk(provider, models.length) }
+  } catch (e) {
+    console.error('[settings] 연결 확인 실패', provider, e)
+    return { ok: false, message: describeConnectionFailed(provider, statusOf(e)) }
   }
 }
 
-// ── AI 채팅(세션1): Claude / OpenAI 키·모델 + 기본 프로바이더 (META, saveGeminiKey 패턴 재사용) ──
-
-export async function saveClaudeKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = (formData.get('apiKey') as string)?.trim()
-  if (!apiKey) return { ok: false, error: 'API 키를 입력해주세요' }
-
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const { error } = await setMetaValue(client, { ...meta, claude_api_key: apiKey })
-  if (error) {
-    console.error('[settings] saveClaudeKey 저장 실패', error)
-    return { ok: false, error: '저장 실패' }
-  }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
+/** 공급자 SDK 가 던진 오류에서 상태 코드만 꺼낸다. 원문은 키 조각이 섞여 올 수 있어 흘리지 않는다 */
+function statusOf(e: unknown): number | undefined {
+  const status = (e as { status?: unknown })?.status
+  return typeof status === 'number' ? status : undefined
 }
 
-export async function deleteClaudeKey(): Promise<{ ok: boolean; error?: string }> {
+/** 회의 녹음 전사 모델. Groq 키를 쓰지만 채팅 모델과는 다른 값이다 */
+export async function saveTranscriptionModel(model: string): Promise<{ ok: boolean; error?: string }> {
   const client = await requireAdmin()
   if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
 
   const meta = await getMetaValue(client)
-  delete meta.claude_api_key
-  const { error } = await setMetaValue(client, meta)
-  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+  const next = { ...meta }
+  // 비워 두면 코드 기본값(정확도 우선)을 쓴다 — 빈 문자열을 저장해 두면
+  // "설정했는데 왜 이 모델이지"를 아무도 설명 못 한다.
+  if (model.trim()) next[TRANSCRIPTION_MODEL_META] = model.trim()
+  else delete next[TRANSCRIPTION_MODEL_META]
 
-  revalidatePath('/admin/settings')
-  return { ok: true }
-}
-
-export async function saveClaudeModel(model: string): Promise<{ ok: boolean; error?: string }> {
-  if (!model) return { ok: false, error: '모델을 선택해주세요' }
-
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const { error } = await setMetaValue(client, { ...meta, claude_model: model })
+  const { error } = await setMetaValue(client, next)
   if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
 
   revalidatePath('/admin/settings')
   return { ok: true }
 }
 
-export async function getClaudeModels(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+/* ── 아래는 옛 이름들. 화면(I11)이 공급자 카드 한 벌로 바뀌면 사라진다.
+   지금은 위 창구를 부르기만 한다 — 두 벌이 되면 카드마다 다른 검증을 탄다. */
 
-  const meta = await getMetaValue(client)
-  const apiKey = meta.claude_api_key as string | undefined
-  if (!apiKey) return { ok: false, error: 'API 키를 먼저 저장해주세요' }
+export async function saveGeminiKey(formData: FormData) { return saveProviderKey('gemini', formData) }
+export async function deleteGeminiKey() { return deleteProviderKey('gemini') }
+export async function saveGeminiModel(model: string) { return saveProviderModel('gemini', model) }
+export async function getGeminiModels() { return listProviderModels('gemini') }
+export async function checkGeminiHealth() { return checkProviderConnection('gemini') }
 
-  try {
-    const res = await fetch(`${ANTHROPIC_API_BASE}/models`, {
-      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      cache: 'no-store',
-    })
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({})) as { error?: { message?: string } }
-      console.error('[settings] getClaudeModels API 오류', errJson?.error?.message ?? res.statusText)
-      return { ok: false, error: '연결 실패' }
-    }
-    const json = await res.json() as { data?: { id: string }[] }
-    const models = (json.data ?? []).map((m) => m.id)
-    return { ok: true, models }
-  } catch (e) {
-    console.error('[settings] getClaudeModels 네트워크 오류', e)
-    return { ok: false, error: '연결 실패' }
-  }
+export async function saveClaudeKey(formData: FormData) { return saveProviderKey('claude', formData) }
+export async function deleteClaudeKey() { return deleteProviderKey('claude') }
+export async function saveClaudeModel(model: string) { return saveProviderModel('claude', model) }
+export async function getClaudeModels() { return listProviderModels('claude') }
+
+export async function saveOpenAiKey(formData: FormData) { return saveProviderKey('openai', formData) }
+export async function deleteOpenAiKey() { return deleteProviderKey('openai') }
+export async function saveOpenAiModel(model: string) { return saveProviderModel('openai', model) }
+export async function getOpenAiModels() { return listProviderModels('openai') }
+
+// 음성 인식 카드. 키는 Groq 공급자 키이고, 전사 모델만 따로 받는다
+export async function saveSttKey(formData: FormData) {
+  const saved = await saveProviderKey('groq', formData)
+  if (!saved.ok) return saved
+  return saveTranscriptionModel(((formData.get('model') as string) ?? ''))
 }
-
-export async function saveOpenAiKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = (formData.get('apiKey') as string)?.trim()
-  if (!apiKey) return { ok: false, error: 'API 키를 입력해주세요' }
-
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const { error } = await setMetaValue(client, { ...meta, openai_api_key: apiKey })
-  if (error) {
-    console.error('[settings] saveOpenAiKey 저장 실패', error)
-    return { ok: false, error: '저장 실패' }
-  }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
-}
-
-export async function deleteOpenAiKey(): Promise<{ ok: boolean; error?: string }> {
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  delete meta.openai_api_key
-  const { error } = await setMetaValue(client, meta)
-  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
-}
-
-export async function saveOpenAiModel(model: string): Promise<{ ok: boolean; error?: string }> {
-  if (!model) return { ok: false, error: '모델을 선택해주세요' }
-
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const { error } = await setMetaValue(client, { ...meta, openai_model: model })
-  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
-}
-
-export async function getOpenAiModels(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const apiKey = meta.openai_api_key as string | undefined
-  if (!apiKey) return { ok: false, error: 'API 키를 먼저 저장해주세요' }
-
-  try {
-    const res = await fetch(`${OPENAI_API_BASE}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      cache: 'no-store',
-    })
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({})) as { error?: { message?: string } }
-      console.error('[settings] getOpenAiModels API 오류', errJson?.error?.message ?? res.statusText)
-      return { ok: false, error: '연결 실패' }
-    }
-    const json = await res.json() as { data?: { id: string }[] }
-    const models = (json.data ?? [])
-      .map((m) => m.id)
-      .filter((id) => /^(gpt|o\d|chatgpt)/i.test(id))
-      .sort()
-    return { ok: true, models }
-  } catch (e) {
-    console.error('[settings] getOpenAiModels 네트워크 오류', e)
-    return { ok: false, error: '연결 실패' }
-  }
-}
+export async function deleteSttKey() { return deleteProviderKey('groq') }
+export async function checkSttHealth() { return checkProviderConnection('groq') }
 
 export async function saveAiChatDefaultProvider(
   provider: AiChatProviderId | '',
@@ -552,76 +470,6 @@ export async function checkYoutubeHealth(): Promise<{ ok: boolean; message: stri
 // 왜 여기인가: CRM 은 키를 갖지 않는다는 기존 원칙과 같은 자리다. Gemini·Claude·OpenAI 키가
 // 이미 여기 있고, 회의노트(사내)와 영업 CRM 이 **같은 키 하나**를 쓴다.
 // 키가 없으면 녹음은 되는데 전사가 영영 안 된다 — 그래서 입력 자리가 반드시 있어야 한다.
-
-export async function saveSttKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = (formData.get('apiKey') as string)?.trim()
-  if (!apiKey) return { ok: false, error: 'API 키를 입력해주세요' }
-  const model = ((formData.get('model') as string) ?? '').trim()
-
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const next: Record<string, unknown> = { ...meta, stt_api_key: apiKey, stt_provider: 'groq' }
-  // 모델은 비워 두면 코드 기본값(정확도 우선)을 쓴다 — 빈 문자열을 저장해 두면
-  // "설정했는데 왜 이 모델이지"를 아무도 설명 못 한다.
-  if (model) next.stt_model = model
-  else delete next.stt_model
-
-  const { error } = await setMetaValue(client, next)
-  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
-}
-
-export async function deleteSttKey(): Promise<{ ok: boolean; error?: string }> {
-  const client = await requireAdmin()
-  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  delete meta.stt_api_key
-  delete meta.stt_model
-  delete meta.stt_provider
-  const { error } = await setMetaValue(client, meta)
-
-  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
-
-  revalidatePath('/admin/settings')
-  return { ok: true }
-}
-
-/**
- * 음성 인식 연결 확인.
- *
- * 모델 목록을 한 번 불러 본다 — 오디오를 올리지 않고도 키가 살아 있는지 알 수 있다.
- * 연결 테스트가 카드마다 있고 없고가 갈리면 안 된다(§2-5 동종 UI 통일).
- */
-export async function checkSttHealth(): Promise<{ ok: boolean; message: string }> {
-  const client = await requireAdmin()
-  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
-
-  const meta = await getMetaValue(client)
-  const apiKey = meta.stt_api_key as string | undefined
-  if (!apiKey) return { ok: false, message: '저장된 API 키가 없습니다' }
-
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/models', {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      cache: 'no-store',
-    })
-    if (res.ok) {
-      const model = (meta.stt_model as string | undefined) ?? 'whisper-large-v3'
-      return { ok: true, message: `연결 성공: ${model} 으로 회의 녹음을 전사합니다` }
-    }
-    if (res.status === 401 || res.status === 403) {
-      return { ok: false, message: 'API 키가 올바르지 않습니다' }
-    }
-    return { ok: false, message: `연결 실패 (${res.status})` }
-  } catch {
-    return { ok: false, message: '네트워크 오류가 발생했습니다' }
-  }
-}
 
 // ── Vercel 로그 연동 — 배포·서버 로그를 우리 화면에서 읽는다 ──
 //

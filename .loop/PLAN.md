@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.2
+플랜 버전: v0.2.4
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.9.0
@@ -102,12 +102,14 @@
 의존: I01, I02
 
 ### I05 공급자 키 저장 창구 한 벌
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/lib/ai/provider-keys.ts, 신규 apps/web/lib/ai/provider-keys.test.ts, apps/web/app/admin/settings/actions.ts
 감사 기준:
 - node --test 로 provider-keys.test.ts 통과
-- 저장 삭제 모델저장 연결확인 넷이 공급자 id 를 인자로 받는 함수 한 벌이고, 공급자마다 따로 쓴 서버액션이 남아 있지 않음을 검사하는 정적 가드 단정
+- 저장 삭제 모델저장 연결확인 넷이 공급자 id 를 인자로 받는 함수 한 벌인 단정
+- 공급자별 옛 서버액션이 자기 로직을 갖지 않고 새 창구를 부르기만 함을 검사하는 정적 가드 단정 (구현이 두 벌이 되면 화면마다 다른 검증을 탄다)
+- 모델 목록을 공급자마다 따로 fetch 하지 않고 레지스트리의 listModels 한 창구로 받는 단정
 - 키 접두사 검증이 명세에서 오고 틀린 접두사를 저장하면 거부되는 단정
 - 성공과 실패 어느 쪽도 응답에 원문 키가 담기지 않는 단정
 - groq 해제 시 회의 전사가 함께 멈춘다는 사실이 반환 메시지에 담기는 단정
@@ -183,6 +185,16 @@
 - 각 카드에 공급자 용도 한 줄과 키 발급 주소가 명세에서 나옴
 의존: I05, I06, I10
 
+### I11a 공급자별 서버액션 철거
+상태: 대기
+모드: 경량
+범위: apps/web/app/admin/settings/actions.ts, apps/web/lib/ai/provider-keys.test.ts
+감사 기준:
+- 공급자마다 따로 쓴 서버액션(saveGeminiKey deleteGeminiKey saveGeminiModel getGeminiModels checkGeminiHealth 와 Claude OpenAI Stt 대응물)이 actions.ts 에 0건임을 검사하는 정적 가드 단정
+- 가드를 일부러 깨뜨려 실패를 확인한 근거를 pass notes 에 기록
+- pnpm build 통과 (옛 액션을 부르던 곳이 남아 있으면 여기서 잡힌다)
+의존: I11
+
 ### I12 기본 공급자와 폴백 순서를 한 카드에서
 상태: 대기
 모드: 경량
@@ -222,3 +234,4 @@
 ## 변경 이력
 - v0.2.1 (2026-09-09) I01 가드가 공급자 목록을 따로 적은 곳을 3개 더 찾아 I02 범위에 넣음 (audit:I01)
 - v0.2.2 (2026-09-09) I02 는 어댑터 없이 감사 불가 - 타입만 넓히면 이미 저장된 Groq 키가 후보에 들어와 getProvider 가 던진다. I03 을 I02 로 병합 (audit:I02)
+- v0.2.4 (2026-09-09) I05 의 서버액션 철거 가드를 I11a 로 분리 - 화면이 아직 옛 액션을 부르는 동안은 걸 수 없다 (audit:I05)
