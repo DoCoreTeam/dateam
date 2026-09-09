@@ -161,7 +161,7 @@
 의존: I06, I07, I08, I09
 
 ### I11 섹션 트리와 표준 목차 14분류
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/structure/sections.ts, 신규 apps/web/lib/rfp/structure/categories.ts, 신규 apps/web/lib/rfp/structure/sections.test.ts
 감사 기준:
