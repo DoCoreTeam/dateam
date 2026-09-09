@@ -48,10 +48,19 @@ export interface ReportClientProps {
   /** 정정공고 차수 사슬 */
   revisions: RevisionChainItem[]
   vendors: { id: string; label: string }[]
+  /** 케이스 단계 — 리포트가 없을 때 어디까지 왔는지 */
+  stage: string
+  /** 리포트가 없는 이유를 말하기 위한 사실들 */
+  progress: {
+    fileCount: number
+    runningJob: string | null
+    deadJob: { jobType: string; error: string } | null
+    noticeUrl: string | null
+  }
 }
 
 export default function ReportClient({
-  caseId, caseTitle, docClass, report, blocks, fit, outcome, revisions, vendors,
+  caseId, caseTitle, docClass, report, blocks, stage, progress, fit, outcome, revisions, vendors,
 }: ReportClientProps) {
   const [mode, setMode] = useState<'work' | 'report'>('work')
   const [activeBlock, setActiveBlock] = useState<string | null>(null)
@@ -88,10 +97,34 @@ export default function ReportClient({
   )
 
   if (!report) {
+    /*
+      **왜 리포트가 없는지 말한다.** 셋은 서로 다른 상황이고 사람이 할 다음 행동도 다르다 —
+      「아직 리포트가 없어요」만 보면 무엇을 해야 할지 알 수 없다(실측 2026-09-10).
+    */
+    const empty = progress.fileCount === 0
+      ? { title: RFP_REPORT.noFiles, desc: RFP_REPORT.noFilesDesc }
+      : progress.deadJob
+        ? { title: RFP_REPORT.analysisFailed, desc: progress.deadJob.error || RFP_REPORT.analysisFailedDesc }
+        : progress.runningJob
+          ? { title: RFP_REPORT.analyzing, desc: `${RFP_REPORT.analyzingDesc} (${progress.runningJob})` }
+          : { title: RFP_REPORT.notReady, desc: RFP_REPORT.notReadyDesc }
+
     return (
       <main className="page-inner">
         <PageHeader title={caseTitle} back={{ href: '/rfp', label: RFP_LIST.title }} />
-        <EmptyState title={RFP_REPORT.notReady} description={RFP_REPORT.notReadyDesc} />
+        <EmptyState title={empty.title} description={empty.desc} />
+
+        {/* 다음 행동을 준다 — 공고를 열어 첨부를 직접 받거나, 파일을 올리거나 */}
+        {progress.fileCount === 0 && (
+          <div className={styles.actions}>
+            {progress.noticeUrl && (
+              <NbButton variant="secondary" href={progress.noticeUrl} target="_blank">
+                {RFP_REPORT.openNotice}
+              </NbButton>
+            )}
+            <NbButton href="/rfp/new">{RFP_REPORT.uploadFiles}</NbButton>
+          </div>
+        )}
         {/*
           리포트가 없어도 결과는 적을 수 있어야 한다 —
           「분석은 안 돌렸지만 안 내기로 했다」도 학습의 정답지다

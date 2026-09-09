@@ -272,6 +272,14 @@ export const RFP_REPORT = {
   unconfirmedCount: '확인 안 된 값',
   preview: '보고서 미리보기',
   sheetGeneratedAt: '작성일',
+  noFiles: '분석할 파일이 없습니다',
+  noFilesDesc: '이 공고에서 첨부를 못 받았습니다. 공고를 열어 파일을 내려받은 뒤 올려 주세요',
+  analyzing: '분석하는 중입니다',
+  analyzingDesc: '끝나면 여기에 나타납니다',
+  analysisFailed: '분석이 멈췄습니다',
+  analysisFailedDesc: '사유를 확인한 뒤 다시 걸어 주세요',
+  openNotice: '공고 열기',
+  uploadFiles: '파일 올리기',
 } as const
 
 /** 교차검증 대화 */

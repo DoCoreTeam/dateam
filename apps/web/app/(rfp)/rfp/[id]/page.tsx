@@ -18,7 +18,7 @@ export default async function RfpReportPage({ params }: { params: Promise<{ id: 
   const db = await createClient()
 
   const { data: kase } = await (db as never as Db)
-    .from('rfp_cases').select('id, title, doc_class').eq('id', id).maybeSingle()
+    .from('rfp_cases').select('id, title, doc_class, stage, source_id').eq('id', id).maybeSingle()
   if (!kase) notFound()
 
   const [{ data: version }, { data: fit }] = await Promise.all([
@@ -38,6 +38,11 @@ export default async function RfpReportPage({ params }: { params: Promise<{ id: 
   // (`rfp_doc_blocks` 에 `case_id` 가 없다. 없는 칸으로 물으면 원문 뷰어가 영영 빈다)
   const blocks = await loadBlocks(db, id)
 
+  // **리포트가 없는 이유를 화면이 말할 수 있어야 한다.**
+  // 파일이 0건인지, 분석이 도는 중인지, 죽었는지는 서로 다른 상황이고
+  // 사람이 할 다음 행동도 다르다(실측 2026-09-10: 「리포트가 없다」만 보고 막혔다)
+  const progress = await loadProgress(db, id, String((kase as { source_id?: unknown }).source_id ?? '') || null)
+
   return (
     <ReportClient
       caseId={id}
@@ -45,6 +50,8 @@ export default async function RfpReportPage({ params }: { params: Promise<{ id: 
       docClass={(kase as { doc_class?: unknown }).doc_class as DocClass}
       report={((version as { report?: unknown } | null)?.report as Report) ?? null}
       blocks={blocks}
+      stage={String((kase as { stage?: unknown }).stage ?? '')}
+      progress={progress}
       outcome={outcome}
       revisions={revisions}
       vendors={vendors}
@@ -196,5 +203,51 @@ interface Db {
         }
       }
     }
+  }
+}
+
+export interface CaseProgress {
+  /** 붙어 있는 파일 수 — 0이면 분석할 것이 없다 */
+  fileCount: number
+  /** 아직 안 끝난 잡 */
+  runningJob: string | null
+  /** 죽은 잡과 사유 */
+  deadJob: { jobType: string; error: string } | null
+  /** 공고 원문 주소 — 사람이 직접 열어 첨부를 받을 수 있게 */
+  noticeUrl: string | null
+}
+
+/** 리포트가 없는 이유 — 파일 0건인가, 도는 중인가, 죽었는가 */
+async function loadProgress(db: unknown, caseId: string, sourceId: string | null): Promise<CaseProgress> {
+  const q = db as never as {
+    from(t: string): {
+      select(c: string): {
+        eq(col: string, v: string): {
+          is(col: string, v: null): Promise<{ data: unknown }>
+          maybeSingle(): Promise<{ data: unknown }>
+        } & Promise<{ data: unknown }>
+      }
+    }
+  }
+
+  const { data: files } = await q.from('rfp_document_files').select('id').eq('case_id', caseId).is('deleted_at', null)
+  const { data: jobs } = await q.from('rfp_analysis_jobs').select('job_type, status, error').eq('case_id', caseId)
+
+  const rows = ((jobs as { job_type: string; status: string; error: string | null }[] | null) ?? [])
+  const running = rows.find((j) => j.status === 'queued' || j.status === 'running') ?? null
+  const dead = rows.find((j) => j.status === 'dead' || j.status === 'failed') ?? null
+
+  let noticeUrl: string | null = null
+  if (sourceId) {
+    const { data: src } = await q.from('rfp_sources').select('raw').eq('id', sourceId).maybeSingle()
+    const raw = ((src as { raw?: Record<string, unknown> } | null)?.raw ?? {}) as Record<string, unknown>
+    noticeUrl = typeof raw.url === 'string' ? raw.url : null
+  }
+
+  return {
+    fileCount: ((files as unknown[] | null) ?? []).length,
+    runningJob: running?.job_type ?? null,
+    deadJob: dead ? { jobType: dead.job_type, error: dead.error ?? '' } : null,
+    noticeUrl,
   }
 }

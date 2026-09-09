@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  attachmentsOf, fileNameOf, withExtension, nameFromDisposition, downloadAttachment, MAX_SLOTS,
+  attachmentsOf, fileNameOf, withExtension, nameFromDisposition, fixMojibake,
+  downloadAttachment, MAX_SLOTS,
 } from './attachments.ts'
 
 test('공고 행에서 첨부를 뽑는다 — 이게 없어서 사람이 다시 내려받아 다시 올렸다', () => {
@@ -129,4 +130,51 @@ test('실패는 값으로 돌려준다 — 첨부 하나 때문에 케이스가 
   })
   assert.equal(r.ok, false)
   if (!r.ok) assert.equal(r.reason, 'http_error')
+})
+
+test('★ 깨진 한글 파일 이름을 되돌린다 — 실측 KISA 첨부 4건이 전부 깨졌다', () => {
+  // 서버가 헤더에 UTF-8 바이트를 그대로 넣어 fetch 가 Latin-1 로 읽었다
+  const broken = Buffer.from('입찰공고.hwpx', 'utf8').toString('latin1')
+  assert.equal(fixMojibake(broken), '입찰공고.hwpx')
+})
+
+test('멀쩡한 이름은 안 건드린다', () => {
+  assert.equal(fixMojibake('제안요청서.hwpx'), '제안요청서.hwpx')
+  assert.equal(fixMojibake('proposal.pdf'), 'proposal.pdf')
+})
+
+test('되돌려도 한글이 아니면 그대로 둔다 — 억지로 바꾸지 않는다', () => {
+  assert.equal(fixMojibake('café.pdf'), 'café.pdf')
+})
+
+test('★ 깨져 온 헤더 이름을 고쳐서 쓴다 — 실측 KISA', async () => {
+  const broken = Buffer.from('입찰공고.hwpx', 'utf8').toString('latin1')
+  const r = await downloadAttachment(
+    { fileName: '입찰공고(2026-222) 중소기업 AI 위협 대응.hwpx', url: 'https://x/d', slot: 1 },
+    {
+      maxBytes: 100,
+      fetchImpl: async () => reply({
+        'content-type': 'application/octet-stream',
+        'content-disposition': `attachment; filename=${broken}`,
+      }),
+    },
+  )
+  assert.equal(r.ok, true)
+  if (r.ok) assert.equal(r.fileName, '입찰공고.hwpx')
+})
+
+test('못 고치는 헤더면 링크 글자를 쓴다 — 깨진 이름을 저장하면 되돌릴 방법이 없다', async () => {
+  // 되돌려도 한글이 아니면 복구가 포기한다. 그때는 링크 글자가 낫다
+  const r = await downloadAttachment(
+    { fileName: '제안요청서.hwpx', url: 'https://x/d', slot: 1 },
+    {
+      maxBytes: 100,
+      fetchImpl: async () => reply({
+        'content-type': 'application/octet-stream',
+        'content-disposition': 'attachment; filename=Ã¬Â Â.bin',
+      }),
+    },
+  )
+  assert.equal(r.ok, true)
+  if (r.ok) assert.equal(r.fileName, '제안요청서.hwpx')
 })

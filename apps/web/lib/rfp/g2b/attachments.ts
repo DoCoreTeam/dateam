@@ -95,9 +95,29 @@ function safeDecode(v: string): string | null {
   const trimmed = v.trim()
   if (!trimmed) return null
   try {
-    return decodeURIComponent(trimmed)
+    return fixMojibake(decodeURIComponent(trimmed))
   } catch {
-    return trimmed
+    return fixMojibake(trimmed)
+  }
+}
+
+/**
+ * UTF-8 바이트를 Latin-1 로 읽어 깨진 글자를 되돌린다.
+ *
+ * 헤더에 한글을 **인코딩 없이 그대로** 넣는 서버가 있다. 그러면 fetch 가 Latin-1 로 읽어
+ * 「입찰공고」가 「ìì°°ê³µê³ 」가 된다(실측 2026-09-10: KISA 첨부 4건 전부).
+ * 되돌려 봐서 한글이 나오면 그것이 맞다.
+ */
+export function fixMojibake(s: string): string {
+  // 깨진 글자에만 보이는 대역이 없으면 건드리지 않는다
+  if (!/[\u00C0-\u00FF]/.test(s)) return s
+  try {
+    const bytes = Uint8Array.from(Array.from(s, (ch) => ch.charCodeAt(0) & 0xff))
+    const back = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+    // 한글이 나왔으면 되돌린 쪽이 맞다
+    return /[가-힣]/.test(back) ? back : s
+  } catch {
+    return s
   }
 }
 
@@ -170,7 +190,12 @@ export async function downloadAttachment(
     const contentType = res.headers?.get?.('content-type') ?? null
     // 헤더의 이름이 가장 정확하다 — 주소에 이름이 없는 첨부가 흔하다
     const headerName = nameFromDisposition(res.headers?.get?.('content-disposition') ?? null)
-    const fileName = withExtension(headerName ?? att.fileName, contentType)
+    // 헤더 이름이 깨졌는데 링크 글자가 멀쩡하면 링크 글자를 쓴다 —
+    // 깨진 이름을 저장하면 화면에서도 깨져 보이고 되돌릴 방법이 없다
+    const linkNameOk = /[가-힣A-Za-z0-9]/.test(att.fileName) && !/[\u00C0-\u00FF]/.test(att.fileName)
+    const headerBroken = headerName !== null && /[\u00C0-\u00FF]/.test(headerName)
+    const chosen = headerBroken && linkNameOk ? att.fileName : (headerName ?? att.fileName)
+    const fileName = withExtension(chosen, contentType)
     return { ok: true, bytes: buf, fileName, contentType }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)

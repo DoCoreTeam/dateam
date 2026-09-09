@@ -1,7 +1,7 @@
 # PLAN newAX: RFP 분석 시스템 전 범위
 플랜 ID: P0001
 플랜 버전: v0.4.4
-상태: 완료
+상태: 진행중
 지시: ins_0006
 목표 버전: v0.8.0
 작성: 2026-09-09
@@ -520,6 +520,81 @@
 - 설계서 F0 부터 F12 대조표가 종합 감사 절에 기록됨
 의존: I43
 
+## 추가 항목 (사용자 개입 iv_0020 — 2026-09-09)
+
+사용자 지적 다섯. 넷은 **범위 안인데 안 한 것**이고 하나는 중복 신설이다.
+
+### J01 파일 바이트를 저장소에 남긴다
+상태: 대기
+모드: 경량
+범위: 신규 supabase/migrations/250_rfp_storage.sql, apps/web/app/api/rfp/cases/[id]/files/route.ts, 신규 apps/web/lib/rfp/db/storage.ts
+감사 기준:
+- 올린 파일이 Storage 에 실제로 올라가고 storage_path 가 채워지는 것을 실호출로 확인
+- 다시 내려받아 sha256 이 올릴 때와 같은 것을 실호출로 확인
+- 버킷이 비공개이고 서명 URL 없이는 못 읽는 것을 실호출로 확인
+
+### J02 파싱 결과를 DB 에 남긴다
+상태: 대기
+모드: 경량
+범위: 신규 apps/web/lib/rfp/db/persist-ir.ts, 신규 apps/web/lib/rfp/db/persist-ir.test.ts
+감사 기준:
+- rfp_document_ir·rfp_doc_sections·rfp_doc_blocks 에 행이 생기는 것을 실DB 로 확인
+- 같은 파일을 다시 파싱하면 판이 오르고 앞 판이 남는 단정
+- 블록의 block_key 가 재파싱해도 같은 단정
+
+### J03 워커에 단계를 꽂는다
+상태: 대기
+모드: 경량
+범위: 신규 apps/web/lib/rfp/jobs/stages/*.ts, apps/web/app/api/rfp/worker/tick/route.ts, 신규 apps/web/lib/rfp/jobs/pipeline.test.ts
+감사 기준:
+- parse·structure·index·analyze 네 단계가 실제로 일하고 끝나면 다음 잡이 자동으로 걸리는 것을 실DB 로 확인
+- 케이스 stage 가 uploaded → parsed → structured → indexed → reported 로 오르는 것을 실측
+- 모르는 잡 종류를 조용히 성공시키지 않는 단정
+
+### J04 인덱싱 결선
+상태: 대기
+모드: 경량
+범위: apps/web/lib/rfp/jobs/stages/index-stage.ts, apps/web/app/api/rfp/cases/[id]/compare/route.ts
+감사 기준:
+- rfp_block_chunks 에 청크와 embedding_model 이 저장되는 것을 실DB 로 확인
+- 비교 화면의 semanticRanking 이 true 가 되는 것을 실호출로 확인
+
+### J05 AI 설정 중복 제거 — 호스트 SSOT 를 쓴다
+상태: 대기
+모드: 경량
+범위: 신규 apps/web/lib/rfp/ai/host-providers.ts, apps/web/components/rfp/VendorSettings.tsx, apps/web/app/(rfp)/rfp/admin/page.tsx
+감사 기준:
+- RFP 가 자체 키 입력 폼을 갖지 않고 `lib/ai-chat/registry` 의 공급자를 그대로 쓰는 단정
+- RFP 에만 있는 정책(등급별 허용)만 RFP 가 갖는 단정
+- 관리자 설정으로 가는 길이 화면에 있는 것을 실화면으로 확인
+
+### J06 어시스턴트를 상시 접근으로
+상태: 대기
+모드: 경량
+범위: 신규 apps/web/components/rfp/AssistantDock.tsx, apps/web/app/(rfp)/layout.tsx, apps/web/lib/rfp/nav/groups.ts
+감사 기준:
+- RFP 어느 화면에서나 어시스턴트가 열리는 것을 실화면으로 확인
+- 케이스를 보는 중에 열면 그 케이스를 문맥으로 잡는 단정
+- 화면을 가리지 않고 접히는 것을 실화면으로 확인
+
+### J07 도움말과 가이드
+상태: 대기
+모드: 경량
+범위: 신규 apps/web/components/rfp/HelpButton.tsx, 신규 apps/web/lib/rfp/guide.ts, apps/web/app/(rfp)/layout.tsx
+감사 기준:
+- 물음표에서 화면별 사용법이 열리는 것을 실화면으로 확인
+- 첫 방문에 무엇부터 하면 되는지가 목록 빈 상태에 있는 것을 실화면으로 확인
+- 가이드 문구가 lib/rfp 에 있고 화면이 직접 안 적는 단정
+
+### J08 디자인 다시 짜기
+상태: 대기
+모드: 경량
+범위: apps/web/components/rfp/*.tsx, apps/web/app/(rfp)/rfp/**/*.tsx, 신규 apps/web/app/(rfp)/rfp.module.css
+감사 기준:
+- 인입·프로필·관리자 화면이 묶음과 간격과 위계를 갖는 것을 실화면 스크린샷으로 확인
+- 숫자가 이름 없이 떠 있지 않은 것을 실화면으로 확인
+- design:check 와 폼/모달 표준 가드 통과
+
 ## 종합 감사
 
 ### 설계서 F0~F12 대조표
@@ -637,3 +712,59 @@
 - v0.4.2 (2026-09-09) I06 범위에서 pnpm-lock.yaml 을 뺀다 — 이 저장소는 .gitignore:29 로 잠금 파일을 추적하지 않아 커밋 대상이 될 수 없다 (audit:I06)
 - v0.4.3 (2026-09-09) I08 범위에 ir/types.ts 를 넣는다 — 이미지에서 뽑은 블록은 '어느 모델·엔진이 읽었나'를 근거에 실어야 하는데 SourceRef 의 image 갈래에 그 칸이 없다 (audit:I08)
 - v0.4.4 (2026-09-09) I14 범위에 마이그레이션 249 를 넣는다 — SKIP LOCKED 선점은 SQL 이라야 하고 supabase-js 로는 표현할 수 없다. 낙관적 갱신으로 흉내 내면 선점 경로가 두 벌이 된다 (audit:I14)
+
+## 라운드 K — 레이더에서 고른 공고가 분석까지 못 간다 (iv_0027)
+
+사용자가 본 것: 「케이스로 만들기」를 눌렀는데 리포트가 없다
+
+실측 재현 (2026-09-10):
+- `POST /api/rfp/sources/<id>/adopt` → `{ attached: [], job: null }`
+- 케이스는 생기고 파일이 0건 → 분석이 안 걸림 → 화면은 「아직 리포트가 없어요」만 말함
+
+원인 사슬
+1. NIA 는 자바스크립트 게시판이라 목록에서 상세 주소를 못 얻는다 (`rfp_sources.raw.url = null`)
+2. 상세 주소가 없으니 첨부 주소도 없다
+3. adopt 가 첨부 0건이면 분석을 안 건다 (빈 리포트를 막으려는 의도된 동작)
+4. **화면이 왜 없는지 안 말한다** — 이게 사용자가 겪은 것
+
+### K01 자바스크립트 게시판의 상세 주소를 찾아낸다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/rfp/radar/detail-url.ts (신규), apps/web/lib/rfp/radar/detail-url.test.ts (신규)
+감사 기준:
+- onclick 인자에서 숫자 id 를 뽑고 목록 주소로 상세 후보 주소를 만든다
+- **후보는 검증 후에만 쓴다** — 열어서 첨부 링크가 있는 쪽만 인정. 못 열면 안 쓴다
+- 실측: NIA `doBbsFView('78336','29975',…)` → `View.do?cbIdx=78336&bcIdx=29975` 가 실제로 열린다
+- node --test 통과
+의존: 없음
+
+### K02 상세 쪽에서 첨부를 받아 케이스에 붙인다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/rfp/radar/attachments-from-page.ts (신규), apps/web/app/api/rfp/sources/[id]/adopt/route.ts
+감사 기준:
+- 상세 쪽 HTML 에서 첨부 내려받기 링크를 찾는다 (Download.do·FileDown.do·atchFileId 등)
+- 실측: 콜롬비아 공고 상세에서 첨부 2건을 찾아 케이스에 붙고 분석이 걸린다
+- 첨부를 못 찾으면 케이스는 만들되 사유를 응답에 담는다
+의존: K01
+
+### K03 리포트가 없는 이유를 화면이 말한다
+상태: 대기
+모드: 경량
+범위: apps/web/app/(rfp)/rfp/[id]/ReportClient.tsx, apps/web/lib/rfp/terms.ts
+감사 기준:
+- 파일 0건이면 「분석할 파일이 없습니다」와 다음 행동(공고 열기·파일 올리기)을 보인다
+- 파일은 있는데 리포트가 없으면 「분석 중」과 단계를 보인다
+- 실측: 첨부 없는 케이스를 열어 두 안내가 뜨는 것을 확인
+의존: 없음
+
+### K04 여러 사이트·여러 변수로 전 과정 재시험
+상태: 대기
+모드: 경량
+범위: (시험만, 코드 변경 없음)
+감사 기준:
+- 기관 사이트 3곳 이상 등록해 수집 결과를 표로 남긴다
+- 자바스크립트 게시판과 일반 게시판을 모두 포함한다
+- 첨부 있는 공고 1건 이상을 끝까지(파싱→요구사항→리포트) 돌린다
+- 실패한 것은 사유를 적는다 (감추지 않는다)
+의존: K02, K03
