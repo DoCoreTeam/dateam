@@ -300,7 +300,7 @@
 의존: I22
 
 ### I24 기본 모드 분석 실행
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/analyze/run-base.ts, 신규 apps/web/lib/rfp/analyze/persist.ts, 신규 apps/web/lib/rfp/analyze/run-base.test.ts, 신규 apps/web/app/api/rfp/cases/[id]/analyze/route.ts
 감사 기준:
@@ -537,6 +537,10 @@
 - 그 시점에 I18 은 이미 구현·검증·커밋(5883e198)까지 끝났는데 `loop pass` 기록만 빠졌다 — 여기서 통과로 되돌렸다
 - 이후 항목은 이 파일이 재개 근거다. loop CLI 의 활성 플랜은 다른 세션 것이므로 상태는 여기서 직접 적는다
 - 커밋 형식은 그대로 `vX.Y.Z-Ixx: 제목`
+- I24 감사 기준 중 「viewer 는 403」은 **실호출로 못 채웠다**: 이 배포에 viewer 역할이 없다
+  (`profiles.role` 은 admin 3 · member 32 · api_user 2 뿐이고, api_user 계정의 자격증명이 없다)
+  - 대신 미인증 401 은 실호출로 확인했고, 비임직원 403 은 `requireMemberApi` 의 계약과
+    기존 가드 `lib/auth/api-route-auth.test.ts` 가 덮는다
 - I23 실호출에서 내 회귀 1건을 잡아 고쳤다(M-9 ①): `@rhwp/core` 의 `rhwp_bg.wasm` 을 webpack 이 번들하려다
   `/api/rfp/profile/draft` 가 500 이었고 프로덕션 빌드도 실패했다
   - `require.resolve` 의 문자열을 런타임 조립으로 바꿔 정적 분석을 피하고, next.config 의 external + outputFileTracingIncludes 에 등재
