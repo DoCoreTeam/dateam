@@ -457,7 +457,7 @@
 의존: I24, I35, I37
 
 ### I39 화면 교차검증과 비교와 어시스턴트
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/components/rfp/CrossVerifyDialog.tsx, 신규 apps/web/components/rfp/VersionDiff.tsx, 신규 apps/web/components/rfp/ComparePanel.tsx, 신규 apps/web/app/(rfp)/rfp/assistant/page.tsx
 감사 기준:
@@ -537,6 +537,10 @@
 - 그 시점에 I18 은 이미 구현·검증·커밋(5883e198)까지 끝났는데 `loop pass` 기록만 빠졌다 — 여기서 통과로 되돌렸다
 - 이후 항목은 이 파일이 재개 근거다. loop CLI 의 활성 플랜은 다른 세션 것이므로 상태는 여기서 직접 적는다
 - 커밋 형식은 그대로 `vX.Y.Z-Ixx: 제목`
+- I39 에서 가드가 결함 1건을 잡았다: 어시스턴트 입력의 Enter 가 `lib/ui/ime` SSOT 를 안 거쳐
+  한글 입력 중 확정 Enter 가 질문을 보냈을 자리였다 → `isEnterKey`+`isImeComposing`
+- I39 의 「교차검증 확인 후 새 버전 생성」과 「불일치에서 사용자 최종값 선택」은 **화면까지만** 확인했다 —
+  실제 벤더 호출은 AI 키와 비용이 들어 실행하지 않았다(대화·비용 표시·요청 전송은 렌더로 확인)
 - I38 실화면에서 결함 3건을 잡아 고쳤다
   - `rfp_doc_blocks` 에 `case_id` 가 없는데 화면이 그 칸으로 물었다 — 원문 뷰어가 영영 빌 자리였다.
     파일 → IR → 블록으로 내려가게 고침
