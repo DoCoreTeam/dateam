@@ -354,7 +354,7 @@
 의존: I13
 
 ### I29 나라장터 낙찰과 계약 연동
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/lib/rfp/g2b/award.ts, 신규 apps/web/lib/rfp/g2b/award.test.ts, 신규 apps/web/app/api/rfp/g2b/award/route.ts
 감사 기준:
