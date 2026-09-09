@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
 const COLS = 'id, name, keywords, classifications, budget_min, budget_max, agencies, enabled, last_swept_at'
 
 /** 조건이 넓으면 알림이 소음이 된다. 그렇다고 막지는 않고 화면이 경고한다 */
-export const MAX_KEYWORDS = 20
+const MAX_KEYWORDS = 20
 
 export async function GET() {
   const gate = await requireMemberApi()
