@@ -487,7 +487,7 @@
 의존: I30, I31, I34, I38
 
 ### I42 화면 관리자 설정
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/app/(rfp)/rfp/admin/page.tsx, 신규 apps/web/components/rfp/VendorSettings.tsx, 신규 apps/web/components/rfp/RuleSettings.tsx, 신규 apps/web/components/rfp/TransferLog.tsx, 신규 apps/web/components/rfp/UsageDashboard.tsx
 감사 기준:
@@ -537,6 +537,9 @@
 - 그 시점에 I18 은 이미 구현·검증·커밋(5883e198)까지 끝났는데 `loop pass` 기록만 빠졌다 — 여기서 통과로 되돌렸다
 - 이후 항목은 이 파일이 재개 근거다. loop CLI 의 활성 플랜은 다른 세션 것이므로 상태는 여기서 직접 적는다
 - 커밋 형식은 그대로 `vX.Y.Z-Ixx: 제목`
+- I42 관리자 게이트는 저장소 SSOT `requireAdmin()` 을 쓴다 — 화면마다 각자 판정하면 한 곳만 느슨해진다
+  - 실측: admin 세션 200(AI 공급자·이상 조항 규칙 R01~R12·외부 전송 기록·사용량 전부 렌더), 비로그인 307
+  - member 계정 403 은 실계정 자격증명이 없어 못 눌렀다 — `requireAdmin` 은 기존 가드가 덮는다
 - I41 의 결과 기록 폼과 정정공고 비교를 케이스 상세(`/rfp/[id]`)에 꽂았다 — 범위를 미루지 않았다
   - 리포트가 없어도 결과 기록은 뜬다: 「분석은 안 돌렸지만 안 내기로 했다」도 학습의 정답지다
   - 실호출로 확인: 저장 200(decision=go, submitted=true, result=lost, our_rank=2),
