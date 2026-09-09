@@ -20,14 +20,6 @@ const SERVERLESS_CHROMIUM = [
 ]
 
 const nextConfig = {
-  /**
-   * 빌드 산출 폴더. 기본은 `.next` 라 배포는 한 글자도 안 바뀐다.
-   *
-   * 이 저장소는 작업 트리를 여러 세션이 나눠 쓴다. 누가 dev 서버를 띄운 채
-   * `next build` 를 돌리면 같은 `.next` 를 두고 싸워 양쪽이 다 깨진다.
-   * 검증만 하려면 `NEXT_BUILD_DIR=.next-verify pnpm build` 로 따로 쌓는다.
-   */
-  distDir: process.env.NEXT_BUILD_DIR || '.next',
   // dev 서버를 켠 채로 프로덕션 빌드를 검증할 수 있게 출력 경로를 열어 둔다.
   // (기본값은 그대로 '.next' — 환경변수를 안 주면 아무것도 달라지지 않는다)
   // 왜: `.next`가 겹쳐 dev가 깨지는 게 무서워 빌드 검증을 미루는 동안

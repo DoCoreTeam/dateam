@@ -5,7 +5,7 @@
 // 가르는데, AI 스튜디오는 아직 관리자 전용이다(마이그 150 의 RLS 도 admin + owner 다).
 // 멤버를 열 때 고칠 곳은 여기와 `NAV_AUDIENCE` 두 줄뿐이다.
 
-import { Sparkles, MessagesSquare, FolderKanban, ListTree } from 'lucide-react'
+import { Sparkles, MessagesSquare, FolderKanban, ListTree, FolderOpen, Cpu } from 'lucide-react'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import { getRequestUser } from '@/lib/supabase/server'
@@ -15,12 +15,15 @@ import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import AppShell from '@/components/ui/shell/AppShell'
 import type { NavGroup } from '@/components/ui/shell/AppShell'
 import { AI_NAV_GROUPS, aiNavMatchPaths } from '@/lib/ai-chat/nav/groups'
+import studio from './studio.module.css'
 
 /** 이름은 표(lib/ai-chat/nav/groups)가, 그림은 화면이 정한다 */
 const NAV_ICON: Record<string, React.ReactNode> = {
   '/ai': <MessagesSquare size={16} />,
   '/ai/projects': <FolderKanban size={16} />,
   '/ai/analyze': <ListTree size={16} />,
+  '/ai/documents': <FolderOpen size={16} />,
+  '/ai/models': <Cpu size={16} />,
 }
 
 const NAV_GROUPS: NavGroup[] = AI_NAV_GROUPS.map((g) => ({
@@ -51,6 +54,8 @@ export default async function AiLayout({ children }: { children: React.ReactNode
   return (
     <AppShell
       groups={NAV_GROUPS}
+      // 대화를 읽는 표면이라 업무 화면과 톤이 다르다(studio.module.css 머리주석)
+      surfaceClass={studio.studio}
       branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
       session={{
         name: profile?.name ?? user?.user_metadata?.name ?? user?.email ?? '팀원',

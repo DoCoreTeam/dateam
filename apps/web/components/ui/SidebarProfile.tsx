@@ -4,10 +4,11 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, Radar, SlidersHorizontal } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, SlidersHorizontal } from 'lucide-react'
 import { surfaceOf, adminEntryFor } from '@/lib/nav/surface'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import { clearPersistedSwrCache } from '@/lib/swr-persist'
+import styles from './sidebar-profile.module.css'
 
 interface SidebarProfileProps {
   name: string
@@ -140,38 +141,16 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             */}
           {adminEntry && (
             <>
-
-              {adminEntry && (
-              <Link
-                href={adminEntry.href}
-                onClick={() => setOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.625rem',
-                  padding: 'var(--space-3) var(--space-4)',
-                  fontSize: 'var(--fs-sm)',
-                  color: 'var(--text)',
-                  textDecoration: 'none',
-                  transition: 'background 120ms',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
+              <Link href={adminEntry.href} onClick={() => setOpen(false)} className={styles.row}>
                 <LayoutDashboard size={14} />
                 {adminEntry.label}
               </Link>
-              )}
-              <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
+              <div className={styles.divider} />
             </>
           )}
           {settingsItems && settingsItems.length > 0 && (
             <>
-              <div style={{
-                padding: 'var(--space-2) var(--space-4) var(--space-1)',
-                fontSize: 'var(--fs-2xs)', fontWeight: 700, letterSpacing: '0.04em',
-                color: 'var(--text-faint)',
-              }}>
+              <div className={styles.groupLabel}>
                 {settingsLabel ?? '설정'}
               </div>
               {settingsItems.map((it) => (
@@ -179,37 +158,19 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
                   key={it.href}
                   href={it.href}
                   onClick={() => setOpen(false)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.625rem',
-                    padding: 'var(--space-3) var(--space-4)',
-                    fontSize: 'var(--fs-sm)', color: 'var(--text)',
-                    textDecoration: 'none', transition: 'background 120ms',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-muted)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  className={styles.row}
                 >
                   <SlidersHorizontal size={14} />
                   {it.label}
                 </Link>
               ))}
-              <div style={{ height: '1px', background: 'var(--border-light)', margin: '0 0.75rem' }} />
+              <div className={styles.divider} />
             </>
           )}
           <Link
             href="/change-password"
             onClick={() => setOpen(false)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              padding: 'var(--space-3) var(--space-4)',
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--text)',
-              textDecoration: 'none',
-              transition: 'background 120ms',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            className={styles.row}
           >
             <KeyRound size={14} />
             비밀번호 변경
@@ -217,18 +178,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
           <Link
             href="/api-keys"
             onClick={() => setOpen(false)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              padding: 'var(--space-3) var(--space-4)',
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--text)',
-              textDecoration: 'none',
-              transition: 'background 120ms',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            className={styles.row}
           >
             <Code2 size={14} />
             API Keys
@@ -236,66 +186,29 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
           <Link
             href="/develop"
             onClick={() => setOpen(false)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              padding: 'var(--space-3) var(--space-4)',
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--text)',
-              textDecoration: 'none',
-              transition: 'background 120ms',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            className={styles.row}
           >
             <BookOpen size={14} />
             개발자센터
           </Link>
-          <Link
-            href="/ci"
-            onClick={() => setOpen(false)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              padding: 'var(--space-3) var(--space-4)',
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--text)',
-              textDecoration: 'none',
-              transition: 'background 120ms',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--nav-hover-bg)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <Radar size={14} />
-            콘텐츠 인텔리전스
-          </Link>
-          <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
+          <div className={styles.divider} />
+          {/*
+            서비스로 들어가는 문(영업 CRM · 콘텐츠 인텔리전스 · AI 스튜디오)은 **여기 없다.**
+            예전엔 콘텐츠 인텔리전스만 이 메뉴에 손으로 박혀 있었다 — 사이드바 「서비스」 묶음이
+            생기기 전 유일한 길이었기 때문이다. 그 묶음이 생긴 뒤로는 같은 곳으로 가는 문이 둘이 됐고,
+            셋 중 하나만 여기 있어서 **서비스마다 대접이 달라 보였다**(사용자 지적 v0.7.716).
+            길은 사이드바 「서비스」 묶음과 전체 메뉴 두 곳이면 충분하다.
+          */}
           {/* 패치노트 — 사이드바 버전 클릭과 동일한 모달을 window 이벤트로 연다(MobileShell이 수신). */}
           <button
             type="button"
             onClick={() => { setOpen(false); if (typeof window !== 'undefined') window.dispatchEvent(new Event('open-patchnotes')) }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              width: '100%',
-              padding: 'var(--space-3) var(--space-4)',
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--text)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background 120ms',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            className={styles.row}
           >
             <Sparkles size={14} />
             패치노트
           </button>
-          <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
+          <div className={styles.divider} />
           {/* 테마변경 — 오른쪽 서브메뉴로 개인 테마 선택 (호버/클릭 모두 열림) */}
           <div
             style={{ position: 'relative' }}
@@ -307,25 +220,12 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
               aria-haspopup="menu"
               aria-expanded={themeOpen}
               onClick={() => setThemeOpen(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.625rem',
-                width: '100%',
-                padding: 'var(--space-3) var(--space-4)',
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--text)',
-                background: themeOpen ? 'rgba(0,0,0,0.05)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'background 120ms',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
-              onMouseLeave={e => { if (!themeOpen) e.currentTarget.style.background = 'transparent' }}
+              className={styles.row}
+              data-open={themeOpen}
             >
               <Palette size={14} />
               테마변경
-              <ChevronRight size={14} style={{ marginLeft: 'auto', color: 'var(--color-text-muted)' }} />
+              <ChevronRight size={14} className={styles.chevron} />
             </button>
 
             {themeOpen && (
@@ -355,20 +255,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
                       disabled={applying}
                       data-theme={t.id}
                       onClick={() => handleSelectTheme(t.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        width: '100%',
-                        padding: 'var(--space-3) var(--space-4)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: applying ? 'wait' : 'pointer',
-                        textAlign: 'left',
-                        transition: 'background 120ms',
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      className={styles.row}
                     >
                       {/* 테마 정체성 미니 스와치 (data-theme 스코프 → 해당 테마 토큰) */}
                       <span style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
@@ -389,24 +276,10 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
               </div>
             )}
           </div>
-          <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
+          <div className={styles.divider} />
           <button
             onClick={handleLogout}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              width: '100%',
-              padding: 'var(--space-3) var(--space-4)',
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--danger)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background 120ms',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            className={`${styles.row} ${styles.rowDanger}`}
           >
             <LogOut size={14} />
             로그아웃
@@ -419,20 +292,8 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
         ref={triggerRef}
         data-testid="sidebar-profile-trigger"
         onClick={() => setOpen(!open)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.625rem',
-          width: '100%',
-          padding: '0.5rem 0.625rem',
-          background: open ? 'rgba(0,0,0,0.06)' : 'transparent',
-          border: 'none',
-          borderRadius: 'var(--radius)',
-          cursor: 'pointer',
-          transition: 'background 120ms',
-        }}
-        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(0,0,0,0.05)' }}
-        onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent' }}
+        className={styles.trigger}
+        data-open={open}
       >
         {/* 아바타 */}
         <div

@@ -60,6 +60,11 @@ export interface AppShellProps {
    * 사용자를 지금 보던 곳 밖으로 데리고 나간다. 안 주면 호스트 업무 검색이다.
    */
   search?: { action: string; placeholder?: string }
+  /**
+   * 이 표면만의 스킨 클래스(CSS 모듈). 토큰을 다시 정의하는 용도이고 셸 뿌리에 걸린다.
+   * AI 스튜디오가 대화를 읽기 좋은 톤으로 바꾸는 데 쓴다 — 구조는 그대로다.
+   */
+  surfaceClass?: string
   /** 추가는 가능, 기본 제거는 불가 */
   extras?: {
     headerLeft?: ReactNode
@@ -77,12 +82,14 @@ export default function AppShell({
   branding,
   search,
   extras,
+  surfaceClass,
   children,
 }: AppShellProps) {
   return (
     <MobileShell
       items={items}
       groups={groups}
+      surfaceClass={surfaceClass}
       logoUrl={branding?.logoUrl}
       brandName={branding?.brandName}
       isAdmin={session.isAdmin}

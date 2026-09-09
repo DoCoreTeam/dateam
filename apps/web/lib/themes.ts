@@ -3,6 +3,7 @@ export const THEMES = [
   { id: 'nb', label: 'Neo-brutalism', desc: '하드 잉크 보더·오프셋 그림자·노랑/퍼플·테이프 라벨' },
   { id: 'classic', label: 'Indigo', desc: '부드러운 카드·연회색 보더·둥근 모서리·인디고' },
   { id: 'mono', label: 'Monochrome', desc: '흑백·직각·hairline 보더·플랫·레드 액센트·다크 사이드바' },
+  { id: 'claude', label: 'Claude', desc: '따뜻한 미색 종이·벽돌빛 강조·둥근 모서리·옅은 그늘' },
 ] as const
 
 export type ThemeId = (typeof THEMES)[number]['id']

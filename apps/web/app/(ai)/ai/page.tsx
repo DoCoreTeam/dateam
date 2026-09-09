@@ -2,9 +2,8 @@ import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { loadAiChatPageData } from '@/app/(ai)/ai/load'
 import AiChatClient from '@/app/(ai)/ai/AiChatClient'
 
-// AI 채팅 — 일반 앱(member) 라우트, admin 전용 게이트 유지(§③).
-// 서버 데이터로딩은 admin/ai-chat/load.ts(SSOT)를 공유해 구 /admin/ai-chat 경로와 동일하게 재사용.
-// 렌더 컴포넌트(AiChatClient 등)도 기존 app/admin/ai-chat/에서 그대로 import(이동 아님).
+// AI 채팅 — AI 스튜디오의 첫 화면, admin 전용 게이트 유지(§③).
+// 옛 주소 /ai-chat 과 /admin/ai-chat 은 next.config 리다이렉트로 여기로 온다.
 export default async function AiChatPage({
   searchParams,
 }: {

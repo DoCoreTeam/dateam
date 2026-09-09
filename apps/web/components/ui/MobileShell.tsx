@@ -71,12 +71,19 @@ interface MobileShellProps {
   isAdmin?: boolean
   /** 우측하단 고정 레이어 추가 항목. 좌표는 Dock이 정한다(§4) */
   dock?: DockItem[]
+  /**
+   * 이 표면만의 스킨 클래스. **토큰을 다시 정의하는 용도**다(globals.css 의 `[data-theme]` 와 같은 방식).
+   * 셸 뿌리에 걸리므로 사이드바까지 함께 따라온다 — 본문에만 걸면 색이 반쪽만 바뀐다.
+   * 구조를 바꾸는 데 쓰지 않는다. 셸은 여전히 하나다.
+   */
+  surfaceClass?: string
 }
 
 export default function MobileShell({
   items,
   groups,
   footer,
+  surfaceClass,
   logoUrl,
   brandName = 'AX사업본부',
   headerLeft,
@@ -170,7 +177,7 @@ export default function MobileShell({
   }, [mobileOpen, closeMobile])
 
   return (
-    <div className="app-shell">
+    <div className={surfaceClass ? `app-shell ${surfaceClass}` : 'app-shell'}>
       {/* 모바일 딤 오버레이 */}
       <div
         className={`sidebar-overlay${mobileOpen ? ' overlay-open' : ''}`}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Pencil, Trash2, X, FolderOpen } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, FolderOpen } from 'lucide-react'
 import type { AiChatProject } from '@/types/database'
 import { useEscClose } from '@/lib/use-esc-close'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
@@ -42,14 +42,8 @@ export default function ProjectsClient({ initialProjects }: Props) {
 
   return (
     <div>
-      {/* 페이지 헤더 — 공용 PageHeader(§2-3). raw <h1>을 화면이 다시 그리지 않는다 */}
-      <Link
-        href="/ai"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 'var(--space-2)' }}
-      >
-        <ArrowLeft size={14} />
-        AI 채팅으로
-      </Link>
+      {/* 페이지 헤더 — 공용 PageHeader(§2-3). raw <h1>을 화면이 다시 그리지 않는다.
+          「AI 채팅으로」 뒤로가기는 뺐다 — 서비스가 되면서 채팅이 사이드바 첫 칸이 됐다 */}
       <PageHeader
         title="프로젝트"
         description="지시문과 지식을 묶어 대화에 컨텍스트로 주입합니다."

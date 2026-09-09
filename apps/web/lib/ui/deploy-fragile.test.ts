@@ -302,3 +302,16 @@ test('⑧-2 기록에 실패했으면 「남겼다」고 말하지 않는다', (
   assert.match(src, /setLogged/, '기록 결과를 안 보고 문구를 정한다 — 실패해도 성공처럼 말하게 된다')
   assert.match(src, /logged === false/, '실패했을 때의 다른 문구가 없다')
 })
+
+// ── next.config 의 키가 조용히 겹치지 않는다 ──
+//
+// 실측 v0.7.716: 이미 있던 `distDir`(NEXT_DIST_DIR, v0.7.455) 옆에 같은 목적의 키를 하나 더 넣었다.
+// 객체 리터럴은 **뒤 것이 이긴다.** 앞 것은 주석까지 붙은 채로 아무 일도 하지 않았고,
+// 그 결과 dev 서버를 켠 채 돌린 검증 빌드가 `.next` 를 그대로 밟았다.
+// eslint 는 next.config.js 를 안 본다 — 그래서 여기서 센다.
+test('next.config 에 같은 키가 두 번 나오지 않는다 (뒤 것이 조용히 이긴다)', () => {
+  const src = read('next.config.js')
+  const keys = [...src.matchAll(/^ {2}([a-zA-Z_$][\w$]*):/gm)].map((m) => m[1])
+  const dupes = keys.filter((k, i) => keys.indexOf(k) !== i)
+  assert.deepEqual([...new Set(dupes)], [], `중복 키: ${[...new Set(dupes)].join(' · ')}`)
+})

@@ -1,5 +1,4 @@
-// AI 채팅 페이지 초기 데이터 로딩 SSOT — admin(/admin/ai-chat, redirect 전용)과
-// member(/ai-chat) 양쪽 서버 페이지가 동일 로직을 재사용(복붙 금지).
+// AI 스튜디오 서버 데이터 로딩 SSOT — 채팅 화면과 모델 화면이 같은 읽기를 공유한다(복붙 금지).
 import { createAdminClient } from '@/lib/supabase/server'
 import { getAvailableProviders, getDefaultProvider, getProvider } from '@/lib/ai-chat/registry'
 import type { AiChatProviderId, AiChatConversation } from '@/types/database'
@@ -19,7 +18,20 @@ export interface AiChatPageData {
   capabilities: Record<AiChatProviderId, ProviderCaps>
 }
 
-export async function loadAiChatPageData(conversationId: string | null): Promise<AiChatPageData> {
+/** 어느 공급자를 쓸 수 있고 무엇을 할 수 있는가 — 채팅과 모델 화면이 같이 읽는다 */
+export interface AiProvidersData {
+  providers: ProviderView[]
+  defaultProvider: { id: AiChatProviderId; model: string } | null
+  capabilities: Record<AiChatProviderId, ProviderCaps>
+}
+
+/**
+ * 키가 설정된 공급자와 그 능력만 읽는다(대화는 안 읽는다).
+ *
+ * 모델 화면은 대화를 하나도 필요로 하지 않는다. 채팅용 로더를 그대로 부르면
+ * 목록 조회 두 번이 그냥 버려진다 — 그래서 읽기를 이 크기로 잘라 둔다.
+ */
+export async function loadAiProviders(): Promise<AiProvidersData> {
   const adminClient = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: metaData } = await (adminClient as any)
@@ -44,6 +56,12 @@ export async function loadAiChatPageData(conversationId: string | null): Promise
     acc[id] = { vision: caps.vision, thinking: caps.thinking, tools: caps.tools }
     return acc
   }, {} as Record<AiChatProviderId, ProviderCaps>)
+
+  return { providers, defaultProvider, capabilities }
+}
+
+export async function loadAiChatPageData(conversationId: string | null): Promise<AiChatPageData> {
+  const { providers, defaultProvider, capabilities } = await loadAiProviders()
 
   // 초기 데이터 병렬 로드
   const [convRes, msgRes] = await Promise.all([

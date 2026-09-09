@@ -34,9 +34,20 @@ const NAV_ITEMS = [
 ]
 
 /** 하위 서비스로 들어가는 아이콘 — 이름은 표가, 그림은 화면이 정한다 */
-const SERVICE_ICON: Record<string, React.ReactNode> = {
+/**
+ * 서비스 그림표 — **키가 `SERVICE_NAV` 에 묶여 있다.**
+ *
+ * 예전엔 그냥 `Record<string, …>` 이었다. 그래서 서비스를 등재하고 여기를 안 고치면
+ * 그 줄만 **아이콘 없이** 그려졌다(실측 v0.7.716: AI 스튜디오만 그림이 비어 있었다).
+ * 빈 그림은 오류처럼 보이지도 않아서, 사람이 화면을 봐야 잡힌다.
+ * 이제 키를 `SERVICE_NAV` 에서 뽑아 와 **빠뜨리면 타입에서 걸린다.**
+ * 그림은 전체 메뉴(QuickNav)와 같은 것을 쓴다 — 같은 곳으로 가는 문이 두 모양이면 안 된다.
+ */
+type ServiceHref = (typeof SERVICE_NAV)[number]['href']
+const SERVICE_ICON: Record<ServiceHref, React.ReactNode> = {
   '/crm': <Handshake size={16} />,
   '/ci': <Radar size={16} />,
+  '/ai': <Sparkles size={16} />,
 }
 
 const NAV_GROUPS: NavGroup[] = [

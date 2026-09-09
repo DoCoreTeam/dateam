@@ -5,6 +5,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import type { AiChatProviderId } from '@/types/database'
 import { listModelCatalog, refreshModelCatalog, type ModelCatalogItem } from '@/app/(ai)/ai/actions'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
+import { MODEL_STATUS_LABEL, MODEL_STATUS_COLOR } from '@/lib/ai-chat/model-status'
 import { isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
 import SegmentedTabs from './SegmentedTabs'
 import ControlRow from './ControlRow'
@@ -31,11 +32,22 @@ function formatReleased(d: string | null): string {
   return `${y}.${m}`
 }
 
+/**
+ * 말과 색은 `lib/ai-chat/model-status` 한 벌에서 온다 — 모델 화면과 같은 표를 읽는다.
+ * 예전엔 두 화면이 각자 적어서, 한쪽만 고치면 같은 상태에 다른 말이 붙었다.
+ * 그림은 표면마다 크기가 달라 화면이 고른다.
+ */
+const STATUS_ICON = {
+  available: CircleCheck,
+  limited: CircleAlert,
+  unavailable: CircleX,
+  unknown: CircleHelp,
+} as const
 const STATUS_META = {
-  available: { label: '사용 가능', icon: CircleCheck, color: 'var(--success)' },
-  limited: { label: '현재 한도 도달', icon: CircleAlert, color: 'var(--warning)' },
-  unavailable: { label: '사용 불가', icon: CircleX, color: 'var(--danger)' },
-  unknown: { label: '확인 필요', icon: CircleHelp, color: 'var(--text-faint)' },
+  available: { label: MODEL_STATUS_LABEL.available, icon: STATUS_ICON.available, color: MODEL_STATUS_COLOR.available },
+  limited: { label: MODEL_STATUS_LABEL.limited, icon: STATUS_ICON.limited, color: MODEL_STATUS_COLOR.limited },
+  unavailable: { label: MODEL_STATUS_LABEL.unavailable, icon: STATUS_ICON.unavailable, color: MODEL_STATUS_COLOR.unavailable },
+  unknown: { label: MODEL_STATUS_LABEL.unknown, icon: STATUS_ICON.unknown, color: MODEL_STATUS_COLOR.unknown },
 } as const
 
 function formatCheckedAt(value: string | null): string {

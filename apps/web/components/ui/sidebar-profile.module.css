@@ -1,0 +1,66 @@
+/* 계정 메뉴 한 줄 — 여기 하나로 그린다.
+ *
+ * 예전엔 여덟 줄을 각자 손으로 적었다. 그래서 **같은 메뉴 안에서 호버색이 셋으로 갈렸다**
+ * (rgba(0,0,0,0.05) 9곳 · var(--nav-hover-bg) 1곳 · var(--surface-muted) 1곳,
+ *  구분선도 rgba(0,0,0,0.1) 과 var(--border-light) 둘, 실측 v0.7.716).
+ * 사용자가 화면을 보고 "조금씩 다른 것 같은데"라고 짚은 것이 이것이다.
+ * 줄을 그리는 자리가 하나면 갈릴 수가 없다. */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.row:hover,
+.row:focus-visible,
+.row[data-open='true'] { background: var(--nav-hover-bg); }
+
+.rowDanger { color: var(--danger); }
+.rowDanger:hover,
+.rowDanger:focus-visible { background: var(--danger-bg); }
+
+.row:disabled { cursor: wait; }
+
+.divider {
+  height: 1px;
+  margin: 0 0.75rem;
+  background: var(--border-light);
+}
+
+.groupLabel {
+  padding: var(--space-2) var(--space-4) var(--space-1);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.grow { flex: 1; min-width: 0; }
+.chevron { margin-left: auto; color: var(--text-muted); }
+
+/* 메뉴를 여는 프로필 버튼 — 열림 상태도 같은 토큰을 쓴다(손으로 적으면 여기부터 갈렸다) */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.trigger:hover,
+.trigger:focus-visible,
+.trigger[data-open='true'] { background: var(--nav-hover-bg); }

@@ -129,3 +129,64 @@ test('★ 화면에 옛 주소가 하드코딩으로 남지 않았다 — 리다
   walk(AI_DIR)
   assert.deepEqual(bad, [], `옛 주소가 남아 있다:\n  ${bad.join('\n  ')}`)
 })
+
+// ── 기획서 목업과 대조 ──
+//
+// 이 묶음은 승격안 §04 「이렇게 보입니다」의 사이드바 목업이 정해 놓은 것이다.
+// 처음 구현에서 문서함과 모델 두 칸이 빠졌고 **사용자가 화면을 보고 잡았다**(v0.7.716).
+// 사람이 목업과 화면을 눈으로 대조하는 일은 다시 시키지 않는다.
+
+test('★ 기획서 목업의 다섯 칸이 전부 있다 — 빠뜨리면 여기서 먼저 걸린다', () => {
+  const labels = AI_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.label))
+  assert.deepEqual(labels, ['채팅', '프로젝트', '목록 심층분석', '문서함', '모델'])
+})
+
+test('★ 묶음 이름도 목업과 같다 — 이름이 바뀌면 정보구조가 바뀐 것이다', () => {
+  assert.deepEqual(AI_NAV_GROUPS.map((g) => g.label), ['대화', '분석', '그 밖'])
+})
+
+test('★ 문서함은 자기 주소를 가진다 — 탭이면 분석을 열어야 결과가 보인다(계약 E)', () => {
+  const doc = AI_NAV_GROUPS.flatMap((g) => g.items).find((i) => i.label === '문서함')
+  assert.equal(doc?.href, '/ai/documents')
+  assert.match(read(`${AI_DIR}/documents/page.tsx`), /DocumentListClient/)
+})
+
+test('★ 옛 탭 주소는 리다이렉트로 산다 — 완료 안내에서 나간 링크가 이미 밖에 있다', () => {
+  const src = read(`${AI_DIR}/analyze/page.tsx`)
+  assert.match(src, /tab === 'documents'\) redirect\('\/ai\/documents'\)/)
+})
+
+test('★ 문서함으로 가는 길이 한 벌이다 — 분석 탭에 같은 문을 또 두지 않는다', () => {
+  assert.doesNotMatch(read(`${AI_DIR}/analyze/page.tsx`), /label: '내 분석 문서'/)
+})
+
+test('★ 모델 화면은 모달과 같은 창구를 쓴다 — 두 벌로 읽으면 상태가 갈린다', () => {
+  const src = read(`${AI_DIR}/models/ModelsClient.tsx`)
+  assert.match(src, /listModelCatalog/)
+  assert.match(src, /refreshModelCatalog/)
+})
+
+// ── 같은 종류의 자리는 같은 모양이어야 한다 ──
+//
+// 서비스 묶음에 줄만 추가하고 **그림표를 안 고쳐서** AI 스튜디오만 아이콘 없이 그려졌다
+// (실측 v0.7.716, 사용자가 화면을 보고 잡았다). 빈 그림은 오류처럼 보이지 않아 정적 검사가
+// 전부 초록인 채로 지나간다. 그래서 여기서 센다 — 셋을 나란히 두고 하나라도 비면 실패다.
+
+test('★ 서비스 셋이 사이드바에서 전부 아이콘을 갖는다 — 하나만 비면 그 서비스가 미완처럼 보인다', () => {
+  const src = read(MEMBER_LAYOUT)
+  const map = src.slice(src.indexOf('const SERVICE_ICON'), src.indexOf('const NAV_GROUPS'))
+  for (const s of SERVICE_NAV) {
+    assert.match(map, new RegExp(`'${s.href}':\\s*<`), `${s.label} 의 아이콘이 없다`)
+  }
+})
+
+test('★ 그림표 키가 서비스 표에 묶여 있다 — 다음 서비스는 타입이 먼저 잡는다', () => {
+  assert.match(read(MEMBER_LAYOUT), /Record<ServiceHref, React\.ReactNode>/)
+})
+
+test('★ 전체 메뉴에도 같은 문이 있다 — 사이드바에만 있으면 찾는 길이 한 벌뿐이다', () => {
+  const src = read('components/ui/QuickNav.tsx')
+  for (const s of SERVICE_NAV) {
+    assert.match(src, new RegExp(`href: '${s.href}'`), `${s.label} 이 전체 메뉴에 없다`)
+  }
+})

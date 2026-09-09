@@ -78,3 +78,33 @@ test('같은 경로는 어디서든 같은 이름 (N-4)', () => {
   }
   assert.deepEqual(bad, [], `lib/nav/menu.ts 의 navLabel(href) 를 쓰세요:\n${bad.join('\n')}`)
 })
+
+// ── 계정 메뉴: 한 벌이어야 하고, 한 벌 안에서도 갈리면 안 된다 ──
+//
+// 사용자 지적(v0.7.716): "사용자명 눌렀을 때 나오는 메뉴가 조금씩 다른 것 같은데 별도 구현이야?"
+// 구현은 한 벌이 맞았다(SidebarProfile). 갈린 것은 **그 안**이었다 —
+// 여덟 줄을 각자 손으로 적어서 호버색이 셋(rgba(0,0,0,0.05)·--nav-hover-bg·--surface-muted),
+// 구분선이 둘(rgba(0,0,0,0.1)·--border-light)이었다.
+
+import { readFileSync as readFile } from 'node:fs'
+import { join as joinPath } from 'node:path'
+
+const PROFILE_SRC = readFile(
+  joinPath(import.meta.dirname, '..', '..', 'components', 'ui', 'SidebarProfile.tsx'),
+  'utf8',
+)
+
+test('★ 계정 메뉴 줄은 한 자리에서 그린다 — 손으로 적으면 같은 메뉴 안에서 색이 갈린다', () => {
+  assert.doesNotMatch(PROFILE_SRC, /rgba\(0, ?0, ?0/, '하드코딩 호버·구분선 색이 남아 있다')
+  assert.doesNotMatch(PROFILE_SRC, /rgba\(239/, '하드코딩 위험색이 남아 있다')
+})
+
+test('★ 서비스로 가는 문은 계정 메뉴에 두지 않는다 — 셋 중 하나만 있으면 대접이 달라 보인다', () => {
+  for (const href of ['/crm', '/ci', '/ai']) {
+    assert.doesNotMatch(
+      PROFILE_SRC,
+      new RegExp(`href="${href}"`),
+      `${href} 문이 계정 메뉴에 박혀 있다 — 사이드바 「서비스」 묶음과 전체 메뉴가 그 길이다`,
+    )
+  }
+})

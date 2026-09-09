@@ -205,7 +205,7 @@ export function SessionDetailDrawer({ sessionId, onClose }: { sessionId: string;
                 {savedId ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-sm)', color: 'var(--success)' }}>
                     <Check size={14} /> 저장됨:{' '}
-                    <Link href="/ai/analyze?tab=documents" style={{ color: 'var(--brand)', textDecoration: 'underline' }}>문서함</Link>
+                    <Link href="/ai/documents" style={{ color: 'var(--brand)', textDecoration: 'underline' }}>문서함</Link>
                   </span>
                 ) : (
                   <NbButton variant="secondary" onClick={handleSave} disabled={saving} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
