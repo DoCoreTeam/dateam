@@ -176,6 +176,34 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
     }
   }, [ask])
 
+  /**
+   * 공고를 케이스로 — **첨부까지 받아 온다.**
+   *
+   * 등급은 사람이 고른다. 나라장터 공고는 대개 공개지만 기관 사이트에서 받은 것은 아닐 수 있다.
+   */
+  const adopt = useCallback(async (hit: RadarHitRow) => {
+    setError(null)
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/rfp/sources/${hit.source_id}/adopt`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ docClass: 'public' }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setError(RFP_COMMON.error); return }
+      setNote(body.attached?.length > 0
+        ? `${RFP_RADAR.adopted} (${body.attached.length})`
+        : RFP_RADAR.adoptNoFiles)
+      setHits((p) => p.filter((x) => x.id !== hit.id))
+      if (body.case?.id) window.location.href = `/rfp/${body.case.id}`
+    } catch {
+      setError(RFP_COMMON.error)
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
   const toggle = useCallback(async (rule: RadarRuleRow) => {
     setRules((p) => p.map((r) => (r.id === rule.id ? { ...r, enabled: !r.enabled } : r)))
     await fetch('/api/rfp/radar/rules', {
@@ -320,7 +348,8 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
                 </span>
                 <span className={styles.row}>
                   <NbBadge status="doing">{h.pre_score ?? 0}</NbBadge>
-                  <NbButton variant="secondary" href={`/rfp/new?source=${h.source_id}`}>
+                  {/* 공고에 붙은 첨부를 그대로 받아 분석까지 건다 — 사람이 다시 내려받을 이유가 없다 */}
+                  <NbButton variant="secondary" onClick={() => void adopt(h)} disabled={busy}>
                     {RFP_RADAR.openCase}
                   </NbButton>
                 </span>

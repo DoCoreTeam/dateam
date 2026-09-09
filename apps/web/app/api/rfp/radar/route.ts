@@ -8,7 +8,10 @@
 //
 // 예전에는 거르기만 있었다. `rfp_sources` 를 훑는데 **그 표를 채우는 코드가 없어서**
 // 조건을 아무리 잘 만들어도 결과가 늘 0건이었다.
-// 이제 먼저 나라장터에서 기간으로 공고를 모으고(collectNotices), 그다음 조건으로 거른다.
+//
+// 모으는 곳은 **설정에 등록된 곳 전부**다(`rfp_source_sites`). 나라장터만 보면
+// 기관 자기 게시판에 먼저 붙는 공고를 늘 며칠 늦게 안다.
+// 한 곳이 죽어도 나머지는 계속 모은다 — 기관 사이트는 자주 느리고 자주 막힌다.
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -18,6 +21,7 @@ import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { toRadarRule } from '@/lib/rfp/radar/rules'
 import { sweep, type NoticeCandidate } from '@/lib/rfp/radar/sweep'
 import { collectNotices } from '@/lib/rfp/radar/collect'
+import { collectFromSite, type SiteRow } from '@/lib/rfp/radar/collect-sites'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,7 +51,21 @@ export async function POST(_req: NextRequest) {
 
   // ① 먼저 모은다. 못 모아도 이미 담긴 것으로 거르기는 계속한다 —
   //    나라장터가 죽었다고 어제 담은 공고까지 안 보일 이유가 없다
-  const collected = await collectNotices(db as any, { orgId: String(orgId) })
+  const { data: siteRows } = await (db as any)
+    .from('rfp_source_sites')
+    .select('id, name, kind, url, base_url, enabled')
+    .is('deleted_at', null).eq('enabled', true)
+  const sites = ((siteRows ?? []) as SiteRow[])
+
+  const collected = sites.some((s) => s.kind === 'g2b')
+    ? await collectNotices(db as any, { orgId: String(orgId) })
+    : { fetched: 0, inserted: 0, skipped: 0, reason: 'g2b_off' as string | null, guide: null as string | null }
+
+  // 기관 자체 사이트 — 한 곳이 죽어도 나머지는 계속 모은다
+  const siteResults = []
+  for (const site of sites.filter((s) => s.kind === 'web' && s.url)) {
+    siteResults.push(await collectFromSite(db as any, { orgId: String(orgId), site }))
+  }
 
   const { data: ruleRows } = await (db as any)
     .from('rfp_radar_rules')
@@ -55,7 +73,7 @@ export async function POST(_req: NextRequest) {
     .eq('enabled', true)
   const rules = (ruleRows ?? []).map(toRadarRule)
   if (rules.length === 0) {
-    return NextResponse.json({ hits: [], swept: 0, reason: 'no_rules', collected })
+    return NextResponse.json({ hits: [], swept: 0, reason: 'no_rules', collected, siteResults })
   }
 
   const { data: sourceRows } = await (db as any)
@@ -100,5 +118,5 @@ export async function POST(_req: NextRequest) {
     .in('id', rules.map((r: { id: string }) => r.id))
 
   // 몇 건을 새로 모았는지 화면이 말해야 한다 — 「0건」이 «없다»인지 «못 가져왔다»인지 갈린다
-  return NextResponse.json({ hits, swept: candidates.length, collected })
+  return NextResponse.json({ hits, swept: candidates.length, collected, siteResults })
 }

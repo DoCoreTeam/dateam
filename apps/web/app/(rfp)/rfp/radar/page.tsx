@@ -3,9 +3,11 @@
 // 자동은 찾기까지다. 케이스로 만드는 것은 사람이 고른다.
 
 import PageHeader from '@/components/ui/PageHeader'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { RFP_RADAR, RFP_LIST } from '@/lib/rfp/terms'
+import { G2B_KEY_FIELD } from '@/lib/rfp/g2b/client'
 import RadarRules, { type RadarHitRow, type RadarRuleRow } from '@/components/rfp/RadarRules'
+import SourceSites, { type SiteRow } from '@/components/rfp/SourceSites'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,12 +56,30 @@ export default async function RfpRadarPage() {
     ]))
   }
 
+  // 어디를 뒤지는지와 키가 있는지 — 「왜 0건인지」의 절반이 여기서 갈린다
+  const { data: siteRows } = await (db as never as {
+    from(t: string): { select(c: string): { is(k: string, v: null): Promise<{ data: unknown }> } }
+  }).from('rfp_source_sites')
+    .select('id, name, kind, url, enabled, last_run_at, last_result')
+    .is('deleted_at', null)
+
+  const { data: metaRow } = await (createAdminClient() as never as {
+    from(t: string): { select(c: string): { eq(k: string, v: string): { single(): Promise<{ data: unknown }> } } }
+  }).from('org_content').select('value').eq('key', 'META').single()
+  const meta = ((metaRow as { value?: unknown } | null)?.value ?? {}) as Record<string, unknown>
+  // 키가 **있는지만** 넘긴다. 값은 화면으로 안 내보낸다
+  const hasServiceKey = typeof meta[G2B_KEY_FIELD] === 'string' && String(meta[G2B_KEY_FIELD]).trim().length > 0
+
   return (
     <main className="page-inner">
       <PageHeader
         title={RFP_RADAR.title}
         description={RFP_RADAR.desc}
         back={{ href: '/rfp', label: RFP_LIST.title }}
+      />
+      <SourceSites
+        initialSites={(siteRows as SiteRow[] | null) ?? []}
+        initialHasServiceKey={hasServiceKey}
       />
       <RadarRules
         initialRules={(rules as RadarRuleRow[] | null) ?? []}
