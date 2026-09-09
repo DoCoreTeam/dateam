@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # version-rule 가드가 기준선 커밋까지 거슬러 봐야 한다
+          # 기본값 1 이면 기준선에 못 닿아 그 검사가 통째로 건너뛰어진다
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
