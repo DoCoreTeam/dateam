@@ -78,11 +78,14 @@ export async function POST(req: NextRequest) {
         }, {
           store: {
             async recordCall(r) {
-              await (admin as any).from('rfp_llm_calls').insert({
-                org_id: r.orgId, case_id: null, model_id: r.modelId, purpose: r.purpose,
+              // 칸 이름은 표에 맞춘다. supabase-js 는 없는 칸을 던지지 않고 돌려주므로
+              // 틀리면 기록이 조용히 0건이 된다
+              const { error } = await (admin as any).from('rfp_llm_calls').insert({
+                org_id: r.orgId, model_id: uuidOrNull(r.modelId), purpose: r.purpose,
                 input_tokens: r.inputTokens, output_tokens: r.outputTokens, cost_krw: r.costKrw,
-                latency_ms: r.latencyMs, ok: r.ok, error: r.error,
+                latency_ms: r.latencyMs, status: r.ok ? 'ok' : 'error', error: r.error,
               })
+              if (error) console.error('[rfp] llm 호출 기록 실패', error)
             },
             async recordTransfer() {
               // 공개 등급의 한 문장이라 전송 원장에 남길 문서가 없다
@@ -108,4 +111,14 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ draft, aiSkipped })
+}
+
+/**
+ * 기록의 model_id 는 uuid 칸이다.
+ *
+ * 호스트 폴백 모델(표에 없는 것)은 id 가 'gemini' 같은 이름이라 그대로 넣으면
+ * **insert 가 통째로 실패하고 supabase 는 던지지 않는다** — 기록이 조용히 0건이 된다.
+ */
+function uuidOrNull(v: string): string | null {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : null
 }

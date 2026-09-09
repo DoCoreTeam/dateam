@@ -35,12 +35,22 @@ export class TransferBlockedError extends Error {
   }
 }
 
+/**
+ * 사슬을 다 돌았는데 하나도 안 됐다.
+ *
+ * **마지막 사유를 들고 온다.** 「시도 3개」만 남기면 왜 안 됐는지 아무도 모르고,
+ * 실제로 그래서 9번 호출이 전부 실패한 원인을 못 찾았다(실측 2026-09-09).
+ */
 export class NoModelAvailableError extends Error {
   readonly tried: string[]
-  constructor(tried: string[]) {
-    super(`쓸 수 있는 모델이 없다 (시도 ${tried.length}개)`)
+  readonly lastError: string | null
+  constructor(tried: string[], lastError: unknown = null) {
+    const why = lastError === null ? '' : `: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+    super(`쓸 수 있는 모델이 없다 (시도 ${tried.length}개)${why}`)
     this.name = 'NoModelAvailableError'
     this.tried = tried
+    this.lastError = lastError === null ? null
+      : (lastError instanceof Error ? lastError.message : String(lastError))
   }
 }
 
@@ -199,7 +209,7 @@ export async function callWithFallback(
   }
 
   if (lastError instanceof TransferBlockedError) throw lastError
-  throw new NoModelAvailableError(tried)
+  throw new NoModelAvailableError(tried, lastError)
 }
 
 /** 이 모델에 이 문서를 보내도 되나 */

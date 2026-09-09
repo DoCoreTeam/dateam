@@ -12,7 +12,7 @@ import RuleSettings from '@/components/rfp/RuleSettings'
 import TransferLog, { type TransferRow } from '@/components/rfp/TransferLog'
 import UsageDashboard from '@/components/rfp/UsageDashboard'
 import { toRule, type AnomalyRule } from '@/lib/rfp/anomaly/rules'
-import { toPolicy, SAFE_DEFAULT } from '@/lib/rfp/ai/host-providers'
+import { toPolicy, toModels } from '@/lib/rfp/ai/host-providers'
 import { getAvailableProviders } from '@/lib/ai-chat/registry'
 import { createAdminClient } from '@/lib/supabase/server'
 import styles from '../../rfp.module.css'
@@ -68,22 +68,21 @@ export default async function RfpAdminPage() {
         .eq('id', orgRow.plan_id).maybeSingle()).data
     : null
 
-  // 공급자와 키는 **관리자 설정 한 곳**에서 온다. RFP 는 등급 정책만 갖는다
+  // 키는 **관리자 설정 한 곳**에서, 「어느 등급까지 보낼 수 있나」는 RFP 표에서 온다.
+  // 실제로 분석에 쓰이는 사슬을 그대로 보여 준다 — 화면과 워커가 다른 것을 보면
+  // 「화면에는 쓸 수 있다는데 분석은 죽는」 일이 난다(실측 2026-09-09).
   const meta = await readHostMeta()
-  const byId = new Map(((policies as Record<string, unknown>[] | null) ?? [])
-    .map(toPolicy).map((p) => [p.providerId, p]))
+  const hosts = getAvailableProviders(meta).map((p) => ({ id: p.id, apiKey: p.apiKey, model: p.model }))
+  const models = toModels(hosts, ((policies as Record<string, unknown>[] | null) ?? []).map(toPolicy))
 
-  const vendors: VendorRow[] = getAvailableProviders(meta).map((p) => {
-    const policy = byId.get(p.id) ?? { providerId: p.id, ...SAFE_DEFAULT }
-    return {
-      id: p.id,
-      name: p.id,
-      modelName: p.model,
-      isInternal: policy.internal,
-      hasKey: Boolean(p.apiKey),
-      allowedDocClasses: policy.allowedDocClasses,
-    }
-  })
+  const vendors: VendorRow[] = models.map((m) => ({
+    id: m.id,
+    name: m.vendorId,
+    modelName: m.modelName,
+    isInternal: m.internal,
+    hasKey: true,
+    allowedDocClasses: m.allowedDocClasses,
+  }))
 
   const rows: UsageRow[] = ((usage as Record<string, unknown>[] | null) ?? []).map((r) => ({
     orgId: String(r.org_id),

@@ -106,6 +106,9 @@ export interface AnalyzeOutput {
   costKrw: number
   /** 등급 때문에 못 쓴 모델 — 「왜 분석이 얕나」를 설명한다 */
   excluded: string[]
+  /** 값을 못 채운 태스크와 그 사유 — 없으면 빈 배열 */
+  failures: { taskId: string; error: string }[]
+  filledFields: number
 }
 
 /** 리포트에서 사업명을 집어낸다. 태스크 fields 이름과 맞춰 둔다 */
@@ -124,7 +127,10 @@ export async function runAnalyze(
   const { doc, fileIdByBlock } = mergeDocs(input.parts)
   const pick = pickModels(input.models, { docClass: input.docClass })
   if (pick.chain.length === 0) {
-    throw new NoModelAvailableError(pick.excluded.map((e) => e.model.displayName))
+    throw new NoModelAvailableError(
+      pick.excluded.map((e) => e.model.displayName),
+      `등급 ${input.docClass} 로 쓸 수 있는 모델이 없다 (후보 ${input.models.length}개)`,
+    )
   }
 
   let spent = 0
@@ -183,6 +189,12 @@ export async function runAnalyze(
     groundingRate: base.groundingRate,
     costKrw: spent,
     excluded: pick.excluded.map((e) => `${e.model.displayName}:${e.reason}`),
+    // 리포트가 비어 나오는 것과 «내용이 없는 문서»를 화면이 구분할 수 있어야 한다.
+    // 사유를 안 남기면 둘이 똑같이 보이고, 실제로 그래서 9번 호출이 전부 실패한 것을 못 봤다
+    failures: base.outcomes.filter((o) => !o.ok).map((o) => ({
+      taskId: o.taskId, error: o.error ?? '',
+    })),
+    filledFields: base.outcomes.reduce((n, o) => n + Object.keys(o.fields).length, 0),
   }
 }
 

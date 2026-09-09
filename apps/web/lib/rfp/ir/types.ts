@@ -45,6 +45,11 @@ export type SourceRef =
    * 근거 화면이 「사람이 쓴 글」과 「기계가 읽은 글」을 구분해 보여 줘야 한다
    */
   | { kind: 'image'; pageIdx: number; extractedBy?: string }
+  /**
+   * 평문(txt·csv·md·html). 쪽도 노드 경로도 없어서 **몇 번째 문단인지**가 유일한 자리다.
+   * 이 갈래가 없던 동안 평문은 읽을 파서 자체가 없었다.
+   */
+  | { kind: 'text'; paraIdx: number }
 
 /**
  * 좌표 — **원점 좌상단, 0~1 비율**로 통일한다.

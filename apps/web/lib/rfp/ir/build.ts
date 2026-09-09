@@ -26,6 +26,7 @@ export function blockKey(fileId: string, ref: SourceRef, orderNo: number): strin
     ref.kind === 'hwp' ? `hwp:${ref.sectionIdx}:${ref.paraIdx}:${ref.charOffset ?? 0}`
     : ref.kind === 'pdf' ? `pdf:${ref.pageIdx}:${ref.charStart}:${ref.charEnd}`
     : ref.kind === 'office' ? `office:${ref.nodePath}`
+    : ref.kind === 'text' ? `text:${ref.paraIdx}`
     : `image:${ref.pageIdx}`
   return createHash('sha1').update(`${fileId}|${loc}|${orderNo}`).digest('hex').slice(0, 24)
 }

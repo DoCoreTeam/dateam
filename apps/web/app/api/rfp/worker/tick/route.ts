@@ -99,21 +99,43 @@ async function loadAi(db: ReturnType<typeof createAdminClient>) {
   return { providers, models: toModels(providers, policies), meta }
 }
 
-/** 기록 창구 — 호출과 전송을 남긴다. 남기지 않으면 비용도 유출도 못 센다 */
+/**
+ * 기록 창구 — 호출과 전송을 남긴다. 남기지 않으면 비용도 유출도 못 센다.
+ *
+ * ⚠️ 칸 이름을 표에 맞춰 둔다. supabase-js 는 **없는 칸을 오류로 돌려줄 뿐 던지지 않아서**
+ *    틀린 이름으로 넣으면 0건이 조용히 쌓인다(실측 2026-09-09: case_id·ok 로 넣어
+ *    9번 호출에 기록 0건. 화면에는 비용 0원으로만 보였다).
+ *    그래서 여기서는 오류를 **읽고 남긴다.**
+ */
 function makeStore(db: ReturnType<typeof createAdminClient>): GatewayStore {
   return {
     async recordCall(r) {
-      await (db as any).from('rfp_llm_calls').insert({
-        org_id: r.orgId, case_id: r.caseId, model_id: r.modelId, purpose: r.purpose,
-        input_tokens: r.inputTokens, output_tokens: r.outputTokens, cost_krw: r.costKrw,
-        latency_ms: r.latencyMs, ok: r.ok, error: r.error,
+      const { error } = await (db as any).from('rfp_llm_calls').insert({
+        org_id: r.orgId,
+        model_id: uuidOrNull(r.modelId),
+        purpose: r.purpose,
+        input_tokens: r.inputTokens,
+        output_tokens: r.outputTokens,
+        cost_krw: r.costKrw,
+        latency_ms: r.latencyMs,
+        status: r.ok ? 'ok' : 'error',
+        error: r.error,
       })
+      // 기록 실패가 호출을 막지는 않는다. 다만 조용히 넘어가지도 않는다
+      if (error) console.error('[rfp] llm 호출 기록 실패', error)
     },
     async recordTransfer(r) {
-      await (db as any).from('rfp_external_transfers').insert({
-        org_id: r.orgId, case_id: r.caseId, model_id: r.modelId, doc_class: r.docClass,
-        purpose: r.purpose, masked_counts: r.maskedCounts, bytes: r.bytes,
+      const { error } = await (db as any).from('rfp_external_transfers').insert({
+        org_id: r.orgId,
+        case_id: r.caseId,
+        model_id: uuidOrNull(r.modelId),
+        doc_class: r.docClass,
+        purpose: r.purpose,
+        // 무엇을 몇 개 가렸는지만 센다 — **값은 남기지 않는다**
+        token_count: Object.values(r.maskedCounts).reduce((n, v) => n + v, 0),
+        redaction_applied: Object.keys(r.maskedCounts).length > 0,
       })
+      if (error) console.error('[rfp] 외부 전송 기록 실패', error)
     },
   }
 }
@@ -155,7 +177,10 @@ async function runJob(db: ReturnType<typeof createAdminClient>, job: Job): Promi
         models: ai.models,
         gateway: { store, call: caller },
       })
-      return { version: out.version, title: out.title }
+      return {
+        version: out.version, title: out.title,
+        failures: out.failures, filledFields: out.filledFields,
+      }
     },
   })
 
@@ -165,4 +190,14 @@ async function runJob(db: ReturnType<typeof createAdminClient>, job: Job): Promi
 
 function describe(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
+}
+
+/**
+ * 기록의 model_id 는 uuid 칸이다.
+ *
+ * 호스트 폴백 모델(표에 없는 것)은 id 가 'gemini' 같은 이름이라 그대로 넣으면
+ * **insert 가 통째로 실패하고 supabase 는 던지지 않는다** — 기록이 조용히 0건이 된다.
+ */
+function uuidOrNull(v: string): string | null {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : null
 }

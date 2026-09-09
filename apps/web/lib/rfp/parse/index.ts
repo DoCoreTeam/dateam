@@ -21,8 +21,9 @@ import type { IrDocument } from '../ir/types.ts'
 import { checkKind, type DetectedKind, type KindCheck } from './quality.ts'
 import { parseHwp, type HwpRejectReason } from './hwp.ts'
 import { parseOfficeDoc, type OfficeRejectReason } from './office.ts'
+import { parsePlain, type PlainRejectReason } from './plain.ts'
 
-export type ParserName = 'rhwp' | 'officeparser'
+export type ParserName = 'rhwp' | 'officeparser' | 'plain'
 
 export type ParseRejectReason =
   | 'extension_mismatch'
@@ -30,6 +31,7 @@ export type ParseRejectReason =
   | 'no_parser'
   | HwpRejectReason
   | OfficeRejectReason
+  | PlainRejectReason
 
 export interface ParseAttempt {
   parser: ParserName
@@ -61,7 +63,9 @@ const ROUTES: Partial<Record<DetectedKind, readonly ParserName[]>> = {
   ooxml: ['officeparser'],
   odf: ['officeparser'],
   rtf: ['officeparser'],
-  text: ['officeparser'],
+  // 평문은 **파서가 따로 있다.** officeparser 로 보내면 unsupported_format 으로 죽는다 —
+  // 판정은 text 인데 처리는 없는 상태였고, txt 공고문이 통째로 안 읽혔다
+  text: ['plain'],
 }
 
 /**
@@ -101,6 +105,20 @@ export async function parseFile(input: ParseFileInput): Promise<ParseResult> {
       continue
     }
 
+    if (parser === 'plain') {
+      const r = parsePlain(input.bytes, {
+        fileId: input.fileId, fileName: input.fileName, fileRole: input.fileRole,
+      })
+      if (r.ok) {
+        attempts.push({ parser, ok: true, reason: null })
+        return { ok: true, doc: r.doc, scanPages: [], attempts }
+      }
+      attempts.push({ parser, ok: false, reason: r.reason })
+      lastReason = r.reason
+      lastDetail = r.detail
+      continue
+    }
+
     const r = await parseOfficeDoc(input.bytes, { fileId: input.fileId, fileRole: input.fileRole })
     if (r.ok) {
       attempts.push({ parser, ok: true, reason: null })
@@ -130,6 +148,7 @@ function describeMismatch(k: Extract<KindCheck, { ok: false }>): string {
 export { checkKind, scoreQuality, isLowQuality, QUALITY_WARN_BELOW, detectKind, kindOfExtension } from './quality.ts'
 export { parseHwp, sniffHwp } from './hwp.ts'
 export { parseOfficeDoc, astToIr, needsImageText } from './office.ts'
+export { parsePlain, decodeText, stripHtml, toParagraphs } from './plain.ts'
 export { unbundle, isZip } from './bundle.ts'
 export { guessFileRole, pickMainFile, needsRoleConfirm } from './role.ts'
 export {

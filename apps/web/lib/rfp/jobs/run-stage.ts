@@ -49,7 +49,13 @@ export interface StageDeps {
   loadIrDocs(caseId: string): Promise<{ fileId: string; doc: IrDocument }[]>
   saveRequirements(kase: CaseRow, docs: { fileId: string; doc: IrDocument }[]): Promise<number>
   saveChunks(kase: CaseRow, docs: { fileId: string; doc: IrDocument }[]): Promise<number>
-  analyze(kase: CaseRow, docs: { fileId: string; doc: IrDocument }[]): Promise<{ version: number; title: string | null }>
+  analyze(kase: CaseRow, docs: { fileId: string; doc: IrDocument }[]): Promise<{
+    version: number
+    title: string | null
+    /** 값을 못 채운 태스크와 사유 — 빈 리포트가 왜 비었는지 */
+    failures?: { taskId: string; error: string }[]
+    filledFields?: number
+  }>
   setStage(caseId: string, stage: string): Promise<void>
   setTitle(caseId: string, title: string): Promise<void>
   enqueue(input: { orgId: string; caseId: string; jobType: JobType; dedupeKey: string; priority: number; version: number }): Promise<void>
@@ -167,5 +173,11 @@ async function runAnalyze(deps: StageDeps, kase: CaseRow): Promise<StageResult> 
     await deps.setTitle(kase.id, out.title)
   }
 
-  return { reportVersion: out.version, titleUpdated: Boolean(out.title) && !kase.titleConfirmed }
+  return {
+    reportVersion: out.version,
+    titleUpdated: Boolean(out.title) && !kase.titleConfirmed,
+    // 잡 진행에 남긴다 — 리포트가 비어 나온 이유를 나중에 찾을 수 있어야 한다
+    filledFields: out.filledFields ?? null,
+    failures: out.failures ?? [],
+  }
 }

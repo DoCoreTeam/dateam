@@ -116,17 +116,24 @@ export async function POST(req: NextRequest) {
         }, {
           store: {
             async recordCall(r) {
-              await (admin as any).from('rfp_llm_calls').insert({
-                org_id: r.orgId, case_id: null, model_id: r.modelId, purpose: r.purpose,
+              // 칸 이름은 표에 맞춘다. supabase-js 는 없는 칸을 던지지 않고 돌려주므로
+              // 틀리면 기록이 조용히 0건이 된다
+              const { error } = await (admin as any).from('rfp_llm_calls').insert({
+                org_id: r.orgId, model_id: uuidOrNull(r.modelId), purpose: r.purpose,
                 input_tokens: r.inputTokens, output_tokens: r.outputTokens, cost_krw: r.costKrw,
-                latency_ms: r.latencyMs, ok: r.ok, error: r.error,
+                latency_ms: r.latencyMs, status: r.ok ? 'ok' : 'error', error: r.error,
               })
+              if (error) console.error('[rfp] llm 호출 기록 실패', error)
             },
             async recordTransfer(r) {
-              await (admin as any).from('rfp_external_transfers').insert({
-                org_id: r.orgId, case_id: null, model_id: r.modelId, doc_class: r.docClass,
-                purpose: r.purpose, masked_counts: r.maskedCounts, bytes: r.bytes,
+              const { error } = await (admin as any).from('rfp_external_transfers').insert({
+                org_id: r.orgId, case_id: null, model_id: uuidOrNull(r.modelId), doc_class: r.docClass,
+                purpose: r.purpose,
+                // 무엇을 몇 개 가렸는지만 센다 — 값은 남기지 않는다
+                token_count: Object.values(r.maskedCounts).reduce((n, v) => n + v, 0),
+                redaction_applied: Object.keys(r.maskedCounts).length > 0,
               })
+              if (error) console.error('[rfp] 외부 전송 기록 실패', error)
             },
           },
           call: makeHostCaller({ providers }),
@@ -172,4 +179,14 @@ export async function POST(req: NextRequest) {
     // AI 를 건너뛰었으면 그 사실을 말한다 — 조용히 건너뛰면 「왜 비지」를 설명 못 한다
     aiSkipped,
   }, { status: 201 })
+}
+
+/**
+ * 기록의 model_id 는 uuid 칸이다.
+ *
+ * 호스트 폴백 모델(표에 없는 것)은 id 가 'gemini' 같은 이름이라 그대로 넣으면
+ * **insert 가 통째로 실패하고 supabase 는 던지지 않는다** — 기록이 조용히 0건이 된다.
+ */
+function uuidOrNull(v: string): string | null {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : null
 }
