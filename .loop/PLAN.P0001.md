@@ -385,7 +385,7 @@
 의존: I29
 
 ### I32 알림 채널
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/notify/notify.ts, 신규 apps/web/lib/rfp/notify/notify.test.ts, 신규 apps/web/app/api/rfp/notifications/route.ts
 감사 기준:
