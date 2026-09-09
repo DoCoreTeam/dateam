@@ -477,7 +477,7 @@
 의존: I22, I23, I33, I38
 
 ### I41 화면 레이더와 결과 기록
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/app/(rfp)/rfp/radar/page.tsx, 신규 apps/web/components/rfp/RadarRules.tsx, 신규 apps/web/components/rfp/OutcomeForm.tsx, 신규 apps/web/components/rfp/RevisionDiffPanel.tsx
 감사 기준:
@@ -537,6 +537,9 @@
 - 그 시점에 I18 은 이미 구현·검증·커밋(5883e198)까지 끝났는데 `loop pass` 기록만 빠졌다 — 여기서 통과로 되돌렸다
 - 이후 항목은 이 파일이 재개 근거다. loop CLI 의 활성 플랜은 다른 세션 것이므로 상태는 여기서 직접 적는다
 - 커밋 형식은 그대로 `vX.Y.Z-Ixx: 제목`
+- I41 의 결과 기록 폼(`OutcomeForm`)과 정정공고 비교(`RevisionDiffPanel`)는 **부품까지** 만들었고
+  케이스 상세에 꽂는 것은 I42 뒤에 리포트 화면을 한 번 더 손볼 때 함께 한다 —
+  지금은 `/rfp/radar` 만 라우트가 있다
 - I39 에서 가드가 결함 1건을 잡았다: 어시스턴트 입력의 Enter 가 `lib/ui/ime` SSOT 를 안 거쳐
   한글 입력 중 확정 Enter 가 질문을 보냈을 자리였다 → `isEnterKey`+`isImeComposing`
 - I39 의 「교차검증 확인 후 새 버전 생성」과 「불일치에서 사용자 최종값 선택」은 **화면까지만** 확인했다 —
