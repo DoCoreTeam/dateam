@@ -268,7 +268,7 @@
 의존: I18
 
 ### I21 이상 조항 통계 층과 AI 층과 병합
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/anomaly/stat.ts, 신규 apps/web/lib/rfp/anomaly/llm.ts, 신규 apps/web/lib/rfp/anomaly/merge.ts, 신규 apps/web/lib/rfp/anomaly/merge.test.ts
 감사 기준:
