@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { logTokenUsage } from '@/lib/token-logger'
-import { getProvider, getProviderConfig } from '@/lib/ai-chat/registry'
-import type { ChatTurn, AttachmentInput } from '@/lib/ai-chat/provider'
+import { getProvider, getProviderConfig, getAvailableProviders } from '@/lib/ai-chat/registry'
+import type { ChatTurn, AttachmentInput, StreamChatResult } from '@/lib/ai-chat/provider'
 import { buildActiveThread } from '@/lib/ai-chat/thread'
 import {
   attachmentFallbackText,
@@ -13,7 +13,12 @@ import { extractDocumentText } from '@/lib/ai-chat/document-extract'
 import { retrieveProjectContext, buildProjectSystemBlock } from '@/lib/ai-chat/knowledge'
 import { autoTitle } from '@/app/admin/ai-chat/actions'
 import { classifyProviderError } from '@/lib/ai-chat/provider-errors'
-import { getModelSelectionError } from '@/lib/ai-chat/model-availability'
+import {
+  buildModelChain,
+  pruneChain,
+  formatFallbackNotice,
+  type ChainCandidate,
+} from '@/lib/ai-chat/model-chain'
 import type { AiChatConversation, AiChatCitation } from '@/types/database'
 
 export const runtime = 'nodejs' // extractDocumentText(officeparser) + Buffer 사용
@@ -306,9 +311,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
   }
 
-  const unavailable = await getModelSelectionError(adminClient, conversation.provider, conversation.model)
-  if (unavailable) return NextResponse.json({ error: unavailable }, { status: 409 })
-
   const provider = getProvider(conversation.provider)
   const visionSupported = provider.capabilities.vision
 
@@ -432,8 +434,36 @@ export async function POST(req: NextRequest) {
   }
   const systemForStream = composedSystem.trim() ? composedSystem : undefined
 
-  const providerName = conversation.provider
-  const model = conversation.model
+  /**
+   * 시도할 후보를 만든다 — 고른 모델부터, 막히면 다음으로(lib/ai-chat/model-chain).
+   *
+   * 예전엔 여기서 카탈로그가 「못 쓴다」고 하면 409 로 끊고 「다른 모델을 선택하세요」라고 했다.
+   * 사용자는 어느 모델이 살아 있는지 알 방법이 없어서, 그 안내는 막다른 길이었다.
+   */
+  const { data: catalogRows } = await adminClient
+    .from('ai_model_catalog')
+    .select('provider, model_id, is_active, availability')
+  const chain = buildModelChain({
+    chosen: { provider: conversation.provider, model: conversation.model },
+    providers: getAvailableProviders(meta),
+    catalog: (catalogRows as { provider: string; model_id: string }[] | null) ?? [],
+    capabilities: {
+      gemini: getProvider('gemini').capabilities,
+      claude: getProvider('claude').capabilities,
+      openai: getProvider('openai').capabilities,
+    },
+    requires: { vision: attachmentIds.length > 0, tools: webSearchRequested },
+  })
+  if (chain.length === 0) {
+    return NextResponse.json(
+      { error: '지금 쓸 수 있는 AI 모델이 없습니다. 관리자 설정에서 키와 모델 상태를 확인하세요' },
+      { status: 503 },
+    )
+  }
+
+  // 실제로 답한 공급자·모델을 기록한다 — 고른 것과 다를 수 있다
+  let providerName = conversation.provider
+  let model = conversation.model
   const isFirstTitle = conversation.title === '새 대화'
 
   const stream = new ReadableStream({
@@ -453,21 +483,80 @@ export async function POST(req: NextRequest) {
         return true
       }
 
+      /** 막힌 모델을 카탈로그에 즉시 반영한다 — 다음 요청은 그 벽을 다시 치지 않는다 */
+      const learnFailure = async (cand: ChainCandidate, err: unknown) => {
+        const { message, availability } = classifyProviderError(err)
+        if (!availability) return
+        try {
+          await adminClient.from('ai_model_catalog')
+            .update({
+              is_active: true,
+              availability,
+              availability_reason: message,
+              availability_checked_at: new Date().toISOString(),
+            }).eq('provider', cand.provider).eq('model_id', cand.model)
+        } catch { /* best-effort */ }
+      }
+
       try {
-        const result = await provider.streamChat({
-          apiKey: config.apiKey,
-          model,
-          system: systemForStream,
-          turns,
-          tools: toolsOption,
-          signal: req.signal,
-          onDelta: (t) => enqueue({ delta: t }),
-          onThinking: (t) => enqueue({ thinking: t }),
-          onCitation: (c) => {
-            if (collectCitation(c)) enqueue({ citation: c })
-          },
-          onToolStatus: (s) => enqueue({ toolStatus: s }),
-        })
+        /**
+         * 후보를 순서대로 시도한다. 한 모델이 막혔다고 화면이 죽지 않게.
+         * 갈아탈 때는 반드시 알린다 — 비용과 품질이 달라지는 일이라 조용히 바꾸면 안 된다.
+         */
+        let rest: ChainCandidate[] = chain
+        let outcome: StreamChatResult | null = null
+        let lastError: unknown = null
+
+        while (rest.length > 0) {
+          const cand = rest[0]
+          rest = rest.slice(1)
+          providerName = cand.provider
+          model = cand.model
+          let emittedAny = false
+
+          try {
+            outcome = await getProvider(cand.provider).streamChat({
+              apiKey: cand.apiKey,
+              model: cand.model,
+              system: systemForStream,
+              turns,
+              tools: toolsOption,
+              signal: req.signal,
+              onDelta: (t) => { emittedAny = true; enqueue({ delta: t }) },
+              onThinking: (t) => { emittedAny = true; enqueue({ thinking: t }) },
+              onCitation: (c) => {
+                if (collectCitation(c)) enqueue({ citation: c })
+              },
+              onToolStatus: (s) => enqueue({ toolStatus: s }),
+            })
+            break
+          } catch (err) {
+            // 사용자 Stop·클라 이탈은 폴백 대상이 아니다 — 다음 모델을 불러 봐야 돈만 쓴다
+            if (req.signal.aborted) throw err
+            lastError = err
+            console.error('[ai-chat/stream] 후보 실패', cand.provider, cand.model, err)
+            await learnFailure(cand, err)
+            rest = pruneChain(rest, cand, classifyProviderError(err).scope)
+            const next = rest[0]
+            if (!next) break
+
+            // 여기까지 흘린 조각은 다음 후보의 답이 아니다 — 화면 버퍼를 비우게 한다
+            citations.length = 0
+            seenUrls.clear()
+            enqueue({
+              switched: formatFallbackNotice({
+                fromLabel: getProvider(cand.provider).label,
+                fromModel: cand.model,
+                toLabel: getProvider(next.provider).label,
+                toModel: next.model,
+              }),
+              reset: emittedAny,
+            })
+          }
+        }
+
+        if (!outcome) throw lastError ?? new Error('사용할 수 있는 모델이 없습니다')
+        const result = outcome
 
         // 프로바이더가 result.citations로만 보고한 분도 병합(dedupe)
         for (const c of result.citations ?? []) collectCitation(c)
@@ -530,7 +619,8 @@ export async function POST(req: NextRequest) {
           autoTitle(conversationId).catch(() => {})
         }
 
-        enqueue({ done: true, messageId })
+        // 실제로 답한 것을 함께 보낸다 — 화면이 「무엇이 답했는지」를 그릴 수 있게
+        enqueue({ done: true, messageId, provider: providerName, model })
       } catch (err) {
         // 프로바이더 예외 → 원문은 서버 로그. 클라이언트에는 사유별 친절 메시지(민감정보는 제외).
         console.error('[ai-chat/stream] provider error', err)

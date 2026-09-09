@@ -1,6 +1,6 @@
 # PLAN newAX: RFP 분석 시스템 전 범위
 플랜 ID: P0001
-플랜 버전: v0.4.2
+플랜 버전: v0.4.3
 상태: 진행중
 지시: ins_0006
 목표 버전: v0.8.0
@@ -128,9 +128,9 @@
 의존: I05
 
 ### I08 이미지 블록 텍스트화
-상태: 대기
+상태: 통과
 모드: 경량
-범위: 신규 apps/web/lib/rfp/parse/image-text.ts, 신규 apps/web/lib/rfp/parse/image-text.test.ts
+범위: 신규 apps/web/lib/rfp/parse/image-text.ts, 신규 apps/web/lib/rfp/parse/image-text.test.ts, apps/web/lib/rfp/ir/types.ts
 감사 기준:
 - node --test 로 image-text.test.ts 통과
 - 텍스트 레이어가 없는 페이지와 문서 안에 박힌 그림 블록만 대상이 되고, 텍스트가 이미 있는 페이지는 모델을 부르지 않는 단정
@@ -530,3 +530,4 @@
 - v0.4.0 (2026-09-09) I01 중 선행 작업 누락 발견, pnpm test 선행 실패 3건을 정리하는 I01a 삽입 (audit:I01)
 - v0.4.1 (2026-09-09) 선행 실패 가드 3건이 완료 정의(pnpm test 통과)를 막아 I01a 삽입 (audit:I01)
 - v0.4.2 (2026-09-09) I06 범위에서 pnpm-lock.yaml 을 뺀다 — 이 저장소는 .gitignore:29 로 잠금 파일을 추적하지 않아 커밋 대상이 될 수 없다 (audit:I06)
+- v0.4.3 (2026-09-09) I08 범위에 ir/types.ts 를 넣는다 — 이미지에서 뽑은 블록은 '어느 모델·엔진이 읽었나'를 근거에 실어야 하는데 SourceRef 의 image 갈래에 그 칸이 없다 (audit:I08)

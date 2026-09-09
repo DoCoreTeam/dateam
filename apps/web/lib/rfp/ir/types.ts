@@ -40,7 +40,11 @@ export type SourceRef =
   | { kind: 'hwp'; sectionIdx: number; paraIdx: number; charOffset?: number }
   | { kind: 'pdf'; pageIdx: number; charStart: number; charEnd: number }
   | { kind: 'office'; nodePath: string }
-  | { kind: 'image'; pageIdx: number }
+  /**
+   * 이미지에서 뽑은 글자. `extractedBy` 는 어느 모델·엔진이 읽었는지다 —
+   * 근거 화면이 「사람이 쓴 글」과 「기계가 읽은 글」을 구분해 보여 줘야 한다
+   */
+  | { kind: 'image'; pageIdx: number; extractedBy?: string }
 
 /**
  * 좌표 — **원점 좌상단, 0~1 비율**로 통일한다.
