@@ -415,7 +415,7 @@
 의존: I25, I28
 
 ### I35 리포트 내보내기
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/export/markdown.ts, 신규 apps/web/lib/rfp/export/pdf.ts, 신규 apps/web/lib/rfp/export/export.test.ts, 신규 apps/web/app/api/rfp/cases/[id]/export/route.ts
 감사 기준:
