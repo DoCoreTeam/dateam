@@ -537,6 +537,11 @@
 - 그 시점에 I18 은 이미 구현·검증·커밋(5883e198)까지 끝났는데 `loop pass` 기록만 빠졌다 — 여기서 통과로 되돌렸다
 - 이후 항목은 이 파일이 재개 근거다. loop CLI 의 활성 플랜은 다른 세션 것이므로 상태는 여기서 직접 적는다
 - 커밋 형식은 그대로 `vX.Y.Z-Ixx: 제목`
+- I23 실호출에서 내 회귀 1건을 잡아 고쳤다(M-9 ①): `@rhwp/core` 의 `rhwp_bg.wasm` 을 webpack 이 번들하려다
+  `/api/rfp/profile/draft` 가 500 이었고 프로덕션 빌드도 실패했다
+  - `require.resolve` 의 문자열을 런타임 조립으로 바꿔 정적 분석을 피하고, next.config 의 external + outputFileTracingIncludes 에 등재
+  - 가드 `lib/ui/deploy-fragile.test.ts` 의 BINARY_BACKED 에 사유와 함께 추가(그 가드가 요구하는 절차다)
+  - 격리 빌드(`NEXT_DIST_DIR=.next-rfp-check`)로 확인 후 산출물과 tsconfig 자동 변경을 되돌림
 - I20 시점 범위 밖 발견(M-9 ③): 다른 세션이 AI 공급자를 다섯으로 넓히는 중이라 `tsc` 4건·`lint` 1건·테스트 2건이 그쪽에서 실패한다
   - `app/admin/settings/page.tsx`·`lib/ai-chat/model-catalog.ts`·`lib/ai-chat/registry.ts` 가 `Record<AiProviderId,…>` 에 groq·grok 을 아직 안 채웠다
   - `app/(crm)/crm/reports/MetricsClient.tsx:683` 의 `DealHits` 가 정의되지 않았다

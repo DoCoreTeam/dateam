@@ -43,7 +43,13 @@ function scanApp(exts: readonly string[], roots: readonly string[] = ['app']): {
  * external 로 지정해도 되는 패키지 — **런타임에 바이너리·네이티브 파일을 푸는 것만**.
  * 순수 JS 는 번들하면 되고, 번들하면 배포본이 어긋날 자리 자체가 없어진다.
  */
-const BINARY_BACKED = new Set(['puppeteer-core', '@sparticuz/chromium'])
+const BINARY_BACKED = new Set([
+  'puppeteer-core',
+  '@sparticuz/chromium',
+  // 한글 문서 파서 — `rhwp_bg.wasm` 을 `readFileSync` 로 읽어 `initSync` 에 넘긴다.
+  // 번들하면 webpack 이 wasm 을 JS 로 파싱하다 죽는다(실측: /api/rfp/profile/draft 500).
+  '@rhwp/core',
+])
 
 test('① 번들 밖(external) 지정은 바이너리를 다루는 패키지만 — 순수 JS 를 올리지 않는다', () => {
   const cfg = read('next.config.js')

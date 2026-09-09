@@ -127,8 +127,12 @@ export async function initHwpEngine(): Promise<RhwpModule> {
   if (engine) return engine
   const mod = (await import('@rhwp/core')) as RhwpModule
   const require = createRequire(import.meta.url)
-  const wasmPath = require.resolve('@rhwp/core/rhwp_bg.wasm')
-  mod.initSync({ module: readFileSync(wasmPath) })
+  // 경로를 **런타임에 조립한다.** 문자열 그대로 두면 webpack 이 정적으로 읽어
+  // `.wasm` 을 자바스크립트로 번들하려다 빌드가 죽는다
+  // (실측 2026-09-09: "Module parse failed … not flagged as WebAssembly module").
+  // next.config 의 serverComponentsExternalPackages 는 패키지 진입점만 덮고 서브경로는 못 덮는다.
+  const wasmSpecifier = ['@rhwp', 'core', 'rhwp_bg.wasm'].join('/')
+  mod.initSync({ module: readFileSync(require.resolve(wasmSpecifier)) })
   engine = mod
   return mod
 }

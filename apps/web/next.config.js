@@ -19,6 +19,17 @@ const SERVERLESS_CHROMIUM = [
   '../../node_modules/.pnpm/puppeteer-core@*/node_modules/puppeteer-core/**/*',
 ]
 
+// 한글 문서 파서(WASM) 를 배포본에 싣는 경로.
+//
+// `@rhwp/core` 는 `rhwp_bg.wasm` 을 **파일로 읽는다**(`initSync({module: readFileSync(...)})`).
+// webpack 이 이 패키지를 번들하려 들면 wasm 을 자바스크립트로 파싱하다 죽는다
+// (실측 2026-09-09: `/api/rfp/profile/draft` 가 500 — "Module parse failed: Unexpected character '\u0000'").
+// 그래서 external 로 빼되, **그러면 배포본에 안 실리므로** 여기서 함께 지목한다.
+// glob 은 위 크로미움과 같은 이유로 **패키지 실물 디렉터리까지** 내려간다.
+const RHWP_WASM = [
+  '../../node_modules/.pnpm/@rhwp+core@*/node_modules/@rhwp/core/**/*',
+]
+
 const nextConfig = {
   // dev 서버를 켠 채로 프로덕션 빌드를 검증할 수 있게 출력 경로를 열어 둔다.
   // (기본값은 그대로 '.next' — 환경변수를 안 주면 아무것도 달라지지 않는다)
@@ -38,7 +49,7 @@ const nextConfig = {
     //   ① 번들해도 되는 순수 JS 패키지는 **여기 올리지 않는다**(sanitize-html 이 그랬다).
     //   ② 정말 올려야 하면 아래 outputFileTracingIncludes 에 **함께** 적어 배포본 포함을 강제한다.
     // 가드: lib/ui/deploy-fragile.test.ts 가 ①②를 검사한다.
-    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
+    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium', '@rhwp/core'],
 
     // 위 external 패키지를 **배포본에 반드시 싣는다**(파일 추적 보강).
     //
@@ -62,6 +73,10 @@ const nextConfig = {
       '/api/meeting-notes/[id]/export': SERVERLESS_CHROMIUM,
       '/api/admin/ai-chat/export-pdf': SERVERLESS_CHROMIUM,
       '/api/admin/ai-chat/analyze-export-pdf': SERVERLESS_CHROMIUM,
+      // 한글 문서를 읽는 경로 — RFP 첨부 인입과 프로필 초안
+      '/api/rfp/cases/[id]/files': RHWP_WASM,
+      '/api/rfp/profile/draft': RHWP_WASM,
+      '/api/rfp/worker/tick': RHWP_WASM,
     },
   },
   env: {
