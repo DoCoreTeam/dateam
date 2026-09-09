@@ -161,7 +161,11 @@ test('전사가 없는 것은 실패가 아니라 아직 할 게 없는 것이�
 test('★ 라우트가 서비스를 부르고, 화면이 그 라우트를 부른다 — 만들고 안 꽂으면 없는 기능이다', () => {
   assert.match(ROUTE, /finishMeeting\(/, '라우트가 서비스를 안 부른다')
   assert.match(DETAIL, /meetings\/\$\{meetingId\}\/finish/, '화면이 라우트를 안 부른다')
-  assert.match(DETAIL, /'미팅 끝내기'/, '버튼이 없다')
+  /*
+    버튼 라벨은 v0.7.702 부터 SSOT 가 정한다(`lib/crm/ui/finish-progress`) — 도는 동안
+    단계를 밝혀야 해서 화면이 문자열을 짓지 않는다. 여기서는 **버튼이 있는지**만 본다.
+  */
+  assert.match(DETAIL, /finishButtonLabel\(finishPhase/, '버튼이 없다')
 })
 
 test('★ 녹음을 먼저 멈춘다 — 마지막 몇 분이 정리에서 빠지면 사용자는 그걸 모른다', () => {

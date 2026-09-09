@@ -58,3 +58,31 @@ export function meetingStatusKey(row: MeetingStatusInput): MeetingStatusKey {
 export function meetingStatusMeta(row: MeetingStatusInput): { label: string; status: StatusKey } {
   return MEETING_STATUS_META[meetingStatusKey(row)] ?? MEETING_STATUS_META.EMPTY
 }
+
+/**
+ * 끝났나 — **위 상태와 다른 축이다.**
+ *
+ * 사용자 지적(2026-09-09): *"작성 중인 폼과 작성이 완료 된 폼과 전혀 변화가 없어서 구분이 안되는데"*
+ *
+ * 끝냄을 위 다섯 값에 끼워 넣지 않는 이유: 그러면 **한 배지가 두 가지를 뜻하게 된다.**
+ * 「정리됨」과 「끝남」은 함께 참일 수 있는데, 한 자리에 우겨넣으면 하나가 다른 하나를 덮어
+ * 「정리가 됐나」를 잃는다. 같은 자리의 값은 뜻이 하나여야 한다.
+ *
+ * **끝나지 않았으면 `null` 이다** — 「진행 중」 배지를 따로 그리지 않는다.
+ * 아직 안 끝난 것이 기본 상태라, 그걸 배지로 알리면 화면이 늘 시끄럽다.
+ * 배지는 «달라진 것»에만 붙는다.
+ */
+export interface MeetingFinishView {
+  label: string
+  status: StatusKey
+  /** 마우스를 올렸을 때 나오는 말 — 언제 끝냈는지까지 밝힌다 */
+  title: string
+}
+
+export function meetingFinishView(
+  endedAt: string | null | undefined,
+  formatWhen: (iso: string) => string,
+): MeetingFinishView | null {
+  if (!endedAt) return null
+  return { label: '끝남', status: 'done', title: `${formatWhen(endedAt)}에 끝냈어요` }
+}

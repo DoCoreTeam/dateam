@@ -105,13 +105,58 @@ async function loadGeminiConfig(): Promise<{ apiKey: string; model: string }> {
 }
 
 /**
+ * 남은 시간을 아는 예산.
+ *
+ * **왜 필요한가**: 이 함수는 라우트 둘이 부른다 — 정리 전용 라우트(상한 300초)와
+ * 「미팅 끝내기」(상한 300초인데 그 안에서 5축 추출까지 이어 돌린다).
+ * 정리만으로 최대 340초(요약 100 + 정리 240)를 허용하므로, 끝내기 쪽은
+ * **정리가 자기 상한을 다 쓰기 전에 라우트가 먼저 죽는다.** 그러면 사용자는
+ * 아무 말도 못 듣고 화면은 멈춘 것처럼 보인다 — 이 판에서 고치려는 바로 그 상태다.
+ *
+ * 예산을 안 주면 `null` 이고, 그때는 모듈 상한을 그대로 쓴다(정리 전용 라우트의 기존 동작).
+ */
+function makeBudget(budgetMs: number | undefined) {
+  const deadline = typeof budgetMs === 'number' && budgetMs > 0 ? Date.now() + budgetMs : null
+  return {
+    /** 남은 시간. 예산이 없으면 무한 */
+    remaining(): number {
+      return deadline === null ? Number.POSITIVE_INFINITY : Math.max(0, deadline - Date.now())
+    },
+    /**
+     * 상한을 남은 시간으로 깎는다. **최저 5초는 남긴다** —
+     * 0 을 넘기면 호출이 시작하자마자 중단돼 「시간 초과」가 아니라 「네트워크 오류」로 보고된다.
+     */
+    cap(ms: number): number {
+      if (deadline === null) return ms
+      return Math.max(5_000, Math.min(ms, this.remaining()))
+    },
+  }
+}
+
+/** 구간을 나눠 읽을 때, 마지막 종합에 반드시 남겨 두는 시간 */
+const DIGEST_FINAL_RESERVE_MS = 60_000
+
+export interface DigestRunOptions {
+  /**
+   * 이 시간 안에 끝내야 한다(밀리초). 부르는 라우트가 자기 상한에서 역산해 넘긴다.
+   * 안 넘기면 모듈 상한을 그대로 쓴다.
+   */
+  budgetMs?: number
+}
+
+/**
  * 정리를 한 판 돌린다.
  *
  * 던지는 것: 키 없음·모델 전부 실패(`GeminiCallError`). 호출부가 사람 말로 옮긴다.
  * 던지지 않는 것: 결과가 0건인 경우 — 그건 정상 답이다("확실한 내용을 못 찾았다").
  */
-export async function runMeetingDigest(noteId: string, userId: string): Promise<DigestRunResult> {
+export async function runMeetingDigest(
+  noteId: string,
+  userId: string,
+  opts: DigestRunOptions = {},
+): Promise<DigestRunResult> {
   const db = admin()
+  const budget = makeBudget(opts.budgetMs)
 
   const { data: note } = await db
     .from('meeting_notes')
@@ -166,11 +211,22 @@ export async function runMeetingDigest(noteId: string, userId: string): Promise<
     const condensed: { partIdx: number; facts: { text: string; segmentIds: string[] }[] }[] = []
     let failed = 0
     for (const chunk of plan.chunks) {
+      /*
+        **종합할 시간을 남겨 둔다.** 구간을 끝까지 읽고 나서 종합할 시간이 없으면
+        읽은 것이 통째로 버려진다 — 실패 하나가 전부를 잃게 만드는 자리다.
+        남은 예산이 모자라면 그 구간은 「못 읽음」으로 세고 종합으로 넘어간다.
+      */
+      if (budget.remaining() < DIGEST_FINAL_RESERVE_MS + 5_000) {
+        failed += 1
+        condensed.push({ partIdx: chunk.partIdx, facts: [] })
+        continue
+      }
       try {
+        const condenseOverall = budget.cap(CONDENSE_OVERALL_MS)
         const out = await callGeminiJson({
           prompt: buildPartCondensePrompt(chunk.partIdx, chunk.text),
           apiKey, model, temperature: 0.0, feature: 'meeting_digest_condense',
-          timeoutMs: CONDENSE_CALL_MS, overallTimeoutMs: CONDENSE_OVERALL_MS,
+          timeoutMs: Math.min(CONDENSE_CALL_MS, condenseOverall), overallTimeoutMs: condenseOverall,
         })
         condensed.push({ partIdx: chunk.partIdx, facts: parseCondensedFacts(out.value, knownIds) })
       } catch {

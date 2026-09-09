@@ -36,6 +36,7 @@ import { shouldStartWriting, plainTextLength } from '@/lib/meeting/memo-mode'
 import InlineError from '@/components/ui/InlineError'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import { useDraftPersist } from '@/lib/forms/useDraftPersist'
+import { registerPendingSave, type FlushOutcome } from '@/lib/meeting/pending-save'
 import styles from './workbench.module.css'
 
 /** 자동저장 간격. 회의 중 타이핑을 끊지 않으면서, 잃어도 5초어치인 값 */
@@ -105,9 +106,16 @@ export default function MeetingMemoEditor({
   const clearDraft = useRef(draft.clear)
   clearDraft.current = draft.clear
 
-  const push = useCallback(async () => {
+  /**
+   * 지금 값을 서버에 보낸다.
+   *
+   * **결과를 돌려준다** — 「보낼 게 없었다(nothing)」와 「보내려다 실패했다(failed)」는
+   * 다른 사실이다. 「미팅 끝내기」가 이 둘을 구분해야 옛 글로 정리할지 판단할 수 있다
+   * (`lib/meeting/pending-save.ts`).
+   */
+  const push = useCallback(async (): Promise<FlushOutcome> => {
     const value = latest.current
-    if (value === savedHtml.current) { setState('clean'); return }
+    if (value === savedHtml.current) { setState('clean'); return 'nothing' }
     setState('saving')
     try {
       const res = await fetch(`/api/meeting-notes/${noteId}`, {
@@ -119,7 +127,7 @@ export default function MeetingMemoEditor({
         const body = await res.json().catch(() => ({}))
         setError(body?.error ?? '저장하지 못했어요. 잠시 후 다시 시도할게요.')
         setState('error')
-        return
+        return 'failed'
       }
       savedHtml.current = value
       setSavedAt(Date.now())
@@ -127,11 +135,26 @@ export default function MeetingMemoEditor({
       setError(null)
       // 서버가 받았으니 로컬 사본은 지운다 — 남겨 두면 다음 방문에 복원 배너가 헛되이 뜬다
       clearDraft.current()
+      return 'saved'
     } catch {
       setError('저장하지 못했어요. 연결을 확인해 주세요. 쓰던 글은 이 브라우저에 남아 있습니다.')
       setState('error')
+      return 'failed'
     }
   }, [noteId])
+
+  /**
+   * 「미팅 끝내기」가 정리를 시작하기 전에 이 글을 밀어 넣을 수 있게 등록한다.
+   *
+   * 5초 디바운스가 안 터진 상태에서 끝내기를 누르면 방금 친 문장이 서버에 없다.
+   * 그대로 정리하면 **그 문장이 빠진 글**을 읽고, 사용자는 빠졌다는 사실조차 모른다.
+   *
+   * 고칠 수 없는 사람은 등록하지 않는다 — 저장할 권한이 없으니 밀어 넣을 것도 없다.
+   */
+  useEffect(() => {
+    if (!canEdit) return
+    return registerPendingSave(`meeting-memo:${noteId}`, push)
+  }, [canEdit, noteId, push])
 
   const onChange = useCallback((next: string) => {
     setHtml(next)

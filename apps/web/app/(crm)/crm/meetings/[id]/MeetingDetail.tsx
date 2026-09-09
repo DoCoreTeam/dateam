@@ -30,6 +30,9 @@ import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { describeSuggestionValue, TARGET_LABEL } from '@/lib/crm/format/suggestion'
 import { axisMeta } from '@/lib/crm/ui/suggestion-axis'
 import { useRecordingSession, useIsRecording } from '@/lib/meeting/recording-context'
+import { finishButtonLabel, finishProgress, finishProgressLine, type FinishPhase } from '@/lib/crm/ui/finish-progress'
+import { flushPendingSaves, hasPendingSaves } from '@/lib/meeting/pending-save'
+import { meetingFinishView } from '@/lib/crm/ui/meeting-status'
 import type { FinishResult } from '@/lib/crm/services/meeting-finish'
 import styles from './meeting-detail.module.css'
 
@@ -84,6 +87,17 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   const [highlight, setHighlight] = useState<Set<string>>(new Set())
   /** 「미팅 끝내기」의 결과 — 무엇이 됐고 무엇이 안 됐는지 그대로 보여 준다 */
   const [finished, setFinished] = useState<FinishResult | null>(null)
+  /**
+   * 끝내기가 지금 어느 단계인지. **문구는 화면이 짓지 않는다**(`lib/crm/ui/finish-progress`).
+   *
+   * 예전에는 처음부터 끝까지 「정리하는 중…」 한 문장이었다. 회의 하나를 읽는 데 수십 초가
+   * 걸리는데 그동안 움직이는 것이 없으면 사람은 그것을 「고장」으로 읽는다
+   * (실측 v0.7.702: 정리는 성공했는데 사용자는 멈춘 줄 알았다).
+   */
+  const [finishPhase, setFinishPhase] = useState<FinishPhase | null>(null)
+  /** AI 가 도는 동안 흐른 시간. 앞 단계는 1~2초라 세지 않는다 */
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const [workingSince, setWorkingSince] = useState<number | null>(null)
 
   const rec = useRecordingSession()
   const recordingHere = useIsRecording(m?.note?.id ?? '')
@@ -104,6 +118,14 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   }, [meetingId])
 
   useEffect(() => { void load() }, [load])
+
+  /** 초를 흐르게 한다 — 숫자가 움직이는 것 자체가 「살아 있다」는 신호다 */
+  useEffect(() => {
+    if (workingSince === null) return
+    setElapsedMs(Date.now() - workingSince)
+    const t = setInterval(() => setElapsedMs(Date.now() - workingSince), 1_000)
+    return () => clearInterval(t)
+  }, [workingSince])
 
   async function saveTranscript() {
     if (!text.trim()) { setError('전사 내용을 붙여넣어 주세요.'); return }
@@ -187,26 +209,49 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   }
 
   /**
-   * 「미팅 끝내기」 — 녹음을 멈추고, 정리하고, 5축을 뽑고, 모르는 것을 되묻는다.
+   * 「미팅 끝내기」 — 쓰던 글을 저장하고, 녹음을 멈추고, 정리하고, 5축을 뽑고, 되묻는다.
    *
-   * **녹음 정지가 먼저다.** 마지막 구간이 아직 안 올라간 상태에서 정리를 시작하면
-   * 그 몇 분이 정리에 빠진다 — 그리고 사용자는 그 사실을 모른다.
+   * **순서가 계약이다.**
+   *   ① 저장 — 메모는 5초 디바운스 자동저장이다. 마지막 문장을 치고 곧바로 끝내기를 누르면
+   *      그 5초어치가 아직 서버에 없고, 정리는 **그 문장이 빠진 글**을 읽는다. 그리고
+   *      사용자는 빠졌다는 사실을 알 방법이 없다(`lib/meeting/pending-save.ts`).
+   *   ② 녹음 정지 — 마지막 구간이 안 올라간 채로 정리하면 그 몇 분이 통째로 빠진다.
+   *   ③ 정리·5축 — 여기가 수십 초 걸리는 자리다. 그래서 경과 시간을 흐르게 한다.
    */
   async function finish() {
     setBusy('finish')
     setError(null)
     setNotice(null)
     setFinished(null)
+    const notes: string[] = []
     try {
+      // ① 쓰던 글부터 서버로 — 실패해도 멈추지 않되, 숨기지도 않는다
+      if (hasPendingSaves()) {
+        setFinishPhase('saving')
+        const flushed = await flushPendingSaves()
+        if (flushed.failed > 0) {
+          notes.push('쓰던 내용을 저장하지 못해 마지막에 적은 부분이 정리에 빠졌을 수 있어요.')
+        }
+      }
+
+      // ② 녹음 정지
       if (recordingHere) {
+        setFinishPhase('stopping')
         try {
           await rec.stop()
         } catch {
           // 정지에 실패해도 여기서 멈추지 않는다 — 이미 올라간 구간까지로 정리한다.
           // 남은 구간은 기기에 있고 연결이 돌아오면 올라간다(lib/offline).
-          setNotice('녹음을 멈추지 못해 지금까지 올라간 부분으로 정리했어요.')
+          notes.push('녹음을 멈추지 못해 지금까지 올라간 부분으로 정리했어요.')
         }
       }
+
+      // ③ 정리·5축 — 오래 걸리는 구간이라 시간을 흐르게 한다
+      setFinishPhase('working')
+      setWorkingSince(Date.now())
+      setElapsedMs(0)
+      if (notes.length > 0) setNotice(notes.join(' '))
+
       const res = await fetch(`/api/crm/meetings/${meetingId}/finish`, { method: 'POST' })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '미팅을 끝내지 못했습니다.'); return }
@@ -216,6 +261,8 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
       setError('미팅을 끝내지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setBusy(null)
+      setFinishPhase(null)
+      setWorkingSince(null)
     }
   }
 
@@ -273,6 +320,16 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
         title={m.title}
         icon={<Mic size={20} />}
         description={formatKstDateTimeShort(m.startedAt) + (m.location ? ` · ${m.location}` : '')}
+        /*
+          끝났나 — 이 배지는 **작성 중인 미팅과 끝낸 미팅을 눈으로 가르는 유일한 표시**다.
+          사용자 지적(2026-09-09): *"작성 중인 폼과 작성이 완료 된 폼과 전혀 변화가 없어서 구분이 안되는데"*.
+          아직 안 끝났으면 아무것도 그리지 않는다 — 기본 상태를 배지로 알리면 화면이 늘 시끄럽다.
+        */
+        titleAfter={(() => {
+          const view = meetingFinishView(m.endedAt, formatKstDateTimeShort)
+          if (!view) return null
+          return <NbBadge status={view.status} title={view.title}>{view.label}</NbBadge>
+        })()}
         back={back}
         actions={
           /**
@@ -280,15 +337,38 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
            * 예전엔 같은 결과를 얻으려면 화면 셋을 오가며 세 번 눌러야 했다.
            */
           <NbButton variant="primary" onClick={() => void finish()} disabled={busy === 'finish'}>
-            {busy === 'finish'
-              ? '정리하는 중…'
-              : m.endedAt ? '다시 정리하기' : '미팅 끝내기'}
+            {finishButtonLabel(finishPhase, Boolean(m.endedAt))}
           </NbButton>
         }
       />
 
       <FormErrorBanner message={error} />
       {notice && <p className={styles.notice}>{notice}</p>}
+
+      {/*
+        끝내기가 도는 동안 화면이 무슨 말을 할지. **단계를 그대로 밝힌다** —
+        저장에서 막힌 것과 AI 가 읽는 중인 것을 「정리하는 중…」 하나로 덮으면
+        사용자는 어디서 멈췄는지 알 수 없다. 문구·시간은 SSOT 가 정한다(E-6).
+      */}
+      {finishPhase && (() => {
+        const prog = finishProgress({
+          phase: finishPhase,
+          elapsedMs,
+          // 메모 글자수는 이 화면에 안 온다(공개 범위 때문에 본문을 안 받는다).
+          // SSOT 가 0 을 「모른다」로 다루므로 없는 숫자를 지어내지 않는다.
+          memoChars: 0,
+          segmentCount: m.segments.length,
+        })
+        return (
+          <div className={styles.finishProgress} role="status" aria-live="polite">
+            <AXDotLoader />
+            <div className={styles.finishProgressBody}>
+              <span>{finishProgressLine(prog)}</span>
+              {prog.reassure && <span className={styles.finishProgressHint}>{prog.reassure}</span>}
+            </div>
+          </div>
+        )
+      })()}
 
       {/**
         * 끝내기 결과. **된 것과 안 된 것을 함께 말한다** — 한 단계가 넘어져도 나머지는 갔다는
