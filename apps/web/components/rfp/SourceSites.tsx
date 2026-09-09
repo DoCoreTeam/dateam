@@ -4,14 +4,21 @@
 //
 // 입찰 공고는 기관 자기 게시판에도 올라온다. 지자체·공사·출연연은 자체 게시판에 먼저 붙이고
 // 나라장터에는 늦게 올리거나 아예 안 올리기도 한다. 그동안 「어디를 볼지」를 정할 자리가
-// 아예 없어서 나라장터 하나로 고정돼 있었고, 그 나라장터마저 **서비스 키를 넣을 화면이 없었다.**
+// 아예 없어서 나라장터 하나로 고정돼 있었다.
+//
+// ## 키는 여기서 안 받는다
+//
+// 외부 API 키는 **관리자 설정 한 곳**이다(YouTube·수출입은행·Vercel 과 같은 자리).
+// 여기 입력칸을 뒀다가 지적받고 옮겼다 — AI 공급자 설정을 RFP 가 또 갖고 있던 것과 같은 실수다.
+// 여기서는 **키가 있는지만** 말하고 없으면 그 한 곳으로 보낸다.
 
 import { useCallback, useState } from 'react'
-import { Plus, X, Globe } from 'lucide-react'
+import { Plus, X, ExternalLink } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
+import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
 import styles from '@/app/(rfp)/rfp.module.css'
 
 export interface SiteRow {
@@ -31,32 +38,10 @@ export interface SourceSitesProps {
 
 export default function SourceSites({ initialSites, initialHasServiceKey }: SourceSitesProps) {
   const [sites, setSites] = useState(initialSites)
-  const [hasKey, setHasKey] = useState(initialHasServiceKey)
-  const [keyInput, setKeyInput] = useState('')
+  const hasKey = initialHasServiceKey
   const [draft, setDraft] = useState<{ name: string; url: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const saveKey = useCallback(async () => {
-    if (!keyInput.trim()) return
-    setBusy(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/rfp/sites', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ serviceKey: keyInput.trim() }),
-      })
-      if (!res.ok) { setError(RFP_COMMON.error); return }
-      setHasKey(true)
-      // 입력칸을 비운다 — 화면에 키가 남아 있으면 어깨너머로 읽힌다
-      setKeyInput('')
-    } catch {
-      setError(RFP_COMMON.error)
-    } finally {
-      setBusy(false)
-    }
-  }, [keyInput])
 
   const addSite = useCallback(async () => {
     if (!draft) return
@@ -138,25 +123,6 @@ export default function SourceSites({ initialSites, initialHasServiceKey }: Sour
         ))}
       </div>
 
-      {/* 나라장터 서비스 키 — 넣을 자리가 없어서 레이더가 늘 no_service_key 였다 */}
-      <div className={styles.field}>
-        <label className="label" htmlFor="g2b-key">{RFP_RADAR.serviceKey}</label>
-        <div className={styles.row}>
-          <input
-            id="g2b-key"
-            className="input-field"
-            type="password"
-            value={keyInput}
-            placeholder={hasKey ? RFP_RADAR.serviceKeySaved : RFP_RADAR.serviceKeyMissing}
-            onChange={(e) => setKeyInput(e.target.value)}
-          />
-          <NbButton variant="secondary" onClick={() => void saveKey()} disabled={busy || !keyInput.trim()}>
-            {RFP_RADAR.saveKey}
-          </NbButton>
-        </div>
-        <span className={styles.sectionDesc}>{RFP_RADAR.serviceKeyHint}</span>
-      </div>
-
       {draft && (
         <div className={styles.fieldGrid}>
           <div className={styles.field}>
@@ -184,9 +150,12 @@ export default function SourceSites({ initialSites, initialHasServiceKey }: Sour
             <Plus size={14} /> {RFP_RADAR.addSite}
           </NbButton>
         )}
-        <NbButton variant="ghost" href="https://www.data.go.kr" target="_blank">
-          <Globe size={14} /> {RFP_RADAR.serviceKey}
-        </NbButton>
+        {/* 키가 없으면 넣는 곳으로 보낸다 — 여기서 받지 않는다 */}
+        {!hasKey && (
+          <NbButton variant="secondary" href={HOST_AI_SETTINGS_HREF}>
+            <ExternalLink size={14} /> {RFP_RADAR.serviceKeyLink}
+          </NbButton>
+        )}
       </div>
     </section>
   )

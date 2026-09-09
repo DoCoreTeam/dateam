@@ -544,3 +544,74 @@ export async function checkVercelHealth(): Promise<{ ok: boolean; message: strin
     return { ok: false, message: e instanceof VercelApiError ? e.message : 'Vercel에 연결하지 못했습니다' }
   }
 }
+
+// ── 나라장터(공공데이터포털) 서비스 키 — 입찰 공고를 모으는 데 쓴다 ──
+//
+// 왜 여기인가: 외부 API 키는 **여기 한 곳**이다(§2-5). YouTube·수출입은행·Vercel 과 같은 자리,
+// 같은 모양이다. 처음에는 RFP 레이더 화면에 입력칸을 뒀다가 사용자에게 지적받고 옮겼다 —
+// 카드마다 저장 방식이 갈리면 관리자는 매번 「이건 어디서 넣지」를 다시 찾는다.
+//
+// 키가 없으면 레이더가 나라장터 공고를 **한 건도** 못 가져온다. 기관 자체 사이트는 키 없이 돈다.
+
+export async function saveG2bKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = (formData.get('apiKey') as string)?.trim()
+  if (!apiKey) return { ok: false, error: '서비스 키를 입력해주세요' }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const { error } = await setMetaValue(client, { ...meta, g2bServiceKey: apiKey })
+
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  revalidatePath('/rfp/radar')
+  return { ok: true }
+}
+
+export async function deleteG2bKey(): Promise<{ ok: boolean; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  delete meta.g2bServiceKey
+  const { error } = await setMetaValue(client, meta)
+
+  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  revalidatePath('/rfp/radar')
+  return { ok: true }
+}
+
+/**
+ * 나라장터 연결 확인.
+ *
+ * 목록을 1건만 부른다 — 연결과 권한만 보면 되고, 크게 부르면 확인 한 번이 쿼터를 먹는다.
+ * **키가 틀렸을 때와 서비스가 죽었을 때를 구분해서 말한다** — 둘 다 「안 됩니다」로 보이면
+ * 관리자가 무엇을 고쳐야 하는지 모른다.
+ */
+export async function checkG2bHealth(): Promise<{ ok: boolean; message: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const serviceKey = meta.g2bServiceKey as string | undefined
+  if (!serviceKey) return { ok: false, message: '저장된 서비스 키가 없습니다' }
+
+  const { searchNotices, inquiryRange } = await import('@/lib/rfp/g2b/client')
+  const { from, to } = inquiryRange(Date.now(), 1)
+  const res = await searchNotices({ serviceKey, from, to, numOfRows: 1 })
+
+  if (res.ok) {
+    return { ok: true, message: `연결 성공: 최근 하루 공고 ${res.data.totalCount}건을 볼 수 있습니다` }
+  }
+  if (res.reason === 'rate_limited') {
+    return { ok: false, message: '호출 한도를 넘었습니다. 잠시 뒤 다시 시도해 주세요' }
+  }
+  if (res.reason === 'bad_response') {
+    return { ok: false, message: '서비스 키가 승인되지 않았거나 잘못됐습니다 (응답 모양이 다릅니다)' }
+  }
+  return { ok: false, message: `나라장터 오류: ${res.detail || res.reason}` }
+}

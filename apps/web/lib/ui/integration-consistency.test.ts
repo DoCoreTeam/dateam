@@ -22,6 +22,7 @@ const INTEGRATION_CARDS = [
   'GoogleDriveSettings.tsx',
   'DbSettings.tsx',
   'VercelSettings.tsx',
+  'G2bSettings.tsx',
 ]
 
 function read(file: string): string {

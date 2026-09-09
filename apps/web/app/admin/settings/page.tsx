@@ -6,6 +6,7 @@ import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import SettingsSection from './SettingsSection'
 import GeminiSettings from './GeminiSettings'
 import YoutubeSettings from './YoutubeSettings'
+import G2bSettings from './G2bSettings'
 import SttSettings from './SttSettings'
 import VercelSettings from './VercelSettings'
 import ClaudeSettings from './ClaudeSettings'
@@ -29,6 +30,8 @@ import { VERCEL_META, maskToken } from '@/lib/vercel/config'
 const GEMINI_KEY = 'gemini_api_key'
 const YOUTUBE_KEY = 'youtube_api_key'
 const KOREAEXIM_KEY = 'koreaexim_api_key'
+// 나라장터 — RFP 공고 레이더가 쓴다. 이름은 lib/rfp/g2b/client 의 G2B_KEY_FIELD 와 같아야 한다
+const G2B_KEY = 'g2bServiceKey'
 const CLAUDE_KEY = 'claude_api_key'
 const OPENAI_KEY = 'openai_api_key'
 const STT_KEY = 'stt_api_key'
@@ -71,6 +74,8 @@ export default async function AdminSettingsPage({
   const storedKey = meta[GEMINI_KEY] as string | undefined
   const ytKey = meta[YOUTUBE_KEY] as string | undefined
   const ytMasked = ytKey ? `${ytKey.slice(0, 7)}••••••••${ytKey.slice(-4)}` : null
+  const g2bKey = meta[G2B_KEY] as string | undefined
+  const g2bMasked = g2bKey ? maskKey(g2bKey) : null
   const hasKey = !!storedKey
   const maskedKey = storedKey ? maskKey(storedKey) : null
   const savedModel = (meta.gemini_model as string | undefined) ?? null
@@ -170,6 +175,7 @@ export default async function AdminSettingsPage({
                 reason={typeof params.reason === 'string' ? params.reason : undefined}
               />
               <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
+              <G2bSettings hasKey={Boolean(g2bKey)} maskedKey={g2bMasked} />
               <VercelSettings
                 hasToken={Boolean(vercelToken)}
                 maskedToken={vercelToken ? maskToken(vercelToken) : null}

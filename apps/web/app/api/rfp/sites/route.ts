@@ -6,8 +6,8 @@
 // 입찰 공고는 **기관 자기 게시판에도 올라온다.** 나라장터만 보면 그 며칠을 늘 늦게 안다.
 // 그동안 「어디를 볼지」를 정할 자리가 아예 없어서 나라장터 하나로 고정돼 있었다.
 //
-// 나라장터 서비스 키도 여기서 넣는다 — 넣을 화면이 없어서 레이더가 늘 no_service_key 였다.
-// 저장 자리는 다른 외부 연동과 **같은 곳**(org_content META)이다. 새 env 를 만들지 않는다.
+// 나라장터 서비스 키는 **여기서 안 받는다** — 외부 API 키는 관리자 설정 한 곳이다.
+// 여기서는 키가 있는지만 알려 준다(값은 절대 안 내보낸다).
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -89,22 +89,8 @@ export async function PATCH(req: NextRequest) {
 
   const body = await readBody(req)
 
-  // ① 나라장터 서비스 키 저장 — 다른 외부 연동과 같은 자리(META)에 둔다
-  const serviceKey = str(body.serviceKey)
-  if (serviceKey !== null) {
-    const admin = createAdminClient()
-    const { data: metaRow } = await (admin as any)
-      .from('org_content').select('value').eq('key', 'META').single()
-    const meta = ((metaRow as { value?: unknown } | null)?.value ?? {}) as Record<string, unknown>
-    // **읽기를 먼저 끝내고 쓴다.** 통째로 덮으면 다른 연동 키가 함께 사라진다
-    const next = { ...meta, [G2B_KEY_FIELD]: serviceKey }
-    const { error } = await (admin as any)
-      .from('org_content').update({ value: next }).eq('key', 'META')
-    if (error) return NextResponse.json({ error: '서비스 키를 저장하지 못했습니다' }, { status: 500 })
-    return NextResponse.json({ ok: true, hasServiceKey: true })
-  }
-
-  // ② 사이트 켜고 끄기
+  // 서비스 키는 **여기서 안 받는다.** 외부 API 키는 관리자 설정 한 곳이다
+  // (app/admin/settings/G2bSettings). 받는 곳이 둘이면 하나는 반드시 낡는다.
   const id = str(body.id)
   if (!id) return NextResponse.json({ error: 'missing_id' }, { status: 400 })
 

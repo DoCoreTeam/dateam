@@ -385,6 +385,7 @@ export const RFP_RADAR = {
   removeSite: '이 사이트 빼기',
   serviceKey: '나라장터 서비스 키',
   serviceKeyHint: '공공데이터포털에서 발급받은 키. 없으면 나라장터 공고를 못 가져옵니다',
+  serviceKeyLink: '관리자 설정에서 키 넣기',
   serviceKeySaved: '키가 등록되어 있습니다',
   serviceKeyMissing: '키가 없습니다',
   saveKey: '키 저장',
