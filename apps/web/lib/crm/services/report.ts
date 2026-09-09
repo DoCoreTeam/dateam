@@ -34,6 +34,12 @@ export interface StageSum {
 export interface PipelineReport {
   pipelineId: string
   pipelineName: string
+  /**
+   * 설정에서 접었나(마이그 245).
+   * 예전엔 화면이 「딜 0건이면 안 쓰는 것」이라고 **추측**해서 접었다 —
+   * 딜이 한 건 들어오는 순간 그 추측이 깨진다. 이제 설정이 정한 사실을 쓴다.
+   */
+  isActive: boolean
   /** 진행 중인 딜만 */
   stages: StageSum[]
   openCount: number
@@ -75,9 +81,9 @@ export async function buildPipelineReport(db: CrmDb, pipelineId?: string): Promi
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pipelines = await (db as any).crmPipeline.findMany({
     where: pipelineId ? { id: pipelineId } : {},
-    orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
-    select: { id: true, name: true },
-  }) as { id: string; name: string }[]
+    orderBy: [{ isActive: 'desc' }, { isDefault: 'desc' }, { position: 'asc' }, { name: 'asc' }],
+    select: { id: true, name: true, isActive: true },
+  }) as { id: string; name: string; isActive: boolean }[]
 
   const out: PipelineReport[] = []
 
@@ -134,6 +140,7 @@ export async function buildPipelineReport(db: CrmDb, pipelineId?: string): Promi
     out.push({
       pipelineId: p.id,
       pipelineName: p.name,
+      isActive: p.isActive,
       stages: stageSums,
       openCount: open.length,
       wonCount: won.length,

@@ -1,5 +1,5 @@
 // GET    /api/crm/stages/:id — 지우기 전에 무엇이 걸려 있는지
-// PATCH  /api/crm/stages/:id — 진입 조건 바꾸기 · 이름 바꾸기
+// PATCH  /api/crm/stages/:id — 진입 조건 바꾸기 · 이름 바꾸기 · 성사 확률 정하기
 // DELETE /api/crm/stages/:id — 단계 지우기 (딜 0건일 때만)
 //
 // 진입 조건은 "이 단계까지 왔으면 최소한 이건 정해졌다"는 약속이다.
@@ -10,7 +10,10 @@ import { CrmError } from '@/lib/crm/domain/errors'
 import { setStageCriteria, previewCriterionImpact } from '@/lib/crm/services/pipeline'
 import { ALL_CRITERIA, type CriterionKey } from '@/lib/crm/domain/entry-criteria'
 import { getCrmDb } from '@/lib/crm/db/client'
-import { stageUsage, renameStage, deleteStage } from '@/lib/crm/services/pipeline-admin'
+import {
+  stageUsage, renameStage, deleteStage, setStageWinProbability,
+} from '@/lib/crm/services/pipeline-admin'
+import { parseWinProbability, WIN_PROBABILITY_ERROR_TEXT } from '@/lib/crm/domain/pipeline'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -21,6 +24,21 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     // 이름과 조건은 서로 다른 일이라 한 번에 섞지 않는다 — 섞으면 무엇이 바뀌었는지 기록이 흐려진다
     if (typeof body.name === 'string') {
       return { stage: await renameStage(session.workspaceId, session.memberId, id, body.name) }
+    }
+    /*
+      성사 확률. **비울 수 있어야 한다** — 리포트가 값이 없으면 「모른다」로 정직하게 처리하므로,
+      억지로 채우게 하면 사람이 없는 숫자를 지어낸다. 그래서 null 은 정상 입력이고,
+      «못 읽은 값»(undefined)만 거절한다(도메인 SSOT `parseWinProbability`).
+    */
+    if ('winProbabilityPct' in body) {
+      const pct = parseWinProbability(body.winProbabilityPct)
+      if (pct === undefined) {
+        throw new CrmError('VALIDATION_FAILED', WIN_PROBABILITY_ERROR_TEXT,
+          { field: 'winProbabilityPct' })
+      }
+      return {
+        stage: await setStageWinProbability(session.workspaceId, session.memberId, id, pct),
+      }
     }
     // 조건과 '단계의 뜻'은 같은 저장에 실린다 — 둘을 따로 저장하면 한쪽만 반영되는 순간이 생긴다.
     return setStageCriteria(session.workspaceId, session.memberId, id, {

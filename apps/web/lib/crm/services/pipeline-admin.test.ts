@@ -17,6 +17,18 @@ import { readFileSync } from 'node:fs'
 import { DEFAULT_STAGES, MAX_PIPELINES, MAX_STAGES } from './pipeline-admin.ts'
 
 const SRC = readFileSync(new URL('./pipeline-admin.ts', import.meta.url), 'utf8')
+/**
+ * 편집 자리가 **둘로 나뉘었다**(2026-09-09).
+ *
+ * 예전엔 파이프라인 만들기·이름·기본 지정·삭제가 **영업 단계 화면 위에** 얹혀 있었다.
+ * 그래서 탭이 두 줄이 되고 「+ 새 영업 단계」와 「+ 단계 추가」가 나란히 서서,
+ * 사용자가 층이 다른 둘을 형제로 읽었다(사용자 지적: 「사업유형은 있는데 왜 저거는 없는거지?」).
+ *
+ * 지금은 **파이프라인 = 설정 카드**, **단계 = 영업 단계 화면**이다.
+ * 가드도 **양쪽을 다 본다** — 한쪽만 보면 이사 간 절반이 조용히 사라져도 초록이다.
+ */
+const CARD = readFileSync(
+  new URL('../../../app/(crm)/crm/settings/PipelineCard.tsx', import.meta.url), 'utf8')
 const UI = readFileSync(
   new URL('../../../app/(crm)/crm/process/ProcessClient.tsx', import.meta.url), 'utf8')
 
@@ -57,7 +69,7 @@ test('★ 성사·실패 칸은 못 지운다 (실측: 400 거부)', () => {
 })
 
 test('★ 마지막 파이프라인·마지막 진행 단계는 남긴다 — 없으면 딜을 만들 곳이 사라진다', () => {
-  assert.ok(SRC.includes('마지막 영업 단계는 지울 수 없어요'), '마지막 파이프라인을 지울 수 있다')
+  assert.ok(SRC.includes('마지막 파이프라인은 지울 수 없어요'), '마지막 파이프라인을 지울 수 있다')
   assert.ok(SRC.includes('진행 단계가 하나는 있어야 해요'), '마지막 진행 단계를 지울 수 있다')
 })
 
@@ -99,7 +111,12 @@ test('상한이 있다 — 파이프라인이 넘치면 탭이, 단계가 넘치
 test('★ 지우기 전에 무엇이 걸려 있는지 세어 준다 — 개수를 모르면 확인할 방법이 없다', () => {
   assert.ok(SRC.includes('export async function pipelineUsage'), '파이프라인 사용 현황이 없다')
   assert.ok(SRC.includes('export async function stageUsage'), '단계 사용 현황이 없다')
-  assert.ok(UI.includes('/api/crm/pipelines/${p.id}`)'), '화면이 미리 세어 보지 않는다')
+  // 변수 이름이 아니라 **행동**을 본다 — 지우기 전에 GET 으로 세고, 그 수를 사람에게 보인다
+  assert.match(CARD, /fetch\(`\/api\/crm\/pipelines\/\$\{\w+\.id\}`\)/,
+    '화면이 미리 세어 보지 않는다')
+  assert.match(CARD, /ask\.confirm\(/, '지우기 전에 묻지 않는다 — 되돌릴 수 없는 일이다')
+  assert.match(CARD, /ask\.notice\(/,
+    '딜이 걸렸을 때 「확인/취소」를 물으면 취소해도 되는 것처럼 읽힌다')
 })
 
 test('★ 바꾸는 것은 관리자만 — 화면에서만 숨기면 API 로 새어 나간다', () => {
@@ -125,12 +142,24 @@ test('★ 모든 변경이 기록에 남는다 — 단계가 바뀌면 그 뒤 �
 })
 
 test('★ 화면에 실제로 편집 수단이 있다 — API 만 있으면 아무도 못 쓴다', () => {
-  assert.ok(UI.includes('addPipeline'), '만들기가 없다')
-  assert.ok(UI.includes('renamePipeline'), '이름 바꾸기가 없다')
-  assert.ok(UI.includes('removePipeline'), '지우기가 없다')
+  // 파이프라인은 **설정 카드**에서 다룬다. 사업 유형 카드와 같은 자리·같은 골격이다(§2-5)
+  assert.match(CARD, /'PATCH' : 'POST'/, '만들기가 없다')
+  assert.match(CARD, /method: 'PATCH'/, '기본 지정·접기가 없다')
+  assert.match(CARD, /method: 'DELETE'/, '지우기가 없다')
+  assert.ok(CARD.includes('isDefault: true'), '기본 지정이 없다')
+  assert.ok(CARD.includes('isActive:'), '접기가 없다')
+  assert.match(CARD, /method: 'PUT'/, '순서 바꾸기가 없다')
+
+  // 단계는 **영업 단계 화면**에서 다룬다 — 고른 파이프라인이 어떻게 흐르는지
   assert.ok(UI.includes('addStage'), '단계 추가가 없다')
   assert.ok(UI.includes('moveStage'), '순서 바꾸기가 없다')
-  assert.ok(UI.includes('makeDefault'), '기본 지정이 없다')
+  assert.ok(UI.includes('savePct'), '성사 확률을 정할 곳이 없다')
+
+  // 두 자리가 섞이면 탭 두 줄로 되돌아간다 — 그것이 이 이사의 이유였다
+  for (const gone of ['addPipeline', 'renamePipeline', 'removePipeline', 'makeDefault']) {
+    assert.ok(!UI.includes(`function ${gone}`),
+      `영업 단계 화면이 파이프라인 편집을 다시 들고 있다: ${gone}`)
+  }
 })
 
 test('한글 조합 중 엔터로 만들어지지 않는다 — "파트너"를 치다가 만들어지면 안 된다', () => {

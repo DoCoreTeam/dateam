@@ -1,11 +1,11 @@
 // GET    /api/crm/pipelines/[id] — 지우기 전에 무엇이 걸려 있는지
-// PATCH  /api/crm/pipelines/[id] — 이름 바꾸기 · 기본으로 지정 (관리자)
+// PATCH  /api/crm/pipelines/[id] — 이름 바꾸기 · 기본으로 지정 · 접기/펴기 (관리자)
 // DELETE /api/crm/pipelines/[id] — 지우기 (관리자, 딜 0건일 때만)
 import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { getCrmDb } from '@/lib/crm/db/client'
 import {
-  pipelineUsage, renamePipeline, deletePipeline, setDefaultPipeline,
+  pipelineUsage, renamePipeline, deletePipeline, setDefaultPipeline, setPipelineActive,
 } from '@/lib/crm/services/pipeline-admin'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -22,9 +22,16 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   return withCrmApi('ADMIN', async ({ session }) => {
     const body = await readJson(req)
-    // 기본 지정과 이름변경은 서로 다른 일이라 한 번에 섞지 않는다
+    // 기본 지정·접기·이름변경은 서로 다른 일이라 한 번에 섞지 않는다 —
+    // 섞으면 감사 기록에서 무엇이 바뀌었는지 흐려진다
     if (body.isDefault === true) {
       return { pipeline: await setDefaultPipeline(session.workspaceId, session.memberId, id) }
+    }
+    if (typeof body.isActive === 'boolean') {
+      return {
+        pipeline: await setPipelineActive(
+          session.workspaceId, session.memberId, id, body.isActive),
+      }
     }
     return {
       pipeline: await renamePipeline(

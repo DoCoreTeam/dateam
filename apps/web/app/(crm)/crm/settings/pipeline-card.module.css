@@ -1,9 +1,11 @@
-/* 사업 유형 — 딜에서 고르는 목록을 여기서 정한다 */
+/* 파이프라인 — 딜이 타는 흐름의 목록을 여기서 정한다 */
 
 /*
+  사업 유형 카드와 **같은 골격**이다(§2-5 동종 UI 통일). 두 카드가 나란히 서는데
+  줄 높이·아이콘 크기·화살표 모양이 다르면 같은 성격의 목록으로 안 읽힌다.
+
   align-content: start — 카드가 옆 카드 높이에 맞춰 늘어날 때(§2-5 (5) 행 정렬),
-  남는 세로 공간이 «줄 사이»로 배분되면 설명과 목록이 갈라져 보인다(실브라우저에서 확인).
-  남는 공간은 아래에 모은다.
+  남는 세로 공간이 «줄 사이»로 배분되면 설명과 목록이 갈라져 보인다.
 */
 .card { display: grid; gap: var(--space-3); align-content: start; }
 
@@ -26,15 +28,24 @@
 .formTitle { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
 .formRow { display: grid; grid-template-columns: 1fr; gap: var(--space-3); align-items: end; }
 .field { display: grid; gap: var(--space-1); min-width: 0; }
+.hint { margin: 0; font-size: var(--fs-2xs); color: var(--text-faint); line-height: 1.6; }
 
 /* 확정은 오른쪽 끝, 취소는 그 왼쪽 — §2-3-2 L-6 */
 .formFoot { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 
+/*
+  열 여섯: 순서 · [이름+배지] · 이름수정 · 기본지정 · 접기 · 삭제
+  사업 유형(다섯 열)보다 하나 많다 — ★ 기본 지정이 파이프라인에만 있는 개념이라서다
+  (새 딜이 어디서 시작하는지 정하는 것이므로 사업 유형에는 대응하는 것이 없다).
+
+  **이름과 배지를 한 열에 둔다.** 나란한 열로 두면 긴 배지가 이름 칸을 0 까지
+  밀어 「솔루션」이 세로로 쌓였다(실측 2026-09-09). 좁아지면 배지가 아랫줄로 내려간다.
+*/
 .item {
   display: grid;
-  grid-template-columns: auto 1fr auto auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) 0;
@@ -44,7 +55,7 @@
   flex-wrap: nowrap;
 }
 
-/* 숨긴 유형은 지운 것이 아니다 — 흐리게 두되 목록에는 남긴다 */
+/* 접은 파이프라인은 지운 것이 아니다 — 흐리게 두되 목록에는 남긴다 */
 .hidden .name { color: var(--text-faint); text-decoration: line-through; }
 
 .order { display: inline-flex; flex-direction: column; }
@@ -66,9 +77,31 @@
 .arrow:hover:not(:disabled) { color: var(--text); }
 .arrow:disabled { opacity: 0.25; cursor: default; }
 
-.name { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+/*
+  이름 + 배지 한 덩어리. 좁으면 **배지가 아랫줄로** 내려가고 이름은 한 줄로 남는다.
+  min-width: 0 이 없으면 격자 칸이 내용 최소폭 밑으로 안 줄어 카드가 옆으로 삐져나간다.
+*/
+.label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
 
-.tags { display: flex; align-items: center; gap: var(--space-1); }
+/*
+  overflow-wrap 을 쓰지 않는다 — 「anywhere」 는 낱글자까지 쪼갤 권한을 준다.
+  정말 긴 이름은 말줄임으로 자른다(전체는 목록 편집에서 본다). 이름 상한이 20자라
+  실제로 잘리는 일은 드물다.
+*/
+.name {
+  color: var(--text);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .tag {
   padding: 1px 8px;
@@ -81,6 +114,9 @@
 }
 
 .tagOff { background: var(--warning-bg); color: var(--warning); }
+
+/* 알리기만 하는 배지다 — 경고색을 쓰면 「고쳐야 하는 것」으로 읽힌다 */
+.tagDupe { background: var(--info-bg); color: var(--info); cursor: help; }
 
 .uses { font-size: var(--fs-2xs); color: var(--text-faint); white-space: nowrap; }
 
@@ -101,5 +137,5 @@
 
 .danger:hover:not(:disabled) { color: var(--danger); background: var(--danger-bg); }
 
-/* 기본 유형에는 삭제 버튼이 없다 — 자리만 비워 열을 맞춘다 */
+/* 누를 이유가 없는 자리는 비워 열을 맞춘다 */
 .iconGap { display: inline-block; width: 28px; }

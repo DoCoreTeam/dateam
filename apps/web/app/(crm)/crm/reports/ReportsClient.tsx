@@ -70,6 +70,8 @@ interface StageSum {
 interface PipelineReport {
   pipelineId: string
   pipelineName: string
+  /** 설정에서 접었나 — 「안 쓰는 것」의 사실 기준(마이그 245) */
+  isActive: boolean
   stages: StageSum[]
   openCount: number
   wonCount: number
@@ -163,9 +165,19 @@ export default function ReportsClient() {
     )
   }
 
-  // 전체가 빈 경우는 위에서 이미 EmptyState 로 끝났다. 여기는 "일부만 비었을 때"다
-  const used = items.filter((p) => p.openCount + p.wonCount + p.lostCount > 0)
-  const unused = items.filter((p) => p.openCount + p.wonCount + p.lostCount === 0)
+  /*
+    전체가 빈 경우는 위에서 이미 EmptyState 로 끝났다. 여기는 "일부만 비었을 때"다.
+
+    **판정 기준이 바뀌었다**(2026-09-09): 예전엔 `딜 0건`으로 「안 쓰는 것」을 추측했다.
+    딜이 한 건 들어오는 순간 그 추측이 깨지고, 반대로 정말 안 쓰기로 한 파이프라인에
+    옛 딜이 남아 있으면 영영 접히지 않았다. 이제 설정에서 접은 것(`isActive: false`)이
+    기준이다 — 사람이 정한 사실이라 어긋날 일이 없다.
+    아직 딜이 0건이면서 접지도 않은 것은 「접지 않았지만 비어 있는 것」이라 함께 접어 둔다.
+  */
+  const isIdle = (p: PipelineReport) =>
+    !p.isActive || p.openCount + p.wonCount + p.lostCount === 0
+  const used = items.filter((p) => !isIdle(p))
+  const unused = items.filter(isIdle)
   const shown = showEmpty ? [...used, ...unused] : used
 
   return (
@@ -323,7 +335,7 @@ export default function ReportsClient() {
       {/* 접은 것을 숨기지 않는다 — 몇 개를 접었는지는 말한다 */}
       {!showEmpty && unused.length > 0 && (
         <button type="button" className={styles.showEmpty} onClick={() => setShowEmpty(true)}>
-          아직 안 쓰는 영업 단계 {unused.length}개 보기
+          아직 안 쓰는 파이프라인 {unused.length}개 보기
         </button>
       )}
     </div>

@@ -51,6 +51,13 @@ export interface BoardPipeline {
   id: string
   name: string
   isDefault: boolean
+  /**
+   * 설정에서 고를 수 있게 열어 뒀나(마이그 245).
+   * **보드·표에서는 거르지 않는다** — 접힌 파이프라인에 이미 붙은 딜은 그대로 봬야 한다.
+   * 거르는 곳은 «새로 만드는» 자리뿐이다(딜 만들기·빠른 등록).
+   */
+  isActive: boolean
+  position: number
   stages: BoardStage[]
 }
 export interface BoardDeal {

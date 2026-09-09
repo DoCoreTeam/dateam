@@ -350,6 +350,9 @@ model CrmPipeline {
   workspaceId String
   name        String
   isDefault   Boolean  @default(false)
+  /// 새 딜에서 고를 수 있나(마이그 245). false 면 목록 아래로 접히고 딜 만들기에서 안 보인다.
+  /// 소프트 삭제(deletedAt)와 뜻이 다르다 — 삭제는 «없앤다», 이것은 «지금은 안 쓴다»
+  isActive    Boolean  @default(true)
   position    Int      @default(0)
   canvasJson  Json? // React Flow 캔버스 원본, 자동화의 단일 원천(D-06)
   createdAt   DateTime @default(now())

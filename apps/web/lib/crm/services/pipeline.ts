@@ -29,12 +29,21 @@ export interface StageRow {
   meaning: string
   /** 지금 이 단계에 몇 건이 서 있나 — 조건을 바꾸기 전에 영향 범위를 알아야 한다 */
   dealCount: number
+  /**
+   * 성사 확률(%). 없으면 null — 리포트가 「모른다」로 정직하게 처리한다.
+   * 화면이 이 값을 고칠 수 있어야 한다(예전엔 정할 자리가 앱에 0곳이었다).
+   */
+  winProbabilityPct: number | null
 }
 
 export interface PipelineRow {
   id: string
   name: string
   isDefault: boolean
+  /** 새 딜에서 고를 수 있나(마이그 245). 접힌 것도 목록에는 온다 — 거르는 것은 소비처의 몫 */
+  isActive: boolean
+  /** 설정에서 정한 화면 순서 */
+  position: number
   stages: StageRow[]
 }
 
@@ -42,16 +51,26 @@ export async function listPipelines(db: CrmDb): Promise<PipelineRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await (db as any).crmPipeline.findMany({
     select: {
-      id: true, name: true, isDefault: true,
+      id: true, name: true, isDefault: true, isActive: true, position: true,
       stages: {
-        select: { id: true, name: true, position: true, kind: true, entryCriteriaJson: true },
+        select: {
+          id: true, name: true, position: true, kind: true,
+          entryCriteriaJson: true, winProbabilityPct: true,
+        },
         orderBy: { position: 'asc' },
       },
     },
-    orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+    /*
+      접은 것은 아래로, 그 다음은 설정에서 정한 순서 — `sortPipelines`(도메인 SSOT)와 같은 규칙이다.
+      정렬을 DB 와 화면 둘 다에 두는 이유: DB 는 목록 순서를, 화면은 접기·기본 표시를 함께 본다.
+    */
+    orderBy: [{ isActive: 'desc' }, { isDefault: 'desc' }, { position: 'asc' }, { name: 'asc' }],
   }) as {
-    id: string; name: string; isDefault: boolean
-    stages: { id: string; name: string; position: number; kind: string; entryCriteriaJson: unknown }[]
+    id: string; name: string; isDefault: boolean; isActive: boolean; position: number
+    stages: {
+      id: string; name: string; position: number; kind: string
+      entryCriteriaJson: unknown; winProbabilityPct: number | null
+    }[]
   }[]
 
   // 단계별 딜 수 — 한 번에 세고 나눠 붙인다(단계마다 세면 25번 왕복한다)
@@ -65,6 +84,8 @@ export async function listPipelines(db: CrmDb): Promise<PipelineRow[]> {
     id: p.id,
     name: p.name,
     isDefault: p.isDefault,
+    isActive: p.isActive,
+    position: p.position,
     stages: p.stages.map((s) => {
       // 옛 형태(배열)와 새 형태({meaning, criteria})를 한 곳에서 읽는다 — 화면이 모양을 몰라도 된다.
       const rules = parseStageRules(s.entryCriteriaJson)
@@ -76,6 +97,7 @@ export async function listPipelines(db: CrmDb): Promise<PipelineRow[]> {
         criteria: rules.criteria,
         meaning: rules.meaning,
         dealCount: countOf.get(s.id) ?? 0,
+        winProbabilityPct: s.winProbabilityPct ?? null,
       }
     }),
   }))

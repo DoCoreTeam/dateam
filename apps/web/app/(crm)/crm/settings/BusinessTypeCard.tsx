@@ -31,7 +31,13 @@ import styles from './business-type-card.module.css'
 /** 폼이 닫힘 / 추가 / 그 id 를 고치는 중 — 칸이 같으므로 폼은 한 벌이다(§2-5) */
 type Editing = null | 'new' | string
 
-export default function BusinessTypeCard() {
+/**
+ * @param canEdit 관리자인가. **화면에서 감추고 서버도 막는다** —
+ *   목록 읽기는 전원에게 열려 있지만(READONLY) 바꾸기는 ADMIN 이라,
+ *   버튼을 그려 두면 멤버가 눌러 보고서야 거절을 받는다. 영업 단계 화면은
+ *   처음부터 `canEdit` 로 감췄는데 이 카드만 안 감췄다(§2-5 동종 UI, 2026-09-09).
+ */
+export default function BusinessTypeCard({ canEdit }: { canEdit: boolean }) {
   const [items, setItems] = useState<BusinessTypeRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -176,9 +182,11 @@ export default function BusinessTypeCard() {
     <div className={`card ${styles.card}`}>
       <div className={styles.head}>
         <h3 className={styles.title}>사업 유형</h3>
-        <NbButton variant="ghost" onClick={() => openForm(null)}>
-          <Plus size={14} /> {ACTION.create} 사업 유형
-        </NbButton>
+        {canEdit && (
+          <NbButton variant="ghost" onClick={() => openForm(null)}>
+            <Plus size={14} /> {ACTION.create} 사업 유형
+          </NbButton>
+        )}
       </div>
       <p className={styles.desc}>
         딜을 만들 때 고르는 목록입니다. 유형마다 원가 구조도 계약 형태도 달라서,
@@ -188,7 +196,7 @@ export default function BusinessTypeCard() {
 
       {error && <ErrorState message={error} onRetry={() => void load()} />}
 
-      {editing !== null && (
+      {canEdit && editing !== null && (
         <div className={styles.form}>
           <FormErrorBanner message={formError} />
           <p className={styles.formTitle}>
@@ -220,16 +228,18 @@ export default function BusinessTypeCard() {
       <ul className={styles.list}>
         {items.map((row, i) => (
           <li key={row.id} className={`${styles.item} ${row.isActive ? '' : styles.hidden}`}>
-            <span className={styles.order}>
-              <button
-                type="button" className={styles.arrow} disabled={i === 0}
-                onClick={() => void move(i, -1)} aria-label={`${row.label} 위로`}
-              ><ChevronUp size={14} /></button>
-              <button
-                type="button" className={styles.arrow} disabled={i === items.length - 1}
-                onClick={() => void move(i, 1)} aria-label={`${row.label} 아래로`}
-              ><ChevronDown size={14} /></button>
-            </span>
+            {canEdit ? (
+              <span className={styles.order}>
+                <button
+                  type="button" className={styles.arrow} disabled={i === 0}
+                  onClick={() => void move(i, -1)} aria-label={`${row.label} 위로`}
+                ><ChevronUp size={14} /></button>
+                <button
+                  type="button" className={styles.arrow} disabled={i === items.length - 1}
+                  onClick={() => void move(i, 1)} aria-label={`${row.label} 아래로`}
+                ><ChevronDown size={14} /></button>
+              </span>
+            ) : <span className={styles.orderGap} />}
 
             <span className={styles.name}>{row.label}</span>
 
@@ -240,26 +250,36 @@ export default function BusinessTypeCard() {
               <span className={styles.uses}>{count('deal', row.dealCount ?? 0)}</span>
             </span>
 
-            <button
-              type="button" className={styles.iconBtn} disabled={busyId === row.id}
-              onClick={() => openForm(row)} aria-label={`${row.label} ${ACTION.edit}`}
-            ><Pencil size={14} /></button>
+            {canEdit ? (
+              <>
+                <button
+                  type="button" className={styles.iconBtn} disabled={busyId === row.id}
+                  onClick={() => openForm(row)} aria-label={`${row.label} ${ACTION.edit}`}
+                ><Pencil size={14} /></button>
 
-            <button
-              type="button" className={styles.iconBtn} disabled={busyId === row.id}
-              onClick={() => void patch(row.id, { isActive: !row.isActive })}
-              aria-label={`${row.label} ${row.isActive ? '숨기기' : '보이기'}`}
-              title={row.isActive ? '숨기기' : '보이기'}
-            >{row.isActive ? <Eye size={14} /> : <EyeOff size={14} />}</button>
+                <button
+                  type="button" className={styles.iconBtn} disabled={busyId === row.id}
+                  onClick={() => void patch(row.id, { isActive: !row.isActive })}
+                  aria-label={`${row.label} ${row.isActive ? '숨기기' : '보이기'}`}
+                  title={row.isActive ? '숨기기' : '보이기'}
+                >{row.isActive ? <Eye size={14} /> : <EyeOff size={14} />}</button>
 
-            {/* 기본 8종에는 삭제를 아예 두지 않는다 — 누르면 거절될 버튼을 보여 주지 않는다 */}
-            {row.isBuiltin ? <span className={styles.iconGap} /> : (
-              <button
-                type="button" className={`${styles.iconBtn} ${styles.danger}`}
-                disabled={busyId === row.id}
-                onClick={() => void remove(row)}
-                aria-label={`${row.label} ${ACTION.delete}`}
-              ><Trash2 size={14} /></button>
+                {/* 기본 8종에는 삭제를 아예 두지 않는다 — 누르면 거절될 버튼을 보여 주지 않는다 */}
+                {row.isBuiltin ? <span className={styles.iconGap} /> : (
+                  <button
+                    type="button" className={`${styles.iconBtn} ${styles.danger}`}
+                    disabled={busyId === row.id}
+                    onClick={() => void remove(row)}
+                    aria-label={`${row.label} ${ACTION.delete}`}
+                  ><Trash2 size={14} /></button>
+                )}
+              </>
+            ) : (
+              <>
+                <span className={styles.iconGap} />
+                <span className={styles.iconGap} />
+                <span className={styles.iconGap} />
+              </>
             )}
           </li>
         ))}

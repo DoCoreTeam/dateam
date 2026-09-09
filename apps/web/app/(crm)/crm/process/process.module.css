@@ -226,3 +226,41 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/*
+  성사 확률 — 단계 머리줄에 선다.
+  `flex-wrap: nowrap`(§2-3-1 (3)): 컨트롤이 접히면 그 행만 커져 목록 리듬이 깨진다.
+  입력 폭을 좁게 고정하는 이유도 같다 — 세 자리면 충분한데 넓으면 이름을 밀어낸다.
+*/
+.pct {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.pctLabel { font-size: var(--fs-2xs); color: var(--text-faint); }
+.pctUnit { font-size: var(--fs-2xs); color: var(--text-faint); }
+
+.pct input {
+  width: 68px;
+  text-align: right;
+  /* 목록 안이라 기본 컨트롤 높이(44px)는 행을 키운다 — 여기서만 낮춘다 */
+  min-height: 32px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
+}
+
+/* 설정으로 가는 길 — 도구 줄 오른쪽 끝 */
+.settingsLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.settingsLink:hover { color: var(--brand); text-decoration: underline; }

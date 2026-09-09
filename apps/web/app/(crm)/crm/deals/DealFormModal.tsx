@@ -25,6 +25,7 @@ import {
 } from '@/lib/terms'
 import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
 import { selectableBusinessTypes } from '@/lib/crm/domain/business-type'
+import { selectablePipelines, defaultPipelineId } from '@/lib/crm/domain/pipeline'
 import styles from './board.module.css'
 
 /** 안 고른 상태 — 「없음」이 아니다. 아직 정하지 않았다는 뜻이다 */
@@ -66,8 +67,17 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
   const [name, setName] = useState(initial?.name ?? '')
   const [companyId, setCompanyId] = useState(initial?.companyId ?? '')
   const [companyName, setCompanyName] = useState(initial?.companyName ?? '')
+  /*
+    고를 수 있는 파이프라인 — 켜진 것 + **이 딜이 이미 쓰고 있는 것**(§domain/pipeline).
+    뒤엣것을 빼면 파이프라인을 접은 뒤 그 딜을 수정할 때 값이 조용히 날아간다.
+    사업 유형(`selectableBusinessTypes`)과 같은 규칙이다 — 같은 성격은 같은 규칙이어야 한다.
+  */
+  const choosablePipelines = useMemo(
+    () => selectablePipelines(pipelines, initial?.pipelineId ?? null),
+    [pipelines, initial?.pipelineId],
+  )
   const [pipelineId, setPipelineId] = useState(
-    initial?.pipelineId ?? pipelines.find((p) => p.isDefault)?.id ?? pipelines[0]?.id ?? '',
+    () => defaultPipelineId(pipelines, initial?.pipelineId ?? null) ?? '',
   )
   const [stageId, setStageId] = useState(initial?.stageId ?? '')
   const [amount, setAmount] = useState(initial?.amountMinor ?? '')
@@ -217,7 +227,7 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
               onChange={(e) => setPipelineId(e.target.value)}
               disabled={editing}
             >
-              {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {choosablePipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div>

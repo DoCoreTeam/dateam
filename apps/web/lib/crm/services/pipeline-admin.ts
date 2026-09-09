@@ -1,4 +1,9 @@
-// 영업 단계 관리 (dacrm 통합기획서 Phase 1-6 "프로세스 캔버스 1차(보기와 편집)")
+// 파이프라인·단계 관리 (dacrm 통합기획서 Phase 1-6 "프로세스 캔버스 1차(보기와 편집)")
+//
+// **말**(사용자 지적 2026-09-09): 이 파일이 다루는 것은 «파이프라인»(딜이 타는 흐름)과
+// 그 안의 «영업 단계»(리드 → 요구사항 파악 → …) 둘이다. 예전엔 파이프라인까지
+// 「영업 단계」라 불러서, 한 화면에 「+ 새 영업 단계」(흐름)와 「+ 단계 추가」(칸)가
+// 나란히 서 있었다. 앱의 나머지 전부는 이미 「파이프라인」을 쓴다(딜 만들기·딜 표·리포트 축).
 //
 // **왜 뒤늦게 생겼나**: 파이프라인 API 에 `GET` 하나만 있었다.
 // 즉 시드로 넣은 "KDC 제품 · 공공 · 파트너십"을 **제품 안에서 지울 방법이 없었다.**
@@ -17,6 +22,7 @@ import { CrmError } from '../domain/errors.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { normalizeText } from '../domain/normalize.ts'
+import { canSetWinProbability } from '../domain/pipeline.ts'
 import type { CrmDb } from '../db/client.ts'
 
 /**
@@ -68,7 +74,7 @@ export async function pipelineUsage(db: CrmDb, pipelineId: string): Promise<Pipe
     where: { id: pipelineId },
     select: { id: true, name: true, _count: { select: { stages: true } } },
   })
-  if (!p) throw new CrmError('NOT_FOUND', '그 영업 단계를 찾지 못했습니다.')
+  if (!p) throw new CrmError('NOT_FOUND', '그 파이프라인을 찾지 못했습니다.')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const open = await (db as any).crmDeal.count({ where: { pipelineId, status: 'OPEN' } })
@@ -114,7 +120,7 @@ export async function createPipeline(
     const count = await (tx as any).crmPipeline.count()
     if (count >= MAX_PIPELINES) {
       throw new CrmError('VALIDATION_FAILED',
-        `영업 단계는 ${MAX_PIPELINES}개까지 만들 수 있어요.`, { field: 'name' })
+        `파이프라인은 ${MAX_PIPELINES}개까지 만들 수 있어요.`, { field: 'name' })
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,7 +171,7 @@ export async function renamePipeline(
   return withCrmTx(workspaceId, async (tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const before = await (tx as any).crmPipeline.findFirst({ where: { id }, select: { name: true } })
-    if (!before) throw new CrmError('NOT_FOUND', '그 영업 단계를 찾지 못했습니다.')
+    if (!before) throw new CrmError('NOT_FOUND', '그 파이프라인을 찾지 못했습니다.')
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dup = await (tx as any).crmPipeline.findFirst({
@@ -199,14 +205,14 @@ export async function deletePipeline(workspaceId: string, actorId: string | null
     const total = await (tx as any).crmPipeline.count()
     if (total <= 1) {
       throw new CrmError('VALIDATION_FAILED',
-        '마지막 영업 단계는 지울 수 없어요. 딜을 만들 곳이 없어집니다.')
+        '마지막 파이프라인은 지울 수 없어요. 딜을 만들 곳이 없어집니다.')
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = await (tx as any).crmPipeline.findFirst({
       where: { id }, select: { name: true, isDefault: true },
     })
-    if (!p) throw new CrmError('NOT_FOUND', '그 영업 단계를 찾지 못했습니다.')
+    if (!p) throw new CrmError('NOT_FOUND', '그 파이프라인을 찾지 못했습니다.')
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deals = await (tx as any).crmDeal.count({ where: { pipelineId: id } })
@@ -242,7 +248,7 @@ export async function setDefaultPipeline(workspaceId: string, actorId: string | 
   return withCrmTx(workspaceId, async (tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = await (tx as any).crmPipeline.findFirst({ where: { id }, select: { name: true } })
-    if (!p) throw new CrmError('NOT_FOUND', '그 영업 단계를 찾지 못했습니다.')
+    if (!p) throw new CrmError('NOT_FOUND', '그 파이프라인을 찾지 못했습니다.')
 
     // 기본은 하나뿐이다 — 둘이면 새 딜이 어디로 갈지 코드마다 다르게 읽는다
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -284,7 +290,7 @@ export async function addStage(workspaceId: string, actorId: string | null, inpu
       select: { id: true, name: true, kind: true, position: true },
     }) as { id: string; name: string; kind: string; position: number }[]
 
-    if (stages.length === 0) throw new CrmError('NOT_FOUND', '그 영업 단계를 찾지 못했습니다.')
+    if (stages.length === 0) throw new CrmError('NOT_FOUND', '그 파이프라인을 찾지 못했습니다.')
     if (stages.length >= MAX_STAGES) {
       throw new CrmError('VALIDATION_FAILED',
         `단계는 ${MAX_STAGES}개까지 만들 수 있어요. 더 늘리면 보드가 가로로 넘칩니다.`)
@@ -441,7 +447,7 @@ export async function reorderStages(
       where: { pipelineId }, select: { id: true, kind: true, name: true },
     }) as { id: string; kind: string; name: string }[]
 
-    if (stages.length === 0) throw new CrmError('NOT_FOUND', '그 영업 단계를 찾지 못했습니다.')
+    if (stages.length === 0) throw new CrmError('NOT_FOUND', '그 파이프라인을 찾지 못했습니다.')
 
     const known = new Set(stages.map((s) => s.id))
     // 목록에 없는 id 는 버리고, 빠진 것은 뒤에 붙인다 — 화면이 옛 목록을 보냈어도 잃지 않게
@@ -468,5 +474,129 @@ export async function reorderStages(
     })
 
     return { pipelineId, count: final.length }
+  })
+}
+
+/**
+ * 파이프라인 순서를 바꾼다.
+ *
+ * **왜 이제야 생겼나**: `position` 칸은 처음부터 있었는데 화면에서 바꿀 길이 없었다.
+ * 사업 유형 카드에는 화살표가 있는데 파이프라인만 없었던 것이, 관리 자리 자체가
+ * 없었기 때문이다(사용자 지적 2026-09-09).
+ *
+ * 단계와 달리 자리 비우기(`shiftPositions`)가 필요 없다 — 파이프라인의 position 에는
+ * 유니크 제약이 없다(단계는 `@@unique([pipelineId, position])` 라 한 번 비워야 한다).
+ */
+export async function reorderPipelines(
+  workspaceId: string, actorId: string | null, orderedIds: string[],
+) {
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = await (tx as any).crmPipeline.findMany({
+      select: { id: true, name: true },
+    }) as { id: string; name: string }[]
+    if (rows.length === 0) throw new CrmError('NOT_FOUND', '그 파이프라인을 찾지 못했습니다.')
+
+    // 목록에 없는 id 는 버리고, 빠진 것은 뒤에 붙인다 — 화면이 옛 목록을 보냈어도 잃지 않게
+    const known = new Set(rows.map((r) => r.id))
+    const given = orderedIds.filter((id) => known.has(id))
+    const missing = rows.map((r) => r.id).filter((id) => !given.includes(id))
+    const final = [...given, ...missing]
+
+    for (let i = 0; i < final.length; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (tx as any).crmPipeline.update({ where: { id: final[i] }, data: { position: i + 1 } })
+    }
+
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId,
+      action: 'pipeline.reordered', targetType: 'pipeline', targetId: final[0] ?? null,
+      afterJson: { order: final.map((id) => rows.find((r) => r.id === id)?.name ?? id) },
+    })
+
+    return { count: final.length }
+  })
+}
+
+/**
+ * 파이프라인을 접거나 편다(마이그 245).
+ *
+ * **지우는 것과 다르다.** 접힌 파이프라인에 이미 붙어 있는 딜은 그대로 살고 이름도 그대로
+ * 나온다 — 안 그러면 접는 순간 남의 딜이 「파이프라인 미상」이 된다. 새 딜에서만 안 보인다.
+ *
+ * 딜이 걸려 있어도 접을 수 있다. 그것이 삭제와의 차이이고, 실측(2026-09-09)에서
+ * 딜 0건인 파이프라인 5개를 «지우는 것 말고는 치울 방법이 없던» 이유가 이것이었다.
+ */
+export async function setPipelineActive(
+  workspaceId: string, actorId: string | null, id: string, isActive: boolean,
+) {
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = await (tx as any).crmPipeline.findFirst({
+      where: { id }, select: { name: true, isDefault: true, isActive: true },
+    })
+    if (!p) throw new CrmError('NOT_FOUND', '그 파이프라인을 찾지 못했습니다.')
+
+    /*
+      기본 파이프라인은 접을 수 없다 — 새 딜이 시작할 곳이 사라진다.
+      먼저 다른 것을 기본으로 지정하면 접을 수 있다(순서를 사람 말로 알려 준다).
+    */
+    if (!isActive && p.isDefault) {
+      throw new CrmError('VALIDATION_FAILED',
+        '기본 파이프라인은 접을 수 없어요. 다른 파이프라인을 기본으로 지정한 뒤에 접을 수 있습니다.')
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (tx as any).crmPipeline.update({ where: { id }, data: { isActive } })
+
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId,
+      action: isActive ? 'pipeline.unhidden' : 'pipeline.hidden',
+      targetType: 'pipeline', targetId: id,
+      beforeJson: { isActive: p.isActive }, afterJson: { name: p.name, isActive },
+    })
+
+    return { id, isActive }
+  })
+}
+
+/**
+ * 단계의 성사 확률을 정한다.
+ *
+ * **왜 없었나**: 리포트는 이 값을 「관리자가 정한 값」이라 부르며 보여 주는데
+ * (`forecast.ts` → `ReportsClient.tsx`), 정할 수 있는 화면이 앱 어디에도 없었다.
+ * 시드가 값을 넣어 준 파이프라인만 예상 매출이 나오고, 나머지는 영영 「모른다」였다
+ * (실측 2026-09-09: 7개 중 4개가 전 단계 빈칸).
+ *
+ * **비울 수 있다.** 억지로 채우게 하면 사람이 없는 숫자를 지어낸다 —
+ * 리포트는 값이 없으면 정직하게 「모른다」로 처리하므로 비는 편이 낫다.
+ */
+export async function setStageWinProbability(
+  workspaceId: string, actorId: string | null, stageId: string, pct: number | null,
+) {
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = await (tx as any).crmStage.findFirst({
+      where: { id: stageId }, select: { name: true, kind: true, winProbabilityPct: true },
+    })
+    if (!s) throw new CrmError('NOT_FOUND', '그 단계를 찾지 못했습니다.')
+
+    // 성사·실패 칸은 이미 끝난 자리다 — 리포트도 그 둘은 건너뛴다
+    if (!canSetWinProbability(s.kind)) {
+      throw new CrmError('VALIDATION_FAILED',
+        '성사·실패 칸에는 성사 확률을 정하지 않아요. 이미 끝난 자리라 앞으로의 확률이 뜻을 갖지 않습니다.')
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (tx as any).crmStage.update({ where: { id: stageId }, data: { winProbabilityPct: pct } })
+
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId,
+      action: 'stage.win_probability_set', targetType: 'stage', targetId: stageId,
+      beforeJson: { winProbabilityPct: s.winProbabilityPct },
+      afterJson: { name: s.name, winProbabilityPct: pct },
+    })
+
+    return { id: stageId, winProbabilityPct: pct }
   })
 }
