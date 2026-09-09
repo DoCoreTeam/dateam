@@ -113,8 +113,6 @@ export function pickModels(models: readonly AiModel[], opts: PickOptions): Model
 }
 
 /** 이 호출의 비용 — 백만 토큰 단위 요금을 실제 토큰으로 환산 */
-export function costKrw(model: AiModel, inputTokens: number, outputTokens: number): number {
-  const cost = (inputTokens / 1_000_000) * model.inputKrwPerMTok
-    + (outputTokens / 1_000_000) * model.outputKrwPerMTok
-  return Math.round(cost * 100) / 100
-}
+// 비용 계산은 관문이 기록할 때 쓰는 것과 같은 식이어야 한다 —
+// 두 벌로 두면 장부와 화면의 금액이 갈린다. 그래서 패키지 한 곳에 두고 여기서는 다시 내보낸다
+export { costKrw } from '@ax/ai-gateway'
