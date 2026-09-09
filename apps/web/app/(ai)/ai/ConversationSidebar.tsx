@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
-import { Plus, Pin, PinOff, Pencil, Trash2, Check, X, RotateCcw, Search, FolderKanban } from 'lucide-react'
+import { Pin, PinOff, Pencil, Trash2, Check, X, RotateCcw, Search, FolderKanban } from 'lucide-react'
 import type { AiChatConversation, AiChatProject } from '@/types/database'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -28,7 +28,6 @@ interface ConversationSidebarProps {
   loadingMore: boolean
   recentlyDeleted: { id: string; title: string } | null
   onSelect: (id: string) => void
-  onNewChat: () => void
   onRename: (id: string, title: string) => void
   onDelete: (id: string) => void
   onRestore: (id: string) => void
@@ -71,7 +70,6 @@ export default function ConversationSidebar({
   loadingMore,
   recentlyDeleted,
   onSelect,
-  onNewChat,
   onRename,
   onDelete,
   onRestore,
@@ -225,28 +223,16 @@ export default function ConversationSidebar({
 
   return (
     <>
-      {/* 새 대화 */}
-      <div className="ai-chat-sidebar-head">
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={onNewChat}
-          disabled={!canCreate}
-          style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-1)', minHeight: 44 }}
-        >
-          <Plus size={16} />
-          새 대화
-        </button>
-        {!canCreate && (
-          <p style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', margin: 'var(--space-2) 0 0' }}>
-            설정에서 API 키를 등록하면 대화를 시작할 수 있습니다.
-          </p>
-        )}
-        <Link href="/ai/projects" className="ai-chat-projects-link">
-          <FolderKanban size={14} />
-          프로젝트
-        </Link>
-      </div>
+      {/*
+        「새 대화」와 「프로젝트」는 여기 없다 — **사이드바 메뉴**로 올라갔다.
+        무엇을 할 수 있나(메뉴)와 무엇을 했나(목록)가 같은 판에 섞여 있었다.
+        이 판은 이제 목록만 맡는다.
+      */}
+      {!canCreate && (
+        <p className="ai-chat-sidebar-head" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
+          설정에서 API 키를 등록하면 대화를 시작할 수 있습니다.
+        </p>
+      )}
 
       {/* 검색 */}
       <div className="ai-chat-search-wrap">
@@ -326,7 +312,7 @@ export default function ConversationSidebar({
           )
         ) : conversations.length === 0 ? (
           // ── 빈 목록 ──
-          <EmptyState title="대화가 없어요" description="위의 새 대화 버튼으로 첫 대화를 시작하세요" />
+          <EmptyState title="대화가 없어요" description="왼쪽 메뉴의 새 대화로 첫 대화를 시작하세요" />
         ) : (
           // ── 고정됨 / 최근 2섹션 ──
           <>

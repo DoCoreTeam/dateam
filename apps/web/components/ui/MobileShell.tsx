@@ -72,11 +72,21 @@ interface MobileShellProps {
   /** 우측하단 고정 레이어 추가 항목. 좌표는 Dock이 정한다(§4) */
   dock?: DockItem[]
   /**
-   * 이 표면만의 스킨 클래스. **토큰을 다시 정의하는 용도**다(globals.css 의 `[data-theme]` 와 같은 방식).
-   * 셸 뿌리에 걸리므로 사이드바까지 함께 따라온다 — 본문에만 걸면 색이 반쪽만 바뀐다.
-   * 구조를 바꾸는 데 쓰지 않는다. 셸은 여전히 하나다.
+   * 이 표면만의 스킨 클래스. **모양을 바꾸는 용도**다(읽는 폭·말풍선 유무 같은 것).
+   * 셸 뿌리에 걸리므로 사이드바까지 함께 따라온다 — 본문에만 걸면 반쪽만 바뀐다.
+   * **색은 여기서 정하지 않는다** — 색은 `surfaceTheme` 이 정한다.
    */
   surfaceClass?: string
+  /**
+   * 이 표면의 **기본 테마**. 셸 뿌리에 `data-theme` 로 찍혀 그 아래 토큰이 바뀐다.
+   * 사용자가 테마를 직접 고르면 그 선택이 이긴다 — 판정은 화면(레이아웃)이 하고 여기는 받기만 한다.
+   */
+  surfaceTheme?: string
+  /**
+   * 사이드바 메뉴 **위**에 놓는 것. 그 표면에서 가장 자주 누르는 행동 하나를 위해 연다
+   * (AI 스튜디오의 「새 대화」). 메뉴가 아니라 행동이라서 메뉴 표에 넣지 않는다.
+   */
+  sidebarTop?: React.ReactNode
 }
 
 export default function MobileShell({
@@ -84,6 +94,8 @@ export default function MobileShell({
   groups,
   footer,
   surfaceClass,
+  surfaceTheme,
+  sidebarTop,
   logoUrl,
   brandName = 'AX사업본부',
   headerLeft,
@@ -177,7 +189,10 @@ export default function MobileShell({
   }, [mobileOpen, closeMobile])
 
   return (
-    <div className={surfaceClass ? `app-shell ${surfaceClass}` : 'app-shell'}>
+    <div
+      className={surfaceClass ? `app-shell ${surfaceClass}` : 'app-shell'}
+      data-theme={surfaceTheme}
+    >
       {/* 모바일 딤 오버레이 */}
       <div
         className={`sidebar-overlay${mobileOpen ? ' overlay-open' : ''}`}
@@ -285,6 +300,9 @@ export default function MobileShell({
         </div>
 
         {/* 네비게이션 */}
+        {sidebarTop && (
+          <div style={{ flexShrink: 0, padding: 'var(--space-3) var(--space-3) 0' }}>{sidebarTop}</div>
+        )}
         <nav id="onboarding-sidebar-nav" style={{ flex: 1, padding: 'var(--space-3)', overflowY: 'auto' }} aria-label="주 메뉴">
           {/* 기본 아이템 */}
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>

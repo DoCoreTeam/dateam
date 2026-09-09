@@ -190,3 +190,33 @@ test('★ 전체 메뉴에도 같은 문이 있다 — 사이드바에만 있으
     assert.match(src, new RegExp(`href: '${s.href}'`), `${s.label} 이 전체 메뉴에 없다`)
   }
 })
+
+// ── claude.ai 클론: 자리와 방식이 규정이다 ──
+//
+// 사용자가 두 번 지적했다("새 대화는 메뉴쪽에", "모델 선택하는 방법도 클론해야지").
+// 색은 테마가, 자리는 여기가 잠근다.
+
+test('★ 새 대화는 사이드바 메뉴에 있다 — 목록 판에 두면 「할 수 있는 것」과 「한 것」이 섞인다', () => {
+  assert.match(read(LAYOUT), /sidebarTop=\{<NewChatButton \/>\}/)
+  assert.doesNotMatch(read(`${AI_DIR}/ConversationSidebar.tsx`), /onNewChat/)
+})
+
+test('★ 새 대화는 이미 /ai 에 있어도 동작한다 — 주소만 바꾸면 아무 일도 안 일어난다', () => {
+  const src = read('app/(ai)/NewChatButton.tsx')
+  assert.match(src, /NEW_CHAT_EVENT/)
+  assert.match(read(`${AI_DIR}/AiChatClient.tsx`), /addEventListener\(NEW_CHAT_EVENT/)
+})
+
+test('★ 모델은 입력칸 안에서 고른다 — 대화 중 모델 교체가 전면 모달을 띄울 일이 아니다', () => {
+  const composer = read(`${AI_DIR}/Composer.tsx`)
+  assert.match(composer, /<ModelMenu/)
+  assert.doesNotMatch(read(`${AI_DIR}/AiChatClient.tsx`), /ModelPickerModal/)
+})
+
+test('★ 모델 드롭다운은 화면과 같은 창구를 쓴다 — 두 벌로 읽으면 상태가 갈린다', () => {
+  assert.match(read(`${AI_DIR}/ModelMenu.tsx`), /listModelCatalog/)
+})
+
+test('★ 표면 색은 테마 체계로 건다 — CSS 모듈에 박으면 여기서만 테마가 죽는다', () => {
+  assert.match(read(LAYOUT), /surfaceTheme="claude"/)
+})

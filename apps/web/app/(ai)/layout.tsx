@@ -16,6 +16,7 @@ import AppShell from '@/components/ui/shell/AppShell'
 import type { NavGroup } from '@/components/ui/shell/AppShell'
 import { AI_NAV_GROUPS, aiNavMatchPaths } from '@/lib/ai-chat/nav/groups'
 import studio from './studio.module.css'
+import NewChatButton from './NewChatButton'
 
 /** 이름은 표(lib/ai-chat/nav/groups)가, 그림은 화면이 정한다 */
 const NAV_ICON: Record<string, React.ReactNode> = {
@@ -54,8 +55,18 @@ export default async function AiLayout({ children }: { children: React.ReactNode
   return (
     <AppShell
       groups={NAV_GROUPS}
-      // 대화를 읽는 표면이라 업무 화면과 톤이 다르다(studio.module.css 머리주석)
+      // 모양은 스킨이, 색은 테마가 정한다(studio.module.css 머리주석)
       surfaceClass={studio.studio}
+      /**
+       * 이 표면은 claude 톤으로 고정한다 — 서비스가 자기 얼굴을 갖는다는 뜻이다(CRM·CI 와 같은 급).
+       *
+       * 처음엔 색을 CSS 모듈에 직접 박았고, 그래서 여기서만 테마가 죽었다(사용자 지적 v0.7.716).
+       * 지금은 **테마 체계 안**에서 한다 — `[data-theme="claude"]` 는 globals.css 에 있는 정식 테마고,
+       * 계정 메뉴에서 골라 앱 전체에 걸 수도 있다. 여기서는 그 테마를 셸 뿌리에 찍을 뿐이다.
+       * 이 표면도 사용자 선택을 따르게 하려면 이 줄만 지우면 된다.
+       */
+      surfaceTheme="claude"
+      sidebarTop={<NewChatButton />}
       branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
       session={{
         name: profile?.name ?? user?.user_metadata?.name ?? user?.email ?? '팀원',

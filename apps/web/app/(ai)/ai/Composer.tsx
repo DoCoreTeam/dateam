@@ -4,7 +4,8 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { Send, Square, Paperclip, FileText, X, Globe, ChevronDown, ListChecks } from 'lucide-react'
 import type { AiChatProviderId } from '@/types/database'
 import type { ProviderView } from './AiChatClient'
-import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
+import ModelMenu from './ModelMenu'
+import composerStyles from './composer.module.css'
 import {
   ATTACHMENT_RULES,
   MAX_ATTACHMENTS_PER_MESSAGE,
@@ -50,8 +51,8 @@ interface ComposerProps {
   /** 전송 실패 시 되돌려줄 원문(입력창이 비어있으면 채워 넣음). 소비 후 onRestoreConsumed. */
   restoreDraft: string | null
   onRestoreConsumed: () => void
-  /** ⑤ 모델 선택 모달 오픈(단순 드롭다운 대신 능력·출시일을 보여주는 모달로 대체) */
-  onOpenModelPicker: () => void
+  /** 모델 고르기 — 입력칸 안 드롭다운이 부른다(전면 모달은 걷어냈다, ModelMenu 머리주석) */
+  onSelectModel: (provider: AiChatProviderId, model: string) => void
   /** 목록 심층분석 진입(첨부·지구본 옆). */
   onOpenAnalyze: () => void
   /** 첨부는 대화 존재를 전제 — 없으면 지연 생성 후 id 반환(실패 시 null) */
@@ -82,7 +83,7 @@ export default function Composer({
   history,
   restoreDraft,
   onRestoreConsumed,
-  onOpenModelPicker,
+  onSelectModel,
   onOpenAnalyze,
   ensureConversation,
   toolsSupported,
@@ -384,6 +385,26 @@ export default function Composer({
             aria-hidden="true"
             tabIndex={-1}
           />
+          <textarea
+            className="input-field ai-chat-textarea"
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => { setValue(e.target.value); if (histIndex !== -1) setHistIndex(-1) }}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder={
+              locked
+                ? '과거 분기 열람 중: 최신 분기로 돌아가면 이어쓸 수 있습니다'
+                : noProviders
+                  ? '설정에서 API 키를 먼저 등록하세요'
+                  : '메시지를 입력하세요  (Enter 전송 · Shift+Enter 줄바꿈)'
+            }
+            rows={1}
+            disabled={noProviders || locked}
+            aria-label="메시지 입력"
+          />
+
+          <div className={composerStyles.tools}>
           <button
             type="button"
             className="ai-chat-attach-btn"
@@ -418,23 +439,16 @@ export default function Composer({
             <ListChecks size={18} />
           </button>
 
-          <textarea
-            className="input-field ai-chat-textarea"
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => { setValue(e.target.value); if (histIndex !== -1) setHistIndex(-1) }}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder={
-              locked
-                ? '과거 분기 열람 중: 최신 분기로 돌아가면 이어쓸 수 있습니다'
-                : noProviders
-                  ? '설정에서 API 키를 먼저 등록하세요'
-                  : '메시지를 입력하세요  (Enter 전송 · Shift+Enter 줄바꿈)'
-            }
-            rows={1}
-            disabled={noProviders || locked}
-            aria-label="메시지 입력"
+
+          <span className={composerStyles.spacer} />
+
+          {/* 모델은 입력칸 **안**에 둔다 — 무엇으로 답하는지가 보내기 바로 옆에 있어야 한다 */}
+          <ModelMenu
+            providers={providers}
+            currentProvider={currentProvider}
+            currentModel={currentModel}
+            disabled={locked}
+            onSelect={onSelectModel}
           />
 
           {streaming ? (
@@ -453,28 +467,8 @@ export default function Composer({
               <Send size={16} />
             </button>
           )}
+          </div>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-        <span className="label" style={{ margin: 0, fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
-          모델
-        </span>
-        <button
-          type="button"
-          className="ai-chat-model-btn"
-          onClick={onOpenModelPicker}
-          disabled={noProviders}
-          aria-label="모델 선택 (능력·출시일 보기)"
-          title="모델 선택"
-        >
-          <span>
-            {noProviders
-              ? '사용 가능한 프로바이더 없음'
-              : `${currentProvider ? PROVIDER_LABELS[currentProvider] : ''} · ${currentModel ?? ''}`}
-          </span>
-          <ChevronDown size={13} />
-        </button>
       </div>
     </div>
   )

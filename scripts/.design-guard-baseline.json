@@ -1,6 +1,6 @@
 {
   "apps/web/app/(ai)/ai/AiChatClient.tsx::inlinebutton": 1,
-  "apps/web/app/(ai)/ai/ConversationSidebar.tsx::inlinebutton": 3,
+  "apps/web/app/(ai)/ai/ConversationSidebar.tsx::inlinebutton": 2,
   "apps/web/app/(ai)/ai/ConversationSidebar.tsx::inlinecard": 1,
   "apps/web/app/(ai)/ai/ExportFormatModal.tsx::inlinebutton": 2,
   "apps/web/app/(ai)/ai/ExportFormatModal.tsx::inlinecard": 1,

@@ -60,8 +60,11 @@
 
 /* ── 입력칸 ──
    아래쪽에 뜬 큰 상자 하나. 보내기는 동그란 단추 */
+/* 입력 상자 — 글 칸이 위, 도구가 아래. claude.ai 와 같은 배치다.
+   예전엔 첨부·검색이 글 칸과 한 줄로 나란해서 글 칸이 그만큼 좁았다 */
 .studio :global(.ai-chat-composer-row) {
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--space-2);
   padding: var(--space-3);
   border: var(--hairline) solid var(--border-color);
@@ -101,11 +104,36 @@
   border-color: var(--border-subtle);
 }
 
-/* ── 판 ── 대화 목록과 본문 사이의 굵은 테두리를 눌러 한 화면으로 보이게 */
-.studio :global(.ai-chat-panel) {
-  border-width: var(--hairline);
-  border-color: var(--border-light);
-}
+/* ── 판을 없앤다 ──
+   대화 화면은 「상자 두 개」가 아니라 한 장이다. claude.ai 에 카드 테두리가 없는 이유이기도 하다.
+   목록과 본문 사이는 머리카락 선 하나로만 가른다. */
 .studio :global(.ai-chat-layout) {
-  gap: var(--space-5);
+  gap: 0;
+}
+.studio :global(.ai-chat-panel) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+/* 목록 쪽(첫 칸)만 오른쪽에 선을 둔다 — 두 칸이 맞닿는 자리다 */
+.studio :global(.ai-chat-layout) > :first-child {
+  border-right: var(--hairline) solid var(--border-light);
+}
+.studio :global(.ai-chat-topbar) {
+  border-bottom: 0;
+  background: transparent;
+}
+.studio :global(.ai-chat-sidebar-head) {
+  border-bottom: 0;
+}
+
+/* ── 빈 화면에서는 입력칸이 가운데로 온다 ──
+   claude.ai 의 첫 인상이다: 인사 한 줄과 입력칸이 화면 한가운데 붙어 있고, 예시가 그 아래.
+   대화가 시작되면 입력칸은 아래로 내려간다(그때는 .ai-chat-state 가 없다). */
+.studio :global(.ai-chat-panel:has(.ai-chat-state)) :global(.ai-chat-messages) {
+  flex: 0 0 auto;
+}
+.studio :global(.ai-chat-state) {
+  flex: 0 1 auto;
+  padding-bottom: var(--space-4);
 }

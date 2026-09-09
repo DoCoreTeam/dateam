@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { NEW_CHAT_EVENT } from '@/app/(ai)/NewChatButton'
 import Link from 'next/link'
 import { Menu, Plus, Settings2, Share2, Download, Copy, Check, ArrowLeftToLine, ListChecks } from 'lucide-react'
 import type {
@@ -35,7 +36,6 @@ import Composer from './Composer'
 import SystemPromptModal from './SystemPromptModal'
 import ArtifactPanel, { type ArtifactVersionEntry } from './ArtifactPanel'
 import ExportFormatModal, { type ExportFormat } from './ExportFormatModal'
-import ModelPickerModal from '@/components/ui/ModelPickerModal'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StreamDraft } from './MessageBubble'
 import { downloadConversationDocx } from '@/lib/ai-chat/export-docx'
@@ -154,7 +154,6 @@ export default function AiChatClient({
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [exportBusy, setExportBusy] = useState<ExportFormat | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
-  const [modelPickerOpen, setModelPickerOpen] = useState(false)
 
   const initialDraft: ProviderView | null = defaultProvider
     ? providers.find((p) => p.id === defaultProvider.id) ?? {
@@ -365,6 +364,21 @@ export default function AiChatClient({
     updateUrl(null)
     setSidebarOpen(false)
   }
+
+  /**
+   * 사이드바 메뉴의 「새 대화」가 보내는 신호.
+   *
+   * 그 단추는 레이아웃(서버 컴포넌트)에 있어서 이 상태를 직접 못 만진다.
+   * 주소만 바꾸면 이미 `/ai` 에 있을 때 아무 일도 안 일어나므로 창 이벤트로 한 번 더 알린다
+   * (`NewChatButton` 이 보내는 이름과 같은 상수를 본다).
+   */
+  useEffect(() => {
+    const handler = () => newChat()
+    window.addEventListener(NEW_CHAT_EVENT, handler)
+    return () => window.removeEventListener(NEW_CHAT_EVENT, handler)
+    // newChat 은 렌더마다 새로 만들어지지만 하는 일이 같다 — 매 렌더 재구독을 피한다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function loadOlder() {
     if (!selectedId || !msgCursor || loadingOlder) return
@@ -846,7 +860,6 @@ export default function AiChatClient({
           loadingMore={loadingMore}
           recentlyDeleted={recentlyDeleted}
           onSelect={selectConversation}
-          onNewChat={newChat}
           onRename={handleRename}
           onDelete={handleDelete}
           onRestore={handleRestore}
@@ -995,7 +1008,7 @@ export default function AiChatClient({
           history={sentHistory}
           restoreDraft={pendingRestore}
           onRestoreConsumed={() => setPendingRestore(null)}
-          onOpenModelPicker={() => setModelPickerOpen(true)}
+          onSelectModel={handleChangeModel}
           onOpenAnalyze={() => router.push('/ai/analyze')}
           ensureConversation={ensureConversation}
           toolsSupported={toolsSupported}
@@ -1032,15 +1045,6 @@ export default function AiChatClient({
         />
       )}
 
-      {modelPickerOpen && (
-        <ModelPickerModal
-          providers={providers}
-          currentProvider={curProvider}
-          currentModel={curModel}
-          onSelect={handleChangeModel}
-          onClose={() => setModelPickerOpen(false)}
-        />
-      )}
     </div>
   )
 }

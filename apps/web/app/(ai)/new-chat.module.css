@@ -1,0 +1,9 @@
+/* 사이드바 맨 위 「새 대화」 — 메뉴 폭을 꽉 채운다 */
+.button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 40px;
+}

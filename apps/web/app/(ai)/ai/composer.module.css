@@ -1,0 +1,11 @@
+/* 입력칸 아래 도구 줄 — claude.ai 처럼 상자 **안**에 둔다.
+ * 예전엔 첨부·검색이 글 입력칸과 한 줄에 나란히 있었고 모델은 상자 밖 아래에 따로 있었다.
+ * 도구가 셋으로 흩어져 있으면 "지금 무엇으로 답하는가"가 눈에 안 들어온다. */
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+}
+.spacer { flex: 1; }

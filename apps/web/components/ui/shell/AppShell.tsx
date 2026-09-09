@@ -61,10 +61,14 @@ export interface AppShellProps {
    */
   search?: { action: string; placeholder?: string }
   /**
-   * 이 표면만의 스킨 클래스(CSS 모듈). 토큰을 다시 정의하는 용도이고 셸 뿌리에 걸린다.
-   * AI 스튜디오가 대화를 읽기 좋은 톤으로 바꾸는 데 쓴다 — 구조는 그대로다.
+   * 이 표면만의 스킨 클래스(CSS 모듈). **모양**만 바꾼다 — 색은 `surfaceTheme` 의 일이다.
+   * AI 스튜디오가 대화를 읽기 좋은 폭·말풍선으로 바꾸는 데 쓴다.
    */
   surfaceClass?: string
+  /** 이 표면의 기본 테마. 사용자가 직접 고른 테마가 있으면 화면이 이걸 안 넘긴다 */
+  surfaceTheme?: string
+  /** 사이드바 메뉴 위에 놓는 그 표면의 주된 행동 하나 (AI 스튜디오의 「새 대화」) */
+  sidebarTop?: React.ReactNode
   /** 추가는 가능, 기본 제거는 불가 */
   extras?: {
     headerLeft?: ReactNode
@@ -83,6 +87,8 @@ export default function AppShell({
   search,
   extras,
   surfaceClass,
+  surfaceTheme,
+  sidebarTop,
   children,
 }: AppShellProps) {
   return (
@@ -90,6 +96,8 @@ export default function AppShell({
       items={items}
       groups={groups}
       surfaceClass={surfaceClass}
+      surfaceTheme={surfaceTheme}
+      sidebarTop={sidebarTop}
       logoUrl={branding?.logoUrl}
       brandName={branding?.brandName}
       isAdmin={session.isAdmin}
