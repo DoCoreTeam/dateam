@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar, Handshake } from 'lucide-react'
+import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar, Handshake, FileSearch } from 'lucide-react'
 import { navLabel, canSeeNav, LEGACY_SALES_GROUP_LABEL } from '@/lib/nav/menu'
 
 const PAGES = [
@@ -52,6 +52,7 @@ const PAGES = [
       { href: '/ci', label: navLabel('/ci'), icon: <Radar size={14} /> },
       // 관리자 전용 — 권한은 canSeeNav 가 본다(NAV_AUDIENCE)
       { href: '/ai', label: navLabel('/ai'), icon: <Sparkles size={14} /> },
+      { href: '/rfp', label: navLabel('/rfp'), icon: <FileSearch size={14} /> },
       { href: '/api-keys', label: navLabel('/api-keys'), icon: <Key size={14} /> },
       { href: '/develop', label: navLabel('/develop'), icon: <Code2 size={14} />, external: true },
     ],

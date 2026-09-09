@@ -499,7 +499,7 @@
 의존: I17, I36, I39, I41
 
 ### I43 서비스 등재와 가드와 테스트 등재
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/terms/index.ts, apps/web/lib/nav/surface.ts, apps/web/lib/nav/menu.ts, apps/web/package.json, 신규 apps/web/lib/rfp/rfp-guard.test.ts, apps/web/lib/changelog/entries.ts
 감사 기준:

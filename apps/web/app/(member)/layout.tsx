@@ -17,7 +17,7 @@ import { getRoutineWeeklyStatus } from './routine/actions'
 import { getTodayPlannedCount } from './daily/actions'
 import { countMyOpenDeptTasks } from './dept-tasks/actions'
 import { cookies } from 'next/headers'
-import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Network, Sparkles, Handshake, Radar } from 'lucide-react'
+import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Network, Sparkles, Handshake, Radar, FileSearch } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
 import { navLabel, SERVICE_NAV, SERVICE_GROUP_LABEL, ADMIN_ONLY_GROUPS, canSeeNav } from '@/lib/nav/menu'
@@ -48,6 +48,7 @@ const SERVICE_ICON: Record<ServiceHref, React.ReactNode> = {
   '/crm': <Handshake size={16} />,
   '/ci': <Radar size={16} />,
   '/ai': <Sparkles size={16} />,
+  '/rfp': <FileSearch size={16} />,
 }
 
 const NAV_GROUPS: NavGroup[] = [

@@ -39,6 +39,7 @@ export const NAV_LABEL: Record<string, string> = {
   '/crm': SERVICE_LABEL.crm,
   '/ci': SERVICE_LABEL.ci,
   '/ai': SERVICE_LABEL.ai,
+  '/rfp': SERVICE_LABEL.rfp,
   '/develop': SERVICE_LABEL.develop,
 
   /**
@@ -101,6 +102,7 @@ export const SERVICE_NAV = [
   { href: '/crm', label: SERVICE_LABEL.crm },
   { href: '/ci', label: SERVICE_LABEL.ci },
   { href: '/ai', label: SERVICE_LABEL.ai },
+  { href: '/rfp', label: SERVICE_LABEL.rfp },
 ] as const
 
 /** 「서비스」 그룹의 이름 — 화면이 직접 적지 않는다 */

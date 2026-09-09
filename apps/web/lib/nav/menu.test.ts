@@ -7,6 +7,7 @@ test('서비스로 들어가는 링크는 간판과 같은 말을 쓴다', () =>
   assert.equal(NAV_LABEL['/crm'], SERVICE_LABEL.crm)
   assert.equal(NAV_LABEL['/ci'], SERVICE_LABEL.ci)
   assert.equal(NAV_LABEL['/develop'], SERVICE_LABEL.develop)
+  assert.equal(NAV_LABEL['/rfp'], SERVICE_LABEL.rfp)
 })
 
 test('★ /lead-intake 는 이름이 하나다 — 사이드바 「프로젝트관리」와 전체메뉴 「리드 인테이크」로 갈렸던 자리', () => {
@@ -14,7 +15,7 @@ test('★ /lead-intake 는 이름이 하나다 — 사이드바 「프로젝트�
 })
 
 test('「서비스」 그룹에는 사이드바가 통째로 바뀌는 곳만 온다', () => {
-  assert.deepEqual(SERVICE_NAV.map((s) => s.href), ['/crm', '/ci', '/ai'])
+  assert.deepEqual(SERVICE_NAV.map((s) => s.href), ['/crm', '/ci', '/ai', '/rfp'])
   // 관리자·개발자센터는 권한/외부라 여기 오지 않는다
   assert.ok(!SERVICE_NAV.some((s) => s.href === '/admin' || s.href === '/develop'))
 })
