@@ -117,13 +117,36 @@
 apps/web/next.config.js 가 그 값을 NEXT_PUBLIC_APP_VERSION 으로 넘기고
 apps/web/scripts/changelog-gen.mjs 가 그 값보다 낮은 커밋을 전부 건너뜀
 
-- 항목 커밋은 vX.Y.Z-Ixx 형식이고 package.json 을 건드리지 않음 (플랜 도중이라 아직 발행할 것이 아님)
-- 완료 커밋만 package.json 을 목표 버전으로 올림, 이때 한 판이 발행됨
-- 플랜 밖 단독 커밋은 patch 를 올리고 vX.Y.Z 형식으로 적고 같은 커밋에 apps/web/lib/changelog/entries.ts 블록을 넣음, 앞 버전을 그대로 복사하면 그 커밋은 사용자에게 영원히 안 보임
+이 규칙은 새로 만든 것이 아니고 .claude/heavy/CEO.md 와 AGENTS.md 와 GEMINI.md 의
+버전 업데이트 체크리스트를 loop 어법으로 옮긴 것임
+LOOP.md 만 읽는 세션이 그 체크리스트를 볼 길이 없어 열일곱 커밋 동안 안 지켜졌음
+
+다음 버전 셈법
+
+- 커밋 전에 git log --oneline -5 로 최근 커밋의 버전을 먼저 봄
+- 다음 버전은 package.json 버전과 최근 커밋 버전 중 큰 쪽에 patch 1 을 더한 값
+- git log 를 안 보고 package.json 만 보고 정하지 않음, 그것이 버전 충돌의 원인
+- patch 는 0 부터 999 까지, 넘으면 minor 를 1 올리고 patch 는 0
+
+올릴 파일 여섯, 순서대로
+
+1. 루트 package.json (단일 소스, apps/web/next.config.js 가 여기서 읽어 화면에 넣음)
+2. apps/web/package.json
+3. .claude/heavy/CEO.md 의 버전 줄
+4. AGENTS.md 의 버전 줄
+5. GEMINI.md 의 버전 줄
+6. apps/web/lib/changelog/entries.ts (사용자 체감 변경이 있으면 맨 위에 이번 버전 블록)
+
+앞 다섯은 apps/web/lib/policy/policy-sync.test.ts 가 이미 봄
+여섯째와 버전 재사용은 apps/web/lib/policy/version-rule.test.ts 가 봄
+
+loop 에서의 적용
+
+- 항목 커밋은 vX.Y.Z-Ixx 형식이고 여섯 파일을 건드리지 않음 (플랜 도중이라 아직 발행할 것이 아님)
+- 완료 커밋만 여섯 파일을 목표 버전으로 올림, 이때 한 판이 발행됨
+- 플랜 밖 단독 커밋은 위 셈법대로 patch 를 올리고 vX.Y.Z 형식으로 적고 여섯 파일을 같이 올림, 앞 버전을 그대로 복사하면 그 커밋은 사용자에게 영원히 안 보임
 - 동시에 도는 플랜은 목표 버전을 겹치지 않게 잡음
 - 버전은 뒤로 가지 않음, 목표 버전이 현재보다 낮으면 package.json 을 고치지 않음
-- 루트와 apps/web 두 package.json 버전을 같이 올림
-- 가드는 apps/web/lib/policy/version-rule.test.ts
 
 ### 그 밖
 

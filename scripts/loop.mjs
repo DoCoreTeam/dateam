@@ -208,8 +208,15 @@ function addEvent(kind, detail, sessionId) {
 }
 
 // ---------- 버전 ----------
-/** 화면 버전과 업데이트 내역이 걸린 파일들. 같이 올라가야 한 판으로 발행된다 */
+/**
+ * 버전이 걸린 파일들. 같이 올라가야 한 판으로 발행된다
+ *
+ * 여섯 파일 체크리스트는 .claude/heavy/CEO.md 와 AGENTS.md 와 GEMINI.md 에 있고
+ * apps/web/lib/policy/policy-sync.test.ts 가 앞 다섯의 일치를 본다
+ * 여기서 하나라도 빠뜨리면 그 가드가 바로 빨강이 된다
+ */
 const PKG_VERSION_FILES = ['package.json', 'apps/web/package.json'];
+const DOC_VERSION_FILES = ['.claude/heavy/CEO.md', 'AGENTS.md', 'GEMINI.md'];
 
 /** 'a.b.c' 비교, 양수면 v1 이 높다 */
 function cmpSemver(v1, v2) {
@@ -224,6 +231,20 @@ function cmpSemver(v1, v2) {
  * 플랜이 둘 이상 동시에 돌면 목표 버전이 엇갈린다. 무조건 대입하면 늦게 끝난 낮은 플랜이
  * 앞서 올려 둔 버전을 되돌리고, 그 사이 커밋들은 발행기가 영영 건너뛴다.
  */
+function bumpDocVersion(file, next) {
+  if (!fs.existsSync(file)) return 'missing';
+  try {
+    const raw = fs.readFileSync(file, 'utf8');
+    const m = raw.match(/^## 버전\n+v(\d+\.\d+\.\d+)\s*$/m);
+    if (!m) return 'no-line';
+    if (cmpSemver(next, m[1]) <= 0) return 'behind';
+    const text = raw.replace(m[0], m[0].replace('v' + m[1], 'v' + next));
+    fs.writeFileSync(file, text);
+    if (!fs.readFileSync(file, 'utf8').includes('v' + next)) return 'skipped';
+    return 'bumped';
+  } catch { return 'skipped'; }
+}
+
 function bumpPkgVersion(file, next) {
   if (!fs.existsSync(file)) return 'missing';
   try {
@@ -740,6 +761,11 @@ cmds.final = (a) => {
       const r = bumpPkgVersion(path.join(ROOT, rel), target.slice(1));
       if (r === 'behind') out(`[loop-kit] ${rel} 버전 유지 (목표 ${target} 가 현재보다 낮음)`);
     }
+    for (const rel of DOC_VERSION_FILES) {
+      const r = bumpDocVersion(path.join(ROOT, rel), target.slice(1));
+      if (r === 'no-line') out(`[loop-kit] ${rel} 에 버전 줄 없음, 건너뜀`);
+    }
+    out(`[loop-kit] 사용자 체감 변경이 있으면 apps/web/lib/changelog/entries.ts 맨 위에 ${target} 블록을 직접 추가`);
   }
   const dest = archivePlan(readPlan());
   setSetting('current_item', '');
