@@ -84,7 +84,7 @@ export const PAGING_PARAMS = new Set([
 function pageValues(pageUrl: string): Set<string> {
   try {
     const out = new Set<string>()
-    for (const [k, v] of new URL(pageUrl).searchParams) {
+    for (const [k, v] of Array.from(new URL(pageUrl).searchParams)) {
       if (PAGING_PARAMS.has(k.toLowerCase())) continue
       if (v.length < 2) continue
       out.add(v)
