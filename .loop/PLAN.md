@@ -77,7 +77,7 @@
 의존: I01
 
 ### I03 DB 마이그레이션 247 분석과 리포트와 설정
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 supabase/migrations/247_rfp_analysis.sql
 감사 기준:
