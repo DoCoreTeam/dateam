@@ -310,7 +310,7 @@
 의존: I19, I21, I22
 
 ### I25 교차검증 모드
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/cross/consensus.ts, 신규 apps/web/lib/rfp/cross/run-cross.ts, 신규 apps/web/lib/rfp/cross/estimate.ts, 신규 apps/web/lib/rfp/cross/consensus.test.ts, 신규 apps/web/app/api/rfp/cases/[id]/cross/route.ts
 감사 기준:
