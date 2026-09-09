@@ -24,10 +24,12 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import NbButton from '@/components/ui/nb/NbButton'
+import NbBadge from '@/components/ui/nb/NbBadge'
+import { DEAL_STATUS_TONE } from '@/lib/crm/ui/deal-status'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import Sensitive from '@/components/crm/Sensitive'
 import { formatAmount } from '../deals/amount'
-import { ACTION, failedTo } from '@/lib/terms'
+import { ACTION, ENTITY, DEAL_STATUS_LABEL, failedTo } from '@/lib/terms'
 import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, METRIC_GROUP_LABEL, METRIC_GROUP_HINT, type MetricGroupKey, REPORT as R } from '@/lib/terms/report'
 import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, type Period, type PeriodKind, type TargetSpec, INDEX_MAX, findTarget } from '@/lib/crm/domain/target'
 import { computeDerived } from '@/lib/crm/domain/derived'
@@ -60,6 +62,25 @@ interface AggResult {
   notes: { unknownProbability: number; mixedCurrency: boolean; matched: number }
 }
 
+interface MetricDealRow {
+  id: string
+  name: string
+  company: string | null
+  stage: string | null
+  owner: string | null
+  status: 'OPEN' | 'WON' | 'LOST'
+  /** 이 지표가 이 딜에서 센 몫 — 가중·기간분배가 반영된 값이라 합이 카드와 같다 */
+  minor: string
+  currency: string
+  count: number
+  /** 딜이 가진 그 금액칸 — 건수 지표에서 규모를 보여 준다 */
+  dealMinor: string
+  dateKey: string
+}
+
+interface MetricDeals { rows: MetricDealRow[]; total: number; truncated: boolean }
+
+
 interface Payload {
   period: string
   from: string | null
@@ -72,6 +93,8 @@ interface Payload {
   filters: { dimension: string; value: string; label: string | null }[]
   cards: AggResult[]
   matrix: AggResult | null
+  /** 고른 지표가 **실제로 센 딜**. 표와 같은 코드가 골라서 합이 어긋나지 않는다 */
+  deals: MetricDeals | null
   targets: TargetSpec[]
   close: {
     periodKey: string
@@ -167,17 +190,6 @@ const GROUPS: { key: MetricGroupKey; metrics: string[]; risk?: boolean }[] = [
   { key: 'closed', metrics: ['bookings', 'won_count', 'lost_count'] },
   { key: 'risk', metrics: ['overdue', 'stalled'], risk: true },
 ]
-
-/**
- * 카드를 열 때 **아무것도 안 쪼갠 상태로 두지 않는다.**
- *
- * 쪼개는 기준이 없으면 표가 「전체 · 8건」 한 줄이 된다 — 방금 누른 카드를 그대로
- * 되풀이하는 줄이라 아무 답도 아니다(사용자 지적: 「딜 8건을 눌렀는데 아래 나오는 답이
- * 딜 8건이고 이걸 눌렀을 때 뭔지 나오지도 않네」).
- * 회사로 쪼개면 그 8건이 **어디 것인지**가 바로 보인다. 고르는 칸도 「회사」로 바뀌므로
- * 무엇이 일어났는지 화면에 남고, 합계만 보고 싶으면 되돌릴 수 있다.
- */
-const DEFAULT_ROW_AXIS = 'company'
 
 /** 마감이 갈 수 있는 곳 — 갈 수 있는 것만 버튼으로 낸다 */
 const CLOSE_NEXT: CloseStateKey[] = ['reviewing', 'confirmed', 'draft']
@@ -370,6 +382,7 @@ export default function MetricsClient() {
 
   // 교차표 컬럼 — 열축이 없으면 값 한 칸이다
   const matrix = data.matrix
+  const deals = data.deals
   const columns: ColumnDef<AxisItem>[] = matrix
     ? [
       { key: '_row', header: dimLabel(data.rows, AXIS_NONE.rows), primary: true, cell: (r) => r.label },
@@ -588,13 +601,7 @@ export default function MetricsClient() {
                   <button
                     key={c.metric} type="button"
                     className={`card ${s.card}${on ? ` ${s.cardOn}` : ''}${alert ? ` ${s.cardAlert}` : ''}`}
-                    onClick={() => {
-                      jumpTo.current = on ? null : c.metric
-                      // 사람이 고른 기준은 건드리지 않는다 — 아직 안 골랐을 때만 기본값을 넣는다
-                      const patch: Record<string, string | null> = { metric: on ? null : c.metric }
-                      if (!on && !sp.get('rows')) patch.rows = DEFAULT_ROW_AXIS
-                      set(patch)
-                    }}
+                    onClick={() => { jumpTo.current = on ? null : c.metric; set({ metric: on ? null : c.metric }) }}
                     aria-pressed={on}
                     title={`${c.label} · ${basisLine(c.dateBasis as 'wonAt')}`}
                   >
@@ -629,24 +636,46 @@ export default function MetricsClient() {
         {data.rows && <ThinNote data={data} dimKey={data.rows} onFilled={() => setReload((n) => n + 1)} />}
       </div>
 
-      {/* 교차표 */}
+      {/*
+        눌러서 연 지표 — **먼저 «무엇인지», 그다음 «어떻게 쪼개지는지».**
+
+        예전에는 쪼갠 합계만 냈다. 그런데 축을 안 고르면 그 표는 「전체 · 8건」 한 줄이라
+        방금 누른 카드를 그대로 되풀이한다 — 8건에 8건으로 답하는 꼴이다
+        (사용자 지적: 「이건 의미있는 데이터를 보여주지 못하는데?」).
+        사람이 알고 싶은 것은 그 8건이 **어느 회사의 어떤 건이고 얼마이고 어디까지 왔나**다.
+      */}
       <div className={s.section}>
         {matrix ? (
           <>
             <div className={s.sectionHead}>
               <h2 className={`tape-title ${s.tableTitle}`} ref={tableHeadRef} tabIndex={-1}>{matrix.label}</h2>
               <span className={s.basis}>
-                {dimLabel(data.rows, AXIS_NONE.rows)} × {dimLabel(data.cols, AXIS_NONE.cols)} · 합계 {cellText(matrix.total, matrix.unit)}
+                {basisLine(matrix.dateBasis as 'wonAt')} · 합계 {cellText(matrix.total, matrix.unit)}
+                {deals && ` · 딜 ${deals.total.toLocaleString('ko-KR')}건`}
               </span>
             </div>
-            <ListSurface<AxisItem>
-              rows={matrix.rows}
-              columns={columns}
-              query={MATRIX_QUERY}
-              rowKey={(r) => r.key}
-              empty={{ title: '이 기간에 해당하는 딜이 없어요', description: '기간이나 조건을 바꿔 보세요' }}
-              onRowClick={data.rows ? (r) => set({ [`f.${data.rows}`]: r.key }) : undefined}
-            />
+
+            {/*
+              쪼갠 표는 **사람이 기준을 골랐을 때만** 낸다.
+              안 골랐는데 내면 「전체」 한 줄이 답인 척 서 있게 된다.
+            */}
+            {(data.rows || data.cols) && (
+              <div className={s.split}>
+                <h3 className={s.splitHead}>
+                  {dimLabel(data.rows, AXIS_NONE.rows)} × {dimLabel(data.cols, AXIS_NONE.cols)}
+                </h3>
+                <ListSurface<AxisItem>
+                  rows={matrix.rows}
+                  columns={columns}
+                  query={MATRIX_QUERY}
+                  rowKey={(r) => r.key}
+                  empty={{ title: '이 기간에 해당하는 딜이 없어요', description: '기간이나 조건을 바꿔 보세요' }}
+                  onRowClick={data.rows ? (r) => set({ [`f.${data.rows}`]: r.key }) : undefined}
+                />
+              </div>
+            )}
+
+            <DealHits deals={deals} unit={matrix.unit} label={matrix.label} />
           </>
         ) : (
           /*
@@ -670,6 +699,68 @@ export default function MetricsClient() {
           onSaved={(next) => setData({ ...data, targets: next })}
         />
       )}
+    </div>
+  )
+}
+
+/**
+ * **그 숫자가 무엇인지.**
+ *
+ * 카드의 숫자를 이루는 딜을 그대로 편다. 금액은 **그 지표가 이 딜에서 센 몫**이다 —
+ * 가중 예상이면 확률을 곱한 뒤이고, 사업 기간 기준이면 이 기간에 걸린 달치만이다.
+ * 그래야 줄의 합이 위의 합계와 같아진다. 건수 지표는 센 것이 건수라 금액칸에는
+ * **딜이 가진 금액**을 적는다 — 「8건」 다음에 사람이 묻는 것이 «얼마짜리인가»라서다.
+ *
+ * 줄은 링크다(`rowHref`) — 새 탭·우클릭·키보드가 전부 되어야 목록에서 딜로 넘어간다.
+ */
+function DealHits({ deals, unit, label }: { deals: MetricDeals | null; unit: string; label: string }) {
+  const money = unit === 'money'
+  const columns: ColumnDef<MetricDealRow>[] = [
+    { key: 'name', header: ENTITY.deal.label, primary: true, cell: (d) => d.name },
+    { key: 'company', header: ENTITY.company.label, cell: (d) => d.company ?? DIMENSION_EMPTY },
+    {
+      key: 'stage',
+      header: '단계',
+      cell: (d) => (
+        d.status === 'OPEN'
+          ? (d.stage ?? DIMENSION_EMPTY)
+          : <NbBadge status={DEAL_STATUS_TONE[d.status]}>{DEAL_STATUS_LABEL[d.status]}</NbBadge>
+      ),
+    },
+    { key: 'owner', header: '담당자', cell: (d) => d.owner ?? DIMENSION_EMPTY },
+    {
+      key: 'amount',
+      header: money ? label : ENTITY.deal.label + ' 금액',
+      align: 'right',
+      cell: (d) => {
+        const v = money ? d.minor : d.dealMinor
+        return (
+          <span className={s.cell}>
+            {/* 금액이 없는 딜을 0 원으로 그리지 않는다 — 「안 정했다」와 「0 원이다」는 다르다 */}
+            <Sensitive>{v === '0' ? DIMENSION_EMPTY : (formatAmount(v, d.currency) ?? v)}</Sensitive>
+          </span>
+        )
+      },
+    },
+    { key: 'dateKey', header: REPORT.dateBasis, align: 'right', cell: (d) => <span className={s.cellMuted}>{d.dateKey}</span> },
+  ]
+
+  return (
+    <div className={s.hits}>
+      <h3 className={s.splitHead}>
+        이 숫자를 이룬 딜
+        {deals?.truncated && (
+          <span className={s.groupHint}>{deals.total.toLocaleString('ko-KR')}건 중 앞의 {deals.rows.length}건</span>
+        )}
+      </h3>
+      <ListSurface<MetricDealRow>
+        rows={deals?.rows ?? []}
+        columns={columns}
+        query={MATRIX_QUERY}
+        rowKey={(d) => d.id}
+        rowHref={(d) => `/crm/deals/${d.id}`}
+        empty={{ title: '이 기간에 해당하는 딜이 없어요', description: '기간이나 조건을 바꿔 보세요' }}
+      />
     </div>
   )
 }

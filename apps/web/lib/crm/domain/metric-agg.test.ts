@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
   aggregate, cellAt, sumOf, bucketOf, timeBucketOf, amountOf, inScope,
-  contributionsOf, isTimeAxis, ALL_KEY, EMPTY_KEY, CELL_SEP, DEFAULT_STALLED_DAYS,
+  contributionsOf, isTimeAxis, matchedDeals, ALL_KEY, EMPTY_KEY, CELL_SEP, DEFAULT_STALLED_DAYS,
   type AggDeal, type QuerySpec,
 } from './metric-agg.ts'
 import { metricOf } from './metrics.ts'
@@ -19,7 +19,7 @@ const 억 = (n: number) => String(n * 100_000_000)
 
 function deal(over: Partial<AggDeal> = {}): AggDeal {
   return {
-    id: 'd1', status: 'OPEN',
+    id: 'd1', name: '딜ㄱ', status: 'OPEN',
     createdAtIso: '2026-06-01T00:00:00+09:00',
     wonAtIso: null,
     expectedCloseIso: '2026-10-01T00:00:00+09:00',
@@ -287,4 +287,75 @@ test('집계 코어는 순수하다 — DB 도 시계도 모른다', () => {
   for (const banned of ['@prisma/client', 'db/client', 'getCrmDb', 'findMany', 'new Date()', 'Date.now']) {
     assert.ok(!src.includes(banned), `집계 코어가 ${banned} 를 안다 — 숫자로 검증할 수 없게 된다`)
   }
+})
+
+// ── 「그 숫자가 무엇인가」 ─────────────────────────────────
+//
+// 카드를 눌렀을 때 나오는 딜 목록이 **카드의 숫자와 같은 것을 세야** 한다.
+// 조건을 두 벌 적으면 「합계는 8건인데 목록은 7건」이 되고, 그 차이는 아무도 못 찾는다.
+// 그래서 표와 목록이 `scanMetric` 하나를 쓰고, 여기서 그 사실을 숫자로 잠근다.
+
+test('목록의 합이 표의 합계와 같다 — 금액 지표', () => {
+  const deals = [
+    deal({ id: 'a', amountMinor: 억(9), winProbabilityPct: 45 }),
+    deal({ id: 'b', amountMinor: 억(13), winProbabilityPct: 33 }),
+    // 확률을 모르는 딜은 가중 예상에서 빠진다 — 목록에서도 빠져야 합이 맞는다
+    deal({ id: 'c', amountMinor: 억(5), winProbabilityPct: null }),
+  ]
+  const sp = spec({ metric: 'weighted' })
+  const agg = aggregate(deals, sp)
+  const list = matchedDeals(deals, sp)
+
+  const listSum = list.rows.reduce((a, r) => a + BigInt(r.minor), 0n)
+  assert.equal(String(listSum), agg.total.byCurrency.KRW,
+    '목록의 합이 합계와 다르다 — 둘 중 하나는 거짓말이다')
+  assert.equal(list.total, 2, '확률을 모르는 딜이 목록에 남았다')
+  assert.deepEqual(list.rows.map((r) => r.id), ['b', 'a'], '큰 것부터 서야 보고에서 먼저 말할 수 있다')
+})
+
+test('목록의 건수가 표의 건수와 같다 — 건수 지표', () => {
+  const deals = [
+    deal({ id: 'a', createdAtIso: '2026-03-02T00:00:00+09:00' }),
+    deal({ id: 'b', createdAtIso: '2026-07-02T00:00:00+09:00' }),
+    // 기간 밖은 둘 다에서 빠진다
+    deal({ id: 'c', createdAtIso: '2025-07-02T00:00:00+09:00' }),
+  ]
+  const sp = spec({ metric: 'new_deals' })
+  const agg = aggregate(deals, sp)
+  const list = matchedDeals(deals, sp)
+
+  assert.equal(list.rows.reduce((a, r) => a + r.count, 0), agg.total.count)
+  assert.equal(list.total, 2)
+})
+
+test('건수 지표의 목록도 규모를 말한다 — 금액칸이 null 이면 가장 확실한 금액을 쓴다', () => {
+  // 실측 v0.7.716: 이걸 안 하면 「신규 딜 8건」 목록의 금액이 여덟 줄 다 「없음」이었다
+  const deals = [deal({ id: 'a', contractNetMinor: null, quotedNetMinor: 억(3), budgetNetMinor: 억(9) })]
+  const list = matchedDeals(deals, spec({ metric: 'new_deals' }))
+  assert.equal(list.rows[0]?.dealMinor, 억(3), '계약이 없으면 견적을 쓴다(예산보다 확실하다)')
+})
+
+test('한 딜이 여러 달에 걸려도 목록에는 한 줄이다', () => {
+  // 사업 기간 기준은 달마다 몫을 낸다 — 줄을 달 수만큼 만들면 「12건」처럼 보인다
+  const deals = [deal({
+    id: 'a', status: 'WON', wonAtIso: '2026-01-05T00:00:00+09:00',
+    startDateIso: '2026-01-01T00:00:00+09:00', endDateIso: '2026-12-31T00:00:00+09:00',
+    contractNetMinor: 억(12),
+  })]
+  const sp = spec({ metric: 'recognized' })
+  const agg = aggregate(deals, sp)
+  const list = matchedDeals(deals, sp)
+  assert.equal(list.rows.length, 1, '달마다 줄이 생기면 건수가 부풀어 오른다')
+  assert.equal(list.rows[0]?.minor, agg.total.byCurrency.KRW, '나눠 담은 몫의 합이 그 줄의 금액이다')
+  assert.equal(list.rows[0]?.dateKey, '2026-01-01', '여러 달에 걸치면 처음 걸린 달을 적는다')
+})
+
+test('걸린 조건이 목록에도 걸린다', () => {
+  const deals = [
+    deal({ id: 'a', company: { id: 'c1', name: '고객ㄱ', industry: null, region: null, employeeRange: null, domain: null } }),
+    deal({ id: 'b', company: { id: 'c2', name: '고객ㄴ', industry: null, region: null, employeeRange: null, domain: null } }),
+  ]
+  const sp = spec({ metric: 'open_pipeline', filters: [{ dimension: 'company', value: 'c2' }] })
+  assert.deepEqual(matchedDeals(deals, sp).rows.map((r) => r.id), ['b'],
+    '조건을 걸었는데 목록이 안 걸리면 화면이 두 가지를 동시에 말하게 된다')
 })

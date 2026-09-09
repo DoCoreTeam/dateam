@@ -20,7 +20,7 @@ import { findClose, isClosable, closeBlockedReason, moveClose, isLive, type Clos
 import { metricCatalog, isKnownMetric } from '@/lib/crm/domain/metrics'
 import { dimensionCatalog, isKnownDimension, DIMENSIONS } from '@/lib/crm/domain/dimensions'
 import { parsePeriodKey, periodOfToday, formatPeriodKey } from '@/lib/crm/domain/target'
-import { isTimeAxis, type QuerySpec } from '@/lib/crm/domain/metric-agg'
+import { isTimeAxis, matchedDeals, type QuerySpec } from '@/lib/crm/domain/metric-agg'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
 /** 첫 화면 카드에 서는 지표 — 영업이 말하는 순서(진행 중 → 실적 → 주의) */
@@ -29,6 +29,9 @@ const CARD_METRICS = [
   'new_deals', 'won_count', 'lost_count',
   'overdue', 'stalled',
 ] as const
+
+/** 카드를 눌렀을 때 함께 주는 딜 목록의 상한 — 넘으면 잘렸다고 화면이 말한다 */
+const DEAL_LIST_LIMIT = 200
 
 /** 모르는 축 이름은 조용히 버린다 — 없는 축으로 500 을 주지 않는다 */
 function axisOrNull(raw: string | null): string | null {
@@ -64,6 +67,13 @@ export async function GET(req: NextRequest) {
     const cards = runMetrics(loaded, CARD_METRICS.map((m): QuerySpec => ({ ...base, metric: m })))
     // 교차표는 고른 지표가 있을 때만 — 없으면 화면이 카드만 그린다
     const matrix = metric ? runMetrics(loaded, [{ ...base, metric, rows, cols }])[0] : null
+    /*
+      **그 숫자가 무엇인지도 같이 준다.**
+      카드를 눌렀는데 쪼갠 합계만 돌려주면 「8건」에 「8건」으로 답하는 꼴이다.
+      목록은 표와 **같은 코드**(`scanMetric`)가 고른 것이라 둘의 합이 어긋날 수 없다.
+      상한은 화면이 한 번에 읽을 수 있는 만큼 — 잘렸으면 잘렸다고 말한다.
+    */
+    const deals = metric ? matchedDeals(loaded.deals, { ...base, metric }, DEAL_LIST_LIMIT) : null
 
     // 축이 지금 쓸 만한지 함께 준다 — 「없음 한 줄」을 데이터가 없는 것으로 읽지 않게
     const fill: Record<string, { filled: number; total: number }> = {}
@@ -77,7 +87,7 @@ export async function GET(req: NextRequest) {
       rows, cols, metric,
       // 조건은 id 로 실려 오지만 화면은 이름을 그린다 — 이름을 여기서 붙여 보낸다
       filters: filters.map((f) => ({ ...f, label: filterLabel(loaded, f.dimension, f.value) })),
-      cards, matrix, targets,
+      cards, matrix, deals, targets,
       // 마감 — 이 기간이 닫혔나. 닫혔으면 화면은 박아 둔 숫자를 함께 보여 준다
       close: (() => {
         const key = formatPeriodKey(period)

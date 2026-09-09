@@ -41,9 +41,10 @@ export {
   taxBasisNote, inKindShare, undatedInKindNote, yearLabel, monthsLabel, basisPlaceholder,
   BUSINESS_TYPE_LABEL, BUSINESS_TYPE_ORDER, BUSINESS_TYPE_LABEL_TEXT,
   TERM_TYPE_LABEL, TERM_TYPE_ORDER, TERM_TYPE_LABEL_TEXT,
+  DEAL_STATUS_LABEL, DEAL_STATUS_ORDER, DEAL_STATUS_LABEL_TEXT,
   EXPECTED_CLOSE_LABEL, END_DATE_UNKNOWN_LABEL, END_DATE_UNKNOWN_HINT,
   type BookedFromKey, type FundingKey, type InKindKindKey,
-  type BusinessTypeKey, type TermTypeKey,
+  type BusinessTypeKey, type TermTypeKey, type DealStatusKey,
 } from './ledger.ts'
 
 export {

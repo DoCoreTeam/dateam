@@ -33,6 +33,8 @@ export interface AggCompany extends AggRef {
 
 export interface AggDeal {
   id: string
+  /** 딜 이름 — 카드 숫자를 눌러 「그 N건이 무엇인지」 볼 때 이 줄이 답이다 */
+  name: string
   status: 'OPEN' | 'WON' | 'LOST'
   createdAtIso: string
   wonAtIso: string | null
@@ -265,16 +267,31 @@ function addTo(cell: Cell, currency: string, minor: bigint, count: number): void
  * 축을 안 주면 총합 한 칸이다. 하나만 주면 목록, 둘 주면 교차표다 —
  * 화면 셋을 위해 함수 셋을 만들지 않는다.
  */
-export function aggregate(deals: readonly AggDeal[], spec: QuerySpec): AggResult {
-  const decl = metricOf(spec.metric)
-  if (!decl) throw new Error(`모르는 지표입니다: ${spec.metric}`)
+/** 지표가 센 몫 하나 — 어느 딜이 어느 날짜로 얼마를 냈나 */
+export interface DealHit {
+  deal: AggDeal
+  dateKey: string
+  currency: string
+  minor: bigint
+  count: number
+  row: AggAxisItem
+  col: AggAxisItem
+}
 
+/**
+ * 지표가 **실제로 세는 몫**을 훑는다.
+ *
+ * 표(`aggregate`)와 목록(`matchedDeals`)이 **이 함수 하나**를 쓴다.
+ * 조건을 두 벌 적으면 「합계는 8건인데 목록은 7건」이 되고, 그 차이는 아무도 못 찾는다 —
+ * 이 저장소가 딜 목록·합계에서 이미 같은 규칙을 세워 뒀다(`api/crm/deals`).
+ */
+export function scanMetric(
+  deals: readonly AggDeal[],
+  spec: QuerySpec,
+  decl: MetricDecl,
+  onHit: (hit: DealHit) => void,
+): { unknownProbability: number; matched: number } {
   const { from, to } = periodRange(spec.period)
-  const rowsAx = new Map<string, string>()
-  const colsAx = new Map<string, string>()
-  const cells: Record<string, Cell> = {}
-  const total = emptyCell()
-  const currencies = new Set<string>()
   let unknownProbability = 0
   let matched = 0
 
@@ -306,19 +323,43 @@ export function aggregate(deals: readonly AggDeal[], spec: QuerySpec): AggResult
         minor = pctOfMinor(minor, d.winProbabilityPct, 'floor')
       }
 
-      const r = axisOf(spec.rows, d, c.dateKey)
-      const col = axisOf(spec.cols, d, c.dateKey)
-      if (!rowsAx.has(r.key)) rowsAx.set(r.key, r.label)
-      if (!colsAx.has(col.key)) colsAx.set(col.key, col.label)
-
-      const k = `${r.key}${CELL_SEP}${col.key}`
-      if (!cells[k]) cells[k] = emptyCell()
-      addTo(cells[k], currency, minor, c.count)
-      addTo(total, currency, minor, c.count)
-      if (minor !== ZERO) currencies.add(currency)
+      onHit({
+        deal: d,
+        dateKey: c.dateKey,
+        currency,
+        minor,
+        count: c.count,
+        row: axisOf(spec.rows, d, c.dateKey),
+        col: axisOf(spec.cols, d, c.dateKey),
+      })
       if (!counted) { matched += 1; counted = true }
     }
   }
+
+  return { unknownProbability, matched }
+}
+
+export function aggregate(deals: readonly AggDeal[], spec: QuerySpec): AggResult {
+  const decl = metricOf(spec.metric)
+  if (!decl) throw new Error(`모르는 지표입니다: ${spec.metric}`)
+
+  const { from, to } = periodRange(spec.period)
+  const rowsAx = new Map<string, string>()
+  const colsAx = new Map<string, string>()
+  const cells: Record<string, Cell> = {}
+  const total = emptyCell()
+  const currencies = new Set<string>()
+
+  const { unknownProbability, matched } = scanMetric(deals, spec, decl, (h) => {
+    if (!rowsAx.has(h.row.key)) rowsAx.set(h.row.key, h.row.label)
+    if (!colsAx.has(h.col.key)) colsAx.set(h.col.key, h.col.label)
+
+    const k = `${h.row.key}${CELL_SEP}${h.col.key}`
+    if (!cells[k]) cells[k] = emptyCell()
+    addTo(cells[k], h.currency, h.minor, h.count)
+    addTo(total, h.currency, h.minor, h.count)
+    if (h.minor !== ZERO) currencies.add(h.currency)
+  })
 
   return {
     metric: decl.key,
@@ -332,6 +373,89 @@ export function aggregate(deals: readonly AggDeal[], spec: QuerySpec): AggResult
     cells,
     total,
     notes: { unknownProbability, mixedCurrency: currencies.size > 1, matched },
+  }
+}
+
+/**
+ * 이 지표가 센 **딜 목록**.
+ *
+ * **왜 필요한가**: 「신규 딜 8건」을 눌렀을 때 답이 다시 「8건」이면 아무것도 답하지
+ * 않은 것이다(사용자 지적 2026-09-09). 사람이 알고 싶은 것은 «그 8건이 무엇인가» —
+ * 어느 회사의 어떤 건이 얼마이고 지금 어디까지 왔나다. 쪼갠 합계는 그다음 물음이다.
+ *
+ * 금액은 **그 지표가 이 딜에서 센 몫**이다 — 딜의 원금액이 아니다.
+ * 가중 예상이면 확률을 곱한 뒤이고, 사업 기간 기준이면 이 기간에 걸린 달치만이다.
+ * 그래야 목록의 합이 카드의 숫자와 같아진다(다르면 둘 중 하나는 거짓말이다).
+ */
+export interface MetricDealRow {
+  id: string
+  name: string
+  company: string | null
+  stage: string | null
+  owner: string | null
+  status: 'OPEN' | 'WON' | 'LOST'
+  /** 이 지표가 이 딜에서 센 금액(minor, 문자열 — JSON 이 BigInt 를 못 싣는다) */
+  minor: string
+  currency: string
+  /** 이 지표가 이 딜을 몇 건으로 셌나. 기간 분배는 0 이다(건수를 부풀리지 않는다) */
+  count: number
+  /**
+   * 딜의 규모 — 건수 지표에도 «얼마짜리인가»를 보여 주려고 함께 싣는다.
+   *
+   * 건수 지표는 금액칸이 `null` 이라 그대로 물으면 전부 0 이 된다(실측: 목록 금액이
+   * 여덟 줄 다 「없음」이었다). 그럴 때는 **가장 확실한 금액**(계약 → 견적 → 예산)을
+   * 쓴다 — 딜이 `bookedNetMinor` 를 정하는 규칙과 같은 규칙이다.
+   */
+  dealMinor: string
+  /** 이 딜이 이 기간에 걸린 근거 날짜 — 카드의 「기준 · 따낸 날」과 같은 날짜다 */
+  dateKey: string
+}
+
+export interface MetricDeals {
+  rows: MetricDealRow[]
+  /** 실제로 걸린 딜 수. `rows` 는 상한에서 잘릴 수 있다 */
+  total: number
+  truncated: boolean
+}
+
+export function matchedDeals(deals: readonly AggDeal[], spec: QuerySpec, limit = 200): MetricDeals {
+  const decl = metricOf(spec.metric)
+  if (!decl) throw new Error(`모르는 지표입니다: ${spec.metric}`)
+
+  // 한 딜이 여러 달에 나눠 걸릴 수 있다(사업 기간 기준) — 딜 단위로 합쳐야 줄이 하나가 된다
+  const byDeal = new Map<string, { d: AggDeal; minor: bigint; count: number; dateKey: string; currency: string }>()
+  scanMetric(deals, spec, decl, (h) => {
+    const prev = byDeal.get(h.deal.id)
+    if (!prev) {
+      byDeal.set(h.deal.id, { d: h.deal, minor: h.minor, count: h.count, dateKey: h.dateKey, currency: h.currency })
+      return
+    }
+    prev.minor += h.minor
+    prev.count += h.count
+    // 여러 달에 걸치면 **처음 걸린 달**을 적는다 — 「언제부터」가 사람이 찾는 날짜다
+    if (h.dateKey < prev.dateKey) prev.dateKey = h.dateKey
+  })
+
+  const all = Array.from(byDeal.values())
+  // 큰 것부터 — 보고에서 먼저 말해야 하는 순서다. 금액이 같으면 최근 것이 위로
+  all.sort((a, b) => (a.minor === b.minor ? (a.dateKey < b.dateKey ? 1 : -1) : (a.minor < b.minor ? 1 : -1)))
+
+  return {
+    rows: all.slice(0, limit).map((m) => ({
+      id: m.d.id,
+      name: m.d.name,
+      company: m.d.company?.name ?? null,
+      stage: m.d.stage?.name ?? null,
+      owner: m.d.owner?.name ?? null,
+      status: m.d.status,
+      minor: String(m.minor),
+      currency: m.currency,
+      count: m.count,
+      dealMinor: String(amountOf(m.d, decl.amount ?? 'booked')),
+      dateKey: m.dateKey,
+    })),
+    total: all.length,
+    truncated: all.length > limit,
   }
 }
 

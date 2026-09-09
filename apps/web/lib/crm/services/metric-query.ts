@@ -49,7 +49,7 @@ export async function loadDealsForMetrics(db: CrmDb): Promise<LoadedDeals> {
       take: DEAL_SCAN_LIMIT + 1,
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true, status: true, createdAt: true, wonAt: true, expectedCloseDate: true,
+        id: true, name: true, status: true, createdAt: true, wonAt: true, expectedCloseDate: true,
         startDate: true, endDate: true, currency: true,
         contractNetMinor: true, quotedNetMinor: true, budgetNetMinor: true, amountMinor: true,
         businessTypeKey: true, ownerId: true,
@@ -80,6 +80,8 @@ export async function loadDealsForMetrics(db: CrmDb): Promise<LoadedDeals> {
 
     return {
       id: r.id,
+      // 이름이 없으면 목록이 「무엇인지」를 못 쓴다 — 빈 이름은 딜 화면 규칙대로 «이름 없음»
+      name: r.name ?? '이름 없음',
       status: r.status,
       createdAtIso: iso(r.createdAt) ?? new Date(0).toISOString(),
       wonAtIso: iso(r.wonAt),

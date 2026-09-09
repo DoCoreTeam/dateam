@@ -28,7 +28,7 @@ import {
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import type { BoardPipeline } from './DealBoard'
 import { formatAmount } from './amount'
-import { ENTITY } from '@/lib/terms'
+import { ENTITY, DEAL_STATUS_LABEL, DEAL_STATUS_ORDER, DEAL_STATUS_LABEL_TEXT } from '@/lib/terms'
 import { BUSINESS_TYPE_LABEL_TEXT } from '@/lib/terms/ledger'
 import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
 import { dealBusinessTypeKey } from '@/lib/crm/domain/business-type'
@@ -217,12 +217,9 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
       options: pipelines.map((p) => ({ value: p.id, label: p.name })),
     },
     {
-      key: 'status', label: '상태',
-      options: [
-        { value: 'OPEN', label: '진행 중' },
-        { value: 'WON', label: '수주' },
-        { value: 'LOST', label: '실주' },
-      ],
+      // 말은 용어집이 정한다 — 여기서 적으면 리포트의 딜 목록과 갈린다(§0-2)
+      key: 'status', label: DEAL_STATUS_LABEL_TEXT,
+      options: DEAL_STATUS_ORDER.map((k) => ({ value: k, label: DEAL_STATUS_LABEL[k] })),
     },
     TRASH_FILTER,
   ], [pipelines])

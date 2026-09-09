@@ -200,6 +200,28 @@ export const BUSINESS_TYPE_ORDER: readonly BusinessTypeKey[] =
 
 export const BUSINESS_TYPE_LABEL_TEXT = '사업 유형'
 
+/**
+ * 딜이 지금 어디에 있나 — **열려 있나, 따냈나, 놓쳤나.**
+ *
+ * **왜 여기인가**: 딜 표의 상태 필터·리포트의 딜 목록·보드가 같은 세 낱말을 쓴다.
+ * 화면마다 적으면 한쪽만 「성공/실패」로 갈리고, 그때부터 두 화면이 다른 제품이 된다
+ * (실측 v0.7.716: 딜 표는 화면 안에 직접 적고 있었고 리포트가 그걸 또 적으려 했다).
+ *
+ * `수주`는 **딜의 상태**이고 `LEDGER.booked`(수주 매출)는 **금액**이다 — 같은 말을
+ * 쓰는 것이 맞다. 딜을 따냈다는 사실과 그때 잡히는 매출은 같은 사건이다.
+ */
+export type DealStatusKey = 'OPEN' | 'WON' | 'LOST'
+
+export const DEAL_STATUS_LABEL: Record<DealStatusKey, string> = {
+  OPEN: '진행 중',
+  WON: '수주',
+  /** ~~실패~~ 금지 — 우리가 못한 것이 아니라 그 건이 남에게 간 것이다 */
+  LOST: '실주',
+}
+
+export const DEAL_STATUS_ORDER: readonly DealStatusKey[] = ['OPEN', 'WON', 'LOST']
+export const DEAL_STATUS_LABEL_TEXT = '상태'
+
 /** 기간 — 고르면 따라오는 칸이 달라진다 */
 export type TermTypeKey = 'SHORT' | 'MID' | 'LONG'
 

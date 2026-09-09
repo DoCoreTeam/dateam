@@ -504,3 +504,25 @@
   outline-offset: 6px;
   border-radius: var(--radius);
 }
+
+/* ── 눌러서 연 지표 ──────────────────────────────────────
+   위에서부터 «무엇인지» → «어떻게 쪼개지는지» 순으로 읽힌다.
+   두 표가 붙어 서면 어느 표를 보는지 헷갈리므로 각자 머리줄을 갖는다. */
+.split {
+  margin-bottom: var(--space-5);
+}
+
+.hits {
+  margin-top: var(--space-4);
+}
+
+.splitHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
