@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { isAiProviderId } from '@/lib/ai/provider-catalog'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { logTokenUsage } from '@/lib/token-logger'
@@ -55,12 +56,13 @@ export type MessageWithAttachments = AiChatMessage & {
   branch?: BranchMeta
 }
 
-// provider/model 화이트리스트·형식 검증 (M-2)
-const ALLOWED_PROVIDERS: readonly AiChatProviderId[] = ['gemini', 'claude', 'openai']
+// provider/model 형식 검증 (M-2)
+// 허용 목록은 명세(lib/ai/provider-catalog)가 갖는다 — 여기 또 적으면 공급자를 늘렸을 때
+// 화면에는 나오는데 저장에서 막히는 상태가 된다.
 const MODEL_RE = /^[\w.:\-]{1,64}$/
 
 function isValidProvider(p: unknown): p is AiChatProviderId {
-  return typeof p === 'string' && (ALLOWED_PROVIDERS as readonly string[]).includes(p)
+  return isAiProviderId(p)
 }
 function isValidModel(m: unknown): m is string {
   return typeof m === 'string' && MODEL_RE.test(m)

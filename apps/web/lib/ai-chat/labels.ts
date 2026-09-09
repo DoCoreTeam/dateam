@@ -1,10 +1,9 @@
-// 프로바이더 표시 라벨 SSOT(leaf 모듈 — 무거운 의존성 없음).
-// 서버 컴포넌트(page.tsx)와 클라이언트 컴포넌트가 공유하므로, 'use client' 파일(AiChatClient)에서
-// export하면 RSC 경계 위반("Could not find module ... in React Client Manifest")이 난다 → 여기 둔다.
+// 프로바이더 표시 라벨 (파생)
+//
+// 원본은 lib/ai/provider-catalog.ts 의 명세다. 이 파일은 그것을 화면이 쓰기 좋은 표로 바꿔 둘 뿐이다.
+// 서버 컴포넌트와 클라이언트 컴포넌트가 함께 쓰므로 leaf 모듈로 남긴다
+// ('use client' 파일에서 export 하면 RSC 경계 위반이 난다).
+import { AI_PROVIDERS, deriveLabels } from '../ai/provider-catalog.ts'
 import type { AiChatProviderId } from '@/types/database'
 
-export const PROVIDER_LABELS: Record<AiChatProviderId, string> = {
-  gemini: 'Gemini',
-  claude: 'Claude',
-  openai: 'OpenAI',
-}
+export const PROVIDER_LABELS: Record<AiChatProviderId, string> = deriveLabels(AI_PROVIDERS)

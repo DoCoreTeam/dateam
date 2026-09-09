@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isAiProviderId } from '@/lib/ai/provider-catalog'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { logTokenUsage } from '@/lib/token-logger'
@@ -27,8 +28,8 @@ const MAX_CONTENT_LEN = 32000
 const MAX_HISTORY_TURNS = 40
 const BUCKET = 'ai-chat'
 
-// provider/model 화이트리스트·형식 방어 (M-2)
-const ALLOWED_PROVIDERS = ['gemini', 'claude', 'openai'] as const
+// provider/model 형식 방어 (M-2)
+// 허용 목록은 명세(lib/ai/provider-catalog)가 갖는다
 const MODEL_RE = /^[\w.:\-]{1,64}$/
 const MODES = ['send', 'regenerate', 'edit'] as const
 type StreamMode = (typeof MODES)[number]
@@ -299,7 +300,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (
-    !(ALLOWED_PROVIDERS as readonly string[]).includes(conversation.provider) ||
+    !isAiProviderId(conversation.provider) ||
     !MODEL_RE.test(conversation.model)
   ) {
     return NextResponse.json({ error: '유효하지 않은 프로바이더 또는 모델입니다' }, { status: 400 })

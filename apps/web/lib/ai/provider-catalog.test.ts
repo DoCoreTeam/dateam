@@ -137,10 +137,6 @@ const APP_ROOT = fileURLToPath(new URL('../../', import.meta.url)) // apps/web/
 // 이 파일들은 아직 명세를 안 쓴다. 항목 진행에 따라 비워지고, I14 가 이 목록이 비었는지 본다.
 // 목록에 이름만 남고 실제 위반이 사라지면 그것도 실패다 — 목록이 화석이 되지 않게.
 const KNOWN_PENDING = [
-  'lib/ai-chat/registry.ts', // I02 에서 명세 파생으로 바뀜
-  'app/(ai)/ai/actions.ts', // I02 — 화이트리스트를 isAiProviderId 로
-  'app/api/admin/ai-chat/stream/route.ts', // I02 — 같음
-  'lib/crm/ai/adapters/host.ts', // I02 — 같음
   'app/(ai)/ai/load.ts', // I13 에서 명세 파생으로 바뀜
 ]
 

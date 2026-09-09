@@ -12,6 +12,7 @@ import ClaudeSettings from './ClaudeSettings'
 import OpenAiSettings from './OpenAiSettings'
 import AiChatDefaultProviderPicker from './AiChatDefaultProviderPicker'
 import { getAvailableProviders, META_DEFAULT_PROVIDER_KEY } from '@/lib/ai-chat/registry'
+import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import type { AiChatProviderId } from '@/types/database'
 import DbSettings from './DbSettings'
 import KoraeximSettings from './KoraeximSettings'
@@ -31,12 +32,6 @@ const KOREAEXIM_KEY = 'koreaexim_api_key'
 const CLAUDE_KEY = 'claude_api_key'
 const OPENAI_KEY = 'openai_api_key'
 const STT_KEY = 'stt_api_key'
-
-const AI_PROVIDER_LABELS: Record<AiChatProviderId, string> = {
-  gemini: 'Gemini',
-  claude: 'Claude',
-  openai: 'OpenAI',
-}
 
 function maskKey(key: string): string {
   if (key.length <= 8) return '••••••••'
@@ -103,7 +98,7 @@ export default async function AdminSettingsPage({
   // 채팅 기본 프로바이더 셀렉트 — 가용 프로바이더만 노출
   const availableChatProviders = getAvailableProviders(meta).map((p) => ({
     id: p.id,
-    label: AI_PROVIDER_LABELS[p.id],
+    label: PROVIDER_LABELS[p.id],
   }))
   const currentDefaultProvider = (meta[META_DEFAULT_PROVIDER_KEY] as AiChatProviderId | undefined) ?? ''
 

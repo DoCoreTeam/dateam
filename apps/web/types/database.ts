@@ -428,7 +428,11 @@ export interface AiTokenLog {
   error_message: string | null
 }
 
-export type AiChatProviderId = 'gemini' | 'claude' | 'openai'
+// 공급자 목록의 원본은 lib/ai/provider-catalog.ts 다.
+// 여기서 다시 적으면 명세에 공급자를 더해도 타입이 안 따라와, 새 공급자가 조용히 막힌다.
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
+
+export type AiChatProviderId = AiProviderId
 
 export interface AiChatConversation {
   id: string

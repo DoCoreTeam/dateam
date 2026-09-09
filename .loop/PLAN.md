@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.1
+플랜 버전: v0.2.2
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.9.0
@@ -61,20 +61,25 @@
 - 명세 밖에서 공급자 id 를 배열 리터럴로 하드코딩한 파일이 없음을 검사하는 단정
 의존: 없음
 
-### I02 타입과 레지스트리를 명세에서 파생
-상태: 대기
+### I02 타입과 레지스트리와 어댑터를 명세에서 파생
+상태: 통과
 모드: 경량
-범위: apps/web/types/database.ts, apps/web/lib/ai-chat/labels.ts, apps/web/lib/ai-chat/registry.ts, apps/web/lib/ai-chat/registry.test.ts, apps/web/app/(ai)/ai/actions.ts, apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/ai/provider-catalog.test.ts
+범위: apps/web/types/database.ts, apps/web/lib/ai-chat/labels.ts, apps/web/lib/ai-chat/registry.ts, apps/web/lib/ai-chat/registry.test.ts, apps/web/app/(ai)/ai/actions.ts, apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/ai/provider-catalog.test.ts, apps/web/lib/ai-chat/providers/openai.ts, 신규 apps/web/lib/ai-chat/providers/openai-compatible.ts, 신규 apps/web/lib/ai-chat/providers/groq.ts, 신규 apps/web/lib/ai-chat/providers/grok.ts, 신규 apps/web/lib/ai-chat/providers/openai-compatible.test.ts
 감사 기준:
 - node --test 로 registry.test.ts 통과
 - PROVIDER_LABELS META_KEYS DEFAULT_MODELS PROVIDER_ORDER 넷이 전부 명세에서 파생되고 각자 적은 목록이 남아 있지 않은 단정
 - stt_api_key 만 저장된 META 로 getAvailableProviders 를 부르면 groq 이 후보에 들어오는 단정
 - 키 미등록 공급자가 후보에서 빠지는 단정
 - 공급자 화이트리스트를 따로 적던 세 곳(ai/actions.ts, admin/ai-chat/stream/route.ts, crm/ai/adapters/host.ts)이 isAiProviderId 를 쓰고, provider-catalog.test.ts 의 미전환 목록에서 그 셋이 빠짐
+- node --test 로 openai-compatible.test.ts 통과
+- openai groq grok 셋이 같은 팩토리에서 나오고 명세의 baseUrl 만 다른 단정
+- getProvider 가 다섯 id 전부에 ChatProvider 를 돌려주고 어느 것도 예외를 던지지 않는 단정
+- 능력이 명세에서 오고 어댑터가 자기 값을 따로 적지 않는 단정
+- 명세에 있어도 어댑터가 배선되지 않은 공급자는 후보에서 빠지는 단정 (반쯤 등록된 공급자가 사용자에게 닿지 않게)
 의존: I01
 
 ### I03 Groq 과 Grok 어댑터
-상태: 대기
+상태: 취소 (I02 로 병합, 타입만 넓히고 어댑터를 미루면 이미 저장된 Groq 키가 후보에 들어와 getProvider 가 던진다)
 모드: 경량
 범위: apps/web/lib/ai-chat/providers/openai.ts, 신규 apps/web/lib/ai-chat/providers/openai-compatible.ts, 신규 apps/web/lib/ai-chat/providers/groq.ts, 신규 apps/web/lib/ai-chat/providers/grok.ts, 신규 apps/web/lib/ai-chat/providers/openai-compatible.test.ts, apps/web/lib/ai-chat/registry.ts
 감사 기준:
@@ -94,7 +99,7 @@
 - groq 의 whisper 계열 모델 id 가 isChatModel 에서 false 인 단정 (전사 전용 모델이 채팅 목록에 섞이면 안 됨)
 - mergeModelCatalogEntry 가 다섯 공급자 전부에 빈칸 없는 엔트리를 만드는 단정
 - probe 가 명세의 baseUrl 로 물어보고 공급자별 분기를 따로 적지 않는 단정
-의존: I01, I03
+의존: I01, I02
 
 ### I05 공급자 키 저장 창구 한 벌
 상태: 대기
@@ -216,3 +221,4 @@
 
 ## 변경 이력
 - v0.2.1 (2026-09-09) I01 가드가 공급자 목록을 따로 적은 곳을 3개 더 찾아 I02 범위에 넣음 (audit:I01)
+- v0.2.2 (2026-09-09) I02 는 어댑터 없이 감사 불가 - 타입만 넓히면 이미 저장된 Groq 키가 후보에 들어와 getProvider 가 던진다. I03 을 I02 로 병합 (audit:I02)

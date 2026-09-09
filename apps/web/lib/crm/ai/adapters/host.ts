@@ -19,6 +19,7 @@
 import type { AiAdapter, AiSource } from '../runner.ts'
 import { getAvailableProviders, getProviderConfig, getDefaultProvider } from '../../../ai-chat/registry.ts'
 import type { ProviderId } from '../../../ai-chat/provider.ts'
+import { isAiProviderId } from '../../../ai/provider-catalog.ts'
 import { CrmError } from '../../domain/errors.ts'
 import { resolveGeminiModelChain } from '../../../ai/gemini-model.ts'
 import { classifyProviderError } from '../../../ai-chat/provider-errors.ts'
@@ -35,10 +36,10 @@ const WEB_SEARCH_TIMEOUT_MS = 90_000
 /** 호스트 META 를 읽어 오는 함수 — 서버에서 주입한다(이 파일은 DB 를 모른다) */
 export type MetaReader = () => Promise<Record<string, unknown>>
 
-const PROVIDERS: ProviderId[] = ['gemini', 'claude', 'openai']
-
+// 허용 목록을 여기 또 적지 않는다 — 명세(lib/ai/provider-catalog)가 원본이다.
+// 예전엔 세 개가 손으로 적혀 있어서, 호스트에 Groq 을 등록해도 CRM 만 그것을 몰랐다.
 function isProviderId(v: string): v is ProviderId {
-  return (PROVIDERS as string[]).includes(v)
+  return isAiProviderId(v)
 }
 
 /**

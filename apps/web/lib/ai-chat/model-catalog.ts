@@ -37,6 +37,16 @@ export const CURATED_MODELS: Record<AiChatProviderId, Record<string, CuratedMode
     o1: { label: 'o1', contextLength: 200000, capabilities: { vision: true, longContext: false, reasoning: true }, releasedAt: '2024-12-05' },
     'o3-mini': { label: 'o3-mini', contextLength: 200000, capabilities: { vision: false, longContext: false, reasoning: true }, releasedAt: '2025-01-31' },
   },
+  groq: {
+    'llama-3.3-70b-versatile': { label: 'Llama 3.3 70B', contextLength: 131072, capabilities: { vision: false, longContext: true, reasoning: false }, releasedAt: '2024-12-06' },
+    'llama-3.1-8b-instant': { label: 'Llama 3.1 8B', contextLength: 131072, capabilities: { vision: false, longContext: true, reasoning: false }, releasedAt: '2024-07-23' },
+    'qwen-2.5-32b': { label: 'Qwen 2.5 32B', contextLength: 131072, capabilities: { vision: false, longContext: true, reasoning: false }, releasedAt: '2024-09-19' },
+  },
+  grok: {
+    'grok-4': { label: 'Grok 4', contextLength: 256000, capabilities: { vision: true, longContext: true, reasoning: true }, releasedAt: '2025-07-09' },
+    'grok-3': { label: 'Grok 3', contextLength: 131072, capabilities: { vision: true, longContext: true, reasoning: true }, releasedAt: '2025-02-17' },
+    'grok-3-mini': { label: 'Grok 3 mini', contextLength: 131072, capabilities: { vision: false, longContext: true, reasoning: true }, releasedAt: '2025-02-17' },
+  },
 }
 
 export interface ModelCatalogEntry {
