@@ -15,6 +15,8 @@
  * `연체`(기한 지남 — 상태 라벨이 이미 표준어다).
  */
 
+import { iGa } from '../ui/josa.ts'
+
 /** 리포트를 이루는 세 축의 이름 — 화면·도우미가 같은 말을 쓴다 */
 export const REPORT = {
   /** 무엇을 세나 */
@@ -156,7 +158,8 @@ export function notEnoughSample(what: string, have: number, needCounter = '건')
  * 데이터가 없는 것으로 읽는다.
  */
 export function dimensionThin(label: string, filled: number, total: number, counter = '건'): string {
-  return `${label}이 채워진 것이 ${total}${counter} 중 ${filled}${counter}입니다. 이 기준은 아직 뜻이 없습니다`
+  // 조사를 화면이 고르지 않는다 — 「기관 종류이」 같은 줄이 나온다(용어집 §0-2)
+  return `${label}${iGa(label)} 채워진 것이 ${total}${counter} 중 ${filled}${counter}입니다. 이 기준은 아직 뜻이 없습니다`
 }
 
 /** 기준 날짜를 밝히는 줄 — 카드·표·내보내기가 같은 문장을 쓴다 */
