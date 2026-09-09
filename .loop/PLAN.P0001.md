@@ -395,7 +395,7 @@
 의존: I31
 
 ### I33 제안서 목차와 제안 전략
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/proposal/outline.ts, 신규 apps/web/lib/rfp/proposal/strategy.ts, 신규 apps/web/lib/rfp/proposal/outline.test.ts, 신규 apps/web/app/api/rfp/cases/[id]/proposal/route.ts
 감사 기준:
