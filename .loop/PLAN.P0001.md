@@ -467,7 +467,7 @@
 의존: I25, I26, I27, I38
 
 ### I40 화면 프로필과 적합도와 제안서
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/app/(rfp)/rfp/profile/page.tsx, 신규 apps/web/components/rfp/ProfileEditor.tsx, 신규 apps/web/components/rfp/FitPanel.tsx, 신규 apps/web/components/rfp/ProposalPanel.tsx
 감사 기준:
