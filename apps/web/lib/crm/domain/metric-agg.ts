@@ -61,6 +61,11 @@ const TIME_GRAINS: Record<string, TimeGrain> = {
   month: 'MONTH', quarter: 'QUARTER', half: 'HALF', year: 'YEAR',
 }
 
+/** 시간 축의 이름 — 화면·도우미가 같은 말을 쓴다. 화면 안에 표를 두지 않는다(§0-2) */
+export const TIME_AXIS_LABEL: Record<string, string> = {
+  month: '월', quarter: '분기', half: '반기', year: '연',
+}
+
 export function isTimeAxis(key: string): boolean {
   return key.toLowerCase() in TIME_GRAINS
 }

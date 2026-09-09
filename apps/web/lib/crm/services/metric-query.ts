@@ -13,7 +13,7 @@ import {
   aggregate, bucketOf, EMPTY_KEY,
   type AggDeal, type AggResult, type QuerySpec,
 } from '../domain/metric-agg.ts'
-import { isHiddenPipelineName, dimensionOf } from '../domain/dimensions.ts'
+import { isHiddenPipelineName, dimensionOf, DIMENSIONS } from '../domain/dimensions.ts'
 
 /** 한 번에 읽는 딜 수 상한 — 넘으면 잘랐다고 말한다. 조용히 자르면 「이게 전부」로 읽힌다 */
 export const DEAL_SCAN_LIMIT = 5000
@@ -159,4 +159,40 @@ export function filterLabel(
     if (b.key === value) return b.label
   }
   return null
+}
+
+/**
+ * 힌트를 **실제 축 값**과 맞춰 본다.
+ *
+ * 「공공」이 파이프라인 이름인지 산업 이름인지는 **데이터만 안다**(P-1).
+ * 그래서 코드가 판정하지 않고, 지금 있는 딜들이 실제로 갖고 있는 값에서 찾는다 —
+ * 파이프라인을 하나 만들면 도우미가 **배포 없이** 그 이름을 알아듣는다.
+ *
+ * 정확히 같은 이름이 먼저고, 없으면 포함으로 찾는다. 두 축에서 걸리면 **버린다** —
+ * 어느 쪽인지 모른 채 하나를 고르면 조용히 틀린 표가 나온다.
+ */
+export function resolveHint(
+  loaded: LoadedDeals,
+  hint: string,
+): { dimension: string; value: string; label: string } | null {
+  const needle = hint.trim()
+  if (needle.length < 2) return null
+  const exact: { dimension: string; value: string; label: string }[] = []
+  const partial: { dimension: string; value: string; label: string }[] = []
+
+  for (const dim of DIMENSIONS) {
+    const seen = new Set<string>()
+    for (const d of loaded.deals) {
+      const b = bucketOf(d, dim.key)
+      if (b.key === EMPTY_KEY || seen.has(b.key)) continue
+      seen.add(b.key)
+      const hit = { dimension: dim.key, value: b.key, label: b.label }
+      if (b.label === needle) exact.push(hit)
+      else if (b.label.includes(needle)) partial.push(hit)
+    }
+  }
+
+  const pool = exact.length > 0 ? exact : partial
+  if (pool.length !== 1) return null
+  return pool[0]
 }

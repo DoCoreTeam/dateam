@@ -149,7 +149,15 @@ test('★ 라우트가 서비스를 실제로 부른다 — 만들고 안 꽂으
 
 test('★ 라우트가 한 번에 준다 — 카드가 아홉 시점을 나란히 놓지 않게', () => {
   const route = SRC('../../../app/api/crm/metrics/route.ts')
-  assert.equal((route.match(/loadDealsForMetrics\(/g) ?? []).length, 1, '딜은 한 번만 읽는다')
+  /*
+    **GET 안에서만 센다.** 예전엔 파일 전체를 셌는데, 마감 확정(PUT)이 그 시점의
+    숫자를 박으려고 딜을 읽자 이 가드가 깨졌다 — 그건 다른 요청이라 같은 시점일
+    이유가 없다. 규칙의 뜻은 「한 화면의 카드가 한 시점을 말한다」이지
+    「이 파일이 딜을 한 번만 읽는다」가 아니다.
+  */
+  const getBody = route.slice(route.indexOf('export async function GET'), route.indexOf('export async function PUT'))
+  assert.ok(getBody.length > 200, 'GET 본문을 못 잘랐다 — 가드가 아무것도 안 보고 있다')
+  assert.equal((getBody.match(/loadDealsForMetrics\(/g) ?? []).length, 1, '딜은 한 번만 읽는다')
   assert.ok(route.includes('cards') && route.includes('matrix'), '카드와 교차표가 같은 응답에 있다')
 })
 
