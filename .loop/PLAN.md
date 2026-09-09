@@ -181,7 +181,7 @@
 의존: I11
 
 ### I13 케이스 인입 API 와 저장
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/app/api/rfp/cases/route.ts, 신규 apps/web/app/api/rfp/cases/[id]/files/route.ts, 신규 apps/web/lib/rfp/db/cases.ts, 신규 apps/web/lib/rfp/db/files.ts
 감사 기준:
