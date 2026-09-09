@@ -80,6 +80,7 @@ export default function ProfileEditor({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [aiSkipped, setAiSkipped] = useState<string | null>(null)
 
   /** 서버가 준 프로필 한 벌을 화면에 붓는다 — 초안과 저장 결과가 같은 모양이다 */
   const apply = useCallback((p: Record<string, any> | null, gaps: string[]) => {
@@ -104,6 +105,8 @@ export default function ProfileEditor({
       const body = await res.json()
       if (!res.ok) { setError(RFP_COMMON.error); return }
       apply(body.profile, body.missing ?? [])
+      // 왜 덜 채워졌는지 화면이 말한다 — 조용히 넘어가면 사용자는 기능이 고장 났다고 본다
+      setAiSkipped(body.aiSkipped ?? null)
     } catch {
       setError(RFP_COMMON.error)
     } finally {
@@ -177,8 +180,14 @@ export default function ProfileEditor({
         <input ref={inputRef} type="file" multiple style={{ display: 'none' }}
           onChange={(e) => void draft(e.target.files)} />
         <NbButton variant="secondary" onClick={() => inputRef.current?.click()} disabled={busy}>
-          <Upload size={14} /> {RFP_PROFILE.draftUpload}
+          <Upload size={14} /> {busy ? RFP_COMMON.loading : RFP_PROFILE.draftUpload}
         </NbButton>
+        {aiSkipped && (
+          <div className={styles.tight}>
+            <NbBadge status="doing">{RFP_PROFILE.aiSkipped}</NbBadge>
+            <span className={styles.sectionDesc}>{RFP_PROFILE.aiSkippedHint}</span>
+          </div>
+        )}
       </section>
 
       {/* 무엇이 비었는지 이름으로 말한다 — 「부족합니다」만으로는 못 채운다 */}

@@ -280,6 +280,8 @@ export const RFP_PROFILE = {
   title: '회사 프로필',
   desc: '적합도 판정이 이 정보를 씁니다',
   draftTitle: '문서로 채우기',
+  aiSkipped: '조건부 공개 문서를 볼 수 있는 AI 가 없어 규칙으로만 채웠습니다',
+  aiSkippedHint: '설정에서 공급자의 문서 등급을 조건부 공개까지 열면 회사 이름·기술·협력사도 자동으로 채워집니다',
   draftUpload: '회사소개서 올리기',
   draftHint: '회사소개서·사업자등록증·실적표를 올리면 대부분 채워집니다',
   confirm: '확인하고 저장',
