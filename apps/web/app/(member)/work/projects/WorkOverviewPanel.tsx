@@ -110,7 +110,7 @@ export default function WorkOverviewPanel() {
 
       {!isLoading && ungrouped > 0 && (
         <div data-testid="ungrouped" style={{ marginTop: 'var(--space-4)', padding: 'var(--space-3)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) dashed var(--border-color)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-          🔗 아직 {AXIS_NOUN[axis]}에 연결 안 된 업무 <b style={{ color: 'var(--text)' }}>{ungrouped}건</b> — 업무 플로우에서 AI가 연관을 제안합니다.
+          🔗 아직 {AXIS_NOUN[axis]}에 연결 안 된 업무 <b style={{ color: 'var(--text)' }}>{ungrouped}건</b>: 업무 플로우에서 AI가 연관을 제안합니다.
         </div>
       )}
     </div>

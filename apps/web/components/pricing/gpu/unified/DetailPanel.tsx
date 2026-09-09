@@ -338,7 +338,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
             )}
             {costEditNote && costQuotes.length === 0 && row.supply_cost_krw != null && (
               <p className="gpu-udetail-pending">
-                이 단가는 {row.cost_supplier_name ?? '원'} 견적에서 전파된 시스템 계산값입니다 — 직접 수정 불가.
+                이 단가는 {row.cost_supplier_name ?? '원'} 견적에서 전파된 시스템 계산값입니다. 직접 수정 불가.
                 원 견적(해당 모델 1장 구성)을 수정하면 모든 파생 구성에 자동 반영됩니다.
               </p>
             )}
@@ -519,7 +519,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
             </div>
             <div className="gpu-modal-body">
               <p className="gpu-udetail-basis">
-                <strong>{designateTarget.label}</strong> 공급가를 어떻게 지정할까요? — 이 모델의 4개 구성(×1·×2·×4·×8)은 이 견적의 1장당 단가에서 전파됩니다.
+                <strong>{designateTarget.label}</strong> 공급가를 어떻게 지정할까요?. 이 모델의 4개 구성(×1·×2·×4·×8)은 이 견적의 1장당 단가에서 전파됩니다.
               </p>
             </div>
             <div className="gpu-modal-footer">

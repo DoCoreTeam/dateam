@@ -374,7 +374,7 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
 
       <p className={styles.lead}>
         각 단계에 <strong>이 단계에 왔다는 게 무슨 뜻인지</strong> 한 줄로 적어 두면 팀이 같은 기준으로 딜을 옮깁니다.
-        그 문장은 검사하지 않고 보여만 줍니다 — 기계가 판정할 수 있는 것만 조건으로 겁니다.
+        그 문장은 검사하지 않고 보여만 줍니다. 기계가 판정할 수 있는 것만 조건으로 겁니다.
       </p>
 
       {/*
@@ -449,7 +449,7 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
                 />
                 {over(s) > 0 && (
                   <span className={styles.meaningOver}>
-                    {over(s)}자 넘었어요 — 저장하면 앞 {MAX_MEANING_LEN}자만 남습니다
+                    {over(s)}자 넘었어요. 저장하면 앞 {MAX_MEANING_LEN}자만 남습니다
                   </span>
                 )}
               </label>

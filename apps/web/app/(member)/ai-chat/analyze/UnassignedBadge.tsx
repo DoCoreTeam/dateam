@@ -67,7 +67,7 @@ export default function UnassignedBadge({ unassignedLines }: Props) {
         {open ? <ChevronDown size={16} color="var(--warning)" /> : <ChevronRight size={16} color="var(--warning)" />}
         <AlertTriangle size={16} color="var(--warning)" />
         <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--warning)' }}>
-          미귀속 원문 {unassignedLines.length}줄 — 어느 그룹에도 들어가지 않았습니다
+          미귀속 원문 {unassignedLines.length}줄: 어느 그룹에도 들어가지 않았습니다
         </span>
       </button>
       {open && (

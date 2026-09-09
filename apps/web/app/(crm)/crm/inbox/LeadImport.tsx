@@ -376,7 +376,7 @@ export default function LeadImport() {
               {preview.blocked > 0 && (
                 <>
                   <p className={styles.leadStatLabel}>
-                    못 옮기는 {preview.blocked.toLocaleString('ko-KR')}건 —
+                    못 옮기는 {preview.blocked.toLocaleString('ko-KR')}건
                   </p>
                   <ul className={styles.leadBlockedList}>
                     {preview.blockedReasons.map((b) => (

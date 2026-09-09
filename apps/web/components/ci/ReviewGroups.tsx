@@ -317,7 +317,7 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error
 
       {error && (
         <p className={`ci-status ci-status-danger ${s.actionError}`} role="alert">
-          {error} — 다시 눌러 보세요
+          {error}: 다시 눌러 보세요
         </p>
       )}
 

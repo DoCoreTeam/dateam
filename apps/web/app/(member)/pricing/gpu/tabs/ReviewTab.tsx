@@ -307,7 +307,7 @@ function ModelResolveModal({ modelName, message, busy, onPick, onClose }: {
       maxWidth={520}
       footer={
         <button className="gpu-btn" onClick={() => { window.location.href = `/pricing/gpu?tab=specs&newModel=${encodeURIComponent(modelName)}` }}>
-          <Plus size={14} /> 정말 새 모델이면 — 스펙 관리에서 등록
+          <Plus size={14} /> 정말 새 모델이면: 스펙 관리에서 등록
         </button>
       }
     >

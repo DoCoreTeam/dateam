@@ -54,7 +54,7 @@ export default async function SharedConversationPage({
         }}
       >
         <Lock size={15} aria-hidden="true" />
-        <span>읽기 전용 — {ownerName}의 공유 대화</span>
+        <span>읽기 전용: {ownerName}의 공유 대화</span>
       </div>
 
       {/* 대화 헤더 — 공용 PageHeader(§2-3). 화면이 raw <h1>을 다시 그리지 않는다 */}

@@ -231,17 +231,23 @@ test('★ 화면 문구에 「—」를 쓰지 않는다 (용어집 §0-1)', () 
     문장이 끝났으면 마침표로 끊고, 라벨 뒤 설명이면 콜론을 쓴다.
     값이 없다는 표시로 「—」 한 글자만 쓰는 것은 기호라 대상이 아니다.
   */
+  /*
+    문자열 리터럴만 보면 **여러 줄에 걸친 JSX 글**을 놓친다. 실측: 미팅 상세의
+    「따라잡습니다 — 제목은 그대로 둡니다」가 가드 0곳인데 화면에는 그대로 있었다.
+    그래서 주석을 걷어낸 뒤 **줄 단위**로 본다. 값 없음 표시(한 글자)는 기호라 뺀다.
+  */
   const bad: string[] = []
   const files = [...scanFiles(), ...walkFiles(join(WEB, 'lib/terms'))]
+  const PLACEHOLDER = /(['"`>{(\[:,]\s*)—(\s*['"`<})\],])/g
   for (const file of files) {
     if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue
     // API 라우트의 긴 문자열은 AI 프롬프트다. 사람이 읽는 화면 문구가 아니라 대상이 아니다
     if (rel(file).startsWith('app/api/')) continue
-    for (const t of userFacingText(read(file))) {
-      if (!t.includes('—') || t.trim() === '—') continue
-      if (!/[가-힣]/.test(t)) continue
-      bad.push(`${rel(file)}  ${t.slice(0, 60)}`)
-    }
+    stripComments(read(file)).split('\n').forEach((line, i) => {
+      if (!line.includes('—') || !/[가-힣]/.test(line)) return
+      if (!line.replace(PLACEHOLDER, '$1$2').includes('—')) return
+      bad.push(`${rel(file)}:${i + 1}  ${line.trim().slice(0, 70)}`)
+    })
   }
   assert.deepEqual(bad, [], `화면 문구에 「—」가 남아 있다:\n${bad.join('\n')}`)
 })

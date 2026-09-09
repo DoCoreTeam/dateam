@@ -622,7 +622,7 @@ export default function QuoteRegisterTab() {
                 <div className="gpu-banner gpu-banner-warning" style={{ marginBottom: 0 }} data-testid="reconciliation-banner" role="alert">
                   <span className="gpu-banner-dot" aria-hidden>⚠</span>
                   <span>
-                    원본 {reconciliation.source_rows}행 중 {reconciliation.extracted}행만 추출 — {reconciliation.missing}행 누락 의심
+                    원본 {reconciliation.source_rows}행 중 {reconciliation.extracted}행만 추출: {reconciliation.missing}행 누락 의심
                     {reconciliation.missing_labels.length > 0 && <>: {reconciliation.missing_labels.join(' · ')}</>}.
                     {' '}원본을 나눠 다시 시도하거나 직접 추가하세요.
                   </span>
@@ -648,7 +648,7 @@ export default function QuoteRegisterTab() {
               {/* §05 신뢰도 자동 게이트 3구간 요약 + 통합 표 */}
               <div>
                 <h3 className="gpu-card-title" style={{ marginBottom: 8 }}>
-                  추출 결과 — 신뢰도 자동 게이트
+                  추출 결과: 신뢰도 자동 게이트
                   <span className="gpu-badge gpu-badge-t2" style={{ marginLeft: 8 }}>검토 피로 제거</span>
                 </h3>
                 <IntakeGateSummary rows={gateRows} />
@@ -721,7 +721,7 @@ export default function QuoteRegisterTab() {
                       {supplierUnknownCount > 0 && (
                         <div style={{ display: 'flex', gap: 6, fontSize: 11.5, color: 'var(--gpu-amber)', fontWeight: 600 }} data-testid="supplier-unknown-note" role="alert">
                           <span aria-hidden>⚠</span>
-                          <span>가격미상 {supplierUnknownCount}건은 자동 반영에서 제외됩니다 — 직접 확인이 필요합니다.</span>
+                          <span>가격미상 {supplierUnknownCount}건은 자동 반영에서 제외됩니다. 직접 확인이 필요합니다.</span>
                         </div>
                       )}
                       <button onClick={commitSupplier} disabled={committing || supplierCommittable === 0} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>

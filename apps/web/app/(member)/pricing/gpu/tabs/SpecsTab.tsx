@@ -159,7 +159,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', background: 'var(--color-bg)', border: 'var(--hairline) solid var(--surface-bg)', borderRadius: 8, padding: '7px 10px' }}>
-            현재 등록된 <b>{row.model_name}</b> 구성 {cfgs.length}개 — 가격표·시장비교·재고·고객판매가격표와 동일한 우리 GPU 목록입니다. 장수·카드 VRAM에 따라 별도 구성으로 등록됩니다.
+            현재 등록된 <b>{row.model_name}</b> 구성 {cfgs.length}개: 가격표·시장비교·재고·고객판매가격표와 동일한 우리 GPU 목록입니다. 장수·카드 VRAM에 따라 별도 구성으로 등록됩니다.
           </div>
           {/* 구성별 스펙 — 카드당 VRAM으로 식별(같은 ×N 장수라도 80GB/40GB 카드는 다른 구성) */}
           {cfgs.map((c) => {
@@ -312,7 +312,7 @@ function DeleteModelModal({ group, onClose, onDeleted }: { group: ModelGroup; on
     <div className="gpu-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="gpu-modal-card gpu-modal-card--sm" onClick={(e) => e.stopPropagation()}>
         <div className="gpu-modal-header">
-          <strong className="tape-title">모델 삭제 — {group.base_name}</strong>
+          <strong className="tape-title">모델 삭제: {group.base_name}</strong>
           <button type="button" onClick={onClose} className="gpu-modal-close" aria-label="닫기"><X size={16} /></button>
         </div>
         <div className="gpu-modal-body">
@@ -551,7 +551,7 @@ export default function SpecsTab() {
         <div style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <Sparkles size={14} className="gpu-analyzing-icon" style={{ color: 'var(--gpu-accent)' }} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI 데이터시트 생성 중 — {bulkProg.done}/{bulkProg.total}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI 데이터시트 생성 중: {bulkProg.done}/{bulkProg.total}</span>
             <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>{bulkProg.current}</span>
           </div>
           <div style={{ height: 6, borderRadius: 4, background: 'var(--color-border)', overflow: 'hidden' }}>

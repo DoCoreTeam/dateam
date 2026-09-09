@@ -204,7 +204,7 @@ export function SessionDetailDrawer({ sessionId, onClose }: { sessionId: string;
                 </NbButton>
                 {savedId ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-sm)', color: 'var(--success)' }}>
-                    <Check size={14} /> 저장됨 —{' '}
+                    <Check size={14} /> 저장됨:{' '}
                     <Link href="/ai-chat/analyze?tab=documents" style={{ color: 'var(--brand)', textDecoration: 'underline' }}>문서함</Link>
                   </span>
                 ) : (

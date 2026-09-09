@@ -119,7 +119,7 @@ export default function ContentDiffModal({
         }}>
           <div>
             <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)' }}>
-              AI 편집 결과 — {sectionName}
+              AI 편집 결과: {sectionName}
             </div>
             <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
               {changedCount === 0

@@ -37,7 +37,7 @@ export function CostDrawer({ product, onGoToTab }: CostDrawerProps) {
       <div className="cockpit-drawer-header">
         <strong className="cockpit-drawer-title">원가 상세</strong>
         <span className="cockpit-drawer-desc">
-          공급사별 매입 단가 — 실제 비용 기준 범위
+          공급사별 매입 단가: 실제 비용 기준 범위
           {isPropagated && (
             <span className="cockpit-basis-tag">추정</span>
           )}
@@ -262,7 +262,7 @@ export function GcubeDrawer({ product, onGoToTab, syncItem }: GcubeDrawerProps) 
           )}
           {hasMismatch && (
             <p className="cockpit-gcube-sync-notice">
-              우리 판매가가 gcube 범위와 맞지 않습니다 — 가격표에서 반영을 확인하세요.
+              우리 판매가가 gcube 범위와 맞지 않습니다. 가격표에서 반영을 확인하세요.
             </p>
           )}
           {syncItem.checked_at && (

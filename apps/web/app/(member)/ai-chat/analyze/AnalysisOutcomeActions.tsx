@@ -46,7 +46,7 @@ export default function AnalysisOutcomeActions({ sessionId, docType, title, body
     <>
       {savedId ? (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--success)' }}>
-          <CheckCircle2 size={16} /> 저장됨 —{' '}
+          <CheckCircle2 size={16} /> 저장됨:{' '}
           <Link href="/ai-chat/analyze?tab=documents" style={{ color: 'var(--brand)', textDecoration: 'underline' }}>
             문서함
           </Link>

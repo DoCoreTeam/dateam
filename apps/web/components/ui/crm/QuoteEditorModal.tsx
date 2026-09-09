@@ -662,7 +662,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           <div className={styles.sayBox}>
             <p className={styles.sayHint}>
               항목을 말하듯 적어 주세요. 품목·수량·단가·할인을 알아봅니다.
-              <b> 저장은 하지 않아요</b> — 채운 뒤에 확인하고 고치면 됩니다.
+              <b> 저장은 하지 않아요</b>: 채운 뒤에 확인하고 고치면 됩니다.
             </p>
             <textarea
               className="input-field"

@@ -53,7 +53,7 @@ export default function GroupsResultView({
             }}
           >
             <AlertTriangle size={14} />
-            AI 판정 실패 — 기본 구조로 묶었습니다
+            AI 판정 실패: 기본 구조로 묶었습니다
           </div>
         )}
       </div>

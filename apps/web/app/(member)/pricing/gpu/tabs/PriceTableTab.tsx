@@ -293,7 +293,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
       return (
         <div className="gpu-expand-body">
           <div className="gpu-expand-head gpu-expand-head--accent">
-            <Info size={13} /> 전파 추정 원가 — 1장당 견적 환산
+            <Info size={13} /> 전파 추정 원가: 1장당 견적 환산
           </div>
           <div className="gpu-expand-desc">
             이 구성(×{propagated.gpu_count}GPU)에 직접 등록된 견적이 없습니다.
@@ -337,7 +337,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
     return (
       <div className="gpu-expand-body">
         <div className="gpu-expand-empty">
-          확정된 견적이 없습니다 — 견적 등록 탭에서 공급 견적을 등록해 주세요.
+          확정된 견적이 없습니다. 견적 등록 탭에서 공급 견적을 등록해 주세요.
         </div>
         {listBox}
       </div>
@@ -729,7 +729,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
             <Zap size={16} color="var(--brand)" />
           </div>
           <div>
-            <strong>검토 대기</strong> · AI 추출 견적 <strong>{stats.pending}건</strong>이 검토를 기다리고 있습니다 — 검토 대기 탭에서 확인 후 확정하면 가격표에 반영됩니다
+            <strong>검토 대기</strong> · AI 추출 견적 <strong>{stats.pending}건</strong>이 검토를 기다리고 있습니다. 검토 대기 탭에서 확인 후 확정하면 가격표에 반영됩니다
           </div>
           <button className="gpu-banner-close" onClick={() => setBannerDismissed(true)}>×</button>
         </div>

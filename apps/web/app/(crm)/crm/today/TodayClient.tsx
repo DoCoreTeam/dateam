@@ -196,7 +196,7 @@ export default function TodayClient() {
 
         <p className={styles.aiLead}>
           한동안 아무 일도 없던 딜만 골라 봅니다. 제안은 <strong>근거와 함께</strong> 나오고,
-          받아들일지는 눌러서 정하세요 — 저절로 만들어지지 않습니다.
+          받아들일지는 눌러서 정하세요. 저절로 만들어지지 않습니다.
         </p>
 
         {aiReason && <p className={styles.aiReason}>{aiReason}</p>}

@@ -71,7 +71,7 @@ export default function ApproveRejectButtons({ requestId }: { requestId: string 
           onClick={() => router.refresh()}
           style={{ width: '100%', padding: '5px 0', borderRadius: 6, border: '1px solid rgba(16,185,129,0.4)', background: 'transparent', color: '#10b981', fontSize: 12, cursor: 'pointer' }}
         >
-          확인 완료 — 목록 갱신
+          확인 완료: 목록 갱신
         </button>
       </div>
     )

@@ -546,7 +546,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
       {/* 가격 역산 흐름 3카드 */}
       <div>
         <div style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>
-          🎯 1등이 되려면 — 가격 역산 (무난한 1등 기준)
+          🎯 1등이 되려면: 가격 역산 (무난한 1등 기준)
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {/* 카드 1: 시장 최저가 */}
@@ -609,7 +609,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
       {/* 전략 변수 슬라이더 */}
       <div style={{ background: '#fff', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 10, padding: '12px 14px' }}>
         <div style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-          ⚙ 전략 변수 — 모델별 조정
+          ⚙ 전략 변수: 모델별 조정
           {p.strategy.is_overridden ? (
             <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-amber)', background: 'var(--warning-bg)', padding: '2px 6px', borderRadius: 4 }}>모델별 설정 적용 중</span>
           ) : (
@@ -649,7 +649,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
       {/* 시나리오 3종 */}
       <div>
         <div style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>
-          시나리오 3가지 — 클릭으로 선택
+          시나리오 3가지: 클릭으로 선택
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
           {scenarios.map(s => {
@@ -711,7 +711,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
         {useHistory && supply_history ? (
           <>자체 거래 이력 <strong>{supply_history.sample_count}건</strong> · {fmt(supply_history.min_usd)} ~ {fmt(supply_history.max_usd)} (p25 {fmt(supply_history.p25_usd)} / 중앙 {fmt(supply_history.median_usd)})</>
         ) : (
-          <>자체 이력 부족 ({supply_history?.sample_count ?? 0}건 {'<'} 임계 {HISTORY_MIN_SAMPLES}건) — 단순 비율 기반 판정</>
+          <>자체 이력 부족 ({supply_history?.sample_count ?? 0}건 {'<'} 임계 {HISTORY_MIN_SAMPLES}건): 단순 비율 기반 판정</>
         )}
         <span style={{
           marginLeft: 8, fontSize: 'var(--fs-2xs)', fontWeight: 700, padding: '2px 7px', borderRadius: 5,
@@ -734,7 +734,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
       }}>
         <span style={{ fontSize: 20 }}>📋</span>
         <div style={{ flex: 1, fontSize: 12.5 }}>
-          <strong>공급 협상 카드 생성</strong> — 선택된 시나리오({scenarios.find(s => s.key === selectedScenario)?.name})의 목표 공급가를 공급사에 제시할 PDF로 만듭니다.
+          <strong>공급 협상 카드 생성</strong>: 선택된 시나리오({scenarios.find(s => s.key === selectedScenario)?.name})의 목표 공급가를 공급사에 제시할 PDF로 만듭니다.
           <span style={{ color: 'var(--gpu-muted)', marginLeft: 4 }}>Drive 저장 (본부장이 직접 발송)</span>
         </div>
         <button

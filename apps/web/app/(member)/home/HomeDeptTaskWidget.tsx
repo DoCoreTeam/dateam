@@ -87,7 +87,7 @@ export default function HomeDeptTaskWidget({ initial, today }: Props) {
             {counts.overdue > 0 && <strong>기한 지난 업무 {counts.overdue}건</strong>}
             {counts.overdue > 0 && counts.blocker > 0 && ' · '}
             {counts.blocker > 0 && <strong>블로커 {counts.blocker}건</strong>}
-            {' '}— 먼저 확인하세요
+            {' '}. 먼저 확인하세요
           </span>
         </div>
       )}

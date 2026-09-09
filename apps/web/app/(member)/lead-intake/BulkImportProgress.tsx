@@ -199,7 +199,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
               대량 임포트 완료
             </p>
             <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: 0 }}>
-              {file.name} — 총 {total}건 / 소요 {formatSec(elapsed)}
+              {file.name}: 총 {total}건 / 소요 {formatSec(elapsed)}
             </p>
             <div style={{ display: 'flex', gap: 'var(--space-4)', marginTop: '0.75rem' }}>
               <span style={{ fontSize: 'var(--fs-base)', color: 'var(--success)', fontWeight: 600 }}>성공 {success}건</span>

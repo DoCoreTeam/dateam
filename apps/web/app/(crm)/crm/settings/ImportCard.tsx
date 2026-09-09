@@ -117,12 +117,12 @@ export default function ImportCard() {
           {preview.ignored.length > 0 && (
             <p>
               <NbBadge status="note">안 쓰는 칸</NbBadge>{' '}
-              {preview.ignored.join(', ')} — 이 칸들은 들어가지 않아요
+              {preview.ignored.join(', ')}: 이 칸들은 들어가지 않아요
             </p>
           )}
 
           {preview.plans.filter((p) => p.verdict !== 'create').slice(0, 5).map((p) => (
-            <p key={p.line}>{p.line}행 {p.name || '(이름 없음)'} — {p.reason}</p>
+            <p key={p.line}>{p.line}행 {p.name || '(이름 없음)'}: {p.reason}</p>
           ))}
         </div>
       )}
@@ -135,7 +135,7 @@ export default function ImportCard() {
             <>
               <p>{outcome.failed.length}건은 넣지 못했어요:</p>
               {outcome.failed.slice(0, 5).map((f) => (
-                <p key={f.line}>{f.line}행 {f.name} — {f.reason}</p>
+                <p key={f.line}>{f.line}행 {f.name}: {f.reason}</p>
               ))}
             </>
           )}

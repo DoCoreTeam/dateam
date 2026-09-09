@@ -212,7 +212,7 @@ function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id:
       <H2>빠른 시작 (30초)</H2>
       <P>
         발급받은 키를 <Code>AX_API_KEY</Code> 환경변수에 넣고, 쓰는 언어 탭을 골라 그대로 복사하면 첫 요청이 완성됩니다.
-        키는 <strong style={{ color: 'var(--text)' }}>서버에서만</strong> 씁니다 — 브라우저에 두면 사용자에게 노출됩니다.
+        키는 <strong style={{ color: 'var(--text)' }}>서버에서만</strong> 씁니다. 브라우저에 두면 사용자에게 노출됩니다.
       </P>
       <CodeTabs id="quickstart" baseUrl={base} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
 
@@ -222,7 +222,7 @@ function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id:
         키는 HMAC-SHA256으로 해시해 저장하며, <strong style={{ color: 'var(--text)' }}>내 키 관리</strong>에서 발급·폐기합니다.
       </P>
       <P>
-        키를 발급한 계정이 비활성화되면 그 키도 즉시 막힙니다 — 퇴사자의 키가 계속 살아 있는 것을 막습니다.
+        키를 발급한 계정이 비활성화되면 그 키도 즉시 막힙니다. 퇴사자의 키가 계속 살아 있는 것을 막습니다.
       </P>
 
       <H2>응답 형식</H2>

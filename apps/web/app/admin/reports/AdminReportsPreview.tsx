@@ -265,7 +265,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
               {saved && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.125rem 0.5rem', background: 'var(--success-bg)', color: 'var(--success)', borderRadius: '9999px', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
                   <RefreshCw size={10} />
-                  저장됨{savedAt ? ` · ${new Date(savedAt).toLocaleString('ko-KR')}` : ''} — 원본 반영은 다시 취합
+                  저장됨{savedAt ? ` · ${new Date(savedAt).toLocaleString('ko-KR')}` : ''}: 원본 반영은 다시 취합
                 </span>
               )}
             </div>

@@ -210,7 +210,7 @@ export default function SettingsCard() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={drafts[s.key]} alt={`${s.label} 미리보기`} />
                 ) : (
-                  <span className={styles.hint}>저장됨 · {s.masked} — 바꾸려면 새 파일을 고르세요</span>
+                  <span className={styles.hint}>저장됨 · {s.masked}: 바꾸려면 새 파일을 고르세요</span>
                 )}
               </div>
             )}

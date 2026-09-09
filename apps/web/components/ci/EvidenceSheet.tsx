@@ -81,7 +81,7 @@ export default function EvidenceSheet({
                     확보하지 못한 항목
                   </h3>
                   <p className="empty-state-desc">
-                    {evidence.missingFields.join(', ')} — 추정값으로 채우지 않고 비워 둡니다.
+                    {evidence.missingFields.join(', ')}: 추정값으로 채우지 않고 비워 둡니다.
                   </p>
                 </section>
               )}

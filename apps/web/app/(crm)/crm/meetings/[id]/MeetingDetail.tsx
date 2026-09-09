@@ -394,7 +394,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
           {finished.questions.length > 0 && (
             <div className={styles.asks}>
               <h4 className={styles.asksHead}>
-                <HelpCircle size={15} aria-hidden /> 이건 제가 몰라요 — 채워 주시겠어요?
+                <HelpCircle size={15} aria-hidden /> 이건 제가 몰라요. 채워 주시겠어요?
               </h4>
               <ul className={styles.askList}>
                 {finished.questions.map((q) => (
@@ -416,7 +416,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
       {m.note?.isStale && (
         <p className={styles.notice}>
           원본 회의노트가 {formatKstDateTimeShort(m.note.updatedAt ?? '')}에 수정됐어요.{' '}
-          요약·참석자·회의 내용만 따라잡습니다 — 제목은 그대로 둡니다.{' '}
+          요약·참석자·회의 내용만 따라잡습니다. 제목은 그대로 둡니다.{' '}
           <NbButton onClick={() => void resync()} disabled={busy === 'resync'}>
             {busy === 'resync' ? '가져오는 중…' : '다시 가져오기'}
           </NbButton>

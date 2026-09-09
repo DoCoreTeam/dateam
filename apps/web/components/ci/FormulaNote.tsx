@@ -16,8 +16,8 @@ export default function FormulaNote({ formula, why }: Props) {
   if (!formula) return null
   return (
     <div className={styles.wrap}>
-      <p className={styles.formula}>따라 만든다면 — {formula}</p>
-      {why && <p className={styles.why}>통한 이유 — {why}</p>}
+      <p className={styles.formula}>따라 만든다면: {formula}</p>
+      {why && <p className={styles.why}>통한 이유: {why}</p>}
     </div>
   )
 }

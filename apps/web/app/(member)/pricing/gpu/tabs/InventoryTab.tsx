@@ -410,7 +410,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
 
           {item.supplier_availability.length === 0 && item.tier !== 3 && (
             <div style={{ textAlign: 'center', padding: '16px', color: 'var(--gpu-faint)', fontSize: 12 }}>
-              공급사 가용량 응답 없음 — 문의 후 등록해 주세요
+              공급사 가용량 응답 없음. 문의 후 등록해 주세요
             </div>
           )}
         </div>

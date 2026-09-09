@@ -234,7 +234,7 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
 
         {editing && (
           <p style={{ margin: 0, fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
-            단계는 보드에서 옮깁니다 — 이동 이력이 함께 남아야 하기 때문입니다.
+            단계는 보드에서 옮깁니다. 이동 이력이 함께 남아야 하기 때문입니다.
           </p>
         )}
 

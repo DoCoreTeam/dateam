@@ -193,7 +193,7 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
           {missedMemos.length > 0 && (
             <section className="origin-memo-alert" aria-label="놓친 메모">
               <p className="origin-memo-alert-title">
-                ⚠ 놓친 메모 {missedMemos.length}건 — 아직 확인하지 않았습니다
+                ⚠ 놓친 메모 {missedMemos.length}건: 아직 확인하지 않았습니다
               </p>
               <ul className="origin-memo-alert-list">
                 {missedMemos.map((memo) => (

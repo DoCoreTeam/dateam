@@ -365,7 +365,7 @@ function SchemaTab() {
   return (
     <div className="card" style={{ padding: 'var(--space-5)' }}>
       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: '0 0 var(--space-3)' }}>
-        AI가 추출 시 인지하는 테이블 {tables.length}개 (public 전체 테이블 자동 포함 — 구조만, 행 데이터는 미포함)
+        AI가 추출 시 인지하는 테이블 {tables.length}개 (public 전체 테이블 자동 포함. 구조만, 행 데이터는 미포함)
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
         {tables.map((t) => <span key={t} className="badge" data-status="planned">{t}</span>)}

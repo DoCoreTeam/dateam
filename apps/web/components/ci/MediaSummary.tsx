@@ -68,7 +68,7 @@ export default function MediaSummary({ media, variant = 'full' }: Props) {
                   <span className="ci-status ci-status-info">{media.topicGuess}</span>
                   {media.topicEvidence && (
                     <p className="ci-basis" style={{ marginTop: 'var(--space-1)' }}>
-                      근거 — {media.topicEvidence}
+                      근거: {media.topicEvidence}
                     </p>
                   )}
                 </dd>

@@ -80,7 +80,7 @@ export default function ModelCandidateQueue({ onRegistered }: { onRegistered?: (
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
         <Sparkles size={15} style={{ color: 'var(--warning)' }} />
         <span style={{ fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)' }}>
-          카탈로그에 없는 신규 모델 {groups.length}종 · {candidates.length}건 — 등록 대기
+          카탈로그에 없는 신규 모델 {groups.length}종 · {candidates.length}건: 등록 대기
         </span>
         <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
           같은 모델의 폼팩터(SXM·PCIe·NVL)는 함께 묶었어요. 확인 후 등록하면 다음 반영부터 자동 매칭됩니다.

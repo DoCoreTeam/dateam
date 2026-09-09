@@ -54,7 +54,7 @@ export default function GlobalError({
           </p>
           {error.digest && (
             <p style={{ margin: `0 0 var(--space-6)`, fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
-              문의할 때 이 번호를 알려 주시면 빨리 찾을 수 있어요 — {error.digest}
+              문의할 때 이 번호를 알려 주시면 빨리 찾을 수 있어요. {error.digest}
             </p>
           )}
           <button type="button" onClick={reset} className="btn-primary">

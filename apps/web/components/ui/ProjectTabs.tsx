@@ -27,7 +27,7 @@ export default function ProjectTabs() {
     <>
       <SegmentedTabs tabs={TABS} variant="primary" ariaLabel="영업 탭" />
       <p className={styles.legacy}>
-        이 화면들은 <b>{SERVICE_LABEL.crm}</b>으로 옮겨가는 중입니다 — 새 영업 건은 그쪽에서 만드세요.
+        이 화면들은 <b>{SERVICE_LABEL.crm}</b>으로 옮겨가는 중입니다. 새 영업 건은 그쪽에서 만드세요.
         <Link href="/crm" className={styles.go}>
           {SERVICE_LABEL.crm}으로 <ArrowRight size={13} aria-hidden />
         </Link>

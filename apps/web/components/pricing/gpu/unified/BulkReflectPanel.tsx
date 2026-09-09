@@ -180,7 +180,7 @@ export default function BulkReflectPanel({ rows, currency, onClose }: BulkReflec
           <div style={{ flex: 1 }}>
             <strong id="bulk-reflect-title" className="gpu-modal-title tape-title">일괄 반영</strong>
             <span className="gpu-modal-subtitle">
-              미반영 {pending.length}개 · 선택 {selected.size}개 — 추천가 확정 또는 홈페이지 반영 완료를 한 번에
+              미반영 {pending.length}개 · 선택 {selected.size}개: 추천가 확정 또는 홈페이지 반영 완료를 한 번에
             </span>
           </div>
           <button type="button" onClick={onClose} aria-label="닫기" className="gpu-modal-close">

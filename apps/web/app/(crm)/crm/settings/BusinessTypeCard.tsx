@@ -183,7 +183,7 @@ export default function BusinessTypeCard() {
       <p className={styles.desc}>
         딜을 만들 때 고르는 목록입니다. 유형마다 원가 구조도 계약 형태도 달라서,
         여기가 갈려 있으면 「어떤 사업이 남는 장사였나」를 나중에 따져 보기 어렵습니다.
-        안 쓰는 유형은 <strong>숨김</strong>으로 바꾸세요 — 이미 그 유형인 딜은 그대로 보입니다.
+        안 쓰는 유형은 <strong>숨김</strong>으로 바꾸세요. 이미 그 유형인 딜은 그대로 보입니다.
       </p>
 
       {error && <ErrorState message={error} onRetry={() => void load()} />}

@@ -132,7 +132,7 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
       {seed && (
         <div style={{ marginBottom: 'var(--space-4)' }}>
           <p className="ci-status ci-status-info" style={{ display: 'inline-flex' }}>
-            근거를 이어받았습니다 — 만들면 어디서 왔는지 카드에 남습니다
+            근거를 이어받았습니다. 만들면 어디서 왔는지 카드에 남습니다
           </p>
           {/* 영상을 읽어 둔 것이 있으면 그대로 보여준다. 이것이 "영상을 읽는다"가
               기획으로 이어지는 지점이다 — 제목만 넘기면 사용자는 다시 생각해야 한다.
