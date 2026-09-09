@@ -12,9 +12,22 @@ import RuleSettings from '@/components/rfp/RuleSettings'
 import TransferLog, { type TransferRow } from '@/components/rfp/TransferLog'
 import UsageDashboard from '@/components/rfp/UsageDashboard'
 import { toRule, type AnomalyRule } from '@/lib/rfp/anomaly/rules'
+import { toPolicy, SAFE_DEFAULT } from '@/lib/rfp/ai/host-providers'
+import { getAvailableProviders } from '@/lib/ai-chat/registry'
+import { createAdminClient } from '@/lib/supabase/server'
+import styles from '../../rfp.module.css'
 import { toPlan, summarize, currentPeriod, type UsageRow } from '@/lib/rfp/tenant/usage'
 
 export const dynamic = 'force-dynamic'
+
+/** 호스트가 키를 두는 자리 — RFP 는 읽기만 한다 */
+async function readHostMeta(): Promise<Record<string, unknown>> {
+  const admin = createAdminClient() as never as {
+    from(t: string): { select(c: string): { eq(k: string, v: string): { single(): Promise<{ data: unknown }> } } }
+  }
+  const { data } = await admin.from('org_content').select('value').eq('key', 'META').single()
+  return ((data as { value?: unknown } | null)?.value ?? {}) as Record<string, unknown>
+}
 
 interface Q {
   from(t: string): {
@@ -36,9 +49,9 @@ export default async function RfpAdminPage() {
   const q = db as never as Q
   const { data: orgId } = await q.rpc('rfp_default_org')
 
-  const [{ data: models }, { data: rules }, { data: transfers }, { data: usage }, { data: members }] =
+  const [{ data: policies }, { data: rules }, { data: transfers }, { data: usage }, { data: members }] =
     await Promise.all([
-      q.from('rfp_ai_models').select('id, display_name, is_internal, allowed_doc_classes, model_name').limit(50),
+      q.from('rfp_ai_models').select('vendor_id, is_internal, allowed_doc_classes, no_training, zero_retention, input_krw_per_mtok, output_krw_per_mtok, multimodal, sort_order').limit(50),
       q.from('rfp_anomaly_rules').select('rule_id, title, method, grade, severity, params, enabled').limit(50),
       q.from('rfp_external_transfers').select('id, case_id, model_id, doc_class, purpose, created_at')
         .order('created_at', { ascending: false }).limit(50),
@@ -55,15 +68,22 @@ export default async function RfpAdminPage() {
         .eq('id', orgRow.plan_id).maybeSingle()).data
     : null
 
-  const vendors: VendorRow[] = ((models as Record<string, unknown>[] | null) ?? []).map((m) => ({
-    id: String(m.id),
-    name: String(m.display_name ?? m.model_name ?? ''),
-    isInternal: Boolean(m.is_internal),
-    hasCredential: Boolean(m.model_name),
-    baseUrl: null,
-    modelName: m.model_name === null || m.model_name === undefined ? null : String(m.model_name),
-    allowedDocClasses: (m.allowed_doc_classes as string[] | null) ?? [],
-  }))
+  // 공급자와 키는 **관리자 설정 한 곳**에서 온다. RFP 는 등급 정책만 갖는다
+  const meta = await readHostMeta()
+  const byId = new Map(((policies as Record<string, unknown>[] | null) ?? [])
+    .map(toPolicy).map((p) => [p.providerId, p]))
+
+  const vendors: VendorRow[] = getAvailableProviders(meta).map((p) => {
+    const policy = byId.get(p.id) ?? { providerId: p.id, ...SAFE_DEFAULT }
+    return {
+      id: p.id,
+      name: p.id,
+      modelName: p.model,
+      isInternal: policy.internal,
+      hasKey: Boolean(p.apiKey),
+      allowedDocClasses: policy.allowedDocClasses,
+    }
+  })
 
   const rows: UsageRow[] = ((usage as Record<string, unknown>[] | null) ?? []).map((r) => ({
     orgId: String(r.org_id),
@@ -78,6 +98,7 @@ export default async function RfpAdminPage() {
   return (
     <main className="page-inner">
       <PageHeader title={RFP_ADMIN.title} back={{ href: '/rfp', label: RFP_LIST.title }} />
+      <div className={styles.stack}>
       <UsageDashboard
         plan={planRow ? toPlan(planRow as Record<string, unknown>) : null}
         usage={summarize(rows, currentPeriod())}
@@ -87,6 +108,7 @@ export default async function RfpAdminPage() {
       <VendorSettings vendors={vendors} />
       <RuleSettings saved={savedRules} />
       <TransferLog rows={((transfers as TransferRow[] | null) ?? [])} />
+      </div>
     </main>
   )
 }

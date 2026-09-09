@@ -1,86 +1,81 @@
 'use client'
 
-// AI 공급자 설정 — 사내 서빙 등록이 여기 있다.
+// AI 공급자 — **키는 여기서 안 받는다.**
 //
-// **등록 전에는 NDA 문서 분석이 막힌다.** 그 사실을 화면이 말해야
-// 관리자가 왜 등록해야 하는지 안다.
+// 공급자와 키는 관리자 설정에 한 벌 있고 사내 전체가 그것을 쓴다.
+// RFP 가 자기 폼을 또 만들면 같은 키를 두 군데 넣게 되고,
+// 한쪽만 바꿔 놓고 「왜 RFP 만 안 되지」를 겪는다.
+//
+// RFP 에만 있는 질문은 하나다 — **이 모델에 어느 등급까지 보내도 되나.**
 
-import { useState } from 'react'
-import NbButton from '@/components/ui/nb/NbButton'
+import { ExternalLink } from 'lucide-react'
 import NbBadge from '@/components/ui/nb/NbBadge'
-import FormErrorBanner from '@/components/ui/FormErrorBanner'
-import { RFP_ADMIN, RFP_COMMON, DOC_CLASS_LABEL } from '@/lib/rfp/terms'
-import { checkEndpoint } from '@/lib/rfp/ai/self-hosted'
+import NbButton from '@/components/ui/nb/NbButton'
+import EmptyState from '@/components/ui/EmptyState'
+import { RFP_ADMIN, DOC_CLASS_LABEL } from '@/lib/rfp/terms'
+import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
+import type { DocClass } from '@/lib/rfp/domain/doc-class'
+import styles from '@/app/(rfp)/rfp.module.css'
 
 export interface VendorRow {
   id: string
   name: string
-  isInternal: boolean
-  hasCredential: boolean
-  baseUrl: string | null
   modelName: string | null
-  allowedDocClasses: string[]
+  isInternal: boolean
+  /** 호스트에 키가 들어 있나 */
+  hasKey: boolean
+  allowedDocClasses: DocClass[]
 }
 
-export interface VendorSettingsProps {
-  vendors: VendorRow[]
+/** 등급이 높을수록 눈에 띄어야 한다 */
+const CLASS_STATUS: Record<DocClass, 'note' | 'doing' | 'blocker'> = {
+  public: 'note', restricted: 'doing', nda: 'blocker',
 }
 
-export default function VendorSettings({ vendors }: VendorSettingsProps) {
-  const [baseUrl, setBaseUrl] = useState('')
-  const [modelName, setModelName] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const [error, setError] = useState<string | null>(null)
-
-  // 저장 전에 화면에서 먼저 본다 — 서버까지 갔다 오지 않아도 무엇이 틀렸는지 안다
-  const check = checkEndpoint({ baseUrl, modelName, apiKey: apiKey || null })
-
+export default function VendorSettings({ vendors }: { vendors: VendorRow[] }) {
   return (
     <section className="card">
-      <h2 className="label">{RFP_ADMIN.vendors}</h2>
-      {error && <FormErrorBanner message={error} />}
-
-      <ul>
-        {vendors.map((v) => (
-          <li key={v.id}>
-            <span>{v.name}</span>
-            {v.isInternal && <NbBadge status="note">{RFP_ADMIN.internalVendor}</NbBadge>}
-            {v.hasCredential
-              ? <NbBadge status="done">{v.modelName ?? ''}</NbBadge>
-              : <NbBadge status="blocker">{RFP_ADMIN.notRegistered}</NbBadge>}
-            <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>
-              {v.allowedDocClasses.map((c) => DOC_CLASS_LABEL[c as 'public'] ?? c).join(', ')}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      {/* 사내 서빙 등록 — 주소와 모델 이름 둘이면 된다 */}
-      <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>{RFP_ADMIN.internalHint}</p>
-
-      <div className="field">
-        <label className="label" htmlFor="v-url">{RFP_ADMIN.vendorBaseUrl}</label>
-        <input id="v-url" className="input-field" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
-      </div>
-      <div className="field">
-        <label className="label" htmlFor="v-model">{RFP_ADMIN.vendorModel}</label>
-        <input id="v-model" className="input-field" value={modelName} onChange={(e) => setModelName(e.target.value)} />
-      </div>
-      <div className="field">
-        <label className="label" htmlFor="v-key">{RFP_ADMIN.vendorKey}</label>
-        <input id="v-key" className="input-field" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+      <div className={styles.sectionHead}>
+        <span className={styles.sectionTitle}>{RFP_ADMIN.vendors}</span>
+        <span className={styles.sectionDesc}>{RFP_ADMIN.vendorsHint}</span>
       </div>
 
-      {!check.ok && (baseUrl || modelName) && (
-        <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{check.problems.join(', ')}</p>
+      {vendors.length === 0 ? (
+        <EmptyState
+          title={RFP_ADMIN.noVendors}
+          description={RFP_ADMIN.noVendorsHint}
+          action={{ label: RFP_ADMIN.vendorsLink, href: HOST_AI_SETTINGS_HREF }}
+        />
+      ) : (
+        <>
+          <div className={styles.ruleList}>
+            {vendors.map((v) => (
+              <div key={v.id} className={styles.ruleItem}>
+                <div className={`${styles.ruleName} ${styles.tight}`}>
+                  <span style={{ fontWeight: 600 }}>{v.name}</span>
+                  <span className={styles.sectionDesc}>
+                    {v.modelName ?? RFP_ADMIN.notRegistered}
+                  </span>
+                </div>
+
+                <div className={styles.row}>
+                  {v.isInternal && <NbBadge status="done">{RFP_ADMIN.internalVendor}</NbBadge>}
+                  {/* 이 모델에 어느 등급까지 보내도 되나 — RFP 에만 있는 질문이다 */}
+                  {v.allowedDocClasses.map((c) => (
+                    <NbBadge key={c} status={CLASS_STATUS[c]}>{DOC_CLASS_LABEL[c]}</NbBadge>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.actions}>
+            <NbButton variant="ghost" href={HOST_AI_SETTINGS_HREF}>
+              <ExternalLink size={14} /> {RFP_ADMIN.vendorsLink}
+            </NbButton>
+          </div>
+        </>
       )}
-
-      <NbButton
-        disabled={!check.ok}
-        onClick={() => setError(RFP_ADMIN.saveFailed)}
-      >
-        {RFP_COMMON.save}
-      </NbButton>
     </section>
   )
 }

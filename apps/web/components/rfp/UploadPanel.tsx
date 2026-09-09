@@ -4,14 +4,21 @@
 //
 // 등급에 기본값을 주면 NDA 문서가 공개로 들어오고, 그 뒤 모든 외부 호출이
 // 「공개니까 보내도 된다」고 판단한다. 그래서 여기서 사람이 반드시 고른다.
+//
+// ## 배치
+//
+// 세 덩어리다 — 무엇을 분석하나(사업명) / 어디까지 보낼 수 있나(등급) / 무엇을 읽나(파일).
+// 예전엔 셋을 한 카드에 이어 붙여서 어디까지가 한 질문인지 안 보였다.
 
 import { useCallback, useRef, useState } from 'react'
-import { Upload, X } from 'lucide-react'
+import { Upload, X, FileText } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { RFP_INTAKE, DOC_CLASS_LABEL, DOC_CLASS_HINT, DOC_CLASS_EFFECT } from '@/lib/rfp/terms'
 import { DOC_CLASS_ORDER, type DocClass } from '@/lib/rfp/domain/doc-class'
 import { MAX_FILE_BYTES, MAX_CASE_BYTES } from '@/lib/rfp/db/limits'
+import styles from '@/app/(rfp)/rfp.module.css'
 
 export interface UploadPanelProps {
   onDone?: (caseId: string) => void
@@ -22,31 +29,39 @@ interface Picked {
   error: string | null
 }
 
+/** 사람이 읽는 크기 */
+function humanSize(bytes: number): string {
+  const mb = bytes / (1024 * 1024)
+  return mb >= 1 ? `${mb.toFixed(1)}MB` : `${Math.max(1, Math.round(bytes / 1024))}KB`
+}
+
 export default function UploadPanel({ onDone }: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
   const [docClass, setDocClass] = useState<DocClass | ''>('')
   const [files, setFiles] = useState<Picked[]>([])
+  const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [caseId, setCaseId] = useState<string | null>(null)
 
   const pick = useCallback((list: FileList | null) => {
     if (!list) return
-    const next: Picked[] = []
-    let total = files.reduce((n, f) => n + f.file.size, 0)
-    for (const file of Array.from(list)) {
-      // 크기를 여기서 먼저 본다 — 서버까지 갔다 오면 200MB 를 올리고 나서 거절당한다
-      const tooBig = file.size > MAX_FILE_BYTES
-      total += file.size
-      const overQuota = total > MAX_CASE_BYTES
-      next.push({
-        file,
-        error: tooBig ? RFP_INTAKE.fileTooLarge : overQuota ? RFP_INTAKE.caseQuota : null,
-      })
-    }
-    setFiles((prev) => [...prev, ...next])
-  }, [files])
+    setFiles((prev) => {
+      let total = prev.reduce((n, f) => n + f.file.size, 0)
+      const next: Picked[] = []
+      for (const file of Array.from(list)) {
+        // 크기를 여기서 먼저 본다 — 서버까지 갔다 오면 200MB 를 올리고 나서 거절당한다
+        const tooBig = file.size > MAX_FILE_BYTES
+        total += file.size
+        next.push({
+          file,
+          error: tooBig ? RFP_INTAKE.fileTooLarge : total > MAX_CASE_BYTES ? RFP_INTAKE.caseQuota : null,
+        })
+      }
+      return [...prev, ...next]
+    })
+  }, [])
 
   const remove = useCallback((idx: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== idx))
@@ -87,47 +102,62 @@ export default function UploadPanel({ onDone }: UploadPanelProps) {
     }
   }, [title, docClass, files, onDone])
 
-  const canSubmit = Boolean(title.trim()) && Boolean(docClass) && !busy
+  const usable = files.filter((f) => !f.error).length
+  const canSubmit = Boolean(title.trim()) && Boolean(docClass) && usable > 0 && !busy
 
   return (
-    <div className="card">
+    <div className={styles.stack}>
       {error && <FormErrorBanner message={error} />}
 
-      <div className="field">
-        <label className="label" htmlFor="rfp-title">{RFP_INTAKE.titleLabel}</label>
-        <input
-          id="rfp-title"
-          className="input-field"
-          value={title}
-          placeholder={RFP_INTAKE.titlePlaceholder}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-      </div>
+      {/* ① 무엇을 분석하나 */}
+      <section className="card">
+        <div className={styles.field}>
+          <label className="label" htmlFor="rfp-title">{RFP_INTAKE.titleLabel}</label>
+          <input
+            id="rfp-title"
+            className="input-field"
+            value={title}
+            placeholder={RFP_INTAKE.titlePlaceholder}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+      </section>
 
-      <fieldset className="field">
-        <legend className="label">{RFP_INTAKE.docClassLabel}</legend>
-        {DOC_CLASS_ORDER.map((c) => (
-          <label key={c} style={{ display: 'block', marginBottom: 'var(--space-2)' }}>
-            <input
-              type="radio"
-              name="docClass"
-              value={c}
-              checked={docClass === c}
-              onChange={() => setDocClass(c)}
-            />
-            <span style={{ marginLeft: 'var(--space-2)', fontWeight: 600 }}>{DOC_CLASS_LABEL[c]}</span>
-            <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', marginLeft: 'var(--space-5)' }}>
-              {DOC_CLASS_HINT[c]}
-            </div>
-            <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', marginLeft: 'var(--space-5)' }}>
-              {DOC_CLASS_EFFECT[c]}
-            </div>
-          </label>
-        ))}
-      </fieldset>
+      {/* ② 어디까지 보낼 수 있나 — 고르지 않으면 못 넘어간다 */}
+      <section className="card">
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionTitle}>{RFP_INTAKE.docClassLabel}</span>
+          <span className={styles.sectionDesc}>{RFP_INTAKE.docClassWhy}</span>
+        </div>
 
-      <div className="field">
-        <span className="label">{RFP_INTAKE.fileLabel}</span>
+        <div className={styles.choiceList}>
+          {DOC_CLASS_ORDER.map((c) => (
+            <label key={c} className={styles.choice} data-selected={docClass === c}>
+              <input
+                type="radio"
+                name="docClass"
+                value={c}
+                checked={docClass === c}
+                onChange={() => setDocClass(c)}
+              />
+              <span className={styles.choiceTitle}>{DOC_CLASS_LABEL[c]}</span>
+              <span className={styles.choiceHint}>{DOC_CLASS_HINT[c]}</span>
+              <span className={styles.choiceHint}>{DOC_CLASS_EFFECT[c]}</span>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      {/* ③ 무엇을 읽나 */}
+      <section className="card">
+        <div className={styles.sectionHead}>
+          <div className={styles.between}>
+            <span className={styles.sectionTitle}>{RFP_INTAKE.fileLabel}</span>
+            {files.length > 0 && <NbBadge status="note">{usable} / {files.length}</NbBadge>}
+          </div>
+          <span className={styles.sectionDesc}>{RFP_INTAKE.fileHint}</span>
+        </div>
+
         <input
           ref={inputRef}
           type="file"
@@ -135,33 +165,48 @@ export default function UploadPanel({ onDone }: UploadPanelProps) {
           style={{ display: 'none' }}
           onChange={(e) => pick(e.target.files)}
         />
-        <NbButton variant="ghost" onClick={() => inputRef.current?.click()}>
-          <Upload size={14} /> {RFP_INTAKE.filePick}
-        </NbButton>
 
-        {files.length === 0 && (
-          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>{RFP_INTAKE.fileNone}</p>
+        <div
+          className={styles.dropzone}
+          data-active={dragging}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); pick(e.dataTransfer.files) }}
+        >
+          <Upload size={20} />
+          <span className={styles.sectionDesc}>{RFP_INTAKE.dropHere}</span>
+          <NbButton variant="ghost" onClick={() => inputRef.current?.click()}>
+            {RFP_INTAKE.filePick}
+          </NbButton>
+        </div>
+
+        {files.length > 0 && (
+          <div className={styles.fileList}>
+            {files.map((f, i) => (
+              <div key={`${f.file.name}-${i}`} className={styles.fileItem}>
+                <span className={styles.row}>
+                  <FileText size={14} />
+                  <span>{f.file.name}</span>
+                  <span className={styles.sectionDesc}>{humanSize(f.file.size)}</span>
+                  {f.error && <NbBadge status="blocker">{f.error}</NbBadge>}
+                </span>
+                <NbButton variant="ghost" onClick={() => remove(i)} title={RFP_INTAKE.removeFile}>
+                  <X size={12} />
+                </NbButton>
+              </div>
+            ))}
+          </div>
         )}
-        <ul>
-          {files.map((f, i) => (
-            <li key={`${f.file.name}-${i}`}>
-              <span>{f.file.name}</span>
-              {f.error && <span style={{ color: 'var(--danger)' }}> {f.error}</span>}
-              <button type="button" className="btn-ghost" aria-label={RFP_INTAKE.fileNone} onClick={() => remove(i)}>
-                <X size={12} />
-              </button>
-            </li>
-          ))}
-        </ul>
+      </section>
+
+      <div className={styles.actions}>
+        <NbButton onClick={() => void submit()} disabled={!canSubmit}>
+          {busy ? RFP_INTAKE.submitting : RFP_INTAKE.submit}
+        </NbButton>
+        {caseId && (
+          <NbButton variant="ghost" href={`/rfp/${caseId}`}>{RFP_INTAKE.goReport}</NbButton>
+        )}
       </div>
-
-      <NbButton onClick={() => void submit()} disabled={!canSubmit}>
-        {busy ? RFP_INTAKE.submitting : RFP_INTAKE.submit}
-      </NbButton>
-
-      {caseId && (
-        <NbButton variant="ghost" href={`/rfp/${caseId}`}>{RFP_INTAKE.goReport}</NbButton>
-      )}
     </div>
   )
 }

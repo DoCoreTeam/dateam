@@ -218,7 +218,11 @@ export const RFP_INTAKE = {
   docClassRequired: '문서 등급을 골라 주세요',
   titleRequired: '사업명을 적어 주세요',
   fileLabel: '첨부 파일',
+  fileHint: '제안요청서·과업내용서·공고문·서식을 함께 올리면 한 케이스로 묶습니다',
+  dropHere: '여기에 끌어다 놓거나',
   filePick: '파일 고르기',
+  removeFile: '뺀다',
+  docClassWhy: '등급이 어느 AI 까지 이 문서를 볼 수 있는지 정합니다. 고르지 않으면 시작할 수 없습니다',
   fileNone: '아직 고른 파일이 없어요',
   fileTooLarge: '파일 하나는 200MB 까지예요',
   caseQuota: '한 케이스에 500MB 까지 올릴 수 있어요',
@@ -334,12 +338,23 @@ export const RFP_RADAR = {
 export const RFP_ADMIN = {
   title: '설정',
   vendors: 'AI 공급자',
-  vendorKey: 'API 키',
-  vendorBaseUrl: '엔드포인트 주소',
-  vendorModel: '모델 이름',
+  /** 키는 관리자 설정 한 곳에 있다 — 여기서 또 받지 않는다 */
+  vendorsHint: 'AI 키와 모델은 관리자 설정 한 곳에서 관리합니다. 여기서는 어느 문서 등급까지 보낼지만 정합니다',
+  vendorsLink: '관리자 설정에서 공급자 관리',
+  vendorModel: '모델',
   internalVendor: '사내 서빙',
-  internalHint: '주소와 모델 이름만 넣으면 등급 높은 문서도 여기서 처리합니다',
-  notRegistered: '아직 등록 안 됨',
+  internalHint: '사내에서 직접 서빙하는 모델은 등급 높은 문서도 처리할 수 있습니다',
+  notRegistered: '키가 없어 못 씁니다',
+  docClassAllowed: '보낼 수 있는 등급',
+  noVendors: '쓸 수 있는 AI 공급자가 없어요',
+  noVendorsHint: '관리자 설정에서 키를 넣으면 여기에 나타납니다',
+  usagePeriod: '이번 달',
+  usageCost: '쓴 비용',
+  usageLimit: '한도',
+  usageMembers: '구성원',
+  unitKrw: '원',
+  unitPeople: '명',
+  unitCount: '건',
   rules: '이상 조항 규칙',
   ruleEnabled: '켜기',
   transferLog: '외부 전송 기록',
@@ -358,12 +373,30 @@ export const RFP_ADMIN = {
 /** 어시스턴트 */
 export const RFP_ASSISTANT = {
   title: '어시스턴트',
+  open: '어시스턴트 열기',
+  ask: '질문',
   placeholder: '무엇이든 물어보세요',
   send: '묻기',
   thinking: '찾는 중',
   citations: '근거',
+  relatedCases: '관련 케이스',
   noAnswer: '자료에서 찾지 못했어요',
   droppedForClass: '등급 때문에 뺀 문서가 있어요',
+  examplesLead: '이렇게 물어보세요',
+  examples: [
+    '이번 공고의 참여 자격이 뭐야',
+    '우리가 못 맞추는 요건이 있어',
+    '경쟁 제한이 의심되는 조항 알려줘',
+  ],
+} as const
+
+/** 도움말 — 내용은 lib/rfp/guide 가 갖고 여기는 껍데기 말만 */
+export const RFP_HELP = {
+  title: '사용법',
+  short: '도움말',
+  open: '이 화면 사용법 보기',
+  flowTitle: '처음 쓴다면',
+  flowLead: '한 번만 이 순서로 따라가면 됩니다',
 } as const
 
 /** 역할 이름 */

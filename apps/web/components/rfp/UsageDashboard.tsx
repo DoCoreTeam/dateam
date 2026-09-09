@@ -1,14 +1,15 @@
 'use client'
 
-// 사용량과 요금제 — 이번 달 얼마 썼나.
+// 사용량과 요금제.
 //
-// 상한에 가까워지는 것을 미리 보여 준다. 넘고 나서 막히면
-// 사용자는 그때 분석을 못 돌린다.
+// **숫자를 이름 없이 두지 않는다.** 「0」과 「37」이 나란히 떠 있으면
+// 무엇이 0이고 무엇이 37인지 화면이 말해 주지 않는 것이다.
 
 import NbBadge from '@/components/ui/nb/NbBadge'
-import { RFP_ADMIN, ORG_ROLE_LABEL } from '@/lib/rfp/terms'
+import { RFP_ADMIN } from '@/lib/rfp/terms'
 import { BUDGET_WARN_RATIO } from '@/lib/rfp/notify/notify'
 import type { Plan, UsageSummary } from '@/lib/rfp/tenant/usage'
+import styles from '@/app/(rfp)/rfp.module.css'
 
 export interface UsageDashboardProps {
   plan: Plan | null
@@ -24,37 +25,54 @@ export default function UsageDashboard({ plan, usage, members, orgName }: UsageD
 
   return (
     <section className="card">
-      <h2 className="label">{RFP_ADMIN.usage}</h2>
-      <p>{orgName}</p>
-      {plan && <NbBadge status="note">{plan.name}</NbBadge>}
+      <div className={styles.sectionHead}>
+        <div className={styles.between}>
+          <span className={styles.sectionTitle}>{orgName}</span>
+          {plan && <NbBadge status="note">{plan.name}</NbBadge>}
+        </div>
+        <span className={styles.sectionDesc}>{RFP_ADMIN.usagePeriod} {usage.period}</span>
+      </div>
 
-      <p>
-        <span className="label">{usage.period}</span>
-        {' '}
-        <span style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, color: near ? 'var(--danger)' : 'var(--text)' }}>
-          {Math.round(usage.costKrw).toLocaleString()}
-        </span>
-        {limit !== null && <span style={{ color: 'var(--text-faint)' }}> / {limit.toLocaleString()}</span>}
-      </p>
+      <div className={styles.statGrid}>
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>{RFP_ADMIN.usageCost}</span>
+          <span className={styles.statValue} style={near ? { color: 'var(--danger)' } : undefined}>
+            {Math.round(usage.costKrw).toLocaleString()}
+            <span className={styles.statUnit}>{RFP_ADMIN.unitKrw}</span>
+          </span>
+        </div>
 
-      <ul>
-        {Object.entries(usage.byKind).map(([kind, v]) => (
-          <li key={kind}>
-            <span>{kind}</span>
-            <span style={{ color: 'var(--text-faint)' }}> {v.units} {Math.round(v.costKrw).toLocaleString()}</span>
-          </li>
-        ))}
-      </ul>
-
-      <p>
-        <span className="label">{RFP_ADMIN.members}</span> {members}
-        {plan?.maxMembers !== null && plan?.maxMembers !== undefined && (
-          <span style={{ color: 'var(--text-faint)' }}> / {plan.maxMembers}</span>
+        {limit !== null && (
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>{RFP_ADMIN.usageLimit}</span>
+            <span className={styles.statValue}>
+              {limit.toLocaleString()}
+              <span className={styles.statUnit}>{RFP_ADMIN.unitKrw}</span>
+            </span>
+          </div>
         )}
-      </p>
-      <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>
-        {ORG_ROLE_LABEL.admin} · {ORG_ROLE_LABEL.member} · {ORG_ROLE_LABEL.viewer}
-      </p>
+
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>{RFP_ADMIN.usageMembers}</span>
+          <span className={styles.statValue}>
+            {members}
+            <span className={styles.statUnit}>
+              {RFP_ADMIN.unitPeople}
+              {plan?.maxMembers !== null && plan?.maxMembers !== undefined && ` / ${plan.maxMembers}`}
+            </span>
+          </span>
+        </div>
+
+        {Object.entries(usage.byKind).map(([kind, v]) => (
+          <div key={kind} className={styles.stat}>
+            <span className={styles.statLabel}>{kind}</span>
+            <span className={styles.statValue}>
+              {v.units.toLocaleString()}
+              <span className={styles.statUnit}>{RFP_ADMIN.unitCount}</span>
+            </span>
+          </div>
+        ))}
+      </div>
     </section>
   )
 }

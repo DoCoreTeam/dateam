@@ -13,6 +13,8 @@ import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import AppShell from '@/components/ui/shell/AppShell'
 import type { NavGroup } from '@/components/ui/shell/AppShell'
 import { rfpNavFor, rfpNavMatchPaths } from '@/lib/rfp/nav/groups'
+import AssistantDock from '@/components/rfp/AssistantDock'
+import HelpButton from '@/components/rfp/HelpButton'
 
 /** 이름은 표(lib/rfp/nav/groups)가, 그림은 화면이 정한다 */
 const NAV_ICON: Record<string, React.ReactNode> = {
@@ -58,6 +60,15 @@ export default async function RfpLayout({ children }: { children: React.ReactNod
         isAdmin,
         currentTheme: resolveTheme(profile?.theme_preference, globalTheme),
         defaultTheme: globalTheme,
+      }}
+      extras={{
+        dock: [
+          // 어시스턴트는 메뉴 항목이자 **어느 화면에서나 열리는 자리**다.
+          // 좌표는 스스로 정하지 않는다 — Dock 의 assistant 슬롯이 준다(+ 버튼과 겹치지 않게).
+          { slot: 'assistant', node: <AssistantDock /> },
+          // 물음표. 지금 주소에 맞는 사용법을 연다.
+          { slot: 'utility', node: <HelpButton /> },
+        ],
       }}
     >
       {children}
