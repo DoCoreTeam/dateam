@@ -8,11 +8,15 @@
 // 금액은 문자열로 나간다 — BigInt 는 JSON 에 못 싣고, number 로 접으면 큰 금액에서
 // 조용히 값이 틀어진다. 리포트에서 그게 일어나면 아무도 눈치 못 챈다.
 import type { NextRequest } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { withCrmApi } from '@/lib/crm/api/handler'
+import { CrmError } from '@/lib/crm/domain/errors'
 import { getCrmDb } from '@/lib/crm/db/client'
 import { withCrmTx } from '@/lib/crm/db/tx'
 import { loadDealsForMetrics, runMetrics, dimensionFill, filterLabel } from '@/lib/crm/services/metric-query'
 import { loadTargets, saveTargets } from '@/lib/crm/services/target-store'
+import { loadCloses, saveCloses } from '@/lib/crm/services/close-store'
+import { findClose, isClosable, closeBlockedReason, moveClose, isLive, type CloseStateKey } from '@/lib/crm/domain/close'
 import { metricCatalog, isKnownMetric } from '@/lib/crm/domain/metrics'
 import { dimensionCatalog, isKnownDimension, DIMENSIONS } from '@/lib/crm/domain/dimensions'
 import { parsePeriodKey, periodOfToday, formatPeriodKey } from '@/lib/crm/domain/target'
@@ -54,7 +58,7 @@ export async function GET(req: NextRequest) {
     })
 
     const db = getCrmDb(session.workspaceId)
-    const [loaded, targets] = await Promise.all([loadDealsForMetrics(db), loadTargets(db)])
+    const [loaded, targets, closes] = await Promise.all([loadDealsForMetrics(db), loadTargets(db), loadCloses(db)])
 
     const base = { period, todayKey, filters }
     const cards = runMetrics(loaded, CARD_METRICS.map((m): QuerySpec => ({ ...base, metric: m })))
@@ -74,6 +78,21 @@ export async function GET(req: NextRequest) {
       // 조건은 id 로 실려 오지만 화면은 이름을 그린다 — 이름을 여기서 붙여 보낸다
       filters: filters.map((f) => ({ ...f, label: filterLabel(loaded, f.dimension, f.value) })),
       cards, matrix, targets,
+      // 마감 — 이 기간이 닫혔나. 닫혔으면 화면은 박아 둔 숫자를 함께 보여 준다
+      close: (() => {
+        const key = formatPeriodKey(period)
+        const rec = findClose(closes, key)
+        return {
+          periodKey: key,
+          state: (rec?.state ?? 'draft') as CloseStateKey,
+          revision: rec?.revision ?? 0,
+          confirmedAt: rec?.confirmedAt ?? null,
+          snapshot: rec?.snapshot ?? {},
+          live: isLive(rec?.state ?? 'draft'),
+          closable: isClosable(period, todayKey),
+          blockedReason: closeBlockedReason(period, todayKey),
+        }
+      })(),
       catalog: { metrics: metricCatalog(), dimensions: dimensionCatalog() },
       notes: {
         // 조용히 자르면 「이게 전부」로 읽고 보고에 쓴다
@@ -87,16 +106,54 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  // 목표는 모두의 달성률을 바꾼다 — 화면에서만 숨기면 API 로 새어 나간다
+  // 목표·마감은 모두가 보는 숫자를 바꾼다 — 화면에서만 숨기면 API 로 새어 나간다
   return withCrmApi('ADMIN', async ({ session }) => {
-    const body = await req.json().catch(() => ({}))
+    const body = (await req.json().catch(() => ({}))) as {
+      targets?: unknown
+      close?: { period?: string; state?: string }
+    }
     const db = getCrmDb(session.workspaceId)
-    const targets = await saveTargets(
-      db,
-      (fn) => withCrmTx(session.workspaceId, fn, db as never),
-      (body as { targets?: unknown }).targets,
-      session.memberId ?? null,
-    )
+    const tx = <T>(fn: (t: Prisma.TransactionClient) => Promise<T>): Promise<T> =>
+      withCrmTx(session.workspaceId, fn as never, db as never) as Promise<T>
+
+    if (body.close) {
+      const todayKey = kstTodayKey()
+      const period = parsePeriodKey(body.close.period ?? null, periodOfToday('MONTH', todayKey))
+      const to = String(body.close.state ?? '') as CloseStateKey
+
+      // **끝나지 않은 기간은 못 닫는다** — 남은 날의 수주가 영원히 빠진다
+      if (to === 'confirmed' && !isClosable(period, todayKey)) {
+        throw new CrmError('VALIDATION_FAILED', closeBlockedReason(period, todayKey) ?? '아직 마감할 수 없습니다.')
+      }
+
+      const [loaded, closes] = await Promise.all([loadDealsForMetrics(db), loadCloses(db)])
+      const key = formatPeriodKey(period)
+      // 확정 시점의 숫자를 박는다 — 통화별로 나눠 남긴다(합치면 되돌릴 수 없다)
+      const snap = runMetrics(loaded, CARD_METRICS.map((m): QuerySpec => ({
+        metric: m, period, todayKey, filters: [],
+      })))
+      const snapshot: Record<string, string> = {}
+      const byCurrency: Record<string, Record<string, string>> = {}
+      for (const r of snap) {
+        snapshot[r.metric] = r.unit === 'money'
+          ? (r.total.byCurrency.KRW ?? '0')
+          : String(r.total.count)
+        if (r.unit === 'money') byCurrency[r.metric] = r.total.byCurrency
+      }
+
+      let next
+      try {
+        next = moveClose(findClose(closes, key), to, {
+          snapshot, byCurrency, at: new Date().toISOString(), by: session.memberId ?? null, periodKey: key,
+        })
+      } catch (e) {
+        throw new CrmError('VALIDATION_FAILED', e instanceof Error ? e.message : '마감 상태를 바꾸지 못했습니다.')
+      }
+      const saved = await saveCloses(db, tx, [...closes.filter((c) => c.periodKey !== key), next], session.memberId ?? null)
+      return { closes: saved }
+    }
+
+    const targets = await saveTargets(db, tx, body.targets, session.memberId ?? null)
     return { targets }
   })
 }
