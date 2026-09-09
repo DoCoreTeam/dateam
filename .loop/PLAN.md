@@ -150,7 +150,7 @@
 의존: I05
 
 ### I10 파서 라우터와 품질 점수
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/parse/index.ts, 신규 apps/web/lib/rfp/parse/quality.ts, 신규 apps/web/lib/rfp/parse/quality.test.ts
 감사 기준:
