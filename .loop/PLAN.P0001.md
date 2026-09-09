@@ -332,7 +332,7 @@
 의존: I24
 
 ### I27 어시스턴트 질의
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/assistant/intent.ts, 신규 apps/web/lib/rfp/assistant/retrieve.ts, 신규 apps/web/lib/rfp/assistant/answer.ts, 신규 apps/web/lib/rfp/assistant/assistant.test.ts, 신규 apps/web/app/api/rfp/assistant/route.ts
 감사 기준:
