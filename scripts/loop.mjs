@@ -34,7 +34,7 @@ function findRoot(start) {
 const ROOT = process.env.LOOP_ROOT || process.env.CLAUDE_PROJECT_DIR || findRoot(process.cwd());
 const LOOP_DIR = path.join(ROOT, '.loop');
 const DB_PATH = path.join(LOOP_DIR, 'loop.db');
-const PLAN_PATH = path.join(LOOP_DIR, 'PLAN.md');
+const PLAN_PATH = path.join(LOOP_DIR, process.env.LOOP_PLAN_FILE || 'PLAN.md');
 const TEMPLATE_PATH = path.join(LOOP_DIR, 'PLAN.template.md');
 const ARCHIVE_DIR = path.join(LOOP_DIR, 'archive');
 const REGISTRY_PATH = path.join(os.homedir(), '.loop', 'registry.json');
@@ -205,6 +205,37 @@ function addEvent(kind, detail, sessionId) {
   const p = readPlan(false);
   run('INSERT INTO events(kind, detail, plan_id, plan_version, session_id, created_at) VALUES (?,?,?,?,?,?)',
     kind, detail || null, p ? p.header.id : null, p ? p.header.version : null, sessionId || null, now());
+}
+
+// ---------- 버전 ----------
+/** 화면 버전과 업데이트 내역이 걸린 파일들. 같이 올라가야 한 판으로 발행된다 */
+const PKG_VERSION_FILES = ['package.json', 'apps/web/package.json'];
+
+/** 'a.b.c' 비교, 양수면 v1 이 높다 */
+function cmpSemver(v1, v2) {
+  const a = String(v1).split('.').map(Number), b = String(v2).split('.').map(Number);
+  for (let i = 0; i < 3; i++) { const d = (a[i] || 0) - (b[i] || 0); if (d) return d; }
+  return 0;
+}
+
+/**
+ * 버전은 뒤로 가지 않는다.
+ *
+ * 플랜이 둘 이상 동시에 돌면 목표 버전이 엇갈린다. 무조건 대입하면 늦게 끝난 낮은 플랜이
+ * 앞서 올려 둔 버전을 되돌리고, 그 사이 커밋들은 발행기가 영영 건너뛴다.
+ */
+function bumpPkgVersion(file, next) {
+  if (!fs.existsSync(file)) return 'missing';
+  try {
+    const raw = fs.readFileSync(file, 'utf8');
+    const j = JSON.parse(raw);
+    if (cmpSemver(next, j.version || '0.0.0') <= 0) return 'behind';
+    j.version = next;
+    const text = JSON.stringify(j, null, 2) + '\n';
+    fs.writeFileSync(file, text);
+    JSON.parse(fs.readFileSync(file, 'utf8')); // 쓴 뒤 파싱으로 빈 파일 방지
+    return 'bumped';
+  } catch { return 'skipped'; }
 }
 
 // ---------- 플랜 파일 ----------
@@ -704,9 +735,11 @@ cmds.final = (a) => {
   setPlanStatus(p, '완료');
   snapshot('final', 'pass');
   const target = p.header.target;
-  const pkg = path.join(ROOT, 'package.json');
-  if (flag('bump_package_version') && fs.existsSync(pkg) && /^v\d+\.\d+\.\d+$/.test(target || '')) {
-    try { const j = JSON.parse(fs.readFileSync(pkg, 'utf8')); j.version = target.slice(1); fs.writeFileSync(pkg, JSON.stringify(j, null, 2) + '\n'); } catch { /* 건너뜀 */ }
+  if (flag('bump_package_version') && /^v\d+\.\d+\.\d+$/.test(target || '')) {
+    for (const rel of PKG_VERSION_FILES) {
+      const r = bumpPkgVersion(path.join(ROOT, rel), target.slice(1));
+      if (r === 'behind') out(`[loop-kit] ${rel} 버전 유지 (목표 ${target} 가 현재보다 낮음)`);
+    }
   }
   const dest = archivePlan(readPlan());
   setSetting('current_item', '');

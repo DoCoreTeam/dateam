@@ -111,4 +111,21 @@
 
 ## 부록 프로젝트 관례
 
-- (프로젝트별 추가, 예: 패키지 매니저, 테스트 명령, 디자인 시스템 INDEX 경로, 지원 언어 목록)
+### 버전 규칙
+
+화면에 뜨는 버전과 업데이트 내역은 루트 package.json 버전이 오를 때만 움직임
+apps/web/next.config.js 가 그 값을 NEXT_PUBLIC_APP_VERSION 으로 넘기고
+apps/web/scripts/changelog-gen.mjs 가 그 값보다 낮은 커밋을 전부 건너뜀
+
+- 항목 커밋은 vX.Y.Z-Ixx 형식이고 package.json 을 건드리지 않음 (플랜 도중이라 아직 발행할 것이 아님)
+- 완료 커밋만 package.json 을 목표 버전으로 올림, 이때 한 판이 발행됨
+- 플랜 밖 단독 커밋은 patch 를 올리고 vX.Y.Z 형식으로 적고 같은 커밋에 apps/web/lib/changelog/entries.ts 블록을 넣음, 앞 버전을 그대로 복사하면 그 커밋은 사용자에게 영원히 안 보임
+- 동시에 도는 플랜은 목표 버전을 겹치지 않게 잡음
+- 버전은 뒤로 가지 않음, 목표 버전이 현재보다 낮으면 package.json 을 고치지 않음
+- 루트와 apps/web 두 package.json 버전을 같이 올림
+- 가드는 apps/web/lib/policy/version-rule.test.ts
+
+### 그 밖
+
+- 패키지 매니저 pnpm, 테스트는 apps/web/package.json 의 test 스크립트 한 줄에 등재해야 실제로 돎
+- 옆 플랜 파일을 쓸 때는 LOOP_PLAN_FILE 로 지정 (예: LOOP_PLAN_FILE=PLAN.P0003.md node scripts/loop.mjs resume)
