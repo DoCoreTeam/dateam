@@ -87,7 +87,7 @@
 의존: I02
 
 ### I04 DB 마이그레이션 248 학습과 확장과 테넌트
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 supabase/migrations/248_rfp_growth.sql
 감사 기준:
