@@ -175,3 +175,60 @@ test('타입 확인용 — ProviderId 밖의 값은 후보에 못 들어온다',
   const p: ProviderId = 'gemini'
   assert.equal(chain({ chosen: { provider: p, model: 'x' } })[0].provider, 'gemini')
 })
+
+// ── 배선 가드: 만들고 안 부르면 없는 기능이다 ──
+
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const ROOT = join(import.meta.dirname, '..', '..')
+const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8')
+
+const STREAM = 'app/api/admin/ai-chat/stream/route.ts'
+const ANALYZE = 'lib/ai-chat/analyze-gemini.ts'
+const CLIENT = 'app/admin/ai-chat/AiChatClient.tsx'
+const BUBBLE = 'app/admin/ai-chat/MessageBubble.tsx'
+
+test('★ 스트림 라우트가 체인을 실제로 만들고 순서대로 시도한다', () => {
+  const src = read(STREAM)
+  assert.match(src, /buildModelChain\(/)
+  assert.match(src, /pruneChain\(/)
+  assert.match(src, /while \(rest\.length > 0\)/)
+})
+
+test('★ 후보가 하나도 없으면 조용히 끝내지 않고 사용자에게 말한다', () => {
+  assert.match(read(STREAM), /chain\.length === 0/)
+})
+
+test('★ 사용자 Stop 은 폴백 대상이 아니다 — 다음 모델을 불러 봐야 돈만 쓴다', () => {
+  assert.match(read(STREAM), /if \(req\.signal\.aborted\) throw err/)
+})
+
+test('★ 실제로 답한 공급자·모델을 기록한다 — 사용량 집계가 거짓이 되면 안 된다', () => {
+  const src = read(STREAM)
+  assert.match(src, /providerName = cand\.provider/)
+  assert.match(src, /model = cand\.model/)
+})
+
+test('★ 옛 사전 차단(409)이 되살아나지 않는다 — 그게 막다른 안내의 정체였다', () => {
+  const src = read(STREAM)
+  assert.doesNotMatch(src, /getModelSelectionError/)
+  assert.doesNotMatch(src, /status: 409/)
+})
+
+test('★ 심층분석도 같은 체인을 탄다 — 여기만 빠지면 429 하나에 통째로 죽는다', () => {
+  const src = read(ANALYZE)
+  assert.match(src, /buildModelChain\(/)
+  assert.match(src, /pruneChain\(/)
+})
+
+test('★ 화면이 갈아탄 사실을 받아 그린다 — 조용히 바꾸지 않는다', () => {
+  assert.match(read(CLIENT), /onSwitch:/)
+  assert.match(read(BUBBLE), /fallbackNotice/)
+})
+
+test('★ 저장된 답도 갈아탄 사실을 되살린다 — 새로고침하면 사라지면 안 된다', () => {
+  const src = read(BUBBLE)
+  assert.match(src, /chosen/)
+  assert.match(src, /message\.provider !== chosen\.provider/)
+})

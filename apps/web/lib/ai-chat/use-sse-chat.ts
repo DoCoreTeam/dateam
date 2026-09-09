@@ -19,8 +19,13 @@ export interface StreamBody {
 export interface SseChatEvents {
   onDelta(text: string): void
   onThinking(text: string): void
-  onDone(payload: { messageId: string }): void
+  onDone(payload: { messageId: string; provider?: string | null; model?: string | null }): void
   onError(message: string): void
+  /**
+   * 다른 모델로 갈아탔다. `reset` 이면 지금까지 흘러온 조각은 그 모델의 답이 아니므로 버린다.
+   * 조용히 바꾸지 않는다 — 비용과 품질이 달라지는 일이다(lib/ai-chat/model-chain).
+   */
+  onSwitch?(notice: string, reset: boolean): void
   onCitation?(c: AiChatCitation): void // S3 — web_search 출처(스트림 중 수신)
   onToolStatus?(status: 'searching' | 'done'): void // S3 — "웹 검색 중…" 인디케이터
 }
@@ -33,6 +38,10 @@ interface SseEnvelope {
   error?: string
   citation?: AiChatCitation // S3
   toolStatus?: 'searching' | 'done' // S3
+  switched?: string // 모델을 갈아탔다는 알림
+  reset?: boolean // 흘러온 조각을 버리라는 신호(switched 와 함께 온다)
+  provider?: string | null // done 과 함께 — 실제로 답한 공급자
+  model?: string | null // done 과 함께 — 실제로 답한 모델
 }
 
 export interface UseSseChat {
@@ -81,10 +90,11 @@ export function useSseChat(): UseSseChat {
           else if (typeof e.thinking === 'string') ev.onThinking(e.thinking)
           else if (e.citation && typeof e.citation.url === 'string') ev.onCitation?.(e.citation)
           else if (e.toolStatus === 'searching' || e.toolStatus === 'done') ev.onToolStatus?.(e.toolStatus)
+          else if (typeof e.switched === 'string') ev.onSwitch?.(e.switched, e.reset === true)
           else if (e.done) {
             terminated = true
             if (e.error) ev.onError(e.error)
-            else ev.onDone({ messageId: e.messageId ?? '' })
+            else ev.onDone({ messageId: e.messageId ?? '', provider: e.provider, model: e.model })
           }
         }
       }

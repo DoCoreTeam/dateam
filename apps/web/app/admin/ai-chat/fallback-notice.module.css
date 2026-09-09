@@ -1,0 +1,11 @@
+/* 다른 모델로 갈아탄 사실 — 조용히 바꾸지 않는다(lib/ai-chat/model-chain) */
+.notice {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  border: var(--hairline) solid var(--warning-border);
+  color: var(--warning);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}

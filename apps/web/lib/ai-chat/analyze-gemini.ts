@@ -7,8 +7,10 @@
 // 토큰 사용량은 항상 logTokenUsage로 기록하고 호출측에도 반환한다(세션 토큰 표시용).
 
 import { createAdminClient } from '@/lib/supabase/server'
-import { getProviderConfig, getProvider } from '@/lib/ai-chat/registry'
+import { getProviderConfig, getProvider, getAvailableProviders } from '@/lib/ai-chat/registry'
 import type { ChatUsage } from '@/lib/ai-chat/provider'
+import { buildModelChain, pruneChain, type ChainCandidate } from '@/lib/ai-chat/model-chain'
+import { classifyProviderError } from '@/lib/ai-chat/provider-errors'
 import { logTokenUsage } from '@/lib/token-logger'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,30 +43,66 @@ export async function callGeminiOnce(
   if (!cfg) throw new Error('Gemini API 키가 설정되지 않았습니다')
   const model = modelOverride?.trim() || cfg.model // 세션 선택 모델 우선, 없으면 org 기본
 
-  const provider = getProvider('gemini')
-  const controller = new AbortController()
-  let text = ''
-  const result = await provider.streamChat({
-    apiKey: cfg.apiKey,
-    model,
-    turns: [{ role: 'user', content: turnContent, attachments }],
-    signal: controller.signal,
-    onDelta: (d) => {
-      text += d
+  /**
+   * 채팅과 같은 폴백 체인을 탄다(lib/ai-chat/model-chain).
+   *
+   * 예전엔 Gemini 를 1회 부르고 끝이라, 무료 티어 한도 하나에 심층분석이 통째로 죽었다.
+   * 첨부가 있으면 그림을 못 보는 공급자로는 넘어가지 않는다.
+   */
+  const { data: catalogRows } = await admin
+    .from('ai_model_catalog')
+    .select('provider, model_id, is_active, availability')
+  const chain = buildModelChain({
+    chosen: { provider: 'gemini', model },
+    providers: getAvailableProviders(meta),
+    catalog: (catalogRows as { provider: string; model_id: string }[] | null) ?? [],
+    capabilities: {
+      gemini: getProvider('gemini').capabilities,
+      claude: getProvider('claude').capabilities,
+      openai: getProvider('openai').capabilities,
     },
+    requires: { vision: (attachments?.length ?? 0) > 0 },
   })
+  if (chain.length === 0) throw new Error('지금 쓸 수 있는 AI 모델이 없습니다')
 
-  logTokenUsage({
-    userId,
-    feature: 'ai-chat-analyze',
-    model,
-    provider: 'gemini',
-    promptTokens: result.usage.promptTokens,
-    outputTokens: result.usage.outputTokens,
-    totalTokens: result.usage.totalTokens,
-  })
+  let rest: ChainCandidate[] = chain
+  let lastError: unknown = null
 
-  return { text: result.text, usage: result.usage }
+  while (rest.length > 0) {
+    const cand = rest[0]
+    rest = rest.slice(1)
+    const controller = new AbortController()
+    let text = ''
+    try {
+      const result = await getProvider(cand.provider).streamChat({
+        apiKey: cand.apiKey,
+        model: cand.model,
+        turns: [{ role: 'user', content: turnContent, attachments }],
+        signal: controller.signal,
+        onDelta: (d) => {
+          text += d
+        },
+      })
+
+      logTokenUsage({
+        userId,
+        feature: 'ai-chat-analyze',
+        model: cand.model,
+        provider: cand.provider,
+        promptTokens: result.usage.promptTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.totalTokens,
+      })
+
+      return { text: result.text, usage: result.usage }
+    } catch (err) {
+      lastError = err
+      console.error('[analyze] 후보 실패', cand.provider, cand.model, err)
+      rest = pruneChain(rest, cand, classifyProviderError(err).scope)
+    }
+  }
+
+  throw lastError ?? new Error('AI 응답을 생성하지 못했습니다')
 }
 
 /** AI 응답에서 JSON 객체만 안전 파싱(코드펜스 방어). 실패 시 null — 호출측이 폴백한다. */

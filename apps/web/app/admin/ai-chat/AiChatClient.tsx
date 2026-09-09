@@ -533,7 +533,15 @@ export default function AiChatClient({
         if (token.done) return
         setToolSearching(s === 'searching')
       },
-      onDone: () => {
+      onSwitch: (notice, reset) => {
+        if (token.done) return
+        // 갈아탄 사실을 그 자리에서 말한다. 되돌릴 조각이 있으면 버린다 —
+        // 앞 모델이 흘린 글자는 다음 모델의 답이 아니다.
+        setStreamDraft((d) =>
+          d ? { ...d, content: reset ? '' : d.content, thinking: reset ? null : d.thinking, fallbackNotice: notice } : d,
+        )
+      },
+      onDone: (payload) => {
         if (token.done) return
         token.done = true
         setToolSearching(false)
@@ -542,8 +550,9 @@ export default function AiChatClient({
             if (d) {
               const asst = assistantFromDraft(convId, d, {
                 id: `asst-${crypto.randomUUID()}`,
-                provider: meta.provider,
-                model: meta.model,
+                // 실제로 답한 것을 적는다 — 고른 것과 다를 수 있다
+                provider: payload.provider ?? meta.provider,
+                model: payload.model ?? meta.model,
                 stopped: false,
                 error: null,
               })
@@ -971,6 +980,7 @@ export default function AiChatClient({
           onBranchNav={handleBranchNav}
           locked={viewingPast}
           webSearching={toolSearching && sse.streaming}
+          chosen={curProvider && curModel ? { provider: curProvider, model: curModel } : null}
         />
 
         <Composer

@@ -18,6 +18,7 @@ import {
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from './MarkdownMessage'
 import CitationCards from './CitationCards'
+import fallbackStyles from './fallback-notice.module.css'
 import { extractArtifacts } from '@/lib/ai-chat/artifacts'
 import type { ChatMessageView, AttachmentView } from './AiChatClient'
 
@@ -29,12 +30,19 @@ export interface StreamDraft {
   streaming: boolean
   stopped?: boolean
   error?: string | null
+  /** 다른 모델로 갈아탔다는 알림 — 흘러오는 동안 보여 준다 */
+  fallbackNotice?: string | null
 }
 
 export type BubbleMessage = ChatMessageView | StreamDraft
 
 interface MessageBubbleProps {
   message: BubbleMessage
+  /**
+   * 대화에 걸어 둔 공급자·모델. 저장된 답이 이것과 다르면 갈아탄 것이다.
+   * 알림을 따로 저장하지 않고 이 비교로 되살린다 — 새로고침해도 남는다.
+   */
+  chosen?: { provider: string; model: string } | null
   isLastAssistant?: boolean
   isStreaming?: boolean
   thinkingText?: string | null
@@ -71,6 +79,7 @@ function AttachmentPreview({ att }: { att: AttachmentView }) {
 
 export default function MessageBubble({
   message,
+  chosen = null,
   isLastAssistant = false,
   isStreaming = false,
   thinkingText = null,
@@ -228,10 +237,25 @@ export default function MessageBubble({
   const citations = persisted ? message.citations : null
   // 스트리밍 중 파싱 금지(§2-3) — 영속 assistant에서만 artifact 승격 펜스 추출
   const artifacts = persisted && !isStreaming ? extractArtifacts(content) : undefined
+  /**
+   * 무엇이 답했는지 밝힌다. 흘러오는 중에는 서버가 보낸 알림을, 저장된 뒤에는
+   * 「고른 것 ↔ 답한 것」의 차이로 되살린다. 조용히 바꾸지 않는다(lib/ai-chat/model-chain).
+   */
+  const fallbackNotice = persisted
+    ? chosen && message.model && message.provider &&
+      (message.provider !== chosen.provider || message.model !== chosen.model)
+      ? `${chosen.model} 사용 불가, ${message.model} 로 답했습니다`
+      : null
+    : (message.fallbackNotice ?? null)
   return (
     <div className="ai-chat-row" data-role="assistant">
       <div className="ai-chat-turn">
         <div className="ai-chat-bubble" data-role="assistant">
+          {fallbackNotice && (
+            <p className={fallbackStyles.notice} role="status">
+              {fallbackNotice}
+            </p>
+          )}
           {showThinking && (
             <details
               className="ai-chat-thinking"

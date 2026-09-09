@@ -34,6 +34,8 @@ interface MessageListProps {
   locked: boolean
   /** S3 §4-3 — 스트림 중 web_search 진행 인디케이터. */
   webSearching: boolean
+  /** 대화에 걸어 둔 공급자·모델 — 답한 것과 다르면 말풍선이 그 사실을 밝힌다 */
+  chosen?: { provider: string; model: string } | null
 }
 
 export default function MessageList({
@@ -56,6 +58,7 @@ export default function MessageList({
   onBranchNav,
   locked,
   webSearching,
+  chosen = null,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -175,6 +178,7 @@ export default function MessageList({
             <MessageBubble
               key={m.id}
               message={m}
+              chosen={chosen}
               isLastAssistant={m.role === 'assistant' && m.id === lastAssistantId}
               thinkingSupported={thinkingSupported}
               onRegenerate={locked ? undefined : onRegenerate}
