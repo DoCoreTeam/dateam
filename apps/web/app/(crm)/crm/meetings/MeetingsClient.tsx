@@ -29,6 +29,11 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import { useRowSelection } from '@/hooks/useRowSelection'
+import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
+import {
+  TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
+} from '@/components/ui/crm/trash'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { startMeeting, meetingHref } from '@/lib/crm/ui/start-meeting'
 import notePick from './note-pick.module.css'
@@ -177,7 +182,7 @@ export default function MeetingsClient() {
   const router = useRouter()
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'startedAt', dir: 'desc' }, mode: 'more',
-    filterKeys: ['status'],
+    filterKeys: ['status', ...TRASH_FILTER_KEYS],
   })
   const [rows, setRows] = useState<Meeting[]>([])
   /**
@@ -199,6 +204,7 @@ export default function MeetingsClient() {
 
   const q = query.q ?? ''
   const status = query.filters?.status ?? ''
+  const trash = isTrashView(query)
 
   /** 미팅을 만들고 곧장 작업대로 — 중간에 묻는 화면이 없다 */
   const begin = useCallback(async () => {
@@ -241,6 +247,7 @@ export default function MeetingsClient() {
       const sp = new URLSearchParams()
       if (q) sp.set('q', q)
       if (status) sp.set('status', status)
+      if (trash) sp.set('trash', '1')
       sp.set('limit', String(query.size))
       if (nextCursor) sp.set('cursor', nextCursor)
 
@@ -299,9 +306,10 @@ export default function MeetingsClient() {
    * 안 올린 노트는 **첫 페이지에만** 선다(커서로 더 불러올 때는 미팅만 이어진다) —
    * 내 노트는 내가 쓴 만큼이라 수가 적고, 페이지마다 다시 끼우면 같은 줄이 여러 페이지에 겹친다.
    */
-  const columns = useMemo(() => makeColumns(setPublishing), [])
-
   const merged = useMemo(() => {
+    // 휴지통은 «지워진 CRM 미팅»만 본다. 살아 있는 내 노트를 끼우면
+    // 휴지통에 멀쩡한 줄이 서서 「이게 왜 여기 있지」가 된다.
+    if (trash) return rows
     const unpublished = (notes ?? [])
       .filter((n) => !n.published)
       .map((n): Meeting => ({
@@ -313,18 +321,55 @@ export default function MeetingsClient() {
       }))
     if (unpublished.length === 0) return rows
     return [...unpublished, ...rows].sort((a, b) => (b.startedAt ?? '').localeCompare(a.startedAt ?? ''))
-  }, [rows, notes])
+  }, [rows, notes, trash])
+
+  const selection = useRowSelection(merged, (m) => m.id)
+
+  const titleOf = useCallback(
+    (id: string) => merged.find((m) => m.id === id)?.title ?? '제목을 알 수 없는 기록',
+    [merged],
+  )
+
+  /**
+   * 목록에는 **두 종류**가 섞여 선다 — CRM 미팅과 «아직 CRM 에 안 올린 내 회의노트».
+   * 표도 주인도 달라 지우는 창구가 다르다. 한쪽 경로로 몰면 없는 미팅을 지우려다 404 가 난다.
+   */
+  const endpointOf = useCallback((id: string) => {
+    const row = merged.find((m) => m.id === id)
+    return row?.noteOnly ? `/api/meeting-notes/${id}` : `/api/crm/meetings/${id}`
+  }, [merged])
+
+  const crmBulk = useCrmBulk({
+    endpoint: '/api/crm/meetings',
+    endpointOf,
+    entity: '기록', unit: '건',
+    selection, labelOf: titleOf, trash,
+    onReload: () => { void load(false, null); void loadNotes() },
+  })
+
+  const { restore, restoreError } = useRestore(
+    '/api/crm/meetings',
+    () => void load(false, null),
+  )
+
+  const columns = useMemo(
+    () => (trash
+      ? [...makeColumns(setPublishing), restoreColumn<Meeting>((id) => void restore(id))]
+      : makeColumns(setPublishing)),
+    [trash, restore],
+  )
 
   return (
     <>
-      <FormErrorBanner message={startError} />
+      <FormErrorBanner message={startError ?? restoreError} />
 
       <ListToolbar
         query={query}
         onChange={set}
         searchPlaceholder="제목·장소로 검색"
         views={['table', 'card']}
-        filters={[STATUS_FILTER]}
+        filters={[STATUS_FILTER, TRASH_FILTER]}
+        selection={crmBulk.toolbarSelection}
         actions={(
           /**
            * **누르면 바로 작업대다.** 중간에 묻는 화면이 없다.
@@ -347,17 +392,20 @@ export default function MeetingsClient() {
         )}
       />
 
+      {crmBulk.panels}
+
       <ListSurface
         rows={merged}
         columns={columns}
         query={query}
         onChange={set}
         rowKey={(m) => m.id}
+        selection={crmBulk.surfaceSelection}
         /* 안 올린 노트는 CRM 미팅이 아니다 — 없는 미팅으로 보내면 404 다 */
-        rowHref={(m) => (m.noteOnly ? `/meeting-notes/${m.noteId}` : `/crm/meetings/${m.id}`)}
+        rowHref={trash ? undefined : (m) => (m.noteOnly ? `/meeting-notes/${m.noteId}` : `/crm/meetings/${m.id}`)}
         loading={loading && merged.length === 0}
         error={error ? { message: error, onRetry: () => void load(false, null) } : null}
-        empty={{
+        empty={trash ? TRASH_EMPTY : {
           title: q || status ? '조건에 맞는 미팅이 없어요' : '기록된 미팅이 아직 없어요',
           description: q || status
             ? '검색어나 상태를 바꿔 보세요.'

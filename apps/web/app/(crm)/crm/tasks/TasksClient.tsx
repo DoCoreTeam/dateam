@@ -25,6 +25,9 @@ import ListPager from '@/components/ui/list/ListPager'
 import RowActions from '@/components/ui/list/RowActions'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import {
+  TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
+} from '@/components/ui/crm/trash'
 import { ACTION, confirmDeleteParts, failedTo } from '@/lib/terms'
 import { kstTodayKey, kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { isEnterKey } from '@/lib/ui/ime'
@@ -83,7 +86,7 @@ export default function TasksClient() {
    */
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'dueAt', dir: 'asc' }, mode: 'more',
-    filterKeys: ['scope'],
+    filterKeys: ['scope', ...TRASH_FILTER_KEYS],
   })
   const [items, setItems] = useState<Task[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -128,6 +131,14 @@ export default function TasksClient() {
 
   const scope = (query.filters?.scope ?? 'open') as 'open' | 'all'
   const q = query.q ?? ''
+  /**
+   * 휴지통 보기.
+   *
+   * 삭제 확인창이 **「30일 안에 되돌릴 수 있어요」라고 약속한다.** 그런데 이 화면에는
+   * 지운 것을 볼 길이 없어서 그 약속이 지켜질 방법이 없었다 — 서버에는 `trash=1` 도
+   * 되살리기 API 도 이미 있는데 **화면만 안 불렀다**(§2-5 (3), 삭제와 같은 부류의 결함).
+   */
+  const trash = isTrashView(query)
 
   const load = useCallback(async (append = false, next: string | null = null) => {
     // 기본값으로 되돌리는 조작은 주소가 그대로라 개별 필드로는 안 보인다 — queryKey 만 안다
@@ -137,6 +148,7 @@ export default function TasksClient() {
     setLoadError(null)
     try {
       const sp = new URLSearchParams({ scope, limit: String(query.size) })
+      if (trash) sp.set('trash', '1')
       if (q.trim()) sp.set('q', q.trim())
       if (next) sp.set('cursor', next)
       const res = await fetch(`/api/crm/tasks?${sp.toString()}`, { cache: 'no-store' })
@@ -275,6 +287,8 @@ export default function TasksClient() {
    *
    * 체크·삭제 칸은 **전파를 막는다** — 안 그러면 버튼을 눌렀는데 행이 열린다(§2-3-1).
    */
+  const { restore, restoreError } = useRestore('/api/crm/tasks', () => void load(false, null))
+
   const columns = useMemo<ColumnDef<Task>[]>(() => [
     {
       key: 'done',
@@ -397,10 +411,16 @@ export default function TasksClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [busy])
 
+  /** 휴지통이면 마지막에 되살리기 칸 — 회사·인물·딜·견적·미팅과 같은 부품이다 */
+  const shownColumns = useMemo(
+    () => (trash ? [...columns, restoreColumn<Task>((id) => void restore(id))] : columns),
+    [trash, columns, restore],
+  )
+
   return (
     <>
       {/* 배너는 **방금 한 조작**의 실패만 — 목록을 못 불러온 것은 목록 자리에서 말한다 */}
-      <FormErrorBanner message={error} />
+      <FormErrorBanner message={error ?? restoreError} />
 
       {/*
         **목록 표준(§2-6)을 쓴다.** 예전엔 도구 줄·목록·페이지를 이 화면이 자작했고,
@@ -411,7 +431,7 @@ export default function TasksClient() {
         onChange={set}
         searchPlaceholder="할 일·회사·딜·인물로 검색"
         views={['table', 'card']}
-        filters={[SCOPE_FILTER]}
+        filters={[SCOPE_FILTER, TRASH_FILTER]}
       />
 
       <div className={styles.add}>
@@ -454,7 +474,7 @@ export default function TasksClient() {
 
       <ListSurface
         rows={items}
-        columns={columns}
+        columns={shownColumns}
         query={query}
         onChange={set}
         rowKey={(t) => t.id}
@@ -473,7 +493,7 @@ export default function TasksClient() {
         }}
         loading={loading && items.length === 0}
         error={loadError ? { message: loadError, onRetry: () => void load(false, null) } : null}
-        empty={{
+        empty={trash ? TRASH_EMPTY : {
           title: q
             ? '조건에 맞는 할 일이 없어요'
             : scope === 'open' ? '지금 할 일이 없어요' : '할 일이 아직 없어요',

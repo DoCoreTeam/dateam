@@ -1,6 +1,7 @@
 // GET    /api/crm/meetings/:id — 미팅 상세 + 전사 + 5축 제안
 // PATCH  /api/crm/meetings/:id — 제목·시각·회사·딜·장소 고치기
-// DELETE /api/crm/meetings/:id — 휴지통으로
+// DELETE /api/crm/meetings/:id — 휴지통으로(`?mode=purge` 면 영구 삭제)
+// POST   /api/crm/meetings/:id/restore — 휴지통에서 되살리기
 //
 // PATCH 가 없어서 **오타 하나에 미팅을 지우고 다시 만들어야 했다.**
 // 그런데 지우면 그 미팅에서 나온 미처리 제안까지 함께 거둬진다 — 고치는 값이 너무 비쌌다.
@@ -70,10 +71,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   })
 }
 
-export async function DELETE(_req: NextRequest, ctx: Ctx) {
+export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   return withCrmApi('MEMBER', async ({ session }) => {
-    await deleteMeeting(session.workspaceId, session.memberId, id)
-    return { ok: true }
+    // 영구 삭제는 되돌릴 수 없으므로 **명시해야만** 한다. 기본은 휴지통이다(회사·인물·딜과 같은 약속).
+    const mode = new URL(req.url).searchParams.get('mode') === 'purge' ? 'purge' : 'trash'
+    await deleteMeeting(session.workspaceId, session.memberId, id, mode)
+    return { ok: true, mode }
   })
 }

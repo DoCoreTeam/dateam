@@ -10,9 +10,10 @@
 // 같은 `QuoteDocument` 를 보므로 둘이 다른 말을 할 수 없다.
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
-import { Printer, Download, Pencil, FileText, FileDown, Image as ImageIcon } from 'lucide-react'
+import { Printer, Download, Pencil, FileText, FileDown, Image as ImageIcon, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import DeleteRecordModal from '../../DeleteRecordModal'
 import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -61,6 +62,8 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
   const [error, setError] = useState<string | null>(null)
   // 내려받기 실패는 **이 화면 안에서** 말한다. 페이지를 떠나 보내면 JSON 이 화면을 덮는다
   const [exportError, setExportError] = useState<string | null>(null)
+  /** 삭제 확인창을 여는 중인가 — 되돌릴 수 없는 쪽도 있어 곧장 실행하지 않는다(R-5) */
+  const [deleting, setDeleting] = useState(false)
   const [exporting, setExporting] = useState(false)
   /**
    * 편집 초안. 모달은 **딜 id 와 초안**을 받으므로 견적을 한 번 더 읽어야 한다 —
@@ -202,6 +205,15 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
         <PageHeader
           title={doc.meta.quoteNo}
           back={back}
+          /*
+            **이 문서 자체를 다루는 자리**다(§2-3-2 · 제목 우측).
+            목록에서만 지울 수 있으면 「상세에 가도 없다」가 된다 — 회사·인물·딜·미팅과 같은 자리에 둔다.
+          */
+          actions={(
+            <NbButton variant="ghost" onClick={() => setDeleting(true)}>
+              <Trash2 size={16} /> {ACTION.delete}
+            </NbButton>
+          )}
         />
       </div>
 
@@ -286,6 +298,20 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           {/* 오류는 종이 위가 아니라 도구 아래에 — 문서에 우리 사정이 찍히면 안 된다 */}
           <QuoteSheet doc={doc} logo={data.images.logo} surface="paper" />
         </DocSurface>
+      )}
+
+      {deleting && (
+        <DeleteRecordModal
+          entity="견적"
+          name={doc.meta.quoteNo}
+          endpoint={`/api/crm/quotes/${quoteId}`}
+          redirectTo="/crm/quotes"
+          impact={{
+            removed: ['이 견적의 품목·금액'],
+            kept: ['딜과 회사', '이미 내보낸 파일'],
+          }}
+          onClose={() => setDeleting(false)}
+        />
       )}
 
       {/* 저장하면 문서를 다시 읽는다 — 고쳤는데 화면이 그대로면 저장이 안 된 줄 안다 */}

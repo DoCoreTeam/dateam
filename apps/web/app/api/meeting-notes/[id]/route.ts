@@ -1,5 +1,6 @@
 // GET   /api/meeting-notes/:id — 회의 작업대가 읽는 한 건 (읽기 권한은 RLS 가 판정)
 // PATCH /api/meeting-notes/:id — 본문·제목·공개범위 부분 수정 (**주인만**)
+// DELETE /api/meeting-notes/:id — 휴지통으로 (**주인만**)
 //
 // **왜 서버액션이 아니라 API 인가.** 작업대는 두 셸((member)·(crm))이 같이 쓴다.
 // CRM 쪽은 전부 fetch 로 말하고 있어 여기만 서버액션이면 창구가 둘이 된다.
@@ -14,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { NOTE_VISIBILITY, isNoteVisibility } from '@/lib/meeting/note-visibility'
+import { deleteMeetingNote } from '@/app/(member)/meeting-notes/actions'
 
 export const runtime = 'nodejs'
 
@@ -139,4 +141,37 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 
   return NextResponse.json({ ok: true, updatedAt: data.updated_at })
+}
+
+/**
+ * DELETE — 회의노트를 휴지통으로.
+ *
+ * **왜 API 가 필요한가**: 지우는 로직(`deleteMeetingNote`)은 진작 있었지만 **서버 액션**이라
+ * `(member)` 셸의 두 화면에서만 부를 수 있었다. 영업 CRM 의 기록 목록에는 아직 CRM 에 안 올린
+ * 회의노트가 함께 서는데, 그 행을 지울 창구가 없어 **목록에서 아무것도 못 지웠다**
+ * (사용자 지적 2026-09-09: 「여기 삭제가 왜 하나도 없니? CRUD 기본인데」).
+ *
+ * 로직은 다시 짜지 않고 그대로 부른다 — 소프트 삭제·캘린더 정리·파생 일일업무 비우기가
+ * 이미 그 안에 있다. 여기서 다시 구현하면 두 벌이 되고 한쪽만 고쳐진다.
+ *
+ * 권한은 액션이 강제한다: **본인이 쓴 노트만.** 남의 노트는 0행 → 명시 오류로 돌아온다.
+ */
+export async function DELETE(_req: NextRequest, ctx: Ctx) {
+  const { id } = await ctx.params
+  const res = await deleteMeetingNote(id)
+  if (!res.ok) {
+    /*
+      실패를 셋으로 가른다 — 전부 500 으로 뭉개면 화면이 "잠시 후 다시"라고 말하는데
+      다시 눌러도 100% 같다.
+        · 「인증이 필요합니다」 → 401 (로그인하면 된다)
+        · 「찾을 수 없다 · 잘못된 식별자」 → 404 (대상이 없다 — 권한 문제로 읽히면 안 된다)
+        · 그 밖(「본인이 작성한 …만」) → 403 (권한)
+    */
+    const msg = res.error ?? ''
+    const status = msg.includes('인증') ? 401
+      : (msg.includes('찾을 수 없') || msg.includes('식별자')) ? 404
+        : 403
+    return NextResponse.json({ error: res.error ?? '삭제하지 못했습니다.' }, { status })
+  }
+  return NextResponse.json({ ok: true })
 }

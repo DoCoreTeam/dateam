@@ -14,6 +14,7 @@ import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { planDelete, describeDelete, type DeleteMode, type DeleteImpact } from '@/lib/crm/domain/soft-delete'
+import { eulReul } from '@/lib/ui/josa'
 
 interface Props {
   entity: string
@@ -74,7 +75,12 @@ export default function DeleteRecordModal({
         <FormErrorBanner message={error ?? blocked ?? null} />
 
         <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-          {entity} <strong style={{ color: 'var(--text)' }}>{name}</strong> 을(를) 삭제합니다.
+          {/*
+            조사는 **화면이 고르지 않는다**(용어집 §0-2 규칙 3) — 이름이 무엇이 올지 모르므로
+            `josa.ts` 가 받침을 유니코드로 계산한다. 예전엔 여기에 「을(를)」이 박혀 있어
+            회사·인물·딜·견적·미팅 **다섯 화면이 전부** 「…미팅 을(를) 삭제합니다」라고 말했다.
+          */}
+          {entity} <strong style={{ color: 'var(--text)' }}>{name}</strong>{eulReul(name)} 삭제합니다.
         </p>
 
         <div>

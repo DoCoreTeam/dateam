@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
     const { cursor, limit, q } = readListQuery(req)
     return listMeetingsPage(db, {
       cursor, limit, q,
+      // 휴지통 보기 — 회사·인물·딜·견적과 같은 규약(`?trash=1`)
+      trash: sp.get('trash') === '1',
       status: sp.get('status'),
       dealId: sp.get('dealId'),
       companyId: sp.get('companyId'),

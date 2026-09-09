@@ -12,8 +12,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ENTITY } from '@/lib/terms'
-import { Mic, CheckCircle2, HelpCircle } from 'lucide-react'
+import { ACTION, ENTITY } from '@/lib/terms'
+import { Mic, CheckCircle2, HelpCircle, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
@@ -26,6 +26,7 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import MeetingWorkbench from '@/components/meeting/MeetingWorkbench'
 import MeetingFacts from './MeetingFacts'
+import DeleteRecordModal from '../../DeleteRecordModal'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { describeSuggestionValue, TARGET_LABEL } from '@/lib/crm/format/suggestion'
 import { axisMeta } from '@/lib/crm/ui/suggestion-axis'
@@ -87,6 +88,8 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   const [highlight, setHighlight] = useState<Set<string>>(new Set())
   /** 「미팅 끝내기」의 결과 — 무엇이 됐고 무엇이 안 됐는지 그대로 보여 준다 */
   const [finished, setFinished] = useState<FinishResult | null>(null)
+  /** 삭제 확인창을 여는 중인가 — 되돌릴 수 없는 쪽(영구)도 있어 곧장 실행하지 않는다(R-5) */
+  const [deleting, setDeleting] = useState(false)
   /**
    * 끝내기가 지금 어느 단계인지. **문구는 화면이 짓지 않는다**(`lib/crm/ui/finish-progress`).
    *
@@ -336,9 +339,18 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
            * 회의가 끝나고 차에 타면서 누르는 버튼 하나. 여기가 그 자리다.
            * 예전엔 같은 결과를 얻으려면 화면 셋을 오가며 세 번 눌러야 했다.
            */
-          <NbButton variant="primary" onClick={() => void finish()} disabled={busy === 'finish'}>
-            {finishButtonLabel(finishPhase, Boolean(m.endedAt))}
-          </NbButton>
+          <>
+            <NbButton variant="primary" onClick={() => void finish()} disabled={busy === 'finish'}>
+              {finishButtonLabel(finishPhase, Boolean(m.endedAt))}
+            </NbButton>
+            {/*
+              **이 기록 자체를 다루는 자리**다(§2-3-2). 회사·인물·딜 상세와 같은 자리·같은 모양이라
+              사용자가 화면마다 삭제를 다시 찾지 않는다.
+            */}
+            <NbButton variant="ghost" onClick={() => setDeleting(true)}>
+              <Trash2 size={16} /> {ACTION.delete}
+            </NbButton>
+          </>
         }
       />
 
@@ -638,6 +650,25 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
           </RecordPanel>
         }
       />
+
+      {deleting && (
+        <DeleteRecordModal
+          entity="미팅"
+          name={m.title}
+          endpoint={`/api/crm/meetings/${m.id}`}
+          redirectTo="/crm/meetings"
+          /*
+            함께 사라지는 것을 미리 말한다(R-5). 녹음·전사는 미팅에 딸린 것이라 함께 가고,
+            제안 중 아직 사람이 안 본 것은 거둔다 — 근거가 사라진 값이 인박스에 남으면
+            누군가 그걸 사실로 알고 CRM 에 반영한다(실측 사고).
+          */
+          impact={{
+            removed: ['녹음·전사', '아직 처리하지 않은 AI 제안'],
+            kept: ['이미 반영하거나 물린 AI 제안', '원본 회의노트'],
+          }}
+          onClose={() => setDeleting(false)}
+        />
+      )}
     </>
   )
 }

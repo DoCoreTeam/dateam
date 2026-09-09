@@ -40,6 +40,13 @@ const LABEL = {
 interface Options {
   /** `/api/crm/companies` 처럼 **한 건짜리** 경로의 앞부분 */
   endpoint: string
+  /**
+   * 행마다 경로가 다를 때만 준다(선택).
+   *
+   * 기록 목록에는 두 종류가 섞여 선다 — CRM 미팅과 «아직 CRM 에 안 올린 회의노트».
+   * 둘은 표도 주인도 다르므로 지우는 창구가 다르다. 안 주면 예전 그대로 `endpoint/id` 다.
+   */
+  endpointOf?: (id: string) => string
   /** 확인창에 쓰는 말 — "회사" · "인물" · "딜" · "견적" */
   entity: string
   /** 세는 단위 — "곳" · "명" · "건" */
@@ -56,8 +63,13 @@ interface Options {
 }
 
 export function useCrmBulk({
-  endpoint, entity, unit, selection, labelOf, trash, onReload, extraActions,
+  endpoint, entity, unit, selection, labelOf, trash, onReload, extraActions, endpointOf,
 }: Options) {
+  /** 행별 경로. 안 주면 예전과 한 글자도 다르지 않다 */
+  const pathOf = useCallback(
+    (id: string) => (endpointOf ? endpointOf(id) : `${endpoint}/${id}`),
+    [endpoint, endpointOf],
+  )
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const afterBulk = useCallback(() => {
@@ -66,7 +78,7 @@ export function useCrmBulk({
   }, [selection, onReload])
 
   const bulkDelete = useBulkAction({
-    run: (id) => callCrmRecord(`${endpoint}/${id}`, 'DELETE'),
+    run: (id) => callCrmRecord(pathOf(id), 'DELETE'),
     labelOf, fallbackMessage: '삭제하지 못했습니다.', onDone: afterBulk,
   })
   const bulkRestore = useBulkAction({

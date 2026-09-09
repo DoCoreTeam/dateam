@@ -19,6 +19,7 @@ import { getCrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
+import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
 import { requireText, normalizeText } from '../domain/normalize.ts'
 import { canTransitRecording } from '../domain/state-machines.ts'
 import type { SttAdapter } from '../stt/adapter.ts'
@@ -247,6 +248,8 @@ export interface MeetingListRow {
 }
 
 export interface ListMeetingPageInput extends CursorInput {
+  /** 휴지통 보기인가 — 지워진 것만 본다 */
+  trash?: boolean
   /** 제목·장소 부분 일치 */
   q?: string | null
   /** 상태 하나로 좁히기. 저장된 컬럼이 아니라 읽는 시점 판정이라 여기서 조건으로 번역한다 */
@@ -288,6 +291,14 @@ export async function listMeetingsPage(
   const where: Record<string, unknown> = {}
   if (input.dealId) where.dealId = input.dealId
   if (input.companyId) where.companyId = input.companyId
+  /**
+   * 휴지통 — 지워진 것만 본다.
+   *
+   * 평소에는 워크스페이스 가드가 `deletedAt: null` 을 자동으로 넣는다.
+   * 여기서 **범위를 명시하면** 가드가 그 선언을 존중해 덧붙이지 않는다
+   * (`lib/crm/db/workspace-guard.ts`). 그래서 휴지통이 빈 화면이 되지 않는다.
+   */
+  if (input.trash) where.deletedAt = { not: null }
 
   // 검색은 AND 로 따로 묶는다 — where.OR 에 그냥 넣으면 다른 OR 조건을 덮어쓴다
   const search = q
@@ -640,13 +651,36 @@ export async function deleteMeeting(
   workspaceId: string,
   actorId: string | null,
   id: string,
+  mode: DeleteMode = 'trash',
 ): Promise<void> {
+  const plan = planDelete(mode)
+
   await withCrmTx(workspaceId, async (tx) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await (tx as any).crmMeeting.updateMany({
-      where: { id }, data: { deletedAt: new Date() },
-    })
-    if (res.count === 0) throw new CrmError('NOT_FOUND', '미팅을 찾을 수 없습니다.')
+    if (mode === 'purge') {
+      /**
+       * 영구 삭제는 **살아 있는 것도 대상**이다 — 회사·인물·딜과 같은 약속이다.
+       *
+       * 처음엔 「휴지통에 있는 것만」으로 좁혔는데, 그러면 **상세 화면에서 영구 삭제가
+       * 항상 실패한다** — 상세는 살아 있는 미팅을 보여 주는 자리이기 때문이다.
+       * 확인창은 그 선택지를 제안하는데 누르면 「휴지통에서 찾을 수 없습니다」가 떴다
+       * (실브라우저에서 밟아 잡았다 — 타입도 테스트도 못 보는 부류다).
+       * 되돌릴 수 없는 일이라 **확인창이 관문**이고, 여기서 또 막을 자리가 아니다.
+       *
+       * 삭제 필터는 워크스페이스 가드가 자동으로 끼우므로 **범위를 직접 선언해** 푼다.
+       * 녹음·전사는 스키마의 `onDelete: Cascade` 가 함께 가져간다.
+       */
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const found = await (tx as any).crmMeeting.findFirst({
+        where: { id, deletedAt: { not: undefined } }, select: { id: true },
+      })
+      if (!found) throw new CrmError('NOT_FOUND', '미팅을 찾을 수 없습니다.')
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await (tx as any).crmMeeting.updateMany({
+        where: { id }, data: { deletedAt: new Date() },
+      })
+      if (res.count === 0) throw new CrmError('NOT_FOUND', '미팅을 찾을 수 없습니다.')
+    }
 
     /**
      * 이 미팅에서 나온 **아직 처리 안 된 제안**도 함께 거둔다.
@@ -672,10 +706,50 @@ export async function deleteMeeting(
       orphans = r.count
     }
 
+    // 본체는 제안을 거둔 **뒤**에 지운다 — 먼저 지우면 어느 제안이 이 미팅 것인지 알 길이 사라진다
+    if (mode === 'purge') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (tx as any).crmMeeting.deleteMany({ where: { id } })
+    }
+
     await writeAudit(tx, {
-      actorType: 'HUMAN', actorId, action: 'meeting.deleted',
+      actorType: 'HUMAN', actorId, action: plan.auditAction,
       targetType: 'meeting', targetId: id,
       afterJson: { expiredSuggestions: orphans },
+    })
+  })
+}
+
+/**
+ * 휴지통에서 되살리기.
+ *
+ * **왜 필요한가**: 삭제 확인창이 「30일 안에 되돌릴 수 있어요」라고 약속한다.
+ * 되돌릴 길이 없으면 그 문장은 거짓말이고, 소프트 삭제를 쓴 이유도 사라진다.
+ * 회사·인물·딜·견적은 진작 갖고 있었는데 미팅만 빠져 있었다.
+ *
+ * **제안은 함께 되살리지 않는다.** 지울 때 인박스의 미처리 제안을 EXPIRED 로 거뒀는데,
+ * 그중 어느 것이 «우리가 거둔 것»이고 어느 것이 «원래 시효로 만료된 것»인지 구분할 표식이 없다.
+ * 잘못 되살리면 사라진 회의의 값이 사실처럼 인박스에 다시 선다.
+ * 대신 되살린 미팅에서 「AI로 정리하기」를 다시 누르면 제안이 새로 만들어진다 —
+ * 그 편이 «지금 내용»을 읽으므로 더 정확하다. 확인창이 이 사실을 말한다.
+ */
+export async function restoreMeeting(
+  workspaceId: string,
+  actorId: string | null,
+  id: string,
+): Promise<void> {
+  await withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await (tx as any).crmMeeting.updateMany({
+      // 삭제된 것만 노린다 — 살아 있는 행을 「되살렸다」고 답하면 사용자가 착각한다
+      where: { id, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    })
+    if (res.count === 0) throw new CrmError('NOT_FOUND', '휴지통에서 미팅을 찾을 수 없습니다.')
+
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'meeting.restored',
+      targetType: 'meeting', targetId: id,
     })
   })
 }

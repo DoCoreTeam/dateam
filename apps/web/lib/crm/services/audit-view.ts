@@ -68,6 +68,7 @@ const ACTION_LABEL: Record<string, string> = {
   'product.created': '품목을 카탈로그에 넣었어요',
   'meeting.created': '미팅을 기록했어요',
   'meeting.deleted': '미팅을 지웠어요',
+  'meeting.restored': '미팅을 되살렸어요',
   'meeting.transcribed': '미팅 전사를 넣었어요',
   'suggestion.accepted': 'AI 제안을 반영했어요',
   'suggestion.rejected': 'AI 제안을 물렸어요',
