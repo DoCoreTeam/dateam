@@ -405,7 +405,7 @@
 의존: I24, I22
 
 ### I34 정정공고와 질의응답 반영
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/revision/link.ts, 신규 apps/web/lib/rfp/revision/diff.ts, 신규 apps/web/lib/rfp/revision/diff.test.ts, 신규 apps/web/app/api/rfp/cases/[id]/revisions/route.ts
 감사 기준:
