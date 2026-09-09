@@ -425,7 +425,7 @@
 의존: I24
 
 ### I36 멀티테넌트 온보딩과 사용량
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/lib/rfp/tenant/org.ts, 신규 apps/web/lib/rfp/tenant/invite.ts, 신규 apps/web/lib/rfp/tenant/usage.ts, 신규 apps/web/lib/rfp/tenant/tenant.test.ts, 신규 apps/web/app/api/rfp/orgs/route.ts
 감사 기준:
@@ -537,6 +537,10 @@
 - 그 시점에 I18 은 이미 구현·검증·커밋(5883e198)까지 끝났는데 `loop pass` 기록만 빠졌다 — 여기서 통과로 되돌렸다
 - 이후 항목은 이 파일이 재개 근거다. loop CLI 의 활성 플랜은 다른 세션 것이므로 상태는 여기서 직접 적는다
 - 커밋 형식은 그대로 `vX.Y.Z-Ixx: 제목`
+- I36 의 「다른 조직 데이터 0건」은 두 갈래로 확인했다
+  - anon 키 REST 직조회로 `rfp_orgs`·`rfp_invites`·`rfp_usage_ledger` 가 전부 `[]`
+  - I13 에서 이미 서비스롤로 남의 조직 케이스를 만들고 내 세션 GET 에 안 보이는 것을 실호출로 확인했다
+  - viewer 역할 실계정은 이 배포에 없어(profiles 는 admin·member·api_user 뿐) 로그인 실호출은 못 했다
 - I34 시점에 dev 서버가 :3000 에서 사라지고 다른 세션이 `next dev -p 3000 -p 3001` 로 다시 띄웠다(마지막 -p 가 이겨 :3001)
   - M-2 대로 재시작하지 않고 :3001 로 옮겨 확인했다. I34 라우트 401 확인 완료
 - I24 감사 기준 중 「viewer 는 403」은 **실호출로 못 채웠다**: 이 배포에 viewer 역할이 없다
