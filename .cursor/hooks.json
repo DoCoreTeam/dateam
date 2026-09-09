@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node scripts/loop.mjs hook session"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "node scripts/loop.mjs hook prompt"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node scripts/loop.mjs hook edit"
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "node scripts/loop.mjs hook precompact"
+      }
+    ]
+  }
+}

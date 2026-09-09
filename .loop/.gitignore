@@ -1,0 +1,4 @@
+loop.db
+loop.db-wal
+loop.db-shm
+export/
