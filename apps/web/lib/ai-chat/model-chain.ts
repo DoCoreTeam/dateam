@@ -25,6 +25,7 @@
 
 import type { ProviderId } from './provider.ts'
 import type { ProviderFailureScope } from './provider-errors.ts'
+import { isChatModel } from './model-tier.ts'
 
 /** 후보 하나 — 이 공급자의 이 모델을 이 키로 부른다 */
 export interface ChainCandidate {
@@ -44,6 +45,7 @@ export interface ChainProviderConfig {
 export interface ChainCatalogEntry {
   provider: string
   model_id: string
+  label?: string | null
   is_active?: boolean | null
   availability?: string | null
 }
@@ -140,9 +142,17 @@ export function buildModelChain(args: BuildModelChainArgs): ChainCandidate[] {
     push(provider, model, apiKey)
   }
 
-  /** 이 공급자의 카탈로그 모델을 순서대로 — 한도에 걸렸던 것은 뒤로 민다 */
+  /**
+   * 이 공급자의 카탈로그 모델을 순서대로 — 한도에 걸렸던 것은 뒤로 민다.
+   *
+   * **대화용이 아닌 모델은 여기서 뺀다**(`isChatModel`). 사용자가 고른 것은 존중하지만,
+   * 자동으로 갈아탈 때 고르는 것은 다르다 — 실측 v0.7.716 에서 Gemma 로 넘어간 뒤
+   * 모델이 자기 초안("Option 1 (Literal): …")을 답으로 뱉었고 사용자는 그걸 고장으로 봤다.
+   */
   const catalogModelsOf = (provider: ProviderId): string[] => {
-    const rows = catalog.filter((e) => e.provider === provider && !isDeadInCatalog(e))
+    const rows = catalog.filter(
+      (e) => e.provider === provider && !isDeadInCatalog(e) && isChatModel({ modelId: e.model_id, label: e.label }),
+    )
     return [...rows.filter((e) => !isDemoted(e)), ...rows.filter(isDemoted)].map((e) => e.model_id)
   }
 

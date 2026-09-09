@@ -85,3 +85,8 @@
 
 /* 드롭다운 안의 상태 표시 — 목록 자리에 그대로 들어가는 크기 */
 .state { padding: var(--space-3) var(--space-4); }
+
+/* 묶음 제목 옆 힌트 — 「고성능」이 무슨 뜻인지 한 마디로 */
+.groupHint { margin-left: var(--space-2); font-weight: 400; color: var(--text-faint); }
+/* 만든 곳은 이름 옆에 작게 — 묶음이 성능이라 공급자는 부차 정보다 */
+.itemMaker { font-size: var(--fs-2xs); font-weight: 400; color: var(--text-faint); }

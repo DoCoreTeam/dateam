@@ -217,6 +217,15 @@ test('★ 모델 드롭다운은 화면과 같은 창구를 쓴다 — 두 벌�
   assert.match(read(`${AI_DIR}/ModelMenu.tsx`), /listModelCatalog/)
 })
 
-test('★ 표면 색은 테마 체계로 건다 — CSS 모듈에 박으면 여기서만 테마가 죽는다', () => {
-  assert.match(read(LAYOUT), /surfaceTheme="claude"/)
+test('★ 표면이 테마를 고정하지 않는다 — 색은 사용자가 고른 테마가 정한다', () => {
+  // 두 번 틀린 자리다: CSS 모듈에 색을 박았고, 그다음엔 테마를 표면에 고정했다.
+  // 둘 다 결과가 같았다 — 이 화면에서만 테마 선택이 죽는다.
+  assert.doesNotMatch(read(LAYOUT), /surfaceTheme=/)
+})
+
+test('★ 클론한 것은 배치다 — 스킨에 색이 한 줄도 없어야 한다', () => {
+  const skin = read('app/(ai)/studio.module.css')
+  // 토큰을 **읽는** 것(var(--…))은 테마를 따라가는 것이라 괜찮다.
+  // 토큰을 **정의**하는 것(--…:)이 테마를 이기는 짓이다.
+  assert.doesNotMatch(skin, /^\s*--[\w-]+\s*:/m, '스킨이 토큰을 다시 정의하고 있다')
 })

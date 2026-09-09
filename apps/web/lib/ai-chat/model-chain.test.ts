@@ -232,3 +232,15 @@ test('★ 저장된 답도 갈아탄 사실을 되살린다 — 새로고침하�
   assert.match(src, /chosen/)
   assert.match(src, /message\.provider !== chosen\.provider/)
 })
+
+test('★ 자동 폴백은 대화용이 아닌 모델로 갈아타지 않는다 (실측 v0.7.716 Gemma 사고)', () => {
+  const catalog: ChainCatalogEntry[] = [
+    { provider: 'gemini', model_id: 'gemma-4-26b-a4b-it' },
+    { provider: 'gemini', model_id: 'text-embedding-004' },
+    { provider: 'gemini', model_id: 'gemini-2.5-flash' },
+  ]
+  const got = ids(chain({ catalog, maxPerProvider: 9 }))
+  assert.ok(!got.includes('gemini:gemma-4-26b-a4b-it'), got.join(' '))
+  assert.ok(!got.includes('gemini:text-embedding-004'), got.join(' '))
+  assert.ok(got.includes('gemini:gemini-2.5-flash'), got.join(' '))
+})

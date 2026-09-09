@@ -16,6 +16,15 @@ import type { AiChatProviderId } from '@/types/database'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
 import { MODEL_STATUS_LABEL } from '@/lib/ai-chat/model-status'
+import {
+  isChatModel,
+  modelTier,
+  sortModelsForMenu,
+  MODEL_TIER_ORDER,
+  MODEL_TIER_LABEL,
+  MODEL_TIER_HINT,
+  type ModelTier,
+} from '@/lib/ai-chat/model-tier'
 import EmptyState from '@/components/ui/EmptyState'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { listModelCatalog, type ModelCatalogItem } from './actions'
@@ -61,6 +70,28 @@ export default function ModelMenu({ providers, currentProvider, currentModel, di
 
   const label = currentModel ?? (providers.length === 0 ? '키 없음' : '모델')
 
+  /**
+   * 성능으로 묶고, 쓸 수 있는 것을 위로 올린다.
+   *
+   * 공급자로 묶으면 Gemini 28개가 한 덩어리로 쏟아진다 — 고르는 사람이 알고 싶은 것은
+   * 「누가 만들었나」가 아니라 「얼마나 잘하나·빠른가」다. 만든 곳은 이름 옆에 작게 붙인다.
+   * 지금 못 쓰는 것은 감추지 않고 맨 아래 한 칸으로 모은다(안 보이면 「왜 사라졌지」가 된다).
+   */
+  const usableIds = new Set(providers.map((p) => p.id))
+  const chatModels = (items ?? []).filter((m) => usableIds.has(m.provider) && isChatModel(m))
+  const ordered = sortModelsForMenu(
+    chatModels.map((m) => ({ ...m, usable: isSelectableModelAvailability(m.availability) })),
+  )
+  const GROUPS: { key: string; label: string; hint?: string; rows: typeof ordered }[] = [
+    ...MODEL_TIER_ORDER.map((t: ModelTier) => ({
+      key: t,
+      label: MODEL_TIER_LABEL[t],
+      hint: MODEL_TIER_HINT[t],
+      rows: ordered.filter((m) => m.usable && modelTier(m) === t),
+    })),
+    { key: 'blocked', label: '지금 쓸 수 없음', rows: ordered.filter((m) => !m.usable) },
+  ]
+
   return (
     <div className={styles.wrap} ref={ref}>
       <button
@@ -90,27 +121,32 @@ export default function ModelMenu({ providers, currentProvider, currentModel, di
             </div>
           )}
 
-          {providers.map((p) => {
-            const rows = (items ?? []).filter((it) => it.provider === p.id)
-            if (rows.length === 0) return null
+          {GROUPS.map((g) => {
+            if (g.rows.length === 0) return null
             return (
-              <div key={p.id}>
-                <div className={styles.group}>{PROVIDER_LABELS[p.id] ?? p.label}</div>
-                {rows.map((m) => {
+              <div key={g.key}>
+                <div className={styles.group}>
+                  {g.label}
+                  {g.hint && <span className={styles.groupHint}>{g.hint}</span>}
+                </div>
+                {g.rows.map((m) => {
                   const usable = isSelectableModelAvailability(m.availability)
-                  const chosen = currentProvider === p.id && currentModel === m.modelId
+                  const chosen = currentProvider === m.provider && currentModel === m.modelId
                   return (
                     <button
-                      key={m.modelId}
+                      key={`${m.provider}:${m.modelId}`}
                       type="button"
                       role="menuitemradio"
                       aria-checked={chosen}
                       className={styles.item}
                       disabled={!usable}
-                      onClick={() => pick(p.id, m.modelId)}
+                      onClick={() => pick(m.provider, m.modelId)}
                     >
                       <span className={styles.itemBody}>
-                        <span className={styles.itemName}>{m.label}</span>
+                        <span className={styles.itemName}>
+                          {m.label}
+                          <span className={styles.itemMaker}>{PROVIDER_LABELS[m.provider]}</span>
+                        </span>
                         <span className={styles.itemDesc}>
                           {usable ? m.useCase : MODEL_STATUS_LABEL[m.availability]}
                         </span>

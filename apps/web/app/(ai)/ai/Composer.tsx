@@ -452,9 +452,16 @@ export default function Composer({
           />
 
           {streaming ? (
-            <button type="button" className="ai-chat-send" data-variant="stop" onClick={onStop} aria-label="생성 중단">
+            // 동그란 단추라 글자가 안 들어간다 — 아이콘만 두고 뜻은 aria-label·title 이 진다
+            <button
+              type="button"
+              className="ai-chat-send"
+              data-variant="stop"
+              onClick={onStop}
+              aria-label="생성 중단"
+              title="생성 중단"
+            >
               <Square size={16} />
-              중단
             </button>
           ) : (
             <button
