@@ -1,6 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { mergeModelCatalogEntry, inferModelMeta, isChatModel, inferModelUseCase, CURATED_MODELS } from './model-catalog.ts'
+import { AI_PROVIDERS, AI_PROVIDER_IDS, getProviderSpec } from '../ai/provider-catalog.ts'
 
 test('용도안내: 티어별 친절 설명', () => {
   assert.match(inferModelUseCase('gemini', 'gemini-2.5-pro', { vision: true, longContext: true, reasoning: true }), /추론|분석|코딩/)
@@ -91,8 +94,91 @@ test('기존 DB capabilities 부분값은 유지되고 나머지만 큐레이션
   assert.equal(entry.capabilities.reasoning, true) // 큐레이션으로 보완
 })
 
-test('CURATED_MODELS: 3개 프로바이더 모두 최소 1개 이상 모델 보유', () => {
-  assert.ok(Object.keys(CURATED_MODELS.gemini).length > 0)
-  assert.ok(Object.keys(CURATED_MODELS.claude).length > 0)
-  assert.ok(Object.keys(CURATED_MODELS.openai).length > 0)
+/* ── 명세가 카탈로그를 끌고 오는가 ─────────────────────────── */
+
+test('큐레이션: 명세에 있는 공급자는 전부 자리가 있고 하나 이상 모델을 갖는다', () => {
+  // 열쇠를 명세에서 받는다 — 여기에 다섯을 손으로 적으면 여섯째가 들어와도 이 단정은 모른다
+  assert.deepEqual(Object.keys(CURATED_MODELS).sort(), [...AI_PROVIDER_IDS].sort())
+  for (const id of AI_PROVIDER_IDS) {
+    assert.ok(Object.keys(CURATED_MODELS[id]).length > 0, `${id}: 큐레이션 모델이 0개`)
+  }
+  // 새로 들어온 둘을 이름으로도 못 박는다
+  assert.ok(Object.keys(CURATED_MODELS.groq).length > 0, 'groq')
+  assert.ok(Object.keys(CURATED_MODELS.grok).length > 0, 'grok')
+})
+
+test('큐레이션: 이미지를 못 보내는 공급자의 모델은 이미지 읽기를 주장하지 않는다', () => {
+  for (const spec of AI_PROVIDERS) {
+    if (spec.capabilities.vision) continue
+    for (const [modelId, info] of Object.entries(CURATED_MODELS[spec.id])) {
+      assert.equal(info.capabilities.vision, false, `${spec.id}/${modelId}: 명세는 이미지를 못 보낸다고 적혀 있다`)
+    }
+  }
+})
+
+test('빈칸 없음: 다섯 공급자 전부 처음 보는 모델에도 라벨과 능력 세 값이 채워진다', () => {
+  for (const id of AI_PROVIDER_IDS) {
+    const entry = mergeModelCatalogEntry(id, `${id}-neverseen-1`, null)
+    assert.equal(entry.provider, id)
+    assert.ok(entry.label.length > 0, `${id}: 라벨 빈칸`)
+    assert.notEqual(entry.label, `${id}-neverseen-1`, `${id}: 라벨이 원문 그대로`)
+    for (const cap of ['vision', 'longContext', 'reasoning'] as const) {
+      assert.equal(typeof entry.capabilities[cap], 'boolean', `${id}: capabilities.${cap} 빈칸`)
+    }
+    assert.equal(entry.isActive, true, `${id}: isActive`)
+  }
+})
+
+test('빈칸 없음: 다섯 공급자의 기본 모델이 전부 병합을 통과한다', () => {
+  for (const spec of AI_PROVIDERS) {
+    if (!spec.defaultModel) continue // 관리자가 고르는 공급자는 기본값이 없다
+    const entry = mergeModelCatalogEntry(spec.id, spec.defaultModel, null)
+    assert.ok(entry.label.length > 0, `${spec.id}: ${spec.defaultModel} 라벨 빈칸`)
+  }
+})
+
+test('추론: Groq 과 Grok 이 남의 공급자 규칙으로 읽히지 않는다', () => {
+  // 예전엔 gemini 도 claude 도 아니면 전부 openai 규칙이라 Groq 모델이 128,000 토큰을 달고 나왔다
+  assert.equal(inferModelMeta('groq', 'llama-3.1-70b-versatile').contextLength, undefined)
+  assert.equal(inferModelMeta('groq', 'llama-3.1-70b-versatile').capabilities.longContext, true)
+  // 명세가 이미지를 못 보낸다고 적었으므로 이름이 무엇이든 이미지 읽기는 false
+  assert.equal(getProviderSpec('groq').capabilities.vision, false)
+  assert.equal(inferModelMeta('groq', 'llama-4-scout-17b-vision').capabilities.vision, false)
+  // Grok 은 mini 갈래만 이미지를 못 읽는다
+  assert.equal(inferModelMeta('grok', 'grok-5').capabilities.vision, true)
+  assert.equal(inferModelMeta('grok', 'grok-5-mini').capabilities.vision, false)
+  assert.equal(inferModelMeta('grok', 'grok-5').capabilities.reasoning, true)
+})
+
+test('필터: Groq 목록에 섞여 오는 전사 전용 모델은 채팅 목록에서 빠진다', () => {
+  assert.equal(isChatModel('groq', 'whisper-large-v3'), false)
+  assert.equal(isChatModel('groq', 'whisper-large-v3-turbo'), false)
+  assert.equal(isChatModel('groq', 'distil-whisper-large-v3-en'), false)
+  assert.equal(isChatModel('groq', 'playai-tts'), false)
+  assert.equal(isChatModel('groq', 'llama-3.3-70b-versatile'), true)
+  assert.equal(isChatModel('grok', 'grok-4'), true)
+})
+
+/* ── 프로브가 명세의 주소로 가는가 ─────────────────────────── */
+
+const AI_CHAT_DIR = fileURLToPath(new URL('./', import.meta.url))
+const read = (rel: string) => readFileSync(AI_CHAT_DIR + rel, 'utf8')
+
+test('프로브: 공급자별 분기 없이 명세의 baseUrl 로 간다', () => {
+  // 프로브 유틸은 공급자를 모른다 — 아는 순간 공급자가 늘 때마다 여기도 고쳐야 한다
+  const probe = read('probe-models.ts')
+  for (const id of AI_PROVIDER_IDS) {
+    assert.ok(!new RegExp(`['"\`]${id}['"\`]`).test(probe), `probe-models.ts 가 ${id} 를 직접 안다`)
+  }
+
+  // 주소는 명세에만 있다. 어댑터가 자기 주소를 또 적으면 둘이 갈린다
+  const compat = read('providers/openai-compatible.ts')
+  assert.match(compat, /spec\.baseUrl/)
+  for (const spec of AI_PROVIDERS) {
+    if (!spec.baseUrl) continue
+    const host = new URL(spec.baseUrl).host
+    for (const rel of ['providers/openai-compatible.ts', 'providers/groq.ts', 'providers/grok.ts', 'probe-models.ts']) {
+      assert.ok(!read(rel).includes(host), `${rel} 에 ${host} 가 하드코딩됨`)
+    }
+  }
 })

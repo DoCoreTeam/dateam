@@ -90,7 +90,7 @@
 의존: I01, I02
 
 ### I04 모델 카탈로그와 모델 확인을 명세 기반으로
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ai-chat/model-catalog.ts, apps/web/lib/ai-chat/model-catalog.test.ts, apps/web/lib/ai-chat/probe-models.ts
 감사 기준:

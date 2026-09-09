@@ -2,6 +2,7 @@
 // DB(ai_model_catalog, 마이그 156)의 시드값과 동일 데이터를 코드에도 유지 — refreshModelCatalog가
 // 실 프로바이더 응답(listModels)으로 model_id를 upsert할 때 capabilities/released_at 보완에 사용.
 import type { AiChatProviderId } from '@/types/database'
+import { getProviderSpec } from '../ai/provider-catalog.ts'
 
 export interface ModelCapabilities {
   vision: boolean
@@ -94,6 +95,8 @@ export function mergeModelCatalogEntry(
 }
 
 // 비채팅 모델(임베딩·TTS·이미지생성 등)은 모델 선택에서 제외. `-image`/`banana`=이미지 생성 모델.
+// Groq 은 모델 목록에 회의 전사용 whisper 를 섞어 준다 — 그것이 채팅 모델 고르는 칸에 뜨면
+// 고를 수는 있는데 말은 못 하는 모델이 목록에 앉는다.
 const NON_CHAT_RE = /(embedding|aqa|tts|imagen|image-generation|image-gen|-image|banana|veo|whisper|dall-e|audio|realtime|moderation|rerank)/i
 export function isChatModel(_provider: AiChatProviderId, modelId: string): boolean {
   return !NON_CHAT_RE.test(modelId)
@@ -130,32 +133,91 @@ function prettifyLabel(modelId: string): string {
 }
 
 /**
+ * 공급자별 모델 이름 규칙.
+ *
+ * 키를 명세(AiProviderId)에서 받으므로 여섯째 공급자를 명세에 더하면 여기에 자리를 만들기 전까지
+ * 타입이 통과하지 않는다 — 새 공급자의 모델이 남의 공급자 규칙으로 읽히던 것을 막는다
+ * (예전에는 gemini 도 claude 도 아니면 전부 openai 규칙으로 떨어져, Groq 모델이 128,000 토큰이라는
+ *  근거 없는 숫자를 달고 나왔다).
+ *
+ * 이름이 아무 말도 하지 않으면 채우지 않는다. 확실치 않은 숫자를 화면에 띄우느니 비워 둔다.
+ */
+interface ModelNameHeuristic {
+  vision(id: string): boolean
+  longContext(id: string): boolean
+  reasoning(id: string): boolean
+  contextLength(id: string): number | undefined
+  releasedAt(id: string): string | undefined
+}
+
+const UNKNOWN_DATE = (): undefined => undefined
+const UNKNOWN_LENGTH = (): undefined => undefined
+
+const MODEL_HEURISTICS: Record<AiChatProviderId, ModelNameHeuristic> = {
+  gemini: {
+    // 현대 Gemini 는 전부 멀티모달 + 대용량 컨텍스트
+    vision: () => true,
+    longContext: () => true,
+    reasoning: (id) => /pro|thinking|2\.5|exp/.test(id),
+    contextLength: (id) => (/pro/.test(id) ? 2097152 : 1048576),
+    releasedAt: (id) =>
+      /2\.5/.test(id) ? '2025-03-25' : /2\.0/.test(id) ? '2025-02-05' : /1\.5/.test(id) ? '2024-05-14' : undefined,
+  },
+  claude: {
+    vision: () => true,
+    longContext: () => false,
+    reasoning: (id) => /opus|sonnet-4|3-7|thinking/.test(id),
+    contextLength: () => 200000,
+    releasedAt: (id) => (/opus-4|sonnet-4-6/.test(id) ? '2026-01-01' : /sonnet-4/.test(id) ? '2025-05-14' : undefined),
+  },
+  openai: {
+    vision: (id) => /^gpt-5/.test(id) || /4o|4\.1|o1|o3|o4|4-turbo/.test(id),
+    longContext: () => false,
+    reasoning: (id) => /^o[134]/.test(id) || /^gpt-5/.test(id),
+    // gpt-5 계열의 컨텍스트 길이는 세부 모델마다 달라 추론하지 않는다 — 과거 gpt-5.x 가 전부
+    // 128,000 토큰으로 잘못 표기되던 문제.
+    contextLength: (id) => (/^gpt-5/.test(id) ? undefined : /^o[134]/.test(id) ? 200000 : 128000),
+    releasedAt: UNKNOWN_DATE,
+  },
+  groq: {
+    // 남의 오픈소스 모델을 얹어 돌린다. 모델 이름이 곧 원 모델 이름이라 그것으로 읽는다.
+    // 이미지 읽기는 명세가 이미 못 한다고 적었으므로(어댑터가 이미지를 보내지 않는다) 늘 false 다.
+    vision: () => false,
+    longContext: (id) => /versatile|scout|maverick|128k|131072/.test(id),
+    reasoning: (id) => /r1|qwq|reasoning|thinking/.test(id),
+    // 같은 이름의 모델도 Groq 이 얹은 컨텍스트가 8k 와 131k 로 갈린다. 큐레이션에 없으면 비운다
+    contextLength: UNKNOWN_LENGTH,
+    releasedAt: UNKNOWN_DATE,
+  },
+  grok: {
+    // x.ai 는 mini 갈래만 이미지를 못 읽는다
+    vision: (id) => /vision/.test(id) || (/^grok-[3-9]/.test(id) && !/mini/.test(id)),
+    longContext: (id) => /^grok-[3-9]/.test(id),
+    reasoning: (id) => /^grok-[3-9]/.test(id),
+    contextLength: UNKNOWN_LENGTH,
+    releasedAt: UNKNOWN_DATE,
+  },
+}
+
+/**
  * 모델 ID 휴리스틱 추론 — 큐레이션 맵에 없는 라이브 모델도 능력(멀티모달=vision)·라벨·출시일·컨텍스트를
  * 이름 패턴으로 유추해 "빈칸"을 없앤다. 큐레이션이 있으면 그게 우선(정확), 없으면 이 추론이 채운다.
+ *
+ * 이미지 읽기만은 이름보다 명세가 위다 — 어댑터가 이미지를 보내지 않는 공급자의 모델에
+ * 「이미지 읽기」를 적으면 카드가 거짓말을 한다.
  */
 export function inferModelMeta(provider: AiChatProviderId, modelId: string): CuratedModelInfo {
   const id = modelId.toLowerCase()
-  let capabilities: ModelCapabilities = { ...DEFAULT_CAPS }
-  let releasedAt: string | undefined
-  let contextLength: number | undefined
-
-  if (provider === 'gemini') {
-    // 현대 Gemini는 전부 멀티모달(vision)+대용량 컨텍스트. pro/thinking/2.5/exp는 추론형.
-    capabilities = { vision: true, longContext: true, reasoning: /pro|thinking|2\.5|exp/.test(id) }
-    contextLength = /pro/.test(id) ? 2097152 : 1048576
-    releasedAt = /2\.5/.test(id) ? '2025-03-25' : /2\.0/.test(id) ? '2025-02-05' : /1\.5/.test(id) ? '2024-05-14' : undefined
-  } else if (provider === 'claude') {
-    capabilities = { vision: true, longContext: false, reasoning: /opus|sonnet-4|3-7|thinking/.test(id) }
-    contextLength = 200000
-    releasedAt = /opus-4|sonnet-4-6/.test(id) ? '2026-01-01' : /sonnet-4/.test(id) ? '2025-05-14' : undefined
-  } else {
-    // openai: o1/o3/o4·gpt-5 계열은 추론형, 4o/4.1·gpt-5 계열은 멀티모달.
-    // gpt-5 계열의 컨텍스트 길이는 세부 모델마다 달라 추론하지 않는다 — 확실치 않은 숫자를 화면에
-    // 띄우느니 비워 둔다(과거 gpt-5.x가 전부 128,000 tok으로 잘못 표기되던 문제).
-    const isGpt5 = /^gpt-5/.test(id)
-    const reasoning = /^o[134]/.test(id) || isGpt5
-    capabilities = { vision: isGpt5 || /4o|4\.1|o1|o3|o4|4-turbo/.test(id), longContext: false, reasoning }
-    contextLength = isGpt5 ? undefined : /^o[134]/.test(id) ? 200000 : 128000
+  const h = MODEL_HEURISTICS[provider]
+  const canSeeImages = getProviderSpec(provider).capabilities.vision
+  return {
+    label: prettifyLabel(modelId),
+    contextLength: h.contextLength(id),
+    capabilities: {
+      vision: h.vision(id) && canSeeImages,
+      longContext: h.longContext(id),
+      reasoning: h.reasoning(id),
+    },
+    releasedAt: h.releasedAt(id),
   }
-  return { label: prettifyLabel(modelId), contextLength, capabilities, releasedAt }
 }
