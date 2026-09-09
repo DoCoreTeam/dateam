@@ -82,6 +82,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     transcriptSegments,
     /** 읽을 수는 있어도 고칠 수는 없는 사람이 있다 — 화면이 편집기를 그릴지 여기로 정한다 */
     canEdit: data.user_id === user.id,
+    /**
+     * 지금 보고 있는 사람. **임시저장 키를 사람마다 가르는 데 쓴다.**
+     *
+     * 브라우저 임시저장(`useDraftPersist`)은 키에 사용자를 넣게 돼 있는데, 회의 메모는
+     * 그 값을 아무도 안 넘겨 실제 키가 `draft:v1:anon:meeting-memo:<노트>` 였다(실측
+     * v0.7.711). 공용 PC 에서 한 노트를 함께 고치는 두 사람이 **같은 초안 칸**을 쓰게 된다.
+     * 화면마다 prop 으로 넘기게 하면 또 빠뜨리므로 서버가 준다.
+     */
+    viewerId: user.id,
   })
 }
 

@@ -97,6 +97,11 @@ interface NoteState {
    */
   bodyChars: number
   transcriptSegments: number
+  /**
+   * 보고 있는 사람. 메모 편집기의 **브라우저 임시저장 키**를 사람마다 가른다.
+   * 안 넘기면 키가 `anon` 이 되어 공용 PC 에서 남의 초안이 뜬다(v0.7.711 실측).
+   */
+  viewerId: string
 }
 
 const SAVE_ICON: Record<SaveState, ReactNode> = {
@@ -214,6 +219,7 @@ export default function MeetingWorkbench({
         bodyChars: plainTextLength(String(body.bodyHtml ?? '')),
         transcriptSegments: Number(body.transcriptSegments ?? 0),
         status: typeof body.status === 'string' ? body.status : '',
+        viewerId: typeof body.viewerId === 'string' ? body.viewerId : '',
       })
       /*
         접힌 채로 열까 펼친 채로 열까 — **한 번만 정한다.**
@@ -352,6 +358,7 @@ export default function MeetingWorkbench({
                       noteId={noteId}
                       initialHtml={note.bodyHtml}
                       canEdit={canEdit}
+                      userId={note.viewerId}
                       onStateChange={onSaveState}
                       onLengthChange={setMemoChars}
                     />

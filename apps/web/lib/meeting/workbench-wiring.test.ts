@@ -94,6 +94,20 @@ test('★ 작업대가 세 층을 전부 그린다 — 하나라도 빠지면 �
   }
 })
 
+test('★ 메모 임시저장 키가 사람마다 갈린다 — 안 넘기면 공용 PC 에서 남의 초안이 뜬다', () => {
+  const editor = read('components/meeting/MeetingMemoEditor.tsx')
+  assert.ok(/userId:\s*userId\s*\?\?\s*''/.test(editor) || editor.includes('userId'),
+    '편집기가 userId 를 임시저장 키에 넘겨야 한다')
+
+  const wb = read(WORKBENCH)
+  assert.ok(/userId=\{note\.viewerId\}/.test(wb),
+    '작업대가 편집기에 viewerId 를 넘겨야 한다 — 안 넘기면 키가 anon 이 된다')
+  assert.ok(wb.includes('body.viewerId'), '작업대가 서버 응답에서 viewerId 를 읽어야 한다')
+
+  const api = read('app/api/meeting-notes/[id]/route.ts')
+  assert.ok(/viewerId:\s*user\.id/.test(api), '노트 API 가 viewerId 를 내려줘야 한다')
+})
+
 test('★ 정리 패널이 정리 API 를 실제로 부른다 — 만들고 안 부르면 버튼이 장식이다', () => {
   const src = read('components/meeting/MeetingDigestPanel.tsx')
   assert.ok(src.includes('/digest'), '정리 API 를 불러야 한다')
