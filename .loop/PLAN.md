@@ -97,7 +97,7 @@
 의존: I03
 
 ### I05 RFP-IR 규격
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/ir/types.ts, 신규 apps/web/lib/rfp/ir/build.ts, 신규 apps/web/lib/rfp/ir/ir.test.ts
 감사 기준:
