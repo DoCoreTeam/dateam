@@ -290,7 +290,7 @@
 의존: I18
 
 ### I23 프로필 자동 초안
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/fit/draft.ts, 신규 apps/web/lib/rfp/fit/draft.test.ts, 신규 apps/web/app/api/rfp/profile/draft/route.ts
 감사 기준:
