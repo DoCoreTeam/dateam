@@ -46,6 +46,8 @@ export interface CollectSiteResult {
   reason: string | null
   /** AI 를 못 써서 규칙만으로 뽑았나 — 「제목만 있고 금액이 없는」 이유가 된다 */
   rulesOnly: boolean
+  /** 상세 주소가 없는 게시판인가(자바스크립트 이동) */
+  titlesOnly?: boolean
 }
 
 export async function collectFromSite(
@@ -102,6 +104,9 @@ export async function collectFromSite(
     inserted: fresh.length,
     skipped: rows.length - fresh.length,
     rulesOnly,
+    // 자바스크립트 게시판이면 제목만 얻는다 — 화면이 그 사실을 말해야
+    // 「왜 눌러도 안 열리지」가 안 생긴다
+    titlesOnly: notices.every((n) => !n.url),
   })
 }
 

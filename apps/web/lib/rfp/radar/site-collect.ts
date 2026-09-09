@@ -57,7 +57,10 @@ export function extractLinks(html: string, baseUrl?: string): SiteLink[] {
     const text = stripHtml(m[2]).replace(/\s+/g, ' ').trim()
     // 두 글자짜리 링크는 「목록」·「다음」 같은 조작 단추다
     if (text.length < 5) continue
-    out.push({ text, href: absolute(m[1], baseUrl) })
+    const raw = m[1]
+    // **앵커(#)를 버리지 않는다.** 한국 공공기관 게시판은 줄마다 `href="#view"` 를 쓰고
+    // 실제 이동은 자바스크립트가 한다 — 버리면 제목까지 함께 잃는다(실측 NIA)
+    out.push({ text, href: raw.startsWith('#') ? raw : absolute(raw, baseUrl) })
   }
   return out
 }
@@ -129,16 +132,161 @@ export function parseSiteNotices(text: string, links: readonly SiteLink[]): Site
   return out
 }
 
-/** 규칙만으로도 최소한은 뽑는다 — AI 가 없거나 죽어도 「아무것도 안 됨」이 되면 안 된다 */
+/**
+ * 규칙만으로 뽑는다 — AI 가 없거나 죽었을 때.
+ *
+ * ## 왜 「긴 링크를 다 담기」가 틀렸나
+ *
+ * 처음에는 글자가 긴 링크를 전부 공고로 봤다. 실측(NIA 게시판): **50건 중 대부분이
+ * 내비게이션이었다** — 「인공지능융합본부」·「전체메뉴 바로가기」·「팝업 알림 닫기」.
+ * 그 쓰레기가 `rfp_sources` 에 쌓이면 조건에 걸려 알림으로 나가고, 사용자는 레이더를 끈다.
+ *
+ * ## 목록은 「같은 모양의 주소가 여럿」이다
+ *
+ * 게시판 목록은 **같은 경로에 번호만 다른 링크가 여러 줄** 있다(`/bbs/View.do?id=101,102,…`).
+ * 메뉴는 그렇지 않다 — 경로가 제각각이다. 그래서 주소 모양으로 무리를 지어
+ * **가장 큰 무리**를 목록으로 본다. 기관마다 다른 HTML 구조를 안 봐도 된다.
+ */
 export function noticesFromLinks(links: readonly SiteLink[]): SiteNotice[] {
-  const SKIP = /^(목록|이전|다음|처음|마지막|더보기|검색|홈|로그인|바로가기|본문|메뉴)$/
-  return links
-    .filter((l) => !SKIP.test(l.text) && l.text.length >= 8)
-    .slice(0, MAX_NOTICES)
-    .map((l) => ({
-      title: l.text, noticeNo: null, agency: null,
-      budgetAmount: null, noticeDate: null, url: l.href,
-    }))
+  return pickNoticeGroup(links).slice(0, MAX_NOTICES).map((l) => ({
+    title: cleanTitle(l.text), noticeNo: null, agency: null,
+    // 앵커는 주소가 아니다. 없는 것을 있는 척하면 눌러도 안 열린다
+    budgetAmount: null, noticeDate: dateFromRow(l.text), url: l.href.startsWith('#') ? null : l.href,
+  }))
+}
+
+/** 목록으로 볼 만한 무리가 되려면 이만큼은 있어야 한다 */
+export const MIN_GROUP = 3
+
+/** 메뉴·조작 단추로 보이는 글자 */
+const NAV_TEXT = /(바로가기|전체메뉴|메뉴|닫기|열기|로그인|회원가입|검색|더보기|이전|다음|처음|마지막|본부$|팝업|사이트맵|개인정보|이용약관)/
+
+/**
+ * 링크를 주소 모양으로 묶어 가장 큰 무리를 돌려준다.
+ *
+ * 모양 = 경로 + 질의 이름들(값 제외). `?id=101` 과 `?id=102` 는 같은 모양이다.
+ */
+export function pickNoticeGroup(links: readonly SiteLink[]): SiteLink[] {
+  const groups = new Map<string, SiteLink[]>()
+  const seen = new Set<string>()
+
+  for (const l of links) {
+    if (!l.href || l.href.startsWith('#')) continue
+    if (l.href.includes('#')) continue
+    if (NAV_TEXT.test(l.text)) continue
+    if (l.text.length < 8) continue
+    if (seen.has(l.href)) continue
+    seen.add(l.href)
+
+    const shape = urlShape(l.href)
+    // 질의도 번호도 없는 주소는 목록 줄이 아니라 대개 메뉴다
+    if (!shape.hasVariable) continue
+    groups.set(shape.key, [...(groups.get(shape.key) ?? []), l])
+  }
+
+  // **큰 무리가 아니라 「상세로 가는」 무리를 고른다.**
+  //
+  // 실측(NIA): 가장 큰 무리가 사이드바의 게시판 목록(`List.do?cbIdx=…`)이었다 —
+  // 「국가지능정보화백서」·「인터넷이용실태조사」가 공고로 담겼다.
+  // 목록 쪽의 각 줄은 **상세 화면**을 가리킨다. 그 성질로 무리를 가른다.
+  let best: SiteLink[] = []
+  for (const list of Array.from(groups.values())) {
+    if (list.length < MIN_GROUP) continue
+    // **목록으로 가는 무리는 안 쓴다.** 실측(NIA): 사이드바의 게시판 목록이 가장 큰
+    // 무리라서 「국가지능정보화백서」·「인터넷이용실태조사」가 공고로 담겼다
+    if (!looksDetail(list[0].href)) continue
+    if (list.length > best.length) best = list
+  }
+  if (best.length > 0) return best
+
+  // 상세 주소가 하나도 없으면 자바스크립트 게시판이다 — 제목만이라도 건진다
+  return jsBoardGroup(links)
+}
+
+/**
+ * 자바스크립트 게시판의 줄들.
+ *
+ * 줄마다 `href="#view"` 로 같고 이동은 스크립트가 한다. **주소는 못 얻지만 제목은 얻는다** —
+ * 「이런 공고가 떴다」를 아는 것만으로도 사람이 사이트를 열어 볼 이유가 된다.
+ * 주소가 없다는 사실은 호출부가 화면에 그대로 적는다.
+ */
+export function jsBoardGroup(links: readonly SiteLink[]): SiteLink[] {
+  const byHref = new Map<string, SiteLink[]>()
+  for (const l of links) {
+    if (!l.href.startsWith('#')) continue
+    if (NAV_TEXT.test(l.text)) continue
+    if (l.text.length < 8) continue
+    byHref.set(l.href, [...(byHref.get(l.href) ?? []), l])
+  }
+  let best: SiteLink[] = []
+  for (const list of Array.from(byHref.values())) if (list.length > best.length) best = list
+  // 제목이 다 같으면 목록이 아니다(같은 단추가 반복된 것)
+  const unique = new Map(best.map((l) => [l.text, l]))
+  const rows = Array.from(unique.values())
+  return rows.length >= MIN_GROUP ? rows : []
+}
+
+/**
+ * 목록 줄에서 제목만 남긴다.
+ *
+ * 게시판 한 줄은 링크 안에 **제목 말고도 다 넣는다** — 실측(NIA):
+ * 「[조달입찰공고] … 첨부파일 있음 new 2026.09.09 조회수 108 이용진 재무관리팀」.
+ * 그대로 두면 조건 검색이 「조회수」에 걸리고 목록이 못 읽는다.
+ *
+ * 날짜는 버리지 않고 **뽑아서 돌려준다** — 공고일은 정렬에 쓰인다.
+ */
+export function cleanTitle(text: string): string {
+  return text
+    .replace(/첨부파일\s*있음/g, ' ')
+    .replace(/\bnew\b/gi, ' ')
+    .replace(/조회수\s*[\d,]+/g, ' ')
+    .replace(/\d{4}[.\-\/]\d{1,2}[.\-\/]\d{1,2}\.?/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    // 끝에 남은 담당자·부서를 자른다. 이름은 두세 글자 + 팀 이름이 붙는다
+    .replace(/\s+\S{2,4}\s+\S*(팀|과|부|실|센터)$/, '')
+    .trim()
+}
+
+/** 목록 줄에서 공고일을 건진다 */
+export function dateFromRow(text: string): string | null {
+  const m = text.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/)
+  return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : null
+}
+
+/** 상세 화면으로 가는 주소인가 — 목록으로 가는 주소는 공고 줄이 아니다 */
+export function looksDetail(href: string): boolean {
+  const lower = href.toLowerCase()
+  if (/\blist\b|list\.do|\/list/.test(lower)) return false
+  return /(view|detail|read|show|article|nttid|bbsidx|boardidx|seq=|idx=|no=|id=)/.test(lower)
+}
+
+/** 주소를 모양으로 — 값은 빼고 경로와 질의 이름만 본다 */
+export function urlShape(href: string): { key: string; hasVariable: boolean } {
+  try {
+    const u = new URL(href, 'https://x.invalid')
+    const names = Array.from(u.searchParams.keys()).sort().join(',')
+    // 경로 끝의 숫자도 변하는 자리다(/notice/1234)
+    const path = u.pathname.replace(/\/\d+(?=\/|$)/g, '/*')
+    return { key: `${path}?${names}`, hasVariable: names.length > 0 || path.includes('*') }
+  } catch {
+    return { key: href, hasVariable: false }
+  }
+}
+
+/**
+ * 같은 공고인지 가리는 열쇠.
+ *
+ * 공고번호 > 주소 > **제목** 순이다. 셋 다 없으면 안 되는 이유:
+ * 자바스크립트 게시판은 주소가 없어서 `notice_no` 가 null 이 되고,
+ * 그러면 「이미 담았나」 검사가 아무것도 못 찾아 **훑을 때마다 같은 공고가 다시 담긴다**
+ * (실측 2026-09-09: 7건이 두 번 돌아 12건이 됐다).
+ * 제목은 사이트 이름과 함께 묶어 다른 기관의 같은 제목과 안 섞이게 한다.
+ */
+export function sourceKey(n: SiteNotice, siteName: string): string {
+  if (n.noticeNo) return n.noticeNo
+  if (n.url) return n.url
+  return `title:${siteName}:${n.title}`.slice(0, 300)
 }
 
 /** 공고 줄 → rfp_sources 행 */
@@ -148,8 +296,7 @@ export function toSourceRows(
   return notices.map((n) => ({
     org_id: orgId,
     source_system: 'agency',
-    // 공고번호가 없으면 주소가 그 자리를 대신한다 — 유니크 판정에 쓰인다
-    notice_no: n.noticeNo ?? n.url ?? null,
+    notice_no: sourceKey(n, siteName),
     notice_round: null,
     title: n.title,
     announcing_agency: n.agency ?? siteName,
