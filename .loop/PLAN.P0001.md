@@ -364,7 +364,7 @@
 의존: I28
 
 ### I30 결과 피드백과 학습 루프
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/learn/outcomes.ts, 신규 apps/web/lib/rfp/learn/calibrate.ts, 신규 apps/web/lib/rfp/learn/calibrate.test.ts, 신규 apps/web/app/api/rfp/cases/[id]/outcome/route.ts
 감사 기준:
