@@ -279,7 +279,7 @@
 의존: I20
 
 ### I22 회사 프로필과 적합도 판정
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/fit/profile.ts, 신규 apps/web/lib/rfp/fit/assess.ts, 신규 apps/web/lib/rfp/fit/assess.test.ts, 신규 apps/web/app/api/rfp/profile/route.ts
 감사 기준:
