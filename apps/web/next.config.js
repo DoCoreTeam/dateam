@@ -20,6 +20,14 @@ const SERVERLESS_CHROMIUM = [
 ]
 
 const nextConfig = {
+  /**
+   * 빌드 산출 폴더. 기본은 `.next` 라 배포는 한 글자도 안 바뀐다.
+   *
+   * 이 저장소는 작업 트리를 여러 세션이 나눠 쓴다. 누가 dev 서버를 띄운 채
+   * `next build` 를 돌리면 같은 `.next` 를 두고 싸워 양쪽이 다 깨진다.
+   * 검증만 하려면 `NEXT_BUILD_DIR=.next-verify pnpm build` 로 따로 쌓는다.
+   */
+  distDir: process.env.NEXT_BUILD_DIR || '.next',
   // dev 서버를 켠 채로 프로덕션 빌드를 검증할 수 있게 출력 경로를 열어 둔다.
   // (기본값은 그대로 '.next' — 환경변수를 안 주면 아무것도 달라지지 않는다)
   // 왜: `.next`가 겹쳐 dev가 깨지는 게 무서워 빌드 검증을 미루는 동안
@@ -67,6 +75,21 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },
+  /**
+   * 옛 주소를 살린다 — AI 채팅이 서비스(/ai)로 승격되면서 경로가 바뀌었다.
+   *
+   * `/ai-chat/shared/[token]` 은 **로그인 없이 열리는 공유 링크**라 이미 밖으로 나갔을 수 있다.
+   * 주소를 바꾸면서 이 줄을 빼면 남의 화면이 그대로 깨진다. 쿼리스트링은 Next 가 보존한다.
+   */
+  async redirects() {
+    return [
+      { source: '/ai-chat', destination: '/ai', permanent: true },
+      { source: '/ai-chat/:path*', destination: '/ai/:path*', permanent: true },
+      { source: '/admin/ai-chat', destination: '/ai', permanent: true },
+      { source: '/admin/ai-chat/:path*', destination: '/ai/:path*', permanent: true },
+    ]
+  },
+
   async headers() {
     return [
       { source: '/(.*)', headers: securityHeaders },

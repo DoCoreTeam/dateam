@@ -11,7 +11,7 @@ import {
 } from '@/lib/ai-chat/attachments'
 import { extractDocumentText } from '@/lib/ai-chat/document-extract'
 import { retrieveProjectContext, buildProjectSystemBlock } from '@/lib/ai-chat/knowledge'
-import { autoTitle } from '@/app/admin/ai-chat/actions'
+import { autoTitle } from '@/app/(ai)/ai/actions'
 import { classifyProviderError } from '@/lib/ai-chat/provider-errors'
 import {
   buildModelChain,

@@ -32,6 +32,7 @@ const SERVICE_ROUTES: { key: ServiceKey; prefixes: string[] }[] = [
   { key: 'admin', prefixes: ['/admin'] },
   { key: 'crm', prefixes: ['/crm'] },
   { key: 'ci', prefixes: ['/ci'] },
+  { key: 'ai', prefixes: ['/ai'] },
   // 셸 밖 공개 화면 — 로그인 없이 외부인이 본다
   { key: 'develop', prefixes: ['/develop', '/api-access'] },
 ]
@@ -48,6 +49,7 @@ const SERVICE_HOME: Record<ServiceKey, string> = {
   member: '/home',
   crm: '/crm',
   ci: '/ci',
+  ai: '/ai',
   admin: '/admin/users',
   develop: '/develop',
 }
@@ -78,7 +80,7 @@ export function surfaceOf(pathname: string | null | undefined): Surface {
   const { key } = serviceOf(pathname)
   if (key === 'admin') return 'admin'
   // 사이드바가 통째로 그 서비스 것으로 바뀌는 곳 — 나갈 문이 따로 있어야 한다
-  if (key === 'crm' || key === 'ci') return 'sub'
+  if (key === 'crm' || key === 'ci' || key === 'ai') return 'sub'
   return 'member'
 }
 

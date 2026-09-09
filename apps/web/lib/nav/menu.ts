@@ -31,7 +31,6 @@ export const NAV_LABEL: Record<string, string> = {
   '/calendar': '캘린더',
   '/meeting-notes': '회의노트',
   '/org': '조직도',
-  '/ai-chat': 'AI 채팅',
   '/pricing/gpu': 'GPU 관리',
   '/pricing/catalog': '판매가격표',
   '/api-keys': 'API Keys',
@@ -39,6 +38,7 @@ export const NAV_LABEL: Record<string, string> = {
   // 서비스로 들어가는 링크 — 간판과 같은 말을 쓴다
   '/crm': SERVICE_LABEL.crm,
   '/ci': SERVICE_LABEL.ci,
+  '/ai': SERVICE_LABEL.ai,
   '/develop': SERVICE_LABEL.develop,
 
   /**
@@ -81,7 +81,7 @@ export function navLabel(href: string): string {
 export type NavAudience = 'all' | 'admin'
 
 export const NAV_AUDIENCE: Record<string, NavAudience> = {
-  '/ai-chat': 'admin',
+  '/ai': 'admin',
 }
 
 export function canSeeNav(href: string, isAdmin: boolean): boolean {
@@ -100,6 +100,7 @@ export const ADMIN_ONLY_GROUPS = new Set<string>(['service'])
 export const SERVICE_NAV = [
   { href: '/crm', label: SERVICE_LABEL.crm },
   { href: '/ci', label: SERVICE_LABEL.ci },
+  { href: '/ai', label: SERVICE_LABEL.ai },
 ] as const
 
 /** 「서비스」 그룹의 이름 — 화면이 직접 적지 않는다 */

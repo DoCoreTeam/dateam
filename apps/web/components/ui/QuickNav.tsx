@@ -13,8 +13,6 @@ const PAGES = [
       { href: '/daily', label: navLabel('/daily'), icon: <NotebookPen size={14} /> },
       { href: '/calendar', label: navLabel('/calendar'), icon: <CalendarDays size={14} /> },
       { href: '/weekly-report', label: navLabel('/weekly-report'), icon: <FileText size={14} /> },
-      // 관리자 전용 — 사이드바에만 있어서 전체 메뉴로는 못 찾았다. 권한은 canSeeNav 가 본다
-      { href: '/ai-chat', label: navLabel('/ai-chat'), icon: <Sparkles size={14} /> },
     ],
   },
   {
@@ -52,6 +50,8 @@ const PAGES = [
     group: '별도 서비스',
     items: [
       { href: '/ci', label: navLabel('/ci'), icon: <Radar size={14} /> },
+      // 관리자 전용 — 권한은 canSeeNav 가 본다(NAV_AUDIENCE)
+      { href: '/ai', label: navLabel('/ai'), icon: <Sparkles size={14} /> },
       { href: '/api-keys', label: navLabel('/api-keys'), icon: <Key size={14} /> },
       { href: '/develop', label: navLabel('/develop'), icon: <Code2 size={14} />, external: true },
     ],

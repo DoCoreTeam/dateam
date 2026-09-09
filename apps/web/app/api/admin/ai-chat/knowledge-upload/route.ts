@@ -7,7 +7,7 @@ import {
   sanitizeFilenameForDisplay,
 } from '@/lib/ai-chat/attachments'
 import { extractDocumentText, extractPdfText } from '@/lib/ai-chat/document-extract'
-import { addKnowledgeText } from '@/app/admin/ai-chat/actions'
+import { addKnowledgeText } from '@/app/(ai)/ai/actions'
 
 // officeparser(extractDocumentText/PDF 추출) + Buffer 사용 — Node 런타임 고정
 export const runtime = 'nodejs'

@@ -13,7 +13,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const WEB_ROOT = process.cwd()
-const ANALYZE_DIR = join(WEB_ROOT, 'app/(member)/ai-chat/analyze')
+const ANALYZE_DIR = join(WEB_ROOT, 'app/(ai)/ai/analyze')
 const GROUPING_DIR = join(WEB_ROOT, 'lib/ai-chat/grouping')
 const MIGRATIONS_DIR = join(WEB_ROOT, '../../supabase/migrations')
 

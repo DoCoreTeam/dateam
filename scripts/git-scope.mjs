@@ -33,9 +33,10 @@ export function gitZ(args) {
  *
  * @param staged `git diff --cached --name-only -z` 항목 — 이번 커밋에 담기는 파일
  * @param status `git status --porcelain -z` 항목 — `XY path`, 이름변경은 다음 항목이 원본 경로
- * @returns {{ skip: Set<string>, fromHead: Set<string> }}
+ * @returns {{ skip: Set<string>, fromHead: Set<string>, inCommit: Set<string> }}
  *   skip     = 남의 untracked. **커밋된 내용이 없으므로 판정 대상이 아니다**
  *   fromHead = 남의 수정. 작업트리 대신 **HEAD(커밋된) 내용**으로 판정한다
+ *   inCommit = 이번 커밋에 담기는 파일. 소스도 기준선도 **디스크(=곧 커밋될 내용)**로 판정한다
  */
 export function parseCommitScope(staged, status) {
   const inCommit = new Set(staged)
@@ -53,7 +54,7 @@ export function parseCommitScope(staged, status) {
     if (code === '??') skip.add(path)
     else fromHead.add(path)
   }
-  return { skip, fromHead }
+  return { skip, fromHead, inCommit }
 }
 
 /** 이번 커밋에 담기는 파일. pathspec 커밋(M-1)이어도 임시 인덱스라 정확하다. */

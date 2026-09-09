@@ -66,3 +66,32 @@ test('git 인자에 -uall / -z 가 살아 있다 (빠지면 제외가 조용히 
   assert.ok(STATUS_ARGS.includes('-z'), '한글 경로가 이스케이프되어 매칭에 실패한다')
   assert.ok(STAGED_ARGS.includes('-z'), '한글 경로가 이스케이프되어 매칭에 실패한다')
 })
+
+test('이번 커밋에 담기는 파일 목록을 그대로 돌려준다 — 기준선도 이 범위를 따라야 한다', () => {
+  const { inCommit } = parseCommitScope([MINE], [`M  ${MINE}`, `?? ${THEIRS}`])
+  assert.deepEqual([...inCommit], [MINE])
+})
+
+// ── 배선 가드: 파일을 옮기는 커밋이 성립하는가 ──
+//
+// 기준선을 HEAD 에서만 읽으면 **파일 이동 커밋이 영원히 막힌다.** 소스는 디스크라 새 경로로 세는데
+// 기준선은 옛 경로만 알아서 옮긴 파일이 통째로 «신규 위반»이 된다. 기준선을 먼저 올리는 커밋도
+// 같은 이유로 막힌다(닭과 달걀). 실측 v0.7.715 — 화면 20개를 옮기다 32곳이 막혔다.
+// 그래서 «이번 커밋에 담기는 파일»의 기준선은 디스크에서 읽는다. 단 기준선 파일도 함께 담길 때만.
+
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const GUARD_SRC = readFileSync(
+  join(import.meta.dirname, '..', '..', '..', '..', 'scripts', 'check-design-tokens.mjs'),
+  'utf8',
+)
+
+test('★ 이번 커밋의 파일은 기준선도 디스크에서 읽는다 (안 하면 이동 커밋이 성립하지 않는다)', () => {
+  assert.match(GUARD_SRC, /mergeCommittedKeys\(/)
+  assert.match(GUARD_SRC, /SCOPE\.inCommit/)
+})
+
+test('★ 기준선 파일이 이번 커밋에 없으면 적용하지 않는다 (남의 미커밋 완화가 새어 들어온다)', () => {
+  assert.match(GUARD_SRC, /SCOPE\.inCommit\?\.has\(BASELINE_PATH\)/)
+})

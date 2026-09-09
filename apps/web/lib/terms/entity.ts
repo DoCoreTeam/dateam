@@ -95,6 +95,11 @@ export const SERVICE_LABEL = {
   member: '업무 워크스페이스',
   crm: '영업 CRM',
   ci: '콘텐츠 인텔리전스',
+  /**
+   * AI 채팅·프로젝트·목록 심층분석을 한 서비스로 묶은 이름.
+   * 「AI 채팅」이라 부르면 채팅이 아닌 둘이 채팅 밑에 들어가는 꼴이 된다.
+   */
+  ai: 'AI 스튜디오',
   admin: '관리자',
   develop: '개발자센터',
 } as const

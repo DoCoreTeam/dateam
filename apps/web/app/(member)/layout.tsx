@@ -31,9 +31,6 @@ const NAV_ITEMS = [
   { href: '/calendar', label: navLabel('/calendar'), icon: <CalendarDays size={16} /> },
   { href: '/meeting-notes', label: navLabel('/meeting-notes'), icon: <NotebookPen size={16} /> },
   { href: '/org', label: navLabel('/org'), icon: <Network size={16} /> },
-  // 관리자 전용 여부는 여기 안 적는다 — `NAV_AUDIENCE`(lib/nav/menu) 한 곳이 정하고
-  // 사이드바·전체 메뉴가 **같은 표**를 읽는다. 화면마다 플래그를 들면 또 갈린다.
-  { href: '/ai-chat', label: navLabel('/ai-chat'), icon: <Sparkles size={16} /> },
 ]
 
 /** 하위 서비스로 들어가는 아이콘 — 이름은 표가, 그림은 화면이 정한다 */

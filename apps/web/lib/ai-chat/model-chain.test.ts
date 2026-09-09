@@ -186,8 +186,8 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8')
 
 const STREAM = 'app/api/admin/ai-chat/stream/route.ts'
 const ANALYZE = 'lib/ai-chat/analyze-gemini.ts'
-const CLIENT = 'app/admin/ai-chat/AiChatClient.tsx'
-const BUBBLE = 'app/admin/ai-chat/MessageBubble.tsx'
+const CLIENT = 'app/(ai)/ai/AiChatClient.tsx'
+const BUBBLE = 'app/(ai)/ai/MessageBubble.tsx'
 
 test('★ 스트림 라우트가 체인을 실제로 만들고 순서대로 시도한다', () => {
   const src = read(STREAM)

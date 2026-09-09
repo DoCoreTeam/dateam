@@ -31,9 +31,7 @@ function isDetailRouteFile(file: string): boolean {
  */
 const NO_PARENT_LIST = new Set<string>([
   // 토큰으로 들어온 외부 열람자에게는 돌아갈 목록이 없다(로그인 사용자가 아니다)
-  'app/(member)/ai-chat/shared/[token]/page.tsx',
-  // 구 경로 호환 리다이렉트만 한다 — 화면이 아니다
-  'app/admin/ai-chat/shared/[token]/page.tsx',
+  'app/(ai)/ai/shared/[token]/page.tsx',
 ])
 
 test('상세 화면의 제목에는 상위로 돌아갈 길이 붙는다 — PageHeader의 back(§2-3)', () => {

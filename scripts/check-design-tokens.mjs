@@ -236,6 +236,36 @@ if (UPDATE) {
 }
 
 /**
+ * **이번 커밋에 담기는 파일의 기준선은 디스크에서 읽는다.**
+ *
+ * 왜: 위 규칙(기준선을 HEAD 에서 읽는다)은 «남의 미커밋»을 막으려고 있는 것인데,
+ * 그대로 두면 **파일을 옮기는 커밋이 영원히 성립하지 않는다.** 소스는 디스크라 새 경로로
+ * 세는데 기준선은 HEAD 라 옛 경로만 알고 있어서, 옮긴 파일이 통째로 «신규 위반»이 된다.
+ * 기준선을 먼저 올리려 해도 그 커밋 역시 같은 이유로 막힌다 — 닭과 달걀이다.
+ * (실측 v0.7.715: 화면 20개를 `(member)/ai-chat` 에서 `(ai)/ai` 로 옮기다 32곳이 막혔다.)
+ *
+ * 판정 범위 규칙은 이미 «커밋된 상태 + 이번 커밋에 담기는 파일»이다. 기준선도 같은 규칙을 따른다 —
+ * 소스를 디스크로 보는 파일이면 그 파일의 기준선도 디스크로 본다. 남의 파일은 그대로 HEAD 다.
+ *
+ * 안전장치: **기준선 파일 자체가 이번 커밋에 담겨 있을 때만** 적용한다.
+ * 안 그러면 «남이 기준선을 느슨하게 고쳐 둔 미커밋 상태»가 다시 새어 들어온다.
+ */
+function mergeCommittedKeys(headCounts) {
+  if (!SCOPE.inCommit?.has(BASELINE_PATH) || !existsSync(BASELINE_PATH)) return headCounts
+  const disk = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
+  if (Array.isArray(disk)) return headCounts
+  const merged = new Map(headCounts)
+  const pathOf = (key) => key.split('::')[0]
+  for (const key of headCounts.keys()) {
+    if (SCOPE.inCommit.has(pathOf(key)) && !(key in disk)) merged.delete(key)
+  }
+  for (const [key, n] of Object.entries(disk)) {
+    if (SCOPE.inCommit.has(pathOf(key))) merged.set(key, n)
+  }
+  return merged
+}
+
+/**
  * 구판(배열=키 목록)도 읽는다. 개수를 모르므로 이번 실행 값으로 1회 이관한다.
  *
  * **`--commit-scope` 에서는 baseline 도 HEAD 에서 읽는다.**
@@ -251,7 +281,7 @@ function loadBaseline() {
     const fromHead = readFromHead(BASELINE_PATH)
     if (fromHead) {
       const raw = JSON.parse(fromHead)
-      if (!Array.isArray(raw)) return { counts: new Map(Object.entries(raw)), legacy: false }
+      if (!Array.isArray(raw)) return { counts: mergeCommittedKeys(new Map(Object.entries(raw))), legacy: false }
     }
   }
   if (!existsSync(BASELINE_PATH)) return { counts: new Map(), legacy: false }

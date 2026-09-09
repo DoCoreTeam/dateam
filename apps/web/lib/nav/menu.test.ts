@@ -14,7 +14,7 @@ test('★ /lead-intake 는 이름이 하나다 — 사이드바 「프로젝트�
 })
 
 test('「서비스」 그룹에는 사이드바가 통째로 바뀌는 곳만 온다', () => {
-  assert.deepEqual(SERVICE_NAV.map((s) => s.href), ['/crm', '/ci'])
+  assert.deepEqual(SERVICE_NAV.map((s) => s.href), ['/crm', '/ci', '/ai'])
   // 관리자·개발자센터는 권한/외부라 여기 오지 않는다
   assert.ok(!SERVICE_NAV.some((s) => s.href === '/admin' || s.href === '/develop'))
 })
