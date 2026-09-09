@@ -203,7 +203,7 @@
 의존: I13
 
 ### I15 인덱싱 청크와 임베딩과 검색
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/index/chunk.ts, 신규 apps/web/lib/rfp/index/embed.ts, 신규 apps/web/lib/rfp/index/search.ts, 신규 apps/web/lib/rfp/index/chunk.test.ts
 감사 기준:
