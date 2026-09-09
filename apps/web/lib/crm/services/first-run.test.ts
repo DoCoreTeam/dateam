@@ -263,5 +263,7 @@ test('같은 오류를 화면이 두 번 말하지 않는다 — 배너와 빈 �
   const TASKS = readFileSync(
     new URL('../../../app/(crm)/crm/tasks/TasksClient.tsx', import.meta.url), 'utf8')
   assert.ok(!/ErrorState message=\{error\}/.test(TASKS), '오류를 두 곳에서 그린다')
-  assert.match(TASKS, /FormErrorBanner message=\{error\}/, '오류를 아예 안 보여 준다')
+  // 배너는 `error` 를 **반드시** 그린다. 뒤에 `?? restoreError` 같은 합성이 붙는 것은 막지 않는다 —
+  // 되살리기 실패도 같은 배너 한 자리에서 말하는 것이 이 규칙의 취지다(오류를 두 곳에 그리지 않는다).
+  assert.match(TASKS, /FormErrorBanner message=\{error\b/, '오류를 아예 안 보여 준다')
 })

@@ -27,7 +27,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..
 
 /** 도구별 정책 파일과, 그 파일이 커밋 예시에 쓰는 서명. 서명 차이는 **의도된 것**이다. */
 const POLICY_FILES = [
-  { file: 'CLAUDE.md', agent: 'claude' },
+  /**
+   * Claude 쪽 정책은 `CLAUDE.md` 에서 `.claude/heavy/CEO.md` 로 옮겨 갔다(v0.7.715 loop-kit 개편).
+   * `CLAUDE.md` 는 이제 `LOOP.md` 를 가리키는 두 줄짜리 어댑터라 규칙 카드가 없다.
+   * 파일 이름을 안 따라가면 이 가드는 «Claude 정책이 통째로 사라졌다»고 매번 말한다 —
+   * 실제로 사라진 것이 아니라 옮겨 간 것이므로, 가드가 옮겨 간 자리를 본다.
+   */
+  { file: '.claude/heavy/CEO.md', agent: 'claude' },
   { file: 'AGENTS.md', agent: 'codex' },
   { file: 'GEMINI.md', agent: 'gemini' },
 ] as const
