@@ -12,6 +12,9 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import ReportCard from '@/components/rfp/ReportCard'
 import SourceViewer, { type SourceBlock } from '@/components/rfp/SourceViewer'
+import OutcomeForm, { type OutcomeFormProps } from '@/components/rfp/OutcomeForm'
+import RevisionDiffPanel, { type RevisionChainItem } from '@/components/rfp/RevisionDiffPanel'
+import CrossVerifyDialog, { type CrossField } from '@/components/rfp/CrossVerifyDialog'
 import {
   RFP_REPORT, RFP_LIST, AI_NOTICE, DOC_CLASS_LABEL, FIT_VERDICT_LABEL,
   ANOMALY_SEVERITY_LABEL, type AnomalySeverity, type FitVerdict,
@@ -36,11 +39,40 @@ export interface ReportClientProps {
   report: Report | null
   blocks: SourceBlock[]
   fit: { verdict: FitVerdict; score: number; conditional: boolean } | null
+  /** 참여 결정과 낙찰 결과 — 이 데이터가 학습의 정답지다 */
+  outcome: OutcomeFormProps['initial']
+  /** 정정공고 차수 사슬 */
+  revisions: RevisionChainItem[]
+  vendors: { id: string; label: string }[]
 }
 
-export default function ReportClient({ caseId, caseTitle, docClass, report, blocks, fit }: ReportClientProps) {
+export default function ReportClient({
+  caseId, caseTitle, docClass, report, blocks, fit, outcome, revisions, vendors,
+}: ReportClientProps) {
   const [mode, setMode] = useState<'work' | 'report'>('work')
   const [activeBlock, setActiveBlock] = useState<string | null>(null)
+  const [crossOpen, setCrossOpen] = useState(false)
+
+  // 교차검증 후보 — 근거가 없거나 확신이 낮은 값이 위로 온다
+  const crossFields = useMemo<CrossField[]>(() => {
+    if (!report) return []
+    const out: CrossField[] = []
+    for (const key of ['overview', 'schedule', 'budget', 'evaluation'] as const) {
+      const bucket = report[key] as Record<string, ValueNode<unknown>>
+      for (const [name, node] of Object.entries(bucket ?? {})) {
+        if (node?.value === null || node?.value === undefined) continue
+        out.push({
+          fieldPath: `${key}.${name}`,
+          label: `${key}.${name}`,
+          confidence: node.confidence,
+          grounded: node.grounding === 'confirmed',
+          ruleFlagged: false,
+          conflictingMentions: 0,
+        })
+      }
+    }
+    return out
+  }, [report])
 
   const anomalies = useMemo(
     () => (Array.isArray(report?.anomalies) ? report!.anomalies as {
@@ -54,6 +86,11 @@ export default function ReportClient({ caseId, caseTitle, docClass, report, bloc
       <main className="page-inner">
         <PageHeader title={caseTitle} back={{ href: '/rfp', label: RFP_LIST.title }} />
         <EmptyState title={RFP_REPORT.notReady} description={RFP_REPORT.notReadyDesc} />
+        {/*
+          리포트가 없어도 결과는 적을 수 있어야 한다 —
+          「분석은 안 돌렸지만 안 내기로 했다」도 학습의 정답지다
+        */}
+        <OutcomeForm caseId={caseId} initial={outcome} />
       </main>
     )
   }
@@ -73,6 +110,9 @@ export default function ReportClient({ caseId, caseTitle, docClass, report, bloc
             </NbButton>
             <NbButton variant="ghost" href={`/api/rfp/cases/${caseId}/export?mode=${mode}`}>
               {RFP_REPORT.exportMd}
+            </NbButton>
+            <NbButton variant="ghost" onClick={() => setCrossOpen(true)}>
+              {RFP_REPORT.crossVerify}
             </NbButton>
           </>
         )}
@@ -128,7 +168,31 @@ export default function ReportClient({ caseId, caseTitle, docClass, report, bloc
           )}
         </div>
 
-        <SourceViewer blocks={blocks} activeBlockId={activeBlock} />
+        <div>
+          <SourceViewer blocks={blocks} activeBlockId={activeBlock} />
+
+          {crossOpen && (
+            <CrossVerifyDialog
+              caseId={caseId}
+              candidates={crossFields}
+              vendors={vendors}
+              onClose={() => setCrossOpen(false)}
+            />
+          )}
+
+          {/* 참여 결정과 결과 — 안 적으면 「우리 판정이 맞았나」에 영영 답할 수 없다 */}
+          <OutcomeForm caseId={caseId} initial={outcome} />
+
+          {revisions.length > 0 && (
+            <RevisionDiffPanel
+              chain={revisions}
+              changes={[]}
+              critical={[]}
+              summary={null}
+              onOpenEvidence={setActiveBlock}
+            />
+          )}
+        </div>
       </div>
     </main>
   )

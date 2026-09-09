@@ -22,7 +22,7 @@ export interface CrossField {
 
 export interface CrossVerifyDialogProps {
   caseId: string
-  fields: CrossField[]
+  candidates: CrossField[]
   vendors: { id: string; label: string }[]
   onClose: () => void
   onStarted?: () => void
@@ -32,14 +32,14 @@ export interface CrossVerifyDialogProps {
 const RATE = { krwPerFieldPerVendor: 350, secondsPerVendor: 180 }
 
 export default function CrossVerifyDialog({
-  caseId, fields, vendors, onClose, onStarted,
+  caseId, candidates, vendors, onClose, onStarted,
 }: CrossVerifyDialogProps) {
   const recs = useMemo<Recommendation[]>(
-    () => fields.map((f) => recommend(f.fieldPath, {
+    () => candidates.map((f) => recommend(f.fieldPath, {
       confidence: f.confidence, grounded: f.grounded,
       ruleFlagged: f.ruleFlagged, conflictingMentions: f.conflictingMentions,
     })),
-    [fields],
+    [candidates],
   )
 
   // 권장 항목만 미리 골라 둔다 — 「전부」가 기본이면 실수로 큰 비용을 낸다
@@ -90,7 +90,7 @@ export default function CrossVerifyDialog({
 
       <fieldset>
         <legend className="label">{RFP_CROSS.pickFields}</legend>
-        {fields.map((f) => {
+        {candidates.map((f) => {
           const rec = recs.find((r) => r.fieldPath === f.fieldPath)
           return (
             <label key={f.fieldPath} style={{ display: 'block' }}>

@@ -28,6 +28,12 @@ export default async function RfpReportPage({ params }: { params: Promise<{ id: 
       .select('verdict, score, conditional').eq('case_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ])
 
+  const [outcome, revisions, vendors] = await Promise.all([
+    loadOutcome(db, id),
+    loadRevisions(db, id),
+    loadVendors(db),
+  ])
+
   // 블록은 케이스에 직접 안 달려 있다 — 파일 → IR → 블록으로 내려간다.
   // (`rfp_doc_blocks` 에 `case_id` 가 없다. 없는 칸으로 물으면 원문 뷰어가 영영 빈다)
   const blocks = await loadBlocks(db, id)
@@ -39,6 +45,9 @@ export default async function RfpReportPage({ params }: { params: Promise<{ id: 
       docClass={(kase as { doc_class?: unknown }).doc_class as DocClass}
       report={((version as { report?: unknown } | null)?.report as Report) ?? null}
       blocks={blocks}
+      outcome={outcome}
+      revisions={revisions}
+      vendors={vendors}
       fit={fit
         ? {
             verdict: (fit as { verdict?: unknown }).verdict as FitVerdict,
@@ -48,6 +57,61 @@ export default async function RfpReportPage({ params }: { params: Promise<{ id: 
         : null}
     />
   )
+}
+
+/** 참여 결정과 결과 — 없으면 폼이 빈 상태로 뜬다 */
+async function loadOutcome(db: unknown, caseId: string) {
+  const q = db as never as {
+    from(t: string): { select(c: string): { eq(col: string, v: string): { maybeSingle(): Promise<{ data: unknown }> } } }
+  }
+  const { data } = await q.from('rfp_outcomes')
+    .select('decision, submitted, result, awarded_to, awarded_amount, our_rank, source')
+    .eq('case_id', caseId).maybeSingle()
+  const r = data as Record<string, unknown> | null
+  if (!r) return null
+  return {
+    decision: String(r.decision ?? 'undecided'),
+    submitted: r.submitted === null || r.submitted === undefined ? null : Boolean(r.submitted),
+    result: r.result === null || r.result === undefined ? null : String(r.result),
+    awardedTo: r.awarded_to === null || r.awarded_to === undefined ? null : String(r.awarded_to),
+    awardedAmount: r.awarded_amount === null || r.awarded_amount === undefined ? null : Number(r.awarded_amount),
+    ourRank: r.our_rank === null || r.our_rank === undefined ? null : Number(r.our_rank),
+    source: String(r.source ?? 'manual'),
+  }
+}
+
+/** 같은 공고번호의 차수 사슬 — 앞 차수를 지우지 않기 때문에 남아 있다 */
+async function loadRevisions(db: unknown, caseId: string) {
+  const q = db as never as {
+    from(t: string): {
+      select(c: string): {
+        eq(col: string, v: string): {
+          maybeSingle(): Promise<{ data: unknown }>
+          order(c: string, o: { ascending: boolean }): Promise<{ data: unknown }>
+        }
+      }
+    }
+  }
+  const { data: mine } = await q.from('rfp_case_revisions').select('notice_no').eq('case_id', caseId).maybeSingle()
+  const noticeNo = (mine as { notice_no?: unknown } | null)?.notice_no
+  if (typeof noticeNo !== 'string') return []
+
+  const { data } = await q.from('rfp_case_revisions')
+    .select('case_id, round, is_latest').eq('notice_no', noticeNo)
+    .order('round', { ascending: true })
+
+  return ((data as { case_id: string; round: number; is_latest: boolean }[] | null) ?? [])
+    .map((r) => ({ caseId: r.case_id, round: r.round, isLatest: r.is_latest }))
+}
+
+/** 교차검증에 쓸 모델들 */
+async function loadVendors(db: unknown) {
+  const q = db as never as {
+    from(t: string): { select(c: string): { eq(col: string, v: boolean): { limit(n: number): Promise<{ data: unknown }> } } }
+  }
+  const { data } = await q.from('rfp_ai_models').select('id, display_name').eq('enabled', true).limit(10)
+  return ((data as { id: string; display_name: string }[] | null) ?? [])
+    .map((m) => ({ id: m.id, label: m.display_name }))
 }
 
 interface BlockRow { block_key: string; text: string | null; page_no: number | null; type: string | null }
