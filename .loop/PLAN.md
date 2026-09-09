@@ -214,7 +214,7 @@
 의존: I14
 
 ### I16 AI 게이트웨이
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/lib/rfp/ai/gateway.ts, 신규 apps/web/lib/rfp/ai/models.ts, 신규 apps/web/lib/rfp/ai/mask.ts, 신규 apps/web/lib/rfp/ai/gateway.test.ts
 감사 기준:
