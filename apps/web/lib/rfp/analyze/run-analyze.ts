@@ -180,6 +180,8 @@ export async function runAnalyze(
     // **사슬에서 가장 작은 모델에 맞춘다.** 상수로 보내면 작은 모델에서만 413 이 나고,
     // 폴백이 그 모델에 닿는 순간 태스크가 통째로 죽는다(실측 2026-09-09: Groq 7,000 한도에 46,671 전송).
     contextTokens: input.contextTokens ?? contextBudget(pick.chain),
+    // 예산을 파일마다 나눠 쓴다 — 안 나누면 첫 파일이 다 쓰고 나머지가 빠진다
+    groupOf: (blockId) => fileIdByBlock.get(blockId) ?? 'unknown',
     meta: {
       analysisMode: 'base',
       baseVendor: pick.chain[0].displayName,

@@ -47,7 +47,8 @@ const RULES: readonly Rule[] = [
   { role: 'proposal_guide', keywords: ['제안서작성', '작성안내', '제안안내', '작성요령', '평가기준', '제안요령'], confidence: 0.85 },
   { role: 'forms', keywords: ['서식', '양식', '별지', '첨부서식', '제출서류'], confidence: 0.85 },
   { role: 'scope', keywords: ['과업내용', '과업지시', '과업설명', '사업수행계획', '요구사항정의'], confidence: 0.9 },
-  { role: 'notice', keywords: ['입찰공고', '공고문', '입찰안내', '사전규격', '규격공고'], confidence: 0.85 },
+  // 「공고서」가 없어서 실제 나라장터 첨부(「공고서(국가SW,…)」)가 etc 로 떨어졌다(실측 2026-09-09)
+  { role: 'notice', keywords: ['입찰공고', '공고문', '공고서', '입찰안내', '사전규격', '규격공고'], confidence: 0.85 },
   { role: 'main', keywords: ['제안요청서', 'rfp', '제안요청'], confidence: 0.9 },
 ]
 

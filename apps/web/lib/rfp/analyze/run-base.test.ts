@@ -305,3 +305,30 @@ test('예산이 한 블록도 못 담을 만큼 작아도 빈 프롬프트는 �
 test('블록이 없으면 빈 글', () => {
   assert.equal(renderWholeDoc({ blocks: [] } as never, 100), '')
 })
+
+test('★ 파일마다 몫을 준다 — 안 나누면 뒤 파일이 통째로 빠진다', () => {
+  // 실측 2026-09-09: 제안요청서 419블록이 예산을 다 써서 공고서 19블록
+  // (추정가격·제출마감·평가기준이 든)이 분석에 한 번도 안 들어갔다
+  const doc = {
+    blocks: [
+      ...Array.from({ length: 100 }, (_, i) => ({ blockId: `main${i}`, text: '가'.repeat(200) })),
+      ...Array.from({ length: 5 }, (_, i) => ({ blockId: `notice${i}`, text: '나'.repeat(200) })),
+    ],
+  } as never
+
+  const groupOf = (id: string) => (id.startsWith('main') ? 'f1' : 'f2')
+  const fair = renderWholeDoc(doc, 600, groupOf)
+  assert.ok(fair.includes('main0'), '첫 파일이 들어간다')
+  assert.ok(fair.includes('notice0'), '뒤 파일도 들어간다')
+
+  // 나누지 않으면 뒤 파일이 통째로 빠진다
+  const unfair = renderWholeDoc(doc, 600)
+  assert.equal(unfair.includes('notice0'), false)
+})
+
+test('파일이 하나면 예산을 다 쓴다', () => {
+  const doc = { blocks: Array.from({ length: 20 }, (_, i) => ({ blockId: `b${i}`, text: '가'.repeat(100) })) } as never
+  const one = renderWholeDoc(doc, 400, () => 'f1')
+  const none = renderWholeDoc(doc, 400)
+  assert.equal(one, none)
+})

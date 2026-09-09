@@ -46,6 +46,13 @@ export interface RunBaseInput {
   meta: Omit<ReportMeta, 'costKrw' | 'durationMs' | 'generatedAt' | 'fallbackApplied'>
   /** 나라장터가 준 값. 없으면 대조를 건너뛴다 */
   g2b?: G2bMeta | null
+  /**
+   * 블록이 어느 파일에서 왔나.
+   *
+   * 주면 예산을 **파일마다 나눠** 쓴다. 안 주면 앞에서부터 채우고,
+   * 그러면 파일이 여럿일 때 뒤 파일이 통째로 빠진다.
+   */
+  groupOf?: (blockId: string) => string
   now?: () => number
 }
 
@@ -92,7 +99,7 @@ async function runTask(
   const plan = routeSections(input.doc, task, input.contextTokens)
   // 관련 섹션이 없으면 문서 전체로 한 번 본다 — 라우팅이 틀릴 수 있다
   const batches = plan.empty
-    ? [renderWholeDoc(input.doc, input.contextTokens)]
+    ? [renderWholeDoc(input.doc, input.contextTokens, input.groupOf)]
     : plan.batches.map((b) => renderBatch(b))
 
   const fields: Record<string, ValueNode<unknown>> = {}
@@ -113,7 +120,7 @@ async function runTask(
     const filled = new Set(Object.entries(fields).filter(([, v]) => v.value !== null).map(([k]) => k))
     const fb = planFallback(task, filled, plan.empty)
     if (fb.needed) {
-      const out = await run(task, renderWholeDoc(input.doc, input.contextTokens))
+      const out = await run(task, renderWholeDoc(input.doc, input.contextTokens, input.groupOf))
       costKrw += out.costKrw
       for (const [key, node] of Object.entries(out.fields)) {
         if (fields[key]?.value !== undefined && fields[key]?.value !== null) continue
@@ -143,16 +150,27 @@ async function runTask(
  * 413 으로 죽었다(실측 2026-09-09: 한도 7,000 인 모델에 46,671 전송, 9개 중 8개 실패).
  * 앞쪽부터 담는 이유는 공고문이 개요·예산·일정을 앞에 두기 때문이다.
  */
-export function renderWholeDoc(doc: IrDocument, budgetTokens = Infinity): string {
+export function renderWholeDoc(
+  doc: IrDocument, budgetTokens = Infinity, groupOf?: (blockId: string) => string,
+): string {
+  // **파일마다 몫을 준다.** 앞에서부터 채우면 첫 파일이 예산을 다 쓰고
+  // 뒤 파일은 **한 번도 안 보낸다** — 실측 2026-09-09: 제안요청서 419블록이 예산을 소진해
+  // 공고서 19블록(추정가격·제출마감·평가기준이 든)이 분석에 통째로 빠졌다.
+  const groups = splitByGroup(doc.blocks, groupOf)
+  const share = budgetTokens === Infinity ? Infinity : budgetTokens / groups.length
+
   const parts: string[] = []
-  let used = 0
-  for (const b of doc.blocks) {
-    const piece = `[블록 ${b.blockId}]\n${b.text}`
-    const cost = estimateTokens(piece)
-    if (used + cost > budgetTokens) break
-    parts.push(piece)
-    used += cost
+  for (const group of groups) {
+    let used = 0
+    for (const b of group) {
+      const piece = `[블록 ${b.blockId}]\n${b.text}`
+      const cost = estimateTokens(piece)
+      if (used + cost > share) break
+      parts.push(piece)
+      used += cost
+    }
   }
+
   // 예산이 한 블록도 못 담을 만큼 작으면 첫 블록은 잘라서라도 넣는다 —
   // 빈 프롬프트를 보내면 모델이 「원문이 없다」고 답하고 그게 값으로 저장된다
   if (parts.length === 0 && doc.blocks.length > 0) {
@@ -160,6 +178,19 @@ export function renderWholeDoc(doc: IrDocument, budgetTokens = Infinity): string
     return `[블록 ${first.blockId}]\n${first.text}`.slice(0, Math.max(200, budgetTokens * 2))
   }
   return parts.join('\n\n')
+}
+
+/** 블록을 파일별로 나눈다. 나눌 기준이 없으면 한 무리다 */
+function splitByGroup(
+  blocks: readonly IrDocument['blocks'][number][], groupOf?: (blockId: string) => string,
+): IrDocument['blocks'][number][][] {
+  if (!groupOf) return blocks.length > 0 ? [Array.from(blocks)] : []
+  const byKey = new Map<string, IrDocument['blocks'][number][]>()
+  for (const b of blocks) {
+    const key = groupOf(b.blockId)
+    byKey.set(key, [...(byKey.get(key) ?? []), b])
+  }
+  return Array.from(byKey.values())
 }
 
 /** 태스크 결과를 리포트 칸으로 옮긴다 */

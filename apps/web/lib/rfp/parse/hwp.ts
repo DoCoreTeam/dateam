@@ -35,6 +35,8 @@ export const HWP_WARNING = {
   pageNoApproximate: 'page_no_approximate',
   /** 병합된 셀을 1x1 로 폈다 */
   mergedCellFlattened: 'merged_cell_flattened',
+  /** 문서 전체를 감싼 레이아웃 표를 줄 단위로 쪼갰다 — 표가 아니라 문서 틀이다 */
+  layoutTableSplit: 'layout_table_split',
   /** 본문에서 글자를 하나도 못 건졌다 */
   noText: 'no_text',
 } as const
@@ -278,9 +280,9 @@ function toIr(
       if (table) {
         const built = buildTable(doc, sec, table, opts.fileId, order, warnings)
         if (built) {
-          blocks.push(built.block)
-          tables.push(built.table)
-          order += 1
+          blocks.push(...built.blocks)
+          if (built.table) tables.push(built.table)
+          order += built.blocks.length
           continue
         }
       }
@@ -359,7 +361,7 @@ function buildTable(
   fileId: string,
   order: number,
   warnings: Set<string>,
-): { block: IrBlock; table: IrTable } | null {
+): { blocks: IrBlock[]; table: IrTable | null } | null {
   let dims: { rowCount?: number; colCount?: number }
   try {
     dims = JSON.parse(doc.getTableDimensions(sec, ctrl.para, ctrl.controlIndex))
@@ -378,17 +380,48 @@ function buildTable(
   }
   warnings.add(HWP_WARNING.mergedCellFlattened)
 
+  const grid = toRows(cells, rows, cols)
+  const flat = grid.map((r) => r.join('\t')).join('\n')
+
+  /**
+   * **문서 전체가 표 하나인 경우가 있다.**
+   *
+   * 한글 공공기관 서식은 공고서 전체를 하나의 큰 표로 짠다 — 실측 2026-09-09:
+   * 133KB 공고서가 **블록 1개(26,796자)** 가 됐다. 참가자격·제출서류·평가방법이
+   * 한 덩어리라 근거로 가리킬 수 없고(가리키면 문서 전체를 가리킨다),
+   * 화면에서도 한 문단으로 흘렀다.
+   *
+   * 그래서 큰 표는 **줄 단위로 쪼갠다.** 그건 표가 아니라 문서의 흐름이므로
+   * 표 목록에도 안 넣는다 — 넣으면 「표 71개」 같은 수가 거짓이 된다.
+   */
+  if (flat.length > MAX_TABLE_CHARS) {
+    warnings.add(HWP_WARNING.layoutTableSplit)
+    const blocks: IrBlock[] = []
+    for (const row of grid) {
+      const line = row.filter(Boolean).join(' ').trim()
+      if (!line) continue
+      blocks.push(makeBlock(fileId, order + blocks.length, {
+        type: 'paragraph',
+        text: line,
+        pageNo: null,
+        sourceRef: { kind: 'hwp', sectionIdx: sec, paraIdx: ctrl.para },
+      }))
+    }
+    // 한 줄도 못 건지면 원래대로 표 한 덩이로 둔다 — 내용을 잃는 것이 가장 나쁘다
+    if (blocks.length > 0) return { blocks, table: null }
+  }
+
   const block = makeBlock(fileId, order, {
     type: 'table',
     // 평문은 셀 경계를 탭으로 남긴다 — 검색과 임베딩이 이 문자열을 쓴다
-    text: toRows(cells, rows, cols).map((r) => r.join('\t')).join('\n'),
+    text: flat,
     html: toHtml(cells, rows, cols),
     pageNo: null,
     sourceRef: { kind: 'hwp', sectionIdx: sec, paraIdx: ctrl.para },
   })
 
   return {
-    block,
+    blocks: [block],
     table: {
       tableId: textHash(`${fileId}|tbl|${sec}|${ctrl.para}|${ctrl.controlIndex}`).slice(0, 16),
       blockId: block.blockId,
@@ -397,6 +430,14 @@ function buildTable(
     },
   }
 }
+
+/**
+ * 이보다 큰 표는 표가 아니라 **문서 틀**로 본다.
+ *
+ * 진짜 데이터 표(요구사항 총괄표·평가 배점표)는 이 크기를 넘지 않는다.
+ * 넘는 것은 공고서 전체를 감싼 레이아웃 표다.
+ */
+export const MAX_TABLE_CHARS = 4_000
 
 function cellText(
   doc: InstanceType<RhwpModule['HwpDocument']>,
