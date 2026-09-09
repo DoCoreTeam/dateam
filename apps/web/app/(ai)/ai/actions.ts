@@ -6,12 +6,13 @@ import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { logTokenUsage } from '@/lib/token-logger'
 import { getAvailableProviders, getProvider, getProviderConfig } from '@/lib/ai-chat/registry'
+import { isValidModelId } from '@/lib/ai-chat/model-id'
 import { buildThreadForChoice, getBranchGroups } from '@/lib/ai-chat/thread'
 import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
 import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import { probeModelIds } from '@/lib/ai-chat/probe-models'
-import { getModelSelectionError, isAvailabilitySchemaMissing } from '@/lib/ai-chat/model-availability'
+import { isAvailabilitySchemaMissing } from '@/lib/ai-chat/model-availability'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -59,13 +60,13 @@ export type MessageWithAttachments = AiChatMessage & {
 // provider/model 형식 검증 (M-2)
 // 허용 목록은 명세(lib/ai/provider-catalog)가 갖는다 — 여기 또 적으면 공급자를 늘렸을 때
 // 화면에는 나오는데 저장에서 막히는 상태가 된다.
-const MODEL_RE = /^[\w.:\-]{1,64}$/
+
 
 function isValidProvider(p: unknown): p is AiChatProviderId {
   return isAiProviderId(p)
 }
 function isValidModel(m: unknown): m is string {
-  return typeof m === 'string' && MODEL_RE.test(m)
+  return isValidModelId(m)
 }
 
 interface Ctx {
@@ -142,8 +143,15 @@ export async function createConversation(input: {
   if (!getProviderConfig(meta, input.provider)) {
     return { ok: false, error: '해당 프로바이더의 AI 키가 설정되지 않았습니다' }
   }
-  const unavailable = await getModelSelectionError(ctx.admin, input.provider, model)
-  if (unavailable) return { ok: false, error: unavailable }
+  /**
+   * 카탈로그 상태로 **미리 막지 않는다.**
+   *
+   * 폴백 체인(lib/ai-chat/model-chain)이 생긴 뒤로 「지금 이 모델이 막혔나」는 보내는 순간에
+   * 정해진다 — 막혔으면 다음 후보로 갈아타고 무엇으로 답했는지 화면에 적는다.
+   * 그런데 여기서 미리 막으면 **대화 자체가 안 열려서 체인이 돌 기회가 없다.**
+   * 실측 v0.7.716: 고른 모델이 「지금 쓸 수 없음」이라 「대화 생성에 실패했습니다」만 뜨고 끝났다.
+   * 스트림 라우트에서 같은 이유로 걷어낸 사전 차단(409)이 여기 남아 있었다.
+   */
 
   const { data, error } = await ctx.admin
     .from('ai_conversations')
@@ -361,8 +369,8 @@ export async function updateConversationModel(
   if (!getProviderConfig(meta, provider)) {
     return { ok: false, error: '해당 프로바이더의 AI 키가 설정되지 않았습니다' }
   }
-  const unavailable = await getModelSelectionError(ctx.admin, provider, trimmed)
-  if (unavailable) return { ok: false, error: unavailable }
+  // 모델 변경도 미리 막지 않는다 — 위 createConversation 과 같은 이유다.
+  // 「지금 쓸 수 없음」인 모델을 고르는 것은 사용자의 자유고, 실제 결과는 보낼 때 정해진다.
 
   const { error } = await ctx.admin
     .from('ai_conversations')

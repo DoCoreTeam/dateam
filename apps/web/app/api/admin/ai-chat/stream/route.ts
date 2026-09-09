@@ -14,6 +14,7 @@ import { extractDocumentText } from '@/lib/ai-chat/document-extract'
 import { retrieveProjectContext, buildProjectSystemBlock } from '@/lib/ai-chat/knowledge'
 import { autoTitle } from '@/app/(ai)/ai/actions'
 import { classifyProviderError } from '@/lib/ai-chat/provider-errors'
+import { isValidModelId } from '@/lib/ai-chat/model-id'
 import {
   buildModelChain,
   pruneChain,
@@ -29,8 +30,8 @@ const MAX_HISTORY_TURNS = 40
 const BUCKET = 'ai-chat'
 
 // provider/model 형식 방어 (M-2)
-// 허용 목록은 명세(lib/ai/provider-catalog)가 갖는다
-const MODEL_RE = /^[\w.:\-]{1,64}$/
+// 허용 목록은 명세(lib/ai/provider-catalog)가, 형식은 lib/ai-chat/model-id 가 갖는다.
+// 여기 또 적으면 둘이 조용히 갈린다 — 실제로 갈려서 Groq 모델이 저장에서 막혔다.
 const MODES = ['send', 'regenerate', 'edit'] as const
 type StreamMode = (typeof MODES)[number]
 
@@ -301,7 +302,7 @@ export async function POST(req: NextRequest) {
 
   if (
     !isAiProviderId(conversation.provider) ||
-    !MODEL_RE.test(conversation.model)
+    !isValidModelId(conversation.model)
   ) {
     return NextResponse.json({ error: '유효하지 않은 프로바이더 또는 모델입니다' }, { status: 400 })
   }

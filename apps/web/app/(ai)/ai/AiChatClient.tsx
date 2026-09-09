@@ -471,14 +471,24 @@ export default function AiChatClient({
     }
   }
 
-  // 대화 없으면 지연 생성 후 id 반환(첨부·전송 공용)
+  /**
+   * 대화 없으면 지연 생성 후 id 반환(첨부·전송 공용).
+   * 실패하면 **서버가 준 이유를 그대로 남긴다** — 「대화 생성에 실패했습니다」 한 줄만 보고
+   * 무엇이 잘못됐는지 알 방법이 없었다(실측 v0.7.716).
+   */
+  // ⚠️ state 가 아니라 ref 다 — 바로 다음 줄에서 읽어야 하는데 state 는 그 시점에 아직 낡았다
+  const convCreateError = useRef<string | null>(null)
   async function ensureConversation(): Promise<string | null> {
     if (selectedId) return selectedId
     const provider = curProvider
     const model = curModel
     if (!provider || !model) return null
+    convCreateError.current = null
     const r = await createConversation({ provider, model })
-    if (!r.ok || !r.id) return null
+    if (!r.ok || !r.id) {
+      convCreateError.current = r.error ?? null
+      return null
+    }
     setSelectedId(r.id)
     updateUrl(r.id)
     void refreshConversations()
@@ -630,7 +640,7 @@ export default function AiChatClient({
     if (!convId) {
       convId = await ensureConversation()
       if (!convId) {
-        setMsgError('대화 생성에 실패했습니다')
+        setMsgError(convCreateError.current ?? '대화 생성에 실패했습니다')
         return
       }
     }
