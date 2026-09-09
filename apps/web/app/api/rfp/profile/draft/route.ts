@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { parseFile } from '@/lib/rfp/parse'
 import { draftProfile } from '@/lib/rfp/fit/draft'
+import { saveProfile, missingForAssessment } from '@/lib/rfp/db/profile'
 import { checkFileSize } from '@/lib/rfp/db/files'
 import type { IrDocument } from '@/lib/rfp/ir/types'
 
@@ -63,37 +64,34 @@ export async function POST(req: NextRequest) {
   const { data: orgId } = await (db as any).rpc('rfp_default_org')
   if (!orgId) return NextResponse.json({ error: '조직을 찾지 못했습니다' }, { status: 403 })
 
-  const { data: last } = await (db as any)
-    .from('rfp_company_profiles')
-    .select('version')
-    .order('version', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const draft = draftProfile(docs, 1)
 
-  const draft = draftProfile(docs, Number(last?.version ?? 0) + 1)
-
-  const { data, error } = await (db as any)
-    .from('rfp_company_profiles')
-    .insert({
-      org_id: orgId,
-      version: draft.profile.version,
+  // 초안도 **다섯 부분 전부** 저장한다. 예전에는 basic 만 넣고 인증·실적을
+  // 응답에만 실어 보냈다 — 화면을 새로 고치면 그대로 사라졌다.
+  let saved
+  try {
+    saved = await saveProfile(db as any, {
+      orgId: String(orgId),
+      createdBy: gate.user.id,
       // 확정 전에는 판정에 안 쓰인다
       status: 'draft',
-      basic: draft.profile.basic,
-      created_by: gate.user.id,
+      profile: {
+        basic: draft.profile.basic,
+        certifications: draft.profile.certifications,
+        trackRecords: draft.profile.trackRecords,
+        capabilities: draft.profile.capabilities,
+        partners: draft.profile.partners,
+      },
     })
-    .select('id, version, status, basic')
-    .single()
-
-  if (error) return NextResponse.json({ error: '초안을 저장하지 못했습니다' }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: '초안을 저장하지 못했습니다' }, { status: 500 })
+  }
 
   return NextResponse.json({
-    profile: data,
-    certifications: draft.profile.certifications,
-    trackRecords: draft.profile.trackRecords,
+    profile: saved,
     // 값마다 어디서 뽑았는지 — 확인·수정이 실제로 이뤄지려면 이게 있어야 한다
     evidence: draft.evidence,
-    missing: draft.missing,
+    missing: missingForAssessment(saved),
     failed,
   }, { status: 201 })
 }

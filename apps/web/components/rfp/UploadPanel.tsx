@@ -1,14 +1,20 @@
 'use client'
 
-// 첨부 올리기 — **등급을 고르기 전에는 제출이 막힌다.**
+// 첨부 올리기 — **파일과 등급 둘뿐이다.**
+//
+// 사업명은 묻지 않는다. 공고문 안에 있는 것을 사람에게 타이핑시키는 것은
+// 시스템이 곧 알아낼 것을 두 번 시키는 것이다. 파일 이름으로 임시 이름을 만들고,
+// 분석이 진짜 사업명을 찾으면 그때 대신한다.
+//
+// **등급을 고르기 전에는 제출이 막힌다.**
 //
 // 등급에 기본값을 주면 NDA 문서가 공개로 들어오고, 그 뒤 모든 외부 호출이
 // 「공개니까 보내도 된다」고 판단한다. 그래서 여기서 사람이 반드시 고른다.
 //
 // ## 배치
 //
-// 세 덩어리다 — 무엇을 분석하나(사업명) / 어디까지 보낼 수 있나(등급) / 무엇을 읽나(파일).
-// 예전엔 셋을 한 카드에 이어 붙여서 어디까지가 한 질문인지 안 보였다.
+// 두 덩어리다 — 무엇을 읽나(파일) / 어디까지 보낼 수 있나(등급).
+// 예전엔 사업명까지 셋을 한 카드에 이어 붙여서 어디까지가 한 질문인지 안 보였다.
 
 import { useCallback, useRef, useState } from 'react'
 import { Upload, X, FileText } from 'lucide-react'
@@ -18,6 +24,7 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { RFP_INTAKE, DOC_CLASS_LABEL, DOC_CLASS_HINT, DOC_CLASS_EFFECT } from '@/lib/rfp/terms'
 import { DOC_CLASS_ORDER, type DocClass } from '@/lib/rfp/domain/doc-class'
 import { MAX_FILE_BYTES, MAX_CASE_BYTES } from '@/lib/rfp/db/limits'
+import { provisionalTitle } from '@/lib/rfp/db/cases'
 import styles from '@/app/(rfp)/rfp.module.css'
 
 export interface UploadPanelProps {
@@ -37,7 +44,6 @@ function humanSize(bytes: number): string {
 
 export default function UploadPanel({ onDone }: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [title, setTitle] = useState('')
   const [docClass, setDocClass] = useState<DocClass | ''>('')
   const [files, setFiles] = useState<Picked[]>([])
   const [dragging, setDragging] = useState(false)
@@ -69,7 +75,6 @@ export default function UploadPanel({ onDone }: UploadPanelProps) {
 
   const submit = useCallback(async () => {
     setError(null)
-    if (!title.trim()) { setError(RFP_INTAKE.titleRequired); return }
     // 등급을 안 고르면 여기서 멈춘다
     if (!docClass) { setError(RFP_INTAKE.docClassRequired); return }
 
@@ -78,7 +83,8 @@ export default function UploadPanel({ onDone }: UploadPanelProps) {
       const created = await fetch('/api/rfp/cases', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), docClass }),
+        // 이름은 첫 파일에서 딴 임시값이다. 분석이 사업명을 찾으면 대신한다
+        body: JSON.stringify({ title: provisionalTitle(files.find((f) => !f.error)?.file.name), docClass }),
       })
       const body = await created.json()
       if (!created.ok) { setError(RFP_INTAKE.failed); return }
@@ -100,30 +106,16 @@ export default function UploadPanel({ onDone }: UploadPanelProps) {
     } finally {
       setBusy(false)
     }
-  }, [title, docClass, files, onDone])
+  }, [docClass, files, onDone])
 
   const usable = files.filter((f) => !f.error).length
-  const canSubmit = Boolean(title.trim()) && Boolean(docClass) && usable > 0 && !busy
+  const canSubmit = Boolean(docClass) && usable > 0 && !busy
 
   return (
     <div className={styles.stack}>
       {error && <FormErrorBanner message={error} />}
 
-      {/* ① 무엇을 분석하나 */}
-      <section className="card">
-        <div className={styles.field}>
-          <label className="label" htmlFor="rfp-title">{RFP_INTAKE.titleLabel}</label>
-          <input
-            id="rfp-title"
-            className="input-field"
-            value={title}
-            placeholder={RFP_INTAKE.titlePlaceholder}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-      </section>
-
-      {/* ② 어디까지 보낼 수 있나 — 고르지 않으면 못 넘어간다 */}
+      {/* ① 어디까지 보낼 수 있나 — 고르지 않으면 못 넘어간다 */}
       <section className="card">
         <div className={styles.sectionHead}>
           <span className={styles.sectionTitle}>{RFP_INTAKE.docClassLabel}</span>
@@ -148,7 +140,7 @@ export default function UploadPanel({ onDone }: UploadPanelProps) {
         </div>
       </section>
 
-      {/* ③ 무엇을 읽나 */}
+      {/* ② 무엇을 읽나 */}
       <section className="card">
         <div className={styles.sectionHead}>
           <div className={styles.between}>
@@ -156,6 +148,8 @@ export default function UploadPanel({ onDone }: UploadPanelProps) {
             {files.length > 0 && <NbBadge status="note">{usable} / {files.length}</NbBadge>}
           </div>
           <span className={styles.sectionDesc}>{RFP_INTAKE.fileHint}</span>
+          {/* 이름을 왜 안 묻는지 화면이 말한다 — 안 말하면 «칸이 빠졌나»로 읽힌다 */}
+          <span className={styles.sectionDesc}>{RFP_INTAKE.titleFromDoc}</span>
         </div>
 
         <input
