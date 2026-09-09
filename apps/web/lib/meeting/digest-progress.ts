@@ -53,12 +53,19 @@ export function formatElapsed(elapsedMs: number): string {
 }
 
 /**
- * 무엇을 읽고 있는지 — **가진 것만 말한다.**
- * 없는 것을 세어 「녹음 0줄」이라고 말하면 사용자는 녹음이 실패했다고 읽는다.
+ * 무엇을 읽고 있는지 — **가진 것만, 아는 대로만 말한다.**
+ *
+ * 없는 것을 세어 「0줄」이라고 말하면 사용자는 그 단계가 실패했다고 읽는다.
+ *
+ * **「녹음」이라고 부르지 않는다**(v0.7.702, 사용자 지적: *"녹음을 읽는다고는 왜 나오고?"*).
+ * 전사 구간은 세 갈래에서 온다 — ①실제 녹음 전사 ②붙여넣은 전사 ③원본 본문 스냅샷.
+ * 셋을 다 「녹음」이라 부르면, 녹음한 적 없는 회의에서 **하지도 않은 일을 했다고 말한다.**
+ * 실측: 메모만 적은 회의(녹음 0건)에서 화면이 「녹음 N줄을 읽고 있어요」라고 말했다.
+ * 저장소가 이미 쓰는 말이 있다 — 「받아적은 내용」(작업대의 그 상자 이름 그대로다).
  */
 export function readingWhat(memoChars: number, segmentCount: number): string {
   const memo = memoChars > 0 ? `메모 ${memoChars.toLocaleString()}자` : null
-  const rec = segmentCount > 0 ? `녹음 ${segmentCount.toLocaleString()}줄` : null
+  const rec = segmentCount > 0 ? `받아적은 내용 ${segmentCount.toLocaleString()}줄` : null
   if (memo && rec) return `${memo}와 ${rec}을 함께 읽고 있어요`
   if (memo) return `${memo}를 읽고 있어요`
   if (rec) return `${rec}을 읽고 있어요`

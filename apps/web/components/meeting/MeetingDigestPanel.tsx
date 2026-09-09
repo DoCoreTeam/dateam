@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Sparkles, History, TriangleAlert, FileDown, ArrowRight } from 'lucide-react'
+import { Sparkles, History, TriangleAlert, FileDown, ArrowRight, Pencil } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import InlineError from '@/components/ui/InlineError'
@@ -43,6 +43,13 @@ interface Props {
   canEdit: boolean
   /** 근거를 누르면 전사 탭의 그 대목으로 — 상위가 탭 전환과 하이라이트를 맡는다 */
   onEvidence?: (segmentIds: string[]) => void
+  /**
+   * 「수정」을 누르면 원문을 펼치고 작성 탭으로 간다.
+   *
+   * **여기서 글을 고치지 않는다** — 편집기는 원문 상자 안 하나뿐이고(§2-3-6 P-4),
+   * 이 버튼은 그리로 **안내만** 한다. 두 번째 쓰기 경로를 만들면 결국 다른 곳에 쓴다.
+   */
+  onEditMemo?: () => void
   /** 정리가 끝나면 알린다 — 헤더 배지가 "정리 8/24 15:02"로 바뀐다 */
   onDigested?: (at: string) => void
   /**
@@ -58,7 +65,7 @@ function OriginBadge({ origin }: { origin: FactOrigin }) {
 }
 
 export default function MeetingDigestPanel({
-  noteId, canEdit, onEvidence, onDigested, memoChars = 0, segmentCount = 0,
+  noteId, canEdit, onEvidence, onEditMemo, onDigested, memoChars = 0, segmentCount = 0,
 }: Props) {
   const [versions, setVersions] = useState<Version[] | null>(null)
   const [showing, setShowing] = useState<number | null>(null)
@@ -135,6 +142,19 @@ export default function MeetingDigestPanel({
   const exportButton = latest ? (
     <NbButton variant="ghost" onClick={() => setExporting(true)}>
       <FileDown size={15} /> {ACTION.export}
+    </NbButton>
+  ) : null
+
+  /*
+    고치러 가는 길. **늘 보이는 자리에 둔다.**
+
+    정리가 있으면 원문 상자가 접힌다(§2-3-6 P-3). 그런데 편집기가 그 안에 있어서,
+    접힌 동안 화면에 「수정」이 한 개도 없었다 — 실측으로 사용자가 못 찾았다
+    (*"수정은 어떻게 하니?"*). 내보내기·다시 정리와 같은 줄에 세운다.
+  */
+  const editButton = canEdit && onEditMemo ? (
+    <NbButton variant="ghost" onClick={onEditMemo}>
+      <Pencil size={15} /> {ACTION.edit}
     </NbButton>
   ) : null
 
@@ -232,7 +252,7 @@ export default function MeetingDigestPanel({
                 </span>
               )}
             </div>
-            <span className={styles.headActions}>{exportButton}{runButton}</span>
+            <span className={styles.headActions}>{editButton}{exportButton}{runButton}</span>
           </div>
 
           {/*

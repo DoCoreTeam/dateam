@@ -149,7 +149,7 @@ export default function MeetingWorkbench({
   const onSegments = useCallback((segs: TranscriptSegment[]) => setSegCount(segs.length), [])
 
   /**
-   * 근거를 누르면 **근거를 펼치고** 전사 탭으로 간다.
+   * 근거 인용을 누르면 **원문을 펼치고** 전사 탭으로 간다.
    *
    * 펼치는 것이 먼저다 — 접힌 상태에서는 전사 목록이 아예 안 그려져 있어(아래 `evidenceOpen &&`)
    * 탭만 바꾸면 스크롤할 대상이 없다.
@@ -174,6 +174,19 @@ export default function MeetingWorkbench({
         150,
       )
     }
+  }, [router])
+
+  /**
+   * 「수정」 — 원문을 펼치고 작성 탭으로 간다.
+   *
+   * `onEvidence` 와 같은 구조다(펼치기가 먼저, 탭은 URL 이 쥔다). 다른 것은 목적지뿐이라
+   * 두 벌로 두지 않고 나란히 둔다 — 한쪽만 고치면 하나는 탭이 안 넘어간다(실측 v0.7.593).
+   */
+  const openMemo = useCallback(() => {
+    setEvidenceOpen(true)
+    const url = new URL(window.location.href)
+    url.searchParams.set('wb', 'memo')
+    router.replace(`${url.pathname}${url.search}`, { scroll: false })
   }, [router])
 
   const load = useCallback(async () => {
@@ -284,11 +297,12 @@ export default function MeetingWorkbench({
         memoChars={shownMemoChars}
         segmentCount={shownSegCount}
         onEvidence={onEvidence}
+        onEditMemo={openMemo}
         onDigested={() => { onDigested?.() }}
       />
 
       {/*
-        근거 — 접기. 「그 말이 어디서 나왔나」를 확인하는 자리다.
+        원문 — 접기. 「그 말이 어디서 나왔나」를 확인하고, **고치는** 자리다.
         `<details>` 를 쓰는 이유: 열고 닫는 키보드·스크린리더 규약이 브라우저에 이미 있다.
         자작 토글은 그것을 다시 만들어야 하고, 대개 빠뜨린다.
       */}

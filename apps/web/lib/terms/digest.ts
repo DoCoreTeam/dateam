@@ -50,10 +50,17 @@ export const TRANSCRIPT_LABEL = '녹음·전사'
 /**
  * 재료를 함께 부르는 말.
  *
- * 「원문」이 아니라 **「근거」**다 — 정리를 먼저 읽은 사람에게 이 둘은
- * *"그 말이 어디서 나왔나"* 를 확인하는 자리이지 별도의 읽을거리가 아니다.
+ * **「근거」가 아니라 「원문」이다**(v0.7.702, 사용자 지적: *"근거라는게 좀 이상한데 워딩이"*).
+ *
+ * 예전 이름은 **읽는 쪽만 보고** 지었다 — 정리를 먼저 읽은 사람에게 이 상자는
+ * "그 말이 어디서 나왔나"를 확인하는 자리라는 뜻이었다. 그 말도 맞다. 그런데
+ * **그 상자는 쓰는 자리이기도 하다** — 메모 편집기가 그 안에 있다.
+ * 이름이 절반만 설명하니, 고치러 온 사람이 「근거」를 열어 볼 이유를 못 찾는다
+ * (실제로 그렇게 됐다: *"수정도 근거에 접혀 있던데"*).
+ *
+ * 「원문」은 두 역할을 다 담는다 — 정리의 출처이면서, 고칠 대상이다.
  */
-export const EVIDENCE_LABEL = '근거'
+export const EVIDENCE_LABEL = '원문'
 
 /**
  * 정리가 만들어진 뒤 재료가 바뀌었을 때.
@@ -92,7 +99,8 @@ export const FACT_ORIGIN: Record<'memo' | 'transcript' | 'both', string> = {
 export function digestMaterialLine(memoChars: number, segmentCount: number): string | null {
   const parts: string[] = []
   if (memoChars > 0) parts.push(`${MEMO_LABEL} ${memoChars.toLocaleString()}자`)
-  if (segmentCount > 0) parts.push(`녹음 ${segmentCount.toLocaleString()}줄`)
+  // 「녹음」이 아니다 — 이 구간은 붙여넣은 전사·원본 본문일 수도 있다(digest-progress 와 같은 말)
+  if (segmentCount > 0) parts.push(`받아적은 내용 ${segmentCount.toLocaleString()}줄`)
   if (parts.length === 0) return null
   return parts.join(' · ')
 }

@@ -20,15 +20,25 @@ describe('정리 진행 문구 — 5분 동안 침묵하지 않는다', () => {
 
   it('★ 곧 무엇을 읽는지 말한다 — 숫자가 근거다', () => {
     const v = digestProgress({ ...src, elapsedMs: DIGEST_START_MS })
-    assert.equal(v.message, '메모 218자와 녹음 406줄을 함께 읽고 있어요')
+    assert.equal(v.message, '메모 218자와 받아적은 내용 406줄을 함께 읽고 있어요')
     assert.equal(v.reassure, null, '평소에는 덧말을 붙이지 않는다')
   })
 
-  it('★ 없는 것을 세지 않는다 — 「녹음 0줄」은 실패로 읽힌다', () => {
+  it('★ 없는 것을 세지 않는다 — 「0줄」은 실패로 읽힌다', () => {
     assert.equal(readingWhat(218, 0), '메모 218자를 읽고 있어요')
-    assert.equal(readingWhat(0, 406), '녹음 406줄을 읽고 있어요')
+    assert.equal(readingWhat(0, 406), '받아적은 내용 406줄을 읽고 있어요')
     assert.doesNotMatch(readingWhat(218, 0), /0줄/)
     assert.doesNotMatch(readingWhat(0, 406), /0자/)
+  })
+
+  it('★ 전사 구간을 「녹음」이라 부르지 않는다 — 녹음한 적 없는 회의가 했다고 말한다', () => {
+    /*
+      실측 v0.7.702: 메모만 적은 회의(녹음 0건)의 CRM 끝내기 화면이
+      「녹음 N줄을 읽고 있어요」라고 말했다. 그 구간은 원본 본문 스냅샷이었다.
+    */
+    assert.doesNotMatch(readingWhat(0, 406), /녹음/)
+    assert.doesNotMatch(readingWhat(218, 406), /녹음/)
+    assert.match(readingWhat(0, 406), /받아적은 내용 406줄/)
   })
 
   it('둘 다 모를 때 숫자를 지어내지 않는다', () => {
@@ -301,8 +311,25 @@ describe('받아적은 내용 상자 — 페이지 스크롤을 가두지 않는
 describe('AI 예산 — 라우트가 준 시간을 다 쓴다', () => {
   it('★ 정리가 예산을 명시한다 — 기본값(120초)에 맡기면 라우트가 4분 남았는데 포기한다', () => {
     const s = read('lib/meeting/digest-run.ts')
+    /*
+      상수를 실제로 넘기는지만 본다. 남은 시간으로 깎는 것(`budget.cap`)은 허용한다 —
+      깎는 쪽은 아래 «예산이 라우트 상한을 넘지 않는다» 계약이 따로 지킨다.
+      호출부가 상수를 안 쓰고 라이브러리 기본값에 맡기는 것만 막는 것이 이 가드의 뜻이다.
+    */
     assert.match(s, /timeoutMs: DIGEST_CALL_MS, overallTimeoutMs: DIGEST_OVERALL_MS/)
-    assert.match(s, /timeoutMs: CONDENSE_CALL_MS, overallTimeoutMs: CONDENSE_OVERALL_MS/)
+    assert.match(s, /timeoutMs: Math\.min\(CONDENSE_CALL_MS, [A-Za-z]+\), overallTimeoutMs: [A-Za-z]+/)
+    assert.match(s, /CONDENSE_OVERALL_MS/, '구간 압축 상한 상수를 아예 안 쓰면 기본값에 맡긴 것이다')
+  })
+
+  it('★ 부르는 쪽이 시간 예산을 줄 수 있다 — 「미팅 끝내기」는 5축까지 이어 돌린다', () => {
+    const run = read('lib/meeting/digest-run.ts')
+    assert.match(run, /budgetMs\?: number/, '예산을 받는 인자가 없다')
+    assert.match(run, /budget\.cap\(CONDENSE_OVERALL_MS\)/, '받은 예산으로 상한을 깎지 않는다')
+    assert.match(run, /budget\.remaining\(\)/, '남은 시간을 보지 않으면 종합할 시간을 남길 수 없다')
+
+    // 끝내기가 실제로 예산을 넘긴다 — 만들어 놓고 안 넘기면 없는 기능이다
+    const finishRoute = read('app/api/crm/meetings/[id]/finish/route.ts')
+    assert.match(finishRoute, /budgetMs/, '끝내기 라우트가 정리에 예산을 안 넘긴다')
   })
 
   it('★ 예산이 라우트 상한을 넘지 않는다 — 넘으면 함수가 먼저 죽어 사용자가 이유를 못 듣는다', () => {
