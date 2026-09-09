@@ -343,7 +343,7 @@
 의존: I15, I24
 
 ### I28 나라장터 공고 연동
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/lib/rfp/g2b/client.ts, 신규 apps/web/lib/rfp/g2b/map.ts, 신규 apps/web/lib/rfp/g2b/g2b.test.ts, 신규 apps/web/app/api/rfp/g2b/route.ts
 감사 기준:
