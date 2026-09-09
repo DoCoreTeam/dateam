@@ -297,3 +297,43 @@ export function subPeriods(p: Period, into: 'QUARTER' | 'MONTH'): Period[] {
   const n = into === 'QUARTER' ? 4 : 12
   return Array.from({ length: n }, (_, i) => ({ kind: into, year: p.year, index: i + 1 }))
 }
+
+// ------------------------------------------------------------
+// 주소에 싣는 모양 — 화면·도우미·링크가 같은 문법을 쓴다
+// ------------------------------------------------------------
+
+/**
+ * 기간을 한 토막 문자열로.
+ *
+ * 주소에 들어가야 링크를 보낸 사람과 받은 사람이 **같은 화면**을 본다.
+ * 그래서 사람이 읽을 수 있고 쪼개기 쉬운 모양으로 둔다 — `QUARTER:2026:4`.
+ */
+export function formatPeriodKey(p: Period): string {
+  return p.kind === 'YEAR' ? `YEAR:${p.year}` : `${p.kind}:${p.year}:${p.index}`
+}
+
+/**
+ * 주소에서 기간을 읽는다.
+ *
+ * **못 읽으면 기본값이다 — 500 을 주지 않는다.** 주소를 손으로 고친 사람에게
+ * 오류 화면을 주면 그 사람은 자기가 뭘 잘못했는지 영영 모른다.
+ */
+export function parsePeriodKey(raw: string | null | undefined, fallback: Period): Period {
+  if (!raw) return fallback
+  const [kind, y, i] = String(raw).split(':')
+  try {
+    return validatePeriod({ kind, year: Number(y), index: i === undefined ? undefined : Number(i) })
+  } catch {
+    return fallback
+  }
+}
+
+/** 오늘이 든 기간 — 화면의 기본값. 시계를 안 읽으려고 오늘을 받는다 */
+export function periodOfToday(kind: PeriodKind, todayKey: string): Period {
+  const year = Number(todayKey.slice(0, 4))
+  const m = Number(todayKey.slice(5, 7))
+  if (kind === 'YEAR') return { kind, year }
+  if (kind === 'HALF') return { kind, year, index: m <= 6 ? 1 : 2 }
+  if (kind === 'QUARTER') return { kind, year, index: Math.ceil(m / 3) }
+  return { kind, year, index: m }
+}

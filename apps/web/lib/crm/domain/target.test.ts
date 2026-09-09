@@ -14,6 +14,7 @@ import {
   shouldOfferNextYear, nextYearOf, NEXT_YEAR_PROMPT_MONTH,
   validatePeriod, validateScope, validateTarget, validateTargets,
   targetKey, findTarget, splitEvenly, subPeriods,
+  formatPeriodKey, parsePeriodKey, periodOfToday,
   TargetError, MAX_TARGETS, YEAR_MIN, YEAR_MAX,
   type TargetSpec,
 } from './target.ts'
@@ -209,4 +210,31 @@ test('대상 값을 코드에 나열하지 않는다 (P-1)', () => {
   for (const v of ['공공', 'B2B', 'B2G', '대학', '엔터프라이즈', 'GPU 인프라']) {
     assert.ok(!body.includes(v), `목표 선언에 값 「${v}」이 박혀 있다(P-1)`)
   }
+})
+
+// ── 주소 왕복 ────────────────────────────────────────────
+test('★ 기간이 주소에 실리고 그대로 되읽힌다 — 링크를 보내면 같은 화면이 열린다', () => {
+  for (const p of [
+    { kind: 'YEAR' as const, year: 2026 },
+    { kind: 'HALF' as const, year: 2026, index: 2 },
+    { kind: 'QUARTER' as const, year: 2026, index: 4 },
+    { kind: 'MONTH' as const, year: 2026, index: 9 },
+  ]) {
+    assert.deepEqual(parsePeriodKey(formatPeriodKey(p), { kind: 'YEAR', year: 1 }), p)
+  }
+})
+
+test('★ 못 읽는 주소는 기본값으로 떨어진다 — 손으로 고친 사람에게 500 을 주지 않는다', () => {
+  const fb = { kind: 'YEAR' as const, year: 2026 }
+  for (const bad of [null, '', '쓰레기', 'QUARTER:2026:9', 'YEAR:99999', 'MONTH:2026']) {
+    assert.deepEqual(parsePeriodKey(bad, fb), fb, `${bad} 를 통과시켰다`)
+  }
+})
+
+test('오늘이 든 기간을 종류별로 낸다 — 시계를 읽지 않는다', () => {
+  assert.deepEqual(periodOfToday('YEAR', '2026-09-09'), { kind: 'YEAR', year: 2026 })
+  assert.deepEqual(periodOfToday('HALF', '2026-09-09'), { kind: 'HALF', year: 2026, index: 2 })
+  assert.deepEqual(periodOfToday('QUARTER', '2026-09-09'), { kind: 'QUARTER', year: 2026, index: 3 })
+  assert.deepEqual(periodOfToday('MONTH', '2026-09-09'), { kind: 'MONTH', year: 2026, index: 9 })
+  assert.deepEqual(periodOfToday('HALF', '2026-06-30'), { kind: 'HALF', year: 2026, index: 1 }, '6월은 상반기')
 })
