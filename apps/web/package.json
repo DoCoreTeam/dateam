@@ -17,6 +17,7 @@
     "test:crud": "node --test --experimental-strip-types \"tests/crm/services/*.test.ts\""
   },
   "dependencies": {
+    "@ax/ai-core": "workspace:*",
     "@anthropic-ai/sdk": "^0.111.0",
     "@dnd-kit/core": "^6.3.1",
     "@hookform/resolvers": "^3.10.0",

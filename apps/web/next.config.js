@@ -36,6 +36,14 @@ const nextConfig = {
   // 왜: `.next`가 겹쳐 dev가 깨지는 게 무서워 빌드 검증을 미루는 동안
   //   v0.7.455의 빌드 파손이 이틀간 안 보였다. NEXT_DIST_DIR=.next-check 로 확인한다.
   distDir: process.env.NEXT_DIST_DIR || '.next',
+
+  /**
+   * 워크스페이스 패키지는 타입이 붙은 채로 온다.
+   *
+   * Next 14 는 node_modules 안의 것을 컴파일 대상으로 안 보므로, 여기 이름을 올려야
+   * `packages/*` 의 ts 가 빌드에 들어간다. 안 올리면 개발 중에는 되는데 빌드만 깨진다.
+   */
+  transpilePackages: ['@ax/ai-core'],
   experimental: {
     // 번들하면 안 되는 서버 전용 패키지 — **크로미움 바이너리를 다루는 둘만** 남긴다.
     //

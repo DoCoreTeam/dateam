@@ -23,6 +23,7 @@
 import { decideTransfer, type DocClass, type TransferDecision } from '../domain/doc-class.ts'
 import { maskPii, unmaskPii, hasUnmaskedPii, countByKind, type PiiHit } from './mask.ts'
 import { costKrw, type AiModel } from './models.ts'
+import { AI_CONTRACT_VERSION, type AiContractVersion } from '@ax/ai-core'
 
 export class TransferBlockedError extends Error {
   readonly reason: string
@@ -106,6 +107,13 @@ export interface GatewayStore {
 }
 
 export interface CallMeta {
+  /**
+   * 이 결과가 어느 판의 규칙으로 만들어졌나.
+   *
+   * 읽을 때가 아니라 **만들 때** 박는다. 판 번호 없이 저장된 값은 나중에 올릴 수 없다 —
+   * 무슨 규칙으로 쓰였는지 아무 데도 안 적혀 있기 때문이다.
+   */
+  contractVersion: AiContractVersion
   modelId: string
   modelName: string
   /** 1순위가 아니라 폴백으로 성공했으면 그 앞 모델들 */
@@ -186,6 +194,7 @@ export async function callWithFallback(
       return {
         text: gate.internal ? raw.text : unmaskPii(raw.text, masked.hits),
         meta: {
+          contractVersion: AI_CONTRACT_VERSION,
           modelId: model.id,
           modelName: model.modelName,
           // 어느 모델이 막혔는지 결과에 남는다. 안 남기면 왜 느렸는지 아무도 모른다
