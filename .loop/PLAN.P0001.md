@@ -446,9 +446,9 @@
 의존: I14, I28
 
 ### I38 화면 리포트와 원문 뷰어
-상태: 대기
+상태: 통과
 모드: 경량
-범위: 신규 apps/web/app/(rfp)/rfp/[id]/page.tsx, 신규 apps/web/app/(rfp)/rfp/[id]/ReportClient.tsx, 신규 apps/web/components/rfp/ReportCard.tsx, 신규 apps/web/components/rfp/SourceViewer.tsx, 신규 apps/web/components/rfp/EvidenceLink.tsx
+범위: 신규 apps/web/app/(rfp)/rfp/[id]/page.tsx, 신규 apps/web/app/(rfp)/rfp/[id]/ReportClient.tsx, 신규 apps/web/components/rfp/ReportCard.tsx, 신규 apps/web/components/rfp/SourceViewer.tsx, 신규 apps/web/components/rfp/RfpEvidenceLink.tsx
 감사 기준:
 - 브라우저에서 리포트 카드 9종과 이상 조항 섹션과 적합도 상세가 렌더되는 것 확인
 - 근거 링크를 누르면 원문 뷰어가 해당 페이지와 블록을 하이라이트하는 것 확인
@@ -537,6 +537,13 @@
 - 그 시점에 I18 은 이미 구현·검증·커밋(5883e198)까지 끝났는데 `loop pass` 기록만 빠졌다 — 여기서 통과로 되돌렸다
 - 이후 항목은 이 파일이 재개 근거다. loop CLI 의 활성 플랜은 다른 세션 것이므로 상태는 여기서 직접 적는다
 - 커밋 형식은 그대로 `vX.Y.Z-Ixx: 제목`
+- I38 실화면에서 결함 3건을 잡아 고쳤다
+  - `rfp_doc_blocks` 에 `case_id` 가 없는데 화면이 그 칸으로 물었다 — 원문 뷰어가 영영 빌 자리였다.
+    파일 → IR → 블록으로 내려가게 고침
+  - `EvidenceLink` 이름이 `components/pricing/gpu/review/ReviewPanels.tsx` 와 겹쳤다 → `RfpEvidenceLink`
+  - 자작 버튼(인라인 style)이 디자인 토큰 가드에 걸렸다 → `NbButton`
+  - 상세 화면에 `PageHeader back` 이 없어 §2-3 가드에 걸렸다 → 목록으로 돌아갈 길 추가
+  - 실측: 시드한 리포트로 카드·이상 조항·근거 미확인 배지·불일치 배지·작업용/보고용 전환·AI 고지·원문 블록이 모두 렌더됨
 - I37 에서 범위를 두 군데 고쳤다
   - 레이아웃을 `app/(rfp)/rfp/layout.tsx` 가 아니라 `app/(rfp)/layout.tsx` 에 뒀다 —
     `lib/auth/api-user-gate.test.ts` 의 GATED_LAYOUTS 가 **그룹 레벨** 레이아웃을 요구한다((crm)·(ai) 와 같다)
