@@ -118,7 +118,7 @@
 의존: I05
 
 ### I07 PDF 와 오피스 파서 어댑터
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/parse/office.ts, 신규 apps/web/lib/rfp/parse/office.test.ts
 감사 기준:
