@@ -35,6 +35,13 @@ export interface AiModel {
   enabled: boolean
   /** 작을수록 먼저 시도한다 */
   sortOrder: number
+  /**
+   * 한 번에 받을 수 있는 입력 토큰. 모르면 null.
+   *
+   * 이 값을 안 보고 상수로 보내면 **작은 모델에서만 413 이 난다** —
+   * 실측 2026-09-09: Groq 무료 티어가 분당 7,000 인데 46,671 을 보내 8/9 태스크가 죽었다.
+   */
+  maxInputTokens: number | null
 }
 
 /** DB 행 → 우리 모양. 칸 이름이 바뀌면 여기 한 곳만 고친다 */
@@ -56,6 +63,8 @@ export function toModel(row: Record<string, unknown>): AiModel {
     multimodal: Boolean(row.multimodal),
     enabled: row.enabled === undefined ? true : Boolean(row.enabled),
     sortOrder: Number(row.sort_order ?? 100),
+    maxInputTokens: row.max_input_tokens === null || row.max_input_tokens === undefined
+      ? null : Number(row.max_input_tokens),
   }
 }
 

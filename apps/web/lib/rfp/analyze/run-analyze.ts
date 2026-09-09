@@ -111,6 +111,27 @@ export interface AnalyzeOutput {
   filledFields: number
 }
 
+/** 한도를 모르는 모델에 보낼 크기. 작게 잡는다 — 크게 잡으면 413 으로만 죽는다 */
+export const UNKNOWN_LIMIT_TOKENS = 6_000
+
+/** 한도를 알아도 답 몫을 남긴다 */
+export const INPUT_RATIO = 0.6
+
+/** 한도가 아주 큰 모델이라도 이보다 크게 보내지 않는다 — 비용이 문서 크기에 비례한다 */
+export const MAX_CONTEXT_TOKENS = 24_000
+
+/**
+ * 사슬에 보낼 원문 크기.
+ *
+ * **가장 작은 모델이 정한다.** 1순위 모델 기준으로 잡으면 폴백이 작은 모델에 닿는 순간
+ * 그 태스크만 413 으로 죽고, 화면에는 「쓸 수 있는 모델이 없다」로만 보인다.
+ */
+export function contextBudget(chain: readonly AiModel[]): number {
+  const limits = chain.map((m) => m.maxInputTokens ?? UNKNOWN_LIMIT_TOKENS)
+  const smallest = limits.length > 0 ? Math.min(...limits) : UNKNOWN_LIMIT_TOKENS
+  return Math.max(1_000, Math.min(MAX_CONTEXT_TOKENS, Math.floor(smallest * INPUT_RATIO)))
+}
+
 /** 리포트에서 사업명을 집어낸다. 태스크 fields 이름과 맞춰 둔다 */
 export function titleFrom(report: { overview: Record<string, { value: unknown }> }): string | null {
   for (const key of ['projectName', 'title', 'businessName']) {
@@ -156,7 +177,9 @@ export async function runAnalyze(
 
   const base = await runBase({
     doc,
-    contextTokens: input.contextTokens ?? 24_000,
+    // **사슬에서 가장 작은 모델에 맞춘다.** 상수로 보내면 작은 모델에서만 413 이 나고,
+    // 폴백이 그 모델에 닿는 순간 태스크가 통째로 죽는다(실측 2026-09-09: Groq 7,000 한도에 46,671 전송).
+    contextTokens: input.contextTokens ?? contextBudget(pick.chain),
     meta: {
       analysisMode: 'base',
       baseVendor: pick.chain[0].displayName,

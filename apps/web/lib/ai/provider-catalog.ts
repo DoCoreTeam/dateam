@@ -91,7 +91,11 @@ export const AI_PROVIDERS: readonly AiProviderSpec[] = [
     meta: { apiKey: 'stt_api_key', model: 'groq_model' },
     baseUrl: 'https://api.groq.com/openai/v1',
     keyPrefixes: ['gsk_'],
-    defaultModel: 'llama-3.3-70b-versatile',
+    // ⚠️ Groq 는 모델을 자주 갈아 치운다. 폐기된 이름을 두면 **호출이 404 로만 죽는다** —
+    //    실측 2026-09-09: RFP 분석 9번이 전부 `llama-3.3-70b-versatile does not exist` 였고,
+    //    화면에는 「쓸 수 있는 모델이 없다」로만 보여 원인을 못 찾았다.
+    //    지금 값은 실제 호출로 확인했다(한국어 JSON 정답, 131k 창).
+    defaultModel: 'qwen/qwen3.8-27b',
     // 오픈소스 모델을 남의 GPU 에서 돌린다. 이미지는 못 읽고 도구도 안 쓴다
     capabilities: { vision: false, tools: false, thinking: false, defaultMaxOutputTokens: 8192 },
     purpose: '같은 질문을 몇 배 빠르게 답합니다. 대량 처리와 다른 공급자가 막혔을 때의 폴백에 씁니다.',

@@ -1,6 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mergeDocs, titleFrom, ROLE_ORDER } from './run-analyze.ts'
+import {
+  mergeDocs, titleFrom, ROLE_ORDER,
+  contextBudget, UNKNOWN_LIMIT_TOKENS, MAX_CONTEXT_TOKENS, INPUT_RATIO,
+} from './run-analyze.ts'
+import type { AiModel } from '../ai/models.ts'
 import type { IrDocument } from '../ir/types.ts'
 
 function doc(blockIds: string[], quality = 80): IrDocument {
@@ -66,4 +70,32 @@ test('사업명이 없으면 null — 임시 이름을 덮지 않는다', () => 
   assert.equal(titleFrom({ overview: {} }), null)
   assert.equal(titleFrom({ overview: { projectName: { value: null } } }), null)
   assert.equal(titleFrom({ overview: { projectName: { value: '가' } } }), null)
+})
+
+function model(maxInputTokens: number | null): AiModel {
+  return {
+    id: 'm', vendorId: 'v', modelName: 'n', displayName: 'N',
+    allowedDocClasses: ['public'], internal: false,
+    retention: { noTraining: false, retentionDays: 30, zeroRetention: false },
+    inputKrwPerMTok: 0, outputKrwPerMTok: 0, multimodal: false,
+    enabled: true, sortOrder: 1, maxInputTokens,
+  }
+}
+
+test('가장 작은 모델이 크기를 정한다 — 폴백이 작은 모델에 닿으면 그 태스크만 죽는다', () => {
+  // 실측 2026-09-09: Groq 무료 티어 7,000 한도에 46,671 을 보내 8/9 태스크가 413
+  const budget = contextBudget([model(1_000_000), model(7_000)])
+  assert.equal(budget, Math.floor(7_000 * INPUT_RATIO))
+})
+
+test('한도를 모르면 작게 잡는다 — 크게 잡으면 413 으로만 죽는다', () => {
+  assert.equal(contextBudget([model(null)]), Math.floor(UNKNOWN_LIMIT_TOKENS * INPUT_RATIO))
+})
+
+test('한도가 아주 커도 상한을 넘지 않는다 — 비용이 문서 크기에 비례하면 안 된다', () => {
+  assert.equal(contextBudget([model(100_000_000)]), MAX_CONTEXT_TOKENS)
+})
+
+test('사슬이 비면 안전한 작은 값', () => {
+  assert.ok(contextBudget([]) > 0)
 })

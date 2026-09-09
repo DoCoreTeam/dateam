@@ -23,6 +23,7 @@ const INTEGRATION_CARDS = [
   'DbSettings.tsx',
   'VercelSettings.tsx',
   'G2bSettings.tsx',
+  'GroqSettings.tsx',
 ]
 
 function read(file: string): string {

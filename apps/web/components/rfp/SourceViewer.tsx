@@ -8,7 +8,9 @@
 
 import { useEffect, useRef } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
+import NbBadge from '@/components/ui/nb/NbBadge'
 import { RFP_REPORT } from '@/lib/rfp/terms'
+import styles from '@/app/(rfp)/rfp.module.css'
 
 export interface SourceBlock {
   blockId: string
@@ -38,28 +40,41 @@ export default function SourceViewer({ blocks, activeBlockId }: SourceViewerProp
   }
 
   return (
-    <div ref={ref} className="card" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-      {blocks.map((b) => {
-        const active = b.blockId === activeBlockId
-        return (
-          <p
-            key={b.blockId}
-            data-block={b.blockId}
-            style={{
-              // 표시는 배경으로 한다 — 글자색을 바꾸면 테마에 따라 안 보인다
-              background: active ? 'var(--surface-active)' : undefined,
-              padding: 'var(--space-2)',
-              borderRadius: 'var(--radius-sm)',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {b.pageNo !== null && (
-              <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>{b.pageNo} </span>
-            )}
-            {b.text}
-          </p>
-        )
-      })}
+    <div className="card">
+      {/* 무엇을 보고 있는지 말한다 — 제목이 없으면 오른쪽 절반이 정체불명의 글 덩어리가 된다 */}
+      <div className={styles.sectionHead}>
+        <div className={styles.between}>
+          <span className={styles.sectionTitle}>{RFP_REPORT.source}</span>
+          <NbBadge status="note">{blocks.length}</NbBadge>
+        </div>
+        <span className={styles.sectionDesc}>{RFP_REPORT.sourceHint}</span>
+      </div>
+
+      <div ref={ref} style={{ maxHeight: '68vh', overflowY: 'auto' }}>
+        {blocks.map((b) => {
+          const active = b.blockId === activeBlockId
+          return (
+            <p
+              key={b.blockId}
+              data-block={b.blockId}
+              className={styles.sourceText}
+              style={{
+                // 표시는 배경으로 한다 — 글자색을 바꾸면 테마에 따라 안 보인다
+                background: active ? 'var(--surface-active)' : undefined,
+                padding: 'var(--space-2)',
+                borderRadius: 'var(--radius-sm)',
+                // 문단 사이를 벌린다 — 붙여 두면 표와 항목이 한 덩어리로 뭉갠다
+                marginBottom: 'var(--space-2)',
+              }}
+            >
+              {b.pageNo !== null && (
+                <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>{b.pageNo} </span>
+              )}
+              {b.text}
+            </p>
+          )
+        })}
+      </div>
     </div>
   )
 }

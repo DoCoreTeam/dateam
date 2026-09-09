@@ -259,6 +259,9 @@ export const RFP_REPORT = {
   sectionEvaluation: '평가 기준',
   notReady: '아직 리포트가 없어요',
   notReadyDesc: '분석이 끝나면 여기에 나타납니다',
+  fitScore: '점수',
+  source: '원문',
+  sourceHint: '근거를 누르면 그 문장으로 갑니다',
 } as const
 
 /** 교차검증 대화 */

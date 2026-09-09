@@ -7,6 +7,7 @@ import SettingsSection from './SettingsSection'
 import GeminiSettings from './GeminiSettings'
 import YoutubeSettings from './YoutubeSettings'
 import G2bSettings from './G2bSettings'
+import GroqSettings from './GroqSettings'
 import SttSettings from './SttSettings'
 import VercelSettings from './VercelSettings'
 import ClaudeSettings from './ClaudeSettings'
@@ -83,6 +84,8 @@ export default async function AdminSettingsPage({
   // 음성 인식(STT) — 회의노트·CRM 미팅이 같은 키 하나를 쓴다
   const sttKey = meta[STT_KEY] as string | undefined
   const sttMasked = sttKey ? maskKey(sttKey) : null
+  // Groq 는 키 한 벌을 둘이 쓴다 — AI 모델(채팅·분석)과 음성 인식(전사)
+  const groqModel = (meta.groq_model as string | undefined) ?? null
   const sttModel = (meta.stt_model as string | undefined) ?? null
 
   // Vercel 토큰은 화면으로 나가지 않는다 — 마스킹은 lib/vercel/config 의 것을 쓴다(SSOT)
@@ -149,6 +152,7 @@ export default async function AdminSettingsPage({
               <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
               <ClaudeSettings hasKey={hasClaudeKey} maskedKey={maskedClaudeKey} savedModel={savedClaudeModel} />
               <OpenAiSettings hasKey={hasOpenAiKey} maskedKey={maskedOpenAiKey} savedModel={savedOpenAiModel} />
+              <GroqSettings hasKey={Boolean(sttKey)} maskedKey={sttMasked} savedModel={groqModel} />
               <AiChatDefaultProviderPicker available={availableChatProviders} current={currentDefaultProvider} />
             </div>
           </SettingsSection>

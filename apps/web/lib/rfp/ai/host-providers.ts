@@ -72,6 +72,8 @@ export interface ModelPolicyRow {
   multimodal: boolean
   enabled: boolean
   sortOrder: number
+  /** 한 번에 받을 수 있는 입력 토큰. 모르면 null */
+  maxInputTokens: number | null
 }
 
 /** DB 행 → 정책. 칸 이름이 바뀌면 여기 한 곳만 고친다 */
@@ -88,6 +90,8 @@ export function toPolicy(row: Record<string, unknown>): ModelPolicyRow {
     multimodal: Boolean(row.supports_image_input),
     enabled: row.enabled === undefined ? true : Boolean(row.enabled),
     sortOrder: Number(row.avg_latency_ms ?? 1000),
+    maxInputTokens: row.max_input_tokens === null || row.max_input_tokens === undefined
+      ? null : Number(row.max_input_tokens),
   }
 }
 
@@ -133,6 +137,7 @@ export function toModels(
       multimodal: p.multimodal,
       enabled: true,
       sortOrder: p.sortOrder,
+      maxInputTokens: p.maxInputTokens,
     }))
 
   // 표에 한 줄도 없는 벤더 — 호스트 기본 모델을 공개 전용으로
@@ -152,6 +157,8 @@ export function toModels(
       multimodal: SAFE_DEFAULT.multimodal,
       enabled: true,
       sortOrder: SAFE_DEFAULT.sortOrder,
+      // 표에 없는 모델은 한도를 모른다. 모르면 **작게 잡는다** — 크게 잡으면 413 으로만 죽는다
+      maxInputTokens: null,
     }))
 
   return [...fromPolicies, ...fallback].sort((a, b) => a.sortOrder - b.sortOrder)

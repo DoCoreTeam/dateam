@@ -18,7 +18,7 @@
 
 import type { IrDocument } from '../ir/types.ts'
 import { EXTRACT_TASKS, taskById, type ExtractTask, type TaskId } from '../report/tasks.ts'
-import { routeSections, renderBatch, planFallback } from '../report/routing.ts'
+import { estimateTokens, routeSections, renderBatch, planFallback } from '../report/routing.ts'
 import { emptyReport, type Report, type ReportMeta, type ValueNode } from '../report/schema.ts'
 import { groundValue, groundingRate, type BlockText } from '../report/grounding.ts'
 import { checkSchedule, checkBudget, compareWithG2b, type RuleFinding, type G2bMeta } from '../report/rule-verify.ts'
@@ -92,7 +92,7 @@ async function runTask(
   const plan = routeSections(input.doc, task, input.contextTokens)
   // 관련 섹션이 없으면 문서 전체로 한 번 본다 — 라우팅이 틀릴 수 있다
   const batches = plan.empty
-    ? [renderWholeDoc(input.doc)]
+    ? [renderWholeDoc(input.doc, input.contextTokens)]
     : plan.batches.map((b) => renderBatch(b))
 
   const fields: Record<string, ValueNode<unknown>> = {}
@@ -113,7 +113,7 @@ async function runTask(
     const filled = new Set(Object.entries(fields).filter(([, v]) => v.value !== null).map(([k]) => k))
     const fb = planFallback(task, filled, plan.empty)
     if (fb.needed) {
-      const out = await run(task, renderWholeDoc(input.doc))
+      const out = await run(task, renderWholeDoc(input.doc, input.contextTokens))
       costKrw += out.costKrw
       for (const [key, node] of Object.entries(out.fields)) {
         if (fields[key]?.value !== undefined && fields[key]?.value !== null) continue
@@ -136,8 +136,30 @@ async function runTask(
   }
 }
 
-function renderWholeDoc(doc: IrDocument): string {
-  return doc.blocks.map((b) => `[블록 ${b.blockId}]\n${b.text}`).join('\n\n')
+/**
+ * 관련 섹션을 못 찾았을 때의 폴백 — 문서 전체를 본다.
+ *
+ * **예산을 지킨다.** 예전에는 통째로 보냈고, 그래서 라우팅이 빗나간 태스크만
+ * 413 으로 죽었다(실측 2026-09-09: 한도 7,000 인 모델에 46,671 전송, 9개 중 8개 실패).
+ * 앞쪽부터 담는 이유는 공고문이 개요·예산·일정을 앞에 두기 때문이다.
+ */
+export function renderWholeDoc(doc: IrDocument, budgetTokens = Infinity): string {
+  const parts: string[] = []
+  let used = 0
+  for (const b of doc.blocks) {
+    const piece = `[블록 ${b.blockId}]\n${b.text}`
+    const cost = estimateTokens(piece)
+    if (used + cost > budgetTokens) break
+    parts.push(piece)
+    used += cost
+  }
+  // 예산이 한 블록도 못 담을 만큼 작으면 첫 블록은 잘라서라도 넣는다 —
+  // 빈 프롬프트를 보내면 모델이 「원문이 없다」고 답하고 그게 값으로 저장된다
+  if (parts.length === 0 && doc.blocks.length > 0) {
+    const first = doc.blocks[0]
+    return `[블록 ${first.blockId}]\n${first.text}`.slice(0, Math.max(200, budgetTokens * 2))
+  }
+  return parts.join('\n\n')
 }
 
 /** 태스크 결과를 리포트 칸으로 옮긴다 */

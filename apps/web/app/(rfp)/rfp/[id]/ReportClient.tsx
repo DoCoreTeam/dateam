@@ -11,6 +11,8 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import ReportCard from '@/components/rfp/ReportCard'
+import { sectionLabel, orderFields, orderSections } from '@/lib/rfp/report/field-labels'
+import styles from '@/app/(rfp)/rfp.module.css'
 import SourceViewer, { type SourceBlock } from '@/components/rfp/SourceViewer'
 import OutcomeForm, { type OutcomeFormProps } from '@/components/rfp/OutcomeForm'
 import RevisionDiffPanel, { type RevisionChainItem } from '@/components/rfp/RevisionDiffPanel'
@@ -122,54 +124,87 @@ export default function ReportClient({
       <NbBadge status="note">{AI_NOTICE}</NbBadge>
       <NbBadge status="note">{DOC_CLASS_LABEL[docClass]}</NbBadge>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 'var(--space-4)' }}>
-        <div>
+      <div className={styles.reportGrid}>
+        <div className={styles.stack}>
           {fit && (
-            <div className="card">
-              <span className="label">{RFP_REPORT.fit}</span>
-              <p style={{ fontSize: 'var(--fs-lg)', fontWeight: 600 }}>
-                {FIT_VERDICT_LABEL[fit.verdict]} {fit.score}
-              </p>
+            <section className="card">
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionTitle}>{RFP_REPORT.fit}</span>
+              </div>
+              <div className={styles.statGrid}>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>{RFP_REPORT.fitScore}</span>
+                  <span className={styles.statValue}>{fit.score}</span>
+                </div>
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>{RFP_REPORT.fit}</span>
+                  <span className={styles.statValue}>{FIT_VERDICT_LABEL[fit.verdict]}</span>
+                </div>
+              </div>
               {fit.conditional && <NbBadge status="doing">{RFP_REPORT.noEvidence}</NbBadge>}
-            </div>
+            </section>
           )}
 
-          {SECTIONS.map((s) => {
-            const bucket = report[s.key] as Record<string, ValueNode<unknown>>
-            const rows = Object.entries(bucket ?? {}).filter(([, v]) => v?.value !== null && v?.value !== undefined)
-            if (rows.length === 0) return null
+          {/* 절이 카드고 값은 그 안의 한 줄이다. 순서는 사업을 판단하는 순서(개요→예산→일정…) */}
+          {orderSections(SECTIONS.map((s) => String(s.key))).map((sectionKey) => {
+            const bucket = report[sectionKey as keyof typeof report] as Record<string, ValueNode<unknown>>
+            const entries = Object.entries(bucket ?? {})
+              .filter(([, v]) => v?.value !== null && v?.value !== undefined)
+            if (entries.length === 0) return null
+            const byKey = new Map(entries)
             return (
-              <section key={String(s.key)}>
-                <h2 className="label">{s.title}</h2>
-                {rows.map(([key, node]) => (
-                  <ReportCard
-                    key={key}
-                    title={key}
-                    node={node}
-                    mode={mode}
-                    onOpenEvidence={setActiveBlock}
-                  />
-                ))}
+              <section key={sectionKey} className="card">
+                <div className={styles.sectionHead}>
+                  <div className={styles.between}>
+                    <span className={styles.sectionTitle}>{sectionLabel(sectionKey)}</span>
+                    <NbBadge status="note">{entries.length}</NbBadge>
+                  </div>
+                </div>
+                <div className={styles.valueList}>
+                  {orderFields(Array.from(byKey.keys())).map((key) => (
+                    <ReportCard
+                      key={key}
+                      fieldKey={key}
+                      node={byKey.get(key) as ValueNode<unknown>}
+                      mode={mode}
+                      onOpenEvidence={setActiveBlock}
+                    />
+                  ))}
+                </div>
               </section>
             )
           })}
 
           {anomalies.length > 0 && (
-            <section>
-              <h2 className="label">{RFP_REPORT.anomalies}</h2>
-              {anomalies.map((a, i) => (
-                <div key={`${a.title}-${i}`} className="card">
-                  <span style={{ fontWeight: 600 }}>{a.title}</span>
-                  {a.severity && <NbBadge status="blocker">{ANOMALY_SEVERITY_LABEL[a.severity]}</NbBadge>}
-                  <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>{a.rationale}</p>
+            <section className="card">
+              <div className={styles.sectionHead}>
+                <div className={styles.between}>
+                  <span className={styles.sectionTitle}>{RFP_REPORT.anomalies}</span>
+                  <NbBadge status="note">{anomalies.length}</NbBadge>
                 </div>
-              ))}
+              </div>
+              <div className={styles.valueList}>
+                {anomalies.map((a, i) => (
+                  <div key={`${a.title}-${i}`} className={styles.valueRow}>
+                    <span className={styles.valueName}>
+                      {a.severity ? ANOMALY_SEVERITY_LABEL[a.severity] : ''}
+                    </span>
+                    <div className={styles.valueBody}>
+                      <span className={styles.valueText}>{a.title}</span>
+                      <span className={styles.sectionDesc}>{a.rationale}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
         </div>
 
-        <div>
-          <SourceViewer blocks={blocks} activeBlockId={activeBlock} />
+        <div className={styles.stack}>
+          {/* 원문은 화면에 붙어 따라온다 — 근거를 누를 때마다 위로 올라가면 못 쫓는다 */}
+          <div className={styles.sourceSticky}>
+            <SourceViewer blocks={blocks} activeBlockId={activeBlock} />
+          </div>
 
           {crossOpen && (
             <CrossVerifyDialog

@@ -1,8 +1,16 @@
 'use client'
 
-// 리포트 항목 카드 — 값 하나와 그 무게를 함께 그린다.
+// 리포트 값 한 줄 — 값과 그 무게를 함께 그린다.
 //
-// 값만 크게 그리면 화면이 그것을 **사실처럼** 보이게 한다.
+// ## 값 하나에 카드 하나를 주지 않는다
+//
+// 예전에는 값마다 카드였다. 예산 절 하나가 세로로 일곱 장이 되고, 화면을 훑어도
+// 「예산이 얼마지」가 안 보인다(실측 2026-09-09). 절이 카드고 값은 그 안의 한 줄이다 —
+// 그래야 눈이 절 단위로 움직인다.
+//
+// ## 확인 안 된 값은 흐리게
+//
+// 값만 또렷하게 그리면 화면이 그것을 **사실처럼** 보이게 한다.
 // 근거가 확인 안 됐거나 신뢰도가 낮으면 눈에 보이게 강등해야
 // 사용자가 「이건 확인해야겠다」를 안다.
 
@@ -12,8 +20,11 @@ import RfpEvidenceLink from './RfpEvidenceLink'
 import {
   RFP_REPORT, RFP_COMMON, VERIFICATION_LABEL, GROUNDING_LABEL, type Verification,
 } from '@/lib/rfp/terms'
+import { fieldLabel, fieldUnit } from '@/lib/rfp/report/field-labels'
+import { formatValue } from '@/lib/rfp/report/format-value'
 import type { ValueNode } from '@/lib/rfp/report/schema'
 import type { StatusKey } from '@/lib/tokens/status-colors'
+import styles from '@/app/(rfp)/rfp.module.css'
 
 /** 이 아래면 낮은 신뢰도로 본다 */
 export const LOW_CONFIDENCE = 0.6
@@ -23,7 +34,8 @@ const VERIFICATION_STATUS: Record<Verification, StatusKey> = {
 }
 
 export interface ReportCardProps {
-  title: string
+  /** 리포트 칸의 키. 이름표는 SSOT 가 붙인다 — 화면이 키를 그대로 찍으면 영문이 노출된다 */
+  fieldKey: string
   node: ValueNode<unknown>
   /** 보고용이면 근거와 벤더를 안 그린다 */
   mode: 'work' | 'report'
@@ -31,63 +43,59 @@ export interface ReportCardProps {
   onCrossVerify?: () => void
 }
 
-export default function ReportCard({ title, node, mode, onOpenEvidence, onCrossVerify }: ReportCardProps) {
+export default function ReportCard({
+  fieldKey, node, mode, onOpenEvidence, onCrossVerify,
+}: ReportCardProps) {
   const low = node.confidence !== null && node.confidence < LOW_CONFIDENCE
   const unconfirmed = node.grounding === 'unconfirmed'
-  // 값이 흐릿해야 「확인이 필요하다」가 눈에 들어온다
   const dim = low || unconfirmed
 
   return (
-    <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--space-2)' }}>
-        <span className="label">{title}</span>
-        {mode === 'work' && node.verification !== 'single' && (
-          <NbBadge status={VERIFICATION_STATUS[node.verification]}>
-            {VERIFICATION_LABEL[node.verification]}
-          </NbBadge>
+    <div className={styles.valueRow}>
+      <span className={styles.valueName}>{fieldLabel(fieldKey)}</span>
+
+      <div className={styles.valueBody}>
+        <span className={dim ? `${styles.valueText} ${styles.valueDim}` : styles.valueText}>
+          {formatValue(node.value)}
+          {/* 단위 없는 숫자는 「1.5」로만 남아 무슨 뜻인지 모른다 */}
+          {fieldUnit(fieldKey) && typeof node.value === 'number' && (
+            <span className={styles.valueName}> {fieldUnit(fieldKey)}</span>
+          )}
+        </span>
+
+        {mode === 'work' && (
+          <>
+            <div className={styles.valueMeta}>
+              {unconfirmed && <NbBadge status="blocker">{GROUNDING_LABEL.unconfirmed}</NbBadge>}
+              {node.verification !== 'single' && (
+                <NbBadge status={VERIFICATION_STATUS[node.verification]}>
+                  {VERIFICATION_LABEL[node.verification]}
+                </NbBadge>
+              )}
+              {onCrossVerify && (
+                <NbButton variant="ghost" onClick={onCrossVerify}>{RFP_REPORT.crossVerify}</NbButton>
+              )}
+            </div>
+
+            {/* 근거는 접어 둔다 — 펼치지 않으면 값 하나가 화면 반쪽을 먹는다 */}
+            {node.evidence.length > 0 && (
+              <details className={styles.evidence}>
+                <summary>
+                  {RFP_REPORT.evidence} {node.evidence.length}
+                  {node.vendor ? ` · ${node.vendor}` : ''}
+                </summary>
+                <div className={styles.evidenceBody}>
+                  {node.evidence.map((e, i) => (
+                    <RfpEvidenceLink key={`${e.blockId}-${i}`} evidence={e} onOpen={onOpenEvidence} />
+                  ))}
+                </div>
+              </details>
+            )}
+          </>
         )}
       </div>
-
-      <p style={{
-        fontSize: 'var(--fs-lg)',
-        fontWeight: 600,
-        color: dim ? 'var(--text-faint)' : 'var(--text)',
-      }}>
-        {formatValue(node.value)}
-      </p>
-
-      {mode === 'work' && (
-        <>
-          {unconfirmed && (
-            <NbBadge status="blocker">{GROUNDING_LABEL.unconfirmed}</NbBadge>
-          )}
-          {node.vendor && (
-            <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>{node.vendor}</p>
-          )}
-          {node.evidence.map((e, i) => (
-            <RfpEvidenceLink key={`${e.blockId}-${i}`} evidence={e} onOpen={onOpenEvidence} />
-          ))}
-          {onCrossVerify && (
-            <NbButton variant="ghost" onClick={onCrossVerify}>{RFP_REPORT.crossVerify}</NbButton>
-          )}
-        </>
-      )}
     </div>
   )
 }
 
-/** 값 종류마다 사람이 읽는 모양으로 */
-export function formatValue(v: unknown): string {
-  if (v === null || v === undefined) return RFP_REPORT.noValue
-  if (typeof v === 'boolean') return v ? RFP_COMMON.yes : RFP_COMMON.no
-  if (typeof v === 'number') return v.toLocaleString()
-  if (Array.isArray(v)) return v.map((x) => nameOf(x)).filter(Boolean).join(', ')
-  if (typeof v === 'object') return nameOf(v)
-  return String(v)
-}
-
-function nameOf(v: unknown): string {
-  if (typeof v === 'string') return v
-  const o = v as { name?: unknown; title?: unknown; code?: unknown }
-  return String(o?.name ?? o?.title ?? o?.code ?? '')
-}
+export { formatValue }

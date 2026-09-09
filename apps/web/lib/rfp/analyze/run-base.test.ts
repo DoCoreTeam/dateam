@@ -11,7 +11,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { runBase, assemble, allNodes, verifyRules, type TaskOutcome, type TaskRunner } from './run-base.ts'
+import { runBase, assemble, allNodes, verifyRules, type TaskOutcome, type TaskRunner, renderWholeDoc } from './run-base.ts'
 import { toFieldRows, persistReport, nextVersion, isIsoDate, type PersistClient } from './persist.ts'
 import { makeValue, emptyReport, REPORT_TOP_KEYS, type ReportMeta, type ValueNode } from '../report/schema.ts'
 import { EXTRACT_TASKS, TASK_IDS } from '../report/tasks.ts'
@@ -285,4 +285,23 @@ test('ISO 날짜를 알아본다', () => {
   assert.equal(isIsoDate('2026-04-10'), true)
   assert.equal(isIsoDate('2026-04-10T09:00:00Z'), true)
   assert.equal(isIsoDate('○○사업'), false)
+})
+
+test('문서 전체 폴백도 예산을 지킨다 — 안 지키면 라우팅이 빗나간 태스크만 413 으로 죽는다', () => {
+  const doc = {
+    blocks: Array.from({ length: 200 }, (_, i) => ({ blockId: `b${i}`, text: '가'.repeat(200) })),
+  } as never
+  const big = renderWholeDoc(doc)
+  const small = renderWholeDoc(doc, 500)
+  assert.ok(small.length < big.length)
+  assert.ok(small.includes('b0'), '앞쪽부터 담는다 — 공고문은 개요·예산을 앞에 둔다')
+})
+
+test('예산이 한 블록도 못 담을 만큼 작아도 빈 프롬프트는 안 보낸다', () => {
+  const doc = { blocks: [{ blockId: 'b0', text: '가'.repeat(5000) }] } as never
+  assert.ok(renderWholeDoc(doc, 5).length > 0)
+})
+
+test('블록이 없으면 빈 글', () => {
+  assert.equal(renderWholeDoc({ blocks: [] } as never, 100), '')
 })

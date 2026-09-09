@@ -372,6 +372,15 @@ export async function deleteOpenAiKey() { return deleteProviderKey('openai') }
 export async function saveOpenAiModel(model: string) { return saveProviderModel('openai', model) }
 export async function getOpenAiModels() { return listProviderModels('openai') }
 
+// Groq — **키 한 벌을 둘이 쓴다.** AI 모델 탭에서 채팅·분석 모델을 고르고,
+// 외부 연동 탭의 「음성 인식」 카드에서 전사 모델을 고른다. 키 자리는 한 곳이고
+// 그 이름은 lib/ai/provider-catalog 이 갖는다 — 여기 적으면 이름이 두 벌이 된다.
+// 모델을 고를 자리가 없던 동안 분석이 폐기된 기본 모델로 404 만 냈다(실측 2026-09-09).
+export async function saveGroqKey(formData: FormData) { return saveProviderKey('groq', formData) }
+export async function deleteGroqKey() { return deleteProviderKey('groq') }
+export async function saveGroqModel(model: string) { return saveProviderModel('groq', model) }
+export async function getGroqModels() { return listProviderModels('groq') }
+
 // 음성 인식 카드. 키는 Groq 공급자 키이고, 전사 모델만 따로 받는다
 export async function saveSttKey(formData: FormData) {
   const saved = await saveProviderKey('groq', formData)

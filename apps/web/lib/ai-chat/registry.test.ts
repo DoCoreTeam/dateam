@@ -114,7 +114,10 @@ test('파생: gemini 기본 모델은 gemini-model SSOT 를 따른다', () => {
 test('groq: stt_api_key 만 있어도 후보에 들어온다', () => {
   const list = getAvailableProviders({ stt_api_key: 'gsk_live' })
   assert.deepEqual(list.map((c) => c.id), ['groq'])
-  assert.equal(list[0].model, 'llama-3.3-70b-versatile')
+  // 모델 **이름**을 여기 박지 않는다. Groq 은 모델을 자주 갈아 치우고,
+  // 이름을 박으면 명세를 고칠 때마다 이 단정이 함께 틀린다.
+  // 지켜야 하는 것은 「기본 모델이 명세에서 온다」다
+  assert.equal(list[0].model, DEFAULT_MODELS.groq)
 })
 
 test('grok: xai_api_key 로 후보에 들어온다', () => {
