@@ -99,3 +99,68 @@ test('전면형 표시는 카드에만 붙는다 — card-flush 홀로 쓰면 �
   assert.deepEqual(offenders, [],
     `card-flush 를 card 없이 썼다. className="card card-flush" 형태로 쓸 것:\n  ${offenders.join('\n  ')}`)
 })
+
+/**
+ * **여백 규칙이 실제로 그 태그에 닿는가.**
+ *
+ * v0.7.676 은 `:where(.card)` 로 기본 여백을 줬고, 그 안전성 근거는 «`.card` 는
+ * div·section·li·article·details 에만 쓰인다» 였다. 그 전제가 **깨졌다**(v0.7.716):
+ * 카드를 눌러 표를 여는 화면이 생기면서 카드가 `<button>` 이 됐고, Tailwind preflight 의
+ * `button{padding:0}`(특정도 0,0,1)이 `:where()`(특정도 0)를 이겨 /crm/reports 지표 카드
+ * 8장이 **computed padding 0px** 로 렌더됐다(사용자 지적: 「디자인 다 깨졌자나」).
+ *
+ * 앞의 세 테스트는 **규칙이 있는지**만 봤다 — 규칙이 있는데도 화면이 깨졌으니
+ * 그것만으로는 부족하다. 여기서는 **쓰이는 태그마다 규칙이 닿는지**를 본다.
+ */
+const PREFLIGHT_ZEROES_PADDING = ['button', 'ul', 'ol', 'menu', 'fieldset', 'legend', 'input', 'textarea', 'select'] as const
+
+/** `<Link>` 는 `<a>` 로 렌더된다 — CSS 가 보는 이름으로 맞춘다 */
+const RENDERS_AS: Record<string, string> = { Link: 'a' }
+
+/**
+ * 전역 `card` 클래스가 붙은 여는 태그의 이름을 모은다.
+ *
+ * 태그를 통째로 정규식으로 잡지 않는다 — 속성 안의 `onClick={() => …}` 의 `>` 가
+ * 태그 끝으로 읽혀 뒤쪽 `className` 을 놓친다(조용한 통과). 대신 `className` 을 먼저
+ * 찾고 **왼쪽으로 가장 가까운 여는 꺾쇠**를 거슬러 올라간다.
+ */
+function tagsUsingCard(): Map<string, string[]> {
+  const found = new Map<string, string[]>()
+  for (const { file, src } of sources()) {
+    for (const m of src.matchAll(/className=\{?[`"]([^`"]*)[`"]/g)) {
+      if (!m[1].split(/[\s${}]+/).includes('card')) continue
+      const open = src.lastIndexOf('<', m.index)
+      if (open < 0) continue
+      const name = /^<([A-Za-z][A-Za-z0-9]*)/.exec(src.slice(open, open + 40))?.[1]
+      if (!name) continue
+      const tag = RENDERS_AS[name] ?? name
+      const at = found.get(tag) ?? []
+      at.push(`${file}:${src.slice(0, m.index).split('\n').length}`)
+      found.set(tag, at)
+    }
+  }
+  return found
+}
+
+test('카드 여백이 태그에 실제로 닿는다 — preflight 가 되돌리는 태그는 특정도를 올려 덮는다', () => {
+  const css = read(GLOBALS)
+
+  // 짝 규칙: `:where(button, a, …).card { padding: var(--card-pad) }`
+  // `.card` 가 `:where()` **밖**에 있어야 특정도가 (0,1,0) 이 되어 preflight 를 이긴다.
+  const rule = css.match(/:where\(([^)]*)\)\.card\s*\{[^}]*padding:\s*var\(--card-pad\)/)
+  assert.ok(rule,
+    `globals.css 에 «누를 수 있는 카드»의 여백 규칙이 없다.\n`
+    + `  :where(button, a, …).card { padding: var(--card-pad); } 를 되살릴 것.\n`
+    + `  .card 를 :where() 밖에 두어야 특정도(0,1,0)로 preflight 의 button{padding:0}(0,0,1)을 이긴다.`)
+
+  const covered = new Set(rule[1].split(',').map((t) => t.trim()))
+  const uncovered: string[] = []
+  for (const [tag, at] of tagsUsingCard()) {
+    if (!(PREFLIGHT_ZEROES_PADDING as readonly string[]).includes(tag)) continue
+    if (covered.has(tag)) continue
+    uncovered.push(`<${tag}> — ${at.slice(0, 3).join(', ')}${at.length > 3 ? ` 외 ${at.length - 3}곳` : ''}`)
+  }
+  assert.deepEqual(uncovered, [],
+    `전역 card 를 붙였는데 preflight 가 그 태그의 여백을 0 으로 되돌린다.\n`
+    + `  globals.css 의 :where(...).card 목록에 태그를 더하거나, 다른 태그를 쓸 것:\n  ${uncovered.join('\n  ')}`)
+})

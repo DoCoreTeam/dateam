@@ -14,7 +14,7 @@
  *   목표가 없는 카드 → 목표 설정을 연다
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ListSurface from '@/components/ui/list/ListSurface'
@@ -28,7 +28,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import Sensitive from '@/components/crm/Sensitive'
 import { formatAmount } from '../deals/amount'
 import { ACTION, failedTo } from '@/lib/terms'
-import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, REPORT as R } from '@/lib/terms/report'
+import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, METRIC_GROUP_LABEL, METRIC_GROUP_HINT, type MetricGroupKey, REPORT as R } from '@/lib/terms/report'
 import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, type Period, type PeriodKind, type TargetSpec, INDEX_MAX, findTarget } from '@/lib/crm/domain/target'
 import { computeDerived } from '@/lib/crm/domain/derived'
 import { canMove, type CloseStateKey } from '@/lib/crm/domain/close'
@@ -136,6 +136,21 @@ function derivedText(d: { unit: string; value: number | string | null; missing: 
   return String(d.value)
 }
 
+/**
+ * 이 요소를 실제로 굴리는 상자.
+ *
+ * 이 앱의 세로 스크롤은 창이 아니라 셸의 `main` 이 쥐고 있다 — 창을 굴리면 아무 일도
+ * 안 일어난다. 클래스 이름으로 찾지 않는다(셸이 바뀌면 조용히 죽는다).
+ * 굴릴 상자가 없으면 `null` 을 주고 부르는 쪽이 창을 쓴다.
+ */
+function scrollBoxOf(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p
+  }
+  return null
+}
+
 const MATRIX_QUERY: ListQuery = {
   q: '', sort: { key: '_row', dir: 'asc' }, filters: {},
   view: 'table', size: 100, mode: 'pages', page: 1,
@@ -144,14 +159,25 @@ const MATRIX_QUERY: ListQuery = {
 /**
  * 지표 묶음 — **뜻이 같은 것끼리 모은다.**
  *
- * 카드를 한 줄로 늘어놓으면 「아직 안 판 것」과 「이미 끝난 것」과 「밀린 것」이
- * 같은 무게로 읽힌다. 영업이 숫자로 대화할 때는 그 셋을 다른 말로 쓴다.
+ * 카드를 한 줄로 늘어놓으면 진행 중인 딜과 이미 끝난 딜과 밀린 딜이 같은 무게로 읽힌다.
+ * **이름은 여기서 짓지 않는다**(§0-2) — 용어집이 정한 말을 그대로 쓴다.
  */
-const GROUPS: { key: string; label: string; hint: string; metrics: string[]; risk?: boolean }[] = [
-  { key: 'open', label: '아직 안 판 것', hint: '이번 기간에 끝날 예정인 딜', metrics: ['open_pipeline', 'weighted', 'new_deals'] },
-  { key: 'done', label: '판 것', hint: '이번 기간에 끝난 딜', metrics: ['bookings', 'won_count', 'lost_count'] },
-  { key: 'risk', label: '봐야 할 것', hint: '예상의 신뢰도를 깎는 딜', metrics: ['overdue', 'stalled'], risk: true },
+const GROUPS: { key: MetricGroupKey; metrics: string[]; risk?: boolean }[] = [
+  { key: 'open', metrics: ['open_pipeline', 'weighted', 'new_deals'] },
+  { key: 'closed', metrics: ['bookings', 'won_count', 'lost_count'] },
+  { key: 'risk', metrics: ['overdue', 'stalled'], risk: true },
 ]
+
+/**
+ * 카드를 열 때 **아무것도 안 쪼갠 상태로 두지 않는다.**
+ *
+ * 쪼개는 기준이 없으면 표가 「전체 · 8건」 한 줄이 된다 — 방금 누른 카드를 그대로
+ * 되풀이하는 줄이라 아무 답도 아니다(사용자 지적: 「딜 8건을 눌렀는데 아래 나오는 답이
+ * 딜 8건이고 이걸 눌렀을 때 뭔지 나오지도 않네」).
+ * 회사로 쪼개면 그 8건이 **어디 것인지**가 바로 보인다. 고르는 칸도 「회사」로 바뀌므로
+ * 무엇이 일어났는지 화면에 남고, 합계만 보고 싶으면 되돌릴 수 있다.
+ */
+const DEFAULT_ROW_AXIS = 'company'
 
 /** 마감이 갈 수 있는 곳 — 갈 수 있는 것만 버튼으로 낸다 */
 const CLOSE_NEXT: CloseStateKey[] = ['reviewing', 'confirmed', 'draft']
@@ -264,6 +290,51 @@ export default function MetricsClient() {
 
   const period: Period = parsePeriodKey(sp.get('period'), periodOfToday('YEAR', data?.todayKey ?? '2026-01-01'))
   const activeMetric = data?.metric ?? null
+
+  /*
+    **카드를 눌렀으면 열린 곳으로 데려간다.**
+    표는 카드 여덟 장과 주석 줄 아래, 화면 밖에 선다 — 눌러도 위쪽은 그대로라서
+    «아무 일도 안 일어났다»로 읽혔다(사용자 지적: 「포커스가 이동이 안 되니 어떻게 된지를 모르자나」).
+    스크롤만 옮기면 키보드·스크린리더 사용자에게는 여전히 아무 일도 안 일어난 것이므로
+    **표 제목에 초점을 준다** — 초점이 곧 «여기가 열렸다»는 말이 된다.
+    주소를 손으로 고쳐 들어온 경우와 되돌아온 경우에는 움직이지 않는다(누른 사람만 데려간다).
+  */
+  const tableHeadRef = useRef<HTMLHeadingElement>(null)
+  const jumpTo = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!jumpTo.current || loading) return
+    const el = tableHeadRef.current
+    if (!el) return
+    jumpTo.current = null
+    // 초점부터 준다 — 스크롤이 늦어도 «어디가 열렸는지»는 먼저 전해진다
+    el.focus({ preventScroll: true })
+    /*
+      **`scrollIntoView` 대신 값을 직접 넣고, 다음 프레임에 한 번 더 맞춘다.**
+
+      두 가지가 조용히 실패한다(둘 다 실측):
+        · `scrollIntoView` 는 표가 아직 자리를 안 잡은 프레임에서 «갈 곳이 없다»가 되어
+          아무 일도 안 하고 끝난다 — 오류도 안 난다
+        · `requestAnimationFrame` 은 **화면에 없는 탭에서 아예 안 돈다.** 배경 탭에서 연
+          리포트라면 프레임에만 기대는 코드는 영영 실행되지 않는다
+      그래서 **지금 한 번 넣고**(대입은 건너뛸 수 없다), 표가 늘어난 뒤의 값으로
+      프레임에서 한 번 더 맞춘다. 프레임이 안 돌아도 이미 옮겨져 있다.
+    */
+    const put = () => {
+      const box = scrollBoxOf(el)
+      const top = box === null
+        ? el.getBoundingClientRect().top + window.scrollY
+        : box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top
+      // 제목이 상자 맨 위에 딱 붙으면 잘린 것처럼 보인다 — 한 칸 띄운다
+      const to = Math.max(0, top - 16)
+      if (box === null) window.scrollTo({ top: to })
+      else box.scrollTop = to
+    }
+    put()
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(put) })
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
+  }, [loading, activeMetric])
 
   if (loading && !data) return <SkelList rows={6} />
   if (error) return <ErrorState message={error} onRetry={() => set({})} />
@@ -433,7 +504,7 @@ export default function MetricsClient() {
       {/*
         **주역 패널.** 카드 아홉 개를 같은 크기로 늘어놓으면 「38.2억」과 「0건」이
         같은 무게로 읽힌다 — 그건 보고가 아니라 덤프다. 목표 대비를 가장 크게 두고,
-        나머지는 뜻이 같은 것끼리 묶는다(아직 안 판 것 · 판 것 · 위험).
+        나머지는 뜻이 같은 것끼리 묶는다(진행 중 · 실적 · 주의).
       */}
       <section className={`card ${s.hero}`}>
         <div className={s.heroMain}>
@@ -506,8 +577,8 @@ export default function MetricsClient() {
         return (
           <section key={g.key} className={s.group}>
             <h2 className={s.groupLabel}>
-              {g.label}
-              <span className={s.groupHint}>{g.hint}</span>
+              {METRIC_GROUP_LABEL[g.key]}
+              <span className={s.groupHint}>{METRIC_GROUP_HINT[g.key]}</span>
             </h2>
             <div className={s.groupGrid}>
               {items.map((c) => {
@@ -517,7 +588,13 @@ export default function MetricsClient() {
                   <button
                     key={c.metric} type="button"
                     className={`card ${s.card}${on ? ` ${s.cardOn}` : ''}${alert ? ` ${s.cardAlert}` : ''}`}
-                    onClick={() => set({ metric: on ? null : c.metric })}
+                    onClick={() => {
+                      jumpTo.current = on ? null : c.metric
+                      // 사람이 고른 기준은 건드리지 않는다 — 아직 안 골랐을 때만 기본값을 넣는다
+                      const patch: Record<string, string | null> = { metric: on ? null : c.metric }
+                      if (!on && !sp.get('rows')) patch.rows = DEFAULT_ROW_AXIS
+                      set(patch)
+                    }}
                     aria-pressed={on}
                     title={`${c.label} · ${basisLine(c.dateBasis as 'wonAt')}`}
                   >
@@ -557,7 +634,7 @@ export default function MetricsClient() {
         {matrix ? (
           <>
             <div className={s.sectionHead}>
-              <h2 className="tape-title">{matrix.label}</h2>
+              <h2 className={`tape-title ${s.tableTitle}`} ref={tableHeadRef} tabIndex={-1}>{matrix.label}</h2>
               <span className={s.basis}>
                 {dimLabel(data.rows, AXIS_NONE.rows)} × {dimLabel(data.cols, AXIS_NONE.cols)} · 합계 {cellText(matrix.total, matrix.unit)}
               </span>

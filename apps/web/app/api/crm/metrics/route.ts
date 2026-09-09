@@ -23,7 +23,7 @@ import { parsePeriodKey, periodOfToday, formatPeriodKey } from '@/lib/crm/domain
 import { isTimeAxis, type QuerySpec } from '@/lib/crm/domain/metric-agg'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
-/** 첫 화면 카드에 서는 지표 — 영업이 말하는 순서(아직 안 판 것 → 판 것 → 밀린 것) */
+/** 첫 화면 카드에 서는 지표 — 영업이 말하는 순서(진행 중 → 실적 → 주의) */
 const CARD_METRICS = [
   'open_pipeline', 'weighted', 'bookings',
   'new_deals', 'won_count', 'lost_count',

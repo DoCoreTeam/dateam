@@ -93,7 +93,7 @@ export interface DerivedDecl {
 /**
  * 지표 목록.
  *
- * 순서는 **영업이 말하는 순서**다 — 아직 안 판 것에서 판 것으로.
+ * 순서는 **영업이 말하는 순서**다 — 진행 중에서 실적으로.
  * 화면이 이 순서를 그대로 쓴다.
  */
 export const METRICS: readonly MetricDecl[] = [

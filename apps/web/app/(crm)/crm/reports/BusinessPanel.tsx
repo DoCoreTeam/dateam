@@ -139,7 +139,7 @@ const DEAL_COLUMNS: ColumnDef<DealRow>[] = [
   },
   {
     key: 'recognized', header: '이 기간 인식', align: 'right', width: '13rem',
-    // 기간을 모르면 «0» 이 아니라 «모른다» 다 — 0 으로 그리면 안 판 것이 아니라 못 판 것으로 읽힌다
+    // 기간을 모르면 «0» 이 아니라 «모른다» 다 — 0 으로 그리면 진행 중인 것이 실주한 것으로 읽힌다
     cell: (d) => (d.recognitionUnknown
       ? <span className={styles.none}>—</span>
       : <Sensitive>{formatAmount(d.recognizedMinor, d.currency) ?? '—'}</Sensitive>),
@@ -213,7 +213,7 @@ export default function BusinessPanel({ data, period, onPeriodChange, onGroupCha
         />
         <MetricCard
           tone={styles.cardBacklog}
-          question="회계 · 아직 안 판 것"
+          question="회계 · 아직 안 끝난 몫"
           title={METRIC.backlog}
           sums={data.backlog}
           foot={`${data.period.to} 기준`}

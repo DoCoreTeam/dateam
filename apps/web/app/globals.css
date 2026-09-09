@@ -501,9 +501,19 @@
      `:where()` 로 특정도를 **0** 으로 둔 것이 핵심이다 — 이미 자기 값을 적어 둔 145곳은
      인라인이든 CSS 모듈이든 globals 조합선택자든 **전부 그대로 이긴다**(무회귀).
      `padding: 0` 을 일부러 준 전면(full-bleed) 카드도 그대로다.
-     안전 확인: `.card` 는 div·section·li·article·details 에만 쓰이므로
-     Tailwind preflight 의 `ul,ol,menu{padding:0}`·`button{padding:0}` 과 겹치지 않는다. */
+     Tailwind preflight 의 `ul,ol,menu{padding:0}`·`button{padding:0}` 은 태그 선택자(0,0,1)라
+     이 규칙을 **이긴다**. 그래서 바로 아래에 클래스 특정도의 짝 규칙을 둔다. */
   :where(.card) { padding: var(--card-pad); }
+
+  /* 누를 수 있는 카드 — `:where()` 는 특정도가 **0** 이라 태그 선택자에도 진다.
+     preflight 의 `button{padding:0}`(0,0,1)이 위 규칙을 이겨서 /crm/reports 지표 카드
+     8장이 computed padding 0px 로 렌더됐다(실측 v0.7.716, 사용자 지적: 「디자인 다 깨졌자나」).
+     위 주석의 «`.card` 는 div·section·li·article·details 에만 쓰인다» 전제가 깨진 것이다 —
+     카드를 눌러 표를 여는 화면이 생기면서 카드가 button 이 됐다.
+     클래스 하나만큼(0,1,0) 올려 **preflight 만** 이기게 둔다: 자기 값을 적어 둔 곳은
+     CSS 모듈(레이어 밖)·인라인·조합 선택자라 여전히 전부 이긴다(무회귀).
+     `.card-flush` 는 뒤에 오고 특정도가 같아 전면형 카드는 그대로 여백 0 이다. */
+  :where(button, a, label, summary, ul, ol, menu, fieldset).card { padding: var(--card-pad); }
 
   /* 전면(full-bleed) 카드 — 안쪽에 **자기 여백을 가진 머리줄·표**가 들어가서
      구분선이 카드 끝까지 닿아야 하는 경우. 여백 0 은 여기서 **말로** 밝힌다.

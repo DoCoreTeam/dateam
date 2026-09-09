@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.716',
+    date: '2026-09-09',
+    title: '리포트 카드가 제 모습을 찾았어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🩹',
+        headline: '리포트 지표 카드의 안쪽 여백이 사라졌던 것을 고쳤어요',
+        detail: '글자가 카드 테두리에 딱 붙어 디자인이 없는 것처럼 보였어요. 눌러서 표를 여는 카드만 여백을 잃고 있었습니다. 이제 다른 카드와 똑같은 모양으로 보여요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🗂️',
+        headline: '리포트 묶음 이름을 업무에서 쓰는 말로 바꿨어요',
+        detail: '「아직 안 판 것 · 판 것 · 봐야 할 것」을 「진행 중 · 실적 · 주의」로 바꿨어요. 보고서나 메일에 그대로 옮겨 적을 수 있고, 진행 중인 딜이 실패한 것처럼 읽히지 않아요.',
+      },
+    ],
+  },
+  {
     version: '0.7.715',
     date: '2026-09-09',
     title: '리포트에게 말로 물어볼 수 있어요',
@@ -53,7 +72,7 @@ export const CHANGELOG: ChangelogNote[
         kind: 'improve',
         emoji: '📊',
         headline: '리포트 화면을 다시 짰어요',
-        detail: '목표 대비가 가장 크게 서고, 나머지 숫자는 「아직 안 판 것 · 판 것 · 봐야 할 것」으로 묶었어요. 기한 지난 딜이나 정체 딜이 있으면 색으로 먼저 알려 드립니다.',
+        detail: '목표 대비가 가장 크게 서고, 나머지 숫자는 「진행 중 · 실적 · 주의」로 묶었어요. 기한 지난 딜이나 정체 딜이 있으면 색으로 먼저 알려 드립니다.',
       },
       {
         kind: 'improve',

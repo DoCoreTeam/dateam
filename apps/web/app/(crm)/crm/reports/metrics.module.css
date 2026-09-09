@@ -163,7 +163,7 @@
 
 /*
   **칸 수를 고정한다.** `auto-fit` 은 카드가 둘이면 둘이서 폭을 나눠 가져,
-  「봐야 할 것」 2장이 「판 것」 3장보다 넓어진다 — 같은 성격의 카드가
+  「주의」 2장이 「실적」 3장보다 넓어진다 — 같은 성격의 카드가
   묶음마다 다른 크기로 보이면 그게 곧 위계가 깨진 것이다.
 */
 .groupGrid {
@@ -205,7 +205,7 @@
   box-shadow: var(--shadow-md);
 }
 
-/* 의미색 — 「봐야 할 것」이 0이 아니면 색으로 먼저 말한다 */
+/* 의미색 — 「주의」가 0이 아니면 색으로 먼저 말한다 */
 .cardAlert {
   border-color: var(--warning-border);
   background: var(--warning-bg);
@@ -494,4 +494,13 @@
 .close button {
   white-space: nowrap;
   flex: none;
+}
+
+/* 카드를 눌러 열린 표의 제목 — 초점을 프로그램이 옮긴다.
+   `:focus-visible` 은 프로그램 초점에 안 걸리는 브라우저가 있어 `:focus` 로 잡는다.
+   이 테두리가 «여기가 열렸다»는 유일한 신호라서, 안 보이면 스크롤만 남는다. */
+.tableTitle:focus {
+  outline: var(--border-w-2) solid var(--brand);
+  outline-offset: 6px;
+  border-radius: var(--radius);
 }
