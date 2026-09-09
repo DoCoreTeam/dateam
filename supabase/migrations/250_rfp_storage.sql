@@ -29,15 +29,13 @@ begin
     select 1 from pg_policies
     where schemaname = 'storage' and tablename = 'objects' and policyname = 'rfp_docs_select'
   ) then
+    -- 판정은 rfp_my_orgs() 한 곳이 한다. 여기서 조인을 손으로 다시 쓰면
+    -- 표 구조가 바뀔 때 한쪽만 고쳐지고, 실제로 그래서 이 파일이 한 번 실패했다
+    -- (rfp_org_members 의 칸은 user_id 가 아니라 profile_id 다)
     create policy rfp_docs_select on storage.objects for select to authenticated
     using (
       bucket_id = 'rfp-docs'
-      and exists (
-        select 1 from rfp_org_members m
-        where m.user_id = (select auth.uid())
-          and m.deleted_at is null
-          and m.org_id::text = (storage.foldername(name))[1]
-      )
+      and (storage.foldername(name))[1]::uuid in (select rfp_my_orgs())
     );
   end if;
 end $$;
