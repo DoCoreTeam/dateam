@@ -5,5 +5,5 @@ import { SERVICE_LABEL } from '@/lib/terms'
 import RouteError from '@/components/ui/RouteError'
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  return <RouteError error={error} reset={reset} surface={SERVICE_LABEL.ci} />
+  return <RouteError error={error} reset={reset} surface={SERVICE_LABEL.ai} />
 }

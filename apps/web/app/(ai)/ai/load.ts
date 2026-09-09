@@ -1,12 +1,23 @@
 // AI 스튜디오 서버 데이터 로딩 SSOT — 채팅 화면과 모델 화면이 같은 읽기를 공유한다(복붙 금지).
 import { createAdminClient } from '@/lib/supabase/server'
-import { getAvailableProviders, getDefaultProvider, getProvider } from '@/lib/ai-chat/registry'
+import { getAvailableProviders, getDefaultProvider, getProvider, isWired } from '@/lib/ai-chat/registry'
+import { AI_PROVIDER_IDS } from '@/lib/ai/provider-catalog'
 import type { AiChatProviderId, AiChatConversation } from '@/types/database'
 import { listConversations, getMessages, type MessageWithAttachments } from './actions'
 import type { ProviderView, ProviderCaps } from './AiChatClient'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 
-const ALL_PROVIDER_IDS: AiChatProviderId[] = ['gemini', 'claude', 'openai']
+/**
+ * 능력을 실어 보낼 공급자 목록 — **명세에서 온다**(lib/ai/provider-catalog).
+ *
+ * 예전엔 여기에 `['gemini','claude','openai']` 를 손으로 적어 뒀다. 그 사이 공급자가
+ * 다섯으로 늘었는데 이 줄만 셋에 멈춰 있었고, **Groq 모델을 고르는 순간 화면이 통째로 죽었다**
+ * (실측 v0.7.716: `capabilities['groq']` 가 undefined 라 `.vision` 을 읽다 던졌다).
+ * 목록을 손으로 적으면 공급자를 늘릴 때 여기만 안 고쳐진다.
+ */
+// 어댑터가 배선된 것만 — `getProvider` 는 배선 안 된 공급자에 **예외를 던진다.**
+// 명세에 이름만 올라간 공급자(배선 예정)가 하나 생기면 그 순간 화면이 통째로 죽는다.
+const ALL_PROVIDER_IDS: AiChatProviderId[] = AI_PROVIDER_IDS.filter(isWired)
 
 export interface AiChatPageData {
   initialConversations: AiChatConversation[]

@@ -6,6 +6,7 @@ import { AI_NAV_GROUPS, aiNavMatchPaths } from './groups.ts'
 import { SERVICE_NAV, NAV_LABEL, NAV_AUDIENCE } from '../../nav/menu.ts'
 import { serviceOf, surfaceOf } from '../../nav/surface.ts'
 import { SERVICE_LABEL } from '../../terms/entity.ts'
+import { stripComments } from '../../ui/component-scan.ts'
 
 const WEB = join(import.meta.dirname, '..', '..', '..')
 const read = (rel: string) => readFileSync(join(WEB, rel), 'utf8')
@@ -228,4 +229,31 @@ test('★ 클론한 것은 배치다 — 스킨에 색이 한 줄도 없어야 �
   // 토큰을 **읽는** 것(var(--…))은 테마를 따라가는 것이라 괜찮다.
   // 토큰을 **정의**하는 것(--…:)이 테마를 이기는 짓이다.
   assert.doesNotMatch(skin, /^\s*--[\w-]+\s*:/m, '스킨이 토큰을 다시 정의하고 있다')
+})
+
+// ── 공급자 목록을 손으로 적지 않는다 ──
+//
+// 실측 v0.7.716: 공급자가 다섯으로 늘었는데 능력 표를 만드는 목록만 셋에 멈춰 있었다.
+// Groq 모델을 고르는 순간 `capabilities['groq']` 이 undefined 라 `.vision` 을 읽다 던졌고
+// **AI 스튜디오 화면이 통째로 오류판**이 됐다. 목록을 손으로 적으면 늘릴 때 여기만 안 고쳐진다.
+
+test('★ 능력 표는 명세에서 만든다 — 공급자 이름을 화면이 손으로 적지 않는다', () => {
+  // 주석을 걷고 본다 — 「예전엔 이렇게 적었다」는 설명까지 위반으로 세면 가드가 문서를 막는다
+  const src = stripComments(read(`${AI_DIR}/load.ts`))
+  assert.match(src, /AI_PROVIDER_IDS/)
+  assert.doesNotMatch(src, /\['gemini',\s*'claude'/, '공급자 목록을 손으로 적었다')
+})
+
+test('★ 배선된 공급자만 능력을 묻는다 — getProvider 는 배선 안 된 것에 예외를 던진다', () => {
+  assert.match(read(`${AI_DIR}/load.ts`), /AI_PROVIDER_IDS\.filter\(isWired\)/)
+})
+
+test('★ 능력을 모르는 공급자는 화면을 죽이지 않는다 — 못 하는 것으로 친다', () => {
+  const src = read(`${AI_DIR}/AiChatClient.tsx`)
+  assert.doesNotMatch(src, /capabilities\[curProvider\]\.[a-z]/, '옵셔널 없이 능력을 읽고 있다')
+  assert.match(src, /curCaps\?\./)
+})
+
+test('★ 오류판이 자기 서비스 이름을 말한다 — 남의 이름을 부르면 사용자가 다른 화면으로 읽는다', () => {
+  assert.match(read('app/(ai)/error.tsx'), /SERVICE_LABEL\.ai/)
 })

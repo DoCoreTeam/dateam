@@ -240,9 +240,18 @@ export default function AiChatClient({
   const curProvider: AiChatProviderId | null = selectedConv?.provider ?? draftProvider?.id ?? null
   const curModel: string | null = selectedConv?.model ?? draftProvider?.model ?? null
   const canCreate = providers.length > 0
-  const visionSupported = curProvider ? capabilities[curProvider].vision : false
-  const thinkingSupported = curProvider ? capabilities[curProvider].thinking : false
-  const toolsSupported = curProvider ? capabilities[curProvider].tools : false
+  /**
+   * 능력을 모르는 공급자는 **못 하는 것으로 친다.** 화면을 죽이지 않는다.
+   *
+   * 실측 v0.7.716: 공급자가 다섯으로 늘었는데 능력 표를 만드는 목록이 셋에 멈춰 있어서
+   * Groq 모델을 고르는 순간 `capabilities['groq'].vision` 이 던졌고 **화면이 통째로 오류판**이 됐다.
+   * 표는 명세에서 만들게 고쳤지만(load.ts), 여기서도 한 겹 막는다 —
+   * 첨부 단추가 하나 잠기는 것과 대화가 통째로 안 열리는 것은 무게가 다르다.
+   */
+  const curCaps = curProvider ? capabilities[curProvider] : undefined
+  const visionSupported = curCaps?.vision ?? false
+  const thinkingSupported = curCaps?.thinking ?? false
+  const toolsSupported = curCaps?.tools ?? false
 
   // 과거(비활성) 분기 열람 중 = 표시 버전이 그룹 최신이 아님(활성 스레드는 index===count 불변).
   const viewingPast = messages.some((m) => m.branch && m.branch.index < m.branch.count)
