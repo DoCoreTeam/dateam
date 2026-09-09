@@ -241,7 +241,7 @@ export default function MeetingTranscriptView({
             <span className={styles.transcriptCount}>
               {expanded
                 ? `${segments.length.toLocaleString()}줄 전체`
-                : `${segments.length.toLocaleString()}줄 — 상자 안에서 넘겨 보세요`}
+                : `${segments.length.toLocaleString()}줄: 상자 안에서 넘겨 보세요`}
             </span>
             <span className={styles.transcriptTools}>
               {segments.length > 0 && (

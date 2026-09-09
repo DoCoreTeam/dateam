@@ -404,7 +404,7 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
           <p className={styles.step} role="status">
             <AXDotLoader />
             {step.what === 'reading'
-              ? `이미지에서 글자를 읽고 있어요 (${step.of}장) — 20초쯤 걸립니다`
+              ? `이미지에서 글자를 읽고 있어요 (${step.of}장): 20초쯤 걸립니다`
               : `등록하고 있어요 (${step.at}/${step.of})`}
           </p>
         )}

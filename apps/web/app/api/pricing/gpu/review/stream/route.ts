@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
         feature: 'gpu-intake',
         timeoutMs: 40_000,
         overallTimeoutMs: aiStageBudgetMs(stage, aiDeadline - Date.now()),
-        onAttempt: ({ model }) => send('progress', { step: 'ai_retry', msg: `다시 시도 · AI 응답 없음 — ${model}` }),
+        onAttempt: ({ model }) => send('progress', { step: 'ai_retry', msg: `다시 시도 · AI 응답 없음. ${model}` }),
         onNotice: (notice) => send('progress', { step: 'ai_model_switched', msg: notice }),
       })
       /** 관측 추출(ai-observation)이 쓰는 호출기 — 같은 안전망·같은 예산을 태운다. */
@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
         let urlTruncated = false
         const sourceUrl = urls[0] ?? null
         if (urls.length > 0) {
-          send('progress', { step: 'url', msg: `URL ${urls.length}개 감지 — 페이지 내용을 가져오는 중…` })
+          send('progress', { step: 'url', msg: `URL ${urls.length}개 감지: 페이지 내용을 가져오는 중…` })
           const bodies = await Promise.all(urls.map((u) => fetchUrlText(u)))
           urlTruncated = bodies.some((b) => b.truncated)
           const merged = bodies.map((b, i) => (b.text ? `\n\n[URL 본문 ${i + 1}: ${urls[i]}]\n${b.text}` : '')).join('')
@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
         )
         const sourceRowCount = transcription.source_row_count
         const sourceLabels = transcription.rows.map((r) => r.raw_label).filter((l) => l.length > 0)
-        if (sourceRowCount > 0) send('progress', { step: 'transcribed', msg: `원본 가격표 ${sourceRowCount}행 확인 — 누락 없이 추출합니다.` })
+        if (sourceRowCount > 0) send('progress', { step: 'transcribed', msg: `원본 가격표 ${sourceRowCount}행 확인: 누락 없이 추출합니다.` })
 
         // 행수 대조 + done payload용 reconciliation 산출. missing>0이면 경고 progress 발신.
         // 전사를 못한 경우(source_rows=0)엔 대조 비활성(reconciliation=null) — 거짓 경고 방지.
@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
           const r = reconcile(sourceRowCount, extractedItems, sourceLabels, { byDistinctModel })
           if (r.missing > 0) {
             const labelHint = r.missing_labels.length > 0 ? ` (${r.missing_labels.slice(0, 8).join(', ')})` : ''
-            send('progress', { step: 'reconcile', msg: `원문 ${r.source_rows}행 중 ${r.extracted}행 추출 — ${r.missing}행 누락 의심${labelHint}` })
+            send('progress', { step: 'reconcile', msg: `원문 ${r.source_rows}행 중 ${r.extracted}행 추출: ${r.missing}행 누락 의심${labelHint}` })
           }
           return r
         }
@@ -366,16 +366,16 @@ export async function POST(req: NextRequest) {
             })
             compItems = pipeline.items
             if (pipeline.aiItemsCount > 0) {
-              send('progress', { step: 'ai_observed', msg: `AI 구조화 관측 ${pipeline.aiItemsCount}건 — 축 분리(모델·폼팩터·메모리·장수) 완료` })
+              send('progress', { step: 'ai_observed', msg: `AI 구조화 관측 ${pipeline.aiItemsCount}건: 축 분리(모델·폼팩터·메모리·장수) 완료` })
             }
             if (pipeline.aiRejected.length > 0) {
               send('progress', { step: 'ai_rejected', msg: `검증 거부 ${pipeline.aiRejected.length}건: ${pipeline.aiRejected.slice(0, 3).map((r) => r.detail).join(' / ')}` })
             }
             if (pipeline.detSupplemented > 0) {
-              send('progress', { step: 'union', msg: `결정론 파서가 AI 누락분 ${pipeline.detSupplemented}건 보완 — 합집합 ${compItems.length}건` })
+              send('progress', { step: 'union', msg: `결정론 파서가 AI 누락분 ${pipeline.detSupplemented}건 보완: 합집합 ${compItems.length}건` })
             }
             if (pipeline.crosscheckConflicts.length > 0) {
-              send('progress', { step: 'crosscheck', msg: `⚠️ AI·결정론 모델 불일치 ${pipeline.crosscheckConflicts.length}건 — 보류 처리: ${pipeline.crosscheckConflicts.slice(0, 3).join(' / ')}` })
+              send('progress', { step: 'crosscheck', msg: `⚠️ AI·결정론 모델 불일치 ${pipeline.crosscheckConflicts.length}건: 보류 처리: ${pipeline.crosscheckConflicts.slice(0, 3).join(' / ')}` })
             }
 
             if (compItems.length === 0) {
@@ -430,7 +430,7 @@ export async function POST(req: NextRequest) {
                 const parts: string[] = []
                 if (fromPivot.length > 0) parts.push(`세로형 비교표 ${fromPivot.length}건(원본가+환율 환산)`)
                 if (fromProse.length > 0) parts.push(`산문형 복합요금 ${fromProse.length}건(요금성분 ${fromProse.reduce((n, i) => n + (i.components?.length ?? 0), 0)}건 무손실)`)
-                send('progress', { step: 'recovered', msg: `GPU 복원 — ${parts.join(' + ')}` })
+                send('progress', { step: 'recovered', msg: `GPU 복원: ${parts.join(' + ')}` })
               } else if (Array.isArray(classified.items)) {
                 // 2순위 — 피벗도 실패하면 classify 모델만 복구(가격은 AI 불신 → 보류).
                 const recovered = (classified.items as Array<Record<string, unknown>>)
@@ -446,7 +446,7 @@ export async function POST(req: NextRequest) {
                   })
                 if (recovered.length > 0) {
                   compItems = recovered
-                  send('progress', { step: 'recovered', msg: `분류결과에서 GPU 모델 ${recovered.length}건 복구 — 가격은 검수 필요` })
+                  send('progress', { step: 'recovered', msg: `분류결과에서 GPU 모델 ${recovered.length}건 복구: 가격은 검수 필요` })
                 }
               }
             }
@@ -478,13 +478,13 @@ export async function POST(req: NextRequest) {
               })
               send('progress', {
                 step: 'completeness',
-                msg: `⚠️ 원본에 있으나 추출에 없는 금액 ${completeness.uncovered.length}건 — GPU 요금이 맞는지 확인하세요: ${withCtx.join(' / ')}${completeness.uncovered.length > 6 ? ' 외' : ''}`,
+                msg: `⚠️ 원본에 있으나 추출에 없는 금액 ${completeness.uncovered.length}건: GPU 요금이 맞는지 확인하세요: ${withCtx.join(' / ')}${completeness.uncovered.length > 6 ? ' 외' : ''}`,
               })
             } else if (completeness.sourceAmounts.length > 0) {
-              send('progress', { step: 'completeness', msg: `✅ 완전성 확인 — 원본 금액 ${completeness.sourceAmounts.length}건 전부 추출에 반영됨` })
+              send('progress', { step: 'completeness', msg: `✅ 완전성 확인: 원본 금액 ${completeness.sourceAmounts.length}건 전부 추출에 반영됨` })
             }
 
-            send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 — 원문 모델명 그대로(전사 기반)${compItems.length < rawCount ? ` (중복 ${rawCount - compItems.length}건 제거)` : ''}` })
+            send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건: 원문 모델명 그대로(전사 기반)${compItems.length < rawCount ? ` (중복 ${rawCount - compItems.length}건 제거)` : ''}` })
           } else if (Array.isArray(classified.items) && classified.items.length > 0) {
             // 폴백: 전사 실패 시 기존 classify.items(카탈로그 매핑) 경로 유지(회귀 0).
             const compDeduped = dedupCompetitor(classified.items as CompetitorLike[])
@@ -506,7 +506,7 @@ export async function POST(req: NextRequest) {
               send('done', { type: 'competitor', count: compItems.length, truncated: false, reconciliation })
               controller.close(); return
             }
-            send('progress', { step: 'mixed', msg: '입력에 우리 공급 견적도 포함 — 공급가도 이어서 추출합니다.' })
+            send('progress', { step: 'mixed', msg: '입력에 우리 공급 견적도 포함. 공급가도 이어서 추출합니다.' })
           }
         }
 
@@ -544,10 +544,10 @@ export async function POST(req: NextRequest) {
 
         // R2: 미준비 입력 → 프롬프트 자가합성 후 1회 재시도 (URL 없을 때만 — URL빈손은 안내가 맞음)
         if (items.length === 0 && urls.length === 0 && contentText.trim().length > 10) {
-          send('progress', { step: 'synthesize', msg: '준비된 규칙으로 못 뽑았습니다 — 이 형식에 맞는 추출 프롬프트를 새로 만드는 중…' })
+          send('progress', { step: 'synthesize', msg: '준비된 규칙으로 못 뽑았습니다. 이 형식에 맞는 추출 프롬프트를 새로 만드는 중…' })
           const synth = await synthesizeExtractPrompt(adminClient, config.apiKey, config.model, contentText, schemaDigest)
           if (synth) {
-            send('progress', { step: 'synthesized', msg: `맞춤 추출 규칙 생성(${synth.promptKey}${synth.activated ? ', 자동 반영' : ', eval 보류'}) — 재추출 중…` })
+            send('progress', { step: 'synthesized', msg: `맞춤 추출 규칙 생성(${synth.promptKey}${synth.activated ? ', 자동 반영' : ', eval 보류'}): 재추출 중…` })
             const retryText = await callGeminiStream(
               config.apiKey, config.model,
               [{ text: `${synth.content}\n\n${schemaDigest}${specContext}\n\n입력 텍스트:\n${contentText}` }],
@@ -561,7 +561,7 @@ export async function POST(req: NextRequest) {
             if (synth.activated) {
               const { monitorAiPromptOutcome } = await import('@/lib/gpu/prompt-governance')
               const mon = await monitorAiPromptOutcome(adminClient as unknown as Record<string, unknown>, { promptKey: synth.promptKey, ok: items.length > 0, nowIso: new Date().toISOString() })
-              if (mon.action !== 'none') send('progress', { step: 'auto_rollback', msg: `자가합성 프롬프트 품질 미달 — 자동 ${mon.action === 'rolled_back' ? `롤백(→${mon.toVersion})` : '비활성'}` })
+              if (mon.action !== 'none') send('progress', { step: 'auto_rollback', msg: `자가합성 프롬프트 품질 미달: 자동 ${mon.action === 'rolled_back' ? `롤백(→${mon.toVersion})` : '비활성'}` })
             }
             if (items.length > 0) {
               send('progress', { step: 'synth_ok', msg: `자가합성 규칙으로 ${items.length}건 추출 성공` })
@@ -593,7 +593,7 @@ export async function POST(req: NextRequest) {
           const original = typeof it?.extracted?.model_name === 'string' ? (it.extracted.model_name as string).trim() : ''
           return original ? { ...it, source_model_name: original } : it
         })
-        send('progress', { step: 'extracted', msg: `공급사 견적 ${items.length}건 추출 완료 — 미리보기 생성` })
+        send('progress', { step: 'extracted', msg: `공급사 견적 ${items.length}건 추출 완료: 미리보기 생성` })
         send('preview', { type: 'supplier', items: previewItems })
         // 행수 대조: 순수 공급가 입력에서만(혼합은 경쟁사/공급가가 한 표에 섞여 대조가 모호 → 생략).
         const supplierRecon = competitorEmitted

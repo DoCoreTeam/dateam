@@ -84,7 +84,7 @@ export default function DataQualityDashboard() {
 
   // 기존 review/[id] 엔드포인트 재사용 (단일구현 정책 — 신규 merge/confirm API 만들지 않음)
   const reviewAction = (id: string, action: 'reject' | 'confirm') =>
-    fetch(`/api/pricing/gpu/review/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, rejected_reason: action === 'reject' ? '데이터 품질 점검 — 반려' : undefined }) })
+    fetch(`/api/pricing/gpu/review/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, rejected_reason: action === 'reject' ? '데이터 품질 점검: 반려' : undefined }) })
 
   const rejectItem = async (id: string) => {
     if (!confirm('이 항목을 반려할까요?')) return
@@ -204,7 +204,7 @@ export default function DataQualityDashboard() {
         <MetricCard label="평균 신뢰도" value={m.supply_quotes.avg_confidence != null ? `${m.supply_quotes.avg_confidence}%` : '—'} tone={(m.supply_quotes.avg_confidence ?? 0) >= 80 ? 'ok' : 'warn'} />
         <MetricCard label="高 (≥90)" value={m.supply_quotes.high} tone="ok" sub="자동 신뢰 후보" />
         <MetricCard label="中 (60~89)" value={m.supply_quotes.mid} tone="warn" sub="검토 권장" />
-        <MetricCard label="低 (<60)" value={m.supply_quotes.low} tone={m.supply_quotes.low > 0 ? 'bad' : 'ok'} sub="저신뢰 — 재확인" />
+        <MetricCard label="低 (<60)" value={m.supply_quotes.low} tone={m.supply_quotes.low > 0 ? 'bad' : 'ok'} sub="저신뢰: 재확인" />
       </div>
     </div>
   )

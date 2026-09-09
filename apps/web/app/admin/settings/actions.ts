@@ -242,8 +242,8 @@ export async function checkKoraeximHealth(): Promise<{ ok: boolean; message: str
     if (!Array.isArray(json)) return { ok: false, message: '비정상 응답 (API 키를 확인해주세요)' }
     if (json.length === 0) return { ok: false, message: '데이터 없음 (휴장일이거나 키가 유효하지 않습니다)' }
     const usdRow = (json as Record<string, string>[]).find((r) => r.cur_unit === 'USD')
-    if (!usdRow) return { ok: false, message: '연결 성공 — USD 환율 데이터 없음' }
-    return { ok: true, message: `연결 성공 — 오늘 USD/KRW: ${usdRow.deal_bas_r}원` }
+    if (!usdRow) return { ok: false, message: '연결 성공: USD 환율 데이터 없음' }
+    return { ok: true, message: `연결 성공: 오늘 USD/KRW: ${usdRow.deal_bas_r}원` }
   } catch {
     return { ok: false, message: '네트워크 오류가 발생했습니다' }
   }
@@ -271,17 +271,17 @@ export async function checkGoogleDriveHealth(): Promise<{ ok: boolean; message: 
     const { limit, usage } = data.storageQuota ?? {}
     if (limit && usage) {
       const gb = (n: string) => (Number(n) / 1024 ** 3).toFixed(1)
-      return { ok: true, message: `연결 성공 — ${email} · 사용량 ${gb(usage)}GB / ${gb(limit)}GB` }
+      return { ok: true, message: `연결 성공: ${email} · 사용량 ${gb(usage)}GB / ${gb(limit)}GB` }
     }
-    return { ok: true, message: `연결 성공 — ${email}` }
+    return { ok: true, message: `연결 성공: ${email}` }
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : ''
     // 리프레시 토큰이 만료·철회된 경우가 가장 흔하다 — 무엇을 해야 하는지까지 알려준다
     if (/invalid_grant|Token has been expired or revoked/i.test(msg)) {
-      return { ok: false, message: '인증이 만료되었습니다 — [변경]으로 Google 계정을 다시 연결해주세요' }
+      return { ok: false, message: '인증이 만료되었습니다. [변경]으로 Google 계정을 다시 연결해주세요' }
     }
     if (/insufficient|403/i.test(msg)) {
-      return { ok: false, message: '권한이 부족합니다 — 다시 연결하며 드라이브 접근을 허용해주세요' }
+      return { ok: false, message: '권한이 부족합니다. 다시 연결하며 드라이브 접근을 허용해주세요' }
     }
     return { ok: false, message: msg ? `연결 실패: ${msg}` : '네트워크 오류가 발생했습니다' }
   }
@@ -304,7 +304,7 @@ export async function checkGeminiHealth(): Promise<{ ok: boolean; message: strin
 
     if (res.ok) {
       const json = await res.json() as { models?: unknown[] }
-      return { ok: true, message: `연결 성공 — ${json.models?.length ?? 0}개 모델 사용 가능` }
+      return { ok: true, message: `연결 성공: ${json.models?.length ?? 0}개 모델 사용 가능` }
     }
 
     const errJson = await res.json().catch(() => ({})) as { error?: { message?: string } }
@@ -534,7 +534,7 @@ export async function checkYoutubeHealth(): Promise<{ ok: boolean; message: stri
       `https://youtube.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${encodeURIComponent(apiKey)}`,
       { cache: 'no-store' },
     )
-    if (res.ok) return { ok: true, message: '연결 성공 — 채널 전체 수집을 쓸 수 있습니다' }
+    if (res.ok) return { ok: true, message: '연결 성공: 채널 전체 수집을 쓸 수 있습니다' }
 
     const err = await res.json().catch(() => ({})) as { error?: { message?: string } }
     const msg = err?.error?.message ?? res.statusText
@@ -612,7 +612,7 @@ export async function checkSttHealth(): Promise<{ ok: boolean; message: string }
     })
     if (res.ok) {
       const model = (meta.stt_model as string | undefined) ?? 'whisper-large-v3'
-      return { ok: true, message: `연결 성공 — ${model} 으로 회의 녹음을 전사합니다` }
+      return { ok: true, message: `연결 성공: ${model} 으로 회의 녹음을 전사합니다` }
     }
     if (res.status === 401 || res.status === 403) {
       return { ok: false, message: 'API 키가 올바르지 않습니다' }
@@ -690,7 +690,7 @@ export async function checkVercelHealth(): Promise<{ ok: boolean; message: strin
 
   try {
     const project = await fetchProject(cfg.config)
-    return { ok: true, message: `연결 성공 — 프로젝트 「${project.name}」의 배포·서버 로그를 읽습니다` }
+    return { ok: true, message: `연결 성공: 프로젝트 「${project.name}」의 배포·서버 로그를 읽습니다` }
   } catch (e) {
     // 실패 사유를 그대로 전한다. "연결 실패"만 말하면 관리자가 다음에 할 일을 모른다
     return { ok: false, message: e instanceof VercelApiError ? e.message : 'Vercel에 연결하지 못했습니다' }

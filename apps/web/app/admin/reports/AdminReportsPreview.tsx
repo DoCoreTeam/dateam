@@ -206,7 +206,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
         brandName={orgName || undefined}
         label={STEPS[Math.min(statusStep, STEPS.length - 1)].label}
         elapsed={elapsed}
-        ariaLabel={`AI 취합 중 — ${STEPS[Math.min(statusStep, STEPS.length - 1)].label}`}
+        ariaLabel={`AI 취합 중: ${STEPS[Math.min(statusStep, STEPS.length - 1)].label}`}
       />
 
       {/* Trigger button + inline status */}

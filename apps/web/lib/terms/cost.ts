@@ -109,7 +109,7 @@ export const COST_GROUP_HINT: Record<CostGroup, string> = {
   DIRECT: '이 사업에만 쓴 돈',
   SUBCONTRACT: '밖에 맡긴 몫',
   INDIRECT: '여러 사업이 나눠 쓰는 돈',
-  RISK: '나중에 나가는 돈 — 지금 안 세면 마진이 실제보다 높게 보인다',
+  RISK: '나중에 나가는 돈: 지금 안 세면 마진이 실제보다 높게 보인다',
 }
 
 const GROUP_OF: Record<CostCategory, CostGroup> = {
@@ -141,7 +141,7 @@ export const COST_CATEGORY_HINT: Record<CostCategory, string> = {
   OVERHEAD: '사무실·관리 인력. 통상 매출의 일정 %',
   INFRA: '공용 서버·모니터링·라이선스 풀',
   FINANCE: '선매입 후 후불 수금 사이의 자금 비용',
-  WARRANTY: '「검수 후 1년 무상」 — 무상이지만 원가는 든다',
+  WARRANTY: '「검수 후 1년 무상」: 무상이지만 원가는 든다',
   CONTINGENCY: '환율·물가·범위 변경 대비',
 }
 
@@ -211,7 +211,7 @@ export const RATIO_BASE_LABEL: Record<RatioBase, string> = {
 export const COST = {
   section: '원가·마진',
   /** 원가 탭 옆에 붙는 표시 — 이 탭은 내보내기에 안 실린다 */
-  internalOnly: '대외비 — 내보내는 파일에 담기지 않습니다',
+  internalOnly: '대외비: 내보내는 파일에 담기지 않습니다',
   totalCost: '원가 합계',
   grossProfit: '매출총이익',
   marginPct: '마진율',
@@ -225,7 +225,7 @@ export const COST = {
   pricePerMm: 'M/M 제시가',
   effortMm: '공수(M/M)',
   basisNote: '근거',
-  basisHint: '왜 이 금액인지 — 정산 서류에 그대로 쓰입니다',
+  basisHint: '왜 이 금액인지: 정산 서류에 그대로 쓰입니다',
 } as const
 
 /** 원가가 비었을 때 견적을 보내려 하면 — **막지는 않는다**(기획 §09 ①) */

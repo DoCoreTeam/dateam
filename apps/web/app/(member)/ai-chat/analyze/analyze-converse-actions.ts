@@ -161,7 +161,7 @@ export async function synthesizeSession(
   const entries = done
     .filter((r) => (r.result_text ?? '').trim())
     .map((r) => ({ itemText: r.title || r.body_raw, resultText: r.result_text as string }))
-  if (entries.length === 0) return { ok: false, error: '종합할 확정 항목이 없습니다 — 먼저 항목에 지시해 답을 받으세요' }
+  if (entries.length === 0) return { ok: false, error: '종합할 확정 항목이 없습니다. 먼저 항목에 지시해 답을 받으세요' }
 
   await updateSessionSynth(sessionId, { synthStatus: 'running' })
   const synth = await synthesizeInsights(entries, own.model ?? undefined, formatInstruction)

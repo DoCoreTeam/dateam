@@ -245,7 +245,7 @@ export default function LeadImport() {
     if (body.companiesReused) parts.push(`기존 회사 ${body.companiesReused}개에 붙임`)
     if (body.dealsCreated) parts.push(`딜 ${body.dealsCreated}개`)
     if (body.alreadyMigrated) parts.push(`이미 옮긴 ${body.alreadyMigrated}건은 건너뜀`)
-    if (body.failed?.length) parts.push(`${body.failed.length}건 실패 — ${body.failed[0].message}`)
+    if (body.failed?.length) parts.push(`${body.failed.length}건 실패: ${body.failed[0].message}`)
     setResult(parts.join(' · '))
   }
 

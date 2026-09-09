@@ -111,7 +111,7 @@ export default function ReorderList<T>({
               draggable={!locked}
               onDragStart={() => { if (!locked) setDragId(id) }}
               onDragEnd={reset}
-              title={locked ? undefined : `${getLabel(item)} — 끌어서 순서를 바꿔요`}
+              title={locked ? undefined : `${getLabel(item)}: 끌어서 순서를 바꿔요`}
             >
               {!locked && <GripVertical size={16} aria-hidden />}
               <span className={styles.pos}>{index + 1}</span>

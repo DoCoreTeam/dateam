@@ -49,7 +49,7 @@ export async function approveRequest(requestId: string): Promise<{ success: bool
         .update({ status: 'approved', approved_by: admin.id, approved_at: new Date().toISOString(), notes: '기존 계정으로 승인' })
         .eq('id', requestId)
       revalidatePath('/admin/api-access')
-      return { success: true, tempPassword: '(기존 계정 — 비밀번호 변경 없음)' }
+      return { success: true, tempPassword: '(기존 계정: 비밀번호 변경 없음)' }
     }
     return { success: false, error: createErr?.message ?? '계정 생성 실패' }
   }

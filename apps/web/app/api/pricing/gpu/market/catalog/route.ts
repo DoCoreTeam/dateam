@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
 
   if (!mapping) {
     synthesized = true
-    const augmented = `${basePrompt}\n\n【재시도 — 더 엄격히】 앞선 매핑이 필수 필드(업체명·모델명·가격)를 찾지 못했습니다. 각 헤더를 하나씩 검토해, 업체/지역 복합 컬럼(예 location)·모델명 컬럼·가격 컬럼을 반드시 식별하세요. 값이 "업체/지역" 형태면 _location_split=true. 반드시 competitor_name·model_name·price_usd를 채우세요.`
+    const augmented = `${basePrompt}\n\n【재시도: 더 엄격히】 앞선 매핑이 필수 필드(업체명·모델명·가격)를 찾지 못했습니다. 각 헤더를 하나씩 검토해, 업체/지역 복합 컬럼(예 location)·모델명 컬럼·가격 컬럼을 반드시 식별하세요. 값이 "업체/지역" 형태면 _location_split=true. 반드시 competitor_name·model_name·price_usd를 채우세요.`
     try { mapping = validateMapping(JSON.parse(await callGeminiOnce(config.apiKey, config.model, `${augmented}\n\n${ctx}`, true)), parsed.headers) }
     catch { /* still null */ }
   }

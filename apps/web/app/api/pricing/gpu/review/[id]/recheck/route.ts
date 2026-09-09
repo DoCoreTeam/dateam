@@ -84,7 +84,7 @@ ${feedback}
 추가로, 최상위에 "change_summary" 필드(한국어 1~3문장)를 포함하세요 — 이전 추출 대비 **무엇을 어떻게 바꿨는지와 그 근거**를 사람이 읽을 수 있게 설명합니다. 바꾼 것이 없으면 그 이유를 적으세요.
 
 원본 텍스트:
-${originalText || '(원본 텍스트 없음 — 이전 추출 결과 기반으로 피드백 반영)'}`
+${originalText || '(원본 텍스트 없음. 이전 추출 결과 기반으로 피드백 반영)'}`
 
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
 

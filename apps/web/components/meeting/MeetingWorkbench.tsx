@@ -109,7 +109,7 @@ const SAVE_ICON: Record<SaveState, ReactNode> = {
 
 function saveLabel(state: SaveState, at: number | null): string {
   if (state === 'saving') return '저장 중…'
-  if (state === 'error') return '저장 실패 — 다시 시도할게요'
+  if (state === 'error') return '저장 실패: 다시 시도할게요'
   if (state === 'saved' && at) return `저장됨 ${formatKstTime(new Date(at).toISOString())}`
   if (state === 'dirty') return '곧 저장돼요'
   return ''

@@ -168,7 +168,7 @@ export default function AnalysisResultItem({ idx, text, status, resultText, body
                 border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)',
                 padding: '0.3rem 0.55rem', marginBottom: 'var(--space-2)',
               }}
-              title="원문에 없던 수치 — AI 보강이 도입한 값이니 근거를 검토하세요"
+              title="원문에 없던 수치: AI 보강이 도입한 값이니 근거를 검토하세요"
             >
               🔬 AI가 더한 수치 {addedNumbers.length}개(원문 근거 없음 · 검토 권장): {addedNumbers.join(', ')}
             </div>

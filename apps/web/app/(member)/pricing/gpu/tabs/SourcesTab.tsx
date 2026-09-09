@@ -53,7 +53,7 @@ export default function SourcesTab() {
       const res = await fetch('/api/pricing/gpu/market/refresh', { method: 'POST' })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setMsg(j.error ?? '수집에 실패했어요. 잠시 후 다시 시도해 주세요.'); return }
-      setMsg(`수집 완료 — 링크 ${j.urls_checked ?? 0}개 확인, 가격 ${j.prices_updated ?? 0}건 갱신`)
+      setMsg(`수집 완료: 링크 ${j.urls_checked ?? 0}개 확인, 가격 ${j.prices_updated ?? 0}건 갱신`)
       await mutate()
     } catch {
       setMsg('수집 중 오류가 발생했어요.')

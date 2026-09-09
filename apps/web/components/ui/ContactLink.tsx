@@ -93,7 +93,7 @@ export default function ContactLink({ kind, value, icon = true, copyable = true,
           className={styles.copy}
           onClick={(e) => { e.stopPropagation(); void copy() }}
           aria-label={copied === 'done' ? '복사됨' : `${text} 복사`}
-          title={copied === 'fail' ? '복사할 수 없습니다 — 직접 선택해 주세요' : '복사'}
+          title={copied === 'fail' ? '복사할 수 없습니다. 직접 선택해 주세요' : '복사'}
           data-state={copied}
         >
           {copied === 'done' ? <Check size={13} /> : <Copy size={13} />}

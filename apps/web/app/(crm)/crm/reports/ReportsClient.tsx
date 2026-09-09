@@ -186,7 +186,7 @@ export default function ReportsClient() {
 
       <h2 className={styles.sectionHead}>
         영업 · 지금 걸려 있는 것
-        <span className={styles.sectionHint}>아직 안 끝난 딜을 단계로 본다 — 위의 금액과 다른 이야기다</span>
+        <span className={styles.sectionHint}>아직 안 끝난 딜을 단계로 본다. 위의 금액과 다른 이야기다</span>
       </h2>
 
       {shown.map((p) => (

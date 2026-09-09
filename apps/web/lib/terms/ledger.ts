@@ -120,8 +120,8 @@ export const IN_KIND_BASIS_HINT: Record<InKindKindKey, string> = {
 
 /** 부가세를 어느 쪽으로 푸는가 — 이 한 칸이 방향을 기록하고 세 값은 계산된다 */
 export const TAX_BASIS_LABEL = {
-  NET: '별도 — 이 금액이 공급가액입니다',
-  GROSS: '포함 — 이 금액에 부가세가 들어 있습니다',
+  NET: '별도: 이 금액이 공급가액입니다',
+  GROSS: '포함. 이 금액에 부가세가 들어 있습니다',
 } as const
 
 /** 부가세 계산 방향을 사람 말로 — 화면이 문장을 짓지 않는다 */

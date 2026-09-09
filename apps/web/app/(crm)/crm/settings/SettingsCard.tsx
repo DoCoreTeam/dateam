@@ -192,7 +192,7 @@ export default function SettingsCard() {
                     value={drafts[s.key] ?? ''}
                     onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
                     placeholder={s.kind === 'secret'
-                      ? (s.masked ? `저장됨 ${s.masked} — 바꾸려면 새 값을 넣으세요` : '아직 없음')
+                      ? (s.masked ? `저장됨 ${s.masked}: 바꾸려면 새 값을 넣으세요` : '아직 없음')
                       : ''}
                     autoComplete="off"
                   />

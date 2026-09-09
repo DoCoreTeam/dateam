@@ -27,7 +27,7 @@ export default async function AssetsPage() {
     <>
       <PageHeader
         title="자료"
-        description="제작에 쓴 원본과 산출물 — 파일은 구글드라이브에 보관하고 우리는 분석 정보만 갖습니다"
+        description="제작에 쓴 원본과 산출물: 파일은 구글드라이브에 보관하고 우리는 분석 정보만 갖습니다"
       />
       <AssetsView
         workspaceId={workspace.id}

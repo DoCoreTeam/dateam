@@ -861,7 +861,7 @@ export default function AiChatClient({
             href="/ai-chat/analyze"
             className="ai-chat-icon-btn"
             aria-label="목록 심층분석"
-            title="목록 심층분석 — 자료 붙여넣기/파일에서 목록 추출 후 항목별 분석"
+            title="목록 심층분석: 자료 붙여넣기/파일에서 목록 추출 후 항목별 분석"
           >
             <ListChecks size={18} />
           </Link>
@@ -938,7 +938,7 @@ export default function AiChatClient({
 
         {viewingPast && (
           <div className="ai-chat-banner ai-chat-branch-banner" data-tone="neutral" role="status">
-            <span>과거 분기 열람 중 — 이어쓰려면 최신 분기로 돌아가세요</span>
+            <span>과거 분기 열람 중: 이어쓰려면 최신 분기로 돌아가세요</span>
             <button
               type="button"
               className="ai-chat-copy-btn"

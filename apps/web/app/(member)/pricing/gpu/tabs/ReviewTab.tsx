@@ -302,7 +302,7 @@ function ModelResolveModal({ modelName, message, busy, onPick, onClose }: {
   }, [data, q])
   return (
     <NbModal
-      title="모델 해소 — 기존 카탈로그에 매핑"
+      title="모델 해소: 기존 카탈로그에 매핑"
       onClose={onClose}
       maxWidth={520}
       footer={
@@ -321,7 +321,7 @@ function ModelResolveModal({ modelName, message, busy, onPick, onClose }: {
       </div>
       <div style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {filtered.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--text-faint)', padding: '14px 0', textAlign: 'center' }}>일치하는 모델이 없습니다 — 새 모델이면 아래 등록 버튼을 쓰세요</div>
+          <div style={{ fontSize: 12, color: 'var(--text-faint)', padding: '14px 0', textAlign: 'center' }}>일치하는 모델이 없습니다. 새 모델이면 아래 등록 버튼을 쓰세요</div>
         ) : filtered.map((p) => (
           <button key={p.id} type="button" className="gpu-btn" disabled={busy}
             onClick={() => onPick(p.id)}
@@ -442,7 +442,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       setResolveMsg(null)
       onDone()
     } catch {
-      alert('확정 실패 — 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
+      alert('확정 실패: 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
     } finally {
       setConfirming(false)
     }
@@ -463,7 +463,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       }
       onDone()
     } catch {
-      alert('반려 실패 — 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
+      alert('반려 실패: 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
     } finally {
       setRejecting(false)
     }
@@ -495,7 +495,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       setFeedback('')
       onDone()
     } catch {
-      setRecheckErr('네트워크 오류 — 서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요.')
+      setRecheckErr('네트워크 오류: 서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요.')
     } finally {
       setRechecking(false)
     }
@@ -958,11 +958,11 @@ export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
       }
       const codeCounts = new Map<string, number>()
       failedArr.forEach((f) => { if (f.code && ACTION_BY_CODE[f.code]) codeCounts.set(f.code, (codeCounts.get(f.code) ?? 0) + 1) })
-      const actionLines = Array.from(codeCounts.entries()).map(([c, n]) => `· ${ACTION_BY_CODE[c]} 필요 ${n}건 — 이 창을 닫고 해당 카드의 버튼으로 확정하세요`)
+      const actionLines = Array.from(codeCounts.entries()).map(([c, n]) => `· ${ACTION_BY_CODE[c]} 필요 ${n}건: 이 창을 닫고 해당 카드의 버튼으로 확정하세요`)
       setBulkResult({
         title: '일괄 확정 완료',
         lines: [`${j.confirmed ?? 0}건을 가격표에 반영했습니다.`,
-          ...(failedArr.length ? [`${failedArr.length}건은 확정하지 못했습니다 — 선택에 남겨뒀습니다. 아래 실패 카드에서 메모리 변형 선택·모델 등록 등으로 확정하세요.`] : []),
+          ...(failedArr.length ? [`${failedArr.length}건은 확정하지 못했습니다. 선택에 남겨뒀습니다. 아래 실패 카드에서 메모리 변형 선택·모델 등록 등으로 확정하세요.`] : []),
           ...actionLines],
         failed: failedArr.map((f) => ({ hint: f.hint ?? f.id, error: f.error })),
       })

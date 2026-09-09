@@ -133,7 +133,7 @@ async function loadSpecContext(adminClient: ReturnType<typeof createAdminClient>
     }
     if (lines.length === 0) return ''
 
-    return `\n\n【중요 — 클라우드 가상 모델명 → 표준 모델 매핑】
+    return `\n\n【중요. 클라우드 가상 모델명 → 표준 모델 매핑】
 클라우드사(NHN·NAVER·AWS 등)는 GPU를 자체 인스턴스/가상 이름으로 부릅니다(예: "g2", "GPU-A100-1", "vGPU 80G").
 입력의 모델/인스턴스명이 표준과 다르면, 아래 보유 모델 카탈로그의 스펙(VRAM 용량·메모리타입·아키텍처·인터페이스)과 대조해
 가장 일치하는 표준 model_name으로 매핑하세요. 예) "80GB HBM3 SXM" 단서 → H100. 매핑이 명확하지 않을 때만 원문 모델명을 유지하세요.

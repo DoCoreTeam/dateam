@@ -319,10 +319,10 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
               <Trash2 size={15} /> {deleting ? '삭제 중…' : '삭제'}
             </NbButton>
           )}
-          <NbButton variant="secondary" onClick={() => save('draft')} disabled={pending || deleting} title="아직 정리 중 — 목록에 '작성중'으로 남습니다" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <NbButton variant="secondary" onClick={() => save('draft')} disabled={pending || deleting} title="아직 정리 중: 목록에 '작성중'으로 남습니다" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <Save size={15} /> {pending ? '저장 중…' : '임시저장'}
           </NbButton>
-          <NbButton onClick={() => save('final')} disabled={pending || deleting} title="내용을 확정합니다 — 목록에 '작성완료'로 표시됩니다" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <NbButton onClick={() => save('final')} disabled={pending || deleting} title="내용을 확정합니다. 목록에 '작성완료'로 표시됩니다" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <CheckCircle2 size={15} /> {pending ? '저장 중…' : '작성 완료'}
           </NbButton>
         </div>

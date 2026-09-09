@@ -306,7 +306,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
 
       <div className="gpu-unified-split">
         {/* 좌: 목록 (마스터) */}
-        <div className="gpu-unified-list" role="table" aria-label={`통합 표 — ${preset.label}`}>
+        <div className="gpu-unified-list" role="table" aria-label={`통합 표: ${preset.label}`}>
           <div className="gpu-unified-row gpu-unified-row--head" role="row">
             {preset.columns.map((col) => {
               const active = sortConfig?.key === col.key
@@ -333,7 +333,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
             <div className="gpu-unified-state">
               {q ? '검색 결과가 없습니다.'
                 : !showAll && hiddenCount > 0
-                  ? `취급 중인 모델이 없습니다. 숨김 ${hiddenCount}개 — "전체 보기"로 확인하세요.`
+                  ? `취급 중인 모델이 없습니다. 숨김 ${hiddenCount}개: "전체 보기"로 확인하세요.`
                   : '등록된 항목이 없습니다.'}
             </div>
           )}
@@ -357,7 +357,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
                       <span className="gpu-unified-group-chevron" aria-hidden>{isCollapsed ? '▸' : '▾'}</span>
                       <span className="gpu-unified-group-name">{group.name}</span>
                       <span className="gpu-unified-group-count">{group.rows.length}개 구성</span>
-                      {groupReview && <span className="gpu-ubadge gpu-ubadge--warn" title="신규 유입 — 검토 대기">검토 대기</span>}
+                      {groupReview && <span className="gpu-ubadge gpu-ubadge--warn" title="신규 유입: 검토 대기">검토 대기</span>}
                       {!groupActive && <span className="gpu-ubadge gpu-ubadge--muted" title="가격표 기본 노출에서 제외됨">숨김</span>}
                     </button>
                     {isAdmin && (

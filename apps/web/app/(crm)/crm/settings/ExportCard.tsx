@@ -40,7 +40,7 @@ export default function ExportCard() {
 
       setNotice(
         `${EXPORT_LABEL[kind]} ${rows}건을 받았어요.` +
-        (truncated ? ' 너무 많아 앞부분만 담겼습니다 — 나머지는 화면에서 조건을 좁혀 확인해 주세요.' : ''),
+        (truncated ? ' 너무 많아 앞부분만 담겼습니다. 나머지는 화면에서 조건을 좁혀 확인해 주세요.' : ''),
       )
     } catch {
       setError('내려받지 못했습니다. 잠시 후 다시 시도해 주세요.')

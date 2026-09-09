@@ -42,7 +42,7 @@ export default function ModelCandidateQueue({ onRegistered }: { onRegistered?: (
       if (!res.ok) { setErr(j.error ?? '처리 실패'); return }
       await mutate()
       if (action === 'register') onRegistered?.()
-    } catch { setErr('처리 실패 — 네트워크를 확인하세요') } finally { setBusy(null) }
+    } catch { setErr('처리 실패: 네트워크를 확인하세요') } finally { setBusy(null) }
   }
 
   // 그룹 일괄 등록 — 같은 base 모델의 폼팩터 변형들을 순차 등록(H100의 SXM·PCIe·NVL을 한 번에).
@@ -57,7 +57,7 @@ export default function ModelCandidateQueue({ onRegistered }: { onRegistered?: (
         if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '일부 등록 실패'); break }
       }
       await mutate(); onRegistered?.()
-    } catch { setErr('처리 실패 — 네트워크를 확인하세요') } finally { setBusy(null) }
+    } catch { setErr('처리 실패: 네트워크를 확인하세요') } finally { setBusy(null) }
   }
 
   // base 모델(폼팩터 무시)로 후보 묶기 — "H100 SXM/PCIe/NVL"을 흩뿌리지 않고 "H100의 신규 폼팩터"로 제시.

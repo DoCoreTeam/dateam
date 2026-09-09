@@ -38,7 +38,7 @@ export default function DocMetaPanel({ meta }: Props) {
         <span style={{ flex: 1, fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
           문서 메타 {meta.length}건
         </span>
-        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>삭제 아님 — 분리 보관됨</span>
+        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>삭제 아님: 분리 보관됨</span>
       </button>
       {open && (
         <dl

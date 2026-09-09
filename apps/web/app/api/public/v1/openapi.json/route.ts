@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       title: '사내 자동화 API',
       version: '1',
       description:
-        '이 스펙은 lib/api-docs/registry.ts 에서 생성됩니다. 손으로 고치지 마세요 — 다음 배포에 덮입니다.',
+        '이 스펙은 lib/api-docs/registry.ts 에서 생성됩니다. 손으로 고치지 마세요. 다음 배포에 덮입니다.',
     },
     servers: [{ url: base }],
     tags: API_GROUPS.filter((g) => g.key !== 'start' && g.key !== 'ref')
@@ -100,7 +100,7 @@ function operation(e: ApiEndpoint): Record<string, unknown> {
       200: { description: '성공' },
       401: { description: 'API 키가 없거나 유효하지 않음' },
       403: { description: '권한 없음' },
-      429: { description: '분당 요청 한도 초과 — Retry-After 헤더를 확인하세요' },
+      429: { description: '분당 요청 한도 초과: Retry-After 헤더를 확인하세요' },
     },
   }
 }

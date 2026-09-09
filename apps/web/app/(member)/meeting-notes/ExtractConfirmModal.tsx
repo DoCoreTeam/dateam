@@ -123,7 +123,7 @@ export default function ExtractConfirmModal({
         style={{ width: 'min(640px, 100%)', maxHeight: '88vh', overflowY: 'auto', padding: 'var(--space-5) var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', boxShadow: 'var(--shadow-modal)' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
-          <h2 id="mn-extract-h" className="tape-title" style={{ margin: 0 }}>AI 추출 — 검토 후 반영</h2>
+          <h2 id="mn-extract-h" className="tape-title" style={{ margin: 0 }}>AI 추출: 검토 후 반영</h2>
           <button type="button" onClick={onClose} aria-label="닫기"
             style={{ display: 'inline-flex', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
             <X size={18} />

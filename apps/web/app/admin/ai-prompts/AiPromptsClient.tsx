@@ -120,7 +120,7 @@ function PromptsTab() {
     try {
       const r = await fetch('/api/admin/ai-prompts/ai-edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: draft, instruction: instr }) })
       const j = await r.json()
-      if (r.ok && j.revised) { setDraft(j.revised); setMsg('AI 편집 완료 — 검토 후 저장하세요') }
+      if (r.ok && j.revised) { setDraft(j.revised); setMsg('AI 편집 완료: 검토 후 저장하세요') }
       else setMsg(j.error ?? 'AI 편집 실패')
     } catch { setMsg('AI 편집 오류') } finally { setAiBusy(false) }
   }

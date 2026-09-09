@@ -217,7 +217,7 @@ export default function ApiKeysPage() {
             <button
               type="button"
               className="btn-ghost"
-              title={k.raw_key ? 'API 키 복사' : '원문 없음 — 새 키 생성 필요'}
+              title={k.raw_key ? 'API 키 복사' : '원문 없음. 새 키 생성 필요'}
               onClick={(e) => {
                 e.stopPropagation()
                 if (k.raw_key) copyText(k.raw_key, `${k.id}-copy`)
@@ -289,7 +289,7 @@ export default function ApiKeysPage() {
           style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: 'var(--space-5)', borderColor: 'var(--success-border)', background: 'var(--success-bg)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
             <Check size={16} color="var(--success)" />
-            <strong style={{ color: 'var(--success)' }}>API 키가 생성됐습니다 — 지금 복사하세요</strong>
+            <strong style={{ color: 'var(--success)' }}>API 키가 생성됐습니다. 지금 복사하세요</strong>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', margin: '0 0 var(--space-3)' }}>
             이 키는 API Keys 페이지에서 다시 복사할 수 있습니다.

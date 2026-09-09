@@ -199,7 +199,7 @@ export default function QuoteRegisterTab() {
         setErrorMsg(
           res.status === 401 || res.status === 403 ? '분석 권한이 없어요. 관리자 계정으로 로그인했는지 확인해 주세요.'
           : res.status === 400 ? '입력 형식을 읽지 못했어요. 텍스트를 다시 붙여넣거나 파일을 다시 올려 주세요.'
-          : `AI 분석을 시작하지 못했어요 (오류 ${res.status}). 잠시 후 다시 시도하거나, 입력을 조금 줄여 다시 올려 주세요.${detail ? ' — ' + detail.slice(0, 120) : ''}`,
+          : `AI 분석을 시작하지 못했어요 (오류 ${res.status}). 잠시 후 다시 시도하거나, 입력을 조금 줄여 다시 올려 주세요.${detail ? ': ' + detail.slice(0, 120) : ''}`,
         )
         setAnalyzing(false); return
       }
@@ -273,7 +273,7 @@ export default function QuoteRegisterTab() {
     const committable = supplierPreview.filter((it) => !isPriceUnknown(it))
     const skipped = supplierPreview.length - committable.length
     if (committable.length === 0) {
-      setErrorMsg('가격미상 항목만 있어 자동 반영할 수 없습니다 — 가격을 직접 입력해 주세요.')
+      setErrorMsg('가격미상 항목만 있어 자동 반영할 수 없습니다. 가격을 직접 입력해 주세요.')
       return
     }
     setCommitting(true); setErrorMsg('')
@@ -288,7 +288,7 @@ export default function QuoteRegisterTab() {
       setCommitted(true)
       setSuccessMsg(
         `공급가 ${j.count}건이 검토 대기에 추가되었습니다.` +
-        (skipped > 0 ? ` 가격미상 ${skipped}건은 제외 — 직접 확인이 필요합니다.` : '')
+        (skipped > 0 ? ` 가격미상 ${skipped}건은 제외: 직접 확인이 필요합니다.` : '')
       )
     } catch { setErrorMsg('저장 실패') } finally { setCommitting(false) }
   }, [supplierPreview, channel, isTest])
@@ -300,7 +300,7 @@ export default function QuoteRegisterTab() {
     const importable = previewItems.filter((it) => !isPriceUnknown(it))
     const skipped = previewItems.length - importable.length
     if (importable.length === 0) {
-      setErrorMsg('가격미상 항목만 있어 시장에 반영할 수 없습니다 — 가격을 직접 확인해 주세요.')
+      setErrorMsg('가격미상 항목만 있어 시장에 반영할 수 없습니다. 가격을 직접 확인해 주세요.')
       return
     }
     setApplying(true); setErrorMsg('')
@@ -322,9 +322,9 @@ export default function QuoteRegisterTab() {
         : ''
       setSuccessMsg(
         (j.staged
-          ? `경쟁사 가격 ${j.count}건을 검토 대기에 제출했습니다 — 관리자 확정 후 시장 비교에 반영됩니다.`
+          ? `경쟁사 가격 ${j.count}건을 검토 대기에 제출했습니다. 관리자 확정 후 시장 비교에 반영됩니다.`
           : `경쟁사 가격 ${j.count}건이 시장 비교에 반영되었습니다.`) +
-        (skipped > 0 ? ` 가격미상 ${skipped}건은 제외 — 직접 확인이 필요합니다.` : '') +
+        (skipped > 0 ? ` 가격미상 ${skipped}건은 제외: 직접 확인이 필요합니다.` : '') +
         (heldN > 0 ? ` 미등록 모델 ${heldN}건은 등록 필요${heldNames} (스펙관리에서 등록 후 재반영).` : '') +
         (rejN > 0 ? ` 대상 아님 ${rejN}건 제외(GPU 모델 아님).` : '')
       )
@@ -632,7 +632,7 @@ export default function QuoteRegisterTab() {
               {truncated && (
                 <div className="gpu-banner gpu-banner-warning" style={{ marginBottom: 0 }} data-testid="truncation-banner" role="alert">
                   <span className="gpu-banner-dot" aria-hidden>⚠</span>
-                  <span>일부 항목이 상한으로 잘렸습니다 — 입력을 나눠서 다시 시도하세요.</span>
+                  <span>일부 항목이 상한으로 잘렸습니다. 입력을 나눠서 다시 시도하세요.</span>
                 </div>
               )}
               {/* GPU 모델이 아니어서 제외된 라벨 고지 — AI가 페이지 메뉴·서비스명을 모델로 오추출한 것을 결정론 게이트로 걸러냄(무음 소실 금지) */}
@@ -669,7 +669,7 @@ export default function QuoteRegisterTab() {
                       <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{item.model} {item.memory}</span>
                       {unknown
-                        ? <span className="gpu-badge gpu-badge-warn" title="가격 정보 없음 — 시장반영 제외, 사용자 확인 필요">가격미상</span>
+                        ? <span className="gpu-badge gpu-badge-warn" title="가격 정보 없음. 시장반영 제외, 사용자 확인 필요">가격미상</span>
                         : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }} title={item.original_currency && item.original_currency !== 'USD' ? `USD 환산 ${fmtUSD(item.price_usd)}/hr` : undefined}>{fmtOriginalPrice(item)}</span>}
                       {!applied && (
                         <button

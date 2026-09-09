@@ -78,7 +78,7 @@ export default function EditProfileModal({
               onChange={e => setRank(e.target.value)}
               disabled={isPending}
             >
-              <option value="">— 직급 없음 —</option>
+              <option value="">직급 없음</option>
               {ranks.sort((a, b) => a.display_order - b.display_order).map(r => (
                 <option key={r.id} value={r.name}>{r.name}</option>
               ))}
@@ -94,7 +94,7 @@ export default function EditProfileModal({
               onChange={e => setPosition(e.target.value)}
               disabled={isPending}
             >
-              <option value="">— 직책 없음 —</option>
+              <option value="">직책 없음</option>
               {positions.sort((a, b) => a.display_order - b.display_order).map(p => (
                 <option key={p.id} value={p.name}>{p.name}</option>
               ))}

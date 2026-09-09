@@ -105,8 +105,8 @@ export default function EventModal({ date, eventId, onClose, onSaved }: Props) {
         setTitle(first.title)
         if (first.targetDate) setStartDate(first.targetDate)
         if (first.scheduledTime) setStartTime(first.scheduledTime)
-        setMsg('AI가 채웠습니다 — 확인 후 저장하세요')
-      } else setMsg('파싱 결과 없음 — 직접 입력하세요')
+        setMsg('AI가 채웠습니다. 확인 후 저장하세요')
+      } else setMsg('파싱 결과 없음. 직접 입력하세요')
     } catch { setMsg('AI 서버 연결 실패') }
     setAiBusy(false)
   }

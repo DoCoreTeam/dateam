@@ -878,7 +878,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
                   <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }} title={memoryTitle(p.product.memory, p.product.gpu_count) || undefined}>{formatCardMemory(p.product.memory, p.product.gpu_count)}</span>
                   <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--gpu-faint)', gridColumn: '2 / 7' }}>데이터 부족 — 공급가 또는 시장가 필요</div>
+                <div style={{ fontSize: 11, color: 'var(--gpu-faint)', gridColumn: '2 / 7' }}>데이터 부족: 공급가 또는 시장가 필요</div>
               </div>
             )
           }
@@ -1236,7 +1236,7 @@ function SupplierLinkControl({
         onClick={promote}
         disabled={busy}
         className="gpu-btn gpu-promote-btn"
-        title="이 경쟁사를 우리 공급사로 등록합니다 — 회사 정보와 현재 시장가가 원가 견적으로 자동 등록됩니다"
+        title="이 경쟁사를 우리 공급사로 등록합니다. 회사 정보와 현재 시장가가 원가 견적으로 자동 등록됩니다"
       >
         <PackagePlus size={12} aria-hidden /> {busy ? '등록 중…' : '공급사로 지정'}
       </button>
@@ -1411,7 +1411,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
         <TrendingUp size={16} color="var(--gpu-accent)" style={{ flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <b>경쟁사 시장 트랙</b> · 공급가·판매가와 독립된 차원에서 경쟁사 가격 추적 · <b>마지막 수집값 항상 표시</b>(신선도는 배지 참고)
-          <span className="gpu-banner-sub"> · 수집 가격은 내부 의사결정용 — 외부 자료에 직접 인용 금지</span>
+          <span className="gpu-banner-sub"> · 수집 가격은 내부 의사결정용: 외부 자료에 직접 인용 금지</span>
         </div>
         <div className="gpu-banner-actions">
           <div className="gpu-fx-pill" title="현재 적용 환율" style={{ fontSize: 11 }}>
@@ -1489,7 +1489,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
               <RefreshCw size={13} color={ok ? 'var(--success)' : 'var(--gpu-muted)'} />
               <span style={{ flex: 1 }}>
                 {refreshResult.urls_checked === 0 ? (
-                  <span style={{ color: 'var(--gpu-muted)' }}>{refreshResult.message ?? '분석할 URL이 없습니다 — 가격 등록 또는 경쟁사 URL 추가가 필요합니다'}</span>
+                  <span style={{ color: 'var(--gpu-muted)' }}>{refreshResult.message ?? '분석할 URL이 없습니다. 가격 등록 또는 경쟁사 URL 추가가 필요합니다'}</span>
                 ) : (
                   <>
                     <b>{refreshResult.urls_checked}개 URL</b> AI 분석 ·{' '}
@@ -1774,8 +1774,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
       {/* 모델별 시장 포지셔닝 매트릭스 */}
       <div>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-ink)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {viewMode === 'table' ? '모델별 경쟁현황' : '전략적 금액 — 전체 요약'}
-          {viewMode === 'table' && <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 500 }}>— 행 클릭 → 경쟁현황/전략적 금액 탭</span>}
+          {viewMode === 'table' ? '모델별 경쟁현황' : '전략적 금액: 전체 요약'}
+          {viewMode === 'table' && <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 500 }}>행 클릭 → 경쟁현황/전략적 금액 탭</span>}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 0, border: '1.5px solid var(--gpu-border)', borderRadius: 8, overflow: 'hidden' }}>
             <button
               onClick={() => setViewMode('table')}

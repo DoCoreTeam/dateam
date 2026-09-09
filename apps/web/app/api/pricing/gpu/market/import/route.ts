@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { saved, held, rejected } = await saveCompetitorPrices(adminClient as any, items, { sourceUrl })
   if (saved.length === 0) {
-    const heldDetail = held.length ? ` (보류 ${held.length}건: 모델 미등록/특정불가 — 스펙관리에서 등록 후 재시도)` : ''
+    const heldDetail = held.length ? ` (보류 ${held.length}건: 모델 미등록/특정불가: 스펙관리에서 등록 후 재시도)` : ''
     const rejDetail = rejected.length ? ` (제외 ${rejected.length}건: GPU 모델 아님·가격 불가능범위)` : ''
     return NextResponse.json({ error: `반영된 경쟁가가 없습니다${heldDetail}${rejDetail}`, held, rejected }, { status: 422 })
   }

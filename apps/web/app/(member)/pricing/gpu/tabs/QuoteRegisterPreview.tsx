@@ -127,14 +127,14 @@ export function SupplierPreviewRow({ it, idx, open, committed, onToggle, onMoveT
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600 }}>{name || '(모델 미상)'}</span>
           {srcModel && (
-            <span style={{ fontSize: 11, color: 'var(--gpu-amber)' }} title="추출된 모델명이 원문과 다릅니다 — 오매핑 확인">
+            <span style={{ fontSize: 11, color: 'var(--gpu-amber)' }} title="추출된 모델명이 원문과 다릅니다. 오매핑 확인">
               (원문: {srcModel})
             </span>
           )}
         </span>
         {ex.supplier ? <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{String(ex.supplier)}</span> : null}
         {priceUnknown
-          ? <span className="gpu-badge gpu-badge-warn" data-testid="price-unknown-badge" title="가격 정보 없음 — 자동 시장반영 제외, 사용자 확인 필요">가격미상</span>
+          ? <span className="gpu-badge gpu-badge-warn" data-testid="price-unknown-badge" title="가격 정보 없음. 자동 시장반영 제외, 사용자 확인 필요">가격미상</span>
           : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand-dark)' }}>{price}</span>}
         {!committed && (
           <button
@@ -150,7 +150,7 @@ export function SupplierPreviewRow({ it, idx, open, committed, onToggle, onMoveT
           {priceUnknown && (
             <div style={{ display: 'flex', gap: 8, fontSize: 11.5, color: 'var(--gpu-amber)', fontWeight: 600 }}>
               <span aria-hidden>⚠</span>
-              <span>가격 정보가 없어 자동 시장반영에서 제외됩니다 — 직접 확인 후 가격을 입력하세요.</span>
+              <span>가격 정보가 없어 자동 시장반영에서 제외됩니다. 직접 확인 후 가격을 입력하세요.</span>
             </div>
           )}
           {detailRows.length > 0 ? detailRows.map(([k, v]) => (

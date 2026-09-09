@@ -82,8 +82,8 @@ export default function DealCloseModal({ deal, stage, onClose, onDone }: Props) 
         <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
           <strong style={{ color: 'var(--text)' }}>{deal.name}</strong>
           {won
-            ? ' — 성사로 기록하려면 금액과 성사일이 필요합니다.'
-            : ' — 실주로 기록하려면 사유가 필요합니다. 나중에 같은 실수를 줄이는 근거가 됩니다.'}
+            ? ': 성사로 기록하려면 금액과 성사일이 필요합니다.'
+            : ': 실주로 기록하려면 사유가 필요합니다. 나중에 같은 실수를 줄이는 근거가 됩니다.'}
         </p>
 
         {won ? (

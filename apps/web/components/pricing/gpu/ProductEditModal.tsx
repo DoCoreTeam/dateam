@@ -181,9 +181,9 @@ export default function ProductEditModal({ product, onClose, onSaved }: ProductE
                   onChange={(e) => setTier(Number(e.target.value) as 1 | 2 | 3)}
                   className="gpu-field-input"
                 >
-                  <option value={1}>Tier 1 — 전용 고성능</option>
-                  <option value={2}>Tier 2 — 점유형</option>
-                  <option value={3}>Tier 3 — 간헐 공급</option>
+                  <option value={1}>Tier 1: 전용 고성능</option>
+                  <option value={2}>Tier 2: 점유형</option>
+                  <option value={3}>Tier 3: 간헐 공급</option>
                 </select>
               </div>
               <div>
@@ -194,8 +194,8 @@ export default function ProductEditModal({ product, onClose, onSaved }: ProductE
                   onChange={(e) => setPricingMode(e.target.value as 'quote' | 'direct')}
                   className="gpu-field-input"
                 >
-                  <option value="quote">quote — 견적 기반</option>
-                  <option value="direct">direct — 직접 입력</option>
+                  <option value="quote">quote: 견적 기반</option>
+                  <option value="direct">direct: 직접 입력</option>
                 </select>
               </div>
             </div>

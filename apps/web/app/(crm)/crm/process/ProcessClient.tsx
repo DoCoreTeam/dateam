@@ -461,7 +461,7 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
             <div className={styles.rules}>
               <span className={styles.rulesSummary}>
                 {activeRules(s).length === 0
-                  ? '조건 없음 — 언제든 옮길 수 있어요'
+                  ? '조건 없음. 언제든 옮길 수 있어요'
                   // 막는 것은 blocker, 알려만 주는 것은 note — 색이 세기를 그대로 말한다
                   : activeRules(s).map((c) => (
                     <NbBadge key={c.key} status={c.level === 'block' ? 'blocker' : 'note'}>

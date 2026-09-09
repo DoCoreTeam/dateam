@@ -302,7 +302,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
             data-testid="ai-panel-toggle"
             className={`gpu-ai-toggle${showAiPanel ? ' gpu-ai-toggle--on' : ''}`}
             onClick={() => setShowAiPanel((v) => !v)}
-            title="AI 조회 열기/닫기 — 어느 화면에서든 우리 GPU 데이터에 질문"
+            title="AI 조회 열기/닫기: 어느 화면에서든 우리 GPU 데이터에 질문"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
             AI 조회

@@ -401,7 +401,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>담당자 ({data.contacts?.length ?? 0})</div>
               {(data.contacts?.length ?? 0) === 0 && !editing && (
-                <div style={{ fontSize: 12, color: 'var(--gpu-faint)', padding: '4px 0' }}>등록된 담당자가 없습니다 {data.supplier.account_id ? '— 수정에서 추가' : ''}</div>
+                <div style={{ fontSize: 12, color: 'var(--gpu-faint)', padding: '4px 0' }}>등록된 담당자가 없습니다 {data.supplier.account_id ? '. 수정에서 추가하세요' : ''}</div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {(data.contacts ?? []).map((c) => (
@@ -502,7 +502,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                         <button
                           onClick={() => { if (canLocate && prod) { onClose(); onGoToPriceTable!(prod.model_name, prod.id) } }}
                           disabled={!canLocate}
-                          title={canLocate ? '가격표에서 이 가격 위치 보기' : '상품 미연결 — 가격표 탐색 불가'}
+                          title={canLocate ? '가격표에서 이 가격 위치 보기' : '상품 미연결: 가격표 탐색 불가'}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: '3px 6px', borderRadius: 6, border: 'var(--hairline) solid var(--gpu-border)', background: '#fff', color: canLocate ? 'var(--gpu-accent)' : 'var(--gpu-faint)', fontSize: 11, fontWeight: 600, cursor: canLocate ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           가격표 <ChevronRight size={13} />
                         </button>

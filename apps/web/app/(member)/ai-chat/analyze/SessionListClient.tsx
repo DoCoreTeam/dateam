@@ -243,7 +243,7 @@ export default function SessionListClient() {
         rowKey={getSessionId}
         onChange={set}
         loading={loading}
-        error={error ? { message: `목록을 불러오지 못했습니다 — ${error}`, onRetry: () => load() } : null}
+        error={error ? { message: `목록을 불러오지 못했습니다. ${error}`, onRetry: () => load() } : null}
         empty={{
           title: showDeleted
             ? '삭제된 세션이 없어요'

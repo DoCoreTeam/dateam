@@ -41,10 +41,10 @@ interface Props {
 function seedNote(seed: Props['seed']): string {
   if (!seed) return ''
   const lines: string[] = []
-  if (seed.formula) lines.push(`따라 만든다면 — ${seed.formula}`)
-  if (seed.whyItWorks) lines.push(`통한 이유 — ${seed.whyItWorks}`)
-  if (seed.hookMessage) lines.push(`원본의 첫 3초 — "${seed.hookMessage}"`)
-  if (seed.title) lines.push(`원본 — ${seed.title}`)
+  if (seed.formula) lines.push(`따라 만든다면: ${seed.formula}`)
+  if (seed.whyItWorks) lines.push(`통한 이유: ${seed.whyItWorks}`)
+  if (seed.hookMessage) lines.push(`원본의 첫 3초: "${seed.hookMessage}"`)
+  if (seed.title) lines.push(`원본: ${seed.title}`)
   return lines.join('\n')
 }
 

@@ -36,7 +36,7 @@ export const ATTACHMENT = {
   add: '파일 올리기',
   empty: '첨부한 파일이 아직 없어요',
   emptyHint: '명함 사진·계약서·증빙을 여기에 두면 이 건과 함께 남습니다.',
-  restricted: '대외비 — 관리자만 볼 수 있어요',
+  restricted: '대외비: 관리자만 볼 수 있어요',
   tooBig: '파일은 20MB까지 올릴 수 있어요.',
   badType: '이미지(PNG·JPG·WebP)·PDF·엑셀·워드만 올릴 수 있어요.',
   failed: '파일을 올리지 못했습니다.',

@@ -92,7 +92,7 @@ export default function RecordPickerField({
           onClick={() => setOpen(true)}
           disabled={disabled}
           aria-haspopup="dialog"
-          aria-label={value ? `${noun}: ${label} — 바꾸기` : `${noun} 고르기`}
+          aria-label={value ? `${noun}: ${label}: 바꾸기` : `${noun} 고르기`}
         >
           <span className={value ? styles.triggerValue : styles.triggerPlaceholder}>
             {value ? label : (placeholder ?? `${noun}를 고르세요`)}

@@ -102,10 +102,10 @@ export const MEETING_CAPTURE_LABEL = '미팅 기록'
  * **여기 추가하면 그 순간부터 새 위반이 차단된다.**
  */
 export const BANNED_TERMS: { readonly bad: string; readonly good: string; readonly why: string }[] = [
-  { bad: '지우기', good: ACTION.delete, why: '삭제 16곳 vs 지우기 5곳 — 코드 식별자도 전부 delete' },
+  { bad: '지우기', good: ACTION.delete, why: '삭제 16곳 vs 지우기 5곳: 코드 식별자도 전부 delete' },
   { bad: '삭제중', good: progress(ACTION.delete), why: '공백 없음. 표준은 `{동사} 중…`' },
   { bad: '작성중', good: progress('작성'), why: '공백 없음' },
   { bad: '저장중', good: progress(ACTION.save), why: '공백 없음' },
   { bad: '재시도', good: ACTION.retry, why: '한자어보다 우리말' },
-  { bad: '영업기회', good: '딜', why: '구 화면(/deals) 잔재 — CRM 개체 이름은 딜' },
+  { bad: '영업기회', good: '딜', why: '구 화면(/deals) 잔재: CRM 개체 이름은 딜' },
 ]

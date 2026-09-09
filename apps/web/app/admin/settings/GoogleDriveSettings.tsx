@@ -19,9 +19,9 @@ const OUTCOME: Record<string, { ok: boolean; text: string }> = {
   cancelled: { ok: false, text: '연결을 취소했습니다' },
 }
 const FAIL_REASON: Record<string, string> = {
-  token_exchange: '인증 코드 교환에 실패했습니다 — 다시 시도해주세요',
-  missing_tokens: '갱신 토큰을 받지 못했습니다 — Google 계정 연결을 해제한 뒤 다시 연결해주세요',
-  save_failed: '토큰 저장에 실패했습니다 — 잠시 후 다시 시도해주세요',
+  token_exchange: '인증 코드 교환에 실패했습니다. 다시 시도해주세요',
+  missing_tokens: '갱신 토큰을 받지 못했습니다. Google 계정 연결을 해제한 뒤 다시 연결해주세요',
+  save_failed: '토큰 저장에 실패했습니다. 잠시 후 다시 시도해주세요',
 }
 
 interface Props {

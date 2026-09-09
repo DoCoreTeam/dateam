@@ -213,7 +213,7 @@ export default function DocumentListClient() {
         rowKey={getDocumentId}
         onChange={set}
         loading={loading}
-        error={error ? { message: `문서 목록을 불러오지 못했습니다 — ${error}`, onRetry: () => load() } : null}
+        error={error ? { message: `문서 목록을 불러오지 못했습니다. ${error}`, onRetry: () => load() } : null}
         empty={{
           title: showDeleted
             ? '삭제된 문서가 없어요'

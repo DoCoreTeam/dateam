@@ -129,7 +129,7 @@ export async function deleteAllWeeklyReports(
     p_week_start: weekStart, p_reason: 'delete_all',
   })
   if (snapErr) {
-    console.error('[deleteAllWeeklyReports] 스냅샷 실패 — 삭제 중단', snapErr)
+    console.error('[deleteAllWeeklyReports] 스냅샷 실패: 삭제 중단', snapErr)
     await logFailure(snapErr, 'weekly-report-delete-all', user.id)
     return { ok: false, error: '삭제 전 백업에 실패해 안전을 위해 삭제를 중단했습니다. 다시 시도해주세요.' }
   }
@@ -178,7 +178,7 @@ export async function deleteWeeklyReport(
     p_week_start: weekStart, p_reason: 'delete_row',
   })
   if (snapErr) {
-    console.error('[deleteWeeklyReport] 스냅샷 실패 — 삭제 중단', snapErr)
+    console.error('[deleteWeeklyReport] 스냅샷 실패: 삭제 중단', snapErr)
     await logFailure(snapErr, 'weekly-report-delete-row', user.id)
     return { ok: false, error: '삭제 전 백업에 실패해 안전을 위해 삭제를 중단했습니다. 다시 시도해주세요.' }
   }

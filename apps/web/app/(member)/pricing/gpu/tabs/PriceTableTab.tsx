@@ -968,7 +968,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                               <span title={p.fallback_reason ?? ''} style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
                             )}
                             {p.basis === 'list' && (
-                              <span title="매입원가 미등록 — gcube 홈페이지 게시가를 그대로 사용" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 {GPU_TERMS.gcubeListPrice}</span>
+                              <span title="매입원가 미등록: gcube 홈페이지 게시가를 그대로 사용" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 {GPU_TERMS.gcubeListPrice}</span>
                             )}
                           </div>
                         ) : p.lowest_unit_price_usd != null ? (
@@ -1035,7 +1035,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                           {p.pricing_mode === 'direct' ? (
                             <div className="gpu-expand-body gpu-expand-direct">
                               <Info size={13} />
-                              <span>Tier 3 — 공급 견적 없음. 판매가는 직접 입력 방식으로 관리됩니다.</span>
+                              <span>Tier 3: 공급 견적 없음. 판매가는 직접 입력 방식으로 관리됩니다.</span>
                               {sellKrw && <strong className="gpu-mono">{fmtKRW(sellKrw)}/hr (현재가)</strong>}
                             </div>
                           ) : (
@@ -1172,7 +1172,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                           <span title={p.fallback_reason ?? ''} style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
                         )}
                         {p.basis === 'list' && (
-                          <span title="매입원가 미등록 — gcube 홈페이지 게시가를 그대로 사용" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 {GPU_TERMS.gcubeListPrice}</span>
+                          <span title="매입원가 미등록: gcube 홈페이지 게시가를 그대로 사용" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 {GPU_TERMS.gcubeListPrice}</span>
                         )}
                       </div>
                     ) : p.lowest_unit_price_usd != null ? (
@@ -1265,7 +1265,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                       ) : p.pricing_mode === 'direct' ? (
                         <div className="gpu-expand-body gpu-expand-direct">
                           <Info size={13} />
-                          <span>Tier 3 — 공급 견적 없음. 판매가는 직접 입력 방식으로 관리됩니다.</span>
+                          <span>Tier 3: 공급 견적 없음. 판매가는 직접 입력 방식으로 관리됩니다.</span>
                           {sellKrw && <strong className="gpu-mono">{fmtKRW(sellKrw)}/hr (현재가)</strong>}
                         </div>
                       ) : (

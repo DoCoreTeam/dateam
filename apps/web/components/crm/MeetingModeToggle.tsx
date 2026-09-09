@@ -19,7 +19,7 @@ export default function MeetingModeToggle() {
       onClick={toggle}
       aria-pressed={on}
       title={on
-        ? '회의 모드 — 금액·확률을 가리는 중입니다. 누르면 다시 보입니다'
+        ? '회의 모드: 금액·확률을 가리는 중입니다. 누르면 다시 보입니다'
         : '고객 앞에서 화면을 열 때 켜세요. 금액·확률을 가립니다'}
     >
       {on ? <EyeOff size={15} aria-hidden /> : <Eye size={15} aria-hidden />}

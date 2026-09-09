@@ -184,7 +184,7 @@ function CockpitRow({
                     </>
                   )}
                   {(p.cost_is_propagated ?? p.is_propagated) && (
-                    <span className="cockpit-estimate-badge" title="실제 견적 없음 — 상위 구성에서 전파된 추정 원가">
+                    <span className="cockpit-estimate-badge" title="실제 견적 없음. 상위 구성에서 전파된 추정 원가">
                       추정
                     </span>
                   )}

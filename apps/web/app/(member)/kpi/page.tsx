@@ -88,7 +88,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             <h2 id="org-kpi-heading" style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
               조직 KPI 목표
             </h2>
-            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>참고용 — 관리자가 설정한 목표입니다</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>참고용: 관리자가 설정한 목표입니다</span>
           </div>
 
           <div className="responsive-grid-cols-3" style={{ marginBottom: '1rem' }}>

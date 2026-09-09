@@ -46,7 +46,7 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
     startHealth(async () => {
       const r = await getOpenAiModels()
       setHealthMsg(r.ok
-        ? { ok: true, text: `연결 성공 — ${r.models?.length ?? 0}개 모델 사용 가능` }
+        ? { ok: true, text: `연결 성공: ${r.models?.length ?? 0}개 모델 사용 가능` }
         : { ok: false, text: r.error ?? '연결 실패' })
     })
   }

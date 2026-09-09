@@ -692,7 +692,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         {/* 못 알아본 말은 **버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다 */}
         {sayUnclear.length > 0 && (
           <div className={styles.sayUnclear}>
-            <b>이 부분은 못 알아봤어요 — 직접 넣어 주세요</b>
+            <b>이 부분은 못 알아봤어요. 직접 넣어 주세요</b>
             <ul>{sayUnclear.map((u, i) => <li key={i}>{u}</li>)}</ul>
           </div>
         )}

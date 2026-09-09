@@ -177,7 +177,7 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
               구간 {p.idx + 1}
               {p.state === 'uploading' && ' 올리는 중…'}
               {p.state === 'uploaded' && ' 저장됨'}
-              {p.state === 'failed' && ` 실패 — ${p.error ?? ''}`}
+              {p.state === 'failed' && ` 실패: ${p.error ?? ''}`}
             </li>
           ))}
         </ul>

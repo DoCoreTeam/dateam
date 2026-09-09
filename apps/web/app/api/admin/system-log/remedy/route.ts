@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     '',
     `발생 위치: ${sample.source}${sample.feature ? ` / ${sample.feature}` : ''}${sample.route ? ` / ${sample.route}` : ''}`,
     `자동 분류된 사유: ${sample.reason}`,
-    `요약: ${sample.headline} — ${sample.detail}`,
+    `요약: ${sample.headline}: ${sample.detail}`,
     '원문:',
     (sample.raw ?? '').slice(0, 1500),
     '',

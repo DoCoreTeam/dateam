@@ -245,7 +245,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
         <div className="card" style={{ padding: 'var(--space-6)', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
             <GitBranch size={16} color="var(--brand)" />
-            <h2 className="tape-title" style={{ margin: 0 }}>조직 현황 — 부서 취합 주간보고</h2>
+            <h2 className="tape-title" style={{ margin: 0 }}>조직 현황: 부서 취합 주간보고</h2>
           </div>
           <OrgWeeklyView
             weekStart={orgWeekStart}

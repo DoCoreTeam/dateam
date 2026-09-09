@@ -145,7 +145,7 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
       }
       setDone((prev) => [
         `${g.channelName} · ${d.resolved}건을 '${d.topicName}'으로 정리했습니다`
-        + (d.remembered ? ` — 앞으로 이 채널은 묻지 않습니다` : ''),
+        + (d.remembered ? `: 앞으로 이 채널은 묻지 않습니다` : ''),
         ...prev,
       ])
       // 일부만 확정했으면 묶음은 남아 있다 — 목록에서 지우면 남은 것이 사라진 것처럼 보인다.
@@ -266,8 +266,8 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error
   }
 
   const question = g.altTopicName
-    ? `${g.channelName} — 이 게시물들은 「${g.topicName}」인가요, 「${g.altTopicName}」인가요?`
-    : `${g.channelName} — 이 게시물들을 「${g.topicName}」으로 볼까요?`
+    ? `${g.channelName}: 이 게시물들은 「${g.topicName}」인가요, 「${g.altTopicName}」인가요?`
+    : `${g.channelName}: 이 게시물들을 「${g.topicName}」으로 볼까요?`
 
   const lock = busy || disabled
 
@@ -308,7 +308,7 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error
           {hidden > 0 && (
             <li className={`ci-basis ${s.hidden}`}>
               {partial
-                ? `여기 보이는 것만 답합니다 — 나머지 ${hidden}건은 그대로 남습니다`
+                ? `여기 보이는 것만 답합니다. 나머지 ${hidden}건은 그대로 남습니다`
                 : `외 ${hidden}건도 함께 확정됩니다`}
             </li>
           )}
@@ -378,7 +378,7 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error
           <input type="checkbox" checked={remember} disabled={lock || partial}
             onChange={(e) => setRemember(e.target.checked)} />
           앞으로 이 채널의 게시물은 묻지 않고 같은 주제로 넣기
-          {partial && <span className="ci-basis"> — 일부만 고르면 굳히지 않습니다</span>}
+          {partial && <span className="ci-basis"> 일부만 고르면 굳히지 않습니다</span>}
         </label>
       )}
     </article>

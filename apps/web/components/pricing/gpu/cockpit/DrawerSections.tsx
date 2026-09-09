@@ -90,7 +90,7 @@ export function CostDrawer({ product, onGoToTab }: CostDrawerProps) {
               {s.is_propagated ? (
                 <span
                   className="cockpit-propagated-tag"
-                  title="실제 견적 없음 — 상위 구성 1GPU 단가×수량 추정"
+                  title="실제 견적 없음. 상위 구성 1GPU 단가×수량 추정"
                 >
                   전파 추정
                 </span>

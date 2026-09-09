@@ -218,7 +218,7 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
           </div>}
 
           <fieldset style={{ border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-3)', margin: 0 }}>
-            <legend style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', padding: '0 var(--space-1)' }}>기간 (선택 — 연도+분기만 골라도 됩니다)</legend>
+            <legend style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', padding: '0 var(--space-1)' }}>기간 (선택: 연도+분기만 골라도 됩니다)</legend>
             <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-3)' }}>
               <div>
                 <label className="label" htmlFor="project-year">연도</label>
@@ -292,7 +292,7 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
 
 function visibilityLabel(value: ProjectVisibility): string {
   return {
-    private: '비공개—나만', members: '참여자만', department: '지정 부서',
+    private: '비공개: 나만', members: '참여자만', department: '지정 부서',
     organization: '전체 임직원', admin_only: '관리자만',
   }[value]
 }

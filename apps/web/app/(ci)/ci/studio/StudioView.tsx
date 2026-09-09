@@ -212,7 +212,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
 
   async function copySheet() {
     if (!points) return
-    await navigator.clipboard.writeText(toEditSheet(points, `편집 지시서 — ${sourceLabel ?? ''}`))
+    await navigator.clipboard.writeText(toEditSheet(points, `편집 지시서: ${sourceLabel ?? ''}`))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -242,7 +242,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
         headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
         body: JSON.stringify({
           briefId,
-          variantLabel: `편집점 — ${sourceLabel ?? '분석'}`.slice(0, 60),
+          variantLabel: `편집점: ${sourceLabel ?? '분석'}`.slice(0, 60),
           timecodes: [...points].sort((a, b) => a.startSec - b.startSec).map((p) => ({
             start: toTimecode(p.startSec),
             end: p.endSec != null ? toTimecode(p.endSec) : undefined,
@@ -401,7 +401,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
             )}
             {signals && !signals.audioAnalyzed && (
               <p className="ci-status ci-status-warn" style={{ marginTop: 'var(--space-2)', display: 'inline-flex' }}>
-                {signals.audioSkipReason ?? '소리를 분석하지 못했습니다 — 무음·강조 기반 제안은 빠집니다'}
+                {signals.audioSkipReason ?? '소리를 분석하지 못했습니다. 무음·강조 기반 제안은 빠집니다'}
               </p>
             )}
             {note && (

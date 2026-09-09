@@ -83,7 +83,7 @@ export function StrategicCell({ product, isAdmin, onSaved }: StrategicCellProps)
         {product.is_strategic_set ? (
           <span className="cockpit-price--strategic">{fmtKRW(product.strategic_price_krw)}</span>
         ) : (
-          <span className="cockpit-price--auto" title="우리 판매가 미설정 — 자동 마진가 적용 중">
+          <span className="cockpit-price--auto" title="우리 판매가 미설정: 자동 마진가 적용 중">
             {fmtKRW(product.auto_margin_krw ?? product.strategic_krw)}
           </span>
         )}
@@ -145,7 +145,7 @@ export function StrategicCell({ product, isAdmin, onSaved }: StrategicCellProps)
       ) : (
         <span
           className="cockpit-price--auto"
-          title="우리 판매가 미설정 — 자동 마진가 적용 중"
+          title="우리 판매가 미설정: 자동 마진가 적용 중"
         >
           {fmtKRW(displayPrice)}
         </span>

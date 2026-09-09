@@ -427,7 +427,7 @@ export default function Composer({
             onPaste={handlePaste}
             placeholder={
               locked
-                ? '과거 분기 열람 중 — 최신 분기로 돌아가면 이어쓸 수 있습니다'
+                ? '과거 분기 열람 중: 최신 분기로 돌아가면 이어쓸 수 있습니다'
                 : noProviders
                   ? '설정에서 API 키를 먼저 등록하세요'
                   : '메시지를 입력하세요  (Enter 전송 · Shift+Enter 줄바꿈)'

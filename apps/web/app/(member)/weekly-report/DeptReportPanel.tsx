@@ -93,7 +93,7 @@ export default function DeptReportPanel({ deptId, deptName, weekStart, editable,
       if (!r.ok) { setMsg(`취합 실패: ${r.error ?? '알 수 없는 오류'}`); return }
       setRows((r.body as FlatRow[]) ?? []); setDirty(false)
       setLocalStatus((r.status as AggState) ?? 'draft')
-      setMsg('AI 취합 완료 — 결과는 초안(draft)으로 저장됩니다. 셀별 "수정"으로 다듬고 "확정"하세요')
+      setMsg('AI 취합 완료: 결과는 초안(draft)으로 저장됩니다. 셀별 "수정"으로 다듬고 "확정"하세요')
       router.refresh()
     } catch (e) {
       setMsg(e instanceof Error ? e.message : '취합 실패')

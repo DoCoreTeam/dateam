@@ -693,7 +693,7 @@ export default function DailyPage() {
                         handleSave()
                       }
                     }}
-                    placeholder="업무 내용 자유롭게 입력 — 저장하면 AI가 백그라운드로 분류합니다 (Ctrl+Enter)"
+                    placeholder="업무 내용 자유롭게 입력: 저장하면 AI가 백그라운드로 분류합니다 (Ctrl+Enter)"
                     rows={2}
                     maxLength={10000}
                     className="daily-compose-textarea"
@@ -1205,7 +1205,7 @@ function LogList({
                         <a
                           href={`/dept-tasks?task=${linked.deptTaskId}`}
                           onClick={(e) => e.stopPropagation()}
-                          title={`${linked.deptName} 부서업무로 연결됨 — 클릭하여 이동`}
+                          title={`${linked.deptName} 부서업무로 연결됨. 클릭하여 이동`}
                           style={{
                             display: 'inline-flex', alignItems: 'center', gap: '0.15rem',
                             fontSize: 'var(--fs-2xs)', fontWeight: 700,

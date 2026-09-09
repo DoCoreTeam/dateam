@@ -42,7 +42,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (!savedState || savedState !== state) {
     return NextResponse.json(
-      { error: 'state 검증 실패 — CSRF 공격 가능성' },
+      { error: 'state 검증 실패: CSRF 공격 가능성' },
       { status: 400 }
     )
   }
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (!tokens.access_token || !tokens.refresh_token) {
     // refresh_token은 prompt=consent일 때만 온다. 없으면 재연결해도 7일 뒤 또 죽는다.
-    console.error('[google-drive/callback] 토큰 누락 — access:%s refresh:%s',
+    console.error('[google-drive/callback] 토큰 누락: access:%s refresh:%s',
       !!tokens.access_token, !!tokens.refresh_token)
     cookieStore.delete(RETURN_COOKIE)
     return back({ drive: 'error', reason: 'missing_tokens' })

@@ -92,7 +92,7 @@ export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsume
   }
 
   const removeOne = async (c: CompetitorRow) => {
-    if (!confirm(`'${c.name}' 경쟁사를 ${T.remove}할까요? (소프트 삭제 — 복구 가능)`)) return
+    if (!confirm(`'${c.name}' 경쟁사를 ${T.remove}할까요? (소프트 삭제: 복구 가능)`)) return
     setBusy(true)
     try {
       const res = await fetch(`/api/pricing/gpu/competitors/${c.id}`, { method: 'DELETE' })

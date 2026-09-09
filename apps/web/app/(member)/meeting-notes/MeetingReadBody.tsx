@@ -94,7 +94,7 @@ export default function MeetingReadBody({
       if (ext.success && ext.data?.notice) setNotice(ext.data.notice)
 
       // 실패를 삼키지 않는다 — 조용히 넘기면 "뽑을 후보가 없습니다"로 잘못 읽힌다(v0.7.571)
-      if (!ext.success) setErrs([`${EXTRACT_LABEL} 실패 — ${ext.error ?? '알 수 없는 오류'}`])
+      if (!ext.success) setErrs([`${EXTRACT_LABEL} 실패: ${ext.error ?? '알 수 없는 오류'}`])
 
       // 추출 후보가 있으면 확정 모달 오픈(자동등록 금지 — 사용자 선택분만).
       if (ext.success && ext.data) {

@@ -318,7 +318,7 @@ export async function GET() {
 
     if (reflectedErr) {
       if (reflectedErr.code === '42703') {
-        console.warn('[cockpit] gcube_reflected 컬럼 부재(마이그 091 미적용) — 반영상태 생략')
+        console.warn('[cockpit] gcube_reflected 컬럼 부재(마이그 091 미적용): 반영상태 생략')
       } else {
         throw reflectedErr
       }

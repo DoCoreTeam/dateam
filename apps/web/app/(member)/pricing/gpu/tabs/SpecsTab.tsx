@@ -250,7 +250,7 @@ function AddModelModal({ prefillName, prefillCount, onClose, onSaved }: { prefil
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setErr(j.error ?? '등록 실패'); return }
       onSaved()
-    } catch { setErr('등록 실패 — 네트워크를 확인하세요') } finally { setSaving(false) }
+    } catch { setErr('등록 실패: 네트워크를 확인하세요') } finally { setSaving(false) }
   }
   return (
     <div className="gpu-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
@@ -302,7 +302,7 @@ function DeleteModelModal({ group, onClose, onDeleted }: { group: ModelGroup; on
       if (res.status === 409) { setImpact(j.impact ?? {}); return }   // 연관 데이터 있음 → 영향 노출 후 강제 확인
       if (!res.ok) { setErr(j.error ?? '삭제 실패'); return }
       onDeleted()
-    } catch { setErr('삭제 실패 — 네트워크를 확인하세요') } finally { setBusy(false) }
+    } catch { setErr('삭제 실패: 네트워크를 확인하세요') } finally { setBusy(false) }
   }
 
   const impactRows = impact ? Object.entries(impact).filter(([, n]) => (n ?? 0) > 0) : []
@@ -330,7 +330,7 @@ function DeleteModelModal({ group, onClose, onDeleted }: { group: ModelGroup; on
                 <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 5 }}>되돌리면 이 데이터도 그대로 복구됩니다.</div>
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: 'var(--gpu-muted)', margin: '0 0 10px' }}>연결된 데이터 없음 — 바로 삭제됩니다.</div>
+              <div style={{ fontSize: 12, color: 'var(--gpu-muted)', margin: '0 0 10px' }}>연결된 데이터 없음. 바로 삭제됩니다.</div>
             )
           )}
           <InlineError compact>{err}</InlineError>
@@ -460,11 +460,11 @@ export default function SpecsTab() {
       reader.cancel().catch(() => {})
       refresh()
       // 정상 complete 없이 끝남(중단/타임아웃) — 부분 성공 안내(처리분은 이미 저장됨)
-      if (!completed) alert(lastDone > 0 ? `생성 중단됨 — ${lastDone}/${lastTotal}개는 저장되었습니다. 남은 모델은 다시 '일괄 채우기'를 눌러 이어서 생성하세요.` : 'AI 일괄 생성 실패 (생성된 항목 없음)')
+      if (!completed) alert(lastDone > 0 ? `생성 중단됨. ${lastDone}/${lastTotal}개는 저장되었습니다. 남은 모델은 다시 '일괄 채우기'를 눌러 이어서 생성하세요.` : 'AI 일괄 생성 실패 (생성된 항목 없음)')
     } catch {
       refresh()
       // 예외(연결 끊김 등) — 처리분은 저장됨. 부분 성공 안내.
-      alert(lastDone > 0 ? `생성 중단됨 — ${lastDone}/${lastTotal}개는 저장되었습니다. 남은 모델은 다시 '일괄 채우기'를 눌러 이어서 생성하세요.` : 'AI 일괄 생성 실패 — 네트워크를 확인하고 다시 시도하세요.')
+      alert(lastDone > 0 ? `생성 중단됨. ${lastDone}/${lastTotal}개는 저장되었습니다. 남은 모델은 다시 '일괄 채우기'를 눌러 이어서 생성하세요.` : 'AI 일괄 생성 실패: 네트워크를 확인하고 다시 시도하세요.')
     } finally { setBulkGen(false); setBulkProg(null) }
   }
 

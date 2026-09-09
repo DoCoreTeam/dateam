@@ -120,7 +120,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
     <div>
       <PageHeader
         title="전체 조직 주간보고 취합"
-        description="모든 조직(전 부서) 주간보고를 주차별로 AI 취합합니다 — 부서 단위 취합은 각 부서장이 사용자 화면(주간보고 → 조직 현황)에서 수행합니다"
+        description="모든 조직(전 부서) 주간보고를 주차별로 AI 취합합니다. 부서 단위 취합은 각 부서장이 사용자 화면(주간보고 → 조직 현황)에서 수행합니다"
       />
 
       {/* 필터 */}

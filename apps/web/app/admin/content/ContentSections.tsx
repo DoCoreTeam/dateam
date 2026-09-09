@@ -311,7 +311,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       {/* AI 프롬프트 모달 — 공용 NbModal(ESC·X·tape-title·backdrop 표준) */}
       {aiPromptModal && !aiLoading && (
         <NbModal
-          title={`AI 작성 — ${aiPromptModal.sectionName}`}
+          title={`AI 작성: ${aiPromptModal.sectionName}`}
           onClose={() => setAiPromptModal(null)}
           maxWidth={480}
           footer={

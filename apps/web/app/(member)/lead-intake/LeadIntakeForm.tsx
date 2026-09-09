@@ -186,7 +186,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     setCreating(true)
     const ok = await createFromIntakes([item.intakeId])
     setCreating(false); submittingRef.current = false
-    if (ok) { setFiles(prev => prev.filter(f => f.file !== item.file)); setSavedMsg(`${item.file.name} — CRM에 등록되었습니다`); router.refresh() }
+    if (ok) { setFiles(prev => prev.filter(f => f.file !== item.file)); setSavedMsg(`${item.file.name}: CRM에 등록되었습니다`); router.refresh() }
   }
 
   function resetAll() {
@@ -216,12 +216,12 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
       // no-speech는 연속모드에서 침묵 시 흔히 발생 — 사용자에게 오류로 띄우지 않음
       if (code === 'no-speech' || code === 'aborted') return
       const msg: Record<string, string> = {
-        'not-allowed': '마이크 권한이 차단되어 있습니다 — 주소창 자물쇠 → 마이크 허용',
+        'not-allowed': '마이크 권한이 차단되어 있습니다. 주소창 자물쇠 → 마이크 허용',
         'service-not-allowed': '브라우저/OS에서 음성 서비스가 차단됨 (HTTPS·권한 확인)',
         'network': '음성 인식 네트워크 오류 (Chrome 음성은 인터넷 필요)',
         'audio-capture': '마이크를 찾을 수 없습니다',
       }
-      setError(`음성 인식 오류${code ? ` [${code}]` : ''} — ${msg[code] ?? '알 수 없는 오류'}`)
+      setError(`음성 인식 오류${code ? ` [${code}]` : ''}: ${msg[code] ?? '알 수 없는 오류'}`)
     }
     recognition.onresult = (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => {
       // 연속모드: results는 누적되므로 가장 마지막(새) 결과만 추가(중복 방지)
@@ -267,7 +267,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         brandName={brandName}
         label={isFileProcessing ? `파일 분석 중… (${doneCount + 1} / ${pendingTotal})` : 'AI 분석 중…'}
         sublabel={isFileProcessing ? processingFile?.file.name : '입력 내용을 AI가 구조화하는 중'}
-        ariaLabel={isFileProcessing ? `파일 분석 중 — ${processingFile?.file.name}` : 'AI 분석 중'}
+        ariaLabel={isFileProcessing ? `파일 분석 중: ${processingFile?.file.name}` : 'AI 분석 중'}
       />
 
       {/* 통합 입력 영역 — 텍스트·붙여넣기·드래그&드롭·파일첨부·음성 한 곳 */}

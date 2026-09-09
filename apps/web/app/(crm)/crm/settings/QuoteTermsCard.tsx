@@ -153,7 +153,7 @@ export default function QuoteTermsCard() {
             <textarea
               id="term-body" className="input-field" rows={2} value={draft.body}
               onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))}
-              placeholder="예: 결제 조건 — 검수 후 30일 이내 현금 지급"
+              placeholder="예: 결제 조건: 검수 후 30일 이내 현금 지급"
               autoFocus
             />
           </div>

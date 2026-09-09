@@ -122,7 +122,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setSyncMsg(j.error ?? '동기화 실패'); return }
-      setSyncMsg(`동기화 완료 — 검토 대기 ${j.created ?? 0}건 생성`)
+      setSyncMsg(`동기화 완료: 검토 대기 ${j.created ?? 0}건 생성`)
     } catch {
       setSyncMsg('동기화 중 오류가 발생했습니다.')
     } finally {
@@ -329,7 +329,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                   {costQuotes.length === 0 && row.supply_cost_krw == null && (
                     <tr><td colSpan={6} className="gpu-udetail-tbl-empty">
                       {row.sell_price_krw != null
-                        ? `${GPU_TERMS.gcubeListPrice} — 직접 매입 견적 없음`
+                        ? `${GPU_TERMS.gcubeListPrice}: 직접 매입 견적 없음`
                         : GPU_TERMS.emptyList}
                     </td></tr>
                   )}

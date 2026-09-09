@@ -95,7 +95,7 @@ export function AddNodeModal({ parentId, parentType, allProfiles, existingPerson
           <label className="label">
             구성원 선택 *
             <select className="input-field" value={userId} onChange={e => handleUserSelect(e.target.value)}>
-              <option value="">— 선택하세요 —</option>
+              <option value="">선택하세요</option>
               {availableProfiles.map(p => (
                 <option key={p.id} value={p.id}>
                   {p.name}{p.position ? ` (${p.position})` : p.rank ? ` (${p.rank})` : ''}
@@ -195,7 +195,7 @@ export function EditNodeModal({ node, allProfiles, allNodes = [], onClose }: Edi
           <label className="label">
             부서장
             <select className="input-field" value={headUserId} onChange={e => setHeadUserId(e.target.value)}>
-              <option value="">— 없음 —</option>
+              <option value="">없음</option>
               {allProfiles.map(p => (
                 <option key={p.id} value={p.id}>
                   {p.name}{p.position ? ` (${p.position})` : p.rank ? ` (${p.rank})` : ''}
@@ -208,7 +208,7 @@ export function EditNodeModal({ node, allProfiles, allNodes = [], onClose }: Edi
           <label className="label">
             상위 노드 변경
             <select className="input-field" value={parentId} onChange={e => setParentId(e.target.value)}>
-              <option value="">— 현재 위치 유지 —</option>
+              <option value="">현재 위치 유지</option>
               {parentCandidates.map(n => (
                 <option key={n.id} value={n.id}>{n.name}</option>
               ))}

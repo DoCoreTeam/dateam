@@ -181,7 +181,7 @@ export default function ProjectsPage() {
               rowHref={(p) => `/work/projects/${p.id}`}
               onChange={set}
               loading={isLoading}
-              error={error ? { message: `목록을 불러오지 못했습니다 — ${error.message ?? ''}`, onRetry: () => { void mutate() } } : null}
+              error={error ? { message: `목록을 불러오지 못했습니다. ${error.message ?? ''}`, onRetry: () => { void mutate() } } : null}
               empty={query.q
                 ? { title: '조건에 맞는 프로젝트가 없어요', description: '검색어를 바꿔보세요' }
                 : { title: '아직 프로젝트가 없어요', description: '업무를 묶어 관리할 프로젝트를 먼저 만들어 주세요', action: { label: '첫 프로젝트 만들기', onClick: () => setEditing({ mode: 'create' }) } }}

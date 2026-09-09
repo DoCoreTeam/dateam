@@ -197,7 +197,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
       setNotice(
         `원본에서 다시 가져왔어요.${body.segmentCount ? ` 회의 내용 ${body.segmentCount}줄.` : ''}` +
         (body.expiredSuggestions > 0
-          ? ` 옛 제안 ${body.expiredSuggestions}건은 거뒀습니다 — 지금은 "AI로 정리하기"를 다시 눌러 주세요.`
+          ? ` 옛 제안 ${body.expiredSuggestions}건은 거뒀습니다. 지금은 "AI로 정리하기"를 다시 눌러 주세요.`
           : ''),
       )
       await load()
@@ -432,7 +432,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
         <p className={styles.notice}>
           원본 회의노트의 제목은 「{m.note?.title || '(제목 없음)'}」이에요.{' '}
           {m.note?.isOwner
-            ? '어느 쪽으로 맞출지 정해 주세요 — 「이 미팅은」에서 제목을 고치면 원본도 함께 바뀝니다.'
+            ? '어느 쪽으로 맞출지 정해 주세요. 「이 미팅은」에서 제목을 고치면 원본도 함께 바뀝니다.'
             : '원본은 만든 사람만 고칠 수 있어요.'}
           {m.note?.title && (
             <>

@@ -224,6 +224,28 @@ test('이름만 같은 라벨 맵이 지금보다 늘지 않는다', () => {
 // ④ 용어집 자체의 정합성 — 표준어가 금지어 목록에 들어가면 안 된다
 // ─────────────────────────────────────────────────────────────
 
+test('★ 화면 문구에 「—」를 쓰지 않는다 (용어집 §0-1)', () => {
+  /*
+    사용자 지적(2026-09-09): "— <-- 이거 쓰지 말랬지".
+    「—」로 이어 붙인 부연은 한 줄을 두 줄로 만들 뿐 새 사실을 더하지 않는다.
+    문장이 끝났으면 마침표로 끊고, 라벨 뒤 설명이면 콜론을 쓴다.
+    값이 없다는 표시로 「—」 한 글자만 쓰는 것은 기호라 대상이 아니다.
+  */
+  const bad: string[] = []
+  const files = [...scanFiles(), ...walkFiles(join(WEB, 'lib/terms'))]
+  for (const file of files) {
+    if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue
+    // API 라우트의 긴 문자열은 AI 프롬프트다. 사람이 읽는 화면 문구가 아니라 대상이 아니다
+    if (rel(file).startsWith('app/api/')) continue
+    for (const t of userFacingText(read(file))) {
+      if (!t.includes('—') || t.trim() === '—') continue
+      if (!/[가-힣]/.test(t)) continue
+      bad.push(`${rel(file)}  ${t.slice(0, 60)}`)
+    }
+  }
+  assert.deepEqual(bad, [], `화면 문구에 「—」가 남아 있다:\n${bad.join('\n')}`)
+})
+
 test('금지어 표가 자기모순이 아니다', () => {
   const bads = new Set(BANNED_TERMS.map((t) => t.bad))
   const conflicts = BANNED_TERMS.filter((t) => bads.has(t.good))

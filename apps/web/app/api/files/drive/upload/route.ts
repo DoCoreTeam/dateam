@@ -33,7 +33,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     formData = await req.formData()
   } catch {
     return NextResponse.json(
-      { error: '요청 파싱 실패 — multipart/form-data 형식이어야 합니다' },
+      { error: '요청 파싱 실패: multipart/form-data 형식이어야 합니다' },
       { status: 400 }
     )
   }

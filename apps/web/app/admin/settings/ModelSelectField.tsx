@@ -63,7 +63,7 @@ export default function ModelSelectField({ provider, hasKey, savedModel, onSave 
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', margin: 0, fontFamily: 'monospace' }}>{currentModel}</p>
       ) : (
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>
-          {hasKey ? '아직 고르지 않았어요 — 눌러서 모델을 고르세요' : 'API 키를 먼저 저장해주세요'}
+          {hasKey ? '아직 고르지 않았어요. 눌러서 모델을 고르세요' : 'API 키를 먼저 저장해주세요'}
         </p>
       )}
 

@@ -377,7 +377,7 @@ export default function WeeklyReportForm({
       brandName={orgName || undefined}
       label={REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}
       elapsed={refineElapsed}
-      ariaLabel={`AI로 다듬는 중 — ${REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}`}
+      ariaLabel={`AI로 다듬는 중: ${REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}`}
     />
 
     {showDiffModal && (
@@ -390,7 +390,7 @@ export default function WeeklyReportForm({
 
     {modalTarget && (
       <EditorModal
-        title={`${rows[modalTarget.rowIdx].category || '항목'} — ${FIELD_LABELS[modalTarget.field]}`}
+        title={`${rows[modalTarget.rowIdx].category || '항목'}: ${FIELD_LABELS[modalTarget.field]}`}
         value={rows[modalTarget.rowIdx][modalTarget.field]}
         placeholder={
           modalTarget.field === 'performance' ? '이번 주 주요 성과…'

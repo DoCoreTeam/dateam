@@ -57,7 +57,7 @@ export default function HomeView({ data }: { data: CiHomeData }) {
         // 이 칸은 링크만 받는다. 자연어는 어시스턴트가 받는다 —
         // 예전 문구가 "예: 요리 주제에서 이번 주 떡상 보여줘"라고 시켜놓고
         // 정작 문장을 넣으면 공백으로 쪼개 단어마다 오류를 뱉었다.
-        placeholder="게시물이나 채널 주소를 붙여넣으세요 — 그 계정의 게시물을 함께 모읍니다"
+        placeholder="게시물이나 채널 주소를 붙여넣으세요. 그 계정의 게시물을 함께 모읍니다"
       />
 
       <section style={{ margin: 'var(--space-6) 0' }}>
