@@ -322,7 +322,7 @@
 의존: I24
 
 ### I26 유사 사업 비교
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/compare/similar.ts, 신규 apps/web/lib/rfp/compare/diff.ts, 신규 apps/web/lib/rfp/compare/compare.test.ts, 신규 apps/web/app/api/rfp/cases/[id]/compare/route.ts
 감사 기준:
