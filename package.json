@@ -1,6 +1,6 @@
 {
   "name": "newax",
-  "version": "0.7.710",
+  "version": "0.7.713",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -13,7 +13,8 @@
     "design:check": "node scripts/check-design-tokens.mjs",
     "ci:orphans": "node --experimental-strip-types scripts/ci-orphans.mjs",
     "changelog:gen": "node apps/web/scripts/changelog-gen.mjs",
-    "test": "echo \"No tests configured\""
+    "test": "echo \"No tests configured\"",
+    "loop": "node scripts/loop.mjs"
   },
   "dependencies": {
     "@types/sanitize-html": "^2.16.1",
