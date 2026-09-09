@@ -60,6 +60,6 @@ apps/web/.next-*/
 .diagram-design
 
 # loop-kit: .claude/ 는 무시하되 중량 정책(구 CLAUDE.md → heavy/CEO.md)은 버전관리 유지
-!.claude/
-.claude/*
-!.claude/heavy/
+!/.claude/
+/.claude/*
+!/.claude/heavy/
