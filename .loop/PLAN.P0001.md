@@ -375,7 +375,7 @@
 의존: I25, I29
 
 ### I31 신규 공고 자동 레이더
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/radar/rules.ts, 신규 apps/web/lib/rfp/radar/sweep.ts, 신규 apps/web/lib/rfp/radar/sweep.test.ts, 신규 apps/web/app/api/rfp/radar/route.ts
 감사 기준:
