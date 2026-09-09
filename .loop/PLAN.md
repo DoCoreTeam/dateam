@@ -1,6 +1,6 @@
 # PLAN newAX: RFP 분석 시스템 전 범위
 플랜 ID: P0001
-플랜 버전: v0.4.1
+플랜 버전: v0.4.2
 상태: 진행중
 지시: ins_0006
 목표 버전: v0.8.0
@@ -107,9 +107,9 @@
 의존: I01
 
 ### I06 HWP HWPX 파서 어댑터
-상태: 대기
+상태: 통과
 모드: 경량
-범위: 신규 apps/web/lib/rfp/parse/hwp.ts, 신규 apps/web/lib/rfp/parse/hwp.test.ts, apps/web/package.json, pnpm-lock.yaml
+범위: 신규 apps/web/lib/rfp/parse/hwp.ts, 신규 apps/web/lib/rfp/parse/hwp.test.ts, apps/web/package.json
 감사 기준:
 - @rhwp/core 설치 후 node --test 로 hwp.test.ts 통과
 - createEmpty 로 만든 합성 HWP 를 파싱해 문단 수와 표 수와 텍스트 해시가 기대값과 일치
@@ -529,3 +529,4 @@
 - v0.3.0 (2026-09-09) 사용자 개입 반영, I08 을 별도 OCR 엔진에서 멀티모달 이미지 텍스트화로 교체하고 I43 을 CRM 과 같은 서비스 등재로 강화 (ins_0006)
 - v0.4.0 (2026-09-09) I01 중 선행 작업 누락 발견, pnpm test 선행 실패 3건을 정리하는 I01a 삽입 (audit:I01)
 - v0.4.1 (2026-09-09) 선행 실패 가드 3건이 완료 정의(pnpm test 통과)를 막아 I01a 삽입 (audit:I01)
+- v0.4.2 (2026-09-09) I06 범위에서 pnpm-lock.yaml 을 뺀다 — 이 저장소는 .gitignore:29 로 잠금 파일을 추적하지 않아 커밋 대상이 될 수 없다 (audit:I06)
