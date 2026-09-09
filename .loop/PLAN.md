@@ -140,7 +140,7 @@
 의존: I07
 
 ### I09 ZIP 해제와 파일 역할 분류
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/parse/bundle.ts, 신규 apps/web/lib/rfp/parse/role.ts, 신규 apps/web/lib/rfp/parse/bundle.test.ts
 감사 기준:
