@@ -226,7 +226,7 @@
 의존: I03
 
 ### I17 내부 모델과 자체 서빙 엔드포인트 어댑터
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/lib/rfp/ai/self-hosted.ts, 신규 apps/web/lib/rfp/ai/rerank.ts, 신규 apps/web/lib/rfp/ai/self-hosted.test.ts
 감사 기준:
