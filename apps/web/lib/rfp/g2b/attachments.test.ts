@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { attachmentsOf, fileNameOf, withExtension, downloadAttachment, MAX_SLOTS } from './attachments.ts'
+import {
+  attachmentsOf, fileNameOf, withExtension, nameFromDisposition, downloadAttachment, MAX_SLOTS,
+} from './attachments.ts'
 
 test('공고 행에서 첨부를 뽑는다 — 이게 없어서 사람이 다시 내려받아 다시 올렸다', () => {
   const rows = attachmentsOf({
@@ -37,6 +39,37 @@ test('확장자가 없으면 content-type 으로 붙인다 — 종류 판정이 
 })
 
 /** fetch 응답 흉내 — headers 는 반드시 get() 을 갖는다(퍼뜨리기로 덮으면 사라진다) */
+test('헤더의 파일 이름을 읽는다 — 주소에 이름이 없는 첨부가 흔하다', () => {
+  // 실측(NIA): 퍼센트 인코딩된 한글 이름이 filename= 으로 온다
+  assert.equal(
+    nameFromDisposition('attachment; filename=%EC%A0%9C%EC%95%88%EC%9A%94%EC%B2%AD%EC%84%9C.hwpx'),
+    '제안요청서.hwpx',
+  )
+})
+
+test('RFC 5987 filename* 이 먼저다', () => {
+  const h = "attachment; filename=fallback.bin; filename*=UTF-8''%EA%B3%B5%EA%B3%A0%EC%84%9C.hwpx"
+  assert.equal(nameFromDisposition(h), '공고서.hwpx')
+})
+
+test('따옴표와 빈 헤더를 견딘다', () => {
+  assert.equal(nameFromDisposition('attachment; filename="a b.pdf"'), 'a b.pdf')
+  assert.equal(nameFromDisposition(null), null)
+  assert.equal(nameFromDisposition('attachment'), null)
+})
+
+test('헤더 이름이 주소 이름을 이긴다 — 확장자가 없으면 파싱이 통째로 죽는다', async () => {
+  const r = await downloadAttachment({ fileName: '첨부1', url: 'https://x/Download.do?fileNo=1', slot: 1 }, {
+    maxBytes: 100,
+    fetchImpl: async () => reply({
+      'content-type': 'application/octet-stream',
+      'content-disposition': 'attachment; filename=%EC%A0%9C%EC%95%88%EC%9A%94%EC%B2%AD%EC%84%9C.hwpx',
+    }),
+  })
+  assert.equal(r.ok, true)
+  if (r.ok) assert.equal(r.fileName, '제안요청서.hwpx')
+})
+
 function reply(headers: Record<string, string> = {}, arrayBuffer?: () => Promise<ArrayBuffer>) {
   return {
     ok: true, status: 200,

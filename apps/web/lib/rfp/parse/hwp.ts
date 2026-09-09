@@ -20,7 +20,8 @@
  */
 
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 import type { IrDocument, IrBlock, IrTable, IrTableCell } from '../ir/types.ts'
 import { makeBlock, makeDocument, qualityScore, textHash } from '../ir/build.ts'
@@ -126,15 +127,72 @@ let engine: RhwpModule | null = null
 export async function initHwpEngine(): Promise<RhwpModule> {
   if (engine) return engine
   const mod = (await import('@rhwp/core')) as RhwpModule
-  const require = createRequire(import.meta.url)
-  // 경로를 **런타임에 조립한다.** 문자열 그대로 두면 webpack 이 정적으로 읽어
-  // `.wasm` 을 자바스크립트로 번들하려다 빌드가 죽는다
-  // (실측 2026-09-09: "Module parse failed … not flagged as WebAssembly module").
-  // next.config 의 serverComponentsExternalPackages 는 패키지 진입점만 덮고 서브경로는 못 덮는다.
-  const wasmSpecifier = ['@rhwp', 'core', 'rhwp_bg.wasm'].join('/')
-  mod.initSync({ module: readFileSync(require.resolve(wasmSpecifier)) })
+  mod.initSync({ module: readFileSync(findWasmPath()) })
   engine = mod
   return mod
+}
+
+/** 어디를 뒤졌는지 남긴다 — 「못 찾았다」만으로는 무엇을 고쳐야 할지 모른다 */
+export class WasmNotFoundError extends Error {
+  readonly tried: string[]
+  constructor(tried: string[]) {
+    super(`한글 파서(WASM)를 찾지 못했다. 찾아본 곳: ${tried.join(' · ')}`)
+    this.name = 'WasmNotFoundError'
+    this.tried = tried
+  }
+}
+
+/**
+ * `rhwp_bg.wasm` 의 실제 경로.
+ *
+ * ## 왜 후보를 여러 개 두나
+ *
+ * 경로를 **런타임에 조립한다** — 문자열 그대로 두면 webpack 이 정적으로 읽어
+ * `.wasm` 을 자바스크립트로 번들하려다 빌드가 죽는다
+ * (실측 2026-09-09: "Module parse failed … not flagged as WebAssembly module").
+ *
+ * 그런데 조립만으로는 부족했다. 서버 번들 안에서는 `import.meta.url` 이
+ * `.next/server/…` 를 가리켜 **서브경로 해석이 실패한다**
+ * (실측 2026-09-09: 실제 한글 제안요청서를 파싱하다 `Cannot find module '@rhwp/core/rhwp_bg.wasm'`
+ *  으로 3회 재시도 후 죽었다. 패키지 자체(`import '@rhwp/core'`)는 멀쩡히 열렸다).
+ *
+ * 그래서 ⓐ 서브경로 ⓑ 패키지 진입점 옆 ⓒ 작업 폴더 아래 순서로 찾는다.
+ * 셋 다 없으면 **어디를 뒤졌는지 적어서** 던진다.
+ */
+export function findWasmPath(): string {
+  const name = ['rhwp', 'bg.wasm'].join('_')
+  const pkg = ['@rhwp', 'core'].join('/')
+  const tried: string[] = []
+
+  const req = createRequire(import.meta.url)
+
+  // ⓐ 서브경로로 바로 — 되면 가장 정확하다
+  try {
+    const p = req.resolve(`${pkg}/${name}`)
+    if (existsSync(p)) return p
+    tried.push(p)
+  } catch {
+    tried.push(`${pkg}/${name}`)
+  }
+
+  // ⓑ 패키지 진입점을 찾고 그 옆에서 — 진입점은 external 이라 늘 해석된다
+  try {
+    const entry = req.resolve(pkg)
+    const p = join(dirname(entry), name)
+    if (existsSync(p)) return p
+    tried.push(p)
+  } catch {
+    tried.push(`dirname(${pkg})/${name}`)
+  }
+
+  // ⓒ 작업 폴더 아래 — 배포본에서 추적 파일이 여기 실린다
+  for (const base of [process.cwd(), join(process.cwd(), '..', '..')]) {
+    const p = join(base, 'node_modules', '@rhwp', 'core', name)
+    if (existsSync(p)) return p
+    tried.push(p)
+  }
+
+  throw new WasmNotFoundError(tried)
 }
 
 export interface HwpParseOptions {

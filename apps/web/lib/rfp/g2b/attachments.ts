@@ -59,6 +59,48 @@ export function fileNameOf(url: string): string | null {
   }
 }
 
+/**
+ * 응답 헤더에서 진짜 파일 이름을 얻는다.
+ *
+ * **주소에 이름이 없는 경우가 흔하다.** 실측(NIA): 첨부 주소가
+ * `Download.do?bcIdx=29975&fileNo=1` 이고 이름은 `Content-Disposition` 에만 있다.
+ * 헤더를 안 읽으면 이름이 「첨부1」이 되고 확장자가 없어 **종류 판정이 실패하고
+ * 파싱이 통째로 죽는다** — 다운로드는 성공했는데 분석이 안 되는 가장 나쁜 모양이다.
+ *
+ * `filename*=UTF-8''…`(RFC 5987)이 먼저다. 한글 이름은 대개 이쪽으로 온다.
+ */
+export function nameFromDisposition(header: string | null): string | null {
+  if (!header) return null
+
+  const star = header.match(/filename\*\s*=\s*([^;]+)/i)
+  if (star) {
+    const raw = star[1].trim().replace(/^["']|["']$/g, '')
+    // charset''value 모양. charset 은 무시하고 값만 푼다
+    const value = raw.includes("''") ? raw.split("''").slice(1).join("''") : raw
+    const decoded = safeDecode(value)
+    if (decoded) return decoded
+  }
+
+  const plain = header.match(/filename\s*=\s*("([^"]+)"|[^;]+)/i)
+  if (plain) {
+    const raw = (plain[2] ?? plain[1]).trim().replace(/^["']|["']$/g, '')
+    // 퍼센트 인코딩된 채로 오는 서버가 많다(실측 NIA)
+    const decoded = safeDecode(raw)
+    if (decoded) return decoded
+  }
+  return null
+}
+
+function safeDecode(v: string): string | null {
+  const trimmed = v.trim()
+  if (!trimmed) return null
+  try {
+    return decodeURIComponent(trimmed)
+  } catch {
+    return trimmed
+  }
+}
+
 /** 파일 이름에 확장자가 없으면 붙여 준다 — 종류 판정이 확장자를 본다 */
 export function withExtension(fileName: string, contentType: string | null): string {
   if (/\.[A-Za-z0-9]{1,5}$/.test(fileName)) return fileName
@@ -78,6 +120,8 @@ const EXT_BY_TYPE: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
   'text/plain': 'txt',
   'text/html': 'html',
+  // 공공기관 파일 서버는 종류를 안 알려 주고 octet-stream 으로만 보낸다.
+  // 그때는 매직바이트가 판정한다(lib/rfp/parse/quality) — 여기서 억지로 정하지 않는다
 }
 
 export type DownloadReason = 'http_error' | 'timeout' | 'too_large' | 'empty' | 'fetch_failed'
@@ -124,7 +168,10 @@ export async function downloadAttachment(
     }
 
     const contentType = res.headers?.get?.('content-type') ?? null
-    return { ok: true, bytes: buf, fileName: withExtension(att.fileName, contentType), contentType }
+    // 헤더의 이름이 가장 정확하다 — 주소에 이름이 없는 첨부가 흔하다
+    const headerName = nameFromDisposition(res.headers?.get?.('content-disposition') ?? null)
+    const fileName = withExtension(headerName ?? att.fileName, contentType)
+    return { ok: true, bytes: buf, fileName, contentType }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     return {

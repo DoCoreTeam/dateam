@@ -13,6 +13,7 @@ import assert from 'node:assert/strict'
 import {
   extractRequirements, parseCode, mapColumns, findHeaderRow,
   dedupeRequirements, requirementsHash, countByKind, CODE_PREFIX,
+  stripBullet,
 } from './requirements.ts'
 import { makeBlock, makeDocument } from '../ir/build.ts'
 import type { IrDocument, IrMeta, IrTable, SourceRef } from '../ir/types.ts'
@@ -223,4 +224,17 @@ test('내용이 바뀌면 지문도 바뀐다', () => {
 test('종류별 건수를 센다', () => {
   const { requirements } = extractRequirements(표문서(총괄표))
   assert.deepEqual(countByKind(requirements), { functional: 2, performance: 1, security: 1 })
+})
+
+test('글머리표를 뗀다 — 한글 문서는 글머리표를 글자로 넣는다', () => {
+  // 실측(콜롬비아 AI 제안요청서): 요구사항 이름이 「ｏ 모바일 관련」으로 나왔다
+  assert.equal(stripBullet('ｏ 모바일 관련'), '모바일 관련')
+  assert.equal(stripBullet('○ 참여인원 보안관리'), '참여인원 보안관리')
+  assert.equal(stripBullet('□ 사업 착수계 제출'), '사업 착수계 제출')
+  assert.equal(stripBullet('- 하도급 관리'), '하도급 관리')
+})
+
+test('멀쩡한 이름은 안 깎는다', () => {
+  assert.equal(stripBullet('참여인원 보안관리'), '참여인원 보안관리')
+  assert.equal(stripBullet('AI 정책 현황 진단'), 'AI 정책 현황 진단')
 })

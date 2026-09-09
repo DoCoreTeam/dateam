@@ -223,7 +223,20 @@ function rowToRequirement(
 }
 
 function pick(row: readonly string[], col: number | undefined): string {
-  return col !== undefined ? (row[col] ?? '').trim() : ''
+  return col !== undefined ? stripBullet(row[col] ?? '') : ''
+}
+
+/**
+ * 앞머리 글머리표를 뗀다.
+ *
+ * 한글 문서는 글머리표를 **글자로** 넣는다(ｏ·○·□·▪·※). 파서는 그것까지 본문으로 읽어서
+ * 요구사항 이름이 「ｏ 모바일 관련」이 된다 — 실측(콜롬비아 AI 제안요청서).
+ * 화면에 그대로 나가면 사람은 파싱이 깨진 줄 안다.
+ */
+export function stripBullet(text: string): string {
+  return text
+    .replace(/^[\s\u00A0]*[ｏoO○●◦▪▫■□◆◇※·・･\-–—*]+[\s\u00A0]*/, '')
+    .trim()
 }
 
 /** 이름 칸을 못 찾았을 때 가장 그럴듯한 글자를 고른다 */
