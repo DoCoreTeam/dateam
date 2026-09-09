@@ -46,6 +46,7 @@ const SHARED_CSS_PREFIXES = new Set([
   'desktop', 'text', 'sidebar', 'settings', 'chip', 'form', 'grid', 'stack',
   'sort', // 정렬 아이콘/헤더 — 목록형 화면 공통 프리미티브
   'inline', // inline-error — 폼·버튼 옆 한 줄 오류(components/ui/InlineError)
+  'status', // status-pill — 성공/경고/위험/정보/중립 다섯 뜻의 전역 상태 배지(components/ui/settings/StatusPill)
 ])
 const MIN_FONT_PX = 10
 

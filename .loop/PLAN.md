@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.4
+플랜 버전: v0.2.5
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.9.0
@@ -116,12 +116,13 @@
 의존: I01
 
 ### I06 설정 디자인 부품 신설
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/components/ui/settings/SettingsCard.tsx, 신규 apps/web/components/ui/settings/SettingsRow.tsx, 신규 apps/web/components/ui/settings/StatusPill.tsx, 신규 apps/web/components/ui/settings/FieldNote.tsx, 신규 apps/web/components/ui/settings/SettingsToggle.tsx, apps/web/app/globals.css
 감사 기준:
 - pnpm tsc --noEmit 통과, pnpm lint 통과
-- 카드 테두리 여백 반경이 콘텐츠 인텔리전스 값(--border-w-2, --space-4, --radius-lg)으로 한 곳에 정의되고 세 화면이 그 클래스를 씀
+- 카드 테두리 여백 반경이 콘텐츠 인텔리전스 값(--border-w-2, --space-4, --radius-lg)으로 globals.css 한 곳에만 정의됨 (같은 생김새를 두 규칙으로 적지 않음 — 옛 ci- 이름은 같은 규칙의 별칭으로 두고 화면이 옮겨올 때 뺀다)
+- 세 화면이 실제로 그 클래스를 쓰는지는 I08 I09 I10 에서 확인하고 I14 가드로 잠근다
 - 상태 배지가 성공 경고 위험 정보 중립 다섯 뜻을 갖고 색을 화면이 고르지 않음
 - 보조 설명 글자 크기와 색이 한 곳에서 옴 (지금 fs-2xs/text-faint 와 fs-2xs/text-muted 로 갈려 있음)
 - node scripts/check-design-tokens.mjs 통과
@@ -235,3 +236,4 @@
 - v0.2.1 (2026-09-09) I01 가드가 공급자 목록을 따로 적은 곳을 3개 더 찾아 I02 범위에 넣음 (audit:I01)
 - v0.2.2 (2026-09-09) I02 는 어댑터 없이 감사 불가 - 타입만 넓히면 이미 저장된 Groq 키가 후보에 들어와 getProvider 가 던진다. I03 을 I02 로 병합 (audit:I02)
 - v0.2.4 (2026-09-09) I05 의 서버액션 철거 가드를 I11a 로 분리 - 화면이 아직 옛 액션을 부르는 동안은 걸 수 없다 (audit:I05)
+- v0.2.5 (2026-09-09) I06 의 「세 화면이 그 클래스를 씀」은 부품을 만드는 항목에서 확인 불가 - 정의가 한 곳인지만 I06 에서 보고 실제 사용은 I08 I09 I10 으로 넘김 (audit:I06)

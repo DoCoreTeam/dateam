@@ -9587,18 +9587,20 @@ label.intake-tool-btn {
 .ci-metric:disabled { cursor: default; opacity: 1; }
 .ci-metric-big { font-size: var(--ci-fs-metric); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* ── 상태 배지 (수집 상태·신뢰도·비교가능성·완전도 4계열) ── */
-.ci-status {
+/* ── 상태 배지 (전 화면 공용 — 성공 경고 위험 정보 중립 다섯 뜻) ──
+   뜻은 다섯뿐이고 색은 여기서만 고른다. 화면이 색을 고르기 시작하면 같은 「연결됨」이
+   화면마다 다른 색으로 나온다. 옛 ci-status 이름은 별칭으로 두고 I07 에서 뺀다. */
+.status-pill, .ci-status {
   display: inline-flex; align-items: center; gap: var(--space-1);
   font-size: var(--fs-2xs); font-weight: 600; border-radius: var(--radius);
   padding: 2px var(--space-2); min-height: 20px;
   border: var(--border-w-2) solid transparent;
 }
-.ci-status-ok      { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
-.ci-status-warn    { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
-.ci-status-danger  { background: var(--danger-bg);  color: var(--danger);  border-color: var(--danger-border); }
-.ci-status-info    { background: var(--info-bg);    color: var(--info);    border-color: var(--info-border); }
-.ci-status-neutral { background: var(--surface-muted); color: var(--text-muted); border-color: var(--border-color); }
+.status-pill-ok,      .ci-status-ok      { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+.status-pill-warn,    .ci-status-warn    { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
+.status-pill-danger,  .ci-status-danger  { background: var(--danger-bg);  color: var(--danger);  border-color: var(--danger-border); }
+.status-pill-info,    .ci-status-info    { background: var(--info-bg);    color: var(--info);    border-color: var(--info-border); }
+.status-pill-neutral, .ci-status-neutral { background: var(--surface-muted); color: var(--text-muted); border-color: var(--border-color); }
 
 /* ── 상세 시트 (전 화면 공용, 우측 640px) ── */
 .ci-sheet-backdrop {
@@ -9645,8 +9647,13 @@ label.intake-tool-btn {
 }
 .error-state-code { font-size: var(--fs-2xs); font-family: ui-monospace, monospace; opacity: 0.8; }
 
-/* 수치에 병기하는 기준 (기간 창·표본 수) */
-.ci-basis { font-size: var(--fs-2xs); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+/* ── 보조 설명 (전 화면 공용) ──
+   수치에 병기하는 기준, 입력칸 아래 한 줄 안내, 카드 부제가 전부 이 한 규칙에서 온다.
+   예전에는 fs-2xs/text-faint 와 fs-2xs/text-muted 로 갈려 화면마다 흐리기가 달랐다.
+   옛 ci-basis 이름은 별칭으로 두고 I07 에서 뺀다. */
+.field-note, .ci-basis {
+  font-size: var(--fs-2xs); color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
 
 /* ── 왜 터졌나 (크리에이티브 분석) ── */
 .ci-creative {
@@ -9708,49 +9715,59 @@ label.intake-tool-btn {
 }
 .ci-asset-search .input-field { flex: 1; }
 
-/* ── 설정 ── */
-.ci-setting-list { display: flex; flex-direction: column; gap: var(--space-3); list-style: none; margin: 0; padding: 0; }
-.ci-setting-card {
+/* ── 설정 (전 화면 공용 — 관리자 · 콘텐츠 인텔리전스 · 영업 CRM 한 벌) ──
+   값의 출처는 콘텐츠 인텔리전스 설정이다. 테두리 --border-w-2, 안여백 --space-4,
+   모서리 --radius-lg 를 여기 한 곳에서만 정한다. 화면 파일이 자기 .card 규칙을 또 적으면
+   같은 설정 화면이 화면마다 다른 두께로 보인다.
+   옛 ci- 이름은 같은 규칙의 별칭이고, 화면이 옮겨올 때(I08~I10) 뺀다. */
+.settings-list, .ci-setting-list { display: flex; flex-direction: column; gap: var(--space-3); list-style: none; margin: 0; padding: 0; }
+.settings-card, .ci-setting-card {
   padding: var(--space-4); border: var(--border-w-2) solid var(--border-color);
   border-radius: var(--radius-lg); background: var(--color-surface);
 }
-.ci-setting-head {
+.settings-card-head, .ci-setting-head {
   display: flex; gap: var(--space-3); align-items: flex-start; justify-content: space-between;
 }
-.ci-integration-row {
+/* 카드 제목 — 화면마다 h3 에 인라인 크기를 주던 것을 여기로 모은다 */
+.settings-card-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); margin: 0; }
+/* 카드 안의 한 줄 — 왼쪽에 무엇, 가운데 값, 오른쪽에 행동 */
+.settings-row, .ci-integration-row {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3);
   align-items: center; padding: var(--space-3);
   border: var(--border-w-2) solid var(--border-color); border-radius: var(--radius);
   background: var(--surface-muted);
 }
+/* 카드 본문 — 제목과 줄 사이 간격도 카드가 스스로 갖는다 */
+.settings-card-body { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-3); }
 
 /* 토글 — 켬/끔을 텍스트 입력으로 받지 않는다 */
-.ci-toggle {
+.settings-toggle, .ci-toggle {
   display: inline-flex; align-items: center; gap: var(--space-2);
   background: none; border: none; cursor: pointer; padding: 0; min-height: 44px;
 }
 /* 트랙은 손잡이를 담는 상자다. 음수 마진으로 위치를 맞추면 폰트·줌에 따라 어긋난다. */
-.ci-toggle-knob {
+.settings-toggle-knob, .ci-toggle-knob {
   position: relative; display: inline-block; flex-shrink: 0;
   width: 40px; height: 22px; border-radius: 9999px;
   background: var(--border-color); transition: background 0.15s ease;
 }
-.ci-toggle-knob::after {
+.settings-toggle-knob::after, .ci-toggle-knob::after {
   content: ''; position: absolute; top: 3px; left: 3px;
   width: 16px; height: 16px; border-radius: 50%;
   background: var(--color-surface); box-shadow: var(--shadow-sm);
   transition: transform 0.15s ease;
 }
-.ci-toggle.is-on .ci-toggle-knob { background: var(--brand); }
-.ci-toggle.is-on .ci-toggle-knob::after { transform: translateX(18px); }
-.ci-toggle-label { font-size: var(--fs-xs); color: var(--text-muted); }
+.settings-toggle.is-on .settings-toggle-knob, .ci-toggle.is-on .ci-toggle-knob { background: var(--brand); }
+.settings-toggle.is-on .settings-toggle-knob::after, .ci-toggle.is-on .ci-toggle-knob::after { transform: translateX(18px); }
+.settings-toggle-label, .ci-toggle-label { font-size: var(--fs-xs); color: var(--text-muted); }
 @media (prefers-reduced-motion: reduce) {
+  .settings-toggle-knob, .settings-toggle-knob::after,
   .ci-toggle-knob, .ci-toggle-knob::after { transition: none; }
 }
 @media (max-width: 767px) {
-  .ci-setting-head { flex-direction: column; gap: var(--space-1); }
-  .ci-integration-row { grid-template-columns: auto minmax(0, 1fr); }
-  .ci-integration-row > :last-child { grid-column: 1 / -1; justify-self: start; }
+  .settings-card-head, .ci-setting-head { flex-direction: column; gap: var(--space-1); }
+  .settings-row, .ci-integration-row { grid-template-columns: auto minmax(0, 1fr); }
+  .settings-row > :last-child, .ci-integration-row > :last-child { grid-column: 1 / -1; justify-self: start; }
 }
 
 /* ── 표 셀 줄바꿈 억제 ──
