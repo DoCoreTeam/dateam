@@ -315,6 +315,34 @@
   .table thead { display: table-header-group; }
   .table tfoot { display: table-row-group; }
   .table tr { break-inside: avoid; }
+
+  /*
+    ── 한 장에 못 넣을 때, 끊기는 자리는 우리가 정한다 ──────────────
+    사용자 지시(2026-09-09): 「안되면 거래조건부터 다음페이지로 간다거나
+    표에 맞춰서 구분 한다거나 해야 할것 같은데」
+
+    예전에는 이 규칙이 아예 없어서 **종이 높이가 끝나는 자리**에서 잘렸다.
+    실제로 거래 조건 네 줄 중 셋만 1쪽에 남고 넷째 줄부터 2쪽으로 넘어갔다.
+    문단이 끝나는 자리가 아니라 픽셀이 끝나는 자리였다.
+  */
+
+  /* 거래 조건·특기사항은 통째로 옮긴다 — 목록 중간에서 갈라지지 않는다 */
+  .terms { break-inside: avoid; }
+
+  /* 제목만 남고 내용이 넘어가는 일이 없게 — 제목은 첫 줄과 붙어 있는다 */
+  .termsTitle { break-after: avoid; }
+
+  /* 한 줄만 떨어져 나가지 않는다 */
+  .termsList li,
+  .note { break-inside: avoid; orphans: 2; widows: 2; }
+
+  /* 합계 띠와 합계 줄은 갈라지면 뜻이 사라진다 */
+  .amountBand,
+  .grand,
+  .inWords { break-inside: avoid; }
+
+  /* 합계 묶음 앞에서는 끊지 않는다 — 항목과 합계가 다른 장에 서면 못 읽는다 */
+  .firstTotal { break-before: avoid; }
 }
 
 /* ── 합계 띠 — 문서 맨 위의 「얼마인가」 ──────────────────────── */

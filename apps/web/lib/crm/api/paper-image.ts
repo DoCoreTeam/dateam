@@ -13,6 +13,8 @@
  * 그래도 실패하면 호출부가 「인쇄로 PDF 저장을 쓰라」고 안내한다 — 조용히 빈 그림을 주지 않는다.
  */
 
+import { A4_W_MM, pdfPageSize } from '@/lib/doc/page-fit'
+
 /** 화면 밀도만큼 키워 그린다 — 1배로 그리면 글자가 뭉갠다 */
 const SCALE = 2
 
@@ -123,9 +125,6 @@ export async function downloadPaperAsPng(paper: HTMLElement, filename: string): 
 // PDF
 // ------------------------------------------------------------
 
-/** A4 (mm) */
-const A4_W = 210
-const A4_H = 297
 
 /**
  * 종이 → **PDF 파일**.
@@ -154,25 +153,34 @@ export async function downloadPaperAsPdf(paper: HTMLElement, filename: string): 
 
   const rect = paper.getBoundingClientRect()
   // 종이 폭을 A4 폭에 맞춘다 — 그 비율로 높이가 정해진다
-  const imgH = (rect.height / rect.width) * A4_W
+  const imgH = (rect.height / rect.width) * A4_W_MM
 
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true })
+  /*
+    **자르지 않는다.**
 
-  if (imgH <= A4_H + 1) {
-    // 한 장에 들어간다 — 위쪽부터 그대로 앉힌다
-    pdf.addImage(dataUrl, 'PNG', 0, 0, A4_W, imgH, undefined, 'FAST')
-  } else {
-    /*
-      **넘칠 때만 나눈다.** 한 장 높이만큼씩 위로 밀어 올리며 새 쪽에 같은 그림을 앉힌다 —
-      잘린 자리가 글자 한가운데일 수 있지만, 여백을 두려고 배율을 줄이면 글자가 작아진다.
-      내용이 길면 두 장이 되는 것이 정직하다(사용자도 그렇게 말했다).
-    */
-    const pages = Math.ceil(imgH / A4_H)
-    for (let i = 0; i < pages; i += 1) {
-      if (i > 0) pdf.addPage()
-      pdf.addImage(dataUrl, 'PNG', 0, -(A4_H * i), A4_W, imgH, undefined, 'FAST')
-    }
-  }
+    예전 판은 넘치면 A4 높이만큼씩 잘라 여러 쪽으로 만들었다. 자르는 자리가 내용과
+    아무 상관이 없어 **글자 한가운데가 잘릴 수 있었고**, 실제로 거래 조건 목록이
+    넷째 줄에서 갈라졌다.
+
+    사용자 지적(2026-09-09): 「늘어나면 당연히 2장 가도 되는데 이미지는 아니잖아?
+    PDF 도 이미지라면 같은 맥락 아닌지」 — 맞다. 이 PDF 는 종이를 그림으로 그려 넣는
+    방식이라 이미지와 같은 규칙을 쓸 수 있다.
+
+    그래서 규칙이 둘로 줄었다:
+      · 한 장에 들어가면 → **A4 한 장**
+      · 안 들어가면 → **내용 길이대로 한 장** (자르지 않는다)
+
+    A4 여러 장이 필요하면 「인쇄」를 쓴다 — 거기서는 브라우저가 **내용 경계**에서 끊는다.
+  */
+  const { widthMm, heightMm, a4 } = pdfPageSize(imgH)
+
+  const pdf = new jsPDF({
+    unit: 'mm',
+    format: a4 ? 'a4' : [widthMm, heightMm],
+    orientation: 'portrait',
+    compress: true,
+  })
+  pdf.addImage(dataUrl, 'PNG', 0, 0, widthMm, imgH, undefined, 'FAST')
 
   pdf.save(filename)
 }

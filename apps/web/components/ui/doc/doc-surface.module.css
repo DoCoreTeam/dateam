@@ -29,10 +29,63 @@
 }
 
 .actions {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* 쪽 설정 — 「한 장 맞춤 87%」 배지와 −/+. 도구 버튼 바로 왼쪽에 선다 */
+.fitBox {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.fitToggle {
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.fitToggle:hover { color: var(--text); border-color: var(--text-faint); }
+
+/* 켜져 있음이 눈에 보인다 — 안 보이면 왜 작게 나가는지 아무도 모른다 */
+.fitOn {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--info-bg);
+}
+
+.fitStep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.fitStep:hover { color: var(--text); border-color: var(--text-faint); }
+
+/* 하한까지 줄여도 못 넣을 때만 뜬다 — 늘 뜨는 안내는 아무도 안 읽는다 */
+.fitNote {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--warning-bg);
+  border-bottom: var(--border-w) solid var(--warning-border);
+  color: var(--warning);
+  font-size: var(--fs-sm);
 }
 
 .close {
@@ -72,8 +125,24 @@
   padding: 15mm 14mm;
 }
 
-@media (max-width: 767px) {
+/*
+  줄이는 것은 **안쪽**이다 — 종이는 A4 폭과 여백을 그대로 지킨다.
+
+  `zoom` 을 쓰는 이유: 배치에 영향을 주므로 쪽 수가 실제로 준다.
+  그리기 단계에서만 작아지는 방식(scale)은 배율을 줘도 쪽 수가 그대로였다
+  (실측 · 같은 내용 같은 배율 0.88 → 2쪽 대 1쪽).
+
+  **폭을 보정하지 않는다.** `zoom` 아래에서 `100%` 는 이미 부모의 실제 폭으로 확장되므로,
+  여기서 또 `1/배율` 을 곱하면 내용이 종이 밖으로 넘친다(실측에서 잡았다).
+*/
+.fit { zoom: var(--doc-fit, 1); }
+
+@media screen and (max-width: 767px) {
   .scroll { padding: var(--space-3) 0; }
+  /*
+    폰에서는 종이 여백을 줄여 글자를 키운다.
+    **화면에만** 건다 — 인쇄에 걸리면 종이 여백이 8mm 가 되어 미리보기와 다른 문서가 나간다(§2-7 D-5).
+  */
   .paper { padding: 8mm 6mm; box-shadow: none; }
 }
 
@@ -104,14 +173,13 @@
     padding: 15mm 14mm;
   }
 
+  /* 화면 도구는 종이에 안 나온다 */
+  .fitNote { display: none !important; }
+
   /*
-    **한 장에 거의 들어가면 한 장으로.**
-    A4 한 장을 조금 넘겨 두 번째 쪽에 표 꼬리만 남는 것이 실무에서 가장 성가시다
-    (사용자 지적: 「pdf로 했을때 한장으로 안나와 … 한장에 다 표시 하는 설정」).
-    `--doc-fit` 은 화면이 실제 높이를 재서 넣는 배율이다 — 많이 넘치면 1 이라 그대로 두 장이 된다.
+    **배율은 이미 화면에 걸려 있다.** 여기서 또 걸지 않는다 —
+    예전 판은 인쇄용 배율을 따로 걸었는데 그 방식은 그리기 단계라 **쪽 수를 못 바꿨다**.
+    그래서 「한 장에 맞추기」가 한 번도 동작하지 않았다(v0.7.701 까지).
+    지금은 `.fit` 의 `zoom` 이 배치를 바꾸므로 화면에서 한 장이면 인쇄도 한 장이다.
   */
-  .paper {
-    transform: scale(var(--doc-fit, 1));
-    transform-origin: top left;
-  }
 }

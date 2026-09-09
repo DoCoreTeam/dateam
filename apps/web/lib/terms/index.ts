@@ -48,3 +48,8 @@ export {
   ROUNDING_MODES, roundingUnitName, roundingUnitLabel, roundingNote,
   type SupplierField, type RoundingModeKey,
 } from './quote.ts'
+
+export {
+  FIT_ON, FIT_OFF, FIT_SMALLER, FIT_BIGGER, PREVIEW_CLOSE,
+  fitReason, tooLongNote,
+} from './doc.ts'
