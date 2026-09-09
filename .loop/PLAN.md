@@ -1,6 +1,6 @@
 # PLAN newAX: RFP 분석 시스템 전 범위
 플랜 ID: P0001
-플랜 버전: v0.4.3
+플랜 버전: v0.4.4
 상태: 진행중
 지시: ins_0006
 목표 버전: v0.8.0
@@ -192,9 +192,9 @@
 의존: I04, I10
 
 ### I14 파이프라인 상태기계와 작업 큐
-상태: 대기
+상태: 통과
 모드: 경량
-범위: 신규 apps/web/lib/rfp/jobs/queue.ts, 신규 apps/web/lib/rfp/jobs/stages.ts, 신규 apps/web/lib/rfp/jobs/queue.test.ts, 신규 apps/web/app/api/rfp/worker/tick/route.ts
+범위: 신규 supabase/migrations/249_rfp_job_claim.sql, 신규 apps/web/lib/rfp/jobs/queue.ts, 신규 apps/web/lib/rfp/jobs/stages.ts, 신규 apps/web/lib/rfp/jobs/queue.test.ts, 신규 apps/web/app/api/rfp/worker/tick/route.ts
 감사 기준:
 - node --test 로 queue.test.ts 통과
 - SKIP LOCKED 선점과 재시도 상한과 단계별 실패 상태 저장이 단정으로 검증됨
@@ -531,3 +531,4 @@
 - v0.4.1 (2026-09-09) 선행 실패 가드 3건이 완료 정의(pnpm test 통과)를 막아 I01a 삽입 (audit:I01)
 - v0.4.2 (2026-09-09) I06 범위에서 pnpm-lock.yaml 을 뺀다 — 이 저장소는 .gitignore:29 로 잠금 파일을 추적하지 않아 커밋 대상이 될 수 없다 (audit:I06)
 - v0.4.3 (2026-09-09) I08 범위에 ir/types.ts 를 넣는다 — 이미지에서 뽑은 블록은 '어느 모델·엔진이 읽었나'를 근거에 실어야 하는데 SourceRef 의 image 갈래에 그 칸이 없다 (audit:I08)
+- v0.4.4 (2026-09-09) I14 범위에 마이그레이션 249 를 넣는다 — SKIP LOCKED 선점은 SQL 이라야 하고 supabase-js 로는 표현할 수 없다. 낙관적 갱신으로 흉내 내면 선점 경로가 두 벌이 된다 (audit:I14)
