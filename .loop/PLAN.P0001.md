@@ -247,7 +247,7 @@
 의존: I11, I16
 
 ### I19 근거 대조와 규칙 검증과 자기 검토
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/report/grounding.ts, 신규 apps/web/lib/rfp/report/rule-verify.ts, 신규 apps/web/lib/rfp/report/self-review.ts, 신규 apps/web/lib/rfp/report/grounding.test.ts
 감사 기준:
