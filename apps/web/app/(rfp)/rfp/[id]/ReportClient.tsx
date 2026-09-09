@@ -11,6 +11,8 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import ReportCard from '@/components/rfp/ReportCard'
+import ReportSheet from '@/components/rfp/ReportSheet'
+import DocSurface from '@/components/ui/doc/DocSurface'
 import { sectionLabel, orderFields, orderSections } from '@/lib/rfp/report/field-labels'
 import styles from '@/app/(rfp)/rfp.module.css'
 import SourceViewer, { type SourceBlock } from '@/components/rfp/SourceViewer'
@@ -54,6 +56,8 @@ export default function ReportClient({
   const [mode, setMode] = useState<'work' | 'report'>('work')
   const [activeBlock, setActiveBlock] = useState<string | null>(null)
   const [crossOpen, setCrossOpen] = useState(false)
+  /** 보고용 미리보기 — 종이로 나가는 것은 이 안에서만 */
+  const [preview, setPreview] = useState(false)
 
   // 교차검증 후보 — 근거가 없거나 확신이 낮은 값이 위로 온다
   const crossFields = useMemo<CrossField[]>(() => {
@@ -97,6 +101,14 @@ export default function ReportClient({
     )
   }
 
+  // 확인 안 된 값이 몇 개인가 — 보고용에서 「왜 흐린지」를 수로 밝힌다
+  const unconfirmed = SECTIONS.reduce((n, sec) => {
+    const bucket = report[sec.key as keyof typeof report] as Record<string, ValueNode<unknown>>
+    return n + Object.values(bucket ?? {}).filter(
+      (v) => v?.value !== null && v?.value !== undefined && v?.grounding === 'unconfirmed',
+    ).length
+  }, 0)
+
   return (
     <main className="page-inner">
       <PageHeader
@@ -113,18 +125,58 @@ export default function ReportClient({
             <NbButton variant="ghost" href={`/api/rfp/cases/${caseId}/export?mode=${mode}`}>
               {RFP_REPORT.exportMd}
             </NbButton>
-            <NbButton variant="ghost" onClick={() => setCrossOpen(true)}>
-              {RFP_REPORT.crossVerify}
-            </NbButton>
+            {/* 보고용은 **읽는 화면**이다. 작업 도구를 남기면 보고서가 아니라
+                근거만 숨긴 작업 화면이 된다.
+                인쇄는 DocSurface 안에서만 — 화면을 그대로 인쇄하면 사이드바와
+                회색 앱 배경이 종이에 찍힌다(가드: doc-export-standard) */}
+            {mode === 'report' ? (
+              <NbButton variant="ghost" onClick={() => setPreview(true)}>
+                {RFP_REPORT.preview}
+              </NbButton>
+            ) : (
+              <NbButton variant="ghost" onClick={() => setCrossOpen(true)}>
+                {RFP_REPORT.crossVerify}
+              </NbButton>
+            )}
           </>
         )}
       />
 
       {/* AI 기본법 투명성 의무 — 화면에도 붙는다 */}
-      <NbBadge status="note">{AI_NOTICE}</NbBadge>
-      <NbBadge status="note">{DOC_CLASS_LABEL[docClass]}</NbBadge>
+      <div className={styles.row}>
+        <NbBadge status="note">{AI_NOTICE}</NbBadge>
+        <NbBadge status="note">{DOC_CLASS_LABEL[docClass]}</NbBadge>
+        {/* 보고용에서 값이 흐린 이유를 **수로** 밝힌다.
+            근거 배지를 숨겨 놓고 흐리게만 그리면, 보고 받는 사람은 왜 흐린지 모른 채
+            확인 안 된 값을 확인된 값과 나란히 읽는다 */}
+        {mode === 'report' && unconfirmed > 0 && (
+          <NbBadge status="blocker">{RFP_REPORT.unconfirmedCount} {unconfirmed}</NbBadge>
+        )}
+      </div>
 
-      <div className={styles.reportGrid}>
+      {/* 종이로 나가는 것 — **화면에서 보는 것과 같은 것**이다.
+          미리보기가 앱 셸을 걷어내므로 사이드바·회색 배경이 종이에 안 찍힌다 */}
+      {preview && (
+        <DocSurface
+          title={caseTitle}
+          onClose={() => setPreview(false)}
+          actions={
+            <NbButton variant="ghost" onClick={() => window.print()}>
+              {RFP_REPORT.print}
+            </NbButton>
+          }
+        >
+          <ReportSheet
+            report={report}
+            anomalies={anomalies}
+            fit={fit}
+            caseTitle={caseTitle}
+            docClass={docClass}
+          />
+        </DocSurface>
+      )}
+
+      <div className={mode === 'report' ? styles.stack : styles.reportGrid}>
         <div className={styles.stack}>
           {fit && (
             <section className="card">
@@ -200,6 +252,7 @@ export default function ReportClient({
           )}
         </div>
 
+        {mode === 'work' && (
         <div className={styles.stack}>
           {/* 원문은 화면에 붙어 따라온다 — 근거를 누를 때마다 위로 올라가면 못 쫓는다 */}
           <div className={styles.sourceSticky}>
@@ -228,6 +281,7 @@ export default function ReportClient({
             />
           )}
         </div>
+        )}
       </div>
     </main>
   )

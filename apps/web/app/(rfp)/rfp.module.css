@@ -392,3 +392,84 @@
   background: var(--surface-subtle);
   font-weight: 600;
 }
+
+/* 보고용에서 「확인 안 됨」을 말하는 작은 글 — 배지는 인쇄에서 잉크를 먹는다 */
+.valueNote {
+  font-size: var(--fs-xs);
+  color: var(--danger);
+}
+
+/* ── 인쇄 ──────────────────────────────────────────────────────
+   보고용은 종이로 나간다. 사이드바·떠 있는 단추·조작 도구는 종이에 남으면 안 된다 */
+@media print {
+  .valueRow { break-inside: avoid; }
+  .sectionHead { break-after: avoid; }
+  .actions { display: none; }
+}
+
+/* ── 종이 위의 리포트 ──────────────────────────────────────────
+   화면은 훑는 자리라 배지와 개수가 붙지만, 종이는 읽는 자리다.
+   조작 흔적이 찍히면 문서가 아니라 화면 사진이 된다 */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  color: var(--text);
+}
+
+.sheetHead {
+  border-bottom: var(--border-w) solid var(--border-color);
+  padding-bottom: var(--space-3);
+}
+
+.sheetTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sheetMeta {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* 절이 쪽 경계에서 갈라지면 읽는 흐름이 끊긴다 */
+.sheetSection { break-inside: avoid; }
+
+.sheetSectionTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  border-bottom: var(--hairline) solid var(--border-subtle);
+  padding-bottom: var(--space-1);
+}
+
+.sheetList { margin: 0; }
+
+.sheetRow {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr);
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  break-inside: avoid;
+}
+
+.sheetKey {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.sheetVal {
+  margin: 0;
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.sheetNote {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}

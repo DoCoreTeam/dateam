@@ -63,6 +63,12 @@ export default function ReportCard({
           )}
         </span>
 
+        {/* **보고용에서도 「확인 안 됨」은 말한다.** 근거 목록은 감추되 사실은 감추지 않는다 —
+            흐리게만 그리면 보고 받는 사람은 왜 흐린지 모른 채 확인된 값과 나란히 읽는다 */}
+        {mode === 'report' && unconfirmed && (
+          <span className={styles.valueNote}>{GROUNDING_LABEL.unconfirmed}</span>
+        )}
+
         {mode === 'work' && (
           <>
             <div className={styles.valueMeta}>

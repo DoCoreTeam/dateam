@@ -268,6 +268,10 @@ export const RFP_REPORT = {
   sourceSearch: '원문에서 찾기',
   sourceClear: '지우기',
   sourceNoHit: '찾는 글자가 없습니다',
+  print: '인쇄',
+  unconfirmedCount: '확인 안 된 값',
+  preview: '보고서 미리보기',
+  sheetGeneratedAt: '작성일',
 } as const
 
 /** 교차검증 대화 */
