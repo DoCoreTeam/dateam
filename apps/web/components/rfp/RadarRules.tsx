@@ -1,17 +1,24 @@
 'use client'
 
-// 레이더 규칙과 적중 목록 — **자동은 찾기까지다.**
+// 공고 레이더 — **모으고, 거르고, 사람이 고른다.**
 //
-// 케이스로 만드는 것은 사람이 고른다. 자동으로 만들면 분석 비용이 자동으로 나가고
-// 아무도 안 볼 리포트가 쌓인다.
+// ## 예전에 왜 안 됐나
+//
+// 구멍이 셋이었다. ⓐ 나라장터에서 공고를 가져오는 코드가 없어 훑을 대상이 0건이었고,
+// ⓑ 「조건 추가」라는 말만 있고 만들 길이 없었고, ⓒ 걸린 공고의 이름조차 안 보였다.
+// 셋 다 있어야 하나라도 쓸모가 생긴다.
+//
+// 자동은 **찾기까지**다. 케이스로 만드는 것은 사람이 고른다 —
+// 자동으로 만들면 분석 비용이 자동으로 나가고 아무도 안 볼 리포트가 쌓인다.
 
 import { useCallback, useState } from 'react'
-import { Radar as RadarIcon } from 'lucide-react'
+import { Radar as RadarIcon, Plus, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
+import styles from '@/app/(rfp)/rfp.module.css'
 
 export interface RadarHitRow {
   id: string
@@ -21,12 +28,20 @@ export interface RadarHitRow {
   pre_score: number | null
   reason: string | null
   status: string
+  /** 걸린 공고가 무엇인지 — 이게 없으면 점수와 사유만 보인다 */
+  notice?: {
+    title: string | null
+    agency: string | null
+    budgetAmount: number | null
+    noticeDate: string | null
+  } | null
 }
 
 export interface RadarRuleRow {
   id: string
   name: string
   keywords: string[]
+  agencies?: string[]
   budget_min: number | null
   budget_max: number | null
   enabled: boolean
@@ -37,21 +52,48 @@ export interface RadarRulesProps {
   initialHits: RadarHitRow[]
 }
 
+interface NewRule {
+  name: string
+  keywords: string
+  agencies: string
+  budgetMin: string
+  budgetMax: string
+}
+
+const EMPTY_RULE: NewRule = { name: '', keywords: '', agencies: '', budgetMin: '', budgetMax: '' }
+
+/** 억 단위로 읽는다 — 원 단위 열한 자리는 사람이 못 읽는다 */
+function money(v: number | null | undefined): string {
+  if (v === null || v === undefined) return '-'
+  if (v >= 100_000_000) return `${(v / 100_000_000).toFixed(1)}${RFP_RADAR.unitEok}`
+  if (v >= 10_000) return `${Math.round(v / 10_000)}${RFP_RADAR.unitMan}`
+  return String(v)
+}
+
 export default function RadarRules({ initialRules, initialHits }: RadarRulesProps) {
-  const [rules] = useState(initialRules)
+  const [rules, setRules] = useState(initialRules)
   const [hits, setHits] = useState(initialHits)
+  const [draft, setDraft] = useState<NewRule | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [note, setNote] = useState<string | null>(null)
 
   const sweep = useCallback(async () => {
     setError(null)
+    setNote(null)
     setBusy(true)
     try {
       const res = await fetch('/api/rfp/radar', { method: 'POST' })
+      const body = await res.json()
       if (!res.ok) { setError(RFP_COMMON.error); return }
+
+      // 0건이 «없다»인지 «못 가져왔다»인지 화면이 말해야 한다
+      if (body.collected?.reason === 'no_service_key') setNote(RFP_RADAR.noServiceKey)
+      else if (body.reason === 'no_rules') setNote(RFP_RADAR.noRules)
+      else setNote(`${RFP_RADAR.collected} ${body.collected?.inserted ?? 0} · ${RFP_RADAR.matched} ${body.hits?.length ?? 0}`)
+
       const list = await fetch('/api/rfp/radar', { cache: 'no-store' })
-      const body = await list.json()
-      setHits(body.hits ?? [])
+      setHits((await list.json()).hits ?? [])
     } catch {
       setError(RFP_COMMON.error)
     } finally {
@@ -59,49 +101,173 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
     }
   }, [])
 
+  const addRule = useCallback(async () => {
+    if (!draft) return
+    setError(null)
+    if (!draft.name.trim()) { setError(RFP_RADAR.nameRequired); return }
+    if (!draft.keywords.trim() && !draft.agencies.trim() && !draft.budgetMin && !draft.budgetMax) {
+      // 조건이 없으면 모든 공고가 걸린다 — 그건 레이더가 아니라 목록이다
+      setError(RFP_RADAR.noCondition); return
+    }
+    setBusy(true)
+    try {
+      const res = await fetch('/api/rfp/radar/rules', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: draft.name, keywords: draft.keywords, agencies: draft.agencies,
+          budgetMin: draft.budgetMin || null, budgetMax: draft.budgetMax || null,
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setError(body.error === 'no_condition' ? RFP_RADAR.noCondition : RFP_COMMON.error); return }
+      setRules((p) => [...p, body.rule])
+      setDraft(null)
+    } catch {
+      setError(RFP_COMMON.error)
+    } finally {
+      setBusy(false)
+    }
+  }, [draft])
+
+  const toggle = useCallback(async (rule: RadarRuleRow) => {
+    setRules((p) => p.map((r) => (r.id === rule.id ? { ...r, enabled: !r.enabled } : r)))
+    await fetch('/api/rfp/radar/rules', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: rule.id, enabled: !rule.enabled }),
+    })
+  }, [])
+
+  const remove = useCallback(async (id: string) => {
+    setRules((p) => p.filter((r) => r.id !== id))
+    await fetch(`/api/rfp/radar/rules?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+  }, [])
+
   return (
-    <div>
+    <div className={styles.stack}>
       {error && <FormErrorBanner message={error} />}
 
+      {/* ① 조건 */}
       <section className="card">
-        <span className="label">{RFP_RADAR.rules}</span>
-        {rules.length === 0 ? (
-          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>{RFP_RADAR.emptyDesc}</p>
-        ) : (
-          <ul>
-            {rules.map((r) => (
-              <li key={r.id}>
-                <span>{r.name}</span>
-                <NbBadge status={r.enabled ? 'done' : 'note'}>{r.keywords.join(', ')}</NbBadge>
-              </li>
-            ))}
-          </ul>
+        <div className={styles.sectionHead}>
+          <div className={styles.between}>
+            <span className={styles.sectionTitle}>{RFP_RADAR.rules}</span>
+            <NbBadge status="note">{rules.filter((r) => r.enabled).length} / {rules.length}</NbBadge>
+          </div>
+          <span className={styles.sectionDesc}>{RFP_RADAR.sweepDesc}</span>
+        </div>
+
+        {rules.length === 0 && <span className={styles.sectionDesc}>{RFP_RADAR.emptyDesc}</span>}
+
+        <div className={styles.ruleList}>
+          {rules.map((r) => (
+            <div key={r.id} className={styles.ruleItem}>
+              <label className={styles.row}>
+                <input type="checkbox" checked={r.enabled} onChange={() => void toggle(r)} />
+                <span className={styles.ruleName}>{r.name}</span>
+              </label>
+              <span className={styles.row}>
+                {r.keywords.length > 0 && <NbBadge status="note">{r.keywords.join(', ')}</NbBadge>}
+                {(r.agencies?.length ?? 0) > 0 && <NbBadge status="note">{r.agencies?.join(', ')}</NbBadge>}
+                {(r.budget_min !== null || r.budget_max !== null) && (
+                  <NbBadge status="note">{money(r.budget_min)} ~ {money(r.budget_max)}</NbBadge>
+                )}
+                <NbButton variant="ghost" onClick={() => void remove(r.id)} aria-label={RFP_RADAR.removeRule}>
+                  <X size={12} />
+                </NbButton>
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {draft && (
+          <div className={styles.fieldGrid}>
+            <Field label={RFP_RADAR.ruleName} value={draft.name}
+              onChange={(v) => setDraft({ ...draft, name: v })} />
+            <Field label={RFP_RADAR.keywords} value={draft.keywords} hint={RFP_RADAR.keywordsHint}
+              onChange={(v) => setDraft({ ...draft, keywords: v })} />
+            <Field label={RFP_RADAR.agencies2} value={draft.agencies} hint={RFP_RADAR.keywordsHint}
+              onChange={(v) => setDraft({ ...draft, agencies: v })} />
+            <Field label={RFP_RADAR.budgetMin} value={draft.budgetMin} numeric
+              onChange={(v) => setDraft({ ...draft, budgetMin: v })} />
+            <Field label={RFP_RADAR.budgetMax} value={draft.budgetMax} numeric
+              onChange={(v) => setDraft({ ...draft, budgetMax: v })} />
+          </div>
         )}
-        <NbButton onClick={() => void sweep()} disabled={busy}>
-          <RadarIcon size={14} /> {RFP_RADAR.sweepNow}
-        </NbButton>
+
+        <div className={styles.actions}>
+          {draft ? (
+            <>
+              <NbButton onClick={() => void addRule()} disabled={busy}>{RFP_COMMON.save}</NbButton>
+              <NbButton variant="secondary" onClick={() => setDraft(null)}>{RFP_COMMON.cancel}</NbButton>
+            </>
+          ) : (
+            <NbButton variant="secondary" onClick={() => setDraft({ ...EMPTY_RULE })}>
+              <Plus size={14} /> {RFP_RADAR.addRule}
+            </NbButton>
+          )}
+          <NbButton onClick={() => void sweep()} disabled={busy}>
+            <RadarIcon size={14} /> {busy ? RFP_COMMON.loading : RFP_RADAR.sweepNow}
+          </NbButton>
+        </div>
+
+        {note && <span className={styles.sectionDesc}>{note}</span>}
       </section>
 
-      <section>
-        <h2 className="label">{RFP_RADAR.hits}</h2>
+      {/* ② 걸린 공고 */}
+      <section className="card">
+        <div className={styles.sectionHead}>
+          <div className={styles.between}>
+            <span className={styles.sectionTitle}>{RFP_RADAR.hits}</span>
+            {hits.length > 0 && <NbBadge status="note">{hits.length}</NbBadge>}
+          </div>
+        </div>
+
         {hits.length === 0 ? (
           <EmptyState title={RFP_RADAR.emptyTitle} description={RFP_RADAR.emptyDesc} />
         ) : (
-          <ul>
+          <div className={styles.ruleList}>
             {/* 사전 점수 높은 것부터 — 사용자는 위에서 몇 개만 본다 */}
             {hits.map((h) => (
-              <li key={h.id} className="card">
-                <NbBadge status="doing">{h.pre_score ?? 0}</NbBadge>
-                <span style={{ marginLeft: 'var(--space-2)' }}>{h.reason}</span>
-                {/* 케이스로 만드는 것은 사람이 고른다 */}
-                <NbButton variant="ghost" href={`/rfp/new?source=${h.source_id}`}>
-                  {RFP_RADAR.openCase}
-                </NbButton>
-              </li>
+              <div key={h.id} className={styles.ruleItem}>
+                <span className={styles.tight}>
+                  {/* 무엇이 걸렸는지가 먼저다. 점수와 사유만으로는 아무것도 못 정한다 */}
+                  <span className={styles.ruleName}>{h.notice?.title ?? h.source_id}</span>
+                  <span className={styles.sectionDesc}>
+                    {RFP_RADAR.noticeAgency} {h.notice?.agency ?? '-'}
+                    {' · '}{RFP_RADAR.noticeBudget} {money(h.notice?.budgetAmount)}
+                    {' · '}{RFP_RADAR.noticeDate} {h.notice?.noticeDate ?? '-'}
+                  </span>
+                  <span className={styles.sectionDesc}>{h.reason}</span>
+                </span>
+                <span className={styles.row}>
+                  <NbBadge status="doing">{h.pre_score ?? 0}</NbBadge>
+                  <NbButton variant="secondary" href={`/rfp/new?source=${h.source_id}`}>
+                    {RFP_RADAR.openCase}
+                  </NbButton>
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
+    </div>
+  )
+}
+
+function Field({ label, value, onChange, hint, numeric }: {
+  label: string; value: string; onChange: (v: string) => void; hint?: string; numeric?: boolean
+}) {
+  return (
+    <div className={styles.field}>
+      <label className="label">{label}</label>
+      <input
+        className="input-field"
+        value={value}
+        onChange={(e) => onChange(numeric ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
+      />
+      {hint && <span className={styles.sectionDesc}>{hint}</span>}
     </div>
   )
 }

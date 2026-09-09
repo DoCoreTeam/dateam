@@ -13,6 +13,14 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { isMachineCall, machineAuthUnconfigured } from '@/lib/crm/jobs/machine-auth'
 import { claimJobs, finishJob, failJob, reapStaleJobs, workerName, type Job } from '@/lib/rfp/jobs/queue'
 import type { JobType } from '@/lib/rfp/jobs/stages'
+import { runStage } from '@/lib/rfp/jobs/run-stage'
+import { makeStageDeps } from '@/lib/rfp/jobs/deps'
+import { runAnalyze } from '@/lib/rfp/analyze/run-analyze'
+import { makeHostCaller } from '@/lib/rfp/ai/host-caller'
+import { toModels, toPolicy } from '@/lib/rfp/ai/host-providers'
+import { getAvailableProviders } from '@/lib/ai-chat/registry'
+import { embedText } from '@/lib/gemini-embedding'
+import type { GatewayStore } from '@/lib/rfp/ai/gateway'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -32,7 +40,8 @@ async function tick(req: NextRequest) {
     return NextResponse.json({ error: '워커 토큰이 필요합니다' }, { status: 401 })
   }
 
-  const db = createAdminClient() as unknown as Parameters<typeof claimJobs>[0]
+  const admin = createAdminClient()
+  const db = admin as unknown as Parameters<typeof claimJobs>[0]
   const worker = workerName()
 
   // 죽은 워커가 잡고 있던 것부터 되살린다. 안 하면 그 잡은 영원히 running 이다
@@ -53,7 +62,7 @@ async function tick(req: NextRequest) {
   const results: { id: string; jobType: JobType; ok: boolean; error?: string }[] = []
   for (const job of jobs) {
     try {
-      const progress = await runJob(job)
+      const progress = await runJob(admin, job)
       await finishJob(db, job.id, progress)
       results.push({ id: job.id, jobType: job.jobType, ok: true })
     } catch (e) {
@@ -67,14 +76,92 @@ async function tick(req: NextRequest) {
 }
 
 /**
+ * 관리자 설정의 AI 공급자 + RFP 의 등급 정책을 합쳐 모델 목록을 만든다.
+ *
+ * 키는 호스트가, 「이 모델에 NDA 를 보내도 되나」는 RFP 가 갖는다.
+ */
+async function loadAi(db: ReturnType<typeof createAdminClient>) {
+  // 키는 org_content 의 **한 행(key='META')** 안에 통째로 들어 있다.
+  // 행 여러 개로 읽으면 늘 빈 것이 나오고, 그러면 「쓸 모델이 없다」로만 보인다
+  const { data: metaRow } = await (db as any)
+    .from('org_content').select('value').eq('key', 'META').single()
+  const meta = ((metaRow as { value?: unknown } | null)?.value ?? {}) as Record<string, unknown>
+
+  const providers = getAvailableProviders(meta).map((p) => ({
+    id: p.id, apiKey: p.apiKey, model: p.model,
+  }))
+
+  const { data: policyRows } = await (db as any)
+    .from('rfp_ai_models')
+    .select('vendor_id, allowed_doc_classes, is_internal, no_training, zero_retention, input_krw_per_mtok, output_krw_per_mtok, multimodal, sort_order, enabled')
+  const policies = ((policyRows ?? []) as Record<string, unknown>[]).map(toPolicy)
+
+  return { providers, models: toModels(providers, policies), meta }
+}
+
+/** 기록 창구 — 호출과 전송을 남긴다. 남기지 않으면 비용도 유출도 못 센다 */
+function makeStore(db: ReturnType<typeof createAdminClient>): GatewayStore {
+  return {
+    async recordCall(r) {
+      await (db as any).from('rfp_llm_calls').insert({
+        org_id: r.orgId, case_id: r.caseId, model_id: r.modelId, purpose: r.purpose,
+        input_tokens: r.inputTokens, output_tokens: r.outputTokens, cost_krw: r.costKrw,
+        latency_ms: r.latencyMs, ok: r.ok, error: r.error,
+      })
+    },
+    async recordTransfer(r) {
+      await (db as any).from('rfp_external_transfers').insert({
+        org_id: r.orgId, case_id: r.caseId, model_id: r.modelId, doc_class: r.docClass,
+        purpose: r.purpose, masked_counts: r.maskedCounts, bytes: r.bytes,
+      })
+    },
+  }
+}
+
+/**
  * 잡 하나를 돈다.
  *
- * 단계별 실제 처리는 뒤 항목에서 붙는다. 지금은 **모르는 종류를 조용히 성공시키지 않는다** —
- * 성공으로 두면 케이스가 다음 단계로 넘어가고, 아무 일도 안 한 채 리포트가 비어 나온다.
+ * 순서와 판정은 `lib/rfp/jobs/run-stage` 가 갖는다 — 여기 인라인으로 두면
+ * 「다음 잡을 걸었나」를 확인할 방법이 실제 크론뿐이 된다.
  */
-async function runJob(job: Job): Promise<Record<string, unknown>> {
-  throw new Error(`아직 붙지 않은 단계다: ${job.jobType}`)
+async function runJob(db: ReturnType<typeof createAdminClient>, job: Job): Promise<Record<string, unknown>> {
+  const ai = await loadAi(db)
+  const caller = makeHostCaller({ providers: ai.providers })
+  const store = makeStore(db)
+
+  // 임베딩은 있으면 쓰고 없으면 안 쓴다 — 없다고 색인 단계를 실패시키면
+  // 검색이 조금 나빠질 일이 파이프라인 전체를 멈추는 일이 된다
+  const geminiKey = ai.providers.find((p) => p.id === 'gemini')?.apiKey ?? null
+  const embed = geminiKey
+    ? async (text: string) => (await embedText(text, geminiKey, null, {
+        taskType: 'RETRIEVAL_DOCUMENT', feature: 'memo-embedding',
+      }))?.embedding ?? null
+    : null
+
+  const deps = makeStageDeps({
+    db: db as never,
+    embed,
+    async analyze(kase, docs) {
+      const files = await (db as any).from('rfp_document_files')
+        .select('id, role').eq('case_id', kase.id).is('deleted_at', null)
+      const roleById = new Map(
+        ((files.data ?? []) as { id: string; role: string }[]).map((f) => [String(f.id), String(f.role)]),
+      )
+      const out = await runAnalyze(db as never, {
+        orgId: kase.orgId,
+        caseId: kase.id,
+        docClass: kase.docClass as 'public' | 'restricted' | 'nda',
+        parts: docs.map((d) => ({ fileId: d.fileId, role: roleById.get(d.fileId), doc: d.doc })),
+        models: ai.models,
+        gateway: { store, call: caller },
+      })
+      return { version: out.version, title: out.title }
+    },
+  })
+
+  return runStage(deps, job) as Promise<Record<string, unknown>>
 }
+
 
 function describe(e: unknown): string {
   return e instanceof Error ? e.message : String(e)

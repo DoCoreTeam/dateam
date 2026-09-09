@@ -5,15 +5,20 @@
 //
 // 같은 내용을 다시 올리면 막되 버리지 않는다 — 기존 파일 ID 를 돌려준다.
 // 「이미 있음」이라고만 하면 사용자는 자기가 뭘 잘못했는지 모른다.
+//
+// **바이트를 먼저 보관함에 넣고 그다음에 행을 만든다.** 반대로 하면
+// 「행은 있는데 원문이 없는」 파일이 남고, 그 파일은 파싱이 영원히 실패한다.
+// 경로가 해시라 두 번 올려도 같은 자리다 — 실패한 요청이 쓰레기를 안 남긴다.
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { checkFileSize, sha256Hex, findDuplicate, MAX_FILE_BYTES } from '@/lib/rfp/db/files'
 import { guessFileRole } from '@/lib/rfp/parse/role'
 import { checkKind } from '@/lib/rfp/parse/quality'
+import { filePath, putBytes } from '@/lib/rfp/db/storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,6 +85,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const kind = checkKind(file.name, bytes)
   const role = guessFileRole(file.name)
 
+  // 보관함 쓰기는 서버만 한다 — 클라이언트가 직접 올리면 크기·종류 검사와
+  // 해시 중복 판정을 통째로 건너뛴다(마이그 250 은 authenticated 에 쓰기를 안 연다).
+  const path = filePath(kase.org_id, caseId, sha)
+  try {
+    await putBytes(createAdminClient() as any, path, bytes, file.type)
+  } catch {
+    return NextResponse.json({ error: '원문을 저장하지 못했습니다' }, { status: 500 })
+  }
+
   const { data, error } = await (db as any)
     .from('rfp_document_files')
     .insert({
@@ -87,13 +101,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       org_id: kase.org_id,
       role: role.role,
       original_name: file.name,
+      storage_path: path,
       mime: file.type || null,
       format: kind.ok ? kind.kind : null,
       size_bytes: file.size,
       sha256: sha,
       uploaded_by: gate.user.id,
     })
-    .select('id, original_name, role, size_bytes, sha256, format')
+    .select('id, original_name, role, size_bytes, sha256, format, storage_path')
     .single()
 
   if (error) {

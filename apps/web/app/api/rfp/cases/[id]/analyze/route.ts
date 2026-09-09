@@ -63,7 +63,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       orgId: kase.org_id,
       caseId,
       jobType: 'parse',
-      payload: { requestedBy: gate.user.id },
+      // 판 번호를 payload 로 넘긴다 — 뒤 단계가 같은 판을 이어받아야
+      // 되살아난 잡이 IR 을 두 벌로 만들지 않는다
+      payload: { requestedBy: gate.user.id, version },
       priority: JOB_PRIORITY.parse,
       dedupeKey: dedupeKey(caseId, 'parse', version),
     })

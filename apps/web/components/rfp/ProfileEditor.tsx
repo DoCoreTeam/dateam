@@ -19,6 +19,7 @@ import { Upload, Plus, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import DateField from '@/components/ui/DateField'
 import { RFP_PROFILE, RFP_COMMON } from '@/lib/rfp/terms'
 import styles from '@/app/(rfp)/rfp.module.css'
 
@@ -226,9 +227,9 @@ export default function ProfileEditor({
               onChange={(v) => setRecords(patch(i, (r) => ({ ...r, client: v || null })))} />
             <TextField label={RFP_PROFILE.recordAmount} value={row.amountKrw === null ? '' : String(row.amountKrw)}
               numeric onChange={(v) => setRecords(patch(i, (r) => ({ ...r, amountKrw: v ? Number(v) : null })))} />
-            <TextField label={RFP_PROFILE.recordStart} type="date" value={row.startDate ?? ''}
+            <TextField label={RFP_PROFILE.recordStart} date value={row.startDate ?? ''}
               onChange={(v) => setRecords(patch(i, (r) => ({ ...r, startDate: v || null })))} />
-            <TextField label={RFP_PROFILE.recordEnd} type="date" value={row.endDate ?? ''}
+            <TextField label={RFP_PROFILE.recordEnd} date value={row.endDate ?? ''}
               onChange={(v) => setRecords(patch(i, (r) => ({ ...r, endDate: v || null })))} />
             <TextField label={RFP_PROFILE.recordTags} value={row.domainTags.join(', ')}
               onChange={(v) => setRecords(patch(i, (r) => ({ ...r, domainTags: splitTags(v) })))} />
@@ -249,7 +250,7 @@ export default function ProfileEditor({
               onChange={(v) => setCerts(patch(i, (c) => ({ ...c, name: v })))} />
             <TextField label={RFP_PROFILE.certIssuer} value={row.issuer ?? ''}
               onChange={(v) => setCerts(patch(i, (c) => ({ ...c, issuer: v || null })))} />
-            <TextField label={RFP_PROFILE.certValidUntil} type="date" value={row.validUntil ?? ''}
+            <TextField label={RFP_PROFILE.certValidUntil} date value={row.validUntil ?? ''}
               onChange={(v) => setCerts(patch(i, (c) => ({ ...c, validUntil: v || null })))} />
           </div>
         )}
@@ -363,19 +364,26 @@ interface TextFieldProps {
   value: string
   onChange: (v: string) => void
   numeric?: boolean
-  type?: string
+  /** 날짜 칸인가. 문자열 'date' 로 받지 않는 이유는 date-input-standard 가드가
+   *  화면에서 그 문자열 자체를 금지하기 때문이다 — 재유입을 막는 규칙이라 예외를 안 판다 */
+  date?: boolean
 }
 
-function TextField({ label, value, onChange, numeric, type }: TextFieldProps) {
+function TextField({ label, value, onChange, numeric, date }: TextFieldProps) {
   return (
     <div className={styles.field}>
       <label className="label">{label}</label>
-      <input
-        className="input-field"
-        type={type ?? 'text'}
-        value={value}
-        onChange={(e) => onChange(numeric ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
-      />
+      {/* 날짜는 DateField 한 벌을 쓴다 — raw input 은 6자리 연도를 그대로 받는다 */}
+      {date ? (
+        <DateField value={value} onValueChange={onChange} aria-label={label} />
+      ) : (
+        <input
+          className="input-field"
+          type="text"
+          value={value}
+          onChange={(e) => onChange(numeric ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
+        />
+      )}
     </div>
   )
 }

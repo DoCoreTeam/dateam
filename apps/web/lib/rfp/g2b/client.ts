@@ -131,3 +131,84 @@ export function itemsOf(json: G2bEnvelope): Record<string, unknown>[] | null {
   }
   return null
 }
+
+/** 목록 조회 한 번에 가져올 건수. 크게 잡으면 응답이 늦어 타임아웃이 난다 */
+export const LIST_ROWS = 100
+
+/** 며칠치를 훑나 — 크론이 15분마다 도니 하루면 충분하고, 처음 켤 때만 넓게 본다 */
+export const DEFAULT_LOOKBACK_DAYS = 2
+
+export interface SearchNoticesInput {
+  serviceKey: string
+  /** 조회 시작 (KST 기준 yyyyMMddHHmm) */
+  from: string
+  /** 조회 끝 (KST 기준 yyyyMMddHHmm) */
+  to: string
+  pageNo?: number
+  numOfRows?: number
+  fetchImpl?: typeof fetch
+  timeoutMs?: number
+}
+
+/**
+ * 공고 **목록**을 가져온다 — 레이더가 훑을 대상이 여기서 나온다.
+ *
+ * ## 왜 뒤늦게 생겼나
+ *
+ * 레이더는 `rfp_sources` 를 훑는데 **그 표를 채우는 코드가 없었다.** 나라장터 연동은
+ * 공고번호로 한 건 조회하는 것뿐이라, 조건을 아무리 잘 만들어도 결과가 늘 0건이었다.
+ *
+ * ## 기간으로 조회하는 이유
+ *
+ * 공고번호를 모르는 상태에서 찾는 것이 레이더다. 공공데이터포털은 등록일시 범위
+ * (`inqryBgnDt`~`inqryEndDt`)로만 목록을 준다 — 키워드 검색이 없다.
+ * 그래서 **기간으로 받아 와서 우리가 거른다**(matchRule 이 그 일을 한다).
+ */
+export async function searchNotices(
+  input: SearchNoticesInput,
+): Promise<G2bResult<{ items: Record<string, unknown>[]; totalCount: number }>> {
+  const f = input.fetchImpl ?? fetch
+  const url = new URL(`${G2B_BASE}/getBidPblancListInfoServcPPSSrch`)
+  url.searchParams.set('serviceKey', input.serviceKey)
+  url.searchParams.set('type', 'json')
+  url.searchParams.set('numOfRows', String(input.numOfRows ?? LIST_ROWS))
+  url.searchParams.set('pageNo', String(input.pageNo ?? 1))
+  url.searchParams.set('inqryDiv', '1')
+  url.searchParams.set('inqryBgnDt', input.from)
+  url.searchParams.set('inqryEndDt', input.to)
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), input.timeoutMs ?? 20_000)
+  try {
+    const res = await f(url.toString(), { signal: controller.signal })
+    if (res.status === 429) return fail('rate_limited', '429')
+    if (!res.ok) return fail('upstream_error', String(res.status))
+
+    const json = await res.json() as G2bEnvelope
+    const items = itemsOf(json)
+    if (items === null) return fail('bad_response', '응답 모양이 다르다')
+    return { ok: true, data: { items, totalCount: Number(json?.response?.body?.totalCount ?? items.length) } }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    return fail(message.includes('abort') ? 'timeout' : 'upstream_error', message)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * 조회 구간을 만든다 — 공공데이터포털은 **KST 벽시계**를 받는다.
+ *
+ * UTC 를 그대로 넣으면 9시간 어긋난 구간을 훑고, 그 사고는 「왜 새 공고가 안 뜨지」로만 보인다.
+ */
+export function inquiryRange(nowMs: number, lookbackDays = DEFAULT_LOOKBACK_DAYS): { from: string; to: string } {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000
+  const to = new Date(nowMs + KST_OFFSET_MS)
+  const from = new Date(nowMs + KST_OFFSET_MS - lookbackDays * 24 * 60 * 60 * 1000)
+  return { from: stamp(from), to: stamp(to) }
+}
+
+function stamp(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}`
+}
