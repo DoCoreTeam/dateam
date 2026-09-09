@@ -10,6 +10,7 @@
 //      관리자가 멤버로 넣어 줘야 들어온다.
 
 import { redirect } from 'next/navigation'
+import { badgeTitle } from '@/lib/terms'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
   Building2, Handshake, Mic, BarChart3, Sun, FileText
@@ -145,7 +146,10 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
     // 인박스가 「오늘」에 흡수됐으므로 배지도 「오늘」에 붙는다.
     // 안 옮기면 배지가 갈 곳이 없어져 **조용히 사라진다** — 그러면 AI 가 찾아낸 것을
     // 아무도 모르는 채로 만료된다(배지를 단 이유가 그것이다).
-    it.href === '/crm/today' && pendingInbox > 0 ? { ...it, badge: pendingInbox } : it
+    it.href === '/crm/today' && pendingInbox > 0
+      // 숫자만 있으면 무엇이 N건인지 눌러 봐야 안다 — 뜻을 함께 붙인다(§0-2)
+      ? { ...it, badge: pendingInbox, badgeTitle: badgeTitle('crmPendingSuggestion', pendingInbox) }
+      : it
   ))
 
   return (

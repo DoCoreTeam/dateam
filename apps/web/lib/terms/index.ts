@@ -22,6 +22,11 @@ export {
 } from './sentence.ts'
 
 export {
+  BADGE, badgeTitle,
+  type BadgeKey, type BadgeMeta,
+} from './badge.ts'
+
+export {
   DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_RERUN_LABEL, DIGEST_STALE_LABEL,
   DIGEST_NO_MATERIAL, DIGEST_EMPTY_TITLE, FACT_ORIGIN,
   EXTRACT_LABEL, EXTRACT_RUN_LABEL,

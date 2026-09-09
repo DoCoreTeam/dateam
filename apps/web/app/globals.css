@@ -1749,6 +1749,28 @@
 }
 .seg-tab-label { font-size: var(--fs-sm); font-weight: 700; }
 .seg-tab-sub { font-size: var(--fs-2xs); font-weight: 500; color: var(--text-muted); }
+/* 탭 배지 — 그 탭에서 기다리는 것의 수(SegmentedTabs SSOT).
+   사이드바 배지가 세는 것을 도착 화면에서 이어 보여 준다(§0-2 배지 규칙 4).
+   주의색(--danger)은 기한이 있는 것에만 쓴다 — 여기는 「아직 안 한 것」이라 brand 를 쓴다. */
+.seg-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  margin-left: 0.35rem;
+  border-radius: 9999px;
+  background: var(--brand);
+  color: var(--nb-white);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+.seg-tab.is-active .seg-tab-badge,
+.seg-tab-primary.is-active .seg-tab-badge { background: var(--nb-white); color: var(--brand); }
 .seg-tab.has-sub.is-active .seg-tab-sub,
 .seg-tab-primary.has-sub.is-active .seg-tab-sub { color: var(--text-muted); }
 

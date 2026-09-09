@@ -7,6 +7,7 @@
 // 이제 검색·계정·전체메뉴는 AppShell이 항상 넣고, CI는 메뉴·알림·어시스턴트만 얹는다.
 
 import { redirect } from 'next/navigation'
+import { badgeTitle, type BadgeKey } from '@/lib/terms'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
   Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors, Sparkles,
@@ -36,6 +37,14 @@ function badge(count?: number): number | undefined {
   return count && count > 0 ? count : undefined
 }
 
+/**
+ * 배지가 **무엇을 세는지**를 함께 붙인다(§0-2 · `lib/terms/badge.ts`).
+ * 숫자만 있으면 눌러 보고서야 뜻을 안다 — 배지는 열어 보지 않고 판단하라고 있는 장치다.
+ */
+function badgeMeaning(key: BadgeKey, count?: number): string | undefined {
+  return count && count > 0 ? badgeTitle(key, count) : undefined
+}
+
 function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
   /**
    * 아직 아무것도 없는 화면은 메뉴에 올리지 않는다 — 하나라도 생기면 저절로 올라온다.
@@ -52,14 +61,14 @@ function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
   const research: NavItem[] = [
     // 맨 앞이다 — 사용자가 매일 처음 던지는 질문이 "뭘 만들까"이기 때문이다.
     { href: '/ci/recommend', label: '오늘 뭘 만들까', icon: <Sparkles size={16} /> },
-    { href: '/ci/inbox', label: '수집함', icon: <Inbox size={16} />, badge: badge(counts?.review) },
+    { href: '/ci/inbox', label: '수집함', icon: <Inbox size={16} />, badge: badge(counts?.review), badgeTitle: badgeMeaning('ciReview', counts?.review) },
     // 채널을 등록하는 곳과 그 결과가 쌓이는 곳은 한 흐름이다 — 수집함 바로 다음에 둔다
     { href: '/ci/monitoring', label: '모니터링', icon: <Radar size={16} />, match: ['/ci/channels'] },
-    { href: '/ci/trends', label: '트렌드', icon: <TrendingUp size={16} />, badge: badge(counts?.newOutliers) },
+    { href: '/ci/trends', label: '트렌드', icon: <TrendingUp size={16} />, badge: badge(counts?.newOutliers), badgeTitle: badgeMeaning('ciOutlier', counts?.newOutliers) },
   ]
 
   const make: NavItem[] = [
-    { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, match: ['/ci/briefs'], badge: badge(counts?.producing) },
+    { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, match: ['/ci/briefs'], badge: badge(counts?.producing), badgeTitle: badgeMeaning('ciProducing', counts?.producing) },
     // 편집점·보드는 파이프라인의 뒷단계다. 기획이 생겨야 쓸 일이 있다.
     ...(has(counts?.editPlans) ? [{ href: '/ci/studio', label: '편집점', icon: <Scissors size={16} /> }] : []),
     ...(has(counts?.boards) ? [{ href: '/ci/boards', label: '보드', icon: <Layers size={16} /> }] : []),
@@ -68,7 +77,7 @@ function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
 
   // 게시는 내보낼 것이 있거나 내 채널을 연결했을 때부터 뜻이 있다
   const publish: NavItem[] = [
-    ...(has(counts?.publications) ? [{ href: '/ci/publish', label: '게시', icon: <Send size={16} />, badge: badge(counts?.ready) }] : []),
+    ...(has(counts?.publications) ? [{ href: '/ci/publish', label: '게시', icon: <Send size={16} />, badge: badge(counts?.ready), badgeTitle: badgeMeaning('ciReady', counts?.ready) }] : []),
     ...(has(counts?.ownChannels) ? [{ href: '/ci/my-channels', label: '내 채널', icon: <Radio size={16} /> }] : []),
   ]
 

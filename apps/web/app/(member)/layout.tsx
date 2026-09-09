@@ -21,6 +21,8 @@ import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Net
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
 import { navLabel, SERVICE_NAV, SERVICE_GROUP_LABEL, ADMIN_ONLY_GROUPS, canSeeNav } from '@/lib/nav/menu'
+import { badgeTitle } from '@/lib/terms'
+import { MyOpenDeptTaskProvider } from '@/lib/work/dept-task-badge'
 
 // 이름은 lib/nav/menu 에서 온다 — 사이드바와 전체 메뉴가 갈리지 않게(§2-3-3 N-4)
 const NAV_ITEMS = [
@@ -136,9 +138,20 @@ export default async function MemberLayout({ children }: { children: React.React
     // 항목 권한도 표 하나에서 온다 — `adminOnly` prop 을 화면이 따로 해석하지 않는다
     .filter((item) => canSeeNav(item.href, isAdmin))
     .map((item) => {
-      if (item.href === '/routine') return { ...item, badge: routineBadge }
-      if (item.href === '/calendar') return { ...item, badge: calendarBadge }
-      if (item.href === '/work') return { ...item, badge: workBadge }
+      /*
+        배지에는 **무엇을 세는지**를 함께 붙인다(§0-2 · `lib/terms/badge.ts`).
+        숫자만 있으면 사용자는 눌러 보고서야 뜻을 알고, 도착지가 그 숫자를 안 보여 주면
+        영영 모른다 — 사용자 지적 2026-09-09: 「눌렀는데 뭐가 뜬건지 알 수 있는 방법이 없구만」.
+      */
+      if (item.href === '/routine') {
+        return { ...item, badge: routineBadge, badgeTitle: badgeTitle('routinePending', routineBadge) }
+      }
+      if (item.href === '/calendar') {
+        return { ...item, badge: calendarBadge, badgeTitle: badgeTitle('todayEvent', calendarBadge) }
+      }
+      if (item.href === '/work') {
+        return { ...item, badge: workBadge, badgeTitle: badgeTitle('myOpenDeptTask', workBadge) }
+      }
       return item
     })
 
@@ -179,7 +192,13 @@ export default async function MemberLayout({ children }: { children: React.React
           )
         ) }}
       >
-        <SWRProvider>{children}</SWRProvider>
+        {/*
+          사이드바 배지가 센 값을 그대로 업무 탭 줄까지 물려준다 — 다시 세지 않는다.
+          이것이 「배지를 눌렀는데 그 1건이 어디 있는지 모른다」를 끊는 자리다.
+        */}
+        <MyOpenDeptTaskProvider count={workBadge}>
+          <SWRProvider>{children}</SWRProvider>
+        </MyOpenDeptTaskProvider>
       </AppShell>
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}

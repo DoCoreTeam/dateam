@@ -18,6 +18,8 @@ export interface NavItem {
   label: string
   icon: React.ReactNode
   badge?: number
+  /** 배지가 무엇을 세는지 — `lib/terms/badge.ts` 의 `badgeTitle()` 로 만든다 */
+  badgeTitle?: string
   highlight?: boolean
   /** 추가로 active 처리할 경로들 (예: "업무"=/work가 /daily·/dept-tasks·/weekly-report에서도 강조) */
   match?: string[]
@@ -288,6 +290,7 @@ export default function MobileShell({
                     label={item.label}
                     icon={item.icon}
                     badge={item.badge}
+                    badgeTitle={item.badgeTitle}
                     isActive={isActive}
                     isHighlight={!!item.highlight && !isActive}
                     linkRef={idx === 0 ? firstNavRef : undefined}
@@ -339,6 +342,7 @@ export default function MobileShell({
                             label={item.label}
                             icon={item.icon}
                             badge={item.badge}
+                            badgeTitle={item.badgeTitle}
                             isActive={isActive}
                           />
                         </li>

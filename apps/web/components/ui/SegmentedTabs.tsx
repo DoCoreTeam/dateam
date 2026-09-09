@@ -29,6 +29,15 @@ export interface SegmentedTab {
   href?: string
   /** 이동형 활성 판정에 함께 볼 경로(병합된 옛 경로 등) */
   match?: string[]
+  /**
+   * 이 탭에서 기다리는 것의 수. **0이면 그리지 않는다**(배지 규칙 2 · `lib/terms/badge.ts`).
+   *
+   * 왜 탭에 배지가 있나: 사이드바 배지를 누르고 도착한 화면이 그 숫자를 다시 보여 주지
+   * 않으면, 사용자는 무엇이 N건인지 끝내 알 수 없다(사용자 지적 2026-09-09).
+   */
+  badge?: number
+  /** 배지가 무엇을 세는지 — `badgeTitle()` 로 만든 문장을 그대로 넘긴다 */
+  badgeTitle?: string
   testId?: string
 }
 
@@ -170,6 +179,11 @@ function SegmentedTabsInner({
               {t.icon && <span className="seg-tab-icon">{t.icon}</span>}
               {t.sub ? <span className="seg-tab-label">{t.label}</span> : t.label}
               {t.sub && <span className="seg-tab-sub">{t.sub}</span>}
+              {t.badge != null && t.badge > 0 && (
+                <span className="seg-tab-badge" title={t.badgeTitle} aria-label={t.badgeTitle}>
+                  {t.badge > 99 ? '99+' : t.badge}
+                </span>
+              )}
             </>
           )
 

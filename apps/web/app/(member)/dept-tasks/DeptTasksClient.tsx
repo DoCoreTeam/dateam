@@ -19,6 +19,7 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import EmptyState from '@/components/ui/EmptyState'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
+import { isOpenDeptTaskStatus } from '@/lib/dept-task-utils'
 import { listDeptTasks } from './actions'
 import DeptTaskFormModal from './DeptTaskFormModal'
 import DeptTaskDetail from './DeptTaskDetail'
@@ -37,8 +38,15 @@ interface Props {
   origins: Record<string, DeptTaskOrigin>
 }
 
-const STATUS_FILTERS: Array<{ value: DailyLogEntryType | 'all'; label: string }> = [
+/**
+ * 「미완료」는 예정·진행중·블로커의 합이다 — 사이드바 「업무」 배지가 세는 것과 **같은 뜻**.
+ * 배지를 눌러 들어오면 이 칩이 켜져 그 N건만 남는다(§0-2 배지 규칙 4).
+ */
+type StatusFilter = DailyLogEntryType | 'all' | 'open'
+
+const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'all', label: '전체' },
+  { value: 'open', label: '미완료' },
   { value: 'planned', label: '예정' },
   { value: 'doing', label: '진행중' },
   { value: 'blocker', label: '블로커' },
@@ -49,7 +57,14 @@ const STATUS_FILTERS: Array<{ value: DailyLogEntryType | 'all'; label: string }>
 const LIST_DEFAULTS: ListDefaults = {
   sort: { key: 'target_date', dir: 'asc' },
   view: 'table',
-  filterKeys: ['status'],
+  filterKeys: ['status', 'assignee'],
+}
+
+/** 「내 담당」 — 배지가 세는 것이 바로 이 조건이다. 공용 도구줄의 select 를 그대로 쓴다(§2-6) */
+const ASSIGNEE_FILTER = {
+  key: 'assignee',
+  label: '담당자',
+  options: [{ value: 'me', label: '내 담당' }],
 }
 const SORT_OPTIONS = [
   { key: 'target_date', label: '마감' },
@@ -81,7 +96,8 @@ export default function DeptTasksClient({
   const [editing, setEditing] = useState(false)
   const [handoffContent, setHandoffContent] = useState<string | null>(null)
 
-  const filter = (query.filters.status as DailyLogEntryType | 'all') || 'all'
+  const filter = (query.filters.status as StatusFilter) || 'all'
+  const mineOnly = query.filters.assignee === 'me'
 
   // 일일업무 "부서업무 연결됨" 뱃지 → /dept-tasks?task=ID 진입 시 해당 업무 자동 선택
   const taskParam = searchParams.get('task')
@@ -128,13 +144,15 @@ export default function DeptTasksClient({
   const filtered = useMemo(() => {
     const q = query.q.trim().toLowerCase()
     const rows = tasks.filter((t) => {
-      if (filter !== 'all' && t.entry_type !== filter) return false
+      // 「미완료」는 상태 셋의 합 — 배지와 같은 SSOT 를 본다
+      if (filter === 'open' ? !isOpenDeptTaskStatus(t.entry_type) : filter !== 'all' && t.entry_type !== filter) return false
+      if (mineOnly && t.assignee_user_id !== currentUserId) return false
       if (!q) return true
       const assignee = t.assignee_user_id ? nameMap[t.assignee_user_id] ?? '' : ''
       return `${t.content ?? ''} ${assignee}`.toLowerCase().includes(q)
     })
     return [...rows].sort((a, b) => compareTasks(a, b, query.sort.key, query.sort.dir))
-  }, [tasks, filter, query.q, query.sort.key, query.sort.dir, nameMap])
+  }, [tasks, filter, mineOnly, currentUserId, query.q, query.sort.key, query.sort.dir, nameMap])
 
   const { from, to } = rangeOf(query)
   const visible = filtered.slice(from, to + 1)
@@ -144,7 +162,7 @@ export default function DeptTasksClient({
   // 코어 필드 수정 권한: 작성자 또는 부서장
   const selectedDeptEditable = !!selected?.department_id && editableDeptIds.includes(selected.department_id)
   const canEditSelected = !!selected && (selected.user_id === currentUserId || selectedDeptEditable)
-  const hasFilters = Boolean(query.q) || filter !== 'all'
+  const hasFilters = Boolean(query.q) || filter !== 'all' || mineOnly
 
   return (
     <WorkPageShell
@@ -168,6 +186,7 @@ export default function DeptTasksClient({
         query={query}
         onChange={set}
         searchPlaceholder="업무명 또는 담당자 검색"
+        filters={[ASSIGNEE_FILTER]}
         sortOptions={SORT_OPTIONS}
         total={filtered.length}
       />

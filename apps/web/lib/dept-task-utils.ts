@@ -4,6 +4,19 @@ import type { DailyLogEntryType, DeptTaskChecklistItem } from '@/types/database'
 /** 부서업무에 허용되는 상태값 ('note' 제외) */
 export const DEPT_TASK_STATUSES: DailyLogEntryType[] = ['planned', 'doing', 'blocker', 'done']
 
+/**
+ * 「아직 안 끝난 것」의 정의 — 사이드바 「업무」 배지·탭 배지·목록 필터가 **같은 이 목록**을 본다.
+ *
+ * 예전엔 서버(`dept-tasks/actions.ts`)에만 있어서 화면이 같은 뜻을 다시 적을 수밖에 없었다.
+ * 두 벌이면 한쪽만 고쳐지고, 그러면 배지가 세는 것과 목록이 보여 주는 것이 갈린다.
+ */
+export const OPEN_DEPT_TASK_STATUSES: DailyLogEntryType[] = ['planned', 'doing', 'blocker']
+
+/** 그 업무가 아직 안 끝났나 — 배지가 세는 기준과 목록 필터가 이 함수를 공유한다 */
+export function isOpenDeptTaskStatus(s: DailyLogEntryType): boolean {
+  return (OPEN_DEPT_TASK_STATUSES as string[]).includes(s)
+}
+
 export function isDeptTaskStatus(s: string): s is DailyLogEntryType {
   return (DEPT_TASK_STATUSES as string[]).includes(s)
 }

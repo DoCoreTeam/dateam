@@ -4,7 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { kstTodayKey } from '@/lib/datetime/kst'
-import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist, computeProgress, compareDeptTaskUrgency, summarizeDeptTasks, type DeptTaskCounts } from '@/lib/dept-task-utils'
+import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist, computeProgress, compareDeptTaskUrgency, summarizeDeptTasks, OPEN_DEPT_TASK_STATUSES, type DeptTaskCounts } from '@/lib/dept-task-utils'
 import type { DailyLog, DailyLogEntryType, DailyLogPriority, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
 import { logActivity } from '@/lib/work/activity-log'
 
@@ -560,7 +560,7 @@ async function ensureEditable(userId: string, departmentId: string): Promise<Act
 }
 
 // ── 홈 노출용: 개인/부서 챙김 큐 ──
-const OPEN_STATUSES: DailyLogEntryType[] = ['planned', 'doing', 'blocker']
+// 「미완료」의 정의는 lib/dept-task-utils.ts(SSOT) 하나다 — 배지·탭·목록 필터가 같은 목록을 본다
 
 export type DeptHomeViewMode = 'mine' | 'dept'
 export interface DeptHomeResult {
@@ -602,7 +602,7 @@ export async function listHomeDeptTasks(opts: { mode?: DeptHomeViewMode; today: 
   // RLS 가시 미완료 부서업무 (readable 또는 담당자=나). 기한임박 누락 방지 위해 기한순 정렬 + 상한 상향.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase.from('daily_logs') as any)
-    .select('*').eq('task_kind', 'dept_task').is('deleted_at', null).in('entry_type', OPEN_STATUSES)
+    .select('*').eq('task_kind', 'dept_task').is('deleted_at', null).in('entry_type', OPEN_DEPT_TASK_STATUSES)
     .order('target_date', { ascending: true, nullsFirst: false }).limit(1000)
   const all = (data ?? []) as DailyLog[]
 
@@ -641,7 +641,7 @@ export async function countMyOpenDeptTasks(): Promise<number> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { count } = await (supabase.from('daily_logs') as any)
     .select('id', { count: 'exact', head: true })
-    .eq('task_kind', 'dept_task').is('deleted_at', null).eq('assignee_user_id', user.id).in('entry_type', OPEN_STATUSES)
+    .eq('task_kind', 'dept_task').is('deleted_at', null).eq('assignee_user_id', user.id).in('entry_type', OPEN_DEPT_TASK_STATUSES)
   return count ?? 0
 }
 
