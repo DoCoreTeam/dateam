@@ -1,0 +1,224 @@
+/* 영업 리포트 · 지표 탭 전용 스타일
+ *
+ * globals.css 에 넣지 않는다(§0-1) — 화면 전용 규칙을 전역에 쌓으면 9,710줄이 더 는다.
+ * 값은 전부 토큰이다. 여기서 색·치수를 새로 정하지 않는다.
+ */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fieldWide {
+  min-width: 200px;
+  flex: 1 1 200px;
+}
+
+.basis {
+  margin-left: auto;
+  align-self: center;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* 카드 — 누를 수 있다는 것이 보여야 한다(§2-3-1) */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.card:hover {
+  border-color: var(--brand);
+  transform: translateY(-2px);
+}
+
+.card:focus-visible {
+  outline: var(--border-w-2) solid var(--brand);
+  outline-offset: 2px;
+}
+
+.cardOn {
+  border-color: var(--brand);
+  box-shadow: var(--shadow-md);
+}
+
+.cardLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
+}
+
+.cardValue {
+  font-size: var(--fs-price);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardSub {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+/* 목표가 없어 못 내는 값 — 0 으로 그리지 않는다 */
+.cardAsk {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.cardBar {
+  height: 6px;
+  border-radius: var(--radius);
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+.cardBarFill {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+/* 숫자를 그대로 믿으면 안 되는 사정 */
+.notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.note {
+  padding: var(--space-1) var(--space-2);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+
+.noteWarn {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.section {
+  margin-top: var(--space-6);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  font-size: var(--fs-xs);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.cell {
+  font-variant-numeric: tabular-nums;
+}
+
+.cellMuted {
+  color: var(--text-faint);
+}
+
+/* 목표 설정 모달 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.row > * {
+  flex: 1 1 140px;
+}
+
+.hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.err {
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.itemMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemTitle {
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.itemSub {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
