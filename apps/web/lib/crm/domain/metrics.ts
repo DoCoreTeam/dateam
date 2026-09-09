@@ -198,7 +198,9 @@ export const DERIVED: readonly DerivedDecl[] = [
   },
   {
     key: 'pace', label: METRIC_MORE.pace, hint: METRIC_MORE_HINT.pace,
-    unit: 'percent', needs: ['attainment'],
+    // **배수다.** 「1보다 작으면 이 속도로는 못 닿는다」가 뜻인데 `%` 로 그리면
+    // 0.04 가 「0.04%」로 읽혀 뜻이 통째로 뒤집힌다(실측 화면에서 잡았다)
+    unit: 'times', needs: ['attainment'],
   },
 ]
 

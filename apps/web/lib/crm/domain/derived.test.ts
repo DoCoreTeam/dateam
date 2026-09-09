@@ -107,3 +107,22 @@ test('파생 계산은 순수하다 — DB 도 시계도 모른다', () => {
     assert.ok(!src.includes(banned), `파생 계산이 ${banned} 를 안다`)
   }
 })
+
+/**
+ * 회귀 — **페이스는 배수다.**
+ *
+ * 「1보다 작으면 이 속도로는 목표에 못 닿는다」가 뜻인데 단위가 `%` 면 0.04 가
+ * 「0.04%」로 읽혀 뜻이 뒤집힌다. 실브라우저에서 잡았다(v0.7.711).
+ */
+test('페이스의 단위는 배수다 — 퍼센트가 아니다', () => {
+  const d = computeDerived('pace', {
+    values: { bookings: '24260000' }, target: '1000000000', elapsed: 0.69,
+  })
+  assert.equal(d?.unit, 'times', '퍼센트로 그리면 0.04 가 「0.04%」가 된다')
+})
+
+test('달성률과 배수는 단위가 서로 다르다 — 한 벌로 묶지 않는다', () => {
+  const inp = { values: { bookings: '5', open_pipeline: '10' }, target: '10' }
+  assert.equal(computeDerived('attainment', inp)?.unit, 'percent')
+  assert.equal(computeDerived('coverage', inp)?.unit, 'times')
+})

@@ -24,13 +24,18 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import NbButton from '@/components/ui/nb/NbButton'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 import Sensitive from '@/components/crm/Sensitive'
 import { formatAmount } from '../deals/amount'
-import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DATE_BASIS_HINT, DIMENSION_EMPTY } from '@/lib/terms/report'
+import { ACTION, failedTo } from '@/lib/terms'
+import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, REPORT as R } from '@/lib/terms/report'
 import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, type Period, type PeriodKind, type TargetSpec, INDEX_MAX, findTarget } from '@/lib/crm/domain/target'
 import { computeDerived } from '@/lib/crm/domain/derived'
-import { ALL_KEY, EMPTY_KEY, CELL_SEP } from '@/lib/crm/domain/metric-agg'
+import { canMove, type CloseStateKey } from '@/lib/crm/domain/close'
+import { ALL_KEY, EMPTY_KEY, CELL_SEP, TIME_AXIS_LABEL } from '@/lib/crm/domain/metric-agg'
 import { isThin } from '@/lib/crm/domain/dimensions'
+import AskBar from './AskBar'
+import FillDomains from './FillDomains'
 import TargetModal from './TargetModal'
 import s from './metrics.module.css'
 
@@ -68,6 +73,16 @@ interface Payload {
   cards: AggResult[]
   matrix: AggResult | null
   targets: TargetSpec[]
+  close: {
+    periodKey: string
+    state: CloseStateKey
+    revision: number
+    confirmedAt: string | null
+    snapshot: Record<string, string>
+    live: boolean
+    closable: boolean
+    blockedReason: string | null
+  }
   catalog: {
     metrics: { key: string; label: string; hint: string; unit: string; derived?: boolean }[]
     dimensions: { key: string; label: string; hint: string }[]
@@ -110,10 +125,41 @@ function primaryValue(cell: Cell | undefined, unit: string): string | null {
   return cell.byCurrency.KRW ?? Object.values(cell.byCurrency)[0] ?? '0'
 }
 
+
+/** 파생값 한 칸 — 단위가 셋(원·배·%)이라 그리는 법이 다르다. 없으면 「—」가 아니라 이유를 말한다 */
+function derivedText(d: { unit: string; value: number | string | null; missing: string[] } | null): string {
+  if (!d) return '—'
+  if (d.value === null) return d.missing[0] ?? '—'
+  if (d.unit === 'money') return formatAmount(String(d.value), 'KRW') ?? String(d.value)
+  if (d.unit === 'percent') return `${d.value}%`
+  if (d.unit === 'times') return `${d.value}배`
+  return String(d.value)
+}
+
 const MATRIX_QUERY: ListQuery = {
   q: '', sort: { key: '_row', dir: 'asc' }, filters: {},
   view: 'table', size: 100, mode: 'pages', page: 1,
 }
+
+/**
+ * 지표 묶음 — **뜻이 같은 것끼리 모은다.**
+ *
+ * 카드를 한 줄로 늘어놓으면 「아직 안 판 것」과 「이미 끝난 것」과 「밀린 것」이
+ * 같은 무게로 읽힌다. 영업이 숫자로 대화할 때는 그 셋을 다른 말로 쓴다.
+ */
+const GROUPS: { key: string; label: string; hint: string; metrics: string[]; risk?: boolean }[] = [
+  { key: 'open', label: '아직 안 판 것', hint: '이번 기간에 끝날 예정인 딜', metrics: ['open_pipeline', 'weighted', 'new_deals'] },
+  { key: 'done', label: '판 것', hint: '이번 기간에 끝난 딜', metrics: ['bookings', 'won_count', 'lost_count'] },
+  { key: 'risk', label: '봐야 할 것', hint: '예상의 신뢰도를 깎는 딜', metrics: ['overdue', 'stalled'], risk: true },
+]
+
+/** 마감이 갈 수 있는 곳 — 갈 수 있는 것만 버튼으로 낸다 */
+const CLOSE_NEXT: CloseStateKey[] = ['reviewing', 'confirmed', 'draft']
+
+/** 주역 패널에 서는 파생 넷 — 목표가 있어야 뜻이 생긴다 */
+const HERO_STATS = [
+  { key: 'shortfall' }, { key: 'needed_new' }, { key: 'coverage' }, { key: 'pace' },
+] as const
 
 /** 축을 안 골랐을 때의 이름 — 고르는 칸과 표 머리가 **같은 말**을 써야 한다 */
 const AXIS_NONE = { rows: '합계만', cols: '값 하나' } as const
@@ -125,13 +171,11 @@ const PERIOD_KINDS: { kind: PeriodKind; label: string }[] = [
   { kind: 'MONTH', label: '월간' },
 ]
 
-/** 시간 축은 쪼개는 기준 목록에 없다 — 축에는 설 수 있으므로 여기서 더한다 */
-const TIME_AXES = [
-  { key: 'month', label: '월' },
-  { key: 'quarter', label: '분기' },
-  { key: 'half', label: '반기' },
-  { key: 'year', label: '연' },
-]
+/**
+ * 시간 축은 쪼개는 기준 목록에 없다 — 축에는 설 수 있으므로 여기서 더한다.
+ * **이름은 여기서 짓지 않는다**(§0-2) — 도우미와 같은 표를 읽어야 같은 말을 쓴다.
+ */
+const TIME_AXES = Object.entries(TIME_AXIS_LABEL).map(([key, label]) => ({ key, label }))
 
 export default function MetricsClient() {
   const router = useRouter()
@@ -143,6 +187,9 @@ export default function MetricsClient() {
   const [error, setError] = useState<string | null>(null)
   const [targetFor, setTargetFor] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [closing, setClosing] = useState(false)
+  const [closeErr, setCloseErr] = useState<string | null>(null)
+  const [reload, setReload] = useState(0)
 
   // 주소를 그대로 서버에 넘긴다 — 화면이 조건을 따로 들고 있지 않으니 어긋날 자리가 없다
   const queryString = useMemo(() => {
@@ -171,7 +218,40 @@ export default function MetricsClient() {
       .catch(() => { if (alive) setError('리포트를 불러오지 못했습니다.') })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [queryString])
+  }, [queryString, reload])
+
+  /**
+   * 조건을 **통째로** 바꾼다 — 도우미 전용.
+   *
+   * 부분 갱신(`set`)을 쓰면 이전에 걸린 조건이 남아, 새 물음의 답에 옛 조건이
+   * 섞인다. 사람은 새로 물었다고 생각하는데 화면은 두 물음을 겹쳐 보여 준다.
+   */
+  const replaceAll = useCallback((params: Record<string, string>) => {
+    const next = new URLSearchParams()
+    const tab = sp.get('tab')
+    if (tab) next.set('tab', tab)
+    for (const [k, v] of Object.entries(params)) if (v) next.set(k, v)
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false })
+  }, [router, pathname, sp])
+
+  /** 마감 상태를 옮긴다 — 확정은 되돌릴 수 없으므로 서버가 한 번 더 막는다 */
+  const moveClose = useCallback(async (to: CloseStateKey) => {
+    setClosing(true); setCloseErr(null)
+    try {
+      const res = await fetch('/api/crm/metrics', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ close: { period: sp.get('period') ?? undefined, state: to } }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) { setCloseErr(json?.error?.message ?? failedTo('마감', '바꾸지')); return }
+      setReload((n) => n + 1)
+    } catch {
+      setCloseErr(failedTo('마감', '바꾸지'))
+    } finally {
+      setClosing(false)
+    }
+  }, [sp])
 
   const set = useCallback((patch: Record<string, string | null>) => {
     const next = new URLSearchParams(sp.toString())
@@ -201,6 +281,10 @@ export default function MetricsClient() {
   const attainment = computeDerived('attainment', derivedInput)
   const shortfall = computeDerived('shortfall', derivedInput)
   const coverage = computeDerived('coverage', derivedInput)
+  const neededNew = computeDerived('needed_new', derivedInput)
+  const pace = computeDerived('pace', derivedInput)
+  const elapsed = derivedInput.elapsed
+  const bookingsCard = data.cards.find((c) => c.metric === 'bookings')
 
   /**
    * 축 이름. **안 고른 축을 「없음」이라 부르지 않는다** — 「없음」은 값이 비어 있는
@@ -233,6 +317,12 @@ export default function MetricsClient() {
 
   return (
     <div>
+      {/*
+        도우미 — 자연어를 조건으로 바꾼다. 결과는 **주소로** 들어가므로
+        도우미가 연 화면도 링크로 공유되고 뒤로가기가 된다(화면과 같은 길).
+      */}
+      <AskBar onRun={(p) => replaceAll(p)} />
+
       {/* 조건 줄 — 고르는 것만 있다 */}
       <div className={s.bar}>
         <div className={s.field}>
@@ -300,6 +390,30 @@ export default function MetricsClient() {
         <span className={s.basis}>{periodLabel(period)} · 딜 {data.notes.dealCount.toLocaleString('ko-KR')}건</span>
       </div>
 
+      {/*
+        마감 — **시스템이 먼저 닫고 사람이 고친다.**
+        딜은 계속 움직여서 「9월 수주」를 10월에 다시 조회하면 다른 숫자가 나온다.
+        확정하면 그 시점의 숫자가 박히고, 그 뒤 수정은 수정본으로 새로 만든다.
+      */}
+      <div className={s.close} data-state={data.close.state}>
+        <span className={s.closeState}>{R.close} · {CLOSE_STATE_LABEL[data.close.state]}</span>
+        <span className={s.closeHint}>
+          {data.close.blockedReason ?? CLOSE_STATE_HINT[data.close.state]}
+          {data.close.revision > 0 && ` · 수정본 ${data.close.revision}판`}
+        </span>
+        {CLOSE_NEXT.filter((n) => canMove(data.close.state, n)).map((n) => (
+          <NbButton
+            key={n}
+            variant="ghost"
+            disabled={closing || (n === 'confirmed' && !data.close.closable)}
+            onClick={() => void moveClose(n)}
+          >
+            {closing ? <AXDotLoader /> : `${CLOSE_STATE_LABEL[n]}${n === 'draft' ? '으로' : '으로'}`}
+          </NbButton>
+        ))}
+        {closeErr && <span className={s.err} role="alert">{closeErr}</span>}
+      </div>
+
       {/* 걸린 조건 — 어떻게 푸는지가 보여야 한다 */}
       {/*
         **서버가 인정한 조건만 그린다.** 주소를 화면이 다시 읽으면, 서버가 버린
@@ -316,71 +430,113 @@ export default function MetricsClient() {
         </div>
       )}
 
-      {/* 카드 — 누르면 그 지표로 표가 열린다 */}
-      <div className="responsive-grid-cols-4">
-        {data.cards.map((c) => {
-          const on = activeMetric === c.metric
-          return (
-            <button
-              key={c.metric} type="button"
-              className={`card ${s.card}${on ? ` ${s.cardOn}` : ''}`}
-              onClick={() => set({ metric: on ? null : c.metric })}
-              aria-pressed={on}
-              title={c.label}
-            >
-              <span className={s.cardLabel}>{c.label}</span>
-              <span className={s.cardValue}><Sensitive>{cellText(c.total, c.unit)}</Sensitive></span>
-              <span className={s.cardSub}>{basisLine(c.dateBasis as 'wonAt')} · {c.notes.matched.toLocaleString('ko-KR')}건</span>
-            </button>
-          )
-        })}
-
-        {/* 목표 카드 — 없으면 0 이 아니라 「설정하기」다 */}
-        <button
-          type="button"
-          className={`card ${s.card}`}
-          onClick={() => { setTargetFor('bookings'); setModalOpen(true) }}
-        >
-          <span className={s.cardLabel}>수주 목표 · 달성률</span>
+      {/*
+        **주역 패널.** 카드 아홉 개를 같은 크기로 늘어놓으면 「38.2억」과 「0건」이
+        같은 무게로 읽힌다 — 그건 보고가 아니라 덤프다. 목표 대비를 가장 크게 두고,
+        나머지는 뜻이 같은 것끼리 묶는다(아직 안 판 것 · 판 것 · 위험).
+      */}
+      <section className={`card ${s.hero}`}>
+        <div className={s.heroMain}>
+          <span className={s.groupLabel}>{periodLabel(period)} · 수주 목표 대비</span>
           {bookingTarget ? (
             <>
-              <span className={s.cardValue}>
+              <span className={s.heroValue}>
                 <Sensitive>{attainment?.value !== null && attainment ? `${attainment.value}%` : '—'}</Sensitive>
               </span>
-              <span className={s.cardBar}>
+              <span className={s.heroBar}>
                 <span
-                  className={s.cardBarFill}
+                  className={s.heroBarFill}
                   style={{ width: `${Math.min(100, Math.max(0, Number(attainment?.value ?? 0)))}%` }}
                 />
+                {elapsed !== null && (
+                  <span className={s.heroBarNow} style={{ left: `${Math.min(100, elapsed * 100)}%` }} />
+                )}
               </span>
-              <span className={s.cardSub}>
-                목표 <Sensitive>{formatAmount(bookingTarget.value, 'KRW') ?? bookingTarget.value}</Sensitive>
+              <span className={s.heroSub}>
+                <Sensitive>{cellText(bookingsCard?.total, 'money')}</Sensitive>
+                {' / '}
+                <Sensitive>{formatAmount(bookingTarget.value, 'KRW') ?? bookingTarget.value}</Sensitive>
+                {elapsed !== null && ` · 기간은 ${Math.round(elapsed * 100)}% 지났습니다`}
               </span>
             </>
           ) : (
             <>
-              <span className={s.cardAsk}>{NO_TARGET}</span>
-              <span className={s.cardSub}>{NO_TARGET_ACTION}</span>
+              <span className={s.heroAsk}>{NO_TARGET}</span>
+              <span className={s.heroSub}>
+                목표를 정하면 달성률·부족분·필요 신규·페이스가 여기에 섭니다
+              </span>
+              <span className={s.heroAction}>
+                <NbButton onClick={() => { setTargetFor('bookings'); setModalOpen(true) }}>
+                  {NO_TARGET_ACTION}
+                </NbButton>
+              </span>
             </>
           )}
-        </button>
+        </div>
 
         {bookingTarget && (
-          <div className={`card ${s.card}`} style={{ cursor: 'default' }}>
-            <span className={s.cardLabel}>부족분 · 파이프라인 배수</span>
-            <span className={s.cardValue}>
-              <Sensitive>{shortfall?.value ? (formatAmount(String(shortfall.value), 'KRW') ?? String(shortfall.value)) : '—'}</Sensitive>
-            </span>
-            <span className={s.cardSub}>
-              배수 {coverage?.value !== null && coverage ? `${coverage.value}배` : '—'}
-            </span>
-          </div>
+          <dl className={s.heroStats}>
+            {HERO_STATS.map((h) => {
+              const d = h.key === 'shortfall' ? shortfall : h.key === 'coverage' ? coverage : h.key === 'needed_new' ? neededNew : pace
+              return (
+                <div key={h.key} className={s.heroStat}>
+                  <dt className={s.heroStatLabel} title={d?.hint ?? ''}>{d?.label ?? h.key}</dt>
+                  <dd className={s.heroStatValue}>
+                    <Sensitive>{derivedText(d)}</Sensitive>
+                  </dd>
+                </div>
+              )
+            })}
+            <div className={s.heroStat}>
+              <dt className={s.heroStatLabel}>목표</dt>
+              <dd className={s.heroStatValue}>
+                <button type="button" className={s.linkBtn} onClick={() => { setTargetFor('bookings'); setModalOpen(true) }}>
+                  {ACTION.edit}
+                </button>
+              </dd>
+            </div>
+          </dl>
         )}
-      </div>
+      </section>
+
+      {/* 묶음 — 뜻이 같은 지표끼리. 카드는 전부 눌러서 표를 연다 */}
+      {GROUPS.map((g) => {
+        const items = g.metrics.map((k) => data.cards.find((c) => c.metric === k)).filter(Boolean) as AggResult[]
+        if (items.length === 0) return null
+        return (
+          <section key={g.key} className={s.group}>
+            <h2 className={s.groupLabel}>
+              {g.label}
+              <span className={s.groupHint}>{g.hint}</span>
+            </h2>
+            <div className={s.groupGrid}>
+              {items.map((c) => {
+                const on = activeMetric === c.metric
+                const alert = g.risk && c.total.count > 0
+                return (
+                  <button
+                    key={c.metric} type="button"
+                    className={`card ${s.card}${on ? ` ${s.cardOn}` : ''}${alert ? ` ${s.cardAlert}` : ''}`}
+                    onClick={() => set({ metric: on ? null : c.metric })}
+                    aria-pressed={on}
+                    title={`${c.label} · ${basisLine(c.dateBasis as 'wonAt')}`}
+                  >
+                    <span className={s.cardLabel}>{c.label}</span>
+                    <span className={s.cardValue}><Sensitive>{cellText(c.total, c.unit)}</Sensitive></span>
+                    <span className={s.cardSub}>
+                      {basisLine(c.dateBasis as 'wonAt')}
+                      {c.unit === 'money' && ` · ${c.notes.matched.toLocaleString('ko-KR')}건`}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
 
       {/* 숫자를 그대로 믿으면 안 되는 사정 */}
       <div className={s.notes}>
-        <span className={s.note}>{DATE_BASIS_HINT[(matrix?.dateBasis ?? 'wonAt') as 'wonAt']}</span>
         {data.notes.truncated && (
           <span className={`${s.note} ${s.noteWarn}`}>딜이 많아 일부만 셌습니다. 기간을 좁혀 주세요</span>
         )}
@@ -393,7 +549,7 @@ export default function MetricsClient() {
         {data.notes.hiddenPipelines > 0 && (
           <span className={s.note}>검증용 파이프라인 {data.notes.hiddenPipelines}개는 축에서 숨겼습니다</span>
         )}
-        {data.rows && thinNote(data, data.rows)}
+        {data.rows && <ThinNote data={data} dimKey={data.rows} onFilled={() => setReload((n) => n + 1)} />}
       </div>
 
       {/* 교차표 */}
@@ -416,10 +572,14 @@ export default function MetricsClient() {
             />
           </>
         ) : (
-          <EmptyState
-            title="볼 지표를 골라 주세요"
-            description="위 카드를 누르면 그 지표로 표가 열립니다"
-          />
+          /*
+            **거대한 빈 상자를 두지 않는다.** 아무것도 안 고른 상태가 이 화면의 기본인데,
+            그 기본이 화면 절반을 먹으면 «아직 아무것도 없는 화면»으로 읽힌다.
+            한 줄로 무엇을 하면 되는지만 말한다.
+          */
+          <p className={s.hintLine}>
+            카드를 누르면 그 지표로 표가 열립니다. 행·열을 골라 쪼개 볼 수 있어요.
+          </p>
         )}
       </div>
 
@@ -437,12 +597,22 @@ export default function MetricsClient() {
   )
 }
 
-/** 축이 얇으면 먼저 말한다 — 「없음 한 줄」을 데이터가 없는 것으로 읽지 않게 */
-function thinNote(data: Payload, key: string) {
-  const f = data.notes.fill[key]
+/**
+ * 축이 얇으면 먼저 말한다 — 「없음 한 줄」을 데이터가 없는 것으로 읽지 않게.
+ *
+ * **말만 하고 끝내지 않는다.** 기관 종류는 회사 도메인에서 나오고, 도메인은
+ * 그 회사 사람의 이메일에서 **규칙으로** 채울 수 있다(AI 0회). 그래서 여기서 바로 채운다.
+ */
+function ThinNote({ data, dimKey, onFilled }: { data: Payload; dimKey: string; onFilled: () => void }) {
+  const f = data.notes.fill[dimKey]
   if (!f || !isThin(f.filled, f.total)) return null
-  const label = data.catalog.dimensions.find((d) => d.key === key)?.label ?? key
-  return <span className={`${s.note} ${s.noteWarn}`}>{dimensionThin(label, f.filled, f.total)}</span>
+  const label = data.catalog.dimensions.find((d) => d.key === dimKey)?.label ?? dimKey
+  return (
+    <span className={`${s.note} ${s.noteWarn}`}>
+      {dimensionThin(label, f.filled, f.total)}
+      {dimKey === 'companyKind' && <FillDomains onFilled={onFilled} />}
+    </span>
+  )
 }
 
 /**
