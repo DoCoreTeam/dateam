@@ -171,7 +171,7 @@
 의존: I10
 
 ### I12 요구사항 총괄표 정규화
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/rfp/structure/requirements.ts, 신규 apps/web/lib/rfp/structure/requirements.test.ts
 감사 기준:
