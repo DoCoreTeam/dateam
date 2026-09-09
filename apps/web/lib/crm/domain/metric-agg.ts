@@ -14,6 +14,7 @@
  */
 
 import { kstDateKey } from '../../datetime/kst.ts'
+import { toMinor, pctOfMinor, divFloor } from './money.ts'
 import { allocateByMonth } from './allocation.ts'
 import { metricOf, type MetricDecl } from './metrics.ts'
 import { dimensionOf, companyKindLabel } from './dimensions.ts'
@@ -117,15 +118,7 @@ export interface AggResult {
 }
 
 const ZERO = BigInt(0)
-const HUNDRED = BigInt(100)
 
-function toMinor(v: bigint | number | string | null | undefined): bigint {
-  if (v === null || v === undefined || v === '') return ZERO
-  if (typeof v === 'bigint') return v
-  if (typeof v === 'number') return Number.isFinite(v) ? BigInt(Math.round(v)) : ZERO
-  const s = String(v).trim()
-  return /^-?\d+$/.test(s) ? BigInt(s) : ZERO
-}
 
 /**
  * 어느 금액 칸을 쓰나.
@@ -304,7 +297,8 @@ export function aggregate(deals: readonly AggDeal[], spec: QuerySpec): AggResult
           if (!counted) { unknownProbability += 1; counted = true }
           continue
         }
-        minor = (minor * BigInt(Math.round(d.winProbabilityPct))) / HUNDRED
+        // **내림이다.** 예상은 넘겨 잡으면 그 차액으로 사람을 뽑게 된다(`money.ts` 의 규칙)
+        minor = pctOfMinor(minor, d.winProbabilityPct, 'floor')
       }
 
       const r = axisOf(spec.rows, d, c.dateKey)

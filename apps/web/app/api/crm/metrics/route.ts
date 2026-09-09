@@ -11,7 +11,7 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { getCrmDb } from '@/lib/crm/db/client'
 import { withCrmTx } from '@/lib/crm/db/tx'
-import { loadDealsForMetrics, runMetrics, dimensionFill } from '@/lib/crm/services/metric-query'
+import { loadDealsForMetrics, runMetrics, dimensionFill, filterLabel } from '@/lib/crm/services/metric-query'
 import { loadTargets, saveTargets } from '@/lib/crm/services/target-store'
 import { metricCatalog, isKnownMetric } from '@/lib/crm/domain/metrics'
 import { dimensionCatalog, isKnownDimension, DIMENSIONS } from '@/lib/crm/domain/dimensions'
@@ -70,7 +70,9 @@ export async function GET(req: NextRequest) {
       from: cards[0]?.from ?? null,
       to: cards[0]?.to ?? null,
       todayKey,
-      rows, cols, metric, filters,
+      rows, cols, metric,
+      // 조건은 id 로 실려 오지만 화면은 이름을 그린다 — 이름을 여기서 붙여 보낸다
+      filters: filters.map((f) => ({ ...f, label: filterLabel(loaded, f.dimension, f.value) })),
       cards, matrix, targets,
       catalog: { metrics: metricCatalog(), dimensions: dimensionCatalog() },
       notes: {

@@ -40,7 +40,7 @@ export interface Period {
 }
 
 /** 종류별로 `index` 가 몇까지 가나 — 없는 5분기를 만들지 않는다 */
-const INDEX_MAX: Record<PeriodKind, number> = { YEAR: 0, HALF: 2, QUARTER: 4, MONTH: 12 }
+export const INDEX_MAX: Record<PeriodKind, number> = { YEAR: 0, HALF: 2, QUARTER: 4, MONTH: 12 }
 
 /** 연도 범위 — 밖은 오타다. 6자리 연도가 통과하면 날짜 계산이 통째로 깨진다 */
 export const YEAR_MIN = 2000
@@ -238,19 +238,23 @@ export function validateTargets(raw: unknown): TargetSpec[] {
   }
   const out = raw.map(validateTarget)
 
-  const seen = new Set<string>()
+  // **두 자루로 나눈다.** 한 자루에 id 와 열쇠를 같이 담으면, 화면이 id 를
+  // `targetKey()` 로 만들었을 때 **자기 자신과 충돌**한다(실측: 목표 첫 저장이
+  // 「이미 있습니다」로 거절됐다. 셋이 하나여서 방금 넣은 id 를 열쇠로 다시 만났다).
+  const seenIds = new Set<string>()
+  const seenKeys = new Set<string>()
   for (const t of out) {
-    if (seen.has(t.id)) throw new TargetError('같은 목표가 두 번 있습니다.', 'id')
-    seen.add(t.id)
+    if (seenIds.has(t.id)) throw new TargetError('같은 목표가 두 번 있습니다.', 'id')
+    seenIds.add(t.id)
 
     const dup = targetKey(t)
-    if (seen.has(dup)) {
+    if (seenKeys.has(dup)) {
       throw new TargetError(
         `${periodLabel(t.period)} 같은 대상에 ${t.metric} 목표가 이미 있습니다.`,
         'targets',
       )
     }
-    seen.add(dup)
+    seenKeys.add(dup)
   }
   return out
 }

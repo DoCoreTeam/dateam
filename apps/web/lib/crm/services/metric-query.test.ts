@@ -12,10 +12,18 @@ import { sumOf, EMPTY_KEY } from '../domain/metric-agg.ts'
 
 const SRC = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8')
 
-function fakeDb(deals: unknown[], biz: unknown[] = []) {
+/**
+ * 가짜 DB.
+ *
+ * **담당자 표를 반드시 포함한다** — 딜에는 `ownerId` 문자열만 있고 `CrmMember` 로 가는
+ * 관계가 없어서 이름은 따로 읽어 이어 붙인다. 예전 판은 `owner` 를 관계로 골랐다가
+ * 운영에서 `Unknown field 'owner'` 로 리포트가 통째로 500 이었다(실측 v0.7.708).
+ */
+function fakeDb(deals: unknown[], biz: unknown[] = [], members: unknown[] = []) {
   return {
     crmDeal: { findMany: async () => deals },
     crmBusinessTypeOption: { findMany: async () => biz },
+    crmMember: { findMany: async () => members },
   } as never
 }
 
@@ -29,7 +37,6 @@ const row = (over: Record<string, unknown> = {}) => ({
   businessTypeKey: null, ownerId: null,
   stage: { id: 'st1', name: '진행 중', winProbabilityPct: 33 },
   pipeline: { id: 'p1', name: '흐름ㄱ' },
-  owner: null,
   company: { id: 'c1', name: '고객ㄱ', industry: null, region: null, employeeRange: null, domain: null },
   history: [],
   ...over,
@@ -180,4 +187,22 @@ test('★ 목표 저장은 조용히 버리지 않는다 — 사라지면 「저
   const store = SRC('./target-store.ts')
   assert.match(store, /export async function saveTargets[\s\S]*?validateTargets\(raw\)/,
     'saveTargets 가 검증을 거치지 않는다')
+})
+
+test('★ 담당자 이름은 딜이 아니라 담당자 표에서 온다 — 축에 영문 id 가 찍히면 안 된다', async () => {
+  const r = await loadDealsForMetrics(fakeDb(
+    [row({ id: 'a', ownerId: 'mb_1' }), row({ id: 'b', ownerId: 'mb_없음' })],
+    [],
+    [{ id: 'mb_1', displayName: '김담당' }],
+  ))
+  assert.deepEqual(r.deals[0].owner, { id: 'mb_1', name: '김담당' })
+  assert.deepEqual(r.deals[1].owner, { id: 'mb_없음', name: 'mb_없음' },
+    '이름을 모르면 id 를 그대로 보여 준다 — 빈칸으로 만들지 않는다')
+})
+
+test('★ 로더가 딜에 없는 관계를 고르지 않는다 — 스키마에 `owner` 관계가 없다', () => {
+  const src = SRC('./metric-query.ts')
+  assert.ok(!/\n\s*owner:\s*\{\s*select:/.test(src),
+    '`owner: { select: … }` 는 CrmDeal 에 없는 관계다 — 운영에서 조회 자체가 죽는다')
+  assert.ok(src.includes('crmMember.findMany'), '담당자 이름을 따로 읽어야 한다')
 })

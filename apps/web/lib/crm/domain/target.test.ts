@@ -16,7 +16,7 @@ import {
   targetKey, findTarget, splitEvenly, subPeriods,
   formatPeriodKey, parsePeriodKey, periodOfToday,
   TargetError, MAX_TARGETS, YEAR_MIN, YEAR_MAX,
-  type TargetSpec,
+  type TargetSpec, type Period, type TargetScope,
 } from './target.ts'
 
 const ok = (over: Partial<Record<string, unknown>> = {}) => ({
@@ -237,4 +237,32 @@ test('오늘이 든 기간을 종류별로 낸다 — 시계를 읽지 않는다
   assert.deepEqual(periodOfToday('QUARTER', '2026-09-09'), { kind: 'QUARTER', year: 2026, index: 3 })
   assert.deepEqual(periodOfToday('MONTH', '2026-09-09'), { kind: 'MONTH', year: 2026, index: 9 })
   assert.deepEqual(periodOfToday('HALF', '2026-06-30'), { kind: 'HALF', year: 2026, index: 1 }, '6월은 상반기')
+})
+
+/**
+ * 회귀 — **id 를 `targetKey()` 로 만든 목표 하나가 통과해야 한다.**
+ *
+ * 실브라우저에서 첫 목표 저장이 「이미 있습니다」로 거절됐다(v0.7.708).
+ * 중복 검사가 id 와 열쇠를 **한 Set** 에 담아, 화면처럼 `id = targetKey(...)` 로
+ * 만들면 방금 넣은 id 를 열쇠로 다시 만나 자기 자신과 충돌했다.
+ * tsc·단위·design 은 전부 초록이었다 — 화면이 잡았다.
+ */
+test('id 가 열쇠와 같아도 하나짜리 목록은 통과한다', () => {
+  const period: Period = { kind: 'YEAR', year: 2026 }
+  const scope: TargetScope = { kind: 'ALL' }
+  const one = {
+    id: targetKey({ period, scope, metric: 'bookings' }),
+    period, scope, metric: 'bookings', value: '100000000000', unit: 'money',
+  }
+  assert.equal(validateTargets([one]).length, 1)
+})
+
+test('진짜 중복은 여전히 막는다 — id 만 다르고 기간·대상·지표가 같은 둘', () => {
+  const period: Period = { kind: 'YEAR', year: 2026 }
+  const scope: TargetScope = { kind: 'ALL' }
+  const base = { period, scope, metric: 'bookings', value: '1', unit: 'money' }
+  assert.throws(
+    () => validateTargets([{ ...base, id: 'a' }, { ...base, id: 'b' }]),
+    /이미 있습니다/,
+  )
 })

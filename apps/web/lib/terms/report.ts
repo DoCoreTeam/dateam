@@ -155,8 +155,8 @@ export function notEnoughSample(what: string, have: number, needCounter = '건')
  * 축을 그리기는 하되 **뜻이 없다고 먼저 말한다** — 안 말하면 「없음 한 줄」을
  * 데이터가 없는 것으로 읽는다.
  */
-export function dimensionThin(label: string, filled: number, total: number): string {
-  return `${label}이 채워진 곳이 ${total}곳 중 ${filled}곳입니다. 이 기준은 아직 뜻이 없습니다`
+export function dimensionThin(label: string, filled: number, total: number, counter = '건'): string {
+  return `${label}이 채워진 것이 ${total}${counter} 중 ${filled}${counter}입니다. 이 기준은 아직 뜻이 없습니다`
 }
 
 /** 기준 날짜를 밝히는 줄 — 카드·표·내보내기가 같은 문장을 쓴다 */

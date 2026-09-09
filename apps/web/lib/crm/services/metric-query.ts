@@ -13,7 +13,7 @@ import {
   aggregate, bucketOf, EMPTY_KEY,
   type AggDeal, type AggResult, type QuerySpec,
 } from '../domain/metric-agg.ts'
-import { isHiddenPipelineName } from '../domain/dimensions.ts'
+import { isHiddenPipelineName, dimensionOf } from '../domain/dimensions.ts'
 
 /** 한 번에 읽는 딜 수 상한 — 넘으면 잘랐다고 말한다. 조용히 자르면 「이게 전부」로 읽힌다 */
 export const DEAL_SCAN_LIMIT = 5000
@@ -42,7 +42,9 @@ export async function loadDealsForMetrics(db: CrmDb): Promise<LoadedDeals> {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const anyDb = db as any
 
-  const [rows, bizOptions] = await Promise.all([
+  // 담당자는 **관계가 아니다** — 딜에는 `ownerId` 문자열만 있고 `CrmMember` 로 가는 FK 가 없다.
+  // 그래서 이름은 따로 읽어 이어 붙인다. 안 이으면 축에 `cmsw4k1qv…` 가 찍힌다.
+  const [rows, bizOptions, members] = await Promise.all([
     anyDb.crmDeal.findMany({
       take: DEAL_SCAN_LIMIT + 1,
       orderBy: { createdAt: 'desc' },
@@ -53,7 +55,6 @@ export async function loadDealsForMetrics(db: CrmDb): Promise<LoadedDeals> {
         businessTypeKey: true, ownerId: true,
         stage: { select: { id: true, name: true, winProbabilityPct: true } },
         pipeline: { select: { id: true, name: true } },
-        owner: { select: { id: true, displayName: true } },
         company: {
           select: {
             id: true, name: true, industry: true, region: true, employeeRange: true, domain: true,
@@ -63,11 +64,13 @@ export async function loadDealsForMetrics(db: CrmDb): Promise<LoadedDeals> {
       },
     }),
     anyDb.crmBusinessTypeOption.findMany({ select: { key: true, label: true } }),
+    anyDb.crmMember.findMany({ select: { id: true, displayName: true } }),
   ])
 
   const truncated = rows.length > DEAL_SCAN_LIMIT
   const kept = truncated ? rows.slice(0, DEAL_SCAN_LIMIT) : rows
   const bizLabel = new Map<string, string>(bizOptions.map((b: any) => [b.key, b.label]))
+  const ownerName = new Map<string, string>(members.map((m: any) => [m.id, m.displayName]))
 
   const hidden = new Set<string>()
   const deals: AggDeal[] = kept.map((r: any) => {
@@ -96,7 +99,7 @@ export async function loadDealsForMetrics(db: CrmDb): Promise<LoadedDeals> {
       businessType: r.businessTypeKey
         ? { id: r.businessTypeKey, name: bizLabel.get(r.businessTypeKey) ?? r.businessTypeKey }
         : null,
-      owner: r.owner ? { id: r.owner.id, name: r.owner.displayName } : null,
+      owner: r.ownerId ? { id: r.ownerId, name: ownerName.get(r.ownerId) ?? r.ownerId } : null,
       company: r.company
         ? {
           id: r.company.id, name: r.company.name,
@@ -136,4 +139,24 @@ export function dimensionFill(
     if (bucketOf(d, dimensionKey).key !== EMPTY_KEY) filled += 1
   }
   return { filled, total: loaded.deals.length }
+}
+
+/**
+ * 조건 값의 **사람이 읽는 이름**.
+ *
+ * 조건은 주소에 id 로 실린다(`f.stage=st_public_2`). 화면이 그걸 그대로 그리면
+ * 「단계 · st_public_2」가 뜬다 — 축에 영문 키가 찍히면 안 된다는 규칙과 같은 사고다.
+ * 못 찾으면 **null** 이다. 이름을 지어내지 않는다.
+ */
+export function filterLabel(
+  loaded: LoadedDeals,
+  dimensionKey: string,
+  value: string,
+): string | null {
+  if (value === EMPTY_KEY) return dimensionOf(dimensionKey)?.emptyLabel ?? null
+  for (const d of loaded.deals) {
+    const b = bucketOf(d, dimensionKey)
+    if (b.key === value) return b.label
+  }
+  return null
 }
