@@ -12,15 +12,49 @@ import { toOpenAiMessages } from './openai-messages.ts'
 import { classifyModelProbeFailure, getProviderErrorDetail } from '../probe-result.ts'
 import { getProviderSpec, type AiProviderId } from '../../ai/provider-catalog.ts'
 
+/**
+ * 공급자가 /models 로 내려주는 한 줄.
+ *
+ * id 말고는 공급자마다 주는 것이 다르다 — Groq 은 무엇을 먹고 무엇을 뱉는지까지 알려주고,
+ * OpenAI 는 id 와 주인만 준다. 주는 쪽이 답을 갖고 있으면 그 답을 쓴다.
+ */
+export interface ListedModel {
+  id: string
+  /** 이 모델이 무엇을 뱉는가. text / speech / transcription (Groq 이 준다) */
+  output_modalities?: string[]
+  /** 이 모델이 무엇을 먹는가. text / image / audio (Groq 이 준다) */
+  input_modalities?: string[]
+}
+
 export interface OpenAiCompatibleOptions {
   /** 명세의 공급자 id. 라벨과 능력과 주소를 여기서 읽는다 */
   id: AiProviderId
   /**
-   * 모델 목록에서 채팅 모델만 고르는 정규식.
-   * 공급자마다 이름 규칙이 달라 이것만은 팩토리 인자로 받는다
-   * (Groq 은 목록에 whisper 전사 모델이 섞여 나온다)
+   * 목록에서 채팅 모델만 고른다.
+   *
+   * 정규식이 아니라 모델 한 줄을 통째로 받는다 — 이름만 보면 짐작이 되고, 짐작은 틀린다.
+   * 실측(2026-09-14): 이름 규칙이 Groq 14개 중 5개만 통과시켜 groq/compound 와
+   * allam-2-7b 같은 진짜 채팅 모델을 버리고 있었다.
    */
-  chatModelPattern: RegExp
+  selectChatModel(model: ListedModel): boolean
+}
+
+/** 공급자가 무엇을 뱉는지 말해 주지 않을 때 쓰는 이름 규칙 */
+export function byNamePattern(pattern: RegExp) {
+  return (model: ListedModel): boolean => pattern.test(model.id)
+}
+
+/**
+ * 공급자가 스스로 답한 것으로 고른다. 말 상대가 되는 모델은 글을 뱉는다 —
+ * 소리를 뱉으면 읽어 주는 모델이고, 받아쓰기를 뱉으면 전사 모델이다.
+ * 답을 안 주는 공급자는 준비해 둔 이름 규칙으로 떨어진다.
+ */
+export function byOutputModality(fallback: RegExp) {
+  return (model: ListedModel): boolean => {
+    const out = model.output_modalities
+    if (!out || out.length === 0) return fallback.test(model.id)
+    return out.includes('text')
+  }
 }
 
 /**
@@ -79,7 +113,8 @@ export function createOpenAiCompatibleProvider(opts: OpenAiCompatibleOptions): C
   async function listModels(apiKey: string): Promise<string[]> {
     const out: string[] = []
     for await (const m of client(apiKey).models.list()) {
-      if (opts.chatModelPattern.test(m.id)) out.push(m.id)
+      // SDK 타입에는 id 밖에 없지만 공급자는 더 준다. 주는 것을 버리지 않는다
+      if (opts.selectChatModel(m as unknown as ListedModel)) out.push(m.id)
     }
     return out.sort()
   }

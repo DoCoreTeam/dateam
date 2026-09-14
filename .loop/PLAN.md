@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.6
+플랜 버전: v0.2.8
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.9.0
@@ -102,16 +102,32 @@
 의존: I01, I02
 
 ### I04a 채팅 모델 걸러내기 규칙 점검
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ai-chat/providers/groq.ts, apps/web/lib/ai-chat/providers/grok.ts, apps/web/lib/ai-chat/providers/openai.ts, apps/web/lib/ai-chat/providers/openai-compatible.test.ts
+범위: apps/web/lib/ai-chat/providers/openai-compatible.ts, apps/web/lib/ai-chat/providers/groq.ts, apps/web/lib/ai-chat/providers/grok.ts, apps/web/lib/ai-chat/providers/openai.ts, apps/web/lib/ai-chat/providers/openai-compatible.test.ts
 감사 기준:
 - 실측 근거: 관리자 화면 연결 테스트에서 Groq 이 5개, OpenAI 가 112개, Gemini 가 40개로 나옴 (2026-09-09 dev 3001). Groq 5개는 실제보다 적을 것으로 의심됨
-- chatModelPattern 이 이름 맨 앞만 보므로 Groq 이 내려주는 meta-llama/... 와 groq/... 같은 소유자 붙은 id 가 통째로 빠지는지 확인 (빠지면 고침)
+- 실측 확정(2026-09-14): Groq 이 내려주는 14개 중 현재 규칙이 5개만 통과시킴. 버려진 9개 중 whisper 둘과 orpheus 둘만 정당하고 groq/compound, groq/compound-mini, allam-2-7b 는 채팅 모델인데 버려짐
+- Groq 은 /models 응답에 output_modalities 를 준다 (text / speech / transcription). 이름으로 짐작하지 말고 공급자가 스스로 한 답을 쓸 것
+- 공급자가 modalities 를 안 주면(OpenAI 는 안 준다) 기존 이름 규칙으로 떨어지는 단정
 - 실제 목록으로 확인한 개수를 pass notes 에 적음 (거른 것과 거르지 않은 것 둘 다)
 - 걸러진 이유를 이름별로 설명할 수 있는 단정 (whisper 는 전사 전용이라 뺀다, meta-llama 는 빼면 안 된다)
 - node --test 로 openai-compatible.test.ts 통과
 의존: I02
+
+### I04b Groq 이 주는 사실을 카탈로그가 버리지 않게
+상태: 대기
+모드: 경량
+범위: apps/web/lib/ai-chat/model-catalog.ts, apps/web/lib/ai-chat/model-catalog.test.ts, apps/web/lib/ai/provider-catalog.ts
+감사 기준:
+- 실측 근거(2026-09-14 실계정): Groq 의 /models 는 모델마다 context_window 와 input_modalities 를 준다. qwen/qwen3.6-27b 와 qwen/qwen3.8-27b 는 input_modalities 가 text 와 image 다
+- 그런데 명세는 groq 의 vision 을 false 로 적어 두었고 I04 의 clamp 가 그것을 모든 Groq 모델에 강제한다. 이미지를 읽는 모델을 못 읽는다고 적고 있음
+- 명세의 groq vision 을 고치거나, 능력을 공급자 사실(모델별 input_modalities)에서 읽도록 바꿈. 둘 중 무엇을 골랐는지와 이유를 pass notes 에 적음
+- 카탈로그가 Groq 모델의 컨텍스트 길이를 비워 두지 않고 응답의 context_window 를 씀 (I04 는 근거가 없어 비웠는데 근거가 있었다)
+- meta-llama/llama-prompt-guard-2 계열은 512 토큰짜리 분류기다. 채팅 모델 목록에 512 토큰짜리가 섞여 보이는 것이 맞는지 판단하고 근거를 적음
+- node --test 로 model-catalog.test.ts 통과
+의존: I04a
+주의: provider-catalog.ts 는 다른 세션의 P0003 이 패키지로 쪼개는 중이다. 착수 전에 그 작업이 끝났는지 확인할 것
 
 ### I05 공급자 키 저장 창구 한 벌
 상태: 통과
@@ -250,3 +266,5 @@
 - v0.2.4 (2026-09-09) I05 의 서버액션 철거 가드를 I11a 로 분리 - 화면이 아직 옛 액션을 부르는 동안은 걸 수 없다 (audit:I05)
 - v0.2.5 (2026-09-09) I06 의 「세 화면이 그 클래스를 씀」은 부품을 만드는 항목에서 확인 불가 - 정의가 한 곳인지만 I06 에서 보고 실제 사용은 I08 I09 I10 으로 넘김 (audit:I06)
 - v0.2.6 (2026-09-09) 실브라우저 연결 테스트에서 Groq 모델이 5개로 나옴 - chatModelPattern 이 이름 맨 앞만 봐서 meta-llama/ 같은 소유자 붙은 id 를 통째로 버리는지 점검할 항목 I04a 추가 (iv_0019)
+- v0.2.7 (2026-09-14) I04a 실측 결과 규칙을 이름 기반에서 공급자가 주는 output_modalities 기반으로 바꿔야 함 - 팩토리를 고쳐야 하므로 openai-compatible.ts 를 범위에 넣음 (audit:I04a)
+- v0.2.8 (2026-09-14) I04a 확인 중 발견 - Groq 이 모델별 context_window 와 input_modalities 를 주는데 카탈로그가 버리고 있고, 명세의 groq vision false 가 실제 이미지 읽는 모델을 가리고 있음. I04b 추가 (audit:I04a)
