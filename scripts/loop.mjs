@@ -67,15 +67,39 @@ function sh(cmd, opts = {}) {
   return execSync(cmd, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', ...opts }).trim();
 }
 function gitAvailable() { try { sh('git rev-parse --is-inside-work-tree'); return true; } catch { return false; } }
-function gitCommit(message) {
+/**
+ * 경로를 받으면 그 경로만 커밋한다.
+ *
+ * 예전에는 무조건 git add -A 였다. 작업 트리를 여러 세션이 나눠 쓰는 저장소에서 그것은
+ * 남이 아직 안 올린 파일을 내 커밋에 실어 버린다는 뜻이다 (실측 2026-09-14: 완료 커밋
+ * 하나가 다른 세션의 미커밋 tsconfig.json 을 함께 가져갔다).
+ *
+ * 인덱스는 작업 트리당 하나라 남이 add 해 둔 것도 같이 실린다. 그래서 스테이징만
+ * 좁히는 것으로는 부족하고, 커밋도 경로 커밋으로 인덱스를 우회해야 한다.
+ */
+function gitCommit(message, paths) {
   if (!gitAvailable()) return { skipped: 'git 저장소 아님' };
+  const list = Array.isArray(paths) ? paths.filter(Boolean) : [];
   try {
+    if (list.length) {
+      const q = list.map((x) => JSON.stringify(x)).join(' ');
+      try { sh(`git add -- ${q}`); } catch { /* 지워진 경로는 add 가 실패할 수 있다 */ }
+      const status = sh(`git status --porcelain -- ${q}`);
+      if (!status) return { skipped: '변경 없음' };
+      sh(`git commit -q -m ${JSON.stringify(message)} -- ${q}`);
+      return { hash: sh('git rev-parse --short HEAD'), scoped: list.length };
+    }
     sh('git add -A');
     const status = sh('git status --porcelain');
     if (!status) return { skipped: '변경 없음' };
     sh(`git commit -q -m ${JSON.stringify(message)}`);
-    return { hash: sh('git rev-parse --short HEAD') };
+    return { hash: sh('git rev-parse --short HEAD'), scoped: 0 };
   } catch (e) { return { skipped: '커밋 실패 ' + String(e.message || e).split('\n')[0] }; }
+}
+/** 디스크에 있거나 git 이 아는 경로만. 모르는 경로를 커밋에 넣으면 커밋 자체가 죽는다 */
+function knownToGit(rel) {
+  if (fs.existsSync(path.join(ROOT, rel))) return true;
+  try { sh(`git ls-files --error-unmatch -- ${JSON.stringify(rel)}`); return true; } catch { return false; }
 }
 function gitTag(tag) {
   if (!gitAvailable()) return false;
@@ -698,7 +722,9 @@ cmds.pass = (a) => {
   let commitHash = null; let commitNote = '';
   if (flag('auto_commit') && !a['no-commit']) {
     setItemStatus(p, id, '통과');
-    const r = gitCommit(`${p.header.target}-${id}: ${it.title}`);
+    // --files 는 기록용이 아니라 커밋 범위다. 안 주면 옛 동작(트리 전체)으로 떨어지고 그 사실을 알린다
+    const r = gitCommit(`${p.header.target}-${id}: ${it.title}`, a.files ? files : null);
+    if (!a.files) out('[loop-kit] 주의: --files 없이 커밋해 트리 전체가 실렸다, 세션이 여럿이면 --files 로 범위를 준다');
     if (r.hash) { commitHash = r.hash; commitNote = `, 커밋 ${r.hash}`; } else commitNote = `, 커밋 생략 (${r.skipped})`;
   } else setItemStatus(p, id, '통과');
   run('UPDATE implementations SET summary = ?, files = ?, audit_result = ?, audit_notes = ?, commit_hash = ?, finished_at = ? WHERE id = ?',
@@ -772,7 +798,13 @@ cmds.final = (a) => {
   addEvent('archive', dest);
   let note = '';
   if (flag('auto_commit')) {
-    const r = gitCommit(`${target}: ${p.header.title}`);
+    // 완료 커밋이 건드리는 것은 버전 파일과 플랜 파일뿐이다. 그 밖은 남의 것일 수 있다
+    const finalPaths = [
+      ...PKG_VERSION_FILES, ...DOC_VERSION_FILES,
+      path.relative(ROOT, PLAN_PATH), dest, // archivePlan 은 이미 ROOT 기준 상대경로를 준다
+      'apps/web/lib/changelog/entries.ts',
+    ].filter(knownToGit);
+    const r = gitCommit(`${target}: ${p.header.title}`, finalPaths);
     note = r.hash ? `, 커밋 ${r.hash}` : `, 커밋 생략 (${r.skipped})`;
     if (r.hash && flag('auto_tag')) note += gitTag(target) ? `, 태그 ${target}` : ', 태그 실패';
   }
