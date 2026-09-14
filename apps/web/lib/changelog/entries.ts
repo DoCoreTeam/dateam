@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.2',
+    version: '0.10.4',
     date: '2026-09-14',
     title: 'AI 키를 한 화면에서 관리하고, 설정 화면 셋이 같은 모양이 됐어요',
     items: [
