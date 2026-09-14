@@ -8,6 +8,8 @@
 // 한도·키·설정·DB 사유는 서버가 **미리 써 둔 답**(플레이북)을 돌려준다 — AI 를 부르지 않는다.
 // 그 사유들이야말로 AI 가 죽어 있을 때 가장 필요한 답이기 때문이다.
 
+import { GeneratedNotice } from '@ax/ai-react'
+import { AI_LABELS, NOT_AI, LOW_CONFIDENCE_HINT } from '@/lib/terms'
 import { useState } from 'react'
 import { Sparkles, BookOpen, AlertTriangle } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -76,9 +78,9 @@ export default function RemedyPanel({ fingerprint, reason }: { fingerprint: stri
         <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>{remedy.diagnosis}</p>
         <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
           {remedy.isPlaybook
-            ? '미리 정리해 둔 답입니다 (AI 미사용)'
-            : `AI가 만든 추정입니다${model ? ` · ${model}` : ''}`}
-          {remedy.confidence !== 'high' && ' · 확신이 낮으니 원문을 함께 확인해 주세요'}
+            ? NOT_AI
+            : <GeneratedNotice labels={AI_LABELS} modelName={model} />}
+          {remedy.confidence !== 'high' && ` · ${LOW_CONFIDENCE_HINT}`}
         </p>
       </div>
 

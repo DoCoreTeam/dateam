@@ -65,6 +65,10 @@ export {
 } from './contract.ts'
 
 export {
+  AI_LABELS, NOT_AI, LOW_CONFIDENCE_HINT,
+} from './ai.ts'
+
+export {
   CONNECTION,
   type ConnectionKey,
 } from './connection.ts'

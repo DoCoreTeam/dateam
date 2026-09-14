@@ -46,7 +46,7 @@ const nextConfig = {
    * 진짜 node_modules 에 들어가고, 그러면 이 줄이 없는 쪽이 깨진다.
    * 새 패키지를 만들면 여기 이름을 같이 올린다.
    */
-  transpilePackages: ['@ax/ai-core', '@ax/ai-gateway', '@ax/ai-providers'],
+  transpilePackages: ['@ax/ai-core', '@ax/ai-gateway', '@ax/ai-providers', '@ax/ai-react'],
   experimental: {
     // 번들하면 안 되는 서버 전용 패키지 — **크로미움 바이너리를 다루는 둘만** 남긴다.
     //
