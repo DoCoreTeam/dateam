@@ -2,6 +2,7 @@
 // 설계서 §11.3 검증 루프: 불명확하면 AI가 근거를 보강해 재판정하고,
 // 그래도 미달이면 "AI가 이미 시도한 것"을 붙여 검토 큐로 보낸다.
 
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { getGeminiMeta } from '../ai/meta.ts'
@@ -554,6 +555,7 @@ export async function runVerify(workspaceId: string, contentId: string): Promise
           representative_content_id: contentId,
           method: 'fingerprint',
           confidence: 0.99,
+          contract_version: AI_CONTRACT_VERSION,
         }).select('id').single()
         groupId = g?.id
       }
@@ -612,6 +614,7 @@ export async function runPatterns(workspaceId: string): Promise<StageResult> {
         channel_count: p.channelCount,
         confidence: p.evidenceCount >= 40 ? 'high' : 'medium',
         is_archived: false,
+        contract_version: AI_CONTRACT_VERSION,
       }).select('id').single()
 
       if (saved?.id) {

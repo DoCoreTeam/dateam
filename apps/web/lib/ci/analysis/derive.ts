@@ -12,6 +12,7 @@
 // ⚠️ 계산 결과는 바뀌지 않아야 한다. DB가 골라 주던 정렬·null 처리를 그대로 옮겼고
 //    그 규칙은 derive-select.test.ts가 잠근다.
 
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { createAdminClient } from '@/lib/supabase/server'
 import { CORPUS_FILTER } from '../corpus.ts'
 import { computeAll, type VelocityPoint } from './outlier.ts'
@@ -190,6 +191,8 @@ export async function computeDerivedForContents(contentIds: string[]): Promise<n
         ],
       },
       computed_at: computedAt,
+      // 이 값이 어떤 계약으로 만들어졌나. 만들 때 박아야 나중에 올릴 수 있다
+      contract_version: AI_CONTRACT_VERSION,
     }
   })
 

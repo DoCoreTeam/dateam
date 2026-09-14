@@ -6,6 +6,7 @@
 // 이 파일이 하는 판단은 하나뿐이다: **무엇으로 볼 것인가.**
 // 무엇을 물을지(프롬프트)와 무엇을 받아들일지(파싱)는 순수 모듈에 있다 — 테스트가 닿게.
 
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { getGeminiMeta } from '../ai/meta.ts'
@@ -201,6 +202,7 @@ async function saveUnderstanding(
   await adminClient.from('ci_content_media').upsert({
     content_id: contentId,
     workspace_id: workspaceId,
+    contract_version: AI_CONTRACT_VERSION,
     transcript: u.transcript,
     on_screen_text: u.onScreenText,
     beats: u.beats,
@@ -259,6 +261,9 @@ export async function recordSkip(contentId: string, reason: string): Promise<voi
   await adminClient.from('ci_content_media').insert({
     content_id: contentId,
     workspace_id: content.workspace_id,
+    // 시도조차 안 한 행에도 판 번호를 박는다. 안 박으면 나중에 이 행이
+    // 「판 번호 이전에 쓰인 것」과 구별되지 않아 사다리가 잘못 판단한다
+    contract_version: AI_CONTRACT_VERSION,
     access_method: 'none',
     // 시도한 적이 없다 — 시도해서 실패한 것과 구분해야 재시도 판정이 흐려지지 않는다
     attempt_count: 0,

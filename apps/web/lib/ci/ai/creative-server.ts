@@ -1,6 +1,7 @@
 // lib/ci/ai/creative-server.ts — 크리에이티브 분석 실행 (서버 전용)
 // 썸네일 이미지를 Gemini에 함께 넘겨 "썸네일에 뭐라고 써 있는지"를 실제로 읽는다.
 
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { getGeminiMeta } from './meta.ts'
@@ -106,6 +107,7 @@ export async function analyzeCreative(contentId: string): Promise<{ ok: boolean;
   await adminClient.from('ci_content_creative').upsert({
     content_id: contentId,
     workspace_id: content.workspace_id,
+    contract_version: AI_CONTRACT_VERSION,
     thumbnail_text: analysis.thumbnailText,
     thumbnail_style: analysis.thumbnailStyle,
     thumbnail_summary: analysis.thumbnailSummary,
