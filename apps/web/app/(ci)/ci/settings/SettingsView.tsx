@@ -23,6 +23,7 @@ import SettingsRow from '@/components/ui/settings/SettingsRow'
 import SettingsToggle from '@/components/ui/settings/SettingsToggle'
 import StatusPill from '@/components/ui/settings/StatusPill'
 import FieldNote from '@/components/ui/settings/FieldNote'
+import { CONNECTION } from '@/lib/terms'
 
 interface SettingItem {
   key: string
@@ -247,7 +248,7 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
               lead={
                 <StatusPill tone={it.connected ? 'ok' : 'warn'}>
                   {it.connected ? <Check size={12} /> : <X size={12} />}
-                  {it.connected ? '연결됨' : '없음'}
+                  {it.connected ? CONNECTION.connected : CONNECTION.notConnected}
                 </StatusPill>
               }
               action={<Link href={it.settingsHref} className="btn-ghost">설정 <ExternalLink size={12} /></Link>}

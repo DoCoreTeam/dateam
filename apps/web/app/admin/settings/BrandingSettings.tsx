@@ -128,12 +128,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
               type="button"
               onClick={handleDeleteLogo}
               disabled={saving}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.375rem 0.75rem', fontSize: 'var(--fs-sm)', fontWeight: 500,
-                border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)',
-                backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer',
-              }}
+              className="btn-primary nb-danger"
             >
               <Trash2 size={13} /> 로고 삭제
             </button>

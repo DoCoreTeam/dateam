@@ -14,15 +14,16 @@
 import type { ReactNode } from 'react'
 import { CheckCircle, XCircle, Unplug, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import { CONNECTION, ACTION } from '@/lib/terms'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
 import StatusPill from '@/components/ui/settings/StatusPill'
 
 /** 연동 카드에서 쓰는 모든 사용자 문구. 여기 없는 표현을 새로 만들지 않는다. */
 export const LABEL = {
-  connected: '연결됨',
-  notConnected: '연결 안 됨',
-  change: '변경',
-  disconnect: '연결 해제',
+  connected: CONNECTION.connected,
+  notConnected: CONNECTION.notConnected,
+  change: ACTION.change,
+  disconnect: ACTION.disconnect,
   test: '연결 테스트',
   testRun: '테스트',
   save: '저장',

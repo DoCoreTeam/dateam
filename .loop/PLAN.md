@@ -251,7 +251,7 @@
 의존: I04, I11
 
 ### I14 동일성 가드와 감사 명령 정정과 업데이트 내역
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/lib/ui/settings-parity.test.ts, package.json, apps/web/package.json, apps/web/lib/changelog/entries.ts
 감사 기준:

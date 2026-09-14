@@ -59,3 +59,8 @@ export {
   FIT_ON, FIT_OFF, FIT_SMALLER, FIT_BIGGER, PREVIEW_CLOSE,
   fitReason, tooLongNote,
 } from './doc.ts'
+
+export {
+  CONNECTION,
+  type ConnectionKey,
+} from './connection.ts'

@@ -23,6 +23,7 @@ import type { StatusKey } from '@/lib/tokens/status-colors'
 import styles from './settings.module.css'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
 import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
+import { CONNECTION, ACTION } from '@/lib/terms'
 
 interface Connection {
   id: string
@@ -35,9 +36,9 @@ interface Connection {
 
 /** 상태를 사람 말로 — 'error' 를 그대로 보여 주면 무엇을 하란 뜻인지 모른다 */
 const STATUS: Record<string, { label: string; status: StatusKey }> = {
-  active: { label: '연결됨', status: 'done' },
+  active: { label: CONNECTION.connected, status: 'done' },
   error: { label: '다시 연결 필요', status: 'blocker' },
-  revoked: { label: '연결 해제됨', status: 'note' },
+  revoked: { label: CONNECTION.disconnected, status: 'note' },
 }
 
 export default function IntegrationCard() {
@@ -161,7 +162,7 @@ export default function IntegrationCard() {
                 <span className={styles.connName}>{c.provider === 'google' ? '구글' : c.provider}</span>
                 <StatusPill tone={toneFromStatusKey(meta.status)}>{meta.label}</StatusPill>
                 <NbButton variant="ghost" disabled={busy === c.id} onClick={() => void disconnect(c.id)}>
-                  {busy === c.id ? '해제 중…' : '연결 해제'}
+                  {busy === c.id ? '해제 중…' : ACTION.disconnect}
                 </NbButton>
               </li>
             )

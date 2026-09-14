@@ -248,7 +248,7 @@
   "apps/web/app/admin/partner-tiers/DeleteTierButton.tsx::inlinebutton": 3,
   "apps/web/app/admin/reports/AdminReportsPreview.tsx::inlinebutton": 2,
   "apps/web/app/admin/reports/AdminReportsPreview.tsx::inlinecard": 1,
-  "apps/web/app/admin/settings/BrandingSettings.tsx::inlinebutton": 2,
+  "apps/web/app/admin/settings/BrandingSettings.tsx::inlinebutton": 1,
   "apps/web/app/admin/settings/BrandingSettings.tsx::inlinecard": 1,
   "apps/web/app/admin/settings/BrandingSettings.tsx::rawinput::input": 1,
   "apps/web/app/admin/settings/DbSettings.tsx::inlinebutton": 3,
