@@ -23,7 +23,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
@@ -128,4 +128,52 @@ test('기준선 이후 완료형 커밋의 버전이 루트 package.json 을 앞
     [...new Set(ahead)], [],
     `커밋 메시지는 올랐는데 package.json 이 안 올랐다: ${[...new Set(ahead)].join(', ')} > ${root}`,
   )
+})
+
+/* ── 셈법이 한 곳에만 있는가 ────────────────────────────────
+   실측 사고: LOOP.md 본문 §1-2 는 「기능 추가는 minor」라 적고 부록은 「patch 1 을 더한 값」이라
+   적어, 같은 파일이 반대되는 답 둘을 갖고 있었다. 플랜을 세우는 세션은 본문을 먼저 읽으므로
+   셋이 전부 minor 를 집어갔고 0.7.716 이 사흘 만에 0.10.0 이 됐다. */
+
+const LOOP_MD = readFileSync(join(ROOT, 'LOOP.md'), 'utf8')
+const APPENDIX_AT = LOOP_MD.indexOf('### 버전 규칙')
+const LOOP_BODY = LOOP_MD.slice(0, APPENDIX_AT === -1 ? undefined : APPENDIX_AT)
+
+test('LOOP.md 본문이 버전 셈법을 따로 적지 않는다', () => {
+  assert.ok(APPENDIX_AT > 0, 'LOOP.md 에 부록 「버전 규칙」 절이 없다')
+  // 본문에 minor/patch 로 다음 버전을 정하는 문장이 있으면 부록과 갈린다
+  const offenders = LOOP_BODY.split('\n')
+    .map((line, i) => ({ line, no: i + 1 }))
+    .filter(({ line }) => /목표 버전/.test(line) && /(minor|patch)/.test(line))
+  assert.deepEqual(offenders.map((o) => o.no), [],
+    `본문이 목표 버전 셈법을 또 적는다(부록과 갈린다): ${offenders.map((o) => `${o.no}행 ${o.line.trim()}`).join(' / ')}`)
+})
+
+test('부록이 minor 를 올리는 조건을 patch 넘침 하나로만 말한다', () => {
+  const appendix = LOOP_MD.slice(APPENDIX_AT)
+  assert.match(appendix, /minor 는 patch 가 999 를 넘을 때만 오름/,
+    '부록에 「minor 는 patch 넘침에만 오른다」가 없다 — 이 문장이 빠지면 다음 플랜이 또 minor 를 집어간다')
+})
+
+test('동시 플랜은 minor 가 아니라 patch 를 나눠 가진다', () => {
+  const appendix = LOOP_MD.slice(APPENDIX_AT)
+  assert.match(appendix, /patch 를 하나씩 나눠 가짐/,
+    '동시 플랜 규칙이 patch 분배로 적혀 있지 않다 — 세션마다 minor 를 통째로 집어가던 원인')
+})
+
+test('돌고 있는 플랜들의 목표 버전이 서로 minor 를 따로 쓰지 않는다', () => {
+  const plans = readdirSync(join(ROOT, '.loop'))
+    .filter((f) => /^PLAN(\..+)?\.md$/.test(f) && f !== 'PLAN.template.md')
+  const targets = plans
+    .map((f) => ({ f, m: readFileSync(join(ROOT, '.loop', f), 'utf8').match(/^목표 버전:\s*v?(\d+)\.(\d+)\.(\d+)/m) }))
+    .filter((x) => x.m)
+    .map((x) => ({ f: x.f, minor: `${x.m![1]}.${x.m![2]}`, full: `${x.m![1]}.${x.m![2]}.${x.m![3]}` }))
+
+  const minors = new Set(targets.map((t) => t.minor))
+  assert.ok(minors.size <= 1,
+    `동시에 도는 플랜이 서로 다른 minor 를 잡았다: ${targets.map((t) => `${t.f}=${t.full}`).join(', ')}. 같은 minor 안에서 patch 를 나눠 가질 것`)
+
+  const fulls = targets.map((t) => t.full)
+  assert.equal(new Set(fulls).size, fulls.length,
+    `두 플랜이 같은 목표 버전을 잡았다: ${targets.map((t) => `${t.f}=${t.full}`).join(', ')}`)
 })
