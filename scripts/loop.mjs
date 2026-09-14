@@ -242,6 +242,33 @@ function addEvent(kind, detail, sessionId) {
 const PKG_VERSION_FILES = ['package.json', 'apps/web/package.json'];
 const DOC_VERSION_FILES = ['.claude/heavy/CEO.md', 'AGENTS.md', 'GEMINI.md'];
 
+/**
+ * 다음 패치 버전.
+ *
+ * package.json 과 최근 커밋 제목 중 **큰 쪽**에 1 을 더한다. package.json 만 보면
+ * 같은 번호를 두 번 쓰게 되고(동시에 도는 플랜), 커밋만 보면 남이 올린 파일을 못 본다.
+ */
+function nextPatchVersion() {
+  const fromPkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  let fromLog = '0.0.0';
+  try {
+    const log = sh('git log --format=%s -40', true) || '';
+    for (const line of log.split('\n')) {
+      const m = line.match(/^v(\d+\.\d+\.\d+)[:-]/);
+      if (m && cmpSemver(m[1], fromLog) > 0) fromLog = m[1];
+    }
+  } catch { /* 로그를 못 읽으면 package.json 만으로 간다 */ }
+  const base = cmpSemver(fromPkg, fromLog) >= 0 ? fromPkg : fromLog;
+  const [maj, min, pat] = base.split('.').map(Number);
+  return pat >= 999 ? `${maj}.${min + 1}.0` : `${maj}.${min}.${pat + 1}`;
+}
+
+/** 버전 파일 다섯을 한 번에 맞춘다. 앞 버전을 그대로 두면 그 커밋은 사용자에게 안 보인다 */
+function applyVersionFiles(version) {
+  for (const rel of PKG_VERSION_FILES) bumpPkgVersion(path.join(ROOT, rel), version);
+  for (const rel of DOC_VERSION_FILES) bumpDocVersion(path.join(ROOT, rel), version);
+}
+
 /** 'a.b.c' 비교, 양수면 v1 이 높다 */
 function cmpSemver(v1, v2) {
   const a = String(v1).split('.').map(Number), b = String(v2).split('.').map(Number);
@@ -723,7 +750,12 @@ cmds.pass = (a) => {
   if (flag('auto_commit') && !a['no-commit']) {
     setItemStatus(p, id, '통과');
     // --files 는 기록용이 아니라 커밋 범위다. 안 주면 옛 동작(트리 전체)으로 떨어지고 그 사실을 알린다
-    const r = gitCommit(`${p.header.target}-${id}: ${it.title}`, a.files ? files : null);
+    // 항목마다 패치를 하나 올린다. -Ixx 꼬리를 붙이면 그 커밋은 발행기가 건너뛰어
+    // 사용자에게 영영 안 보인다 (사용자 지시 2026-09-14).
+    const itemVersion = nextPatchVersion();
+    applyVersionFiles(itemVersion);
+    const versionPaths = [...PKG_VERSION_FILES, ...DOC_VERSION_FILES].filter(knownToGit);
+    const r = gitCommit(`v${itemVersion}: ${it.title}`, a.files ? [...files, ...versionPaths] : null);
     if (!a.files) out('[loop-kit] 주의: --files 없이 커밋해 트리 전체가 실렸다, 세션이 여럿이면 --files 로 범위를 준다');
     if (r.hash) { commitHash = r.hash; commitNote = `, 커밋 ${r.hash}`; } else commitNote = `, 커밋 생략 (${r.skipped})`;
   } else setItemStatus(p, id, '통과');

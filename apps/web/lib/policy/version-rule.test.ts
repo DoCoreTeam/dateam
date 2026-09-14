@@ -177,3 +177,39 @@ test('돌고 있는 플랜들의 목표 버전이 서로 minor 를 따로 쓰지
   assert.equal(new Set(fulls).size, fulls.length,
     `두 플랜이 같은 목표 버전을 잡았다: ${targets.map((t) => `${t.f}=${t.full}`).join(', ')}`)
 })
+
+/* ── 항목 커밋도 한 판인가 ──────────────────────────────────
+   -Ixx 꼬리가 붙은 커밋은 발행기가 건너뛴다. 그 커밋의 일은 사용자에게 영영 안 보인다.
+   사용자 지시(2026-09-14): 「세 번째 패치를 올리는 방식으로 하라고, I13 이렇게 하지말고」 */
+
+/** 이 기준선 뒤부터 본다. 그 앞의 -Ixx 커밋들은 이미 지나간 일이라 막지 않는다 */
+const ITEM_SUFFIX_BASELINE = '5262630d'
+
+test('기준선 이후 커밋 제목에 -Ixx 꼬리가 없다', () => {
+  let log: string
+  try {
+    log = execFileSync('git', ['log', '--format=%s', `${ITEM_SUFFIX_BASELINE}..HEAD`], {
+      cwd: ROOT, encoding: 'utf8',
+    })
+  } catch {
+    return // 기준선이 이 클론에 없으면 검사하지 않는다 (얕은 클론·CI)
+  }
+  const offenders = log.split('\n')
+    .map((l) => l.trim())
+    .filter((l) => /^v\d+\.\d+\.\d+-I\w+:/.test(l))
+  assert.deepEqual(offenders, [],
+    `항목 ID 꼬리가 붙은 커밋이 있다(발행기가 건너뛴다): ${offenders.join(' / ')}. vX.Y.Z: 제목 으로 적고 패치를 올릴 것`)
+})
+
+test('loop.mjs 가 항목 커밋에 패치 버전을 붙인다', () => {
+  const loop = readFileSync(join(ROOT, 'scripts', 'loop.mjs'), 'utf8')
+  assert.match(loop, /nextPatchVersion\(\)/, 'loop.mjs 에 다음 패치 계산이 없다')
+  assert.match(loop, /applyVersionFiles\(/, 'loop.mjs 가 버전 파일을 안 올린다')
+  assert.ok(!/\$\{p\.header\.target\}-\$\{id\}/.test(loop),
+    'loop.mjs 가 아직 목표버전-항목ID 형식으로 커밋 메시지를 만든다')
+})
+
+test('LOOP.md 가 한 가지 커밋 형식만 말한다', () => {
+  assert.ok(!/vX\.Y\.Z-Ixx/.test(LOOP_MD),
+    'LOOP.md 에 vX.Y.Z-Ixx 형식이 남아 있다 — 읽는 세션이 그 형식을 쓴다')
+})
