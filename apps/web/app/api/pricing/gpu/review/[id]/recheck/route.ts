@@ -1,3 +1,4 @@
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
@@ -161,6 +162,7 @@ ${originalText || '(원본 텍스트 없음. 이전 추출 결과 기반으로 �
       extracted: newExtracted,
       confidence,
       evidence: newEvidence,
+      contract_version: AI_CONTRACT_VERSION,
       user_feedback: feedback,
       ai_model_used: model,
       prompt_version: promptRow.version,

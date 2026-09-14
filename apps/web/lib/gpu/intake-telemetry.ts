@@ -6,6 +6,7 @@
 // 순수 record-builder/타입은 intake-telemetry-core.ts(별칭 import 없음 → node:test 단위검증).
 //   여기선 그걸 re-export + DB write 부수효과 래퍼만 둔다.
 
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { createAdminClient } from '@/lib/supabase/server'
 import {
   buildRunRow, buildEventRow, finalizeRunPatch,
@@ -19,7 +20,11 @@ export async function startRun(init: RunInit): Promise<string | null> {
   try {
     const admin = createAdminClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (admin as any).from('gpu_intake_runs').insert(buildRunRow(init)).select('id').single()
+    const { data, error } = await (admin as any).from('gpu_intake_runs')
+      // 판 번호는 여기서 붙인다. intake-telemetry-core 는 외부 import 없는 순수 모듈이라는 것이
+      // 그 파일의 계약이고, 그것을 깨면 node:test 단위검증이 같이 흔들린다
+      .insert({ ...buildRunRow(init), contract_version: AI_CONTRACT_VERSION })
+      .select('id').single()
     if (error) return null
     return (data?.id as string) ?? null
   } catch { return null }

@@ -1,3 +1,4 @@
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
@@ -513,6 +514,7 @@ export async function POST(req: NextRequest) {
         extracted: itemsList[idx]?.extracted ?? {},
         confidence: itemsList[idx]?.confidence ?? {},
         evidence: itemsList[idx]?.evidence ?? {},
+        contract_version: AI_CONTRACT_VERSION,
         user_feedback: null,
         ai_model_used: config.model,
         prompt_version: prompt.version,

@@ -1,3 +1,4 @@
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
@@ -118,6 +119,7 @@ export async function POST(req: NextRequest) {
     // 학습신호: 해제 = 오답 → 임계 보정/정정 메모리에 사용
     await db.from('autolink_feedback').insert({
       log_id: logId || null, target_kind, target_id, action: 'unlink', created_by: user.id,
+      contract_version: AI_CONTRACT_VERSION,
     }).then(undefined, () => {})
     // L1: 해제(오답) 누적 → 임계 자동 보정(자가보정 루프). 비동기 best-effort(응답 비차단).
     void recomputeThresholds(db).catch(() => {})

@@ -1,5 +1,6 @@
 // 주간보고 초안 서버 헬퍼 — route 핸들러(얇게 유지)에서 분리한 생성·조회 로직.
 // 라우트는 GET/PUT 오케스트레이션만 두고, 데이터 적재·AI 생성은 여기로.
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { createAdminClient } from '@/lib/supabase/server'
@@ -229,6 +230,7 @@ export async function generateForWeek(
     is_included: it.isIncluded,
     source_ref: it.sourceRef ?? null,
     sort_order: i,
+    contract_version: AI_CONTRACT_VERSION,
   }))
 
   const { data: inserted, error: insErr } = await supabase

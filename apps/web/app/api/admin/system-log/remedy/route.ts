@@ -9,6 +9,7 @@
 //    그때가 답이 가장 필요한 순간이라, 우리가 미리 쓴 **정적 플레이북**이 답한다.
 // ④ **자동 실행 없음** — 조치는 읽을거리다. 근거가 없으면 "모르겠다"고 말하게 한다.
 
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { playbookFor, shouldAskAi, type Remedy } from '@/lib/system-log/playbook'
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
     const remedy = playbook as Remedy
     await adm.from('system_event_remedies').insert({
       fingerprint, model: null, confidence: remedy.confidence,
-      body: remedy, is_playbook: true,
+      body: remedy, is_playbook: true, contract_version: AI_CONTRACT_VERSION,
     })
     return NextResponse.json({ remedy, model: null, cached: false, isPlaybook: true })
   }
@@ -122,7 +123,7 @@ export async function POST(req: Request) {
 
     await adm.from('system_event_remedies').insert({
       fingerprint, model: result.model, confidence: remedy.confidence,
-      body: remedy, is_playbook: false,
+      body: remedy, is_playbook: false, contract_version: AI_CONTRACT_VERSION,
     })
     return NextResponse.json({ remedy, model: result.model, cached: false, isPlaybook: false })
   } catch (e) {

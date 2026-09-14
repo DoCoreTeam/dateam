@@ -1,3 +1,4 @@
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
@@ -55,6 +56,8 @@ export async function POST(req: NextRequest) {
     if (ownedIds.length > 0) {
       const links = ownedIds.map((logId) => ({
         log_id: logId, kind: 'project', entity_id: project.id, created_by: 'user', weak: false,
+        // 사람이 만든 행에도 박는다. 한 표에서 일부만 박으면 오늘 쓴 행이 판 번호 이전으로 잘못 읽힌다
+        contract_version: AI_CONTRACT_VERSION,
       }))
       // work_entity_links는 authenticated 쓰기 정책이 없다. 소유권을 위에서 확정한 ID만
       // 서버 writer로 저장해 autolink 원칙(쓰기=service role, 읽기=owner/admin)을 재사용한다.

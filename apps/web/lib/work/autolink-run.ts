@@ -2,6 +2,7 @@
 // 완전 자동: 호출 시 무개입으로 daily_log_relations(업무↔업무) + work_entity_links(거래처/딜/연락처) 생성.
 // 가역: created_by='ai', weak(추천/확정), confidence/reason 저장. 모든 생성은 autolink_feedback(auto_created) 기록(학습).
 // SSOT 재사용: embedText/toVectorLiteral, getGeminiConfig/callGeminiOnce, decideLinks(순수규칙).
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { createAdminClient } from '@/lib/supabase/server'
 import { embedText, toVectorLiteral } from '@/lib/gemini-embedding'
 import { getGeminiConfig, callGeminiOnce } from '@/lib/gpu/extract-helpers'
@@ -158,13 +159,14 @@ export async function runAutolink(logId: string, actor: string, requesterId: str
         created_by: 'ai', confidence: d.confidence, reason: d.reason, weak: d.weak,
       })
       if (!error) relations++
-      feedbackRows.push({ log_id: logId, target_kind: 'log', target_id: d.id, action: 'auto_created', band: d.band, confidence: d.confidence, created_by: actor })
+      feedbackRows.push({ log_id: logId, target_kind: 'log', target_id: d.id, action: 'auto_created', band: d.band, confidence: d.confidence, created_by: actor, contract_version: AI_CONTRACT_VERSION })
     } else {
       const { error } = await db.from('work_entity_links').upsert({
         log_id: logId, kind: d.kind, entity_id: d.id, confidence: d.confidence, reason: d.reason, weak: d.weak, created_by: 'ai',
+        contract_version: AI_CONTRACT_VERSION,
       }, { onConflict: 'log_id,kind,entity_id', ignoreDuplicates: true })
       if (!error) entities++
-      feedbackRows.push({ log_id: logId, target_kind: d.kind, target_id: d.id, action: 'auto_created', band: d.band, confidence: d.confidence, created_by: actor })
+      feedbackRows.push({ log_id: logId, target_kind: d.kind, target_id: d.id, action: 'auto_created', band: d.band, confidence: d.confidence, created_by: actor, contract_version: AI_CONTRACT_VERSION })
       // L2: 확정 연결의 추출 표기를 별칭사전에 누적(다음 매칭 정확도↑)
       const raw = rawNameById.get(d.id)
       if (raw && !d.weak) await recordAlias(db, raw, d.kind, d.id)
