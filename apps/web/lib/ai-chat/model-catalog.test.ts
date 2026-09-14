@@ -141,9 +141,16 @@ test('추론: Groq 과 Grok 이 남의 공급자 규칙으로 읽히지 않는�
   // 예전엔 gemini 도 claude 도 아니면 전부 openai 규칙이라 Groq 모델이 128,000 토큰을 달고 나왔다
   assert.equal(inferModelMeta('groq', 'llama-3.1-70b-versatile').contextLength, undefined)
   assert.equal(inferModelMeta('groq', 'llama-3.1-70b-versatile').capabilities.longContext, true)
-  // 명세가 이미지를 못 보낸다고 적었으므로 이름이 무엇이든 이미지 읽기는 false
-  assert.equal(getProviderSpec('groq').capabilities.vision, false)
+  // 공급자 천장은 열려 있지만(qwen 이 이미지를 먹는다) 이름만 보고 읽는다고 적지는 않는다.
+  // 어느 모델이 읽는지는 공급자가 목록에서 말해 주고, 그때만 true 가 된다
+  assert.equal(getProviderSpec('groq').capabilities.vision, true)
   assert.equal(inferModelMeta('groq', 'llama-4-scout-17b-vision').capabilities.vision, false)
+  assert.equal(
+    inferModelMeta('groq', 'llama-4-scout-17b-vision', {
+      id: 'llama-4-scout-17b-vision', inputModalities: ['text', 'image'],
+    }).capabilities.vision,
+    true,
+  )
   // Grok 은 mini 갈래만 이미지를 못 읽는다
   assert.equal(inferModelMeta('grok', 'grok-5').capabilities.vision, true)
   assert.equal(inferModelMeta('grok', 'grok-5-mini').capabilities.vision, false)
@@ -181,4 +188,58 @@ test('프로브: 공급자별 분기 없이 명세의 baseUrl 로 간다', () =>
       assert.ok(!read(rel).includes(host), `${rel} 에 ${host} 가 하드코딩됨`)
     }
   }
+})
+
+/* ── 공급자가 말해 준 것이 짐작보다 위인가 ──────────────────
+   실측(2026-09-14): Groq 은 모델마다 input_modalities 와 context_window 를 준다.
+   그걸 버리고 이름으로 점치던 동안 qwen/qwen3.6-27b 는 이미지를 읽는데 못 읽는다고 적혀 있었다. */
+
+test('사실 우선: 공급자가 이미지를 먹는다고 하면 이름과 무관하게 읽는다고 적는다', () => {
+  const entry = mergeModelCatalogEntry('groq', 'qwen/qwen3.6-27b', null, {
+    id: 'qwen/qwen3.6-27b',
+    inputModalities: ['text', 'image'],
+    outputModalities: ['text'],
+    contextWindow: 131072,
+  })
+  assert.equal(entry.capabilities.vision, true)
+  assert.equal(entry.contextLength, 131072) // 비워 두던 자리를 공급자 값이 채운다
+  assert.equal(entry.capabilities.longContext, true)
+})
+
+test('사실 우선: 글만 먹는 모델은 같은 공급자여도 이미지를 읽는다고 적지 않는다', () => {
+  const entry = mergeModelCatalogEntry('groq', 'openai/gpt-oss-120b', null, {
+    id: 'openai/gpt-oss-120b',
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    contextWindow: 131072,
+  })
+  assert.equal(entry.capabilities.vision, false)
+  assert.equal(entry.contextLength, 131072)
+})
+
+test('사실 우선: 512 토큰짜리는 긴 컨텍스트라고 적지 않는다', () => {
+  // meta-llama/llama-prompt-guard-2 계열은 분류기다. 글을 뱉으니 목록에는 남기되,
+  // 512 토큰이라는 사실을 그대로 보여 사용자가 왜 이걸 못 쓰는지 알 수 있게 한다
+  const entry = mergeModelCatalogEntry('groq', 'meta-llama/llama-prompt-guard-2-22m', null, {
+    id: 'meta-llama/llama-prompt-guard-2-22m',
+    inputModalities: ['text'],
+    outputModalities: ['text'],
+    contextWindow: 512,
+  })
+  assert.equal(entry.contextLength, 512)
+  assert.equal(entry.capabilities.longContext, false)
+})
+
+test('사실 우선: 공급자가 아무 말도 안 하면 예전처럼 이름으로 채운다', () => {
+  const entry = mergeModelCatalogEntry('openai', 'gpt-4o', null)
+  assert.equal(entry.capabilities.vision, true)
+  assert.equal(entry.contextLength, 128000)
+})
+
+test('사실 우선: 이미지를 못 보내는 공급자에서는 목록이 뭐라 하든 읽는다고 적지 않는다', () => {
+  // 명세가 천장을 닫아 둔 공급자는 어댑터가 이미지를 안 보낸다. 카드가 거짓말하면 안 된다
+  const spec = getProviderSpec('openai')
+  if (spec.capabilities.vision) return // openai 는 천장이 열려 있어 이 단정의 대상이 아니다
+  const entry = mergeModelCatalogEntry('openai', 'whatever', null, { id: 'whatever', inputModalities: ['text', 'image'] })
+  assert.equal(entry.capabilities.vision, false)
 })

@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.8
+플랜 버전: v0.2.9
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.10.2
@@ -116,9 +116,9 @@
 의존: I02
 
 ### I04b Groq 이 주는 사실을 카탈로그가 버리지 않게
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ai-chat/model-catalog.ts, apps/web/lib/ai-chat/model-catalog.test.ts, apps/web/lib/ai/provider-catalog.ts
+범위: packages/ai-providers/src/vendor.ts, apps/web/lib/ai-chat/provider.ts, apps/web/lib/ai-chat/providers/openai-compatible.ts, apps/web/lib/ai-chat/providers/openai-compatible.test.ts, apps/web/lib/ai-chat/model-catalog.ts, apps/web/lib/ai-chat/model-catalog.test.ts, apps/web/app/(ai)/ai/actions.ts
 감사 기준:
 - 실측 근거(2026-09-14 실계정): Groq 의 /models 는 모델마다 context_window 와 input_modalities 를 준다. qwen/qwen3.6-27b 와 qwen/qwen3.8-27b 는 input_modalities 가 text 와 image 다
 - 그런데 명세는 groq 의 vision 을 false 로 적어 두었고 I04 의 clamp 가 그것을 모든 Groq 모델에 강제한다. 이미지를 읽는 모델을 못 읽는다고 적고 있음
@@ -127,7 +127,7 @@
 - meta-llama/llama-prompt-guard-2 계열은 512 토큰짜리 분류기다. 채팅 모델 목록에 512 토큰짜리가 섞여 보이는 것이 맞는지 판단하고 근거를 적음
 - node --test 로 model-catalog.test.ts 통과
 의존: I04a
-주의: provider-catalog.ts 는 다른 세션의 P0003 이 패키지로 쪼개는 중이다. 착수 전에 그 작업이 끝났는지 확인할 것
+확인함(2026-09-14): P0003 완료되어 벤더 사실은 packages/ai-providers/src/vendor.ts 로 옮겨졌다. 공급자 능력은 거기서 고치고, 모델별 능력은 공급자 응답에서 읽는다
 
 ### I05 공급자 키 저장 창구 한 벌
 상태: 통과
@@ -269,3 +269,4 @@
 - v0.2.7 (2026-09-14) I04a 실측 결과 규칙을 이름 기반에서 공급자가 주는 output_modalities 기반으로 바꿔야 함 - 팩토리를 고쳐야 하므로 openai-compatible.ts 를 범위에 넣음 (audit:I04a)
 - v0.2.8 (2026-09-14) I04a 확인 중 발견 - Groq 이 모델별 context_window 와 input_modalities 를 주는데 카탈로그가 버리고 있고, 명세의 groq vision false 가 실제 이미지 읽는 모델을 가리고 있음. I04b 추가 (audit:I04a)
 - v0.2.9 (2026-09-14) 목표 버전을 v0.9.0 에서 v0.10.2 로 고침 - v0.9.0 은 세션마다 minor 를 통째로 집어가던 규칙에서 나온 값이고 현재 package.json(0.10.1)보다 낮아 완료 커밋이 사용자에게 안 보인다 (iv_0052)
+- v0.2.9 (2026-09-14) I04b 범위 확장 - 공급자가 주는 모델별 사실이 카탈로그까지 닿으려면 provider.ts 와 어댑터와 refreshModelCatalog 배선이 필요. 벤더 능력은 P0003 이 옮긴 packages/ai-providers 에 있음 (audit:I04b)

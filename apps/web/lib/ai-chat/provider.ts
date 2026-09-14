@@ -68,12 +68,32 @@ export interface ProbeModelResult {
   accountLevel?: boolean
 }
 
+/** 공급자가 모델 한 줄에 대해 스스로 말해 준 사실. 안 주는 값은 없다 */
+export interface ListedModelFacts {
+  id: string
+  /** 무엇을 먹는가. text / image / audio */
+  inputModalities?: string[]
+  /** 무엇을 뱉는가. text / speech / transcription */
+  outputModalities?: string[]
+  /** 한 번에 넣을 수 있는 토큰 수 */
+  contextWindow?: number
+}
+
 export interface ChatProvider {
   id: ProviderId
   label: string // 'Gemini' | 'Claude' | 'OpenAI'
   capabilities: ProviderCapabilities
   streamChat(params: StreamChatParams): Promise<StreamChatResult>
   listModels(apiKey: string): Promise<string[]>
+  /**
+   * 옵셔널 — 공급자가 모델마다 사실을 더 주면 그것을 그대로 넘긴다.
+   *
+   * Groq 은 모델마다 무엇을 먹는지(input_modalities)와 컨텍스트 길이(context_window)를
+   * 알려 준다. 그걸 버리고 이름으로 짐작하면 이미지를 읽는 모델을 못 읽는다고 적게 된다
+   * (실측 2026-09-14: qwen/qwen3.6-27b 는 이미지를 먹는데 카탈로그는 아니라고 적고 있었다).
+   * 안 주는 공급자는 구현하지 않고, 그때는 이름 추론으로 떨어진다.
+   */
+  describeModels?(apiKey: string): Promise<ListedModelFacts[]>
   // 옵셔널 — listModels가 노출해도 현재 키/요금제로 실제 전송 불가한 모델(404 삭제·429 할당량0)을
   // 걸러내기 위한 실사용 프로브. 미구현 프로바이더는 refreshModelCatalog가 스킵(기존 동작 유지).
   probeModel?(apiKey: string, model: string): Promise<ProbeModelResult>

@@ -46,11 +46,12 @@ test('라벨도 명세에서 온다', () => {
   assert.equal(grokProvider.label, getProviderSpec('grok').label)
 })
 
-// Groq 은 이미지도 도구도 안 된다. 카드에 「이미지 읽기」가 뜨면 사용자는 사진을 올리고
-// 아무 일도 안 일어나는 것을 본다.
-test('Groq 은 이미지 읽기와 도구가 꺼져 있다', () => {
-  assert.equal(groqProvider.capabilities.vision, false)
+// 도구는 안 된다. 이미지는 된다 — 실측(2026-09-14) qwen/qwen3.6-27b 와 qwen3.8-27b 가
+// input_modalities 에 image 를 달고 나온다. 다만 이 값은 공급자 천장이지 모델별 답이 아니다.
+// 모델 하나하나가 이미지를 읽는지는 목록이 말해 주고 카탈로그가 그것을 읽는다.
+test('Groq 은 도구가 꺼져 있고 이미지는 공급자 천장이 열려 있다', () => {
   assert.equal(groqProvider.capabilities.tools, false)
+  assert.equal(groqProvider.capabilities.vision, true)
 })
 
 /* ── 다섯 전부 배선됐는가 ──────────────────────────────────── */

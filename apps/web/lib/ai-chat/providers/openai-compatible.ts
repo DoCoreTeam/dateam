@@ -7,7 +7,7 @@
 // 어댑터가 자기 값을 또 적으면 카드에 쓰인 능력과 실제 호출이 갈린다.
 
 import OpenAI from 'openai'
-import type { ChatProvider, StreamChatParams, StreamChatResult, ProbeModelResult } from '../provider.ts'
+import type { ChatProvider, StreamChatParams, StreamChatResult, ProbeModelResult, ListedModelFacts } from '../provider.ts'
 import { toOpenAiMessages } from './openai-messages.ts'
 import { classifyModelProbeFailure, getProviderErrorDetail } from '../probe-result.ts'
 import { getProviderSpec, type AiProviderId } from '../../ai/provider-catalog.ts'
@@ -20,6 +20,8 @@ import { getProviderSpec, type AiProviderId } from '../../ai/provider-catalog.ts
  */
 export interface ListedModel {
   id: string
+  /** 한 번에 넣을 수 있는 토큰 수 (Groq 이 준다) */
+  context_window?: number
   /** 이 모델이 무엇을 뱉는가. text / speech / transcription (Groq 이 준다) */
   output_modalities?: string[]
   /** 이 모델이 무엇을 먹는가. text / image / audio (Groq 이 준다) */
@@ -133,12 +135,29 @@ export function createOpenAiCompatibleProvider(opts: OpenAiCompatibleOptions): C
     }
   }
 
+  /** 공급자가 준 사실을 그대로 넘긴다. 여기서 짐작을 섞지 않는다 */
+  async function describeModels(apiKey: string): Promise<ListedModelFacts[]> {
+    const out: ListedModelFacts[] = []
+    for await (const m of client(apiKey).models.list()) {
+      const listed = m as unknown as ListedModel
+      if (!opts.selectChatModel(listed)) continue
+      out.push({
+        id: listed.id,
+        inputModalities: listed.input_modalities,
+        outputModalities: listed.output_modalities,
+        contextWindow: listed.context_window,
+      })
+    }
+    return out.sort((a, b) => a.id.localeCompare(b.id))
+  }
+
   return {
     id: spec.id as ChatProvider['id'],
     label: spec.label,
     capabilities: spec.capabilities,
     streamChat,
     listModels,
+    describeModels,
     probeModel,
   }
 }

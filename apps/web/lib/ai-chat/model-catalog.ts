@@ -3,6 +3,7 @@
 // 실 프로바이더 응답(listModels)으로 model_id를 upsert할 때 capabilities/released_at 보완에 사용.
 import type { AiChatProviderId } from '@/types/database'
 import { getProviderSpec } from '../ai/provider-catalog.ts'
+import type { ListedModelFacts } from './provider.ts'
 
 export interface ModelCapabilities {
   vision: boolean
@@ -18,6 +19,9 @@ export interface CuratedModelInfo {
 }
 
 const DEFAULT_CAPS: ModelCapabilities = { vision: false, longContext: false, reasoning: false }
+
+/** 「긴 컨텍스트」라고 부르는 문턱. 공급자가 길이를 말해 주면 이름 대신 이 숫자로 판단한다 */
+const LONG_CONTEXT_TOKENS = 100_000
 
 // DB seed(156_ai_model_catalog.sql)와 동일 값 — 두 곳 중 하나만 바뀌면 표시가 어긋나므로 함께 갱신할 것.
 export const CURATED_MODELS: Record<AiChatProviderId, Record<string, CuratedModelInfo>> = {
@@ -75,19 +79,24 @@ export function mergeModelCatalogEntry(
   provider: AiChatProviderId,
   modelId: string,
   existing?: ExistingCatalogRow | null,
+  /** 공급자가 이 모델에 대해 말해 준 것. 큐레이션보다도 위다 — 우리 표는 낡고 공급자는 지금을 안다 */
+  facts?: ListedModelFacts | null,
 ): ModelCatalogEntry {
   const curated = CURATED_MODELS[provider]?.[modelId]
-  const inferred = inferModelMeta(provider, modelId) // 큐레이션에 없는 라이브 모델 보완(빈칸 방지)
+  const inferred = inferModelMeta(provider, modelId, facts) // 큐레이션에 없는 라이브 모델 보완(빈칸 방지)
   return {
     provider,
     modelId,
     label: existing?.label ?? curated?.label ?? inferred.label,
-    contextLength: existing?.contextLength ?? curated?.contextLength ?? inferred.contextLength ?? null,
+    // 공급자가 지금 말해 준 길이가 우리 표보다 정확하다. 그것이 없을 때만 기존값과 큐레이션으로 간다
+    contextLength: facts?.contextWindow ?? existing?.contextLength ?? curated?.contextLength ?? inferred.contextLength ?? null,
     capabilities: {
       ...DEFAULT_CAPS,
       ...inferred.capabilities,       // 추론이 최하위
-      ...curated?.capabilities,       // 큐레이션이 우선
-      ...(existing?.capabilities ?? {}), // 기존 DB값이 최우선
+      ...curated?.capabilities,       // 큐레이션이 그 위
+      ...(existing?.capabilities ?? {}), // 기존 DB값이 그 위
+      // 공급자가 지금 말해 준 것이 맨 위다. 우리 표도 DB 도 낡을 수 있고 공급자는 지금을 안다
+      ...(facts?.inputModalities ? { vision: facts.inputModalities.includes('image') } : {}),
     },
     releasedAt: existing?.releasedAt ?? curated?.releasedAt ?? inferred.releasedAt ?? null,
     isActive: true,
@@ -206,16 +215,34 @@ const MODEL_HEURISTICS: Record<AiChatProviderId, ModelNameHeuristic> = {
  * 이미지 읽기만은 이름보다 명세가 위다 — 어댑터가 이미지를 보내지 않는 공급자의 모델에
  * 「이미지 읽기」를 적으면 카드가 거짓말을 한다.
  */
-export function inferModelMeta(provider: AiChatProviderId, modelId: string): CuratedModelInfo {
+export function inferModelMeta(
+  provider: AiChatProviderId,
+  modelId: string,
+  /** 공급자가 이 모델에 대해 스스로 말해 준 것. 있으면 짐작보다 위다 */
+  facts?: ListedModelFacts | null,
+): CuratedModelInfo {
   const id = modelId.toLowerCase()
   const h = MODEL_HEURISTICS[provider]
   const canSeeImages = getProviderSpec(provider).capabilities.vision
+
+  // 공급자가 무엇을 먹는지 말해 줬으면 그 답을 쓴다. 이름을 보고 점치지 않는다
+  const saysImage = facts?.inputModalities?.includes('image')
+  const vision = saysImage ?? (h.vision(id) && canSeeImages)
+
+  // 컨텍스트 길이도 마찬가지다. I04 에서 근거가 없어 비웠는데, 근거를 주는 공급자가 있었다
+  const contextLength = facts?.contextWindow ?? h.contextLength(id)
+
   return {
     label: prettifyLabel(modelId),
-    contextLength: h.contextLength(id),
+    contextLength,
     capabilities: {
-      vision: h.vision(id) && canSeeImages,
-      longContext: h.longContext(id),
+      // 공급자가 못 보낸다고 적힌 곳에서는 모델이 무엇이든 이미지를 읽는다고 적지 않는다
+      vision: vision && canSeeImages,
+      // 공급자가 길이를 말해 줬을 때만 숫자로 판단한다. 이름 추론으로 짐작한 길이로
+      // 뜻을 바꾸면 「긴 컨텍스트」의 기준이 공급자마다 조용히 달라진다
+      longContext: facts?.contextWindow !== undefined
+        ? facts.contextWindow >= LONG_CONTEXT_TOKENS
+        : h.longContext(id),
       reasoning: h.reasoning(id),
     },
     releasedAt: h.releasedAt(id),

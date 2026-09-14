@@ -12,6 +12,7 @@ import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
 import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import { probeModelIds } from '@/lib/ai-chat/probe-models'
+import type { ListedModelFacts } from '@/lib/ai-chat/provider'
 import { isAvailabilitySchemaMissing } from '@/lib/ai-chat/model-availability'
 import type {
   AiChatProviderId,
@@ -1058,9 +1059,18 @@ export async function refreshModelCatalog(
   const config = getProviderConfig(meta, provider)
   if (!config) return { ok: false, error: '해당 프로바이더의 AI 키가 설정되지 않았습니다' }
 
+  // 공급자가 모델마다 사실을 더 주면 그것을 받는다. 안 주는 공급자는 id 만 받고 추론으로 채운다
+  const adapter = getProvider(provider)
   let modelIds: string[]
+  let factsById = new Map<string, ListedModelFacts>()
   try {
-    modelIds = await getProvider(provider).listModels(config.apiKey)
+    if (adapter.describeModels) {
+      const described = await adapter.describeModels(config.apiKey)
+      factsById = new Map(described.map((f) => [f.id, f]))
+      modelIds = described.map((f) => f.id)
+    } else {
+      modelIds = await adapter.listModels(config.apiKey)
+    }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : '모델 목록 조회에 실패했습니다' }
   }
@@ -1121,7 +1131,7 @@ export async function refreshModelCatalog(
       contextLength: existing?.context_length,
       capabilities: existing?.capabilities,
       releasedAt: existing?.released_at,
-    })
+    }, factsById.get(modelId))
     const probed = probeMap.get(modelId)
     return {
       provider: merged.provider,

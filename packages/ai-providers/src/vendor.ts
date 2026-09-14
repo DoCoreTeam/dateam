@@ -60,8 +60,16 @@ export const GROQ: VendorSpec<'groq'> = {
   id: 'groq',
   baseUrl: 'https://api.groq.com/openai/v1',
   keyPrefixes: ['gsk_'],
-  /** Open models on someone else's accelerators. No images, no tools */
-  capabilities: { vision: false, tools: false, thinking: false, defaultMaxOutputTokens: 8192 },
+  /**
+   * Open models on someone else's accelerators. No tools.
+   *
+   * Images: measured 2026-09-14 against a live account. `qwen/qwen3.6-27b` and
+   * `qwen/qwen3.8-27b` report `input_modalities: [text, image]`, so the vendor does serve
+   * vision models and the OpenAI-compatible adapter already sends image parts.
+   * This flag is the vendor ceiling, not a per-model answer — the listing says which
+   * individual model reads images, and the catalog reads that.
+   */
+  capabilities: { vision: true, tools: false, thinking: false, defaultMaxOutputTokens: 8192 },
   keyIssueUrl: 'https://console.groq.com/keys',
 }
 
