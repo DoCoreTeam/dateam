@@ -240,7 +240,7 @@
 의존: I02, I11
 
 ### I13 AI 스튜디오 모델 화면을 명세 기반으로
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(ai)/ai/load.ts, apps/web/app/(ai)/ai/models/ModelsClient.tsx, apps/web/app/(ai)/ai/models/models.module.css
 감사 기준:

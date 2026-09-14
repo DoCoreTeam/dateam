@@ -9,6 +9,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw, CircleCheck, CircleAlert, CircleX, CircleHelp } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill from '@/components/ui/settings/StatusPill'
+
+/** 키를 넣는 자리. 빈 상태에서 「그럼 어디서 넣나」를 화면 밖에서 찾게 하지 않는다 */
+const SETTINGS_HREF = '/admin/settings?tab=ai'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { MODEL_STATUS_LABEL, MODEL_STATUS_COLOR, MODEL_CAP_LABEL } from '@/lib/ai-chat/model-status'
@@ -20,7 +25,12 @@ import styles from './models.module.css'
 interface ProviderView {
   id: AiChatProviderId
   label: string
-  model: string
+  /** 고른 모델. 키가 없으면 null */
+  model: string | null
+  /** 키가 등록됐나. 없으면 목록을 물어볼 수 없다 */
+  hasKey: boolean
+  /** 명세가 적어 둔 용도 한 줄 */
+  purpose: string
 }
 
 interface Props {
@@ -97,7 +107,8 @@ export default function ModelsClient({ providers, defaultProvider }: Props) {
     return (
       <EmptyState
         title="설정된 AI 키가 없습니다"
-        description="API Keys 화면에서 공급자 키를 먼저 등록하면 여기에 모델이 나타납니다."
+        description="공급자 키를 먼저 넣으면 여기에 모델이 나타납니다."
+        action={{ label: '키 설정으로 가기', href: SETTINGS_HREF }}
       />
     )
   }
@@ -110,27 +121,41 @@ export default function ModelsClient({ providers, defaultProvider }: Props) {
         const rows = items.filter((it) => it.provider === p.id)
         const isDefault = defaultProvider?.id === p.id
         return (
-          <section key={p.id} className="card">
-            <div className={styles.head}>
-              <h2 className={styles.headTitle}>{PROVIDER_LABELS[p.id] ?? p.label}</h2>
-              {isDefault && <span className={styles.chosen}>기본 공급자</span>}
-              <span className={styles.headSpacer} />
-              <span className={styles.headNote}>{rows.length}개</span>
-              <NbButton
-                variant="ghost"
-                onClick={() => refresh(p.id)}
-                disabled={refreshing !== null}
-              >
-                <RefreshCw size={14} />
-                {refreshing === p.id ? '확인 중' : '새로고침'}
-              </NbButton>
-            </div>
+          <SettingsCard
+            key={p.id}
+            title={PROVIDER_LABELS[p.id] ?? p.label}
+            headingLevel={2}
+            description={p.purpose}
+            headerAction={
+              <span className={styles.head}>
+                {isDefault && <StatusPill tone="info">기본 공급자</StatusPill>}
+                {!p.hasKey && <StatusPill tone="neutral">키 없음</StatusPill>}
+                <span className={styles.headNote}>{rows.length}개</span>
+                <NbButton
+                  variant="ghost"
+                  onClick={() => refresh(p.id)}
+                  disabled={refreshing !== null || !p.hasKey}
+                >
+                  <RefreshCw size={14} />
+                  {refreshing === p.id ? '확인 중' : '새로고침'}
+                </NbButton>
+              </span>
+            }
+          >
 
             {rows.length === 0 ? (
-              <EmptyState
-                title="아직 확인한 모델이 없습니다"
-                description="새로고침을 누르면 공급자에게 직접 목록을 물어봅니다."
-              />
+              p.hasKey ? (
+                <EmptyState
+                  title="아직 확인한 모델이 없습니다"
+                  description="새로고침을 누르면 공급자에게 직접 목록을 물어봅니다."
+                />
+              ) : (
+                <EmptyState
+                  title="키가 없어 물어볼 수 없습니다"
+                  description="키를 넣으면 이 공급자의 모델 목록이 여기에 나타납니다."
+                  action={{ label: '키 설정으로 가기', href: SETTINGS_HREF }}
+                />
+              )
             ) : (
               <div className={styles.rows}>
                 {rows.map((m) => {
@@ -167,7 +192,7 @@ export default function ModelsClient({ providers, defaultProvider }: Props) {
                 })}
               </div>
             )}
-          </section>
+          </SettingsCard>
         )
       })}
     </div>
