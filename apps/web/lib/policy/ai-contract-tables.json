@@ -1,0 +1,33 @@
+{
+  "설명": "AI 결과를 담는 표. 여기에 쓰는 코드는 계약 판 번호를 같이 실어야 한다",
+  "왜": "판 번호 없이 저장된 값은 규칙이 바뀌어도 못 올린다. 무슨 규칙으로 쓰였는지 아무 데도 안 적혀 있기 때문이다",
+  "일부만박으면": "한 표에서 일부 행만 판 번호를 가지면 오늘 쓴 행이 판 번호 이전으로 잘못 읽힌다. 누가 만들었나는 created_by 나 model 칸이 이미 말한다",
+  "쓰는코드0곳": [
+    "ci_channel_links",
+    "rfp_anomalies",
+    "rfp_field_vendor_results"
+  ],
+  "제외": {
+    "activity_log": "감사 로그. evidence 칸이 있지만 그 뜻은 「이 행동을 했다는 증거」이고 AI 값의 근거가 아니다",
+    "project_activity": "같은 이유. 칸 이름이 같다고 같은 것이 아니다"
+  },
+  "잰날": "2026-09-14",
+  "표": [
+    "rfp_report_versions",
+    "rfp_report_fields",
+    "rfp_field_vendor_results",
+    "rfp_anomalies",
+    "ci_channel_links",
+    "ci_content_creative",
+    "ci_content_derived",
+    "ci_content_groups",
+    "ci_content_media",
+    "ci_patterns",
+    "autolink_feedback",
+    "work_entity_links",
+    "weekly_report_items",
+    "gpu_intake_runs",
+    "review_iterations",
+    "system_event_remedies"
+  ]
+}
