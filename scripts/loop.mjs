@@ -813,8 +813,20 @@ cmds.final = (a) => {
   if (result === 'fail') { snapshot('final', 'fail'); out(`[loop-kit] 종합 감사 실패 기록: ${a.summary}, 보완 항목을 plan revise 로 추가 후 계속`); return; }
   setPlanStatus(p, '완료');
   snapshot('final', 'pass');
-  const target = p.header.target;
-  if (flag('bump_package_version') && /^v\d+\.\d+\.\d+$/.test(target || '')) {
+  /**
+   * 완료 버전은 **플랜 목표값이 아니라 지금 쓸 수 있는 다음 패치**다.
+   *
+   * 실측 사고(2026-09-14): 플랜을 세울 때 잡은 목표 v0.10.2 를 그대로 썼는데, 그 사이
+   * 항목 커밋들이 0.10.3 까지 올려 둔 상태였다. 완료 커밋이 v0.10.2 로 나가 같은 번호가
+   * 두 번 생기고 버전이 뒤로 갔다. 가드가 잡았지만 그건 커밋된 뒤였다 —
+   * 애초에 만들 수 없게 한다.
+   */
+  const planned = p.header.target;
+  const target = `v${nextPatchVersion()}`;
+  if (planned && planned !== target) {
+    out(`[loop-kit] 완료 버전 ${planned} 대신 ${target} 사용 (그 사이 버전이 올라갔다)`);
+  }
+  if (flag('bump_package_version') && /^v\d+\.\d+\.\d+$/.test(target)) {
     for (const rel of PKG_VERSION_FILES) {
       const r = bumpPkgVersion(path.join(ROOT, rel), target.slice(1));
       if (r === 'behind') out(`[loop-kit] ${rel} 버전 유지 (목표 ${target} 가 현재보다 낮음)`);

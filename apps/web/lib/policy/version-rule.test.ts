@@ -213,3 +213,29 @@ test('LOOP.md 가 한 가지 커밋 형식만 말한다', () => {
   assert.ok(!/vX\.Y\.Z-Ixx/.test(LOOP_MD),
     'LOOP.md 에 vX.Y.Z-Ixx 형식이 남아 있다 — 읽는 세션이 그 형식을 쓴다')
 })
+
+/* ── 커밋되기 전에 막히는가 ─────────────────────────────────
+   테스트는 커밋이 끝난 뒤에야 돈다. 실측 사고(2026-09-14): 완료 커밋이 낡은 플랜 목표값
+   v0.10.2 로 나가 같은 번호가 두 번 생겼고, 되돌리려면 amend 와 태그 삭제가 필요했다.
+   그래서 같은 검사를 commit-msg 훅에도 둔다 — 이 단정은 그 훅이 살아 있는지 본다. */
+
+test('커밋 메시지 훅이 있고 버전 검사를 부른다', () => {
+  const hook = readFileSync(join(ROOT, '.githooks', 'commit-msg'), 'utf8')
+  assert.match(hook, /check-commit-version\.mjs/, 'commit-msg 훅이 버전 검사를 안 부른다')
+})
+
+test('버전 검사기가 세 경우를 전부 막는다', () => {
+  const src = readFileSync(join(ROOT, 'scripts', 'check-commit-version.mjs'), 'utf8')
+  assert.match(src, /항목 ID 꼬리/, '항목 꼬리 검사가 없다')
+  assert.match(src, /이미 쓴 번호/, '번호 재사용 검사가 없다')
+  assert.match(src, /뒤로 가지 않습니다/, '뒤로 가기 검사가 없다')
+})
+
+test('loop final 이 낡은 플랜 목표값으로 커밋하지 않는다', () => {
+  const loop = readFileSync(join(ROOT, 'scripts', 'loop.mjs'), 'utf8')
+  // 완료 버전을 header.target 에서 바로 받으면 그 사이 오른 버전을 못 본다
+  assert.ok(!/const target = p\.header\.target;/.test(loop),
+    'loop.mjs 의 final 이 플랜 목표값을 그대로 완료 버전으로 쓴다')
+  assert.match(loop, /const target = `v\$\{nextPatchVersion\(\)\}`/,
+    'loop.mjs 의 final 이 다음 패치를 계산하지 않는다')
+})
