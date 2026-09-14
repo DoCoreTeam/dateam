@@ -13,6 +13,8 @@
  * (전부 우리 쪽 사정을 사용자 화면에 옮겨 적은 말이다)
  */
 
+import { iRaRa } from '../ui/josa.ts'
+
 /** 판 번호가 붙기 전에 만들어진 값 */
 export const CONTRACT_LEGACY = '이전 방식으로 만든 결과'
 
@@ -30,7 +32,7 @@ export const CONTRACT_AHEAD = '더 새로운 방식으로 만든 결과'
  */
 export function contractNote(kind: 'legacy' | 'gap' | 'ahead'): string {
   if (kind === 'ahead') {
-    return `${CONTRACT_AHEAD}이라 지금 화면이 다 해석하지 못했어요. 내용은 그대로 있습니다.`
+    return `${CONTRACT_AHEAD}${iRaRa(CONTRACT_AHEAD)} 지금 화면이 다 해석하지 못했어요. 내용은 그대로 있습니다.`
   }
-  return `${CONTRACT_LEGACY}이라 ${CONTRACT_HELD}. 다시 분석하면 새 방식으로 나옵니다.`
+  return `${CONTRACT_LEGACY}${iRaRa(CONTRACT_LEGACY)} ${CONTRACT_HELD}. 다시 분석하면 새 방식으로 나옵니다.`
 }

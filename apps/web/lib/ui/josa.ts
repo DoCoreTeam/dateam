@@ -77,6 +77,15 @@ export function iGa(word: string): string {
   return pick(word, '이', '가')
 }
 
+/**
+ * 이라 / 라 — 「A 라서」, 「A 라 B」
+ *
+ * 「결과이라」처럼 받침 없는 말에 「이라」를 붙이면 화면에서 바로 튄다(실화면에서 밟았다).
+ */
+export function iRaRa(word: string): string {
+  return pick(word, '이라', '라')
+}
+
 /** 은 / 는 */
 export function eunNeun(word: string): string {
   return pick(word, '은', '는')
