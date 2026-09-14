@@ -7,10 +7,11 @@ import SettingsSection from './SettingsSection'
 import YoutubeSettings from './YoutubeSettings'
 import G2bSettings from './G2bSettings'
 import VercelSettings from './VercelSettings'
-import AiChatDefaultProviderPicker from './AiChatDefaultProviderPicker'
+import AiProviderOrder from './AiProviderOrder'
 import AiProviderCard from './AiProviderCard'
 import { AI_PROVIDERS } from '@/lib/ai/provider-catalog'
 import { readProviderKey, readProviderModel } from '@/lib/ai/provider-keys'
+import { getProviderOrder } from '@/lib/ai-chat/registry'
 import { getAvailableProviders, META_DEFAULT_PROVIDER_KEY } from '@/lib/ai-chat/registry'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import type { AiChatProviderId } from '@/types/database'
@@ -162,7 +163,15 @@ export default async function AdminSettingsPage({
                   />
                 )
               })}
-              <AiChatDefaultProviderPicker available={availableChatProviders} current={currentDefaultProvider} />
+              <AiProviderOrder
+                providers={AI_PROVIDERS.map((spec) => ({
+                  id: spec.id,
+                  label: spec.label,
+                  hasKey: Boolean(readProviderKey(spec.id, meta)),
+                }))}
+                order={getProviderOrder(meta)}
+                current={currentDefaultProvider}
+              />
             </div>
           </SettingsSection>
           <SettingsSection title="AI 토큰 알림" desc="사용량이 기준을 넘으면 알려드립니다.">

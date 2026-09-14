@@ -228,7 +228,7 @@
 의존: I11
 
 ### I12 기본 공급자와 폴백 순서를 한 카드에서
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 신규 apps/web/app/admin/settings/AiProviderOrder.tsx, 삭제 apps/web/app/admin/settings/AiChatDefaultProviderPicker.tsx, apps/web/lib/ai-chat/model-chain.ts, apps/web/lib/ai-chat/model-chain.test.ts, apps/web/app/admin/settings/actions.ts
 감사 기준:

@@ -8,7 +8,8 @@ import type { AiChatProviderId } from '@/types/database'
 import { readVercelConfig, VERCEL_META } from '@/lib/vercel/config'
 import { fetchProject, VercelApiError } from '@/lib/vercel/api'
 import { fetchKoraeximJson } from '@/lib/gpu/koreaexim'
-import type { AiProviderId } from '@/lib/ai/provider-catalog'
+import { isAiProviderId, type AiProviderId } from '@/lib/ai/provider-catalog'
+import { META_PROVIDER_ORDER_KEY } from '@/lib/ai-chat/registry'
 import {
   validateProviderKey,
   withProviderKey,
@@ -349,6 +350,29 @@ export async function saveTranscriptionModel(model: string): Promise<{ ok: boole
   else delete next[TRANSCRIPTION_MODEL_META]
 
   const { error } = await setMetaValue(client, next)
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+/**
+ * 폴백 순서를 저장한다. 앞에 있는 공급자부터 시도한다.
+ *
+ * 저장값은 명세의 부분집합이면 된다 — 순서에 없는 공급자는 registry 가 명세 순서 뒤에 붙인다.
+ * 그래서 공급자를 하나 더해도 순서가 비지 않고, 조직이 고른 순서도 안 깨진다.
+ */
+export async function saveAiProviderOrder(
+  order: AiProviderId[],
+): Promise<{ ok: boolean; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const clean = order.filter(isAiProviderId)
+  if (clean.length !== order.length) return { ok: false, error: '등록되지 않은 공급자가 순서에 있습니다' }
+
+  const meta = await getMetaValue(client)
+  const { error } = await setMetaValue(client, { ...meta, [META_PROVIDER_ORDER_KEY]: clean })
   if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
 
   revalidatePath('/admin/settings')

@@ -10,6 +10,8 @@ import {
   type ChainCatalogEntry,
 } from './model-chain.ts'
 import type { ProviderId } from './provider.ts'
+import { getProviderOrder, getAvailableProviders, META_PROVIDER_ORDER_KEY } from './registry.ts'
+import { AI_PROVIDER_IDS } from '../ai/provider-catalog.ts'
 
 const CAPS = {
   gemini: { vision: true, tools: true },
@@ -243,4 +245,62 @@ test('★ 자동 폴백은 대화용이 아닌 모델로 갈아타지 않는다 
   assert.ok(!got.includes('gemini:gemma-4-26b-a4b-it'), got.join(' '))
   assert.ok(!got.includes('gemini:text-embedding-004'), got.join(' '))
   assert.ok(got.includes('gemini:gemini-2.5-flash'), got.join(' '))
+})
+
+/* ── 폴백 순서가 한 값에서 오는가 ────────────────────────────
+   순서는 META 한 곳(ai_chat_provider_order)에서 오고, 화면과 체인이 같은 것을 본다. */
+
+test('순서: 저장된 순서가 명세 기본 순서를 이긴다', () => {
+  const meta = { [META_PROVIDER_ORDER_KEY]: ['grok', 'groq', 'gemini'] }
+  const order = getProviderOrder(meta)
+  assert.deepEqual(order.slice(0, 3), ['grok', 'groq', 'gemini'])
+})
+
+test('순서: 저장된 순서에 없는 공급자는 명세 순서대로 뒤에 붙는다', () => {
+  // 공급자를 하나 더해도 순서가 비지 않아야 한다 — 조용히 빠지면 아무도 모른다
+  const meta = { [META_PROVIDER_ORDER_KEY]: ['grok'] }
+  const order = getProviderOrder(meta)
+  assert.equal(order[0], 'grok')
+  assert.deepEqual([...order].sort(), [...AI_PROVIDER_IDS].sort(), '다섯이 전부 순서에 있어야 한다')
+  // 뒤에 붙는 부분은 명세 순서 그대로
+  assert.deepEqual(order.slice(1), AI_PROVIDER_IDS.filter((id) => id !== 'grok'))
+})
+
+test('순서: 저장값이 없으면 명세 순서 그대로', () => {
+  assert.deepEqual(getProviderOrder({}), [...AI_PROVIDER_IDS])
+})
+
+test('순서: 키가 있는 공급자만 후보에 들어간다', () => {
+  const meta = {
+    [META_PROVIDER_ORDER_KEY]: ['grok', 'gemini'],
+    xai_api_key: 'xai-' + 'x'.repeat(40),
+    // gemini 키는 없다
+  }
+  const ids = getAvailableProviders(meta).map((p) => p.id)
+  assert.ok(ids.includes('grok'), 'grok 은 키가 있으니 들어와야 한다')
+  assert.ok(!ids.includes('gemini'), 'gemini 는 키가 없으니 빠져야 한다')
+  assert.equal(ids[0], 'grok', '순서 맨 앞이 먼저 온다')
+})
+
+test('순서: 순서를 바꾸면 체인이 그 순서대로 갈아탄다', () => {
+  const chosen = { provider: 'gemini' as ProviderId, model: 'gemini-3.6-flash' }
+  const forward = buildModelChain({
+    chosen,
+    providers: PROVIDERS,
+    catalog: [],
+    capabilities: CAPS,
+  })
+  const reversed = buildModelChain({
+    chosen,
+    providers: [...PROVIDERS].reverse(),
+    catalog: [],
+    capabilities: CAPS,
+  })
+  // 고른 것은 둘 다 맨 앞
+  assert.equal(forward[0].provider, 'gemini')
+  assert.equal(reversed[0].provider, 'gemini')
+  // 다음으로 넘어가는 공급자는 순서를 따른다
+  const nextOf = (chain: ChainCandidate[]) => chain.find((c) => c.provider !== 'gemini')?.provider
+  assert.equal(nextOf(forward), 'claude')
+  assert.equal(nextOf(reversed), 'openai', '순서를 뒤집으면 갈아타는 곳도 뒤집힌다')
 })
