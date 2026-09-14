@@ -11,8 +11,17 @@
  *
  * 두 벌은 같은 트랜잭션에서 만들어져야 한다. 원본만 있고 파생이 없으면 화면 목록이 비고,
  * 파생만 있고 원본이 없으면 근거를 못 보여 준다.
+ *
+ * ## 판 번호를 여기서 박는 이유
+ *
+ * 값이 어떤 규칙으로 만들어졌는지는 **만들 때만 안다.** 읽을 때 채우면 그때의 규칙이 아니라
+ * 지금의 규칙을 적는 것이 되고, 그 값은 영영 못 올린다. 그래서 저장하는 이 자리에서 박는다.
+ *
+ * 숫자를 손으로 적지 않고 패키지 상수를 읽는다. 손으로 적으면 계약이 올라도 이 파일만 옛 판을
+ * 계속 적고, 그 사실은 데이터가 섞인 뒤에야 드러난다.
  */
 
+import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import type { Report, ValueNode } from '../report/schema.ts'
 
 export interface FieldRow {
@@ -110,6 +119,8 @@ export async function persistReport(db: PersistClient, input: PersistInput): Pro
       run_id: input.runId,
       schema_version: input.schemaId,
       version: input.version,
+      // 리포트 서식의 판(schema_version)과 다른 것이다. 이쪽은 값이 어떤 계약으로 만들어졌나
+      contract_version: AI_CONTRACT_VERSION,
       // 통째로 불변 저장 — 고치지 않고 다음 판을 만든다
       report: input.report,
     })
@@ -136,6 +147,7 @@ export async function persistReport(db: PersistClient, input: PersistInput): Pro
         grounding: r.grounding,
         verification: r.verification,
         evidence: r.evidence,
+        contract_version: AI_CONTRACT_VERSION,
       })))
       .select('id')
       .single()
