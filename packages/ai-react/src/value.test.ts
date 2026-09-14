@@ -72,3 +72,11 @@ test('the source says who and when', () => {
   assert.match(s.text, /m-1/)
   assert.equal(s.at, '2026-09-14T00:00:00.000Z')
 })
+
+test('a caller may bring its own line without changing how confidence is presented', () => {
+  const shipped = confidenceView(0.65, L, 0.6)
+  const stricter = confidenceView(0.65, L, 0.7)
+  assert.equal(shipped.kind === 'known' && shipped.low, false)
+  assert.equal(stricter.kind === 'known' && stricter.low, true)
+  assert.equal(shipped.kind === 'known' && shipped.text, '65%', 'the number shown does not move')
+})

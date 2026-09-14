@@ -5,6 +5,8 @@
 // 근거를 누르면 오른쪽 뷰어가 그 블록으로 간다. 두 화면을 오가지 않아도
 // 「이 값이 원문 어디서 왔나」가 한 번에 보여야 한다.
 
+import { GeneratedNotice } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useMemo, useState } from 'react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -20,7 +22,7 @@ import OutcomeForm, { type OutcomeFormProps } from '@/components/rfp/OutcomeForm
 import RevisionDiffPanel, { type RevisionChainItem } from '@/components/rfp/RevisionDiffPanel'
 import CrossVerifyDialog, { type CrossField } from '@/components/rfp/CrossVerifyDialog'
 import {
-  RFP_REPORT, RFP_LIST, AI_NOTICE, DOC_CLASS_LABEL, FIT_VERDICT_LABEL,
+  RFP_REPORT, RFP_LIST, DOC_CLASS_LABEL, FIT_VERDICT_LABEL,
   ANOMALY_SEVERITY_LABEL, type AnomalySeverity, type FitVerdict,
 } from '@/lib/rfp/terms'
 import type { Report, ValueNode } from '@/lib/rfp/report/schema'
@@ -177,7 +179,7 @@ export default function ReportClient({
 
       {/* AI 기본법 투명성 의무 — 화면에도 붙는다 */}
       <div className={styles.row}>
-        <NbBadge status="note">{AI_NOTICE}</NbBadge>
+        <NbBadge status="note"><GeneratedNotice labels={AI_LABELS} /></NbBadge>
         <NbBadge status="note">{DOC_CLASS_LABEL[docClass]}</NbBadge>
         {/* 보고용에서 값이 흐린 이유를 **수로** 밝힌다.
             근거 배지를 숨겨 놓고 흐리게만 그리면, 보고 받는 사람은 왜 흐린지 모른 채

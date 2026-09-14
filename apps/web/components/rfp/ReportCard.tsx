@@ -14,6 +14,8 @@
 // 근거가 확인 안 됐거나 신뢰도가 낮으면 눈에 보이게 강등해야
 // 사용자가 「이건 확인해야겠다」를 안다.
 
+import { confidenceView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import NbButton from '@/components/ui/nb/NbButton'
 import RfpEvidenceLink from './RfpEvidenceLink'
@@ -46,7 +48,10 @@ export interface ReportCardProps {
 export default function ReportCard({
   fieldKey, node, mode, onOpenEvidence, onCrossVerify,
 }: ReportCardProps) {
-  const low = node.confidence !== null && node.confidence < LOW_CONFIDENCE
+  // 확신을 어떻게 읽을지는 공용 규칙을 쓴다. 문턱 숫자만 이 화면 몫이다 —
+  // 확신 없음과 확신 0 을 섞어 그리던 자리를 화면마다 다시 짜지 않게 한다
+  const conf = confidenceView(node.confidence, AI_LABELS, LOW_CONFIDENCE)
+  const low = conf.kind === 'known' && conf.low
   const unconfirmed = node.grounding === 'unconfirmed'
   const dim = low || unconfirmed
 

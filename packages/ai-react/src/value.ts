@@ -18,6 +18,11 @@ export type ConfidenceView =
  * Below this, a value is worth double-checking against the source.
  *
  * It is a presentation threshold, not a correctness one. Nothing is hidden or dropped here.
+ *
+ * Callers may pass their own. Three different numbers are already in use across this product
+ * (0.6, 0.5 and this default), and quietly unifying them would change what several screens
+ * mark as uncertain. Where the line sits is a product decision; *how* confidence is presented
+ * is the part that belongs here.
  */
 export const LOW_CONFIDENCE_BELOW = 0.7
 
@@ -30,11 +35,12 @@ export const LOW_CONFIDENCE_BELOW = 0.7
 export function confidenceView(
   confidence: number | null,
   labels: Pick<AiLabels, 'confidenceUnknown'>,
+  lowBelow: number = LOW_CONFIDENCE_BELOW,
 ): ConfidenceView {
   if (confidence === null) return { kind: 'unknown', text: labels.confidenceUnknown }
   const clamped = Math.min(1, Math.max(0, confidence))
   const percent = Math.round(clamped * 100)
-  return { kind: 'known', percent, text: `${percent}%`, low: clamped < LOW_CONFIDENCE_BELOW }
+  return { kind: 'known', percent, text: `${percent}%`, low: clamped < lowBelow }
 }
 
 /** The word for where a value stands, chosen by the caller, picked by us */
