@@ -82,7 +82,7 @@ export default function DiscoveryEvidenceSheet({
             {data?.statement ?? statement}
           </p>
           {data && (
-            <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>
+            <p className="field-note" style={{ marginTop: 'var(--space-2)' }}>
               {data.basisText}
               {data.topicName ? ` · ${data.topicName}` : ''}
             </p>
@@ -143,7 +143,7 @@ export default function DiscoveryEvidenceSheet({
                           )
                           : (it.title ?? '제목 없음')}
                       </p>
-                      {it.channelName && <p className="ci-basis" style={{ marginTop: '2px' }}>{it.channelName}</p>}
+                      {it.channelName && <p className="field-note" style={{ marginTop: '2px' }}>{it.channelName}</p>}
                     </div>
                   </div>
 

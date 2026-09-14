@@ -157,7 +157,7 @@
 의존: 없음
 
 ### I07 상태 배지와 보조 설명 클래스 개명
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/globals.css, apps/web/app 전역, apps/web/components 전역, 신규 apps/web/lib/ui/settings-class-guard.test.ts
 감사 기준:

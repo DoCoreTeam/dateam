@@ -219,7 +219,7 @@ export default function DetailSheet({
                       취소
                     </button>
                   </div>
-                  {titleError && <p className="ci-status ci-status-danger" role="alert">{titleError}</p>}
+                  {titleError && <p className="status-pill status-pill-danger" role="alert">{titleError}</p>}
                 </div>
               ) : (
                 <h3 style={{
@@ -265,7 +265,7 @@ export default function DetailSheet({
                 />
                 <IngestStatusBadge status={data.ingestStatus} />
                 {data.isStatExcluded && (
-                  <span className="ci-status ci-status-warn" title="이 게시물은 배수·백분위 같은 집계에 들어가지 않습니다">
+                  <span className="status-pill status-pill-warn" title="이 게시물은 배수·백분위 같은 집계에 들어가지 않습니다">
                     통계 제외됨
                   </span>
                 )}
@@ -279,7 +279,7 @@ export default function DetailSheet({
               }}>
                 {data.isStatExcluded ? (
                   <>
-                    <span className="ci-basis">이 게시물은 통계에서 빠져 있습니다</span>
+                    <span className="field-note">이 게시물은 통계에서 빠져 있습니다</span>
                     <button type="button" className="btn-ghost"
                       onClick={() => setExcluded(false)} disabled={excluding}>
                       {excluding ? '되돌리는 중…' : '다시 넣기'}
@@ -316,7 +316,7 @@ export default function DetailSheet({
                     통계에서 빼기
                   </button>
                 )}
-                {excludeError && <span className="ci-status ci-status-danger" role="alert">{excludeError}</span>}
+                {excludeError && <span className="status-pill status-pill-danger" role="alert">{excludeError}</span>}
               </div>
 
               <SegmentedTabs
@@ -330,24 +330,24 @@ export default function DetailSheet({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   <dl className="ci-meta-grid">
                     <div className="ci-meta-cell">
-                      <dt className="ci-basis">조회수</dt>
+                      <dt className="field-note">조회수</dt>
                       <dd className="ci-metric-big">{data.metrics?.viewsText ?? '미확보'}</dd>
                     </div>
                     <div className="ci-meta-cell">
-                      <dt className="ci-basis">좋아요</dt>
+                      <dt className="field-note">좋아요</dt>
                       <dd className="ci-metric-big">{data.metrics?.likesText ?? '미확보'}</dd>
                     </div>
                     <div className="ci-meta-cell">
-                      <dt className="ci-basis">댓글</dt>
+                      <dt className="field-note">댓글</dt>
                       <dd className="ci-metric-big">{data.metrics?.commentsText ?? '미확보'}</dd>
                     </div>
                     <div className="ci-meta-cell">
-                      <dt className="ci-basis">길이</dt>
+                      <dt className="field-note">길이</dt>
                       <dd className="ci-metric-big">{data.durationText ?? '미확보'}</dd>
                     </div>
                   </dl>
                   {data.metrics?.capturedAtText && (
-                    <p className="ci-basis">
+                    <p className="field-note">
                       지표 확인 {data.metrics.capturedAtText}
                       {data.metrics.sourceMethod ? ` · ${data.metrics.sourceMethod}` : ''}
                       {data.metrics.isEstimated ? ' · 추정값' : ''}
@@ -359,7 +359,7 @@ export default function DetailSheet({
                     {data.keywords.length > 0 ? (
                       <div className="ci-card-badges" style={{ marginTop: 'var(--space-2)' }}>
                         {data.keywords.map((k) => (
-                          <span key={k} className="ci-status ci-status-neutral">{k}</span>
+                          <span key={k} className="status-pill status-pill-neutral">{k}</span>
                         ))}
                       </div>
                     ) : (
@@ -397,7 +397,7 @@ export default function DetailSheet({
                             <p style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.6 }}>
                               {d.statement}
                             </p>
-                            <p className="ci-basis" style={{ marginTop: '2px' }}>{d.basisText}</p>
+                            <p className="field-note" style={{ marginTop: '2px' }}>{d.basisText}</p>
                             {d.observation && (
                               <p style={{
                                 marginTop: 'var(--space-2)', fontSize: 'var(--fs-sm)',
@@ -442,11 +442,11 @@ export default function DetailSheet({
 
               {tab === 'ingest' && (
                 <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)' }}>
-                  <dt className="ci-basis">수집 방법</dt><dd>{data.provenanceMethod ?? '—'}</dd>
-                  <dt className="ci-basis">수집 시각</dt>
+                  <dt className="field-note">수집 방법</dt><dd>{data.provenanceMethod ?? '—'}</dd>
+                  <dt className="field-note">수집 시각</dt>
                   {/* 화면은 언제나 KST다 — 예전엔 2026-08-26T15:50:12.890Z 가 그대로 나갔다 */}
                   <dd>{data.fetchedAt ? formatKstDateTimeExact(data.fetchedAt) : '—'}</dd>
-                  <dt className="ci-basis">미확보 항목</dt>
+                  <dt className="field-note">미확보 항목</dt>
                   <dd>{data.missingFields.length ? data.missingFields.join(', ') : '없음'}</dd>
                 </dl>
               )}

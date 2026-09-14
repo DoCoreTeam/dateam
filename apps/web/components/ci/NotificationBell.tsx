@@ -159,7 +159,7 @@ export default function NotificationBell({ workspaceId }: { workspaceId: string 
               >
                 <span className="ci-bell-item-title">{n.title}</span>
                 {n.body && <span className="ci-bell-item-body">{n.body}</span>}
-                <span className="ci-basis">{formatKstDateTimeShort(n.sentAt)}</span>
+                <span className="field-note">{formatKstDateTimeShort(n.sentAt)}</span>
               </button>
             ))}
           </div>

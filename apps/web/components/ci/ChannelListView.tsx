@@ -104,7 +104,7 @@ export default function ChannelListView({
         cell: (ch) => (
           <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
             <span>{ch.displayName}</span>
-            <span className="ci-basis">{CI_PLATFORM_LABEL[ch.platform]}</span>
+            <span className="field-note">{CI_PLATFORM_LABEL[ch.platform]}</span>
           </span>
         ),
       },
@@ -112,7 +112,7 @@ export default function ChannelListView({
         key: 'subscribers', header: '구독자', align: 'right', sortable: true,
         cell: (ch) => (ch.subscriberCount != null
           ? <span className="ci-num">{ch.subscriberCount.toLocaleString('ko-KR')}</span>
-          : <span className="ci-basis" title="아직 확보하지 못했습니다">—</span>),
+          : <span className="field-note" title="아직 확보하지 못했습니다">—</span>),
       },
       { key: 'topic', header: '주제', cell: (ch) => ch.topic?.name ?? '미지정' },
     ]
@@ -126,7 +126,7 @@ export default function ChannelListView({
           const a = activity[ch.id]
           return a && a.newCount > 0
             ? <span className="ci-num" title={`최근 ${activityWindowDays}일`}>{a.newCount}</span>
-            : <span className="ci-basis" title={`최근 ${activityWindowDays}일에 새로 들어온 게시물이 없습니다`}>—</span>
+            : <span className="field-note" title={`최근 ${activityWindowDays}일에 새로 들어온 게시물이 없습니다`}>—</span>
         },
       })
       base.push({
@@ -134,15 +134,15 @@ export default function ChannelListView({
         cell: (ch) => {
           const a = activity[ch.id]
           // 비교군이 얇으면 배수를 내지 않는다 — 이 규칙은 전 화면이 공유한다
-          if (!a?.medianOutlierText) return <span className="ci-basis">근거 부족</span>
+          if (!a?.medianOutlierText) return <span className="field-note">근거 부족</span>
           return (
             // 배지를 쌓으면 이 칸이 행 높이를 정하게 된다 — 한 줄에 붙인다(§2-3-1 (3))
             <span style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'nowrap', alignItems: 'center' }}>
-              <span className="ci-status ci-status-neutral" style={{ whiteSpace: 'nowrap' }}>
+              <span className="status-pill status-pill-neutral" style={{ whiteSpace: 'nowrap' }}>
                 {a.medianOutlierText}
               </span>
               {a.hitCount > 0 && (
-                <span className="ci-status ci-status-ok" style={{ whiteSpace: 'nowrap' }}
+                <span className="status-pill status-pill-ok" style={{ whiteSpace: 'nowrap' }}
                   title="평소의 2배를 넘은 게시물">
                   떡상 {a.hitCount}건
                 </span>
@@ -157,7 +157,7 @@ export default function ChannelListView({
       base.push({
         key: 'monitored', header: '모니터링',
         cell: (ch) => (
-          <span className={ch.isMonitored ? 'ci-status ci-status-ok' : 'ci-status ci-status-neutral'}>
+          <span className={ch.isMonitored ? 'status-pill status-pill-ok' : 'status-pill status-pill-neutral'}>
             {ch.isMonitored ? '지켜보는 중' : '중지'}
           </span>
         ),
@@ -234,7 +234,7 @@ export default function ChannelListView({
       )}
 
       {mode === 'tracked' && items.length > 0 && (
-        <p className="ci-basis" style={{ marginBottom: 'var(--space-2)' }}>
+        <p className="field-note" style={{ marginBottom: 'var(--space-2)' }}>
           지켜보는 중 {monitored}곳 / 등록 {items.length}곳
         </p>
       )}

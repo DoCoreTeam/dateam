@@ -111,7 +111,7 @@ export default function QueueProgressPanel({ isOpen, onClose, workspaceId }: Pro
                 ?? '남은 시간은 아직 계산할 수 없습니다 (처리 기록이 더 쌓이면 알려드려요)'}
             </p>
             {data.perMinute != null && (
-              <p className="ci-basis">최근 10분 기준 분당 {data.perMinute}건 처리 중</p>
+              <p className="field-note">최근 10분 기준 분당 {data.perMinute}건 처리 중</p>
             )}
           </div>
 
@@ -137,9 +137,9 @@ export default function QueueProgressPanel({ isOpen, onClose, workspaceId }: Pro
                       <span className={s.barFill} style={{ width: `${Math.round(st.share * 100)}%` }} />
                     </div>
                     <p className={s.stageNote}>{st.note}</p>
-                    {st.running > 0 && <p className="ci-basis">{st.running}건 처리 중</p>}
+                    {st.running > 0 && <p className="field-note">{st.running}건 처리 중</p>}
                     {st.failed > 0 && (
-                      <p className="ci-basis">{st.failed}건 재시도 대기 중</p>
+                      <p className="field-note">{st.failed}건 재시도 대기 중</p>
                     )}
                   </li>
                 )
@@ -157,7 +157,7 @@ export default function QueueProgressPanel({ isOpen, onClose, workspaceId }: Pro
               <ul className={s.fails}>
                 {data.recentFailures.map((f) => (
                   <li key={`${f.stage}-${f.status}-${f.message}`} className={s.fail}>
-                    <span className={`ci-status ${f.status === 'dead' ? 'ci-status-danger' : 'ci-status-warn'}`}>
+                    <span className={`status-pill ${f.status === 'dead' ? 'status-pill-danger' : 'status-pill-warn'}`}>
                       {f.stageLabel} {f.count}건
                     </span>
                     <span className={s.failMsg}>{f.message}</span>
@@ -165,7 +165,7 @@ export default function QueueProgressPanel({ isOpen, onClose, workspaceId }: Pro
                 ))}
               </ul>
               {data.dead > 0 && (
-                <p className="ci-basis">
+                <p className="field-note">
                   포기한 것은 여러 번 시도해도 실패한 건입니다. 원인을 고친 뒤 다시 넣어 주세요.
                 </p>
               )}

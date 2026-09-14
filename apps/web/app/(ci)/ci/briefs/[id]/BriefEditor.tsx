@@ -189,7 +189,7 @@ export default function BriefEditor({
 
   return (
     <>
-      {toast && <p className="ci-status ci-status-ok" style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}>{toast}</p>}
+      {toast && <p className="status-pill status-pill-ok" style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}>{toast}</p>}
       {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
 
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
@@ -201,7 +201,7 @@ export default function BriefEditor({
           {state.status === 'ready' ? '작성 중으로 되돌리기' : '완료로 표시'}
         </button>
         {versions.length > 1 && (
-          <span className="ci-basis" style={{ alignSelf: 'center' }}>
+          <span className="field-note" style={{ alignSelf: 'center' }}>
             버전 {versions.map((v) => v.version).join(', ')} 중 {state.version} 보는 중
           </span>
         )}
@@ -214,7 +214,7 @@ export default function BriefEditor({
           <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
             AI 제안 미리보기
           </h2>
-          <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>
+          <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>
             확인하고 반영하세요. 반영하기 전에는 저장되지 않습니다.
           </p>
           {preview.fields.map((f) => (

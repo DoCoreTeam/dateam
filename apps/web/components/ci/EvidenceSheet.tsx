@@ -41,19 +41,19 @@ export default function EvidenceSheet({
 
           {evidence && (
             <>
-              <p className="ci-basis" style={{ fontSize: 'var(--fs-sm)' }}>{evidence.basisText}</p>
+              <p className="field-note" style={{ fontSize: 'var(--fs-sm)' }}>{evidence.basisText}</p>
 
               <dl style={{
                 display: 'grid', gridTemplateColumns: 'auto 1fr',
                 gap: 'var(--space-2)', margin: 'var(--space-4) 0', fontSize: 'var(--fs-sm)',
               }}>
-                <dt className="ci-basis">포함 표본</dt>
+                <dt className="field-note">포함 표본</dt>
                 <dd className="ci-num">{evidence.includedCount}건</dd>
-                <dt className="ci-basis">기간 창</dt>
+                <dt className="field-note">기간 창</dt>
                 <dd className="ci-num">{evidence.windowDays}일</dd>
-                <dt className="ci-basis">수집 방법</dt>
+                <dt className="field-note">수집 방법</dt>
                 <dd>{evidence.method ?? '—'}</dd>
-                <dt className="ci-basis">수집 시각</dt>
+                <dt className="field-note">수집 시각</dt>
                 <dd>{evidence.fetchedAt ?? '—'}</dd>
               </dl>
 

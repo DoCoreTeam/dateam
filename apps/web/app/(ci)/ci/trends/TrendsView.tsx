@@ -87,7 +87,7 @@ const SUMMARY_QUERY: ListQuery = {
   view: 'table', size: 100, mode: 'pages', page: 1,
 }
 
-const basis = (text: string | null) => text ?? <span className="ci-basis">비교 이력 부족</span>
+const basis = (text: string | null) => text ?? <span className="field-note">비교 이력 부족</span>
 
 /** 플랫폼별·포맷별 집계는 열 구성이 같다 — 머리글만 다르다 */
 function sliceColumns(head: string): ColumnDef<MarketSlice>[] {
@@ -104,7 +104,7 @@ const TIMING_COLUMNS: ColumnDef<TimingSlice>[] = [
   { key: 'count', header: '건수', cell: (s) => <span className="ci-num">{s.count}</span> },
   {
     key: 'median', header: '평소 대비 중앙값',
-    cell: (s) => s.medianOutlierText ?? <span className="ci-basis">표본 부족</span>,
+    cell: (s) => s.medianOutlierText ?? <span className="field-note">표본 부족</span>,
   },
 ]
 
@@ -120,7 +120,7 @@ const PATTERN_COLUMNS: ColumnDef<PatternRow>[] = [
   { key: 'statement', header: '공식', primary: true, cell: (pt) => <strong>{pt.statement}</strong> },
   {
     key: 'lift', header: '효과와 근거',
-    cell: (pt) => pt.liftText ?? <span className="ci-basis">근거 부족</span>,
+    cell: (pt) => pt.liftText ?? <span className="field-note">근거 부족</span>,
   },
   { key: 'topic', header: '주제', cell: (pt) => pt.topicName ?? '전체' },
   { key: 'confidence', header: '신뢰도', cell: (pt) => <ConfidenceBadge confidence={pt.confidence} /> },
@@ -365,7 +365,7 @@ export default function TrendsView(p: Props) {
 
       {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
       {notice && (
-        <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }} role="status">{notice}</p>
+        <p className="field-note" style={{ marginBottom: 'var(--space-4)' }} role="status">{notice}</p>
       )}
 
       {/* ── 시장 ── */}
@@ -410,7 +410,7 @@ export default function TrendsView(p: Props) {
               {showBasis && (
                 <div style={{ marginTop: 'var(--space-4)' }}>
                   {/* 용어를 화면이 직접 푼다 — 아래 표 전부가 이 말을 쓴다 */}
-                  <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>
+                  <p className="field-note" style={{ marginBottom: 'var(--space-4)' }}>
                     ‘평소 대비’는 그 채널 자기 자신의 최근 중앙값과 견준 배수입니다.
                     1.0배면 그 채널의 평소만큼이라는 뜻이고, 채널끼리 크기를 비교한 값이 아닙니다.
                   </p>
@@ -450,7 +450,7 @@ export default function TrendsView(p: Props) {
                   <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
                     언제 통했나
                   </h2>
-                  <p className="ci-basis" style={{ marginBottom: 'var(--space-2)' }}>
+                  <p className="field-note" style={{ marginBottom: 'var(--space-2)' }}>
                     게시 시각을 콘텐츠 지역 기준으로 읽었습니다 · 최근 {p.timing.windowDays}일 {p.timing.contextFilled}/{p.timing.total}건 판정
                     {p.timing.regionUnknown > 0 && ` · 지역 미상 ${p.timing.regionUnknown}건은 UTC 기준`}
                     {!p.timing.seasonMeaningful
@@ -635,7 +635,7 @@ export default function TrendsView(p: Props) {
                 gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 'var(--space-3)',
               }}>
                 <strong>AI가 찾은 이슈 · 확인 대기 {p.signalCandidates.length}건</strong>
-                <span className="ci-basis">
+                <span className="field-note">
                   출처가 없는 것은 담지 않았습니다 · 고른 것만 등록됩니다
                 </span>
               </div>
@@ -654,14 +654,14 @@ export default function TrendsView(p: Props) {
                     />
                     <div>
                       <div style={{ fontWeight: 600 }}>{c.title}</div>
-                      <p className="ci-basis" style={{ margin: 'var(--space-1) 0 0' }}>
+                      <p className="field-note" style={{ margin: 'var(--space-1) 0 0' }}>
                         {signalKindLabel(c.kind)}
                         {c.source ? ` · ${c.source}` : ''}
                         {c.occurredAtText ? ` · ${c.occurredAtText}` : ''}
                         {c.topicName ? ` · 주제 ${c.topicName}` : ' · 주제 미정'}
                       </p>
                       {c.reason && (
-                        <p className="ci-basis" style={{ margin: 'var(--space-1) 0 0' }}>{c.reason}</p>
+                        <p className="field-note" style={{ margin: 'var(--space-1) 0 0' }}>{c.reason}</p>
                       )}
                     </div>
                     {c.url && (
@@ -695,7 +695,7 @@ export default function TrendsView(p: Props) {
           }}>
             <div style={{ width: '100%' }}>
               <strong style={{ fontSize: 'var(--fs-sm)' }}>직접 적기</strong>
-              <p className="ci-basis" style={{ margin: 'var(--space-1) 0 0' }}>
+              <p className="field-note" style={{ margin: 'var(--space-1) 0 0' }}>
                 AI가 못 본 것을 여기에 적습니다.
               </p>
             </div>

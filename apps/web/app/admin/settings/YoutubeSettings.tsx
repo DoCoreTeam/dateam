@@ -70,7 +70,7 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
       <h2 className="tape-title" style={{ margin: '0 0 var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <Key size={18} /> YouTube Data API 키
       </h2>
-      <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>
+      <p className="field-note" style={{ marginBottom: 'var(--space-4)' }}>
         콘텐츠 인텔리전스의 채널 수집 범위를 결정합니다.
         키가 없으면 최근 15개(RSS)까지만 볼 수 있고, 키가 있으면 설정한 기간의 업로드를 전부 가져옵니다.
       </p>
@@ -102,7 +102,7 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
       ) : null}
 
       {msg && (
-        <p className={`ci-status ${msg.ok ? 'ci-status-ok' : 'ci-status-danger'}`}
+        <p className={`status-pill ${msg.ok ? 'status-pill-ok' : 'status-pill-danger'}`}
           style={{ marginTop: 'var(--space-3)', display: 'inline-flex' }} role="status">
           {msg.text}
         </p>

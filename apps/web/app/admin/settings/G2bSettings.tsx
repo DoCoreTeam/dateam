@@ -69,7 +69,7 @@ export default function G2bSettings({ hasKey: initialHasKey, maskedKey: initialM
       <h2 className="tape-title" style={{ margin: '0 0 var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <Key size={18} /> 나라장터 서비스 키
       </h2>
-      <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>
+      <p className="field-note" style={{ marginBottom: 'var(--space-4)' }}>
         RFP 공고 레이더가 나라장터에서 입찰 공고를 가져올 때 씁니다.
         공공데이터포털(data.go.kr)에서 「입찰공고정보서비스」를 신청하면 받습니다.
       </p>
@@ -101,7 +101,7 @@ export default function G2bSettings({ hasKey: initialHasKey, maskedKey: initialM
       ) : null}
 
       {msg && (
-        <p className={`ci-status ${msg.ok ? 'ci-status-ok' : 'ci-status-danger'}`}
+        <p className={`status-pill ${msg.ok ? 'status-pill-ok' : 'status-pill-danger'}`}
           style={{ marginTop: 'var(--space-3)', display: 'inline-flex' }} role="status">
           {msg.text}
         </p>

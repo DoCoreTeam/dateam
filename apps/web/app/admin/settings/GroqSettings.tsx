@@ -121,7 +121,7 @@ export default function GroqSettings({ hasKey: initialHasKey, maskedKey: initial
       {saveMsg && (
         <p
           role="status"
-          className={`ci-status ${saveMsg.ok ? 'ci-status-ok' : 'ci-status-danger'}`}
+          className={`status-pill ${saveMsg.ok ? 'status-pill-ok' : 'status-pill-danger'}`}
           style={{ marginBottom: '1rem', display: 'inline-flex' }}
         >
           {saveMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}

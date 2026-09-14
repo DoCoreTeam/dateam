@@ -73,7 +73,7 @@ export default function HomeView({ data }: { data: CiHomeData }) {
           gap: 'var(--space-3)', marginBottom: 'var(--space-3)',
         }}>
           <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }}>오늘의 브리핑</h2>
-          <span className="ci-basis">최근 7일, 평소 대비 높은 순</span>
+          <span className="field-note">최근 7일, 평소 대비 높은 순</span>
         </div>
 
         {showColdStartInstead && cold ? (
@@ -88,7 +88,7 @@ export default function HomeView({ data }: { data: CiHomeData }) {
           <>
             {cold && (
               <p
-                className="ci-status ci-status-info"
+                className="status-pill status-pill-info"
                 style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}
               >
                 {cold.title} —{' '}
@@ -120,19 +120,19 @@ export default function HomeView({ data }: { data: CiHomeData }) {
           display: 'flex', gap: 'var(--space-4)', alignItems: 'center', flexWrap: 'wrap',
           padding: 'var(--space-3)',
         }}>
-          <span className="ci-status ci-status-neutral">
+          <span className="status-pill status-pill-neutral">
             {data.refresh.status === 'running' ? '수집 중'
               : data.refresh.status === 'failed' ? '일부 실패' : '최신'}
           </span>
           {/* 진행률은 처리할 것이 남았을 때만 뜻이 있다. 다 끝난 상태에서 "100%"는
               읽는 사람에게 아무 정보도 주지 않으면서 자리만 차지한다. */}
           {data.refresh.status === 'running' && (
-            <span className="ci-basis ci-num">진행률 {data.refresh.progress}%</span>
+            <span className="field-note ci-num">진행률 {data.refresh.progress}%</span>
           )}
           {/* 숫자에 기간을 붙인다 — "신규 263"은 무엇의 263인지 알 수 없었다 */}
-          <span className="ci-basis ci-num">최근 24시간 신규 {data.refresh.newCount}건</span>
+          <span className="field-note ci-num">최근 24시간 신규 {data.refresh.newCount}건</span>
           {data.refresh.failedCount > 0 && (
-            <Link href="/ci/inbox?tab=failed" className="ci-status ci-status-danger">
+            <Link href="/ci/inbox?tab=failed" className="status-pill status-pill-danger">
               실패 {data.refresh.failedCount}건 보기
             </Link>
           )}

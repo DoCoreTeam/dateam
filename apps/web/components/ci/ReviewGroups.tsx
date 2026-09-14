@@ -191,7 +191,7 @@ export default function ReviewGroups({ workspaceId, topics }: Props) {
     <div className={s.list}>
 
       {done.length > 0 && (
-        <div className={`ci-status ci-status-ok ${s.notice}`} role="status">
+        <div className={`status-pill status-pill-ok ${s.notice}`} role="status">
           {done.map((m) => <div key={m}><Check size={14} style={{ verticalAlign: '-2px' }} /> {m}</div>)}
         </div>
       )}
@@ -276,11 +276,11 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error
       <div className={s.head}>
         <div className={s.headMain}>
           <h3 className={s.question}>{question}</h3>
-          <p className={`ci-basis ${s.sub}`}>
+          <p className={`field-note ${s.sub}`}>
             게시물 {g.count}건{g.channelWide ? ' · 이 채널의 대부분입니다' : ''}
           </p>
         </div>
-        <span className={`${g.count >= 50 ? 'ci-status ci-status-warn' : 'ci-status ci-status-neutral'} ${s.count}`}>
+        <span className={`${g.count >= 50 ? 'status-pill status-pill-warn' : 'status-pill status-pill-neutral'} ${s.count}`}>
           {g.count}건
         </span>
       </div>
@@ -306,7 +306,7 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error
             </li>
           ))}
           {hidden > 0 && (
-            <li className={`ci-basis ${s.hidden}`}>
+            <li className={`field-note ${s.hidden}`}>
               {partial
                 ? `여기 보이는 것만 답합니다. 나머지 ${hidden}건은 그대로 남습니다`
                 : `외 ${hidden}건도 함께 확정됩니다`}
@@ -316,7 +316,7 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error
       )}
 
       {error && (
-        <p className={`ci-status ci-status-danger ${s.actionError}`} role="alert">
+        <p className={`status-pill status-pill-danger ${s.actionError}`} role="alert">
           {error}: 다시 눌러 보세요
         </p>
       )}
@@ -378,7 +378,7 @@ function ReviewCard({ g, topics, busy, disabled, onResolve, onCreateTopic, error
           <input type="checkbox" checked={remember} disabled={lock || partial}
             onChange={(e) => setRemember(e.target.checked)} />
           앞으로 이 채널의 게시물은 묻지 않고 같은 주제로 넣기
-          {partial && <span className="ci-basis"> 일부만 고르면 굳히지 않습니다</span>}
+          {partial && <span className="field-note"> 일부만 고르면 굳히지 않습니다</span>}
         </label>
       )}
     </article>

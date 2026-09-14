@@ -34,5 +34,5 @@ export function MetricPlaceholder({ reason }: { reason: string }) {
 
 /** 수치에 항상 병기하는 기준 (기간 창·표본 수) — §6.6 정상 상태 규칙 */
 export function MetricBasis({ text }: { text: string }) {
-  return <span className="ci-basis">{text}</span>
+  return <span className="field-note">{text}</span>
 }

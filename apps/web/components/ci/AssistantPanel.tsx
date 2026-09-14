@@ -144,10 +144,10 @@ export default function AssistantPanel({ workspaceId }: { workspaceId: string })
         {busy && (
           <div aria-live="polite" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             <p style={{ fontWeight: 600, margin: 0 }}>생각하는 중…</p>
-            <p className="ci-basis" style={{ margin: 0 }}>
+            <p className="field-note" style={{ margin: 0 }}>
               {asked.current}
             </p>
-            <p className="ci-basis" style={{ margin: 0 }}>
+            <p className="field-note" style={{ margin: 0 }}>
               {elapsed}초 지남 · 최대 {Math.round(REQUEST_TIMEOUT_MS / 1000)}초까지 기다립니다
             </p>
           </div>
@@ -173,7 +173,7 @@ export default function AssistantPanel({ workspaceId }: { workspaceId: string })
             <p style={{ fontWeight: 600, marginBottom: 'var(--space-2)' }}>{reply.say}</p>
 
             {reply.suggestion && (
-              <p className="ci-status ci-status-warn" style={{ display: 'inline-flex', marginBottom: 'var(--space-3)' }}>
+              <p className="status-pill status-pill-warn" style={{ display: 'inline-flex', marginBottom: 'var(--space-3)' }}>
                 {reply.suggestion}
               </p>
             )}
@@ -186,7 +186,7 @@ export default function AssistantPanel({ workspaceId }: { workspaceId: string })
                     borderRadius: 'var(--radius)',
                   }}>
                     <span style={{ fontSize: 'var(--fs-sm)' }}>{l.label}</span>
-                    {l.detail && <p className="ci-basis">{l.detail}</p>}
+                    {l.detail && <p className="field-note">{l.detail}</p>}
                   </li>
                 ))}
               </ul>

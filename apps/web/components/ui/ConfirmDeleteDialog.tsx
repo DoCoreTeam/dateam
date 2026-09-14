@@ -57,13 +57,13 @@ export default function ConfirmDeleteDialog({
     <NbModal title={title} onClose={busy ? () => {} : onClose} maxWidth={480} disableClose={busy}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         {loading && (
-          <p className="ci-basis" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <p className="field-note" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <AXDotLoader size={5} /> 무엇이 사라지는지 확인하는 중입니다
           </p>
         )}
 
         {!loading && blocked && (
-          <p className="ci-status ci-status-warn" role="status">{blocked}</p>
+          <p className="status-pill status-pill-warn" role="status">{blocked}</p>
         )}
 
         {!loading && !blocked && impact && (
@@ -74,7 +74,7 @@ export default function ConfirmDeleteDialog({
 
             {impact.cascades.length > 0 && (
               <div>
-                <p className="ci-basis" style={{ marginBottom: 'var(--space-1)' }}>함께 사라집니다</p>
+                <p className="field-note" style={{ marginBottom: 'var(--space-1)' }}>함께 사라집니다</p>
                 <ul style={{ margin: 0, paddingLeft: '1.1em', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {impact.cascades.map((c) => (
                     <li key={c.what}>{c.what} <span className="ci-num">{c.count}</span></li>
@@ -86,7 +86,7 @@ export default function ConfirmDeleteDialog({
             {impact.detaches.length > 0 && (
               <div>
                 {/* 남는 것을 밝히지 않으면 "다 없어지는 줄 알고" 못 지운다 */}
-                <p className="ci-basis" style={{ marginBottom: 'var(--space-1)' }}>남아 있습니다</p>
+                <p className="field-note" style={{ marginBottom: 'var(--space-1)' }}>남아 있습니다</p>
                 <ul style={{ margin: 0, paddingLeft: '1.1em', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {impact.detaches.map((d) => (
                     <li key={d.what}>{d.what} <span className="ci-num">{d.count}</span></li>
@@ -95,7 +95,7 @@ export default function ConfirmDeleteDialog({
               </div>
             )}
 
-            <p className="ci-status ci-status-danger" role="note"
+            <p className="status-pill status-pill-danger" role="note"
               style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
               <AlertTriangle size={14} aria-hidden="true" />
               되돌릴 수 없습니다
@@ -103,7 +103,7 @@ export default function ConfirmDeleteDialog({
           </>
         )}
 
-        {errorMessage && <p className="ci-status ci-status-danger" role="alert">{errorMessage}</p>}
+        {errorMessage && <p className="status-pill status-pill-danger" role="alert">{errorMessage}</p>}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: 'var(--space-4)' }}>

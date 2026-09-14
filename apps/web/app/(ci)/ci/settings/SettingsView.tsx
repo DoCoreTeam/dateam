@@ -172,7 +172,7 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
       )}
 
       {toast && (
-        <p className="ci-status ci-status-ok" style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }} role="status">
+        <p className="status-pill status-pill-ok" style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }} role="status">
           {toast}
         </p>
       )}
@@ -214,39 +214,39 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
         <h2 className="ci-creative-head">내 계정</h2>
         <dl className="ci-creative-grid" style={{ marginTop: 'var(--space-2)' }}>
           <div className="ci-creative-row">
-            <dt className="ci-basis">이름</dt><dd>{overview.account.name ?? '—'}</dd>
+            <dt className="field-note">이름</dt><dd>{overview.account.name ?? '—'}</dd>
           </div>
           <div className="ci-creative-row">
-            <dt className="ci-basis">이메일</dt><dd>{overview.account.email ?? '—'}</dd>
+            <dt className="field-note">이메일</dt><dd>{overview.account.email ?? '—'}</dd>
           </div>
           <div className="ci-creative-row">
-            <dt className="ci-basis">이 워크스페이스</dt>
+            <dt className="field-note">이 워크스페이스</dt>
             <dd>{ROLE_LABEL[overview.account.workspaceRole] ?? overview.account.workspaceRole}</dd>
           </div>
           <div className="ci-creative-row">
-            <dt className="ci-basis">사내 권한</dt><dd>{overview.account.appRole ?? '—'}</dd>
+            <dt className="field-note">사내 권한</dt><dd>{overview.account.appRole ?? '—'}</dd>
           </div>
         </dl>
-        <p className="ci-basis" style={{ marginTop: 'var(--space-3)' }}>
+        <p className="field-note" style={{ marginTop: 'var(--space-3)' }}>
           이름·비밀번호는 사내 업무 화면의 내 정보에서 바꿉니다.
         </p>
       </section>
 
       <section className="ci-setting-card">
         <h2 className="ci-creative-head">연동</h2>
-        <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>
+        <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>
           키는 회사 계정 한 곳에서만 관리합니다. 여기서는 상태만 보여드립니다.
         </p>
         <ul className="ci-setting-list">
           {overview.integrations.map((it) => (
             <li key={it.id} className="ci-integration-row">
-              <span className={`ci-status ${it.connected ? 'ci-status-ok' : 'ci-status-warn'}`}>
+              <span className={`status-pill ${it.connected ? 'status-pill-ok' : 'status-pill-warn'}`}>
                 {it.connected ? <Check size={12} /> : <X size={12} />}
                 {it.connected ? '연결됨' : '없음'}
               </span>
               <div style={{ minWidth: 0 }}>
                 <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{it.label}</p>
-                <p className="ci-basis">{it.detail}</p>
+                <p className="field-note">{it.detail}</p>
               </div>
               <Link href={it.settingsHref} className="btn-ghost">
                 설정 <ExternalLink size={12} />
@@ -260,16 +260,16 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
         <h2 className="ci-creative-head">
           워크스페이스 · {overview.workspace.name}
         </h2>
-        <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>
+        <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>
           멤버 {overview.workspace.memberCount}명
         </p>
         <ul className="ci-setting-list">
           {overview.members.map((m) => (
             <li key={m.userId} className="ci-integration-row">
-              <span className="ci-status ci-status-neutral">{ROLE_LABEL[m.role] ?? m.role}</span>
+              <span className="status-pill status-pill-neutral">{ROLE_LABEL[m.role] ?? m.role}</span>
               <div style={{ minWidth: 0 }}>
                 <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{m.name ?? '이름 없음'}</p>
-                <p className="ci-basis">{m.email ?? '—'}</p>
+                <p className="field-note">{m.email ?? '—'}</p>
               </div>
             </li>
           ))}
@@ -290,10 +290,10 @@ function SettingRow({ item, saving, onSave, onRevert }: {
       <div className="ci-setting-head">
         <div style={{ minWidth: 0 }}>
           <h3 style={{ fontSize: 'var(--fs-sm)', fontWeight: 700 }}>{item.label}</h3>
-          <p className="ci-basis">{item.help}</p>
+          <p className="field-note">{item.help}</p>
         </div>
         <span style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-          <span className="ci-basis">{ORIGIN_LABEL[item.origin] ?? item.origin}</span>
+          <span className="field-note">{ORIGIN_LABEL[item.origin] ?? item.origin}</span>
           {onRevert && (
             <button type="button" className="btn-ghost" onClick={onRevert} disabled={saving}
               title="저장한 값을 지워 기본값으로 되돌립니다">기본값으로</button>
@@ -350,7 +350,7 @@ function Control({ item, disabled, onCommit }: {
             const n = Number(e.target.value)
             if (Number.isFinite(n) && n !== Number(item.value)) onCommit(n)
           }} />
-        {c.unit && <span className="ci-basis">{c.unit}</span>}
+        {c.unit && <span className="field-note">{c.unit}</span>}
       </span>
     )
   }
@@ -414,7 +414,7 @@ function Control({ item, disabled, onCommit }: {
             try { onCommit(JSON.parse(e.target.value)) }
             catch { /* 형식이 깨지면 저장하지 않는다 — 아래 안내가 이유를 말한다 */ }
           }} />
-        <p className="ci-basis">JSON 형식입니다. 형식이 맞지 않으면 저장되지 않습니다.</p>
+        <p className="field-note">JSON 형식입니다. 형식이 맞지 않으면 저장되지 않습니다.</p>
       </>
     )
   }
@@ -443,9 +443,9 @@ function ChipsControl({ id, value, placeholder, disabled, onCommit }: {
   return (
     <div>
       <div className="ci-card-badges" style={{ marginBottom: 'var(--space-2)' }}>
-        {value.length === 0 && <span className="ci-basis">비어 있습니다</span>}
+        {value.length === 0 && <span className="field-note">비어 있습니다</span>}
         {value.map((v) => (
-          <span key={v} className="ci-status ci-status-neutral">
+          <span key={v} className="status-pill status-pill-neutral">
             {v}
             <button type="button" aria-label={`${v} 제거`} disabled={disabled}
               style={{ all: 'unset', cursor: 'pointer', marginLeft: '4px' }}

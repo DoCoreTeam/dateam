@@ -106,7 +106,7 @@ export default function GoogleDriveSettings({
       />
 
       {msg && (
-        <p className={`ci-status ${msg.ok ? 'ci-status-ok' : 'ci-status-danger'}`} role="status">
+        <p className={`status-pill ${msg.ok ? 'status-pill-ok' : 'status-pill-danger'}`} role="status">
           {msg.text}
         </p>
       )}

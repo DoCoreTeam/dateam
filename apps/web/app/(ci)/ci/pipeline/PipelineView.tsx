@@ -131,7 +131,7 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
 
       {seed && (
         <div style={{ marginBottom: 'var(--space-4)' }}>
-          <p className="ci-status ci-status-info" style={{ display: 'inline-flex' }}>
+          <p className="status-pill status-pill-info" style={{ display: 'inline-flex' }}>
             근거를 이어받았습니다. 만들면 어디서 왔는지 카드에 남습니다
           </p>
           {/* 영상을 읽어 둔 것이 있으면 그대로 보여준다. 이것이 "영상을 읽는다"가
@@ -174,7 +174,7 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
                   <span>{CI_STAGE_LABEL[stage]}</span>
                   <span className="ci-count">{cards.length}</span>
                 </header>
-                <p className="ci-basis">{COLUMN_HINT[stage]}</p>
+                <p className="field-note">{COLUMN_HINT[stage]}</p>
 
                 {cards.map((card) => (
                   <article
@@ -191,11 +191,11 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
                   >
                     <strong style={{ fontSize: 'var(--fs-sm)' }}>{card.title}</strong>
                     {card.evidenceBadge && (
-                      <span className="ci-status ci-status-info" style={{ alignSelf: 'flex-start' }}>
+                      <span className="status-pill status-pill-info" style={{ alignSelf: 'flex-start' }}>
                         근거: {card.evidenceBadge}
                       </span>
                     )}
-                    <span className="ci-basis">{card.daysInStage}일째</span>
+                    <span className="field-note">{card.daysInStage}일째</span>
 
                     <div style={{ display: 'flex', gap: 'var(--space-1)', marginTop: 'var(--space-1)', flexWrap: 'wrap' }}>
                       <button type="button" className="ci-metric ci-metric-strong"
@@ -228,7 +228,7 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
         </div>
       )}
 
-      <p className="ci-basis" style={{ marginTop: 'var(--space-4)' }}>
+      <p className="field-note" style={{ marginTop: 'var(--space-4)' }}>
         카드를 끌어다 놓거나 카드 안의 버튼으로 단계를 옮길 수 있습니다. 뒤로 되돌리는 것도 됩니다.
       </p>
 

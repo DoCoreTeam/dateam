@@ -80,7 +80,7 @@ export default function SttSettings({ hasKey: initialHasKey, maskedKey: initialM
       <h2 className="tape-title" style={{ margin: '0 0 var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <AudioLines size={18} /> 음성 인식 (회의 전사)
       </h2>
-      <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>
+      <p className="field-note" style={{ marginBottom: 'var(--space-4)' }}>
         회의 녹음을 글로 옮깁니다. 오픈소스 모델(whisper-large-v3)을 씁니다.
         키가 없으면 녹음은 되지만 전사가 돌지 않아 요약·할 일 뽑기까지 멈춥니다.
       </p>
@@ -119,13 +119,13 @@ export default function SttSettings({ hasKey: initialHasKey, maskedKey: initialM
 
       {/* 정확도를 이유로 turbo 를 기본으로 두지 않았다 — 그 선택을 화면에 밝힌다 */}
       {showInput && (
-        <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>
+        <p className="field-note" style={{ marginTop: 'var(--space-2)' }}>
           기본 모델은 whisper-large-v3 입니다. 뒤에 -turbo 를 붙이면 훨씬 빠르지만 정확도가 조금 떨어집니다.
         </p>
       )}
 
       {msg && (
-        <p className={`ci-status ${msg.ok ? 'ci-status-ok' : 'ci-status-danger'}`}
+        <p className={`status-pill ${msg.ok ? 'status-pill-ok' : 'status-pill-danger'}`}
           style={{ marginTop: 'var(--space-3)', display: 'inline-flex' }} role="status">
           {msg.text}
         </p>

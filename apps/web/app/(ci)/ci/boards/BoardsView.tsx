@@ -151,12 +151,12 @@ export default function BoardsView({
   return (
     <>
       {pendingContentId && (
-        <p className="ci-status ci-status-info" style={{ marginBottom: 'var(--space-4)', display: 'inline-flex' }}>
+        <p className="status-pill status-pill-info" style={{ marginBottom: 'var(--space-4)', display: 'inline-flex' }}>
           담을 항목을 들고 왔습니다. 아래 보드를 고르거나 새로 만드세요
         </p>
       )}
       {saved && (
-        <p className="ci-status ci-status-ok" style={{ marginBottom: 'var(--space-4)', display: 'inline-flex' }}>
+        <p className="status-pill status-pill-ok" style={{ marginBottom: 'var(--space-4)', display: 'inline-flex' }}>
           {saved}
         </p>
       )}

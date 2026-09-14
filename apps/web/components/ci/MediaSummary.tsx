@@ -20,7 +20,7 @@ interface Props {
 
 /** 영상을 통째로 본 것과 커버만 본 것은 신뢰도가 다르다 — 배지 색으로 구분한다. */
 function accessTone(access: CiMediaInfo['access']): string {
-  return access === 'remote_video' ? 'ci-status-success' : 'ci-status-neutral'
+  return access === 'remote_video' ? 'status-pill-ok' : 'status-pill-neutral'
 }
 
 export default function MediaSummary({ media, variant = 'full' }: Props) {
@@ -45,7 +45,7 @@ export default function MediaSummary({ media, variant = 'full' }: Props) {
     <section className={styles.stack}>
       <div className={styles.head}>
         <h4 className="ci-creative-head">영상 안에 무엇이 있었나</h4>
-        <span className={`ci-status ${accessTone(media.access)}`}>{media.accessLabel}</span>
+        <span className={`status-pill ${accessTone(media.access)}`}>{media.accessLabel}</span>
       </div>
 
       {empty ? (
@@ -63,11 +63,11 @@ export default function MediaSummary({ media, variant = 'full' }: Props) {
           <dl className="ci-creative-grid">
             {media.topicGuess && (
               <div className="ci-creative-row">
-                <dt className="ci-basis">영상이 말하는 주제</dt>
+                <dt className="field-note">영상이 말하는 주제</dt>
                 <dd>
-                  <span className="ci-status ci-status-info">{media.topicGuess}</span>
+                  <span className="status-pill status-pill-info">{media.topicGuess}</span>
                   {media.topicEvidence && (
-                    <p className="ci-basis" style={{ marginTop: 'var(--space-1)' }}>
+                    <p className="field-note" style={{ marginTop: 'var(--space-1)' }}>
                       근거: {media.topicEvidence}
                     </p>
                   )}
@@ -76,11 +76,11 @@ export default function MediaSummary({ media, variant = 'full' }: Props) {
             )}
             {media.hookMessage && (
               <div className="ci-creative-row">
-                <dt className="ci-basis">첫 3초</dt>
+                <dt className="field-note">첫 3초</dt>
                 <dd>
                   <span className="ci-creative-quote">“{media.hookMessage}”</span>
                   {media.hookDevice && (
-                    <span className="ci-status ci-status-neutral" style={{ marginLeft: 'var(--space-2)' }}>
+                    <span className="status-pill status-pill-neutral" style={{ marginLeft: 'var(--space-2)' }}>
                       {media.hookDevice}
                     </span>
                   )}
@@ -89,25 +89,25 @@ export default function MediaSummary({ media, variant = 'full' }: Props) {
             )}
             {media.setting && (
               <div className="ci-creative-row">
-                <dt className="ci-basis">장소·상황</dt>
+                <dt className="field-note">장소·상황</dt>
                 <dd>{media.setting}</dd>
               </div>
             )}
             {media.productionText && (
               <div className="ci-creative-row">
-                <dt className="ci-basis">연출</dt>
+                <dt className="field-note">연출</dt>
                 <dd>{media.productionText}</dd>
               </div>
             )}
             {media.ending && (
               <div className="ci-creative-row">
-                <dt className="ci-basis">엔딩</dt>
+                <dt className="field-note">엔딩</dt>
                 <dd>{media.ending}</dd>
               </div>
             )}
             {media.whyItWorks && (
               <div className="ci-creative-row">
-                <dt className="ci-basis">통한 이유</dt>
+                <dt className="field-note">통한 이유</dt>
                 <dd>{media.whyItWorks}</dd>
               </div>
             )}
@@ -150,7 +150,7 @@ export default function MediaSummary({ media, variant = 'full' }: Props) {
         </>
       )}
 
-      <p className="ci-basis">
+      <p className="field-note">
         {media.note ? `${media.note} · ` : ''}
         {media.analyzedAtText ?? ''}
       </p>

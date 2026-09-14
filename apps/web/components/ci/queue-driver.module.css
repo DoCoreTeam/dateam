@@ -1,5 +1,5 @@
 /* components/ci/queue-driver.module.css — 수집 중 칩
- * .ci-status 위에 **누를 수 있음**만 얹는다. 색·모양은 그대로 둔다.
+ * .status-pill 위에 **누를 수 있음**만 얹는다. 색·모양은 그대로 둔다.
  */
 
 .chip {

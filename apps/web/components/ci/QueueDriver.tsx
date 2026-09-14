@@ -200,7 +200,7 @@ export default function QueueDriver({ workspaceId, initialRemaining = 0 }: Queue
     <>
       <button
         type="button"
-        className={`ci-status ${phase === 'stalled' ? 'ci-status-danger' : 'ci-status-info'} ${styles.chip}`}
+        className={`status-pill ${phase === 'stalled' ? 'status-pill-danger' : 'status-pill-info'} ${styles.chip}`}
         onClick={() => setPanelOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={panelOpen}

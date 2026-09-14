@@ -145,7 +145,7 @@ export function IntegrationTest({ onRun, pending, result, desc }: TestProps) {
       </div>
       {desc && !result && <p className="integration-test-desc">{desc}</p>}
       {result && (
-        <p className={`ci-status ${result.ok ? 'ci-status-ok' : 'ci-status-danger'}`} role="status">
+        <p className={`status-pill ${result.ok ? 'status-pill-ok' : 'status-pill-danger'}`} role="status">
           {result.text}
         </p>
       )}

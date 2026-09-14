@@ -53,14 +53,14 @@ export default async function RecommendPage() {
           <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, margin: '0 0 var(--space-1)' }}>
             지금 바깥에서 화제인 것
           </h2>
-          <p className="ci-basis" style={{ margin: '0 0 var(--space-3)' }}>
+          <p className="field-note" style={{ margin: '0 0 var(--space-3)' }}>
             확인을 마친 이슈 {topSignals.length}건 · 트렌드의 「이슈」 탭에서 관리합니다
           </p>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             {topSignals.map((sg) => (
               <li key={sg.id}>
                 <div style={{ fontWeight: 600 }}>{sg.title}</div>
-                <p className="ci-basis" style={{ margin: 'var(--space-1) 0 var(--space-2)' }}>
+                <p className="field-note" style={{ margin: 'var(--space-1) 0 var(--space-2)' }}>
                   {signalKindLabel(sg.kind)}
                   {sg.source ? ` · ${sg.source}` : ''}
                   {sg.occurredAtText ? ` · ${sg.occurredAtText}` : ''}
@@ -89,7 +89,7 @@ export default async function RecommendPage() {
       )}
 
       {/* 숫자에는 항상 기준을 병기한다(설계서 §6.6 정상 상태 규칙) */}
-      {basisText && <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>{basisText}</p>}
+      {basisText && <p className="field-note" style={{ marginBottom: 'var(--space-4)' }}>{basisText}</p>}
 
       {emptyReason ? (
         <EmptyState
@@ -101,7 +101,7 @@ export default async function RecommendPage() {
         <>
           {discoveryNotice && (
             <p
-              className="ci-status ci-status-info"
+              className="status-pill status-pill-info"
               style={{ display: 'inline-flex', marginBottom: 'var(--space-4)' }}
             >
               {discoveryNotice}
@@ -131,8 +131,8 @@ export default async function RecommendPage() {
                   }}>
                     {c.outlierText ?? '배수 근거 부족'}
                   </p>
-                  <p className="ci-basis">{c.cohortText}</p>
-                  <p className="ci-basis">{c.channelName}</p>
+                  <p className="field-note">{c.cohortText}</p>
+                  <p className="field-note">{c.channelName}</p>
 
                   {/* 근거 — 같은 주제에서 서로 다른 채널 3곳 이상 반복 확인된 것만 온다 */}
                   {c.discoveries.length > 0 && (
@@ -147,7 +147,7 @@ export default async function RecommendPage() {
                           <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>
                             {d.statement}
                           </span>
-                          <span className="ci-basis" style={{ display: 'block' }}>
+                          <span className="field-note" style={{ display: 'block' }}>
                             {d.basisText}
                           </span>
                         </li>

@@ -162,35 +162,35 @@ export default function ChannelDetailView({
 
         <dl className="ci-meta-grid">
           <div className="ci-meta-cell">
-            <dt className="ci-basis">구독자</dt>
+            <dt className="field-note">구독자</dt>
             <dd className="ci-metric-big">
               {channel.subscriberCount != null
                 ? channel.subscriberCount.toLocaleString('ko-KR')
                 : '미확보'}
             </dd>
             {channel.subscriberProvenance === 'estimated' && (
-              <span className="ci-basis">공개 페이지 반올림 표기</span>
+              <span className="field-note">공개 페이지 반올림 표기</span>
             )}
           </div>
           <div className="ci-meta-cell">
-            <dt className="ci-basis">채널 게시물</dt>
+            <dt className="field-note">채널 게시물</dt>
             <dd className="ci-metric-big">
               {channel.videoCount != null ? channel.videoCount.toLocaleString('ko-KR') : '미확보'}
             </dd>
           </div>
           <div className="ci-meta-cell">
-            <dt className="ci-basis">수집한 게시물</dt>
+            <dt className="field-note">수집한 게시물</dt>
             <dd className="ci-metric-big">{contents.length}</dd>
             {/* 몇 개 중 몇 개인지 밝힌다 — 3%만 보고 채널을 판단하게 두면 안 된다 */}
             {channel.videoCount != null && channel.videoCount > contents.length && (
-              <span className="ci-basis">
+              <span className="field-note">
                 채널 {channel.videoCount.toLocaleString('ko-KR')}개 중{' '}
                 {Math.round((contents.length / channel.videoCount) * 100)}%
               </span>
             )}
           </div>
           <div className="ci-meta-cell">
-            <dt className="ci-basis">규모 구간</dt>
+            <dt className="field-note">규모 구간</dt>
             <dd style={{ fontWeight: 600 }}>{channel.sizeBand ?? '판정 전'}</dd>
           </div>
         </dl>
@@ -222,9 +222,9 @@ export default function ChannelDetailView({
           <button type="button" className="btn-ghost"
             onClick={() => del_.ask({ kind: 'channel', id: channel.id, title: '이 채널을 삭제할까요?' })}
             disabled={busy}>삭제</button>
-          {notice && <span className="ci-basis" role="status">{notice}</span>}
+          {notice && <span className="field-note" role="status">{notice}</span>}
           {channel.metaError && !notice && !error && (
-            <span className="ci-status ci-status-warn">{channel.metaError}</span>
+            <span className="status-pill status-pill-warn">{channel.metaError}</span>
           )}
         </div>
 
@@ -244,7 +244,7 @@ export default function ChannelDetailView({
           <div className={s.topicMain}>
             <h2 className={s.topicHead}>
               채널 주제
-              <span className={`ci-status ${channel.topicSource === 'user' ? 'ci-status-info' : 'ci-status-warn'}`}>
+              <span className={`status-pill ${channel.topicSource === 'user' ? 'status-pill-info' : 'status-pill-warn'}`}>
                 {channel.topicSource === 'user' ? '확정' : channel.topic ? '추정' : '미분류'}
               </span>
             </h2>
@@ -279,7 +279,7 @@ export default function ChannelDetailView({
           </h2>
           <div className="ci-card-badges">
             {hookSummary.map(([type, count]) => (
-              <span key={type} className="ci-status ci-status-info">{type} {count}</span>
+              <span key={type} className="status-pill status-pill-info">{type} {count}</span>
             ))}
           </div>
         </section>

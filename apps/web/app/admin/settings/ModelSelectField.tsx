@@ -68,7 +68,7 @@ export default function ModelSelectField({ provider, hasKey, savedModel, onSave 
       )}
 
       {msg && (
-        <p className={`ci-status ${msg.ok ? 'ci-status-ok' : 'ci-status-danger'}`} role="status" style={{ marginTop: 'var(--space-2)' }}>
+        <p className={`status-pill ${msg.ok ? 'status-pill-ok' : 'status-pill-danger'}`} role="status" style={{ marginTop: 'var(--space-2)' }}>
           {msg.text}
         </p>
       )}

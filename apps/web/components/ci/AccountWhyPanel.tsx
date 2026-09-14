@@ -32,12 +32,12 @@ export default function AccountWhyPanel({
       }}>
         <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }}>{title}</h2>
         {/* 근거는 항상 붙인다 — 표본 수를 숨기면 3건짜리 발견이 법칙처럼 읽힌다 */}
-        <span className="ci-basis">{contrast.basisText}</span>
+        <span className="field-note">{contrast.basisText}</span>
       </div>
 
       {/* 발견이 있든 없든 표본 구성은 먼저 보여준다 */}
       {composition && (
-        <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>{composition}</p>
+        <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>{composition}</p>
       )}
 
       {contrast.findings.length === 0 ? (
@@ -52,12 +52,12 @@ export default function AccountWhyPanel({
               <li key={`${f.dimension}:${f.text}`}>
                 <span>{f.text}</span>
                 {' '}
-                <span className="ci-basis ci-num">근거 {f.winnerCount}건</span>
+                <span className="field-note ci-num">근거 {f.winnerCount}건</span>
               </li>
             ))}
           </ul>
           {/* 무엇을 안 봤는지 밝힌다. 안 본 것을 침묵하면 "다 봤다"로 읽힌다. */}
-          <p className="ci-basis" style={{ marginTop: 'var(--space-3)' }}>
+          <p className="field-note" style={{ marginTop: 'var(--space-3)' }}>
             게시 형식·요일·시간대·소재·길이·제목만 비교했습니다. 영상 내용과 썸네일 구성은 이 비교에 들어가지 않았습니다.
           </p>
         </div>

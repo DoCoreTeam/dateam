@@ -119,8 +119,8 @@ export default function PublishView({
       key: 'status', header: '상태', sortable: true,
       cell: (p) => (
         <>
-          <span className={p.status === 'published' ? 'ci-status ci-status-ok'
-            : p.status === 'failed' ? 'ci-status ci-status-danger' : 'ci-status ci-status-neutral'}>
+          <span className={p.status === 'published' ? 'status-pill status-pill-ok'
+            : p.status === 'failed' ? 'status-pill status-pill-danger' : 'status-pill status-pill-neutral'}>
             {STATUS_LABEL[p.status] ?? p.status}
           </span>
           {p.error_message && <span className="error-state-code"> {p.error_code}: {p.error_message}</span>}
@@ -131,13 +131,13 @@ export default function PublishView({
       key: 'when', header: '예약·게시', sortable: true,
       cell: (p) => (p.published_at ? formatKstDateTimeShort(p.published_at)
         : p.scheduled_at ? formatKstDateTimeShort(p.scheduled_at)
-        : <span className="ci-basis">미정</span>),
+        : <span className="field-note">미정</span>),
     },
     {
       key: 'url', header: '게시 주소',
       cell: (p) => (p.published_url
         ? <a href={p.published_url} target="_blank" rel="noreferrer">원본 열기</a>
-        : <span className="ci-basis">아직 기록 전</span>),
+        : <span className="field-note">아직 기록 전</span>),
     },
     {
       key: 'action', header: '작업',
@@ -214,7 +214,7 @@ export default function PublishView({
 
       {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
 
-      <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>
+      <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>
         지금은 수동 게시가 기본입니다. 플랫폼에 직접 올린 뒤 주소를 여기 붙여넣으면 그 시점부터 성과를 추적합니다.
         과거에 올린 게시물도 주소만 있으면 소급 추적됩니다.
       </p>

@@ -104,17 +104,17 @@ export default function LinkIntakeBox({
           {/* 무엇으로 알아들었는지 밝힌다 — 채널을 넣었는데 "1건 수집"이라고만 하면
               계정 전체를 훑는 중인지 게시물 하나만 담았는지 알 수 없다 */}
           {acceptedChannels > 0 && (
-            <p className="ci-status ci-status-ok" style={{ alignSelf: 'flex-start' }}>
+            <p className="status-pill status-pill-ok" style={{ alignSelf: 'flex-start' }}>
               계정 {acceptedChannels}곳 등록 · 게시물 수집 중입니다
             </p>
           )}
           {acceptedContents > 0 && (
-            <p className="ci-status ci-status-ok" style={{ alignSelf: 'flex-start' }}>
+            <p className="status-pill status-pill-ok" style={{ alignSelf: 'flex-start' }}>
               게시물 {acceptedContents}건 수집을 시작했습니다 · 그 계정의 다른 게시물도 함께 봅니다
             </p>
           )}
           {result.rejected.map((r) => (
-            <p key={r.url} className="ci-status ci-status-warn" style={{ alignSelf: 'flex-start' }}>
+            <p key={r.url} className="status-pill status-pill-warn" style={{ alignSelf: 'flex-start' }}>
               {r.message} — {r.url}
             </p>
           ))}

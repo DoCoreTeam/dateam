@@ -9589,18 +9589,18 @@ label.intake-tool-btn {
 
 /* ── 상태 배지 (전 화면 공용 — 성공 경고 위험 정보 중립 다섯 뜻) ──
    뜻은 다섯뿐이고 색은 여기서만 고른다. 화면이 색을 고르기 시작하면 같은 「연결됨」이
-   화면마다 다른 색으로 나온다. 옛 ci-status 이름은 별칭으로 두고 I07 에서 뺀다. */
-.status-pill, .ci-status {
+   화면마다 다른 색으로 나온다. */
+.status-pill {
   display: inline-flex; align-items: center; gap: var(--space-1);
   font-size: var(--fs-2xs); font-weight: 600; border-radius: var(--radius);
   padding: 2px var(--space-2); min-height: 20px;
   border: var(--border-w-2) solid transparent;
 }
-.status-pill-ok,      .ci-status-ok      { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
-.status-pill-warn,    .ci-status-warn    { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
-.status-pill-danger,  .ci-status-danger  { background: var(--danger-bg);  color: var(--danger);  border-color: var(--danger-border); }
-.status-pill-info,    .ci-status-info    { background: var(--info-bg);    color: var(--info);    border-color: var(--info-border); }
-.status-pill-neutral, .ci-status-neutral { background: var(--surface-muted); color: var(--text-muted); border-color: var(--border-color); }
+.status-pill-ok { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+.status-pill-warn { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
+.status-pill-danger { background: var(--danger-bg);  color: var(--danger);  border-color: var(--danger-border); }
+.status-pill-info { background: var(--info-bg);    color: var(--info);    border-color: var(--info-border); }
+.status-pill-neutral { background: var(--surface-muted); color: var(--text-muted); border-color: var(--border-color); }
 
 /* ── 상세 시트 (전 화면 공용, 우측 640px) ── */
 .ci-sheet-backdrop {
@@ -9650,8 +9650,8 @@ label.intake-tool-btn {
 /* ── 보조 설명 (전 화면 공용) ──
    수치에 병기하는 기준, 입력칸 아래 한 줄 안내, 카드 부제가 전부 이 한 규칙에서 온다.
    예전에는 fs-2xs/text-faint 와 fs-2xs/text-muted 로 갈려 화면마다 흐리기가 달랐다.
-   옛 ci-basis 이름은 별칭으로 두고 I07 에서 뺀다. */
-.field-note, .ci-basis {
+   */
+.field-note {
   font-size: var(--fs-2xs); color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 
@@ -9702,7 +9702,7 @@ label.intake-tool-btn {
 .ci-asset-intake-row {
   display: flex; gap: var(--space-3); align-items: flex-end; flex-wrap: wrap;
 }
-.ci-asset-intake-row .ci-basis {
+.ci-asset-intake-row .field-note {
   display: inline-flex; align-items: center; gap: var(--space-1); padding-bottom: var(--space-2);
 }
 .ci-asset-toolbar {

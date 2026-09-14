@@ -287,7 +287,7 @@ export default function InboxView({
             <option value={NEW_TOPIC}>+ 새 주제 만들기…</option>
           </select>
           {item.topicConfidence != null && item.topicConfidence > 0 && (
-            <span className="ci-basis ci-num" title="AI가 주제를 정한 확신도">{Math.round(item.topicConfidence * 100)}%</span>
+            <span className="field-note ci-num" title="AI가 주제를 정한 확신도">{Math.round(item.topicConfidence * 100)}%</span>
           )}
         </span>
       ) : (item.topic?.name ?? '미분류')),
@@ -298,7 +298,7 @@ export default function InboxView({
         <span className="ci-nowrap">
           <MetricBadge text={item.outlierText} />
           {!item.outlierText && (
-            <span className="ci-basis" title="같은 채널·포맷 비교 이력이 8개 미만입니다">—</span>
+            <span className="field-note" title="같은 채널·포맷 비교 이력이 8개 미만입니다">—</span>
           )}
         </span>
       ),
@@ -415,7 +415,7 @@ export default function InboxView({
           같은 판정끼리 묶어 카드 한 장으로 세우고, 답하면 서버가 한 번에 정리한다. */}
       {tab === 'review' ? (
         <>
-          <p className="ci-basis" style={{ margin: '0 0 var(--space-3)' }}>
+          <p className="field-note" style={{ margin: '0 0 var(--space-3)' }}>
             AI가 정한 주제가 갈린 것들입니다. 같은 판정끼리 묶어 두었으니 한 번에 답하되,
             다른 것이 섞여 있으면 체크를 풀어 빼면 됩니다.
           </p>
@@ -458,7 +458,7 @@ export default function InboxView({
       />
 
       {query.q.trim() && (
-        <p className="ci-basis" style={{ margin: 'var(--space-2) 0 var(--space-3)' }}>
+        <p className="field-note" style={{ margin: 'var(--space-2) 0 var(--space-3)' }}>
           제목·설명뿐 아니라 <strong>영상에서 읽은 대사와 화면 자막</strong>까지 함께 찾았습니다.
         </p>
       )}

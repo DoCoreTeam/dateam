@@ -35,8 +35,8 @@ const KIND_LABEL: Record<EditPoint['kind'], string> = {
   hook: '훅', trim: '잘라내기', cut: '컷', emphasis: '강조', length: '길이', structure: '구성',
 }
 const KIND_CLASS: Record<EditPoint['kind'], string> = {
-  hook: 'ci-status-ok', trim: 'ci-status-danger', cut: 'ci-status-info',
-  emphasis: 'ci-status-warn', length: 'ci-status-neutral', structure: 'ci-status-info',
+  hook: 'status-pill-ok', trim: 'status-pill-danger', cut: 'status-pill-info',
+  emphasis: 'status-pill-warn', length: 'status-pill-neutral', structure: 'status-pill-info',
 }
 
 type Mode = 'asset' | 'file' | 'link'
@@ -316,7 +316,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
                 disabled={busy}
               />
             </div>
-            <span className="ci-basis">
+            <span className="field-note">
               <Film size={12} /> 영상은 올리지 않습니다 — 이 브라우저에서 분석하고 결과만 전송합니다
             </span>
           </div>
@@ -341,7 +341,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
         )}
 
         {busy && (
-          <p className="ci-basis" role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+          <p className="field-note" role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
             <AXDotLoader />
             {progress?.phase === 'video' ? '화면을 훑는 중' : progress?.phase === 'audio' ? '소리를 살피는 중' : '마무리 중'}
             {' · '}{Math.round((progress?.ratio ?? 0) * 100)}%
@@ -369,23 +369,23 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
             {signals && (
               <dl className="ci-meta-grid" style={{ marginTop: 'var(--space-3)' }}>
                 <div className="ci-meta-cell">
-                  <dt className="ci-basis">길이</dt>
+                  <dt className="field-note">길이</dt>
                   <dd className="ci-metric-big">{toTimecode(signals.durationSec)}</dd>
                 </div>
                 <div className="ci-meta-cell">
-                  <dt className="ci-basis">장면 전환</dt>
+                  <dt className="field-note">장면 전환</dt>
                   <dd className="ci-metric-big">
                     {signals.framesSampled > 0 ? `${signals.sceneChanges.length}회` : '미확보'}
                   </dd>
                 </div>
                 <div className="ci-meta-cell">
-                  <dt className="ci-basis">무음 구간</dt>
+                  <dt className="field-note">무음 구간</dt>
                   <dd className="ci-metric-big">
                     {signals.audioAnalyzed ? `${signals.silences.length}곳` : '미확보'}
                   </dd>
                 </div>
                 <div className="ci-meta-cell">
-                  <dt className="ci-basis">작성자 구간</dt>
+                  <dt className="field-note">작성자 구간</dt>
                   <dd className="ci-metric-big">
                     {signals.chapters?.length ? `${signals.chapters.length}개` : '없음'}
                   </dd>
@@ -395,20 +395,20 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
 
             {/* 못 본 축은 반드시 말한다 — 빈 결과를 "문제 없음"으로 읽히게 두지 않는다 */}
             {signals?.frameSkipReason && (
-              <p className="ci-status ci-status-warn" style={{ marginTop: 'var(--space-2)', display: 'inline-flex' }}>
+              <p className="status-pill status-pill-warn" style={{ marginTop: 'var(--space-2)', display: 'inline-flex' }}>
                 {signals.frameSkipReason}
               </p>
             )}
             {signals && !signals.audioAnalyzed && (
-              <p className="ci-status ci-status-warn" style={{ marginTop: 'var(--space-2)', display: 'inline-flex' }}>
+              <p className="status-pill status-pill-warn" style={{ marginTop: 'var(--space-2)', display: 'inline-flex' }}>
                 {signals.audioSkipReason ?? '소리를 분석하지 못했습니다. 무음·강조 기반 제안은 빠집니다'}
               </p>
             )}
             {note && (
-              <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>{note}</p>
+              <p className="field-note" style={{ marginTop: 'var(--space-2)' }}>{note}</p>
             )}
             {signals && signals.durationSec > MAX_ANALYZE_SEC && signals.framesSampled > 0 && (
-              <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>
+              <p className="field-note" style={{ marginTop: 'var(--space-2)' }}>
                 앞 {Math.round(MAX_ANALYZE_SEC / 60)}분까지만 분석했습니다
               </p>
             )}
@@ -431,7 +431,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
             </div>
 
             {evidence && (
-              <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>
+              <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>
                 {evidence.sampleSize > 0
                   ? `잘 된 콘텐츠 ${evidence.sampleSize}건을 근거로 판단했습니다${evidence.topHookTypes.length ? ` · 많이 통한 후킹: ${evidence.topHookTypes.join('·')}` : ''}`
                   : '아직 잘 된 콘텐츠를 모으지 못해, 영상에서 관측한 신호만으로 제안합니다'}
@@ -458,10 +458,10 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
                       </button>
                       <div style={{ minWidth: 0 }}>
                         <div className="ci-card-badges" style={{ marginBottom: 'var(--space-1)' }}>
-                          <span className={`ci-status ${KIND_CLASS[p.kind]}`}>{KIND_LABEL[p.kind]}</span>
+                          <span className={`status-pill ${KIND_CLASS[p.kind]}`}>{KIND_LABEL[p.kind]}</span>
                         </div>
                         <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{p.action}</p>
-                        <p className="ci-basis" style={{ marginTop: '2px' }}>{p.reason}</p>
+                        <p className="field-note" style={{ marginTop: '2px' }}>{p.reason}</p>
                       </div>
                       <Scissors size={14} aria-hidden style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
                     </li>
@@ -486,7 +486,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
                   </button>
                 </div>
                 {saveNote && (
-                  <p className="ci-status ci-status-ok" style={{ marginTop: 'var(--space-2)', display: 'inline-flex' }}>
+                  <p className="status-pill status-pill-ok" style={{ marginTop: 'var(--space-2)', display: 'inline-flex' }}>
                     {saveNote}
                   </p>
                 )}

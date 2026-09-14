@@ -51,13 +51,13 @@ export default function BoardDetailView({
       key: 'label', header: '담긴 것', primary: true,
       cell: (it) => (it.label == null
         // 원본이 사라진 항목을 숨기지 않는다 — 숨기면 개수가 안 맞는 이유를 알 수 없다
-        ? <span className="ci-basis">원본이 사라진 항목</span>
+        ? <span className="field-note">원본이 사라진 항목</span>
         : it.href
           ? <Link href={it.href}>{it.label}</Link>
           : <span>{it.label}</span>),
     },
     { key: 'type', header: '종류', cell: (it) => boardItemTypeLabel(it.itemType) },
-    { key: 'note', header: '메모', cell: (it) => it.note ?? <span className="ci-basis">—</span> },
+    { key: 'note', header: '메모', cell: (it) => it.note ?? <span className="field-note">—</span> },
     {
       key: 'addedAt', header: '담은 때', sortable: true,
       cell: (it) => (it.addedAt ? formatKstDateTimeShort(it.addedAt) : '—'),

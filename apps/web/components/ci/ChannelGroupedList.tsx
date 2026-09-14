@@ -259,7 +259,7 @@ export default function ChannelGroupedList({
               {/* 이 채널의 **전체** 건수다. 예전엔 현재 페이지에 담긴 수라 채널마다 들쭉날쭉했다 */}
               <span className="ci-count">{g.itemCount.toLocaleString()}</span>
               {g.topOutlierText && (
-                <span className="ci-status ci-status-ok">최고 {g.topOutlierText}</span>
+                <span className="status-pill status-pill-ok">최고 {g.topOutlierText}</span>
               )}
               {/* 여닫기와 이동은 다른 일이다 — 이름은 여닫고, 채널로 가는 길은 여기 따로 둔다 */}
               {g.channelId && (

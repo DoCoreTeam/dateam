@@ -135,7 +135,7 @@ export default function VercelSettings({
       )}
 
       {msg && (
-        <p className={`ci-status ${msg.ok ? 'ci-status-ok' : 'ci-status-danger'}`}
+        <p className={`status-pill ${msg.ok ? 'status-pill-ok' : 'status-pill-danger'}`}
           style={{ marginTop: 'var(--space-3)', display: 'inline-flex' }} role="status">
           {msg.text}
         </p>

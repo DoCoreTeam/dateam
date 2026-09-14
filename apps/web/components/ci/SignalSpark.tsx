@@ -50,7 +50,7 @@ export default function SignalSpark({ workspaceId, title, note }: Props) {
         <Sparkles size={14} />
         {busy ? '만드는 중…' : '이 소재로 기획 시작'}
       </NbButton>
-      {error && <p className="ci-status ci-status-warn" style={{ marginTop: 'var(--space-2)' }}>{error}</p>}
+      {error && <p className="status-pill status-pill-warn" style={{ marginTop: 'var(--space-2)' }}>{error}</p>}
     </>
   )
 }

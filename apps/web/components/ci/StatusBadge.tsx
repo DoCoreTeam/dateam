@@ -9,11 +9,11 @@ import { formatComparability, formatConfidence, formatMissingFields } from '@/li
 type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'neutral'
 
 const TONE_CLASS: Record<Tone, string> = {
-  ok: 'ci-status ci-status-ok',
-  warn: 'ci-status ci-status-warn',
-  danger: 'ci-status ci-status-danger',
-  info: 'ci-status ci-status-info',
-  neutral: 'ci-status ci-status-neutral',
+  ok: 'status-pill status-pill-ok',
+  warn: 'status-pill status-pill-warn',
+  danger: 'status-pill status-pill-danger',
+  info: 'status-pill status-pill-info',
+  neutral: 'status-pill status-pill-neutral',
 }
 
 function Badge({ tone, children, title }: { tone: Tone; children: React.ReactNode; title?: string }) {

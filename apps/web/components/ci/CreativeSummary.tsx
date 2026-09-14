@@ -42,7 +42,7 @@ export default function CreativeSummary({ creative, variant = 'full' }: Props) {
         {chips.length > 0 && (
           <div className="ci-card-badges">
             {chips.map((c) => (
-              <span key={c} className="ci-status ci-status-info">{c}</span>
+              <span key={c} className="status-pill status-pill-info">{c}</span>
             ))}
           </div>
         )}
@@ -76,7 +76,7 @@ export default function CreativeSummary({ creative, variant = 'full' }: Props) {
     {
       label: '후킹 유형',
       value: creative.hookType
-        ? <span className="ci-status ci-status-info">{creative.hookType}</span>
+        ? <span className="status-pill status-pill-info">{creative.hookType}</span>
         : '—',
     },
     {
@@ -86,7 +86,7 @@ export default function CreativeSummary({ creative, variant = 'full' }: Props) {
           <span className="ci-card-badges">
             {/* 같은 패턴이 두 번 들어와도 배지는 하나만 — key 중복과 중복 표시를 함께 막는다 */}
             {Array.from(new Set(creative.titlePattern)).map((t) => (
-              <span key={t} className="ci-status ci-status-neutral">{t}</span>
+              <span key={t} className="status-pill status-pill-neutral">{t}</span>
             ))}
           </span>
         )
@@ -100,12 +100,12 @@ export default function CreativeSummary({ creative, variant = 'full' }: Props) {
       <dl className="ci-creative-grid">
         {rows.map((r) => (
           <div key={r.label} className="ci-creative-row">
-            <dt className="ci-basis">{r.label}</dt>
+            <dt className="field-note">{r.label}</dt>
             <dd>{r.value}</dd>
           </div>
         ))}
       </dl>
-      <p className="ci-basis">
+      <p className="field-note">
         {sourceLabel(creative.source)}
         {creative.analyzedAtText ? ` · ${creative.analyzedAtText}` : ''}
         {creative.note ? ` · ${creative.note}` : ''}

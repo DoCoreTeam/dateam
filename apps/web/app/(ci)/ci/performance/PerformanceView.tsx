@@ -53,21 +53,21 @@ const MINE_COLUMNS: ColumnDef<MineRow>[] = [
   { key: 'platform', header: '플랫폼', cell: (r) => CI_PLATFORM_LABEL[r.platform] },
   {
     key: 'published', header: '게시일', sortable: true,
-    cell: (r) => r.publishedAtText ?? <span className="ci-basis">미확인</span>,
+    cell: (r) => r.publishedAtText ?? <span className="field-note">미확인</span>,
   },
   {
     key: 'views', header: '조회수', align: 'right', sortable: true,
     cell: (r) => (r.views != null
       ? <span className="ci-num">{r.views.toLocaleString('ko-KR')}</span>
-      : <span className="ci-basis">—</span>),
+      : <span className="field-note">—</span>),
   },
   {
     key: 'outlier', header: '평소 대비', sortable: true,
-    cell: (r) => r.outlierText ?? <span className="ci-basis" title="비교 이력이 8개 미만입니다">—</span>,
+    cell: (r) => r.outlierText ?? <span className="field-note" title="비교 이력이 8개 미만입니다">—</span>,
   },
   {
     key: 'percentile', header: '상위', hideOnCard: true,
-    cell: (r) => r.percentileText ?? <span className="ci-basis">—</span>,
+    cell: (r) => r.percentileText ?? <span className="field-note">—</span>,
   },
   { key: 'confidence', header: '신뢰도', cell: (r) => <ConfidenceBadge confidence={r.confidence} /> },
 ]
@@ -144,16 +144,16 @@ export default function PerformanceView({
               display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap',
               padding: 'var(--space-4)', marginBottom: 'var(--space-4)',
             }}>
-              <div><p className="ci-basis">게시</p><p className="ci-metric-big">{mine.summary.published}</p></div>
+              <div><p className="field-note">게시</p><p className="ci-metric-big">{mine.summary.published}</p></div>
               <div>
-                <p className="ci-basis">평소 대비 중앙값</p>
+                <p className="field-note">평소 대비 중앙값</p>
                 <p className="ci-metric-big">{mine.summary.medianOutlier ?? '—'}</p>
               </div>
               <div>
-                <p className="ci-basis">최고</p>
+                <p className="field-note">최고</p>
                 <p className="ci-metric-big">{mine.summary.best ?? '—'}</p>
               </div>
-              <div style={{ alignSelf: 'flex-end' }}><span className="ci-basis">{mine.basisText}</span></div>
+              <div style={{ alignSelf: 'flex-end' }}><span className="field-note">{mine.basisText}</span></div>
             </section>
 
             <ListToolbar
@@ -183,7 +183,7 @@ export default function PerformanceView({
           <InsufficientData what="시장 비교" action={{ label: '관심 채널 추가', href: '/ci/monitoring' }} />
         ) : (
           <>
-            <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>{market.basisText}</p>
+            <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>{market.basisText}</p>
             <ListSurface
               rows={market.topPeers}
               columns={PEER_COLUMNS}
@@ -216,7 +216,7 @@ export default function PerformanceView({
                 {learning.patterns.map((p) => (
                   <li key={p.id} className="card" style={{ padding: 'var(--space-3)' }}>
                     <strong>{p.statement}</strong>
-                    {p.liftText && <p className="ci-basis">{p.liftText}</p>}
+                    {p.liftText && <p className="field-note">{p.liftText}</p>}
                   </li>
                 ))}
               </ul>
@@ -242,7 +242,7 @@ export default function PerformanceView({
                     </li>
                   ))}
                 </ul>
-                <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>
+                <p className="field-note" style={{ marginTop: 'var(--space-2)' }}>
                   정정 내역은 다음 AI 분류에 예시로 함께 전달됩니다
                 </p>
               </>
@@ -272,7 +272,7 @@ export default function PerformanceView({
               <p className="ci-card-meta">
                 <span>자동 확정 {learning.slo.autoConfirmRate}%</span>
                 <span>검토 큐 {learning.slo.reviewQueueRate}%</span>
-                <span className="ci-basis">표본 {learning.slo.total}건</span>
+                <span className="field-note">표본 {learning.slo.total}건</span>
               </p>
             )}
           </section>
