@@ -18,6 +18,11 @@ import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { isEnterKey } from '@/lib/ui/ime'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import SettingsRow from '@/components/ui/settings/SettingsRow'
+import SettingsToggle from '@/components/ui/settings/SettingsToggle'
+import StatusPill from '@/components/ui/settings/StatusPill'
+import FieldNote from '@/components/ui/settings/FieldNote'
 
 interface SettingItem {
   key: string
@@ -172,8 +177,8 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
       )}
 
       {toast && (
-        <p className="status-pill status-pill-ok" style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }} role="status">
-          {toast}
+        <p style={{ marginBottom: 'var(--space-3)' }} role="status">
+          <StatusPill tone="ok">{toast}</StatusPill>
         </p>
       )}
       {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
@@ -181,7 +186,7 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
       {!query && tab === 'overview' ? (
         <OverviewPanel overview={overview} />
       ) : (
-        <div className="ci-setting-list">
+        <div className="settings-list">
           {visible.length === 0 && (
             query
               ? <EmptyState
@@ -210,9 +215,8 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-      <section className="ci-setting-card">
-        <h2 className="ci-creative-head">내 계정</h2>
-        <dl className="ci-creative-grid" style={{ marginTop: 'var(--space-2)' }}>
+      <SettingsCard title="내 계정" headingLevel={2}>
+        <dl className="ci-creative-grid">
           <div className="ci-creative-row">
             <dt className="field-note">이름</dt><dd>{overview.account.name ?? '—'}</dd>
           </div>
@@ -227,54 +231,52 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
             <dt className="field-note">사내 권한</dt><dd>{overview.account.appRole ?? '—'}</dd>
           </div>
         </dl>
-        <p className="field-note" style={{ marginTop: 'var(--space-3)' }}>
-          이름·비밀번호는 사내 업무 화면의 내 정보에서 바꿉니다.
-        </p>
-      </section>
+        <FieldNote>이름·비밀번호는 사내 업무 화면의 내 정보에서 바꿉니다.</FieldNote>
+      </SettingsCard>
 
-      <section className="ci-setting-card">
-        <h2 className="ci-creative-head">연동</h2>
-        <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>
-          키는 회사 계정 한 곳에서만 관리합니다. 여기서는 상태만 보여드립니다.
-        </p>
-        <ul className="ci-setting-list">
+      <SettingsCard
+        title="연동"
+        headingLevel={2}
+        description="키는 회사 계정 한 곳에서만 관리합니다. 여기서는 상태만 보여드립니다."
+      >
+        <ul className="settings-list">
           {overview.integrations.map((it) => (
-            <li key={it.id} className="ci-integration-row">
-              <span className={`status-pill ${it.connected ? 'status-pill-ok' : 'status-pill-warn'}`}>
-                {it.connected ? <Check size={12} /> : <X size={12} />}
-                {it.connected ? '연결됨' : '없음'}
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{it.label}</p>
-                <p className="field-note">{it.detail}</p>
-              </div>
-              <Link href={it.settingsHref} className="btn-ghost">
-                설정 <ExternalLink size={12} />
-              </Link>
-            </li>
+            <SettingsRow
+              key={it.id}
+              as="li"
+              lead={
+                <StatusPill tone={it.connected ? 'ok' : 'warn'}>
+                  {it.connected ? <Check size={12} /> : <X size={12} />}
+                  {it.connected ? '연결됨' : '없음'}
+                </StatusPill>
+              }
+              action={<Link href={it.settingsHref} className="btn-ghost">설정 <ExternalLink size={12} /></Link>}
+            >
+              <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{it.label}</p>
+              <FieldNote>{it.detail}</FieldNote>
+            </SettingsRow>
           ))}
         </ul>
-      </section>
+      </SettingsCard>
 
-      <section className="ci-setting-card">
-        <h2 className="ci-creative-head">
-          워크스페이스 · {overview.workspace.name}
-        </h2>
-        <p className="field-note" style={{ marginBottom: 'var(--space-3)' }}>
-          멤버 {overview.workspace.memberCount}명
-        </p>
-        <ul className="ci-setting-list">
+      <SettingsCard
+        title={`워크스페이스 · ${overview.workspace.name}`}
+        headingLevel={2}
+        description={`멤버 ${overview.workspace.memberCount}명`}
+      >
+        <ul className="settings-list">
           {overview.members.map((m) => (
-            <li key={m.userId} className="ci-integration-row">
-              <span className="status-pill status-pill-neutral">{ROLE_LABEL[m.role] ?? m.role}</span>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{m.name ?? '이름 없음'}</p>
-                <p className="field-note">{m.email ?? '—'}</p>
-              </div>
-            </li>
+            <SettingsRow
+              key={m.userId}
+              as="li"
+              lead={<StatusPill tone="neutral">{ROLE_LABEL[m.role] ?? m.role}</StatusPill>}
+            >
+              <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{m.name ?? '이름 없음'}</p>
+              <FieldNote>{m.email ?? '—'}</FieldNote>
+            </SettingsRow>
           ))}
         </ul>
-      </section>
+      </SettingsCard>
     </div>
   )
 }
@@ -286,24 +288,21 @@ function SettingRow({ item, saving, onSave, onRevert }: {
   onRevert?: () => void
 }) {
   return (
-    <section className="ci-setting-card">
-      <div className="ci-setting-head">
-        <div style={{ minWidth: 0 }}>
-          <h3 style={{ fontSize: 'var(--fs-sm)', fontWeight: 700 }}>{item.label}</h3>
-          <p className="field-note">{item.help}</p>
-        </div>
+    <SettingsCard
+      title={item.label}
+      description={item.help}
+      headerAction={
         <span style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-          <span className="field-note">{ORIGIN_LABEL[item.origin] ?? item.origin}</span>
+          <FieldNote>{ORIGIN_LABEL[item.origin] ?? item.origin}</FieldNote>
           {onRevert && (
             <button type="button" className="btn-ghost" onClick={onRevert} disabled={saving}
               title="저장한 값을 지워 기본값으로 되돌립니다">기본값으로</button>
           )}
         </span>
-      </div>
-      <div style={{ marginTop: 'var(--space-3)' }}>
-        <Control item={item} disabled={saving} onCommit={onSave} />
-      </div>
-    </section>
+      }
+    >
+      <Control item={item} disabled={saving} onCommit={onSave} />
+    </SettingsCard>
   )
 }
 
@@ -316,12 +315,13 @@ function Control({ item, disabled, onCommit }: {
   if (c.type === 'toggle') {
     const on = Boolean(item.value)
     return (
-      <button type="button" className={`ci-toggle ${on ? 'is-on' : ''}`} disabled={disabled}
-        role="switch" aria-checked={on} aria-label={item.label}
-        onClick={() => onCommit(!on)}>
-        <span className="ci-toggle-knob" />
-        <span className="ci-toggle-label">{on ? '켬' : '끔'}</span>
-      </button>
+      <SettingsToggle
+        on={on}
+        disabled={disabled}
+        ariaLabel={item.label}
+        label={on ? '켬' : '끔'}
+        onToggle={(next) => onCommit(next)}
+      />
     )
   }
 
@@ -373,12 +373,13 @@ function Control({ item, disabled, onCommit }: {
     const v = (item.value ?? {}) as { enabled?: boolean; start?: string; end?: string }
     return (
       <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', flexWrap: 'wrap' }}>
-        <button type="button" className={`ci-toggle ${v.enabled ? 'is-on' : ''}`} disabled={disabled}
-          role="switch" aria-checked={Boolean(v.enabled)} aria-label="방해 금지 사용"
-          onClick={() => onCommit({ ...v, enabled: !v.enabled })}>
-          <span className="ci-toggle-knob" />
-          <span className="ci-toggle-label">{v.enabled ? '사용' : '사용 안 함'}</span>
-        </button>
+        <SettingsToggle
+          on={Boolean(v.enabled)}
+          disabled={disabled}
+          ariaLabel="방해 금지 사용"
+          label={v.enabled ? '사용' : '사용 안 함'}
+          onToggle={(next) => onCommit({ ...v, enabled: next })}
+        />
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <label className="label" htmlFor={`${id}-s`} style={{ margin: 0 }}>시작</label>
           <input className="input-field" id={`${id}-s`} type="time" style={{ width: '130px' }}

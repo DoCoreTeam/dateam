@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.9
+플랜 버전: v0.2.10
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.10.2
@@ -169,9 +169,9 @@
 의존: I06
 
 ### I08 콘텐츠 인텔리전스 설정을 공용 부품으로
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(ci)/ci/settings/SettingsView.tsx
+범위: apps/web/app/(ci)/ci/settings/SettingsView.tsx, apps/web/components/ui/settings/SettingsCard.tsx, apps/web/components/ui/settings/SettingsToggle.tsx
 감사 기준:
 - pnpm tsc --noEmit 통과, pnpm lint 통과
 - SettingsView 가 components/ui/settings 부품을 import 하고 카드 골격을 자기 마크업으로 다시 그리지 않음
@@ -270,3 +270,4 @@
 - v0.2.8 (2026-09-14) I04a 확인 중 발견 - Groq 이 모델별 context_window 와 input_modalities 를 주는데 카탈로그가 버리고 있고, 명세의 groq vision false 가 실제 이미지 읽는 모델을 가리고 있음. I04b 추가 (audit:I04a)
 - v0.2.9 (2026-09-14) 목표 버전을 v0.9.0 에서 v0.10.2 로 고침 - v0.9.0 은 세션마다 minor 를 통째로 집어가던 규칙에서 나온 값이고 현재 package.json(0.10.1)보다 낮아 완료 커밋이 사용자에게 안 보인다 (iv_0052)
 - v0.2.9 (2026-09-14) I04b 범위 확장 - 공급자가 주는 모델별 사실이 카탈로그까지 닿으려면 provider.ts 와 어댑터와 refreshModelCatalog 배선이 필요. 벤더 능력은 P0003 이 옮긴 packages/ai-providers 에 있음 (audit:I04b)
+- v0.2.10 (2026-09-14) I08 범위에 공용 부품 둘 추가 - 첫 실사용 화면이 붙으면서 제목 단계와 role=switch 접근성 표시가 필요해짐. 부품이 실제 쓰임에 맞게 자라는 것은 예상된 일 (audit:I08)

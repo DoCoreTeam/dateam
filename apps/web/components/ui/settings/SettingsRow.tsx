@@ -11,14 +11,21 @@ interface Props {
   children: ReactNode
   /** 오른쪽 — 저장 해제 연결확인 같은 행동 */
   action?: ReactNode
+  /**
+   * 어떤 태그로 그릴지. 기본 div.
+   * 목록 안의 한 줄이면 li 여야 한다 — ul 안에 div 를 넣으면 읽어 주는 기계가 「목록 3개」를
+   * 세지 못한다
+   */
+  as?: 'div' | 'li'
 }
 
-export default function SettingsRow({ lead, children, action }: Props) {
+export default function SettingsRow({ lead, children, action, as = 'div' }: Props) {
+  const Tag = as
   return (
-    <div className="settings-row">
+    <Tag className="settings-row">
       {lead ?? <span aria-hidden="true" />}
       <div className="min-w-0">{children}</div>
       {action ?? <span aria-hidden="true" />}
-    </div>
+    </Tag>
   )
 }

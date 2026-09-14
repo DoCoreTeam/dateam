@@ -15,15 +15,23 @@ interface Props {
   status?: { tone: StatusTone; label: ReactNode; title?: string }
   /** 제목 줄 오른쪽에 놓을 것이 상태 배지가 아닐 때 (예: 토글) */
   headerAction?: ReactNode
+  /**
+   * 제목의 단계. 기본 3.
+   * 카드가 페이지의 큰 덩어리면 2, 그 안의 한 줄이면 3 — 읽어 주는 기계가 차례를 만든다
+   */
+  headingLevel?: 2 | 3 | 4
   children?: ReactNode
 }
 
-export default function SettingsCard({ title, description, status, headerAction, children }: Props) {
+export default function SettingsCard({
+  title, description, status, headerAction, headingLevel = 3, children,
+}: Props) {
+  const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
   return (
     <section className="settings-card">
       <div className="settings-card-head">
         <div className="min-w-0">
-          <h3 className="settings-card-title">{title}</h3>
+          <Heading className="settings-card-title">{title}</Heading>
           {description ? <FieldNote>{description}</FieldNote> : null}
         </div>
         {status ? (
