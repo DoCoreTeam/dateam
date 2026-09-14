@@ -14,6 +14,11 @@
  */
 
 import type { DocClass } from '../domain/doc-class.ts'
+import {
+  pickModels as corePickModels,
+  type ModelPick as CoreModelPick,
+  type PickOptions as CorePickOptions,
+} from '@ax/ai-providers'
 import type { VendorRetention } from '../domain/doc-class.ts'
 
 export interface AiModel {
@@ -68,48 +73,15 @@ export function toModel(row: Record<string, unknown>): AiModel {
   }
 }
 
-export interface ModelPick {
-  /** 이 등급으로 쓸 수 있는 모델들. 앞이 1순위 */
-  chain: AiModel[]
-  /** 등급 때문에 빠진 모델들 — 화면이 「왜 없나」를 설명할 수 있게 */
-  excluded: { model: AiModel; reason: 'doc_class' | 'disabled' | 'not_multimodal' }[]
-}
+// 모델 고르기 규칙은 `@ax/ai-providers` 에 있다. 「켜져 있나, 그림을 읽나, 등급이 맞나」는
+// 모델 고르기의 일반 문제이고, 우리 등급 어휘만 여기서 끼워 넣는다.
+// 빠진 것을 사유와 함께 돌려주는 것도 거기서 한다. 「쓸 모델이 없습니다」만 뜨면
+// 관리자가 무엇을 고쳐야 하는지 모르기 때문이다
+export type ModelPick = CoreModelPick<AiModel>
+export type PickOptions = CorePickOptions<DocClass>
 
-export interface PickOptions {
-  docClass: DocClass
-  /** 그림을 읽어야 하나 */
-  needMultimodal?: boolean
-  /** 사내 서빙만 쓰고 싶은가 */
-  internalOnly?: boolean
-}
-
-/**
- * 이 문서에 쓸 수 있는 모델 사슬을 만든다.
- *
- * 빠진 것을 **버리지 않고 사유와 함께 돌려준다** — 「쓸 모델이 없습니다」만 뜨면
- * 관리자가 무엇을 고쳐야 하는지 모른다.
- */
 export function pickModels(models: readonly AiModel[], opts: PickOptions): ModelPick {
-  const chain: AiModel[] = []
-  const excluded: ModelPick['excluded'] = []
-
-  for (const m of Array.from(models).sort((a, b) => a.sortOrder - b.sortOrder)) {
-    if (!m.enabled) { excluded.push({ model: m, reason: 'disabled' }); continue }
-    if (opts.needMultimodal && !m.multimodal) {
-      excluded.push({ model: m, reason: 'not_multimodal' }); continue
-    }
-    if (opts.internalOnly && !m.internal) {
-      excluded.push({ model: m, reason: 'doc_class' }); continue
-    }
-    // 등급을 여기서 한 번 거르고, 게이트웨이가 호출 직전에 한 번 더 본다.
-    // 두 번 보는 이유: 사슬을 만든 뒤 등급이 바뀔 수 있다
-    if (!m.allowedDocClasses.includes(opts.docClass)) {
-      excluded.push({ model: m, reason: 'doc_class' }); continue
-    }
-    chain.push(m)
-  }
-
-  return { chain, excluded }
+  return corePickModels<DocClass, AiModel>(models, opts)
 }
 
 /** 이 호출의 비용 — 백만 토큰 단위 요금을 실제 토큰으로 환산 */

@@ -40,10 +40,13 @@ const nextConfig = {
   /**
    * 워크스페이스 패키지는 타입이 붙은 채로 온다.
    *
-   * Next 14 는 node_modules 안의 것을 컴파일 대상으로 안 보므로, 여기 이름을 올려야
-   * `packages/*` 의 ts 가 빌드에 들어간다. 안 올리면 개발 중에는 되는데 빌드만 깨진다.
+   * 실측 2026-09-10: 여기 안 올려도 빌드는 통과했다. pnpm 이 만든 심볼릭 링크가
+   * 저장소 안 실제 경로로 풀려 Next 의 기본 규칙에 걸리기 때문이다.
+   * 그 통과는 우연이라 믿고 쓰지 않는다. 패키지를 나중에 발행하면 그때는
+   * 진짜 node_modules 에 들어가고, 그러면 이 줄이 없는 쪽이 깨진다.
+   * 새 패키지를 만들면 여기 이름을 같이 올린다.
    */
-  transpilePackages: ['@ax/ai-core'],
+  transpilePackages: ['@ax/ai-core', '@ax/ai-gateway', '@ax/ai-providers'],
   experimental: {
     // 번들하면 안 되는 서버 전용 패키지 — **크로미움 바이너리를 다루는 둘만** 남긴다.
     //
