@@ -12,18 +12,17 @@ import { join } from 'node:path'
 const SETTINGS_DIR = join(process.cwd(), 'app/admin/settings')
 
 /** 연동 카드 = 외부 서비스 자격증명을 다루는 설정 컴포넌트 */
+// AI 공급자 카드 다섯(Gemini Claude OpenAI Groq 음성인식)은 여기 없다 —
+// 파일이 다섯이 아니라 AiProviderCard 한 벌이고, 명세를 훑어 그린다.
+// 손목록에 없다고 검사를 건너뛰는 것이 아니라, 검사할 「카드 파일」이 하나로 줄어든 것이다.
 const INTEGRATION_CARDS = [
-  'GeminiSettings.tsx',
-  'ClaudeSettings.tsx',
-  'OpenAiSettings.tsx',
+  'AiProviderCard.tsx',
   'YoutubeSettings.tsx',
-  'SttSettings.tsx',
   'KoraeximSettings.tsx',
   'GoogleDriveSettings.tsx',
   'DbSettings.tsx',
   'VercelSettings.tsx',
   'G2bSettings.tsx',
-  'GroqSettings.tsx',
 ]
 
 function read(file: string): string {
@@ -89,7 +88,7 @@ test('§2-5(3) 기능: 삭제 서버액션이 있으면 UI가 반드시 호출�
   const allCards = INTEGRATION_CARDS.map(read).join('\n')
 
   // 화면이 직접 부르지 않아도, 화면이 부르는 다른 서버액션이 부르면 기능은 닿아 있다.
-  // (공급자 키 창구 한 벌 — 화면은 deleteGeminiKey 를 부르고 그것이 deleteProviderKey 를 부른다)
+  // (공급자 키 창구 한 벌 — 카드 한 벌이 deleteProviderKey 를 공급자 id 로 부른다)
   // 그래서 「카드가 부르는가」가 아니라 「카드에서 출발해 닿는가」를 본다.
   // 부분 문자열 매칭 금지 — deleteXKey2 같은 이름이 deleteXKey를 포함해 가드가 통과해 버린다
   const bodies = new Map<string, string>()
@@ -117,7 +116,8 @@ test('§2-5(3) 기능: 삭제 서버액션이 있으면 UI가 반드시 호출�
 
 test('§2-5(3) 기능: 연결 테스트가 가능한 카드는 전부 제공한다', () => {
   // 키를 저장하는 카드는 저장이 실제로 통하는지 확인할 수단이 있어야 한다.
-  const needsTest = ['GeminiSettings.tsx', 'ClaudeSettings.tsx', 'OpenAiSettings.tsx',
+  // AI 공급자 카드는 한 벌이라 한 번만 적는다 — 다섯을 적던 시절의 목록이 아니다
+  const needsTest = ['AiProviderCard.tsx',
     'YoutubeSettings.tsx', 'KoraeximSettings.tsx', 'DbSettings.tsx']
   const missing = needsTest.filter((f) => !/\bIntegrationTest\b/.test(read(f)))
   assert.deepEqual(missing, [], `연결 테스트가 빠진 카드: ${missing.join(', ')}`)

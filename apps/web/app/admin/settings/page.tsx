@@ -4,15 +4,13 @@ import { Palette, Bot, Plug, Server } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import SettingsSection from './SettingsSection'
-import GeminiSettings from './GeminiSettings'
 import YoutubeSettings from './YoutubeSettings'
 import G2bSettings from './G2bSettings'
-import GroqSettings from './GroqSettings'
-import SttSettings from './SttSettings'
 import VercelSettings from './VercelSettings'
-import ClaudeSettings from './ClaudeSettings'
-import OpenAiSettings from './OpenAiSettings'
 import AiChatDefaultProviderPicker from './AiChatDefaultProviderPicker'
+import AiProviderCard from './AiProviderCard'
+import { AI_PROVIDERS } from '@/lib/ai/provider-catalog'
+import { readProviderKey, readProviderModel } from '@/lib/ai/provider-keys'
 import { getAvailableProviders, META_DEFAULT_PROVIDER_KEY } from '@/lib/ai-chat/registry'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import type { AiChatProviderId } from '@/types/database'
@@ -149,10 +147,21 @@ export default async function AdminSettingsPage({
         <div className="settings-stack">
           <SettingsSection title="AI 모델 연동" desc="키를 등록한 모델만 AI 기능에서 고를 수 있습니다.">
             <div className="settings-grid">
-              <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
-              <ClaudeSettings hasKey={hasClaudeKey} maskedKey={maskedClaudeKey} savedModel={savedClaudeModel} />
-              <OpenAiSettings hasKey={hasOpenAiKey} maskedKey={maskedOpenAiKey} savedModel={savedOpenAiModel} />
-              <GroqSettings hasKey={Boolean(sttKey)} maskedKey={sttMasked} savedModel={groqModel} />
+              {/* 공급자 카드는 명세를 훑어 그린다 — 공급자를 하나 더하려면 명세에 한 줄을 더한다 */}
+              {AI_PROVIDERS.map((spec) => {
+                const key = readProviderKey(spec.id, meta)
+                return (
+                  <AiProviderCard
+                    key={spec.id}
+                    provider={spec.id}
+                    hasKey={Boolean(key)}
+                    maskedKey={key ? maskKey(key) : null}
+                    savedModel={readProviderModel(spec.id, meta)}
+                    // 전사 모델 칸은 그 키가 전사에도 쓰이는 공급자에게만 준다
+                    transcriptionModel={spec.alsoUsedFor ? sttModel : undefined}
+                  />
+                )
+              })}
               <AiChatDefaultProviderPicker available={availableChatProviders} current={currentDefaultProvider} />
             </div>
           </SettingsSection>
@@ -171,7 +180,6 @@ export default async function AdminSettingsPage({
           <SettingsSection title="데이터 수집·저장 연동" desc="콘텐츠 수집과 자료 보관에 쓰이는 외부 서비스입니다.">
             <div className="settings-grid">
               <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />
-              <SttSettings hasKey={Boolean(sttKey)} maskedKey={sttMasked} savedModel={sttModel} />
               <GoogleDriveSettings
                 connected={driveStatus.connected}
                 email={driveStatus.email}

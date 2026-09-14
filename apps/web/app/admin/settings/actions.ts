@@ -16,6 +16,7 @@ import {
   withoutProviderKey,
   readProviderKey,
   describeKeySaved,
+  maskKey,
   describeConnectionOk,
   describeConnectionFailed,
   describeMissingKey,
@@ -228,7 +229,7 @@ export async function checkGoogleDriveHealth(): Promise<{ ok: boolean; message: 
   }
 }
 
-// ── AI 채팅(세션1): Claude / OpenAI 키·모델 + 기본 프로바이더 (META, saveGeminiKey 패턴 재사용) ──
+// ── 채팅 기본 공급자 ──
 
 
 /* ── AI 공급자 키 창구 한 벌 ─────────────────────────────────
@@ -239,7 +240,7 @@ export async function checkGoogleDriveHealth(): Promise<{ ok: boolean; message: 
 export async function saveProviderKey(
   provider: AiProviderId,
   formData: FormData,
-): Promise<{ ok: boolean; error?: string; message?: string }> {
+): Promise<{ ok: boolean; error?: string; message?: string; masked?: string }> {
   const raw = (formData.get('apiKey') as string) ?? ''
 
   const check = validateProviderKey(provider, raw)
@@ -256,7 +257,8 @@ export async function saveProviderKey(
   }
 
   revalidatePath('/admin/settings')
-  return { ok: true, message: describeKeySaved(provider, raw) }
+  // 가림값은 서버가 만든다 — 화면이 원문 키를 들고 마스크를 만들면 그 키가 화면 상태에 남는다
+  return { ok: true, message: describeKeySaved(provider, raw), masked: maskKey(raw) }
 }
 
 export async function deleteProviderKey(
@@ -352,43 +354,6 @@ export async function saveTranscriptionModel(model: string): Promise<{ ok: boole
   revalidatePath('/admin/settings')
   return { ok: true }
 }
-
-/* ── 아래는 옛 이름들. 화면(I11)이 공급자 카드 한 벌로 바뀌면 사라진다.
-   지금은 위 창구를 부르기만 한다 — 두 벌이 되면 카드마다 다른 검증을 탄다. */
-
-export async function saveGeminiKey(formData: FormData) { return saveProviderKey('gemini', formData) }
-export async function deleteGeminiKey() { return deleteProviderKey('gemini') }
-export async function saveGeminiModel(model: string) { return saveProviderModel('gemini', model) }
-export async function getGeminiModels() { return listProviderModels('gemini') }
-export async function checkGeminiHealth() { return checkProviderConnection('gemini') }
-
-export async function saveClaudeKey(formData: FormData) { return saveProviderKey('claude', formData) }
-export async function deleteClaudeKey() { return deleteProviderKey('claude') }
-export async function saveClaudeModel(model: string) { return saveProviderModel('claude', model) }
-export async function getClaudeModels() { return listProviderModels('claude') }
-
-export async function saveOpenAiKey(formData: FormData) { return saveProviderKey('openai', formData) }
-export async function deleteOpenAiKey() { return deleteProviderKey('openai') }
-export async function saveOpenAiModel(model: string) { return saveProviderModel('openai', model) }
-export async function getOpenAiModels() { return listProviderModels('openai') }
-
-// Groq — **키 한 벌을 둘이 쓴다.** AI 모델 탭에서 채팅·분석 모델을 고르고,
-// 외부 연동 탭의 「음성 인식」 카드에서 전사 모델을 고른다. 키 자리는 한 곳이고
-// 그 이름은 lib/ai/provider-catalog 이 갖는다 — 여기 적으면 이름이 두 벌이 된다.
-// 모델을 고를 자리가 없던 동안 분석이 폐기된 기본 모델로 404 만 냈다(실측 2026-09-09).
-export async function saveGroqKey(formData: FormData) { return saveProviderKey('groq', formData) }
-export async function deleteGroqKey() { return deleteProviderKey('groq') }
-export async function saveGroqModel(model: string) { return saveProviderModel('groq', model) }
-export async function getGroqModels() { return listProviderModels('groq') }
-
-// 음성 인식 카드. 키는 Groq 공급자 키이고, 전사 모델만 따로 받는다
-export async function saveSttKey(formData: FormData) {
-  const saved = await saveProviderKey('groq', formData)
-  if (!saved.ok) return saved
-  return saveTranscriptionModel(((formData.get('model') as string) ?? ''))
-}
-export async function deleteSttKey() { return deleteProviderKey('groq') }
-export async function checkSttHealth() { return checkProviderConnection('groq') }
 
 export async function saveAiChatDefaultProvider(
   provider: AiChatProviderId | '',

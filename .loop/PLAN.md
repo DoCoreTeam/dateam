@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.12
+플랜 버전: v0.2.13
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.10.2
@@ -204,7 +204,7 @@
 의존: I06, I07
 
 ### I11 관리자 AI 탭을 공급자 다섯 한 화면으로
-상태: 대기
+상태: 통과
 모드: 중량
 범위: 신규 apps/web/app/admin/settings/AiProviderCard.tsx, apps/web/app/admin/settings/page.tsx, apps/web/app/admin/settings/ModelSelectField.tsx, 삭제 apps/web/app/admin/settings/GeminiSettings.tsx, 삭제 apps/web/app/admin/settings/ClaudeSettings.tsx, 삭제 apps/web/app/admin/settings/OpenAiSettings.tsx, 삭제 apps/web/app/admin/settings/SttSettings.tsx
 감사 기준:
@@ -213,10 +213,12 @@
 - Groq 카드가 AI 공급자 자리에 있고 그 키가 회의 전사에도 쓰인다는 사실과 해제하면 전사가 멈춘다는 사실이 카드에 적힘
 - 외부 연동 탭에 음성 인식 카드가 더 이상 없고 저장된 키가 그대로 읽힘
 - 각 카드에 공급자 용도 한 줄과 키 발급 주소가 명세에서 나옴
+- 공급자마다 따로 쓴 서버액션(saveGeminiKey deleteGeminiKey saveGeminiModel getGeminiModels checkGeminiHealth 와 Claude OpenAI Groq Stt 대응물)이 actions.ts 에 0건 (I11a 에서 병합)
+- 가드를 일부러 깨뜨려 실패를 확인한 근거를 pass notes 에 기록
 의존: I05, I06, I10
 
 ### I11a 공급자별 서버액션 철거
-상태: 대기
+상태: 취소 (I11 로 병합, 화면을 지우면 옛 액션이 그 순간 고아가 되어 가드가 바로 빨개진다 - 같은 숨에 지워야 한다)
 모드: 경량
 범위: apps/web/app/admin/settings/actions.ts, apps/web/lib/ai/provider-keys.test.ts
 감사 기준:
@@ -274,3 +276,4 @@
 - v0.2.10 (2026-09-14) I08 범위에 공용 부품 둘 추가 - 첫 실사용 화면이 붙으면서 제목 단계와 role=switch 접근성 표시가 필요해짐. 부품이 실제 쓰임에 맞게 자라는 것은 예상된 일 (audit:I08)
 - v0.2.11 (2026-09-14) I09 실제 카드 수가 다섯이 아니라 열둘이었음 - 범위와 감사 기준을 실제에 맞춤 (audit:I09)
 - v0.2.12 (2026-09-14) I10 실제 카드 수와 구조가 계획서와 다름 - 열둘이 자기 껍데기를 인라인 style 로 그리고 셋만 integration-ui 를 쓴다. 범위를 폴더 전역과 공용 부품으로 (audit:I10)
+- v0.2.13 (2026-09-14) I11a 를 I11 로 병합 - 화면을 지우면 옛 서버액션이 그 순간 고아가 되어 가드가 빨개진다. 둘을 나누면 중간 상태가 통과 불가 (audit:I11)
