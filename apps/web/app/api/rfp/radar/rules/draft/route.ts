@@ -16,6 +16,7 @@ import {
   draftByRules, unfilledParts, buildRulePrompt, parseRuleDraft, mergeRuleDraft, keywordsFallback,
 } from '@/lib/rfp/radar/rule-from-text'
 import { callWithFallback } from '@/lib/rfp/ai/gateway'
+import { recorded, notRecorded } from '@ax/ai-gateway'
 import { pickModels } from '@/lib/rfp/ai/models'
 import { toModels, toPolicy } from '@/lib/rfp/ai/host-providers'
 import { makeHostCaller } from '@/lib/rfp/ai/host-caller'
@@ -85,10 +86,17 @@ export async function POST(req: NextRequest) {
                 input_tokens: r.inputTokens, output_tokens: r.outputTokens, cost_krw: r.costKrw,
                 latency_ms: r.latencyMs, status: r.ok ? 'ok' : 'error', error: r.error,
               })
-              if (error) console.error('[rfp] llm 호출 기록 실패', error)
+              if (error) {
+                console.error('[rfp] llm 호출 기록 실패', error)
+                return notRecorded(`insert 실패: ${error.message ?? '알 수 없음'}`)
+              }
+              return recorded(`${r.orgId}:${r.purpose}`)
             },
             async recordTransfer() {
-              // 공개 등급의 한 문장이라 전송 원장에 남길 문서가 없다
+              // 공개 등급의 한 문장이라 전송 원장에 남길 문서가 없다.
+              // 빈 몸통으로 두면 이 길의 전송은 아무 데도 안 남고, 밖에서는 고장과 구분되지 않는다.
+              // 그래서 안 남긴다는 사실과 사유를 돌려준다
+              return notRecorded('공개 등급 한 문장이라 전송 원장에 남길 문서가 없음')
             },
           },
           call: makeHostCaller({ providers }),

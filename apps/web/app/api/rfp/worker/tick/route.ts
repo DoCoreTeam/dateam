@@ -21,6 +21,7 @@ import { toModels, toPolicy } from '@/lib/rfp/ai/host-providers'
 import { getAvailableProviders } from '@/lib/ai-chat/registry'
 import { embedText } from '@/lib/gemini-embedding'
 import type { GatewayStore } from '@/lib/rfp/ai/gateway'
+import { recorded, notRecorded } from '@ax/ai-gateway'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -122,7 +123,11 @@ function makeStore(db: ReturnType<typeof createAdminClient>): GatewayStore {
         error: r.error,
       })
       // 기록 실패가 호출을 막지는 않는다. 다만 조용히 넘어가지도 않는다
-      if (error) console.error('[rfp] llm 호출 기록 실패', error)
+      if (error) {
+        console.error('[rfp] llm 호출 기록 실패', error)
+        return notRecorded(`insert 실패: ${error.message ?? '알 수 없음'}`)
+      }
+      return recorded(`${r.orgId}:${r.purpose}`)
     },
     async recordTransfer(r) {
       const { error } = await (db as any).from('rfp_external_transfers').insert({
@@ -135,7 +140,11 @@ function makeStore(db: ReturnType<typeof createAdminClient>): GatewayStore {
         token_count: Object.values(r.maskedCounts).reduce((n, v) => n + v, 0),
         redaction_applied: Object.keys(r.maskedCounts).length > 0,
       })
-      if (error) console.error('[rfp] 외부 전송 기록 실패', error)
+      if (error) {
+        console.error('[rfp] 외부 전송 기록 실패', error)
+        return notRecorded(`insert 실패: ${error.message ?? '알 수 없음'}`)
+      }
+      return recorded(`${r.orgId}:${r.purpose}`)
     },
   }
 }

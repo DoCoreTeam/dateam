@@ -25,6 +25,7 @@ import { parseFile } from '@/lib/rfp/parse'
 import { draftProfile } from '@/lib/rfp/fit/draft'
 import { unfilled, renderDocs, buildPrompt, parseAiDraft, mergeDraft } from '@/lib/rfp/fit/ai-draft'
 import { callWithFallback } from '@/lib/rfp/ai/gateway'
+import { recorded, notRecorded } from '@ax/ai-gateway'
 import { pickModels } from '@/lib/rfp/ai/models'
 import { toModels, toPolicy } from '@/lib/rfp/ai/host-providers'
 import { makeHostCaller } from '@/lib/rfp/ai/host-caller'
@@ -123,7 +124,11 @@ export async function POST(req: NextRequest) {
                 input_tokens: r.inputTokens, output_tokens: r.outputTokens, cost_krw: r.costKrw,
                 latency_ms: r.latencyMs, status: r.ok ? 'ok' : 'error', error: r.error,
               })
-              if (error) console.error('[rfp] llm 호출 기록 실패', error)
+              if (error) {
+                console.error('[rfp] llm 호출 기록 실패', error)
+                return notRecorded(`insert 실패: ${error.message ?? '알 수 없음'}`)
+              }
+              return recorded(`${r.orgId}:${r.purpose}`)
             },
             async recordTransfer(r) {
               const { error } = await (admin as any).from('rfp_external_transfers').insert({
@@ -133,7 +138,11 @@ export async function POST(req: NextRequest) {
                 token_count: Object.values(r.maskedCounts).reduce((n, v) => n + v, 0),
                 redaction_applied: Object.keys(r.maskedCounts).length > 0,
               })
-              if (error) console.error('[rfp] 외부 전송 기록 실패', error)
+              if (error) {
+                console.error('[rfp] 외부 전송 기록 실패', error)
+                return notRecorded(`insert 실패: ${error.message ?? '알 수 없음'}`)
+              }
+              return recorded(`${r.orgId}:${r.purpose}`)
             },
           },
           call: makeHostCaller({ providers }),

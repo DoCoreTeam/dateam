@@ -17,6 +17,15 @@ export {
 } from './mask.ts'
 
 export {
+  type RecordedReceipt,
+  type NotRecordedReceipt,
+  type Receipt,
+  recorded,
+  notRecorded,
+  isRecorded,
+} from './store.ts'
+
+export {
   type CallableModel,
   costKrw,
 } from './cost.ts'

@@ -28,6 +28,7 @@
 import { AI_CONTRACT_VERSION, type AiContractVersion } from '@ax/ai-core'
 import { maskPii, unmaskPii, hasUnmaskedPii, countByKind, type PiiHit } from './mask.ts'
 import { costKrw, type CallableModel } from './cost.ts'
+import { type Receipt } from './store.ts'
 
 export class TransferBlockedError extends Error {
   readonly reason: string
@@ -114,10 +115,15 @@ export interface TransferRecord<C extends string = string> {
   bytes: number
 }
 
-/** The recording desk, kept narrow so a test can plug in a fake */
+/**
+ * The recording desk, kept narrow so a test can plug in a fake.
+ *
+ * Both methods return a receipt. An implementation that means to record nothing has to
+ * say so with a reason, which is what stops an empty body from becoming an empty ledger.
+ */
 export interface GatewayStore<C extends string = string> {
-  recordCall(r: LlmCallRecord): Promise<void>
-  recordTransfer(r: TransferRecord<C>): Promise<void>
+  recordCall(r: LlmCallRecord): Promise<Receipt>
+  recordTransfer(r: TransferRecord<C>): Promise<Receipt>
 }
 
 export interface CallMeta {
@@ -131,6 +137,10 @@ export interface CallMeta {
   latencyMs: number
   costKrw: number
   maskedCounts: Record<string, number>
+  /** What the call ledger said. Null only when the call never reached a model */
+  callReceipt: Receipt | null
+  /** What the transfer ledger said. Null when nothing left our side at all */
+  transferReceipt: Receipt | null
 }
 
 export interface CallResult {
@@ -187,18 +197,16 @@ export async function callWithFallback<M extends CallableModel, C extends string
       const cost = costKrw(model, raw.inputTokens, raw.outputTokens)
 
       // 5. record, and only a successful call reaches the transfer log
-      await deps.store.recordCall({
+      const callReceipt = await deps.store.recordCall({
         orgId: req.orgId, caseId: req.caseId, modelId: model.id, purpose: req.purpose,
         inputTokens: raw.inputTokens, outputTokens: raw.outputTokens,
         costKrw: cost, latencyMs, ok: true, error: null,
       })
-      if (!gate.internal) {
-        await deps.store.recordTransfer({
-          orgId: req.orgId, caseId: req.caseId, modelId: model.id, docClass: req.docClass,
-          purpose: req.purpose, maskedCounts: countByKind(masked.hits),
-          bytes: byteLength(promptToSend),
-        })
-      }
+      const transferReceipt = gate.internal ? null : await deps.store.recordTransfer({
+        orgId: req.orgId, caseId: req.caseId, modelId: model.id, docClass: req.docClass,
+        purpose: req.purpose, maskedCounts: countByKind(masked.hits),
+        bytes: byteLength(promptToSend),
+      })
 
       // 6. restore
       return {
@@ -213,6 +221,8 @@ export async function callWithFallback<M extends CallableModel, C extends string
           latencyMs,
           costKrw: cost,
           maskedCounts: countByKind(masked.hits),
+          callReceipt,
+          transferReceipt,
         },
       }
     } catch (e) {
