@@ -1,0 +1,44 @@
+{
+  "설명": "AI 벤더 주소를 코드에 직접 들고 있는 파일. 이 파일들은 관문(@ax/ai-gateway)을 지나지 않으므로 시간 제한도 개인정보 가림도 폴백도 비용도 전송 기록도 붙지 않는다",
+  "규칙": "이 목록보다 늘면 실패한다. 관문으로 옮겨 줄면 여기서도 지운다",
+  "훑는곳": [
+    "lib",
+    "app"
+  ],
+  "제외": [
+    "*.test.ts"
+  ],
+  "패턴": "https://[A-Za-z0-9.-]*(generativelanguage\\.googleapis\\.com|aiplatform\\.googleapis\\.com|api\\.openai\\.com|api\\.anthropic\\.com|api\\.groq\\.com|api\\.x\\.ai|openrouter\\.ai|api\\.deepseek\\.com|api\\.mistral\\.ai|api\\.perplexity\\.ai|api\\.cohere\\.(ai|com)|api\\.together\\.(ai|xyz))",
+  "잰날": "2026-09-14",
+  "파일": [
+    "app/(member)/calendar/actions.ts",
+    "app/api/ai/analyze-work/route.ts",
+    "app/api/daily/flow-reason/route.ts",
+    "app/api/daily/memos/clusters/route.ts",
+    "app/api/deals/activities/route.ts",
+    "app/api/deals/ai-parse/route.ts",
+    "app/api/pricing/gpu/db-chat/route.ts",
+    "app/api/pricing/gpu/quotes/[id]/reanalyze/route.ts",
+    "app/api/pricing/gpu/review/[id]/recheck/route.ts",
+    "app/api/pricing/gpu/review/route.ts",
+    "app/api/pricing/gpu/specs/generate/route.ts",
+    "app/api/reports/aggregate-stream/route.ts",
+    "lib/ai-chat/providers/gemini.ts",
+    "lib/ai/fallback-text.ts",
+    "lib/ai/gemini-call.ts",
+    "lib/ci/ai/creative-server.ts",
+    "lib/ci/ai/gemini.ts",
+    "lib/crm/services/card-read.ts",
+    "lib/daily-prompt-governance.ts",
+    "lib/daily/analyze-work-core.ts",
+    "lib/gemini-content-edit.ts",
+    "lib/gemini-daily-to-weekly.ts",
+    "lib/gemini-embedding.ts",
+    "lib/gemini-lead.ts",
+    "lib/gemini-refine.ts",
+    "lib/gemini-suggest-projects.ts",
+    "lib/gemini-suggest-tasks.ts",
+    "lib/gpu/extract-helpers.ts",
+    "lib/stt/provider.ts"
+  ]
+}
