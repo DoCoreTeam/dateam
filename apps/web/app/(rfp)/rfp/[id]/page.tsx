@@ -3,6 +3,7 @@
 // 리포트와 블록을 서버에서 함께 읽는다. 근거를 눌렀을 때 원문을 다시 부르면
 // 그 왕복 동안 화면이 멈춘 것처럼 보인다.
 
+import { readStoredReport, REPORT_VERSION_COLUMNS } from '@/lib/rfp/report/read-version'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ReportClient from './ReportClient'
@@ -23,7 +24,7 @@ export default async function RfpReportPage({ params }: { params: Promise<{ id: 
 
   const [{ data: version }, { data: fit }] = await Promise.all([
     (db as never as Db).from('rfp_report_versions')
-      .select('report').eq('case_id', id).order('version', { ascending: false }).limit(1).maybeSingle(),
+      .select(REPORT_VERSION_COLUMNS).eq('case_id', id).order('version', { ascending: false }).limit(1).maybeSingle(),
     (db as never as Db).from('rfp_fit_assessments')
       .select('verdict, score, conditional').eq('case_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ])
@@ -48,7 +49,7 @@ export default async function RfpReportPage({ params }: { params: Promise<{ id: 
       caseId={id}
       caseTitle={String((kase as { title?: unknown }).title ?? '')}
       docClass={(kase as { doc_class?: unknown }).doc_class as DocClass}
-      report={((version as { report?: unknown } | null)?.report as Report) ?? null}
+      report={readStoredReport(version as never)?.report ?? null}
       blocks={blocks}
       stage={String((kase as { stage?: unknown }).stage ?? '')}
       progress={progress}

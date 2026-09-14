@@ -4,6 +4,7 @@
 // **앞 차수를 지우지 않는다.** 지우면 「무엇이 바뀌었나」를 영영 말할 수 없고,
 // 지난 리포트를 근거로 쓴 제안서도 설명이 안 된다.
 
+import { readStoredReport, REPORT_VERSION_COLUMNS } from '@/lib/rfp/report/read-version'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -135,10 +136,10 @@ function toRevision(row: Record<string, unknown>): Revision {
 async function latestReport(db: unknown, caseId: string): Promise<Report | null> {
   const { data } = await (db as any)
     .from('rfp_report_versions')
-    .select('report')
+    .select(REPORT_VERSION_COLUMNS)
     .eq('case_id', caseId)
     .order('version', { ascending: false })
     .limit(1)
     .maybeSingle()
-  return (data?.report as Report) ?? null
+  return readStoredReport(data as never)?.report ?? null
 }

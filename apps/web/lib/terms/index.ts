@@ -61,6 +61,10 @@ export {
 } from './doc.ts'
 
 export {
+  CONTRACT_LEGACY, CONTRACT_HELD, CONTRACT_AHEAD, contractNote,
+} from './contract.ts'
+
+export {
   CONNECTION,
   type ConnectionKey,
 } from './connection.ts'

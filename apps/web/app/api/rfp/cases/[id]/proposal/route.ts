@@ -3,6 +3,7 @@
 // 목차는 **평가 기준 배점**에서 파생된다. 우리가 쓰고 싶은 순서가 아니라 배점표 순서다 —
 // 배점표에 있는 장이 목차에 없으면 평가위원이 점수를 줄 자리를 못 찾는다.
 
+import { readStoredReport, REPORT_VERSION_COLUMNS } from '@/lib/rfp/report/read-version'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -34,14 +35,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const { data: version } = await (db as any)
     .from('rfp_report_versions')
-    .select('id, report')
+    .select(`id, ${REPORT_VERSION_COLUMNS}`)
     .eq('case_id', caseId)
     .order('version', { ascending: false })
     .limit(1)
     .maybeSingle()
   if (!version) return NextResponse.json({ error: 'no_report' }, { status: 409 })
 
-  const report = version.report as Report
+  const read = readStoredReport(version as never)
+  const report = read?.report as Report
   const criteria = criteriaOf(report)
   const requirements = requirementsOf(report)
 

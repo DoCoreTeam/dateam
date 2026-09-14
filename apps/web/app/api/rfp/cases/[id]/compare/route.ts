@@ -3,6 +3,7 @@
 // 임베딩으로 스무 건까지 넓게 건지고 구조화 필터로 다섯 건으로 좁힌다.
 // 순서가 반대면 비슷한 뜻의 사업을 필터 밖에서 놓친다.
 
+import { readStoredReport, REPORT_VERSION_COLUMNS } from '@/lib/rfp/report/read-version'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -95,10 +96,10 @@ function toSummary(row: Record<string, unknown>): CaseSummary {
 async function latestReport(db: unknown, caseId: string): Promise<Report | null> {
   const { data } = await (db as any)
     .from('rfp_report_versions')
-    .select('report')
+    .select(REPORT_VERSION_COLUMNS)
     .eq('case_id', caseId)
     .order('version', { ascending: false })
     .limit(1)
     .maybeSingle()
-  return (data?.report as Report) ?? null
+  return readStoredReport(data as never)?.report ?? null
 }

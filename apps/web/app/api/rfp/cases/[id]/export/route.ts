@@ -3,6 +3,7 @@
 // 작업용과 보고용은 **같은 JSON 에서** 나온다. 따로 만들면 두 문서가 다른 말을 하고,
 // 그때 어느 쪽이 맞는지 아무도 모른다. 보고용은 근거·벤더·검증 배지를 뺄 뿐이다.
 
+import { readStoredReport, REPORT_VERSION_COLUMNS } from '@/lib/rfp/report/read-version'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -34,14 +35,16 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   const { data: version } = await (db as any)
     .from('rfp_report_versions')
-    .select('report, version, created_at')
+    .select(`${REPORT_VERSION_COLUMNS}, version, created_at`)
     .eq('case_id', caseId)
     .order('version', { ascending: false })
     .limit(1)
     .maybeSingle()
   if (!version) return NextResponse.json({ error: 'no_report' }, { status: 409 })
 
-  const report = version.report as Report
+  // 사다리를 지나야 옛 판을 새 판인 척 내보내지 않는다
+  const read = readStoredReport(version as never)
+  const report = read?.report as Report
   const opts = { mode, caseTitle: String(kase.title ?? ''), generatedAt: String(version.created_at ?? '') }
 
   const body = format === 'html' ? toPrintHtml(report, opts) : toMarkdown(report, opts)
