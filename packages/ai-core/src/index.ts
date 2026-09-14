@@ -31,3 +31,12 @@ export {
   REQUIRED_PRESENTATION,
   isAiCapability,
 } from './capability.ts'
+
+export {
+  type Rung,
+  type Climbed,
+  type Held,
+  type ClimbResult,
+  climb,
+  isCurrent,
+} from './ladder.ts'

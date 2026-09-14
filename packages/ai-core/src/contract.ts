@@ -113,7 +113,10 @@ export function newAiValue<T>(input: NewAiValueInput<T>): AiValue<T> {
  */
 export function versionOf(raw: unknown): number | null {
   if (typeof raw !== 'object' || raw === null) return null
-  const v = (raw as { contractVersion?: unknown }).contractVersion
+  // A row coming back from the database names the column in snake_case. Two answers to the
+  // same question means one path fails to see the version and mistakes the value for an old one
+  const r = raw as { contractVersion?: unknown; contract_version?: unknown }
+  const v = typeof r.contractVersion === 'number' ? r.contractVersion : r.contract_version
   return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null
 }
 
