@@ -42,3 +42,14 @@ export {
 export { CandidateList, type CandidateListProps } from './CandidateList.tsx'
 export { SuggestionDiff, type SuggestionDiffProps } from './SuggestionDiff.tsx'
 export { CorrectionTrail, type CorrectionTrailProps } from './CorrectionTrail.tsx'
+
+export {
+  type ProgressView,
+  needsGeneratedNotice,
+  noticeIsMandatory,
+  progressView,
+  canAskAgain,
+} from './notice.ts'
+
+export { AskAgain, type AskAgainProps } from './AskAgain.tsx'
+export { Progress, type ProgressProps } from './Progress.tsx'
