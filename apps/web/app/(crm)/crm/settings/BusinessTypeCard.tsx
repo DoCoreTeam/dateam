@@ -27,6 +27,7 @@ import {
 } from '@/lib/crm/domain/business-type'
 import { invalidateBusinessTypes } from '@/lib/crm/ui/use-business-types'
 import styles from './business-type-card.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 /** 폼이 닫힘 / 추가 / 그 id 를 고치는 중 — 칸이 같으므로 폼은 한 벌이다(§2-5) */
 type Editing = null | 'new' | string
@@ -179,15 +180,11 @@ export default function BusinessTypeCard({ canEdit }: { canEdit: boolean }) {
   if (loading && items.length === 0) return <AXDotLoader />
 
   return (
-    <div className={`card ${styles.card}`}>
-      <div className={styles.head}>
-        <h3 className={styles.title}>사업 유형</h3>
-        {canEdit && (
+    <SettingsCard title="사업 유형" headingLevel={3} headerAction={<>{canEdit && (
           <NbButton variant="ghost" onClick={() => openForm(null)}>
             <Plus size={14} /> {ACTION.create} 사업 유형
           </NbButton>
-        )}
-      </div>
+        )}</>}>
       <p className={styles.desc}>
         딜을 만들 때 고르는 목록입니다. 유형마다 원가 구조도 계약 형태도 달라서,
         여기가 갈려 있으면 「어떤 사업이 남는 장사였나」를 나중에 따져 보기 어렵습니다.
@@ -284,6 +281,6 @@ export default function BusinessTypeCard({ canEdit }: { canEdit: boolean }) {
           </li>
         ))}
       </ul>
-    </div>
+    </SettingsCard>
   )
 }

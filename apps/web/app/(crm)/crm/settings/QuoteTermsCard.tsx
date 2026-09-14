@@ -21,6 +21,7 @@ import { ACTION, progress } from '@/lib/terms'
 import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
 import { selectableBusinessTypes } from '@/lib/crm/domain/business-type'
 import styles from './quote-terms-card.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface Term {
   id: string
@@ -119,10 +120,7 @@ export default function QuoteTermsCard() {
   if (loading && items.length === 0) return <AXDotLoader />
 
   return (
-    <div className={`card ${styles.card}`}>
-      <div className={styles.head}>
-        <h3 className={styles.title}>거래 조건</h3>
-        <NbButton
+    <SettingsCard title="거래 조건" headingLevel={3} headerAction={<><NbButton
           variant="ghost"
           onClick={() => {
             setEditing((v) => (v === null ? 'new' : null))
@@ -131,8 +129,7 @@ export default function QuoteTermsCard() {
           }}
         >
           <Plus size={14} /> 조건 추가
-        </NbButton>
-      </div>
+        </NbButton></>}>
       <p className={styles.desc}>
         {/* JSX 는 마크다운을 렌더하지 않는다 — 별표가 글자로 찍힌다(실브라우저에서 보였다) */}
         견적서 아래에 인쇄됩니다. 등록해 두면 견적마다 필요한 것만 골라 쓸 수 있어요.
@@ -234,6 +231,6 @@ export default function QuoteTermsCard() {
           ))}
         </ul>
       )}
-    </div>
+    </SettingsCard>
   )
 }

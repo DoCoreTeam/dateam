@@ -16,12 +16,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { withReturnTo, currentReturnTo } from '@/lib/nav/return-to'
 import NbButton from '@/components/ui/nb/NbButton'
-import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import styles from './settings.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 
 interface Connection {
   id: string
@@ -124,10 +125,7 @@ export default function IntegrationCard() {
   const broken = items.filter((c) => c.status === 'error')
 
   return (
-    <div className={`card ${styles.card}`}>
-      <div className={styles.head}>
-        <h2 className={styles.title}>메일·일정 연동</h2>
-        {/* 떠났다 돌아올 자리를 함께 실어 보낸다 — 동의를 마치면 이 카드로 돌아온다(복귀 경로 SSOT) */}
+    <SettingsCard title="메일·일정 연동" headingLevel={2} headerAction={<>{/* 떠났다 돌아올 자리를 함께 실어 보낸다 — 동의를 마치면 이 카드로 돌아온다(복귀 경로 SSOT) */}
         {items.length > 0 && (
           <NbButton variant="ghost" disabled={busy === 'sync'} onClick={() => void syncNow()}>
             {busy === 'sync' ? '가져오는 중…' : '지금 가져오기'}
@@ -135,8 +133,7 @@ export default function IntegrationCard() {
         )}
         <NbButton onClick={() => { window.location.href = withReturnTo('/api/auth/google-drive?purpose=crm', currentReturnTo()) }}>
           {items.length > 0 ? '다시 연결' : '구글 계정 연결'}
-        </NbButton>
-      </div>
+        </NbButton></>}>
 
       <FormErrorBanner message={error} />
       {notice && <p className={styles.undo}>{notice}</p>}
@@ -162,7 +159,7 @@ export default function IntegrationCard() {
             return (
               <li key={c.id} className={styles.conn}>
                 <span className={styles.connName}>{c.provider === 'google' ? '구글' : c.provider}</span>
-                <NbBadge status={meta.status}>{meta.label}</NbBadge>
+                <StatusPill tone={toneFromStatusKey(meta.status)}>{meta.label}</StatusPill>
                 <NbButton variant="ghost" disabled={busy === c.id} onClick={() => void disconnect(c.id)}>
                   {busy === c.id ? '해제 중…' : '연결 해제'}
                 </NbButton>
@@ -172,10 +169,10 @@ export default function IntegrationCard() {
         </ul>
       )}
 
-      <p className={styles.hint}>
+      <p className="field-note">
         15분마다 자동으로 가져옵니다. 연결을 해제해도 이미 담긴 메일 기록은 남고,
         우리 인물 명부에 있는 사람과 주고받은 메일만 저장합니다.
       </p>
-    </div>
+    </SettingsCard>
   )
 }

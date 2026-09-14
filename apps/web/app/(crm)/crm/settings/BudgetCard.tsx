@@ -11,11 +11,12 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
-import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import styles from './settings.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 
 interface Budget {
   month: string
@@ -98,11 +99,7 @@ export default function BudgetCard() {
   const pct = budget ? Math.min(100, Math.round(budget.ratio * 100)) : 0
 
   return (
-    <div className={`card ${styles.card}`}>
-      <div className={styles.head}>
-        <h2 className={styles.title}>AI 예산</h2>
-        {meta && <NbBadge status={meta.status}>{meta.label}</NbBadge>}
-      </div>
+    <SettingsCard title="AI 예산" headingLevel={2} headerAction={<>{meta && <StatusPill tone={toneFromStatusKey(meta.status)}>{meta.label}</StatusPill>}</>}>
 
       <FormErrorBanner message={error} />
 
@@ -144,11 +141,11 @@ export default function BudgetCard() {
             </NbButton>
           </div>
 
-          <p className={styles.hint}>
+          <p className="field-note">
             상한에 닿으면 AI 기능만 멈추고 나머지는 그대로 동작합니다. 매월 1일에 사용액이 새로 시작합니다.
           </p>
         </>
       )}
-    </div>
+    </SettingsCard>
   )
 }

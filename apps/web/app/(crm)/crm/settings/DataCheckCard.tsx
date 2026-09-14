@@ -17,6 +17,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import styles from './settings.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface Issue { key: string; kind: string; label: string; detail: string; href: string }
 interface Pick { key: string; because: string; todo: string }
@@ -55,13 +56,9 @@ export default function DataCheckCard() {
   const rest = (result?.issues ?? []).filter((i) => !picked.has(i.key)).slice(0, SHOW)
 
   return (
-    <div className={`card ${styles.card}`}>
-      <div className={styles.head}>
-        <h2 className={styles.title}>데이터 점검</h2>
-        <NbButton variant="ghost" onClick={() => void run()} disabled={busy}>
+    <SettingsCard title="데이터 점검" headingLevel={2} headerAction={<><NbButton variant="ghost" onClick={() => void run()} disabled={busy}>
           {busy ? '보는 중…' : '지금 점검'}
-        </NbButton>
-      </div>
+        </NbButton></>}>
 
       <FormErrorBanner message={error} />
 
@@ -98,7 +95,7 @@ export default function DataCheckCard() {
           )}
 
           {/* 우선순위를 못 매겼어도 목록은 산다 — 이 구조를 고른 이유가 여기 있다 */}
-          {result.reason && <p className={styles.hint}>{result.reason}</p>}
+          {result.reason && <p className="field-note">{result.reason}</p>}
 
           {rest.length > 0 && (
             <ul className={styles.checkList}>
@@ -113,12 +110,12 @@ export default function DataCheckCard() {
 
           {/* 잘렸으면 잘렸다고 말한다 — 조용히 자르면 "이게 전부"로 읽는다 */}
           {result.total > picked.size + rest.length && (
-            <p className={styles.hint}>
+            <p className="field-note">
               모두 {result.total}건 중 {picked.size + rest.length}건만 보여 주고 있어요.
             </p>
           )}
         </>
       )}
-    </div>
+    </SettingsCard>
   )
 }

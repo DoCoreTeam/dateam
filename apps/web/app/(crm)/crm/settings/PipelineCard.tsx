@@ -34,6 +34,7 @@ import {
 } from '@/lib/crm/domain/pipeline'
 import { clearCachedPipelines } from '@/lib/crm/ui/pipeline-cache'
 import styles from './pipeline-card.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface StageLite { id: string; name: string; kind: string; position: number; dealCount: number }
 interface PipelineRow {
@@ -242,16 +243,12 @@ export default function PipelineCard({ canEdit }: { canEdit: boolean }) {
   if (loading && items.length === 0) return <AXDotLoader />
 
   return (
-    <div className={`card ${styles.card}`}>
-      {dialog}
-      <div className={styles.head}>
-        <h3 className={styles.title}>파이프라인</h3>
-        {canEdit && (
+    <SettingsCard title="파이프라인" headingLevel={3} headerAction={<>{canEdit && (
           <NbButton variant="ghost" onClick={() => openForm(null)}>
             <Plus size={14} /> {ACTION.create} 파이프라인
           </NbButton>
-        )}
-      </div>
+        )}</>}>
+      {dialog}
       <p className={styles.desc}>
         딜을 만들 때 가장 먼저 고르는 목록입니다. 파이프라인마다 <strong>영업 단계가 다릅니다</strong>.
         공공은 「입찰 → 낙찰」이고 GPU 인프라는 「기술검증 → 계약 협상」입니다.
@@ -282,7 +279,7 @@ export default function PipelineCard({ canEdit }: { canEdit: boolean }) {
             </div>
           </div>
           {editing === 'new' && (
-            <p className={styles.hint}>
+            <p className="field-note">
               흔한 영업 흐름(리드 → 상담 → 제안 → 협상 → 성사/실패)으로 시작합니다.
               단계는 만든 뒤 영업 단계 화면에서 고칠 수 있어요.
             </p>
@@ -375,6 +372,6 @@ export default function PipelineCard({ canEdit }: { canEdit: boolean }) {
           )
         })}
       </ul>
-    </div>
+    </SettingsCard>
   )
 }

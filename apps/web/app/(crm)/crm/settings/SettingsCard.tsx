@@ -10,13 +10,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
-import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { SETTING_GROUP as GROUP, SETTING_GROUP_ORDER as GROUP_ORDER } from '@/lib/crm/domain/setting-group'
 import QuoteNoField from './QuoteNoField'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import styles from './settings.module.css'
+import SharedSettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill from '@/components/ui/settings/StatusPill'
 
 interface Choice { value: string; label: string; hint?: string }
 
@@ -115,19 +116,16 @@ export default function SettingsCard() {
     <>
       <FormErrorBanner message={error} />
       {groups.map((g) => (
-    <div className={`card ${styles.card}`} key={g}>
-      <div className={styles.head}>
-        <h2 className={styles.title}>{GROUP[g].label}</h2>
-      </div>
+    <SharedSettingsCard title={GROUP[g].label} headingLevel={2} key={g}>
 
       <div className={styles.settings}>
         {items.filter((s) => s.group === g).map((s) => (
           <div key={s.key} className={styles.setting}>
             <div className={styles.settingHead}>
               <label className="label" htmlFor={`set-${s.key}`}>{s.label}</label>
-              <NbBadge>{SOURCE_LABEL[s.source]}</NbBadge>
+              <StatusPill tone="neutral">{SOURCE_LABEL[s.source]}</StatusPill>
             </div>
-            <p className={styles.hint}>{s.description}</p>
+            <p className="field-note">{s.description}</p>
 
             <div className={styles.row}>
               <div className={styles.field}>
@@ -210,13 +208,13 @@ export default function SettingsCard() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={drafts[s.key]} alt={`${s.label} 미리보기`} />
                 ) : (
-                  <span className={styles.hint}>저장됨 · {s.masked}: 바꾸려면 새 파일을 고르세요</span>
+                  <span className="field-note">저장됨 · {s.masked}: 바꾸려면 새 파일을 고르세요</span>
                 )}
               </div>
             )}
 
             {s.kind === 'choice' && (
-              <p className={styles.hint}>
+              <p className="field-note">
                 {(s.choices ?? []).find((c) => c.value === (drafts[s.key] ?? ''))?.hint ?? ''}
               </p>
             )}
@@ -231,8 +229,8 @@ export default function SettingsCard() {
         </p>
       )}
 
-      <p className={styles.hint}>{GROUP[g].description}</p>
-    </div>
+      <p className="field-note">{GROUP[g].description}</p>
+    </SharedSettingsCard>
       ))}
     </>
   )

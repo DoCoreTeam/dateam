@@ -12,12 +12,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
-import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import styles from './settings.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 
 type Target = 'company' | 'person'
 
@@ -142,13 +143,9 @@ export default function DuplicatesCard() {
   }
 
   return (
-    <div className={`card ${styles.card}`}>
-      <div className={styles.head}>
-        <h2 className={styles.title}>중복 정리</h2>
-        <NbButton variant="ghost" onClick={() => void scan()} disabled={busy === 'scan'}>
+    <SettingsCard title="중복 정리" headingLevel={2} headerAction={<><NbButton variant="ghost" onClick={() => void scan()} disabled={busy === 'scan'}>
           {busy === 'scan' ? '훑는 중…' : '지금 훑기'}
-        </NbButton>
-      </div>
+        </NbButton></>}>
 
       <FormErrorBanner message={error} />
 
@@ -182,7 +179,7 @@ export default function DuplicatesCard() {
             return (
               <li key={c.id} className={styles.dupe}>
                 <div className={styles.dupeHead}>
-                  <NbBadge status={conf.status}>{conf.label}</NbBadge>
+                  <StatusPill tone={toneFromStatusKey(conf.status)}>{conf.label}</StatusPill>
                 </div>
                 <div className={styles.dupePair}>
                   {[c.a, c.b].map((side, i) => (
@@ -214,9 +211,9 @@ export default function DuplicatesCard() {
         </ul>
       )}
 
-      <p className={styles.hint}>
+      <p className="field-note">
         합치면 딜·활동·할 일이 전부 남기는 쪽으로 옮겨집니다. 사라지는 쪽은 30일간 보관돼 되돌릴 수 있습니다.
       </p>
-    </div>
+    </SettingsCard>
   )
 }

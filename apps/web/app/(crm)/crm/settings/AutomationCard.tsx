@@ -22,6 +22,7 @@ import {
 } from '@/lib/crm/services/automation'
 import styles from './settings.module.css'
 import { ACTION } from '@/lib/terms'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface Stage { id: string; name: string; pipelineName: string }
 
@@ -133,9 +134,8 @@ export default function AutomationCard() {
   const hasStalled = rules.some((r) => r.enabled && r.trigger === 'deal.stalled')
 
   return (
-    <div className={`card ${styles.card}`}>
-      <h2 className={styles.cardTitle}>자동화</h2>
-      <p className={styles.cardDesc}>
+    <SettingsCard title="자동화" headingLevel={2}>
+      <p className="field-note">
         딜이 움직이면 할 일을 대신 만들어 둡니다. 제목에 <code>{'{회사}'}</code>·<code>{'{딜}'}</code>를
         넣으면 실제 이름으로 채워져요. 만든 규칙은 <strong>켜야</strong> 돕니다.
       </p>
@@ -261,6 +261,6 @@ export default function AutomationCard() {
           </div>
         </>
       )}
-    </div>
+    </SettingsCard>
   )
 }

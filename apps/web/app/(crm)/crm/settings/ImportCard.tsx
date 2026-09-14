@@ -11,10 +11,11 @@
 import { useRef, useState } from 'react'
 import { Upload, FileUp } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { IMPORT_LABEL, type ImportKind, type ImportPreview, type ImportOutcome } from '@/lib/crm/services/import-csv'
 import styles from './settings.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill from '@/components/ui/settings/StatusPill'
 
 const KINDS: ImportKind[] = ['companies', 'people']
 
@@ -64,9 +65,8 @@ export default function ImportCard() {
   }
 
   return (
-    <div className={`card ${styles.card}`}>
-      <h2 className={styles.cardTitle}>엑셀에서 들여오기</h2>
-      <p className={styles.cardDesc}>
+    <SettingsCard title="엑셀에서 들여오기" headingLevel={2}>
+      <p className="field-note">
         엑셀을 CSV 로 저장해 올리면 회사·인물을 한 번에 만듭니다.
         첫 줄에 <strong>회사명·도메인</strong> 같은 칸 이름이 있으면 알아서 맞춰요.
         <strong> 넣기 전에 무엇이 생기는지 먼저 보여 드립니다.</strong>
@@ -116,7 +116,7 @@ export default function ImportCard() {
           {/* 못 알아본 칸을 숨기지 않는다 — 숨기면 사람은 데이터가 들어간 줄 안다 */}
           {preview.ignored.length > 0 && (
             <p>
-              <NbBadge status="note">안 쓰는 칸</NbBadge>{' '}
+              <StatusPill tone="neutral">안 쓰는 칸</StatusPill>{' '}
               {preview.ignored.join(', ')}: 이 칸들은 들어가지 않아요
             </p>
           )}
@@ -141,6 +141,6 @@ export default function ImportCard() {
           )}
         </div>
       )}
-    </div>
+    </SettingsCard>
   )
 }

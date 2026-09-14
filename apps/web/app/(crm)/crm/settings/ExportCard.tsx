@@ -16,6 +16,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { EXPORT_LABEL, type ExportKind } from '@/lib/crm/services/export'
 import styles from './settings.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 const KINDS: ExportKind[] = ['companies', 'people', 'deals', 'meetings', 'tasks']
 
@@ -50,9 +51,8 @@ export default function ExportCard() {
   }
 
   return (
-    <div className={`card ${styles.card}`}>
-      <h2 className={styles.cardTitle}>엑셀로 내려받기</h2>
-      <p className={styles.cardDesc}>
+    <SettingsCard title="엑셀로 내려받기" headingLevel={2}>
+      <p className="field-note">
         보고·정산에 쓸 수 있게 CSV 로 받습니다. 엑셀에서 바로 열리고, 금액은 계산할 수 있는 숫자로 들어갑니다.
       </p>
 
@@ -66,6 +66,6 @@ export default function ExportCard() {
           </NbButton>
         ))}
       </div>
-    </div>
+    </SettingsCard>
   )
 }

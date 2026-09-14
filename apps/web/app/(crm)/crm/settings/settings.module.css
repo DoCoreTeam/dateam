@@ -8,26 +8,8 @@
   align-items: stretch;
 }
 
-.card {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  align-content: start;
-}
 
-.head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
 
-.title {
-  margin: 0;
-  font-size: var(--fs-sm);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--text);
-}
 
 .blocked {
   margin: 0;
@@ -89,11 +71,6 @@
 
 .field { flex: 1 1 auto; min-width: 0; }
 
-.hint {
-  margin: 0;
-  font-size: var(--fs-2xs);
-  color: var(--text-muted);
-}
 
 /* 설정 항목 묶음 */
 .settings {

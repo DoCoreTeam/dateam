@@ -11,10 +11,11 @@
 // 켠 칸은 **얼마나 확신할 때** 반영되는지.
 
 import { useCallback, useEffect, useState } from 'react'
-import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import styles from './settings.module.css'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill from '@/components/ui/settings/StatusPill'
 
 interface Row {
   targetType: string
@@ -85,17 +86,13 @@ export default function AutoApplyCard() {
   const onCount = items.filter((r) => r.autoApply).length
 
   return (
-    <div className={`card ${styles.card}`}>
-      <div className={styles.head}>
-        <h2 className={styles.title}>AI 자동 반영</h2>
-        <NbBadge status={onCount > 0 ? 'doing' : 'note'}>
+    <SettingsCard title="AI 자동 반영" headingLevel={2} headerAction={<><StatusPill tone={onCount > 0 ? 'info' : 'neutral'}>
           {onCount > 0 ? `${onCount}개 칸 허용` : '전부 사람 확인'}
-        </NbBadge>
-      </div>
+        </StatusPill></>}>
 
       <FormErrorBanner message={error} />
 
-      <p className={styles.hint}>
+      <p className="field-note">
         켜 둔 칸은 AI가 확신할 때 바로 채웁니다. 꺼 둔 칸은 인박스에서 사람이 확인한 뒤에 반영됩니다.
         레코드에서 자물쇠로 확정한 값은 켜 두어도 덮지 않습니다.
       </p>
@@ -149,6 +146,6 @@ export default function AutoApplyCard() {
           </ul>
         </div>
       ))}
-    </div>
+    </SettingsCard>
   )
 }

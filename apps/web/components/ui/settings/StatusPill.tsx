@@ -27,3 +27,21 @@ interface Props {
 export default function StatusPill({ tone, title, children }: Props) {
   return <span className={TONE_CLASS[tone]} title={title}>{children}</span>
 }
+
+/**
+ * 업무 상태 낱말(StatusKey)을 설정 화면의 다섯 뜻으로 옮긴다.
+ *
+ * 영업 CRM 설정은 할 일 상태 낱말(완료·진행중·예정·블로커·메모)로 연결 상태를 말하고 있었다.
+ * 「연결됨」이 「완료」와 같은 색이던 것이 그 때문이다. 낱말은 그대로 두고 뜻만 여기서 옮긴다 —
+ * 카드마다 옮기면 같은 「연결됨」이 화면마다 다른 색이 된다.
+ */
+export function toneFromStatusKey(key?: string | null): StatusTone {
+  switch (key) {
+    case 'done': return 'ok'
+    case 'doing': return 'info'
+    case 'planned': return 'warn'   // 80% 넘음 같은 「곧 문제가 된다」가 여기로 온다
+    case 'blocker': return 'danger'
+    case 'note': return 'neutral'
+    default: return 'neutral'
+  }
+}
