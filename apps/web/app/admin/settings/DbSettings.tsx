@@ -5,6 +5,8 @@ import { Database, CheckCircle, XCircle, Trash2, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveDbUrl, deleteDbUrl, checkDbHealth } from './actions'
 import { IntegrationTest } from './integration-ui'
+import StatusPill from '@/components/ui/settings/StatusPill'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface DbSettingsProps {
   hasUrl: boolean
@@ -64,19 +66,15 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-        <Database size={16} color="var(--brand)" />
-        <h2 className="tape-title" style={{ margin: 0 }}>DB 연결 (PostgreSQL)</h2>
-      </div>
+    <SettingsCard title="DB 연결 (PostgreSQL)" headingLevel={2} icon={<Database size={16} />}>
 
       {hasUrl && maskedUrl && (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <CheckCircle size={14} color="var(--success)" />
-              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--success)' }}>연결 문자열 설정됨</span>
-            </div>
+            <StatusPill tone="ok">
+              <CheckCircle size={12} />
+              연결 문자열 설정됨
+            </StatusPill>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               <button type="button" onClick={() => setShowInput((v) => !v)} style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)' }}>변경</button>
               <button type="button" onClick={handleDelete} disabled={deletePending} style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
@@ -101,9 +99,12 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
       )}
 
       {saveMsg && (
-        <div role="status" style={{ padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.375rem', backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: saveMsg.ok ? 'var(--success)' : 'var(--danger)', border: `var(--hairline) solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
-          {saveMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}{saveMsg.text}
-        </div>
+        <p role="status" style={{ marginBottom: 'var(--space-3)' }}>
+          <StatusPill tone={saveMsg.ok ? 'ok' : 'danger'}>
+            {saveMsg.ok ? <CheckCircle size={12} /> : <XCircle size={12} />}
+            {saveMsg.text}
+          </StatusPill>
+        </p>
       )}
 
       <IntegrationTest
@@ -112,6 +113,6 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
         result={healthMsg}
         desc="DB 연결을 확인합니다"
       />
-    </div>
+    </SettingsCard>
   )
 }

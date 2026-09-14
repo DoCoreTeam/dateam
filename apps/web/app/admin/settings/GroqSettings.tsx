@@ -19,6 +19,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import { saveGroqKey, saveGroqModel, getGroqModels, deleteGroqKey } from './actions'
 import ModelSelectField from './ModelSelectField'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface GroqSettingsProps {
   hasKey: boolean
@@ -82,11 +83,7 @@ export default function GroqSettings({ hasKey: initialHasKey, maskedKey: initial
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-        <Key size={16} color="var(--brand)" />
-        <h2 className="tape-title" style={{ margin: 0 }}>Groq API 키</h2>
-      </div>
+    <SettingsCard title="Groq API 키" headingLevel={2} icon={<Key size={16} />}>
 
       {hasKey && maskedKey && (
         <IntegrationStatus
@@ -138,6 +135,6 @@ export default function GroqSettings({ hasKey: initialHasKey, maskedKey: initial
         result={healthMsg}
         desc="Groq API에 연결 가능한지 확인합니다"
       />
-    </div>
+    </SettingsCard>
   )
 }

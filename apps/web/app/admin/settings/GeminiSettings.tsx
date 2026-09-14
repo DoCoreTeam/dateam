@@ -6,6 +6,8 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveGeminiKey, deleteGeminiKey, checkGeminiHealth, saveGeminiModel } from './actions'
 import ModelSelectField from './ModelSelectField'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
+import StatusPill from '@/components/ui/settings/StatusPill'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface GeminiSettingsProps {
   hasKey: boolean
@@ -66,12 +68,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-        <Key size={16} color="var(--brand)" />
-        <h2 className="tape-title" style={{ margin: 0 }}>Gemini API 키</h2>
-      </div>
+    <SettingsCard title="Gemini API 키" headingLevel={2} icon={<Key size={16} />}>
 
       {/* 현재 상태 */}
       {hasKey && maskedKey && (
@@ -113,25 +110,12 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
 
       {/* 저장/삭제 피드백 */}
       {saveMsg && (
-        <div
-          role="status"
-          style={{
-            padding: '0.625rem 0.875rem',
-            borderRadius: 'var(--radius)',
-            marginBottom: '1rem',
-            fontSize: 'var(--fs-sm)',
-            fontWeight: 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-            color: saveMsg.ok ? 'var(--success)' : 'var(--danger)',
-            border: `var(--hairline) solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
-          }}
-        >
-          {saveMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
-          {saveMsg.text}
-        </div>
+        <p role="status" style={{ marginBottom: 'var(--space-3)' }}>
+          <StatusPill tone={saveMsg.ok ? 'ok' : 'danger'}>
+            {saveMsg.ok ? <CheckCircle size={12} /> : <XCircle size={12} />}
+            {saveMsg.text}
+          </StatusPill>
+        </p>
       )}
 
       {/* 모델 선택 — 앱 전역 AI 기능이 쓰는 메인 모델 */}
@@ -143,6 +127,6 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
         result={healthMsg}
         desc="Gemini API에 연결 가능한지 확인합니다"
       />
-    </div>
+    </SettingsCard>
   )
 }

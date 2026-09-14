@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Image as ImageIcon, Trash2, Upload } from 'lucide-react'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface BrandingSettingsProps {
   initialLogoUrl: string | null
@@ -78,7 +79,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
   const displayUrl = previewUrl ?? logoUrl
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+    <SettingsCard>
       {/* 로고 미리보기 */}
       <div>
         <p className="label">로고 이미지</p>
@@ -196,6 +197,6 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           </p>
         )}
       </div>
-    </div>
+    </SettingsCard>
   )
 }

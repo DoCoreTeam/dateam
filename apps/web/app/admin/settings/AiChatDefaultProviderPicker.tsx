@@ -5,6 +5,8 @@ import { Sparkles, CheckCircle, XCircle } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import type { AiChatProviderId } from '@/types/database'
 import { saveAiChatDefaultProvider } from './actions'
+import StatusPill from '@/components/ui/settings/StatusPill'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface AiChatDefaultProviderPickerProps {
   available: { id: AiChatProviderId; label: string }[]
@@ -31,11 +33,7 @@ export default function AiChatDefaultProviderPicker({ available, current }: AiCh
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.75rem' }}>
-        <Sparkles size={16} color="var(--brand)" />
-        <h2 className="tape-title" style={{ margin: 0 }}>채팅 기본 프로바이더</h2>
-      </div>
+    <SettingsCard title="채팅 기본 프로바이더" headingLevel={2} icon={<Sparkles size={16} />}>
       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: '0 0 var(--space-4)' }}>
         새 대화를 시작할 때 미리 선택되는 프로바이더입니다. &apos;자동&apos;은 사용 가능한 첫 프로바이더를 사용합니다.
       </p>
@@ -63,26 +61,13 @@ export default function AiChatDefaultProviderPicker({ available, current }: AiCh
       )}
 
       {msg && (
-        <div
-          role="status"
-          style={{
-            marginTop: '0.625rem',
-            padding: '0.625rem 0.875rem',
-            borderRadius: 'var(--radius)',
-            fontSize: 'var(--fs-sm)',
-            fontWeight: 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            backgroundColor: msg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-            color: msg.ok ? 'var(--success)' : 'var(--danger)',
-            border: `var(--hairline) solid ${msg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
-          }}
-        >
-          {msg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
-          {msg.text}
-        </div>
+        <p role="status" style={{ marginBottom: 'var(--space-3)' }}>
+          <StatusPill tone={msg.ok ? 'ok' : 'danger'}>
+            {msg.ok ? <CheckCircle size={12} /> : <XCircle size={12} />}
+            {msg.text}
+          </StatusPill>
+        </p>
       )}
-    </div>
+    </SettingsCard>
   )
 }

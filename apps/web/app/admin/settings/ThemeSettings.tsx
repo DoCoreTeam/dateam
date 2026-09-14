@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { THEMES, type ThemeId } from '@/lib/themes'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId }) {
   const router = useRouter()
@@ -32,7 +33,7 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+    <SettingsCard>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
         {THEMES.map((t) => {
           const selected = theme === t.id
@@ -78,6 +79,6 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
           <p style={{ fontSize: 'var(--fs-sm)', color: message.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>{message.text}</p>
         )}
       </div>
-    </div>
+    </SettingsCard>
   )
 }

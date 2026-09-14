@@ -6,6 +6,8 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveOpenAiKey, saveOpenAiModel, getOpenAiModels, deleteOpenAiKey } from './actions'
 import ModelSelectField from './ModelSelectField'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
+import StatusPill from '@/components/ui/settings/StatusPill'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface OpenAiSettingsProps {
   hasKey: boolean
@@ -69,11 +71,7 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-        <Key size={16} color="var(--brand)" />
-        <h2 className="tape-title" style={{ margin: 0 }}>OpenAI API 키</h2>
-      </div>
+    <SettingsCard title="OpenAI API 키" headingLevel={2} icon={<Key size={16} />}>
 
       {hasKey && maskedKey && (
         <IntegrationStatus
@@ -111,25 +109,12 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
       )}
 
       {saveMsg && (
-        <div
-          role="status"
-          style={{
-            padding: '0.625rem 0.875rem',
-            borderRadius: 'var(--radius)',
-            marginBottom: '1rem',
-            fontSize: 'var(--fs-sm)',
-            fontWeight: 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-            color: saveMsg.ok ? 'var(--success)' : 'var(--danger)',
-            border: `var(--hairline) solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
-          }}
-        >
-          {saveMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
-          {saveMsg.text}
-        </div>
+        <p role="status" style={{ marginBottom: 'var(--space-3)' }}>
+          <StatusPill tone={saveMsg.ok ? 'ok' : 'danger'}>
+            {saveMsg.ok ? <CheckCircle size={12} /> : <XCircle size={12} />}
+            {saveMsg.text}
+          </StatusPill>
+        </p>
       )}
 
       {/* 모델 선택 — AI 채팅과 같은 부품(§2-5) */}
@@ -141,6 +126,6 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
         result={healthMsg}
         desc="OpenAI API에 연결 가능한지 확인합니다"
       />
-    </div>
+    </SettingsCard>
   )
 }

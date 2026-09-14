@@ -8,7 +8,10 @@ import StatusPill, { type StatusTone } from './StatusPill'
 import FieldNote from './FieldNote'
 
 interface Props {
-  title: ReactNode
+  /** 없으면 머리를 그리지 않는다 — 제목이 바깥 섹션에 있는 카드가 있다 */
+  title?: ReactNode
+  /** 제목 왼쪽 아이콘. 무엇에 대한 카드인지 글보다 먼저 알린다 */
+  icon?: ReactNode
   /** 제목 아래 한 줄 — 이 설정이 무엇을 바꾸는지 */
   description?: ReactNode
   /** 오른쪽 위 상태. 뜻만 고르고 색은 고르지 않는다 */
@@ -24,20 +27,28 @@ interface Props {
 }
 
 export default function SettingsCard({
-  title, description, status, headerAction, headingLevel = 3, children,
+  title, icon, description, status, headerAction, headingLevel = 3, children,
 }: Props) {
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
+  const hasHead = title !== undefined || description !== undefined || status !== undefined || headerAction !== undefined
   return (
     <section className="settings-card">
-      <div className="settings-card-head">
-        <div className="min-w-0">
-          <Heading className="settings-card-title">{title}</Heading>
-          {description ? <FieldNote>{description}</FieldNote> : null}
+      {hasHead && (
+        <div className="settings-card-head">
+          <div className="min-w-0">
+            {title !== undefined && (
+              <Heading className="settings-card-title">
+                {icon ? <span className="settings-card-icon" aria-hidden="true">{icon}</span> : null}
+                {title}
+              </Heading>
+            )}
+            {description ? <FieldNote>{description}</FieldNote> : null}
+          </div>
+          {status ? (
+            <StatusPill tone={status.tone} title={status.title}>{status.label}</StatusPill>
+          ) : headerAction}
         </div>
-        {status ? (
-          <StatusPill tone={status.tone} title={status.title}>{status.label}</StatusPill>
-        ) : headerAction}
-      </div>
+      )}
       {children ? <div className="settings-card-body">{children}</div> : null}
     </section>
   )

@@ -14,6 +14,7 @@ import { useState, useTransition } from 'react'
 import { AudioLines } from 'lucide-react'
 import { saveSttKey, deleteSttKey, checkSttHealth } from './actions'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface Props {
   hasKey: boolean
@@ -76,10 +77,7 @@ export default function SttSettings({ hasKey: initialHasKey, maskedKey: initialM
   }
 
   return (
-    <section className="card" style={{ padding: 'var(--space-6)' }}>
-      <h2 className="tape-title" style={{ margin: '0 0 var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <AudioLines size={18} /> 음성 인식 (회의 전사)
-      </h2>
+    <SettingsCard title="음성 인식 (회의 전사)" headingLevel={2} icon={<AudioLines size={18} />}>
       <p className="field-note" style={{ marginBottom: 'var(--space-4)' }}>
         회의 녹음을 글로 옮깁니다. 오픈소스 모델(whisper-large-v3)을 씁니다.
         키가 없으면 녹음은 되지만 전사가 돌지 않아 요약·할 일 뽑기까지 멈춥니다.
@@ -137,6 +135,6 @@ export default function SttSettings({ hasKey: initialHasKey, maskedKey: initialM
         result={healthMsg}
         desc="저장한 키로 음성 인식 서비스에 실제로 연결되는지 확인합니다"
       />
-    </section>
+    </SettingsCard>
   )
 }

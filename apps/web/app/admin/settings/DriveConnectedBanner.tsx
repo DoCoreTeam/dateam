@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { CheckCircle, X } from 'lucide-react'
+import StatusPill from '@/components/ui/settings/StatusPill'
 
 export default function DriveConnectedBanner() {
   const [visible, setVisible] = useState(true)
@@ -21,19 +22,13 @@ export default function DriveConnectedBanner() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 'var(--space-3) var(--space-4)',
-        backgroundColor: 'var(--success-bg)',
-        border: 'var(--hairline) solid var(--success-border)',
-        borderRadius: 'var(--radius)',
-        fontSize: 'var(--fs-base)',
-        fontWeight: 500,
-        color: 'var(--success)',
+        gap: 'var(--space-2)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <CheckCircle size={15} />
+      <StatusPill tone="ok">
+        <CheckCircle size={12} />
         Google Drive 연결이 완료되었습니다
-      </div>
+      </StatusPill>
       <button
         type="button"
         onClick={() => setVisible(false)}

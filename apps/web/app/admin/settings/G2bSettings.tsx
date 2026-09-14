@@ -9,6 +9,7 @@ import { useState, useTransition } from 'react'
 import { Key } from 'lucide-react'
 import { saveG2bKey, deleteG2bKey, checkG2bHealth } from './actions'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface Props {
   hasKey: boolean
@@ -65,10 +66,7 @@ export default function G2bSettings({ hasKey: initialHasKey, maskedKey: initialM
   }
 
   return (
-    <section className="card" style={{ padding: 'var(--space-6)' }}>
-      <h2 className="tape-title" style={{ margin: '0 0 var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <Key size={18} /> 나라장터 서비스 키
-      </h2>
+    <SettingsCard title="나라장터 서비스 키" headingLevel={2} icon={<Key size={18} />}>
       <p className="field-note" style={{ marginBottom: 'var(--space-4)' }}>
         RFP 공고 레이더가 나라장터에서 입찰 공고를 가져올 때 씁니다.
         공공데이터포털(data.go.kr)에서 「입찰공고정보서비스」를 신청하면 받습니다.
@@ -112,6 +110,6 @@ export default function G2bSettings({ hasKey: initialHasKey, maskedKey: initialM
         result={healthMsg}
         desc="나라장터 연결과 조회 권한을 확인합니다"
       />
-    </section>
+    </SettingsCard>
   )
 }

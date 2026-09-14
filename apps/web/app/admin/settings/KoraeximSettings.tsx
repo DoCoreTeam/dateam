@@ -5,6 +5,8 @@ import { Key, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveKoraeximKey, deleteKoraeximKey, checkKoraeximHealth } from './actions'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
+import StatusPill from '@/components/ui/settings/StatusPill'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface KoraeximSettingsProps {
   hasKey: boolean
@@ -64,11 +66,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-        <Key size={16} color="var(--brand)" />
-        <h2 className="tape-title" style={{ margin: 0 }}>한국수출입은행 API 키</h2>
-      </div>
+    <SettingsCard title="한국수출입은행 API 키" headingLevel={2} icon={<Key size={16} />}>
 
       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginBottom: '1rem', margin: '0 0 1rem 0' }}>
         GPU 환율 자동 갱신에 사용됩니다.{' '}
@@ -114,25 +112,12 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
       )}
 
       {saveMsg && (
-        <div
-          role="status"
-          style={{
-            padding: '0.625rem 0.875rem',
-            borderRadius: 'var(--radius)',
-            marginBottom: '1rem',
-            fontSize: 'var(--fs-sm)',
-            fontWeight: 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-            color: saveMsg.ok ? 'var(--success)' : 'var(--danger)',
-            border: `var(--hairline) solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
-          }}
-        >
-          {saveMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
-          {saveMsg.text}
-        </div>
+        <p role="status" style={{ marginBottom: 'var(--space-3)' }}>
+          <StatusPill tone={saveMsg.ok ? 'ok' : 'danger'}>
+            {saveMsg.ok ? <CheckCircle size={12} /> : <XCircle size={12} />}
+            {saveMsg.text}
+          </StatusPill>
+        </p>
       )}
 
       <IntegrationTest
@@ -141,6 +126,6 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
         result={healthMsg}
         desc="한국수출입은행 API 연결을 확인합니다"
       />
-    </div>
+    </SettingsCard>
   )
 }

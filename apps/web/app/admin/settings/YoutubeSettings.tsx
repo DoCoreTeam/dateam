@@ -9,6 +9,7 @@ import { useState, useTransition } from 'react'
 import { Key } from 'lucide-react'
 import { saveYoutubeKey, deleteYoutubeKey, checkYoutubeHealth } from './actions'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface Props {
   hasKey: boolean
@@ -66,10 +67,7 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
   }
 
   return (
-    <section className="card" style={{ padding: 'var(--space-6)' }}>
-      <h2 className="tape-title" style={{ margin: '0 0 var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <Key size={18} /> YouTube Data API 키
-      </h2>
+    <SettingsCard title="YouTube Data API 키" headingLevel={2} icon={<Key size={18} />}>
       <p className="field-note" style={{ marginBottom: 'var(--space-4)' }}>
         콘텐츠 인텔리전스의 채널 수집 범위를 결정합니다.
         키가 없으면 최근 15개(RSS)까지만 볼 수 있고, 키가 있으면 설정한 기간의 업로드를 전부 가져옵니다.
@@ -113,6 +111,6 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
         result={healthMsg}
         desc="YouTube Data API 연결과 수집 범위를 확인합니다"
       />
-    </section>
+    </SettingsCard>
   )
 }

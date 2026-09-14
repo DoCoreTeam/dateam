@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Bell } from 'lucide-react'
 import { saveTokenAlertThreshold } from './actions'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 
 interface Props {
   currentThreshold: number
@@ -25,11 +26,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-        <Bell size={16} color="var(--brand)" />
-        <h2 className="tape-title" style={{ margin: 0 }}>AI 토큰 알림 임계치</h2>
-      </div>
+    <SettingsCard title="AI 토큰 알림 임계치" headingLevel={2} icon={<Bell size={16} />}>
       <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', marginBottom: '1.25rem', marginTop: 0 }}>
         월간 AI 토큰 사용량이 이 값을 초과하면 AI 사용량 대시보드에 경고가 표시됩니다.
       </p>
@@ -62,6 +59,6 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
           </p>
         )}
       </form>
-    </div>
+    </SettingsCard>
   )
 }

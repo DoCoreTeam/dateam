@@ -14,6 +14,8 @@
 import type { ReactNode } from 'react'
 import { CheckCircle, XCircle, Unplug, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill from '@/components/ui/settings/StatusPill'
 
 /** 연동 카드에서 쓰는 모든 사용자 문구. 여기 없는 표현을 새로 만들지 않는다. */
 export const LABEL = {
@@ -38,15 +40,12 @@ interface CardProps {
 }
 
 export function IntegrationCard({ icon, title, desc, children }: CardProps) {
+  // 껍데기를 여기서 또 그리지 않는다 — 관리자·콘텐츠 인텔리전스·영업 CRM 이 같은 카드를 쓴다.
+  // 예전엔 이 카드만 --space-6 여백이라 같은 설정 화면 안에서도 카드 두께가 갈렸다.
   return (
-    <div className="card integration-card">
-      <div className="integration-card-head">
-        <span className="integration-card-icon">{icon}</span>
-        <h2 className="tape-title" style={{ margin: 0 }}>{title}</h2>
-      </div>
-      {desc && <p className="integration-card-desc">{desc}</p>}
-      <div className="integration-card-body">{children}</div>
-    </div>
+    <SettingsCard title={title} icon={icon} headingLevel={2} description={desc}>
+      {children}
+    </SettingsCard>
   )
 }
 
@@ -82,8 +81,11 @@ export function IntegrationStatus({
     return (
       <div className="integration-status integration-status-empty">
         <p className="integration-status-empty-text">
-          <XCircle size={14} />
-          <span>{LABEL.notConnected}{emptyHint ? ` — ${emptyHint}` : ''}</span>
+          <StatusPill tone="warn">
+            <XCircle size={12} />
+            {LABEL.notConnected}
+          </StatusPill>
+          {emptyHint ? <span>{emptyHint}</span> : null}
         </p>
         {connectAction && (
           <button type="button" className="btn-primary" onClick={connectAction.onClick}>
@@ -97,10 +99,10 @@ export function IntegrationStatus({
   return (
     <div className="integration-status integration-status-set">
       <div className="integration-status-head">
-        <span className="integration-status-label">
-          <CheckCircle size={14} />
+        <StatusPill tone="ok">
+          <CheckCircle size={12} />
           {LABEL.connected}
-        </span>
+        </StatusPill>
         <span className="integration-status-actions">
           <button type="button" className="integration-status-btn" onClick={onChange}>
             {LABEL.change}

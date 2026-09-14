@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 명세 한 벌과 설정 디자인 한 벌
 플랜 ID: P0002
-플랜 버전: v0.2.11
+플랜 버전: v0.2.12
 상태: 진행중
 지시: iv_0008
 목표 버전: v0.10.2
@@ -192,12 +192,13 @@
 의존: I06, I07
 
 ### I10 관리자 설정을 공용 부품으로
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/admin/settings/SettingsSection.tsx, apps/web/app/admin/settings/integration-ui.tsx, apps/web/app/admin/settings/YoutubeSettings.tsx, apps/web/app/admin/settings/VercelSettings.tsx, apps/web/app/admin/settings/GoogleDriveSettings.tsx, apps/web/app/admin/settings/KoraeximSettings.tsx, apps/web/app/admin/settings/DbSettings.tsx, apps/web/app/admin/settings/BrandingSettings.tsx, apps/web/app/admin/settings/ThemeSettings.tsx, apps/web/app/admin/settings/TokenAlertSettings.tsx
+범위: apps/web/app/admin/settings 전역, apps/web/components/ui/settings/SettingsCard.tsx, apps/web/app/globals.css
 감사 기준:
 - pnpm tsc --noEmit 통과, pnpm lint 통과, pnpm build 통과
-- 열 개 카드가 전부 공용 카드 부품을 쓰고 인라인 style 로 그린 상태 메시지가 0건
+- 카드가 전부 공용 카드 부품을 쓰고, 화면 파일이 card 껍데기를 자기 인라인 style 로 그리는 곳이 0건 (계획서는 열이라 적었지만 실제로는 열둘이 자기 껍데기를 그리고 셋만 integration-ui 를 쓴다)
+- integration-ui 의 IntegrationCard 도 공용 부품 위에 얹어 관리자 카드 전부가 같은 골격에서 나옴
 - 카드 여백이 --space-6 에서 공용값 --space-4 로 맞고 세 화면 카드가 같은 두께의 테두리를 가짐
 - 각 카드의 기능(저장 해제 연결테스트 OAuth 파일선택)이 그대로임
 의존: I06, I07
@@ -272,3 +273,4 @@
 - v0.2.9 (2026-09-14) I04b 범위 확장 - 공급자가 주는 모델별 사실이 카탈로그까지 닿으려면 provider.ts 와 어댑터와 refreshModelCatalog 배선이 필요. 벤더 능력은 P0003 이 옮긴 packages/ai-providers 에 있음 (audit:I04b)
 - v0.2.10 (2026-09-14) I08 범위에 공용 부품 둘 추가 - 첫 실사용 화면이 붙으면서 제목 단계와 role=switch 접근성 표시가 필요해짐. 부품이 실제 쓰임에 맞게 자라는 것은 예상된 일 (audit:I08)
 - v0.2.11 (2026-09-14) I09 실제 카드 수가 다섯이 아니라 열둘이었음 - 범위와 감사 기준을 실제에 맞춤 (audit:I09)
+- v0.2.12 (2026-09-14) I10 실제 카드 수와 구조가 계획서와 다름 - 열둘이 자기 껍데기를 인라인 style 로 그리고 셋만 integration-ui 를 쓴다. 범위를 폴더 전역과 공용 부품으로 (audit:I10)

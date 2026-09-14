@@ -1869,7 +1869,7 @@
 /* ─── 시스템 설정 화면 ─────────────────────────────────────────── */
 /* 연동 카드 UI 시스템 (admin/settings/integration-ui) —
    카드 골격·상태·연결 테스트의 유일한 스타일. 카드마다 다시 그리지 않는다. */
-.integration-card { padding: var(--space-6); display: flex; flex-direction: column; }
+/* .integration-card 의 껍데기는 공용 .settings-card 가 그린다 — 여백을 여기서 또 정하지 않는다 */
 .integration-card-head {
   display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2);
 }
@@ -9729,7 +9729,12 @@ label.intake-tool-btn {
   display: flex; gap: var(--space-3); align-items: flex-start; justify-content: space-between;
 }
 /* 카드 제목 — 화면마다 h3 에 인라인 크기를 주던 것을 여기로 모은다 */
-.settings-card-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); margin: 0; }
+.settings-card-title {
+  font-size: var(--fs-md); font-weight: 600; color: var(--text); margin: 0;
+  display: flex; align-items: center; gap: var(--space-2);
+}
+/* 제목 왼쪽 아이콘 — 색은 카드가 정하고 화면이 고르지 않는다 */
+.settings-card-icon { display: inline-flex; color: var(--brand); flex-shrink: 0; }
 /* 카드 안의 한 줄 — 왼쪽에 무엇, 가운데 값, 오른쪽에 행동 */
 .settings-row, .ci-integration-row {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3);
