@@ -1,10 +1,10 @@
+import { guardedGeminiStream, GeminiCallError } from '@/lib/ai/guarded-gemini'
 import { NextRequest } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { createHash } from 'node:crypto'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 interface MemberRow {
   user_id: string; category: string; performance: string; plan: string; issues: string
@@ -98,17 +98,21 @@ export async function POST(req: NextRequest) {
       try {
         send({ type: 'members', members: input.map((m) => ({ name: m.name, rank: m.rank, category: m.category })) })
 
-        const res = await fetch(`${GEMINI_API_BASE}/models/${model}:streamGenerateContent?alt=sse`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: `${HYBRID_PROMPT}\n\n입력(작성자 직급→이름 순 정렬됨):\n${JSON.stringify(input, null, 2)}` }] }],
-            generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-          }),
-        })
-        if (!res.ok || !res.body) { send({ type: 'error', message: `AI 호출 실패 (${res.status})` }); controller.close(); return }
+        // 작성자 이름과 보고 본문이 그대로 나간다 — 관문이 가리고 묶음마다 되돌린다
+        let gemini: Awaited<ReturnType<typeof guardedGeminiStream>>
+        try {
+          gemini = await guardedGeminiStream({
+            prompt: `${HYBRID_PROMPT}\n\n입력(작성자 직급→이름 순 정렬됨):\n${JSON.stringify(input, null, 2)}`,
+            apiKey, model, surface: 'dept-report-aggregate', purpose: '부서 주간보고 취합',
+            actorId: user.id, json: true, temperature: 0.1,
+          })
+        } catch (e) {
+          const status = e instanceof GeminiCallError ? e.status : 0
+          send({ type: 'error', message: `AI 호출 실패${status ? ` (${status})` : ''}` })
+          controller.close(); return
+        }
 
-        const reader = res.body.getReader(); const decoder = new TextDecoder()
+        const reader = gemini.body.getReader(); const decoder = new TextDecoder()
         let textAcc = '', scanIdx = 0, sseBuf = ''
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const merged: any[] = []
@@ -129,7 +133,8 @@ export async function POST(req: NextRequest) {
                 textAcc += piece
                 const { objs, nextIdx } = extractObjects(textAcc, scanIdx); scanIdx = nextIdx
                 for (const o of objs) {
-                  try { const parsed = JSON.parse(o); if (parsed?.category && Array.isArray(parsed.authors)) { merged.push(parsed); send({ type: 'category', item: parsed }) } } catch { /* partial */ }
+                  // 묶음 하나가 다 왔을 때 되돌린다 — 조각 경계에 자리표가 걸리지 않는다
+                  try { const parsed = JSON.parse(gemini.unmask(o)); if (parsed?.category && Array.isArray(parsed.authors)) { merged.push(parsed); send({ type: 'category', item: parsed }) } } catch { /* partial */ }
                 }
               }
             } catch { /* non-json sse */ }
@@ -140,6 +145,8 @@ export async function POST(req: NextRequest) {
           { department_id: deptId, week_start: weekStart, body: merged, source_hash: sourceHash, status: 'draft', edited_by: user.id },
           { onConflict: 'department_id,week_start' },
         )
+        // 흐름이 끝났다. 이때 적지 않으면 이 호출은 원장에 안 남는다
+        await gemini.done({ ok: true })
         send({ type: 'done', count: merged.length })
         controller.close()
       } catch (e) {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
+import { guardedGeminiText, GeminiCallError } from '@/lib/ai/guarded-gemini'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -64,31 +64,21 @@ export async function POST(req: NextRequest) {
 답변 형식: "~에서 파생" 또는 "~를 위해" 등 간결하게.
 한 문장만 출력하세요.`
 
-  let geminiRes: Response
+  // 업무 원문 둘이 그대로 나간다 — 관문이 가리고 답에서 되돌린다
+  let flowReason: string | null
   try {
-    geminiRes = await fetch(
-      `${GEMINI_API_BASE}/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 300, thinkingConfig: { thinkingBudget: 0 } },
-        }),
-      }
-    )
-  } catch {
-    return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
+    const out = await guardedGeminiText({
+      prompt, apiKey, model,
+      surface: 'daily-flow-reason', purpose: '업무 파생 관계 설명',
+      actorId: user.id, json: false, temperature: 0.2,
+      extraConfig: { maxOutputTokens: 300, thinkingConfig: { thinkingBudget: 0 } },
+    })
+    flowReason = out.text.trim() || null
+  } catch (e) {
+    const status = e instanceof GeminiCallError ? e.status : 0
+    return NextResponse.json(
+      { error: status ? `AI API 오류 (${status})` : 'AI 서버 연결 실패' }, { status: 502 })
   }
-
-  if (!geminiRes.ok) {
-    return NextResponse.json({ error: `AI API 오류 (${geminiRes.status})` }, { status: 502 })
-  }
-
-  const geminiData = await geminiRes.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-  }
-  const flowReason = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null
 
   if (flowReason) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

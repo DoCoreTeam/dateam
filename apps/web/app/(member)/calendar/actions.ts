@@ -4,8 +4,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { recordFeedbackSignal } from '@/lib/daily/feedback-signals'
 import { normalizeKstWallString } from '@/lib/datetime/kst'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
+import { guardedGeminiText, GeminiCallError } from '@/lib/ai/guarded-gemini'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 export interface Recommendation {
   title: string
@@ -69,14 +69,19 @@ export async function getCalendarRecommendations(): Promise<{ ok: boolean; items
 후보:
 ${candidates.map((c) => `- id=${c.id} kind=${c.kind}: ${c.text}`).join('\n')}`
 
-    const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.3 } }),
-    })
-    if (!res.ok) return { ok: false, error: `AI 호출 실패 (${res.status})` }
-    const json = await res.json()
-    const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]'
+    // 후보에 업무 원문과 메모가 그대로 실린다 — 관문이 가리고 답에서 되돌린다
+    let raw: string
+    try {
+      const out = await guardedGeminiText({
+        prompt, apiKey, model,
+        surface: 'calendar-recommend', purpose: '다음 주 추천 일정',
+        actorId: user.id, temperature: 0.3,
+      })
+      raw = out.text || '[]'
+    } catch (e) {
+      const status = e instanceof GeminiCallError ? e.status : 0
+      return { ok: false, error: status ? `AI 호출 실패 (${status})` : 'AI 호출 실패' }
+    }
     let items: Recommendation[] = []
     try { items = JSON.parse(raw) } catch { items = [] }
     // 안전 필터 + datetime 정규화: Gemini가 내는 naive 벽시계(KST 의도)를 +09:00 앵커로 고정

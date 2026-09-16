@@ -23,7 +23,7 @@
  * 개인정보가 실려 오는 길이 있어서, 돌아온 글자도 한 번 본다.
  */
 
-import { maskPii, unmaskPii, hasUnmaskedPii, countByKind } from '@ax/ai-gateway'
+import { maskPii, unmaskPii, hasUnmaskedPii, countByKind, type PiiHit } from '@ax/ai-gateway'
 import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 
 export type MediaKind = 'text' | 'image' | 'audio'
@@ -258,5 +258,97 @@ export async function guardedVector<T>(
       contract_version: AI_CONTRACT_VERSION,
     })
     throw e
+  }
+}
+
+
+/**
+ * 조각 경계에서 잘려도 안전한 되돌리기.
+ *
+ * 흐르는 글자를 그때그때 화면에 붙이는 길이 있다. 자리표 `⟦PII_3⟧` 가 아직 반만 왔을 때
+ * 되돌리면 `⟦PII_` 가 그대로 사람 눈에 보이고, 다음 조각에서 고쳐 써도 **이미 본 글자는
+ * 안 사라진다.** 그래서 반쪽 자리표가 시작되는 자리에서 끊고, 그 앞까지만 돌려준다.
+ */
+export function unmaskStreaming(text: string, hits: readonly PiiHit[]): string {
+  const open = text.lastIndexOf('⟦')
+  const safe = open !== -1 && text.indexOf('⟧', open) === -1 ? text.slice(0, open) : text
+  return unmaskPii(safe, hits)
+}
+
+/**
+ * 여러 토막을 **한 번에** 가린다 — 주고받은 대화처럼 토막이 나뉘어 있을 때.
+ *
+ * 토막마다 따로 가리면 같은 이름이 토막마다 다른 번호를 받아, 모델이 「⟦PII_1⟧ 과
+ * ⟦PII_1⟧ 은 다른 사람인가」를 묻게 된다. 그래서 이어 붙여 한 번 가리고 도로 나눈다.
+ * 이음쇠는 널 문자다 — 가림 규칙이 만들지도 먹지도 않는 글자여서 경계가 안 흔들린다.
+ */
+const PART_SEP = '\u0000'
+
+export interface GuardedStreamHandle {
+  /** 가린 글자. 이것을 벤더에 보낸다 (토막을 줬으면 첫 토막) */
+  prompt: string
+  /** 토막을 줬을 때 가려진 토막들. 번호는 토막 사이에서 이어진다 */
+  parts: string[]
+  /** 흘러온 글자에서 자리표를 되돌린다. 조각이 아니라 **모인 글자**에 쓴다 */
+  unmask(text: string): string
+  /** 흐르는 중에 화면에 붙일 때. 반쪽 자리표 앞에서 끊는다 */
+  unmaskStreaming(text: string): string
+  /** 흐름이 끝났을 때 한 번 부른다. 안 부르면 호출 기록이 안 남는다 */
+  done(o: {
+    ok: boolean
+    inputTokens?: number | null
+    outputTokens?: number | null
+    costKrw?: number | null
+    error?: string | null
+  }): Promise<void>
+}
+
+/**
+ * **흘려보내는** 길.
+ *
+ * 흐름은 끝을 기다릴 수 없어서 «부르고 받고 적는다» 한 덩어리로 못 싼다.
+ * 그래서 두 토막으로 나눈다 — 나가기 전에 가리고 전송을 적고, 끝났을 때 호출을 적는다.
+ *
+ * 자리표 되돌리기를 **조각마다** 하지 않는 이유: `⟦PII_3⟧` 이 조각 경계에 걸리면
+ * 반쪽만 바뀌어 글자가 깨진다. 모인 글자에 한 번 쓰는 것이 안전하다.
+ */
+export async function beginGuardedStream(
+  prompt: string | readonly string[],
+  ctx: GuardedCallContext,
+  ledger: AiLedger,
+  now: () => number = () => Date.now(),
+): Promise<GuardedStreamHandle> {
+  const names = { knownNames: ctx.knownNames }
+  const parts = typeof prompt === 'string' ? [prompt] : prompt
+  const masked = maskPii(parts.join(PART_SEP), names)
+  if (hasUnmaskedPii(masked.text, names)) throw new PiiNotMaskedError(ctx.surface)
+
+  await ledger.recordTransfer({
+    surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+    provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+    masked_counts: countByKind(masked.hits), media_kind: 'text',
+    bytes: byteLength(masked.text), contract_version: AI_CONTRACT_VERSION,
+  })
+
+  const started = now()
+  let closed = false
+  return {
+    prompt: masked.text.split(PART_SEP)[0],
+    parts: masked.text.split(PART_SEP),
+    unmask: (text: string) => unmaskPii(text, masked.hits),
+    unmaskStreaming: (text: string) => unmaskStreaming(text, masked.hits),
+    async done(o) {
+      // 두 번 적으면 원장이 실제보다 많아 보인다
+      if (closed) return
+      closed = true
+      await ledger.recordCall({
+        surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+        provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+        input_tokens: o.inputTokens ?? null, output_tokens: o.outputTokens ?? null,
+        cost_krw: o.costKrw ?? null, latency_ms: now() - started,
+        ok: o.ok, error: o.error ? String(o.error).slice(0, 1000) : null,
+        contract_version: AI_CONTRACT_VERSION,
+      })
+    },
   }
 }

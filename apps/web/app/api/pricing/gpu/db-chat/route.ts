@@ -1,3 +1,4 @@
+import { guardedGeminiStream, GeminiCallError, type GeminiTurn } from '@/lib/ai/guarded-gemini'
 import { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
@@ -5,7 +6,6 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 async function getGeminiConfig(adminClient: ReturnType<typeof createAdminClient>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,30 +156,24 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = prompt.content.replace('{{DB_SNAPSHOT}}', JSON.stringify(snapshot, null, 2))
 
-  const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = []
-  for (const msg of history) {
-    contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] })
-  }
-  contents.push({ role: 'user', parts: [{ text: query }] })
+  const turns: GeminiTurn[] = history.map((msg) => ({
+    role: msg.role === 'assistant' ? 'model' as const : 'user' as const, text: msg.content,
+  }))
+  turns.push({ role: 'user', text: query })
 
-  const url = `${GEMINI_API_BASE}/models/${config.model}:streamGenerateContent?alt=sse`
-  let geminiRes: Response
+  // 표 스냅샷과 주고받은 말이 그대로 나간다 — 관문이 가리고 답에서 되돌린다
+  let gemini: Awaited<ReturnType<typeof guardedGeminiStream>>
   try {
-    geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents,
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-      }),
+    gemini = await guardedGeminiStream({
+      turns, system: systemPrompt,
+      apiKey: config.apiKey, model: config.model,
+      surface: 'gpu-db-chat', purpose: '표 질의응답',
+      actorId: user.id, json: true, temperature: 0.1,
     })
-  } catch {
-    return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
-  }
-
-  if (!geminiRes.ok || !geminiRes.body) {
-    return NextResponse.json({ error: `AI API 오류 (${geminiRes.status})` }, { status: 502 })
+  } catch (e) {
+    const status = e instanceof GeminiCallError ? e.status : 0
+    return NextResponse.json(
+      { error: status ? `AI API 오류 (${status})` : 'AI 서버 연결 실패' }, { status: 502 })
   }
 
   const encoder = new TextEncoder()
@@ -189,7 +183,7 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const reader = geminiRes.body!.getReader()
+      const reader = gemini.body.getReader()
       const decoder = new TextDecoder()
       let buf = ''
 
@@ -238,9 +232,11 @@ export async function POST(req: NextRequest) {
                       raw += fullText[i++]
                     }
                   }
-                  if (raw.length > lastAnswerLen) {
-                    const chunk = raw.slice(lastAnswerLen)
-                    lastAnswerLen = raw.length
+                  // 흐르는 중이라 반쪽 자리표가 올 수 있다 — 그 앞에서 끊고 되돌린다
+                  const shown = gemini.unmaskStreaming(raw)
+                  if (shown.length > lastAnswerLen) {
+                    const chunk = shown.slice(lastAnswerLen)
+                    lastAnswerLen = shown.length
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`))
                   }
                 }
@@ -254,7 +250,12 @@ export async function POST(req: NextRequest) {
 
       // 최종 JSON 파싱 → done 이벤트
       try {
-        const parsed: ChatResponse = JSON.parse(fullText)
+        const parsed: ChatResponse = JSON.parse(gemini.unmask(fullText))
+        await gemini.done({
+          ok: true,
+          inputTokens: usageMeta.promptTokenCount ?? null,
+          outputTokens: usageMeta.candidatesTokenCount ?? null,
+        })
         logTokenUsage({
           userId: user.id,
           feature: 'gpu-db-chat',
@@ -271,6 +272,8 @@ export async function POST(req: NextRequest) {
           found: parsed.found === true,
         })}\n\n`))
       } catch {
+        // 여기서도 적는다 — 실패한 호출이 원장에서 빠지면 성공률이 실제보다 높아 보인다
+        await gemini.done({ ok: false, error: '응답 파싱 실패' })
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, error: 'AI 응답 파싱 실패' })}\n\n`))
       }
 

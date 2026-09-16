@@ -15,7 +15,7 @@
  * 가림인지 폴백인지 구분이 안 된다. 사슬은 다음 단계 몫이다.
  */
 
-import { guardedText, type AiLedger } from './guarded-call.ts'
+import { guardedText, beginGuardedStream, type AiLedger, type GuardedStreamHandle } from './guarded-call.ts'
 import { serverAiLedger } from './ledger.ts'
 import { serverKnownNames } from './known-names.ts'
 
@@ -43,6 +43,13 @@ export interface GuardedGeminiInput {
   temperature?: number
   /** 기본 60초. 이보다 짧게 잡아 둔 길이 있어서 옮길 때 그 값을 잃지 않게 한다 */
   timeoutMs?: number
+  /**
+   * 벤더 쪽 생성 설정에 더 얹을 것 — `maxOutputTokens`, `thinkingConfig` 같은 것.
+   *
+   * 옮기면서 이 값을 흘리면 비용과 응답 시간이 조용히 달라진다. 실제로 300자로
+   * 묶어 둔 길과 생각 예산을 0으로 꺼 둔 길이 있었다.
+   */
+  extraConfig?: Record<string, unknown>
 }
 
 export interface GuardedGeminiResult {
@@ -91,6 +98,7 @@ async function callGemini(
       generationConfig: {
         ...(input.json === false ? {} : { responseMimeType: 'application/json' }),
         temperature: input.temperature ?? 0.1,
+        ...(input.extraConfig ?? {}),
       },
     }),
     cache: 'no-store',
@@ -106,5 +114,79 @@ async function callGemini(
     text: json.candidates?.[0]?.content?.parts?.[0]?.text ?? '',
     inputTokens: json.usageMetadata?.promptTokenCount ?? 0,
     outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
+  }
+}
+
+export interface GeminiTurn { role: 'user' | 'model'; text: string }
+
+export interface GuardedGeminiStreamInput extends Omit<GuardedGeminiInput, 'prompt'> {
+  /** 한 번에 묻는 길 */
+  prompt?: string
+  /** 주고받은 대화로 묻는 길. `prompt` 대신 쓴다 */
+  turns?: readonly GeminiTurn[]
+  /** 대화 위에 얹는 지시 */
+  system?: string
+}
+
+export interface GuardedGeminiStream {
+  /** 벤더가 흘려 주는 몸통 그대로 */
+  body: ReadableStream<Uint8Array>
+  unmask(text: string): string
+  /** 흐르는 중에 화면에 붙일 때 — 반쪽 자리표 앞에서 끊는다 */
+  unmaskStreaming(text: string): string
+  done: GuardedStreamHandle['done']
+}
+
+/**
+ * 흘려보내는 Gemini 호출 한 자리.
+ *
+ * 흐름은 화면이 «지금 쓰이는 중» 을 보여 주려고 쓴다. 그 값을 잃지 않으려면
+ * 관문이 답을 다 모았다가 주면 안 된다. 그래서 몸통은 그대로 넘기고,
+ * 가림은 나가기 전에, 기록은 끝날 때 붙인다.
+ */
+export async function guardedGeminiStream(
+  input: GuardedGeminiStreamInput,
+): Promise<GuardedGeminiStream> {
+  const names = input.knownNames ?? await serverKnownNames()
+  // 지시와 대화를 한 번에 가린다 — 따로 가리면 같은 이름이 토막마다 다른 번호를 받는다
+  const turns = input.turns ?? (input.prompt !== undefined ? [{ role: 'user' as const, text: input.prompt }] : [])
+  if (turns.length === 0) throw new Error('보낼 글이 없다')
+  const handle = await beginGuardedStream(
+    [input.system ?? '', ...turns.map((t) => t.text)],
+    {
+      surface: input.surface, purpose: input.purpose,
+      actorId: input.actorId ?? null, providerId: 'gemini', modelName: input.model,
+      knownNames: names,
+    },
+    input.ledger ?? serverAiLedger(),
+  )
+
+  let res: Response
+  try {
+    res = await fetch(`${GEMINI_BASE}/models/${input.model}:streamGenerateContent?alt=sse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': input.apiKey },
+      body: JSON.stringify({
+        ...(input.system ? { system_instruction: { parts: [{ text: handle.parts[0] }] } } : {}),
+        contents: turns.map((t, i) => ({ role: t.role, parts: [{ text: handle.parts[i + 1] }] })),
+        generationConfig: {
+          ...(input.json === true ? { responseMimeType: 'application/json' } : {}),
+          temperature: input.temperature ?? 0.1,
+          ...(input.extraConfig ?? {}),
+        },
+      }),
+      signal: AbortSignal.timeout(input.timeoutMs ?? 300_000),
+    })
+  } catch (e) {
+    await handle.done({ ok: false, error: e instanceof Error ? e.message : String(e) })
+    throw e
+  }
+  if (!res.ok || !res.body) {
+    await handle.done({ ok: false, error: `Gemini API error: ${res.status}` })
+    throw new GeminiCallError(res.status)
+  }
+  return {
+    body: res.body, unmask: handle.unmask,
+    unmaskStreaming: handle.unmaskStreaming, done: handle.done,
   }
 }

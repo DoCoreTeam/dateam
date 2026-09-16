@@ -1,3 +1,4 @@
+import { guardedGeminiStream, GeminiCallError } from '@/lib/ai/guarded-gemini'
 import { NextRequest, NextResponse } from 'next/server'
 import { matchByName, promptNames } from '@/lib/crm/link/name-match'
 import type { Candidate } from '@/lib/crm/link/name-match'
@@ -7,7 +8,6 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { recordDailyOutcome, maybeSelfTuneDaily } from '@/lib/daily-prompt-governance'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const PROMPT_KEY = 'daily.analyze-work'
 
 // 취약점 2 방어: 하드코딩 대신 DB에서 프롬프트 로드
@@ -141,24 +141,18 @@ export async function POST(req: NextRequest) {
     .replace('{ACCOUNTS}', promptNames(accountList))
     .replace('{CONTACTS}', promptNames(contactList))
 
-  const url = `${GEMINI_API_BASE}/models/${model}:streamGenerateContent?alt=sse`
-
-  let geminiRes: Response
+  // 일일업무 원문과 거래처·담당자 목록이 그대로 나간다 — 관문이 가리고 줄마다 되돌린다
+  let gemini: Awaited<ReturnType<typeof guardedGeminiStream>>
   try {
-    geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n입력:\n${text}` }] }],
-        generationConfig: { temperature: 0.1 },
-      }),
+    gemini = await guardedGeminiStream({
+      prompt: `${systemPrompt}\n\n입력:\n${text}`,
+      apiKey, model, surface: 'daily-ai-save', purpose: '일일업무 분해',
+      actorId: user.id, temperature: 0.1,
     })
-  } catch {
-    return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
-  }
-
-  if (!geminiRes.ok) {
-    return NextResponse.json({ error: `AI API 오류 (${geminiRes.status})` }, { status: 502 })
+  } catch (e) {
+    const status = e instanceof GeminiCallError ? e.status : 0
+    return NextResponse.json(
+      { error: status ? `AI API 오류 (${status})` : 'AI 서버 연결 실패' }, { status: 502 })
   }
 
   const encoder = new TextEncoder()
@@ -171,8 +165,7 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const reader = geminiRes.body?.getReader()
-      if (!reader) { controller.close(); return }
+      const reader = gemini.body.getReader()
 
       const decoder = new TextDecoder()
       let buffer = ''
@@ -206,7 +199,8 @@ export async function POST(req: NextRequest) {
             fullText = ndjsonLines.pop() ?? ''
 
             for (const ndjsonLine of ndjsonLines) {
-              const trimmed = ndjsonLine.trim()
+              // 자리표는 **모인 줄**에 되돌린다 — 조각 경계에 걸리면 반쪽만 바뀐다
+              const trimmed = gemini.unmask(ndjsonLine.trim())
               if (!trimmed) continue
               try {
                 const item = JSON.parse(trimmed) as ParsedWorkItem
@@ -239,7 +233,7 @@ export async function POST(req: NextRequest) {
 
       if (fullText.trim()) {
         try {
-          const item = JSON.parse(fullText.trim()) as ParsedWorkItem
+          const item = JSON.parse(gemini.unmask(fullText.trim())) as ParsedWorkItem
           collectedItems.push({ status: item.status, confidence: item.confidence })
           if (item.accountName) {
 item.accountId = matchByName(item.accountName, accountList).matched?.id ?? null
@@ -267,6 +261,8 @@ item.accountId = matchByName(item.accountName, accountList).matched?.id ?? null
         outputTokens,
         totalTokens,
       })
+      // 흐름이 끝났다. 이때 적지 않으면 이 호출은 원장에 안 남는다
+      await gemini.done({ ok: true, inputTokens: promptTokens, outputTokens })
 
       controller.enqueue(encoder.encode('data: [DONE]\n\n'))
       controller.close()
