@@ -510,7 +510,34 @@ export const RFP_ADMIN = {
   notificationsReadOnly: '지금은 받은 알림만 보여 드려요. 어떤 알림을 받을지 고르는 것은 준비 중입니다',
   notificationsEmpty: '안 읽은 알림이 없어요',
   notificationsFailed: '알림을 불러오지 못했어요',
+  g2bServices: '공공데이터포털 연동',
+  /** 신청은 포털에서 사람이 하는 일이다. 우리 화면에서 되는 것처럼 두지 않는다 */
+  g2bApplyHint: '서비스마다 공공데이터포털에서 따로 활용 신청을 해야 열립니다. 신청은 포털에서 하고, 여기서는 무엇이 열려 있는지만 보여 드려요',
+  g2bNoKey: '연동 키가 아직 없어요. 관리자 설정에서 서비스 키를 넣으면 여기서 상태를 볼 수 있어요',
+  g2bInUse: '쓰는 중',
+  g2bNotUsed: '아직 안 씀',
+  g2bPortalNo: '포털 번호',
 } as const
+
+/** 서비스가 무엇을 주는지 — 코드의 gives 를 사람 말로 옮긴다 */
+export const G2B_SERVICE_GIVES: Record<string, string> = {
+  bidPublicInfo: '공고 목록과 상세, 기초금액, 면허 제한, 참가 가능 지역, 변경 이력',
+  preStandard: '공고 전 규격서와 배정 예산, 규격 의견 (레이더가 며칠 앞당겨집니다)',
+  scsbid: '최종 낙찰자와 개찰 순위, 예비 가격, 유찰 목록',
+  contract: '계약 목록과 변경 이력',
+  contractProcess: '번호 하나로 공고부터 계약까지 전 과정',
+  nuri: '누리장터 민간 입찰 공고',
+}
+
+/** 서비스 이름 */
+export const G2B_SERVICE_NAME: Record<string, string> = {
+  bidPublicInfo: '입찰공고정보',
+  preStandard: '사전규격정보',
+  scsbid: '낙찰정보',
+  contract: '계약정보',
+  contractProcess: '계약과정통합',
+  nuri: '누리장터 민간입찰',
+}
 
 /** 알림 종류의 말. 종류가 늘면 여기도 같이 는다 */
 export const NOTIFY_KIND_LABEL: Record<string, string> = {

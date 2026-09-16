@@ -3,6 +3,8 @@
 // **admin 이 아니면 여기서 막힌다.** 레이아웃은 임직원 전체를 들여보내므로
 // 이 화면이 스스로 한 번 더 본다 — 메뉴에서 안 보이는 것과 못 여는 것은 다르다.
 
+import G2bServices from './G2bServices'
+import { G2B_KEY_FIELD } from '@/lib/rfp/g2b/client'
 import NotificationSettings from './NotificationSettings'
 import PageHeader from '@/components/ui/PageHeader'
 import { createClient } from '@/lib/supabase/server'
@@ -109,6 +111,7 @@ export default async function RfpAdminPage() {
       <RuleSettings saved={savedRules} />
       <TransferLog rows={((transfers as TransferRow[] | null) ?? [])} />
       <NotificationSettings />
+      <G2bServices hasServiceKey={typeof meta[G2B_KEY_FIELD] === 'string' && String(meta[G2B_KEY_FIELD]).trim().length > 0} />
       </div>
     </main>
   )
