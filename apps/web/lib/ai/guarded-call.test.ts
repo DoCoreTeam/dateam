@@ -127,3 +127,39 @@ test('기록기가 없는 칸을 쓰면 조용히 넘어가지 않는다', async
   assert.equal(seen.length, 2, 'supabase 는 insert 오류를 던지지 않고 돌려준다, 읽지 않으면 0건이 된다')
   assert.ok(seen[0].includes('surfacee'))
 })
+
+test('★ 아는 이름을 주면 이름도 가려져 나간다', async () => {
+  const { ledger, transfers } = spyLedger()
+  let sent = ''
+  const out = await guardedText(
+    '담당자 김도현 010-1234-5678',
+    { ...CTX, knownNames: ['김도현'] },
+    ledger,
+    async (masked) => { sent = masked; return { text: masked } },
+  )
+  assert.ok(!sent.includes('김도현'), '이름이 그대로 나갔다')
+  assert.equal(out.text, '담당자 김도현 010-1234-5678', '왕복이 원문을 잃지 않는다')
+  const t = transfers[0] as { masked_counts: Record<string, number> }
+  assert.equal(t.masked_counts.name, 1)
+  assert.equal(JSON.stringify(t).includes('김도현'), false, '원장에 이름 값은 안 남는다')
+})
+
+test('★ 이름 목록을 안 주면 전과 똑같이 동작한다', async () => {
+  const { ledger } = spyLedger()
+  let sent = ''
+  await guardedText(PROMPT, CTX, ledger, async (masked) => { sent = masked; return { text: 'ok' } })
+  assert.ok(sent.includes('김도현'), '목록이 없으면 이름은 안 가린다, 추측하지 않는다')
+  assert.ok(!sent.includes('010-1234-5678'), '다른 규칙은 그대로 돈다')
+})
+
+test('★ 소리로 보낸 답에 실려 온 이름도 셈한다', async () => {
+  const { ledger } = spyLedger()
+  const out = await guardedMedia(
+    100,
+    { surface: 'meeting/stt', purpose: 'transcribe', media: 'audio', knownNames: ['김도현'] },
+    ledger,
+    async () => ({ text: '김도현 이 말했습니다' }),
+  )
+  assert.equal(out.maskedOnReturn.name, 1)
+  assert.ok(out.text.includes('김도현'), '전사 결과를 지우지는 않는다')
+})

@@ -28,6 +28,8 @@ export interface GuardedGeminiInput {
   purpose: string
   ledger: AiLedger
   actorId?: string | null
+  /** 이 호출에 나올 수 있는 아는 이름. 안 주면 이름은 안 가려진다 */
+  knownNames?: readonly string[]
   /** JSON 으로 받을 것인가 */
   json?: boolean
   temperature?: number
@@ -54,6 +56,7 @@ export async function guardedGeminiText(input: GuardedGeminiInput): Promise<Guar
     {
       surface: input.surface, purpose: input.purpose,
       actorId: input.actorId ?? null, providerId: 'gemini', modelName: input.model,
+      knownNames: input.knownNames,
     },
     input.ledger,
     (masked) => callGemini(masked, input),

@@ -38,6 +38,16 @@ export interface GuardedCallContext {
   modelName?: string | null
   /** 글자가 아니면 글자 가림이 안 닿는다 */
   media?: MediaKind
+  /**
+   * 이 호출에 나올 수 있는 **아는 이름**.
+   *
+   * 이름은 개인정보인데 규칙으로는 안 잡힌다. 추측하지 않고 우리가 가진 이름을 준다 —
+   * 주소록 인물, 회의 참석자, 프로필. 목록 밖 글자는 안 건드린다.
+   *
+   * 안 주면 전과 똑같이 동작한다. 목록을 못 읽었다고 호출을 막지 않는다 —
+   * 가림은 더 좋아지는 것이지 문을 닫는 것이 아니다.
+   */
+  knownNames?: readonly string[]
 }
 
 export interface CallLogRow {
@@ -111,8 +121,9 @@ export async function guardedText(
   call: (maskedPrompt: string) => Promise<GuardedTextResult>,
   now: () => number = () => Date.now(),
 ): Promise<GuardedTextResult> {
-  const masked = maskPii(prompt)
-  if (hasUnmaskedPii(masked.text)) throw new PiiNotMaskedError(ctx.surface)
+  const names = { knownNames: ctx.knownNames }
+  const masked = maskPii(prompt, names)
+  if (hasUnmaskedPii(masked.text, names)) throw new PiiNotMaskedError(ctx.surface)
 
   const started = now()
   try {
@@ -170,7 +181,8 @@ export async function guardedMedia(
 
   try {
     const raw = await call()
-    const back = maskPii(raw.text)
+    // 소리와 그림은 나가는 쪽 가림이 안 닿는다. 답에 실려 온 것을 여기서 셈한다
+    const back = maskPii(raw.text, { knownNames: ctx.knownNames })
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
