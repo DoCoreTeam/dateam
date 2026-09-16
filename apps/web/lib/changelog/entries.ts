@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.30',
+    date: '2026-09-16',
+    title: 'RFP 분석기에서도 업무 화면으로 바로 나갈 수 있어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🚪',
+        headline: 'RFP 분석기 왼쪽 아래에 「업무로 나가기」가 생겼어요',
+        detail: '영업 CRM이나 콘텐츠 인텔리전스에는 있던 나가는 문이 RFP 분석기에만 없어서, 업무 화면으로 돌아가려면 전체 메뉴를 열어야 했어요. 이제 다른 서비스와 같은 자리에서 바로 나갈 수 있습니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.27',
     date: '2026-09-16',
     title: '태블릿에서 메뉴 맨 아래 계정 영역에 닿지 않던 것을 고쳤어요',

@@ -46,7 +46,14 @@ export interface Service {
   home: string
 }
 
-const SERVICE_HOME: Record<ServiceKey, string> = {
+/**
+ * 서비스별 첫 화면. `serviceOf().home` 이 이걸 돌려준다.
+ *
+ * **왜 export 하나**: 가드가 «모든 서비스에 나가는 문이 있나»를 물으려면 서비스마다
+ * 경로 하나가 필요하다. 테스트가 경로를 따로 적으면 그게 또 하나의 손목록이 되고,
+ * 이 파일이 막으려던 것이 테스트 쪽에서 되살아난다(lib/nav/surface.test.ts).
+ */
+export const SERVICE_HOME: Record<ServiceKey, string> = {
   member: '/home',
   crm: '/crm',
   ci: '/ci',
@@ -77,13 +84,33 @@ export function serviceOf(pathname: string | null | undefined): Service {
 
 export type Surface = 'admin' | 'sub' | 'member'
 
+/**
+ * 나가는 문이 **필요 없는** 서비스. 여기 없는 것은 전부 `sub` 다.
+ *
+ * 예전에는 반대로 적었다 — `crm | ci | ai` 를 손으로 나열하고 나머지를 `member` 로 뒀다.
+ * 그래서 RFP 분석기(`/rfp`)를 만들었을 때 이 줄에 더하는 것을 잊었고, 거기서는
+ * 나가는 문이 **아예 안 그려졌다**(`ShellExit` 은 `surface === 'member'` 면 null 이다).
+ * 이 파일은 «표면을 하나 더 만들 때 한 곳이 빠진다»를 막으려고 생겼는데,
+ * 정작 자기 안에 같은 손목록을 하나 더 들고 있었다.
+ *
+ * 그래서 뒤집는다: **빠뜨리면 문이 사라지는 쪽이 아니라, 빠뜨리면 문이 생기는 쪽으로.**
+ * 새 서비스는 `SERVICE_ROUTES` 에 한 줄만 더하면 문이 따라온다.
+ */
+const NO_EXIT_SERVICES = new Set<ServiceKey>([
+  // 여기가 집이다 — 나갈 곳이 없다
+  'member',
+  // 나가는 문은 있지만 문구가 다르다(「멤버 화면으로」) — surfaceOf 가 따로 돌려준다
+  'admin',
+  // 셸 자체가 없는 공개 화면이라 문을 걸 자리가 없다(lib/ui/shell-contract.test.ts 의 PublicSurface)
+  'develop',
+])
+
 export function surfaceOf(pathname: string | null | undefined): Surface {
   // 경로 판정은 serviceOf 한 곳에서만 한다
   const { key } = serviceOf(pathname)
   if (key === 'admin') return 'admin'
   // 사이드바가 통째로 그 서비스 것으로 바뀌는 곳 — 나갈 문이 따로 있어야 한다
-  if (key === 'crm' || key === 'ci' || key === 'ai') return 'sub'
-  return 'member'
+  return NO_EXIT_SERVICES.has(key) ? 'member' : 'sub'
 }
 
 export interface ExitLink {
@@ -103,7 +130,7 @@ export function exitLinkFor(surface: Surface): ExitLink | null {
     case 'admin':
       return { href: '/home', label: '멤버 화면으로' }
     case 'sub':
-      // CRM·CI 는 사이드바가 통째로 바뀌므로 홈으로 돌아갈 문이 반드시 필요하다
+      // 하위 서비스는 사이드바가 통째로 바뀌므로 홈으로 돌아갈 문이 반드시 필요하다
       return { href: '/home', label: '홈으로 나가기' }
     default:
       // 이미 멤버 화면이다 — 나갈 곳이 없다

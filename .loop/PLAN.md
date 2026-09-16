@@ -42,7 +42,7 @@
 의존: 없음
 
 ### I02 RFP 에서 나가는 문이 없는 것
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/nav/surface.ts, apps/web/lib/nav/surface.test.ts
 감사 기준:

@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { surfaceOf, exitLinkFor, adminEntryFor, serviceOf } from './surface.ts'
+import { surfaceOf, exitLinkFor, adminEntryFor, serviceOf, SERVICE_HOME } from './surface.ts'
+import type { ServiceKey } from '../terms/index.ts'
 
 test('관리자 화면을 알아본다', () => {
   assert.equal(surfaceOf('/admin'), 'admin')
@@ -98,4 +99,38 @@ test('간판을 누르면 그 서비스의 첫 화면으로 간다', () => {
   assert.equal(serviceOf('/crm/deals/abc').home, '/crm')
   assert.equal(serviceOf('/ci/studio').home, '/ci')
   assert.equal(serviceOf('/home').home, '/home')
+})
+
+/*
+  ── 나가는 문이 새 서비스를 자동으로 따라가는가 ──────────────────────────────
+
+  RFP 분석기가 이 자리에서 빠졌다. `SERVICE_ROUTES` 에는 `/rfp` 를 적었는데
+  `surfaceOf` 안의 `crm | ci | ai` 손목록에 더하는 것을 잊었고, 그래서
+  /rfp 사이드바에는 나가는 문이 **아예 없었다**. 손목록이 둘이면 반드시 한쪽이 빠진다.
+*/
+
+test('★ RFP 분석기는 하위 표면이다 — 손목록에서 빠져 문이 통째로 없던 자리다', () => {
+  assert.equal(surfaceOf('/rfp'), 'sub')
+  assert.equal(surfaceOf('/rfp/cases/abc-123'), 'sub')
+  assert.notEqual(exitLinkFor(surfaceOf('/rfp')), null)
+})
+
+test('★ 새 서비스는 손목록에 또 적지 않아도 문이 따라온다 (SERVICE_ROUTES 한 곳)', () => {
+  /*
+    집·관리자·셸 없는 공개 화면 셋만 예외다. 나머지는 **무엇이 오든** sub 여야 한다.
+    새 서비스를 더하고 이 단정이 깨진다면, 판정이 다시 손목록으로 돌아갔다는 뜻이다.
+  */
+  const EXEMPT = new Set<ServiceKey>(['member', 'admin', 'develop'])
+
+  const missingDoor = (Object.keys(SERVICE_HOME) as ServiceKey[])
+    .filter((key) => !EXEMPT.has(key))
+    .filter((key) => surfaceOf(SERVICE_HOME[key]) !== 'sub')
+
+  assert.deepEqual(missingDoor, [],
+    `하위 서비스인데 나가는 문이 없다. surfaceOf 가 다시 손목록으로 판정하는지 볼 것: ${missingDoor.join(', ')}`)
+})
+
+test('셸 없는 공개 화면에는 문을 걸지 않는다 — 사이드바가 없어 걸 자리가 없다', () => {
+  assert.equal(surfaceOf('/develop'), 'member')
+  assert.equal(surfaceOf('/api-access'), 'member')
 })
