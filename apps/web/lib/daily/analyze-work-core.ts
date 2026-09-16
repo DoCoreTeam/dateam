@@ -1,6 +1,7 @@
 // 일일업무 재분석용 1회(비스트리밍) AI 추출 — /api/ai/analyze-work 라우트와 동일 DB 프롬프트(SSOT) 재사용.
 // 라우트는 스트리밍(신규 입력 실시간 UX), 이 함수는 수정 시 '해당 항목만 재분석'(비스트리밍)에 쓴다.
 
+import { namesFromDirectory } from '../ai/known-names.ts'
 import { guardedGeminiText } from '../ai/guarded-gemini.ts'
 import { createAiLedger } from '../ai/ledger.ts'
 import { createAdminClient } from '@/lib/supabase/server'
@@ -55,6 +56,8 @@ export async function analyzeWorkOnce(
     prompt: `${systemPrompt}\n\n입력:\n${text}`,
     apiKey, model, surface: 'daily/analyze-work', purpose: 'daily_work_split',
     ledger, actorId: actorId ?? null,
+    // 일일업무에는 누가 누구와 무엇을 했는지가 그대로 있다
+    knownNames: await namesFromDirectory(admin as never),
     // 이 길은 줄마다 JSON 을 내보내는 모양이라 응답 형식을 강제하지 않는다
     json: false,
   })

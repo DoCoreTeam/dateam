@@ -1,5 +1,6 @@
 // 주간보고 초안 서버 헬퍼 — route 핸들러(얇게 유지)에서 분리한 생성·조회 로직.
 // 라우트는 GET/PUT 오케스트레이션만 두고, 데이터 적재·AI 생성은 여기로.
+import { namesFromDirectory } from '@/lib/ai/known-names'
 import { createAiLedger } from '@/lib/ai/ledger'
 import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { readFileSync } from 'fs'
@@ -214,6 +215,7 @@ export async function generateForWeek(
     model,
     userId,
     createAiLedger(admin as never),
+    await namesFromDirectory(admin as never),
   )
 
   // 데이터 0건이면 빈 초안(graceful degrade) — 저장 없이 반환

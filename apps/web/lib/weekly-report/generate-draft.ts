@@ -101,9 +101,10 @@ async function aiTaskRows(
   model: string,
   userId: string | null | undefined,
   ledger: AiLedger,
+  knownNames: readonly string[],
 ): Promise<WeeklyRowOutput[]> {
   const normalized = tasks.map((t) => ({ ...t, content: htmlToPlain(t.content) }))
-  return generateWeeklyFromDailyTasks(normalized, styleGuide, apiKey, model, userId, ledger, refCategories)
+  return generateWeeklyFromDailyTasks(normalized, styleGuide, apiKey, model, userId, ledger, { knownNames, prevWeekCategories: refCategories })
 }
 
 /**
@@ -117,6 +118,7 @@ export async function generateWeeklyDraft(
   model: string,
   userId: string | null | undefined,
   ledger: AiLedger,
+  knownNames: readonly string[] = [],
 ): Promise<DraftItem[]> {
   const refCategories =
     input.prevCategories && input.prevCategories.length > 0
@@ -131,7 +133,7 @@ export async function generateWeeklyDraft(
 
   let taskItems: DraftItem[]
   try {
-    const rows = await aiTaskRows(input.tasks, styleGuide, refCategories, apiKey, model, userId, ledger)
+    const rows = await aiTaskRows(input.tasks, styleGuide, refCategories, apiKey, model, userId, ledger, knownNames)
     taskItems = rowsToItems(rows)
   } catch {
     // graceful degrade — AI 장애여도 검수 가능한 초안을 보장(설계결정: fallbackTaskItems 주석 참고)

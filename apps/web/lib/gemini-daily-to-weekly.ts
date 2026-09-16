@@ -25,8 +25,18 @@ export async function generateWeeklyFromDailyTasks(
   model: string,
   userId: string | null | undefined,
   ledger: AiLedger,
-  prevWeekCategories?: string[]
+  /**
+   * 이름 목록과 지난주 구분을 **한 덩어리로 받는다.**
+   *
+   * 둘 다 `string[]` 이라 자리를 바꿔 넘겨도 타입 검사가 통과한다. 실제로 이 변경에서
+   * 라우트가 지난주 구분을 이름 자리에 넘겼고 tsc 는 아무 말도 안 했다 —
+   * 그러면 구분 이름이 사람 이름으로 가려져 프롬프트에서 사라진다.
+   * 이름을 붙여 받으면 그 실수를 못 한다.
+   */
+  opts: { knownNames?: readonly string[]; prevWeekCategories?: string[] } = {},
 ): Promise<WeeklyRowOutput[]> {
+  const knownNames = opts.knownNames ?? []
+  const prevWeekCategories = opts.prevWeekCategories
   if (tasks.length === 0) return []
 
   // 지난주 구분(섹션) 목록 — 구분이 매주 달라지지 않도록 가능하면 지난주 명칭 재사용(있을 때만)
@@ -50,6 +60,8 @@ ${prevCatBlock}
     apiKey, model,
     surface: 'weekly-report/generate', purpose: 'weekly_from_daily',
     ledger, actorId: userId ?? null, temperature: 0.2,
+    // 주간보고는 일일업무를 모아 보내므로 일일에 있던 이름이 그대로 다시 나간다
+    knownNames,
   })
   const text = out.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')

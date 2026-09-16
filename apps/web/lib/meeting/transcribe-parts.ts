@@ -9,6 +9,7 @@
  * 분석 결과가 맞고, 안 볼 회의까지 비용을 쓸 이유가 없다.
  */
 
+import { namesForNote } from '../ai/known-names.ts'
 import { guardedMedia } from '../ai/guarded-call.ts'
 import { createAiLedger } from '../ai/ledger.ts'
 import { listRecordingParts, partOffsetMs, readPartAudio, type RecordingPart } from './recording.ts'
@@ -128,6 +129,8 @@ export async function transcribeOnePart(part: RecordingPart, provider: SttProvid
       {
         surface: 'meeting/transcribe', purpose: 'transcribe', media: 'audio',
         providerId: provider.vendor, modelName: provider.model,
+        // 이 회의의 참석자 이름이 돌아온 글자에 실려 온다. 추측 말고 그 회의의 목록을 쓴다
+        knownNames: await namesForNote(admin, part.note_id),
       },
       createAiLedger(admin),
       async () => {

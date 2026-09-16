@@ -1,3 +1,4 @@
+import { namesFromDirectory } from '@/lib/ai/known-names'
 import { createAiLedger } from '@/lib/ai/ledger'
 import { NextRequest, NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
     const rows = await generateWeeklyFromDailyTasks(
       tasks, styleGuide, apiKey, model, user.id,
       createAiLedger(createAdminClient() as never),
-      prevWeekCategories,
+      { knownNames: await namesFromDirectory(createAdminClient() as never), prevWeekCategories },
     )
     return NextResponse.json({ rows })
   } catch (err) {

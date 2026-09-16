@@ -1,3 +1,4 @@
+import { namesFromDirectory } from '@/lib/ai/known-names'
 import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
 import { createAiLedger } from '@/lib/ai/ledger'
 import { NextRequest, NextResponse } from 'next/server'
@@ -46,6 +47,7 @@ async function extractActivity(
       prompt: `${EXTRACT_PROMPT}\n\n메모:\n${content}`,
       apiKey, model, surface: 'deals/activities', purpose: 'deal_activity_extract',
       ledger: createAiLedger(adm as never), actorId: userId,
+      knownNames: await namesFromDirectory(adm as never),
     })
   } catch {
     return null

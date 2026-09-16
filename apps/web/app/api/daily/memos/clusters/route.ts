@@ -1,3 +1,4 @@
+import { namesFromDirectory } from '@/lib/ai/known-names'
 import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
 import { createAiLedger } from '@/lib/ai/ledger'
 import { NextResponse } from 'next/server'
@@ -132,6 +133,7 @@ ${JSON.stringify(groups, null, 2)}`
     prompt, apiKey, model,
     surface: 'daily/memo-clusters', purpose: 'memo_cluster_label',
     ledger: createAiLedger(adm as never), actorId: userId,
+    knownNames: await namesFromDirectory(adm as never),
     temperature: 0.2,
   })
   const text = out0.text || '[]'

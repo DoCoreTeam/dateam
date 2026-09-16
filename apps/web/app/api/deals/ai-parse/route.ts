@@ -1,3 +1,4 @@
+import { namesFromDirectory } from '@/lib/ai/known-names'
 import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
 import { createAiLedger } from '@/lib/ai/ledger'
 import { NextRequest, NextResponse } from 'next/server'
@@ -42,6 +43,8 @@ export async function POST(req: NextRequest) {
       prompt: `${ACTIVITY_PARSE_PROMPT}\n\n메모:\n${body.raw_text}`,
       apiKey, model, surface: 'deals/ai-parse', purpose: 'deal_activity_parse',
       ledger: createAiLedger(adminClient as never), actorId: auth.user.id,
+      // 딜 메모는 이미 아는 사람을 이야기한다. 주소록 이름을 주면 그대로 가려진다
+      knownNames: await namesFromDirectory(adminClient as never),
     })
   } catch {
     return NextResponse.json({ error: 'Gemini API 오류' }, { status: 500 })
