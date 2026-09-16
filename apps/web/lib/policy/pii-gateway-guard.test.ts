@@ -94,3 +94,51 @@ test('규칙이 도는 대상이 실제로 있다', () => {
     assert.ok(p.carries.length > 0, `${p.file} 이 무엇을 싣는지 안 적혀 있다`)
   }
 })
+
+test('★ 이름이 개인정보 종류에 들어 있다', async () => {
+  // 이름은 개인정보다. 기준은 이미 서 있었고 규칙만 이름을 안 잡고 있었다
+  const mask = readFileSync(join(WEB, '..', '..', 'packages/ai-gateway/src/mask.ts'), 'utf8')
+  assert.match(mask, /PiiKind[^\n]*'name'/, 'PiiKind 에 name 이 없다')
+  assert.match(mask, /knownNames/, '아는 이름을 받는 자리가 없다')
+})
+
+test('★ 이름을 추측으로 찾지 않는다', () => {
+  /*
+    정규식으로 이름을 찾으면 틀렸을 때 두 방향으로 다 나쁘다 —
+    놓친 이름은 그대로 나가고, 엉뚱하게 잡은 낱말은 문장을 부순다.
+    둘 다 출력을 사람이 읽을 때까지 안 보인다.
+
+    그런데 추측할 필요가 없다. 이름은 이미 우리 것이다.
+    그래서 이 파일에 «이름을 알아내는 규칙» 이 생기면 실패한다.
+  */
+  const mask = readFileSync(join(WEB, '..', '..', 'packages/ai-gateway/src/mask.ts'), 'utf8')
+  const guessing = [
+    /kind:\s*'name'[^}]*re:/,
+    /\{\s*kind:\s*'name',\s*re:/,
+    /NAME_PATTERN|NAME_RE|nameRegex/,
+  ]
+  const offenders = guessing.filter((re) => re.test(mask)).map((re) => re.source)
+  assert.deepEqual(offenders, [], [
+    '이름을 규칙으로 알아내려 한다. 틀리면 새거나 문장을 부수고 둘 다 늦게 보인다:',
+    ...offenders.map((o) => `  ${o}`),
+    '아는 이름 목록으로 맞춘다 — 그것은 정확하고 오탐이 없다',
+  ].join('\n'))
+})
+
+test('★ 이름을 아는 길은 목록을 실제로 넘긴다', () => {
+  // 목록을 받을 자리만 만들고 안 넘기면 이름은 그대로 나간다
+  const wired = [
+    'lib/meeting/transcribe-parts.ts',
+    'app/api/deals/ai-parse/route.ts',
+    'app/api/deals/activities/route.ts',
+    'lib/daily/analyze-work-core.ts',
+    'app/api/daily/memos/clusters/route.ts',
+    'lib/weekly-report/draft-server.ts',
+  ]
+  const offenders = wired.filter((rel) => !read(rel).includes('knownNames')
+    && !read(rel).includes('namesForNote') && !read(rel).includes('namesFromDirectory'))
+  assert.deepEqual(offenders, [], [
+    '이름이 나올 수 있는 길인데 목록을 안 넘긴다:',
+    ...offenders.map((o) => `  ${o}`),
+  ].join('\n'))
+})
