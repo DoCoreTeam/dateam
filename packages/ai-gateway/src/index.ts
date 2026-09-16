@@ -8,6 +8,8 @@ export {
   type PiiKind,
   type PiiHit,
   type MaskResult,
+  type MaskOptions,
+  MIN_MASKABLE_NAME,
   tokenFor,
   maskPii,
   unmaskPii,

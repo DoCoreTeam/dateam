@@ -47,9 +47,24 @@ function packageSources(): { path: string; rel: string; src: string }[] {
 /** 한글 음절과 자모 전부 */
 const HANGUL = /[가-힣ㄱ-ㆎ]/
 
+/**
+ * 한글을 들고 있어도 되는 자리. 사유를 함께 적는다.
+ *
+ * 규칙의 목적은 **부품이 화면에 나갈 말을 갖지 않는 것**이다. 시험 자료는 화면에 안 간다.
+ * 그리고 지역 규칙(한국 개인정보)을 시험하려면 한국어 자료가 있어야 한다 —
+ * 로마자로 바꿔 놓으면 시험이 진짜 경우를 안 밟는다.
+ *
+ * 사유 없이 이름만 넣을 수 있게 두면 이 목록이 면제 서랍이 된다.
+ */
+const KOREAN_ALLOWED: Record<string, string> = {
+  'packages/ai-gateway/src/mask.test.ts':
+    '한국 개인정보 가림을 시험하는 자료다. 로마자로 바꾸면 한글 이름 겹침 같은 진짜 경우를 못 밟는다',
+}
+
 test('★ 패키지 안에 한글이 없다, 말은 쓰는 쪽이 정한다', () => {
   const offenders: string[] = []
   for (const f of packageSources()) {
+    if (f.rel in KOREAN_ALLOWED) continue
     const lines = f.src.split('\n')
     lines.forEach((line, i) => {
       if (HANGUL.test(line)) offenders.push(`${f.rel}:${i + 1}  ${line.trim().slice(0, 60)}`)
@@ -97,4 +112,21 @@ test('규칙이 도는 대상이 실제로 있다', () => {
   // 경로가 틀려 0개가 되면 위 둘은 «전부 통과»로 보인다. 가장 위험한 실패다
   const n = packageSources().length
   assert.ok(n >= 8, `패키지 소스를 ${n}개만 찾았다, 훑는 경로가 깨졌는지 확인한다`)
+})
+
+test('★ 한글 면제는 사유와 함께 적고, 시험 자료에만 준다', () => {
+  const noReason = Object.entries(KOREAN_ALLOWED)
+    .filter(([, why]) => why.trim().length === 0)
+    .map(([f]) => f)
+  assert.deepEqual(noReason, [], `사유 없이 면제된 파일: ${noReason.join(', ')}`)
+
+  // 면제는 시험 자료에만 준다. 소스가 한글을 들면 그 부품을 쓰는 화면이 그 말에 묶인다
+  const notTest = Object.keys(KOREAN_ALLOWED).filter((f) => !f.endsWith('.test.ts'))
+  assert.deepEqual(notTest, [], [
+    '시험이 아닌 파일이 면제됐다. 부품 소스가 한글을 들면 쓰는 화면이 그 말에 묶인다:',
+    ...notTest.map((f) => `  ${f}`),
+  ].join('\n'))
+
+  const gone = Object.keys(KOREAN_ALLOWED).filter((f) => !packageSources().some((s) => s.rel === f))
+  assert.deepEqual(gone, [], `면제 목록에 없는 파일: ${gone.join(', ')}`)
 })
