@@ -27,7 +27,7 @@ export interface EntityMeta {
    */
   counter: Counter
   /** 이 개체가 사는 표면 — 배지·이동 경로가 여기서 갈린다 */
-  surface: 'member' | 'crm' | 'ci'
+  surface: 'member' | 'crm' | 'ci' | 'rfp'
 }
 
 export type EntityKey =
@@ -35,6 +35,8 @@ export type EntityKey =
   | 'task' | 'event' | 'pipeline' | 'stage'
   | 'channel' | 'content'
   | 'dailyLog' | 'weeklyReport'
+  | 'bid' | 'project' | 'doc' | 'requirement'
+  | 'anomaly' | 'report' | 'companyProfile' | 'source'
 
 export const ENTITY: Record<EntityKey, EntityMeta> = {
   /** 「거래처」는 **메뉴 묶음 이름**이고 개체 이름은 「회사」다 — 둘을 섞지 않는다 */
@@ -66,6 +68,30 @@ export const ENTITY: Record<EntityKey, EntityMeta> = {
   content: { label: '게시물', id: 'content', counter: '건', surface: 'ci' },
   dailyLog: { label: '일일업무', id: 'daily_log', counter: '건', surface: 'member' },
   weeklyReport: { label: '주간보고', id: 'weekly_report', counter: '건', surface: 'member' },
+
+  /*
+    RFP 분석기의 개체 여덟.
+
+    낱말 358개가 `lib/rfp/terms.ts` 안에만 있고 용어집에는 서비스 이름 한 줄뿐이었다.
+    카탈로그와 어시스턴트가 이 이름들을 전제하므로, 그 둘보다 먼저 여기 있어야 한다.
+  */
+
+  /** 기관이 낸 것. 「입찰공고」는 문서 이름이고 개체 이름은 「공고」다 */
+  bid: { label: '공고', id: 'bid', counter: '건', surface: 'rfp' },
+  /** 공고가 가리키는 일. 공고 하나에 사업 하나가 원칙이지만 나뉘기도 한다 */
+  project: { label: '사업', id: 'project', counter: '건', surface: 'rfp' },
+  /** 공고에 딸려 온 파일 하나. 「첨부」는 딸려 온 방식이지 개체가 아니다 */
+  doc: { label: '문서', id: 'doc', counter: '건', surface: 'rfp' },
+  /** 문서에서 뽑아낸 지켜야 할 것 하나 */
+  requirement: { label: '요구사항', id: 'requirement', counter: '건', surface: 'rfp' },
+  /** 확정과 의심을 함께 담는다. 「독소조항」이라 부르지 않는다 — 단정이 세다 */
+  anomaly: { label: '이상 조항', id: 'anomaly', counter: '건', surface: 'rfp' },
+  /** 분석 한 판의 결과. 차수가 쌓이므로 판마다 한 건이다 */
+  report: { label: '리포트', id: 'report', counter: '건', surface: 'rfp' },
+  /** 우리 회사가 무엇을 할 수 있나. 조직마다 하나라 세는 말이 「개」다 */
+  companyProfile: { label: '회사 프로필', id: 'company_profile', counter: '개', surface: 'rfp' },
+  /** 공고를 어디서 가져오나. 「수집처」이지 「사이트」가 아니다 */
+  source: { label: '수집처', id: 'source', counter: '곳', surface: 'rfp' },
 }
 
 /** 어느 시스템의 일인가 — 캘린더가 표면 배지를 붙일 때 쓴다 */
@@ -76,6 +102,8 @@ export const SURFACE_LABEL: Record<SurfaceKey, string> = {
   member: '업무',
   crm: 'CRM',
   ci: '콘텐츠',
+  /** 배지에 「RFP 분석기」를 다 쓰면 다른 배지와 길이가 안 맞는다. 간판은 SERVICE_LABEL 이 따로 있다 */
+  rfp: 'RFP',
 }
 
 /**

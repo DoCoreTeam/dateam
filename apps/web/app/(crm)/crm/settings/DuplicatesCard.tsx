@@ -144,7 +144,7 @@ export default function DuplicatesCard() {
 
   return (
     <SettingsCard title="중복 정리" headingLevel={2} headerAction={<><NbButton variant="ghost" onClick={() => void scan()} disabled={busy === 'scan'}>
-          {busy === 'scan' ? '훑는 중…' : '지금 훑기'}
+          {busy === 'scan' ? '수집 중…' : '지금 수집'}
         </NbButton></>}>
 
       <FormErrorBanner message={error} />
@@ -170,7 +170,7 @@ export default function DuplicatesCard() {
       ) : items.length === 0 ? (
         <EmptyState
           title="합칠 만한 것이 안 보여요"
-          description="새로 들어온 자료가 있으면 '지금 훑기'를 눌러 다시 확인할 수 있습니다."
+          description="새로 들어온 자료가 있으면 '지금 수집'을 눌러 다시 확인할 수 있습니다."
         />
       ) : (
         <ul className={styles.dupes}>

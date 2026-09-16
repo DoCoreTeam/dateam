@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, createLabel, progress } from './action.ts'
-import { ENTITY, SURFACE_LABEL, count, countOnly } from './entity.ts'
+import { ENTITY, SURFACE_LABEL, count, countOnly, type EntityKey } from './entity.ts'
 import { emptyTitle, failedTo, confirmDelete, notEnough } from './sentence.ts'
 import { roundingUnitName, roundingUnitLabel, roundingNote } from './quote.ts'
 import { ROUNDING_UNITS } from '../crm/domain/quote-math.ts'
@@ -180,5 +180,44 @@ test('DB 가 받는 단위와 코드가 아는 단위가 같다 — 마이그 24
     new URL('../../../../supabase/migrations/244_crm_quote_rounding_ten_million.sql', import.meta.url), 'utf8')
   for (const u of ROUNDING_UNITS) {
     assert.ok(new RegExp(`\\b${u}\\b`).test(sql), `${u} 가 DB CHECK 에 없다 — 저장하면 거부당한다`)
+  }
+})
+
+test('★ RFP 개체 여덟이 용어집에 있고 세는 말이 붙어 있다', () => {
+  const rfp: { key: EntityKey; label: string; counter: string }[] = [
+    { key: 'bid', label: '공고', counter: '건' },
+    { key: 'project', label: '사업', counter: '건' },
+    { key: 'doc', label: '문서', counter: '건' },
+    { key: 'requirement', label: '요구사항', counter: '건' },
+    { key: 'anomaly', label: '이상 조항', counter: '건' },
+    { key: 'report', label: '리포트', counter: '건' },
+    { key: 'companyProfile', label: '회사 프로필', counter: '개' },
+    { key: 'source', label: '수집처', counter: '곳' },
+  ]
+  for (const r of rfp) {
+    const e = ENTITY[r.key]
+    assert.ok(e, `${r.key} 가 용어집에 없다`)
+    assert.equal(e.label, r.label)
+    assert.equal(e.counter, r.counter)
+    assert.equal(e.surface, 'rfp', `${r.key} 가 어느 서비스 것인지 안 말한다`)
+  }
+})
+
+test('★ RFP 개체도 화면이 조수사를 직접 안 고른다', () => {
+  assert.equal(count('bid', 3), '공고 3건')
+  assert.equal(count('source', 2), '수집처 2곳')
+  assert.equal(count('companyProfile', 1), '회사 프로필 1개')
+})
+
+test('★ 함수 이름이 화면에 새는 말이 금지어로 등재돼 있다', () => {
+  const bad = BANNED_TERMS.map((b) => b.bad)
+  for (const w of ['훑기', '어디를 뒤질까', '독소조항']) {
+    assert.ok(bad.includes(w), `${w} 가 금지어에 없다`)
+  }
+  // 사유 없이 넣으면 목록이 왜 있는지 아무도 모른다.
+  // 길이를 요구하지는 않는다 — 「공백 없음」은 짧지만 그 자체로 충분한 사유다
+  for (const b of BANNED_TERMS) {
+    assert.ok(b.why.trim().length > 0, `${b.bad} 에 사유가 없다`)
+    assert.ok(b.good.length > 0, `${b.bad} 의 대신 쓸 말이 없다`)
   }
 })

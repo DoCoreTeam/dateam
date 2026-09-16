@@ -108,4 +108,11 @@ export const BANNED_TERMS: { readonly bad: string; readonly good: string; readon
   { bad: '저장중', good: progress(ACTION.save), why: '공백 없음' },
   { bad: '재시도', good: ACTION.retry, why: '한자어보다 우리말' },
   { bad: '영업기회', good: '딜', why: '구 화면(/deals) 잔재: CRM 개체 이름은 딜' },
+  /*
+    RFP 금지어 셋. 셋 다 **함수 이름이 화면으로 샌 것**이다.
+    코드가 쓰는 말과 사람이 읽는 말은 다르고, 섞이면 화면이 개발 문서처럼 읽힌다.
+  */
+  { bad: '훑기', good: '수집', why: 'sweep 이라는 함수 이름이 화면에 샜다' },
+  { bad: '어디를 뒤질까', good: '수집처', why: '개체 이름이 있는데 설명문으로 부르고 있었다' },
+  { bad: '독소조항', good: '이상 조항', why: '단정이 세다. 확정과 의심을 함께 담는 말이어야 한다' },
 ]
