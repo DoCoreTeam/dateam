@@ -21,8 +21,32 @@
 import type { DocClass } from './domain/doc-class.ts'
 import type { Stage } from './domain/status.ts'
 
-/** 서비스 간판 */
-export const RFP_SERVICE_LABEL = 'RFP 분석기'
+import { ENTITY, SERVICE_LABEL } from '../terms/index.ts'
+
+/**
+ * 서비스 간판. 용어집에서 가져온다.
+ *
+ * 같은 말을 두 곳에 두면 한쪽만 고쳐지고, 그때부터 두 화면이 다른 제품이 된다.
+ * `rfp-guard.test.ts` 가 이 둘이 같은지 이미 보고 있었는데, 보는 것보다 **하나만 두는 것**이 낫다.
+ */
+export const RFP_SERVICE_LABEL = SERVICE_LABEL.rfp
+
+/**
+ * 개체 이름은 용어집이 갖는다.
+ *
+ * 공고 사업 문서 요구사항 이상조항 리포트 회사프로필 수집처 여덟은 카탈로그와 어시스턴트가
+ * 전제하는 이름이라, 여기서 따로 부르면 그 둘이 다른 것을 가리키게 된다.
+ */
+export const RFP_ENTITY = {
+  bid: ENTITY.bid.label,
+  project: ENTITY.project.label,
+  doc: ENTITY.doc.label,
+  requirement: ENTITY.requirement.label,
+  anomaly: ENTITY.anomaly.label,
+  report: ENTITY.report.label,
+  companyProfile: ENTITY.companyProfile.label,
+  source: ENTITY.source.label,
+} as const
 
 /** 문서 등급 — 사용자가 인입 때 고르는 세 값 */
 export const DOC_CLASS_LABEL: Record<DocClass, string> = {
@@ -183,7 +207,7 @@ export const RFP_NAV = {
   cases: '케이스',
   newCase: '새 분석',
   radar: '공고 레이더',
-  profile: '회사 프로필',
+  profile: ENTITY.companyProfile.label,
   assistant: '어시스턴트',
   admin: '설정',
 } as const
@@ -244,7 +268,7 @@ export const RFP_REPORT = {
   openSource: '원문에서 보기',
   crossVerify: '교차검증',
   editValue: '값 고치기',
-  anomalies: '이상 조항',
+  anomalies: ENTITY.anomaly.label,
   fit: '적합도',
   comparisons: '유사 사업',
   noValue: '확인 못 함',
@@ -298,7 +322,7 @@ export const RFP_CROSS = {
 
 /** 프로필과 적합도 */
 export const RFP_PROFILE = {
-  title: '회사 프로필',
+  title: ENTITY.companyProfile.label,
   desc: '적합도 판정이 이 정보를 씁니다',
   draftTitle: '문서로 채우기',
   aiSkipped: '조건부 공개 문서를 볼 수 있는 AI 가 없어 규칙으로만 채웠습니다',
