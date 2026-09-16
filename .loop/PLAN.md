@@ -50,7 +50,7 @@
 의존: 없음
 
 ### I02 끝내기를 잡으로 남긴다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: supabase/migrations/254_meeting_finish_job.sql (신규), apps/web/lib/crm/jobs/finish-queue.ts (신규), apps/web/lib/crm/jobs/finish-queue.test.ts (신규)
 감사 기준:
