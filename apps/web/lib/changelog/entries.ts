@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.27',
+    date: '2026-09-16',
+    title: '태블릿에서 메뉴 맨 아래 계정 영역에 닿지 않던 것을 고쳤어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📱',
+        headline: '왼쪽 메뉴 맨 아래 계정 영역이 잘리지 않아요',
+        detail: '태블릿이나 휴대폰처럼 주소창이 접히는 화면에서 메뉴가 화면보다 살짝 길어져, 맨 아래 계정 영역이 잘려 보이고 스크롤로도 닿을 수 없었어요. 이제 메뉴 높이가 화면에 정확히 맞아 계정 영역이 항상 보입니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.4',
     date: '2026-09-14',
     title: 'AI 키를 한 화면에서 관리하고, 설정 화면 셋이 같은 모양이 됐어요',

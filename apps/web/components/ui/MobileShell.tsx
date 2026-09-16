@@ -200,13 +200,23 @@ export default function MobileShell({
         aria-hidden="true"
       />
 
-      {/* 사이드바 */}
+      {/*
+        사이드바.
+
+        높이는 여기서 정하지 않는다. 셸이 `height: 100dvh`, 사이드바는 그 안에서 늘어나고
+        (모바일에서는 CSS 가 `height: 100dvh` 를 직접 준다), nav 만 자체 스크롤한다.
+
+        예전엔 여기 인라인 `minHeight: '100vh'` 가 있었다. 주소창이 접히는 태블릿·휴대폰에서는
+        `100vh > 100dvh` 라 사이드바가 셸보다 커졌고, 셸의 `overflow: hidden` 이 그 초과분을
+        잘랐다. 잘리는 자리가 하필 맨 아래 계정 영역이었고, 스크롤은 nav 에만 있어서
+        거기로 갈 길이 없었다 (실측 2026-09-16: 셸 1080, 사이드바 1180, 계정 1095~1180).
+        가드: lib/ui/shell-contract.test.ts
+      */}
       <aside
         id="main-sidebar"
         className={`app-sidebar${mobileOpen ? ' sidebar-open' : ''}`}
         aria-label="주 사이드바"
         style={{
-          minHeight: '100vh',
           backgroundColor: 'var(--sidebar-bg)',
           borderRight: 'var(--border-w) solid var(--border-color)',
           display: 'flex',

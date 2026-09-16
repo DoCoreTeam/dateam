@@ -1,0 +1,60 @@
+# PLAN newAX: 사이드바 바닥과 나가는 문
+플랜 ID: P0005
+플랜 버전: v0.1.0
+상태: 진행중
+지시: ins_0008
+목표 버전: v0.10.7
+작성: 2026-09-14
+시작 커밋: dcd88b2d
+
+## 목표
+- 태블릿·휴대폰에서 사이드바 맨 아래 계정 영역이 잘리지 않고 항상 닿는다
+- RFP 분석기에서 업무 화면으로 나가는 문이 다른 하위 서비스와 같은 자리에 뜬다
+- 표면을 하나 더 만들어도 나가는 문이 자동으로 따라오게 판정을 한 곳으로 모은다
+
+## 범위 밖
+- 사이드바 폭·간격·아이콘 등 다른 반응형 조정
+- RFP 메뉴 구성 변경
+- 나가는 문의 문구·좌표 변경 (기존 EXIT_TO_MAIN 그대로)
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 통과
+- 사용자 노출 문자열은 기존 상수 재사용, 새 한글 직접 문자열 없음
+- 두 결함 각각을 잡는 가드가 등재된 테스트 파일 안에 있음
+
+## 참조
+- LOOP.md 부록 버전 규칙
+- apps/web/components/ui/shell/AppShell.tsx 셸 계약 주석
+- apps/web/lib/nav/surface.ts 경로 판정 SSOT
+
+## 항목
+
+### I01 사이드바 바닥이 잘리는 것
+상태: 통과
+모드: 경량
+범위: apps/web/components/ui/MobileShell.tsx, apps/web/lib/ui/shell-contract.test.ts
+감사 기준:
+- 실측 근거: `.app-shell` 은 `height: 100dvh; overflow: hidden`(globals.css:1142~1147) 인데 사이드바만 인라인 `minHeight: '100vh'`(MobileShell.tsx:209) 이다. 셸 안의 다른 100vh 는 전부 100dvh 짝이 있고 이것만 없다
+- 주소창이 접히는 브라우저에서 100vh > 100dvh 이므로 사이드바가 셸보다 커지고 `overflow: hidden` 이 바닥을 자른다. nav 만 자체 스크롤이라 계정 영역으로 갈 길이 없다
+- 고친 뒤 브라우저에서 셸 높이를 100vh 보다 작게 만들어 그 조건을 재현하고, 계정 영역(`SidebarProfile`)이 보이는 영역 안에 있는지 좌표로 확인 (고치기 전에는 밖, 고친 뒤에는 안)
+- 데스크탑(100vh == 100dvh)에서 사이드바 높이가 그대로인지 좌표로 확인 (회귀 0)
+- `node --test` 로 shell-contract.test.ts 통과, 사이드바에 dvh 짝 없는 100vh 가 다시 들어오면 실패하는 가드 포함
+의존: 없음
+
+### I02 RFP 에서 나가는 문이 없는 것
+상태: 대기
+모드: 경량
+범위: apps/web/lib/nav/surface.ts, apps/web/lib/nav/surface.test.ts
+감사 기준:
+- 실측 근거: `surfaceOf` 의 하위 표면 목록이 `crm | ci | ai` 손목록이라 `rfp` 가 빠졌다(surface.ts). `ShellExit` 은 `surface === 'member'` 면 null 을 돌려주므로 /rfp 에서 문이 아예 안 그려진다
+- `surfaceOf('/rfp')` 와 `surfaceOf('/rfp/새케이스경로')` 가 'sub' 를 돌려줌
+- 판정을 손목록이 아니라 `serviceOf` 결과에서 유도해, `SERVICE_ROUTES` 에 서비스를 더하면 문이 자동으로 따라옴 (AppShell 쓰는 표면 여섯 중 member·admin 외 전부가 sub)
+- 브라우저에서 /rfp 사이드바 바닥에 「업무로 나가기」가 뜨고 눌러서 /home 에 도착
+- `node --test` 로 surface.test.ts 통과, 새 서비스를 손목록에 또 적지 않아도 되는 것을 확인하는 단정 포함
+의존: 없음
+
+## 종합 감사
+- (전 항목 통과 후 기록)
+
+## 변경 이력
+- v0.1.0 (2026-09-14) 최초 작성 (ins_0008)
