@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.35',
+    date: '2026-09-16',
+    title: '미팅 끝내기가 중간에 멈추지 않고 끝까지 정리해요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '⏱️',
+        headline: '회의 정리가 시간을 다 써 버려 인박스 제안이 안 생기던 것을 고쳤어요',
+        detail: '긴 회의를 끝낼 때 정리 단계가 정해진 시간을 넘겨 버려, 그 뒤에 이어질 인박스 제안 뽑기가 시작도 못 하고 끊겼어요. 게다가 끊겼다는 안내조차 뜨지 않았습니다. 이제 정리가 제 몫의 시간만 쓰고 넘겨서, 회의 하나를 끝내면 정리와 제안이 함께 나옵니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.30',
     date: '2026-09-16',
     title: 'RFP 분석기에서도 업무 화면으로 바로 나갈 수 있어요',

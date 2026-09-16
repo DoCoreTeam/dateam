@@ -312,19 +312,26 @@ describe('AI 예산 — 라우트가 준 시간을 다 쓴다', () => {
   it('★ 정리가 예산을 명시한다 — 기본값(120초)에 맡기면 라우트가 4분 남았는데 포기한다', () => {
     const s = read('lib/meeting/digest-run.ts')
     /*
-      상수를 실제로 넘기는지만 본다. 남은 시간으로 깎는 것(`budget.cap`)은 허용한다 —
-      깎는 쪽은 아래 «예산이 라우트 상한을 넘지 않는다» 계약이 따로 지킨다.
-      호출부가 상수를 안 쓰고 라이브러리 기본값에 맡기는 것만 막는 것이 이 가드의 뜻이다.
+      **이 단정은 한 번 뒤집혔다**(2026-09-16).
+
+      예전엔 `timeoutMs: DIGEST_CALL_MS, overallTimeoutMs: DIGEST_OVERALL_MS` 라는
+      **옛 모양 그대로**를 단정했다. 그 모양이 바로 예산을 무시하는 모양이었고,
+      그래서 이 가드는 초록인 채로 사고를 **고정**하고 있었다 — 종합 호출이 끝내기가 준
+      170초를 무시하고 자기 240초를 새로 써서 295초에 끝났고, 5축은 300초 상한에 잘렸다.
+
+      지금 보는 것은 «상수를 명시하는가»라는 원래 뜻 그대로다. 다만 명시하는 자리가
+      `digestCallBudget(남은 예산, 시도상한, 전체상한)` 이다 — 상한을 쓰되 예산에 깎인다.
+      «전부 그 함수를 거치는가»는 lib/meeting/digest-budget.test.ts 가 따로 본다.
     */
-    assert.match(s, /timeoutMs: DIGEST_CALL_MS, overallTimeoutMs: DIGEST_OVERALL_MS/)
-    assert.match(s, /timeoutMs: Math\.min\(CONDENSE_CALL_MS, [A-Za-z]+\), overallTimeoutMs: [A-Za-z]+/)
-    assert.match(s, /CONDENSE_OVERALL_MS/, '구간 압축 상한 상수를 아예 안 쓰면 기본값에 맡긴 것이다')
+    assert.match(s, /digestCallBudget\(budget\.remaining\(\), DIGEST_CALL_MS, DIGEST_OVERALL_MS\)/)
+    assert.match(s, /digestCallBudget\(budget\.remaining\(\), CONDENSE_CALL_MS, CONDENSE_OVERALL_MS\)/)
+    // «예산을 우회하는 호출이 하나도 없는가»는 digest-budget.test.ts 가 본다 —
+    // 거기는 호출 블록을 줄 단위로 떠서 보므로 주석 속 설명에 걸리지 않는다
   })
 
   it('★ 부르는 쪽이 시간 예산을 줄 수 있다 — 「미팅 끝내기」는 5축까지 이어 돌린다', () => {
     const run = read('lib/meeting/digest-run.ts')
     assert.match(run, /budgetMs\?: number/, '예산을 받는 인자가 없다')
-    assert.match(run, /budget\.cap\(CONDENSE_OVERALL_MS\)/, '받은 예산으로 상한을 깎지 않는다')
     assert.match(run, /budget\.remaining\(\)/, '남은 시간을 보지 않으면 종합할 시간을 남길 수 없다')
 
     // 끝내기가 실제로 예산을 넘긴다 — 만들어 놓고 안 넘기면 없는 기능이다
@@ -339,6 +346,22 @@ describe('AI 예산 — 라우트가 준 시간을 다 쓴다', () => {
     const max = Number(/maxDuration = (\d+)/.exec(route)?.[1]) * 1000
     assert.ok(overall > 0 && max > 0, '값을 못 읽었다 — 가드가 헛돈다')
     assert.ok(overall < max, `AI 예산 ${overall}ms 가 라우트 상한 ${max}ms 보다 크다`)
+  })
+
+  it('★ 끝내기는 정리에 다 주지 않는다 — 5축 몫이 남아야 한다 (295초 사고의 계약)', () => {
+    /*
+      예전 계약은 «정리 상한 < 정리 전용 라우트 상한» 하나뿐이었다(240 < 300). 참이었다.
+      그런데 끝내기는 정리 **뒤에** 5축을 이어 돌린다 — 정리가 상한을 다 써 버리면
+      5축은 시작하자마자 죽는다. 그 조합을 보는 단정이 없어서 사고가 초록으로 지나갔다.
+    */
+    const route = read('app/api/crm/meetings/[id]/finish/route.ts')
+    const budget = Number(/DIGEST_BUDGET_MS = ([\d_]+)/.exec(route)?.[1]?.replace(/_/g, ''))
+    const max = Number(/maxDuration = (\d+)/.exec(route)?.[1]) * 1000
+    assert.ok(budget > 0 && max > 0, '값을 못 읽었다 — 가드가 헛돈다')
+
+    const leftForFiveAxis = max - budget
+    assert.ok(leftForFiveAxis >= 120_000,
+      `정리에 ${budget}ms 를 주면 5축 몫이 ${leftForFiveAxis}ms 뿐이다 (상한 ${max}ms). 실측 사고가 이 자리다`)
   })
 
   it('★ 화자 나누기도 마찬가지다', () => {

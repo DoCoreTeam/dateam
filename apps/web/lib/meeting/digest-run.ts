@@ -28,6 +28,7 @@ import {
   describeSources, isEmptyDigest, restructureLumpDigest, EMPTY_DIGEST,
   type DigestResult, type DigestSources,
 } from './digest.ts'
+import { digestCallBudget } from './digest-budget.ts'
 
 export interface DigestRunResult {
   digest: DigestResult
@@ -78,6 +79,9 @@ function admin(): any {
 const DIGEST_CALL_MS = 120_000
 const DIGEST_OVERALL_MS = 240_000
 const CONDENSE_CALL_MS = 60_000
+/** 녹음 없이 메모만 읽는 경로 — callGeminiJson 기본값과 같되 예산에 깎인다 */
+const SUMMARY_CALL_MS = 60_000
+const SUMMARY_OVERALL_MS = 120_000
 const CONDENSE_OVERALL_MS = 100_000
 
 /**
@@ -121,14 +125,6 @@ function makeBudget(budgetMs: number | undefined) {
     /** 남은 시간. 예산이 없으면 무한 */
     remaining(): number {
       return deadline === null ? Number.POSITIVE_INFINITY : Math.max(0, deadline - Date.now())
-    },
-    /**
-     * 상한을 남은 시간으로 깎는다. **최저 5초는 남긴다** —
-     * 0 을 넘기면 호출이 시작하자마자 중단돼 「시간 초과」가 아니라 「네트워크 오류」로 보고된다.
-     */
-    cap(ms: number): number {
-      if (deadline === null) return ms
-      return Math.max(5_000, Math.min(ms, this.remaining()))
     },
   }
 }
@@ -174,6 +170,8 @@ export async function runMeetingDigest(
     if (!memo.trim()) throw new Error('정리할 내용이 없어요. 메모를 쓰거나 녹음을 해 주세요.')
     const { summary, decisions, notice: modelNotice, usedModel, outcome, nextStep } = await summarizeMeeting({
       userId, bodyPlain: memo, apiKey, model,
+      // 녹음이 없어도 예산은 같다 — 인자를 안 넘기면 기본 120초를 제 몫으로 쓴다
+      ...digestCallBudget(budget.remaining(), SUMMARY_CALL_MS, SUMMARY_OVERALL_MS),
     })
     /*
       조립은 `summary-structure.ts` 가 한다(SSOT · v0.7.689).
@@ -222,11 +220,10 @@ export async function runMeetingDigest(
         continue
       }
       try {
-        const condenseOverall = budget.cap(CONDENSE_OVERALL_MS)
         const out = await callGeminiJson({
           prompt: buildPartCondensePrompt(chunk.partIdx, chunk.text),
           apiKey, model, temperature: 0.0, feature: 'meeting_digest_condense',
-          timeoutMs: Math.min(CONDENSE_CALL_MS, condenseOverall), overallTimeoutMs: condenseOverall,
+          ...digestCallBudget(budget.remaining(), CONDENSE_CALL_MS, CONDENSE_OVERALL_MS),
         })
         condensed.push({ partIdx: chunk.partIdx, facts: parseCondensedFacts(out.value, knownIds) })
       } catch {
@@ -242,10 +239,15 @@ export async function runMeetingDigest(
     transcriptForPrompt = fullTranscriptForPrompt(segments)
   }
 
+  /*
+    **여기가 5축을 굶기던 자리다**(실측 2026-09-14). 예전엔 `overallTimeoutMs: DIGEST_OVERALL_MS`
+    고정이라, 끝내기가 「정리는 170초까지」라고 줘도 종합 혼자 240초를 새로 썼다.
+    합 295초, 라우트 상한 300초 — 5축은 시작하자마자 잘렸고 실패 기록조차 남지 않았다.
+  */
   const out = await callGeminiJson({
     prompt: buildMeetingDigestPrompt({ memo, transcript: transcriptForPrompt }),
     apiKey, model, temperature: 0.1, feature: 'meeting_digest',
-    timeoutMs: DIGEST_CALL_MS, overallTimeoutMs: DIGEST_OVERALL_MS,
+    ...digestCallBudget(budget.remaining(), DIGEST_CALL_MS, DIGEST_OVERALL_MS),
   })
   /*
     예전엔 이 둘을 한 문장으로 이어 붙였다. 그래서 「구간을 못 읽었다」(사용자의 일)와

@@ -27,6 +27,14 @@ interface MeetingArgs {
   bodyPlain: string
   apiKey: string
   model: string
+  /**
+   * 부르는 쪽이 남은 시간을 알 때 넘긴다(`lib/meeting/digest-budget.ts`).
+   *
+   * 안 넘기면 `callGeminiJson` 기본값(60초 / 전체 120초)을 제 몫으로 쓴다.
+   * 「미팅 끝내기」처럼 뒤에 더 할 일이 남은 자리에서는 그 기본값이 뒷일을 굶긴다.
+   */
+  timeoutMs?: number
+  overallTimeoutMs?: number
 }
 
 // ---- 생성형 출력 ----
@@ -75,7 +83,7 @@ export interface MeetingItems {
 // 1) 생성형: 회의 본문 → 핵심 요약 + 결정사항 (한국어)
 // ============================================================
 export async function summarizeMeeting(args: MeetingArgs): Promise<MeetingSummary> {
-  const { userId, bodyPlain, apiKey, model } = args
+  const { userId, bodyPlain, apiKey, model, timeoutMs, overallTimeoutMs } = args
   // 부를 것이 없으면 부르지 않는다 — 그때는 쓴 모델도 없으므로 설정값을 그대로 돌려준다
   if (!bodyPlain.trim()) return { summary: '', decisions: '', notice: null, usedModel: model, outcome: '', nextStep: '' }
 
@@ -85,6 +93,8 @@ export async function summarizeMeeting(args: MeetingArgs): Promise<MeetingSummar
     model,
     temperature: 0.2,
     feature: 'meeting_summarize',
+    timeoutMs,
+    overallTimeoutMs,
   })
 
   logTokenUsage({
