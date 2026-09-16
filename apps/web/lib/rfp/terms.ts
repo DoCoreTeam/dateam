@@ -253,11 +253,56 @@ export const RFP_INTAKE = {
   submitting: '올리는 중',
   uploaded: '올렸어요',
   failed: '올리지 못했어요',
-  noticeNoLabel: '공고번호',
-  noticeNoHint: '적으면 나라장터에서 공고 정보를 함께 가져옵니다',
-  fetchNotice: '공고 가져오기',
   goReport: '리포트 보기',
+
+  // 공고 링크 — 사람이 손에 쥐고 있는 것은 공고번호가 아니라 주소창의 주소다
+  linkLabel: '공고 링크',
+  linkHint: '공고 쪽 주소를 그대로 붙여넣으면 첨부를 받아 옵니다. 파일을 따로 안 올려도 됩니다',
+  linkPlaceholder: 'https://www.g2b.go.kr/... 또는 기관 공고 쪽 주소',
+  fetchNotice: '공고 가져오기',
+  fetchingNotice: '공고를 여는 중',
+  linkClear: '링크 빼기',
+  linkFound: '이 공고를 분석합니다',
+  linkTitleUnknown: '사업명을 못 읽었습니다. 분석하면서 문서에서 찾습니다',
+  linkAttachments: '받아 올 첨부',
+  openNotice: '공고 열어 보기',
+  linkOrFile: '링크와 파일을 함께 줘도 됩니다. 둘 다 한 케이스로 묶입니다',
 } as const
+
+/**
+ * 링크가 안 될 때 무엇을 하면 되는지.
+ *
+ * 「실패」만 보여 주면 사용자는 할 일이 없다. **사유마다 다음 손이 달라야 한다** —
+ * 목록 주소를 붙여넣은 사람과 첨부가 없는 공고를 붙여넣은 사람은 서로 다른 것을 해야 한다.
+ */
+export const RFP_NOTICE_REASON: Record<string, string> = {
+  empty: '공고 주소를 붙여넣어 주세요',
+  not_a_url: '주소 모양이 아닙니다. 공고 쪽 주소창을 그대로 복사해 주세요',
+  not_http: 'http 또는 https 로 시작하는 주소만 받습니다',
+  private_host: '내부망 주소는 열지 않습니다',
+  no_notice_no: '나라장터 목록 주소로 보입니다. 공고를 연 다음 그 쪽 주소를 복사해 주세요',
+  fetch_failed: '공고 쪽을 열지 못했습니다. 주소를 확인하거나 파일을 직접 올려 주세요',
+  timeout: '공고 쪽 응답이 늦습니다. 잠시 뒤 다시 하거나 파일을 직접 올려 주세요',
+  no_attachment: '이 공고에 붙은 첨부가 없습니다. 파일을 직접 올려 주세요',
+  no_attachment_on_page: '이 쪽에서 첨부를 못 찾았습니다. 공고를 열어 파일을 직접 올려 주세요',
+  bad_request: '요청을 읽지 못했습니다',
+}
+
+/** 못 알아보는 사유도 말은 해야 한다 — 빈 화면이 가장 나쁘다 */
+export const RFP_NOTICE_REASON_UNKNOWN = '공고를 가져오지 못했습니다. 파일을 직접 올려 주세요'
+
+/**
+ * 사유 코드를 사람 말로. 서버가 안내(`fallback`)를 함께 주면 그것이 더 구체적이라 먼저 쓴다.
+ *
+ * 쪽이 404·500 으로 답한 것은 `http_404` 처럼 상태 번호가 붙어 온다 — 앞자리로 묶어 읽는다.
+ */
+export function rfpNoticeReasonText(code: string | null | undefined, fallback?: string | null): string {
+  if (fallback) return fallback
+  if (!code) return RFP_NOTICE_REASON_UNKNOWN
+  if (RFP_NOTICE_REASON[code]) return RFP_NOTICE_REASON[code]
+  if (code.startsWith('http_')) return RFP_NOTICE_REASON.fetch_failed
+  return RFP_NOTICE_REASON_UNKNOWN
+}
 
 /** 리포트 화면 */
 export const RFP_REPORT = {

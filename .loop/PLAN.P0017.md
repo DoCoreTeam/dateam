@@ -47,7 +47,7 @@
 의존: 없음
 
 ### I02 링크 미리보기 창구
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/app/api/rfp/intake/notice-url/route.ts (신규)
