@@ -3,6 +3,7 @@
 // **admin 이 아니면 여기서 막힌다.** 레이아웃은 임직원 전체를 들여보내므로
 // 이 화면이 스스로 한 번 더 본다 — 메뉴에서 안 보이는 것과 못 여는 것은 다르다.
 
+import NotificationSettings from './NotificationSettings'
 import PageHeader from '@/components/ui/PageHeader'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
@@ -107,6 +108,7 @@ export default async function RfpAdminPage() {
       <VendorSettings vendors={vendors} />
       <RuleSettings saved={savedRules} />
       <TransferLog rows={((transfers as TransferRow[] | null) ?? [])} />
+      <NotificationSettings />
       </div>
     </main>
   )

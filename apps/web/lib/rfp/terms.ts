@@ -481,7 +481,22 @@ export const RFP_ADMIN = {
   adminOnly: '관리자만 볼 수 있어요',
   saved: '저장했어요',
   saveFailed: '저장하지 못했어요',
+  notifications: '알림',
+  /** 읽기만 되는 화면은 읽기만 된다고 말한다. 못 바꾸는 것을 바꿀 수 있는 것처럼 두지 않는다 */
+  notificationsReadOnly: '지금은 받은 알림만 보여 드려요. 어떤 알림을 받을지 고르는 것은 준비 중입니다',
+  notificationsEmpty: '안 읽은 알림이 없어요',
+  notificationsFailed: '알림을 불러오지 못했어요',
 } as const
+
+/** 알림 종류의 말. 종류가 늘면 여기도 같이 는다 */
+export const NOTIFY_KIND_LABEL: Record<string, string> = {
+  analysis_done: '분석 끝남',
+  analysis_failed: '분석 실패',
+  radar_hit: '새 공고',
+  budget_warning: '예산 경고',
+  deadline_soon: '마감 임박',
+  amendment: '정정 공고',
+}
 
 /** 어시스턴트 */
 export const RFP_ASSISTANT = {
