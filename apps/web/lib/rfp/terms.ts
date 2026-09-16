@@ -462,6 +462,14 @@ export const RFP_ADMIN = {
   unitCount: '건',
   rules: '이상 조항 규칙',
   ruleEnabled: '켜기',
+  /**
+   * 저장이 안 됐을 때 하는 말.
+   *
+   * 「오류」라고만 하면 사용자는 무엇이 안 됐는지 모른 채 다시 누른다.
+   * 스위치가 **원래대로 돌아갔다**는 사실을 함께 말해야 다시 누를지 판단할 수 있다.
+   */
+  ruleSaveFailed: '저장하지 못해 원래대로 돌렸어요. 잠시 후 다시 시도해 주세요',
+  ruleSaving: '저장 중',
   transferLog: '외부 전송 기록',
   usage: '사용량',
   monthlyBudget: '월 예산 상한',
