@@ -1,3 +1,4 @@
+import { guardedText, type AiLedger } from './ai/guarded-call.ts'
 import { logTokenUsage } from '@/lib/token-logger'
 import type { AiFeature } from '@/types/database'
 
@@ -228,11 +229,41 @@ export async function parseLeadFromVision(
   }
 }
 
+/**
+ * 리드 글자를 보내는 자리.
+ *
+ * 리드 프롬프트는 담당자 이름과 연락처와 이메일을 **뽑으라고 적혀 있는** 글이다.
+ * 그 말은 입력에 그것들이 들어 있다는 뜻이고, 그래서 이 길은 가림과 기록을 지나야 한다.
+ */
 async function callGemini(
   prompt: string,
   apiKey: string,
-  model: string
+  model: string,
+  ledger: AiLedger,
+  surface: string,
 ): Promise<{ text: string; usage: { promptTokens: number; outputTokens: number; totalTokens: number } }> {
+  const out = await guardedText(
+    prompt,
+    { surface, purpose: 'lead_parse', providerId: 'gemini', modelName: model },
+    ledger,
+    (masked) => callLeadModel(masked, apiKey, model),
+  )
+  return {
+    text: out.text,
+    usage: {
+      promptTokens: out.inputTokens ?? 0,
+      outputTokens: out.outputTokens ?? 0,
+      totalTokens: (out.inputTokens ?? 0) + (out.outputTokens ?? 0),
+    },
+  }
+}
+
+/** 벤더를 실제로 부르는 자리. 가림과 기록은 위에서 두른다 */
+async function callLeadModel(
+  prompt: string,
+  apiKey: string,
+  model: string,
+): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -251,22 +282,23 @@ async function callGemini(
   }
   const text = json.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
-  const usage = {
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
+  return {
+    text,
+    inputTokens: json.usageMetadata?.promptTokenCount ?? 0,
     outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
   }
-  return { text, usage }
 }
 
 export async function parseLeadInput(
   rawInput: string,
   apiKey: string,
   model: string,
-  userId?: string | null
+  userId: string | null | undefined,
+  ledger: AiLedger,
 ): Promise<ParsedLeadData> {
+  const surface = 'leads/parse'
   const prompt = `${LEAD_PARSE_PROMPT}\n\n입력:\n${rawInput}`
-  const { text, usage } = await callGemini(prompt, apiKey, model)
+  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface)
   try {
     const parsed = JSON.parse(text)
     logTokenUsage({ userId: userId ?? null, feature: 'lead-parse' as AiFeature, model, ...usage })
@@ -281,9 +313,11 @@ export async function parseBulkLeadChunk(
   colMap: ColumnIndexMap,
   apiKey: string,
   model: string,
-  userId?: string | null,
+  userId: string | null | undefined,
+  ledger: AiLedger,
   chunkStartRow = 0
 ): Promise<ParsedLeadData[]> {
+  const surface = 'leads/bulk-import'
   const rowsText = rows.map((row, i) => {
     const fields: Record<string, string> = {}
     if (colMap.companyName < row.length) fields['회사명/기관명'] = row[colMap.companyName] ?? ''
@@ -313,7 +347,7 @@ export async function parseBulkLeadChunk(
   }).join('\n')
 
   const prompt = `${BULK_LEAD_PARSE_PROMPT}\n${rowsText}`
-  const { text, usage } = await callGemini(prompt, apiKey, model)
+  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface)
 
   logTokenUsage({ userId: userId ?? null, feature: 'lead-parse' as AiFeature, model, ...usage })
 
@@ -336,10 +370,12 @@ export async function scoreFit(
   accountInfo: { name: string; industry?: string | null; segment?: string | null; size?: string | null; region?: string | null },
   apiKey: string,
   model: string,
-  userId?: string | null
+  userId: string | null | undefined,
+  ledger: AiLedger,
 ): Promise<{ fit_score: number; fit_reason: string }> {
+  const surface = 'leads/fit-score'
   const prompt = `${FIT_SCORE_PROMPT}\n\n거래처:\n${JSON.stringify(accountInfo, null, 2)}`
-  const { text, usage } = await callGemini(prompt, apiKey, model)
+  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface)
   try {
     const parsed = JSON.parse(text) as { fit_score?: number; fit_reason?: string }
     logTokenUsage({ userId: userId ?? null, feature: 'account-fit-score' as AiFeature, model, ...usage })

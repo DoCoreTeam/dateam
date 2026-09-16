@@ -1,3 +1,4 @@
+import { createAiLedger } from '@/lib/ai/ledger'
 import { NextResponse } from 'next/server'
 import { parseBulkLeadChunk } from '@/lib/gemini-lead'
 import type { ParsedLeadData, ColumnIndexMap } from '@/lib/gemini-lead'
@@ -55,6 +56,8 @@ export async function handleBulkMode(
   apiKey: string,
   model: string
 ): Promise<Response> {
+  // 원장은 이미 받은 service role 클라이언트로 쓴다. 인자를 하나 더 받지 않는다
+  const ledger = createAiLedger(adm)
   const XLSX = await import('xlsx')
   const workbook = XLSX.read(buffer)
   const sheetRows: SheetRows[] = []
@@ -101,7 +104,7 @@ export async function handleBulkMode(
           let parsedChunk: ParsedLeadData[]
 
           try {
-            parsedChunk = await parseBulkLeadChunk(chunk, group.colMap, apiKey, model, userId, processed)
+            parsedChunk = await parseBulkLeadChunk(chunk, group.colMap, apiKey, model, userId, ledger, processed)
           } catch {
             parsedChunk = chunk.map((_, i) => ({ bulk_import_row: processed + i + 1 }))
           }

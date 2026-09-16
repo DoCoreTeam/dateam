@@ -1,3 +1,4 @@
+import { createAiLedger } from '@/lib/ai/ledger'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { scoreFit } from '@/lib/gemini-lead'
@@ -21,9 +22,15 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'Gemini API 키 미설정' }, { status: 500 })
 
   try {
-    const result = await scoreFit(body, apiKey, model, auth.user.id)
+    const result = await scoreFit(body, apiKey, model, auth.user.id, await ledgerDb())
     return NextResponse.json(result)
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : '오류' }, { status: 500 })
   }
+}
+
+/** 원장 쓰기는 service role 로 한다 (092 RLS) */
+async function ledgerDb() {
+  const { createAdminClient } = await import('@/lib/supabase/server')
+  return createAiLedger(createAdminClient() as never)
 }

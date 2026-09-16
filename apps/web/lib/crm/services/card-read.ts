@@ -16,6 +16,7 @@
  */
 
 import { CrmError } from '../domain/errors.ts'
+import { guardedMedia, type AiLedger } from '../../ai/guarded-call.ts'
 
 /** 명함 한 장은 작다. 이보다 크면 사진을 줄여 달라고 말하는 것이 맞다 */
 export const CARD_MAX_BYTES = 8 * 1024 * 1024
@@ -61,40 +62,81 @@ export function assertCardFile(size: number, mime: string, name: string): void {
  */
 export async function readBusinessCard(
   base64: string, mimeType: string, fileName: string,
-  deps: { apiKey: string; models: readonly string[] },
+  deps: {
+    apiKey: string
+    models: readonly string[]
+    /**
+     * 원장. 선택으로 두지 않는다 — 안 주면 이 길로 나간 명함이 아무 데도 안 남고,
+     * 그때는 실패가 아니라 **아무 신호도 없는 상태**라 화면에서 정상과 구분되지 않는다
+     */
+    ledger: AiLedger
+    actorId?: string | null
+  },
 ): Promise<CardReadResult> {
   let lastError = ''
   for (const model of deps.models) {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      // 명함은 **그림**이라 글자 가림이 애초에 안 닿는다.
+      // 가린 척하지 않고, 나간 사실과 크기와 매체를 원장에 적는다
+      const out = await guardedMedia(
+        approxBytes(base64),
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': deps.apiKey },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: base64 } }, { text: PROMPT }] }],
-            // 명함은 창작이 아니다 — 온도를 0 에 가깝게 둬 읽은 대로만 나오게 한다
-            generationConfig: { temperature: 0.05 },
-          }),
-          cache: 'no-store',
-          signal: AbortSignal.timeout(45_000),
+          surface: 'crm/card-read', purpose: 'card_read', media: 'image',
+          providerId: 'gemini', modelName: model, actorId: deps.actorId ?? null,
         },
+        deps.ledger,
+        () => callCardModel(base64, mimeType, model, deps.apiKey),
       )
-      if (!res.ok) {
-        lastError = `${res.status}`
-        // 한도(429)·모델 없음(404)이면 다음 모델로. 그 밖은 즉시 실패로 말한다
-        if (res.status === 429 || res.status === 404) continue
-        throw new CrmError('CONFLICT', `명함을 읽지 못했습니다 (${res.status}).`)
-      }
-      const json = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
-      const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
-      if (!text) { lastError = 'empty'; continue }
-      return { text, fileName }
+      if (!out.text) { lastError = 'empty'; continue }
+      return { text: out.text, fileName }
     } catch (e) {
       if (e instanceof CrmError) throw e
+      if (e instanceof RetryableCardError) { lastError = e.reason; continue }
       lastError = e instanceof Error ? e.message : 'unknown'
     }
   }
   throw new CrmError('CONFLICT',
     `${fileName} 에서 글자를 읽지 못했습니다. 사진이 흐리면 다시 찍어 주세요. (${lastError})`)
+}
+
+/** base64 는 3바이트를 4글자로 편다. 원장에 적을 크기는 편 뒤가 아니라 원래 크기다 */
+function approxBytes(base64: string): number {
+  return Math.ceil((base64.length * 3) / 4)
+}
+
+/** 다음 모델로 넘어가도 되는 실패. 사슬을 도는 판단을 예외 종류로 말한다 */
+class RetryableCardError extends Error {
+  readonly reason: string
+  constructor(reason: string) {
+    super(`card_read retryable: ${reason}`)
+    this.name = 'RetryableCardError'
+    this.reason = reason
+  }
+}
+
+/** 벤더를 실제로 부르는 자리. 가림과 기록은 부르는 쪽이 두른다 */
+async function callCardModel(
+  base64: string, mimeType: string, model: string, apiKey: string,
+): Promise<{ text: string }> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: base64 } }, { text: PROMPT }] }],
+        // 명함은 창작이 아니다. 온도를 0 에 가깝게 둬 읽은 대로만 나오게 한다
+        generationConfig: { temperature: 0.05 },
+      }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(45_000),
+    },
+  )
+  if (!res.ok) {
+    // 한도(429)와 모델 없음(404)이면 다음 모델로. 그 밖은 즉시 실패로 말한다
+    if (res.status === 429 || res.status === 404) throw new RetryableCardError(String(res.status))
+    throw new CrmError('CONFLICT', `명함을 읽지 못했습니다 (${res.status}).`)
+  }
+  const json = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
+  return { text: json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '' }
 }

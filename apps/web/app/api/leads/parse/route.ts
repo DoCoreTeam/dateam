@@ -1,3 +1,4 @@
+import { createAiLedger } from '@/lib/ai/ledger'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { parseLeadInput, parseLeadFromVision, isVisionMimeType, scoreFit } from '@/lib/gemini-lead'
@@ -66,7 +67,7 @@ async function applyFitScore(parsed: ParsedLeadData, apiKey: string, model: stri
     segment: parsed.segment ?? null,
     size: parsed.size ?? null,
     region: parsed.region ?? null,
-  }, apiKey, model, userId)
+  }, apiKey, model, userId, await ledgerDb())
   return { ...parsed, fit_score: fitResult.fit_score, fit_reason: fitResult.fit_reason }
 }
 
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
                  ['docx','xlsx','xls','csv','txt'].includes(ext)) {
         const text = await extractTextFromBuffer(buffer, mimeType, file.name)
         if (!text.trim()) return NextResponse.json({ error: '파일에서 텍스트를 추출할 수 없습니다' }, { status: 400 })
-        parsed = await parseLeadInput(text, apiKey, model, user.id)
+        parsed = await parseLeadInput(text, apiKey, model, user.id, await ledgerDb())
       } else {
         return NextResponse.json({ error: `지원하지 않는 파일 형식입니다 (.${ext})` }, { status: 400 })
       }
@@ -166,7 +167,7 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'Gemini API 키가 설정되지 않았습니다' }, { status: 500 })
 
   try {
-    let parsed = await parseLeadInput(rawInput, apiKey, model, user.id)
+    let parsed = await parseLeadInput(rawInput, apiKey, model, user.id, await ledgerDb())
     parsed = await applyFitScore(parsed, apiKey, model, user.id)
 
     if (!parsed.company_name?.trim()) {
@@ -188,4 +189,10 @@ export async function POST(req: NextRequest) {
     console.error('[lead-parse text]', err)
     return NextResponse.json({ error: '분석 중 오류가 발생했습니다' }, { status: 500 })
   }
+}
+
+/** 원장 쓰기는 service role 로 한다 (092 RLS) */
+async function ledgerDb() {
+  const { createAdminClient } = await import('@/lib/supabase/server')
+  return createAiLedger(createAdminClient() as never)
 }

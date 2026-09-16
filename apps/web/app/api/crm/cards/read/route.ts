@@ -6,6 +6,7 @@
 //
 // **한 장이라도 읽히면 그것만 돌려준다.** 다섯 장 중 하나가 흐려서 전부 실패하면
 // 사용자는 다시 다섯 장을 올려야 한다 — 실패한 장만 말해 준다.
+import { createAiLedger } from '@/lib/ai/ledger'
 import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { CrmError } from '@/lib/crm/domain/errors'
@@ -18,9 +19,14 @@ import {
 /** 장당 수십 초가 걸릴 수 있다 — 기본 10초로는 두 장도 못 읽는다 */
 export const maxDuration = 300
 
-async function readHostMeta(): Promise<Record<string, unknown>> {
+/** 서버 전용 클라이언트. 원장 쓰기도 이것으로 한다 (092 RLS: 쓰기는 service role) */
+async function adminDb() {
   const { createAdminClient } = await import('@/lib/supabase/server')
-  const admin = createAdminClient()
+  return createAdminClient()
+}
+
+async function readHostMeta(): Promise<Record<string, unknown>> {
+  const admin = await adminDb()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (admin as any)
     .from('org_content').select('value').eq('key', 'META').maybeSingle()
@@ -61,7 +67,11 @@ export async function POST(req: NextRequest) {
     for (const f of files) {
       try {
         const base64 = Buffer.from(await f.arrayBuffer()).toString('base64')
-        const r = await readBusinessCard(base64, f.type, f.name, { apiKey: gemini.apiKey, models })
+        const r = await readBusinessCard(base64, f.type, f.name, {
+          apiKey: gemini.apiKey, models,
+          // 명함 사진이 밖으로 나간다. 어느 화면이 언제 보냈는지 원장에 남긴다
+          ledger: createAiLedger(await adminDb() as never),
+        })
         items.push({ fileName: r.fileName, text: r.text })
       } catch (e) {
         // **한 장이 실패해도 나머지는 살린다** — 전부 다시 올리게 하지 않는다
