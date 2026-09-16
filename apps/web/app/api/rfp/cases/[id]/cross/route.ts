@@ -12,7 +12,7 @@ import type { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { enqueueJob } from '@/lib/rfp/jobs/queue'
-import { dedupeKey, JOB_PRIORITY } from '@/lib/rfp/jobs/stages'
+import { dedupeKey, JOB_PRIORITY, isRunnable } from '@/lib/rfp/jobs/stages'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,6 +69,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const baseVersion = Number(versions?.version ?? 0)
   if (baseVersion === 0) {
     return NextResponse.json({ error: 'no_base_report' }, { status: 409 })
+  }
+
+  // 실행기가 없는 단계를 걸면 202 를 받고 기다리다 반드시 실패한다.
+  // 걸기 전에 안 된다고 듣는 편이 낫다
+  if (!isRunnable('cross_verify')) {
+    return NextResponse.json({ error: 'stage_not_runnable', stage: 'cross_verify' }, { status: 501 })
   }
 
   try {

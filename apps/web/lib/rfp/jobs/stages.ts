@@ -66,6 +66,23 @@ export const JOB_PRIORITY: Record<JobType, number> = {
  */
 export const DEFAULT_PIPELINE: readonly JobType[] = ['parse', 'structure', 'index', 'analyze']
 
+/**
+ * 실행기가 실제로 붙어 있는 단계.
+ *
+ * `JOB_TYPES` 는 **이름이 있는 단계**이고 이것은 **도는 단계**다. 둘은 다르다.
+ * 교차검증은 이름도 있고 우선순위도 있고 화면 버튼도 있었는데 실행기가 없었다.
+ * 누르면 잡이 걸리고 202 가 돌아오고, 그 잡은 **반드시 실패했다** (실측 2026-09-16).
+ *
+ * 202 를 받고 결과를 기다리다 실패하는 것보다, 걸기 전에 안 된다고 듣는 편이 낫다.
+ * 새 실행기를 붙이면 여기 이름을 같이 더한다 — 가드가 이 목록과 실제 case 를 대조한다.
+ */
+export const RUNNABLE_JOB_TYPES: readonly JobType[] = ['parse', 'structure', 'index', 'analyze']
+
+/** 이 단계에 실행기가 붙어 있나 */
+export function isRunnable(jobType: JobType): boolean {
+  return RUNNABLE_JOB_TYPES.includes(jobType)
+}
+
 /** 이 잡 다음에 자동으로 걸 잡. 없으면 파이프라인 끝 */
 export function nextJob(done: JobType): JobType | null {
   const i = DEFAULT_PIPELINE.indexOf(done)

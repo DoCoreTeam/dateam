@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { runStage, versionOf, type StageDeps, type CaseRow, type FileRow } from './run-stage.ts'
 import type { Job } from './queue.ts'
 import type { IrDocument } from '../ir/types.ts'
+import { readFileSync } from 'node:fs'
+import { JOB_TYPES, RUNNABLE_JOB_TYPES, isRunnable } from './stages.ts'
 
 const KASE: CaseRow = {
   id: 'c1', orgId: 'o1', docClass: 'public', title: '이름을 읽는 중', titleConfirmed: false,
@@ -142,4 +144,25 @@ test('판 번호는 payload 에서 온다', () => {
   assert.equal(versionOf(job('parse', { version: 5 })), 5)
   assert.equal(versionOf(job('parse', { version: 'x' })), 1)
   assert.equal(versionOf(job('parse', { version: 0 })), 1)
+})
+
+test('★ 실행기가 붙은 단계와 이름만 있는 단계는 다르다', () => {
+  // JOB_TYPES 는 이름이 있는 단계, RUNNABLE_JOB_TYPES 는 실제로 도는 단계다.
+  // 교차검증은 이름도 우선순위도 화면 버튼도 있었는데 실행기가 없어 누르면 반드시 실패했다
+  for (const t of RUNNABLE_JOB_TYPES) {
+    assert.ok(JOB_TYPES.includes(t), `${t} 가 이름 목록에 없다`)
+  }
+  assert.ok(RUNNABLE_JOB_TYPES.length < JOB_TYPES.length, '아직 안 붙은 단계가 있다는 사실이 목록에 남아 있어야 한다')
+  assert.equal(isRunnable('analyze'), true)
+  assert.equal(isRunnable('cross_verify'), false, '실행기가 없으면 돈다고 말하지 않는다')
+})
+
+test('★ 도는 단계는 전부 runStage 가 실제로 받는다', () => {
+  const src = readFileSync(new URL('./run-stage.ts', import.meta.url), 'utf8')
+  const missing = RUNNABLE_JOB_TYPES.filter((t) => !src.includes(`case '${t}':`))
+  assert.deepEqual(missing, [], [
+    '돈다고 적어 놓고 runStage 가 안 받는 단계가 있다.',
+    '그 단계는 걸리기만 하고 반드시 실패한다:',
+    ...missing.map((m) => `  ${m}`),
+  ].join('\n'))
 })
