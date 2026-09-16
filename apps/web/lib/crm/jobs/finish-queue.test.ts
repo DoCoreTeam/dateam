@@ -83,7 +83,8 @@ test('다른 단계의 결과는 쌓인다 — 무엇이 됐고 무엇이 안 �
 })
 
 test('★ 화면이 읽는 모양 — 잡이 없으면 조용하고, 실패는 사유가 있다', () => {
-  assert.deepEqual(finishJobView(null), { running: false, stage: null, steps: [], error: null })
+  assert.deepEqual(finishJobView(null),
+    { running: false, stage: null, steps: [], error: null, failedSteps: [] })
 
   const running = finishJobView(job({ status: 'RUNNING', stage: 'EXTRACT' }))
   assert.equal(running.running, true)
@@ -94,6 +95,33 @@ test('★ 화면이 읽는 모양 — 잡이 없으면 조용하고, 실패는 �
   assert.ok(failed.error, '실패인데 할 말이 없으면 오늘처럼 아무 기록 없이 사라진 것과 같다')
 
   assert.equal(finishJobView(job({ status: 'DONE' })).error, null)
+})
+
+test('★ 끝났는데 안 된 단계가 있으면 따로 꺼내 둔다 — 성공과 같은 모양으로 그리면 조용히 사라진다', () => {
+  // 실측 2026-09-16 드레인: 한도 소진으로 정리·5축이 둘 다 실패했는데 잡은 DONE 이었다
+  const v = finishJobView(job({
+    status: 'DONE',
+    stage: 'DONE',
+    steps: [
+      { key: 'end', status: 'skipped', detail: '이미 끝난 미팅이에요.' },
+      { key: 'digest', status: 'failed', detail: 'AI 한도 초과' },
+      { key: 'note', status: 'skipped', detail: '회의노트는 이미 확정이에요.' },
+      { key: 'extract', status: 'failed', detail: 'AI 한도 초과' },
+    ],
+  }))
+
+  assert.equal(v.running, false)
+  assert.equal(v.error, null, '잡 자체가 엎어진 것은 아니다')
+  assert.deepEqual(v.failedSteps.map((s) => s.key), ['digest', 'extract'],
+    '안 된 단계를 못 꺼내면 화면이 성공처럼 그린다 — 그게 9/14 의 조용한 실패다')
+})
+
+test('건너뛴 것은 실패가 아니다 — 원본이 없거나 이미 되어 있는 것은 정상이다', () => {
+  const v = finishJobView(job({
+    status: 'DONE',
+    steps: [{ key: 'note', status: 'skipped', detail: '회의노트는 이미 확정이에요.' }],
+  }))
+  assert.deepEqual(v.failedSteps, [])
 })
 
 test('DB 행을 잡으로 옮긴다 — steps 가 배열이 아니면 빈 배열', () => {

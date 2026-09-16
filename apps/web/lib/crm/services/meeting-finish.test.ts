@@ -19,6 +19,13 @@ import { AXIS_META, AXIS_ORDER, axisMeta } from '../ui/suggestion-axis.ts'
 import { STATUS_COLORS } from '../../tokens/status-colors.ts'
 
 const FINISH = readFileSync(new URL('./meeting-finish.ts', import.meta.url), 'utf8')
+/*
+  실행은 2026-09-16 에 드레인으로 옮겼다 — 한 요청이 정리와 5축을 잇달아 돌다 300초
+  상한에 잘려 5축이 기록 없이 사라진 사고 때문이다(실측 2026-09-14).
+  단계 «순서»와 «부분 실패» 계약은 그래서 이제 이 파일에서 본다.
+*/
+const DRAIN = readFileSync(new URL('../jobs/finish-drain.ts', import.meta.url), 'utf8')
+const DEPS = readFileSync(new URL('../jobs/finish-deps.ts', import.meta.url), 'utf8')
 const ASK = readFileSync(new URL('./ask-suggest.ts', import.meta.url), 'utf8')
 const ROUTE = readFileSync(
   new URL('../../../app/api/crm/meetings/[id]/finish/route.ts', import.meta.url), 'utf8')
@@ -132,34 +139,36 @@ test('되묻기는 AI 를 부르지 않는다 — 빈칸 세기는 규칙이 정
 /* ── ① 부분 실패 ───────────────────────────────────────── */
 
 test('★ 정리가 실패해도 5축으로 넘어간다 — 한 단계가 회의 전체를 잃게 두지 않는다', () => {
-  const digestAt = FINISH.indexOf("key: 'digest', status: 'failed'")
-  const extractAt = FINISH.indexOf('extractFiveAxis(')
+  const digestAt = DRAIN.indexOf("key: 'digest', status: 'failed'")
+  const extractAt = DRAIN.indexOf('extractFiveAxis(')
   assert.ok(digestAt > 0 && extractAt > digestAt, '정리 실패가 5축보다 뒤에 있다 — 멈춘다는 뜻이다')
-  assert.ok(!/throw[\s\S]{0,80}digest/.test(FINISH), '정리 실패를 던진다')
+  assert.ok(!/throw[\s\S]{0,80}digest/.test(DRAIN), '정리 실패를 던진다')
 })
 
 test('★ 앞이 다 실패해도 되묻기는 반드시 답한다', () => {
-  const askAt = FINISH.indexOf('listOpenQuestions(')
-  const extractAt = FINISH.indexOf('extractFiveAxis(')
-  assert.ok(askAt > extractAt, '되묻기가 5축보다 앞이다')
-  const tail = FINISH.slice(askAt)
-  assert.match(tail, /catch/, '되묻기 실패가 끝내기를 실패로 만든다')
+  /*
+    되묻기는 이제 조회 라우트가 만든다 — 잡이 끝난 뒤에 물어야 뜻이 있기 때문이다.
+    도는 중에 보여 주면 아직 모르는 것을 물어보는 셈이 된다.
+  */
+  const askAt = ROUTE.indexOf('listOpenQuestions(')
+  assert.ok(askAt > 0, '조회 라우트가 되묻기를 안 만든다')
+  assert.match(ROUTE.slice(askAt), /catch/, '되묻기 실패가 진행 조회를 실패로 만든다')
 })
 
 test('★ 이미 끝난 미팅의 시각을 덮지 않는다 — 두 번 눌렀다고 기록이 거짓이 되면 안 된다', () => {
-  assert.match(FINISH, /if \(endedAt\) \{[\s\S]{0,120}status: 'skipped'/,
+  assert.match(DRAIN, /if \(!meeting\.endedAt\)[\s\S]{0,600}status: 'skipped', detail: T\.endSkipped/,
     '이미 끝난 미팅에도 새 시각을 쓴다')
 })
 
 test('전사가 없는 것은 실패가 아니라 아직 할 게 없는 것이다', () => {
-  assert.match(FINISH, /nothingToRead \? 'skipped' : 'failed'/,
+  assert.match(DRAIN, /nothingToRead \? 'skipped' : 'failed'/,
     '"먼저 전사를 넣어 주세요"를 빨간 실패로 보여 준다')
 })
 
 /* ── 배선 ──────────────────────────────────────────────── */
 
-test('★ 라우트가 서비스를 부르고, 화면이 그 라우트를 부른다 — 만들고 안 꽂으면 없는 기능이다', () => {
-  assert.match(ROUTE, /finishMeeting\(/, '라우트가 서비스를 안 부른다')
+test('★ 라우트가 잡을 만들고, 화면이 그 라우트를 부른다 — 만들고 안 꽂으면 없는 기능이다', () => {
+  assert.match(ROUTE, /enqueueFinish\(/, '라우트가 잡을 안 만든다')
   assert.match(DETAIL, /meetings\/\$\{meetingId\}\/finish/, '화면이 라우트를 안 부른다')
   /*
     버튼 라벨은 v0.7.702 부터 SSOT 가 정한다(`lib/crm/ui/finish-progress`) — 도는 동안
@@ -176,9 +185,21 @@ test('★ 녹음을 먼저 멈춘다 — 마지막 몇 분이 정리에서 빠�
 })
 
 test('결과는 된 것과 안 된 것을 함께 보여 준다 — 「완료」만 띄우면 실패가 묻힌다', () => {
-  assert.match(DETAIL, /finished\.steps\.map/, '단계 결과를 안 그린다')
-  assert.match(DETAIL, /finished\.questions\.map/, '되물음을 안 그린다')
+  assert.match(DETAIL, /finishJob\.steps\.map/, '단계 결과를 안 그린다')
+  assert.match(DETAIL, /finishJob\.questions\.map/, '되물음을 안 그린다')
   assert.match(DETAIL, /data-status=\{st\.status\}/, '실패와 성공이 같은 모양이다')
+  /*
+    실측 2026-09-16: 한도 소진으로 정리·5축이 둘 다 실패했는데 잡은 끝났다(설계대로다).
+    그때 머리말까지 「미팅을 정리했어요」면 실패가 조용히 묻힌다.
+  */
+  assert.match(DETAIL, /failedSteps\.length > 0/, '전부 실패해도 성공과 같은 머리말을 단다')
+})
+
+test('★ 나갔다 와도 진행이 보인다 — 진행이 화면 안 상태가 아니라 표에 있다', () => {
+  assert.match(DETAIL, /loadFinish/, '화면에 들어올 때 잡 상태를 안 읽는다')
+  assert.match(DETAIL, /meetings\/jobs\/finish/, '화면이 잡을 굴리지 않는다 — 크론만 기다리면 2분씩 멎어 보인다')
+  assert.doesNotMatch(DETAIL, /setBusy\(null\)\s*\n\s*setFinishPhase\(null\)\s*\n\s*setWorkingSince\(null\)\s*\n\s*\}\s*\n\s*\}\s*\n\s*async function extract/,
+    'finally 에서 버튼을 풀면 잡이 도는 중에 다시 눌린다')
 })
 
 /* ── ④ 말 ──────────────────────────────────────────────── */
@@ -212,14 +233,15 @@ test('★ 미팅을 끝내면 원본 회의노트도 「확정」이 된다 — 
     끝내기가 미팅의 `endedAt` 만 남기고 노트를 `draft` 로 두면, 같은 회의를 두 화면이 다르게 말한다.
   */
   // **호출**을 단정한다 — 함수 이름만 보면 정의가 남아 있는 한 통과한다(일부러 깨서 확인했다)
-  assert.match(FINISH, /await confirmNote\(meeting\.noteId\)/, '끝내기가 회의노트 상태를 올리지 않는다')
-  assert.match(FINISH, /status: 'final'/, "노트를 'final' 로 올리는 쓰기가 없다")
+  // 확정 단계는 드레인이 돌리고(NOTE), 실제 쓰기는 deps 가 한다
+  assert.match(DRAIN, /await deps\.confirmNote\(meeting\.noteId\)/, '드레인이 회의노트 상태를 올리지 않는다')
+  assert.match(DEPS, /status: 'final'/, "노트를 'final' 로 올리는 쓰기가 없다")
 
   // 이미 확정이면 손대지 않는다 — 두 번 눌러도 사실이 안 바뀐다
-  assert.match(FINISH, /row\.status === 'final'/, '이미 확정인 노트를 다시 쓴다')
+  assert.match(DEPS, /row\.status === 'final'/, '이미 확정인 노트를 다시 쓴다')
 
   // 노트 단계가 실패해도 끝내기는 계속된다(이 서비스의 원칙)
-  const noteBlock = FINISH.slice(FINISH.indexOf("key: 'note'") - 800, FINISH.indexOf("key: 'note'") + 400)
+  const noteBlock = DRAIN.slice(DRAIN.indexOf("key: 'note'") - 800, DRAIN.indexOf("key: 'note'") + 400)
   assert.match(noteBlock, /catch/, '노트 실패가 끝내기를 통째로 실패로 만든다')
 })
 

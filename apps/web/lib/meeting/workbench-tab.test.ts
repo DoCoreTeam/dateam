@@ -229,9 +229,16 @@ test('★ 본문 폴백은 **병목 안**에 있다 — 라우트에만 꽂으�
     code(FINISH_API).includes('hostUserId: session.hostUserId'),
     `${FINISH_API}: hostUserId 를 넘겨야 한다`,
   )
+  /*
+    끝내기의 실행은 2026-09-16 에 드레인으로 옮겼다 — 한 요청이 정리와 5축을 잇달아 돌다
+    300초 상한에 잘려 5축이 기록 없이 사라진 사고 때문이다(실측 2026-09-14).
+    그래서 hostUserId 는 라우트 → 잡 행 → 드레인 순으로 흐른다. 중간에 끊기면
+    본문 폴백이 조용히 안 돈다 — 그게 v0.7.666 에서 브라우저로만 잡혔던 그 증상이다.
+  */
+  const FINISH_DRAIN = 'lib/crm/jobs/finish-drain.ts'
   assert.ok(
-    code(FINISH_SVC).includes('deps.hostUserId'),
-    `${FINISH_SVC}: 받은 hostUserId 를 추출로 흘려야 한다`,
+    code(FINISH_DRAIN).includes('job.hostUserId'),
+    `${FINISH_DRAIN}: 잡이 든 hostUserId 를 추출로 흘려야 한다`,
   )
 })
 

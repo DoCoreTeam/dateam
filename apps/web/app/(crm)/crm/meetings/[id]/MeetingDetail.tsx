@@ -34,7 +34,24 @@ import { useRecordingSession, useIsRecording } from '@/lib/meeting/recording-con
 import { finishButtonLabel, finishProgress, finishProgressLine, type FinishPhase } from '@/lib/crm/ui/finish-progress'
 import { flushPendingSaves, hasPendingSaves } from '@/lib/meeting/pending-save'
 import { meetingFinishView } from '@/lib/crm/ui/meeting-status'
-import type { FinishResult } from '@/lib/crm/services/meeting-finish'
+import type { FinishStep, OpenQuestion } from '@/lib/crm/services/meeting-finish'
+import type { FinishStage } from '@/lib/crm/jobs/finish-queue'
+
+/** 끝내기 잡의 지금 상태 — `GET /api/crm/meetings/:id/finish` 가 주는 모양 */
+interface FinishState {
+  running: boolean
+  stage: FinishStage | null
+  steps: FinishStep[]
+  error: string | null
+  /** 끝났는데 안 된 단계. 성공과 같은 모양으로 그리면 실패가 조용히 묻힌다 */
+  failedSteps: FinishStep[]
+  jobId: string | null
+  endedAt: string | null
+  questions: OpenQuestion[]
+}
+
+/** 도는 동안 잡 상태를 되묻는 간격. 크론(2분)보다 촘촘해야 화면이 살아 있어 보인다 */
+const FINISH_POLL_MS = 3_000
 import styles from './meeting-detail.module.css'
 
 interface Segment { id: string; idx: number; speaker: string; text: string }
@@ -86,8 +103,14 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   const [busy, setBusy] = useState<string | null>(null)
   /** 근거를 클릭하면 그 구간을 띄운다 — 결론만 보여 주지 않는다 */
   const [highlight, setHighlight] = useState<Set<string>>(new Set())
-  /** 「미팅 끝내기」의 결과 — 무엇이 됐고 무엇이 안 됐는지 그대로 보여 준다 */
-  const [finished, setFinished] = useState<FinishResult | null>(null)
+  /**
+   * 「미팅 끝내기」의 지금 상태 — **화면 안 상태가 아니라 서버가 들고 있는 잡이다.**
+   *
+   * 예전엔 결과가 응답 본문에만 있었다. 그래서 정리 도중에 화면을 나가면 단계 보고도
+   * 되물음도 통째로 사라졌고, 돌아와도 「정리 중」이 안 보여 사용자는 다시 눌렀다
+   * (실측 2026-09-14). 이제 진행과 결과가 표에 있어 나갔다 와도 같은 답이 나온다.
+   */
+  const [finishJob, setFinishJob] = useState<FinishState | null>(null)
   /** 삭제 확인창을 여는 중인가 — 되돌릴 수 없는 쪽(영구)도 있어 곧장 실행하지 않는다(R-5) */
   const [deleting, setDeleting] = useState(false)
   /**
@@ -129,6 +152,52 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
     const t = setInterval(() => setElapsedMs(Date.now() - workingSince), 1_000)
     return () => clearInterval(t)
   }, [workingSince])
+
+  /** 잡의 지금 상태를 읽어 온다. 화면에 들어올 때 한 번, 도는 동안 반복 */
+  const loadFinish = useCallback(async (): Promise<FinishState | null> => {
+    try {
+      const res = await fetch(`/api/crm/meetings/${meetingId}/finish`)
+      if (!res.ok) return null
+      const body = (await res.json()) as FinishState
+      setFinishJob(body)
+      return body
+    } catch {
+      return null
+    }
+  }, [meetingId])
+
+  /*
+    화면에 들어오면 바로 물어본다 — **나갔다 돌아온 경우가 이 자리다.**
+    도는 중이면 잡을 굴리면서(브라우저가 큐를 때린다) 상태를 되묻는다.
+    크론(2분)도 같은 잡을 굴리지만, 화면을 보는 동안은 이쪽이 훨씬 촘촘하다.
+  */
+  useEffect(() => {
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const tick = async () => {
+      const state = await loadFinish()
+      if (!alive) return
+      if (state?.running) {
+        // 진행 중이면 내가 굴린다. 실패해도 다음 회차나 크론이 이어받는다
+        try { await fetch('/api/crm/meetings/jobs/finish', { method: 'POST' }) } catch { /* 크론이 이어받는다 */ }
+        if (!alive) return
+        setWorkingSince((prev) => prev ?? Date.now())
+        timer = setTimeout(() => void tick(), FINISH_POLL_MS)
+      } else {
+        setWorkingSince(null)
+        setFinishPhase(null)
+        setBusy((b) => (b === 'finish' ? null : b))
+        // 끝났으면 본문도 새로 읽는다 — 정리본과 제안이 그 사이에 생겼다
+        if (state && state.steps.length > 0) void load()
+      }
+    }
+
+    void tick()
+    return () => { alive = false; if (timer) clearTimeout(timer) }
+    // load 는 의도적으로 뺀다 — 넣으면 본문을 새로 읽을 때마다 폴링이 다시 시작된다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadFinish])
 
   async function saveTranscript() {
     if (!text.trim()) { setError('전사 내용을 붙여넣어 주세요.'); return }
@@ -225,7 +294,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
     setBusy('finish')
     setError(null)
     setNotice(null)
-    setFinished(null)
+    setFinishJob(null)
     const notes: string[] = []
     try {
       // ① 쓰던 글부터 서버로 — 실패해도 멈추지 않되, 숨기지도 않는다
@@ -255,18 +324,25 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
       setElapsedMs(0)
       if (notes.length > 0) setNotice(notes.join(' '))
 
+      /*
+        **잡만 만들고 끝난다.** 예전엔 이 fetch 가 정리와 5축이 끝날 때까지 기다렸고,
+        그 사이 화면을 나가면 결과가 통째로 사라졌다(실측 2026-09-14: 295초 뒤 절단).
+        이제 진행은 표에 있고, 위의 폴링이 그것을 읽어 화면에 그린다.
+      */
       const res = await fetch(`/api/crm/meetings/${meetingId}/finish`, { method: 'POST' })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '미팅을 끝내지 못했습니다.'); return }
-      setFinished(body as FinishResult)
-      await load()
+      // 곧바로 한 회차 굴려 첫 단계가 빨리 보이게 한다. 안 돼도 크론이 이어받는다
+      try { await fetch('/api/crm/meetings/jobs/finish', { method: 'POST' }) } catch { /* 크론이 이어받는다 */ }
+      await loadFinish()
     } catch {
       setError('미팅을 끝내지 못했습니다. 잠시 후 다시 시도해 주세요.')
-    } finally {
       setBusy(null)
       setFinishPhase(null)
       setWorkingSince(null)
     }
+    // 여기서 busy 를 풀지 않는다 — 잡이 도는 동안은 버튼이 잠겨 있어야 두 번 안 눌린다.
+    // 푸는 것은 폴링이 「안 돌고 있다」를 확인했을 때다
   }
 
   async function extract() {
@@ -386,13 +462,21 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
         * 끝내기 결과. **된 것과 안 된 것을 함께 말한다** — 한 단계가 넘어져도 나머지는 갔다는
         * 사실을 사용자가 알아야 다음 행동을 정할 수 있다. 「완료」만 띄우면 실패가 묻힌다.
         */}
-      {finished && (
+      {finishJob && !finishJob.running && finishJob.steps.length > 0 && (
         <section className={styles.finish} aria-live="polite">
-          <h3 className={styles.finishHead}>
-            <CheckCircle2 size={16} aria-hidden /> 미팅을 정리했어요
+          {/*
+            **된 것만 세어 「정리했어요」라고 말하지 않는다.**
+            실측 2026-09-16: AI 한도가 소진돼 정리와 5축이 둘 다 실패했는데 잡은 끝났다
+            (설계대로다 — 한 단계가 넘어져도 나머지는 간다). 그때 성공과 같은 머리말을 달면
+            9/14 의 「조용히 사라짐」이 모양만 바꿔 되살아난다.
+          */}
+          <h3 className={styles.finishHead} data-status={finishJob.failedSteps.length > 0 ? 'failed' : 'done'}>
+            {finishJob.failedSteps.length > 0
+              ? <><HelpCircle size={16} aria-hidden /> 일부는 하지 못했어요</>
+              : <><CheckCircle2 size={16} aria-hidden /> 미팅을 정리했어요</>}
           </h3>
           <ul className={styles.stepList}>
-            {finished.steps.map((st) => (
+            {finishJob.steps.map((st) => (
               <li key={st.key} className={styles.step} data-status={st.status}>
                 {st.detail}
               </li>
@@ -403,13 +487,13 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
             * **모르는 것을 되묻는다.** AI 가 채운 것만 보여 주고 못 채운 자리를 말하지 않으면
             * 사용자는 다 된 줄 안다 — 그 빈칸은 리포트가 틀린 숫자를 낼 때야 발견된다.
             */}
-          {finished.questions.length > 0 && (
+          {finishJob.questions.length > 0 && (
             <div className={styles.asks}>
               <h4 className={styles.asksHead}>
                 <HelpCircle size={15} aria-hidden /> 이건 제가 몰라요. 채워 주시겠어요?
               </h4>
               <ul className={styles.askList}>
-                {finished.questions.map((q) => (
+                {finishJob.questions.map((q) => (
                   <li key={q.key} className={styles.ask}>
                     <Link href={q.href} className={styles.askLink}>{q.ask}</Link>
                     <span className={styles.askWhy}>{q.why}</span>

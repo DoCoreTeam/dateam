@@ -105,18 +105,32 @@ export function mergeSteps(prev: FinishStep[], next: FinishStep[]): FinishStep[]
  * 구분해야 하는 것은 **두 번째 누름이 새 잡을 만들지 않았다**는 사실이고,
  * 그건 부분 유니크 인덱스가 DB 에서 지킨다(마이그 254 `idx_finish_job_one_open`).
  */
-export function finishJobView(job: FinishJob | null): {
+export interface FinishJobView {
   running: boolean
   stage: FinishStage | null
   steps: FinishStep[]
+  /** 잡 전체가 엎어졌을 때의 사유 */
   error: string | null
-} {
-  if (!job) return { running: false, stage: null, steps: [], error: null }
+  /**
+   * 잡은 끝났는데 **안 된 단계가 있다.**
+   *
+   * 실측(2026-09-16 드레인): AI 한도가 소진돼 정리와 5축이 둘 다 실패했는데 잡은 `DONE`
+   * 이었다 — 「한 단계가 넘어져도 나머지는 간다」가 설계대로 동작한 결과다. 그런데 그 상태를
+   * 화면이 성공과 같은 모양으로 그리면, 9/14 의 「조용히 사라짐」이 모양만 바꿔 되살아난다.
+   * 그래서 끝난 잡에서도 실패한 단계를 따로 꺼내 둔다 — 화면이 못 보고 지나칠 수 없게.
+   */
+  failedSteps: FinishStep[]
+}
+
+export function finishJobView(job: FinishJob | null): FinishJobView {
+  if (!job) return { running: false, stage: null, steps: [], error: null, failedSteps: [] }
   return {
     running: isOpen(job),
     stage: job.stage,
     steps: job.steps,
     error: job.status === 'FAILED' ? (job.error ?? '정리하지 못했어요.') : null,
+    // 「건너뛰었다」는 실패가 아니다 — 원본이 없거나 이미 되어 있는 것은 정상이다
+    failedSteps: job.steps.filter((s) => s.status === 'failed'),
   }
 }
 

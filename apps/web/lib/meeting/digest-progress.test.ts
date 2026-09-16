@@ -334,9 +334,13 @@ describe('AI 예산 — 라우트가 준 시간을 다 쓴다', () => {
     assert.match(run, /budgetMs\?: number/, '예산을 받는 인자가 없다')
     assert.match(run, /budget\.remaining\(\)/, '남은 시간을 보지 않으면 종합할 시간을 남길 수 없다')
 
-    // 끝내기가 실제로 예산을 넘긴다 — 만들어 놓고 안 넘기면 없는 기능이다
-    const finishRoute = read('app/api/crm/meetings/[id]/finish/route.ts')
-    assert.match(finishRoute, /budgetMs/, '끝내기 라우트가 정리에 예산을 안 넘긴다')
+    /*
+      **예산을 넘기는 자리가 옮겼다**(2026-09-16). 끝내기는 이제 잡만 만들고,
+      정리는 드레인이 돌린다. 그래서 예산은 드레인이 쓰는 deps 가 넘긴다 —
+      만들어 놓고 안 넘기면 없는 기능이다.
+    */
+    const deps = read('lib/crm/jobs/finish-deps.ts')
+    assert.match(deps, /budgetMs/, '드레인이 정리에 예산을 안 넘긴다')
   })
 
   it('★ 예산이 라우트 상한을 넘지 않는다 — 넘으면 함수가 먼저 죽어 사용자가 이유를 못 듣는다', () => {
@@ -348,20 +352,26 @@ describe('AI 예산 — 라우트가 준 시간을 다 쓴다', () => {
     assert.ok(overall < max, `AI 예산 ${overall}ms 가 라우트 상한 ${max}ms 보다 크다`)
   })
 
-  it('★ 끝내기는 정리에 다 주지 않는다 — 5축 몫이 남아야 한다 (295초 사고의 계약)', () => {
+  it('★ 한 단계 예산이 회차 예산보다, 회차 예산이 라우트 상한보다 작다 (295초 사고의 계약)', () => {
     /*
       예전 계약은 «정리 상한 < 정리 전용 라우트 상한» 하나뿐이었다(240 < 300). 참이었다.
-      그런데 끝내기는 정리 **뒤에** 5축을 이어 돌린다 — 정리가 상한을 다 써 버리면
-      5축은 시작하자마자 죽는다. 그 조합을 보는 단정이 없어서 사고가 초록으로 지나갔다.
-    */
-    const route = read('app/api/crm/meetings/[id]/finish/route.ts')
-    const budget = Number(/DIGEST_BUDGET_MS = ([\d_]+)/.exec(route)?.[1]?.replace(/_/g, ''))
-    const max = Number(/maxDuration = (\d+)/.exec(route)?.[1]) * 1000
-    assert.ok(budget > 0 && max > 0, '값을 못 읽었다 — 가드가 헛돈다')
+      그런데 끝내기는 정리 **뒤에** 5축을 이어 돌렸다 — 정리가 상한을 다 써 버리면 5축은
+      시작하자마자 죽는다. 그 조합을 보는 단정이 없어서 사고가 초록으로 지나갔다.
 
-    const leftForFiveAxis = max - budget
-    assert.ok(leftForFiveAxis >= 120_000,
-      `정리에 ${budget}ms 를 주면 5축 몫이 ${leftForFiveAxis}ms 뿐이다 (상한 ${max}ms). 실측 사고가 이 자리다`)
+      이제 한 회차가 한 단계만 돈다. 그래도 세 값이 층을 이뤄야 한다 —
+      한 단계가 회차 예산을 통째로 먹으면 다른 잡이 영원히 못 집히고,
+      회차 예산이 라우트 상한을 넘으면 마지막 저장이 잘려 진행이 사라진다.
+    */
+    const deps = read('lib/crm/jobs/finish-deps.ts')
+    const drainRoute = read('app/api/crm/meetings/jobs/finish/route.ts')
+
+    const stage = Number(/DIGEST_BUDGET_MS = ([\d_]+)/.exec(deps)?.[1]?.replace(/_/g, ''))
+    const round = Number(/DEADLINE_MS = ([\d_]+)/.exec(drainRoute)?.[1]?.replace(/_/g, ''))
+    const max = Number(/maxDuration = (\d+)/.exec(drainRoute)?.[1]) * 1000
+    assert.ok(stage > 0 && round > 0 && max > 0, '값을 못 읽었다 — 가드가 헛돈다')
+
+    assert.ok(stage < round, `한 단계 예산 ${stage}ms 가 회차 예산 ${round}ms 보다 크다`)
+    assert.ok(round < max, `회차 예산 ${round}ms 가 라우트 상한 ${max}ms 보다 크다 — 마지막 저장이 잘린다`)
   })
 
   it('★ 화자 나누기도 마찬가지다', () => {

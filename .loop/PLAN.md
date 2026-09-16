@@ -1,6 +1,6 @@
 # PLAN newAX: 회의 끝내기를 저장하고 뒤에서 잇는다
 플랜 ID: P0008
-플랜 버전: v0.1.1
+플랜 버전: v0.1.3
 상태: 진행중
 지시: iv_0054
 목표 버전: v0.10.32
@@ -62,10 +62,10 @@
 - `node --test` 로 순수 판정(멱등·임대 만료·단계 전이) 통과
 의존: 없음
 
-### I03 잡을 굴리는 드레인
-상태: 대기
+### I03 잡을 굴리는 드레인과 그것을 읽는 화면
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/jobs/finish-drain.ts (신규), apps/web/app/api/crm/meetings/jobs/finish/route.ts (신규), apps/web/app/api/crm/meetings/[id]/finish/route.ts, vercel.json
+범위: apps/web/lib/crm/jobs/finish-drain.ts (신규), apps/web/lib/crm/jobs/finish-deps.ts (신규), apps/web/lib/crm/jobs/finish-drain.test.ts (신규), apps/web/app/api/crm/meetings/jobs/finish/route.ts (신규), apps/web/app/api/crm/meetings/[id]/finish/route.ts, apps/web/vercel.json, apps/web/package.json, apps/web/lib/crm/jobs/finish-queue.ts, apps/web/lib/crm/jobs/finish-queue.test.ts, apps/web/app/(crm)/crm/meetings/[id]/MeetingDetail.tsx, apps/web/lib/crm/services/meeting-finish.ts, apps/web/lib/crm/services/meeting-finish.test.ts
 감사 기준:
 - 실측 근거: 이 저장소는 응답 뒤 실행을 보장할 방법이 없다 — Next 14.2.29 에 `after()` 가 없고 `@vercel/functions` 도 안 쓴다(ci/queue/drain/route.ts:10~12). 그래서 일을 **다음 실행**으로 넘겨야 한다
 - 끝내기 POST 는 잡만 만들고 즉시 돌려준다 — 응답까지 3초 이내
@@ -73,20 +73,20 @@
 - 입구 둘: 브라우저(세션 인증, 자기 워크스페이스만)와 크론(`machine-auth` SSOT 재사용, 새 인증 방식 안 만듦)
 - 크론은 이미 있는 2분 주기에 얹는다 — 화면을 닫아도 백스톱이 있음
 - 실패해도 잡이 `실패`로 남고 사유가 읽힌다 — 오늘처럼 아무 기록 없이 사라지지 않음
+- 드레인 중 발견: 모든 단계가 실패해도 잡은 `DONE` 이고 화면엔 오류가 없다 — 9/14 의 「조용히 사라짐」이 모양만 바꿔 남는다. `finishJobView` 가 끝난 잡에서도 실패 단계를 따로 꺼내 화면이 못 지나치게 한다
+- **화면을 같이 바꾼다**(옛 I04 를 합침) — 서버만 바꾸면 끝내기 버튼이 옛 응답 모양을 기대해 그 자리에서 깨진다. 항목을 나누면 그 사이 커밋이 고장난 화면을 담는다
+- 화면이 잡 상태를 되물어 진행 중이면 버튼이 잠기고 단계 문구가 뜬다 — 문구는 기존 `finish-progress` 그대로
+- 나갔다 돌아와도 진행과 결과가 보인다 (진행이 화면 안 상태가 아니라 표에 있다)
+- 한 요청이 정리와 5축을 잇달아 돌리던 `finishMeeting` 은 드레인이 대체하므로 걷어낸다 — 남겨 두면 같은 일을 하는 경로가 둘이 된다
 - `node --test` 로 드레인 단계 전이 통과, 브라우저 입구에 서비스 토큰 이름이 등장하면 실패하는 가드 포함
 의존: I01, I02
 
 ### I04 나갔다 와도 보이고 두 번 안 눌린다
-상태: 대기
+상태: 취소 (I03 에 합침 — 서버만 바꾸면 그 사이 커밋이 고장난 화면을 담는다)
 모드: 경량
-범위: apps/web/app/(crm)/crm/meetings/[id]/MeetingDetail.tsx, apps/web/lib/crm/ui/finish-progress.ts, apps/web/lib/crm/ui/finish-progress.test.ts
+범위: I03 으로 이관
 감사 기준:
-- 실측 근거: `finishPhase` 가 화면 안 상태뿐이라 나갔다 오면 진행 표시가 사라지고 버튼이 다시 「미팅 끝내기」로 돌아온다
-- 화면이 잡 상태를 읽어 진행 중이면 버튼이 잠기고 단계 문구가 뜬다 — 문구는 기존 `finish-progress` 그대로, 새 문장 안 지음
-- 끝난 잡의 단계 결과(`steps`)와 되물음이 새로고침 뒤에도 보인다
-- 브라우저: 끝내기를 누르고 다른 화면으로 갔다가 돌아왔을 때 진행이 보이고, 끝난 뒤 결과가 남아 있음
-- 브라우저: 진행 중에 버튼이 눌리지 않아 잡이 하나만 생김
-- `node --test` 로 finish-progress 통과
+- I03 의 감사 기준에 흡수됨
 의존: I03
 
 ## 종합 감사
@@ -95,3 +95,5 @@
 ## 변경 이력
 - v0.1.0 (2026-09-16) 최초 작성 (iv_0054)
 - v0.1.1 (2026-09-16) I01 범위에 digest-progress.test.ts 와 package.json 추가 — 기존 가드가 옛 모양을 단정해 버그를 고정하고 있었고, 새 테스트는 등재해야 돈다 (audit:I01)
+- v0.1.2 (2026-09-16) I03 범위에 finish-deps.ts·드레인 가드·vercel.json 경로 정정(apps/web)·finish-queue 의 실패 단계 노출 추가 — 실제 드레인에서 모든 단계 실패에도 잡이 DONE 이고 화면에 오류가 없는 것을 발견 (audit:I03)
+- v0.1.3 (2026-09-16) I04(화면 배선)를 I03 에 합침 — 서버 응답 모양이 바뀌어 화면을 같이 안 고치면 그 사이 커밋이 깨진 끝내기 버튼을 담는다. finishMeeting 이 드레인으로 대체돼 고아가 된 것도 I03 에서 걷어낸다 (audit:I03)
