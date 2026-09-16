@@ -41,6 +41,14 @@ export async function readServiceKey(db: MetaReader): Promise<string | null> {
 
 export type G2bFetchReason =
   | 'no_service_key'
+  /**
+   * 키는 있는데 **이 서비스에 활용 신청을 안 했다.**
+   *
+   * 예전에는 이것도 `upstream_error` 로 떨어져 「나라장터가 응답하지 않습니다」라고
+   * 말했다. 사용자는 포털이 고장 난 줄 알고 기다린다. 기다려도 안 열린다 —
+   * 열려면 우리가 신청해야 한다.
+   */
+  | 'service_not_registered'
   | 'not_found'
   | 'rate_limited'
   | 'upstream_error'
@@ -54,6 +62,7 @@ export type G2bResult<T> =
 /** 사유마다 다음에 무엇을 하면 되는지 — 「실패」만 보여 주면 사용자가 할 일이 없다 */
 export const FALLBACK_GUIDE: Record<G2bFetchReason, string> = {
   no_service_key: '나라장터 연동 키가 없습니다. 설정에서 키를 넣거나 첨부를 직접 올려 주세요',
+  service_not_registered: '이 서비스는 아직 공공데이터포털에 활용 신청을 안 했습니다. 기다려도 열리지 않으니 신청해 주시고, 급하면 첨부를 직접 올려 주세요',
   not_found: '해당 공고를 찾지 못했습니다. 공고번호와 차수를 확인하거나 첨부를 직접 올려 주세요',
   rate_limited: '나라장터 호출 한도를 넘었습니다. 잠시 뒤 다시 시도하거나 첨부를 직접 올려 주세요',
   upstream_error: '나라장터가 응답하지 않습니다. 첨부를 직접 올리면 그대로 분석됩니다',
