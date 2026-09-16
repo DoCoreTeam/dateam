@@ -40,3 +40,17 @@ export {
   climb,
   isCurrent,
 } from './ladder.ts'
+
+export {
+  type Sensitivity,
+  type CatalogField,
+  type CatalogEntity,
+  type Catalog,
+  type ReadScope,
+  type ReadDenial,
+  type ReadDecision,
+  fieldPath,
+  canRead,
+  readableFields,
+  validateCatalog,
+} from './catalog.ts'
