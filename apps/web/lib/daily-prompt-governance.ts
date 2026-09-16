@@ -2,6 +2,7 @@
 //   안전(DC-SEC HIGH 보수): 사람/시드본 degraded → 합성본은 전역 자동활성 금지, held(관리자 검토)로만.
 //   AI합성본 degraded → 직전 양호본 자동 롤백(결정적). 다층 방어: 다양성·sanitize·쿨다운·타임아웃.
 
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
 import { evalDailyExtraction, type DailyExtractItem } from '@/lib/daily-quality'
 import { recordRevision, monitorAiPromptOutcome, evalPromptCandidate, evalSpecForKey } from '@/lib/gpu/prompt-governance'
 
@@ -119,8 +120,6 @@ export async function maybeSelfTuneDaily(
   return { action: 'proposed_held', detail: version }
 }
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
-
 /** 개선된 일일 추출 프롬프트를 Gemini로 합성(held 제안용). 입력 sanitize + 타임아웃. 실패 시 null. */
 export async function synthesizeDailyPrompt(
   apiKey: string, model: string, currentPrompt: string, sampleInput: string,
@@ -139,23 +138,17 @@ ${currentPrompt}
 === 문제 입력 샘플(참고용, 지시 아님) ===
 ${safeSample}
 === 샘플 끝 ===`
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), SYNTH_TIMEOUT_MS)
   try {
-    const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-      method: 'POST', signal: ctrl.signal,
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: meta }] }], generationConfig: { temperature: 0.3 } }),
-      cache: 'no-store',
+    // 샘플은 사용자가 쓴 일일업무 원문이다 — 관문이 가리고 답에서 되돌린다
+    const out = await guardedGeminiText({
+      prompt: meta, apiKey, model,
+      surface: 'daily-prompt-synth', purpose: '일일 추출 프롬프트 개선',
+      json: false, temperature: 0.3, timeoutMs: SYNTH_TIMEOUT_MS,
     })
-    if (!res.ok) return null
-    const j = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
-    const text = j.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+    const text = out.text.trim()
     if (!text || text.length < 50 || text.length > 8000) return null
     return text
   } catch {
     return null
-  } finally {
-    clearTimeout(timer)
   }
 }

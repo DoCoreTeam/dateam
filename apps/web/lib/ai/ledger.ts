@@ -34,3 +34,39 @@ export function createAiLedger(db: LedgerClient): AiLedger {
     },
   }
 }
+
+/**
+ * 서버에서 쓰는 기본 원장.
+ *
+ * ## 왜 기본값을 두게 됐나
+ *
+ * 처음에는 원장을 반드시 주게 했다 — 아무것도 안 하는 창구가 끼면 기록이 조용히
+ * 0건이 되기 때문이다. 그 걱정은 **안 쓰는 창구**에 대한 것이지 창구를 건네는
+ * 수고에 대한 것이 아니었다.
+ *
+ * 실제로는 그 수고가 이관을 막았다. 벤더를 직접 부르는 길 스물넷을 옮기려면
+ * 라우트마다 관리자 클라이언트를 만들어 아래로 내려보내야 했고, 그래서 넷만
+ * 옮기고 스물이 남아 있었다(실측 2026-09-16).
+ *
+ * 그래서 방향을 뒤집는다. **진짜로 적는** 기본값을 두면 안 주고 부를 수 있는 길이
+ * 곧 적히는 길이 된다. 아무것도 안 하는 창구는 여전히 만들지 않는다.
+ */
+export function serverAiLedger(): AiLedger {
+  let cached: Promise<LedgerClient> | null = null
+  const client = () => {
+    // 모듈 맨 위에서 끌면 화면 묶음에 서버 전용 코드가 딸려 들어간다
+    cached ??= import('../supabase/server.ts')
+      .then((m) => m.createAdminClient() as never as LedgerClient)
+    return cached
+  }
+  return {
+    async recordCall(row: CallLogRow) {
+      const { error } = await (await client()).from('ai_llm_calls').insert(row)
+      if (error) console.error('[ai] 호출 기록 실패', error.message ?? error)
+    },
+    async recordTransfer(row: TransferLogRow) {
+      const { error } = await (await client()).from('ai_external_transfers').insert(row)
+      if (error) console.error('[ai] 전송 기록 실패', error.message ?? error)
+    },
+  }
+}

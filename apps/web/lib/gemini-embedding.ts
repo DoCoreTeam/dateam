@@ -2,6 +2,9 @@
 // 메모(daily_logs.entry_type='note') 의미 클러스터링용
 import { logTokenUsage } from '@/lib/token-logger'
 import type { AiFeature } from '@/types/database'
+import { guardedVector, type AiLedger } from '@/lib/ai/guarded-call'
+import { serverAiLedger } from '@/lib/ai/ledger'
+import { serverKnownNames } from '@/lib/ai/known-names'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const EMBED_MODEL = 'gemini-embedding-001'
@@ -23,6 +26,10 @@ export async function embedText(
   opts?: {
     taskType?: 'CLUSTERING' | 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY'
     feature?: AiFeature
+    /** 안 주면 구성원과 주소록 이름 전체 */
+    knownNames?: readonly string[]
+    /** 안 주면 서버 원장 */
+    ledger?: AiLedger
   },
 ): Promise<EmbedResult | null> {
   const trimmed = text.trim()
@@ -32,28 +39,43 @@ export async function embedText(
   const feature: AiFeature = opts?.feature ?? 'memo-embedding'
 
   try {
-    const url = `${GEMINI_API_BASE}/models/${EMBED_MODEL}:embedContent`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        model: `models/${EMBED_MODEL}`,
-        content: { parts: [{ text: trimmed.slice(0, 2000) }] },
-        taskType,
-        outputDimensionality: EMBED_DIM,
-      }),
-      cache: 'no-store',
-    })
-    if (!res.ok) {
-      console.error('[gemini-embedding] API error', res.status, res.statusText)
-      return null
-    }
-    const json = (await res.json()) as { embedding?: { values?: number[] } }
-    const values = json.embedding?.values
-    if (!values || values.length !== EMBED_DIM) return null
+    // 벡터는 되돌릴 수 없다 — 안 가리고 보내면 개인정보가 **숫자로 남의 서버에 남는다**
+    const out = await guardedVector<number[]>(
+      trimmed.slice(0, 2000),
+      {
+        surface: feature, purpose: `embed:${taskType}`, actorId: userId ?? null,
+        providerId: 'gemini', modelName: EMBED_MODEL,
+        knownNames: opts?.knownNames ?? await serverKnownNames(),
+      },
+      opts?.ledger ?? serverAiLedger(),
+      async (maskedText) => {
+        const url = `${GEMINI_API_BASE}/models/${EMBED_MODEL}:embedContent`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify({
+            model: `models/${EMBED_MODEL}`,
+            content: { parts: [{ text: maskedText }] },
+            taskType,
+            outputDimensionality: EMBED_DIM,
+          }),
+          cache: 'no-store',
+          signal: AbortSignal.timeout(60_000),
+        })
+        if (!res.ok) {
+          console.error('[gemini-embedding] API error', res.status, res.statusText)
+          return null
+        }
+        const json = (await res.json()) as { embedding?: { values?: number[] } }
+        const values = json.embedding?.values
+        if (!values || values.length !== EMBED_DIM) return null
+        // 임베딩은 토큰 사용량을 별도 반환하지 않음 — 대략 추정(문자수/4)
+        return { value: values, tokens: Math.ceil(maskedText.length / 4) }
+      },
+    )
+    if (!out) return null
 
-    // 임베딩은 토큰 사용량을 별도 반환하지 않음 — 대략 추정(문자수/4)
-    const estTokens = Math.ceil(trimmed.length / 4)
+    const estTokens = out.tokens ?? 0
     logTokenUsage({
       userId: userId ?? null,
       feature,
@@ -63,7 +85,7 @@ export async function embedText(
       totalTokens: estTokens,
     })
 
-    return { embedding: values, tokens: estTokens }
+    return { embedding: out.value, tokens: estTokens }
   } catch (e) {
     console.error('[gemini-embedding] failed', e)
     return null

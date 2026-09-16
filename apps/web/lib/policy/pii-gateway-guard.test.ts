@@ -71,19 +71,46 @@ test('★ 개인정보가 지나는 길은 전부 한 겹을 지난다', () => {
   ].join('\n'))
 })
 
-test('★ 한 겹은 원장을 반드시 받는다, 창구 없이 부르는 길이 없다', () => {
+/*
+  처음에는 «원장을 반드시 인자로 받아라» 였다. 걱정한 것은 **아무것도 안 적는 창구**가
+  끼는 것이었는데, 실제로 막은 것은 이관이었다 — 라우트마다 관리자 클라이언트를 만들어
+  아래로 내려보내야 해서 넷만 옮기고 스물이 남았다(실측 2026-09-16).
+
+  그래서 규칙을 뜻으로 바꾼다. **안 적는 길이 없다**가 지켜야 할 것이고,
+  인자를 강제하는 것은 그 한 가지 방법이었을 뿐이다. 선택으로 두되 기본값이
+  진짜로 적는 창구면 뜻은 그대로 지켜진다. 대신 **아무것도 안 하는 창구**는 못 만들게 한다.
+*/
+test('★ 원장 없이 부르는 길이 없다', () => {
   const offenders: string[] = []
   for (const rel of WRAPPERS) {
     const src = read(rel)
     assert.ok(src, `${rel} 이 없다`)
-    // 선택 인자로 만들면 안 준 길이 조용히 0건이 된다
-    if (/ledger\?\s*:/.test(src)) offenders.push(`${rel} 이 원장을 선택 인자로 받는다`)
-    if (!/ledger:\s*AiLedger/.test(src)) offenders.push(`${rel} 이 원장을 필수로 안 받는다`)
+    const required = /ledger:\s*AiLedger/.test(src)
+    const defaulted = /ledger\s*\?\?\s*serverAiLedger\(\)/.test(src)
+    if (!required && !defaulted) {
+      offenders.push(`${rel} 이 원장을 필수로 받지도, 진짜 창구를 기본값으로 두지도 않는다`)
+    }
   }
   assert.deepEqual(offenders, [], [
-    '원장을 선택으로 두면 안 준 길이 조용히 0건이 된다:',
+    '원장을 안 받고 기본값도 없으면 그 길은 조용히 0건이 된다:',
     ...offenders.map((o) => `  ${o}`),
   ].join('\n'))
+})
+
+test('★ 아무것도 안 적는 창구를 만들지 않는다', () => {
+  /*
+    기본값을 허용한 순간 «시험용» 이라며 빈 창구가 들어올 자리가 생긴다.
+    그것이 기본값이 되면 원장은 비는데 코드는 관문을 지나는 것처럼 보인다.
+  */
+  const src = read('lib/ai/ledger.ts')
+  assert.ok(src.length > 0, 'lib/ai/ledger.ts 을 못 읽는다')
+  const empty = [/noop\s*Ledger/i, /async\s+recordCall\s*\([^)]*\)\s*\{\s*\}/, /recordCall:\s*async\s*\(\)\s*=>\s*\{\s*\}/]
+  const hits = empty.filter((re) => re.test(src)).map((re) => re.source)
+  assert.deepEqual(hits, [], `아무것도 안 하는 원장이 있다: ${hits.join(', ')}`)
+  assert.match(src, /serverAiLedger/, '서버 기본 원장이 없다')
+  // 기본 창구가 실제로 표에 적는지 — 표 이름이 없으면 적는 척만 하는 것이다
+  assert.match(src, /ai_llm_calls/, '호출 표에 안 적는다')
+  assert.match(src, /ai_external_transfers/, '전송 표에 안 적는다')
 })
 
 test('규칙이 도는 대상이 실제로 있다', () => {

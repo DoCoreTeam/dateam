@@ -1,7 +1,6 @@
 import { logTokenUsage } from '@/lib/token-logger'
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
 import type { AiFeature } from '@/types/database'
-
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 export interface ColumnSchema {
   key: string
@@ -18,8 +17,6 @@ export async function aiEditContentSection(
   model: string,
   userId?: string | null
 ): Promise<Record<string, unknown>[]> {
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-
   const schemaDesc = columns
     .map((c) => `  - "${c.key}" (${c.label}${c.type === 'tags' ? ', 문자열 배열' : c.type === 'number' ? ', 숫자' : ', 문자열'})`)
     .join('\n')
@@ -40,43 +37,22 @@ ${schemaDesc}
 
 반환: 순수 JSON 배열만. 설명·마크다운 코드블록 없이.`
 
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          {
-            text: `${systemPrompt}\n\n현재 데이터:\n${JSON.stringify(currentData, null, 2)}\n\n사용자 요청: ${userPrompt}`,
-          },
-        ],
-      },
-    ],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-  }
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify(body),
-    cache: 'no-store',
+  // 섹션 데이터에 사람 이름과 연락처가 섞여 온다 — 관문이 가리고 답에서 되돌린다
+  const out = await guardedGeminiText({
+    prompt: `${systemPrompt}\n\n현재 데이터:\n${JSON.stringify(currentData, null, 2)}\n\n사용자 요청: ${userPrompt}`,
+    apiKey, model, surface: 'content-ai-edit', purpose: '섹션 데이터 편집',
+    actorId: userId ?? null, temperature: 0.1,
   })
-
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status} ${res.statusText}`)
-
-  const json = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
 
   logTokenUsage({
     userId: userId ?? null,
     feature: 'content-ai-edit' as AiFeature,
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    totalTokens: out.inputTokens + out.outputTokens,
   })
 
   const parsed = JSON.parse(text)

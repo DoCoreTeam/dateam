@@ -69,3 +69,58 @@ export async function namesFromDirectory(db: NameReader): Promise<string[]> {
     return []
   }
 }
+
+/**
+ * 우리 구성원 이름.
+ *
+ * 일일업무와 주간보고는 바깥 사람보다 **동료 이름**이 훨씬 자주 나온다 —
+ * 「김 책임과 협의」 같은 줄이다. 주소록(crm_people)에는 그 이름이 없다.
+ */
+export async function namesFromProfiles(db: NameReader): Promise<string[]> {
+  try {
+    const { data } = await db.from('profiles')
+      .select('name').limit(MAX_KNOWN_NAMES)
+    const rows = (data as { name?: string }[] | null) ?? []
+    return usable(rows.map((r) => r.name))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 서버가 이름 목록을 얻는 가장 짧은 길.
+ *
+ * 부르는 쪽이 관리자 클라이언트를 만들어 내려보내지 않아도 되게 한다 —
+ * 그 수고가 곧 «이름은 다음에 붙이자» 가 된다.
+ */
+export async function serverKnownNames(): Promise<string[]> {
+  const now = Date.now()
+  if (cache && now - cache.at < NAME_CACHE_MS) return cache.names
+  try {
+    const { createAdminClient } = await import('../supabase/server.ts')
+    const db = createAdminClient() as never as NameReader
+    const [staff, people] = await Promise.all([
+      namesFromProfiles(db), namesFromDirectory(db),
+    ])
+    const names = Array.from(new Set([...staff, ...people]))
+    cache = { names, at: now }
+    return names
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 이름 목록을 잠깐 들고 있는다.
+ *
+ * AI 호출마다 표 둘을 읽으면 호출이 느려지고, 그러면 다음 사람이 «이름 가림은
+ * 비싸다» 며 끈다. 조직 이름 목록은 **사람마다 다르지 않아서** 들고 있어도
+ * 남의 것이 섞이지 않는다 — 사용자별 값이었다면 이렇게 두면 안 된다.
+ */
+const NAME_CACHE_MS = 5 * 60_000
+let cache: { names: string[]; at: number } | null = null
+
+/** 시험이 앞 회차의 목록을 물려받지 않게 한다 */
+export function clearKnownNameCache(): void {
+  cache = null
+}

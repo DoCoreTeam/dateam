@@ -27,17 +27,13 @@
     "lib/ci/ai/creative-server.ts",
     "lib/ci/ai/gemini.ts",
     "lib/crm/services/card-read.ts",
-    "lib/daily-prompt-governance.ts",
-    "lib/gemini-content-edit.ts",
     "lib/gemini-embedding.ts",
     "lib/gemini-lead.ts",
-    "lib/gemini-refine.ts",
-    "lib/gemini-suggest-projects.ts",
-    "lib/gemini-suggest-tasks.ts",
     "lib/gpu/extract-helpers.ts",
     "lib/stt/provider.ts"
   ],
   "관문안쪽": {
-    "lib/ai/guarded-gemini.ts": "가림과 기록을 지나는 유일한 Gemini 호출 자리. 목록에 있지만 관문 밖이 아니다"
+    "lib/ai/guarded-gemini.ts": "가림과 기록을 지나는 유일한 Gemini 호출 자리. 목록에 있지만 관문 밖이 아니다",
+    "lib/gemini-embedding.ts": "임베딩은 글자가 아니라 숫자를 돌려받아 글자 호출 자리가 못 덮는다. 주소는 여기 있지만 guardedVector 를 지나 가림과 기록이 붙는다"
   }
 }

@@ -1,11 +1,10 @@
 import { logTokenUsage } from '@/lib/token-logger'
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
 
 // 일일업무(+주간보고 맥락) → "예상 프로젝트(묶음) 후보" 추출 엔진.
 // gemini-suggest-tasks.ts 패턴 동일(responseMimeType json, x-goog-api-key, logTokenUsage, <USER_DATA> 펜스).
 // 핵심: LLM이 여러 일일업무를 "하나의 사업/RFP/이니셔티브"로 군집화하고, 어떤 업무가 속하는지 ref로 지목한다.
 //       라우트가 ref → 실제 daily_logs.id 로 되돌려 sampleLogIds 를 만든다(확정 시 프로젝트에 연결).
-
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 export interface ProjectLogInput { ref: string; content: string; log_date: string; author?: string }
 export interface ProjectWeeklyInput { category: string; performance: string; plan: string; author?: string }
@@ -48,31 +47,22 @@ export async function suggestProjects(
 
   const userMessage = `<USER_DATA>\n일일업무 기록:\n${JSON.stringify(logs, null, 2)}\n\n주간보고(맥락 참고):\n${JSON.stringify(weekly, null, 2)}\n</USER_DATA>`
 
-  const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${userMessage}` }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.0 },
-    }),
-    cache: 'no-store',
+  // 일일업무에는 동료 이름이 그대로 들어 있다 — 관문이 가리고 답에서 되돌린다
+  const out = await guardedGeminiText({
+    prompt: `${systemPrompt}\n\n${userMessage}`,
+    apiKey, model, surface: 'project-suggest', purpose: '프로젝트 후보 추출',
+    actorId: userId ?? null, temperature: 0,
   })
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status} ${res.statusText}`)
-
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
 
   logTokenUsage({
     userId: userId ?? null,
     feature: 'project-suggest',
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    totalTokens: out.inputTokens + out.outputTokens,
   })
 
   let parsed: unknown

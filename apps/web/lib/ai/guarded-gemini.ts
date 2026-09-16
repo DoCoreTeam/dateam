@@ -16,6 +16,8 @@
  */
 
 import { guardedText, type AiLedger } from './guarded-call.ts'
+import { serverAiLedger } from './ledger.ts'
+import { serverKnownNames } from './known-names.ts'
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -26,13 +28,21 @@ export interface GuardedGeminiInput {
   /** 어느 화면이 불렀나 */
   surface: string
   purpose: string
-  ledger: AiLedger
+  /** 안 주면 서버 원장에 적는다. 안 적는 창구는 없다 */
+  ledger?: AiLedger
   actorId?: string | null
-  /** 이 호출에 나올 수 있는 아는 이름. 안 주면 이름은 안 가려진다 */
+  /**
+   * 이 호출에 나올 수 있는 아는 이름.
+   *
+   * 안 주면 **구성원과 주소록 이름 전체**를 쓴다. 회의 참석자처럼 더 좁은 목록을
+   * 아는 자리만 직접 준다 — 넓은 목록이 기본이어야 «이름은 다음에» 가 안 생긴다.
+   */
   knownNames?: readonly string[]
   /** JSON 으로 받을 것인가 */
   json?: boolean
   temperature?: number
+  /** 기본 60초. 이보다 짧게 잡아 둔 길이 있어서 옮길 때 그 값을 잃지 않게 한다 */
+  timeoutMs?: number
 }
 
 export interface GuardedGeminiResult {
@@ -51,14 +61,15 @@ export class GeminiCallError extends Error {
 }
 
 export async function guardedGeminiText(input: GuardedGeminiInput): Promise<GuardedGeminiResult> {
+  const names = input.knownNames ?? await serverKnownNames()
   const out = await guardedText(
     input.prompt,
     {
       surface: input.surface, purpose: input.purpose,
       actorId: input.actorId ?? null, providerId: 'gemini', modelName: input.model,
-      knownNames: input.knownNames,
+      knownNames: names,
     },
-    input.ledger,
+    input.ledger ?? serverAiLedger(),
     (masked) => callGemini(masked, input),
   )
   return {
@@ -84,7 +95,7 @@ async function callGemini(
     }),
     cache: 'no-store',
     // 시간 제한이 없으면 화면이 벤더가 끊을 때까지 매달린다. 넷 다 없었다
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(input.timeoutMs ?? 60_000),
   })
   if (!res.ok) throw new GeminiCallError(res.status)
   const json = await res.json() as {

@@ -1,3 +1,4 @@
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
 import { logTokenUsage } from '@/lib/token-logger'
 import type { AiFeature } from '@/types/database'
 import {
@@ -10,7 +11,6 @@ import {
 export { buildMergeContextBlocks }
 export type { MergeContext, MergedCategoryReport }
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 function parseGeminiJson(text: string): unknown {
   try {
@@ -121,8 +121,6 @@ export async function mergeAndRefineByCategory(
     return ctx?.existingBody && ctx.existingBody.length > 0 ? ctx.existingBody : []
   }
 
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-
   const input = reports.map(({ userName, category, performance, plan, issues }) => ({
     userName, category, performance, plan, issues,
   }))
@@ -130,39 +128,22 @@ export async function mergeAndRefineByCategory(
   // 지난주 구분/계획·기존 편집본 컨텍스트를 프롬프트에 첨부(있을 때만)
   const contextBlocks = buildMergeContextBlocks(ctx)
 
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: `${MERGE_BY_CATEGORY_PROMPT}${contextBlocks}\n\n입력 데이터(이번주 부서원 보고):\n${JSON.stringify(input, null, 2)}` }],
-      },
-    ],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-  }
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify(body),
-    cache: 'no-store',
+  // 부서원 이름과 보고 원문이 그대로 나간다 — 관문이 가리고 답에서 되돌린다
+  const out = await guardedGeminiText({
+    prompt: `${MERGE_BY_CATEGORY_PROMPT}${contextBlocks}\n\n입력 데이터(이번주 부서원 보고):\n${JSON.stringify(input, null, 2)}`,
+    apiKey, model, surface: 'report-preview-merge', purpose: '부서 보고 구분별 병합',
+    actorId: userId ?? null, temperature: 0.1,
   })
-
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status} ${res.statusText}`)
-
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
 
   logTokenUsage({
     userId: userId ?? null,
     feature: 'report-preview-merge' as AiFeature,
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    totalTokens: out.inputTokens + out.outputTokens,
   })
 
   let parsed: unknown
@@ -194,41 +175,22 @@ export async function refineWeeklyReport(
 ): Promise<WeeklyRow[]> {
   if (rows.length === 0) return rows
 
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: `${WEEKLY_REFINE_PROMPT}\n\n입력 데이터:\n${JSON.stringify(rows, null, 2)}` }],
-      },
-    ],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-  }
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify(body),
-    cache: 'no-store',
+  // 주간보고 본문에 동료 이름과 거래처가 그대로 있다 — 관문이 가리고 답에서 되돌린다
+  const out = await guardedGeminiText({
+    prompt: `${WEEKLY_REFINE_PROMPT}\n\n입력 데이터:\n${JSON.stringify(rows, null, 2)}`,
+    apiKey, model, surface: 'weekly-report-refine', purpose: '주간보고 다듬기',
+    actorId: userId ?? null, temperature: 0.1,
   })
-
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status} ${res.statusText}`)
-
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
 
   logTokenUsage({
     userId: userId ?? null,
     feature: 'weekly-report-refine' as AiFeature,
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    totalTokens: out.inputTokens + out.outputTokens,
   })
 
   let parsed: unknown
@@ -263,54 +225,22 @@ export async function refineReports(
   apiKey: string,
   model: string
 ): Promise<ReportForRefine[]> {
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          {
-            text: `${SYSTEM_PROMPT}\n\n입력 데이터:\n${JSON.stringify(reports, null, 2)}`,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0.1,
-    },
-  }
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify(body),
-    cache: 'no-store',
+  // 쓰는 곳이 없는 옛 길이지만 살아 있는 한 관문을 지난다
+  const out = await guardedGeminiText({
+    prompt: `${SYSTEM_PROMPT}\n\n입력 데이터:\n${JSON.stringify(reports, null, 2)}`,
+    apiKey, model, surface: 'weekly-report-refine', purpose: '보고 다듬기(옛 길)',
+    temperature: 0.1,
   })
-
-  if (!res.ok) {
-    throw new Error(`Gemini API error: ${res.status} ${res.statusText}`)
-  }
-
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
 
   logTokenUsage({
     userId: null,
     feature: 'weekly-report-refine' as AiFeature,
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    totalTokens: out.inputTokens + out.outputTokens,
   })
 
   let parsed: unknown

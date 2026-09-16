@@ -204,3 +204,59 @@ export async function guardedMedia(
     throw e
   }
 }
+
+export interface GuardedVectorResult<T> {
+  value: T
+  tokens?: number | null
+}
+
+/**
+ * 글자를 보내되 **글자가 안 돌아오는** 길 — 임베딩이 그 모양이다.
+ *
+ * 보내는 쪽은 글자라서 가림이 그대로 닿는다. 돌아오는 것은 숫자라서 되돌릴 것이 없다.
+ * `guardedText` 를 빈 글자로 흉내 내면 원장에 «답 0자» 가 남아 무슨 일이 있었는지
+ * 안 보인다. 그래서 길을 따로 둔다.
+ *
+ * 가린 글자를 임베딩해도 뜻은 거의 그대로다 — 전화번호와 메일 주소는 문장의 의미를
+ * 거의 지지 않는다. 반대로 안 가리고 보내면 **벡터로 바뀌어 남의 서버에 남는다.**
+ */
+export async function guardedVector<T>(
+  text: string,
+  ctx: GuardedCallContext,
+  ledger: AiLedger,
+  call: (maskedText: string) => Promise<GuardedVectorResult<T> | null>,
+  now: () => number = () => Date.now(),
+): Promise<GuardedVectorResult<T> | null> {
+  const names = { knownNames: ctx.knownNames }
+  const masked = maskPii(text, names)
+  if (hasUnmaskedPii(masked.text, names)) throw new PiiNotMaskedError(ctx.surface)
+
+  const started = now()
+  try {
+    const out = await call(masked.text)
+    await ledger.recordCall({
+      surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+      provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      input_tokens: out?.tokens ?? null, output_tokens: 0, cost_krw: null,
+      latency_ms: now() - started, ok: out !== null,
+      error: out === null ? 'empty' : null,
+      contract_version: AI_CONTRACT_VERSION,
+    })
+    await ledger.recordTransfer({
+      surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+      provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      masked_counts: countByKind(masked.hits), media_kind: 'text',
+      bytes: byteLength(masked.text), contract_version: AI_CONTRACT_VERSION,
+    })
+    return out
+  } catch (e) {
+    await ledger.recordCall({
+      surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+      provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      input_tokens: null, output_tokens: null, cost_krw: null,
+      latency_ms: now() - started, ok: false, error: describe(e).slice(0, 1000),
+      contract_version: AI_CONTRACT_VERSION,
+    })
+    throw e
+  }
+}
