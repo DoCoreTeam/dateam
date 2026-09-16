@@ -1,6 +1,7 @@
+import { guardedGeminiText } from './ai/guarded-gemini.ts'
+import type { AiLedger } from './ai/guarded-call.ts'
 import { logTokenUsage } from '@/lib/token-logger'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 export interface DailyTaskInput {
   content: string
@@ -22,12 +23,11 @@ export async function generateWeeklyFromDailyTasks(
   styleGuide: string,
   apiKey: string,
   model: string,
-  userId?: string | null,
+  userId: string | null | undefined,
+  ledger: AiLedger,
   prevWeekCategories?: string[]
 ): Promise<WeeklyRowOutput[]> {
   if (tasks.length === 0) return []
-
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
 
   // 지난주 구분(섹션) 목록 — 구분이 매주 달라지지 않도록 가능하면 지난주 명칭 재사용(있을 때만)
   const prevCatBlock =
@@ -44,43 +44,23 @@ ${prevCatBlock}
 
   const userMessage = `일일업무 목록:\n${JSON.stringify(tasks, null, 2)}`
 
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: `${systemPrompt}\n\n${userMessage}` }],
-      },
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0.2,
-    },
-  }
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify(body),
-    cache: 'no-store',
+  // 주간보고는 일일업무를 모아 보낸다. 일일업무에 있던 것이 그대로 다시 나간다
+  const out = await guardedGeminiText({
+    prompt: `${systemPrompt}\n\n${userMessage}`,
+    apiKey, model,
+    surface: 'weekly-report/generate', purpose: 'weekly_from_daily',
+    ledger, actorId: userId ?? null, temperature: 0.2,
   })
-
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status} ${res.statusText}`)
-
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
 
   logTokenUsage({
     userId: userId ?? null,
     feature: 'weekly-report-refine',
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    totalTokens: out.inputTokens + out.outputTokens,
   })
 
   let parsed: unknown

@@ -9,8 +9,10 @@
  * 분석 결과가 맞고, 안 볼 회의까지 비용을 쓸 이유가 없다.
  */
 
+import { guardedMedia } from '../ai/guarded-call.ts'
+import { createAiLedger } from '../ai/ledger.ts'
 import { listRecordingParts, partOffsetMs, readPartAudio, type RecordingPart } from './recording.ts'
-import { readSttSettings, sttProviderFor, SttError, type SttProvider } from '../stt/provider.ts'
+import { readSttSettings, sttProviderFor, SttError, type SttProvider, type SttResult } from '../stt/provider.ts'
 
 /** 실패해도 이만큼은 다시 해 본다. 넘으면 FAILED 로 두고 사유를 남긴다(CRM 녹음 규칙과 같은 값). */
 export const MAX_PART_RETRY = 3
@@ -111,18 +113,38 @@ export async function transcribeOnePart(part: RecordingPart, provider: SttProvid
   const { createAdminClient } = await import('../supabase/server.ts')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
+  // 객체에 담아 두는 이유: 지역 변수로 두면 타입 좁히기가 콜백 안 대입을 못 보고 never 로 만든다
+  const stt: { result: SttResult | null } = { result: null }
 
   try {
     if (!part.drive_file_id) throw new SttError('empty', '녹음 파일을 찾을 수 없습니다.', false)
 
     const { bytes, mimeType } = await readPartAudio(part.drive_file_id)
-    const result = await provider.transcribe({
-      bytes,
-      mimeType: mimeType || part.mime,
-      filename: `${part.note_id}_${part.part_idx}.webm`,
-      language: 'ko',
-      priorContext: await priorContextFor(part.note_id, part.part_idx),
-    })
+    // 전사는 **소리**를 보낸다. 글자 가림이 애초에 안 닿으므로 가린 척하지 않고
+    // 나간 사실과 크기와 매체를 원장에 적는다. 돌아온 글자에 개인정보가 실려 오면
+    // 그때 셈해 두되 지우지는 않는다 — 말한 사람 이름을 지우면 회의록을 못 읽는다
+    const guarded = await guardedMedia(
+      bytes.byteLength,
+      {
+        surface: 'meeting/transcribe', purpose: 'transcribe', media: 'audio',
+        providerId: provider.vendor, modelName: provider.model,
+      },
+      createAiLedger(admin),
+      async () => {
+        const r = await provider.transcribe({
+          bytes,
+          mimeType: mimeType || part.mime,
+          filename: `${part.note_id}_${part.part_idx}.webm`,
+          language: 'ko',
+          priorContext: await priorContextFor(part.note_id, part.part_idx),
+        })
+        stt.result = r
+        return { text: r.segments.map((s) => s.text).join(' ') }
+      },
+    )
+    void guarded
+    const result = stt.result
+    if (!result) throw new SttError('empty', '음성 인식 결과가 비어 있습니다.', true)
 
     // 전체 시간축으로 옮겨 담는다 — 구간마다 0 부터 세면 이어 붙였을 때 시각이 뒤죽박죽이다
     const offset = partOffsetMs(part.part_idx)

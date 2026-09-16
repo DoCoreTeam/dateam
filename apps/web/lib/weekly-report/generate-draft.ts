@@ -1,6 +1,7 @@
 // 주간보고 AI push 초안 생성 SSOT.
 // 기존 generateWeeklyFromDailyTasks(시그니처 불변·token-logger 경유)를 확장 기반으로 재사용하되,
 // 캘린더 일정 항목화와 구분 참조계층(prevCategories → deptCategories) 주입을 더해 DraftItem[]로 변환한다.
+import type { AiLedger } from '../ai/guarded-call.ts'
 import {
   generateWeeklyFromDailyTasks,
   type DailyTaskInput,
@@ -98,10 +99,11 @@ async function aiTaskRows(
   refCategories: string[] | undefined,
   apiKey: string,
   model: string,
-  userId?: string | null,
+  userId: string | null | undefined,
+  ledger: AiLedger,
 ): Promise<WeeklyRowOutput[]> {
   const normalized = tasks.map((t) => ({ ...t, content: htmlToPlain(t.content) }))
-  return generateWeeklyFromDailyTasks(normalized, styleGuide, apiKey, model, userId, refCategories)
+  return generateWeeklyFromDailyTasks(normalized, styleGuide, apiKey, model, userId, ledger, refCategories)
 }
 
 /**
@@ -113,7 +115,8 @@ export async function generateWeeklyDraft(
   input: DraftGenInput,
   apiKey: string,
   model: string,
-  userId?: string | null,
+  userId: string | null | undefined,
+  ledger: AiLedger,
 ): Promise<DraftItem[]> {
   const refCategories =
     input.prevCategories && input.prevCategories.length > 0
@@ -128,7 +131,7 @@ export async function generateWeeklyDraft(
 
   let taskItems: DraftItem[]
   try {
-    const rows = await aiTaskRows(input.tasks, styleGuide, refCategories, apiKey, model, userId)
+    const rows = await aiTaskRows(input.tasks, styleGuide, refCategories, apiKey, model, userId, ledger)
     taskItems = rowsToItems(rows)
   } catch {
     // graceful degrade — AI 장애여도 검수 가능한 초안을 보장(설계결정: fallbackTaskItems 주석 참고)

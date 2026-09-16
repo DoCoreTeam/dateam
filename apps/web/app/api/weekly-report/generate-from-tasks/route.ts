@@ -1,3 +1,4 @@
+import { createAiLedger } from '@/lib/ai/ledger'
 import { NextRequest, NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
 import { join } from 'path'
@@ -86,7 +87,12 @@ export async function POST(req: NextRequest) {
   const styleGuide = loadStyleGuide()
 
   try {
-    const rows = await generateWeeklyFromDailyTasks(tasks, styleGuide, apiKey, model, user.id, prevWeekCategories)
+    const { createAdminClient } = await import('@/lib/supabase/server')
+    const rows = await generateWeeklyFromDailyTasks(
+      tasks, styleGuide, apiKey, model, user.id,
+      createAiLedger(createAdminClient() as never),
+      prevWeekCategories,
+    )
     return NextResponse.json({ rows })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'AI 생성 중 오류가 발생했습니다'

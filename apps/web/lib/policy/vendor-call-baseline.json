@@ -29,7 +29,6 @@
     "lib/crm/services/card-read.ts",
     "lib/daily-prompt-governance.ts",
     "lib/gemini-content-edit.ts",
-    "lib/gemini-daily-to-weekly.ts",
     "lib/gemini-embedding.ts",
     "lib/gemini-lead.ts",
     "lib/gemini-refine.ts",
