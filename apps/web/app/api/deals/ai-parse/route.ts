@@ -1,3 +1,5 @@
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
+import { createAiLedger } from '@/lib/ai/ledger'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
@@ -5,7 +7,6 @@ import type { AiFeature } from '@/types/database'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 const ACTIVITY_PARSE_PROMPT = `당신은 B2B 영업 활동 기록 전문가입니다. 아래 영업 활동 메모를 간결하고 핵심적인 CRM 로그로 정리해주세요.
 
@@ -34,32 +35,27 @@ export async function POST(req: NextRequest) {
 
   if (!apiKey) return NextResponse.json({ error: 'Gemini API 키 미설정' }, { status: 500 })
 
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: `${ACTIVITY_PARSE_PROMPT}\n\n메모:\n${body.raw_text}` }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-    }),
-    cache: 'no-store',
-  })
-
-  if (!res.ok) return NextResponse.json({ error: 'Gemini API 오류' }, { status: 500 })
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
+  // 딜 메모에는 사람 이름과 통화 내용이 섞인다. 가림과 기록을 지나 나간다
+  let out
+  try {
+    out = await guardedGeminiText({
+      prompt: `${ACTIVITY_PARSE_PROMPT}\n\n메모:\n${body.raw_text}`,
+      apiKey, model, surface: 'deals/ai-parse', purpose: 'deal_activity_parse',
+      ledger: createAiLedger(adminClient as never), actorId: auth.user.id,
+    })
+  } catch {
+    return NextResponse.json({ error: 'Gemini API 오류' }, { status: 500 })
   }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) return NextResponse.json({ error: 'Gemini 응답 없음' }, { status: 500 })
 
   logTokenUsage({
     userId: auth.user.id,
     feature: 'deal-activity-parse' as AiFeature,
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    totalTokens: out.inputTokens + out.outputTokens,
   })
 
   try {

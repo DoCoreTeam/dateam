@@ -1,3 +1,5 @@
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
+import { createAiLedger } from '@/lib/ai/ledger'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
@@ -6,7 +8,6 @@ import type { AiFeature } from '@/types/database'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 type ActivityExtract = {
   summary?: string
@@ -38,29 +39,26 @@ async function extractActivity(
   const model: string = meta.gemini_model ?? DEFAULT_GEMINI_MODEL
   if (!apiKey) return null
 
-  const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: `${EXTRACT_PROMPT}\n\n메모:\n${content}` }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-    }),
-    cache: 'no-store',
-  })
-  if (!res.ok) return null
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
+  // 딜 활동 메모에도 사람 이름과 통화 내용이 섞인다
+  let out
+  try {
+    out = await guardedGeminiText({
+      prompt: `${EXTRACT_PROMPT}\n\n메모:\n${content}`,
+      apiKey, model, surface: 'deals/activities', purpose: 'deal_activity_extract',
+      ledger: createAiLedger(adm as never), actorId: userId,
+    })
+  } catch {
+    return null
   }
   logTokenUsage({
     userId,
     feature: 'deal-activity-parse' as AiFeature,
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out.inputTokens,
+    outputTokens: out.outputTokens,
+    totalTokens: out.inputTokens + out.outputTokens,
   })
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) return null
   try {
     return JSON.parse(text) as ActivityExtract

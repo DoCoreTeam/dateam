@@ -1,3 +1,5 @@
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
+import { createAiLedger } from '@/lib/ai/ledger'
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cosineSimilarity } from '@/lib/gemini-embedding'
@@ -5,7 +7,6 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
 const SIM_THRESHOLD = 0.78  // 코사인 유사도 임계 — 같은 주제로 묶는 기준
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 interface MemoRow {
   id: string
@@ -126,29 +127,21 @@ async function batchLabel(
 그룹:
 ${JSON.stringify(groups, null, 2)}`
 
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-    }),
-    cache: 'no-store',
+  // 메모 묶음에도 거래처와 사람이 그대로 들어 있다
+  const out0 = await guardedGeminiText({
+    prompt, apiKey, model,
+    surface: 'daily/memo-clusters', purpose: 'memo_cluster_label',
+    ledger: createAiLedger(adm as never), actorId: userId,
+    temperature: 0.2,
   })
-  if (!res.ok) throw new Error(`Gemini ${res.status}`)
-  const json = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]'
+  const text = out0.text || '[]'
   logTokenUsage({
     userId,
     feature: 'memo-cluster-label',
     model,
-    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    promptTokens: out0.inputTokens,
+    outputTokens: out0.outputTokens,
+    totalTokens: out0.inputTokens + out0.outputTokens,
   })
   const parsed = JSON.parse(text) as { idx: number; label: string }[]
   const out: string[] = groups.map((g) => `주제 ${g.idx + 1}`)

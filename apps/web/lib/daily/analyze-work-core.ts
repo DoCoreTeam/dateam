@@ -1,10 +1,11 @@
 // 일일업무 재분석용 1회(비스트리밍) AI 추출 — /api/ai/analyze-work 라우트와 동일 DB 프롬프트(SSOT) 재사용.
 // 라우트는 스트리밍(신규 입력 실시간 UX), 이 함수는 수정 시 '해당 항목만 재분석'(비스트리밍)에 쓴다.
 
+import { guardedGeminiText } from '../ai/guarded-gemini.ts'
+import { createAiLedger } from '../ai/ledger.ts'
 import { createAdminClient } from '@/lib/supabase/server'
 import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const PROMPT_KEY = 'daily.analyze-work'
 
 export interface WorkItemCore {
@@ -22,8 +23,11 @@ export interface WorkItemCore {
 type AdminClient = any
 
 /** 텍스트 1건을 DB 프롬프트로 1회 추출(비스트리밍). date 기준으로 상대날짜/기간(targetEndDate)·시간 파싱. */
-export async function analyzeWorkOnce(text: string, date: string): Promise<WorkItemCore[]> {
+export async function analyzeWorkOnce(
+  text: string, date: string, actorId?: string | null,
+): Promise<WorkItemCore[]> {
   const admin = createAdminClient() as AdminClient
+  const ledger = createAiLedger(admin as never)
   const [{ data: promptRow }, { data: metaRow }] = await Promise.all([
     admin.from('ai_prompts').select('content').eq('prompt_key', PROMPT_KEY).eq('active', true).single(),
     admin.from('org_content').select('value').eq('key', 'META').single(),
@@ -46,17 +50,15 @@ export async function analyzeWorkOnce(text: string, date: string): Promise<WorkI
     .replace('{ACCOUNTS}', '없음')
     .replace('{CONTACTS}', '없음')
 
-  const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n입력:\n${text}` }] }],
-      generationConfig: { temperature: 0.1 },
-    }),
+  // 일일업무에는 누가 누구와 무엇을 했는지가 그대로 있다
+  const out = await guardedGeminiText({
+    prompt: `${systemPrompt}\n\n입력:\n${text}`,
+    apiKey, model, surface: 'daily/analyze-work', purpose: 'daily_work_split',
+    ledger, actorId: actorId ?? null,
+    // 이 길은 줄마다 JSON 을 내보내는 모양이라 응답 형식을 강제하지 않는다
+    json: false,
   })
-  if (!res.ok) throw new Error(`Gemini API 오류 (${res.status})`)
-  const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
-  const full = json.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+  const full = out.text
 
   const items: WorkItemCore[] = []
   for (const line of full.split('\n')) {
