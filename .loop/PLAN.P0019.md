@@ -44,7 +44,7 @@
 의존: 없음
 
 ### I02 재직 상태 부품과 용어
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/members/employment.ts (신규), apps/web/lib/members/employment.test.ts (신규), apps/web/lib/terms/member.ts (신규), apps/web/lib/terms/index.ts, apps/web/package.json
 감사 기준:

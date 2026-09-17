@@ -1,6 +1,6 @@
 {
   "name": "newax",
-  "version": "0.10.101",
+  "version": "0.10.102",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -16,7 +16,8 @@
     "test": "pnpm --filter web test",
     "loop": "node scripts/loop.mjs",
     "typecheck": "pnpm --filter web exec tsc --noEmit",
-    "lint": "pnpm --filter web lint"
+    "lint": "pnpm --filter web lint",
+    "typecheck:packages": "pnpm -r --filter \"./packages/*\" typecheck"
   },
   "dependencies": {
     "@types/sanitize-html": "^2.16.1",

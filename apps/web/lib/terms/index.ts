@@ -72,3 +72,9 @@ export {
   CONNECTION,
   type ConnectionKey,
 } from './connection.ts'
+
+export {
+  EMPLOYMENT_STATUS, EMPLOYMENT_FIELD, EMPLOYMENT_ACTION, EMPLOYMENT_UNKNOWN,
+  EMPLOYMENT_FILTER_OPTIONS, confirmResign, confirmUndoResign,
+  type EmploymentStatus, type EmploymentStatusMeta,
+} from './member.ts'
