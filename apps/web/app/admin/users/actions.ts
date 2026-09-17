@@ -2,6 +2,8 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { kstTodayKey } from '@/lib/datetime/kst'
+import { validateEmployment, toDateOrNull } from '@/lib/members/employment'
 
 const BAN_DURATION_PERMANENT = '876000h' // ~100년
 
@@ -153,4 +155,149 @@ export async function inviteUser(formData: FormData): Promise<{ success?: boolea
 
   revalidatePath('/admin/users')
   return { success: true }
+}
+
+// ─────────────────────────────────────────────
+// 재직 기록 — 퇴사·되돌리기·입사퇴사 수정 (마이그레이션 255 member_employment)
+//
+// 삭제(deleteUser)와 무엇이 다른가: 삭제는 profiles.deleted_at 을 찍어 **없던 것으로 친다.**
+// 퇴사는 profiles 를 그대로 두고 옆 표에 나간 날을 적는다 — 그 사람이 쓴 일일업무 주간보고
+// 회의노트가 이름을 잃지 않아야 하기 때문이다 (사용자 지시 2026-09-17).
+// 공통점은 둘 다 로그인을 막는다는 것뿐이다.
+// ─────────────────────────────────────────────
+
+/** 퇴사해도 조직도에는 남기지 않는다 — 나간 사람이 조직에 그려져 있으면 그 조직도는 거짓이다. */
+async function detachFromOrgChart(adminClient: ReturnType<typeof createAdminClient>, userId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = adminClient as any
+  const { error: nodeDelErr } = await db.from('org_nodes').delete().eq('type', 'person').eq('user_id', userId)
+  const { error: headErr } = await db.from('org_nodes').update({ head_user_id: null }).eq('head_user_id', userId)
+  // 조직도 정리 실패로 퇴사 기록 자체를 되돌리지 않는다 — 기록이 남는 쪽이 언제나 낫다(deleteUser 와 같은 판단)
+  if (nodeDelErr || headErr) console.warn('[resignMember] org_nodes cleanup failed:', nodeDelErr?.message ?? headErr?.message)
+}
+
+function revalidateMemberPaths(userId?: string): void {
+  revalidatePath('/admin/users')
+  revalidatePath('/admin/members')
+  revalidatePath('/admin/org-chart')
+  revalidatePath('/org')
+  if (userId) revalidatePath(`/admin/members/${userId}`)
+}
+
+export async function resignMember(
+  userId: string,
+  input?: { resignedOn?: string | null; reason?: string | null },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+  // 자기 자신을 퇴사시키면 그 자리에서 로그인이 막혀 되돌릴 사람이 사라진다
+  if (ctx.user.id === userId) return { ok: false, error: '자기 자신은 퇴사 처리할 수 없습니다' }
+
+  const resignedOn = toDateOrNull(input?.resignedOn) ?? kstTodayKey()
+  const adminClient = createAdminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = adminClient as any
+
+  const { data: existing } = await db
+    .from('member_employment').select('hired_on').eq('user_id', userId).maybeSingle()
+  const invalid = validateEmployment({ hired_on: existing?.hired_on ?? null, resigned_on: resignedOn })
+  if (invalid) return { ok: false, error: invalid }
+
+  const { error } = await db.from('member_employment').upsert(
+    {
+      user_id: userId,
+      resigned_on: resignedOn,
+      resign_reason: (input?.reason ?? '').trim() || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  )
+  if (error) return { ok: false, error: error.message }
+
+  await detachFromOrgChart(adminClient, userId)
+
+  const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
+    ban_duration: BAN_DURATION_PERMANENT,
+  })
+  // 기록은 남았는데 로그인만 안 막힌 상태 — 관측만 남기고 성공으로 본다(삭제와 같은 판단)
+  if (authError) console.warn('[resignMember] auth ban failed, employment recorded:', authError.message)
+
+  revalidateMemberPaths(userId)
+  return { ok: true }
+}
+
+/** 퇴사 취소 — 기록을 비우고 로그인을 다시 연다. 조직도 자리는 돌아오지 않는다(지웠으므로). */
+export async function undoResignMember(
+  userId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const adminClient = createAdminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (adminClient.from('member_employment') as any)
+    .update({ resigned_on: null, resign_reason: null, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+  if (error) return { ok: false, error: error.message }
+
+  const { error: authError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' })
+  if (authError) return { ok: false, error: `기록은 되돌렸지만 로그인이 열리지 않았습니다: ${authError.message}` }
+
+  revalidateMemberPaths(userId)
+  return { ok: true }
+}
+
+/**
+ * 구성원 상세에서 입사일 퇴사일 사유 메모를 고친다.
+ *
+ * 여기서 퇴사일을 **처음 넣거나 지우는 것**도 퇴사·되돌리기와 같은 뜻이므로, 로그인 차단도
+ * 같이 따라간다. 안 그러면 상세에서 퇴사일을 적은 사람이 계속 로그인하는 상태가 된다.
+ */
+export async function updateEmployment(
+  userId: string,
+  input: { hiredOn?: string | null; resignedOn?: string | null; reason?: string | null; note?: string | null },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const hiredOn = toDateOrNull(input.hiredOn)
+  const resignedOn = toDateOrNull(input.resignedOn)
+  if (ctx.user.id === userId && resignedOn) return { ok: false, error: '자기 자신은 퇴사 처리할 수 없습니다' }
+
+  const invalid = validateEmployment({ hired_on: hiredOn, resigned_on: resignedOn })
+  if (invalid) return { ok: false, error: invalid }
+
+  const adminClient = createAdminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = adminClient as any
+
+  const { data: before } = await db
+    .from('member_employment').select('resigned_on').eq('user_id', userId).maybeSingle()
+  const wasResigned = Boolean(before?.resigned_on)
+
+  const { error } = await db.from('member_employment').upsert(
+    {
+      user_id: userId,
+      hired_on: hiredOn,
+      resigned_on: resignedOn,
+      resign_reason: (input.reason ?? '').trim() || null,
+      note: (input.note ?? '').trim() || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  )
+  if (error) return { ok: false, error: error.message }
+
+  if (!wasResigned && resignedOn) {
+    await detachFromOrgChart(adminClient, userId)
+    const { error: banErr } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: BAN_DURATION_PERMANENT })
+    if (banErr) console.warn('[updateEmployment] auth ban failed:', banErr.message)
+  }
+  if (wasResigned && !resignedOn) {
+    const { error: unbanErr } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' })
+    if (unbanErr) return { ok: false, error: `기록은 저장했지만 로그인이 열리지 않았습니다: ${unbanErr.message}` }
+  }
+
+  revalidateMemberPaths(userId)
+  return { ok: true }
 }
