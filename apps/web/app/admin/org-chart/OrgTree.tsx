@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef, useCallback, useEffect } from 'react'
+import { useState, useTransition, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 import { Tree, TreeNode } from 'react-organizational-chart'
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core'
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core'
@@ -183,14 +183,45 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
     return (profile as Profile & { email?: string | null })?.email ?? null
   }
 
-  function childTopOffset(childType: OrgNodeType, siblings: OrgNodeWithChildren[]): number {
-    const hasRole = siblings.some(s => s.type === 'role')
-    const hasDept = siblings.some(s => s.type === 'department')
-    if (!hasRole || !hasDept) return 0
-    return childType === 'department' ? 48 : 0
-  }
+  /**
+   * 같은 깊이의 카드 높이를 그 깊이의 가장 큰 것에 맞춘다 — 한 깊이가 한 줄이 된다.
+   *
+   * 왜 필요한가 (사용자 지적 2026-09-17): 「레벨이 무너졌다」. 원인이 둘이었다.
+   *   ① 형제 중에 role(C레벨)이 있으면 department 를 일부러 48px 아래로 밀어 놓았다.
+   *      CTO 와 성장지원본부가 같은 깊이인데 시작 y 가 달랐던 것이 이것이다. 지웠다.
+   *   ② 트리는 가지마다 제 칸을 쓰므로, 카드 하나가 높으면 **그 가지의 다음 줄만** 내려간다.
+   *      부서장·이메일이 있는 카드는 없는 카드보다 높아서, 줄이 가지마다 어긋났다.
+   *      그래서 그리는 것이 끝난 뒤 재서 같은 깊이끼리 높이를 맞춘다.
+   *
+   * 사람 카드는 세로로 쌓이는 칸이라 이 맞춤에서 뺀다(넣으면 그 칸이 통째로 부푼다).
+   */
+  const alignRows = useCallback(() => {
+    const root = containerRef.current
+    if (!root) return
+    const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-org-depth]'))
+    // 재기 전에 지난 회차 값을 지운다 — 안 그러면 한 번 커진 높이가 다시는 안 줄어든다
+    for (const c of cards) c.style.minHeight = ''
+    const byDepth = new Map<string, HTMLElement[]>()
+    for (const c of cards) {
+      const d = c.dataset.orgDepth
+      if (!d) continue
+      const group = byDepth.get(d)
+      if (group) group.push(c)
+      else byDepth.set(d, [c])
+    }
+    for (const group of byDepth.values()) {
+      const tallest = group.reduce((max, c) => Math.max(max, c.offsetHeight), 0)
+      for (const c of group) c.style.minHeight = `${tallest}px`
+    }
+  }, [])
 
-  function renderNode(node: OrgNodeWithChildren, depth = 1, topOffset = 0): React.ReactNode {
+  useLayoutEffect(() => {
+    alignRows()
+    // 글꼴이 늦게 오면 높이가 한 번 더 바뀐다 — 그때 다시 잰다
+    document.fonts?.ready.then(alignRows).catch(() => {})
+  }, [alignRows, nodes, allProfiles])
+
+  function renderNode(node: OrgNodeWithChildren, depth = 1): React.ReactNode {
     const siblings = getSiblings(node)
     const cardEl = (
       <NodeCard
@@ -207,19 +238,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
         onReorder={handleReorder}
       />
     )
-    const card = topOffset > 0
-      ? (
-        <div style={{ paddingTop: topOffset, position: 'relative' }}>
-          <div style={{
-            position: 'absolute', top: 0, left: '50%',
-            transform: 'translateX(-50%)',
-            width: '2px', height: topOffset,
-            background: 'var(--brand-soft-2)',
-          }} />
-          {cardEl}
-        </div>
-      )
-      : cardEl
+    const card = cardEl
 
     // role: persons shown inline in card — exclude from tree
     // department: persons shown as vertical column (single tree branch) — exclude from horizontal siblings
@@ -237,7 +256,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
     return (
       <TreeNode key={node.id} label={card}>
-        {structuralChildren.map(child => renderNode(child, depth + 1, childTopOffset(child.type, structuralChildren)))}
+        {structuralChildren.map(child => renderNode(child, depth + 1))}
         {personColumn.length > 0 && (
           <TreeNode label={
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>

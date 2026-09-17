@@ -112,9 +112,15 @@ export function NodeCard(props: CardProps) {
 }
 
 function DragDropWrapper({
-  node, activeId, children, droppable = true,
+  node, activeId, children, droppable = true, gridDepth,
 }: {
   node: OrgNode; activeId: string | null; children: React.ReactNode; droppable?: boolean
+  /**
+   * 같은 깊이끼리 높이를 맞출 때 쓰는 표시. OrgTree 가 이 값으로 카드를 묶어
+   * 그 묶음의 가장 큰 높이를 전부에게 준다 — 그래야 한 깊이가 한 줄이 된다.
+   * 사람 카드는 세로로 쌓이는 칸이라 이 표시를 주지 않는다(주면 그 칸이 통째로 부푼다).
+   */
+  gridDepth?: number
 }) {
   const { setNodeRef: setDragRef, attributes, listeners } = useDraggable({ id: node.id })
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: node.id, disabled: !droppable })
@@ -130,6 +136,7 @@ function DragDropWrapper({
   return (
     <div
       ref={mergedRef}
+      data-org-depth={gridDepth}
       {...attributes}
       {...listeners}
       style={{
@@ -220,7 +227,7 @@ function CompanyCard(props: CardProps) {
   const { node } = props
   const c = TYPE_COLORS.company
   return (
-    <DragDropWrapper node={node} activeId={props.activeId}>
+    <DragDropWrapper node={node} activeId={props.activeId} gridDepth={props.depth ?? 1}>
       <div style={{ padding: 'var(--space-3) var(--space-4) var(--space-3) var(--space-6)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Building2 size={16} color={c.badge} />
@@ -297,7 +304,7 @@ function RoleCard(props: CardProps) {
   const fontSize = `${Math.max(0.75, 0.875 - scale * 0.05)}rem`
   const pad = `${Math.max(0.5, 0.75 - scale * 0.1)}rem 1rem ${Math.max(0.5, 0.75 - scale * 0.1)}rem 1.5rem`
   return (
-    <DragDropWrapper node={node} activeId={props.activeId}>
+    <DragDropWrapper node={node} activeId={props.activeId} gridDepth={depth}>
       <div style={{ padding: pad }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Crown size={scale > 0 ? 12 : 14} color={c.badge} />
@@ -336,7 +343,7 @@ function DeptCard(props: CardProps) {
   const padV = Math.max(0.45, 0.75 - scale * 0.1)
   const pad = `${padV}rem 1rem ${padV}rem 1.5rem`
   return (
-    <DragDropWrapper node={node} activeId={props.activeId}>
+    <DragDropWrapper node={node} activeId={props.activeId} gridDepth={depth}>
       <div style={{ padding: pad }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Users size={iconSize} color={c.badge} />
