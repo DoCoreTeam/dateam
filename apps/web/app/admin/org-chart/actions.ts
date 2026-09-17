@@ -170,6 +170,44 @@ export async function updateNode(
   return { error: null }
 }
 
+export interface OrgNodeImpactRow {
+  source: string
+  label: string
+  cnt: number
+}
+
+/**
+ * 이 조직에 무엇이 얼마나 붙어 있나 — 지우기 전에 사람이 보는 숫자.
+ *
+ * 왜 필요한가 (사용자 지적 2026-09-17): 지우기를 누르면 외래키 오류 문장만 떴다.
+ * 무엇이 막고 있는지, 몇 건인지, 어디로 옮기면 되는지 화면에는 하나도 없었다.
+ */
+export async function orgNodeImpact(id: string): Promise<{ rows: OrgNodeImpactRow[]; error: string | null }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { rows: [], error: '권한 없음' }
+  const { data, error } = await ctx.db.rpc('org_node_impact', { p_node: id })
+  if (error) return { rows: [], error: (error as DbError).message }
+  return { rows: (data ?? []) as OrgNodeImpactRow[], error: null }
+}
+
+/**
+ * 붙어 있는 기록을 고른 조직으로 옮기고 지운다. 한 트랜잭션은 DB 함수가 맡는다
+ * (마이그레이션 257) — 화면에서 여러 번 부르면 옮기다 만 상태가 생긴다.
+ */
+export async function deleteNodeWithTransfer(
+  id: string,
+  targetId: string | null,
+): Promise<{ error: string | null }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { error: '권한 없음' }
+  const { error } = await ctx.db.rpc('org_node_delete_transfer', { p_node: id, p_target: targetId })
+  if (error) return { error: (error as DbError).message }
+  revalidateOrgPaths()
+  revalidatePath('/admin/members')
+  return { error: null }
+}
+
+/** @deprecated 기록이 붙은 조직은 외래키에 막힌다. `deleteNodeWithTransfer` 를 쓴다 */
 export async function deleteNode(id: string): Promise<{ error: string | null }> {
   const ctx = await requireAdmin()
   if (!ctx) return { error: '권한 없음' }

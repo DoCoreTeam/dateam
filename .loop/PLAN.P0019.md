@@ -107,7 +107,7 @@
 의존: 없음
 
 ### I08 조직 삭제 대화상자 영향 미리보기와 이관 대상 선택
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/org-chart/actions.ts, apps/web/app/admin/org-chart/DeleteNodeModal.tsx (신규), apps/web/app/admin/org-chart/OrgTree.tsx
 감사 기준:

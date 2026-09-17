@@ -7,9 +7,8 @@ import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core'
 import type { OrgNode, OrgNodeType, OrgNodeWithChildren } from './OrgNodeCard'
 import { NodeCard } from './OrgNodeCard'
 import { AddNodeModal, EditNodeModal } from './OrgNodeModals'
-import { moveNode, deleteNode, reorderNode } from './actions'
-import NbModal from '@/components/ui/nb/NbModal'
-import NbButton from '@/components/ui/nb/NbButton'
+import { moveNode, reorderNode } from './actions'
+import DeleteNodeModal from './DeleteNodeModal'
 import EmptyState from '@/components/ui/EmptyState'
 import InlineError from '@/components/ui/InlineError'
 
@@ -138,17 +137,22 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
     })
   }
 
-  function confirmDelete() {
-    if (!deleteConfirm) return
-    const target = deleteConfirm
-    setDeleteConfirm(null)
-    startTransition(async () => {
-      const res = await deleteNode(target.id)
-      if (res.error) setErrorMsg(res.error)
-    })
-  }
-
   const activeNode = nodes.find(n => n.id === activeId) ?? null
+
+  /**
+   * 기록을 옮겨 갈 후보. 사람 노드는 소속을 받을 수 없고, 자기 자신과 자기 자손으로 옮기면
+   * 지우는 순간 함께 사라진다 — 고를 수 없게 여기서 뺀다(DB 함수도 같은 규칙으로 한 번 더 막는다).
+   */
+  function transferTargets(node: OrgNode): { id: string; name: string }[] {
+    const descendants = new Set<string>()
+    const walk = (id: string) => {
+      nodes.filter(n => n.parent_id === id).forEach((n) => { descendants.add(n.id); walk(n.id) })
+    }
+    walk(node.id)
+    return nodes
+      .filter(n => n.type !== 'person' && n.id !== node.id && !descendants.has(n.id))
+      .map(n => ({ id: n.id, name: n.name }))
+  }
 
   function getSiblings(node: OrgNode): OrgNodeWithChildren[] {
     return nodes
@@ -387,22 +391,11 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
       )}
 
       {deleteConfirm && (
-        <NbModal
-          title="삭제 확인"
+        <DeleteNodeModal
+          node={deleteConfirm}
+          targets={transferTargets(deleteConfirm)}
           onClose={() => setDeleteConfirm(null)}
-          maxWidth={380}
-          footer={
-            <>
-              <NbButton variant="secondary" onClick={() => setDeleteConfirm(null)}>취소</NbButton>
-              <NbButton variant="danger" onClick={confirmDelete}>삭제</NbButton>
-            </>
-          }
-        >
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-base)' }}>
-            <strong>{deleteConfirm.name}</strong>을(를) 삭제하시겠습니까?
-            {deleteConfirm.type !== 'person' && ' 하위 노드가 있으면 삭제할 수 없습니다.'}
-          </p>
-        </NbModal>
+        />
       )}
     </>
   )
