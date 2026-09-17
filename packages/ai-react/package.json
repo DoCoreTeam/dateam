@@ -1,14 +1,39 @@
 {
   "name": "@ax/ai-react",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "AI 결과를 그리는 부품과 규칙 — 확신·근거·고친 흔적. 말은 부르는 쪽이 준다",
+  "keywords": [
+    "ai",
+    "react",
+    "ui",
+    "confidence",
+    "evidence",
+    "i18n-agnostic"
+  ],
+  "license": "SEE LICENSE IN ../LICENSE",
+  "author": "DOCORE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DoCoreTeam/dateam.git"
+  },
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "files": [
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx"
   ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
   "dependencies": {
     "@ax/ai-core": "workspace:*"
   },

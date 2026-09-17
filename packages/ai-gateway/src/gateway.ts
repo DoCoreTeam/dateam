@@ -28,6 +28,12 @@
 import { AI_CONTRACT_VERSION, type AiContractVersion } from '@ax/ai-core'
 import { maskPii, unmaskPii, hasUnmaskedPii, countByKind, type PiiHit } from './mask.ts'
 import { costKrw, type CallableModel } from './cost.ts'
+
+/*
+  Re-exported because a caller writing a model type has to name this shape, and reaching past
+  this module into ./cost.ts for it makes the cost file part of the public surface by accident.
+*/
+export type { CallableModel }
 import { type Receipt } from './store.ts'
 
 export class TransferBlockedError extends Error {

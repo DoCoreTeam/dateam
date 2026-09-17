@@ -83,7 +83,7 @@
 의존: I03
 
 ### I05 패키지 넷을 출시 모양으로
-상태: 대기
+상태: 통과
 모드: 중량
 범위: packages/ai-core/package.json, packages/ai-gateway/package.json, packages/ai-providers/package.json, packages/ai-react/package.json, packages/LICENSE (신규)
 감사 기준:

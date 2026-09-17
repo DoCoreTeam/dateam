@@ -1,12 +1,36 @@
 {
   "name": "@ax/ai-core",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "AI 결과의 계약 한 벌 — 무엇을 반드시 함께 돌려주는가, 판 번호를 어떻게 올리는가, 누가 무엇을 읽을 수 있는가",
+  "keywords": [
+    "ai",
+    "contract",
+    "provenance",
+    "confidence",
+    "versioning"
+  ],
+  "license": "SEE LICENSE IN ../LICENSE",
+  "author": "DOCORE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DoCoreTeam/dateam.git"
+  },
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "files": [
-    "src"
-  ]
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
 }

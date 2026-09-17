@@ -1,12 +1,35 @@
 {
   "name": "@ax/ai-providers",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "벤더 등록부 — 키 모양으로 공급자를 가리고, 능력으로 모델을 고른다",
+  "keywords": [
+    "ai",
+    "providers",
+    "api-key",
+    "model-selection"
+  ],
+  "license": "SEE LICENSE IN ../LICENSE",
+  "author": "DOCORE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DoCoreTeam/dateam.git"
+  },
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "files": [
-    "src"
-  ]
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
 }

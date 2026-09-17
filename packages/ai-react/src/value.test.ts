@@ -2,11 +2,25 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   confidenceView, confidencePercentView, statusText, isSettled, sourceView, evidenceView, evidenceSpan,
-  LOW_CONFIDENCE_BELOW,
+  LOW_CONFIDENCE_BELOW, type ConfidenceView,
 } from './value.ts'
 import { AI_LABEL_KEYS, type AiLabels } from './labels.ts'
 
-const L: AiLabels = Object.fromEntries(AI_LABEL_KEYS.map((k) => [k, `x-${k}`])) as AiLabels
+// Object.fromEntries widens to an index signature, which does not overlap a closed interface
+const L: AiLabels = Object.fromEntries(AI_LABEL_KEYS.map((k) => [k, `x-${k}`])) as unknown as AiLabels
+
+/**
+ * Narrowing helper.
+ *
+ * `view(x).kind === 'known' && view(x).percent` does not narrow: two calls are two values as
+ * far as the compiler is concerned. Asserting through one binding keeps the test honest about
+ * which case it is checking.
+ */
+function known(v: ConfidenceView): { percent: number; text: string; low: boolean } {
+  assert.equal(v.kind, 'known')
+  if (v.kind !== 'known') throw new Error('unreachable')
+  return v
+}
 
 test('no confidence and zero confidence are different facts', () => {
   const none = confidenceView(null, L)
@@ -32,8 +46,8 @@ test('the low threshold is a presentation line, nothing is dropped below it', ()
 })
 
 test('a confidence outside 0 to 1 is clamped, not rejected', () => {
-  assert.equal(confidenceView(1.4, L).kind === 'known' && confidenceView(1.4, L).percent, 100)
-  assert.equal(confidenceView(-3, L).kind === 'known' && confidenceView(-3, L).percent, 0)
+  assert.equal(known(confidenceView(1.4, L)).percent, 100)
+  assert.equal(known(confidenceView(-3, L)).percent, 0)
 })
 
 test('every status has a word, and the caller owns every word', () => {
@@ -95,13 +109,13 @@ test('a missing percentage says nothing rather than zero', () => {
 
 test('the percentage threshold is on the same scale as the input', () => {
   // A threshold on a different scale than the value is a silent always-true or always-false
-  assert.equal(confidencePercentView(65, L, 70).low, true)
-  assert.equal(confidencePercentView(75, L, 70).low, false)
+  assert.equal(known(confidencePercentView(65, L, 70)).low, true)
+  assert.equal(known(confidencePercentView(75, L, 70)).low, false)
 })
 
 test('both entry points agree on the same value', () => {
-  assert.equal(confidencePercentView(60, L).low, confidenceView(0.6, L).low)
-  assert.equal(confidencePercentView(60, L).percent, confidenceView(0.6, L).percent)
+  assert.equal(known(confidencePercentView(60, L)).low, known(confidenceView(0.6, L)).low)
+  assert.equal(known(confidencePercentView(60, L)).percent, known(confidenceView(0.6, L)).percent)
 })
 
 test('out-of-range percentages are clamped, not drawn', () => {

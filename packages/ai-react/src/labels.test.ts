@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { AI_LABEL_KEYS, missingLabels, type AiLabels } from './labels.ts'
 
-const FULL: AiLabels = Object.fromEntries(AI_LABEL_KEYS.map((k) => [k, `x-${k}`])) as AiLabels
+// Object.fromEntries widens to an index signature, which does not overlap a closed interface
+const FULL: AiLabels = Object.fromEntries(AI_LABEL_KEYS.map((k) => [k, `x-${k}`])) as unknown as AiLabels
 
 test('a caller that supplies nothing is missing everything', () => {
   assert.deepEqual(missingLabels(null), [...AI_LABEL_KEYS])
