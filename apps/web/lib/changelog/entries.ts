@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.127',
+    date: '2026-09-17',
+    title: '회사를 떠난 분은 고르는 자리에 더 이상 뜨지 않아요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '\uD83D\uDC64',
+        headline: '참석자와 담당자를 고를 때 퇴사하신 분이 빠져요',
+        detail: '회의 참석자, 프로젝트 참여자, 영업 담당을 고르는 칸에서 이미 회사를 떠나신 분은 이제 보이지 않아요. 그동안 쓰신 일일업무와 주간보고, 회의노트는 이름 그대로 남아 있습니다. 지난 기록에서 이름이 사라지는 일은 없어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.125',
     date: '2026-09-17',
     title: 'AI 가 얼마나 확신하는지가 화면마다 같은 말로 보여요',

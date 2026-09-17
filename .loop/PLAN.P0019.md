@@ -140,7 +140,7 @@
 의존: I08
 
 ### I10 판 번호와 업데이트 내역
-상태: 대기
+상태: 통과
 모드: 경량
 범위: package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md, apps/web/lib/changelog/entries.ts
 감사 기준:
