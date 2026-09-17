@@ -76,7 +76,7 @@
 의존: I03
 
 ### I05 구성원 상세 화면
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/members/[id]/page.tsx (신규), apps/web/app/admin/members/[id]/EmploymentCard.tsx (신규), apps/web/app/admin/members/[id]/MemberFacts.tsx (신규)
 감사 기준:
