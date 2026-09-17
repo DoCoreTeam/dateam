@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   parseNoticeUrl, noticeNoOf, roundOf, decodeDeep, isPrivateHost,
-  titleFromPage, cleanTitleText,
+  titleFromPage, cleanTitleText, stripTags,
 } from './notice-url.ts'
 
 // 실측 모양: 나라장터 상세는 프레임 주소 안에 진짜 주소가 인코딩되어 들어 있다
@@ -106,4 +106,22 @@ test('하이픈으로는 안 자른다 — 사업명 안에 흔하다', () => {
 test('title 이 없으면 h1 로 간다 — 「이름을 못 읽음」보다 낫다', () => {
   assert.equal(titleFromPage('<body><h1>스마트 물류 실증 용역</h1></body>'), '스마트 물류 실증 용역')
   assert.equal(titleFromPage('<body><p>본문만 있다</p></body>'), null)
+})
+
+test('★ 게시판 말머리를 뗀다 — 안 떼면 목록의 모든 줄이 같은 글자로 시작한다', () => {
+  // 실측(NIA 2026-09-17): 제목이 이 모양으로 온다
+  assert.equal(
+    cleanTitleText('[NIA 한국지능정보사회진흥원][조달입찰공고] 2026년 서울특별시교육청 학교 무선통신장비 도입 및 설치'),
+    '2026년 서울특별시교육청 학교 무선통신장비 도입 및 설치',
+  )
+  assert.equal(stripTags('【공고】【긴급】 차세대 지방행정 정보시스템 구축'), '차세대 지방행정 정보시스템 구축')
+})
+
+test('★ 떼고 나서 남는 것이 짧으면 안 뗀다 — 그 대괄호는 이름의 일부다', () => {
+  assert.equal(stripTags('[AI 바우처] 지원'), '[AI 바우처] 지원')
+  assert.equal(stripTags('[긴급]'), '[긴급]')
+})
+
+test('말머리가 없으면 그대로 둔다', () => {
+  assert.equal(stripTags('스마트 물류 실증 용역'), '스마트 물류 실증 용역')
 })

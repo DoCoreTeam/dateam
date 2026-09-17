@@ -185,8 +185,30 @@ export function cleanTitleText(raw: string | undefined): string | null {
   if (parts.length === 0) return null
 
   const longest = parts.reduce((best, p) => (p.length > best.length ? p : best), '')
-  const picked = longest.length >= MIN_TITLE ? longest : text
+  const picked = stripTags(longest.length >= MIN_TITLE ? longest : text)
   return picked.length >= MIN_TITLE ? picked : null
+}
+
+/** 앞에 붙는 말머리 — 게시판이 스스로 붙인 꼬리표다 */
+const LEADING_TAG = /^\s*[[［【][^\]］】]{1,30}[\]］】]\s*/
+
+/**
+ * 앞에 달린 말머리를 뗀다.
+ *
+ * 실측(NIA): 제목이 `[NIA 한국지능정보사회진흥원][조달입찰공고] 2026년 …` 로 온다.
+ * 기관 이름은 기관 칸에 이미 있고 「조달입찰공고」는 게시판 분류다 —
+ * 사업명 자리에 두면 **목록에서 모든 줄이 같은 글자로 시작해** 무엇이 다른지 안 보인다.
+ *
+ * 떼고 나서 남는 것이 너무 짧으면 **안 뗀다.** 그 대괄호가 이름의 일부였다는 뜻이다.
+ */
+export function stripTags(title: string): string {
+  let out = title.trim()
+  for (let i = 0; i < 3; i += 1) {
+    const next = out.replace(LEADING_TAG, '').trim()
+    if (next === out || next.length < MIN_TITLE) return out
+    out = next
+  }
+  return out
 }
 
 /** 제목에 흔한 것만 푼다 — 여기서 HTML 전체를 해석할 일은 없다 */
