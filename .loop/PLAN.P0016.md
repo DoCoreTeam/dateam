@@ -117,7 +117,7 @@
 의존: I06
 
 ### I07 문서와 코드가 갈리지 않게 하는 가드
-상태: 대기
+상태: 진행중
 모드: 경량
 범위: apps/web/lib/policy/package-docs-guard.test.ts (신규), apps/web/package.json
 감사 기준:
