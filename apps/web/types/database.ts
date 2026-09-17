@@ -121,6 +121,22 @@ export interface Profile {
   deleted_at: string | null
 }
 
+/**
+ * 재직 기록 — 마이그레이션 255. profiles 와 1:1 이지만 행이 없을 수 있다(= 아직 안 적었다).
+ * `resigned_on` 이 있으면 퇴사, 없으면 재직. profiles 는 퇴사해도 그대로 남는다.
+ */
+export interface MemberEmployment {
+  user_id: string
+  /** 입사일. 지금은 대부분 비어 있고 구성원 상세에서 채운다 */
+  hired_on: string | null
+  /** 퇴사일. null 이면 재직 중 */
+  resigned_on: string | null
+  resign_reason: string | null
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface WeeklyReport {
   id: string
   user_id: string
