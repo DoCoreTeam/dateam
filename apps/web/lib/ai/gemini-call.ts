@@ -17,6 +17,9 @@ import {
   resolveGeminiModelChain,
 } from './gemini-model.ts'
 import { JsonRecoverError, recoverJson } from './json-recover.ts'
+import { beginGuardedCall } from './guarded-call.ts'
+import { serverAiLedger } from './ledger.ts'
+import { serverKnownNames } from './known-names.ts'
 import { callFallbackJson } from './fallback-text.ts'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -386,9 +389,85 @@ interface ChainResult {
  * `accept` 가 던지면 그 모델은 **형식을 못 맞춘 것**으로 보고 재시도 없이 다음 모델로 간다
  * (같은 모델에 또 물어야 같은 답이 온다).
  */
+/**
+ * 사슬을 관문으로 감싼다.
+ *
+ * ## 왜 사슬 바깥에서 한 번만 가리나
+ *
+ * 사슬은 모델을 넷까지 두드리고 공급자까지 바꾼다. 시도마다 가리면 같은 이름이
+ * 시도마다 다른 번호를 받고, 되돌리기가 시도별로 흩어진다. 한 번 가려 두고
+ * 그 글자를 사슬 전체가 쓰면 **어느 모델이 답해도 같은 글자가 돌아온다.**
+ *
+ * ## 기록은 사슬 한 판에 한 줄
+ *
+ * 시도마다 한 줄씩 적으면 원장이 사슬 내부 사정으로 가득 찬다. 무엇을 보냈고
+ * 무엇이 돌아왔는지가 한 판이므로 한 줄로 적고, 시도 내역은 실패 때 그 줄에 담는다.
+ */
 async function runGeminiChain(
   opts: CallGeminiJsonOptions,
   cfg: { json: boolean; accept: ((text: string) => unknown) | null }
+): Promise<ChainResult> {
+  const textParts = (opts.parts ?? []).map((p) => p.text ?? '')
+  const gate = await beginGuardedCall(
+    [opts.prompt, ...textParts],
+    {
+      surface: opts.feature ?? 'gemini',
+      purpose: cfg.json ? 'json_call' : 'text_call',
+      providerId: 'gemini', modelName: opts.model ?? null,
+      media: hasBinaryPart(opts.parts) ? 'image' : 'text',
+      knownNames: await serverKnownNames(),
+    },
+    serverAiLedger(),
+    binaryBytes(opts.parts),
+  )
+
+  // 흘려보내는 자리는 **모인 글자**로 되돌린다 — 조각 경계에 걸린 자리표를 안 내보낸다
+  let acc = ''
+  let shown = 0
+  const outerOnDelta = opts.onDelta
+  const onDelta = outerOnDelta
+    ? (d: string) => {
+        acc += d
+        const safe = gate.unmaskStreaming(acc)
+        if (safe.length > shown) { outerOnDelta(safe.slice(shown)); shown = safe.length }
+      }
+    : undefined
+
+  const maskedParts = opts.parts?.map((part, i) =>
+    ('text' in part && part.text !== undefined ? { ...part, text: gate.parts[i + 1] } : part))
+
+  try {
+    const r = await runGeminiChainInner(
+      { ...opts, prompt: gate.parts[0], parts: maskedParts, onDelta },
+      { ...cfg, unmask: gate.unmask },
+    )
+    await gate.done({
+      ok: true, inputTokens: r.usage.prompt, outputTokens: r.usage.output,
+    })
+    return r
+  } catch (e) {
+    const attempts = e instanceof GeminiCallError ? e.attempts.join(' | ') : ''
+    await gate.done({
+      ok: false,
+      error: `${e instanceof Error ? e.message : String(e)}${attempts ? ` [${attempts}]` : ''}`,
+    })
+    throw e
+  }
+}
+
+/** 그림이 몇 바이트 나갔나 — base64 는 3바이트를 4글자로 편다 */
+function binaryBytes(parts: GeminiPart[] | undefined): number {
+  let n = 0
+  for (const p of parts ?? []) {
+    const data = (p as { inlineData?: { data?: string } }).inlineData?.data
+    if (data) n += Math.ceil((data.length * 3) / 4)
+  }
+  return n
+}
+
+async function runGeminiChainInner(
+  opts: CallGeminiJsonOptions,
+  cfg: { json: boolean; accept: ((text: string) => unknown) | null; unmask: (s: string) => string }
 ): Promise<ChainResult> {
   const {
     prompt,
@@ -494,7 +573,8 @@ async function runGeminiChain(
       }
 
       // ok — 형식 검사(accept)가 있으면 여기서 통과해야 성공이다.
-      const text = out.text ?? ''
+      // 자리표를 **먼저** 되돌린다. 안 그러면 파싱은 통과하는데 값에 자리표가 남는다
+      const text = cfg.unmask(out.text ?? '')
       try {
         const value = cfg.accept ? cfg.accept(text) : text
         quotaBlockedUntil = 0   // Gemini 가 답했다 = 한도가 풀렸다
@@ -535,10 +615,11 @@ async function runGeminiChain(
     attempts.push(...(fb.ok ? [`${fb.model}: ok(폴백 공급자)`] : fb.attempts))
 
     if (fb.ok) {
+      const fbText = cfg.unmask(fb.text)
       try {
         return {
-          value: cfg.accept ? cfg.accept(fb.text) : fb.text,
-          text: fb.text,
+          value: cfg.accept ? cfg.accept(fbText) : fbText,
+          text: fbText,
           usage: fb.usage,
           model: fb.model,
           fallbackNotice:

@@ -10,6 +10,9 @@ import { createSseParser } from '../sse.ts'
 import { toGeminiParts } from '../attachments.ts'
 import { isHttpUrl } from './claude.ts'
 
+import { beginGuardedCall } from '../../ai/guarded-call.ts'
+import { serverAiLedger } from '../../ai/ledger.ts'
+
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const DEFAULT_MAX_OUTPUT_TOKENS = 8192
 
@@ -57,6 +60,24 @@ interface GeminiStreamChunk {
 
 async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
   const { apiKey, model, system, turns, maxOutputTokens, signal, tools, onDelta, onCitation, onToolStatus } = params
+
+  /*
+    사용자가 AI 와 **직접 말하는** 화면이다. 여기서 사용자가 쓴 이름을 가리면
+    «이 이름 영문으로 써 줘» 같은 부탁이 못 통한다 — 일부러 보낸 것을 우리가 가로챈다.
+
+    그래서 가리지 않는다. 대신 **나간 사실을 반드시 남긴다** — 어느 사용자가 언제
+    어느 모델에 얼마를 보냈는지가 없으면 사고가 났을 때 시작할 자리가 없다.
+    가린 셈은 빈 것으로 남고, 그것이 「안 가렸다」를 말하는 이 저장소의 한 가지 방법이다.
+  */
+  const gate = await beginGuardedCall(
+    [system ?? '', ...turns.map((t) => (typeof t.content === 'string' ? t.content : JSON.stringify(t.content)))],
+    {
+      surface: 'ai-chat', purpose: '대화',
+      providerId: 'gemini', modelName: model,
+      passthrough: { reason: '사용자가 AI 와 직접 말하는 화면이라 가리면 답이 어긋난다' },
+    },
+    serverAiLedger(),
+  )
 
   const url = `${GEMINI_API_BASE}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`
   const body: Record<string, unknown> = {
@@ -140,11 +161,15 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
   } catch (err) {
     if (webSearch && !searchDone) onToolStatus?.('done')
     if (signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
+      // 사용자가 멈춘 것도 호출이다. 안 적으면 원장의 성공률이 실제보다 높아 보인다
+      await gate.done({ ok: true, inputTokens: usage.promptTokens, outputTokens: usage.outputTokens })
       return { text, thinking: null, usage, stopped: true, citations }
     }
+    await gate.done({ ok: false, error: err instanceof Error ? err.message : String(err) })
     throw err
   }
 
+  await gate.done({ ok: true, inputTokens: usage.promptTokens, outputTokens: usage.outputTokens })
   return { text, thinking: null, usage, stopped: false, citations }
 }
 

@@ -1,8 +1,8 @@
-import { guardedText, type AiLedger } from './ai/guarded-call.ts'
+import { type AiLedger } from './ai/guarded-call.ts'
+import { guardedGeminiText, guardedGeminiParts } from './ai/guarded-gemini.ts'
 import { logTokenUsage } from '@/lib/token-logger'
 import type { AiFeature } from '@/types/database'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 const GEMINI_VISION_MIME_TYPES = new Set([
   'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
@@ -171,42 +171,35 @@ const FIT_SCORE_PROMPT = `당신은 AX사업본부(AI·디지털전환 컨설팅
 
 결과: {"fit_score": 0-100, "fit_reason": "이유 한 문장"} JSON만 반환`
 
+/**
+ * 명함 사진으로 리드를 읽는 자리.
+ *
+ * 글자 길은 원장을 지나고 있었는데 **그림 길은 아무 기록도 없었다** —
+ * 같은 프롬프트로 같은 것을 뽑는데 한쪽만 남는다. 관문으로 보내면 둘이 같아진다.
+ */
 async function callGeminiWithVision(
   base64Data: string,
   mimeType: string,
   apiKey: string,
-  model: string
+  model: string,
+  actorId: string | null,
+  ledger?: AiLedger,
 ): Promise<{ text: string; usage: { promptTokens: number; outputTokens: number; totalTokens: number } }> {
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-  const body = {
-    contents: [{
-      role: 'user',
-      parts: [
-        { inlineData: { mimeType, data: base64Data } },
-        { text: LEAD_PARSE_PROMPT },
-      ],
-    }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-  }
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify(body),
-    cache: 'no-store',
+  const out = await guardedGeminiParts({
+    parts: [
+      { inlineData: { mimeType, data: base64Data } },
+      { text: LEAD_PARSE_PROMPT },
+    ],
+    apiKey, model, surface: 'leads/vision', purpose: 'lead_parse',
+    actorId, ledger, temperature: 0.1,
   })
-  if (!res.ok) throw new Error(`Gemini Vision API error: ${res.status}`)
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('Gemini Vision 응답이 비어 있습니다')
+  if (!out.text) throw new Error('Gemini Vision 응답이 비어 있습니다')
   return {
-    text,
+    text: out.text,
     usage: {
-      promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-      outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-      totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+      promptTokens: out.inputTokens,
+      outputTokens: out.outputTokens,
+      totalTokens: out.inputTokens + out.outputTokens,
     },
   }
 }
@@ -216,10 +209,11 @@ export async function parseLeadFromVision(
   mimeType: string,
   apiKey: string,
   model: string,
-  userId?: string | null
+  userId?: string | null,
+  ledger?: AiLedger,
 ): Promise<ParsedLeadData> {
   const base64 = buffer.toString('base64')
-  const { text, usage } = await callGeminiWithVision(base64, mimeType, apiKey, model)
+  const { text, usage } = await callGeminiWithVision(base64, mimeType, apiKey, model, userId ?? null, ledger)
   try {
     const parsed = JSON.parse(text) as ParsedLeadData
     logTokenUsage({ userId: userId ?? null, feature: 'lead-parse' as AiFeature, model, ...usage })
@@ -242,50 +236,23 @@ async function callGemini(
   ledger: AiLedger,
   surface: string,
 ): Promise<{ text: string; usage: { promptTokens: number; outputTokens: number; totalTokens: number } }> {
-  const out = await guardedText(
-    prompt,
-    { surface, purpose: 'lead_parse', providerId: 'gemini', modelName: model },
-    ledger,
-    (masked) => callLeadModel(masked, apiKey, model),
-  )
+  /*
+    예전에는 이 파일이 벤더 주소를 들고 스스로 fetch 했다. 가림과 기록은 이미
+    지나고 있었지만, 주소를 들고 있으면 **다음 사람이 여기에 한 줄 더 붙인다** —
+    시간 제한도 사슬도 없는 두 번째 호출이 그렇게 생긴다.
+  */
+  const out = await guardedGeminiText({
+    prompt, apiKey, model, surface, purpose: 'lead_parse',
+    ledger, temperature: 0.1,
+  })
+  if (!out.text) throw new Error('Gemini 응답이 비어 있습니다')
   return {
     text: out.text,
     usage: {
-      promptTokens: out.inputTokens ?? 0,
-      outputTokens: out.outputTokens ?? 0,
-      totalTokens: (out.inputTokens ?? 0) + (out.outputTokens ?? 0),
+      promptTokens: out.inputTokens,
+      outputTokens: out.outputTokens,
+      totalTokens: out.inputTokens + out.outputTokens,
     },
-  }
-}
-
-/** 벤더를 실제로 부르는 자리. 가림과 기록은 위에서 두른다 */
-async function callLeadModel(
-  prompt: string,
-  apiKey: string,
-  model: string,
-): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-  }
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify(body),
-    cache: 'no-store',
-  })
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status}`)
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('Gemini 응답이 비어 있습니다')
-  return {
-    text,
-    inputTokens: json.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
   }
 }
 

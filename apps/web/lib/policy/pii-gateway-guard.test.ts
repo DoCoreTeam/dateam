@@ -29,18 +29,34 @@ const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
  * 파일을 여기 적는 것은 「이 길로 사람 정보가 나간다」는 선언이다.
  * 새 길이 생기면 여기 더하고, 더하는 순간 한 겹을 지나야 통과한다.
  */
-const PII_PATHS: { file: string; through: 'guardedText' | 'guardedMedia' | 'guardedGeminiText'; carries: string }[] = [
-  { file: 'lib/crm/services/card-read.ts', through: 'guardedMedia', carries: '명함 사진 (이름 직함 연락처 회사)' },
-  { file: 'lib/gemini-lead.ts', through: 'guardedText', carries: '담당자 이름 연락처 이메일' },
-  { file: 'app/api/deals/ai-parse/route.ts', through: 'guardedGeminiText', carries: '딜 메모 원문' },
-  { file: 'app/api/deals/activities/route.ts', through: 'guardedGeminiText', carries: '딜 활동 메모' },
-  { file: 'lib/daily/analyze-work-core.ts', through: 'guardedGeminiText', carries: '누가 누구와 무엇을 했는지' },
-  { file: 'app/api/daily/memos/clusters/route.ts', through: 'guardedGeminiText', carries: '거래처와 사람 이름' },
-  { file: 'lib/gemini-daily-to-weekly.ts', through: 'guardedGeminiText', carries: '일일업무를 모은 것' },
-  { file: 'lib/meeting/transcribe-parts.ts', through: 'guardedMedia', carries: '회의 녹음과 말한 사람 이름' },
+/*
+  한 겹을 지나는 길은 두 갈래다.
+
+  글자 길은 가림이 **닿는다** — 보내기 전에 가리고 받은 뒤에 되돌린다.
+  매체 길은 안 닿는다 — 그림과 소리는 가린 척하지 않고 나간 사실만 남긴다.
+
+  처음에는 «이 파일은 정확히 이 함수를 부른다» 로 잡았는데, 관문에 길이 늘 때마다
+  멀쩡히 관문을 지나는 파일이 실패했다. 지켜야 할 것은 **어느 갈래를 지나는가**지
+  함수 이름이 아니다. 그림 길이 글자 갈래로 넘어가면 여전히 실패한다 —
+  그것이 「가린 척하지 않는다」를 지키는 자리다.
+*/
+const TEXT_GATES = ['guardedText', 'guardedGeminiText', 'guardedGeminiStream', 'guardedVector'] as const
+const MEDIA_GATES = ['guardedMedia', 'guardedGeminiParts'] as const
+
+const PII_PATHS: { file: string; kind: 'text' | 'media'; carries: string }[] = [
+  { file: 'lib/crm/services/card-read.ts', kind: 'media', carries: '명함 사진 (이름 직함 연락처 회사)' },
+  { file: 'lib/gemini-lead.ts', kind: 'text', carries: '담당자 이름 연락처 이메일' },
+  { file: 'app/api/deals/ai-parse/route.ts', kind: 'text', carries: '딜 메모 원문' },
+  { file: 'app/api/deals/activities/route.ts', kind: 'text', carries: '딜 활동 메모' },
+  { file: 'lib/daily/analyze-work-core.ts', kind: 'text', carries: '누가 누구와 무엇을 했는지' },
+  { file: 'app/api/daily/memos/clusters/route.ts', kind: 'text', carries: '거래처와 사람 이름' },
+  { file: 'lib/gemini-daily-to-weekly.ts', kind: 'text', carries: '일일업무를 모은 것' },
+  { file: 'lib/meeting/transcribe-parts.ts', kind: 'media', carries: '회의 녹음과 말한 사람 이름' },
+  { file: 'lib/stt/provider.ts', kind: 'media', carries: '회의 녹음 그 자체' },
+  { file: 'lib/gemini-embedding.ts', kind: 'text', carries: '메모와 일일업무 원문 (벡터는 되돌릴 수 없다)' },
 ]
 
-/** 한 겹 자체. 이 셋만이 가림과 기록을 붙인다 */
+/** 한 겹 자체. 이 둘만이 가림과 기록을 붙인다 */
 const WRAPPERS = ['lib/ai/guarded-call.ts', 'lib/ai/guarded-gemini.ts']
 
 function read(rel: string): string {
@@ -48,11 +64,16 @@ function read(rel: string): string {
   return existsSync(p) ? readFileSync(p, 'utf8') : ''
 }
 
-/** import 줄만 있고 안 부르는 것을 통과시키지 않는다 */
+/**
+ * import 줄만 있고 안 부르는 것을 통과시키지 않는다.
+ *
+ * 홑화살괄호도 본다 — `guardedVector<number[]>(` 는 여는 괄호가 타입 뒤에 온다.
+ * 이것을 안 보면 **멀쩡히 관문을 지나는 파일이 «안 지난다»로 잡힌다**(실측 2026-09-17).
+ */
 function callsIt(src: string, name: string): boolean {
   return src.split('\n')
     .filter((l) => !l.trim().startsWith('import'))
-    .some((l) => l.includes(`${name}(`))
+    .some((l) => l.includes(`${name}(`) || l.includes(`${name}<`))
 }
 
 test('★ 개인정보가 지나는 길은 전부 한 겹을 지난다', () => {
@@ -60,8 +81,11 @@ test('★ 개인정보가 지나는 길은 전부 한 겹을 지난다', () => {
   for (const p of PII_PATHS) {
     const src = read(p.file)
     if (!src) { offenders.push(`${p.file} 파일이 없다 (이름이 바뀌었는지 확인)`); continue }
-    if (!callsIt(src, p.through)) {
-      offenders.push(`${p.file} 가 ${p.through} 를 안 지난다 — 여기로 ${p.carries} 가 맨몸으로 나간다`)
+    const allowed = p.kind === 'media' ? MEDIA_GATES : TEXT_GATES
+    if (!allowed.some((g) => callsIt(src, g))) {
+      offenders.push(
+        `${p.file} 가 ${p.kind === 'media' ? '매체' : '글자'} 갈래(${allowed.join('/')})를 안 지난다`
+        + ` — 여기로 ${p.carries} 가 맨몸으로 나간다`)
     }
   }
   assert.deepEqual(offenders, [], [

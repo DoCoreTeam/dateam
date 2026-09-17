@@ -59,14 +59,24 @@ export function serverAiLedger(): AiLedger {
       .then((m) => m.createAdminClient() as never as LedgerClient)
     return cached
   }
+  /*
+    **기록이 사용자의 일을 멈추지 않는다.**
+
+    표에 못 적는 것만 막아 두고 클라이언트를 못 만드는 것은 안 막고 있었다.
+    그러면 관리자 키가 빠진 배포에서 AI 호출이 **전부** 죽는다 — 원장을 못 적었다는
+    이유로. 그것은 기록이 아니라 새 단일 장애점이다.
+  */
+  const write = async (table: string, row: unknown, what: string) => {
+    try {
+      const { error } = await (await client()).from(table).insert(row)
+      if (error) console.error(`[ai] ${what} 실패`, error.message ?? error)
+    } catch (e) {
+      console.error(`[ai] ${what} 실패`, e instanceof Error ? e.message : e)
+    }
+  }
+
   return {
-    async recordCall(row: CallLogRow) {
-      const { error } = await (await client()).from('ai_llm_calls').insert(row)
-      if (error) console.error('[ai] 호출 기록 실패', error.message ?? error)
-    },
-    async recordTransfer(row: TransferLogRow) {
-      const { error } = await (await client()).from('ai_external_transfers').insert(row)
-      if (error) console.error('[ai] 전송 기록 실패', error.message ?? error)
-    },
+    recordCall: (row: CallLogRow) => write('ai_llm_calls', row, '호출 기록'),
+    recordTransfer: (row: TransferLogRow) => write('ai_external_transfers', row, '전송 기록'),
   }
 }

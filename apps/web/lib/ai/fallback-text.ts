@@ -19,7 +19,21 @@
 // 끄는 법: `getGeminiMeta()`가 `fallbackApiKey`를 빈 값으로 돌려주게 하거나,
 //          시스템 설정에서 `stt_api_key`/`groq_api_key`를 지우면 된다(그러면 STT도 멈춘다).
 
+import { beginGuardedCall } from './guarded-call.ts'
+import { serverAiLedger } from './ledger.ts'
+
 const FALLBACK_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
+
+/**
+ * 폴백도 **다른 회사**다.
+ *
+ * 사슬 한 판은 Gemini 이름으로 한 줄 적힌다. 그런데 여기까지 왔다는 것은 답을 준 곳이
+ * Gemini 가 아니라는 뜻이다 — 그 줄만 보면 «어느 회사로 나갔나» 에 틀린 답을 하게 된다.
+ * 그래서 이 길은 자기 이름으로 한 줄 더 적는다.
+ *
+ * 가림은 사슬 바깥에서 이미 끝났다. 여기서 또 가리면 이름 목록을 한 번 더 읽고
+ * 자리표를 자리표로 덮는다 — 그래서 안 가리고, 안 가린 사유를 적는다.
+ */
 
 /**
  * 폴백 모델 사슬. 실측(2026-08-27) 이 키로 목록에 뜨는 것 중 JSON 지시를 따르는 순서.
@@ -77,7 +91,18 @@ export async function callFallbackJson(opts: {
 }): Promise<FallbackOutcome> {
   const { prompt, apiKey, temperature = 0.2, maxOutputTokens = 8_192, timeoutMs = 60_000 } = opts
   const attempts: string[] = []
+  // 키가 없으면 나간 것이 없다. 안 나간 것을 원장에 적지 않는다
   if (!apiKey) return { ok: false, attempts: ['폴백 공급자 키 없음'] }
+
+  const gate = await beginGuardedCall(
+    prompt,
+    {
+      surface: opts.feature ?? 'ai-fallback', purpose: 'json_call',
+      providerId: 'groq', modelName: FALLBACK_MODELS[0],
+      passthrough: { reason: 'Gemini 사슬 바깥에서 이미 가린 글자를 그대로 넘겨받는다' },
+    },
+    serverAiLedger(),
+  )
 
   for (const model of FALLBACK_MODELS) {
     let res: Response
@@ -111,8 +136,11 @@ export async function callFallbackJson(opts: {
     const text = extractChoiceText(json)
     if (!text) { attempts.push(`${model}: 응답이 비어 있음`); continue }
 
-    return { ok: true, text, model, usage: extractUsage(json) }
+    const usage = extractUsage(json)
+    await gate.done({ ok: true, inputTokens: usage.prompt, outputTokens: usage.output })
+    return { ok: true, text, model, usage }
   }
 
+  await gate.done({ ok: false, error: attempts.join(' | ').slice(0, 900) })
   return { ok: false, attempts }
 }

@@ -1,7 +1,7 @@
 # PLAN newAX: 전 서비스 관문 적용과 패키지 출시
 
 플랜 ID: P0016
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0012
 목표 버전: v0.10.84
@@ -61,6 +61,16 @@
 - 기존 시험 통과, 기준선이 그만큼 내려감
 의존: I02
 
+### I03a 남은 여섯을 관문으로
+상태: 통과
+모드: 중량
+범위: apps/web/lib/gemini-lead.ts, apps/web/lib/crm/services/card-read.ts, apps/web/lib/stt/provider.ts, apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/ai/gemini-call.ts, apps/web/lib/ai/fallback-text.ts, apps/web/lib/policy/vendor-call-baseline.json
+감사 기준:
+- 여섯이 관문을 지나거나, 사슬과 폴백을 스스로 들어 관문 안쪽인 것은 그 사유를 기준선에 적음
+- 벤더 주소를 아직 들고 있으면서 사유가 없는 파일이 0개
+- 기존 시험 통과, 기준선이 그만큼 내려감
+의존: I03
+
 ### I04 확신을 그리는 화면 열셋
 상태: 대기
 모드: 경량
@@ -112,3 +122,4 @@
 ## 변경 이력
 - v0.1.0 (2026-09-16) 최초 작성 (ins_0012)
 - v0.1.1 (2026-09-16) I02 제목이 아홉인데 범위는 다섯이었다. GPU 넷은 I03 에 있어 제목을 실제 범위에 맞춘다 (audit:I02)
+- v0.1.2 (2026-09-17) 벤더 주소를 아직 들고 있는 여섯을 위해 I03a 삽입. 기준 적용 대상에서 빼 둘 이유가 없다 (audit:I03)

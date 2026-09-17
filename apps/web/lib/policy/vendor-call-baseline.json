@@ -15,13 +15,15 @@
     "lib/ai/fallback-text.ts",
     "lib/ai/gemini-call.ts",
     "lib/ai/guarded-gemini.ts",
-    "lib/crm/services/card-read.ts",
     "lib/gemini-embedding.ts",
-    "lib/gemini-lead.ts",
     "lib/stt/provider.ts"
   ],
   "관문안쪽": {
     "lib/ai/guarded-gemini.ts": "가림과 기록을 지나는 유일한 Gemini 호출 자리. 목록에 있지만 관문 밖이 아니다",
-    "lib/gemini-embedding.ts": "임베딩은 글자가 아니라 숫자를 돌려받아 글자 호출 자리가 못 덮는다. 주소는 여기 있지만 guardedVector 를 지나 가림과 기록이 붙는다"
+    "lib/gemini-embedding.ts": "임베딩은 글자가 아니라 숫자를 돌려받아 글자 호출 자리가 못 덮는다. 주소는 여기 있지만 guardedVector 를 지나 가림과 기록이 붙는다",
+    "lib/ai/gemini-call.ts": "모델 사슬과 폴백과 한도 식힘을 스스로 들고 있는 공용 호출부. 주소는 여기 있지만 사슬 한 판이 beginGuardedCall 을 지나 가림과 원장이 붙는다",
+    "lib/ai/fallback-text.ts": "Gemini 사슬이 전부 막혔을 때 가는 두 번째 공급자. 가림은 사슬 바깥에서 끝났고 이 길은 자기 회사 이름으로 원장에 한 줄 적는다",
+    "lib/ai-chat/providers/gemini.ts": "사용자가 AI 와 직접 말하는 화면. 가리면 답이 어긋나므로 passthrough 사유와 함께 안 가리고, 나간 사실은 원장에 남는다",
+    "lib/stt/provider.ts": "녹음을 글자로 옮기는 전사 API. 요청 모양이 multipart 라 글자 호출 자리가 못 덮는다. 주소는 여기 있지만 guardedMedia 를 지나 나간 사실과 크기가 원장에 남는다"
   }
 }

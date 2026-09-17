@@ -48,6 +48,17 @@ export interface GuardedCallContext {
    * 가림은 더 좋아지는 것이지 문을 닫는 것이 아니다.
    */
   knownNames?: readonly string[]
+  /**
+   * **안 가리고 보내는 길**. 사유를 반드시 적는다.
+   *
+   * 왜 필요한가: 사용자가 AI 와 **직접 말하는** 화면이 있다. 거기서 사용자가 쓴 이름을
+   * 가리면 «이 이름 영문으로 써 줘» 같은 부탁이 못 통한다 — 사용자가 일부러 보낸 것을
+   * 우리가 가로채는 셈이다.
+   *
+   * 그럴 때 가린 척하지 않는다. 원장의 가린 셈은 **빈 것**으로 남는다 —
+   * 그림과 소리에서 쓰는 것과 같은 표현이고, 「안 가렸다」를 한 가지 방법으로 말한다.
+   */
+  passthrough?: { reason: string }
 }
 
 export interface CallLogRow {
@@ -323,8 +334,14 @@ export async function beginGuardedCall(
 ): Promise<GuardedCallHandle> {
   const names = { knownNames: ctx.knownNames }
   const parts = typeof prompt === 'string' ? [prompt] : prompt
-  const masked = maskPii(parts.join(PART_SEP), names)
-  if (hasUnmaskedPii(masked.text, names)) throw new PiiNotMaskedError(ctx.surface)
+  const joined = parts.join(PART_SEP)
+  // 안 가리는 길은 자리표가 없으니 되돌릴 것도 없다. 「안 가렸다」는 빈 셈으로 남는다
+  const masked = ctx.passthrough
+    ? { text: joined, hits: [] as PiiHit[] }
+    : maskPii(joined, names)
+  if (!ctx.passthrough && hasUnmaskedPii(masked.text, names)) {
+    throw new PiiNotMaskedError(ctx.surface)
+  }
 
   await ledger.recordTransfer({
     surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,

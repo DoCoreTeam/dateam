@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url'
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const BASELINE = JSON.parse(
   readFileSync(join(WEB, 'lib/policy/vendor-call-baseline.json'), 'utf8'),
-) as { 훑는곳: string[]; 패턴: string; 파일: string[] }
+) as { 훑는곳: string[]; 패턴: string; 파일: string[]; 관문안쪽?: Record<string, string> }
 
 function scan(): string[] {
   const re = new RegExp(BASELINE.패턴)
@@ -76,4 +76,31 @@ test('규칙이 도는 대상이 실제로 있다', () => {
   assert.ok(BASELINE.파일.length > 0, '기준선 목록이 비었다')
   const missed = BASELINE.파일.filter((f) => !found.has(f))
   assert.deepEqual(missed, [], `기준선에 적힌 파일을 스캐너가 못 잡는다: ${missed.join(', ')}`)
+})
+
+test('★ 사유 없이 벤더 주소를 들고 있는 파일이 없다', () => {
+  /*
+    처음에 이 기준선은 «스물아홉이 있고 늘지만 마라» 였다. 그것으로는
+    "왜 아직 밖에 있나"를 아무도 안 물었고, 그래서 스물다섯이 넉 달 남았다.
+
+    이제 전부 관문을 지난다. 남은 것은 **주소를 들고 있을 이유가 있는** 파일뿐이고,
+    그 이유는 「관문안쪽」에 한 줄씩 적혀 있다. 이유 없이 목록에 들어오면 실패한다 —
+    그것이 «나중에 옮기자» 가 다시 쌓이는 자리다.
+  */
+  const reasons = BASELINE.관문안쪽 as Record<string, string> | undefined
+  assert.ok(reasons, '관문안쪽 설명이 없다')
+  const unexplained = BASELINE.파일.filter((f) => !(reasons![f] ?? '').trim())
+  assert.deepEqual(unexplained, [], [
+    '벤더 주소를 들고 있는데 왜 그래야 하는지가 안 적혀 있다.',
+    '관문으로 옮기거나, 못 옮기는 이유를 「관문안쪽」에 한 줄 적는다:',
+    ...unexplained.map((f) => `  ${f}`),
+  ].join('\n'))
+})
+
+test('★ 사유가 가리키는 파일이 실제로 있다', () => {
+  // 파일이 지워지거나 이름이 바뀌면 사유만 남아 «설명된 것»으로 계속 통과한다
+  const reasons = (BASELINE.관문안쪽 ?? {}) as Record<string, string>
+  const known = new Set(BASELINE.파일)
+  const orphan = Object.keys(reasons).filter((f) => !known.has(f))
+  assert.deepEqual(orphan, [], `목록에 없는 파일의 사유가 남아 있다: ${orphan.join(', ')}`)
 })

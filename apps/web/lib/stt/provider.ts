@@ -77,6 +77,10 @@ export class SttError extends Error {
 export const STT_TIMEOUT_MS = 120_000
 
 /** 정확도 우선. turbo 는 빠르지만 1~2%p 손해라 기본으로 쓰지 않는다. */
+import { guardedMedia, type AiLedger } from '../ai/guarded-call.ts'
+import { serverAiLedger } from '../ai/ledger.ts'
+import { serverKnownNames } from '../ai/known-names.ts'
+
 export const DEFAULT_STT_MODEL = 'whisper-large-v3'
 
 /** 설정에 없을 때 쓰는 프로바이더 */
@@ -155,6 +159,8 @@ export function openAiCompatibleStt(opts: {
   endpoint: string
   apiKey: string
   model: string
+  /** 안 주면 서버 원장. 녹음이 밖으로 나간 사실은 어느 길로 가도 남는다 */
+  ledger?: AiLedger
 }): SttProvider {
   return {
     vendor: opts.vendor,
@@ -175,30 +181,52 @@ export function openAiCompatibleStt(opts: {
       // 앞 구간의 끝을 문맥으로 준다 — 고유명사·회사명이 구간 경계에서 흔들리는 걸 줄인다
       if (input.priorContext) form.append('prompt', input.priorContext.slice(0, 800))
 
-      const ctl = new AbortController()
-      const timer = setTimeout(() => ctl.abort(), STT_TIMEOUT_MS)
-      let res: Response
-      try {
-        res = await fetch(opts.endpoint, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${opts.apiKey}` },
-          body: form,
-          signal: ctl.signal,
-        })
-      } catch (e) {
-        if (e instanceof Error && e.name === 'AbortError') {
-          throw new SttError('timeout', '음성 인식이 너무 오래 걸려 중단했습니다. 잠시 후 다시 시도합니다.', true)
-        }
-        throw new SttError('network', '음성 인식 서비스에 연결하지 못했습니다.', true)
-      } finally {
-        clearTimeout(timer)
-      }
+      /*
+        녹음은 **소리**라 글자 가림이 애초에 안 닿는다. 가린 척하지 않고
+        나간 사실과 크기와 매체를 원장에 남긴다 — 회의 녹음이 어느 업체로
+        언제 나갔는지는 사고가 났을 때 가장 먼저 묻는 것이다.
 
-      if (!res.ok) {
-        throw classifyHttpFailure(res.status, await res.text().catch(() => ''))
-      }
+        돌아온 전사에는 사람 이름이 그대로 실려 온다. 그것을 **지우지는 않는다** —
+        말한 사람 이름을 지우면 회의록이 못 읽을 것이 된다. 몇 개였는지만 센다.
+      */
+      const out = await guardedMedia(
+        input.bytes.byteLength,
+        {
+          surface: 'meeting/stt', purpose: 'transcribe', media: 'audio',
+          providerId: opts.vendor, modelName: opts.model,
+          knownNames: await serverKnownNames(),
+        },
+        opts.ledger ?? serverAiLedger(),
+        async () => {
+          const ctl = new AbortController()
+          const timer = setTimeout(() => ctl.abort(), STT_TIMEOUT_MS)
+          let res: Response
+          try {
+            res = await fetch(opts.endpoint, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${opts.apiKey}` },
+              body: form,
+              signal: ctl.signal,
+            })
+          } catch (e) {
+            if (e instanceof Error && e.name === 'AbortError') {
+              throw new SttError('timeout', '음성 인식이 너무 오래 걸려 중단했습니다. 잠시 후 다시 시도합니다.', true)
+            }
+            throw new SttError('network', '음성 인식 서비스에 연결하지 못했습니다.', true)
+          } finally {
+            clearTimeout(timer)
+          }
 
-      const segments = mapVerboseJson(await res.json())
+          if (!res.ok) {
+            throw classifyHttpFailure(res.status, await res.text().catch(() => ''))
+          }
+          // 관문은 글자를 기다리지만 우리가 쓸 것은 구간이다 — 원문을 같이 들고 나간다
+          const raw = await res.json()
+          return { text: JSON.stringify(raw), raw }
+        },
+      )
+
+      const segments = mapVerboseJson(JSON.parse(out.text))
       if (segments.length === 0) {
         // 소리가 거의 없을 때다. 지어내지 않고 사실대로 말한다.
         throw new SttError('empty', '이 구간에서 말소리를 찾지 못했습니다. 마이크가 꺼져 있었을 수 있어요.', false)
