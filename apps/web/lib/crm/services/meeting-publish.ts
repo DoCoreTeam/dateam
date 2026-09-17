@@ -194,12 +194,39 @@ async function composeAttendees(
 }
 
 /** 이 노트로 이미 만든 미팅이 있나 — 발행을 두 번 눌러도 두 벌이 생기지 않게 */
-async function findPublished(workspaceId: string, noteId: string): Promise<{ id: string } | null> {
+/**
+ * 미팅에 붙은 회사·딜을 **이름까지** 읽는다.
+ *
+ * 두 곳이 이걸 물어본다 — 상세 화면의 메타 줄(`loadCrmFactsForNote`)과 회의노트의
+ * 공개 손잡이(`readNoteShareState`). 각자 읽으면 한쪽이 id 만 알고 다른 쪽이 이름을 알아
+ * **같은 회의가 화면마다 다른 말을 한다.** 없으면 null 이다 — 이름을 지어내지 않는다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function readMeetingLinks(db: any, meeting: { companyId: string | null; dealId: string | null }): Promise<{
+  companyId: string | null; companyName: string | null; dealId: string | null; dealName: string | null
+}> {
+  const company = meeting.companyId
+    ? await db.crmCompany.findFirst({ where: { id: meeting.companyId }, select: { name: true } })
+    : null
+  const deal = meeting.dealId
+    ? await db.crmDeal.findFirst({ where: { id: meeting.dealId }, select: { name: true } })
+    : null
+  return {
+    companyId: meeting.companyId,
+    companyName: (company?.name as string | undefined) ?? null,
+    dealId: meeting.dealId,
+    dealName: (deal?.name as string | undefined) ?? null,
+  }
+}
+
+async function findPublished(workspaceId: string, noteId: string): Promise<
+  { id: string; companyId: string | null; dealId: string | null } | null
+> {
   const db = getCrmDb(workspaceId)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (db as any).crmMeeting.findFirst({
     where: { noteId, deletedAt: null },
-    select: { id: true },
+    select: { id: true, companyId: true, dealId: true },
   })
 }
 
@@ -755,24 +782,9 @@ export async function loadCrmFactsForNote(
     } | null
     if (!meeting) return null
 
-    // 이름은 각각 한 번씩만 — 없으면 null 로 둔다(지어내지 않는다)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const company = meeting.companyId
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? await (db as any).crmCompany.findFirst({ where: { id: meeting.companyId }, select: { name: true } })
-      : null
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const deal = meeting.dealId
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? await (db as any).crmDeal.findFirst({ where: { id: meeting.dealId }, select: { name: true } })
-      : null
-
     return {
       meetingId: meeting.id,
-      companyId: meeting.companyId,
-      companyName: (company?.name as string | undefined) ?? null,
-      dealId: meeting.dealId,
-      dealName: (deal?.name as string | undefined) ?? null,
+      ...(await readMeetingLinks(db, meeting)),
       location: meeting.location,
     }
   } catch {
@@ -1010,7 +1022,20 @@ export async function readNoteShareState(
   workspaceId: string,
   noteId: string,
   hostUserId: string,
-): Promise<{ state: MeetingShareState; meetingId: string | null }> {
+): Promise<{
+  state: MeetingShareState
+  meetingId: string | null
+  /**
+   * 붙은 회사·딜. **올린 뒤에도 고칠 수 있어야 한다**(사용자 지적 2026-09-17:
+   * *"회의노트에서 딜 연결하는게 없어"*). 예전엔 처음 올릴 때 한 번만 물었고,
+   * 그 뒤엔 CRM 미팅 화면까지 가야 바꿀 수 있었다 — 실측으로 올라간 미팅 9건 중
+   * **7건이 딜 없이** 남아 있었다. 안 붙으면 그 회의에서 나온 할 일도 딜에 못 간다.
+   */
+  companyId: string | null
+  companyName: string | null
+  dealId: string | null
+  dealName: string | null
+}> {
   const meeting = await findPublished(workspaceId, noteId)
 
   const { createAdminClient } = await import('../../supabase/server.ts')
@@ -1035,6 +1060,9 @@ export async function readNoteShareState(
         : NOTE_VISIBILITY.PRIVATE,
     }),
     meetingId: meeting?.id ?? null,
+    ...(meeting
+      ? await readMeetingLinks(getCrmDb(workspaceId), meeting)
+      : { companyId: null, companyName: null, dealId: null, dealName: null }),
   }
 }
 

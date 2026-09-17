@@ -54,7 +54,7 @@
 의존: I01
 
 ### I03 회의노트에서 회사·딜을 언제든 붙이고 바꾼다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(member)/meeting-notes/CrmPublishCard.tsx, apps/web/app/api/meeting-notes/[id]/share/route.ts
 감사 기준:

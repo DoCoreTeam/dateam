@@ -128,3 +128,10 @@
 .hintFaint { margin: 0; font-size: var(--fs-2xs); color: var(--text-faint); }
 /* 폰에서는 오른쪽으로 넘치지 않게 반대편에 붙인다 */
 @media (max-width: 640px) { .pop { left: auto; right: 0; } }
+
+/* 붙은 것(회사·딜) — 공개 범위 아래. 선을 하나 그어 «고르는 것»과 «잇는 것»을 가른다 */
+.links {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--hairline) solid var(--border-light);
+}

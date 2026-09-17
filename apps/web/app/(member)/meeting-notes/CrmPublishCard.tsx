@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Briefcase, ExternalLink, Lock, FileText, Eye, ChevronDown, Ban } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbModal from '@/components/ui/nb/NbModal'
@@ -39,6 +40,7 @@ import {
   type MeetingShareState,
 } from '@/lib/meeting/share-state'
 import { type NoteVisibility } from '@/lib/meeting/note-visibility'
+import { failedTo } from '@/lib/terms'
 import { useEscClose } from '@/lib/use-esc-close'
 import styles from './crm-share.module.css'
 
@@ -60,6 +62,7 @@ export default function CrmPublishCard({ noteId, visibility }: {
    */
   visibility?: NoteVisibility
 }) {
+  const router = useRouter()
   const [phase, setPhase] = useState<Phase>('loading')
   const [state, setState] = useState<MeetingShareState>(() => initialShareState(visibility))
   /** 배지를 눌러 펼친 상태 — 자리를 늘 차지하지 않으면서 한 번에 닿는다 */
@@ -68,7 +71,7 @@ export default function CrmPublishCard({ noteId, visibility }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  /** 처음 올릴 때만 회사·딜을 묻는다 — 이미 올라간 건은 미팅 화면에서 고친다 */
+  /** 처음 올릴 때 묻는 모달. 올린 뒤에는 아래 팝오버의 두 칸이 같은 일을 맡는다 */
   const [picking, setPicking] = useState(false)
   const [companyId, setCompanyId] = useState('')
   const [companyName, setCompanyName] = useState('')
@@ -85,6 +88,10 @@ export default function CrmPublishCard({ noteId, visibility }: {
       const body = await res.json()
       setState(body.state as MeetingShareState)
       setMeetingId(body.meetingId ?? null)
+      setCompanyId(body.companyId ?? '')
+      setCompanyName(body.companyName ?? '')
+      setDealId(body.dealId ?? '')
+      setDealName(body.dealName ?? '')
       setPhase('ready')
     } catch {
       // CRM 을 못 읽는 건 이 화면의 실패가 아니다 — 회의노트는 그대로 쓸 수 있어야 한다
@@ -121,11 +128,55 @@ export default function CrmPublishCard({ noteId, visibility }: {
     }
   }
 
+  /**
+   * 올린 뒤에 회사·딜을 **붙이거나 바꾼다.**
+   *
+   * 창구는 미팅 PATCH 하나다 — 회의노트 쪽에 또 만들면 같은 값을 정하는 자리가 둘이 되고,
+   * 그게 이 카드가 애초에 하나로 합쳐진 이유다. `null` 은 «비우기»이므로 빈 문자열과 구분해 보낸다.
+   *
+   * 바꾼 뒤 `router.refresh()` 를 부른다: 상세 화면의 메타 줄(회사 · 딜 · 영업 CRM에서 보기)은
+   * **서버 컴포넌트가 그린다.** 새로고침을 안 하면 골랐는데 줄은 「회사 미정」 그대로다.
+   */
+  async function linkTo(field: 'companyId' | 'dealId', opt: RecordOption | null) {
+    if (!meetingId || busy) return
+    const prev = field === 'companyId'
+      ? { id: companyId, name: companyName }
+      : { id: dealId, name: dealName }
+    // 화면을 먼저 바꾼다 — 왕복을 기다리면 고른 것이 잠깐 사라졌다 돌아온다
+    if (field === 'companyId') { setCompanyId(opt?.id ?? ''); setCompanyName(opt?.name ?? '') }
+    else { setDealId(opt?.id ?? ''); setDealName(opt?.name ?? '') }
+
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/crm/meetings/${meetingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: opt?.id ?? null }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setError(body?.error?.message ?? failedTo(field === 'companyId' ? '회사' : '딜', '붙이지'))
+        // 되돌린다 — 안 그러면 안 붙었는데 붙은 것처럼 보인다
+        if (field === 'companyId') { setCompanyId(prev.id); setCompanyName(prev.name) }
+        else { setDealId(prev.id); setDealName(prev.name) }
+        return
+      }
+      router.refresh()
+    } catch {
+      setError(failedTo(field === 'companyId' ? '회사' : '딜', '붙이지', '연결을 확인해 주세요.'))
+      if (field === 'companyId') { setCompanyId(prev.id); setCompanyName(prev.name) }
+      else { setDealId(prev.id); setDealName(prev.name) }
+    } finally {
+      setBusy(false)
+    }
+  }
+
   /** 고른 것을 어떻게 처리할지 — 확인이 필요한지, 회사·딜을 먼저 물을지 */
   function choose(next: MeetingShareState) {
     if (next === state || busy) return
     if (needsConfirm(state, next)) { setConfirming(next); return }
-    // 처음 올리는 것이면 회사·딜을 한 번 묻는다. 나중에 골라도 되지만 지금이 가장 싸다
+    // 처음 올리는 것이면 회사·딜을 한 번 묻는다. 나중에 아래 두 칸에서 바꿔도 된다
     if (state === 'PRIVATE') { setPicking(true); return }
     void apply(next)
   }
@@ -187,6 +238,31 @@ export default function CrmPublishCard({ noteId, visibility }: {
 
           {/* 고른 것이 팀에게 무엇을 보이는지 그 자리에서 말한다 — 이걸 안 말한 게 사고였다 */}
           <p className={styles.hint}>{SHARE_STATE_HINT[state]}</p>
+
+          {/*
+            **붙은 것** — 올린 뒤에도 여기서 바꾼다.
+            딜을 붙여야 이 회의에서 뽑은 할 일이 그 딜에 가서 선다(§I04).
+            아직 안 올린 회의에는 붙일 미팅이 없으므로 이 자리도 없다.
+          */}
+          {meetingId && (
+            <div className={styles.links}>
+              <label className="label" htmlFor="link-company">회사</label>
+              <RecordPickerField
+                id="link-company" noun="회사" value={companyId} valueName={companyName}
+                placeholder="(안 붙임)"
+                onChange={(opt) => void linkTo('companyId', opt)}
+                search={searchCompanies}
+              />
+              <label className="label" htmlFor="link-deal" style={{ marginTop: 'var(--space-3)' }}>딜</label>
+              <RecordPickerField
+                id="link-deal" noun="딜" value={dealId} valueName={dealName}
+                placeholder="(안 붙임)"
+                onChange={(opt) => void linkTo('dealId', opt)}
+                search={searchDeals}
+              />
+              <p className={styles.hintFaint}>딜을 붙이면 이 회의에서 뽑은 할 일이 그 딜에도 섭니다.</p>
+            </div>
+          )}
           {/* 보는 것과 고치는 것은 다르다. 안 밝히면 팀원이 "왜 수정이 안 되지"로 겪는다 */}
           <p className={styles.hintFaint}>고치거나 지우는 건 언제나 작성한 사람만 할 수 있어요.</p>
           {error && <InlineError spaced>{error}</InlineError>}
