@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.91',
+    version: '0.10.93',
     date: '2026-09-17',
     title: '공고 링크만 붙여넣으면 첨부를 알아서 받아 와요',
     items: [
