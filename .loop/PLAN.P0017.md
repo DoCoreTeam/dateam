@@ -84,7 +84,7 @@
 의존: 없음
 
 ### I06 가드와 업데이트 내역
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/meeting/workbench-wiring.test.ts, apps/web/lib/crm/wired.test.ts, apps/web/lib/changelog/entries.ts, package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
 감사 기준:

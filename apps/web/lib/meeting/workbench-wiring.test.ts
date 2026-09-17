@@ -165,3 +165,48 @@ test('탭 렌더러는 밖에서 바뀐 주소를 따라간다 — 「근거」�
   assert.ok(!/pushState/.test(wb), '근거 이동에 history.pushState 를 쓰면 탭이 안 넘어간다')
   assert.match(wb, /router\.replace\(/, '근거 이동이 라우터를 거치지 않는다')
 })
+
+// ─────────────────────────────────────────────────────────────
+// 「수정」이 어디서 무엇을 고치나 — 자리가 둘이라 계약도 둘이다 (v0.10.98~)
+//
+// 사용자 지시 2026-09-17: *"수정을 누르고 내용을 수정했으면 저장 버튼이 있어야함"*,
+// *"수정버튼이 상단에도 있고 여기도 있는데 정리가 필요할듯 로직상"*.
+//
+// 정리의 내용은 **본문을 쓰는 손을 하나로 줄인 것**이다. 원문 카드가 본문을 맡고,
+// 상단 폼은 제목·일시·참석자만 맡는다. 이 둘이 다시 겹치면 v0.7.677 의 사고
+// (폼이 작업대가 저장한 글을 옛 값으로 덮는 것)가 그대로 돌아온다.
+// ─────────────────────────────────────────────────────────────
+
+const MEMO_EDITOR = 'components/meeting/MeetingMemoEditor.tsx'
+const NOTE_FORM = 'app/(member)/meeting-notes/MeetingEditor.tsx'
+
+test('★ 원문을 고치는 중이면 [저장]과 [취소]가 있다 — 끝내는 동작이 없으면 손을 못 뗀다', () => {
+  const src = code(MEMO_EDITOR)
+  assert.ok(src.includes('ACTION.save'), '저장 버튼이 없다')
+  assert.ok(src.includes('ACTION.cancel'), '취소 버튼이 없다')
+  // 「닫기」로 되돌아가지 않는다 — 자동저장이라 닫아도 남는다는 말은 맞지만,
+  // 고치던 사람에게는 «저장을 안 했는데 나가도 되나»로 읽혔다
+  assert.ok(!src.includes('ACTION.close'), '쓰기 모드가 다시 「닫기」 하나로 돌아갔다')
+})
+
+test('★ 취소는 서버까지 되돌린다 — 화면만 되돌리면 새로고침에 고친 글이 되살아난다', () => {
+  const src = code(MEMO_EDITOR)
+  // 되돌릴 기준은 **「수정」을 누른 순간**의 글이다. 마지막 저장값으로 대신하면
+  // 자동저장이 한 번이라도 돈 뒤에는 취소가 «고친 것을 확정»하는 뜻이 된다
+  assert.ok(/snapshot\.current\s*=\s*latest\.current/.test(src),
+    '「수정」을 누를 때 되돌릴 기준을 박아 두지 않는다')
+  const at = src.indexOf('async function cancelWriting')
+  assert.ok(at > 0, '취소가 사라졌다')
+  const body = src.slice(at, at + 1200)
+  assert.ok(/latest\.current\s*=\s*back/.test(body), '취소가 스냅샷으로 되돌리지 않는다')
+  assert.ok(body.includes('push()'), '취소가 되돌림을 서버로 밀어 넣지 않는다')
+})
+
+test('★ 상단 폼은 본문을 보지도 보내지도 않는다 — 두 손이 겹치면 덮어쓴다', () => {
+  const src = code(NOTE_FORM)
+  // 본문 편집기는 **새로 만들 때만**. 새 노트에는 작업대가 아직 없다
+  assert.ok(/mode === 'create' && \(/.test(src), '본문 편집기가 create 게이트 밖에 있다')
+  // 저장 payload 의 body_html 도 create 에서만
+  assert.ok(/\.\.\.\(mode === 'create' \? \{ body_html: body \} : \{\}\)/.test(src),
+    '고칠 때도 body_html 을 보낸다 — 작업대가 쓴 글을 덮는다')
+})
