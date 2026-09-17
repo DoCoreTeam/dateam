@@ -1,5 +1,7 @@
 'use client'
 
+import { confidencePercentView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Sparkles, Paperclip } from 'lucide-react'
 
@@ -118,7 +120,7 @@ export default function CatalogUploadSection({ isTest, file, onConsumed }: Catal
             ✓ 검토 대기 {result.count}건 적재됨{result.blocked > 0 ? ` · 검증 차단 ${result.blocked}건` : ''}
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4 }}>
-            원본 {result.total_rows}행{result.truncated ? '(상한 적용)' : ''} · AI 매핑 신뢰도 {String(mapping?._confidence ?? '—')}%
+            원본 {result.total_rows}행{result.truncated ? '(상한 적용)' : ''} · AI 매핑 {AI_LABELS.confidence} {confidencePercentView(typeof mapping?._confidence === 'number' ? mapping._confidence : null, AI_LABELS).text}
             {result.ai?.synthesized ? ' · 프롬프트 자가보강 사용' : ''}
           </div>
           <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>

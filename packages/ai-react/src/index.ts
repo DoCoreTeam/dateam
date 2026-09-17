@@ -15,6 +15,7 @@ export {
   type EvidenceView,
   LOW_CONFIDENCE_BELOW,
   confidenceView,
+  confidencePercentView,
   statusText,
   isSettled,
   sourceView,

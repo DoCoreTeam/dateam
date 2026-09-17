@@ -6,6 +6,8 @@
 // 목록 표준(§2-6): 표는 ListSurface가 그린다(화면이 <table>을 짜지 않는다).
 // 탭·채널묶기 같은 보기 조건은 URL이 진실이다 — 링크를 공유하면 같은 화면이 열린다.
 
+import { confidenceView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { RotateCcw, ExternalLink, Trash2, Check } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ControlRow from '@/components/ui/ControlRow'
@@ -287,7 +289,7 @@ export default function InboxView({
             <option value={NEW_TOPIC}>+ 새 주제 만들기…</option>
           </select>
           {item.topicConfidence != null && item.topicConfidence > 0 && (
-            <span className="field-note ci-num" title="AI가 주제를 정한 확신도">{Math.round(item.topicConfidence * 100)}%</span>
+            <span className="field-note ci-num" title={`AI가 주제를 정한 ${AI_LABELS.confidence}`}>{confidenceView(item.topicConfidence, AI_LABELS).text}</span>
           )}
         </span>
       ) : (item.topic?.name ?? '미분류')),

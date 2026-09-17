@@ -1,5 +1,7 @@
 'use client'
 
+import { confidencePercentView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useEscClose } from '@/lib/use-esc-close'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
@@ -436,7 +438,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
                       style={{ width: `${q.ai_confidence}%` }}
                     />
                   </div>
-                  {q.ai_confidence}%
+                  {confidencePercentView(q.ai_confidence, AI_LABELS).text}
                 </div>
               )}
             </div>

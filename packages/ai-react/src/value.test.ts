@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  confidenceView, statusText, isSettled, sourceView, evidenceView, evidenceSpan,
+  confidenceView, confidencePercentView, statusText, isSettled, sourceView, evidenceView, evidenceSpan,
   LOW_CONFIDENCE_BELOW,
 } from './value.ts'
 import { AI_LABEL_KEYS, type AiLabels } from './labels.ts'
@@ -79,4 +79,32 @@ test('a caller may bring its own line without changing how confidence is present
   assert.equal(shipped.kind === 'known' && shipped.low, false)
   assert.equal(stricter.kind === 'known' && stricter.low, true)
   assert.equal(shipped.kind === 'known' && shipped.text, '65%', 'the number shown does not move')
+})
+
+test('a percentage keeps the number the caller already has', () => {
+  // A migration that rounds 73.5 to 74 cannot be told apart from the model changing its mind
+  assert.equal(confidencePercentView(73.5, L).text, '73.5%')
+  assert.equal(confidencePercentView(80, L).text, '80%')
+})
+
+test('a missing percentage says nothing rather than zero', () => {
+  const v = confidencePercentView(null, L)
+  assert.equal(v.kind, 'unknown')
+  assert.equal(v.text, L.confidenceUnknown)
+})
+
+test('the percentage threshold is on the same scale as the input', () => {
+  // A threshold on a different scale than the value is a silent always-true or always-false
+  assert.equal(confidencePercentView(65, L, 70).low, true)
+  assert.equal(confidencePercentView(75, L, 70).low, false)
+})
+
+test('both entry points agree on the same value', () => {
+  assert.equal(confidencePercentView(60, L).low, confidenceView(0.6, L).low)
+  assert.equal(confidencePercentView(60, L).percent, confidenceView(0.6, L).percent)
+})
+
+test('out-of-range percentages are clamped, not drawn', () => {
+  assert.equal(confidencePercentView(140, L).text, '100%')
+  assert.equal(confidencePercentView(-5, L).text, '0%')
 })

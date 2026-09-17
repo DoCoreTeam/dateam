@@ -5,6 +5,21 @@
 // 표현만 표준으로 옮겼다(§2·§2-3): 카드는 `.card`, 제목은 PageHeader, 로딩은 SkelPage,
 // "항목 없음"은 EmptyState. 조회(SWR)·조치 API는 그대로다.
 
+import { confidencePercentView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
+
+/**
+ * 이 화면이 「낮다」고 부르는 선. 공용 기본값(70)과 다르다 —
+ * 검토 대기를 60 미만으로 잡아 온 화면이라 선을 바꾸면 **어제와 다른 건수**가 뜬다.
+ * 어디에 선을 두는가는 제품 결정이고, 확신을 어떻게 보이는가만 공용부 몫이다.
+ */
+const LOW_REVIEW_CONFIDENCE = 60
+
+/** 낮은가만 묻는 자리 — 확신이 아예 없으면 「낮다」고 말하지 않는다(모델이 아무 말도 안 했다) */
+function isLowConfidence(percent: number | null | undefined): boolean {
+  const v = confidencePercentView(percent ?? null, AI_LABELS, LOW_REVIEW_CONFIDENCE)
+  return v.kind === 'known' && v.low
+}
 import { useState } from 'react'
 import useSWR from 'swr'
 import PageHeader from '@/components/ui/PageHeader'
@@ -138,8 +153,8 @@ export default function DataQualityDashboard() {
       <div className="responsive-grid-cols-4" style={{ marginBottom: 'var(--space-4)' }}>
         <MetricCard label="검증 게이트 차단(누계)" value={m.validation_blocked} sub="enum·범위·이상치 위반 차단" tone={m.validation_blocked > 0 ? 'warn' : 'ok'} />
         <MetricCard label="이상치(가격 밴드 밖)" value={m.anomaly_count} sub="확정 견적 상식범위 밖" tone={m.anomaly_count > 0 ? 'bad' : 'ok'} onClick={() => openDrill('anomaly')} active={drill === 'anomaly'} />
-        <MetricCard label="저신뢰 검토항목" value={m.review_items.low_confidence} sub="신뢰도 60 미만" tone={m.review_items.low_confidence > 0 ? 'warn' : 'ok'} onClick={() => openDrill('low_confidence')} active={drill === 'low_confidence'} />
-        <MetricCard label="중복 의심(검토대기)" value={m.dup_suspects} sub="동일 모델·신뢰도" tone={m.dup_suspects > 0 ? 'warn' : 'ok'} onClick={() => openDrill('dup_suspects')} active={drill === 'dup_suspects'} />
+        <MetricCard label={`저${AI_LABELS.confidence} 검토항목`} value={m.review_items.low_confidence} sub={`${AI_LABELS.confidence} ${LOW_REVIEW_CONFIDENCE} 미만`} tone={m.review_items.low_confidence > 0 ? 'warn' : 'ok'} onClick={() => openDrill('low_confidence')} active={drill === 'low_confidence'} />
+        <MetricCard label="중복 의심(검토대기)" value={m.dup_suspects} sub={`동일 모델 · ${AI_LABELS.confidence}`} tone={m.dup_suspects > 0 ? 'warn' : 'ok'} onClick={() => openDrill('dup_suspects')} active={drill === 'dup_suspects'} />
       </div>
 
       {/* 드릴다운 패널 */}
@@ -169,14 +184,14 @@ export default function DataQualityDashboard() {
                   </>}
                   {(drill === 'low_confidence' || drill === 'pending') && <>
                     <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint || '(미상)'} <span style={{ color: 'var(--text-faint)' }}>{it.supplier_hint || ''}</span></span>
-                    {it.overall_confidence != null && <span style={{ color: it.overall_confidence < 60 ? 'var(--warning)' : 'var(--text-muted)' }}>신뢰도 {it.overall_confidence}</span>}
+                    {it.overall_confidence != null && <span style={{ color: isLowConfidence(it.overall_confidence) ? 'var(--warning)' : 'var(--text-muted)' }}>{AI_LABELS.confidence} {it.overall_confidence}</span>}
                     <button type="button" onClick={() => confirmItem(it.id)} className="btn-ghost" style={{ color: 'var(--success)', borderColor: 'var(--success-border)' }}>확정</button>
                     <button type="button" onClick={() => rejectItem(it.id)} className="btn-ghost" style={{ color: 'var(--danger)', borderColor: 'var(--danger-border)' }}>반려</button>
                   </>}
                   {drill === 'dup_suspects' && <>
                     <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint}</span>
                     <span style={{ color: 'var(--warning)' }}>{it.dup_count}건 중복</span>
-                    <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-2xs)' }}>신뢰도 {it.overall_confidence ?? '—'}</span>
+                    <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-2xs)' }}>{AI_LABELS.confidence} {it.overall_confidence ?? '—'}</span>
                     <button type="button" onClick={() => mergeDups(it)} className="btn-ghost" style={{ color: 'var(--brand)', borderColor: 'var(--brand)' }}>1건만 남기기</button>
                   </>}
                 </div>
@@ -199,9 +214,9 @@ export default function DataQualityDashboard() {
         <MetricCard label="반려" value={m.review_items.rejected} />
       </div>
 
-      <h2 className="tape-title" style={{ margin: 'var(--space-2) 0 var(--space-3)' }}>공급 견적 신뢰도 (supply_quotes)</h2>
+      <h2 className="tape-title" style={{ margin: 'var(--space-2) 0 var(--space-3)' }}>{`공급 견적 ${AI_LABELS.confidence}`} (supply_quotes)</h2>
       <div className="responsive-grid-cols-4" style={{ marginBottom: 'var(--space-6)' }}>
-        <MetricCard label="평균 신뢰도" value={m.supply_quotes.avg_confidence != null ? `${m.supply_quotes.avg_confidence}%` : '—'} tone={(m.supply_quotes.avg_confidence ?? 0) >= 80 ? 'ok' : 'warn'} />
+        <MetricCard label={`평균 ${AI_LABELS.confidence}`} value={m.supply_quotes.avg_confidence != null ? confidencePercentView(m.supply_quotes.avg_confidence, AI_LABELS).text : '—'} tone={(m.supply_quotes.avg_confidence ?? 0) >= 80 ? 'ok' : 'warn'} />
         <MetricCard label="高 (≥90)" value={m.supply_quotes.high} tone="ok" sub="자동 신뢰 후보" />
         <MetricCard label="中 (60~89)" value={m.supply_quotes.mid} tone="warn" sub="검토 권장" />
         <MetricCard label="低 (<60)" value={m.supply_quotes.low} tone={m.supply_quotes.low > 0 ? 'bad' : 'ok'} sub="저신뢰: 재확인" />

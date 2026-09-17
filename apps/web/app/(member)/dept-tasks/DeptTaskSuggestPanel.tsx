@@ -1,5 +1,7 @@
 'use client'
 
+import { confidenceView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useState } from 'react'
 import { Sparkles, AlertTriangle } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -137,7 +139,7 @@ export default function DeptTaskSuggestPanel({ creatableDepts, editableDeptIds, 
                             <AlertTriangle size={12} /> 중복의심
                           </span>
                         )}
-                        <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>신뢰도 {Math.round(c.confidence * 100)}%</span>
+                        <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>{AI_LABELS.confidence} {confidenceView(c.confidence, AI_LABELS).text}</span>
                       </div>
                       <div title={htmlToPlain(c.source_quote)} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         근거({c.source_log_date}): {htmlToPlain(c.source_quote)}

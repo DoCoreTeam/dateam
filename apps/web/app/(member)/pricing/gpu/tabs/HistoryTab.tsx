@@ -1,5 +1,7 @@
 'use client'
 
+import { confidencePercentView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useState } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -78,21 +80,21 @@ function renderDetail(type: string, detail: Record<string, unknown>): string | n
       const parts: string[] = []
       if (d.product_hint) parts.push(String(d.product_hint))
       if (d.supplier_hint) parts.push(String(d.supplier_hint))
-      if (d.overall_confidence != null) parts.push(`신뢰도 ${d.overall_confidence}%`)
+      if (d.overall_confidence != null) parts.push(`${AI_LABELS.confidence} ${confidencePercentView(Number(d.overall_confidence), AI_LABELS).text}`)
       return parts.length ? parts.join(' · ') : null
     }
     case 'review_finalized': {
       const parts: string[] = []
       if (d.supplier_hint) parts.push(String(d.supplier_hint))
       if (d.unit_price_usd != null) parts.push(`${fmtUSD(Number(d.unit_price_usd))}/hr`)
-      if (d.overall_confidence != null) parts.push(`신뢰도 ${d.overall_confidence}%`)
+      if (d.overall_confidence != null) parts.push(`${AI_LABELS.confidence} ${confidencePercentView(Number(d.overall_confidence), AI_LABELS).text}`)
       return parts.length ? parts.join(' · ') : null
     }
     case 'review_rejected':
       return String(d.reason ?? '사유 없음')
     case 'review_recheck_completed':
       return d.iteration_no != null
-        ? `${d.iteration_no}차 재분석 · 신뢰도 ${d.overall_confidence}%`
+        ? `${d.iteration_no}차 재분석 · ${AI_LABELS.confidence} ${confidencePercentView(d.overall_confidence != null ? Number(d.overall_confidence) : null, AI_LABELS).text}`
         : null
     case 'pool_stock_changed':
       return d.pool_qty != null ? `T3 풀 재고 → ${d.pool_qty}대` : null

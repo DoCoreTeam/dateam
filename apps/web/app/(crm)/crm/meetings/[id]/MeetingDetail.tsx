@@ -10,6 +10,8 @@
 // ③이 제일 중요하다. 근거 없이 결론만 보여 주면 사람은 그걸 믿거나 전부 무시한다.
 // 둘 다 나쁘다 — 믿으면 틀린 값이 사업 판단에 들어가고, 무시하면 기능이 없는 것과 같다.
 
+import { confidenceView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ACTION, ENTITY } from '@/lib/terms'
@@ -710,7 +712,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
                         <NbBadge status={axis.status}>{axis.label}</NbBadge>
                         <span className={styles.target}>{TARGET_LABEL[s.targetType] ?? s.targetType}</span>
                         {s.status !== 'PENDING' && <NbBadge status="done">처리됨</NbBadge>}
-                        <span className={styles.conf}>확신 {Math.round(s.confidence * 100)}%</span>
+                        <span className={styles.conf}>{AI_LABELS.confidence} {confidenceView(s.confidence, AI_LABELS).text}</span>
                       </div>
                       <p className={styles.foundText}>{describeSuggestionValue(s.proposedValueJson, s, '(내용 없음)')}</p>
                       {s.evidenceJson?.quote && (

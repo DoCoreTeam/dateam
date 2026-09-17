@@ -1,5 +1,7 @@
 'use client'
 
+import { confidencePercentView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useState, useRef, useEffect } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -215,7 +217,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
                   <span>단가 {fmtUSD(suggestion.unit_price_usd)}</span>
                   <span>1장당 {fmtUSD(suggestion.per_gpu_usd)}</span>
                   <span style={{ color: 'var(--gpu-muted)', fontWeight: 400 }}>{suggestion.price_basis}</span>
-                  {suggestion.confidence != null && <span style={{ marginLeft: 'auto', color: 'var(--gpu-accent)' }}>{suggestion.confidence}%</span>}
+                  {suggestion.confidence != null && <span style={{ marginLeft: 'auto', color: 'var(--gpu-accent)' }}>{confidencePercentView(suggestion.confidence, AI_LABELS).text}</span>}
                 </div>
                 {suggestion.reason && <div style={{ marginTop: 4, color: 'var(--gpu-muted)' }}>{suggestion.reason}</div>}
                 <button onClick={applySuggestion} className="gpu-btn" style={{ marginTop: 8, fontSize: 12, gap: 5 }}>

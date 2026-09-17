@@ -1,5 +1,7 @@
 'use client'
 
+import { confidenceView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -156,7 +158,8 @@ function LinkCard({ prefix, label, confidence, reason, weak, timeLabel, position
   timeLabel?: string | null; position?: 'before' | 'after' | null
   onUnlink: () => void; onOpen?: () => void
 }) {
-  const pct = confidence != null ? Math.round(confidence * 100) : null
+  // 퍼센트 셈은 공용부 한 벌 — 여기서 또 계산하면 같은 값이 화면마다 달라진다
+  const conf = confidenceView(confidence, AI_LABELS)
   const clickable = !!onOpen
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!onOpen) return
@@ -178,7 +181,7 @@ function LinkCard({ prefix, label, confidence, reason, weak, timeLabel, position
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--brand)', flexShrink: 0 }}>{prefix}</span>
         <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: weak ? 'var(--text-muted)' : 'var(--brand)' }}>{weak ? '추천' : '확정'}</span>
-        {pct != null && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>{pct}%</span>}
+        {conf.kind === 'known' && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>{conf.text}</span>}
         {position && (
           <span style={{
             fontSize: 'var(--fs-2xs)', fontWeight: 700, padding: '1px 6px', borderRadius: 'var(--radius)',

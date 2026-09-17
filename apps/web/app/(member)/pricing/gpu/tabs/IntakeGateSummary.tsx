@@ -5,6 +5,8 @@
 //   공급원가는 lib/gpu/confidence-gate(partitionByConfidence)로 3구간(자동/검토/차단) 분류.
 //   쓰기는 하지 않는다(표시 전용) — 확정은 부모의 기존 commit 핸들러가 수행.
 
+import { confidencePercentView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import {
   partitionByConfidence,
   classifyConfidence,
@@ -110,7 +112,7 @@ export default function IntakeGateSummary({ rows }: IntakeGateSummaryProps) {
                 <td className="gpu-gate-cell-price">{fmtUsd(r.priceUsd)}</td>
                 <td>
                   {isSupply && r.confidence != null ? (
-                    <span className={`gpu-gate-badge ${BAND_BADGE[band!]}`}>{r.confidence}%</span>
+                    <span className={`gpu-gate-badge ${BAND_BADGE[band!]}`}>{confidencePercentView(r.confidence, AI_LABELS).text}</span>
                   ) : isSupply ? (
                     <span className="gpu-gate-badge gpu-gate-badge--block">미상</span>
                   ) : (

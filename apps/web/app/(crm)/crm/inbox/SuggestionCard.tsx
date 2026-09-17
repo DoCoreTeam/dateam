@@ -9,6 +9,8 @@
 // 거절 사유를 고르게 하는 이유(부정확·중복·불필요): 나중에 프롬프트를 고칠 때
 // "무엇이 문제였나"의 유일한 재료다. 사유 없는 거절은 통계로만 남는다.
 
+import { confidenceView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useState } from 'react'
 import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
@@ -68,7 +70,9 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const pct = Math.round(item.confidence * 100)
+  // 확신을 퍼센트로 옮기는 규칙은 공용부에 한 벌만 있다 — 화면이 각자 계산하면 화면마다 달라진다
+  const conf = confidenceView(item.confidence, AI_LABELS)
+  const pct = conf.kind === 'known' ? conf.percent : 0
   const quote = item.evidenceJson?.quote
 
   async function decide(decision: 'accept' | 'reject', extra: Record<string, unknown> = {}) {
@@ -155,7 +159,7 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
         <span className={styles.gauge} aria-hidden>
           <span className={styles.gaugeFill} style={{ width: `${pct}%` }} />
         </span>
-        <span className={styles.pct}>확신 {pct}%</span>
+        <span className={styles.pct}>{AI_LABELS.confidence} {conf.text}</span>
       </div>
 
       {quote && (

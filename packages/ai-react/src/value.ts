@@ -43,6 +43,27 @@ export function confidenceView(
   return { kind: 'known', percent, text: `${percent}%`, low: clamped < lowBelow }
 }
 
+/**
+ * The same view, for callers whose number is already a percentage.
+ *
+ * Half of this product's screens store confidence as 0-100 and the other half as 0-1.
+ * Making the percentage callers divide by a hundred first is how a displayed number
+ * changes during a migration: 73.5 becomes 74, and nobody can say whether the model
+ * got less sure or the code did. So the scale is part of the entry point, and neither
+ * caller has to convert anything.
+ *
+ * `lowBelowPercent` is on the same scale as the input, for the same reason.
+ */
+export function confidencePercentView(
+  percent: number | null,
+  labels: Pick<AiLabels, 'confidenceUnknown'>,
+  lowBelowPercent: number = LOW_CONFIDENCE_BELOW * 100,
+): ConfidenceView {
+  if (percent === null) return { kind: 'unknown', text: labels.confidenceUnknown }
+  const clamped = Math.min(100, Math.max(0, percent))
+  return { kind: 'known', percent: clamped, text: `${clamped}%`, low: clamped < lowBelowPercent }
+}
+
 /** The word for where a value stands, chosen by the caller, picked by us */
 export function statusText(
   status: AiValueStatus,

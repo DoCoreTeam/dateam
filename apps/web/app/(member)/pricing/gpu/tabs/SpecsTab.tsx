@@ -1,5 +1,7 @@
 'use client'
 
+import { confidencePercentView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
@@ -520,7 +522,7 @@ export default function SpecsTab() {
           {!v.has_spec
             ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-amber)' }}>스펙 없음</span>
             : v.spec?.ai_generated
-              ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI {v.spec.ai_confidence ?? ''}%</span>
+              ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI {v.spec.ai_confidence != null ? confidencePercentView(v.spec.ai_confidence, AI_LABELS).text : ''}</span>
               : v.spec?.architecture
                 ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-green)' }}>수정됨</span>
                 : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)' }}>기존값(VRAM)</span>}

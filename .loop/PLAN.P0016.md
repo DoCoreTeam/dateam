@@ -72,7 +72,7 @@
 의존: I03
 
 ### I04 확신을 그리는 화면 열셋
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/ai-component-baseline.json, apps/web/lib/policy/ai-component-baseline.test.ts, apps/web/app/(crm)/crm/inbox/SuggestionCard.tsx, apps/web/app/(member)/daily/AutolinkSection.tsx, apps/web/app/(member)/dept-tasks/DeptTaskSuggestPanel.tsx, apps/web/app/(member)/meeting-notes/ExtractConfirmModal.tsx
 감사 기준:

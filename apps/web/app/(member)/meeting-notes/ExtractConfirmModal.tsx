@@ -4,6 +4,8 @@
 //  - 업무/일정/참석자 후보를 체크리스트로 보여주고 사용자가 선택분만 반영(§5-3 추출형 표준).
 //  - 반영: applyExtractedItems(업무→daily, 일정→캘린더) + updateMeetingNote(참석자 합집합).
 //  - 모달 표준(§2-2): useEscClose · X닫기 · tape-title · 광원형 shadow(--shadow-modal) · backdrop(--modal-backdrop).
+import { confidenceView } from '@ax/ai-react'
+import { AI_LABELS } from '@/lib/terms'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, CheckSquare, CalendarPlus, Star, Users } from 'lucide-react'
@@ -208,7 +210,7 @@ function CandidateRow({ selectable, checked, onToggle, title, confidence, quote,
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>{title}</strong>
           {hint && <span className="badge badge-slate" style={{ fontSize: 'var(--fs-2xs)' }}>{hint}</span>}
-          <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>신뢰도 {Math.round(confidence * 100)}%</span>
+          <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>{AI_LABELS.confidence} {confidenceView(confidence, AI_LABELS).text}</span>
         </div>
         {quote && (
           <div title={quote} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
