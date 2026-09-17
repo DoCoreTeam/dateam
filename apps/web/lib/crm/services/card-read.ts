@@ -19,13 +19,13 @@ import { CrmError } from '../domain/errors.ts'
 import { type AiLedger } from '../../ai/guarded-call.ts'
 import { guardedGeminiParts, GeminiCallError } from '../../ai/guarded-gemini.ts'
 
-/** 명함 한 장은 작다. 이보다 크면 사진을 줄여 달라고 말하는 것이 맞다 */
-export const CARD_MAX_BYTES = 8 * 1024 * 1024
-
-export const CARD_MIME_OK: readonly string[] = ['image/png', 'image/jpeg', 'image/webp', 'image/heic']
-
-/** 한 번에 받는 장수 — 모델을 그만큼 부르므로 상한이 필요하다 */
-export const CARD_MAX_COUNT = 10
+/*
+  한도는 `card-limits.ts` 에 있다 — 이 파일은 AI 게이트웨이(서버 전용)를 끌어오므로,
+  화면이 여기서 상수를 가져가면 client 번들이 `next/headers` 까지 물어 컴파일이 죽는다.
+  부르던 쪽이 안 바뀌도록 여기서 그대로 다시 내보낸다.
+*/
+export { CARD_MAX_BYTES, CARD_MIME_OK, CARD_MAX_COUNT } from './card-limits.ts'
+import { CARD_MAX_BYTES, CARD_MIME_OK } from './card-limits.ts'
 
 const PROMPT = `이 이미지는 명함이다. **적혀 있는 글자를 그대로** 옮겨 적어라.
 

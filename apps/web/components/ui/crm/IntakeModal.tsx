@@ -20,7 +20,8 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { ACTION, ENTITY, progress } from '@/lib/terms'
 import { eulReul, eunNeun } from '@/lib/ui/josa'
-import { CARD_MAX_COUNT, CARD_MIME_OK } from '@/lib/crm/services/card-read'
+// 한도만 가져온다 — `card-read` 는 서버 전용 AI 경로를 끌어오므로 화면이 물면 빌드가 죽는다
+import { CARD_MAX_COUNT, CARD_MIME_OK } from '@/lib/crm/services/card-limits'
 import styles from './intake-modal.module.css'
 
 /**
