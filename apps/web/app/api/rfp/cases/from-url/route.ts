@@ -31,12 +31,15 @@ export async function POST(req: NextRequest) {
   const gate = await requireMemberApi()
   if (gate.error) return gate.error
 
-  let body: { url?: unknown; docClass?: unknown }
+  let body: { url?: unknown; docClass?: unknown; analyze?: unknown }
   try {
-    body = (await req.json()) as { url?: unknown; docClass?: unknown }
+    body = (await req.json()) as { url?: unknown; docClass?: unknown; analyze?: unknown }
   } catch {
     return NextResponse.json({ error: 'bad_request' }, { status: 400 })
   }
+  // 파일을 이어서 올릴 참이면 분석을 여기서 걸지 않는다 —
+  // 지금 걸면 뒤에 올라온 파일이 빠진 채로 읽힐 수 있다. 화면이 다 올리고 건다
+  const analyze = body.analyze !== false
 
   // 등급을 안 고르면 만들지 않는다 — 기본값을 주면 비공개 문서가 공개로 들어온다
   if (!isDocClass(body.docClass)) {
@@ -70,6 +73,7 @@ export async function POST(req: NextRequest) {
     attachments: preview.attachments.map((a, i) => ({ fileName: a.name, url: a.url, slot: i + 1 })),
     noticeUrl: preview.url,
     emptyReason: preview.reason,
+    analyze,
   }, realAdoptPorts(db, admin))
 
   if ('error' in result) {

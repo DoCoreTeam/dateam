@@ -77,7 +77,7 @@
 의존: I01, I02
 
 ### I04 공고 올리기 화면에 링크 칸
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/components/rfp/UploadPanel.tsx

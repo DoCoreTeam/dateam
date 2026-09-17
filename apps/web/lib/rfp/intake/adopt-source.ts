@@ -37,6 +37,13 @@ export interface AdoptInput {
   noticeUrl: string | null
   /** 첨부를 못 찾았으면 왜 못 찾았는지 — 0건일 때만 쓴다 */
   emptyReason: string | null
+  /**
+   * 분석을 지금 걸 것인가. 기본은 건다.
+   *
+   * 링크와 파일을 함께 준 경우만 끈다 — 지금 걸면 뒤에 올라온 파일이 빠진 채로 읽힌다.
+   * 그때는 화면이 파일을 다 올린 다음 분석 창구를 따로 부른다.
+   */
+  analyze?: boolean
 }
 
 export interface AdoptedFile {
@@ -139,7 +146,7 @@ export async function adoptSource(
 
   // 첨부가 하나도 없으면 분석을 걸지 않는다 — 빈 리포트가 「내용 없음」으로 나온다
   let job: { id: string; status: string } | null = null
-  if (attached.length > 0) {
+  if (attached.length > 0 && input.analyze !== false) {
     job = await ports.enqueueParse({ caseId: kase.id, orgId: input.orgId, userId: input.userId })
   }
 
