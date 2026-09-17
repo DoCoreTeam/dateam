@@ -1,3 +1,4 @@
+import { guardedGeminiText, GeminiCallError } from '@/lib/ai/guarded-gemini'
 import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
@@ -9,7 +10,6 @@ import { normalizeExtractedModel } from '@/lib/gpu/canonical-model'
 import { BILLING_EXTRACT_HINT } from '@/lib/gpu/billing'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 // POST /api/pricing/gpu/review/[id]/recheck — AI 재분석 요청
 export async function POST(
@@ -87,41 +87,28 @@ ${feedback}
 원본 텍스트:
 ${originalText || '(원본 텍스트 없음. 이전 추출 결과 기반으로 피드백 반영)'}`
 
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-
-  let geminiRes: Response
+  // 견적 원문에 공급처 담당자 이름이 붙어 온다 — 관문이 가리고 답에서 되돌린다
+  let rawText: string
   try {
-    geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: recheckPrompt }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-      }),
+    const out = await guardedGeminiText({
+      prompt: recheckPrompt, apiKey, model,
+      surface: 'gpu-quote-extract', purpose: '견적 재확인',
+      actorId: user.id, temperature: 0.1,
     })
-  } catch {
-    return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
+    rawText = out.text
+    logTokenUsage({
+      userId: user.id,
+      feature: 'gpu-quote-extract',
+      model,
+      promptTokens: out.inputTokens,
+      outputTokens: out.outputTokens,
+      totalTokens: out.inputTokens + out.outputTokens,
+    })
+  } catch (e) {
+    const status = e instanceof GeminiCallError ? e.status : 0
+    return NextResponse.json(
+      { error: status ? `AI 오류 (${status})` : 'AI 서버 연결 실패' }, { status: 502 })
   }
-
-  if (!geminiRes.ok) {
-    return NextResponse.json({ error: `AI 오류 (${geminiRes.status})` }, { status: 502 })
-  }
-
-  const geminiJson = await geminiRes.json() as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  const usage = geminiJson.usageMetadata ?? {}
-
-  logTokenUsage({
-    userId: user.id,
-    feature: 'gpu-quote-extract',
-    model,
-    promptTokens: usage.promptTokenCount ?? 0,
-    outputTokens: usage.candidatesTokenCount ?? 0,
-    totalTokens: usage.totalTokenCount ?? 0,
-  })
 
   let reExtracted: {
     extracted?: Record<string, unknown>

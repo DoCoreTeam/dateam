@@ -1,7 +1,7 @@
 // 회사 정보 AI 자동채움 — 공급사·경쟁사 공통. 회사명(+웹사이트)으로 기본 정보를 추정.
 //   §5-3 준수: 결과는 "제안"이며 폼에 미리채움(편집 가능)·저장 단계는 사용자가 수행. 자동 DB 덮어쓰기 금지.
 //   Gemini 호출은 gemini-lead.ts와 동일 패턴(responseMimeType json).
-import { GEMINI_API_BASE } from '@/lib/gpu/extract-helpers'
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
 
 const COMPETITOR_TYPE_SET = new Set(['hyperscaler', 'specialist', 'marketplace', 'domestic'])
 // http(s) URL만 허용 — javascript:/data: 등 위험 스킴 차단(저장 후 <a href> 렌더 XSS 방지)
@@ -59,22 +59,12 @@ export interface EnrichResponse {
 export async function enrichCompany(
   input: CompanyEnrichInput, apiKey: string, model: string,
 ): Promise<EnrichResponse> {
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: buildPrompt(input) }] }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-    }),
-    cache: 'no-store',
+  const out = await guardedGeminiText({
+    prompt: buildPrompt(input), apiKey, model,
+    surface: 'gpu-company-enrich', purpose: '회사 정보 웹 보강',
+    temperature: 0.1,
   })
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status}`)
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = out.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
 
   let parsed: Record<string, unknown>
@@ -96,9 +86,9 @@ export async function enrichCompany(
   return {
     result,
     usage: {
-      promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-      outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-      totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+      promptTokens: out.inputTokens,
+      outputTokens: out.outputTokens,
+      totalTokens: out.inputTokens + out.outputTokens,
     },
   }
 }

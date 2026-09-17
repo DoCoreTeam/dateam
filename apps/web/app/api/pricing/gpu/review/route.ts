@@ -1,3 +1,4 @@
+import { guardedGeminiParts, GeminiCallError, type GeminiPart } from '@/lib/ai/guarded-gemini'
 import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
@@ -14,7 +15,6 @@ import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { safeFetchText } from '@/lib/security/safe-fetch'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 interface ReviewItem {
   id: string
@@ -152,22 +152,24 @@ function extractUrls(text: string): string[] {
   return matches ? Array.from(new Set(matches)) : []
 }
 
+/**
+ * 견적서 사진과 글자를 관문으로 보낸다.
+ *
+ * 예전에는 `Response` 를 그대로 돌려줘서 호출부가 `res.json()` 을 했다. 관문은
+ * 가림을 되돌려 글자를 주는 자리라 `Response` 를 못 돌려준다 — 그러면 되돌리기가
+ * 호출부 몫이 되고, 그것이 곧 «이 자리만 안 되돌렸다» 가 된다.
+ */
 async function callGemini(
   apiKey: string,
   model: string,
-  parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }>,
-  jsonMode = true,
-) {
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts }],
-      generationConfig: jsonMode ? { responseMimeType: 'application/json', temperature: 0 } : { temperature: 0 },
-    }),
+  parts: readonly GeminiPart[],
+  actorId: string | null,
+): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+  return guardedGeminiParts({
+    parts, apiKey, model,
+    surface: 'gpu-quote-extract', purpose: '견적 추출',
+    actorId, temperature: 0,
   })
-  return res
 }
 
 // URL에서 텍스트 추출 (HTML 파싱)
@@ -336,18 +338,17 @@ export async function POST(req: NextRequest) {
     const classifyParts: Array<{ text: string }> = [
       { text: `${classifyPrompt}\n\n${SCHEMA_CONTRACT}${specContext}\n\n입력:\n${contentText}` },
     ]
-    let classifyRes: Response
+    let classifyRaw = ''
     try {
-      classifyRes = await callGemini(config.apiKey, config.model, classifyParts)
-    } catch {
-      return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
+      classifyRaw = (await callGemini(config.apiKey, config.model, classifyParts, user.id)).text
+    } catch (e) {
+      if (!(e instanceof GeminiCallError)) {
+        return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
+      }
+      // 분류가 실패해도 아래 추출 경로로 이어진다 — 예전과 같은 흐름
     }
 
-    if (classifyRes.ok) {
-      const classifyJson = await classifyRes.json() as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-      }
-      const classifyRaw = classifyJson.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+    if (classifyRaw) {
       try {
         const classified = JSON.parse(classifyRaw) as {
           type: 'competitor' | 'supplier'
@@ -387,37 +388,27 @@ export async function POST(req: NextRequest) {
   if (!prompt) return NextResponse.json({ error: 'AI 프롬프트가 설정되지 않았습니다' }, { status: 500 })
 
   const promptText = `${prompt.content}\n\n${SCHEMA_CONTRACT}${BILLING_EXTRACT_HINT}${specContext}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
-  const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
+  const parts: GeminiPart[] = []
   if (imageBase64) parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } })
   parts.push({ text: promptText })
 
-  let geminiRes: Response
+  let rawText: string
   try {
-    geminiRes = await callGemini(config.apiKey, config.model, parts)
-  } catch {
-    return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
+    const out = await callGemini(config.apiKey, config.model, parts, user.id)
+    rawText = out.text
+    logTokenUsage({
+      userId: user.id,
+      feature: 'gpu-quote-extract',
+      model: config.model,
+      promptTokens: out.inputTokens,
+      outputTokens: out.outputTokens,
+      totalTokens: out.inputTokens + out.outputTokens,
+    })
+  } catch (e) {
+    const status = e instanceof GeminiCallError ? e.status : 0
+    return NextResponse.json(
+      { error: status ? `AI API 오류 (${status})` : 'AI 서버 연결 실패' }, { status: 502 })
   }
-
-  if (!geminiRes.ok) {
-    return NextResponse.json({ error: `AI API 오류 (${geminiRes.status})` }, { status: 502 })
-  }
-
-  const geminiJson = await geminiRes.json() as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-
-  const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  const usage = geminiJson.usageMetadata ?? {}
-
-  logTokenUsage({
-    userId: user.id,
-    feature: 'gpu-quote-extract',
-    model: config.model,
-    promptTokens: usage.promptTokenCount ?? 0,
-    outputTokens: usage.candidatesTokenCount ?? 0,
-    totalTokens: usage.totalTokenCount ?? 0,
-  })
 
   type SingleExtracted = {
     extracted?: Record<string, unknown>

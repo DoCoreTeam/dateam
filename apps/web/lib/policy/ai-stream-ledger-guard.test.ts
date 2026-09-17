@@ -16,7 +16,7 @@ import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const OPENERS = ['guardedGeminiStream', 'beginGuardedStream']
+const OPENERS = ['guardedGeminiStream', 'beginGuardedCall']
 
 function files(): string[] {
   const out: string[] = []

@@ -52,7 +52,7 @@
 - 기존 시험 통과, 기준선이 그만큼 내려감
 의존: I01
 ### I03 GPU 와 콘텐츠와 AI 스튜디오
-상태: 대기
+상태: 통과
 모드: 중량
 범위: apps/web/lib/gpu/extract-helpers.ts, apps/web/app/api/pricing/gpu/specs/generate/route.ts, apps/web/app/api/pricing/gpu/quotes/[id]/reanalyze/route.ts, apps/web/lib/ci/ai/gemini.ts, apps/web/lib/ci/ai/creative-server.ts, apps/web/lib/policy/vendor-call-baseline.json
 감사 기준:

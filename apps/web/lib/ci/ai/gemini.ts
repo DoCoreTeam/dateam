@@ -1,12 +1,16 @@
 // lib/ci/ai/gemini.ts — Gemini 호출 (CI 전용 얇은 래퍼)
+// 나가는 자리는 관문(lib/ai/guarded-gemini) 하나다 — 가림과 원장이 여기서 자동으로 붙는다
 // 키·모델은 기존 org_content META를 재사용한다(lib/ci/ai/meta.ts).
 // 실패를 예외로 던지지 않는다 — 호출자가 폴백을 고를 수 있어야 한다.
 
-const API_HOST = 'https://generativelanguage.googleapis.com'
+import {
+  guardedGeminiParts, GeminiCallError, type GeminiPart as GatePart,
+} from '@/lib/ai/guarded-gemini'
+
 const TIMEOUT_MS = 60_000
 
-/** 미디어 파트를 Gemini가 받는 모양으로. 원격은 camelCase가 아니면 통째로 무시된다. */
-function toApiPart(p: GeminiPart): Record<string, unknown> {
+/** 미디어 파트를 관문이 받는 모양으로. 원격은 camelCase가 아니면 통째로 무시된다. */
+function toApiPart(p: GeminiPart): GatePart {
   return p.kind === 'remote'
     ? { fileData: p.mimeType ? { fileUri: p.uri, mimeType: p.mimeType } : { fileUri: p.uri } }
     : { inlineData: { mimeType: p.mimeType, data: p.data } }
@@ -66,65 +70,50 @@ interface CallInput {
 export async function callGemini(input: CallInput): Promise<GeminiResult> {
   if (!input.apiKey) return { ok: false, error: 'AI 키가 설정되지 않았습니다' }
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), input.timeoutMs ?? TIMEOUT_MS)
-  input.signal?.addEventListener('abort', () => controller.abort())
-
-  const version = input.apiVersion ?? 'v1beta'
-  const parts: Record<string, unknown>[] = [{ text: input.prompt }]
+  /*
+    부르는 법은 그대로 두고 **나가는 자리만** 관문으로 옮긴다.
+    이 함수는 예외를 안 던지는 것이 계약이라(호출자가 폴백을 고른다)
+    관문이 던지는 것을 여기서 받아 예전과 같은 말로 바꾼다.
+  */
+  const parts: GatePart[] = [{ text: input.prompt }]
   for (const p of input.parts ?? []) parts.push(toApiPart(p))
 
   try {
-    const res = await fetch(
-      `${API_HOST}/${version}/models/${encodeURIComponent(input.model)}:generateContent?key=${input.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: {
-            temperature: input.temperature ?? 0.4,
-            ...(input.maxOutputTokens ? { maxOutputTokens: input.maxOutputTokens } : {}),
-            // 생각 수준을 지정한 호출만 실어 보낸다 — 안 주면 요청 본문이 예전과 한 글자도 같다
-            ...(input.thinkingLevel ? { thinkingConfig: { thinkingLevel: input.thinkingLevel } } : {}),
-          },
-        }),
+    const out = await guardedGeminiParts({
+      parts,
+      apiKey: input.apiKey, model: input.model,
+      surface: 'ci-gemini', purpose: '콘텐츠 분석',
+      // 이 길은 산문도 받는다 — JSON 을 강제하면 예전 응답 모양이 바뀐다
+      json: false,
+      temperature: input.temperature ?? 0.4,
+      timeoutMs: input.timeoutMs ?? TIMEOUT_MS,
+      apiVersion: input.apiVersion,
+      extraConfig: {
+        ...(input.maxOutputTokens ? { maxOutputTokens: input.maxOutputTokens } : {}),
+        // 생각 수준을 지정한 호출만 실어 보낸다 — 안 주면 요청 본문이 예전과 한 글자도 같다
+        ...(input.thinkingLevel ? { thinkingConfig: { thinkingLevel: input.thinkingLevel } } : {}),
       },
-    )
+    })
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      return { ok: false, error: `AI 응답 실패 (${res.status}) ${body.slice(0, 200)}` }
-    }
-
-    const json = await res.json() as {
-      candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]
-      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number }
-    }
-
-    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
-    if (!text.trim()) return { ok: false, error: 'AI가 빈 응답을 돌려주었습니다' }
+    if (!out.text.trim()) return { ok: false, error: 'AI가 빈 응답을 돌려주었습니다' }
 
     // 길이 상한에 걸려 잘린 응답은 JSON이 깨진 채로 온다.
     // "형식이 이상하다"가 아니라 "길어서 잘렸다"라고 말해야 상한을 올릴 수 있다.
-    const finish = json.candidates?.[0]?.finishReason
-    if (finish === 'MAX_TOKENS') {
+    if (out.finishReason === 'MAX_TOKENS') {
       return { ok: false, error: 'AI 응답이 길이 상한에 걸려 잘렸습니다' }
     }
 
     return {
-      ok: true,
-      text,
-      promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-      outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
+      ok: true, text: out.text,
+      promptTokens: out.inputTokens, outputTokens: out.outputTokens,
     }
   } catch (e) {
-    const msg = e instanceof Error && e.name === 'AbortError'
+    if (e instanceof GeminiCallError) {
+      return { ok: false, error: `AI 응답 실패 (${e.status})` }
+    }
+    const msg = e instanceof Error && (e.name === 'AbortError' || e.name === 'TimeoutError')
       ? 'AI 응답이 시간 안에 오지 않았습니다'
       : 'AI를 호출하지 못했습니다'
     return { ok: false, error: msg }
-  } finally {
-    clearTimeout(timer)
   }
 }

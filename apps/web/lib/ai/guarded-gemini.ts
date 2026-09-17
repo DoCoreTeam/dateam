@@ -15,7 +15,7 @@
  * 가림인지 폴백인지 구분이 안 된다. 사슬은 다음 단계 몫이다.
  */
 
-import { guardedText, beginGuardedStream, type AiLedger, type GuardedStreamHandle } from './guarded-call.ts'
+import { guardedText, beginGuardedCall, type AiLedger, type GuardedCallHandle } from './guarded-call.ts'
 import { serverAiLedger } from './ledger.ts'
 import { serverKnownNames } from './known-names.ts'
 
@@ -134,7 +134,7 @@ export interface GuardedGeminiStream {
   unmask(text: string): string
   /** 흐르는 중에 화면에 붙일 때 — 반쪽 자리표 앞에서 끊는다 */
   unmaskStreaming(text: string): string
-  done: GuardedStreamHandle['done']
+  done: GuardedCallHandle['done']
 }
 
 /**
@@ -151,7 +151,7 @@ export async function guardedGeminiStream(
   // 지시와 대화를 한 번에 가린다 — 따로 가리면 같은 이름이 토막마다 다른 번호를 받는다
   const turns = input.turns ?? (input.prompt !== undefined ? [{ role: 'user' as const, text: input.prompt }] : [])
   if (turns.length === 0) throw new Error('보낼 글이 없다')
-  const handle = await beginGuardedStream(
+  const handle = await beginGuardedCall(
     [input.system ?? '', ...turns.map((t) => t.text)],
     {
       surface: input.surface, purpose: input.purpose,
@@ -188,5 +188,90 @@ export async function guardedGeminiStream(
   return {
     body: res.body, unmask: handle.unmask,
     unmaskStreaming: handle.unmaskStreaming, done: handle.done,
+  }
+}
+
+export type GeminiPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } }
+  /** 모델이 직접 가져가는 주소 — 공개 영상 같은 것. v1alpha 에서만 받는다 */
+  | { fileData: { fileUri: string; mimeType?: string } }
+
+export interface GuardedGeminiPartsInput extends Omit<GuardedGeminiInput, 'prompt'> {
+  parts: readonly GeminiPart[]
+  /** 원격 미디어(fileData)는 v1beta 가 404 로 거절한다 */
+  apiVersion?: 'v1beta' | 'v1alpha'
+}
+
+export interface GuardedGeminiPartsResult extends GuardedGeminiResult {
+  /** 길이 상한에 걸려 잘렸는지 — «형식이 이상하다» 와 «길어서 잘렸다» 는 고치는 법이 다르다 */
+  finishReason: string | null
+}
+
+/**
+ * 글자와 그림이 **섞인** 호출.
+ *
+ * 견적서 사진, 명함, 스펙 표 이미지가 이 길로 나간다. 글자 쪽은 그대로 가리고,
+ * 그림은 **가린 척하지 않는다** — 원장에 그림이라고 밝히고 몇 바이트가 나갔는지 남긴다.
+ * 안 가렸는데 가렸다고 적힌 기록이 아무 기록도 없는 것보다 나쁘다.
+ */
+export async function guardedGeminiParts(
+  input: GuardedGeminiPartsInput,
+): Promise<GuardedGeminiPartsResult> {
+  const names = input.knownNames ?? await serverKnownNames()
+  const texts = input.parts.map((p) => ('text' in p ? p.text : ''))
+  const blobBytes = input.parts.reduce(
+    (n, p) => n + ('inlineData' in p ? Math.ceil(p.inlineData.data.length * 3 / 4) : 0), 0)
+  const hasBlob = input.parts.some((p) => 'inlineData' in p || 'fileData' in p)
+
+  const handle = await beginGuardedCall(
+    texts,
+    {
+      surface: input.surface, purpose: input.purpose,
+      actorId: input.actorId ?? null, providerId: 'gemini', modelName: input.model,
+      knownNames: names, media: hasBlob ? 'image' : 'text',
+    },
+    input.ledger ?? serverAiLedger(),
+    blobBytes,
+  )
+
+  const sent: GeminiPart[] = input.parts.map((p, i) =>
+    'text' in p ? { text: handle.parts[i] } : p)
+
+  try {
+    const base = input.apiVersion
+      ? `https://generativelanguage.googleapis.com/${input.apiVersion}`
+      : GEMINI_BASE
+    const res = await fetch(`${base}/models/${encodeURIComponent(input.model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': input.apiKey },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: sent }],
+        generationConfig: {
+          ...(input.json === false ? {} : { responseMimeType: 'application/json' }),
+          temperature: input.temperature ?? 0.1,
+          ...(input.extraConfig ?? {}),
+        },
+      }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(input.timeoutMs ?? 300_000),
+    })
+    if (!res.ok) throw new GeminiCallError(res.status)
+    const json = await res.json() as {
+      candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number }
+    }
+    const inputTokens = json.usageMetadata?.promptTokenCount ?? 0
+    const outputTokens = json.usageMetadata?.candidatesTokenCount ?? 0
+    await handle.done({ ok: true, inputTokens, outputTokens })
+    // 조각이 여럿으로 쪼개져 올 수 있다 — 첫 조각만 읽으면 뒷말이 통째로 사라진다
+    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
+    return {
+      text: handle.unmask(text), inputTokens, outputTokens,
+      finishReason: json.candidates?.[0]?.finishReason ?? null,
+    }
+  } catch (e) {
+    await handle.done({ ok: false, error: e instanceof Error ? e.message : String(e) })
+    throw e
   }
 }

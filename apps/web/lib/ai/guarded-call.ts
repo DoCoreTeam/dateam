@@ -284,7 +284,7 @@ export function unmaskStreaming(text: string, hits: readonly PiiHit[]): string {
  */
 const PART_SEP = '\u0000'
 
-export interface GuardedStreamHandle {
+export interface GuardedCallHandle {
   /** 가린 글자. 이것을 벤더에 보낸다 (토막을 줬으면 첫 토막) */
   prompt: string
   /** 토막을 줬을 때 가려진 토막들. 번호는 토막 사이에서 이어진다 */
@@ -304,20 +304,23 @@ export interface GuardedStreamHandle {
 }
 
 /**
- * **흘려보내는** 길.
+ * **두 토막으로 나뉜** 길.
  *
- * 흐름은 끝을 기다릴 수 없어서 «부르고 받고 적는다» 한 덩어리로 못 싼다.
- * 그래서 두 토막으로 나눈다 — 나가기 전에 가리고 전송을 적고, 끝났을 때 호출을 적는다.
+ * 흐름은 끝을 기다릴 수 없고, 그림이 섞인 호출은 가림이 글자에만 닿는다.
+ * 둘 다 «부르고 받고 적는다» 를 한 덩어리로 못 싼다. 그래서 나가기 전에 가리고
+ * 전송을 적어 두고, 끝났을 때 호출을 적는다.
  *
  * 자리표 되돌리기를 **조각마다** 하지 않는 이유: `⟦PII_3⟧` 이 조각 경계에 걸리면
  * 반쪽만 바뀌어 글자가 깨진다. 모인 글자에 한 번 쓰는 것이 안전하다.
  */
-export async function beginGuardedStream(
+export async function beginGuardedCall(
   prompt: string | readonly string[],
   ctx: GuardedCallContext,
   ledger: AiLedger,
+  /** 글자가 아닌 것이 같이 나갈 때 그 크기 — 그림이 몇 바이트 나갔는지가 원장에 남는다 */
+  extraBytes: number = 0,
   now: () => number = () => Date.now(),
-): Promise<GuardedStreamHandle> {
+): Promise<GuardedCallHandle> {
   const names = { knownNames: ctx.knownNames }
   const parts = typeof prompt === 'string' ? [prompt] : prompt
   const masked = maskPii(parts.join(PART_SEP), names)
@@ -326,8 +329,9 @@ export async function beginGuardedStream(
   await ledger.recordTransfer({
     surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
     provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
-    masked_counts: countByKind(masked.hits), media_kind: 'text',
-    bytes: byteLength(masked.text), contract_version: AI_CONTRACT_VERSION,
+    masked_counts: countByKind(masked.hits), media_kind: ctx.media ?? 'text',
+    bytes: (extraBytes ?? 0) + byteLength(masked.text),
+    contract_version: AI_CONTRACT_VERSION,
   })
 
   const started = now()

@@ -1,3 +1,4 @@
+import { guardedGeminiText, GeminiCallError } from '@/lib/ai/guarded-gemini'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
@@ -5,7 +6,6 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { loadSchemaDigest } from '@/lib/gpu/extract-helpers'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 // POST /api/pricing/gpu/quotes/[id]/reanalyze — 견적의 원본 값 + 메모를 AI로 재정규화(제안만)
 // 확정 견적엔 원문 텍스트가 없으므로, 저장된 원본(단가/단위/통화/모델/메모)을 입력으로 재분석한다.
@@ -80,31 +80,24 @@ ${JSON.stringify(source, null, 2)}
 ## DB 스키마 (정합 유지 — 실제 테이블·컬럼·enum 범위 내로)
 ${schema}`
 
-  let res: Response
+  // 견적에는 공급처 담당자 이름이 붙어 온다 — 관문이 가리고 답에서 되돌린다
+  let rawText: string
   try {
-    res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-      }),
+    const out = await guardedGeminiText({
+      prompt, apiKey, model, surface: 'gpu-quote-reanalyze', purpose: '견적 재분석',
+      actorId: auth.user.id, temperature: 0.1,
     })
-  } catch {
-    return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
+    rawText = out.text
+    logTokenUsage({
+      userId: auth.user.id, feature: 'gpu-quote-reanalyze', model,
+      promptTokens: out.inputTokens, outputTokens: out.outputTokens,
+      totalTokens: out.inputTokens + out.outputTokens,
+    })
+  } catch (e) {
+    const status = e instanceof GeminiCallError ? e.status : 0
+    return NextResponse.json(
+      { error: status ? `AI 오류 (${status})` : 'AI 서버 연결 실패' }, { status: 502 })
   }
-  if (!res.ok) return NextResponse.json({ error: `AI 오류 (${res.status})` }, { status: 502 })
-
-  const j = await res.json() as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
-  const rawText = j.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  const usage = j.usageMetadata ?? {}
-  logTokenUsage({
-    userId: auth.user.id, feature: 'gpu-quote-reanalyze', model,
-    promptTokens: usage.promptTokenCount ?? 0, outputTokens: usage.candidatesTokenCount ?? 0, totalTokens: usage.totalTokenCount ?? 0,
-  })
 
   let suggestion: Record<string, unknown>
   try { suggestion = JSON.parse(rawText) } catch {

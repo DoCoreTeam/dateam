@@ -1,3 +1,4 @@
+import { guardedGeminiText, GeminiCallError } from '@/lib/ai/guarded-gemini'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
@@ -5,7 +6,6 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { loadSchemaDigest } from '@/lib/gpu/extract-helpers'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 // POST /api/pricing/gpu/specs/generate
 //  body: { model_name } 단일  |  { all: true } 스펙 없는 모델 일괄
@@ -74,18 +74,18 @@ ${modelName}
 
 ## DB 스키마 (저장 대상 gpu_specs 등 — 컬럼·타입 정합 유지)
 ${schema}`
-    let res: Response
+    // 사람 이름이 들 자리는 아니지만 나가는 길은 다 관문을 지난다 — 예외가 하나 생기면 다음이 쉬워진다
+    let rawText: string
     try {
-      res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1 } }),
+      const out = await guardedGeminiText({
+        prompt, apiKey, model, surface: 'gpu-spec-generate', purpose: '스펙 데이터시트 생성',
+        actorId: auth.user.id, temperature: 0.1,
       })
-    } catch { return { ok: false, error: 'AI 연결 실패' } }
-    if (!res.ok) return { ok: false, error: `AI ${res.status}` }
-    const j = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }
-    const rawText = j.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-    const usage = j.usageMetadata ?? {}
-    logTokenUsage({ userId: auth.user.id, feature: 'gpu-spec-generate', model, promptTokens: usage.promptTokenCount ?? 0, outputTokens: usage.candidatesTokenCount ?? 0, totalTokens: usage.totalTokenCount ?? 0 })
+      rawText = out.text
+      logTokenUsage({ userId: auth.user.id, feature: 'gpu-spec-generate', model, promptTokens: out.inputTokens, outputTokens: out.outputTokens, totalTokens: out.inputTokens + out.outputTokens })
+    } catch (e) {
+      return { ok: false, error: e instanceof GeminiCallError ? `AI ${e.status}` : 'AI 연결 실패' }
+    }
     let parsed: Record<string, unknown>
     try { parsed = JSON.parse(rawText) } catch { return { ok: false, error: '파싱 실패' } }
     const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : null

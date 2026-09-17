@@ -9,8 +9,6 @@ import { htmlToStructuredText } from '@/lib/gpu/html-table-extract'
 import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 import { callGeminiJson, callGeminiText, type GeminiPart } from '../ai/gemini-call.ts'
 
-export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
-
 /**
  * GPU 경로가 공용 호출부에 얹어 쓰는 선택지.
  *

@@ -5,13 +5,13 @@ import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { getGeminiMeta } from './meta.ts'
+import { guardedGeminiParts, GeminiCallError, type GeminiPart } from '@/lib/ai/guarded-gemini'
 import {
   buildCreativePrompt, parseCreative, creativeFromRules, type CreativeAnalysis,
 } from './creative.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const IMAGE_TIMEOUT_MS = 10_000
 const MAX_IMAGE_BYTES = 4_000_000
 
@@ -60,45 +60,34 @@ export async function analyzeCreative(contentId: string): Promise<{ ok: boolean;
       hasThumbnail: Boolean(image),
     })
 
-    const parts: Record<string, unknown>[] = [{ text: prompt }]
-    if (image) parts.push({ inline_data: { mime_type: image.mime, data: image.data } })
+    // 썸네일 그림이 밖으로 나간다. 글자는 가리고, 그림은 «가렸다» 고 적지 않는다 —
+    // 안 가렸는데 가렸다고 적힌 원장이 아무 기록도 없는 것보다 나쁘다
+    const parts: GeminiPart[] = [{ text: prompt }]
+    if (image) parts.push({ inlineData: { mimeType: image.mime, data: image.data } })
 
     try {
-      const res = await fetch(
-        `${API_BASE}/models/${encodeURIComponent(meta.geminiModel)}:generateContent?key=${meta.geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: { temperature: 0.2 },
-          }),
-        },
-      )
-      if (res.ok) {
-        const json = await res.json() as {
-          candidates?: { content?: { parts?: { text?: string }[] } }[]
-          usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number }
-        }
-        const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
-        logTokenUsage({
-          userId: null, feature: 'ci-verify', model: meta.geminiModel, provider: 'gemini',
-          promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
-          outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
-          totalTokens: (json.usageMetadata?.promptTokenCount ?? 0) + (json.usageMetadata?.candidatesTokenCount ?? 0),
-        })
-        const parsed = parseCreative(text, content.title)
-        if (parsed) {
-          analysis = parsed
-          model = meta.geminiModel
-        } else {
-          note = 'AI 응답 형식이 올바르지 않아 규칙 분석만 저장했습니다'
-        }
+      const out = await guardedGeminiParts({
+        parts,
+        apiKey: meta.geminiApiKey, model: meta.geminiModel,
+        surface: 'ci-verify', purpose: '썸네일 크리에이티브 분석',
+        json: false, temperature: 0.2,
+      })
+      logTokenUsage({
+        userId: null, feature: 'ci-verify', model: meta.geminiModel, provider: 'gemini',
+        promptTokens: out.inputTokens, outputTokens: out.outputTokens,
+        totalTokens: out.inputTokens + out.outputTokens,
+      })
+      const parsed = parseCreative(out.text, content.title)
+      if (parsed) {
+        analysis = parsed
+        model = meta.geminiModel
       } else {
-        note = `AI 호출 실패(${res.status}) — 규칙 분석만 저장했습니다`
+        note = 'AI 응답 형식이 올바르지 않아 규칙 분석만 저장했습니다'
       }
-    } catch {
-      note = 'AI를 호출하지 못해 규칙 분석만 저장했습니다'
+    } catch (e) {
+      note = e instanceof GeminiCallError
+        ? `AI 호출 실패(${e.status}) — 규칙 분석만 저장했습니다`
+        : 'AI를 호출하지 못해 규칙 분석만 저장했습니다'
     }
   } else {
     note = 'AI 키가 없어 제목 규칙만으로 분석했습니다'
