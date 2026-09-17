@@ -91,7 +91,7 @@
 의존: I03
 
 ### I05 가드와 종합
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/lib/rfp/rfp-guard.test.ts
@@ -103,7 +103,24 @@
 의존: I04
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+- pnpm tsc --noEmit: 통과 (오류 0)
+- pnpm lint: 통과 (내 파일 경고 0, 남은 경고는 기존 파일 것)
+- pnpm test: 5698건 중 5696 통과, 실패 2건은 옆 세션 P0016 의 GPU 라우트 관문 이관이 진행 중이라
+  vendor-call-baseline.json 이 아직 안 내려간 것 (app/api/pricing/gpu/quotes/[id]/reanalyze,
+  app/api/pricing/gpu/specs/generate), 내 범위 파일과 무관
+- pnpm build: 통과 (NEXT_DIST_DIR=.next-check 로 dev 서버 .next 를 안 건드리고 빌드,
+  NODE_OPTIONS=--max-old-space-size=8192 필요 — 기본 힙으로는 OOM)
+  새 창구 둘이 산출물에 있음: /api/rfp/cases/from-url, /api/rfp/intake/notice-url, /rfp/new 4.62kB
+- 완료 정의 대조
+  - 링크 한 줄로 케이스가 만들어지고 첨부가 붙는다: 코드 경로 완성, 가드 통과. 실공고 왕복은 미검증(아래)
+  - 화면 한글 직접 금지: upload-panel-guard 가 잠금 (일부러 깨서 2건 실패 확인)
+  - env 추가 없음: 나라장터 키는 기존 org_content META 재사용
+- 전체 diff: 16파일 1611 추가 133 삭제, 범위 밖 변경 없음, 키·토큰 0건
+- 항목 대 결과 대조: 각 항목 범위의 파일이 전부 존재하고 커밋에 실림 (v0.10.85~89)
+
+### 남은 것
+- 실브라우저 왕복 미검증 — Chrome 확장이 안 붙어 실제 공고 링크로 첨부가 받아지는지 못 봄
+- 나라장터 갈래는 연동 키가 있어야 도는데 이 환경에서 키 유무를 확인 못 함
 
 ## 변경 이력
 - v0.1.0 (2026-09-16) 최초 작성 (ins_0013)
