@@ -83,7 +83,7 @@ export default function DeleteNodeModal({ node, targets, onClose }: Props) {
         {rows === null && <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>붙어 있는 기록을 세는 중</p>}
 
         {rows !== null && total === 0 && (
-          <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>붙어 있는 기록 0건 — 바로 지울 수 있습니다</p>
+          <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>붙어 있는 기록 0건, 바로 지울 수 있습니다</p>
         )}
 
         {dataRows.length > 0 && (

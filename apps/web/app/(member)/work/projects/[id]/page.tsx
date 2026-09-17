@@ -9,6 +9,7 @@ import { budgetLabel, periodLabel, statusBadge } from '@/lib/work/project-displa
 import ProjectMembersClient from './ProjectMembersClient'
 import ProjectCommandClient from './ProjectCommandClient'
 import ProjectOperationsClient from './ProjectOperationsClient'
+import { activeMembers } from '@/lib/members/resigned-server'
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -36,9 +37,10 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const myMembership = (members ?? []).find((member: { user_id: string }) => member.user_id === user?.id)
   const isAdmin = myProfile?.role === 'admin'
   const canManage = project.user_id === user?.id || isAdmin || myMembership?.role === 'manager'
-  const { data: profiles } = canManage
-    ? await db.from('profiles').select('id,name,position').is('deleted_at', null).order('name')
-    : { data: [] }
+  // 프로젝트 참여자로 고를 후보 — 퇴사자는 뺀다
+  const profiles: { id: string; name: string; position: string | null }[] = canManage
+    ? await activeMembers(db, (await db.from('profiles').select('id,name,position').is('deleted_at', null).order('name')).data as { id: string; name: string; position: string | null }[] | null)
+    : []
   const { data: logs } = logIds.length
     ? await db.from('daily_logs').select('id,content,entry_type,log_date').in('id', logIds)
       .is('deleted_at', null).order('log_date', { ascending: false }).limit(20)

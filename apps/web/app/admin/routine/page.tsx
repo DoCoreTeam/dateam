@@ -8,6 +8,7 @@ import { DEFAULT_ROUTINES as DEFAULT_ITEMS } from '@/lib/routine-defaults'
 import type { RoutineItemParsed } from '@/lib/routine-defaults'
 import PageHeader from '@/components/ui/PageHeader'
 import RoutineTable, { type RoutineMemberRow } from './RoutineTable'
+import { activeMembers } from '@/lib/members/resigned-server'
 
 type RoutineItemRaw = string | { name: string; freq?: 'daily' | 'weekly' }
 
@@ -59,7 +60,8 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
       .single() as unknown as Promise<{ data: { value: RoutineTemplate[] } | null }>,
   ])
 
-  const profiles = profilesResult.data ?? []
+  // 루틴 점검 대상 고르기 — 퇴사자는 뺀다
+  const profiles = await activeMembers(supabase, profilesResult.data ?? [])
   const templates: RoutineTemplate[] = Array.isArray(rtResult.data?.value) ? (rtResult.data!.value as RoutineTemplate[]) : []
 
   // 선택 주의 루틴 체크 데이터

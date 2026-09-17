@@ -1,6 +1,6 @@
 # PLAN newAX: 퇴사 처리와 구성원 상세
 플랜 ID: P0019
-플랜 버전: v0.2.3
+플랜 버전: v0.2.4
 상태: 진행중
 지시: ins_0021
 목표 버전: v0.10.98
@@ -129,12 +129,13 @@
 의존: 없음
 
 ### I09 퇴사자를 사람 고르는 자리에서 뺀다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(member)/org/page.tsx, apps/web/app/(member)/work/projects/[id]/page.tsx, apps/web/app/admin/kpi/page.tsx, apps/web/app/api/crm/members/route.ts, apps/web/lib/members/active-members.test.ts (신규)
+범위: apps/web/lib/members/resigned-server.ts (신규), apps/web/lib/members/picker-guard.test.ts (신규), apps/web/app/admin/members/page.tsx, apps/web/app/(member)/work/projects/[id]/page.tsx, apps/web/app/api/crm/members/route.ts, apps/web/app/admin/reports/page.tsx, apps/web/app/admin/routine/page.tsx, apps/web/app/(member)/meeting-notes/actions.ts, apps/web/lib/admin/daily-monitoring-queries.ts, apps/web/package.json
 감사 기준:
-- 위 네 자리가 전부 lib/members 의 거르개를 지남
-- node --test 로 거르개 정적 가드 통과 (from('profiles') 로 여러 명을 읽는 고르는 자리가 거르개를 안 지나면 실패)
+- profiles 에서 사람을 한 명으로 좁히지 않고 통째로 읽는 자리 여덟 곳이 전부 거르개를 지나거나 표시용이라고 밝힘
+- node --test picker-guard.test.ts 통과, 일부러 한 곳을 빼면 실패함
+- 퇴사자가 고르는 목록에서 실제로 사라짐 (실브라우저)
 - pnpm tsc --noEmit 통과
 의존: I08
 
@@ -155,5 +156,7 @@
 - v0.2.0 (2026-09-17) 조직 삭제 이관과 조직도 사람 카드 항목 추가 (ins_0022 ins_0023)
 - v0.2.1 (2026-09-17) I08a 조직도 트리 레벨 정렬 추가, 같은 깊이가 같은 줄에 안 놓여 CTO 와 본부들이 어긋나 보임 (ins_0024)
 - v0.2.3 (2026-09-17) I04 거르개 기본값을 재직에서 전체로 고침, 지시가 목록에서 퇴사 표시를 보는 것이었다
+- v0.2.4 (2026-09-17) I09 범위 재조사, 전수 스캔으로 사람 고르는 자리가 넷이 아니라 여덟이었고 그중 둘은 지난 기록의 이름을 찾는 표시용이라 거르면 안 됨
 - v0.2.2 (2026-09-17) 조직도 트리에서 같은 깊이 노드가 같은 줄에 안 놓여 CTO 와 본부 레벨이 어긋나 보임, I08a 로 한 깊이 한 줄 격자 정렬 항목 추가 (iv_0024)
 - v0.2.3 (2026-09-17) I04 거르개 기본값을 재직에서 전체로 고침, 지시는 목록에서 이름 옆 퇴사 표시를 보는 것이라 기본에서 숨기면 안 됨 (audit:I04)
+- v0.2.4 (2026-09-17) I09 범위 재조사, profiles 를 통째로 읽는 자리를 전수로 세니 넷이 아니라 여덟이고 그중 둘(어드민 API 요청자 이름 · 조직도 표시용)은 지난 기록의 이름을 찾는 자리라 거르면 안 됨 (audit:I09)

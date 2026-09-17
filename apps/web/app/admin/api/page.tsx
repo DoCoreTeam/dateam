@@ -36,6 +36,8 @@ export default async function AdminApiPage({
       .from('api_keys').select('*').order('created_at', { ascending: false }),
     adminClient.auth.admin.listUsers({ perPage: 1000 }),
     (adminClient as unknown as { from: (t: string) => { select: (s: string) => Promise<{ data: Pick<Profile, 'id' | 'name'>[] | null }> } })
+      // 사람 고르는 자리가 아니다 — 이미 들어온 API 신청서에 적힌 사람의 이름을 찾는 표시용이라
+      // 퇴사자를 빼면 지난 신청서의 이름이 사라진다
       .from('profiles').select('id, name'),
   ])
 

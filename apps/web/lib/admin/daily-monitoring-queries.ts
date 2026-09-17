@@ -13,6 +13,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
+import { activeMembers } from '@/lib/members/resigned-server'
 import {
   type ActiveMember,
   type DayDetail,
@@ -51,10 +52,9 @@ export async function fetchActiveMembers(admin: Admin): Promise<ActiveMember[]> 
     .neq('role', 'api_user')
     .order('name')
   if (error) throw new Error(`fetchActiveMembers: ${error.message}`)
-  return ((data as { id: string; name: string }[] | null) ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-  }))
+  // 퇴사자는 「오늘 안 쓴 사람」으로 세지 않는다 — 나간 사람이 계속 미작성으로 남는다
+  const active = await activeMembers(admin, (data as { id: string; name: string }[] | null) ?? [])
+  return active.map((p) => ({ id: p.id, name: p.name }))
 }
 
 /** 부서 id→name 맵 (org_nodes type=department) */

@@ -14,6 +14,7 @@ import { Save, CalendarDays } from 'lucide-react'
 import { updateEmployment } from '../../users/actions'
 import InlineError from '@/components/ui/InlineError'
 import NbButton from '@/components/ui/nb/NbButton'
+import DateField from '@/components/ui/DateField'
 import { validateEmployment, toDateOrNull } from '@/lib/members/employment'
 import { EMPLOYMENT_FIELD, EMPLOYMENT_ACTION, EMPLOYMENT_STATUS, confirmResign } from '@/lib/terms'
 import type { MemberEmployment } from '@/types/database'
@@ -65,13 +66,11 @@ export default function EmploymentCard({ userId, userName, isSelf, employment }:
       }}>
         <div>
           <label className="label" htmlFor="emp-hired">{EMPLOYMENT_FIELD.hiredOn}</label>
-          <input id="emp-hired" type="date" className="input-field" value={hiredOn}
-            onChange={(e) => setHiredOn(e.target.value)} disabled={pending} />
+          <DateField id="emp-hired" value={hiredOn} onValueChange={setHiredOn} disabled={pending} />
         </div>
         <div>
           <label className="label" htmlFor="emp-resigned">{EMPLOYMENT_FIELD.resignedOn}</label>
-          <input id="emp-resigned" type="date" className="input-field" value={resignedOn}
-            onChange={(e) => setResignedOn(e.target.value)} disabled={pending || isSelf} />
+          <DateField id="emp-resigned" value={resignedOn} onValueChange={setResignedOn} disabled={pending || isSelf} />
         </div>
       </div>
 

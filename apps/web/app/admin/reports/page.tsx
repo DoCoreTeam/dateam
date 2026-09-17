@@ -11,6 +11,7 @@ import DeptReportPanel, { type AnyRow, type AggState } from '@/app/(member)/week
 import DeptAggGrid from './DeptAggGrid'
 import ReportsTable, { type ReportRow } from './ReportsTable'
 import { computeDeptAggStats, type DeptAggStat, type CompanyRollup } from '@/lib/weekly-report/dept-agg-stats'
+import { activeMembers } from '@/lib/members/resigned-server'
 
 interface PageProps {
   searchParams: Promise<{ week?: string; member?: string; sel?: string }>
@@ -46,11 +47,13 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
   const orgName = (meta.org as string | undefined) || (meta.title as string | undefined) || ''
 
   // 전체 팀원 목록 (RLS 우회 — 어드민 전용 페이지)
-  const { data: profiles } = await adminClient
+  const { data: allProfiles } = await adminClient
     .from('profiles')
     .select('id, name')
     .is('deleted_at', null)
     .order('name') as unknown as { data: Pick<Profile, 'id' | 'name'>[] | null; error: unknown }
+  // 보고서를 뽑을 대상 고르기 — 퇴사자는 뺀다
+  const profiles = await activeMembers(adminClient, allProfiles)
 
   // 부서 목록 (조직도)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

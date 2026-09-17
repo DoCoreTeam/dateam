@@ -9,6 +9,7 @@ import CompanyForm from '../org-chart/CompanyForm'
 import OrgTree from '../org-chart/OrgTree'
 import RankPositionManager from '../org-chart/RankPositionManager'
 import type { OrgNode } from '../org-chart/OrgNodeCard'
+import { activeMembers } from '@/lib/members/resigned-server'
 import type { EmploymentRow } from '@/lib/members/employment'
 import type { Profile } from '@/types/database'
 
@@ -79,10 +80,11 @@ export default async function AdminMembersPage({
     for (const row of (emailRes.data ?? []) as { id: string; email: string }[]) {
       if (row.email) rawEmailMap[row.id] = row.email
     }
-    orgProfiles = (profilesRes.data ?? []).map((p: { id: string; name: string; rank: string | null; position: string | null }) => ({
+    // 조직도에 넣거나 부서장으로 세울 후보다 — 나간 사람은 고를 수 없어야 한다
+    orgProfiles = await activeMembers(db, (profilesRes.data ?? []).map((p: { id: string; name: string; rank: string | null; position: string | null }) => ({
       ...p,
       email: rawEmailMap[p.id] ?? null,
-    }))
+    })))
   }
 
   return (

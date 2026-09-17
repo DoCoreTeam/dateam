@@ -8,6 +8,7 @@ import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { getCrmDb } from '@/lib/crm/db/client'
 import { createAdminClient } from '@/lib/supabase/server'
 import { listMembers, addMember } from '@/lib/crm/services/member'
+import { activeMembers } from '@/lib/members/resigned-server'
 
 export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ session }) => {
@@ -32,7 +33,8 @@ export async function GET(req: NextRequest) {
         .order('name') as { data: { id: string; name: string | null; role: string }[] | null }
 
       const taken = new Set((await listMembers(db)).map((m) => m.hostUserId))
-      const rows = (data ?? [])
+      // 영업 담당으로 세울 후보다 — 퇴사자는 고를 수 없어야 한다
+      const rows = (await activeMembers(sb, data ?? []))
         .filter((p) => String(p.role) !== 'api_user')
         .filter((p) => !taken.has(p.id))
 

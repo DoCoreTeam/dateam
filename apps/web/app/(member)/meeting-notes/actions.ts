@@ -16,6 +16,7 @@ import { createCalendarEvent } from '@/app/(member)/calendar/actions'
 import { sanitizeSearchQuery, toStartAt } from '@/lib/meeting/parse-helpers'
 import type { DailyLog } from '@/types/database'
 import { relayNoteTasksToCrm, type RelaySkip } from '@/lib/crm/services/note-task-relay'
+import { activeMembers } from '@/lib/members/resigned-server'
 
 // 본문 HTML 상한(DoS·row bloat 방지). 일반 회의록은 충분히 수용.
 const BODY_HTML_MAX = 200_000
@@ -679,13 +680,16 @@ export async function listOrgPeople(): Promise<{ id: string; name: string }[]> {
     .is('deleted_at', null)
     .neq('role', 'api_user')
     .order('name', { ascending: true })
+  // 참석자로 고를 후보다 — 퇴사자는 뺀다 (지난 노트에 적힌 이름은 그대로 남는다)
 
   if (error) {
     console.error('[listOrgPeople]', error)
     return []
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((r: any) => ({ id: r.id as string, name: (r.name as string) ?? '' }))
+  const active = await activeMembers(supabase, (data ?? []) as { id: string }[])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return active.map((r: any) => ({ id: r.id as string, name: (r.name as string) ?? '' }))
 }
 
 // ============================================================

@@ -22,6 +22,8 @@ export default async function OrgPage() {
 
   const [nodesRes, profilesRes, emailRes] = await Promise.all([
     db.from('org_nodes').select('id, type, parent_id, name, subtitle, display_order, head_user_id, user_id, color').order('display_order'),
+    // 사람 고르는 자리가 아니다 — 조직도에 이미 놓인 노드의 이름을 찾는 표시용
+    // (퇴사하면 조직도 노드 자체가 빠지므로 여기서 또 거를 것이 없다)
     adb.from('profiles').select('id, name, rank, position').is('deleted_at', null),
     adb.rpc('get_user_emails'),
   ])
