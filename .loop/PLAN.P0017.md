@@ -75,7 +75,7 @@
 의존: I03
 
 ### I05 제안으로 만든 할 일에도 딜이 붙는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/suggestion.ts
 감사 기준:

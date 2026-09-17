@@ -285,6 +285,34 @@ async function applyToRecord(tx: any, args: ApplyArgs): Promise<void> {
 
 
 /**
+ * 이 제안이 **어느 미팅에서 나왔나**, 그리고 그 미팅은 어디에 붙어 있나.
+ *
+ * 제안은 미팅을 직접 가리키지 않는다 — 실행(`CrmAiRun`)의 `inputRef.meetingId` 가 유일한 끈이다
+ * (`listMeetingSuggestions` 도 그 끈으로 거슬러 올라간다). 그래서 여기서도 같은 길을 쓴다.
+ *
+ * **왜 필요한가**: 이 끈을 안 따라가면 NEXT 제안으로 만든 할 일이 `dealId` 없이 선다.
+ * 딜 상세의 할 일 패널은 `dealId` 로 걸러 보므로, 만들어도 **그 딜 화면에는 영영 안 뜬다**
+ * (실측 2026-09-17: 제안으로 만들어진 `crm_task` 0건 — 만들어 본 사람이 «안 된다»고 여겼을 자리다).
+ * 못 찾으면 전부 null 이다. 지어내지 않는다 — 엉뚱한 딜에 붙는 것이 안 붙는 것보다 나쁘다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function meetingAnchorOfRun(tx: any, runId: string): Promise<{
+  meetingId: string | null; companyId: string | null; dealId: string | null
+}> {
+  const none = { meetingId: null, companyId: null, dealId: null }
+  const run = await tx.crmAiRun.findFirst({ where: { id: runId }, select: { inputRef: true } })
+  const ref = (run?.inputRef ?? null) as { meetingId?: unknown } | null
+  const meetingId = typeof ref?.meetingId === 'string' ? ref.meetingId : null
+  if (!meetingId) return none
+  const meeting = await tx.crmMeeting.findFirst({
+    where: { id: meetingId },
+    select: { id: true, companyId: true, dealId: true },
+  }) as { id: string; companyId: string | null; dealId: string | null } | null
+  if (!meeting) return none
+  return { meetingId: meeting.id, companyId: meeting.companyId, dealId: meeting.dealId }
+}
+
+/**
  * 새 레코드를 만드는 제안을 수락한다.
  *
  * **왜 필요한가**: 미팅에서 "박보안 팀장이 반대한다"를 뽑아 놓고 등록을 못 하면,
@@ -348,15 +376,27 @@ async function createFromSuggestion(tx: any, args: {
       ? new Date(kstDateOnlyToIso(v.dueDate))
       : null
 
+    /*
+      **붙을 곳을 함께 싣는다.** 예전엔 제목과 마감만 실었다 — 그렇게 만든 할 일은
+      회사·딜 어디에도 안 붙어 전체 목록에만 있었고, 정작 그 회의의 딜을 보러 간 사람에게는
+      «다음에 할 일이 없는 딜»로 보였다. 미팅이 아무 데도 안 붙어 있으면 종전대로 null 이다.
+    */
+    const anchor = await meetingAnchorOfRun(tx, s.runId)
     const created = await tx.crmTask.create({
-      data: { title, dueAt, sourceSuggestionId: s.id, createdById: actorId },
+      data: {
+        title, dueAt, sourceSuggestionId: s.id, createdById: actorId,
+        companyId: anchor.companyId, dealId: anchor.dealId, sourceMeetingId: anchor.meetingId,
+      },
       select: { id: true },
     })
     await writeAudit(tx, {
       actorType, actorId, action: 'task.created_from_suggestion',
       targetType: 'task', targetId: created.id,
       beforeJson: null,
-      afterJson: { title, dueAt, source: 'ai', runId: s.runId, suggestionId: s.id },
+      afterJson: {
+        title, dueAt, source: 'ai', runId: s.runId, suggestionId: s.id,
+        companyId: anchor.companyId, dealId: anchor.dealId, meetingId: anchor.meetingId,
+      },
     })
     return { targetType: 'task', targetId: created.id }
   }
