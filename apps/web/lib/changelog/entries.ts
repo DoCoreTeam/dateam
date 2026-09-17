@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.123',
+    version: '0.10.125',
     date: '2026-09-17',
     title: 'AI 가 얼마나 확신하는지가 화면마다 같은 말로 보여요',
     items: [
