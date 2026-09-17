@@ -9,6 +9,7 @@ import CompanyForm from '../org-chart/CompanyForm'
 import OrgTree from '../org-chart/OrgTree'
 import RankPositionManager from '../org-chart/RankPositionManager'
 import type { OrgNode } from '../org-chart/OrgNodeCard'
+import type { EmploymentRow } from '@/lib/members/employment'
 import type { Profile } from '@/types/database'
 
 export const metadata = { title: '구성원 관리 | 어드민' }
@@ -46,17 +47,20 @@ export default async function AdminMembersPage({
 
   // 탭별 추가 데이터
   let profiles: Profile[] = []
+  let employment: EmploymentRow[] = []
   let emailMap: Record<string, string> = {}
   let orgCompany: { name: string; description: string | null } | null = null
   let orgNodes: OrgNode[] = []
   let orgProfiles: { id: string; name: string; rank: string | null; position: string | null; email?: string | null }[] = []
 
   if (tab === 'users') {
-    const [profilesRes, authUsersRes] = await Promise.all([
+    const [profilesRes, authUsersRes, employmentRes] = await Promise.all([
       db.from('profiles').select('*').is('deleted_at', null).order('created_at', { ascending: true }),
       adminClient.auth.admin.listUsers({ perPage: 1000 }),
+      db.from('member_employment').select('user_id, hired_on, resigned_on'),
     ])
     profiles = (profilesRes.data ?? []) as Profile[]
+    employment = (employmentRes.data ?? []) as EmploymentRow[]
     emailMap = Object.fromEntries(
       (authUsersRes.data?.users ?? []).map((u: { id: string; email?: string }) => [u.id, u.email ?? ''])
     )
@@ -107,7 +111,7 @@ export default async function AdminMembersPage({
               <h2 className="tape-title" style={{ margin: 0 }}>전체 구성원</h2>
               <span className="badge badge-slate">{profiles.length}명</span>
             </div>
-            <UserTable profiles={profiles} emailMap={emailMap} currentUserId={user.id} ranks={ranks} positions={positions} />
+            <UserTable profiles={profiles} emailMap={emailMap} currentUserId={user.id} ranks={ranks} positions={positions} employment={employment} />
           </div>
         </>
       )}

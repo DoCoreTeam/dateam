@@ -10,6 +10,7 @@ import RoleToggle from './RoleToggle'
 import ResetPasswordButton from './ResetPasswordButton'
 import ResetOnboardingButton from './ResetOnboardingButton'
 import DeleteUserButton from './DeleteUserButton'
+import ResignButton from './ResignButton'
 import EditProfileModal from './EditProfileModal'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
@@ -18,6 +19,8 @@ import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
+import { employmentMap, isResigned, type EmploymentRow } from '@/lib/members/employment'
+import { EMPLOYMENT_STATUS, EMPLOYMENT_FILTER_OPTIONS } from '@/lib/terms'
 import type { Profile } from '@/types/database'
 
 interface RankItem {
@@ -32,13 +35,15 @@ interface Props {
   currentUserId: string
   ranks: RankItem[]
   positions: RankItem[]
+  /** 재직 기록. 행이 없는 사람은 재직으로 읽는다(lib/members/employment) */
+  employment: EmploymentRow[]
 }
 
 const LIST_DEFAULTS: ListDefaults = {
   sort: { key: 'name', dir: 'asc' },
   view: 'table',
   size: 50,
-  filterKeys: ['role'],
+  filterKeys: ['role', 'status'],
 }
 const SORT_OPTIONS = [
   { key: 'name', label: '이름' },
@@ -46,11 +51,19 @@ const SORT_OPTIONS = [
   { key: 'role', label: '역할' },
   { key: 'created_at', label: '가입일' },
 ]
-const FILTERS = [{
-  key: 'role',
-  label: '역할',
-  options: [{ value: 'admin', label: 'admin' }, { value: 'member', label: 'member' }],
-}]
+const FILTERS = [
+  {
+    key: 'role',
+    label: '역할',
+    options: [{ value: 'admin', label: 'admin' }, { value: 'member', label: 'member' }],
+  },
+  {
+    // 기본은 전체다 — 이름 옆 퇴사 표시를 보는 것이 이 목록의 목적이라 기본에서 숨기지 않는다
+    key: 'status',
+    label: '재직 여부',
+    options: [...EMPLOYMENT_FILTER_OPTIONS],
+  },
+]
 
 function sortValue(p: Profile, key: string): string {
   if (key === 'rank') return p.rank ?? ''
@@ -59,16 +72,21 @@ function sortValue(p: Profile, key: string): string {
   return p.name ?? ''
 }
 
-export default function UserTable({ profiles, emailMap, currentUserId, ranks, positions }: Props) {
+export default function UserTable({ profiles, emailMap, currentUserId, ranks, positions, employment }: Props) {
   const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/admin/users' })
   const [editTarget, setEditTarget] = useState<Profile | null>(null)
+
+  const empMap = useMemo(() => employmentMap(employment), [employment])
+  const resignedOf = (p: Profile) => isResigned(empMap.get(p.id))
 
   const filtered = useMemo(() => {
     const q = query.q.trim().toLowerCase()
     const role = query.filters.role
+    const status = query.filters.status
     return profiles
       .filter((p) => {
         if (role && p.role !== role) return false
+        if (status && (status === 'resigned') !== isResigned(empMap.get(p.id))) return false
         if (!q) return true
         const email = (emailMap[p.id] ?? '').toLowerCase()
         return (p.name ?? '').toLowerCase().includes(q) || email.includes(q) || (p.rank ?? '').includes(q)
@@ -77,7 +95,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
         const cmp = sortValue(a, query.sort.key).localeCompare(sortValue(b, query.sort.key), 'ko')
         return query.sort.dir === 'asc' ? cmp : -cmp
       })
-  }, [profiles, emailMap, query.q, query.filters.role, query.sort.key, query.sort.dir])
+  }, [profiles, emailMap, empMap, query.q, query.filters.role, query.filters.status, query.sort.key, query.sort.dir])
 
   // 전체를 한 번에 그리지 않는다 — 화면에 필요한 구간만 자른다
   const { from, to } = rangeOf(query)
@@ -97,7 +115,14 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
             {p.name?.charAt(0)?.toUpperCase() ?? '?'}
           </span>
           <span>
-            <span style={{ fontWeight: 500, display: 'block' }}>{p.name || '-'}</span>
+            <span style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+              {p.name || '-'}
+              {resignedOf(p) && (
+                <span className="badge badge-slate" title={EMPLOYMENT_STATUS.resigned.meaning}>
+                  {EMPLOYMENT_STATUS.resigned.label}
+                </span>
+              )}
+            </span>
             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{emailMap[p.id] ?? ''}</span>
           </span>
         </div>
@@ -143,6 +168,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
           <RoleToggle userId={p.id} currentRole={p.role} isSelf={p.id === currentUserId} />
           <ResetPasswordButton userId={p.id} userEmail={emailMap[p.id] ?? ''} userName={p.name ?? '-'} />
           <ResetOnboardingButton userId={p.id} userName={p.name ?? '-'} />
+          <ResignButton userId={p.id} userName={p.name ?? p.id} isSelf={p.id === currentUserId} isResigned={resignedOf(p)} />
           <DeleteUserButton userId={p.id} userName={p.name ?? p.id} isSelf={p.id === currentUserId} />
         </RowActions>
       ),
@@ -161,7 +187,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
     },
   ]
 
-  const hasFilters = Boolean(query.q || query.filters.role)
+  const hasFilters = Boolean(query.q || query.filters.role || query.filters.status)
 
   return (
     <>
@@ -179,6 +205,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
         columns={columns}
         query={query}
         rowKey={(p) => p.id}
+        rowHref={(p) => `/admin/members/${p.id}`}
         onChange={set}
         empty={hasFilters
           ? { title: '조건에 맞는 구성원이 없어요', description: '검색어나 역할 필터를 바꿔보세요' }
