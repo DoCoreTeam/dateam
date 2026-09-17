@@ -273,7 +273,7 @@
   "apps/web/app/change-password/page.tsx::inlinebutton": 1,
   "apps/web/app/develop/DemoSection.tsx::inlinebutton": 1,
   "apps/web/app/develop/DemoSection.tsx::inlinecard": 1,
-  "apps/web/app/develop/page.tsx::inlinebutton": 2,
+  "apps/web/app/develop/page.tsx::inlinebutton": 1,
   "apps/web/app/globals.css::cssdomain::ai-analyzing-dots": 1,
   "apps/web/app/globals.css::cssdomain::ai-analyzing-spinner": 1,
   "apps/web/app/globals.css::cssdomain::ai-chat-actions": 1,
