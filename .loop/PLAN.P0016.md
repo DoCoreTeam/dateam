@@ -1,7 +1,7 @@
 # PLAN newAX: 전 서비스 관문 적용과 패키지 출시
 
 플랜 ID: P0016
-플랜 버전: v0.1.2
+플랜 버전: v0.2.0
 상태: 진행중
 지시: ins_0012
 목표 버전: v0.10.84
@@ -94,7 +94,7 @@
 의존: I04
 
 ### I06 쓰는 법 문서
-상태: 대기
+상태: 통과
 모드: 경량
 범위: packages/README.md (신규), packages/ai-core/README.md (신규), packages/ai-gateway/README.md (신규), packages/ai-providers/README.md (신규), packages/ai-react/README.md (신규)
 감사 기준:
@@ -104,6 +104,17 @@
 - 예제 코드가 실제 수출 이름과 맞는지 가드로 확인
 - 한자 0건 이모지 0건 가운뎃점 0건
 의존: I05
+
+### I06a 개발자센터에 AI 공통층 메뉴
+상태: 대기
+모드: 경량
+범위: apps/web/lib/api-docs/ai-layer.ts (신규), apps/web/app/develop/AiLayerSection.tsx (신규), apps/web/app/develop/page.tsx, apps/web/lib/policy/ai-layer-docs-guard.test.ts (신규), apps/web/package.json
+감사 기준:
+- /develop 왼쪽 목록에 「AI 공통층」 묶음이 뜨고 소개·붙이는 순서·능력·계약을 읽을 수 있음
+- 화면이 문서를 손으로 들지 않음, 목록과 예제는 ai-layer.ts 한 곳에서 옴
+- 예제가 드는 수출 이름이 실제 패키지에 있는지 가드가 확인, 일부러 깨서 확인
+- 화면 한글 직접 금지 규칙 위반 0건, 기존 시험 통과
+의존: I06
 
 ### I07 문서와 코드가 갈리지 않게 하는 가드
 상태: 대기
@@ -123,3 +134,4 @@
 - v0.1.0 (2026-09-16) 최초 작성 (ins_0012)
 - v0.1.1 (2026-09-16) I02 제목이 아홉인데 범위는 다섯이었다. GPU 넷은 I03 에 있어 제목을 실제 범위에 맞춘다 (audit:I02)
 - v0.1.2 (2026-09-17) 벤더 주소를 아직 들고 있는 여섯을 위해 I03a 삽입. 기준 적용 대상에서 빼 둘 이유가 없다 (audit:I03)
+- v0.2.0 (2026-09-17) 사용자 지시: 개발자센터에 패키지 소개와 셋업을 메뉴로 넣는다. I06a 삽입 (ins_0018)
