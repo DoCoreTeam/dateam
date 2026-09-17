@@ -1,11 +1,18 @@
 'use client'
 
 /**
- * 회의 메모 편집기 — **저장 버튼이 없다.**
+ * 회의 메모 편집기 — **저장을 기다리지 않지만, 끝내는 버튼은 있다.**
  *
  * 계약은 미팅 캡처 화면의 것을 그대로 따른다: *"내용을 넣기 시작하는 순간이 저장이다."*
  * 회의 중에 치는 글에 "저장을 누르세요"를 요구하면, 누르지 않은 채 탭이 죽는 날이 온다.
  * (기존 `MeetingEditor` 는 명시 저장이다 — 그건 회의가 끝난 뒤 차분히 정리하는 자리라 남긴다.)
+ *
+ * **그래도 [저장]과 [취소]는 보인다**(사용자 지시 2026-09-17:
+ * *"수정을 누르고 내용을 수정했으면 저장 버튼이 있어야함 지금 저장은 되는데 저장버튼이 없어"*).
+ * 자동저장은 **잃지 않기 위한 장치**이지 «다 됐다»를 알려 주는 장치가 아니다 —
+ * 고치던 사람은 끝내는 동작이 있어야 손을 뗀다. 그래서 저장은 **기다리던 5초를 앞당겨**
+ * 지금 밀어 넣고 읽기로 돌아가는 일이고, 취소는 **「수정」을 누른 시점으로 되돌리는** 일이다.
+ * 취소가 서버까지 되돌리지 않으면 거짓말이 된다 — 자동저장이 이미 써 두었을 수 있다.
  *
  * 세 겹으로 지킨다.
  *   ① 5초 debounce 서버 저장
@@ -27,11 +34,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Lock, Pencil } from 'lucide-react'
+import { Lock, Pencil, Save } from 'lucide-react'
 import TiptapEditor from '@/components/ui/TiptapEditor'
 import RichText from '@/components/ui/RichText'
 import NbButton from '@/components/ui/nb/NbButton'
-import { ACTION } from '@/lib/terms'
+import { ACTION, progress } from '@/lib/terms'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 import { shouldStartWriting, plainTextLength } from '@/lib/meeting/memo-mode'
 import InlineError from '@/components/ui/InlineError'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
@@ -77,11 +85,21 @@ export default function MeetingMemoEditor({
   const [writing, setWriting] = useState(
     () => shouldStartWriting({ hasBody: plainTextLength(initialHtml) > 0, hasDraft: false }),
   )
+  /** [저장]을 누른 뒤 서버가 답할 때까지 — 두 번 눌리는 것을 막고 「저장 중…」을 띄운다 */
+  const [ending, setEnding] = useState(false)
+  const { ask, dialog } = useAskDialog()
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** 마지막으로 서버가 받은 값 — 같으면 안 보낸다(빈 요청이 5초마다 나가는 것을 막는다) */
   const savedHtml = useRef(initialHtml)
   const latest = useRef(initialHtml)
+  /**
+   * 「수정」을 누른 **그 순간의 글** — [취소]가 돌아갈 자리다.
+   *
+   * `savedHtml` 로 대신할 수 없다: 자동저장이 한 번이라도 돌면 그 값은 **고치던 중의 글**이
+   * 되어, 취소가 «고친 것을 확정»하는 뜻이 된다. 되돌릴 기준은 손대기 전의 글 하나뿐이다.
+   */
+  const snapshot = useRef(initialHtml)
 
   const draft = useDraftPersist<string>({
     formId: 'meeting-memo',
@@ -164,6 +182,64 @@ export default function MeetingMemoEditor({
     timer.current = setTimeout(() => { void push() }, SAVE_DEBOUNCE_MS)
   }, [push])
 
+  /** 「수정」 — 여기서부터가 고치는 구간이다. 되돌릴 기준을 이 순간에 박아 둔다 */
+  function startWriting() {
+    snapshot.current = latest.current
+    setWriting(true)
+  }
+
+  /**
+   * 「저장」 — 기다리던 5초를 앞당겨 지금 밀어 넣고 읽기로 돌아간다.
+   *
+   * **실패하면 화면을 안 닫는다.** 닫아 버리면 「저장」이 못 지킨 약속이 되고,
+   * 사용자는 저장된 줄 알고 탭을 닫는다. 오류 줄은 그대로 남아 다음 손을 기다린다.
+   */
+  async function saveAndClose() {
+    if (ending) return
+    if (timer.current) clearTimeout(timer.current)
+    setEnding(true)
+    const outcome = await push()
+    setEnding(false)
+    if (outcome === 'failed') return
+    setWriting(false)
+  }
+
+  /**
+   * 「취소」 — 「수정」을 누른 시점의 글로 되돌린다. **서버까지.**
+   *
+   * 자동저장이 이미 고친 글을 써 두었을 수 있으므로, 화면만 되돌리면 새로고침했을 때
+   * 고친 글이 되살아난다. 그때 사용자는 취소를 눌렀는데 안 됐다고 겪는다.
+   * 바꾼 것이 없으면 묻지도, 보내지도 않는다 — 한 일이 없는데 확인을 받는 건 방해다.
+   */
+  async function cancelWriting() {
+    if (ending) return
+    const changed = latest.current !== snapshot.current
+    if (changed) {
+      const ok = await ask.confirm({
+        title: '수정한 내용을 버릴까요?',
+        body: '「수정」을 누르기 전 내용으로 되돌립니다. 그 사이 저절로 저장된 것도 함께 되돌려요.',
+        confirmLabel: ACTION.restore,
+        danger: true,
+      })
+      if (!ok) return
+    }
+    if (timer.current) clearTimeout(timer.current)
+    const back = snapshot.current
+    setHtml(back)
+    setPushedHtml(back)
+    latest.current = back
+    setError(null)
+    clearDraft.current()
+    if (changed) {
+      setEnding(true)
+      await push()
+      setEnding(false)
+    } else {
+      setState('clean')
+    }
+    setWriting(false)
+  }
+
   /** 떠날 때 마지막 한 번 — 디바운스가 안 터진 채로 화면이 바뀌면 그 5초가 사라진다 */
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current)
@@ -196,22 +272,32 @@ export default function MeetingMemoEditor({
     return (
       <div>
         <div className={styles.modeRow}>
-          <NbButton variant="secondary" onClick={() => setWriting(true)}
+          <NbButton variant="secondary" onClick={startWriting}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <Pencil size={14} aria-hidden /> {ACTION.edit}
           </NbButton>
         </div>
         <RichText html={html} placeholder="아직 적은 내용이 없어요." />
+        {dialog}
       </div>
     )
   }
 
   return (
     <div>
-      {/* 「닫기」다 — 취소가 아니다. 자동저장이라 닫아도 쓴 글은 그대로 남는다(용어집 close) */}
+      {/*
+        고치는 구간을 **끝내는 두 가지 길**. 확정은 오른쪽 끝, 취소는 그 왼쪽(§2-3-2 L-6).
+        예전엔 「닫기」 하나였다 — 자동저장이니 닫아도 글은 남는다는 뜻이었지만,
+        고치던 사람에게는 «저장을 안 했는데 나가도 되나»로 읽혔다(사용자 지시 2026-09-17).
+      */}
       <div className={styles.modeRow}>
-        <NbButton variant="ghost" onClick={() => setWriting(false)} title="쓴 글은 저장돼 있어요">
-          {ACTION.close}
+        <NbButton variant="ghost" onClick={() => void cancelWriting()} disabled={ending}
+          title="「수정」을 누르기 전 내용으로 되돌립니다">
+          {ACTION.cancel}
+        </NbButton>
+        <NbButton onClick={() => void saveAndClose()} disabled={ending}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <Save size={14} aria-hidden /> {ending ? progress(ACTION.save) : ACTION.save}
         </NbButton>
       </div>
       <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
@@ -222,6 +308,7 @@ export default function MeetingMemoEditor({
         placeholder="회의 중에 들리는 대로 적어 두세요. 5초마다 저절로 저장됩니다."
         minHeight={320}
       />
+      {dialog}
     </div>
   )
 }
