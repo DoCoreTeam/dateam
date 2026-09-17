@@ -5,7 +5,9 @@
 //  - 반영: applyExtractedItems(업무→daily, 일정→캘린더) + updateMeetingNote(참석자 합집합).
 //  - 모달 표준(§2-2): useEscClose · X닫기 · tape-title · 광원형 shadow(--shadow-modal) · backdrop(--modal-backdrop).
 import { confidenceView } from '@ax/ai-react'
-import { AI_LABELS } from '@/lib/terms'
+import { AI_LABELS, ACTION } from '@/lib/terms'
+import type { RelaySkip } from '@/lib/crm/services/note-task-relay'
+import { relayLine } from '@/lib/meeting/relay-word'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, CheckSquare, CalendarPlus, Star, Users } from 'lucide-react'
@@ -75,6 +77,11 @@ export default function ExtractConfirmModal({
   const checkedAttendee = result.attendees?.filter((_, i) => checked.has(attendeeKey(i))).length ?? 0
   const total = checkedTaskEvent + checkedAttendee
 
+  /** 딜·회사에 세운 결과. 반영을 끝낸 뒤 한 줄로 말한다 */
+  const [relay, setRelay] = useState<{ created: number; skipped: RelaySkip | null } | null>(null)
+  /** 반영이 끝났나 — 끝나면 후보 목록 대신 결과를 보여 주고 [확인]으로 닫는다 */
+  const [done, setDone] = useState(false)
+
   async function confirm() {
     if (busy) return
     setBusy(true); setErr('')
@@ -87,6 +94,12 @@ export default function ExtractConfirmModal({
           events: events.map((e) => ({ title: e.title, suggested_date: e.suggested_date, suggested_time: e.suggested_time })),
         })
         if (!res.ok) { setErr(`반영에 실패했습니다: ${res.error}`); return }
+        /*
+          **딜까지 갔는지 말한다.** 예전엔 개인 일일업무에만 넣고 조용히 닫았고,
+          사용자는 딜 화면에서 «왜 안 보이지»로 겪었다(실측 40건 중 딜에 0건).
+          안 간 것도 사실이다 — 이유를 말하면 다음 손(딜 붙이기)이 보인다.
+        */
+        if (tasks.length > 0) setRelay({ created: res.crmTasksCreated, skipped: res.crmSkipped })
       }
 
       if (checkedAttendee > 0) {
@@ -104,7 +117,7 @@ export default function ExtractConfirmModal({
       }
 
       router.refresh()
-      onClose()
+      setDone(true)
     } catch {
       setErr('반영에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -173,11 +186,24 @@ export default function ExtractConfirmModal({
 
         <InlineError>{err}</InlineError>
 
+        {/* 반영이 끝나면 **어디까지 갔는지** 말한다 — 조용히 닫으면 딜에서 «왜 안 보이지»가 된다 */}
+        {done && (
+          <p role="status" style={{ margin: 0, padding: 'var(--space-3)', borderRadius: 'var(--radius)', border: 'var(--hairline) solid var(--border-light)', background: 'var(--surface-bg)', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', lineHeight: 1.7 }}>
+            {relayLine(relay)}
+          </p>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-          <NbButton variant="ghost" onClick={onClose} disabled={busy}>닫기</NbButton>
-          <NbButton onClick={confirm} disabled={busy || total === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <CheckSquare size={15} /> {busy ? '반영 중…' : `선택 ${total}건 반영`}
-          </NbButton>
+          {done ? (
+            <NbButton onClick={onClose}>{ACTION.confirm}</NbButton>
+          ) : (
+            <>
+              <NbButton variant="ghost" onClick={onClose} disabled={busy}>{ACTION.close}</NbButton>
+              <NbButton onClick={confirm} disabled={busy || total === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <CheckSquare size={15} /> {busy ? '반영 중…' : `선택 ${total}건 반영`}
+              </NbButton>
+            </>
+          )}
         </div>
       </div>
     </div>

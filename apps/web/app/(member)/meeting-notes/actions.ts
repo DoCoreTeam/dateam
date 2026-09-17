@@ -15,6 +15,7 @@ import { kstTodayKey } from '@/lib/datetime/kst'
 import { createCalendarEvent } from '@/app/(member)/calendar/actions'
 import { sanitizeSearchQuery, toStartAt } from '@/lib/meeting/parse-helpers'
 import type { DailyLog } from '@/types/database'
+import { relayNoteTasksToCrm, type RelaySkip } from '@/lib/crm/services/note-task-relay'
 
 // 본문 HTML 상한(DoS·row bloat 방지). 일반 회의록은 충분히 수용.
 const BODY_HTML_MAX = 200_000
@@ -320,7 +321,13 @@ export async function applyExtractedItems(
     tasks?: { title: string }[]
     events?: { title: string; suggested_date?: string | null; suggested_time?: string | null }[]
   }
-): Promise<ActionResult<{ tasksCreated: number; eventsCreated: number }>> {
+): Promise<ActionResult<{
+  tasksCreated: number
+  eventsCreated: number
+  /** 딜·회사에도 선 할 일 수. 0 이면 `crmSkipped` 가 이유를 말한다 */
+  crmTasksCreated: number
+  crmSkipped: RelaySkip | null
+}>> {
   try {
     const idCheck = uuidSchema.safeParse(meetingNoteId)
     if (!idCheck.success) return { ok: false, error: idCheck.error.errors[0].message }
@@ -366,6 +373,26 @@ export async function applyExtractedItems(
       }
     }
 
+    /*
+      **딜에도 세운다**(v0.10.101). 개인 일일업무만 만들던 자리다 —
+      실측으로 그렇게 만들어진 할 일 40건이 `crm_task` 에는 0건이라 딜 화면에 한 건도 없었다.
+      옮기는 것이 아니라 **양쪽에 세우는** 것이다: 「내가 오늘 할 일」과 「이 딜의 다음 일」은
+      보는 사람도 묻는 질문도 다르다.
+
+      실패해도 여기서 끝내지 않는다 — 개인 업무는 이미 저장됐고, 팀 쪽에 못 세운 것은
+      사실로 돌려보내 화면이 말하게 한다(기록이 사용자 저장을 막지 않는다).
+    */
+    let crmTasksCreated = 0
+    let crmSkipped: RelaySkip | null = null
+    try {
+      const relay = await relayNoteTasksToCrm(user.id, idCheck.data, tasks.map((t) => t.title))
+      crmTasksCreated = relay.created
+      crmSkipped = relay.skipped
+    } catch (e) {
+      console.error('[applyExtractedItems] crm relay', e)
+      crmSkipped = 'no-access'
+    }
+
     // events → calendar_events (createCalendarEvent 재사용, link_kind='meeting')
     for (const ev of events) {
       const startAt = toStartAt(ev.suggested_date, ev.suggested_time)
@@ -388,7 +415,8 @@ export async function applyExtractedItems(
     revalidatePath(MEETING_NOTES_PATH)
     revalidatePath('/daily')
     revalidatePath('/calendar')
-    return { ok: true, tasksCreated, eventsCreated }
+    if (crmTasksCreated > 0) revalidatePath('/crm/tasks')
+    return { ok: true, tasksCreated, eventsCreated, crmTasksCreated, crmSkipped }
   } catch (e) {
     console.error('[applyExtractedItems]', e)
     return { ok: false, error: e instanceof Error ? e.message : '반영 실패' }

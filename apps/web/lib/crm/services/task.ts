@@ -73,6 +73,8 @@ export interface TaskInput {
   companyId?: string | null
   personId?: string | null
   dealId?: string | null
+  /** 회의에서 나온 할 일이면 그 미팅 id — 출처이자 멱등 열쇠다(마이그 256) */
+  sourceMeetingId?: string | null
 }
 
 function normalizeStatus(v: string | null | undefined): TaskStatus | undefined {
@@ -99,7 +101,7 @@ function normalizeInput(input: Partial<TaskInput>, requireTitle: boolean): Recor
   */
   if (input.startAt !== undefined) out.startAt = input.startAt ? new Date(input.startAt) : null
   if (input.dueAt !== undefined) out.dueAt = input.dueAt ? new Date(input.dueAt) : null
-  for (const k of ['assigneeId', 'companyId', 'personId', 'dealId'] as const) {
+  for (const k of ['assigneeId', 'companyId', 'personId', 'dealId', 'sourceMeetingId'] as const) {
     if (input[k] !== undefined) out[k] = normalizeText(input[k]) ?? null
   }
   return out

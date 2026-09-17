@@ -64,7 +64,7 @@
 의존: 없음
 
 ### I04 뽑은 할 일이 딜로도 간다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: apps/web/app/(member)/meeting-notes/actions.ts, apps/web/lib/crm/services/task.ts, apps/web/prisma/schema.prisma, supabase/migrations 신규
 감사 기준:
