@@ -21,15 +21,18 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { SERVICE_LABEL } from '@/lib/terms'
 import DemoSection from './DemoSection'
+import AiLayerSection from './AiLayerSection'
+import { AI_DOC_NAV, AI_LAYER_NAV_LABEL, type AiDocKey } from '@/lib/api-docs/ai-layer'
 import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
+import CodeBlock from './CodeBlock'
 import {
   API_GROUPS, endpointsOf, REQUIRES_LABEL,
   type ApiGroupKey, type ApiEndpoint, type ApiParam,
 } from '@/lib/api-docs/registry'
 
-/** 왼쪽 목록의 항목 — registry 묶음 + 화면 전용 두 개(데모·오류) */
-type Section = ApiGroupKey | 'demo' | 'errors'
+/** 왼쪽 목록의 항목 — registry 묶음 + 화면 전용 둘(데모·오류) + AI 공통층 넷 */
+type Section = ApiGroupKey | 'demo' | 'errors' | AiDocKey
 
 function useOrigin(fallback = 'https://your-domain.com') {
   const [origin, setOrigin] = useState(fallback)
@@ -56,20 +59,6 @@ function SidebarItem({ children, active, onClick }: { children: React.ReactNode;
     >
       {children}
     </button>
-  )
-}
-
-function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string; id: string; onCopy: (t: string, id: string) => void; copiedId: string | null; lang?: string }) {
-  return (
-    <div className="card card-flush" style={{ overflow: 'hidden', marginBottom: 'var(--space-4)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-2) var(--space-3)', borderBottom: 'var(--hairline) solid var(--border-light)' }}>
-        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{lang}</span>
-        <button type="button" className="btn-ghost" onClick={() => onCopy(code, id)} style={{ color: copiedId === id ? 'var(--success)' : undefined }}>
-          {copiedId === id ? '✓ 복사됨' : '복사'}
-        </button>
-      </div>
-      <pre style={{ margin: 0, padding: 'var(--space-5) var(--space-6)', fontSize: 'var(--fs-sm)', lineHeight: 1.7, color: 'var(--text)', background: 'var(--surface-muted)', overflowX: 'auto', whiteSpace: 'pre' }}>{code}</pre>
-    </div>
   )
 }
 
@@ -313,8 +302,13 @@ const groupLabel = (k: ApiGroupKey) => API_GROUPS.find((g) => g.key === k)!.labe
 const NAV: { label: string; items: { id: Section; l: string }[] }[] = [
   { label: '시작하기', items: [{ id: 'start', l: '개요 · 인증 · 한도' }] },
   { label: '엔드포인트', items: (['gpu', 'crm', 'ci', 'legacy'] as const).map((k) => ({ id: k as Section, l: groupLabel(k) })) },
+  // 묶음 이름과 항목은 ai-layer.ts 에서 온다 — 화면이 목록을 짓지 않는다
+  { label: AI_LAYER_NAV_LABEL, items: AI_DOC_NAV.map((n) => ({ id: n.key as Section, l: n.label })) },
   { label: '참고', items: [{ id: 'ref', l: 'OpenAPI' }, { id: 'demo', l: '직접 실행' }, { id: 'errors', l: '오류 코드' }] },
 ]
+
+const AI_DOC_KEYS = new Set<string>(AI_DOC_NAV.map((n) => n.key))
+const isAiDoc = (s: Section): s is AiDocKey => AI_DOC_KEYS.has(s)
 
 export default function DevelopPage() {
   const [activeSection, setActiveSection] = useState<Section>('start')
@@ -343,7 +337,8 @@ export default function DevelopPage() {
     }
   }
 
-  const isGroup = (s: Section): s is ApiGroupKey => s !== 'demo' && s !== 'errors' && s !== 'start'
+  const isGroup = (s: Section): s is ApiGroupKey =>
+    s !== 'demo' && s !== 'errors' && s !== 'start' && !isAiDoc(s)
 
   return (
     <ApiLangProvider>
@@ -383,11 +378,19 @@ export default function DevelopPage() {
         </aside>
 
         <main style={{ flex: '999 1 480px', minWidth: 0 }}>
-          {/* 언어를 여기서 한 번 고르면 이 화면의 모든 코드 예시가 따라온다 */}
-          <ApiLangPicker />
+          {/*
+            언어를 여기서 한 번 고르면 이 화면의 모든 코드 예시가 따라온다.
+
+            AI 공통층 항목에서는 숨긴다 — 그 쪽 예제는 우리 타입스크립트 코드라
+            언어를 바꿀 것이 없다. 아무것도 안 바꾸는 선택기는 고를 수 있게 만든 것이 아니다.
+          */}
+          {!isAiDoc(activeSection) && <ApiLangPicker />}
           {activeSection === 'start' && <StartSection onCopy={copy} copiedId={copiedId} brandName={brandName} />}
           {activeSection === 'demo' && <DemoSection />}
           {activeSection === 'errors' && <ErrorsSection onCopy={copy} copiedId={copiedId} />}
+          {isAiDoc(activeSection) && (
+            <AiLayerSection section={activeSection} onCopy={copy} copiedId={copiedId} />
+          )}
           {isGroup(activeSection) && (
             <GroupSection group={activeSection} baseUrl={base} onCopy={copy} copiedId={copiedId} />
           )}

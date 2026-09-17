@@ -106,7 +106,7 @@
 의존: I05
 
 ### I06a 개발자센터에 AI 공통층 메뉴
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/api-docs/ai-layer.ts (신규), apps/web/app/develop/AiLayerSection.tsx (신규), apps/web/app/develop/page.tsx, apps/web/lib/policy/ai-layer-docs-guard.test.ts (신규), apps/web/package.json
 감사 기준:

@@ -657,6 +657,11 @@
   .btn-ghost:disabled:hover,
   .btn-ghost:disabled:active { background-color: transparent; }
 
+  /* 눌러서 «됐다»를 보여 주는 단추 — 복사 단추가 그 모양이다.
+     화면이 style={{ color: 됐으면 성공색 }} 을 인라인으로 적어 왔고,
+     그것이 자작 버튼으로 세어졌다. 상태를 클래스로 말하면 색은 토큰이 정한다. */
+  .btn-ghost.is-done { color: var(--success); }
+
   /* 이동하는 버튼(NbButton href) — `<a>` 라 밑줄이 기본으로 붙는다.
      이 규약이 없어서 화면들이 `<Link className="btn-ghost">` 에
      textDecoration·padding·minHeight 를 저마다 인라인으로 다시 적었고,

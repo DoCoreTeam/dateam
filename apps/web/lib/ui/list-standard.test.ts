@@ -60,6 +60,10 @@ const DOCUMENT_SURFACES = new Set<string>([
   // ListSurface 를 붙이면 발주 기관의 표에 정렬 화살표와 쪽 넘김이 생긴다.
   // 이 표를 안 그리던 동안 표 71개가 평문으로 뭉개져 원문이 글 덩어리로 보였다.
   'components/rfp/SourceViewer.tsx',
+  // 개발자센터의 AI 공통층 **참조표**다. 계약 일곱과 능력 여덟은 개수가 고정이고
+  // 검색·정렬·쪽 넘김이 붙을 성질이 아니다 — 붙이면 읽는 사람이 「내 데이터인가」로 읽는다.
+  // 같은 이유로 이 화면 옆의 app/develop/page.tsx 도 이미 표준 밖이다.
+  'app/develop/AiLayerSection.tsx',
 ])
 
 function rawTableFiles(): string[] {

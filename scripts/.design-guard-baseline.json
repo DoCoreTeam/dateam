@@ -107,7 +107,6 @@
   "apps/web/app/(member)/meeting-notes/ExtractConfirmModal.tsx::inlinebutton": 1,
   "apps/web/app/(member)/meeting-notes/ExtractConfirmModal.tsx::inlinecard": 1,
   "apps/web/app/(member)/meeting-notes/MeetingDateView.tsx::inlinecard": 1,
-  "apps/web/app/(member)/meeting-notes/MeetingDetailClient.tsx::emptytext": 1,
   "apps/web/app/(member)/meeting-notes/MeetingEditor.tsx::inlinebutton": 1,
   "apps/web/app/(member)/meeting-notes/MeetingEditor.tsx::inlinecard": 1,
   "apps/web/app/(member)/operations/page.tsx::inlinecard": 1,
