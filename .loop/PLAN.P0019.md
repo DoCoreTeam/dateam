@@ -96,7 +96,7 @@
 의존: I05
 
 ### I07 조직 삭제 이관 RPC
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/256_org_node_delete_transfer.sql (신규)
 감사 기준:
