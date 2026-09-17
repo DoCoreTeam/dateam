@@ -2,6 +2,33 @@
 
 import { GripVertical, Plus, Pencil, Trash2, Crown, ChevronUp, ChevronDown, Building2, User, Users, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
+import Link from 'next/link'
+
+/**
+ * 사람 이름은 **진짜 링크**다 — 누르면 구성원 상세가 열린다.
+ *
+ * 왜 이 부품이 생겼나 (사용자 지적 2026-09-17): 조직도에서 사람을 눌러도 아무 일이 없었고,
+ * 연필을 누르면 「노드 수정」이라는 제목 아래 「상위 노드 변경」 하나만 있는 창이 떴다.
+ * 그 사람에 대해 아는 것을 볼 방법이 조직도에는 없었다.
+ *
+ * `onPointerDown` 에서 전파를 끊는 이유: 카드 전체가 드래그 손잡이라, 안 끊으면 이름을
+ * 누르는 순간 드래그가 시작돼 클릭이 사라진다. 끊는 자리는 이름 한 줄뿐이고
+ * 아바타·여백·카드 나머지는 그대로 끌 수 있다.
+ */
+function MemberLink({ userId, children }: { userId: string | null; children: React.ReactNode }) {
+  if (!userId) return <>{children}</>
+  return (
+    <Link
+      href={`/admin/members/${userId}`}
+      onPointerDown={(e) => e.stopPropagation()}
+      title="구성원 상세 열기"
+      // 색은 감싼 줄에서 물려받는다 — 어두운 카드와 밝은 카드가 이미 제 색을 정해 놓았다
+      style={{ color: 'inherit', textDecoration: 'none' }}
+    >
+      {children}
+    </Link>
+  )
+}
 
 function CopyBtn({ email }: { email: string }) {
   const [copied, setCopied] = useState(false)
@@ -178,7 +205,8 @@ function ActionBar({
           <Plus size={13} />
         </button>
       )}
-      <button style={btnStyle} onPointerDown={stop} onClick={() => onEdit(node)} title="수정">
+      {/* 사람 노드는 이름·직급을 여기서 못 고친다(구성원 상세가 그 자리다). 남는 것은 자리 옮기기뿐이라 이름을 그렇게 적는다 */}
+      <button style={btnStyle} onPointerDown={stop} onClick={() => onEdit(node)} title={node.type === 'person' ? '부서 이동' : '수정'}>
         <Pencil size={13} />
       </button>
       <button style={{ ...btnStyle, color: node.type === 'person' ? 'var(--danger)' : 'rgba(255,150,150,0.9)' }} onPointerDown={stop} onClick={() => onDelete(node)} title="삭제">
@@ -235,7 +263,7 @@ function InlineMember({
       </div>
       <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
         <div style={{ fontSize: '0.72rem', color: dark ? 'rgba(255,255,255,0.85)' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {displayName}
+          <MemberLink userId={person.user_id}>{displayName}</MemberLink>
           {label && <span style={{ opacity: 0.65 }}> {label}</span>}
         </div>
         {profile?.email && (
@@ -247,7 +275,7 @@ function InlineMember({
       </div>
       <button
         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)', flexShrink: 0 }}
-        onPointerDown={stop} onClick={() => onEdit(person)} title="수정"
+        onPointerDown={stop} onClick={() => onEdit(person)} title="부서 이동"
       >
         <Pencil size={11} />
       </button>
@@ -354,7 +382,9 @@ function PersonCard(props: CardProps) {
             {displayName.charAt(0) || <User size={11} />}
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)' }}>{displayName}</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)' }}>
+              <MemberLink userId={node.user_id}>{displayName}</MemberLink>
+            </div>
             {label && <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>{label}</div>}
             {profile?.email && (
               <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>

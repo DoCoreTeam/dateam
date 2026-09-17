@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import type { OrgNode, OrgNodeType } from './OrgNodeCard'
 import { createNode, updateNode, moveNode } from './actions'
+import Link from 'next/link'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import InlineError from '@/components/ui/InlineError'
@@ -171,14 +172,24 @@ export function EditNodeModal({ node, allProfiles, allNodes = [], onClose }: Edi
     })
   }
 
+  // 사람 노드는 이 창에서 고칠 것이 상위 노드 하나뿐이다. 그런데 제목이 「노드 수정」이라
+  // 무엇을 하는 창인지 알 수 없었다 (사용자 지적 2026-09-17). 하는 일을 그대로 제목에 적고,
+  // 이름·직급을 고치는 자리는 구성원 상세로 보낸다.
+  const isPerson = node.type === 'person'
+
   return (
     <NbModal
-      title="노드 수정"
+      title={isPerson ? '부서 이동' : '노드 수정'}
       onClose={onClose}
       maxWidth={420}
-      footer={<ModalActions onClose={onClose} onSubmit={handleSubmit} isPending={isPending} label="저장" />}
+      footer={<ModalActions onClose={onClose} onSubmit={handleSubmit} isPending={isPending} label={isPerson ? '이동' : '저장'} />}
     >
       <div style={FIELDS}>
+        {isPerson && (
+          <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+            이름·직급·직책과 재직 기록은 <Link href={`/admin/members/${node.user_id}`}>구성원 상세</Link>에서 고칩니다
+          </p>
+        )}
         {node.type !== 'person' && (
           <label className="label">
             이름 *

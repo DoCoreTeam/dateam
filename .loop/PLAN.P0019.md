@@ -86,7 +86,7 @@
 의존: I04
 
 ### I06 조직도에서 사람 카드를 누르면 구성원 상세
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/org-chart/OrgNodeCard.tsx, apps/web/app/admin/org-chart/OrgNodeModals.tsx, apps/web/app/admin/org-chart/OrgTree.tsx
 감사 기준:
