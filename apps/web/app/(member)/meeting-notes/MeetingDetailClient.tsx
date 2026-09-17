@@ -8,7 +8,7 @@ import { Pencil, Trash2, CalendarClock, Users, Mic, Briefcase } from 'lucide-rea
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import InlineError from '@/components/ui/InlineError'
-import { ACTION, failedTo } from '@/lib/terms'
+import { ACTION, failedTo, NOTE_INFO_LABEL } from '@/lib/terms'
 import MeetingEditor from './MeetingEditor'
 import MeetingReadBody from './MeetingReadBody'
 import CrmPublishCard from './CrmPublishCard'
@@ -67,15 +67,19 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
   const autoAnalyze = useSearchParams().get('analyze') === '1'
 
   /**
-   * **편집 폼은 반드시 최신 본문으로 연다**(v0.7.677).
+   * **본문을 쓰는 길은 이제 하나다**(v0.10.98).
    *
-   * 이 화면에는 본문을 쓰는 길이 둘이다 — 작업대(자동저장, `PATCH`)와 이 편집 폼(명시 저장).
-   * 그런데 작업대는 저장 뒤 `router.refresh()` 를 하지 않으므로 서버 컴포넌트가 넘겨준
-   * `note.body` 는 **페이지를 연 시점의 값**에 머문다. 그 값으로 폼을 열어 저장하면
-   * 회의 중에 작업대로 적은 글이 통째로 **옛 내용으로 덮인다.** 눈에 보이는 오류도 없다.
+   * 예전엔 둘이었다 — 작업대(자동저장 `PATCH`)와 이 폼(명시 저장). 작업대는 저장 뒤
+   * `router.refresh()` 를 안 하므로 서버가 넘겨준 `note.body` 는 **페이지를 연 시점의 값**에
+   * 머물고, 그 값으로 폼을 열어 저장하면 회의 중에 적은 글이 통째로 **옛 내용으로 덮였다.**
+   * v0.7.677 은 그것을 «열기 전에 다시 읽기» 로 막았다 — 사고는 막았지만 길은 둘로 남았다.
    *
-   * 그래서 열기 전에 다시 읽는다. 못 읽으면 **열지 않는다** — 옛 본문으로 여는 것이
-   * 곧 그 사고이므로, 여기서 «그냥 열어 주는» 관대함은 데이터를 잃는 쪽이다.
+   * 이제 이 폼은 본문을 **보지도 보내지도 않는다**(`MeetingEditor` 의 `mode === 'edit'`).
+   * 본문은 원문 카드 하나가 맡는다. 그래서 같은 「수정」이 둘이던 것도 함께 풀린다
+   * (사용자 지적 2026-09-17: *"수정버튼이 상단에도 있고 여기도 있는데 정리가 필요할듯"*).
+   *
+   * 다시 읽는 것은 **남긴다.** 요약·결정사항은 아직 이 폼이 유일한 손인데, AI 정리가
+   * 그 사이에 값을 바꿀 수 있다. 못 읽으면 열지 않는다 — 옛 값으로 덮는 것이 그 사고였다.
    */
   const [openingEditor, setOpeningEditor] = useState(false)
   const [openError, setOpenError] = useState<string | null>(null)
@@ -132,7 +136,7 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
   if (editing && fresh) {
     return (
       <div>
-        <PageHeader title={`회의노트 ${ACTION.edit}`} description="제목·일시·부서·본문과 요약·결정사항·참석자·태그를 수정하세요" />
+        <PageHeader title={`회의노트 ${NOTE_INFO_LABEL} ${ACTION.edit}`} description="제목·일시·부서와 요약·결정사항·참석자·태그를 수정하세요. 원문은 아래 「원문」 카드에서 고칩니다" />
         <MeetingEditor
           mode="edit"
           onExit={() => setEditing(false)}
@@ -170,8 +174,10 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
         titleAfter={<CrmPublishCard noteId={note.id} visibility={note.visibility} />}
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <NbButton onClick={() => void openEditor()} disabled={openingEditor} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <Pencil size={15} /> {ACTION.edit}
+            {/* 「수정」이 아니라 「정보 수정」이다 — 원문 카드의 「수정」과 고치는 대상이 다르다 */}
+            <NbButton onClick={() => void openEditor()} disabled={openingEditor} title="제목·일시·부서·참석자·태그를 고칩니다. 원문은 아래 「원문」 카드에서"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <Pencil size={15} /> {`${NOTE_INFO_LABEL} ${ACTION.edit}`}
             </NbButton>
             <NbButton variant="danger" onClick={handleDelete} disabled={deleting} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <Trash2 size={15} /> {deleting ? '삭제 중…' : '삭제'}
@@ -228,7 +234,7 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-        {/* 참석자(읽기 전용 chips) — 고치는 곳은 [수정] 폼이다.
+        {/* 참석자(읽기 전용 chips) — 고치는 곳은 [정보 수정] 폼이다.
             본문보다 **위**에 둔다: 회의록은 "누가 있었나"를 알고 내용을 읽는 문서다.
             내보내는 문서 서식도 표제 → 메타(일시·작성자·참석자) → 본문 순이다
             (lib/meeting/export-html.ts). 화면만 참석자를 맨 아래 두면 같은 회의록이
@@ -239,7 +245,7 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
             <h2 id="mn-att-h" className="tape-title" style={{ margin: 0 }}>참석자</h2>
           </div>
           {isEmptyAttendees ? (
-            <p style={{ margin: 0, color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>등록된 참석자가 없습니다. [수정]에서 추가하세요.</p>
+            <p style={{ margin: 0, color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>{`등록된 참석자가 없습니다. 위 [${NOTE_INFO_LABEL} ${ACTION.edit}]에서 추가하세요.`}</p>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
               {memberChips.map((m) => (

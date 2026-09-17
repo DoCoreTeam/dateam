@@ -44,7 +44,7 @@
 의존: 없음
 
 ### I02 상단 수정은 노트 정보만
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(member)/meeting-notes/MeetingDetailClient.tsx, apps/web/app/(member)/meeting-notes/MeetingEditor.tsx
 감사 기준:

@@ -175,7 +175,12 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
       title: title.trim(),
       meeting_at: localInputToIso(meetingAtLocal),
       department_id: departmentId || null,
-      body_html: body,
+      /*
+        **고칠 때는 본문을 안 보낸다.** `updateMeetingNote` 는 받은 키만 쓰므로,
+        빼는 것이 곧 «안 건드린다»는 뜻이다. 보내면 이 폼을 여는 사이 작업대가 저장한
+        글을 덮는다 — 그 사이가 짧아 보여도 회의 중에는 5초마다 한 번씩 쌓인다.
+      */
+      ...(mode === 'create' ? { body_html: body } : {}),
       tags: tags.length > 0 ? tags : null,
       attendees: attendeeNames.length > 0 ? attendeeNames : null,
       attendee_user_ids: attendeeUserIds.length > 0 ? attendeeUserIds : null,
@@ -184,15 +189,15 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
     }
     startTransition(async () => {
       try {
-        // 본문이 실제 바뀐 경우에만 저장 후 자동 AI 분석(?analyze=1) — 토큰 낭비 방지.
-        const bodyChanged = mode === 'create' ? body.trim().length > 0 : body !== initial.body
-        const analyzeQs = bodyChanged ? '?analyze=1' : ''
+        // 새로 쓴 본문이 있을 때만 저장 후 자동 AI 분석(?analyze=1) — 토큰 낭비 방지.
+        // 고치는 폼은 본문을 안 건드리므로 재분석을 걸 이유가 없다(작업대가 저장하는 쪽이 건다).
+        const analyzeQs = mode === 'create' && body.trim().length > 0 ? '?analyze=1' : ''
         if (mode === 'create') {
           const res = await createMeetingNote(base)
           if (!res.ok) { setError(res.error); return }
           router.push(`/meeting-notes/${res.id}${analyzeQs}`)
         } else if (initial.id) {
-          // 편집은 요약·결정사항까지 한 번에 저장(에디터가 모든 필드의 단일 수정면).
+          // 고칠 때는 요약·결정사항까지 한 번에 저장(본문 말고 나머지의 단일 수정면).
           const res = await updateMeetingNote(initial.id, { ...base, summary: summary.trim() || null, decisions: decisions.trim() || null })
           if (!res.ok) { setError(res.error); return }
           // 본문 변경 시에만 ?analyze=1로 자동 재분석. 저장 후 편집모드 종료 → 조회 화면 복귀.
@@ -257,12 +262,22 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
           </div>
         </div>
 
-        <div>
-          <label className="label">본문</label>
-          <TiptapEditor value={body} onChange={setBody} placeholder="회의 내용을 입력하세요" minHeight={280} />
-        </div>
+        {/*
+          **본문은 새로 만들 때만 여기 있다**(v0.10.98).
 
-        {/* 요약·결정사항 — 편집 화면에서만(작성 시엔 AI가 채움). 에디터가 모든 필드의 단일 수정면. */}
+          고칠 때는 상세 화면의 「원문」 카드(작업대)가 유일한 손이다. 예전엔 둘 다 본문을
+          썼고, 작업대가 자동저장으로 쌓아 둔 글을 이 폼이 옛 값으로 덮는 사고가 있었다
+          (v0.7.677 이 «열기 전에 다시 읽기» 로 막았지만 길은 둘로 남아 있었다).
+          새 노트에는 아직 작업대가 없으므로 — 노트가 있어야 열린다 — 여기가 유일한 자리다.
+        */}
+        {mode === 'create' && (
+          <div>
+            <label className="label">본문</label>
+            <TiptapEditor value={body} onChange={setBody} placeholder="회의 내용을 입력하세요" minHeight={280} />
+          </div>
+        )}
+
+        {/* 요약·결정사항 — 고칠 때만(작성 시엔 AI가 채움). 본문 말고 나머지의 단일 수정면이다. */}
         {mode === 'edit' && (
           <>
             <div>
