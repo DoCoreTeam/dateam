@@ -9,6 +9,8 @@
  * 같은 규칙을 화면이 먼저 말해 줘야 한다.
  */
 
+// node --test 는 @/ 별칭을 못 읽는다 — 값 import 는 상대경로로 (타입 import 는 지워지므로 별칭이어도 된다)
+import { kstTodayKey } from '../datetime/kst.ts'
 import type { MemberEmployment } from '@/types/database'
 
 /** 화면·서버가 주고받는 최소 모양 — 전체 행을 안 읽는 자리(뷰)도 이 모양을 만족한다 */
@@ -26,20 +28,33 @@ export function employmentMap(rows: readonly EmploymentRow[] | null | undefined)
 }
 
 /**
- * 퇴사했나. **기록이 없으면 재직이다** — 지금 전원의 입사 기록이 없는 상태에서 시작하므로,
- * 없음을 퇴사로 읽으면 첫 배포에 전원이 퇴사자가 된다.
+ * 퇴사했나. 두 가지를 같이 본다.
+ *
+ * ① **기록이 없으면 재직이다** — 전원의 입사 기록이 없는 상태에서 시작하므로,
+ *    없음을 퇴사로 읽으면 첫 배포에 전원이 퇴사자가 된다.
+ * ② **앞날 날짜는 그날이 와야 효력이 생긴다** (사용자 지적 2026-09-18).
+ *    처음엔 「퇴사일이 적히면 곧 퇴사」로 만들었는데, 9월 30일 퇴사로 적은 사람이
+ *    9월 18일에 이미 로그인을 못 했다. 날짜를 정했다는 것은 **그날부터**라는 뜻이다.
+ *    그 전까지는 재직이고, 목록에도 픽커에도 그대로 나와야 한다.
  */
-export function isResigned(row: EmploymentRow | null | undefined): boolean {
-  return Boolean(row?.resigned_on)
+export function isResigned(row: EmploymentRow | null | undefined, today: string = kstTodayKey()): boolean {
+  const on = row?.resigned_on
+  return Boolean(on) && (on as string) <= today
 }
 
-export function employmentStatus(row: EmploymentRow | null | undefined): 'active' | 'resigned' {
-  return isResigned(row) ? 'resigned' : 'active'
+/** 퇴사일이 잡혀 있지만 아직 그날이 안 온 상태. 재직이되 곧 나간다 */
+export function isResignScheduled(row: EmploymentRow | null | undefined, today: string = kstTodayKey()): boolean {
+  const on = row?.resigned_on
+  return Boolean(on) && (on as string) > today
 }
 
-/** 퇴사한 사람의 id 묶음 — 사람 고르는 자리가 이걸로 거른다 */
-export function resignedIds(rows: readonly EmploymentRow[] | null | undefined): Set<string> {
-  return new Set((rows ?? []).filter((r) => r.resigned_on).map((r) => r.user_id))
+export function employmentStatus(row: EmploymentRow | null | undefined, today?: string): 'active' | 'resigned' {
+  return isResigned(row, today) ? 'resigned' : 'active'
+}
+
+/** 퇴사한 사람의 id 묶음 — 사람 고르는 자리가 이걸로 거른다. 퇴사 예정은 아직 안 뺀다 */
+export function resignedIds(rows: readonly EmploymentRow[] | null | undefined, today: string = kstTodayKey()): Set<string> {
+  return new Set((rows ?? []).filter((r) => isResigned(r, today)).map((r) => r.user_id))
 }
 
 /**

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
+import { isResigned } from '@/lib/members/employment'
 import { Suspense } from 'react'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import OnboardingProvider from '@/components/onboarding/OnboardingProvider'
@@ -100,7 +101,7 @@ export default async function MemberLayout({ children }: { children: React.React
 
   // 이 레이아웃은 **화면을 전환할 때마다** 다시 돈다. 하나라도 Promise.all 밖에 있으면
   // 그만큼 원격 왕복이 직렬로 붙는다(myWeekCount가 그랬다 — v0.7.458 실측에서 발견).
-  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme, orgScope, myWeekResult] = await Promise.all([
+  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme, orgScope, myWeekResult, employmentResult] = await Promise.all([
     getBranding(),
     adminClient
       .from('profiles')
@@ -118,11 +119,27 @@ export default async function MemberLayout({ children }: { children: React.React
       .eq('user_id', user.id)
       .eq('week_start', thisMonday)
       .is('deleted_at', null),
+    /*
+      퇴사일이 왔는지 본다.
+
+      **왜 배치가 아니라 여기인가** (사용자 지적 2026-09-18): 퇴사일을 앞날로 잡으면 그날이
+      와야 막혀야 한다. 매일 도는 배치를 두면 그 배치가 안 돌 때 그대로 뚫린다. 이 레이아웃은
+      화면을 전환할 때마다 도니까, 그날이 오면 **다음 클릭에** 막힌다. 놓칠 구간이 없다.
+      같은 Promise.all 에 태우므로 왕복은 늘지 않는다.
+    */
+    adminClient
+      .from('member_employment')
+      .select('user_id, resigned_on')
+      .eq('user_id', user.id)
+      .maybeSingle() as unknown as Promise<{ data: { user_id: string; resigned_on: string | null } | null }>,
   ])
   const profile = profileResult.data
   // api_user는 내부 화면에 들어올 수 없다 — 예전엔 미들웨어가 role을 따로 조회해 막았지만,
   // 위 Promise.all이 이미 같은 행에서 role을 읽으므로 여기서 막으면 왕복이 0회다.
   redirectApiUser(profile?.role)
+  // 퇴사일이 온 사람은 내부 화면에 들어올 수 없다. 로그인 차단(auth ban)이 주 방어선이고,
+  // 여기는 앞날로 잡아 둔 퇴사일이 조용히 지나가는 경우를 받는 자리다.
+  if (isResigned(employmentResult.data)) redirect('/login?reason=resigned')
   const weeklyReportPending = (myWeekResult.count ?? 0) === 0
 
   const orgPath = orgPathFromScope(orgScope, user.id)

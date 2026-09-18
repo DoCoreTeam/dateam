@@ -19,7 +19,7 @@ import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
-import { employmentMap, type EmploymentRow } from '@/lib/members/employment'
+import { employmentMap, isResignScheduled, type EmploymentRow } from '@/lib/members/employment'
 import { EMPLOYMENT_FIELD, RESIGNED_TAB } from '@/lib/terms'
 import type { Profile } from '@/types/database'
 
@@ -120,8 +120,17 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
             {p.name?.charAt(0)?.toUpperCase() ?? '?'}
           </span>
           <span>
-            {/* 퇴사 표시를 여기 달지 않는다 — 탭이 이미 그 말을 하고 있어서 한 줄에 같은 말이 두 번 된다 */}
-            <span style={{ fontWeight: 500, display: 'block' }}>{p.name || '-'}</span>
+            {/* 퇴사 표시는 안 단다 — 탭이 이미 그 말을 하고 있어서 한 줄에 같은 말이 두 번 된다.
+                대신 **아직 안 온 퇴사일**은 여기 적는다. 재직 목록에 있으면서 곧 나가는 사람이라,
+                그 사실을 모르면 담당자로 새로 지정해 버린다. */}
+            <span style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+              {p.name || '-'}
+              {isResignScheduled(empMap.get(p.id)) && (
+                <span className="badge badge-slate" title={`${EMPLOYMENT_FIELD.resignedOn} ${empMap.get(p.id)?.resigned_on}`}>
+                  {RESIGNED_TAB.scheduledLabel} {empMap.get(p.id)?.resigned_on}
+                </span>
+              )}
+            </span>
             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{emailMap[p.id] ?? ''}</span>
           </span>
         </div>

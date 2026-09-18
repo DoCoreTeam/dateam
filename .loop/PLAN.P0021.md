@@ -1,6 +1,6 @@
 # PLAN newAX: 퇴사자는 별도 탭으로 뺀다
 플랜 ID: P0021
-플랜 버전: v0.1.0
+플랜 버전: v0.3.0
 상태: 진행중
 지시: ins_0023
 목표 버전: v0.10.132
@@ -41,6 +41,29 @@
 - 퇴사자 0명이면 탭 배지를 그리지 않음 (배지 규칙 2)
 의존: 없음
 
+### I01a 퇴사 예정일은 그날이 와야 막힌다
+상태: 통과
+모드: 중량
+범위: apps/web/lib/members/employment.ts, apps/web/lib/members/employment.test.ts, apps/web/app/admin/users/actions.ts, apps/web/app/admin/users/UserTable.tsx, apps/web/app/(member)/layout.tsx, apps/web/e2e/member-resign.spec.ts
+감사 기준:
+- 퇴사일이 앞날이면 재직으로 보고 로그인도 되며, 재직 목록에 「퇴사 예정 (날짜)」로 보임
+- 퇴사일이 오늘이거나 지났으면 퇴사로 보고 로그인이 막힘
+- 앞날 날짜를 저장하면 이미 걸려 있던 차단이 풀림 (기록과 실제가 어긋나지 않게)
+- 그날이 오면 배치 없이도 막힘 — (member) 레이아웃이 매 화면마다 확인함
+- node --test employment.test.ts 통과, 앞날/오늘/지난날 세 경우를 다 봄
+의존: I01
+
+### I01b 날짜 칸에 「오늘」 단추
+상태: 대기
+모드: 경량
+범위: apps/web/components/ui/DateField.tsx, apps/web/app/globals.css, apps/web/lib/ui/date-range.ts, apps/web/e2e/date-field-today.spec.ts (신규)
+감사 기준:
+- 날짜 칸 옆에 「오늘」이 있고 누르면 오늘(KST)이 채워짐
+- 달력을 안 열고도 오늘을 넣을 수 있음 (브라우저 실측)
+- min/max 밖이면 그 범위 안으로 잡힘
+- 날짜 칸을 쓰는 화면 스무 곳의 배치가 깨지지 않음 (스크린샷으로 확인)
+의존: 없음
+
 ### I02 판 번호
 상태: 대기
 모드: 경량
@@ -49,10 +72,12 @@
 - 다섯 파일의 판 번호가 같고 커밋 직전 다시 계산한 다음 패치임
 - node --test lib/policy/policy-sync.test.ts lib/policy/version-rule.test.ts 통과
 - 관리자 전용 화면이라 업데이트 내역은 건너뜀, 사유를 요약에 적음
-의존: I01
+의존: I01b
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
 
 ## 변경 이력
 - v0.1.0 (2026-09-18) 최초 작성 (ins_0023)
+- v0.2.0 (2026-09-18) 사용자 개입으로 항목 둘 추가 (ins_0024): 퇴사 예정일이 그날부터 효력을 갖게, 날짜 칸에 「오늘」 단추
+- v0.3.0 (2026-09-18) 퇴사일이 앞날이어도 곧바로 막히던 것은 로직 버그, 그날부터 막히게 고침. 그리고 날짜 칸이 달력 선택뿐이라 오늘 단추를 더함 (iv_0024)

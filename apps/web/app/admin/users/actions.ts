@@ -3,7 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { kstTodayKey } from '@/lib/datetime/kst'
-import { validateEmployment, toDateOrNull } from '@/lib/members/employment'
+import { validateEmployment, toDateOrNull, isResigned } from '@/lib/members/employment'
 
 const BAN_DURATION_PERMANENT = '876000h' // ~100년
 
@@ -214,16 +214,38 @@ export async function resignMember(
   )
   if (error) return { ok: false, error: error.message }
 
-  await detachFromOrgChart(adminClient, userId)
-
-  const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
-    ban_duration: BAN_DURATION_PERMANENT,
-  })
-  // 기록은 남았는데 로그인만 안 막힌 상태 — 관측만 남기고 성공으로 본다(삭제와 같은 판단)
-  if (authError) console.warn('[resignMember] auth ban failed, employment recorded:', authError.message)
+  // 그날이 와야 조직도에서 빼고 로그인을 막는다. 앞날로 적었으면 아직 그대로 일한다
+  await applyResignEffect(adminClient, userId, resignedOn)
 
   revalidateMemberPaths(userId)
   return { ok: true }
+}
+
+/**
+ * 퇴사일을 실제 효력으로 옮긴다 — 그날이 왔으면 조직도에서 빼고 로그인을 막고, 아직이면 푼다.
+ *
+ * 왜 한 곳에 모으나 (사용자 지적 2026-09-18): 퇴사 단추와 상세 저장 두 길이 각자 차단을 걸다
+ * 보니, 9월 30일 퇴사로 적은 사람이 9월 18일에 이미 로그인을 못 했다. 날짜를 정했다는 것은
+ * **그날부터**라는 뜻이다. 두 길이 같은 함수를 지나면 그 뜻이 한 번만 적힌다.
+ */
+async function applyResignEffect(
+  adminClient: ReturnType<typeof createAdminClient>,
+  userId: string,
+  resignedOn: string | null,
+): Promise<{ error?: string }> {
+  const effective = isResigned({ user_id: userId, resigned_on: resignedOn })
+  if (effective) {
+    await detachFromOrgChart(adminClient, userId)
+    const { error } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: BAN_DURATION_PERMANENT })
+    // 기록은 남았는데 로그인만 안 막힌 상태 — 관측만 남기고 성공으로 본다(삭제와 같은 판단)
+    if (error) console.warn('[applyResignEffect] auth ban failed, employment recorded:', error.message)
+    return {}
+  }
+  // 아직 안 온 날이거나 퇴사가 아니다 — 걸려 있던 차단을 푼다.
+  // 안 풀면 「재직이라고 적혀 있는데 못 들어오는」 상태가 남고, 그건 기록이 거짓말하는 것이다.
+  const { error } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' })
+  if (error) return { error: `기록은 저장했지만 로그인이 열리지 않았습니다: ${error.message}` }
+  return {}
 }
 
 /** 퇴사 취소 — 기록을 비우고 로그인을 다시 연다. 조직도 자리는 돌아오지 않는다(지웠으므로). */
@@ -240,8 +262,8 @@ export async function undoResignMember(
     .eq('user_id', userId)
   if (error) return { ok: false, error: error.message }
 
-  const { error: authError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' })
-  if (authError) return { ok: false, error: `기록은 되돌렸지만 로그인이 열리지 않았습니다: ${authError.message}` }
+  const applied = await applyResignEffect(adminClient, userId, null)
+  if (applied.error) return { ok: false, error: applied.error }
 
   revalidateMemberPaths(userId)
   return { ok: true }
@@ -271,10 +293,6 @@ export async function updateEmployment(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = adminClient as any
 
-  const { data: before } = await db
-    .from('member_employment').select('resigned_on').eq('user_id', userId).maybeSingle()
-  const wasResigned = Boolean(before?.resigned_on)
-
   const { error } = await db.from('member_employment').upsert(
     {
       user_id: userId,
@@ -288,15 +306,10 @@ export async function updateEmployment(
   )
   if (error) return { ok: false, error: error.message }
 
-  if (!wasResigned && resignedOn) {
-    await detachFromOrgChart(adminClient, userId)
-    const { error: banErr } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: BAN_DURATION_PERMANENT })
-    if (banErr) console.warn('[updateEmployment] auth ban failed:', banErr.message)
-  }
-  if (wasResigned && !resignedOn) {
-    const { error: unbanErr } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: 'none' })
-    if (unbanErr) return { ok: false, error: `기록은 저장했지만 로그인이 열리지 않았습니다: ${unbanErr.message}` }
-  }
+  // 앞뒤를 비교하지 않는다 — 지금 적힌 날짜가 무엇을 뜻하는지만 보면 된다.
+  // (비교하면 「앞날로 고쳤는데 이미 걸린 차단이 안 풀리는」 경우를 매번 따로 적어야 한다)
+  const applied = await applyResignEffect(adminClient, userId, resignedOn)
+  if (applied.error) return { ok: false, error: applied.error }
 
   revalidateMemberPaths(userId)
   return { ok: true }
