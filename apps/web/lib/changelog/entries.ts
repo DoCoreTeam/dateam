@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.161',
+    date: '2026-09-19',
+    title: 'AI 한 곳이 막혀도 영업 CRM 이 멈추지 않아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '\uD83D\uDD01',
+        headline: '쓰던 AI 가 한도에 걸리면 다른 AI 가 이어받아요',
+        detail: '견적 채우기 · 명함 읽기 · 회의 정리 같은 영업 CRM 의 AI 기능이 「사용량 한도를 초과했습니다」 한 마디로 멈추곤 했어요. 이제는 등록해 둔 다른 AI 로 자동으로 넘어가서 하던 일을 마칩니다. 다른 AI 가 답했을 때는 화면이 그 사실을 알려 드려요. 모르는 사이에 바뀌면 안 되니까요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '\uD83D\uDD12',
+        headline: '이메일과 전화번호를 가린 뒤에 AI 로 보내요',
+        detail: '영업 CRM 이 AI 에게 글을 보낼 때 이메일 · 전화번호 · 사업자번호 · 계좌번호를 자리표로 바꿔서 보내고, 답을 받은 뒤 원래 값으로 되돌립니다. 화면에 보이는 내용은 그대로예요. 무엇이 언제 어디로 나갔는지도 함께 기록됩니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.155',
     date: '2026-09-19',
     title: '견적서 파일을 올리면 항목이 저절로 채워져요',

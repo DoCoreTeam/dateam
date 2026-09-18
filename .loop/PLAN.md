@@ -99,7 +99,7 @@
 의존: I02a
 
 ### I04 실측과 발행
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/lib/changelog/entries.ts
@@ -113,7 +113,48 @@
 의존: I03
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+
+명령 (2026-09-19)
+- pnpm typecheck 통과 · pnpm lint exit 0 · pnpm design:check 통과
+- pnpm test 5879/5879 (플랜 시작 5851 → +28)
+- next build (NEXT_DIST_DIR=.next-aichain) 통과, 빌드가 tsconfig 에 넣은 include 줄은 되돌림
+
+실측 — 폴백
+- 실제 후보 사슬을 운영 설정으로 뽑아 봄: **gemini → openai → groq** 여섯 후보
+  (등록 공급자 셋: gemini/gemini-3-flash-preview · openai/gpt-5.5 · groq/qwen3.8-27b)
+- 어제 429 로 죽었던 그 PDF 를 같은 창구에 다시 넣으니 **200**, 항목 2건 정상 추출
+- 말로 채우기 응답에 갈아탄 사실이 실림:
+  「설정 모델 gemini-3-flash-preview 사용 불가, gemini gemini-flash-latest 로 답했습니다」
+- crm_ai_run 에 남은 모델이 **실제로 답한** gemini-flash-latest (이 변경 전 행은 설정 모델 gemini-3-flash-preview)
+
+실측 — 가림과 원장
+- 이메일·전화가 든 글을 창구로 보냄. 전송 원장에 CRM 행이 처음 생김:
+  surface=crm/quick_create · media_kind=text · **masked_counts={"email":1,"phone":1}** · bytes=3461
+- 호출 원장에도 같은 호출이 provider/model/토큰과 함께 남음
+- **왕복이 원문을 안 잃음**: 응답의 unclear 에 원래 이메일·전화가 그대로 돌아옴
+  (모델이 자리표를 실어 답하고 우리가 되돌린 것)
+- 변경 전에는 surface 가 crm 인 원장 행이 **0건**이었다
+
+완료 정의 대조
+- 네 명령 전부 통과: 충족
+- Gemini 가 막혔을 때 다른 것이 답한다: 충족 (사슬은 공급자를 넘고, 실측에서 모델이 실제로 갈아탔다)
+- 기록이 실제로 답한 모델이다: 충족 (crm_ai_run · 두 원장 모두)
+- 새 테스트가 실제로 도는가: 5851 → 5879 (+28)
+- env 추가 없음: 충족
+
+발견 사항
+- 공급자 능력(vision·tools)이 **공급자 단위**라 모델 단위로는 걸러지지 않는다. 그래서 첨부 사슬에
+  `gpt-4o-mini-transcribe`(소리 모델)가 후보로 남는다. 400 을 맞고 다음 후보로 넘어가므로 기능은
+  살지만 한 번 헛돈다. **AI 채팅도 같은 사슬을 쓰므로 같은 성질이다** — 이번 플랜 밖이고,
+  고치려면 `ai_model_catalog` 에 모델별 능력 칸이 필요하다
+- 웹 검색은 이 조직에서 여전히 gemini 하나뿐이다(openai·groq 는 registry 상 tools=false).
+  그래서 검색 한도는 공급자를 넘어도 안 풀린다 — 새 메시지가 그 사실을 일반화해 말한다
+
+남은 것
+- 갈아탄 알림을 받는 화면은 견적 채우기 둘뿐이다. 나머지 CRM AI 열 곳은 러너가 값을 주지만
+  화면이 아직 안 그린다 (범위 밖으로 선언했던 것)
+- knownNames(사람 이름 가림)는 호출측 선택으로 남겨 뒀다. 규칙 기반(이메일·전화·주민번호·카드·
+  계좌·사업자번호)만 열두 곳에 즉시 적용됐다
 
 ## 변경 이력
 - v0.1.0 (2026-09-19) 최초 작성 (ins_0027)
