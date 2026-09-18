@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { resetUserPassword } from './actions'
 import { RefreshCw } from 'lucide-react'
 import InlineError from '@/components/ui/InlineError'
+import NbButton from '@/components/ui/nb/NbButton'
 import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 interface Props {
@@ -38,29 +39,13 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-      <button
-        onClick={handleReset}
-        disabled={loading}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.3rem',
-          fontSize: 'var(--fs-xs)',
-          color: 'var(--warning)',
-          background: 'var(--warning-bg)',
-          border: 'var(--hairline) solid var(--warning-border)',
-          borderRadius: 'var(--radius)',
-          padding: '0.3rem 0.625rem',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          whiteSpace: 'nowrap',
-          opacity: loading ? 0.6 : 1,
-        }}
-      >
-        <RefreshCw size={11} />
-        {loading ? '처리중...' : 'PW초기화'}
-      </button>
+    // 목록 행과 구성원 상세에 같이 놓인다 — 모양을 자작하면 두 자리에서 크기가 갈린다(§2-5)
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+      <NbButton type="button" variant="secondary" onClick={handleReset} disabled={loading}>
+        <RefreshCw size={13} />
+        {loading ? '처리 중' : 'PW초기화'}
+      </NbButton>
       <InlineError compact>{error}</InlineError>
-    </div>
+    </span>
   )
 }

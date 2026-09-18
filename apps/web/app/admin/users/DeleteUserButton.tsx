@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react'
 import { Trash2, AlertTriangle } from 'lucide-react'
 import { deleteUser } from './actions'
 import InlineError from '@/components/ui/InlineError'
+import NbButton from '@/components/ui/nb/NbButton'
+import { eulReul } from '@/lib/ui/josa'
 
 interface DeleteUserButtonProps {
   userId: string
@@ -31,53 +33,29 @@ export default function DeleteUserButton({ userId, userName, isSelf }: DeleteUse
 
   if (confirming) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>
+      <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+        <span role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>
           <AlertTriangle size={12} />
-          <span><strong>{userName}</strong>을 삭제합니까?</span>
-        </div>
+          {/* 조사는 계산한다 — 「을」을 박아 두면 받침 없는 이름에서 틀린다 */}
+          <span><strong>{userName}</strong>{eulReul(userName)} 삭제합니까?</span>
+        </span>
         <InlineError compact>{error}</InlineError>
-        <div style={{ display: 'flex', gap: '0.375rem' }}>
-          <button
-            onClick={handleDelete}
-            disabled={pending}
-            style={{
-              padding: '0.25rem 0.625rem', fontSize: 'var(--fs-xs)', fontWeight: 600,
-              backgroundColor: 'var(--danger)', color: '#fff',
-              border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
-            }}
-          >
-            {pending ? '삭제 중...' : '확인'}
-          </button>
-          <button
-            onClick={() => { setConfirming(false); setError(null) }}
-            disabled={pending}
-            style={{
-              padding: '0.25rem 0.625rem', fontSize: 'var(--fs-xs)',
-              backgroundColor: 'var(--surface-muted)', color: 'var(--text-muted)',
-              border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
-            }}
-          >
+        <span style={{ display: 'flex', gap: 'var(--space-1)' }}>
+          <NbButton type="button" variant="danger" onClick={handleDelete} disabled={pending}>
+            {pending ? '삭제 중' : '확인'}
+          </NbButton>
+          <NbButton type="button" variant="secondary" onClick={() => { setConfirming(false); setError(null) }} disabled={pending}>
             취소
-          </button>
-        </div>
-      </div>
+          </NbButton>
+        </span>
+      </span>
     )
   }
 
   return (
-    <button
-      onClick={() => setConfirming(true)}
-      title={`${userName} 삭제`}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)',
-        padding: '0.25rem 0.625rem', fontSize: 'var(--fs-xs)',
-        backgroundColor: 'var(--danger-bg)', color: 'var(--danger)',
-        border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', cursor: 'pointer',
-      }}
-    >
-      <Trash2 size={12} />
-      삭제
-    </button>
+    // 목록 행과 구성원 상세에 같이 놓인다 — 모양을 자작하면 두 자리에서 크기가 갈린다(§2-5)
+    <NbButton type="button" variant="danger-ghost" onClick={() => setConfirming(true)} title={`${userName} 삭제`}>
+      <Trash2 size={13} /> 삭제
+    </NbButton>
   )
 }

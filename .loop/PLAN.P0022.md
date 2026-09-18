@@ -52,7 +52,7 @@
 의존: I01
 
 ### I03 계정 조작을 상세에도
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/members/[id]/MemberActions.tsx (신규), apps/web/app/admin/members/[id]/page.tsx, apps/web/e2e/member-detail-edit.spec.ts (신규)
 감사 기준:

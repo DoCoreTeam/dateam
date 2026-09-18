@@ -89,15 +89,15 @@ export default function MemberFacts({ profile, email, departmentId, departments,
         <h2 className="tape-title" style={{ margin: 0, flex: 1 }}>계정</h2>
         {editing ? (
           <>
-            <NbButton variant="secondary" onClick={cancel} disabled={pending}>
+            <NbButton id="acc-cancel" variant="secondary" onClick={cancel} disabled={pending}>
               <X size={14} /> 취소
             </NbButton>
-            <NbButton onClick={save} disabled={pending}>
+            <NbButton id="acc-save" onClick={save} disabled={pending}>
               <Save size={14} /> {pending ? '저장 중' : '저장'}
             </NbButton>
           </>
         ) : (
-          <NbButton variant="secondary" onClick={() => setEditing(true)}>
+          <NbButton id="acc-edit" variant="secondary" onClick={() => setEditing(true)}>
             <Pencil size={14} /> 수정
           </NbButton>
         )}

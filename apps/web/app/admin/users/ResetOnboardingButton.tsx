@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { resetUserOnboarding } from './actions'
 import { Compass } from 'lucide-react'
 import InlineError from '@/components/ui/InlineError'
+import NbButton from '@/components/ui/nb/NbButton'
 import { withSubmitGuard } from '@/lib/forms/submit-guard'
 
 interface Props {
@@ -34,29 +35,12 @@ export default function ResetOnboardingButton({ userId, userName }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-      <button
-        onClick={handleReset}
-        disabled={loading}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.3rem',
-          fontSize: 'var(--fs-xs)',
-          color: 'var(--info)',
-          background: 'var(--info-bg)',
-          border: 'var(--hairline) solid var(--info-border)',
-          borderRadius: 'var(--radius)',
-          padding: '0.3rem 0.625rem',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          whiteSpace: 'nowrap',
-          opacity: loading ? 0.6 : 1,
-        }}
-      >
-        <Compass size={11} />
-        {loading ? '처리중...' : '온보딩 초기화'}
-      </button>
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+      <NbButton type="button" variant="secondary" onClick={handleReset} disabled={loading}>
+        <Compass size={13} />
+        {loading ? '처리 중' : '온보딩 초기화'}
+      </NbButton>
       <InlineError compact>{error}</InlineError>
-    </div>
+    </span>
   )
 }
