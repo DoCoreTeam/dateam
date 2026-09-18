@@ -20,7 +20,7 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { employmentMap, isResignScheduled, type EmploymentRow } from '@/lib/members/employment'
-import { EMPLOYMENT_FIELD, RESIGNED_TAB } from '@/lib/terms'
+import { EMPLOYMENT_FIELD, RESIGNED_TAB, ENTITY } from '@/lib/terms'
 import type { Profile } from '@/types/database'
 
 interface RankItem {
@@ -211,6 +211,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
         filters={FILTERS}
         sortOptions={SORT_OPTIONS}
         total={filtered.length}
+        counter={ENTITY.person.counter}
       />
 
       <ListSurface
@@ -227,7 +228,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
             : { title: '등록된 구성원이 없어요', description: '구성원을 추가하면 여기 표시됩니다' }}
       />
 
-      <ListPager query={query} total={filtered.length} onChange={set} />
+      <ListPager query={query} total={filtered.length} onChange={set} counter={ENTITY.person.counter} />
 
       {editTarget && (
         <EditProfileModal

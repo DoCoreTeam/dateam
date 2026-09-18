@@ -9,6 +9,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { pageCount, pageWindow, type ListQuery } from '@/lib/ui/list-query'
+import type { Counter } from '@/lib/terms'
 
 interface Props {
   query: ListQuery
@@ -26,9 +27,14 @@ interface Props {
   loaded?: number
   onChange: (patch: Partial<ListQuery>) => void
   loading?: boolean
+  /**
+   * 무엇을 세는지에 따라 붙는 말 (용어집 §03). 사람은 「명」, 회사는 「곳」이다.
+   * 안 주면 「건」 — 기록·문서가 목록의 대다수라서다.
+   */
+  counter?: Counter
 }
 
-export default function ListPager({ query, total, hasMore, loaded, onChange, loading }: Props) {
+export default function ListPager({ query, total, hasMore, loaded, onChange, loading, counter = '건' }: Props) {
   if (query.mode === 'more') {
     const known = typeof total === 'number'
     const shown = known
@@ -54,7 +60,21 @@ export default function ListPager({ query, total, hasMore, loaded, onChange, loa
   }
 
   const count = pageCount(total ?? 0, query.size)
-  if (count <= 1) return null
+  /**
+   * 한 쪽뿐이면 페이지 단추 대신 **끝났다는 한 줄**을 적는다.
+   *
+   * 왜 (사용자 지적 2026-09-19): 서른 몇 줄을 훑어 바닥에 닿았는데 아무 표시가 없어서
+   * 「페이지네이션이 없는 건가」 싶었다. 실제로는 한 쪽이라 단추를 안 그린 것인데,
+   * 화면은 그 사실을 말한 적이 없다. 없는 것과 끝난 것은 사람에게 같아 보인다.
+   *
+   * 0건이면 아무것도 안 그린다 — 빈 상태가 이미 그 말을 하고 있고, 두 번 말하면 군더더기다.
+   */
+  if (count <= 1) {
+    if (!total) return null
+    return (
+      <p className="list-pager list-pager-end">전체 {total.toLocaleString()}{counter}, 여기까지입니다</p>
+    )
+  }
 
   return (
     <nav className="list-pager" aria-label="페이지 이동">

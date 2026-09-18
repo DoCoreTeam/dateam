@@ -40,7 +40,7 @@
 의존: 없음
 
 ### I02 한 쪽뿐이어도 목록 끝을 알린다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/list/ListPager.tsx
 감사 기준:

@@ -13,6 +13,7 @@ import { isEnterKey } from '@/lib/ui/ime'
 import type { ListQuery, ListView } from '@/lib/ui/list-query'
 import { LIST_SIZES } from '@/lib/ui/list-query'
 import type { ListFilterDef } from './types'
+import type { Counter } from '@/lib/terms'
 
 const VIEW_META: Record<ListView, { label: string; icon: ReactNode }> = {
   table: { label: '표', icon: <ListIcon size={14} /> },
@@ -30,6 +31,8 @@ interface Props {
   views?: ListView[]
   /** 검색 결과 총 건수 — 필터가 먹었는지 사용자가 확인하는 유일한 신호 */
   total?: number
+  /** 무엇을 세는지에 따라 붙는 말 (용어집 §03). 사람은 「명」, 회사는 「곳」 */
+  counter?: Counter
   /** 선택 모드(일괄 작업). count가 0이면 평소 도구줄을 보여준다 */
   selection?: { count: number; onClear: () => void; actions: ReactNode }
   /** 페이지 크기를 서버가 고정하는 목록(커서 API)은 끈다 — 안 먹는 선택지를 두지 않는다 */
@@ -40,7 +43,7 @@ interface Props {
 
 export default function ListToolbar({
   query, onChange, searchPlaceholder = '검색', filters = [], sortOptions = [],
-  views = ['table', 'card'], total, selection, actions, showSize = true,
+  views = ['table', 'card'], total, selection, actions, showSize = true, counter = '건',
 }: Props) {
   // 타이핑마다 서버를 때리지 않는다. 확정(Enter/blur)에만 조회한다.
   const [draft, setDraft] = useState(query.q)
@@ -113,7 +116,7 @@ export default function ListToolbar({
       )}
 
       <div className="list-toolbar-right">
-        {typeof total === 'number' && <span className="list-total">{total.toLocaleString()}건</span>}
+        {typeof total === 'number' && <span className="list-total">{total.toLocaleString()}{counter}</span>}
 
         {views.length > 1 && (
           <div className="list-views" role="group" aria-label="보기 전환">

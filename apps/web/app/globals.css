@@ -10220,6 +10220,12 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
   flex-wrap: wrap;
 }
 .list-pager-more { margin-top: var(--space-4); }
+/* 한 쪽뿐인 목록의 끝 — 단추가 아니라 사실 한 줄이다. 조용히 두되 없지는 않게 */
+.list-pager-end {
+  margin: var(--space-5) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
 .list-page-btn {
   min-width: 44px;
   min-height: 44px;
