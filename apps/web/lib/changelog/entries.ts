@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.135',
+    date: '2026-09-18',
+    title: '날짜 칸에서 달력을 안 열어도 오늘을 넣을 수 있어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '\uD83D\uDCC5',
+        headline: '날짜 칸 옆에 「오늘」 단추가 생겼어요',
+        detail: '일정, 할 일 마감, 딜 마감처럼 날짜를 적는 칸마다 「오늘」이 붙었어요. 전에는 달력을 열어 오늘 날짜를 찾아 눌러야 했는데, 이제 한 번이면 들어갑니다. 지난 날짜만 받거나 앞날만 받는 칸에서는 그 칸이 받을 수 있는 범위 안으로 맞춰 넣어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.127',
     date: '2026-09-17',
     title: '회사를 떠난 분은 고르는 자리에 더 이상 뜨지 않아요',
