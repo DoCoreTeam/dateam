@@ -10169,6 +10169,11 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
   box-shadow: var(--shadow-lg);
   white-space: nowrap;
 }
+/* 아래에 자리가 없으면 위로 뒤집는다 — 목록 마지막 행에서 메뉴가 화면 밖으로 잘리던 것 */
+.row-actions-menu.is-up {
+  top: auto;
+  bottom: calc(100% + var(--space-1));
+}
 /* 메뉴 안에서는 버튼이 줄을 꽉 채워 목록처럼 읽힌다 */
 .row-actions-item { display: flex; }
 .row-actions-item > * { width: 100%; justify-content: flex-start; }

@@ -11,7 +11,7 @@
 // 그래서 **접힐 수 없는 구조**로 만든다 — 앞의 몇 개만 한 줄에 두고 나머지는 더보기 안으로 접는다.
 // 칸 폭이 얼마든 한 줄이 보장되므로, 화면마다 폭을 재서 맞출 필요가 없다.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 
@@ -29,8 +29,49 @@ interface Props {
 
 export default function RowActions({ children, inline = 1, subject }: Props) {
   const [open, setOpen] = useState(false)
+  /**
+   * 위로 열지 아래로 열지. 아래가 기본이고, **아래에 자리가 없을 때만** 위로 뒤집는다.
+   *
+   * 왜 (사용자 지적 2026-09-19): 목록 맨 아래 행에서 더보기를 누르면 메뉴가 화면 밖으로
+   * 잘려 나갔다. 삭제 확인까지 펼치면 확인 단추가 화면 밑으로 사라져서, 누를 수가 없었다.
+   * 목록의 마지막 행은 사람이 제일 자주 만지는 자리다 — 새로 온 사람이 거기 있기 때문이다.
+   */
+  const [dropUp, setDropUp] = useState(false)
   const ref = useRef<HTMLSpanElement>(null)
+  const menuRef = useRef<HTMLSpanElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
   useEscClose(() => setOpen(false), open)
+
+  const place = useCallback(() => {
+    const menu = menuRef.current
+    const toggle = toggleRef.current
+    if (!menu || !toggle) return
+    const MARGIN = 8
+    const height = menu.offsetHeight
+    const t = toggle.getBoundingClientRect()
+    const roomBelow = window.innerHeight - t.bottom - MARGIN
+    const roomAbove = t.top - MARGIN
+    // 둘 다 모자라면 아래로 둔다 — 아래는 스크롤이라도 되지만 위로 넘긴 것은 닿을 길이 없다
+    setDropUp(height > roomBelow && roomAbove >= height)
+  }, [])
+
+  // 그린 직후에 잰다. 메뉴 안에서 삭제 확인이 펼쳐져 키가 달라지면 그때 다시 잰다 —
+  // 열 때 한 번만 재면, 길어진 메뉴가 도로 화면 밖으로 나간다(그 상태가 실제 지적받은 화면이다).
+  useLayoutEffect(() => {
+    if (!open) { setDropUp(false); return }
+    place()
+    const menu = menuRef.current
+    if (!menu || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(place)
+    ro.observe(menu)
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [open, place])
 
   // 바깥을 누르면 닫는다. 열려 있을 때만 듣는다.
   useEffect(() => {
@@ -53,6 +94,7 @@ export default function RowActions({ children, inline = 1, subject }: Props) {
       {rest.length > 0 && (
         <span className="row-actions-more">
           <button
+            ref={toggleRef}
             type="button"
             className="btn-ghost row-actions-toggle"
             aria-haspopup="true"
@@ -68,7 +110,11 @@ export default function RowActions({ children, inline = 1, subject }: Props) {
             // 메뉴 항목 시맨틱과 맞지 않는다. 잘못된 role은 없느니만 못하다.
             // 누른다고 닫지도 않는다: `DeleteTierButton`처럼 **누른 자리에서 확인을 띄우는** 버튼이 있어서,
             // 닫아 버리면 그 확인이 화면에서 사라진다. 닫기는 바깥 클릭·ESC로만 한다.
-            <span className="row-actions-menu" aria-label={subject ? `${subject} 작업` : '작업'}>
+            <span
+              ref={menuRef}
+              className={`row-actions-menu${dropUp ? ' is-up' : ''}`}
+              aria-label={subject ? `${subject} 작업` : '작업'}
+            >
               {rest.map((item, i) => <span key={i} className="row-actions-item">{item}</span>)}
             </span>
           )}
