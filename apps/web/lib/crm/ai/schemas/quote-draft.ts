@@ -13,28 +13,33 @@ import { ROUNDING_UNITS } from '../../domain/quote-math.ts'
 
 const UNKNOWN = new Set(['', '없음', '미상', '알 수 없음', 'unknown', 'n/a', 'na', 'null', '-'])
 
-const softString = z.preprocess((v) => {
+/*
+  아래 넷은 **견적 문서 읽기 스키마(quote-from-doc)도 그대로 쓴다.**
+  같은 「1억 2천만원」을 두 스키마가 다르게 풀면, 붙여넣기로 넣은 견적과
+  파일로 넣은 견적의 금액이 갈린다. 그래서 자리를 하나로 둔다.
+*/
+export const softString = z.preprocess((v) => {
   if (typeof v !== 'string') return v ?? null
   const t = v.trim()
   return UNKNOWN.has(t.toLowerCase()) ? null : t
 }, z.string().min(1).max(300).nullable())
 
 /** 금액은 **0 이상 정수**. 「1억」·「1,000만원」 같은 말은 프롬프트가 숫자로 풀어 준다 */
-const amount = z.preprocess((v) => {
+export const amount = z.preprocess((v) => {
   if (v === null || v === undefined || v === '') return null
   const n = typeof v === 'string' ? Number(v.replace(/[,\s원]/g, '')) : v
   return typeof n === 'number' && Number.isFinite(n) ? Math.round(n) : null
 }, z.number().int().min(0).nullable())
 
 /** 수량·비율은 소수를 허용한다 — 「0.5 M/M」이 실제로 있다 */
-const ratio = z.preprocess((v) => {
+export const ratio = z.preprocess((v) => {
   if (v === null || v === undefined || v === '') return null
   const n = typeof v === 'string' ? Number(v.replace(/[,\s%]/g, '')) : v
   return typeof n === 'number' && Number.isFinite(n) ? n : null
 }, z.number().min(0).nullable())
 
 /** 줄의 종류 — 모르는 값이 오면 «수량»으로 눕히지 않고 거절한다(라벨이 실제와 달라진다) */
-const kind = z.enum(['QUANTITY', 'EFFORT', 'PERIOD', 'FIXED', 'RATIO', 'DISCOUNT']).nullable()
+export const kind = z.enum(['QUANTITY', 'EFFORT', 'PERIOD', 'FIXED', 'RATIO', 'DISCOUNT']).nullable()
 
 export const QuoteDraftOutputSchema = z.object({
   /** 견적 제목. 못 찾으면 null — 화면이 딜 이름으로 채운다 */

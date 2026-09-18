@@ -65,7 +65,7 @@
 의존: 없음
 
 ### I03 견적서 문서 읽기 스키마와 프롬프트
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/lib/crm/ai/schemas/quote-from-doc.ts (신규)
