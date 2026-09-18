@@ -71,6 +71,11 @@ test('퇴사 처리하면 재직 목록에서 빠지고 퇴사자 탭으로 옮�
 
   // 감사 기준: 뜻이 겹치는 거르개는 도구줄에 없다
   await expect(page.getByRole('combobox', { name: '재직 여부' })).toHaveCount(0)
+
+  // 감사 기준: 탭줄에는 숫자 배지가 없다 — 퇴사자 수는 보고 나도 안 없어지는 숫자라 배지가 아니다
+  await expect(page.locator('.seg-tab-badge')).toHaveCount(0)
+  // 대신 그 탭 안에서 인원수를 본다
+  await expect(page.getByRole('heading', { name: '퇴사자' }).locator('xpath=following-sibling::span[1]')).toHaveText(/\d+명/)
 })
 
 test('구성원 상세가 계정과 재직 기록을 보여 주고 입사일을 고쳐 남긴다', async ({ page }) => {

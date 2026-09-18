@@ -106,15 +106,14 @@ export default async function AdminMembersPage({
 
       <SegmentedTabs
         ariaLabel="구성원 관리 분류"
-        tabs={TABS.map((t) => ({
-          id: t.key,
-          label: t.label,
-          href: `/admin/members?tab=${t.key}`,
-          // 0명이면 배지를 안 그린다(배지 규칙 2) — 0 을 다른 숫자로 채우지도 않는다
-          ...(t.key === 'resigned' && resignedProfiles.length > 0
-            ? { badge: resignedProfiles.length, badgeTitle: `${RESIGNED_TAB.badgeMeaning} ${resignedProfiles.length}명` }
-            : {}),
-        }))}
+        /*
+          퇴사자 탭에 숫자 배지를 달지 않는다 (사용자 지적 2026-09-19).
+
+          배지는 **기다리는 것**을 세는 자리다 — 안 한 점검, 안 쓴 보고서처럼 눌러서 없앨 것.
+          퇴사자 수는 그런 것이 아니라 **분류의 크기**다. 한 번 보고 나도 그대로 남아 있으니,
+          배지로 달면 영원히 안 꺼지는 알림이 된다. 몇 명인지는 그 탭에 들어가면 제목 옆에 있다.
+        */
+        tabs={TABS.map((t) => ({ id: t.key, label: t.label, href: `/admin/members?tab=${t.key}` }))}
         activeId={tab}
       />
 

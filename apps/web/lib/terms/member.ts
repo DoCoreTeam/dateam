@@ -67,8 +67,6 @@ export const RESIGNED_TAB = {
   label: '퇴사자',
   /** 퇴사일이 잡혔지만 아직 안 온 사람 — 재직 목록에 있으면서 곧 나간다 */
   scheduledLabel: '퇴사 예정',
-  /** 탭 배지가 세는 것 — 0이면 배지를 안 그린다(배지 규칙 2) */
-  badgeMeaning: '회사를 떠난 구성원',
   emptyTitle: '퇴사 처리한 구성원이 아직 없어요',
   emptyDescription: '사용자 관리에서 퇴사 처리를 하면 여기로 옮겨집니다',
 } as const
