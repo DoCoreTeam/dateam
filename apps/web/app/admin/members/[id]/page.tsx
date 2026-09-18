@@ -5,6 +5,7 @@ import { isResigned, type EmploymentRow } from '@/lib/members/employment'
 import { EMPLOYMENT_STATUS } from '@/lib/terms'
 import MemberFacts from './MemberFacts'
 import EmploymentCard from './EmploymentCard'
+import MemberActions from './MemberActions'
 import type { MemberEmployment, Profile } from '@/types/database'
 
 export const metadata = { title: '구성원 상세 | 어드민' }
@@ -28,10 +29,14 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const { data: me } = await db.from('profiles').select('role').eq('id', user.id).single()
   if (me?.role !== 'admin') redirect('/dashboard')
 
-  const [profileRes, employmentRes, nodeRes] = await Promise.all([
+  const [profileRes, employmentRes, nodeRes, nodesRes, ranksRes, positionsRes] = await Promise.all([
     db.from('profiles').select('*').eq('id', id).maybeSingle(),
     db.from('member_employment').select('*').eq('user_id', id).maybeSingle(),
     db.from('org_nodes').select('id, parent_id').eq('type', 'person').eq('user_id', id).maybeSingle(),
+    // 소속으로 고를 수 있는 것 — 사람 노드는 뺀다(사람 아래에 사람을 넣지 않는다)
+    db.from('org_nodes').select('id, name, type').neq('type', 'person').order('display_order').order('name'),
+    db.from('org_ranks').select('id, name, display_order').order('display_order'),
+    db.from('org_positions').select('id, name, display_order').order('display_order'),
   ])
 
   const profile = profileRes.data as Profile | null
@@ -40,11 +45,10 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const employment = (employmentRes.data ?? null) as MemberEmployment | null
 
   // 소속은 사람 노드의 부모다. 노드가 없으면(퇴사했거나 아직 안 넣었으면) 소속도 없다
-  let department: string | null = null
-  if (nodeRes.data?.parent_id) {
-    const { data: parent } = await db.from('org_nodes').select('name').eq('id', nodeRes.data.parent_id).maybeSingle()
-    department = parent?.name ?? null
-  }
+  const departmentId = (nodeRes.data?.parent_id as string | null) ?? null
+  const departments = (nodesRes.data ?? []) as { id: string; name: string }[]
+  const ranks = (ranksRes.data ?? []) as { id: number; name: string; display_order: number }[]
+  const positions = (positionsRes.data ?? []) as { id: number; name: string; display_order: number }[]
 
   const { data: authUser } = await adminClient.auth.admin.getUserById(id)
   const email = authUser?.user?.email ?? ''
@@ -61,13 +65,29 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
           : undefined}
       />
 
-      <MemberFacts profile={profile} email={email} department={department} />
+      <MemberFacts
+        profile={profile}
+        email={email}
+        departmentId={departmentId}
+        departments={departments}
+        ranks={ranks}
+        positions={positions}
+        isSelf={profile.id === user.id}
+      />
 
       <EmploymentCard
         userId={profile.id}
         userName={profile.name || '이름 없음'}
         isSelf={profile.id === user.id}
         employment={employment}
+      />
+
+      <MemberActions
+        userId={profile.id}
+        userName={profile.name || '이름 없음'}
+        userEmail={email}
+        isSelf={profile.id === user.id}
+        isResigned={resigned}
       />
     </div>
   )

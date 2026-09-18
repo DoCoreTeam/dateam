@@ -41,7 +41,7 @@
 의존: 없음
 
 ### I02 계정 카드를 고칠 수 있게
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/members/[id]/MemberFacts.tsx, apps/web/app/admin/members/[id]/page.tsx
 감사 기준:
