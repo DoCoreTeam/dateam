@@ -36,6 +36,19 @@ export function todayPlus(days: number): string {
 }
 
 /** 상한 기본값 — 오늘 + 10년(같은 월·일). */
+/**
+ * 「오늘」 단추가 넣을 값 — 범위 밖이면 범위 안으로 잡는다.
+ *
+ * 왜 잡나: 어떤 칸은 지난 날짜만 받고(입사일) 어떤 칸은 앞날만 받는다(마감). 그 칸에서
+ * 단추가 범위 밖 값을 넣으면 폼이 조용히 막히고, 사용자는 왜 저장이 안 되는지 모른다.
+ */
+export function todayWithin(min: string, max: string): string {
+  const t = today()
+  if (t < min) return min
+  if (t > max) return max
+  return t
+}
+
 export function dateMax(): string {
   const [y, rest] = splitYear(kstTodayKey())
   return `${y + MAX_AHEAD_YEARS}${rest}`

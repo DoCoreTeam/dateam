@@ -18,7 +18,7 @@
 // 범위 로직은 `lib/ui/date-range.ts`에 있다 — node:test가 JSX를 못 읽어서
 // 컴포넌트 안에 두면 가드가 검증할 수 없다.
 import { forwardRef, useRef } from 'react'
-import { DATE_MIN, dateMax, shouldCommit } from '@/lib/ui/date-range'
+import { DATE_MIN, dateMax, shouldCommit, todayWithin } from '@/lib/ui/date-range'
 
 export { DATE_MIN, dateMax, isInRange, shouldCommit, today, todayPlus } from '@/lib/ui/date-range'
 
@@ -33,6 +33,15 @@ export interface DateFieldProps extends NativeProps {
   value?: string
   /** 값만 받는다 — 호출처가 매번 `e.target.value`를 꺼내지 않게. */
   onValueChange?: (value: string) => void
+  /**
+   * 「오늘」 단추를 숨긴다. 기본은 **보이는 것**이다.
+   *
+   * 왜 기본이 보이는 쪽인가 (사용자 지적 2026-09-18): 날짜를 넣으려면 무조건 달력을 열어
+   * 오늘을 찾아 눌러야 했다. 날짜 칸에 들어가는 값은 대개 오늘이거나 오늘 근처라서,
+   * 가장 흔한 한 번을 위해 매번 달력을 여는 셈이었다.
+   * 오늘이 뜻을 갖지 않는 칸(생년월일 같은)에서만 끈다.
+   */
+  hideToday?: boolean
 }
 
 /**
@@ -40,7 +49,7 @@ export interface DateFieldProps extends NativeProps {
  * `min`/`max`를 안 넘기면 DATE_MIN ~ 오늘+10년으로 잠긴다.
  */
 const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function DateField(
-  { value, onValueChange, className, min, max, onKeyDown, ...rest },
+  { value, onValueChange, className, min, max, onKeyDown, hideToday, ...rest },
   ref,
 ) {
   const lo = typeof min === 'string' ? min : DATE_MIN
@@ -56,11 +65,17 @@ const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function DateFiel
   // Backspace 는 세그먼트를 하나씩 지우므로 지우는 도중에도 나머지 칸이 남아 badInput=true 다.
   // 실제 구분점은 **사용자가 직전에 무엇을 눌렀는가**다. 그래서 그것만 기억한다.
   const deletingRef = useRef(false)
+  // 비통제(defaultValue+name)로도 쓰이므로, 단추가 값을 넣으려면 칸 자체를 붙들어야 한다
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
-  return (
+  const field = (
     <input
       {...rest}
-      ref={ref}
+      ref={(el) => {
+        inputRef.current = el
+        if (typeof ref === 'function') ref(el)
+        else if (ref) ref.current = el
+      }}
       type="date"
       className={className ? `input-field ${className}` : 'input-field'}
       {...(value === undefined ? {} : { value })}
@@ -82,6 +97,28 @@ const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function DateFiel
         onValueChange?.(next)
       }}
     />
+  )
+
+  if (hideToday) return field
+
+  return (
+    <span className="date-field">
+      {field}
+      <button
+        type="button"
+        className="btn-ghost date-field-today"
+        // 폼 안에서도 제출이 아니다 — type="button" 이 그것을 막는다
+        disabled={rest.disabled}
+        onClick={() => {
+          const next = todayWithin(lo, hi)
+          // 비통제 칸은 부모가 값을 안 들고 있으므로 칸에 직접 쓰고 change 를 알린다
+          if (value === undefined && inputRef.current) inputRef.current.value = next
+          onValueChange?.(next)
+        }}
+      >
+        오늘
+      </button>
+    </span>
   )
 })
 

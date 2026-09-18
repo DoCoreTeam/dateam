@@ -54,7 +54,7 @@
 의존: I01
 
 ### I01b 날짜 칸에 「오늘」 단추
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/DateField.tsx, apps/web/app/globals.css, apps/web/lib/ui/date-range.ts, apps/web/e2e/date-field-today.spec.ts (신규)
 감사 기준:

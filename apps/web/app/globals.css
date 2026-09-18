@@ -756,6 +756,32 @@
     box-shadow: var(--shadow-sm);
   }
 
+  /*
+    날짜 칸 + 「오늘」 — components/ui/DateField.tsx 하나만 쓴다.
+
+    왜 있나 (사용자 지적 2026-09-18): 날짜를 넣으려면 무조건 달력을 열어 오늘을 찾아야 했다.
+    들어가는 값은 대개 오늘이거나 오늘 근처라, 가장 흔한 한 번에 가장 많은 손이 들었다.
+
+    칸이 늘어나고 단추는 제 너비만 쓴다 — 좁은 자리(거르개 줄)에서도 칸이 먼저 줄어든다.
+  */
+  .date-field {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    min-width: 0;
+  }
+  .date-field > .input-field {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .date-field-today {
+    flex: 0 0 auto;
+    padding: 0.3rem 0.5rem;
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+
   .input-field:-webkit-autofill,
   .input-field:-webkit-autofill:hover,
   .input-field:-webkit-autofill:focus {
