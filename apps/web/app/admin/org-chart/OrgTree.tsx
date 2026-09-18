@@ -35,6 +35,31 @@ function buildTree(nodes: OrgNode[], parentId: string | null): OrgNodeWithChildr
     .map(n => ({ ...n, children: buildTree(nodes, n.id) }))
 }
 
+/**
+ * C레벨 줄을 대신 채우는 빈 칸.
+ *
+ * 본부는 C레벨보다 한 줄 아래에 서야 하는데, 트리 부품은 「부모 아래 바로 다음 줄」밖에 모른다.
+ * 그래서 C레벨과 같은 줄에 이 빈 칸을 세우고 본부를 그 자식으로 매단다 — 줄이 하나 생기는 것이
+ * 곧 «한 단계 아래» 다. 가운데 세로선은 이 칸이 비어 있어도 연결이 끊기지 않게 잇는다.
+ *
+ * `data-org-depth` 를 다는 이유: 높이 맞춤(alignRows)이 이 칸을 C레벨 카드와 같은 묶음으로 보고
+ * 같은 높이를 준다. 그래야 본부 줄과 C레벨 하위 줄이 정확히 같은 자리에서 시작한다.
+ */
+function LevelDrop({ depth }: { depth: number }) {
+  return (
+    <div
+      data-org-depth={depth}
+      aria-hidden
+      style={{ position: 'relative', display: 'inline-block', width: '2px', minHeight: '2.5rem' }}
+    >
+      <span style={{
+        position: 'absolute', top: 0, bottom: 0, left: '50%',
+        transform: 'translateX(-50%)', width: '2px', background: 'var(--brand-soft-2)',
+      }} />
+    </div>
+  )
+}
+
 export default function OrgTree({ nodes, allProfiles }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [addModal, setAddModal] = useState<{ parentId: string; parentType: OrgNodeType } | null>(null)
@@ -46,6 +71,10 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState({ scale: 0.85, tx: 0, ty: 20 })
+  // 줄 맞춤이 읽을 배율. state 를 직접 보면 alignRows 가 배율마다 다시 만들어져
+  // 확대할 때마다 전 카드를 다시 재게 된다 — 값만 최신으로 들고 있으면 된다
+  const scaleRef = useRef(zoom.scale)
+  scaleRef.current = zoom.scale
   const isPanning = useRef(false)
   const panStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 })
 
@@ -199,19 +228,36 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
     const root = containerRef.current
     if (!root) return
     const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-org-depth]'))
-    // 재기 전에 지난 회차 값을 지운다 — 안 그러면 한 번 커진 높이가 다시는 안 줄어든다
-    for (const c of cards) c.style.minHeight = ''
-    const byDepth = new Map<string, HTMLElement[]>()
+    // 재기 전에 지난 회차 값을 지운다 — 안 그러면 한 번 밀린 것이 다시는 안 돌아온다
+    for (const c of cards) { c.style.minHeight = ''; c.style.marginTop = '' }
+
+    const byDepth = new Map<number, HTMLElement[]>()
     for (const c of cards) {
-      const d = c.dataset.orgDepth
-      if (!d) continue
+      const d = Number(c.dataset.orgDepth)
+      if (Number.isNaN(d)) continue
       const group = byDepth.get(d)
       if (group) group.push(c)
       else byDepth.set(d, [c])
     }
-    for (const group of byDepth.values()) {
+
+    // 얕은 깊이부터 손본다 — 위 줄을 고치면 아래 줄이 통째로 따라 움직이므로,
+    // 아래 줄은 위가 끝난 **뒤에** 재야 제 값이 나온다.
+    for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
+      const group = byDepth.get(depth)!
+      // ① 높이를 그 줄에서 가장 큰 것에 맞춘다 — 그래야 다음 줄이 한 자리에서 시작한다
       const tallest = group.reduce((max, c) => Math.max(max, c.offsetHeight), 0)
       for (const c of group) c.style.minHeight = `${tallest}px`
+      // ② 그래도 남는 어긋남은 직접 내린다.
+      //    왜 필요한가: 트리 부품이 자식 수에 따라 연결선 높이를 다르게 그린다(실측 4px).
+      //    높이만 맞춰서는 그 차이를 못 잡는다 — 같은 줄이라는 사실을 좌표로 못 박는다.
+      //    좌표는 확대된 화면에서 재고 여백은 확대 전 값으로 주므로 배율로 나눠야 한다.
+      //    안 나누면 85% 배율에서 1px 씩 남아, 「같은 줄」이 화면에서 한 픽셀씩 어긋난다.
+      const tops = group.map((c) => c.getBoundingClientRect().top)
+      const lowest = Math.max(...tops)
+      group.forEach((c, i) => {
+        const gap = (lowest - tops[i]) / scaleRef.current
+        if (gap > 0.5) c.style.marginTop = `${gap.toFixed(2)}px`
+      })
     }
   }, [])
 
@@ -254,9 +300,31 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
       return <TreeNode key={node.id} label={card} />
     }
 
+    /**
+     * C레벨(role)이 형제에 있으면 본부(department)는 **한 레벨 아래**에 그린다.
+     *
+     * 왜 (사용자 지적 2026-09-18): C레벨은 본부보다 한 단계 위다. 같은 줄에 나란히 서 있으면
+     * 조직도가 «CTO 와 성장지원본부가 같은 층» 이라고 말하는 셈인데, 그건 사실이 아니다.
+     * CTO 는 제 줄을 혼자 쓰고, 본부는 CTO 의 하위(연구소 개발본부)와 같은 줄에 선다.
+     *
+     * 앞 판에서 이것을 `paddingTop: 48px` 로 밀어 놓은 것을 지웠다가 지적을 받았다.
+     * 미는 것은 여백이 아니라 **트리 레벨**이어야 한다 — 그래야 연결선과 접기가 그 층을 따라간다.
+     * 그래서 빈 칸 하나를 C레벨 줄에 세우고 그 아래에 본부를 매단다.
+     * 빈 칸은 C레벨 카드와 같은 깊이 표시를 달아, 높이 맞춤이 저절로 같은 값을 준다.
+     */
+    const hasCLevel = structuralChildren.some(ch => ch.type === 'role')
+
     return (
       <TreeNode key={node.id} label={card}>
-        {structuralChildren.map(child => renderNode(child, depth + 1))}
+        {structuralChildren.map(child => (
+          hasCLevel && child.type === 'department'
+            ? (
+              <TreeNode key={child.id} label={<LevelDrop depth={depth + 1} />}>
+                {renderNode(child, depth + 2)}
+              </TreeNode>
+            )
+            : renderNode(child, depth + 1)
+        ))}
         {personColumn.length > 0 && (
           <TreeNode label={
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
