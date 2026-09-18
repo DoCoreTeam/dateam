@@ -82,7 +82,7 @@
 의존: I02
 
 ### I04 파일을 받아 견적 초안을 돌려주는 창구
-상태: 대기
+상태: 통과
 모드: 중량
 범위:
 - apps/web/lib/crm/services/quote-from-file.ts (신규)

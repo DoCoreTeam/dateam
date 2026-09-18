@@ -18,7 +18,7 @@
 
 import type { AiAdapter, AiSource } from '../runner.ts'
 import { getAvailableProviders, getProviderConfig, getDefaultProvider } from '../../../ai-chat/registry.ts'
-import type { ProviderId } from '../../../ai-chat/provider.ts'
+import type { ProviderId, AttachmentInput } from '../../../ai-chat/provider.ts'
 import { isAiProviderId } from '../../../ai/provider-catalog.ts'
 import { CrmError } from '../../domain/errors.ts'
 import { resolveGeminiModelChain } from '../../../ai/gemini-model.ts'
@@ -93,6 +93,17 @@ export interface HostAdapterOptions {
    * "지금 웹에 있는 사실"을 물을 때 기억으로 답하면 그럴듯한 거짓이 들어온다.
    */
   webSearch?: boolean
+  /**
+   * 모델에게 **그림째 보여 줄** 파일.
+   *
+   * 스캔한 견적서·표를 캡처한 이미지처럼 «글자 레이어가 없는 문서»가 있다.
+   * 파서는 그런 파일을 «빈 문서를 성공으로» 돌려주므로, 텍스트만 보내면
+   * 모델은 빈 문서를 읽고 「항목이 없다」고 답한다.
+   *
+   * 첨부를 모델 형식으로 바꾸는 일은 호스트 첨부 계층(`lib/ai-chat/attachments`)이
+   * 이미 한다 — CRM 이 프로바이더별 변환을 다시 짜지 않는다(재사용·단일구현 정책).
+   */
+  attachments?: AttachmentInput[]
 }
 
 /**
@@ -129,6 +140,20 @@ export async function hostAdapter(
   if (webSearch && !provider.capabilities.tools) {
     throw new CrmError('VALIDATION_FAILED',
       `${provider.label}는 웹 검색을 지원하지 않습니다. CRM 설정의 ai.model.extract 를 gemini 또는 claude 로 바꿔 주세요.`)
+  }
+
+  const attachments = opts.attachments ?? []
+
+  /**
+   * 그림을 못 보는 프로바이더면 **조용히 넘어가지 않는다.**
+   *
+   * 첨부를 빼고 텍스트만 보내면 모델은 빈 문서를 읽고 「항목이 없다」고 답한다.
+   * 화면에는 「읽었는데 항목이 없다」로 뜨고, 사용자는 자기 견적서가 잘못된 줄 안다.
+   * 웹 검색과 같은 이유로 여기서 막는다.
+   */
+  if (attachments.length > 0 && !provider.capabilities.vision) {
+    throw new CrmError('VALIDATION_FAILED',
+      `${provider.label}는 그림을 읽지 못합니다. CRM 설정의 ai.model.extract 를 그림을 읽는 모델로 바꿔 주세요.`)
   }
 
   /**
@@ -175,7 +200,11 @@ export async function hostAdapter(
           res = await provider.streamChat({
             apiKey: cfg.apiKey,
             model: modelChain[i],
-            turns: [{ role: 'user', content: prompt }],
+            turns: [{
+              role: 'user',
+              content: prompt,
+              ...(attachments.length > 0 ? { attachments } : {}),
+            }],
             // 추출은 창작이 아니다. 같은 명함이 매번 다르게 읽히면 사용자가 결과를 못 믿는다.
             signal: AbortSignal.timeout(webSearch ? WEB_SEARCH_TIMEOUT_MS : TIMEOUT_MS),
             tools: webSearch ? { webSearch: true } : undefined,

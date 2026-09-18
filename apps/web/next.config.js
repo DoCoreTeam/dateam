@@ -87,6 +87,9 @@ const nextConfig = {
       // 한글 문서를 읽는 경로 — RFP 첨부 인입과 프로필 초안
       '/api/rfp/cases/[id]/files': RHWP_WASM,
       '/api/rfp/profile/draft': RHWP_WASM,
+      // 견적서를 파일로 올리는 경로 — 한글(hwp·hwpx) 견적서가 흔하다.
+      // 이 줄이 없으면 배포본에 wasm 이 안 실려 hwp 만 프로덕션에서 죽는다(B-2)
+      '/api/crm/quotes/draft-file': RHWP_WASM,
       '/api/rfp/worker/tick': RHWP_WASM,
     },
   },
