@@ -497,6 +497,121 @@
 
 .sayUnclear ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); }
 
+/* 못 알아본 말은 사람이 처리한 뒤 닫을 수 있어야 한다 — 안 닫히면 다음 작업을 가린다 */
+.sayUnclear { position: relative; padding-right: var(--space-6); }
+.sayUnclearClose {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: grid;
+  place-items: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.sayUnclearClose:hover { opacity: 1; }
+
+/* 무엇을 받는지 — 「모든 파일」이면 안 되는 것을 올리고 기다린다 */
+.fillKinds {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/*
+  검수 목록 — **넣기 전에 보는 자리**.
+
+  견적은 고객에게 나가는 문서라, 읽은 값이 사람 눈을 거치지 않고 폼에 들어가면 안 된다(§5-3).
+  그래서 줄마다 ⓐ 넣을지 고르는 칸 ⓑ 우리가 읽은 숫자 ⓒ **원문 조각**을 나란히 둔다 —
+  셋이 한 줄에 있어야 「이 숫자가 저 줄에서 나왔나」를 눈으로 견줄 수 있다.
+*/
+.reviewBox {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--info-border);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+}
+
+.reviewHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.reviewList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+  /* 스무 줄짜리 견적서도 있다. 목록이 화면을 통째로 밀어내지 않게 자기 안에서 구른다 */
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.reviewItem {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.reviewPick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  cursor: pointer;
+}
+
+.reviewName {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.reviewNums {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 단가를 못 읽은 줄 — 0원으로 들어가면 안 되니 눈에 띄어야 한다 */
+.reviewMissing {
+  color: var(--warning);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* 원문 조각 — 대조용이라 작게, 그러나 읽을 수 있게 */
+.reviewSource {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.reviewSourceLabel {
+  display: inline-block;
+  margin-right: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius);
+  background: var(--border-light);
+  color: var(--text-muted);
+}
+
 
 /* 순서 칸 — 손잡이와 위/아래는 **한 덩어리**다. 세로로 벌어지면 무엇을 집는지 흐려진다 */
 .colOrder {

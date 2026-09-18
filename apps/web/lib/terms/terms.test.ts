@@ -128,6 +128,7 @@ test('고를 수 있는 단위에는 **전부** 이름이 있다 — 목록만 �
 test('화면이 절사 단위 목록을 다시 만들지 않는다 — 값은 quote-math 한 곳이다', () => {
   const screens = [
     '../../components/ui/crm/QuoteEditorModal.tsx',
+    '../../components/ui/crm/QuoteTotals.tsx',
     '../../app/(crm)/crm/quotes/[id]/QuoteSheet.tsx',
   ]
   for (const rel of screens) {
@@ -139,15 +140,22 @@ test('화면이 절사 단위 목록을 다시 만들지 않는다 — 값은 qu
   }
 })
 
+/*
+  합계·절사는 편집 모달에서 **옆 파일(QuoteTotals)로 옮겼다.** 모달이 1,157줄이 되면서
+  「얼마인가」를 고치러 온 사람이 항목 스무 줄을 지나쳐 내려가야 했다.
+  가드는 코드를 따라간다 — 자리를 안 옮기면 옮긴 코드가 검사 밖으로 나간다.
+*/
+const TOTALS_FILE = '../../components/ui/crm/QuoteTotals.tsx'
+
 test('견적 편집이 절사 결과를 말한다 — 숫자만 두면 오해가 다시 생긴다', () => {
-  const src = readFileSync(new URL('../../components/ui/crm/QuoteEditorModal.tsx', import.meta.url), 'utf8')
+  const src = readFileSync(new URL(TOTALS_FILE, import.meta.url), 'utf8')
   assert.ok(src.includes('roundingNote('), '절사 설명 줄이 사라졌다')
   // 올림이면 절사액이 음수라 «> 0» 으로 걸면 줄이 통째로 사라진다
   assert.ok(!src.includes('totals.roundingMinor > BigInt(0)\n'), '절사 줄이 양수일 때만 뜨면 올림에서 사라진다')
 })
 
 test('절사 선택지가 결과 금액을 함께 보여준다 — 이름만으로는 어느 쪽인지 못 고른다', () => {
-  const src = readFileSync(new URL('../../components/ui/crm/QuoteEditorModal.tsx', import.meta.url), 'utf8')
+  const src = readFileSync(new URL(TOTALS_FILE, import.meta.url), 'utf8')
   // 라벨 옆에 그 단위로 맞췄을 때의 합계를 계산해 붙인다
   assert.ok(src.includes('roundAmount(totals.netTotalMinor'), '선택지가 결과 금액을 안 보여준다')
   assert.ok(src.includes('roundingUnitLabel('), '라벨을 용어집에서 안 가져온다')

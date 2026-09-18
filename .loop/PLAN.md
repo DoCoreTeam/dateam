@@ -99,7 +99,7 @@
 의존: I03
 
 ### I05 채우기 패널을 따로 세우고 파일 길을 배선한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/components/ui/crm/QuoteFillPanel.tsx (신규)

@@ -11,26 +11,19 @@
 // 브라우저를 조작해도 총액은 바뀌지 않는다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles, Plus, X } from 'lucide-react'
-import { scaleLinesToTarget, describeScale } from '@/lib/crm/domain/quote-target'
+import { Plus, X } from 'lucide-react'
 import ReorderList from '@/components/ui/ReorderList'
+import QuoteFillPanel, { QuoteFillButtons, type QuoteFillMode } from './QuoteFillPanel'
+import QuoteTotals from './QuoteTotals'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
-import DateField, { todayPlus } from '@/components/ui/DateField'
+import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
 import {
   computeLine, computeTotals, needsApproval, DEFAULT_DISCOUNT_APPROVAL_PCT,
-  roundAmount, ROUNDING_UNITS,
   type RoundingMode,
 } from '@/lib/crm/domain/quote-math'
-
-/**
- * 절사 단위·방식의 말.
- *
- * **원 단위 숫자를 화면에 그대로 보이지 않는다** — 「10000」은 읽는 데 시간이 걸리고
- * 0 을 잘못 세면 열 배 틀린 절사를 고르게 된다.
- */
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
   LINE_KIND_LABEL, LINE_KIND_ORDER, LINE_KIND_QUANTITY_LABEL,
@@ -45,79 +38,18 @@ import {
   QUOTE_LINES_LOCKED,
   sectionDefaultName,
   approvalNeeded,
-  ROUNDING_MODES,
-  roundingNote,
-  roundingUnitLabel,
-  type RoundingModeKey,
 } from '@/lib/terms'
 import styles from './quote-panel.module.css'
 
-export interface QuoteLineDraft {
-  id?: string | null
-  /** 카탈로그의 어느 품목인지. 손으로 적기만 한 옛 항목은 null 이다 */
-  productId?: string | null
-  name: string
-  /** 규격·설명 — 견적서에 품목 아래 작게 인쇄된다 */
-  descriptionMd: string
-  /**
-   * 줄의 **종류** — 「수량 × 단가」가 뜻하는 것을 정한다.
-   *
-   * 같은 표에 「H100 2대」와 「PM 3 M/M」과 「유지보수 12개월」이 함께 서는데,
-   * 라벨이 전부 「수량·단가」면 사람이 잘못 넣는다 — 실제로 M/M 을 「수량」 칸에 넣고
-   * 단가를 월 단가로 적어 12배 틀린 견적이 나가는 사고가 이 업계의 고전이다.
-   */
-  kind: QuoteLineKind
-  /** 공수 줄에서 «누가» — 「백엔드 개발자」 */
-  roleLabel?: string
-  quantity: string
-  unit: string
-  unitPriceMinor: string
-  discountPercent: string
-  /** 특별 할인율(%) — **빈 문자열이면 «없음»** 이다. '0' 은 「0% 할인」이라 뜻이 다르다 */
-  specialDiscountPercent?: string
-  /** 몇 번째 묶음인가. null 이면 묶이지 않은 항목 */
-  sectionIndex?: number | null
-  taxRate: string
-}
-
-/** `/api/crm/products` 가 주는 모양 (금액은 BigInt 라 문자열로 온다) */
-interface ProductJson {
-  id: string
-  name: string
-  sku: string | null
-  unitPriceMinor: string
-  currency: string
-  taxRate: string
-  unit: string | null
-}
-
-export interface QuoteDraft {
-  id?: string
-  version?: number
-  title: string
-  currency: string
-  validUntil: string
-  notesMd: string
-  status?: string
-  /**
-   * 공급받는 곳의 담당자 — 「○○ 귀하」로 문서에 찍힌다.
-   * **안 고르면 안 나온다.** 회사 앞으로만 보내는 견적이 흔하고,
-   * 억지로 채우게 하면 아무나 골라 넣는다(사용자 지시).
-   */
-  recipientPersonId: string | null
-  /**
-   * 이 견적에 실을 거래 조건 — **고른 순서가 곧 인쇄 순서**다.
-   * 통째로 적어 둔 한 덩어리가 아니라 항목이라, 사업마다 필요한 것만 나간다.
-   */
-  termIds: string[]
-  /** 묶음. 비어 있으면 묶음 없는 견적이다 */
-  sections: { id?: string | null; name: string }[]
-  /** 절사 단위(원). 0 = 안 함 */
-  roundingUnit: number
-  /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
-  roundingMode: string
-  lines: QuoteLineDraft[]
-}
+// 폼의 «모양»은 옆 파일에 있다. 여기서는 동작만 다룬다.
+// 재수출하는 이유: 견적서 보기·딜 상세가 이미 이 경로로 import 하고 있다 —
+// 경로를 바꾸면 그 화면들이 같이 깨지고, 그건 이 항목이 하려던 일이 아니다.
+export type { QuoteLineDraft, QuoteDraft } from './quote-draft-shape'
+export { newQuoteDraft, quoteToDraft } from './quote-draft-shape'
+import {
+  emptyLine,
+  type QuoteLineDraft, type QuoteDraft, type ProductJson,
+} from './quote-draft-shape'
 
 interface Props {
   dealId: string
@@ -131,93 +63,16 @@ function toOption(p: ProductJson): RecordOption {
   return { id: p.id, name: p.name, hint: p.sku || undefined }
 }
 
-function emptyLine(): QuoteLineDraft {
-  return {
-    productId: null, name: '', descriptionMd: '', kind: 'QUANTITY',
-    quantity: '1', unit: LINE_KIND_UNIT.QUANTITY, unitPriceMinor: '', discountPercent: '0', taxRate: '10',
-  }
-}
-
-export function newQuoteDraft(dealName: string, currency: string | null, validDays = 30): QuoteDraft {
-  return {
-    title: `${dealName} 견적`,
-    currency: (currency ?? 'KRW').toUpperCase(),
-    // 빈 칸으로 두면 사용자가 연도부터 타이핑하게 되고, 거기서 6자리 연도가 들어간다.
-    // **기본 일수는 설정에서 온다** — 예전엔 30이 여기 박혀 있어 바꾸려면 배포를 해야 했다.
-    validUntil: todayPlus(validDays),
-    notesMd: '',
-    recipientPersonId: null,
-    termIds: [],
-    sections: [],
-    // 새 견적은 절사 안 함 — 협상 결과이지 기본값이 아니다
-    roundingUnit: 0,
-    roundingMode: 'DOWN',
-    lines: [emptyLine()],
-  }
-}
-
-/**
- * 서버가 준 견적을 **편집 초안**으로.
- *
- * **왜 여기 있나**: 딜 상세(QuotePanel)와 견적 상세가 같은 모달을 여는데,
- * 이 변환을 각자 하면 한쪽에만 새 칸을 더하는 날이 온다 —
- * 그러면 그 화면에서 고친 값이 **저장하는 순간 조용히 사라진다**.
- * 모달이 쓰는 모양이니 모달이 정의한다.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function quoteToDraft(body: any): QuoteDraft {
-  return {
-    id: body.id,
-    version: body.version,
-    title: body.title,
-    currency: body.currency,
-    validUntil: body.validUntil ? String(body.validUntil).slice(0, 10) : '',
-    notesMd: body.notesMd ?? '',
-    status: body.status,
-    recipientPersonId: body.recipientPersonId ?? null,
-    termIds: body.termIds ?? [],
-    sections: (body.sections ?? []).map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })),
-    roundingUnit: Number(body.roundingUnit ?? 0),
-    roundingMode: body.roundingMode ?? 'DOWN',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    lines: (body.lines ?? []).map((l: any) => ({
-      id: l.id,
-      // 카탈로그 연결을 들고 가지 않으면 저장하는 순간 손으로 친 이름으로 되돌아간다
-      productId: l.productId ?? null,
-      name: l.name,
-      kind: (l.kind ?? 'QUANTITY') as QuoteLineKind,
-      roleLabel: l.roleLabel ?? '',
-      descriptionMd: l.descriptionMd ?? '',
-      quantity: String(l.quantity),
-      unit: l.unit ?? '',
-      unitPriceMinor: String(l.unitPriceMinor),
-      discountPercent: String(l.discountPercent),
-      // null 이면 «없음» 이므로 빈 문자열이다 — String(null) 이 '\uc5c6\uc74c' 이 아니라 'null' 이 되면 안 된다
-      specialDiscountPercent: l.specialDiscountPercent === null || l.specialDiscountPercent === undefined
-        ? '' : String(l.specialDiscountPercent),
-      // 서버는 id 로 주고 화면은 인덱스로 다룬다 — 새 묶음은 아직 id 가 없기 때문이다
-      sectionIndex: (() => {
-        const idx = (body.sections ?? []).findIndex((x: { id: string }) => x.id === l.sectionId)
-        return idx >= 0 ? idx : null
-      })(),
-      taxRate: String(l.taxRate),
-    })),
-  }
-}
 
 export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: Props) {
   const [draft, setDraft] = useState<QuoteDraft>(initial)
   /**
-   * 말로 채우기 — 「H100 2대 3개월, 20% 할인」을 항목으로 옮긴다.
+   * 채우기 — 말로 적거나, 이미 만들어 둔 견적서 파일을 올린다.
    *
    * **AI 가 저장하지 않는다.** 폼에 채워 넣기만 하고, 사람이 보고 고친 뒤 저장한다(§5-3).
+   * 채우는 일 자체는 `QuoteFillPanel` 이 맡는다 — 여기는 «어느 것이 열려 있나»만 안다.
    */
-  const [sayOpen, setSayOpen] = useState(false)
-  const [sayText, setSayText] = useState('')
-  const [saying, setSaying] = useState(false)
-  const [sayUnclear, setSayUnclear] = useState<string[]>([])
-  /** 총액을 맞췄으면 무엇을 얼마로 맞췄는지 — **조용히 단가를 바꾸지 않는다** */
-  const [sayNote, setSayNote] = useState<string | null>(null)
+  const [fill, setFill] = useState<QuoteFillMode>(null)
   /**
    * 이 딜에 붙은 사람들 — 견적을 «누구 앞으로» 보내는지 고르는 후보다.
    * 회사 전체 인물이 아니라 **딜에 붙은 사람만** 준다: 견적은 이 건의 문서이고,
@@ -347,152 +202,6 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
     [draft.lines, draft.roundingUnit, draft.roundingMode],
   )
   const approval = needsApproval(totals)
-
-  /** AI 초안을 폼에 **얹는다** — 지금 있는 항목을 지우지 않고 뒤에 붙인다 */
-  const applySaid = async () => {
-    if (!sayText.trim()) return
-    setSaying(true)
-    setError(null)
-    setSayUnclear([])
-    setSayNote(null)
-    try {
-      const res = await fetch('/api/crm/quotes/draft', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        /*
-          **지금 항목을 함께 보낸다**(v0.7.695). 「총액 3억에 맞춰서」는 맞출 대상이
-          있어야 성립하는 말인데, 예전엔 텍스트만 보내서 AI 입장에선 맞출 것이 없었다 —
-          그래서 그 말이 통째로 「못 알아봤어요」로 돌아왔다(사용자 지적 2026-09-08).
-        */
-        body: JSON.stringify({
-          text: sayText.trim(),
-          currentLines: draft.lines
-            .filter((l) => l.name.trim())
-            .map((l) => ({
-              name: l.name, quantity: l.quantity, unit: l.unit,
-              unitPriceMinor: l.unitPriceMinor,
-              discountPercent: l.discountPercent, taxRate: l.taxRate,
-            })),
-        }),
-      })
-      const body = await res.json()
-      if (!res.ok) { setError(body?.error?.message ?? '읽지 못했습니다.'); return }
-      const d = (body.draft ?? body) as {
-        title: string | null
-        lines: {
-          name: string | null; spec: string | null; kind: string | null
-          quantity: number | null; unit: string | null; unitPriceMinor: number | null
-          discountPercent: number | null; specialDiscountPercent: number | null
-        }[]
-        roundingUnit: number
-        targetTotalMinor: number | null
-        targetIncludesTax: boolean
-        taxPercent: number | null
-        unclear: string[]
-      }
-      const made: QuoteLineDraft[] = (d.lines ?? [])
-        .filter((l) => l.name)
-        .map((l) => {
-          const k = (LINE_KIND_ORDER as readonly string[]).includes(l.kind ?? '')
-            ? l.kind as QuoteLineKind : 'QUANTITY'
-          return {
-            productId: null,
-            name: l.name ?? '',
-            descriptionMd: l.spec ?? '',
-            kind: k,
-            quantity: l.quantity === null ? '1' : String(l.quantity),
-            unit: l.unit ?? LINE_KIND_UNIT[k],
-            unitPriceMinor: l.unitPriceMinor === null ? '' : String(l.unitPriceMinor),
-            discountPercent: l.discountPercent === null ? '0' : String(l.discountPercent),
-            specialDiscountPercent: l.specialDiscountPercent === null
-              ? '' : String(l.specialDiscountPercent),
-            taxRate: '10',
-          }
-        })
-      /*
-        새 항목이 없어도 **목표만으로 성립한다**(v0.7.695) — 「지금 이대로 3억에 맞춰 줘」가
-        그 경우다. 예전엔 항목이 0개면 무조건 오류였다.
-      */
-      const hasTarget = typeof d.targetTotalMinor === 'number' && d.targetTotalMinor > 0
-      if (made.length === 0 && !hasTarget) {
-        setError('견적 항목을 찾지 못했어요. 품목과 수량이 들어가게 적어 주세요.')
-        return
-      }
-
-      /*
-        **계산을 업데이터 밖에서 한다**(v0.7.695 정정).
-
-        처음엔 `setDraft((prev) => …)` 안에서 바깥 변수에 알림 문구를 대입했다.
-        업데이터는 순수해야 하고 React 가 두 번 부를 수 있어, 그 대입이 화면에 닿지 않았다 —
-        총액은 맞춰졌는데 **「맞췄어요」가 안 떴다**(실브라우저에서 잡힘).
-        지금 줄은 `draft.lines` 로 이미 알 수 있으므로 밖에서 계산해 둘 다에 쓴다.
-      */
-      let scaleNote: string | null = null
-      setDraft((prev) => {
-        // 제목은 **비어 있을 때만** 채운다 — 사람이 적은 제목을 AI 가 덮으면 안 된다
-        const title = prev.title.trim() ? prev.title : (d.title ?? prev.title)
-        const roundingUnit = d.roundingUnit || prev.roundingUnit
-        // 빈 줄 하나뿐이면 갈아 끼우고, 아니면 뒤에 붙인다
-        const merged = made.length === 0
-          ? prev.lines
-          : (prev.lines.length === 1 && !prev.lines[0].name.trim()
-            ? made
-            : [...prev.lines, ...made])
-
-        if (!hasTarget) return { ...prev, title, roundingUnit, lines: merged }
-
-        /*
-          **목표 총액은 우리가 맞춘다 — AI 가 아니라.**
-          견적은 고객에게 나가는 문서라, AI 가 푼 단가를 그대로 제안가로 쓰지 않는다.
-          계산은 `quote-target.ts`(SSOT · 가드 12개)가 하고 여기서는 결과만 얹는다.
-        */
-        const intent = { totalMinor: d.targetTotalMinor, includesTax: Boolean(d.targetIncludesTax) }
-        const r = scaleLinesToTarget(
-          merged.map((l) => ({
-            kind: l.kind, quantity: l.quantity, unitPriceMinor: l.unitPriceMinor,
-            discountPercent: l.discountPercent, specialDiscountPercent: l.specialDiscountPercent,
-            taxRate: l.taxRate,
-          })),
-          intent,
-          { unit: roundingUnit as 0, mode: 'DOWN' },
-        )
-        if (r.reason !== null) return { ...prev, title, roundingUnit, lines: merged }
-        return {
-          ...prev, title, roundingUnit,
-          // 단가만 갈아 끼운다 — 품목·규격·묶음은 사람이 정한 그대로 둔다
-          lines: merged.map((l, i) => ({ ...l, unitPriceMinor: String(r.lines[i]?.unitPriceMinor ?? l.unitPriceMinor) })),
-        }
-      })
-      /*
-        알림은 업데이터가 아니라 **여기서** 만든다 — 같은 입력으로 같은 계산을 한 번 더 하는
-        비용보다, 「맞췄는데 아무 말도 안 하는」 화면이 훨씬 나쁘다.
-      */
-      if (hasTarget) {
-        const intent = { totalMinor: d.targetTotalMinor, includesTax: Boolean(d.targetIncludesTax) }
-        const base = made.length === 0
-          ? draft.lines
-          : (draft.lines.length === 1 && !draft.lines[0].name.trim() ? made : [...draft.lines, ...made])
-        const r = scaleLinesToTarget(
-          base.map((l) => ({
-            kind: l.kind, quantity: l.quantity, unitPriceMinor: l.unitPriceMinor,
-            discountPercent: l.discountPercent, specialDiscountPercent: l.specialDiscountPercent,
-            taxRate: l.taxRate,
-          })),
-          intent,
-          { unit: (d.roundingUnit || draft.roundingUnit) as 0, mode: 'DOWN' },
-        )
-        scaleNote = describeScale(intent, r, d.roundingUnit || draft.roundingUnit)
-      }
-      setSayNote(scaleNote)
-      // **못 알아본 말은 버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다
-      setSayUnclear(d.unclear ?? [])
-      setSayText('')
-      setSayOpen(false)
-    } catch {
-      setError('읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
-    } finally {
-      setSaying(false)
-    }
-  }
 
   const save = async () => {
     setError(null)
@@ -634,12 +343,10 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           {!linesLocked && (
             <div className={styles.lineActions}>
               {/*
-                **말로 채우기.** 「H100 2대 3개월, 20% 할인」을 그대로 적으면 항목으로 옮긴다.
+                **채우기 둘.** 말로 적거나, 이미 만들어 둔 견적서 파일을 올린다.
                 AI 가 저장하지는 않는다. 폼에 채워 넣기만 하고 사람이 보고 고친다(§5-3).
               */}
-              <NbButton variant="ghost" onClick={() => setSayOpen((v) => !v)}>
-                <Sparkles size={16} /> {QUOTE.fillBySpeech}
-              </NbButton>
+              <QuoteFillButtons mode={fill} onMode={setFill} />
 
               <span className={styles.actionSep} aria-hidden />
 
@@ -672,43 +379,19 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           </div>
         )}
 
-        {sayOpen && !linesLocked && (
-          <div className={styles.sayBox}>
-            <p className={styles.sayHint}>
-              항목을 말하듯 적어 주세요. 품목·수량·단가·할인을 알아봅니다.
-              <b> 저장은 하지 않아요</b>: 채운 뒤에 확인하고 고치면 됩니다.
-            </p>
-            <textarea
-              className="input-field"
-              rows={3}
-              value={sayText}
-              autoFocus
-              placeholder={'예) H100 SXM 2대 대당 5천만원, 3개월 구독, 기본 20% 할인\n     PM 1명 3 M/M, 만원 단위로 잘라 주세요'}
-              onChange={(e) => setSayText(e.target.value)}
-            />
-            <div className={styles.sayFoot}>
-              <NbButton variant="ghost" onClick={() => { setSayOpen(false); setSayText('') }} disabled={saying}>
-                {ACTION.cancel}
-              </NbButton>
-              <NbButton onClick={() => void applySaid()} disabled={saying || !sayText.trim()}>
-                {saying ? progress('읽는') : '항목으로 옮기기'}
-              </NbButton>
-            </div>
-          </div>
-        )}
-
         {/*
-          **총액을 맞췄으면 말한다**(v0.7.695). 단가가 말없이 바뀌면 사람은 그 숫자를 못 믿는다 —
-          무엇을 어느 기준으로 얼마에 맞췄는지, 목표와 차이가 남았는지까지 밝힌다.
+          채우기 상자 — 말로 적는 칸, 파일 고르기, 그리고 **넣기 전 검수 목록**.
+          검수를 거치는 이유는 하나다: 견적은 고객에게 나가는 문서라,
+          AI 가 읽은 값이 사람 눈을 거치지 않고 들어가면 안 된다(§5-3).
         */}
-        {sayNote && <div className={styles.sayNote}>{sayNote}</div>}
-
-        {/* 못 알아본 말은 **버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다 */}
-        {sayUnclear.length > 0 && (
-          <div className={styles.sayUnclear}>
-            <b>이 부분은 못 알아봤어요. 직접 넣어 주세요</b>
-            <ul>{sayUnclear.map((u, i) => <li key={i}>{u}</li>)}</ul>
-          </div>
+        {!linesLocked && (
+          <QuoteFillPanel
+            mode={fill}
+            draft={draft}
+            onDraftChange={setDraft}
+            onClose={() => setFill(null)}
+            onError={setError}
+          />
         )}
 
         {draft.sections.length > 0 && (
@@ -1004,100 +687,18 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           }}
         </ReorderList>
 
-        <div className={styles.totals}>
-          <div className={styles.totalRow}>
-            <span>{QUOTE.subtotal}</span><span>{formatAmount(totals.subtotalMinor.toString(), draft.currency)}</span>
-          </div>
-          <div className={styles.totalRow}>
-            <span>{QUOTE.discount}</span>
-            <span>{totals.discountMinor > BigInt(0) ? '− ' : ''}{formatAmount(totals.discountMinor.toString(), draft.currency)}</span>
-          </div>
-          <div className={styles.totalRow}>
-            <span>{QUOTE.tax}</span><span>{formatAmount(totals.taxMinor.toString(), draft.currency)}</span>
-          </div>
-          {/*
-            **「계」는 절사 직전 금액이다.** 절사가 걸렸을 때만 세운다 —
-            안 걸렸으면 합계와 같은 숫자라 같은 값이 두 줄이 된다.
-          */}
-          {totals.roundingMinor !== BigInt(0) && (
-            <div className={styles.totalRow}>
-              <span>{QUOTE.netTotal}</span>
-              <span>{formatAmount(totals.netTotalMinor.toString(), draft.currency)}</span>
-            </div>
-          )}
-          {/*
-            **절사를 여기서 고른다.** 협상 막바지에 「끝자리만 떨어뜨려 주세요」가 나오는데,
-            그때 단가를 손으로 조작해 맞추면 나중에 그 단가를 아무도 설명할 수 없다.
-            단가는 그대로 두고 절사액만 따로 남긴다.
-
-            **자리가 세금 뒤인 이유**: 절사는 «합계 금액»에 건다. 앞에 두면 그 뒤에
-            부가세가 다시 얹혀 고객이 받는 숫자가 또 안 떨어진다
-            (실측 v0.7.696: 백만원 버림인데 합계가 303,600,000원이었다).
-          */}
-          <div className={styles.roundingRow}>
-            <label className="label" htmlFor="q-round-unit">{QUOTE.rounding}</label>
-            <select
-              id="q-round-unit"
-              className="input-field"
-              value={String(draft.roundingUnit)}
-              disabled={linesLocked}
-              onChange={(e) => setDraft((d) => ({ ...d, roundingUnit: Number(e.target.value) }))}
-            >
-              {/*
-                **결과를 라벨에 붙인다.** 「백만원 단위」는 ⓐ 백만원의 배수로 맞춘다
-                ⓑ 백만원 자리를 없앤다 두 가지로 읽혀서, 이름만으로는 어느 쪽인지
-                고르는 사람이 알 수 없다(사용자 지적 2026-09-08).
-                **숫자를 먼저 보여 주면 해석이 갈릴 자리가 없다.**
-              */}
-              {ROUNDING_UNITS.map((u) => (
-                <option key={u} value={u}>
-                  {u === 0
-                    ? roundingUnitLabel(0)
-                    : `${roundingUnitLabel(u)} · ${formatAmount(
-                      roundAmount(totals.netTotalMinor, { unit: u, mode: draft.roundingMode as RoundingMode }).toString(),
-                      draft.currency,
-                    )}`}
-                </option>
-              ))}
-            </select>
-            <select
-              id="q-round-mode"
-              className="input-field"
-              value={draft.roundingMode}
-              disabled={linesLocked || draft.roundingUnit === 0}
-              onChange={(e) => setDraft((d) => ({ ...d, roundingMode: e.target.value }))}
-            >
-              {ROUNDING_MODES.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <span className={styles.roundingAmount}>
-              {totals.roundingMinor === BigInt(0)
-                ? ''
-                /*
-                  **부호를 값에서 읽는다.** 올림은 «깎은» 것이 아니라 더한 것이라
-                  절사액이 음수다 — 「−」를 박아 두면 올림에서 부호가 거꾸로 찍힌다.
-                */
-                : `${totals.roundingMinor > BigInt(0) ? '−' : '＋'} ${formatAmount(
-                  (totals.roundingMinor > BigInt(0) ? totals.roundingMinor : -totals.roundingMinor).toString(),
-                  draft.currency,
-                )}`}
-            </span>
-          </div>
-          {/*
-            **무엇에 맞췄는지 말한다.** 숫자만 두면 읽는 사람이 «깎인 금액의 자릿수»로
-            단위를 역산하게 되고, 그러면 백만원 버림이 십만원 버림으로 읽힌다
-            (실측 v0.7.698: 「− 600,000원」만 보고 십만원 단위로 오해).
-          */}
-          {roundingNote(draft.roundingUnit, draft.roundingMode as RoundingModeKey) && (
-            <p className={styles.roundingNote}>
-              {roundingNote(draft.roundingUnit, draft.roundingMode as RoundingModeKey)}
-            </p>
-          )}
-          <div className={styles.grandRow}>
-            <span>{QUOTE.total}</span><span>{formatAmount(totals.totalMinor.toString(), draft.currency)}</span>
-          </div>
-        </div>
+        <QuoteTotals
+          totals={totals}
+          currency={draft.currency}
+          roundingUnit={draft.roundingUnit}
+          roundingMode={draft.roundingMode}
+          locked={linesLocked}
+          onRoundingChange={(patch) => setDraft((d) => ({
+            ...d,
+            ...(patch.unit !== undefined ? { roundingUnit: patch.unit } : {}),
+            ...(patch.mode !== undefined ? { roundingMode: patch.mode } : {}),
+          }))}
+        />
 
         {approval && (
           <div className={styles.approvalNote}>{approvalNeeded(DEFAULT_DISCOUNT_APPROVAL_PCT)}</div>

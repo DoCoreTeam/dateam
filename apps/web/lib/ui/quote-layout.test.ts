@@ -34,6 +34,12 @@ const PANEL = strip(read('components/ui/crm/quote-panel.module.css'))
 const DOC = strip(read('app/(crm)/crm/quotes/[id]/quote-document.module.css'))
 const SHEET = read('app/(crm)/crm/quotes/[id]/QuoteSheet.tsx')
 const MODAL = read('components/ui/crm/QuoteEditorModal.tsx')
+/*
+  채우기(말로·파일로)는 **옆 파일**에 있다(v0.10.x). 단추와 열리는 상자가 같은 상태를 보므로
+  둘을 나누면 「어느 것이 열려 있나」를 두 곳이 알아야 하고, 그때부터 갈린다.
+*/
+const FILL = read('components/ui/crm/QuoteFillPanel.tsx')
+const TOTALS = read('components/ui/crm/QuoteTotals.tsx')
 
 /* ── ① 라벨 기준선 ────────────────────────────────── */
 
@@ -142,15 +148,47 @@ test('★ 테두리는 「항목 추가」 하나뿐 — 전부 강조하면 아
 })
 
 test('★ 단추 이름은 용어집에서 온다 — 화면이 한글을 직접 적지 않는다', () => {
-  assert.match(MODAL, /QUOTE\.fillBySpeech/)
+  assert.match(FILL, /QUOTE\.fillBySpeech/)
+  assert.match(FILL, /QUOTE\.fillByFile/)
   assert.match(MODAL, /QUOTE\.addSection/)
   assert.ok(
-    !/> ?말로 채우기|> ?묶음 추가/.test(MODAL),
+    !/> ?말로 채우기|> ?묶음 추가|> ?파일로 채우기/.test(MODAL + FILL),
     '리터럴로 되돌리면 같은 말이 화면마다 갈린다',
   )
 })
 
-/* ── ⑥ 순서 조정이 공용 부품을 쓴다 ──────────────── */
+test('★ 채우기 단추 둘이 한 자리에 선다 — 말과 파일은 같은 성격이다', () => {
+  assert.match(MODAL, /<QuoteFillButtons/, '모달이 채우기 단추를 안 그린다')
+  assert.match(FILL, /export function QuoteFillButtons/)
+  // 단추와 상자가 같은 파일이라야 «어느 것이 열려 있나»를 한 곳이 안다
+  assert.match(FILL, /export default function QuoteFillPanel/)
+})
+
+/* ── ⑥ 한 파일이 한 가지 일을 한다 ───────────────── */
+
+/*
+  파일로 채우기·검수가 붙으면서 모달이 1,157줄이 됐다. 그 안에서 «폼 그리기»와
+  «폼 채우기»와 «합계 계산 보이기»가 섞여 있었고, 절사를 고치러 온 사람이
+  항목 스무 줄을 지나쳐 내려가야 했다. 그래서 셋으로 나눴다.
+*/
+
+test('★ 편집 모달이 800줄을 넘지 않는다 — 한 파일이 세 가지 일을 하면 고칠 자리를 못 찾는다', () => {
+  const n = MODAL.split('\n').length
+  assert.ok(n <= 800, `${n}줄이다. 새 기능은 옆 파일로 뺀다`)
+})
+
+test('모양은 화면이 아니다 — 서버도 부를 수 있게 순수 모듈로 둔다', () => {
+  const shape = read('components/ui/crm/quote-draft-shape.ts')
+  assert.ok(!/'use client'/.test(shape), '모양 파일에 화면이 들어왔다')
+  assert.match(MODAL, /from '\.\/quote-draft-shape'/)
+})
+
+test('합계는 받은 값을 그릴 뿐 — 계산을 두 곳에서 하지 않는다', () => {
+  assert.ok(!/computeTotals\(/.test(TOTALS), '합계 부품이 스스로 계산한다')
+  assert.match(MODAL, /<QuoteTotals/)
+})
+
+/* ── ⑦ 순서 조정이 공용 부품을 쓴다 ──────────────── */
 
 test('★ 항목 순서는 공용 부품으로 — 같은 성격을 두 번 만들지 않는다(§0)', () => {
   assert.match(MODAL, /<ReorderList/, '견적 항목 순서 조정이 사라졌다')
