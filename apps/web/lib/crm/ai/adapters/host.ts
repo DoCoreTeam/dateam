@@ -211,6 +211,17 @@ export async function hostAdapter(
   return {
     model: cfg.model,
     webSearch,
+    /*
+      첨부가 있으면 **매체 갈래**다 — 글자 가림이 그림 안에는 안 닿는다.
+      pdf 도 그림으로 본다: 안에 든 글자를 우리가 가릴 방법이 없다는 점에서 같다.
+      크기는 base64 가 아니라 **원본 바이트**로 센다(원장이 실제로 나간 양을 말해야 한다).
+    */
+    media: attachments.length > 0
+      ? {
+        kind: 'image' as const,
+        bytes: attachments.reduce((n, a) => n + Math.floor(a.dataBase64.length * 3 / 4), 0),
+      }
+      : undefined,
     async complete(prompt: string) {
       /**
        * 호스트 프로바이더는 스트리밍 계약이다(화면이 글자를 흘려 보여 주려고).

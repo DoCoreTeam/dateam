@@ -54,6 +54,15 @@ const PII_PATHS: { file: string; kind: 'text' | 'media'; carries: string }[] = [
   { file: 'lib/meeting/transcribe-parts.ts', kind: 'media', carries: '회의 녹음과 말한 사람 이름' },
   { file: 'lib/stt/provider.ts', kind: 'media', carries: '회의 녹음 그 자체' },
   { file: 'lib/gemini-embedding.ts', kind: 'text', carries: '메모와 일일업무 원문 (벡터는 되돌릴 수 없다)' },
+  /*
+    CRM AI 열둘이 전부 이 러너를 지난다 — 견적 채우기(말로·파일로), 빠른 생성, 회의 추출,
+    활동 5축, 회사 보강, 단계 리뷰, 데이터 점검, 다음 행동, 지표 질문, 회의 마무리.
+    등재부에 없던 동안 그 열둘이 **가림도 기록도 없이** 나갔다(실측 2026-09-19).
+
+    갈래가 둘인 것이 이 길의 특징이다. 글자 프롬프트는 가림이 닿고, 첨부(스캔 견적서·사진)는
+    안 닿는다 — 러너가 어댑터의 `media` 선언을 보고 갈래를 고른다.
+  */
+  { file: 'lib/crm/ai/runner.ts', kind: 'text', carries: '회사명 사람이름 연락처 딜 메모 회의 내용' },
 ]
 
 /** 한 겹 자체. 이 둘만이 가림과 기록을 붙인다 */

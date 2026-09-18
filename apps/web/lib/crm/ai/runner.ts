@@ -23,6 +23,19 @@ import { reserveBudget, settleBudget } from '../services/budget.ts'
 import { classifyProviderError } from '../../ai-chat/provider-errors.ts'
 // 갈아탄 사실을 말하는 문장 — AI 채팅이 쓰는 그 한 줄을 그대로 쓴다
 import { formatFallbackNotice } from '../../ai-chat/model-chain.ts'
+/*
+  **한 겹**(가림 · 호출 원장 · 전송 원장). `@ax/ai-gateway` 를 앱에 붙인 자리다.
+
+  왜 러너가 지나야 하나: CRM AI 열둘이 전부 여기를 지난다. 서비스마다 붙이면
+  언젠가 한 곳이 빠지고, 빠진 그 길로 **회사명과 사람 이름과 연락처가 맨몸으로 나간다**.
+  실제로 그랬다 — 등재부(`lib/policy/pii-gateway-guard.test.ts`) 열 줄에 CRM 러너가 없었고,
+  명함·딜 메모·회의 내용이 가림도 기록도 없이 벤더로 갔다(실측 2026-09-19).
+*/
+import {
+  guardedText, guardedMedia, PiiNotMaskedError,
+  type AiLedger, type GuardedCallContext,
+} from '../../ai/guarded-call.ts'
+import { serverAiLedger } from '../../ai/ledger.ts'
 
 export type AiRunKind = 'MEETING_EXTRACT' | 'QUICK_CREATE' | 'ENRICH' | 'FIELD_FILL' | 'ASSISTANT'
 
@@ -48,6 +61,13 @@ export interface AiSource {
 export interface AiAdapter {
   /** 모델 별칭 — CrmAppSetting 에서 온다. 코드에 모델명을 하드코딩하지 않는다(명세 §351) */
   readonly model: string
+  /**
+   * 그림이나 소리를 함께 보내나.
+   *
+   * **글자 가림이 안 닿는 갈래**다. 있으면 러너가 매체 길로 간다 — 가린 척하지 않고
+   * 나간 사실과 크기만 원장에 남기고, 답에 실려 온 개인정보를 그때 셈한다.
+   */
+  readonly media?: { kind: 'image' | 'audio'; bytes: number }
   /**
    * 웹 검색을 켜고 부르는 어댑터인가.
    *
@@ -93,6 +113,16 @@ export interface RunOptions<T> {
   estimateMinorUsd?: bigint
   /** 실제 비용 계산 — 토큰 수를 받아 센트로. 없으면 정산하지 않는다 */
   costOf?: (tokensIn: number, tokensOut: number) => bigint
+  /**
+   * 이 호출에 나올 수 있는 **아는 이름**. 규칙으로는 이름이 안 잡힌다.
+   *
+   * 기본은 안 주는 것이다 — 목록을 읽는 것이 호출마다 질의 한 번이고, 이름을 가리면
+   * 그 이름을 놓고 판단하는 기능(회사 보강 따위)의 답이 달라질 수 있다.
+   * 필요한 서비스가 스스로 준다. 안 줘도 이메일·전화·사업자번호는 그대로 가려진다.
+   */
+  knownNames?: readonly string[]
+  /** 원장. 안 주면 서버 기본값이 진짜로 적는다 */
+  ledger?: AiLedger
 }
 
 export interface RunResult<T> {
@@ -119,6 +149,23 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
   const { db, workspaceId, kind, prompt, input, inputRef, parse, adapter } = opts
   const startedAt = Date.now()
   const estimate = opts.estimateMinorUsd ?? MIN_ESTIMATE_MINOR_USD
+
+  /**
+   * 한 겹에 넘기는 맥락.
+   *
+   * **`let` 이 아니라 고정 객체다.** 호출 중에 `modelName`·`providerId` 가 채워지고
+   * 한 겹이 호출 뒤에 그 값을 읽는다 — 그래서 같은 객체여야 한다.
+   */
+  const ctx: GuardedCallContext = {
+    surface: `crm/${kind.toLowerCase()}`,
+    purpose: kind,
+    modelName: adapter.model,
+    providerId: null,
+    media: adapter.media?.kind,
+    knownNames: opts.knownNames,
+  }
+  type MediaContext = GuardedCallContext & { media: 'image' | 'audio' }
+  const ledger = opts.ledger ?? serverAiLedger()
 
   /**
    * 갈아탔으면 한 줄로. 문장은 `formatFallbackNotice` 한 곳에서 온다 —
@@ -198,14 +245,32 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     let text: string
     try {
-      const res = await adapter.complete(prompt.build(input))
-      tokensIn += res.tokensIn
-      tokensOut += res.tokensOut
-      // 출처는 파싱보다 **먼저** 잡는다 — 파싱이 실패해 한 번 더 물었을 때
-      // 첫 시도에서 본 페이지가 사라지면 근거 없는 제안이 된다.
-      if (res.sources && res.sources.length > 0) sources = res.sources
-      if (res.usedModel) usedModel = res.usedModel
-      if (res.usedProvider) usedProvider = res.usedProvider
+      /**
+       * 벤더에 닿는 일은 **한 겹을 지나서** 한다 — 가리고, 적고, 되돌린다.
+       *
+       * `ctx` 를 **복사하지 않고 그대로 넘긴다.** 한 겹은 호출이 끝난 뒤에 이 값을 읽어
+       * 원장을 적는데, 실제로 답한 모델은 그 호출 안에서야 정해지기 때문이다.
+       * 스프레드로 복사하면 원장에 «고른 모델» 이 남고 집계가 거짓이 된다.
+       */
+      const send = async (masked: string) => {
+        const r = await adapter.complete(masked)
+        // 출처는 파싱보다 **먼저** 잡는다 — 파싱이 실패해 한 번 더 물었을 때
+        // 첫 시도에서 본 페이지가 사라지면 근거 없는 제안이 된다.
+        if (r.sources && r.sources.length > 0) sources = r.sources
+        if (r.usedModel) { usedModel = r.usedModel; ctx.modelName = r.usedModel }
+        if (r.usedProvider) { usedProvider = r.usedProvider; ctx.providerId = r.usedProvider }
+        return { text: r.text, inputTokens: r.tokensIn, outputTokens: r.tokensOut }
+      }
+
+      const built = prompt.build(input)
+      const res = adapter.media
+        // 그림·소리는 **가린 척하지 않는다.** 나간 사실과 크기만 남기고,
+        // 답에 실려 온 개인정보는 돌아온 뒤에 셈한다
+        ? await guardedMedia(adapter.media.bytes, ctx as MediaContext, ledger, () => send(built))
+        : await guardedText(built, ctx, ledger, send)
+
+      tokensIn += res.inputTokens ?? 0
+      tokensOut += res.outputTokens ?? 0
       text = res.text
     } catch (e) {
       lastError = e
@@ -218,6 +283,17 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
       if (e instanceof CrmError) {
         await recordFailure()
         throw e
+      }
+      /**
+       * **가린 뒤에도 개인정보가 남아 보내지 않은 것**은 다시 물어도 같다.
+       *
+       * 그대로 재시도하면 같은 자리에서 또 막히고, 끝에 가서는
+       * 「AI 가 내용을 이해하지 못했습니다」로 끝난다 — 원인과 정반대의 말이다.
+       */
+      if (e instanceof PiiNotMaskedError) {
+        await recordFailure()
+        throw new CrmError('VALIDATION_FAILED',
+          '개인정보가 들어 있어 AI 에 보내지 않았습니다. 주민등록번호·카드번호를 빼고 다시 시도해 주세요.')
       }
       continue
     }
