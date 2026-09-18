@@ -21,12 +21,19 @@ import { useRef, useState } from 'react'
 import { Sparkles, Upload, FileText, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { scaleLinesToTarget, describeScale } from '@/lib/crm/domain/quote-target'
+import {
+  checkLine, checkTotal, initialChecked,
+  type LineCheck, type LineCheckInput, type TotalCheck,
+} from '@/lib/crm/domain/quote-reconcile'
+import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { LINE_KIND_ORDER, LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
 import {
   ACTION, progress, QUOTE,
   FILL_SPEECH_HINT, FILL_SPEECH_PLACEHOLDER, FILL_FILE_HINT, FILL_FILE_KINDS,
   FILL_REVIEW_HINT, FILL_UNCLEAR_TITLE, FILL_NO_PRICE, FILL_SOURCE_LABEL,
   FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_NOTHING_FOUND, fillFoundLine,
+  FILL_RISK_TEXT, FILL_TOTAL_MATCH, FILL_TOTAL_NO_REFERENCE, fillTotalMismatch,
+  FILL_TOTAL_OURS, FILL_TOTAL_DOCUMENT,
 } from '@/lib/terms'
 import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
 import styles from './quote-panel.module.css'
@@ -68,8 +75,13 @@ interface Review {
   lines: QuoteLineDraft[]
   /** 줄마다 원문 조각 — 같은 인덱스 */
   sources: string[]
+  /** 줄마다 대조 결과 — 같은 인덱스 */
+  checks: LineCheck[]
   /** 줄마다 넣을지 — 같은 인덱스 */
   checked: boolean[]
+  /** 문서 맨 아래 합계와의 대조 */
+  total: TotalCheck
+  currency: string
   title: string | null
   unclear: string[]
   truncated: boolean
@@ -256,8 +268,11 @@ export default function QuoteFillPanel({
 
       const d = body.draft as {
         title: string | null
+        currency: string | null
         lines: DocLineJson[]
         taxPercent: number | null
+        sourceTotalMinor: number | null
+        sourceTotalIncludesTax: boolean
         unclear: string[]
       }
       const source = body.source as {
@@ -270,13 +285,39 @@ export default function QuoteFillPanel({
         return
       }
       const lines = usable.map((l) => toFormLine(l, d.taxPercent))
+      const sources = usable.map((l) => l.sourceText ?? '')
+
+      /*
+        **읽은 값을 원문과 맞춰 본다.** 견적서에는 줄마다 금액이 적혀 있고 맨 아래 합계가 있다 —
+        즉 답이 문서 안에 이미 있다. 그 둘과 우리 계산을 견주면 잘못 읽은 줄이 스스로 드러난다.
+        계산은 `quote-reconcile`(순수 · 가드 20개)이 하고 여기서는 결과만 그린다.
+      */
+      const inputs: LineCheckInput[] = lines.map((l, i) => ({
+        name: l.name,
+        quantity: l.quantity,
+        unitPriceMinor: l.unitPriceMinor,
+        discountPercent: l.discountPercent,
+        specialDiscountPercent: l.specialDiscountPercent,
+        taxRate: l.taxRate,
+        documentAmountMinor: usable[i].amountMinor,
+        sourceText: sources[i],
+      }))
+      const checks = inputs.map(checkLine)
+
       setReview({
         fileName: source.fileName,
         route: source.route,
         lines,
-        sources: usable.map((l) => l.sourceText ?? ''),
-        // **단가를 못 읽은 줄은 체크를 뺀다** — 빈 단가가 0원으로 들어가는 사고를 막는다
-        checked: lines.map((l) => l.unitPriceMinor !== ''),
+        sources,
+        checks,
+        // **위험 신호가 붙은 줄은 꺼 둔다** — 켜는 행동 자체가 「내가 봤다」는 뜻이 되게
+        checked: initialChecked(checks),
+        total: checkTotal({
+          lines: inputs,
+          documentTotalMinor: d.sourceTotalMinor,
+          documentIncludesTax: Boolean(d.sourceTotalIncludesTax),
+        }),
+        currency: (d.currency ?? draft.currency ?? 'KRW').toUpperCase(),
         title: d.title,
         unclear: d.unclear ?? [],
         truncated: source.truncated,
@@ -310,6 +351,25 @@ export default function QuoteFillPanel({
     : r))
 
   const pickedCount = review ? review.checked.filter(Boolean).length : 0
+
+  /**
+   * 합계 대조를 **한 문장으로**.
+   *
+   * JSX 안에서 갈래를 세 번 치면 `diffMinor !== null` 이 안쪽까지 안 따라가고,
+   * 무엇보다 읽는 사람이 세 갈래를 눈으로 합쳐야 한다.
+   */
+  const totalWord = ((): string => {
+    if (!review) return ''
+    const t = review.total
+    if (t.verdict === 'match') return FILL_TOTAL_MATCH
+    if (t.verdict === 'no_reference') return FILL_TOTAL_NO_REFERENCE
+    const diff = t.diffMinor ?? BigInt(0)
+    const short = diff < BigInt(0)
+    // formatAmount 는 못 만들면 null 을 준다. 그때 「 원 차이」라고 쓰면 빈칸이 인쇄된다
+    const text = formatAmount((short ? -diff : diff).toString(), review.currency)
+      ?? (short ? -diff : diff).toString()
+    return fillTotalMismatch(text, short)
+  })()
 
   return (
     <>
@@ -378,9 +438,31 @@ export default function QuoteFillPanel({
           )}
           {review.truncated && <p className={styles.sayUnclear}>{FILL_TRUNCATED}</p>}
 
+          {/*
+            **합계 대조** — 이 기능의 안전장치다.
+
+            줄이 다 맞는데 합계가 모자라면 **항목을 빠뜨린 것**이고, 남으면 합계 줄을
+            항목으로 읽은 것이다. 둘은 사람이 할 일이 다르므로 따로 말한다.
+            **맞았을 때도 말한다** — 말이 없으면 안 본 것과 구분되지 않는다.
+          */}
+          <div className={styles.totalCheck} data-verdict={review.total.verdict}>
+            <span className={styles.totalCheckSum}>
+              <span>{FILL_TOTAL_OURS}</span>
+              <b>{formatAmount(review.total.ourTotalMinor.toString(), review.currency)}</b>
+              {review.total.documentTotalMinor !== null && (
+                <>
+                  <span className={styles.totalCheckVs}>/</span>
+                  <span>{FILL_TOTAL_DOCUMENT}</span>
+                  <b>{formatAmount(review.total.documentTotalMinor.toString(), review.currency)}</b>
+                </>
+              )}
+            </span>
+            <span className={styles.totalCheckWord}>{totalWord}</span>
+          </div>
+
           <ul className={styles.reviewList}>
             {review.lines.map((l, i) => (
-              <li key={i} className={styles.reviewItem}>
+              <li key={i} className={styles.reviewItem} data-risk={review.checks[i].safe ? undefined : 'on'}>
                 <label className={styles.reviewPick}>
                   <input
                     type="checkbox"
@@ -392,8 +474,17 @@ export default function QuoteFillPanel({
                 <span className={styles.reviewNums}>
                   {l.quantity}{l.unit} · {l.unitPriceMinor === ''
                     ? <em className={styles.reviewMissing}>{FILL_NO_PRICE}</em>
-                    : Number(l.unitPriceMinor).toLocaleString('ko-KR')}
+                    : formatAmount(review.checks[i].ourAmountMinor.toString(), review.currency)}
                 </span>
+                {/*
+                  **걸린 이유를 줄 옆에 적는다.** 체크가 꺼져 있는 것만으로는
+                  사람이 「왜 꺼졌지」를 모르고, 모르면 그냥 다시 켠다.
+                */}
+                {review.checks[i].reasons.length > 0 && (
+                  <span className={styles.reviewRisk}>
+                    {review.checks[i].reasons.map((r) => FILL_RISK_TEXT[r]).join(' · ')}
+                  </span>
+                )}
                 {review.sources[i] && (
                   <span className={styles.reviewSource}>
                     <span className={styles.reviewSourceLabel}>{FILL_SOURCE_LABEL}</span>

@@ -603,6 +603,63 @@
   line-height: 1.6;
 }
 
+/*
+  합계 대조 — **이 기능의 안전장치**.
+
+  색이 판정을 말한다: 맞으면 초록, 대조를 못 했으면 노랑, 어긋나면 빨강.
+  숫자와 말을 같이 두는 이유는 색만으로는 «얼마나 어긋났는지»를 못 말하기 때문이다.
+*/
+.totalCheck {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.totalCheck[data-verdict='match'] {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+}
+.totalCheck[data-verdict='no_reference'] {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+}
+.totalCheck[data-verdict='mismatch'] {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.totalCheckSum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* 금액은 통째로 — 「266,000,000 / 원」으로 끊기면 파편으로 읽힌다 */
+.totalCheckSum b { color: var(--text); white-space: nowrap; }
+.totalCheckVs { color: var(--text-muted); }
+
+.totalCheckWord {
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text);
+}
+.totalCheck[data-verdict='mismatch'] .totalCheckWord { color: var(--danger); font-weight: 600; }
+.totalCheck[data-verdict='no_reference'] .totalCheckWord { color: var(--warning); }
+
+/* 걸린 줄은 눈에 띄어야 한다 — 체크가 꺼진 것만으로는 왜 꺼졌는지 모른다 */
+.reviewItem[data-risk='on'] { border-color: var(--warning-border); background: var(--warning-bg); }
+
+.reviewRisk {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--warning);
+}
+
 .reviewSourceLabel {
   display: inline-block;
   margin-right: var(--space-1);

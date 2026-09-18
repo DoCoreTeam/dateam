@@ -220,6 +220,47 @@ export function fillFoundLine(count: number, fileName: string): string {
   return `${fileName} 에서 ${count}건을 읽었어요`
 }
 
+// ------------------------------------------------------------
+// 대조 — 「읽었다」와 「맞게 읽었다」는 다르다
+// ------------------------------------------------------------
+
+/*
+  **왜 대조 결과를 말로 적나**: 숫자만 두면 사람은 그 숫자가 좋은 소식인지 나쁜 소식인지
+  스스로 판단해야 한다. 차액 3,000만 원이 「빠뜨린 항목」인지 「반올림」인지는 우리가 이미 안다 —
+  아는 것을 말하지 않고 숫자만 던지는 것은 판단을 떠넘기는 것이다.
+*/
+
+/** 줄 하나가 걸린 이유 */
+export const FILL_RISK_TEXT = {
+  no_price: '단가를 못 읽었어요',
+  no_name: '품목 이름이 비었어요',
+  amount_mismatch: '문서에 적힌 금액과 달라요',
+  no_source: '원문을 못 찾아 대조하지 못했어요',
+} as const
+
+export type FillRiskKey = keyof typeof FILL_RISK_TEXT
+
+/** 합계가 맞았을 때 — **맞았다는 사실도 말한다.** 말이 없으면 안 본 것과 같다 */
+export const FILL_TOTAL_MATCH = '문서에 적힌 합계와 맞아요'
+
+/** 문서에 합계가 없어 대조를 못 했을 때 */
+export const FILL_TOTAL_NO_REFERENCE =
+  '문서에서 합계를 찾지 못해 대조하지 못했어요. 금액을 직접 확인해 주세요.'
+
+/**
+ * 합계가 어긋났을 때 — **차액과 방향**을 함께 말한다.
+ * 「다릅니다」만으로는 항목을 빠뜨린 건지 더 읽은 건지 알 수 없다.
+ */
+export function fillTotalMismatch(diffText: string, ourTotalIsLess: boolean): string {
+  return ourTotalIsLess
+    ? `읽은 금액이 문서 합계보다 ${diffText} 적어요. 빠진 항목이 있는지 봐 주세요.`
+    : `읽은 금액이 문서 합계보다 ${diffText} 많아요. 합계 줄을 항목으로 읽었을 수 있어요.`
+}
+
+/** 우리 합계 / 문서 합계 라벨 */
+export const FILL_TOTAL_OURS = '읽은 금액'
+export const FILL_TOTAL_DOCUMENT = '문서 합계'
+
 /**
  * 새 묶음의 기본 이름. 사람이 바로 고쳐 쓰라고 번호만 붙인다.
  *

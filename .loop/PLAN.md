@@ -115,7 +115,7 @@
 의존: I04
 
 ### I06 넣기 전에 원문과 대조한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/components/ui/crm/QuoteFillPanel.tsx
