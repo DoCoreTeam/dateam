@@ -21,6 +21,8 @@ import { reserveBudget, settleBudget } from '../services/budget.ts'
 // 프로바이더 실패 → 사람이 읽을 문장. 호스트에 이미 있는 SSOT 를 그대로 쓴다
 // (재사용·단일구현 정책 — CRM 이 같은 표를 따로 만들면 언젠가 한쪽만 갱신된다)
 import { classifyProviderError } from '../../ai-chat/provider-errors.ts'
+// 갈아탄 사실을 말하는 문장 — AI 채팅이 쓰는 그 한 줄을 그대로 쓴다
+import { formatFallbackNotice } from '../../ai-chat/model-chain.ts'
 
 export type AiRunKind = 'MEETING_EXTRACT' | 'QUICK_CREATE' | 'ENRICH' | 'FIELD_FILL' | 'ASSISTANT'
 
@@ -98,6 +100,13 @@ export interface RunResult<T> {
   runId: string
   /** 웹 검색을 썼다면 출처 — 이 값이 제안의 근거로 그대로 넘어간다 */
   sources?: AiSource[]
+  /**
+   * 고른 모델이 막혀 **다른 것이 답했을 때** 그 사실을 알리는 한 줄.
+   *
+   * **조용히 바꾸지 않는다.** 비용과 품질이 달라지는 일이라 모르고 지나가면 안 된다.
+   * 안 갈아탔으면 undefined 다 — 「그대로 썼다」는 말할 필요가 없다.
+   */
+  switchedNote?: string
 }
 
 /** 명세 3.1-8 "AI 파싱 2회 실패" — 한 번 더 묻고 끝낸다. 무한 재시도는 비용만 태운다 */
@@ -110,6 +119,18 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
   const { db, workspaceId, kind, prompt, input, inputRef, parse, adapter } = opts
   const startedAt = Date.now()
   const estimate = opts.estimateMinorUsd ?? MIN_ESTIMATE_MINOR_USD
+
+  /**
+   * 갈아탔으면 한 줄로. 문장은 `formatFallbackNotice` 한 곳에서 온다 —
+   * 같은 사실을 화면마다 다르게 적으면 사용자가 같은 일을 다른 일로 읽는다.
+   */
+  const switchedNote = (): string | undefined => {
+    if (usedModel === adapter.model) return undefined
+    return formatFallbackNotice({
+      fromLabel: '설정 모델', fromModel: adapter.model,
+      toLabel: usedProvider ?? '다른 공급자', toModel: usedModel,
+    })
+  }
 
   // 예산 확인 + 예상 비용 선점. 차단이면 여기서 BUDGET_BLOCKED 로 끝난다 —
   // 호출한 뒤 정산하면 이미 돈이 나간 뒤다(명세 3.6-1).
@@ -131,12 +152,22 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
    */
   let transportFailed = false
 
+  /**
+   * **실제로 답한** 공급자·모델. 어댑터가 알려 주면 그 값이 기록에 남는다.
+   *
+   * 안 알려 주는 어댑터(mock·옛 구현)도 있으므로 기본은 고른 모델이다.
+   * 이 구분이 없으면 한도에 걸려 갈아탄 뒤에도 기록은 고른 모델을 가리키고,
+   * 사용량 집계가 «쓰지 않은 모델» 에 쌓인다.
+   */
+  let usedModel: string = adapter.model
+  let usedProvider: string | null = null
+
   /** 실패로 끝낼 때 남길 것 — 기록과 정산은 어느 실패든 똑같이 해야 한다 */
   const recordFailure = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (db as any).crmAiRun.create({
       data: {
-        kind, model: adapter.model, promptVersion: prompt.version,
+        kind, model: usedModel, promptVersion: prompt.version,
         status: 'FAILED', inputRef, tokensIn, tokensOut,
         latencyMs: Date.now() - startedAt,
         error: lastError instanceof Error ? lastError.message.slice(0, 500) : String(lastError).slice(0, 500),
@@ -152,7 +183,7 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
     const { recordSystemEventAsync } = await import('../../system-log/record.ts')
     await recordSystemEventAsync({
       source: 'crm_ai', error: lastError, feature: kind, blocksUser: true,
-      workspaceId, hint: adapter.model,
+      workspaceId, hint: usedModel,
       // webSearch 를 실어 보낸다 — 해결책이 이 값으로 갈린다(playbook.ts)
       context: { kind, promptVersion: prompt.version, tokensIn, tokensOut, webSearch: adapter.webSearch === true },
     })
@@ -173,6 +204,8 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
       // 출처는 파싱보다 **먼저** 잡는다 — 파싱이 실패해 한 번 더 물었을 때
       // 첫 시도에서 본 페이지가 사라지면 근거 없는 제안이 된다.
       if (res.sources && res.sources.length > 0) sources = res.sources
+      if (res.usedModel) usedModel = res.usedModel
+      if (res.usedProvider) usedProvider = res.usedProvider
       text = res.text
     } catch (e) {
       lastError = e
@@ -207,7 +240,7 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const run = await (db as any).crmAiRun.create({
       data: {
-        kind, model: adapter.model, promptVersion: prompt.version,
+        kind, model: usedModel, promptVersion: prompt.version,
         status: 'DONE', inputRef, outputJson: output as unknown,
         tokensIn, tokensOut, latencyMs: Date.now() - startedAt,
       },
@@ -219,7 +252,7 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
     // 안 그러면 mock 어댑터가 도는 것만으로 예산이 줄어든다.
     await settleBudget(workspaceId, estimate, opts.costOf ? opts.costOf(tokensIn, tokensOut) : BigInt(0))
 
-    return { output, runId: run.id, sources }
+    return { output, runId: run.id, sources, switchedNote: switchedNote() }
   }
 
   // 실패도 기록한다 — 실패가 안 남으면 "왜 안 됐지"를 사용자에게 물어보게 된다.
