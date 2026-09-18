@@ -314,3 +314,67 @@ export async function updateEmployment(
   revalidateMemberPaths(userId)
   return { ok: true }
 }
+
+/**
+ * 소속(조직도 자리)을 구성원 상세에서 바꾼다.
+ *
+ * 왜 상세에 있나 (사용자 지적 2026-09-19): 상세에 와서 계정을 보고 있는데 고칠 방법이
+ * 하나도 없었다. 소속은 그 화면에서 제일 먼저 눈에 띄는 「틀린 값」인데, 고치려면
+ * 조직도 관리 탭으로 가서 카드를 찾아 끌어다 놓아야 했다.
+ *
+ * 사람 노드가 없으면 만들고, 있으면 옮기고, 소속 없음이면 뗀다 — 세 경우를 화면이
+ * 알 필요 없게 여기서 다 받는다.
+ */
+export async function setMemberDepartment(
+  userId: string,
+  departmentNodeId: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const adminClient = createAdminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = adminClient as any
+
+  const { data: node } = await db
+    .from('org_nodes').select('id, parent_id').eq('type', 'person').eq('user_id', userId).maybeSingle()
+
+  if (!departmentNodeId) {
+    // 소속 없음 — 노드를 뗀다. closure 는 ON DELETE CASCADE 로 따라 정리된다
+    if (node) {
+      const { error } = await db.from('org_nodes').delete().eq('id', node.id)
+      if (error) return { ok: false, error: error.message }
+    }
+    revalidateMemberPaths(userId)
+    return { ok: true }
+  }
+
+  const { data: parent } = await db
+    .from('org_nodes').select('id, type').eq('id', departmentNodeId).maybeSingle()
+  if (!parent) return { ok: false, error: '그 조직이 없습니다' }
+  // 사람 밑에 사람을 넣지 않는다 — 조직도가 사람 사슬이 되면 부서 권한 계산이 무너진다
+  if (parent.type === 'person') return { ok: false, error: '사람 아래로는 넣을 수 없습니다' }
+
+  if (node) {
+    // parent_id 만 바꾼다 — closure 는 트리거가 다시 엮는다(마이그레이션 046)
+    const { error } = await db.from('org_nodes').update({ parent_id: departmentNodeId }).eq('id', node.id)
+    if (error) return { ok: false, error: error.message }
+    revalidateMemberPaths(userId)
+    return { ok: true }
+  }
+
+  // 조직도에 없던 사람 — 노드를 새로 만든다. 이름·직급은 profiles 를 그대로 따른다
+  const { data: profile } = await db
+    .from('profiles').select('name, rank, position').eq('id', userId).maybeSingle()
+  const { error } = await db.from('org_nodes').insert({
+    type: 'person',
+    parent_id: departmentNodeId,
+    name: profile?.name ?? '이름 없음',
+    subtitle: profile?.position || profile?.rank || null,
+    user_id: userId,
+  })
+  if (error) return { ok: false, error: error.message }
+
+  revalidateMemberPaths(userId)
+  return { ok: true }
+}
