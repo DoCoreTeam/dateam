@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서를 파일로 채우고 항목 줄 손잡이를 제자리에
 플랜 ID: P0024
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0026
 목표 버전: v0.10.149
@@ -146,6 +146,21 @@
 - pnpm test 통과
 의존: 없음
 
+### I06b 파서가 형식을 스스로 못 알아본다 — 힌트를 안 넘기고 있었다
+상태: 통과
+모드: 경량
+범위:
+- apps/web/lib/rfp/parse/office.ts
+- apps/web/lib/rfp/parse/office.test.ts
+- apps/web/lib/crm/services/quote-from-file.ts
+감사 기준:
+- 실브라우저에서 xlsx 를 올리면 파싱이 성공한다 (지금은 parse_failed: "Auto-detection of file type from buffer failed")
+- 앞머리로 알아낸 형식(sniffOffice)을 officeparser 에 fileType 으로 넘긴다 — 이미 계산해 놓고 버리고 있었다
+- 못 알아본 형식은 힌트를 안 준다 (틀린 힌트는 자동 판별 실패보다 나쁘다)
+- 거절 사유에 파서가 준 detail 이 함께 남는다 (「parse_failed」 한 마디로는 고칠 수 없다)
+- 기존 office.test.ts 가 그대로 통과한다
+의존: 없음
+
 ### I07 실화면 확인과 발행
 상태: 대기
 모드: 경량
@@ -157,7 +172,7 @@
 - 실브라우저에서 파일을 올려 검수 목록이 뜨고, 체크한 항목만 폼에 들어간다 (스크린샷)
 - 버전 여섯 파일이 함께 올랐다: pnpm test 의 policy-sync·version-rule 통과
 - entries.ts 맨 위에 이번 버전 블록이 있다
-의존: I06a
+의존: I06b
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
@@ -165,3 +180,4 @@
 ## 변경 이력
 - v0.1.0 (2026-09-18) 최초 작성 (ins_0026)
 - v0.1.1 (2026-09-18) 실제 xlsx 견적서를 파서에 넣어 보니 두 가지가 드러났다: ①셀 글자가 두 번 들어간다(collectText 가 부모 text 와 같은 글을 담은 자식을 함께 모은다) ②시트가 표로 안 읽혀 tableCount 가 0 이다(행이 문단이 된다). 둘 다 공유 파서(rfp/parse/office.ts)의 일이고, 고치지 않으면 모델이 「2 2」를 수량으로 읽는다. I07 앞에 I06a 를 넣는다 (audit:I07)
+- v0.1.2 (2026-09-18) 실브라우저에서 xlsx 를 올리니 parse_failed. 사유는 officeparser 의 «Auto-detection of file type from buffer failed» 였다 — Next 런타임에서 형식 자동 판별이 안 된다. office.ts 는 sniffOffice 로 형식을 이미 알아내 놓고 그 값을 parseOffice 에 안 넘기고 있었다. 노드로 직접 돌릴 때는 되고 Next 안에서만 죽어, 단위 테스트로는 영원히 못 잡는다. I07 앞에 I06b 를 넣는다 (audit:I07)

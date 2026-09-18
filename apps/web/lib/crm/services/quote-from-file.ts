@@ -187,9 +187,14 @@ export async function draftQuoteFromFile(
     if (needsVisionFallback(kind, read.text)) {
       route = 'vision'
     } else if (!parsed.ok) {
+      /*
+        **왜 못 읽었는지를 함께 남긴다.** 사용자에게는 한 문장이면 되지만,
+        「parse_failed」 한 마디로는 고치는 쪽이 파서 문제인지 파일 문제인지 모른다.
+        이 값은 시스템 로그로 간다(withCrmApi 가 기록한다).
+      */
       throw new CrmError('VALIDATION_FAILED',
         '파일을 읽지 못했어요. 다른 형식으로 저장한 뒤 다시 올려 주세요.',
-        { field: 'file', reason: parsed.reason })
+        { field: 'file', reason: parsed.reason, detail: parsed.detail })
     }
   }
 

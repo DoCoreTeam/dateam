@@ -8,11 +8,13 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 import {
   astToIr, blockTypeOf, isPageContainer, isListContainer, needsImageText, sniffOffice,
   parseOfficeDoc, MIN_CHARS_PER_TEXT_PAGE, OFFICE_WARNING, OFFICE_PARSER,
-  type AstNode, type AstInput,
+  fileTypeHint,
+  type AstNode, type AstInput, type OfficeFormat,
 } from './office.ts'
 
 const OPTS = { fileId: 'f-1', format: 'pdf' as const }
@@ -329,4 +331,53 @@ test('시트 안의 그림은 표를 낸 뒤에도 남는다 — 버리면 근�
   }])
   assert.equal(doc.tables.length, 1)
   assert.equal(doc.figures.length, 1, '그림이 사라졌다')
+})
+
+// ── 형식 힌트 (실측 2026-09-19) ──────────────────────────────
+
+/*
+  officeparser 는 버퍼만 받으면 형식을 스스로 판별하려 하는데 **Next 런타임에서 그것이 실패한다** —
+  「Auto-detection of file type from buffer failed」로 죽는다. 같은 파일이 노드로 직접 돌릴 때는
+  읽혔다. 즉 **단위 테스트로는 영원히 못 잡는 종류**이고, 실화면에서만 드러났다.
+
+  그런데 우리는 이미 형식을 안다 — `sniffOffice` 가 앞머리 바이트로 알아내 놓고
+  그 값을 파서에 안 넘기고 버리고 있었다.
+*/
+
+test('★ 알아낸 형식을 파서에 넘긴다 — 판별을 파서에게 맡기면 Next 안에서 죽는다', () => {
+  assert.equal(fileTypeHint('xlsx'), 'xlsx')
+  assert.equal(fileTypeHint('docx'), 'docx')
+  assert.equal(fileTypeHint('pdf'), 'pdf')
+  assert.equal(fileTypeHint('rtf'), 'rtf')
+})
+
+test('★ 모르는 형식이면 힌트를 안 준다 — 틀린 힌트는 판별 실패보다 나쁘다', () => {
+  assert.equal(fileTypeHint('unknown'), null, 'unknown 이 힌트로 들어가면 파서가 그 이름을 찾다 죽는다')
+})
+
+test('힌트 목록이 우리 형식 이름과 어긋나지 않는다 — 하나만 달라도 그 형식만 조용히 실패한다', () => {
+  const ours: OfficeFormat[] = ['pdf', 'docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'html', 'csv', 'md']
+  for (const f of ours) assert.equal(fileTypeHint(f), f, `${f} 가 힌트로 안 나간다`)
+})
+
+/*
+  **이건 정적으로 잠근다.** 힌트를 안 넘겨도 노드로 직접 돌릴 때는 자동 판별이 되므로
+  실행 검사로는 되돌아간 것을 못 잡는다 — 죽는 자리가 Next 런타임뿐이다.
+  실패가 한 환경에서만 보일 때, 코드 모양을 고정하는 것이 유일하게 확실한 방법이다.
+*/
+test('★ loadAst 가 힌트를 실제로 넘긴다 — 안 넘겨도 노드에서는 통과해서 실행으로는 못 잡는다', () => {
+  const src = readFileSync(new URL('./office.ts', import.meta.url), 'utf-8')
+  const fn = src.slice(src.indexOf('async function loadAst'), src.indexOf('export function fileTypeHint'))
+  assert.match(fn, /fileTypeHint\(format\)/, '형식을 힌트로 안 만든다')
+  assert.match(fn, /parseOffice\(Buffer\.from\(bytes\), \{ fileType: hint \}\)/,
+    '힌트를 파서에 안 넘긴다 — Next 런타임에서만 parse_failed 로 죽는다(실측 2026-09-19)')
+})
+
+test('★ 실제 파일도 힌트를 타고 읽힌다 — 이 경로가 프로덕션에서만 죽던 자리다', async () => {
+  const { jsPDF } = await import('jspdf')
+  const d = new jsPDF()
+  d.text('QUOTATION 123,200,000', 20, 20)
+  const bytes = new Uint8Array(d.output('arraybuffer'))
+  const r = await parseOfficeDoc(bytes, { fileId: 'f-pdf' })
+  assert.equal(r.ok, true, r.ok ? '' : `${r.reason} ${r.detail}`)
 })

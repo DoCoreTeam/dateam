@@ -52,6 +52,17 @@ export function needsImageText(charCount: number): boolean {
 
 export type OfficeFormat = 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'odt' | 'ods' | 'odp' | 'rtf' | 'html' | 'csv' | 'md' | 'unknown'
 
+/**
+ * officeparser 가 힌트로 받는 형식 이름.
+ *
+ * 우리 `OfficeFormat` 과 거의 같지만 **같지 않다** — `unknown` 이 없고 `epub` 이 있다.
+ * 같다고 보고 그대로 넘기면 `unknown` 이 힌트로 들어가 파서가 그 이름을 찾다 죽는다.
+ */
+export const OFFICE_PARSER_FILE_TYPES = [
+  'docx', 'pptx', 'xlsx', 'odt', 'odp', 'ods', 'pdf', 'rtf', 'md', 'html', 'csv',
+] as const
+export type OfficeParserFileType = typeof OFFICE_PARSER_FILE_TYPES[number]
+
 export type OfficeRejectReason = 'parse_failed' | 'timeout' | 'unsupported_format'
 
 export type OfficeParseResult =
@@ -422,7 +433,8 @@ export async function parseOfficeDoc(
 
   let ast: AstInput
   try {
-    ast = await withTimeout(loadAst(bytes), PARSE_TIMEOUT_MS)
+    // 앞머리로 알아낸 형식을 **파서에게 그대로 넘긴다**(아래 loadAst 주석 참고)
+    ast = await withTimeout(loadAst(bytes, format), PARSE_TIMEOUT_MS)
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e)
     return { ok: false, reason: detail === 'timeout' ? 'timeout' : 'parse_failed', detail }
@@ -436,11 +448,35 @@ function pickFormat(bytes: Uint8Array, hint?: OfficeFormat): OfficeFormat {
   return sniffed !== 'unknown' ? sniffed : (hint ?? 'unknown')
 }
 
-async function loadAst(bytes: Uint8Array): Promise<AstInput> {
+/**
+ * **형식을 우리가 알려 준다.**
+ *
+ * officeparser 는 버퍼만 받으면 형식을 스스로 판별하려 하는데, **Next 런타임에서
+ * 그 판별이 실패한다** — 「Auto-detection of file type from buffer failed」로 죽는다
+ * (실측 2026-09-19: 엑셀 견적서 올리기가 프로덕션 경로에서만 parse_failed.
+ * 같은 파일이 노드로 직접 돌릴 때는 읽혔다. 단위 테스트로는 영원히 못 잡는 종류다).
+ *
+ * 그런데 **우리는 이미 형식을 안다** — `sniffOffice` 가 앞머리 바이트로 알아내 놓고
+ * 그 값을 쓰지 않고 버리고 있었다. 알아낸 것을 넘기면 판별이 필요 없다.
+ *
+ * `unknown` 이면 **힌트를 주지 않는다.** 틀린 힌트는 판별 실패보다 나쁘다 —
+ * 실패는 그 자리에서 멈추지만, 틀린 힌트는 엉뚱하게 읽은 글을 성공으로 돌려준다.
+ */
+async function loadAst(bytes: Uint8Array, format: OfficeFormat): Promise<AstInput> {
   // 동적 import — 순수 함수 테스트가 officeparser 설치를 요구하지 않게 한다
   const { parseOffice } = await import('officeparser')
-  const ast = await parseOffice(Buffer.from(bytes))
+  const hint = fileTypeHint(format)
+  const ast = hint
+    ? await parseOffice(Buffer.from(bytes), { fileType: hint })
+    : await parseOffice(Buffer.from(bytes))
   return { type: ast.type, content: (ast.content ?? []) as unknown as AstNode[] }
+}
+
+/** officeparser 가 받는 형식 이름. 모르는 것은 null — 힌트를 안 준다 */
+export function fileTypeHint(format: OfficeFormat): OfficeParserFileType | null {
+  return (OFFICE_PARSER_FILE_TYPES as readonly string[]).includes(format)
+    ? format as OfficeParserFileType
+    : null
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
