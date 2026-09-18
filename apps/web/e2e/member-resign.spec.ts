@@ -34,7 +34,7 @@ test.afterAll(async () => {
   await admin.auth.admin.deleteUser(userId)
 })
 
-test('목록에서 퇴사 처리하면 이름 옆에 퇴사가 붙고 거르개로 갈라 본다', async ({ page }) => {
+test('퇴사 처리하면 재직 목록에서 빠지고 퇴사자 탭으로 옮겨진다', async ({ page }) => {
   await page.goto(`/admin/members?tab=users&q=${encodeURIComponent(NAME)}`)
   await dismissGlobalModals(page)
 
@@ -52,26 +52,25 @@ test('목록에서 퇴사 처리하면 이름 옆에 퇴사가 붙고 거르개�
   await expect(row.getByText('기록은 그대로 남습니다')).toBeVisible()
   await row.getByRole('button', { name: '확인' }).click()
 
-  // 감사 기준: 이름 옆에 퇴사 배지
+  // 감사 기준: 재직 목록에서 사라진다 (이름순으로 훑을 때 끼어들지 않는다)
   await page.waitForTimeout(1200)
-  await page.reload()
-  await dismissGlobalModals(page)
-  const after = page.locator('tbody tr', { hasText: NAME })
-  await expect(after.locator('.badge', { hasText: '퇴사' }).first()).toBeVisible()
-
-  // 감사 기준: 퇴사자에게는 같은 단추가 되돌리기로 바뀐다
-  await after.getByRole('button', { name: `${NAME} 작업 더보기` }).click()
-  await expect(after.getByRole('button', { name: '퇴사 취소' })).toBeVisible()
-  await expect(after.getByRole('button', { name: '퇴사 처리' })).toHaveCount(0)
-  await page.keyboard.press('Escape')
-
-  // 감사 기준: 거르개. 재직으로 거르면 안 보이고 퇴사로 거르면 보인다
-  await page.goto(`/admin/members?tab=users&q=${encodeURIComponent(NAME)}&status=active`)
+  await page.goto(`/admin/members?tab=users&q=${encodeURIComponent(NAME)}`)
   await dismissGlobalModals(page)
   await expect(page.locator('tbody tr', { hasText: NAME })).toHaveCount(0)
-  await page.goto(`/admin/members?tab=users&q=${encodeURIComponent(NAME)}&status=resigned`)
+
+  // 감사 기준: 퇴사자 탭에 있고 퇴사일이 보이고 단추가 되돌리기로 바뀐다
+  await page.goto(`/admin/members?tab=resigned&q=${encodeURIComponent(NAME)}`)
   await dismissGlobalModals(page)
-  await expect(page.locator('tbody tr', { hasText: NAME })).toHaveCount(1)
+  const resignedRow = page.locator('tbody tr', { hasText: NAME })
+  await expect(resignedRow).toHaveCount(1)
+  await expect(resignedRow.getByText(/\d{4}-\d{2}-\d{2}/)).toBeVisible()
+  await resignedRow.getByRole('button', { name: `${NAME} 작업 더보기` }).click()
+  await expect(resignedRow.getByRole('button', { name: '퇴사 취소' })).toBeVisible()
+  await expect(resignedRow.getByRole('button', { name: '퇴사 처리' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  // 감사 기준: 뜻이 겹치는 거르개는 도구줄에 없다
+  await expect(page.getByRole('combobox', { name: '재직 여부' })).toHaveCount(0)
 })
 
 test('구성원 상세가 계정과 재직 기록을 보여 주고 입사일을 고쳐 남긴다', async ({ page }) => {

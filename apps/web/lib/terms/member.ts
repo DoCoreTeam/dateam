@@ -54,8 +54,19 @@ export function confirmUndoResign(name: string): string {
   return `${name} 님의 퇴사를 취소합니다. 다시 로그인할 수 있게 되지만 조직도 자리는 직접 다시 넣어야 합니다`
 }
 
-/** 목록 거르개에 쓰는 선택지 — 기본은 재직이다 */
-export const EMPLOYMENT_FILTER_OPTIONS = [
-  { value: 'active', label: EMPLOYMENT_STATUS.active.label },
-  { value: 'resigned', label: EMPLOYMENT_STATUS.resigned.label },
-] as const
+/**
+ * 퇴사자 탭의 말.
+ *
+ * 왜 거르개가 아니라 탭인가 (사용자 지적 2026-09-18): 목록은 이름순이 기본이라 퇴사자가
+ * 재직자 사이사이에 끼어 나온다. 이름을 훑는 일이 그때마다 끊긴다. 거르개는 「누가 눌러 줘야
+ * 동작하는 것」이고, 여기서 필요한 것은 **기본이 재직자**인 목록이다.
+ *
+ * 탭과 거르개를 함께 두지 않는다 — 같은 뜻의 조작이 둘이면 사용자는 어느 쪽이 이겼는지 모른다.
+ */
+export const RESIGNED_TAB = {
+  label: '퇴사자',
+  /** 탭 배지가 세는 것 — 0이면 배지를 안 그린다(배지 규칙 2) */
+  badgeMeaning: '회사를 떠난 구성원',
+  emptyTitle: '퇴사 처리한 구성원이 아직 없어요',
+  emptyDescription: '사용자 관리에서 퇴사 처리를 하면 여기로 옮겨집니다',
+} as const
