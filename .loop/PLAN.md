@@ -83,7 +83,7 @@
 의존: I01
 
 ### I03 갈아탄 사실을 화면이 말한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/lib/crm/services/quote-draft.ts

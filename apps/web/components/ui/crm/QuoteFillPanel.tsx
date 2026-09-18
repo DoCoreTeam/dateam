@@ -168,6 +168,12 @@ export default function QuoteFillPanel({
       })
       const body = await res.json()
       if (!res.ok) { onError(body?.error?.message ?? '읽지 못했습니다.'); return }
+      /*
+        **고른 모델이 막혀 다른 것이 답했으면 그 사실을 말한다.**
+        비용과 품질이 달라지는 일이라 모르고 지나가면 안 된다 — 같은 입력에 다른 답이
+        나온 이유를 사람이 설명할 수 있어야 한다.
+      */
+      const switched = typeof body.switchedNote === 'string' ? body.switchedNote : null
       const d = (body.draft ?? body) as {
         title: string | null
         lines: DocLineJson[]
@@ -239,7 +245,7 @@ export default function QuoteFillPanel({
         roundingUnit,
         lines: scale(appendLines(prev, made)).lines,
       }))
-      setNote(scale(appendLines(draft, made)).note)
+      setNote([switched, scale(appendLines(draft, made)).note].filter(Boolean).join('\n') || null)
       // **못 알아본 말은 버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다
       setUnclear(d.unclear ?? [])
       setSayText('')
@@ -278,6 +284,8 @@ export default function QuoteFillPanel({
       const source = body.source as {
         fileName: string; route: 'text' | 'vision'; truncated: boolean; tableCount: number
       }
+      // 갈아탄 사실은 검수 목록과 **함께** 보인다 — 나중에 따로 말하면 이미 넣은 뒤다
+      if (typeof body.switchedNote === 'string') setNote(body.switchedNote)
       const usable = (d.lines ?? []).filter((l) => l.name)
       if (usable.length === 0) {
         onError(FILL_NOTHING_FOUND)

@@ -493,6 +493,8 @@
   border-radius: var(--radius);
   font-size: var(--fs-sm);
   line-height: 1.6;
+  /* 두 소식(갈아탔다 · 총액을 맞췄다)이 겹칠 수 있다. 줄바꿈이 살아야 둘로 읽힌다 */
+  white-space: pre-line;
 }
 
 .sayUnclear ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); }

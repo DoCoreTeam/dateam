@@ -144,6 +144,8 @@ export interface QuoteFromFileResult {
     tableCount: number
   }
   runId: string
+  /** 고른 모델이 막혀 다른 것이 답했으면 그 사실 — **조용히 바꾸지 않는다** */
+  switchedNote?: string
 }
 
 /** 사람이 읽을 거절 사유 */
@@ -224,7 +226,7 @@ export async function draftQuoteFromFile(
     ? '이 파일이 견적서다. 표를 그대로 읽어 항목으로 옮겨라.'
     : read.text
 
-  const { output, runId } = await runAi<QuoteFromDocOutput>({
+  const { output, runId, switchedNote } = await runAi<QuoteFromDocOutput>({
     db, workspaceId, kind: 'QUICK_CREATE',
     prompt: QUOTE_FROM_DOC_V1,
     input: promptInput,
@@ -240,6 +242,7 @@ export async function draftQuoteFromFile(
       text: read.text, truncated: read.truncated, tableCount: read.tableCount,
     },
     runId,
+    switchedNote,
   }
 }
 

@@ -190,6 +190,9 @@ const STREAM = 'app/api/admin/ai-chat/stream/route.ts'
 const ANALYZE = 'lib/ai-chat/analyze-gemini.ts'
 const CLIENT = 'app/(ai)/ai/AiChatClient.tsx'
 const BUBBLE = 'app/(ai)/ai/MessageBubble.tsx'
+const CRM_ADAPTER = 'lib/crm/ai/adapters/host.ts'
+const CRM_RUNNER = 'lib/crm/ai/runner.ts'
+const FILL_PANEL = 'components/ui/crm/QuoteFillPanel.tsx'
 
 test('★ 스트림 라우트가 체인을 실제로 만들고 순서대로 시도한다', () => {
   const src = read(STREAM)
@@ -222,6 +225,30 @@ test('★ 심층분석도 같은 체인을 탄다 — 여기만 빠지면 429 �
   const src = read(ANALYZE)
   assert.match(src, /buildModelChain\(/)
   assert.match(src, /pruneChain\(/)
+})
+
+/*
+  **그 「여기만 빠지면」이 실제로 일어났다**(실측 2026-09-19).
+
+  CRM 은 이 목록에 없었고, 그래서 자기 사슬(Gemini 모델만)을 갖고 있었다.
+  견적서 파일을 올렸더니 429 다섯 번 뒤에 「AI 사용량 한도를 초과했습니다」가 떴다 —
+  그 순간 OpenAI 키는 등록돼 있었다. 목록에 없는 길은 다음에도 또 생긴다.
+*/
+test('★ CRM 어댑터도 같은 체인을 탄다 — 여기 빠져 있던 동안 열두 기능이 429 하나에 죽었다', () => {
+  const src = read(CRM_ADAPTER)
+  assert.match(src, /buildModelChain\(/)
+  assert.match(src, /pruneChain\(/)
+  assert.match(src, /while \(rest\.length > 0\)/)
+  assert.match(src, /chain\.length === 0/, '후보가 없으면 조용히 끝내지 않는다')
+})
+
+test('★ CRM 도 갈아탄 사실을 말한다 — 조용히 바꾸면 같은 입력의 다른 답을 설명 못 한다', () => {
+  assert.match(read(CRM_RUNNER), /formatFallbackNotice\(/)
+  assert.match(read(CRM_RUNNER), /switchedNote/)
+  // 창구 둘이 그 값을 실어 보내고 화면이 받는다
+  assert.match(read('lib/crm/services/quote-draft.ts'), /switchedNote/)
+  assert.match(read('lib/crm/services/quote-from-file.ts'), /switchedNote/)
+  assert.match(read(FILL_PANEL), /body\.switchedNote/)
 })
 
 test('★ 화면이 갈아탄 사실을 받아 그린다 — 조용히 바꾸지 않는다', () => {

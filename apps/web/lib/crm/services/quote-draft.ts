@@ -56,6 +56,8 @@ export interface QuoteDraftResult {
   /** 무엇으로 만들었는지 — 사람이 원문과 대조할 수 있어야 한다 */
   text: string
   runId: string
+  /** 고른 모델이 막혀 다른 것이 답했으면 그 사실 — **조용히 바꾸지 않는다** */
+  switchedNote?: string
 }
 
 export async function draftQuoteFromText(
@@ -76,7 +78,7 @@ export async function draftQuoteFromText(
 
   const db = getCrmDb(workspaceId)
   const chosen = adapter ?? await adapterFromSetting(db)
-  const { output, runId } = await runAi<QuoteDraftOutput>({
+  const { output, runId, switchedNote } = await runAi<QuoteDraftOutput>({
     db, workspaceId, kind: 'QUICK_CREATE',
     prompt: QUOTE_DRAFT_V1,
     /*
@@ -89,5 +91,5 @@ export async function draftQuoteFromText(
     adapter: chosen,
   })
 
-  return { draft: output, text: input, runId }
+  return { draft: output, text: input, runId, switchedNote }
 }
