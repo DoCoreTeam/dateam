@@ -51,7 +51,7 @@
 의존: 없음
 
 ### I02 문서를 표가 살아 있는 글로 옮긴다
-상태: 대기
+상태: 통과
 모드: 경량
 범위:
 - apps/web/lib/crm/services/quote-source-text.ts (신규)
