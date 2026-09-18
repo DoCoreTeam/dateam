@@ -105,11 +105,50 @@
   min-width: 0;
 }
 
+/*
+  항목 줄 위의 머리.
+
+  **space-between 을 쓰지 않는다**(사용자 지적 2026-09-19: 「버튼의 배치가 왜이렇지?」).
+  자식이 「항목」 + 단추 넷이라, 균등 분배는 980px 을 넷으로 갈라 단추 사이에
+  200px 짜리 빈 자리를 만든다. 그러면 「말로 채우기」와 「항목 추가」가
+  **서로 상관없는 단추처럼** 떨어져 보이고, 어느 것이 자주 쓰는 것인지도 안 보인다.
+
+  제목은 왼쪽에 두고 단추는 오른쪽에 한 덩어리로 모은다.
+*/
 .linesHead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/*
+  단추 묶음 — **오른쪽 한 덩어리**.
+
+  좁은 화면에서는 접힌다. 가로로 밀어내면 「항목 추가」가 화면 밖으로 나가는데,
+  그건 이 화면에서 가장 자주 누르는 단추다.
+*/
+.lineActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+/*
+  성격이 갈리는 자리의 세로선.
+
+  왼쪽은 **채우기**(말로·파일로) — 여러 줄이 한꺼번에 들어온다.
+  오른쪽은 **추가**(묶음·항목) — 빈 줄 하나가 는다.
+  구분선이 없으면 넷이 같은 일의 네 가지 방법으로 읽힌다.
+*/
+.actionSep {
+  width: var(--border-w);
+  align-self: stretch;
+  min-height: var(--space-5);
+  margin: 0 var(--space-1);
+  background: var(--border-light);
 }
 
 .sectionTitle {

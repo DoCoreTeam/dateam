@@ -106,6 +106,19 @@ export const QUOTE = {
   lines: '항목',
   addLine: '항목 추가',
   removeLine: '항목 삭제',
+  /**
+   * 항목을 **묶어서** 보여 주는 단위. 「섹션」·「그룹」이 아니라 「묶음」이다
+   * (금지어: 외래어를 우리말로 바꿀 수 있으면 바꾼다).
+   */
+  addSection: '묶음 추가',
+  /** 묶음에 안 넣은 항목을 고르는 값 */
+  sectionNone: '묶지 않음',
+  sectionLabel: '묶음',
+  /**
+   * 말로 적으면 항목으로 옮긴다. 「AI 로 만들기」라고 하지 않는다 —
+   * **만드는 것은 사람**이고 이 단추는 받아 적기만 한다(§5-3).
+   */
+  fillBySpeech: '말로 채우기',
   /** 우리만 보는 메모 — 인쇄되지 않는다 */
   internalMemo: '내부 메모',
   preview: '미리보기',
@@ -137,6 +150,15 @@ export const QUOTE = {
 // ------------------------------------------------------------
 // 문장 — 자리마다 문형이 정해져 있다(용어집 §0-2)
 // ------------------------------------------------------------
+
+/**
+ * 새 묶음의 기본 이름. 사람이 바로 고쳐 쓰라고 번호만 붙인다.
+ *
+ * 0 부터 세는 인덱스를 받는다 — 화면이 `length` 를 그대로 넘기면 «다음 번호» 가 된다.
+ */
+export function sectionDefaultName(index: number): string {
+  return `${QUOTE.sectionLabel} ${index + 1}`
+}
 
 /** 편집 화면의 제목. 새로 쓰는지 고치는지로 갈린다 */
 export function quoteEditTitle(isEdit: boolean): string {

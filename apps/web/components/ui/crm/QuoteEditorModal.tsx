@@ -43,6 +43,7 @@ import {
   QUOTE,
   quoteEditTitle,
   QUOTE_LINES_LOCKED,
+  sectionDefaultName,
   approvalNeeded,
   ROUNDING_MODES,
   roundingNote,
@@ -617,38 +618,51 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           )}
         </div>
 
+        {/*
+          단추 넷이 **두 무리**다(사용자 지적 2026-09-19: 「버튼의 배치가 왜이렇지?」).
+
+          왼쪽 무리는 **채우기** — 여러 줄이 한꺼번에 들어온다. 말로 적거나, 이미 만들어 둔
+          견적서 파일을 올린다. 둘 다 사람이 확인한 뒤에 들어간다(§5-3).
+          오른쪽 무리는 **추가** — 빈 줄 하나가 는다.
+
+          예전에는 넷이 같은 ghost 로 화면 폭에 흩어져 있어, 어느 것이 자주 쓰는 것인지도
+          성격이 다른지도 안 보였다. 지금은 오른쪽에 모으고, 가장 자주 누르는
+          「항목 추가」에만 테두리를 준다.
+        */}
         <div className={styles.linesHead}>
           <span className={styles.sectionTitle}>{QUOTE.lines}</span>
-          {/*
-            **묶음은 선택이다.** 안 만들면 예전과 똑같은 한 표다.
-            항목이 스무 줄 넘어가면 고객이 무엇이 무엇인지 모르는데, 그때 쓰라고 둔다.
-          */}
-          {/*
-            **말로 채우기.** 「H100 2대 3개월, 20% 할인」을 그대로 적으면 항목으로 옮긴다.
-            AI 가 저장하지는 않는다 — 폼에 채워 넣기만 하고 사람이 보고 고친다(§5-3).
-          */}
           {!linesLocked && (
-            <NbButton variant="ghost" onClick={() => setSayOpen((v) => !v)}>
-              <Sparkles size={16} /> 말로 채우기
-            </NbButton>
-          )}
-          {!linesLocked && (
-            <NbButton
-              variant="ghost"
-              onClick={() => setDraft((d) => ({
-                ...d, sections: [...d.sections, { name: `묶음 ${d.sections.length + 1}` }],
-              }))}
-            >
-              <Plus size={16} /> 묶음 추가
-            </NbButton>
-          )}
-          {!linesLocked && (
-            <NbButton
-              variant="ghost"
-              onClick={() => setDraft((d) => ({ ...d, lines: [...d.lines, emptyLine()] }))}
-            >
-              <Plus size={16} /> {QUOTE.addLine}
-            </NbButton>
+            <div className={styles.lineActions}>
+              {/*
+                **말로 채우기.** 「H100 2대 3개월, 20% 할인」을 그대로 적으면 항목으로 옮긴다.
+                AI 가 저장하지는 않는다. 폼에 채워 넣기만 하고 사람이 보고 고친다(§5-3).
+              */}
+              <NbButton variant="ghost" onClick={() => setSayOpen((v) => !v)}>
+                <Sparkles size={16} /> {QUOTE.fillBySpeech}
+              </NbButton>
+
+              <span className={styles.actionSep} aria-hidden />
+
+              {/*
+                **묶음은 선택이다.** 안 만들면 예전과 똑같은 한 표다.
+                항목이 스무 줄 넘어가면 고객이 무엇이 무엇인지 모르는데, 그때 쓰라고 둔다.
+              */}
+              <NbButton
+                variant="ghost"
+                onClick={() => setDraft((d) => ({
+                  ...d, sections: [...d.sections, { name: sectionDefaultName(d.sections.length) }],
+                }))}
+              >
+                <Plus size={16} /> {QUOTE.addSection}
+              </NbButton>
+              {/* 이 화면에서 가장 자주 누르는 단추. 하나만 테두리를 줘서 눈이 먼저 닿게 한다 */}
+              <NbButton
+                variant="secondary"
+                onClick={() => setDraft((d) => ({ ...d, lines: [...d.lines, emptyLine()] }))}
+              >
+                <Plus size={16} /> {QUOTE.addLine}
+              </NbButton>
+            </div>
           )}
         </div>
 
@@ -706,7 +720,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   className="input-field"
                   value={sec.name}
                   disabled={linesLocked}
-                  aria-label={`${si + 1}번째 묶음 이름`}
+                  aria-label={`${si + 1}번째 ${QUOTE.sectionLabel} 이름`}
                   onChange={(e) => setDraft((d) => ({
                     ...d,
                     sections: d.sections.map((x, j) => (j === si ? { ...x, name: e.target.value } : x)),
@@ -716,7 +730,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   <button
                     type="button"
                     className={styles.lineRemove}
-                    aria-label={`${sec.name} 묶음 빼기`}
+                    aria-label={`${sec.name} ${QUOTE.sectionLabel} 빼기`}
                     /*
                       묶음을 빼도 **항목은 남는다.** 뒤 묶음을 가리키던 항목의 인덱스가
                       하나씩 당겨지므로 여기서 함께 고친다 — 안 그러면 엉뚱한 묶음에 붙는다.
@@ -782,7 +796,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                 */}
                 {draft.sections.length > 0 && (
                   <div className={`${styles.field} ${styles.colSection}`}>
-                    <label className="label" htmlFor={`ln-sec-${i}`}>묶음</label>
+                    <label className="label" htmlFor={`ln-sec-${i}`}>{QUOTE.sectionLabel}</label>
                     <select
                       id={`ln-sec-${i}`}
                       className="input-field"
@@ -792,7 +806,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                         sectionIndex: e.target.value === '' ? null : Number(e.target.value),
                       })}
                     >
-                      <option value="">묶지 않음</option>
+                      <option value="">{QUOTE.sectionNone}</option>
                       {draft.sections.map((sec, si) => (
                         <option key={si} value={si}>{sec.name}</option>
                       ))}

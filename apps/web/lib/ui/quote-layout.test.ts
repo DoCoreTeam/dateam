@@ -101,7 +101,56 @@ test('★ 두 행 모두 정확히 12칸이다 — 하나라도 어긋나면 그
   assert.equal(second, 12, `둘째 행이 ${second}칸이다`)
 })
 
-/* ── ⑤ 순서 조정이 공용 부품을 쓴다 ──────────────── */
+/* ── ⑤ 항목 줄 머리의 단추 배치 ──────────────────── */
+
+/*
+  사용자 지적(2026-09-19): 「견적서 화면자체에 말로채우기 묶음추가 항목추가 버튼의 배치가 왜이렇지?」
+
+  원인은 `.linesHead` 의 `justify-content: space-between` 하나였다. 자식이
+  「항목」 + 단추 셋이라 980px 을 넷으로 갈라 **단추 사이에 200px 짜리 빈 자리**가 생겼고,
+  셋이 전부 같은 ghost 라 성격이 다른 일(채우기 / 추가)이 같은 일로 읽혔다.
+*/
+
+test('★ 머리가 자식을 균등 분배하지 않는다 — 그것이 단추가 흩어진 원인이었다', () => {
+  const m = PANEL.match(/\.linesHead \{[^}]*\}/)
+  assert.ok(m, '.linesHead 규칙이 사라졌다')
+  assert.ok(
+    !/justify-content:\s*space-between/.test(m[0]),
+    'space-between 으로 되돌리면 단추 사이가 다시 벌어진다(실측 980px / 4)',
+  )
+})
+
+test('★ 단추는 오른쪽 한 덩어리다 — 좁아지면 접힌다', () => {
+  const m = PANEL.match(/\.lineActions \{[^}]*\}/)
+  assert.ok(m, '.lineActions 규칙이 사라졌다')
+  assert.match(m[0], /margin-left: auto/, '제목과 단추가 붙으면 제목이 단추에 밀린다')
+  assert.match(m[0], /flex-wrap: wrap/, '안 접히면 「항목 추가」가 화면 밖으로 나간다')
+  assert.match(MODAL, /styles\.lineActions/, '화면이 그 묶음을 안 쓴다')
+})
+
+test('★ 채우기와 추가를 구분선이 가른다 — 넷이 한 무리로 보이면 성격이 안 읽힌다', () => {
+  assert.match(PANEL, /\.actionSep \{/, '.actionSep 규칙이 사라졌다')
+  assert.match(MODAL, /styles\.actionSep/, '화면이 구분선을 안 쓴다')
+})
+
+test('★ 테두리는 「항목 추가」 하나뿐 — 전부 강조하면 아무것도 강조되지 않는다', () => {
+  const secondary = MODAL.match(/variant="secondary"/g) ?? []
+  assert.equal(secondary.length, 1, `모달에 secondary 가 ${secondary.length}개다`)
+  // 그 하나가 「항목 추가」인지 — 단추 블록 안에 QUOTE.addLine 이 함께 있어야 한다
+  const block = MODAL.match(/variant="secondary"[\s\S]{0,400}?<\/NbButton>/)
+  assert.ok(block && /QUOTE\.addLine/.test(block[0]), 'secondary 가 「항목 추가」가 아니다')
+})
+
+test('★ 단추 이름은 용어집에서 온다 — 화면이 한글을 직접 적지 않는다', () => {
+  assert.match(MODAL, /QUOTE\.fillBySpeech/)
+  assert.match(MODAL, /QUOTE\.addSection/)
+  assert.ok(
+    !/> ?말로 채우기|> ?묶음 추가/.test(MODAL),
+    '리터럴로 되돌리면 같은 말이 화면마다 갈린다',
+  )
+})
+
+/* ── ⑥ 순서 조정이 공용 부품을 쓴다 ──────────────── */
 
 test('★ 항목 순서는 공용 부품으로 — 같은 성격을 두 번 만들지 않는다(§0)', () => {
   assert.match(MODAL, /<ReorderList/, '견적 항목 순서 조정이 사라졌다')
