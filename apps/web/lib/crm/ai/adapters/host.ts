@@ -21,8 +21,11 @@ import { getAvailableProviders, getProviderConfig, getDefaultProvider } from '..
 import type { ProviderId, AttachmentInput } from '../../../ai-chat/provider.ts'
 import { isAiProviderId } from '../../../ai/provider-catalog.ts'
 import { CrmError } from '../../domain/errors.ts'
-import { resolveGeminiModelChain } from '../../../ai/gemini-model.ts'
 import { classifyProviderError } from '../../../ai-chat/provider-errors.ts'
+import {
+  buildModelChain, pruneChain, meetsRequirements,
+  type ChainCandidate, type ChainCatalogEntry, type ChainRequirements,
+} from '../../../ai-chat/model-chain.ts'
 
 /** 사람이 기다릴 수 있는 한계. 넘으면 실패로 말한다 — 무한정 도는 건 실패보다 나쁘다 */
 const TIMEOUT_MS = 60_000
@@ -35,6 +38,14 @@ const WEB_SEARCH_TIMEOUT_MS = 90_000
 
 /** 호스트 META 를 읽어 오는 함수 — 서버에서 주입한다(이 파일은 DB 를 모른다) */
 export type MetaReader = () => Promise<Record<string, unknown>>
+
+/**
+ * 모델 카탈로그를 읽어 오는 함수 — 마찬가지로 주입한다.
+ *
+ * **안 주면 빈 목록이다.** 그래도 공급자를 넘는 것은 그대로 동작한다(설정 모델끼리 넘어간다).
+ * 카탈로그가 있으면 죽은 모델을 빼고 한도에 걸렸던 것을 뒤로 미는 것까지 된다.
+ */
+export type CatalogReader = () => Promise<ChainCatalogEntry[]>
 
 // 허용 목록을 여기 또 적지 않는다 — 명세(lib/ai/provider-catalog)가 원본이다.
 // 예전엔 세 개가 손으로 적혀 있어서, 호스트에 Groq 을 등록해도 CRM 만 그것을 몰랐다.
@@ -116,6 +127,7 @@ export async function hostAdapter(
   readMeta: MetaReader,
   setting: string | null | undefined,
   opts: HostAdapterOptions = {},
+  readCatalog: CatalogReader = async () => [],
 ): Promise<AiAdapter> {
   const meta = await readMeta()
   const id = resolveProvider(meta, setting)
@@ -126,7 +138,7 @@ export async function hostAdapter(
   }
 
   // 프로바이더 구현은 호스트 것을 그대로 쓴다 — CRM 이 HTTP 호출을 다시 짜지 않는다
-  const { getProvider } = await import('../../../ai-chat/registry.ts')
+  const { getProvider, getAvailableProviders } = await import('../../../ai-chat/registry.ts')
   const provider = getProvider(id)
 
   const webSearch = opts.webSearch === true
@@ -137,10 +149,6 @@ export async function hostAdapter(
    * 그냥 진행하면 모델은 기억으로 답하고 출처는 비고, 화면에는 "AI 가 찾았다"고 뜬다.
    * 사용자는 검색해서 확인한 값이라고 믿는다 — 실패보다 나쁜 결과다.
    */
-  if (webSearch && !provider.capabilities.tools) {
-    throw new CrmError('VALIDATION_FAILED',
-      `${provider.label}는 웹 검색을 지원하지 않습니다. CRM 설정의 ai.model.extract 를 gemini 또는 claude 로 바꿔 주세요.`)
-  }
 
   const attachments = opts.attachments ?? []
 
@@ -151,26 +159,54 @@ export async function hostAdapter(
    * 화면에는 「읽었는데 항목이 없다」로 뜨고, 사용자는 자기 견적서가 잘못된 줄 안다.
    * 웹 검색과 같은 이유로 여기서 막는다.
    */
-  if (attachments.length > 0 && !provider.capabilities.vision) {
-    throw new CrmError('VALIDATION_FAILED',
-      `${provider.label}는 그림을 읽지 못합니다. CRM 설정의 ai.model.extract 를 그림을 읽는 모델로 바꿔 주세요.`)
-  }
 
   /**
-   * 시도할 모델 순서.
+   * 시도할 후보 순서 — **공급자를 넘는다.**
    *
-   * **왜 하나로는 안 되나**(v0.7.577 실측): 설정 모델 하나만 부르면, 그 모델의 할당량이
-   * 바닥났을 때 기능이 통째로 죽는다. 다른 모델은 멀쩡한데도 그렇다 —
-   * Gemini 는 모델마다 할당량 바구니가 따로다. 사용자에게는 "AI 가 계속 한도"로만 보이고,
-   * 고치는 길은 어드민이 설정을 바꾸는 것뿐이었다.
+   * ## 왜 모델만 바꿔서는 안 되나 (실측 2026-09-19)
    *
-   * 호스트에는 이미 폴백 사슬 SSOT(`lib/ai/gemini-model.ts`)가 있었는데
-   * CRM 만 그것을 안 쓰고 `cfg.model` 을 직접 불렀다. 이제 같은 사슬을 쓴다.
+   * 예전 판은 Gemini 모델만 담긴 사슬을 스스로 만들고, 429 를 「다른 모델을 시도하라」로
+   * 읽었다. 그런데 무료 티어 한도는 **키 단위로 함께 바닥난다** — 그래서 Gemini 모델 다섯을
+   * 차례로 때려 429 를 다섯 번 맞고 포기했다. 그 순간 OpenAI 키는 등록돼 있었고 멀쩡했다.
    *
-   * `requireJson: false` — 여기 응답은 JSON 모드 강제가 아니라 프롬프트로 받는다.
-   * gemini 가 아닌 프로바이더는 사슬이 없으므로 설정 모델 하나 그대로다.
+   * 그 판단은 이미 SSOT 가 있다. `provider-errors.ts` 가 실패를 `scope` 로 나누고
+   * (429 는 `provider` — 이 키로는 뭘 해도 안 된다), `model-chain.ts` 가 그 scope 로
+   * 공급자를 통째로 건너뛴다. AI 채팅과 심층분석이 이미 그것을 탄다.
+   * **CRM 만 자기 사슬을 갖고 있었다.** 이제 같은 것을 쓴다.
+   *
+   * ## 능력을 못 채우는 후보는 뺀다
+   *
+   * 첨부가 있으면 그림을 읽는 공급자만, 웹 검색이면 도구를 쓰는 공급자만 남는다.
+   * `buildModelChain` 은 «관리자가 고른 것»(1단계)만은 능력과 무관하게 넣으므로
+   * 여기서 한 번 더 거른다 — 못 보는 모델에 그림을 보내 봐야 400 이다.
    */
-  const modelChain = id === 'gemini' ? resolveGeminiModelChain(cfg.model, { requireJson: false }) : [cfg.model]
+  const requires: ChainRequirements = { vision: attachments.length > 0, tools: webSearch }
+  const available = getAvailableProviders(meta)
+  const capabilities = Object.fromEntries(
+    available.map((p) => [p.id, getProvider(p.id).capabilities]),
+  ) as Parameters<typeof buildModelChain>[0]['capabilities']
+
+  const chain = buildModelChain({
+    chosen: { provider: id, model: cfg.model },
+    providers: available,
+    catalog: await readCatalog(),
+    capabilities,
+    requires,
+  }).filter((c) => meetsRequirements(capabilities[c.provider], requires))
+
+  /**
+   * 후보가 하나도 없으면 **조용히 끝내지 않는다.**
+   *
+   * 무엇이 모자란지 말해야 관리자가 고칠 수 있다 — 「AI 응답 실패」로는 키를 넣어야 하는지
+   * 모델을 바꿔야 하는지 알 수 없다.
+   */
+  if (chain.length === 0) {
+    throw new CrmError('VALIDATION_FAILED', requires.vision
+      ? '그림을 읽을 수 있는 AI 모델이 없습니다. 시스템 설정 → 통합에서 키와 모델을 확인해 주세요.'
+      : requires.tools
+        ? '웹 검색을 할 수 있는 AI 모델이 없습니다. 시스템 설정 → 통합에서 키와 모델을 확인해 주세요.'
+        : '지금 쓸 수 있는 AI 모델이 없습니다. 시스템 설정 → 통합에서 키와 모델을 확인해 주세요.')
+  }
 
   return {
     model: cfg.model,
@@ -184,22 +220,34 @@ export async function hostAdapter(
       // 출처는 스트림 도중에 온다. 끝나고 한 번에 오지 않으므로 흘러올 때 모은다.
       const sources: AiSource[] = []
       const seen = new Set<string>()
+      /** 실제로 답한 후보. 고른 것과 다를 수 있고, 그 사실이 기록과 화면에 남아야 한다 */
+      let used: ChainCandidate | null = null
 
       /**
-       * 모델이 못 쓰는 상태면 **다음 모델로 넘어간다.**
-       * 넘어가는 것은 `fatalModel`(할당량 0 · 404 삭제) 과 한도 초과뿐이다 —
-       * 키 문제·타임아웃은 모델을 바꿔도 같으니 그대로 올린다(헛된 재시도는 돈만 쓴다).
+       * 후보를 순서대로 밟되, **실패한 이유에 따라 남은 후보를 쳐낸다.**
+       *
+       * 429 는 `scope: 'provider'` 다 — 그 키로는 뭘 해도 안 되므로 그 공급자의 남은 모델을
+       * 전부 뺀다. 이걸 안 하면 「429를 맞고 같은 공급자의 다음 모델로 넘어가 또 429」가 되고,
+       * 그동안 사용자는 다섯 배 오래 기다린 뒤 똑같은 실패를 본다(실측 2026-09-19).
+       *
+       * 쳐내는 규칙은 `pruneChain` 한 곳이고, 분류는 `classifyProviderError` 한 곳이다.
+       * 두 곳에서 분류하면 그 어긋남이 조용히 산다.
        */
+      let rest: ChainCandidate[] = chain
       let res: Awaited<ReturnType<typeof provider.streamChat>> | null = null
       let lastError: unknown = null
-      for (let i = 0; i < modelChain.length; i += 1) {
-        // 앞 모델에서 모은 출처가 섞이지 않게 비운다 — 실패한 시도의 인용은 이 답의 근거가 아니다
+      let lastScope: ReturnType<typeof classifyProviderError>['scope'] | null = null
+
+      while (rest.length > 0) {
+        const cand = rest[0]
+        rest = rest.slice(1)
+        // 앞 후보에서 모은 출처가 섞이지 않게 비운다 — 실패한 시도의 인용은 이 답의 근거가 아니다
         sources.length = 0
         seen.clear()
         try {
-          res = await provider.streamChat({
-            apiKey: cfg.apiKey,
-            model: modelChain[i],
+          res = await getProvider(cand.provider).streamChat({
+            apiKey: cand.apiKey,
+            model: cand.model,
             turns: [{
               role: 'user',
               content: prompt,
@@ -215,31 +263,35 @@ export async function hostAdapter(
               sources.push({ url: c.url, title: c.title || c.url })
             },
           })
+          used = cand
           break
         } catch (e) {
           lastError = e
-          const { fatalModel, availability } = classifyProviderError(e)
-          const worthAnotherModel = fatalModel || availability === 'limited'
-          /**
-           * **웹검색 한도는 모델을 바꿔도 소용없다.**
-           *
-           * 실측(2026-08-24): 같은 키로 일반 호출은 65초 뒤 200으로 회복되는데
-           * (분당 한도), `google_search` 를 켠 호출은 기다려도 계속 429였다.
-           * 그라운딩 한도는 **모델별이 아니라 키 단위 별도 바구니**라, 사슬을 끝까지 걸어도
-           * 전부 같은 이유로 실패한다 — 그동안 사용자는 4배 오래 기다린다.
-           * 그래서 여기서 멈추고, 무엇이 막힌 것인지 다르게 말한다.
-           */
-          if (webSearch && availability === 'limited') {
-            throw new CrmError('PROVIDER_QUOTA',
-              'AI 웹 검색 한도를 다 썼습니다. 이건 모델을 바꿔도 풀리지 않습니다 — '
-              + '한도가 초기화될 때까지 기다리거나 요금제를 올려야 합니다.')
+          const { scope } = classifyProviderError(e)
+          lastScope = scope
+          if (rest.length > 0) {
+            console.warn('[crm/ai] 후보 교체', `${cand.provider}:${cand.model}`, '→',
+              `${rest[0].provider}:${rest[0].model}`, `(${scope})`,
+              e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120))
           }
-          if (!worthAnotherModel || i === modelChain.length - 1) throw e
-          console.warn('[crm/ai] 모델 교체', modelChain[i], '→', modelChain[i + 1],
-            e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120))
+          rest = pruneChain(rest, cand, scope)
         }
       }
-      if (!res) throw lastError ?? new CrmError('VALIDATION_FAILED', 'AI 응답을 받지 못했습니다.')
+
+      /**
+       * 전부 실패했을 때 **무엇이 막혔는지** 말한다.
+       *
+       * 한도로 전부 막힌 것과 그 밖의 실패는 관리자가 할 일이 다르다 —
+       * 앞은 기다리거나 요금제를 올리는 것이고, 뒤는 키·모델을 보는 것이다.
+       */
+      if (!res) {
+        if (lastScope === 'provider' && classifyProviderError(lastError).availability === 'limited') {
+          throw new CrmError('PROVIDER_QUOTA',
+            '등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다. '
+            + '한도가 풀릴 때까지 기다리거나 시스템 설정 → 통합에서 다른 공급자 키를 추가해 주세요.')
+        }
+        throw lastError ?? new CrmError('VALIDATION_FAILED', 'AI 응답을 받지 못했습니다.')
+      }
 
       if (res.stopped) {
         throw new CrmError('VALIDATION_FAILED',
@@ -266,6 +318,9 @@ export async function hostAdapter(
         tokensIn: res.usage?.promptTokens ?? 0,
         tokensOut: res.usage?.outputTokens ?? 0,
         sources: webSearch ? sources : undefined,
+        // **실제로 답한 것**을 돌려준다. 기록이 고른 것을 적으면 사용량 집계가 거짓이 된다
+        usedProvider: used?.provider,
+        usedModel: used?.model,
       }
     },
   }

@@ -23,6 +23,7 @@ import { QUICK_CREATE_V1 } from '../ai/prompts/quick-create.v1.ts'
 import { parseQuickCreate, type QuickCreateOutput } from '../ai/schemas/quick-create.ts'
 import { mockAdapter, mockWebSearchAdapter } from '../ai/adapters/mock.ts'
 import { hostAdapter, type HostAdapterOptions } from '../ai/adapters/host.ts'
+import type { ChainCatalogEntry } from '../../ai-chat/model-chain.ts'
 import { enrichFromText } from './enrich.ts'
 import type { EnrichCandidate } from './enrich.ts'
 import type { AiAdapter } from '../ai/runner.ts'
@@ -359,7 +360,7 @@ export async function adapterFromSetting(
   // 스키마가 안 맞아 "AI 가 이해하지 못했습니다"가 뜨고, 원인이 mock 이라는 걸 아무도 모른다.
   if (name === 'mock') return opts.webSearch ? mockWebSearchAdapter() : mockAdapter()
 
-  return hostAdapter(readHostMeta, name, opts)
+  return hostAdapter(readHostMeta, name, opts, readHostCatalog)
 }
 
 /**
@@ -368,6 +369,28 @@ export async function adapterFromSetting(
  * 서비스롤로 읽는 이유: 이건 조직 전체의 연동 설정이라 사용자 RLS 아래에 있지 않다.
  * (AI 채팅·GPU 추출이 쓰는 그 경로와 같다 — 새로 만들지 않는다)
  */
+/**
+ * 모델 카탈로그를 읽는다 — 어느 모델이 지금 살아 있나.
+ *
+ * AI 채팅이 훑어 채우는 그 표(`ai_model_catalog`)를 그대로 읽는다. CRM 이 자기 표를 만들면
+ * 채팅이 「이 모델 죽었다」고 적어 둔 것을 CRM 만 모르고 계속 부른다.
+ *
+ * **못 읽어도 멈추지 않는다.** 빈 목록이면 설정 모델끼리 공급자를 넘는 것까지는 그대로 된다 —
+ * 카탈로그는 순서를 더 좋게 만드는 것이지 폴백의 조건이 아니다.
+ */
+async function readHostCatalog(): Promise<ChainCatalogEntry[]> {
+  try {
+    const { createAdminClient } = await import('../../supabase/server.ts')
+    const admin = createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (admin as any)
+      .from('ai_model_catalog').select('provider, model_id, label, is_active, availability')
+    return (data as ChainCatalogEntry[] | null) ?? []
+  } catch {
+    return []
+  }
+}
+
 async function readHostMeta(): Promise<Record<string, unknown>> {
   const { createAdminClient } = await import('../../supabase/server.ts')
   const admin = createAdminClient()

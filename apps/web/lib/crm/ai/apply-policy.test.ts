@@ -178,19 +178,29 @@ test('금지 필드 목록에 돈·단계·삭제·권한이 모두 들어 있�
 // 바닥나자 CRM 의 AI 가 통째로 죽었고, 다른 모델은 멀쩡한데도 그랬다.
 // 호스트에는 폴백 사슬 SSOT 가 이미 있었는데 CRM 만 그걸 안 썼다.
 
+/*
+  **사슬이 공급자를 넘도록 바뀌었다**(v0.10.x · 실측 2026-09-19).
+
+  예전 판은 Gemini 모델만 담긴 자작 사슬이었고, 429 를 「다른 모델을 시도하라」로 읽었다.
+  그래서 같은 키를 다섯 번 때리고 포기했다 — 그동안 OpenAI 키는 멀쩡히 등록돼 있었다.
+  지금은 AI 채팅과 같은 SSOT(`model-chain.ts`)를 쓴다.
+*/
 test('호스트 어댑터는 폴백 사슬을 쓴다 — 설정 모델 하나만 부르지 않는다', async () => {
   const src = await readFile(new URL('./adapters/host.ts', import.meta.url), 'utf8')
-  assert.match(src, /resolveGeminiModelChain\(cfg\.model/,
+  assert.match(src, /chosen: \{ provider: id, model: cfg\.model \}/,
     '설정 모델을 1순위로 둔 사슬을 만들어야 한다(어드민 선택 존중)')
-  assert.match(src, /model: modelChain\[i\]/, '사슬을 실제로 걸어야 한다')
+  assert.match(src, /buildModelChain\(/, '공용 체인 SSOT 를 써야 한다')
+  assert.match(src, /model: cand\.model/, '사슬을 실제로 걸어야 한다')
   assert.ok(!/model: cfg\.model,\n\s+turns:/.test(src), '설정 모델을 직접 부르는 길이 남아 있다')
 })
 
-test('모델을 바꿔도 소용없는 실패는 그대로 올린다 — 헛된 재시도는 돈만 쓴다', async () => {
+test('같은 벽을 두 번 치지 않는다 — 429 면 그 공급자의 남은 모델을 전부 뺀다', async () => {
   const src = await readFile(new URL('./adapters/host.ts', import.meta.url), 'utf8')
-  // 넘어가는 조건이 fatalModel(할당량 0·404) 또는 한도초과로 한정돼 있는가
-  assert.match(src, /const worthAnotherModel = fatalModel \|\| availability === 'limited'/)
-  assert.match(src, /if \(!worthAnotherModel \|\| i === modelChain\.length - 1\) throw e/)
+  // 판정은 classifyProviderError 한 곳, 쳐내기는 pruneChain 한 곳
+  assert.match(src, /const \{ scope \} = classifyProviderError\(e\)/)
+  assert.match(src, /rest = pruneChain\(rest, cand, scope\)/)
+  // 예전 판정(availability 로 「다른 모델 시도」)이 되살아나면 안 된다
+  assert.ok(!/worthAnotherModel/.test(src), '429 가 같은 공급자 안에서 돈다')
 })
 
 test('앞 모델에서 모은 출처는 다음 시도로 넘어가지 않는다 — 이 답의 근거가 아니다', async () => {

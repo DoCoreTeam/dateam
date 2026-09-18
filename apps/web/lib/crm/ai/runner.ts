@@ -59,6 +59,14 @@ export interface AiAdapter {
     tokensOut: number
     /** 웹 검색을 켠 어댑터만 채운다. 안 켰으면 undefined — "출처 없음"과 "검색 안 함"은 다르다 */
     sources?: AiSource[]
+    /**
+     * **실제로 답한** 공급자·모델. 고른 것과 다를 수 있다 — 한도에 걸리면 갈아타기 때문이다.
+     *
+     * 안 주는 어댑터(mock·옛 구현)도 있으므로 선택이다. 안 주면 러너가 `adapter.model` 을 쓴다.
+     * 주면 **그 값이 기록에 남는다** — 고른 것을 적으면 사용량 집계가 거짓이 된다.
+     */
+    usedProvider?: string
+    usedModel?: string
   }>
 }
 

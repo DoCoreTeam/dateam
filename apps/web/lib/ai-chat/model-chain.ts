@@ -71,7 +71,14 @@ function isDemoted(e: ChainCatalogEntry): boolean {
   return e.availability === 'limited'
 }
 
-function meetsRequirements(
+/**
+ * 이 공급자가 이 일에 필요한 능력을 갖췄나.
+ *
+ * **내보내는 이유**: 체인을 만든 뒤에도 같은 판정이 필요한 호출처가 있다 —
+ * `buildModelChain` 은 «고른 것»(1단계)만은 능력과 무관하게 넣기 때문이다(관리자 선택 존중).
+ * 그 하나까지 걸러야 하는 쪽이 같은 판정을 손으로 다시 적으면 둘이 갈린다.
+ */
+export function meetsRequirements(
   caps: { vision: boolean; tools: boolean } | undefined,
   requires: ChainRequirements,
 ): boolean {

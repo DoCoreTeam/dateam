@@ -156,8 +156,12 @@ test('★ 어댑터 결정을 다시 구현하지 않는다 — 호스트 설정
   assert.ok(!/hostAdapter\(/.test(SERVICE), '어댑터를 직접 만든다')
 })
 
-test('★ 그림을 못 보는 모델이면 막는다 — 조용히 빼면 「읽었는데 항목이 없다」가 된다', () => {
-  assert.match(HOST, /attachments\.length > 0 && !provider\.capabilities\.vision/)
+test('★ 그림을 못 보는 모델로는 안 간다 — 조용히 빼면 「읽었는데 항목이 없다」가 된다', () => {
+  // 예전엔 고른 모델이 그림을 못 보면 그 자리에서 실패했다.
+  // 지금은 그림을 보는 공급자를 후보로 고르고, 하나도 없을 때만 실패한다
+  assert.match(HOST, /vision: attachments\.length > 0/)
+  assert.match(HOST, /meetsRequirements\(capabilities\[c\.provider\], requires\)/)
+  assert.match(HOST, /그림을 읽을 수 있는 AI 모델이 없습니다/)
 })
 
 test('★ 첨부 변환은 호스트 첨부 계층이 한다 — 프로바이더별 변환을 CRM 이 또 짜지 않는다', () => {

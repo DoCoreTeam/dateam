@@ -285,11 +285,18 @@ test('맥락이 없으면 일반 한도 답으로 돌아간다 — 없는 정보
   assert.match(playbookFor('quota')!.diagnosis, /키 하나를 여러 기능이/)
 })
 
-test('웹 검색 한도면 모델 사슬을 더 걷지 않는다 — 전부 같은 이유로 실패한다', () => {
+/*
+  **한도는 키 단위다.** 그래서 같은 공급자의 다른 모델로 걷는 것은 낭비지만,
+  **다른 공급자로 넘어가는 것은 낭비가 아니다** — 키가 다르면 바구니도 다르다.
+  예전 판은 웹 검색 한도에서 통째로 멈췄는데, 그때 OpenAI 키가 멀쩡히 있었다(실측 2026-09-19).
+  지금은 `pruneChain(scope='provider')` 이 그 공급자만 걷어내고 다음 공급자로 간다.
+*/
+test('한도면 그 공급자를 통째로 건너뛴다 — 같은 키를 다시 때리지 않는다', () => {
   const src = read('lib/crm/ai/adapters/host.ts')
-  assert.match(src, /if \(webSearch && availability === 'limited'\)/,
-    '사슬을 끝까지 걸면 사용자만 4배 더 기다린다')
-  assert.match(src, /AI 웹 검색 한도를 다 썼습니다/)
+  assert.match(src, /rest = pruneChain\(rest, cand, scope\)/,
+    '같은 공급자 안에서 계속 걸으면 사용자만 4배 더 기다린다')
+  assert.match(src, /등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다/,
+    '전부 막혔을 때 무엇이 막힌 것인지 말해야 한다')
 })
 
 test('실패 기록에 webSearch 를 실어 보낸다 — 안 실으면 해결책을 고를 수 없다', () => {
