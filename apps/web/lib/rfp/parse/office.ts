@@ -185,8 +185,29 @@ function walk(node: AstNode, nodePath: string, st: WalkState): void {
     const declared = numberOf(node.metadata?.pageNumber ?? node.metadata?.slideNumber ?? node.metadata?.index)
     st.pageNo = declared ?? st.pageNo
     if (!st.charsByPage.has(st.pageNo)) st.charsByPage.set(st.pageNo, 0)
-    for (let i = 0; i < (node.children?.length ?? 0); i++) {
-      walk(node.children![i], `${nodePath}/${i}`, st)
+
+    /*
+      **시트는 표다.** xlsx 의 AST 는 `sheet > row > cell` 이고 `table` 노드가 없다.
+      행을 문단으로 흩으면 **셀 경계가 사라져** 「H100 2 50000000 100000000」한 줄이 되고,
+      그 글에서는 어느 숫자가 수량이고 어느 숫자가 단가인지 셀 수 없다
+      (실측 2026-09-19: 엑셀 견적서의 tableCount 가 0 이었다).
+
+      행이 아닌 자식(차트·그림)은 표를 낸 뒤에 따로 읽는다 — 버리면 근거가 사라진다.
+    */
+    const kids = node.children ?? []
+    const rows = kids.filter((c) => c.type === 'row')
+    if (rows.length > 0) {
+      pushTable({ ...node, children: rows }, `${nodePath}/rows`, st)
+      for (let i = 0; i < kids.length; i++) {
+        if (kids[i].type === 'row') continue
+        walk(kids[i], `${nodePath}/${i}`, st)
+      }
+      st.pageNo += 1
+      return
+    }
+
+    for (let i = 0; i < kids.length; i++) {
+      walk(kids[i], `${nodePath}/${i}`, st)
     }
     st.pageNo += 1
     return
@@ -257,7 +278,7 @@ function pushTable(node: AstNode, nodePath: string, st: WalkState): void {
       grid.push([collectText(row).trim()])
       continue
     }
-    grid.push((row.children ?? []).map((c) => collectText(c).trim()))
+    grid.push(rowCells(row))
   }
 
   if (grid.length === 0) return
@@ -291,14 +312,48 @@ function pushTable(node: AstNode, nodePath: string, st: WalkState): void {
   })
 }
 
+/**
+ * 한 행의 셀을 **원래 열 자리에** 놓는다.
+ *
+ * **왜 순서대로 담으면 안 되나**: 엑셀은 빈 칸을 아예 내보내지 않는 일이 흔하다.
+ * 「번호 · 품목 · (빈 칸) · 수량 · 단가」 행에서 셀을 나온 순서로 담으면
+ * **수량이 규격 자리로, 단가가 수량 자리로 한 칸씩 밀린다.**
+ * 그렇게 밀린 표를 읽으면 단가와 수량이 바뀌고, 그건 견적이 몇십 배 틀린다는 뜻이다.
+ *
+ * 좌표가 없는 형식(docx 표)은 예전처럼 나온 순서를 그대로 쓴다.
+ */
+function rowCells(row: AstNode): string[] {
+  const cells = row.children ?? []
+  const cols = cells.map((c) => numberOf(c.metadata?.col))
+  // 하나라도 좌표를 모르면 섞어 쓰지 않는다 — 반만 맞춘 격자가 전혀 안 맞춘 것보다 나쁘다
+  if (cells.length === 0 || cols.some((c) => c === null)) {
+    return cells.map((c) => collectText(c).trim())
+  }
+  const width = Math.max(...(cols as number[])) + 1
+  const out = Array.from({ length: width }, () => '')
+  cells.forEach((c, i) => { out[cols[i] as number] = collectText(c).trim() })
+  return out
+}
+
 function addChars(st: WalkState, n: number): void {
   st.charsByPage.set(st.pageNo, (st.charsByPage.get(st.pageNo) ?? 0) + n)
 }
 
-/** 자식까지 훑어 글자를 모은다 — text 가 잎에만 있는 형식이 있다 */
+/**
+ * 자식까지 훑어 글자를 모은다 — text 가 잎에만 있는 형식이 있다.
+ *
+ * **자기 text 가 있으면 거기서 멈춘다.** officeparser 는 부모에 합쳐진 글을 담고
+ * **같은 글을 자식에도 다시 담는다**(xlsx 의 `cell` 이 그렇다: `text: "H100"` 에
+ * `children: [{type:'text', text:'H100'}]`). 둘을 이어 붙이면
+ * **「H100 H100」·「2 2」·「50000000 50000000」** 이 되고, 그 글을 읽은 모델은
+ * 수량을 22 로, 단가를 5천만이 두 번 붙은 숫자로 읽는다(실측 2026-09-19).
+ *
+ * `walk` 는 이미 `node.text ?? collectText(node)` 로 **부모 text 를 정답으로** 다룬다.
+ * 여기만 다르게 두면 같은 파일이 경로에 따라 다르게 읽힌다.
+ */
 function collectText(node: AstNode): string {
+  if (node.text) return node.text
   const parts: string[] = []
-  if (node.text) parts.push(node.text)
   for (const c of node.children ?? []) {
     const t = collectText(c)
     if (t) parts.push(t)

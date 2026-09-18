@@ -248,3 +248,85 @@ test('글자가 없는 PDF 는 스캔 쪽으로 잡힌다', async () => {
   if (!r.ok) return
   assert.deepEqual(r.scanPages, [1], '빈 쪽을 성공으로 넘겼다')
 })
+
+// ── 엑셀 (실측 2026-09-19) ───────────────────────────────────
+
+/*
+  실제 xlsx 견적서를 넣어 보고서야 드러난 둘이다. 합성 AST 만으로는 안 보였다 —
+  officeparser 의 xlsx AST 는 `sheet > row > cell` 이고 `table` 노드가 아예 없으며,
+  `cell` 은 자기 text 와 **같은 글을 담은 자식**을 함께 들고 온다.
+
+  그 결과 모델에게 간 글이 이랬다:
+    「H100 80GB SXM H100 80GB SXM | ... | 2 2 | 50000000 50000000」
+  수량이 22 로 읽히면 견적이 열 배 틀린다.
+*/
+
+/** xlsx AST 를 흉내 낸다 — 셀은 text 와 같은 글의 자식을 함께 갖는다 */
+function 셀(col: number, text: string): AstNode {
+  return { type: 'cell', text, children: [{ type: 'text', text }], metadata: { row: 0, col } }
+}
+
+test('★ 셀 글자가 두 번 들어가지 않는다 — 「2 2」가 수량이면 견적이 열 배 틀린다', () => {
+  const { doc } = ir([{
+    type: 'sheet',
+    children: [{ type: 'row', children: [셀(0, 'H100 80GB SXM'), 셀(1, '2')] }],
+  }])
+  const table = doc.tables[0]
+  assert.ok(table, '시트가 표로 안 읽혔다')
+  assert.deepEqual(table.cells.map((c) => c.text), ['H100 80GB SXM', '2'])
+})
+
+test('★ 시트가 표가 된다 — 행을 문단으로 흩으면 셀 경계가 사라진다', () => {
+  const { doc } = ir([{
+    type: 'sheet',
+    children: [
+      { type: 'row', children: [셀(0, '품목'), 셀(1, '수량'), 셀(2, '단가')] },
+      { type: 'row', children: [셀(0, 'H100'), 셀(1, '2'), 셀(2, '50000000')] },
+    ],
+  }])
+  assert.equal(doc.tables.length, 1)
+  assert.equal(doc.tables[0].rows, 2)
+  assert.equal(doc.tables[0].cols, 3)
+  assert.equal(doc.blocks.filter((b) => b.type === 'table').length, 1)
+  assert.equal(doc.blocks.filter((b) => b.type === 'paragraph').length, 0, '행이 문단으로 샜다')
+})
+
+test('★ 빈 칸이 중간에 있어도 열이 안 밀린다 — 밀리면 수량 자리에 단가가 온다', () => {
+  // 엑셀은 빈 칸을 아예 안 내보낸다. 「번호 | (빈) | 수량 | 단가」
+  const { doc } = ir([{
+    type: 'sheet',
+    children: [{
+      type: 'row',
+      children: [셀(0, '1'), 셀(2, '2'), 셀(3, '50000000')],
+    }],
+  }])
+  const t = doc.tables[0]
+  assert.equal(t.cols, 4, `열이 ${t.cols}개다 — 좌표를 안 봤다`)
+  const byCol = new Map(t.cells.map((c) => [c.c, c.text]))
+  assert.equal(byCol.get(0), '1')
+  assert.equal(byCol.get(1), '', '빈 칸 자리가 채워졌다')
+  assert.equal(byCol.get(2), '2')
+  assert.equal(byCol.get(3), '50000000')
+})
+
+test('좌표가 없는 표는 예전처럼 나온 순서다 — docx 표가 깨지면 안 된다', () => {
+  const { doc } = ir([{
+    type: 'table',
+    children: [{ type: 'row', children: [
+      { type: 'cell', text: '가' }, { type: 'cell', text: '나' },
+    ] }],
+  }])
+  assert.deepEqual(doc.tables[0].cells.map((c) => c.text), ['가', '나'])
+})
+
+test('시트 안의 그림은 표를 낸 뒤에도 남는다 — 버리면 근거가 사라진다', () => {
+  const { doc } = ir([{
+    type: 'sheet',
+    children: [
+      { type: 'row', children: [셀(0, '품목')] },
+      { type: 'image', metadata: { src: 'x.png' } },
+    ],
+  }])
+  assert.equal(doc.tables.length, 1)
+  assert.equal(doc.figures.length, 1, '그림이 사라졌다')
+})
