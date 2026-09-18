@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.143',
+    date: '2026-09-19',
+    title: '목록 맨 아래 메뉴가 화면 밖으로 잘리지 않아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '\u2B06\uFE0F',
+        headline: '목록 마지막 줄의 「더보기」가 위로 열려요',
+        detail: '목록 맨 아래에서 더보기를 누르면 메뉴가 화면 밑으로 잘려 나가 삭제 확인 단추를 누를 수 없었어요. 이제 아래에 자리가 없으면 위로 열립니다. 메뉴 안에서 확인 문구가 펼쳐져 길어져도 화면 안에 머물러요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '\uD83D\uDCCF',
+        headline: '목록 끝에서 여기까지라고 알려줘요',
+        detail: '한 쪽으로 끝나는 목록은 페이지 단추가 안 나와서, 다 본 것인지 더 있는 것인지 알 수 없었어요. 이제 「전체 31명, 여기까지입니다」처럼 끝을 적어 줍니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.135',
     date: '2026-09-18',
     title: '날짜 칸에서 달력을 안 열어도 오늘을 넣을 수 있어요',
