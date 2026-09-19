@@ -19,8 +19,9 @@
  * 「이 형식에서만 표가 문단이 된다」 같은 결함을 가드로 잡을 수 있다.
  */
 
-import type { IrBlock, IrDocument, IrFigure, IrTable, IrTableCell, BlockType } from '../ir/types.ts'
+import type { IrBlock, IrDocument, IrFigure, IrTable, BlockType } from '../ir/types.ts'
 import { makeBlock, makeDocument, qualityScore, textHash } from '../ir/build.ts'
+import { gridCols, gridToCells, gridToHtml, gridToText } from './table-grid.ts'
 
 export const OFFICE_PARSER = 'officeparser'
 export const OFFICE_PARSER_VERSION = '7.3.0'
@@ -293,20 +294,16 @@ function pushTable(node: AstNode, nodePath: string, st: WalkState): void {
   }
 
   if (grid.length === 0) return
-  const cols = Math.max(...grid.map((r) => r.length))
-  const cells: IrTableCell[] = []
-  for (let r = 0; r < grid.length; r++) {
-    for (let c = 0; c < cols; c++) {
-      cells.push({ r, c, rowspan: 1, colspan: 1, text: grid[r][c] ?? '' })
-    }
-  }
+  // 격자를 표의 세 모양으로 바꾸는 일은 **한 곳**이 한다(table-grid) — 글자 파서도 같은 것을 쓴다
+  const cols = gridCols(grid)
+  const cells = gridToCells(grid, cols)
   st.warnings.add(OFFICE_WARNING.mergedCellFlattened)
 
-  const text = grid.map((r) => r.join('\t')).join('\n')
+  const text = gridToText(grid)
   const block = makeBlock(st.fileId, st.order++, {
     type: 'table',
     text,
-    html: toHtml(grid, cols),
+    html: gridToHtml(grid, cols),
     pageNo: st.pageNo,
     sourceRef: { kind: 'office', nodePath },
   })
@@ -378,17 +375,6 @@ function numberOf(v: unknown): number | null {
 
 function stringOf(v: unknown): string | null {
   return typeof v === 'string' && v ? v : null
-}
-
-function toHtml(grid: string[][], cols: number): string {
-  const body = grid
-    .map((r) => `<tr>${Array.from({ length: cols }, (_, c) => `<td>${escapeHtml(r[c] ?? '')}</td>`).join('')}</tr>`)
-    .join('')
-  return `<table>${body}</table>`
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 // ── 실제 파일 ────────────────────────────────────────────────
