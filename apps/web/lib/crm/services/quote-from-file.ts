@@ -19,6 +19,15 @@
  * 화면이 「항목을 못 찾았어요」라고 말하고, 사용자는 이 기능이 그 파일을 못 읽는 줄 안다.
  *
  * 그 판단은 `chooseQuoteFileRoute` 한 곳에서만 한다. 두 곳에서 하면 언젠가 갈린다.
+ *
+ * ## 한 파일에 견적 여러 건
+ *
+ * 한 딜에 견적이 하나일 이유가 없다. 1안·2안이 한 장에 들어오고, 받은 견적서와
+ * 우리 견적서가 한 파일에 붙어 오기도 한다. 그래서 **건 목록**을 돌려준다.
+ *
+ * 건마다 `origin` 라벨이 붙지만 **그 라벨은 알림이다.** 그 건을 새 견적으로 쓸지,
+ * 있는 견적에 붙일지, 원가로 넣을지는 **여기서 정하지 않는다** — 문서를 봐서는
+ * 알 수 없는 사람의 의도이고, 화면에서 사람이 고른다(사용자 지시 2026-09-19).
  */
 
 import { checkKind, type DetectedKind } from '../../rfp/parse/quality.ts'
@@ -29,8 +38,12 @@ import { CrmError } from '../domain/errors.ts'
 import { getCrmDb } from '../db/client.ts'
 import { runAi, type AiAdapter } from '../ai/runner.ts'
 import { QUOTE_FROM_DOC_V1 } from '../ai/prompts/quote-from-doc.v1.ts'
-import { parseQuoteFromDoc, type QuoteFromDocOutput } from '../ai/schemas/quote-from-doc.ts'
+import {
+  parseQuoteFromDocDoc, type QuoteFromDocDoc, type QuoteFromDocQuote, type QuoteFromDocOutput,
+} from '../ai/schemas/quote-from-doc.ts'
+import { judgeQuoteOrigin, type QuoteOrigin } from '../domain/quote-origin.ts'
 import { adapterFromSetting } from './quick-create.ts'
+import { readQuoteSupplier } from './setting.ts'
 import { irToSourceText, type SourceTextResult } from './quote-source-text.ts'
 
 /**
@@ -129,7 +142,30 @@ export interface QuoteFromFileInput {
   bytes: Uint8Array
 }
 
+/**
+ * 읽은 건 하나.
+ *
+ * `origin` 은 **알림이다.** 우리가 낸 문서로 보이는지 받은 문서로 보이는지 화면이
+ * 한 줄로 말해 줄 뿐, 그 값이 도착지(새 견적·붙이기·원가)를 정하지 않는다
+ * (`domain/quote-origin.ts` 머리말).
+ */
+export interface QuoteFromFileQuote extends QuoteFromDocQuote {
+  origin: QuoteOrigin
+}
+
 export interface QuoteFromFileResult {
+  /** 한 파일에서 읽은 견적 건들. 한 건짜리 문서면 하나다 */
+  quotes: QuoteFromFileQuote[]
+  /** 못 읽은 부분 — 어느 건에도 안 들어간 이야기까지 여기 모인다 */
+  unclear: string[]
+  /** 상한에 걸려 못 읽은 건 수. 0 이 아니면 화면이 그 수를 말한다 */
+  droppedQuotes: number
+  /**
+   * 첫 건만 보는 옛 칸.
+   *
+   * 편집 모달의 「파일로 채우기」가 아직 이 칸을 읽는다. 그 화면이 건 고르기로
+   * 옮겨가면(I04) **같이 지운다** — 같은 값이 두 칸에 오래 남으면 한쪽만 고쳐진다.
+   */
   draft: QuoteFromDocOutput
   /** 무엇을 읽고 만들었는지 — 사람이 원문과 대조할 수 있어야 한다 */
   source: {
@@ -226,17 +262,31 @@ export async function draftQuoteFromFile(
     ? '이 파일이 견적서다. 표를 그대로 읽어 항목으로 옮겨라.'
     : read.text
 
-  const { output, runId, switchedNote } = await runAi<QuoteFromDocOutput>({
+  const { output, runId, switchedNote } = await runAi<QuoteFromDocDoc>({
     db, workspaceId, kind: 'QUICK_CREATE',
     prompt: QUOTE_FROM_DOC_V1,
     input: promptInput,
     inputRef: { fileName: input.fileName, kind, route, chars: read.text.length },
-    parse: parseQuoteFromDoc,
+    parse: parseQuoteFromDocDoc,
     adapter: chosen,
   })
 
+  /*
+    우리 상호는 설정에서 온다. **못 읽으면 라벨을 안 붙인다** — 설정이 빈 워크스페이스에서
+    「받은 문서」라고 말하면 우리가 낸 견적서가 전부 남의 것이 된다(quote-origin.ts).
+  */
+  const ourName = await readQuoteSupplier(db).then((s) => s.name).catch(() => '')
+  const quotes: QuoteFromFileQuote[] = output.quotes.map((q) => ({
+    ...q,
+    origin: judgeQuoteOrigin({ documentSupplierName: q.supplierName, ourSupplierName: ourName }),
+  }))
+
   return {
-    draft: output,
+    quotes,
+    unclear: output.unclear,
+    droppedQuotes: output.droppedQuotes,
+    // 옛 칸 — 모달이 건 고르기로 옮겨가면 지운다
+    draft: { ...(quotes[0] ?? EMPTY_QUOTE), unclear: output.unclear },
     source: {
       fileName: input.fileName, route, kind,
       text: read.text, truncated: read.truncated, tableCount: read.tableCount,
@@ -244,6 +294,13 @@ export async function draftQuoteFromFile(
     runId,
     switchedNote,
   }
+}
+
+/** 건을 하나도 못 찾았을 때의 옛 칸 값. 화면은 「항목을 못 찾았다」를 띄운다 */
+const EMPTY_QUOTE: QuoteFromDocQuote = {
+  label: null, title: null, currency: null, customerName: null, supplierName: null,
+  issuedOn: null, lines: [], sourceTotalMinor: null, sourceTotalIncludesTax: false,
+  taxPercent: null,
 }
 
 /** 그림째 보낼 첨부로. 크기 상한은 첨부 규칙 한 곳에서 온다 */

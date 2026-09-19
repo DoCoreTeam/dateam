@@ -61,7 +61,7 @@
 의존: I01
 
 ### I03 서비스와 창구가 건 목록을 돌려준다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: lib/crm/services/quote-from-file.ts, lib/crm/services/quote-from-file.test.ts, app/api/crm/quotes/draft-file/route.ts
 감사 기준:

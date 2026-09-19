@@ -107,6 +107,46 @@ test('★ 길을 고르는 자리가 하나다 — 서비스가 스스로 판단
   assert.equal(decisions.length, 1, `그림 판정이 ${decisions.length}곳이다`)
 })
 
+/* ── 건 목록으로 돌려준다 ────────────────────────── */
+
+/*
+  한 딜에 견적이 하나일 이유가 없다(사용자 지시 2026-09-19).
+  한 건으로 뭉치면 두 건의 항목이 섞이고 합계 대조가 늘 안 맞는다고 뜬다.
+*/
+
+test('★ 서비스가 건 목록을 돌려준다 — 한 건으로 뭉치면 둘째 건이 사라진다', () => {
+  assert.match(SERVICE, /quotes: QuoteFromFileQuote\[\]/, '결과에 건 목록이 없다')
+  assert.match(SERVICE, /output\.quotes\.map\(/, '읽은 건을 그대로 안 넘긴다')
+  assert.match(SERVICE, /parseQuoteFromDocDoc/, '한 건짜리 파서를 아직 쓴다')
+})
+
+test('★ 못 읽은 것과 잘린 건 수를 함께 돌려준다 — 조용히 버리면 그게 전부인 줄 안다', () => {
+  assert.match(SERVICE, /unclear: output\.unclear/)
+  assert.match(SERVICE, /droppedQuotes: output\.droppedQuotes/)
+})
+
+test('★ 라벨은 알림일 뿐 — 서비스가 라벨로 도착지를 고르지 않는다', () => {
+  assert.match(SERVICE, /judgeQuoteOrigin\(/, '라벨을 안 붙인다')
+  assert.ok(
+    !/origin === '(received|ours|unknown)'/.test(SERVICE),
+    '라벨로 갈래를 친다. 고르는 일은 사람 몫이다',
+  )
+  assert.ok(
+    !/'cost'|'append'|'new_quote'/.test(SERVICE),
+    '서비스가 도착지를 정한다',
+  )
+})
+
+test('★ 우리 상호는 설정 한 곳에서 온다 — 화면마다 비교하면 답이 갈린다', () => {
+  assert.match(SERVICE, /readQuoteSupplier\(db\)/)
+  // 설정을 못 읽어도 읽기 자체는 성공해야 한다. 라벨만 없어진다
+  assert.match(SERVICE, /\.catch\(\(\) => ''\)/, '설정 조회 실패가 파일 읽기를 통째로 죽인다')
+})
+
+test('옛 칸(draft)은 첫 건을 그대로 가리킨다 — 따로 만들면 두 칸이 다른 답을 한다', () => {
+  assert.match(SERVICE, /draft: \{ \.\.\.\(quotes\[0\] \?\? EMPTY_QUOTE\)/)
+})
+
 /* ── 아무것도 저장하지 않는다 ────────────────────── */
 
 test('★ 서비스가 DB 에 쓰지 않는다 — 초안만 돌려준다(§5-3 자동 등록 금지)', () => {
