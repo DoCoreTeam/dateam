@@ -27,10 +27,11 @@ import {
   FILL_SPEECH_HINT, FILL_SPEECH_PLACEHOLDER, FILL_FILE_HINT, FILL_FILE_KINDS,
   FILL_REVIEW_HINT, FILL_UNCLEAR_TITLE,
   FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_NOTHING_FOUND,
+  FILL_PICK_BACK, FILL_PICK_ONE_ONLY,
 } from '@/lib/terms'
 import {
-  buildReview, toggleChecked, pickedLines, appendLines,
-  QuoteReviewList, ReviewHead,
+  buildReviews, toggleChecked, pickedLines, appendLines,
+  QuoteReviewList, QuotePickList, ReviewHead,
   type DocLineJson, type DocQuoteJson, type FileReview,
 } from './quote-review'
 import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
@@ -102,14 +103,24 @@ export default function QuoteFillPanel({
   const [unclear, setUnclear] = useState<string[]>([])
   /** 총액을 맞췄으면 무엇을 얼마로 맞췄는지 — **조용히 단가를 바꾸지 않는다** */
   const [note, setNote] = useState<string | null>(null)
-  const [review, setReview] = useState<FileReview | null>(null)
+  /**
+   * 파일에서 읽은 건 **전부**.
+   *
+   * 첫 건만 들고 나머지를 버리면 「다른 건 고르기」가 다시 읽기(=AI 를 또 부르기)가 된다.
+   * 한 번 읽은 것을 들고 있으면 고르는 일이 공짜가 되고, 사람은 마음껏 오간다.
+   */
+  const [reviews, setReviews] = useState<FileReview[]>([])
+  /** 지금 검수 중인 건. null 이면 아직 안 골랐다 */
+  const [pickedIndex, setPickedIndex] = useState<number | null>(null)
   /** 건에 딸리지 않은 값은 따로 든다 — 건이 여럿이어도 파일은 한 장이다 */
   const [docInfo, setDocInfo] = useState<DocInfo | null>(null)
+  const review: FileReview | null = pickedIndex === null ? null : reviews[pickedIndex] ?? null
   const fileRef = useRef<HTMLInputElement>(null)
 
   const close = () => {
     setSayText('')
-    setReview(null)
+    setReviews([])
+    setPickedIndex(null)
     setDocInfo(null)
     onClose()
   }
@@ -234,7 +245,9 @@ export default function QuoteFillPanel({
     onError(null)
     setUnclear([])
     setNote(null)
-    setReview(null)
+    setReviews([])
+    setPickedIndex(null)
+    setDocInfo(null)
     try {
       const form = new FormData()
       form.append('file', file)
@@ -243,17 +256,20 @@ export default function QuoteFillPanel({
       if (!res.ok) { onError(body?.error?.message ?? '파일을 읽지 못했습니다.'); return }
 
       /*
-        응답은 **건 목록**이다. 한 장에 견적이 둘이면 둘로 온다 —
-        여기(편집 모달)는 지금 보고 있는 견적 하나를 채우는 자리라 첫 건을 쓴다.
-        둘 이상일 때 고르는 일은 딜 화면의 「파일로 가져오기」가 맡는다.
+        응답은 **건 목록**이다. 한 장에 견적이 둘이면 둘로 온다.
+
+        여기(편집 모달)는 지금 보고 있는 견적 하나를 채우는 자리다. 그래도 첫 건을
+        말없이 집지 않는다 — 원가 견적서 한 장에 장비와 구축이 따로 적힌 경우가 흔하고,
+        그때 사람은 **나머지가 있었다는 사실 자체를 모른 채** 한쪽만 넣게 된다.
+        건이 하나면 고를 것이 없으니 곧장 검수로 간다.
       */
       const quotes = (body.quotes ?? []) as DocQuoteJson[]
       const source = body.source as Omit<DocInfo, 'unclear'>
       // 갈아탄 사실은 검수 목록과 **함께** 보인다 — 나중에 따로 말하면 이미 넣은 뒤다
       if (typeof body.switchedNote === 'string') setNote(body.switchedNote)
 
-      const first = quotes[0]
-      if (!first || (first.lines ?? []).filter((l) => l.name).length === 0) {
+      const made = buildReviews(quotes, draft.currency)
+      if (made.length === 0) {
         onError(FILL_NOTHING_FOUND)
         setUnclear((body.unclear ?? []) as string[])
         return
@@ -261,7 +277,8 @@ export default function QuoteFillPanel({
 
       // 못 알아본 말은 **넣은 뒤에** 보여 준다 — 검수 중에 띄우면 목록이 밀린다
       setDocInfo({ ...source, unclear: (body.unclear ?? []) as string[] })
-      setReview(buildReview(first, 0, draft.currency))
+      setReviews(made)
+      setPickedIndex(made.length === 1 ? 0 : null)
     } catch {
       onError('파일을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -281,12 +298,16 @@ export default function QuoteFillPanel({
       lines: appendLines(prev, picked),
     }))
     setUnclear(docInfo?.unclear ?? [])
-    setReview(null)
+    setReviews([])
+    setPickedIndex(null)
     setDocInfo(null)
     onClose()
   }
 
-  const toggle = (i: number) => setReview((r) => (r ? toggleChecked(r, i) : r))
+  /** 체크는 **지금 보고 있는 건**에만 든다 — 다른 건의 체크 상태는 그대로 남는다 */
+  const toggle = (i: number) => setReviews((rs) => rs.map(
+    (r, j) => (j === pickedIndex ? toggleChecked(r, i) : r),
+  ))
 
   const pickedCount = review ? review.checked.filter(Boolean).length : 0
 
@@ -312,7 +333,7 @@ export default function QuoteFillPanel({
         </div>
       )}
 
-      {mode === 'file' && !review && (
+      {mode === 'file' && !docInfo && (
         <div className={styles.sayBox}>
           <p className={styles.sayHint}>{FILL_FILE_HINT}</p>
           {/*
@@ -340,6 +361,24 @@ export default function QuoteFillPanel({
       )}
 
       {/*
+        **건이 둘 이상이면 고르는 일이 먼저다.** 하나면 이 자리는 아예 안 뜬다 —
+        고를 것이 없는데 고르라고 하면 누르는 수고만 는다.
+      */}
+      {docInfo && !review && reviews.length > 0 && (
+        <div className={styles.reviewBox}>
+          <QuotePickList
+            reviews={reviews}
+            fileName={docInfo.fileName}
+            hint={FILL_PICK_ONE_ONLY}
+            onPick={setPickedIndex}
+          />
+          <div className={styles.sayFoot}>
+            <NbButton variant="ghost" onClick={close} disabled={busy}>{ACTION.cancel}</NbButton>
+          </div>
+        </div>
+      )}
+
+      {/*
         **넣기 전에 본다.** 체크한 것만 폼에 들어간다(§5-3 추출/제안형 — 자동 등록 금지).
         줄마다 원문 조각을 옆에 둬서, 사람이 숫자를 원문과 견줄 수 있게 한다.
       */}
@@ -357,6 +396,12 @@ export default function QuoteFillPanel({
           <QuoteReviewList review={review} onToggle={toggle} />
 
           <div className={styles.sayFoot}>
+            {/* 고른 것을 되돌릴 수 있어야 한다 — 골라 보기 전에는 어느 건인지 알 수 없다 */}
+            {reviews.length > 1 && (
+              <NbButton variant="ghost" onClick={() => setPickedIndex(null)} disabled={busy}>
+                {FILL_PICK_BACK}
+              </NbButton>
+            )}
             <NbButton variant="ghost" onClick={close} disabled={busy}>{ACTION.cancel}</NbButton>
             <NbButton onClick={applyReview} disabled={pickedCount === 0}>
               {QUOTE.fillApply} ({pickedCount})

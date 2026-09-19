@@ -26,6 +26,7 @@ import {
   FILL_NO_PRICE, FILL_SOURCE_LABEL, FILL_RISK_TEXT,
   FILL_TOTAL_MATCH, FILL_TOTAL_NO_REFERENCE, fillTotalMismatch,
   FILL_TOTAL_OURS, FILL_TOTAL_DOCUMENT, fillFoundLine,
+  fillQuoteName, fillPickTitle, countOnly,
 } from '@/lib/terms'
 import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
 import styles from './quote-panel.module.css'
@@ -144,6 +145,22 @@ export function buildReview(
   }
 }
 
+/**
+ * 파일 한 장에서 읽은 건을 **전부** 편다.
+ *
+ * 첫 건만 펴고 나머지를 미루면, 고르는 목록에 「품목 몇 개 · 얼마」를 못 적는다 —
+ * 그 둘이 없으면 사람은 이름만 보고 골라야 하고, 이름은 문서가 안 줄 때가 많다.
+ * 품목이 하나도 없는 건은 **버린다**. 고를 수 없는 것을 목록에 세우면 고른 뒤에야 빈 것을 안다.
+ */
+export function buildReviews(
+  quotes: DocQuoteJson[],
+  fallbackCurrency: string | null,
+): FileReview[] {
+  return quotes
+    .map((q, i) => buildReview(q, i, fallbackCurrency))
+    .filter((r) => r.lines.length > 0)
+}
+
 /** 체크 하나 뒤집기 — 배열을 갈아 끼우지 않고 새로 만든다 */
 export function toggleChecked(review: FileReview, i: number): FileReview {
   return { ...review, checked: review.checked.map((c, j) => (j === i ? !c : c)) }
@@ -259,6 +276,51 @@ export function QuoteReviewList({ review, onToggle }: {
                 {review.sources[i]}
               </span>
             )}
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+
+/**
+ * 건이 둘 이상일 때 **고르는 목록** — 검수 앞에 선다.
+ *
+ * ## 왜 첫 건을 말없이 쓰지 않나
+ *
+ * 원가 견적서 한 장에 장비와 구축이 따로 적힌 경우가 흔하다. 첫 건만 집어 들면
+ * 사람은 **나머지가 있었다는 사실 자체를 모른다** — 안 들어간 줄은 합계에도 안 나타난다.
+ *
+ * ## 무엇을 보여 주고 고르게 하나
+ *
+ * 이름은 문서가 안 줄 때가 많아서 **품목 수와 읽은 금액**을 같이 적는다.
+ * 그 둘이 「이게 내가 찾던 그 견적인가」를 가르는 실제 단서다.
+ */
+export function QuotePickList({ reviews, fileName, hint, onPick }: {
+  reviews: FileReview[]
+  fileName: string
+  /** 이 자리에서 고르면 무엇이 되는지 — 모달과 딜 화면이 서로 다르다 */
+  hint: string
+  onPick: (index: number) => void
+}) {
+  return (
+    <>
+      <div className={styles.reviewHead}>
+        <FileText size={16} aria-hidden />
+        <b>{fillPickTitle(reviews.length, fileName)}</b>
+      </div>
+      <p className={styles.sayHint}>{hint}</p>
+      <ul className={styles.pickList}>
+        {reviews.map((r, i) => (
+          <li key={i}>
+            <button type="button" className={styles.pickItem} onClick={() => onPick(i)}>
+              <b className={styles.pickName}>{fillQuoteName(i, r.label ?? r.title)}</b>
+              <span className={styles.pickMeta}>
+                <span>{countOnly('product', r.lines.length)}</span>
+                <b>{formatAmount(r.total.ourTotalMinor.toString(), r.currency)}</b>
+              </span>
+            </button>
           </li>
         ))}
       </ul>

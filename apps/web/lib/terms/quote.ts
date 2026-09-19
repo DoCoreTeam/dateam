@@ -10,6 +10,8 @@
  * 그래서 화면이 문자열을 직접 적는 것을 특히 여기서 막는다.
  */
 
+import { ENTITY, countOnly } from './entity.ts'
+
 // ------------------------------------------------------------
 // 문서의 자리 이름
 // ------------------------------------------------------------
@@ -215,10 +217,39 @@ export const FILL_READ_AS_IMAGE =
 export const FILL_NOTHING_FOUND =
   '견적 항목을 찾지 못했어요. 항목 표가 있는 쪽만 따로 올려 보세요.'
 
-/** 읽은 항목이 몇 건인지 */
-export function fillFoundLine(count: number, fileName: string): string {
-  return `${fileName} 에서 ${count}건을 읽었어요`
+/**
+ * 읽은 품목이 몇 개인지.
+ *
+ * **조수사를 손으로 적지 않는다**(개체표 §03: 품목은 「개」, 견적은 「건」).
+ * 한 파일에서 견적을 여럿 읽으면 「견적 2건」과 「품목 12개」가 한 화면에 같이 선다 —
+ * 둘 다 「건」이면 사람은 같은 것을 두 번 센 줄로 읽는다.
+ */
+export function fillFoundLine(lineCount: number, fileName: string): string {
+  return `${fileName} 에서 ${countOnly('product', lineCount)}를 읽었어요`
 }
+
+/**
+ * 한 파일에 견적이 둘 이상일 때 — **고르라고 한다.**
+ *
+ * 첫 건을 말없이 쓰면 사람은 나머지가 있었다는 사실 자체를 모른다.
+ * 원가 견적서 한 장에 장비와 구축이 따로 적힌 경우가 그렇고, 그때 빠진 쪽은
+ * 영영 안 들어간다 — 안 들어간 줄은 합계에서도 안 보인다.
+ */
+export function fillPickTitle(quoteCount: number, fileName: string): string {
+  return `${fileName} 에서 ${countOnly('quote', quoteCount)}을 찾았어요. 채울 건을 골라 주세요`
+}
+
+/** 고르는 목록의 건 하나 — 문서가 이름을 안 줬으면 번호로 부른다 */
+export function fillQuoteName(index: number, said: string | null): string {
+  return (said ?? '').trim() || `${ENTITY.quote.label} ${index + 1}`
+}
+
+/** 고른 뒤에도 되돌아갈 수 있다 — 고르는 일은 되돌릴 수 있어야 한다 */
+export const FILL_PICK_BACK = '다른 건 고르기'
+
+/** 이 자리(편집 모달)는 견적 하나를 채운다 — 고른 것만 들어간다는 사실을 미리 말한다 */
+export const FILL_PICK_ONE_ONLY =
+  '여기서는 고른 한 건만 이 견적에 들어갑니다.'
 
 // ------------------------------------------------------------
 // 대조 — 「읽었다」와 「맞게 읽었다」는 다르다

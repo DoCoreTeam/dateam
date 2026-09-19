@@ -254,3 +254,29 @@ test('★ 검수 목록을 그리는 곳이 하나다 — 두 벌이면 한쪽�
   assert.ok(!/checkLine|checkTotal|initialChecked/.test(PANEL),
     '화면이 대조 계산을 직접 부른다 — 부품을 거쳐야 한다')
 })
+
+/*
+  건이 둘 이상인 파일에서 **고르는 목록**도 같은 이유로 한 자리에 있어야 한다.
+  모달과 딜 화면이 각각 그리면, 한쪽에만 품목 수와 금액이 붙고 다른 쪽은 이름만 보여 준다 —
+  이름은 문서가 안 줄 때가 많아서 그 화면에서는 사실상 못 고른다.
+*/
+test('★ 고르는 목록을 그리는 곳도 하나다', () => {
+  for (const mark of [/styles\.pickList/, /styles\.pickItem/, /fillPickTitle/]) {
+    assert.match(REVIEW, mark, `부품이 고르는 목록을 안 그린다: ${mark}`)
+    assert.ok(!mark.test(PANEL), `화면이 고르는 목록을 또 그린다: ${mark}`)
+  }
+})
+
+/*
+  **건이 하나면 고르는 자리를 띄우지 않는다.** 고를 것이 없는데 고르라고 하면
+  누르는 수고만 늘고, 사람은 그 화면을 «왜 뜬 거지»로 읽는다.
+  둘 이상이면 반대로 **첫 건을 말없이 집지 않는다** — 나머지가 있었다는 사실을 못 보게 된다.
+*/
+test('★ 건 하나면 곧장 검수, 둘 이상이면 고르기가 먼저', () => {
+  assert.match(PANEL, /setPickedIndex\(made\.length === 1 \? 0 : null\)/,
+    '건 수로 갈리지 않는다 — 하나일 때 곧장 검수로 가는 길이 없다')
+  assert.match(PANEL, /\{docInfo && !review && reviews\.length > 0 && \(/,
+    '고르는 자리가 검수 앞에 서지 않는다')
+  assert.match(PANEL, /reviews\.length > 1 && \(/,
+    '고른 뒤 되돌아갈 길이 없다 — 골라 보기 전에는 어느 건인지 알 수 없다')
+})
