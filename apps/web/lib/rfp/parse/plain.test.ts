@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parsePlain, decodeText, stripHtml, toParagraphs } from './plain.ts'
+import { parsePlain, decodeText, stripHtml, toParagraphs, csvToGrid } from './plain.ts'
 import { parseFile } from './index.ts'
+import { readFileSync } from 'node:fs'
 
 const enc = (s: string) => new TextEncoder().encode(s)
 
@@ -163,4 +164,61 @@ test('표 블록에도 저마다 다른 ID 가 붙는다 — 같으면 근거가
   if (!r.ok) return
   assert.equal(new Set(r.doc.blocks.map((b) => b.blockId)).size, r.doc.blocks.length)
   assert.equal(new Set(r.doc.tables.map((t) => t.tableId)).size, r.doc.tables.length)
+})
+
+/* ── CSV ─────────────────────────────────────────── */
+
+test('★ CSV 는 파일 전체가 표 하나다 — 머리줄도 표 안에 있다', () => {
+  const csv = '품명,규격,수량,단가\nH100,640GB,2,100000000\n설치,현장,1,10000000\n'
+  const r = parsePlain(enc(csv), { fileId: 'f1', fileName: 'a.csv' })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.equal(r.doc.tables.length, 1)
+  assert.equal(r.doc.tables[0].rows, 3)
+  assert.equal(r.doc.tables[0].cols, 4)
+  assert.equal(r.doc.blocks.length, 1)
+  assert.equal(r.doc.blocks[0].type, 'table')
+})
+
+test('★ 따옴표 안의 콤마와 줄바꿈은 셀 안에 남는다 — 잘리면 열이 밀린다', () => {
+  const csv = '품명,비고\n"H100, 8way","1차\n2차 납품"\n'
+  const r = parsePlain(enc(csv), { fileId: 'f1', fileName: 'a.csv' })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  const t = r.doc.tables[0]
+  assert.equal(t.cols, 2, '따옴표 안 콤마에서 잘렸다')
+  assert.equal(t.cells.find((c) => c.r === 1 && c.c === 0)?.text, 'H100, 8way')
+  assert.match(t.cells.find((c) => c.r === 1 && c.c === 1)?.text ?? '', /1차\n2차 납품/)
+})
+
+test('탭으로 나눈 것도 같은 파서가 판정한다 — 구분자 규칙을 여기 또 적지 않는다', () => {
+  const tsv = '품명\t수량\nH100\t2\n'
+  const r = parsePlain(enc(tsv), { fileId: 'f1', fileName: 'a.tsv' })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.equal(r.doc.tables[0].cols, 2)
+})
+
+test('★ 이름이 csv 가 아니면 콤마가 많아도 표가 아니다 — 주소·긴 문장이 통째로 표가 된다', () => {
+  const text = '서울시 강남구 테헤란로 1, 2층, 3호\n연락처, 담당자, 비고 순으로 적어 주세요'
+  const r = parsePlain(enc(text), { fileId: 'f1', fileName: 'a.txt' })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.equal(r.doc.tables.length, 0)
+})
+
+test('한 칸짜리 csv 는 표가 아니다 — 열이 없는 표는 읽는 쪽을 더 헷갈리게 한다', () => {
+  assert.equal(csvToGrid('한 줄\n두 줄\n'), null)
+  const r = parsePlain(enc('한 줄\n두 줄\n'), { fileId: 'f1', fileName: 'a.csv' })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.equal(r.doc.tables.length, 0, '표가 못 되면 문단으로 남아야 한다')
+  assert.ok(r.doc.blocks.every((b) => b.type === 'paragraph'))
+})
+
+test('★ 구분자·따옴표 규칙을 이 파일에 다시 적지 않는다', () => {
+  const src = readFileSync(new URL('./plain.ts', import.meta.url), 'utf8')
+  assert.match(src, /from '\.\.\/\.\.\/gpu\/csv-intake\.ts'/, '있는 CSV 파서를 안 쓴다')
+  assert.ok(!/inQuotes/.test(src), '따옴표 처리를 또 적었다')
+  assert.ok(!/split\(['"],['"]\)/.test(src), '콤마로 직접 자른다')
 })

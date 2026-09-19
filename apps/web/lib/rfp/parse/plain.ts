@@ -25,6 +25,12 @@
 import { makeBlock, makeDocument, qualityScore, textHash } from '../ir/build.ts'
 import type { IrBlock, IrDocument, IrTable } from '../ir/types.ts'
 import { gridCols, gridToCells, gridToHtml, gridToText } from './table-grid.ts'
+/*
+  **구분자와 따옴표는 이미 푼 사람이 있다.** RFC4180 유사 파서가 GPU 인입에 있고
+  콤마·탭 판정, 따옴표 안 콤마, 따옴표 안 줄바꿈까지 처리한다. 여기에 다시 적으면
+  「따옴표 안의 콤마」 같은 구석을 한쪽만 고치는 날이 온다 — 폴더가 다를 뿐 성격은 같은 함수다.
+*/
+import { parseCsv } from '../../gpu/csv-intake.ts'
 
 export type PlainRejectReason = 'empty' | 'undecodable'
 
@@ -182,6 +188,26 @@ export function toParts(text: string): PlainPart[] {
   return parts
 }
 
+/** 쉼표·탭으로 나눈 표 파일인가 — **이름으로만 판정한다** */
+export function isCsvName(fileName: string | undefined): boolean {
+  return /\.(csv|tsv)$/i.test(fileName ?? '')
+}
+
+/**
+ * CSV 는 **파일 전체가 표 하나**다.
+ *
+ * 내용을 보고 「콤마가 많으니 표」라고 판정하지 않는다 — 쉼표가 흔한 글(주소·긴 문장)이
+ * 통째로 표가 되고, 그 표는 열 수가 줄마다 달라 읽는 쪽을 더 헷갈리게 한다.
+ * 확장자가 말해 주는 것만 믿는다.
+ */
+export function csvToGrid(text: string): string[][] | null {
+  const grid = parseCsv(text)
+  if (grid.length === 0) return null
+  // 한 칸짜리는 표가 아니다 — 줄바꿈만 있는 글을 표로 만들면 열이 없다
+  if (gridCols(grid) < 2) return null
+  return grid
+}
+
 export interface PlainParseOptions {
   fileId: string
   fileName?: string
@@ -195,7 +221,8 @@ export function parsePlain(bytes: Uint8Array, opts: PlainParseOptions): PlainPar
   const isHtml = /\.(html?|xhtml)$/i.test(opts.fileName ?? '') || /<html[\s>]|<body[\s>]/i.test(raw.slice(0, 2000))
   const text = isHtml ? stripHtml(raw) : raw
 
-  const parts = toParts(text)
+  const csvGrid = isCsvName(opts.fileName) ? csvToGrid(text) : null
+  const parts = csvGrid ? [{ kind: 'table' as const, grid: csvGrid }] : toParts(text)
   if (parts.length === 0) return { ok: false, reason: 'empty', detail: '읽을 글자가 없다' }
 
   const blocks: IrBlock[] = []

@@ -60,7 +60,7 @@
 의존: I01
 
 ### I03 CSV 도 표로 읽는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: lib/rfp/parse/plain.ts, lib/rfp/parse/plain.test.ts
 감사 기준:
