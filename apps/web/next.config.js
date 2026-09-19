@@ -1,12 +1,55 @@
 /** @type {import('next').NextConfig} */
 const { version } = require('../../package.json')
 
+// Supabase 는 브라우저가 직접 부른다(인증·스토리지·실시간). 주소를 손으로 적지 않고
+// 빌드 시점 환경변수에서 뽑는다 — 프로젝트를 옮겨도 정책이 따라오게.
+const SUPABASE_ORIGIN = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+  } catch {
+    return ''
+  }
+})()
+const SUPABASE_WS = SUPABASE_ORIGIN.replace(/^https:/, 'wss:')
+
+/**
+ * 콘텐츠 보안 정책 — **먼저 보고만 받는다(Report-Only)**
+ *
+ * 왜 바로 강제하지 않나: Next 는 하이드레이션 부트스트랩을 인라인 <script> 로 넣는다.
+ * 그걸 nonce 없이 막으면 화면이 통째로 죽는다. nonce 를 붙이려면 미들웨어가 요청마다
+ * 값을 만들어 응답 헤더와 <script> 양쪽에 꽂아야 하고, 그 작업은 정적 최적화를 끈다.
+ * 그래서 순서를 지킨다 — ① 보고만 받아 무엇이 걸리는지 실측하고 ② 목록을 좁힌 뒤 ③ 강제한다.
+ * 지금 이 헤더는 아무것도 막지 않는다. 브라우저 콘솔에 위반만 찍힌다.
+ *
+ * frame-ancestors 는 X-Frame-Options 와 같은 말을 하지만 둘 다 둔다 —
+ * 옛 브라우저는 앞의 것만, 새 브라우저는 뒤의 것만 본다.
+ */
+const CSP_REPORT_ONLY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  `connect-src 'self' ${SUPABASE_ORIGIN} ${SUPABASE_WS}`.trim(),
+  "media-src 'self' blob: https:",
+  "worker-src 'self' blob:",
+  "frame-src 'none'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ')
+
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   // 명함 촬영(카메라)·음성 입력(마이크)에 필요 → 자기 출처(self) 허용. geolocation은 미사용이라 차단 유지.
   { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
+  // HTTPS 로만 오게 한다 — 첫 요청이 http 로 나가면 세션 쿠키가 평문으로 한 번 지나간다.
+  // preload 는 안 붙인다: 프리로드 목록은 **되돌리는 데 몇 달이 걸린다**(서브도메인 전부가 묶인다).
+  { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+  { key: 'Content-Security-Policy-Report-Only', value: CSP_REPORT_ONLY },
 ]
 
 // 서버리스 크로미움을 배포본에 싣는 경로.

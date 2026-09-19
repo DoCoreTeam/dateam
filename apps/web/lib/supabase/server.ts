@@ -1,3 +1,5 @@
+// 서비스롤 키를 다루는 모듈이다 — 클라이언트 번들에 끌려 들어가면 빌드가 멈추게 한다
+import 'server-only'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
