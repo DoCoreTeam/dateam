@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서 파일 한 장에서 견적 여러 건
 플랜 ID: P0028
-플랜 버전: v0.3.6
+플랜 버전: v0.3.7
 상태: 진행중
 지시: ins_0029
 목표 버전: v0.10.170
@@ -138,9 +138,9 @@
 의존: I08
 
 ### I10 오류 처리 전수
-상태: 대기
+상태: 통과
 모드: 경량
-범위: lib/crm/ui/read-api.ts (신규), lib/crm/ui/read-api.test.ts (신규), components/ui/crm/QuoteFromFileModal.tsx, components/ui/crm/QuoteFillPanel.tsx
+범위: lib/crm/api/read-error.ts, lib/crm/api/read-error.test.ts, lib/terms/quote.ts, lib/terms/index.ts, components/ui/crm/QuoteFromFileModal.tsx, components/ui/crm/QuoteFillPanel.tsx
 감사 기준:
 - JSON 이 아닌 응답(504·413·HTML)에 그 상황의 문장이 뜸 (읽지 못했습니다 한 마디로 뭉개지 않음)
 - 여러 건 만들기 중 일부 실패 시 성공·실패 건수와 사유가 남고 성공분은 목록에 반영됨
@@ -172,3 +172,4 @@
 - v0.3.4 (2026-09-19) I08 범위 정정 (audit:I08) — ① 순수 매핑을 `lib/crm/domain/quote-cost-intake.ts` 에 둔다: node --test 는 `@/` 별칭도 tsx 도 못 읽어 `components/` 안에서는 단위 검사를 못 한다 ② 화면 가드는 이미 이 창을 읽고 있는 `lib/ui/quote-layout.test.ts` 에 붙인다 (창을 읽는 가드가 두 벌이 되지 않게) ③ 새 문구는 `lib/terms` 에서 오므로 terms 세 파일이 함께 바뀐다 ④ 등재하지 않으면 테스트가 돌지 않으므로 apps/web/package.json 포함 ⑤ 「판매 견적도 만들면」을 **같은 건**으로 못박음 — 다른 건끼리는 줄을 이을 근거가 없어 quoteLineId 를 지어내게 된다
 - v0.3.5 (2026-09-19) I08 범위에 둘 더함 (audit:I08) — `lib/terms/entity.ts`: 원가 항목을 개체로 등재해 끝 문장이 조수사를 직접 고르지 않게 한다(용어집 규칙 3) · `lib/crm/domain/quote-reconcile.test.ts`: 고른 줄을 «자리»로 먼저 뽑도록 바꾸면서 옛 구현 문자열을 그대로 보던 가드가 낡았다, 규칙은 그대로 두고 보는 자리만 옮김
 - v0.3.6 (2026-09-19) I09 범위에 넷 더함 (audit:I09) — 판매가 고르는 칸이 새 문구를 쓰므로 `lib/terms/quote.ts`·`lib/terms/index.ts`, 결과 한 줄에 쓸 자리 하나 때문에 `quote-panel.module.css`, 그리고 등재하지 않으면 안 도는 테스트라 `apps/web/package.json`
+- v0.3.7 (2026-09-19) I10 이 만들려던 `lib/crm/ui/read-api.ts` 를 짓지 않고 이미 있는 `lib/crm/api/read-error.ts` 를 넓힌다 (audit:I10) — 그 파일이 이미 「API 실패를 사람 말로 바꾸는 한 곳」이고(readApiError·readApiErrorCode·describeFetchFailure, 화면 열한 곳이 쓴다), 옆에 같은 성격의 파일을 하나 더 두면 다음 화면이 어느 쪽을 부를지 갈린다(재사용·단일구현 정책). 부분 실패 건수 문구는 lib/terms/quote.ts 로

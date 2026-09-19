@@ -29,11 +29,12 @@ import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
   ACTION, ENTITY, failedTo, progress, QUOTE,
   FILL_FILE_KINDS, FILL_UNCLEAR_TITLE, FILL_NOTHING_FOUND,
-  FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE,
+  FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_READ_FAILED, FILL_FILE_LABEL,
   fillQuoteName, fillFoundLine,
   IMPORT_TITLE, IMPORT_FILE_HINT, IMPORT_DEST, IMPORT_DEST_HINT,
   IMPORT_APPEND_TARGET, IMPORT_NO_APPEND_TARGET, IMPORT_OPEN, IMPORT_CLOSE,
-  importSubmitLabel, importDoneLine, IMPORT_NOTHING_PICKED,
+  importSubmitLabel, importDoneLine, importFailedLine, importMixedLine,
+  IMPORT_NOTHING_PICKED, IMPORT_FAILED_UNKNOWN,
   IMPORT_COST_HINT, IMPORT_COST_ALSO_QUOTE, IMPORT_COST_ALSO_QUOTE_HINT, IMPORT_COST_ADMIN_ONLY,
   IMPORT_KEEP_FILE, IMPORT_KEEP_FILE_HINT, IMPORT_KEEP_FILE_FAILED,
   IMPORT_PRICE, IMPORT_PRICE_TITLE, IMPORT_PRICE_HINT, IMPORT_MARGIN_PLACEHOLDER,
@@ -51,6 +52,7 @@ import {
   type IntakeLine,
 } from '@/lib/crm/domain/quote-cost-intake'
 import { applyPrice, type PricePlan } from '@/lib/crm/domain/quote-margin'
+import { readResponse, describeFetchFailure } from '@/lib/crm/api/read-error'
 import {
   buildReviews, toggleChecked, pickedIndexes, pickedLines, QuoteReviewList,
   type DocQuoteJson, type FileReview,
@@ -176,6 +178,8 @@ export default function QuoteFromFileModal({
   /** 첨부로 남길 때만 쓰는 원본. 안 켜면 아무 데도 안 간다 */
   const [picked, setPicked] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  /** 보내는 중인가 — 그리기보다 먼저 잠기는 자물쇠(두 번 눌러도 한 벌만) */
+  const sending = useRef(false)
 
   /*
     창을 열 때 한 번 묻는다. 403 이면 원가 길 자체를 안 그린다 —
@@ -186,8 +190,9 @@ export default function QuoteFromFileModal({
     void (async () => {
       try {
         const res = await fetch(`/api/crm/deals/${dealId}/costs`, { cache: 'no-store' })
-        if (!res.ok) return
-        const body = await res.json()
+        const got = await readResponse(res, '')
+        if (!got.ok) return
+        const body = got.body as { canEdit?: boolean } | null
         if (alive) setCanCost(Boolean(body?.canEdit))
       } catch { /* 못 물어봤으면 없는 것으로 본다 */ }
     })()
@@ -201,9 +206,15 @@ export default function QuoteFromFileModal({
     try {
       const form = new FormData()
       form.append('file', file)
+      /*
+        **본문이 JSON 이 아닐 수 있다.** 큰 파일은 게이트웨이가 413 으로 끊고, 그림째 읽는
+        길은 504 로 끊긴다 — 그때 `res.json()` 은 그 줄에서 예외를 내고, 화면은 20MB 를
+        올렸든 3분을 기다렸든 **같은 한 마디**를 한다. 상황을 말하는 일은 read-error 가 한다.
+      */
       const res = await fetch('/api/crm/quotes/draft-file', { method: 'POST', body: form })
-      const body = await res.json()
-      if (!res.ok) { setError(body?.error?.message ?? '파일을 읽지 못했습니다.'); return }
+      const got = await readResponse(res, FILL_READ_FAILED)
+      if (!got.ok) { setError(got.message); return }
+      const body = (got.body ?? {}) as Record<string, unknown>
 
       const made = buildReviews((body.quotes ?? []) as DocQuoteJson[], dealCurrency)
       if (made.length === 0) { setError(FILL_NOTHING_FOUND); return }
@@ -226,7 +237,8 @@ export default function QuoteFromFileModal({
       setKeepFile(false)
       if (typeof body.switchedNote === 'string') setNote(body.switchedNote)
     } catch {
-      setError('파일을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      // 서버가 응답조차 못 한 경우 — 「다시 시도」와 「연결 확인」은 할 일이 다르다
+      setError(describeFetchFailure(FILL_FILE_LABEL))
     } finally {
       setBusy(false)
     }
@@ -270,9 +282,9 @@ export default function QuoteFromFileModal({
         sourceFileName: docInfo?.fileName ?? null,
       }),
     })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '견적을 만들지 못했습니다.')
-    return body as { lines?: { id: string }[] }
+    const got = await readResponse(res, failedTo(ENTITY.quote.label, '만들지'))
+    if (!got.ok) throw new Error(got.message ?? failedTo(ENTITY.quote.label, '만들지'))
+    return (got.body ?? {}) as { lines?: { id: string }[] }
   }
 
   /**
@@ -282,11 +294,13 @@ export default function QuoteFromFileModal({
    * 「이번에 안 온 항목」을 지운 것으로 보고 **있던 항목이 사라진다.**
    */
   const appendOne = async (targetId: string, lines: QuoteLineDraft[]) => {
-    const got = await fetch(`/api/crm/quotes/${targetId}`, { cache: 'no-store' })
-    const cur = await got.json()
-    if (!got.ok) throw new Error(cur?.error?.message ?? '붙일 견적을 불러오지 못했습니다.')
+    const read = await readResponse(
+      await fetch(`/api/crm/quotes/${targetId}`, { cache: 'no-store' }),
+      failedTo(ENTITY.quote.label, '불러오지'),
+    )
+    if (!read.ok) throw new Error(read.message ?? failedTo(ENTITY.quote.label, '불러오지'))
 
-    const draft = quoteToDraft(cur)
+    const draft = quoteToDraft(read.body)
     const kept = draft.lines.filter((l) => l.name.trim())
     const res = await fetch(`/api/crm/quotes/${targetId}`, {
       method: 'PATCH',
@@ -297,8 +311,8 @@ export default function QuoteFromFileModal({
         lines: [...kept, ...lines].map(toLinePayload),
       }),
     })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '항목을 붙이지 못했습니다.')
+    const done = await readResponse(res, failedTo(QUOTE.lineName, '붙이지'))
+    if (!done.ok) throw new Error(done.message ?? failedTo(QUOTE.lineName, '붙이지'))
   }
 
   /**
@@ -313,8 +327,8 @@ export default function QuoteFromFileModal({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items }),
     })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? failedTo(ENTITY.cost.label, '넣지'))
+    const done = await readResponse(res, failedTo(ENTITY.cost.label, '넣지'))
+    if (!done.ok) throw new Error(done.message ?? failedTo(ENTITY.cost.label, '넣지'))
   }
 
   /**
@@ -330,21 +344,31 @@ export default function QuoteFromFileModal({
     form.append('targetId', dealId)
     form.append('kind', 'SUPPLY_QUOTE')
     const res = await fetch('/api/crm/attachments', { method: 'POST', body: form })
-    if (!res.ok) throw new Error(IMPORT_KEEP_FILE_FAILED)
+    const done = await readResponse(res, IMPORT_KEEP_FILE_FAILED)
+    if (!done.ok) throw new Error(done.message ?? IMPORT_KEEP_FILE_FAILED)
   }
 
   const submit = async () => {
     if (going.length === 0) { setError(IMPORT_NOTHING_PICKED); return }
+    /*
+      **두 번 눌러도 한 번만 간다.** 단추는 `busy` 로 잠그지만 상태가 그려지기 전의
+      두 번째 클릭은 그 잠금을 지나간다 — 그 사이에 견적 두 벌이 만들어지고,
+      견적번호는 되돌려도 다시 쓰이지 않는다. 그래서 그리기와 무관한 자물쇠를 하나 더 둔다.
+    */
+    if (sending.current) return
+    sending.current = true
     setBusy(true)
     setError(null)
     let made = 0
     let appended = 0
     let costed = 0
+    /** 안 된 건 — 어느 건이 왜 안 됐는지. 하나 실패했다고 나머지를 멈추지 않는다 */
+    const fails: { name: string; reason: string }[] = []
     try {
       /*
         **건마다 따로 보낸다.** 한 번에 묶어 보내는 창구를 새로 만들지 않는 이유는,
         그 창구가 견적 만들기 규칙(번호 매기기·승인 문턱·환율)을 또 알아야 하기 때문이다.
-        순서대로 보내므로 앞이 실패하면 뒤는 안 간다 — 부분 실패를 건수로 말하는 일은 I10 에서 한다.
+        한 건이 실패해도 **나머지는 간다** — 된 것과 안 된 것을 끝에서 함께 말한다.
       */
       for (const { r, d } of going) {
         /*
@@ -352,35 +376,46 @@ export default function QuoteFromFileModal({
           마진을 얹은 값을 원가로 넣으면 마진이 두 번 붙고, 그 딜은 영원히 남는 장사로 보인다.
         */
         const lines = applyPrice(pickedLines(r), planOf(d), moneyOf(r)).lines
-        if (d.key === 'cost') {
-          /*
-            **판매 견적을 먼저 만든다.** 줄 id 가 있어야 원가를 그 줄에 이을 수 있다.
-            안 켰으면 견적은 안 만들고 원가만 들어간다 — 그때 quoteLineId 는 전부 비어 있다.
-          */
-          const quoteLineIds = d.alsoQuote
-            ? ((await createOne(r, lines)).lines ?? []).map((l) => l.id)
-            : []
-          if (d.alsoQuote) made += 1
+        try {
+          if (d.key === 'cost') {
+            /*
+              **판매 견적을 먼저 만든다.** 줄 id 가 있어야 원가를 그 줄에 이을 수 있다.
+              안 켰으면 견적은 안 만들고 원가만 들어간다 — 그때 quoteLineId 는 전부 비어 있다.
+            */
+            const quoteLineIds = d.alsoQuote
+              ? ((await createOne(r, lines)).lines ?? []).map((l) => l.id)
+              : []
+            if (d.alsoQuote) made += 1
 
-          const source: IntakeLine[] = pickedIndexes(r).map((i) => ({
-            name: r.lines[i].name,
-            descriptionMd: r.lines[i].descriptionMd,
-            // 금액은 **이미 낸 값**을 쓴다 — 검수 화면이 보여 준 그 숫자여야 한다
-            amountMinor: r.checks[i].ourAmountMinor.toString(),
-            sourceText: r.sources[i],
-          }))
-          const items = toCostPayloads(
-            withQuoteLineIds(source, quoteLineIds),
-            { category: d.category, stage: d.stage, fileName: docInfo?.fileName ?? null },
-          )
-          await costOne(items)
-          costed += items.length
-        } else if (d.key === 'append' && d.targetId) {
-          await appendOne(d.targetId, lines)
-          appended += 1
-        } else {
-          await createOne(r, lines)
-          made += 1
+            const source: IntakeLine[] = pickedIndexes(r).map((i) => ({
+              name: r.lines[i].name,
+              descriptionMd: r.lines[i].descriptionMd,
+              // 금액은 **이미 낸 값**을 쓴다 — 검수 화면이 보여 준 그 숫자여야 한다
+              amountMinor: r.checks[i].ourAmountMinor.toString(),
+              sourceText: r.sources[i],
+            }))
+            const items = toCostPayloads(
+              withQuoteLineIds(source, quoteLineIds),
+              { category: d.category, stage: d.stage, fileName: docInfo?.fileName ?? null },
+            )
+            await costOne(items)
+            costed += items.length
+          } else if (d.key === 'append' && d.targetId) {
+            await appendOne(d.targetId, lines)
+            appended += 1
+          } else {
+            await createOne(r, lines)
+            made += 1
+          }
+        } catch (e) {
+          /*
+            **한 건이 실패해도 나머지는 간다.** 예전엔 첫 실패에서 통째로 멈췄다 —
+            그러면 사람은 셋 다 안 된 줄 알고 다시 올리고, 그때 성공했던 둘이 두 벌이 된다.
+          */
+          fails.push({
+            name: fillQuoteName(r.index, r.label ?? r.title),
+            reason: e instanceof Error ? e.message : IMPORT_FAILED_UNKNOWN,
+          })
         }
       }
 
@@ -392,10 +427,20 @@ export default function QuoteFromFileModal({
       if (keepFile && costed > 0 && picked) {
         try { await attachSource(picked) } catch { tail = ` ${IMPORT_KEEP_FILE_FAILED}` }
       }
-      onDone(`${importDoneLine(made, appended, costed)}${tail}`)
+
+      const failed = importFailedLine(fails)
+      /*
+        **하나도 못 만들었으면 창을 닫지 않는다.** 닫으면 고른 것이 전부 사라져
+        파일부터 다시 올려야 한다. 반대로 하나라도 됐으면 목록에 반영해야 하므로 닫고,
+        안 된 건과 사유를 그 문장에 함께 싣는다.
+      */
+      if (made + appended + costed === 0) { setError(failed || IMPORT_FAILED_UNKNOWN); return }
+      onDone(`${importMixedLine(importDoneLine(made, appended, costed), failed)}${tail}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '가져오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      // 건 안쪽 실패는 위에서 모은다 — 여기 오는 것은 창 전체가 못 돈 경우다
+      setError(e instanceof Error ? e.message : describeFetchFailure(FILL_FILE_LABEL))
     } finally {
+      sending.current = false
       setBusy(false)
     }
   }

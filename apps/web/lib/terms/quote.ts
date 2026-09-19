@@ -381,6 +381,35 @@ export const IMPORT_MARGIN_PLACEHOLDER = '비워 두면 그대로'
 export const IMPORT_TARGET_TOTAL = '목표 총액'
 export const IMPORT_TARGET_INCLUDES_TAX = '부가세 포함'
 
+/*
+  **일부만 실패했을 때 전부 실패한 것처럼 말하지 않는다.**
+
+  건마다 따로 보내므로 셋 중 하나만 실패하는 일이 실제로 생긴다. 그때 「가져오지 못했습니다」
+  한 마디만 띄우면 사람은 **하나도 안 들어간 줄 알고 다시 올린다** — 그러면 성공했던 둘이
+  두 벌이 된다. 된 것과 안 된 것을 **둘 다** 말한다.
+*/
+
+/** 왜 안 됐는지조차 모를 때 — 그래도 「안 됐다」는 사실은 말한다 */
+export const IMPORT_FAILED_UNKNOWN = '가져오지 못했습니다. 잠시 후 다시 시도해 주세요.'
+
+/** 파일을 못 읽었을 때 준비된 말 — 서버가 이유를 주면 **그 이유가 먼저다** */
+export const FILL_READ_FAILED = '견적서를 읽지 못했습니다.'
+
+/** 연결 자체가 안 될 때 문장에 들어가는 이름 */
+export const FILL_FILE_LABEL = '견적서 파일'
+
+/** 안 된 건 — 어느 건이 왜 안 됐는지. 이름이 없으면 몇 번째 건인지로 말한다 */
+export function importFailedLine(fails: readonly { name: string; reason: string }[]): string {
+  if (fails.length === 0) return ''
+  const list = fails.map((f) => `${f.name}: ${f.reason}`).join(' · ')
+  return `${countOnly('quote', fails.length)}은 못 가져왔어요. ${list}`
+}
+
+/** 된 것도 있고 안 된 것도 있을 때 — 한 줄로 이어 붙인다 */
+export function importMixedLine(done: string, failed: string): string {
+  return [done, failed].filter((x) => x.trim() !== '').join(' · ')
+}
+
 /** 도착지를 하나도 안 골랐을 때(전부 「안 씀」) */
 export const IMPORT_NOTHING_PICKED =
   '보낼 곳을 고른 건이 없어요. 건마다 도착지를 골라 주세요.'

@@ -27,8 +27,9 @@ import {
   FILL_SPEECH_HINT, FILL_SPEECH_PLACEHOLDER, FILL_FILE_HINT, FILL_FILE_KINDS,
   FILL_REVIEW_HINT, FILL_UNCLEAR_TITLE,
   FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_NOTHING_FOUND,
-  FILL_PICK_BACK, FILL_PICK_ONE_ONLY,
+  FILL_PICK_BACK, FILL_PICK_ONE_ONLY, FILL_READ_FAILED, FILL_FILE_LABEL,
 } from '@/lib/terms'
+import { readResponse, describeFetchFailure } from '@/lib/crm/api/read-error'
 import {
   buildReviews, toggleChecked, pickedLines, appendLines,
   QuoteReviewList, QuotePickList, ReviewHead,
@@ -147,8 +148,14 @@ export default function QuoteFillPanel({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: sayText.trim(), currentLines: currentLines() }),
       })
-      const body = await res.json()
-      if (!res.ok) { onError(body?.error?.message ?? '읽지 못했습니다.'); return }
+      /*
+        **본문이 JSON 이 아닐 수 있다**(504·413·로그인 화면). `res.json()` 을 그냥 부르면
+        그 줄에서 예외가 나 catch 로 떨어지고, 화면은 무엇이 문제였든 같은 한 마디를 한다.
+        상황을 문장으로 바꾸는 일은 `read-error` 한 곳이 한다 — 딜 화면도 같은 것을 쓴다.
+      */
+      const got = await readResponse(res, FILL_READ_FAILED)
+      if (!got.ok) { onError(got.message); return }
+      const body = (got.body ?? {}) as Record<string, unknown>
       /*
         **고른 모델이 막혀 다른 것이 답했으면 그 사실을 말한다.**
         비용과 품질이 달라지는 일이라 모르고 지나가면 안 된다 — 같은 입력에 다른 답이
@@ -232,7 +239,7 @@ export default function QuoteFillPanel({
       setSayText('')
       onClose()
     } catch {
-      onError('읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      onError(describeFetchFailure(FILL_FILE_LABEL))
     } finally {
       setBusy(false)
     }
@@ -252,8 +259,9 @@ export default function QuoteFillPanel({
       const form = new FormData()
       form.append('file', file)
       const res = await fetch('/api/crm/quotes/draft-file', { method: 'POST', body: form })
-      const body = await res.json()
-      if (!res.ok) { onError(body?.error?.message ?? '파일을 읽지 못했습니다.'); return }
+      const got = await readResponse(res, FILL_READ_FAILED)
+      if (!got.ok) { onError(got.message); return }
+      const body = (got.body ?? {}) as Record<string, unknown>
 
       /*
         응답은 **건 목록**이다. 한 장에 견적이 둘이면 둘로 온다.
@@ -280,7 +288,7 @@ export default function QuoteFillPanel({
       setReviews(made)
       setPickedIndex(made.length === 1 ? 0 : null)
     } catch {
-      onError('파일을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      onError(describeFetchFailure(FILL_FILE_LABEL))
     } finally {
       setBusy(false)
       // 같은 파일을 다시 고를 수 있어야 한다 — 값이 남아 있으면 change 가 안 뜬다
