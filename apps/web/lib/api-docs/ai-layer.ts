@@ -612,7 +612,7 @@ export const AI_CONTRACT_TYPE = {
   lang: 'ts',
   text: `interface AiValue<T = unknown> {
   contractVersion: number
-  capability: AiCapability               // 능력 여덟 중 하나
+  capability: AiCapability               // AI_CAPABILITIES 중 하나
   value: T
   evidence: readonly AiEvidence[]
   confidence: number | null              // 0 에서 1, 모델이 말하지 않았으면 null
