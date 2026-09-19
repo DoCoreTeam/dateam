@@ -166,9 +166,19 @@ export function toggleChecked(review: FileReview, i: number): FileReview {
   return { ...review, checked: review.checked.map((c, j) => (j === i ? !c : c)) }
 }
 
+/**
+ * 체크된 줄의 **자리**.
+ *
+ * 원가로 보낼 때는 줄만으로 모자란다 — 금액 대조 결과(`checks`)와 원문 조각(`sources`)이
+ * 같은 자리에 있고, 걸러낸 뒤에는 그 자리를 되찾을 수 없다.
+ */
+export function pickedIndexes(review: FileReview): number[] {
+  return review.lines.map((_, i) => i).filter((i) => review.checked[i])
+}
+
 /** 체크된 줄만 */
 export function pickedLines(review: FileReview): QuoteLineDraft[] {
-  return review.lines.filter((_, i) => review.checked[i])
+  return pickedIndexes(review).map((i) => review.lines[i])
 }
 
 /**

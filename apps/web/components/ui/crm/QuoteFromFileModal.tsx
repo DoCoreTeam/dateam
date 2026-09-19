@@ -20,24 +20,36 @@
 //
 // 창구는 읽기만 하고 아무것도 만들지 않는다. 여기서 만들기를 누른 것만 견적이 된다.
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Upload } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import ErrorState from '@/components/ui/ErrorState'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
-  ACTION, progress, QUOTE,
+  ACTION, ENTITY, failedTo, progress, QUOTE,
   FILL_FILE_KINDS, FILL_UNCLEAR_TITLE, FILL_NOTHING_FOUND,
   FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE,
   fillQuoteName, fillFoundLine,
   IMPORT_TITLE, IMPORT_FILE_HINT, IMPORT_DEST, IMPORT_DEST_HINT,
   IMPORT_APPEND_TARGET, IMPORT_NO_APPEND_TARGET, IMPORT_OPEN, IMPORT_CLOSE,
   importSubmitLabel, importDoneLine, IMPORT_NOTHING_PICKED,
+  IMPORT_COST_HINT, IMPORT_COST_ALSO_QUOTE, IMPORT_COST_ALSO_QUOTE_HINT, IMPORT_COST_ADMIN_ONLY,
+  IMPORT_KEEP_FILE, IMPORT_KEEP_FILE_HINT, IMPORT_KEEP_FILE_FAILED,
   type ImportDestKey,
 } from '@/lib/terms'
 import {
-  buildReviews, toggleChecked, pickedLines, QuoteReviewList,
+  COST, COST_CATEGORY_LABEL, COST_CATEGORY_ORDER, COST_CATEGORY_HINT,
+  COST_STAGE_LABEL, COST_STAGE_ORDER,
+  type CostCategory, type CostStage,
+} from '@/lib/terms/cost'
+import {
+  toCostPayloads, withQuoteLineIds,
+  INTAKE_DEFAULT_CATEGORY, INTAKE_DEFAULT_STAGE,
+  type IntakeLine,
+} from '@/lib/crm/domain/quote-cost-intake'
+import {
+  buildReviews, toggleChecked, pickedIndexes, pickedLines, QuoteReviewList,
   type DocQuoteJson, type FileReview,
 } from './quote-review'
 import { quoteToDraft, toLinePayload, type QuoteLineDraft } from './quote-draft-shape'
@@ -58,12 +70,37 @@ export interface AppendTarget {
   status: string
 }
 
+/**
+ * 도착지 넷의 차례. **원가는 맨 앞이 아니다** — 기본은 늘 새 견적이고,
+ * 원가는 고르는 사람이 찾아 누르는 길이다.
+ */
+const DEST_KEYS = ['new', 'append', 'cost', 'skip'] as const
+
 /** 건 하나를 어디로 보낼지 */
 interface Dest {
   key: ImportDestKey
   /** key 가 append 일 때 붙일 견적 */
   targetId: string | null
+  /** key 가 cost 일 때만 뜻이 있다 — 원가의 갈래와 시점 */
+  category: CostCategory
+  stage: CostStage
+  /**
+   * 같은 건으로 판매 견적도 만들지.
+   *
+   * **기본은 꺼짐이다.** 원가만 남기려는 사람이 훨씬 많고, 켜면 견적번호가 하나 나간다 —
+   * 지우면 그 번호는 비고 다시 쓰이지 않는다. 켠 경우에만 원가 줄과 판매 줄이 이어진다.
+   */
+  alsoQuote: boolean
 }
+
+/** 새 건의 도착지 초기값 — 되돌리기 싼 쪽이 기본값이다 */
+const newDest = (): Dest => ({
+  key: 'new' as ImportDestKey,
+  targetId: null,
+  category: INTAKE_DEFAULT_CATEGORY,
+  stage: INTAKE_DEFAULT_STAGE,
+  alsoQuote: false,
+})
 
 interface Props {
   dealId: string
@@ -97,7 +134,38 @@ export default function QuoteFromFileModal({
   const [dests, setDests] = useState<Dest[]>([])
   /** 펴 놓은 건. **기본은 접힘** — 건이 다섯이면 펴진 목록 다섯이 화면을 덮는다 */
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  /**
+   * 원가를 넣을 수 있는 사람인가 — **서버가 답한다.**
+   *
+   * 화면이 역할을 보고 스스로 판정하면 규칙이 두 곳이 되고, 능력을 사람 단위로 주는 날
+   * 화면만 옛 규칙으로 남는다. 못 물어봤으면 **없는 것으로 본다** — 보이지 않는 쪽이 안전하다.
+   */
+  const [canCost, setCanCost] = useState(false)
+  /**
+   * 「이 파일도 딜 첨부로 남기기」. **파일 하나에 한 번** 묻는다 — 올린 파일은 한 장이다.
+   * 기본은 꺼짐이고, 원가로 보내는 건이 하나라도 있을 때만 화면에 선다.
+   */
+  const [keepFile, setKeepFile] = useState(false)
+  /** 첨부로 남길 때만 쓰는 원본. 안 켜면 아무 데도 안 간다 */
+  const [picked, setPicked] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  /*
+    창을 열 때 한 번 묻는다. 403 이면 원가 길 자체를 안 그린다 —
+    「권한이 없습니다」라고 적어 두면 누를 수 없는 길을 매번 지나쳐야 한다.
+  */
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const res = await fetch(`/api/crm/deals/${dealId}/costs`, { cache: 'no-store' })
+        if (!res.ok) return
+        const body = await res.json()
+        if (alive) setCanCost(Boolean(body?.canEdit))
+      } catch { /* 못 물어봤으면 없는 것으로 본다 */ }
+    })()
+    return () => { alive = false }
+  }, [dealId])
 
   const readFile = async (file: File) => {
     setBusy(true)
@@ -125,8 +193,10 @@ export default function QuoteFromFileModal({
         기본값으로 두면, 아닌 경우에 사람은 되돌리는 일부터 해야 한다 —
         새 견적은 초안이라 지우기도 고치기도 쉽다. 되돌리기 싼 쪽이 기본값이다.
       */
-      setDests(made.map(() => ({ key: 'new' as ImportDestKey, targetId: null })))
+      setDests(made.map(() => newDest()))
       setOpenIndex(null)
+      setPicked(file)
+      setKeepFile(false)
       if (typeof body.switchedNote === 'string') setNote(body.switchedNote)
     } catch {
       setError('파일을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -171,6 +241,7 @@ export default function QuoteFromFileModal({
     })
     const body = await res.json()
     if (!res.ok) throw new Error(body?.error?.message ?? '견적을 만들지 못했습니다.')
+    return body as { lines?: { id: string }[] }
   }
 
   /**
@@ -199,12 +270,45 @@ export default function QuoteFromFileModal({
     if (!res.ok) throw new Error(body?.error?.message ?? '항목을 붙이지 못했습니다.')
   }
 
+  /**
+   * 고른 줄을 **딜 원가**로 넣는다 — 한 건이 한 번의 요청이다.
+   *
+   * 줄마다 따로 보내면 다섯째 줄에서 실패했을 때 앞의 넷이 남고, 사람은 무엇이 들어갔는지
+   * 모른 채 다시 올려 같은 원가를 두 벌 만든다. 서버가 한 트랜잭션으로 받는다.
+   */
+  const costOne = async (items: ReturnType<typeof toCostPayloads>) => {
+    const res = await fetch(`/api/crm/deals/${dealId}/costs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? failedTo(ENTITY.cost.label, '넣지'))
+  }
+
+  /**
+   * 근거 문서를 딜 첨부로 남긴다 — **켠 경우에만** 부른다.
+   *
+   * 종류는 매입 견적서(`SUPPLY_QUOTE`)다. 그 종류가 대외비 등급을 정하므로
+   * 여기서 등급을 고르지 않는다(`ATTACHMENT_KIND_SENSITIVITY`).
+   */
+  const attachSource = async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('target', 'DEAL')
+    form.append('targetId', dealId)
+    form.append('kind', 'SUPPLY_QUOTE')
+    const res = await fetch('/api/crm/attachments', { method: 'POST', body: form })
+    if (!res.ok) throw new Error(IMPORT_KEEP_FILE_FAILED)
+  }
+
   const submit = async () => {
     if (going.length === 0) { setError(IMPORT_NOTHING_PICKED); return }
     setBusy(true)
     setError(null)
     let made = 0
     let appended = 0
+    let costed = 0
     try {
       /*
         **건마다 따로 보낸다.** 한 번에 묶어 보내는 창구를 새로 만들지 않는 이유는,
@@ -213,7 +317,30 @@ export default function QuoteFromFileModal({
       */
       for (const { r, d } of going) {
         const lines = pickedLines(r)
-        if (d.key === 'append' && d.targetId) {
+        if (d.key === 'cost') {
+          /*
+            **판매 견적을 먼저 만든다.** 줄 id 가 있어야 원가를 그 줄에 이을 수 있다.
+            안 켰으면 견적은 안 만들고 원가만 들어간다 — 그때 quoteLineId 는 전부 비어 있다.
+          */
+          const quoteLineIds = d.alsoQuote
+            ? ((await createOne(r, lines)).lines ?? []).map((l) => l.id)
+            : []
+          if (d.alsoQuote) made += 1
+
+          const source: IntakeLine[] = pickedIndexes(r).map((i) => ({
+            name: r.lines[i].name,
+            descriptionMd: r.lines[i].descriptionMd,
+            // 금액은 **이미 낸 값**을 쓴다 — 검수 화면이 보여 준 그 숫자여야 한다
+            amountMinor: r.checks[i].ourAmountMinor.toString(),
+            sourceText: r.sources[i],
+          }))
+          const items = toCostPayloads(
+            withQuoteLineIds(source, quoteLineIds),
+            { category: d.category, stage: d.stage, fileName: docInfo?.fileName ?? null },
+          )
+          await costOne(items)
+          costed += items.length
+        } else if (d.key === 'append' && d.targetId) {
           await appendOne(d.targetId, lines)
           appended += 1
         } else {
@@ -221,7 +348,16 @@ export default function QuoteFromFileModal({
           made += 1
         }
       }
-      onDone(importDoneLine(made, appended))
+
+      /*
+        **파일은 맨 나중에, 켠 경우에만.** 올리다 실패해도 들어간 원가는 되돌리지 않는다 —
+        근거 문서는 뒤에 직접 올릴 수 있지만, 지운 원가는 사람이 다시 검수해야 한다.
+      */
+      let tail = ''
+      if (keepFile && costed > 0 && picked) {
+        try { await attachSource(picked) } catch { tail = ` ${IMPORT_KEEP_FILE_FAILED}` }
+      }
+      onDone(`${importDoneLine(made, appended, costed)}${tail}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : '가져오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -305,9 +441,12 @@ export default function QuoteFromFileModal({
                       </span>
                     </button>
 
-                    {/* 도착지 — 뜻이 다른 셋이라 라디오다(하나만 된다) */}
+                    {/*
+                      도착지 — 뜻이 다른 넷이라 라디오다(하나만 된다).
+                      **원가는 넣을 수 있는 사람에게만 선다** — 판정은 서버가 했고 여기서는 그 답을 쓴다.
+                    */}
                     <div className={styles.destRow} role="radiogroup" aria-label={IMPORT_TITLE}>
-                      {(['new', 'append', 'skip'] as const).map((k) => (
+                      {DEST_KEYS.filter((k) => k !== 'cost' || canCost).map((k) => (
                         <label key={k} className={styles.destPick}>
                           <input
                             type="radio"
@@ -347,11 +486,88 @@ export default function QuoteFromFileModal({
                       )
                     )}
 
+                    {/*
+                      **갈래·시점은 원가를 고른 사람에게만 나타난다.**
+                      늘 세워 두면 새 견적 하나 만들려던 사람이 안 쓰는 칸 셋을 지나쳐야 하고,
+                      지나치는 칸에는 결국 아무 값이나 남는다.
+                    */}
+                    {d?.key === 'cost' && (
+                      <div className={styles.destCost}>
+                        <p className={styles.destHint}>{IMPORT_COST_HINT}</p>
+                        <div className={styles.destPair}>
+                          <div className={styles.destTarget}>
+                            <label className="label" htmlFor={`cost-category-${i}`}>{COST.category}</label>
+                            <select
+                              id={`cost-category-${i}`}
+                              className="input-field"
+                              value={d.category}
+                              onChange={(e) => setDest(i, { category: e.target.value as CostCategory })}
+                            >
+                              {COST_CATEGORY_ORDER.map((c) => (
+                                <option key={c} value={c}>{COST_CATEGORY_LABEL[c]}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className={styles.destTarget}>
+                            <label className="label" htmlFor={`cost-stage-${i}`}>{COST.stage}</label>
+                            {/*
+                              **기본은 추정이다.** 견적서를 받은 시점에 확정된 것은 아무것도 없다 —
+                              확정으로 들어가면 「추정이 얼마나 틀렸나」를 볼 짝이 사라진다.
+                            */}
+                            <select
+                              id={`cost-stage-${i}`}
+                              className="input-field"
+                              value={d.stage}
+                              onChange={(e) => setDest(i, { stage: e.target.value as CostStage })}
+                            >
+                              {COST_STAGE_ORDER.map((st) => (
+                                <option key={st} value={st}>{COST_STAGE_LABEL[st]}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <p className={styles.destHint}>{COST_CATEGORY_HINT[d.category]}</p>
+                        <label className={styles.destPick}>
+                          <input
+                            type="checkbox"
+                            checked={d.alsoQuote}
+                            onChange={(e) => setDest(i, { alsoQuote: e.target.checked })}
+                          />
+                          <span>{IMPORT_COST_ALSO_QUOTE}</span>
+                        </label>
+                        <p className={styles.destHint}>{IMPORT_COST_ALSO_QUOTE_HINT}</p>
+                      </div>
+                    )}
+
                     {open && <QuoteReviewList review={r} onToggle={(li) => toggle(i, li)} />}
                   </li>
                 )
               })}
             </ul>
+
+            {/*
+              **원가를 못 넣는 사람에게도 한 줄은 남긴다.** 도착지에서 원가가 안 보이는 이유가
+              「없는 기능」이 아니라 「내 권한이 아님」이라는 것을 알아야 관리자에게 넘길 수 있다.
+            */}
+            {!canCost && <p className={styles.destHint}>{IMPORT_COST_ADMIN_ONLY}</p>}
+
+            {/*
+              근거 문서는 **원가로 보낼 때만** 권한다. 기본은 꺼짐이고, 켠 경우에만 파일이 남는다 —
+              그냥 내용만 가져오는 경우까지 남기면 남의 견적서가 우리 저장소에 쌓인다.
+            */}
+            {dests.some((d) => d?.key === 'cost') && (
+              <div className={styles.keepFile}>
+                <label className={styles.destPick}>
+                  <input
+                    type="checkbox"
+                    checked={keepFile}
+                    onChange={(e) => setKeepFile(e.target.checked)}
+                  />
+                  <span>{IMPORT_KEEP_FILE}</span>
+                </label>
+                <p className={styles.destHint}>{IMPORT_KEEP_FILE_HINT}</p>
+              </div>
+            )}
 
             {note && <div className={styles.sayNote}>{note}</div>}
 

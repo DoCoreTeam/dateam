@@ -10,7 +10,7 @@
  * 그래서 화면이 문자열을 직접 적는 것을 특히 여기서 막는다.
  */
 
-import { ENTITY, countOnly } from './entity.ts'
+import { ENTITY, count, countOnly } from './entity.ts'
 
 // ------------------------------------------------------------
 // 문서의 자리 이름
@@ -303,13 +303,48 @@ export function importSubmitLabel(count: number): string {
 }
 
 /** 끝난 뒤 — 무엇이 됐는지 건수로 말한다 */
-export function importDoneLine(made: number, appended: number): string {
+export function importDoneLine(made: number, appended: number, costed = 0): string {
   const parts = [
     made > 0 ? `견적 ${made}건을 새로 만들었어요` : null,
     appended > 0 ? `${appended}건을 있는 견적에 붙였어요` : null,
+    costed > 0 ? `${count('cost', costed)}을 넣었어요` : null,
   ].filter(Boolean)
   return parts.join(' · ')
 }
+
+/*
+  **원가 칸은 원가를 고른 사람에게만 보인다.**
+
+  갈래·시점·마진은 원가로 보낼 때만 뜻이 있는 칸이다. 늘 세워 두면 새 견적 하나 만들려던
+  사람이 안 쓰는 칸 셋을 지나쳐야 하고, 지나치는 칸은 결국 아무 값이나 남는다.
+*/
+
+/** 원가 도착지에서만 나타나는 칸들 */
+export const IMPORT_COST_HINT =
+  '이 건의 항목이 딜 원가로 들어갑니다. 원가는 견적서에 실리지 않고 관리자만 봅니다.'
+
+/** 원가로 넣으면서 **같은 건으로** 판매 견적도 만들 수 있다 — 켜면 줄끼리 이어진다 */
+export const IMPORT_COST_ALSO_QUOTE = '이 건으로 판매 견적도 함께 만들기'
+export const IMPORT_COST_ALSO_QUOTE_HINT =
+  '원가 줄과 판매 줄이 이어져 항목마다 얼마가 남는지 보입니다. 켜지 않으면 원가만 들어갑니다.'
+
+/** 원가를 넣을 수 없는 사람에게 — **안 넣은 것이 아니라 못 넣는 것**임을 알린다 */
+export const IMPORT_COST_ADMIN_ONLY = '원가는 관리자가 넣습니다.'
+
+/*
+  **근거 문서는 고른 사람만 남긴다.**
+
+  올린 파일은 원래 보관하지 않는다(읽고 버린다). 그런데 원가로 넣고 나면
+  「이 숫자 어디서 왔지」를 반드시 찾게 되므로, 그때만 남길지 묻는다. **기본은 꺼짐이다** —
+  켜 두면 참고로 훑어본 남의 견적서까지 우리 저장소에 쌓인다.
+*/
+export const IMPORT_KEEP_FILE = '이 파일도 딜 첨부로 남기기'
+export const IMPORT_KEEP_FILE_HINT =
+  '원가가 어느 문서에서 나온 숫자인지 나중에 찾을 수 있어요. 대외비로 올라가 관리자만 봅니다.'
+
+/** 원가는 들어갔는데 파일만 못 올렸을 때 — 들어간 것까지 되돌리지 않는다 */
+export const IMPORT_KEEP_FILE_FAILED =
+  '원가는 넣었지만 파일은 첨부하지 못했어요. 첨부 절에서 직접 올릴 수 있습니다.'
 
 /** 도착지를 하나도 안 골랐을 때(전부 「안 씀」) */
 export const IMPORT_NOTHING_PICKED =

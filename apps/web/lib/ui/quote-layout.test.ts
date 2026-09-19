@@ -251,3 +251,43 @@ test('★ 딜 화면에 파일로 가져오기 길이 있다 — 빈 상태에�
   assert.match(empty.slice(0, 900), /setImporting\(true\)/,
     '빈 상태에 가져오기 길이 없다 — 견적이 없는 딜에서 가장 필요한 길이다')
 })
+
+/* ── ⑨ 원가로 보내는 길 — 고른 사람에게만 열린다 ─── */
+
+/*
+  원가 칸(갈래·시점·마진)은 원가로 보낼 때만 뜻이 있다. 늘 세워 두면 새 견적 하나
+  만들려던 사람이 안 쓰는 칸 셋을 지나쳐야 하고, 지나치는 칸에는 결국 아무 값이나 남는다.
+*/
+test('★ 원가 도착지는 넣을 수 있는 사람에게만 선다', () => {
+  assert.match(IMPORT, /k !== 'cost' \|\| canCost/, '원가 길이 늘 서 있다')
+  assert.ok(!/IMPORT_DEST\.cost/.test(IMPORT),
+    '원가 라벨을 조건 밖에서 직접 그리면 못 넣는 사람에게도 보인다')
+})
+
+test('★ 갈래·시점 칸은 원가를 고른 건에만 나타난다', () => {
+  assert.match(IMPORT, /d\?\.key === 'cost' && \(/, '원가 칸이 조건 없이 그려진다')
+  const cost = IMPORT.slice(IMPORT.indexOf("d?.key === 'cost' && ("))
+  assert.match(cost.slice(0, 2400), /COST\.category/, '갈래 칸 이름이 용어집에서 안 온다')
+  assert.match(cost.slice(0, 2400), /COST\.stage/, '시점 칸 이름이 용어집에서 안 온다')
+})
+
+test('★ 시점 기본값은 추정 — 화면이 숫자 대신 값을 박으면 두 곳이 갈린다', () => {
+  assert.match(IMPORT, /stage: INTAKE_DEFAULT_STAGE/, '기본 시점을 화면이 따로 정한다')
+  assert.match(IMPORT, /category: INTAKE_DEFAULT_CATEGORY/, '기본 갈래를 화면이 따로 정한다')
+})
+
+/*
+  **켠 경우에만 파일이 남는다.** 올린 파일은 원래 읽고 버린다 —
+  기본으로 남기면 참고로 훑어본 남의 견적서까지 우리 저장소에 쌓인다.
+*/
+test('★ 「이 파일도 딜 첨부로 남기기」는 기본 꺼짐이고 켠 경우에만 올라간다', () => {
+  assert.match(IMPORT, /const \[keepFile, setKeepFile\] = useState\(false\)/, '첨부가 기본 켜짐이다')
+  assert.match(IMPORT, /if \(keepFile && costed > 0 && picked\)/, '안 켰는데 파일이 올라간다')
+  const attach = IMPORT.slice(IMPORT.indexOf('const attachSource'), IMPORT.indexOf('const submit'))
+  assert.match(attach, /'SUPPLY_QUOTE'/, '종류를 안 주면 대외비 등급이 안 붙는다')
+})
+
+test('★ 판매 견적 함께 만들기도 기본 꺼짐 — 켜면 견적번호가 하나 나간다', () => {
+  assert.match(IMPORT, /alsoQuote: false/, '기본으로 견적이 함께 만들어진다')
+  assert.match(IMPORT, /withQuoteLineIds/, '원가 줄과 판매 줄을 잇지 않는다')
+})

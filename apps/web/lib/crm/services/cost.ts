@@ -145,53 +145,87 @@ export async function listDealCosts(db: CrmDb, dealId: string): Promise<DealCost
 export async function createDealCost(
   workspaceId: string, actorId: string | null, dealId: string, input: DealCostInput,
 ): Promise<DealCostRow> {
+  return withCrmTx(workspaceId, (tx) => insertCost(tx, workspaceId, actorId, dealId, input))
+}
+
+/**
+ * 여러 줄을 **한 번에** 넣는다 — 받은 견적서 한 건이 원가 여러 줄이 되는 길.
+ *
+ * **왜 한 트랜잭션인가**: 견적서 한 건은 사람에게 **한 덩어리**다. 줄마다 따로 넣으면
+ * 다섯째 줄에서 실패했을 때 앞의 넷이 남고, 사람은 무엇이 들어갔는지 모른 채
+ * 다시 올려 **같은 원가를 두 벌** 만든다. 되돌릴 수 없는 쪽으로 기우는 설계는 쓰지 않는다.
+ *
+ * 창구 하나가 낱개와 묶음을 모두 받는다 — 게이트(`cost.edit`)를 두 곳에 두지 않기 위해서다.
+ */
+export async function createDealCosts(
+  workspaceId: string, actorId: string | null, dealId: string, inputs: readonly DealCostInput[],
+): Promise<DealCostRow[]> {
+  if (inputs.length === 0) {
+    throw new CrmError('VALIDATION_FAILED', '넣을 원가 항목이 없습니다.', { field: 'items' })
+  }
+  if (inputs.length > MAX_COST_BATCH) {
+    throw new CrmError('VALIDATION_FAILED', `원가는 한 번에 ${MAX_COST_BATCH}건까지 넣을 수 있어요.`, { field: 'items' })
+  }
   return withCrmTx(workspaceId, async (tx) => {
-    const name = (input.name ?? '').trim()
-    if (!name) throw new CrmError('VALIDATION_FAILED', '항목 이름을 입력해 주세요.', { field: 'name' })
-
-    const category = assertEnum(input.category, COST_CATEGORY_ORDER, 'EXPENSE', 'category')
-    const stage = assertEnum(input.stage, COST_STAGE_ORDER, 'ESTIMATE', 'stage')
-    const inputMode = assertEnum(input.inputMode, ['AMOUNT', 'EFFORT', 'RATIO'] as const, 'AMOUNT', 'inputMode')
-
-    const unit = await gradeCost(tx, input.laborGradeId)
-    /*
-      금액은 **서버가 계산한다.** 화면이 보낸 값을 그대로 저장하면 공수·단가와
-      금액이 어긋난 행이 생기고, 합계는 맞는데 내역이 안 맞는 상태가 된다.
-    */
-    const amountMinor = computeCostAmount({
-      category, stage, inputMode,
-      amountMinor: input.amountMinor,
-      effortMm: input.effortMm,
-      gradeCostPerMmMinor: unit,
-      ratioPct: input.ratioPct,
-      ratioBase: (input.ratioBase as 'REVENUE' | 'COST' | null) ?? null,
-    })
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const row = await (tx as any).crmDealCost.create({
-      data: {
-        workspaceId, dealId, name,
-        quoteLineId: input.quoteLineId || null,
-        category, stage, inputMode,
-        descriptionMd: (input.descriptionMd ?? '').trim() || null,
-        amountMinor,
-        laborGradeId: input.laborGradeId || null,
-        effortMm: input.effortMm === null || input.effortMm === undefined || input.effortMm === '' ? null : String(input.effortMm),
-        ratioPct: input.ratioPct === null || input.ratioPct === undefined || input.ratioPct === '' ? null : String(input.ratioPct),
-        ratioBase: input.ratioBase || null,
-        basisNote: (input.basisNote ?? '').trim() || null,
-        createdById: actorId,
-      },
-      select: SELECT,
-    }) as DealCostRow
-
-    await writeAudit(tx, {
-      actorType: 'HUMAN', actorId, action: 'deal_cost.created',
-      targetType: 'deal_cost', targetId: row.id,
-      afterJson: { name, category, stage, amountMinor: amountMinor.toString() },
-    })
-    return row
+    const rows: DealCostRow[] = []
+    for (const input of inputs) rows.push(await insertCost(tx, workspaceId, actorId, dealId, input))
+    return rows
   })
+}
+
+/** 한 번에 넣을 수 있는 줄 수 — 견적서 한 장의 항목 수보다 넉넉하되 무한은 아니다 */
+export const MAX_COST_BATCH = 200
+
+/** 한 줄 넣기 — 낱개와 묶음이 **같은 검사·같은 계산**을 지나게 하는 자리 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function insertCost(
+  tx: any, workspaceId: string, actorId: string | null, dealId: string, input: DealCostInput,
+): Promise<DealCostRow> {
+  const name = (input.name ?? '').trim()
+  if (!name) throw new CrmError('VALIDATION_FAILED', '항목 이름을 입력해 주세요.', { field: 'name' })
+
+  const category = assertEnum(input.category, COST_CATEGORY_ORDER, 'EXPENSE', 'category')
+  const stage = assertEnum(input.stage, COST_STAGE_ORDER, 'ESTIMATE', 'stage')
+  const inputMode = assertEnum(input.inputMode, ['AMOUNT', 'EFFORT', 'RATIO'] as const, 'AMOUNT', 'inputMode')
+
+  const unit = await gradeCost(tx, input.laborGradeId)
+  /*
+    금액은 **서버가 계산한다.** 화면이 보낸 값을 그대로 저장하면 공수·단가와
+    금액이 어긋난 행이 생기고, 합계는 맞는데 내역이 안 맞는 상태가 된다.
+  */
+  const amountMinor = computeCostAmount({
+    category, stage, inputMode,
+    amountMinor: input.amountMinor,
+    effortMm: input.effortMm,
+    gradeCostPerMmMinor: unit,
+    ratioPct: input.ratioPct,
+    ratioBase: (input.ratioBase as 'REVENUE' | 'COST' | null) ?? null,
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const row = await (tx as any).crmDealCost.create({
+    data: {
+      workspaceId, dealId, name,
+      quoteLineId: input.quoteLineId || null,
+      category, stage, inputMode,
+      descriptionMd: (input.descriptionMd ?? '').trim() || null,
+      amountMinor,
+      laborGradeId: input.laborGradeId || null,
+      effortMm: input.effortMm === null || input.effortMm === undefined || input.effortMm === '' ? null : String(input.effortMm),
+      ratioPct: input.ratioPct === null || input.ratioPct === undefined || input.ratioPct === '' ? null : String(input.ratioPct),
+      ratioBase: input.ratioBase || null,
+      basisNote: (input.basisNote ?? '').trim() || null,
+      createdById: actorId,
+    },
+    select: SELECT,
+  }) as DealCostRow
+
+  await writeAudit(tx, {
+    actorType: 'HUMAN', actorId, action: 'deal_cost.created',
+    targetType: 'deal_cost', targetId: row.id,
+    afterJson: { name, category, stage, amountMinor: amountMinor.toString() },
+  })
+  return row
 }
 
 export async function updateDealCost(

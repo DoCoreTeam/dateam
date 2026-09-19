@@ -31,7 +31,7 @@ export interface EntityMeta {
 }
 
 export type EntityKey =
-  | 'company' | 'person' | 'deal' | 'quote' | 'product' | 'meeting' | 'note'
+  | 'company' | 'person' | 'deal' | 'quote' | 'cost' | 'product' | 'meeting' | 'note'
   | 'task' | 'event' | 'pipeline' | 'stage'
   | 'channel' | 'content'
   | 'dailyLog' | 'weeklyReport'
@@ -46,6 +46,8 @@ export const ENTITY: Record<EntityKey, EntityMeta> = {
   /** `영업기회` 금지 — 구 화면(/deals) 잔재 */
   deal: { label: '딜', id: 'deal', counter: '건', surface: 'crm' },
   quote: { label: '견적', id: 'quote', counter: '건', surface: 'crm' },
+  /** 딜에 드는 돈 한 줄. 「비용」이 아니라 **원가**다 — 코드도 화면도 전부 cost 로 부른다 */
+  cost: { label: '원가 항목', id: 'deal_cost', counter: '건', surface: 'crm' },
   /**
    * 견적에 올릴 수 있는 것 하나. **`상품`·`제품` 금지** —
    * 우리가 파는 것에는 장비도 라이선스도 사람의 공수도 있어서

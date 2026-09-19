@@ -198,8 +198,15 @@ const REVIEW = readFileSync(
   new URL('../../../components/ui/crm/quote-review.tsx', import.meta.url), 'utf-8')
 
 test('★ 체크한 것만 폼에 들어간다 — 자동 반영은 없다(§5-3)', () => {
-  assert.match(REVIEW, /review\.lines\.filter\(\(_, i\) => review\.checked\[i\]\)/,
+  /*
+    **고른 줄의 자리**를 먼저 뽑고 거기서 줄을 꺼낸다(v0.10.x). 원가로 보낼 때는
+    줄만으로 모자라 — 금액 대조 결과와 원문 조각이 같은 자리에 있는데, 걸러낸 뒤에는
+    그 자리를 되찾을 수 없다. 거르는 규칙은 그대로 **체크된 것뿐**이다.
+  */
+  assert.match(REVIEW, /\.filter\(\(i\) => review\.checked\[i\]\)/,
     '체크를 거르지 않고 통째로 넣는다')
+  assert.match(REVIEW, /return pickedIndexes\(review\)\.map\(\(i\) => review\.lines\[i\]\)/,
+    '고른 자리를 거치지 않고 줄을 만든다 — 자리가 어긋나면 원가가 남의 줄에 붙는다')
   assert.match(PANEL, /pickedLines\(review\)/, '화면이 고른 것만 넣는 길을 안 쓴다')
   // 읽자마자 폼을 고치면 검수가 있으나 마나다
   const read = PANEL.slice(PANEL.indexOf('const readFile'), PANEL.indexOf('const applyReview'))

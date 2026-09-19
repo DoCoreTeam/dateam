@@ -210,6 +210,9 @@ export const RATIO_BASE_LABEL: Record<RatioBase, string> = {
 
 export const COST = {
   section: '원가·마진',
+  /** 원가 항목의 두 칸 이름 — 원가를 넣는 자리가 둘(원가 절·파일 가져오기)이라 말이 갈리면 안 된다 */
+  category: '갈래',
+  stage: '시점',
   /** 원가 탭 옆에 붙는 표시 — 이 탭은 내보내기에 안 실린다 */
   internalOnly: '대외비: 내보내는 파일에 담기지 않습니다',
   totalCost: '원가 합계',

@@ -607,6 +607,37 @@
   gap: var(--space-1);
 }
 
+/*
+  원가로 보낼 때만 서는 칸들. 고르지 않은 사람에게는 **아예 없다** —
+  늘 세워 두면 새 견적 하나 만들려던 사람이 안 쓰는 칸 셋을 지나쳐야 한다.
+  한 겹 둘러 «이 건의 다른 칸»과 구분한다.
+*/
+.destCost {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+
+/* 갈래·시점은 짝이라 나란히 선다. 좁은 화면에서는 포개진다(모바일 우선) */
+.destPair {
+  display: grid;
+  gap: var(--space-2);
+}
+@media (min-width: 768px) {
+  .destPair { grid-template-columns: 1fr 1fr; }
+}
+
+/* 파일을 남길지 — 건마다가 아니라 **파일 하나에 한 번** 묻는다 */
+.keepFile {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: var(--border-w) solid var(--border-light);
+}
+
 /* 목록 아래 단추 둘 — 새로 쓰기와 파일에서 가져오기는 나란한 두 길이다 */
 .listFoot {
   display: flex;
