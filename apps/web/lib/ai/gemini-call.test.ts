@@ -275,3 +275,85 @@ describe('두 번째 공급자 폴백', () => {
     assert.ok(QUOTA_COOLDOWN_MS <= 60 * 60_000)
   })
 })
+
+describe('한도를 한도라고 부른다 (P0030 I02)', () => {
+  // 실측 2026-09-20: 한도로 막힌 호출 23,096건이 「AI 연결 실패 · 서버 응답 없음 —
+  // 잠시 후 다시 시도해 주세요」로 올라갔다. 사용자는 본문을 줄이거나 새로고침을 했고,
+  // 부르는 쪽(발견 루프)은 한도가 아니라고 읽어 남은 대조쌍을 끝까지 두드렸다.
+  afterEach(() => { resetQuotaCooling() })
+
+  /** 1회차로 냉각을 켠다 — 사슬 전부 429, 폴백은 성공 */
+  async function warmCooling(): Promise<void> {
+    globalThis.fetch = (async (url: string) => {
+      const u = String(url)
+      if (u.includes('generativelanguage')) return { ok: false, status: 429, json: async () => ({}) }
+      return {
+        ok: true, status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"ok":1}' } }] }),
+      }
+    }) as unknown as typeof fetch
+    await callGeminiJson({ prompt: 'warm', apiKey: 'k', fallbackApiKey: 'fb' })
+    assert.ok(isQuotaCooling(), '냉각이 켜져야 다음 회차가 Gemini 를 건너뛴다')
+  }
+
+  it('★ Gemini 를 건너뛴 뒤 폴백이 한도와 무관하게 실패해도 이유는 quota 다', async () => {
+    // 이 경우가 핵심이다. 폴백이 429 로 죽으면 폴백 쪽 이유가 quota 라 어차피 맞는다.
+    // 폴백이 **다른 이유로** 죽을 때, 사슬이 한 바퀴도 안 돌아 lastReason 이 초기값
+    // 'server' 로 남던 자리가 드러난다. Gemini 를 건너뛴 이유는 여전히 한도다.
+    await warmCooling()
+
+    // 폴백은 200 이지만 본문이 비어 있다 → HTTP 상태가 없는 실패
+    globalThis.fetch = (async () => ({
+      ok: true, status: 200, json: async () => ({ choices: [] }),
+    })) as unknown as typeof fetch
+
+    const err = await callGeminiJson({ prompt: 'p2', apiKey: 'k', fallbackApiKey: 'fb' })
+      .then(() => null, (e: unknown) => e)
+
+    assert.ok(err instanceof GeminiCallError, '실패는 GeminiCallError 로 올라온다')
+    assert.equal(
+      err.reason, 'quota',
+      'Gemini 를 건너뛴 이유가 한도인데 server 로 올라오면 '
+      + '부르는 쪽의 멈춤 장치가 안 걸린다 (실측 23,096건이 그 자리였다)',
+    )
+  })
+
+  it('폴백이 429 면 그것도 quota 다', async () => {
+    await warmCooling()
+    globalThis.fetch = (async () => ({ ok: false, status: 429, json: async () => ({}) })) as unknown as typeof fetch
+    const err = await callGeminiJson({ prompt: 'p3', apiKey: 'k', fallbackApiKey: 'fb' })
+      .then(() => null, (e: unknown) => e as GeminiCallError)
+    assert.equal(err!.reason, 'quota')
+  })
+
+  it('★ 그때 사용자 문구가 「잠시 후 다시」가 아니라 한도 안내다', async () => {
+    globalThis.fetch = (async (url: string) => {
+      const u = String(url)
+      if (u.includes('generativelanguage')) return { ok: false, status: 429, json: async () => ({}) }
+      return {
+        ok: true, status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"ok":1}' } }] }),
+      }
+    }) as unknown as typeof fetch
+    await callGeminiJson({ prompt: 'p', apiKey: 'k', fallbackApiKey: 'fb' })
+
+    globalThis.fetch = (async () => ({ ok: false, status: 429, json: async () => ({}) })) as unknown as typeof fetch
+    const err = await callGeminiJson({ prompt: 'p2', apiKey: 'k', fallbackApiKey: 'fb' })
+      .then(() => null, (e: unknown) => e as GeminiCallError)
+
+    assert.match(err!.userMessage, /한도/, '한도라고 말해야 사용자가 내일 다시 온다')
+    assert.doesNotMatch(
+      err!.userMessage, /서버 응답 없음/,
+      '서버 문제로 말하면 사용자는 새로고침을 반복한다',
+    )
+  })
+
+  it('폴백 키가 거부되면 기다리라고 하지 않는다', async () => {
+    stubFetch([{ status: 429 }, { status: 429 }, { status: 429 }, { status: 429 }, { status: 401 }])
+    const err = await callGeminiJson({ prompt: 'p', apiKey: 'k', fallbackApiKey: 'fb' })
+      .then(() => null, (e: unknown) => e as GeminiCallError)
+
+    assert.equal(err!.reason, 'auth')
+    assert.match(err!.userMessage, /키/, '키를 다시 등록하라고 말해야 한다')
+  })
+})

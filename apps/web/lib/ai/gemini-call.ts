@@ -371,6 +371,10 @@ function hintFor(reason: GeminiFailureReason): string {
   if (reason === 'timeout') {
     return 'AI 응답 지연 · 제한 시간 초과 — 본문이 길면 더 걸릴 수 있어요. 잠시 후 다시 시도해 주세요.'
   }
+  // 폴백 공급자 키가 거부된 경우가 여기로 온다. 기다려도 안 풀리므로 「잠시 후」라고 하지 않는다
+  if (reason === 'auth') {
+    return 'AI 인증 실패 · 키가 거부됨 — 관리자 설정에서 공급자 키를 다시 등록해 주세요.'
+  }
   return 'AI 연결 실패 · 서버 응답 없음 — 잠시 후 다시 시도해 주세요.'
 }
 
@@ -506,7 +510,21 @@ async function runGeminiChainInner(
 
   // 방금 전에 사슬 전체가 한도로 막혔고 갈 곳(폴백)이 있으면, 두드리지 않고 바로 넘어간다.
   const skipGemini = canFallback && isQuotaCooling()
-  if (skipGemini) attempts.push('Gemini: 최근 한도 초과가 확인돼 건너뜀')
+  if (skipGemini) {
+    attempts.push('Gemini: 최근 한도 초과가 확인돼 건너뜀')
+    /*
+      **건너뛴 이유를 그대로 들고 간다.**
+
+      여기서 반복문은 한 바퀴도 안 돈다. 그래서 lastReason 이 초기값 'server' 로 남았고,
+      폴백까지 실패하면 화면과 로그가 「서버 응답 없음, 잠시 후 다시 시도해 주세요」라고
+      말했다. 실제 원인은 한도였고 사용자가 할 일은 「잠시 후」가 아니라 「내일」이었다.
+
+      더 나쁜 것은 부르는 쪽이다. 발견 루프는 한도일 때만 멈추게 돼 있는데 이름이
+      'server' 라 멈추지 않았고, 남은 대조쌍을 끝까지 두드렸다
+      (실측 2026-09-20: 그 문구 그대로 23,096건).
+    */
+    lastReason = 'quota'
+  }
 
   let overall = 0
   for (const model of skipGemini ? [] : chain) {
@@ -613,6 +631,9 @@ async function runGeminiChainInner(
       feature,
     })
     attempts.push(...(fb.ok ? [`${fb.model}: ok(폴백 공급자)`] : fb.attempts))
+
+    // 폴백도 한도면 그 사실이 최종 이유다 — Gemini 쪽 이유에 가려지지 않게 한다
+    if (!fb.ok && (fb.reason === 'quota' || fb.reason === 'auth')) lastReason = fb.reason
 
     if (fb.ok) {
       const fbText = cfg.unmask(fb.text)

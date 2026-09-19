@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -58,9 +58,9 @@
 의존: 없음
 
 ### I02 한도를 한도라고 부른다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ai/gemini-call.ts, apps/web/lib/ai/gemini-call.test.ts, apps/web/lib/ci/ai/discover-server.ts
+범위: apps/web/lib/ai/gemini-call.ts, apps/web/lib/ai/gemini-call.test.ts, apps/web/lib/ai/fallback-text.ts, apps/web/lib/ai/fallback-text.test.ts, apps/web/lib/ci/ai/discover-server.ts
 감사 기준:
 - Gemini 냉각으로 사슬을 건너뛴 뒤 폴백까지 실패하면 reason 이 'server' 가 아니라 'quota' (단위 테스트)
 - 사용자 문구가 「잠시 후 다시」가 아니라 한도 안내로 나감 (단위 테스트)
@@ -225,3 +225,4 @@
 
 ## 변경 이력
 - v0.1.1 (2026-09-19) runDiscovery 예산 인자를 필수로 만들면 호출부 두 곳이 컴파일 오류가 난다, I01 범위에 그 둘을 넣는다 (audit:I01)
+- v0.1.2 (2026-09-19) 폴백 공급자 실패도 이유를 구조로 돌려줘야 문자열 대조를 없앨 수 있다, I02 범위에 fallback-text 를 넣는다 (audit:I02)

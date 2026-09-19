@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.190',
+    date: '2026-09-20',
+    title: 'AI가 막혔을 때 이유를 제대로 알려드려요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '\uD83D\uDCAC',
+        headline: '「잠시 후 다시」라고만 하던 안내를 고쳤어요',
+        detail: '오늘 쓸 수 있는 AI 사용량을 다 썼을 때도 「서버 응답이 없어요, 잠시 후 다시 시도해 주세요」라고 안내하고 있었어요. 그래서 몇 번을 다시 눌러도 같은 화면만 보셨을 겁니다. 이제 사용량 문제일 때는 사용량이라고 말하고, 무엇을 하면 되는지(모델을 바꾸거나 내일 다시) 함께 알려드려요.',
+      },
+    ],
+  },
+  {
     version: '0.10.189',
     date: '2026-09-20',
     title: '트렌드 분석이 AI 사용량을 다 쓰지 않도록 손봤어요',

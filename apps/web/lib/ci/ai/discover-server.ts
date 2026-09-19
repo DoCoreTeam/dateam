@@ -8,7 +8,7 @@
 // 판정(무엇을 공식으로 올릴지)은 이 파일이 하지 않는다 — analysis/discovery.ts(순수)가 한다.
 // 여기는 AI를 부르고 응답을 그 순수 계층이 먹을 수 있는 모양으로 옮기기만 한다.
 
-import { callGeminiJson } from '../../ai/gemini-call.ts'
+import { callGeminiJson, GeminiCallError } from '../../ai/gemini-call.ts'
 import { asJsonRecord } from '../../ai/json-recover.ts'
 import { getGeminiMeta } from './meta.ts'
 import {
@@ -163,10 +163,20 @@ export async function discoverFromContrasts(
       // 개별 실패는 나머지를 멈추지 않는다. 다만 마지막 사유는 들고 있는다.
       lastError = e instanceof Error ? e.message : String(e)
 
-      // 단, **한도는 다르다.** 한도에 걸리면 다음 건도 100% 같은 이유로 실패한다.
-      // 계속 두드리면 남은 하루치를 재시도로 태우고, 사용자는 몇 분을 더 기다린 뒤
-      // 같은 답을 받는다. 실측: 한도 상태에서 123회를 두드려 성공 0회였다.
-      if (/quota|한도|429|RESOURCE_EXHAUSTED/i.test(lastError)) {
+      /*
+        단, **한도는 다르다.** 한도에 걸리면 다음 건도 100% 같은 이유로 실패한다.
+        계속 두드리면 남은 하루치를 재시도로 태우고, 사용자는 몇 분을 더 기다린 뒤
+        같은 답을 받는다. 실측: 한도 상태에서 123회를 두드려 성공 0회였다.
+
+        판정은 **오류의 이유 값**으로 한다. 예전에는 메시지 글자를 정규식으로 뒤졌는데,
+        호출기가 「AI 연결 실패 · 서버 응답 없음」이라는 한도와 무관한 문장을 올리면
+        그 정규식이 안 걸려 멈춤 장치가 한 번도 작동하지 않았다
+        (실측 2026-09-20: 그 문장으로 올라온 한도 실패가 23,096건).
+        글자는 사람 읽으라고 있는 것이지 코드가 판단하라고 있는 것이 아니다.
+      */
+      const quota = e instanceof GeminiCallError
+        && (e.reason === 'quota' || e.reason === 'auth')
+      if (quota) {
         lastError = `AI 호출 한도를 다 썼습니다(무료 티어는 모델당 하루 ${FREE_TIER_DAILY_LIMIT}회). `
           + '유료 키로 바꾸거나 한도가 초기화된 뒤 다시 시도해 주세요.'
         break

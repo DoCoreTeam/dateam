@@ -48,9 +48,31 @@ export const FALLBACK_MODELS: readonly string[] = [
 
 export interface FallbackUsage { prompt: number; output: number; total: number }
 
+/**
+ * 폴백이 왜 못 갔나. **문자열이 아니라 값으로 돌려준다.**
+ *
+ * 왜(실측 2026-09-20): 실패 사유가 attempts 문자열에만 있어서, 부르는 쪽은
+ * 「429 가 들어 있나」를 정규식으로 뒤져야 했다. 그래서 아무도 안 뒤졌고
+ * 한도로 막힌 호출이 「서버 응답 없음」으로 올라갔다. 발견 루프는 그 말을 보고
+ * 한도가 아니라고 판단해 남은 대조쌍 스물아홉 건을 계속 두드렸다.
+ */
+export type FallbackFailReason = 'quota' | 'auth' | 'no_key' | 'server'
+
 export type FallbackOutcome =
   | { ok: true; text: string; model: string; usage: FallbackUsage }
-  | { ok: false; attempts: string[] }
+  | { ok: false; attempts: string[]; reason: FallbackFailReason }
+
+/**
+ * 시도한 HTTP 상태들을 하나의 이유로 줄인다.
+ *
+ * 한도가 하나라도 있으면 한도다 — 나머지가 무엇이었든 사람이 할 일이 「기다리기」로
+ * 같기 때문이다. 인증 실패는 기다려도 안 풀리므로 한도보다 먼저 말한다.
+ */
+export function reduceFallbackReason(statuses: readonly number[]): FallbackFailReason {
+  if (statuses.some((s) => s === 401 || s === 403)) return 'auth'
+  if (statuses.some((s) => s === 429)) return 'quota'
+  return 'server'
+}
 
 /**
  * OpenAI 호환 응답에서 본문을 꺼낸다.
@@ -91,8 +113,10 @@ export async function callFallbackJson(opts: {
 }): Promise<FallbackOutcome> {
   const { prompt, apiKey, temperature = 0.2, maxOutputTokens = 8_192, timeoutMs = 60_000 } = opts
   const attempts: string[] = []
+  /** 이유를 문자열에서 되짚지 않도록 상태를 그대로 모은다 */
+  const statuses: number[] = []
   // 키가 없으면 나간 것이 없다. 안 나간 것을 원장에 적지 않는다
-  if (!apiKey) return { ok: false, attempts: ['폴백 공급자 키 없음'] }
+  if (!apiKey) return { ok: false, attempts: ['폴백 공급자 키 없음'], reason: 'no_key' }
 
   const gate = await beginGuardedCall(
     prompt,
@@ -127,6 +151,7 @@ export async function callFallbackJson(opts: {
 
     if (!res.ok) {
       attempts.push(`${model}: HTTP ${res.status}`)
+      statuses.push(res.status)
       // 인증 실패는 모델을 바꿔도 같다 — 사슬을 더 돌지 않는다.
       if (res.status === 401 || res.status === 403) break
       continue
@@ -142,5 +167,5 @@ export async function callFallbackJson(opts: {
   }
 
   await gate.done({ ok: false, error: attempts.join(' | ').slice(0, 900) })
-  return { ok: false, attempts }
+  return { ok: false, attempts, reason: reduceFallbackReason(statuses) }
 }
