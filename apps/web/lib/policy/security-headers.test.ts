@@ -52,10 +52,12 @@ test('모든 경로에 보내는 보안 헤더 여섯이 살아 있다', async (
   ]) {
     assert.ok(valueOf(headers, key), `${key} 헤더가 없다`)
   }
-  const csp =
-    valueOf(headers, 'Content-Security-Policy') ??
-    valueOf(headers, 'Content-Security-Policy-Report-Only')
-  assert.ok(csp, 'CSP 가 없다 — 보고용(Report-Only)이라도 있어야 무엇이 걸리는지 안다')
+  // CSP 는 여기 없다. 미들웨어가 요청마다 nonce 를 넣어 만든다(아래 검사).
+  assert.equal(
+    valueOf(headers, 'Content-Security-Policy-Report-Only'),
+    null,
+    '보고용 CSP 가 남아 있다 — 강제본과 둘이 실리면 무엇이 도는지 알 수 없다',
+  )
 })
 
 test('HSTS 는 1년 이상이고 preload 를 붙이지 않는다', async () => {
@@ -71,31 +73,61 @@ test('HSTS 는 1년 이상이고 preload 를 붙이지 않는다', async () => {
   )
 })
 
-test('CSP 뼈대 지시문이 살아 있다', async () => {
-  const headers = await rootHeadersAsync()
-  const csp =
-    valueOf(headers, 'Content-Security-Policy') ??
-    valueOf(headers, 'Content-Security-Policy-Report-Only') ??
-    ''
+test('CSP 는 강제이고 뼈대 지시문이 살아 있다', () => {
+  const mw = readFileSync(join(WEB, 'middleware.ts'), 'utf8')
   for (const directive of [
     "default-src 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    'upgrade-insecure-requests',
   ]) {
-    assert.ok(csp.includes(directive), `CSP 에 ${directive} 가 없다`)
+    assert.ok(mw.includes(directive), `CSP 에 ${directive} 가 없다`)
   }
+  assert.match(
+    mw,
+    /res\.headers\.set\('Content-Security-Policy', csp\)/,
+    '보고용이 아니라 강제로 보내야 한다 (Content-Security-Policy-Report-Only 가 아니다)',
+  )
 })
 
-test('CSP 를 강제로 올리면 script-src 의 unsafe-inline 을 뺀다', async () => {
-  const enforced = valueOf(await rootHeadersAsync(), 'Content-Security-Policy')
-  if (!enforced) return // 아직 보고용 단계 — 이 규칙은 승격하는 순간부터 돈다
-  const scriptSrc = enforced.split(';').map((d) => d.trim()).find((d) => d.startsWith('script-src'))
-  assert.ok(scriptSrc, '강제 CSP 에 script-src 가 없다')
+test('CSP 는 스크립트에 일회용 번호를 요구한다', () => {
+  const mw = readFileSync(join(WEB, 'middleware.ts'), 'utf8')
+  assert.match(mw, /'nonce-\$\{nonce\}' 'strict-dynamic'/, "script-src 에 nonce 와 strict-dynamic 이 있어야 한다")
+  // 줄 단위로 본다. 소스에서는 지시문이 따로 따로 문자열이라 세미콜론이 없어,
+  // 넓게 잡으면 다음 줄의 style-src 까지 삼킨다(실측으로 걸렸다).
+  const scriptSrcLines = mw.split('\n').filter((l) => l.includes('script-src') && l.includes('nonce-'))
+  assert.ok(scriptSrcLines.length > 0, 'script-src 가 없다')
+  for (const line of scriptSrcLines) {
+    assert.ok(
+      !line.includes("'unsafe-inline'"),
+      `강제하면서 script-src 에 'unsafe-inline' 을 남기면 XSS 를 못 막으면서 막은 줄 알게 된다\n  ${line.trim()}`,
+    )
+  }
+  // eval 은 개발 서버 새로고침에만 필요하다. 운영 줄에 섞이면 CSP 가 사실상 무력해진다.
   assert.ok(
-    !scriptSrc.includes("'unsafe-inline'"),
-    "강제하면서 'unsafe-inline' 을 남기면 XSS 를 못 막는다 — nonce 를 붙이고 올린다",
+    scriptSrcLines.some((l) => !l.includes("'unsafe-eval'")),
+    "운영용 script-src 가 없다 — 'unsafe-eval' 없는 줄이 하나는 있어야 한다",
+  )
+  assert.match(mw, /const isProd = process\.env\.NODE_ENV === 'production'/,
+    '개발과 운영을 가르지 않으면 개발 편의가 운영으로 새 나간다')
+  // 요청 헤더에 실어야 Next 가 자기 부트스트랩 스크립트에 nonce 를 붙인다.
+  // 응답에만 달면 화면이 통째로 죽는다.
+  assert.match(mw, /request\.headers\.set\('Content-Security-Policy', csp\)/,
+    'nonce 를 요청 헤더에 안 실으면 Next 스크립트가 전부 막힌다')
+  assert.match(mw, /request\.headers\.set\('x-nonce', nonce\)/, 'x-nonce 를 실어야 화면이 쓸 수 있다')
+})
+
+test('모든 응답 경로에 CSP 가 실린다', () => {
+  const mw = readFileSync(join(WEB, 'middleware.ts'), 'utf8')
+  const body = mw.slice(mw.indexOf('export async function middleware'))
+  // `/_next/image` 404 는 문서가 아니라 예외다. 나머지 return 은 전부 withCsp 를 거친다.
+  const returns = [...body.matchAll(/return (NextResponse\.[a-z]+\([^\n]*|supabaseResponse)/g)].map((m) => m[0])
+  assert.deepEqual(
+    returns.filter((r) => !r.includes('status: 404')),
+    [],
+    `CSP 를 안 붙이고 나가는 길이 있다\n  ${returns.join('\n  ')}\n  withCsp(...) 로 감싼다`,
   )
 })
 

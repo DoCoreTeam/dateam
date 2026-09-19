@@ -30,6 +30,62 @@ function isPublicPath(pathname: string): boolean {
   )
 }
 
+/**
+ * 콘텐츠 보안 정책을 **강제로** 건다 (v0.10.194)
+ *
+ * 왜 여기인가: 전에는 next.config 가 보고용(Report-Only)으로만 보냈다. 이유로 적어 둔 것이
+ * 「nonce 를 쓰면 정적 최적화가 꺼진다」였는데, 실측해 보니 **이 앱에는 해당이 없다.**
+ * 빌드 산출을 세어 보니 HTML 페이지 472개가 **전부 이미 동적**이고 정적으로 미리 그려지는
+ * 페이지는 0개다(로그인 뒤 화면뿐이라 그렇다). 그래서 잃을 것이 없다.
+ *
+ * strict-dynamic 을 쓰는 이유: 이것을 쓰면 'self' 가 무시되고 **nonce 를 단 스크립트와
+ * 그 스크립트가 불러오는 것만** 돈다. 남이 문서에 script 태그를 끼워 넣어도 nonce 가 없어서 안 돈다.
+ * 화면에 손으로 적은 script 태그는 0개라(실측) 막힐 것이 없다.
+ *
+ * style 은 'unsafe-inline' 을 남긴다 — 리액트가 style 속성으로 값을 넣고, 스타일 주입은
+ * 스크립트 주입과 위험이 다르다. 여기까지 조이려면 화면 전체를 고쳐야 하고 얻는 것이 적다.
+ */
+function buildCsp(nonce: string): string {
+  const supabase = (() => {
+    try {
+      return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin
+    } catch {
+      return ''
+    }
+  })()
+  const ws = supabase.replace(/^https:/, 'wss:')
+
+  /**
+   * 개발과 운영이 갈리는 두 줄.
+   *
+   * - `unsafe-eval`: 개발 서버의 새로고침(React Refresh)이 eval 을 쓴다. 없으면 dev 가 죽는다.
+   *   운영 번들에는 eval 이 없으므로 운영에서는 넣지 않는다.
+   * - `upgrade-insecure-requests`: 운영은 전부 https 라 맞는 말이지만, 로컬은 http 라
+   *   자기 자신을 https 로 올리려다 실패한다(실측 net::ERR_SSL_PROTOCOL_ERROR).
+   */
+  const isProd = process.env.NODE_ENV === 'production'
+  const scriptSrc = isProd
+    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`
+    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+
+  return [
+    "default-src 'self'",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    `connect-src 'self' ${supabase} ${ws}`.trim(),
+    "media-src 'self' blob: https:",
+    "worker-src 'self' blob:",
+    "frame-src 'none'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    ...(isProd ? ['upgrade-insecure-requests'] : []),
+  ].join('; ')
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -50,10 +106,26 @@ export async function middleware(request: NextRequest) {
     return new NextResponse(null, { status: 404 })
   }
 
+  /**
+   * 요청마다 새 일회용 번호를 만들어 **요청 헤더에** 싣는다.
+   * Next 는 요청의 Content-Security-Policy 헤더에서 nonce 를 읽어 자기 스크립트에 붙인다 —
+   * 응답에만 달면 Next 가 못 읽고 부트스트랩 스크립트가 통째로 막힌다.
+   */
+  const nonce = crypto.randomUUID().replace(/-/g, '')
+  const csp = buildCsp(nonce)
+  request.headers.set('x-nonce', nonce)
+  request.headers.set('Content-Security-Policy', csp)
+
+  /** 어느 길로 나가든 정책이 실리게 한다. 빠진 응답 하나가 곧 구멍이다. */
+  const withCsp = <T extends NextResponse>(res: T): T => {
+    res.headers.set('Content-Security-Policy', csp)
+    return res
+  }
+
   // 공개 경로는 user를 보지 않고 통과한다 — 판정에 user가 쓰이지 않으므로 결과가 동일하고,
   // getUser()(Supabase 인증 서버 왕복 ~600ms)를 통째로 아낀다.
   // (예전엔 이 분기가 getUser() **뒤**에 있어 공개 API·개발자센터도 매번 통행료를 냈다)
-  if (isPublicPath(pathname)) return NextResponse.next({ request })
+  if (isPublicPath(pathname)) return withCsp(NextResponse.next({ request }))
 
   /**
    * 지금 어느 화면인지를 서버 컴포넌트에 알려 준다.
@@ -98,7 +170,7 @@ export async function middleware(request: NextRequest) {
   if (!user && pathname !== '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    return withCsp(NextResponse.redirect(url))
   }
 
   // 로그인 후 /login 접근 → /dashboard
@@ -106,7 +178,7 @@ export async function middleware(request: NextRequest) {
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    return withCsp(NextResponse.redirect(url))
   }
 
   // api_user 차단은 여기서 하지 않는다 — 레이아웃이 한다(lib/auth/api-user-gate.ts).
@@ -124,7 +196,7 @@ export async function middleware(request: NextRequest) {
   //   (member) 레이아웃으로 들어가 막힌다.
   //   가드: lib/auth/api-user-gate.test.ts가 새 페이지가 이 밖으로 새면 실패한다.
 
-  return supabaseResponse
+  return withCsp(supabaseResponse)
 }
 
 export const config = {
