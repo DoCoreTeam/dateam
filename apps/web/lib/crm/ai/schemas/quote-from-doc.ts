@@ -16,6 +16,15 @@
  * 견적은 고객에게 나가는 문서라, 구분할 수 없는 값을 넣어서는 안 된다.
  *
  * **여기서 나오는 것도 초안이다.** 사람이 체크하고 넣기를 눌러야 폼에 들어간다(§5-3).
+ *
+ * ## 문서 한 장에 견적 여러 건
+ *
+ * 한 딜에 견적이 하나일 이유가 없다. 1안·2안이 한 장에 들어오고, 공급사에서 받은
+ * 견적서와 우리가 낸 견적서가 한 파일에 붙어 오기도 한다. 그래서 최상위는 **건 목록**이고,
+ * 합계와 제목과 통화는 **건마다** 따로 있다.
+ *
+ * 그 건을 무엇에 쓸지(새 견적·있는 견적에 붙이기·원가)는 **이 스키마가 정하지 않는다.**
+ * 여기는 읽기만 한다.
  */
 
 import { z } from 'zod'
@@ -61,7 +70,31 @@ export const QuoteFromDocLineSchema = z.object({
   sourceText,
 })
 
-export const QuoteFromDocOutputSchema = z.object({
+/**
+ * 한 파일에서 받을 **건 수** 상한.
+ *
+ * 견적서 한 벌에 안(1안·2안)이 붙거나, 공급사에서 받은 것과 우리가 낸 것이 한 장에
+ * 같이 들어오는 일이 흔하다. 열 건을 넘기면 그것은 견적서가 아니라 묶음 문서이고,
+ * 그때는 통째로 읽을 것이 아니라 필요한 쪽만 떼어 올려야 한다.
+ *
+ * **넘친 것은 조용히 버리지 않는다** — 몇 건을 못 읽었는지 화면이 말한다.
+ */
+export const MAX_DOC_QUOTES = 10
+
+/**
+ * 건 하나 = 견적서 한 벌.
+ *
+ * **왜 한 건으로 못 박지 않나**: 한 딜에 견적이 하나일 이유가 없다(사용자 지시 2026-09-19).
+ * 1안·2안이 한 장에 들어오고, 받은 견적서와 우리 견적서가 한 파일에 붙어 온다.
+ * 한 건으로 읽으면 두 건의 항목이 한 줄기로 섞이고, 합계 대조는 둘 중 하나와만
+ * 견주게 되어 **늘 안 맞는다고 뜬다**.
+ */
+export const QuoteFromDocQuoteSchema = z.object({
+  /**
+   * 문서가 이 건을 부르는 말. 「1안」·「기본형」·「갑지」 따위. 없으면 null.
+   * 화면이 건 카드 이름 옆에 그대로 붙인다 — 사람이 원문에서 그 건을 찾을 수 있어야 한다.
+   */
+  label: softString,
   /** 문서의 사업명·건명. 못 찾으면 null — 화면이 딜 이름을 그대로 둔다 */
   title: softString,
   currency: softString,
@@ -71,11 +104,19 @@ export const QuoteFromDocOutputSchema = z.object({
    * 사람이 「내가 올린 그 문서가 맞나」를 확인하는 데만 쓴다.
    */
   customerName: softString,
+  /**
+   * 이 문서를 **낸 쪽**의 상호(「공급자」 칸).
+   *
+   * 우리 상호와 견줘 「우리 견적 같음 / 받은 문서 같음」을 화면이 라벨로 알려 준다.
+   * **그 라벨은 알림일 뿐 아무것도 바꾸지 않는다** — 원가인지 그냥 내용을 가져오려는
+   * 것인지는 문서가 아니라 사람의 의도이고, 문서를 봐서는 알 수 없다.
+   */
+  supplierName: softString,
   /** 문서에 적힌 견적일. 확인용이고 폼에 안 넣는다 — 새 견적의 날짜는 오늘이다 */
   issuedOn: softString,
   lines: z.array(QuoteFromDocLineSchema).max(MAX_DOC_LINES),
   /**
-   * 문서 맨 아래의 **합계**. 우리 합계와 대조하는 유일한 근거다.
+   * 그 건 맨 아래의 **합계**. 우리 합계와 대조하는 유일한 근거다.
    * 못 찾으면 null 이고, 그때는 화면이 「대조할 합계가 없다」고 말한다.
    */
   sourceTotalMinor: amount,
@@ -83,19 +124,91 @@ export const QuoteFromDocOutputSchema = z.object({
   sourceTotalIncludesTax: z.preprocess((v) => v === true || v === 'true', z.boolean()),
   /** 문서가 쓴 부가세율(%). 안 적혀 있으면 null — 화면 기본값을 그대로 둔다 */
   taxPercent: ratio,
+})
+
+/** 문서 한 장 — 건 목록과, 어느 건에도 못 넣은 이야기 */
+export const QuoteFromDocDocSchema = z.object({
+  quotes: z.array(QuoteFromDocQuoteSchema),
   /** 못 읽은 부분 — 화면이 그대로 보여 준다(조용히 버리지 않는다) */
   unclear: z.array(z.string().max(200)).max(20),
 })
 
+/**
+ * 건 하나짜리 모양.
+ *
+ * 편집 모달의 「파일로 채우기」는 지금도 한 건을 채우는 자리라 이 모양을 쓴다.
+ * 건 목록으로 온 응답이면 **첫 건**을 준다.
+ */
+export const QuoteFromDocOutputSchema = QuoteFromDocQuoteSchema.extend({
+  unclear: z.array(z.string().max(200)).max(20),
+})
+
 export type QuoteFromDocLine = z.infer<typeof QuoteFromDocLineSchema>
+export type QuoteFromDocQuote = z.infer<typeof QuoteFromDocQuoteSchema>
 export type QuoteFromDocOutput = z.infer<typeof QuoteFromDocOutputSchema>
 
+export interface QuoteFromDocDoc {
+  quotes: QuoteFromDocQuote[]
+  unclear: string[]
+  /** 상한에 걸려 못 읽은 건 수. 0 이 아니면 화면이 그 수를 말한다 */
+  droppedQuotes: number
+}
+
+/** 펜스를 벗기고 JSON 으로. 모델이 ```json 으로 감싸는 일이 흔하다 */
+function toJson(text: string): unknown {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '')
+  return JSON.parse(trimmed)
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+
+/** 문자열만 골라 낸다 — 못 읽은 이야기 칸에 객체가 들어오면 화면이 [object Object] 를 그린다 */
+function strings(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
+}
+
 /**
- * 러너는 **원문 텍스트**를 준다. 모델이 ```json 펜스로 감싸는 일이 흔해 먼저 벗긴다
- * (`parseQuoteDraft` 와 같은 처리다 — 같은 일을 다르게 하지 않는다).
+ * 어떤 모양으로 와도 **건 목록**으로 본다.
+ *
+ * 모델은 지시를 따르다가도 한 건짜리 문서에서는 옛 모양(최상위 `lines`)을 돌려준다.
+ * 그때 거절하면 **읽을 수 있는 문서를 못 읽었다고 말하게 된다** — 관용은 여기 한 곳에만 둔다.
+ */
+function toQuoteList(json: unknown): { quotes: unknown[]; unclear: string[]; dropped: number } {
+  const obj = isRecord(json) ? json : {}
+  const raw = Array.isArray(obj.quotes)
+    ? obj.quotes
+    : (Array.isArray(obj.lines) ? [obj] : [])
+
+  // 건 안에 적힌 「못 읽음」도 함께 모은다. 문서 칸에만 있다고 보면 그 이야기가 사라진다
+  const perQuote = raw.flatMap((q) => (isRecord(q) ? strings(q.unclear) : []))
+  const unclear = [...strings(obj.unclear), ...perQuote].slice(0, 20)
+
+  return {
+    quotes: raw.slice(0, MAX_DOC_QUOTES),
+    unclear,
+    dropped: Math.max(0, raw.length - MAX_DOC_QUOTES),
+  }
+}
+
+/** 문서 한 장을 건 목록으로 읽는다 */
+export function parseQuoteFromDocDoc(text: string): QuoteFromDocDoc {
+  const { quotes, unclear, dropped } = toQuoteList(toJson(text))
+  const parsed = QuoteFromDocDocSchema.parse({ quotes, unclear })
+  return { ...parsed, droppedQuotes: dropped }
+}
+
+/**
+ * 건 하나만 읽는다(편집 모달의 채우기 경로).
+ *
+ * 건이 여럿이면 첫 건을 준다 — 어느 건을 채울지 고르는 일은 화면이 하고,
+ * 그 화면은 `parseQuoteFromDocDoc` 를 쓴다.
  */
 export function parseQuoteFromDoc(text: string): QuoteFromDocOutput {
-  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '')
-  const json: unknown = JSON.parse(trimmed)
-  return QuoteFromDocOutputSchema.parse(json)
+  const doc = parseQuoteFromDocDoc(text)
+  const first = doc.quotes[0]
+  if (!first) {
+    return QuoteFromDocOutputSchema.parse({ lines: [], sourceTotalIncludesTax: false, unclear: doc.unclear })
+  }
+  return { ...first, unclear: doc.unclear }
 }

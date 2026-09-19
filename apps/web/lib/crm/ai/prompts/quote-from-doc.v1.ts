@@ -12,16 +12,30 @@
  *   ② **합계 행을 항목으로 넣지 마라.** 「소계」·「부가세」·「합계」는 항목이 아니라
  *     항목들의 결과다. 넣으면 금액이 두 배가 된다.
  *   ③ **줄마다 원문을 남겨라.** 사람이 대조할 수 없는 값은 검수가 안 된다.
+ *   ④ **문서 한 장에 견적이 여러 건일 수 있다.** 한 건으로 뭉치면 두 건의 항목이
+ *     한 줄기로 섞이고, 합계 대조가 늘 안 맞는다고 뜬다.
  */
 
 import type { AiPrompt } from '../runner.ts'
 
 export const QUOTE_FROM_DOC_V1: AiPrompt = {
-  version: 'quote_from_doc@v1.0.0',
+  version: 'quote_from_doc@v1.1.0',
   build: (input: string) => `당신은 **이미 만들어진 견적서**를 우리 양식으로 옮기는 도구다.
 원문은 PDF·엑셀·워드·한글·이미지에서 뽑은 글이고, 표는 행마다 「A | B | C」로 펴져 있다.
 
 당신이 하는 일은 **옮기기**다. 해석도 계산도 하지 않는다.
+
+문서 한 장에 견적이 **여러 건**일 수 있다. 아래 중 하나라도 보이면 **다른 건**이다.
+- 합계(「합계」·「총액」·「Total」) 행이 여러 번 나오고, 각 합계가 바로 앞 항목들만 더한 값이다
+- 견적번호·견적일·수신처(「○○ 귀중」)가 적힌 머리 부분이 문서 중간에 다시 나온다
+- 「1안」·「2안」·「A안」·「대안」·「Option」·「기본형/확장형」 같은 표시로 갈라져 있다
+- 공급자(낸 쪽)나 공급받는 곳이 서로 다르다
+
+반대로 **같은 건**인 것
+- 한 견적 안의 「소계」·「구분」·「부속명세」·「내역서」는 묶음일 뿐 다른 건이 아니다
+- 쪽이 넘어가 표가 이어지는 것도 같은 건이다
+
+건이 하나면 quotes 에 하나만 넣는다. **억지로 나누지 마라.** 나눌 근거가 없으면 한 건이다.
 
 항목으로 넣을 것
 - 표에서 **품목이 적힌 행**만 항목이다.
@@ -45,11 +59,13 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
 - sourceText **그 항목이 나온 원문 줄을 그대로** 적는다(300자 이내). 사람이 눈으로 대조한다.
   이 칸을 비우면 그 줄은 근거가 없는 값이 된다. 반드시 채워라.
 
-문서 전체에서 채울 것
+건마다 채울 것
+- label 문서가 그 건을 부르는 말(「1안」·「기본형」·「갑지」). 없으면 null. 지어내지 마라
 - title 사업명·건명. 없으면 null
 - customerName 공급받는 곳(「○○ 귀중」의 그 이름). 없으면 null
+- supplierName 그 건을 **낸 쪽**의 상호(「공급자」·「공급하는 자」 칸의 회사 이름). 없으면 null
 - issuedOn 견적일. 원문 표기 그대로(예: "2026-03-14"). 없으면 null
-- sourceTotalMinor 문서에 적힌 **합계**. 「합계」·「총액」·「Total」 행의 숫자다. 없으면 null
+- sourceTotalMinor 그 건에 적힌 **합계**. 「합계」·「총액」·「Total」 행의 숫자다. 없으면 null
 - sourceTotalIncludesTax 그 합계가 부가세를 포함하면 true. 「공급가액」만 있으면 false
 - taxPercent 문서에 적힌 부가세율(%). 안 적혀 있으면 null
 - currency 원이면 "KRW", 달러면 "USD"(그때 금액은 **센트**다)
@@ -66,20 +82,26 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
 
 JSON 만 출력한다. 형식:
 {
-  "title": "…또는 null",
-  "currency": "KRW",
-  "customerName": "…또는 null",
-  "issuedOn": "…또는 null",
-  "lines": [
-    { "name": "H100 80GB SXM", "spec": "SXM5 · 3년 무상보증", "kind": "QUANTITY",
-      "quantity": 2, "unit": "대", "unitPriceMinor": 50000000,
-      "discountPercent": null, "specialDiscountPercent": null,
-      "amountMinor": 100000000,
-      "sourceText": "1 | H100 80GB SXM | SXM5 · 3년 무상보증 | 2 | 대 | 50,000,000 | 100,000,000" }
+  "quotes": [
+    {
+      "label": "1안 또는 null",
+      "title": "…또는 null",
+      "currency": "KRW",
+      "customerName": "…또는 null",
+      "supplierName": "…또는 null",
+      "issuedOn": "…또는 null",
+      "lines": [
+        { "name": "H100 80GB SXM", "spec": "SXM5 · 3년 무상보증", "kind": "QUANTITY",
+          "quantity": 2, "unit": "대", "unitPriceMinor": 50000000,
+          "discountPercent": null, "specialDiscountPercent": null,
+          "amountMinor": 100000000,
+          "sourceText": "1 | H100 80GB SXM | SXM5 · 3년 무상보증 | 2 | 대 | 50,000,000 | 100,000,000" }
+      ],
+      "sourceTotalMinor": 110000000,
+      "sourceTotalIncludesTax": true,
+      "taxPercent": 10
+    }
   ],
-  "sourceTotalMinor": 110000000,
-  "sourceTotalIncludesTax": true,
-  "taxPercent": 10,
   "unclear": []
 }
 

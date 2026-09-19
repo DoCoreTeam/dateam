@@ -9,7 +9,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  QuoteFromDocOutputSchema, parseQuoteFromDoc, MAX_DOC_LINES,
+  QuoteFromDocOutputSchema, parseQuoteFromDoc, parseQuoteFromDocDoc,
+  MAX_DOC_LINES, MAX_DOC_QUOTES,
 } from './quote-from-doc.ts'
 import { QUOTE_FROM_DOC_V1 } from '../prompts/quote-from-doc.v1.ts'
 
@@ -136,6 +137,85 @@ test('★ 코드펜스를 벗긴다 — 모델이 ```json 으로 감싸는 일�
   assert.equal(r.lines.length, 1)
 })
 
+/* ── 한 장에 여러 건 ─────────────────────────────── */
+
+/*
+  한 딜에 견적이 하나일 이유가 없다(사용자 지시 2026-09-19).
+  한 건으로 뭉치면 두 건의 항목이 한 줄기로 섞이고, 합계 대조는 둘 중 하나와만
+  견주게 되어 늘 안 맞는다고 뜬다.
+*/
+
+const quoteA = {
+  label: '1안', title: '기본 구성', currency: 'KRW',
+  customerName: '한국산업기술시험원', supplierName: '데이터얼라이언스', issuedOn: '2026-03-14',
+  lines: [line], sourceTotalMinor: 110000000, sourceTotalIncludesTax: true, taxPercent: 10,
+}
+const quoteB = {
+  ...quoteA, label: '2안', title: '확장 구성',
+  supplierName: '지코어', sourceTotalMinor: 220000000,
+  lines: [{ ...line, name: 'H200 141GB', amountMinor: 200000000 }],
+}
+
+test('★ 건이 둘이면 둘로 읽는다 — 뭉치면 합계 대조가 늘 안 맞는다고 뜬다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({ quotes: [quoteA, quoteB], unclear: [] }))
+  assert.equal(r.quotes.length, 2)
+  assert.equal(r.quotes[0].title, '기본 구성')
+  assert.equal(r.quotes[1].title, '확장 구성')
+})
+
+test('★ 합계와 제목과 통화는 건마다 따로다 — 문서 하나에 하나면 둘째 건은 남의 합계로 검산된다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({ quotes: [quoteA, quoteB], unclear: [] }))
+  assert.equal(r.quotes[0].sourceTotalMinor, 110000000)
+  assert.equal(r.quotes[1].sourceTotalMinor, 220000000)
+  assert.equal(r.quotes[0].lines[0].name, 'H100 80GB SXM')
+  assert.equal(r.quotes[1].lines[0].name, 'H200 141GB')
+})
+
+test('★ 옛 한 건 모양(최상위 lines)도 1건으로 읽는다 — 거절하면 읽히는 문서를 못 읽었다고 말하게 된다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({ ...base, lines: [line] }))
+  assert.equal(r.quotes.length, 1)
+  assert.equal(r.quotes[0].lines.length, 1)
+  assert.equal(r.quotes[0].sourceTotalMinor, 110000000)
+})
+
+test('건을 하나도 못 찾으면 빈 목록이다 — 그때는 화면이 「못 찾았다」고 말한다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({ unclear: ['표가 그림이라 안 읽힘'] }))
+  assert.deepEqual(r.quotes, [])
+  assert.deepEqual(r.unclear, ['표가 그림이라 안 읽힘'])
+})
+
+test('★ 상한을 넘으면 몇 건을 못 읽었는지 남긴다 — 조용히 버리면 사람은 그게 전부인 줄 안다', () => {
+  const many = Array.from({ length: MAX_DOC_QUOTES + 3 }, () => quoteA)
+  const r = parseQuoteFromDocDoc(JSON.stringify({ quotes: many, unclear: [] }))
+  assert.equal(r.quotes.length, MAX_DOC_QUOTES)
+  assert.equal(r.droppedQuotes, 3)
+})
+
+test('건 안에 적힌 「못 읽음」도 모은다 — 문서 칸만 보면 그 이야기가 사라진다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({
+    quotes: [{ ...quoteA, unclear: ['2안 단가가 각주에만 있음'] }],
+    unclear: ['3쪽이 그림'],
+  }))
+  assert.deepEqual(r.unclear, ['3쪽이 그림', '2안 단가가 각주에만 있음'])
+})
+
+test('★ 낸 쪽 상호를 받는다 — 우리 상호와 견줄 값이 없으면 라벨을 만들 수 없다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({ quotes: [quoteB], unclear: [] }))
+  assert.equal(r.quotes[0].supplierName, '지코어')
+})
+
+test('문서가 부르는 이름(1안·2안)을 그대로 들고 온다 — 사람이 원문에서 그 건을 찾아야 한다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({ quotes: [quoteA, quoteB], unclear: [] }))
+  assert.deepEqual(r.quotes.map((q) => q.label), ['1안', '2안'])
+})
+
+test('★ 한 건만 채우는 경로는 첫 건을 받는다 — 모달의 채우기가 그대로 동작해야 한다', () => {
+  const r = parseQuoteFromDoc(JSON.stringify({ quotes: [quoteA, quoteB], unclear: ['3쪽이 그림'] }))
+  assert.equal(r.title, '기본 구성')
+  assert.equal(r.lines.length, 1)
+  assert.deepEqual(r.unclear, ['3쪽이 그림'])
+})
+
 /* ── 프롬프트 ────────────────────────────────────── */
 
 test('★ 합계 행을 항목으로 넣지 말라고 적혀 있다 — 넣으면 금액이 두 배가 된다', () => {
@@ -161,4 +241,24 @@ test('★ 원문이 프롬프트에 실린다 — 안 실으면 모델이 빈 �
 
 test('프롬프트 판번호가 있다 — 어느 판에서 나온 답인지 기록에 남아야 한다', () => {
   assert.match(QUOTE_FROM_DOC_V1.version, /^quote_from_doc@v\d+\.\d+\.\d+$/)
+})
+
+test('★ 건을 가르는 기준이 적혀 있다 — 기준이 없으면 모델이 쪽마다 새 건을 만든다', () => {
+  const p = QUOTE_FROM_DOC_V1.build('원문')
+  for (const word of ['1안', '견적번호', '공급자']) {
+    assert.ok(p.includes(word), `건을 가르는 기준에 「${word}」가 없다`)
+  }
+  assert.match(p, /합계.*여러 번/, '합계가 여러 번 나오는 것이 기준이라고 안 적혀 있다')
+})
+
+test('★ 억지로 나누지 말라고 적혀 있다 — 소계·부속명세는 묶음이지 다른 건이 아니다', () => {
+  const p = QUOTE_FROM_DOC_V1.build('원문')
+  assert.match(p, /억지로 나누지 마라/)
+  assert.ok(p.includes('부속명세'), '한 건 안의 묶음을 다른 건으로 읽는다')
+})
+
+test('★ 출력 형식이 건 목록이다 — 예시가 옛 모양이면 모델이 옛 모양으로 답한다', () => {
+  const p = QUOTE_FROM_DOC_V1.build('원문')
+  assert.match(p, /"quotes":\s*\[/)
+  assert.ok(p.includes('"supplierName"'), '낸 쪽 상호를 안 물어본다')
 })
