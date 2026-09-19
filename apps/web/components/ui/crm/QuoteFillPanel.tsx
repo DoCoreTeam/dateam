@@ -18,23 +18,21 @@
 // 견적은 고객에게 나가는 문서이고, AI 가 단가를 하나 잘못 풀면 그 숫자가 그대로 제안가가 된다.
 
 import { useRef, useState } from 'react'
-import { Sparkles, Upload, FileText, X } from 'lucide-react'
+import { Sparkles, Upload, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { scaleLinesToTarget, describeScale } from '@/lib/crm/domain/quote-target'
-import {
-  checkLine, checkTotal, initialChecked,
-  type LineCheck, type LineCheckInput, type TotalCheck,
-} from '@/lib/crm/domain/quote-reconcile'
-import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { LINE_KIND_ORDER, LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
 import {
   ACTION, progress, QUOTE,
   FILL_SPEECH_HINT, FILL_SPEECH_PLACEHOLDER, FILL_FILE_HINT, FILL_FILE_KINDS,
-  FILL_REVIEW_HINT, FILL_UNCLEAR_TITLE, FILL_NO_PRICE, FILL_SOURCE_LABEL,
-  FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_NOTHING_FOUND, fillFoundLine,
-  FILL_RISK_TEXT, FILL_TOTAL_MATCH, FILL_TOTAL_NO_REFERENCE, fillTotalMismatch,
-  FILL_TOTAL_OURS, FILL_TOTAL_DOCUMENT,
+  FILL_REVIEW_HINT, FILL_UNCLEAR_TITLE,
+  FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_NOTHING_FOUND,
 } from '@/lib/terms'
+import {
+  buildReview, toggleChecked, pickedLines, appendLines,
+  QuoteReviewList, ReviewHead,
+  type DocLineJson, type DocQuoteJson, type FileReview,
+} from './quote-review'
 import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
 import styles from './quote-panel.module.css'
 
@@ -54,38 +52,14 @@ const ACCEPT = [
   '.png', '.jpg', '.jpeg', '.webp',
 ].join(',')
 
-/** 창구가 돌려주는 항목 한 줄 */
-interface DocLineJson {
-  name: string | null
-  spec: string | null
-  kind: string | null
-  quantity: number | null
-  unit: string | null
-  unitPriceMinor: number | null
-  discountPercent: number | null
-  specialDiscountPercent: number | null
-  amountMinor: number | null
-  sourceText: string
-}
-
-/** 파일에서 읽은 것을 사람이 보는 동안 들고 있는 값 */
-interface Review {
+/** 파일 한 장에서 읽은 것 중 **건에 딸리지 않은** 값 */
+interface DocInfo {
   fileName: string
   route: 'text' | 'vision'
-  lines: QuoteLineDraft[]
-  /** 줄마다 원문 조각 — 같은 인덱스 */
-  sources: string[]
-  /** 줄마다 대조 결과 — 같은 인덱스 */
-  checks: LineCheck[]
-  /** 줄마다 넣을지 — 같은 인덱스 */
-  checked: boolean[]
-  /** 문서 맨 아래 합계와의 대조 */
-  total: TotalCheck
-  currency: string
-  title: string | null
-  unclear: string[]
   truncated: boolean
   tableCount: number
+  /** 못 알아본 말 — 건이 아니라 문서에 딸린다 */
+  unclear: string[]
 }
 
 export interface QuoteFillPanelProps {
@@ -96,8 +70,13 @@ export interface QuoteFillPanelProps {
   onError: (message: string | null) => void
 }
 
-/** 창구가 준 줄을 폼 모양으로. 두 길이 같은 함수를 쓴다 */
-function toFormLine(l: DocLineJson, taxPercent: number | null): QuoteLineDraft {
+/**
+ * 말로 채우기가 준 줄을 폼 모양으로.
+ *
+ * 파일 경로는 `quote-review` 의 `toFormLine` 을 쓴다 — 같은 일을 두 번 적지 않는다.
+ * 말 경로만 여기 남은 이유는 부가세율이 문서에서 오지 않기 때문이다(늘 화면 기본값).
+ */
+function saidLine(l: DocLineJson): QuoteLineDraft {
   const k = (LINE_KIND_ORDER as readonly string[]).includes(l.kind ?? '')
     ? l.kind as QuoteLineKind : 'QUANTITY'
   return {
@@ -111,20 +90,8 @@ function toFormLine(l: DocLineJson, taxPercent: number | null): QuoteLineDraft {
     unitPriceMinor: l.unitPriceMinor === null ? '' : String(l.unitPriceMinor),
     discountPercent: l.discountPercent === null ? '0' : String(l.discountPercent),
     specialDiscountPercent: l.specialDiscountPercent === null ? '' : String(l.specialDiscountPercent),
-    taxRate: taxPercent === null ? '10' : String(taxPercent),
+    taxRate: '10',
   }
-}
-
-/**
- * 읽은 항목을 폼에 **얹는다** — 지금 있는 항목을 지우지 않고 뒤에 붙인다.
- *
- * 빈 줄 하나뿐일 때만 갈아 끼운다. 새 견적의 그 한 줄은 «아직 아무것도 안 적은 상태»이고,
- * 거기에 이어 붙이면 이름 없는 0원 줄이 견적서 맨 위에 남는다.
- */
-function appendLines(prev: QuoteDraft, made: QuoteLineDraft[]): QuoteLineDraft[] {
-  if (made.length === 0) return prev.lines
-  const onlyEmpty = prev.lines.length === 1 && !prev.lines[0].name.trim()
-  return onlyEmpty ? made : [...prev.lines, ...made]
 }
 
 export default function QuoteFillPanel({
@@ -135,12 +102,15 @@ export default function QuoteFillPanel({
   const [unclear, setUnclear] = useState<string[]>([])
   /** 총액을 맞췄으면 무엇을 얼마로 맞췄는지 — **조용히 단가를 바꾸지 않는다** */
   const [note, setNote] = useState<string | null>(null)
-  const [review, setReview] = useState<Review | null>(null)
+  const [review, setReview] = useState<FileReview | null>(null)
+  /** 건에 딸리지 않은 값은 따로 든다 — 건이 여럿이어도 파일은 한 장이다 */
+  const [docInfo, setDocInfo] = useState<DocInfo | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const close = () => {
     setSayText('')
     setReview(null)
+    setDocInfo(null)
     onClose()
   }
 
@@ -183,7 +153,7 @@ export default function QuoteFillPanel({
         taxPercent: number | null
         unclear: string[]
       }
-      const made = (d.lines ?? []).filter((l) => l.name).map((l) => toFormLine(l, null))
+      const made = (d.lines ?? []).filter((l) => l.name).map(saidLine)
 
       /*
         새 항목이 없어도 **목표만으로 성립한다** — 「지금 이대로 3억에 맞춰 줘」가 그 경우다.
@@ -272,65 +242,26 @@ export default function QuoteFillPanel({
       const body = await res.json()
       if (!res.ok) { onError(body?.error?.message ?? '파일을 읽지 못했습니다.'); return }
 
-      const d = body.draft as {
-        title: string | null
-        currency: string | null
-        lines: DocLineJson[]
-        taxPercent: number | null
-        sourceTotalMinor: number | null
-        sourceTotalIncludesTax: boolean
-        unclear: string[]
-      }
-      const source = body.source as {
-        fileName: string; route: 'text' | 'vision'; truncated: boolean; tableCount: number
-      }
+      /*
+        응답은 **건 목록**이다. 한 장에 견적이 둘이면 둘로 온다 —
+        여기(편집 모달)는 지금 보고 있는 견적 하나를 채우는 자리라 첫 건을 쓴다.
+        둘 이상일 때 고르는 일은 딜 화면의 「파일로 가져오기」가 맡는다.
+      */
+      const quotes = (body.quotes ?? []) as DocQuoteJson[]
+      const source = body.source as Omit<DocInfo, 'unclear'>
       // 갈아탄 사실은 검수 목록과 **함께** 보인다 — 나중에 따로 말하면 이미 넣은 뒤다
       if (typeof body.switchedNote === 'string') setNote(body.switchedNote)
-      const usable = (d.lines ?? []).filter((l) => l.name)
-      if (usable.length === 0) {
+
+      const first = quotes[0]
+      if (!first || (first.lines ?? []).filter((l) => l.name).length === 0) {
         onError(FILL_NOTHING_FOUND)
-        setUnclear(d.unclear ?? [])
+        setUnclear((body.unclear ?? []) as string[])
         return
       }
-      const lines = usable.map((l) => toFormLine(l, d.taxPercent))
-      const sources = usable.map((l) => l.sourceText ?? '')
 
-      /*
-        **읽은 값을 원문과 맞춰 본다.** 견적서에는 줄마다 금액이 적혀 있고 맨 아래 합계가 있다 —
-        즉 답이 문서 안에 이미 있다. 그 둘과 우리 계산을 견주면 잘못 읽은 줄이 스스로 드러난다.
-        계산은 `quote-reconcile`(순수 · 가드 20개)이 하고 여기서는 결과만 그린다.
-      */
-      const inputs: LineCheckInput[] = lines.map((l, i) => ({
-        name: l.name,
-        quantity: l.quantity,
-        unitPriceMinor: l.unitPriceMinor,
-        discountPercent: l.discountPercent,
-        specialDiscountPercent: l.specialDiscountPercent,
-        taxRate: l.taxRate,
-        documentAmountMinor: usable[i].amountMinor,
-        sourceText: sources[i],
-      }))
-      const checks = inputs.map(checkLine)
-
-      setReview({
-        fileName: source.fileName,
-        route: source.route,
-        lines,
-        sources,
-        checks,
-        // **위험 신호가 붙은 줄은 꺼 둔다** — 켜는 행동 자체가 「내가 봤다」는 뜻이 되게
-        checked: initialChecked(checks),
-        total: checkTotal({
-          lines: inputs,
-          documentTotalMinor: d.sourceTotalMinor,
-          documentIncludesTax: Boolean(d.sourceTotalIncludesTax),
-        }),
-        currency: (d.currency ?? draft.currency ?? 'KRW').toUpperCase(),
-        title: d.title,
-        unclear: d.unclear ?? [],
-        truncated: source.truncated,
-        tableCount: source.tableCount,
-      })
+      // 못 알아본 말은 **넣은 뒤에** 보여 준다 — 검수 중에 띄우면 목록이 밀린다
+      setDocInfo({ ...source, unclear: (body.unclear ?? []) as string[] })
+      setReview(buildReview(first, 0, draft.currency))
     } catch {
       onError('파일을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -342,42 +273,22 @@ export default function QuoteFillPanel({
 
   const applyReview = () => {
     if (!review) return
-    const picked = review.lines.filter((_, i) => review.checked[i])
+    const picked = pickedLines(review)
     if (picked.length === 0) return
     onDraftChange((prev) => ({
       ...prev,
       title: prev.title.trim() ? prev.title : (review.title ?? prev.title),
       lines: appendLines(prev, picked),
     }))
-    setUnclear(review.unclear)
+    setUnclear(docInfo?.unclear ?? [])
     setReview(null)
+    setDocInfo(null)
     onClose()
   }
 
-  const toggle = (i: number) => setReview((r) => (r
-    ? { ...r, checked: r.checked.map((c, j) => (j === i ? !c : c)) }
-    : r))
+  const toggle = (i: number) => setReview((r) => (r ? toggleChecked(r, i) : r))
 
   const pickedCount = review ? review.checked.filter(Boolean).length : 0
-
-  /**
-   * 합계 대조를 **한 문장으로**.
-   *
-   * JSX 안에서 갈래를 세 번 치면 `diffMinor !== null` 이 안쪽까지 안 따라가고,
-   * 무엇보다 읽는 사람이 세 갈래를 눈으로 합쳐야 한다.
-   */
-  const totalWord = ((): string => {
-    if (!review) return ''
-    const t = review.total
-    if (t.verdict === 'match') return FILL_TOTAL_MATCH
-    if (t.verdict === 'no_reference') return FILL_TOTAL_NO_REFERENCE
-    const diff = t.diffMinor ?? BigInt(0)
-    const short = diff < BigInt(0)
-    // formatAmount 는 못 만들면 null 을 준다. 그때 「 원 차이」라고 쓰면 빈칸이 인쇄된다
-    const text = formatAmount((short ? -diff : diff).toString(), review.currency)
-      ?? (short ? -diff : diff).toString()
-    return fillTotalMismatch(text, short)
-  })()
 
   return (
     <>
@@ -432,76 +343,18 @@ export default function QuoteFillPanel({
         **넣기 전에 본다.** 체크한 것만 폼에 들어간다(§5-3 추출/제안형 — 자동 등록 금지).
         줄마다 원문 조각을 옆에 둬서, 사람이 숫자를 원문과 견줄 수 있게 한다.
       */}
-      {review && (
+      {review && docInfo && (
         <div className={styles.reviewBox}>
-          <div className={styles.reviewHead}>
-            <FileText size={16} aria-hidden />
-            <b>{fillFoundLine(review.lines.length, review.fileName)}</b>
-          </div>
+          <ReviewHead review={review} fileName={docInfo.fileName} />
           <p className={styles.sayHint}>{FILL_REVIEW_HINT}</p>
 
-          {review.route === 'vision' && <p className={styles.sayUnclear}>{FILL_READ_AS_IMAGE}</p>}
-          {review.tableCount === 0 && review.route === 'text' && (
+          {docInfo.route === 'vision' && <p className={styles.sayUnclear}>{FILL_READ_AS_IMAGE}</p>}
+          {docInfo.tableCount === 0 && docInfo.route === 'text' && (
             <p className={styles.sayUnclear}>{FILL_NO_TABLE}</p>
           )}
-          {review.truncated && <p className={styles.sayUnclear}>{FILL_TRUNCATED}</p>}
+          {docInfo.truncated && <p className={styles.sayUnclear}>{FILL_TRUNCATED}</p>}
 
-          {/*
-            **합계 대조** — 이 기능의 안전장치다.
-
-            줄이 다 맞는데 합계가 모자라면 **항목을 빠뜨린 것**이고, 남으면 합계 줄을
-            항목으로 읽은 것이다. 둘은 사람이 할 일이 다르므로 따로 말한다.
-            **맞았을 때도 말한다** — 말이 없으면 안 본 것과 구분되지 않는다.
-          */}
-          <div className={styles.totalCheck} data-verdict={review.total.verdict}>
-            <span className={styles.totalCheckSum}>
-              <span>{FILL_TOTAL_OURS}</span>
-              <b>{formatAmount(review.total.ourTotalMinor.toString(), review.currency)}</b>
-              {review.total.documentTotalMinor !== null && (
-                <>
-                  <span className={styles.totalCheckVs}>/</span>
-                  <span>{FILL_TOTAL_DOCUMENT}</span>
-                  <b>{formatAmount(review.total.documentTotalMinor.toString(), review.currency)}</b>
-                </>
-              )}
-            </span>
-            <span className={styles.totalCheckWord}>{totalWord}</span>
-          </div>
-
-          <ul className={styles.reviewList}>
-            {review.lines.map((l, i) => (
-              <li key={i} className={styles.reviewItem} data-risk={review.checks[i].safe ? undefined : 'on'}>
-                <label className={styles.reviewPick}>
-                  <input
-                    type="checkbox"
-                    checked={review.checked[i]}
-                    onChange={() => toggle(i)}
-                  />
-                  <span className={styles.reviewName}>{l.name}</span>
-                </label>
-                <span className={styles.reviewNums}>
-                  {l.quantity}{l.unit} · {l.unitPriceMinor === ''
-                    ? <em className={styles.reviewMissing}>{FILL_NO_PRICE}</em>
-                    : formatAmount(review.checks[i].ourAmountMinor.toString(), review.currency)}
-                </span>
-                {/*
-                  **걸린 이유를 줄 옆에 적는다.** 체크가 꺼져 있는 것만으로는
-                  사람이 「왜 꺼졌지」를 모르고, 모르면 그냥 다시 켠다.
-                */}
-                {review.checks[i].reasons.length > 0 && (
-                  <span className={styles.reviewRisk}>
-                    {review.checks[i].reasons.map((r) => FILL_RISK_TEXT[r]).join(' · ')}
-                  </span>
-                )}
-                {review.sources[i] && (
-                  <span className={styles.reviewSource}>
-                    <span className={styles.reviewSourceLabel}>{FILL_SOURCE_LABEL}</span>
-                    {review.sources[i]}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <QuoteReviewList review={review} onToggle={toggle} />
 
           <div className={styles.sayFoot}>
             <NbButton variant="ghost" onClick={close} disabled={busy}>{ACTION.cancel}</NbButton>

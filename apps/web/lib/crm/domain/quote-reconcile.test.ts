@@ -189,44 +189,68 @@ test('위험 신호가 없으면 전부 켜진다 — 멀쩡한 견적서까지 
 
 const PANEL = readFileSync(
   new URL('../../../components/ui/crm/QuoteFillPanel.tsx', import.meta.url), 'utf-8')
+/*
+  검수 목록은 **두 화면이 같은 것을 쓴다**(편집 모달의 「파일로 채우기」와 딜 화면의
+  「파일로 가져오기」). 두 벌로 그리면 한쪽에만 위험 표시가 붙고, 검수 없는 쪽으로
+  틀린 값이 들어온다 — 이 저장소가 반복한 사고가 정확히 그 모양이다.
+*/
+const REVIEW = readFileSync(
+  new URL('../../../components/ui/crm/quote-review.tsx', import.meta.url), 'utf-8')
 
 test('★ 체크한 것만 폼에 들어간다 — 자동 반영은 없다(§5-3)', () => {
-  assert.match(PANEL, /review\.lines\.filter\(\(_, i\) => review\.checked\[i\]\)/,
+  assert.match(REVIEW, /review\.lines\.filter\(\(_, i\) => review\.checked\[i\]\)/,
     '체크를 거르지 않고 통째로 넣는다')
+  assert.match(PANEL, /pickedLines\(review\)/, '화면이 고른 것만 넣는 길을 안 쓴다')
   // 읽자마자 폼을 고치면 검수가 있으나 마나다
   const read = PANEL.slice(PANEL.indexOf('const readFile'), PANEL.indexOf('const applyReview'))
   assert.ok(!/onDraftChange\(/.test(read), '파일을 읽는 자리에서 폼을 고친다')
 })
 
 test('★ 처음 체크 상태를 자작하지 않는다 — 판정은 한 곳이다', () => {
-  assert.match(PANEL, /checked: initialChecked\(checks\)/)
+  assert.match(REVIEW, /checked: initialChecked\(checks\)/)
   assert.ok(
-    !/checked: lines\.map\(/.test(PANEL),
+    !/checked: lines\.map\(/.test(REVIEW),
     '화면이 스스로 「안전한 줄」을 판정하면 계산과 갈린다',
   )
 })
 
 test('★ 기존 항목을 지우지 않는다 — 빈 줄 하나뿐일 때만 갈아 끼운다', () => {
   assert.match(PANEL, /appendLines\(prev, picked\)/)
-  const fn = PANEL.slice(PANEL.indexOf('function appendLines'), PANEL.indexOf('export default'))
+  const fn = REVIEW.slice(REVIEW.indexOf('export function appendLines'))
   assert.match(fn, /prev\.lines\.length === 1 && !prev\.lines\[0\]\.name\.trim\(\)/)
   assert.match(fn, /\[\.\.\.prev\.lines, \.\.\.made\]/)
 })
 
 test('★ 줄마다 원문 조각과 걸린 이유를 함께 보여 준다 — 못 보면 검수가 아니다', () => {
-  assert.match(PANEL, /review\.sources\[i\]/)
-  assert.match(PANEL, /review\.checks\[i\]\.reasons\.map\(\(r\) => FILL_RISK_TEXT\[r\]\)/)
+  assert.match(REVIEW, /review\.sources\[i\]/)
+  assert.match(REVIEW, /review\.checks\[i\]\.reasons\.map\(\(r\) => FILL_RISK_TEXT\[r\]\)/)
 })
 
 test('★ 합계 대조를 화면이 그린다 — 맞았을 때도 말한다', () => {
-  assert.match(PANEL, /checkTotal\(\{/)
-  assert.match(PANEL, /data-verdict=\{review\.total\.verdict\}/)
-  assert.match(PANEL, /FILL_TOTAL_MATCH/)
-  assert.match(PANEL, /fillTotalMismatch\(/)
-  assert.match(PANEL, /FILL_TOTAL_NO_REFERENCE/)
+  assert.match(REVIEW, /checkTotal\(\{/)
+  assert.match(REVIEW, /data-verdict=\{review\.total\.verdict\}/)
+  assert.match(REVIEW, /FILL_TOTAL_MATCH/)
+  assert.match(REVIEW, /fillTotalMismatch\(/)
+  assert.match(REVIEW, /FILL_TOTAL_NO_REFERENCE/)
 })
 
 test('★ 대조 계산을 화면이 다시 하지 않는다 — 두 곳이 다른 답을 내면 경고를 못 믿는다', () => {
   assert.ok(!/computeTotals\(/.test(PANEL), '화면이 합계를 직접 계산한다')
-  assert.match(PANEL, /inputs\.map\(checkLine\)/)
+  assert.ok(!/computeTotals\(/.test(REVIEW), '검수 부품이 합계를 직접 계산한다')
+  assert.match(REVIEW, /inputs\.map\(checkLine\)/)
+})
+
+/*
+  ## 같은 목록을 두 번 그리지 않는다
+*/
+
+test('★ 검수 목록을 그리는 곳이 하나다 — 두 벌이면 한쪽만 고쳐진다', () => {
+  // 목록을 그리는 표시는 부품에만 있고, 부르는 화면에는 없다
+  for (const mark of [/styles\.reviewList/, /styles\.reviewItem/, /styles\.totalCheck\b/]) {
+    assert.match(REVIEW, mark, '부품이 목록을 안 그린다')
+    assert.ok(!mark.test(PANEL), `화면이 목록을 또 그린다: ${mark}`)
+  }
+  // 계산을 부르는 자리도 하나다
+  assert.ok(!/checkLine|checkTotal|initialChecked/.test(PANEL),
+    '화면이 대조 계산을 직접 부른다 — 부품을 거쳐야 한다')
 })

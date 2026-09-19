@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서 파일 한 장에서 견적 여러 건
 플랜 ID: P0028
-플랜 버전: v0.3.0
+플랜 버전: v0.3.1
 상태: 진행중
 지시: ins_0029
 목표 버전: v0.10.170
@@ -71,13 +71,14 @@
 의존: I02
 
 ### I04 검수 부품을 떼어내 두 화면이 같은 것을 쓴다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: components/ui/crm/quote-review.tsx (신규), components/ui/crm/QuoteFillPanel.tsx, lib/crm/domain/quote-reconcile.test.ts, lib/ui/quote-layout.test.ts
+범위: components/ui/crm/quote-review.tsx (신규), components/ui/crm/QuoteFillPanel.tsx, lib/crm/domain/quote-reconcile.test.ts, lib/ui/quote-layout.test.ts, lib/crm/services/quote-from-file.ts, lib/crm/services/quote-from-file.test.ts
 감사 기준:
 - pnpm tsc --noEmit 통과
 - 대조 가드 세 규칙이 새 부품 자리에서 통과 (체크한 것만 들어감·원문 조각·합계 대조)
 - 같은 검수 목록 마크업이 두 파일에 없음 (가드 1개 신설)
+- 화면이 응답의 quotes 를 읽고, 서비스의 옛 칸 draft 가 사라짐 (같은 값이 두 칸에 남지 않음)
 의존: I03
 
 ### I05 모달은 건이 둘이면 고르게 한다
@@ -163,3 +164,4 @@
 - v0.1.0 (2026-09-19) 최초 작성 (ins_0029)
 - v0.2.0 (2026-09-19) 개입 iv_0063 반영: 건 수 제한 없음(상한 10), 받은 견적서를 원가와 우리 판매가로 옮기는 항목 I02·I08·I09 추가
 - v0.3.0 (2026-09-19) 개입 iv_0064 반영: 판정·잠금을 걷어내고 자율성으로. 라벨은 알림만(I02), 보냄 차단 삭제(I06), 도착지 네 길 선택(I07), 원가·첨부·마진은 전부 고르는 칸(I08·I09)
+- v0.3.1 (2026-09-19) I03 이 남긴 옛 칸 draft 를 화면 전환과 같은 항목에서 지우도록 I04 범위에 서비스와 그 가드를 더함 (audit:I03)

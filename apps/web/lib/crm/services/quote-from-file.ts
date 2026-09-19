@@ -39,7 +39,7 @@ import { getCrmDb } from '../db/client.ts'
 import { runAi, type AiAdapter } from '../ai/runner.ts'
 import { QUOTE_FROM_DOC_V1 } from '../ai/prompts/quote-from-doc.v1.ts'
 import {
-  parseQuoteFromDocDoc, type QuoteFromDocDoc, type QuoteFromDocQuote, type QuoteFromDocOutput,
+  parseQuoteFromDocDoc, type QuoteFromDocDoc, type QuoteFromDocQuote,
 } from '../ai/schemas/quote-from-doc.ts'
 import { judgeQuoteOrigin, type QuoteOrigin } from '../domain/quote-origin.ts'
 import { adapterFromSetting } from './quick-create.ts'
@@ -160,13 +160,6 @@ export interface QuoteFromFileResult {
   unclear: string[]
   /** 상한에 걸려 못 읽은 건 수. 0 이 아니면 화면이 그 수를 말한다 */
   droppedQuotes: number
-  /**
-   * 첫 건만 보는 옛 칸.
-   *
-   * 편집 모달의 「파일로 채우기」가 아직 이 칸을 읽는다. 그 화면이 건 고르기로
-   * 옮겨가면(I04) **같이 지운다** — 같은 값이 두 칸에 오래 남으면 한쪽만 고쳐진다.
-   */
-  draft: QuoteFromDocOutput
   /** 무엇을 읽고 만들었는지 — 사람이 원문과 대조할 수 있어야 한다 */
   source: {
     fileName: string
@@ -285,8 +278,6 @@ export async function draftQuoteFromFile(
     quotes,
     unclear: output.unclear,
     droppedQuotes: output.droppedQuotes,
-    // 옛 칸 — 모달이 건 고르기로 옮겨가면 지운다
-    draft: { ...(quotes[0] ?? EMPTY_QUOTE), unclear: output.unclear },
     source: {
       fileName: input.fileName, route, kind,
       text: read.text, truncated: read.truncated, tableCount: read.tableCount,
@@ -294,13 +285,6 @@ export async function draftQuoteFromFile(
     runId,
     switchedNote,
   }
-}
-
-/** 건을 하나도 못 찾았을 때의 옛 칸 값. 화면은 「항목을 못 찾았다」를 띄운다 */
-const EMPTY_QUOTE: QuoteFromDocQuote = {
-  label: null, title: null, currency: null, customerName: null, supplierName: null,
-  issuedOn: null, lines: [], sourceTotalMinor: null, sourceTotalIncludesTax: false,
-  taxPercent: null,
 }
 
 /** 그림째 보낼 첨부로. 크기 상한은 첨부 규칙 한 곳에서 온다 */

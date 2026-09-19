@@ -143,8 +143,18 @@ test('★ 우리 상호는 설정 한 곳에서 온다 — 화면마다 비교�
   assert.match(SERVICE, /\.catch\(\(\) => ''\)/, '설정 조회 실패가 파일 읽기를 통째로 죽인다')
 })
 
-test('옛 칸(draft)은 첫 건을 그대로 가리킨다 — 따로 만들면 두 칸이 다른 답을 한다', () => {
-  assert.match(SERVICE, /draft: \{ \.\.\.\(quotes\[0\] \?\? EMPTY_QUOTE\)/)
+test('★ 첫 건만 가리키던 옛 칸이 사라졌다 — 같은 값이 두 칸에 남으면 한쪽만 고쳐진다', () => {
+  assert.ok(!/\bdraft\s*:/.test(SERVICE), '응답에 옛 칸이 되살아났다')
+  assert.ok(!/EMPTY_QUOTE/.test(SERVICE), '옛 칸을 채우던 빈 건이 남아 있다')
+  /*
+    화면도 건 목록을 읽는다 — 서비스만 고치면 그 화면이 빈 값을 읽는다.
+    **파일 경로만 본다**: 말로 채우기(`/quotes/draft`)는 다른 창구이고 지금도 draft 를 준다.
+  */
+  const panel = readFileSync(
+    new URL('../../../components/ui/crm/QuoteFillPanel.tsx', import.meta.url), 'utf-8')
+  const readFile = panel.slice(panel.indexOf('const readFile'), panel.indexOf('const applyReview'))
+  assert.match(readFile, /body\.quotes/, '화면이 건 목록을 안 읽는다')
+  assert.ok(!/body\.draft/.test(readFile), '화면이 아직 옛 칸을 읽는다')
 })
 
 /* ── 아무것도 저장하지 않는다 ────────────────────── */
