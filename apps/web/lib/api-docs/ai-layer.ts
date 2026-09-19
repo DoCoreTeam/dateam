@@ -31,6 +31,7 @@
  */
 import { MAX_CHAIN_CANDIDATES, MAX_PER_PROVIDER } from '../ai-chat/model-chain.ts'
 import { GEMINI, CLAUDE, OPENAI, GROQ, GROK } from '@ax/ai-providers'
+import { canTransition, type AiValueStatus } from '@ax/ai-core'
 
 /** 왼쪽 목록의 항목 */
 export type AiDocKey = 'ai-intro' | 'ai-setup' | 'ai-policy' | 'ai-packages' | 'ai-contract'
@@ -106,6 +107,11 @@ export const AI_DOC_UI = {
   alsoExportsLabel: '그 밖의 수출',
   errorsTitle: '던지는 오류',
   errorHead: { name: '이름', when: '언제 나나', fix: '무엇을 하면 되나' },
+  /** 결과 계약 */
+  contractTypeTitle: '저장하는 모양',
+  statusTitle: '상태와 옮겨 갈 수 있는 곳',
+  statusHead: { from: '지금 상태', label: '뜻', to: '옮겨 갈 수 있는 곳', note: '언제 이 상태인가' },
+  contractCodeTitle: '한 화면을 처음부터 끝까지',
 } as const
 
 /* ── 무엇인가 ─────────────────────────────────────────────────────────────── */
@@ -303,6 +309,7 @@ export interface AiContractField {
 }
 
 export const AI_CONTRACT_FIELDS: readonly AiContractField[] = [
+  { key: 'capability', label: '능력', note: '여덟 중 무엇을 시켰는지입니다. 이 값이 화면이 무엇을 함께 보여야 하는지를 정합니다.' },
   { key: 'value', label: '값', note: '무엇이라고 말했는지입니다.' },
   { key: 'confidence', label: '확신', note: '모르면 null 입니다. 0 이 아닙니다. 0 으로 그리면 「확실히 틀렸다」고 말하는 셈입니다.' },
   { key: 'evidence', label: '근거', note: '블록 id 와 글자 구간입니다. 근거 없는 주장은 확인할 방법이 없습니다.' },
@@ -324,14 +331,14 @@ export interface AiCapabilityDoc {
 }
 
 export const AI_CAPABILITY_DOCS: readonly AiCapabilityDoc[] = [
-  { key: 'extract', label: '뽑기', mustShow: '후보 목록입니다. 사람이 고르기 전에는 확정이 아닙니다.' },
-  { key: 'summarize', label: '줄이기', mustShow: 'AI 가 만들었다는 고지입니다.' },
-  { key: 'judge', label: '재기', mustShow: '근거입니다. 없으면 판정을 확인할 방법이 없습니다.' },
-  { key: 'suggest', label: '권하기', mustShow: '후보 목록입니다.' },
-  { key: 'generate', label: '만들기', mustShow: '미리보기와 AI 고지입니다. 고지는 끌 수 없습니다.' },
-  { key: 'answer', label: '답하기', mustShow: '출처입니다. 어디서 왔는지 없으면 답이 아닙니다.' },
-  { key: 'transcribe', label: '옮겨 적기', mustShow: 'AI 가 만들었다는 고지입니다.' },
-  { key: 'search', label: '찾기', mustShow: '출처입니다.' },
+  { key: 'extract', label: '추출', mustShow: '후보 목록입니다. 사람이 고르기 전에는 확정이 아닙니다.' },
+  { key: 'summarize', label: '요약', mustShow: 'AI 가 만들었다는 고지입니다.' },
+  { key: 'judge', label: '판정', mustShow: '근거입니다. 없으면 판정을 확인할 방법이 없습니다.' },
+  { key: 'suggest', label: '추천', mustShow: '후보 목록입니다.' },
+  { key: 'generate', label: '생성', mustShow: '미리보기와 AI 고지입니다. 고지는 끌 수 없습니다.' },
+  { key: 'answer', label: '답변', mustShow: '출처입니다. 어디서 왔는지 없으면 답이 아닙니다.' },
+  { key: 'transcribe', label: '전사', mustShow: 'AI 가 만들었다는 고지입니다.' },
+  { key: 'search', label: '검색', mustShow: '출처입니다.' },
 ]
 
 /** 확인 명령 — 문서가 약속한 것을 직접 돌려 볼 수 있게 */
@@ -597,3 +604,114 @@ export const AI_ERRORS: readonly AiErrorDoc[] = [
     fix: '사다리는 버전마다 하나입니다. 둘이면 어느 쪽이 도는지 순서에 따라 달라져 결과가 갈립니다.',
   },
 ]
+
+/* ── 결과 계약: 타입과 상태 ─────────────────────────────────────────────────── */
+
+/** 저장하는 모양 — `packages/ai-core/src/contract.ts` 의 선언을 그대로 보여 준다 */
+export const AI_CONTRACT_TYPE = {
+  lang: 'ts',
+  text: `interface AiValue<T = unknown> {
+  contractVersion: number
+  capability: AiCapability               // 능력 여덟 중 하나
+  value: T
+  evidence: readonly AiEvidence[]
+  confidence: number | null              // 0 에서 1, 모델이 말하지 않았으면 null
+  source: AiSource
+  status: AiValueStatus
+  corrections: readonly AiCorrection[]
+}
+
+interface AiEvidence { blockId: string; start: number; end: number; quote?: string }
+interface AiSource  { providerId: string; modelId: string; at: string }   // at 은 ISO 8601, 항상 UTC
+interface AiCorrection { at: string; by: string; from: string; to: string; note?: string }
+
+type AiValueStatus = 'streaming' | 'candidate' | 'confirmed' | 'corrected'`,
+} as const
+
+/**
+ * 상태와 옮겨 갈 수 있는 곳.
+ *
+ * `to` 를 손으로 적지 않고 `canTransition` 에게 물어서 만든다. 손으로 적으면
+ * 전이 규칙이 바뀔 때 화면이 옛 규칙을 계속 보여 주고, 그 표를 믿은 사람이 막힌다.
+ */
+export interface AiStatusRow {
+  from: AiValueStatus
+  label: string
+  to: readonly AiValueStatus[]
+  note: string
+}
+
+const STATUS_ORDER: readonly AiValueStatus[] = ['streaming', 'candidate', 'confirmed', 'corrected']
+
+const STATUS_TEXT: Record<AiValueStatus, { label: string; note: string }> = {
+  streaming: {
+    label: '받는 중',
+    note: '답이 아직 오고 있습니다. 로딩 표시가 아니라 상태입니다. 이 값을 저장해도 계약을 어기지 않습니다.',
+  },
+  candidate: {
+    label: '확인 전',
+    note: '모델이 답했고 사람이 아직 고르지 않았습니다. 추출과 추천의 결과는 여기서 시작합니다.',
+  },
+  confirmed: {
+    label: '확인함',
+    note: '사람이 받아들였습니다. 되돌리려면 고친 흔적으로 남깁니다.',
+  },
+  corrected: {
+    label: '사람이 고침',
+    note: '사람이 값을 바꿨습니다. 이전 값은 corrections 에 그대로 남습니다.',
+  },
+}
+
+export const AI_STATUS_ROWS: readonly AiStatusRow[] = STATUS_ORDER.map((from) => ({
+  from,
+  label: STATUS_TEXT[from].label,
+  to: STATUS_ORDER.filter((to) => canTransition(from, to)),
+  note: STATUS_TEXT[from].note,
+}))
+
+/** 상태 이름을 사람이 읽는 말로 — 표의 「옮겨 갈 수 있는 곳」 칸이 쓴다 */
+export const AI_STATUS_LABEL: Record<string, string> = Object.fromEntries(
+  STATUS_ORDER.map((s) => [s, STATUS_TEXT[s].label]),
+)
+
+/** 한 화면을 처음부터 끝까지 — 부르고, 계약 모양으로 만들고, 저장하고, 그리고, 고친다 */
+export const AI_CONTRACT_CODE = {
+  lang: 'tsx',
+  text: `import { newAiValue, applyCorrection } from '@ax/ai-core'
+import { recoverJson } from '@ax/ai-gateway'
+import { AiValue as AiValueView } from '@ax/ai-react'
+import { guardedGeminiText } from '@/lib/ai/guarded-gemini'
+import { AI_LABELS } from '@/lib/terms'
+
+// 1. 부릅니다. 게이트웨이를 지나야 가림과 시간 제한과 전송 기록이 붙습니다
+const out = await guardedGeminiText({
+  prompt, apiKey, model,
+  surface: 'quote-fill', purpose: '견적서에서 품목 뽑기',
+  actorId: user.id,
+})
+
+// 2. 계약 모양으로 만듭니다. 계약 버전은 여기서 찍힙니다
+const value = newAiValue({
+  capability: 'extract',
+  value: recoverJson(out.text),
+  source: { providerId: 'gemini', modelId: model, at: new Date().toISOString() },
+  status: 'candidate',                       // 사람이 고르기 전이라 확정이 아닙니다
+  confidence: 0.82,
+  evidence: [{ blockId: 'p3', start: 120, end: 168 }],
+})
+
+// 3. 저장합니다. 계약 버전은 칼럼으로도 함께 넣어야 읽을 때 climb 이 볼 수 있습니다
+await db.from('my_ai_rows').insert({
+  ...row,
+  payload: value,
+  contract_version: value.contractVersion,
+})
+
+// 4. 그립니다. 값을 어떻게 그릴지는 부르는 쪽만 압니다(금액인지 날짜인지 글인지)
+//    문구도 부르는 쪽이 넘깁니다. 부품은 한 글자도 갖고 있지 않습니다
+<AiValueView value={value} labels={AI_LABELS} render={(v) => <b>{String(v)}</b>} />
+
+// 5. 사람이 고치면 쌓습니다. 덮어쓰지 않습니다
+const fixed = applyCorrection(value, nextValue, user.id, new Date().toISOString())
+// fixed.status === 'corrected', fixed.corrections 에 한 줄이 늘어납니다`,
+} as const

@@ -112,7 +112,7 @@ test('규칙이 도는 대상이 실제로 있다', () => {
   assert.ok(AI_PACKAGES.length >= 4, `패키지 안내가 ${AI_PACKAGES.length}개뿐이다`)
   assert.ok(AI_SETUP.length >= 5, `붙이는 순서가 ${AI_SETUP.length}단계뿐이다`)
   assert.ok(AI_INTRO.length >= 3, `소개가 ${AI_INTRO.length}덩이뿐이다`)
-  assert.equal(AI_CONTRACT_FIELDS.length, 7, '계약은 일곱이다')
+  assert.equal(AI_CONTRACT_FIELDS.length, 8, '계약은 여덟이다')
   assert.ok(AI_LAYER_CHECKS.length >= 1, '확인 명령이 없다')
   assert.ok(exportsOf('@ax/ai-core').has('newAiValue'), '수출 읽기가 깨졌다')
 })

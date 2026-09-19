@@ -22,6 +22,7 @@ import {
   AI_INTRO, AI_SETUP, AI_PACKAGES, AI_CONTRACT_FIELDS, AI_CAPABILITY_DOCS, AI_LAYER_CHECKS,
   AI_PROVIDERS, AI_CHAIN_LIMITS, AI_CHAIN_ORDER, AI_FAILURE_RULES, AI_POLICY_NOTES, AI_POLICY_CODE,
   AI_API, AI_ERRORS,
+  AI_CONTRACT_TYPE, AI_STATUS_ROWS, AI_STATUS_LABEL, AI_CONTRACT_CODE,
   type AiDocKey,
 } from '@/lib/api-docs/ai-layer'
 
@@ -261,43 +262,72 @@ function PolicyView({ onCopy, copiedId }: Omit<Props, 'section'>) {
   )
 }
 
-function ContractView() {
+function ContractView({ onCopy, copiedId }: Omit<Props, 'section'>) {
+  const U = AI_DOC_UI
   return (
     <>
+      <H2>{U.contractTypeTitle}</H2>
+      <CodeBlock id="ai-contract-type" lang={AI_CONTRACT_TYPE.lang} code={AI_CONTRACT_TYPE.text} onCopy={onCopy} copiedId={copiedId} />
+
+      <H2>{U.statusTitle}</H2>
       <table className="table-base table-card" style={{ marginBottom: 'var(--space-8)' }}>
         <thead><tr>
-          <th>{AI_DOC_UI.contractHead.key}</th>
-          <th>{AI_DOC_UI.contractHead.label}</th>
-          <th>{AI_DOC_UI.contractHead.note}</th>
+          <th>{U.statusHead.from}</th>
+          <th>{U.statusHead.label}</th>
+          <th>{U.statusHead.to}</th>
+          <th>{U.statusHead.note}</th>
         </tr></thead>
         <tbody>
-          {AI_CONTRACT_FIELDS.map((f) => (
-            <tr key={f.key}>
-              <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{f.key}</code></td>
-              <td data-label={AI_DOC_UI.contractHead.label} style={{ color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>{f.label}</td>
-              <td data-label={AI_DOC_UI.contractHead.note} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{f.note}</td>
+          {AI_STATUS_ROWS.map((r) => (
+            <tr key={r.from}>
+              <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{r.from}</code></td>
+              <td data-label={U.statusHead.label} style={{ color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>{r.label}</td>
+              <td data-label={U.statusHead.to} style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+                {r.to.map((t) => `${t} (${AI_STATUS_LABEL[t]})`).join(', ')}
+              </td>
+              <td data-label={U.statusHead.note} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{r.note}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <H2>{AI_DOC_UI.capabilityTitle}</H2>
-      <table className="table-base table-card">
+      <table className="table-base table-card" style={{ marginBottom: 'var(--space-8)' }}>
         <thead><tr>
-          <th>{AI_DOC_UI.capabilityHead.key}</th>
-          <th>{AI_DOC_UI.capabilityHead.label}</th>
-          <th>{AI_DOC_UI.capabilityHead.mustShow}</th>
+          <th>{U.contractHead.key}</th>
+          <th>{U.contractHead.label}</th>
+          <th>{U.contractHead.note}</th>
+        </tr></thead>
+        <tbody>
+          {AI_CONTRACT_FIELDS.map((f) => (
+            <tr key={f.key}>
+              <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{f.key}</code></td>
+              <td data-label={U.contractHead.label} style={{ color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>{f.label}</td>
+              <td data-label={U.contractHead.note} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{f.note}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <H2>{U.capabilityTitle}</H2>
+      <table className="table-base table-card" style={{ marginBottom: 'var(--space-8)' }}>
+        <thead><tr>
+          <th>{U.capabilityHead.key}</th>
+          <th>{U.capabilityHead.label}</th>
+          <th>{U.capabilityHead.mustShow}</th>
         </tr></thead>
         <tbody>
           {AI_CAPABILITY_DOCS.map((c) => (
             <tr key={c.key}>
               <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{c.key}</code></td>
-              <td data-label={AI_DOC_UI.capabilityHead.label} style={{ color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>{c.label}</td>
-              <td data-label={AI_DOC_UI.capabilityHead.mustShow} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{c.mustShow}</td>
+              <td data-label={U.capabilityHead.label} style={{ color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>{c.label}</td>
+              <td data-label={U.capabilityHead.mustShow} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{c.mustShow}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <H2>{U.contractCodeTitle}</H2>
+      <CodeBlock id="ai-contract-code" lang={AI_CONTRACT_CODE.lang} code={AI_CONTRACT_CODE.text} onCopy={onCopy} copiedId={copiedId} />
     </>
   )
 }
@@ -308,7 +338,7 @@ function Body({ section, onCopy, copiedId }: Props) {
     case 'ai-setup': return <SetupView onCopy={onCopy} copiedId={copiedId} />
     case 'ai-policy': return <PolicyView onCopy={onCopy} copiedId={copiedId} />
     case 'ai-packages': return <PackagesView />
-    case 'ai-contract': return <ContractView />
+    case 'ai-contract': return <ContractView onCopy={onCopy} copiedId={copiedId} />
     case 'ai-intro': return <IntroView />
   }
 }
