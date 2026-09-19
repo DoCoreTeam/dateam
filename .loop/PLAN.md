@@ -92,7 +92,7 @@
 의존: I04
 
 ### I06 어디서 왔는지를 견적이 기억한다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/258_crm_quote_from_file.sql (신규), prisma/schema.prisma, lib/crm/services/quote.ts, lib/crm/services/quote-from-file-mark.test.ts (신규)
 감사 기준:

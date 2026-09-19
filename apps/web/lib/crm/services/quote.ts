@@ -115,6 +115,13 @@ export interface QuoteRow {
   /** 이 견적이 고른 거래 조건. 순서가 곧 인쇄 순서다 */
   termIds: string[]
   ownerId: string | null
+  /**
+   * 파일에서 만들어진 시각. null = 파일 출처가 아니거나 사람이 한 번 고쳐 저장함.
+   * **표시 전용** — 상태 전이도 승인도 이 값을 보지 않는다.
+   */
+  fromFileAt: Date | null
+  /** 어느 파일에서 왔나. fromFileAt 이 풀려도 남는다 */
+  sourceFileName: string | null
   sentAt: Date | null
   decidedAt: Date | null
   version: number
@@ -143,6 +150,8 @@ const SELECT = {
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
   // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
   termIds: true, ownerId: true, createdById: true, recipientPersonId: true,
+  // 파일에서 왔는지 — **표시 전용**. 읽지 않으면 배지를 달 근거가 화면에 닿지 않는다
+  fromFileAt: true, sourceFileName: true,
   sentAt: true, decidedAt: true, version: true, createdAt: true, updatedAt: true,
 } as const
 
@@ -204,6 +213,8 @@ const LINE_KEYS = new Set([
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
   'recipientPersonId', 'roundingUnit', 'roundingMode', 'sections',
+  // 파일에서 만들 때만 온다. 시각은 서버가 찍는다 — 보낸 쪽이 정하게 두면 「수정 전」을 위조할 수 있다
+  'sourceFileName',
   // 수정 경로가 함께 보내는 것들
   'version', 'status',
 ])
@@ -567,6 +578,14 @@ export interface CreateQuoteInput {
   /** 묶음. 안 주면 묶음 없는 견적이다(지금 있는 견적 전부가 그렇다) */
   sections?: QuoteSectionData[]
   lines?: QuoteLineData[]
+  /**
+   * 견적서 파일에서 만들었으면 그 파일 이름.
+   *
+   * **시각은 받지 않는다** — 이 이름이 있으면 서버가 지금을 찍는다.
+   * 보낸 쪽이 시각을 정하게 두면 「수정 전」 표시를 지운 채로 만들 수 있고,
+   * 그러면 읽은 그대로인 견적이 사람이 쓴 것과 구분되지 않는다.
+   */
+  sourceFileName?: string | null
 }
 
 export async function createQuote(
@@ -596,6 +615,18 @@ export async function createQuote(
       **환율은 만드는 시점에 박는다.** 나중에 조회하며 환산하면 매일 금액이 달라진다.
       못 찾으면 null 로 둔다 — 1.0 으로 눕히면 달러 견적이 원화로 1/1400 이 된다.
     */
+    /*
+      **파일에서 왔다는 사실은 만들 때만 적을 수 있다.** 나중에 되짚을 근거가 없다 —
+      파일은 보관하지 않고(§5-3) 항목만 남기 때문이다.
+
+      시각은 여기서 찍는다. 보낸 쪽이 주게 두면 「수정 전」 표시를 지운 채 만들 수 있다.
+      **이 두 값은 어떤 판단에도 안 쓰인다** — 배지 하나의 근거일 뿐이고, 상태 전이는 그대로다.
+    */
+    const sourceFileName = normalizeText(input.sourceFileName)
+    const fromFile = sourceFileName
+      ? { fromFileAt: new Date(), sourceFileName }
+      : {}
+
     const fx = needsFx(currency) ? await latestFxRate(currency) : null
     const totals = computeTotals(lines as unknown as QuoteLineInput[], rounding)
     const threshold = await approvalThreshold(tx)
@@ -633,6 +664,7 @@ export async function createQuote(
           fxRate: fx?.rate ?? null,
           fxDate: fx ? new Date(fx.date) : null,
           fxSource: fx?.source ?? null,
+          ...fromFile,
         },
         select: SELECT,
       })
@@ -660,6 +692,7 @@ export async function createQuote(
           fxRate: fx?.rate ?? null,
           fxDate: fx ? new Date(fx.date) : null,
           fxSource: fx?.source ?? null,
+          ...fromFile,
         },
         select: SELECT,
       })
@@ -801,6 +834,17 @@ export async function updateQuote(
     }
 
     const data: Record<string, unknown> = { ...BUMP_VERSION }
+    /*
+      **한 번 고쳐 저장하면 「수정 전」이 풀린다.**
+
+      저장은 사람이 눌러야 일어나고, 누르려면 그 화면을 한 번은 본 것이다 —
+      실제로 글자를 고쳤는지까지 따지지 않는다. 읽은 값이 이미 맞아서 그대로 저장하는 일은
+      흔하고, 그때 표시가 안 풀리면 사람은 **표시를 지우려고 없는 오타를 만들어야 한다.**
+
+      출처(sourceFileName)는 **지우지 않는다** — 고친 뒤에도 그 파일에서 온 것은 사실이다.
+      풀리는 것은 「아직 안 봤다」 하나뿐이다.
+    */
+    if (before.fromFileAt) data.fromFileAt = null
     if (input.title !== undefined) {
       const title = requireText(input.title)
       if (!title) throw new CrmError('VALIDATION_FAILED', '견적 제목을 입력해 주세요.', { field: 'title' })
