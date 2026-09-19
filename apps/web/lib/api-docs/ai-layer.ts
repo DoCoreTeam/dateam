@@ -25,8 +25,15 @@
  * 여기 적은 수출 이름과 숫자는 `lib/policy/ai-layer-docs-guard.test.ts` 가 실제 소스와 대조한다.
  */
 
+/*
+ * 숫자와 공급자 표는 코드에서 직접 가져온다. 손으로 옮겨 적으면 그 순간 갈린다.
+ * 상대 경로 + .ts 확장자로 적는다 — 가드가 node --test 로 이 파일을 직접 읽는다.
+ */
+import { MAX_CHAIN_CANDIDATES, MAX_PER_PROVIDER } from '../ai-chat/model-chain.ts'
+import { GEMINI, CLAUDE, OPENAI, GROQ, GROK } from '@ax/ai-providers'
+
 /** 왼쪽 목록의 항목 */
-export type AiDocKey = 'ai-intro' | 'ai-setup' | 'ai-packages' | 'ai-contract'
+export type AiDocKey = 'ai-intro' | 'ai-setup' | 'ai-policy' | 'ai-packages' | 'ai-contract'
 
 export interface AiDocNavItem {
   key: AiDocKey
@@ -50,6 +57,12 @@ export const AI_DOC_NAV: readonly AiDocNavItem[] = [
     label: '붙이는 순서',
     title: '붙이는 순서',
     description: '위에서부터 그대로 따르면 됩니다. 단계를 건너뛰면 무엇이 깨지는지 단계마다 적었습니다.',
+  },
+  {
+    key: 'ai-policy',
+    label: '모델 정책',
+    title: '모델 정책',
+    description: '어느 공급자에게 묻고, 막히면 어디로 넘어가고, 갈아탄 사실을 어떻게 알리는지 정합니다.',
   },
   {
     key: 'ai-packages',
@@ -79,6 +92,15 @@ export const AI_DOC_UI = {
   contractHead: { key: '자리', label: '이름', note: '왜 필요한가' },
   capabilityTitle: '능력마다 함께 보여야 하는 것',
   capabilityHead: { key: '능력', label: '이름', mustShow: '답과 함께 보여야 하는 것' },
+  /** 모델 정책 */
+  providerHead: { id: '공급자', keyPrefix: '키 앞자리', vision: '이미지', tools: '도구', thinking: '생각', issue: '키 발급' },
+  yes: '가능',
+  no: '안 됨',
+  chainOrderTitle: '시도 순서',
+  chainLimitTitle: '몇 개까지 시도하나',
+  failureTitle: '실패했을 때 무엇을 더 빼나',
+  failureHead: { scope: '갈래', when: '언제', then: '무엇을 빼나' },
+  policyCodeTitle: '부르는 쪽 모양',
 } as const
 
 /* ── 무엇인가 ─────────────────────────────────────────────────────────────── */
@@ -312,3 +334,139 @@ export const AI_LAYER_CHECKS: readonly { cmd: string; what: string }[] = [
   { cmd: 'pnpm typecheck:packages', what: '패키지와 그 시험까지 타입 검사' },
   { cmd: 'pnpm test', what: '규칙과 경계 가드 전부' },
 ]
+
+/* ── 모델 정책 ─────────────────────────────────────────────────────────────── */
+
+/**
+ * 공급자 표는 `@ax/ai-providers` 의 벤더 명세에서 그대로 만든다.
+ *
+ * 손으로 옮겨 적었다면 능력 한 칸이 바뀔 때 화면이 옛 답을 계속 보여 준다. 여기는
+ * 파생만 하고 사실은 벤더 명세 한 곳에 있다. 능력은 **벤더 천장**이고 모델 하나하나의
+ * 답은 카탈로그가 든다.
+ */
+export interface AiProviderDoc {
+  id: string
+  /** 키를 보고 공급자를 가리는 앞자리 */
+  keyPrefix: string
+  vision: boolean
+  tools: boolean
+  thinking: boolean
+  keyIssueUrl: string
+}
+
+export const AI_PROVIDERS: readonly AiProviderDoc[] = [GEMINI, CLAUDE, OPENAI, GROQ, GROK].map((v) => ({
+  id: v.id,
+  keyPrefix: v.keyPrefixes.join(' '),
+  vision: v.capabilities.vision,
+  tools: v.capabilities.tools,
+  thinking: v.capabilities.thinking,
+  keyIssueUrl: v.keyIssueUrl,
+}))
+
+/** 상한은 `lib/ai-chat/model-chain.ts` 가 진실이고 여기는 그 값을 읽어 보여 준다 */
+export const AI_CHAIN_LIMITS = {
+  maxCandidates: MAX_CHAIN_CANDIDATES,
+  maxPerProvider: MAX_PER_PROVIDER,
+} as const
+
+export interface AiChainStep {
+  no: number
+  title: string
+  note: string
+}
+
+export const AI_CHAIN_ORDER: readonly AiChainStep[] = [
+  {
+    no: 1,
+    title: '사용자가 고른 것',
+    note: '카탈로그가 「지금 못 쓴다」고 말한 경우에만 뺍니다. 관리자가 고른 것을 능력 판정으로 먼저 지우지 않습니다.',
+  },
+  {
+    no: 2,
+    title: '같은 공급자의 다른 모델',
+    note: '카탈로그 순서를 지키되, 한도에 걸렸던 모델은 뒤로 밉니다. 한도는 시간이 지나면 풀립니다.',
+  },
+  {
+    no: 3,
+    title: '다른 공급자',
+    note: '키가 확정된 공급자 순서대로 넘어가고, 공급자마다 설정된 모델을 먼저 씁니다. 키가 이미 있는 곳으로 가는 것이라 새 계약이 필요하지 않습니다.',
+  },
+]
+
+export interface AiFailureRule {
+  /** classifyProviderError 가 답하는 갈래 */
+  scope: string
+  when: string
+  then: string
+}
+
+export const AI_FAILURE_RULES: readonly AiFailureRule[] = [
+  {
+    scope: 'provider',
+    when: '한도 소진(429), 키 인증 실패(401·403)',
+    then: '그 공급자의 남은 모델을 전부 뺍니다. 무료 한도는 키 단위로 걸려서 같은 키의 다른 모델도 함께 죽어 있습니다.',
+  },
+  {
+    scope: 'model',
+    when: '요금제가 그 모델을 안 주는 경우(limit: 0), 없어진 모델(404)',
+    then: '그 모델만 뺍니다. 같은 키의 다른 모델은 멀쩡합니다.',
+  },
+  {
+    scope: 'transient',
+    when: '그 밖의 실패',
+    then: '다음 후보로 넘어가고 아무것도 더 빼지 않습니다.',
+  },
+]
+
+export const AI_POLICY_NOTES: readonly AiIntroBlock[] = [
+  {
+    title: '능력을 못 채우는 공급자는 후보에서 빠집니다',
+    lines: [
+      '첨부를 읽어야 하는 일은 이미지를 못 보는 공급자로 넘어가지 않습니다. 넘어가 봐야 400 이 옵니다.',
+      '도구를 써야 하는 일도 같습니다. 필요한 능력을 requires 로 넘기면 순서를 만들 때 걸러집니다.',
+      '사용자가 고른 것 하나는 관리자 선택을 존중해 남습니다. 그것까지 걸러야 하면 meetsRequirements 로 한 번 더 봅니다.',
+    ],
+  },
+  {
+    title: '후보가 0개면 조용히 끝내지 않습니다',
+    lines: [
+      '무엇이 모자라서 부를 곳이 없는지 사용자에게 말합니다. 빈손으로 끝나면 사용자는 기능이 고장 난 줄 압니다.',
+      '키가 없는 것과 능력이 모자란 것과 전부 한도에 걸린 것은 서로 다른 사실입니다. 다르게 말합니다.',
+    ],
+  },
+  {
+    title: '갈아탔으면 화면이 말합니다',
+    lines: [
+      '비용과 품질이 달라지는 일이라 모르고 지나가면 안 됩니다. 조용히 바꾸지 않습니다.',
+      '그 한 줄은 formatFallbackNotice 한 곳에서 옵니다. 화면마다 다른 문장을 지으면 같은 일이 다른 일처럼 보입니다.',
+      '기록에도 실제로 답한 공급자와 모델이 남습니다. 고른 모델이 아니라 답한 모델입니다.',
+    ],
+  },
+]
+
+/** 부르는 쪽 모양 — 순서를 만들고, 실패하면 그 근거로 남은 후보를 줄인다 */
+export const AI_POLICY_CODE = {
+  lang: 'ts',
+  text: `import { buildModelChain, pruneChain } from '@/lib/ai-chat/model-chain'
+import { classifyProviderError } from '@/lib/ai-chat/provider-errors'
+
+let rest = buildModelChain({
+  chosen,            // 사용자가 대화에 걸어 둔 공급자와 모델
+  providers,         // 키가 확정된 공급자들, 배열 순서가 곧 폴백 순서
+  catalog,           // ai_model_catalog 행
+  capabilities,      // 공급자별 vision·tools
+  requires: { vision: hasAttachment },
+})
+
+if (rest.length === 0) throw new Error('부를 수 있는 모델이 없습니다')
+
+while (rest.length > 0) {
+  const [candidate, ...others] = rest
+  try {
+    return await callProvider(candidate)
+  } catch (err) {
+    const { scope } = classifyProviderError(err)
+    rest = pruneChain(others, candidate, scope)
+  }
+}`,
+} as const

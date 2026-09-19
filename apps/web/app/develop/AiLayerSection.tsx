@@ -20,6 +20,7 @@ import CodeBlock from './CodeBlock'
 import {
   AI_DOC_NAV, AI_DOC_UI, AI_LAYER_NAV_LABEL,
   AI_INTRO, AI_SETUP, AI_PACKAGES, AI_CONTRACT_FIELDS, AI_CAPABILITY_DOCS, AI_LAYER_CHECKS,
+  AI_PROVIDERS, AI_CHAIN_LIMITS, AI_CHAIN_ORDER, AI_FAILURE_RULES, AI_POLICY_NOTES, AI_POLICY_CODE,
   type AiDocKey,
 } from '@/lib/api-docs/ai-layer'
 
@@ -127,6 +128,83 @@ function PackagesView() {
   )
 }
 
+function PolicyView({ onCopy, copiedId }: Omit<Props, 'section'>) {
+  const U = AI_DOC_UI
+  return (
+    <>
+      <table className="table-base table-card" style={{ marginBottom: 'var(--space-8)' }}>
+        <thead><tr>
+          <th>{U.providerHead.id}</th>
+          <th>{U.providerHead.keyPrefix}</th>
+          <th>{U.providerHead.vision}</th>
+          <th>{U.providerHead.tools}</th>
+          <th>{U.providerHead.thinking}</th>
+          <th>{U.providerHead.issue}</th>
+        </tr></thead>
+        <tbody>
+          {AI_PROVIDERS.map((v) => (
+            <tr key={v.id}>
+              <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{v.id}</code></td>
+              <td data-label={U.providerHead.keyPrefix}><code style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{v.keyPrefix}</code></td>
+              <td data-label={U.providerHead.vision} style={{ fontSize: 'var(--fs-xs)' }}>{v.vision ? U.yes : U.no}</td>
+              <td data-label={U.providerHead.tools} style={{ fontSize: 'var(--fs-xs)' }}>{v.tools ? U.yes : U.no}</td>
+              <td data-label={U.providerHead.thinking} style={{ fontSize: 'var(--fs-xs)' }}>{v.thinking ? U.yes : U.no}</td>
+              <td data-label={U.providerHead.issue}>
+                <a href={v.keyIssueUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{v.keyIssueUrl.replace('https://', '')}</a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <H2>{U.chainOrderTitle}</H2>
+      {AI_CHAIN_ORDER.map((s2) => (
+        <section key={s2.no} style={{ marginBottom: 'var(--space-5)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <NbBadge>{String(s2.no)}</NbBadge>
+            <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 'var(--fs-base)' }}>{s2.title}</span>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', lineHeight: 1.7, margin: 0 }}>{s2.note}</p>
+        </section>
+      ))}
+
+      <H2>{U.chainLimitTitle}</H2>
+      <Lines lines={[
+        `전체 후보 ${AI_CHAIN_LIMITS.maxCandidates}개까지 시도합니다. 늘리면 막혔을 때 사용자가 기다리는 시간이 그만큼 늘어납니다.`,
+        `한 공급자에서는 ${AI_CHAIN_LIMITS.maxPerProvider}개까지만 씁니다. 죽어 있는 공급자의 모델로 후보를 다 채우지 않습니다.`,
+      ]} />
+
+      <H2>{U.failureTitle}</H2>
+      <table className="table-base table-card" style={{ marginBottom: 'var(--space-8)' }}>
+        <thead><tr>
+          <th>{U.failureHead.scope}</th>
+          <th>{U.failureHead.when}</th>
+          <th>{U.failureHead.then}</th>
+        </tr></thead>
+        <tbody>
+          {AI_FAILURE_RULES.map((r) => (
+            <tr key={r.scope}>
+              <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{r.scope}</code></td>
+              <td data-label={U.failureHead.when} style={{ color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>{r.when}</td>
+              <td data-label={U.failureHead.then} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{r.then}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {AI_POLICY_NOTES.map((b) => (
+        <section key={b.title}>
+          <H2>{b.title}</H2>
+          <Lines lines={b.lines} />
+        </section>
+      ))}
+
+      <H2>{U.policyCodeTitle}</H2>
+      <CodeBlock id="ai-policy-code" lang={AI_POLICY_CODE.lang} code={AI_POLICY_CODE.text} onCopy={onCopy} copiedId={copiedId} />
+    </>
+  )
+}
+
 function ContractView() {
   return (
     <>
@@ -172,6 +250,7 @@ function ContractView() {
 function Body({ section, onCopy, copiedId }: Props) {
   switch (section) {
     case 'ai-setup': return <SetupView onCopy={onCopy} copiedId={copiedId} />
+    case 'ai-policy': return <PolicyView onCopy={onCopy} copiedId={copiedId} />
     case 'ai-packages': return <PackagesView />
     case 'ai-contract': return <ContractView />
     case 'ai-intro': return <IntroView />
