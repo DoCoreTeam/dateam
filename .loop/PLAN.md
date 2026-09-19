@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서 파일 한 장에서 견적 여러 건
 플랜 ID: P0028
-플랜 버전: v0.3.7
+플랜 버전: v0.3.8
 상태: 진행중
 지시: ins_0029
 목표 버전: v0.10.170
@@ -149,15 +149,27 @@
 의존: I09
 
 ### I11 실브라우저 검증
-상태: 대기
+상태: 통과
 모드: 경량
-범위: e2e/crm-quote-fill.spec.ts, apps/web/package.json
+범위: apps/web/e2e/crm-quote-fill.spec.ts, playwright.config.ts, package.json, apps/web/lib/ui/test-registry.test.ts
 감사 기준:
 - 견적 두 건이 든 파일을 실제로 올려 두 건이 만들어지는 것을 브라우저에서 확인 (스크린샷 근거)
 - 오류 경로 하나를 실제로 재현해 문장 확인
-- 등재한 테스트가 pnpm test 총 수를 실제로 늘림
+- e2e 를 부르는 길(pnpm e2e)이 등재되고, 그 경로가 사라지면 깨지는 가드가 pnpm test 총 수를 늘림 (playwright 스펙은 node --test 가 못 읽어 test 목록에 넣지 않는다)
 - AI 한도가 안 풀렸으면 그 사실과 대신 확인한 범위를 기록
+- 검증으로 만든 견적은 지우고 원래 상태로 되돌림
 의존: I10
+
+### I12 읽은 것을 건수로 말한다
+상태: 대기
+모드: 경량
+범위: lib/terms/quote.ts, lib/terms/index.ts, components/ui/crm/QuoteFromFileModal.tsx, lib/terms/terms.test.ts
+감사 기준:
+- 건이 둘 이상이면 머리말이 건수를 먼저 말함 (「견적 2건 · 항목 4개를 읽었어요」)
+- 건이 하나면 지금 문장 그대로 — 「견적 1건」은 군말이라 안 붙임
+- 조수사는 개체표가 정함 (견적=건, 품목=개), 화면이 직접 고르지 않음 (가드 1개)
+- 편집 모달의 「파일로 채우기」 문장은 안 건드림 — 거기는 한 건만 쓰는 자리
+의존: I11
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
@@ -173,3 +185,4 @@
 - v0.3.5 (2026-09-19) I08 범위에 둘 더함 (audit:I08) — `lib/terms/entity.ts`: 원가 항목을 개체로 등재해 끝 문장이 조수사를 직접 고르지 않게 한다(용어집 규칙 3) · `lib/crm/domain/quote-reconcile.test.ts`: 고른 줄을 «자리»로 먼저 뽑도록 바꾸면서 옛 구현 문자열을 그대로 보던 가드가 낡았다, 규칙은 그대로 두고 보는 자리만 옮김
 - v0.3.6 (2026-09-19) I09 범위에 넷 더함 (audit:I09) — 판매가 고르는 칸이 새 문구를 쓰므로 `lib/terms/quote.ts`·`lib/terms/index.ts`, 결과 한 줄에 쓸 자리 하나 때문에 `quote-panel.module.css`, 그리고 등재하지 않으면 안 도는 테스트라 `apps/web/package.json`
 - v0.3.7 (2026-09-19) I10 이 만들려던 `lib/crm/ui/read-api.ts` 를 짓지 않고 이미 있는 `lib/crm/api/read-error.ts` 를 넓힌다 (audit:I10) — 그 파일이 이미 「API 실패를 사람 말로 바꾸는 한 곳」이고(readApiError·readApiErrorCode·describeFetchFailure, 화면 열한 곳이 쓴다), 옆에 같은 성격의 파일을 하나 더 두면 다음 화면이 어느 쪽을 부를지 갈린다(재사용·단일구현 정책). 부분 실패 건수 문구는 lib/terms/quote.ts 로
+- v0.3.8 (2026-09-19) I11 이 실화면에서 찾은 것 둘 (audit:I11) — ① 범위 정정: playwright 스펙은 `pnpm test` 가 못 돌리므로 `pnpm e2e` 를 등재하고 그 경로를 지키는 가드를 `lib/ui/test-registry.test.ts`(이미 등재된 파일)에 넣는다, 공유 dev 서버가 옛 판을 물고 있어 격리 서버로 확인해야 했으므로 `playwright.config.ts` 가 볼 서버를 고를 수 있게 한다 ② 항목 I12 추가: 건이 둘인데 머리말이 「4개를 읽었어요」라고만 해서 **몇 건인지 화면이 말하지 않는다**(실측 v0.10.179 스크린샷)

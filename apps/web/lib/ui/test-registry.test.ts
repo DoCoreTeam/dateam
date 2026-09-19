@@ -54,3 +54,38 @@ test('규칙이 도는 대상이 실제로 있다', () => {
   const n = registeredPaths().length
   assert.ok(n >= 100, `등재된 테스트가 ${n}개뿐이다 — 목록을 읽는 방식이 깨졌는지 확인한다`)
 })
+
+/* ── 실브라우저 경로 ─────────────────────────────── */
+
+/*
+  **e2e 는 `pnpm test` 가 안 돈다.** `node --test` 는 playwright 스펙을 읽지 못하고,
+  목록에 넣으면 그 자리에서 전부 죽는다. 그렇다고 아무 데도 안 적어 두면 이 저장소가
+  반복한 그 일이 또 일어난다 — **있는데 아무도 안 부르는 검사.**
+  그래서 ① 부를 길(`pnpm e2e`)이 있는지 ② 덮기로 한 경로가 스펙에 남아 있는지를 여기서 본다.
+*/
+test('★ 실브라우저를 부를 길이 있다 — 그리고 node 목록에는 안 들어간다', () => {
+  const root = JSON.parse(readFileSync('../../package.json', 'utf8')) as {
+    scripts: Record<string, string>
+  }
+  assert.match(root.scripts.e2e ?? '', /playwright test/,
+    '실브라우저를 부르는 스크립트가 없다 — 그러면 아무도 안 돌린다')
+
+  const specs = registeredPaths().filter((p) => p.endsWith('.spec.ts'))
+  assert.deepEqual(specs, [],
+    'playwright 스펙이 node --test 목록에 들어갔다 — 그 자리에서 전부 죽는다')
+})
+
+test('★ 견적서 파일 경로의 실화면 검사가 남아 있다', () => {
+  const spec = 'e2e/crm-quote-fill.spec.ts'
+  assert.ok(existsSync(spec), `${spec} 가 사라졌다`)
+  const src = readFileSync(spec, 'utf8')
+  /*
+    한 파일에 든 견적 여러 건과 **오류 경로 하나**는 단위 검사로 대신할 수 없다.
+    「부품은 다 있는데 화면이 안 부른다」가 이 저장소가 반복한 사고이고, 그것은
+    사람이 밟는 경로를 실제로 밟아 봐야만 드러난다.
+  */
+  assert.match(src, /파일로 가져오기/, '딜 화면의 가져오기 경로를 안 밟는다')
+  assert.match(src, /toHaveCount\(2/, '한 파일에서 두 건이 서는지 안 본다')
+  assert.match(src, /파일이 너무 큽니다/, '오류 경로를 하나도 안 재현한다')
+  assert.match(src, /trashQuotes\(/, '검증으로 만든 견적을 안 지운다 — 운영 데이터에 쌓인다')
+})
