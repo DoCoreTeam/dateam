@@ -80,6 +80,49 @@ CSS는 반드시 `globals.css` 또는 CSS 모듈에 작성한다.
 - `.table-responsive` 래퍼 + `minWidth` 조합 (가로 스크롤 유발) → `.table-card` 사용
 - 클라이언트 컴포넌트 내 `<style>` 태그 (hydration 오류 유발)
 
+## 보안 정책 (필수 — 무엇을 만들든 여기부터)
+
+> **왜**: 2026-09-13 Supabase 경보가 「표가 공개돼 있다」고 알려 왔다. 전수로 재 보니
+> **RLS 꺼진 표 8개**(익명 키로 INSERT 201·DELETE 204 실증, 그중 하나는 이메일 1,002·휴대폰 495가
+> 든 리드 사본) · **anon 쓰기 권한 271개 표** · **익명이 읽던 SECURITY DEFINER 뷰 7개** ·
+> **`TO public USING(true)` 정책 7개** · **search_path 안 박힌 권한 판정 함수 4개** ·
+> **한도 없는 익명 쓰기 창구 1개**. 여섯 갈래였고 경보는 그중 하나만 봤다.
+>
+> 원인은 하나다. **방벽이 한 겹이었다.** 표 권한(GRANT)은 익명에게 열어 둔 채 RLS 하나로만
+> 막고 있었다. 그리고 실수는 한 모양으로 반복됐다 — **`CREATE TABLE ... AS SELECT` 는 원본의
+> RLS 를 안 물려받는다.** 열린 8개 중 5개가 백업 사본이었고, 뜬 사람은 잘못한 것이 없으며
+> **화면에서는 아무 일도 일어나지 않았다.** 그래서 아무도 모른 채 구멍이 하나씩 생겼다.
+>
+> 규칙 SSOT 는 `LOOP.md` 7절, 재는 방법은 `docs/policy/security.md`.
+
+**세 질문 — 착수할 때 답한다. 구현하고 나서가 아니다.**
+
+1. 새 데이터를 저장하나 (표·칼럼·버킷·파일)
+2. 새 창구를 여나 (라우트·서버 액션·공개 링크)
+3. 밖에서 온 값을 다루나 (사용자 입력·업로드·외부 API 응답)
+
+하나라도 「예」면 해당 규칙이 **감사 기준이 된다.** `loop plan check` 가 보안에 닿는 범위를 가진
+항목의 감사 기준에 보안 줄이 없으면 **플랜을 통과시키지 않는다.**
+
+**규칙 여섯**
+
+| | 규칙 | 가드 |
+|---|---|---|
+| **S1** | 표를 만들면 **같은 마이그레이션에서** RLS 를 켠다. 사본도 예외 없다. 정책 대상에 `TO public` 을 쓰지 않는다 | `lib/policy/rls-baseline.test.ts` |
+| **S2** | 라우트는 인증 장치를 부른다. **`createAdminClient` 는 RLS 를 통째로 지나가므로** 그 위에 반드시 사람 확인이 있어야 한다. 로그인 없이 쓰기가 되는 창구는 속도 제한을 붙인다 | `lib/policy/api-auth-surface.test.ts` |
+| **S3** | 비밀은 코드에 안 적는다. 새 설정은 env 추가 대신 DB + UI. **있는지 없는지를 대답으로 알려 주지 않는다**(이메일 열거). 서비스롤을 다루는 모듈은 `import 'server-only'` | `lib/policy/security-code.test.ts` |
+| **S4** | 사용자 HTML 은 sanitize 를 거치거나 escape 후 조립한다. 바깥 주소로 가는 요청은 `lib/security/safe-fetch`. 질의는 매개변수로 | `lib/policy/security-code.test.ts` |
+| **S5** | 응답 헤더 여섯(nosniff·X-Frame-Options·Referrer-Policy·Permissions-Policy·HSTS·CSP)은 한 벌이다 | `lib/policy/security-headers.test.ts` |
+| **S6** | **안 깨 본 가드는 가드가 아니다.** 보안 가드를 추가하면 일부러 깨뜨려 실패를 확인하고 그 사실을 기록한다 | 사람 |
+
+**종합 감사에서 다섯 줄을 실제로 센다** (`docs/policy/security-count.sql`, 전부 0 이어야 통과)
+
+`rls_off_tables` · `anon_write_tables` · `public_using_true_policies` ·
+`unpinned_secdef_functions` · `anon_readable_secdef_views`
+
+**발견했는데 지금 못 고치는 것** — 되돌릴 수 없는 데이터 변경만 사용자에게 묻고 나머지는 고친다.
+물을 때도 되돌리는 방법을 함께 적는다. 미룬 항목은 **보류로 남기고 사유를 적는다.** 조용히 넘어가지 않는다.
+
 ## 다중 세션 동시 작업 정책 (필수 — 세션 N개가 같은 작업 트리를 공유한다)
 
 > **전문: [`docs/policy/multi-session.md`](docs/policy/multi-session.md)** (SSOT — 근거·표·예외). 아래는 **안 읽고 어기면 남의 작업이 깨지는 것만** 뽑은 카드다.
@@ -808,7 +851,7 @@ git commit -m "gemini v0.4.6: 거래처 목록 검색 필터 추가"  # 위치 �
   산출물에 `require("<패키지>")` 가 **남아 있는지**로 판정한다(남아 있으면 런타임 의존 = 사고 후보).
 
 ## 버전
-v0.10.192
+v0.10.193
 
 ## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
 

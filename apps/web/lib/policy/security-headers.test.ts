@@ -130,3 +130,17 @@ test('서비스롤 키를 읽는 앱 코드는 server-only 로 잠근다', () =>
       `파일 맨 위에 다음 한 줄을 넣는다:\n  import 'server-only'`,
   )
 })
+
+test('이미지 최적화 창구는 닫혀 있다', () => {
+  // 왜: `/_next/image` 는 우리가 안 써도 열려 있고, 실측으로 이미지를 실제 해독했다.
+  //   next/image 를 부르는 화면은 0곳이므로 얻는 것 없이 공격면만 남는다.
+  //   Next 14.2 계열의 이미지 최적화 원격 코드 실행은 15.5.24 이상에만 고침이 있다.
+  //   `images.unoptimized` 만으로는 안 닫힌다(컴포넌트 쪽만 바뀐다) — 미들웨어가 닫는다.
+  const mw = readFileSync(join(WEB, 'middleware.ts'), 'utf8')
+  assert.match(
+    mw,
+    /pathname === '\/_next\/image'/,
+    '미들웨어가 /_next/image 를 막지 않는다 — 열면 Next 를 15 이상으로 먼저 올린다',
+  )
+  assert.match(mw, /'\/_next\/image',/, "matcher 에 '/_next/image' 가 없으면 위 분기가 아예 안 돈다")
+})

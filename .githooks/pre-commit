@@ -5,3 +5,9 @@ node scripts/check-design-tokens.mjs --commit-scope || {
   echo "→ 디자인 토큰 위반으로 커밋 차단. var(--token) 사용 또는 가드 ALLOW 검토."
   exit 1
 }
+
+# 보안 가드 — 비밀·RLS 누락·.env 를 커밋 전에 막는다 (LOOP.md 7절)
+node scripts/check-security-staged.mjs || {
+  echo "→ 보안 위반으로 커밋 차단. docs/policy/security.md 참고."
+  exit 1
+}

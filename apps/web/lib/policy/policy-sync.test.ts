@@ -152,3 +152,64 @@ test('카드가 인용하는 M-N이 SSOT에 실재한다 (없는 규칙을 가�
     `카드가 SSOT에 없는 규칙을 인용한다. ${SSOT}에 절을 만들거나 인용을 고칠 것:\n  ` +
     dangling.join('\n  '))
 })
+
+/**
+ * 보안 정책 절은 3파일에 **같은 문장으로** 있어야 한다.
+ *
+ * 왜 따로 보나: M-N 카드는 「세션끼리 부딪히지 마라」이고, 보안은 「무엇을 만들든 여기부터」다.
+ *   성격이 달라 카드 번호를 붙이지 않았는데, 번호가 없으면 위 세 테스트가 아무것도 안 본다.
+ *   그러면 한 파일만 고치고 나머지 둘이 뒤처지는 일이 그대로 재현된다
+ *   (GEMINI.md 가 53패치 뒤처진 채 돌던 그 일).
+ */
+const SECURITY_HEADING = '## 보안 정책 (필수 — 무엇을 만들든 여기부터)'
+
+function securitySection(text: string): string | null {
+  const start = text.indexOf(SECURITY_HEADING)
+  if (start < 0) return null
+  const rest = text.slice(start + SECURITY_HEADING.length)
+  const end = rest.search(/\n## /)
+  return (SECURITY_HEADING + (end < 0 ? rest : rest.slice(0, end))).trim()
+}
+
+test('보안 정책 절이 정책 3파일에 모두 있다', () => {
+  const missing = POLICY_FILES.filter(({ file }) => securitySection(read(file)) === null).map((f) => f.file)
+  assert.deepEqual(missing, [],
+    `보안 정책 절이 없는 파일이 있다 — 그 도구는 보안을 안 보고 움직인다:\n  ${missing.join('\n  ')}\n` +
+    `규칙 SSOT 는 LOOP.md 7절, 재는 방법은 docs/policy/security.md.`)
+})
+
+test('보안 정책 절의 본문이 정책 3파일에서 동일하다', () => {
+  const base = securitySection(read(POLICY_FILES[0].file))
+  assert.ok(base, '기준 파일에 보안 정책 절이 없다')
+  const diverged = POLICY_FILES.slice(1)
+    .filter(({ file }) => securitySection(read(file)) !== base)
+    .map((f) => f.file)
+  assert.deepEqual(diverged, [],
+    `보안 정책이 파일마다 다르게 적혀 있다:\n  ${POLICY_FILES[0].file} ↔ ${diverged.join(', ')}\n` +
+    `한 곳만 고치면 나머지 도구가 옛 기준으로 움직인다. 세 파일을 같은 문장으로 맞춘다.`)
+})
+
+test('보안 정책이 가리키는 가드가 실재한다', () => {
+  const body = securitySection(read(POLICY_FILES[0].file)) ?? ''
+  const referenced = [...body.matchAll(/`(lib\/policy\/[a-z-]+\.test\.ts)`/g)].map((m) => m[1])
+  assert.ok(referenced.length >= 4, `가드 인용이 ${referenced.length}개뿐이다 — 절이 비었거나 형식이 바뀌었다`)
+
+  const missing = [...new Set(referenced)].filter((rel) => {
+    try { readFileSync(join(ROOT, 'apps/web', rel), 'utf8'); return false } catch { return true }
+  })
+  assert.deepEqual(missing, [],
+    `정책이 없는 가드를 가리킨다 — 지켜지는 줄 알지만 아무도 안 본다:\n  ${missing.join('\n  ')}`)
+})
+
+test('보안 세는 명령이 실재하고 다섯 줄을 전부 센다', () => {
+  const sql = read('docs/policy/security-count.sql')
+  for (const key of [
+    'rls_off_tables',
+    'anon_write_tables',
+    'public_using_true_policies',
+    'unpinned_secdef_functions',
+    'anon_readable_secdef_views',
+  ]) {
+    assert.ok(sql.includes(key), `security-count.sql 이 ${key} 를 세지 않는다`)
+  }
+})

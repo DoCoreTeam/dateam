@@ -659,6 +659,12 @@ cmds.plan = (a) => {
       if (/\(명령과 기대 결과|\(관측 가능한 조건/.test(it.block)) problems.push(`${it.id} 감사 기준 자리표시자 잔존`);
       const dep = (it.block.match(/^의존:\s*(.+)$/m) || [])[1];
       if (dep && dep !== '없음') for (const d of dep.split(/[,\s]+/).filter(Boolean)) if (!p.items.some((x) => x.id === d)) problems.push(`${it.id} 의존 ${d} 없음`);
+      // 보안이 걸리는 자리를 건드리면 감사 기준에 보안을 재는 줄이 있어야 한다.
+      // 「나중에 보겠다」는 없다 — 나중은 오지 않는다(표 여덟 개가 그렇게 열려 있었다).
+      const asks = securityAsks(it);
+      if (asks.length && !SECURITY_WORDS.test(crit)) {
+        problems.push(`${it.id} 보안 기준 없음, 범위가 보안에 닿는다\n    물어야 할 것: ${asks.join(' / ')}\n    LOOP.md 7절 보안 기준에서 해당 줄을 골라 감사 기준에 적는다`);
+      }
     }
     if (problems.length) { out('[loop-kit] 플랜 점검 실패'); problems.forEach((x) => out('- ' + x)); process.exit(2); }
     out(`[loop-kit] 플랜 점검 통과, 항목 ${p.items.length}개${flag('plan_confirm') ? ', 사용자 확인 후 plan confirm 실행' : ', plan confirm 실행 후 착수'}`);
@@ -711,6 +717,32 @@ cmds.plan = (a) => {
   die('plan 하위 명령: new | check | confirm | revise | snapshot | next | abort');
 };
 
+/**
+ * 보안을 먼저 보게 만드는 자리.
+ *
+ * 왜 여기인가: 2026-09-20 보안 점검에서 표 여덟 개가 잠금 없이 열려 있었고
+ * 그중 다섯은 백업 사본이었다. 만든 사람이 잘못한 것이 아니라 «지금 이것을 봐야 한다» 고
+ * 말해 주는 자리가 없었다. 문서에만 적으면 또 안 지켜진다(버전 규칙이 열여섯 판 밀린 전례).
+ * 그래서 플랜을 세우는 순간 CLI 가 막는다.
+ */
+const SECURITY_PATHS = [
+  { re: /supabase\/migrations\//, ask: '표를 만들거나 정책을 바꾸나. RLS 를 같은 판에서 켰나. 사본도 켰나' },
+  { re: /app\/api\//, ask: '이 창구를 누가 부를 수 있나. 인증 장치를 부르나. 서비스롤을 쓰면 그 위에 사람 확인이 있나' },
+  { re: /middleware\.ts/, ask: '어떤 경로가 게이트를 지나가게 되나' },
+  { re: /lib\/supabase\//, ask: '서비스롤 키를 다루나. server-only 로 잠겨 있나' },
+  { re: /lib\/(auth|security)\//, ask: '누가 무엇을 할 수 있는지 판정이 바뀌나' },
+  { re: /next\.config\.js/, ask: '응답 헤더나 번들 경계가 바뀌나' },
+  { re: /storage|upload|attachment/i, ask: '올라온 파일을 누가 읽을 수 있나' },
+];
+
+/** 감사 기준 줄에 보안을 실제로 재는 말이 있는가. 없으면 "보안은 나중에" 가 된다. */
+const SECURITY_WORDS = /보안|RLS|권한|인증|게이트|익명|anon|서비스롤|속도 제한|한도|sanitize|safe-fetch|비밀|누가 (읽|쓰|볼|부를)/;
+
+function securityAsks(item) {
+  const scope = (item.block.match(/^범위:\s*(.+)$/m) || [])[1] || '';
+  return SECURITY_PATHS.filter((x) => x.re.test(scope)).map((x) => x.ask);
+}
+
 cmds.start = (a) => {
   const id = a._[0]; if (!id) die('항목 ID 필요');
   const p = readPlan();
@@ -732,6 +764,11 @@ cmds.start = (a) => {
   snapshot('status', `start:${id}`);
   out(`[loop-kit] ${id} 착수 (시도 ${attempt}/${num('max_audit_retries')})${it.mode.startsWith('중량') ? ', 중량 모드: ' + getSetting('heavy_doc') + ' 규정 적용' : ''}`);
   out(readPlan().items.find((x) => x.id === id).block);
+  const asks = securityAsks(it);
+  if (asks.length) {
+    out('[loop-kit] 보안 먼저 (LOOP.md 7절)');
+    asks.forEach((x) => out('  - ' + x));
+  }
   out(`[loop-kit] 감사 명령 typecheck=${getSetting('cmd_typecheck')}, test=${getSetting('cmd_test')}`);
 };
 

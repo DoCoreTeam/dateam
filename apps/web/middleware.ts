@@ -33,6 +33,23 @@ function isPublicPath(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  /**
+   * 이미지 최적화 창구를 닫는다 — 세션을 보기 전에, 맨 먼저.
+   *
+   * 왜: `/_next/image` 는 **우리가 안 써도 열려 있다.** `next/image` 를 부르는 화면은 0곳인데
+   * 실측 2026-09-20 그 주소는 이미지를 실제로 받아 해독했다. next.config 의
+   * `images.unoptimized` 는 컴포넌트 쪽만 바꾸고 이 주소는 그대로 열어 둔다(실측으로 확인).
+   *
+   * 무엇을 막나: Next 14.2 계열의 이미지 최적화 경로 미인증 원격 코드 실행.
+   * 고침이 15.5.24 이상에만 있어 14 계열에는 안 온다. 15 로 올릴 때까지 여기서 닫는다.
+   *
+   * 값이 없는 창구는 닫는다 — 이것이 규칙이다(LOOP.md 7절).
+   * `next/image` 를 쓰기로 하면 이 블록을 지우고 Next 를 먼저 올린다.
+   */
+  if (pathname === '/_next/image') {
+    return new NextResponse(null, { status: 404 })
+  }
+
   // 공개 경로는 user를 보지 않고 통과한다 — 판정에 user가 쓰이지 않으므로 결과가 동일하고,
   // getUser()(Supabase 인증 서버 왕복 ~600ms)를 통째로 아낀다.
   // (예전엔 이 분기가 getUser() **뒤**에 있어 공개 API·개발자센터도 매번 통행료를 냈다)
@@ -129,5 +146,8 @@ export const config = {
   // API로는 이쪽이 맞고, 302를 기대하던 호출부는 없다(전수 확인).
   matcher: [
     '/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // 위 줄이 일부러 빼 둔 경로다. 닫으려면 태워야 하므로 **이 한 줄만** 따로 더한다.
+    // 정상 트래픽이 0 이라 늘어나는 비용도 0 이다.
+    '/_next/image',
   ],
 }
