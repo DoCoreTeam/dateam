@@ -83,6 +83,28 @@ export const FREE_TIER_DAILY_LIMIT = 20
  */
 export const DEFAULT_MAX_SETS = 30
 
+/**
+ * 이번 실행에 쓸 예산이 적혀 있는가.
+ *
+ * 왜 순수 계층에 있나: 규칙을 stages.ts 안에 두면 확인하려고 Supabase 클라이언트를
+ * 세워야 하고, 그렇게 세운 시험은 «예산을 요구하는가»가 아니라 «붙었는가»를 본다.
+ *
+ * 왜 기본값을 안 주나(실측 2026-09-20): 예전에는 안 주면 주제별 기본 상한을 썼다.
+ * 그래서 파생값 계산이 `runDiscovery(workspaceId)` 한 줄로 주제 전체 배치를 불렀고,
+ * 아무도 그 한 줄이 AI 210회짜리인 줄 몰랐다. 기본값이 있으면 「안 정해도 도는 길」이
+ * 남고, 언젠가 한 곳이 그 길로 부른다.
+ */
+export function assertDiscoveryBudget(
+  opts: { maxSetsPerTopic?: number } | undefined | null,
+): asserts opts is { maxSetsPerTopic: number } {
+  const n = opts?.maxSetsPerTopic
+  if (!Number.isInteger(n) || (n as number) < 1) {
+    throw new Error(
+      `발견 배치는 maxSetsPerTopic 예산을 반드시 받는다 (받은 값: ${JSON.stringify(n)})`,
+    )
+  }
+}
+
 export interface DiscoverySample {
   contentId: string
   channelId: string | null

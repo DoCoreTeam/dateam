@@ -11,7 +11,7 @@ import { completenessFor } from '../connectors/meta-tags.ts'
 import { getGeminiMeta } from '../ai/meta.ts'
 import { computeDerived, recomputeChannelDerived } from '../analysis/derive.ts'
 import {
-  runClassify, runVerify, runPatterns, runDiscovery, runChannelSweep, runCreativeBacklog,
+  runClassify, runVerify, runChannelSweep, runCreativeBacklog,
   enrichChannelMetaBacklog, runChannelIdentity,
   runMediaUnderstanding, runMediaBacklog,
 } from './stages.ts'
@@ -291,9 +291,24 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
     await enrichChannelMetaBacklog(job.workspace_id)
     // "언제의 트렌드인가" — 계절·요일·시간대·지역·날씨를 채운다
     await enrichContextBacklog(job.workspace_id)
-    // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
-    await runPatterns(job.workspace_id)
-    await runDiscovery(job.workspace_id)
+    /*
+      공식과 발견은 **여기서 부르지 않는다.**
+
+      둘은 워크스페이스 전체를 훑는 배치다. 발견은 주제마다 대조 30건을 AI 에게
+      물으므로 한 번에 최대 210회, 간격 3.2초를 지키면 11분이 걸린다. 그것을
+      콘텐츠 한 건이 들어올 때마다 불렀다.
+
+      결과는 두 겹으로 나빴다. 잠금 만료가 5분이라 11분짜리 일이 매번 죽은 것으로
+      회수돼 세 번씩 다시 돌았고(실측 ci_jobs project STALLED 302건), 대조쌍의
+      입력은 수집 뒤 변하지 않는데 온도 0 으로 같은 질문을 다시 물었다.
+      사흘에 49,064회를 불러 46,212회가 한도로 실패했고, 그동안 같은 키를 쓰는
+      회의노트와 CRM 이 함께 죽었다.
+
+      실제 일감은 하루 신규 7.3건뿐이다. 그래서 해석은 사람이 볼 때 한다:
+        - 버튼: /api/ci/patterns/recompute (트렌드 화면, 주제 하나씩)
+        - 배치: /api/ci/internal/worker/discover (예산을 받아 나눠 돈다)
+      여기서는 배수까지만 채우고, 무엇이 새로 생겼는지는 그 화면이 말한다.
+    */
     // 떡상 알림도 배수에 딸린 파생 처리라 같은 함정을 갖는다 — 단건이 아니라 재훑기다.
     await runAlertBacklog(job.workspace_id)
   }

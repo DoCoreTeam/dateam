@@ -17,7 +17,7 @@ import {
 } from '../analysis/channel-identity.ts'
 import { computePatterns, type PatternSample } from '../analysis/patterns.ts'
 import {
-  buildContrastSets, promoteDiscoveries, type DiscoverySample,
+  buildContrastSets, promoteDiscoveries, assertDiscoveryBudget, type DiscoverySample,
 } from '../analysis/discovery.ts'
 import { discoverFromContrasts } from '../ai/discover-server.ts'
 import { buildCorrectionExamples, type CorrectionRecord } from '../analysis/corrections.ts'
@@ -643,15 +643,21 @@ export async function runPatterns(workspaceId: string): Promise<StageResult> {
 export async function runDiscovery(
   workspaceId: string,
   /**
-   * 이번 실행에 쓸 예산. 안 주면 주제별 기본 상한을 쓴다.
+   * 이번 실행에 쓸 예산. **필수다.**
    *
-   * 왜 필요한가(실측 2026-08-27): 주제 8개 × 상한 24 = 최대 192회다.
-   * 무료 티어는 모델당 하루 20회라 한 번 돌리면 그날 예산이 통째로 사라지고,
-   * 그러는 동안 회의노트·CRM 등 **같은 키를 쓰는 다른 기능이 전부 죽는다**(키 공유).
-   * 그래서 호출부가 "이번엔 여기까지"를 정할 수 있어야 한다.
+   * 왜 필수인가: 예전에는 안 주면 주제별 기본 상한을 썼다. 그래서 파생값 계산이
+   * `runDiscovery(workspaceId)` 한 줄로 주제 전체 배치를 불렀고, 아무도 그 한 줄이
+   * AI 210회짜리인 줄 몰랐다(실측 2026-09-20: 사흘 49,064회, 실패 46,212회).
+   *
+   * 기본값이 있으면 「안 정해도 도는 길」이 남고, 언젠가 한 곳이 그 길로 부른다.
+   * 그래서 기본값을 없애고 호출부가 «이번엔 여기까지»를 반드시 적게 한다.
+   * 무료 티어는 모델당 하루 20회라, 정하지 않은 한 번이 그날 예산 전부다.
    */
-  opts?: { maxSetsPerTopic?: number; topicIds?: readonly string[] },
+  opts: { maxSetsPerTopic: number; topicIds?: readonly string[] },
 ): Promise<StageResult> {
+  // 타입이 막아 주지만 자바스크립트 호출부와 테스트는 타입을 안 지난다.
+  // 예산 없이 여기까지 온 것은 사고이므로 조용히 기본값을 채우지 않고 멈춘다.
+  assertDiscoveryBudget(opts)
   const adminClient = createAdminClient() as any
 
   let topicQuery = adminClient.from('ci_topics')
@@ -690,9 +696,9 @@ export async function runDiscovery(
     const sets = buildContrastSets(samples)
     if (sets.length === 0) continue
     topicsWithData += 1
-    setsTotal += Math.min(sets.length, opts?.maxSetsPerTopic ?? sets.length)
+    setsTotal += Math.min(sets.length, opts.maxSetsPerTopic)
 
-    const found = await discoverFromContrasts(sets, { maxSets: opts?.maxSetsPerTopic })
+    const found = await discoverFromContrasts(sets, { maxSets: opts.maxSetsPerTopic })
     if (found.blocked) { blocked = found.blocked; continue }
     findingsTotal += found.findings.length
     clustersTotal += found.clusters.length

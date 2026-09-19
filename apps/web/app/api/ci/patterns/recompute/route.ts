@@ -1,6 +1,7 @@
 import { ok, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import { runPatterns, runDiscovery } from '@/lib/ci/jobs/stages'
+import { DEFAULT_MAX_SETS } from '@/lib/ci/analysis/discovery'
 
 /**
  * 이 요청은 AI를 여러 번 부른다. 기본 상한(10~15초)이면 **운영에서 매번 중간에 끊긴다**
@@ -24,8 +25,12 @@ export async function POST(req: Request) {
     await runPatterns(session.workspaceId)
     // 발견도 같이 돌린다 — 공식(구)과 발견(신)이 같은 버튼에서 갱신돼야
     // 사용자가 "어느 쪽이 최신인지"를 따로 기억하지 않는다.
-    const discovery = await runDiscovery(session.workspaceId,
-      topicId ? { topicIds: [topicId] } : undefined)
+    // 예산을 적는다. runDiscovery 에 기본값이 없어진 이유가 여기다 —
+    // 「안 정해도 도는 길」이 있으면 언젠가 한 곳이 그 길로 전체 배치를 부른다.
+    const discovery = await runDiscovery(session.workspaceId, {
+      maxSetsPerTopic: DEFAULT_MAX_SETS,
+      ...(topicId ? { topicIds: [topicId] } : {}),
+    })
 
     // **결과를 삼키지 않는다.** 예전에는 반환값을 버리고 늘 성공으로 답했다 —
     // AI 한도에 걸려 발견이 한 건도 안 만들어진 날에도 화면은 "다시 계산했습니다"라고 말했고,

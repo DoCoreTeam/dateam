@@ -1,5 +1,6 @@
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { runDiscovery } from '@/lib/ci/jobs/stages'
+import { DEFAULT_MAX_SETS } from '@/lib/ci/analysis/discovery'
 import { createAdminClient } from '@/lib/supabase/server'
 
 export const maxDuration = 300
@@ -59,7 +60,9 @@ export async function POST(req: Request) {
     if (!workspaceId) return fail('NOT_FOUND', '워크스페이스를 찾지 못했습니다')
 
     const result = await runDiscovery(workspaceId, {
-      maxSetsPerTopic: body.maxSetsPerTopic,
+      // 안 주면 주제별 기본 상한. runDiscovery 쪽 기본값이 아니라 **여기서** 정한다 —
+      // 예산을 정하는 자리가 부르는 쪽이어야 부르는 쪽이 그 크기를 안다.
+      maxSetsPerTopic: body.maxSetsPerTopic ?? DEFAULT_MAX_SETS,
       topicIds: body.topicIds,
     })
 
