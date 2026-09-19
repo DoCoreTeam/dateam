@@ -1,6 +1,14 @@
 /**
  * 글자 파일을 IR 로 (txt·csv·md·html)
  *
+ * ## 표도 표로 읽는다
+ *
+ * 문단만 만들던 때는 마크다운 표가 글줄로 갔다 — `| --- |` 구분줄까지 그대로.
+ * 견적서를 마크다운으로 올리면 화면이 「표를 찾지 못해 글줄만 읽었어요」라고 말했고,
+ * 그 말은 사실이었다(실측 2026-09-20: md·csv 의 tableCount 가 0).
+ * 이제 세로줄 표를 찾아 표 블록으로 만든다. 격자를 표의 모양으로 바꾸는 일은
+ * `table-grid` 한 곳이 한다 — 오피스 파서와 같은 것을 쓴다.
+ *
  * ## 왜 뒤늦게 생겼나
  *
  * 종류 판정은 `text` 라고 하는데 그 종류를 읽는 파서가 **없었다.**
@@ -14,8 +22,9 @@
  * 깨진 채로 넘기면 뒷단계가 전부 「글자가 이상한 문서」를 분석한다.
  */
 
-import { makeBlock, makeDocument, qualityScore } from '../ir/build.ts'
-import type { IrBlock, IrDocument } from '../ir/types.ts'
+import { makeBlock, makeDocument, qualityScore, textHash } from '../ir/build.ts'
+import type { IrBlock, IrDocument, IrTable } from '../ir/types.ts'
+import { gridCols, gridToCells, gridToHtml, gridToText } from './table-grid.ts'
 
 export type PlainRejectReason = 'empty' | 'undecodable'
 
@@ -77,6 +86,102 @@ export function toParagraphs(text: string): string[] {
   return normalized.split('\n').map((p) => p.trim()).filter(Boolean)
 }
 
+/*
+  ── 세로줄 표 ─────────────────────────────────────────────
+
+  마크다운(GFM) 표는 **구분줄로 판정한다.** 세로줄만으로 세면 「3 | 4호기」 같은 평범한 글이
+  표가 되고, 그렇게 만들어진 가짜 표는 읽는 쪽에서 되돌릴 방법이 없다.
+  구분줄(`| --- | --- |`)은 사람이 표를 그리려고 일부러 적은 것이라 오해가 거의 없다.
+*/
+
+/** 구분줄인가 — `|---|:--:|` 처럼 줄표와 콜론만 있는 줄 */
+export function isSeparatorLine(line: string): boolean {
+  const t = line.trim()
+  if (!t.includes('-')) return false
+  return /^\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?$/.test(t)
+}
+
+/**
+ * 한 줄을 셀로. `\|` 는 셀 **안의** 세로줄이라 자르지 않는다.
+ *
+ * 바깥 세로줄이 있으면 그 때문에 생기는 빈 셀은 버린다 — `| a | b |` 는 두 칸이지 네 칸이 아니다.
+ */
+export function splitRow(line: string): string[] {
+  const cells: string[] = []
+  let cur = ''
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '\\' && line[i + 1] === '|') { cur += '|'; i++; continue }
+    if (ch === '|') { cells.push(cur); cur = ''; continue }
+    cur += ch
+  }
+  cells.push(cur)
+  const trimmed = line.trim()
+  if (trimmed.startsWith('|')) cells.shift()
+  if (trimmed.endsWith('|') && cells.length > 0) cells.pop()
+  return cells.map((c) => c.trim())
+}
+
+export interface PlainPart {
+  kind: 'paragraph' | 'table'
+  /** kind 가 paragraph 일 때 */
+  text?: string
+  /** kind 가 table 일 때 — 이미 펴진 격자 */
+  grid?: string[][]
+}
+
+/** 코드 울타리(``` 또는 ~~~) 안인가 — 그 안의 세로줄은 예제이지 표가 아니다 */
+function isFence(line: string): boolean {
+  return /^\s*(```|~~~)/.test(line)
+}
+
+/**
+ * 글을 **문단과 표로** 가른다. 표가 하나도 없으면 예전과 똑같이 문단만 나온다
+ * (그래야 지금까지 읽던 문서의 결과가 안 바뀐다).
+ */
+export function toParts(text: string): PlainPart[] {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n')
+  const parts: PlainPart[] = []
+  let buffer: string[] = []
+  let inFence = false
+
+  const flushText = () => {
+    const joined = buffer.join('\n')
+    buffer = []
+    for (const p of toParagraphs(joined)) parts.push({ kind: 'paragraph', text: p })
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (isFence(line)) { inFence = !inFence; buffer.push(line); continue }
+
+    const head = line.includes('|') && line.trim() !== ''
+    const sep = !inFence && head && i + 1 < lines.length && isSeparatorLine(lines[i + 1])
+    if (!sep) { buffer.push(line); continue }
+
+    const header = splitRow(line)
+    // 한 칸짜리는 표로 보지 않는다 — 「---」 하나 밑의 목록을 표로 만들면 열이 없다
+    if (header.length < 2) { buffer.push(line); continue }
+
+    const grid: string[][] = [header]
+    let j = i + 2
+    for (; j < lines.length; j++) {
+      const row = lines[j]
+      if (row.trim() === '' || !row.includes('|') || isFence(row)) break
+      // 구분줄이 또 나오면 새 표의 머리다 — 여기서 끊는다
+      if (isSeparatorLine(row)) break
+      grid.push(splitRow(row))
+    }
+
+    flushText()
+    parts.push({ kind: 'table', grid })
+    i = j - 1
+  }
+
+  flushText()
+  return parts
+}
+
 export interface PlainParseOptions {
   fileId: string
   fileName?: string
@@ -90,15 +195,36 @@ export function parsePlain(bytes: Uint8Array, opts: PlainParseOptions): PlainPar
   const isHtml = /\.(html?|xhtml)$/i.test(opts.fileName ?? '') || /<html[\s>]|<body[\s>]/i.test(raw.slice(0, 2000))
   const text = isHtml ? stripHtml(raw) : raw
 
-  const paragraphs = toParagraphs(text)
-  if (paragraphs.length === 0) return { ok: false, reason: 'empty', detail: '읽을 글자가 없다' }
+  const parts = toParts(text)
+  if (parts.length === 0) return { ok: false, reason: 'empty', detail: '읽을 글자가 없다' }
 
-  const blocks: IrBlock[] = paragraphs.map((p, i) => makeBlock(opts.fileId, i, {
-    type: 'paragraph',
-    text: p,
-    // 평문에는 쪽도 노드 경로도 없다. 몇 번째 문단인지가 유일한 자리다
-    sourceRef: { kind: 'text', paraIdx: i },
-  }))
+  const blocks: IrBlock[] = []
+  const tables: IrTable[] = []
+  parts.forEach((part, i) => {
+    // 평문에는 쪽도 노드 경로도 없다. 몇 번째 덩이인지가 유일한 자리다
+    const sourceRef = { kind: 'text' as const, paraIdx: i }
+    if (part.kind === 'table' && part.grid) {
+      const grid = part.grid
+      const cols = gridCols(grid)
+      const block = makeBlock(opts.fileId, i, {
+        type: 'table',
+        text: gridToText(grid),
+        html: gridToHtml(grid, cols),
+        sourceRef,
+      })
+      blocks.push(block)
+      tables.push({
+        tableId: textHash(`${opts.fileId}|tbl|${i}`).slice(0, 16),
+        blockId: block.blockId,
+        rows: grid.length,
+        cols,
+        cells: gridToCells(grid, cols),
+        caption: null,
+      })
+      return
+    }
+    blocks.push(makeBlock(opts.fileId, i, { type: 'paragraph', text: part.text ?? '', sourceRef }))
+  })
 
   const doc = makeDocument({
     meta: {
@@ -107,10 +233,11 @@ export function parsePlain(bytes: Uint8Array, opts: PlainParseOptions): PlainPar
       pageCount: 0,
       parser: PARSER_NAME,
       parserVersion: PARSER_VERSION,
-      // 평문은 글자를 100% 건진다. 표·좌표가 없는 것은 형식의 성질이지 파싱 실패가 아니다
+      // 평문은 글자를 100% 건진다. 좌표가 없는 것은 형식의 성질이지 파싱 실패가 아니다
       qualityScore: qualityScore({
         textPageRatio: 1,
-        tableCount: 0,
+        // 표를 알아봤으면 점수에 실린다 — 0 으로 굳혀 두면 표가 있는 문서도 「표 없음」으로 남는다
+        tableCount: tables.length,
         avgOcrConfidence: null,
         sectionDepth: 1,
         warningCount: 0,
@@ -120,7 +247,7 @@ export function parsePlain(bytes: Uint8Array, opts: PlainParseOptions): PlainPar
     pages: [],
     sections: [],
     blocks,
-    tables: [],
+    tables,
     figures: [],
   })
 

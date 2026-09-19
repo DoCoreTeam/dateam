@@ -48,7 +48,7 @@
 의존: 없음
 
 ### I02 마크다운 표를 표로 읽는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: lib/rfp/parse/plain.ts, lib/rfp/parse/plain.test.ts
 감사 기준:
