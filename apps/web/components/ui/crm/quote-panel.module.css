@@ -533,6 +533,98 @@
   셋이 한 줄에 있어야 「이 숫자가 저 줄에서 나왔나」를 눈으로 견줄 수 있다.
 */
 /*
+  파일에서 가져오기 — **건마다 어디로 보낼지 고르는 창**.
+
+  건 카드는 접힌 채로 선다. 다섯 건이 전부 펴져 있으면 도착지 라디오가 화면 밖으로 밀려
+  「무엇을 고르는 창인지」가 안 보인다. 얼굴(이름·금액)만 두고, 항목은 펴서 본다.
+*/
+.importBody {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.importList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.importItem {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+/* 「안 씀」으로 둔 건은 물러나 보여야 한다 — 남아 있는데 아무 일도 안 한다 */
+.importItem[data-skip='on'] { opacity: 0.6; }
+
+.importHead {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-height: var(--control-h);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+.importHead .pickMeta { margin-left: auto; }
+
+/* 도착지 — 뜻이 다른 셋이라 라디오다. 한 줄에 서야 셋이 서로 대안임이 보인다 */
+.destRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.destPick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  cursor: pointer;
+}
+.destPick input:disabled + span { color: var(--text-faint); cursor: not-allowed; }
+
+.destHint {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.destTarget {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* 목록 아래 단추 둘 — 새로 쓰기와 파일에서 가져오기는 나란한 두 길이다 */
+.listFoot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* 가져온 결과 — 목록만 바뀌면 사람은 몇 건이 들어왔는지 세야 한다 */
+.importNote {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-w) solid var(--success-border);
+  border-radius: var(--radius);
+  background: var(--success-bg);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+/*
   고르는 목록 — 건이 둘 이상일 때 검수 **앞에** 선다.
 
   줄 하나가 통째로 단추다. 이름만으로는 어느 건인지 모를 때가 많아서

@@ -40,6 +40,10 @@ const MODAL = read('components/ui/crm/QuoteEditorModal.tsx')
 */
 const FILL = read('components/ui/crm/QuoteFillPanel.tsx')
 const TOTALS = read('components/ui/crm/QuoteTotals.tsx')
+/** 딜 화면의 「파일로 가져오기」 — 건마다 도착지를 고르는 창 */
+const IMPORT = read('components/ui/crm/QuoteFromFileModal.tsx')
+const DEAL_PANEL = read('components/ui/crm/QuotePanel.tsx')
+const SHAPE = read('components/ui/crm/quote-draft-shape.ts')
 
 /* ── ① 라벨 기준선 ────────────────────────────────── */
 
@@ -196,4 +200,54 @@ test('★ 항목 순서는 공용 부품으로 — 같은 성격을 두 번 만�
     !/aria-label="위로"|aria-label="아래로"/.test(MODAL),
     '자작 화살표를 되살리면 크기·경계 처리가 또 갈린다',
   )
+})
+
+/* ── ⑧ 파일에서 가져오기 — 두 화면이 같은 모양을 쓴다 ─── */
+
+/*
+  줄을 **서버가 받는 모양**으로 바꾸는 매핑이 두 벌이면, 칸이 하나 늘 때 한쪽에만 붙는다.
+  그러면 그 화면에서 넣은 값은 저장하는 순간 조용히 사라진다 —
+  `quoteToDraft` 가 이 파일로 올라온 것과 같은 사고다.
+*/
+test('★ 줄을 서버 모양으로 바꾸는 곳이 하나다', () => {
+  assert.match(SHAPE, /export function toLinePayload/, '매핑이 모양 파일에 없다')
+  for (const [name, src] of [['편집 모달', MODAL], ['가져오기 창', IMPORT]] as const) {
+    assert.match(src, /toLinePayload/, `${name} 이 공용 매핑을 안 쓴다`)
+    /*
+      «또 적었나»는 **payload 에만 있는 줄**로 본다. 합계 미리보기도 비슷한 모양을 만드는데
+      그것은 서버로 안 가는 계산 입력이라 여기서 세면 안 된다 — 처음 판이 그것을 세어
+      틀린 곳을 가리켰다.
+    */
+    assert.ok(!/sectionIndex: typeof l\.sectionIndex === 'number'/.test(src),
+      `${name} 이 매핑을 또 적었다`)
+  }
+})
+
+/*
+  **기본 도착지는 늘 「새 견적으로」다.** 읽은 것이 원가인지 우리 견적인지는 우리가 모른다.
+  모르는 채로 원가를 기본값으로 두면, 아닌 경우에 사람은 되돌리는 일부터 해야 한다 —
+  새 견적은 초안이라 지우기도 고치기도 쉽다. 되돌리기 싼 쪽이 기본값이다.
+*/
+test('★ 도착지 기본값은 새 견적, 건 카드는 접힌 채로 시작', () => {
+  assert.match(IMPORT, /key: 'new' as ImportDestKey/, '기본 도착지가 새 견적이 아니다')
+  assert.match(IMPORT, /setOpenIndex\(null\)/, '건 카드가 펴진 채로 시작한다')
+  // 도착지는 뜻이 다른 셋이라 라디오다 — 체크박스면 둘을 동시에 고를 수 있다
+  assert.match(IMPORT, /type="radio"/, '도착지가 라디오가 아니다')
+})
+
+/*
+  **있던 항목을 지우지 않는다.** 새 줄만 보내면 서버의 syncLines 가
+  「이번에 안 온 항목」을 지운 것으로 보고 있던 항목이 통째로 사라진다.
+*/
+test('★ 있는 견적에 붙일 때 앞 항목을 먼저 싣는다', () => {
+  const append = IMPORT.slice(IMPORT.indexOf('const appendOne'), IMPORT.indexOf('const submit'))
+  assert.match(append, /\[\.\.\.kept, \.\.\.lines\]/, '앞 항목을 안 싣는다 — 붙이면 있던 것이 사라진다')
+  assert.match(append, /version: draft\.version/, '판 번호를 안 보낸다 — 남의 수정을 덮는다')
+})
+
+test('★ 딜 화면에 파일로 가져오기 길이 있다 — 빈 상태에서도', () => {
+  assert.match(DEAL_PANEL, /<QuoteFromFileModal/, '딜 화면이 가져오기 창을 안 연다')
+  const empty = DEAL_PANEL.slice(DEAL_PANEL.indexOf('아직 견적이 없어요'))
+  assert.match(empty.slice(0, 900), /setImporting\(true\)/,
+    '빈 상태에 가져오기 길이 없다 — 견적이 없는 딜에서 가장 필요한 길이다')
 })

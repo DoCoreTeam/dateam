@@ -10,7 +10,7 @@
 // canTransitQuote 가 판정하므로, 여기서 버튼을 감추는 것은 안전장치가 아니라 안내다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Copy, FileText, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react'
+import { Copy, FileText, Plus, Pencil, Trash2, RotateCcw, Upload } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
@@ -28,6 +28,7 @@ import {
 } from '@/lib/terms'
 import NbModal from '@/components/ui/nb/NbModal'
 import QuoteEditorModal, { newQuoteDraft, quoteToDraft, type QuoteDraft } from './QuoteEditorModal'
+import QuoteFromFileModal, { type AppendTarget } from './QuoteFromFileModal'
 import styles from './quote-panel.module.css'
 
 interface QuoteLine {
@@ -98,6 +99,10 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
   const [trash, setTrash] = useState(false)
   /** 새 견적의 기본 유효기간(일). 설정에서 오고, 서버가 목록과 함께 준다 */
   const [validDays, setValidDays] = useState(30)
+  /** 파일에서 가져오는 창이 열려 있나 */
+  const [importing, setImporting] = useState(false)
+  /** 가져오고 나서 무엇이 됐는지 — 목록 위에 한 줄로 남는다 */
+  const [importNote, setImportNote] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -214,6 +219,8 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
   return (
     <div className={styles.wrap}>
       {actionError && <ErrorState message={actionError} />}
+      {/* 무엇이 됐는지 말한다 — 목록만 바뀌면 사람은 몇 건이 들어왔는지 세야 한다 */}
+      {importNote && <div className={styles.importNote}>{importNote}</div>}
 
       {items.length === 0 ? (
         trash ? (
@@ -230,6 +237,16 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
               label: createLabel(ENTITY.quote.label),
               onClick: () => setEditing(newQuoteDraft(dealName, dealCurrency, validDays)),
             }}
+            /*
+              **빈 상태에서 특히 필요하다.** 견적이 하나도 없는 딜에서 받은 견적서를
+              손으로 옮겨 적는 것이 지금까지의 유일한 길이었다 —
+              길이 있는데 첫 화면에 없으면 없는 것과 같다.
+            */
+            secondary={
+              <button type="button" className={styles.trashToggle} onClick={() => setImporting(true)}>
+                {QUOTE.importByFile}
+              </button>
+            }
           />
         )
       ) : (
@@ -350,9 +367,14 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
           </ul>
 
           {!trash && (
-            <NbButton variant="ghost" onClick={() => setEditing(newQuoteDraft(dealName, dealCurrency, validDays))}>
-              <Plus size={16} /> {createLabel(ENTITY.quote.label)}
-            </NbButton>
+            <div className={styles.listFoot}>
+              <NbButton variant="ghost" onClick={() => setEditing(newQuoteDraft(dealName, dealCurrency, validDays))}>
+                <Plus size={16} /> {createLabel(ENTITY.quote.label)}
+              </NbButton>
+              <NbButton variant="ghost" onClick={() => setImporting(true)}>
+                <Upload size={16} /> {QUOTE.importByFile}
+              </NbButton>
+            </div>
           )}
         </>
       )}
@@ -361,6 +383,28 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
       <button type="button" className={styles.trashToggle} onClick={() => setTrash((t) => !t)}>
         {trash ? '견적으로 돌아가기' : '삭제한 견적 보기'}
       </button>
+
+      {/*
+        붙일 수 있는 견적은 **초안만**이다. 보낸 견적의 항목은 서버가 못 고치게 막는다 —
+        고를 수 있게 해 놓고 서버가 거절하면, 사람은 고르고 나서야 안 된다는 것을 안다.
+      */}
+      {importing && (
+        <QuoteFromFileModal
+          dealId={dealId}
+          dealName={dealName}
+          dealCurrency={dealCurrency}
+          targets={items
+            .filter((q) => q.status === 'DRAFT')
+            .map((q): AppendTarget => ({ id: q.id, quoteNo: q.quoteNo, title: q.title, status: q.status }))}
+          onClose={() => setImporting(false)}
+          onDone={(message) => {
+            setImporting(false)
+            setImportNote(message)
+            void load()
+            onChanged?.()
+          }}
+        />
+      )}
 
       {editing && (
         <QuoteEditorModal

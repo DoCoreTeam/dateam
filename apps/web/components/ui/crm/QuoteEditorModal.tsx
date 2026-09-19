@@ -47,7 +47,7 @@ import styles from './quote-panel.module.css'
 export type { QuoteLineDraft, QuoteDraft } from './quote-draft-shape'
 export { newQuoteDraft, quoteToDraft } from './quote-draft-shape'
 import {
-  emptyLine,
+  emptyLine, toLinePayload,
   type QuoteLineDraft, type QuoteDraft, type ProductJson,
 } from './quote-draft-shape'
 
@@ -210,23 +210,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
     // 견적서에 이름 없는 0원 줄이 인쇄된다
     const lines = draft.lines
       .filter((l) => l.name.trim().length > 0)
-      .map((l) => ({
-        id: l.id ?? null,
-        // 카탈로그와의 연결 — 안 실으면 고른 품목이 저장 순간 다시 손으로 친 이름이 된다
-        productId: l.productId ?? null,
-        name: l.name.trim(),
-        descriptionMd: l.descriptionMd.trim() || null,
-        quantity: l.quantity || '1',
-        unit: l.unit.trim() || null,
-        unitPriceMinor: l.unitPriceMinor || '0',
-        discountPercent: l.discountPercent || '0',
-        // 빈 칸은 «특별 할인 없음» — 0 으로 바꾸면 「0% 특별할인」이 되어 뜻이 달라진다
-        specialDiscountPercent: l.specialDiscountPercent?.trim() ? l.specialDiscountPercent.trim() : null,
-        taxRate: l.taxRate || '10',
-        kind: l.kind ?? 'QUANTITY',
-        roleLabel: (l.roleLabel ?? '').trim() || null,
-        sectionIndex: typeof l.sectionIndex === 'number' ? l.sectionIndex : null,
-      }))
+      .map(toLinePayload)
 
     if (!draft.title.trim()) { setError('견적 제목을 입력해 주세요.'); return }
     if (lines.length === 0) { setError('항목을 최소 하나 입력해 주세요. 이름이 있어야 저장됩니다.'); return }

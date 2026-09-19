@@ -82,6 +82,35 @@ export interface QuoteDraft {
   lines: QuoteLineDraft[]
 }
 
+/**
+ * 폼의 줄을 **서버가 받는 모양**으로.
+ *
+ * **왜 한 자리여야 하나**: 이 매핑은 편집 모달의 저장과 딜 화면의 「파일로 가져오기」가
+ * 똑같이 한다. 두 벌이면 칸이 하나 늘 때 한쪽에만 붙고, 그 화면에서 넣은 값은
+ * **저장하는 순간 조용히 사라진다** — 이 파일이 생긴 이유(quoteToDraft)와 같은 사고다.
+ *
+ * 이름이 빈 줄은 부르는 쪽이 먼저 걸러 낸다. 여기서 거르면 인덱스가 어긋난다.
+ */
+export function toLinePayload(l: QuoteLineDraft): Record<string, unknown> {
+  return {
+    id: l.id ?? null,
+    // 카탈로그와의 연결 — 안 실으면 고른 품목이 저장 순간 다시 손으로 친 이름이 된다
+    productId: l.productId ?? null,
+    name: l.name.trim(),
+    descriptionMd: l.descriptionMd.trim() || null,
+    quantity: l.quantity || '1',
+    unit: l.unit.trim() || null,
+    unitPriceMinor: l.unitPriceMinor || '0',
+    discountPercent: l.discountPercent || '0',
+    // 빈 칸은 «특별 할인 없음» — 0 으로 바꾸면 「0% 특별할인」이 되어 뜻이 달라진다
+    specialDiscountPercent: l.specialDiscountPercent?.trim() ? l.specialDiscountPercent.trim() : null,
+    taxRate: l.taxRate || '10',
+    kind: l.kind ?? 'QUANTITY',
+    roleLabel: (l.roleLabel ?? '').trim() || null,
+    sectionIndex: typeof l.sectionIndex === 'number' ? l.sectionIndex : null,
+  }
+}
+
 export function emptyLine(): QuoteLineDraft {
   return {
     productId: null, name: '', descriptionMd: '', kind: 'QUANTITY',

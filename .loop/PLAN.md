@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서 파일 한 장에서 견적 여러 건
 플랜 ID: P0028
-플랜 버전: v0.3.2
+플랜 버전: v0.3.3
 상태: 진행중
 지시: ins_0029
 목표 버전: v0.10.170
@@ -103,14 +103,15 @@
 의존: I03
 
 ### I07 건마다 어디로 보낼지 고른다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: components/ui/crm/QuoteFromFileModal.tsx (신규), components/ui/crm/QuotePanel.tsx, components/ui/crm/quote-panel.module.css, lib/terms/quote.ts
+범위: components/ui/crm/QuoteFromFileModal.tsx (신규), components/ui/crm/QuotePanel.tsx, components/ui/crm/quote-panel.module.css, components/ui/crm/quote-draft-shape.ts, components/ui/crm/QuoteEditorModal.tsx, lib/terms/quote.ts, lib/terms/index.ts
 감사 기준:
 - 견적 절에 파일로 가져오기 단추가 서고 빈 상태에서도 보임
-- 도착지 네 길이 전부 동작: 새 견적, 있는 견적에 항목 붙이기, 딜 원가로, 안 씀
+- 도착지 세 길이 동작: 새 견적, 있는 견적에 항목 붙이기, 안 씀 (원가 길은 서버 게이트가 필요해 I08 에서 켬)
 - 기본 도착지는 늘 「새 견적으로」, 건 카드는 접힌 채로 시작
 - 「있는 견적에 붙이기」는 그 견적의 항목을 지우지 않고 뒤에 붙임 (version 충돌 시 문장)
+- 줄을 서버 모양으로 바꾸는 함수가 한 곳뿐 (가드 1개 신설)
 - pnpm tsc --noEmit, pnpm lint 통과
 의존: I06
 
@@ -167,3 +168,4 @@
 - v0.3.0 (2026-09-19) 개입 iv_0064 반영: 판정·잠금을 걷어내고 자율성으로. 라벨은 알림만(I02), 보냄 차단 삭제(I06), 도착지 네 길 선택(I07), 원가·첨부·마진은 전부 고르는 칸(I08·I09)
 - v0.3.1 (2026-09-19) I03 이 남긴 옛 칸 draft 를 화면 전환과 같은 항목에서 지우도록 I04 범위에 서비스와 그 가드를 더함 (audit:I03)
 - v0.3.2 (2026-09-19) I05 범위에 quote-review.tsx 와 quote-panel.module.css 추가 — 고르는 목록도 두 화면(모달·딜)이 함께 쓰므로 I04 가 만든 공용 부품 자리에 둔다, 화면에 적으면 I07 에서 또 적게 된다 (audit:I05)
+- v0.3.3 (2026-09-19) I07 에서 도착지 셋만 켬 — 원가 길은 admin 게이트와 갈래·시점 칸이 I08 범위라 둘을 같은 항목에 묶으면 한 번의 자가감사로 판정할 수 없음. 줄을 서버 모양으로 바꾸는 매핑을 quote-draft-shape 로 올리기 위해 그 파일과 QuoteEditorModal 을 범위에 더함(지금 편집 모달 안에만 있어 새 모달이 두 벌째를 만들게 됨) (audit:I07)

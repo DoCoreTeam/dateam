@@ -126,6 +126,12 @@ export const QUOTE = {
    * 「업로드」가 아니라 「채우기」다 — 파일을 **보관하는** 것이 아니라 **읽는** 것이다.
    */
   fillByFile: '파일로 채우기',
+  /**
+   * 딜 화면에서 견적서 파일을 올린다 — **여기서는 견적이 새로 생긴다.**
+   * 편집 모달의 「파일로 채우기」와 말이 다른 이유: 저쪽은 보고 있는 견적의 **칸을 채우고**
+   * 이쪽은 파일에 든 건마다 **어디로 보낼지 고른다**. 같은 말을 쓰면 결과가 다른데 같아 보인다.
+   */
+  importByFile: '파일로 가져오기',
   /** 파일 고르기 */
   fillPick: '파일 고르기',
   /** 읽은 것을 폼에 넣는다. 「저장」이 아니다 — 저장은 그다음이다 */
@@ -243,6 +249,71 @@ export function fillPickTitle(quoteCount: number, fileName: string): string {
 export function fillQuoteName(index: number, said: string | null): string {
   return (said ?? '').trim() || `${ENTITY.quote.label} ${index + 1}`
 }
+
+// ------------------------------------------------------------
+// 가져오기 — 건마다 **어디로 보낼지** 사람이 정한다
+// ------------------------------------------------------------
+
+/*
+  **왜 도착지를 묻나**: 받은 견적서 한 장이 무엇인지는 우리가 알 수 없다.
+  원가일 수도 있고, 남의 견적에서 항목만 옮겨 오려는 것일 수도 있고, 그냥 참고일 수도 있다.
+  «원가로 보인다»를 우리가 판정해 그쪽으로 밀면, 아닌 경우에 사람은 되돌리는 일부터 해야 한다.
+  판정하지 않고 **묻는다** (사용자 지시 2026-09-19: "사용자에게 자율성을 줘").
+*/
+
+/** 가져오기 창의 제목 */
+export const IMPORT_TITLE = '파일에서 견적 가져오기'
+
+/** 아직 파일을 안 골랐을 때 */
+export const IMPORT_FILE_HINT =
+  '견적서를 올리면 그 안에 든 건마다 어디로 보낼지 고를 수 있어요. 파일은 읽기만 하고 보관하지 않습니다.'
+
+/** 건 카드의 도착지 — **뜻이 다른 넷이라 라디오다**(고르면 하나만 된다) */
+export const IMPORT_DEST = {
+  new: '새 견적으로',
+  append: '있는 견적에 붙이기',
+  cost: '딜 원가로',
+  skip: '안 씀',
+} as const
+
+export type ImportDestKey = keyof typeof IMPORT_DEST
+
+/** 도착지마다 무슨 일이 일어나는지 — 고르기 전에 알아야 한다 */
+export const IMPORT_DEST_HINT: Record<ImportDestKey, string> = {
+  new: '이 건으로 견적을 하나 새로 만듭니다. 초안이라 언제든 고칠 수 있어요.',
+  append: '고른 견적의 항목 뒤에 붙입니다. 있던 항목은 그대로 남아요.',
+  cost: '판매 견적이 아니라 이 딜의 원가로 넣습니다.',
+  skip: '이 건은 아무것도 하지 않습니다.',
+}
+
+/** 붙일 견적을 고르는 칸의 이름 */
+export const IMPORT_APPEND_TARGET = '어느 견적에 붙일까요'
+
+/** 붙일 수 있는 견적이 하나도 없을 때 — 왜 없는지까지 말한다 */
+export const IMPORT_NO_APPEND_TARGET =
+  '붙일 수 있는 견적이 없어요. 보낸 견적의 항목은 고칠 수 없어서 초안만 고를 수 있습니다.'
+
+/** 건 카드를 펴고 접는 말 */
+export const IMPORT_OPEN = '항목 보기'
+export const IMPORT_CLOSE = '접기'
+
+/** 만들기 단추 — 몇 건이 어디로 가는지 숫자로 말한다 */
+export function importSubmitLabel(count: number): string {
+  return count === 0 ? '가져올 건을 골라 주세요' : `${countOnly('quote', count)} 가져오기`
+}
+
+/** 끝난 뒤 — 무엇이 됐는지 건수로 말한다 */
+export function importDoneLine(made: number, appended: number): string {
+  const parts = [
+    made > 0 ? `견적 ${made}건을 새로 만들었어요` : null,
+    appended > 0 ? `${appended}건을 있는 견적에 붙였어요` : null,
+  ].filter(Boolean)
+  return parts.join(' · ')
+}
+
+/** 도착지를 하나도 안 골랐을 때(전부 「안 씀」) */
+export const IMPORT_NOTHING_PICKED =
+  '보낼 곳을 고른 건이 없어요. 건마다 도착지를 골라 주세요.'
 
 /** 고른 뒤에도 되돌아갈 수 있다 — 고르는 일은 되돌릴 수 있어야 한다 */
 export const FILL_PICK_BACK = '다른 건 고르기'
