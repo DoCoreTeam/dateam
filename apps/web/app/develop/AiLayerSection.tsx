@@ -21,6 +21,7 @@ import {
   AI_DOC_NAV, AI_DOC_UI, AI_LAYER_NAV_LABEL,
   AI_INTRO, AI_SETUP, AI_PACKAGES, AI_CONTRACT_FIELDS, AI_CAPABILITY_DOCS, AI_LAYER_CHECKS,
   AI_PROVIDERS, AI_CHAIN_LIMITS, AI_CHAIN_ORDER, AI_FAILURE_RULES, AI_POLICY_NOTES, AI_POLICY_CODE,
+  AI_API, AI_ERRORS,
   type AiDocKey,
 } from '@/lib/api-docs/ai-layer'
 
@@ -97,33 +98,88 @@ function SetupView({ onCopy, copiedId }: Omit<Props, 'section'>) {
 }
 
 function PackagesView() {
+  const U = AI_DOC_UI
   return (
     <>
-      {AI_PACKAGES.map((p) => (
-        <section key={p.name} className="card" style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: 'var(--space-5)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
-            <code style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', fontWeight: 700 }}>{p.name}</code>
-            {p.dependsOn.length === 0
-              ? <NbBadge status="done">{AI_DOC_UI.dependsOnNone}</NbBadge>
-              : p.dependsOn.map((d) => <NbBadge key={d} status="note">{d}</NbBadge>)}
-          </div>
-          <p style={{ color: 'var(--text)', fontSize: 'var(--fs-sm)', lineHeight: 1.7, margin: '0 0 var(--space-2)' }}>
-            {p.owns}
-          </p>
-          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', lineHeight: 1.7, margin: '0 0 var(--space-3)' }}>
-            {/* 「—」는 화면 문구에서 금지다(용어집 §0-1), 이 화면이 이미 쓰는 가운뎃점으로 나눈다 */}
-            <span style={{ fontWeight: 600 }}>{AI_DOC_UI.refusesLabel}</span> · {p.refuses}
-          </p>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            {p.exports.map((e) => (
-              <code key={e} style={{
-                fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)',
-                background: 'var(--surface-muted)', padding: '2px 6px',
-              }}>{e}</code>
-            ))}
-          </div>
-        </section>
-      ))}
+      {AI_PACKAGES.map((p) => {
+        const api = AI_API.filter((a) => a.pkg === p.name)
+        const named = new Set(api.map((a) => a.name))
+        const also = p.exports.filter((e) => !named.has(e))
+        return (
+          <section key={p.name} className="card" style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: 'var(--space-5)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+              <code style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', fontWeight: 700 }}>{p.name}</code>
+              {p.dependsOn.length === 0
+                ? <NbBadge status="done">{U.dependsOnNone}</NbBadge>
+                : p.dependsOn.map((d) => <NbBadge key={d} status="note">{d}</NbBadge>)}
+            </div>
+            <p style={{ color: 'var(--text)', fontSize: 'var(--fs-sm)', lineHeight: 1.7, margin: '0 0 var(--space-2)' }}>
+              {p.owns}
+            </p>
+            <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', lineHeight: 1.7, margin: '0 0 var(--space-4)' }}>
+              {/* 「—」는 화면 문구에서 금지다(용어집 §0-1), 이 화면이 이미 쓰는 가운뎃점으로 나눈다 */}
+              <span style={{ fontWeight: 600 }}>{U.refusesLabel}</span> · {p.refuses}
+            </p>
+
+            {api.length > 0 && (
+              <table className="table-base table-card" style={{ marginBottom: also.length > 0 ? 'var(--space-4)' : 0 }}>
+                <thead><tr>
+                  <th>{U.apiHead.name}</th>
+                  <th>{U.apiHead.signature}</th>
+                  <th>{U.apiHead.returns}</th>
+                  <th>{U.apiHead.note}</th>
+                </tr></thead>
+                <tbody>
+                  {api.map((a) => (
+                    <tr key={a.name}>
+                      <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{a.name}</code></td>
+                      <td data-label={U.apiHead.signature}>
+                        <code style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{a.signature}</code>
+                      </td>
+                      <td data-label={U.apiHead.returns}>
+                        <code style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{a.returns}</code>
+                      </td>
+                      <td data-label={U.apiHead.note} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{a.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {also.length > 0 && (
+              <div>
+                <div style={{ fontWeight: 600, color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', marginBottom: 'var(--space-2)' }}>{U.alsoExportsLabel}</div>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  {also.map((e) => (
+                    <code key={e} style={{
+                      fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)',
+                      background: 'var(--surface-muted)', padding: '2px 6px',
+                    }}>{e}</code>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )
+      })}
+
+      <H2>{U.errorsTitle}</H2>
+      <table className="table-base table-card">
+        <thead><tr>
+          <th>{U.errorHead.name}</th>
+          <th>{U.errorHead.when}</th>
+          <th>{U.errorHead.fix}</th>
+        </tr></thead>
+        <tbody>
+          {AI_ERRORS.map((e) => (
+            <tr key={e.name}>
+              <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{e.name}</code></td>
+              <td data-label={U.errorHead.when} style={{ color: 'var(--text)', fontSize: 'var(--fs-xs)' }}>{e.when}</td>
+              <td data-label={U.errorHead.fix} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.fix}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </>
   )
 }

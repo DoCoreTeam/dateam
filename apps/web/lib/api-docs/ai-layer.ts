@@ -101,6 +101,11 @@ export const AI_DOC_UI = {
   failureTitle: '실패했을 때 무엇을 더 빼나',
   failureHead: { scope: '갈래', when: '언제', then: '무엇을 빼나' },
   policyCodeTitle: '부르는 쪽 모양',
+  /** 패키지 */
+  apiHead: { name: '수출', signature: '호출 모양', returns: '돌려주는 모양', note: '무엇을 해 주나' },
+  alsoExportsLabel: '그 밖의 수출',
+  errorsTitle: '던지는 오류',
+  errorHead: { name: '이름', when: '언제 나나', fix: '무엇을 하면 되나' },
 } as const
 
 /* ── 무엇인가 ─────────────────────────────────────────────────────────────── */
@@ -470,3 +475,125 @@ while (rest.length > 0) {
   }
 }`,
 } as const
+
+/* ── 수출 참조 ─────────────────────────────────────────────────────────────── */
+
+/**
+ * 주요 수출의 호출 모양과 돌려주는 모양.
+ *
+ * 이름만 나열하면 읽는 사람이 붙일 수 없다. 인자 순서와 돌려받는 모양을 보려고
+ * 패키지 소스를 열어야 한다면 이 절은 목차일 뿐이다.
+ *
+ * `signature` 는 `packages/*​/src` 의 선언과 같아야 한다. 가드가 이름이 실제로
+ * 수출되는지 보고, `exports` 목록에도 들어 있는지 대조한다.
+ */
+export interface AiExportDoc {
+  /** 어느 패키지 */
+  pkg: string
+  name: string
+  /** 소스 선언과 같은 한 줄 */
+  signature: string
+  /** 돌려주는 모양 — 갈래가 둘이면 둘 다 적는다 */
+  returns: string
+  note: string
+}
+
+export const AI_API: readonly AiExportDoc[] = [
+  {
+    pkg: '@ax/ai-core',
+    name: 'newAiValue',
+    signature: 'newAiValue<T>(input: NewAiValueInput<T>): AiValue<T>',
+    returns: '{ contractVersion, capability, value, evidence, confidence, source, status, corrections }',
+    note: '결과 하나를 계약 모양으로 만듭니다. 계약 버전은 여기서 찍히고, evidence 와 confidence 를 안 넘기면 빈 배열과 null 입니다.',
+  },
+  {
+    pkg: '@ax/ai-core',
+    name: 'applyCorrection',
+    signature: 'applyCorrection<T>(value: AiValue<T>, next: T, by: string, at: string, note?: string): AiValue<T>',
+    returns: '같은 모양, status 는 corrected 이고 corrections 에 한 줄이 쌓입니다',
+    note: '사람이 고친 것을 기록합니다. 덮어쓰지 않습니다. 허용되지 않은 전이면 던집니다.',
+  },
+  {
+    pkg: '@ax/ai-core',
+    name: 'climb',
+    signature: 'climb(raw: unknown, rungs?: readonly Rung[], target?: number): ClimbResult',
+    returns: "{ status: 'current', value, storedVersion, upgraded } 또는 { status: 'legacy' | 'gap' | 'ahead', original, storedVersion, reason }",
+    note: '저장된 줄을 지금 계약까지 올립니다. 못 올리면 원본을 그대로 들고 옵니다. 그대로 다시 써도 같은 바이트입니다.',
+  },
+  {
+    pkg: '@ax/ai-core',
+    name: 'canRead',
+    signature: 'canRead(catalog: Catalog, entity: string, field: string, rowId: string, scope: ReadScope): ReadDecision',
+    returns: "{ allowed: true } 또는 { allowed: false, reason: 'unknown_entity' | 'unknown_field' | 'field_closed' | 'field_secret' | 'row_out_of_scope' }",
+    note: '이 사람이 이 줄의 이 자리를 볼 수 있는지 한 번에 답합니다. 자리 판정과 줄 판정을 두 곳에서 하면 한쪽이 빠집니다.',
+  },
+  {
+    pkg: '@ax/ai-gateway',
+    name: 'maskPii',
+    signature: 'maskPii(text: string, options?: MaskOptions): MaskResult',
+    returns: '{ text, hits: [{ kind, value, token }] }',
+    note: "주민번호·전화·메일·계좌·사업자번호·카드번호를 자리표로 바꿉니다. 이름은 추측하지 않고 options.knownNames 로 넘긴 것만 바꿉니다.",
+  },
+  {
+    pkg: '@ax/ai-gateway',
+    name: 'callWithFallback',
+    signature: 'callWithFallback<M extends CallableModel, C extends string>(chain: readonly M[], req: CallRequest<C>, deps: GatewayDeps<M, C>): Promise<CallResult>',
+    returns: '{ text, meta: { modelId, modelName, fallbackFrom, internal, latencyMs, costKrw, maskedCounts, callReceipt, transferReceipt } }',
+    note: '후보를 순서대로 시도합니다. 모델을 바꿀 때마다 전송 판정을 다시 봅니다. 한 번만 보면 폴백이 곧 유출입니다.',
+  },
+  {
+    pkg: '@ax/ai-providers',
+    name: 'pickModels',
+    signature: 'pickModels<C extends string, M extends PickableModel<C>>(models: readonly M[], opts: PickOptions<C>): ModelPick<M>',
+    returns: "{ chain: M[], excluded: [{ model, reason: 'doc_class' | 'disabled' | 'not_multimodal' }] }",
+    note: '쓸 수 있는 모델을 순서대로 고르고, 빠진 모델마다 이유를 답니다. 이유가 있으면 화면이 「왜 이 모델이 없나」에 답할 수 있습니다.',
+  },
+  {
+    pkg: '@ax/ai-react',
+    name: 'confidenceView',
+    signature: "confidenceView(confidence: number | null, labels: Pick<AiLabels, 'confidenceUnknown'>, lowBelow?: number): ConfidenceView",
+    returns: "{ kind: 'known', percent, text, low } 또는 { kind: 'unknown', text }",
+    note: '확신을 그리는 규칙 한 벌입니다. null 을 0% 로 그리지 않습니다. 낮다고 볼 선은 넘기면 그 값을 씁니다.',
+  },
+  {
+    pkg: '@ax/ai-react',
+    name: 'missingLabels',
+    signature: 'missingLabels(labels: Partial<AiLabels> | null | undefined): string[]',
+    returns: '빠진 말의 이름들, 빈 배열이면 다 찼습니다',
+    note: '부품에 넘길 말이 덜 찼는지 런타임에도 답합니다. 타입 검사만 믿으면 빈 문자열이 통과합니다.',
+  },
+]
+
+export interface AiErrorDoc {
+  name: string
+  when: string
+  fix: string
+}
+
+export const AI_ERRORS: readonly AiErrorDoc[] = [
+  {
+    name: 'NoModelAvailableError',
+    when: '후보를 전부 시도했고 하나도 답하지 않았을 때 callWithFallback 이 던집니다.',
+    fix: 'tried 에 시도한 모델이, lastError 에 마지막 사유가 들어 있습니다. 그 사유를 사용자에게 보이세요. 「3번 시도함」만 남기면 왜 실패했는지 아무도 모릅니다.',
+  },
+  {
+    name: 'TransferBlockedError',
+    when: '이 등급의 문서를 이 모델로 보낼 수 없다고 전송 판정이 답했을 때 만들어집니다. 던지지는 않습니다.',
+    fix: '그 후보만 빼고 다음으로 넘어갑니다. 전부 막히면 NoModelAvailableError 의 lastError 로 이 사유가 옵니다. 막힌 호출은 전송 기록에 남지 않습니다. 나간 것이 없기 때문입니다.',
+  },
+  {
+    name: 'JsonRecoverError',
+    when: 'recoverJson 이 답에서 JSON 을 못 건졌을 때 던집니다. 모델이 JSON 대신 산문을 낸 경우입니다.',
+    fix: '앞 200자를 들고 옵니다. 그 조각을 기록에 남기세요. 같은 프롬프트로 다시 물으면 같은 답이 오는 경우가 많습니다.',
+  },
+  {
+    name: 'Error: cannot correct a value in status "…"',
+    when: 'applyCorrection 을 허용되지 않은 전이에 불렀을 때입니다. 받는 중인 값을 바로 고치려는 경우가 이에 해당합니다.',
+    fix: 'canTransition 으로 먼저 물어보세요. 상태 전이는 결과 계약 절의 표에 있습니다.',
+  },
+  {
+    name: 'Error: two rungs climb from version N',
+    when: 'climb 에 같은 버전에서 올라가는 사다리를 둘 넘겼을 때입니다.',
+    fix: '사다리는 버전마다 하나입니다. 둘이면 어느 쪽이 도는지 순서에 따라 달라져 결과가 갈립니다.',
+  },
+]
