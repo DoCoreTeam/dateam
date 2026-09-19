@@ -124,7 +124,7 @@ test('파일을 올리면 읽은 항목이 검수 목록으로 뜬다', async ({
     「…에서 견적 2건을 찾았어요」라 검수 화면의 문장과 다르다 — 둘 다 「읽었다」의 표시다.
   */
   const found = page.getByText(/읽었어요|찾았어요/)
-  const failed = page.getByRole('dialog').locator('[class*="errorBanner"], [class*="ErrorBanner"]')
+  const failed = page.getByRole('dialog').locator('.error-state, [class*="errorBanner"], [class*="ErrorBanner"]')
   const said = (await found.count()) > 0 || (await failed.count()) > 0
   expect(said, '읽기가 끝났는데 화면이 아무 말도 안 한다').toBe(true)
 
@@ -197,10 +197,24 @@ test('파일 한 장에 든 견적 두 건이 건마다 도착지를 갖고 두 
 
   // 읽었거나 · 이유를 말하거나. 조용한 실패가 가장 나쁘다
   const cards = dialog.locator('[class*="importItem"]')
-  const failed = dialog.locator('[class*="errorBanner"], [class*="ErrorBanner"]')
+  /*
+    **실패를 실패로 알아봐야 한다.** 오류는 공용 부품 `ErrorState`(`.error-state`)가 그리는데
+    예전 선택자는 `errorBanner` 만 봤다 — AI 한도에 걸린 날, 화면에는 붉은 안내가 떠 있는데
+    이 검사는 그것을 못 보고 「건 카드가 0개」라고만 말했다(실측 2026-09-20).
+  */
+  const failed = dialog.locator('.error-state, [class*="errorBanner"], [class*="ErrorBanner"]')
   if (await failed.count() > 0) {
     expect(await failed.first().innerText(), 'AI 가 막혔는데 이유를 안 말한다').not.toBe('')
     test.skip(true, `읽기 실패: ${await failed.first().innerText()}`)
+  }
+
+  /*
+    **표가 있는 형식이면 「표를 찾지 못해」가 뜨면 안 된다**(v0.10.184~).
+    마크다운·CSV 견적서가 글줄로만 읽히던 때는 이 안내가 늘 떴다 — 사실이었고,
+    그래서 고쳤다. 다시 글줄로 돌아가면 이 자리에서 잡힌다.
+  */
+  if (/\.(md|csv|tsv|xlsx)$/i.test(file!)) {
+    await expect(dialog.getByText(/표를 찾지 못해/)).toHaveCount(0)
   }
 
   // 건이 둘이면 카드가 둘이고, 카드마다 도착지 라디오가 선다
@@ -251,4 +265,69 @@ test('20MB 를 넘는 파일은 그 상황을 말한다 — 「읽지 못했습�
 
   await expect(dialog.getByText(/파일이 너무 큽니다/)).toBeVisible({ timeout: 60_000 })
   await page.screenshot({ path: shot('13-too-big'), fullPage: true })
+})
+
+/*
+  ── 표를 찾았을 때·못 찾았을 때 화면이 하는 말 ────────────────
+
+  **AI 없이 도는 검사다.** 읽기는 AI 왕복이라 한도에 걸린 날은 위 검사가 건너뛴다.
+  그런데 「표를 찾지 못해 글줄만 읽었어요」를 띄울지 말지는 **화면의 판단**이고,
+  그것은 창구 응답만 있으면 확인할 수 있다. 그래서 응답을 대신 넣어 화면만 본다 —
+  파서가 표를 만드는지는 단위 가드(plain.test·quote-source-text.test)가 따로 본다.
+*/
+function draftFileReply(tableCount: number) {
+  return {
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      source: { fileName: '견적서.md', route: 'text', truncated: false, tableCount },
+      unclear: [],
+      quotes: [{
+        label: '견적 1', title: 'KTL 하드웨어 납품', currency: 'KRW',
+        customerName: null, supplierName: '주식회사 지코어',
+        taxPercent: 10, sourceTotalMinor: 210000000, sourceTotalIncludesTax: false,
+        origin: 'received',
+        lines: [
+          {
+            name: 'H100 SXM 8way', spec: '640GB HBM3', kind: 'QUANTITY',
+            quantity: 2, unit: '대', unitPriceMinor: 100000000,
+            discountPercent: null, specialDiscountPercent: null,
+            amountMinor: 200000000, sourceText: 'H100 SXM 8way | 2 | 100,000,000',
+          },
+          {
+            name: '설치 및 셋업', spec: '현장 설치', kind: 'QUANTITY',
+            quantity: 1, unit: '식', unitPriceMinor: 10000000,
+            discountPercent: null, specialDiscountPercent: null,
+            amountMinor: 10000000, sourceText: '설치 및 셋업 | 1 | 10,000,000',
+          },
+        ],
+      }],
+    }),
+  }
+}
+
+async function openImportWith(page: import('@playwright/test').Page, tableCount: number) {
+  await page.route('**/api/crm/quotes/draft-file', (route) => route.fulfill(draftFileReply(tableCount)))
+  await openDeal(page)
+  await page.getByRole('button', { name: '파일로 가져오기' }).first().click()
+  const dialog = page.getByRole('dialog')
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: '견적서.md', mimeType: 'text/markdown',
+    buffer: Buffer.from('| 품명 | 수량 |\n| --- | --- |\n| H100 | 2 |\n'),
+  })
+  return dialog
+}
+
+test('★ 표를 찾았으면 「표를 찾지 못해」를 말하지 않는다', async ({ page }) => {
+  test.setTimeout(180_000)
+  const dialog = await openImportWith(page, 2)
+  await expect(dialog.locator('[class*="importItem"]')).toHaveCount(1, { timeout: 30_000 })
+  await expect(dialog.getByText(/표를 찾지 못해/)).toHaveCount(0)
+  await page.screenshot({ path: shot('14-table-found'), fullPage: true })
+})
+
+test('표를 못 찾았으면 그 사실을 말한다 — 위 검사가 헛돌지 않는다는 증거', async ({ page }) => {
+  test.setTimeout(180_000)
+  const dialog = await openImportWith(page, 0)
+  await expect(dialog.getByText(/표를 찾지 못해/)).toBeVisible({ timeout: 30_000 })
 })

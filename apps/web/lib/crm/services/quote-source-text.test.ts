@@ -184,3 +184,49 @@ test('★ 편 표의 개수를 센다 — 0 이면 견적서를 표로 못 읽�
   })
   assert.equal(irToSourceText(d).tableCount, 2)
 })
+
+/* ── 글자 파일도 표로 들어온다 (v0.10.18x) ─────────── */
+
+/*
+  **왜 여기서 또 보나**: 파서가 표를 만들어도 이 변환이 그것을 표로 쓰지 않으면
+  견적 인입에는 아무 변화가 없다. 실제로 마크다운 견적서가 「표를 찾지 못해 글줄만
+  읽었어요」라는 안내와 함께 들어오고 있었다(실측 2026-09-20). 파서와 이 자리를
+  함께 밟아야 그 경로가 이어진 것이다.
+*/
+test('★ 마크다운 견적서가 표로 들어온다 — 구분줄은 글에 안 실린다', async () => {
+  const { parsePlain } = await import('../../rfp/parse/plain.ts')
+  const md = [
+    '견적서',
+    '',
+    '| 품명 | 수량 | 단가 |',
+    '| --- | --- | --- |',
+    '| H100 SXM 8way | 2 | 100,000,000 |',
+    '| 설치 및 셋업 | 1 | 10,000,000 |',
+    '',
+    '공급가 합계: 210,000,000 원',
+  ].join('\n')
+
+  const parsed = parsePlain(new TextEncoder().encode(md), { fileId: 'f1', fileName: '견적서.md' })
+  assert.equal(parsed.ok, true)
+  if (!parsed.ok) return
+
+  const out = irToSourceText(parsed.doc)
+  assert.ok(out.tableCount >= 1, '표로 안 들어왔다 — 화면이 「표를 찾지 못해」라고 말하게 된다')
+  assert.match(out.text, /품명 \| 수량 \| 단가/, '표가 행 단위로 안 들어왔다')
+  assert.match(out.text, /H100 SXM 8way \| 2 \| 100,000,000/)
+  assert.ok(!/---/.test(out.text), '구분줄이 원문 조각으로 들어갔다')
+  // 표 앞뒤 글도 순서를 지켜 남는다 — 합계가 없으면 대조할 것이 사라진다
+  assert.ok(out.text.indexOf('견적서') < out.text.indexOf('품명'))
+  assert.match(out.text, /공급가 합계: 210,000,000/)
+})
+
+test('★ CSV 견적서도 표로 들어온다', async () => {
+  const { parsePlain } = await import('../../rfp/parse/plain.ts')
+  const csv = '품명,수량,단가\nL40S,4,12000000\n유지보수,12,500000\n'
+  const parsed = parsePlain(new TextEncoder().encode(csv), { fileId: 'f2', fileName: '견적서.csv' })
+  assert.equal(parsed.ok, true)
+  if (!parsed.ok) return
+  const out = irToSourceText(parsed.doc)
+  assert.equal(out.tableCount, 1)
+  assert.match(out.text, /L40S \| 4 \| 12000000/)
+})
