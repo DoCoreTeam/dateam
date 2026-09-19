@@ -3,7 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
   const { data: { user }, error: authErr } = await supabase.auth.getUser()
@@ -14,7 +14,7 @@ export async function DELETE(
   const { data: existing } = await admin
     .from('api_keys')
     .select('id, user_id, revoked_at')
-    .eq('id', params.id)
+    .eq('id', (await params).id)
     .single()
 
   if (!existing) return NextResponse.json({ error: 'API key not found' }, { status: 404 })
@@ -24,7 +24,7 @@ export async function DELETE(
   const { error } = await admin
     .from('api_keys')
     .update({ revoked_at: new Date().toISOString() })
-    .eq('id', params.id)
+    .eq('id', (await params).id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

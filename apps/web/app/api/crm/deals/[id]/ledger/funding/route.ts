@@ -3,7 +3,7 @@ import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { setFunding, getLedger, toLedgerJson, type FundingInputDto } from '@/lib/crm/services/ledger'
 import { viewerOf } from '@/lib/crm/auth/capabilities'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 /**
  * 재원을 통째로 갈아 끼운다.
@@ -13,7 +13,7 @@ type Ctx = { params: { id: string } }
 export async function PUT(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ db, session }) => {
     const body = await readJson(req) as unknown as { rows?: FundingInputDto[] }
-    await setFunding(db, session.workspaceId, params.id, body.rows ?? [], session.memberId)
-    return toLedgerJson(await getLedger(db, params.id), await viewerOf(db, session))
+    await setFunding(db, session.workspaceId, (await params).id, body.rows ?? [], session.memberId)
+    return toLedgerJson(await getLedger(db, (await params).id), await viewerOf(db, session))
   })
 }

@@ -6,11 +6,11 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { restoreQuote, toQuoteJson } from '@/lib/crm/services/quote'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(_req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
-    const quote = await restoreQuote(session.workspaceId, session.memberId, params.id)
+    const quote = await restoreQuote(session.workspaceId, session.memberId, (await params).id)
     return toQuoteJson(quote)
   })
 }

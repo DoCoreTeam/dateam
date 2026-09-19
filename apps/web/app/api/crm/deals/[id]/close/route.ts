@@ -5,7 +5,7 @@ import { withCrmApi, readJson, requireVersion } from '@/lib/crm/api/handler'
 import { closeDeal, toDealJson, type CloseDealInput } from '@/lib/crm/services/deal'
 import { CrmError } from '@/lib/crm/domain/errors'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 const ALLOWED = new Set(['WON', 'LOST', 'OPEN'])
 
 export async function POST(req: NextRequest, { params }: Ctx) {
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!ALLOWED.has(to)) {
       throw new CrmError('VALIDATION_FAILED', '성사·실주·재오픈 중 하나여야 합니다.', { field: 'to' })
     }
-    const deal = await closeDeal(session.workspaceId, session.memberId, params.id,
+    const deal = await closeDeal(session.workspaceId, session.memberId, (await params).id,
       { ...body, version, to } as unknown as CloseDealInput)
     return toDealJson(deal)
   })

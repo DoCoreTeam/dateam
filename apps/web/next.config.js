@@ -76,52 +76,57 @@ const nextConfig = {
    * 새 패키지를 만들면 여기 이름을 같이 올린다.
    */
   transpilePackages: ['@ax/ai-core', '@ax/ai-gateway', '@ax/ai-providers', '@ax/ai-react'],
-  experimental: {
-    // 번들하면 안 되는 서버 전용 패키지 — **크로미움 바이너리를 다루는 둘만** 남긴다.
-    //
-    // ⚠️ 여기 이름을 올리는 것은 "webpack아 번들하지 마라"일 뿐, "배포본에 넣어라"가 아니다.
-    //    런타임에 require 로 찾아야 하는데 배포본에 파일이 안 실리면 그 코드 경로가 통째로 죽는다.
-    //    (실측 2026-08-31: `sanitize-html`이 그래서 빠졌고 **주간보고 저장이 2주간 100% 실패**했다.
-    //     프로덕션 7/7 POST 500 · DB 흔적 0 · 로컬 프로덕션 빌드는 100% 성공.
-    //     같은 목록의 puppeteer 계열도 함께 죽어 **회의록 PDF·이미지 내보내기가 500**이었다.)
-    //
-    // 그래서 규칙은 둘이다.
-    //   ① 번들해도 되는 순수 JS 패키지는 **여기 올리지 않는다**(sanitize-html 이 그랬다).
-    //   ② 정말 올려야 하면 아래 outputFileTracingIncludes 에 **함께** 적어 배포본 포함을 강제한다.
-    // 가드: lib/ui/deploy-fragile.test.ts 가 ①②를 검사한다.
-    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium', '@rhwp/core'],
+  /**
+   * Next 15 부터 이 둘은 experimental 밖이다.
+   * 옛 이름(experimental.serverComponentsExternalPackages)으로 두면 Next 가 경고만 하고
+   * **값을 안 읽는다** — 그러면 크로미움·wasm 이 번들에 끌려 들어가 배포가 죽는다.
+   */
+  // 번들하면 안 되는 서버 전용 패키지 — **크로미움 바이너리를 다루는 둘만** 남긴다.
+  //
+  // ⚠️ 여기 이름을 올리는 것은 "webpack아 번들하지 마라"일 뿐, "배포본에 넣어라"가 아니다.
+  //    런타임에 require 로 찾아야 하는데 배포본에 파일이 안 실리면 그 코드 경로가 통째로 죽는다.
+  //    (실측 2026-08-31: `sanitize-html`이 그래서 빠졌고 **주간보고 저장이 2주간 100% 실패**했다.
+  //     프로덕션 7/7 POST 500 · DB 흔적 0 · 로컬 프로덕션 빌드는 100% 성공.
+  //     같은 목록의 puppeteer 계열도 함께 죽어 **회의록 PDF·이미지 내보내기가 500**이었다.)
+  //
+  // 그래서 규칙은 둘이다.
+  //   ① 번들해도 되는 순수 JS 패키지는 **여기 올리지 않는다**(sanitize-html 이 그랬다).
+  //   ② 정말 올려야 하면 아래 outputFileTracingIncludes 에 **함께** 적어 배포본 포함을 강제한다.
+  // 가드: lib/ui/deploy-fragile.test.ts 가 ①②를 검사한다.
+  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium', '@rhwp/core'],
 
-    // 위 external 패키지를 **배포본에 반드시 싣는다**(파일 추적 보강).
-    //
-    // 왜 추적만으로는 부족한가: Next 의 기본 추적은 `require()` 그래프를 따라간다.
-    // 그런데 @sparticuz/chromium 이 실제로 여는 것은 **경로로 읽는 압축 바이너리**라
-    // 어떤 require 에도 안 걸린다 — 실측: 이 선언을 빼고 빌드하면 `bin/*.br` 이 **0개**가 되고
-    // executablePath() 가 실패해 회의록 PDF·이미지 내보내기가 통째로 죽는다.
-    //
-    // ⚠️ glob 은 **패키지 실물 디렉터리까지 내려가서** 지목한다. `<pkg>@*/**/*` 로 훑으면 안 된다.
-    //    pnpm 은 `.pnpm/<pkg>@<ver>/node_modules/` 아래에 **패키지 실물과 의존성 심링크를 나란히** 둔다
-    //    (`@sparticuz+chromium@149.0.0/node_modules/` = `@sparticuz/`(실물) + `tar-fs`(심링크)).
-    //    넓은 glob 은 그 심링크를 가로질러 파일을 목록에 넣고, Vercel 이 λ 안에 그 경로를 만들려다
-    //    **ENOENT 로 배포 자체를 죽인다.**
-    //    (실측 2026-09-01~04: 프로덕션 배포 **4연속 ERROR** — `mkdir '/tmp/lambda-vhs-…/
-    //     .pnpm/@sparticuz+chromium@149.0.0/node_modules/tar-fs'`. 빌드 로그는 「Compiled successfully」
-    //     「305/305」까지 초록이고 실패는 그 뒤 λ 패키징 단계라 **빌드 로그만 보면 성공으로 읽힌다.**
-    //     그동안 v0.7.660~686 이 프로덕션에 하나도 못 올라갔다 — 위의 주간보고 수정까지 포함해서.)
-    //    심링크 안쪽 의존성(tar-fs·ws·chromium-bidi)은 기본 추적이 **실물 경로로 이미 잡는다**.
-    // 가드: lib/ui/deploy-fragile.test.ts ②-b 가 넓은 glob 을 차단한다.
-    outputFileTracingIncludes: {
-      '/api/meeting-notes/[id]/export': SERVERLESS_CHROMIUM,
-      '/api/admin/ai-chat/export-pdf': SERVERLESS_CHROMIUM,
-      '/api/admin/ai-chat/analyze-export-pdf': SERVERLESS_CHROMIUM,
-      // 한글 문서를 읽는 경로 — RFP 첨부 인입과 프로필 초안
-      '/api/rfp/cases/[id]/files': RHWP_WASM,
-      '/api/rfp/profile/draft': RHWP_WASM,
-      // 견적서를 파일로 올리는 경로 — 한글(hwp·hwpx) 견적서가 흔하다.
-      // 이 줄이 없으면 배포본에 wasm 이 안 실려 hwp 만 프로덕션에서 죽는다(B-2)
-      '/api/crm/quotes/draft-file': RHWP_WASM,
-      '/api/rfp/worker/tick': RHWP_WASM,
-    },
+  // 위 external 패키지를 **배포본에 반드시 싣는다**(파일 추적 보강).
+  //
+  // 왜 추적만으로는 부족한가: Next 의 기본 추적은 `require()` 그래프를 따라간다.
+  // 그런데 @sparticuz/chromium 이 실제로 여는 것은 **경로로 읽는 압축 바이너리**라
+  // 어떤 require 에도 안 걸린다 — 실측: 이 선언을 빼고 빌드하면 `bin/*.br` 이 **0개**가 되고
+  // executablePath() 가 실패해 회의록 PDF·이미지 내보내기가 통째로 죽는다.
+  //
+  // ⚠️ glob 은 **패키지 실물 디렉터리까지 내려가서** 지목한다. `<pkg>@*/**/*` 로 훑으면 안 된다.
+  //    pnpm 은 `.pnpm/<pkg>@<ver>/node_modules/` 아래에 **패키지 실물과 의존성 심링크를 나란히** 둔다
+  //    (`@sparticuz+chromium@149.0.0/node_modules/` = `@sparticuz/`(실물) + `tar-fs`(심링크)).
+  //    넓은 glob 은 그 심링크를 가로질러 파일을 목록에 넣고, Vercel 이 λ 안에 그 경로를 만들려다
+  //    **ENOENT 로 배포 자체를 죽인다.**
+  //    (실측 2026-09-01~04: 프로덕션 배포 **4연속 ERROR** — `mkdir '/tmp/lambda-vhs-…/
+  //     .pnpm/@sparticuz+chromium@149.0.0/node_modules/tar-fs'`. 빌드 로그는 「Compiled successfully」
+  //     「305/305」까지 초록이고 실패는 그 뒤 λ 패키징 단계라 **빌드 로그만 보면 성공으로 읽힌다.**
+  //     그동안 v0.7.660~686 이 프로덕션에 하나도 못 올라갔다 — 위의 주간보고 수정까지 포함해서.)
+  //    심링크 안쪽 의존성(tar-fs·ws·chromium-bidi)은 기본 추적이 **실물 경로로 이미 잡는다**.
+  // 가드: lib/ui/deploy-fragile.test.ts ②-b 가 넓은 glob 을 차단한다.
+  outputFileTracingIncludes: {
+    '/api/meeting-notes/[id]/export': SERVERLESS_CHROMIUM,
+    '/api/admin/ai-chat/export-pdf': SERVERLESS_CHROMIUM,
+    '/api/admin/ai-chat/analyze-export-pdf': SERVERLESS_CHROMIUM,
+    // 한글 문서를 읽는 경로 — RFP 첨부 인입과 프로필 초안
+    '/api/rfp/cases/[id]/files': RHWP_WASM,
+    '/api/rfp/profile/draft': RHWP_WASM,
+    // 견적서를 파일로 올리는 경로 — 한글(hwp·hwpx) 견적서가 흔하다.
+    // 이 줄이 없으면 배포본에 wasm 이 안 실려 hwp 만 프로덕션에서 죽는다(B-2)
+    '/api/crm/quotes/draft-file': RHWP_WASM,
+    '/api/rfp/worker/tick': RHWP_WASM,
   },
+  
+
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },
@@ -133,6 +138,14 @@ const nextConfig = {
    */
   async redirects() {
     return [
+      /**
+       *  는  의 옛 이름이다. 화면 하나가 redirect() 만 하고 있었는데,
+       * Next 15 에서 그 화면을 거쳐 이동하면 라우터 내부에서 훅 개수가 어긋난다
+       * (실측 2026-09-20: React #310 + 하이드레이션 실패 #418).
+       * 그릴 것이 없는 화면은 그리지 않는다 — 여기서 주소만 바꾼다.
+       * 미들웨어는 이보다 먼저 도므로 로그인·2단계 게이트는 그대로 걸린다.
+       */
+      { source: '/dashboard', destination: '/home', permanent: false },
       { source: '/ai-chat', destination: '/ai', permanent: true },
       { source: '/ai-chat/:path*', destination: '/ai/:path*', permanent: true },
       { source: '/admin/ai-chat', destination: '/ai', permanent: true },

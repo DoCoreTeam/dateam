@@ -45,7 +45,7 @@ function classifyAttendees(
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const url = new URL(req.url)
   /**
@@ -60,7 +60,7 @@ export async function GET(
   const isPreview = rawFormat === 'html'
   const format: 'pdf' | 'png' = rawFormat === 'png' ? 'png' : 'pdf'
 
-  const note = await getMeetingNote(params.id).catch(() => null)
+  const note = await getMeetingNote((await params).id).catch(() => null)
   if (!note) return NextResponse.json({ error: '회의록을 찾을 수 없습니다' }, { status: 404 })
 
   const people = await listOrgPeople().catch(() => [])
@@ -75,12 +75,12 @@ export async function GET(
   */
   const supabase = view === 'transcript' || view === 'digest' ? await createClient() : null
   const segments = view === 'transcript' && supabase
-    ? (await listTranscriptSegments(supabase, params.id).catch(() => []))
+    ? (await listTranscriptSegments(supabase, (await params).id).catch(() => []))
       .map((sg) => ({ timeLabel: formatSegmentTime(sg.startMs), speaker: sg.speaker, text: sg.text }))
     : undefined
   let digest: ExportDigest | null = null
   if (view === 'digest' && supabase) {
-    const latest = (await listMeetingDigests(supabase, params.id).catch(() => []))[0] ?? null
+    const latest = (await listMeetingDigests(supabase, (await params).id).catch(() => []))[0] ?? null
     if (latest) {
       digest = {
         outcome: latest.digest.outcome,
@@ -138,13 +138,13 @@ export async function GET(
     }
   } catch (err) {
     // 원문을 삼키면 원인을 영영 못 찾는다 — 서버 로그에 남기고, 화면에는 사람이 읽을 사유를 준다.
-    console.error('[meeting-notes/export] render failed', { format, view, noteId: params.id, err })
+    console.error('[meeting-notes/export] render failed', { format, view, noteId: (await params).id, err })
     // 이 경로는 프로덕션에서만 죽은 전례가 있다(배포본 누락) — 콘솔은 서버 로그에만 남아
     // 아무도 안 본다. 시스템 로그에 남겨야 관리자가 「무엇이 왜 안 되는지」를 알 수 있다.
     await recordSystemEvent({
       source: 'host_api', error: err, feature: `meeting-note-export:${format}`,
       route: '/api/meeting-notes/[id]/export', blocksUser: true,
-      context: { format, view, noteId: params.id },
+      context: { format, view, noteId: (await params).id },
     }).catch(() => { /* 기록 실패가 응답을 막지 않는다 */ })
     return NextResponse.json({ error: exportFailureMessage(format, err) }, { status: 500 })
   } finally {

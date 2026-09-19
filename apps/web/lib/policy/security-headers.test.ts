@@ -81,10 +81,12 @@ test('CSP 는 강제이고 뼈대 지시문이 살아 있다', () => {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    'upgrade-insecure-requests',
   ]) {
     assert.ok(mw.includes(directive), `CSP 에 ${directive} 가 없다`)
   }
+  // https 로 들어온 요청에만 건다 — http 에 걸면 브라우저가 자기 자신을 못 부른다
+  assert.match(mw, /isHttps \? \['upgrade-insecure-requests'\]/, 'https 요청에 upgrade-insecure-requests 가 없다')
+  assert.match(mw, /x-forwarded-proto/, '프록시 뒤에서는 원래 프로토콜을 헤더에서 읽어야 한다')
   assert.match(
     mw,
     /res\.headers\.set\('Content-Security-Policy', csp\)/,
@@ -166,8 +168,9 @@ test('서비스롤 키를 읽는 앱 코드는 server-only 로 잠근다', () =>
 test('이미지 최적화 창구는 닫혀 있다', () => {
   // 왜: `/_next/image` 는 우리가 안 써도 열려 있고, 실측으로 이미지를 실제 해독했다.
   //   next/image 를 부르는 화면은 0곳이므로 얻는 것 없이 공격면만 남는다.
-  //   Next 14.2 계열의 이미지 최적화 원격 코드 실행은 15.5.24 이상에만 고침이 있다.
-  //   `images.unoptimized` 만으로는 안 닫힌다(컴포넌트 쪽만 바뀐다) — 미들웨어가 닫는다.
+  //   처음 닫은 이유는 14.2 계열의 원격 코드 실행이었고 15 에서 그 구멍은 메워졌지만,
+  //   **안 쓰는 창구는 닫아 둔다** — 다음 구멍이 나도 우리와 무관해진다.
+  //   `images.unoptimized` 만으로는 안 닫힌다(컴포넌트 쪽만 바뀐다). 미들웨어가 닫는다.
   const mw = readFileSync(join(WEB, 'middleware.ts'), 'utf8')
   assert.match(
     mw,

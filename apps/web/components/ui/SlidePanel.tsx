@@ -25,7 +25,7 @@ interface SlidePanelProps {
   /** 폭을 화면이 정해야 할 때만(기본은 .slide-panel CSS) */
   width?: number
   /** 본문 스크롤 컨테이너 ref — 내용이 바뀔 때 맨 위로 되감기 위해 화면이 쥔다 */
-  bodyRef?: RefObject<HTMLDivElement>
+  bodyRef?: RefObject<HTMLDivElement | null> // React 19: useRef<T>(null) 은 RefObject<T | null> 을 준다
   /**
    * 본문 위에 떠 있어야 하는 조작(스크롤 점프 등). 본문 바닥에 sticky로 붙는다.
    * ⚠️ `position: fixed` 요소를 여기(또는 children)에 넣지 말 것 — 패널에 `transform`이

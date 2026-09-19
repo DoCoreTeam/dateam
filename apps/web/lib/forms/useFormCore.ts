@@ -18,7 +18,7 @@ interface Opts<T> {
   debounceMs?: number
   maxHistory?: number
   /** 단축키 스코프 — 이 ref 내부에 포커스 있을 때만 Ctrl+Z 가로챔. 없으면 비활성(안전) */
-  scopeRef?: React.RefObject<HTMLElement>
+  scopeRef?: React.RefObject<HTMLElement | null> // React 19: useRef<T>(null) 은 RefObject<T | null> 을 준다
 }
 
 export interface FormCore<T> {

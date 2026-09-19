@@ -9,7 +9,7 @@ import { recordGpuAudit } from '@/lib/gpu/audit'
 // 감사: recordGpuAudit SSOT (service_role 경유)
 export async function POST(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
@@ -21,7 +21,7 @@ export async function POST(
     const { data: quote, error: fetchErr } = await db
       .from('supply_quotes')
       .select('product_id')
-      .eq('id', params.id)
+      .eq('id', (await params).id)
       .single()
 
     if (fetchErr || !quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
@@ -29,7 +29,7 @@ export async function POST(
     const { error } = await db
       .from('supply_quotes')
       .update({ status: 'rejected' })
-      .eq('id', params.id)
+      .eq('id', (await params).id)
 
     if (error) throw error
 
@@ -37,7 +37,7 @@ export async function POST(
       actor: auth.user.email ?? auth.user.id,
       actionType: 'rejected',
       productId: (quote as Record<string, unknown>).product_id as string,
-      detail: { quote_id: params.id },
+      detail: { quote_id: (await params).id },
     })
 
     return NextResponse.json({ ok: true })

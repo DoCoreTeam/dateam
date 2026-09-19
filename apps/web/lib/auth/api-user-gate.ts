@@ -37,12 +37,13 @@ export const API_USER_HOME = '/api-keys'
  * 판단 근거가 없을 때 문을 열어 두는 쪽이 훨씬 나쁘다. 대신 헤더가 사라지면
  * `api-user-gate.test.ts`가 실패해서 루프가 조용히 돌아오지 않는다.
  */
-function isAlreadyAtHome(): boolean {
-  const path = headers().get('x-pathname')
+async function isAlreadyAtHome(): Promise<boolean> {
+  // Next 15 부터 headers() 가 비동기다
+  const path = (await headers()).get('x-pathname')
   if (!path) return false
   return path === API_USER_HOME || path.startsWith(`${API_USER_HOME}/`)
 }
 
-export function redirectApiUser(role: string | null | undefined): void {
-  if (role === 'api_user' && !isAlreadyAtHome()) redirect(API_USER_HOME)
+export async function redirectApiUser(role: string | null | undefined): Promise<void> {
+  if (role === 'api_user' && !(await isAlreadyAtHome())) redirect(API_USER_HOME)
 }

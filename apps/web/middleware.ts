@@ -45,7 +45,7 @@ function isPublicPath(pathname: string): boolean {
  * style 은 'unsafe-inline' 을 남긴다 — 리액트가 style 속성으로 값을 넣고, 스타일 주입은
  * 스크립트 주입과 위험이 다르다. 여기까지 조이려면 화면 전체를 고쳐야 하고 얻는 것이 적다.
  */
-function buildCsp(nonce: string): string {
+function buildCsp(nonce: string, isHttps: boolean): string {
   const supabase = (() => {
     try {
       return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin
@@ -60,8 +60,10 @@ function buildCsp(nonce: string): string {
    *
    * - `unsafe-eval`: 개발 서버의 새로고침(React Refresh)이 eval 을 쓴다. 없으면 dev 가 죽는다.
    *   운영 번들에는 eval 이 없으므로 운영에서는 넣지 않는다.
-   * - `upgrade-insecure-requests`: 운영은 전부 https 라 맞는 말이지만, 로컬은 http 라
-   *   자기 자신을 https 로 올리려다 실패한다(실측 net::ERR_SSL_PROTOCOL_ERROR).
+   * - `upgrade-insecure-requests`: **이미 https 로 들어온 요청에만** 건다.
+   *   http 로 받은 요청에 걸면 브라우저가 자기 자신을 https 로 올리려다 실패한다
+   *   (실측 net::ERR_SSL_PROTOCOL_ERROR, 그 여파로 하이드레이션까지 어긋났다 — React #418).
+   *   NODE_ENV 로 가르면 **운영 빌드를 로컬에서 확인할 수 없다.** 프로토콜로 가른다.
    */
   const isProd = process.env.NODE_ENV === 'production'
   const scriptSrc = isProd
@@ -82,7 +84,7 @@ function buildCsp(nonce: string): string {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    ...(isProd ? ['upgrade-insecure-requests'] : []),
+    ...(isHttps ? ['upgrade-insecure-requests'] : []),
   ].join('; ')
 }
 
@@ -96,11 +98,12 @@ export async function middleware(request: NextRequest) {
    * 실측 2026-09-20 그 주소는 이미지를 실제로 받아 해독했다. next.config 의
    * `images.unoptimized` 는 컴포넌트 쪽만 바꾸고 이 주소는 그대로 열어 둔다(실측으로 확인).
    *
-   * 무엇을 막나: Next 14.2 계열의 이미지 최적화 경로 미인증 원격 코드 실행.
-   * 고침이 15.5.24 이상에만 있어 14 계열에는 안 온다. 15 로 올릴 때까지 여기서 닫는다.
+   * 처음 닫은 이유는 Next 14.2 계열의 이 경로 미인증 원격 코드 실행이었다.
+   * 지금은 15.5.25 라 그 구멍은 메워졌지만 **닫아 둔 채로 남긴다** —
+   * 우리가 안 쓰는 창구는 다음 구멍이 나도 우리와 무관하다.
    *
-   * 값이 없는 창구는 닫는다 — 이것이 규칙이다(LOOP.md 7절).
-   * `next/image` 를 쓰기로 하면 이 블록을 지우고 Next 를 먼저 올린다.
+   * 값이 없는 창구는 닫는다. 이것이 규칙이다(LOOP.md 7절).
+   * `next/image` 를 쓰기로 하면 이 블록을 지운다.
    */
   if (pathname === '/_next/image') {
     return new NextResponse(null, { status: 404 })
@@ -112,7 +115,10 @@ export async function middleware(request: NextRequest) {
    * 응답에만 달면 Next 가 못 읽고 부트스트랩 스크립트가 통째로 막힌다.
    */
   const nonce = crypto.randomUUID().replace(/-/g, '')
-  const csp = buildCsp(nonce)
+  // 프록시 뒤에서는 원래 프로토콜이 헤더에 있다(Vercel 이 x-forwarded-proto 를 채운다)
+  const isHttps =
+    request.headers.get('x-forwarded-proto') === 'https' || request.nextUrl.protocol === 'https:'
+  const csp = buildCsp(nonce, isHttps)
   request.headers.set('x-nonce', nonce)
   request.headers.set('Content-Security-Policy', csp)
 
@@ -237,7 +243,11 @@ export const config = {
   // 바뀌는 것: 비로그인 API 호출의 응답이 '302 → /login'에서 **401 JSON**이 된다.
   // API로는 이쪽이 맞고, 302를 기대하던 호출부는 없다(전수 확인).
   matcher: [
-    '/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // 확장자가 붙은 것은 화면이 아니라 파일이다. 게이트를 태우면 로그인 안 한 사람에게
+    // 파일 대신 /login HTML 이 간다.
+    // 실측 2026-09-20: css 가 목록에 없어 /fonts/fonts.css 가 307 로 /login 에 갔고,
+    // 그래서 로그인 화면은 내내 대체 글꼴로 그려지고 있었다(MIME type text/html 경고).
+    '/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js|mjs|map|woff2?|ttf|otf|ico|webmanifest|txt|xml)$).*)',
     // 위 줄이 일부러 빼 둔 경로다. 닫으려면 태워야 하므로 **이 한 줄만** 따로 더한다.
     // 정상 트래픽이 0 이라 늘어나는 비용도 0 이다.
     '/_next/image',

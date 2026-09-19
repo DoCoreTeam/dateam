@@ -7,7 +7,7 @@ import { withCrmApi, readJson, requireVersion } from '@/lib/crm/api/handler'
 import { moveDealStage, toDealJson } from '@/lib/crm/services/deal'
 import { CrmError } from '@/lib/crm/domain/errors'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!toStageId) {
       throw new CrmError('VALIDATION_FAILED', '옮길 단계를 지정해 주세요.', { field: 'toStageId' })
     }
-    const deal = await moveDealStage(session.workspaceId, session.memberId, params.id,
+    const deal = await moveDealStage(session.workspaceId, session.memberId, (await params).id,
       { version, toStageId })
     return toDealJson(deal)
   })

@@ -13,13 +13,13 @@ import { getCrmDb } from '@/lib/crm/db/client'
 import { getQuoteDocument } from '@/lib/crm/services/quote-document'
 import { quoteDocumentToXlsx } from '@/lib/crm/services/quote-xlsx'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   const format = new URL(req.url).searchParams.get('format')
 
   if (format !== 'xlsx') {
-    return withCrmApi('READONLY', async ({ db }) => getQuoteDocument(db, params.id))
+    return withCrmApi('READONLY', async ({ db }) => getQuoteDocument(db, (await params).id))
   }
 
   // 파일 응답이라 공용 핸들러(JSON 봉투)를 쓰지 않는다 — 인증은 같은 SSOT 를 부른다
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   }
 
   const db = getCrmDb(access.session.workspaceId)
-  const { document, violations, images } = await getQuoteDocument(db, params.id)
+  const { document, violations, images } = await getQuoteDocument(db, (await params).id)
 
   // **어긋난 문서는 파일로 내보내지 않는다.** 화면은 경고를 띄우고 지나칠 수 있지만,
   // 파일은 그대로 고객에게 전달된다 — 되돌릴 방법이 없다.

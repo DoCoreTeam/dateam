@@ -6,8 +6,8 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { listStageHistory } from '@/lib/crm/services/deal'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  return withCrmApi('READONLY', async ({ db }) => ({ items: await listStageHistory(db, params.id) }))
+  return withCrmApi('READONLY', async ({ db }) => ({ items: await listStageHistory(db, (await params).id) }))
 }

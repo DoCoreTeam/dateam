@@ -7,10 +7,10 @@ import type { MeetingNoteRecord } from '../MeetingDetailClient'
 
 export const dynamic = 'force-dynamic'
 
-export default async function MeetingNoteDetailPage({ params }: { params: { id: string } }) {
+export default async function MeetingNoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   let note: MeetingNoteRecord | null = null
   try {
-    note = (await getMeetingNote(params.id)) as MeetingNoteRecord | null
+    note = (await getMeetingNote((await params).id)) as MeetingNoteRecord | null
   } catch {
     note = null
   }

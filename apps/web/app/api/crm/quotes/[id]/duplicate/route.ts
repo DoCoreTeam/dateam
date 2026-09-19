@@ -6,13 +6,13 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { duplicateQuote, toQuoteJson, type DuplicateQuoteInput } from '@/lib/crm/services/quote'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
     const body = await readJson(req)
     const made = await duplicateQuote(
-      session.workspaceId, session.memberId, params.id,
+      session.workspaceId, session.memberId, (await params).id,
       body as unknown as DuplicateQuoteInput,
     )
     return toQuoteJson(made)

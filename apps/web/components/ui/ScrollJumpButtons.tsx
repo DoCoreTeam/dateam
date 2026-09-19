@@ -9,7 +9,7 @@ import { ArrowUp, ArrowDown } from 'lucide-react'
 const THRESHOLD = 240 // 이만큼 스크롤 가능해야 버튼 노출(짧은 페이지엔 안 뜸)
 const EDGE = 48 // 위/아래 끝 판정 여유
 
-export default function ScrollJumpButtons({ targetRef }: { targetRef: RefObject<HTMLElement> }) {
+export default function ScrollJumpButtons({ targetRef }: { targetRef: RefObject<HTMLElement | null> }) {
   const [visible, setVisible] = useState(false)
   const [atTop, setAtTop] = useState(true)
   const [atBottom, setAtBottom] = useState(false)

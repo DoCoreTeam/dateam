@@ -43,7 +43,7 @@ export default async function AiLayout({ children }: { children: React.ReactNode
   // api_user 차단은 호스트 SSOT 를 그대로 부른다(다른 세 레이아웃과 같은 방식).
   // 프로필은 요청당 1회 캐시(getRequestProfile)라 여기서 먼저 읽어도 왕복이 늘지 않는다.
   const profile = await getRequestProfile()
-  redirectApiUser(profile?.role)
+  await redirectApiUser(profile?.role)
   await requireAdmin()
 
   const [branding, globalTheme, user] = await Promise.all([

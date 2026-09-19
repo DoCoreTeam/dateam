@@ -6,7 +6,7 @@ import { recordGpuAudit } from '@/lib/gpu/audit'
 
 export async function POST(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
@@ -19,7 +19,7 @@ export async function POST(
     const { data: quote, error: fetchErr } = await adminDb
       .from('supply_quotes')
       .select('*, gpu_products(id, model_name, memory, tier)')
-      .eq('id', params.id)
+      .eq('id', (await params).id)
       .single()
 
     if (fetchErr || !quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
@@ -43,7 +43,7 @@ export async function POST(
         .eq('product_id', quote.product_id)
         .eq('supplier_id', quote.supplier_id)
         .eq('status', 'confirmed')
-        .neq('id', params.id)
+        .neq('id', (await params).id)
       supQ = quote.term_months == null ? supQ.is('term_months', null) : supQ.eq('term_months', quote.term_months)
       await supQ
     }
@@ -51,7 +51,7 @@ export async function POST(
     const { error } = await adminDb
       .from('supply_quotes')
       .update({ status: 'confirmed', confirmed_by: actor, confirmed_at: now })
-      .eq('id', params.id)
+      .eq('id', (await params).id)
 
     if (error) throw error
 
@@ -60,7 +60,7 @@ export async function POST(
       actionType: 'quote_confirmed',
       productId: (quote.gpu_products as Record<string, unknown>)?.id as string ?? null,
       detail: {
-        quote_id: params.id,
+        quote_id: (await params).id,
         unit_price_usd: quote.unit_price_usd,
         supplier_id: quote.supplier_id,
       },

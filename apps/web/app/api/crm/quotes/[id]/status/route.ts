@@ -8,7 +8,7 @@ import { CrmError } from '@/lib/crm/domain/errors'
 import { transitQuote, toQuoteJson } from '@/lib/crm/services/quote'
 import type { QuoteStatus } from '@/lib/crm/domain/state-machines'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 const ALLOWED: QuoteStatus[] = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED']
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!ALLOWED.includes(to)) {
       throw new CrmError('VALIDATION_FAILED', '알 수 없는 견적 상태입니다.', { field: 'to', got: body.to })
     }
-    const quote = await transitQuote(session.workspaceId, session.memberId, params.id, {
+    const quote = await transitQuote(session.workspaceId, session.memberId, (await params).id, {
       version, to,
       syncDealAmount: body.syncDealAmount === undefined ? undefined : body.syncDealAmount === true,
     })

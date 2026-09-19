@@ -35,10 +35,12 @@ function currentYm(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-export default async function MeetingNotesPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function MeetingNotesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   // 목록 상태 SSOT — 서버도 클라이언트와 같은 규칙(URL > 저장설정 > 기본값)으로 접는다
   const saved = await loadListPrefs('/meeting-notes').catch(() => null)
-  const query = resolveListQuery(searchParams as Record<string, string | undefined>, MEETING_LIST_DEFAULTS, saved)
+  // Next 15: searchParams 가 Promise 다
+  const sp = await searchParams
+  const query = resolveListQuery(sp as Record<string, string | undefined>, MEETING_LIST_DEFAULTS, saved)
 
   const mode: ViewMode = query.filters.mode === 'date' ? 'date' : query.filters.mode === 'calendar' ? 'calendar' : 'list'
   const ym = query.filters.ym ?? currentYm()

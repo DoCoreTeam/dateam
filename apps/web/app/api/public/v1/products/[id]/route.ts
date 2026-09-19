@@ -10,7 +10,7 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
@@ -18,7 +18,7 @@ export async function GET(
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any
-    const { id } = params
+    const { id } = await params
 
     // SSOT: 내부와 동일한 buildCatalog 결과에서 해당 제품을 찾는다(자체계산 폐기).
     const [catalog, fxRes] = await Promise.all([

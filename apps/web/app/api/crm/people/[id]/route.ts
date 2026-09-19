@@ -7,17 +7,17 @@ import {
   getPerson, updatePerson, deletePerson, type UpdatePersonInput,
 } from '@/lib/crm/services/person'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  return withCrmApi('READONLY', async ({ db }) => getPerson(db, params.id))
+  return withCrmApi('READONLY', async ({ db }) => getPerson(db, (await params).id))
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
     const body = await readJson(req)
     const version = requireVersion(body)
-    return updatePerson(session.workspaceId, session.memberId, params.id,
+    return updatePerson(session.workspaceId, session.memberId, (await params).id,
       { ...body, version } as unknown as UpdatePersonInput)
   })
 }
@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
     const mode = new URL(req.url).searchParams.get('mode') === 'purge' ? 'purge' : 'trash'
-    await deletePerson(session.workspaceId, session.memberId, params.id, mode)
+    await deletePerson(session.workspaceId, session.memberId, (await params).id, mode)
     return { ok: true, mode }
   })
 }

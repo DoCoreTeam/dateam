@@ -4,14 +4,14 @@ import { updateInKind, removeInKind, toLedgerJson, type InKindInputDto } from '@
 import { viewerOf } from '@/lib/crm/auth/capabilities'
 import { requireCostEdit } from '@/lib/crm/auth/capabilities-gate'
 
-type Ctx = { params: { id: string; itemId: string } }
+type Ctx = { params: Promise<{ id: string; itemId: string }> }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ db, session }) => {
     const viewer = await viewerOf(db, session)
     requireCostEdit(viewer)
     const body = await readJson(req) as unknown as Partial<InKindInputDto>
-    return toLedgerJson(await updateInKind(db, params.id, params.itemId, body, session.memberId), viewer)
+    return toLedgerJson(await updateInKind(db, (await params).id, (await params).itemId, body, session.memberId), viewer)
   })
 }
 
@@ -19,6 +19,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ db, session }) => {
     const viewer = await viewerOf(db, session)
     requireCostEdit(viewer)
-    return toLedgerJson(await removeInKind(db, params.id, params.itemId, session.memberId), viewer)
+    return toLedgerJson(await removeInKind(db, (await params).id, (await params).itemId, session.memberId), viewer)
   })
 }

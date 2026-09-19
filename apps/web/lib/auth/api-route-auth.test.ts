@@ -109,7 +109,8 @@ test('세션을 읽고도 거부하지 않는 라우트는 인증으로 치지 �
 
 test('미들웨어 matcher가 /api/를 제외한 상태를 유지한다', () => {
   const mw = readFileSync('middleware.ts', 'utf8')
-  const m = mw.match(/matcher:\s*\[\s*'([^']+)'/)
+  // 주석이 끼어도 찾는다 — 설명을 달았다고 가드가 깨지면 설명을 안 달게 된다
+  const m = mw.match(/matcher:\s*\[(?:\s*\/\/[^\n]*\n)*\s*'([^']+)'/)
   assert.ok(m, 'middleware.ts에서 matcher를 찾지 못했다')
   assert.match(
     m![1],

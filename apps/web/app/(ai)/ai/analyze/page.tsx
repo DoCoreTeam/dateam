@@ -13,11 +13,11 @@ import SessionListClient from './SessionListClient'
 export default async function AiChatAnalyzePage({
   searchParams,
 }: {
-  searchParams: { tab?: string }
+  searchParams: Promise<{ tab?: string }>
 }) {
   await requireAdmin()
-  if (searchParams.tab === 'documents') redirect('/ai/documents')
-  const tab = searchParams.tab === 'list' ? 'list' : 'new'
+  if ((await searchParams).tab === 'documents') redirect('/ai/documents')
+  const tab = (await searchParams).tab === 'list' ? 'list' : 'new'
 
   return (
     <div>

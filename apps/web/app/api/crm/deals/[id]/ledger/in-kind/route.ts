@@ -4,7 +4,7 @@ import { addInKind, toLedgerJson, type InKindInputDto } from '@/lib/crm/services
 import { viewerOf } from '@/lib/crm/auth/capabilities'
 import { requireCostEdit } from '@/lib/crm/auth/capabilities-gate'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 /** 현물 한 줄 추가 — 명세는 원가를 역산할 수 있어 능력을 확인한다 */
 export async function POST(req: NextRequest, { params }: Ctx) {
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const viewer = await viewerOf(db, session)
     requireCostEdit(viewer)
     const body = await readJson(req) as unknown as InKindInputDto
-    const ledger = await addInKind(db, session.workspaceId, params.id, body, session.memberId)
+    const ledger = await addInKind(db, session.workspaceId, (await params).id, body, session.memberId)
     return toLedgerJson(ledger, viewer)
   })
 }

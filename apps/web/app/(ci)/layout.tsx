@@ -117,7 +117,7 @@ export default async function CiLayout({ children }: { children: React.ReactNode
     getActiveTheme(),
   ])
   // (member)와 같은 이유 — role은 위 조회에 이미 들어 있다
-  redirectApiUser(profile?.role)
+  await redirectApiUser(profile?.role)
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const userEmail = user.email ?? ''
   const isAdmin = profile?.role === 'admin'

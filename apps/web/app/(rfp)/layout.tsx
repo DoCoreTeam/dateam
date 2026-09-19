@@ -28,7 +28,7 @@ const NAV_ICON: Record<string, React.ReactNode> = {
 
 export default async function RfpLayout({ children }: { children: React.ReactNode }) {
   const profile = await getRequestProfile()
-  redirectApiUser(profile?.role)
+  await redirectApiUser(profile?.role)
 
   const user = await getRequestUser()
   if (!user) redirect('/login')

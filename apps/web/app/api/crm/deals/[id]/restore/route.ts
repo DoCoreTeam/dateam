@@ -3,9 +3,9 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { restoreDeal, toDealJson } from '@/lib/crm/services/deal'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(_req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) =>
-    toDealJson(await restoreDeal(session.workspaceId, session.memberId, params.id)))
+    toDealJson(await restoreDeal(session.workspaceId, session.memberId, (await params).id)))
 }

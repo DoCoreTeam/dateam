@@ -10,13 +10,13 @@ import {
   type UpdateProductInput,
 } from '@/lib/crm/services/product'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
     const body = await readJson(req)
     const row = await updateProduct(
-      session.workspaceId, session.memberId, params.id,
+      session.workspaceId, session.memberId, (await params).id,
       body as unknown as UpdateProductInput,
     )
     return toProductJson(row)
@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
-    const row = await archiveProduct(session.workspaceId, session.memberId, params.id, false)
+    const row = await archiveProduct(session.workspaceId, session.memberId, (await params).id, false)
     return toProductJson(row)
   })
 }

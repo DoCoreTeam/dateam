@@ -3,7 +3,9 @@
 // ## 왜 이 가드가 필요한가 (실측 2026-08-31)
 //
 // 주간보고 저장이 **2주 동안 프로덕션에서 100% 실패**했다. 원인은 코드가 아니라 배포본이었다.
-// `next.config.js` 의 `serverComponentsExternalPackages` 에 `sanitize-html` 이 올라가 있어
+// `next.config.js` 의 `serverExternalPackages` 에 `sanitize-html` 이 올라가 있어
+// (Next 15 부터 이 이름이다. 14 에서는 `experimental.serverComponentsExternalPackages` 였다 —
+//  옛 이름으로 두면 Next 가 경고만 하고 값을 안 읽어 배포가 죽는다. 가드는 둘 다 받는다)
 // webpack 이 번들에 넣지 않았고, 배포본에는 그 파일이 안 실려 **모듈 로드 자체가 실패**했다.
 //   · 프로덕션 저장 POST 500 ×7 (입력 무관, 인증 왕복 전 73~293ms 만에)
 //   · 같은 코드가 로컬 프로덕션 빌드에서는 100% 성공
@@ -53,7 +55,7 @@ const BINARY_BACKED = new Set([
 
 test('① 번들 밖(external) 지정은 바이너리를 다루는 패키지만 — 순수 JS 를 올리지 않는다', () => {
   const cfg = read('next.config.js')
-  const m = cfg.match(/serverComponentsExternalPackages:\s*\[([^\]]*)\]/)
+  const m = cfg.match(/server(?:Components)?ExternalPackages:\s*\[([^\]]*)\]/)
   assert.ok(m, 'serverComponentsExternalPackages 선언을 찾지 못했습니다')
 
   const listed = [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1])
@@ -69,7 +71,7 @@ test('① 번들 밖(external) 지정은 바이너리를 다루는 패키지만 
 
 test('② external 로 남긴 패키지는 배포본 포함(outputFileTracingIncludes)이 함께 있어야 한다', () => {
   const cfg = read('next.config.js')
-  const m = cfg.match(/serverComponentsExternalPackages:\s*\[([^\]]*)\]/)
+  const m = cfg.match(/server(?:Components)?ExternalPackages:\s*\[([^\]]*)\]/)
   const listed = [...(m?.[1] ?? '').matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1])
   if (listed.length === 0) return // 아무것도 external 이 아니면 포함 선언도 필요 없다
 

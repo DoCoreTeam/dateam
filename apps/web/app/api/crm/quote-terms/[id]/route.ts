@@ -4,18 +4,18 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { updateQuoteTerm, deleteQuoteTerm } from '@/lib/crm/services/quote-term'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   return withCrmApi('ADMIN', async ({ session }) => {
     const body = await readJson(req)
-    return updateQuoteTerm(session.workspaceId, session.memberId, params.id, body)
+    return updateQuoteTerm(session.workspaceId, session.memberId, (await params).id, body)
   })
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   return withCrmApi('ADMIN', async ({ session }) => {
-    await deleteQuoteTerm(session.workspaceId, session.memberId, params.id)
+    await deleteQuoteTerm(session.workspaceId, session.memberId, (await params).id)
     return { ok: true }
   })
 }

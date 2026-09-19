@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.196',
+    date: '2026-09-20',
+    title: '로그인 화면 글꼴이 이제 제대로 나와요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '\uD83D\uDD24',
+        headline: '로그인 화면만 다른 글꼴로 보이던 것을 고쳤어요',
+        detail: '로그인하기 전에는 글꼴 파일이 로그인 화면으로 되돌려지고 있었어요. 그래서 로그인 화면만 기본 글꼴로 그려졌습니다. 이제 다른 화면과 같은 글꼴로 나옵니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '\u26A1',
+        headline: '바탕 기술을 최신으로 올렸어요',
+        detail: '알려진 보안 문제 25건이 함께 해결됐고, 그중 둘은 가장 높은 등급이었습니다. 화면과 기능은 그대로예요. 전체 화면을 돌며 확인했습니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.195',
     date: '2026-09-20',
     title: '비밀번호 하나로 들어오지 않게 할 수 있어요',

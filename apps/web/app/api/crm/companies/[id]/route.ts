@@ -7,17 +7,17 @@ import {
   getCompany, updateCompany, deleteCompany, type UpdateCompanyInput,
 } from '@/lib/crm/services/company'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  return withCrmApi('READONLY', async ({ db }) => getCompany(db, params.id))
+  return withCrmApi('READONLY', async ({ db }) => getCompany(db, (await params).id))
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
     const body = await readJson(req)
     const version = requireVersion(body)
-    return updateCompany(session.workspaceId, session.memberId, params.id,
+    return updateCompany(session.workspaceId, session.memberId, (await params).id,
       { ...body, version } as unknown as UpdateCompanyInput)
   })
 }
@@ -26,7 +26,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
     // 영구 삭제는 되돌릴 수 없으므로 **명시해야만** 한다. 기본은 휴지통이다.
     const mode = new URL(req.url).searchParams.get('mode') === 'purge' ? 'purge' : 'trash'
-    await deleteCompany(session.workspaceId, session.memberId, params.id, mode)
+    await deleteCompany(session.workspaceId, session.memberId, (await params).id, mode)
     return { ok: true, mode }
   })
 }

@@ -6,7 +6,7 @@ import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { decideSuggestion, type DecideInput } from '@/lib/crm/services/suggestion'
 import { CrmError } from '@/lib/crm/domain/errors'
 
-type Ctx = { params: { id: string } }
+type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
@@ -15,6 +15,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (decision !== 'accept' && decision !== 'reject') {
       throw new CrmError('VALIDATION_FAILED', '수락 또는 거절만 가능합니다.', { field: 'decision' })
     }
-    return decideSuggestion(session.workspaceId, session.memberId, params.id, body as unknown as DecideInput)
+    return decideSuggestion(session.workspaceId, session.memberId, (await params).id, body as unknown as DecideInput)
   })
 }

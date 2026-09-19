@@ -111,7 +111,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
   // 화면 게이트는 호스트 가드가 스캔하는 이 호출이 근거다(lib/auth/api-user-gate.test.ts).
   // 프로필은 요청당 1회 캐시(getRequestProfile)라 여기서 먼저 읽어도 왕복이 늘지 않는다.
   const profile = await getRequestProfile()
-  redirectApiUser(profile?.role)
+  await redirectApiUser(profile?.role)
 
   const access = await resolveCrmAccess()
 
