@@ -88,10 +88,36 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST \
 감사 기준에 보안 줄을 안 가지면 플랜을 통과시키지 않음
 `loop start` 는 그 항목에 착수할 때 물어야 할 것을 출력함
 
+## 서비스롤 키 회전
+
+이 키는 RLS 를 통째로 지나간다. 새면 위의 모든 잠금이 무의미해진다
+
+```bash
+node scripts/rotate-service-key.mjs          # 바꿔야 하는 곳을 지금 코드에서 세어 보여 줌
+node scripts/rotate-service-key.mjs --verify # 바꾼 뒤 새 키가 실제로 도는지 확인
+```
+
+바꾸는 곳 넷: Supabase 화면(발급) · Vercel 환경변수(세 환경) · GitHub Actions 비밀 · 내 `.env.local`
+새 키를 발급하면 **옛 키가 즉시 죽으므로** 나머지 셋을 먼저 준비하고 누름
+코드는 고칠 것이 없음, 전부 환경변수에서 읽음
+
+## 처리 기록
+
+| 항목 | 상태 |
+|---|---|
+| RLS·GRANT·뷰·정책·함수 (마이그 259) | 닫음, 다섯 줄 세기 전부 0 |
+| 익명 창구 속도 제한 (마이그 260) | 시간당 5회, 실측 6번째 429 |
+| 백업 표 6개 (마이그 261) | CSV 로 뽑아 행 수 대조 후 삭제 |
+| 응답 보안 헤더 여섯 | 적용 |
+| CSP | **강제**, 요청마다 nonce + strict-dynamic, https 에만 upgrade-insecure-requests |
+| 2단계 인증 | TOTP 등록·검증·관리자 해제, 미들웨어 AAL 게이트 |
+| Next.js | 14.2.29 → 15.5.25, React 19, 알려진 취약점 critical 2 포함 25건 해소 |
+| 이미지 최적화 창구 | 미들웨어에서 404 (안 쓰는 창구는 닫음) |
+| 서비스롤 키 회전 | 절차와 확인 스크립트 마련, **키 자체는 사람이 돌림** |
+
 ## 아직 안 된 것
 
-- CSP 가 Report-Only, 강제하려면 요청마다 nonce 가 필요하고 정적 최적화가 꺼짐
-- 서비스롤 키 회전 절차 없음, 지금 방어는 `import 'server-only'` 한 줄
-- 로그인 시도 횟수를 우리가 안 셈 (Supabase 기본값)
-- 백업 표 여섯 개가 남아 있음, 삭제는 되돌릴 수 없어 승인 대기
-- Next.js 14.2.29 에 미인증 원격 코드 실행 두 건, 이미지 최적화 경로가 문제
+- 로그인 시도 횟수를 우리가 안 셈 (Supabase 기본값에 맡김)
+- 익명에게 SELECT GRANT 가 스키마 전체에 남아 있음 (`/develop` 브랜딩 조회 때문, RLS 가 막고 있음)
+- 서버가 변수 주소로 나가는 fetch 16곳, 기준선으로 얼려 둠 (늘면 실패)
+- 남은 의존성 취약점 high 44 · moderate 15 (@xmldom/xmldom · brace-expansion 계열)
