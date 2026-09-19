@@ -235,6 +235,22 @@ export function fillFoundLine(lineCount: number, fileName: string): string {
 }
 
 /**
+ * 한 파일에서 **몇 건을** 읽었는지 — 건이 둘 이상인 자리(딜 화면의 가져오기)용.
+ *
+ * **왜 따로 있나**(실측 v0.10.179): 견적 두 건이 든 파일을 올렸더니 머리말이
+ * 「4개를 읽었어요」라고만 했다. 카드가 둘이니 세어 보면 알 수 있지만,
+ * **몇 건인지가 이 기능의 요점**인데 그 숫자를 화면이 말하지 않은 것이다.
+ * 사람은 「4개」를 보고 항목 넷짜리 견적 하나로 읽는다.
+ *
+ * 한 건이면 붙이지 않는다 — 「견적 1건」은 군말이고, 편집 모달은 어차피 한 건만 쓴다.
+ */
+export function fillFoundQuotesLine(quoteCount: number, lineCount: number, fileName: string): string {
+  if (quoteCount <= 1) return fillFoundLine(lineCount, fileName)
+  // 조수사는 개체표가 정한다 — 견적은 「건」, 품목은 「개」(둘 다 「건」이면 같은 것을 두 번 센 줄로 읽는다)
+  return `${fileName} 에서 ${count('quote', quoteCount)} · ${count('product', lineCount)}를 읽었어요`
+}
+
+/**
  * 한 파일에 견적이 둘 이상일 때 — **고르라고 한다.**
  *
  * 첫 건을 말없이 쓰면 사람은 나머지가 있었다는 사실 자체를 모른다.

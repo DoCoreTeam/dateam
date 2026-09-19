@@ -9,6 +9,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, createLabel, progress } from './action.ts'
 import { ENTITY, SURFACE_LABEL, count, countOnly, type EntityKey } from './entity.ts'
+import { fillFoundLine, fillFoundQuotesLine } from './quote.ts'
 import { emptyTitle, failedTo, confirmDelete, notEnough } from './sentence.ts'
 import { roundingUnitName, roundingUnitLabel, roundingNote } from './quote.ts'
 import { ROUNDING_UNITS } from '../crm/domain/quote-math.ts'
@@ -228,4 +229,24 @@ test('★ 함수 이름이 화면에 새는 말이 금지어로 등재돼 있다
     assert.ok(b.why.trim().length > 0, `${b.bad} 에 사유가 없다`)
     assert.ok(b.good.length > 0, `${b.bad} 의 대신 쓸 말이 없다`)
   }
+})
+
+test('★ 건이 둘이면 건수를 먼저 말한다 — 항목 수만 말하면 두 건이 한 건으로 읽힌다', () => {
+  /*
+    실측 v0.10.179: 견적 두 건이 든 파일을 올렸더니 머리말이 「4개를 읽었어요」라고만 했다.
+    카드는 둘인데 숫자는 넷이라, 항목 넷짜리 견적 하나로 읽힌다.
+  */
+  const two = fillFoundQuotesLine(2, 4, '견적서.md')
+  assert.match(two, /견적 2건/, '몇 건인지 안 말한다')
+  assert.match(two, /품목 4개/, '항목이 몇 개인지 안 말한다')
+  assert.ok(two.indexOf('견적 2건') < two.indexOf('품목 4개'), '건수가 뒤에 오면 항목 수를 먼저 읽는다')
+
+  // 조수사는 개체표가 정한다 — 화면도 이 함수도 「건」·「개」를 손으로 적지 않는다
+  assert.ok(two.includes(count('quote', 2)))
+  assert.ok(two.includes(count('product', 4)))
+})
+
+test('건이 하나면 군말을 안 붙인다 — 「견적 1건」은 아무것도 안 알려 준다', () => {
+  assert.equal(fillFoundQuotesLine(1, 3, 'a.md'), fillFoundLine(3, 'a.md'))
+  assert.equal(fillFoundQuotesLine(0, 0, 'a.md'), fillFoundLine(0, 'a.md'))
 })

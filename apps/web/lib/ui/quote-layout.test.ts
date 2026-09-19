@@ -291,3 +291,15 @@ test('★ 판매 견적 함께 만들기도 기본 꺼짐 — 켜면 견적번�
   assert.match(IMPORT, /alsoQuote: false/, '기본으로 견적이 함께 만들어진다')
   assert.match(IMPORT, /withQuoteLineIds/, '원가 줄과 판매 줄을 잇지 않는다')
 })
+
+test('★ 가져오기 창의 머리말이 건수를 말한다 — 화면이 조수사를 직접 고르지 않는다', () => {
+  assert.match(IMPORT, /fillFoundQuotesLine\(/, '건수를 말하는 문장을 안 쓴다')
+  assert.ok(!/fillFoundLine\(/.test(IMPORT),
+    '항목 수만 말하는 옛 문장으로 되돌아갔다 — 두 건짜리 파일이 한 건으로 읽힌다')
+  /*
+    편집 모달의 「파일로 채우기」는 **한 건만 쓰는 자리**라 그대로 둔다.
+    거기까지 건수를 붙이면 늘 「견적 1건」이 붙어 군말이 된다.
+  */
+  assert.ok(!/fillFoundQuotesLine\(/.test(FILL),
+    '한 건만 쓰는 자리에 건수 문장을 붙였다 — 늘 「견적 1건」이 붙어 군말이 된다')
+})

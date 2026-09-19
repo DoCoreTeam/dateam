@@ -30,7 +30,7 @@ import {
   ACTION, ENTITY, failedTo, progress, QUOTE,
   FILL_FILE_KINDS, FILL_UNCLEAR_TITLE, FILL_NOTHING_FOUND,
   FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_READ_FAILED, FILL_FILE_LABEL,
-  fillQuoteName, fillFoundLine,
+  fillQuoteName, fillFoundQuotesLine,
   IMPORT_TITLE, IMPORT_FILE_HINT, IMPORT_DEST, IMPORT_DEST_HINT,
   IMPORT_APPEND_TARGET, IMPORT_NO_APPEND_TARGET, IMPORT_OPEN, IMPORT_CLOSE,
   importSubmitLabel, importDoneLine, importFailedLine, importMixedLine,
@@ -491,8 +491,11 @@ export default function QuoteFromFileModal({
           </div>
         ) : (
           <>
-            <p className={styles.sayHint}>{fillFoundLine(
-              reviews.reduce((n, r) => n + r.lines.length, 0), docInfo.fileName,
+            {/* **몇 건인지가 먼저다.** 항목 수만 말하면 두 건짜리 파일이 한 건으로 읽힌다 */}
+            <p className={styles.sayHint}>{fillFoundQuotesLine(
+              reviews.length,
+              reviews.reduce((n, r) => n + r.lines.length, 0),
+              docInfo.fileName,
             )}</p>
             {docInfo.route === 'vision' && <p className={styles.sayUnclear}>{FILL_READ_AS_IMAGE}</p>}
             {docInfo.tableCount === 0 && docInfo.route === 'text' && (

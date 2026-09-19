@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서 파일 한 장에서 견적 여러 건
 플랜 ID: P0028
-플랜 버전: v0.3.8
+플랜 버전: v0.3.9
 상태: 진행중
 지시: ins_0029
 목표 버전: v0.10.170
@@ -161,9 +161,9 @@
 의존: I10
 
 ### I12 읽은 것을 건수로 말한다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: lib/terms/quote.ts, lib/terms/index.ts, components/ui/crm/QuoteFromFileModal.tsx, lib/terms/terms.test.ts
+범위: lib/terms/quote.ts, lib/terms/index.ts, components/ui/crm/QuoteFromFileModal.tsx, lib/terms/terms.test.ts, lib/ui/quote-layout.test.ts
 감사 기준:
 - 건이 둘 이상이면 머리말이 건수를 먼저 말함 (「견적 2건 · 항목 4개를 읽었어요」)
 - 건이 하나면 지금 문장 그대로 — 「견적 1건」은 군말이라 안 붙임
@@ -186,3 +186,5 @@
 - v0.3.6 (2026-09-19) I09 범위에 넷 더함 (audit:I09) — 판매가 고르는 칸이 새 문구를 쓰므로 `lib/terms/quote.ts`·`lib/terms/index.ts`, 결과 한 줄에 쓸 자리 하나 때문에 `quote-panel.module.css`, 그리고 등재하지 않으면 안 도는 테스트라 `apps/web/package.json`
 - v0.3.7 (2026-09-19) I10 이 만들려던 `lib/crm/ui/read-api.ts` 를 짓지 않고 이미 있는 `lib/crm/api/read-error.ts` 를 넓힌다 (audit:I10) — 그 파일이 이미 「API 실패를 사람 말로 바꾸는 한 곳」이고(readApiError·readApiErrorCode·describeFetchFailure, 화면 열한 곳이 쓴다), 옆에 같은 성격의 파일을 하나 더 두면 다음 화면이 어느 쪽을 부를지 갈린다(재사용·단일구현 정책). 부분 실패 건수 문구는 lib/terms/quote.ts 로
 - v0.3.8 (2026-09-19) I11 이 실화면에서 찾은 것 둘 (audit:I11) — ① 범위 정정: playwright 스펙은 `pnpm test` 가 못 돌리므로 `pnpm e2e` 를 등재하고 그 경로를 지키는 가드를 `lib/ui/test-registry.test.ts`(이미 등재된 파일)에 넣는다, 공유 dev 서버가 옛 판을 물고 있어 격리 서버로 확인해야 했으므로 `playwright.config.ts` 가 볼 서버를 고를 수 있게 한다 ② 항목 I12 추가: 건이 둘인데 머리말이 「4개를 읽었어요」라고만 해서 **몇 건인지 화면이 말하지 않는다**(실측 v0.10.179 스크린샷)
+- v0.3.9 (2026-09-20) I12 범위에 `lib/ui/quote-layout.test.ts` 추가 (audit:I12) — 말의 단위 검사는 terms 에서 하지만 «화면이 그 말을 쓰는가»는 창을 읽는 가드 자리에 둔다, 그 파일이 이미 이 창을 읽고 있어 두 벌이 되지 않는다
+- v0.3.9 (2026-09-19) I12 범위에 quote-layout 가드 추가 — 화면이 그 문장을 쓰는지는 창을 읽는 가드가 본다 (audit:I12)
