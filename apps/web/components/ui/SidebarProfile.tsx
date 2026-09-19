@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, SlidersHorizontal } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, SlidersHorizontal, ShieldCheck } from 'lucide-react'
 import { surfaceOf, adminEntryFor } from '@/lib/nav/surface'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import { clearPersistedSwrCache } from '@/lib/swr-persist'
@@ -174,6 +174,14 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
           >
             <KeyRound size={14} />
             비밀번호 변경
+          </Link>
+          <Link
+            href="/security"
+            onClick={() => setOpen(false)}
+            className={styles.row}
+          >
+            <ShieldCheck size={14} />
+            보안
           </Link>
           <Link
             href="/api-keys"

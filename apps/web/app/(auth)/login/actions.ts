@@ -39,5 +39,15 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
     return { error: msg, email }
   }
 
+  /**
+   * 2단계를 등록한 사람은 코드 화면으로 곧장 보낸다.
+   *
+   * 미들웨어도 같은 판정을 해서 내용은 어차피 안 새지만, 여기서 안 보내면
+   * **주소창은 /dashboard 인데 화면은 코드 입력창**이 된다(실측).
+   * 주소와 화면이 다른 말을 하면 사람은 자기가 어디 있는지 모른다.
+   */
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') redirect('/mfa')
+
   redirect('/dashboard')
 }

@@ -105,6 +105,36 @@ export async function resetUserPassword(
   return { ok: true }
 }
 
+/**
+ * 2단계 인증 해제 — 휴대폰을 잃어버린 사람을 위한 유일한 길.
+ *
+ * 없으면 장치를 잃은 순간 그 계정은 영영 못 들어온다. 비밀번호 초기화로도 안 풀린다 —
+ * 2단계는 비밀번호와 **다른 벽**이라 비밀번호를 바꿔도 코드를 계속 묻는다.
+ *
+ * 이 버튼은 관리자만 쓸 수 있고, 누른 사실이 감사 기록에 남는다.
+ * 떼고 나면 그 사람은 비밀번호만으로 들어와 다시 등록해야 한다.
+ */
+export async function resetUserMfa(
+  userId: string
+): Promise<{ ok: true; removed: number } | { ok: false; error: string }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const adminClient = createAdminClient()
+
+  const { data, error: listError } = await adminClient.auth.admin.mfa.listFactors({ userId })
+  if (listError) return { ok: false, error: listError.message }
+
+  const factors = data?.factors ?? []
+  for (const f of factors) {
+    const { error } = await adminClient.auth.admin.mfa.deleteFactor({ id: f.id, userId })
+    if (error) return { ok: false, error: error.message }
+  }
+
+  revalidatePath('/admin/users')
+  return { ok: true, removed: factors.length }
+}
+
 /** 온보딩 초기화 — 해당 구성원의 온보딩 상태(완료/스킵/진행)를 비워 다음 로그인 시 재노출. */
 export async function resetUserOnboarding(
   userId: string

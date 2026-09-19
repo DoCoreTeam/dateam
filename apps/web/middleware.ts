@@ -181,6 +181,26 @@ export async function middleware(request: NextRequest) {
     return withCsp(NextResponse.redirect(url))
   }
 
+  /**
+   * 2단계 인증을 등록한 사람은 코드까지 넣어야 안으로 들어온다.
+   *
+   * 판정은 **세션 토큰 안의 값 두 개**로 한다 — 장치 목록을 따로 묻지 않으므로 왕복이 0회다.
+   * 비밀번호만 통과하면 currentLevel 이 aal1 이고, 등록된 장치가 있으면 nextLevel 이 aal2 가 된다.
+   * 그 둘이 어긋나는 동안에는 어느 화면으로 가려 해도 /mfa 로 보낸다.
+   *
+   * 왜 미들웨어인가: 레이아웃에서 막으면 레이아웃이 없는 화면이 뚫린다.
+   * 로그인 게이트와 같은 자리에 두어야 「로그인했다」의 뜻이 한 곳에서 정해진다.
+   */
+  if (user && pathname !== '/mfa' && pathname !== '/change-password' && pathname !== '/security') {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/mfa'
+      url.search = ''
+      return withCsp(NextResponse.redirect(url))
+    }
+  }
+
   // api_user 차단은 여기서 하지 않는다 — 레이아웃이 한다(lib/auth/api-user-gate.ts).
   //
   // 왜 옮겼나: 판정에 필요한 profiles.role을 여기서 **따로** 조회하느라

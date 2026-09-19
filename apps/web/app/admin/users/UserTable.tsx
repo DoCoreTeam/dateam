@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import RoleToggle from './RoleToggle'
 import ResetPasswordButton from './ResetPasswordButton'
+import ResetMfaButton from './ResetMfaButton'
 import ResetOnboardingButton from './ResetOnboardingButton'
 import DeleteUserButton from './DeleteUserButton'
 import ResignButton from './ResignButton'
@@ -176,6 +177,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
           </button>
           <RoleToggle userId={p.id} currentRole={p.role} isSelf={p.id === currentUserId} />
           <ResetPasswordButton userId={p.id} userEmail={emailMap[p.id] ?? ''} userName={p.name ?? '-'} />
+          <ResetMfaButton userId={p.id} userName={p.name ?? '-'} />
           <ResetOnboardingButton userId={p.id} userName={p.name ?? '-'} />
           <ResignButton userId={p.id} userName={p.name ?? p.id} isSelf={p.id === currentUserId} isResigned={isResignedList} />
           <DeleteUserButton userId={p.id} userName={p.name ?? p.id} isSelf={p.id === currentUserId} />

@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.195',
+    date: '2026-09-20',
+    title: '비밀번호 하나로 들어오지 않게 할 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '\uD83D\uDCF1',
+        headline: '2단계 인증을 켤 수 있어요',
+        detail: '프로필 메뉴의 「보안」에서 켭니다. 휴대폰 인증 앱으로 QR을 한 번 찍으면, 그 다음부터는 로그인할 때 비밀번호와 함께 앱에 뜨는 여섯 자리를 넣게 돼요. 비밀번호가 새도 그것만으로는 들어올 수 없습니다. Google Authenticator, 1Password, Authy 같은 앱이면 무엇이든 됩니다.',
+      },
+      {
+        kind: 'feature',
+        emoji: '\uD83D\uDD13',
+        headline: '휴대폰을 잃어버려도 되돌릴 수 있어요',
+        detail: '관리자가 구성원 관리 화면에서 「2단계 해제」를 누르면 그 분은 비밀번호만으로 다시 들어와 새 휴대폰으로 등록할 수 있어요. 비밀번호 초기화로는 풀리지 않으니 이 버튼을 쓰셔야 합니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.194',
     date: '2026-09-20',
     title: '남의 스크립트가 우리 화면에서 못 돌게 했어요',
