@@ -10,7 +10,7 @@
 //   3) 잡 실행     — 예산 안에서 작게 여러 번 집는다
 
 import {
-  claimJobs, startRun, finishJob, releaseJob, recoverStalledJobs, countPendingJobs,
+  claimJobs, startRun, finishJob, releaseJob, recoverStalledJobs, countPendingJobs, touchJobLock,
 } from './queue.ts'
 import { runJob } from './handlers.ts'
 import { runDueSnapshots, SNAPSHOT_DUE_MAX_PER_TICK } from './snapshot.ts'
@@ -18,7 +18,7 @@ import { runDueChannelSweeps, SWEEP_DUE_MAX_PER_TICK } from './channel-sweep.ts'
 import { runDueSignalSweeps, SIGNAL_SWEEP_MAX_PER_TICK } from './signals-sweep.ts'
 import {
   STALE_LOCK_MS, RECOVER_MAX_PER_PASS, CLAIM_BATCH,
-  WEB_DRAIN_LIMIT, WEB_DRAIN_BUDGET_MS,
+  WEB_DRAIN_LIMIT, WEB_DRAIN_BUDGET_MS, heartbeatIntervalMs,
 } from './drain-policy.ts'
 
 export interface DrainOptions {
@@ -130,13 +130,31 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
     }
 
     const batch = Math.min(CLAIM_BATCH, limit - result.claimed)
-    const jobs = await claimJobs(batch, workerId(prefix), ws)
+    // 누가 집었는지 기억한다 — 잠금을 다시 찍을 때 «내 것인가»를 이 값으로 가른다
+    const worker = workerId(prefix)
+    const jobs = await claimJobs(batch, worker, ws)
     if (jobs.length === 0) break
 
     for (const job of jobs) {
       result.claimed += 1
       const jobStartedAt = Date.now()
       const runId = await startRun(job.id, job.attempt)
+
+      /*
+        도는 동안 잠금을 다시 찍는다.
+
+        좀비 판정은 **잡은 시각**만 보므로, 그 시간을 넘기는 일은 멀쩡히 돌고 있어도
+        회수돼 다른 워커가 처음부터 다시 한다. AI 를 부르는 단계는 한 번에 여러 건을
+        물어 쉽게 그 선을 넘었다 (실측 2026-09-20: project 단계 STALLED 302건,
+        전부 시도 3회를 태우고 폐기 — 그 세 번이 매번 AI 배치를 다시 돌렸다).
+
+        타이머가 프로세스를 붙잡지 않게 unref 한다. 서버리스에서 이 타이머 하나 때문에
+        함수가 안 끝나면 그게 더 큰 문제다.
+      */
+      const beat = setInterval(() => {
+        void touchJobLock(job.id, worker)
+      }, heartbeatIntervalMs())
+      ;(beat as unknown as { unref?: () => void }).unref?.()
 
       let outcome: { ok: boolean; errorCode?: string; errorMessage?: string; unsupported?: boolean }
       try {
@@ -147,6 +165,9 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
           errorCode: 'INTERNAL',
           errorMessage: e instanceof Error ? e.message : '알 수 없는 오류',
         }
+      } finally {
+        // 반드시 끈다. 안 끄면 끝난 잡의 잠금을 계속 찍어 회수가 영영 안 된다
+        clearInterval(beat)
       }
 
       // 모르는 단계면 시도 횟수를 태우지 않고 돌려둔다 — 아는 워커가 다음에 집는다

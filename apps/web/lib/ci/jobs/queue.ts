@@ -128,6 +128,40 @@ export async function claimJobs(
 }
 
 /**
+ * 아직 내가 돌고 있다고 잠금 시각을 다시 찍는다.
+ *
+ * ## 왜 조건부인가
+ *
+ * `locked_by` 가 나일 때만 찍는다. 이미 좀비로 회수돼 다른 워커가 집어 간 잡을
+ * 뒤늦게 찍으면 **남의 잠금 시각을 내가 밀어 주는 꼴**이 된다. 그러면 그 워커가
+ * 죽어도 아무도 회수하지 못한다. 내 것이 아니면 0행이 갱신되고 조용히 지나간다.
+ *
+ * ## 왜 실패를 삼키는가
+ *
+ * 잠금을 못 찍은 것은 일이 실패한 것이 아니다. 여기서 던지면 멀쩡히 끝날 일이
+ * 네트워크 한 번 덜컹한 것 때문에 죽는다. 최악이어도 예전과 같아질 뿐이다
+ * (좀비로 회수돼 다시 돈다).
+ *
+ * @returns 실제로 찍었으면 true. 호출부가 «내 것이 아니게 됐다»를 알 수 있게 한다
+ */
+export async function touchJobLock(jobId: string, workerId: string): Promise<boolean> {
+  try {
+    const adminClient = createAdminClient() as any
+    const nowIso = new Date().toISOString()
+    const { data } = await adminClient
+      .from('ci_jobs')
+      .update({ locked_at: nowIso, updated_at: nowIso })
+      .eq('id', jobId)
+      .eq('locked_by', workerId)
+      .eq('status', 'running')
+      .select('id')
+    return Boolean(data && data.length > 0)
+  } catch {
+    return false
+  }
+}
+
+/**
  * 잠금이 만료된 running 잡을 회수한다.
  *
  * 왜 필요한가: `claimJobs`는 queued·failed만 집는다. 실행 중 프로세스가 죽으면

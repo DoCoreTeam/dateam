@@ -18,6 +18,32 @@
  */
 export const STALE_LOCK_MS = 5 * 60 * 1000
 
+/**
+ * 도는 동안 잠금을 다시 찍는 간격.
+ *
+ * ## 왜 필요한가
+ *
+ * 좀비 판정(STALE_LOCK_MS)은 **잡은 시각**만 본다. 그래서 그 시간보다 오래 걸리는 일은
+ * 멀쩡히 돌고 있어도 죽은 것으로 회수돼 다른 워커가 같은 일을 처음부터 다시 한다.
+ * AI 를 부르는 단계는 한 번에 여러 건을 물으므로 쉽게 그 선을 넘는다.
+ *
+ * 실측 2026-09-20: ci_jobs 의 project 단계 STALLED 302건, 전부 시도 3회를 태우고 폐기됐다.
+ * 그 세 번이 매번 AI 배치를 처음부터 다시 돌렸다.
+ *
+ * ## 왜 나누는가
+ *
+ * 한 박자를 놓쳐도 회수되지 않으려면 창 안에서 여러 번 찍혀야 한다. 다섯으로 나누면
+ * 연속 네 번을 놓쳐야 회수되므로 일시적인 네트워크 실패가 일을 죽이지 않는다.
+ * 대신 너무 잦으면 DB 왕복만 는다 — 최소 간격을 둔다.
+ */
+export const HEARTBEAT_DIVISOR = 5
+/** 아무리 짧아도 이보다 자주 찍지 않는다 */
+export const HEARTBEAT_MIN_MS = 15_000
+
+export function heartbeatIntervalMs(staleMs: number = STALE_LOCK_MS): number {
+  return Math.max(HEARTBEAT_MIN_MS, Math.floor(staleMs / HEARTBEAT_DIVISOR))
+}
+
 /** 한 번의 드레인에서 회수할 좀비 상한. 회수만 하다 예산을 다 쓰지 않게. */
 export const RECOVER_MAX_PER_PASS = 50
 

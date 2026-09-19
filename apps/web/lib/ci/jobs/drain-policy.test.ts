@@ -8,6 +8,7 @@ import {
   STALE_LOCK_MS, CLAIM_BATCH, WEB_DRAIN_LIMIT, WEB_DRAIN_BUDGET_MS,
   DRIVER_MAX_ERRORS, DRIVER_IDLE_MS, DRIVER_BUSY_MS,
   isStaleLock, nextDriverDelayMs, shouldRunBackstop, DRIVER_TOO_SOON_MS,
+  heartbeatIntervalMs, HEARTBEAT_DIVISOR, HEARTBEAT_MIN_MS,
 } from './drain-policy.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -182,4 +183,36 @@ test('문턱 재시도 간격은 서버 문턱보다 커야 한다 — 곧바로
 test('연속 실패 중이면 문턱보다 백오프가 우선이다 — 아픈 서버를 더 때리지 않는다', () => {
   const d = nextDriverDelayMs({ remaining: 0, consecutiveErrors: 2, throttled: true })
   assert.ok(d !== null && d > DRIVER_TOO_SOON_MS)
+})
+
+/*
+  잠금 다시 찍기 (P0030 I03)
+
+  좀비 판정은 **잡은 시각**만 본다. 그래서 그 시간보다 오래 걸리는 일은 멀쩡히
+  돌고 있어도 죽은 것으로 회수돼 다른 워커가 처음부터 다시 한다.
+  실측 2026-09-20: ci_jobs project 단계 STALLED 302건, 전부 시도 3회를 태우고 폐기.
+*/
+test('찍는 간격이 좀비 창보다 충분히 짧다 — 한 박자 놓쳐도 안 죽는다', () => {
+  const beat = heartbeatIntervalMs()
+  assert.ok(beat < STALE_LOCK_MS, '창보다 길면 찍기 전에 회수된다')
+  assert.ok(
+    beat * HEARTBEAT_DIVISOR <= STALE_LOCK_MS,
+    `연속 ${HEARTBEAT_DIVISOR - 1}번을 놓쳐도 살아남아야 한다`,
+  )
+})
+
+test('아무리 짧은 창이어도 최소 간격보다 자주 찍지 않는다 — DB 왕복만 는다', () => {
+  assert.equal(heartbeatIntervalMs(1_000), HEARTBEAT_MIN_MS)
+  assert.equal(heartbeatIntervalMs(10), HEARTBEAT_MIN_MS)
+})
+
+test('창이 길어지면 간격도 따라 길어진다 — 상수를 두 곳에 적지 않는다', () => {
+  assert.equal(heartbeatIntervalMs(10 * 60_000), 10 * 60_000 / HEARTBEAT_DIVISOR)
+})
+
+test('좀비 판정 기준은 그대로다 — 찍기를 더했다고 회수를 늦추지 않는다', () => {
+  // 찍기가 없는 워커(옛 배포본)가 집은 잡은 예전과 똑같이 5분 뒤 회수돼야 한다.
+  assert.equal(STALE_LOCK_MS, 5 * 60 * 1000)
+  assert.equal(isStaleLock(new Date(Date.now() - 6 * 60_000).toISOString(), Date.now()), true)
+  assert.equal(isStaleLock(new Date(Date.now() - 60_000).toISOString(), Date.now()), false)
 })

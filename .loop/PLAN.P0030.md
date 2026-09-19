@@ -69,9 +69,9 @@
 의존: 없음
 
 ### I03 긴 작업이 자기 잠금을 갱신한다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ci/jobs/queue.ts, apps/web/lib/ci/jobs/drain.ts, apps/web/lib/ci/jobs/drain-policy.ts, apps/web/lib/ci/jobs/drain-policy.test.ts
+범위: apps/web/lib/ci/jobs/queue.ts, apps/web/lib/ci/jobs/drain.ts, apps/web/lib/ci/jobs/drain-policy.ts, apps/web/lib/ci/jobs/drain-policy.test.ts, apps/web/lib/ci/jobs/heartbeat.test.ts (신규), apps/web/package.json
 감사 기준:
 - 잠금 갱신 함수가 있고, 5분을 넘기는 단계가 도는 동안 locked_at 을 갱신함
 - 갱신이 실패해도 작업을 멈추지 않음 (기록만 남김)
