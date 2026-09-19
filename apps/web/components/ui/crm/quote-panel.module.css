@@ -630,6 +630,14 @@
   .destPair { grid-template-columns: 1fr 1fr; }
 }
 
+/* 판매가를 얹은 결과 한 줄 — 넣는 동안 보여야 만들기 전에 안다 */
+.priceSaid {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text);
+  line-height: 1.6;
+}
+
 /* 파일을 남길지 — 건마다가 아니라 **파일 하나에 한 번** 묻는다 */
 .keepFile {
   display: grid;

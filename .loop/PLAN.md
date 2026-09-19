@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서 파일 한 장에서 견적 여러 건
 플랜 ID: P0028
-플랜 버전: v0.3.5
+플랜 버전: v0.3.6
 상태: 진행중
 지시: ins_0029
 목표 버전: v0.10.170
@@ -127,9 +127,9 @@
 의존: I07
 
 ### I09 마진 얹기와 우리 기본값
-상태: 대기
+상태: 통과
 모드: 경량
-범위: components/ui/crm/QuoteFromFileModal.tsx, lib/crm/domain/quote-margin.ts (신규), lib/crm/domain/quote-margin.test.ts (신규)
+범위: components/ui/crm/QuoteFromFileModal.tsx, components/ui/crm/quote-panel.module.css, lib/crm/domain/quote-margin.ts (신규), lib/crm/domain/quote-margin.test.ts (신규), lib/terms/quote.ts, lib/terms/index.ts, apps/web/package.json
 감사 기준:
 - 마진율을 넣으면 판매가가 계산되고 무엇을 얼마로 올렸는지 화면이 말함
 - **마진 기본값 없음** — 비워 두면 원문 금액 그대로 (가드 1개)
@@ -171,3 +171,4 @@
 - v0.3.3 (2026-09-19) I07 에서 도착지 셋만 켬 — 원가 길은 admin 게이트와 갈래·시점 칸이 I08 범위라 둘을 같은 항목에 묶으면 한 번의 자가감사로 판정할 수 없음. 줄을 서버 모양으로 바꾸는 매핑을 quote-draft-shape 로 올리기 위해 그 파일과 QuoteEditorModal 을 범위에 더함(지금 편집 모달 안에만 있어 새 모달이 두 벌째를 만들게 됨) (audit:I07)
 - v0.3.4 (2026-09-19) I08 범위 정정 (audit:I08) — ① 순수 매핑을 `lib/crm/domain/quote-cost-intake.ts` 에 둔다: node --test 는 `@/` 별칭도 tsx 도 못 읽어 `components/` 안에서는 단위 검사를 못 한다 ② 화면 가드는 이미 이 창을 읽고 있는 `lib/ui/quote-layout.test.ts` 에 붙인다 (창을 읽는 가드가 두 벌이 되지 않게) ③ 새 문구는 `lib/terms` 에서 오므로 terms 세 파일이 함께 바뀐다 ④ 등재하지 않으면 테스트가 돌지 않으므로 apps/web/package.json 포함 ⑤ 「판매 견적도 만들면」을 **같은 건**으로 못박음 — 다른 건끼리는 줄을 이을 근거가 없어 quoteLineId 를 지어내게 된다
 - v0.3.5 (2026-09-19) I08 범위에 둘 더함 (audit:I08) — `lib/terms/entity.ts`: 원가 항목을 개체로 등재해 끝 문장이 조수사를 직접 고르지 않게 한다(용어집 규칙 3) · `lib/crm/domain/quote-reconcile.test.ts`: 고른 줄을 «자리»로 먼저 뽑도록 바꾸면서 옛 구현 문자열을 그대로 보던 가드가 낡았다, 규칙은 그대로 두고 보는 자리만 옮김
+- v0.3.6 (2026-09-19) I09 범위에 넷 더함 (audit:I09) — 판매가 고르는 칸이 새 문구를 쓰므로 `lib/terms/quote.ts`·`lib/terms/index.ts`, 결과 한 줄에 쓸 자리 하나 때문에 `quote-panel.module.css`, 그리고 등재하지 않으면 안 도는 테스트라 `apps/web/package.json`

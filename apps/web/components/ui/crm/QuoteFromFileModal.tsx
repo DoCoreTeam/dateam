@@ -36,7 +36,9 @@ import {
   importSubmitLabel, importDoneLine, IMPORT_NOTHING_PICKED,
   IMPORT_COST_HINT, IMPORT_COST_ALSO_QUOTE, IMPORT_COST_ALSO_QUOTE_HINT, IMPORT_COST_ADMIN_ONLY,
   IMPORT_KEEP_FILE, IMPORT_KEEP_FILE_HINT, IMPORT_KEEP_FILE_FAILED,
-  type ImportDestKey,
+  IMPORT_PRICE, IMPORT_PRICE_TITLE, IMPORT_PRICE_HINT, IMPORT_MARGIN_PLACEHOLDER,
+  IMPORT_TARGET_TOTAL, IMPORT_TARGET_INCLUDES_TAX,
+  type ImportDestKey, type ImportPriceKey,
 } from '@/lib/terms'
 import {
   COST, COST_CATEGORY_LABEL, COST_CATEGORY_ORDER, COST_CATEGORY_HINT,
@@ -48,6 +50,7 @@ import {
   INTAKE_DEFAULT_CATEGORY, INTAKE_DEFAULT_STAGE,
   type IntakeLine,
 } from '@/lib/crm/domain/quote-cost-intake'
+import { applyPrice, type PricePlan } from '@/lib/crm/domain/quote-margin'
 import {
   buildReviews, toggleChecked, pickedIndexes, pickedLines, QuoteReviewList,
   type DocQuoteJson, type FileReview,
@@ -91,6 +94,15 @@ interface Dest {
    * 지우면 그 번호는 비고 다시 쓰이지 않는다. 켠 경우에만 원가 줄과 판매 줄이 이어진다.
    */
   alsoQuote: boolean
+  /**
+   * 읽은 금액을 그대로 쓸지, 판매가를 얹을지. **기본은 그대로**다 —
+   * 기본 마진율을 두면 그 숫자가 검토 없이 나간다.
+   */
+  price: ImportPriceKey
+  /** 빈 문자열이면 «안 넣음». 0 은 「0% 마진」이라 뜻이 다르다 */
+  marginPercent: string
+  targetTotal: string
+  targetIncludesTax: boolean
 }
 
 /** 새 건의 도착지 초기값 — 되돌리기 싼 쪽이 기본값이다 */
@@ -100,7 +112,22 @@ const newDest = (): Dest => ({
   category: INTAKE_DEFAULT_CATEGORY,
   stage: INTAKE_DEFAULT_STAGE,
   alsoQuote: false,
+  price: 'keep',
+  marginPercent: '',
+  targetTotal: '',
+  targetIncludesTax: false,
 })
+
+/** 고른 방식을 계산이 아는 모양으로 — 계산은 `quote-margin` 이 한다 */
+const planOf = (d: Dest): PricePlan => (
+  d.price === 'margin' ? { kind: 'margin', percent: d.marginPercent }
+    : d.price === 'target' ? { kind: 'target', total: d.targetTotal, includesTax: d.targetIncludesTax }
+      : { kind: 'keep' }
+)
+
+/** 판매가 칸을 보일 자리 — 판매 견적이 나오는 건에만 */
+const showsPrice = (d: Dest | undefined): boolean =>
+  !!d && (d.key === 'new' || d.key === 'append' || (d.key === 'cost' && d.alsoQuote))
 
 interface Props {
   dealId: string
@@ -211,6 +238,10 @@ export default function QuoteFromFileModal({
   const toggle = (qi: number, li: number) =>
     setReviews((rs) => rs.map((r, j) => (j === qi ? toggleChecked(r, li) : r)))
 
+  /** 금액을 그 건의 통화로 — 「원」을 계산 안에서 적으면 달러 견적서가 원화로 읽힌다 */
+  const moneyOf = (r: FileReview) => (v: bigint) =>
+    formatAmount(v.toString(), r.currency) ?? v.toString()
+
   /** 실제로 무언가 될 건 — 도착지를 골랐고 체크된 줄이 하나라도 있는 것 */
   const going = reviews
     .map((r, i) => ({ r, d: dests[i] }))
@@ -316,7 +347,11 @@ export default function QuoteFromFileModal({
         순서대로 보내므로 앞이 실패하면 뒤는 안 간다 — 부분 실패를 건수로 말하는 일은 I10 에서 한다.
       */
       for (const { r, d } of going) {
-        const lines = pickedLines(r)
+        /*
+          **판매 줄에만 얹는다.** 원가로 들어가는 금액은 문서에 적힌 그 값이어야 한다 —
+          마진을 얹은 값을 원가로 넣으면 마진이 두 번 붙고, 그 딜은 영원히 남는 장사로 보인다.
+        */
+        const lines = applyPrice(pickedLines(r), planOf(d), moneyOf(r)).lines
         if (d.key === 'cost') {
           /*
             **판매 견적을 먼저 만든다.** 줄 id 가 있어야 원가를 그 줄에 이을 수 있다.
@@ -536,6 +571,76 @@ export default function QuoteFromFileModal({
                           <span>{IMPORT_COST_ALSO_QUOTE}</span>
                         </label>
                         <p className={styles.destHint}>{IMPORT_COST_ALSO_QUOTE_HINT}</p>
+                      </div>
+                    )}
+
+                    {/*
+                      **판매가는 판매 견적이 나오는 건에만 묻는다.** 원가로만 들어가는 건은
+                      문서에 적힌 값이 곧 답이라 올릴 것이 없다.
+                    */}
+                    {showsPrice(d) && (
+                      <div className={styles.destCost}>
+                        <div className={styles.destRow} role="radiogroup" aria-label={IMPORT_PRICE_TITLE}>
+                          {(Object.keys(IMPORT_PRICE) as ImportPriceKey[]).map((k) => (
+                            <label key={k} className={styles.destPick}>
+                              <input
+                                type="radio"
+                                name={`price-${i}`}
+                                checked={d.price === k}
+                                onChange={() => setDest(i, { price: k })}
+                              />
+                              <span>{IMPORT_PRICE[k]}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className={styles.destHint}>{IMPORT_PRICE_HINT[d.price]}</p>
+
+                        {d.price === 'margin' && (
+                          <div className={styles.destTarget}>
+                            <label className="label" htmlFor={`margin-${i}`}>{COST.marginPct}</label>
+                            <input
+                              id={`margin-${i}`}
+                              className="input-field"
+                              inputMode="decimal"
+                              value={d.marginPercent}
+                              placeholder={IMPORT_MARGIN_PLACEHOLDER}
+                              onChange={(e) => setDest(i, { marginPercent: e.target.value })}
+                            />
+                          </div>
+                        )}
+
+                        {d.price === 'target' && (
+                          <div className={styles.destPair}>
+                            <div className={styles.destTarget}>
+                              <label className="label" htmlFor={`target-${i}`}>{IMPORT_TARGET_TOTAL}</label>
+                              <input
+                                id={`target-${i}`}
+                                className="input-field"
+                                inputMode="numeric"
+                                value={d.targetTotal}
+                                placeholder={IMPORT_MARGIN_PLACEHOLDER}
+                                onChange={(e) => setDest(i, { targetTotal: e.target.value })}
+                              />
+                            </div>
+                            <label className={styles.destPick}>
+                              <input
+                                type="checkbox"
+                                checked={d.targetIncludesTax}
+                                onChange={(e) => setDest(i, { targetIncludesTax: e.target.checked })}
+                              />
+                              <span>{IMPORT_TARGET_INCLUDES_TAX}</span>
+                            </label>
+                          </div>
+                        )}
+
+                        {/*
+                          **무엇을 얼마로 올렸는지 그 자리에서 말한다.** 넣는 동안 금액이 보여야
+                          숫자를 잘못 넣은 것을 만들기 전에 안다 — 계산은 quote-margin 이 한다.
+                        */}
+                        {(() => {
+                          const said = applyPrice(pickedLines(r), planOf(d), moneyOf(r)).note
+                          return said ? <p className={styles.priceSaid}>{said}</p> : null
+                        })()}
                       </div>
                     )}
 

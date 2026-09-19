@@ -346,6 +346,41 @@ export const IMPORT_KEEP_FILE_HINT =
 export const IMPORT_KEEP_FILE_FAILED =
   '원가는 넣었지만 파일은 첨부하지 못했어요. 첨부 절에서 직접 올릴 수 있습니다.'
 
+/*
+  **판매가는 안 넣으면 안 바뀐다.**
+
+  받은 견적서는 대개 남이 우리에게 파는 값이라 그대로 내보낼 수 없다. 그렇다고 기본
+  마진율을 넣어 두면 그 숫자가 **검토 없이** 나간다 — 비워 두면 읽은 금액 그대로다.
+*/
+
+/** 이 건의 금액을 어떻게 할지 — 셋 중 하나다 */
+export const IMPORT_PRICE = {
+  keep: '읽은 금액 그대로',
+  margin: '마진율 얹기',
+  target: '목표 총액 맞추기',
+} as const
+
+export type ImportPriceKey = keyof typeof IMPORT_PRICE
+
+export const IMPORT_PRICE_TITLE = '판매가'
+
+export const IMPORT_PRICE_HINT: Record<ImportPriceKey, string> = {
+  keep: '문서에 적힌 금액을 그대로 씁니다. 아무것도 더하지 않아요.',
+  /*
+    **마진율의 뜻을 여기서 못 박는다.** 「20%」가 원가에 곱하는 값인지 판매가에서 남는
+    비율인지는 사람마다 다르게 읽는다 — 이 저장소의 마진율은 언제나 뒤쪽이다(원가 화면과 같은 뜻).
+  */
+  margin: '판매가에서 남는 비율이에요. 20 을 넣으면 100원짜리가 125원이 됩니다.',
+  target: '항목 사이 비율은 그대로 두고 총액만 목표에 맞춥니다.',
+}
+
+/** 마진율 칸 — 이름은 원가 화면과 같은 말(`COST.marginPct`)을 쓴다 */
+export const IMPORT_MARGIN_PLACEHOLDER = '비워 두면 그대로'
+
+/** 목표 총액 칸 */
+export const IMPORT_TARGET_TOTAL = '목표 총액'
+export const IMPORT_TARGET_INCLUDES_TAX = '부가세 포함'
+
 /** 도착지를 하나도 안 골랐을 때(전부 「안 씀」) */
 export const IMPORT_NOTHING_PICKED =
   '보낼 곳을 고른 건이 없어요. 건마다 도착지를 골라 주세요.'
