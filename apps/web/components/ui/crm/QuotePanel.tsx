@@ -391,7 +391,6 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
       {importing && (
         <QuoteFromFileModal
           dealId={dealId}
-          dealName={dealName}
           dealCurrency={dealCurrency}
           targets={items
             .filter((q) => q.status === 'DRAFT')

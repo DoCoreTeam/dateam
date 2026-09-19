@@ -133,7 +133,6 @@ const showsPrice = (d: Dest | undefined): boolean =>
 
 interface Props {
   dealId: string
-  dealName: string
   dealCurrency: string | null
   /** 이 딜의 초안 견적 — 「있는 견적에 붙이기」가 고를 대상 */
   targets: AppendTarget[]
@@ -152,7 +151,7 @@ interface DocInfo {
 }
 
 export default function QuoteFromFileModal({
-  dealId, dealName, dealCurrency, targets, onClose, onDone,
+  dealId, dealCurrency, targets, onClose, onDone,
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -266,7 +265,11 @@ export default function QuoteFromFileModal({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dealId,
-        title: (review.title ?? '').trim() || `${dealName} 견적`,
+        /*
+          **이름이 없으면 서버가 짓는다.** 여기서 「딜 이름 + 견적」을 또 적으면
+          기본 이름이 두 곳이 되고, 서버 쪽을 고치는 날 이 화면만 옛 이름을 만든다.
+        */
+        title: (review.title ?? '').trim(),
         /*
           **통화는 읽은 대로 간다.** 딜이 원화라고 달러 견적서를 원화로 눕히면
           숫자가 1,400배 틀린 견적이 조용히 생긴다. 딜과 통화가 다른 견적은
