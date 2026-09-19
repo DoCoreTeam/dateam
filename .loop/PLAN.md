@@ -71,7 +71,7 @@
 의존: I02
 
 ### I04 견적서 인입에서 확인
-상태: 대기
+상태: 보류 (AI 공급자가 전부 사용량 한도 — 실제 읽기(AI 왕복)가 필요한 두 기준(마크다운 견적서 1회 통과·금액 대조)을 못 밟았다. 파서·인입 변환은 실제 바이트로 단위 확인, 화면은 응답을 대신 넣어 실브라우저 확인(표 있음/없음 두 경우 모두). 한도가 풀리면 명령 하나로 마저 확인한다: E2E_BASE_URL=http://localhost:3100 QUOTE_FIXTURE=<md> pnpm exec playwright test apps/web/e2e/crm-quote-fill.spec.ts -g '두 건')
 모드: 경량
 범위: lib/crm/services/quote-source-text.test.ts, apps/web/e2e/crm-quote-fill.spec.ts
 감사 기준:
