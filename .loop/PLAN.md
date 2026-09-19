@@ -50,7 +50,7 @@
 의존: 없음
 
 ### I02 어디서 온 문서인지 라벨만 붙인다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: lib/crm/domain/quote-origin.ts (신규), lib/crm/domain/quote-origin.test.ts (신규), lib/crm/ai/schemas/quote-from-doc.ts
 감사 기준:
