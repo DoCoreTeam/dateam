@@ -23,42 +23,10 @@ import ErrorState from '@/components/ui/ErrorState'
 import { useEscClose } from '@/lib/use-esc-close'
 import { QUOTE_SOURCE, PREVIEW_CLOSE, progress } from '@/lib/terms'
 import { ATTACHMENT, ATTACHMENT_MAX_BYTES, ATTACHMENT_MIME_OK } from '@/lib/terms/attachment'
+import { pickOriginal, drawKindOf, type OriginalCandidate } from '@/lib/crm/ui/quote-original'
 import styles from './quote-original-compare.module.css'
 
-interface Attachment {
-  id: string
-  fileName: string
-  mimeType: string | null
-  kind: string
-  createdAt: string
-}
-
-/** 화면 안에 그릴 수 있는 형식인가 */
-export type DrawKind = 'pdf' | 'image' | 'other'
-
-export function drawKindOf(mimeType: string | null | undefined): DrawKind {
-  const m = (mimeType ?? '').toLowerCase()
-  if (m === 'application/pdf') return 'pdf'
-  if (m.startsWith('image/')) return 'image'
-  return 'other'
-}
-
-/**
- * 이 견적의 «원본»은 어느 첨부인가. **한 곳에서만 고른다.**
- *
- * 매입 견적서(`SUPPLY_QUOTE`)가 먼저다 — 파일로 가져오기가 원본을 붙일 때 쓰는 종류이고,
- * 이 화면의 올리기도 같은 종류로 붙인다. 그 종류가 하나도 없을 때만 나머지를 본다:
- * 사람이 첨부 절에서 종류를 다르게 골라 올린 원본을 「없다」고 하면, 파일은 붙어 있는데
- * 대조는 안 되는 상태가 된다.
- *
- * 같은 종류가 여럿이면 **가장 나중 것**이다. 다시 올렸다는 것은 앞의 것이 틀렸다는 뜻이다.
- */
-export function pickOriginal(items: Attachment[]): Attachment | null {
-  const newest = (list: Attachment[]) =>
-    [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
-  const supply = items.filter((i) => i.kind === 'SUPPLY_QUOTE')
-  return newest(supply) ?? newest(items)
-}
+type Attachment = OriginalCandidate
 
 interface Props {
   quoteId: string

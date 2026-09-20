@@ -87,7 +87,7 @@
 의존: I03
 
 ### I05 되돌아오지 않게 가드로 잠근다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ui/quote-source-surface.test.ts (신규), apps/web/package.json
 감사 기준:
