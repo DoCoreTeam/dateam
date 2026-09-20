@@ -41,7 +41,11 @@
     "**/*.ts",
     "**/*.tsx",
     ".next-check/types/**/*.ts",
+    ".next-e2e-p0041/types/**/*.ts",
     ".next-p0036/types/**/*.ts",
+    ".next-p0039/types/**/*.ts",
+    ".next-p0040/types/**/*.ts",
+    ".next-p0041/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts"
   ],

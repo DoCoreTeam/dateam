@@ -160,6 +160,22 @@ export const SETTING_DEFS: readonly SettingDef[] = [
     key: 'quote.supplier.logo', label: '로고', kind: 'image', group: 'quote',
     fallback: '', description: '견적서 왼쪽 위에 들어갑니다. PNG·JPG, 512KB 이하. 가로로 긴 이미지가 잘 맞습니다.',
   },
+  {
+    /*
+      **직인은 올려도 되고 안 올려도 된다.**
+
+      오래 「(직인생략)」 문구만 썼다 — 도장을 파일에 박으면 받은 사람이 오려내
+      다른 문서에 쓸 수 있기 때문이고, 그 표기 자체가 «원본에는 날인이 있다»는 뜻으로
+      실무에서 통용된다. 다만 그건 **회사가 고를 일**이지 코드가 정할 일이 아니었다 —
+      관공서·입찰 서류처럼 날인 없는 견적서를 안 받는 자리가 있다
+      (사용자 지시 2026-09-21: 「설정에 직인파일 올리게도 해야지 로고처럼 · 없으면 직인생략이고」).
+
+      비워 두면 `QUOTE.sealOmitted` 문구가 그 자리에 그대로 선다.
+    */
+    // 키는 **리터럴**이다 — wired.test.ts 가 `key: 'quote.supplier.…'` 를 정규식으로 센다
+    key: 'quote.supplier.seal', label: '직인', kind: 'image', group: 'quote',
+    fallback: '', description: '견적서 상호 옆에 찍힙니다. PNG·JPG, 512KB 이하. 배경이 투명한 정사각형 PNG 가 잘 맞습니다. 안 올리면 「(직인생략)」이라고 나갑니다.',
+  },
 
   // ── 견적서 파일 읽기 ────────────────────────────────────────
   //
