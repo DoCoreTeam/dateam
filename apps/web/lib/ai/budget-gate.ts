@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
-import { decideBudget, toBudgetLimit, type BudgetDecision } from './budget.ts'
+import { decideBudget, toBudgetLimit, budgetKeysFor, pickLimit, type BudgetDecision } from './budget.ts'
 import { kstDateKey, kstWallToIso } from '../datetime/kst.ts'
 
 // 던지는 쪽이 이 모듈(서비스롤·server-only)을 안 끌어오게 규칙 계층에 두고 여기서 다시 낸다
@@ -35,18 +35,26 @@ export function serverBudgetGate(): BudgetGate {
       try {
         const db = createAdminClient() as any
 
-        const { data: row, error: limitErr } = await db
+        /*
+          정확히 같은 이름만 찾으면 안 된다.
+
+          상한 표에 `crm` 한 줄이 있는데 원장에 남는 창구 이름은 `crm/quick_create` 였고,
+          그래서 그 상한이 **한 번도 안 걸렸다**. 켜 놨다고 생각한 동안 무제한이었다
+          (실측 2026-09-20: 창구 마흔하나 중 서른둘이 같은 상태).
+          이제 좁은 이름부터 넓은 이름까지 한 번에 읽고 가장 좁은 것을 쓴다.
+        */
+        const keys = budgetKeysFor(feature)
+        const { data: rows, error: limitErr } = await db
           .from('ai_call_budget')
           .select('feature, daily_limit, per_minute_limit, enabled')
-          .eq('feature', feature)
-          .maybeSingle()
+          .in('feature', keys)
 
         // supabase-js 는 오류를 던지지 않고 돌려준다. 안 읽으면 조용히 「상한 없음」이 된다
         if (limitErr) {
           console.error('[ai] 상한 읽기 실패', limitErr.message ?? limitErr)
           return decideBudget(null, emptyUsage(), now)
         }
-        const limit = toBudgetLimit(row)
+        const limit = pickLimit(feature, ((rows ?? []) as unknown[]).map(toBudgetLimit))
         // 줄이 없으면 상한을 모르는 것이다. 모르면 막지 않는다
         if (!limit) return decideBudget(null, emptyUsage(), now)
 

@@ -57,6 +57,57 @@ export type BudgetDecision =
       dailyLimit: number
     }
 
+/**
+ * 어떤 창구도 상한 없이 두지 않는 **받아 주는 줄**의 이름.
+ *
+ * 이 줄이 없으면 상한 표에 이름이 없는 창구는 그냥 통과한다. 실측 2026-09-20:
+ * 창구 마흔하나 중 서른둘이 그 상태였다 — 상한을 켜 놨다고 생각한 동안 대부분이 무제한이었다.
+ */
+export const BUDGET_FALLBACK_KEY = '*'
+
+/**
+ * 이 창구의 상한을 어느 이름에서 찾을까 — **좁은 것부터 넓은 것 순서**.
+ *
+ * 창구 이름은 `crm/quick_create` 처럼 빗금으로 갈래를 나눈다. 그런데 상한 표에는
+ * `crm` 한 줄만 있었고, 정확히 같은 이름만 찾던 탓에 그 상한이 **한 번도 안 걸렸다**.
+ * 새 창구가 생길 때마다 같은 일이 되풀이되므로 이름을 하나 고치는 대신 규칙을 고친다.
+ *
+ * 빗금으로만 올라간다. 붙임표(`ci-discover-cluster`)는 갈래 구분이 아니라 이름의 일부라
+ * 그것까지 잘라 올리면 `ci-verify` 가 `ci` 를 물려받는 것처럼 뜻이 어긋난다.
+ */
+export function budgetKeysFor(surface: string): string[] {
+  const s = (surface ?? '').trim()
+  if (!s) return [BUDGET_FALLBACK_KEY]
+
+  const keys: string[] = [s]
+  const parts = s.split('/')
+  for (let i = parts.length - 1; i > 0; i--) {
+    const prefix = parts.slice(0, i).join('/')
+    if (prefix && !keys.includes(prefix)) keys.push(prefix)
+  }
+  if (!keys.includes(BUDGET_FALLBACK_KEY)) keys.push(BUDGET_FALLBACK_KEY)
+  return keys
+}
+
+/**
+ * 읽어 온 줄들 중 이 창구에 쓸 것을 고른다.
+ *
+ * **가장 좁은 것이 이긴다.** `crm/quick_create` 에 제 줄이 생기면 그것이 `crm` 을 덮어야
+ * 하고, 그래야 넓은 줄을 지우지 않고도 한 창구만 따로 조일 수 있다.
+ */
+export function pickLimit(
+  surface: string,
+  rows: readonly (BudgetLimit | null)[],
+): BudgetLimit | null {
+  const byFeature = new Map<string, BudgetLimit>()
+  for (const r of rows) if (r) byFeature.set(r.feature, r)
+  for (const key of budgetKeysFor(surface)) {
+    const hit = byFeature.get(key)
+    if (hit) return hit
+  }
+  return null
+}
+
 /** 오늘이 끝나고 한도가 되살아나는 시각 (한국시간 자정) */
 export function nextDailyResetIso(now: Date = new Date()): string {
   return kstWallToIso(addKstDays(kstDateKey(now.toISOString()), 1), '00:00')

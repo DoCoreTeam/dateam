@@ -13,8 +13,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   decideBudget, toBudgetLimit, nextDailyResetIso,
-  type BudgetLimit, type BudgetUsage,
-} from './budget.ts'
+  type BudgetLimit, type BudgetUsage, budgetKeysFor, pickLimit } from './budget.ts'
 
 const limit: BudgetLimit = {
   feature: 'ci-discover', dailyLimit: 50, perMinuteLimit: 2, enabled: true,
@@ -112,4 +111,46 @@ test('★ 이상한 상한 줄은 null 이 된다 — 0 이나 음수로 기능�
 test('제대로 된 줄은 그대로 읽힌다', () => {
   const l = toBudgetLimit({ feature: ' ci-discover ', daily_limit: 50, per_minute_limit: 2, enabled: true })
   assert.deepEqual(l, { feature: 'ci-discover', dailyLimit: 50, perMinuteLimit: 2, enabled: true })
+})
+
+/*
+  상한 이름이 창구 이름과 어긋날 때 (P0030 I19)
+
+  상한 표에는 `crm` 한 줄이 있는데 원장에 남는 창구 이름은 `crm/quick_create` 였다.
+  정확히 같은 이름만 찾던 탓에 그 상한이 **한 번도 안 걸렸다** — 켜 놨다고 생각한 동안
+  그 창구는 무제한이었다. 실측 2026-09-20: 창구 마흔하나 중 서른둘이 같은 상태였다.
+*/
+test('★ 앞자리를 타고 올라가 상한을 찾는다', () => {
+  assert.deepEqual(budgetKeysFor('crm/quick_create'), ['crm/quick_create', 'crm', '*'])
+  assert.deepEqual(budgetKeysFor('daily/memo/label'), ['daily/memo/label', 'daily/memo', 'daily', '*'])
+})
+
+test('★ 빗금으로만 올라간다 — 붙임표까지 자르면 뜻이 어긋난다', () => {
+  // ci-verify 가 ci 를 물려받으면 다른 기능의 상한을 쓰게 된다
+  assert.deepEqual(budgetKeysFor('ci-discover-cluster'), ['ci-discover-cluster', '*'])
+  assert.deepEqual(budgetKeysFor('ai-chat'), ['ai-chat', '*'])
+})
+
+test('★ 어떤 창구도 받아 주는 줄에는 닿는다 — 무제한이 안 생긴다', () => {
+  for (const s of ['', '   ', 'rfp', 'a/b/c/d', 'weird_name']) {
+    assert.ok(budgetKeysFor(s).includes('*'), `${JSON.stringify(s)} 가 받아 주는 줄에 안 닿는다`)
+  }
+})
+
+test('★ 맞는 줄이 여럿이면 가장 좁은 것이 이긴다', () => {
+  const 넓음 = toBudgetLimit({ feature: 'crm', daily_limit: 200, per_minute_limit: 3, enabled: true })
+  const 좁음 = toBudgetLimit({ feature: 'crm/quick_create', daily_limit: 10, per_minute_limit: 1, enabled: true })
+  const 받아줌 = toBudgetLimit({ feature: '*', daily_limit: 50, per_minute_limit: 2, enabled: true })
+
+  assert.equal(pickLimit('crm/quick_create', [받아줌, 넓음, 좁음])?.dailyLimit, 10, '좁은 줄이 안 이겼다')
+  assert.equal(pickLimit('crm/quick_create', [받아줌, 넓음])?.dailyLimit, 200, '앞자리를 안 물려받았다')
+  assert.equal(pickLimit('crm/card-read', [받아줌, 넓음])?.feature, 'crm')
+  assert.equal(pickLimit('처음보는창구', [받아줌, 넓음])?.feature, '*', '받아 주는 줄이 안 걸렸다')
+})
+
+test('★ 받아 주는 줄조차 없으면 그때만 「모른다」다', () => {
+  const 넓음 = toBudgetLimit({ feature: 'crm', daily_limit: 200, per_minute_limit: 3, enabled: true })
+  assert.equal(pickLimit('rfp', [넓음]), null)
+  // 모르면 막지 않는다 — 그 규칙은 그대로다
+  assert.equal(decideBudget(null, { usedToday: 9999, usedLastMinute: 9999, oldestInWindowIso: null }).allowed, true)
 })

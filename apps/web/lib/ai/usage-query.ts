@@ -14,7 +14,7 @@
 // 집계를 왕복 안에 섞으면 확인하려고 Supabase 를 세워야 하고, 그렇게 세운 시험은 셈이 아니라
 // 연결을 본다. 여기는 **읽어 온 줄**을 받아 숫자만 만든다.
 
-import { decideBudget, type BudgetLimit } from './budget.ts'
+import { decideBudget, pickLimit, BUDGET_FALLBACK_KEY, type BudgetLimit } from './budget.ts'
 
 /** 원장 한 줄에서 집계에 필요한 것만 */
 export interface CallRow {
@@ -56,6 +56,17 @@ export function isDenied(row: Pick<CallRow, 'ok' | 'error'>): boolean {
  * **거절을 실패와 따로 센다.** 둘을 합치면 「벤더가 거절했다」와 「우리가 안 보냈다」가
  * 같은 숫자가 되고, 그러면 상한을 올려야 하는지 프롬프트를 고쳐야 하는지 못 가린다.
  */
+/**
+ * 이 창구에 실제로 걸리는 상한.
+ *
+ * 화면이 정확히 같은 이름만 찾으면, 물려받아 걸리는 상한을 「상한 없음」으로 그린다 —
+ * 그러면 관리자가 없는 줄을 또 만들고 좁은 줄이 넓은 줄을 덮어 버린다.
+ * 게이트와 **같은 규칙**을 쓰는 것이 요점이다.
+ */
+function limitFor(surface: string, limits: ReadonlyMap<string, BudgetLimit>): BudgetLimit | null {
+  return pickLimit(surface, [...limits.values()])
+}
+
 export function foldByFeature(
   rows: readonly CallRow[],
   limits: ReadonlyMap<string, BudgetLimit>,
@@ -69,7 +80,7 @@ export function foldByFeature(
     if (!u) {
       u = {
         feature: f, total: 0, ok: 0, failed: 0, denied: 0,
-        inputTokens: 0, outputTokens: 0, remaining: null, limit: limits.get(f) ?? null,
+        inputTokens: 0, outputTokens: 0, remaining: null, limit: limitFor(f, limits),
       }
       acc.set(f, u)
     }
@@ -81,8 +92,10 @@ export function foldByFeature(
     u.outputTokens += r.output_tokens ?? 0
   }
 
-  // 상한만 있고 오늘 한 건도 안 부른 기능도 보여 준다 — 0 도 답이다
+  // 상한만 있고 오늘 한 건도 안 부른 기능도 보여 준다 — 0 도 답이다.
+  // 받아 주는 줄(`*`)은 창구가 아니라 규칙이므로 줄로 세우지 않는다
   for (const [feature, limit] of limits) {
+    if (feature === BUDGET_FALLBACK_KEY) continue
     if (!acc.has(feature)) {
       acc.set(feature, {
         feature, total: 0, ok: 0, failed: 0, denied: 0,

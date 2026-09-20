@@ -254,3 +254,46 @@ test('★ 상한을 모르면 막지 않는다 — 관측 장치가 일을 멈�
   assert.equal(out.text, 'ok', '상한을 모른다고 사용자의 일을 멈췄다')
   assert.equal((calls[0] as { ok: boolean }).ok, true)
 })
+
+/*
+  어떤 창구도 무제한이 아니다 (P0030 I19)
+
+  상한 표에 `crm` 한 줄이 있는데 원장에 남는 창구 이름은 `crm/quick_create` 였다.
+  정확히 같은 이름만 찾던 탓에 그 상한이 한 번도 안 걸렸고, 재어 보니 그것만이 아니었다 —
+  **창구 마흔하나 중 서른둘이 상한이 아예 없었다.** 게이트는 모르면 통과가 설계라
+  그 서른둘은 무제한이었다. 켜 놨다고 생각한 것과 실제가 달랐다.
+*/
+test('★ 게이트와 화면이 같은 규칙으로 상한을 고른다', () => {
+  const gateSrc = strip(readFileSync(join(WEB, 'lib/ai/budget-gate.ts'), 'utf8'))
+  const usage = strip(readFileSync(join(WEB, 'lib/ai/usage-query.ts'), 'utf8'))
+  for (const [name, src] of [['budget-gate', gateSrc], ['usage-query', usage]] as const) {
+    assert.match(src, /pickLimit\(/, `${name} 이 공용 규칙을 안 쓴다 — 둘이 갈라지면 화면이 거짓말을 한다`)
+  }
+  assert.match(gateSrc, /\.in\('feature', keys\)/, '게이트가 좁은 이름 하나만 읽는다')
+  assert.ok(
+    !/\.eq\('feature', feature\)/.test(gateSrc),
+    '정확히 같은 이름만 찾는 옛 질의가 남아 있다',
+  )
+})
+
+test('★ 등재부의 창구가 전부 상한에 닿는다', async () => {
+  const { AI_LANES } = await import('../ai/actor.ts')
+  const { budgetKeysFor, BUDGET_FALLBACK_KEY } = await import('../ai/budget.ts')
+  const surfaces = new Set<string>()
+  for (const lane of AI_LANES) for (const s of lane.surfaces) surfaces.add(s)
+  surfaces.add('rfp')   // lib/rfp/ai/gateway.ts 의 RFP_BUDGET_FEATURE
+
+  assert.ok(surfaces.size >= 30, `창구를 ${surfaces.size}개만 찾았다. 등재부가 비었나`)
+  for (const s of surfaces) {
+    assert.ok(
+      budgetKeysFor(s).includes(BUDGET_FALLBACK_KEY),
+      `${s} 가 받아 주는 줄에 안 닿는다 — 이 창구는 무제한이 된다`,
+    )
+  }
+})
+
+test('★ 받아 주는 줄을 씨앗에 심어 둔다 — 규칙만 있고 줄이 없으면 여전히 무제한이다', () => {
+  const mig = readFileSync(join(WEB, '..', '..', 'supabase/migrations/268_ai_call_budget_coverage.sql'), 'utf8')
+  assert.match(mig, /'\*'/, '받아 주는 줄을 안 심는다')
+  assert.match(mig, /on conflict \(feature\) do nothing/i, '이미 사람이 고쳐 둔 값을 덮어쓴다')
+})

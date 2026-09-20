@@ -100,3 +100,28 @@ test('★ 화면이 원장을 읽고 옛 표를 안 읽는다', () => {
   )
   assert.match(page, /from\('ai_call_budget'\)/, '상한을 안 읽어서 남은 횟수를 못 보여 준다')
 })
+
+/*
+  물려받은 상한도 상한이다 (P0030 I19)
+
+  화면이 정확히 같은 이름만 찾으면, 실제로는 걸리는 상한을 「상한 없음」으로 그린다.
+  그러면 관리자가 없는 줄을 또 만들고 좁은 줄이 넓은 줄을 덮는다 — 게이트와 화면이
+  다른 규칙을 쓰면 화면이 거짓말을 한다.
+*/
+test('★ 앞자리에서 물려받은 상한을 「상한 없음」으로 안 그린다', () => {
+  const rows = [줄({ surface: 'crm/quick_create' }), 줄({ surface: 'crm/quick_create' })]
+  const [u] = foldByFeature(rows, new Map([['crm', 상한('crm', 200)]]))
+  assert.equal(u.limit?.feature, 'crm', '물려받은 상한을 못 찾았다')
+  assert.equal(u.remaining, 198)
+})
+
+test('★ 받아 주는 줄이 있으면 처음 보는 창구도 상한이 있다', () => {
+  const [u] = foldByFeature([줄({ surface: '처음보는창구' })], new Map([['*', 상한('*', 40)]]))
+  assert.equal(u.limit?.feature, '*')
+  assert.equal(u.remaining, 39)
+})
+
+test('★ 받아 주는 줄 자체는 창구로 안 센다 — 규칙이지 기능이 아니다', () => {
+  const rows = foldByFeature([], new Map([['*', 상한('*', 40)], ['crm', 상한('crm', 200)]]))
+  assert.deepEqual(rows.map((r) => r.feature), ['crm'], '받아 주는 줄이 목록에 기능처럼 섰다')
+})
