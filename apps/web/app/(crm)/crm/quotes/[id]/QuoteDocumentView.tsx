@@ -88,6 +88,20 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
    * 한쪽만 바뀌면 「올렸는데 첨부에는 없다」가 된다.
    */
   const [attachSeq, setAttachSeq] = useState(0)
+  /**
+   * 이 견적에 원본이 붙어 있나. null = 아직 모른다.
+   *
+   * **모를 때는 아무 말도 안 한다.** 첫 렌더에 「원본이 없다」고 띄우면 붙어 있는 견적에서도
+   * 그 줄이 한 번 번쩍이고, 사용자는 본 것을 믿는다.
+   */
+  const [hasOriginal, setHasOriginal] = useState<boolean | null>(null)
+  /**
+   * 반대 방향 번호. 첨부 절에서 올리거나 지우면 도구줄의 대조 단추도 다시 읽어야 한다.
+   *
+   * **번호를 둘로 나눈 이유**: 하나면 대조 쪽이 올릴 때 자기 번호를 올려 스스로 다시 붙고,
+   * 그 순간 방금 연 대조 화면이 닫힌다. 각자 «상대»의 번호를 본다.
+   */
+  const [panelSeq, setPanelSeq] = useState(0)
   const [imaging, setImaging] = useState(false)
   const [pdfing, setPdfing] = useState(false)
 
@@ -243,9 +257,11 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           원본이 없는 견적에서는 이 자리가 올리기로 바뀐다(부품이 스스로 고른다).
         */}
         <QuoteOriginalCompare
+          key={panelSeq}
           quoteId={quoteId}
           sheet={<QuoteSheet doc={doc} logo={data.images.logo} surface="paper" />}
           onChanged={() => setAttachSeq((n) => n + 1)}
+          onOriginal={setHasOriginal}
         />
         <NbButton variant="ghost" disabled={loadingDraft} onClick={() => void openEdit()}>
           <Pencil size={16} /> {loadingDraft ? progress(ACTION.edit) : ACTION.edit}
@@ -277,6 +293,16 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           {/* 아직 아무도 안 고친 견적 — 경고가 아니라 사실이다 */}
           {data.source.fromFileAt && (
             <span className={styles.sourceTag}>{QUOTE_SOURCE.untouched}</span>
+          )}
+          {/*
+            **파일 이름은 있는데 파일이 없다.** 원본을 남기는 기능보다 먼저 만들어진 견적이
+            실제로 있다. 그 사실을 말하지 않으면 사용자는 「대조 기능이 없다」로 읽는다 —
+            없는 것은 기능이 아니라 파일이고, 올리면 바로 대조가 된다.
+          */}
+          {hasOriginal === false && (
+            <span className={styles.sourceMissing}>
+              {QUOTE_SOURCE.missing} {QUOTE_SOURCE.missingHint}
+            </span>
           )}
         </div>
       )}
@@ -353,7 +379,13 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
       */}
       <div className={styles.attachments}>
         <RecordPanel title={ATTACHMENT.section}>
-          <AttachmentPanel key={attachSeq} target="QUOTE" targetId={quoteId} defaultKind="SUPPLY_QUOTE" />
+          <AttachmentPanel
+            key={attachSeq}
+            target="QUOTE"
+            targetId={quoteId}
+            defaultKind="SUPPLY_QUOTE"
+            onChanged={() => setPanelSeq((n) => n + 1)}
+          />
         </RecordPanel>
       </div>
 

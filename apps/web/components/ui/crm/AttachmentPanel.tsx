@@ -37,9 +37,16 @@ interface Props {
   targetId: string
   /** 기본 종류 — 인물 화면이면 명함, 딜이면 계약서처럼 자리마다 다르다 */
   defaultKind?: AttachmentKind
+  /**
+   * 목록이 실제로 바뀌었을 때(올림·지움) 알린다.
+   *
+   * **같은 파일을 보는 다른 자리가 있다.** 견적 화면은 이 목록에서 원본을 골라
+   * 「원본 대조」 단추를 그리는데, 여기서만 바뀌면 그 단추는 새로고침 전까지 옛말을 한다.
+   */
+  onChanged?: () => void
 }
 
-export default function AttachmentPanel({ target, targetId, defaultKind = 'OTHER' }: Props) {
+export default function AttachmentPanel({ target, targetId, defaultKind = 'OTHER', onChanged }: Props) {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,13 +91,14 @@ export default function AttachmentPanel({ target, targetId, defaultKind = 'OTHER
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? ATTACHMENT.failed); return }
       await load()
+      onChanged?.()
     } catch {
       setError(ATTACHMENT.failed)
     } finally {
       setUploading(false)
       if (fileRef.current) fileRef.current.value = ''
     }
-  }, [kind, load, target, targetId])
+  }, [kind, load, onChanged, target, targetId])
 
   const download = useCallback(async (id: string) => {
     try {
@@ -113,10 +121,11 @@ export default function AttachmentPanel({ target, targetId, defaultKind = 'OTHER
         return
       }
       await load()
+      onChanged?.()
     } catch {
       setError('지우지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }
-  }, [load])
+  }, [load, onChanged])
 
   if (loading && items.length === 0) return <AXDotLoader />
 

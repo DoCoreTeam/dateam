@@ -16,12 +16,13 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Columns2, X, Download } from 'lucide-react'
+import { Columns2, X, Download, Paperclip } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import { useEscClose } from '@/lib/use-esc-close'
 import { QUOTE_SOURCE, PREVIEW_CLOSE, progress } from '@/lib/terms'
+import { ATTACHMENT, ATTACHMENT_MAX_BYTES, ATTACHMENT_MIME_OK } from '@/lib/terms/attachment'
 import styles from './quote-original-compare.module.css'
 
 interface Attachment {
@@ -70,41 +71,107 @@ interface Props {
   sheet: ReactNode
   /** 목록이 바뀌었을 때(원본을 새로 올렸을 때) 바깥에 알린다 — 첨부 절도 같이 갱신돼야 한다 */
   onChanged?: () => void
-  /** 원본이 없을 때 그 자리에 세울 것. 없으면 아무것도 안 그린다 */
-  fallback?: (reload: () => void) => ReactNode
+  /**
+   * 원본이 붙어 있나를 바깥에 알린다.
+   *
+   * 화면은 이 값으로 「파일에서 왔는데 원본이 없다」는 줄을 그린다 — 목록을 두 번 읽지 않게
+   * 여기서 한 번 읽고 결과만 넘긴다. 아직 모르면 null 이다(첫 렌더에 「없다」고 말하지 않는다).
+   */
+  onOriginal?: (has: boolean) => void
 }
 
-export default function QuoteOriginalCompare({ quoteId, sheet, onChanged, fallback }: Props) {
+export default function QuoteOriginalCompare({ quoteId, sheet, onChanged, onOriginal }: Props) {
   const [items, setItems] = useState<Attachment[] | null>(null)
   const [open, setOpen] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/crm/attachments?target=QUOTE&targetId=${quoteId}`)
       const body = await res.json()
-      setItems(res.ok ? (body.items ?? []) : [])
+      return (res.ok ? (body.items ?? []) : []) as Attachment[]
     } catch {
       // 목록을 못 읽으면 «원본이 없다»와 같게 다룬다 — 단추가 떴는데 아무 일도 안 일어나는 것보다 낫다
-      setItems([])
+      return [] as Attachment[]
     }
   }, [quoteId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    let dead = false
+    void load().then((got) => {
+      if (dead) return
+      setItems(got)
+      onOriginal?.(pickOriginal(got) !== null)
+    })
+    return () => { dead = true }
+    // onOriginal 을 의존에 넣으면 부모가 인라인 함수를 줄 때마다 목록을 다시 읽는다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load])
 
-  const reload = useCallback(() => { void load(); onChanged?.() }, [load, onChanged])
+  /**
+   * 원본을 올린다. **창구도 제한도 첨부 절과 같은 것을 쓴다** —
+   * 여기만 따로 열면 한쪽에서 거절하는 파일을 다른 쪽에서 받는다.
+   *
+   * 올라가면 **바로 대조 화면을 연다.** 올리는 이유가 대조인데 한 번 더 누르게 하면
+   * 「올렸는데 아무 일도 안 일어난다」가 된다.
+   */
+  const upload = useCallback(async (file: File) => {
+    if (file.size > ATTACHMENT_MAX_BYTES) { setError(ATTACHMENT.tooBig); return }
+    if (!ATTACHMENT_MIME_OK.includes(file.type)) { setError(ATTACHMENT.badType); return }
+
+    setUploading(true)
+    setError(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('target', 'QUOTE')
+      form.append('targetId', quoteId)
+      // 종류가 대외비 등급을 정한다 — 여기서 등급을 따로 고르지 않는다
+      form.append('kind', 'SUPPLY_QUOTE')
+      const res = await fetch('/api/crm/attachments', { method: 'POST', body: form })
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? ATTACHMENT.failed); return }
+      const got = await load()
+      setItems(got)
+      onOriginal?.(pickOriginal(got) !== null)
+      onChanged?.()
+      if (pickOriginal(got)) setOpen(true)
+    } catch {
+      setError(ATTACHMENT.failed)
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }, [load, onChanged, onOriginal, quoteId])
 
   // 목록을 아직 못 읽었으면 자리를 비워 둔다 — 단추가 깜빡이며 바뀌는 것보다 낫다
   if (items === null) return null
 
   const original = pickOriginal(items)
-  if (!original) return <>{fallback?.(reload)}</>
 
   return (
     <>
-      <NbButton variant="ghost" onClick={() => setOpen(true)}>
-        <Columns2 size={16} /> {QUOTE_SOURCE.compare}
-      </NbButton>
-      {open && (
+      {error && <span className={styles.error}>{error}</span>}
+      {original ? (
+        <NbButton variant="ghost" onClick={() => setOpen(true)}>
+          <Columns2 size={16} /> {QUOTE_SOURCE.compare}
+        </NbButton>
+      ) : (
+        <NbButton variant="ghost" disabled={uploading} onClick={() => fileRef.current?.click()}>
+          <Paperclip size={16} /> {uploading ? progress(QUOTE_SOURCE.upload) : QUOTE_SOURCE.upload}
+        </NbButton>
+      )}
+      {/* 파일 입력은 숨긴다 — 브라우저 기본 모양이 우리 화면과 너무 다르다(§2-1 표준 클래스는 함께 단다) */}
+      <input
+        ref={fileRef}
+        type="file"
+        className={`input-field ${styles.hiddenFile}`}
+        accept={ATTACHMENT_MIME_OK.join(',')}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f) }}
+      />
+      {open && original && (
         <CompareOverlay original={original} sheet={sheet} onClose={() => setOpen(false)} />
       )}
     </>

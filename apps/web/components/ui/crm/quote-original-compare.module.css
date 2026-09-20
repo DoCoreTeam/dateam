@@ -161,3 +161,15 @@
     display: none !important;
   }
 }
+
+/* 파일 입력은 숨긴다. 표준 클래스는 함께 달아 둔다(§2-1) */
+.hiddenFile {
+  display: none;
+}
+
+/* 올리기가 막혔을 때 — 단추 옆에 그 자리에서 말한다 */
+.error {
+  align-self: center;
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}

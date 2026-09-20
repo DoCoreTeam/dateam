@@ -75,7 +75,7 @@
 의존: I02
 
 ### I04 원본이 없으면 그 자리에서 올린다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/QuoteOriginalCompare.tsx, apps/web/app/(crm)/crm/quotes/[id]/QuoteDocumentView.tsx, apps/web/lib/terms/quote.ts
 감사 기준:

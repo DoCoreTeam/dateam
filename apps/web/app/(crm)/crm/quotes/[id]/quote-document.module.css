@@ -283,6 +283,11 @@
   color: var(--text-muted);
 }
 
+/* 「이름은 있는데 파일이 없다」 — 알림이지 오류가 아니라 경고색을 쓰지 않는다 */
+.sourceMissing {
+  color: var(--text-muted);
+}
+
 .warn {
   border: var(--border-w) solid var(--warning-border);
   background: var(--warning-bg);
