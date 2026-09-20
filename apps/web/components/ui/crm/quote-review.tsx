@@ -30,6 +30,7 @@ import {
   fillQuoteName, fillPickTitle, countOnly,
 } from '@/lib/terms'
 import { joinSpec, type QuoteDraft, type QuoteLineDraft } from './quote-draft-shape'
+import { groupPickedLines, type QuoteGrouping } from '@/lib/crm/domain/quote-group'
 import styles from './quote-panel.module.css'
 
 /** 창구가 돌려주는 항목 한 줄 */
@@ -87,6 +88,13 @@ export interface FileReview {
    * 말하려면 **몇 줄인지**를 세어야 한다. 붙인 글에서 다시 가르면 규칙이 두 곳이 된다.
    */
   components: string[][]
+  /**
+   * 줄마다 원본이 그 줄을 묶어 부른 말 — 같은 인덱스.
+   *
+   * 견적에는 묶음과 소계가 이미 있다. 원본이 갈라 놓은 것을 평평하게 펴서 넣으면
+   * 사람이 그 묶음을 손으로 다시 만들어야 한다.
+   */
+  groups: (string | null)[]
   /** 이 건이 원본 몇 쪽이었나 — 카드에 배지로 붙는다 */
   pageStart: number | null
   pageEnd: number | null
@@ -135,6 +143,7 @@ export function buildReview(
   const lines = usable.map((l) => toFormLine(l, quote.taxPercent))
   const sources = usable.map((l) => l.sourceText ?? '')
   const components = usable.map((l) => (l.components ?? []).filter(Boolean))
+  const groups = usable.map((l) => (l.groupLabel ?? '').trim() || null)
 
   const inputs: LineCheckInput[] = lines.map((l, i) => ({
     name: l.name,
@@ -156,6 +165,7 @@ export function buildReview(
     lines,
     sources,
     components,
+    groups,
     pageStart: quote.pageStart ?? null,
     pageEnd: quote.pageEnd ?? null,
     checks,
@@ -204,6 +214,16 @@ export function pickedIndexes(review: FileReview): number[] {
 /** 체크된 줄만 */
 export function pickedLines(review: FileReview): QuoteLineDraft[] {
   return pickedIndexes(review).map((i) => review.lines[i])
+}
+
+/**
+ * 고른 줄을 **원본이 묶어 부른 대로** 묶는다.
+ *
+ * 셈법은 `domain/quote-group.ts` 에 있다 — 이 파일은 화면 별칭을 물고 있어
+ * `node --test` 가 못 읽고, 그러면 규칙을 실제로 돌려 볼 수 없다.
+ */
+export function pickedSections(review: FileReview): QuoteGrouping {
+  return groupPickedLines(pickedIndexes(review).map((i) => review.groups[i]))
 }
 
 /**

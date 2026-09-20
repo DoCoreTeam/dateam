@@ -330,3 +330,45 @@ test('★ 내려받기는 파일 전체다 — 오려 둔 그림을 내려받아
   const dl = src.slice(src.indexOf('const download = useCallback'))
   assert.match(dl.slice(0, 400), /\(whole \?\? original\)\.id/, '조각을 내려받게 되어 있다')
 })
+
+/* ── 읽은 묶음이 견적의 묶음이 되나 ─────────────── */
+
+/*
+  **왜 여기서 보나**: 읽기 모양에 묶음 이름을 받아 놓고 아무 화면도 안 쓰면
+  그것은 「선언만 되고 소비 코드 0」이다 — 이 저장소가 여러 번 겪은 그 모양이고,
+  이 플랜의 완료 정의가 그것을 금지한다.
+*/
+
+const REVIEW_SRC = join(WEB, 'components/ui/crm/quote-review.tsx')
+const FROM_FILE_MODAL = join(WEB, 'components/ui/crm/QuoteFromFileModal.tsx')
+
+test('★ 원본이 묶어 부른 말이 검수 모양에 실린다', () => {
+  const src = read(REVIEW_SRC)
+  assert.match(src, /const groups = usable\.map\(\(l\) => \(l\.groupLabel/,
+    '묶음 이름을 받아 놓고 안 담는다')
+})
+
+test('★ 그 말로 묶음이 만들어지고 항목이 제 묶음에 들어간다', async () => {
+  const { groupPickedLines } = await import('../domain/quote-group.ts')
+  const got = groupPickedLines(['하드웨어', '하드웨어', '용역', null])
+  assert.deepEqual(got.sections, [{ name: '하드웨어' }, { name: '용역' }])
+  assert.deepEqual(got.sectionIndexes, [0, 0, 1, null])
+
+  const src = read(FROM_FILE_MODAL)
+  assert.match(src, /const grouped = pickedSections\(review\)/, '묶음을 안 만든다')
+  assert.match(src, /sections: grouped\.sections/, '만든 묶음을 안 보낸다')
+  assert.match(src, /sectionIndex: grouped\.sectionIndexes\[i\]/, '항목이 제 묶음을 안 가리킨다')
+})
+
+test('★ 묶음 이름이 하나도 없으면 묶음을 안 만든다 — 빈 묶음은 소계를 헛돌게 한다', async () => {
+  const { groupPickedLines } = await import('../domain/quote-group.ts')
+  const got = groupPickedLines([null, null, '  '])
+  assert.deepEqual(got.sections, [])
+  assert.deepEqual(got.sectionIndexes, [null, null, null])
+})
+
+test('차례는 원본에 나온 순서다 — 이름순으로 뒤집으면 원본과 견적의 줄 순서가 갈린다', async () => {
+  const { groupPickedLines } = await import('../domain/quote-group.ts')
+  const got = groupPickedLines(['하드웨어', '가나다'])
+  assert.deepEqual(got.sections, [{ name: '하드웨어' }, { name: '가나다' }])
+})

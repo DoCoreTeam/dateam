@@ -54,7 +54,7 @@ import {
 import { applyPrice, type PricePlan } from '@/lib/crm/domain/quote-margin'
 import { readResponse, describeFetchFailure } from '@/lib/crm/api/read-error'
 import {
-  buildReviews, toggleChecked, pickedIndexes, pickedLines, QuoteReviewList,
+  buildReviews, toggleChecked, pickedIndexes, pickedLines, pickedSections, QuoteReviewList,
   type DocQuoteJson, type FileReview,
 } from './quote-review'
 import { quoteToDraft, toLinePayload, type QuoteLineDraft } from './quote-draft-shape'
@@ -305,6 +305,12 @@ export default function QuoteFromFileModal({
 
   /** 새 견적 하나를 만든다 */
   const createOne = async (review: FileReview, lines: QuoteLineDraft[]) => {
+    /*
+      **원본이 묶어 부른 대로 묶어 보낸다.** 견적에는 묶음과 소계가 이미 있는데
+      평평하게 펴서 넣으면 사람이 그 묶음을 손으로 다시 만들어야 한다.
+      묶음 이름이 하나도 없으면 빈 묶음을 만들지 않는다.
+    */
+    const grouped = pickedSections(review)
     const res = await fetch('/api/crm/quotes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -321,7 +327,12 @@ export default function QuoteFromFileModal({
           만들 수 있고(서버도 받는다), 그 사실은 견적 목록에 그대로 보인다.
         */
         currency: review.currency,
-        lines: lines.map(toLinePayload),
+        sections: grouped.sections,
+        // 줄과 묶음 자리는 **같은 차례**다 — 어긋나면 항목이 남의 묶음에 들어간다
+        lines: lines.map((l, i) => ({
+          ...toLinePayload(l),
+          sectionIndex: grouped.sectionIndexes[i] ?? null,
+        })),
         /*
           **어느 파일에서 왔는지 남긴다.** 파일 자체는 보관하지 않으므로(§5-3)
           이 이름이 출처에 대해 남는 전부다. 시각은 서버가 찍는다 —
