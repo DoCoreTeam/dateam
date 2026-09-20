@@ -277,6 +277,56 @@ export function fillQuoteName(index: number, said: string | null): string {
   판정하지 않고 **묻는다** (사용자 지시 2026-09-19: "사용자에게 자율성을 줘").
 */
 
+/*
+  기다리는 동안 화면이 무슨 말을 할지 — **파일 읽기는 수 분이 걸린다.**
+
+  창구 상한이 180초다(`app/api/crm/quotes/draft-file/route.ts`). 그 시간 동안 단추가
+  「읽는 중…」 한 마디만 하고 있으면 사람은 그것을 진행이 아니라 **고장**으로 읽는다.
+  회의노트가 v0.7.684 에 같은 지적을 받고 `lib/meeting/digest-progress.ts` 를 만들었고,
+  미팅 끝내기가 2026-09-09 에 또 받고 그 모듈에 위임했다. 견적 쪽만 그 모듈을 못 보고 있었다
+  (사용자 지적 2026-09-20: 「작업이 오래 걸리는 거는 사용자 눈에 정확하게 어떤 동작중인지
+  보이게 하는게 있을텐데?」).
+
+  문장은 여기 두고 계산은 `lib/crm/ui/quote-read-progress.ts` 가 한다 —
+  말은 말 SSOT 에, 시간 분기는 순수 함수에.
+*/
+
+/** 아직 무엇을 읽는지 말할 거리가 없을 때 — 첫 몇 초 */
+export const FILL_READ_START = '파일을 올리고 있어요'
+
+/** 파일 이름을 모를 때 */
+export const FILL_READ_UNNAMED = '올린 파일을 읽고 있어요'
+
+/** 오래 걸리는 중 — 침묵은 고장으로 읽힌다 */
+export const FILL_READ_LONG = '문서가 길어 나눠 읽고 있어요. 조금 더 걸립니다.'
+
+/** 상한(180초)에 가까워지는 구간 */
+export const FILL_READ_VERY_LONG = '거의 다 됐어요. 조금만 더 기다려 주세요.'
+
+/** 무엇을 읽는 중인지 — 이름과 크기는 **아는 것만** 말한다 */
+export function fillReadingLine(fileName: string, bytes: number): string {
+  const name = fileName.trim()
+  if (name === '') return FILL_READ_UNNAMED
+  const size = bytes > 0 ? `(${fileSizeLabel(bytes)})` : ''
+  return `${name}${size} 을 읽고 있어요`
+}
+
+/** 「2.1MB」 · 「318KB」 — 사람이 올린 파일을 알아볼 만큼만 */
+export function fileSizeLabel(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+  return `${Math.max(1, Math.round(bytes / 1024))}KB`
+}
+
+/**
+ * 가져오는 중 — **건마다 따로 보내므로 몇 번째인지 말할 수 있다.**
+ *
+ * 경과 시간만 세는 것보다 낫다. 「3건 중 2건째」는 남은 일이 얼마인지까지 말한다.
+ */
+export function importProgressLine(done: number, total: number): string {
+  if (total <= 1) return '견적을 만들고 있어요'
+  return `${countOnly('quote', total)} 중 ${done + 1}건째를 만들고 있어요`
+}
+
 /** 가져오기 창의 제목 */
 export const IMPORT_TITLE = '파일에서 견적 가져오기'
 

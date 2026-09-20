@@ -71,7 +71,7 @@
 의존: I02
 
 ### I04 견적 파일 읽기와 가져오기가 무엇을 하는 중인지 말한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ui/quote-read-progress.ts (신규), apps/web/lib/crm/ui/quote-read-progress.test.ts (신규), apps/web/lib/terms/quote.ts, apps/web/components/ui/crm/QuoteFromFileModal.tsx
 감사 기준:

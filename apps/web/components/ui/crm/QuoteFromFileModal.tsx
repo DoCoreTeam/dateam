@@ -59,6 +59,8 @@ import {
 } from './quote-review'
 import { quoteToDraft, toLinePayload, type QuoteLineDraft } from './quote-draft-shape'
 import styles from './quote-panel.module.css'
+import WaitProgress from '../WaitProgress'
+import { quoteWaitProgress } from '@/lib/crm/ui/quote-read-progress'
 
 /** 서버 허용 목록(`quote-from-file.ts` 의 ALLOWED_KINDS)과 같은 범위 */
 const ACCEPT = [
@@ -154,6 +156,20 @@ export default function QuoteFromFileModal({
   dealId, dealCurrency, targets, onClose, onDone,
 }: Props) {
   const [busy, setBusy] = useState(false)
+  /*
+    **기다리는 동안 무엇을 하는 중인지 말한다.** 읽기 창구 상한이 180초다
+    (`app/api/crm/quotes/draft-file/route.ts`). 그 시간 동안 단추가 「읽는 중…」 한 마디만
+    하고 있으면 사람은 진행이 아니라 고장으로 읽는다(사용자 지적 2026-09-20).
+    문구와 시간 분기는 `lib/crm/ui/quote-read-progress.ts` 가 정한다 — 여기서 식을 쓰면
+    45초·120초 자리를 검증할 수단이 없다.
+  */
+  const [waitPhase, setWaitPhase] = useState<'reading' | 'importing' | null>(null)
+  const [startedAt, setStartedAt] = useState<number | null>(null)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  /** 읽는 중인 파일 — 다 읽고 나서 정해지는 `picked` 로는 읽는 동안 이름을 말할 수 없다 */
+  const [readingFile, setReadingFile] = useState<{ name: string; size: number } | null>(null)
+  /** 가져오는 중 몇 건째인가 */
+  const [sent, setSent] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [docInfo, setDocInfo] = useState<DocInfo | null>(null)
@@ -176,6 +192,14 @@ export default function QuoteFromFileModal({
   const [keepFile, setKeepFile] = useState(false)
   /** 첨부로 남길 때만 쓰는 원본. 안 켜면 아무 데도 안 간다 */
   const [picked, setPicked] = useState<File | null>(null)
+  /* 1초마다 한 번. 시작 시각이 없으면 아무것도 안 돈다 */
+  useEffect(() => {
+    if (startedAt === null) return
+    setElapsedMs(Date.now() - startedAt)
+    const t = setInterval(() => setElapsedMs(Date.now() - startedAt), 1_000)
+    return () => clearInterval(t)
+  }, [startedAt])
+
   const fileRef = useRef<HTMLInputElement>(null)
   /** 보내는 중인가 — 그리기보다 먼저 잠기는 자물쇠(두 번 눌러도 한 벌만) */
   const sending = useRef(false)
@@ -200,6 +224,9 @@ export default function QuoteFromFileModal({
 
   const readFile = async (file: File) => {
     setBusy(true)
+    setWaitPhase('reading')
+    setReadingFile({ name: file.name, size: file.size })
+    setStartedAt(Date.now())
     setError(null)
     setNote(null)
     try {
@@ -240,6 +267,8 @@ export default function QuoteFromFileModal({
       setError(describeFetchFailure(FILL_FILE_LABEL))
     } finally {
       setBusy(false)
+      setWaitPhase(null)
+      setStartedAt(null)
     }
   }
 
@@ -361,6 +390,9 @@ export default function QuoteFromFileModal({
     if (sending.current) return
     sending.current = true
     setBusy(true)
+    setWaitPhase('importing')
+    setSent(0)
+    setStartedAt(Date.now())
     setError(null)
     let made = 0
     let appended = 0
@@ -420,6 +452,9 @@ export default function QuoteFromFileModal({
             reason: e instanceof Error ? e.message : IMPORT_FAILED_UNKNOWN,
           })
         }
+      
+        // 건마다 끝날 때 화면의 「3건 중 2건째」가 한 칸 나아간다
+        setSent((n) => n + 1)
       }
 
       /*
@@ -445,6 +480,8 @@ export default function QuoteFromFileModal({
     } finally {
       sending.current = false
       setBusy(false)
+      setWaitPhase(null)
+      setStartedAt(null)
     }
   }
 
@@ -464,6 +501,23 @@ export default function QuoteFromFileModal({
     >
       <div className={styles.importBody}>
         {error && <ErrorState message={error} />}
+
+        {/*
+          진행 표시는 «파일을 골랐나» 분기 **밖**에 둔다.
+          분기 안에 두면 파일을 고르기 전(읽는 중)에는 안 그려져 그 3분이 다시 침묵이 된다 —
+          회의노트가 v0.7.684 에 똑같이 겪은 자리다.
+        */}
+        {waitPhase && (() => {
+          const w = quoteWaitProgress({
+            phase: waitPhase,
+            elapsedMs,
+            fileName: readingFile?.name ?? '',
+            fileBytes: readingFile?.size ?? 0,
+            total: going.length,
+            done: sent,
+          })
+          return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+        })()}
 
         {!docInfo ? (
           <div className={styles.sayBox}>

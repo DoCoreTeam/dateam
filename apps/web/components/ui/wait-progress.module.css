@@ -1,0 +1,20 @@
+/* 기다리는 동안의 한 줄 — 모양만 맡는다. 문구는 순수 함수가 정한다 */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-w) solid var(--brand);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+.body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.msg { font-size: var(--fs-sm); color: var(--text); }
+.hint { font-size: var(--fs-xs); color: var(--text-muted); }
+/* 숫자가 1초마다 바뀌므로 폭이 고정돼야 옆 글자가 안 흔들린다 */
+.clock {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
