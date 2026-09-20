@@ -64,7 +64,7 @@
 의존: I02
 
 ### I04 견적서에 직인을 찍는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(crm)/crm/quotes/[id]/QuoteSheet.tsx, apps/web/app/(crm)/crm/quotes/[id]/QuoteDocumentView.tsx, apps/web/app/(crm)/crm/quotes/[id]/quote-document.module.css
 감사 기준:

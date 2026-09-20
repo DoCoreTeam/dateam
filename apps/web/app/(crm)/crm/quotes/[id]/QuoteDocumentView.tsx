@@ -50,7 +50,7 @@ import styles from './quote-document.module.css'
 
 interface DocumentResponse {
   document: QuoteDocument
-  images: { logo: string }
+  images: { logo: string; seal: string }
   violations: { code: string; message: string }[]
   missingSupplier: string[]
   /** 어느 파일에서 읽은 견적인가. 파일 출처가 아니면 null — 그때는 줄 자체를 안 그린다 */
@@ -274,7 +274,7 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           snapshotId={data.source?.snapshotId ?? null}
           pageStart={data.source?.pageStart ?? null}
           pageEnd={data.source?.pageEnd ?? null}
-          sheet={<QuoteSheet doc={doc} logo={data.images.logo} surface="paper" />}
+          sheet={<QuoteSheet doc={doc} logo={data.images.logo} seal={data.images.seal} surface="paper" />}
           onChanged={() => setAttachSeq((n) => n + 1)}
           onOriginal={setHasOriginal}
         />
@@ -348,7 +348,7 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
       )}
       </div>
 
-      <QuoteSheet doc={doc} logo={data.images.logo} />
+      <QuoteSheet doc={doc} logo={data.images.logo} seal={data.images.seal} />
 
       {/*
         ── 미리보기 ──────────────────────────────────────────
@@ -380,7 +380,7 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           }
         >
           {/* 오류는 종이 위가 아니라 도구 아래에 — 문서에 우리 사정이 찍히면 안 된다 */}
-          <QuoteSheet doc={doc} logo={data.images.logo} surface="paper" />
+          <QuoteSheet doc={doc} logo={data.images.logo} seal={data.images.seal} surface="paper" />
         </DocSurface>
       )}
 

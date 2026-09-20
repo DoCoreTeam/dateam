@@ -19,6 +19,11 @@ interface Props {
   /** 로고 data URI. 없으면 그 자리를 비운다 — 남의 로고를 대신 넣지 않는다 */
   logo: string
   /**
+   * 직인 data URI. **빈 문자열이 정상이다** — 올려도 되고 안 올려도 되는 값이라
+   * 비면 「(직인생략)」 문구가 그 자리에 선다(사용자 지시 2026-09-21).
+   */
+  seal: string
+  /**
    * 어디에 얹히나.
    *
    * `screen` 은 앱 화면 안이라 카드 면을 갖고, `paper` 는 이미 흰 종이 위라 갖지 않는다 —
@@ -27,7 +32,7 @@ interface Props {
   surface?: 'screen' | 'paper'
 }
 
-export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
+export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Props) {
   const money = (minor: string) => formatAmount(minor, doc.meta.currency) ?? '0'
   // 공급자는 «비어 있지 않은 것만» 줄을 만든다 — 「—」 가 늘어선 문서를 보내지 않는다
   const filled = SUPPLIER_ORDER.filter((f) => doc.supplier[f] !== '')
@@ -221,10 +226,19 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
               <p className={styles.partyName}>
             {doc.supplier.name}
             {/*
-              날인 자리 — 도장 이미지 대신 문구. **상호 바로 옆**이 도장이 찍히던 자리다.
-              전자로 보내는 문서에 도장을 박으면 받은 사람이 오려내 다른 문서에 쓸 수 있다.
+              날인 자리 — **상호 바로 옆**이 도장이 찍히던 자리다.
+
+              올린 직인이 있으면 찍고, 없으면 문구가 선다. **둘이 함께 뜨지 않는다** —
+              도장과 「(직인생략)」이 나란히 있으면 어느 쪽이 사실인지 문서가 스스로 흐린다.
+              오래 문구만 썼던 이유(도장을 오려내 다른 문서에 붙일 수 있다)는 여전히 유효하지만,
+              날인 없는 견적서를 안 받는 자리가 있어 **회사가 고르게** 바꿨다.
             */}
-            <span className={styles.sealOmitted}>{QUOTE.sealOmitted}</span>
+            {seal ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className={styles.seal} src={seal} alt={QUOTE.seal} />
+            ) : (
+              <span className={styles.sealOmitted}>{QUOTE.sealOmitted}</span>
+            )}
           </p>
               <dl className={styles.partyRows}>
                 {filled.filter((f) => f !== 'name').map((f) => (

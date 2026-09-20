@@ -156,6 +156,31 @@
   실제 문서에서 도장은 상호 옆에 찍힌다. 박스 오른쪽 아래에 띄워 두니
   무엇에 대한 표기인지 멀어졌다(사용자 지적: 「직인생략은 회사명 옆으로」).
 */
+/*
+  올린 직인 — **상호 바로 옆**, 문구가 서던 그 자리다.
+
+  높이만 묶고 폭은 비율대로 둔다(`width: auto`): 도장은 대개 정사각이지만 타원도 있고,
+  폭까지 고정하면 찌그러진 도장이 문서에 찍힌다. 글줄 높이보다 조금 커야 도장으로 읽히므로
+  `vertical-align: middle` 로 상호 가운데에 맞춘다.
+
+  인쇄에서 따로 손대지 않는다 — `<img>` 는 배경이 아니라 내용이라 그대로 찍힌다
+  (배경으로 깔았다면 print-color-adjust 가 필요했을 자리다).
+*/
+.seal {
+  /*
+    **`inline-block` 이어야 상호 «옆»에 선다.** 전역 CSS 가 `img` 를 `display: block` 으로
+    두고 있어서(실측: 계산값 block), 그대로 두면 도장이 상호 아래 줄로 내려간다 —
+    화면엔 그려지니 「안 찍힌다」가 아니라 「자리가 틀렸다」로 나타나 원인이 잘 안 보인다.
+  */
+  display: inline-block;
+  margin-left: var(--space-2);
+  height: 2.75rem;
+  width: auto;
+  max-width: 5rem;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
 .sealOmitted {
   margin-left: var(--space-2);
   font-size: var(--fs-xs);
