@@ -29,7 +29,7 @@ ${instruction}
 
 [현재 프롬프트]
 ${content}`
-    const revised = (await callGeminiOnce(apiKey, model, meta, false)).trim()
+    const revised = (await callGeminiOnce(apiKey, model, meta, false, { actorId: auth.user.id })).trim()
     if (!revised || revised.length < 30) return NextResponse.json({ error: 'AI 응답이 비었습니다' }, { status: 502 })
     return NextResponse.json({ revised })
   } catch (e) {

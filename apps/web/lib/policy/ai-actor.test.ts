@@ -92,7 +92,9 @@ function 주인이있나(src: string, args: string): boolean {
   if (/\bactorId\b/.test(args)) return true
   for (const m of args.matchAll(/\b([a-zA-Z_$][\w$]*)\b(?:\s+as\s+\w+)?\s*[,)]/g)) {
     const decl = new RegExp(`const ${m[1]}\\s*(?::[^=]*)?=\\s*\\{([\\s\\S]*?)\\n\\s*\\}`).exec(src)
-    if (decl && /surface:/.test(decl[1]) && /\bactorId\b/.test(decl[1])) return true
+    // 선언 안에 actorId 가 있으면 맞다. 맥락 객체일 수도(surface 를 든) 호출 인자 묶음일 수도
+    // 있는데(prompt·apiKey 를 든 common), 둘 다 그 값이 관문까지 간다
+    if (decl && /\bactorId\b/.test(decl[1])) return true
   }
   return false
 }

@@ -44,6 +44,8 @@ export interface ExtractCompetitorObservationsParams {
   deterministicItems?: ExtractPipelineItem[]
   /** 테스트 주입용. 미주입 시 extractAiObservations의 운영 기본 경로(extract-helpers.callGeminiOnce) 사용. */
   geminiCaller?: GeminiCaller
+  /** 이 추출을 누른 사람. 배경 잡이면 null */
+  actorId: string | null
 }
 
 export interface ExtractCompetitorObservationsResult {
@@ -97,7 +99,7 @@ export async function extractCompetitorObservations(
 ): Promise<ExtractCompetitorObservationsResult> {
   const {
     apiKey, model, sourceText, specContext, catalogNames,
-    provider, sourceUrl, krwPerUsd, fxMap, fxDate, deterministicItems, geminiCaller,
+    provider, sourceUrl, krwPerUsd, fxMap, fxDate, deterministicItems, geminiCaller, actorId,
   } = params
 
   // 카탈로그 정식명 해석기 — 우리가 조립한 이름("B200 SXM")을 카탈로그 실제 이름("B200 SXM6")으로 바꾼다.
@@ -123,7 +125,7 @@ export async function extractCompetitorObservations(
   let aiFailure: { reason: string; detail: string } | null = null
 
   try {
-    aiRes = await extractAiObservations({ apiKey, model, sourceText, specContext, catalogNames, geminiCaller })
+    aiRes = await extractAiObservations({ apiKey, model, sourceText, specContext, catalogNames, geminiCaller, actorId })
     aiRejected = aiRes.rejected
     // GPU 시간축이 아닌 성분(base_fee·storage)은 독립 항목으로 만들지 않고,
     //   같은 모델의 대표 관측에 components로 붙인다(무손실 보존 + 시세 왜곡 차단).

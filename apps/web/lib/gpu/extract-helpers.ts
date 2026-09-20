@@ -21,6 +21,13 @@ import { callGeminiJson, callGeminiText, type GeminiPart } from '../ai/gemini-ca
  * 인자는 전부 선택이다 — 기존 호출부는 한 글자도 안 고쳐도 그대로 동작한다(M-4 추가 전용).
  */
 export interface GpuGeminiOptions {
+  /**
+   * 이 호출을 누른 사람. 배경 잡이면 null 이고 그때도 **반드시 적는다**.
+   *
+   * 선택이 아니라 필수인 이유: 실측 2026-09-20 원장 50,243건이 전부 주인이 비어 있었다.
+   * 선택으로 두면 「이 호출부는 다음에」가 남고, 그 다음은 안 온다.
+   */
+  actorId: string | null
   /** Gemini 사슬이 전부 막혔을 때 쓸 두 번째 공급자 키. 이미지·PDF 가 있으면 자동으로 건너뛴다. */
   fallbackApiKey?: string
   /** 로그 라벨. */
@@ -164,13 +171,14 @@ export async function loadSchemaDigest(adminClient: ReturnType<typeof createAdmi
 
 // 비스트리밍 Gemini 호출(합성용) — 단일 텍스트 반환.
 export async function callGeminiOnce(
-  apiKey: string, model: string, text: string, jsonMode = false, opts: GpuGeminiOptions = {},
+  apiKey: string, model: string, text: string, jsonMode = false, opts: GpuGeminiOptions,
 ): Promise<string> {
   // JSON 추출은 행 수가 많으면 기본 출력한도(8k)에 걸려 **뒷부분이 조용히 잘린다**
   //   (실사고 v0.7.363: verda 22관측 추출 시 V100·RTX PRO 6000 CC 행이 누락 — 완전성 게이트가 검출).
   //   공용부 기본값(32,768)이 그 상한을 이미 열어 두고, 닿으면 'truncated'로 말한다.
   const common = {
     prompt: text, apiKey, model,
+    actorId: opts.actorId,
     feature: opts.feature ?? 'gpu-intake',
     fallbackApiKey: opts.fallbackApiKey,
     timeoutMs: opts.timeoutMs,
@@ -201,6 +209,8 @@ export function shortHash(s: string): string {
 export async function synthesizeExtractPrompt(
   adminClient: ReturnType<typeof createAdminClient>,
   apiKey: string, model: string, sampleInput: string, schemaDigest: string,
+  /** 이 자가합성을 촉발한 사람. 변칙 형식을 올린 그 사람이다 */
+  actorId: string | null,
 ): Promise<{ content: string; promptKey: string; activated: boolean } | null> {
   try {
     const meta = `당신은 데이터 추출 프롬프트를 설계하는 메타 AI입니다.
@@ -213,7 +223,7 @@ export async function synthesizeExtractPrompt(
 
 [입력 샘플]
 ${sampleInput.slice(0, 4000)}`
-    const content = (await callGeminiOnce(apiKey, model, meta, false)).trim()
+    const content = (await callGeminiOnce(apiKey, model, meta, false, { actorId })).trim()
     if (!content || content.length < 40) return null
     const promptKey = `gpu.auto-synth.${shortHash(sampleInput.slice(0, 200))}`
     const { autoActivatePrompt } = await import('./prompt-governance')
@@ -233,7 +243,7 @@ export async function callGeminiStream(
   apiKey: string, model: string,
   parts: GeminiPart[],
   onDelta: (text: string) => void,
-  opts: GpuGeminiOptions = {},
+  opts: GpuGeminiOptions,
 ): Promise<string> {
   // 폴백 공급자에게 넘길 텍스트 — parts 의 text 조각만 이어 붙인다.
   //   이미지·PDF 가 섞여 있으면 공용부가 알아서 폴백을 건너뛴다(그림을 못 보는 공급자라서).
@@ -242,6 +252,7 @@ export async function callGeminiStream(
     prompt: promptText,
     apiKey, model, parts, onDelta,
     temperature: 0,
+    actorId: opts.actorId,
     feature: opts.feature ?? 'gpu-intake',
     fallbackApiKey: opts.fallbackApiKey,
     timeoutMs: opts.timeoutMs,

@@ -88,7 +88,7 @@ export const AI_LANES: readonly AiLane[] = [
     why: '메모와 지식 색인의 임베딩, 부르는 쪽이 userId 를 넘긴다. '
       + '가드 정규식이 제네릭 호출(guardedVector<number[]>)을 못 봐서 오래 등재부 밖에 있었다' },
 
-  // ── 사람이 누르는데 아직 주인을 안 이어 붙인 자리 (I08c, I08d 에서 없앤다) ──────
+  // ── 여기 있던 「아직 안 이어 붙인 자리」 열 곳은 I08b~I08h 에서 전부 없앴다 ──────
   { file: 'app/api/admin/system-log/remedy/route.ts', kind: 'human', surfaces: ['system-log-remedy'],
     why: '관리자가 해결책을 누른다, 창구가 user.id 를 그대로 넘긴다' },
   { file: 'app/api/meeting-notes/[id]/transcript/speakers/route.ts', kind: 'human', surfaces: ['meeting-speaker-split'],
@@ -108,7 +108,7 @@ export const AI_LANES: readonly AiLane[] = [
   { file: 'lib/meeting/transcribe-parts.ts', kind: 'human', surfaces: ['meeting/transcribe'],
     why: '회의 녹음 조각 받아쓰기, 맡은 조각의 노트 주인을 한 번에 읽어 넘긴다' },
   { file: 'lib/gpu/extract-helpers.ts', kind: 'human', surfaces: [],
-    why: 'GPU 통합입력 도우미, 부르는 창구에 사람이 있는데 도우미까지 안 내려온다', unwired: true },
+    why: 'GPU 통합입력 도우미, GpuGeminiOptions 의 actorId 가 필수라 부르는 창구가 못 빠뜨린다' },
 
   // ── 사람이 없는 자리. 이름이 주인을 대신한다 ────────────────────────────────
   { file: 'lib/ci/ai/creative-server.ts', kind: 'background', surfaces: ['ci-verify'],
@@ -140,8 +140,9 @@ export function unwiredLanes(): readonly AiLane[] {
 /**
  * 아직 안 이어 붙인 자리의 기준선.
  *
- * 실측 2026-09-20 기준 열 곳이었다. I08b 가 넷, I08c 가 하나, I08e 가 채팅 하나,
- * I08d 가 회의 녹음 둘, I08g 가 CRM 하나를 없애 하나가 남았고, I08h(GPU)가 마지막이다. 이 숫자를 올리는 변경은 가드가 막는다 —
+ * 실측 2026-09-20 기준 열 곳이었다. I08b 넷, I08c 하나, I08e 채팅 하나, I08d 회의 녹음 둘,
+ * I08g CRM 하나, I08h GPU 하나 — 전부 없앴다. **이 값은 0 이고, 0 에서 오르면 가드가 막는다.**
+ * 새로 여는 자리가 「나중에」로 남는 길을 안 남긴다. 이 숫자를 올리는 변경은 가드가 막는다 —
  * 새 자리를 「나중에」로 여는 길을 안 남긴다. 줄이면 이 값도 함께 내린다.
  */
-export const UNWIRED_BASELINE = 1
+export const UNWIRED_BASELINE = 0

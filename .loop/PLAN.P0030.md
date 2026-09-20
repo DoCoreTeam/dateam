@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.19
+플랜 버전: v0.1.20
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -216,9 +216,10 @@
 범위 메모: 파일이 스물둘로 권장치를 넘지만 필수 칸이라 형 검사가 한 곳도 못 빠뜨리게 잡아 준다(I08e 와 같은 판단). 착수 전 예상 열셋보다 아홉 늘었는데, 서비스 다섯이 workspaceId 만 받고 구성원을 아예 안 받고 있어 그 라우트까지 이어야 했다. 가드도 함께 고쳤다 — 맥락을 변수로 넘기는 길(runner 의 ctx)을 못 따라가서 결선하고도 실패했다
 
 ### I08h GPU 통합입력 도우미에 주인을 잇는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/gpu/extract-helpers.ts, apps/web/lib/gpu/ai-observation.ts, apps/web/lib/work/autolink-run.ts, apps/web/app/api/admin/ai-prompts/ai-edit/route.ts, apps/web/app/api/pricing/gpu/review/stream/route.ts, apps/web/app/api/pricing/gpu/market/refresh/route.ts, apps/web/app/api/pricing/gpu/market/catalog/route.ts, apps/web/lib/ai/actor.ts
+범위: apps/web/lib/gpu/extract-helpers.ts, apps/web/lib/gpu/ai-observation.ts, apps/web/lib/gpu/extract-pipeline.ts, apps/web/lib/work/autolink-run.ts, apps/web/app/api/admin/ai-prompts/ai-edit/route.ts, apps/web/app/api/pricing/gpu/{review/stream,market/refresh,market/catalog}/route.ts, apps/web/lib/ai/actor.ts, apps/web/lib/policy/ai-actor.test.ts
+범위 메모: extract-pipeline.ts 가 사이에 있어 함께 들어갔다(주입 가능한 GeminiCaller 가 그 층을 지난다). 가드도 한 번 더 고쳤다 — 인자 묶음을 변수로 만들어 펼치는 길(const common = {...})을 못 따라갔다
 감사 기준:
 - callGeminiOnce 가 actorId 를 받아 관문까지 넘김, 안 주면 형 검사가 실패함
 - 라우트 넷이 자기가 쥔 사용자 id 를 넘김, 배경 잡은 null 과 사유
@@ -355,3 +356,4 @@
 - v0.1.17 (2026-09-20) I08d 를 갈래 셋으로 나눔(회의 녹음 / CRM 실행기 / GPU 도우미). 착수 전에 세 사슬을 끝까지 재고 각 범위를 한 번에 정했다 — 이어 붙일 자리가 회의 녹음 5, CRM 13, GPU 8 파일이고 서로 다른 계층이라 한 항목으로는 한 번에 감사할 수 없다 (audit:I08d)
 - v0.1.18 (2026-09-20) I08d 범위에서 라우트 둘을 빼고 가드 파일을 넣음. 주인을 부르는 쪽에서 받는 대신 노트 행에서 읽게 하니 크론 라우트(사람이 없다)까지 같은 값을 쓰게 되어 라우트를 고칠 일이 없어졌다. 대신 가드가 부족한 것을 발견해 더했다 — 소스 대조는 actorId 가 적혀 있나만 보므로 actorId: null 로 바꿔도 안 울었다 (audit:I08d)
 - v0.1.19 (2026-09-20) I08g 범위가 열셋에서 스물둘로 늘었다. 서비스 다섯(quote-draft·quote-from-file·stage-review·data-check·next-best-action)이 workspaceId 만 받고 구성원을 아예 안 받고 있어 그 라우트까지 이어야 했다. 가드도 함께 고쳤다 — 맥락을 변수로 만들어 넘기는 길(runner 의 ctx)을 못 따라가서 실제로 결선했는데도 실패했다 (audit:I08g)
+- v0.1.20 (2026-09-20) I08h 범위에 extract-pipeline.ts 를 더함(주입 가능한 GeminiCaller 가 그 층을 지나므로 주인도 그 층을 지나야 한다). 가드도 한 번 더 고쳤다 — 인자 묶음을 변수로 만들어 펼치는 길(const common = {...})을 못 따라가 결선하고도 실패했고, 고치자마자 흘려보내는 길 하나가 주인을 안 넘기고 있던 것이 잡혔다 (audit:I08h)

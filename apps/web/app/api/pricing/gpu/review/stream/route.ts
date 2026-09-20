@@ -70,7 +70,7 @@ async function runTranscription(
   imageParts: Array<{ inlineData: { data: string; mimeType: string } }>,
   contentText: string,
   onDelta: (delta: string) => void,
-  opts: GpuGeminiOptions = {},
+  opts: GpuGeminiOptions,
   onFail?: (reason: string) => void,
 ): Promise<TranscriptionResult> {
   const hasImages = imageParts.length > 0
@@ -171,6 +171,8 @@ export async function POST(req: NextRequest) {
        * 4회 전부 시간 초과했다(실측 v0.7.683).
        */
       const gopts = (stage: AiStage = 'main'): GpuGeminiOptions => ({
+        // requireMemberApi 가 확인한 그 사람이 통합입력을 올렸다
+        actorId: auth.user.id,
         fallbackApiKey: config.fallbackApiKey,
         feature: 'gpu-intake',
         timeoutMs: 40_000,
@@ -362,6 +364,7 @@ export async function POST(req: NextRequest) {
               apiKey: config.apiKey, model: config.model, sourceText: contentText, specContext,
               catalogNames: catalogModelNames, provider, sourceUrl, krwPerUsd, fxMap, fxDate,
               deterministicItems: compItems,
+              actorId: auth.user.id,
               geminiCaller,   // 같은 안전망(재시도·모델 폴백·시간 제한)을 관측 추출에도 태운다
             })
             compItems = pipeline.items
@@ -545,7 +548,9 @@ export async function POST(req: NextRequest) {
         // R2: 미준비 입력 → 프롬프트 자가합성 후 1회 재시도 (URL 없을 때만 — URL빈손은 안내가 맞음)
         if (items.length === 0 && urls.length === 0 && contentText.trim().length > 10) {
           send('progress', { step: 'synthesize', msg: '준비된 규칙으로 못 뽑았습니다. 이 형식에 맞는 추출 프롬프트를 새로 만드는 중…' })
-          const synth = await synthesizeExtractPrompt(adminClient, config.apiKey, config.model, contentText, schemaDigest)
+          const synth = await synthesizeExtractPrompt(
+            adminClient, config.apiKey, config.model, contentText, schemaDigest, auth.user.id,
+          )
           if (synth) {
             send('progress', { step: 'synthesized', msg: `맞춤 추출 규칙 생성(${synth.promptKey}${synth.activated ? ', 자동 반영' : ', eval 보류'}): 재추출 중…` })
             const retryText = await callGeminiStream(

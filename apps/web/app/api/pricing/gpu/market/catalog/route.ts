@@ -49,6 +49,8 @@ async function runUsaiCatalog(
   config: { apiKey: string; model: string },
   isTest: boolean,
   actor: string,
+  /** 원장에 적는 주인. `actor` 는 화면에 보이는 이름이라 이메일일 수 있다 */
+  actorId: string,
   evidenceFileId: string | null,
 ): Promise<NextResponse> {
   const [discoverPrompt, extractPrompt, krwPerUsd] = await Promise.all([
@@ -67,7 +69,7 @@ async function runUsaiCatalog(
     let lastErr: unknown
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        return await callGeminiOnce(config.apiKey, config.model, prompt, true)
+        return await callGeminiOnce(config.apiKey, config.model, prompt, true, { actorId })
       } catch (e) {
         lastErr = e
         const msg = e instanceof Error ? e.message : ''
@@ -170,7 +172,7 @@ export async function POST(req: NextRequest) {
 
   // USAI 흡수 경로(flag ON 시) — 비정형 다중블록을 AI 주도로. 기본 OFF면 레거시 평면표 경로.
   if (process.env.GPU_USAI_INGEST === '1') {
-    return runUsaiCatalog(buf, adminClient, config, isTest, user.email ?? user.id, evidenceFileId)
+    return runUsaiCatalog(buf, adminClient, config, isTest, user.email ?? user.id, user.id, evidenceFileId)
   }
 
   // 1) 파싱 — 첫 시트 헤더·행·샘플 (레거시 경로)
@@ -190,13 +192,13 @@ export async function POST(req: NextRequest) {
   const ctx = `${schemaDigest}${specContext}\n\n[헤더 목록]\n${JSON.stringify(parsed.headers)}\n\n[샘플 행]\n${JSON.stringify(parsed.sample)}`
   let mapping = null
   let synthesized = false
-  try { mapping = validateMapping(JSON.parse(await callGeminiOnce(config.apiKey, config.model, `${basePrompt}\n\n${ctx}`, true)), parsed.headers) }
+  try { mapping = validateMapping(JSON.parse(await callGeminiOnce(config.apiKey, config.model, `${basePrompt}\n\n${ctx}`, true, { actorId: user.id })), parsed.headers) }
   catch { /* fallthrough to retry */ }
 
   if (!mapping) {
     synthesized = true
     const augmented = `${basePrompt}\n\n【재시도: 더 엄격히】 앞선 매핑이 필수 필드(업체명·모델명·가격)를 찾지 못했습니다. 각 헤더를 하나씩 검토해, 업체/지역 복합 컬럼(예 location)·모델명 컬럼·가격 컬럼을 반드시 식별하세요. 값이 "업체/지역" 형태면 _location_split=true. 반드시 competitor_name·model_name·price_usd를 채우세요.`
-    try { mapping = validateMapping(JSON.parse(await callGeminiOnce(config.apiKey, config.model, `${augmented}\n\n${ctx}`, true)), parsed.headers) }
+    try { mapping = validateMapping(JSON.parse(await callGeminiOnce(config.apiKey, config.model, `${augmented}\n\n${ctx}`, true, { actorId: user.id })), parsed.headers) }
     catch { /* still null */ }
   }
   if (!mapping) {

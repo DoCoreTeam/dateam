@@ -126,8 +126,10 @@ export async function POST(req: Request) {
         provider: compName, sourceUrl: url, krwPerUsd, fxMap, fxDate: fxRateDate,
         // 재시도·모델 폴백·시간 제한을 태운다(v0.7.678). 예전엔 이 경로가 모델 하나만 부르고
         //   429 하나에 12개 URL 이 전부 실패했다 — 그날 가격 갱신은 0건이었다.
-        geminiCaller: (k, m, t, j) => callGeminiOnce(k, m, t, j, {
-          fallbackApiKey, feature: 'gpu-market-refresh',
+        // requireAdminApi 가 확인한 그 관리자가 갱신을 눌렀다
+        actorId: auth.user.id,
+        geminiCaller: (k, m, t, j, a) => callGeminiOnce(k, m, t, j, {
+          actorId: a ?? auth.user.id, fallbackApiKey, feature: 'gpu-market-refresh',
         }),
       })
 

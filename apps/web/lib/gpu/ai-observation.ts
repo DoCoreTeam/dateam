@@ -10,11 +10,17 @@ import { validateAiObservation, type AiObservation, type ObservationRejectReason
 // (Next.js 번들러 밖의) 순수 node:test 실행기에서는 그 체인을 해석할 수 없다(경로 alias 미등록).
 // 이 파일을 단위테스트 가능하게 유지하기 위해 callGeminiOnce는 지연 로드 + 주입 가능하게 둔다.
 // 운영 경로(geminiCaller 미주입)는 항상 extract-helpers.callGeminiOnce를 그대로 재사용한다 — 로직 복제 없음.
-export type GeminiCaller = (apiKey: string, model: string, text: string, jsonMode?: boolean) => Promise<string>
+export type GeminiCaller = (
+  apiKey: string, model: string, text: string, jsonMode?: boolean,
+  /** 이 호출을 누른 사람. 주입한 쪽이 자기가 쥔 값을 넘긴다 */
+  actorId?: string | null,
+) => Promise<string>
 
-async function defaultGeminiCaller(apiKey: string, model: string, text: string, jsonMode: boolean): Promise<string> {
+async function defaultGeminiCaller(
+  apiKey: string, model: string, text: string, jsonMode: boolean, actorId: string | null,
+): Promise<string> {
   const { callGeminiOnce } = await import('./extract-helpers.ts')
-  return callGeminiOnce(apiKey, model, text, jsonMode)
+  return callGeminiOnce(apiKey, model, text, jsonMode, { actorId })
 }
 
 export interface ObservationRejection {
@@ -89,16 +95,18 @@ export async function extractAiObservations(params: {
   specContext: string
   /** 테스트 주입용. 미주입 시 extract-helpers.callGeminiOnce(운영 경로) 사용. */
   geminiCaller?: GeminiCaller
+  /** 이 추출을 누른 사람. 배경 잡이면 null */
+  actorId: string | null
   /** 실제 카탈로그 model_name 집합. 주면 catalog_match가 이 집합에 없을 때 none으로 강등(환각 매칭 차단). */
   catalogNames?: string[]
 }): Promise<ExtractAiObservationsResult> {
-  const { apiKey, model, sourceText, specContext, geminiCaller, catalogNames } = params
+  const { apiKey, model, sourceText, specContext, geminiCaller, catalogNames, actorId } = params
   const prompt = buildObservationPrompt(sourceText, specContext)
   const call = geminiCaller ?? defaultGeminiCaller
 
   let raw: string
   try {
-    raw = await call(apiKey, model, prompt, true)
+    raw = await call(apiKey, model, prompt, true, actorId)
   } catch (e: unknown) {
     const detail = e instanceof Error ? e.message : String(e)
     return { valid: [], rejected: [{ reason: 'invalid_type', detail: `gemini call failed: ${detail}` }] }
