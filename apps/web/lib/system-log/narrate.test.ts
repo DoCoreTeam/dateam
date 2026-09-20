@@ -260,6 +260,67 @@ test('워크스페이스 id 는 text 다 — UUID 가 아니다(ws_dataalliance)
   assert.match(sql, /ALTER COLUMN workspace_id TYPE text/)
 })
 
+// ── 우리말로 쓴 문장도 사유로 읽는다 (2026-09-20 실측) ────────────
+//
+// 분류기의 패턴 여덟 줄이 전부 영어였다. 우리가 던지는 문장은 우리말이라
+// 하나도 안 걸렸고, `ci_job` 사건 267건이 전부 「원인 미상」으로 쌓였다.
+// 그중 246건은 원문 첫 줄에 「한도를 다 썼습니다」라고 적혀 있었다.
+//
+// 아래 문장은 지어낸 것이 아니라 **운영 DB 의 system_events.raw 첫 줄 그대로**다.
+
+test('★ 우리말 한도 문장을 한도로 읽는다 — 원문에 적혀 있는데 「원인 미상」이었다', () => {
+  const real = [
+    'AI 웹 검색 한도를 다 썼습니다. 이건 모델을 바꿔도 풀리지 않습니다 — 한도가 초기화될 때까지 기다리거나 요금제를 올려야 합니다.',
+    '등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다. 한도가 풀릴 때까지 기다리거나 시스템 설정 → 통합에서 다른 공급자 키를 추가해 주세요.',
+    '호출 한도를 넘었습니다. 잠시 뒤 다시 시도해 주세요',
+    '할당량 초과',
+    '쿼터 초과',
+  ]
+  for (const message of real) {
+    assert.equal(classifySystemReason({ message }), 'quota', message)
+  }
+})
+
+test('★ 한도를 뜻하지 않는 「초과」는 한도가 아니다 — 장사 이야기가 시스템 한도로 둔갑한다', () => {
+  // 실측 원문. 사람이 넣은 값이 규칙을 넘은 것이지 우리 한도가 찬 것이 아니다.
+  // 맨 「초과」로 잡으면 관리자는 있지도 않은 한도를 풀러 간다.
+  const r = classifySystemReason({ message: '[I9] 현물 합계가 수주 매출을 넘습니다 — 960,000,000원 초과' })
+  assert.notEqual(r, 'quota', '「초과」 두 글자만 보고 한도라고 하면 안 된다')
+})
+
+test('★ 우리말 권한·설정·형식 문장도 사유를 얻는다 — 같은 구멍이 갈래마다 열려 있었다', () => {
+  const cases: [string, string][] = [
+    ['관리자 권한이 필요합니다', 'auth'],
+    ['권한 없음', 'auth'],
+    ['인증이 만료되었습니다. [변경]으로 Google 계정을 다시 연결해주세요', 'auth'],
+    ['AI 키 인증에 문제가 있습니다. 관리자에게 문의하세요.', 'auth'],
+    ['Gemini 키가 설정되지 않았습니다', 'config'],
+    ['지금 쓸 수 있는 AI 모델이 없습니다', 'config'],
+    ['Gemini 응답 형식이 올바르지 않습니다', 'bad_json'],
+    ['AI 응답을 파싱할 수 없습니다. 다시 시도해 주세요.', 'bad_json'],
+  ]
+  for (const [message, want] of cases) {
+    assert.equal(classifySystemReason({ message }), want, message)
+  }
+})
+
+test('★ 우리말 줄은 영어 판정 **뒤에** 있어야 한다 — 앞에 두면 섞인 문장에서 이겨 버린다', () => {
+  // 429 를 담은 Prisma 오류는 여전히 db 다(이 파일 분류기 주석이 지키려던 순서).
+  assert.equal(classifySystemReason({ prismaCode: 'P2021', message: '429 한도' }), 'db')
+  // 숫자를 든 벤더 오류는 우리말 꼬리가 붙어도 영어 신호가 이긴다
+  assert.equal(classifySystemReason({ message: 'Gemini API 오류 (429): 한도' }), 'quota')
+  assert.equal(classifySystemReason({ message: '사내 모델 응답 503 · 권한이 없습니다' }), 'server')
+})
+
+test('★ 사유를 못 붙일 문장은 그대로 unknown 이다 — 아무 말에나 이름을 붙이지 않는다', () => {
+  // 원인이 우리 사유 아홉 가지 중 어디에도 없는 것은 솔직히 모른다고 한다.
+  // (이 문장은 I03 에서 화면이 원문을 그대로 보여 주는 것으로 답한다)
+  assert.equal(
+    classifySystemReason({ message: '이 영상의 정보를 가져오지 못했습니다. 비공개이거나 삭제되었을 수 있습니다' }),
+    'unknown',
+  )
+})
+
 // ── 웹 검색 한도는 다른 바구니다 (2026-08-24 실측) ────────────
 //
 // 같은 키로 일반 호출은 65초 뒤 200 으로 회복되는데(분당 한도),
