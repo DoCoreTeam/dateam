@@ -131,6 +131,7 @@ test('★ 복제도 셋을 다 물려받는다 — 다른 안이 다른 회사 �
   assert.ok(/termsSnapshot: src\.termsSnapshot/.test(src), '복제가 굳은 조건을 안 옮긴다')
   assert.ok(/supplierSnapshot: src\.supplierSnapshot/.test(src), '복제가 굳은 공급자를 안 옮긴다')
   assert.ok(/logoAssetHash: src\.logoAssetHash/.test(src), '복제가 굳은 로고를 안 옮긴다')
+  assert.ok(/sealAssetHash: src\.sealAssetHash/.test(src), '복제가 굳은 직인을 안 옮긴다')
 })
 
 test('★ 고칠 때 공급자와 로고는 다시 안 굳는다 — 저장할 때마다 바뀌면 굳힌 것이 아니다', () => {
@@ -139,6 +140,7 @@ test('★ 고칠 때 공급자와 로고는 다시 안 굳는다 — 저장할 �
   const body = live(QUOTE.slice(from, next > 0 ? next : undefined))
   assert.ok(!/data\.supplierSnapshot/.test(body), 'updateQuote 가 공급자를 다시 굳힌다')
   assert.ok(!/data\.logoAssetHash/.test(body), 'updateQuote 가 로고를 다시 굳힌다')
+  assert.ok(!/data\.sealAssetHash/.test(body), 'updateQuote 가 직인을 다시 굳힌다')
   // 조건만은 다시 굳는다 — 사용자가 고른 것이기 때문이다
   assert.ok(/data\.termsSnapshot = await resolveTermsSnapshot/.test(body), '고른 조건을 다시 안 굳힌다')
 })
@@ -150,7 +152,21 @@ test('★ 읽을 때 셋 다 굳은 것이 먼저다 — 굳은 값이 있으면
     /useSupplierSnapshot \? Promise\.resolve\(supplierSnapshot\) : readQuoteSupplier\(db\)/.test(src),
     '굳은 공급자가 있어도 설정을 읽는다',
   )
-  assert.ok(/logoAssetHash\s*\n?\s*\? readAsset\(db, logoAssetHash\)/.test(src), '굳은 로고를 안 읽는다')
+  /*
+    그림은 로고·직인 **둘 다** 굳은 것이 먼저다.
+
+    예전엔 `logoAssetHash ? readAsset(...)` 이라는 **글자 모양**을 봤다. 규칙은 그대로인데
+    직인이 늘면서 모양이 바뀌자 가드가 실패했다 — 규칙 위반이 아니라 모양 변경이었다.
+    그래서 모양이 아니라 **값이 어디로 가는지**를 본다: 굳음 판정이 있고, 두 해시가 각각
+    `readAsset` 으로 들어가고, 그 갈림길의 반대쪽에서만 설정을 읽는다.
+  */
+  assert.ok(/const useFrozenImages =/.test(src), '그림이 굳었는지 판정하는 자리가 없다')
+  assert.ok(/readAsset\(db, logoAssetHash\)/.test(src), '굳은 로고를 안 읽는다')
+  assert.ok(/readAsset\(db, sealAssetHash\)/.test(src), '굳은 직인을 안 읽는다')
+  assert.ok(
+    /useFrozenImages\s*\n?\s*\?[\s\S]{0,240}?:\s*readQuoteImages\(db\)/.test(src),
+    '굳은 그림이 있어도 설정을 읽는다',
+  )
 })
 
 test('★ 같은 그림은 행을 안 늘린다 — 해시가 내용에서 나온다', () => {
@@ -162,7 +178,7 @@ test('★ 같은 그림은 행을 안 늘린다 — 해시가 내용에서 나�
 
 test('★ 읽는 쪽이 굳은 칸을 실제로 읽어 온다 — 안 읽으면 굳혀도 문서에 안 닿는다', () => {
   const src = live(QUOTE)
-  for (const field of ['termsSnapshot: true', 'supplierSnapshot: true', 'logoAssetHash: true']) {
+  for (const field of ['termsSnapshot: true', 'supplierSnapshot: true', 'logoAssetHash: true', 'sealAssetHash: true']) {
     assert.ok(src.includes(field), `SELECT 에 ${field} 가 없다`)
   }
 })
