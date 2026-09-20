@@ -98,3 +98,7 @@ export {
   RESIGNED_TAB, confirmResign, confirmUndoResign,
   type EmploymentStatus, type EmploymentStatusMeta,
 } from './member.ts'
+
+export {
+  SETTINGS,
+} from './settings.ts'

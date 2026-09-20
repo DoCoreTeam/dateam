@@ -86,6 +86,7 @@ test('연결 상태 용어를 화면 파일에 직접 적지 않는다', () => {
 test('공용 설정 부품이 전부 있다', () => {
   const parts = readdirSync(SHARED_DIR).filter((f) => f.endsWith('.tsx')).sort()
   assert.deepEqual(parts, [
-    'FieldNote.tsx', 'SettingsCard.tsx', 'SettingsRow.tsx', 'SettingsToggle.tsx', 'StatusPill.tsx',
+    'FieldNote.tsx', 'SettingsCard.tsx', 'SettingsPanel.tsx', 'SettingsRow.tsx',
+    'SettingsToggle.tsx', 'StatusPill.tsx',
   ], '공용 설정 부품 목록이 달라졌다')
 })

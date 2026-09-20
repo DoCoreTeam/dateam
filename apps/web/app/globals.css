@@ -9752,6 +9752,15 @@ label.intake-tool-btn {
    같은 설정 화면이 화면마다 다른 두께로 보인다.
    옛 ci- 이름은 같은 규칙의 별칭이고, 화면이 옮겨올 때(I08~I10) 뺀다. */
 .settings-list, .ci-setting-list { display: flex; flex-direction: column; gap: var(--space-3); list-style: none; margin: 0; padding: 0; }
+/* 설정 그릇 — 검색 한 칸 · 분류 탭 · 내용. 세로 간격을 그릇이 갖는다.
+   화면이 바깥에서 margin 을 더하던 것이 화면마다 다른 간격이 된 원인이다
+   (components/ui/settings/SettingsPanel.tsx 만 이 이름을 쓴다) */
+.settings-panel { display: flex; flex-direction: column; gap: var(--space-4); }
+/* 검색 칸은 라벨과 한 덩어리다 */
+.settings-panel-search { display: flex; flex-direction: column; gap: var(--space-1); }
+/* 내용은 세로로 쌓는다. 카드를 옆 카드 높이에 맞춰 늘리지 않는다 —
+   늘리면 짧은 카드 아래가 통째로 빈 자리가 된다 */
+.settings-panel-body { display: flex; flex-direction: column; gap: var(--space-5); align-items: stretch; }
 .settings-card, .ci-setting-card {
   padding: var(--space-4); border: var(--border-w-2) solid var(--border-color);
   border-radius: var(--radius-lg); background: var(--color-surface);

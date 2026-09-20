@@ -9,13 +9,11 @@
 //  3) 레지스트리로 표현되지 않는 것(계정·연동·멤버)은 '개요' 탭에서 따로 보여준다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import Link from 'next/link'
 import { Check, X, ExternalLink, Plus } from 'lucide-react'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import type { CiControl } from '@/lib/ci/settings/registry'
 import ErrorState from '@/components/ui/ErrorState'
-import EmptyState from '@/components/ui/EmptyState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { isEnterKey } from '@/lib/ui/ime'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
@@ -23,6 +21,7 @@ import SettingsRow from '@/components/ui/settings/SettingsRow'
 import SettingsToggle from '@/components/ui/settings/SettingsToggle'
 import StatusPill from '@/components/ui/settings/StatusPill'
 import FieldNote from '@/components/ui/settings/FieldNote'
+import SettingsPanel, { SettingsList } from '@/components/ui/settings/SettingsPanel'
 import { CONNECTION } from '@/lib/terms'
 
 interface SettingItem {
@@ -159,54 +158,39 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
   if (error && !items) return <ErrorState code={error.code} message={error.message} helpHref="/ci/settings" />
   if (!items) return <SkelList rows={5} />
 
-  return (
+  /** 분류와 무관한 것 — 저장 알림과 오류는 탭을 바꿔도 그대로 보여야 한다 */
+  const notice = (
     <>
-      <div style={{ marginBottom: 'var(--space-4)' }}>
-        <label className="label" htmlFor="set-q">설정 검색</label>
-        <input className="input-field" id="set-q" type="search" value={query}
-          placeholder="설정 이름이나 설명으로 찾기 (탭 상관없이 전체에서)"
-          onChange={(e) => setQuery(e.target.value)} />
-      </div>
+      {toast && <p role="status"><StatusPill tone="ok">{toast}</StatusPill></p>}
+      {error && <ErrorState code={error.code} message={error.message} helpHref="/ci/settings" />}
+    </>
+  )
 
-      {!query && (
-        <SegmentedTabs
-          ariaLabel="설정 분류"
-          tabs={groupsWithItems.map((g) => ({ id: g, label: GROUP_LABEL[g] ?? g }))}
-          activeId={tab}
-          onSelect={(id) => setTab(id as typeof tab)}
-        />
-      )}
+  // 개요는 레지스트리 항목이 아니라 검색 대상이 아니다 — 검색 중에는 결과 쪽을 그린다
+  const showOverview = !query.trim() && tab === 'overview'
 
-      {toast && (
-        <p style={{ marginBottom: 'var(--space-3)' }} role="status">
-          <StatusPill tone="ok">{toast}</StatusPill>
-        </p>
-      )}
-      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
-
-      {!query && tab === 'overview' ? (
+  return (
+    <SettingsPanel
+      groups={groupsWithItems.map((g) => ({ id: g, label: GROUP_LABEL[g] ?? g }))}
+      activeId={tab}
+      onSelect={setTab}
+      query={query}
+      onQueryChange={setQuery}
+      isEmpty={!showOverview && visible.length === 0}
+      notice={notice}
+    >
+      {showOverview ? (
         <OverviewPanel overview={overview} />
       ) : (
-        <div className="settings-list">
-          {visible.length === 0 && (
-            query
-              ? <EmptyState
-                  title="찾는 설정이 안 보여요"
-                  description="다른 낱말로 찾아보세요. 검색은 탭과 상관없이 전체 설정에서 찾습니다."
-                />
-              : <EmptyState
-                  title="이 분류에는 설정이 없어요"
-                  description="위 탭에서 다른 분류를 골라 보세요."
-                />
-          )}
+        <SettingsList>
           {visible.map((item) => (
             <SettingRow key={item.key} item={item} saving={savingKey === item.key}
               onSave={(v) => void save(item, v)}
               onRevert={item.scope === 'system' ? undefined : () => void revert(item)} />
           ))}
-        </div>
+        </SettingsList>
       )}
-    </>
+    </SettingsPanel>
   )
 }
 
@@ -215,7 +199,7 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
   if (!overview) return <SkelList rows={3} />
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+    <>
       <SettingsCard title="내 계정" headingLevel={2}>
         <dl className="ci-creative-grid">
           <div className="ci-creative-row">
@@ -240,7 +224,7 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
         headingLevel={2}
         description="키는 회사 계정 한 곳에서만 관리합니다. 여기서는 상태만 보여드립니다."
       >
-        <ul className="settings-list">
+        <SettingsList as="ul">
           {overview.integrations.map((it) => (
             <SettingsRow
               key={it.id}
@@ -257,7 +241,7 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
               <FieldNote>{it.detail}</FieldNote>
             </SettingsRow>
           ))}
-        </ul>
+        </SettingsList>
       </SettingsCard>
 
       <SettingsCard
@@ -265,7 +249,7 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
         headingLevel={2}
         description={`멤버 ${overview.workspace.memberCount}명`}
       >
-        <ul className="settings-list">
+        <SettingsList as="ul">
           {overview.members.map((m) => (
             <SettingsRow
               key={m.userId}
@@ -276,9 +260,9 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
               <FieldNote>{m.email ?? '—'}</FieldNote>
             </SettingsRow>
           ))}
-        </ul>
+        </SettingsList>
       </SettingsCard>
-    </div>
+    </>
   )
 }
 
