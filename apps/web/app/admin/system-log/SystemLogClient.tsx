@@ -21,7 +21,7 @@ import InlineError from '@/components/ui/InlineError'
 import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { formatKstDateTimeExact, formatKstTimeExact, formatKstAgo } from '@/lib/datetime/kst'
-import { REASON_LABELS, SOURCE_LABELS } from '@/lib/system-log/labels'
+import { REASON_LABELS, SOURCE_LABELS, envLabel } from '@/lib/system-log/labels'
 import { occurrenceLine } from '@/lib/system-log/narrate'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import RemedyPanel from './RemedyPanel'
@@ -46,7 +46,10 @@ export interface EventGroup {
   actorCount: number | null
   actorSample: string | null
   resolvedAt: string | null
+  /** 어느 판에서 났나. 널이면 칼럼이 생기기 전 기록이라 모른다 */
+  env: string | null
 }
+
 
 /**
  * 심각도는 색이 아니라 **말**로도 구분된다 — 색만 쓰면 흑백 출력·색각에서 사라진다.
@@ -71,12 +74,26 @@ const FILTERS: ListFilterDef[] = [
     key: 'resolved', label: '보기',
     options: [{ value: '1', label: '처리한 것까지' }],
   },
+  {
+    /*
+      **「환경 전체」를 붙이지 않는다.**
+
+      기본값이 「운영」인데 고르는 칸에 「환경 전체」라고 떠 있으면 그 칸이 거짓말을 한다.
+      그래서 기본값도 이름 있는 선택지로 둔다 — 지금 무엇을 보고 있는지가 칸에 그대로 쓰인다.
+    */
+    key: 'env', label: '환경', noAll: true,
+    options: [
+      { value: '', label: '운영에서 난 것' },
+      { value: 'local', label: '개발에서 난 것' },
+      { value: 'all', label: '환경 구분 없이' },
+    ],
+  },
 ]
 
 export default function SystemLogClient() {
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'lastAt', dir: 'desc' }, mode: 'more',
-    filterKeys: ['reason', 'source', 'resolved'],
+    filterKeys: ['reason', 'source', 'resolved', 'env'],
   }, { persistKey: '/admin/system-log' })
 
   const [rows, setRows] = useState<EventGroup[]>([])
@@ -101,6 +118,7 @@ export default function SystemLogClient() {
       if (query.filters?.reason) sp.set('reason', query.filters.reason)
       if (query.filters?.source) sp.set('source', query.filters.source)
       if (query.filters?.resolved) sp.set('resolved', '1')
+      if (query.filters?.env) sp.set('env', query.filters.env)
       sp.set('limit', String(query.size))
       const res = await fetch(`/api/admin/system-log?${sp}`)
       const body = await res.json()
@@ -114,7 +132,7 @@ export default function SystemLogClient() {
     } finally {
       setLoading(false)
     }
-  }, [queryKey, q, query.filters?.reason, query.filters?.source, query.filters?.resolved, query.size])
+  }, [queryKey, q, query.filters?.reason, query.filters?.source, query.filters?.resolved, query.filters?.env, query.size])
 
   useEffect(() => { void load() }, [load])
 
@@ -153,6 +171,7 @@ export default function SystemLogClient() {
               {SEVERITY[r.severity]?.label ?? r.severity}
             </NbBadge>
             <strong style={{ color: 'var(--text)' }}>{r.headline}</strong>
+            {envLabel(r.env) && <NbBadge status="note">{envLabel(r.env)}</NbBadge>}
             {r.resolvedAt && <NbBadge status="done">처리함</NbBadge>}
           </span>
           <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{r.detail}</span>

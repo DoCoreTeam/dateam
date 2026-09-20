@@ -84,3 +84,21 @@ export function reasonLabel(reason: string | null | undefined): string {
   const r = (reason ?? '').trim()
   return REASON_LABELS[r] ?? '원인 미상'
 }
+
+/**
+ * 어느 판에서 난 일인가 — **운영이 아닌 것만 적는다.**
+ *
+ * 운영에는 아무 말도 안 붙인다. 목록의 거의 전부가 운영이라 「운영」 뱃지를 달면
+ * 같은 말이 화면을 가득 채우고, 정작 눈에 띄어야 할 개발 판이 그 안에 묻힌다.
+ * 널(칼럼이 생기기 전 기록)도 안 적는다 — 모르는 것에 이름을 붙이지 않는다.
+ */
+export const ENV_LABELS: Record<string, string> = {
+  development: '개발',
+  preview: '미리보기',
+  test: '시험',
+}
+
+/** 운영·모름이면 빈 문자열 — 부르는 쪽이 「없으면 안 그린다」로 쓴다 */
+export function envLabel(env: string | null | undefined): string {
+  return ENV_LABELS[(env ?? '').trim()] ?? ''
+}

@@ -515,6 +515,44 @@ test('★ 웹 검색 한도와 일반 한도는 화면에서 다른 말을 한�
   assert.match(web, /모델을 바꿔도 풀리지 않습니다/)
 })
 
+// ── 로컬에서 난 일을 운영이 막혔다고 말하지 않는다 (2026-09-20 실측) ────────────
+//
+// 화면이 「지금 막혀 있는 것 2건」이라고 빨갛게 말했는데, 그 둘을 포함한 db 사유 125건이
+// **전부 개발자 노트북 스택**이었다(원문에 /Users/… 경로). 운영에서는 0건.
+// 관리자는 이 화면으로 「지금 서비스가 죽었나」를 판단한다 — 한 번 틀리면 다시는 안 믿는다.
+
+test('★ 기록이 어느 판에서 났는지 남긴다 — 판을 고르는 규칙은 이미 있는 SSOT 를 쓴다', () => {
+  const src = stripComments(read('lib/system-log/record.ts'))
+  assert.match(src, /env:\s*currentDeployEnv\(\)/, '판을 안 적으면 화면이 가를 수가 없다')
+  assert.match(src, /from '\.\.\/ai\/deploy-env\.ts'/, '판정 규칙을 여기서 새로 만들면 두 뜻이 된다')
+})
+
+test('★ 「모름」은 접지 않는다 — 모르는 것을 개발이라 치우면 진짜 장애가 사라진다', () => {
+  const src = stripComments(read('app/api/admin/system-log/route.ts'))
+  // 기본 보기(live)는 운영과 **널**을 함께 본다. 널은 칼럼이 생기기 전 기록이라 모름이다.
+  assert.match(src, /env\.is\.null,env\.eq\.production/, '기본 보기가 모름을 숨기면 안 된다')
+  assert.match(src, /sp\.get\('env'\)\s*\|\|\s*'live'/, '기본값이 운영이어야 한다')
+})
+
+test('★ 고르는 칸이 거짓말하지 않는다 — 기본이 운영인데 「전체」라고 쓰여 있으면 안 된다', () => {
+  const src = stripComments(read('app/admin/system-log/SystemLogClient.tsx'))
+  const envFilter = src.slice(src.indexOf("key: 'env'"), src.indexOf("key: 'env'") + 400)
+  assert.match(envFilter, /noAll:\s*true/, '「환경 전체」가 뜨면 칸이 실제와 다른 말을 한다')
+  assert.match(envFilter, /value: '', label: '운영에서 난 것'/, '기본값도 이름을 가져야 한다')
+  // 값이 실제로 창구까지 가는지 본다 — 선언만 있고 안 넘기면 필터는 장식이다
+  assert.match(src, /sp\.set\('env',\s*query\.filters\.env\)/)
+  assert.match(src, /filterKeys: \[[^\]]*'env'/, "filterKeys 에 빠지면 주소의 env 가 무시된다")
+})
+
+test('★ 마이그레이션이 모르는 것을 운영이라고 적지 않는다', () => {
+  const sql = read('../../supabase/migrations/272_system_events_env.sql')
+  assert.match(sql, /add column if not exists env text/i)
+  assert.ok(!/default '?production/i.test(sql), '이미 쌓인 기록의 판은 우리가 모른다 — 지어내면 안 된다')
+  // 원문이 스스로 증명하는 것만 채운다
+  assert.match(sql, /raw like '%\/Users\/%'/)
+  assert.match(sql, /raw like '%\/var\/task\/%'/)
+})
+
 // ── 웹 검색 한도는 다른 바구니다 (2026-08-24 실측) ────────────
 //
 // 같은 키로 일반 호출은 65초 뒤 200 으로 회복되는데(분당 한도),

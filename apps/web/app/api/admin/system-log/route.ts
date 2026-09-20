@@ -21,7 +21,16 @@ interface Row {
   actor_id: string | null; headline: string; detail: string
   raw: string | null; context: Record<string, unknown> | null
   resolved_at: string | null
+  env: string | null
 }
+
+/**
+ * 어느 판의 사건을 볼 것인가.
+ *
+ * 기본은 `live` — **증명된 개발 판만 접는다.** 「모름」(칼럼이 생기기 전 기록)은 안 접는다.
+ * 모르는 것을 개발이라고 치우면 진짜 운영 장애가 조용히 사라진다.
+ */
+const LOCAL_ENVS = ['development', 'preview', 'test'] as const
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -45,11 +54,13 @@ export async function GET(req: NextRequest) {
   const q = (sp.get('q') ?? '').trim()
   // 기본은 '아직 안 본 것'만 — 처리한 일까지 섞이면 지금 급한 것이 묻힌다
   const showResolved = sp.get('resolved') === '1'
+  // 기본은 운영(+모름). 개발 판에서 난 일이 「지금 막힘」에 섞이면 화면을 아무도 안 믿는다
+  const envView = sp.get('env') || 'live'
 
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
   let query = adm.from('system_events')
-    .select('id,fingerprint,occurred_at,source,severity,reason,feature,route,actor_id,headline,detail,raw,context,resolved_at')
+    .select('id,fingerprint,occurred_at,source,severity,reason,feature,route,actor_id,headline,detail,raw,context,resolved_at,env')
     .gte('occurred_at', since)
     .order('occurred_at', { ascending: false })
     .limit(SCAN_LIMIT)
@@ -57,6 +68,8 @@ export async function GET(req: NextRequest) {
   if (reason) query = query.eq('reason', reason)
   if (source) query = query.eq('source', source)
   if (!showResolved) query = query.is('resolved_at', null)
+  if (envView === 'live') query = query.or(`env.is.null,env.eq.production`)
+  else if (envView === 'local') query = query.in('env', LOCAL_ENVS as unknown as string[])
   if (q) query = query.or(`headline.ilike.%${q}%,detail.ilike.%${q}%,raw.ilike.%${q}%`)
 
   const { data, error } = await query
@@ -76,7 +89,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       items: [], total: 0,
       notice: notReady
-        ? '시스템 로그 표가 아직 만들어지지 않았습니다. 마이그레이션 218을 적용해 주세요.'
+        ? '시스템 로그 표나 칼럼이 아직 없습니다. 마이그레이션 218과 272를 적용해 주세요.'
         : `시스템 로그를 읽지 못했습니다: ${error.message}`,
     })
   }
@@ -145,6 +158,7 @@ export async function GET(req: NextRequest) {
         actorCount: g.actors.size || null,
         actorSample: sample ? (nameMap[sample] ?? '알 수 없음') : null,
         resolvedAt: g.latest.resolved_at,
+        env: g.latest.env,
       }
     })
 

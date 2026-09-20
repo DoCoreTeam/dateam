@@ -16,6 +16,7 @@
 
 import { classifySystemReason, severityOf, fingerprintOf, type SystemReason } from './reason.ts'
 import { headlineOf, detailOf, truncateRaw, maskSecrets } from './narrate.ts'
+import { currentDeployEnv } from '../ai/deploy-env.ts'
 
 export interface RecordInput {
   source: 'host_ai' | 'crm_ai' | 'crm_api' | 'host_api' | 'ci_job' | 'crm_job' | 'cron' | 'client'
@@ -146,6 +147,15 @@ export async function recordSystemEvent(input: RecordInput): Promise<void> {
       reason,
       feature: input.feature ?? null,
       route: input.route ?? null,
+      /*
+        **어느 판에서 났나.**
+
+        안 적는 동안 개발자 노트북에서 난 125건이 관리자 화면의 「지금 막혀 있는 것」에
+        빨갛게 섞여 있었고, 운영에서 난 같은 사유는 0건이었다(실측 2026-09-20).
+        판을 고르는 규칙은 새로 만들지 않고 이미 있는 SSOT(lib/ai/deploy-env.ts)를 쓴다 —
+        키를 고르는 자리와 다른 답을 내면 「어느 판이냐」가 두 뜻이 된다.
+      */
+      env: currentDeployEnv(),
       actor_id: input.actorId ?? null,
       workspace_id: input.workspaceId ?? null,
       headline: headlineOf(narrate),
