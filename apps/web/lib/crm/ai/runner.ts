@@ -357,11 +357,16 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
      *   ② 여러 건을 도는 호출부의 **중단 조건에 안 걸렸다** — 한도가 소진됐는데도
      *      20곳을 끝까지 돌아 회사당 2회 재시도, **최대 40번의 확정된 실패 호출**이 나갔다.
      *
-     * `availability` 가 있다는 것은 프로바이더가 "지금은 이 모델을 못 쓴다"고 말했다는 뜻이다
-     * (`limited` = 한도 초과 · `unavailable` = 요금제에서 사용 불가). 다시 물어도 결과가 같다.
+     * 무엇을 멈춤으로 보나: **다시 물어도 결과가 같은 것**이다.
+     * `keyOutcome === 'quota'` 는 그 키의 한도가 소진된 것이고(429),
+     * `availability` 는 모델 쪽이 없어진 것이다(404 · 요금제가 안 주는 모델).
+     *
+     * 한도를 `availability` 로 읽지 않는다(v0.10.212): 한도는 **키**의 상태라
+     * 모델 상태에 적지 않기로 했고, 그때 이 줄이 같이 안 바뀌면 429 가 조용히
+     * `VALIDATION_FAILED` 로 내려가 위 ①②가 그대로 재현된다.
      */
     throw new CrmError(
-      provider.availability ? 'PROVIDER_QUOTA' : 'VALIDATION_FAILED',
+      provider.keyOutcome === 'quota' || provider.availability ? 'PROVIDER_QUOTA' : 'VALIDATION_FAILED',
       provider.message,
     )
   }

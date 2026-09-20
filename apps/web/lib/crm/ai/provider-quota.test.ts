@@ -57,7 +57,9 @@ test('실제 Gemini 429 원문이 한도로 분류된다 — 이 문자열이 �
     'Gemini API 오류 (429): { "error": { "code": 429, "message": ' +
     '"You exceeded your current quota, please check your plan and billing details." } }')
   const c = classifyProviderError(raw)
-  assert.equal(c.availability, 'limited')
+  assert.equal(c.keyOutcome, 'quota')
+  // 한도는 **키**의 상태다. 모델 상태로 적으면 다른 키를 가진 사람에게도 그 모델이 내려간다
+  assert.equal(c.availability, undefined, '429 를 모델 상태로 적으면 안 된다')
   // 원문을 그대로 올리지 않는다 — 사용자가 무엇을 해야 하는지 알 수 없다
   assert.ok(!c.message.includes('429'), '사용자 문구에 원문이 새면 안 된다')
   assert.ok(c.message.includes('한도'))
@@ -71,12 +73,30 @@ test('요금제에서 못 쓰는 모델(limit: 0)도 멈춘다 — 재시도해�
 
 // ── 그 판정을 실제로 쓰는가 ─────────────────────────────────────────
 
-test('러너는 availability 가 있으면 PROVIDER_QUOTA 로 던진다', () => {
+test('러너는 키 한도와 모델 사용불가를 PROVIDER_QUOTA 로 던진다', () => {
   assert.match(
     RUNNER,
-    /provider\.availability\s*\?\s*'PROVIDER_QUOTA'\s*:\s*'VALIDATION_FAILED'/,
+    /provider\.keyOutcome === 'quota' \|\| provider\.availability \? 'PROVIDER_QUOTA' : 'VALIDATION_FAILED'/,
     '429 를 VALIDATION_FAILED 로 되돌리면 중단 조건에 안 걸린다',
   )
+})
+
+/*
+  **이 둘은 같이 움직여야 한다.** 한도 신호를 `availability` 에서 `keyOutcome` 으로 옮기던 날,
+  러너의 저 줄이 같이 안 바뀌면 429 가 조용히 400 으로 내려가고 위 ①②가 그대로 재현된다.
+  그래서 분류가 무엇을 주는지와 러너가 무엇을 보는지를 한 자리에서 대조한다.
+*/
+test('★ 실제 429 가 러너의 중단 조건에 걸린다 — 신호를 옮길 때 한쪽만 바뀌면 안 된다', () => {
+  const c = classifyProviderError(new Error('429 RESOURCE_EXHAUSTED: quota exceeded'))
+  const code = c.keyOutcome === 'quota' || c.availability ? 'PROVIDER_QUOTA' : 'VALIDATION_FAILED'
+  assert.equal(code, 'PROVIDER_QUOTA')
+  assert.ok(stopsBatch(new CrmError(code)), '429 를 만나고도 남은 건을 계속 돌면 안 된다')
+})
+
+test('★ 인증 실패는 한도 안내를 타지 않는다 — 처방이 다르다', () => {
+  const c = classifyProviderError(new Error('401 invalid api key'))
+  assert.equal(c.keyOutcome, 'auth')
+  assert.equal(c.availability, undefined)
 })
 
 test('일괄 보강은 중단 조건을 SSOT(stopsBatch)에 맡긴다 — 코드 이름을 직접 적지 않는다', () => {

@@ -170,7 +170,7 @@ export async function hostAdapter(
    * 차례로 때려 429 를 다섯 번 맞고 포기했다. 그 순간 OpenAI 키는 등록돼 있었고 멀쩡했다.
    *
    * 그 판단은 이미 SSOT 가 있다. `provider-errors.ts` 가 실패를 `scope` 로 나누고
-   * (429 는 `provider` — 이 키로는 뭘 해도 안 된다), `model-chain.ts` 가 그 scope 로
+   * (429 는 `key` — 이 키로는 어느 모델도 못 부른다), `model-chain.ts` 가 그 scope 로
    * 공급자를 통째로 건너뛴다. AI 채팅과 심층분석이 이미 그것을 탄다.
    * **CRM 만 자기 사슬을 갖고 있었다.** 이제 같은 것을 쓴다.
    *
@@ -247,7 +247,6 @@ export async function hostAdapter(
       let rest: ChainCandidate[] = chain
       let res: Awaited<ReturnType<typeof provider.streamChat>> | null = null
       let lastError: unknown = null
-      let lastScope: ReturnType<typeof classifyProviderError>['scope'] | null = null
 
       while (rest.length > 0) {
         const cand = rest[0]
@@ -279,7 +278,6 @@ export async function hostAdapter(
         } catch (e) {
           lastError = e
           const { scope } = classifyProviderError(e)
-          lastScope = scope
           if (rest.length > 0) {
             console.warn('[crm/ai] 후보 교체', `${cand.provider}:${cand.model}`, '→',
               `${rest[0].provider}:${rest[0].model}`, `(${scope})`,
@@ -296,7 +294,9 @@ export async function hostAdapter(
        * 앞은 기다리거나 요금제를 올리는 것이고, 뒤는 키·모델을 보는 것이다.
        */
       if (!res) {
-        if (lastScope === 'provider' && classifyProviderError(lastError).availability === 'limited') {
+        // 한도는 키의 상태다 — `availability` 가 아니라 `keyOutcome` 으로 읽는다.
+        // 인증 실패(`auth`)는 여기서 제외한다, 아래 문구가 말하는 처방이 다르다
+        if (classifyProviderError(lastError).keyOutcome === 'quota') {
           throw new CrmError('PROVIDER_QUOTA',
             '등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다. '
             + '한도가 풀릴 때까지 기다리거나 시스템 설정 → 통합에서 다른 공급자 키를 추가해 주세요.')

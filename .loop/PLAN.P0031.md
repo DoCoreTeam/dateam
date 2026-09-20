@@ -71,7 +71,7 @@
 의존: 없음
 
 ### I03a 한도 판정을 모델 상태에서 떼어낸다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ai-chat/provider-errors.ts, apps/web/lib/crm/ai/runner.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/crm/ai/provider-quota.test.ts, apps/web/lib/api-docs/ai-layer.ts
 감사 기준:

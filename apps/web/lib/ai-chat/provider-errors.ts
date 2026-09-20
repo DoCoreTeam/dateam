@@ -38,7 +38,12 @@ export type KeyFailureOutcome = 'quota' | 'auth'
 export function classifyProviderError(err: unknown): {
   message: string
   fatalModel: boolean
-  availability?: 'limited' | 'unavailable'
+  /**
+   * `ai_model_catalog` 에 적을 **모델의** 상태. 한도는 여기 오지 않는다 —
+   * 키가 말라서 429 가 난 것을 모델에 적으면 다른 키를 가진 사람에게도 그 모델이 내려간다.
+   * 남는 것은 정말 모델이 없는 경우뿐이다(404 · 요금제가 안 주는 모델).
+   */
+  availability?: 'unavailable'
   scope: ProviderFailureScope
   /** scope 가 'key' 일 때 그 키를 어떻게 처리할지. 아니면 없음 */
   keyOutcome?: KeyFailureOutcome
@@ -51,7 +56,7 @@ export function classifyProviderError(err: unknown): {
         ? '이 모델은 현재 요금제에서 사용할 수 없습니다. 다른 모델을 선택하세요.'
         : 'AI 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 다른 모델을 선택하세요.',
       fatalModel: zero,
-      availability: zero ? 'unavailable' : 'limited',
+      ...(zero ? { availability: 'unavailable' as const } : {}),
       // limit: 0 은 "이 요금제가 이 모델을 안 준다" — 같은 키의 다른 모델은 멀쩡하다.
       // 그냥 429는 할당량 소진이라 **그 키로는** 어느 모델을 불러도 같이 막혀 있다.
       scope: zero ? 'model' : 'key',

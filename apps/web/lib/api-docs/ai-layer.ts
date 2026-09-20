@@ -414,14 +414,19 @@ export interface AiFailureRule {
 
 export const AI_FAILURE_RULES: readonly AiFailureRule[] = [
   {
-    scope: 'provider',
+    scope: 'key',
     when: '한도 소진(429), 키 인증 실패(401·403)',
-    then: '그 공급자의 남은 모델을 전부 뺍니다. 무료 한도는 키 단위로 걸려서 같은 키의 다른 모델도 함께 죽어 있습니다.',
+    then: '그 키로는 어느 모델도 못 부릅니다. 무료 한도는 키 단위로 걸리기 때문입니다. 같은 공급자에 다른 키가 있으면 그 키로 이어 부르고, 키가 다 마른 뒤에야 그 공급자를 뺍니다.',
   },
   {
     scope: 'model',
     when: '요금제가 그 모델을 안 주는 경우(limit: 0), 없어진 모델(404)',
     then: '그 모델만 뺍니다. 같은 키의 다른 모델은 멀쩡합니다.',
+  },
+  {
+    scope: 'provider',
+    when: '그 공급자의 키를 다 써 봤다고 부르는 쪽이 판단한 경우',
+    then: '그 공급자의 남은 모델을 전부 뺍니다. pruneChain 은 key 도 이와 같게 다룹니다 — 거기까지 왔다는 것이 곧 키가 다 말랐다는 뜻입니다.',
   },
   {
     scope: 'transient',
