@@ -47,7 +47,7 @@
 의존: 없음
 
 ### I02 고르는 규칙 한 벌
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ai/key-pool.ts (신규), apps/web/lib/ai/key-pool.test.ts (신규), apps/web/package.json
 감사 기준:
