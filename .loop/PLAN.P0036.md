@@ -49,7 +49,7 @@
 의존: 없음
 
 ### I02 관리자 설정이 카드를 늘리지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/globals.css, apps/web/app/admin/settings/page.tsx
 감사 기준:
