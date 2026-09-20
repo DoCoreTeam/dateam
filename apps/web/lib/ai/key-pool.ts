@@ -25,8 +25,19 @@ export interface KeyPoolEntry {
   /** 사람이 붙인 이름. 원장과 화면에 나가는 값이고 apiKey 는 나가지 않는다 */
   label: string
   apiKey: string
-  /** 낮을수록 먼저 */
+  /** 낮을수록 먼저. **같은 등급 안에서만** 뜻이 있다 (아래 isPaid) */
   priority: number
+  /**
+   * 결제가 붙은 키인가. 참이면 **무료 키를 다 쓴 뒤에만** 부른다.
+   *
+   * 왜 priority 로 대신하지 않나: 유료 키를 맨 뒤로 밀어 둬도, 그 뒤에 무료 키를 하나 더 넣으면
+   * 새 줄이 맨 뒤에 붙어 유료 뒤로 간다(새 줄은 맨 뒤라는 것이 이 표의 규칙이다).
+   * 「언제나 나중」은 순서가 아니라 등급이라 따로 든다.
+   *
+   * 키 문자열로는 알 길이 없다. 공급자가 응답에 담지 않고, 같은 키가 결제를 붙이는 순간
+   * 유료가 된다. 그래서 사람이 표시하고 표에 남는다(마이그 269).
+   */
+  isPaid: boolean
   /** 사람이 끈 것 */
   isActive: boolean
   /** 한도에 걸려 쉬는 중. ISO 문자열 또는 없음 */
@@ -85,29 +96,55 @@ export function isBlocked(entry: KeyPoolEntry): boolean {
   return !entry.isActive || entry.disabledReason === 'auth'
 }
 
-function byPriority(a: KeyPoolEntry, b: KeyPoolEntry): number {
+/**
+ * 등급. 유료가 뒤다.
+ *
+ * **이 저장소에서 유료 여부가 순서를 정하는 유일한 자리다.** 화면이든 저장소든 어디서
+ * 「유료는 뒤로」를 또 적으면, 화면이 보여 주는 순서와 실제로 부르는 순서가 갈라진다.
+ * 그때 관리자는 앞줄 키가 쓰인다고 믿으면서 뒷줄 키로 결제한다 (가드: lib/policy/ai-key-pool.test.ts).
+ */
+function tier(e: KeyPoolEntry): number {
+  return e.isPaid ? 1 : 0
+}
+
+/** 등급이 먼저, 같은 등급 안에서 priority, 그래도 같으면 id. 셋째가 있어야 순서가 안 흔들린다 */
+function byOrder(a: KeyPoolEntry, b: KeyPoolEntry): number {
+  if (tier(a) !== tier(b)) return tier(a) - tier(b)
   if (a.priority !== b.priority) return a.priority - b.priority
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
 
 /**
+ * 보이는 순서. 고르는 순서와 **같은 비교자**를 쓴다.
+ *
+ * 고를 때는 못 쓰는 줄이 빠지고 볼 때는 안 빠지는데(그 줄이 왜 못 쓰는지가 화면의 용건이다),
+ * 그렇다고 정렬 규칙까지 다르면 화면의 「앞에 있는 키부터 씁니다」가 거짓말이 된다.
+ */
+export function orderForView(entries: readonly KeyPoolEntry[]): KeyPoolEntry[] {
+  return [...entries].sort(byOrder)
+}
+
+/**
  * 시도할 순서를 정한다.
  *
- * 규칙 셋
+ * 규칙 넷
  *  1 사람이 끈 키와 인증이 깨진 키는 아예 안 쓴다 (기다려도 안 풀린다)
- *  2 쉬는 중인 키는 빼고 우선순위 낮은 것부터
- *  3 **쓸 것이 하나도 없으면 빈 목록을 주지 않는다** — 가장 빨리 풀리는 키 하나를 준다.
+ *  2 쉬는 중인 키는 빼고, **무료를 먼저 다 태우고 그다음 유료**, 같은 등급 안에서는 priority 낮은 것부터
+ *  3 유료 키가 앞에 오는 경우는 하나뿐이다 — 쓸 수 있는 무료 키가 하나도 없을 때
+ *  4 **쓸 것이 하나도 없으면 빈 목록을 주지 않는다** — 가장 빨리 풀리는 키 하나를 준다.
  *    빈 목록을 주면 부르는 쪽이 「키가 없다」와 「키가 다 쉰다」를 구별 못 하고
  *    그 기능은 그냥 죽는다. 한 번은 두드려 보는 편이 낫다 (한도가 이미 풀렸을 수도 있다).
+ *    여기서는 등급보다 **빨리 풀리는 쪽**이 이긴다. 전부 쉬는 중이라 아낄 무료 키가
+ *    애초에 없고, 그나마 될 법한 하나를 두드리는 것이 이 가지의 용건이기 때문이다.
  */
 export function orderKeys(entries: readonly KeyPoolEntry[], now: number): KeyPoolEntry[] {
   const usable = entries.filter((e) => !isBlocked(e))
-  const ready = usable.filter((e) => !isCooling(e, now)).sort(byPriority)
+  const ready = usable.filter((e) => !isCooling(e, now)).sort(byOrder)
   if (ready.length > 0) return ready
 
   const soonest = [...usable].sort((a, b) => {
     const d = coolsAt(a) - coolsAt(b)
-    return d !== 0 ? d : byPriority(a, b)
+    return d !== 0 ? d : byOrder(a, b)
   })[0]
   return soonest ? [soonest] : []
 }

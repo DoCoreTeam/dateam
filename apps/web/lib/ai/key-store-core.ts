@@ -36,6 +36,8 @@ export interface KeyRow {
   cooldown_until: string | null
   disabled_reason: string | null
   consecutive_failures: number
+  /** 결제가 붙은 키인가(마이그 269). 참이면 무료 키를 다 쓴 뒤에만 부른다 */
+  is_paid: boolean
 }
 
 /**
@@ -76,6 +78,8 @@ export function rowToEntry(row: KeyRow, provider: AiProviderId): KeyPoolEntry {
     label: row.label,
     apiKey: row.api_key,
     priority: row.priority,
+    // 옛 판에서 온 줄에는 이 칸이 없을 수 있다. 없으면 무료로 본다 — 모르는 키로 결제하지 않는다
+    isPaid: row.is_paid === true,
     isActive: row.is_active,
     cooldownUntil: row.cooldown_until,
     disabledReason: asDisabledReason(row.disabled_reason),
@@ -96,6 +100,8 @@ export function metaEntry(provider: AiProviderId, apiKey: string): KeyPoolEntry 
     label: '기본',
     apiKey,
     priority: 0,
+    // META 칸에는 유료 표시를 둘 자리가 없다. 하나뿐인 키를 안 쓸 수는 없으므로 무료로 본다
+    isPaid: false,
     isActive: true,
     cooldownUntil: null,
     disabledReason: null,

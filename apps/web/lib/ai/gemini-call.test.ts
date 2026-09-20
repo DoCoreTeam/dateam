@@ -368,7 +368,7 @@ describe('한도를 한도라고 부른다 (P0030 I02)', () => {
 function keyEntry(label: string, apiKey: string): KeyPoolEntry {
   return {
     id: label, provider: 'gemini', label, apiKey,
-    priority: 0, isActive: true, cooldownUntil: null,
+    priority: 0, isPaid: false, isActive: true, cooldownUntil: null,
     disabledReason: null, consecutiveFailures: 0,
   }
 }

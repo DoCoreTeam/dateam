@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 
 import {
   orderKeys,
+  orderForView,
   nextKeyState,
   applyKeyState,
   isCooling,
@@ -28,6 +29,7 @@ function entry(over: Partial<KeyPoolEntry> & { id: string }): KeyPoolEntry {
     label: over.id,
     apiKey: `AIza-${over.id}-0123456789`,
     priority: 0,
+    isPaid: false,
     isActive: true,
     cooldownUntil: null,
     disabledReason: null,
@@ -184,4 +186,76 @@ test('가림값에 키 원문이 남지 않는다', () => {
   assert.equal(masked, 'AIza****ghij')
   assert.ok(!masked.includes('1234567890'), '가운데가 남으면 가린 것이 아니다')
   assert.equal(maskApiKey('short'), '****', '짧은 키는 길이조차 알려 주지 않는다')
+})
+
+/* ── 유료 키 (마이그 269) ─────────────────────────────────────────
+   무료 키를 다 태우고 나서 결제되는 키를 부른다. 이 규칙이 틀리면 증상이 안 보인다 —
+   화면은 그대로 돌고 청구서만 는다. 그래서 순서 자체를 센다. */
+
+test('★ 쓸 수 있는 무료 키가 있으면 유료 키는 앞에 오지 않는다', () => {
+  // priority 로는 유료가 먼저다. 등급이 그것을 이겨야 한다
+  const rows = [
+    entry({ id: 'paid', priority: 0, isPaid: true }),
+    entry({ id: 'free', priority: 9 }),
+  ]
+
+  assert.deepEqual(orderKeys(rows, NOW).map((k) => k.id), ['free', 'paid'])
+})
+
+test('★ 무료 키가 전부 쉬는 중이면 유료 키가 나온다 — 그러라고 있는 키다', () => {
+  const rows = [
+    entry({ id: 'free-a', priority: 0, cooldownUntil: new Date(NOW + 60_000).toISOString(), disabledReason: 'quota' }),
+    entry({ id: 'free-b', priority: 1, cooldownUntil: new Date(NOW + 60_000).toISOString(), disabledReason: 'quota' }),
+    entry({ id: 'paid', priority: 2, isPaid: true }),
+  ]
+
+  assert.deepEqual(orderKeys(rows, NOW).map((k) => k.id), ['paid'])
+})
+
+test('★ 무료 키가 꺼져 있거나 인증이 깨졌어도 유료로 넘어간다', () => {
+  const rows = [
+    entry({ id: 'free-off', priority: 0, isActive: false }),
+    entry({ id: 'free-broken', priority: 1, disabledReason: 'auth' }),
+    entry({ id: 'paid', priority: 2, isPaid: true }),
+  ]
+
+  assert.deepEqual(orderKeys(rows, NOW).map((k) => k.id), ['paid'])
+})
+
+test('같은 등급 안에서는 priority 가 그대로 순서를 정한다', () => {
+  const rows = [
+    entry({ id: 'paid-late', priority: 1, isPaid: true }),
+    entry({ id: 'free-late', priority: 1 }),
+    entry({ id: 'paid-early', priority: 0, isPaid: true }),
+    entry({ id: 'free-early', priority: 0 }),
+  ]
+
+  assert.deepEqual(orderKeys(rows, NOW).map((k) => k.id),
+    ['free-early', 'free-late', 'paid-early', 'paid-late'])
+})
+
+test('전부 쉬는 중이면 등급보다 빨리 풀리는 쪽이 이긴다 — 아낄 무료 키가 애초에 없다', () => {
+  const rows = [
+    entry({ id: 'free', priority: 0, cooldownUntil: new Date(NOW + 600_000).toISOString(), disabledReason: 'quota' }),
+    entry({ id: 'paid', priority: 1, isPaid: true, cooldownUntil: new Date(NOW + 60_000).toISOString(), disabledReason: 'quota' }),
+  ]
+
+  assert.deepEqual(orderKeys(rows, NOW).map((k) => k.id), ['paid'])
+})
+
+test('★ 보이는 순서와 고르는 순서가 같은 규칙을 쓴다 — 다르면 화면의 「앞에 있는 키부터」가 거짓말이 된다', () => {
+  const rows = [
+    entry({ id: 'paid', priority: 0, isPaid: true }),
+    entry({ id: 'free-cooling', priority: 1, cooldownUntil: new Date(NOW + 60_000).toISOString(), disabledReason: 'quota' }),
+    entry({ id: 'free-ready', priority: 2 }),
+  ]
+
+  // 보는 목록은 못 쓰는 줄도 남긴다. 그래도 **순서**는 고르는 목록과 어긋나지 않는다
+  const view = orderForView(rows).map((k) => k.id)
+  assert.deepEqual(view, ['free-cooling', 'free-ready', 'paid'])
+
+  const picked = orderKeys(rows, NOW).map((k) => k.id)
+  assert.deepEqual(picked, ['free-ready', 'paid'])
+  // 고르는 목록은 보는 목록의 부분수열이다 (빠지기만 하고 앞뒤가 바뀌지 않는다)
+  assert.deepEqual(picked, view.filter((id) => picked.includes(id)))
 })

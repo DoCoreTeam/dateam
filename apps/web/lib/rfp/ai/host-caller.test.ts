@@ -18,7 +18,7 @@ import type { KeyPoolEntry } from '../../ai/key-pool.ts'
 function keyEntry(label: string, apiKey: string): KeyPoolEntry {
   return {
     id: label, provider: 'gemini', label, apiKey,
-    priority: 0, isActive: true, cooldownUntil: null,
+    priority: 0, isPaid: false, isActive: true, cooldownUntil: null,
     disabledReason: null, consecutiveFailures: 0,
   }
 }
