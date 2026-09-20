@@ -61,6 +61,25 @@ export function normalizeText(input: string | null | undefined): string | null {
   return cleaned || null
 }
 
+/**
+ * **여러 줄 텍스트** — 줄바꿈을 살린다.
+ *
+ * `normalizeText` 는 `\s+` 를 공백 하나로 눕히므로 **줄바꿈이 사라진다.**
+ * 한 줄짜리 이름·제목에는 맞지만, 규격처럼 여러 줄을 담는 칸에 쓰면
+ * 읽어 온 구성 열세 줄이 저장되는 순간 한 줄로 뭉친다
+ * (실브라우저 실측 2026-09-21: 화면까지는 여러 줄이었는데 DB 에는 한 줄로 들어갔다.
+ * 타입 검사도 단위 시험도 이 자리를 못 밟았다).
+ *
+ * 줄 안의 연속 공백은 그대로 정리하고, 빈 줄은 버린다 — 빈 줄이 인쇄되면 문서에 구멍이 생긴다.
+ */
+export function normalizeMultiline(input: string | null | undefined): string | null {
+  const lines = (input ?? '')
+    .split('\n')
+    .map((line) => line.trim().replace(/[^\S\n]+/g, ' '))
+    .filter(Boolean)
+  return lines.length > 0 ? lines.join('\n') : null
+}
+
 /** 필수 텍스트 — 비어 있으면 저장을 막아야 하므로 빈 문자열이 아니라 실패를 알린다 */
 export function requireText(input: string | null | undefined): string | null {
   return normalizeText(input)

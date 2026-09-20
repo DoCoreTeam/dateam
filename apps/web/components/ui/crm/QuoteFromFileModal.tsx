@@ -30,7 +30,7 @@ import {
   ACTION, ENTITY, failedTo, progress, QUOTE,
   FILL_FILE_KINDS, FILL_UNCLEAR_TITLE, FILL_NOTHING_FOUND,
   FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_READ_FAILED, FILL_FILE_LABEL,
-  fillQuoteName, fillFoundQuotesLine,
+  fillQuoteName, fillFoundQuotesLine, fillSourcePage,
   IMPORT_TITLE, IMPORT_FILE_HINT, IMPORT_DEST, IMPORT_DEST_HINT,
   IMPORT_APPEND_TARGET, IMPORT_NO_APPEND_TARGET, IMPORT_OPEN, IMPORT_CLOSE,
   importSubmitLabel, importDoneLine, importFailedLine, importMixedLine,
@@ -691,6 +691,14 @@ export default function QuoteFromFileModal({
                       {open ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}
                       <b className={styles.pickName}>{fillQuoteName(i, r.label ?? r.title)}</b>
                       <span className={styles.pickMeta}>
+                        {/*
+                          **여기가 사람이 건을 고르는 자리다.** 한 파일에 견적이 둘이면
+                          「어느 게 내 건인가」를 여기서 먼저 답해 줘야 한다 — 만들고 난 뒤
+                          대조 화면에서 알려 주는 것은 한 발 늦다.
+                        */}
+                        {fillSourcePage(r.pageStart, r.pageEnd) && (
+                          <span className={styles.sourcePage}>{fillSourcePage(r.pageStart, r.pageEnd)}</span>
+                        )}
                         <span>{open ? IMPORT_CLOSE : IMPORT_OPEN}</span>
                         <b>{formatAmount(r.total.ourTotalMinor.toString(), r.currency)}</b>
                       </span>

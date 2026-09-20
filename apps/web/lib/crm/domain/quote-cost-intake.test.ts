@@ -219,3 +219,36 @@ test('★ 붙여넣기 화면도 구성을 폼으로 나른다 — 받아 놓고
   assert.match(src, /descriptionMd: joinSpec\(l\.spec, l\.components\)/,
     '말로 채우기가 구성을 버린다')
 })
+
+/* ── 줄바꿈이 저장까지 사는가 (v0.10.32x) ────────── */
+
+/*
+  **실브라우저가 잡은 결함이다.** 화면까지는 구성이 여러 줄이었는데 저장하는 순간
+  한 줄로 뭉쳤다 — `normalizeText` 가 `\s+` 를 공백 하나로 눕히기 때문이다.
+  타입 검사도 단위 시험도 못 밟는 자리였고, DB 값을 직접 보고서야 알았다.
+*/
+
+test('★ 여러 줄 정리는 줄바꿈을 살린다 — 한 줄 정리를 쓰면 구성이 뭉친다', async () => {
+  const { normalizeMultiline, normalizeText } = await import('./normalize.ts')
+  const spec = 'AMD 9355 32Core x 2Ea\nDual AMD EPYC 9005/9004\n12-Channel DDR5'
+
+  assert.equal(normalizeMultiline(spec), spec)
+  assert.ok(!(normalizeText(spec) ?? '').includes('\n'),
+    '한 줄 정리가 줄바꿈을 살리면 이 가드가 헛돈다')
+})
+
+test('줄 안의 연속 공백은 정리하고 빈 줄은 버린다 — 빈 줄이 인쇄되면 문서에 구멍이 생긴다', async () => {
+  const { normalizeMultiline } = await import('./normalize.ts')
+  assert.equal(normalizeMultiline('  가   나  \n\n\n  다  '), '가 나\n다')
+  assert.equal(normalizeMultiline('   '), null)
+  assert.equal(normalizeMultiline(null), null)
+})
+
+test('★ 견적 저장 경로가 여러 줄 정리를 쓴다 — 규격과 특기사항 둘 다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../services/quote.ts', import.meta.url), 'utf8')
+  assert.match(src, /descriptionMd: normalizeMultiline\(line\.descriptionMd\)/,
+    '규격이 한 줄로 뭉친다')
+  assert.ok(!/notesMd: normalizeText\(/.test(src),
+    '특기사항이 한 줄로 뭉친다 — 화면은 여러 줄 칸이고 인쇄는 pre-wrap 인데 저장만 눕히고 있었다')
+})

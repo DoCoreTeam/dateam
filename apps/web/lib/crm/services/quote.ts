@@ -23,7 +23,7 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { normalizeText, requireText, pageNoOrNull } from '../domain/normalize.ts'
+import { normalizeText, normalizeMultiline, requireText, pageNoOrNull } from '../domain/normalize.ts'
 import { latestFxRate, needsFx } from './fx.ts'
 import { assertTransit, type QuoteStatus } from '../domain/state-machines.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
@@ -329,7 +329,8 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
     kind,
     roleLabel: normalizeText(line.roleLabel),
     laborGradeId: line.laborGradeId || null,
-    descriptionMd: normalizeText(line.descriptionMd),
+    // **여러 줄을 담는 칸이다.** normalizeText 를 쓰면 구성 열세 줄이 저장되며 한 줄로 뭉친다
+    descriptionMd: normalizeMultiline(line.descriptionMd),
     quantity,
     unit: normalizeText(line.unit),
     unitPriceMinor,
@@ -733,7 +734,7 @@ export async function createQuote(
           title,
           currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
-          notesMd: normalizeText(input.notesMd),
+          notesMd: normalizeMultiline(input.notesMd),
           // 고른 조건. 순서를 그대로 저장한다 — 그 순서가 인쇄 순서다
           termIds,
           termsSnapshot,
@@ -766,7 +767,7 @@ export async function createQuote(
         data: {
           dealId: input.dealId, quoteNo, title, currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
-          notesMd: normalizeText(input.notesMd), ownerId: input.ownerId || null,
+          notesMd: normalizeMultiline(input.notesMd), ownerId: input.ownerId || null,
           recipientPersonId: input.recipientPersonId || null,
           termIds,
           termsSnapshot,
@@ -967,7 +968,11 @@ export async function updateQuote(
     if (input.validUntil !== undefined) {
       data.validUntil = input.validUntil ? new Date(input.validUntil) : null
     }
-    if (input.notesMd !== undefined) data.notesMd = normalizeText(input.notesMd)
+    /*
+      **특기사항도 여러 줄이다.** 화면은 textarea 이고 인쇄는 pre-wrap 인데 저장만 한 줄로
+      눕히고 있었다 — 사람이 줄을 나눠 적어도 고객이 받는 문서에서는 한 덩어리였다.
+    */
+    if (input.notesMd !== undefined) data.notesMd = normalizeMultiline(input.notesMd)
     /*
       **조건은 받을 때마다 다시 굳힌다.**
       사용자가 고른 것은 반영하고, 그 사이 설정이 바뀐 것은 반영하지 않는다 —
