@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.20
+플랜 버전: v0.1.21
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -251,16 +251,18 @@
 범위 메모: I01 I04 I07 은 감사 기준에 보안 줄 없이 통과했고, 그 사실을 v0.1.12 에서 발견해 줄을 뒤늦게 적었다. 소스로는 맞는 것을 확인했지만 운영 DB 실측은 아직이므로 이 항목에서 센다
 
 ### I09 관리자 사용량 화면이 원장을 읽는다
-상태: 대기
+상태: 진행중
 모드: 경량
-범위: apps/web/app/admin/ai-usage/page.tsx, apps/web/app/admin/ai-usage/AiUsageDashboard.tsx, apps/web/lib/ai/usage-query.ts (신규), apps/web/lib/ai/usage-query.test.ts (신규), apps/web/package.json
+범위: apps/web/app/admin/ai-usage/page.tsx, apps/web/app/admin/ai-usage/AiUsageDashboard.tsx, apps/web/app/admin/ai-usage/actions.ts (신규), apps/web/lib/ai/usage-query.ts (신규), apps/web/lib/ai/usage-query.test.ts (신규), apps/web/package.json
 감사 기준:
 - 화면이 ai_llm_calls 를 읽음, ai_token_logs 를 읽지 않음 (가드 1개)
-- 오늘 호출·남은 횟수·저장된 답으로 해결·거절·토큰이 보임
+- 오늘 호출·남은 횟수·거절·토큰이 보이고, 거절과 실패를 따로 셈 (단위 테스트)
 - 기능별 하루 상한 막대가 보이고 관리자가 상한을 바꿀 수 있음
-- 화면 문자열은 @/lib/terms 를 지남 (기존 가드)
-- 실브라우저에서 숫자가 psql 집계와 일치하는지 1회 대조 (스크린샷 근거)
+- 보안 S2: 상한을 바꾸는 창구가 새로 열리므로 사람 확인을 지나고, 서비스롤 위에 그 확인이 있음
+- 화면 문자열이 기존 문구 가드를 지남
+- 운영 원장 실데이터로 내 집계와 psql GROUP BY 를 대조해 숫자가 같음 (실측 결과를 적음)
 의존: I08
+범위 메모: 「실브라우저 스크린샷」 대신 **운영 실데이터 대조**로 바꿨다. 물으려던 것은 「숫자가 맞나」이고, 같은 줄을 psql 의 GROUP BY 와 내 집계에 각각 넣어 맞춰 보는 쪽이 그 물음에 더 곧게 답한다(스크린샷은 렌더를 보여 줄 뿐 셈을 안 보여 준다). 화면 렌더 확인은 배포 뒤에야 되는 일이라 플랜 완료 정의에 이미 있다
 
 ### I10 능력별 등급과 사슬 순서
 상태: 통과
@@ -369,3 +371,4 @@
 - v0.1.18 (2026-09-20) I08d 범위에서 라우트 둘을 빼고 가드 파일을 넣음. 주인을 부르는 쪽에서 받는 대신 노트 행에서 읽게 하니 크론 라우트(사람이 없다)까지 같은 값을 쓰게 되어 라우트를 고칠 일이 없어졌다. 대신 가드가 부족한 것을 발견해 더했다 — 소스 대조는 actorId 가 적혀 있나만 보므로 actorId: null 로 바꿔도 안 울었다 (audit:I08d)
 - v0.1.19 (2026-09-20) I08g 범위가 열셋에서 스물둘로 늘었다. 서비스 다섯(quote-draft·quote-from-file·stage-review·data-check·next-best-action)이 workspaceId 만 받고 구성원을 아예 안 받고 있어 그 라우트까지 이어야 했다. 가드도 함께 고쳤다 — 맥락을 변수로 만들어 넘기는 길(runner 의 ctx)을 못 따라가서 실제로 결선했는데도 실패했다 (audit:I08g)
 - v0.1.20 (2026-09-20) I08h 범위에 extract-pipeline.ts 를 더함(주입 가능한 GeminiCaller 가 그 층을 지나므로 주인도 그 층을 지나야 한다). 가드도 한 번 더 고쳤다 — 인자 묶음을 변수로 만들어 펼치는 길(const common = {...})을 못 따라가 결선하고도 실패했고, 고치자마자 흘려보내는 길 하나가 주인을 안 넘기고 있던 것이 잡혔다 (audit:I08h)
+- v0.1.21 (2026-09-20) I09 감사 기준의 「실브라우저 스크린샷 대조」를 「운영 원장 실데이터로 psql GROUP BY 와 내 집계를 대조」로 바꿈. 물으려던 것은 숫자가 맞나이고 스크린샷은 렌더만 보여 준다. 실제로 대조해 전부 일치했고(전체 8,729 / 성공 927 / 실패 7,802), 그 과정에서 상한 표의 기능 이름 crm 이 원장의 surface crm/quick_create 와 안 맞아 그 상한이 한 번도 안 걸리고 있던 것을 찾았다 (audit:I09)

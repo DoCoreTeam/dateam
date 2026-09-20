@@ -13,6 +13,9 @@ import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import ListSurface from '@/components/ui/list/ListSurface'
+import type { FeatureUsage, UsageTotals } from '@/lib/ai/usage-query'
+import { useEscClose } from '@/lib/use-esc-close'
+import { saveAiBudget } from './actions'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
@@ -67,9 +70,16 @@ const LIST_DEFAULTS: ListDefaults = {
 interface AiUsageDashboardProps {
   providerModelRows: ProviderModelRow[]
   monthLabel: string
+  /** 오늘(KST) 날짜 키 */
+  todayKey: string
+  /** 원장에서 접은 기능별 오늘 사용량 */
+  ledgerToday: FeatureUsage[]
+  totals: UsageTotals
 }
 
-export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUsageDashboardProps) {
+export default function AiUsageDashboard({
+  providerModelRows, monthLabel, todayKey, ledgerToday, totals,
+}: AiUsageDashboardProps) {
   const { query, set } = useListQuery(LIST_DEFAULTS)
   const days = Number(query.filters.days) || DEFAULT_DAYS
   const providerFilter = query.filters.provider || 'all'
@@ -87,6 +97,7 @@ export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUs
    */
   const [providerQuota, setProviderQuota] = useState<{ count: number; detail: string } | null>(null)
 
+  const [editing, setEditing] = useState<FeatureUsage | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [features, setFeatures] = useState<FeatureRow[]>([])
   const [users, setUsers] = useState<UserRow[]>([])
@@ -173,6 +184,63 @@ export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUs
       </div>
     )
   }
+
+  const featureUsageColumns: ColumnDef<FeatureUsage>[] = [
+    { key: 'feature', header: '기능', primary: true, cell: (u) => <span style={{ fontWeight: 600 }}>{u.feature}</span> },
+    { key: 'total', header: '전체', align: 'right', cell: (u) => `${fmt(u.total)}회` },
+    { key: 'ok', header: '성공', align: 'right', cell: (u) => fmt(u.ok) },
+    { key: 'failed', header: '실패', align: 'right', cell: (u) => fmt(u.failed) },
+    {
+      key: 'denied', header: '거절', align: 'right',
+      // 거절은 «우리가 안 보낸 것»이다. 실패와 같은 색으로 두면 둘이 같은 일로 읽힌다
+      cell: (u) => (
+        <span title="상한에 걸려 벤더로 나가지 않은 호출" style={u.denied > 0 ? { color: 'var(--warn)' } : undefined}>
+          {fmt(u.denied)}
+        </span>
+      ),
+    },
+    {
+      key: 'remaining', header: '오늘 남은 횟수', align: 'right',
+      cell: (u) => {
+        // 상한을 모르는 것과 0 은 다른 말이다 — 모르는 것을 0 으로 적으면 거짓말이 된다
+        if (!u.limit) return <span style={{ color: 'var(--text-muted)' }} title="이 기능에는 상한이 설정돼 있지 않습니다">상한 없음</span>
+        const used = u.total - u.denied
+        return (
+          <span title={`오늘 ${fmt(used)}/${fmt(u.limit.dailyLimit)}회`} style={u.remaining === 0 ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>
+            {fmt(u.remaining ?? 0)} / {fmt(u.limit.dailyLimit)}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'bar', header: '오늘 쓴 비율', hideOnCard: true,
+      cell: (u) => {
+        // 상한이 없으면 막대도 없다 — 분모를 지어내면 그 막대는 아무 뜻이 없다
+        if (!u.limit || u.limit.dailyLimit <= 0) return <span style={{ color: 'var(--text-muted)' }}>상한 없음</span>
+        const used = u.total - u.denied
+        const pct = Math.min(100, Math.round((used / u.limit.dailyLimit) * 100))
+        return (
+          <div title={`${fmt(used)}/${fmt(u.limit.dailyLimit)}회 (${pct}%)`}
+            style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', height: '0.5rem', minWidth: '5rem' }}>
+            <div style={{
+              width: `${pct}%`, height: '100%', borderRadius: 'var(--radius-sm)',
+              background: pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : 'var(--brand)',
+            }} />
+          </div>
+        )
+      },
+    },
+    { key: 'inputTokens', header: '입력 토큰', align: 'right', hideOnCard: true, cell: (u) => fmt(u.inputTokens) },
+    { key: 'outputTokens', header: '출력 토큰', align: 'right', hideOnCard: true, cell: (u) => fmt(u.outputTokens) },
+    {
+      key: 'edit', header: '상한', align: 'right',
+      cell: (u) => (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(u)}>
+          {u.limit ? '바꾸기' : '정하기'}
+        </button>
+      ),
+    },
+  ]
 
   const userColumns: ColumnDef<UserRow>[] = [
     { key: 'name', header: '이름', primary: true, cell: (u) => <span style={{ fontWeight: 600 }}>{u.name}</span> },
@@ -335,6 +403,44 @@ export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUs
         </div>
       </div>
 
+      {/* 오늘 원장 — 기능별 호출·거절·남은 횟수 */}
+      <div className="card" style={{ padding: 'var(--space-6)' }}>
+        <h2 className="tape-title" style={{ margin: 0 }}>오늘 AI 호출 ({todayKey})</h2>
+        <p style={{ margin: 'var(--space-2) 0 var(--space-4)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+          원장(ai_llm_calls)에서 셉니다. 토큰 집계와 달리 <strong>나가지 않은 호출</strong>도 남습니다.
+          상한에 걸려 거절된 것과 벤더가 거절한 것은 뜻이 다르므로 따로 셉니다.
+        </p>
+
+        <div style={{
+          display: 'grid', gap: 'var(--space-3)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))',
+          marginBottom: 'var(--space-4)',
+        }}>
+          {[
+            { label: '전체', value: totals.total, hint: '원장에 남은 줄' },
+            { label: '성공', value: totals.ok, hint: '벤더에 닿아 답이 온 것' },
+            { label: '실패', value: totals.failed, hint: '벤더까지 갔는데 안 된 것' },
+            { label: '거절', value: totals.denied, hint: '상한에 걸려 안 보낸 것' },
+            { label: '한도 소진', value: totals.exhausted, hint: '오늘 몫을 다 쓴 기능 수' },
+          ].map((m) => (
+            <div key={m.label} className="card" style={{ padding: 'var(--space-4)' }} title={m.hint}>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{m.label}</div>
+              <div style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700 }}>{fmt(m.value)}</div>
+            </div>
+          ))}
+        </div>
+
+        <ListSurface
+          rows={ledgerToday}
+          columns={featureUsageColumns}
+          query={query}
+          rowKey={(u) => u.feature}
+          empty={{ title: '오늘은 아직 호출이 없어요', description: '상한이 설정된 기능은 0건이어도 함께 보입니다' }}
+        />
+      </div>
+
+      {editing && <BudgetEditor usage={editing} onClose={() => setEditing(null)} />}
+
       {/* 유저별 테이블 */}
       <div className="card" style={{ padding: 'var(--space-6)' }}>
         <h2 className="tape-title" style={{ margin: 0 }}>유저별 사용량</h2>
@@ -396,6 +502,86 @@ export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUs
           empty={{ title: '요청 기록이 없어요', description: 'AI를 호출하면 요청 하나하나가 여기에 남습니다' }}
         />
         <ListPager query={query} total={logTotal} onChange={set} loading={loading} />
+      </div>
+    </div>
+  )
+}
+
+
+/**
+ * 기능 하나의 하루 상한을 고친다.
+ *
+ * 쓰기는 서버 액션 한 곳을 지난다 — ai_call_budget 에는 쓰기 정책이 없고(마이그 263),
+ * 브라우저가 직접 고칠 수 있으면 상한이 상한이 아니다.
+ */
+function BudgetEditor({ usage, onClose }: { usage: FeatureUsage; onClose: () => void }) {
+  const [daily, setDaily] = useState(String(usage.limit?.dailyLimit ?? 30))
+  const [perMinute, setPerMinute] = useState(String(usage.limit?.perMinuteLimit ?? 5))
+  const [enabled, setEnabled] = useState(usage.limit?.enabled ?? true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEscClose(onClose, !saving)
+
+  async function submit() {
+    setSaving(true)
+    setError(null)
+    const r = await saveAiBudget({
+      feature: usage.feature,
+      dailyLimit: Number(daily),
+      perMinuteLimit: Number(perMinute),
+      enabled,
+    })
+    setSaving(false)
+    if (!r.ok) { setError(r.error ?? '저장하지 못했습니다.'); return }
+    onClose()
+  }
+
+  return (
+    <div
+      role="presentation"
+      onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose() }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', backgroundColor: 'var(--modal-backdrop)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)',
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${usage.feature} 하루 상한`}
+        style={{
+          width: '100%', maxWidth: '26rem', background: 'var(--color-surface)',
+          borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-modal)', padding: 'var(--space-5)',
+          display: 'flex', flexDirection: 'column', gap: 'var(--space-4)',
+        }}
+      >
+        <h2 className="tape-title" style={{ margin: 0 }}>{usage.feature} 상한</h2>
+        <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+          상한에 닿으면 그 기능의 AI 호출이 거절되고, 사유와 풀리는 시각이 함께 나옵니다.
+          줄을 지우는 것과 끄는 것은 다릅니다. 지우면 상한을 모르는 상태가 되어 통과합니다.
+        </p>
+
+        <label className="label" htmlFor="ai-budget-daily">하루 상한 (회)</label>
+        <input id="ai-budget-daily" className="input-field" inputMode="numeric"
+          value={daily} onChange={(e) => setDaily(e.target.value)} />
+
+        <label className="label" htmlFor="ai-budget-minute">분당 상한 (회)</label>
+        <input id="ai-budget-minute" className="input-field" inputMode="numeric"
+          value={perMinute} onChange={(e) => setPerMinute(e.target.value)} />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+          <span>이 기능에 AI 를 씁니다</span>
+        </label>
+
+        {error && <p role="alert" style={{ margin: 0, color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{error}</p>}
+
+        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>취소</button>
+          <button type="button" className="btn btn-primary" onClick={submit} disabled={saving}>
+            {saving ? '저장 중…' : '저장'}
+          </button>
+        </div>
       </div>
     </div>
   )
