@@ -10,7 +10,7 @@ import { Fragment } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '@/lib/terms/quote'
-import { hasDiscount } from '@/lib/crm/domain/quote-document'
+import { hasDiscount, hasRemark } from '@/lib/crm/domain/quote-document'
 import type { QuoteDocument, DocumentLine, DocumentSection } from '@/lib/crm/domain/quote-document'
 import styles from './quote-document.module.css'
 
@@ -43,8 +43,29 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
     (사용자 지적 2026-09-20). 판정은 문서 SSOT 한 곳에서 온다 — 엑셀도 같은 답을 본다.
   */
   const showDiscount = hasDiscount(doc)
+  /*
+    **비고 열은 쓰는 견적에만 선다.** 늘 세우면 비고를 안 쓰는 견적에서 빈 열이 폭을 먹고,
+    그만큼 품목 이름이 좁아져 두 줄로 부서진다(할인 열이 같은 이유로 같은 규칙을 쓴다).
+  */
+  const showRemark = hasRemark(doc)
   /** 열 수. 할인 칸이 빠지면 표가 여섯 열이고, 아래 모든 colSpan 이 이 값에서 나온다 */
-  const cols = showDiscount ? 7 : 6
+  const cols = (showDiscount ? 7 : 6) + (showRemark ? 1 : 0)
+
+  /*
+    **열 폭은 비율이고 합은 늘 100 이다.** 모자라거나 남으면 브라우저가 제 마음대로
+    나눠 화면과 종이의 배치가 달라진다. 그래서 비고 열이 설 때 그 폭을 어디서
+    떼어 올지 여기 한 곳에서 정한다.
+
+    금액(25%)과 할인(16%)은 **실측으로 정한 값이라 건드리지 않는다** — 금액을 줄였을 때
+    「330,000,000원」의 「원」이 잘렸고, 할인을 줄였을 때 「30% → 100%」가 접혔다.
+    그래서 품목 이름에서 크게 떼고 단위·수량에서 1%씩 보탠다.
+  */
+  const colWidths = {
+    name: showRemark ? (showDiscount ? '18%' : '34%') : showDiscount ? '26%' : '42%',
+    unit: showRemark ? '6%' : '7%',
+    quantity: showRemark ? '5%' : '6%',
+    remark: '10%',
+  }
   /** 합계 라벨은 **금액 바로 앞 두 칸**에 걸친다 — 한 칸이면 「합계 금액」이 두 줄로 깨진다 */
   const labelSpan = 2
   const padSpan = cols - labelSpan - 1
@@ -155,6 +176,12 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                         </span>
                       ) : money(l.amountMinor)}
                     </td>
+                    {/*
+                      **비고는 그 줄이 이 견적에서 무슨 구실인가**다 — 「서버 새시」「64코어」
+                      「Raid5」. 규격(물건이 무엇인가)과 다르므로 자리도 따로다.
+                      비어 있으면 빈 칸으로 남긴다 — 칸을 지우면 아래 줄이 한 칸씩 밀린다.
+                    */}
+                    {showRemark && <td className={styles.remark}>{l.remark ?? ''}</td>}
                   </tr>
   )
 
@@ -304,9 +331,9 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                 남는 폭을 제 마음대로 나눠 화면과 종이의 배치가 달라진다. 품목 이름이
                 가져간다 — 두 줄로 부서지던 칸이 그 자리다.
               */}
-              <col style={{ width: showDiscount ? '26%' : '42%' }} />
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '6%' }} />
+              <col style={{ width: colWidths.name }} />
+              <col style={{ width: colWidths.unit }} />
+              <col style={{ width: colWidths.quantity }} />
               <col style={{ width: '15%' }} />
               {/*
                 할인 칸은 **두 비율과 화살표가 한 줄에 서야** 한다. 8% 였을 때
@@ -325,6 +352,8 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                 굵은 큰 글씨는 같은 자릿수라도 폭을 더 먹는다.
               */}
               <col style={{ width: '25%' }} />
+              {/* 비고는 「64코어」「레이드컨트롤러」 정도라 넓을 필요가 없다 */}
+              {showRemark && <col style={{ width: colWidths.remark }} />}
             </colgroup>
             <thead>
               <tr>
@@ -338,6 +367,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                   <th className={styles.center} scope="col">{QUOTE.lineDiscount}</th>
                 )}
                 <th className={styles.center} scope="col">{QUOTE.lineAmount}</th>
+                {showRemark && <th className={styles.center} scope="col">{QUOTE.lineRemark}</th>}
               </tr>
             </thead>
             <tbody>

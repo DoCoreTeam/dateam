@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildQuoteDocument, verifyDocument, missingSupplierFields,
-  exportFileName, hasDiscount,
+  exportFileName, hasDiscount, hasRemark,
   type BuildQuoteDocumentInput,
 } from './quote-document.ts'
 import { hangulAmount, QUOTE } from '../../terms/quote.ts'
@@ -450,4 +450,53 @@ test('한 줄짜리 규격은 구성이 비어 있다 — 예전 견적이 그�
 test('★ 구성을 종이에 낼지는 문서가 들고 간다 — 안 주면 «편다»', () => {
   assert.equal(buildQuoteDocument(input({})).meta.printComponents, 'expand',
     '기본이 접기면 원본에 있던 것을 우리가 숨기는 셈이다')
+})
+
+
+/* ── 비고 (v0.10.34x) ─────────────────────────── */
+
+/*
+  **왜**: 우리 견적서 양식에는 비고 열이 있고 실제로 쓰인다 — 실측 원본 2쪽에
+  「서버 새시」「64코어」「Raid5」가 항목마다 적혀 있다. 그런데 담을 칸이 없어
+  읽어도 버려졌다(사용자 지적 2026-09-21: 「비고는 왜 없는거야」).
+
+  여기서 보는 것은 **값이 끝까지 가는가**다. 타입만 맞고 중간에서 빠지면
+  표 열만 서고 칸이 빈다.
+*/
+
+test('★ 비고가 문서까지 간다 — 중간에서 빠지면 열만 서고 칸이 빈다', () => {
+  const doc = buildQuoteDocument(input({
+    lines: [
+      { name: 'GIGABYTE R283-Z96-AAJ1', quantity: 1, unitPriceMinor: 6_050_000n, remark: '서버 새시' },
+      { name: 'CPU', quantity: 2, unitPriceMinor: 6_171_000n, remark: '64코어' },
+    ],
+  }))
+  assert.equal(doc.lines[0].remark, '서버 새시')
+  assert.equal(doc.lines[1].remark, '64코어')
+})
+
+test('★ 비고를 안 적으면 null 이다 — 빈 글자와 없는 것을 갈라 둔다', () => {
+  const doc = buildQuoteDocument(input({
+    lines: [
+      { name: '품목', quantity: 1, unitPriceMinor: 1000n },
+      { name: '품목2', quantity: 1, unitPriceMinor: 1000n, remark: '   ' },
+    ],
+  }))
+  assert.equal(doc.lines[0].remark, null)
+  assert.equal(doc.lines[1].remark, null, '공백뿐인 비고는 없는 것이다')
+})
+
+test('★ 비고 열은 한 줄이라도 있을 때만 선다', () => {
+  const none = buildQuoteDocument(input({
+    lines: [{ name: '품목', quantity: 1, unitPriceMinor: 1000n }],
+  }))
+  assert.equal(hasRemark(none), false, '아무도 안 적었는데 열이 선다')
+
+  const some = buildQuoteDocument(input({
+    lines: [
+      { name: '품목', quantity: 1, unitPriceMinor: 1000n },
+      { name: '품목2', quantity: 1, unitPriceMinor: 1000n, remark: 'Raid5' },
+    ],
+  }))
+  assert.equal(hasRemark(some), true, '한 줄이 적었는데 열이 안 선다')
 })

@@ -140,6 +140,14 @@ export interface DocumentLine {
   baseAmountMinor: string
   /** 할인 반영, 세금 제외 — 저장된 값 */
   amountMinor: string
+  /**
+   * 비고 — 견적서 표 맨 오른쪽 열.
+   *
+   * 규격과 다르다. **규격은 물건이 무엇인가**이고(「AMD EPYC 9355 32C/64T」),
+   * **비고는 이 견적에서 그 줄이 무슨 구실인가**다(「서버 새시」「64코어」「Raid5」).
+   * 우리 양식에 원래 있던 열인데 담을 칸이 없어 읽어도 버려졌다(사용자 지적 2026-09-21).
+   */
+  remark: string | null
 }
 
 export interface DocumentTotals {
@@ -248,6 +256,8 @@ export interface BuildQuoteDocumentInput {
   lines: readonly {
     name: string
     descriptionMd?: string | null
+    /** 비고 — 견적서 표 맨 오른쪽 열 */
+    remark?: string | null
     unit?: string | null
     quantity: string | number
     unitPriceMinor: bigint | string
@@ -454,6 +464,7 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       unitPriceMinor: s(l.unitPriceMinor),
       ...discountOf(l),
       amountMinor: s(l.lineTotalMinor),
+      remark: text(l.remark) || null,
     })),
     totals: {
       subtotalMinor: s(input.quote.subtotalMinor),
@@ -546,6 +557,16 @@ export function verifyDocument(doc: QuoteDocument): Violation[] {
  * 합계와 항목을 **둘 다** 본다: 합계 할인액이 0 이어도 특별가 줄은 「30% → 80%」라는
  * 할 말이 남아 있고, 반대로 항목 할인율이 전부 0 이어도 합계에 할인이 잡힐 수 있다.
  */
+/**
+ * 비고 열을 세우나 — **한 줄이라도 비고가 있을 때만**.
+ *
+ * 늘 세우면 비고를 안 쓰는 견적에서 빈 열이 폭을 먹고, 그만큼 품목 이름이 좁아져
+ * 두 줄로 부서진다. 할인 열이 같은 이유로 같은 규칙을 쓴다.
+ */
+export function hasRemark(doc: Pick<QuoteDocument, 'lines'>): boolean {
+  return doc.lines.some((l) => (l.remark ?? '') !== '')
+}
+
 export function hasDiscount(doc: Pick<QuoteDocument, 'lines' | 'totals'>): boolean {
   if ((doc.totals.discountMinor ?? '0') !== '0') return true
   return doc.lines.some((l) => l.isSpecialDiscount || l.discountPercent !== '0')

@@ -315,3 +315,63 @@ test('★ 가져오기 창의 머리말이 건수를 말한다 — 화면이 조
   assert.ok(!/fillFoundQuotesLine\(/.test(FILL),
     '한 건만 쓰는 자리에 건수 문장을 붙였다 — 늘 「견적 1건」이 붙어 군말이 된다')
 })
+
+
+/* ── 비고 열 (v0.10.34x) ─────────────────────────── */
+
+/*
+  **왜**: 열 폭은 비율이고 합은 늘 100 이어야 한다. 모자라거나 남으면 브라우저가
+  남는 폭을 제 마음대로 나눠 화면과 종이의 배치가 달라진다. 비고 열이 서면서
+  경우가 둘에서 넷으로 늘었으므로, 넷 다 세어 본다.
+*/
+
+/** 화면 부품이 쓰는 것과 **같은 셈**이다 — 아래 가드가 둘이 갈리지 않았는지 대조한다 */
+function widthsOf(showRemark: boolean, showDiscount: boolean): number[] {
+  const name = showRemark ? (showDiscount ? 18 : 34) : showDiscount ? 26 : 42
+  return [
+    5,
+    name,
+    showRemark ? 6 : 7,
+    showRemark ? 5 : 6,
+    15,
+    ...(showDiscount ? [16] : []),
+    25,
+    ...(showRemark ? [10] : []),
+  ]
+}
+
+test('\u2605 열 폭 비율 합이 네 경우 모두 100 이다', () => {
+  for (const remark of [false, true]) {
+    for (const discount of [false, true]) {
+      const sum = widthsOf(remark, discount).reduce((a, b) => a + b, 0)
+      assert.equal(sum, 100, `비고=${remark} 할인=${discount} 에서 합이 ${sum}`)
+    }
+  }
+})
+
+test('\u2605 금액과 할인 폭은 실측값이라 비고가 서도 안 줄어든다', () => {
+  // 금액을 줄였을 때 「330,000,000원」의 「원」이 잘렸고, 할인을 줄였을 때 「30% → 100%」가 접혔다
+  for (const remark of [false, true]) {
+    assert.ok(widthsOf(remark, true).includes(25), '금액 폭 25 가 아니다')
+    assert.ok(widthsOf(remark, true).includes(16), '할인 폭 16 이 아니다')
+  }
+})
+
+test('\u2605 화면 부품이 이 셈을 그대로 쓴다 — 여기만 맞고 화면이 다르면 소용없다', () => {
+  const src = read('app/(crm)/crm/quotes/[id]/QuoteSheet.tsx')
+  assert.match(src, /name: showRemark \? \(showDiscount \? '18%' : '34%'\) : showDiscount \? '26%' : '42%'/,
+    '품목 폭 셈이 가드와 다르다')
+  assert.match(src, /unit: showRemark \? '6%' : '7%'/, '단위 폭 셈이 가드와 다르다')
+  assert.match(src, /quantity: showRemark \? '5%' : '6%'/, '수량 폭 셈이 가드와 다르다')
+  assert.match(src, /remark: '10%'/, '비고 폭 셈이 가드와 다르다')
+})
+
+test('\u2605 비고 열은 쓰는 견적에만 선다 — 빈 열이 품목 이름을 좁힌다', () => {
+  const src = read('app/(crm)/crm/quotes/[id]/QuoteSheet.tsx')
+  assert.match(src, /const showRemark = hasRemark\(doc\)/, '열을 세울지 안 묻는다')
+  assert.match(src, /\{showRemark && <th[^>]*>\{QUOTE\.lineRemark\}<\/th>\}/, '제목 칸이 조건부가 아니다')
+  assert.match(src, /\{showRemark && <td className=\{styles\.remark\}>\{l\.remark \?\? ''\}<\/td>\}/,
+    '값 칸이 조건부가 아니거나 값을 안 그린다')
+  assert.match(src, /const cols = \(showDiscount \? 7 : 6\) \+ \(showRemark \? 1 : 0\)/,
+    'colSpan 이 비고 열을 안 센다 — 묶음 머리와 소계가 한 칸 밀린다')
+})

@@ -244,6 +244,14 @@
   규격 — **줄바꿈을 살린다.** 저장 칸에는 여러 줄이 들어 있는데 이 자리가
   한 줄로 뭉개면 원본의 자세함이 종이에서 사라진다.
 */
+/*
+  비고 — 그 줄이 이 견적에서 무슨 구실인가.
+
+  **규격보다 작지 않다.** 규격은 긴 사양이라 작게 두지만 비고는 「서버 새시」 한마디라
+  작게 두면 안 읽힌다. 칸이 좁아 접히는 것은 괜찮다 — 잘리는 것이 아니다.
+*/
+.remark { color: var(--text-muted); font-size: var(--fs-xs); word-break: keep-all; }
+
 .spec { color: var(--text-muted); font-size: var(--fs-xs); margin-top: 0.15rem; white-space: pre-line; }
 
 /*

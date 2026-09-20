@@ -482,3 +482,30 @@ test('★ 합쳐져 온 구성을 원문 줄로 되살린다 — 화면이 아�
   assert.match(src, /restoreComponents\(l, sourceLines\)/, '되살리지 않는다')
   assert.match(src, /read\.text \? read\.text\.split/, '원문 줄을 안 넘긴다')
 })
+
+
+/* ── 비고가 값으로 흐르나 (v0.10.34x) ─────────────── */
+
+/*
+  **왜**: 비고는 표 열을 세우는 것만으로는 안 보인다. 값이 **쿼리 → 서비스 → 문서**
+  세 자리를 다 지나야 화면에 뜬다. 한 자리만 빠져도 타입은 맞는데 칸이 빈다.
+
+  이 저장소가 같은 결함을 네 번 밟았다(선언만 하고 안 넘김·펼침 누락 등).
+  그래서 이름이 아니라 **값이 가는 자리**를 하나씩 본다.
+*/
+
+test('★ 비고가 쿼리에서 실려 온다 — LINE_SELECT 에 없으면 값이 아예 안 온다', () => {
+  const src = read(join(WEB, 'lib/crm/services/quote.ts'))
+  const sel = src.slice(src.indexOf('const LINE_SELECT'), src.indexOf('const SELECT'))
+  assert.match(sel, /remark: true/, '쿼리가 비고를 안 읽는다')
+})
+
+test('★ 비고가 서비스에서 문서 입력으로 넘어간다', () => {
+  const src = read(join(WEB, 'lib/crm/services/quote-document.ts'))
+  assert.match(src, /remark: l\.remark/, '서비스가 비고를 안 넘긴다')
+})
+
+test('★ 비고가 문서 줄에 실린다', () => {
+  const src = read(join(WEB, 'lib/crm/domain/quote-document.ts'))
+  assert.match(src, /remark: text\(l\.remark\) \|\| null/, '문서가 비고를 안 싣는다')
+})

@@ -72,6 +72,8 @@ export interface QuoteLineRow {
   taxRate: string
   lineTotalMinor: bigint
   position: number
+  /** 비고 — 그 줄이 이 견적에서 무슨 구실인가(「서버 새시」「64코어」「Raid5」) */
+  remark: string | null
 }
 
 /** 견적 안의 묶음 하나(읽기) */
@@ -158,6 +160,8 @@ const LINE_SELECT = {
   unitPriceMinor: true, discountPercent: true, taxRate: true, lineTotalMinor: true, position: true,
   specialDiscountPercent: true, specialDiscountReason: true, sectionId: true,
   kind: true, roleLabel: true, laborGradeId: true,
+  // 비고 — 여기 없으면 타입은 맞는데 값이 안 와서 표 열만 서고 칸이 빈다
+  remark: true,
 } as const
 
 const SELECT = {

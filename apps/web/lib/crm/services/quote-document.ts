@@ -194,6 +194,8 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       // 특별가 금액을 인쇄해 서로를 반박한다
       specialDiscountPercent: l.specialDiscountPercent,
       lineTotalMinor: l.lineTotalMinor,
+      // 비고는 그 줄이 이 견적에서 무슨 구실인가다 — 여기서 빠지면 표 열만 서고 값이 빈다
+      remark: l.remark,
     })),
     sections: (quote.sections ?? []).map((sec) => ({
       id: sec.id, name: sec.name, subtotalMinor: sec.subtotalMinor,
