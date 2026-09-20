@@ -13,6 +13,7 @@ import type { CrmDb } from '../db/client.ts'
 import { CrmError } from '../domain/errors.ts'
 import { getQuote } from './quote.ts'
 import { readQuoteSupplier, readQuoteImages } from './setting.ts'
+import { readAsset } from './quote-asset.ts'
 import { pickTitle, readOrgTitle } from './member-title.ts'
 import {
   buildQuoteDocument, verifyDocument, missingSupplierFields,
@@ -55,14 +56,25 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   */
   const termsSnapshot = (quote as { termsSnapshot?: string[] }).termsSnapshot ?? []
   const useSnapshot = termsSnapshot.length > 0
+  /*
+    **공급자와 로고도 굳은 것이 먼저다**(마이그 271).
+    상호·대표이사·주소·로고가 바뀌어도 이미 나간 견적서는 그대로여야 한다 —
+    「그때 당시의 유지가 핵심」(사용자 지시 2026-09-20).
+  */
+  const supplierSnapshot = ((quote as { supplierSnapshot?: unknown }).supplierSnapshot ?? {}) as Record<string, string>
+  const useSupplierSnapshot = Object.keys(supplierSnapshot).length > 0
+  const logoAssetHash = (quote as { logoAssetHash?: string | null }).logoAssetHash ?? null
   const ownerMemberId = quote.ownerId
     ?? (quote as { createdById?: string | null }).createdById
     ?? null
   const recipientId = (quote as { recipientPersonId?: string | null }).recipientPersonId ?? null
 
   const [supplier, images, owner, terms, recipient] = await Promise.all([
-    readQuoteSupplier(db),
-    readQuoteImages(db),
+    // 굳은 값이 있으면 설정을 아예 읽지 않는다 — 읽으면 오늘 값이 문서에 섞일 자리가 생긴다
+    useSupplierSnapshot ? Promise.resolve(supplierSnapshot) : readQuoteSupplier(db),
+    logoAssetHash
+      ? readAsset(db, logoAssetHash).then((logo) => ({ logo }))
+      : readQuoteImages(db),
     /*
       **`ownerId` 가 비면 «만든 사람»이 담당이다.**
       `ownerId` 는 나중에 담당을 넘길 때 쓰는 칸이라 대부분 비어 있다 —

@@ -43,7 +43,8 @@ import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
 import { LINE_KIND_ORDER, type QuoteLineKind } from '../../terms/cost.ts'
 import { roundingUnitName } from '../../terms/quote.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
-import { readQuoteNoPattern, readQuoteSupplier } from './setting.ts'
+import { readQuoteNoPattern, readQuoteSupplier, readQuoteImages } from './setting.ts'
+import { freezeAsset } from './quote-asset.ts'
 
 // ------------------------------------------------------------
 // 모양
@@ -116,6 +117,10 @@ export interface QuoteRow {
   termIds: string[]
   /** 그 조건의 **본문을 만든 날 그대로 굳힌 것**. 설정이 바뀌어도 이 견적서는 안 바뀐다 */
   termsSnapshot: string[]
+  /** 그날의 공급자 값(상호·대표이사·주소…). 회사 정보가 바뀌어도 이 견적서는 안 바뀐다 */
+  supplierSnapshot: unknown
+  /** 그날의 로고. CrmQuoteAsset.hash */
+  logoAssetHash: string | null
   ownerId: string | null
   /**
    * 파일에서 만들어진 시각. null = 파일 출처가 아니거나 사람이 한 번 고쳐 저장함.
@@ -152,6 +157,8 @@ const SELECT = {
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
   // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
   termIds: true, termsSnapshot: true, ownerId: true, createdById: true, recipientPersonId: true,
+  // 굳은 공급자·로고 — 안 읽으면 굳혀도 문서에 안 닿는다
+  supplierSnapshot: true, logoAssetHash: true,
   // 파일에서 왔는지 — **표시 전용**. 읽지 않으면 배지를 달 근거가 화면에 닿지 않는다
   fromFileAt: true, sourceFileName: true,
   sentAt: true, decidedAt: true, version: true, createdAt: true, updatedAt: true,
@@ -674,6 +681,15 @@ export async function createQuote(
     // 한쪽에서만 굳히면 번호가 겹친 날의 견적만 조건이 빈 채로 남는다
     const termIds = Array.isArray(input.termIds) ? input.termIds.filter((v) => typeof v === 'string') : []
     const termsSnapshot = await resolveTermsSnapshot(tx, termIds)
+    /*
+      **공급자와 로고도 만들 때 굳는다**(사용자 지시 2026-09-20: 「그게 설령 로고나
+      회사명 대표이사가 바뀐거더라도 그때 당시의 유지가 핵심」).
+      고칠 때는 다시 굳히지 않는다 — 굳힌 뜻이 「만든 날」이라 저장할 때마다 바뀌면
+      굳힌 것이 아니다.
+    */
+    const asDb = tx as unknown as Parameters<typeof readQuoteSupplier>[0]
+    const supplierSnapshot = await readQuoteSupplier(asDb)
+    const logoAssetHash = await freezeAsset(tx, (await readQuoteImages(asDb)).logo)
 
     // 형식은 설정에서 온다 — 회사마다 다르고, 바꾸려고 배포를 기다릴 일이 아니다
     const pattern = await readQuoteNoPattern(tx)
@@ -696,6 +712,8 @@ export async function createQuote(
           // 고른 조건. 순서를 그대로 저장한다 — 그 순서가 인쇄 순서다
           termIds,
           termsSnapshot,
+          supplierSnapshot,
+          logoAssetHash,
           ownerId: input.ownerId || null,
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor,
@@ -727,6 +745,8 @@ export async function createQuote(
           recipientPersonId: input.recipientPersonId || null,
           termIds,
           termsSnapshot,
+          supplierSnapshot,
+          logoAssetHash,
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor,
           taxMinor: totals.taxMinor, totalMinor: totals.totalMinor,
@@ -1180,6 +1200,8 @@ export async function duplicateQuote(
         validUntil: src.validUntil, notesMd: src.notesMd,
         // 굳은 조건도 함께 복제한다 — 원본과 다른 조건이 찍히면 「다른 안」이 아니라 다른 문서다
         termIds: src.termIds, termsSnapshot: src.termsSnapshot, ownerId: src.ownerId,
+        // 굳은 공급자·로고도 물려받는다 — 같은 견적의 다른 안이 다른 회사 정보를 찍으면 안 된다
+        supplierSnapshot: src.supplierSnapshot as object, logoAssetHash: src.logoAssetHash,
         recipientPersonId: src.recipientPersonId,
         createdById: actorId,
         subtotalMinor: src.subtotalMinor, discountMinor: src.discountMinor,
