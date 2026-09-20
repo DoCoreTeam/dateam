@@ -478,3 +478,29 @@ test('직인을 안 올리면 「(직인생략)」 글자가 그 자리에 남�
   const media = ((wb as any).model?.media ?? []) as unknown[]
   assert.equal(media.length, 0, '안 올린 도장이 어디선가 그려졌다')
 })
+
+
+/* ── 비고 (v0.10.34x) ─────────────────────────── */
+
+/*
+  **왜**: 우리 견적서 양식에는 비고 열이 있고 실제로 쓰인다(실측 원본 2쪽).
+  화면에는 서는데 파일에 없으면 같은 문서가 아니다 — 받은 사람이 엑셀을 열고
+  「이 줄이 무슨 구실인지」를 잃는다.
+*/
+
+test('★ 화면에 선 비고가 파일에도 있다', async () => {
+  const d = doc()
+  const withRemark = {
+    ...d,
+    lines: d.lines.map((l, i) => ({ ...l, remark: i === 0 ? '서버 새시' : '64코어' })),
+  }
+  const text = await textOf((await quoteDocumentToXlsx({ document: withRemark })).buffer)
+  assert.ok(text.includes(QUOTE.lineRemark), '비고 열 제목이 없다')
+  assert.ok(text.includes('서버 새시'), '첫 줄 비고가 없다')
+  assert.ok(text.includes('64코어'), '둘째 줄 비고가 없다')
+})
+
+test('★ 아무도 안 적으면 비고 열이 안 선다 — 빈 열이 표를 좁힌다', async () => {
+  const text = await textOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  assert.ok(!text.includes(QUOTE.lineRemark), '아무도 안 적었는데 비고 제목이 있다')
+})

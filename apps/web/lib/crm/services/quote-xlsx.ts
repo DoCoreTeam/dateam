@@ -16,7 +16,7 @@
 
 import { exportFileName, type QuoteDocument } from '../domain/quote-document.ts'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '../../terms/quote.ts'
-import { hasDiscount } from '../domain/quote-document.ts'
+import { hasDiscount, hasRemark } from '../domain/quote-document.ts'
 import { minorDigits, currencyAffix } from '../../../app/(crm)/crm/deals/amount.ts'
 
 /** 항목 표의 열 — 화면(§견적서)과 **같은 순서**다. 다르면 같은 문서가 아니다 */
@@ -28,7 +28,19 @@ const COLUMNS = [
   { key: 'price', label: QUOTE.lineUnitPrice, width: 18 },
   { key: 'disc', label: QUOTE.lineDiscount, width: 9 },
   { key: 'amount', label: QUOTE.lineAmount, width: 21 },
+  /*
+    비고 — 표 맨 오른쪽. **표에만 선다.**
+
+    합계·공급자·제목 영역은 금액 열(G)까지 그대로 두었다. 그 자리까지 넓히려면
+    스물네 군데 박힌 열 문자를 「금액 열」과 「표 끝 열」로 갈라야 하고, 그 작업은
+    합계 수식이 걸린 자리를 건드린다 — 틀리면 고객이 받는 문서의 금액이 흔들린다.
+    비고는 표 안의 말이므로 표에만 세우는 것으로 뜻이 온전하다.
+  */
+  { key: 'remark', label: QUOTE.lineRemark, width: 14 },
 ] as const
+
+/** 금액 열은 G 다 — 비고가 서도 안 움직인다(합계 수식이 이 열을 가리킨다) */
+const AMOUNT_COL_INDEX = 6
 
 /** 공급자 값이 들어가는 병합 폭(F+G) — 행 높이를 이 폭으로 계산해야 주소가 안 잘린다 */
 const SUPPLIER_VALUE_WIDTH = COLUMNS[5].width + COLUMNS[6].width
@@ -174,6 +186,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     머리글 글자는 지운다 — 숨긴 칸에 「할인」이 남아 있으면 되살린 사람이 빈 열을 본다.
   */
   const showDiscount = hasDiscount(doc)
+  /** 비고 열은 쓰는 견적에만 — 화면과 같은 규칙이다 */
+  const showRemark = hasRemark(doc)
   /** 공급자 값이 실제로 차지하는 폭. 할인 열을 숨기면 F 가 사라져 G 폭만 남는다 */
   const supplierValueWidth = showDiscount ? SUPPLIER_VALUE_WIDTH : COLUMNS[6].width
 
@@ -192,7 +206,11 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     },
   })
 
-  ws.columns = COLUMNS.map((c) => ({ width: c.width }))
+  /*
+    **안 쓰는 열은 접는다.** 폭을 그대로 두면 비고를 안 쓰는 견적에서 빈 칸 하나가
+    오른쪽에 서고, 가로 한 장 맞춤(fitToPage) 이 그만큼 표를 줄여 금액이 작아진다.
+  */
+  ws.columns = COLUMNS.map((c) => ({ width: c.key === 'remark' && !showRemark ? 0 : c.width }))
 
   /*
     **눈금선을 끈다.** 이것 하나로 「스프레드시트」가 「문서」가 된다 —
@@ -405,7 +423,12 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     const sz = imageSize(seal.base64, seal.extension)
     const sealW = sz && sz.h > 0 ? Math.round((SEAL_H * sz.w) / sz.h) : SEAL_H
     const id = wb.addImage(seal)
-    const lastColIndex = COLUMNS.length // A=1 … G=7
+    /*
+      **직인은 공급자 칸 오른쪽 끝, 곧 금액 열(G)이다.**
+      `COLUMNS.length` 로 세면 비고 열이 서는 순간 H 로 밀려 공급자 상자 밖에 찍힌다
+      (실측: 비고를 붙이자 가드가 「7 열에 앉았다」로 잡았다).
+    */
+    const lastColIndex = AMOUNT_COL_INDEX + 1 // A=1 … G=7
     ws.getRow(partyTop).height = Math.max(ws.getRow(partyTop).height ?? 0, SEAL_H * 0.78 + 6)
     ws.addImage(id, {
       tl: { col: lastColIndex - 1 + 0.1, row: partyTop - 1 + 0.1 },
@@ -481,7 +504,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   const headRow = r
   COLUMNS.forEach((c, i) => {
     const cell = ws.getCell(headRow, i + 1)
-    cell.value = c.key === 'disc' && !showDiscount ? '' : c.label
+    const hidden = (c.key === 'disc' && !showDiscount) || (c.key === 'remark' && !showRemark)
+    cell.value = hidden ? '' : c.label
     cell.font = { size: 10, bold: true, color: { argb: MUTED } }
     /*
       **머리글은 전부 가운데다**(사용자 지시: 「제목만 중앙정렬로」).
@@ -568,6 +592,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       */
       { formula: `ROUND(D${r}*E${r}*${discountFactor(line.discountPercent)},0)` },
       // ↑ 배율은 **실효 할인율**로 낸다 — 기본과 특별이 겹친 결과가 이미 그 값이다
+      // 비고 — 그 줄이 이 견적에서 무슨 구실인가(「서버 새시」「64코어」「Raid5」)
+      line.remark ?? '',
     ]
     values.forEach((v, i) => {
       const cell = ws.getCell(r, i + 1)
@@ -579,6 +605,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
         : { size: 10 }
       // 세로는 전부 가운데(마지막 손질이 한 번 더 보장한다), 양끝은 한 칸 들인다
       if (i === 1) cell.alignment = { wrapText: true, vertical: 'middle', indent: 1 }
+      // 비고는 **글**이다 — 오른쪽으로 밀면 숫자 칸처럼 보여 금액과 헷갈린다
+      else if (i === AMOUNT_COL_INDEX + 1) cell.alignment = { wrapText: true, vertical: 'middle', indent: 1 }
       else if (i >= 3) cell.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }
       else cell.alignment = { horizontal: 'center', vertical: 'middle' }
       if (i === 4 || i === 6) cell.numFmt = fmt
