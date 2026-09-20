@@ -159,7 +159,7 @@
 의존: I03, I05
 
 ### I12 구성이 다시 사라지지 않게 잠근다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/quote-composition-guard.test.ts (신규), apps/web/lib/policy/quote-import-config-guard.test.ts (신규), apps/web/package.json
 감사 기준:
