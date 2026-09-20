@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.5
+플랜 버전: v0.1.6
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -136,15 +136,37 @@
 - 기존 가드(pii-gateway-guard 등)가 그대로 통과
 의존: I07
 
-### I08a 호출에 주인을 붙인다
+### I08a 주인을 적을 자리와 등재부
+상태: 통과
+모드: 경량
+범위: apps/web/lib/ai/actor.ts (신규), apps/web/lib/ai/gemini-call.ts, apps/web/lib/policy/ai-actor.test.ts (신규), apps/web/package.json
+감사 기준:
+- 벤더로 나가는 파일 전부가 등재부에 있음, 새 자리를 만들면 가드가 실패 (일부러 하나 빼서 확인)
+- 배경 작업은 사람이 없다는 사유가 등재부에 적혀 있고 그 이름이 surface 문자열로 남음
+- gemini-call 이 actorId 를 받아 원장까지 넘김 (단위 테스트)
+- 아직 주인을 안 이어 붙인 사람 창구 수가 기준선보다 안 늘어남
+의존: I08
+범위 메모: 원래 한 항목이었는데 이어 붙일 창구가 열 곳이 넘어 한 번의 자가감사로 판정할 수 없었다. 자리와 등재부(I08a), 사람 창구 결선(I08b), 나머지 결선(I08c)로 나눔. guarded-call.ts 는 이미 ctx.actorId 를 원장에 그대로 적고 있어 고칠 것이 없으므로 범위에서 뺌
+
+### I08b 사람이 누른 창구에 주인을 잇는다
 상태: 대기
 모드: 경량
-범위: apps/web/lib/ai/guarded-call.ts, apps/web/lib/ai/actor.ts (신규), apps/web/lib/policy/ai-actor.test.ts (신규), apps/web/package.json
+범위: apps/web/app/api/admin/system-log/remedy/route.ts, apps/web/app/api/meeting-notes/[id]/transcript/speakers/route.ts, apps/web/lib/gemini-meeting.ts, apps/web/lib/meeting/digest-run.ts, apps/web/lib/daily-prompt-governance.ts
 감사 기준:
-- 사람이 눌러 시작한 AI 호출은 actor_id 가 채워짐, 배경 작업은 비고 그 이름이 surface 에 남음
-- 사람 맥락이 있는 창구가 actorId 를 안 주면 가드가 실패 (등재부 방식, 일부러 하나 빼서 확인)
+- 다섯 파일이 전부 자기가 이미 쥐고 있는 사용자 id 를 actorId 로 넘김
+- 등재부에서 이 다섯의 «아직 안 이어 붙임» 표시가 빠지고 기준선 수가 그만큼 줄어듦
 - 실측으로 확인: 사람이 부른 호출 한 건의 actor_id 가 그 사람 id 와 같음
-의존: I08
+의존: I08a
+
+### I08c 남은 창구에 주인을 잇는다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/crm/ai/runner.ts, apps/web/lib/stt/provider.ts, apps/web/lib/meeting/transcribe-parts.ts, apps/web/lib/gpu/extract-helpers.ts
+감사 기준:
+- 다섯 창구가 부르는 쪽에서 사용자 id 를 받아 actorId 로 넘김
+- 등재부의 «아직 안 이어 붙임» 이 0 이 되고 기준선도 0
+- ci 배치와 gpu 회사 보강은 배경으로 남고 그 사유가 등재부에 적혀 있음
+의존: I08b
 
 ### I09 관리자 사용량 화면이 원장을 읽는다
 상태: 대기
@@ -240,3 +262,4 @@
 - v0.1.3 (2026-09-20) 저장된 답을 읽고 쓰는 자리가 따로 있어야 순수 계층과 Supabase 가 섞이지 않는다, 지문을 만들려면 workspaceId 가 필요해 stages 도 함께 고친다 (audit:I05)
 - v0.1.4 (2026-09-20) 주인 붙이기는 창구 서른 곳을 손대는 별도 일이라 I08a 로 뺀다, I08 은 예산 관문에만 집중한다 (audit:I08)
 - v0.1.5 (2026-09-20) I08 범위에 budget.ts 와 budget-gate.ts 를 넣음: 세는 자리가 server-only 를 달고 있어 던지기만 하려는 RFP 관문까지 서버 묶음에 묶였고 단위 시험 8개가 죽었다. 거절 예외를 규칙 계층으로 옮기고 창구를 guarded-call 한 곳에서만 고르게 했다. gemini-call.ts 는 beginGuardedCall 을 이미 지나므로 손대지 않음 (audit:I08)
+- v0.1.6 (2026-09-20) I08a 를 셋으로 나눔(I08a 자리와 등재부 / I08b 사람 창구 결선 / I08c 나머지 결선). 벤더로 나가는 파일이 35개이고 주인을 안 넘기는 곳이 10개라 한 항목으로는 한 번에 감사할 수 없었다. guarded-call.ts 는 이미 ctx.actorId 를 원장에 적고 있어 범위에서 뺌, 대신 주인을 받을 자리가 없는 gemini-call.ts 를 넣음 (audit:I08a)

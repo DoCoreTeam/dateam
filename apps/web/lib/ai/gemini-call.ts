@@ -117,6 +117,17 @@ export interface CallGeminiJsonOptions {
   /** 로그 라벨(기능 이름). */
   feature?: string
   /**
+   * 이 호출의 주인 — 눌러서 시작한 사람의 id.
+   *
+   * 실측 2026-09-20: 원장 50,243건이 전부 이 칸이 비어 있었다. 기록이 고장난 것이 아니라
+   * **넘길 칸이 없었다** — 공통 호출기가 사람을 안 받으니 부르는 쪽이 알아도 버려졌다.
+   * 한도를 넘긴 쪽을 찾으려면 이 칸이 있어야 한다.
+   *
+   * 배경 작업은 null 이고, 그때는 `feature` 이름이 주인을 대신한다.
+   * 어느 자리가 어느 쪽인지는 `lib/ai/actor.ts` 등재부가 갖고 있다.
+   */
+  actorId?: string | null
+  /**
    * 두 번째 공급자 키(Groq). 주면 **Gemini 사슬이 전부 실패한 뒤에만** 시도한다.
    *
    * 왜 옵션인가: 모든 기능이 자동으로 다른 공급자로 새어 나가면 안 된다.
@@ -417,6 +428,7 @@ async function runGeminiChain(
     {
       surface: opts.feature ?? 'gemini',
       purpose: cfg.json ? 'json_call' : 'text_call',
+      actorId: opts.actorId ?? null,
       providerId: 'gemini', modelName: opts.model ?? null,
       media: hasBinaryPart(opts.parts) ? 'image' : 'text',
       knownNames: await serverKnownNames(),
