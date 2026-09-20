@@ -40,18 +40,8 @@ import {
   sectionDefaultName,
   approvalNeeded,
 } from '@/lib/terms'
-import { splitSpec, splitInlineMarks } from '@/lib/crm/domain/quote-spec'
+import QuoteLineSpecFields from '@/components/ui/crm/QuoteLineSpecFields'
 
-/**
- * 적힌 글을 줄로 나눈 모양을 돌려준다. **나눌 것이 없으면 `null`** —
- * 단추를 낼지 말지가 이 한 값으로 갈린다.
- */
-function splitMarks(descriptionMd: string): string | null {
-  const written = descriptionMd.split('\n').map((l) => l.trim()).filter(Boolean)
-  if (written.length !== 1) return null
-  const pieces = splitInlineMarks(written[0])
-  return pieces.length >= 2 ? pieces.join('\n') : null
-}
 import styles from './quote-panel.module.css'
 
 // 폼의 «모양»은 옆 파일에 있다. 여기서는 동작만 다룬다.
@@ -556,57 +546,14 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                   />
                 </div>
                 <div className={`${styles.field} ${styles.colSpec}`}>
-                  {/*
-                    규격·설명 — 견적서에서 품목 이름 아래 작게 인쇄된다.
-                    DB 에는 자리가 있었는데 폼에 칸이 없어 **아무도 못 채웠다**.
-                    「H100 80GB」만으로는 SXM 인지 PCIe 인지 고객이 알 수 없다.
-                  */}
-                  <label className="label" htmlFor={`ln-spec-${i}`}>{QUOTE.lineSpec}</label>
-                  {/*
-                    **여러 줄이다.** 한 줄 칸이던 동안 파일에서 읽은 구성 열세 줄이
-                    들어올 자리가 없었고(실측 2026-09-20), 사람이 손으로 적을 수도 없었다.
-                    첫 줄이 규격, 아래가 구성이다 — 인쇄도 같은 약속으로 그린다
-                    (`lib/crm/domain/quote-spec.ts`).
-                  */}
-                  <textarea
-                    id={`ln-spec-${i}`}
-                    className={`input-field ${styles.specInput}`}
-                    rows={2}
-                    value={line.descriptionMd}
-                    disabled={linesLocked}
-                    onChange={(e) => setLine(i, { descriptionMd: e.target.value })}
-                    placeholder={QUOTE.lineSpecPlaceholder}
+                  <QuoteLineSpecFields
+                    index={i}
+                    spec={line.descriptionMd}
+                    remark={line.remark}
+                    locked={linesLocked}
+                    onSpec={(v) => setLine(i, { descriptionMd: v })}
+                    onRemark={(v) => setLine(i, { remark: v })}
                   />
-                  {/*
-                    **어떻게 갈리는지 그 자리에서 보여 준다.** 「여러 줄로 적으세요」라고만 하면
-                    적고 나서도 어디까지가 규격인지 모른다 — 지금 적은 글이 몇 줄로 갈리는지
-                    숫자로 보여 줘야 안다(사용자 지적 2026-09-21).
-                  */}
-                  <p className={styles.specHint}>
-                    <span>{QUOTE.lineSpecSplitHint}</span>
-                    <b>{fillSpecSplit(splitSpec(line.descriptionMd).components.length)}</b>
-                  </p>
-                  {/*
-                    **보이기만 가르면 저장본은 그대로다.** 파일에서 읽어 온 규격은 줄바꿈 없이
-                    한 덩어리로 오는 일이 있고, 화면만 갈라 두면 다음에 고치는 사람이 또
-                    한 덩어리를 본다 — 누르면 적힌 글 자체가 줄로 나뉜다
-                    (사용자 지시 2026-09-21: 「견적쪽에 입력할 때도 그렇게 자동으로
-                    줄바꾼거는 처리 해주면 되자나」).
-
-                    표식이 없으면 단추를 내지 않는다. 눌러도 아무 일이 없는 단추는 고장으로 읽힌다.
-                  */}
-                  {!linesLocked && splitMarks(line.descriptionMd) !== null && (
-                    <button
-                      type="button"
-                      className={styles.specSplitAction}
-                      onClick={() => {
-                        const split = splitMarks(line.descriptionMd)
-                        if (split) setLine(i, { descriptionMd: split })
-                      }}
-                    >
-                      {QUOTE.lineSpecSplitAction}
-                    </button>
-                  )}
                 </div>
                 <div className={`${styles.field} ${styles.colQty}`}>
                   <label className="label" htmlFor={`ln-qty-${i}`}>{LINE_KIND_QUANTITY_LABEL[line.kind ?? 'QUANTITY']}</label>

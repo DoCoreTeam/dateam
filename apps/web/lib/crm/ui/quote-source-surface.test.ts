@@ -464,16 +464,55 @@ test('★ 검수 목록의 구성도 견적서와 같은 모양이다 — 다르
   한 문단으로 남는다.
 */
 test('★ 편집기가 표식대로 줄을 나눠 굳힌다 — 보이기만 갈라선 저장본이 안 바뀐다', () => {
-  const src = read(join(WEB, 'components/ui/crm/QuoteEditorModal.tsx'))
+  // 규격·비고 칸은 편집 모달이 800줄에 닿아 옆 부품으로 나갔다
+  const src = read(join(WEB, 'components/ui/crm/QuoteLineSpecFields.tsx'))
   assert.match(src, /QUOTE\.lineSpecSplitAction/, '나누기 단추가 없다')
-  assert.match(src, /setLine\(i, \{ descriptionMd: split \}\)/, '누르는 것이 적힌 글을 안 바꾼다')
-  assert.match(src, /splitMarks\(line\.descriptionMd\) !== null &&/, '나눌 것이 없어도 단추를 낸다')
+  assert.match(src, /onClick=\{\(\) => onSpec\(split\)\}/, '누르는 것이 적힌 글을 안 바꾼다')
+  assert.match(src, /\{!locked && split !== null &&/, '나눌 것이 없어도 단추를 낸다')
+
+  // 부품이 실제로 걸려 있어야 화면에 나온다 — 만들어만 두면 아무 데도 안 뜬다
+  const modal = read(join(WEB, 'components/ui/crm/QuoteEditorModal.tsx'))
+  assert.match(modal, /<QuoteLineSpecFields/, '편집기가 그 부품을 안 부른다')
+  assert.match(modal, /onSpec=\{\(v\) => setLine\(i, \{ descriptionMd: v \}\)\}/, '규격 값이 안 돌아온다')
+  assert.match(modal, /onRemark=\{\(v\) => setLine\(i, \{ remark: v \}\)\}/, '비고 값이 안 돌아온다')
+})
+
+/*
+  **비고는 적는 자리와 받아들이는 자리 둘 다에 있어야 한다**
+  (사용자 지시 2026-09-21: 「견적 입력하는 쪽에도 있고 받아들이는쪽에도 있고 해야지」).
+  한쪽만 있으면 읽은 값을 못 고치거나, 적은 값이 읽기에서 덮인다.
+*/
+test('★ 비고를 적는 칸이 있다 — 폼에 칸이 없으면 아무도 못 채운다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteLineSpecFields.tsx'))
+  assert.match(src, /QUOTE\.lineRemark\}/, '비고 라벨이 없다')
+  assert.match(src, /value=\{remark\}/, '비고 칸이 값을 안 그린다')
+  assert.match(src, /onChange=\{\(e\) => onRemark\(e\.target\.value\)\}/, '적은 값이 안 돌아간다')
+  assert.match(src, /maxLength=\{MAX_REMARK\}/, '길이 상한이 없다 — 밖에서 온 값이다')
+})
+
+test('★ 적은 비고가 저장까지 간다 — 화이트리스트가 모르는 이름을 지운다', () => {
+  const shape = read(join(WEB, 'components/ui/crm/quote-draft-shape.ts'))
+  assert.match(shape, /remark: l\.remark\.trim\(\) \|\| null/, '초안이 비고를 안 싣는다')
+
+  const svc = read(join(WEB, 'lib/crm/services/quote.ts'))
+  const keys = svc.slice(svc.indexOf('const LINE_KEYS'), svc.indexOf('const QUOTE_KEYS'))
+  assert.match(keys, /'remark'/, '화이트리스트에 없어 저장에서 조용히 버려진다')
+  assert.match(svc, /remark: normalizeText\(line\.remark\)/, '저장이 비고를 안 쓴다')
+})
+
+test('★ 파일에서 읽은 비고가 초안으로 온다 — 읽어도 담을 자리가 없으면 버려진다', () => {
+  for (const f of ['components/ui/crm/quote-review.tsx', 'components/ui/crm/QuoteFillPanel.tsx']) {
+    const src = read(join(WEB, f))
+    assert.match(src, /remark: l\.remark \?\? ''/, `${f} 가 읽은 비고를 안 옮긴다`)
+  }
+  const schema = read(join(WEB, 'lib/crm/ai/schemas/quote-from-doc.ts'))
+  assert.match(schema, /remark: softString/, '읽기 스키마에 비고가 없다 — 모델이 줘도 버려진다')
 })
 
 test('★ 규격 칸이 어떻게 갈리는지 그 자리에서 말한다 — 적고 나서도 모르면 안 된다', () => {
-  const src = read(join(WEB, 'components/ui/crm/QuoteEditorModal.tsx'))
+  const src = read(join(WEB, 'components/ui/crm/QuoteLineSpecFields.tsx'))
   assert.match(src, /QUOTE\.lineSpecSplitHint/, '갈림 안내가 없다')
-  assert.match(src, /fillSpecSplit\(splitSpec\(line\.descriptionMd\)\.components\.length\)/,
+  assert.match(src, /fillSpecSplit\(splitSpec\(spec\)\.components\.length\)/,
     '몇 줄로 갈리는지 숫자로 안 말한다')
 })
 

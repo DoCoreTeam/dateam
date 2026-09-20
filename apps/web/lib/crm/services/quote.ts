@@ -220,6 +220,8 @@ export interface QuoteLineData {
   specialDiscountPercent?: number | string | null
   specialDiscountReason?: string | null
   taxRate?: number | string | null
+  /** 비고 — 그 줄이 이 견적에서 무슨 구실인가(「서버 새시」「64코어」「Raid5」) */
+  remark?: string | null
 }
 
 /**
@@ -235,6 +237,8 @@ const LINE_KEYS = new Set([
   'unitPriceMinor', 'discountPercent', 'taxRate',
   'specialDiscountPercent', 'specialDiscountReason', 'sectionIndex',
   'kind', 'roleLabel', 'laborGradeId',
+  // 여기 없으면 적어도 조용히 버려진다 — 화이트리스트가 모르는 이름을 지우기 때문이다
+  'remark',
 ])
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
@@ -343,6 +347,8 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
     discountPercent,
     specialDiscountPercent,
     specialDiscountReason: normalizeText(line.specialDiscountReason),
+    // 비고는 표 한 칸에 서는 한마디다 — 여러 줄이 아니므로 normalizeText 로 한 줄로 만든다
+    remark: normalizeText(line.remark),
     taxRate,
     lineTotalMinor: amounts.lineTotalMinor,
     position,

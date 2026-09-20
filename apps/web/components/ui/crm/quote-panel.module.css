@@ -964,3 +964,6 @@
 
 .specSplitAction:hover { color: var(--accent-strong, var(--accent)); }
 .specSplitAction:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius); }
+
+/* 규격 칸 안에서 비고 라벨이 붙는 자리 — 위 입력과 붙으면 어느 칸의 이름인지 흐려진다 */
+.remarkLabel { margin-top: var(--space-2); }

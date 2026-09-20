@@ -25,6 +25,13 @@ export interface QuoteLineDraft {
   /** 규격·설명 — 견적서에 품목 아래 작게 인쇄된다 */
   descriptionMd: string
   /**
+   * 비고 — 견적서 표 맨 오른쪽 열.
+   *
+   * 규격과 다르다. **규격은 물건이 무엇인가**이고(「AMD EPYC 9355 32C/64T」),
+   * **비고는 이 견적에서 그 줄이 무슨 구실인가**다(「서버 새시」「64코어」「Raid5」).
+   */
+  remark: string
+  /**
    * 줄의 **종류** — 「수량 × 단가」가 뜻하는 것을 정한다.
    *
    * 같은 표에 「H100 2대」와 「PM 3 M/M」과 「유지보수 12개월」이 함께 서는데,
@@ -100,6 +107,8 @@ export function toLinePayload(l: QuoteLineDraft): Record<string, unknown> {
     productId: l.productId ?? null,
     name: l.name.trim(),
     descriptionMd: l.descriptionMd.trim() || null,
+    // 빈 칸은 «비고 없음» — 빈 글자로 저장하면 「적었는데 비었다」와 구별이 안 된다
+    remark: l.remark.trim() || null,
     quantity: l.quantity || '1',
     unit: l.unit.trim() || null,
     unitPriceMinor: l.unitPriceMinor || '0',
@@ -115,7 +124,7 @@ export function toLinePayload(l: QuoteLineDraft): Record<string, unknown> {
 
 export function emptyLine(): QuoteLineDraft {
   return {
-    productId: null, name: '', descriptionMd: '', kind: 'QUANTITY',
+    productId: null, name: '', descriptionMd: '', remark: '', kind: 'QUANTITY',
     quantity: '1', unit: LINE_KIND_UNIT.QUANTITY, unitPriceMinor: '', discountPercent: '0', taxRate: '10',
   }
 }
@@ -170,6 +179,7 @@ export function quoteToDraft(body: any): QuoteDraft {
       kind: (l.kind ?? 'QUANTITY') as QuoteLineKind,
       roleLabel: l.roleLabel ?? '',
       descriptionMd: l.descriptionMd ?? '',
+      remark: l.remark ?? '',
       quantity: String(l.quantity),
       unit: l.unit ?? '',
       unitPriceMinor: String(l.unitPriceMinor),
