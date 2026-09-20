@@ -98,6 +98,13 @@ export function resolveProvider(
 
 export interface HostAdapterOptions {
   /**
+   * 이 붙임쇠를 만든 실행의 주인. 배경 잡이면 null 이고 그때도 적는다.
+   *
+   * 붙임쇠는 한 번 만들어 여러 번 부를 수 있지만, 한 번의 실행에 한 번 만들어 쓰므로
+   * 여기 실린 주인이 그 실행의 주인이다.
+   */
+  actorId?: string | null
+  /**
    * 모델이 **인터넷을 보게 한다**(Gemini google_search · Claude web_search).
    *
    * 켜지 않으면 모델은 학습 시점의 기억으로만 답한다. 회사 정보처럼
@@ -256,13 +263,7 @@ export async function hostAdapter(
         seen.clear()
         try {
           res = await getProvider(cand.provider).streamChat({
-            /*
-              주인을 아직 못 받는다. 이 붙임쇠를 만드는 hostAdapter 까지 구성원 id 가
-              안 내려온다 — 그 결선은 I08d 에서 runner 와 함께 한다.
-              지금 «모른다»를 null 로 적는 이유는, 빈칸으로 두면 칸이 없던 때와
-              원장에서 구별이 안 되기 때문이다.
-            */
-            actorId: null,
+            actorId: opts.actorId ?? null,
             apiKey: cand.apiKey,
             model: cand.model,
             turns: [{

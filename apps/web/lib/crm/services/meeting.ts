@@ -620,6 +620,8 @@ export async function extractFiveAxis(
   ctx.meetingDate = kstDateKey(meeting.startedAt)
 
   const { output, runId } = await runAi<FiveAxisOutput>({
+
+    actorId: actorId,
     db, workspaceId, kind: 'MEETING_EXTRACT',
     prompt: {
       version: MEETING_EXTRACT_VERSION,

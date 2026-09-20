@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.18
+플랜 버전: v0.1.19
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -203,9 +203,9 @@
 의존: I08c
 
 ### I08g CRM 실행기에 주인을 잇는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/ai/runner.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/crm/services/quote-draft.ts, apps/web/lib/crm/services/enrich-web.ts, apps/web/lib/crm/services/quote-from-file.ts, apps/web/lib/crm/services/stage-review.ts, apps/web/lib/crm/services/activity-extract.ts, apps/web/lib/crm/services/meeting.ts, apps/web/lib/crm/services/data-check.ts, apps/web/lib/crm/services/quick-create.ts, apps/web/lib/crm/services/next-best-action.ts, apps/web/app/api/crm/metrics/ask/route.ts, apps/web/lib/ai/actor.ts
+범위: apps/web/lib/crm/ai/runner.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/crm/jobs/finish-deps.ts, apps/web/lib/crm/services/{quote-draft,enrich-web,quote-from-file,stage-review,activity-extract,meeting,data-check,quick-create,next-best-action}.ts, apps/web/app/api/crm/{metrics/ask,data-check,today,quotes/draft,quotes/draft-file,companies/enrich}/route.ts, apps/web/app/api/crm/deals/[id]/stage-review/route.ts, apps/web/app/api/crm/companies/[id]/enrich/route.ts, apps/web/lib/ai/actor.ts, apps/web/lib/policy/ai-actor.test.ts
 감사 기준:
 - RunOptions 가 actorId 를 필수로 받아 호출부 열 곳이 전부 형 검사에 걸림 (일부러 하나 빼서 확인)
 - hostAdapter 가 I08e 에서 null 로 남긴 자리를 실제 값으로 채움
@@ -213,7 +213,7 @@
 - 보안 S2: 창구 하나(crm/metrics/ask)의 권한 판정이 안 바뀜을 소스로 확인
 - 기준선이 2 에서 1 로 내려감
 의존: I08d
-범위 메모: 파일이 열셋으로 권장치를 넘지만 필수 칸이라 형 검사가 한 곳도 못 빠뜨리게 잡아 준다. I08e 에서 같은 이유로 합친 판과 같은 판단
+범위 메모: 파일이 스물둘로 권장치를 넘지만 필수 칸이라 형 검사가 한 곳도 못 빠뜨리게 잡아 준다(I08e 와 같은 판단). 착수 전 예상 열셋보다 아홉 늘었는데, 서비스 다섯이 workspaceId 만 받고 구성원을 아예 안 받고 있어 그 라우트까지 이어야 했다. 가드도 함께 고쳤다 — 맥락을 변수로 넘기는 길(runner 의 ctx)을 못 따라가서 결선하고도 실패했다
 
 ### I08h GPU 통합입력 도우미에 주인을 잇는다
 상태: 대기
@@ -354,3 +354,4 @@
 - v0.1.16 (2026-09-20) I10 의 새 파일 이름을 model-tier.ts 에서 capability-chain.ts 로 바꿈(lib/ai-chat/model-tier.ts 와 이름이 겹쳐 다음 사람이 둘 중 아무거나 import 하게 된다). 그리고 자가감사 중 버전 올리기 버그를 발견해 범위에 정책 3파일을 넣음 — 첫 v0.10.x 를 치환하는 방식이라 본문의 실측 인용 v0.7.660~686 을 여러 판에 걸쳐 v0.10.226~686 까지 떠밀어 놓고 정작 판 번호 줄은 224 에 멈춰 있었다 (audit:I10)
 - v0.1.17 (2026-09-20) I08d 를 갈래 셋으로 나눔(회의 녹음 / CRM 실행기 / GPU 도우미). 착수 전에 세 사슬을 끝까지 재고 각 범위를 한 번에 정했다 — 이어 붙일 자리가 회의 녹음 5, CRM 13, GPU 8 파일이고 서로 다른 계층이라 한 항목으로는 한 번에 감사할 수 없다 (audit:I08d)
 - v0.1.18 (2026-09-20) I08d 범위에서 라우트 둘을 빼고 가드 파일을 넣음. 주인을 부르는 쪽에서 받는 대신 노트 행에서 읽게 하니 크론 라우트(사람이 없다)까지 같은 값을 쓰게 되어 라우트를 고칠 일이 없어졌다. 대신 가드가 부족한 것을 발견해 더했다 — 소스 대조는 actorId 가 적혀 있나만 보므로 actorId: null 로 바꿔도 안 울었다 (audit:I08d)
+- v0.1.19 (2026-09-20) I08g 범위가 열셋에서 스물둘로 늘었다. 서비스 다섯(quote-draft·quote-from-file·stage-review·data-check·next-best-action)이 workspaceId 만 받고 구성원을 아예 안 받고 있어 그 라우트까지 이어야 했다. 가드도 함께 고쳤다 — 맥락을 변수로 만들어 넘기는 길(runner 의 ctx)을 못 따라가서 실제로 결선했는데도 실패했다 (audit:I08g)

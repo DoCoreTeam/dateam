@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         { field: 'file' })
     }
 
-    return draftQuoteFromFile(session.workspaceId, {
+    return draftQuoteFromFile(session.workspaceId, session.memberId, {
       fileName: file.name,
       mimeType: file.type || null,
       bytes: new Uint8Array(await file.arrayBuffer()),

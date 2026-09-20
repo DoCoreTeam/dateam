@@ -17,6 +17,6 @@ export async function POST(req: NextRequest) {
     const current = Array.isArray(body?.currentLines)
       ? (body.currentLines as CurrentLineContext[]).slice(0, 50)
       : undefined
-    return draftQuoteFromText(session.workspaceId, body?.text ?? '', undefined, current)
+    return draftQuoteFromText(session.workspaceId, session.memberId, body?.text ?? '', undefined, current)
   })
 }

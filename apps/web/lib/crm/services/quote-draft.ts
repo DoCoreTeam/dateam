@@ -62,6 +62,8 @@ export interface QuoteDraftResult {
 
 export async function draftQuoteFromText(
   workspaceId: string,
+  /** 이 초안을 누른 구성원. 배경이면 null 이고 그때도 적는다 */
+  actorId: string | null,
   text: string,
   adapter?: AiAdapter,
   /** 화면이 편집 중인 항목 — 있으면 프롬프트 앞에 붙여 「맞춰서」를 이해하게 한다 */
@@ -77,8 +79,9 @@ export async function draftQuoteFromText(
   }
 
   const db = getCrmDb(workspaceId)
-  const chosen = adapter ?? await adapterFromSetting(db)
+  const chosen = adapter ?? await adapterFromSetting(db, { actorId })
   const { output, runId, switchedNote } = await runAi<QuoteDraftOutput>({
+    actorId: actorId,
     db, workspaceId, kind: 'QUICK_CREATE',
     prompt: QUOTE_DRAFT_V1,
     /*

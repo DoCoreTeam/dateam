@@ -7,5 +7,5 @@ import { withCrmApi } from '@/lib/crm/api/handler'
 import { checkData } from '@/lib/crm/services/data-check'
 
 export async function POST(_req: NextRequest) {
-  return withCrmApi('MEMBER', async ({ session }) => checkData(session.workspaceId))
+  return withCrmApi('MEMBER', async ({ session }) => checkData(session.workspaceId, session.memberId))
 }

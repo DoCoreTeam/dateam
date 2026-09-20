@@ -135,7 +135,7 @@ export async function buildStageReview(
 }
 
 export async function reviewStageMove(
-  workspaceId: string, dealId: string, now: Date = new Date(),
+  workspaceId: string, actorId: string | null, dealId: string, now: Date = new Date(),
 ): Promise<StageReviewResult> {
   const db = getCrmDb(workspaceId)
 
@@ -149,6 +149,7 @@ export async function reviewStageMove(
 
   try {
     const { output } = await runAi<StageReviewOutput>({
+      actorId: actorId,
       db, workspaceId,
       // 새 종류를 만들지 않는다 — enum 을 늘리면 마이그레이션이 필요하다.
       // 성격상 어시스턴트(사람을 돕는 조언)이고, 어느 프롬프트였는지는 버전이 기록한다.
@@ -157,7 +158,7 @@ export async function reviewStageMove(
       input: buildStageReviewBrief(brief),
       inputRef: { dealId, stage: brief.toStage },
       parse: parseStageReview,
-      adapter: await adapterFromSetting(db),
+      adapter: await adapterFromSetting(db, { actorId }),
       estimateMinorUsd: ESTIMATE_MINOR_USD,
     })
     return { review: output, reason: null }

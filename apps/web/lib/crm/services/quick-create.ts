@@ -89,8 +89,9 @@ export async function quickCreate(
 
   // 러너는 워크스페이스 스코프 db 를 쓴다 — ai_run 도 워크스페이스에 속한다
   const db = getCrmDb(workspaceId)
-  const chosen = adapter ?? await adapterFromSetting(db)
+  const chosen = adapter ?? await adapterFromSetting(db, { actorId })
   const { output, runId } = await runAi<QuickCreateOutput>({
+    actorId: actorId,
     db, workspaceId, kind: 'QUICK_CREATE',
     prompt: QUICK_CREATE_V1, input: text,
     inputRef: { chars: text.length }, // 원문은 복제하지 않는다(명세 §492)

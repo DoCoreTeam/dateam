@@ -108,6 +108,8 @@ export async function extractActivityFiveAxis(
   const validIds = new Set(segments.map((s) => s.id))
 
   const { output, runId } = await runAi<FiveAxisOutput>({
+
+    actorId: actorId,
     db, workspaceId,
     // 종류를 새로 만들지 않는다 — enum 을 늘리면 마이그레이션이 필요해진다.
     // 읽는 규칙도 뽑는 것도 미팅과 같으므로, 구분은 inputRef 가 한다.

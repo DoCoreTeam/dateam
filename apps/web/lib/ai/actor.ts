@@ -102,7 +102,7 @@ export const AI_LANES: readonly AiLane[] = [
   { file: 'lib/ai-chat/providers/gemini.ts', kind: 'human', surfaces: ['ai-chat'],
     why: 'AI 채팅, StreamChatParams 의 actorId 가 필수라 호출부가 한 곳도 못 빠뜨린다' },
   { file: 'lib/crm/ai/runner.ts', kind: 'human', surfaces: ['crm'],
-    why: 'CRM AI 실행기, 부르는 쪽에 구성원이 있는데 실행기까지 안 내려온다', unwired: true },
+    why: 'CRM AI 실행기, RunOptions 의 actorId 가 필수라 호출부 열 곳이 못 빠뜨린다' },
   { file: 'lib/stt/provider.ts', kind: 'human', surfaces: ['meeting/stt'],
     why: '회의 녹음 받아쓰기, SttInput 의 actorId 가 필수라 부르는 쪽이 못 빠뜨린다' },
   { file: 'lib/meeting/transcribe-parts.ts', kind: 'human', surfaces: ['meeting/transcribe'],
@@ -141,7 +141,7 @@ export function unwiredLanes(): readonly AiLane[] {
  * 아직 안 이어 붙인 자리의 기준선.
  *
  * 실측 2026-09-20 기준 열 곳이었다. I08b 가 넷, I08c 가 하나, I08e 가 채팅 하나,
- * I08d 가 회의 녹음 둘을 없애 둘이 남았고, I08g(CRM)와 I08h(GPU)가 나머지를 없앤다. 이 숫자를 올리는 변경은 가드가 막는다 —
+ * I08d 가 회의 녹음 둘, I08g 가 CRM 하나를 없애 하나가 남았고, I08h(GPU)가 마지막이다. 이 숫자를 올리는 변경은 가드가 막는다 —
  * 새 자리를 「나중에」로 여는 길을 안 남긴다. 줄이면 이 값도 함께 내린다.
  */
-export const UNWIRED_BASELINE = 2
+export const UNWIRED_BASELINE = 1

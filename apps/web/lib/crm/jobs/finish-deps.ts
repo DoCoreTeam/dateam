@@ -46,7 +46,8 @@ export async function finishDrainDeps(): Promise<Omit<DrainDeps, 'deadlineMs'>> 
   const { runMeetingDigest } = await import('../../meeting/digest-run.ts')
   return {
     // 잡을 집은 뒤 그 워크스페이스 설정으로 만든다 — 미리 하나 만들면 남의 설정을 쓴다
-    adapterFor: (workspaceId) => adapterFromSetting(getCrmDb(workspaceId)),
+    // 마감 잡은 예약으로 돈다 — 누른 사람이 없다. 「모른다」를 null 로 적어 둔다
+    adapterFor: (workspaceId) => adapterFromSetting(getCrmDb(workspaceId), { actorId: null }),
     confirmNote,
     digest: async (noteId, hostUserId) => {
       const out = await runMeetingDigest(noteId, hostUserId ?? '', { budgetMs: DIGEST_BUDGET_MS })

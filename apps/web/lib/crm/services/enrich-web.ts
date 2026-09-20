@@ -106,6 +106,8 @@ export async function enrichCompanyFromWeb(
   })
 
   const run = await runAi({
+
+    actorId: actorId,
     db,
     workspaceId,
     kind: 'ENRICH',

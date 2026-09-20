@@ -95,6 +95,14 @@ export interface AiAdapter {
 export interface RunOptions<T> {
   db: CrmDb
   workspaceId: string
+  /**
+   * 이 실행을 누른 구성원. 배경 잡이면 null 이고, 그때도 **반드시 적는다**.
+   *
+   * 선택이 아니라 필수인 이유: 실측 2026-09-20 원장 50,243건이 전부 주인이 비어 있었다.
+   * 선택으로 두면 「이 호출부는 다음에」가 남고, 그 다음은 안 온다. 필수면 새 호출부를
+   * 만드는 사람이 형 검사에서 한 번은 이 질문을 받는다 — 이 실행의 주인이 누구인가.
+   */
+  actorId: string | null
   kind: AiRunKind
   prompt: AiPrompt
   input: string
@@ -158,6 +166,7 @@ export async function runAi<T>(opts: RunOptions<T>): Promise<RunResult<T>> {
    */
   const ctx: GuardedCallContext = {
     surface: `crm/${kind.toLowerCase()}`,
+    actorId: opts.actorId,
     purpose: kind,
     modelName: adapter.model,
     providerId: null,

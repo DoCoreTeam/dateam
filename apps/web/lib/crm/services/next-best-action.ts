@@ -162,7 +162,7 @@ export interface NextBestActionResult {
  * "지금은 제안을 못 드려요"로 돌려준다 — 오늘 화면이 통째로 안 뜨면 그게 더 큰 사고다.
  */
 export async function suggestNextBestActions(
-  db: CrmDb, workspaceId: string, now: Date = new Date(),
+  db: CrmDb, workspaceId: string, actorId: string | null, now: Date = new Date(),
 ): Promise<NextBestActionResult> {
   let deals: DealBrief[] = []
   try {
@@ -183,6 +183,7 @@ export async function suggestNextBestActions(
 
   try {
     const { output } = await runAi<NextBestActionSuggestion[]>({
+      actorId: actorId,
       db,
       workspaceId,
       /**
@@ -200,7 +201,7 @@ export async function suggestNextBestActions(
        * 어느 모델로 물을지는 quick-create 와 **같은 함수**가 정한다.
        * 두 벌로 두면 한쪽만 고치게 되고, 그러면 같은 워크스페이스가 두 모델을 쓴다.
        */
-      adapter: await adapterFromSetting(db),
+      adapter: await adapterFromSetting(db, { actorId }),
       estimateMinorUsd: ESTIMATE_MINOR_USD,
     })
 

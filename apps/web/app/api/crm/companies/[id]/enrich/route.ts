@@ -15,7 +15,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ db, session }) => {
     // 웹 검색을 못 하는 프로바이더면 어댑터가 여기서 분명히 실패한다 —
     // 기억으로 답한 값을 "찾았다"고 보여 주지 않기 위해서다(host.ts).
-    const adapter = await adapterFromSetting(db, { webSearch: true })
+    const adapter = await adapterFromSetting(db, { webSearch: true, actorId: session.memberId })
     return enrichCompanyFromWeb(db, session.workspaceId, session.memberId, (await params).id, adapter)
   })
 }

@@ -194,6 +194,8 @@ const REJECT_MESSAGE: Record<QuoteFileRejectReason, string> = {
  */
 export async function draftQuoteFromFile(
   workspaceId: string,
+  /** 파일을 올린 구성원 */
+  actorId: string | null,
   input: QuoteFromFileInput,
   adapter?: AiAdapter,
 ): Promise<QuoteFromFileResult> {
@@ -245,7 +247,7 @@ export async function draftQuoteFromFile(
 
   const db = getCrmDb(workspaceId)
   // 어댑터 결정은 여기서 다시 구현하지 않는다 — 호스트 설정 한 곳에서 온다
-  const chosen = adapter ?? await adapterFromSetting(db, { attachments })
+  const chosen = adapter ?? await adapterFromSetting(db, { attachments, actorId })
 
   /*
     그림째 읽을 때도 프롬프트는 같다. 다른 프롬프트를 쓰면 같은 견적서를
@@ -256,6 +258,8 @@ export async function draftQuoteFromFile(
     : read.text
 
   const { output, runId, switchedNote } = await runAi<QuoteFromDocDoc>({
+
+    actorId: actorId,
     db, workspaceId, kind: 'QUICK_CREATE',
     prompt: QUOTE_FROM_DOC_V1,
     input: promptInput,

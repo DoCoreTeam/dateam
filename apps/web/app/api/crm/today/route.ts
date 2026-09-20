@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     // AI 는 느리다 — 같이 묶으면 화면 전체가 모델을 기다린다
     if (wantAi) {
-      return { ai: await suggestNextBestActions(db, session.workspaceId) }
+      return { ai: await suggestNextBestActions(db, session.workspaceId, session.memberId) }
     }
 
     const [attention, unplanned, todayMeetings] = await Promise.all([

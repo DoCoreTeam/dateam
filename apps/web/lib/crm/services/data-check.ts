@@ -129,7 +129,7 @@ export async function scanDataIssues(db: CrmDb, now: Date = new Date()): Promise
  * 우선순위가 없는 목록이 아무 목록도 없는 것보다 낫다.
  */
 export async function checkData(
-  workspaceId: string, now: Date = new Date(),
+  workspaceId: string, actorId: string | null, now: Date = new Date(),
 ): Promise<DataCheckResult> {
   const db = getCrmDb(workspaceId)
 
@@ -149,6 +149,7 @@ export async function checkData(
 
   try {
     const { output } = await runAi<DataCheckOutput>({
+      actorId,
       db, workspaceId,
       // 새 종류를 만들지 않는다 — enum 을 늘리면 마이그레이션이 필요하다
       kind: 'ASSISTANT',
@@ -156,7 +157,7 @@ export async function checkData(
       input: buildDataCheckInput(asked),
       inputRef: { count: asked.length },
       parse: (text) => parseDataCheck(text, keys),
-      adapter: await adapterFromSetting(db),
+      adapter: await adapterFromSetting(db, { actorId }),
       estimateMinorUsd: ESTIMATE_MINOR_USD,
     })
     return {

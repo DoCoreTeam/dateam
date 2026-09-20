@@ -78,10 +78,12 @@ export async function POST(req: NextRequest) {
     const needsAi = text.trim().length > 0 && (!intent.metric || !intent.period || leftover.length > 0)
     if (needsAi) {
       try {
-        const adapter = await adapterFromSetting(db)
+        const adapter = await adapterFromSetting(db, { actorId: session.memberId })
         const run = await runAi<Record<string, unknown>>({
           db,
           workspaceId: session.workspaceId,
+          // withCrmApi 가 확인한 그 구성원이 물은 것이다
+          actorId: session.memberId,
           kind: 'ASSISTANT',
           prompt: REPORT_ASK_V1,
           input: buildReportAskInput({

@@ -80,6 +80,23 @@ const read = (f: string) => readFileSync(join(WEB, f), 'utf8')
  * 코드가 그대로 통과한다. 실제로 그렇게 통과했다(daily-prompt-governance 에서 넘기는 줄
  * 하나만 빼도 가드가 안 울었다). 그래서 여는 함수의 괄호 안만 본다.
  */
+/**
+ * 이 호출이 주인을 넘기나.
+ *
+ * 인자 안에 `actorId` 가 바로 있으면 맞다. 없으면 **맥락을 변수로 넘긴 길**이다 —
+ * 같은 객체를 호출 뒤에도 읽어야 해서 미리 만들어 두는 자리가 있다(crm/ai/runner).
+ * 그때는 그 변수의 선언을 찾아 거기에 `surface` 와 `actorId` 가 함께 있는지 본다.
+ * 변수 이름만 보고 통과시키면 아무 객체나 넘겨도 맞다고 하게 된다.
+ */
+function 주인이있나(src: string, args: string): boolean {
+  if (/\bactorId\b/.test(args)) return true
+  for (const m of args.matchAll(/\b([a-zA-Z_$][\w$]*)\b(?:\s+as\s+\w+)?\s*[,)]/g)) {
+    const decl = new RegExp(`const ${m[1]}\\s*(?::[^=]*)?=\\s*\\{([\\s\\S]*?)\\n\\s*\\}`).exec(src)
+    if (decl && /surface:/.test(decl[1]) && /\bactorId\b/.test(decl[1])) return true
+  }
+  return false
+}
+
 function callArgsIn(src: string): string[] {
   const out: string[] = []
   const re = new RegExp(OPENER_SRC, 'g')
@@ -119,7 +136,7 @@ test('★ 사람이 누르는 자리는 벤더를 부르는 그 자리에서 주
   for (const lane of AI_LANES.filter(needsActor)) {
     const args = callArgsIn(read(lane.file))
     assert.ok(args.length > 0, `${lane.file} 에서 벤더를 부르는 자리를 못 찾았다`)
-    const 안넘기는곳 = args.filter((a) => !/\bactorId\b/.test(a))
+    const 안넘기는곳 = args.filter((a) => !주인이있나(read(lane.file), a))
     if (안넘기는곳.length > 0) {
       빠진곳.push(`  ${lane.file} — ${lane.why} (${안넘기는곳.length}/${args.length}곳)`)
     }

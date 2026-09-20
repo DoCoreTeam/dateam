@@ -11,5 +11,5 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
-  return withCrmApi('MEMBER', async ({ session }) => reviewStageMove(session.workspaceId, id))
+  return withCrmApi('MEMBER', async ({ session }) => reviewStageMove(session.workspaceId, session.memberId, id))
 }
