@@ -45,6 +45,7 @@ import { judgeQuoteOrigin, type QuoteOrigin } from '../domain/quote-origin.ts'
 import { adapterFromSetting } from './quick-create.ts'
 import { readQuoteSupplier } from './setting.ts'
 import { irToSourceText, type SourceTextResult } from './quote-source-text.ts'
+import { readQuoteImportConfig } from './quote-import-config.ts'
 
 /**
  * 파일 하나의 크기 상한.
@@ -160,6 +161,10 @@ export interface QuoteFromFileResult {
   unclear: string[]
   /** 상한에 걸려 못 읽은 건 수. 0 이 아니면 화면이 그 수를 말한다 */
   droppedQuotes: number
+  /** 상한에 걸려 못 읽은 항목 수 */
+  droppedLines: number
+  /** 상한에 걸려 못 읽은 구성 줄 수 */
+  droppedComponents: number
   /** 무엇을 읽고 만들었는지 — 사람이 원문과 대조할 수 있어야 한다 */
   source: {
     fileName: string
@@ -171,6 +176,13 @@ export interface QuoteFromFileResult {
     truncated: boolean
     /** 표를 몇 개 폈나. 0 이면 화면이 「표로 못 읽었다」고 말한다 */
     tableCount: number
+    /**
+     * 글에 실제로 들어간 쪽 번호들.
+     *
+     * 한 쪽짜리 문서는 원문에 쪽 표시가 안 붙으므로 모델이 쪽을 말할 수 없다.
+     * 그때는 이 목록이 유일한 근거다 — 화면이 「이 건은 1쪽」이라고 채워 넣는다.
+     */
+    pages: number[]
   }
   runId: string
   /** 고른 모델이 막혀 다른 것이 답했으면 그 사실 — **조용히 바꾸지 않는다** */
@@ -207,6 +219,14 @@ export async function draftQuoteFromFile(
   }
   const kind = check.kind
 
+  /*
+    **설정을 먼저 읽는다.** 얼마나 읽을지가 파서를 부르기 전에 정해져야 한다 —
+    다 읽고 나서 자르면 그 시간은 이미 쓴 것이고, 모델에 넘긴 글자도 이미 넘긴 것이다.
+  */
+  const db = getCrmDb(workspaceId)
+  const config = await readQuoteImportConfig(db)
+  const limits = { maxLines: config.maxLines, maxComponentLines: config.maxComponentLines }
+
   let route = initialQuoteFileRoute(kind)
   let read: SourceTextResult = { text: '', truncated: false, tableCount: 0, pages: [] }
 
@@ -214,7 +234,7 @@ export async function draftQuoteFromFile(
     const parsed = await parseFile({
       fileId: `quote-${Date.now()}`, fileName: input.fileName, bytes: input.bytes, fileRole: 'quote',
     })
-    if (parsed.ok) read = irToSourceText(parsed.doc)
+    if (parsed.ok) read = irToSourceText(parsed.doc, { maxChars: config.maxChars })
     // 스캔 PDF 는 파서가 «빈 문서를 성공으로» 준다. 그대로 두면 「항목 없음」이 뜬다.
     // 파싱이 아예 실패한 PDF 도 같은 길로 보낸다 — 그림으로는 읽힐 수 있다
     if (needsVisionFallback(kind, read.text)) {
@@ -245,7 +265,6 @@ export async function draftQuoteFromFile(
       { field: 'file' })
   }
 
-  const db = getCrmDb(workspaceId)
   // 어댑터 결정은 여기서 다시 구현하지 않는다 — 호스트 설정 한 곳에서 온다
   const chosen = adapter ?? await adapterFromSetting(db, { attachments, actorId })
 
@@ -264,7 +283,8 @@ export async function draftQuoteFromFile(
     prompt: QUOTE_FROM_DOC_V1,
     input: promptInput,
     inputRef: { fileName: input.fileName, kind, route, chars: read.text.length },
-    parse: parseQuoteFromDocDoc,
+    // 상한은 설정에서 온다 — 스키마에 박아 두면 회사마다 다른 견적서 두께를 못 따라간다
+    parse: (text: string) => parseQuoteFromDocDoc(text, limits),
     adapter: chosen,
   })
 
@@ -273,8 +293,22 @@ export async function draftQuoteFromFile(
     「받은 문서」라고 말하면 우리가 낸 견적서가 전부 남의 것이 된다(quote-origin.ts).
   */
   const ourName = await readQuoteSupplier(db).then((s) => s.name).catch(() => '')
+  /*
+    **한 쪽짜리 문서는 쪽을 우리가 채운다.**
+
+    원문에 쪽 표시를 붙이는 것은 쪽이 둘 이상일 때뿐이다(표시가 하나뿐이면 아무것도
+    안 알려 주면서 글자만 먹는다). 그래서 한 장짜리 견적서는 모델이 쪽을 말할 수 없고
+    pageStart 가 null 로 온다 — 그런데 그 문서의 모든 건은 **분명히 그 한 쪽에 있다.**
+    비워 두면 조각도 안 만들어지고 대조도 1쪽으로 떨어진다. 아는 것을 안 쓰는 셈이다.
+
+    쪽이 여럿인 문서에서는 절대 넘겨짚지 않는다 — 틀린 쪽을 오려 붙이는 것이
+    안 오리는 것보다 나쁘다.
+  */
+  const onlyPage = read.pages.length === 1 ? read.pages[0] : null
   const quotes: QuoteFromFileQuote[] = output.quotes.map((q) => ({
     ...q,
+    pageStart: q.pageStart ?? onlyPage,
+    pageEnd: q.pageEnd ?? q.pageStart ?? onlyPage,
     origin: judgeQuoteOrigin({ documentSupplierName: q.supplierName, ourSupplierName: ourName }),
   }))
 
@@ -282,9 +316,12 @@ export async function draftQuoteFromFile(
     quotes,
     unclear: output.unclear,
     droppedQuotes: output.droppedQuotes,
+    droppedLines: output.droppedLines,
+    droppedComponents: output.droppedComponents,
     source: {
       fileName: input.fileName, route, kind,
       text: read.text, truncated: read.truncated, tableCount: read.tableCount,
+      pages: read.pages,
     },
     runId,
     switchedNote,

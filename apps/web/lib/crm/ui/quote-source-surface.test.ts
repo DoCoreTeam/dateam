@@ -150,3 +150,82 @@ test('원본 고르기는 매입 견적서 최신을 고르고, 없으면 나머
   assert.equal(drawKindOf('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'other')
   assert.equal(drawKindOf(null), 'other')
 })
+
+/* ── 구성 줄이 화면까지 가나 (v0.10.30x) ─────────── */
+
+/*
+  **왜 여기서 또 보나**: 읽는 쪽이 구성을 받아도 화면이 안 그리면 사용자에게는
+  그 기능이 없는 것과 같다. 이 저장소가 반복한 사고가 정확히 그 모양이고
+  (값은 있는데 그리는 자리가 없다), 이 파일이 그 자리를 붙잡는 자리다.
+
+  **이름만 찾지 않는다** — 구성이 실제로 «값으로» 흐르는지 본다.
+*/
+
+const REVIEW = join(WEB, 'components/ui/crm/quote-review.tsx')
+const SHAPE = join(WEB, 'lib/crm/domain/quote-spec.ts')
+const FROM_FILE = join(WEB, 'lib/crm/services/quote-from-file.ts')
+
+test('★ 읽은 구성이 폼 값으로 흘러간다 — 받아 놓고 안 넘기면 저장에서 사라진다', () => {
+  const src = read(REVIEW)
+  assert.match(src, /descriptionMd: joinSpec\(l\.spec, l\.components\)/,
+    '구성을 규격 아래로 붙이지 않는다 — 폼에는 규격 한 줄만 들어간다')
+  assert.match(src, /components = usable\.map/,
+    '검수 모양이 구성을 담지 않는다 — 화면이 몇 줄인지 셀 수 없다')
+})
+
+test('★ 검수 목록이 구성을 실제로 그린다 — 선언만 하고 안 그리면 사라진 것과 같다', () => {
+  const src = read(REVIEW)
+  assert.match(src, /<ComponentsFold lines=\{review\.components\[i\] \?\? \[\]\}/,
+    '구성 부품에 값이 안 넘어간다')
+  assert.match(src, /fillComponentsFold\(lines\.length, open\)/,
+    '몇 줄인지 말하지 않는다 — 숨긴 것과 사라진 것이 화면에서 같아진다')
+})
+
+test('★ 구성을 붙이고 다시 가르는 규칙이 한 곳이다 — 화면 밖이라 실제로 돌려 볼 수 있다', () => {
+  const src = read(SHAPE)
+  assert.match(src, /export function joinSpec/)
+  assert.match(src, /export function splitSpec/)
+  assert.ok(!src.includes("from '@/"),
+    '화면 별칭을 물면 node --test 가 이 규칙을 못 돌린다 — 안 돌려 본 규칙은 가드가 아니다')
+})
+
+test('★ 붙인 것을 다시 가르면 원래대로다 — 두 규칙이 갈리면 화면과 종이가 달라진다', async () => {
+  const { joinSpec, splitSpec } = await import('../domain/quote-spec.ts')
+  const merged = joinSpec('AMD 9355 32Core x 2Ea', ['Dual AMD EPYC', '12-Channel DDR5'])
+  assert.equal(merged, 'AMD 9355 32Core x 2Ea\nDual AMD EPYC\n12-Channel DDR5')
+  assert.deepEqual(splitSpec(merged), {
+    spec: 'AMD 9355 32Core x 2Ea',
+    components: ['Dual AMD EPYC', '12-Channel DDR5'],
+  })
+  // 규격이 없고 구성만 있는 줄도 있다 — 첫 줄을 규격으로 삼는다
+  assert.equal(joinSpec(null, ['가', '나']), '가\n나')
+  assert.equal(joinSpec('', []), '')
+})
+
+test('★ 읽기 상한이 설정에서 온다 — 스키마에 박아 두면 설정을 바꿔도 안 바뀐다', () => {
+  const src = read(FROM_FILE)
+  assert.match(src, /readQuoteImportConfig\(db\)/, '설정을 안 읽는다')
+  assert.match(src, /irToSourceText\(parsed\.doc, \{ maxChars: config\.maxChars \}\)/,
+    '글자 수 상한이 설정을 안 따른다')
+  assert.match(src, /parseQuoteFromDocDoc\(text, limits\)/,
+    '항목·구성 상한이 설정을 안 따른다')
+})
+
+test('★ 한 쪽짜리 문서는 그 한 쪽을 채워 준다 — 아는 것을 안 쓰면 대조가 1쪽으로 떨어진다', () => {
+  const src = read(FROM_FILE)
+  assert.match(src, /const onlyPage = read\.pages\.length === 1 \? read\.pages\[0\] : null/)
+  assert.match(src, /pageStart: q\.pageStart \?\? onlyPage/)
+})
+
+test('★ 건 카드가 원본 몇 쪽인지 말한다 — 두 건짜리 파일에서 내 건을 찾는 유일한 단서다', () => {
+  const src = read(REVIEW)
+  assert.match(src, /fillSourcePage\(review\.pageStart, review\.pageEnd\)/, '검수 머리말이 쪽을 안 말한다')
+  assert.match(src, /fillSourcePage\(r\.pageStart, r\.pageEnd\)/, '고르는 목록이 쪽을 안 말한다')
+})
+
+test('쪽을 모르면 아무 말도 안 한다 — 1쪽이라고 넘겨짚으면 틀린 자리를 가리킨다', async () => {
+  const { fillSourcePage } = await import('../../terms/quote.ts')
+  assert.equal(fillSourcePage(null, null), null)
+  assert.equal(fillSourcePage(2, 2), '원본 2쪽')
+  assert.equal(fillSourcePage(2, 3), '원본 2-3쪽')
+})

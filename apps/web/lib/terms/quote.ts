@@ -219,6 +219,37 @@ export const FILL_TRUNCATED =
 export const FILL_READ_AS_IMAGE =
   '글자 레이어가 없어 그림으로 읽었어요. 숫자를 특히 꼼꼼히 봐 주세요.'
 
+/**
+ * 항목에 딸린 구성 줄을 접었다 편다.
+ *
+ * **줄 수를 먼저 말한다.** 「구성 보기」라고만 하면 몇 줄이 숨어 있는지 모르고,
+ * 모르면 안 펴 본다 — 그러면 사라진 것과 접힌 것이 화면에서 똑같아진다.
+ */
+export function fillComponentsFold(lineCount: number, open: boolean): string {
+  return open ? `구성 ${lineCount}줄 접기` : `구성 ${lineCount}줄 펴기`
+}
+
+/** 상한에 걸려 못 읽은 구성 줄 — 조용히 버리지 않는다 */
+export function fillDroppedComponents(lineCount: number): string {
+  return `구성 ${lineCount}줄은 상한에 걸려 못 읽었어요. 설정에서 상한을 올릴 수 있어요.`
+}
+
+/** 상한에 걸려 못 읽은 항목 */
+export function fillDroppedLines(lineCount: number): string {
+  return `항목 ${lineCount}개는 상한에 걸려 못 읽었어요. 설정에서 상한을 올릴 수 있어요.`
+}
+
+/**
+ * 이 건이 원본 몇 쪽에서 왔는지.
+ *
+ * 한 파일에 견적이 둘이면 이 줄이 없을 때 사람이 원본을 열어 자기 건을 찾아야 한다
+ * (사용자 지적 2026-09-20: 「거기 두개가 들어 있는데 찾아서 확인해야 하자나」).
+ */
+export function fillSourcePage(start: number | null, end: number | null): string | null {
+  if (start === null) return null
+  return end !== null && end !== start ? `원본 ${start}-${end}쪽` : `원본 ${start}쪽`
+}
+
 /** 파일에서 항목을 하나도 못 찾았을 때 */
 export const FILL_NOTHING_FOUND =
   '견적 항목을 찾지 못했어요. 항목 표가 있는 쪽만 따로 올려 보세요.'

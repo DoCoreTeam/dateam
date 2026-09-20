@@ -22,19 +22,22 @@ import {
 } from '@/lib/crm/domain/quote-reconcile'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { LINE_KIND_ORDER, LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
+import { useState } from 'react'
 import {
-  FILL_NO_PRICE, FILL_SOURCE_LABEL, FILL_RISK_TEXT,
+  FILL_NO_PRICE, FILL_SOURCE_LABEL, FILL_RISK_TEXT, fillComponentsFold, fillSourcePage,
   FILL_TOTAL_MATCH, FILL_TOTAL_NO_REFERENCE, fillTotalMismatch,
   FILL_TOTAL_OURS, FILL_TOTAL_DOCUMENT, fillFoundLine,
   fillQuoteName, fillPickTitle, countOnly,
 } from '@/lib/terms'
-import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
+import { joinSpec, type QuoteDraft, type QuoteLineDraft } from './quote-draft-shape'
 import styles from './quote-panel.module.css'
 
 /** 창구가 돌려주는 항목 한 줄 */
 export interface DocLineJson {
   name: string | null
   spec: string | null
+  /** 이 항목에 딸린 구성 줄. 옛 응답에는 없으므로 없을 수 있다 */
+  components?: string[] | null
   kind: string | null
   quantity: number | null
   unit: string | null
@@ -43,6 +46,10 @@ export interface DocLineJson {
   specialDiscountPercent: number | null
   amountMinor: number | null
   sourceText: string
+  /** 그 줄이 있던 쪽 */
+  sourcePage?: number | null
+  /** 원본이 이 줄을 묶어 부르는 말 */
+  groupLabel?: string | null
 }
 
 /** 창구가 돌려주는 건 하나 */
@@ -58,6 +65,9 @@ export interface DocQuoteJson {
   sourceTotalIncludesTax: boolean
   /** 우리가 낸 문서로 보이나 — **알림이다. 아무것도 바꾸지 않는다** */
   origin: 'ours' | 'received' | 'unknown'
+  /** 이 건이 원본 몇 쪽에 있었나 */
+  pageStart?: number | null
+  pageEnd?: number | null
 }
 
 /** 파일에서 읽은 것을 사람이 보는 동안 들고 있는 값 */
@@ -70,6 +80,16 @@ export interface FileReview {
   lines: QuoteLineDraft[]
   /** 줄마다 원문 조각 — 같은 인덱스 */
   sources: string[]
+  /**
+   * 줄마다 구성 줄 — 같은 인덱스.
+   *
+   * 폼 값(`lines[i].descriptionMd`)에도 이미 붙어 있지만, 화면이 「구성 13줄 펴기」라고
+   * 말하려면 **몇 줄인지**를 세어야 한다. 붙인 글에서 다시 가르면 규칙이 두 곳이 된다.
+   */
+  components: string[][]
+  /** 이 건이 원본 몇 쪽이었나 — 카드에 배지로 붙는다 */
+  pageStart: number | null
+  pageEnd: number | null
   /** 줄마다 대조 결과 — 같은 인덱스 */
   checks: LineCheck[]
   /** 줄마다 넣을지 — 같은 인덱스 */
@@ -86,7 +106,8 @@ export function toFormLine(l: DocLineJson, taxPercent: number | null): QuoteLine
   return {
     productId: null,
     name: l.name ?? '',
-    descriptionMd: l.spec ?? '',
+    // 구성은 규격 아래 줄로 붙는다 — 붙이는 규칙은 quote-draft-shape 한 곳이다
+    descriptionMd: joinSpec(l.spec, l.components),
     kind: k,
     quantity: l.quantity === null ? '1' : String(l.quantity),
     unit: l.unit ?? LINE_KIND_UNIT[k],
@@ -113,6 +134,7 @@ export function buildReview(
   const usable = (quote.lines ?? []).filter((l) => l.name)
   const lines = usable.map((l) => toFormLine(l, quote.taxPercent))
   const sources = usable.map((l) => l.sourceText ?? '')
+  const components = usable.map((l) => (l.components ?? []).filter(Boolean))
 
   const inputs: LineCheckInput[] = lines.map((l, i) => ({
     name: l.name,
@@ -133,6 +155,9 @@ export function buildReview(
     origin: quote.origin,
     lines,
     sources,
+    components,
+    pageStart: quote.pageStart ?? null,
+    pageEnd: quote.pageEnd ?? null,
     checks,
     // **위험 신호가 붙은 줄은 꺼 둔다** — 켜는 행동 자체가 「내가 봤다」는 뜻이 되게
     checked: initialChecked(checks),
@@ -211,13 +236,45 @@ export function totalWordOf(review: FileReview): string {
   return fillTotalMismatch(text, short)
 }
 
-/** 읽은 건 하나의 제목 줄 — 파일 이름과 항목 수 */
+/** 읽은 건 하나의 제목 줄 — 파일 이름과 항목 수, 그리고 원본 몇 쪽이었나 */
 export function ReviewHead({ review, fileName }: { review: FileReview; fileName: string }) {
+  const page = fillSourcePage(review.pageStart, review.pageEnd)
   return (
     <div className={styles.reviewHead}>
       <FileText size={16} aria-hidden />
       <b>{fillFoundLine(review.lines.length, fileName)}</b>
+      {/* 쪽을 못 읽었으면 아무 말도 안 한다 — 1쪽이라고 넘겨짚으면 틀린 자리를 가리킨다 */}
+      {page && <span className={styles.sourcePage}>{page}</span>}
     </div>
+  )
+}
+
+/**
+ * 항목에 딸린 구성 줄 — **접어 두되 몇 줄인지는 말한다.**
+ *
+ * 다 펴 두면 검수 목록이 백 줄이 되어 정작 금액이 안 보이고, 숨기기만 하면
+ * **사라진 것과 접힌 것이 화면에서 똑같아진다** — 그게 이번에 고친 결함 자체다.
+ * 그래서 줄 수를 단추에 적는다.
+ */
+function ComponentsFold({ lines }: { lines: string[] }) {
+  const [open, setOpen] = useState(false)
+  if (lines.length === 0) return null
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.componentsFold}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {fillComponentsFold(lines.length, open)}
+      </button>
+      {open && (
+        <ul className={styles.componentsList}>
+          {lines.map((c, i) => <li key={i}>{c}</li>)}
+        </ul>
+      )}
+    </>
   )
 }
 
@@ -286,6 +343,11 @@ export function QuoteReviewList({ review, onToggle }: {
                 {review.sources[i]}
               </span>
             )}
+            {/*
+              구성은 체크와 상관없이 그 항목을 따라간다 — 체크한 줄을 넣으면
+              규격 아래에 함께 들어간다(`joinSpec`).
+            */}
+            <ComponentsFold lines={review.components[i] ?? []} />
           </li>
         ))}
       </ul>
@@ -327,6 +389,10 @@ export function QuotePickList({ reviews, fileName, hint, onPick }: {
             <button type="button" className={styles.pickItem} onClick={() => onPick(i)}>
               <b className={styles.pickName}>{fillQuoteName(i, r.label ?? r.title)}</b>
               <span className={styles.pickMeta}>
+                {/* 두 건짜리 파일에서 「내 건이 어디인가」를 여기서 먼저 말한다 */}
+                {fillSourcePage(r.pageStart, r.pageEnd) && (
+                  <span className={styles.sourcePage}>{fillSourcePage(r.pageStart, r.pageEnd)}</span>
+                )}
                 <span>{countOnly('product', r.lines.length)}</span>
                 <b>{formatAmount(r.total.ourTotalMinor.toString(), r.currency)}</b>
               </span>

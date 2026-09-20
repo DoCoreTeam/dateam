@@ -81,7 +81,7 @@
 의존: I03
 
 ### I05 읽은 구성을 검수 목록과 저장까지 나른다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/quote-from-file.ts, apps/web/components/ui/crm/quote-review.tsx, apps/web/components/ui/crm/quote-draft-shape.ts, apps/web/lib/crm/ui/quote-source-surface.test.ts
 감사 기준:

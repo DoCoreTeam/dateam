@@ -852,6 +852,46 @@
   color: var(--text-muted);
 }
 
+/*
+  구성 줄 — **접어 두되 몇 줄인지는 말한다.**
+
+  다 펴 두면 항목 여섯짜리 견적서의 검수 목록이 백 줄이 되어 정작 금액이 안 보인다.
+  그렇다고 숨기기만 하면 사라진 것과 접힌 것이 화면에서 똑같다(그게 이번에 고친 결함이다).
+  그래서 줄 수를 단추에 적는다.
+*/
+.componentsFold {
+  align-self: start;
+  padding: 0 var(--space-1);
+  border: var(--border-w) dashed var(--border-light);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+}
+
+.componentsFold:hover { border-color: var(--accent); }
+.componentsFold:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.componentsList {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+/* 이 건이 원본 몇 쪽이었나 — 카드 이름 옆에 붙는다 */
+.sourcePage {
+  padding: 0 var(--space-1);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+
 
 /* 순서 칸 — 손잡이와 위/아래는 **한 덩어리**다. 세로로 벌어지면 무엇을 집는지 흐려진다 */
 .colOrder {

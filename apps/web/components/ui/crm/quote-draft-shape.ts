@@ -14,6 +14,8 @@
 
 import { LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
 import { todayPlus } from '@/components/ui/DateField'
+// 규격·구성을 붙이고 가르는 규칙은 화면 밖에 둔다 — 부품 파일은 node --test 가 못 읽는다
+export { joinSpec, splitSpec } from '@/lib/crm/domain/quote-spec'
 
 export interface QuoteLineDraft {
   id?: string | null
