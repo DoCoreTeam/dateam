@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.325',
+    date: '2026-09-21',
+    title: '견적서 사업명이 선에 눌리지 않아요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '📄',
+        headline: '사업명과 공급자 칸 사이에 숨 쉴 자리가 생겼어요',
+        detail: '긴 사업명이 가운데 세로선에 바짝 붙어 답답해 보이던 것을 고쳤어요. 이제 선 양쪽에 같은 여백이 있어 두 칸이 나란히 읽힙니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '✂️',
+        headline: '낱말이 중간에서 잘리지 않아요',
+        detail: '「스토리지」가 「스토」와 「리지」로 갈라지거나 「사업자등록번호」가 두 줄로 쪼개지던 문제를 고쳤어요. 줄은 이제 낱말 사이에서만 넘어갑니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.324',
     date: '2026-09-21',
     title: '엑셀 견적서도 나란히 놓고 볼 수 있어요',
