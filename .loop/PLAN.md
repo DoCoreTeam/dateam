@@ -112,7 +112,7 @@
 의존: 없음
 
 ### I07 같은 성격의 자리를 전부 고치고 가드로 잠근다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/MeetingPanel.tsx, apps/web/app/(crm)/crm/deals/[id]/DealContacts.tsx, apps/web/app/(crm)/crm/meetings/[id]/MeetingDetail.tsx, apps/web/app/(crm)/crm/tasks/TasksClient.tsx, apps/web/app/(crm)/crm/today/TodayClient.tsx, apps/web/app/(crm)/crm/reports/BusinessPanel.tsx, apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/app/(crm)/crm/deals/GapFillModal.tsx, apps/web/lib/crm/nav/back-link.test.ts, apps/web/package.json
 감사 기준:

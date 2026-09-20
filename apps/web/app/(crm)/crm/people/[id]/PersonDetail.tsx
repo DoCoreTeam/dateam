@@ -199,7 +199,7 @@ export default function PersonDetail({ personId }: { personId: string }) {
             자리는 관계(소속·딜) 다음 · 타임라인 앞 — 무엇과 이어졌나 다음에 무슨 일이 있었나다(§2-3-2 L-2).
           */}
           <RecordPanel title="이 사람과 한 회의">
-            <MeetingPanel scope={{ personId }} />
+            <MeetingPanel scope={{ personId }} here={here} />
           </RecordPanel>
 
           <RecordPanel title="타임라인">

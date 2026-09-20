@@ -42,13 +42,53 @@ export function backTarget(
 }
 
 /**
+ * **지금 이 화면**을 «돌아올 곳» 한 벌로 만든다.
+ *
+ * 쿼리를 함께 싣는 이유: 할 일 화면의 범위·검색어, 리포트의 기간·탭은 전부 주소에 있다.
+ * 경로만 실으면 돌아왔을 때 조건이 초기화되고, 사용자는 방금 하던 추리기를 다시 해야 한다.
+ *
+ * 화면마다 `pathname + '?' + params` 를 손으로 이으면 어떤 화면은 `?` 가 두 번 붙고
+ * 어떤 화면은 쿼리를 잃는다. 그래서 잇는 자리를 여기 하나로 둔다.
+ */
+export interface HereTarget {
+  /** 쿼리까지 붙은 지금 주소 */
+  path: string
+  /** 돌아갈 곳의 이름. 도착 화면의 뒤로 단추에 그대로 적힌다 */
+  label: string
+}
+
+export function hereNow(
+  pathname: string,
+  search: { toString(): string } | string | null | undefined,
+  label: string,
+): HereTarget {
+  const q = typeof search === 'string' ? search : (search?.toString() ?? '')
+  const clean = q.replace(/^\?/, '')
+  return { path: clean ? `${pathname}?${clean}` : pathname, label }
+}
+
+/**
  * 다른 상세로 가는 링크에 «여기» 를 실어 준다.
  *
  * 라벨까지 함께 싣는 이유: 도착한 화면이 「← 딜 목록」이 아니라 **「← 수원시청」** 이라고
  * 말해야 사용자가 어디로 돌아가는지 안다. 주소만 실으면 도착 화면은 이름을 지어내야 한다.
  */
-export function linkWithBack(href: string, here: { path: string; label: string }): string {
+export function linkWithBack(href: string, here: HereTarget): string {
   const withPath = withReturnTo(href, here.path)
   const sep = withPath.includes('?') ? '&' : '?'
   return `${withPath}${sep}returnLabel=${encodeURIComponent(here.label)}`
+}
+
+/**
+ * 상세 주소인가 — `/crm/<개체>/<id>` 모양.
+ *
+ * 서버가 만들어 준 주소를 화면이 그대로 그리는 자리가 있다(오늘 화면의 「살펴볼 것」).
+ * 그 목록에는 상세 주소와 허브 주소가 섞여 오므로, 감싸기 전에 어느 쪽인지 가른다 —
+ * 허브에까지 돌아올 곳을 실으면 주소만 길어지고 뒤로 단추가 없는 화면에 쓰이지도 않는다.
+ */
+export const DETAIL_HREF = /^\/crm\/(?:deals|companies|people|meetings|quotes)\/[^/?#]+$/
+
+/** 상세 주소일 때만 «돌아올 곳»을 싣는다 */
+export function withBackIfDetail(href: string, here: HereTarget): string {
+  return DETAIL_HREF.test(href) ? linkWithBack(href, here) : href
 }

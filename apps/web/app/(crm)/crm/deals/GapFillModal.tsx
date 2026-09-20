@@ -36,6 +36,10 @@ export interface QuickCreateResult {
   text: string
 }
 
+import { hereNow, linkWithBack } from '@/lib/crm/nav/back-link'
+import { navLabelOf } from '@/lib/crm/nav/groups'
+import { usePathname, useSearchParams } from 'next/navigation'
+
 interface Props {
   result: QuickCreateResult
   pipelines: BoardPipeline[]
@@ -55,6 +59,8 @@ const HREF: Record<TouchedRecord['type'], string> = {
 const MAX_ASK = 3
 
 export default function GapFillModal({ result, pipelines, onClose, onFilled }: Props) {
+  // 여기서 회사 상세로 나가면 보던 딜 화면으로 돌아와야 한다 — 이 모달은 딜 화면 위에 떠 있다
+  const here = hereNow(usePathname(), useSearchParams(), navLabelOf('/crm/deals'))
   // 막는 것부터 묻는다 — 그게 없으면 레코드 자체가 안 만들어졌다
   const asks = [...result.gaps].sort((a, b) => Number(b.blocking) - Number(a.blocking)).slice(0, MAX_ASK)
   const company = [...result.created, ...result.linked].find((r) => r.type === 'company')
@@ -168,7 +174,7 @@ export default function GapFillModal({ result, pipelines, onClose, onFilled }: P
                 <li key={key(g)} style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
                   {g.label}
                   {company && g.target === 'deal' && (
-                    <> — <Link href={`/crm/companies/${company.id}`}>{company.name}</Link> 에서 딜을 만들 때 채우면 됩니다</>
+                    <> — <Link href={linkWithBack(`/crm/companies/${company.id}`, here)}>{company.name}</Link> 에서 딜을 만들 때 채우면 됩니다</>
                   )}
                 </li>
               ))}

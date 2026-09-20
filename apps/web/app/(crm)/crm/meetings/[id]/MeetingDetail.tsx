@@ -98,6 +98,8 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   const backParams = useSearchParams()
   const back = backTarget(backParams, { href: '/crm/meetings', label: '미팅' })
   const [m, setM] = useState<Meeting | null>(null)
+  // 여기서 회사·딜 상세로 나갈 때 실어 보낼 «돌아올 곳». 이름은 이 미팅 제목이다
+  const here = { path: `/crm/meetings/${meetingId}`, label: m?.title ?? ENTITY.meeting.label }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -590,12 +592,12 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
                 */}
                 <RecordField label={ENTITY.company.label}>
                   {m.companyId
-                    ? <Link href={`/crm/companies/${m.companyId}`}>{m.companyName ?? '이름 없음'}</Link>
+                    ? <Link href={linkWithBack(`/crm/companies/${m.companyId}`, here)}>{m.companyName ?? '이름 없음'}</Link>
                     : null}
                 </RecordField>
                 <RecordField label={ENTITY.deal.label}>
                   {m.dealId
-                    ? <Link href={`/crm/deals/${m.dealId}`}>{m.dealName ?? '이름 없음'}</Link>
+                    ? <Link href={linkWithBack(`/crm/deals/${m.dealId}`, here)}>{m.dealName ?? '이름 없음'}</Link>
                     : null}
                 </RecordField>
                 <RecordField label="전사">

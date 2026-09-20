@@ -240,7 +240,7 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
 
           {/* 이 회사와 무슨 이야기가 오갔나 — 딜별로 흩어져 있으면 못 본다 */}
           <RecordPanel title="이 회사의 미팅">
-            <MeetingPanel scope={{ companyId }} />
+            <MeetingPanel scope={{ companyId }} here={here} />
           </RecordPanel>
 
           <RecordPanel title="타임라인">

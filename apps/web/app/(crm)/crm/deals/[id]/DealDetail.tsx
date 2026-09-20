@@ -256,7 +256,7 @@ export default function DealDetail({ dealId }: { dealId: string }) {
               예전엔 회사의 인물을 전부 뿌려서 "누구를 설득해야 하나"에 답을 못 했다.
             */}
             <RecordPanel title="이 딜의 사람들">
-              <DealContacts dealId={dealId} companyId={deal?.companyId ?? null} />
+              <DealContacts dealId={dealId} companyId={deal?.companyId ?? null} here={here} />
             </RecordPanel>
 
             {/*
@@ -279,7 +279,7 @@ export default function DealDetail({ dealId }: { dealId: string }) {
             </RecordPanel>
 
             <RecordPanel title="이 딜의 미팅">
-              <MeetingPanel scope={{ dealId }} />
+              <MeetingPanel scope={{ dealId }} here={here} />
             </RecordPanel>
 
             <RecordPanel title="단계 이동 이력">

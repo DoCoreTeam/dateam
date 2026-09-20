@@ -11,6 +11,9 @@
 // 숫자 옆에 같이 써야 사람이 그 숫자를 믿을지 말지 정할 수 있다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { hereNow } from '@/lib/crm/nav/back-link'
+import { navLabelOf } from '@/lib/crm/nav/groups'
 import Sensitive, { useMaskAmount } from '@/components/crm/Sensitive'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
@@ -104,6 +107,12 @@ function Money({ sums, count }: { sums: CurrencySum[]; count: number }) {
 }
 
 export default function ReportsClient() {
+  /*
+    여기서 딜 상세로 나갈 때 실어 보낼 «돌아올 곳».
+    기간·묶음이 주소에 있으므로 쿼리째 싣는다 — 돌아왔을 때 보던 기간이 그대로여야
+    「그 숫자를 만든 딜」을 하나씩 짚어 볼 수 있다.
+  */
+  const here = hereNow(usePathname(), useSearchParams(), navLabelOf('/crm/reports'))
   /**
    * 문장 안에 섞인 금액(`예상 3억`)은 컴포넌트로 감쌀 수 없다 — 값을 먼저 가린다.
    * `Sensitive` 와 같은 표시를 쓰므로 화면에서 두 방식이 달라 보이지 않는다.
@@ -189,6 +198,7 @@ export default function ReportsClient() {
       */}
       {business && (
         <BusinessPanel
+          here={here}
           data={business}
           period={period}
           onPeriodChange={setPeriod}

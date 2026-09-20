@@ -1,7 +1,9 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import InlineError from '@/components/ui/InlineError'
+import { hereNow, linkWithBack } from '@/lib/crm/nav/back-link'
+import { navLabelOf } from '@/lib/crm/nav/groups'
 
 // 할 일 목록 (dacrm F2 뒤끝)
 //
@@ -111,6 +113,14 @@ export default function TasksClient() {
    * 눌러서 들어온 화면이 그 날을 모르는 것이 문제였다(§2-6 "URL이 진실").
    */
   const dueParam = useSearchParams().get('due') ?? ''
+  /*
+    여기서 딜·회사·인물로 나갈 때 실어 보낼 «돌아올 곳».
+    범위와 검색어가 주소에 있으므로 쿼리째 싣는다 — 경로만 실으면 돌아왔을 때
+    추리던 조건이 초기화되고 사용자는 같은 추리기를 다시 해야 한다.
+  */
+  const hereParams = useSearchParams()
+  const herePath = usePathname()
+  const here = hereNow(herePath, hereParams, navLabelOf('/crm/tasks'))
   /*
     **마감은 오늘부터 잡는다**(v0.7.696 · 사용자 지시 「기본적으로 오늘 날짜 부터 잡아야지
     비어 있으면 안되지」). 비어 있으면 사람은 그 칸을 지나치고, 마감 없는 할 일은
@@ -328,13 +338,13 @@ export default function TasksClient() {
             {(t.dealName || t.companyName || t.personName) && (
               <span className={styles.rel} onClick={(e) => e.stopPropagation()}>
                 {t.dealId && t.dealName && (
-                  <Link href={`/crm/deals/${t.dealId}`} className={styles.relLink}>{t.dealName}</Link>
+                  <Link href={linkWithBack(`/crm/deals/${t.dealId}`, here)} className={styles.relLink}>{t.dealName}</Link>
                 )}
                 {t.companyId && t.companyName && (
-                  <Link href={`/crm/companies/${t.companyId}`} className={styles.relLink}>{t.companyName}</Link>
+                  <Link href={linkWithBack(`/crm/companies/${t.companyId}`, here)} className={styles.relLink}>{t.companyName}</Link>
                 )}
                 {t.personId && t.personName && (
-                  <Link href={`/crm/people/${t.personId}`} className={styles.relLink}>{t.personName}</Link>
+                  <Link href={linkWithBack(`/crm/people/${t.personId}`, here)} className={styles.relLink}>{t.personName}</Link>
                 )}
               </span>
             )}

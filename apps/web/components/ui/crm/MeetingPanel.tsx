@@ -21,6 +21,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { startMeeting, meetingHref } from '@/lib/crm/ui/start-meeting'
+import { linkWithBack, type HereTarget } from '@/lib/crm/nav/back-link'
 import styles from './meeting-panel.module.css'
 
 interface Meeting {
@@ -39,7 +40,7 @@ export interface MeetingPanelScope {
   personId?: string
 }
 
-export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
+export default function MeetingPanel({ scope, here }: { scope: MeetingPanelScope; here: HereTarget }) {
   const router = useRouter()
   const [items, setItems] = useState<Meeting[]>([])
   const [loading, setLoading] = useState(true)
@@ -121,7 +122,7 @@ export default function MeetingPanel({ scope }: { scope: MeetingPanelScope }) {
     <ul className={styles.list}>
       {items.map((m) => (
         <li key={m.id} className={styles.item}>
-          <Link href={`/crm/meetings/${m.id}`} className={styles.main}>
+          <Link href={linkWithBack(`/crm/meetings/${m.id}`, here)} className={styles.main}>
             <span className={styles.title}>{m.title}</span>
             <span className={styles.meta}>
               {formatKstDateTimeShort(m.startedAt)}

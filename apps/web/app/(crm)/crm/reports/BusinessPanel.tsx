@@ -54,7 +54,11 @@ const STATIC_QUERY: ListQuery = {
   q: '', sort: { key: '', dir: 'desc' }, filters: {}, view: 'table', size: 100, mode: 'pages', page: 1,
 }
 
+import { linkWithBack, type HereTarget } from '@/lib/crm/nav/back-link'
+
 interface Props {
+  /** 여기서 딜 상세로 나갈 때 실어 보낼 «돌아올 곳». 리포트는 기간·묶음이 주소에 있어 부모가 만든다 */
+  here: HereTarget
   data: BusinessReportJson
   period: PeriodKey
   onPeriodChange: (p: PeriodKey) => void
@@ -151,7 +155,7 @@ function firstMinor(sums: CurrencySum[]): bigint {
   return sums[0] ? BigInt(sums[0].totalMinor) : BigInt(0)
 }
 
-export default function BusinessPanel({ data, period, onPeriodChange, onGroupChange }: Props) {
+export default function BusinessPanel({ here, data, period, onPeriodChange, onGroupChange }: Props) {
   const peak = useMemo(() => {
     let max = BigInt(0)
     for (const t of data.timeline) {
@@ -319,7 +323,7 @@ export default function BusinessPanel({ data, period, onPeriodChange, onGroupCha
           columns={DEAL_COLUMNS}
           query={STATIC_QUERY}
           rowKey={(d) => d.id}
-          rowHref={(d) => `/crm/deals/${d.id}`}
+          rowHref={(d) => linkWithBack(`/crm/deals/${d.id}`, here)}
           empty={{ title: '이 기간에 해당하는 딜이 없어요' }}
         />
       </SectionSurface>

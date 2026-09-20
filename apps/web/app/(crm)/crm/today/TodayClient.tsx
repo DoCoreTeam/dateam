@@ -15,6 +15,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { linkWithBack, withBackIfDetail } from '@/lib/crm/nav/back-link'
+import { navLabelOf } from '@/lib/crm/nav/groups'
 import {
   AlertTriangle, Clock, Inbox, PauseCircle, Sparkles, Plus, ArrowRight,
 } from 'lucide-react'
@@ -45,6 +47,12 @@ interface AiSuggestion {
   dueInDays: number
   dueDate: string
 }
+
+/*
+  오늘 화면에서 딜로 나갈 때 실어 보낼 «돌아올 곳».
+  이 화면에는 주소에 담기는 조건이 없어 경로가 곧 전부다 — 그래서 상수 하나면 된다.
+*/
+const HERE_TODAY = { path: '/crm/today', label: navLabelOf('/crm/today') }
 
 export default function TodayClient() {
   const [items, setItems] = useState<AttentionItem[]>([])
@@ -172,7 +180,7 @@ export default function TodayClient() {
         <ul className={styles.list}>
           {items.map((it) => (
             <li key={`${it.kind}:${it.id}`}>
-              <Link href={it.href} className={styles.item}>
+              <Link href={withBackIfDetail(it.href, HERE_TODAY)} className={styles.item}>
                 <span className={styles.icon} data-kind={it.kind}>{ICON[it.kind]}</span>
                 <span className={styles.body}>
                   <span className={styles.title}>{it.title}</span>
@@ -206,7 +214,7 @@ export default function TodayClient() {
             {ai.map((s) => (
               <li key={s.dealId} className={styles.aiItem}>
                 <div className={styles.aiBody}>
-                  <Link href={`/crm/deals/${s.dealId}`} className={styles.aiDeal}>{s.dealName}</Link>
+                  <Link href={linkWithBack(`/crm/deals/${s.dealId}`, HERE_TODAY)} className={styles.aiDeal}>{s.dealName}</Link>
                   <span className={styles.aiAction}>{s.action}</span>
                   {/* 근거 없는 제안은 조언이 아니라 소음이다 */}
                   <span className={styles.aiBecause}>{s.because} · {s.dueInDays}일 안에</span>

@@ -50,12 +50,16 @@ const ROLE_STATUS: Record<string, StatusKey> = {
   OTHER: 'note',
 }
 
+import { linkWithBack, type HereTarget } from '@/lib/crm/nav/back-link'
+
 interface Props {
   dealId: string
   companyId: string | null
+  /** 여기서 인물 상세로 나갈 때 실어 보낼 «돌아올 곳». 부모(딜 상세)가 이미 들고 있는 값이다 */
+  here: HereTarget
 }
 
-export default function DealContacts({ dealId, companyId }: Props) {
+export default function DealContacts({ dealId, companyId, here }: Props) {
   const [items, setItems] = useState<Contact[]>([])
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [adding, setAdding] = useState(false)
@@ -139,7 +143,7 @@ export default function DealContacts({ dealId, companyId }: Props) {
         <ul className={styles.list}>
           {items.map((c) => (
             <li key={c.personId} className={styles.item}>
-              <Link href={`/crm/people/${c.personId}`} className={styles.name}>{c.name}</Link>
+              <Link href={linkWithBack(`/crm/people/${c.personId}`, here)} className={styles.name}>{c.name}</Link>
               <NbBadge status={ROLE_STATUS[c.role] ?? 'note'}>{ROLE_LABEL[c.role] ?? c.role}</NbBadge>
               {c.title && <span className={styles.title}>{c.title}</span>}
               {/* 회사 상세의 인물 목록과 같은 부품 — 딜 화면에서도 그 자리에서 연락한다 */}

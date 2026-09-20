@@ -21,6 +21,8 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import type { ListQuery } from '@/lib/ui/list-query'
 import EmptyState from '@/components/ui/EmptyState'
+import { hereNow, linkWithBack, type HereTarget } from '@/lib/crm/nav/back-link'
+import { navLabelOf } from '@/lib/crm/nav/groups'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -675,7 +677,7 @@ export default function MetricsClient() {
               </div>
             )}
 
-            <DealHits deals={deals} unit={matrix.unit} label={matrix.label} />
+            <DealHits deals={deals} unit={matrix.unit} label={matrix.label} here={hereNow(pathname, sp, navLabelOf('/crm/reports'))} />
           </>
         ) : (
           /*
@@ -713,7 +715,7 @@ export default function MetricsClient() {
  *
  * 줄은 링크다(`rowHref`) — 새 탭·우클릭·키보드가 전부 되어야 목록에서 딜로 넘어간다.
  */
-function DealHits({ deals, unit, label }: { deals: MetricDeals | null; unit: string; label: string }) {
+function DealHits({ deals, unit, label, here }: { deals: MetricDeals | null; unit: string; label: string; here: HereTarget }) {
   const money = unit === 'money'
   const columns: ColumnDef<MetricDealRow>[] = [
     { key: 'name', header: ENTITY.deal.label, primary: true, cell: (d) => d.name },
@@ -758,7 +760,7 @@ function DealHits({ deals, unit, label }: { deals: MetricDeals | null; unit: str
         columns={columns}
         query={MATRIX_QUERY}
         rowKey={(d) => d.id}
-        rowHref={(d) => `/crm/deals/${d.id}`}
+        rowHref={(d) => linkWithBack(`/crm/deals/${d.id}`, here)}
         empty={{ title: '이 기간에 해당하는 딜이 없어요', description: '기간이나 조건을 바꿔 보세요' }}
       />
     </div>

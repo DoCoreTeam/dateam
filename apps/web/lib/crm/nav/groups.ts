@@ -127,3 +127,19 @@ export function crmGroupOf(pathname: string): CrmNavGroup | null {
 export function crmGroupMatchPaths(g: CrmNavGroup): string[] {
   return g.tabs.map((t) => t.href)
 }
+
+/**
+ * 그 주소의 «메뉴에 적힌 이름».
+ *
+ * 돌아갈 곳의 이름을 화면마다 손으로 적으면 메뉴는 「할 일」인데 뒤로 단추는 「업무」가 된다 —
+ * 같은 곳을 두 이름으로 부르면 사용자는 다른 곳인 줄 안다. 이름은 메뉴가 정하고 여기서 꺼내 쓴다.
+ *
+ * 못 찾으면 빈 문자열이다. 그때는 부르는 쪽이 자기 이름을 준다 — 지어내지 않는다.
+ */
+export function navLabelOf(href: string): string {
+  for (const g of CRM_NAV_GROUPS) {
+    if (g.href === href) return g.label
+    for (const t of g.tabs) if (t.href === href) return t.label
+  }
+  return ''
+}
