@@ -34,11 +34,13 @@ import {
   ACTION,
   progress,
   QUOTE,
+  fillSpecSplit,
   quoteEditTitle,
   QUOTE_LINES_LOCKED,
   sectionDefaultName,
   approvalNeeded,
 } from '@/lib/terms'
+import { splitSpec } from '@/lib/crm/domain/quote-spec'
 import styles from './quote-panel.module.css'
 
 // 폼의 «모양»은 옆 파일에 있다. 여기서는 동작만 다룬다.
@@ -564,6 +566,15 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     onChange={(e) => setLine(i, { descriptionMd: e.target.value })}
                     placeholder={QUOTE.lineSpecPlaceholder}
                   />
+                  {/*
+                    **어떻게 갈리는지 그 자리에서 보여 준다.** 「여러 줄로 적으세요」라고만 하면
+                    적고 나서도 어디까지가 규격인지 모른다 — 지금 적은 글이 몇 줄로 갈리는지
+                    숫자로 보여 줘야 안다(사용자 지적 2026-09-21).
+                  */}
+                  <p className={styles.specHint}>
+                    <span>{QUOTE.lineSpecSplitHint}</span>
+                    <b>{fillSpecSplit(splitSpec(line.descriptionMd).components.length)}</b>
+                  </p>
                 </div>
                 <div className={`${styles.field} ${styles.colQty}`}>
                   <label className="label" htmlFor={`ln-qty-${i}`}>{LINE_KIND_QUANTITY_LABEL[line.kind ?? 'QUANTITY']}</label>

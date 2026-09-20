@@ -46,6 +46,7 @@ import { adapterFromSetting } from './quick-create.ts'
 import { readQuoteSupplier } from './setting.ts'
 import { irToSourceText, type SourceTextResult } from './quote-source-text.ts'
 import { readQuoteImportConfig } from './quote-import-config.ts'
+import { restoreComponents } from '../domain/quote-components.ts'
 
 /**
  * 파일 하나의 크기 상한.
@@ -315,8 +316,22 @@ export async function draftQuoteFromFile(
     안 오리는 것보다 나쁘다.
   */
   const onlyPage = read.pages.length === 1 ? read.pages[0] : null
+
+  /*
+    **합쳐져 온 구성을 원문 줄 경계로 되살린다.**
+
+    지시를 또렷하게 써도 모델은 가끔 구성을 규격 한 칸에 이어 붙여 돌려준다.
+    그러면 견적서에 한 문단으로 쭉 이어져 어디서 끊기는지 사람이 못 읽는다
+    (사용자 지적 2026-09-21). 그런데 **우리는 원문을 갖고 있다** — 합쳐진 글이
+    원문의 연속된 줄들과 정확히 맞아떨어지면 그 경계를 되살릴 수 있다.
+    맞아떨어지지 않으면 손대지 않는다(`domain/quote-components.ts`).
+
+    그림째 읽은 경우에는 원문 글이 없어 되살릴 것도 없다 — 그때는 빈 배열이 넘어간다.
+  */
+  const sourceLines = read.text ? read.text.split('\n') : []
   const quotes: QuoteFromFileQuote[] = output.quotes.map((q) => ({
     ...q,
+    lines: q.lines.map((l) => restoreComponents(l, sourceLines)),
     pageStart: q.pageStart ?? onlyPage,
     pageEnd: q.pageEnd ?? q.pageStart ?? onlyPage,
     origin: judgeQuoteOrigin({ documentSupplierName: q.supplierName, ourSupplierName: ourName }),

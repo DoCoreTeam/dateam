@@ -58,6 +58,14 @@ export const QUOTE = {
    * 말 안 하면 사람은 한 줄짜리 칸인 줄 알고 구성을 쉼표로 이어 붙인다.
    */
   lineSpecPlaceholder: '예: SXM5 · 3년 무상보증 (아래 줄에 구성을 한 줄씩)',
+  /**
+   * 규격 칸이 **어떻게 갈리는지**를 그 자리에서 보여 주는 줄.
+   *
+   * 「여러 줄로 적으세요」라고만 하면 사람은 적고 나서도 어디까지가 규격인지 모른다 —
+   * 지금 적은 글이 몇 줄로 갈리는지 숫자로 보여 줘야 안다
+   * (사용자 지적 2026-09-21: 「입력하는 곳에도 구분하는 방식에 대해 잘 넣고」).
+   */
+  lineSpecSplitHint: '첫 줄이 규격, 아래 줄부터 구성이에요',
   lineUnit: '단위',
   lineQuantity: '수량',
   lineUnitPrice: '단가',
@@ -258,6 +266,11 @@ export function fillDroppedLines(lineCount: number): string {
 export function fillSourcePage(start: number | null, end: number | null): string | null {
   if (start === null) return null
   return end !== null && end !== start ? `원본 ${start}-${end}쪽` : `원본 ${start}쪽`
+}
+
+/** 지금 적은 글이 어떻게 갈리는지 — 숫자로 보여 준다 */
+export function fillSpecSplit(componentCount: number): string {
+  return componentCount > 0 ? `규격 1줄 · 구성 ${componentCount}줄` : '규격 1줄'
 }
 
 /** 표가 길어 뒤를 못 그렸을 때 — 조용히 자르지 않는다 */

@@ -146,6 +146,18 @@ test('두 건짜리 PDF 를 올리면 견적마다 자기 쪽 조각을 갖고, 
     await page.goto(`/crm/quotes/${target.id}`)
     await page.waitForLoadState('networkidle')
     await closeUpdateNote(page)
+
+    /*
+      **구성이 줄로 보이는지 눈으로 남긴다.** 한 문단으로 이어져 보이던 것이
+      이 검사의 출발점이었다(사용자 지적 2026-09-21).
+    */
+    const sheetComponents = page.locator('ul[class*="components"] li')
+    expect(await sheetComponents.count(), '견적서에 구성이 줄로 안 나온다').toBeGreaterThan(0)
+    // 항목 표가 아래에 있어 그냥 찍으면 머리글만 나온다 — 그 자리로 옮기고 찍는다
+    await sheetComponents.first().scrollIntoViewIfNeeded()
+    await page.waitForTimeout(300)
+    await page.screenshot({ path: shot('05-sheet') })
+
     await page.getByRole('button', { name: '원본 대조' }).first().click()
 
     const overlay = page.getByRole('dialog', { name: '원본 대조' })

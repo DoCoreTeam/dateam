@@ -887,13 +887,32 @@
 .componentsFold:hover { border-color: var(--accent); }
 .componentsFold:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* 견적서와 **같은 모양**이다 — 검수에서 본 것과 인쇄본이 달라 보이면 대조가 흔들린다 */
 .componentsList {
-  margin: 0;
-  padding-left: var(--space-4);
+  margin: var(--space-1) 0 0;
+  padding: 0 0 0 var(--space-3);
+  border-left: var(--border-w) solid var(--border-light);
+  list-style: none;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   line-height: 1.6;
   word-break: break-word;
+}
+
+.componentsList li {
+  position: relative;
+  padding-left: var(--space-2);
+}
+
+.componentsList li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-faint);
 }
 
 /* 이 건이 원본 몇 쪽이었나 — 카드 이름 옆에 붙는다 */
@@ -913,3 +932,20 @@
   align-items: center;
   gap: var(--space-1);
 }
+
+/*
+  규격 칸 아래의 **갈림 안내** — 지금 적은 글이 몇 줄로 갈리는지 그 자리에서 말한다.
+
+  「여러 줄로 적으세요」라고만 하면 적고 나서도 어디까지가 규격인지 모른다.
+  숫자를 오른쪽에 붙여, 한 줄만 적었을 때와 구성을 적었을 때가 눈에 띄게 다르게 한다.
+*/
+.specHint {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.specHint b { color: var(--accent); font-weight: 600; white-space: nowrap; }

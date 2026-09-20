@@ -425,3 +425,39 @@ test('★ 내려받기 길은 그대로 남는다 — 화면에 그렸다고 원
   const src = read(join(WEB, 'components/ui/crm/QuoteOriginalCompare.tsx'))
   assert.match(src, /QUOTE_SOURCE\.download/, '내려받기가 사라졌다')
 })
+
+/* ── 구성이 눈으로 갈리나 (v0.10.32x) ────────────── */
+
+/*
+  **왜**: 구성이 규격과 같은 크기·같은 색으로 붙어 있으면 한 문단으로 읽힌다.
+  실제로 그렇게 보였다(사용자 지적 2026-09-21: 「줄바꿈이랑 영역 구분이 안되어 보이니깐
+  그냥 한문장으로 쭉있는것 같자나」). 선·들여쓰기·줄머리 점 셋이 함께 있어야 갈린다.
+*/
+
+test('★ 견적서의 구성이 규격과 눈으로 갈린다 — 선·들여쓰기·줄머리 점', () => {
+  const css = read(VIEW_CSS)
+  const rule = css.slice(css.indexOf('.components {'), css.indexOf('.components li::before') + 200)
+  assert.match(rule, /border-left:/, '세로선이 없다 — 줄이 여럿이라는 것이 안 보인다')
+  assert.match(rule, /padding:[^;]*0\.75rem|padding-left/, '들여쓰기가 없다')
+  assert.match(rule, /li::before/, '줄머리 점이 없다 — 규격과 안 갈린다')
+})
+
+test('★ 검수 목록의 구성도 견적서와 같은 모양이다 — 다르면 대조가 흔들린다', () => {
+  const css = read(join(WEB, 'components/ui/crm/quote-panel.module.css'))
+  const rule = css.slice(css.indexOf('.componentsList {'))
+  assert.match(rule.slice(0, 700), /border-left:/)
+  assert.match(rule.slice(0, 900), /li::before/)
+})
+
+test('★ 규격 칸이 어떻게 갈리는지 그 자리에서 말한다 — 적고 나서도 모르면 안 된다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteEditorModal.tsx'))
+  assert.match(src, /QUOTE\.lineSpecSplitHint/, '갈림 안내가 없다')
+  assert.match(src, /fillSpecSplit\(splitSpec\(line\.descriptionMd\)\.components\.length\)/,
+    '몇 줄로 갈리는지 숫자로 안 말한다')
+})
+
+test('★ 합쳐져 온 구성을 원문 줄로 되살린다 — 화면이 아니라 읽는 자리에서', () => {
+  const src = read(join(WEB, 'lib/crm/services/quote-from-file.ts'))
+  assert.match(src, /restoreComponents\(l, sourceLines\)/, '되살리지 않는다')
+  assert.match(src, /read\.text \? read\.text\.split/, '원문 줄을 안 넘긴다')
+})
