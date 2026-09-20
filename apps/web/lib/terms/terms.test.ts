@@ -8,6 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, createLabel, progress } from './action.ts'
+import { AI_KEY } from './ai-key.ts'
 import { ENTITY, SURFACE_LABEL, count, countOnly, type EntityKey } from './entity.ts'
 import { fillFoundLine, fillFoundQuotesLine } from './quote.ts'
 import { emptyTitle, failedTo, confirmDelete, notEnough } from './sentence.ts'
@@ -249,4 +250,21 @@ test('★ 건이 둘이면 건수를 먼저 말한다 — 항목 수만 말하�
 test('건이 하나면 군말을 안 붙인다 — 「견적 1건」은 아무것도 안 알려 준다', () => {
   assert.equal(fillFoundQuotesLine(1, 3, 'a.md'), fillFoundLine(3, 'a.md'))
   assert.equal(fillFoundQuotesLine(0, 0, 'a.md'), fillFoundLine(0, 'a.md'))
+})
+
+test('★ AI 키를 더하는 단추는 「추가」다 — 「새 키」는 새 칸을 여는 단추로 읽힌다', () => {
+  /*
+    실측 2026-09-20: 관리자가 키 이름과 키를 다 적어 놓고 「새 키」 단추 앞에서 멈췄다.
+    그 단추는 적은 값을 표에 더하는 단추인데, 이름은 빈 칸을 하나 더 여는 단추라고 말한다.
+
+    맨 「추가」는 용어집이 막는 말이다(무엇을 추가하는지 안 밝힘). 여기는 예외로 쓴다 —
+    카드 제목이 「Gemini API 키」이고 폼 라벨이 「키 이름」·「API 키」라 대상이 이미 세 번 적혀 있다.
+    **예외는 이유와 함께 적는다**(MEETING_CAPTURE_LABEL 과 같은 방식). 사유가 사라지면
+    다음 사람이 「용어집 위반」이라며 되돌리고, 사용자가 같은 지적을 다시 한다.
+  */
+  assert.equal(AI_KEY.create, '추가')
+  assert.notEqual(AI_KEY.create, '새 키')
+
+  const src = readFileSync(new URL('./ai-key.ts', import.meta.url), 'utf8')
+  assert.match(src, /예외/, '맨 「추가」를 쓰는 사유가 파일에 없다')
 })
