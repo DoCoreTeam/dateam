@@ -74,7 +74,7 @@
 의존: I03
 
 ### I05 엑셀에도 직인이 들어간다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/quote-xlsx.ts
 감사 기준:

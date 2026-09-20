@@ -39,7 +39,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     }, { status: 409 })
   }
 
-  const out = await quoteDocumentToXlsx({ document, logo: images.logo })
+  const out = await quoteDocumentToXlsx({ document, logo: images.logo, seal: images.seal })
 
   return new Response(new Uint8Array(out.buffer), {
     headers: {

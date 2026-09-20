@@ -146,6 +146,11 @@ export interface QuoteXlsxInput {
   document: QuoteDocument
   /** 설정에서 온 로고(data URI). 없으면 빈 문자열 */
   logo?: string
+  /**
+   * 그날의 직인(data URI). 없으면 빈 문자열 — 그때는 「(직인생략)」 글자가 그 자리에 남는다.
+   * 화면과 같은 판정이어야 한다: 파일에만 도장이 없으면 받은 사람은 «다른 문서»로 읽는다.
+   */
+  seal?: string
 }
 
 export interface QuoteXlsxResult {
@@ -355,10 +360,15 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     ws.getCell(`F${row}`).alignment = { wrapText: true, vertical: 'top' }
   }
 
-  // ── 날인 자리 — 도장 이미지 대신 문구 ────────────────────
-  // 전자로 보내는 문서에 도장을 박으면 받은 사람이 오려내 다른 문서에 쓸 수 있다.
-  // 「(직인생략)」은 실무 관례이고, 그 표기 자체가 «원본에는 날인이 있다»는 뜻으로 통용된다.
-  {
+  /*
+    ── 날인 자리 ────────────────────────────────────────────
+    올린 직인이 있으면 그림, 없으면 「(직인생략)」 글자. **둘이 함께 나가지 않는다.**
+
+    그림은 여기서 «자리만» 잡아 두고 실제로 앉히는 것은 아래 행 높이 계산 뒤다 —
+    그 계산이 행 높이를 다시 쓰기 때문에, 먼저 앉히면 도장이 아래 줄을 덮는다(로고에서 겪은 것).
+  */
+  const seal = parseImage(input.seal ?? '')
+  if (!seal) {
     const cell = ws.getCell(`${LAST_COL}${partyTop}`)
     cell.value = QUOTE.sealOmitted
     cell.font = { size: 10, color: { argb: MUTED } }
@@ -383,6 +393,24 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       wrapHeight(texts[1], supplierValueWidth),
     )
     if (need > 15) ws.getRow(row).height = need
+  }
+
+  /*
+    도장을 앉힌다 — **행 높이가 정해진 뒤**다.
+    높이만 고정하고 폭은 원본 비율로 둔다(로고와 같은 이유: 둘 다 고정하면 도장이 눌린다).
+    행이 도장보다 낮으면 아래 줄을 덮으므로 필요한 만큼만 키운다(행 높이는 pt, 그림은 px).
+  */
+  if (seal) {
+    const SEAL_H = 44
+    const sz = imageSize(seal.base64, seal.extension)
+    const sealW = sz && sz.h > 0 ? Math.round((SEAL_H * sz.w) / sz.h) : SEAL_H
+    const id = wb.addImage(seal)
+    const lastColIndex = COLUMNS.length // A=1 … G=7
+    ws.getRow(partyTop).height = Math.max(ws.getRow(partyTop).height ?? 0, SEAL_H * 0.78 + 6)
+    ws.addImage(id, {
+      tl: { col: lastColIndex - 1 + 0.1, row: partyTop - 1 + 0.1 },
+      ext: { width: sealW, height: SEAL_H },
+    })
   }
 
   // 두 박스에 테두리 — 왼쪽 A:C, 오른쪽 E:G

@@ -233,10 +233,16 @@ test('로고를 넣으면 이미지가 실린다', async () => {
   assert.equal(wb.model.media?.length, 1, '로고가 안 실렸다')
 })
 
-test('날인은 이미지가 아니라 「(직인생략)」 문구다 — 도장을 박으면 받은 사람이 오려 쓴다', async () => {
+/*
+  예전 제목은 「날인은 이미지가 아니라 문구다」였다. 그건 이제 사실이 아니다 —
+  직인을 설정에 올릴 수 있게 됐고(사용자 지시 2026-09-21), 올린 회사는 도장이 찍힌다.
+  제목이 옛 규칙을 말하면 **읽는 사람이 그걸 현재 규칙으로 믿는다.**
+  안 올렸을 때 문구가 선다는 사실은 그대로이므로 시험은 남기고 제목만 바로잡는다.
+*/
+test('직인을 안 올린 회사는 그림 없이 「(직인생략)」 문구만 나간다', async () => {
   const out = await quoteDocumentToXlsx({ document: doc() })
   const { wb } = await sheetOf(out.buffer)
-  assert.equal(wb.model.media?.length ?? 0, 0, '이미지가 실렸다')
+  assert.equal(wb.model.media?.length ?? 0, 0, '안 올린 도장이 어디선가 그려졌다')
   assert.ok((await textOf(out.buffer)).includes('(직인생략)'), '날인 문구가 없다')
 })
 
@@ -433,4 +439,42 @@ test('★ 접어서 인쇄로 두면 엑셀에도 구성이 안 나온다 — �
   const text = await textOf(buffer.buffer)
   assert.ok(!text.includes('구성 13번째 줄'), '접기로 뒀는데 구성이 나왔다')
   assert.ok(text.includes('AMD 9355 32Core x 2Ea'), '규격까지 사라지면 안 된다')
+})
+
+/*
+  직인 — **화면과 같은 판정이 파일에도 있어야 한다.**
+  파일에만 도장이 없으면 받은 사람은 화면에서 본 것과 «다른 문서»로 읽는다.
+*/
+const SEAL_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAABtklEQVR42u3dwXHDMAxEUVfi/ktJV8ktZ1vSEAvgYcZHa7j7CYmiSOL1EkKEx8/7/Xvlx7mDZoMSbDoYQaavh5Fm/BoQ6caPBVFlCBCBw8c1EDqIHAuim6hREDoLaQ9hShq30zH1QdZC1/ShXLS+TS8zkVq3vdJH6b3amO7TEBEQppsfDWGL+ZEQtpkfB2Gj+Xf0MX8KhCsNm2b+Ha3He/9U869qZn5nCN9cdIv5V/Tr/R2zQO8vzAK9vzgLrCA7+8708UXYe8A/vb84C5hfnAUAFAJw+ym+DTG/OAsAAAAAAIoAeAAXP4iZX5wFAAAAAAANAGyd+3/6Iw0AAAAAAAAAAAAAAAAkAwDh4EItAIp6PwAAAPDtHxh+3SPLUlKXpZiWLvwgD0A4ABAO3H5kQXHvlwUBvR+AAADmhgK2qtqoF7BZWxYUbtSWBc6LYP4nhm6C8JQ/R4ZWDmxyatYc8++kmkP7QHB2aEcIkeZvgRBt/hON6Vi6qt3p6Y6vD2mYAg4auUOXIj6NGq+MVYgQhdxCRCllGCRSMc8Q0crZhoJQ0Hk4iNeWYDwYVvlVwOCw4aMQ4j/+AOG559ehYzkxAAAAAElFTkSuQmCC'
+
+test('직인을 올리면 엑셀에 그림이 들어가고 「(직인생략)」 글자는 없다', async () => {
+  const { wb, ws } = await sheetOf((await quoteDocumentToXlsx({ document: doc(), seal: SEAL_PNG })).buffer)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const media = ((wb as any).model?.media ?? []) as unknown[]
+  assert.equal(media.length, 1, '직인 그림이 통째로 빠졌다 — 파일엔 도장이 없다')
+
+  /*
+    **자리까지 본다.** 그림이 실렸다는 것만 보면 A1 에 앉아도 통과한다 —
+    로고는 왼쪽 위, 직인은 공급자 상자 오른쪽 위로 서로 다른 자리에 있어야 한다.
+  */
+  const imgs = ws.getImages()
+  assert.equal(imgs.length, 1, '그림 자리가 하나여야 한다')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tl = (imgs[0] as any).range?.tl as { nativeCol: number; nativeRow: number }
+  assert.equal(tl.nativeCol, 6, `직인이 마지막 열(G, 0부터 6)이 아니라 ${tl.nativeCol} 열에 앉았다`)
+  assert.ok(tl.nativeRow > 3, `직인이 머리글 위(${tl.nativeRow}행)에 앉았다 — 공급자 상자여야 한다`)
+
+  const text = await textOf((await quoteDocumentToXlsx({ document: doc(), seal: SEAL_PNG })).buffer)
+  assert.ok(!text.includes(QUOTE.sealOmitted),
+    '도장과 「(직인생략)」이 함께 나갔다 — 어느 쪽이 사실인지 문서가 스스로 흐린다')
+})
+
+test('직인을 안 올리면 「(직인생략)」 글자가 그 자리에 남는다', async () => {
+  const text = await textOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  assert.ok(text.includes(QUOTE.sealOmitted), '직인도 문구도 없으면 날인 자리가 통째로 빈다')
+
+  const { wb } = await sheetOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const media = ((wb as any).model?.media ?? []) as unknown[]
+  assert.equal(media.length, 0, '안 올린 도장이 어디선가 그려졌다')
 })
