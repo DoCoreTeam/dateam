@@ -12,6 +12,7 @@ import assert from 'node:assert/strict'
 
 import {
   DEFAULT_RULES, RULE_IDS, mergeRules, toRule, type AnomalyRule, type RuleId,
+  toRow,
 } from './rules.ts'
 import {
   runRule, runAll, emptyFacts, sentences, dedupe, type DocBlock, type AnomalyFacts,
@@ -48,8 +49,12 @@ test('규칙마다 등급과 심각도와 값이 있다', () => {
 
 test('DB 규칙이 기본값을 이긴다', () => {
   // 관리자가 고친 값을 코드 배포가 덮으면 아무도 규칙을 안 고치게 된다
-  const fromDb = [toRule({ rule_id: 'R03', title: '법정 공고 기간', method: 'numeric',
-    grade: 'confirmed', severity: 'blocking', params: { negotiated: 20 }, enabled: true })]
+  // 표가 가진 칸 이름 그대로 넣는다 — 코드 이름(rule_id·title·params)으로 적으면
+  // 통과하는데 실제 DB 에서는 아무것도 안 읽힌다(실측 2026-09-20, 그래서 이 줄을 고쳤다)
+  const fromDb = [toRule(toRow({
+    id: 'R03', title: '법정 공고 기간', method: 'numeric',
+    grade: 'confirmed', severity: 'blocking', params: { negotiated: 20 }, enabled: true,
+  }, '00000000-0000-4000-8000-000000000001'))]
   const merged = mergeRules(fromDb)
   assert.equal(merged.length, 12)
   assert.equal(merged.find((r) => r.id === 'R03')!.params.negotiated, 20)

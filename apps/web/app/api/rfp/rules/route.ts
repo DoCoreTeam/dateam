@@ -17,11 +17,9 @@ import type { NextRequest } from 'next/server'
 
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
-import { DEFAULT_RULES, toRule, type AnomalyRule } from '@/lib/rfp/anomaly/rules'
+import { DEFAULT_RULES, RULE_COLS, toRow, toRule, type AnomalyRule } from '@/lib/rfp/anomaly/rules'
 
 export const dynamic = 'force-dynamic'
-
-const COLS = 'rule_id, title, method, grade, severity, params, enabled'
 
 export async function GET() {
   const gate = await requireMemberApi()
@@ -29,7 +27,7 @@ export async function GET() {
 
   const db = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (db as any).from('rfp_anomaly_rules').select(COLS).limit(100)
+  const { data, error } = await (db as any).from('rfp_anomaly_rules').select(RULE_COLS).limit(100)
   if (error) return NextResponse.json({ error: '규칙을 불러오지 못했습니다' }, { status: 500 })
 
   const saved = ((data as Record<string, unknown>[] | null) ?? []).map(toRule)
@@ -60,16 +58,22 @@ export async function PATCH(req: NextRequest) {
   if (!known) return NextResponse.json({ error: 'unknown_rule' }, { status: 400 })
 
   const db = await createClient()
+
+  /*
+    조직은 서버가 정한다 — 요청이 org_id 를 보내면 남의 조직 규칙을 바꿀 수 있다
+    (app/api/rfp/cases/route.ts 와 같은 방식). 비워 두면 표 정책
+    `rfp_anomaly_rules_admin` (org_id is not null and rfp_is_admin(org_id))이 막는다.
+  */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (db as any).from('rfp_anomaly_rules').upsert({
-    rule_id: ruleId,
-    title: known.title,
-    method: known.method,
-    grade: known.grade,
-    severity: known.severity,
-    params: known.params ?? {},
-    enabled: body.enabled,
-  }, { onConflict: 'rule_id' })
+  const { data: orgId, error: orgError } = await (db as any).rpc('rfp_default_org')
+  if (orgError || !orgId) {
+    return NextResponse.json({ error: '조직을 찾지 못했습니다' }, { status: 403 })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (db as any)
+    .from('rfp_anomaly_rules')
+    .upsert(toRow({ ...known, enabled: body.enabled }, String(orgId)), { onConflict: 'id' })
 
   if (error) {
     // supabase 는 insert 오류를 던지지 않고 돌려준다. 읽지 않으면 조용히 0건이 된다

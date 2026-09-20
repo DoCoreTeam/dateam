@@ -1,6 +1,6 @@
 # PLAN newAX: 설정 화면 한 벌: 카드를 늘리지 않고 같은 그릇에 담는다
 플랜 ID: P0036
-플랜 버전: v0.1.4
+플랜 버전: v0.1.5
 상태: 진행중
 지시: iv_0081
 목표 버전: v0.10.264
@@ -82,17 +82,19 @@
 의존: I01
 
 ### I04a RFP 규칙 스위치가 실제로 저장되게 한다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/api/rfp/rules/route.ts, apps/web/lib/policy/api-auth-surface.test.ts
+범위: apps/web/app/api/rfp/rules/route.ts, apps/web/lib/rfp/anomaly/rules.ts, apps/web/lib/rfp/anomaly/rules-row.test.ts (신규), apps/web/app/(rfp)/rfp/admin/page.tsx, apps/web/package.json
 감사 기준:
 - /rfp/admin 실브라우저에서 규칙을 껐다 새로고침해도 꺼진 채로 남고, 다시 켜면 켜진 채로 남음
 - PATCH /api/rfp/rules 응답이 200 이고, 되돌리기 알림이 뜨지 않음
 - 규칙 행에 org_id 가 들어가 rfp_anomaly_rules_admin 정책(org_id is not null and rfp_is_admin(org_id))을 통과함
+- 코드가 쓰는 칸 이름이 실제 표와 같음 — 표에는 rule_id·title·method·grade 칸이 없고 id·name·rule_type·definition 이다(실측 2026-09-20 psql \d rfp_anomaly_rules), 읽기도 같은 이유로 늘 비어 있었음
 - 보안 S2: 이 창구는 requireMemberApi 를 그대로 부른다(임직원만), 그 위에 RLS 가 조직 관리자만 쓰게 한다 — 게이트를 느슨하게 하지 않고 org_id 를 채워서 통과시킨다
 - 보안 S2: createAdminClient(서비스롤)로 우회하지 않는다 — grep "createAdminClient" app/api/rfp/rules/route.ts 가 0건
 - 보안 S2: 남의 조직 규칙을 못 바꾼다 — org_id 를 요청 본문에서 받지 않고 서버가 세션에서 정한다(grep 으로 body.org_id 0건), 조직을 안 가진 사람이 부르면 200 이 아님
-- api-auth-surface.test.ts 의 공개 창구 목록에 이 경로가 새로 들어가지 않음
+- api-auth-surface.test.ts 가 그대로 통과 (이 경로가 공개 창구 목록에 새로 들어가지 않음)
+- node --test lib/rfp/anomaly/rules-row.test.ts 가 코드 규칙과 표 칸의 왕복(toRow -> toRule)이 값을 잃지 않음을 단정하고 통과, apps/web/package.json test 한 줄에 등재
 - pnpm tsc --noEmit, pnpm lint 통과
 의존: 없음
 근거: I04 실브라우저 확인 중 발견 (2026-09-20). PATCH 가 org_id 없이 upsert 해서
@@ -145,3 +147,5 @@
 - v0.1.3 (2026-09-20) I03 범위에 CRM SettingsCard 를 더함 — 한 부품이 견적서 공급자 정보와 AI·연동 설정 두 카드를 그려서 어느 탭에 넣어도 한쪽이 거짓말을 한다, 부품이 한 묶음만 그리게 하고 목록이 둘을 따로 세운다 (audit:I03)
 - v0.1.4 (2026-09-20) I04a 삽입 — RFP 규칙 스위치가 org_id 없이 저장을 시도해 RLS 에 걸려 500 이 난다, 실브라우저에서 발견 (audit:I04)
 - v0.1.4 (2026-09-20) I04a 삽입 — RFP 규칙 스위치가 저장을 한 번도 못 하고 있었다, PATCH 가 org_id 없이 upsert 해서 RLS 정책에 걸려 500 (audit:I04)
+- v0.1.5 (2026-09-20) I04a 범위에 rules.ts·admin/page.tsx·왕복 시험을 더함, 500 의 원인이 org_id 하나가 아니라 표에 없는 칸에 쓰고 있던 것이었음 (audit:I04a)
+- v0.1.5 (2026-09-20) I04a 범위 확대 — 500 의 원인이 org_id 누락 하나가 아니었다, 코드가 표에 없는 칸(rule_id·title·method·grade)에 쓰고 읽고 있었다(실측 psql), 읽기도 늘 비어 있었다 (audit:I04a)

@@ -14,7 +14,7 @@ import VendorSettings, { type VendorRow } from '@/components/rfp/VendorSettings'
 import RuleSettings from '@/components/rfp/RuleSettings'
 import TransferLog, { type TransferRow } from '@/components/rfp/TransferLog'
 import UsageDashboard from '@/components/rfp/UsageDashboard'
-import { toRule, type AnomalyRule } from '@/lib/rfp/anomaly/rules'
+import { RULE_COLS, toRule, type AnomalyRule } from '@/lib/rfp/anomaly/rules'
 import { toPolicy, toModels } from '@/lib/rfp/ai/host-providers'
 import { getAvailableProviders } from '@/lib/ai-chat/registry'
 import { createAdminClient } from '@/lib/supabase/server'
@@ -55,7 +55,7 @@ export default async function RfpAdminPage() {
   const [{ data: policies }, { data: rules }, { data: transfers }, { data: usage }, { data: members }] =
     await Promise.all([
       q.from('rfp_ai_models').select('vendor_id, is_internal, allowed_doc_classes, no_training, zero_retention, input_krw_per_mtok, output_krw_per_mtok, multimodal, sort_order').limit(50),
-      q.from('rfp_anomaly_rules').select('rule_id, title, method, grade, severity, params, enabled').limit(50),
+      q.from('rfp_anomaly_rules').select(RULE_COLS).limit(50),
       q.from('rfp_external_transfers').select('id, case_id, model_id, doc_class, purpose, created_at')
         .order('created_at', { ascending: false }).limit(50),
       q.from('rfp_usage_ledger').select('org_id, period, kind, units, cost_krw').limit(200),

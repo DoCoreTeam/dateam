@@ -143,16 +143,64 @@ export const DEFAULT_RULES: readonly AnomalyRule[] = [
 
 export const RULE_IDS: readonly RuleId[] = DEFAULT_RULES.map((r) => r.id)
 
+/**
+ * 표가 가진 칸 (`supabase/migrations/247_rfp_analysis.sql`).
+ *
+ * **코드의 이름과 표의 이름이 달랐다.** 코드는 `rule_id·title·method·grade·severity·params` 로
+ * 읽고 쓰는데 표에는 그런 칸이 없다 — `id·name·rule_type·definition·severity_default` 다.
+ * 그래서 읽기는 늘 오류를 돌려받아 화면이 언제나 기본값만 보여 줬고, 쓰기는 500 이었다.
+ * 스위치는 2026-09-16 창구가 생긴 뒤로 **한 번도 저장된 적이 없다**(실브라우저 확인 2026-09-20).
+ *
+ * 고치는 방향을 표 쪽으로 잡은 이유: `rfp_anomalies.rule_id` 가 `rfp_anomaly_rules(id)` 를
+ * 가리키는 외래키다. 코드 이름에 맞춰 칸을 새로 만들면 열쇠가 둘이 된다.
+ */
+export const RULE_COLS = 'id, name, rule_type, definition, severity_default, enabled'
+
+/** 코드의 판정 방법을 표가 받는 네 가지로 좁힌다. 좁힌 원본은 definition 에 그대로 남는다 */
+const RULE_TYPE_OF: Record<RuleMethod, 'regex' | 'numeric' | 'stat' | 'llm'> = {
+  regex: 'regex',
+  dictionary: 'regex',
+  regex_dictionary: 'regex',
+  numeric: 'numeric',
+  regex_numeric: 'numeric',
+}
+
 /** DB 행 → 규칙. 칸 이름이 바뀌면 여기 한 곳만 고친다 */
 export function toRule(row: Record<string, unknown>): AnomalyRule {
+  const def = (row.definition ?? {}) as Record<string, unknown>
+  const { method, grade, ...params } = def as { method?: unknown; grade?: unknown }
   return {
-    id: String(row.rule_id) as RuleId,
-    title: String(row.title ?? ''),
-    method: String(row.method ?? 'regex') as RuleMethod,
-    grade: String(row.grade ?? 'suspected') as AnomalyGrade,
-    severity: String(row.severity ?? 'competition') as AnomalySeverity,
-    params: (row.params ?? {}) as Record<string, unknown>,
+    id: String(row.id) as RuleId,
+    title: String(row.name ?? ''),
+    method: String(method ?? row.rule_type ?? 'regex') as RuleMethod,
+    grade: String(grade ?? 'suspected') as AnomalyGrade,
+    severity: String(row.severity_default ?? 'competition') as AnomalySeverity,
+    params: params as Record<string, unknown>,
     enabled: row.enabled === undefined ? true : Boolean(row.enabled),
+  }
+}
+
+/**
+ * 규칙 → DB 행.
+ *
+ * `category` 와 `rule_type` 은 표가 비워 두지 못하는 칸이다. 없는 값을 지어내지 않고
+ * 규칙이 이미 가진 것에서 가져온다 — 분류 축은 심각도(무엇을 위협하나)와 같은 축이고,
+ * 판정 방법은 표가 받는 네 가지로 좁힌다. 좁히면서 잃는 것이 없도록 원본 방법과 등급은
+ * `definition` 에 함께 넣는다. 되읽으면 `toRule` 이 그대로 돌려준다.
+ *
+ * `org_id` 는 **서버가 정한다.** 요청이 보내게 두면 남의 조직 규칙을 바꿀 수 있고,
+ * 비워 두면 `rfp_anomaly_rules_admin` 정책(org_id is not null)이 막는다.
+ */
+export function toRow(rule: AnomalyRule, orgId: string): Record<string, unknown> {
+  return {
+    id: rule.id,
+    org_id: orgId,
+    category: rule.severity,
+    name: rule.title,
+    rule_type: RULE_TYPE_OF[rule.method] ?? 'regex',
+    definition: { ...rule.params, method: rule.method, grade: rule.grade },
+    severity_default: rule.severity,
+    enabled: rule.enabled,
   }
 }
 
