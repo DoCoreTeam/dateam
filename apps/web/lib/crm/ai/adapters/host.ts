@@ -256,6 +256,13 @@ export async function hostAdapter(
         seen.clear()
         try {
           res = await getProvider(cand.provider).streamChat({
+            /*
+              주인을 아직 못 받는다. 이 붙임쇠를 만드는 hostAdapter 까지 구성원 id 가
+              안 내려온다 — 그 결선은 I08d 에서 runner 와 함께 한다.
+              지금 «모른다»를 null 로 적는 이유는, 빈칸으로 두면 칸이 없던 때와
+              원장에서 구별이 안 되기 때문이다.
+            */
+            actorId: null,
             apiKey: cand.apiKey,
             model: cand.model,
             turns: [{

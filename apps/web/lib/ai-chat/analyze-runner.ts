@@ -102,7 +102,7 @@ export function concurrencyFromMeta(meta: Record<string, unknown>): number {
 async function loadSession(admin: AdminClient, sessionId: string): Promise<SessionRow | null> {
   const { data } = await admin
     .from('ai_analysis_sessions')
-    .select('id, title, command, source_text, control, phase, synth_status, doc_type, grouping_revision, model')
+    .select('id, user_id, title, command, source_text, control, phase, synth_status, doc_type, grouping_revision, model')
     .eq('id', sessionId)
     .is('deleted_at', null)
     .single()
@@ -248,6 +248,7 @@ export async function drainSession(
           admin,
           item,
           {
+            actorId: session.user_id,
             apiKey: geminiConfig.apiKey,
             model: session.model || geminiConfig.model, // 세션 선택 모델 우선
             fallbackModel: geminiConfig.model, // 세션 모델이 429 등으로 죽으면 org 기본(flash-lite)으로 완주

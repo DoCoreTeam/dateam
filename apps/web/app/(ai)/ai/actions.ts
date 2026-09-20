@@ -483,6 +483,8 @@ export async function autoTitle(
       system: '다음 대화에 어울리는 제목을 한국어 15자 이내 명사구로만 답하라. 따옴표·마침표·설명 금지.',
       turns: [{ role: 'user', content: pairText.slice(0, 4000) }],
       maxOutputTokens: 64,
+      // 제목은 그 사람의 대화에서 뽑는다. 주인은 대화 주인이다
+      actorId: ctx.userId,
       signal: AbortSignal.timeout(15000),
       onDelta: (t) => {
         generated += t

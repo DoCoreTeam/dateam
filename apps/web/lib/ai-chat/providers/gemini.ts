@@ -59,7 +59,7 @@ interface GeminiStreamChunk {
 }
 
 async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
-  const { apiKey, model, system, turns, maxOutputTokens, signal, tools, onDelta, onCitation, onToolStatus } = params
+  const { apiKey, model, system, turns, maxOutputTokens, signal, tools, actorId, onDelta, onCitation, onToolStatus } = params
 
   /*
     사용자가 AI 와 **직접 말하는** 화면이다. 여기서 사용자가 쓴 이름을 가리면
@@ -73,6 +73,7 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
     [system ?? '', ...turns.map((t) => (typeof t.content === 'string' ? t.content : JSON.stringify(t.content)))],
     {
       surface: 'ai-chat', purpose: '대화',
+      actorId,
       providerId: 'gemini', modelName: model,
       passthrough: { reason: '사용자가 AI 와 직접 말하는 화면이라 가리면 답이 어긋난다' },
     },

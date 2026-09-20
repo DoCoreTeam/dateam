@@ -164,6 +164,8 @@ export async function generateTemplate(command: string): Promise<TemplateResult<
       apiKey: cfg.apiKey,
       model: cfg.model,
       turns: [{ role: 'user', content: buildTemplateGenPrompt(command) }],
+      // requireAdminApi 가 확인한 그 관리자가 주인이다
+      actorId: auth.user.id,
       signal: controller.signal,
       onDelta: (d) => {
         text += d

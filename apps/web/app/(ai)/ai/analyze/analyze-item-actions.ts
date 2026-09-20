@@ -91,6 +91,8 @@ export async function analyzeItem(input: AnalyzeItemInput): Promise<AnalyzeItemO
   try {
     const controller = new AbortController()
     const result = await analyzeOneItem({
+      // requireAdminApi 가 확인한 그 사람이 누른 분석이다
+      actorId: auth.user.id,
       apiKey: cfg.apiKey,
       model: input.model?.trim() || cfg.model,
       itemText,
@@ -133,6 +135,7 @@ export async function synthesizeInsights(
   try {
     const controller = new AbortController()
     const result = await synthesizeItems({
+      actorId: auth.user.id,
       apiKey: cfg.apiKey,
       model: model?.trim() || cfg.model,
       fallbackModel: cfg.model, // 세션 모델(429) 실패 시 org 기본(flash-lite)으로 폴백

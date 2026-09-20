@@ -77,6 +77,8 @@ async function callGemini(
     apiKey: cfg.apiKey,
     model: cfg.model,
     turns: [{ role: 'user', content: turnContent, attachments }],
+    // 이 도우미는 부르는 쪽에서 userId 를 이미 받고 있었다
+    actorId: userId,
     signal: controller.signal,
     onDelta: (d) => {
       text += d

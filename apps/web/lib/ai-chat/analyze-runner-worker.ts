@@ -26,6 +26,8 @@ const DIGEST_MAX_CHARS = 500
 
 export interface SessionRow {
   id: string
+  /** 이 분석을 만든 사람. 일꾼이 배경에서 돌아도 그 문서의 주인은 있다 */
+  user_id: string
   title: string
   command: string
   source_text: string
@@ -92,6 +94,8 @@ export async function claimItems(
 }
 
 export interface RunItemCtx {
+  /** 이 분석을 만든 사람 (세션 주인) */
+  actorId: string | null
   apiKey: string
   model: string
   /** 세션 모델(429 등) 실패 시 폴백 모델(org 기본 flash-lite). */
@@ -113,6 +117,7 @@ export async function runItem(
   emitProgress: () => Promise<void>,
 ): Promise<void> {
   const outcome: RefineGroupOutcome = await refineGroupItem({
+    actorId: ctx.actorId,
     apiKey: ctx.apiKey,
     model: ctx.model,
     fallbackModel: ctx.fallbackModel,
@@ -206,6 +211,8 @@ export async function runSynthesis(
       apiKey: geminiConfig.apiKey,
       model: geminiConfig.model,
       turns: [{ role: 'user', content: buildCriticPrompt(docTitle, session.command, synthText) }],
+      // 일꾼이 배경에서 돌지만 그 문서의 주인은 세션을 만든 사람이다
+      actorId: session.user_id,
       signal,
       onDelta: () => {},
     })

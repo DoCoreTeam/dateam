@@ -523,6 +523,8 @@ export async function POST(req: NextRequest) {
               system: systemForStream,
               turns,
               tools: toolsOption,
+              // 사람이 지금 치고 있는 자리다. 라우트가 위에서 requireAdminApi 로 확인한 그 사람이 주인이다
+              actorId: user.id,
               signal: req.signal,
               onDelta: (t) => { emittedAny = true; enqueue({ delta: t }) },
               onThinking: (t) => { emittedAny = true; enqueue({ thinking: t }) },

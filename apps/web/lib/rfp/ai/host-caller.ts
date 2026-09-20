@@ -63,6 +63,8 @@ export function makeHostCaller(deps: HostCallerDeps) {
         model: model.modelName || conf.model,
         turns: [{ role: 'user', content: prompt }],
         maxOutputTokens: req.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+        // RFP 분석은 잡에서 돌고 여기까지 사람이 안 내려온다 — 결선은 I08d
+        actorId: null,
         signal: controller.signal,
         onDelta: () => {},
       })

@@ -37,6 +37,14 @@ export interface StreamChatParams {
   turns: ChatTurn[] // 마지막 원소 = 이번 사용자 발화
   maxOutputTokens?: number // 미지정 시 capabilities.defaultMaxOutputTokens
   signal: AbortSignal // 필수 — Stop/클라 이탈 전파
+  /**
+   * 이 호출의 주인 — 친 사람의 id. 배경에서 돌면 null 이고, 그때도 **반드시 적는다**.
+   *
+   * 왜 선택이 아니라 필수인가: 실측 2026-09-20 원장 50,243건이 전부 주인이 비어 있었다.
+   * 선택으로 두면 «이 호출부는 다음에»가 남고, 그 다음은 안 온다. 필수로 두면 새 호출부를
+   * 만드는 사람이 형 검사에서 한 번은 이 질문을 받는다 — 이 호출의 주인이 누구인가.
+   */
+  actorId: string | null
   tools?: ChatToolsOption // S3 — capabilities.tools=false 프로바이더에 지정 시 서버 400
   onDelta: (text: string) => void
   onThinking?: (text: string) => void // Claude summarized thinking 전용

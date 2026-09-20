@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.12
+플랜 버전: v0.1.13
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -178,9 +178,9 @@
 범위 메모: AI 채팅은 호출부가 열한 곳이라 같은 항목에 못 넣고 I08e 로 뺌. 가드를 범위에 넣은 이유는 아래 감사에서 드러난 결함 때문임 — 파일 전체 문자열 검색이라 인자로 선언만 하고 안 넘겨도 통과했다
 
 ### I08e AI 채팅이 주인을 반드시 받고 호출부가 그것을 넘긴다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ai-chat/provider.ts, apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/ai/actor.ts, apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/app/(ai)/ai/actions.ts, apps/web/app/(ai)/ai/analyze/actions.ts, apps/web/app/(ai)/ai/analyze/template-actions.ts, apps/web/lib/ai-chat/analyze-core.ts, apps/web/lib/ai-chat/analyze-gemini.ts, apps/web/lib/ai-chat/analyze-runner-worker.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/rfp/ai/host-caller.ts
+범위: apps/web/lib/ai-chat/provider.ts, apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/ai/actor.ts, apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/app/(ai)/ai/actions.ts, apps/web/app/(ai)/ai/analyze/actions.ts, apps/web/app/(ai)/ai/analyze/template-actions.ts, apps/web/lib/ai-chat/analyze-core.ts, apps/web/lib/ai-chat/analyze-gemini.ts, apps/web/lib/ai-chat/analyze-runner-worker.ts, apps/web/lib/ai-chat/analyze-runner.ts, apps/web/app/(ai)/ai/analyze/analyze-item-actions.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/rfp/ai/host-caller.ts
 감사 기준:
 - StreamChatParams 의 actorId 가 선택이 아니라 필수라서 안 주면 형 검사가 실패함 (일부러 하나 빼서 확인)
 - gemini 공급자가 받은 주인을 관문 ctx 까지 넘김
@@ -312,3 +312,4 @@
 - v0.1.10 (2026-09-20) 고친 가드가 기존 누락 둘을 바로 찾아내서 I08c 범위에 넣음: gemini-lead 의 내부 도우미가 부르는 셋에게서 userId 를 받고도 관문에 안 넘기고 있었고(리드 해석·판정 호출이 전부 주인 없이 나갔다), gemini-refine 의 옛 길은 부르는 곳이 없어 넘겨받을 사람이 없으므로 사유와 함께 null 을 명시했다. 되돌리면 가드가 빨간 채로 남으므로 그 자리에서 메움 (audit:I08c)
 - v0.1.11 (2026-09-20) I08e 와 I08f 를 하나로 합침. 칸을 필수로 만드는 판과 호출부 열한 곳을 메우는 판을 나누면 그 사이 커밋에서 pnpm tsc 가 빨갛게 남는데, LOOP.md 2절 3c 는 항목마다 정적 검사 통과를 요구한다. 합치면 파일이 열둘로 권장치를 넘지만 필수 칸이라 형 검사가 한 곳도 못 빠뜨리게 잡아 준다 (audit:I08e)
 - v0.1.12 (2026-09-20) 플랜 점검이 실패하고 있었다: I01 I04 I07 이 보안 줄 없이 통과했고(범위가 표 신설과 창구에 닿는데 감사 기준에 보안 줄이 없었다) I08b I08c 도 같은 누락이었다. 다섯 항목에 실제로 확인한 내용을 보안 줄로 적었다 — 262 와 263 은 같은 판에서 RLS 를 켜고 TO public USING(true) 정책이 없음을 소스로 확인. 통과 뒤에 적은 줄이라 운영 DB 실측은 안 했고, 그 실측을 I16 으로 남김 (audit:I08e)
+- v0.1.13 (2026-09-20) I08e 범위에 analyze-runner.ts 와 analyze-item-actions.ts 를 더함. 칸을 필수로 만들자 형 검사가 이 둘의 호출도 짚었다 — 예상보다 두 곳 많았고 그것이 필수로 만든 이유 그대로다. analyze-runner 는 세션 행에 user_id 를 실제로 읽어 오도록 select 도 고쳤다, 타입만 늘리고 질의를 안 고치면 그 칸은 런타임에 undefined 가 된다 (audit:I08e)

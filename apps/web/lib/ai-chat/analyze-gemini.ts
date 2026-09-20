@@ -78,6 +78,8 @@ export async function callGeminiOnce(
         apiKey: cand.apiKey,
         model: cand.model,
         turns: [{ role: 'user', content: turnContent, attachments }],
+        // 이 호출기는 부르는 쪽에서 userId 를 이미 받고 있었다
+        actorId: userId,
         signal: controller.signal,
         onDelta: (d) => {
           text += d

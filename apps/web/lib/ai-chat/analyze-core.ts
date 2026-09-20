@@ -56,6 +56,8 @@ function mergeUsage(a: ChatUsage, b: ChatUsage): ChatUsage {
 }
 
 export interface AnalyzeOneParams {
+  /** 이 분석을 누른 사람. 배경이면 null 이고 그때도 적는다 */
+  actorId: string | null
   apiKey: string
   model: string
   itemText: string
@@ -98,6 +100,7 @@ export async function analyzeOneItem(p: AnalyzeOneParams): Promise<AnalyzeOneRes
     model: p.model,
     system,
     turns: [{ role: 'user', content: userParts.join('\n\n') }],
+    actorId: p.actorId,
     signal: p.signal,
     onDelta: (d) => p.onDelta?.(d),
   })
@@ -106,6 +109,8 @@ export async function analyzeOneItem(p: AnalyzeOneParams): Promise<AnalyzeOneRes
 }
 
 export interface RefineGroupParams {
+  /** 이 분석을 누른 사람. 배경이면 null 이고 그때도 적는다 */
+  actorId: string | null
   apiKey: string
   model: string
   /** 세션 모델이 429 등으로 실패하면 이 모델로 1회 폴백(보통 org 기본 flash-lite). 미지정 시 폴백 없음. */
@@ -155,7 +160,8 @@ export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroup
       apiKey: p.apiKey,
       model: p.model,
       turns: [{ role: 'user', content: prompt }],
-      signal: p.signal,
+      actorId: p.actorId,
+    signal: p.signal,
       onDelta: (d) => p.onDelta?.(d),
     },
     p.fallbackModel,
@@ -208,6 +214,8 @@ function buildRepassPrompt(items: DigestItem[], missing: number[], command: stri
  * 어떤 경우에도 반환 text에는 전 idx가 물리적으로 존재한다(코드가 최종 보증).
  */
 export async function synthesizeItems(p: {
+  /** 종합을 누른 사람. 배경이면 null 이고 그때도 적는다 */
+  actorId: string | null
   apiKey: string
   model: string
   /** 세션 모델 실패 시 폴백(org 기본). refineGroupItem과 동일 원칙. */
@@ -235,7 +243,8 @@ export async function synthesizeItems(p: {
       apiKey: p.apiKey,
       model: p.model,
       turns: [{ role: 'user', content: prompt }],
-      signal: p.signal,
+      actorId: p.actorId,
+    signal: p.signal,
       onDelta: (d) => {
         text += d
       },
@@ -254,7 +263,8 @@ export async function synthesizeItems(p: {
         apiKey: p.apiKey,
         model: p.model,
         turns: [{ role: 'user', content: repassPrompt }],
-        signal: p.signal,
+        actorId: p.actorId,
+    signal: p.signal,
         onDelta: (d) => {
           repassText += d
         },
