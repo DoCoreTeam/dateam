@@ -1,6 +1,6 @@
 # PLAN newAX: 직인을 설정에서 올리고 견적서에 찍는다
 플랜 ID: P0042
-플랜 버전: v0.1.0
+플랜 버전: v0.1.1
 상태: 진행중
 지시: ins_0055
 목표 버전: v0.10.326
@@ -42,23 +42,24 @@
 의존: 없음
 
 ### I02 직인도 만든 날 그대로 굳힌다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: supabase/migrations/274_quote_seal_asset.sql (신규), apps/web/prisma/schema.prisma, apps/web/lib/crm/services/quote.ts
+범위: supabase/migrations/274_quote_seal_asset.sql (신규), apps/web/prisma/schema.prisma, apps/web/lib/crm/services/quote.ts, apps/web/lib/crm/services/setting.ts
 감사 기준:
 - 마이그레이션 적용 후 `\d crm_quote` 에 `sealAssetHash` 가 있다
 - 보안 S1: 칼럼 추가라 기존 RLS 가 그대로 적용됨을 확인하고, `crm_quote_asset` 은 271 이 이미 RLS 를 켜고 anon·authenticated 권한을 회수했음을 재확인한다 (새 표 없음)
 - 견적을 새로 만들면 그때의 직인 해시가 `sealAssetHash` 에 박힌다 (설정을 바꿔도 그 견적은 안 바뀐다)
 - 기존 견적은 `sealAssetHash` 가 null 이라 「(직인생략)」이다 — 백필하지 않는다(그날 직인이 없었다)
+- `readQuoteImages` 가 `{ logo, seal }` 을 준다 (굳히려면 읽는 것이 먼저다)
 의존: I01
 
 ### I03 문서가 직인을 읽는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/services/setting.ts, apps/web/lib/crm/services/quote-document.ts, apps/web/lib/crm/domain/quote-document.ts
+범위: apps/web/lib/crm/services/quote-document.ts, apps/web/lib/crm/domain/quote-document.ts
 감사 기준:
-- `readQuoteImages` 가 `{ logo, seal }` 을 준다
 - `QuoteDocument.images` 에 `seal` 이 있고, 굳은 해시가 있으면 설정 대신 그 그림을 읽는다
+- 굳은 로고 해시만 있고 직인 해시가 없는 견적은 직인이 빈 문자열이다 (설정의 오늘 직인이 새어 들지 않는다)
 - `node --test --experimental-strip-types lib/crm/domain/quote-document.test.ts` 통과
 의존: I02
 
@@ -97,3 +98,5 @@
 
 ## 변경 이력
 - v0.1.0 (2026-09-21) 최초 작성 (ins_0055)
+- v0.1.1 (2026-09-21) readQuoteImages 를 I03 에서 I02 로 옮김 — 굳히는 코드가 그 함수를 부르므로 선행이다 (audit:I02)
+- v0.1.1 (2026-09-20) readQuoteImages 의 seal 반환을 I03 에서 I02 로 옮김 — 굳히는 코드가 그 함수를 부르므로 선행 의존이다 (audit:I02)

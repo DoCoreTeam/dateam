@@ -121,6 +121,8 @@ export interface QuoteRow {
   supplierSnapshot: unknown
   /** 그날의 로고. CrmQuoteAsset.hash */
   logoAssetHash: string | null
+  /** 그날의 직인. CrmQuoteAsset.hash — null 이면 그날 직인이 없었다(「(직인생략)」) */
+  sealAssetHash: string | null
   ownerId: string | null
   /**
    * 파일에서 만들어진 시각. null = 파일 출처가 아니거나 사람이 한 번 고쳐 저장함.
@@ -167,8 +169,8 @@ const SELECT = {
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
   // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
   termIds: true, termsSnapshot: true, ownerId: true, createdById: true, recipientPersonId: true,
-  // 굳은 공급자·로고 — 안 읽으면 굳혀도 문서에 안 닿는다
-  supplierSnapshot: true, logoAssetHash: true,
+  // 굳은 공급자·로고·직인 — 안 읽으면 굳혀도 문서에 안 닿는다
+  supplierSnapshot: true, logoAssetHash: true, sealAssetHash: true,
   // 파일에서 왔는지 — **표시 전용**. 읽지 않으면 배지를 달 근거가 화면에 닿지 않는다
   fromFileAt: true, sourceFileName: true,
   sourcePageStart: true, sourcePageEnd: true, sourceSnapshotId: true,
@@ -715,7 +717,14 @@ export async function createQuote(
     */
     const asDb = tx as unknown as Parameters<typeof readQuoteSupplier>[0]
     const supplierSnapshot = await readQuoteSupplier(asDb)
-    const logoAssetHash = await freezeAsset(tx, (await readQuoteImages(asDb)).logo)
+    /*
+      로고와 직인을 **한 번에** 읽어 굳힌다. 둘을 따로 읽으면 그 사이에 설정이 바뀔 때
+      한 견적서가 옛 로고와 새 직인을 함께 찍는 일이 생긴다.
+      직인을 안 올렸으면 `freezeAsset` 이 null 을 주고, 문서에는 「(직인생략)」이 선다.
+    */
+    const quoteImages = await readQuoteImages(asDb)
+    const logoAssetHash = await freezeAsset(tx, quoteImages.logo)
+    const sealAssetHash = await freezeAsset(tx, quoteImages.seal)
 
     // 형식은 설정에서 온다 — 회사마다 다르고, 바꾸려고 배포를 기다릴 일이 아니다
     const pattern = await readQuoteNoPattern(tx)
@@ -740,6 +749,7 @@ export async function createQuote(
           termsSnapshot,
           supplierSnapshot,
           logoAssetHash,
+          sealAssetHash,
           ownerId: input.ownerId || null,
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor,
@@ -773,6 +783,7 @@ export async function createQuote(
           termsSnapshot,
           supplierSnapshot,
           logoAssetHash,
+          sealAssetHash,
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor,
           taxMinor: totals.taxMinor, totalMinor: totals.totalMinor,
@@ -1255,8 +1266,9 @@ export async function duplicateQuote(
         validUntil: src.validUntil, notesMd: src.notesMd,
         // 굳은 조건도 함께 복제한다 — 원본과 다른 조건이 찍히면 「다른 안」이 아니라 다른 문서다
         termIds: src.termIds, termsSnapshot: src.termsSnapshot, ownerId: src.ownerId,
-        // 굳은 공급자·로고도 물려받는다 — 같은 견적의 다른 안이 다른 회사 정보를 찍으면 안 된다
+        // 굳은 공급자·로고·직인도 물려받는다 — 같은 견적의 다른 안이 다른 회사 정보를 찍으면 안 된다
         supplierSnapshot: src.supplierSnapshot as object, logoAssetHash: src.logoAssetHash,
+        sealAssetHash: src.sealAssetHash,
         recipientPersonId: src.recipientPersonId,
         createdById: actorId,
         subtotalMinor: src.subtotalMinor, discountMinor: src.discountMinor,

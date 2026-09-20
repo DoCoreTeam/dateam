@@ -449,8 +449,14 @@ export function parseValidDays(raw: string): number {
   return Math.min(days, 3650)
 }
 
-export async function readQuoteImages(db: CrmDb): Promise<{ logo: string }> {
-  const keys = [SUPPLIER_IMAGE_KEY.logo]
+/**
+ * 견적서에 찍히는 그림 둘을 **한 번에** 읽는다.
+ *
+ * 따로 읽으면 그 사이에 설정이 바뀔 때 한 견적서가 옛 로고와 새 직인을 함께 찍는다.
+ * 직인은 안 올려도 되는 값이라 빈 문자열이 정상이고, 그때 문서에는 「(직인생략)」이 선다.
+ */
+export async function readQuoteImages(db: CrmDb): Promise<{ logo: string; seal: string }> {
+  const keys = [SUPPLIER_IMAGE_KEY.logo, SUPPLIER_IMAGE_KEY.seal]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await (db as any).crmAppSetting.findMany({
     where: { key: { in: keys } },
@@ -462,7 +468,7 @@ export async function readQuoteImages(db: CrmDb): Promise<{ logo: string }> {
     const hit = mine.find((r) => r.scope === 'WORKSPACE') ?? mine.find((r) => r.scope === 'GLOBAL')
     return hit ? String(hit.valueJson ?? '') : ''
   }
-  return { logo: pick(SUPPLIER_IMAGE_KEY.logo) }
+  return { logo: pick(SUPPLIER_IMAGE_KEY.logo), seal: pick(SUPPLIER_IMAGE_KEY.seal) }
 }
 
 export async function readQuoteSupplier(db: CrmDb): Promise<Record<SupplierField, string>> {

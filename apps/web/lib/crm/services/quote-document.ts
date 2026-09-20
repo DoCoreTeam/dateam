@@ -25,8 +25,13 @@ import { kstDateKey } from '../../datetime/kst.ts'
 
 export interface QuoteDocumentResult {
   document: QuoteDocument
-  /** 견적서에 찍히는 이미지(data URI). 없으면 빈 문자열. 직인은 이미지가 아니라 문구다 */
-  images: { logo: string }
+  /**
+   * 견적서에 찍히는 이미지(data URI). 없으면 빈 문자열.
+   *
+   * 직인이 빈 문자열이면 그 자리에 `QUOTE.sealOmitted` 문구가 선다 —
+   * 직인은 **올려도 되고 안 올려도 되는** 값이다(사용자 지시 2026-09-21).
+   */
+  images: { logo: string; seal: string }
   /** 저장본과 어긋난 곳 — 있으면 화면이 «이 문서는 보내면 안 된다»고 말한다 */
   violations: { code: string; message: string }[]
   /** 아직 안 채운 공급자 항목의 **사람이 읽는 이름** */
@@ -83,6 +88,17 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   const supplierSnapshot = ((quote as { supplierSnapshot?: unknown }).supplierSnapshot ?? {}) as Record<string, string>
   const useSupplierSnapshot = Object.keys(supplierSnapshot).length > 0
   const logoAssetHash = (quote as { logoAssetHash?: string | null }).logoAssetHash ?? null
+  const sealAssetHash = (quote as { sealAssetHash?: string | null }).sealAssetHash ?? null
+  /*
+    **굳은 그림이 먼저다.** 이 견적이 만들어진 날 굳은 것이 하나라도 있으면 설정을 아예 안 읽는다 —
+    읽는 순간 오늘 올린 로고·직인이 이미 나간 문서에 소급해 찍힐 자리가 생긴다.
+    굳은 해시가 null 인 쪽은 «그날 그 그림이 없었다»는 뜻이므로 빈 문자열이 맞다.
+
+    공급자 스냅샷도 함께 보는 이유: 로고를 한 번도 안 올린 회사의 견적은 `logoAssetHash` 가
+    null 이라 해시만으로는 «안 굳은 견적»과 구분되지 않는다. 그 견적이 설정을 읽어 버리면
+    나중에 직인을 올리는 날 옛 문서 전부에 도장이 생긴다.
+  */
+  const useFrozenImages = useSupplierSnapshot || logoAssetHash !== null || sealAssetHash !== null
   const ownerMemberId = quote.ownerId
     ?? (quote as { createdById?: string | null }).createdById
     ?? null
@@ -91,8 +107,9 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   const [supplier, images, owner, terms, recipient] = await Promise.all([
     // 굳은 값이 있으면 설정을 아예 읽지 않는다 — 읽으면 오늘 값이 문서에 섞일 자리가 생긴다
     useSupplierSnapshot ? Promise.resolve(supplierSnapshot) : readQuoteSupplier(db),
-    logoAssetHash
-      ? readAsset(db, logoAssetHash).then((logo) => ({ logo }))
+    useFrozenImages
+      ? Promise.all([readAsset(db, logoAssetHash), readAsset(db, sealAssetHash)])
+          .then(([logo, seal]) => ({ logo, seal }))
       : readQuoteImages(db),
     /*
       **`ownerId` 가 비면 «만든 사람»이 담당이다.**
