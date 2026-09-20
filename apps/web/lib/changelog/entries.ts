@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.243',
+    date: '2026-09-20',
+    title: 'AI 가 하루치 한도에 걸려도 계속 써요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🔑',
+        headline: 'AI 사용량 한도에 걸려도 그날 기능이 멈추지 않아요',
+        detail: '전에는 AI 열쇠 하나가 하루 한도를 다 쓰면 회의록 정리·자료 분석·제안서 초안이 다 같이 멈췄어요. 이제 여분의 열쇠가 있으면 자동으로 이어받아서, 하던 일을 그대로 계속할 수 있어요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🎙️',
+        headline: '회의 녹음이 중간에서 끊기지 않아요',
+        detail: '긴 회의는 구간을 이어서 글로 옮기는데, 중간에 한도에 걸리면 뒷부분이 빈 채로 남았어요. 이제 남은 열쇠로 이어서 받아적어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.213',
     date: '2026-09-20',
     title: '관리자가 한 일이 기록으로 남아요',
