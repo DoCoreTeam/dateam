@@ -41,6 +41,7 @@ import { ACTION } from '@/lib/terms'
 import DocSurface from '@/components/ui/doc/DocSurface'
 import { RecordPanel } from '@/components/ui/crm/RecordLayout'
 import AttachmentPanel from '@/components/ui/crm/AttachmentPanel'
+import QuoteOriginalCompare from '@/components/ui/crm/QuoteOriginalCompare'
 import { ATTACHMENT } from '@/lib/terms/attachment'
 import QuoteSheet from './QuoteSheet'
 import { downloadPaperAsPng, downloadPaperAsPdf } from '@/lib/crm/api/paper-image'
@@ -80,6 +81,13 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
   const [loadingDraft, setLoadingDraft] = useState(false)
   /** 미리보기가 열렸나 — 내보내기는 전부 그 안에서 일어난다 */
   const [preview, setPreview] = useState(false)
+  /**
+   * 첨부 절을 다시 읽게 하는 번호.
+   *
+   * 대조 자리에서 원본을 올리면 **아래 첨부 절도 같은 것을 보고 있어야 한다** —
+   * 한쪽만 바뀌면 「올렸는데 첨부에는 없다」가 된다.
+   */
+  const [attachSeq, setAttachSeq] = useState(0)
   const [imaging, setImaging] = useState(false)
   const [pdfing, setPdfing] = useState(false)
 
@@ -230,6 +238,15 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           문서를 읽다가 틀린 곳을 찾는 것이 정상적인 순서인데, 고칠 길이 그 자리에 없었다
           (사용자 지적: 「여기도 수정버튼을 두고 견적수정 화면으로 들어가야지」).
         */}
+        {/*
+          **대조는 고치기 «앞»에 온다.** 읽은 값이 맞는지 본 다음에 고치는 것이 순서다.
+          원본이 없는 견적에서는 이 자리가 올리기로 바뀐다(부품이 스스로 고른다).
+        */}
+        <QuoteOriginalCompare
+          quoteId={quoteId}
+          sheet={<QuoteSheet doc={doc} logo={data.images.logo} surface="paper" />}
+          onChanged={() => setAttachSeq((n) => n + 1)}
+        />
         <NbButton variant="ghost" disabled={loadingDraft} onClick={() => void openEdit()}>
           <Pencil size={16} /> {loadingDraft ? progress(ACTION.edit) : ACTION.edit}
         </NbButton>
@@ -336,7 +353,7 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
       */}
       <div className={styles.attachments}>
         <RecordPanel title={ATTACHMENT.section}>
-          <AttachmentPanel target="QUOTE" targetId={quoteId} defaultKind="SUPPLY_QUOTE" />
+          <AttachmentPanel key={attachSeq} target="QUOTE" targetId={quoteId} defaultKind="SUPPLY_QUOTE" />
         </RecordPanel>
       </div>
 

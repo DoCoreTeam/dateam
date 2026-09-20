@@ -1,0 +1,163 @@
+/*
+  원본 대조 오버레이 — 왼쪽 원본, 오른쪽 견적서
+
+  **전체 화면을 쓴다.** 대조는 두 문서를 동시에 읽는 일이라 한쪽이 좁으면 그 순간
+  스크롤을 오가게 되고, 그러면 새 탭으로 여는 것과 다를 바가 없다.
+*/
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-bg);
+}
+
+.bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--card-bg, #fff);
+  border-bottom: var(--border-w) solid var(--border-color);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* 어느 파일과 견주고 있는지 — 대조 중에 이것을 잊으면 엉뚱한 파일과 맞춰 보게 된다 */
+.fileName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.close:hover,
+.close:focus-visible {
+  border-color: var(--border-color);
+  color: var(--text);
+}
+
+.panes {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--card-bg, #fff);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.paneTitle {
+  margin: 0;
+  flex: 0 0 auto;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: var(--border-w) solid var(--border-color);
+}
+
+.paneBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  /* 두 칸이 각자 구르게 한다 — 같이 구르면 길이가 다른 두 문서에서 늘 한쪽이 어긋난다 */
+  overscroll-behavior: contain;
+}
+
+/* 견적서는 종이라 여백이 있어야 읽힌다. 원본(프레임·그림)은 칸을 꽉 채운다 */
+.sheetBody {
+  padding: var(--space-4);
+  background: var(--surface-bg);
+}
+
+.frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.waiting,
+.note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 100%;
+  padding: var(--space-6);
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/*
+  ── 좁은 화면 ──────────────────────────────────────────
+  폰에서 두 칸을 나란히 두면 각 칸이 손가락 하나 폭이 된다. 위아래로 쌓고
+  원본을 먼저 둔다 — 견주는 기준이 원본이다.
+*/
+@media (max-width: 900px) {
+  .panes {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
+/*
+  **인쇄에는 안 나간다.** 이 오버레이는 우리가 맞춰 보는 자리이지 고객에게 가는 문서가 아니다.
+  내보내기는 미리보기(DocSurface)에서만 일어난다.
+*/
+@media print {
+  .overlay {
+    display: none !important;
+  }
+}

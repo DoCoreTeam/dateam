@@ -61,7 +61,7 @@
 의존: 없음
 
 ### I03 원본을 견적서 옆에 세운다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/QuoteOriginalCompare.tsx (신규), apps/web/components/ui/crm/quote-original-compare.module.css (신규), apps/web/app/(crm)/crm/quotes/[id]/QuoteDocumentView.tsx, apps/web/lib/terms/quote.ts
 감사 기준:
