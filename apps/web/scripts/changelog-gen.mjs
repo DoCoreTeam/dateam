@@ -20,6 +20,9 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
+/** lib/ai/gemini-model.ts 의 DEFAULT_GEMINI_MODEL 과 같은 값 — 실호출로 JSON 모드를 확인한 모델 */
+const DEFAULT_MODEL = 'gemini-3.6-flash'
+
 const __dirname = dirname(fileURLToPath(import.meta.url)) // apps/web/scripts
 const WEB = join(__dirname, '..') // apps/web
 const ROOT = join(__dirname, '../../..') // repo root
@@ -77,7 +80,14 @@ async function getGeminiConfig() {
     }
   }
   apiKey = apiKey || process.env.GEMINI_API_KEY || ''
-  model = model || process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+  /*
+    기본 모델은 앱의 SSOT 와 같은 값을 쓴다.
+
+    여기 박혀 있던 `gemini-2.0-flash` 는 **구글에서 지워진 모델**이라 404 가 난다
+    (lib/ai/gemini-model.ts 가 그 사고 때문에 생겼다). 이 스크립트만 그 값을 그대로
+    들고 있어서, META 에 모델이 없으면 발행이 조용히 실패했다.
+  */
+  model = model || process.env.GEMINI_MODEL || DEFAULT_MODEL
   if (!apiKey) {
     throw new Error('Gemini 키 없음 — DB org_content META.gemini_api_key 또는 GEMINI_API_KEY 필요. ' +
       '(CI: NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY 시크릿 등록)')

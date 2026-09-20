@@ -14,6 +14,7 @@
 // 그리고 **조용히 멈추지 않는다.** 진행 중이거나 멈춰 있으면 화면에 그대로 보여준다.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { currentDeployEnv } from '@/lib/ai/deploy-env'
 import { AlertTriangle } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import QueueProgressPanel from './QueueProgressPanel'
@@ -76,6 +77,16 @@ export function wakeQueueDriver(): void {
 
 export default function QueueDriver({ workspaceId, initialRemaining = 0 }: QueueDriverProps) {
   // 서버가 아는 값으로 시작한다 — 첫 tick을 기다리는 동안 "아무 일도 없음"으로 보이지 않게
+  /*
+    **개발 판에서는 저절로 돌지 않는다.**
+
+    이 구동기는 화면이 열려 있는 동안 큐를 계속 비운다. 개발하는 사람이 화면을 켜 두면
+    그 노트북이 운영 큐를 대신 돌리고, 그 호출은 운영 한도를 쓴다 — 실측 2026-09-20
+    하루 23,318건 중 어느 것이 그렇게 나간 것인지 가릴 방법이 없었다.
+    개발 판에서는 사람이 눌러야 한 번 돈다.
+  */
+  const autoDrive = currentDeployEnv() === 'production'
+  const [manualStarted, setManualStarted] = useState(false)
   const [phase, setPhase] = useState<Phase>(initialRemaining > 0 ? 'working' : 'idle')
   const [remaining, setRemaining] = useState(initialRemaining)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -171,6 +182,9 @@ export default function QueueDriver({ workspaceId, initialRemaining = 0 }: Queue
     // 단 **방금 비어 있다고 확인했으면** 묻지 않는다(화면 전환마다 되묻는 것을 막는다).
     // 링크 투입은 이 경로를 타지 않는다 — LinkIntakeBox가 접수 직후 새로고침을 걸고,
     // 그때 remaining>0이 되어 lastIdleAt이 풀린다.
+    // 개발 판은 여기서 아무것도 안 건다 — 누르면 그때 tick 이 스스로 이어 간다
+    if (!autoDrive) return
+
     const justIdle = Date.now() - lastIdleAt < IDLE_REMOUNT_GRACE_MS
     if (!justIdle) void tick()
     else schedule()
@@ -187,6 +201,21 @@ export default function QueueDriver({ workspaceId, initialRemaining = 0 }: Queue
     // 마운트 시 1회만 건다. 이후 순환은 tick이 스스로 예약한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 개발 판에서 아직 안 눌렀으면 「누르면 돈다」를 보여 준다. 안 보여 주면
+  // 「수집이 왜 안 되지」로 읽히고, 그 다음은 저절로 돌게 되돌리는 일이다
+  if (!autoDrive && !manualStarted) {
+    return (
+      <button
+        type="button"
+        className={`status-pill status-pill-info ${styles.chip}`}
+        onClick={() => { setManualStarted(true); void tick() }}
+        title="개발 판에서는 수집이 저절로 돌지 않습니다"
+      >
+        수집 시작
+      </button>
+    )
+  }
 
   if (phase === 'idle') return null
 

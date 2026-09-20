@@ -94,3 +94,35 @@ test('규칙이 도는 대상이 실제로 있다', () => {
     assert.ok(readFileSync(join(WEB, f), 'utf8').length > 0, `${f} 을 못 읽는다`)
   }
 })
+
+/*
+  자동으로 도는 것은 운영 판에서만 (P0030 I15)
+
+  큐 구동기는 화면이 열려 있는 동안 큐를 계속 비운다. 개발하는 사람이 화면을 켜 두면
+  그 노트북이 운영 큐를 대신 돌리고, 그 호출은 운영 한도를 쓴다 — 실측 2026-09-20
+  하루 23,318건 중 어느 것이 그렇게 나간 것인지 가릴 방법이 없었다.
+*/
+test('★ 큐 구동기가 개발 판에서 저절로 안 돈다', () => {
+  const src = readFileSync(join(WEB, 'components/ci/QueueDriver.tsx'), 'utf8')
+  assert.match(src, /currentDeployEnv\(\) === 'production'/, '판을 안 보고 돈다')
+  assert.match(
+    src, /if \(!autoDrive\) return/,
+    '판을 보기만 하고 자동 실행을 안 막는다 — 값을 읽어 두고 안 쓰면 없는 것과 같다',
+  )
+  assert.match(src, /setManualStarted\(true\)/, '개발 판에서 사람이 눌러 시작할 길이 없다')
+})
+
+test('★ 발행기가 사라진 기본 모델을 안 쓴다', () => {
+  const gen = readFileSync(join(WEB, 'scripts/changelog-gen.mjs'), 'utf8')
+  assert.ok(
+    !/'gemini-2\.0-flash'/.test(gen),
+    '구글에서 지워진 모델(404)이 아직 기본값이다. META 에 모델이 없으면 발행이 조용히 실패한다',
+  )
+  const ssot = readFileSync(join(WEB, 'lib/ai/gemini-model.ts'), 'utf8')
+  const want = /DEFAULT_GEMINI_MODEL = '([^']+)'/.exec(ssot)?.[1]
+  assert.ok(want, 'SSOT 에서 기본 모델을 못 읽었다')
+  assert.match(
+    gen, new RegExp(`DEFAULT_MODEL = '${want}'`),
+    `발행기의 기본 모델이 SSOT(${want})와 다르다`,
+  )
+})
