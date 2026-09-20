@@ -268,18 +268,33 @@ test('상태마다 사람이 읽을 말이 붙는다 — 같은 상태가 화면
 
 /* ── 순서 바꾸기 ──────────────────────────────────────────────── */
 
+/*
+  줄은 **보이는 순서 그대로** 넘긴다. id 만 넘기던 옛 모양은 등급 경계를 못 봐서
+  유료 줄을 무료 줄 위로 올려 놓고는, 규칙이 다시 뒤로 보내는 것을 화면이 모르는 채로 뒀다.
+
+  여기서 한 번 데었다: 서명을 바꾼 뒤 이 파일이 옛 모양으로 계속 불렀는데
+  `tsconfig` 가 `*.test.ts` 를 검사 밖에 둬서 tsc 가 못 봤다. 그중 「끝에서 더 밀면」은
+  **빈 목록을 기대하는 단정이라 서명이 안 맞아도 초록이었다** — 통과가 곧 확인이 아니다.
+*/
+const line = (...ids: string[]): { id: string; isPaid: boolean }[] =>
+  ids.map((id) => ({ id, isPaid: false }))
+
 test('★ 위로 내리면 앞줄과 자리를 바꾸고 바뀐 둘만 돌려준다', () => {
-  assert.deepEqual(reorderPriorities(['a', 'b', 'c'], 'b', 'up'),
+  assert.deepEqual(reorderPriorities(line('a', 'b', 'c'), 'b', 'up'),
     [{ id: 'b', priority: 0 }, { id: 'a', priority: 1 }])
 })
 
 test('아래로 내리면 뒷줄과 바꾼다', () => {
-  assert.deepEqual(reorderPriorities(['a', 'b', 'c'], 'b', 'down'),
+  assert.deepEqual(reorderPriorities(line('a', 'b', 'c'), 'b', 'down'),
     [{ id: 'c', priority: 1 }, { id: 'b', priority: 2 }])
 })
 
 test('★ 끝에서 더 밀면 아무것도 바꾸지 않는다 — 빈 목록이지 오류가 아니다', () => {
-  assert.deepEqual(reorderPriorities(['a', 'b'], 'a', 'up'), [])
-  assert.deepEqual(reorderPriorities(['a', 'b'], 'b', 'down'), [])
-  assert.deepEqual(reorderPriorities(['a', 'b'], '없는줄', 'up'), [])
+  // 가운데 줄은 실제로 움직인다. 이 줄이 있어야 위 둘이 「그냥 다 빈 목록」이 아님을 안다
+  assert.deepEqual(reorderPriorities(line('a', 'b'), 'a', 'down'),
+    [{ id: 'b', priority: 0 }, { id: 'a', priority: 1 }])
+
+  assert.deepEqual(reorderPriorities(line('a', 'b'), 'a', 'up'), [])
+  assert.deepEqual(reorderPriorities(line('a', 'b'), 'b', 'down'), [])
+  assert.deepEqual(reorderPriorities(line('a', 'b'), '없는줄', 'up'), [])
 })
