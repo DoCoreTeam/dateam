@@ -181,3 +181,24 @@ test('★ 받은 주인이 원장까지 간다', async () => {
   }
   assert.equal((calls[0] as { actor_id: string }).actor_id, 'u-42', '넘긴 주인이 원장에 안 적혔다')
 })
+
+/*
+  값이 실제로 실려 오나 (P0030 I08d)
+
+  위 시험들은 «벤더를 부르는 자리에 actorId 가 적혀 있나»를 본다. 그것만으로는
+  `actorId: null` 을 적어 두고 통과한다 — 일부러 그렇게 바꿔 봤더니 아무도 안 울었다.
+  주인을 **데이터에서 끌어오는** 길은 그 끌어오는 질의가 살아 있는지도 함께 봐야 한다.
+  타입에 칸만 내고 질의를 안 고치면 런타임에 빈칸이 되고, 형 검사는 그것을 못 잡는다.
+*/
+test('★ 배경 일꾼은 주인을 데이터에서 실제로 읽어 온다', () => {
+  const src = read('lib/meeting/transcribe-parts.ts')
+  assert.match(src, /select\('id, user_id'\)/, '노트 주인을 읽는 질의가 없다')
+  assert.match(
+    src, /transcribeOnePart\([^)]*owners\.get\(/,
+    '읽어 놓고 안 넘긴다. 원장은 예전처럼 빈칸이 된다',
+  )
+  assert.match(
+    src, /if \(error\)/,
+    'supabase-js 는 오류를 던지지 않고 돌려준다. 안 보면 조용히 주인 없는 호출이 된다',
+  )
+})

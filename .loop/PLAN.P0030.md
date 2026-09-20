@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.16
+플랜 버전: v0.1.18
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -190,16 +190,41 @@
 의존: I08c
 범위 메모: 계약과 결선을 두 항목으로 나눴다가 하나로 합쳤다. 칸을 필수로 만드는 판과 호출부를 메우는 판을 나누면 그 사이 판에서 pnpm tsc 가 빨갛고, 항목마다 정적 검사가 통과해야 한다는 규정(2절 3c)을 못 지킨다. 파일 수가 권장치를 넘지만 형 검사가 한 곳도 못 빠뜨리게 해 주므로 한 번의 자가감사로 판정된다
 
-### I08d 남은 창구에 주인을 잇는다
+### I08d 회의 녹음에 주인을 잇는다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/stt/provider.ts, apps/web/lib/meeting/transcribe-parts.ts, apps/web/lib/ai/actor.ts, apps/web/lib/policy/ai-actor.test.ts
+범위 메모: 라우트 둘은 안 고쳤다 — 주인을 부르는 쪽에서 받는 대신 **노트 행에서 읽어 오게** 했더니 크론 라우트(사람이 아예 없다)도 같은 값을 쓴다. 대신 가드에 「값이 실제로 실려 오나」를 더했다, 소스 대조만으로는 actorId: null 을 적어 두고 통과하기 때문
+감사 기준:
+- SttInput 이 actorId 를 필수로 받아 안 주면 형 검사가 실패함 (일부러 하나 빼서 확인)
+- 조각을 맡을 때 그 노트의 주인을 함께 읽어 와서 넘김 (타입만 늘리고 질의를 안 고치면 런타임에 빈칸이 된다)
+- 보안 S2: 두 창구의 권한 판정이 안 바뀜을 소스로 확인, 서비스롤을 쓰면 그 위에 사람 확인이 있는지 함께 봄
+- 기준선이 4 에서 2 로 내려감
+의존: I08c
+
+### I08g CRM 실행기에 주인을 잇는다
 상태: 대기
 모드: 경량
-범위: apps/web/lib/crm/ai/runner.ts, apps/web/lib/stt/provider.ts, apps/web/lib/meeting/transcribe-parts.ts, apps/web/lib/gpu/extract-helpers.ts, apps/web/lib/ai/actor.ts
+범위: apps/web/lib/crm/ai/runner.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/crm/services/quote-draft.ts, apps/web/lib/crm/services/enrich-web.ts, apps/web/lib/crm/services/quote-from-file.ts, apps/web/lib/crm/services/stage-review.ts, apps/web/lib/crm/services/activity-extract.ts, apps/web/lib/crm/services/meeting.ts, apps/web/lib/crm/services/data-check.ts, apps/web/lib/crm/services/quick-create.ts, apps/web/lib/crm/services/next-best-action.ts, apps/web/app/api/crm/metrics/ask/route.ts, apps/web/lib/ai/actor.ts
 감사 기준:
-- 네 창구가 부르는 쪽에서 사용자 id 를 받아 actorId 로 넘김
-- 등재부의 «아직 안 이어 붙임» 이 0 이 되고 기준선도 0
-- ci 배치와 gpu 회사 보강은 배경으로 남고 그 사유가 등재부에 적혀 있음
-의존: I08c
-범위 메모: 착수 전 사슬을 재어 보니 네 창구가 아니라 네 갈래다 — CRM 은 runAi 호출부가 열 곳이고 그 위에 host 붙임쇠가 있어 열둘, 회의 녹음(stt 와 transcribe-parts)은 녹음을 켠 사람이 두 층 위에 있고, GPU 통합입력 도우미는 부르는 라우트마다 다르다. I08e 에서 null 로 남긴 CRM 붙임쇠와 RFP 잡 호출기도 여기 딸려 있다. 한 항목으로는 못 하고 갈래마다 하나씩 나눠야 하며, 나누는 판은 사용자 판단 뒤에 정함
+- RunOptions 가 actorId 를 필수로 받아 호출부 열 곳이 전부 형 검사에 걸림 (일부러 하나 빼서 확인)
+- hostAdapter 가 I08e 에서 null 로 남긴 자리를 실제 값으로 채움
+- 사람이 누르는 호출부는 자기가 쥔 구성원 id 를, 배경 호출부는 null 과 사유를 넘김
+- 보안 S2: 창구 하나(crm/metrics/ask)의 권한 판정이 안 바뀜을 소스로 확인
+- 기준선이 2 에서 1 로 내려감
+의존: I08d
+범위 메모: 파일이 열셋으로 권장치를 넘지만 필수 칸이라 형 검사가 한 곳도 못 빠뜨리게 잡아 준다. I08e 에서 같은 이유로 합친 판과 같은 판단
+
+### I08h GPU 통합입력 도우미에 주인을 잇는다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/gpu/extract-helpers.ts, apps/web/lib/gpu/ai-observation.ts, apps/web/lib/work/autolink-run.ts, apps/web/app/api/admin/ai-prompts/ai-edit/route.ts, apps/web/app/api/pricing/gpu/review/stream/route.ts, apps/web/app/api/pricing/gpu/market/refresh/route.ts, apps/web/app/api/pricing/gpu/market/catalog/route.ts, apps/web/lib/ai/actor.ts
+감사 기준:
+- callGeminiOnce 가 actorId 를 받아 관문까지 넘김, 안 주면 형 검사가 실패함
+- 라우트 넷이 자기가 쥔 사용자 id 를 넘김, 배경 잡은 null 과 사유
+- 보안 S2: 네 창구의 권한 판정이 안 바뀜을 소스로 확인
+- 기준선이 1 에서 0 이 되고 등재부에 미결선이 하나도 없음
+의존: I08g
 
 ### I16 통과 뒤에 적은 보안 줄을 사후 확인한다
 상태: 대기
@@ -327,3 +352,5 @@
 - v0.1.14 (2026-09-20) I08d 착수 전 사슬을 재어 실제 크기를 기록함. 네 창구가 아니라 네 갈래이고 CRM 만 열두 파일이다. I08c 와 I08e 에서 플랜 갱신 한계 3회에 두 번 닿았고 LOOP.md 2절 6 이 사용자 판단을 요구하므로, 나누는 판을 정하기 전에 멈추고 묻는다 (audit:I08d)
 - v0.1.15 (2026-09-20) I13 범위를 착수 전에 한 번에 정함(사슬을 먼저 재고 시작). 묶음 요청은 한 건짜리 guardedVector 로 못 지나가므로 guarded-call 에 묶음 갈래를 내고, 실제로 한 건씩 도는 두 곳(ai-chat 지식 색인 for 문, RFP 색인 Promise.all)과 그 호출부를 함께 넣음. 더불어 ai-actor 가드가 제네릭 호출을 못 보고 lib/gemini-embedding.ts 를 통째로 놓치고 있었다 — 같은 판에서 고침 (audit:I13)
 - v0.1.16 (2026-09-20) I10 의 새 파일 이름을 model-tier.ts 에서 capability-chain.ts 로 바꿈(lib/ai-chat/model-tier.ts 와 이름이 겹쳐 다음 사람이 둘 중 아무거나 import 하게 된다). 그리고 자가감사 중 버전 올리기 버그를 발견해 범위에 정책 3파일을 넣음 — 첫 v0.10.x 를 치환하는 방식이라 본문의 실측 인용 v0.7.660~686 을 여러 판에 걸쳐 v0.10.226~686 까지 떠밀어 놓고 정작 판 번호 줄은 224 에 멈춰 있었다 (audit:I10)
+- v0.1.17 (2026-09-20) I08d 를 갈래 셋으로 나눔(회의 녹음 / CRM 실행기 / GPU 도우미). 착수 전에 세 사슬을 끝까지 재고 각 범위를 한 번에 정했다 — 이어 붙일 자리가 회의 녹음 5, CRM 13, GPU 8 파일이고 서로 다른 계층이라 한 항목으로는 한 번에 감사할 수 없다 (audit:I08d)
+- v0.1.18 (2026-09-20) I08d 범위에서 라우트 둘을 빼고 가드 파일을 넣음. 주인을 부르는 쪽에서 받는 대신 노트 행에서 읽게 하니 크론 라우트(사람이 없다)까지 같은 값을 쓰게 되어 라우트를 고칠 일이 없어졌다. 대신 가드가 부족한 것을 발견해 더했다 — 소스 대조는 actorId 가 적혀 있나만 보므로 actorId: null 로 바꿔도 안 울었다 (audit:I08d)

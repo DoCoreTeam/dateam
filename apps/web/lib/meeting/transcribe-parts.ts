@@ -110,7 +110,12 @@ async function refreshNotePlainTranscript(noteId: string): Promise<void> {
 }
 
 /** 구간 하나를 전사해 저장한다. 실패는 사유를 남기고 재시도 횟수를 올린다. */
-export async function transcribeOnePart(part: RecordingPart, provider: SttProvider): Promise<boolean> {
+export async function transcribeOnePart(
+  part: RecordingPart,
+  provider: SttProvider,
+  /** 이 노트의 주인. 일꾼이 배경에서 돌아도 그 회의를 연 사람은 있다 */
+  actorId: string | null,
+): Promise<boolean> {
   const { createAdminClient } = await import('../supabase/server.ts')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
@@ -128,6 +133,7 @@ export async function transcribeOnePart(part: RecordingPart, provider: SttProvid
       bytes.byteLength,
       {
         surface: 'meeting/transcribe', purpose: 'transcribe', media: 'audio',
+        actorId,
         providerId: provider.vendor, modelName: provider.model,
         // 이 회의의 참석자 이름이 돌아온 글자에 실려 온다. 추측 말고 그 회의의 목록을 쓴다
         knownNames: await namesForNote(admin, part.note_id),
@@ -140,6 +146,7 @@ export async function transcribeOnePart(part: RecordingPart, provider: SttProvid
           filename: `${part.note_id}_${part.part_idx}.webm`,
           language: 'ko',
           priorContext: await priorContextFor(part.note_id, part.part_idx),
+          actorId,
         })
         stt.result = r
         return { text: r.segments.map((s) => s.text).join(' ') }
@@ -197,6 +204,30 @@ export async function transcribeOnePart(part: RecordingPart, provider: SttProvid
  * 키가 없으면 **아무것도 집지 않고 사실을 말한다.** 집어 놓고 실패시키면
  * 재시도 횟수만 소진돼 나중에 키를 넣어도 그 구간들이 되살아나지 않는다.
  */
+
+/**
+ * 조각들이 속한 노트의 주인을 한 번에 읽는다.
+ *
+ * 조각 표에는 주인이 없고 노트에만 있다. 타입에 칸만 내고 질의를 안 고치면 그 칸은
+ * 런타임에 undefined 가 되고, 원장은 예전처럼 빈칸이 된다 — 형 검사는 그것을 못 잡는다.
+ */
+async function ownersOf(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any, noteIds: readonly string[],
+): Promise<Map<string, string | null>> {
+  const ids = Array.from(new Set(noteIds))
+  if (ids.length === 0) return new Map()
+  const { data, error } = await admin
+    .from('meeting_notes').select('id, user_id').in('id', ids)
+  // supabase-js 는 오류를 던지지 않고 돌려준다. 안 보면 조용히 주인 없는 호출이 된다
+  if (error) {
+    console.error('[transcribe] 노트 주인 읽기 실패', error.message ?? error)
+    return new Map()
+  }
+  return new Map(((data ?? []) as { id: string; user_id: string | null }[])
+    .map((r) => [String(r.id), r.user_id ?? null]))
+}
+
 export async function drainTranscription(opts: {
   meta: Record<string, unknown>
   limit?: number
@@ -223,6 +254,12 @@ export async function drainTranscription(opts: {
   const started = Date.now()
   const deadline = opts.deadlineMs ?? 240_000
   const parts = await claimPendingParts(opts.limit ?? 6)
+  // 맡은 조각들의 노트 주인을 한 번에 읽는다 — 조각마다 질의하면 조각 수만큼 왕복한다
+  const owners = await (async () => {
+    const { createAdminClient } = await import('../supabase/server.ts')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return ownersOf(createAdminClient() as any, parts.map((p) => p.note_id))
+  })()
 
   let transcribed = 0
   let failed = 0
@@ -240,7 +277,7 @@ export async function drainTranscription(opts: {
       remaining += 1
       continue
     }
-    const ok = await transcribeOnePart(part, provider)
+    const ok = await transcribeOnePart(part, provider, owners.get(part.note_id) ?? null)
     if (ok) transcribed += 1
     else failed += 1
   }

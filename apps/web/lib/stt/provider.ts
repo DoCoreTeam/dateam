@@ -47,6 +47,13 @@ export interface SttInput {
    * 안 주면 구간마다 화자 이름이 새로 시작해 "화자1"이 매번 다른 사람이 된다.
    */
   priorContext?: string
+  /**
+   * 이 녹음을 켠 사람. 배경 일꾼이 돌려도 그 회의의 주인은 있다.
+   *
+   * 선택이 아니라 필수인 이유: 실측 2026-09-20 원장 50,243건이 전부 주인이 비어 있었다.
+   * 선택으로 두면 «이 호출부는 다음에» 가 남고, 그 다음은 안 온다.
+   */
+  actorId: string | null
 }
 
 export interface SttProvider {
@@ -207,7 +214,7 @@ export function openAiCompatibleStt(opts: {
 
         이 업체가 등록된 공급자가 아니면(예: 나중에 붙는 다른 전사 업체) 키 교체 없이
         한 번만 부른다 — 표에 그 공급자 칸이 없으니 고를 것도 없다.
-        分類는 우리가 이미 SttError 로 해 두었으므로 문구로 되돌려 추측하게 하지 않는다.
+        분류는 우리가 이미 SttError 로 해 두었으므로 문구로 되돌려 추측하게 하지 않는다.
       */
       const providerId = isAiProviderId(opts.vendor) ? opts.vendor : null
       const runOnce = async (apiKey: string): Promise<SttResult> => {
@@ -215,6 +222,7 @@ export function openAiCompatibleStt(opts: {
         input.bytes.byteLength,
         {
           surface: 'meeting/stt', purpose: 'transcribe', media: 'audio',
+          actorId: input.actorId,
           providerId: opts.vendor, modelName: opts.model,
           knownNames: await serverKnownNames(),
         },
