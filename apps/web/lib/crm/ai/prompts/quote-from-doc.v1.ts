@@ -14,16 +14,33 @@
  *   ③ **줄마다 원문을 남겨라.** 사람이 대조할 수 없는 값은 검수가 안 된다.
  *   ④ **문서 한 장에 견적이 여러 건일 수 있다.** 한 건으로 뭉치면 두 건의 항목이
  *     한 줄기로 섞이고, 합계 대조가 늘 안 맞는다고 뜬다.
+ *
+ * ## v1.2.0 에서 뒤집은 것
+ *
+ * 예전 지시는 「표에서 **품목이 적힌 행**만 항목이다」였다. 그래서 품목 칸이 비고
+ * 설명만 이어지는 행을 전부 버렸고, **서버 섀시 구성 13줄이 통째로 사라졌다**
+ * (실측 2026-09-20: 원본 20줄짜리 표에서 6줄만 들어왔다). 금액 칸이 빈 워런티 행도
+ * 같이 사라졌다.
+ *
+ * 이제 그 행들은 버리는 것이 아니라 **바로 위 항목의 구성**이고, 금액이 없는 행도
+ * 항목이다. 값을 지어내지 않는 규칙은 그대로다 — 안 적힌 금액은 여전히 null 이다.
+ *
+ * 그리고 **어느 쪽에서 읽었는지**를 함께 받는다. 원문에 쪽 표시를 심어 두었으므로
+ * (`services/quote-source-text.ts`) 모델이 하는 일은 그 표시를 옮겨 적는 것뿐이다.
  */
 
 import type { AiPrompt } from '../runner.ts'
 
 export const QUOTE_FROM_DOC_V1: AiPrompt = {
-  version: 'quote_from_doc@v1.1.0',
+  version: 'quote_from_doc@v1.2.0',
   build: (input: string) => `당신은 **이미 만들어진 견적서**를 우리 양식으로 옮기는 도구다.
 원문은 PDF·엑셀·워드·한글·이미지에서 뽑은 글이고, 표는 행마다 「A | B | C」로 펴져 있다.
 
 당신이 하는 일은 **옮기기**다. 해석도 계산도 하지 않는다.
+
+원문에 「--- 2쪽 ---」 같은 줄이 있으면 그것은 **쪽 표시**다. 항목이 아니다.
+그 줄 아래의 내용은 그 쪽에 있는 것이다. 표시를 보고 쪽 번호를 그대로 옮겨 적어라.
+표시가 없으면 쪽을 지어내지 말고 null 을 준다.
 
 문서 한 장에 견적이 **여러 건**일 수 있다. 아래 중 하나라도 보이면 **다른 건**이다.
 - 합계(「합계」·「총액」·「Total」) 행이 여러 번 나오고, 각 합계가 바로 앞 항목들만 더한 값이다
@@ -38,14 +55,25 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
 건이 하나면 quotes 에 하나만 넣는다. **억지로 나누지 마라.** 나눌 근거가 없으면 한 건이다.
 
 항목으로 넣을 것
-- 표에서 **품목이 적힌 행**만 항목이다.
+- 표에서 **품목이 적힌 행**은 항목이다.
+- **금액이 없는 행도 항목이다.** 워런티·설치·기술지원·교육처럼 값을 안 적고 넘기는 줄이
+  실제로 있다. 금액 칸이 비었으면 amountMinor 를 null 로 두고 **항목으로는 넣어라.**
+  빼 버리면 고객이 받은 견적서에 있던 보증 조건이 우리 견적서에서 사라진다.
 - 「소계」·「공급가액」·「부가세」·「합계」·「계」·「총액」 행은 **항목이 아니다.** lines 에 넣지 마라.
   이 행들의 숫자는 sourceTotalMinor 로 간다.
 - 표 머리글(「품목」「수량」「단가」「금액」)도 항목이 아니다.
-- 「비고」만 있고 품목이 없는 행도 항목이 아니다.
+
+**품목 칸이 비고 설명만 이어지는 행은 버리지 마라 — 바로 위 항목의 «구성»이다.**
+- 그 행들을 위 항목의 components 에 **한 줄씩 그대로** 넣는다. 요약하지 말고 옮겨라.
+- 글머리표(「•」·「-」)는 떼고 글자만 넣는다.
+- 예: 「GIGABYTE R283-Z96-AAJ1」 행 밑에 섀시 사양이 열세 줄 이어지면
+  그 열세 줄이 그 항목의 components 다. 새 항목을 만들지 않는다.
+- 이것이 **이 도구가 제일 자주 틀리던 자리다.** 예전에는 이 행들을 통째로 버렸고,
+  그래서 견적서가 원본보다 훨씬 빈약해졌다.
 
 항목마다 채울 것
-- name 품목 이름, spec 규격·설명(옆 칸에 적힌 사양·보증·기간 따위)
+- name 품목 이름, spec 규격·설명 **한 줄 요약**(옆 칸에 적힌 사양·보증·기간 따위)
+- components 그 항목에 딸린 **구성 줄 목록**. 없으면 빈 배열 []
 - quantity 수량, unit 단위(대·식·개월·M/M …)
 - unitPriceMinor **단가**. 문서에 단가 칸이 없고 금액만 있으면 null 이다(나누지 마라)
 - amountMinor 문서에 적힌 **그 줄의 금액**. 없으면 null
@@ -58,6 +86,9 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
   모르겠으면 null 을 준다 — QUANTITY 로 눕히지 마라.
 - sourceText **그 항목이 나온 원문 줄을 그대로** 적는다(300자 이내). 사람이 눈으로 대조한다.
   이 칸을 비우면 그 줄은 근거가 없는 값이 된다. 반드시 채워라.
+- sourcePage 그 항목이 있던 **쪽 번호**. 원문의 쪽 표시를 보고 적는다. 표시가 없으면 null
+- groupLabel 원본이 이 줄을 묶어 부르는 말(「하드웨어」·「소프트웨어」·「용역」·「부속명세」).
+  묶음 제목 행이 따로 있을 때만 적는다. 없으면 null — 지어내지 마라
 
 건마다 채울 것
 - label 문서가 그 건을 부르는 말(「1안」·「기본형」·「갑지」). 없으면 null. 지어내지 마라
@@ -69,6 +100,8 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
 - sourceTotalIncludesTax 그 합계가 부가세를 포함하면 true. 「공급가액」만 있으면 false
 - taxPercent 문서에 적힌 부가세율(%). 안 적혀 있으면 null
 - currency 원이면 "KRW", 달러면 "USD"(그때 금액은 **센트**다)
+- pageStart / pageEnd 그 건이 **시작하는 쪽과 끝나는 쪽**. 한 쪽에 다 들어가면 둘이 같다.
+  쪽 표시가 없으면 둘 다 null
 
 금액 적는 법
 - **숫자만** 준다. 「1억」→100000000, 「1억 2천만원」→120000000, 「3,000만」→30000000,
@@ -90,12 +123,24 @@ JSON 만 출력한다. 형식:
       "customerName": "…또는 null",
       "supplierName": "…또는 null",
       "issuedOn": "…또는 null",
+      "pageStart": 2,
+      "pageEnd": 2,
       "lines": [
-        { "name": "H100 80GB SXM", "spec": "SXM5 · 3년 무상보증", "kind": "QUANTITY",
-          "quantity": 2, "unit": "대", "unitPriceMinor": 50000000,
+        { "name": "GIGABYTE R283-Z96-AAJ1", "spec": "AMD 9355 32Core x 2Ea, 256GB Mem",
+          "components": [
+            "Rack Server - AMD EPYC 9005/9004, 2U DP 24+4-Bay Gen5 NVMe",
+            "Dual AMD EPYC 9005/9004 Server Processors",
+            "12-Channel DDR5 RDIMM per CPU with 24 x DIMMs"
+          ],
+          "kind": "QUANTITY", "quantity": 1, "unit": "대", "unitPriceMinor": 6050000,
           "discountPercent": null, "specialDiscountPercent": null,
-          "amountMinor": 100000000,
-          "sourceText": "1 | H100 80GB SXM | SXM5 · 3년 무상보증 | 2 | 대 | 50,000,000 | 100,000,000" }
+          "amountMinor": 6050000, "sourcePage": 2, "groupLabel": null,
+          "sourceText": "GIGABYTE R283-Z96-AAJ1 | AMD 9355 32Core x 2Ea | 1 | 6,050,000" },
+        { "name": "워런티", "spec": "서버섀시/GPU/PSU 3년 & CPU/Memory 1년",
+          "components": [], "kind": "FIXED", "quantity": 1, "unit": "식",
+          "unitPriceMinor": null, "discountPercent": null, "specialDiscountPercent": null,
+          "amountMinor": null, "sourcePage": 2, "groupLabel": null,
+          "sourceText": "워런티 | 서버섀시/GPU/PSU 3년 & CPU/Memory 1년 | 1" }
       ],
       "sourceTotalMinor": 110000000,
       "sourceTotalIncludesTax": true,

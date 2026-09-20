@@ -70,7 +70,7 @@
 의존: I02
 
 ### I04 읽기 지시를 뒤집는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ai/prompts/quote-from-doc.v1.ts, apps/web/lib/crm/ai/prompts/quote-from-doc-prompt.test.ts (신규)
 감사 기준:
