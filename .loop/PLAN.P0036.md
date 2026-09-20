@@ -1,6 +1,6 @@
 # PLAN newAX: 설정 화면 한 벌: 카드를 늘리지 않고 같은 그릇에 담는다
 플랜 ID: P0036
-플랜 버전: v0.1.1
+플랜 버전: v0.1.3
 상태: 진행중
 지시: iv_0081
 목표 버전: v0.10.264
@@ -60,12 +60,12 @@
 의존: I01
 
 ### I03 영업 CRM 설정을 공용 그릇으로 옮기고 넷으로 묶는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(crm)/crm/settings/page.tsx, apps/web/app/(crm)/crm/settings/settings.module.css, apps/web/lib/crm/domain/settings-tab.ts (신규), apps/web/lib/crm/domain/settings-tab.test.ts (신규)
+범위: apps/web/components/ui/settings/SettingsCards.tsx (신규), apps/web/lib/ui/settings-parity.test.ts, apps/web/app/(crm)/crm/settings/page.tsx, apps/web/app/(crm)/crm/settings/settings.module.css, apps/web/lib/crm/domain/settings-tab.ts (신규), apps/web/lib/crm/domain/settings-tab.test.ts (신규), apps/web/app/(crm)/crm/settings/SettingsCard.tsx, apps/web/package.json
 감사 기준:
 - 계측 시험의 영업 CRM 설정이 빈 자리 5% 이하 (지금 43%)
-- node --test lib/crm/domain/settings-tab.test.ts 가 카드 12개가 빠짐없이 한 탭에 정확히 한 번씩 들어감을 단정하고 통과
+- node --test lib/crm/domain/settings-tab.test.ts 가 카드 13장(부품 12개, SettingsCard 하나가 둘을 그림)이 빠짐없이 한 탭에 정확히 한 번씩 들어감을 단정하고 통과
 - 그 시험을 apps/web/package.json 의 test 한 줄에 등재하고 등재 전후 총 시험 수가 실제로 늘어남을 확인
 - pnpm tsc --noEmit, pnpm lint 통과
 의존: I01
@@ -120,3 +120,7 @@
 ## 변경 이력
 - v0.1.0 (2026-09-20) 최초 작성 (iv_0081)
 - v0.1.1 (2026-09-20) I01 범위에 용어 상수 파일과 부품 목록 가드를 더함, 새 부품이 기존 단정을 깨뜨리고 새 화면 문자열은 용어집을 거쳐야 함 (audit:I01)
+- v0.1.2 (2026-09-20) I03 범위에 공용 카드 그릇(SettingsCards)과 부품 목록 가드와 시험 등재를 더함, 영업 CRM 과 RFP 관리자는 둘 다 서버 화면이라 탭·검색 상태를 쥘 수 없어 그릇 쪽에 클라이언트 변형이 있어야 함 (audit:I03)
+- v0.1.2 (2026-09-20) I03 범위에 공용 카드 그릇 SettingsCards 를 더함 — 영업 CRM 과 RFP 관리자는 서버 화면이라 탭·검색 상태를 쥘 수 없고, 화면마다 클라이언트 껍데기를 하나씩 만들면 그릇이 다시 갈린다 (audit:I03)
+- v0.1.3 (2026-09-20) I03 범위에 app/(crm)/crm/settings/SettingsCard.tsx 를 더함, 한 부품이 카드 둘(견적서 공급자 정보·AI·연동 설정)을 그려서 AI 카드가 견적 탭에 실려 나왔음 — 실브라우저에서 확인 (audit:I03)
+- v0.1.3 (2026-09-20) I03 범위에 CRM SettingsCard 를 더함 — 한 부품이 견적서 공급자 정보와 AI·연동 설정 두 카드를 그려서 어느 탭에 넣어도 한쪽이 거짓말을 한다, 부품이 한 묶음만 그리게 하고 목록이 둘을 따로 세운다 (audit:I03)

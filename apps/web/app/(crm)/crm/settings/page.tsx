@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Settings } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import CrmGroupTabs from '@/components/crm/CrmGroupTabs'
@@ -14,7 +15,10 @@ import ExportCard from './ExportCard'
 import ImportCard from './ImportCard'
 import AutomationCard from './AutomationCard'
 import { resolveCrmAccess, hasCrmRole } from '@/lib/crm/auth/requireCrmMember'
-import styles from './settings.module.css'
+import SettingsCards, { type SettingsCardEntry } from '@/components/ui/settings/SettingsCards'
+import {
+  CRM_SETTINGS_CARDS, CRM_SETTINGS_TAB, CRM_SETTINGS_TAB_ORDER,
+} from '@/lib/crm/domain/settings-tab'
 
 export const metadata = { title: '설정 · 영업 CRM' }
 
@@ -27,6 +31,34 @@ export default async function CrmSettingsPage() {
   const access = await resolveCrmAccess()
   const canEdit = access.ok ? hasCrmRole(access.session.role, 'ADMIN') : false
 
+  /*
+    카드가 서는 자리는 `lib/crm/domain/settings-tab.ts` 가 정한다.
+    여기서는 이름과 알맹이만 짝지어 준다 — 목록에 없는 이름을 쓰면 시험이 먼저 잡는다.
+
+    예전에는 딜을 만들 때 고르는 순서대로(파이프라인 → 사업 유형) 한 격자에 열두 장을
+    늘어놓았다. 사업 유형만 여기 있고 파이프라인은 「영업 단계」 화면에 얹혀 있던 시절의
+    흔적이다(DealBoard.tsx:250 · DealsClient.tsx:138 — 사용자 지적 2026-09-09).
+    이제 그 순서는 「영업 단계」 탭 안에 그대로 있다.
+  */
+  const node: Record<string, ReactNode> = {
+    PipelineCard: <PipelineCard canEdit={canEdit} />,
+    BusinessTypeCard: <BusinessTypeCard canEdit={canEdit} />,
+    'SettingsCard.quote': <SettingsCard group="quote" />,
+    QuoteTermsCard: <QuoteTermsCard />,
+    BudgetCard: <BudgetCard />,
+    'SettingsCard.ai': <SettingsCard group="ai" />,
+    AutoApplyCard: <AutoApplyCard />,
+    AutomationCard: <AutomationCard />,
+    IntegrationCard: <IntegrationCard />,
+    DataCheckCard: <DataCheckCard />,
+    DuplicatesCard: <DuplicatesCard />,
+    ImportCard: <ImportCard />,
+    ExportCard: <ExportCard />,
+  }
+  const cards: SettingsCardEntry[] = CRM_SETTINGS_CARDS.map((c) => ({
+    id: c.id, tab: c.tab, title: c.title, keywords: c.keywords, content: node[c.id],
+  }))
+
   return (
     <>
       <PageHeader
@@ -37,27 +69,10 @@ export default async function CrmSettingsPage() {
         below={<CrmGroupTabs />}
       />
       {/* 카드마다 저장한다(§2-5-4) — 탭 하단 일괄 저장 바를 두지 않는다 */}
-      <div className={styles.grid}>
-        {/*
-          딜을 만들 때 고르는 순서대로 둔다 — 파이프라인 → 사업 유형.
-          예전에는 사업 유형만 여기 있고 파이프라인은 「영업 단계」 화면에 얹혀 있었다.
-          정작 딜 화면은 「설정에서 파이프라인을 만들면」이라 안내하고 있었다
-          (DealBoard.tsx:250 · DealsClient.tsx:138 — 사용자 지적 2026-09-09).
-        */}
-        <PipelineCard canEdit={canEdit} />
-        <BusinessTypeCard canEdit={canEdit} />
-        <BudgetCard />
-        <SettingsCard />
-        {/* 거래 조건은 견적서에 인쇄되는 것이라 공급자 설정 바로 다음이다 */}
-        <QuoteTermsCard />
-        <AutoApplyCard />
-        <IntegrationCard />
-        <DataCheckCard />
-        <DuplicatesCard />
-        <AutomationCard />
-        <ImportCard />
-        <ExportCard />
-      </div>
+      <SettingsCards
+        groups={CRM_SETTINGS_TAB_ORDER.map((t) => ({ id: t, label: CRM_SETTINGS_TAB[t].label }))}
+        cards={cards}
+      />
     </>
   )
 }

@@ -1,15 +1,7 @@
 /* CRM 설정 (dacrm §3.6) — 화면 전용 스타일 */
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--space-4);
-  /* 나란한 카드는 행 단위로 높이를 맞춘다(§2-5-5) — 정렬이 빈 공간보다 우선 */
-  align-items: stretch;
-}
-
-
-
+/* 카드 배치는 공용 그릇(components/ui/settings/SettingsPanel)이 한다 —
+   여기 있던 .grid 는 열두 장을 한 격자에 늘어놓던 시절의 것이라 뺐다 */
 
 .blocked {
   margin: 0;
