@@ -106,6 +106,15 @@ export async function runSignalSweep(workspaceId: string): Promise<SignalSweepRe
     await recordSystemEventAsync({
       source: 'host_ai', feature: 'ci.signals', error: e,
       workspaceId, blocksUser: false, hint: model,
+      /*
+        **웹 검색을 켜고 불렀다는 사실을 같이 보낸다.**
+
+        웹 검색 한도는 모델별이 아니라 키 단위라, 일반 한도용 조언(「다른 모델로 바꾸세요」)이
+        여기서는 틀린 답이다. 이 값을 안 보내는 동안 화면은 92건 내내 모델을 바꾸라고 했고
+        원문은 「이건 모델을 바꿔도 풀리지 않습니다」라고 했다 — **화면이 자기 말을 뒤집었다**
+        (실측 2026-09-20). 위 97줄에서 webSearch 를 켜 놓고 여기서 안 넘긴 자리다.
+      */
+      context: { webSearch: true },
     })
     const msg = e instanceof Error ? e.message : '이슈를 찾아오지 못했습니다'
     return { ok: false, errorCode: 'AI_FAILED', errorMessage: msg, note: msg, found: 0, inserted: 0 }

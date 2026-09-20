@@ -9,10 +9,57 @@ import { headlineOf, detailOf, occurrenceLine, truncateRaw, maskSecrets, humanSe
 import { classifySystemReason, severityOf, normalizeMessage, fingerprintOf } from './reason.ts'
 import { featureLabel, sourceLabel, reasonLabel } from './labels.ts'
 import { read, stripComments } from '../ui/component-scan.ts'
+import { readdirSync, readFileSync } from 'node:fs'
 
 const at = (iso: string) => iso.slice(11, 16)
 
 // ── 사실 문장 ────────────────────────────────────────────────
+
+/**
+ * `recordSystemEvent…(…)` 의 **인자만** 잘라 낸다 — 괄호 균형으로 센다.
+ *
+ * 파일 어딘가에 `webSearch` 가 있는지로 보면 안 된다. 실제로 그렇게 짰다가
+ * 어댑터를 만드는 줄(`hostAdapter(…, { webSearch: true })`)에 걸려, 기록에서 값을
+ * 빼도 가드가 초록이었다. **값이 어디로 가는지**를 봐야 가드다.
+ */
+function recordCallArgs(src: string): string[] {
+  const out: string[] = []
+  const re = /recordSystemEvent(?:Async)?\s*\(/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(src)) !== null) {
+    let depth = 1
+    let i = m.index + m[0].length
+    const start = i
+    while (i < src.length && depth > 0) {
+      if (src[i] === '(') depth += 1
+      else if (src[i] === ')') depth -= 1
+      i += 1
+    }
+    out.push(src.slice(start, i - 1))
+  }
+  return out
+}
+
+/**
+ * 시스템 로그를 남기는 파일들. **손목록이 아니라 훑어서 얻는다** —
+ * 손으로 적으면 새 파일이 생길 때 그 자리가 조용히 빠진다.
+ */
+function recorderFiles(): string[] {
+  const roots = ['lib', 'app']
+  const out: string[] = []
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === 'node_modules' || e.name.startsWith('.')) continue
+      const full = `${dir}/${e.name}`
+      if (e.isDirectory()) { walk(full); continue }
+      if (!/\.tsx?$/.test(e.name) || /\.test\.tsx?$/.test(e.name)) continue
+      if (full.includes('lib/system-log/')) continue
+      if (/recordSystemEvent/.test(readFileSync(full, 'utf8'))) out.push(full)
+    }
+  }
+  for (const r of roots) walk(r)
+  return out
+}
 
 test('첫 줄은 사용자가 부르는 기능 이름으로 말한다 — 코드 이름이 아니다', () => {
   const h = headlineOf({ source: 'crm_ai', reason: 'quota', feature: 'enrich-web' })
@@ -436,6 +483,36 @@ test('★ 화면 첫 줄로 가는 값은 가린 뒤의 것이어야 한다 — 
   assert.ok(!/rawMessage/.test(narrateBlock), '가리기 전 값이 화면 문장으로 가면 안 된다')
   // 실제로 가려지는지도 확인한다 — 규칙만 보고 넘어가지 않는다
   assert.ok(!humanSentenceOf(maskSecrets('키가 틀렸습니다 ?key=AIzaSyABCDEFGHIJKL'))!.includes('AIzaSy'))
+})
+
+// ── 웹 검색 한도 조언은 자리마다 새지 않아야 한다 (2026-09-20 실측) ────────────
+//
+// `narrate.ts` 에는 웹 검색용 갈래가 **이미 있었다.** 그런데 `signals-server.ts` 가
+// 97줄에서 webSearch 를 켜 놓고 기록에는 안 실었다. 그래서 갈래가 한 번도 안 골라졌고,
+// 92건 내내 화면은 「모델을 바꾸면 됩니다」, 원문은 「모델을 바꿔도 안 풀립니다」였다.
+//
+// 자리를 손으로 세 개 적어 두면 네 번째가 생길 때 그대로 샌다.
+// 그래서 **파생 목록**으로 본다 — 기록을 남기면서 webSearch 를 아는 파일이면 전부 걸린다.
+
+test('★ 기록을 남기면서 webSearch 를 아는 파일은 그 값을 기록에 실어야 한다 (파생 목록)', () => {
+  const files = recorderFiles().filter((f) => /webSearch/.test(stripComments(read(f))))
+  assert.ok(files.length >= 2, `webSearch 를 아는 기록 파일이 ${files.length}개뿐이다 — 탐색이 깨졌다`)
+  for (const f of files) {
+    const args = recordCallArgs(stripComments(read(f)))
+    assert.ok(args.length > 0, `${f}: 기록 호출을 못 잘랐다`)
+    assert.ok(
+      args.some((a) => /webSearch/.test(a)),
+      `${f}: webSearch 를 알면서 **기록 인자에는** 안 싣고 있다 — 화면이 반대 조언을 한다`,
+    )
+  }
+})
+
+test('★ 웹 검색 한도와 일반 한도는 화면에서 다른 말을 한다 — 같은 말이면 갈래를 둔 뜻이 없다', () => {
+  const web = detailOf({ source: 'host_ai', reason: 'quota', webSearch: true })
+  const plain = detailOf({ source: 'host_ai', reason: 'quota', webSearch: false })
+  assert.notEqual(web, plain)
+  assert.ok(!/다른 모델로 바꾸면 됩니다/.test(web), '웹 검색 한도에 모델 교체는 틀린 답이다')
+  assert.match(web, /모델을 바꿔도 풀리지 않습니다/)
 })
 
 // ── 웹 검색 한도는 다른 바구니다 (2026-08-24 실측) ────────────
