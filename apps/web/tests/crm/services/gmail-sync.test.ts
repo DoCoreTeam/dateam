@@ -56,13 +56,38 @@ async function cleanup() {
     where: { name: { contains: MARK }, deletedAt: undefined }, select: { id: true },
   })).map((p) => p.id)
 
+  /*
+    **감사 로그는 이 테스트가 만든 것만 지운다.**
+
+    예전에는 `action` 만 조건으로 삼았다 — `activity.captured` 와 `integration.errored` 를
+    통째로 지우는 것이라, 실제로 메일에서 잡힌 활동의 이력까지 같이 날아간다.
+    같은 모양의 구문이 설정 테스트에서 사용자의 견적서 공급자 정보를 지웠다(2026-09-20).
+    그래서 지우기 전에 **내가 만든 대상의 id 를 먼저 모은다.**
+  */
+  const aIds = (await dbA.crmActivity.findMany({
+    where: { gmailMessageId: { startsWith: 'm-test-' } }, select: { id: true },
+  })).map((a) => a.id)
+
+  const dIds = (await dbA.crmDeal.findMany({
+    where: { companyId: { in: cIds } }, select: { id: true },
+  })).map((d) => d.id)
+
   await dbA.crmActivity.deleteMany({ where: { gmailMessageId: { startsWith: 'm-test-' } } })
   await dbA.crmDealContact.deleteMany({ where: { personId: { in: pIds } } })
   await dbA.crmStageHistory.deleteMany({ where: { deal: { companyId: { in: cIds } } } })
   await dbA.crmDeal.deleteMany({ where: { companyId: { in: cIds } } })
   await dbA.crmPerson.deleteMany({ where: { id: { in: pIds } } })
   await dbA.crmCompany.deleteMany({ where: { id: { in: cIds } } })
-  await dbA.crmAuditLog.deleteMany({ where: { action: { in: ['activity.captured', 'integration.errored'] } } })
+
+  /*
+    이력도 **만든 대상 id 로만** 지운다.
+
+    예전에는 회사·인물·딜을 지우고 그 이력은 두고 갔다 — 대상이 없는 이력만 운영 DB 에
+    쌓였고(한 번 돌 때마다 17줄), 대신 남의 `activity.captured` 를 통째로 지웠다.
+    둘 다 같은 원인이다: 조건이 «내가 만든 것»이 아니라 «종류»였다.
+  */
+  const made = [...aIds, ...cIds, ...pIds, ...dIds, CONN]
+  await dbA.crmAuditLog.deleteMany({ where: { targetId: { in: made } } })
 }
 
 test('시작 전 준비', async () => {

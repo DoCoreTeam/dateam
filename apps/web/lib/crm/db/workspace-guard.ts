@@ -101,6 +101,14 @@ const SOFT_DELETE_OPS = new Set([
 ])
 
 /** where 를 갖는 연산 */
+/**
+ * 되돌릴 수 없는 연산.
+ *
+ * 읽기 조건과 지우기 조건은 **같으면 안 된다.** 읽기를 넓히는 것은 친절이지만
+ * 지우기를 넓히는 것은 사고다(2026-09-20: 넓은 조건 하나가 사용자 설정 여덟 줄을 지웠다).
+ */
+const DESTRUCTIVE_OPS = new Set(['delete', 'deleteMany'])
+
 const WHERE_OPS = new Set([
   'findFirst', 'findFirstOrThrow', 'findUnique', 'findUniqueOrThrow', 'findMany',
   'update', 'updateMany', 'delete', 'deleteMany',
@@ -249,6 +257,19 @@ export function injectWorkspaceFilter(
           mismatch(model, 'workspaceId', existing, workspaceId)
         }
         return { ...a, where: w } // 호출부가 스코프를 명시했으면 그대로 존중한다
+      }
+      /*
+        **지우기에는 GLOBAL 을 끼워 넣지 않는다.**
+
+        읽기에서 「내 것 + GLOBAL」은 맞는 규칙이다 — GLOBAL 은 기본값이고 내 값이 없으면
+        그것을 봐야 한다. 그런데 같은 규칙을 지우기에 쓰면 뜻이 뒤집힌다:
+        **한 워크스페이스가 모두의 공용 설정을 지울 수 있게 된다.**
+        조건에 GLOBAL 을 안 적은 사람은 자기 것만 지울 생각이었지, 남의 기본값까지
+        지울 생각이 아니었다. 정말 GLOBAL 을 지우려면 `workspaceId: null` 을 적으면 된다 —
+        위의 «명시했으면 존중한다» 갈래로 간다.
+      */
+      if (DESTRUCTIVE_OPS.has(operation)) {
+        return { ...a, where: { ...w, workspaceId } }
       }
       return {
         ...a,

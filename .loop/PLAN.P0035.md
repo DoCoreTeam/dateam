@@ -1,6 +1,6 @@
 # PLAN newAX: 운영 설정을 지운 테스트를 막고, 오래 걸리는 일이 무엇을 하는지 말하게 한다
 플랜 ID: P0035
-플랜 버전: v0.2.1
+플랜 버전: v0.2.2
 상태: 진행중
 지시: ins_0045
 목표 버전: v0.10.253
@@ -36,7 +36,7 @@
 ## 항목
 
 ### I01 설정 테스트가 운영 설정을 지우지 않게 한다
-상태: 진행중
+상태: 통과
 모드: 경량
 범위: apps/web/tests/crm/services/setting.test.ts, apps/web/lib/crm/services/setting.ts
 감사 기준:
@@ -48,13 +48,15 @@
 의존: 없음
 
 ### I02 운영 워크스페이스를 넓은 조건으로 지우는 나머지 구문을 좁힌다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/tests/crm/services/gmail-sync.test.ts, apps/web/tests/crm/integrity/DI-14.test.ts, apps/web/tests/crm/services/budget.test.ts
+범위: apps/web/tests/crm/services/gmail-sync.test.ts, apps/web/lib/crm/db/workspace-guard.ts, apps/web/lib/crm/db/workspace-guard.test.ts
 감사 기준:
-- 감사 로그를 action 만으로 지우는 구문이 사라지고, 테스트가 만든 targetId 로만 지움 (gmail-sync.test.ts, budget.test.ts)
-- 이번 달 예산 행을 month 만으로 지우는 구문이 사라짐 (DI-14.test.ts) — 지우는 대신 되돌려 놓거나 전용 워크스페이스를 씀
-- node --test 로 세 파일을 돌린 뒤 crm_audit_log 의 action='activity.captured' 행 수와 crm_ai_budget 의 이번 달 행이 돌리기 전과 같음
+- 감사 로그를 action 만으로 지우는 구문이 사라지고, 테스트가 만든 targetId 로만 지움 (gmail-sync.test.ts)
+- DI-14 와 budget 은 전수 확인 결과 이미 안전함을 근거와 함께 기록 (DI-14 는 MONTH='2099-11' 로 실사용 월과 안 겹치고, budget 은 dbB=ws_integrity_b 전용 워크스페이스이며 워크스페이스 가드가 deleteMany 의 where 에 workspaceId 를 주입함)
+- 워크스페이스 가드가 CrmAppSetting 같은 nullable 모델의 지우기에 GLOBAL(workspaceId=null) 행을 끼워 넣지 않음 — 읽기는 「내 것 + GLOBAL」이 맞지만 지우기에 같은 규칙을 쓰면 한 워크스페이스가 공용 설정을 지운다
+- workspace-guard.test.ts 가 그 차이를 단정하고, 옛 규칙으로 되돌리면 실패함을 확인
+- node --test 로 gmail-sync 를 돌린 뒤 crm_audit_log 총 행 수가 돌리기 전과 같음
 의존: I01
 
 ### I03 테스트가 운영 데이터를 지우지 못하게 가드로 잠근다
@@ -127,8 +129,12 @@
 
 ## 변경 이력
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0045)
+- v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 lib/crm/services/setting.ts 추가 — 전용 워크스페이스로 옮기고 나서야 드러난 선재 실패 1건(설명 10자)을 같은 항목에서 고침 (--ref audit:I01)
 - v0.2.0 (2026-09-20) I07 을 선행으로 돌리고(의존 없음) 되살릴 값을 캡처 실측값으로 확정, quote.numberFormat 유실을 범위에 추가, 설정 카드 단추 문구 I08 추가 (--ref iv_0082)
+- v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 lib/crm/services/setting.ts 추가 — 전용 워크스페이스로 옮기고 나서야 드러난 선재 실패 1건(설명 10자)을 같은 항목에서 고침 (--ref audit:I01)
 - v0.2.0 (2026-09-20) I07 선행 전환, numberFormat 유실 추가, 설정 카드 단추 I08 추가 (iv_0082)
+- v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 setting.ts 추가, 선재 실패 1건 동반 수정 (audit:I01)
+- v0.2.2 (2026-09-20) I02 범위 조정: DI-14·budget 은 이미 안전, 워크스페이스 가드의 GLOBAL 지우기 구멍 추가 (audit:I02)

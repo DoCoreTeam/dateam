@@ -365,3 +365,41 @@ test('OR·NOT 안의 deletedAt 은 범위 선언으로 읽지 않는다 — 깊�
   ) as Record<string, any>
   assert.equal(out.where.deletedAt, null)
 })
+
+// ------------------------------------------------------------
+// 지우기는 읽기보다 좁아야 한다 (실측 2026-09-20)
+// ------------------------------------------------------------
+
+/*
+  설정 표의 넓은 `deleteMany` 하나가 사용자의 견적서 공급자 정보 여덟 줄을 지웠다.
+  그 사고는 워크스페이스 결합이 원인이었지만, 같은 자리에 **또 하나의 구멍**이 있었다:
+  nullable 모델은 조건에 workspaceId 가 없으면 `OR [null, 내것]` 이 붙는데,
+  그게 지우기에도 그대로 붙어서 **한 워크스페이스가 모두의 GLOBAL 기본값을 지울 수 있었다.**
+  읽기를 넓히는 것은 친절이고 지우기를 넓히는 것은 사고다. 그 둘을 여기서 갈라 놓는다.
+*/
+
+test('★ CrmAppSetting 지우기에는 GLOBAL 이 안 끼어든다 — 남의 기본값까지 지우면 안 된다', () => {
+  for (const op of ['delete', 'deleteMany']) {
+    const out = injectWorkspaceFilter(
+      { where: { key: 'quote.supplier.name' } }, WS, op, 'CrmAppSetting',
+    ) as Record<string, any>
+    assert.equal(out.where.workspaceId, WS, `${op} 이 내 워크스페이스로 안 좁혀졌다`)
+    assert.equal('OR' in out.where, false,
+      `${op} 에 GLOBAL(null) 이 함께 걸린다 — 한 워크스페이스가 공용 설정을 지운다`)
+  }
+})
+
+test('★ 읽기는 그대로 GLOBAL 을 함께 본다 — 지우기만 좁힌 것이지 읽기를 좁힌 게 아니다', () => {
+  for (const op of ['findMany', 'findFirst', 'update', 'updateMany']) {
+    const out = injectWorkspaceFilter({ where: {} }, WS, op, 'CrmAppSetting') as Record<string, any>
+    assert.deepEqual(out.where.OR, [{ workspaceId: null }, { workspaceId: WS }],
+      `${op} 에서 GLOBAL 기본값이 안 보이면 설정이 없는 것처럼 읽힌다`)
+  }
+})
+
+test('★ GLOBAL 을 정말 지우려면 workspaceId: null 을 적는다 — 뜻을 밝힌 쪽은 존중한다', () => {
+  const out = injectWorkspaceFilter(
+    { where: { workspaceId: null, key: 'k' } }, WS, 'deleteMany', 'CrmAppSetting',
+  ) as Record<string, any>
+  assert.equal(out.where.workspaceId, null)
+})
