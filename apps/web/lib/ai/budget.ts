@@ -151,3 +151,28 @@ export function toBudgetLimit(row: unknown): BudgetLimit | null {
     enabled: r.enabled !== false,
   }
 }
+
+/**
+ * 상한에 걸려 안 나간 호출. 벤더로는 한 글자도 안 갔다는 뜻이다.
+ *
+ * ## 왜 순수 계층에 있나
+ *
+ * 던지는 자리(가림 한 겹·RFP 관문)와 세는 자리(budget-gate.ts)가 다르다. 세는 자리는
+ * 서비스롤을 쓰므로 `server-only` 를 달고 있고, 그 모듈을 끌어오는 순간 던지기만 하려던
+ * 쪽까지 서버 묶음에 묶인다. 실제로 RFP 관문이 그렇게 묶여 단위 시험 여덟 개가 죽었다.
+ * 이름과 모양은 규칙이지 왕복이 아니므로 여기 둔다.
+ */
+export class BudgetDeniedError extends Error {
+  readonly reason: BudgetDenyReason
+  readonly retryAtIso: string
+  /** 화면에 그대로 띄울 수 있는 말 */
+  readonly userMessage: string
+
+  constructor(d: Extract<BudgetDecision, { allowed: false }>) {
+    super(`ai_budget_denied(${d.reason}): ${d.message}`)
+    this.name = 'BudgetDeniedError'
+    this.reason = d.reason
+    this.retryAtIso = d.retryAtIso
+    this.userMessage = d.message
+  }
+}

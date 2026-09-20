@@ -24,6 +24,8 @@ import {
 } from '@ax/ai-gateway'
 import { decideTransfer, type DocClass, type TransferDecision } from '../domain/doc-class.ts'
 import { type AiModel } from './models.ts'
+import { resolveBudgetGate } from '../../ai/guarded-call.ts'
+import { BudgetDeniedError } from '../../ai/budget.ts'
 
 export {
   TransferBlockedError,
@@ -56,10 +58,34 @@ function docClassGate(model: AiModel, req: CallRequest): GateDecision {
   return d.allowed ? { allowed: true, internal: d.internal } : { allowed: false, reason: d.reason }
 }
 
-export function callWithFallback(
+/**
+ * 이 창구의 예산 이름.
+ *
+ * 관문 쪽 `purpose` 는 «무엇을 하려고» 이고 예산은 «어느 기능» 단위다. RFP 의 AI 는
+ * 한 예산을 나눠 쓰므로 여기서 한 이름으로 묶는다. 나중에 갈라야 하면
+ * ai_call_budget 에 줄을 더하고 이 함수만 고친다.
+ */
+const RFP_BUDGET_FEATURE = 'rfp'
+
+/**
+ * 등급 관문 위에 **예산 관문**을 얹는다.
+ *
+ * 왜 여기인가: 벤더를 부르는 길이 셋인데(가림 한 겹, Gemini 공통 호출기, 이 관문)
+ * 상한을 창구마다 붙이면 언젠가 한 곳이 빠지고, 빠진 그 길로 예산 밖 호출이 나간다.
+ * 실측 2026-09-20: 상한을 아는 자리가 0곳이라 하루 23,318건이 나갔고 그중 22,131건은
+ * 어차피 한도로 실패했다 — 보내 봐야 못 가는 호출이었다.
+ *
+ * 막히면 **모델을 한 번도 안 두드리고** 던진다. 등급 관문보다 먼저 서는 이유는,
+ * 예산이 없으면 어느 모델로 가든 결과가 같기 때문이다.
+ */
+export async function callWithFallback(
   chain: readonly AiModel[],
   req: CallRequest,
   deps: GatewayDeps,
 ): Promise<CallResult> {
+  const gate = await resolveBudgetGate()
+  const decision = await gate.check(RFP_BUDGET_FEATURE)
+  if (!decision.allowed) throw new BudgetDeniedError(decision)
+
   return callGateway(chain, req, { ...deps, gate: docClassGate })
 }

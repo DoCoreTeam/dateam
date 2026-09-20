@@ -25,6 +25,78 @@
 
 import { maskPii, unmaskPii, hasUnmaskedPii, countByKind, type PiiHit } from '@ax/ai-gateway'
 import { AI_CONTRACT_VERSION } from '@ax/ai-core'
+import type { BudgetGate } from './budget-gate.ts'
+import { BudgetDeniedError, decideBudget } from './budget.ts'
+
+/*
+  ## 예산 관문 (P0030 I08)
+
+  가림과 기록이 지나는 이 자리가 **벤더로 나가기 직전의 마지막 공통 지점**이다.
+  상한 확인을 창구마다 붙이면 언젠가 한 곳이 빠지고, 빠진 그 길로 예산 밖 호출이 나간다.
+
+  실측 2026-09-20: 상한을 아는 자리가 0곳이라 하루 23,318건이 나갔다. 무료 등급 예산의
+  38.9배이고, 그중 22,131건은 어차피 한도로 실패했다 — 보내 봐야 못 가는 호출이었다.
+
+  ### 왜 창구를 갈아 끼울 수 있게 두나
+
+  이 파일은 Supabase 를 안 끌어온다(끌어오면 순수 시험이 앱 별칭 설정을 요구한다).
+  기본값은 **진짜로 세는 창구**이고, 안 주고 부를 수 있는 길이 곧 세는 길이 된다.
+  원장(ledger.ts)이 기본값을 둔 것과 같은 이유다 — 안 주면 안 세는 길을 남기면
+  이관이 절반에서 멈춘다.
+*/
+let gateOverride: BudgetGate | null = null
+
+/** 테스트가 가짜 창구를 끼운다. 운영 경로에서는 부르지 않는다 */
+export function setBudgetGateForTest(g: BudgetGate | null): void {
+  gateOverride = g
+  serverGate = null
+}
+
+let serverGate: Promise<BudgetGate> | null = null
+
+/**
+ * 예산을 물을 창구를 내어 준다. **벤더로 나가는 다른 길도 여기서 받아 간다** —
+ * RFP 관문이 자기 창구를 따로 만들면 끼워 넣은 가짜가 한쪽에만 들어가고, 그 틈이
+ * 곧 예산 밖으로 나가는 길이 된다.
+ *
+ * 세는 모듈을 못 불러오면 «항상 통과»를 준다. 세는 쪽은 서비스롤을 쓰느라
+ * `server-only` 를 달고 있어서 서버 밖(단위 시험 같은 곳)에서는 아예 안 열린다.
+ * 그때 막아 버리면 관측 장치가 새 단일 장애점이 된다 — 이 저장소가 이미 겪은 사고다.
+ */
+export async function resolveBudgetGate(): Promise<BudgetGate> {
+  if (gateOverride) return gateOverride
+  return await (serverGate ??= import('./budget-gate.ts')
+    .then((m) => m.serverBudgetGate())
+    .catch((e) => {
+      console.error('[ai] 예산 창구를 못 열었다', e instanceof Error ? e.message : e)
+      return { check: async () => decideBudget(null, EMPTY_USAGE) }
+    }))
+}
+
+const EMPTY_USAGE = { usedToday: 0, usedLastMinute: 0, oldestInWindowIso: null }
+
+/**
+ * 보내도 되는지 묻고, 안 되면 **원장에 적고** 던진다.
+ *
+ * 거절도 사건이다. 안 적으면 「오늘 왜 아무 일도 안 일어났나」에 답할 수 없고,
+ * 화면은 조용히 0건이 된다. 다만 전송 기록은 **안 적는다** — 나간 것이 없기 때문이다.
+ * 나가지 않은 것을 나갔다고 적는 원장은 아무 기록도 없는 것보다 나쁘다.
+ */
+async function askBudget(ctx: GuardedCallContext, ledger: AiLedger): Promise<void> {
+  const gate = await resolveBudgetGate()
+  const decision = await gate.check(ctx.surface)
+  if (decision.allowed) return
+
+  const err = new BudgetDeniedError(decision)
+  await ledger.recordCall({
+    surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+    provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+    input_tokens: null, output_tokens: null, cost_krw: null, latency_ms: 0,
+    ok: false, error: err.message.slice(0, 1000),
+    contract_version: AI_CONTRACT_VERSION,
+  })
+  throw err
+}
 
 export type MediaKind = 'text' | 'image' | 'audio'
 
@@ -136,6 +208,9 @@ export async function guardedText(
   const masked = maskPii(prompt, names)
   if (hasUnmaskedPii(masked.text, names)) throw new PiiNotMaskedError(ctx.surface)
 
+  // 보내도 되는지 먼저 묻는다. 거절은 아래 catch 가 아니라 askBudget 이 직접 적는다
+  await askBudget(ctx, ledger)
+
   const started = now()
   try {
     const raw = await call(masked.text)
@@ -181,6 +256,9 @@ export async function guardedMedia(
   call: () => Promise<GuardedTextResult>,
   now: () => number = () => Date.now(),
 ): Promise<GuardedTextResult & { maskedOnReturn: Record<string, number> }> {
+  // 전송을 적기 **전에** 묻는다. 거절되면 나간 것이 없으므로 전송 기록도 없어야 한다
+  await askBudget(ctx, ledger)
+
   const started = now()
   await ledger.recordTransfer({
     surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
@@ -241,6 +319,9 @@ export async function guardedVector<T>(
   const names = { knownNames: ctx.knownNames }
   const masked = maskPii(text, names)
   if (hasUnmaskedPii(masked.text, names)) throw new PiiNotMaskedError(ctx.surface)
+
+  // 임베딩도 같은 키의 같은 한도를 쓴다. 실측 2026-09-20: 분당 110회로 한도 100 을 넘겼다
+  await askBudget(ctx, ledger)
 
   const started = now()
   try {
@@ -342,6 +423,10 @@ export async function beginGuardedCall(
   if (!ctx.passthrough && hasUnmaskedPii(masked.text, names)) {
     throw new PiiNotMaskedError(ctx.surface)
   }
+
+  // 전송을 적기 **전에** 묻는다. 여기서 던지면 handle 이 안 나가고 done() 도 안 불리므로
+  // 거절 기록은 askBudget 이 직접 적는다
+  await askBudget(ctx, ledger)
 
   await ledger.recordTransfer({
     surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,

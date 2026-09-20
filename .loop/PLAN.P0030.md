@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.3
+플랜 버전: v0.1.5
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -125,15 +125,26 @@
 의존: 없음
 
 ### I08 벤더를 부르는 세 길이 그 자리를 지난다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ai/guarded-call.ts, apps/web/lib/ai/gemini-call.ts, apps/web/lib/rfp/ai/gateway.ts, apps/web/lib/policy/ai-budget-gate.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/ai/guarded-call.ts, apps/web/lib/ai/budget.ts, apps/web/lib/ai/budget-gate.ts (신규), apps/web/lib/rfp/ai/gateway.ts, apps/web/lib/policy/ai-budget-gate.test.ts (신규), apps/web/package.json
+범위 메모: 세는 자리(budget-gate.ts)를 규칙(budget.ts)에서 떼어 새로 두었고, 거절 예외를 규칙 쪽으로 옮겼다 — 세는 쪽이 서비스롤을 쓰느라 server-only 를 달고 있어서 던지기만 하려는 RFP 관문까지 서버 묶음에 묶였고 단위 시험 여덟 개가 죽었다. gemini-call.ts 는 고치지 않았다, 이미 beginGuardedCall 을 지나므로 그 자리에 예산을 얹은 것으로 같은 길이 덮인다
 감사 기준:
 - 세 길이 전부 예산 확인을 지남 (가드 1개, 소스 대조 등재부)
 - 거절된 호출도 원장에 남되 벤더로는 안 나감 (단위 테스트)
-- 호출에 주인(사람 id 또는 배경 작업 이름)이 붙음, 배경이면 그 이름이 남음
+- 상한을 못 읽으면 막지 않고 통과 (단위 테스트)
 - 기존 가드(pii-gateway-guard 등)가 그대로 통과
 의존: I07
+
+### I08a 호출에 주인을 붙인다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/ai/guarded-call.ts, apps/web/lib/ai/actor.ts (신규), apps/web/lib/policy/ai-actor.test.ts (신규), apps/web/package.json
+감사 기준:
+- 사람이 눌러 시작한 AI 호출은 actor_id 가 채워짐, 배경 작업은 비고 그 이름이 surface 에 남음
+- 사람 맥락이 있는 창구가 actorId 를 안 주면 가드가 실패 (등재부 방식, 일부러 하나 빼서 확인)
+- 실측으로 확인: 사람이 부른 호출 한 건의 actor_id 가 그 사람 id 와 같음
+의존: I08
 
 ### I09 관리자 사용량 화면이 원장을 읽는다
 상태: 대기
@@ -227,3 +238,5 @@
 - v0.1.1 (2026-09-19) runDiscovery 예산 인자를 필수로 만들면 호출부 두 곳이 컴파일 오류가 난다, I01 범위에 그 둘을 넣는다 (audit:I01)
 - v0.1.2 (2026-09-19) 폴백 공급자 실패도 이유를 구조로 돌려줘야 문자열 대조를 없앨 수 있다, I02 범위에 fallback-text 를 넣는다 (audit:I02)
 - v0.1.3 (2026-09-20) 저장된 답을 읽고 쓰는 자리가 따로 있어야 순수 계층과 Supabase 가 섞이지 않는다, 지문을 만들려면 workspaceId 가 필요해 stages 도 함께 고친다 (audit:I05)
+- v0.1.4 (2026-09-20) 주인 붙이기는 창구 서른 곳을 손대는 별도 일이라 I08a 로 뺀다, I08 은 예산 관문에만 집중한다 (audit:I08)
+- v0.1.5 (2026-09-20) I08 범위에 budget.ts 와 budget-gate.ts 를 넣음: 세는 자리가 server-only 를 달고 있어 던지기만 하려는 RFP 관문까지 서버 묶음에 묶였고 단위 시험 8개가 죽었다. 거절 예외를 규칙 계층으로 옮기고 창구를 guarded-call 한 곳에서만 고르게 했다. gemini-call.ts 는 beginGuardedCall 을 이미 지나므로 손대지 않음 (audit:I08)
