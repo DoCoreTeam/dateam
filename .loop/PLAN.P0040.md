@@ -58,7 +58,7 @@
 의존: 없음
 
 ### I03 읽는 모양에 구성·쪽·묶음을 더한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ai/schemas/quote-from-doc.ts, apps/web/lib/crm/ai/schemas/quote-from-doc.test.ts, apps/web/lib/crm/ai/schemas/quote-draft.ts
 감사 기준:

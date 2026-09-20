@@ -25,7 +25,7 @@
 
 import type { CrmDb } from '../db/client.ts'
 import { MAX_SOURCE_CHARS } from './quote-source-text.ts'
-import { MAX_DOC_LINES } from '../ai/schemas/quote-from-doc.ts'
+import { MAX_DOC_LINES, MAX_DOC_COMPONENT_LINES } from '../ai/schemas/quote-from-doc.ts'
 import { QUOTE_IMPORT_SETTING_KEY } from '../../terms/quote.ts'
 
 /** 견적서에 구성을 어떻게 인쇄할까 */
@@ -50,7 +50,7 @@ export interface QuoteImportConfig {
  * 둘은 **이미 있던 상수를 그대로 가리킨다** — 숫자를 여기 또 적으면 두 곳이 갈린다.
  */
 export const QUOTE_IMPORT_FALLBACK: QuoteImportConfig = {
-  maxComponentLines: 40,
+  maxComponentLines: MAX_DOC_COMPONENT_LINES,
   maxLines: MAX_DOC_LINES,
   maxChars: MAX_SOURCE_CHARS,
   snapshot: true,

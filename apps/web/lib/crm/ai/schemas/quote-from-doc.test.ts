@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 
 import {
   QuoteFromDocOutputSchema, parseQuoteFromDoc, parseQuoteFromDocDoc,
-  MAX_DOC_LINES, MAX_DOC_QUOTES,
+  MAX_DOC_LINES, MAX_DOC_QUOTES, MAX_DOC_COMPONENT_LINES, MAX_COMPONENT_TEXT,
 } from './quote-from-doc.ts'
 import { QUOTE_FROM_DOC_V1 } from '../prompts/quote-from-doc.v1.ts'
 
@@ -118,9 +118,11 @@ test('kind 가 null 이면 통과한다 — 모르겠다는 말을 할 수 있�
 
 /* ── 상한 ───────────────────────────────────────── */
 
-test('항목 수 상한이 있다 — 넘으면 거절한다', () => {
-  const many = Array.from({ length: MAX_DOC_LINES + 1 }, () => line)
-  assert.throws(() => QuoteFromDocOutputSchema.parse({ ...base, lines: many }))
+test('★ 항목이 상한을 넘으면 «자르고 몇 개를 잘랐는지 말한다» — 던지면 그 문서 전체를 못 읽는다', () => {
+  const many = Array.from({ length: MAX_DOC_LINES + 3 }, () => line)
+  const r = parseQuoteFromDocDoc(JSON.stringify({ quotes: [{ ...base, lines: many }], unclear: [] }))
+  assert.equal(r.quotes[0].lines.length, MAX_DOC_LINES)
+  assert.equal(r.droppedLines, 3, '잘라 놓고 안 세면 화면이 200건을 전부라고 말한다')
 })
 
 test('원문 조각이 길면 잘린다 — 프롬프트 응답이 통째로 죽는 것보다 낫다', () => {
@@ -261,4 +263,97 @@ test('★ 출력 형식이 건 목록이다 — 예시가 옛 모양이면 모�
   const p = QUOTE_FROM_DOC_V1.build('원문')
   assert.match(p, /"quotes":\s*\[/)
   assert.ok(p.includes('"supplierName"'), '낸 쪽 상호를 안 물어본다')
+})
+
+
+/* ── 구성·쪽·묶음 (v0.10.30x) ───────────────────── */
+
+/*
+  **왜 여기서 보나**: 실측 2026-09-20, 원본 20줄짜리 표에서 6줄만 들어왔다.
+  사라진 14줄 가운데 13줄이 「품목 칸이 비고 설명만 이어지는 행」이었다.
+  그 행을 담을 자리가 스키마에 없었던 것이 원인이고, 이 절이 그 자리를 지킨다.
+*/
+
+test('★ 항목이 구성 줄을 담는다 — 담을 자리가 없어 13줄이 사라졌다', () => {
+  const r = QuoteFromDocOutputSchema.parse({
+    ...base,
+    lines: [{ ...line, components: ['Dual AMD EPYC 9005/9004', '12-Channel DDR5 RDIMM', '24 x 2.5" Gen5 NVMe'] }],
+  })
+  assert.deepEqual(r.lines[0].components, [
+    'Dual AMD EPYC 9005/9004', '12-Channel DDR5 RDIMM', '24 x 2.5" Gen5 NVMe',
+  ])
+})
+
+test('구성이 없으면 빈 목록이다 — null 을 그리면 화면이 「null」을 인쇄한다', () => {
+  const r = QuoteFromDocOutputSchema.parse({ ...base, lines: [line] })
+  assert.deepEqual(r.lines[0].components, [])
+})
+
+test('★ 구성이 상한을 넘으면 자르고 센다', () => {
+  const many = Array.from({ length: MAX_DOC_COMPONENT_LINES + 5 }, (_, i) => `구성 ${i}`)
+  const r = parseQuoteFromDocDoc(JSON.stringify({
+    quotes: [{ ...base, lines: [{ ...line, components: many }] }], unclear: [],
+  }))
+  assert.equal(r.quotes[0].lines[0].components.length, MAX_DOC_COMPONENT_LINES)
+  assert.equal(r.droppedComponents, 5)
+})
+
+test('★ 상한을 설정에서 받는다 — 회사마다 견적서 두께가 다르다', () => {
+  const many = Array.from({ length: 10 }, (_, i) => `구성 ${i}`)
+  const r = parseQuoteFromDocDoc(
+    JSON.stringify({ quotes: [{ ...base, lines: [{ ...line, components: many }] }], unclear: [] }),
+    { maxLines: 50, maxComponentLines: 4 },
+  )
+  assert.equal(r.quotes[0].lines[0].components.length, 4)
+  assert.equal(r.droppedComponents, 6)
+})
+
+test('구성 한 줄이 너무 길면 자른다 — 그건 구성이 아니라 문단이다', () => {
+  const r = QuoteFromDocOutputSchema.parse({
+    ...base, lines: [{ ...line, components: ['가'.repeat(500)] }],
+  })
+  assert.equal(r.lines[0].components[0].length, MAX_COMPONENT_TEXT)
+})
+
+test('빈 구성 줄은 버린다 — 빈 줄이 인쇄되면 견적서에 구멍이 생긴다', () => {
+  const r = QuoteFromDocOutputSchema.parse({
+    ...base, lines: [{ ...line, components: ['가', '   ', '', '나'] }],
+  })
+  assert.deepEqual(r.lines[0].components, ['가', '나'])
+})
+
+test('★ 규격이 300자를 넘어도 문서 전체가 안 죽는다 — 예전엔 여기서 통째로 실패했다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({
+    quotes: [{ ...base, lines: [{ ...line, spec: '가'.repeat(420) }] }], unclear: [],
+  }))
+  assert.equal(r.quotes[0].lines[0].spec?.length, 300)
+  assert.equal(r.quotes[0].lines.length, 1, '한 줄이 길다고 견적서 한 장을 버리면 안 된다')
+})
+
+test('★ 건과 줄이 어느 쪽에서 왔는지 담는다 — 없으면 대조가 늘 1쪽부터 열린다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({
+    quotes: [{
+      ...base, pageStart: 2, pageEnd: '3쪽',
+      lines: [{ ...line, sourcePage: 2 }],
+    }],
+    unclear: [],
+  }))
+  assert.equal(r.quotes[0].pageStart, 2)
+  assert.equal(r.quotes[0].pageEnd, 3, '「3쪽」처럼 적어 와도 숫자로 읽는다')
+  assert.equal(r.quotes[0].lines[0].sourcePage, 2)
+})
+
+test('쪽을 못 읽었으면 null 이다 — 0 이나 1 로 눕히면 틀린 쪽을 오려 붙인다', () => {
+  const r = parseQuoteFromDocDoc(JSON.stringify({
+    quotes: [{ ...base, pageStart: '모름', lines: [{ ...line, sourcePage: 0 }] }], unclear: [],
+  }))
+  assert.equal(r.quotes[0].pageStart, null)
+  assert.equal(r.quotes[0].lines[0].sourcePage, null)
+})
+
+test('★ 원본이 묶어 부르는 말을 그대로 받는다 — 펴서 받으면 사람이 다시 묶어야 한다', () => {
+  const r = QuoteFromDocOutputSchema.parse({
+    ...base, lines: [{ ...line, groupLabel: '하드웨어' }],
+  })
+  assert.equal(r.lines[0].groupLabel, '하드웨어')
 })

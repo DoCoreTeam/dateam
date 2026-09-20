@@ -18,11 +18,21 @@ const UNKNOWN = new Set(['', '없음', '미상', '알 수 없음', 'unknown', 'n
   같은 「1억 2천만원」을 두 스키마가 다르게 풀면, 붙여넣기로 넣은 견적과
   파일로 넣은 견적의 금액이 갈린다. 그래서 자리를 하나로 둔다.
 */
+/**
+ * 짧은 글 한 칸의 길이 상한.
+ *
+ * **넘으면 자른다, 던지지 않는다.** 예전에는 `.max()` 가 그대로 던져서
+ * 규격 한 칸이 길다는 이유로 **견적서 문서 전체를 못 읽었다**(실측 2026-09-20,
+ * 420자 규격 → too_big → 문서 통째 실패). 한 칸이 길다고 한 장을 버리는 것은
+ * 어떤 경우에도 옳지 않다. 여러 줄짜리 설명은 `components` 로 간다.
+ */
+export const MAX_SOFT_TEXT = 300
+
 export const softString = z.preprocess((v) => {
   if (typeof v !== 'string') return v ?? null
-  const t = v.trim()
+  const t = v.trim().slice(0, MAX_SOFT_TEXT)
   return UNKNOWN.has(t.toLowerCase()) ? null : t
-}, z.string().min(1).max(300).nullable())
+}, z.string().min(1).max(MAX_SOFT_TEXT).nullable())
 
 /** 금액은 **0 이상 정수**. 「1억」·「1,000만원」 같은 말은 프롬프트가 숫자로 풀어 준다 */
 export const amount = z.preprocess((v) => {
