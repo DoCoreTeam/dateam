@@ -103,7 +103,7 @@
 의존: I05
 
 ### I06 오래 걸리는 일의 규칙을 정책 세 파일에 적는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: .claude/heavy/CEO.md, AGENTS.md, GEMINI.md, apps/web/lib/policy/policy-sync.test.ts
 감사 기준:

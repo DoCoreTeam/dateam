@@ -18,7 +18,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -255,4 +255,56 @@ test('★ 도구가 판정 문장을 찍는다 — 글로만 두면 안 지켜�
     'loop final 이 완료 판정을 안 찍는다')
   assert.ok(cli.includes(`보고 첫 줄: ${VERDICT_NOT_DONE}`),
     'loop hold·final fail 이 미완 판정을 안 찍는다')
+})
+
+// ------------------------------------------------------------
+// B-N 배포·대기 규칙 (실측 2026-09-20)
+// ------------------------------------------------------------
+
+/*
+  M-N 카드만 대조하고 있었고 **B-N 표는 아무도 안 보고 있었다.**
+
+  그래서 「오래 걸리는 일은 무엇을 하는 중인지 말한다」는 규칙이 코드 한 곳
+  (`lib/meeting/digest-progress.ts`)에만 있고 정책 3파일에는 한 줄도 없었다.
+  옆 화면(견적)은 그 모듈을 볼 길이 없었고, 같은 지적을 세 번 받았다.
+  버전 규칙이 열일곱 판 동안 안 지켜진 것과 **똑같은 구멍**이다.
+*/
+
+/** `| **B-1** | …` 줄을 규칙 번호별로 모은다 */
+function bRules(text: string): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const line of text.split('\n')) {
+    const m = /^\| \*\*(B-[\w-]+)\*\* \|/.exec(line)
+    if (m) out.set(m[1], line.trim())
+  }
+  return out
+}
+
+test('★ B-N 규칙이 정책 3파일에 모두 있거나 모두 없다', () => {
+  const [a, b, c] = POLICY_FILES.map((f) => [...bRules(read(f.file)).keys()].sort())
+  assert.ok(a.length >= 7, `B-N 규칙을 ${a.length}개만 찾았다 — 훑는 규칙이 헛돌고 있다`)
+  assert.deepEqual(a, b, 'CEO.md 와 AGENTS.md 의 B-N 목록이 다르다')
+  assert.deepEqual(a, c, 'CEO.md 와 GEMINI.md 의 B-N 목록이 다르다')
+})
+
+test('★ 같은 B-N 규칙의 문장이 정책 3파일에서 동일하다 — 한 파일만 고치면 규칙이 갈린다', () => {
+  const maps = POLICY_FILES.map((f) => bRules(read(f.file)))
+  for (const key of maps[0].keys()) {
+    assert.equal(maps[1].get(key), maps[0].get(key), `${key} 가 AGENTS.md 에서 다르다`)
+    assert.equal(maps[2].get(key), maps[0].get(key), `${key} 가 GEMINI.md 에서 다르다`)
+  }
+})
+
+test('★ B-7 이 가리키는 SSOT 와 가드가 실재한다 — 없는 파일을 가리키면 규칙이 헛말이다', () => {
+  const b7 = bRules(read(POLICY_FILES[0].file)).get('B-7')
+  assert.ok(b7, 'B-7(대기 중 진행 표시)이 정책에 없다')
+  for (const path of [
+    'lib/meeting/digest-progress.ts',
+    'components/ui/WaitProgress.tsx',
+    'lib/policy/wait-progress-guard.test.ts',
+  ]) {
+    assert.ok(existsSync(join(ROOT, 'apps/web', path)), `B-7 이 없는 파일을 가리킨다: ${path}`)
+  }
+  assert.match(b7!, /digest-progress/, 'B-7 이 문구 SSOT 를 안 가리킨다')
+  assert.match(b7!, /WaitProgress/, 'B-7 이 그리는 부품을 안 가리킨다')
 })
