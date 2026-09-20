@@ -191,10 +191,92 @@ test('★ 원장의 key_ref 에 원문 키가 아니라 이름이 들어간다',
   }
 })
 
+/* ── 유료 키가 언제 불리는가 ──────────────────────────────────
+
+  이 규칙이 틀리면 **증상이 화면에 안 나온다.** 키는 돌고 기능도 멀쩡한데 청구서만 는다.
+  그래서 「무엇이 틀렸나」를 나중에 사람이 알아채는 길이 없고, 기계가 세는 수밖에 없다.
+
+  세는 것은 둘이다. 판단이 흩어지지 않는가, 그리고 보는 순서와 부르는 순서가 같은가.
+*/
+
+/** 유료 여부를 알아도 되는 자리. 규칙 한 곳, 표에 닿는 두 곳, 창구 하나, 화면 하나 */
+const PAID_AWARE = [
+  'app/admin/settings/AiProviderCard.tsx',
+  'app/admin/settings/actions.ts',
+  'lib/ai/key-pool.ts',
+  'lib/ai/key-store-core.ts',
+  'lib/ai/key-store.ts',
+]
+
+test('★ 유료 여부를 아는 자리가 늘지 않는다', () => {
+  const aware = ALL
+    .filter((f) => /\bisPaid\b|\bis_paid\b/.test(read(f)))
+    .map(rel)
+    .sort()
+
+  assert.deepEqual(aware, PAID_AWARE,
+    '유료 판단이 흩어지면 어느 길에서 유료 키가 먼저 불리는지 셀 수 없게 된다')
+})
+
+/**
+ * `sort(` 뒤 인자를 **괄호 균형으로** 잘라 온다.
+ *
+ * 정규식으로 `sort\(.*\)` 를 잡으면 비교자 안의 괄호에서 먼저 끊긴다. 그러면 유료를
+ * 비교하는 본문이 잘려 나가 **위반이 있는데 통과**한다. 이 저장소가 같은 자리에서
+ * 네 번 속았다(선언만 하고 안 넘김·ctx 변수·펼침·제네릭 누락).
+ */
+function callArgs(src: string, fn: string): string[] {
+  const out: string[] = []
+  const needle = `${fn}(`
+  for (let at = src.indexOf(needle); at >= 0; at = src.indexOf(needle, at + 1)) {
+    let depth = 0
+    for (let i = at + needle.length - 1; i < src.length; i++) {
+      if (src[i] === '(') depth++
+      else if (src[i] === ')') {
+        depth--
+        if (depth === 0) { out.push(src.slice(at + needle.length, i)); break }
+      }
+    }
+  }
+  return out
+}
+
+test('★ 순서를 유료로 정하는 자리는 key-pool.ts 하나뿐이다', () => {
+  const offenders = ALL
+    .filter((f) => rel(f) !== join('lib', 'ai', 'key-pool.ts'))
+    .filter((f) => callArgs(read(f), 'sort').some((a) => /\bisPaid\b/.test(a)))
+    .map(rel)
+
+  assert.deepEqual(offenders, [],
+    '정렬이 두 벌이 되면 화면이 보여 주는 순서와 실제로 부르는 순서가 갈라진다')
+})
+
+test('★ 표에서 읽는 순서도 등급이 먼저다 — 안 그러면 화면의 「앞에 있는 키부터」가 거짓말이 된다', () => {
+  const store = read(join(WEB, KEY_STORE))
+
+  const ordered = callArgs(store, 'order').map((a) => a.split(',')[0].replace(/['"]/g, '').trim())
+  const tierAt = ordered.indexOf('is_paid')
+  const priorityAt = ordered.indexOf('priority')
+
+  assert.ok(tierAt >= 0, '등급으로 정렬하지 않는다')
+  assert.ok(priorityAt >= 0, 'priority 로 정렬하지 않는다')
+  assert.ok(tierAt < priorityAt, 'priority 가 등급보다 먼저면 유료 줄이 앞에 그려진다')
+})
+
+test('★ 마이그 269 도 표를 새로 만들지 않고 칸만 더한다', () => {
+  const sql = readFileSync(join(WEB, '..', '..', 'supabase/migrations/269_ai_provider_keys_paid.sql'), 'utf8')
+
+  assert.ok(!/CREATE TABLE/i.test(sql), '표를 새로 만들면 RLS 를 같은 판에서 켜야 한다(S1)')
+  // 낱말 끝을 박는다. 없으면 `is_paid_x` 로 바뀌어도 부분일치로 통과한다 (이 저장소의 전례)
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS is_paid\b/)
+  assert.match(sql, /drop column if exists is_paid\b/i, '되돌리는 방법을 적어 둔다')
+})
+
 test('★ 마이그레이션이 표를 새로 만들지 않고 칸만 더한다 — RLS 판이 바뀌지 않게', () => {
   const sql = readFileSync(join(WEB, '..', '..', 'supabase/migrations/266_ai_call_key_ref.sql'), 'utf8')
 
   assert.ok(!/CREATE TABLE/i.test(sql), '표를 새로 만들면 RLS 를 같은 판에서 켜야 한다(S1)')
-  assert.match(sql, /ADD COLUMN IF NOT EXISTS key_ref/)
-  assert.match(sql, /drop column if exists key_ref/i, '되돌리는 방법을 적어 둔다')
+  // 낱말 끝 없이 두면 `key_ref_x` 로 바뀌어도 통과한다. 269 가드를 깨 보다 이 자리에서 잡혔다
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS key_ref\b/)
+  assert.match(sql, /drop column if exists key_ref\b/i, '되돌리는 방법을 적어 둔다')
 })
