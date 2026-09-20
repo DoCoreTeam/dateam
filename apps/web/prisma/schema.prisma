@@ -1007,6 +1007,11 @@ model CrmQuoteLine {
   ratioOfLineId   String?
   ratioPct        Decimal? @db.Decimal(7, 4)
 
+  /// 비고 — 견적서 표 맨 오른쪽 열. 「서버 새시」「64코어」「Raid5」처럼 그 줄을 한마디로 짚는 말.
+  /// 우리 양식에 원래 있던 열인데 담을 칸이 없어 읽어도 버려졌다(실측 2026-09-21).
+  /// 규격과 다르다 — 규격은 물건이 무엇인가이고, 비고는 이 견적에서 그 줄이 무슨 구실인가다.
+  remark          String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
