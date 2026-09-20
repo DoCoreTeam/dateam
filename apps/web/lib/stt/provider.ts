@@ -217,13 +217,15 @@ export function openAiCompatibleStt(opts: {
         분류는 우리가 이미 SttError 로 해 두었으므로 문구로 되돌려 추측하게 하지 않는다.
       */
       const providerId = isAiProviderId(opts.vendor) ? opts.vendor : null
-      const runOnce = async (apiKey: string): Promise<SttResult> => {
+      const runOnce = async (apiKey: string, keyRef: string | null): Promise<SttResult> => {
       const out = await guardedMedia(
         input.bytes.byteLength,
         {
           surface: 'meeting/stt', purpose: 'transcribe', media: 'audio',
           actorId: input.actorId,
           providerId: opts.vendor, modelName: opts.model,
+          // 어느 키로 나갔는지 남긴다 — 이름이지 원문이 아니다
+          keyRef,
           knownNames: await serverKnownNames(),
         },
         opts.ledger ?? serverAiLedger(),
@@ -264,8 +266,8 @@ export function openAiCompatibleStt(opts: {
       return { segments, model: opts.model }
       }
 
-      if (!providerId) return runOnce(opts.apiKey)
-      return withProviderKeys(providerId, opts.apiKey, (apiKey) => runOnce(apiKey), {
+      if (!providerId) return runOnce(opts.apiKey, null)
+      return withProviderKeys(providerId, opts.apiKey, (apiKey, entry) => runOnce(apiKey, entry.label), {
         ...opts.keys,
         outcomeOf: (e) => (e instanceof SttError && (e.reason === 'quota' || e.reason === 'auth') ? e.reason : 'transient'),
       })

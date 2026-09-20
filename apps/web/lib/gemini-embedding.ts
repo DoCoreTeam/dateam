@@ -43,11 +43,11 @@ export async function embedText(
 
   try {
     // 벡터는 되돌릴 수 없다 — 안 가리고 보내면 개인정보가 **숫자로 남의 서버에 남는다**
-    const out = await withProviderKeys('gemini', apiKey, async (key) => guardedVector<number[]>(
+    const out = await withProviderKeys('gemini', apiKey, async (key, entry) => guardedVector<number[]>(
       trimmed.slice(0, 2000),
       {
         surface: feature, purpose: `embed:${taskType}`, actorId: userId ?? null,
-        providerId: 'gemini', modelName: EMBED_MODEL,
+        providerId: 'gemini', modelName: EMBED_MODEL, keyRef: entry.label,
         knownNames: opts?.knownNames ?? await serverKnownNames(),
       },
       opts?.ledger ?? serverAiLedger(),
@@ -147,11 +147,11 @@ export async function embedTexts(
   for (let i = 0; i < texts.length; i += EMBED_BATCH_MAX) {
     const slice = texts.slice(i, i + EMBED_BATCH_MAX).map((t) => t.trim().slice(0, 2000))
     try {
-      const got = await withProviderKeys('gemini', apiKey, async (key) => guardedVectors<number[]>(
+      const got = await withProviderKeys('gemini', apiKey, async (key, entry) => guardedVectors<number[]>(
         slice,
         {
           surface: feature, purpose: `embed_batch:${taskType}`, actorId: userId ?? null,
-          providerId: 'gemini', modelName: EMBED_MODEL, knownNames,
+          providerId: 'gemini', modelName: EMBED_MODEL, keyRef: entry.label, knownNames,
         },
         ledger,
         async (maskedTexts) => {

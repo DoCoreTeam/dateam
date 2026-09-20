@@ -166,3 +166,35 @@ test('★ 키 저장소를 실제로 부르는 자리가 있다', () => {
 
   assert.ok(callers.length >= 2, `저장소를 부르는 자리가 ${callers.length} 곳뿐이다`)
 })
+
+/* ── 원장에 남는 값 ───────────────────────────────────────────── */
+
+/*
+  원장은 오래 남고 여러 사람이 읽는다. 거기에 원문 키가 한 번 들어가면 되돌릴 수 없다 —
+  표를 잠그고 로그를 가려도 그 줄은 남아 있다. 그래서 「이름만」을 기계가 센다.
+*/
+test('★ 원장의 key_ref 에 원문 키가 아니라 이름이 들어간다', () => {
+  const writers = ALL
+    .filter((f) => /keyRef:/.test(read(f)))
+    .map((f) => ({ file: rel(f), src: read(f) }))
+
+  // 칸만 만들고 아무도 안 적으면 없는 것과 같다(v0.7.438 전례). 지금 적는 곳은 전사와 임베딩 둘
+  assert.deepEqual(writers.map((w) => w.file).sort(),
+    ['lib/gemini-embedding.ts', 'lib/stt/provider.ts'])
+
+  for (const w of writers) {
+    for (const m of w.src.matchAll(/keyRef:\s*([^,\n}]+)/g)) {
+      const value = m[1].trim()
+      assert.ok(!/apiKey|api_key/.test(value),
+        `${w.file} 가 key_ref 에 원문 키를 넣는다: ${value}`)
+    }
+  }
+})
+
+test('★ 마이그레이션이 표를 새로 만들지 않고 칸만 더한다 — RLS 판이 바뀌지 않게', () => {
+  const sql = readFileSync(join(WEB, '..', '..', 'supabase/migrations/266_ai_call_key_ref.sql'), 'utf8')
+
+  assert.ok(!/CREATE TABLE/i.test(sql), '표를 새로 만들면 RLS 를 같은 판에서 켜야 한다(S1)')
+  assert.match(sql, /ADD COLUMN IF NOT EXISTS key_ref/)
+  assert.match(sql, /drop column if exists key_ref/i, '되돌리는 방법을 적어 둔다')
+})

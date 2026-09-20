@@ -91,6 +91,7 @@ async function askBudget(ctx: GuardedCallContext, ledger: AiLedger): Promise<voi
   await ledger.recordCall({
     surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
     provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+    key_ref: ctx.keyRef ?? null,
     input_tokens: null, output_tokens: null, cost_krw: null, latency_ms: 0,
     ok: false, error: err.message.slice(0, 1000),
     contract_version: AI_CONTRACT_VERSION,
@@ -108,6 +109,14 @@ export interface GuardedCallContext {
   actorId?: string | null
   providerId?: string | null
   modelName?: string | null
+  /**
+   * **어느 키로 나갔나** — 사람이 붙인 이름이다(`ai_provider_keys.label`).
+   *
+   * 원문 키도 그 조각도 여기 넣지 않는다. 원장은 오래 남고 여러 사람이 읽는다.
+   * 이름이면 「둘째 키가 어제 한도를 다 썼다」를 말할 수 있고, 그것이 여기 필요한 전부다.
+   * 안 주면 비어 있다 — 키 교체를 아직 안 타는 길이 그대로 돌아야 하기 때문이다.
+   */
+  keyRef?: string | null
   /** 글자가 아니면 글자 가림이 안 닿는다 */
   media?: MediaKind
   /**
@@ -139,6 +148,8 @@ export interface CallLogRow {
   actor_id: string | null
   provider_id: string | null
   model_name: string | null
+  /** 어느 키였나. 사람이 붙인 이름이고 원문 키가 아니다 */
+  key_ref?: string | null
   input_tokens: number | null
   output_tokens: number | null
   cost_krw: number | null
@@ -219,6 +230,7 @@ export async function guardedText(
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      key_ref: ctx.keyRef ?? null,
       input_tokens: raw.inputTokens ?? null, output_tokens: raw.outputTokens ?? null,
       cost_krw: raw.costKrw ?? null, latency_ms: latencyMs, ok: true, error: null,
       contract_version: AI_CONTRACT_VERSION,
@@ -235,6 +247,7 @@ export async function guardedText(
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      key_ref: ctx.keyRef ?? null,
       input_tokens: null, output_tokens: null, cost_krw: null,
       latency_ms: now() - started, ok: false, error: describe(e).slice(0, 1000),
       contract_version: AI_CONTRACT_VERSION,
@@ -275,6 +288,7 @@ export async function guardedMedia(
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      key_ref: ctx.keyRef ?? null,
       input_tokens: raw.inputTokens ?? null, output_tokens: raw.outputTokens ?? null,
       cost_krw: raw.costKrw ?? null, latency_ms: now() - started, ok: true, error: null,
       contract_version: AI_CONTRACT_VERSION,
@@ -286,6 +300,7 @@ export async function guardedMedia(
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      key_ref: ctx.keyRef ?? null,
       input_tokens: null, output_tokens: null, cost_krw: null,
       latency_ms: now() - started, ok: false, error: describe(e).slice(0, 1000),
       contract_version: AI_CONTRACT_VERSION,
@@ -329,6 +344,7 @@ export async function guardedVector<T>(
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      key_ref: ctx.keyRef ?? null,
       input_tokens: out?.tokens ?? null, output_tokens: 0, cost_krw: null,
       latency_ms: now() - started, ok: out !== null,
       error: out === null ? 'empty' : null,
@@ -345,6 +361,7 @@ export async function guardedVector<T>(
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      key_ref: ctx.keyRef ?? null,
       input_tokens: null, output_tokens: null, cost_krw: null,
       latency_ms: now() - started, ok: false, error: describe(e).slice(0, 1000),
       contract_version: AI_CONTRACT_VERSION,
@@ -398,6 +415,7 @@ export async function guardedVectors<T>(
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      key_ref: ctx.keyRef ?? null,
       input_tokens: out.reduce((n, o) => n + (o?.tokens ?? 0), 0), output_tokens: 0, cost_krw: null,
       latency_ms: now() - started, ok: got > 0,
       // 몇 건 중 몇 건이 왔는지를 남긴다. 「실패」 한 마디로는 한 건이 빈 것과 전부 빈 것이 같아진다
@@ -416,6 +434,7 @@ export async function guardedVectors<T>(
     await ledger.recordCall({
       surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
       provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      key_ref: ctx.keyRef ?? null,
       input_tokens: null, output_tokens: null, cost_krw: null,
       latency_ms: now() - started, ok: false, error: describe(e).slice(0, 1000),
       contract_version: AI_CONTRACT_VERSION,
@@ -522,6 +541,7 @@ export async function beginGuardedCall(
       await ledger.recordCall({
         surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
         provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+        key_ref: ctx.keyRef ?? null,
         input_tokens: o.inputTokens ?? null, output_tokens: o.outputTokens ?? null,
         cost_krw: o.costKrw ?? null, latency_ms: now() - started,
         ok: o.ok, error: o.error ? String(o.error).slice(0, 1000) : null,

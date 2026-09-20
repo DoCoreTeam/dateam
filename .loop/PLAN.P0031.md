@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 키를 여러 개 두고 한도에 걸린 키를 건너뛴다
 플랜 ID: P0032
-플랜 버전: v0.1.10
+플랜 버전: v0.1.11
 상태: 진행중
 지시: ins_0034
 목표 버전: v0.10.214
@@ -213,9 +213,9 @@
 의존: I04, I09
 
 ### I10a 원장에 어느 키였는지 남기기
-상태: 대기
+상태: 통과
 모드: 중량
-범위: supabase/migrations/266_ai_call_key_ref.sql (신규), apps/web/lib/ai/guarded-call.ts, apps/web/lib/ai/ledger.ts, apps/web/lib/stt/provider.ts, apps/web/lib/gemini-embedding.ts
+범위: supabase/migrations/266_ai_call_key_ref.sql (신규), apps/web/lib/ai/guarded-call.ts, apps/web/lib/ai/ledger.ts, apps/web/lib/stt/provider.ts, apps/web/lib/gemini-embedding.ts, apps/web/lib/policy/ai-key-pool.test.ts
 감사 기준:
 - ai_llm_calls 에 key_ref 칸이 생기고 호출 기록에 **키 이름**이 남음 (원문 키와 그 조각은 안 남음)
 - 칸만 만들고 끝내지 않음: 적는 자리가 최소 둘 (회의 녹음 전사와 임베딩)
@@ -241,3 +241,4 @@
 - v0.1.8 (2026-09-20) I07 기준 수정. 「등급 관문이 키를 바꿀 때마다 다시 돌아감」은 잴 수 없는 문장이었다 - 관문은 모델과 문서 등급으로 판정하므로 키가 바뀌어도 답이 같다. 다시 돌려도 no-op 이라 통과해도 아무것도 보증하지 않는다. 실제로 지켜야 하는 것은 「관문을 건너뛰지 않는다」이고 그것은 셋으로 잴 수 있다: 교체가 관문 뒤에서만 일어나는가, 관문이 막은 모델은 한 번도 안 불리는가, 교체가 모델을 바꾸지 않는가 (audit:I07)
 - v0.1.9 (2026-09-20) I09 을 둘로 쪼갬. 표 CRUD 는 I04 가드 때문에 key-store 안에만 둘 수 있고, 화면은 꺼진 줄과 인증이 깨진 줄까지 봐야 해서 readKeyPool(고르는 목록)로는 안 된다. 규칙과 저장소를 먼저 세우고 화면을 그 위에 올린다. 일곱 파일을 한 번에 감사할 수 없어 넷과 셋으로 나눔. 그리고 META 의 기존 키 칸을 첫 줄과 맞추는 규칙을 기준에 넣음 - 그 칸을 직접 읽는 자리가 아직 마흔이라 표만 고치면 그 마흔이 옛 키로 돈다 (audit:I09)
 - v0.1.10 (2026-09-20) I10 을 둘로 쪼갬. 원래대로면 ai_llm_calls 에 key_ref 칸만 만들고 적는 자리가 0 이 된다 - 이 저장소가 v0.7.438 에서 겪은 「표와 설정만 만들고 소비 코드 0」 이다. 가드 한 벌을 먼저 세우고(이 플랜의 보안 등뼈다), 칸은 적는 자리 둘과 함께 낸다. 마이그레이션 번호도 265 를 옆 세션이 가져가 266 으로 옮김 (audit:I10)
+- v0.1.11 (2026-09-20) I10a 범위에 ai-key-pool.test.ts 추가. 「key_ref 에 label 만 들어간다」를 세는 가드가 그 파일에 들어가야 하는데 범위에 없었다 - 감사 기준에는 있고 그 기준을 지킬 파일은 범위 밖이었다 (audit:I10a)
