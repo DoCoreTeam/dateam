@@ -125,7 +125,7 @@
 의존: I02, I03, I05
 
 ### I07 죽은 별칭을 지운다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/globals.css, apps/web/lib/ui/settings-class-guard.test.ts
 감사 기준:

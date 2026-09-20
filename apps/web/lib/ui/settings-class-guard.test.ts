@@ -45,6 +45,19 @@ test('옛 이름 ci-status 와 ci-basis 가 0건이다', () => {
     `옛 클래스 이름이 남아 있다(같은 뜻이 화면마다 갈리는 원인): ${offenders.join(', ')}`)
 })
 
+test('옛 설정 별칭 다섯이 0건이다 — 쓰는 곳이 없는 이름은 남겨 두지 않는다', () => {
+  /*
+    공용 설정 규칙에는 한동안 옛 이름이 별칭으로 함께 적혀 있었다
+    (`.settings-card, .ci-setting-card { … }`). 화면이 옮겨 오는 동안 둘 다 살려 둔 것이다.
+    옮기기가 끝난 뒤에도 남겨 두면, 다음 사람이 그것도 **지금 써도 되는 이름**인 줄 안다 —
+    그러면 같은 카드가 두 이름으로 불리고, 한쪽만 고치는 일이 다시 시작된다.
+  */
+  const DEAD = /\bci-(setting-card|setting-list|setting-head|integration-row|toggle)\b/
+  const offenders = FILES.filter((f) => DEAD.test(read(f))).map(rel)
+  assert.deepEqual(offenders, [],
+    `쓰는 곳이 없는 옛 설정 별칭이 남아 있다: ${offenders.join(', ')}`)
+})
+
 test('상태 배지 색은 globals.css 한 곳에서만 정해진다', () => {
   const css = read(join(WEB, 'app', 'globals.css'))
   for (const tone of ['ok', 'warn', 'danger', 'info', 'neutral']) {
