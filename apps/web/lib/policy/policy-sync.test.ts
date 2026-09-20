@@ -213,3 +213,46 @@ test('보안 세는 명령이 실재하고 다섯 줄을 전부 센다', () => {
     assert.ok(sql.includes(key), `security-count.sql 이 ${key} 를 세지 않는다`)
   }
 })
+
+/* ── 완료 보고 — 문서·도구가 같은 문장을 쓴다 ────────── */
+
+/*
+  **왜 여기서 보나**: 「끝났으면 끝났다고 말한다」는 규칙이 중량 정책 3파일(M-13)에만 있었고,
+  **매 세션 읽는 것은 LOOP.md 하나**였다. 그래서 LOOP 만 읽는 세션은 그 규칙을 볼 길이 없었고,
+  실제로 보고가 판정 없이 나가 사용자가 「다 한건지 모르겠어」라고 두 번 물었다(2026-09-20).
+  버전 규칙이 열일곱 커밋 동안 안 지켜진 것과 **같은 모양의 구멍**이다.
+
+  그래서 셋을 함께 잠근다 — 규칙(LOOP.md 8절) · 원본(CEO.md M-13) · 도구(loop.mjs 출력).
+  하나만 고치면 나머지가 옛 기준으로 남고, 그때 이 가드가 깨진다.
+*/
+const VERDICT_DONE = '완벽히 끝냈습니다'
+const VERDICT_NOT_DONE = '아직 안 끝났습니다'
+
+test('★ 완료 보고 규칙이 매 세션 읽는 LOOP.md 에 있다', () => {
+  const loop = read('LOOP.md')
+  assert.match(loop, /^## 8 완료 보고$/m,
+    'LOOP.md 에 완료 보고 절이 없다 — 중량 문서에만 있으면 LOOP 만 읽는 세션은 못 본다')
+
+  const section = loop.slice(loop.indexOf('## 8 완료 보고'))
+  const body = section.slice(0, section.indexOf('\n## ') < 0 ? undefined : section.indexOf('\n## '))
+  assert.ok(body.includes(VERDICT_DONE), `판정 문장 「${VERDICT_DONE}」이 없다`)
+  assert.ok(body.includes(VERDICT_NOT_DONE), `판정 문장 「${VERDICT_NOT_DONE}」이 없다`)
+  // 판정만 있고 근거가 없으면 사용자가 또 묻는다
+  assert.match(body, /항목 n\/n/, '판정 옆에 붙일 숫자 규칙이 없다')
+  assert.match(body, /무엇을·왜·무엇이 있으면/, '못 한 것을 적는 형식이 없다')
+})
+
+test('★ 같은 판정 문장을 중량 정책도 쓴다 — 규칙이 둘로 갈리지 않게', () => {
+  for (const { file } of POLICY_FILES) {
+    assert.ok(read(file).includes(VERDICT_DONE),
+      `${file} 의 M-13 문장이 LOOP.md 8절과 다르다 — 도구마다 다른 말을 하게 된다`)
+  }
+})
+
+test('★ 도구가 판정 문장을 찍는다 — 글로만 두면 안 지켜진다', () => {
+  const cli = read('scripts/loop.mjs')
+  assert.ok(cli.includes(`보고 첫 줄: ${VERDICT_DONE}`),
+    'loop final 이 완료 판정을 안 찍는다')
+  assert.ok(cli.includes(`보고 첫 줄: ${VERDICT_NOT_DONE}`),
+    'loop hold·final fail 이 미완 판정을 안 찍는다')
+})

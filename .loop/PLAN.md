@@ -44,7 +44,7 @@
 의존: 없음
 
 ### I02 도구가 그 문장을 찍고 가드가 어긋남을 막는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: scripts/loop.mjs, apps/web/lib/policy/policy-sync.test.ts
 감사 기준:

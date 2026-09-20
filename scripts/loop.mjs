@@ -830,6 +830,8 @@ cmds.hold = (a) => {
   setSetting('current_item', '');
   snapshot('status', `hold:${id}`);
   out(`[loop-kit] ${id} 보류: ${a.reason}, 사용자 판단 대기`);
+  // 보류가 하나라도 있으면 끝난 것이 아니다 (LOOP.md 8절 판정 기준)
+  out(`[loop-kit] 보고 첫 줄: 아직 안 끝났습니다 — ${id} 보류 1건 (무엇을·왜·무엇이 있으면 되는지 셋을 적는다)`);
 };
 
 cmds.checkpoint = (a) => {
@@ -847,7 +849,12 @@ cmds.final = (a) => {
   if (open.length && result === 'pass') die(`미완 항목 ${open.map((x) => x.id).join(',')} 존재, 종합 감사 통과 불가`);
   if (/\(전 항목 통과 후 기록\)/.test(p.text)) die('PLAN.md 종합 감사 절에 결과 기록 후 실행 (자리표시자 잔존)');
   addEvent('final_audit', `${result}: ${a.summary}`);
-  if (result === 'fail') { snapshot('final', 'fail'); out(`[loop-kit] 종합 감사 실패 기록: ${a.summary}, 보완 항목을 plan revise 로 추가 후 계속`); return; }
+  if (result === 'fail') {
+    snapshot('final', 'fail');
+    out(`[loop-kit] 종합 감사 실패 기록: ${a.summary}, 보완 항목을 plan revise 로 추가 후 계속`);
+    out('[loop-kit] 보고 첫 줄: 아직 안 끝났습니다 — 종합 감사 미충족 (무엇을·왜·무엇이 있으면 되는지 셋을 적는다)');
+    return;
+  }
   setPlanStatus(p, '완료');
   snapshot('final', 'pass');
   /**
@@ -890,6 +897,12 @@ cmds.final = (a) => {
     if (r.hash && flag('auto_tag')) note += gitTag(target) ? `, 태그 ${target}` : ', 태그 실패';
   }
   out(`[loop-kit] 플랜 ${p.header.id} 완료 ${target}${note}, 보관 ${dest}`);
+  /*
+    **보고 첫 줄을 도구가 만들어 준다** (LOOP.md 8절).
+    규칙을 글로만 두면 안 지켜진다 — 오늘 실제로 그랬다. 판정 문장을 여기서 찍어
+    에이전트가 그 줄을 그대로 옮기게 한다. 숫자도 함께 준다(항목 n/n).
+  */
+  out(`[loop-kit] 보고 첫 줄: 완벽히 끝냈습니다 — ${p.header.title} (항목 ${p.items.length}/${p.items.length}, ${target})`);
 };
 
 cmds.mark = (a) => {
