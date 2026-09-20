@@ -300,6 +300,7 @@
     CSS Modules 는 이 모듈 밖의 클래스를 가리키는 셀렉터를 허용하지 않는다.
   */
   .screenOnly,
+  .attachments,
   .toolbar {
     display: none !important;
   }
@@ -519,4 +520,12 @@
   font-weight: 400;
   color: var(--text-faint);
   white-space: nowrap;
+}
+
+/*
+  **원본 첨부는 문서 밖이다.** 종이 위가 아니라 도구 아래에 선다 —
+  견적서 안에 우리 저장소 사정이 끼면 그건 고객에게 보내는 문서가 아니다.
+*/
+.attachments {
+  margin-top: var(--space-6, 24px);
 }

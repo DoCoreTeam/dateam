@@ -38,6 +38,9 @@ import {
 import QuoteEditorModal, { quoteToDraft, type QuoteDraft } from '@/components/ui/crm/QuoteEditorModal'
 import { ACTION } from '@/lib/terms'
 import DocSurface from '@/components/ui/doc/DocSurface'
+import { RecordPanel } from '@/components/ui/crm/RecordLayout'
+import AttachmentPanel from '@/components/ui/crm/AttachmentPanel'
+import { ATTACHMENT } from '@/lib/terms/attachment'
 import QuoteSheet from './QuoteSheet'
 import { downloadPaperAsPng, downloadPaperAsPdf } from '@/lib/crm/api/paper-image'
 import { exportFileName, type QuoteDocument } from '@/lib/crm/domain/quote-document'
@@ -299,6 +302,20 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           <QuoteSheet doc={doc} logo={data.images.logo} surface="paper" />
         </DocSurface>
       )}
+
+      {/*
+        **원본이 여기 붙는다.** 파일로 가져온 견적은 「제대로 읽혔나」를 언젠가 묻게 되고,
+        그때 대조할 것은 이 견적의 원본이다 — 딜에만 붙이면 견적 열 개가 달린 딜에서
+        어느 파일이 이 견적의 것인지 다시 알 수 없다.
+
+        **인쇄에는 안 나간다.** 종이에 우리 저장소 사정이 찍히면 안 된다
+        (quote-document.module.css 의 인쇄 규칙이 문서 밖을 숨긴다).
+      */}
+      <div className={styles.attachments}>
+        <RecordPanel title={ATTACHMENT.section}>
+          <AttachmentPanel target="QUOTE" targetId={quoteId} defaultKind="SUPPLY_QUOTE" />
+        </RecordPanel>
+      </div>
 
       {deleting && (
         <DeleteRecordModal

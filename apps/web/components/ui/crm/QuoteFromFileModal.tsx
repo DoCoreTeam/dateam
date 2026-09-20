@@ -186,10 +186,15 @@ export default function QuoteFromFileModal({
    */
   const [canCost, setCanCost] = useState(false)
   /**
-   * 「이 파일도 딜 첨부로 남기기」. **파일 하나에 한 번** 묻는다 — 올린 파일은 한 장이다.
-   * 기본은 꺼짐이고, 원가로 보내는 건이 하나라도 있을 때만 화면에 선다.
+   * 「원본 파일도 함께 남기기」. **파일 하나에 한 번** 묻는다 — 올린 파일은 한 장이다.
+   *
+   * **기본이 켜짐이다**(사용자 지시 2026-09-20). 읽은 값이 맞는지는 나중에 원본과
+   * 대조해야 알 수 있는데, 그때 파일이 없으면 대조할 방법이 아예 없다 —
+   * 끄는 것은 한 번 누르면 되지만, 안 남긴 파일은 다시 만들 수 없다.
+   * 도착지가 원가든 새 견적이든 붙이기든 똑같이 묻는다: 「이 숫자 어디서 왔지」는
+   * 원가에서만 생기는 질문이 아니다.
    */
-  const [keepFile, setKeepFile] = useState(false)
+  const [keepFile, setKeepFile] = useState(true)
   /** 첨부로 남길 때만 쓰는 원본. 안 켜면 아무 데도 안 간다 */
   const [picked, setPicked] = useState<File | null>(null)
   /* 1초마다 한 번. 시작 시각이 없으면 아무것도 안 돈다 */
@@ -316,7 +321,8 @@ export default function QuoteFromFileModal({
     })
     const got = await readResponse(res, failedTo(ENTITY.quote.label, '만들지'))
     if (!got.ok) throw new Error(got.message ?? failedTo(ENTITY.quote.label, '만들지'))
-    return (got.body ?? {}) as { lines?: { id: string }[] }
+    // id 까지 읽는다 — 이 id 가 원본 파일을 붙일 자리다
+    return (got.body ?? {}) as { id?: string; lines?: { id: string }[] }
   }
 
   /**
@@ -364,16 +370,21 @@ export default function QuoteFromFileModal({
   }
 
   /**
-   * 근거 문서를 딜 첨부로 남긴다 — **켠 경우에만** 부른다.
+   * 근거 문서를 첨부로 남긴다 — **켠 경우에만** 부른다.
+   *
+   * **견적이 생겼으면 그 견적에 붙인다.** 딜에만 붙이면 견적 열 개가 달린 딜에서
+   * 「이 견적이 어느 파일에서 왔나」를 다시 알 수 없다 — 붙어 있어야 대조가 된다.
+   * 원가로만 간 경우는 견적이 없으므로 예전처럼 딜에 붙는다.
    *
    * 종류는 매입 견적서(`SUPPLY_QUOTE`)다. 그 종류가 대외비 등급을 정하므로
    * 여기서 등급을 고르지 않는다(`ATTACHMENT_KIND_SENSITIVITY`).
+   * 창구는 기존 첨부 창구 그대로다 — 새로 열지 않는다.
    */
-  const attachSource = async (file: File) => {
+  const attachSource = async (file: File, target: 'DEAL' | 'QUOTE', targetId: string) => {
     const form = new FormData()
     form.append('file', file)
-    form.append('target', 'DEAL')
-    form.append('targetId', dealId)
+    form.append('target', target)
+    form.append('targetId', targetId)
     form.append('kind', 'SUPPLY_QUOTE')
     const res = await fetch('/api/crm/attachments', { method: 'POST', body: form })
     const done = await readResponse(res, IMPORT_KEEP_FILE_FAILED)
@@ -382,6 +393,8 @@ export default function QuoteFromFileModal({
 
   const submit = async () => {
     if (going.length === 0) { setError(IMPORT_NOTHING_PICKED); return }
+    /** 이 파일에서 나온 견적들 — 끝나고 원본을 붙일 자리다 */
+    const quoteIds: string[] = []
     /*
       **두 번 눌러도 한 번만 간다.** 단추는 `busy` 로 잠그지만 상태가 그려지기 전의
       두 번째 클릭은 그 잠금을 지나간다 — 그 사이에 견적 두 벌이 만들어지고,
@@ -417,10 +430,14 @@ export default function QuoteFromFileModal({
               **판매 견적을 먼저 만든다.** 줄 id 가 있어야 원가를 그 줄에 이을 수 있다.
               안 켰으면 견적은 안 만들고 원가만 들어간다 — 그때 quoteLineId 는 전부 비어 있다.
             */
-            const quoteLineIds = d.alsoQuote
-              ? ((await createOne(r, lines)).lines ?? []).map((l) => l.id)
-              : []
-            if (d.alsoQuote) made += 1
+            let quoteLineIds: string[] = []
+            if (d.alsoQuote) {
+              const q = await createOne(r, lines)
+              quoteLineIds = (q.lines ?? []).map((l) => l.id)
+              // 원본을 붙일 자리 — 견적이 생겼으면 딜이 아니라 그 견적이다
+              if (q.id) quoteIds.push(q.id)
+              made += 1
+            }
 
             const source: IntakeLine[] = pickedIndexes(r).map((i) => ({
               name: r.lines[i].name,
@@ -437,9 +454,12 @@ export default function QuoteFromFileModal({
             costed += items.length
           } else if (d.key === 'append' && d.targetId) {
             await appendOne(d.targetId, lines)
+            // 붙인 견적도 이 파일에서 온 줄을 갖게 됐다 — 대조할 자리가 그 견적이다
+            quoteIds.push(d.targetId)
             appended += 1
           } else {
-            await createOne(r, lines)
+            const q = await createOne(r, lines)
+            if (q.id) quoteIds.push(q.id)
             made += 1
           }
         } catch (e) {
@@ -462,8 +482,19 @@ export default function QuoteFromFileModal({
         근거 문서는 뒤에 직접 올릴 수 있지만, 지운 원가는 사람이 다시 검수해야 한다.
       */
       let tail = ''
-      if (keepFile && costed > 0 && picked) {
-        try { await attachSource(picked) } catch { tail = ` ${IMPORT_KEEP_FILE_FAILED}` }
+      if (keepFile && picked && (quoteIds.length > 0 || costed > 0)) {
+        /*
+          **견적마다 붙인다.** 한 파일에 건이 셋이면 견적도 셋이고, 그 셋은 각자
+          「내가 이 파일의 어느 부분인가」를 말할 수 있어야 한다 — 한 곳에만 붙이면
+          나머지 둘은 출처 없는 견적이 된다.
+          견적이 하나도 안 생겼으면(원가로만 간 경우) 예전처럼 딜에 붙는다.
+        */
+        const spots: [ 'DEAL' | 'QUOTE', string ][] = quoteIds.length > 0
+          ? quoteIds.map((id) => ['QUOTE', id] as ['QUOTE', string])
+          : [['DEAL', dealId]]
+        for (const [target, id] of spots) {
+          try { await attachSource(picked, target, id) } catch { tail = ` ${IMPORT_KEEP_FILE_FAILED}` }
+        }
       }
 
       const failed = importFailedLine(fails)
@@ -761,11 +792,12 @@ export default function QuoteFromFileModal({
             */}
             {!canCost && <p className={styles.destHint}>{IMPORT_COST_ADMIN_ONLY}</p>}
 
-            {/*
-              근거 문서는 **원가로 보낼 때만** 권한다. 기본은 꺼짐이고, 켠 경우에만 파일이 남는다 —
-              그냥 내용만 가져오는 경우까지 남기면 남의 견적서가 우리 저장소에 쌓인다.
+{/*
+              **도착지를 안 가린다.** 예전엔 원가로 보낼 때만 물었는데, 견적으로 간 건은
+              출처를 남길 길이 아예 없었다 — 읽은 값이 맞는지 대조하려면 원본이 필요하고
+              그건 원가만의 문제가 아니다(사용자 지시 2026-09-20).
             */}
-            {dests.some((d) => d?.key === 'cost') && (
+            {picked && (
               <div className={styles.keepFile}>
                 <label className={styles.destPick}>
                   <input
