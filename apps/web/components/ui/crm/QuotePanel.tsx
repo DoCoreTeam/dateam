@@ -18,6 +18,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { quoteStatusMeta } from '@/lib/crm/ui/quote-status'
+import { linkWithBack } from '@/lib/crm/nav/back-link'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
   ACTION,
@@ -78,6 +79,17 @@ interface Props {
 }
 
 export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }: Props) {
+  /*
+    **여기서 견적 문서로 나갈 때 «돌아올 곳»을 실어 보낸다.**
+
+    맨 주소로 걸면 도착한 견적 화면은 어디서 왔는지 알 길이 없어 견적 «목록»으로 떨어진다 —
+    딜을 보다 견적을 열었는데 뒤로가 낯선 목록이 되는 것이다
+    (사용자 지적 2026-09-20: 「뒤로가기는 내가 진입했던 곳으로 가야 맞지 않을까」).
+
+    이름까지 싣는 이유: 도착 화면의 단추가 「← 견적」이 아니라 **「← 그 딜 이름」**이어야
+    사용자가 어디로 돌아가는지 «누르기 전에» 안다.
+  */
+  const here = { path: `/crm/deals/${dealId}`, label: dealName }
   const [items, setItems] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -349,7 +361,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
                       모달은 우리가 숫자를 맞추는 자리이고 이쪽은 나가는 문서다.
                       경로가 없어서 영업이 화면을 캡처해 보내고 있었다.
                     */}
-                    <NbButton variant="ghost" href={`/crm/quotes/${q.id}`}>
+                    <NbButton variant="ghost" href={linkWithBack(`/crm/quotes/${q.id}`, here)}>
                       <FileText size={14} /> {QUOTE.documentTitle}
                     </NbButton>
                     {/* 지우기는 초안에만 — 보낸 견적은 있었던 일의 기록이라 목록에서 치우지 않는다 */}
