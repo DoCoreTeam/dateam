@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test'
-import * as path from 'path'
 import { dismissGlobalModals } from './_helpers'
 
 /*
@@ -13,11 +12,18 @@ import { dismissGlobalModals } from './_helpers'
 */
 
 const SEAL_KEY = 'quote.supplier.seal'
-// 붉은 1x1 PNG — 실제 도장 대신. 「그림이 그 자리에 있나」만 보면 되므로 작을수록 좋다
-const PNG =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+/*
+  붉은 도장 그림(96×96 PNG) — 실제 직인 대신.
 
-const SEAL_FIXTURE = path.join(__dirname, 'fixtures', 'seal.png')
+  **파일로 두지 않고 여기 담는다.** `.gitignore` 가 `*.png` 를 막아서 픽스처 파일은
+  새로 클론한 곳에 없다 — 그러면 이 시험은 «화면이 깨졌다»가 아니라 «파일이 없다»로 죽고,
+  원인을 못 찾으면 애먼 코드를 고치게 된다. Playwright 는 디스크 없이 버퍼로도 파일을 올린다.
+*/
+const SEAL_B64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAABtklEQVR42u3dwXHDMAxEUVfi/ktJV8ktZ1vSEAvgYcZHa7j7CYmiSOL1EkKEx8/7/Xvlx7mDZoMSbDoYQaavh5Fm/BoQ6caPBVFlCBCBw8c1EDqIHAuim6hREDoLaQ9hShq30zH1QdZC1/ShXLS+TS8zkVq3vdJH6b3amO7TEBEQppsfDWGL+ZEQtpkfB2Gj+Xf0MX8KhCsNm2b+Ha3He/9U869qZn5nCN9cdIv5V/Tr/R2zQO8vzAK9vzgLrCA7+8708UXYe8A/vb84C5hfnAUAFAJw+ym+DTG/OAsAAAAAAIoAeAAXP4iZX5wFAAAAAAANAGyd+3/6Iw0AAAAAAAAAAAAAAAAkAwDh4EItAIp6PwAAAPDtHxh+3SPLUlKXpZiWLvwgD0A4ABAO3H5kQXHvlwUBvR+AAADmhgK2qtqoF7BZWxYUbtSWBc6LYP4nhm6C8JQ/R4ZWDmxyatYc8++kmkP7QHB2aEcIkeZvgRBt/hON6Vi6qt3p6Y6vD2mYAg4auUOXIj6NGq+MVYgQhdxCRCllGCRSMc8Q0crZhoJQ0Hk4iNeWYDwYVvlVwOCw4aMQ4j/+AOG559ehYzkxAAAAAElFTkSuQmCC'
+const SEAL_DATA_URI = `data:image/png;base64,${SEAL_B64}`
+const SEAL_FILE = { name: 'seal.png', mimeType: 'image/png', buffer: Buffer.from(SEAL_B64, 'base64') }
+
 const SEAL_IMG = 'img[alt="직인"]'
 const SEAL_OMITTED = '(직인생략)'
 
@@ -48,7 +54,7 @@ test('직인을 올리면 찍히고, 없으면 (직인생략) 이 선다', async
     await expect(page.locator(SEAL_IMG)).toHaveCount(0)
 
     // ── ② 직인을 올리고 만든 견적 → 도장 ──────────────────────
-    await page.request.patch('/api/crm/settings', { data: { key: SEAL_KEY, value: PNG } })
+    await page.request.patch('/api/crm/settings', { data: { key: SEAL_KEY, value: SEAL_DATA_URI } })
     const stamped = await (await page.request.post('/api/crm/quotes', {
       data: { dealId, title: 'E2E 직인 있음' },
     })).json() as { id: string }
@@ -104,7 +110,7 @@ test('설정 화면에서 직인 파일을 올릴 수 있다', async ({ page }) 
     // 입력칸 id 는 설정 키에서 온다 — 정의가 빠지면 이 칸 자체가 없다
     const file = page.locator(`input[type="file"][id="set-${SEAL_KEY}"]`)
     await expect(file, '설정 화면에 직인 올리는 칸이 없다').toBeAttached({ timeout: 30_000 })
-    await file.setInputFiles(SEAL_FIXTURE)
+    await file.setInputFiles(SEAL_FILE)
 
     // 고르기만 해서는 설정이 아니다 — 저장까지 눌러야 값이 남는다
     const row = page.locator(
