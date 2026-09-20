@@ -17,6 +17,8 @@ import {
   resolveGeminiModelChain,
 } from './gemini-model.ts'
 import { JsonRecoverError, recoverJson } from './json-recover.ts'
+import { NO_THINKING, generationFor } from './output-limit.ts'
+import type { AiCapability } from '@ax/ai-core'
 import { beginGuardedCall } from './guarded-call.ts'
 import { serverAiLedger } from './ledger.ts'
 import { serverKnownNames } from './known-names.ts'
@@ -118,6 +120,14 @@ export interface CallGeminiJsonOptions {
   maxOutputTokens?: number
   /** 로그 라벨(기능 이름). */
   feature?: string
+  /**
+   * 이 호출이 하는 일(능력 여덟 중 하나).
+   *
+   * 주면 출력 상한과 생각 예산이 능력별 값에서 온다 — 안 주면 예전처럼 32,768 이고
+   * 생각만 꺼진다. 상한은 «최대»가 아니라 «쓸 만큼»이어야 하는데, 넉넉하면 모델이
+   * 넉넉하게 답한다.
+   */
+  capability?: AiCapability
   /**
    * 이 호출의 주인 — 눌러서 시작한 사람의 id.
    *
@@ -260,6 +270,8 @@ interface CallOnceExtras {
   json: boolean
   /** 주면 스트리밍으로 부른다. */
   onDelta?: (delta: string) => void
+  /** 능력별 생성 설정(출력 상한·생각 예산). 안 주면 생각은 끈다 */
+  generation?: Record<string, unknown>
 }
 
 /**
@@ -335,9 +347,18 @@ async function callOnce(
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
-        generationConfig: extras.json
-          ? { responseMimeType: 'application/json', temperature, maxOutputTokens }
-          : { temperature, maxOutputTokens },
+        generationConfig: {
+          ...(extras.json ? { responseMimeType: 'application/json' } : {}),
+          temperature,
+          maxOutputTokens,
+          /*
+            생각 예산은 **끄는 것이 기본**이다. 끄는 자리가 한 곳뿐이었고(daily/flow-reason)
+            나머지는 전부 벤더 기본값으로 생각했다 — 생각 토큰은 답에 안 보이면서 값은
+            그대로 나간다. 켜야 하는 능력은 lib/ai/output-limit.ts 의 THINKING_ON 에 적고,
+            그 값이 extras.generation 으로 여기 내려온다.
+          */
+          ...(extras.generation ?? { thinkingConfig: NO_THINKING }),
+        },
       }),
       cache: 'no-store',
       signal: AbortSignal.timeout(timeoutMs),
@@ -545,7 +566,8 @@ async function runGeminiChainInner(
     temperature = 0.2,
     timeoutMs = GEMINI_CALL_TIMEOUT_MS,
     overallTimeoutMs = GEMINI_OVERALL_TIMEOUT_MS,
-    maxOutputTokens = GEMINI_MAX_OUTPUT_TOKENS,
+    maxOutputTokens: givenMaxOutput,
+    capability,
     feature = 'gemini',
     fallbackApiKey,
     keys: givenKeys,
@@ -557,6 +579,16 @@ async function runGeminiChainInner(
   if (!apiKey) {
     throw new GeminiCallError('auth', 'Gemini API 키가 설정되지 않았습니다. 관리자 설정에서 키를 등록해 주세요.', [])
   }
+
+  /*
+    능력을 주면 상한과 생각 예산이 그 능력의 값이고, 부르는 쪽이 직접 준 값은 그대로 이긴다 —
+    이미 재어 보고 정한 자리가 있고(daily/flow-reason 300토큰) 표가 덮으면 잰 일이 사라진다.
+    능력을 안 주면 예전 상한(32,768)이되 생각만 꺼진다.
+  */
+  const generation = capability
+    ? generationFor(capability, { maxOutputTokens: givenMaxOutput })
+    : { maxOutputTokens: givenMaxOutput ?? GEMINI_MAX_OUTPUT_TOKENS, thinkingConfig: NO_THINKING }
+  const maxOutputTokens = generation.maxOutputTokens
 
   const chain = resolveGeminiModelChain(configured, { requireJson: cfg.json })
   const modelIssue = describeModelIssue(configured)
@@ -626,6 +658,7 @@ async function runGeminiChainInner(
 
       const remaining = Math.max(1_000, Math.min(timeoutMs, deadline - Date.now()))
       const out = await callOnce(model, prompt, currentKey().apiKey, temperature, remaining, maxOutputTokens, {
+        generation: { thinkingConfig: generation.thinkingConfig },
         parts, json: cfg.json, onDelta,
       })
       attempts.push(out.detail)

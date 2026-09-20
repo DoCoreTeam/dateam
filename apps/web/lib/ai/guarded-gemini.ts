@@ -16,6 +16,8 @@
  */
 
 import { guardedText, beginGuardedCall, type AiLedger, type GuardedCallHandle } from './guarded-call.ts'
+import type { AiCapability } from '@ax/ai-core'
+import { NO_THINKING, generationFor } from './output-limit.ts'
 import { serverAiLedger } from './ledger.ts'
 import { serverKnownNames } from './known-names.ts'
 
@@ -50,6 +52,13 @@ export interface GuardedGeminiInput {
    * 묶어 둔 길과 생각 예산을 0으로 꺼 둔 길이 있었다.
    */
   extraConfig?: Record<string, unknown>
+  /**
+   * 이 호출이 하는 일(능력 여덟 중 하나).
+   *
+   * 주면 출력 상한과 생각 예산이 그 능력의 값에서 온다. `extraConfig` 로 직접 준 값은
+   * 그대로 이긴다 — 이미 재어 보고 정한 자리가 있고, 표가 그 값을 덮으면 잰 일이 사라진다.
+   */
+  capability?: AiCapability
 }
 
 export interface GuardedGeminiResult {
@@ -86,6 +95,20 @@ export async function guardedGeminiText(input: GuardedGeminiInput): Promise<Guar
   }
 }
 
+
+/**
+ * 이 호출의 상한과 생각 예산.
+ *
+ * 생각은 **끄는 것이 기본**이다. 끄는 자리가 저장소 전체에 한 곳뿐이었고 나머지는 전부
+ * 벤더 기본값으로 생각했다 — 생각 토큰은 답에 안 보이면서 값은 그대로 나간다.
+ * 펼친 뒤에 `extraConfig` 를 얹으므로 부르는 쪽이 준 값이 언제나 이긴다.
+ */
+function generationOf(input: { capability?: AiCapability }): Record<string, unknown> {
+  return input.capability
+    ? { ...generationFor(input.capability) }
+    : { thinkingConfig: NO_THINKING }
+}
+
 /** 벤더를 실제로 부르는 유일한 자리 */
 async function callGemini(
   prompt: string, input: GuardedGeminiInput,
@@ -98,6 +121,7 @@ async function callGemini(
       generationConfig: {
         ...(input.json === false ? {} : { responseMimeType: 'application/json' }),
         temperature: input.temperature ?? 0.1,
+        ...generationOf(input),
         ...(input.extraConfig ?? {}),
       },
     }),
@@ -172,6 +196,7 @@ export async function guardedGeminiStream(
         generationConfig: {
           ...(input.json === true ? { responseMimeType: 'application/json' } : {}),
           temperature: input.temperature ?? 0.1,
+          ...generationOf(input),
           ...(input.extraConfig ?? {}),
         },
       }),
@@ -250,6 +275,7 @@ export async function guardedGeminiParts(
         generationConfig: {
           ...(input.json === false ? {} : { responseMimeType: 'application/json' }),
           temperature: input.temperature ?? 0.1,
+          ...generationOf(input),
           ...(input.extraConfig ?? {}),
         },
       }),
