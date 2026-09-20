@@ -26,28 +26,42 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-/** 세 설정 화면. 하나라도 경로가 바뀌면 여기서 먼저 걸린다 */
-const SETTINGS_DIRS = [
-  join(WEB, 'app', 'admin', 'settings'),
-  join(WEB, 'app', '(ci)', 'ci', 'settings'),
-  join(WEB, 'app', '(crm)', 'crm', 'settings'),
-]
-
-const SETTINGS_FILES = SETTINGS_DIRS.flatMap((d) => walk(d))
+/**
+ * 설정 화면이 어디인가 — **손으로 적지 않는다.**
+ *
+ * 예전엔 디렉터리 셋을 적어 뒀다. 그래서 RFP 관리자가 같은 설정 화면인데도
+ * 아래 단정 어디에도 안 걸렸고, 자기 카드 껍데기를 그대로 그리고 있었다(실측 2026-09-20).
+ * 목록에 없는 화면은 가드가 있는 줄도 모른다.
+ *
+ * 이제 **공용 설정 부품을 쓰는 파일**이 설정 화면이다. 새 설정 화면을 만들면
+ * 부품을 쓰는 순간 여기 목록에 들어온다 — 누가 적어 넣지 않아도 된다.
+ */
 const SHARED_DIR = join(WEB, 'components', 'ui', 'settings')
+const USES_SHARED = /@\/components\/ui\/settings\//
 
-test('세 설정 화면이 전부 자리에 있다 — 경로가 바뀌면 아래 단정이 조용히 0건이 된다', () => {
-  for (const d of SETTINGS_DIRS) {
-    assert.ok(walk(d).length > 0, `${rel(d)} 에 화면 파일이 없다. 경로가 바뀌었나`)
-  }
-  assert.ok(SETTINGS_FILES.length > 20, `훑은 설정 화면이 ${SETTINGS_FILES.length}개뿐이다`)
-})
+/** 설정 화면이 사는 곳. 부품 자신은 빼고 훑는다 */
+const SCAN_ROOTS = [join(WEB, 'app'), join(WEB, 'components')]
 
-test('세 설정 화면이 전부 공용 설정 부품을 쓴다', () => {
-  for (const d of SETTINGS_DIRS) {
-    const uses = walk(d).some((f) => /@\/components\/ui\/settings\//.test(read(f)))
-    assert.ok(uses, `${rel(d)} 가 공용 설정 부품을 하나도 안 쓴다`)
-  }
+const SETTINGS_FILES = SCAN_ROOTS
+  .flatMap((d) => walk(d))
+  .filter((f) => !f.startsWith(SHARED_DIR))
+  .filter((f) => USES_SHARED.test(read(f)))
+
+/** 화면이 자기 격자를 짤 때 쓰는 말 — CSS 와 인라인 style 둘 다 */
+const OWN_GRID = /grid-template-columns|gridTemplateColumns/
+/** 카드를 옆 카드 높이에 맞춰 늘리는 말 */
+const STRETCH = /align-items:\s*stretch|alignItems:\s*['"`]stretch/
+
+test('설정 화면 목록이 스스로 찬다 — RFP 관리자처럼 나중에 생긴 화면도 들어온다', () => {
+  assert.ok(SETTINGS_FILES.length > 10, `훑은 설정 화면이 ${SETTINGS_FILES.length}개뿐이다. 부품 경로가 바뀌었나`)
+
+  // 화면 넷이 전부 걸려 있어야 한다. 하나라도 빠지면 그 화면만 조용히 갈린다
+  const musts = [
+    'app/admin/settings', 'app/(ci)/ci/settings', 'app/(crm)/crm/settings',
+    'app/(rfp)/rfp/admin', 'components/rfp',
+  ]
+  const missing = musts.filter((m) => !SETTINGS_FILES.some((f) => rel(f).startsWith(m)))
+  assert.deepEqual(missing, [], `설정 화면인데 목록에 없다(공용 부품을 안 쓴다): ${missing.join(', ')}`)
 })
 
 test('설정 화면이 카드 껍데기를 자기 마크업으로 다시 그리지 않는다', () => {
@@ -158,4 +172,38 @@ test('★ 예외마다 사유가 적혀 있고, 그 파일이 실재한다', () 
     assert.ok(SETTINGS_FILES.some((f) => f.endsWith(x.file.replace(/^app\//, 'app/'))),
       `예외가 없는 파일을 가리킨다: ${x.file}`)
   }
+})
+
+
+test('설정 화면이 카드를 자기 격자에 늘어놓지 않는다', () => {
+  /*
+    화면마다 제 격자를 짜면 열 수도 간격도 갈린다. **카드 배치는** 공용 그릇(SettingsPanel)이 한다.
+
+    카드 «안»의 격자는 여기 걸리지 않는다 — 테마 고르기 칸처럼 카드 하나 안에서 내용을
+    늘어놓는 격자는 배치가 아니라 그 카드의 내용이다. 그래서 카드를 둘 이상 그리는
+    파일만 본다: 그 격자는 카드를 늘어놓는 격자다.
+  */
+  const offenders = SETTINGS_FILES
+    .filter((f) => (read(f).match(/<SettingsCard/g) ?? []).length > 1)
+    .filter((f) => OWN_GRID.test(read(f)))
+    .map(rel)
+  assert.deepEqual(offenders, [],
+    `설정 화면이 카드를 자기 격자에 늘어놓는다(SettingsPanel 에 담을 것): ${offenders.join(', ')}`)
+})
+
+test('카드를 옆 카드 높이에 맞춰 늘리지 않는다', () => {
+  /*
+    stretch 는 짧은 카드 아래를 통째로 빈 상자로 만든다 —
+    실측 2026-09-20 영업 CRM 설정은 카드 높이 합 11,961px 중 5,263px(44%)이 그 자리였다.
+    맞출 것은 시작점이고 늘릴 것은 없다(계측 e2e/settings-whitespace.spec.ts).
+  */
+  const offenders = SETTINGS_FILES.filter((f) => STRETCH.test(read(f))).map(rel)
+  assert.deepEqual(offenders, [],
+    `설정 화면이 카드를 늘린다: ${offenders.join(', ')}`)
+
+  // 공용 격자 자신도 늘리지 않는다 — 여기 한 줄이 돌아오면 네 화면이 한꺼번에 늘어난다
+  const css = read(join(WEB, 'app', 'globals.css'))
+  const block = css.slice(css.indexOf('.settings-grid {'), css.indexOf('.settings-grid {') + 600)
+  assert.ok(!STRETCH.test(block), '.settings-grid 가 다시 stretch 로 늘린다')
+  assert.ok(!/height:\s*100%/.test(block), '.settings-grid 가 다시 height 100% 로 늘린다')
 })

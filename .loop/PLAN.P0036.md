@@ -114,7 +114,7 @@
 의존: I04
 
 ### I06 가드가 부품만이 아니라 배치까지 본다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ui/settings-parity.test.ts
 감사 기준:
