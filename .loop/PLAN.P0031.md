@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 키를 여러 개 두고 한도에 걸린 키를 건너뛴다
 플랜 ID: P0032
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0034
 목표 버전: v0.10.214
@@ -84,15 +84,17 @@
 의존: I03
 
 ### I04 서버 키 저장소
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/ai/key-store.ts (신규), apps/web/lib/ai/key-store.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/ai/key-store.ts (신규), apps/web/lib/ai/key-store-core.ts (신규), apps/web/lib/ai/key-store.test.ts (신규), apps/web/package.json
 감사 기준:
-- 파일 첫 줄이 import 'server-only'
+- key-store.ts 첫 줄이 import 'server-only' 이고 서비스롤 클라이언트를 만드는 자리가 그 파일 안에만 있음
 - readKeyPool(provider) 이 ai_provider_keys 순서대로 돌려주고 표가 비었거나 못 읽으면 META 의 기존 키 하나로 떨어짐
 - 표를 못 읽어도 예외를 던지지 않음 (AI 호출이 저장소 때문에 멈추지 않음)
 - 상태 기록 실패가 호출을 막지 않음 (오류를 콘솔에 남기고 진행)
-- 반환값에 원문 키가 있고 로그에는 가림값만 나감
+- 반환값에 원문 키가 있고 로그에는 가림값만 나감, 콘솔에 실린 문자열에 원문 조각이 없음
+- 보안: 표를 읽고 쓰는 질의가 key-store 밖에 없음 (원문 키가 다른 모듈로 흩어지지 않음)
+- pnpm test 에 key-store 등재되고 실제로 돎
 의존: I01, I02
 
 ### I05 Gemini 호출기 결선
@@ -174,3 +176,4 @@
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0034)
 - v0.1.1 (2026-09-20) 마이그레이션 번호 263 을 옆 세션이 먼저 가져가 264/265 로 옮김 (audit:I01)
 - v0.1.2 (2026-09-20) I03 을 둘로 쪼갬: 429 가 availability 'limited' 를 남기는 것을 소비처보다 먼저 떼면 runner 의 PROVIDER_QUOTA 판정이 죽어 여러 건 돌 때 중단이 안 걸린다(v0.7.574 사고 재현). I03 은 scope 와 keyOutcome 만, I03a 가 소비처를 옮긴 뒤 availability 를 뗀다. pruneChain 은 'key' 를 'provider' 와 같게 다룬다 — 키 교체는 그 앞에서 끝난다 (audit:I03)
+- v0.1.3 (2026-09-20) I04 을 두 파일로 나눔: node --test 는 server-only 를 못 읽는다(Next 가 빌드 때 별칭으로 붙이는 것이라 패키지가 없음). 한 파일로 두면 감사 기준을 소스 훑기로만 볼 수 있어 가드가 안 된다. 저장소 전례(org-scope.ts / org-scope-pure.ts)대로 서비스롤 배선만 server-only 에 두고 규칙은 core 로 뺀다. 원문 키가 흩어지지 않는지 세는 보안 줄과 등재 줄도 추가 (audit:I04)
