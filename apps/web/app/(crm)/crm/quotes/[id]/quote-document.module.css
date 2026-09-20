@@ -249,6 +249,40 @@
 .note { font-size: var(--fs-sm); white-space: pre-wrap; margin: 0; }
 
 /* ── 화면 전용 알림 ────────────────────────────────────────── */
+/*
+  ── 출처 한 줄 ────────────────────────────────────────────
+  경고가 아니라 사실이라 색을 쓰지 않는다 — 경고색을 쓰면 「파일로 만든 견적은
+  문제가 있다」로 읽힌다. 문서 위에 얹는 한 줄이므로 종이와 같은 폭에 맞춘다.
+*/
+.source {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.sourceLabel {
+  color: var(--text-muted);
+}
+
+/* 파일 이름이 이 줄의 주인공이다 — 대조할 때 사람이 찾는 값이 이것이다 */
+.sourceName {
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sourceTag {
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
 .warn {
   border: var(--border-w) solid var(--warning-border);
   background: var(--warning-bg);

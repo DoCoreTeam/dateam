@@ -30,6 +30,16 @@ export interface QuoteDocumentResult {
   violations: { code: string; message: string }[]
   /** 아직 안 채운 공급자 항목의 **사람이 읽는 이름** */
   missingSupplier: string[]
+  /**
+   * 어느 파일에서 읽은 견적인가. 파일 출처가 아니면 null.
+   *
+   * **문서 «안»이 아니라 그 곁이다.** `QuoteDocument` 는 고객이 받는 종이고,
+   * 출처는 우리 사정이다 — 문서에 넣으면 종이에 우리 저장소 사정이 찍힌다.
+   *
+   * 이 값은 그동안 DB 에만 있었다. 화면이 한 번도 안 읽어서 「이 견적이 어느 파일에서
+   * 왔나」를 사람이 알 길이 없었다(사용자 지적 2026-09-20).
+   */
+  source: { fileName: string; fromFileAt: string | null } | null
 }
 
 export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<QuoteDocumentResult> {
@@ -181,5 +191,13 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
     images,
     violations: verifyDocument(document).map((v) => ({ code: v.code, message: v.message })),
     missingSupplier: missingSupplierFields(document).map((f) => SUPPLIER_LABEL[f]),
+    /*
+      **이름이 있으면 출처가 있는 것이다.** `fromFileAt` 은 사람이 한 번 고치면 풀리지만
+      이름은 남는다 — 고친 뒤에도 그 파일에서 온 것은 사실이고, 대조할 자리도 그대로다.
+      시각은 «아직 읽은 값 그대로인가»를 말하는 데만 쓴다.
+    */
+    source: quote.sourceFileName
+      ? { fileName: quote.sourceFileName, fromFileAt: quote.fromFileAt?.toISOString() ?? null }
+      : null,
   }
 }

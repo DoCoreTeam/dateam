@@ -33,6 +33,7 @@ import {
   EXPORT_SAFE_NOTE,
   EXPORT_BLOCKED_NOTE,
   PRINT_HINT,
+  QUOTE_SOURCE,
   expiredNote,
 } from '@/lib/terms'
 import QuoteEditorModal, { quoteToDraft, type QuoteDraft } from '@/components/ui/crm/QuoteEditorModal'
@@ -51,6 +52,8 @@ interface DocumentResponse {
   images: { logo: string }
   violations: { code: string; message: string }[]
   missingSupplier: string[]
+  /** 어느 파일에서 읽은 견적인가. 파일 출처가 아니면 null — 그때는 줄 자체를 안 그린다 */
+  source: { fileName: string; fromFileAt: string | null } | null
 }
 
 export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
@@ -240,6 +243,26 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           <FileText size={16} /> {QUOTE.openPreview}
         </NbButton>
       </div>
+
+      {/*
+        ── 출처 ──────────────────────────────────────────────
+        **파일에서 읽은 견적은 그 사실을 말한다.** 값은 예전부터 DB 에 있었는데
+        화면이 한 번도 안 읽어서, 「이 견적이 어느 파일에서 왔나」를 사람이 알 길이
+        아예 없었다(사용자 지적 2026-09-20).
+
+        `screenOnly` 안이라 종이에는 안 나간다 — 고객이 받는 문서에 우리 저장소 사정을 싣지 않는다.
+      */}
+      {data.source && (
+        <div className={`${styles.screenOnly} ${styles.source}`}>
+          <FileText size={14} aria-hidden />
+          <span className={styles.sourceLabel}>{QUOTE_SOURCE.label}</span>
+          <span className={styles.sourceName}>{data.source.fileName}</span>
+          {/* 아직 아무도 안 고친 견적 — 경고가 아니라 사실이다 */}
+          {data.source.fromFileAt && (
+            <span className={styles.sourceTag}>{QUOTE_SOURCE.untouched}</span>
+          )}
+        </div>
+      )}
 
       {/*
         어긋난 문서는 보내면 안 된다. 화면에서 지나칠 수는 있지만(무엇이 틀렸는지 봐야 하니까)
