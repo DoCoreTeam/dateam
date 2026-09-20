@@ -12,7 +12,8 @@
 // 줄이 붙어 있으면 열두 개가 한 덩어리로 보인다. 구분선과 여백으로 한 줄씩 읽히게 한다.
 
 import { useState } from 'react'
-import NbBadge from '@/components/ui/nb/NbBadge'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 import { RFP_ADMIN, ANOMALY_SEVERITY_LABEL, ANOMALY_GRADE_LABEL, type AnomalySeverity } from '@/lib/rfp/terms'
 import { DEFAULT_RULES, type AnomalyRule } from '@/lib/rfp/anomaly/rules'
 import styles from '@/app/(rfp)/rfp.module.css'
@@ -55,14 +56,11 @@ export default function RuleSettings({ saved }: RuleSettingsProps) {
   }
 
   return (
-    <section className="card">
-      <div className={styles.sectionHead}>
-        <div className={styles.between}>
-          <span className={styles.sectionTitle}>{RFP_ADMIN.rules}</span>
-          <NbBadge status="note">{on} / {rules.length}</NbBadge>
-        </div>
-      </div>
-
+    <SettingsCard
+      title={RFP_ADMIN.rules}
+      headingLevel={2}
+      status={{ tone: toneFromStatusKey('note'), label: `${on} / ${rules.length}` }}
+    >
       {failed && (
         <p role="alert" className={styles.sectionDesc} style={{ color: 'var(--danger)' }}>{failed}</p>
       )}
@@ -82,13 +80,15 @@ export default function RuleSettings({ saved }: RuleSettingsProps) {
                 {saving === r.id ? RFP_ADMIN.ruleSaving : r.id}
               </span>
             </span>
-            <NbBadge status={r.grade === 'confirmed' ? 'blocker' : 'note'}>
+            <StatusPill tone={toneFromStatusKey(r.grade === 'confirmed' ? 'blocker' : 'note')}>
               {ANOMALY_GRADE_LABEL[r.grade === 'confirmed' ? 'confirmed' : 'suspect']}
-            </NbBadge>
-            <NbBadge status="doing">{ANOMALY_SEVERITY_LABEL[r.severity as AnomalySeverity]}</NbBadge>
+            </StatusPill>
+            <StatusPill tone={toneFromStatusKey('doing')}>
+              {ANOMALY_SEVERITY_LABEL[r.severity as AnomalySeverity]}
+            </StatusPill>
           </label>
         ))}
       </div>
-    </section>
+    </SettingsCard>
   )
 }

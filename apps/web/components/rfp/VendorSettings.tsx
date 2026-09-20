@@ -9,9 +9,10 @@
 // RFP 에만 있는 질문은 하나다 — **이 모델에 어느 등급까지 보내도 되나.**
 
 import { ExternalLink } from 'lucide-react'
-import NbBadge from '@/components/ui/nb/NbBadge'
+import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
 import { RFP_ADMIN, DOC_CLASS_LABEL } from '@/lib/rfp/terms'
 import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
 import type { DocClass } from '@/lib/rfp/domain/doc-class'
@@ -34,12 +35,7 @@ const CLASS_STATUS: Record<DocClass, 'note' | 'doing' | 'blocker'> = {
 
 export default function VendorSettings({ vendors }: { vendors: VendorRow[] }) {
   return (
-    <section className="card">
-      <div className={styles.sectionHead}>
-        <span className={styles.sectionTitle}>{RFP_ADMIN.vendors}</span>
-        <span className={styles.sectionDesc}>{RFP_ADMIN.vendorsHint}</span>
-      </div>
-
+    <SettingsCard title={RFP_ADMIN.vendors} description={RFP_ADMIN.vendorsHint} headingLevel={2}>
       {vendors.length === 0 ? (
         <EmptyState
           title={RFP_ADMIN.noVendors}
@@ -59,10 +55,12 @@ export default function VendorSettings({ vendors }: { vendors: VendorRow[] }) {
                 </div>
 
                 <div className={styles.row}>
-                  {v.isInternal && <NbBadge status="done">{RFP_ADMIN.internalVendor}</NbBadge>}
+                  {v.isInternal && (
+                    <StatusPill tone={toneFromStatusKey('done')}>{RFP_ADMIN.internalVendor}</StatusPill>
+                  )}
                   {/* 이 모델에 어느 등급까지 보내도 되나 — RFP 에만 있는 질문이다 */}
                   {v.allowedDocClasses.map((c) => (
-                    <NbBadge key={c} status={CLASS_STATUS[c]}>{DOC_CLASS_LABEL[c]}</NbBadge>
+                    <StatusPill key={c} tone={toneFromStatusKey(CLASS_STATUS[c])}>{DOC_CLASS_LABEL[c]}</StatusPill>
                   ))}
                 </div>
               </div>
@@ -76,6 +74,6 @@ export default function VendorSettings({ vendors }: { vendors: VendorRow[] }) {
           </div>
         </>
       )}
-    </section>
+    </SettingsCard>
   )
 }

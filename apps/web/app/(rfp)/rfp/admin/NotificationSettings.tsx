@@ -10,7 +10,8 @@
 // 이 저장소가 이상 조항 규칙에서 한 번 한 실수다.
 
 import { useEffect, useState } from 'react'
-import NbBadge from '@/components/ui/nb/NbBadge'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 import { RFP_ADMIN, NOTIFY_KIND_LABEL } from '@/lib/rfp/terms'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
 import styles from '@/app/(rfp)/rfp.module.css'
@@ -44,15 +45,12 @@ export default function NotificationSettings() {
   }, [])
 
   return (
-    <section className="card">
-      <div className={styles.sectionHead}>
-        <div className={styles.between}>
-          <span className={styles.sectionTitle}>{RFP_ADMIN.notifications}</span>
-          {rows && <NbBadge status="note">{rows.length}</NbBadge>}
-        </div>
-        <p className={styles.sectionDesc}>{RFP_ADMIN.notificationsReadOnly}</p>
-      </div>
-
+    <SettingsCard
+      title={RFP_ADMIN.notifications}
+      description={RFP_ADMIN.notificationsReadOnly}
+      headingLevel={2}
+      status={rows ? { tone: toneFromStatusKey('note'), label: String(rows.length) } : undefined}
+    >
       {failed && (
         <p role="alert" className={styles.sectionDesc} style={{ color: 'var(--danger)' }}>
           {RFP_ADMIN.notificationsFailed}
@@ -67,7 +65,7 @@ export default function NotificationSettings() {
         <ul className={styles.ruleList}>
           {rows.map((n) => (
             <li key={n.id} className={styles.ruleItem}>
-              <NbBadge status="note">{NOTIFY_KIND_LABEL[n.kind] ?? n.kind}</NbBadge>
+              <StatusPill tone={toneFromStatusKey('note')}>{NOTIFY_KIND_LABEL[n.kind] ?? n.kind}</StatusPill>
               <span className={`${styles.ruleName} ${styles.tight}`}>
                 <span style={{ fontWeight: 600 }}>{n.title}</span>
                 <span className={styles.sectionDesc}>{formatKstDateTimeExact(n.created_at)}</span>
@@ -76,6 +74,6 @@ export default function NotificationSettings() {
           ))}
         </ul>
       )}
-    </section>
+    </SettingsCard>
   )
 }

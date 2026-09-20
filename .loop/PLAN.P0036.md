@@ -1,6 +1,6 @@
 # PLAN newAX: 설정 화면 한 벌: 카드를 늘리지 않고 같은 그릇에 담는다
 플랜 ID: P0036
-플랜 버전: v0.1.3
+플랜 버전: v0.1.4
 상태: 진행중
 지시: iv_0081
 목표 버전: v0.10.264
@@ -71,7 +71,7 @@
 의존: I01
 
 ### I04 RFP 설정 카드 넷이 공용 카드와 공용 배지를 쓴다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/rfp/VendorSettings.tsx, apps/web/components/rfp/RuleSettings.tsx, apps/web/app/(rfp)/rfp/admin/G2bServices.tsx, apps/web/app/(rfp)/rfp/admin/NotificationSettings.tsx
 감사 기준:
@@ -80,6 +80,25 @@
 - pnpm tsc --noEmit, pnpm lint 통과
 - /rfp/admin 실브라우저에서 규칙 스위치를 눌러 저장이 되고 실패 시 되돌아오는 기존 동작이 그대로임
 의존: I01
+
+### I04a RFP 규칙 스위치가 실제로 저장되게 한다
+상태: 대기
+모드: 중량
+범위: apps/web/app/api/rfp/rules/route.ts, apps/web/lib/policy/api-auth-surface.test.ts
+감사 기준:
+- /rfp/admin 실브라우저에서 규칙을 껐다 새로고침해도 꺼진 채로 남고, 다시 켜면 켜진 채로 남음
+- PATCH /api/rfp/rules 응답이 200 이고, 되돌리기 알림이 뜨지 않음
+- 규칙 행에 org_id 가 들어가 rfp_anomaly_rules_admin 정책(org_id is not null and rfp_is_admin(org_id))을 통과함
+- 보안 S2: 이 창구는 requireMemberApi 를 그대로 부른다(임직원만), 그 위에 RLS 가 조직 관리자만 쓰게 한다 — 게이트를 느슨하게 하지 않고 org_id 를 채워서 통과시킨다
+- 보안 S2: createAdminClient(서비스롤)로 우회하지 않는다 — grep "createAdminClient" app/api/rfp/rules/route.ts 가 0건
+- 보안 S2: 남의 조직 규칙을 못 바꾼다 — org_id 를 요청 본문에서 받지 않고 서버가 세션에서 정한다(grep 으로 body.org_id 0건), 조직을 안 가진 사람이 부르면 200 이 아님
+- api-auth-surface.test.ts 의 공개 창구 목록에 이 경로가 새로 들어가지 않음
+- pnpm tsc --noEmit, pnpm lint 통과
+의존: 없음
+근거: I04 실브라우저 확인 중 발견 (2026-09-20). PATCH 가 org_id 없이 upsert 해서
+      rfp_anomaly_rules_admin 정책에 걸려 500 이 난다. 화면은 되돌리고 알림을 띄우므로
+      «조용한 실패»는 아니지만, **스위치가 한 번도 저장된 적이 없다.**
+      창구는 2026-09-16 에 생겼고 그때부터 줄곧 그랬다
 
 ### I05 RFP 관리자 화면이 공용 그릇에 담긴다
 상태: 대기
@@ -124,3 +143,5 @@
 - v0.1.2 (2026-09-20) I03 범위에 공용 카드 그릇 SettingsCards 를 더함 — 영업 CRM 과 RFP 관리자는 서버 화면이라 탭·검색 상태를 쥘 수 없고, 화면마다 클라이언트 껍데기를 하나씩 만들면 그릇이 다시 갈린다 (audit:I03)
 - v0.1.3 (2026-09-20) I03 범위에 app/(crm)/crm/settings/SettingsCard.tsx 를 더함, 한 부품이 카드 둘(견적서 공급자 정보·AI·연동 설정)을 그려서 AI 카드가 견적 탭에 실려 나왔음 — 실브라우저에서 확인 (audit:I03)
 - v0.1.3 (2026-09-20) I03 범위에 CRM SettingsCard 를 더함 — 한 부품이 견적서 공급자 정보와 AI·연동 설정 두 카드를 그려서 어느 탭에 넣어도 한쪽이 거짓말을 한다, 부품이 한 묶음만 그리게 하고 목록이 둘을 따로 세운다 (audit:I03)
+- v0.1.4 (2026-09-20) I04a 삽입 — RFP 규칙 스위치가 org_id 없이 저장을 시도해 RLS 에 걸려 500 이 난다, 실브라우저에서 발견 (audit:I04)
+- v0.1.4 (2026-09-20) I04a 삽입 — RFP 규칙 스위치가 저장을 한 번도 못 하고 있었다, PATCH 가 org_id 없이 upsert 해서 RLS 정책에 걸려 500 (audit:I04)
