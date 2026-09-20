@@ -8,7 +8,9 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dbA, WS_A, catchError } from '../integrity/_helpers.ts'
+// loadEnv 부작용 때문에 _helpers 를 먼저 읽는다 — DATABASE_URL 이 여기서 채워진다
+import { catchError } from '../integrity/_helpers.ts'
+import { getCrmDb } from '../../../lib/crm/db/client.ts'
 import {
   setSetting, clearSetting, resolveSetting, readSecret, listSettings,
   encryptSecret, decryptSecret, maskSecret, settingDef, SETTING_DEFS,
@@ -30,11 +32,62 @@ const KEY = 'ai.model.extract'
  */
 const SECRET_KEY = 'stt.api_key'
 
-async function cleanup() {
-  await dbA.crmAppSetting.deleteMany({
-    where: { key: { in: [...SETTING_DEFS.map((d) => d.key), SECRET_KEY] } },
+/**
+ * 이 파일 **전용** 워크스페이스.
+ *
+ * ## 왜 운영 워크스페이스를 쓰면 안 되나 (실측 2026-09-20)
+ *
+ * 예전 이 파일은 `ws_dataalliance`(운영)에 대고 돌았고, 정리 구문이 이랬다:
+ *
+ *     deleteMany({ where: { key: { in: SETTING_DEFS.map((d) => d.key) } } })
+ *     crmAuditLog.deleteMany({ where: { targetType: 'setting' } })
+ *
+ * 워크스페이스도 범위도 조건에 없다. 그래서 **사용자가 넣은 견적서 공급자 정보
+ * 여덟 줄이 통째로 사라졌고**, 되돌릴 근거인 감사 로그까지 같이 지워졌다.
+ * 화면은 「공급자 정보가 아직 없어요」라고 말했고 사용자는 분명히 채웠는데도 그랬다.
+ * 같은 사고가 2026-08-16 에 이미 보고됐고 `DI-12` 는 그때 전용 워크스페이스로 옮겼는데,
+ * 이 파일만 안 옮겨서 한 달 뒤에 똑같이 터졌다.
+ *
+ * **아래 「목록은 등록된 키를 전부 보여 준다」 테스트가 `source === 'FALLBACK'` 을 요구한다** —
+ * 즉 이 파일은 «설정이 하나도 없는 워크스페이스»를 전제로 쓰였다.
+ * 운영 워크스페이스에는 설정이 있는 것이 정상이므로, 그 전제를 만족시키는 길은
+ * 전부 지우는 것뿐이었다. 전용 워크스페이스로 옮겨야 그 모순이 풀린다.
+ *
+ * 외래키가 없어(`crm_app_setting` 제약은 PK 하나) 워크스페이스 행을 따로 만들 필요는 없다.
+ */
+const WS = 'ws_setting_test'
+const dbT = getCrmDb(WS)
+
+/**
+ * 이 테스트가 만든 GLOBAL 행의 id.
+ *
+ * GLOBAL 행은 `workspaceId` 가 null 이라 **워크스페이스로 못 가른다.**
+ * 그래서 키로 지우면 남이 넣은 GLOBAL 값까지 같이 지운다 — 위와 같은 사고다.
+ * 만든 id 만 들고 있다가 그것만 지운다.
+ */
+const MADE_GLOBAL: string[] = []
+
+async function makeGlobal(key: string, value: string): Promise<void> {
+  const id = `st_test_global_${MADE_GLOBAL.length}`
+  MADE_GLOBAL.push(id)
+  await dbT.crmAppSetting.create({
+    data: { id, scope: 'GLOBAL', workspaceId: null, key, valueJson: value as never },
   })
-  await dbA.crmAuditLog.deleteMany({ where: { targetType: 'setting' } })
+}
+
+/**
+ * 이 테스트가 만든 것만 지운다.
+ *
+ * 워크스페이스 행은 전용 워크스페이스 조건으로, GLOBAL 행은 만든 id 로 좁힌다.
+ * 감사 로그도 마찬가지다 — `targetType` 만으로 지우면 남의 설정 변경 이력이 날아간다.
+ */
+async function cleanup() {
+  await dbT.crmAppSetting.deleteMany({ where: { scope: 'WORKSPACE', workspaceId: WS } })
+  if (MADE_GLOBAL.length > 0) {
+    await dbT.crmAppSetting.deleteMany({ where: { id: { in: MADE_GLOBAL } } })
+    MADE_GLOBAL.length = 0
+  }
+  await dbT.crmAuditLog.deleteMany({ where: { workspaceId: WS, targetType: 'setting' } })
 }
 
 test('시작 전 잔여 정리', async () => {
@@ -47,53 +100,49 @@ test('시작 전 잔여 정리', async () => {
 // ------------------------------------------------------------
 
 test('설정이 하나도 없어도 코드 기본값으로 돈다', async () => {
-  const r = await resolveSetting(dbA, KEY)
+  const r = await resolveSetting(dbT, KEY)
   assert.equal(r.source, 'FALLBACK')
   assert.equal(r.value, settingDef(KEY).fallback)
 })
 
 test('★ 워크스페이스 값이 GLOBAL 을 덮는다', async () => {
-  await dbA.crmAppSetting.create({
-    data: { scope: 'GLOBAL', workspaceId: null, key: KEY, valueJson: 'global-model' as never },
-  })
-  const g = await resolveSetting(dbA, KEY)
+  await makeGlobal(KEY, 'global-model')
+  const g = await resolveSetting(dbT, KEY)
   assert.equal(g.value, 'global-model')
   assert.equal(g.source, 'GLOBAL')
 
-  await setSetting(WS_A, 'mb_owner', KEY, 'ws-model')
-  const w = await resolveSetting(dbA, KEY)
+  await setSetting(WS, 'mb_owner', KEY, 'ws-model')
+  const w = await resolveSetting(dbT, KEY)
   assert.equal(w.value, 'ws-model', '워크스페이스 설정이 안 먹었다')
   assert.equal(w.source, 'WORKSPACE')
   await cleanup()
 })
 
 test('★ 워크스페이스 값을 지우면 GLOBAL 로 돌아간다 — 되돌릴 길이 있어야 한다', async () => {
-  await dbA.crmAppSetting.create({
-    data: { scope: 'GLOBAL', workspaceId: null, key: KEY, valueJson: 'global-model' as never },
-  })
-  await setSetting(WS_A, 'mb_owner', KEY, 'ws-model')
-  await clearSetting(WS_A, 'mb_owner', KEY)
+  await makeGlobal(KEY, 'global-model')
+  await setSetting(WS, 'mb_owner', KEY, 'ws-model')
+  await clearSetting(WS, 'mb_owner', KEY)
 
-  const r = await resolveSetting(dbA, KEY)
+  const r = await resolveSetting(dbT, KEY)
   assert.equal(r.value, 'global-model')
   assert.equal(r.source, 'GLOBAL')
   await cleanup()
 })
 
 test('빈 값으로 저장하면 지운 것으로 본다 — 빈 문자열이 모델명이 되면 안 된다', async () => {
-  await setSetting(WS_A, 'mb_owner', KEY, 'ws-model')
-  await setSetting(WS_A, 'mb_owner', KEY, '')
-  const r = await resolveSetting(dbA, KEY)
+  await setSetting(WS, 'mb_owner', KEY, 'ws-model')
+  await setSetting(WS, 'mb_owner', KEY, '')
+  const r = await resolveSetting(dbT, KEY)
   assert.equal(r.source, 'FALLBACK')
   await cleanup()
 })
 
 test('등록되지 않은 키는 저장도 조회도 거절한다 — 오타가 조용한 무동작이 되면 안 된다', async () => {
-  const e1 = await catchError(() => setSetting(WS_A, 'mb_owner', 'ai.modle.extract', 'x'))
+  const e1 = await catchError(() => setSetting(WS, 'mb_owner', 'ai.modle.extract', 'x'))
   assert.ok(e1 instanceof CrmError)
   assert.equal((e1 as CrmError).code, 'VALIDATION_FAILED')
 
-  const e2 = await catchError(() => resolveSetting(dbA, 'nope.key'))
+  const e2 = await catchError(() => resolveSetting(dbT, 'nope.key'))
   assert.ok(e2 instanceof CrmError)
 })
 
@@ -144,8 +193,8 @@ test('★ 시크릿 설정이 다시 생기면 왕복 검증을 되살려야 한
 // ------------------------------------------------------------
 
 test('설정 변경이 감사에 남는다', async () => {
-  await setSetting(WS_A, 'mb_owner', KEY, 'ws-model')
-  const audit = await dbA.crmAuditLog.findFirst({ where: { targetType: 'setting', targetId: KEY } })
+  await setSetting(WS, 'mb_owner', KEY, 'ws-model')
+  const audit = await dbT.crmAuditLog.findFirst({ where: { targetType: 'setting', targetId: KEY } })
   assert.ok(audit)
   assert.equal((audit!.afterJson as { value: string }).value, 'ws-model')
   await cleanup()
@@ -168,9 +217,9 @@ test('★ 시크릿을 저장해도 감사에 값이 남지 않는다 — 코드
 })
 
 test('지우기도 감사에 남는다', async () => {
-  await setSetting(WS_A, 'mb_owner', KEY, 'ws-model')
-  await clearSetting(WS_A, 'mb_owner', KEY)
-  const audit = await dbA.crmAuditLog.findFirst({
+  await setSetting(WS, 'mb_owner', KEY, 'ws-model')
+  await clearSetting(WS, 'mb_owner', KEY)
+  const audit = await dbT.crmAuditLog.findFirst({
     where: { targetType: 'setting', action: 'setting.cleared' },
   })
   assert.ok(audit)
@@ -182,7 +231,7 @@ test('지우기도 감사에 남는다', async () => {
 // ------------------------------------------------------------
 
 test('설정 목록은 등록된 키를 전부 보여 준다 (설정 안 한 것도)', async () => {
-  const list = await listSettings(dbA)
+  const list = await listSettings(dbT)
   assert.equal(list.length, SETTING_DEFS.length)
   assert.ok(list.every((s) => s.source === 'FALLBACK'), '아무것도 저장 안 했는데 출처가 다르다')
   await cleanup()

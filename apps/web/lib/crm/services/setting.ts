@@ -121,7 +121,7 @@ export const SETTING_DEFS: readonly SettingDef[] = [
   },
   {
     key: 'quote.supplier.address', label: '주소', kind: 'text', group: 'quote',
-    fallback: '', description: '사업장 주소입니다.',
+    fallback: '', description: '사업자등록증에 적힌 사업장 주소입니다. 견적서 「공급자」 칸에 그대로 인쇄됩니다.',
   },
   {
     key: 'quote.supplier.bizType', label: '업태', kind: 'multiline', group: 'quote',
