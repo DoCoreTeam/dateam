@@ -41,6 +41,88 @@ export function joinSpec(spec: string | null, components: readonly string[] | nu
  * 화면과 종이에서 다르게 보인다.
  */
 export function splitSpec(descriptionMd: string | null | undefined): { spec: string; components: string[] } {
-  const lines = (descriptionMd ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
+  /*
+    **개행이 먼저다.** 사람이 손으로 그은 줄 경계가 원문 표식보다 세다 —
+    편집기에서 일부러 나눈 줄을 우리가 다시 합치거나 더 가르면, 적은 대로 안 나온다.
+  */
+  const written = (descriptionMd ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
+
+  /*
+    개행이 하나도 없이 한 덩어리로 온 글만 표식으로 가른다(`splitInlineMarks`).
+    파일에서 읽어 온 규격이 그렇게 온다 — 원문에는 줄이 있었는데 글자로 옮겨지며 합쳐진 것이다.
+  */
+  const lines = written.length === 1 ? splitInlineMarks(written[0]) : written
+
   return { spec: lines[0] ?? '', components: lines.slice(1) }
+}
+
+/*
+  ── 개행 없이 한 덩어리로 온 규격 ──────────────────────────────
+
+  파일에서 읽어 온 규격은 개행이 하나도 없이 오는 일이 있다. 원본 PDF 에서는
+  줄마다 나뉘어 있던 사양이 글자로 옮겨지면서 한 문단이 되고, 그러면 견적서에
+  쭉 이어져 어디서 끊기는지 사람이 못 읽는다(사용자 지적 2026-09-21:
+  「번호 1번에 품목 내용 보면 그냥 구분이 없자나」).
+
+  **그런데 표식은 남아 있다.** 원문이 목록으로 적었던 자리에는 가운뎃점이,
+  제목을 이어 붙인 자리에는 공백으로 둘러싸인 대시가 그대로 있다. 그 자리는
+  우리가 정한 경계가 아니라 **원문이 이미 그어 둔 경계**다.
+
+  그래서 여기서 가르는 것은 지어내는 것이 아니다 — 표식이 없으면 한 글자도
+  건드리지 않는다(`quote-components.ts` 와 같은 약속).
+*/
+
+/**
+ * 원문이 목록 표식으로 쓰는 글자들 — 이 앞에서 줄이 바뀐다.
+ *
+ * **가운뎃점(`·`)은 여기 없다.** 한국어에서는 낱말을 잇는 자리에도 쓰여
+ * (「SXM5 · 3년 무상보증 포함」) 목록 표식으로 보면 한 값이 두 줄로 갈린다.
+ */
+const BULLETS = '•‣▪◦●○'
+
+/**
+ * 조각이 너무 짧으면 표식이 아니라 글 속의 글자다.
+ * 「A - B」 같은 범위 표기가 줄로 갈리는 것을 막는다.
+ */
+const MIN_PIECE = 8
+
+/**
+ * 개행 없이 온 한 덩어리를 **원문 표식 자리에서** 줄로 가른다.
+ *
+ * 표식이 없거나 갈린 조각이 쓸 만큼 길지 않으면 원래 글 한 줄을 그대로 돌려준다.
+ *
+ * @param text 개행이 없는 규격 한 덩어리
+ */
+export function splitInlineMarks(text: string): string[] {
+  const one = text.trim()
+  if (!one) return []
+
+  // 가운뎃점이 먼저다 — 목록 표식이라 뜻이 또렷하고, 대시보다 덜 흔하다
+  const byBullet = one
+    .split(new RegExp(`\\s*[${BULLETS}]\\s*`))
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (byBullet.length >= 2) return byBullet.flatMap(splitByDash)
+
+  return splitByDash(one)
+}
+
+/**
+ * 공백으로 둘러싸인 대시에서 가른다 — 원문이 제목 줄들을 이어 붙인 자리다.
+ *
+ * **낱말 안 하이픈은 건드리지 않는다.** 「R283-Z96-AAJ1」처럼 양옆이 글자인
+ * 하이픈은 모델명의 일부이지 경계가 아니다. 그래서 앞뒤 공백을 반드시 본다.
+ *
+ * **숫자 뒤 대시도 건드리지 않는다.** 「3.55 - 4.4GHz」는 범위 한 값이지 두 줄이 아니다.
+ */
+function splitByDash(text: string): string[] {
+  const pieces = text
+    .split(/(?<![\d.])\s+[-–—]\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (pieces.length < 2) return [text]
+
+  // 한 조각이라도 너무 짧으면 그 대시는 경계가 아니었다 — 통째로 되돌린다
+  if (pieces.some((p) => p.length < MIN_PIECE)) return [text]
+  return pieces
 }
