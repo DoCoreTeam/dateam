@@ -1,4 +1,4 @@
-// 거래 조건 스냅샷 — 견적서는 **만든 날의 문서**다
+// 견적서 스냅샷 — 견적서는 **만든 날의 문서**다
 //
 // **왜 이 가드가 생겼나**: 조건 본문을 읽을 때마다 살아 있는 값을 따라가고 있었다.
 // 그래서 관리자가 설정의 기본 거래 조건을 한 글자 고치면 **이미 보낸 견적서를 다시 열었을 때
@@ -15,6 +15,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { termsTextToLines } from './quote.ts'
+import { assetHash } from './quote-asset.ts'
 
 const QUOTE = readFileSync(new URL('./quote.ts', import.meta.url), 'utf8')
 const DOCUMENT = readFileSync(new URL('./quote-document.ts', import.meta.url), 'utf8')
@@ -89,4 +90,79 @@ test('★ 읽을 때 굳은 것이 먼저다 — 비어 있을 때만 살아 있
 
 test('★ 스냅샷 칸이 읽기 목록에 있다 — 안 읽으면 굳혀도 화면에 안 닿는다', () => {
   assert.ok(/^\s*[^/\n]*termsSnapshot: true/m.test(QUOTE), 'SELECT 에 termsSnapshot 이 없다')
+})
+
+// ------------------------------------------------------------
+// 조건만이 아니다 — 공급자와 로고도 그날 것으로 굳는다
+//
+// 사용자 지시 2026-09-20: 「그게 설령 로고나 회사명 대표이사가 바뀐거더라도
+// 그때 당시의 유지가 핵심임」. 셋 중 하나라도 살아 있는 값을 따라가면
+// 그 견적서는 어느 날 다른 문서가 된다.
+// ------------------------------------------------------------
+
+/** 주석에 남은 코드는 코드가 아니다 — 줄 앞이 주석인 줄은 못 세게 한다 */
+function live(src: string): string {
+  return src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+}
+
+test('★ 만들 때 셋을 다 굳힌다 — 조건·공급자·로고', () => {
+  const from = QUOTE.indexOf('export async function createQuote')
+  const next = QUOTE.indexOf('export async function', from + 1)
+  const body = live(QUOTE.slice(from, next > 0 ? next : undefined))
+
+  assert.ok(/const termsSnapshot = await resolveTermsSnapshot\(tx, termIds\)/.test(body), '조건을 안 굳힌다')
+  assert.ok(/const supplierSnapshot = await readQuoteSupplier\(/.test(body), '공급자를 안 굳힌다')
+  assert.ok(/const logoAssetHash = await freezeAsset\(/.test(body), '로고를 안 굳힌다')
+
+  /*
+    **이름이 아니라 값이 가는지를 본다.** 번호가 겹쳤을 때 도는 재시도 경로가 따로 있어,
+    한쪽에만 실으면 «그날 번호가 겹친 견적만» 굳지 않은 채 남는다.
+  */
+  const creates = body.match(/crmQuote\.create\(\{/g) ?? []
+  assert.equal(creates.length, 2, `생성 경로가 ${creates.length}곳이다 — 가드의 전제가 바뀌었다`)
+  for (const field of ['termsSnapshot', 'supplierSnapshot', 'logoAssetHash']) {
+    const passed = body.match(new RegExp(`^\\s+${field},$`, 'gm')) ?? []
+    assert.equal(passed.length, 2, `${field} 를 넘기는 곳이 ${passed.length}곳이다 — 두 경로 모두여야 한다`)
+  }
+})
+
+test('★ 복제도 셋을 다 물려받는다 — 다른 안이 다른 회사 정보를 찍으면 안 된다', () => {
+  const src = live(QUOTE)
+  assert.ok(/termsSnapshot: src\.termsSnapshot/.test(src), '복제가 굳은 조건을 안 옮긴다')
+  assert.ok(/supplierSnapshot: src\.supplierSnapshot/.test(src), '복제가 굳은 공급자를 안 옮긴다')
+  assert.ok(/logoAssetHash: src\.logoAssetHash/.test(src), '복제가 굳은 로고를 안 옮긴다')
+})
+
+test('★ 고칠 때 공급자와 로고는 다시 안 굳는다 — 저장할 때마다 바뀌면 굳힌 것이 아니다', () => {
+  const from = QUOTE.indexOf('export async function updateQuote')
+  const next = QUOTE.indexOf('export async function', from + 1)
+  const body = live(QUOTE.slice(from, next > 0 ? next : undefined))
+  assert.ok(!/data\.supplierSnapshot/.test(body), 'updateQuote 가 공급자를 다시 굳힌다')
+  assert.ok(!/data\.logoAssetHash/.test(body), 'updateQuote 가 로고를 다시 굳힌다')
+  // 조건만은 다시 굳는다 — 사용자가 고른 것이기 때문이다
+  assert.ok(/data\.termsSnapshot = await resolveTermsSnapshot/.test(body), '고른 조건을 다시 안 굳힌다')
+})
+
+test('★ 읽을 때 셋 다 굳은 것이 먼저다 — 굳은 값이 있으면 설정을 아예 안 읽는다', () => {
+  const src = live(DOCUMENT)
+  assert.ok(/const useSupplierSnapshot = Object\.keys\(supplierSnapshot\)\.length > 0/.test(src), '굳은 공급자를 안 본다')
+  assert.ok(
+    /useSupplierSnapshot \? Promise\.resolve\(supplierSnapshot\) : readQuoteSupplier\(db\)/.test(src),
+    '굳은 공급자가 있어도 설정을 읽는다',
+  )
+  assert.ok(/logoAssetHash\s*\n?\s*\? readAsset\(db, logoAssetHash\)/.test(src), '굳은 로고를 안 읽는다')
+})
+
+test('★ 같은 그림은 행을 안 늘린다 — 해시가 내용에서 나온다', () => {
+  const a = 'data:image/png;base64,AAAA'
+  assert.equal(assetHash(a), assetHash('data:image/png;base64,AAAA'))
+  assert.notEqual(assetHash(a), assetHash('data:image/png;base64,AAAB'))
+  assert.match(assetHash(a), /^[0-9a-f]{64}$/, 'sha256 hex 가 아니다')
+})
+
+test('★ 읽는 쪽이 굳은 칸을 실제로 읽어 온다 — 안 읽으면 굳혀도 문서에 안 닿는다', () => {
+  const src = live(QUOTE)
+  for (const field of ['termsSnapshot: true', 'supplierSnapshot: true', 'logoAssetHash: true']) {
+    assert.ok(src.includes(field), `SELECT 에 ${field} 가 없다`)
+  }
 })
