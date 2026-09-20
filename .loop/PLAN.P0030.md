@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.15
+플랜 버전: v0.1.16
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -225,16 +225,19 @@
 의존: I08
 
 ### I10 능력별 등급과 사슬 순서
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ai/gemini-model.ts, apps/web/lib/ai/model-tier.ts (신규), apps/web/lib/ai/model-tier.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/ai/capability-chain.ts (신규), apps/web/lib/ai/capability-chain.test.ts (신규), apps/web/package.json, AGENTS.md, GEMINI.md, .claude/heavy/CEO.md
 감사 기준:
-- 능력 8종마다 기본 등급이 정해져 있고 표가 한 곳에 있음
-- 사슬 순서가 **하루 한도가 큰 것부터** (단위 테스트로 순서 단정)
+- 능력 8종마다 기본 등급이 정해져 있고 표가 한 곳에 있음 (아홉째가 생기면 가드가 걸림)
+- 사슬 순서가 하루 한도가 큰 것부터 (단위 테스트로 순서 단정)
 - Gemma 등급이 묶기·이름표 능력에서 후보가 됨, 산문 응답은 json-recover 가 받음 (단위 테스트)
 - Gemma 는 짧은 입력 능력에만 열림, 긴 입력 능력에서는 후보에서 빠짐 (단위 테스트)
 - 설정 모델이 여전히 1순위 (기존 동작 보존, 기존 gemini-model 가드 통과)
+- 표를 한 글자 바꿔 열면 안 되는 능력을 열었을 때 가드가 실패함 (일부러 두 가지로 확인)
+- 정책 3파일의 판 번호 줄이 package.json 과 일치 (버전 올리기가 본문 인용을 덮지 않음)
 의존: I07
+범위 메모: 파일 이름을 model-tier.ts 로 안 짓고 capability-chain.ts 로 지었다 — lib/ai-chat/model-tier.ts 가 이미 있고 그것은 사람이 고르는 메뉴 순서다. 같은 이름을 옆 폴더에 두면 다음 사람이 둘 중 아무거나 import 한다. 정책 3파일이 범위에 든 이유는 아래 감사에서 드러난 버전 올리기 버그 때문임
 
 ### I11 생각 예산과 출력 상한
 상태: 대기
@@ -320,3 +323,4 @@
 - v0.1.13 (2026-09-20) I08e 범위에 analyze-runner.ts 와 analyze-item-actions.ts 를 더함. 칸을 필수로 만들자 형 검사가 이 둘의 호출도 짚었다 — 예상보다 두 곳 많았고 그것이 필수로 만든 이유 그대로다. analyze-runner 는 세션 행에 user_id 를 실제로 읽어 오도록 select 도 고쳤다, 타입만 늘리고 질의를 안 고치면 그 칸은 런타임에 undefined 가 된다 (audit:I08e)
 - v0.1.14 (2026-09-20) I08d 착수 전 사슬을 재어 실제 크기를 기록함. 네 창구가 아니라 네 갈래이고 CRM 만 열두 파일이다. I08c 와 I08e 에서 플랜 갱신 한계 3회에 두 번 닿았고 LOOP.md 2절 6 이 사용자 판단을 요구하므로, 나누는 판을 정하기 전에 멈추고 묻는다 (audit:I08d)
 - v0.1.15 (2026-09-20) I13 범위를 착수 전에 한 번에 정함(사슬을 먼저 재고 시작). 묶음 요청은 한 건짜리 guardedVector 로 못 지나가므로 guarded-call 에 묶음 갈래를 내고, 실제로 한 건씩 도는 두 곳(ai-chat 지식 색인 for 문, RFP 색인 Promise.all)과 그 호출부를 함께 넣음. 더불어 ai-actor 가드가 제네릭 호출을 못 보고 lib/gemini-embedding.ts 를 통째로 놓치고 있었다 — 같은 판에서 고침 (audit:I13)
+- v0.1.16 (2026-09-20) I10 의 새 파일 이름을 model-tier.ts 에서 capability-chain.ts 로 바꿈(lib/ai-chat/model-tier.ts 와 이름이 겹쳐 다음 사람이 둘 중 아무거나 import 하게 된다). 그리고 자가감사 중 버전 올리기 버그를 발견해 범위에 정책 3파일을 넣음 — 첫 v0.10.x 를 치환하는 방식이라 본문의 실측 인용 v0.7.660~686 을 여러 판에 걸쳐 v0.10.226~686 까지 떠밀어 놓고 정작 판 번호 줄은 224 에 멈춰 있었다 (audit:I10)
