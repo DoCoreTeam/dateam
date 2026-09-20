@@ -12,6 +12,8 @@
  */
 
 import { getProvider } from '../../ai-chat/registry.ts'
+import { withProviderKeys, type KeyRotationDeps } from '../../ai/key-rotation.ts'
+import { isAiProviderId } from '../../ai/provider-catalog.ts'
 import type { ProviderId } from '../../ai-chat/provider.ts'
 import type { AiModel } from './models.ts'
 import type { CallRequest, RawCallResult } from './gateway.ts'
@@ -27,6 +29,20 @@ export interface HostCallerDeps {
   /** 공급자 id → 키와 모델. 관리자 설정에서 온다 */
   providers: readonly HostProvider[]
   timeoutMs?: number
+  /**
+   * 키 교체 배선. 안 주면 표에서 읽는다.
+   *
+   * RFP 분석은 잡에서 도는 일이라 사람이 화면 앞에 없다. 키가 마르면 그 판이 통째로
+   * 실패하고, 사용자는 한참 뒤에 「분석이 안 됐다」만 본다 — 여기가 특히 조용한 자리다.
+   */
+  keys?: KeyRotationDeps
+  /**
+   * 공급자 구현을 어디서 가져오나. 안 주면 호스트 레지스트리.
+   *
+   * 시험이 가짜를 끼울 수 있어야 「첫 키가 429 면 다음 키로 간다」를 **실행으로** 잴 수 있다.
+   * 소스를 훑어 배선만 확인하면, 배선은 맞는데 순서가 뒤집힌 상태를 통과시킨다.
+   */
+  getProvider?: typeof getProvider
 }
 
 /**
@@ -52,13 +68,24 @@ export function makeHostCaller(deps: HostCallerDeps) {
     const conf = byId.get(model.vendorId)
     if (!conf) throw new Error(`관리자 설정에 없는 공급자다: ${model.vendorId}`)
 
-    const provider = getProvider(conf.id as ProviderId)
+    const provider = (deps.getProvider ?? getProvider)(conf.id as ProviderId)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
 
-    try {
-      const out = await provider.streamChat({
-        apiKey: conf.apiKey,
+    /*
+      **키 교체는 관문 뒤에서만 일어난다.**
+
+      게이트웨이가 모델마다 등급 관문을 먼저 지나고, 통과한 것만 가려서 이 함수에 넘긴다
+      (`packages/ai-gateway/src/gateway.ts`). 여기서 받는 `prompt` 는 **이미 가려진 글**이고,
+      키를 바꿔도 그 글을 그대로 다시 보낸다 — 원문을 다시 만들지 않는다.
+      모델도 안 바꾼다. 등급 판정은 모델 단위라 다른 모델이면 판정이 달라진다.
+
+      관문이 막은 모델은 이 함수가 아예 안 불리므로, 키가 몇 개든 한 번도 안 나간다.
+    */
+    const providerId = isAiProviderId(conf.id) ? conf.id : null
+    const callWith = async (apiKey: string): Promise<Awaited<ReturnType<typeof provider.streamChat>>> =>
+      provider.streamChat({
+        apiKey,
         // 모델 이름은 RFP 표가 정한다 — 채팅 기본 모델과 다를 수 있다
         model: model.modelName || conf.model,
         turns: [{ role: 'user', content: prompt }],
@@ -68,6 +95,11 @@ export function makeHostCaller(deps: HostCallerDeps) {
         signal: controller.signal,
         onDelta: () => {},
       })
+
+    try {
+      const out = providerId
+        ? await withProviderKeys(providerId, conf.apiKey, callWith, deps.keys)
+        : await callWith(conf.apiKey)
 
       if (out.stopped) throw new Error(`${timeoutMs / 1000}초 안에 답이 안 왔다`)
 
