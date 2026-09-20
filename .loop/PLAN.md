@@ -1,0 +1,128 @@
+# PLAN newAX: 비고를 견적서에 되살린다
+플랜 ID: P0045
+플랜 버전: v0.1.0
+상태: 진행중
+지시: ins_0060
+목표 버전: v0.10.349
+작성: 2026-09-21
+시작 커밋: d6b032ea
+
+## 목표
+- 원본 견적서의 비고 열(「서버 새시」「64코어」「Raid5」)이 읽은 견적서에도 그대로 남음
+- 사람이 편집기에서 항목마다 비고를 적고 고칠 수 있음
+- 비고가 화면, 인쇄, 엑셀 세 곳에 같은 모양으로 나감
+
+## 범위 밖
+- 견적 머리말·꼬리말의 비고 (항목 비고만 다룸)
+- 원가 쪽 비고
+- 이미 만든 견적의 비고 되살리기 (원본을 다시 읽어야 채워짐)
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm test, pnpm build 통과
+- 사용자 노출 문자열은 전부 용어집(@/lib/terms) 경유
+- 비고를 적어 저장하면 견적서 화면, 인쇄, 엑셀 셋 다 그 값이 보임
+
+## 참조
+- LOOP.md 7절 보안 기준, 부록 버전 규칙
+- prisma/schema.prisma CrmQuoteLine
+- 실측 원본 DA견적서_한국산업기술시험원_광양분소 2쪽 비고 열
+
+## 항목
+
+### I01 비고 담을 자리를 만든다
+상태: 통과
+모드: 경량
+범위: apps/web/prisma/schema.prisma, supabase/migrations/276_quote_line_remark.sql (신규)
+감사 기준:
+- 마이그레이션 적용 후 crm_quote_line 에 remark 칼럼이 있음 (psql 로 확인)
+- 기존 행이 하나도 안 바뀜 (NULL 허용, 기본값 없음, 백필 없음)
+- 보안: 기존 표에 칼럼만 더하므로 RLS 정책은 그대로 유효함을 확인 (crm_quote_line 의 rowsecurity=true, 정책 수 변화 0)
+의존: 없음
+
+### I02 견적서가 비고를 그린다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/crm/domain/quote-document.ts, apps/web/app/(crm)/crm/quotes/[id]/QuoteSheet.tsx, apps/web/app/(crm)/crm/quotes/[id]/quote-document.module.css, apps/web/lib/terms/quote.ts
+감사 기준:
+- 비고가 있는 항목만 그 값이 보이고, 없으면 빈 칸 (열이 늘 서 있으면 좁은 화면에서 금액이 밀린다)
+- pnpm test quote-document 통과
+- 인쇄에서도 같은 자리에 나옴
+의존: I01
+
+### I02a 검수 화면에도 비고가 보인다
+상태: 통과
+모드: 경량
+범위: apps/web/components/ui/crm/QuoteFillPanel.tsx, apps/web/components/ui/crm/quote-review.tsx, apps/web/components/ui/crm/quote-panel.module.css
+감사 기준:
+- 파일에서 읽은 비고가 검수 화면에서 보임 (저장 전에 확인할 수 있어야 고칠 수 있다)
+- 원본 대조 화면의 「읽어서 만든 견적서」 쪽에도 같은 값이 보임
+- pnpm test quote-source-surface 통과
+의존: I01, I04
+
+### I03 편집기에서 비고를 적는다
+상태: 통과
+모드: 경량
+범위: apps/web/components/ui/crm/QuoteEditorModal.tsx, apps/web/components/ui/crm/quote-draft-shape.ts, apps/web/lib/crm/services/quote-contract.ts
+감사 기준:
+- 항목마다 비고 칸이 있고, 적어 저장하면 다시 열었을 때 그대로 있음
+- pnpm tsc --noEmit 통과
+- 보안: 비고는 사람이 적는 글이라 밖에서 온 값이다. 화면은 텍스트로 그려 escape 되고 길이 상한이 걸림을 확인
+의존: I01
+
+### I04 파일에서 읽을 때 비고를 담는다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/crm/ai/schemas/quote-from-doc.ts, apps/web/lib/crm/ai/prompts/quote-from-doc-prompt.ts, apps/web/lib/crm/services/quote-from-file.ts
+감사 기준:
+- 비고 열이 있는 원본을 읽으면 그 값이 항목에 붙음 (단위 시험으로 확인)
+- 상한을 넘으면 던지지 말고 자르고 센다 (기존 규칙과 같음)
+- pnpm test quote-from-doc 통과
+의존: I01, I03
+
+### I05 엑셀에도 비고가 나간다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/crm/services/quote-xlsx.ts
+감사 기준:
+- pnpm test quote-xlsx 통과
+- 화면에 있는 비고가 파일에도 있음
+의존: I02
+
+### I06 종합 감사와 판 올리기
+상태: 통과
+모드: 경량
+범위: 루트 package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md, apps/web/lib/changelog/entries.ts
+감사 기준:
+- pnpm tsc --noEmit, pnpm test, pnpm build 통과
+- 버전 여섯 파일이 같은 값
+의존: I01, I02, I03, I04, I05
+
+## 종합 감사
+- pnpm test: 6563/6563 통과, 실패 0
+- pnpm tsc --noEmit: 내 범위 오류 0 (옆 세션이 손대는 app/(ci)/ci/page.tsx 만 오류, 범위 밖)
+- NEXT_DIST_DIR=.next-p0045 npx next build: Compiled successfully in 67s
+  lint 단계에서 app/(ci)/ci/page.tsx 의 AccessDenied 미정의로 멈춤 — 옆 세션의 미완성 코드이고
+  내 범위 파일의 오류는 0건 (빌드 로그에서 quote·terms 관련 Error 0건 확인)
+- 완료 정의 대조
+  - 적어 저장하면 화면·인쇄·엑셀 셋 다 그 값이 보임: 화면·인쇄는 QuoteSheet 한 벌이 그리고,
+    엑셀은 「화면에 선 비고가 파일에도 있다」 단정이 실제 파일 글자로 확인
+  - 용어집 경유: lineRemark·lineRemarkPlaceholder 를 QUOTE 에 두고 glossary·terms 가드 통과
+- 전체 diff: git diff 518f556f^..HEAD --stat 로 27파일 572+/84-, 범위 밖 변경 없음
+- 비밀 검색: 추가된 줄에 키·토큰·비밀번호 0건
+- 값이 흐르는 자리를 하나씩 빼 보고 가드가 각각 잡는 것을 확인 (일곱 자리)
+  LINE_SELECT · 서비스 전달 · 문서 매핑 · 저장 화이트리스트 · 읽기→초안 · 검수 결과 · 엑셀 행
+- 보안 재측정 (7절 「기계가 세는 것」)
+  1 RLS 꺼진 public 표: 이번 판은 표를 만들지 않았고 crm_quote_line 에 칼럼만 더함. 적용 후
+    relrowsecurity=true 그대로, 정책 수 1 그대로 (실측)
+  2~5 anon 권한·TO public 정책·SECURITY DEFINER 함수·뷰: 이번 판이 만들거나 바꾼 것이 없음
+    (마이그레이션 276 은 ADD COLUMN + COMMENT 두 문장뿐)
+  행 수 154→154, remark 채워진 행 0 — 기존 데이터가 한 행도 안 바뀜
+- 실측 견적 DA-2026-0921-05 의 여섯 줄에 원본 2쪽 비고 값을 채워 넣었음
+  (서버 새시·64코어·256GB·Raid5·100G-2P·레이드컨트롤러). 원본에 있던 값을 되살린 것이고,
+  되돌리려면: UPDATE crm_quote_line SET remark=NULL WHERE "quoteId" = 'cmua1tjgo000ol004zn97f862'
+- 남은 것: 엑셀에서 비고는 표에만 서고 합계·공급자 영역은 금액 열(G)까지 그대로 둠.
+  그 자리까지 넓히려면 열 문자가 박힌 24군데를 「금액 열」과 「표 끝 열」로 갈라야 하고
+  그 작업이 합계 수식을 건드린다 — 비고는 표 안의 말이라 표에만 세우는 것으로 뜻이 온전하다
+
+## 변경 이력
+- v0.1.0 (2026-09-21) 최초 작성 (ins_0060)

@@ -52,7 +52,15 @@ test('★ 견적서: 할인 열과 할인 줄이 조건 뒤에 있다', () => {
     hardCoded.filter((c) => c !== 'colSpan={4}'), [],
     `열 수를 숫자로 박은 자리가 있다: ${hardCoded.join(', ')}`,
   )
-  assert.ok(/const cols = showDiscount \? 7 : 6/.test(live), '열 수가 조건에서 안 나온다')
+  /*
+    열 수는 **서는 열을 모두 세어** 나온다. 비고 열이 붙으면서 조건이 둘이 됐다 —
+    한쪽만 세면 비고를 쓰는 견적에서 묶음 머리와 소계가 한 칸씩 밀린다.
+  */
+  assert.ok(/const cols = \(showDiscount \? 7 : 6\) \+ \(showRemark \? 1 : 0\)/.test(live),
+    '열 수가 조건에서 안 나온다')
+  assert.ok(/\{showRemark && <col /.test(live), '비고 열 폭이 조건 뒤에 없다')
+  assert.ok(/\{showRemark && <th /.test(live), '비고 머리글이 조건 뒤에 없다')
+  assert.ok(/\{showRemark && <td className=\{styles\.remark\}>/.test(live), '비고 칸이 조건 뒤에 없다')
 })
 
 test('★ 편집 합계: 할인 줄이 조건 뒤에 있다', () => {

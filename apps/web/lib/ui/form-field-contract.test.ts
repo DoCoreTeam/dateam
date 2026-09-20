@@ -113,12 +113,12 @@ test('findJsxTags: 여러 줄에 걸친 태그의 속성을 끝까지 읽는다'
   거래 조건 설정이 같은 이유로 이미 textarea 다 — 같은 성격의 자리는 같아야 한다.
 */
 test('★ 견적 규격 칸은 여러 줄이다 — 한 줄 칸이면 구성이 들어갈 자리가 없다', () => {
-  const src = read(at('components/ui/crm/QuoteEditorModal.tsx'))
+  // 규격·비고 칸은 편집 모달이 800줄에 닿아 옆 부품으로 나갔다
+  const src = read(at('components/ui/crm/QuoteLineSpecFields.tsx'))
   const spec = src.slice(src.indexOf('id={`ln-spec-'))
   const tag = spec.slice(0, spec.indexOf('/>') + 2)
 
-  assert.ok(src.includes('<textarea\n                    id={`ln-spec-'),
-    '규격 칸이 아직 한 줄 입력이다')
+  assert.ok(/<textarea\s+id=\{`ln-spec-/.test(src), '규격 칸이 아직 한 줄 입력이다')
   assert.match(tag, /className=\{`input-field/, '표준 클래스를 안 달았다 — 브라우저 기본 모양이 나온다')
   assert.match(tag, /rows=\{2\}/, '기본 높이가 없다')
 })
