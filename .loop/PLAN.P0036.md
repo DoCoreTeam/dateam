@@ -103,7 +103,7 @@
       창구는 2026-09-16 에 생겼고 그때부터 줄곧 그랬다
 
 ### I05 RFP 관리자 화면이 공용 그릇에 담긴다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(rfp)/rfp/admin/page.tsx, apps/web/components/rfp/TransferLog.tsx, apps/web/components/rfp/UsageDashboard.tsx
 감사 기준:

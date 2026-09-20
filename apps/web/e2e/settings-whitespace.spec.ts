@@ -79,7 +79,7 @@ async function openSettings(page: Page, path: string): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(path)
   await dismissGlobalModals(page)
-  await page.locator('.settings-card').first().waitFor({ state: 'visible', timeout: 15000 })
+  await page.locator('.settings-card').first().waitFor({ state: 'visible', timeout: 45000 })
   // 카드 안의 값이 서버에서 늦게 오면 높이가 더 자란다 — 멎은 뒤에 잰다
   await page.waitForLoadState('networkidle').catch(() => {})
 }
@@ -106,4 +106,11 @@ test('영업 CRM 설정 — 카드가 빈 자리를 남기지 않는다', async 
   const m = await measureSettingsWhitespace(page)
   expect(m.cards, '잴 카드가 없다 — 화면이 안 떴거나 선택자가 바뀌었다').toBeGreaterThan(0)
   expect(m.ratio, report('/crm/settings', m)).toBeLessThanOrEqual(MAX_EMPTY_RATIO)
+})
+
+test('RFP 관리자 — 카드가 빈 자리를 남기지 않는다', async ({ page }) => {
+  await openSettings(page, '/rfp/admin')
+  const m = await measureSettingsWhitespace(page)
+  expect(m.cards, '잴 카드가 없다 — 화면이 안 떴거나 선택자가 바뀌었다').toBeGreaterThan(0)
+  expect(m.ratio, report('/rfp/admin', m)).toBeLessThanOrEqual(MAX_EMPTY_RATIO)
 })

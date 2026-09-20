@@ -7,6 +7,7 @@ import G2bServices from './G2bServices'
 import { G2B_KEY_FIELD } from '@/lib/rfp/g2b/client'
 import NotificationSettings from './NotificationSettings'
 import PageHeader from '@/components/ui/PageHeader'
+import SettingsCards, { type SettingsCardEntry } from '@/components/ui/settings/SettingsCards'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { RFP_ADMIN, RFP_LIST } from '@/lib/rfp/terms'
@@ -18,7 +19,6 @@ import { RULE_COLS, toRule, type AnomalyRule } from '@/lib/rfp/anomaly/rules'
 import { toPolicy, toModels } from '@/lib/rfp/ai/host-providers'
 import { getAvailableProviders } from '@/lib/ai-chat/registry'
 import { createAdminClient } from '@/lib/supabase/server'
-import styles from '../../rfp.module.css'
 import { toPlan, summarize, currentPeriod, type UsageRow } from '@/lib/rfp/tenant/usage'
 
 export const dynamic = 'force-dynamic'
@@ -97,22 +97,61 @@ export default async function RfpAdminPage() {
 
   const savedRules: AnomalyRule[] = ((rules as Record<string, unknown>[] | null) ?? []).map(toRule)
 
+  /*
+    카드 여섯을 세 분류로 나눈다 — 무엇을 고치러 왔든 여섯 장을 다 지나가야 했다.
+    어느 카드가 어느 분류에 서는지는 여기 한 곳에만 있고, 그릇(SettingsCards)이
+    검색 한 칸과 탭을 그린다. 화면이 제 껍데기를 또 그리면 설정 화면이 다시 갈린다.
+  */
+  const cards: SettingsCardEntry[] = [
+    {
+      id: 'usage', tab: 'usage', title: orgRow?.name ?? RFP_ADMIN.title,
+      keywords: [RFP_ADMIN.usageCost, RFP_ADMIN.usageLimit],
+      content: (
+        <UsageDashboard
+          plan={planRow ? toPlan(planRow as Record<string, unknown>) : null}
+          usage={summarize(rows, currentPeriod())}
+          members={((members as unknown[] | null) ?? []).length}
+          orgName={orgRow?.name ?? ''}
+        />
+      ),
+    },
+    {
+      id: 'vendors', tab: 'ai', title: RFP_ADMIN.vendors,
+      content: <VendorSettings vendors={vendors} />,
+    },
+    {
+      id: 'rules', tab: 'ai', title: RFP_ADMIN.rules,
+      content: <RuleSettings saved={savedRules} />,
+    },
+    {
+      id: 'g2b', tab: 'data', title: RFP_ADMIN.g2bServices,
+      content: (
+        <G2bServices
+          hasServiceKey={typeof meta[G2B_KEY_FIELD] === 'string' && String(meta[G2B_KEY_FIELD]).trim().length > 0}
+        />
+      ),
+    },
+    {
+      id: 'notifications', tab: 'data', title: RFP_ADMIN.notifications,
+      content: <NotificationSettings />,
+    },
+    {
+      id: 'transfers', tab: 'data', title: RFP_ADMIN.transferLog,
+      content: <TransferLog rows={((transfers as TransferRow[] | null) ?? [])} />,
+    },
+  ]
+
   return (
     <main className="page-inner">
       <PageHeader title={RFP_ADMIN.title} back={{ href: '/rfp', label: RFP_LIST.title }} />
-      <div className={styles.stack}>
-      <UsageDashboard
-        plan={planRow ? toPlan(planRow as Record<string, unknown>) : null}
-        usage={summarize(rows, currentPeriod())}
-        members={((members as unknown[] | null) ?? []).length}
-        orgName={orgRow?.name ?? ''}
+      <SettingsCards
+        groups={[
+          { id: 'usage', label: RFP_ADMIN.tabUsage },
+          { id: 'ai', label: RFP_ADMIN.tabAi },
+          { id: 'data', label: RFP_ADMIN.tabData },
+        ]}
+        cards={cards}
       />
-      <VendorSettings vendors={vendors} />
-      <RuleSettings saved={savedRules} />
-      <TransferLog rows={((transfers as TransferRow[] | null) ?? [])} />
-      <NotificationSettings />
-      <G2bServices hasServiceKey={typeof meta[G2B_KEY_FIELD] === 'string' && String(meta[G2B_KEY_FIELD]).trim().length > 0} />
-      </div>
     </main>
   )
 }

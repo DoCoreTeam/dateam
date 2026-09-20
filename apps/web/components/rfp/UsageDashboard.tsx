@@ -5,7 +5,8 @@
 // **숫자를 이름 없이 두지 않는다.** 「0」과 「37」이 나란히 떠 있으면
 // 무엇이 0이고 무엇이 37인지 화면이 말해 주지 않는 것이다.
 
-import NbBadge from '@/components/ui/nb/NbBadge'
+import SettingsCard from '@/components/ui/settings/SettingsCard'
+import { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 import { RFP_ADMIN } from '@/lib/rfp/terms'
 import { BUDGET_WARN_RATIO } from '@/lib/rfp/notify/notify'
 import type { Plan, UsageSummary } from '@/lib/rfp/tenant/usage'
@@ -24,15 +25,12 @@ export default function UsageDashboard({ plan, usage, members, orgName }: UsageD
   const near = ratio >= BUDGET_WARN_RATIO
 
   return (
-    <section className="card">
-      <div className={styles.sectionHead}>
-        <div className={styles.between}>
-          <span className={styles.sectionTitle}>{orgName}</span>
-          {plan && <NbBadge status="note">{plan.name}</NbBadge>}
-        </div>
-        <span className={styles.sectionDesc}>{RFP_ADMIN.usagePeriod} {usage.period}</span>
-      </div>
-
+    <SettingsCard
+      title={orgName}
+      description={`${RFP_ADMIN.usagePeriod} ${usage.period}`}
+      headingLevel={2}
+      status={plan ? { tone: toneFromStatusKey('note'), label: plan.name } : undefined}
+    >
       <div className={styles.statGrid}>
         <div className={styles.stat}>
           <span className={styles.statLabel}>{RFP_ADMIN.usageCost}</span>
@@ -73,6 +71,6 @@ export default function UsageDashboard({ plan, usage, members, orgName }: UsageD
           </div>
         ))}
       </div>
-    </section>
+    </SettingsCard>
   )
 }
