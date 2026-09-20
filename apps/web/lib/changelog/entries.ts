@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.248',
+    date: '2026-09-20',
+    title: 'AI 가 같은 걸 두 번 묻지 않아요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '💡',
+        headline: '한 번 알아낸 건 다시 묻지 않아요',
+        detail: '같은 자료를 볼 때마다 AI 에게 처음부터 다시 묻고 있었어요. 이제 한 번 얻은 답은 저장해 두고 새로 들어온 것만 물어봐요. 기다리는 시간도 줄고, 하루치 한도도 훨씬 오래 가요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '⏱️',
+        headline: '한도에 걸리면 언제 다시 되는지 알려드려요',
+        detail: '전에는 AI 가 그냥 안 될 뿐이라 얼마나 기다려야 하는지 알 수 없었어요. 이제 무엇에 걸렸는지와 몇 시에 풀리는지를 함께 알려드려요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🚀',
+        headline: '자료 색인이 더 빨라졌어요',
+        detail: '문서를 조각마다 하나씩 보내던 것을 한 번에 묶어 보내요. 자료를 올리고 검색이 준비되기까지 걸리는 시간이 줄었어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.243',
     date: '2026-09-20',
     title: 'AI 가 하루치 한도에 걸려도 계속 써요',
