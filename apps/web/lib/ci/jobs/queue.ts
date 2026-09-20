@@ -207,6 +207,8 @@ export async function recoverStalledJobs(input: {
   }
 
   let recovered = 0
+  /** 실제로 dead 가 된 잡. 관리자 화면에 올릴 대상이라 «고르려던 것»이 아니라 «된 것»을 든다 */
+  const buried: string[] = []
   for (const [ids, status] of [[retry, 'failed'], [giveUp, 'dead']] as const) {
     if (ids.length === 0) continue
     // status 조건을 함께 건다 — 그 사이 정상 종료됐으면 0행이 갱신되고 건드리지 않는다
@@ -216,7 +218,34 @@ export async function recoverStalledJobs(input: {
       .in('id', ids.map((r) => r.id))
       .eq('status', 'running')
       .select('id')
-    recovered += (updated ?? []).length
+    const rowsUpdated = (updated ?? []) as { id: string }[]
+    recovered += rowsUpdated.length
+    if (status === 'dead') buried.push(...rowsUpdated.map((r) => r.id))
+  }
+
+  /*
+    **여기서 죽은 잡도 관리자 화면에 올린다.**
+
+    회수는 «판정은 정상 실패와 같은 함수를 쓴다»로 규약을 맞춰 뒀는데, 투영은 안 맞췄다.
+    그래서 `finishJob` 을 지나 죽은 잡만 화면에 떴고, 잠금이 만료돼 죽은 잡은 한 건도 안 떴다
+    (실측 2026-09-20: ci_jobs 에 STALLED dead 322건, system_events 에는 0건 —
+     화면에 보이던 267건보다 많은 실패가 통째로 안 보이는 자리에 쌓여 있었다).
+
+    **재시도로 회수한 것(failed)은 안 올린다.** 다음 차례에 될 수도 있는 것을 사건으로
+    올리면 로그가 재시도 횟수만큼 부풀고 진짜 죽은 잡이 그 안에 묻힌다 —
+    바로 위 `finishJob` 이 이미 내린 판단이고, 여기서 다르게 굴면 규약이 또 갈린다.
+  */
+  if (buried.length > 0) {
+    const { recordSystemEventAsync } = await import('../../system-log/record.ts')
+    for (const jobId of buried) {
+      await recordSystemEventAsync({
+        source: 'ci_job',
+        error: Object.assign(new Error(patch.error_message), { code: patch.error_code }),
+        feature: 'ci-collect',
+        workspaceId: input.workspaceId ?? null,
+        context: { jobId, reclaimed: true },
+      })
+    }
   }
 
   // 매달린 실행 기록도 함께 닫는다 — 열린 채 두면 관측이 거짓말을 한다

@@ -351,6 +351,38 @@ test('★ 커넥터 실패는 우리 고장이 아니다 — 없는 사유를 �
   assert.equal(r, 'unknown')
 })
 
+// ── 회수하다 죽은 잡도 화면에 올린다 (2026-09-20 실측) ────────────
+//
+// 회수(recoverStalledJobs)는 «판정은 정상 실패와 같은 함수를 쓴다»로 규약을 맞췄는데
+// **투영은 안 맞췄다.** 그래서 잠금 만료로 죽은 322건이 관리자 화면에 한 건도 안 떴다.
+// 화면에 보이던 267건보다 많은 실패가, 안 보이는 자리에 쌓여 있었다.
+
+/** recoverStalledJobs 함수 몸통만 잘라 본다 — 파일 어딘가에 있다는 것은 근거가 못 된다 */
+function reclaimBody(): string {
+  const src = stripComments(read('lib/ci/jobs/queue.ts'))
+  const start = src.indexOf('export async function recoverStalledJobs')
+  assert.ok(start >= 0, 'recoverStalledJobs 를 못 찾았다 — 이름이 바뀌었으면 이 가드부터 고친다')
+  const rest = src.slice(start + 1)
+  const end = rest.indexOf('\nexport ')
+  return end >= 0 ? rest.slice(0, end) : rest
+}
+
+test('★ 잠금 만료로 죽은 잡을 관리자 로그에 올린다 — 안 올리면 실패가 통째로 안 보인다', () => {
+  const body = reclaimBody()
+  assert.match(body, /recordSystemEventAsync\(/, '회수하다 죽은 잡을 투영하지 않고 있다')
+  assert.match(body, /status === 'dead'/, '무엇이 죽었는지 실제 갱신 결과로 골라야 한다')
+})
+
+test('★ 재시도로 회수한 것은 안 올린다 — 올리면 진짜 죽은 잡이 그 안에 묻힌다', () => {
+  const body = reclaimBody()
+  // 투영은 dead 로 모인 목록에만 걸린다. 'failed' 쪽으로는 한 건도 새지 않아야 한다.
+  assert.ok(
+    !/status === 'failed'[\s\S]{0,200}?recordSystemEventAsync/.test(body),
+    '재시도 대기(failed)까지 올리면 로그가 재시도 횟수만큼 부푼다',
+  )
+  assert.match(body, /buried\.length > 0/, '실제로 묻힌 것이 있을 때만 올려야 한다')
+})
+
 // ── 웹 검색 한도는 다른 바구니다 (2026-08-24 실측) ────────────
 //
 // 같은 키로 일반 호출은 65초 뒤 200 으로 회복되는데(분당 한도),
