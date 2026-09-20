@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.10
+플랜 버전: v0.1.12
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -55,6 +55,7 @@
 - runDiscovery 가 maxSetsPerTopic 없이 불리면 던짐, 호출부는 예산을 반드시 준다 (단위 테스트)
 - /api/ci/patterns/recompute 와 /api/ci/internal/worker/discover 는 그대로 동작 (기존 가드 통과)
 - pnpm --filter web exec node --test lib/ci/jobs/trigger-scope.test.ts 통과, 등재 후 총 테스트 수 증가
+- 보안 S2: 두 창구의 권한 판정이 안 바뀜 — 부르는 조건만 바꾸고 인증 장치는 그대로, api-auth-surface 가드 통과로 확인 (통과 뒤에 적은 줄, 사후 확인은 I16)
 의존: 없음
 
 ### I02 한도를 한도라고 부른다
@@ -89,6 +90,7 @@
 - 같은 입력에 항상 같은 지문, 순서가 달라도 같은 지문 (단위 테스트)
 - 표에 지문 유니크 제약이 있고 답과 프롬프트 판 번호를 함께 담음
 - 마이그레이션이 운영에 적용되고 --status 로 확인됨
+- 보안 S1: 같은 판에서 RLS 를 켜고 TO public 을 안 씀 — 262 는 enable row level security 뒤 ci_is_member(workspace_id) 실제 조건 읽기 정책 하나, 쓰기 정책 없음(서버만 채운다), rls-baseline 가드 통과 (통과 뒤에 적은 줄, 사후 확인은 I16)
 의존: 없음
 
 ### I05 발견이 저장된 답을 쓴다
@@ -122,6 +124,7 @@
 - 상한에 닿으면 거절 사유와 풀리는 시각을 함께 돌려줌 (단위 테스트)
 - 상한을 못 읽으면 **거절하지 않고 통과** — 셈이 안 된다고 사용자의 일을 막지 않는다 (단위 테스트)
 - 마이그레이션 적용과 --status 확인
+- 보안 S1: 같은 판에서 RLS 를 켜고 TO public 을 안 씀 — 263 은 enable row level security 뒤 to authenticated 읽기 정책 하나, 쓰기 정책 없음(브라우저가 직접 고치면 상한이 상한이 아니다), rls-baseline 가드 통과 (통과 뒤에 적은 줄, 사후 확인은 I16)
 의존: 없음
 
 ### I08 벤더를 부르는 세 길이 그 자리를 지난다
@@ -156,6 +159,7 @@
 - 네 창구가 전부 자기가 이미 쥐고 있는 사용자 id 를 actorId 로 넘김
 - 등재부에서 이 넷의 «아직 안 이어 붙임» 표시가 빠지고 기준선이 10 에서 6 으로 내려감
 - 회의 요약과 회의 정리는 부르는 쪽에서 userId 를 받아 그대로 내려보냄 (단위 테스트로 대조)
+- 보안 S2 S3: 두 창구의 권한 판정이 안 바뀜을 소스로 확인 — remedy 는 getUser 뒤 profiles.role admin 확인, speakers 는 getUser 뒤 meeting_notes.user_id 일치 확인, 서비스롤을 쓰는 두 곳 모두 그 위에 사람 확인이 있음. actor_id 는 내부 uuid 라 어느 응답에도 안 실림
 의존: I08a
 범위 메모: daily-prompt-governance.ts 는 자기 인자에 사용자가 없어 부르는 라우트까지 고쳐야 해서 I08c 로 옮김. 등재부(actor.ts)는 기준선을 내려야 하므로 범위에 넣음
 
@@ -169,29 +173,22 @@
 - 사용자 원문 표본을 다루는 자리이므로 가림 한 겹을 그대로 지남 (기존 guardedGeminiText 유지 확인)
 - 가드가 파일 아무 데나 있는 actorId 가 아니라 **벤더를 부르는 자리 안**을 봄 (일부러 넘기는 줄만 빼서 확인)
 - 고친 가드가 찾아낸 기존 누락 둘을 그 자리에서 메움 (gemini-lead 도우미, gemini-refine 옛 길)
+- 보안 S2 S3: analyze-work 창구의 권한 판정이 안 바뀜 — getUser 뒤 401 게이트가 그대로이고 같은 라우트가 이미 user.id 로 actorId 를 쓰던 자리에 한 줄 더함. 사용자 원문 표본은 sanitizeSample 과 가림 한 겹을 그대로 지남
 의존: I08b
 범위 메모: AI 채팅은 호출부가 열한 곳이라 같은 항목에 못 넣고 I08e 로 뺌. 가드를 범위에 넣은 이유는 아래 감사에서 드러난 결함 때문임 — 파일 전체 문자열 검색이라 인자로 선언만 하고 안 넘겨도 통과했다
 
-### I08e AI 채팅이 주인을 반드시 받는다
+### I08e AI 채팅이 주인을 반드시 받고 호출부가 그것을 넘긴다
 상태: 대기
 모드: 경량
-범위: apps/web/lib/ai-chat/provider.ts, apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/ai/actor.ts
+범위: apps/web/lib/ai-chat/provider.ts, apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/ai/actor.ts, apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/app/(ai)/ai/actions.ts, apps/web/app/(ai)/ai/analyze/actions.ts, apps/web/app/(ai)/ai/analyze/template-actions.ts, apps/web/lib/ai-chat/analyze-core.ts, apps/web/lib/ai-chat/analyze-gemini.ts, apps/web/lib/ai-chat/analyze-runner-worker.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/rfp/ai/host-caller.ts
 감사 기준:
 - StreamChatParams 의 actorId 가 선택이 아니라 필수라서 안 주면 형 검사가 실패함 (일부러 하나 빼서 확인)
 - gemini 공급자가 받은 주인을 관문 ctx 까지 넘김
+- pnpm tsc --noEmit 가 통과함, 사람이 누르는 호출부는 자기가 쥔 사용자 id 를 배경 호출부는 null 과 사유를 넘김
+- 보안: 채팅 스트림 라우트가 지금도 사람 확인을 지나고 그 판정이 안 바뀜을 소스로 확인, 서비스롤을 쓰면 그 위에 사람 확인이 있는지 함께 봄, actor_id 는 내부 uuid 라 어느 응답에도 안 실림 (S2 S3)
 - 기준선이 5 에서 4 로 내려감
 의존: I08c
-범위 메모: 필수로 만들면 호출부 열한 곳이 전부 형 검사에서 걸린다, 그 결선은 I08f 에서 한다
-
-### I08f 채팅 호출부 열한 곳이 주인을 넘긴다
-상태: 대기
-모드: 경량
-범위: apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/app/(ai)/ai/actions.ts, apps/web/app/(ai)/ai/analyze/actions.ts, apps/web/app/(ai)/ai/analyze/template-actions.ts, apps/web/lib/ai-chat/analyze-core.ts, apps/web/lib/ai-chat/analyze-gemini.ts, apps/web/lib/ai-chat/analyze-runner-worker.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/rfp/ai/host-caller.ts
-감사 기준:
-- pnpm tsc --noEmit 가 통과함 (필수 칸이므로 한 곳이라도 빠지면 실패)
-- 사람이 누르는 호출부는 자기가 쥔 사용자 id 를, 배경 호출부는 null 과 사유를 넘김
-- 실측으로 확인: AI 채팅 한 번을 실제로 돌려 ai_llm_calls 의 그 줄 actor_id 가 친 사람 id 와 같음
-의존: I08e
+범위 메모: 계약과 결선을 두 항목으로 나눴다가 하나로 합쳤다. 칸을 필수로 만드는 판과 호출부를 메우는 판을 나누면 그 사이 판에서 pnpm tsc 가 빨갛고, 항목마다 정적 검사가 통과해야 한다는 규정(2절 3c)을 못 지킨다. 파일 수가 권장치를 넘지만 형 검사가 한 곳도 못 빠뜨리게 해 주므로 한 번의 자가감사로 판정된다
 
 ### I08d 남은 창구에 주인을 잇는다
 상태: 대기
@@ -202,6 +199,17 @@
 - 등재부의 «아직 안 이어 붙임» 이 0 이 되고 기준선도 0
 - ci 배치와 gpu 회사 보강은 배경으로 남고 그 사유가 등재부에 적혀 있음
 의존: I08c
+
+### I16 통과 뒤에 적은 보안 줄을 사후 확인한다
+상태: 대기
+모드: 중량
+범위: supabase/migrations/262_ci_discovery_answers.sql, supabase/migrations/263_ai_call_budget.sql, apps/web/lib/policy/rls-baseline.test.ts
+감사 기준:
+- 보안 S1: 운영 DB 에서 두 표의 relrowsecurity 가 true 이고 anon 이 INSERT UPDATE DELETE 권한을 안 가짐 (실제 질의 결과를 적음)
+- 보안 S1: 두 표에 TO public 이면서 USING (true) 인 정책이 0개 (실제 질의 결과를 적음)
+- rls-baseline 가드가 두 표를 실제로 세고 있음, 일부러 하나를 빼서 실패를 확인
+의존: 없음
+범위 메모: I01 I04 I07 은 감사 기준에 보안 줄 없이 통과했고, 그 사실을 v0.1.12 에서 발견해 줄을 뒤늦게 적었다. 소스로는 맞는 것을 확인했지만 운영 DB 실측은 아직이므로 이 항목에서 센다
 
 ### I09 관리자 사용량 화면이 원장을 읽는다
 상태: 대기
@@ -302,3 +310,5 @@
 - v0.1.8 (2026-09-20) I08c 에서 AI 채팅을 빼 I08e(계약을 필수로)와 I08f(호출부 열한 곳 결선)로 나눔. StreamChatParams 를 고치면 호출부 열한 곳이 형 검사에 걸려 한 항목이 열세 파일이 된다. 계약과 결선을 나누면 각각 한 번의 자가감사로 판정된다 (audit:I08c)
 - v0.1.9 (2026-09-20) I08c 감사 중 가드 결함 발견: ai-actor 의 «사람이 누르는 자리는 주인을 넘긴다» 가 파일 전체에서 actorId 문자열만 찾아, 인자로 선언만 하고 벤더 호출에 안 넘겨도 통과했다(일부러 넘기는 줄을 빼도 실패하지 않음). 벤더를 부르는 자리의 인자 안을 보도록 고치고 가드 파일을 I08c 범위에 넣음 (audit:I08c)
 - v0.1.10 (2026-09-20) 고친 가드가 기존 누락 둘을 바로 찾아내서 I08c 범위에 넣음: gemini-lead 의 내부 도우미가 부르는 셋에게서 userId 를 받고도 관문에 안 넘기고 있었고(리드 해석·판정 호출이 전부 주인 없이 나갔다), gemini-refine 의 옛 길은 부르는 곳이 없어 넘겨받을 사람이 없으므로 사유와 함께 null 을 명시했다. 되돌리면 가드가 빨간 채로 남으므로 그 자리에서 메움 (audit:I08c)
+- v0.1.11 (2026-09-20) I08e 와 I08f 를 하나로 합침. 칸을 필수로 만드는 판과 호출부 열한 곳을 메우는 판을 나누면 그 사이 커밋에서 pnpm tsc 가 빨갛게 남는데, LOOP.md 2절 3c 는 항목마다 정적 검사 통과를 요구한다. 합치면 파일이 열둘로 권장치를 넘지만 필수 칸이라 형 검사가 한 곳도 못 빠뜨리게 잡아 준다 (audit:I08e)
+- v0.1.12 (2026-09-20) 플랜 점검이 실패하고 있었다: I01 I04 I07 이 보안 줄 없이 통과했고(범위가 표 신설과 창구에 닿는데 감사 기준에 보안 줄이 없었다) I08b I08c 도 같은 누락이었다. 다섯 항목에 실제로 확인한 내용을 보안 줄로 적었다 — 262 와 263 은 같은 판에서 RLS 를 켜고 TO public USING(true) 정책이 없음을 소스로 확인. 통과 뒤에 적은 줄이라 운영 DB 실측은 안 했고, 그 실측을 I16 으로 남김 (audit:I08e)
