@@ -80,7 +80,7 @@
 의존: I01
 
 ### I04 대조쌍 지문과 답 저장 자리
-상태: 대기
+상태: 통과
 모드: 경량
 범위: supabase/migrations/NNN_ci_discovery_answers.sql (신규), apps/web/lib/ci/analysis/contrast-key.ts (신규), apps/web/lib/ci/analysis/contrast-key.test.ts (신규), apps/web/package.json
 감사 기준:
