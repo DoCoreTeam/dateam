@@ -228,7 +228,7 @@
 의존: I08g
 
 ### I16 통과 뒤에 적은 보안 줄을 사후 확인한다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/262_ci_discovery_answers.sql, supabase/migrations/263_ai_call_budget.sql, apps/web/lib/policy/rls-baseline.test.ts
 감사 기준:
@@ -236,6 +236,18 @@
 - 보안 S1: 두 표에 TO public 이면서 USING (true) 인 정책이 0개 (실제 질의 결과를 적음)
 - rls-baseline 가드가 두 표를 실제로 세고 있음, 일부러 하나를 빼서 실패를 확인
 의존: 없음
+
+운영 DB 실측 2026-09-20 (psql 직접 질의)
+- relrowsecurity: ai_call_budget = t, ci_discovery_answers = t
+- anon 의 INSERT·UPDATE·DELETE·TRUNCATE 권한: **0건**
+- TO public 이면서 USING (true) 인 정책: **0건**
+- 정책 전수 2개, 둘 다 SELECT 전용이고 쓰기 정책은 없음
+  - ai_call_budget_select · SELECT · {authenticated} · true
+  - ci_discovery_answers_select · SELECT · {public} · ci_is_member(workspace_id)
+  뒤엣것은 대상이 public 이지만 USING 이 실제 조건이라 LOOP.md S1 이 허용하는 모양이다
+  (anon 은 ci_is_member 가 거짓이라 한 행도 못 읽는다)
+- 가드 확인: 263 에서 enable row level security 를 지우니 1번 시험이 표 이름을 짚어 실패,
+  262 의 정책을 to public using (true) 로 바꾸니 2번 시험이 정책 이름을 짚어 실패, 되돌린 뒤 3/3 통과
 범위 메모: I01 I04 I07 은 감사 기준에 보안 줄 없이 통과했고, 그 사실을 v0.1.12 에서 발견해 줄을 뒤늦게 적었다. 소스로는 맞는 것을 확인했지만 운영 DB 실측은 아직이므로 이 항목에서 센다
 
 ### I09 관리자 사용량 화면이 원장을 읽는다
