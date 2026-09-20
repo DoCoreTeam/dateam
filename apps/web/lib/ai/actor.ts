@@ -84,6 +84,9 @@ export const AI_LANES: readonly AiLane[] = [
     why: '프로젝트 제안을 사람이 누른다' },
   { file: 'lib/gemini-suggest-tasks.ts', kind: 'human', surfaces: ['dept-task-suggest'],
     why: '부서 업무 제안을 사람이 누른다' },
+  { file: 'lib/gemini-embedding.ts', kind: 'human', surfaces: [],
+    why: '메모와 지식 색인의 임베딩, 부르는 쪽이 userId 를 넘긴다. '
+      + '가드 정규식이 제네릭 호출(guardedVector<number[]>)을 못 봐서 오래 등재부 밖에 있었다' },
 
   // ── 사람이 누르는데 아직 주인을 안 이어 붙인 자리 (I08c, I08d 에서 없앤다) ──────
   { file: 'app/api/admin/system-log/remedy/route.ts', kind: 'human', surfaces: ['system-log-remedy'],

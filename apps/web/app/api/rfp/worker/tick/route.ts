@@ -19,7 +19,7 @@ import { runAnalyze } from '@/lib/rfp/analyze/run-analyze'
 import { makeHostCaller } from '@/lib/rfp/ai/host-caller'
 import { toModels, toPolicy } from '@/lib/rfp/ai/host-providers'
 import { getAvailableProviders } from '@/lib/ai-chat/registry'
-import { embedText } from '@/lib/gemini-embedding'
+import { embedTexts } from '@/lib/gemini-embedding'
 import type { GatewayStore } from '@/lib/rfp/ai/gateway'
 import { recorded, notRecorded } from '@ax/ai-gateway'
 
@@ -163,10 +163,11 @@ async function runJob(db: ReturnType<typeof createAdminClient>, job: Job): Promi
   // 임베딩은 있으면 쓰고 없으면 안 쓴다 — 없다고 색인 단계를 실패시키면
   // 검색이 조금 나빠질 일이 파이프라인 전체를 멈추는 일이 된다
   const geminiKey = ai.providers.find((p) => p.id === 'gemini')?.apiKey ?? null
+  // 한 건씩이 아니라 묶어서 보낸다 — 조각 수만큼 요청이 나가면 분당 한도를 색인 하나가 다 쓴다
   const embed = geminiKey
-    ? async (text: string) => (await embedText(text, geminiKey, null, {
+    ? (texts: readonly string[]) => embedTexts(texts, geminiKey, null, {
         taskType: 'RETRIEVAL_DOCUMENT', feature: 'memo-embedding',
-      }))?.embedding ?? null
+      })
     : null
 
   const deps = makeStageDeps({

@@ -16,7 +16,7 @@ import {
 } from './chunk.ts'
 import {
   embedChunks, needsReembedding, embeddingCoverage, isValidVector,
-  EMBEDDING_MODEL, EMBED_DIM,
+  EMBEDDING_MODEL, EMBED_DIM, oneByOne,
 } from './embed.ts'
 import {
   fuseRrf, fuseWeighted, extractExactTerms, weightFor, RRF_K,
@@ -182,14 +182,14 @@ test('임베딩 차원이 저장소 SSOT 와 같다', () => {
 
 test('임베딩 값과 모델 이름이 함께 저장된다', async () => {
   const chunks = chunkDocument(문단문서(['가'.repeat(400)]))
-  const out = await embedChunks(chunks, async () => new Array(EMBED_DIM).fill(0.1))
+  const out = await embedChunks(chunks, oneByOne(async () => new Array(EMBED_DIM).fill(0.1)))
   assert.equal(out[0].embeddingModel, EMBEDDING_MODEL)
   assert.equal(out[0].embedding?.length, EMBED_DIM)
 })
 
 test('임베딩이 실패해도 청크는 남는다', async () => {
   const chunks = chunkDocument(문단문서(['가'.repeat(400)]))
-  const out = await embedChunks(chunks, async () => { throw new Error('할당량 초과') })
+  const out = await embedChunks(chunks, oneByOne(async () => { throw new Error('할당량 초과') }))
   // 임베딩 실패로 저장을 막으면 키워드 검색까지 통째로 죽는다
   assert.equal(out.length, 1)
   assert.equal(out[0].embedding, null)
@@ -199,7 +199,7 @@ test('임베딩이 실패해도 청크는 남는다', async () => {
 
 test('차원이 다른 벡터는 받지 않는다', async () => {
   const chunks = chunkDocument(문단문서(['가'.repeat(400)]))
-  const out = await embedChunks(chunks, async () => [0.1, 0.2])
+  const out = await embedChunks(chunks, oneByOne(async () => [0.1, 0.2]))
   // 저장하면 검색이 조용히 0건이 된다
   assert.equal(out[0].embedding, null)
   assert.equal(isValidVector([0.1, 0.2]), false)
@@ -220,7 +220,7 @@ test('모델을 바꾸면 다시 만들 대상만 가려낸다', () => {
 test('임베딩이 붙은 비율을 잰다', async () => {
   const chunks = chunkDocument(문단문서(['가'.repeat(400), '나'.repeat(400)]))
   let n = 0
-  const out = await embedChunks(chunks, async () => (n++ === 0 ? new Array(EMBED_DIM).fill(0.1) : null))
+  const out = await embedChunks(chunks, oneByOne(async () => (n++ === 0 ? new Array(EMBED_DIM).fill(0.1) : null)))
   assert.equal(embeddingCoverage(out), 1 / out.length)
   assert.equal(embeddingCoverage([]), 0)
 })

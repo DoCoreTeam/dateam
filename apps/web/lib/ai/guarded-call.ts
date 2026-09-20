@@ -353,6 +353,78 @@ export async function guardedVector<T>(
   }
 }
 
+/**
+ * 여러 글을 **한 요청으로** 임베딩할 때의 한 겹.
+ *
+ * ## 왜 묶는가
+ *
+ * 벤더 한도는 «요청 수»로 센다. 건마다 한 번씩 부르면 열여섯 조각짜리 문서 하나가
+ * 열여섯 번이 된다. 실측 2026-09-20: 지식 색인은 한 건씩 도는 for 문이었고 RFP 색인은
+ * 열여섯씩 끊어 Promise.all 로 뿌렸는데, 끊어 뿌리는 것은 «동시에» 일 뿐 요청 수는 건수와
+ * 같다. 분당 한도 100 인데 110회가 나간 것이 그래서다.
+ *
+ * ## 묶어도 한 겹은 건마다다
+ *
+ * 가림은 글마다 따로 한다 — 묶었다고 한 덩어리로 보면 어느 글의 어느 이름이 가려졌는지
+ * 못 세고, 한 건만 안 가려져도 전부 안 가린 것과 같아진다. 나가는 것은 가린 글들이고,
+ * 원장에는 **한 줄**이 남는다(한 번 나갔으므로). 가린 셈은 전부 더해서 적는다.
+ */
+export async function guardedVectors<T>(
+  texts: readonly string[],
+  ctx: GuardedCallContext,
+  ledger: AiLedger,
+  call: (maskedTexts: string[]) => Promise<(GuardedVectorResult<T> | null)[]>,
+  now: () => number = () => Date.now(),
+): Promise<(GuardedVectorResult<T> | null)[]> {
+  if (texts.length === 0) return []
+
+  const names = { knownNames: ctx.knownNames }
+  const masked = texts.map((t) => maskPii(t, names))
+  for (const m of masked) {
+    if (hasUnmaskedPii(m.text, names)) throw new PiiNotMaskedError(ctx.surface)
+  }
+
+  await askBudget(ctx, ledger)
+
+  const started = now()
+  const maskedCounts = masked.reduce<Record<string, number>>((acc, m) => {
+    for (const [kind, n] of Object.entries(countByKind(m.hits))) acc[kind] = (acc[kind] ?? 0) + n
+    return acc
+  }, {})
+
+  try {
+    const out = await call(masked.map((m) => m.text))
+    const got = out.filter((o) => o !== null).length
+    await ledger.recordCall({
+      surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+      provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      input_tokens: out.reduce((n, o) => n + (o?.tokens ?? 0), 0), output_tokens: 0, cost_krw: null,
+      latency_ms: now() - started, ok: got > 0,
+      // 몇 건 중 몇 건이 왔는지를 남긴다. 「실패」 한 마디로는 한 건이 빈 것과 전부 빈 것이 같아진다
+      error: got === out.length ? null : `partial:${got}/${out.length}`,
+      contract_version: AI_CONTRACT_VERSION,
+    })
+    await ledger.recordTransfer({
+      surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+      provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      masked_counts: maskedCounts, media_kind: 'text',
+      bytes: masked.reduce((n, m) => n + byteLength(m.text), 0),
+      contract_version: AI_CONTRACT_VERSION,
+    })
+    return out
+  } catch (e) {
+    await ledger.recordCall({
+      surface: ctx.surface, purpose: ctx.purpose, actor_id: ctx.actorId ?? null,
+      provider_id: ctx.providerId ?? null, model_name: ctx.modelName ?? null,
+      input_tokens: null, output_tokens: null, cost_krw: null,
+      latency_ms: now() - started, ok: false, error: describe(e).slice(0, 1000),
+      contract_version: AI_CONTRACT_VERSION,
+    })
+    throw e
+  }
+}
+
+
 
 /**
  * 조각 경계에서 잘려도 안전한 되돌리기.

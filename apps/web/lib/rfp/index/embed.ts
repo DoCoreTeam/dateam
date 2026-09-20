@@ -38,6 +38,15 @@ export const EMBED_BATCH = 16
 export type EmbedFn = (text: string) => Promise<number[] | null>
 
 /**
+ * 여러 글을 **한 요청으로** 임베딩하는 창구.
+ *
+ * 한 건짜리(EmbedFn)만 받으면 «묶어서 보낸다»가 «동시에 보낸다»로 끝난다 —
+ * 실제로 그랬다. Promise.all 로 열여섯씩 뿌렸지만 요청 수는 조각 수와 같았고,
+ * 분당 한도를 넘긴 것이 그것이다. 돌려주는 배열은 넣은 것과 길이와 순서가 같다.
+ */
+export type EmbedBatchFn = (texts: readonly string[]) => Promise<(number[] | null)[]>
+
+/**
  * 청크에 임베딩을 붙인다.
  *
  * 실패한 것은 `embedding: null` 로 남긴다 — 다음 실행이 그것만 골라 다시 만든다.
@@ -45,27 +54,43 @@ export type EmbedFn = (text: string) => Promise<number[] | null>
  */
 export async function embedChunks(
   chunks: readonly Chunk[],
-  embed: EmbedFn,
+  embed: EmbedBatchFn,
   model = EMBEDDING_MODEL,
 ): Promise<EmbeddedChunk[]> {
   const out: EmbeddedChunk[] = []
 
   for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
     const batch = chunks.slice(i, i + EMBED_BATCH)
-    const results = await Promise.all(batch.map(async (c) => {
-      try {
-        const v = await embed(c.text)
-        return isValidVector(v) ? v : null
-      } catch {
-        return null
-      }
-    }))
+    let results: (number[] | null)[]
+    try {
+      results = await embed(batch.map((c) => c.text))
+    } catch {
+      // 한 묶음이 죽어도 앞뒤 묶음은 산다. 던지면 성공한 것까지 버려지고 같은 비용을 두 번 낸다
+      results = batch.map(() => null)
+    }
     batch.forEach((c, k) => {
-      const v = results[k]
+      const v = isValidVector(results[k]) ? results[k] : null
       out.push({ ...c, embedding: v, embeddingModel: v ? model : null })
     })
   }
   return out
+}
+
+/**
+ * 한 건짜리 창구를 묶음 창구 모양으로 감싼다.
+ *
+ * **요청 수는 안 줄어든다.** 묶음을 못 쓰는 자리(시험, 묶음 API 가 없는 공급자)만
+ * 쓰라고 둔 것이고, 이름이 그 사실을 말하게 했다 — `embedChunks(chunks, oneByOne(f))`
+ * 를 읽으면 한 건씩 나간다는 것이 그 줄에서 보인다.
+ */
+export function oneByOne(embed: EmbedFn): EmbedBatchFn {
+  return async (texts) => Promise.all(texts.map(async (t) => {
+    try {
+      return await embed(t)
+    } catch {
+      return null
+    }
+  }))
 }
 
 /** 차원이 다른 벡터는 저장하지 않는다 — 저장하면 검색이 조용히 0건이 된다 */

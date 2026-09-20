@@ -124,30 +124,30 @@ export async function embedKnowledgeChunks(
 ): Promise<number> {
   if (chunks.length === 0) return 0
   const { createAdminClient } = await import('@/lib/supabase/server')
-  const { embedText, toVectorLiteral } = await import('@/lib/gemini-embedding')
+  const { embedTexts, toVectorLiteral } = await import('@/lib/gemini-embedding')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
   const apiKey = await readGeminiKey(admin)
 
+  /*
+    조각마다 한 번씩 부르던 자리다. 열 조각짜리 문서 하나가 열 요청이었고,
+    벤더 한도는 요청 수로 세므로 색인 한 번이 분당 한도를 그대로 먹었다
+    (실측 2026-09-20 분당 110회 / 한도 100). 이제 한 요청에 묶어 보낸다.
+  */
+  const vectors = apiKey
+    ? await embedTexts(chunks, apiKey, userId, { taskType: 'RETRIEVAL_DOCUMENT', feature: 'ai-chat' })
+    : chunks.map(() => null)
+
   let embedded = 0
   const rows: Record<string, unknown>[] = []
   for (let idx = 0; idx < chunks.length; idx++) {
-    const content = chunks[idx]
-    let embeddingLiteral: string | null = null
-    if (apiKey) {
-      const result = await embedText(content, apiKey, userId, {
-        taskType: 'RETRIEVAL_DOCUMENT',
-        feature: 'ai-chat',
-      })
-      if (result) {
-        embeddingLiteral = toVectorLiteral(result.embedding)
-        embedded++
-      }
-    }
+    // 자리로 맞춘다 — 묶음은 넣은 순서와 길이를 그대로 돌려준다
+    const v = vectors[idx] ?? null
+    if (v) embedded++
     rows.push({
       project_id: projectId,
-      content,
-      embedding: embeddingLiteral,
+      content: chunks[idx],
+      embedding: v ? toVectorLiteral(v) : null,
       source,
       chunk_index: idx,
     })

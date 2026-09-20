@@ -25,10 +25,17 @@ const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 /** 벤더로 나가는 갈래를 여는 함수들. 여기 이름이 늘면 등재부도 함께 늘어야 한다 */
 const LANE_OPENERS = [
-  'beginGuardedCall', 'guardedText', 'guardedMedia', 'guardedVector',
+  'beginGuardedCall', 'guardedText', 'guardedMedia', 'guardedVectors', 'guardedVector',
   'guardedGeminiText', 'guardedGeminiStream', 'guardedGeminiParts',
   'callGeminiJson', 'callGeminiText', 'callGeminiParts',
 ]
+
+/**
+ * 여는 함수를 찾는 조각. **제네릭 인자를 건너뛴다** — `guardedVector<number[]>(` 처럼
+ * 이름과 괄호 사이에 꺾쇠가 끼면 `이름\s*\(` 은 안 맞는다. 그 한 글자 차이로
+ * lib/gemini-embedding.ts 가 등재부 검사에서 통째로 빠져 있었다 (실측 2026-09-20).
+ */
+const OPENER_SRC = `\\b(?:${LANE_OPENERS.join('|')})\\s*(?:<[^()]*?>\\s*)?\\(`
 
 /**
  * 갈래를 «여는» 것이 아니라 «만드는» 파일들.
@@ -44,7 +51,7 @@ const LANE_ITSELF = new Set([
   'lib/api-docs/ai-layer.ts',  // 이름을 문서로 적어 둔 곳이지 호출이 아니다
 ])
 
-const OPEN_RE = new RegExp(`\\b(${LANE_OPENERS.join('|')})\\s*\\(`)
+const OPEN_RE = new RegExp(OPENER_SRC)
 
 function scanLaneFiles(): string[] {
   const hits: string[] = []
@@ -75,7 +82,7 @@ const read = (f: string) => readFileSync(join(WEB, f), 'utf8')
  */
 function callArgsIn(src: string): string[] {
   const out: string[] = []
-  const re = new RegExp(`\\b(?:${LANE_OPENERS.join('|')})\\s*\\(`, 'g')
+  const re = new RegExp(OPENER_SRC, 'g')
   for (let m = re.exec(src); m; m = re.exec(src)) {
     let i = m.index + m[0].length - 1
     for (let depth = 0; i < src.length; i++) {

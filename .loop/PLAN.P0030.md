@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.14
+플랜 버전: v0.1.15
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -259,15 +259,19 @@
 의존: I05, I11
 
 ### I13 임베딩을 묶어서 부른다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/gemini-embedding.ts, apps/web/lib/gemini-embedding.test.ts (신규), apps/web/lib/rfp/index/embed.ts, apps/web/package.json
+범위: apps/web/lib/gemini-embedding.ts, apps/web/lib/gemini-embedding.test.ts (신규), apps/web/lib/ai/guarded-call.ts, apps/web/lib/rfp/index/embed.ts, apps/web/app/api/rfp/worker/tick/route.ts, apps/web/lib/ai-chat/knowledge.ts, apps/web/lib/ai/actor.ts, apps/web/lib/policy/ai-actor.test.ts, apps/web/package.json
 감사 기준:
 - 묶음 창구(batchEmbedContents)로 한 요청에 여러 건을 보냄, 한 건씩 보내지 않음 (가드 1개)
 - 묶음 안 한 건이 실패해도 나머지가 살아남음 (단위 테스트)
 - 결과 순서가 입력 순서와 같음 (단위 테스트)
 - 저장되는 차원과 모델 이름이 그대로 (기존 chunk 가드 통과)
+- 묶음도 가림 한 겹과 예산 관문을 지남, 건마다 가리고 되돌림 (단위 테스트)
+- 착수 전 실측: 지식 색인은 한 건씩 도는 for 문이었고 RFP 색인은 16개를 Promise.all 로 나눠 보냈다 — 둘 다 요청 수가 건수와 같았다
+- 보안 S4: 묶음 요청도 lib/security/safe-fetch 가 아닌 고정 벤더 주소만 쓰고 사용자 값이 주소에 안 들어감
 의존: 없음
+범위 메모: 착수 전 사슬을 재어 범위를 한 번에 정함. 묶음은 guardedVector(한 건짜리)로는 못 지나가므로 guarded-call 에 묶음 갈래를 냄. 그 과정에서 ai-actor 가드가 제네릭 호출(guardedVector<number[]>(...))을 못 보고 lib/gemini-embedding.ts 를 통째로 놓치고 있던 것을 발견해 같은 판에서 고침
 
 ### I14 키를 고르는 자리 하나와 판 구분
 상태: 대기
@@ -315,3 +319,4 @@
 - v0.1.12 (2026-09-20) 플랜 점검이 실패하고 있었다: I01 I04 I07 이 보안 줄 없이 통과했고(범위가 표 신설과 창구에 닿는데 감사 기준에 보안 줄이 없었다) I08b I08c 도 같은 누락이었다. 다섯 항목에 실제로 확인한 내용을 보안 줄로 적었다 — 262 와 263 은 같은 판에서 RLS 를 켜고 TO public USING(true) 정책이 없음을 소스로 확인. 통과 뒤에 적은 줄이라 운영 DB 실측은 안 했고, 그 실측을 I16 으로 남김 (audit:I08e)
 - v0.1.13 (2026-09-20) I08e 범위에 analyze-runner.ts 와 analyze-item-actions.ts 를 더함. 칸을 필수로 만들자 형 검사가 이 둘의 호출도 짚었다 — 예상보다 두 곳 많았고 그것이 필수로 만든 이유 그대로다. analyze-runner 는 세션 행에 user_id 를 실제로 읽어 오도록 select 도 고쳤다, 타입만 늘리고 질의를 안 고치면 그 칸은 런타임에 undefined 가 된다 (audit:I08e)
 - v0.1.14 (2026-09-20) I08d 착수 전 사슬을 재어 실제 크기를 기록함. 네 창구가 아니라 네 갈래이고 CRM 만 열두 파일이다. I08c 와 I08e 에서 플랜 갱신 한계 3회에 두 번 닿았고 LOOP.md 2절 6 이 사용자 판단을 요구하므로, 나누는 판을 정하기 전에 멈추고 묻는다 (audit:I08d)
+- v0.1.15 (2026-09-20) I13 범위를 착수 전에 한 번에 정함(사슬을 먼저 재고 시작). 묶음 요청은 한 건짜리 guardedVector 로 못 지나가므로 guarded-call 에 묶음 갈래를 내고, 실제로 한 건씩 도는 두 곳(ai-chat 지식 색인 for 문, RFP 색인 Promise.all)과 그 호출부를 함께 넣음. 더불어 ai-actor 가드가 제네릭 호출을 못 보고 lib/gemini-embedding.ts 를 통째로 놓치고 있었다 — 같은 판에서 고침 (audit:I13)

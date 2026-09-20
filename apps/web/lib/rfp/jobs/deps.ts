@@ -10,7 +10,7 @@ import { parseFile } from '../parse/index.ts'
 import { buildSections, applySections } from '../structure/sections.ts'
 import { extractRequirements } from '../structure/requirements.ts'
 import { chunkDocument } from '../index/chunk.ts'
-import { embedChunks, EMBEDDING_MODEL, type EmbedFn } from '../index/embed.ts'
+import { embedChunks, EMBEDDING_MODEL, type EmbedBatchFn } from '../index/embed.ts'
 import { persistIr, latestIr, blockIdMap, chunked } from '../db/persist-ir.ts'
 import { getBytes, getJson, putJson, irPath } from '../db/storage.ts'
 import type { IrDocument } from '../ir/types.ts'
@@ -32,7 +32,7 @@ export interface MakeDepsInput {
   db: AnyDb
   analyze: AnalyzeFn
   /** 없으면 임베딩 없이 저장한다 — 검색은 글자 일치로 떨어진다(0건이 되지는 않는다) */
-  embed?: EmbedFn | null
+  embed?: EmbedBatchFn | null
 }
 
 export function makeStageDeps(input: MakeDepsInput): StageDeps {
