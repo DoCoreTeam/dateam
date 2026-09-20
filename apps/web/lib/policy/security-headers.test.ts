@@ -73,16 +73,35 @@ test('HSTS 는 1년 이상이고 preload 를 붙이지 않는다', async () => {
   )
 })
 
+/**
+ * CSP 지시문을 **주석이 아니라 실제 줄에서** 읽는다.
+ *
+ * 왜: 예전 검사는 `mw.includes("object-src 'none'")` 이라 **주석에 그 글자가 있기만 해도**
+ * 통과했다. 지시문을 지우고 「왜 지웠는지」를 주석에 적으면 가드가 초록으로 남는다.
+ * 여기서는 따옴표로 감싼 한 줄(배열 원소)만 지시문으로 친다.
+ */
+function cspDirectives(mw: string): Map<string, string> {
+  const start = mw.indexOf('return [')
+  const body = start >= 0 ? mw.slice(start) : mw
+  const out = new Map<string, string>()
+  for (const m of body.matchAll(/^\s*[`"]([a-z-]+) ([^`"]*)[`"],\s*$/gm)) {
+    if (!out.has(m[1])) out.set(m[1], m[2].trim())
+  }
+  return out
+}
+
 test('CSP 는 강제이고 뼈대 지시문이 살아 있다', () => {
   const mw = readFileSync(join(WEB, 'middleware.ts'), 'utf8')
-  for (const directive of [
-    "default-src 'self'",
-    "frame-ancestors 'none'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ]) {
-    assert.ok(mw.includes(directive), `CSP 에 ${directive} 가 없다`)
+  const directives = cspDirectives(mw)
+  assert.ok(directives.size > 5, `CSP 지시문을 못 읽었다(${directives.size}) — 검사가 헛돈다`)
+  for (const [name, value] of [
+    ['default-src', "'self'"],
+    ['frame-ancestors', "'none'"],
+    ['object-src', "'none'"],
+    ['base-uri', "'self'"],
+    ['form-action', "'self'"],
+  ] as const) {
+    assert.equal(directives.get(name), value, `CSP 의 ${name} 가 ${value} 가 아니다`)
   }
   // https 로 들어온 요청에만 건다 — http 에 걸면 브라우저가 자기 자신을 못 부른다
   assert.match(mw, /isHttps \? \['upgrade-insecure-requests'\]/, 'https 요청에 upgrade-insecure-requests 가 없다')
@@ -91,6 +110,26 @@ test('CSP 는 강제이고 뼈대 지시문이 살아 있다', () => {
     mw,
     /res\.headers\.set\('Content-Security-Policy', csp\)/,
     '보고용이 아니라 강제로 보내야 한다 (Content-Security-Policy-Report-Only 가 아니다)',
+  )
+})
+
+test('프레임에는 우리 것만 들어온다', () => {
+  /*
+    왜: 원본 대조가 PDF 를 화면 안에 그리려면 프레임이 필요해 `'none'` 을 열었다(v0.10.291).
+    연 자리는 **같은 출처와 우리가 만든 blob 뿐**이다.
+
+    여기서 바깥 주소(`https:`·`http:`·`*`·`data:`)가 한 번이라도 섞이면 아무 사이트나
+    우리 화면 «안»에서 열리고, 그 화면은 사용자 눈에 우리 것으로 보인다. 로그인 화면을
+    흉내 낸 쪽이 우리 주소창 아래에 앉는 것이라 값이 무엇인지까지 본다.
+  */
+  const directives = cspDirectives(readFileSync(join(WEB, 'middleware.ts'), 'utf8'))
+  const frameSrc = directives.get('frame-src')
+  assert.ok(frameSrc, 'frame-src 지시문이 없다 — 없으면 default-src 로 떨어져 무엇이 도는지 헷갈린다')
+  const sources = frameSrc.split(/\s+/).filter(Boolean)
+  assert.deepEqual(
+    sources.filter((v) => v !== "'self'" && v !== 'blob:' && v !== "'none'"),
+    [],
+    `frame-src 에 우리 것이 아닌 출처가 있다: ${frameSrc}`,
   )
 })
 

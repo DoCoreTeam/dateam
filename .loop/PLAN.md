@@ -49,7 +49,7 @@
 의존: 없음
 
 ### I02 우리가 만든 blob 만 프레임에 허용한다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: apps/web/middleware.ts, apps/web/lib/policy/security-headers.test.ts
 감사 기준:

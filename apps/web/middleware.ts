@@ -79,7 +79,20 @@ function buildCsp(nonce: string, isHttps: boolean): string {
     `connect-src 'self' ${supabase} ${ws}`.trim(),
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
-    "frame-src 'none'",
+    /*
+      **우리 것만 프레임에 들어온다.**
+
+      원본 대조(견적서 옆에 원본 PDF 를 세우는 자리)는 PDF 를 화면 «안»에 그려야 한다.
+      플러그인 길은 아래에서 통째로 막혀 있어 남는 길이 프레임뿐이라 여기를 연다.
+
+      **바깥 주소를 넣지 않는다.** 넣으면 아무 사이트나 우리 화면 안에 들어올 수 있고,
+      그 안에서 만든 화면은 사용자 눈에 우리 화면으로 보인다. blob 주소는 우리 스크립트가
+      이미 받아 온 바이트로만 만들어지므로 새로 열리는 문이 아니다.
+
+      들어오는 쪽은 바로 아래 줄에서 그대로 막아 둔다 — 남의 화면에 우리를 끼우는 길은
+      여전히 닫혀 있다. 나가는 쪽과 들어오는 쪽은 다른 문이다.
+    */
+    "frame-src 'self' blob:",
     "frame-ancestors 'none'",
     "object-src 'none'",
     "base-uri 'self'",
