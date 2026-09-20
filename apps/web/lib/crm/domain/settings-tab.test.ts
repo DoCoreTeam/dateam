@@ -16,8 +16,8 @@ import {
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const PAGE = join(WEB, 'app', '(crm)', 'crm', 'settings', 'page.tsx')
 
-test('카드 열세 장이 저마다 한 탭에 정확히 한 번씩 들어간다', () => {
-  assert.equal(CRM_SETTINGS_CARDS.length, 13, '카드 수가 달라졌다. 화면과 목록을 함께 고쳤나')
+test('카드 열네 장이 저마다 한 탭에 정확히 한 번씩 들어간다', () => {
+  assert.equal(CRM_SETTINGS_CARDS.length, 14, '카드 수가 달라졌다. 화면과 목록을 함께 고쳤나')
 
   const seen = new Map<string, number>()
   for (const c of CRM_SETTINGS_CARDS) seen.set(c.id, (seen.get(c.id) ?? 0) + 1)

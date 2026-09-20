@@ -24,7 +24,11 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY, QUOTE_SETTING_KEY, type SupplierField } from '../../terms/quote.ts'
+import {
+  SUPPLIER_SETTING_KEY, SUPPLIER_IMAGE_KEY, QUOTE_SETTING_KEY, QUOTE_IMPORT_SETTING_KEY,
+  type SupplierField,
+} from '../../terms/quote.ts'
+import { QUOTE_IMPORT_FALLBACK, QUOTE_IMPORT_CEILING } from './quote-import-config.ts'
 import type { SettingGroupKey } from '../domain/setting-group.ts'
 import { DEFAULT_QUOTE_NO_PATTERN, validateQuoteNoPattern } from '../domain/quote-number.ts'
 
@@ -155,6 +159,53 @@ export const SETTING_DEFS: readonly SettingDef[] = [
   {
     key: 'quote.supplier.logo', label: '로고', kind: 'image', group: 'quote',
     fallback: '', description: '견적서 왼쪽 위에 들어갑니다. PNG·JPG, 512KB 이하. 가로로 긴 이미지가 잘 맞습니다.',
+  },
+
+  // ── 견적서 파일 읽기 ────────────────────────────────────────
+  //
+  // **왜 설정인가**: 다섯 다 「얼마나 읽을까」와 「어디까지 보여 줄까」인데,
+  // 그 답은 회사마다 다르다. 부속명세가 열 장 붙는 견적서를 다루는 곳과 한 장짜리만
+  // 쓰는 곳이 같은 상한을 쓸 이유가 없다. 코드에 박으면 바꾸려고 배포를 기다려야 한다.
+  //
+  // 기본값은 `quote-import-config.ts` 가 가진 값을 그대로 가리킨다 — 여기 숫자를
+  // 또 적으면 화면이 말하는 기본값과 실제로 도는 값이 갈린다.
+  {
+    key: QUOTE_IMPORT_SETTING_KEY.maxComponentLines, label: '항목당 구성 줄 상한',
+    kind: 'text', group: 'quoteImport',
+    fallback: String(QUOTE_IMPORT_FALLBACK.maxComponentLines),
+    description: `견적서 파일에서 항목 하나에 딸린 구성 설명을 몇 줄까지 읽을지입니다. 넘치면 몇 줄을 못 읽었는지 화면이 말합니다. 최대 ${QUOTE_IMPORT_CEILING.maxComponentLines}줄.`,
+  },
+  {
+    key: QUOTE_IMPORT_SETTING_KEY.maxLines, label: '건당 항목 상한',
+    kind: 'text', group: 'quoteImport',
+    fallback: String(QUOTE_IMPORT_FALLBACK.maxLines),
+    description: `견적 한 건에서 받을 항목 수입니다. 부속명세가 붙은 견적서는 이 수에 먼저 닿습니다. 최대 ${QUOTE_IMPORT_CEILING.maxLines}건.`,
+  },
+  {
+    key: QUOTE_IMPORT_SETTING_KEY.maxChars, label: '한 번에 읽을 글자 수',
+    kind: 'text', group: 'quoteImport',
+    fallback: String(QUOTE_IMPORT_FALLBACK.maxChars),
+    description: `파일에서 뽑아 AI 에게 넘길 글자 수입니다. 길수록 뒷장까지 읽지만 그만큼 오래 걸립니다. 최대 ${QUOTE_IMPORT_CEILING.maxChars}자.`,
+  },
+  {
+    key: QUOTE_IMPORT_SETTING_KEY.snapshot, label: '원본 조각 만들기',
+    kind: 'choice', group: 'quoteImport',
+    fallback: QUOTE_IMPORT_FALLBACK.snapshot ? 'on' : 'off',
+    description: '파일로 견적을 만들 때 그 건이 있던 쪽을 그림으로 굳혀 견적에 붙입니다. 대조 화면이 그 쪽을 바로 띄웁니다.',
+    choices: () => [
+      { value: 'on', label: '만든다', hint: '견적마다 자기 쪽 그림을 갖습니다. 대조를 열면 그 자리가 바로 보입니다.' },
+      { value: 'off', label: '안 만든다', hint: '올린 파일만 통째로 붙습니다. 대조는 1쪽부터 열립니다.' },
+    ],
+  },
+  {
+    key: QUOTE_IMPORT_SETTING_KEY.printComponents, label: '견적서에 구성 인쇄',
+    kind: 'choice', group: 'quoteImport',
+    fallback: QUOTE_IMPORT_FALLBACK.printComponents,
+    description: '항목에 딸린 구성 설명을 견적서에 어떻게 낼지입니다. 구성이 길면 견적서가 한 장을 넘습니다.',
+    choices: () => [
+      { value: 'expand', label: '펴서 인쇄', hint: '구성 줄이 항목 아래 그대로 인쇄됩니다. 원본과 같은 자세함입니다.' },
+      { value: 'collapse', label: '접어서 인쇄', hint: '구성은 화면에서만 보이고 인쇄본에는 안 실립니다. 견적서가 짧아집니다.' },
+    ],
   },
 ] as const
 

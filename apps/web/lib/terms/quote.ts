@@ -832,6 +832,26 @@ export const QUOTE_SETTING_KEY = {
   numberFormat: 'quote.numberFormat',
 } as const
 
+/**
+ * 견적서 파일 읽기 설정 키.
+ *
+ * **왜 따로 두나**: 위 둘은 「우리가 내는 견적서」의 값이고, 아래 다섯은
+ * 「남이 준 견적서를 얼마나 읽을까」다. 성격이 달라 설정 화면에서도 카드가 갈린다.
+ * 값을 푸는 곳은 `services/quote-import-config.ts` 한 곳이다.
+ */
+export const QUOTE_IMPORT_SETTING_KEY = {
+  /** 항목 하나에 딸릴 구성 줄 수 상한 */
+  maxComponentLines: 'quote.import.maxComponentLines',
+  /** 한 건에서 받을 항목 수 상한 */
+  maxLines: 'quote.import.maxLines',
+  /** 모델에 넘길 원문 글자 수 상한 */
+  maxChars: 'quote.import.maxChars',
+  /** 건마다 그 쪽을 그림으로 굳혀 붙일까 */
+  snapshot: 'quote.import.snapshot',
+  /** 견적서 인쇄에서 구성을 펴나 접나 */
+  printComponents: 'quote.print.components',
+} as const
+
 /** 문서에 찍히는 순서 — 세금계산서와 같은 순서다(사람이 눈으로 대조한다) */
 export const SUPPLIER_ORDER: readonly SupplierField[] = [
   'name', 'bizNo', 'ceo', 'address', 'bizType', 'bizItem',

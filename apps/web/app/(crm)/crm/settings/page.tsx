@@ -45,6 +45,7 @@ export default async function CrmSettingsPage() {
     BusinessTypeCard: <BusinessTypeCard canEdit={canEdit} />,
     'SettingsCard.quote': <SettingsCard group="quote" />,
     QuoteTermsCard: <QuoteTermsCard />,
+    'SettingsCard.quoteImport': <SettingsCard group="quoteImport" />,
     BudgetCard: <BudgetCard />,
     'SettingsCard.ai': <SettingsCard group="ai" />,
     AutoApplyCard: <AutoApplyCard />,

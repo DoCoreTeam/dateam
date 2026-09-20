@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서가 원본만큼 자세해지고, 건마다 자기 원본을 갖는다
 플랜 ID: P0040
-플랜 버전: v0.1.0
+플랜 버전: v0.1.1
 상태: 진행중
 지시: ins_0050
 목표 버전: v0.10.316
@@ -45,11 +45,12 @@
 의존: 없음
 
 ### I02 읽기 상한과 켜고 끄기를 설정으로 뺀다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/services/setting.ts, apps/web/lib/crm/services/quote-import-config.ts (신규), apps/web/lib/crm/services/quote-import-config.test.ts (신규), apps/web/lib/terms/quote.ts
+범위: apps/web/lib/crm/services/setting.ts, apps/web/lib/crm/services/quote-import-config.ts (신규), apps/web/lib/crm/services/quote-import-config.test.ts (신규), apps/web/lib/terms/quote.ts, apps/web/lib/crm/domain/setting-group.ts, apps/web/lib/crm/domain/settings-tab.ts, apps/web/app/(crm)/crm/settings/page.tsx
 감사 기준:
 - 설정 키 다섯이 SETTING_DEFS 에 있고 기본값이 지금 코드 상수와 같은 단정이 있다 (maxComponentLines=40, maxLines=200, maxChars=12000, snapshot=on, printComponents=expand)
+- 새 카드가 설정 화면 견적 탭에 실제로 서는 단정이 있다 (묶음·카드 목록·화면 셋이 같은 이름을 쓴다)
 - readQuoteImportConfig 가 설정이 하나도 없을 때 fallback 다섯을 그대로 돌려주는 단정이 있다
 - 숫자 설정에 0 이나 글자를 넣으면 fallback 으로 되돌아가는 단정이 있다 (빈 값이 상한이 되면 읽기가 통째로 0 건이 된다)
 - pnpm --filter web exec node --test lib/crm/services/quote-import-config.test.ts 통과
@@ -174,3 +175,5 @@
 
 ## 변경 이력
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0050)
+- v0.1.1 (2026-09-20) I02 범위에 설정 카드 배선 3파일 추가 (audit:I02) 읽기 상한은 공급자 정보가 아니라 별도 카드라 묶음·카드 목록·화면을 함께 밟아야 화면에 뜬다
+- v0.1.1 (2026-09-20) I02 범위에 설정 카드 배선 3파일 추가, 읽기 상한은 공급자 정보 카드가 아니라 별도 카드라 묶음·카드 목록·화면을 함께 밟아야 화면에 뜬다 (audit:I02)
