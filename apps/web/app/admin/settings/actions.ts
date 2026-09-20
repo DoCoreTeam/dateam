@@ -21,7 +21,14 @@ import {
   describeConnectionOk,
   describeConnectionFailed,
   describeMissingKey,
+  describeKeyRemovalAt,
+  metaAfterKeyChange,
+  validateKeyLabel,
 } from '@/lib/ai/provider-keys'
+import {
+  listKeys, addKey, deleteKey, moveKey, setKeyActive, firstKeyValue,
+  type KeyView,
+} from '@/lib/ai/key-store'
 import { getProvider } from '@/lib/ai-chat/registry'
 
 // 회의 녹음 전사 설정 — 키가 아니라 전사 갈래의 값이라 공급자 창구와 따로 둔다
@@ -297,6 +304,124 @@ export async function deleteProviderKey(
   revalidatePath('/admin/settings')
   // 무엇이 함께 멈추는지 말한다 — Groq 을 「AI 공급자」로만 알고 해제하면 회의 전사가 조용히 멈춘다
   return { ok: true, message: warning ?? undefined }
+}
+
+/* ── 키 여러 줄 ─────────────────────────────────────────────────
+   위의 넷은 「키 하나」 시절의 창구다(META 한 칸). 아래 다섯은 표를 본다.
+   META 칸은 **지우지 않고 첫 줄과 맞춘다** — 그 칸을 직접 읽는 자리가 아직 마흔이라,
+   표만 고치면 화면에서는 지운 키로 그 마흔이 계속 돈다. */
+
+/** 표를 고친 뒤 META 의 기존 칸을 첫 줄과 맞춘다. 실패해도 표 변경은 이미 끝났다 */
+async function syncMetaFirstKey(
+  client: NonNullable<Awaited<ReturnType<typeof requireAdmin>>>,
+  provider: AiProviderId,
+): Promise<void> {
+  try {
+    const meta = await getMetaValue(client)
+    await setMetaValue(client, metaAfterKeyChange(provider, await firstKeyValue(provider), meta))
+  } catch (e) {
+    console.error('[settings] META 첫 키 동기화 실패', provider, e)
+  }
+}
+
+export async function listProviderKeys(
+  provider: AiProviderId,
+): Promise<{ ok: boolean; error?: string; keys?: KeyView[] }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+  try {
+    // KeyView 에는 가림값만 있다 — 원문 키는 이 응답에 담기지 않는다
+    return { ok: true, keys: await listKeys(provider) }
+  } catch (e) {
+    console.error('[settings] 키 목록 읽기 실패', provider, e)
+    return { ok: false, error: '키 목록을 읽지 못했습니다' }
+  }
+}
+
+export async function addProviderKeyRow(
+  provider: AiProviderId,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string; keys?: KeyView[] }> {
+  const label = ((formData.get('label') as string) ?? '').trim()
+  const raw = ((formData.get('apiKey') as string) ?? '').trim()
+
+  const keyCheck = validateProviderKey(provider, raw)
+  if (!keyCheck.ok) return { ok: false, error: keyCheck.error }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  try {
+    const existing = await listKeys(provider)
+    const labelCheck = validateKeyLabel(label, existing.map((k) => k.label))
+    if (!labelCheck.ok) return { ok: false, error: labelCheck.error }
+
+    await addKey(provider, label, raw)
+    await syncMetaFirstKey(client, provider)
+    revalidatePath('/admin/settings')
+    return { ok: true, keys: await listKeys(provider) }
+  } catch (e) {
+    console.error('[settings] 키 추가 실패', provider, e)
+    return { ok: false, error: '키를 저장하지 못했습니다' }
+  }
+}
+
+export async function deleteProviderKeyRow(
+  provider: AiProviderId,
+  id: string,
+): Promise<{ ok: boolean; error?: string; message?: string; keys?: KeyView[] }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  try {
+    await deleteKey(provider, id)
+    await syncMetaFirstKey(client, provider)
+    const keys = await listKeys(provider)
+    revalidatePath('/admin/settings')
+    // 무엇이 함께 멈추는지는 **마지막 하나를 지울 때만** 말한다. 거짓 경고는 두 번째부터 안 읽힌다
+    return { ok: true, message: describeKeyRemovalAt(provider, keys.length) ?? undefined, keys }
+  } catch (e) {
+    console.error('[settings] 키 삭제 실패', provider, e)
+    return { ok: false, error: '키를 삭제하지 못했습니다' }
+  }
+}
+
+export async function moveProviderKeyRow(
+  provider: AiProviderId,
+  id: string,
+  direction: 'up' | 'down',
+): Promise<{ ok: boolean; error?: string; keys?: KeyView[] }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  try {
+    await moveKey(provider, id, direction)
+    await syncMetaFirstKey(client, provider)
+    revalidatePath('/admin/settings')
+    return { ok: true, keys: await listKeys(provider) }
+  } catch (e) {
+    console.error('[settings] 키 순서 변경 실패', provider, e)
+    return { ok: false, error: '순서를 바꾸지 못했습니다' }
+  }
+}
+
+export async function toggleProviderKeyRow(
+  provider: AiProviderId,
+  id: string,
+  active: boolean,
+): Promise<{ ok: boolean; error?: string; keys?: KeyView[] }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  try {
+    await setKeyActive(provider, id, active)
+    await syncMetaFirstKey(client, provider)
+    revalidatePath('/admin/settings')
+    return { ok: true, keys: await listKeys(provider) }
+  } catch (e) {
+    console.error('[settings] 키 사용 여부 변경 실패', provider, e)
+    return { ok: false, error: '바꾸지 못했습니다' }
+  }
 }
 
 export async function saveProviderModel(

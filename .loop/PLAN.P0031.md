@@ -188,7 +188,7 @@
 의존: I04
 
 ### I09a 관리자 화면 키 목록
-상태: 대기
+상태: 통과
 모드: 중량
 범위: apps/web/app/admin/settings/AiProviderCard.tsx, apps/web/app/admin/settings/actions.ts, apps/web/app/admin/settings/page.tsx
 감사 기준:

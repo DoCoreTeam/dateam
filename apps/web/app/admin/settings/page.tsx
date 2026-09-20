@@ -12,6 +12,7 @@ import AiProviderOrder from './AiProviderOrder'
 import AiProviderCard from './AiProviderCard'
 import { AI_PROVIDERS } from '@/lib/ai/provider-catalog'
 import { readProviderKey, readProviderModel } from '@/lib/ai/provider-keys'
+import { listKeys, type KeyView } from '@/lib/ai/key-store'
 import { getProviderOrder } from '@/lib/ai-chat/registry'
 import { getAvailableProviders, META_DEFAULT_PROVIDER_KEY } from '@/lib/ai-chat/registry'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
@@ -87,6 +88,20 @@ export default async function AdminSettingsPage({
   // Groq 는 키 한 벌을 둘이 쓴다 — AI 모델(채팅·분석)과 음성 인식(전사)
   const groqModel = (meta.groq_model as string | undefined) ?? null
   const sttModel = (meta.stt_model as string | undefined) ?? null
+
+  /*
+    공급자마다 등록된 키 줄. **못 읽어도 화면을 죽이지 않는다** —
+    표가 없는 조직은 빈 목록이 오고, 카드가 예전 모양(META 한 칸)으로 그려진다.
+  */
+  const keyRowsByProvider: Partial<Record<string, KeyView[]>> = Object.fromEntries(
+    await Promise.all(AI_PROVIDERS.map(async (spec) => {
+      try {
+        return [spec.id, await listKeys(spec.id)] as const
+      } catch {
+        return [spec.id, [] as KeyView[]] as const
+      }
+    })),
+  )
 
   // Vercel 토큰은 화면으로 나가지 않는다 — 마스킹은 lib/vercel/config 의 것을 쓴다(SSOT)
   const vercelToken = meta[VERCEL_META.token] as string | undefined
@@ -182,6 +197,7 @@ export default async function AdminSettingsPage({
                     savedModel={readProviderModel(spec.id, meta)}
                     // 전사 모델 칸은 그 키가 전사에도 쓰이는 공급자에게만 준다
                     transcriptionModel={spec.alsoUsedFor ? sttModel : undefined}
+                    keyRows={keyRowsByProvider[spec.id] ?? []}
                   />
                 )
               })}
