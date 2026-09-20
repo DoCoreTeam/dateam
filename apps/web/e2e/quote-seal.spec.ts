@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import * as path from 'path'
 import { dismissGlobalModals } from './_helpers'
 
 /*
@@ -16,6 +17,7 @@ const SEAL_KEY = 'quote.supplier.seal'
 const PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 
+const SEAL_FIXTURE = path.join(__dirname, 'fixtures', 'seal.png')
 const SEAL_IMG = 'img[alt="직인"]'
 const SEAL_OMITTED = '(직인생략)'
 
@@ -77,5 +79,46 @@ test('직인을 올리면 찍히고, 없으면 (직인생략) 이 선다', async
       await page.request.delete(`/api/crm/quotes/${id}`).catch(() => {})
       await page.request.delete(`/api/crm/quotes/${id}?mode=purge`).catch(() => {})
     }
+  }
+})
+
+/*
+  **설정 화면에서 진짜로 올려 본다.**
+
+  API 로만 값을 심어 확인하면 「올릴 자리가 있나」를 한 번도 안 본 것이 된다 —
+  설정 정의만 있고 화면이 그 kind 를 못 그리면 사용자는 영원히 못 올린다.
+  실제로 그 반대 방향의 사고가 있었다: 값·상수는 다 있는데 화면이 안 불러 기능이 없었다.
+*/
+test('설정 화면에서 직인 파일을 올릴 수 있다', async ({ page }) => {
+  test.setTimeout(180_000)
+  const before = await (await page.request.get('/api/crm/settings')).json() as
+    { items?: { key: string; value: string | null }[] }
+  const had = before.items?.find((i) => i.key === SEAL_KEY)?.value ?? ''
+
+  try {
+    await page.goto('/crm/settings')
+    await dismissGlobalModals(page)
+    // 설정은 「영업 단계」 탭에서 열린다 — 견적 탭으로 옮겨야 공급자 정보 카드가 선다
+    await page.getByRole('tab', { name: '견적' }).click()
+
+    // 입력칸 id 는 설정 키에서 온다 — 정의가 빠지면 이 칸 자체가 없다
+    const file = page.locator(`input[type="file"][id="set-${SEAL_KEY}"]`)
+    await expect(file, '설정 화면에 직인 올리는 칸이 없다').toBeAttached({ timeout: 30_000 })
+    await file.setInputFiles(SEAL_FIXTURE)
+
+    // 고르기만 해서는 설정이 아니다 — 저장까지 눌러야 값이 남는다
+    const row = page.locator(
+      `xpath=//input[@id="set-${SEAL_KEY}"]/ancestor::div[contains(@class,"row")][1]`,
+    )
+    await row.getByRole('button', { name: '저장', exact: true }).click()
+
+    await expect.poll(async () => {
+      const after = await (await page.request.get('/api/crm/settings')).json() as
+        { items?: { key: string; value: string | null; masked?: string | null }[] }
+      const row = after.items?.find((i) => i.key === SEAL_KEY)
+      return (row?.masked ?? row?.value ?? '').length
+    }, { timeout: 30_000, message: '올렸는데 설정에 값이 안 남았다' }).toBeGreaterThan(0)
+  } finally {
+    await page.request.patch('/api/crm/settings', { data: { key: SEAL_KEY, value: had } }).catch(() => {})
   }
 })
