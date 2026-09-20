@@ -58,6 +58,7 @@ import {
   type DocQuoteJson, type FileReview,
 } from './quote-review'
 import { quoteToDraft, toLinePayload, type QuoteLineDraft } from './quote-draft-shape'
+import { planSnapshot, renderPdfPage, snapshotFileName } from '@/lib/crm/ui/quote-snapshot'
 import styles from './quote-panel.module.css'
 import WaitProgress from '../WaitProgress'
 import { quoteWaitProgress } from '@/lib/crm/ui/quote-read-progress'
@@ -150,6 +151,13 @@ interface DocInfo {
   truncated: boolean
   tableCount: number
   unclear: string[]
+  /**
+   * 건마다 그 쪽을 오려 붙일까.
+   *
+   * **화면이 설정을 따로 읽지 않는다** — 서버가 읽은 그 값을 그대로 받는다.
+   * 따로 읽으면 서버가 쓴 값과 화면이 믿는 값이 갈릴 수 있다.
+   */
+  snapshot: boolean
 }
 
 export default function QuoteFromFileModal({
@@ -250,9 +258,12 @@ export default function QuoteFromFileModal({
       const made = buildReviews((body.quotes ?? []) as DocQuoteJson[], dealCurrency)
       if (made.length === 0) { setError(FILL_NOTHING_FOUND); return }
 
+      const options = (body.options ?? {}) as { snapshot?: boolean }
       setDocInfo({
-        ...(body.source as Omit<DocInfo, 'unclear'>),
+        ...(body.source as Omit<DocInfo, 'unclear' | 'snapshot'>),
         unclear: (body.unclear ?? []) as string[],
+        // 옛 응답(설정을 안 싣던 판)에서는 안 오린다 — 모르면 안 하는 쪽이 안전하다
+        snapshot: options.snapshot === true,
       })
       setReviews(made)
       /*
@@ -317,12 +328,19 @@ export default function QuoteFromFileModal({
           이 값이 「아직 안 고쳤다」 배지의 근거가 되고, 그래서 바깥이 정하면 안 된다.
         */
         sourceFileName: docInfo?.fileName ?? null,
+        /*
+          **쪽도 함께 남긴다.** 이 값이 없으면 대조 화면은 늘 1쪽부터 열리고,
+          한 파일에 견적이 둘이면 사람이 그 안에서 자기 건을 찾아야 한다.
+          못 읽었으면 null 이고, 그때는 예전처럼 파일 전체를 연다.
+        */
+        sourcePageStart: review.pageStart,
+        sourcePageEnd: review.pageEnd,
       }),
     })
     const got = await readResponse(res, failedTo(ENTITY.quote.label, '만들지'))
     if (!got.ok) throw new Error(got.message ?? failedTo(ENTITY.quote.label, '만들지'))
-    // id 까지 읽는다 — 이 id 가 원본 파일을 붙일 자리다
-    return (got.body ?? {}) as { id?: string; lines?: { id: string }[] }
+    // id 와 판 번호까지 읽는다 — id 는 원본을 붙일 자리이고, 판 번호는 조각을 이을 때 쓴다
+    return (got.body ?? {}) as { id?: string; version?: number; lines?: { id: string }[] }
   }
 
   /**
@@ -380,7 +398,7 @@ export default function QuoteFromFileModal({
    * 여기서 등급을 고르지 않는다(`ATTACHMENT_KIND_SENSITIVITY`).
    * 창구는 기존 첨부 창구 그대로다 — 새로 열지 않는다.
    */
-  const attachSource = async (file: File, target: 'DEAL' | 'QUOTE', targetId: string) => {
+  const attachSource = async (file: File, target: 'DEAL' | 'QUOTE', targetId: string): Promise<string | null> => {
     const form = new FormData()
     form.append('file', file)
     form.append('target', target)
@@ -389,12 +407,52 @@ export default function QuoteFromFileModal({
     const res = await fetch('/api/crm/attachments', { method: 'POST', body: form })
     const done = await readResponse(res, IMPORT_KEEP_FILE_FAILED)
     if (!done.ok) throw new Error(done.message ?? IMPORT_KEEP_FILE_FAILED)
+    // 조각을 견적에 이으려면 그 첨부의 id 가 필요하다
+    const body = (done.body ?? {}) as { item?: { id?: string }; id?: string }
+    return body.item?.id ?? body.id ?? null
+  }
+
+  /**
+   * 그 건이 있던 쪽만 오려 견적에 붙인다.
+   *
+   * **실패해도 아무것도 되돌리지 않는다.** 조각이 없으면 대조가 파일 전체로 열릴 뿐이고,
+   * 그건 지금까지의 모습이다. 조각 하나 때문에 만들어진 견적을 지우는 것이 훨씬 나쁘다.
+   */
+  const attachSnapshot = async (
+    file: File, quote: { id: string; version: number; page: number | null },
+  ) => {
+    const plan = planSnapshot({
+      enabled: docInfo?.snapshot === true,
+      mimeType: file.type || null,
+      pageStart: quote.page,
+    })
+    if (!plan.make) return
+
+    const blob = await renderPdfPage(await file.arrayBuffer(), plan.page)
+    if (!blob) return
+
+    const cut = new File([blob], snapshotFileName(file.name, plan.page), { type: 'image/png' })
+    // 종류는 원본과 같다 — 그 종류가 대외비 등급을 정한다(조각은 원본과 같은 내용이다)
+    const id = await attachSource(cut, 'QUOTE', quote.id)
+    if (!id) return
+
+    /*
+      **조각 하나만 바꾸는 요청이다.** 서버가 이 경우를 알아보고 「아직 안 고쳤다」
+      표시를 그대로 둔다 — 조각을 붙인 것은 사람이 견적을 본 것이 아니다.
+    */
+    await fetch(`/api/crm/quotes/${quote.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: quote.version, sourceSnapshotId: id }),
+    })
   }
 
   const submit = async () => {
     if (going.length === 0) { setError(IMPORT_NOTHING_PICKED); return }
-    /** 이 파일에서 나온 견적들 — 끝나고 원본을 붙일 자리다 */
+    /** 이 파일에서 나온 견적들 — 끝나고 원본과 조각을 붙일 자리다 */
     const quoteIds: string[] = []
+    /** 새로 만든 견적만. 쪽을 알아야 오릴 수 있고, 판 번호가 있어야 이을 수 있다 */
+    const cutTargets: { id: string; version: number; page: number | null }[] = []
     /*
       **두 번 눌러도 한 번만 간다.** 단추는 `busy` 로 잠그지만 상태가 그려지기 전의
       두 번째 클릭은 그 잠금을 지나간다 — 그 사이에 견적 두 벌이 만들어지고,
@@ -435,7 +493,10 @@ export default function QuoteFromFileModal({
               const q = await createOne(r, lines)
               quoteLineIds = (q.lines ?? []).map((l) => l.id)
               // 원본을 붙일 자리 — 견적이 생겼으면 딜이 아니라 그 견적이다
-              if (q.id) quoteIds.push(q.id)
+              if (q.id) {
+                quoteIds.push(q.id)
+                cutTargets.push({ id: q.id, version: q.version ?? 1, page: r.pageStart })
+              }
               made += 1
             }
 
@@ -459,7 +520,10 @@ export default function QuoteFromFileModal({
             appended += 1
           } else {
             const q = await createOne(r, lines)
-            if (q.id) quoteIds.push(q.id)
+            if (q.id) {
+              quoteIds.push(q.id)
+              cutTargets.push({ id: q.id, version: q.version ?? 1, page: r.pageStart })
+            }
             made += 1
           }
         } catch (e) {
@@ -494,6 +558,15 @@ export default function QuoteFromFileModal({
           : [['DEAL', dealId]]
         for (const [target, id] of spots) {
           try { await attachSource(picked, target, id) } catch { tail = ` ${IMPORT_KEEP_FILE_FAILED}` }
+        }
+
+        /*
+          **그 다음에 조각을 오린다.** 원본이 먼저 붙어 있어야 조각이 틀렸을 때
+          떼고 전체로 물러설 자리가 있다. 조각은 실패해도 아무 말을 덧붙이지 않는다 —
+          없어도 대조는 파일 전체로 열리고, 그게 지금까지의 모습이다.
+        */
+        for (const q of cutTargets) {
+          try { await attachSnapshot(picked, q) } catch { /* 조각은 있으면 좋은 것이다 */ }
         }
       }
 

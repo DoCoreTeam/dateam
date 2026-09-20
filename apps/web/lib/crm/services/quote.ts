@@ -940,7 +940,16 @@ export async function updateQuote(
       그 파일 그 쪽에서 온 것은 사실이고, 대조는 고친 견적에서 더 자주 쓴다.
       풀리는 것은 「아직 안 봤다」 하나뿐이다.
     */
-    if (before.fromFileAt) data.fromFileAt = null
+    /*
+      **조각을 잇는 것은 «사람이 고친 것»이 아니다.**
+
+      조각은 견적이 생긴 뒤에야 붙일 수 있어서 만들기 직후에 이 경로로 한 번 더 온다.
+      그때도 표시를 풀어 버리면, 파일에서 만든 견적은 **아무도 안 봤는데 본 것으로** 찍힌다.
+      그래서 이 요청이 조각 하나만 바꾸는 것이면 표시를 그대로 둔다.
+    */
+    const onlySnapshot = Object.keys(input)
+      .every((k) => k === 'version' || k === 'sourceSnapshotId')
+    if (before.fromFileAt && !onlySnapshot) data.fromFileAt = null
 
     /*
       **조각은 나중에 붙는다.** 견적을 만든 다음에야 그 견적 id 로 첨부를 올릴 수 있어서,

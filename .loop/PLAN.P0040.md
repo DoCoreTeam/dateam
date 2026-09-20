@@ -125,7 +125,7 @@
 의존: 없음
 
 ### I09 건마다 원본 조각을 굳혀 붙인다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ui/quote-snapshot.ts (신규), apps/web/lib/crm/ui/quote-snapshot.test.ts (신규), apps/web/components/ui/crm/QuoteFromFileModal.tsx, apps/web/package.json
 감사 기준:

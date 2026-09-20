@@ -73,10 +73,24 @@ test('★ 파일에서 만들면 찍힌다 — 시각은 서버가 정한다', (
 test('★ 한 번 고쳐 저장하면 풀린다 — 출처는 남는다', () => {
   const update = SERVICE.slice(SERVICE.indexOf('export async function updateQuote'),
     SERVICE.indexOf('function amountsChanged'))
-  assert.match(update, /if \(before\.fromFileAt\) data\.fromFileAt = null/,
+  assert.match(update, /if \(before\.fromFileAt && !onlySnapshot\) data\.fromFileAt = null/,
     '저장해도 「수정 전」이 안 풀린다')
   assert.ok(!/data\.sourceFileName = null/.test(update),
     '출처까지 지운다 — 고친 뒤에도 그 파일에서 온 것은 사실이다')
+  assert.ok(!/data\.sourcePageStart = null/.test(update),
+    '쪽까지 지운다 — 대조는 고친 견적에서 더 자주 쓴다')
+
+  /*
+    **예외는 하나뿐이고, 그 하나는 사람이 한 일이 아니다.**
+
+    조각은 견적이 생긴 뒤에야 붙일 수 있어 만들기 직후에 이 경로로 한 번 더 온다.
+    그때도 풀어 버리면 **아무도 안 봤는데 본 것으로** 찍힌다.
+    예외가 넓어지면(예: 이름만 바꿀 때도 안 푼다) 이 표시는 아무 뜻도 없어지므로,
+    무엇이 예외인지 여기에 못 박는다.
+  */
+  const rule = update.slice(update.indexOf('const onlySnapshot'), update.indexOf('const onlySnapshot') + 220)
+  assert.match(rule, /k === 'version' \|\| k === 'sourceSnapshotId'/,
+    '예외가 조각 하나를 넘어섰다 — 그러면 이 표시는 아무 뜻도 없어진다')
 })
 
 /*

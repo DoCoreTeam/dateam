@@ -165,6 +165,16 @@ export interface QuoteFromFileResult {
   droppedLines: number
   /** 상한에 걸려 못 읽은 구성 줄 수 */
   droppedComponents: number
+  /**
+   * 화면이 이어서 해야 할 일에 필요한 설정.
+   *
+   * **화면이 설정을 따로 읽지 않는다** — 읽으면 요청이 한 번 더 늘고, 무엇보다
+   * 읽은 시점이 달라 서버가 쓴 상한과 화면이 믿는 상한이 갈릴 수 있다.
+   */
+  options: {
+    /** 건마다 그 쪽을 오려 붙일까 (`quote.import.snapshot`) */
+    snapshot: boolean
+  }
   /** 무엇을 읽고 만들었는지 — 사람이 원문과 대조할 수 있어야 한다 */
   source: {
     fileName: string
@@ -318,6 +328,7 @@ export async function draftQuoteFromFile(
     droppedQuotes: output.droppedQuotes,
     droppedLines: output.droppedLines,
     droppedComponents: output.droppedComponents,
+    options: { snapshot: config.snapshot },
     source: {
       fileName: input.fileName, route, kind,
       text: read.text, truncated: read.truncated, tableCount: read.tableCount,
