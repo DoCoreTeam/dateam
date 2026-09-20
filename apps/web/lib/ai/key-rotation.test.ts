@@ -150,3 +150,123 @@ test('★ 표를 못 읽어도 부르는 쪽이 준 키 하나로 돈다 — 저
   assert.equal(got, 'ok')
   assert.deepEqual(used, ['only-key'])
 })
+
+test('★ 자기 형으로 분류하는 호출처는 그 판정을 그대로 쓴다 — 문구로 되돌려 추측하게 하지 않는다', async () => {
+  // 전사는 429 를 한글 안내문으로 바꿔 던진다. 문구에는 429 도 quota 도 없다
+  // 매개변수 속성(constructor(readonly x))은 strip-only 모드가 못 읽는다 — 칸을 따로 적는다
+  class SttLike extends Error {
+    kind: string
+    constructor(kind: string) { super('음성 인식 사용량 한도에 걸렸습니다.'); this.kind = kind }
+  }
+  const used: string[] = []
+
+  assert.equal(keyOutcomeOf(new SttLike('quota')), 'transient', '문구만 보면 못 잡는다')
+
+  await withProviderKeys('groq', 'k1', async (apiKey) => {
+    used.push(apiKey)
+    if (apiKey === 'k1') throw new SttLike('quota')
+    return 1
+  }, {
+    entries: [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')],
+    outcomeOf: (e) => (e instanceof SttLike && (e.kind === 'quota' || e.kind === 'auth') ? e.kind : 'transient'),
+  })
+
+  assert.deepEqual(used, ['k1', 'k2'])
+})
+
+/* ── 옆길이 실제로 그 부품을 타는가 ────────────────────────────
+   부품이 맞아도 부르는 자리가 없으면 아무 일도 안 일어난다.
+   («테이블·설정만 만들고 소비 코드 0» — 이 저장소가 v0.7.438 에서 겪은 그 상태다) */
+
+import { readFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { openAiCompatibleStt, SttError } from '../stt/provider.ts'
+import type { AiLedger } from './guarded-call.ts'
+
+const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const read = (rel: string): string => readFileSync(join(WEB, rel), 'utf8')
+
+/** 원장은 시도마다 남아야 한다 — 429 를 맞았어도 녹음은 이미 그 업체로 나갔다 */
+function fakeLedger(): { ledger: AiLedger; calls: number } {
+  const state = { ledger: null as unknown as AiLedger, calls: 0 }
+  state.ledger = {
+    recordCall: async () => { state.calls += 1 },
+    recordTransfer: async () => {},
+  }
+  return state as { ledger: AiLedger; calls: number }
+}
+
+const realFetch = globalThis.fetch
+
+const VERBOSE_JSON = {
+  segments: [{ start: 0, end: 1, text: '안녕하세요' }],
+  text: '안녕하세요',
+}
+
+test('★ 회의 녹음 전사가 Groq 키 여러 개를 순서대로 시도한다', async () => {
+  const seenKeys: string[] = []
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    const auth = String((init.headers as Record<string, string>).Authorization)
+    seenKeys.push(auth.replace('Bearer ', ''))
+    if (seenKeys.length === 1) {
+      return { ok: false, status: 429, text: async () => 'rate limited', json: async () => ({}) }
+    }
+    return { ok: true, status: 200, json: async () => VERBOSE_JSON, text: async () => '' }
+  }) as unknown as typeof fetch
+
+  try {
+    const lg = fakeLedger()
+    const stt = openAiCompatibleStt({
+      vendor: 'groq', endpoint: 'https://example.test/v1/audio/transcriptions',
+      apiKey: 'k1', model: 'whisper-large', ledger: lg.ledger,
+      keys: { entries: [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')] },
+    })
+
+    const out = await stt.transcribe({
+      bytes: new Uint8Array([1, 2, 3]).buffer, mimeType: 'audio/webm', filename: 'a.webm',
+    })
+
+    assert.equal(out.segments.length, 1)
+    assert.deepEqual(seenKeys, ['k1', 'k2'], '첫 키가 한도면 다음 키로 같은 녹음을 보내야 한다')
+    assert.equal(lg.calls, 2, '원장은 시도마다 남는다 — 429 를 맞았어도 녹음은 이미 나갔다')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+})
+
+test('★ 키가 하나면 전사는 한 번만 나간다 — 회귀 없음', async () => {
+  let n = 0
+  globalThis.fetch = (async () => {
+    n += 1
+    return { ok: false, status: 429, text: async () => '', json: async () => ({}) }
+  }) as unknown as typeof fetch
+
+  try {
+    const stt = openAiCompatibleStt({
+      vendor: 'groq', endpoint: 'https://example.test/v1', apiKey: 'k1',
+      model: 'whisper-large', ledger: fakeLedger().ledger,
+      keys: { entries: [keyEntry('하나', 'k1')] },
+    })
+
+    await assert.rejects(
+      () => stt.transcribe({ bytes: new Uint8Array([1]).buffer, mimeType: 'audio/webm', filename: 'a.webm' }),
+      (e: unknown) => e instanceof SttError && e.reason === 'quota',
+    )
+    assert.equal(n, 1)
+  } finally {
+    globalThis.fetch = realFetch
+  }
+})
+
+test('★ CI 수집과 GPU 추출은 키를 자기 방식으로 또 읽지 않는다 — 공통 호출기를 탄다', () => {
+  for (const rel of ['lib/ci/ai/meta.ts', 'lib/gpu/extract-helpers.ts']) {
+    const src = read(rel)
+    assert.ok(!src.includes('ai_provider_keys'), `${rel} 가 키 표를 직접 연다`)
+    assert.ok(!src.includes('withProviderKeys'),
+      `${rel} 가 자기 키 교체를 갖고 있다 — gemini-call 이 이미 한다`)
+  }
+  // 그 «이미 한다»가 사실인지도 같이 센다. 아니면 위 둘은 아무 데도 안 닿는다
+  assert.match(read('lib/ai/gemini-call.ts'), /await import\('\.\/key-store\.ts'\)/,
+    '공통 호출기가 표를 안 보면 CI·GPU 는 여전히 키 하나로 돈다')
+})

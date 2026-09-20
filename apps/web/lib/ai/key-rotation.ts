@@ -20,6 +20,15 @@ import type { AiProviderId } from './provider-catalog.ts'
 export interface KeyRotationDeps {
   entries?: KeyPoolEntry[]
   record?: (entry: KeyPoolEntry, outcome: KeyOutcome, errorMessage?: string) => Promise<void> | void
+  /**
+   * 이 실패를 키 관점에서 무엇으로 볼지. 안 주면 오류 문구를 읽는다(`keyOutcomeOf`).
+   *
+   * **왜 여는가**: 이미 자기 형으로 분류해 던지는 호출처가 있다 — 회의 녹음 전사는
+   * 429 를 `SttError('quota', '음성 인식 사용량 한도에 걸렸습니다…')` 로 바꿔 던진다.
+   * 그 한글 안내문에는 `429` 도 `quota` 도 없어서 문구를 읽는 기본 분류가 못 잡는다.
+   * 이미 안 사실을 문자열로 되돌려 다시 추측하게 만들지 않는다.
+   */
+  outcomeOf?: (err: unknown) => KeyOutcome
 }
 
 /** 이 실패에 키를 바꿀 것인가. 바꿀 것이면 그 키를 어떻게 적을지까지 */
@@ -78,6 +87,7 @@ export async function withProviderKeys<T>(
   deps?: KeyRotationDeps,
 ): Promise<T> {
   const { entries, record } = await resolveDeps(provider, apiKey, deps)
+  const outcomeOf = deps?.outcomeOf ?? keyOutcomeOf
   const note = async (entry: KeyPoolEntry, outcome: KeyOutcome, detail?: string): Promise<void> => {
     // 기록이 호출을 막지 않는다 — 다음 호출을 낫게 하는 장치이지 이번 호출의 조건이 아니다
     try { await record?.(entry, outcome, detail) } catch { /* 삼킨다 */ }
@@ -92,7 +102,7 @@ export async function withProviderKeys<T>(
       return value
     } catch (e) {
       lastError = e
-      const outcome = keyOutcomeOf(e)
+      const outcome = outcomeOf(e)
       await note(entry, outcome, e instanceof Error ? e.message : String(e ?? ''))
       // 키를 바꿔도 같은 답이 올 실패다. 남은 키를 태우지 않고 그대로 올린다
       if (outcome === 'transient') throw e

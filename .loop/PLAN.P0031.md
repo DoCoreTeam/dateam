@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 키를 여러 개 두고 한도에 걸린 키를 건너뛴다
 플랜 ID: P0032
-플랜 버전: v0.1.4
+플랜 버전: v0.1.6
 상태: 진행중
 지시: ins_0034
 목표 버전: v0.10.214
@@ -146,17 +146,31 @@
 - pnpm test 에 key-rotation 등재되고 실제로 돎
 의존: I04
 
-### I08a 옆길 결선
-상태: 대기
+### I08a 옆길 결선 — 회의 녹음 전사
+상태: 통과
 모드: 경량
-범위: apps/web/lib/stt/provider.ts, apps/web/lib/gemini-embedding.ts, apps/web/lib/ai/key-rotation.test.ts
+범위: apps/web/lib/stt/provider.ts, apps/web/lib/ai/key-rotation.ts, apps/web/lib/ai/key-rotation.test.ts
 감사 기준:
 - 회의 녹음 전사가 Groq 키 여러 개를 순서대로 시도함 (첫 키가 429 면 다음 키로 같은 녹음을 보냄)
-- 임베딩이 Gemini 키 여러 개를 순서대로 시도함
-- 키가 하나일 때의 동작이 지금과 같음 (호출 수 회귀 없음)
+- 키가 하나일 때 전사가 한 번만 나감 (호출 수 회귀 없음)
+- 원장이 시도마다 남음 (429 를 맞았어도 녹음은 이미 그 업체로 나갔다)
 - CI 수집과 GPU 추출은 gemini-call 을 타므로 키를 자기 방식으로 또 읽지 않음, 가드가 그 사실을 셈
 - pnpm tsc --noEmit 통과
 의존: I08
+
+### I08b 옆길 결선 — 임베딩
+상태: 대기
+모드: 경량
+범위: apps/web/lib/gemini-embedding.ts, apps/web/lib/ai/key-rotation.test.ts
+감사 기준:
+- 홑 건 임베딩이 Gemini 키 여러 개를 순서대로 시도함
+- 묶음 임베딩도 같은 부품을 탐 (대량 색인이 첫 키만 두드리면 한도가 그날 다 찬다)
+- 한도와 인증을 null 로 덮지 않음 (덮으면 등록된 다음 키가 한 번도 안 쓰인다)
+- 가드가 그 배선을 셈
+의존: I08
+막힘: 옆 세션이 같은 파일에 묶음 임베딩(embedTexts)과 guardedVectors 를 만드는 중이고 둘 다 HEAD 에 없음
+      지금 커밋하면 없는 함수를 부르는 코드가 들어가 빌드가 깨짐, 그 판이 커밋된 뒤에 얹음
+      배선 자체는 작업 트리에 이미 들어가 있고 tsc 통과 상태임
 
 ### I09 관리자 화면 키 목록
 상태: 대기
@@ -193,3 +207,5 @@
 - v0.1.2 (2026-09-20) I03 을 둘로 쪼갬: 429 가 availability 'limited' 를 남기는 것을 소비처보다 먼저 떼면 runner 의 PROVIDER_QUOTA 판정이 죽어 여러 건 돌 때 중단이 안 걸린다(v0.7.574 사고 재현). I03 은 scope 와 keyOutcome 만, I03a 가 소비처를 옮긴 뒤 availability 를 뗀다. pruneChain 은 'key' 를 'provider' 와 같게 다룬다 — 키 교체는 그 앞에서 끝난다 (audit:I03)
 - v0.1.3 (2026-09-20) I04 을 두 파일로 나눔: node --test 는 server-only 를 못 읽는다(Next 가 빌드 때 별칭으로 붙이는 것이라 패키지가 없음). 한 파일로 두면 감사 기준을 소스 훑기로만 볼 수 있어 가드가 안 된다. 저장소 전례(org-scope.ts / org-scope-pure.ts)대로 서비스롤 배선만 server-only 에 두고 규칙은 core 로 뺀다. 원문 키가 흩어지지 않는지 세는 보안 줄과 등재 줄도 추가 (audit:I04)
 - v0.1.4 (2026-09-20) I08 을 둘로 쪼갬. ①같은 키 교체 로직이 STT·임베딩·호출기 세 곳에 필요해 공용 부품으로 뺀다(재사용·단일구현 정책). ②원래 범위의 넷 중 ci/ai/meta.ts 와 gpu/extract-helpers.ts 는 고칠 것이 없다 - 둘 다 gemini-call 을 타므로 I05 로 이미 같은 저장소를 본다. 코드를 안 고치는 대신 「자기 방식으로 또 읽지 않는다」를 가드로 못 박는다 (audit:I08)
+- v0.1.5 (2026-09-20) I08a 범위에 key-rotation.ts 추가. 전사는 실패를 SttError 로 이미 분류해 던지는데 그 문구에 429 나 401 이 안 들어 있어 classifyProviderError 가 못 읽는다 - 한글 안내문이기 때문. 부르는 쪽이 자기 오류 형을 결말로 옮길 수 있게 outcomeOf 를 옵션으로 연다 (audit:I08a)
+- v0.1.6 (2026-09-20) I08a 에서 임베딩을 떼어 I08b 로 미룸. 옆 세션이 같은 파일에 묶음 임베딩(embedTexts)과 guardedVectors 를 만드는 중인데 둘 다 아직 HEAD 에 없다. 그 파일을 지금 커밋하면 없는 함수를 부르는 코드가 들어가 빌드가 깨진다. 배선은 작업 트리에 이미 있고 tsc 도 통과하므로 그 판이 커밋된 뒤에 얹는다. 남의 미완 작업을 대신 끝내지도, 되돌리지도 않는다 (audit:I08a)

@@ -80,6 +80,8 @@ export const STT_TIMEOUT_MS = 120_000
 import { guardedMedia, type AiLedger } from '../ai/guarded-call.ts'
 import { serverAiLedger } from '../ai/ledger.ts'
 import { serverKnownNames } from '../ai/known-names.ts'
+import { withProviderKeys, type KeyRotationDeps } from '../ai/key-rotation.ts'
+import { isAiProviderId } from '../ai/provider-catalog.ts'
 
 export const DEFAULT_STT_MODEL = 'whisper-large-v3'
 
@@ -161,6 +163,13 @@ export function openAiCompatibleStt(opts: {
   model: string
   /** 안 주면 서버 원장. 녹음이 밖으로 나간 사실은 어느 길로 가도 남는다 */
   ledger?: AiLedger
+  /**
+   * 이 업체에 등록된 키 여러 개. 안 주면 표에서 읽는다.
+   *
+   * 회의 녹음은 **구간을 이어서** 보낸다. 중간에 키가 마르면 그 회의만 반쯤 전사된
+   * 상태로 남고, 사용자는 뒷부분이 왜 비었는지 알 수 없다 — 그래서 여기가 특히 필요하다.
+   */
+  keys?: KeyRotationDeps
 }): SttProvider {
   return {
     vendor: opts.vendor,
@@ -189,6 +198,19 @@ export function openAiCompatibleStt(opts: {
         돌아온 전사에는 사람 이름이 그대로 실려 온다. 그것을 **지우지는 않는다** —
         말한 사람 이름을 지우면 회의록이 못 읽을 것이 된다. 몇 개였는지만 센다.
       */
+      /*
+        **키를 바꿔 가며 부른다.** 한도(429)와 인증(401)은 그 키의 문제라 다음 키로 같은
+        녹음을 다시 보내면 된다. 그 밖의 실패는 키를 바꿔도 같으니 그대로 올린다.
+
+        원장은 **시도마다** 남는다 — 429 를 맞았어도 녹음은 이미 그 업체로 나갔다.
+        한 번만 남기면 「어디로 몇 번 나갔나」가 실제와 달라진다.
+
+        이 업체가 등록된 공급자가 아니면(예: 나중에 붙는 다른 전사 업체) 키 교체 없이
+        한 번만 부른다 — 표에 그 공급자 칸이 없으니 고를 것도 없다.
+        分類는 우리가 이미 SttError 로 해 두었으므로 문구로 되돌려 추측하게 하지 않는다.
+      */
+      const providerId = isAiProviderId(opts.vendor) ? opts.vendor : null
+      const runOnce = async (apiKey: string): Promise<SttResult> => {
       const out = await guardedMedia(
         input.bytes.byteLength,
         {
@@ -204,7 +226,7 @@ export function openAiCompatibleStt(opts: {
           try {
             res = await fetch(opts.endpoint, {
               method: 'POST',
-              headers: { Authorization: `Bearer ${opts.apiKey}` },
+              headers: { Authorization: `Bearer ${apiKey}` },
               body: form,
               signal: ctl.signal,
             })
@@ -232,6 +254,13 @@ export function openAiCompatibleStt(opts: {
         throw new SttError('empty', '이 구간에서 말소리를 찾지 못했습니다. 마이크가 꺼져 있었을 수 있어요.', false)
       }
       return { segments, model: opts.model }
+      }
+
+      if (!providerId) return runOnce(opts.apiKey)
+      return withProviderKeys(providerId, opts.apiKey, (apiKey) => runOnce(apiKey), {
+        ...opts.keys,
+        outcomeOf: (e) => (e instanceof SttError && (e.reason === 'quota' || e.reason === 'auth') ? e.reason : 'transient'),
+      })
     },
   }
 }
