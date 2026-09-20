@@ -16,6 +16,7 @@
 
 import { exportFileName, type QuoteDocument } from '../domain/quote-document.ts'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '../../terms/quote.ts'
+import { hasDiscount } from '../domain/quote-document.ts'
 import { minorDigits, currencyAffix } from '../../../app/(crm)/crm/deals/amount.ts'
 
 /** 항목 표의 열 — 화면(§견적서)과 **같은 순서**다. 다르면 같은 문서가 아니다 */
@@ -158,6 +159,16 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   const doc = input.document
   const cur = doc.meta.currency
   const fmt = numFmt(cur)
+  /*
+    **할인이 없으면 파일도 할인을 말하지 않는다.** 판정은 화면과 같은 함수에서 온다
+    (quote-document.hasDiscount) — 각자 판정하면 화면엔 없는 할인 칸이 파일엔 남는 날이 온다.
+
+    열은 «숨긴다». 열 편지(F)를 밀면 표 안 수식이 전부 다른 칸을 가리켜 깨진다.
+    머리글 글자는 지운다 — 숨긴 칸에 「할인」이 남아 있으면 되살린 사람이 빈 열을 본다.
+  */
+  const showDiscount = hasDiscount(doc)
+  /** 공급자 값이 실제로 차지하는 폭. 할인 열을 숨기면 F 가 사라져 G 폭만 남는다 */
+  const supplierValueWidth = showDiscount ? SUPPLIER_VALUE_WIDTH : COLUMNS[6].width
 
   const wb = new ExcelJS.Workbook()
   wb.creator = doc.supplier.name || QUOTE.documentTitle
@@ -358,7 +369,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     const leftW = COLUMNS[1].width + COLUMNS[2].width
     const need = Math.max(
       wrapHeight(texts[0], leftW),
-      wrapHeight(texts[1], SUPPLIER_VALUE_WIDTH),
+      wrapHeight(texts[1], supplierValueWidth),
     )
     if (need > 15) ws.getRow(row).height = need
   }
@@ -431,7 +442,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   const headRow = r
   COLUMNS.forEach((c, i) => {
     const cell = ws.getCell(headRow, i + 1)
-    cell.value = c.label
+    cell.value = c.key === 'disc' && !showDiscount ? '' : c.label
     cell.font = { size: 10, bold: true, color: { argb: MUTED } }
     /*
       **머리글은 전부 가운데다**(사용자 지시: 「제목만 중앙정렬로」).
@@ -596,18 +607,23 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   const hasRounding = doc.totals.roundingMinor !== '0'
   // 절사는 **세금 뒤**에 온다 — 「계 − 절사 = 합계」 순서다(quote-math)
   const subtotalRow = r
-  const discountRow = r + 1
-  const taxRow = r + 2
-  const netTotalRow = hasRounding ? r + 3 : null
-  const roundingRow = hasRounding ? r + 4 : null
-  const grandRow = r + (hasRounding ? 5 : 3)
+  // 할인 줄이 빠지면 **그 아래가 전부 한 칸씩 당겨진다** — 행 번호를 여기 한 곳에서만 센다
+  const discountRow = showDiscount ? r + 1 : null
+  const taxRow = r + (showDiscount ? 2 : 1)
+  const netTotalRow = hasRounding ? taxRow + 1 : null
+  const roundingRow = hasRounding ? taxRow + 2 : null
+  const grandRow = taxRow + (hasRounding ? 3 : 1)
 
   // 구간이 여럿이면 SUMPRODUCT 를 구간마다 더한다 — 한 번에 못 쓰는 함수다
   const subtotalF = has
     ? dS.map((d, i) => `SUMPRODUCT(${d},${eS[i]})`).join('+')
     : null
   // 할인은 «공급가액 − 항목 합계」다. 절사는 이제 다른 축이라 섞이지 않는다
-  const discountF = has ? `${LAST_COL}${subtotalRow}-SUM(${G})` : null
+  const discountF = has && discountRow ? `${LAST_COL}${subtotalRow}-SUM(${G})` : null
+  /** 과세표준 = 공급가액 − 할인. 할인 줄이 없으면 뺄 것이 없다 */
+  const netBaseF = discountRow
+    ? `${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow}`
+    : `${LAST_COL}${subtotalRow}`
   /*
     부가세는 **지금 값에서 역산한 세율**로 건다. 항목마다 과세·영세·면세가 섞일 수 있어
     10%를 박으면 틀린 문서가 나온다 — 우리가 이미 정확히 계산한 값의 비율을 쓴다.
@@ -615,21 +631,20 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   // 과세 대상 = 공급가액 − 할인. 절사는 세금 뒤라 과세표준을 건드리지 않는다
   const netBase = Number(doc.totals.subtotalMinor) - Number(doc.totals.discountMinor)
   const taxRate = netBase > 0 ? Number(doc.totals.taxMinor) / netBase : 0
-  const taxF = has
-    ? `ROUND((${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow})*${taxRate.toFixed(6)},0)`
-    : null
-  const netTotalF = has
-    ? `${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow}+${LAST_COL}${taxRow}`
-    : null
+  const taxF = has ? `ROUND((${netBaseF})*${taxRate.toFixed(6)},0)` : null
+  const netTotalF = has ? `${netBaseF}+${LAST_COL}${taxRow}` : null
   const grandF = has
     ? (hasRounding
       ? `${LAST_COL}${netTotalRow}-${LAST_COL}${roundingRow}`
-      : `${LAST_COL}${subtotalRow}-${LAST_COL}${discountRow}+${LAST_COL}${taxRow}`)
+      : netTotalF)
     : null
 
   const totals: [string, string, boolean, string | null][] = [
     [QUOTE.subtotal, doc.totals.subtotalMinor, false, subtotalF],
-    [QUOTE.discount, doc.totals.discountMinor, false, discountF],
+    // 안 준 할인을 「0원」으로 적어 보내지 않는다 — 받는 쪽은 그것을 «일부러 안 줬다»로 읽는다
+    ...(showDiscount
+      ? [[QUOTE.discount, doc.totals.discountMinor, false, discountF]] as [string, string, boolean, string | null][]
+      : []),
     [QUOTE.tax, doc.totals.taxMinor, false, taxF],
     /*
       절사가 없으면 「계」도 「절사」도 만들지 않는다 — 계와 합계가 같은 값이면
@@ -753,6 +768,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     숨김(hidden)으로 처리한다 — 지울 수는 없고, 숨기면 화면에서도 인쇄에서도 사라진다.
     필요하면 받은 사람이 되살릴 수 있다(잠그는 것과 다르다).
   */
+  // 할인 열(F)도 같은 방법으로 숨긴다 — 되살릴 수 있게 두되 문서에서는 사라진다
+  if (!showDiscount) ws.getColumn(6).hidden = true
   const LAST_HIDDEN_COL = 40   // H(8) ~ AN(40) — 화면 한 판을 덮기에 충분하다
   for (let col = COLUMNS.length + 1; col <= LAST_HIDDEN_COL; col += 1) {
     ws.getColumn(col).hidden = true

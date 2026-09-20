@@ -43,6 +43,25 @@ async function textOf(buffer: Buffer): Promise<string> {
   return out.join('\n')
 }
 
+/** 라벨이 있는 줄의 금액 칸(마지막 열) — 값과 수식을 함께 본다 */
+function amountOf(ws: ExcelJS.Worksheet, label: string) {
+  let found: { row: number; value: unknown; formula?: string } | null = null
+  ws.eachRow((row, r) => {
+    row.eachCell({ includeEmpty: false }, (c) => {
+      if (String(c.value ?? '') !== label) return
+      const last = row.getCell(row.cellCount)
+      const v = last.value as { formula?: string; result?: unknown } | number | null
+      found = {
+        row: r,
+        value: typeof v === 'object' && v && 'result' in v ? v.result : v,
+        formula: typeof v === 'object' && v && 'formula' in v ? v.formula : undefined,
+      }
+    })
+  })
+  assert.ok(found, `${label} 줄을 못 찾았다`)
+  return found!
+}
+
 async function sheetOf(buffer: Buffer) {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(buffer as unknown as ArrayBuffer)
@@ -282,29 +301,10 @@ test('★ 절사가 없으면 「계」 줄을 만들지 않는다 — 합계와
 test('★ 절사가 있어도 수식이 제 칸을 가리킨다 — 행이 밀리면 엑셀에서만 틀린다', async () => {
   const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: roundedDoc() })).buffer)
 
-  /** 라벨이 있는 줄의 금액 칸(마지막 열) — 값과 수식을 함께 본다 */
-  function amountOf(label: string) {
-    let found: { row: number; value: unknown; formula?: string } | null = null
-    ws.eachRow((row, r) => {
-      row.eachCell({ includeEmpty: false }, (c) => {
-        if (String(c.value ?? '') !== label) return
-        const last = row.getCell(row.cellCount)
-        const v = last.value as { formula?: string; result?: unknown } | number | null
-        found = {
-          row: r,
-          value: typeof v === 'object' && v && 'result' in v ? v.result : v,
-          formula: typeof v === 'object' && v && 'formula' in v ? v.formula : undefined,
-        }
-      })
-    })
-    assert.ok(found, `${label} 줄을 못 찾았다`)
-    return found!
-  }
-
-  const tax = amountOf(QUOTE.tax)
-  const net = amountOf(QUOTE.netTotal)
-  const round = amountOf(QUOTE.rounding)
-  const grand = amountOf(QUOTE.total)
+  const tax = amountOf(ws, QUOTE.tax)
+  const net = amountOf(ws, QUOTE.netTotal)
+  const round = amountOf(ws, QUOTE.rounding)
+  const grand = amountOf(ws, QUOTE.total)
 
   assert.equal(net.row, tax.row + 1, '계는 부가세 바로 다음 줄이다')
   assert.equal(round.row, net.row + 1, '절사는 계 바로 다음 줄이다')
@@ -315,4 +315,55 @@ test('★ 절사가 있어도 수식이 제 칸을 가리킨다 — 행이 밀�
   assert.ok(grand.formula?.includes(String(round.row)), `합계 수식이 절사 줄(${round.row})을 안 본다 — ${grand.formula}`)
   // 부가세 수식은 절사를 빼지 않는다 — 절사는 세금 뒤다
   assert.ok(!tax.formula?.includes(String(round.row)), `부가세 수식이 절사를 빼고 있다 — ${tax.formula}`)
+})
+
+// ------------------------------------------------------------
+// 할인을 안 준 견적 — 파일도 할인을 말하지 않는다
+// ------------------------------------------------------------
+
+/** 할인을 하나도 안 준 견적. 합계도 항목도 0이다 */
+function noDiscountDoc() {
+  return doc({
+    quote: {
+      quoteNo: 'Q-2026-0014', title: 'GPU 인프라 구축 견적', currency: 'KRW',
+      validUntil: '2026-09-27', createdAt: '2026-08-27T00:00:00.000Z',
+      subtotalMinor: BigInt(360_000_000), discountMinor: BigInt(0),
+      taxMinor: BigInt(36_000_000), totalMinor: BigInt(396_000_000),
+      notesMd: null,
+    } as never,
+    lines: [
+      { name: 'NVIDIA H100 80GB', descriptionMd: null, unit: '대', quantity: '8', unitPriceMinor: BigInt(45_000_000), discountPercent: '0', lineTotalMinor: BigInt(360_000_000) },
+    ],
+  })
+}
+
+test('★ 할인이 0이면 파일 어디에도 「할인」이 없다 — 합계 줄도, 표 머리글도', async () => {
+  const cells = (await textOf((await quoteDocumentToXlsx({ document: noDiscountDoc() })).buffer)).split('\n')
+  assert.ok(!cells.includes(QUOTE.discount), '할인 0인데 합계에 할인 줄이 있다')
+  assert.ok(!cells.includes(QUOTE.lineDiscount), '할인 0인데 표 머리글에 할인 칸이 있다')
+  // 할인을 «준» 문서에서는 그대로 나온다 — 이 시험이 라벨을 통째로 지운 것이 아님을 못 박는다
+  const given = (await textOf((await quoteDocumentToXlsx({ document: doc() })).buffer)).split('\n')
+  assert.ok(given.includes(QUOTE.discount), '할인을 줬는데 할인 줄이 없다')
+})
+
+test('★ 할인 열은 지우지 않고 숨긴다 — 열 편지를 밀면 표 안 수식이 전부 깨진다', async () => {
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: noDiscountDoc() })).buffer)
+  assert.equal(ws.getColumn(6).hidden, true, '할인 열(F)이 안 숨겨졌다')
+  // 금액 열은 여전히 G 다 — 열이 당겨졌다면 여기가 F 가 된다
+  const { ws: given } = await sheetOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  assert.notEqual(given.getColumn(6).hidden, true, '할인을 줬는데 할인 열이 숨겨졌다')
+})
+
+test('★ 할인 줄이 빠지면 아래 수식이 당겨진 행을 가리킨다 — 행이 밀리면 엑셀에서만 틀린다', async () => {
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: noDiscountDoc() })).buffer)
+  const sub = amountOf(ws, QUOTE.subtotal)
+  const tax = amountOf(ws, QUOTE.tax)
+  const grand = amountOf(ws, QUOTE.total)
+
+  assert.equal(tax.row, sub.row + 1, '할인 줄이 없으면 부가세가 공급가액 바로 다음 줄이다')
+  assert.equal(grand.row, tax.row + 1, '절사도 없으니 합계가 부가세 바로 다음 줄이다')
+  // 수식이 «있지도 않은 할인 줄»을 가리키면 그 칸은 부가세 자리다 — 세금이 두 번 빠진다
+  assert.ok(tax.formula?.includes(`G${sub.row}`), `부가세 수식이 공급가액 줄을 안 본다 — ${tax.formula}`)
+  assert.ok(!tax.formula?.includes(`G${tax.row}`), `부가세 수식이 제 줄을 가리킨다(순환) — ${tax.formula}`)
+  assert.ok(grand.formula?.includes(`G${tax.row}`), `합계 수식이 부가세 줄을 안 본다 — ${grand.formula}`)
 })

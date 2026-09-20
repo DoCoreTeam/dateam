@@ -34,10 +34,17 @@ export default function QuoteTotals({
     <div className={styles.totalRow}>
       <span>{QUOTE.subtotal}</span><span>{formatAmount(totals.subtotalMinor.toString(), currency)}</span>
     </div>
-    <div className={styles.totalRow}>
-      <span>{QUOTE.discount}</span>
-      <span>{totals.discountMinor > BigInt(0) ? '− ' : ''}{formatAmount(totals.discountMinor.toString(), currency)}</span>
-    </div>
+    {/*
+      **할인이 0이면 할인 줄이 없다.** 「할인 0원」은 빈칸으로 안 읽히고
+      «일부러 안 줬다»로 읽힌다(사용자 지적 2026-09-20). 여기서 안 보이는 줄은
+      견적서·인쇄·엑셀에서도 안 보인다 — 셋이 같은 규칙을 쓴다.
+    */}
+    {totals.discountMinor !== BigInt(0) && (
+      <div className={styles.totalRow}>
+        <span>{QUOTE.discount}</span>
+        <span>{totals.discountMinor > BigInt(0) ? '− ' : ''}{formatAmount(totals.discountMinor.toString(), currency)}</span>
+      </div>
+    )}
     <div className={styles.totalRow}>
       <span>{QUOTE.tax}</span><span>{formatAmount(totals.taxMinor.toString(), currency)}</span>
     </div>
