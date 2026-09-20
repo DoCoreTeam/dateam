@@ -967,3 +967,14 @@
 
 /* 규격 칸 안에서 비고 라벨이 붙는 자리 — 위 입력과 붙으면 어느 칸의 이름인지 흐려진다 */
 .remarkLabel { margin-top: var(--space-2); }
+
+/*
+  검수 줄의 비고 — 원문 조각과 같은 모양이되 **말머리가 다르다**.
+  둘 다 「그 줄에 대해 원본이 말한 것」이라 나란히 서야 사람이 견준다.
+*/
+.reviewRemark {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}

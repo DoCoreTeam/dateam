@@ -548,3 +548,24 @@ test('★ 비고가 문서 줄에 실린다', () => {
   const src = read(join(WEB, 'lib/crm/domain/quote-document.ts'))
   assert.match(src, /remark: text\(l\.remark\) \|\| null/, '문서가 비고를 안 싣는다')
 })
+
+
+test('★ 검수 화면이 읽은 비고를 보여 준다 — 저장 전에 안 보이면 못 고친다', () => {
+  const src = read(join(WEB, 'components/ui/crm/quote-review.tsx'))
+  assert.match(src, /const remarks = usable\.map\(\(l\) => \(l\.remark \?\? ''\)\.trim\(\) \|\| null\)/,
+    '검수가 비고를 안 싣는다')
+  assert.match(src, /remarks,/, '실은 값이 결과에 안 붙는다')
+  assert.match(src, /\{review\.remarks\[i\] && \(/, '화면이 비고를 안 그린다')
+  assert.match(src, /\{QUOTE\.lineRemark\}<\/span>\s*\{review\.remarks\[i\]\}/,
+    '말머리만 있고 값이 안 나온다')
+})
+
+/*
+  원본 대조 화면은 견적서를 **그대로 받아** 오른쪽에 그린다(`sheet` prop).
+  그래서 표에 비고 열이 서면 대조 화면도 같이 따라온다 — 둘을 따로 그리면
+  「읽어서 만든 견적서」와 실제 견적서가 서서히 다른 문서가 된다.
+*/
+test('★ 원본 대조가 견적서를 그대로 받는다 — 두 벌로 그리면 둘이 갈린다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteOriginalCompare.tsx'))
+  assert.match(src, /\{sheet\}/, '견적서를 통째로 안 받고 따로 그린다')
+})

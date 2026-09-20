@@ -27,7 +27,7 @@ import {
   FILL_NO_PRICE, FILL_SOURCE_LABEL, FILL_RISK_TEXT, fillComponentsFold, fillSourcePage,
   FILL_TOTAL_MATCH, FILL_TOTAL_NO_REFERENCE, fillTotalMismatch,
   FILL_TOTAL_OURS, FILL_TOTAL_DOCUMENT, fillFoundLine,
-  fillQuoteName, fillPickTitle, countOnly,
+  fillQuoteName, fillPickTitle, countOnly, QUOTE,
 } from '@/lib/terms'
 import { joinSpec, type QuoteDraft, type QuoteLineDraft } from './quote-draft-shape'
 import { groupPickedLines, type QuoteGrouping } from '@/lib/crm/domain/quote-group'
@@ -94,6 +94,14 @@ export interface FileReview {
    */
   components: string[][]
   /**
+   * 줄마다 비고 — 같은 인덱스.
+   *
+   * 폼 값(`lines[i].remark`)에도 있지만, 검수 화면은 **저장 전에 보는 자리**라
+   * 여기서 안 보이면 사람이 잘못 읽힌 비고를 못 잡는다
+   * (사용자 지시 2026-09-21: 「받아들이는쪽에도 있고 해야지」).
+   */
+  remarks: (string | null)[]
+  /**
    * 줄마다 원본이 그 줄을 묶어 부른 말 — 같은 인덱스.
    *
    * 견적에는 묶음과 소계가 이미 있다. 원본이 갈라 놓은 것을 평평하게 펴서 넣으면
@@ -150,6 +158,7 @@ export function buildReview(
   const lines = usable.map((l) => toFormLine(l, quote.taxPercent))
   const sources = usable.map((l) => l.sourceText ?? '')
   const components = usable.map((l) => (l.components ?? []).filter(Boolean))
+  const remarks = usable.map((l) => (l.remark ?? '').trim() || null)
   const groups = usable.map((l) => (l.groupLabel ?? '').trim() || null)
 
   const inputs: LineCheckInput[] = lines.map((l, i) => ({
@@ -172,6 +181,7 @@ export function buildReview(
     lines,
     sources,
     components,
+    remarks,
     groups,
     pageStart: quote.pageStart ?? null,
     pageEnd: quote.pageEnd ?? null,
@@ -374,6 +384,16 @@ export function QuoteReviewList({ review, onToggle }: {
               구성은 체크와 상관없이 그 항목을 따라간다 — 체크한 줄을 넣으면
               규격 아래에 함께 들어간다(`joinSpec`).
             */}
+            {/*
+              **비고는 저장 전에 보여야 고칠 수 있다.** 읽은 값이 규격 자리로 새거나
+              엉뚱한 줄에 붙어도, 여기서 안 보이면 그대로 견적서에 나간다.
+            */}
+            {review.remarks[i] && (
+              <span className={styles.reviewRemark}>
+                <span className={styles.reviewSourceLabel}>{QUOTE.lineRemark}</span>
+                {review.remarks[i]}
+              </span>
+            )}
             <ComponentsFold lines={review.components[i] ?? []} />
           </li>
         ))}
