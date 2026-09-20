@@ -21,15 +21,26 @@ import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import { useEscClose } from '@/lib/use-esc-close'
-import { QUOTE_SOURCE, PREVIEW_CLOSE, progress } from '@/lib/terms'
+import { QUOTE_SOURCE, PREVIEW_CLOSE, progress, fillSourcePage } from '@/lib/terms'
 import { ATTACHMENT, ATTACHMENT_MAX_BYTES, ATTACHMENT_MIME_OK } from '@/lib/terms/attachment'
-import { pickOriginal, drawKindOf, type OriginalCandidate } from '@/lib/crm/ui/quote-original'
+import { pickOriginal, drawKindOf, pdfViewerHash, type OriginalCandidate } from '@/lib/crm/ui/quote-original'
 import styles from './quote-original-compare.module.css'
 
 type Attachment = OriginalCandidate
 
 interface Props {
   quoteId: string
+  /**
+   * 이 견적의 **조각**(그 쪽만 오려 둔 첨부) id.
+   *
+   * 있으면 대조 화면이 파일 전체 대신 그 조각을 먼저 세운다 — 한 파일에 견적이 둘이면
+   * 전체를 세워 봐야 사람이 그 안에서 자기 건을 찾아야 한다.
+   * 조각이 지워졌으면 규칙이 알아서 파일 전체로 물러선다.
+   */
+  snapshotId?: string | null
+  /** 원본 몇 쪽에서 왔나 — 전체를 열 때 그 쪽부터 연다 */
+  pageStart?: number | null
+  pageEnd?: number | null
   /**
    * 오른쪽 칸에 세울 견적서.
    *
@@ -48,7 +59,9 @@ interface Props {
   onOriginal?: (has: boolean) => void
 }
 
-export default function QuoteOriginalCompare({ quoteId, sheet, onChanged, onOriginal }: Props) {
+export default function QuoteOriginalCompare({
+  quoteId, sheet, onChanged, onOriginal, snapshotId, pageStart, pageEnd,
+}: Props) {
   const [items, setItems] = useState<Attachment[] | null>(null)
   const [open, setOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -71,7 +84,7 @@ export default function QuoteOriginalCompare({ quoteId, sheet, onChanged, onOrig
     void load().then((got) => {
       if (dead) return
       setItems(got)
-      onOriginal?.(pickOriginal(got) !== null)
+      onOriginal?.(pickOriginal(got, snapshotId) !== null)
     })
     return () => { dead = true }
     // onOriginal 을 의존에 넣으면 부모가 인라인 함수를 줄 때마다 목록을 다시 읽는다
@@ -103,21 +116,27 @@ export default function QuoteOriginalCompare({ quoteId, sheet, onChanged, onOrig
       if (!res.ok) { setError(body?.error?.message ?? ATTACHMENT.failed); return }
       const got = await load()
       setItems(got)
-      onOriginal?.(pickOriginal(got) !== null)
+      onOriginal?.(pickOriginal(got, snapshotId) !== null)
       onChanged?.()
-      if (pickOriginal(got)) setOpen(true)
+      if (pickOriginal(got, snapshotId)) setOpen(true)
     } catch {
       setError(ATTACHMENT.failed)
     } finally {
       setUploading(false)
       if (fileRef.current) fileRef.current.value = ''
     }
-  }, [load, onChanged, onOriginal, quoteId])
+  }, [load, onChanged, onOriginal, quoteId, snapshotId])
 
   // 목록을 아직 못 읽었으면 자리를 비워 둔다 — 단추가 깜빡이며 바뀌는 것보다 낫다
   if (items === null) return null
 
-  const original = pickOriginal(items)
+  const original = pickOriginal(items, snapshotId)
+  /*
+    **파일 전체는 따로 들고 있는다.** 조각을 세워 두더라도 「전체를 보고 싶다」는
+    언제나 있다 — 조각이 틀렸을 수도 있고, 앞뒤 쪽을 보고 싶을 수도 있다.
+    조각과 전체가 같은 것이면(조각이 없는 견적) 단추를 안 그린다.
+  */
+  const whole = pickOriginal(items.filter((i) => i.id !== snapshotId))
 
   return (
     <>
@@ -140,18 +159,38 @@ export default function QuoteOriginalCompare({ quoteId, sheet, onChanged, onOrig
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f) }}
       />
       {open && original && (
-        <CompareOverlay original={original} sheet={sheet} onClose={() => setOpen(false)} />
+        <CompareOverlay
+          original={original}
+          whole={whole && whole.id !== original.id ? whole : null}
+          pageStart={pageStart ?? null}
+          pageEnd={pageEnd ?? null}
+          sheet={sheet}
+          onClose={() => setOpen(false)}
+        />
       )}
     </>
   )
 }
 
-function CompareOverlay({ original, sheet, onClose }: {
+function CompareOverlay({ original, whole, pageStart, pageEnd, sheet, onClose }: {
   original: Attachment
+  /** 파일 전체. 조각을 세우고 있을 때만 값이 있다 */
+  whole: Attachment | null
+  pageStart: number | null
+  pageEnd: number | null
   sheet: ReactNode
   onClose: () => void
 }) {
   useEscClose(onClose)
+
+  /**
+   * 지금 왼쪽에 세운 것 — 조각이냐 전체냐.
+   *
+   * **조각이 기본이다.** 대조하러 온 사람이 찾아야 할 것은 그 건이고, 조각이 바로 그것이다.
+   * 전체는 한 번 눌러 볼 수 있게 남긴다 — 조각이 틀렸을 수도, 앞뒤 쪽이 궁금할 수도 있다.
+   */
+  const [showWhole, setShowWhole] = useState(false)
+  const shown = showWhole && whole ? whole : original
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
@@ -161,7 +200,7 @@ function CompareOverlay({ original, sheet, onClose }: {
   /** 거두어야 할 주소. state 로만 두면 정리 함수가 옛 값을 본다 */
   const madeRef = useRef<string | null>(null)
 
-  const draw = drawKindOf(original.mimeType)
+  const draw = drawKindOf(shown.mimeType)
 
   useEffect(() => {
     if (draw === 'other') return
@@ -169,7 +208,7 @@ function CompareOverlay({ original, sheet, onClose }: {
 
     void (async () => {
       try {
-        const res = await fetch(`/api/crm/attachments/${original.id}/url`)
+        const res = await fetch(`/api/crm/attachments/${shown.id}/url`)
         const body = await res.json()
         if (!res.ok) { if (!dead) setError(body?.error?.message ?? QUOTE_SOURCE.loadFailed); return }
         /*
@@ -180,7 +219,7 @@ function CompareOverlay({ original, sheet, onClose }: {
         if (!file.ok) { if (!dead) setError(QUOTE_SOURCE.loadFailed); return }
         const bytes = await file.arrayBuffer()
         // 형식은 우리가 아는 값으로 박는다 — 내려받기용 주소라 응답 헤더가 첨부로 올 수 있다
-        const url = URL.createObjectURL(new Blob([bytes], { type: original.mimeType ?? 'application/octet-stream' }))
+        const url = URL.createObjectURL(new Blob([bytes], { type: shown.mimeType ?? 'application/octet-stream' }))
         if (dead) { URL.revokeObjectURL(url); return }
         madeRef.current = url
         setBlobUrl(url)
@@ -194,18 +233,20 @@ function CompareOverlay({ original, sheet, onClose }: {
       // 안 거두면 견적을 여닫을 때마다 원본 한 벌이 메모리에 그대로 쌓인다
       if (madeRef.current) { URL.revokeObjectURL(madeRef.current); madeRef.current = null }
     }
-  }, [draw, original.id, original.mimeType])
+    // 보는 대상이 바뀌면 옛 주소를 거두고 새로 받는다 — 안 거두면 여닫을 때마다 쌓인다
+  }, [draw, shown.id, shown.mimeType])
 
   const download = useCallback(async () => {
     try {
-      const res = await fetch(`/api/crm/attachments/${original.id}/url`)
+      // 내려받기는 **파일 전체**다 — 오려 둔 그림을 내려받아 봐야 원본 문서가 아니다
+      const res = await fetch(`/api/crm/attachments/${(whole ?? original).id}/url`)
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? QUOTE_SOURCE.loadFailed); return }
       window.open(body.url, '_blank', 'noopener')
     } catch {
       setError(QUOTE_SOURCE.loadFailed)
     }
-  }, [original.id])
+  }, [original, whole])
 
   if (!mounted) return null
 
@@ -213,8 +254,24 @@ function CompareOverlay({ original, sheet, onClose }: {
     <div className={styles.overlay} role="dialog" aria-modal="true" aria-label={QUOTE_SOURCE.compareTitle}>
       <header className={styles.bar}>
         <h2 className={styles.title}>{QUOTE_SOURCE.compareTitle}</h2>
-        <span className={styles.fileName}>{original.fileName}</span>
+        <span className={styles.fileName}>{shown.fileName}</span>
+        {/*
+          **몇 쪽을 보고 있는지 말한다.** 오려 둔 그림만 있으면 사람은 이것이
+          원본의 어디인지 모른다 — 그러면 대조해 놓고도 「맞는 자리를 봤나」가 남는다.
+        */}
+        {fillSourcePage(pageStart, pageEnd) && (
+          <span className={styles.pageBadge}>{fillSourcePage(pageStart, pageEnd)}</span>
+        )}
         <div className={styles.barActions}>
+          {/*
+            전체 보기는 **한 번 눌러 갈 수 있는 길**이다. 조각이 틀렸을 수도 있고
+            앞뒤 쪽이 궁금할 수도 있다. 조각이 없으면 이 단추 자체가 없다.
+          */}
+          {whole && (
+            <NbButton variant="ghost" onClick={() => setShowWhole((v) => !v)}>
+              <Columns2 size={16} /> {showWhole ? QUOTE_SOURCE.showCut : QUOTE_SOURCE.showWhole}
+            </NbButton>
+          )}
           <NbButton variant="ghost" onClick={() => void download()}>
             <Download size={16} /> {QUOTE_SOURCE.download}
           </NbButton>
@@ -248,11 +305,15 @@ function CompareOverlay({ original, sheet, onClose }: {
                 원본 글자가 안 읽힌다. 뒤에 붙는 값은 브라우저 뷰어가 읽는 것이라
                 파일 내용이나 주소에 영향을 주지 않는다.
               */
-              <iframe className={styles.frame} src={`${blobUrl}#navpanes=0&view=FitH`} title={original.fileName} />
+              <iframe
+                className={styles.frame}
+                src={`${blobUrl}${pdfViewerHash(pageStart)}`}
+                title={shown.fileName}
+              />
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {!error && blobUrl && draw === 'image' && (
-              <img className={styles.image} src={blobUrl} alt={original.fileName} />
+              <img className={styles.image} src={blobUrl} alt={shown.fileName} />
             )}
           </div>
         </section>

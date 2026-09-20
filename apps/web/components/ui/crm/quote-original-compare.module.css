@@ -173,3 +173,21 @@
   font-size: var(--fs-sm);
   color: var(--danger);
 }
+
+/*
+  **몇 쪽을 보고 있나** — 제목 옆에 붙는다.
+
+  오려 둔 그림만 있으면 사람은 이것이 원본의 어디인지 모른다. 그러면 대조해 놓고도
+  「맞는 자리를 봤나」가 남는다(사용자 지적 2026-09-20: 두 건짜리 파일에서 자기 건을
+  찾아야 했던 그 자리다).
+*/
+.pageBadge {
+  flex: none;
+  padding: 0 var(--space-2);
+  border: var(--border-w) solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}

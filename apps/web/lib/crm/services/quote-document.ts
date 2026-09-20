@@ -40,7 +40,15 @@ export interface QuoteDocumentResult {
    * 이 값은 그동안 DB 에만 있었다. 화면이 한 번도 안 읽어서 「이 견적이 어느 파일에서
    * 왔나」를 사람이 알 길이 없었다(사용자 지적 2026-09-20).
    */
-  source: { fileName: string; fromFileAt: string | null } | null
+  source: {
+    fileName: string
+    fromFileAt: string | null
+    /** 원본 몇 쪽에서 왔나. null 이면 쪽을 모른다 — 대조는 파일 전체로 연다 */
+    pageStart: number | null
+    pageEnd: number | null
+    /** 그 쪽을 오려 둔 첨부 id. null 이면 조각이 없다 */
+    snapshotId: string | null
+  } | null
 }
 
 export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<QuoteDocumentResult> {
@@ -205,7 +213,14 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       시각은 «아직 읽은 값 그대로인가»를 말하는 데만 쓴다.
     */
     source: quote.sourceFileName
-      ? { fileName: quote.sourceFileName, fromFileAt: quote.fromFileAt?.toISOString() ?? null }
+      ? {
+          fileName: quote.sourceFileName,
+          fromFileAt: quote.fromFileAt?.toISOString() ?? null,
+          // 어느 쪽에서 왔고 그 쪽을 오려 둔 조각이 무엇인지 — 대조 화면이 이 셋으로 연다
+          pageStart: quote.sourcePageStart ?? null,
+          pageEnd: quote.sourcePageEnd ?? null,
+          snapshotId: quote.sourceSnapshotId ?? null,
+        }
       : null,
   }
 }

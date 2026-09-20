@@ -54,7 +54,15 @@ interface DocumentResponse {
   violations: { code: string; message: string }[]
   missingSupplier: string[]
   /** 어느 파일에서 읽은 견적인가. 파일 출처가 아니면 null — 그때는 줄 자체를 안 그린다 */
-  source: { fileName: string; fromFileAt: string | null } | null
+  source: {
+    fileName: string
+    fromFileAt: string | null
+    /** 원본 몇 쪽에서 왔나. null 이면 쪽을 모르고, 그때 대조는 파일 전체로 열린다 */
+    pageStart: number | null
+    pageEnd: number | null
+    /** 그 쪽만 오려 둔 첨부 id. null 이면 조각이 없다 */
+    snapshotId: string | null
+  } | null
 }
 
 export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
@@ -259,6 +267,13 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
         <QuoteOriginalCompare
           key={panelSeq}
           quoteId={quoteId}
+          /*
+            **어느 쪽에서 왔는지 함께 넘긴다.** 이 셋이 없으면 대조는 파일 1쪽부터 열리고,
+            한 파일에 견적이 둘이면 사람이 그 안에서 자기 건을 찾아야 한다.
+          */
+          snapshotId={data.source?.snapshotId ?? null}
+          pageStart={data.source?.pageStart ?? null}
+          pageEnd={data.source?.pageEnd ?? null}
           sheet={<QuoteSheet doc={doc} logo={data.images.logo} surface="paper" />}
           onChanged={() => setAttachSeq((n) => n + 1)}
           onOriginal={setHasOriginal}

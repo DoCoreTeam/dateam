@@ -137,7 +137,7 @@
 의존: I01, I08
 
 ### I10 대조 화면이 그 조각을 먼저 세운다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ui/quote-original.ts, apps/web/lib/crm/ui/quote-source-surface.test.ts, apps/web/components/ui/crm/QuoteOriginalCompare.tsx, apps/web/components/ui/crm/quote-original-compare.module.css
 감사 기준:

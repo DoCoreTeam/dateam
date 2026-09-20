@@ -27,7 +27,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { pickOriginal, drawKindOf } from './quote-original.ts'
+import { pickOriginal, drawKindOf, pdfViewerHash } from './quote-original.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 
@@ -281,4 +281,52 @@ test('★ 접기는 인쇄에서만 한다 — 화면에서도 숨기면 사라�
   // 인쇄 블록을 도려낸 나머지에 같은 규칙이 있으면 화면에서도 사라진다
   const outside = blocks.reduce((acc, b) => acc.replace(b, ''), css)
   assert.ok(!RULE.test(outside), '화면에서도 숨기고 있다')
+})
+
+/* ── 대조가 그 건을 먼저 세우나 (v0.10.31x) ─────── */
+
+test('★ 조각이 있으면 조각을 고른다 — 파일 전체를 세우면 사람이 자기 건을 찾아야 한다', () => {
+  const items = [
+    { id: 'a1', fileName: '원본.pdf', mimeType: 'application/pdf', kind: 'SUPPLY_QUOTE', createdAt: '2026-09-20T01:00:00Z' },
+    { id: 'a2', fileName: '원본_2쪽.png', mimeType: 'image/png', kind: 'SUPPLY_QUOTE', createdAt: '2026-09-20T02:00:00Z' },
+  ]
+  assert.equal(pickOriginal(items, 'a2')?.id, 'a2')
+  // 조각을 안 알려 주면 예전 규칙 그대로 — 가장 나중 매입 견적서
+  assert.equal(pickOriginal(items)?.id, 'a2')
+})
+
+test('★ 조각이 지워졌으면 파일 전체로 물러선다 — 빈 화면이 되면 대조 자체를 못 한다', () => {
+  const items = [
+    { id: 'a1', fileName: '원본.pdf', mimeType: 'application/pdf', kind: 'SUPPLY_QUOTE', createdAt: '2026-09-20T01:00:00Z' },
+  ]
+  assert.equal(pickOriginal(items, 'gone')?.id, 'a1')
+})
+
+test('★ 쪽을 알면 그 쪽부터 연다 — 모르면 넘겨짚지 않는다', () => {
+  assert.equal(pdfViewerHash(2), '#navpanes=0&view=FitH&page=2')
+  assert.equal(pdfViewerHash(null), '#navpanes=0&view=FitH')
+  assert.equal(pdfViewerHash(0), '#navpanes=0&view=FitH', '0쪽은 없다')
+  assert.equal(pdfViewerHash(2.9), '#navpanes=0&view=FitH&page=2')
+})
+
+test('★ 대조 부품에 조각과 쪽이 값으로 넘어간다 — 선언만으로는 안 열린다', () => {
+  const src = read(VIEW)
+  const tag = src.slice(src.indexOf('<QuoteOriginalCompare'))
+  const end = tag.indexOf('/>')
+  const props = tag.slice(0, end)
+  assert.match(props, /snapshotId=\{data\.source\?\.snapshotId/, '조각 id 가 안 넘어간다')
+  assert.match(props, /pageStart=\{data\.source\?\.pageStart/, '쪽이 안 넘어간다')
+})
+
+test('★ 대조 화면이 그 쪽을 열고, 전체로 갈 길을 남긴다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteOriginalCompare.tsx'))
+  assert.match(src, /pdfViewerHash\(pageStart\)/, '늘 1쪽부터 연다')
+  assert.match(src, /QUOTE_SOURCE\.showWhole/, '전체로 갈 길이 없다')
+  assert.match(src, /fillSourcePage\(pageStart, pageEnd\)/, '몇 쪽을 보는지 말하지 않는다')
+})
+
+test('★ 내려받기는 파일 전체다 — 오려 둔 그림을 내려받아 봐야 원본 문서가 아니다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteOriginalCompare.tsx'))
+  const dl = src.slice(src.indexOf('const download = useCallback'))
+  assert.match(dl.slice(0, 400), /\(whole \?\? original\)\.id/, '조각을 내려받게 되어 있다')
 })
