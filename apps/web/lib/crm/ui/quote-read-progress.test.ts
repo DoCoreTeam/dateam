@@ -57,6 +57,19 @@ test('한 건이면 순서를 말하지 않는다 — 「1건 중 1건째」는 
   assert.equal(v.elapsedLabel, null)
 })
 
+test('★ 말로 채울 때는 파일이라고 하지 않는다 — 안 한 일을 했다고 말하면 안 된다', () => {
+  const v = quoteWaitProgress({ phase: 'speech', elapsedMs: 8_000, saidChars: 218 })
+  assert.equal(v.message, '적어 주신 218자를 읽고 있어요')
+  assert.ok(!/파일/.test(v.message), '파일을 올린 적이 없는데 파일이라고 말했다')
+  assert.equal(v.elapsedLabel, '8초')
+})
+
+test('글자 수를 모르면 숫자를 지어내지 않는다', () => {
+  assert.equal(
+    quoteWaitProgress({ phase: 'speech', elapsedMs: 8_000 }).message,
+    '적어 주신 내용을 읽고 있어요')
+})
+
 test('★ 시간 문턱과 경과 표기를 새로 정하지 않는다 — 회의노트 모듈에 위임한다', () => {
   const src = readFileSync(new URL('./quote-read-progress.ts', import.meta.url), 'utf8')
   assert.match(src, /from '\.\.\/\.\.\/meeting\/digest-progress\.ts'/,

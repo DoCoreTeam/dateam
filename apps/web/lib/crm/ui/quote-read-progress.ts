@@ -33,11 +33,11 @@ import {
 } from '../../meeting/digest-progress.ts'
 import {
   FILL_READ_START, FILL_READ_LONG, FILL_READ_VERY_LONG,
-  fillReadingLine, importProgressLine,
+  fillReadingLine, fillReadingSaidLine, importProgressLine,
 } from '../../terms/quote.ts'
 
 /** 기다리는 두 자리. 하는 일이 다르므로 같은 말로 덮지 않는다 */
-export type QuoteWaitPhase = 'reading' | 'importing'
+export type QuoteWaitPhase = 'reading' | 'speech' | 'importing'
 
 export interface QuoteWaitInput {
   phase: QuoteWaitPhase
@@ -46,6 +46,8 @@ export interface QuoteWaitInput {
   /** 읽는 중일 때 — 올린 파일. 모르면 빈 문자열과 0 */
   fileName?: string
   fileBytes?: number
+  /** 말로 채울 때 — 적어 준 글자 수. 파일이 없으므로 파일 이름을 지어내지 않는다 */
+  saidChars?: number
   /** 가져오는 중일 때 — 보낼 건 수와 지금까지 끝난 수 */
   total?: number
   done?: number
@@ -80,7 +82,9 @@ export function quoteWaitProgress(input: QuoteWaitInput): QuoteWaitView {
     return { message: FILL_READ_START, elapsedLabel: null, reassure: null }
   }
 
-  const message = fillReadingLine(input.fileName ?? '', input.fileBytes ?? 0)
+  const message = input.phase === 'speech'
+    ? fillReadingSaidLine(input.saidChars ?? 0)
+    : fillReadingLine(input.fileName ?? '', input.fileBytes ?? 0)
   const elapsedLabel = formatElapsed(elapsedMs)
 
   if (elapsedMs >= DIGEST_VERY_LONG_MS) {

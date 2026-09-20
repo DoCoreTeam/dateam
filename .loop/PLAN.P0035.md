@@ -1,6 +1,6 @@
 # PLAN newAX: 운영 설정을 지운 테스트를 막고, 오래 걸리는 일이 무엇을 하는지 말하게 한다
 플랜 ID: P0035
-플랜 버전: v0.2.2
+플랜 버전: v0.3.0
 상태: 진행중
 지시: ins_0045
 목표 버전: v0.10.253
@@ -82,7 +82,7 @@
 의존: 없음
 
 ### I05 같은 AI 대기 자리를 전수로 맞춘다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/QuoteFillPanel.tsx, apps/web/lib/policy/wait-progress-guard.test.ts (신규), apps/web/package.json
 감사 기준:
@@ -91,6 +91,16 @@
 - 가드를 일부러 깨뜨려 실패를 확인하고 기록
 - pnpm test 목록 등재 후 전체 테스트 수가 늘어난 것을 확인
 의존: I04
+
+### I05a 남은 대기 자리 열 곳을 공용 부품으로 옮긴다
+상태: 보류 (사유: 이 판의 지시는 견적 화면과 데이터 유실이었고, CI·RFP·리드·어드민 일곱 화면은 다른 갈래임. 가드 KNOWN_GAPS 가 목록을 들고 있고 늘어나면 실패하므로 조용히 묻히지 않음. 다음 판으로 분리 제안)
+모드: 경량
+범위: components/ui/crm/IntakeModal.tsx, app/(ci)/ci/assets/AssetsView.tsx, app/(ci)/ci/trends/TrendsView.tsx, app/(crm)/crm/settings/AutomationCard.tsx, app/(crm)/crm/settings/IntegrationCard.tsx, app/(member)/lead-intake/LeadIntakeForm.tsx, app/admin/system-log/RemedyPanel.tsx, components/ci/SignalSweepBar.tsx, components/rfp/ProfileEditor.tsx, components/rfp/RadarRules.tsx
+감사 기준:
+- 열 곳이 WaitProgress 와 순수 함수를 씀
+- IntakeModal 에 박혀 있는 「20초쯤 걸립니다」가 사라짐 (창구 상한은 300초라 틀린 약속임)
+- 가드의 KNOWN_GAPS 가 빈 목록이 됨
+의존: I05
 
 ### I06 오래 걸리는 일의 규칙을 정책 세 파일에 적는다
 상태: 대기
@@ -129,12 +139,17 @@
 
 ## 변경 이력
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0045)
+- v0.3.0 (2026-09-20) 전수 실측 결과 기다리는 자리가 13곳이고 그중 11곳에 진행 표시가 없었음. 이 판은 견적 두 곳을 옮기고 나머지 열 곳은 I05a 로 분리해 보류, 가드 KNOWN_GAPS 래칫이 목록을 들고 늘어나면 실패시킴 (--ref audit:I05)
 - v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 lib/crm/services/setting.ts 추가 — 전용 워크스페이스로 옮기고 나서야 드러난 선재 실패 1건(설명 10자)을 같은 항목에서 고침 (--ref audit:I01)
 - v0.2.0 (2026-09-20) I07 을 선행으로 돌리고(의존 없음) 되살릴 값을 캡처 실측값으로 확정, quote.numberFormat 유실을 범위에 추가, 설정 카드 단추 문구 I08 추가 (--ref iv_0082)
+- v0.3.0 (2026-09-20) 전수 실측 결과 기다리는 자리가 13곳이고 그중 11곳에 진행 표시가 없었음. 이 판은 견적 두 곳을 옮기고 나머지 열 곳은 I05a 로 분리해 보류, 가드 KNOWN_GAPS 래칫이 목록을 들고 늘어나면 실패시킴 (--ref audit:I05)
 - v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 lib/crm/services/setting.ts 추가 — 전용 워크스페이스로 옮기고 나서야 드러난 선재 실패 1건(설명 10자)을 같은 항목에서 고침 (--ref audit:I01)
 - v0.2.0 (2026-09-20) I07 선행 전환, numberFormat 유실 추가, 설정 카드 단추 I08 추가 (iv_0082)
+- v0.3.0 (2026-09-20) 전수 실측 결과 기다리는 자리가 13곳이고 그중 11곳에 진행 표시가 없었음. 이 판은 견적 두 곳을 옮기고 나머지 열 곳은 I05a 로 분리해 보류, 가드 KNOWN_GAPS 래칫이 목록을 들고 늘어나면 실패시킴 (--ref audit:I05)
 - v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 setting.ts 추가, 선재 실패 1건 동반 수정 (audit:I01)
+- v0.3.0 (2026-09-20) 전수 실측 결과 기다리는 자리가 13곳이고 그중 11곳에 진행 표시가 없었음. 이 판은 견적 두 곳을 옮기고 나머지 열 곳은 I05a 로 분리해 보류, 가드 KNOWN_GAPS 래칫이 목록을 들고 늘어나면 실패시킴 (--ref audit:I05)
 - v0.2.2 (2026-09-20) I02 범위 조정: DI-14·budget 은 이미 안전, 워크스페이스 가드의 GLOBAL 지우기 구멍 추가 (audit:I02)
+- v0.3.0 (2026-09-20) 대기 자리 전수 13곳 중 11곳 결손 확인, 견적 둘만 이번 판, 나머지 열은 I05a 보류 + 가드 래칫 (audit:I05)

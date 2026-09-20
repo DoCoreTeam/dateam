@@ -17,7 +17,7 @@
 // 여기서 하는 일은 **폼을 채우는 것까지**다. 저장은 사람이 누른다.
 // 견적은 고객에게 나가는 문서이고, AI 가 단가를 하나 잘못 풀면 그 숫자가 그대로 제안가가 된다.
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sparkles, Upload, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { scaleLinesToTarget, describeScale } from '@/lib/crm/domain/quote-target'
@@ -37,6 +37,8 @@ import {
 } from './quote-review'
 import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
 import styles from './quote-panel.module.css'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { quoteWaitProgress } from '@/lib/crm/ui/quote-read-progress'
 
 /** 지금 어느 길을 열어 두었나. null 이면 닫혀 있다 */
 export type QuoteFillMode = 'speech' | 'file' | null
@@ -101,6 +103,24 @@ export default function QuoteFillPanel({
 }: QuoteFillPanelProps) {
   const [sayText, setSayText] = useState('')
   const [busy, setBusy] = useState(false)
+  /*
+    **기다리는 동안 무엇을 하는 중인지 말한다.** 두 창구 상한이 120초와 180초다.
+    그 시간 동안 단추가 「읽는 중…」 한 마디만 하면 사람은 고장으로 읽는다
+    (사용자 지적 2026-09-20). 옆의 가져오기 창과 **같은 부품·같은 함수**를 쓴다 —
+    같은 성격이 화면마다 다른 말을 하면 그게 또 다른 결함이다.
+  */
+  const [waitPhase, setWaitPhase] = useState<'speech' | 'reading' | null>(null)
+  const [startedAt, setStartedAt] = useState<number | null>(null)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const [readingFile, setReadingFile] = useState<{ name: string; size: number } | null>(null)
+
+  /* 1초마다 한 번. 시작 시각이 없으면 아무것도 안 돈다 */
+  useEffect(() => {
+    if (startedAt === null) return
+    setElapsedMs(Date.now() - startedAt)
+    const t = setInterval(() => setElapsedMs(Date.now() - startedAt), 1_000)
+    return () => clearInterval(t)
+  }, [startedAt])
   const [unclear, setUnclear] = useState<string[]>([])
   /** 총액을 맞췄으면 무엇을 얼마로 맞췄는지 — **조용히 단가를 바꾸지 않는다** */
   const [note, setNote] = useState<string | null>(null)
@@ -140,6 +160,8 @@ export default function QuoteFillPanel({
   const applySaid = async () => {
     if (!sayText.trim()) return
     setBusy(true)
+    setWaitPhase('speech')
+    setStartedAt(Date.now())
     onError(null)
     setUnclear([])
     setNote(null)
@@ -242,6 +264,8 @@ export default function QuoteFillPanel({
       onError(describeFetchFailure(FILL_FILE_LABEL))
     } finally {
       setBusy(false)
+      setWaitPhase(null)
+      setStartedAt(null)
     }
   }
 
@@ -249,6 +273,9 @@ export default function QuoteFillPanel({
 
   const readFile = async (file: File) => {
     setBusy(true)
+    setWaitPhase('reading')
+    setReadingFile({ name: file.name, size: file.size })
+    setStartedAt(Date.now())
     onError(null)
     setUnclear([])
     setNote(null)
@@ -291,6 +318,8 @@ export default function QuoteFillPanel({
       onError(describeFetchFailure(FILL_FILE_LABEL))
     } finally {
       setBusy(false)
+      setWaitPhase(null)
+      setStartedAt(null)
       // 같은 파일을 다시 고를 수 있어야 한다 — 값이 남아 있으면 change 가 안 뜬다
       if (fileRef.current) fileRef.current.value = ''
     }
@@ -321,6 +350,21 @@ export default function QuoteFillPanel({
 
   return (
     <>
+      {/*
+        진행 표시는 모드 분기 **밖**이다. 안에 두면 부품이 두 벌이 되고,
+        한쪽만 고치는 날 나머지 한쪽이 다시 침묵한다.
+      */}
+      {waitPhase && (() => {
+        const w = quoteWaitProgress({
+          phase: waitPhase,
+          elapsedMs,
+          fileName: readingFile?.name ?? '',
+          fileBytes: readingFile?.size ?? 0,
+          saidChars: sayText.trim().length,
+        })
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
+
       {mode === 'speech' && (
         <div className={styles.sayBox}>
           <p className={styles.sayHint}>{FILL_SPEECH_HINT}</p>

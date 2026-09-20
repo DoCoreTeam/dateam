@@ -303,6 +303,17 @@ export const FILL_READ_LONG = '문서가 길어 나눠 읽고 있어요. 조금 
 /** 상한(180초)에 가까워지는 구간 */
 export const FILL_READ_VERY_LONG = '거의 다 됐어요. 조금만 더 기다려 주세요.'
 
+/**
+ * 적어 준 글을 읽는 중 — **「올린 파일」이라고 하면 안 한 일을 했다고 말하는 것이다.**
+ *
+ * 회의노트가 같은 실수를 했다(v0.7.702: 녹음한 적 없는 회의에 「녹음을 읽고 있어요」).
+ * 말로 채우기는 파일이 없다. 가진 것은 글자 수뿐이므로 그것만 말한다.
+ */
+export function fillReadingSaidLine(chars: number): string {
+  if (chars <= 0) return '적어 주신 내용을 읽고 있어요'
+  return `적어 주신 ${chars.toLocaleString()}자를 읽고 있어요`
+}
+
 /** 무엇을 읽는 중인지 — 이름과 크기는 **아는 것만** 말한다 */
 export function fillReadingLine(fileName: string, bytes: number): string {
   const name = fileName.trim()

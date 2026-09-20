@@ -1,0 +1,147 @@
+/**
+ * 오래 기다리는 자리는 무엇을 하는 중인지 말한다 (사용자 지적 2026-09-20)
+ *
+ * *"우리 정책상 이런식으로 작업이 오래 걸리는거는 사용자 눈에 정확하게 어떤 동작중인지
+ * 보이게 하는게 있을텐데?"*
+ *
+ * 있었다. `lib/meeting/digest-progress.ts` 가 v0.7.684 에 생겼고 미팅 끝내기가 위임해 썼다.
+ * 그런데 그 규칙이 **코드 한 곳에만** 있고 정책 문서에 없어서, 옆 화면들은 그것을 못 봤다.
+ * 버전 규칙이 열일곱 판 동안 안 지켜진 것과 같은 구멍이다.
+ *
+ * ## 목록을 손으로 적지 않는다
+ *
+ * 「오래 걸리는 자리」를 사람이 적으면 새 화면이 생길 때 아무도 목록에 안 넣는다.
+ * 그래서 **창구의 `maxDuration` 에서 뽑는다** — 60초 이상을 선언한 창구를
+ * 화면이 부르고, 그 화면에 `busy` 로 잠기는 단추가 있으면 그 자리는 «사람이 기다리는 자리»다.
+ * 크론·워커 창구는 화면이 안 부르므로 저절로 빠진다.
+ *
+ * ## 래칫
+ *
+ * 아직 안 고친 자리는 `KNOWN_GAPS` 에 적혀 있다. 이 목록은 **줄어들기만 한다** —
+ * 새 자리가 늘면 가드가 실패한다. 「나중에」로 미룬 것이 조용히 늘어나지 않게 하는 장치다.
+ */
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+
+const ROOT = join(import.meta.dirname, '..', '..')
+
+/** 이 시간 이상을 선언한 창구는 사람이 눈으로 기다리기엔 길다 */
+const LONG_MS_SECONDS = 60
+
+/** 진행 한 줄을 그리는 것으로 인정하는 부품·함수 */
+const PROGRESS_MARKS = ['WaitProgress', 'digestProgress', 'finishProgress', 'quoteWaitProgress']
+
+/**
+ * 아직 공용 부품으로 안 옮긴 자리 — **줄어들기만 한다.**
+ *
+ * 2026-09-20 에 전수로 세니 기다리는 자리 13곳 중 11곳이 공용 부품을 안 쓰고 있었다.
+ * 이번 판에서 견적 두 자리를 옮겼고 나머지는 여기 남는다.
+ * 적어 두는 것은 «괜찮다»는 뜻이 아니라 **조용히 넘어가지 않겠다**는 뜻이다.
+ */
+const KNOWN_GAPS: readonly { file: string; why: string }[] = [
+  { file: 'components/ui/crm/IntakeModal.tsx',
+    why: '자기 진행 줄이 있어 단계는 말하지만 경과 시간이 없고, 창구 상한이 300초인데 「20초쯤 걸립니다」를 글에 박아 두었다 — 공용 부품으로 옮기면서 그 숫자를 빼야 한다' },
+  { file: 'app/(ci)/ci/assets/AssetsView.tsx', why: '콘텐츠 자료 올리기, 아직 안 옮김' },
+  { file: 'app/(ci)/ci/trends/TrendsView.tsx', why: '패턴 다시 계산, 아직 안 옮김' },
+  { file: 'app/(crm)/crm/settings/AutomationCard.tsx', why: '자동화 지금 돌리기, 아직 안 옮김' },
+  { file: 'app/(crm)/crm/settings/IntegrationCard.tsx', why: '메일 지금 가져오기, 아직 안 옮김' },
+  { file: 'app/(member)/lead-intake/LeadIntakeForm.tsx', why: '리드 원문 읽기, 아직 안 옮김' },
+  { file: 'app/admin/system-log/RemedyPanel.tsx', why: '어드민 전용 해결 방법 보기, 아직 안 옮김' },
+  { file: 'components/ci/SignalSweepBar.tsx', why: '신호 훑기, 아직 안 옮김' },
+  { file: 'components/rfp/ProfileEditor.tsx', why: '회사 프로필 초안, 아직 안 옮김' },
+  { file: 'components/rfp/RadarRules.tsx', why: '수집 규칙 초안, 아직 안 옮김' },
+]
+const GAP_FILES = KNOWN_GAPS.map((g) => g.file)
+
+function walk(dir: string, ext: string, out: string[] = []): string[] {
+  for (const name of readdirSync(dir)) {
+    if (name === 'node_modules' || name === '.next') continue
+    const p = join(dir, name)
+    if (statSync(p).isDirectory()) walk(p, ext, out)
+    else if (name.endsWith(ext)) out.push(p)
+  }
+  return out
+}
+
+/** 60초 이상을 선언한 창구의 주소 */
+function longRoutes(): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const file of walk(join(ROOT, 'app', 'api'), 'route.ts')) {
+    const m = /export const maxDuration = (\d+)/.exec(readFileSync(file, 'utf8'))
+    if (!m || Number(m[1]) < LONG_MS_SECONDS) continue
+    const url = file.slice(join(ROOT, 'app').length).replace(/\/route\.ts$/, '')
+    out.set(url, Number(m[1]))
+  }
+  return out
+}
+
+/** 사람이 결과를 기다리는 자리 — 긴 창구를 부르고, 도는 동안 잠기는 단추가 있다 */
+function waitingScreens(): Map<string, string[]> {
+  const routes = longRoutes()
+  const hits = new Map<string, string[]>()
+  for (const dir of ['components', 'app']) {
+    for (const file of walk(join(ROOT, dir), '.tsx')) {
+      const src = readFileSync(file, 'utf8')
+      if (!/disabled=\{[^}]*\b(busy|running|saving|pending|loading)\b/.test(src)) continue
+      const called = [...routes.keys()].filter(
+        (u) => src.includes(`'${u}'`) || src.includes(`"${u}"`) || src.includes(`\`${u}`))
+      if (called.length > 0) hits.set(file.slice(ROOT.length + 1), called)
+    }
+  }
+  return hits
+}
+
+const SCREENS = waitingScreens()
+
+test('가드가 실제로 화면을 찾고 있다 — 경로가 틀리면 조용히 0건이 된다', () => {
+  assert.ok(SCREENS.size >= 10,
+    `기다리는 자리를 ${SCREENS.size}곳만 찾았다 — 훑는 규칙이 헛돌고 있다`)
+  assert.ok([...SCREENS.keys()].some((f) => f.endsWith('components/ui/crm/QuoteFromFileModal.tsx')),
+    '이 가드를 있게 한 그 화면을 못 찾고 있다')
+})
+
+test('★ 60초 넘게 기다리는 자리는 무엇을 하는 중인지 말한다', () => {
+  const missing: string[] = []
+  for (const [file, urls] of SCREENS) {
+    const src = readFileSync(join(ROOT, file), 'utf8')
+    if (PROGRESS_MARKS.some((m) => src.includes(m))) continue
+    if (GAP_FILES.includes(file)) continue
+    missing.push(`${file}  (${urls.join(', ')})`)
+  }
+  assert.deepEqual(missing, [],
+    '오래 걸리는데 화면이 무엇을 하는 중인지 말하지 않는다.\n' +
+    'components/ui/WaitProgress 와 순수 함수(quote-read-progress · digest-progress)를 쓰라.\n' +
+    missing.map((m) => `  - ${m}`).join('\n'))
+})
+
+test('★ 안 고친 자리 목록은 줄어들기만 한다 — 「나중에」가 조용히 늘지 않게', () => {
+  const stillMissing = [...SCREENS.keys()].filter((f) => {
+    const src = readFileSync(join(ROOT, f), 'utf8')
+    return !PROGRESS_MARKS.some((m) => src.includes(m))
+  })
+  const grew = stillMissing.filter((f) => !GAP_FILES.includes(f))
+  assert.deepEqual(grew, [], `진행 표시 없는 자리가 새로 늘었다:\n${grew.join('\n')}`)
+
+  const fixed = GAP_FILES.filter((f) => !stillMissing.includes(f))
+  assert.deepEqual(fixed, [],
+    `고쳐 놓고 목록에서 안 뺐다 — 목록이 사실과 달라지면 아무도 안 믿는다:\n${fixed.join('\n')}`)
+})
+
+test('★ 안 옮긴 자리마다 사유가 적혀 있다 — 사유 없는 예외는 구멍이다', () => {
+  for (const g of KNOWN_GAPS) {
+    assert.ok(g.why.length > 10, `${g.file} 에 사유가 없다`)
+  }
+})
+
+test('★ 견적 두 자리는 같은 부품과 같은 함수를 쓴다 — 같은 성격이 화면마다 다른 말을 하면 안 된다', () => {
+  for (const f of [
+    'components/ui/crm/QuoteFromFileModal.tsx',
+    'components/ui/crm/QuoteFillPanel.tsx',
+  ]) {
+    const src = readFileSync(join(ROOT, f), 'utf8')
+    assert.match(src, /quoteWaitProgress\(/, `${f} 가 진행 문구를 제 손으로 짓고 있다`)
+    assert.match(src, /<WaitProgress\b/, `${f} 가 공용 부품을 안 쓴다`)
+  }
+})
