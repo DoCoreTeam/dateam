@@ -14,6 +14,7 @@
  */
 
 import type { AiLedger, CallLogRow, TransferLogRow } from './guarded-call.ts'
+import { currentDeployEnv } from './deploy-env.ts'
 
 /** 이 모듈이 쓰는 최소한. 테스트가 가짜를 끼울 수 있게 좁게 잡는다 */
 export interface LedgerClient {
@@ -75,8 +76,15 @@ export function serverAiLedger(): AiLedger {
     }
   }
 
+  /*
+    판은 **여기서 찍는다.** 부르는 쪽마다 넘기게 하면 언젠가 한 곳이 빠지고, 빠진 그 줄은
+    개발 판 호출인지 운영 호출인지 영영 모른다. 한 프로세스 안에서는 값이 하나이므로
+    부르는 쪽이 알 필요가 없는 값이기도 하다.
+  */
+  const env = currentDeployEnv()
+
   return {
-    recordCall: (row: CallLogRow) => write('ai_llm_calls', row, '호출 기록'),
+    recordCall: (row: CallLogRow) => write('ai_llm_calls', { ...row, env }, '호출 기록'),
     recordTransfer: (row: TransferLogRow) => write('ai_external_transfers', row, '전송 기록'),
   }
 }

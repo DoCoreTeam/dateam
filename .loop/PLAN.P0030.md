@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.21
+플랜 버전: v0.1.22
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -251,7 +251,7 @@
 범위 메모: I01 I04 I07 은 감사 기준에 보안 줄 없이 통과했고, 그 사실을 v0.1.12 에서 발견해 줄을 뒤늦게 적었다. 소스로는 맞는 것을 확인했지만 운영 DB 실측은 아직이므로 이 항목에서 센다
 
 ### I09 관리자 사용량 화면이 원장을 읽는다
-상태: 진행중
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/ai-usage/page.tsx, apps/web/app/admin/ai-usage/AiUsageDashboard.tsx, apps/web/app/admin/ai-usage/actions.ts (신규), apps/web/lib/ai/usage-query.ts (신규), apps/web/lib/ai/usage-query.test.ts (신규), apps/web/package.json
 감사 기준:
@@ -320,16 +320,18 @@
 범위 메모: 착수 전 사슬을 재어 범위를 한 번에 정함. 묶음은 guardedVector(한 건짜리)로는 못 지나가므로 guarded-call 에 묶음 갈래를 냄. 그 과정에서 ai-actor 가드가 제네릭 호출(guardedVector<number[]>(...))을 못 보고 lib/gemini-embedding.ts 를 통째로 놓치고 있던 것을 발견해 같은 판에서 고침
 
 ### I14 키를 고르는 자리 하나와 판 구분
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/ai/provider-key-source.ts (신규), apps/web/lib/ai/provider-key-source.test.ts (신규), apps/web/lib/policy/ai-key-source.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/ai/deploy-env.ts (신규), apps/web/lib/ai/deploy-env.test.ts (신규), apps/web/lib/ai/provider-key-source.ts (신규), apps/web/lib/ai/provider-key-source.test.ts (신규), apps/web/lib/policy/ai-key-source.test.ts (신규), apps/web/lib/policy/ai-key-source-baseline.json (신규), apps/web/lib/ai/ledger.ts, supabase/migrations/267_ai_llm_calls_env.sql (신규), apps/web/package.json
 감사 기준:
-- 공급자 키를 읽는 자리가 하나이고, META 를 직접 읽는 다른 길은 가드가 막음 (일부러 한 곳 되돌려 실패 확인)
-- 그 자리가 판(운영·개발·시험)을 보고 키를 고름
+- 공급자 키를 읽는 자리가 하나이고, 직접 읽는 다른 길은 **기준선**으로 세어 늘지 못하게 함 (일부러 한 곳 더해 실패 확인)
+- 그 자리가 판(운영·미리보기·개발·시험)을 보고 키를 고름
 - 개발 판에서 운영 공급자 키가 안 쓰임 (단위 테스트)
-- 키가 없으면 AI 를 부르지 않고 고정 응답, 조용히 운영 키로 새지 않음 (단위 테스트)
-- 원장에 판 구분이 남음
+- 키가 없으면 AI 를 부르지 않고 고정 응답, 「없음」과 「판이 달라 막힘」을 다른 말로 함 (단위 테스트)
+- 원장에 판 구분이 남음 (부르는 쪽이 아니라 원장 쓰는 자리가 찍는다)
+- 보안 S1: 칼럼만 더하므로 잠금이 안 바뀜을 운영 DB 에서 확인 (RLS·anon 쓰기·TO public USING true)
 의존: I08
+범위 메모: 직접 읽는 파일이 마흔여섯이라 한 판에 다 못 옮긴다. 전부 막으면 멀쩡한 기능이 멈추므로 기준선으로 세고 줄이는 방향으로만 간다(vendor-call-baseline 과 같은 모양). 「키가 없으면 고정 응답」은 문구와 판정을 냈고, 그 문구를 실제로 띄우는 결선은 기준선이 0 이 될 때 함께 끝난다
 
 ### I15 구현판은 Claude, 자동 구동기는 운영만
 상태: 대기
@@ -372,3 +374,4 @@
 - v0.1.19 (2026-09-20) I08g 범위가 열셋에서 스물둘로 늘었다. 서비스 다섯(quote-draft·quote-from-file·stage-review·data-check·next-best-action)이 workspaceId 만 받고 구성원을 아예 안 받고 있어 그 라우트까지 이어야 했다. 가드도 함께 고쳤다 — 맥락을 변수로 만들어 넘기는 길(runner 의 ctx)을 못 따라가서 실제로 결선했는데도 실패했다 (audit:I08g)
 - v0.1.20 (2026-09-20) I08h 범위에 extract-pipeline.ts 를 더함(주입 가능한 GeminiCaller 가 그 층을 지나므로 주인도 그 층을 지나야 한다). 가드도 한 번 더 고쳤다 — 인자 묶음을 변수로 만들어 펼치는 길(const common = {...})을 못 따라가 결선하고도 실패했고, 고치자마자 흘려보내는 길 하나가 주인을 안 넘기고 있던 것이 잡혔다 (audit:I08h)
 - v0.1.21 (2026-09-20) I09 감사 기준의 「실브라우저 스크린샷 대조」를 「운영 원장 실데이터로 psql GROUP BY 와 내 집계를 대조」로 바꿈. 물으려던 것은 숫자가 맞나이고 스크린샷은 렌더만 보여 준다. 실제로 대조해 전부 일치했고(전체 8,729 / 성공 927 / 실패 7,802), 그 과정에서 상한 표의 기능 이름 crm 이 원장의 surface crm/quick_create 와 안 맞아 그 상한이 한 번도 안 걸리고 있던 것을 찾았다 (audit:I09)
+- v0.1.22 (2026-09-20) I14 범위를 착수 전에 한 번에 정함. 키를 직접 읽는 파일이 마흔여섯이라 한 판에 다 못 옮기므로 기준선으로 세고 줄이는 방향으로만 간다. 판 판정(deploy-env)을 따로 뺀 이유는 그것만 순수 규칙이고 나머지는 왕복이기 때문이다. 원장의 판 구분은 부르는 쪽이 아니라 원장 쓰는 자리가 찍는다 — 부르는 쪽마다 넘기게 하면 언젠가 한 곳이 빠진다 (audit:I14)
