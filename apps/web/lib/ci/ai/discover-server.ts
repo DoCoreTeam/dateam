@@ -9,10 +9,14 @@
 // 여기는 AI를 부르고 응답을 그 순수 계층이 먹을 수 있는 모양으로 옮기기만 한다.
 
 import { callGeminiJson, GeminiCallError } from '../../ai/gemini-call.ts'
+import {
+  contrastKey, splitByKnown, DISCOVERY_PROMPT_VERSION, type StoredAnswer,
+} from '../analysis/contrast-key.ts'
+import { loadAnswers, saveAnswer } from './discovery-answers.ts'
 import { asJsonRecord } from '../../ai/json-recover.ts'
 import { getGeminiMeta } from './meta.ts'
 import {
-  MIN_CALL_INTERVAL_MS, DEFAULT_MAX_SETS, FREE_TIER_DAILY_LIMIT, clusterByOverlap, mergeClusters,
+  MIN_CALL_INTERVAL_MS, FREE_TIER_DAILY_LIMIT, clusterByOverlap, mergeClusters,
   type ContrastSet, type RawFinding, type FindingCluster, type DiscoveryKind,
 } from '../analysis/discovery.ts'
 
@@ -102,6 +106,17 @@ export interface DiscoverResult {
   kinds: Record<string, DiscoveryKind>
   /** AI를 못 부른 이유. 있으면 호출부가 사용자에게 그대로 알린다 — 조용히 0건으로 두지 않는다. */
   blocked: string | null
+  /** 실제로 벤더에 물은 묶음 수. 화면이 「AI 몇 회를 씁니다」라고 말할 근거 */
+  asked: number
+  /** 저장된 답으로 해결한 묶음 수 */
+  cached: number
+  /**
+   * 새로 물을 것이 하나도 없었다.
+   *
+   * 이때는 **저장된 발견을 건드리지 않는다.** 아무것도 안 바뀌었는데 보관 처리하고
+   * 다시 넣으면, 묶기가 실행마다 달라지는 탓에 화면의 발견이 이유 없이 뒤바뀐다.
+   */
+  unchanged: boolean
 }
 
 /**
@@ -112,9 +127,12 @@ export interface DiscoverResult {
  */
 export async function discoverFromContrasts(
   sets: readonly ContrastSet[],
-  opts?: { maxSets?: number },
+  opts: { maxSets: number; workspaceId: string },
 ): Promise<DiscoverResult> {
-  const empty: DiscoverResult = { findings: [], clusters: [], kinds: {}, blocked: null }
+  const empty: DiscoverResult = {
+    findings: [], clusters: [], kinds: {}, blocked: null,
+    asked: 0, cached: 0, unchanged: true,
+  }
   if (sets.length === 0) return empty
 
   const meta = await getGeminiMeta()
@@ -123,14 +141,57 @@ export async function discoverFromContrasts(
   }
 
   // 배수가 큰 것부터(analysis 계층이 이미 정렬해 준다). 예산이 한정될 때 설명 가치가 큰 것을 먼저 쓴다.
-  const targets = sets.slice(0, opts?.maxSets ?? DEFAULT_MAX_SETS)
+  const targets = sets.slice(0, opts.maxSets)
+
+  /*
+    **이미 물어본 것은 다시 묻지 않는다.**
+
+    대조쌍의 입력(제목·설명·길이·게시일)은 수집이 끝나면 변하지 않고 호출은 temperature 0 이다.
+    같은 묶음에는 같은 답이 온다. 그런데 답을 두는 자리가 없어서 매번 처음부터 다시 물었다.
+
+    실측 2026-09-20: 서로 다른 질문이 최대 624개인데 사흘 동안 49,064번 물었다(78.6배).
+    그중 46,212번이 한도로 실패했고, 그동안 같은 키를 쓰는 회의노트와 CRM 이 함께 죽었다.
+  */
+  const known = await loadAnswers(
+    opts.workspaceId,
+    targets.map((t) => contrastKey(t)),
+  )
+  const { cached, fresh } = splitByKnown(targets, known)
 
   const findings: RawFinding[] = []
+  const kindsFromStore: Record<string, DiscoveryKind> = {}
   let lastError: string | null = null
 
+  // 저장된 답부터 담는다. found:false 도 답이라 그냥 건너뛴다 — 다시 묻지 않기 위해 적어 둔 것이다
+  for (const { set, answer } of cached) {
+    if (!answer.found || !answer.statement) continue
+    findings.push({
+      contentId: set.winner.contentId,
+      channelId: set.winner.channelId,
+      statement: answer.statement,
+      observation: answer.observation,
+    })
+    kindsFromStore[answer.statement] = toKind(answer.kind)
+  }
+
+  /*
+    새로 물을 것이 하나도 없으면 **여기서 끝낸다.**
+
+    묶기 호출(AI 1회)도 아끼지만, 더 중요한 것은 저장된 발견을 안 건드리는 것이다.
+    묶기는 실행마다 결과가 달라지므로, 아무것도 안 바뀐 날에 다시 돌리면 화면의 발견이
+    이유 없이 뒤바뀐다. 「안 바뀌었다」는 사실을 그대로 올려 호출부가 쓰기를 건너뛰게 한다.
+  */
+  if (fresh.length === 0) {
+    return {
+      findings, clusters: [], kinds: kindsFromStore, blocked: null,
+      asked: 0, cached: cached.length, unchanged: true,
+    }
+  }
+
+  let asked = 0
   let lastCallAt = 0
 
-  for (const set of targets) {
+  for (const { set, key } of fresh) {
     // 분당 한도를 넘기지 않게 간격을 맞춘다. 몰아치면 429가 나고,
     // 429는 재시도까지 부르므로 **빨리 가려다 아예 못 가게 된다**(실측).
     const wait = lastCallAt === 0 ? 0 : MIN_CALL_INTERVAL_MS - (Date.now() - lastCallAt)
@@ -147,17 +208,41 @@ export async function discoverFromContrasts(
         maxOutputTokens: 400,
         feature: 'ci-discover',
       })
+      asked += 1
       const v = asJsonRecord(res.value)
-      if (v.found !== true) continue
+      const statement = v.found === true && typeof v.statement === 'string'
+        ? v.statement.trim() : ''
+      const answer: StoredAnswer = {
+        found: Boolean(statement),
+        statement,
+        observation: typeof v.observation === 'string' ? v.observation.trim() : '',
+        kind: typeof v.kind === 'string' ? v.kind : 'other',
+      }
 
-      const statement = typeof v.statement === 'string' ? v.statement.trim() : ''
-      if (!statement) continue
+      /*
+        **못 찾았다는 답도 적는다.**
+
+        「이 묶음에는 차이가 없다」를 확인하는 데도 호출 한 번이 들었다. 안 적으면
+        못 찾은 묶음만 영원히 다시 묻게 되고, 그것이 가장 흔한 경우다.
+        기다리지 않으면 다음 건이 먼저 돌아 저장 순서가 엉키므로 여기서 기다린다 —
+        어차피 아래에서 간격만큼 쉰다.
+      */
+      await saveAnswer({
+        workspaceId: opts.workspaceId,
+        contrastKey: key,
+        promptVersion: DISCOVERY_PROMPT_VERSION,
+        winnerContentId: set.winner.contentId,
+        answer,
+        modelName: res.model,
+      })
+
+      if (!answer.found) continue
 
       findings.push({
         contentId: set.winner.contentId,
         channelId: set.winner.channelId,
-        statement,
-        observation: typeof v.observation === 'string' ? v.observation.trim() : '',
+        statement: answer.statement,
+        observation: answer.observation,
       })
     } catch (e) {
       // 개별 실패는 나머지를 멈추지 않는다. 다만 마지막 사유는 들고 있는다.
@@ -185,7 +270,11 @@ export async function discoverFromContrasts(
   }
 
   if (findings.length === 0) {
-    return { ...empty, blocked: lastError ? `분석을 시작하지 못했습니다 — ${lastError}` : null }
+    return {
+      ...empty,
+      blocked: lastError ? `분석을 시작하지 못했습니다 — ${lastError}` : null,
+      asked, cached: cached.length, unchanged: asked === 0,
+    }
   }
 
   // 2차 — 같은 뜻끼리 묶는다 (여기도 같은 한도를 쓴다)
@@ -240,5 +329,11 @@ export async function discoverFromContrasts(
     clusters = clusterByOverlap(findings)
   }
 
-  return { findings, clusters, kinds, blocked: null }
+  return {
+    findings, clusters,
+    // 저장에서 온 갈래와 이번에 물어 온 갈래를 합친다. 같은 문장이면 이번 것이 이긴다
+    kinds: { ...kindsFromStore, ...kinds },
+    blocked: null,
+    asked, cached: cached.length, unchanged: false,
+  }
 }

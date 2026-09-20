@@ -669,6 +669,8 @@ export async function runDiscovery(
   let blocked: string | null = null
   // 계측 — 0건일 때 "어디서 끊겼는지"를 말할 수 있어야 한다.
   let setsTotal = 0
+  let askedTotal = 0
+  let cachedTotal = 0
   let findingsTotal = 0
   let clustersTotal = 0
   let topicsWithData = 0
@@ -698,8 +700,22 @@ export async function runDiscovery(
     topicsWithData += 1
     setsTotal += Math.min(sets.length, opts.maxSetsPerTopic)
 
-    const found = await discoverFromContrasts(sets, { maxSets: opts.maxSetsPerTopic })
+    const found = await discoverFromContrasts(sets, {
+      maxSets: opts.maxSetsPerTopic, workspaceId,
+    })
     if (found.blocked) { blocked = found.blocked; continue }
+    askedTotal += found.asked
+    cachedTotal += found.cached
+
+    /*
+      새로 물은 것이 하나도 없으면 **저장된 발견을 건드리지 않는다.**
+
+      아래는 보관 처리 뒤 다시 넣는 순서인데, 묶기는 실행마다 결과가 달라진다.
+      아무것도 안 바뀐 날에 그것을 돌리면 화면의 발견이 이유 없이 뒤바뀌고,
+      사용자는 무엇이 달라졌는지 설명할 근거를 잃는다.
+    */
+    if (found.unchanged) continue
+
     findingsTotal += found.findings.length
     clustersTotal += found.clusters.length
 
@@ -739,8 +755,16 @@ export async function runDiscovery(
     }
   }
 
-  const note = `주제 ${topicsWithData}개 · 대조 ${setsTotal}건 → 이유 ${findingsTotal}개 `
-    + `→ 묶음 ${clustersTotal}개 → 승격 ${promotedTotal}건`
+  // 「AI 를 몇 번 썼고 몇 번을 아꼈나」를 숫자로 남긴다 — 절감이 실제로 도는지
+  // 화면에서 바로 보여야 하고, 0건과 「물을 것이 없었다」는 다른 사실이다
+  const note = `주제 ${topicsWithData}개 · 대조 ${setsTotal}건 `
+    + `(AI ${askedTotal}회 · 저장된 답 ${cachedTotal}건) `
+    + `→ 이유 ${findingsTotal}개 → 묶음 ${clustersTotal}개 → 승격 ${promotedTotal}건`
+
+  // 물을 것이 없어 아무것도 안 바뀐 것은 실패가 아니다 — 그것이 이 기능이 바라는 정상이다
+  if (promotedTotal === 0 && askedTotal === 0 && cachedTotal > 0 && !blocked) {
+    return { ok: true, note: `${note} · 새로 물을 것이 없어 그대로 둠` }
+  }
 
   // 못 돈 이유가 있으면 실패로 올린다 — 0건으로 위장하지 않는다
   if (promotedTotal === 0 && blocked) {

@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -92,9 +92,9 @@
 의존: 없음
 
 ### I05 발견이 저장된 답을 쓴다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ci/ai/discover-server.ts, apps/web/lib/ci/ai/discover-server.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/ci/ai/discover-server.ts, apps/web/lib/ci/ai/discovery-answers.ts (신규), apps/web/lib/ci/ai/discover-server.test.ts (신규), apps/web/lib/ci/jobs/stages.ts, apps/web/package.json
 감사 기준:
 - 저장된 지문이면 벤더를 안 부르고 저장된 답을 씀 (단위 테스트, 호출 횟수 0 단정)
 - 저장된 답이 없는 대조쌍만 부름, 그 수를 결과에 담아 화면이 「새로 물을 것 N건」을 말할 수 있음
@@ -226,3 +226,4 @@
 ## 변경 이력
 - v0.1.1 (2026-09-19) runDiscovery 예산 인자를 필수로 만들면 호출부 두 곳이 컴파일 오류가 난다, I01 범위에 그 둘을 넣는다 (audit:I01)
 - v0.1.2 (2026-09-19) 폴백 공급자 실패도 이유를 구조로 돌려줘야 문자열 대조를 없앨 수 있다, I02 범위에 fallback-text 를 넣는다 (audit:I02)
+- v0.1.3 (2026-09-20) 저장된 답을 읽고 쓰는 자리가 따로 있어야 순수 계층과 Supabase 가 섞이지 않는다, 지문을 만들려면 workspaceId 가 필요해 stages 도 함께 고친다 (audit:I05)
