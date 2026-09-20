@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.335',
+    date: '2026-09-21',
+    title: '이미 있던 견적서에도 직인이 찍혀요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔴',
+        headline: '직인을 올렸는데 예전 견적서는 「(직인생략)」이던 문제를 고쳤어요',
+        detail: '직인은 견적을 만든 날의 것으로 굳는데, 직인 기능이 생기기 전에 만든 견적은 그 칸이 비어 있어서 도장이 안 찍혔어요. 그 견적들에 지금 올리신 직인을 채웠습니다. 이제 목록에 있는 견적서를 열면 모두 도장이 보입니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.334',
     date: '2026-09-21',
     title: '견적서에 직인을 찍을 수 있어요',
