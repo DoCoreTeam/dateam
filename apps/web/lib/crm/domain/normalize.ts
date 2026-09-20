@@ -94,3 +94,17 @@ export function companyMatchKey(input: string | null | undefined): string | null
   // 너무 짧아지면 판정하지 않는다 — 한 글자로 남은 이름은 아무거나 물어 온다
   return stripped.length >= 2 ? stripped : null
 }
+
+/**
+ * 쪽 번호로 쓸 수 있는 값만 남긴다 — **1 이상 정수**, 나머지는 null.
+ *
+ * 0 이나 음수를 그대로 저장하면 대조 화면이 엉뚱한 쪽을 가리키고, 조각도 그 쪽에서
+ * 오려진다. DB 에도 같은 검사가 있지만(마이그 273) 앱에서 먼저 거른다 —
+ * DB 가 거절하면 견적 만들기 전체가 실패하고, 사용자는 쪽 하나 때문에 견적을 잃는다.
+ */
+export function pageNoOrNull(input: number | string | null | undefined): number | null {
+  if (input === null || input === undefined || input === '') return null
+  const n = typeof input === 'string' ? Number(input.replace(/[^\d]/g, '')) : input
+  if (!Number.isFinite(n) || n < 1) return null
+  return Math.floor(n)
+}

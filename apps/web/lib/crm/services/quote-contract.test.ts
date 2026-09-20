@@ -90,3 +90,66 @@ test('상태 표시는 SSOT 하나가 정한다 — 딜 상세와 목록이 같�
     assert.ok(QUOTE_STATUS_META[s], `${s} 의 말이 없다 — 필터 선택지가 비어 보인다`)
   }
 })
+
+/* ── 견적이 자기 쪽을 안다 (마이그 273) ──────────── */
+
+/*
+  **왜 여기서 보나**: 칼럼을 만들어 놓고 select 에 안 넣거나 받는 키에 안 넣으면
+  값은 DB 에 있는데 화면은 늘 null 을 본다 — 이 저장소가 반복한 사고다.
+  마이그레이션·스키마·서비스 셋이 같은 칸을 알아야 한 바퀴가 돈다.
+*/
+
+const MIGRATION = readFileSync(
+  new URL('../../../../../supabase/migrations/273_crm_quote_source_page.sql', import.meta.url), 'utf8')
+const SCHEMA = readFileSync(new URL('../../../prisma/schema.prisma', import.meta.url), 'utf8')
+
+const PAGE_COLUMNS = ['sourcePageStart', 'sourcePageEnd', 'sourceSnapshotId'] as const
+
+test('★ 마이그레이션이 칼럼 셋을 더하고 무엇인지 DB 에 적는다', () => {
+  for (const col of PAGE_COLUMNS) {
+    assert.match(MIGRATION, new RegExp(`ADD COLUMN IF NOT EXISTS "${col}"`), `${col} 을 안 더한다`)
+    assert.match(MIGRATION, new RegExp(`COMMENT ON COLUMN crm_quote\\."${col}"`),
+      `${col} 이 무엇인지 DB 에 안 적혀 있다 — 다음 사람은 이름만 보고 뜻을 지어낸다`)
+  }
+  assert.ok(!/ADD COLUMN "(sourcePage|sourceSnapshot)/.test(MIGRATION),
+    'IF NOT EXISTS 없이 더한다 — 재적용이 실패한다')
+})
+
+test('★ DB 가 0 과 음수를 막는다 — 앱에만 두면 다른 호출부가 생길 때 뚫린다', () => {
+  assert.match(MIGRATION, /CHECK \(/, '검사 제약이 없다')
+  assert.match(MIGRATION, /"sourcePageStart" >= 1/)
+  assert.match(MIGRATION, /"sourcePageEnd" >= "sourcePageStart"/, '끝 쪽이 시작 쪽보다 앞설 수 있다')
+})
+
+test('★ 조각에는 FK 를 걸지 않는다 — 첨부 정리가 견적을 건드리면 안 된다', () => {
+  assert.ok(!/REFERENCES\s+crm_attachment/.test(MIGRATION),
+    '조각에 FK 를 걸었다. 첨부가 지워질 때 견적이 따라 흔들린다')
+})
+
+test('★ 스키마·select·받는 키가 같은 칸을 안다 — 하나만 빠져도 값이 안 보인다', () => {
+  for (const col of PAGE_COLUMNS) {
+    assert.ok(SCHEMA.includes(col), `스키마에 ${col} 이 없다`)
+    assert.ok(SRC.includes(`${col}: true`) || SRC.includes(`'${col}'`),
+      `서비스가 ${col} 을 안 읽거나 안 받는다`)
+  }
+  // 값이 나오는 단정 — select 목록에 셋이 실제로 들어갔나
+  const select = SRC.slice(SRC.indexOf('fromFileAt: true'), SRC.indexOf('fromFileAt: true') + 200)
+  assert.match(select, /sourcePageStart: true/)
+})
+
+test('★ 고쳐 저장해도 쪽이 안 지워진다 — 출처는 고친 뒤에도 사실이다', () => {
+  const update = SRC.slice(SRC.indexOf('export async function updateQuote'))
+  assert.ok(!/data\.sourcePageStart\s*=\s*null/.test(update), '고칠 때 쪽을 지운다')
+  assert.ok(!/data\.sourceFileName\s*=\s*null/.test(update), '고칠 때 출처를 지운다')
+  // 조각만은 바꿀 수 있어야 한다 — 틀린 조각을 떼고 파일 전체로 물러설 길
+  assert.match(update, /input\.sourceSnapshotId !== undefined/)
+})
+
+test('★ 쪽 번호는 1 이상 정수만 통과한다 — 0 이 저장되면 엉뚱한 쪽을 가리킨다', async () => {
+  const { pageNoOrNull } = await import('../domain/normalize.ts')
+  assert.equal(pageNoOrNull(0), null)
+  assert.equal(pageNoOrNull(-3), null)
+  assert.equal(pageNoOrNull(null), null)
+  assert.equal(pageNoOrNull('2쪽'), 2)
+  assert.equal(pageNoOrNull(2.7), 2)
+})

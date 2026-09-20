@@ -114,7 +114,7 @@
 의존: I02
 
 ### I08 견적이 자기 쪽을 안다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/272_crm_quote_source_page.sql (신규), apps/web/prisma/schema.prisma, apps/web/lib/crm/services/quote.ts, apps/web/lib/crm/services/quote-contract.test.ts
 감사 기준:

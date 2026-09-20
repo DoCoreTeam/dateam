@@ -23,7 +23,7 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { normalizeText, requireText } from '../domain/normalize.ts'
+import { normalizeText, requireText, pageNoOrNull } from '../domain/normalize.ts'
 import { latestFxRate, needsFx } from './fx.ts'
 import { assertTransit, type QuoteStatus } from '../domain/state-machines.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
@@ -129,6 +129,16 @@ export interface QuoteRow {
   fromFileAt: Date | null
   /** 어느 파일에서 왔나. fromFileAt 이 풀려도 남는다 */
   sourceFileName: string | null
+  /**
+   * 원본의 **몇 쪽**에서 왔나. null = 쪽을 못 읽었음.
+   *
+   * 한 파일에 견적이 둘이면 이 값이 없을 때 사람이 원본을 열어 자기 건을 찾아야 한다.
+   * **넘겨짚어 1 을 넣지 않는다** — 틀린 쪽을 가리키는 것이 아무 말도 안 하는 것보다 나쁘다.
+   */
+  sourcePageStart: number | null
+  sourcePageEnd: number | null
+  /** 그 쪽을 오려 둔 첨부 id. 첨부가 지워지면 화면이 파일 전체로 물러선다 */
+  sourceSnapshotId: string | null
   sentAt: Date | null
   decidedAt: Date | null
   version: number
@@ -161,6 +171,7 @@ const SELECT = {
   supplierSnapshot: true, logoAssetHash: true,
   // 파일에서 왔는지 — **표시 전용**. 읽지 않으면 배지를 달 근거가 화면에 닿지 않는다
   fromFileAt: true, sourceFileName: true,
+  sourcePageStart: true, sourcePageEnd: true, sourceSnapshotId: true,
   sentAt: true, decidedAt: true, version: true, createdAt: true, updatedAt: true,
 } as const
 
@@ -223,7 +234,7 @@ const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
   'recipientPersonId', 'roundingUnit', 'roundingMode', 'sections',
   // 파일에서 만들 때만 온다. 시각은 서버가 찍는다 — 보낸 쪽이 정하게 두면 「수정 전」을 위조할 수 있다
-  'sourceFileName',
+  'sourceFileName', 'sourcePageStart', 'sourcePageEnd', 'sourceSnapshotId',
   // 수정 경로가 함께 보내는 것들
   'version', 'status',
 ])
@@ -595,6 +606,14 @@ export interface CreateQuoteInput {
    * 그러면 읽은 그대로인 견적이 사람이 쓴 것과 구분되지 않는다.
    */
   sourceFileName?: string | null
+  /**
+   * 원본의 몇 쪽에서 읽었나. **못 읽었으면 안 보낸다** — 0 이나 1 로 눕히면
+   * 대조 화면이 엉뚱한 쪽을 가리킨다. DB 도 1 이상만 받는다(마이그 273).
+   */
+  sourcePageStart?: number | null
+  sourcePageEnd?: number | null
+  /** 그 쪽을 오려 둔 첨부 id. 조각을 나중에 붙이면 수정 경로로 채운다 */
+  sourceSnapshotId?: string | null
 }
 
 /**
@@ -670,7 +689,13 @@ export async function createQuote(
     */
     const sourceFileName = normalizeText(input.sourceFileName)
     const fromFile = sourceFileName
-      ? { fromFileAt: new Date(), sourceFileName }
+      ? {
+          fromFileAt: new Date(),
+          sourceFileName,
+          // 쪽은 **읽은 것만** 싣는다. 못 읽었으면 null 이고 화면은 파일 전체로 물러선다
+          sourcePageStart: pageNoOrNull(input.sourcePageStart),
+          sourcePageEnd: pageNoOrNull(input.sourcePageEnd) ?? pageNoOrNull(input.sourcePageStart),
+        }
       : {}
 
     const fx = needsFx(currency) ? await latestFxRate(currency) : null
@@ -850,6 +875,12 @@ async function approvalThreshold(tx: any): Promise<number> {
 export interface UpdateQuoteInput {
   termIds?: string[]
   version: number
+  /**
+   * 원본 조각(첨부 id). **만들 때가 아니라 여기로 온다** — 견적이 생긴 뒤에야
+   * 그 견적에 첨부를 올릴 수 있기 때문이다. 빈 값은 떼는 뜻이다(조각이 틀렸을 때
+   * 떼고 파일 전체로 물러설 수 있어야 한다).
+   */
+  sourceSnapshotId?: string | null
   title?: string | null
   validUntil?: string | null
   notesMd?: string | null
@@ -905,10 +936,20 @@ export async function updateQuote(
       실제로 글자를 고쳤는지까지 따지지 않는다. 읽은 값이 이미 맞아서 그대로 저장하는 일은
       흔하고, 그때 표시가 안 풀리면 사람은 **표시를 지우려고 없는 오타를 만들어야 한다.**
 
-      출처(sourceFileName)는 **지우지 않는다** — 고친 뒤에도 그 파일에서 온 것은 사실이다.
+      출처(sourceFileName)와 쪽(sourcePage*)도 **지우지 않는다** — 고친 뒤에도
+      그 파일 그 쪽에서 온 것은 사실이고, 대조는 고친 견적에서 더 자주 쓴다.
       풀리는 것은 「아직 안 봤다」 하나뿐이다.
     */
     if (before.fromFileAt) data.fromFileAt = null
+
+    /*
+      **조각은 나중에 붙는다.** 견적을 만든 다음에야 그 견적 id 로 첨부를 올릴 수 있어서,
+      조각 id 는 만들 때가 아니라 이 경로로 들어온다. 빈 값을 보내면 떼는 뜻이다
+      (조각이 틀렸을 때 떼고 파일 전체로 물러설 수 있어야 한다).
+    */
+    if (input.sourceSnapshotId !== undefined) {
+      data.sourceSnapshotId = normalizeText(input.sourceSnapshotId)
+    }
     if (input.title !== undefined) {
       const title = requireText(input.title)
       if (!title) throw new CrmError('VALIDATION_FAILED', '견적 제목을 입력해 주세요.', { field: 'title' })
