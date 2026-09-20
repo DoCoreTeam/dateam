@@ -66,6 +66,14 @@ export const QUOTE = {
    * (사용자 지적 2026-09-21: 「입력하는 곳에도 구분하는 방식에 대해 잘 넣고」).
    */
   lineSpecSplitHint: '첫 줄이 규격, 아래 줄부터 구성이에요',
+  /*
+    한 덩어리로 들어온 글을 줄로 나눠 굳히는 단추.
+
+    파일에서 읽어 온 규격은 줄바꿈 없이 한 덩어리로 오는 일이 있다. 보이기만 갈라 두면
+    저장본은 여전히 한 줄이라 다음에 고치는 사람이 또 한 덩어리를 본다 —
+    누르면 **적힌 글 자체가** 줄로 나뉜다.
+  */
+  lineSpecSplitAction: '표식대로 줄 나누기',
   lineUnit: '단위',
   lineQuantity: '수량',
   lineUnitPrice: '단가',
@@ -272,6 +280,7 @@ export function fillSourcePage(start: number | null, end: number | null): string
 export function fillSpecSplit(componentCount: number): string {
   return componentCount > 0 ? `규격 1줄 · 구성 ${componentCount}줄` : '규격 1줄'
 }
+
 
 /** 표가 길어 뒤를 못 그렸을 때 — 조용히 자르지 않는다 */
 export function fillSheetTruncated(rowCount: number): string {

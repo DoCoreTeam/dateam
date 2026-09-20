@@ -113,11 +113,14 @@ export function splitInlineMarks(text: string): string[] {
  * **낱말 안 하이픈은 건드리지 않는다.** 「R283-Z96-AAJ1」처럼 양옆이 글자인
  * 하이픈은 모델명의 일부이지 경계가 아니다. 그래서 앞뒤 공백을 반드시 본다.
  *
- * **숫자 뒤 대시도 건드리지 않는다.** 「3.55 - 4.4GHz」는 범위 한 값이지 두 줄이 아니다.
+ * **숫자 뒤라고 막지 않는다.** 한때 「3.55 - 4.4GHz」를 범위로 보고 막았는데,
+ * 그 규칙이 「AMD EPYC 9005/9004 - 4U DP 8 x PCIe GPUs」라는 **진짜 경계까지 막았다**
+ * (실측 DA-2026-0921-04). 실제 견적서는 범위에 물결(`3.55~4.4GHz`)을 쓴다 —
+ * 막아야 했던 것은 짐작이었고, 짧은 조각을 걸러내는 `MIN_PIECE` 로 충분하다.
  */
 function splitByDash(text: string): string[] {
   const pieces = text
-    .split(/(?<![\d.])\s+[-–—]\s+/)
+    .split(/\s+[-–—]\s+/)
     .map((p) => p.trim())
     .filter(Boolean)
   if (pieces.length < 2) return [text]

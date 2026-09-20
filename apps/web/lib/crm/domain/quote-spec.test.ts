@@ -42,9 +42,17 @@ test('모델명 안 하이픈에서 갈리지 않는다', () => {
 })
 
 test('짧은 조각이 나오는 대시는 경계가 아니다', () => {
-  // 「3.55 - 4.4GHz」 같은 범위 표기가 줄로 갈리면 안 된다
-  const range = 'Clock speed 3.55 - 4.4 GHz boost'
+  // 범위 표기가 줄로 갈리면 안 된다. 실제 견적서는 「3.55~4.4GHz」처럼 물결을 쓴다
+  const range = 'DDR5 2 - 4 DIMM'
   assert.deepEqual(splitInlineMarks(range), [range])
+})
+
+test('숫자 뒤 대시도 경계다 — 막으면 진짜 줄을 잃는다', () => {
+  // 실측 DA-2026-0921-04. 한때 숫자 뒤를 범위로 보고 막아 이 줄이 안 갈렸다
+  const real = 'AMD 9655 2.6GHz/96Core x 2Ea HPC/AI Server - AMD EPYC 9005/9004 - 4U DP 8 x PCIe GPUs'
+  const got = splitInlineMarks(real)
+  assert.equal(got.length, 3, `${got.length}조각으로 갈림`)
+  assert.equal(got[1], 'AMD EPYC 9005/9004')
 })
 
 test('사람이 그은 줄이 표식보다 세다 — 적은 대로 나온다', () => {

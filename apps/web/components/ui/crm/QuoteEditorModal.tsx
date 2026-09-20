@@ -40,7 +40,18 @@ import {
   sectionDefaultName,
   approvalNeeded,
 } from '@/lib/terms'
-import { splitSpec } from '@/lib/crm/domain/quote-spec'
+import { splitSpec, splitInlineMarks } from '@/lib/crm/domain/quote-spec'
+
+/**
+ * 적힌 글을 줄로 나눈 모양을 돌려준다. **나눌 것이 없으면 `null`** —
+ * 단추를 낼지 말지가 이 한 값으로 갈린다.
+ */
+function splitMarks(descriptionMd: string): string | null {
+  const written = descriptionMd.split('\n').map((l) => l.trim()).filter(Boolean)
+  if (written.length !== 1) return null
+  const pieces = splitInlineMarks(written[0])
+  return pieces.length >= 2 ? pieces.join('\n') : null
+}
 import styles from './quote-panel.module.css'
 
 // 폼의 «모양»은 옆 파일에 있다. 여기서는 동작만 다룬다.
@@ -575,6 +586,27 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     <span>{QUOTE.lineSpecSplitHint}</span>
                     <b>{fillSpecSplit(splitSpec(line.descriptionMd).components.length)}</b>
                   </p>
+                  {/*
+                    **보이기만 가르면 저장본은 그대로다.** 파일에서 읽어 온 규격은 줄바꿈 없이
+                    한 덩어리로 오는 일이 있고, 화면만 갈라 두면 다음에 고치는 사람이 또
+                    한 덩어리를 본다 — 누르면 적힌 글 자체가 줄로 나뉜다
+                    (사용자 지시 2026-09-21: 「견적쪽에 입력할 때도 그렇게 자동으로
+                    줄바꾼거는 처리 해주면 되자나」).
+
+                    표식이 없으면 단추를 내지 않는다. 눌러도 아무 일이 없는 단추는 고장으로 읽힌다.
+                  */}
+                  {!linesLocked && splitMarks(line.descriptionMd) !== null && (
+                    <button
+                      type="button"
+                      className={styles.specSplitAction}
+                      onClick={() => {
+                        const split = splitMarks(line.descriptionMd)
+                        if (split) setLine(i, { descriptionMd: split })
+                      }}
+                    >
+                      {QUOTE.lineSpecSplitAction}
+                    </button>
+                  )}
                 </div>
                 <div className={`${styles.field} ${styles.colQty}`}>
                   <label className="label" htmlFor={`ln-qty-${i}`}>{LINE_KIND_QUANTITY_LABEL[line.kind ?? 'QUANTITY']}</label>
