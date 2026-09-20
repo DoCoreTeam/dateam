@@ -208,7 +208,7 @@ export async function draftQuoteFromFile(
   const kind = check.kind
 
   let route = initialQuoteFileRoute(kind)
-  let read: SourceTextResult = { text: '', truncated: false, tableCount: 0 }
+  let read: SourceTextResult = { text: '', truncated: false, tableCount: 0, pages: [] }
 
   if (route === 'text') {
     const parsed = await parseFile({

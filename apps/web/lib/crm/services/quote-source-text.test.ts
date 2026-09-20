@@ -8,7 +8,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { irToSourceText, tableToLines, MAX_SOURCE_CHARS } from './quote-source-text.ts'
+import {
+  irToSourceText, tableToLines, MAX_SOURCE_CHARS, pageMarkLine, pageOfMarkLine,
+} from './quote-source-text.ts'
 import type { IrDocument, IrBlock, IrTable, IrFigure } from '../../rfp/ir/types.ts'
 
 function block(over: Partial<IrBlock> & { blockId: string; orderNo: number }): IrBlock {
@@ -229,4 +231,93 @@ test('★ CSV 견적서도 표로 들어온다', async () => {
   const out = irToSourceText(parsed.doc)
   assert.equal(out.tableCount, 1)
   assert.match(out.text, /L40S \| 4 \| 12000000/)
+})
+
+/* ── 쪽 표시 (v0.10.304) ─────────────────────────── */
+
+/*
+  **왜 쪽을 심나**: 읽고 나서 「어느 쪽에서 왔나」를 되찾을 길이 여기밖에 없다.
+  한 파일에 견적이 둘이면 그 둘은 다른 쪽에 있고, 쪽을 모르면 견적마다 원본 조각을
+  붙일 수도 대조를 그 쪽에서 열 수도 없다.
+*/
+
+test('★ 쪽이 바뀌는 자리에만 표시 줄이 붙는다 — 줄마다 붙이면 글자만 먹는다', () => {
+  const d = doc({
+    blocks: [
+      block({ blockId: 'b1', orderNo: 0, pageNo: 1, text: '견적서' }),
+      block({ blockId: 'b2', orderNo: 1, pageNo: 2, text: 'H100 | 2 | 5000만' }),
+      block({ blockId: 'b3', orderNo: 2, pageNo: 2, text: 'RAM | 8 | 2000만' }),
+      block({ blockId: 'b4', orderNo: 3, pageNo: 3, text: '합계 | 7000만' }),
+    ],
+  })
+  const r = irToSourceText(d)
+  assert.deepEqual(r.text.split('\n'), [
+    pageMarkLine(1),
+    '견적서',
+    pageMarkLine(2),
+    'H100 | 2 | 5000만',
+    'RAM | 8 | 2000만',
+    pageMarkLine(3),
+    '합계 | 7000만',
+  ])
+  assert.deepEqual(r.pages, [1, 2, 3])
+})
+
+test('★ 쪽이 하나뿐인 문서에는 표시 줄을 안 넣는다 — 그래도 pages 로 그 쪽을 안다', () => {
+  const d = doc({
+    blocks: [
+      block({ blockId: 'b1', orderNo: 0, pageNo: 1, text: 'H100 | 2 | 5000만' }),
+      block({ blockId: 'b2', orderNo: 1, pageNo: 1, text: '합계 | 1억' }),
+    ],
+  })
+  const r = irToSourceText(d)
+  assert.equal(r.text, 'H100 | 2 | 5000만\n합계 | 1억', '표시 줄이 끼어들었다')
+  assert.deepEqual(r.pages, [1], '한 쪽짜리도 그 쪽이 몇 쪽인지는 말해야 한다')
+})
+
+test('★ 쪽을 모르는 파서(평문·한글)는 표시 줄이 0 개다 — 그 경로가 안 깨져야 한다', () => {
+  const d = doc({
+    blocks: [
+      block({ blockId: 'b1', orderNo: 0, pageNo: null, text: 'H100 | 2 | 5000만' }),
+      block({ blockId: 'b2', orderNo: 1, pageNo: null, text: '합계 | 1억' }),
+    ],
+  })
+  const r = irToSourceText(d)
+  // 빈 배열만 보면 서명이 틀려도 초록이다 — 글이 그대로 나왔는지도 같이 본다
+  assert.equal(r.text, 'H100 | 2 | 5000만\n합계 | 1억')
+  assert.deepEqual(r.pages, [])
+})
+
+test('쪽이 비어 있는 블록은 앞 줄의 쪽을 물려받는다 — 표 한가운데서 근거가 끊기면 안 된다', () => {
+  const d = doc({
+    blocks: [
+      block({ blockId: 'b1', orderNo: 0, pageNo: 2, text: 'H100 | 2' }),
+      block({ blockId: 'b2', orderNo: 1, pageNo: null, text: 'RAM | 8' }),
+      block({ blockId: 'b3', orderNo: 2, pageNo: 3, text: '합계' }),
+    ],
+  })
+  const r = irToSourceText(d)
+  assert.deepEqual(r.pages, [2, 3], '쪽 모름 블록이 쪽을 끊었다')
+})
+
+test('★ 표시 줄도 상한에 든다 — 안 세면 넘긴 글이 상한을 넘는다', () => {
+  const d = doc({
+    blocks: [
+      block({ blockId: 'b1', orderNo: 0, pageNo: 1, text: 'AAAA' }),
+      block({ blockId: 'b2', orderNo: 1, pageNo: 2, text: 'BBBB' }),
+    ],
+  })
+  const mark = pageMarkLine(1)
+  // 표시 줄 + 첫 줄까지만 드는 상한
+  const r = irToSourceText(d, { maxChars: mark.length + 1 + 'AAAA'.length + 1 })
+  assert.equal(r.text, `${mark}\nAAAA`)
+  assert.equal(r.truncated, true)
+  assert.deepEqual(r.pages, [1], '잘려 나간 2쪽을 「읽었다」고 세면 안 읽은 쪽에 조각이 붙는다')
+})
+
+test('표시 줄에서 쪽 번호를 되읽는다 — 되읽을 수 없으면 모델 답을 검산할 길이 없다', () => {
+  assert.equal(pageOfMarkLine(pageMarkLine(12)), 12)
+  assert.equal(pageOfMarkLine('  --- 3쪽 ---  '), 3)
+  assert.equal(pageOfMarkLine('H100 | 2 | 5000만'), null)
+  assert.equal(pageOfMarkLine('--- 3쪽'), null)
 })
