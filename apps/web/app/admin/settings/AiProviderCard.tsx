@@ -292,8 +292,11 @@ function KeyRowList({ rows, pending, onMove, onToggle, onDelete }: {
       {rows.map((row, i) => (
         <li
           key={row.id}
-          className="card"
-          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', padding: 'var(--space-2)' }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap',
+            padding: 'var(--space-2) 0',
+            borderBottom: 'var(--hairline) solid var(--border-light)',
+          }}
         >
           <span style={{ fontWeight: 600, color: 'var(--text)' }}>{row.label}</span>
           <code style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{row.maskedKey}</code>
