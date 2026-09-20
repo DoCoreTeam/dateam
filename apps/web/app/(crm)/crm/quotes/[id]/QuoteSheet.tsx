@@ -10,6 +10,7 @@ import { Fragment } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '@/lib/terms/quote'
+import { hasDiscount } from '@/lib/crm/domain/quote-document'
 import type { QuoteDocument, DocumentLine, DocumentSection } from '@/lib/crm/domain/quote-document'
 import styles from './quote-document.module.css'
 
@@ -30,6 +31,18 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
   const money = (minor: string) => formatAmount(minor, doc.meta.currency) ?? '0'
   // 공급자는 «비어 있지 않은 것만» 줄을 만든다 — 「—」 가 늘어선 문서를 보내지 않는다
   const filled = SUPPLIER_ORDER.filter((f) => doc.supplier[f] !== '')
+
+  /*
+    **할인이 없으면 할인 칸도 할인 줄도 없다.**
+    빈 열과 「할인 0원」은 종이만 먹는 것이 아니라 «일부러 안 줬다»로 읽힌다
+    (사용자 지적 2026-09-20). 판정은 문서 SSOT 한 곳에서 온다 — 엑셀도 같은 답을 본다.
+  */
+  const showDiscount = hasDiscount(doc)
+  /** 열 수. 할인 칸이 빠지면 표가 여섯 열이고, 아래 모든 colSpan 이 이 값에서 나온다 */
+  const cols = showDiscount ? 7 : 6
+  /** 합계 라벨은 **금액 바로 앞 두 칸**에 걸친다 — 한 칸이면 「합계 금액」이 두 줄로 깨진다 */
+  const labelSpan = 2
+  const padSpan = cols - labelSpan - 1
 
   /**
    * 묶음별로 항목을 나눈다.
@@ -72,36 +85,38 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                       **특별가는 그 사실이 보여야 값이 있다.** 「80%」만 적으면 무엇에서
                       80% 인지 알 수 없다 — 정상가를 함께 적어야 고객이 혜택을 읽는다.
                     */}
-                    <td className={styles.num}>
-                      {/*
-                        **둘 다 적는다.** 기본 할인은 늘 들어가는 것이고 특별 할인은 이번 건에만
-                        주는 것이라, 하나만 적으면 고객은 나머지 하나를 못 본다
-                        (사용자 지시: 「기본 할인과 특별할인이 다 붙어야지」).
-                      */}
-                      {l.isSpecialDiscount ? (
-                        // 비율도 금액과 **같은 흐름**으로 읽힌다 — 기본에서 특별로 간다
-                        <>
-                          {/*
-                            **태그는 흐름 밖이다.** 「특별 할인」 글자가 비율 옆에 붙으면
-                            그 폭 때문에 「30% → 100%」가 두 줄로 접혀 화살표가 아무것도
-                            가리키지 못했다(사용자 지적). 뜻은 아래 줄에서 말한다.
-                          */}
-                          <span className={styles.priceFlow}>
-                            {l.baseDiscountPercent !== '0' && (
-                              <>
-                                <span className={styles.wasPct}>{l.baseDiscountPercent}%</span>
-                                <span className={styles.srOnly}>에서</span>
-                                <span className={styles.arrow} aria-hidden>→</span>
-                              </>
-                            )}
-                            <span className={styles.special}>{l.specialDiscountPercent}%</span>
-                          </span>
-                          <div className={styles.specialTag}>{QUOTE.lineSpecialDiscount}</div>
-                        </>
-                      ) : (
-                        l.discountPercent === '0' ? '' : `${l.discountPercent}%`
-                      )}
-                    </td>
+                    {showDiscount && (
+                      <td className={styles.num}>
+                        {/*
+                          **둘 다 적는다.** 기본 할인은 늘 들어가는 것이고 특별 할인은 이번 건에만
+                          주는 것이라, 하나만 적으면 고객은 나머지 하나를 못 본다
+                          (사용자 지시: 「기본 할인과 특별할인이 다 붙어야지」).
+                        */}
+                        {l.isSpecialDiscount ? (
+                          // 비율도 금액과 **같은 흐름**으로 읽힌다 — 기본에서 특별로 간다
+                          <>
+                            {/*
+                              **태그는 흐름 밖이다.** 「특별 할인」 글자가 비율 옆에 붙으면
+                              그 폭 때문에 「30% → 100%」가 두 줄로 접혀 화살표가 아무것도
+                              가리키지 못했다(사용자 지적). 뜻은 아래 줄에서 말한다.
+                            */}
+                            <span className={styles.priceFlow}>
+                              {l.baseDiscountPercent !== '0' && (
+                                <>
+                                  <span className={styles.wasPct}>{l.baseDiscountPercent}%</span>
+                                  <span className={styles.srOnly}>에서</span>
+                                  <span className={styles.arrow} aria-hidden>→</span>
+                                </>
+                              )}
+                              <span className={styles.special}>{l.specialDiscountPercent}%</span>
+                            </span>
+                            <div className={styles.specialTag}>{QUOTE.lineSpecialDiscount}</div>
+                          </>
+                        ) : (
+                          l.discountPercent === '0' ? '' : `${l.discountPercent}%`
+                        )}
+                      </td>
+                    )}
                     <td className={styles.num}>
                       {/*
                         **「원래는 이만큼인데 이렇게 해 드립니다」가 한눈에 읽혀야 한다.**
@@ -259,7 +274,12 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
             */}
             <colgroup>
               <col style={{ width: '5%' }} />
-              <col style={{ width: '26%' }} />
+              {/*
+                **비율 합은 늘 100 이다.** 할인 칸(16%)이 빠진 폭을 그냥 버리면 브라우저가
+                남는 폭을 제 마음대로 나눠 화면과 종이의 배치가 달라진다. 품목 이름이
+                가져간다 — 두 줄로 부서지던 칸이 그 자리다.
+              */}
+              <col style={{ width: showDiscount ? '26%' : '42%' }} />
               <col style={{ width: '7%' }} />
               <col style={{ width: '6%' }} />
               <col style={{ width: '15%' }} />
@@ -273,7 +293,7 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                 「30% → 100%」에 87px 이 필요해 14px 이 모자라 접혔다.
                 16% 면 96px 이라 한 줄에 선다.
               */}
-              <col style={{ width: '16%' }} />
+              {showDiscount && <col style={{ width: '16%' }} />}
               {/*
                 합계(굵고 큰 글씨)가 들어갈 칸이라 항목 금액보다 넉넉해야 한다.
                 21% 였을 때 「330,000,000원」의 **「원」이 잘렸다**(사용자 지적) —
@@ -289,7 +309,9 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                 <th className={styles.center} scope="col">{QUOTE.lineUnit}</th>
                 <th className={styles.center} scope="col">{QUOTE.lineQuantity}</th>
                 <th className={styles.center} scope="col">{QUOTE.lineUnitPrice}</th>
-                <th className={styles.center} scope="col">{QUOTE.lineDiscount}</th>
+                {showDiscount && (
+                  <th className={styles.center} scope="col">{QUOTE.lineDiscount}</th>
+                )}
                 <th className={styles.center} scope="col">{QUOTE.lineAmount}</th>
               </tr>
             </thead>
@@ -303,13 +325,13 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                 <Fragment key={g.key}>
                   {g.section && (
                     <tr className={styles.sectionHead}>
-                      <td colSpan={7}>{g.section.name}</td>
+                      <td colSpan={cols}>{g.section.name}</td>
                     </tr>
                   )}
                   {g.lines.map((l) => renderLine(l))}
                   {g.section && g.lines.length > 0 && (
                     <tr className={styles.sectionSum}>
-                      <td colSpan={6}>{g.section.name} {QUOTE.subtotal}</td>
+                      <td colSpan={cols - 1}>{g.section.name} {QUOTE.subtotal}</td>
                       <td className={styles.num}>{money(g.section.subtotalMinor)}</td>
                     </tr>
                   )}
@@ -324,20 +346,22 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
             <tfoot>
               {/* 라벨은 **두 칸에 걸친다** — 한 칸(할인 열)이면 「합계 금액」이 두 줄로 깨진다 */}
               <tr className={styles.firstTotal}>
-                <td colSpan={4} />
-                <td className={styles.totalLabel} colSpan={2}>{QUOTE.subtotal}</td>
+                <td colSpan={padSpan} />
+                <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.subtotal}</td>
                 <td className={styles.num}>{money(doc.totals.subtotalMinor)}</td>
               </tr>
+              {showDiscount && (
+                <tr>
+                  <td colSpan={padSpan} />
+                  <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.discount}</td>
+                  <td className={styles.num}>
+                    {doc.totals.discountMinor !== '0' && '− '}{money(doc.totals.discountMinor)}
+                  </td>
+                </tr>
+              )}
               <tr>
-                <td colSpan={4} />
-                <td className={styles.totalLabel} colSpan={2}>{QUOTE.discount}</td>
-                <td className={styles.num}>
-                  {doc.totals.discountMinor !== '0' && '− '}{money(doc.totals.discountMinor)}
-                </td>
-              </tr>
-              <tr>
-                <td colSpan={4} />
-                <td className={styles.totalLabel} colSpan={2}>{QUOTE.tax}</td>
+                <td colSpan={padSpan} />
+                <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.tax}</td>
                 <td className={styles.num}>{money(doc.totals.taxMinor)}</td>
               </tr>
               {/*
@@ -350,13 +374,13 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
               {doc.totals.roundingMinor !== '0' && (
                 <>
                   <tr>
-                    <td colSpan={4} />
-                    <td className={styles.totalLabel} colSpan={2}>{QUOTE.netTotal}</td>
+                    <td colSpan={padSpan} />
+                    <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.netTotal}</td>
                     <td className={styles.num}>{money(doc.totals.netTotalMinor)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} />
-                    <td className={styles.totalLabel} colSpan={2}>{QUOTE.rounding}</td>
+                    <td colSpan={padSpan} />
+                    <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.rounding}</td>
                     <td className={styles.num}>
                       {/* 올림은 더한 것이라 절사액이 음수다 — 부호를 값에서 읽는다 */}
                       {doc.totals.roundingMinor.startsWith('-')
@@ -372,8 +396,8 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
               */}
               {doc.totals.totalKrwMinor && (
                 <tr>
-                  <td colSpan={4} />
-                  <td className={styles.totalLabel} colSpan={2}>
+                  <td colSpan={padSpan} />
+                  <td className={styles.totalLabel} colSpan={labelSpan}>
                     원화 환산
                     <span className={styles.fxNote}>
                       1 {doc.meta.currency} = {Number(doc.totals.fxRate).toLocaleString('ko-KR')}원
@@ -386,14 +410,14 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                 </tr>
               )}
               <tr className={styles.grand}>
-                <td colSpan={4} />
-                <td className={styles.totalLabel} colSpan={2}>{QUOTE.total}</td>
+                <td colSpan={padSpan} />
+                <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.total}</td>
                 <td className={styles.num}>{money(doc.totals.totalMinor)}</td>
               </tr>
               {/* 한글 금액은 위조 방지가 목적이라 총액 바로 아래 붙는다 */}
               {doc.totals.totalInWords && (
                 <tr className={styles.inWords}>
-                  <td colSpan={3} />
+                  <td colSpan={cols - 4} />
                   <td className={styles.num} colSpan={4}>{doc.totals.totalInWords}</td>
                 </tr>
               )}

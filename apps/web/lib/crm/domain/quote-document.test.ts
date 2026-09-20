@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildQuoteDocument, verifyDocument, missingSupplierFields,
-  exportFileName,
+  exportFileName, hasDiscount,
   type BuildQuoteDocumentInput,
 } from './quote-document.ts'
 import { hangulAmount, QUOTE } from '../../terms/quote.ts'
@@ -354,4 +354,63 @@ test('★ 할인에서 절사를 되빼지 않는다 — 저장된 할인이 그
 test('★ 절사가 걸린 문서도 내보낼 수 있다 — 검사가 절사를 모르면 파일이 안 나간다', () => {
   // 실측 전례: 절사 37,000원에 위반 1건이 떠서 계산이 맞는 견적이 안 나갔다.
   assert.deepEqual(verifyDocument(buildQuoteDocument(roundedInput())), [])
+})
+
+// ------------------------------------------------------------
+// 할인을 말할 것인가 — 판정이 한 곳에 있어야 화면과 엑셀이 같은 문서를 낸다
+// ------------------------------------------------------------
+
+/** 할인을 하나도 안 준 견적. 합계도 항목도 0이다 */
+function noDiscountInput() {
+  return input({
+    quote: {
+      ...input().quote,
+      subtotalMinor: BigInt(100_000_000),
+      discountMinor: BigInt(0),
+      taxMinor: BigInt(10_000_000),
+      totalMinor: BigInt(110_000_000),
+    },
+    lines: [{
+      name: 'H100 80GB', unit: '대', quantity: '2',
+      unitPriceMinor: BigInt(50_000_000), discountPercent: '0',
+      lineTotalMinor: BigInt(100_000_000),
+    }],
+  })
+}
+
+test('★ 할인이 0이면 문서가 할인을 말하지 않는다 — 「할인 0원」은 일부러 안 준 것으로 읽힌다', () => {
+  assert.equal(hasDiscount(buildQuoteDocument(noDiscountInput())), false)
+})
+
+test('★ 합계 할인이 있으면 말한다', () => {
+  // 기본 fixture 는 1억에 1천만원 할인이다
+  assert.equal(hasDiscount(buildQuoteDocument(input())), true)
+})
+
+test('★ 합계가 0이어도 항목 할인율이 있으면 말한다 — 할 말이 항목 줄에 남아 있다', () => {
+  // 합계 할인액은 0인데 항목엔 10% 가 찍힌 문서. 열을 지우면 그 10% 가 갈 곳이 없다.
+  const doc = buildQuoteDocument(input({
+    quote: { ...input().quote, discountMinor: BigInt(0) },
+    lines: [{
+      name: 'H100 80GB', unit: '대', quantity: '2',
+      unitPriceMinor: BigInt(50_000_000), discountPercent: '10',
+      lineTotalMinor: BigInt(90_000_000),
+    }],
+  }))
+  assert.equal(doc.totals.discountMinor, '0', '합계는 0이라야 이 시험이 항목만 본다')
+  assert.equal(doc.lines[0].discountPercent, '10')
+  assert.equal(hasDiscount(doc), true)
+})
+
+test('★ 특별가는 할인율이 0이어도 말한다 — 「30% → 80%」는 그 자체가 할 말이다', () => {
+  const doc = buildQuoteDocument(input({
+    quote: { ...input().quote, discountMinor: BigInt(0) },
+    lines: [{
+      name: 'H100 80GB', unit: '대', quantity: '2',
+      unitPriceMinor: BigInt(50_000_000), discountPercent: '0', specialDiscountPercent: '20',
+      lineTotalMinor: BigInt(80_000_000),
+    }],
+  }))
+  assert.equal(doc.lines[0].isSpecialDiscount, true, '특별가로 잡혀야 이 시험이 뜻이 있다')
+  assert.equal(hasDiscount(doc), true)
 })

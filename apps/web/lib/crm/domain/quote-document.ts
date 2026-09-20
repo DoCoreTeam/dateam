@@ -507,6 +507,25 @@ export function verifyDocument(doc: QuoteDocument): Violation[] {
   ]
 }
 
+/**
+ * 이 견적서가 **할인을 말해야 하나**.
+ *
+ * **왜 판정을 따로 두나**: 할인을 하나도 안 준 견적서에 「할인 0원」이 찍히면,
+ * 받는 사람은 그것을 «빈칸»이 아니라 «일부러 안 줬다»로 읽는다
+ * (사용자 지적 2026-09-20: 「할인이 없는데 할인이 나오면 일부러 안 해 주는 것 같지 않나」).
+ * 안 준 것을 굳이 적어 보내는 문서는 없다.
+ *
+ * **셋이 같은 답을 봐야 한다.** 화면·엑셀이 각자 판정하면 화면엔 없는 할인 칸이
+ * 파일엔 남는 날이 오고, 그때부터 같은 견적이 두 얼굴을 갖는다.
+ *
+ * 합계와 항목을 **둘 다** 본다: 합계 할인액이 0 이어도 특별가 줄은 「30% → 80%」라는
+ * 할 말이 남아 있고, 반대로 항목 할인율이 전부 0 이어도 합계에 할인이 잡힐 수 있다.
+ */
+export function hasDiscount(doc: Pick<QuoteDocument, 'lines' | 'totals'>): boolean {
+  if ((doc.totals.discountMinor ?? '0') !== '0') return true
+  return doc.lines.some((l) => l.isSpecialDiscount || l.discountPercent !== '0')
+}
+
 /** 문서를 내보내도 되나 — 공급자 정보가 비면 «상호 없는 견적서»가 나간다 */
 export function missingSupplierFields(doc: QuoteDocument): SupplierField[] {
   return SUPPLIER_ORDER.filter((f) => doc.supplier[f] === '')
