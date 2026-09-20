@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 키를 여러 개 두고 한도에 걸린 키를 건너뛴다
 플랜 ID: P0032
-플랜 버전: v0.1.3
+플랜 버전: v0.1.4
 상태: 진행중
 지시: ins_0034
 목표 버전: v0.10.214
@@ -132,16 +132,31 @@
 - pnpm test 에서 rfp ai 관련 테스트 통과
 의존: I03, I04
 
-### I08 옆길 결선
+### I08 키 교체 공용 부품
+상태: 통과
+모드: 경량
+범위: apps/web/lib/ai/key-rotation.ts (신규), apps/web/lib/ai/key-rotation.test.ts (신규), apps/web/package.json
+감사 기준:
+- withProviderKeys 가 한도와 인증 실패에 다음 키로 넘어감
+- 그 밖의 실패는 키를 안 바꾸고 그대로 올림 (네트워크 한 번 튄 것으로 키를 소진하지 않음)
+- 키가 하나면 호출이 한 번이다 (교체가 헛호출을 늘리지 않음)
+- 키를 다 써도 안 되면 마지막 오류를 그대로 올림 (원인이 바뀌지 않음)
+- 표를 못 읽어도 부르는 쪽이 준 키 하나로 돎
+- 결말 기록 실패가 호출을 막지 않음
+- pnpm test 에 key-rotation 등재되고 실제로 돎
+의존: I04
+
+### I08a 옆길 결선
 상태: 대기
 모드: 경량
-범위: apps/web/lib/stt/provider.ts, apps/web/lib/gemini-embedding.ts, apps/web/lib/ci/ai/meta.ts, apps/web/lib/gpu/extract-helpers.ts
+범위: apps/web/lib/stt/provider.ts, apps/web/lib/gemini-embedding.ts, apps/web/lib/ai/key-rotation.test.ts
 감사 기준:
-- 회의 녹음 전사가 Groq 키 여러 개를 순서대로 시도함
+- 회의 녹음 전사가 Groq 키 여러 개를 순서대로 시도함 (첫 키가 429 면 다음 키로 같은 녹음을 보냄)
 - 임베딩이 Gemini 키 여러 개를 순서대로 시도함
-- CI 수집과 GPU 추출이 같은 저장소를 봄 (키를 자기 방식으로 또 읽지 않음)
+- 키가 하나일 때의 동작이 지금과 같음 (호출 수 회귀 없음)
+- CI 수집과 GPU 추출은 gemini-call 을 타므로 키를 자기 방식으로 또 읽지 않음, 가드가 그 사실을 셈
 - pnpm tsc --noEmit 통과
-의존: I04
+의존: I08
 
 ### I09 관리자 화면 키 목록
 상태: 대기
@@ -177,3 +192,4 @@
 - v0.1.1 (2026-09-20) 마이그레이션 번호 263 을 옆 세션이 먼저 가져가 264/265 로 옮김 (audit:I01)
 - v0.1.2 (2026-09-20) I03 을 둘로 쪼갬: 429 가 availability 'limited' 를 남기는 것을 소비처보다 먼저 떼면 runner 의 PROVIDER_QUOTA 판정이 죽어 여러 건 돌 때 중단이 안 걸린다(v0.7.574 사고 재현). I03 은 scope 와 keyOutcome 만, I03a 가 소비처를 옮긴 뒤 availability 를 뗀다. pruneChain 은 'key' 를 'provider' 와 같게 다룬다 — 키 교체는 그 앞에서 끝난다 (audit:I03)
 - v0.1.3 (2026-09-20) I04 을 두 파일로 나눔: node --test 는 server-only 를 못 읽는다(Next 가 빌드 때 별칭으로 붙이는 것이라 패키지가 없음). 한 파일로 두면 감사 기준을 소스 훑기로만 볼 수 있어 가드가 안 된다. 저장소 전례(org-scope.ts / org-scope-pure.ts)대로 서비스롤 배선만 server-only 에 두고 규칙은 core 로 뺀다. 원문 키가 흩어지지 않는지 세는 보안 줄과 등재 줄도 추가 (audit:I04)
+- v0.1.4 (2026-09-20) I08 을 둘로 쪼갬. ①같은 키 교체 로직이 STT·임베딩·호출기 세 곳에 필요해 공용 부품으로 뺀다(재사용·단일구현 정책). ②원래 범위의 넷 중 ci/ai/meta.ts 와 gpu/extract-helpers.ts 는 고칠 것이 없다 - 둘 다 gemini-call 을 타므로 I05 로 이미 같은 저장소를 본다. 코드를 안 고치는 대신 「자기 방식으로 또 읽지 않는다」를 가드로 못 박는다 (audit:I08)
