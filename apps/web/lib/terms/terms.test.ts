@@ -7,7 +7,10 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, createLabel, progress } from './action.ts'
+import {
+  ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, createLabel, progress,
+  settingFieldState, SETTING_SAVE_LABEL, settingSaveDisabled,
+} from './action.ts'
 import { AI_KEY } from './ai-key.ts'
 import { ENTITY, SURFACE_LABEL, count, countOnly, type EntityKey } from './entity.ts'
 import { fillFoundLine, fillFoundQuotesLine } from './quote.ts'
@@ -267,4 +270,30 @@ test('★ AI 키를 더하는 단추는 「추가」다 — 「새 키」는 새
 
   const src = readFileSync(new URL('./ai-key.ts', import.meta.url), 'utf8')
   assert.match(src, /예외/, '맨 「추가」를 쓰는 사유가 파일에 없다')
+})
+
+// ------------------------------------------------------------
+// 설정 칸의 단추 (사용자 지적 2026-09-20)
+// ------------------------------------------------------------
+
+test('★ 빈 칸은 「저장」, 있던 값을 고치는 중이면 「수정」', () => {
+  assert.equal(SETTING_SAVE_LABEL[settingFieldState(false, false)], ACTION.save)
+  assert.equal(SETTING_SAVE_LABEL[settingFieldState(false, true)], ACTION.save)
+  assert.equal(SETTING_SAVE_LABEL[settingFieldState(true, true)], ACTION.edit)
+})
+
+test('★ 저장돼 있고 바뀐 것이 없으면 「저장됨」이고 누를 것이 없다', () => {
+  const st = settingFieldState(true, false)
+  assert.equal(SETTING_SAVE_LABEL[st], '저장됨')
+  assert.equal(settingSaveDisabled(st), true, '누를 것이 없는데 눌리면 또 「먹었나」를 묻게 된다')
+})
+
+test('누를 일이 남은 상태는 잠그지 않는다', () => {
+  assert.equal(settingSaveDisabled(settingFieldState(false, false)), false)
+  assert.equal(settingSaveDisabled(settingFieldState(true, true)), false)
+})
+
+test('★ 단추 말이 셋 다 다르다 — 같으면 상태를 말하지 못한다', () => {
+  const said = new Set(Object.values(SETTING_SAVE_LABEL))
+  assert.equal(said.size, 3, `단추 말이 ${said.size}가지뿐이다`)
 })

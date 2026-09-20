@@ -124,7 +124,7 @@
 의존: 없음
 
 ### I08 설정 카드가 저장된 뒤에도 「저장」이라고만 말하지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(crm)/crm/settings/, apps/web/lib/terms/, apps/web/lib/ui/settings-parity.test.ts
 감사 기준:

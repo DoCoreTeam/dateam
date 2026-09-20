@@ -76,6 +76,39 @@ export function progress(verb: string): string {
 }
 
 /**
+ * 이미 저장된 칸의 단추는 **「저장」이라고 하지 않는다.**
+ *
+ * 사용자 지적 2026-09-20: *"방금 상호 넣고 저장 눌렀으면 저장이라는 버튼이 아니라
+ * 수정이 되던가 해야지"*
+ *
+ * 단추가 늘 「저장」이면 두 가지를 못 말한다 — **눌렀던 것이 먹었는지**와
+ * **지금 누르면 무슨 일이 일어나는지**. 누른 뒤에도 글자가 그대로라 사람은
+ * 안 먹었다고 읽고 다시 누른다.
+ *
+ * 그래서 칸의 상태가 곧 단추의 말이 된다:
+ *   빈 칸        → 「저장」   (처음 넣는 것)
+ *   고치는 중    → 「수정」   (있던 값을 바꾸는 것, 눌러야 먹는다)
+ *   그대로       → 「저장됨」 (누를 것이 없다. 단추는 잠근다)
+ */
+export type SettingFieldState = 'empty' | 'dirty' | 'saved'
+
+export function settingFieldState(hasSaved: boolean, changed: boolean): SettingFieldState {
+  if (!hasSaved) return 'empty'
+  return changed ? 'dirty' : 'saved'
+}
+
+export const SETTING_SAVE_LABEL: Record<SettingFieldState, string> = {
+  empty: ACTION.save,
+  dirty: ACTION.edit,
+  saved: '저장됨',
+}
+
+/** 「저장됨」은 누를 것이 없다 — 잠근 단추가 «이미 됐다»를 말한다 */
+export function settingSaveDisabled(state: SettingFieldState): boolean {
+  return state === 'saved'
+}
+
+/**
  * 새로 만드는 진입 라벨 — `새 딜` · `새 회사`.
  *
  * **「추가」를 쓰지 않는다.** 무엇을 추가하는지 안 밝히면 버튼만 보고는 알 수 없다(실측 8곳).

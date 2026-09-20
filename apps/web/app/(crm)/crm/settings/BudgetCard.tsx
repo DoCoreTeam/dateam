@@ -17,6 +17,7 @@ import type { StatusKey } from '@/lib/tokens/status-colors'
 import styles from './settings.module.css'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
 import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
+import { ACTION, progress, settingFieldState, SETTING_SAVE_LABEL, settingSaveDisabled } from '@/lib/terms'
 
 interface Budget {
   month: string
@@ -98,6 +99,13 @@ export default function BudgetCard() {
     : null
   const pct = budget ? Math.min(100, Math.round(budget.ratio * 100)) : 0
 
+  /*
+    상한은 늘 값이 있다(서버가 기본 상한을 준다). 그래서 갈리는 것은 «지금 고치는 중인가» 하나다.
+    초안이 저장된 값과 같으면 누를 것이 없고, 잠긴 단추가 「저장됨」이라고 말한다.
+  */
+  const saved = budget ? (Number(budget.limitMinorUsd) / 100).toString() : ''
+  const state = settingFieldState(budget !== null, draft.trim() !== saved)
+
   return (
     <SettingsCard title="AI 예산" headingLevel={2} headerAction={<>{meta && <StatusPill tone={toneFromStatusKey(meta.status)}>{meta.label}</StatusPill>}</>}>
 
@@ -136,8 +144,9 @@ export default function BudgetCard() {
                 onChange={(e) => setDraft(e.target.value.replace(/[^\d.]/g, ''))}
               />
             </div>
-            <NbButton onClick={() => void save()} disabled={saving}>
-              {saving ? '저장 중…' : '저장'}
+            {/* 늘 「저장」이면 눌렀던 것이 먹었는지 못 말한다 — 칸의 상태가 단추의 말이다 */}
+            <NbButton onClick={() => void save()} disabled={saving || settingSaveDisabled(state)}>
+              {saving ? progress(ACTION.save) : SETTING_SAVE_LABEL[state]}
             </NbButton>
           </div>
 

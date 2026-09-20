@@ -12,12 +12,18 @@ import { useCallback, useEffect, useState } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
-import { SETTING_GROUP as GROUP, SETTING_GROUP_ORDER as GROUP_ORDER } from '@/lib/crm/domain/setting-group'
+import {
+  SETTING_GROUP as GROUP, SETTING_GROUP_ORDER as GROUP_ORDER,
+  type SettingGroupKey,
+} from '@/lib/crm/domain/setting-group'
 import QuoteNoField from './QuoteNoField'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import styles from './settings.module.css'
 import SharedSettingsCard from '@/components/ui/settings/SettingsCard'
 import StatusPill from '@/components/ui/settings/StatusPill'
+import {
+  ACTION, progress, settingFieldState, SETTING_SAVE_LABEL, settingSaveDisabled,
+} from '@/lib/terms'
 
 interface Choice { value: string; label: string; hint?: string }
 
@@ -42,7 +48,15 @@ const SOURCE_LABEL: Record<SettingItem['source'], string> = {
   FALLBACK: '기본값',
 }
 
-export default function SettingsCard() {
+/**
+ * 설정 묶음 하나를 그린다.
+ *
+ * `group` 을 주면 그 묶음만 그린다. 안 주면 예전처럼 있는 묶음을 전부 그린다.
+ * 왜 나눌 수 있어야 하나: 설정 화면이 분류 탭으로 나뉜 뒤로, 한 부품이 성격이 다른
+ * 카드 둘(견적서 공급자 정보 · AI·연동 설정)을 함께 그리면 **어느 탭에 넣어도 한쪽이 거짓말을 한다.**
+ * 실제로 AI 카드가 「견적」 탭에 실려 나왔다(실브라우저 확인 2026-09-20).
+ */
+export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}) {
   // 「오늘」은 KST 다 — 미리보기 번호가 한국 자정~아침 9시에 어제 날짜로 보이면 안 된다
   const todayKey = kstTodayKey()
   const [items, setItems] = useState<SettingItem[]>([])
@@ -51,7 +65,7 @@ export default function SettingsCard() {
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { keepDraftsExcept?: string }) => {
     setLoading(true)
     setError(null)
     try {
@@ -63,8 +77,11 @@ export default function SettingsCard() {
       // 시크릿은 초안을 비워 둔다 — 마스킹된 값을 그대로 저장하면 그게 키가 된다
       // 시크릿과 이미지는 초안을 비워 둔다 — 목록이 원본을 주지 않는다(크기만 온다).
       // 마스킹된 값을 그대로 저장하면 그게 값이 된다.
-      setDrafts(Object.fromEntries(list.map((s) =>
-        [s.key, s.kind === 'secret' || s.kind === 'image' ? '' : (s.value ?? '')])))
+      const fresh = Object.fromEntries(list.map((s) =>
+        [s.key, s.kind === 'secret' || s.kind === 'image' ? '' : (s.value ?? '')]))
+      const only = opts?.keepDraftsExcept
+      // 처음 읽을 때는 전부 서버 값으로. 저장 뒤에는 **그 칸만** — 나머지는 쓰던 글을 지킨다
+      setDrafts((prev) => (only ? { ...prev, [only]: fresh[only] ?? '' } : fresh))
     } catch {
       setError('설정을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -99,7 +116,14 @@ export default function SettingsCard() {
       })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '저장하지 못했습니다.'); return }
-      void load()
+      /*
+        **다시 읽되 남의 초안은 건드리지 않는다.**
+
+        예전에는 `load()` 가 목록과 함께 **초안 전체**를 서버 값으로 덮었다.
+        그래서 상호를 저장하면 그 옆에서 아직 안 누른 주소·대표자 초안이 조용히 사라졌다.
+        방금 데이터를 잃은 화면에서 또 잃게 할 수는 없다 — 저장한 칸만 서버 값으로 맞춘다.
+      */
+      await load({ keepDraftsExcept: key })
     } catch {
       setError('저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -107,10 +131,25 @@ export default function SettingsCard() {
     }
   }
 
+  /**
+   * 이 칸이 지금 어떤 상태인가 — 저장된 값이 있나, 초안이 그것과 다른가.
+   *
+   * 시크릿과 이미지는 목록이 원본을 안 준다(마스킹·크기만 온다). 그래서 «초안이 비었나»로
+   * 갈린다 — 새 값을 넣었으면 고치는 중이고, 안 넣었으면 그대로다.
+   */
+  const fieldState = (s: SettingItem) => {
+    const hasSaved = s.source !== 'FALLBACK'
+    const opaque = s.kind === 'secret' || s.kind === 'image'
+    const changed = opaque ? (drafts[s.key] ?? '') !== '' : (drafts[s.key] ?? '') !== (s.value ?? '')
+    return settingFieldState(hasSaved, changed)
+  }
+
   if (loading && items.length === 0) return <AXDotLoader />
 
   // 순서는 상수가 정한다 — 화면이 정하면 카드가 늘어날 때마다 여기가 갈린다
-  const groups = GROUP_ORDER.filter((g) => items.some((s) => s.group === g))
+  const groups = GROUP_ORDER
+    .filter((g) => (group ? g === group : true))
+    .filter((g) => items.some((s) => s.group === g))
 
   return (
     <>
@@ -196,8 +235,16 @@ export default function SettingsCard() {
                   />
                 )}
               </div>
-              <NbButton onClick={() => void save(s.key)} disabled={savingKey === s.key}>
-                {savingKey === s.key ? '저장 중…' : '저장'}
+              {/*
+                **단추가 칸의 상태를 말한다.** 늘 「저장」이면 눌렀던 것이 먹었는지,
+                지금 누르면 무슨 일이 나는지 둘 다 못 말한다 — 사람은 안 먹은 줄 알고 다시 누른다
+                (사용자 지적 2026-09-20). 말은 lib/terms 가 정한다.
+              */}
+              <NbButton
+                onClick={() => void save(s.key)}
+                disabled={savingKey === s.key || settingSaveDisabled(fieldState(s))}
+              >
+                {savingKey === s.key ? progress(ACTION.save) : SETTING_SAVE_LABEL[fieldState(s)]}
               </NbButton>
             </div>
 
