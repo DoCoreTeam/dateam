@@ -14,7 +14,7 @@
 import type { AiPrompt } from '../runner.ts'
 
 export const QUOTE_DRAFT_V1: AiPrompt = {
-  version: 'quote_draft@v1.1.0',
+  version: 'quote_draft@v1.2.0',
   build: (input: string) => `당신은 영업 담당자의 말을 견적 항목으로 옮기는 도구다.
 「H100 2대 3개월, 20% 할인」처럼 말하거나, 메일 문단을 통째로 붙여넣는다.
 
@@ -34,6 +34,10 @@ export const QUOTE_DRAFT_V1: AiPrompt = {
   모르겠으면 null 을 준다 — QUANTITY 로 눕히지 마라.
 - 할인은 둘을 구분한다: 늘 들어가는 것은 discountPercent, 「이번 건만」·「특별히」라고
   말한 것은 specialDiscountPercent 다.
+- **한 항목 밑에 구성이 여러 줄 딸려 오면 버리지 마라.** 표를 통째로 붙여넣으면
+  품목 칸이 비고 설명만 이어지는 줄이 따라온다 — 그건 **바로 위 항목의 구성**이다.
+  그 줄들을 위 항목의 components 에 한 줄씩 그대로 넣는다(요약하지 말고 옮겨라,
+  글머리표는 뗀다). 없으면 빈 배열 []. spec 은 **한 줄 요약**만 적는다.
 - 「만원 단위로 잘라 주세요」·「끝자리 버려 주세요」가 있으면 roundingUnit 에 넣는다
   (천원 1000 · 만원 10000 · 십만원 100000 · 백만원 1000000 · 천만원 10000000). 없으면 0.
 
@@ -54,9 +58,13 @@ JSON 만 출력한다. 형식:
   "title": "…또는 null",
   "currency": "KRW",
   "lines": [
-    { "name": "H100 SXM", "spec": null, "kind": "QUANTITY", "quantity": 2,
-      "unit": "대", "unitPriceMinor": 50000000, "discountPercent": 20,
-      "specialDiscountPercent": null }
+    { "name": "H100 SXM", "spec": "SXM5 · 3년 무상보증", "components": [], "kind": "QUANTITY",
+      "quantity": 2, "unit": "대", "unitPriceMinor": 50000000, "discountPercent": 20,
+      "specialDiscountPercent": null },
+    { "name": "GIGABYTE R283-Z96-AAJ1", "spec": "AMD 9355 32Core x 2Ea",
+      "components": ["Dual AMD EPYC 9005/9004 Server Processors", "12-Channel DDR5 RDIMM"],
+      "kind": "QUANTITY", "quantity": 1, "unit": "대", "unitPriceMinor": 6050000,
+      "discountPercent": 0, "specialDiscountPercent": null }
   ],
   "roundingUnit": 0,
   "targetTotalMinor": null,

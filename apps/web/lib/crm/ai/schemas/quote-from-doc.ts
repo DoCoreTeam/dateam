@@ -50,21 +50,19 @@
  */
 
 import { z } from 'zod'
-import { softString, amount, ratio, kind } from './quote-draft.ts'
+import {
+  softString, amount, ratio, kind,
+  componentsField, MAX_DOC_COMPONENT_LINES, MAX_COMPONENT_TEXT,
+} from './quote-draft.ts'
+
+/*
+  구성 줄 규칙은 **붙여넣기 스키마와 한 벌**이다 — 여기서 다시 적으면 파일로 읽은 견적과
+  붙여넣기로 만든 견적이 다른 모양이 된다. 이름은 그대로 내보내 부르던 곳이 안 깨지게 둔다.
+*/
+export { MAX_DOC_COMPONENT_LINES, MAX_COMPONENT_TEXT }
 
 /** 한 문서에서 받을 항목 수 상한. 부속명세가 붙은 견적서도 이 안에 든다 */
 export const MAX_DOC_LINES = 200
-
-/**
- * 항목 하나에 딸릴 구성 줄 수 상한.
- *
- * 서버 섀시 한 대의 구성이 실측 13줄이었다. 마흔이면 그런 항목이 세 벌 붙어도 든다.
- * **이 숫자는 여기 한 곳에만 있다** — 설정 기본값도 이 값을 가리킨다.
- */
-export const MAX_DOC_COMPONENT_LINES = 40
-
-/** 구성 한 줄의 길이 상한. 한 줄이 이보다 길면 그것은 구성이 아니라 문단이다 */
-export const MAX_COMPONENT_TEXT = 200
 
 /** 원문 조각의 길이 상한 — 대조용이라 그 줄만 있으면 된다 */
 const MAX_SOURCE_TEXT = 300
@@ -109,18 +107,6 @@ const pageNo = z.preprocess((v) => {
   const n = typeof v === 'string' ? Number(v.replace(/[^\d]/g, '')) : v
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.floor(n) : null
 }, z.number().int().min(1).nullable())
-
-/** 구성 줄 목록. 넘치는 것은 **자른다** — 던지면 그 문서 전체를 못 읽는다 */
-function componentsField(limit: number) {
-  return z.preprocess((v) => {
-    if (!Array.isArray(v)) return []
-    return v
-      .filter((x): x is string => typeof x === 'string')
-      .map((s) => s.replace(/\s+/g, ' ').trim().slice(0, MAX_COMPONENT_TEXT))
-      .filter((s) => s.length > 0)
-      .slice(0, limit)
-  }, z.array(z.string().max(MAX_COMPONENT_TEXT)))
-}
 
 /** 항목 목록도 같은 이유로 자른다 */
 function linesField(limits: DocLimits) {

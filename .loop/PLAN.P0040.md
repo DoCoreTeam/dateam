@@ -148,7 +148,7 @@
 의존: I08, I09
 
 ### I11 같은 성격의 자리를 전부 고친다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ai/prompts/quote-draft.v1.ts, apps/web/lib/crm/ai/schemas/quote-draft.ts, apps/web/lib/crm/domain/quote-cost-intake.ts, apps/web/lib/crm/domain/quote-cost-intake.test.ts
 감사 기준:

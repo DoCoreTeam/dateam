@@ -51,14 +51,52 @@ export const ratio = z.preprocess((v) => {
 /** 줄의 종류 — 모르는 값이 오면 «수량»으로 눕히지 않고 거절한다(라벨이 실제와 달라진다) */
 export const kind = z.enum(['QUANTITY', 'EFFORT', 'PERIOD', 'FIXED', 'RATIO', 'DISCOUNT']).nullable()
 
+/**
+ * 항목 하나에 딸릴 구성 줄 수 상한.
+ *
+ * 서버 섀시 한 대의 구성이 실측 13줄이었다. 마흔이면 그런 항목이 세 벌 붙어도 든다.
+ * **이 숫자는 여기 한 곳에만 있다** — 설정 기본값도 이 값을 가리킨다.
+ */
+export const MAX_DOC_COMPONENT_LINES = 40
+
+/** 구성 한 줄의 길이 상한. 한 줄이 이보다 길면 그것은 구성이 아니라 문단이다 */
+export const MAX_COMPONENT_TEXT = 200
+
+/**
+ * 구성 줄 목록. 넘치는 것은 **자른다** — 던지면 그 문서 전체를 못 읽는다.
+ *
+ * **두 경로가 같은 것을 쓴다.** 파일로 읽든 말로 붙여넣든 구성이 담기는 모양은 하나여야
+ * 한다. 두 벌이면 한쪽만 자르거나 한쪽만 빈 줄을 남기고, 같은 내용이 넣는 방법에 따라
+ * 달라진다 — 그 차이는 사람이 설명할 수 없다.
+ */
+export function componentsField(limit: number) {
+  return z.preprocess((v) => {
+    if (!Array.isArray(v)) return []
+    return v
+      .filter((x): x is string => typeof x === 'string')
+      .map((t) => t.replace(/\s+/g, ' ').trim().slice(0, MAX_COMPONENT_TEXT))
+      .filter((t) => t.length > 0)
+      .slice(0, limit)
+  }, z.array(z.string().max(MAX_COMPONENT_TEXT)))
+}
+
 export const QuoteDraftOutputSchema = z.object({
   /** 견적 제목. 못 찾으면 null — 화면이 딜 이름으로 채운다 */
   title: softString,
   currency: softString,
   lines: z.array(z.object({
     name: softString,
-    /** 규격·설명 */
+    /** 규격·설명 — **한 줄 요약**이다. 여러 줄은 components 로 간다 */
     spec: softString,
+    /**
+     * 그 항목에 딸린 구성 줄.
+     *
+     * **파일 경로에만 두면 같은 화면이 두 결과를 낸다.** 사람은 견적서를 파일로도 올리고
+     * 표를 통째로 붙여넣기도 하는데, 붙여넣기만 구성을 못 받으면 같은 내용이
+     * 어떻게 넣었느냐에 따라 달라진다 — 그 차이는 아무도 설명할 수 없다.
+     * 담고 자르는 규칙은 문서 스키마 한 곳에서 온다.
+     */
+    components: componentsField(MAX_DOC_COMPONENT_LINES),
     kind,
     quantity: ratio,
     unit: softString,

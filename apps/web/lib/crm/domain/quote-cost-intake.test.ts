@@ -155,3 +155,67 @@ test('★ 묶음은 한 트랜잭션이다 — 줄마다 커밋하면 절반만 
   assert.ok(!/createDealCost\(/.test(fn), '낱개 함수를 돌려 부르면 트랜잭션이 줄마다 열린다')
   assert.match(fn, /MAX_COST_BATCH/, '상한이 없다')
 })
+
+/* ── 같은 성격의 자리를 전부 (v0.10.31x) ─────────── */
+
+/*
+  **왜 여기서 보나**: 파일 경로만 고치면 붙여넣기로 만든 견적과 원가로 보낸 항목은
+  여전히 규격 한 줄이다. 같은 내용이 **넣는 방법에 따라** 달라지고, 그 차이는
+  아무도 설명할 수 없다(이 저장소가 반복한 「인물만 고치고 회사는 안 고침」과 같은 모양).
+*/
+
+test('★ 원가로 보낸 항목도 구성을 함께 나른다 — 매입끼리 견주려면 구성이 있어야 한다', () => {
+  const composed = ['AMD 9355 32Core x 2Ea', 'Dual AMD EPYC 9005/9004', '12-Channel DDR5'].join('\n')
+  const [out] = toCostPayloads(
+    [{ name: 'GIGABYTE R283-Z96-AAJ1', descriptionMd: composed, amountMinor: '6050000', sourceText: '원문 줄' }],
+    { category: 'HARDWARE', stage: 'PLANNED', fileName: 'a.pdf' },
+  )
+  assert.equal(out.descriptionMd, composed, '구성이 잘리거나 한 줄로 뭉쳤다')
+  assert.ok(out.descriptionMd?.includes('\n'), '줄바꿈이 사라졌다')
+})
+
+test('★ 붙여넣기 스키마도 구성을 받는다 — 파일만 고치면 같은 화면이 두 결과를 낸다', async () => {
+  const { QuoteDraftOutputSchema, MAX_DOC_COMPONENT_LINES } =
+    await import('../ai/schemas/quote-draft.ts')
+  const parsed = QuoteDraftOutputSchema.parse({
+    title: null, currency: 'KRW', roundingUnit: 0,
+    targetTotalMinor: null, targetIncludesTax: false, taxPercent: null, unclear: [],
+    lines: [{
+      name: 'GIGABYTE R283-Z96-AAJ1', spec: 'AMD 9355 32Core x 2Ea',
+      components: ['Dual AMD EPYC 9005/9004', '12-Channel DDR5'],
+      kind: 'QUANTITY', quantity: 1, unit: '대', unitPriceMinor: 6050000,
+      discountPercent: null, specialDiscountPercent: null,
+    }],
+  })
+  assert.deepEqual(parsed.lines[0].components, ['Dual AMD EPYC 9005/9004', '12-Channel DDR5'])
+  assert.equal(MAX_DOC_COMPONENT_LINES, 40)
+})
+
+test('★ 두 경로가 같은 상한을 쓴다 — 한 곳에서만 오면 갈릴 수가 없다', async () => {
+  const draft = await import('../ai/schemas/quote-draft.ts')
+  const doc = await import('../ai/schemas/quote-from-doc.ts')
+  assert.equal(doc.MAX_DOC_COMPONENT_LINES, draft.MAX_DOC_COMPONENT_LINES)
+  assert.equal(doc.MAX_COMPONENT_TEXT, draft.MAX_COMPONENT_TEXT)
+
+  // 값이 나오는 단정 — 붙여넣기 경로도 실제로 잘리나
+  const many = Array.from({ length: draft.MAX_DOC_COMPONENT_LINES + 5 }, (_, i) => `구성 ${i}`)
+  const parsed = draft.QuoteDraftOutputSchema.parse({
+    title: null, currency: 'KRW', roundingUnit: 0,
+    targetTotalMinor: null, targetIncludesTax: false, taxPercent: null, unclear: [],
+    lines: [{
+      name: 'A', spec: null, components: many, kind: null, quantity: 1, unit: null,
+      unitPriceMinor: null, discountPercent: null, specialDiscountPercent: null,
+    }],
+  })
+  assert.equal(parsed.lines[0].components.length, draft.MAX_DOC_COMPONENT_LINES)
+})
+
+test('★ 붙여넣기 화면도 구성을 폼으로 나른다 — 받아 놓고 안 넘기면 저장에서 사라진다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { join, dirname } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const web = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
+  const src = readFileSync(join(web, 'components/ui/crm/QuoteFillPanel.tsx'), 'utf8')
+  assert.match(src, /descriptionMd: joinSpec\(l\.spec, l\.components\)/,
+    '말로 채우기가 구성을 버린다')
+})

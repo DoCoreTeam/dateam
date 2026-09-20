@@ -36,6 +36,7 @@ import {
   type DocLineJson, type DocQuoteJson, type FileReview,
 } from './quote-review'
 import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
+import { joinSpec } from '@/lib/crm/domain/quote-spec'
 import styles from './quote-panel.module.css'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { quoteWaitProgress } from '@/lib/crm/ui/quote-read-progress'
@@ -86,7 +87,8 @@ function saidLine(l: DocLineJson): QuoteLineDraft {
   return {
     productId: null,
     name: l.name ?? '',
-    descriptionMd: l.spec ?? '',
+    // 구성은 규격 아래 줄로 붙는다 — 붙이는 규칙은 파일 경로와 같은 한 곳이다
+    descriptionMd: joinSpec(l.spec, l.components),
     kind: k,
     quantity: l.quantity === null ? '1' : String(l.quantity),
     unit: l.unit ?? LINE_KIND_UNIT[k],
