@@ -414,3 +414,40 @@ test('★ 특별가는 할인율이 0이어도 말한다 — 「30% → 80%」�
   assert.equal(doc.lines[0].isSpecialDiscount, true, '특별가로 잡혀야 이 시험이 뜻이 있다')
   assert.equal(hasDiscount(doc), true)
 })
+
+/* ── 구성 줄 (v0.10.30x) ────────────────────────── */
+
+/*
+  **왜 문서가 가르나**: 저장 칸에는 규격과 구성이 한 덩어리로 들어 있다.
+  문서가 안 가르면 화면·인쇄·엑셀이 저마다 가르게 되고, 그러면 같은 견적이
+  자리마다 다르게 보인다.
+*/
+
+test('★ 저장된 글의 첫 줄이 규격, 아래가 구성이다', () => {
+  const d = buildQuoteDocument(input({
+    lines: [{
+      name: 'GIGABYTE R283-Z96-AAJ1',
+      descriptionMd: 'AMD 9355 32Core x 2Ea\nDual AMD EPYC 9005/9004\n12-Channel DDR5 RDIMM',
+      unit: '대', quantity: '1', unitPriceMinor: BigInt(6050000),
+      discountPercent: '0', lineTotalMinor: BigInt(6050000),
+    }],
+  }))
+  assert.equal(d.lines[0].spec, 'AMD 9355 32Core x 2Ea')
+  assert.deepEqual(d.lines[0].components, ['Dual AMD EPYC 9005/9004', '12-Channel DDR5 RDIMM'])
+})
+
+test('한 줄짜리 규격은 구성이 비어 있다 — 예전 견적이 그대로 그려져야 한다', () => {
+  const d = buildQuoteDocument(input({
+    lines: [{
+      name: 'H100', descriptionMd: 'SXM5', unit: '대', quantity: '1',
+      unitPriceMinor: BigInt(1), discountPercent: '0', lineTotalMinor: BigInt(1),
+    }],
+  }))
+  assert.equal(d.lines[0].spec, 'SXM5')
+  assert.deepEqual(d.lines[0].components, [])
+})
+
+test('★ 구성을 종이에 낼지는 문서가 들고 간다 — 안 주면 «편다»', () => {
+  assert.equal(buildQuoteDocument(input({})).meta.printComponents, 'expand',
+    '기본이 접기면 원본에 있던 것을 우리가 숨기는 셈이다')
+})

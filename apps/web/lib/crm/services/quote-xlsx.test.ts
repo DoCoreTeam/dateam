@@ -367,3 +367,70 @@ test('★ 할인 줄이 빠지면 아래 수식이 당겨진 행을 가리킨다
   assert.ok(!tax.formula?.includes(`G${tax.row}`), `부가세 수식이 제 줄을 가리킨다(순환) — ${tax.formula}`)
   assert.ok(grand.formula?.includes(`G${tax.row}`), `합계 수식이 부가세 줄을 안 본다 — ${grand.formula}`)
 })
+
+/* ── 구성 줄 (v0.10.30x) ────────────────────────── */
+
+/** 항목에 구성 열세 줄이 붙은 견적 — 실측 사례와 같은 두께 */
+const THIRTEEN = Array.from({ length: 13 }, (_, i) => `구성 ${i + 1}번째 줄`)
+
+test('★ 구성이 엑셀에도 간다 — 한쪽에만 있으면 어느 것이 진짜인지 모른다', async () => {
+  const buffer = await quoteDocumentToXlsx({ document: doc({
+    lines: [{
+      name: 'GIGABYTE R283-Z96-AAJ1',
+      descriptionMd: ['AMD 9355 32Core x 2Ea', ...THIRTEEN].join('\n'),
+      unit: '대', quantity: '1', unitPriceMinor: BigInt(6050000),
+      discountPercent: '0', lineTotalMinor: BigInt(6050000),
+    }],
+  }) })
+  const text = await textOf(buffer.buffer)
+  assert.ok(text.includes('구성 13번째 줄'), '마지막 구성 줄이 파일에 없다')
+  assert.ok(text.includes('AMD 9355 32Core x 2Ea'), '규격이 사라졌다')
+})
+
+test('★ 행 높이가 구성 줄 수를 따라간다 — 34 로 못 박으면 아홉 줄이 칸 밖으로 잘린다', async () => {
+  const heightOf = async (descriptionMd: string) => {
+    const buffer = await quoteDocumentToXlsx({ document: doc({
+      lines: [{
+        name: 'GIGABYTE R283-Z96-AAJ1', descriptionMd,
+        unit: '대', quantity: '1', unitPriceMinor: BigInt(6050000),
+        discountPercent: '0', lineTotalMinor: BigInt(6050000),
+      }],
+    }) })
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buffer.buffer as unknown as ArrayBuffer)
+    const ws = wb.worksheets[0]
+    let found = 0
+    ws.eachRow((row) => {
+      const v = row.getCell(2).value
+      if (typeof v === 'string' && v.startsWith('GIGABYTE')) found = Number(row.height ?? 0)
+    })
+    return found
+  }
+
+  const short = await heightOf('AMD 9355 32Core x 2Ea')
+  const long = await heightOf(['AMD 9355 32Core x 2Ea', ...THIRTEEN].join('\n'))
+  assert.ok(long > short * 3,
+    `구성 13줄짜리 행이 안 커졌다 (짧은 줄 ${short} · 긴 줄 ${long})`)
+})
+
+test('★ 접어서 인쇄로 두면 엑셀에도 구성이 안 나온다 — 인쇄와 엑셀은 같은 약속이다', async () => {
+  const buffer = await quoteDocumentToXlsx({ document: doc({
+    quote: {
+      quoteNo: 'Q-2026-0014', title: 'GPU 인프라 구축 견적', currency: 'KRW',
+      validUntil: '2026-09-27', createdAt: '2026-08-27T00:00:00.000Z',
+      subtotalMinor: BigInt(510000000), discountMinor: BigInt(18750000),
+      taxMinor: BigInt(49125000), totalMinor: BigInt(540375000),
+      notesMd: null,
+      printComponents: 'collapse',
+    },
+    lines: [{
+      name: 'GIGABYTE R283-Z96-AAJ1',
+      descriptionMd: ['AMD 9355 32Core x 2Ea', ...THIRTEEN].join('\n'),
+      unit: '대', quantity: '1', unitPriceMinor: BigInt(6050000),
+      discountPercent: '0', lineTotalMinor: BigInt(6050000),
+    }],
+  }) })
+  const text = await textOf(buffer.buffer)
+  assert.ok(!text.includes('구성 13번째 줄'), '접기로 뒀는데 구성이 나왔다')
+  assert.ok(text.includes('AMD 9355 32Core x 2Ea'), '규격까지 사라지면 안 된다')
+})

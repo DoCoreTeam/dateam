@@ -158,6 +158,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   const ExcelJS = (await import('exceljs')).default
   const doc = input.document
   const cur = doc.meta.currency
+  // 구성을 엑셀에 낼지는 인쇄와 **같은 약속**이다 — 한쪽에만 나오면 어느 것이 진짜인지 모른다
+  const printComponents = doc.meta.printComponents
   const fmt = numFmt(cur)
   /*
     **할인이 없으면 파일도 할인을 말하지 않는다.** 판정은 화면과 같은 함수에서 온다
@@ -195,10 +197,19 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   ws.views = [{ showGridLines: false }]
 
   /** 한글은 한 글자가 두 칸을 먹는다 — 줄 수를 세어 행 높이를 정한다 */
+  /**
+   * 그 글이 몇 줄로 접힐지 재서 행 높이를 낸다.
+   *
+   * **줄바꿈을 센다.** 예전에는 글자 폭만 나눠서, 짧은 줄 열세 개가 든 칸을
+   * 네 줄로 계산했다 — 셀에는 다 들어 있는데 아홉 줄이 칸 밖으로 잘렸다.
+   * 엑셀은 잘린 것을 알려 주지 않으므로, 받은 사람은 그 줄이 없는 줄 안다.
+   */
   const wrapHeight = (text: string, colWidth: number, base = 15): number => {
-    const w = Array.from(text).reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2000 ? 2 : 1), 0)
-    const lines = Math.max(1, Math.ceil(w / Math.max(4, colWidth * 2 - 2)))
-    return base * lines
+    const widthOf = (t: string) =>
+      Array.from(t).reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2000 ? 2 : 1), 0)
+    const lines = text.split('\n').reduce((sum, one) =>
+      sum + Math.max(1, Math.ceil(widthOf(one) / Math.max(4, colWidth * 2 - 2))), 0)
+    return base * Math.max(1, lines)
   }
 
   const border = {
@@ -501,8 +512,14 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
 
   for (const line of group.lines) {
     lineRows.push(r)
-    // 규격은 품목 아래 줄바꿈으로 붙인다 — 별도 열을 만들면 표가 가로로 넘친다
-    const name = line.spec ? `${line.name}\n${line.spec}` : line.name
+    /*
+      규격과 구성은 품목 아래 줄바꿈으로 붙인다 — 별도 열을 만들면 표가 가로로 넘친다.
+      **구성도 함께 간다.** 엑셀만 빠지면 받은 사람이 「우리가 받은 문서에는 있었는데」
+      하게 된다. 인쇄에서 접기로 둔 회사는 엑셀에서도 안 나온다 — 같은 약속이어야 한다.
+    */
+    const specLines = [line.spec, ...(printComponents === 'collapse' ? [] : line.components)]
+      .filter((v): v is string => Boolean(v))
+    const name = specLines.length > 0 ? `${line.name}\n${specLines.join('\n')}` : line.name
     const values: (string | number | { formula: string })[] = [
       line.no,
       name,
@@ -538,9 +555,12 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       else cell.alignment = { horizontal: 'center', vertical: 'middle' }
       if (i === 4 || i === 6) cell.numFmt = fmt
     })
-    // 품목+규격이 두 줄이라 높이를 준다. 긴 품목명은 더 필요할 수 있다
-    // 화면의 행 여백에 맞춘다 — 빽빽하면 표가 아니라 격자로 읽힌다
-    ws.getRow(r).height = Math.max(line.spec ? 34 : 22, wrapHeight(name, COLUMNS[1].width, 16))
+    /*
+      **높이를 줄 수로 낸다.** 예전에는 규격이 있으면 34 로 못 박아서, 구성이 열세 줄이면
+      열두 줄이 칸 밖으로 잘렸다 — 셀에는 있는데 눈에는 안 보이는 상태다.
+      `wrapHeight` 가 줄바꿈까지 세므로 그 값을 그대로 쓴다.
+    */
+    ws.getRow(r).height = Math.max(specLines.length > 0 ? 34 : 22, wrapHeight(name, COLUMNS[1].width, 16))
     r += 1
     }
 

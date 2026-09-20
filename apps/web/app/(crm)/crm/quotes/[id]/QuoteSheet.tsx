@@ -77,6 +77,17 @@ export default function QuoteSheet({ doc, logo, surface = 'screen' }: Props) {
                     <td>
                       <div className={styles.lineName}>{l.name}</div>
                       {l.spec && <div className={styles.spec}>{l.spec}</div>}
+                      {/*
+                        **구성은 화면에 늘 나온다.** 종이에 낼지만 설정이 정한다 —
+                        구성이 길면 견적서가 한 장을 넘기 때문이다. 숨기는 일은 CSS 가
+                        인쇄에서만 하므로, 값은 언제나 여기 있다(사라진 것과 접힌 것을
+                        구분할 수 있게).
+                      */}
+                      {l.components.length > 0 && (
+                        <ul className={styles.components} data-print={doc.meta.printComponents}>
+                          {l.components.map((c, i) => <li key={i}>{c}</li>)}
+                        </ul>
+                      )}
                     </td>
                     <td className={styles.center}>{l.unit ?? ''}</td>
                     <td className={styles.num}>{Number(l.quantity).toLocaleString('ko-KR')}</td>

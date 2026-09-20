@@ -103,7 +103,7 @@
 의존: 없음
 
 ### I07 인쇄와 엑셀이 구성을 그대로 낸다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(crm)/crm/quotes/[id]/QuoteSheet.tsx, apps/web/app/(crm)/crm/quotes/[id]/quote-document.module.css, apps/web/lib/crm/services/quote-xlsx.ts, apps/web/lib/crm/domain/quote-document.ts
 감사 기준:

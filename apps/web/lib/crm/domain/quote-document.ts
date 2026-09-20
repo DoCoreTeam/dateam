@@ -21,6 +21,7 @@ import { QUOTE, hangulAmount, SUPPLIER_ORDER, SUPPLIER_LABEL, type SupplierField
 import { checkI2, checkI5, type Violation } from './invariants.ts'
 import { computeLine } from './quote-math.ts'
 import { convertMinor } from './currency.ts'
+import { splitSpec } from './quote-spec.ts'
 
 // ------------------------------------------------------------
 // 문서의 모양
@@ -108,8 +109,16 @@ export interface DocumentLine {
   /** 어느 묶음인지. null 이면 묶이지 않은 항목 */
   sectionId: string | null
   name: string
-  /** 규격·설명 */
+  /** 규격·설명 — 저장된 글의 **첫 줄** */
   spec: string | null
+  /**
+   * 그 항목의 구성 줄 — 저장된 글의 **둘째 줄부터**.
+   *
+   * 한 칸에 담아 두고 여기서 가른다(`domain/quote-spec.ts`). 문서가 이 둘을 갈라
+   * 받아야 화면·인쇄·엑셀이 「규격은 작게, 구성은 목록으로」를 같은 모양으로 그린다.
+   * 안 가르면 열세 줄이 규격 자리에 한 덩어리로 들어가 줄바꿈이 뭉갠 채로 인쇄된다.
+   */
+  components: string[]
   unit: string | null
   quantity: string
   unitPriceMinor: string
@@ -185,6 +194,14 @@ export interface QuoteDocument {
     revision: string
     /** 다른 안의 이름 — 「2안」. 없으면 빈 문자열 */
     variantLabel: string
+    /**
+     * 구성 줄을 **종이에** 낼까.
+     *
+     * 화면에서는 늘 보인다. 갈리는 것은 인쇄본뿐이다 — 구성이 길면 견적서가
+     * 한 장을 넘고, 한 장으로 받고 싶은 회사가 있다. 설정에서 온다
+     * (`services/quote-import-config.ts`).
+     */
+    printComponents: 'expand' | 'collapse'
   }
   lines: DocumentLine[]
   totals: DocumentTotals
@@ -221,6 +238,10 @@ export interface BuildQuoteDocumentInput {
     revision?: number | null
     /** 다른 안의 이름 */
     variantLabel?: string | null
+    /**
+     * 구성 줄을 종이에 낼까. 안 주면 «편다» — 원본에 있던 것을 기본으로 숨기지 않는다
+     */
+    printComponents?: 'expand' | 'collapse' | null
     /** 절사로 깎인 금액 — 저장된 값(서버가 계산한다) */
     roundingMinor?: bigint | string | null
   }
@@ -395,6 +416,8 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       title: input.quote.title,
       revision: Number(input.quote.revision ?? 1) > 1 ? `Rev.${input.quote.revision}` : '',
       variantLabel: text(input.quote.variantLabel) || '',
+      // 안 주면 편다 — 원본에 있던 것을 우리가 기본으로 숨기면 그게 이번에 고친 결함이다
+      printComponents: input.quote.printComponents === 'collapse' ? 'collapse' : 'expand',
       issuedOn,
       validUntil,
       currency,
@@ -423,7 +446,9 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       no: i + 1,
       sectionId: l.sectionId ?? null,
       name: l.name,
-      spec: text(l.descriptionMd) || null,
+      // 첫 줄이 규격, 아래가 구성 — 가르는 규칙은 quote-spec 한 곳이다
+      spec: splitSpec(l.descriptionMd).spec || null,
+      components: splitSpec(l.descriptionMd).components,
       unit: text(l.unit) || null,
       quantity: s(l.quantity),
       unitPriceMinor: s(l.unitPriceMinor),

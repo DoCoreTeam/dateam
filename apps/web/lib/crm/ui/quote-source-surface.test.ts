@@ -229,3 +229,56 @@ test('쪽을 모르면 아무 말도 안 한다 — 1쪽이라고 넘겨짚으�
   assert.equal(fillSourcePage(2, 2), '원본 2쪽')
   assert.equal(fillSourcePage(2, 3), '원본 2-3쪽')
 })
+
+/* ── 구성이 종이까지 가나 ─────────────────────────── */
+
+const SHEET = join(WEB, 'app/(crm)/crm/quotes/[id]/QuoteSheet.tsx')
+
+test('★ 견적서 규격 자리가 줄바꿈을 살린다 — 안 살리면 여러 줄이 한 줄로 뭉친다', () => {
+  const css = read(VIEW_CSS)
+  const rule = css.slice(css.indexOf('.spec {'), css.indexOf('}', css.indexOf('.spec {')) + 1)
+  assert.match(rule, /white-space:\s*pre-line/, '규격이 아직 한 줄로 뭉친다')
+})
+
+test('★ 견적서가 구성을 값으로 그린다 — 선언만으로는 종이에 안 나온다', () => {
+  const src = read(SHEET)
+  assert.match(src, /l\.components\.map\(/, '구성을 안 그린다')
+  assert.match(src, /data-print=\{doc\.meta\.printComponents\}/,
+    '인쇄 설정이 그 자리에 안 붙는다 — 접기를 골라도 종이에 다 나온다')
+})
+
+/**
+ * `@media print { ... }` 덩어리를 **중괄호를 세어** 잘라 낸다.
+ *
+ * 마지막 하나만 보면 안 된다 — 이 파일에는 인쇄 블록이 둘이고, 규칙이 앞쪽에 있으면
+ * 가드가 「인쇄에서 안 접힌다」고 거짓말한다(실제로 그렇게 한 번 틀렸다).
+ */
+function printBlocks(css: string): string[] {
+  const out: string[] = []
+  let at = css.indexOf('@media print')
+  while (at >= 0) {
+    const open = css.indexOf('{', at)
+    let depth = 0
+    let i = open
+    for (; i < css.length; i += 1) {
+      if (css[i] === '{') depth += 1
+      else if (css[i] === '}') { depth -= 1; if (depth === 0) break }
+    }
+    out.push(css.slice(open, i + 1))
+    at = css.indexOf('@media print', i)
+  }
+  return out
+}
+
+test('★ 접기는 인쇄에서만 한다 — 화면에서도 숨기면 사라진 것과 구분이 안 된다', () => {
+  const css = read(VIEW_CSS)
+  const blocks = printBlocks(css)
+  assert.ok(blocks.length > 0, '인쇄 블록을 못 찾았다 — 가드가 헛돌고 있다')
+
+  const RULE = /\.components\[data-print='collapse'\]\s*\{\s*display:\s*none/
+  assert.ok(blocks.some((b) => RULE.test(b)), '인쇄에서 접히지 않는다')
+
+  // 인쇄 블록을 도려낸 나머지에 같은 규칙이 있으면 화면에서도 사라진다
+  const outside = blocks.reduce((acc, b) => acc.replace(b, ''), css)
+  assert.ok(!RULE.test(outside), '화면에서도 숨기고 있다')
+})

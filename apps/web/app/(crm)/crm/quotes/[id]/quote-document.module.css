@@ -197,7 +197,31 @@
 .table .left { text-align: left; }
 
 .lineName { font-weight: 500; }
-.spec { color: var(--text-muted); font-size: var(--fs-xs); margin-top: 0.15rem; }
+/*
+  규격 — **줄바꿈을 살린다.** 저장 칸에는 여러 줄이 들어 있는데 이 자리가
+  한 줄로 뭉개면 원본의 자세함이 종이에서 사라진다.
+*/
+.spec { color: var(--text-muted); font-size: var(--fs-xs); margin-top: 0.15rem; white-space: pre-line; }
+
+/*
+  구성 — 항목 아래 목록으로.
+
+  **화면에는 늘 나온다.** 종이에서만 설정을 따른다(`data-print`) — 구성이 길면
+  견적서가 한 장을 넘기 때문이고, 그 판단은 회사마다 다르다.
+*/
+.components {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.components li { margin: 0.05rem 0; }
+
+@media print {
+  .components[data-print='collapse'] { display: none; }
+}
 
 /* ── 합계 — 표의 tfoot 이라 열이 저절로 맞는다 ─────────────── */
 .table tfoot td {

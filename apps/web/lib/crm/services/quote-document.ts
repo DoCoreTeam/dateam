@@ -13,6 +13,7 @@ import type { CrmDb } from '../db/client.ts'
 import { CrmError } from '../domain/errors.ts'
 import { getQuote } from './quote.ts'
 import { readQuoteSupplier, readQuoteImages } from './setting.ts'
+import { readQuoteImportConfig } from './quote-import-config.ts'
 import { readAsset } from './quote-asset.ts'
 import { pickTitle, readOrgTitle } from './member-title.ts'
 import {
@@ -128,6 +129,12 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   */
   const ownerOrg = await readOrgTitle(owner?.hostUserId ?? null)
 
+  /*
+    구성을 종이에 낼지는 **설정이 정한다.** 화면에서는 늘 보이고 갈리는 것은 인쇄본뿐이다 —
+    구성이 길면 견적서가 한 장을 넘고, 한 장으로 받고 싶은 회사가 있다.
+  */
+  const importConfig = await readQuoteImportConfig(db)
+
   const document = buildQuoteDocument({
     quote: {
       quoteNo: quote.quoteNo,
@@ -138,6 +145,7 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       subtotalMinor: quote.subtotalMinor,
       discountMinor: quote.discountMinor,
       roundingMinor: quote.roundingMinor,
+      printComponents: importConfig.printComponents,
       fxRate: quote.fxRate,
       fxDate: quote.fxDate,
       taxMinor: quote.taxMinor,
