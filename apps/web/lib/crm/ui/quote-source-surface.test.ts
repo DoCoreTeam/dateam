@@ -431,22 +431,43 @@ test('★ 내려받기 길은 그대로 남는다 — 화면에 그렸다고 원
 /*
   **왜**: 구성이 규격과 같은 크기·같은 색으로 붙어 있으면 한 문단으로 읽힌다.
   실제로 그렇게 보였다(사용자 지적 2026-09-21: 「줄바꿈이랑 영역 구분이 안되어 보이니깐
-  그냥 한문장으로 쭉있는것 같자나」). 선·들여쓰기·줄머리 점 셋이 함께 있어야 갈린다.
+  그냥 한문장으로 쭉있는것 같자나」).
+
+  처음에는 왼쪽 세로선과 줄머리 점으로 갈랐다. 그것으로는 모자랐다 — 사양 한 줄이 길어
+  두세 줄로 접히면 점이 어디 붙었는지 눈이 못 쫓는다. 그래서 **줄과 줄 사이를 가로선으로**
+  가른다(사용자 지시: 「연한 줄로 구분 하면 되자나 그래서 깔끔하게」).
+
+  가드가 보는 것은 **선이 줄마다 걸리는가**다. 첫 줄 위에만 선을 두고 나머지를 붙여 놓으면
+  여전히 한 덩어리이므로, `li` 에 걸린 선과 첫 줄을 빼는 규칙을 함께 본다.
 */
 
-test('★ 견적서의 구성이 규격과 눈으로 갈린다 — 선·들여쓰기·줄머리 점', () => {
+test('★ 견적서의 구성이 줄마다 가로선으로 갈린다', () => {
   const css = read(VIEW_CSS)
-  const rule = css.slice(css.indexOf('.components {'), css.indexOf('.components li::before') + 200)
-  assert.match(rule, /border-left:/, '세로선이 없다 — 줄이 여럿이라는 것이 안 보인다')
-  assert.match(rule, /padding:[^;]*0\.75rem|padding-left/, '들여쓰기가 없다')
-  assert.match(rule, /li::before/, '줄머리 점이 없다 — 규격과 안 갈린다')
+  const rule = css.slice(css.indexOf('.components {'), css.indexOf('.components li:last-child') + 120)
+  assert.match(rule, /\.components li \{[^}]*border-top:/, '줄마다 걸리는 선이 없다 — 한 덩어리로 읽힌다')
+  assert.match(rule, /\.components \{[^}]*border-top:/, '규격 아래 선이 없다 — 규격과 구성이 안 갈린다')
+  assert.match(rule, /li:first-child \{[^}]*border-top: none/, '첫 줄 위 선을 안 뺐다 — 규격 아래 선과 겹쳐 두꺼워진다')
 })
 
 test('★ 검수 목록의 구성도 견적서와 같은 모양이다 — 다르면 대조가 흔들린다', () => {
   const css = read(join(WEB, 'components/ui/crm/quote-panel.module.css'))
   const rule = css.slice(css.indexOf('.componentsList {'))
-  assert.match(rule.slice(0, 700), /border-left:/)
-  assert.match(rule.slice(0, 900), /li::before/)
+  assert.match(rule.slice(0, 700), /\.componentsList li \{[^}]*border-top:/, '줄마다 걸리는 선이 없다')
+  assert.match(rule.slice(0, 900), /li:first-child \{[^}]*border-top: none/, '첫 줄 위 선을 안 뺐다')
+})
+
+/*
+  **한 덩어리로 들어온 글을 사람이 한 번에 나눌 수 있어야 한다.**
+
+  표식이 지워진 채 합쳐져 온 견적은 서버가 되살릴 근거가 없다(원본은 그림으로만 남는다).
+  그때 남는 길은 사람이 편집기에서 나누는 것뿐이라, 그 길을 막으면 그 견적은 영영
+  한 문단으로 남는다.
+*/
+test('★ 편집기가 표식대로 줄을 나눠 굳힌다 — 보이기만 갈라선 저장본이 안 바뀐다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteEditorModal.tsx'))
+  assert.match(src, /QUOTE\.lineSpecSplitAction/, '나누기 단추가 없다')
+  assert.match(src, /setLine\(i, \{ descriptionMd: split \}\)/, '누르는 것이 적힌 글을 안 바꾼다')
+  assert.match(src, /splitMarks\(line\.descriptionMd\) !== null &&/, '나눌 것이 없어도 단추를 낸다')
 })
 
 test('★ 규격 칸이 어떻게 갈리는지 그 자리에서 말한다 — 적고 나서도 모르면 안 된다', () => {
