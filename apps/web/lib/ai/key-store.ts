@@ -28,7 +28,22 @@ import {
 } from './key-store-core'
 
 /** 표에서 고르는 데 쓰는 칼럼만. `select('*')` 로 원문 키를 여기저기 흘리지 않는다 */
-const PICK_COLUMNS = 'id, provider, label, api_key, priority, is_active, cooldown_until, disabled_reason, consecutive_failures'
+const PICK_COLUMNS = 'id, provider, label, api_key, priority, is_paid, is_active, cooldown_until, disabled_reason, consecutive_failures'
+
+/**
+ * 읽는 순서. **등급이 먼저다** (false 가 true 앞에 온다).
+ *
+ * 규칙 자체는 `key-pool.orderKeys` 가 정하고 여기서 다시 정하지 않는다. 그런데 표에서
+ * 올라오는 순서까지 달라 두면, 같은 우선순위끼리의 뒷순서가 질의마다 흔들려
+ * 「왜 어제와 다른 키를 썼나」를 설명할 수 없다. 두 질의가 같은 문장을 쓰게 한 곳에 둔다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function orderedByTier(q: any): any {
+  return q
+    .order('is_paid', { ascending: true })
+    .order('priority', { ascending: true })
+    .order('id', { ascending: true })
+}
 
 function gateway(): KeyStoreGateway {
   // 생성된 Database 타입에 아직 이 표가 없다 (types/database.ts 는 재생성 전)
@@ -37,12 +52,10 @@ function gateway(): KeyStoreGateway {
 
   return {
     async readRows(provider: AiProviderId): Promise<KeyRow[]> {
-      const { data, error } = await admin
+      const { data, error } = await orderedByTier(admin
         .from('ai_provider_keys')
         .select(PICK_COLUMNS)
-        .eq('provider', provider)
-        .order('priority', { ascending: true })
-        .order('id', { ascending: true })
+        .eq('provider', provider))
       // supabase-js 는 질의 오류를 던지지 않고 돌려준다 — 검사하지 않으면 조용히 0건이 된다
       if (error) throw new Error(error.message ?? String(error))
       return (data ?? []) as KeyRow[]
@@ -96,20 +109,25 @@ export async function listKeys(provider: AiProviderId): Promise<KeyView[]> {
   const now = Date.now()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
-  const { data, error } = await admin
+  const { data, error } = await orderedByTier(admin
     .from('ai_provider_keys')
     .select(`${PICK_COLUMNS}, last_error`)
-    .eq('provider', provider)
-    .order('priority', { ascending: true })
-    .order('id', { ascending: true })
+    .eq('provider', provider))
   if (error) throw new Error(error.message ?? String(error))
 
   return ((data ?? []) as (KeyRow & { last_error: string | null })[])
     .map((row) => toKeyView(rowToEntry(row, provider), now, row.last_error))
 }
 
-/** 줄을 더한다. 맨 뒤에 붙는다 — 앞부터 소진하는 것이 이 표의 규칙이다 */
-export async function addKey(provider: AiProviderId, label: string, apiKey: string): Promise<void> {
+/**
+ * 줄을 더한다. 맨 뒤에 붙는다 — 앞부터 소진하는 것이 이 표의 규칙이다.
+ *
+ * priority 는 등급을 가리지 않고 전체 최대에서 하나 올린다. 등급이 순서를 이기므로
+ * 무료로 넣은 새 줄은 숫자가 제일 커도 유료 줄보다 앞에 선다(`key-pool.orderKeys`).
+ */
+export async function addKey(
+  provider: AiProviderId, label: string, apiKey: string, isPaid = false,
+): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
   const { data } = await admin.from('ai_provider_keys')
@@ -117,7 +135,7 @@ export async function addKey(provider: AiProviderId, label: string, apiKey: stri
   const nextPriority = ((data?.[0]?.priority as number | undefined) ?? -1) + 1
 
   const { error } = await admin.from('ai_provider_keys')
-    .insert({ provider, label, api_key: apiKey, priority: nextPriority })
+    .insert({ provider, label, api_key: apiKey, priority: nextPriority, is_paid: isPaid })
   if (error) throw new Error(error.message ?? String(error))
 }
 
@@ -133,7 +151,8 @@ export async function moveKey(
   provider: AiProviderId, id: string, direction: 'up' | 'down',
 ): Promise<void> {
   const rows = await listKeys(provider)
-  const changes = reorderPriorities(rows.map((r) => r.id), id, direction)
+  // 보이는 순서 그대로 넘긴다. 등급 경계를 넘는 이동은 규칙 모듈이 빈 목록으로 막는다
+  const changes = reorderPriorities(rows.map((r) => ({ id: r.id, isPaid: r.isPaid })), id, direction)
   if (changes.length === 0) return
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,6 +174,22 @@ export async function setKeyActive(provider: AiProviderId, id: string, active: b
     ...(active ? { disabled_reason: null, consecutive_failures: 0, cooldown_until: null } : {}),
     updated_at: new Date().toISOString(),
   }).eq('id', id).eq('provider', provider)
+  if (error) throw new Error(error.message ?? String(error))
+}
+
+/**
+ * 유료 표시를 바꾼다.
+ *
+ * **priority 는 안 건드린다.** 등급이 순서를 이기므로 표시만 바꿔도 그 줄은 뒤로 가고,
+ * 표시를 되돌리면 원래 자리로 그대로 돌아온다. 여기서 숫자까지 다시 매기면 그 성질이 사라져
+ * 「잘못 눌렀다」를 한 번 더 눌러서 되돌릴 수 없게 된다.
+ */
+export async function setKeyPaid(provider: AiProviderId, id: string, paid: boolean): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { error } = await admin.from('ai_provider_keys')
+    .update({ is_paid: paid, updated_at: new Date().toISOString() })
+    .eq('id', id).eq('provider', provider)
   if (error) throw new Error(error.message ?? String(error))
 }
 

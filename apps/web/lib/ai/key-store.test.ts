@@ -18,6 +18,8 @@ import {
   metaApiKey,
   isMetaEntry,
   redactSecrets,
+  reorderPriorities,
+  toKeyView,
   type KeyRow,
   type KeyStoreGateway,
 } from './key-store-core.ts'
@@ -32,6 +34,7 @@ function row(over: Partial<KeyRow> & { id: string }): KeyRow {
     label: over.id,
     api_key: `${RAW_KEY}-${over.id}`,
     priority: 0,
+    is_paid: false,
     is_active: true,
     cooldown_until: null,
     disabled_reason: null,
@@ -260,4 +263,98 @@ test('★ ai_provider_keys 를 직접 읽고 쓰는 자리는 key-store.ts 하�
 
   assert.deepEqual(offenders, [],
     '원문 키가 든 표를 여러 자리에서 열면 어디가 응답에 싣는지 셀 수 없다')
+})
+
+/* ── 유료 키 (마이그 269) ─────────────────────────────────────────
+   표에서 올라온 등급이 고르는 순서까지 실제로 닿는가. 중간에서 한 번만 떨어뜨려도
+   화면은 그대로 돌고 청구서만 는다. */
+
+test('★ 표의 is_paid 가 고르는 순서까지 닿는다 — 무료가 뒤 번호여도 먼저다', async () => {
+  const gateway = gatewayOf({
+    readRows: async () => [
+      row({ id: 'paid', priority: 0, is_paid: true }),
+      row({ id: 'free', priority: 7 }),
+    ],
+  })
+
+  const pool = await readKeyPoolWith(gateway, 'gemini', NOW)
+
+  assert.deepEqual(pool.map((e) => e.id), ['free', 'paid'])
+  assert.deepEqual(pool.map((e) => e.isPaid), [false, true])
+})
+
+test('is_paid 칸이 없는 옛 줄은 무료로 본다 — 모르는 키로 결제하지 않는다', () => {
+  const legacy = { ...row({ id: 'old' }) } as Partial<KeyRow> as KeyRow
+  delete (legacy as { is_paid?: boolean }).is_paid
+
+  assert.equal(rowToEntry(legacy, 'gemini').isPaid, false)
+})
+
+test('META 로 떨어진 줄도 무료다 — 그 칸에는 등급을 둘 자리가 없다', () => {
+  assert.equal(metaEntry('gemini', RAW_KEY).isPaid, false)
+})
+
+test('★ 화면으로 나가는 줄에 등급이 실리고 원문 키는 안 실린다', () => {
+  const view = toKeyView(rowToEntry(row({ id: 'p', is_paid: true }), 'gemini'), NOW)
+
+  assert.equal(view.isPaid, true)
+  assert.ok(!JSON.stringify(view).includes(RAW_KEY), '가림값이 아니라 원문이 실렸다')
+})
+
+/* ── 순서 옮기기 ──────────────────────────────────────────────── */
+
+const reorderRows = [
+  { id: 'free-a', isPaid: false },
+  { id: 'free-b', isPaid: false },
+  { id: 'paid-a', isPaid: true },
+  { id: 'paid-b', isPaid: true },
+]
+
+test('같은 등급 안에서는 한 칸씩 옮겨진다', () => {
+  assert.deepEqual(reorderPriorities(reorderRows, 'free-a', 'down'),
+    [{ id: 'free-b', priority: 0 }, { id: 'free-a', priority: 1 }])
+  assert.deepEqual(reorderPriorities(reorderRows, 'paid-b', 'up'),
+    [{ id: 'paid-b', priority: 2 }, { id: 'paid-a', priority: 3 }])
+})
+
+test('★ 등급 경계는 못 넘는다 — 유료를 무료 위로 올려 봐야 규칙이 다시 뒤로 보낸다', () => {
+  assert.deepEqual(reorderPriorities(reorderRows, 'paid-a', 'up'), [],
+    '유료 첫 줄이 무료 마지막 줄 위로 올라갔다')
+  assert.deepEqual(reorderPriorities(reorderRows, 'free-b', 'down'), [],
+    '무료 마지막 줄이 유료 첫 줄 아래로 내려갔다')
+})
+
+test('끝에서 더 밀지 않는다', () => {
+  assert.deepEqual(reorderPriorities(reorderRows, 'free-a', 'up'), [])
+  assert.deepEqual(reorderPriorities(reorderRows, 'paid-b', 'down'), [])
+  assert.deepEqual(reorderPriorities(reorderRows, '없는줄', 'up'), [])
+})
+
+test('★ 유료 표시를 되돌리면 원래 순서로 돌아온다 — priority 를 안 건드리기 때문이다', async () => {
+  const rows = [row({ id: 'a', priority: 0 }), row({ id: 'b', priority: 1 }), row({ id: 'c', priority: 2 })]
+  const order = async (rs: KeyRow[]): Promise<string[]> =>
+    (await readKeyPoolWith(gatewayOf({ readRows: async () => rs }), 'gemini', NOW)).map((e) => e.id)
+
+  assert.deepEqual(await order(rows), ['a', 'b', 'c'])
+
+  // a 를 유료로 표시 (setKeyPaid 가 표에 쓰는 것과 같은 변화 — priority 는 그대로)
+  const marked = rows.map((r) => (r.id === 'a' ? { ...r, is_paid: true } : r))
+  assert.deepEqual(await order(marked), ['b', 'c', 'a'])
+
+  // 되돌리면 원래 자리
+  const reverted = marked.map((r) => (r.id === 'a' ? { ...r, is_paid: false } : r))
+  assert.deepEqual(await order(reverted), ['a', 'b', 'c'])
+})
+
+/* ── 창구 ─────────────────────────────────────────────────────── */
+
+test('★ 유료 표시를 바꾸는 서버액션이 사람 확인을 먼저 부른다 (S2)', () => {
+  const src = readFileSync(join(WEB, 'app/admin/settings/actions.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('export async function setProviderKeyPaid('))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+
+  assert.ok(body.includes('requireAdmin()'), '사람 확인을 안 부른다')
+  assert.ok(body.indexOf('requireAdmin()') < body.indexOf('setKeyPaid('),
+    '표를 고친 뒤에 확인하면 이미 고쳐진 뒤다')
+  assert.ok(body.includes('syncMetaFirstKey('), '순서가 바뀌면 첫 줄도 바뀌는데 META 를 안 맞춘다')
 })

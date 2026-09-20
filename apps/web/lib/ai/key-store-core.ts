@@ -210,6 +210,8 @@ export interface KeyView {
   /** 원문 키는 여기 없다. 화면과 원장에는 이것만 나간다 */
   maskedKey: string
   priority: number
+  /** 결제가 붙은 키인가. 화면이 배지로 그리고, 순서가 왜 이런지를 이 값이 설명한다 */
+  isPaid: boolean
   status: KeyViewStatus
   /** 사람이 읽을 한 줄. 같은 상태가 화면마다 다른 말이 되지 않게 여기서 만든다 */
   statusText: string
@@ -235,11 +237,18 @@ export function toKeyView(entry: KeyPoolEntry, now: number, lastError: string | 
     label: entry.label,
     maskedKey: maskApiKey(entry.apiKey),
     priority: entry.priority,
+    isPaid: entry.isPaid,
     status,
     statusText: AI_KEY_STATUS[status],
     cooldownUntil: status === 'cooling' ? entry.cooldownUntil : null,
     lastError,
   }
+}
+
+/** 순서를 옮길 때 필요한 것. 등급 없이 id 만 받으면 경계를 못 본다 */
+export interface ReorderRow {
+  id: string
+  isPaid: boolean
 }
 
 /**
@@ -248,17 +257,26 @@ export function toKeyView(entry: KeyPoolEntry, now: number, lastError: string | 
  * 화면은 「위로」 「아래로」만 누르고, 어떤 숫자가 되는지는 여기서 정한다 —
  * 화면이 숫자를 직접 만들면 줄이 셋만 넘어가도 같은 값이 겹치고, 그러면 순서가 흔들린다.
  * 돌려주는 것은 **바뀐 줄만** 이다(안 바뀐 줄에 쓸 이유가 없다).
+ *
+ * **등급 경계는 못 넘는다.** priority 는 같은 등급 안에서만 뜻이 있어서, 유료 줄을 무료 줄
+ * 위로 올려도 `orderKeys` 가 다시 뒤로 보낸다. 그대로 두면 관리자는 올렸다고 믿는데
+ * 화면은 안 움직이고, 왜 안 움직이는지 아무 데서도 말해 주지 않는다 — 여기서 빈 목록으로
+ * 막고 화면은 그 단추를 아예 비활성으로 그린다(등급을 바꾸려면 유료 표시를 끈다).
+ *
+ * `rows` 는 **화면에 보이는 순서**여야 한다. `orderForView` 와 저장소 질의가 그 순서를 준다.
  */
 export function reorderPriorities(
-  ids: readonly string[],
+  rows: readonly ReorderRow[],
   moveId: string,
   direction: 'up' | 'down',
 ): { id: string; priority: number }[] {
-  const at = ids.indexOf(moveId)
+  const at = rows.findIndex((r) => r.id === moveId)
   if (at < 0) return []
   const to = direction === 'up' ? at - 1 : at + 1
-  if (to < 0 || to >= ids.length) return []   // 끝에서 더 밀지 않는다
+  if (to < 0 || to >= rows.length) return []          // 끝에서 더 밀지 않는다
+  if (rows[at].isPaid !== rows[to].isPaid) return []  // 등급 경계
 
+  const ids = rows.map((r) => r.id)
   const next = [...ids]
   next[at] = ids[to]
   next[to] = ids[at]

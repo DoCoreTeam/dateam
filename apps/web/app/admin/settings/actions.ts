@@ -26,7 +26,7 @@ import {
   validateKeyLabel,
 } from '@/lib/ai/provider-keys'
 import {
-  listKeys, addKey, deleteKey, moveKey, setKeyActive, firstKeyValue,
+  listKeys, addKey, deleteKey, moveKey, setKeyActive, setKeyPaid, firstKeyValue,
   type KeyView,
 } from '@/lib/ai/key-store'
 import { getProvider } from '@/lib/ai-chat/registry'
@@ -344,6 +344,8 @@ export async function addProviderKeyRow(
 ): Promise<{ ok: boolean; error?: string; keys?: KeyView[] }> {
   const label = ((formData.get('label') as string) ?? '').trim()
   const raw = ((formData.get('apiKey') as string) ?? '').trim()
+  // 체크상자는 안 켜면 폼에 아예 안 실린다. 없으면 무료로 본다 — 모르는 키로 결제하지 않는다
+  const isPaid = formData.get('isPaid') === 'on'
 
   const keyCheck = validateProviderKey(provider, raw)
   if (!keyCheck.ok) return { ok: false, error: keyCheck.error }
@@ -356,7 +358,7 @@ export async function addProviderKeyRow(
     const labelCheck = validateKeyLabel(label, existing.map((k) => k.label))
     if (!labelCheck.ok) return { ok: false, error: labelCheck.error }
 
-    await addKey(provider, label, raw)
+    await addKey(provider, label, raw, isPaid)
     await syncMetaFirstKey(client, provider)
     revalidatePath('/admin/settings')
     return { ok: true, keys: await listKeys(provider) }
@@ -420,6 +422,34 @@ export async function toggleProviderKeyRow(
     return { ok: true, keys: await listKeys(provider) }
   } catch (e) {
     console.error('[settings] 키 사용 여부 변경 실패', provider, e)
+    return { ok: false, error: '바꾸지 못했습니다' }
+  }
+}
+
+/**
+ * 유료 표시를 바꾼다.
+ *
+ * **requireAdmin 이 먼저다.** 이 아래는 `createAdminClient` 라 RLS 를 통째로 지나간다(S2) —
+ * 사람 확인을 빼면 로그인만 한 누구나 공급자 키의 소진 순서를 바꿀 수 있고,
+ * 그 결과는 화면이 아니라 다음 달 청구서에 나타나 알아채기까지 오래 걸린다.
+ *
+ * 순서가 바뀌면 첫 줄도 바뀌므로 META 를 다시 맞춘다 — 그 칸을 직접 읽는 자리가 아직 마흔이다.
+ */
+export async function setProviderKeyPaid(
+  provider: AiProviderId,
+  id: string,
+  paid: boolean,
+): Promise<{ ok: boolean; error?: string; keys?: KeyView[] }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  try {
+    await setKeyPaid(provider, id, paid)
+    await syncMetaFirstKey(client, provider)
+    revalidatePath('/admin/settings')
+    return { ok: true, keys: await listKeys(provider) }
+  } catch (e) {
+    console.error('[settings] 키 유료 표시 변경 실패', provider, e)
     return { ok: false, error: '바꾸지 못했습니다' }
   }
 }
