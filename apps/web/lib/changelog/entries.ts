@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.199',
+    date: '2026-09-20',
+    title: '표로 된 견적서를 표 그대로 읽어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '\uD83D\uDCCA',
+        headline: '마크다운·CSV 견적서의 표를 표로 읽어요',
+        detail: '엑셀은 표로 읽으면서 마크다운이나 CSV 로 된 견적서는 글줄로만 읽어서, 「표를 찾지 못했어요」라는 안내와 함께 항목이 뒤섞이곤 했어요. 이제 셋 다 표 그대로 읽습니다. 품명·수량·단가가 칸을 지켜 들어오니 금액이 더 정확하게 잡혀요.',
+      },
+    ],
+  },
+  {
     version: '0.10.196',
     date: '2026-09-20',
     title: '로그인 화면 글꼴이 이제 제대로 나와요',
