@@ -16,6 +16,10 @@ import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import InlineError from '@/components/ui/InlineError'
 import { playbookFor } from '@/lib/system-log/playbook'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 interface Remedy {
   diagnosis: string
@@ -28,6 +32,9 @@ interface Remedy {
 
 export default function RemedyPanel({ fingerprint, reason }: { fingerprint: string; reason: string }) {
   const [remedy, setRemedy] = useState<Remedy | null>(null)
+  /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
+  const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
+  const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [model, setModel] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +44,7 @@ export default function RemedyPanel({ fingerprint, reason }: { fingerprint: stri
 
   const ask = async () => {
     setBusy(true); setError(null)
+    setWaiting({ from: Date.now(), doing: WAIT.remedy })
     try {
       const res = await fetch('/api/admin/system-log/remedy', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -49,7 +57,7 @@ export default function RemedyPanel({ fingerprint, reason }: { fingerprint: stri
     } catch {
       setError('해결 방법을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
-      setBusy(false)
+      setWaiting(null); setBusy(false)
     }
   }
 
@@ -74,6 +82,11 @@ export default function RemedyPanel({ fingerprint, reason }: { fingerprint: stri
 
   return (
     <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+      {waiting && (() => {
+        const w = waitProgress(elapsedMs, waiting.doing)
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
+
       <div>
         <p style={{ margin: 0, fontWeight: 600, color: 'var(--text)' }}>{remedy.diagnosis}</p>
         <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>

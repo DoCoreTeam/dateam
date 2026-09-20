@@ -17,6 +17,10 @@ import {
 } from '@/lib/ci/analysis/signals'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import styles from './signal-sweep-bar.module.css'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 /** 웹 검색은 오래 걸린다. 서버 상한(80초)보다 길게 잡아 서버 답을 받을 기회를 준다. */
 const SWEEP_TIMEOUT_MS = 90_000
@@ -29,11 +33,15 @@ export default function SignalSweepBar({
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
+  const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
+  const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [message, setMessage] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
   async function sweep() {
     setBusy(true); setMessage(null); setFailed(false)
+    setWaiting({ from: Date.now(), doing: WAIT.signalSweep })
     const ctl = new AbortController()
     const timer = setTimeout(() => ctl.abort(), SWEEP_TIMEOUT_MS)
     try {
@@ -59,7 +67,7 @@ export default function SignalSweepBar({
         : '수집 실패 · 잠시 후 다시 시도해 주세요')
     } finally {
       clearTimeout(timer)
-      setBusy(false)
+      setWaiting(null); setBusy(false)
     }
   }
 
@@ -73,6 +81,11 @@ export default function SignalSweepBar({
 
   return (
     <div className={`card ${styles.bar}`}>
+      {waiting && (() => {
+        const w = waitProgress(elapsedMs, waiting.doing)
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
+
       <div className={styles.text}>
         {/* 두괄식 — 상태·원인이 첫 줄에서 끝난다 */}
         <p className={bad ? styles.headlineDanger : styles.headline}>

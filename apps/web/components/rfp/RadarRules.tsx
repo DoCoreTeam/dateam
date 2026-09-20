@@ -27,6 +27,10 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { isEnterKey, isImeComposing } from '@/lib/ui/ime'
 import { RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
 import styles from '@/app/(rfp)/rfp.module.css'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 export interface RadarHitRow {
   id: string
@@ -93,6 +97,9 @@ function money(v: number | null | undefined): string {
 
 export default function RadarRules({ initialRules, initialHits }: RadarRulesProps) {
   const [rules, setRules] = useState(initialRules)
+  /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
+  const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
+  const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [hits, setHits] = useState(initialHits)
   const [draft, setDraft] = useState<NewRule | null>(null)
   const [ask, setAsk] = useState('')
@@ -158,6 +165,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
     setError(null)
     if (!ask.trim()) { setError(RFP_RADAR.askEmpty); return }
     setAsking(true)
+    setWaiting({ from: Date.now(), doing: WAIT.radarRuleDraft })
     try {
       const res = await fetch('/api/rfp/radar/rules/draft', {
         method: 'POST',
@@ -172,7 +180,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
     } catch {
       setError(RFP_COMMON.error)
     } finally {
-      setAsking(false)
+      setWaiting(null); setAsking(false)
     }
   }, [ask])
 
@@ -221,6 +229,11 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
   return (
     <div className={styles.stack}>
       {error && <FormErrorBanner message={error} />}
+      {waiting && (() => {
+        const w = waitProgress(elapsedMs, waiting.doing)
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
+
 
       {/* ① 조건 */}
       <section className="card">

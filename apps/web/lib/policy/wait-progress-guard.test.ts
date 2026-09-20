@@ -31,28 +31,26 @@ const ROOT = join(import.meta.dirname, '..', '..')
 const LONG_MS_SECONDS = 60
 
 /** 진행 한 줄을 그리는 것으로 인정하는 부품·함수 */
-const PROGRESS_MARKS = ['WaitProgress', 'digestProgress', 'finishProgress', 'quoteWaitProgress']
+/*
+  공용 부품(`<WaitProgress>`)으로 그리거나, 적어도 **공용 순수 함수**가 문구와 문턱을 정하면 인정한다.
+  리드 입력처럼 이미 제 덮개(AXLoadingOverlay)를 가진 화면까지 부품을 바꿔 끼우게 하면
+  멀쩡한 화면을 흔들게 된다 — 중요한 것은 «같은 말과 같은 문턱»이지 같은 태그가 아니다.
+*/
+const PROGRESS_MARKS = [
+  'WaitProgress', 'waitProgress', 'digestProgress', 'finishProgress', 'quoteWaitProgress',
+]
 
 /**
  * 아직 공용 부품으로 안 옮긴 자리 — **줄어들기만 한다.**
  *
  * 2026-09-20 에 전수로 세니 기다리는 자리 13곳 중 11곳이 공용 부품을 안 쓰고 있었다.
- * 이번 판에서 견적 두 자리를 옮겼고 나머지는 여기 남는다.
- * 적어 두는 것은 «괜찮다»는 뜻이 아니라 **조용히 넘어가지 않겠다**는 뜻이다.
+ * 같은 판에서 전부 옮겨 **목록이 비었다.**
+ *
+ * 비었다고 지우지 않는다 — 다음에 한 곳이 빠지면 여기에 적으려는 손이 먼저 멈춰야 한다.
+ * 적는 것은 «괜찮다»는 뜻이 아니라 **조용히 넘어가지 않겠다**는 뜻이고,
+ * 아래 「줄어들기만 한다」 단정이 그 둘을 양쪽에서 잠근다.
  */
-const KNOWN_GAPS: readonly { file: string; why: string }[] = [
-  { file: 'components/ui/crm/IntakeModal.tsx',
-    why: '자기 진행 줄이 있어 단계는 말하지만 경과 시간이 없고, 창구 상한이 300초인데 「20초쯤 걸립니다」를 글에 박아 두었다 — 공용 부품으로 옮기면서 그 숫자를 빼야 한다' },
-  { file: 'app/(ci)/ci/assets/AssetsView.tsx', why: '콘텐츠 자료 올리기, 아직 안 옮김' },
-  { file: 'app/(ci)/ci/trends/TrendsView.tsx', why: '패턴 다시 계산, 아직 안 옮김' },
-  { file: 'app/(crm)/crm/settings/AutomationCard.tsx', why: '자동화 지금 돌리기, 아직 안 옮김' },
-  { file: 'app/(crm)/crm/settings/IntegrationCard.tsx', why: '메일 지금 가져오기, 아직 안 옮김' },
-  { file: 'app/(member)/lead-intake/LeadIntakeForm.tsx', why: '리드 원문 읽기, 아직 안 옮김' },
-  { file: 'app/admin/system-log/RemedyPanel.tsx', why: '어드민 전용 해결 방법 보기, 아직 안 옮김' },
-  { file: 'components/ci/SignalSweepBar.tsx', why: '신호 훑기, 아직 안 옮김' },
-  { file: 'components/rfp/ProfileEditor.tsx', why: '회사 프로필 초안, 아직 안 옮김' },
-  { file: 'components/rfp/RadarRules.tsx', why: '수집 규칙 초안, 아직 안 옮김' },
-]
+const KNOWN_GAPS: readonly { file: string; why: string }[] = []
 const GAP_FILES = KNOWN_GAPS.map((g) => g.file)
 
 function walk(dir: string, ext: string, out: string[] = []): string[] {

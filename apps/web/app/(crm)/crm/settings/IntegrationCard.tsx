@@ -24,6 +24,10 @@ import styles from './settings.module.css'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
 import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 import { CONNECTION, ACTION } from '@/lib/terms'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 interface Connection {
   id: string
@@ -43,6 +47,9 @@ const STATUS: Record<string, { label: string; status: StatusKey }> = {
 
 export default function IntegrationCard() {
   const [items, setItems] = useState<Connection[]>([])
+  /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
+  const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
+  const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -102,6 +109,7 @@ export default function IntegrationCard() {
     setBusy('sync')
     setError(null)
     setNotice(null)
+    setWaiting({ from: Date.now(), doing: WAIT.mailSync })
     try {
       const res = await fetch('/api/crm/jobs/gmail-sync')
       const body = await res.json()
@@ -115,7 +123,7 @@ export default function IntegrationCard() {
           : skipped > 0 ? '다시 연결이 필요한 계정이 있어요.'
           : '새로 들어온 메일이 없어요.',
       )
-      await load()
+setWaiting(null); await load()
     } catch {
       setError('가져오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -138,6 +146,10 @@ export default function IntegrationCard() {
 
       <FormErrorBanner message={error} />
       {notice && <p className={styles.undo}>{notice}</p>}
+      {waiting && (() => {
+        const w = waitProgress(elapsedMs, waiting.doing)
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
 
       {/* 끊긴 연결은 카드 맨 위에서 말한다 — 목록 아래에 묻히면 못 본다 */}
       {broken.length > 0 && (

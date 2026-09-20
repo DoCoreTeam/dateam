@@ -23,6 +23,10 @@ import { eulReul, eunNeun } from '@/lib/ui/josa'
 // 한도만 가져온다 — `card-read` 는 서버 전용 AI 경로를 끌어오므로 화면이 물면 빌드가 죽는다
 import { CARD_MAX_COUNT, CARD_MIME_OK } from '@/lib/crm/services/card-limits'
 import styles from './intake-modal.module.css'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 /**
  * 「회사 «(주)가비아» · 인물 «Tony 박현덕»」 처럼 **종류와 이름으로** 말한다.
@@ -94,6 +98,14 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
    * 이미지를 읽는 중인데 버튼이 「등록 중…」이라고 말했다(사용자 지적).
    */
   const [step, setStep] = useState<{ what: 'reading' | 'saving'; at: number; of: number } | null>(null)
+  /*
+    **얼마나 지났는지도 말한다**(정책 B-7). 예전에는 단계는 말하면서 「20초쯤 걸립니다」를
+    글에 박아 두었다 — 창구 상한은 300초다. 석 장을 올리면 그 약속은 틀린 말이 되고,
+    20초가 지난 뒤부터 화면은 거짓말을 한 채로 멈춰 있다.
+    시간은 지어내지 않고 **센다.**
+  */
+  const [waitFrom, setWaitFrom] = useState<number | null>(null)
+  const elapsedMs = useElapsedMs(waitFrom)
   const busy = step !== null
 
   /** 명함에서 읽은 글자 — 사람이 확인하고 고칠 수 있다 */
@@ -211,6 +223,7 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
   const readCards = useCallback(async (files: readonly File[]) => {
     if (files.length === 0) return
     setStep({ what: 'reading', at: 0, of: files.length })
+    setWaitFrom(Date.now())
     setError(null)
     setFailed([])
     try {
@@ -219,7 +232,7 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
     } catch (err) {
       setError(err instanceof Error ? err.message : '명함을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
-      setStep(null)
+      setStep(null); setWaitFrom(null)
       if (fileRef.current) fileRef.current.value = ''
     }
   }, [imagesToText])
@@ -235,6 +248,7 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
     // ① 곁들여 온 이미지를 **여기서** 글자로 바꾼다 — 붙여넣는 순간이 아니라 누른 순간이다
     if (mode === 'paste' && images.length > 0) {
       setStep({ what: 'reading', at: 0, of: images.length })
+      setWaitFrom(Date.now())
       try {
         const files = (await Promise.all(images.map(toFile))).filter((f): f is File => f !== null)
         const unreachable = images.length - files.length
@@ -251,7 +265,7 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
           }])
         }
       } catch (err) {
-        setStep(null)
+        setStep(null); setWaitFrom(null); setWaitFrom(null)
         setError(err instanceof Error ? err.message : '이미지를 읽지 못했습니다.')
         return
       }
@@ -260,7 +274,7 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
     const texts = mode === 'card' ? cards.map((c) => c.text) : [body]
     const usable = texts.filter(Boolean)
     if (usable.length === 0) {
-      setStep(null)
+      setStep(null); setWaitFrom(null)
       setError(mode === 'card' ? '읽은 명함이 없어요.' : '붙여넣을 내용을 입력해 주세요.')
       return
     }
@@ -288,7 +302,7 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
     } catch {
       setError('등록하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
-      setStep(null)
+      setStep(null); setWaitFrom(null)
     }
   }, [cards, images, imagesToText, mode, onDone, paste, toFile])
 
@@ -401,14 +415,19 @@ export default function IntakeModal({ surface, onClose, onDone, onManual }: Prop
           **오래 걸리면 무엇을 하는 중인지 말한다.** 「등록 중…」 하나로 뭉쳐 두면
           이미지를 읽는 20초 동안 사용자는 멈춘 줄 안다(사용자 지적).
         */}
-        {step && (
-          <p className={styles.step} role="status">
-            <AXDotLoader />
-            {step.what === 'reading'
-              ? `이미지에서 글자를 읽고 있어요 (${step.of}장): 20초쯤 걸립니다`
-              : `등록하고 있어요 (${step.at}/${step.of})`}
-          </p>
-        )}
+        {step && (() => {
+          /*
+            **걸리는 시간을 약속하지 않는다.** 예전 글은 「20초쯤 걸립니다」였는데
+            창구 상한은 300초다 — 넘어가는 순간 그 문장은 거짓말이 되고, 사람은
+            멈췄다고 읽는다. 지어낸 예상 대신 **지난 시간을 센다.**
+            문구와 문턱은 다른 대기 화면과 같은 함수가 정한다(정책 B-7).
+          */
+          const doing = step.what === 'reading'
+            ? `${WAIT.cardRead} (${step.of}장)`
+            : `${WAIT.cardSave} (${step.at}/${step.of})`
+          const w = waitProgress(elapsedMs, doing)
+          return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+        })()}
 
         {done && (
           <div className={styles.done}>

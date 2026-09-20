@@ -22,6 +22,10 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
 import { RFP_PROFILE, RFP_COMMON } from '@/lib/rfp/terms'
 import styles from '@/app/(rfp)/rfp.module.css'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 export interface ProfileBasic {
   companyName: string
@@ -70,6 +74,9 @@ export default function ProfileEditor({
 }: ProfileEditorProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [basic, setBasic] = useState<ProfileBasic>(initial ?? EMPTY)
+  /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
+  const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
+  const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [certs, setCerts] = useState<Certification[]>(initialCertifications)
   const [records, setRecords] = useState<TrackRecord[]>(initialTrackRecords)
   const [caps, setCaps] = useState<Capability[]>(initialCapabilities)
@@ -98,6 +105,7 @@ export default function ProfileEditor({
     if (!files || files.length === 0) return
     setError(null)
     setBusy(true)
+    setWaiting({ from: Date.now(), doing: WAIT.profileDraft })
     try {
       const form = new FormData()
       for (const f of Array.from(files)) form.append('file', f)
@@ -106,7 +114,7 @@ export default function ProfileEditor({
       if (!res.ok) { setError(RFP_COMMON.error); return }
       apply(body.profile, body.missing ?? [])
       // 왜 덜 채워졌는지 화면이 말한다 — 조용히 넘어가면 사용자는 기능이 고장 났다고 본다
-      setAiSkipped(body.aiSkipped ?? null)
+setWaiting(null); setAiSkipped(body.aiSkipped ?? null)
     } catch {
       setError(RFP_COMMON.error)
     } finally {
@@ -160,6 +168,11 @@ export default function ProfileEditor({
   return (
     <div className={styles.stack}>
       {error && <FormErrorBanner message={error} />}
+      {waiting && (() => {
+        const w = waitProgress(elapsedMs, waiting.doing)
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
+
 
       {/* ① 문서로 채우기가 먼저다 — 빈 폼부터 보여 주면 사람은 화면을 떠난다 */}
       <section className="card">

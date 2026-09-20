@@ -40,6 +40,10 @@ import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults, type ListQuery } from '@/lib/ui/list-query'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 type Tab = 'market' | 'outliers' | 'patterns' | 'signals'
 
@@ -156,6 +160,9 @@ export default function TrendsView(p: Props) {
   // 알림에서 바로 상세로 들어오는 경로(§8.1 "알림에서 상세 시트로 직행").
   // 상세를 여는 것도 URL 상태로 둔다 — 링크를 공유하면 같은 화면이 열려야 한다.
   const [openId, setOpenId] = useState<string | null>(searchParams.get('content'))
+  /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
+  const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
+  const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ code: string; message: string } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -195,6 +202,7 @@ export default function TrendsView(p: Props) {
   async function recomputePatterns() {
     setBusy(true); setError(null)
     try {
+      setWaiting({ from: Date.now(), doing: WAIT.patternRecompute })
       // 지금 보고 있는 주제만 다시 계산한다 — 전체를 한 번에 돌리면 몇 분이 걸리고,
       // 그동안 화면은 멈춘 것처럼 보인다. 전체 훑기는 워커가 한다.
       const qs = p.topicId ? `?topicId=${encodeURIComponent(p.topicId)}` : ''
@@ -207,7 +215,7 @@ export default function TrendsView(p: Props) {
       // 사용자가 추측하게 두지 않는다(조용한 성공은 고장과 구분되지 않는다).
       setNotice(res.data?.discoveryNotice ?? null)
       router.refresh()
-    } finally { setBusy(false) }
+    } finally { setBusy(false); setWaiting(null) }
   }
 
   /** 밀린 "왜 터졌나" 분석을 지금 돌린다. 결과 건수를 그대로 알려준다 — 조용히 끝내지 않는다. */
@@ -355,6 +363,11 @@ export default function TrendsView(p: Props) {
         description="시장에서 지금 무엇이 통하는지"
         below={<StageNav stages={RESEARCH_STAGES} />}
       />
+
+      {waiting && (() => {
+        const w = waitProgress(elapsedMs, waiting.doing)
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
 
       <SegmentedTabs
         ariaLabel="트렌드 보기"

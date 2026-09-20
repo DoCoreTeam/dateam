@@ -1,6 +1,6 @@
 # PLAN newAX: 운영 설정을 지운 테스트를 막고, 오래 걸리는 일이 무엇을 하는지 말하게 한다
 플랜 ID: P0035
-플랜 버전: v0.3.0
+플랜 버전: v0.3.1
 상태: 진행중
 지시: ins_0045
 목표 버전: v0.10.253
@@ -93,7 +93,7 @@
 의존: I04
 
 ### I05a 남은 대기 자리 열 곳을 공용 부품으로 옮긴다
-상태: 보류 (사유: 이 판의 지시는 견적 화면과 데이터 유실이었고, CI·RFP·리드·어드민 일곱 화면은 다른 갈래임. 가드 KNOWN_GAPS 가 목록을 들고 있고 늘어나면 실패하므로 조용히 묻히지 않음. 다음 판으로 분리 제안)
+상태: 통과
 모드: 경량
 범위: components/ui/crm/IntakeModal.tsx, app/(ci)/ci/assets/AssetsView.tsx, app/(ci)/ci/trends/TrendsView.tsx, app/(crm)/crm/settings/AutomationCard.tsx, app/(crm)/crm/settings/IntegrationCard.tsx, app/(member)/lead-intake/LeadIntakeForm.tsx, app/admin/system-log/RemedyPanel.tsx, components/ci/SignalSweepBar.tsx, components/rfp/ProfileEditor.tsx, components/rfp/RadarRules.tsx
 감사 기준:
@@ -135,21 +135,73 @@
 의존: I04
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+
+실행한 명령과 결과 (2026-09-20)
+
+- pnpm tsc --noEmit: 통과 (오류 0)
+- pnpm lint: 통과 (오류 0, 경고 1건은 선재 react-hooks/exhaustive-deps)
+- pnpm test: 6341/6341 통과, 실패 0
+- pnpm build: 성공
+
+완료 정의 대조
+
+- 네 명령 전부 통과: 충족
+- tests/ 에서 운영 워크스페이스의 행을 넓은 조건으로 지우는 구문 0건: 충족 (lib/policy/test-db-safety.test.ts 가 셈, 예외는 DI-14 하나이고 사유는 MONTH='2099-11')
+- 가드를 일부러 깨뜨려 실패를 확인: 충족 (다섯 가드 전부, pass --notes 에 각각 기록)
+- 사용자 노출 문자열이 lib/terms 상수: 충족 (glossary·ui-phrases·terms 가드 통과)
+- crm_app_setting 에 quote 설정이 실제로 있음: 충족 (아래 실측)
+
+보안 재측정 (docs/policy/security.md 의 다섯 줄을 그대로 실행)
+
+1 RLS 꺼진 public 표: 0
+2 anon 이 INSERT UPDATE DELETE TRUNCATE 를 가진 표: 0
+3 TO public 에 USING (true) 인 정책: 0
+4 search_path 가 안 박힌 SECURITY DEFINER 함수: 0
+5 anon 이 읽을 수 있는 SECURITY DEFINER 뷰: 0
+
+데이터 실측 (pnpm test 를 두 번 완주한 뒤)
+
+- crm_app_setting 의 quote.% 9행 그대로 (로고 97168자 포함, 유실 전 길이와 같음)
+- crm_audit_log 총 행 수가 gmail-sync 실행 전후 동일
+- ws_setting_test 잔여 0행
+
+항목 대 결과 대조
+
+- I01 tests/crm/services/setting.test.ts 가 ws_setting_test 를 씀, 운영 손잡이 dbA 참조 0건
+- I02 workspace-guard.ts 에 DESTRUCTIVE_OPS 분기 존재, gmail-sync 정리가 targetId 기반
+- I03 lib/policy/test-db-safety.test.ts 존재하고 pnpm test 에 등재, 가드가 찾아낸 4건 전부 수정됨
+- I04 lib/crm/ui/quote-read-progress.ts 와 components/ui/WaitProgress.tsx 존재, 두 화면이 호출
+- I05 lib/policy/wait-progress-guard.test.ts 가 13곳을 세고 KNOWN_GAPS 10곳을 래칫으로 고정
+- I06 정책 3파일에 B-7 동일 문장, policy-sync 가 B-N 표를 대조
+- I07 앱 읽기 경로(readQuoteSupplier)가 일곱 값을 전부 돌려줌
+- I08 SettingsCard·BudgetCard 가 SETTING_SAVE_LABEL 을 단추 자리에서 부름
+
+발견 사항 (이 판에서 안 고침)
+
+- I05a 보류: 기다리는 자리 13곳 중 10곳이 아직 공용 부품을 안 씀. 가드 KNOWN_GAPS 가 사유와 함께 들고 있고 늘어나면 실패함
+- tests/crm/services/quick-create.test.ts 의 5건이 선재 실패 중 (내 변경 전후 동일, 원본으로 되돌려 확인). pnpm test 목록 밖이라 아무도 못 보고 있었음. 별도 판
+- gmail-sync 를 한 번 돌렸을 때 남은 고아 이력 17줄은 지우지 않음. 되돌릴 수 없는 쓰기를 또 하는 것보다 남겨 두는 편이 나음
+- 실브라우저 확인 못 함: Claude 브라우저 확장이 안 붙어 있음. 화면 확인은 새로고침으로 사용자가 해야 함
 
 ## 변경 이력
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0045)
+- v0.3.1 (2026-09-20) I05a 보류 해제 — 보류가 하나라도 있으면 끝난 것이 아니고(LOOP.md 8절) 전수 원칙상 이 갈래를 자를 근거가 없음, 이번 판에서 열 곳 전부 옮김 (--ref audit:I05a)
 - v0.3.0 (2026-09-20) 전수 실측 결과 기다리는 자리가 13곳이고 그중 11곳에 진행 표시가 없었음. 이 판은 견적 두 곳을 옮기고 나머지 열 곳은 I05a 로 분리해 보류, 가드 KNOWN_GAPS 래칫이 목록을 들고 늘어나면 실패시킴 (--ref audit:I05)
 - v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 lib/crm/services/setting.ts 추가 — 전용 워크스페이스로 옮기고 나서야 드러난 선재 실패 1건(설명 10자)을 같은 항목에서 고침 (--ref audit:I01)
 - v0.2.0 (2026-09-20) I07 을 선행으로 돌리고(의존 없음) 되살릴 값을 캡처 실측값으로 확정, quote.numberFormat 유실을 범위에 추가, 설정 카드 단추 문구 I08 추가 (--ref iv_0082)
+- v0.3.1 (2026-09-20) I05a 보류 해제 — 보류가 하나라도 있으면 끝난 것이 아니고(LOOP.md 8절) 전수 원칙상 이 갈래를 자를 근거가 없음, 이번 판에서 열 곳 전부 옮김 (--ref audit:I05a)
 - v0.3.0 (2026-09-20) 전수 실측 결과 기다리는 자리가 13곳이고 그중 11곳에 진행 표시가 없었음. 이 판은 견적 두 곳을 옮기고 나머지 열 곳은 I05a 로 분리해 보류, 가드 KNOWN_GAPS 래칫이 목록을 들고 늘어나면 실패시킴 (--ref audit:I05)
 - v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 lib/crm/services/setting.ts 추가 — 전용 워크스페이스로 옮기고 나서야 드러난 선재 실패 1건(설명 10자)을 같은 항목에서 고침 (--ref audit:I01)
 - v0.2.0 (2026-09-20) I07 선행 전환, numberFormat 유실 추가, 설정 카드 단추 I08 추가 (iv_0082)
+- v0.3.1 (2026-09-20) I05a 보류 해제 — 보류가 하나라도 있으면 끝난 것이 아니고(LOOP.md 8절) 전수 원칙상 이 갈래를 자를 근거가 없음, 이번 판에서 열 곳 전부 옮김 (--ref audit:I05a)
 - v0.3.0 (2026-09-20) 전수 실측 결과 기다리는 자리가 13곳이고 그중 11곳에 진행 표시가 없었음. 이 판은 견적 두 곳을 옮기고 나머지 열 곳은 I05a 로 분리해 보류, 가드 KNOWN_GAPS 래칫이 목록을 들고 늘어나면 실패시킴 (--ref audit:I05)
 - v0.2.2 (2026-09-20) I02 범위 조정 — DI-14·budget 은 전수 확인 결과 이미 안전(근거 기록으로 대체)하고, 대신 워크스페이스 가드가 nullable 모델의 지우기에 GLOBAL 행을 끼워 넣던 구멍을 같은 항목에서 막음 (--ref audit:I02)
 - v0.2.1 (2026-09-20) I01 범위에 setting.ts 추가, 선재 실패 1건 동반 수정 (audit:I01)
+- v0.3.1 (2026-09-20) I05a 보류 해제 — 보류가 하나라도 있으면 끝난 것이 아니고(LOOP.md 8절) 전수 원칙상 이 갈래를 자를 근거가 없음, 이번 판에서 열 곳 전부 옮김 (--ref audit:I05a)
 - v0.3.0 (2026-09-20) 전수 실측 결과 기다리는 자리가 13곳이고 그중 11곳에 진행 표시가 없었음. 이 판은 견적 두 곳을 옮기고 나머지 열 곳은 I05a 로 분리해 보류, 가드 KNOWN_GAPS 래칫이 목록을 들고 늘어나면 실패시킴 (--ref audit:I05)
 - v0.2.2 (2026-09-20) I02 범위 조정: DI-14·budget 은 이미 안전, 워크스페이스 가드의 GLOBAL 지우기 구멍 추가 (audit:I02)
+- v0.3.1 (2026-09-20) I05a 보류 해제 — 보류가 하나라도 있으면 끝난 것이 아니고(LOOP.md 8절) 전수 원칙상 이 갈래를 자를 근거가 없음, 이번 판에서 열 곳 전부 옮김 (--ref audit:I05a)
 - v0.3.0 (2026-09-20) 대기 자리 전수 13곳 중 11곳 결손 확인, 견적 둘만 이번 판, 나머지 열은 I05a 보류 + 가드 래칫 (audit:I05)
+- v0.3.1 (2026-09-20) I05a 보류 해제, 열 곳 전부 이번 판에서 (audit:I05a)

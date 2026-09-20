@@ -9,6 +9,9 @@ import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import ParsedCard from './ParsedCard'
 import BulkImportProgress from './BulkImportProgress'
 import InlineError from '@/components/ui/InlineError'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 const BULK_EXTENSIONS = new Set(['xlsx', 'xls'])
 
@@ -56,6 +59,13 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const rawInput = draft.value
   const setRawInput = draft.set
   const [loading, setLoading] = useState(false)
+  /*
+    **덮개가 무엇을 하는지는 말했는데 얼마나 지났는지는 안 말했다**(정책 B-7).
+    창구 상한이 300초라 파일 몇 장이면 몇 분이 간다 — 그동안 숫자가 하나도 안 움직이면
+    사람은 멈춘 줄로 읽는다. 여기서는 덮개가 이미 있으므로 그 덮개에 시간을 얹는다.
+  */
+  const [waitFrom, setWaitFrom] = useState<number | null>(null)
+  const elapsedMs = useElapsedMs(waitFrom)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ parsed: ParsedLeadData; intakeId: string } | null>(null)
   const [creating, setCreating] = useState(false)
@@ -143,7 +153,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     const hasPendingFiles = files.some(f => f.status === 'pending')
     if (!hasText && !hasPendingFiles) { setError('내용을 입력하거나 파일을 첨부하세요'); return }
     submittingRef.current = true
-    setLoading(true); setError(''); setSavedMsg('')
+    setLoading(true); setWaitFrom(Date.now()); setError(''); setSavedMsg('')
     setResult(null)  // 이전 텍스트 분석 결과 잔존 방지(DC-REV HIGH)
     try {
       if (hasPendingFiles) await analyzeFiles()
@@ -151,6 +161,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     } finally {
       submittingRef.current = false
       setLoading(false)
+      setWaitFrom(null)
       router.refresh()
     }
   }
@@ -266,7 +277,15 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         isLoading={loading || isFileProcessing}
         brandName={brandName}
         label={isFileProcessing ? `파일 분석 중… (${doneCount + 1} / ${pendingTotal})` : 'AI 분석 중…'}
-        sublabel={isFileProcessing ? processingFile?.file.name : '입력 내용을 AI가 구조화하는 중'}
+        /*
+          경과 시간과 «오래 걸리는 중» 덧말은 다른 화면과 같은 함수가 정한다 —
+          화면마다 제 말을 지으면 같은 일에 다른 말이 나온다(정책 B-7).
+        */
+        sublabel={[
+          isFileProcessing ? processingFile?.file.name : waitProgress(elapsedMs, WAIT.leadParse).message,
+          waitProgress(elapsedMs, WAIT.leadParse).elapsedLabel,
+          waitProgress(elapsedMs, WAIT.leadParse).reassure,
+        ].filter(Boolean).join(' · ')}
         ariaLabel={isFileProcessing ? `파일 분석 중: ${processingFile?.file.name}` : 'AI 분석 중'}
       />
 

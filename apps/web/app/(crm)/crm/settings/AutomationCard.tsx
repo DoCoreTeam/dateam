@@ -23,6 +23,10 @@ import {
 import styles from './settings.module.css'
 import { ACTION } from '@/lib/terms'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 
 interface Stage { id: string; name: string; pipelineName: string }
 
@@ -35,6 +39,9 @@ function newId(): string {
 
 export default function AutomationCard() {
   const [rules, setRules] = useState<AutomationRule[]>([])
+  /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
+  const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
+  const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [stages, setStages] = useState<Stage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -115,6 +122,7 @@ export default function AutomationCard() {
     setSweeping(true)
     setError(null)
     setNotice(null)
+    setWaiting({ from: Date.now(), doing: WAIT.automationRun })
     try {
       const res = await fetch('/api/crm/jobs/stalled-deals')
       const body = await res.json()
@@ -127,7 +135,7 @@ export default function AutomationCard() {
     } catch {
       setError('확인하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
-      setSweeping(false)
+      setWaiting(null); setSweeping(false)
     }
   }
 
@@ -135,6 +143,11 @@ export default function AutomationCard() {
 
   return (
     <SettingsCard title="자동화" headingLevel={2}>
+      {waiting && (() => {
+        const w = waitProgress(elapsedMs, waiting.doing)
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
+
       <p className="field-note">
         딜이 움직이면 할 일을 대신 만들어 둡니다. 제목에 <code>{'{회사}'}</code>·<code>{'{딜}'}</code>를
         넣으면 실제 이름으로 채워져요. 만든 규칙은 <strong>켜야</strong> 돕니다.
