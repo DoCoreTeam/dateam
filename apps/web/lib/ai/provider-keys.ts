@@ -134,3 +134,55 @@ export function describeConnectionFailed(id: AiProviderId, status?: number): str
 export function describeMissingKey(id: AiProviderId): string {
   return `저장된 ${getProviderSpec(id).label} 키가 없습니다`
 }
+
+/* ── 키가 여러 개일 때 ────────────────────────────────────────────
+   키 하나였을 때의 규칙을 그대로 쓰면 두 자리가 틀린다.
+   ① 하나를 지워도 그 공급자가 멈추는 것은 아니다 — 남은 키가 받는다
+   ② 표를 고쳐도 META 를 그대로 두면 그 칸을 직접 읽는 마흔 자리가 옛 키로 돈다 */
+
+/**
+ * 이 줄을 지우면 무엇이 함께 멈추는가.
+ *
+ * **마지막 하나일 때만 말한다.** 둘 이상 남아 있는데 「회의 전사가 멈춘다」고 말하면
+ * 그것은 거짓이고, 거짓 경고는 두 번째부터 아무도 안 읽는다.
+ */
+export function describeKeyRemovalAt(id: AiProviderId, remainingAfter: number): string | null {
+  if (remainingAfter > 0) return null
+  return describeKeyRemoval(id)
+}
+
+/**
+ * 표를 고친 뒤 META 의 기존 키 칸을 어떻게 맞출 것인가.
+ *
+ * 그 칸을 직접 읽는 자리가 아직 마흔이다(마이그 264 머리주석). 표에서 첫 줄이 바뀌었는데
+ * META 가 옛 값을 들고 있으면, 화면에서는 지운 키로 그 마흔이 계속 돈다 —
+ * **화면과 동작이 갈라지는 자리**라 고칠 때마다 맞춘다. 줄이 하나도 없으면 칸을 비운다.
+ */
+export function metaAfterKeyChange(
+  id: AiProviderId,
+  firstKey: string | null,
+  meta: Record<string, unknown>,
+): Record<string, unknown> {
+  if (firstKey) return withProviderKey(id, firstKey, meta)
+  const next = { ...meta }
+  delete next[getProviderSpec(id).meta.apiKey]
+  return next
+}
+
+/** 새 줄에 붙일 이름. 사람이 안 적으면 순서로 짓는다 — 이름 없는 줄은 원장에서 못 가린다 */
+export function defaultKeyLabel(existingLabels: readonly string[]): string {
+  for (let n = 1; n <= existingLabels.length + 1; n++) {
+    const candidate = n === 1 ? '기본' : `${n}번째`
+    if (!existingLabels.includes(candidate)) return candidate
+  }
+  return `${existingLabels.length + 1}번째`
+}
+
+/** 이름 검증. 표에 (공급자, 이름) 유니크가 걸려 있어 겹치면 저장이 실패한다 */
+export function validateKeyLabel(label: string, existingLabels: readonly string[]): KeyValidation {
+  const t = (label ?? '').trim()
+  if (!t) return { ok: false, error: '키 이름을 입력해주세요' }
+  if (t.length > 40) return { ok: false, error: '키 이름은 40자까지 넣을 수 있습니다' }
+  if (existingLabels.includes(t)) return { ok: false, error: `'${t}' 라는 이름이 이미 있습니다` }
+  return { ok: true }
+}

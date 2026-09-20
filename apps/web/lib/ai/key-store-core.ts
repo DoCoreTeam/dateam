@@ -15,6 +15,7 @@ import {
   orderKeys,
   nextKeyState,
   maskApiKey,
+  isCooling,
   type KeyPoolEntry,
   type KeyOutcome,
   type KeyStatePatch,
@@ -185,6 +186,84 @@ const SECRET_LIKE = /[A-Za-z0-9_-]{20,}/g
 
 export function redactSecrets(text: string): string {
   return text.replace(SECRET_LIKE, (token) => maskApiKey(token))
+}
+
+/* ── 화면에 보이는 줄 ──────────────────────────────────────────────
+   고르는 목록(`readKeyPool`)과 **보는 목록**은 다른 질문이다. 고를 때는 못 쓰는 줄을 빼야 하고,
+   볼 때는 그 줄이 왜 못 쓰는지가 바로 그 화면의 용건이다. 빼 버리면 관리자는
+   「내가 넣은 키가 사라졌다」고 읽는다. */
+
+/** 한 줄이 지금 어떤 상태인가. 넷 중 하나로만 정해진다 */
+export type KeyViewStatus = 'usable' | 'cooling' | 'auth_broken' | 'off'
+
+export interface KeyView {
+  id: string
+  label: string
+  /** 원문 키는 여기 없다. 화면과 원장에는 이것만 나간다 */
+  maskedKey: string
+  priority: number
+  status: KeyViewStatus
+  /** 사람이 읽을 한 줄. 같은 상태가 화면마다 다른 말이 되지 않게 여기서 만든다 */
+  statusText: string
+  /** 쉬는 중이면 언제 풀리는지. 아니면 null */
+  cooldownUntil: string | null
+  lastError: string | null
+}
+
+/** 상태 판정. 순서가 규칙이다 — 사람이 끈 것이 먼저고, 그다음이 고칠 것, 마지막이 기다릴 것 */
+export function keyViewStatus(entry: KeyPoolEntry, now: number): KeyViewStatus {
+  if (!entry.isActive && entry.disabledReason !== 'auth') return 'off'
+  if (entry.disabledReason === 'auth') return 'auth_broken'
+  if (isCooling(entry, now)) return 'cooling'
+  return 'usable'
+}
+
+const STATUS_TEXT: Record<KeyViewStatus, string> = {
+  usable: '쓸 수 있음',
+  cooling: '한도에 걸려 쉬는 중',
+  auth_broken: '키가 거부됨, 새 키로 바꿔야 합니다',
+  off: '꺼 둠',
+}
+
+/** 화면이 쓸 줄 하나. **원문 키를 담지 않는다** */
+export function toKeyView(entry: KeyPoolEntry, now: number, lastError: string | null = null): KeyView {
+  const status = keyViewStatus(entry, now)
+  return {
+    id: entry.id,
+    label: entry.label,
+    maskedKey: maskApiKey(entry.apiKey),
+    priority: entry.priority,
+    status,
+    statusText: STATUS_TEXT[status],
+    cooldownUntil: status === 'cooling' ? entry.cooldownUntil : null,
+    lastError,
+  }
+}
+
+/**
+ * 줄 순서를 한 칸 옮긴 뒤의 우선순위표.
+ *
+ * 화면은 「위로」 「아래로」만 누르고, 어떤 숫자가 되는지는 여기서 정한다 —
+ * 화면이 숫자를 직접 만들면 줄이 셋만 넘어가도 같은 값이 겹치고, 그러면 순서가 흔들린다.
+ * 돌려주는 것은 **바뀐 줄만** 이다(안 바뀐 줄에 쓸 이유가 없다).
+ */
+export function reorderPriorities(
+  ids: readonly string[],
+  moveId: string,
+  direction: 'up' | 'down',
+): { id: string; priority: number }[] {
+  const at = ids.indexOf(moveId)
+  if (at < 0) return []
+  const to = direction === 'up' ? at - 1 : at + 1
+  if (to < 0 || to >= ids.length) return []   // 끝에서 더 밀지 않는다
+
+  const next = [...ids]
+  next[at] = ids[to]
+  next[to] = ids[at]
+  return [
+    { id: next[Math.min(at, to)], priority: Math.min(at, to) },
+    { id: next[Math.max(at, to)], priority: Math.max(at, to) },
+  ]
 }
 
 /** 오류를 문자열 한 줄로. 객체를 통째로 찍으면 그 안에 키가 섞여 나올 수 있다 */

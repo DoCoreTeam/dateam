@@ -18,8 +18,13 @@ import type { KeyPoolEntry, KeyOutcome, KeyStatePatch } from './key-pool'
 import {
   readKeyPoolWith,
   recordKeyOutcomeWith,
+  rowToEntry,
+  toKeyView,
+  reorderPriorities,
+  isMetaEntry,
   type KeyRow,
   type KeyStoreGateway,
+  type KeyView,
 } from './key-store-core'
 
 /** 표에서 고르는 데 쓰는 칼럼만. `select('*')` 로 원문 키를 여기저기 흘리지 않는다 */
@@ -82,5 +87,88 @@ export async function recordKeyOutcome(
   return recordKeyOutcomeWith(gateway(), entry, outcome, Date.now(), errorMessage)
 }
 
+/* ── 관리자 화면이 쓰는 자리 ────────────────────────────────────────
+   여기도 표에 닿으므로 이 파일 안에 둔다. 밖으로 빼면 원문 키가 든 표를 여는 자리가
+   둘이 되고, 어느 쪽이 응답에 싣는지 셀 수 없게 된다(가드: I04·I10). */
+
+/** 이 공급자의 **모든** 줄. 꺼진 줄과 인증이 깨진 줄도 포함한다 */
+export async function listKeys(provider: AiProviderId): Promise<KeyView[]> {
+  const now = Date.now()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('ai_provider_keys')
+    .select(`${PICK_COLUMNS}, last_error`)
+    .eq('provider', provider)
+    .order('priority', { ascending: true })
+    .order('id', { ascending: true })
+  if (error) throw new Error(error.message ?? String(error))
+
+  return ((data ?? []) as (KeyRow & { last_error: string | null })[])
+    .map((row) => toKeyView(rowToEntry(row, provider), now, row.last_error))
+}
+
+/** 줄을 더한다. 맨 뒤에 붙는다 — 앞부터 소진하는 것이 이 표의 규칙이다 */
+export async function addKey(provider: AiProviderId, label: string, apiKey: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data } = await admin.from('ai_provider_keys')
+    .select('priority').eq('provider', provider).order('priority', { ascending: false }).limit(1)
+  const nextPriority = ((data?.[0]?.priority as number | undefined) ?? -1) + 1
+
+  const { error } = await admin.from('ai_provider_keys')
+    .insert({ provider, label, api_key: apiKey, priority: nextPriority })
+  if (error) throw new Error(error.message ?? String(error))
+}
+
+export async function deleteKey(provider: AiProviderId, id: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { error } = await admin.from('ai_provider_keys').delete().eq('id', id).eq('provider', provider)
+  if (error) throw new Error(error.message ?? String(error))
+}
+
+/** 한 줄을 한 칸 위나 아래로. 어떤 숫자가 되는지는 규칙 모듈이 정한다 */
+export async function moveKey(
+  provider: AiProviderId, id: string, direction: 'up' | 'down',
+): Promise<void> {
+  const rows = await listKeys(provider)
+  const changes = reorderPriorities(rows.map((r) => r.id), id, direction)
+  if (changes.length === 0) return
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  for (const c of changes) {
+    const { error } = await admin.from('ai_provider_keys')
+      .update({ priority: c.priority, updated_at: new Date().toISOString() })
+      .eq('id', c.id).eq('provider', provider)
+    if (error) throw new Error(error.message ?? String(error))
+  }
+}
+
+/** 사람이 끈 키를 다시 켠다. 인증이 깨진 줄은 켜면서 그 표시도 지운다 */
+export async function setKeyActive(provider: AiProviderId, id: string, active: boolean): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { error } = await admin.from('ai_provider_keys').update({
+    is_active: active,
+    ...(active ? { disabled_reason: null, consecutive_failures: 0, cooldown_until: null } : {}),
+    updated_at: new Date().toISOString(),
+  }).eq('id', id).eq('provider', provider)
+  if (error) throw new Error(error.message ?? String(error))
+}
+
+/**
+ * 첫 줄의 원문 키. **META 를 첫 줄과 맞추려고만 쓴다.**
+ *
+ * 그 칸을 직접 읽는 자리가 아직 마흔이다(264 머리주석). 표만 고치고 META 를 두면
+ * 그 마흔은 지운 키로 계속 돈다 — 화면에서는 지웠는데 기능은 옛 키를 쓴다.
+ */
+export async function firstKeyValue(provider: AiProviderId): Promise<string | null> {
+  const pool = await readKeyPool(provider)
+  const first = pool.find((e) => !isMetaEntry(e))
+  return first?.apiKey ?? null
+}
+
 export { isMetaEntry, META_ENTRY_PREFIX } from './key-store-core'
-export type { KeyRow, KeyStoreGateway } from './key-store-core'
+export type { KeyRow, KeyStoreGateway, KeyView, KeyViewStatus } from './key-store-core'

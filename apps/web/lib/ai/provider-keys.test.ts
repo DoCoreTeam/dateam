@@ -15,7 +15,13 @@ import {
   describeMissingKey,
   readProviderKey,
   readProviderModel,
+  describeKeyRemovalAt,
+  metaAfterKeyChange,
+  defaultKeyLabel,
+  validateKeyLabel,
 } from './provider-keys.ts'
+import { keyViewStatus, toKeyView, reorderPriorities } from './key-store-core.ts'
+import type { KeyPoolEntry } from './key-pool.ts'
 import { AI_PROVIDERS, AI_PROVIDER_IDS, getProviderSpec, type AiProviderId } from './provider-catalog.ts'
 
 /** 명세의 접두사로 만든, 그 공급자가 받아 줄 모양의 가짜 키 */
@@ -173,4 +179,107 @@ test('가드: 모델 목록을 공급자마다 따로 fetch 하지 않는다', (
   for (const host of ['generativelanguage.googleapis.com', 'api.anthropic.com', 'api.openai.com', 'api.groq.com', 'api.x.ai']) {
     assert.ok(!src.includes(host), `actions.ts 가 ${host} 를 직접 부른다`)
   }
+})
+
+/* ── 키가 여러 개일 때 ────────────────────────────────────────────
+   여기가 틀리면 둘 다 조용하다. 거짓 경고는 두 번째부터 안 읽히고,
+   META 를 안 맞추면 「지웠는데 그 키로 계속 돈다」가 된다. */
+
+const NOW = Date.parse('2026-09-20T12:00:00.000Z')
+
+function entry(over: Partial<KeyPoolEntry> & { id: string }): KeyPoolEntry {
+  return {
+    provider: 'groq', label: over.id, apiKey: 'gsk_1234567890abcdefghij',
+    priority: 0, isActive: true, cooldownUntil: null,
+    disabledReason: null, consecutiveFailures: 0,
+    ...over,
+  }
+}
+
+test('★ 남은 키가 있으면 함께 멈춘다는 경고를 하지 않는다 — 거짓 경고는 두 번째부터 안 읽힌다', () => {
+  assert.equal(describeKeyRemovalAt('groq', 1), null)
+  assert.equal(describeKeyRemovalAt('groq', 2), null)
+})
+
+test('★ 마지막 하나를 지울 때만 무엇이 함께 멈추는지 말한다', () => {
+  const warning = describeKeyRemovalAt('groq', 0)
+  assert.ok(warning)
+  assert.match(warning, /회의 녹음/)
+})
+
+test('함께 멈출 것이 없는 공급자는 마지막이어도 경고가 없다', () => {
+  assert.equal(describeKeyRemovalAt('claude', 0), null)
+})
+
+test('★ 표를 고치면 META 의 기존 칸이 첫 줄과 같아진다 — 그 칸을 읽는 자리가 아직 마흔이다', () => {
+  const meta = { stt_api_key: '옛키', stt_model: 'whisper' }
+
+  const next = metaAfterKeyChange('groq', '새첫줄키', meta)
+
+  assert.equal(next.stt_api_key, '새첫줄키')
+  assert.equal(next.stt_model, 'whisper', '딸린 설정까지 지우지 않는다')
+  assert.equal(meta.stt_api_key, '옛키', '원본은 그대로 둔다')
+})
+
+test('줄이 하나도 없으면 META 칸을 비운다 — 없는 키가 있는 것처럼 보이면 안 된다', () => {
+  const next = metaAfterKeyChange('groq', null, { stt_api_key: '옛키' })
+  assert.equal('stt_api_key' in next, false)
+})
+
+test('이름을 안 적으면 순서로 짓는다 — 이름 없는 줄은 원장에서 못 가린다', () => {
+  assert.equal(defaultKeyLabel([]), '기본')
+  assert.equal(defaultKeyLabel(['기본']), '2번째')
+  assert.equal(defaultKeyLabel(['기본', '2번째']), '3번째')
+})
+
+test('이름이 겹치면 저장 전에 막는다 — 표에 유니크가 걸려 있어 안 막으면 그냥 실패한다', () => {
+  assert.equal(validateKeyLabel('새것', ['기본']).ok, true)
+  assert.equal(validateKeyLabel('기본', ['기본']).ok, false)
+  assert.equal(validateKeyLabel('  ', []).ok, false)
+  assert.equal(validateKeyLabel('가'.repeat(41), []).ok, false)
+})
+
+/* ── 화면에 보이는 줄 ─────────────────────────────────────────── */
+
+test('★ 화면용 줄에 원문 키가 없다', () => {
+  const view = toKeyView(entry({ id: 'a', apiKey: 'gsk_secret-1234567890' }), NOW)
+
+  assert.ok(!JSON.stringify(view).includes('secret'), '가림값이 아니라 원문이 화면으로 나간다')
+  assert.match(view.maskedKey, /\*{4}/)
+})
+
+test('★ 상태는 넷 중 하나로 정해진다 — 사람이 끈 것이 먼저고 그다음이 고칠 것이다', () => {
+  assert.equal(keyViewStatus(entry({ id: 'a' }), NOW), 'usable')
+  assert.equal(keyViewStatus(entry({ id: 'b', isActive: false }), NOW), 'off')
+  assert.equal(keyViewStatus(entry({ id: 'c', disabledReason: 'auth', isActive: false }), NOW), 'auth_broken',
+    '인증이 깨져 자동으로 꺼진 줄을 「꺼 둠」이라 하면 사람이 다시 켜고 끝낸다')
+  assert.equal(
+    keyViewStatus(entry({ id: 'd', cooldownUntil: new Date(NOW + 60_000).toISOString(), disabledReason: 'quota' }), NOW),
+    'cooling')
+})
+
+test('상태마다 사람이 읽을 말이 붙는다 — 같은 상태가 화면마다 다른 말이 되지 않게', () => {
+  const cooling = toKeyView(
+    entry({ id: 'd', cooldownUntil: new Date(NOW + 60_000).toISOString(), disabledReason: 'quota' }), NOW)
+  assert.match(cooling.statusText, /한도/)
+  assert.ok(cooling.cooldownUntil, '언제 풀리는지를 함께 준다')
+  assert.equal(toKeyView(entry({ id: 'a' }), NOW).cooldownUntil, null)
+})
+
+/* ── 순서 바꾸기 ──────────────────────────────────────────────── */
+
+test('★ 위로 내리면 앞줄과 자리를 바꾸고 바뀐 둘만 돌려준다', () => {
+  assert.deepEqual(reorderPriorities(['a', 'b', 'c'], 'b', 'up'),
+    [{ id: 'b', priority: 0 }, { id: 'a', priority: 1 }])
+})
+
+test('아래로 내리면 뒷줄과 바꾼다', () => {
+  assert.deepEqual(reorderPriorities(['a', 'b', 'c'], 'b', 'down'),
+    [{ id: 'c', priority: 1 }, { id: 'b', priority: 2 }])
+})
+
+test('★ 끝에서 더 밀면 아무것도 바꾸지 않는다 — 빈 목록이지 오류가 아니다', () => {
+  assert.deepEqual(reorderPriorities(['a', 'b'], 'a', 'up'), [])
+  assert.deepEqual(reorderPriorities(['a', 'b'], 'b', 'down'), [])
+  assert.deepEqual(reorderPriorities(['a', 'b'], '없는줄', 'up'), [])
 })
