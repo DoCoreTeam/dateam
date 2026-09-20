@@ -11,7 +11,7 @@
 // 공급자를 하나 더하려면 명세에 한 줄을 더하면 되고 이 파일은 안 고친다.
 
 import { useState, useTransition } from 'react'
-import { Key, CheckCircle, XCircle, ExternalLink, ChevronUp, ChevronDown, Trash2, Power } from 'lucide-react'
+import { Key, CheckCircle, XCircle, ExternalLink, ChevronUp, ChevronDown, Trash2, Power, CreditCard } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import NbButton from '@/components/ui/nb/NbButton'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
@@ -30,6 +30,7 @@ import {
   deleteProviderKeyRow,
   moveProviderKeyRow,
   toggleProviderKeyRow,
+  setProviderKeyPaid,
 } from './actions'
 import { ACTION, AI_KEY } from '@/lib/terms'
 import type { KeyView } from '@/lib/ai/key-store-core'
@@ -67,9 +68,10 @@ export default function AiProviderCard({
   const [healthMsg, setHealthMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [rows, setRows] = useState<KeyView[]>(initialRows)
   const [newLabel, setNewLabel] = useState('')
+  const [newIsPaid, setNewIsPaid] = useState(false)
   const [rowPending, startRow] = useTransition()
 
-  /** 줄을 고치는 네 가지가 같은 모양이다 — 결과가 오면 목록을 통째로 갈아 끼운다 */
+  /** 줄을 고치는 다섯 가지가 같은 모양이다 — 결과가 오면 목록을 통째로 갈아 끼운다 */
   function runRowAction(act: () => Promise<{ ok: boolean; error?: string; message?: string; keys?: KeyView[] }>) {
     setMsg(null)
     startRow(async () => {
@@ -92,6 +94,7 @@ export default function AiProviderCard({
       setHasKey((r.keys ?? []).length > 0)
       setInputKey('')
       setNewLabel('')
+      setNewIsPaid(false)
     })
   }
 
@@ -154,6 +157,7 @@ export default function AiProviderCard({
           pending={rowPending}
           onMove={(id, dir) => runRowAction(() => moveProviderKeyRow(provider, id, dir))}
           onToggle={(id, active) => runRowAction(() => toggleProviderKeyRow(provider, id, active))}
+          onSetPaid={(id, paid) => runRowAction(() => setProviderKeyPaid(provider, id, paid))}
           onDelete={(id) => runRowAction(() => deleteProviderKeyRow(provider, id))}
         />
       ) : hasKey && maskedKey ? (
@@ -199,6 +203,28 @@ export default function AiProviderCard({
               {AI_KEY.create}
             </NbButton>
           </div>
+          {/*
+            등급은 넣을 때 정하는 것이 맞다. 넣고 나서 표시하게만 두면, 표시하기 전에 돌아간
+            호출이 유료 키를 먼저 태운다 — 그 사이는 짧지만 되돌릴 수 없는 종류의 짧음이다.
+          */}
+          <label
+            style={{
+              display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+              marginTop: 'var(--space-2)', cursor: rowPending ? 'wait' : 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              name="isPaid"
+              checked={newIsPaid}
+              disabled={rowPending}
+              onChange={(e) => setNewIsPaid(e.target.checked)}
+            />
+            <span style={{ fontSize: 'var(--fs-base)' }}>{AI_KEY.paidField}</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+              {AI_KEY.paidNote}
+            </span>
+          </label>
           <FieldNote>
             {AI_KEY.orderNote}{' '}
             <a href={spec.keyIssueUrl} target="_blank" rel="noreferrer">
@@ -279,17 +305,33 @@ const STATUS_TONE: Record<KeyView['status'], 'ok' | 'warn' | 'danger' | 'info'> 
  *
  * **왜 순서가 보이나**: 앞에 있는 키부터 소진한다. 고르게 나눠 쓰면 전부 같은 날 같이 마르고,
  * 그러면 마른 키와 남은 키가 눈에 안 보인다. 순서가 곧 정책이라 화면에 드러낸다.
+ *
+ * **이 순서는 실제로 부르는 순서다.** 저장소가 `key-pool` 과 같은 규칙으로 정렬해 내려준다 —
+ * 보이는 순서와 부르는 순서가 다르면 화면의 「앞에 있는 키부터 씁니다」가 거짓말이 되고,
+ * 관리자는 앞줄 키가 쓰인다고 믿으면서 뒷줄 키로 결제한다.
  */
-function KeyRowList({ rows, pending, onMove, onToggle, onDelete }: {
+function KeyRowList({ rows, pending, onMove, onToggle, onSetPaid, onDelete }: {
   rows: KeyView[]
   pending: boolean
   onMove: (id: string, direction: 'up' | 'down') => void
   onToggle: (id: string, active: boolean) => void
+  onSetPaid: (id: string, paid: boolean) => void
   onDelete: (id: string) => void
 }) {
   return (
     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-2)' }}>
-      {rows.map((row, i) => (
+      {rows.map((row, i) => {
+        /*
+          등급이 다른 줄과는 자리를 바꿀 수 없다. 규칙 모듈(reorderPriorities)이 이미 막지만,
+          막기만 하면 눌러도 아무 일이 안 일어나고 관리자는 단추가 고장 났다고 읽는다.
+          여기서 비활성으로 그리고 왜 그런지를 title 로 말한다.
+        */
+        const sameTierAbove = i > 0 && rows[i - 1].isPaid === row.isPaid
+        const sameTierBelow = i < rows.length - 1 && rows[i + 1].isPaid === row.isPaid
+        const upBlocked = i > 0 && !sameTierAbove
+        const downBlocked = i < rows.length - 1 && !sameTierBelow
+
+        return (
         <li
           key={row.id}
           style={{
@@ -303,19 +345,35 @@ function KeyRowList({ rows, pending, onMove, onToggle, onDelete }: {
           <StatusPill tone={STATUS_TONE[row.status]} title={row.lastError ?? undefined}>
             {row.statusText}
           </StatusPill>
+          {/* 등급은 상태가 아니다. 「쓸 수 있음」과 같은 자리에 섞으면 둘 중 하나가 안 보인다 */}
+          {row.isPaid && (
+            <StatusPill tone="neutral" title={AI_KEY.paidNote}>{AI_KEY.paidBadge}</StatusPill>
+          )}
 
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-1)' }}>
             <NbButton
-              type="button" variant="ghost" disabled={pending || i === 0}
-              onClick={() => onMove(row.id, 'up')} title={AI_KEY.moveUp} aria-label={`${row.label} ${AI_KEY.moveUp}`}
+              type="button" variant="ghost" disabled={pending || i === 0 || upBlocked}
+              onClick={() => onMove(row.id, 'up')}
+              title={upBlocked ? AI_KEY.tierLocked : AI_KEY.moveUp}
+              aria-label={`${row.label} ${AI_KEY.moveUp}`}
             >
               <ChevronUp size={14} />
             </NbButton>
             <NbButton
-              type="button" variant="ghost" disabled={pending || i === rows.length - 1}
-              onClick={() => onMove(row.id, 'down')} title={AI_KEY.moveDown} aria-label={`${row.label} ${AI_KEY.moveDown}`}
+              type="button" variant="ghost" disabled={pending || i === rows.length - 1 || downBlocked}
+              onClick={() => onMove(row.id, 'down')}
+              title={downBlocked ? AI_KEY.tierLocked : AI_KEY.moveDown}
+              aria-label={`${row.label} ${AI_KEY.moveDown}`}
             >
               <ChevronDown size={14} />
+            </NbButton>
+            <NbButton
+              type="button" variant="ghost" disabled={pending}
+              onClick={() => onSetPaid(row.id, !row.isPaid)}
+              title={row.isPaid ? AI_KEY.markFree : AI_KEY.markPaid}
+              aria-label={`${row.label} ${row.isPaid ? AI_KEY.markFree : AI_KEY.markPaid}`}
+            >
+              <CreditCard size={14} />
             </NbButton>
             <NbButton
               type="button" variant="ghost" disabled={pending}
@@ -333,7 +391,8 @@ function KeyRowList({ rows, pending, onMove, onToggle, onDelete }: {
             </NbButton>
           </span>
         </li>
-      ))}
+        )
+      })}
     </ul>
   )
 }
