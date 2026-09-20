@@ -89,6 +89,11 @@ export {
 } from './connection.ts'
 
 export {
+  AI_KEY, AI_KEY_STATUS,
+  type AiKeyStatusKey,
+} from './ai-key.ts'
+
+export {
   EMPLOYMENT_STATUS, EMPLOYMENT_FIELD, EMPLOYMENT_ACTION, EMPLOYMENT_UNKNOWN,
   RESIGNED_TAB, confirmResign, confirmUndoResign,
   type EmploymentStatus, type EmploymentStatusMeta,

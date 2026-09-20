@@ -22,6 +22,8 @@ import {
   type KeyDisabledReason,
 } from './key-pool.ts'
 import { getProviderSpec, type AiProviderId } from './provider-catalog.ts'
+// 말은 용어집에서 온다. 규칙이 말을 가지면 두 번째 화면이 자기 것을 또 적는다
+import { AI_KEY_STATUS, type AiKeyStatusKey } from '../terms/ai-key.ts'
 
 /** `ai_provider_keys` 한 줄. 칼럼 이름 그대로 받는다 — 옮겨 적는 자리를 하나로 모으려고 */
 export interface KeyRow {
@@ -193,8 +195,8 @@ export function redactSecrets(text: string): string {
    볼 때는 그 줄이 왜 못 쓰는지가 바로 그 화면의 용건이다. 빼 버리면 관리자는
    「내가 넣은 키가 사라졌다」고 읽는다. */
 
-/** 한 줄이 지금 어떤 상태인가. 넷 중 하나로만 정해진다 */
-export type KeyViewStatus = 'usable' | 'cooling' | 'auth_broken' | 'off'
+/** 한 줄이 지금 어떤 상태인가. 넷 중 하나로만 정해진다 (말은 용어집 AI_KEY_STATUS) */
+export type KeyViewStatus = AiKeyStatusKey
 
 export interface KeyView {
   id: string
@@ -218,12 +220,6 @@ export function keyViewStatus(entry: KeyPoolEntry, now: number): KeyViewStatus {
   return 'usable'
 }
 
-const STATUS_TEXT: Record<KeyViewStatus, string> = {
-  usable: '쓸 수 있음',
-  cooling: '한도에 걸려 쉬는 중',
-  auth_broken: '키가 거부됨, 새 키로 바꿔야 합니다',
-  off: '꺼 둠',
-}
 
 /** 화면이 쓸 줄 하나. **원문 키를 담지 않는다** */
 export function toKeyView(entry: KeyPoolEntry, now: number, lastError: string | null = null): KeyView {
@@ -234,7 +230,7 @@ export function toKeyView(entry: KeyPoolEntry, now: number, lastError: string | 
     maskedKey: maskApiKey(entry.apiKey),
     priority: entry.priority,
     status,
-    statusText: STATUS_TEXT[status],
+    statusText: AI_KEY_STATUS[status],
     cooldownUntil: status === 'cooling' ? entry.cooldownUntil : null,
     lastError,
   }

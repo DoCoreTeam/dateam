@@ -31,7 +31,7 @@ import {
   moveProviderKeyRow,
   toggleProviderKeyRow,
 } from './actions'
-import { ACTION } from '@/lib/terms'
+import { ACTION, AI_KEY } from '@/lib/terms'
 import type { KeyView } from '@/lib/ai/key-store-core'
 
 interface Props {
@@ -167,7 +167,7 @@ export default function AiProviderCard({
 
       {rows.length > 0 ? (
         <form action={handleAddRow}>
-          <label className="label" htmlFor={`ai-key-label-${provider}`}>키 이름</label>
+          <label className="label" htmlFor={`ai-key-label-${provider}`}>{AI_KEY.labelField}</label>
           <input
             className="input-field"
             id={`ai-key-label-${provider}`}
@@ -175,12 +175,12 @@ export default function AiProviderCard({
             type="text"
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
-            placeholder="두 번째 계정"
+            placeholder={AI_KEY.labelPlaceholder}
             style={{ marginTop: '0.375rem' }}
             autoComplete="off"
           />
           <label className="label" htmlFor={`ai-key-${provider}`} style={{ marginTop: 'var(--space-2)' }}>
-            API 키
+            {AI_KEY.keyField}
           </label>
           <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.375rem' }}>
             <input
@@ -196,11 +196,11 @@ export default function AiProviderCard({
             />
             <NbButton type="submit" disabled={rowPending || !inputKey.trim() || !newLabel.trim()}>
               {rowPending ? <AXDotLoader size={4} color="var(--brand-fg)" /> : null}
-              새 키
+              {AI_KEY.create}
             </NbButton>
           </div>
           <FieldNote>
-            앞에 있는 키부터 씁니다. 한도에 걸리면 다음 키로 이어서 부릅니다{' '}
+            {AI_KEY.orderNote}{' '}
             <a href={spec.keyIssueUrl} target="_blank" rel="noreferrer">
               {spec.label} 키 발급 <ExternalLink size={11} />
             </a>
@@ -307,21 +307,21 @@ function KeyRowList({ rows, pending, onMove, onToggle, onDelete }: {
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-1)' }}>
             <NbButton
               type="button" variant="ghost" disabled={pending || i === 0}
-              onClick={() => onMove(row.id, 'up')} title="위로" aria-label={`${row.label} 위로`}
+              onClick={() => onMove(row.id, 'up')} title={AI_KEY.moveUp} aria-label={`${row.label} ${AI_KEY.moveUp}`}
             >
               <ChevronUp size={14} />
             </NbButton>
             <NbButton
               type="button" variant="ghost" disabled={pending || i === rows.length - 1}
-              onClick={() => onMove(row.id, 'down')} title="아래로" aria-label={`${row.label} 아래로`}
+              onClick={() => onMove(row.id, 'down')} title={AI_KEY.moveDown} aria-label={`${row.label} ${AI_KEY.moveDown}`}
             >
               <ChevronDown size={14} />
             </NbButton>
             <NbButton
               type="button" variant="ghost" disabled={pending}
               onClick={() => onToggle(row.id, row.status === 'off' || row.status === 'auth_broken')}
-              title={row.status === 'off' ? '켜기' : '끄기'}
-              aria-label={`${row.label} ${row.status === 'off' ? '켜기' : '끄기'}`}
+              title={row.status === 'off' ? AI_KEY.turnOn : AI_KEY.turnOff}
+              aria-label={`${row.label} ${row.status === 'off' ? AI_KEY.turnOn : AI_KEY.turnOff}`}
             >
               <Power size={14} />
             </NbButton>
