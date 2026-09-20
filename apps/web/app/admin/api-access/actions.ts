@@ -13,10 +13,33 @@ function generateTempPassword(): string {
   return pw
 }
 
-export async function approveRequest(requestId: string): Promise<{ success: boolean; tempPassword?: string; error?: string }> {
+/**
+ * 관리자인지 확인한다.
+ *
+ * **왜 새로 넣었나**: 여기 있던 확인은 「로그인했는가」뿐이었다(실측 2026-09-20).
+ * 서버 액션은 화면 게이트가 안 막는다 — 주소만 알면 로그인한 누구나 부를 수 있다.
+ * 이 둘은 **계정을 만들고 API 키를 내주는** 일이라 로그인만으로는 부족하다.
+ */
+async function requireApiAccessAdmin(): Promise<{ id: string } | null> {
   const supabase = await createClient()
-  const { data: { user: admin } } = await supabase.auth.getUser()
-  if (!admin) return { success: false, error: 'Unauthorized' }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = createAdminClient() as any
+  const { data } = await db
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  return data?.role === 'admin' ? { id: user.id } : null
+}
+
+export async function approveRequest(requestId: string): Promise<{ success: boolean; tempPassword?: string; error?: string }> {
+  const admin = await requireApiAccessAdmin()
+  if (!admin) return { success: false, error: '관리자 권한이 필요합니다' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminClient = createAdminClient() as any
@@ -76,9 +99,8 @@ export async function approveRequest(requestId: string): Promise<{ success: bool
 }
 
 export async function rejectRequest(requestId: string, notes: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
-  const { data: { user: admin } } = await supabase.auth.getUser()
-  if (!admin) return { success: false, error: 'Unauthorized' }
+  const admin = await requireApiAccessAdmin()
+  if (!admin) return { success: false, error: '관리자 권한이 필요합니다' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adminClient = createAdminClient() as any

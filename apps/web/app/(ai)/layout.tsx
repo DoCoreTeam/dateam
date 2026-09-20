@@ -7,7 +7,7 @@
 
 import { Sparkles, MessagesSquare, FolderKanban, ListTree, FolderOpen, Cpu } from 'lucide-react'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
-import { redirectApiUser } from '@/lib/auth/api-user-gate'
+import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import { getRequestUser } from '@/lib/supabase/server'
 import { getRequestProfile } from '@/lib/auth/request-profile'
 import { getBranding } from '@/lib/branding'
@@ -44,6 +44,7 @@ export default async function AiLayout({ children }: { children: React.ReactNode
   // 프로필은 요청당 1회 캐시(getRequestProfile)라 여기서 먼저 읽어도 왕복이 늘지 않는다.
   const profile = await getRequestProfile()
   await redirectApiUser(profile?.role)
+  await requireAdminMfa(profile?.role)
   await requireAdmin()
 
   const [branding, globalTheme, user] = await Promise.all([

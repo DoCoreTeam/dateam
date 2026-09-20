@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { redirectApiUser } from '@/lib/auth/api-user-gate'
+import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import { isResigned } from '@/lib/members/employment'
 import { Suspense } from 'react'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
@@ -137,6 +137,7 @@ export default async function MemberLayout({ children }: { children: React.React
   // api_user는 내부 화면에 들어올 수 없다 — 예전엔 미들웨어가 role을 따로 조회해 막았지만,
   // 위 Promise.all이 이미 같은 행에서 role을 읽으므로 여기서 막으면 왕복이 0회다.
   await redirectApiUser(profile?.role)
+  await requireAdminMfa(profile?.role)
   // 퇴사일이 온 사람은 내부 화면에 들어올 수 없다. 로그인 차단(auth ban)이 주 방어선이고,
   // 여기는 앞날로 잡아 둔 퇴사일이 조용히 지나가는 경우를 받는 자리다.
   if (isResigned(employmentResult.data)) redirect('/login?reason=resigned')

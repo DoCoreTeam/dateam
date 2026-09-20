@@ -11,7 +11,7 @@
 
 import { redirect } from 'next/navigation'
 import { badgeTitle } from '@/lib/terms'
-import { redirectApiUser } from '@/lib/auth/api-user-gate'
+import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import {
   Building2, Handshake, Mic, BarChart3, Sun, FileText
 } from 'lucide-react'
@@ -112,6 +112,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
   // 프로필은 요청당 1회 캐시(getRequestProfile)라 여기서 먼저 읽어도 왕복이 늘지 않는다.
   const profile = await getRequestProfile()
   await redirectApiUser(profile?.role)
+  await requireAdminMfa(profile?.role)
 
   const access = await resolveCrmAccess()
 

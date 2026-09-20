@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { redirectApiUser } from '@/lib/auth/api-user-gate'
+import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import AppShell from '@/components/ui/shell/AppShell'
 import type { NavGroup } from '@/components/ui/shell/AppShell'
@@ -86,6 +86,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // api_user는 자기 자리로 되돌린다(아래 admin 게이트보다 먼저 — 목적지가 다르다)
   await redirectApiUser(profile?.role)
+  await requireAdminMfa(profile?.role)
   if (!profile || profile.role !== 'admin') redirect('/dashboard')
 
   const displayName = profile.name ?? user.email ?? '관리자'

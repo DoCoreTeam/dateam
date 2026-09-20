@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { Palette, Bot, Plug, Server } from 'lucide-react'
+import MfaPolicySettings from './MfaPolicySettings'
 import PageHeader from '@/components/ui/PageHeader'
 import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import SettingsSection from './SettingsSection'
@@ -115,6 +116,27 @@ export default async function AdminSettingsPage({
 
   const storedDbUrl = meta.db_connection_url as string | undefined
   const hasDbUrl = !!storedDbUrl
+
+  /**
+   * 「관리자는 2단계 필수」 현재 값과, 지금 몇 명이 켰는지.
+   *
+   * 숫자를 함께 보여 주는 이유: 스위치만 있으면 켜도 되는 상태인지 알 수 없다.
+   * 아무도 안 켰을 때 켜도 안전하지만(등록 화면으로 보낼 뿐 막지 않는다),
+   * 그 사실을 화면이 말해 주는 편이 낫다.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const secDb = createAdminClient() as any
+  const [{ data: mfaFlagRow }, { data: adminRows }, { data: factorRows }] = await Promise.all([
+    secDb.from('system_settings').select('value').eq('key', 'mfa_required_for_admin').maybeSingle(),
+    secDb.from('profiles').select('id').eq('role', 'admin').is('deleted_at', null),
+    secDb.schema('auth').from('mfa_factors').select('user_id').eq('status', 'verified'),
+  ])
+  const mfaRequiredForAdmin = mfaFlagRow?.value === 'true'
+  const adminIds = new Set<string>(((adminRows ?? []) as { id: string }[]).map((r) => r.id))
+  const adminsTotal = adminIds.size
+  const adminsWithMfa = new Set(
+    ((factorRows ?? []) as { user_id: string }[]).map((r) => r.user_id).filter((id) => adminIds.has(id)),
+  ).size
   const maskedDbUrl = storedDbUrl ? storedDbUrl.replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/i, (_m, a, _pw, c) => `${a}••••••••${c}`) : null
 
   // 탭 구성 — 아래로 계속 스크롤하는 대신 성격별로 나눈다.
@@ -214,6 +236,13 @@ export default async function AdminSettingsPage({
       icon: <Server size={15} />,
       content: (
         <div className="settings-stack">
+          <SettingsSection title="보안" desc="로그인에 한 겹을 더할지 정합니다.">
+            <MfaPolicySettings
+              enabled={mfaRequiredForAdmin}
+              adminsWithMfa={adminsWithMfa}
+              adminsTotal={adminsTotal}
+            />
+          </SettingsSection>
           <SettingsSection title="DB 연결" desc="마이그레이션과 운영 점검에 쓰는 연결 정보입니다.">
             <DbSettings hasUrl={hasDbUrl} maskedUrl={maskedDbUrl} />
           </SettingsSection>

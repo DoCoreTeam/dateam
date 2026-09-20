@@ -67,6 +67,27 @@ async function setMetaValue(
 // ── DB 연결 설정 (PostgreSQL 연결 문자열) — Gemini 키와 동일 패턴 ──
 // (마스킹은 클라이언트(DbSettings)·page.tsx에서 직접 수행 — 'use server' 파일은 async export만 허용)
 
+/**
+ * 관리자에게 2단계 인증을 요구할지 저장한다.
+ *
+ * 읽는 코드(lib/auth/mfa.ts)와 강제하는 코드(middleware.ts)는 이미 있었는데
+ * **켜는 자리가 없었다.** 여기가 그 자리다.
+ */
+export async function saveMfaRequiredForAdmin(next: boolean): Promise<{ ok: boolean; error?: string }> {
+  const db = await requireAdmin()
+  if (!db) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (db as any)
+    .from('system_settings')
+    .upsert({ key: 'mfa_required_for_admin', value: next ? 'true' : 'false' }, { onConflict: 'key' })
+
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
 export async function saveDbUrl(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const dbUrl = (formData.get('dbUrl') as string)?.trim()
   if (!dbUrl) return { ok: false, error: 'DB 연결 문자열을 입력해주세요' }

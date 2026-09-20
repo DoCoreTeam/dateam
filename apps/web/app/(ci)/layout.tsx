@@ -8,7 +8,7 @@
 
 import { redirect } from 'next/navigation'
 import { badgeTitle, type BadgeKey } from '@/lib/terms'
-import { redirectApiUser } from '@/lib/auth/api-user-gate'
+import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import {
   Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors, Sparkles,
 } from 'lucide-react'
@@ -118,6 +118,7 @@ export default async function CiLayout({ children }: { children: React.ReactNode
   ])
   // (member)와 같은 이유 — role은 위 조회에 이미 들어 있다
   await redirectApiUser(profile?.role)
+  await requireAdminMfa(profile?.role)
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const userEmail = user.email ?? ''
   const isAdmin = profile?.role === 'admin'

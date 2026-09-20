@@ -47,3 +47,32 @@ async function isAlreadyAtHome(): Promise<boolean> {
 export async function redirectApiUser(role: string | null | undefined): Promise<void> {
   if (role === 'api_user' && !(await isAlreadyAtHome())) redirect(API_USER_HOME)
 }
+
+/**
+ * 「관리자는 2단계 필수」가 켜져 있으면, 안 건 관리자를 등록 화면으로 보낸다.
+ *
+ * **왜 레이아웃인가**: 미들웨어에 두면 요청마다 profiles 를 한 번 더 조회한다.
+ * 그 조회를 없애서 페이지당 236ms 를 줄인 전례가 있고 가드가 그것을 지킨다.
+ * 레이아웃은 렌더에 쓸 role 을 **이미 읽고 있으므로** 여기서는 왕복이 0회다.
+ * api_user 게이트가 같은 이유로 여기 있다.
+ *
+ * **막지 않고 보낸다**: 막으면 관리자가 자기 시스템에서 잠긴다.
+ * 등록을 마치면 세션이 2단계가 되고 미들웨어가 그다음을 맡는다.
+ *
+ * 설정이 꺼져 있으면(기본값) 표 조회 한 번으로 끝나고 아무 일도 안 한다.
+ */
+export async function requireAdminMfa(role: string | null | undefined): Promise<void> {
+  if (role !== 'admin') return
+
+  const path = (await headers()).get('x-pathname') ?? ''
+  // 등록하러 가는 길과 코드 넣는 길은 막지 않는다 — 막으면 영영 못 켠다
+  if (path.startsWith('/security') || path.startsWith('/mfa') || path.startsWith('/change-password')) return
+
+  const { isMfaRequiredForAdmin, getMfaState } = await import('./mfa.ts')
+  if (!(await isMfaRequiredForAdmin())) return
+
+  const state = await getMfaState()
+  if (state.verified.length > 0) return
+
+  redirect('/security?enroll=required')
+}

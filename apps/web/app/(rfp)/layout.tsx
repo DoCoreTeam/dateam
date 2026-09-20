@@ -5,7 +5,7 @@
 
 import { FileSearch, FilePlus2, Radar, Building2, MessagesSquare, Settings } from 'lucide-react'
 import { redirect } from 'next/navigation'
-import { redirectApiUser } from '@/lib/auth/api-user-gate'
+import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import { getRequestUser } from '@/lib/supabase/server'
 import { getRequestProfile } from '@/lib/auth/request-profile'
 import { getBranding } from '@/lib/branding'
@@ -29,6 +29,7 @@ const NAV_ICON: Record<string, React.ReactNode> = {
 export default async function RfpLayout({ children }: { children: React.ReactNode }) {
   const profile = await getRequestProfile()
   await redirectApiUser(profile?.role)
+  await requireAdminMfa(profile?.role)
 
   const user = await getRequestUser()
   if (!user) redirect('/login')

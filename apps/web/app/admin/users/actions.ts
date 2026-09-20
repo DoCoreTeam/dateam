@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { validateEmployment, toDateOrNull, isResigned } from '@/lib/members/employment'
+import { logAdminAction, ADMIN_ACTION_LABEL } from '@/lib/auth/admin-audit'
 
 const BAN_DURATION_PERMANENT = '876000h' // ~100년
 
@@ -30,6 +31,14 @@ export async function changeRole(userId: string, newRole: 'admin' | 'member') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (ctx.supabase.from('profiles') as any).update({ role: newRole }).eq('id', userId)
   if (error) return { error: error.message }
+
+  await logAdminAction({
+    actorId: ctx.user.id,
+    targetId: userId,
+    action: 'role_change',
+    title: `${ADMIN_ACTION_LABEL.role_change}: ${newRole === 'admin' ? '관리자로' : '구성원으로'}`,
+    after: { role: newRole },
+  })
 
   revalidatePath('/admin/users')
   return { success: true }
@@ -70,6 +79,13 @@ export async function deleteUser(userId: string): Promise<{ success?: boolean; e
     console.warn('[deleteUser] auth ban failed, profile soft-deleted:', authError.message)
   }
 
+  await logAdminAction({
+    actorId: ctx.user.id,
+    targetId: userId,
+    action: 'user_delete',
+    title: ADMIN_ACTION_LABEL.user_delete,
+  })
+
   revalidatePath('/admin/users')
   revalidatePath('/admin/members')
   revalidatePath('/admin/org-chart')
@@ -101,6 +117,13 @@ export async function resetUserPassword(
     .update({ must_change_password: true })
     .eq('id', userId)
 
+  await logAdminAction({
+    actorId: ctx.user.id,
+    targetId: userId,
+    action: 'password_reset',
+    title: ADMIN_ACTION_LABEL.password_reset,
+  })
+
   revalidatePath('/admin/users')
   return { ok: true }
 }
@@ -131,6 +154,14 @@ export async function resetUserMfa(
     if (error) return { ok: false, error: error.message }
   }
 
+  await logAdminAction({
+    actorId: ctx.user.id,
+    targetId: userId,
+    action: 'mfa_reset',
+    title: `${ADMIN_ACTION_LABEL.mfa_reset}: 장치 ${factors.length}개`,
+    after: { removedFactors: factors.length },
+  })
+
   revalidatePath('/admin/users')
   return { ok: true, removed: factors.length }
 }
@@ -154,6 +185,10 @@ export async function resetUserOnboarding(
 }
 
 export async function inviteUser(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+  // 관리자 확인이 빠져 있었다. 이 함수는 계정을 **만든다** — 확인 없이 부를 수 있으면 안 된다.
+  const ctx = await requireAdmin()
+  if (!ctx) return { error: '관리자 권한이 필요합니다' }
+
   const email = (formData.get('email') as string)?.trim()
   const name = (formData.get('name') as string)?.trim()
 
@@ -182,6 +217,14 @@ export async function inviteUser(formData: FormData): Promise<{ success?: boolea
     console.error('[inviteUser] profile upsert error', profileError)
     return { error: '사용자 생성 중 오류가 발생했습니다' }
   }
+
+  await logAdminAction({
+    actorId: ctx.user.id,
+    targetId: data.user.id,
+    action: 'user_invite',
+    title: `${ADMIN_ACTION_LABEL.user_invite}: ${name}`,
+    after: { email, name, role: 'member' },
+  })
 
   revalidatePath('/admin/users')
   return { success: true }
@@ -247,6 +290,14 @@ export async function resignMember(
   // 그날이 와야 조직도에서 빼고 로그인을 막는다. 앞날로 적었으면 아직 그대로 일한다
   await applyResignEffect(adminClient, userId, resignedOn)
 
+  await logAdminAction({
+    actorId: ctx.user.id,
+    targetId: userId,
+    action: 'member_resign',
+    title: `${ADMIN_ACTION_LABEL.member_resign}: ${resignedOn ?? '날짜 없음'}`,
+    after: { resignedOn, reason: input?.reason ?? null },
+  })
+
   revalidateMemberPaths(userId)
   return { ok: true }
 }
@@ -294,6 +345,13 @@ export async function undoResignMember(
 
   const applied = await applyResignEffect(adminClient, userId, null)
   if (applied.error) return { ok: false, error: applied.error }
+
+  await logAdminAction({
+    actorId: ctx.user.id,
+    targetId: userId,
+    action: 'member_unresign',
+    title: ADMIN_ACTION_LABEL.member_unresign,
+  })
 
   revalidateMemberPaths(userId)
   return { ok: true }
