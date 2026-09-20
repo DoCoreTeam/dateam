@@ -113,7 +113,7 @@
 의존: I05
 
 ### I07 하루 상한을 아는 자리
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/NNN_ai_call_budget.sql (신규), apps/web/lib/ai/budget.ts (신규), apps/web/lib/ai/budget.test.ts (신규), apps/web/package.json
 감사 기준:
