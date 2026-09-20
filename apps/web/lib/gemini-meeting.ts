@@ -93,6 +93,8 @@ export async function summarizeMeeting(args: MeetingArgs): Promise<MeetingSummar
     model,
     temperature: 0.2,
     feature: 'meeting_summarize',
+    // 회의노트를 연 사람이 주인이다. 토큰 집계에는 이미 넘기고 있었는데 원장에는 못 넘겼다
+    actorId: userId ?? null,
     timeoutMs,
     overallTimeoutMs,
   })
@@ -135,6 +137,7 @@ export async function extractMeetingItems(args: MeetingArgs & { today: string })
     model,
     temperature: 0.0,
     feature: 'meeting_extract',
+    actorId: userId ?? null,
   })
 
   logTokenUsage({

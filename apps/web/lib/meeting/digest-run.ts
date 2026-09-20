@@ -223,6 +223,8 @@ export async function runMeetingDigest(
         const out = await callGeminiJson({
           prompt: buildPartCondensePrompt(chunk.partIdx, chunk.text),
           apiKey, model, temperature: 0.0, feature: 'meeting_digest_condense',
+          // 회의 정리를 누른 사람이 주인이다. 이 함수는 userId 를 이미 인자로 받고 있었다
+          actorId: userId,
           ...digestCallBudget(budget.remaining(), CONDENSE_CALL_MS, CONDENSE_OVERALL_MS),
         })
         condensed.push({ partIdx: chunk.partIdx, facts: parseCondensedFacts(out.value, knownIds) })
@@ -247,6 +249,7 @@ export async function runMeetingDigest(
   const out = await callGeminiJson({
     prompt: buildMeetingDigestPrompt({ memo, transcript: transcriptForPrompt }),
     apiKey, model, temperature: 0.1, feature: 'meeting_digest',
+    actorId: userId,
     ...digestCallBudget(budget.remaining(), DIGEST_CALL_MS, DIGEST_OVERALL_MS),
   })
   /*

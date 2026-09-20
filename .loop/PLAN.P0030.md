@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.6
+플랜 버전: v0.1.7
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -149,24 +149,35 @@
 범위 메모: 원래 한 항목이었는데 이어 붙일 창구가 열 곳이 넘어 한 번의 자가감사로 판정할 수 없었다. 자리와 등재부(I08a), 사람 창구 결선(I08b), 나머지 결선(I08c)로 나눔. guarded-call.ts 는 이미 ctx.actorId 를 원장에 그대로 적고 있어 고칠 것이 없으므로 범위에서 뺌
 
 ### I08b 사람이 누른 창구에 주인을 잇는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/api/admin/system-log/remedy/route.ts, apps/web/app/api/meeting-notes/[id]/transcript/speakers/route.ts, apps/web/lib/gemini-meeting.ts, apps/web/lib/meeting/digest-run.ts, apps/web/lib/daily-prompt-governance.ts
+범위: apps/web/app/api/admin/system-log/remedy/route.ts, apps/web/app/api/meeting-notes/[id]/transcript/speakers/route.ts, apps/web/lib/gemini-meeting.ts, apps/web/lib/meeting/digest-run.ts, apps/web/lib/ai/actor.ts
 감사 기준:
-- 다섯 파일이 전부 자기가 이미 쥐고 있는 사용자 id 를 actorId 로 넘김
-- 등재부에서 이 다섯의 «아직 안 이어 붙임» 표시가 빠지고 기준선 수가 그만큼 줄어듦
-- 실측으로 확인: 사람이 부른 호출 한 건의 actor_id 가 그 사람 id 와 같음
+- 네 창구가 전부 자기가 이미 쥐고 있는 사용자 id 를 actorId 로 넘김
+- 등재부에서 이 넷의 «아직 안 이어 붙임» 표시가 빠지고 기준선이 10 에서 6 으로 내려감
+- 회의 요약과 회의 정리는 부르는 쪽에서 userId 를 받아 그대로 내려보냄 (단위 테스트로 대조)
 의존: I08a
+범위 메모: daily-prompt-governance.ts 는 자기 인자에 사용자가 없어 부르는 라우트까지 고쳐야 해서 I08c 로 옮김. 등재부(actor.ts)는 기준선을 내려야 하므로 범위에 넣음
 
-### I08c 남은 창구에 주인을 잇는다
+### I08c 자가조정과 채팅에 주인을 잇는다
 상태: 대기
 모드: 경량
-범위: apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/crm/ai/runner.ts, apps/web/lib/stt/provider.ts, apps/web/lib/meeting/transcribe-parts.ts, apps/web/lib/gpu/extract-helpers.ts
+범위: apps/web/lib/daily-prompt-governance.ts, apps/web/app/api/ai/analyze-work/route.ts, apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/ai/actor.ts
 감사 기준:
-- 다섯 창구가 부르는 쪽에서 사용자 id 를 받아 actorId 로 넘김
+- 프롬프트 자가조정이 그 사람의 일일업무에서 출발했음을 actor_id 로 남김 (라우트가 이미 쥔 user.id 를 내려보냄)
+- AI 채팅 호출의 actor_id 가 친 사람의 id 와 같음
+- 기준선이 6 에서 3 으로 내려감
+의존: I08b
+
+### I08d 남은 창구에 주인을 잇는다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/crm/ai/runner.ts, apps/web/lib/stt/provider.ts, apps/web/lib/meeting/transcribe-parts.ts, apps/web/lib/gpu/extract-helpers.ts, apps/web/lib/ai/actor.ts
+감사 기준:
+- 네 창구가 부르는 쪽에서 사용자 id 를 받아 actorId 로 넘김
 - 등재부의 «아직 안 이어 붙임» 이 0 이 되고 기준선도 0
 - ci 배치와 gpu 회사 보강은 배경으로 남고 그 사유가 등재부에 적혀 있음
-의존: I08b
+의존: I08c
 
 ### I09 관리자 사용량 화면이 원장을 읽는다
 상태: 대기
@@ -263,3 +274,4 @@
 - v0.1.4 (2026-09-20) 주인 붙이기는 창구 서른 곳을 손대는 별도 일이라 I08a 로 뺀다, I08 은 예산 관문에만 집중한다 (audit:I08)
 - v0.1.5 (2026-09-20) I08 범위에 budget.ts 와 budget-gate.ts 를 넣음: 세는 자리가 server-only 를 달고 있어 던지기만 하려는 RFP 관문까지 서버 묶음에 묶였고 단위 시험 8개가 죽었다. 거절 예외를 규칙 계층으로 옮기고 창구를 guarded-call 한 곳에서만 고르게 했다. gemini-call.ts 는 beginGuardedCall 을 이미 지나므로 손대지 않음 (audit:I08)
 - v0.1.6 (2026-09-20) I08a 를 셋으로 나눔(I08a 자리와 등재부 / I08b 사람 창구 결선 / I08c 나머지 결선). 벤더로 나가는 파일이 35개이고 주인을 안 넘기는 곳이 10개라 한 항목으로는 한 번에 감사할 수 없었다. guarded-call.ts 는 이미 ctx.actorId 를 원장에 적고 있어 범위에서 뺌, 대신 주인을 받을 자리가 없는 gemini-call.ts 를 넣음 (audit:I08a)
+- v0.1.7 (2026-09-20) I08b 에서 daily-prompt-governance 를 빼 I08c 로 옮기고 남은 결선을 I08d 로 밀었다. 그 파일은 자기 인자에 사용자가 없어 부르는 라우트(analyze-work)까지 고쳐야 하는데, 그러면 한 항목이 일곱 파일이 되어 한 번에 감사할 수 없다. 등재부 actor.ts 는 기준선을 내리는 자리라 세 항목 모두의 범위에 들어간다 (audit:I08b)

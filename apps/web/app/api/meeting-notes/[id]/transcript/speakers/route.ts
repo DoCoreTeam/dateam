@@ -74,6 +74,7 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
       apiKey,
       model: (typeof meta.gemini_model === 'string' ? meta.gemini_model : '') || DEFAULT_GEMINI_MODEL,
       feature: 'meeting-speaker-split',
+      actorId: auth.user.id,
       temperature: 0,
       timeoutMs: 120_000,
       overallTimeoutMs: 240_000,

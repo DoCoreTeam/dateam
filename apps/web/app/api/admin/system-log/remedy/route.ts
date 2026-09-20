@@ -103,7 +103,11 @@ export async function POST(req: Request) {
   ].join('\n')
 
   try {
-    const result = await callGeminiJson({ prompt, apiKey, model: null, feature: 'system-log-remedy' })
+    const result = await callGeminiJson({
+      prompt, apiKey, model: null, feature: 'system-log-remedy',
+      // 관리자가 눌러서 시작한 호출이다. 주인을 안 적으면 원장에서 배경 작업과 못 가른다
+      actorId: user.id,
+    })
     const parsed = (result.value ?? {}) as Record<string, unknown>
     const remedy: Remedy = {
       diagnosis: String(parsed.diagnosis ?? '원인을 알아내지 못했습니다.'),

@@ -85,15 +85,15 @@ export const AI_LANES: readonly AiLane[] = [
   { file: 'lib/gemini-suggest-tasks.ts', kind: 'human', surfaces: ['dept-task-suggest'],
     why: '부서 업무 제안을 사람이 누른다' },
 
-  // ── 사람이 누르는데 아직 주인을 안 이어 붙인 자리 (I08b, I08c 에서 없앤다) ──────
+  // ── 사람이 누르는데 아직 주인을 안 이어 붙인 자리 (I08c, I08d 에서 없앤다) ──────
   { file: 'app/api/admin/system-log/remedy/route.ts', kind: 'human', surfaces: ['system-log-remedy'],
-    why: '관리자가 해결책을 누른다, 창구가 이미 user.id 를 쥐고 있다', unwired: true },
+    why: '관리자가 해결책을 누른다, 창구가 user.id 를 그대로 넘긴다' },
   { file: 'app/api/meeting-notes/[id]/transcript/speakers/route.ts', kind: 'human', surfaces: ['meeting-speaker-split'],
-    why: '회의 화면에서 사람이 화자 나누기를 누른다, 창구가 이미 auth.user.id 를 쥐고 있다', unwired: true },
+    why: '회의 화면에서 사람이 화자 나누기를 누른다, 창구가 auth.user.id 를 그대로 넘긴다' },
   { file: 'lib/gemini-meeting.ts', kind: 'human', surfaces: ['meeting_extract', 'meeting_summarize'],
-    why: '회의노트 요약과 추출, userId 를 인자로 이미 받고 있는데 호출기에 넘길 칸이 없었다', unwired: true },
+    why: '회의노트 요약과 추출, 받은 userId 를 호출기까지 내려보낸다' },
   { file: 'lib/meeting/digest-run.ts', kind: 'human', surfaces: ['meeting_digest', 'meeting_digest_condense'],
-    why: '회의 정리, userId 를 인자로 이미 받고 있다', unwired: true },
+    why: '회의 정리, 받은 userId 를 호출기까지 내려보낸다' },
   { file: 'lib/daily-prompt-governance.ts', kind: 'human', surfaces: ['daily-prompt-synth'],
     why: '프롬프트 개선은 사람의 일일업무 결과에서 출발한다', unwired: true },
   { file: 'lib/ai-chat/providers/gemini.ts', kind: 'human', surfaces: ['ai-chat'],
@@ -137,7 +137,8 @@ export function unwiredLanes(): readonly AiLane[] {
 /**
  * 아직 안 이어 붙인 자리의 기준선.
  *
- * 실측 2026-09-20 기준 열 곳이다. I08b 가 다섯, I08c 가 다섯을 없앤다.
- * 이 숫자를 올리는 변경은 가드가 막는다 — 새 자리를 「나중에」로 여는 길을 안 남긴다.
+ * 실측 2026-09-20 기준 열 곳이었다. I08b 가 넷을 없애 여섯이 남았고, I08c 가 셋,
+ * I08d 가 나머지를 없앤다. 이 숫자를 올리는 변경은 가드가 막는다 —
+ * 새 자리를 「나중에」로 여는 길을 안 남긴다. 줄이면 이 값도 함께 내린다.
  */
-export const UNWIRED_BASELINE = 10
+export const UNWIRED_BASELINE = 6
