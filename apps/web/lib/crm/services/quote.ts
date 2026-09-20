@@ -43,7 +43,7 @@ import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
 import { LINE_KIND_ORDER, type QuoteLineKind } from '../../terms/cost.ts'
 import { roundingUnitName } from '../../terms/quote.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
-import { readQuoteNoPattern } from './setting.ts'
+import { readQuoteNoPattern, readQuoteSupplier } from './setting.ts'
 
 // ------------------------------------------------------------
 // 모양
@@ -114,6 +114,8 @@ export interface QuoteRow {
   notesMd: string | null
   /** 이 견적이 고른 거래 조건. 순서가 곧 인쇄 순서다 */
   termIds: string[]
+  /** 그 조건의 **본문을 만든 날 그대로 굳힌 것**. 설정이 바뀌어도 이 견적서는 안 바뀐다 */
+  termsSnapshot: string[]
   ownerId: string | null
   /**
    * 파일에서 만들어진 시각. null = 파일 출처가 아니거나 사람이 한 번 고쳐 저장함.
@@ -149,7 +151,7 @@ const SELECT = {
   fxRate: true, fxDate: true, fxSource: true,
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
   // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
-  termIds: true, ownerId: true, createdById: true, recipientPersonId: true,
+  termIds: true, termsSnapshot: true, ownerId: true, createdById: true, recipientPersonId: true,
   // 파일에서 왔는지 — **표시 전용**. 읽지 않으면 배지를 달 근거가 화면에 닿지 않는다
   fromFileAt: true, sourceFileName: true,
   sentAt: true, decidedAt: true, version: true, createdAt: true, updatedAt: true,
@@ -588,6 +590,43 @@ export interface CreateQuoteInput {
   sourceFileName?: string | null
 }
 
+/**
+ * 조건 본문을 줄 단위로 나눈다 — **읽는 쪽과 같은 규칙**이다
+ * (domain/quote-document 가 supplier.terms 를 이렇게 나눠 인쇄한다).
+ * 두 곳이 다르게 나누면 굳힌 조건과 인쇄된 조건이 서로 다른 문서가 된다.
+ */
+export function termsTextToLines(text: string | null | undefined): string[] {
+  return (text ?? '').split('\n').map((t) => t.trim()).filter((t) => t !== '')
+}
+
+/**
+ * 이 견적서에 인쇄될 조건을 **지금 값으로 굳힌다**.
+ *
+ * **왜 id 가 아니라 본문인가**: id 만 남기면 조건 항목을 고치거나 지웠을 때
+ * 이미 보낸 견적서가 따라 바뀐다. 고객이 든 종이와 우리 화면이 다른 말을 하면
+ * 그건 문서가 아니다(마이그 270).
+ *
+ * 아무것도 안 골랐으면 설정의 기본 거래 조건을 굳힌다 — 읽는 쪽이 오늘 하는 폴백과 같다.
+ */
+async function resolveTermsSnapshot(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any,
+  termIds: string[],
+): Promise<string[]> {
+  if (termIds.length > 0) {
+    const rows = await tx.crmQuoteTerm.findMany({
+      where: { id: { in: termIds } },
+      select: { id: true, body: true },
+    }) as { id: string; body: string }[]
+    // **고른 순서 그대로** — DB 가 준 순서가 아니다
+    return termIds
+      .map((id) => rows.find((r) => r.id === id)?.body)
+      .filter((b): b is string => Boolean(b))
+  }
+  const supplier = await readQuoteSupplier(tx)
+  return termsTextToLines(supplier.terms)
+}
+
 export async function createQuote(
   workspaceId: string,
   actorId: string | null,
@@ -631,6 +670,11 @@ export async function createQuote(
     const totals = computeTotals(lines as unknown as QuoteLineInput[], rounding)
     const threshold = await approvalThreshold(tx)
 
+    // 조건은 **만들 때 굳힌다.** 아래 두 경로(첫 시도·번호 충돌 재시도)가 같은 값을 쓴다 —
+    // 한쪽에서만 굳히면 번호가 겹친 날의 견적만 조건이 빈 채로 남는다
+    const termIds = Array.isArray(input.termIds) ? input.termIds.filter((v) => typeof v === 'string') : []
+    const termsSnapshot = await resolveTermsSnapshot(tx, termIds)
+
     // 형식은 설정에서 온다 — 회사마다 다르고, 바꾸려고 배포를 기다릴 일이 아니다
     const pattern = await readQuoteNoPattern(tx)
     // 「오늘」은 KST 다. UTC 로 재면 한국 자정~아침 9시에 어제 번호가 나간다
@@ -650,7 +694,8 @@ export async function createQuote(
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
           notesMd: normalizeText(input.notesMd),
           // 고른 조건. 순서를 그대로 저장한다 — 그 순서가 인쇄 순서다
-          termIds: Array.isArray(input.termIds) ? input.termIds.filter((v) => typeof v === 'string') : [],
+          termIds,
+          termsSnapshot,
           ownerId: input.ownerId || null,
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor,
@@ -680,9 +725,8 @@ export async function createQuote(
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
           notesMd: normalizeText(input.notesMd), ownerId: input.ownerId || null,
           recipientPersonId: input.recipientPersonId || null,
-          ...(Array.isArray(input.termIds)
-            ? { termIds: input.termIds.filter((v) => typeof v === 'string') }
-            : {}),
+          termIds,
+          termsSnapshot,
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor,
           taxMinor: totals.taxMinor, totalMinor: totals.totalMinor,
@@ -854,6 +898,20 @@ export async function updateQuote(
       data.validUntil = input.validUntil ? new Date(input.validUntil) : null
     }
     if (input.notesMd !== undefined) data.notesMd = normalizeText(input.notesMd)
+    /*
+      **조건은 받을 때마다 다시 굳힌다.**
+      사용자가 고른 것은 반영하고, 그 사이 설정이 바뀐 것은 반영하지 않는다 —
+      굳히는 시점이 곧 「사람이 이 문서를 보고 저장한 시점」이다.
+
+      선언만 있고 값이 안 가던 자리다: `UpdateQuoteInput` 과 `QUOTE_KEYS` 는
+      termIds 를 받는데 여기서 `data` 에 안 실어서, 편집 화면에서 조건을 고쳐 저장해도
+      **아무 일도 안 일어났다**(화면은 저장됐다고 말했다).
+    */
+    if (input.termIds !== undefined) {
+      const termIds = Array.isArray(input.termIds) ? input.termIds.filter((v) => typeof v === 'string') : []
+      data.termIds = termIds
+      data.termsSnapshot = await resolveTermsSnapshot(tx, termIds)
+    }
     // 빈 문자열은 «고르지 않음»이다 — null 로 눕혀야 FK 가 받는다
     if (input.recipientPersonId !== undefined) data.recipientPersonId = input.recipientPersonId || null
     if (input.ownerId !== undefined) data.ownerId = input.ownerId || null
@@ -1120,7 +1178,8 @@ export async function duplicateQuote(
       data: {
         dealId: src.dealId, quoteNo, title, currency: src.currency,
         validUntil: src.validUntil, notesMd: src.notesMd,
-        termIds: src.termIds, ownerId: src.ownerId,
+        // 굳은 조건도 함께 복제한다 — 원본과 다른 조건이 찍히면 「다른 안」이 아니라 다른 문서다
+        termIds: src.termIds, termsSnapshot: src.termsSnapshot, ownerId: src.ownerId,
         recipientPersonId: src.recipientPersonId,
         createdById: actorId,
         subtotalMinor: src.subtotalMinor, discountMinor: src.discountMinor,
