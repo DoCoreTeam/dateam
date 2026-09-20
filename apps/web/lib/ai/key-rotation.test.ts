@@ -174,6 +174,24 @@ test('★ 자기 형으로 분류하는 호출처는 그 판정을 그대로 쓴
   assert.deepEqual(used, ['k1', 'k2'])
 })
 
+test('★ 갈아타기 직전에만 알린다 — 갈 곳이 없는데 간다고 말하지 않는다', async () => {
+  const told: string[] = []
+  const entries = [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')]
+  const deps = { entries, onSwitch: (from: KeyPoolEntry, to: KeyPoolEntry) => { told.push(`${from.label}->${to.label}`) } }
+
+  // 첫 키만 막히면 한 번 알린다
+  await withProviderKeys('gemini', 'k1', async (apiKey) => {
+    if (apiKey === 'k1') throw QUOTA()
+    return 1
+  }, deps)
+  assert.deepEqual(told, ['첫째->둘째'])
+
+  // 전부 막히면 마지막 키에서는 알리지 않는다 — 갈 곳이 없다
+  told.length = 0
+  await assert.rejects(() => withProviderKeys('gemini', 'k1', async () => { throw QUOTA() }, deps))
+  assert.deepEqual(told, ['첫째->둘째'], '마지막 키 실패까지 갈아탄다고 말하면 안 된다')
+})
+
 /* ── 옆길이 실제로 그 부품을 타는가 ────────────────────────────
    부품이 맞아도 부르는 자리가 없으면 아무 일도 안 일어난다.
    («테이블·설정만 만들고 소비 코드 0» — 이 저장소가 v0.7.438 에서 겪은 그 상태다) */
@@ -256,6 +274,23 @@ test('★ 키가 하나면 전사는 한 번만 나간다 — 회귀 없음', as
     assert.equal(n, 1)
   } finally {
     globalThis.fetch = realFetch
+  }
+})
+
+/*
+  임베딩은 `@/lib/...` 별칭으로 import 해서 node 시험이 그 모듈을 못 불러온다.
+  그래서 여기서는 **배선만** 센다 — 교체 규칙 자체는 위에서 실행으로 이미 쟀다.
+  (계산으로 대체한 자리이고, 무엇을 대체했는지 밝혀 둔다)
+*/
+test('★ 임베딩이 키 교체 부품을 탄다 — 홑 건과 묶음 둘 다', () => {
+  const src = read('lib/gemini-embedding.ts')
+  assert.equal(src.split('withProviderKeys(').length - 1, 2,
+    '홑 건(embedText)과 묶음(embedTexts) 둘 다 타야 한다 — 묶음이 빠지면 대량 색인이 첫 키만 두드린다')
+  // 한도·인증을 null 로 덮으면 「키가 마름」과 「임베딩 못 만듦」이 같은 값이 되고
+  // 등록된 다음 키는 한 번도 안 쓰인다. 두 자리 모두에서 던져야 한다
+  assert.equal(src.split('res.status === 429').length - 1, 2)
+  for (const m of src.matchAll(/res\.status === 429[\s\S]{0,140}/g)) {
+    assert.match(m[0], /throw new Error/, '한도를 null 로 덮는 자리가 남아 있다')
   }
 })
 
