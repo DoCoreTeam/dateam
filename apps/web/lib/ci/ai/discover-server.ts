@@ -15,6 +15,9 @@ import {
 import { loadAnswers, saveAnswer } from './discovery-answers.ts'
 import { asJsonRecord } from '../../ai/json-recover.ts'
 import { getGeminiMeta } from './meta.ts'
+import { CAPTION_CHARS, buildFindingPrompt, buildClusterPrompt } from './discover-prompt.ts'
+// 부르는 쪽이 지금처럼 이 파일에서 가져가게 둔다 — 옮긴 것이 호출부를 건드리지 않게
+export { CAPTION_CHARS, buildFindingPrompt, buildClusterPrompt }
 import {
   MIN_CALL_INTERVAL_MS, FREE_TIER_DAILY_LIMIT, clusterByOverlap, mergeClusters,
   type ContrastSet, type RawFinding, type FindingCluster, type DiscoveryKind,
@@ -26,73 +29,6 @@ const KINDS: readonly DiscoveryKind[] = [
   'hook', 'subject', 'format', 'timing', 'presentation', 'other',
 ]
 
-/** 한 콘텐츠를 AI가 읽을 수 있게 편다. 없는 값은 "미확인"이라고 밝힌다 — 빈칸은 지어내기를 부른다. */
-function describe(c: {
-  title: string | null; caption: string | null
-  durationSec: number | null; publishedAt: string | null; outlierIndex: number | null
-}): string {
-  const lines = [
-    `제목: ${c.title?.trim() || '(미확인)'}`,
-    `설명: ${c.caption?.trim().slice(0, 400) || '(없음)'}`,
-    `길이: ${c.durationSec != null ? `${c.durationSec}초` : '(미확인)'}`,
-    `게시: ${c.publishedAt?.slice(0, 10) ?? '(미확인)'}`,
-  ]
-  if (c.outlierIndex != null) lines.push(`평소 대비: ${c.outlierIndex.toFixed(1)}배`)
-  return lines.join('\n')
-}
-
-/**
- * 1차 프롬프트 — 대조쌍 하나를 읽고 차이를 쓴다.
- *
- * 프롬프트가 지켜야 하는 것 셋:
- *   ① 보기를 주지 않는다 (주면 그 순간 다시 채점기가 된다)
- *   ② 원문에서 확인되는 것만 (모르면 없다고 쓰게 한다)
- *   ③ 이 1건에만 있는 것 (넷 다 가진 특징은 차이가 아니다)
- */
-export function buildFindingPrompt(set: ContrastSet): string {
-  const peers = set.peers
-    .map((p, i) => `[평범 ${i + 1}]\n${describe(p)}`)
-    .join('\n\n')
-
-  return [
-    '같은 채널의 게시물 4건이다. 하나만 유난히 잘됐고 나머지 셋은 이 채널의 보통 수준이다.',
-    '잘된 하나가 **나머지 셋과 다른 점**을 찾아라.',
-    '',
-    `[잘된 것]\n${describe(set.winner)}`,
-    '',
-    peers,
-    '',
-    '규칙:',
-    '- 위 정보에서 실제로 확인되는 것만 써라. 확인 안 되면 found:false 로 답하라.',
-    '- 넷이 공통으로 가진 특징은 차이가 아니다. 잘된 하나에만 있는 것을 써라.',
-    '- 보기에서 고르는 것이 아니다. 무엇이든 네가 본 것을 네 말로 써라.',
-    '- statement 는 다른 콘텐츠에도 적용할 수 있는 한 문장으로. ("실패담으로 시작한다")',
-    '- observation 은 그렇게 본 근거를 원문에서 인용하거나 짚어라.',
-    '- 채널 이름·조회수·운(알고리즘)은 따라 할 수 없으므로 쓰지 마라.',
-    '',
-    'JSON만 출력:',
-    '{"found":true,"statement":"한 문장","observation":"근거","kind":"hook|subject|format|timing|presentation|other"}',
-    '찾지 못했으면: {"found":false}',
-  ].join('\n')
-}
-
-/** 2차 프롬프트 — 같은 뜻의 문장을 묶는다. 한국어 동의 판정은 문자열 정규화로 안 된다. */
-export function buildClusterPrompt(statements: readonly { id: number; text: string }[]): string {
-  return [
-    '아래는 서로 다른 콘텐츠를 분석해 나온 문장들이다. **같은 뜻인 것끼리 묶어라.**',
-    '',
-    ...statements.map((s) => `${s.id}. ${s.text}`),
-    '',
-    '규칙:',
-    '- 글자가 달라도 뜻이 같으면 한 묶음이다. ("실패담으로 시작한다" = "처음에 망한 얘기를 꺼낸다")',
-    '- 뜻이 다르면 억지로 묶지 마라. 혼자인 문장은 혼자 두어라.',
-    '- statement 는 그 묶음을 가장 잘 나타내는 한 문장으로 새로 써라.',
-    '- 모든 번호가 정확히 한 묶음에 들어가야 한다. 빠뜨리지 마라.',
-    '',
-    'JSON만 출력:',
-    '{"groups":[{"statement":"대표 문장","ids":[1,3,7],"kind":"hook|subject|format|timing|presentation|other"}]}',
-  ].join('\n')
-}
 
 function toKind(v: unknown): DiscoveryKind {
   return typeof v === 'string' && (KINDS as readonly string[]).includes(v)
@@ -205,7 +141,13 @@ export async function discoverFromContrasts(
         fallbackApiKey: meta.fallbackApiKey,
         model: meta.geminiModel,
         temperature: 0,           // 같은 대조에 같은 답이 나와야 근거로 쓸 수 있다
-        maxOutputTokens: 400,
+        /*
+          상한을 400 으로 박아 두고 있었는데 그 값에서 잘려 JSON 파싱이 실패한 적이 있다
+          (잘리면 statement 가 중간에서 끊기고, 끊긴 답은 근거로 못 쓴다).
+          이제 능력이 상한을 정한다 — suggest 는 1,024 이고, 후보를 내는 일이므로
+          하루 한도가 가장 큰 모델부터 간다.
+        */
+        capability: 'suggest',
         feature: 'ci-discover',
       })
       asked += 1

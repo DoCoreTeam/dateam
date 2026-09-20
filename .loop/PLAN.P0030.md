@@ -253,15 +253,16 @@
 의존: I10
 
 ### I12 발견 프롬프트를 줄인다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ci/ai/discover-server.ts, apps/web/lib/ci/ai/discover-server.test.ts
+범위: apps/web/lib/ci/ai/discover-server.ts, apps/web/lib/ci/ai/discover-prompt.ts (신규), apps/web/lib/ci/ai/discover-server.test.ts, apps/web/lib/ci/analysis/contrast-key.ts
 감사 기준:
 - 설명 원문이 400자에서 120자로, 프롬프트 판 번호가 오름 (I04 지문이 따라 달라짐)
-- 같은 대조쌍의 프롬프트 글자 수가 줄었음을 단위 테스트가 수치로 확인
+- 같은 대조쌍의 프롬프트 글자 수가 줄었음을 단위 테스트가 수치로 확인 (실측 2,397자 -> 1,277자)
 - **표본 수(주제당 30건)는 그대로** — 줄이면 승격 0건이 된 실측이 있다
 - 잘림(MAX_TOKENS) 이 나던 출력 상한 400 을 재검토해 잘림이 안 나는 값으로
 의존: I05, I11
+범위 메모: 프롬프트 만드는 부분을 discover-prompt.ts 로 떼어 냈다. discover-server 가 앱 별칭(@/lib)을 쓰는 모듈을 끌어와 시험이 그 파일을 글자로만 읽을 수 있었고, 그래서 길이를 재는 시험 자체가 불가능했다 — 정규식으로 상한 숫자가 적혀 있나만 봤다
 
 ### I13 임베딩을 묶어서 부른다
 상태: 통과

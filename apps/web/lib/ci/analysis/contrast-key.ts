@@ -33,8 +33,11 @@
  *
  * **프롬프트 글자를 고치면 반드시 올린다.** 안 올리면 저장된 옛 답이 계속 나온다.
  * 올리면 그날 하루는 전부 다시 묻게 되므로, 사소한 오타 수정으로는 올리지 않는다.
+ *
+ * 2 (2026-09-20): 설명 원문을 400자에서 120자로 줄였다. 넷이 들어가므로 프롬프트에서
+ * 최대 1,120자가 빠진다. 보내는 글이 달라졌으니 옛 답을 그대로 쓰면 안 된다.
  */
-export const DISCOVERY_PROMPT_VERSION = 1
+export const DISCOVERY_PROMPT_VERSION = 2
 
 /** 지문을 만들 때 필요한 최소한. 실제 ContrastSet 은 이보다 많은 것을 들고 있다 */
 export interface ContrastIdentity {
