@@ -97,6 +97,10 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
 - name 품목 이름, spec 규격·설명 **한 줄 요약**(옆 칸에 적힌 사양·보증·기간 따위).
   **여러 줄을 여기 이어 붙이지 마라** — 그 자리는 components 다
 - components 그 항목에 딸린 **구성 줄 목록**. 없으면 빈 배열 []
+- remark 표 맨 오른쪽 **비고 열**에 적힌 한마디(「서버 새시」「64코어」「Raid5」
+  「레이드컨트롤러」). 그 열이 없거나 그 줄이 비었으면 null.
+  **규격(spec)과 섞지 마라** — spec 은 물건이 무엇인가이고, remark 는 이 견적에서
+  그 줄이 무슨 구실인가다. 비고 열의 말을 spec 에 옮겨 적지도, 지어내지도 마라
 - quantity 수량, unit 단위(대·식·개월·M/M …)
 - unitPriceMinor **단가**. 문서에 단가 칸이 없고 금액만 있으면 null 이다(나누지 마라)
 - amountMinor 문서에 적힌 **그 줄의 금액**. 없으면 null

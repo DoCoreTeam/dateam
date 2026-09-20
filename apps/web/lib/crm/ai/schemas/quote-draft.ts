@@ -97,6 +97,14 @@ export const QuoteDraftOutputSchema = z.object({
      * 담고 자르는 규칙은 문서 스키마 한 곳에서 온다.
      */
     components: componentsField(MAX_DOC_COMPONENT_LINES),
+    /**
+     * 비고 — 원본 표 맨 오른쪽 열.
+     *
+     * **규격과 다르다.** 규격은 물건이 무엇인가이고(「AMD EPYC 9355 32C/64T」),
+     * 비고는 이 견적에서 그 줄이 무슨 구실인가다(「서버 새시」「64코어」「Raid5」).
+     * 우리 양식에 원래 있던 열인데 담을 칸이 없어 읽어도 버려졌다(사용자 지적 2026-09-21).
+     */
+    remark: softString,
     kind,
     quantity: ratio,
     unit: softString,

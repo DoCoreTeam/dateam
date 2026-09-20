@@ -89,6 +89,8 @@ function saidLine(l: DocLineJson): QuoteLineDraft {
     name: l.name ?? '',
     // 구성은 규격 아래 줄로 붙는다 — 붙이는 규칙은 파일 경로와 같은 한 곳이다
     descriptionMd: joinSpec(l.spec, l.components),
+    // 비고는 규격과 다른 칸이다 — 규격에 우겨 넣으면 견적서 맨 오른쪽 열이 빈 채로 나간다
+    remark: l.remark ?? '',
     kind: k,
     quantity: l.quantity === null ? '1' : String(l.quantity),
     unit: l.unit ?? LINE_KIND_UNIT[k],

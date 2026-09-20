@@ -39,6 +39,11 @@ export interface DocLineJson {
   spec: string | null
   /** 이 항목에 딸린 구성 줄. 옛 응답에는 없으므로 없을 수 있다 */
   components?: string[] | null
+  /**
+   * 비고 — 원본 표 맨 오른쪽 열(「서버 새시」「64코어」「Raid5」).
+   * 옛 응답에는 없으므로 없을 수 있다.
+   */
+  remark?: string | null
   kind: string | null
   quantity: number | null
   unit: string | null
@@ -116,6 +121,8 @@ export function toFormLine(l: DocLineJson, taxPercent: number | null): QuoteLine
     name: l.name ?? '',
     // 구성은 규격 아래 줄로 붙는다 — 붙이는 규칙은 quote-draft-shape 한 곳이다
     descriptionMd: joinSpec(l.spec, l.components),
+    // 비고는 규격과 다른 칸이다 — 규격에 우겨 넣으면 견적서 맨 오른쪽 열이 빈 채로 나간다
+    remark: l.remark ?? '',
     kind: k,
     quantity: l.quantity === null ? '1' : String(l.quantity),
     unit: l.unit ?? LINE_KIND_UNIT[k],
