@@ -388,9 +388,24 @@ export async function finishJob(input: FinishInput): Promise<CiJobStatus> {
    */
   if (finalStatus === 'dead') {
     const { recordSystemEventAsync } = await import('../../system-log/record.ts')
+    /*
+      **코드를 같이 보낸다.**
+
+      전에는 `new Error(메시지)` 로만 다시 쌌다. 그 순간 잡이 이미 알고 있던 코드가
+      사라지고, 분류기에는 문장만 남았다. 분류기는 «구체적인 신호를 먼저 본다»는
+      규칙으로 돌아가는데 정작 가장 구체적인 신호를 빼고 부른 셈이다.
+      코드는 `context` 에 넣고 있었지만 그 자리는 아무도 안 읽는 자리였다
+      (실측 2026-09-20: ci_job 사건 267건이 전부 「원인 미상」, 코드는 전부 context 에 있었음).
+
+      문장은 사람이 고치면 바뀐다. 코드는 안 바뀐다 — 그래서 코드가 먼저다.
+    */
+    const failure = Object.assign(
+      new Error(input.errorMessage ?? '작업이 실패했습니다'),
+      input.errorCode ? { code: input.errorCode } : {},
+    )
     await recordSystemEventAsync({
       source: 'ci_job',
-      error: new Error(input.errorMessage ?? '작업이 실패했습니다'),
+      error: failure,
       feature: 'ci-collect',
       workspaceId: input.workspaceId ?? null,
       context: { jobId: input.jobId, attempt: input.attempt, errorCode: input.errorCode ?? null },

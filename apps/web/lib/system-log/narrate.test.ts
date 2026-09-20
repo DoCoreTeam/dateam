@@ -321,6 +321,36 @@ test('★ 사유를 못 붙일 문장은 그대로 unknown 이다 — 아무 말
   )
 })
 
+// ── 잡이 아는 코드는 분류기까지 간다 (2026-09-20 실측) ────────────
+//
+// `ci_jobs.error_code` 에는 `AI_FAILED` 가 또렷이 적혀 있는데, 로그로 투영할 때
+// `new Error(메시지)` 로 다시 싸면서 코드를 버렸다. 코드는 `context` 에만 남았고
+// 그 자리는 분류기가 안 보는 자리였다 — ci_job 사건 267건이 전부 「원인 미상」.
+
+test('★ 잡 실패를 로그로 옮길 때 코드를 버리지 않는다 — 이름이 아니라 값이 가야 한다', () => {
+  // 주석에 적어 두면 통과하는 가드는 가드가 아니다(이 저장소가 CSP 에서 한 번 겪었다).
+  const src = stripComments(read('lib/ci/jobs/queue.ts'))
+  assert.match(src, /code:\s*input\.errorCode/, '코드를 오류 객체에 실어 보내야 한다')
+  assert.ok(
+    !/error:\s*new Error\(/.test(src),
+    '오류를 맨 new Error 로 다시 싸면 잡이 아는 코드가 그 자리에서 사라진다',
+  )
+})
+
+test('★ 코드가 붙어도 더 구체적인 문장을 가로채지 않는다 — AI_FAILED 는 「왜」를 말하지 않는다', () => {
+  const quotaSentence = '등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다. 한도가 풀릴 때까지 기다리거나 시스템 설정 → 통합에서 다른 공급자 키를 추가해 주세요.'
+  assert.equal(classifySystemReason({ crmCode: 'AI_FAILED', message: quotaSentence }), 'quota')
+  assert.equal(classifySystemReason({ crmCode: 'PROVIDER_QUOTA', message: '무슨 말인지 모를 문장' }), 'quota')
+})
+
+test('★ 커넥터 실패는 우리 고장이 아니다 — 없는 사유를 지어 붙이지 않는다', () => {
+  const r = classifySystemReason({
+    crmCode: 'CONNECTOR_FAILED',
+    message: '이 영상의 정보를 가져오지 못했습니다. 비공개이거나 삭제되었을 수 있습니다',
+  })
+  assert.equal(r, 'unknown')
+})
+
 // ── 웹 검색 한도는 다른 바구니다 (2026-08-24 실측) ────────────
 //
 // 같은 키로 일반 호출은 65초 뒤 200 으로 회복되는데(분당 한도),
