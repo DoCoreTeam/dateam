@@ -103,9 +103,9 @@
 의존: I04
 
 ### I06 자동으로 부르는 AI 는 전부 신규만 거른다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ci/jobs/new-only.test.ts (신규), apps/web/lib/ci/jobs/stages.ts, apps/web/package.json
+범위: apps/web/lib/ci/jobs/auto-ai-stages.ts (신규), apps/web/lib/ci/jobs/new-only.test.ts (신규), apps/web/package.json
 감사 기준:
 - 자동 실행되는 AI 단계 목록이 한 곳에 있고, 각 단계가 「이미 봤음」 거르기와 회당 상한을 갖는지 가드가 소스로 확인
 - 목록에 없는 새 자동 단계가 생기면 가드가 실패 (등재부 방식, 일부러 하나 빼서 실패 확인)
