@@ -196,13 +196,23 @@ export function buildModelChain(args: BuildModelChainArgs): ChainCandidate[] {
  *
  * 이걸 안 하면 429를 맞고 같은 공급자의 다음 모델로 넘어가 또 429를 맞는다.
  * 한 번 맞은 벽은 다시 치지 않는다.
+ *
+ * ## `key` 와 `provider` 를 같게 다루는 이유
+ *
+ * 키 교체는 **여기 오기 전에 끝난다.** 부르는 쪽이 한 후보를 붙들고 그 공급자의 키를
+ * 순서대로 시도하고(`lib/ai/key-pool.ts`), 쓸 키가 남아 있으면 이 함수를 아예 부르지 않는다.
+ * 그러니 `key` 범위 실패가 여기까지 왔다는 것은 **그 공급자의 키가 다 말랐다**는 뜻이고,
+ * 그 공급자의 남은 모델은 어느 것도 부를 수 없다.
+ *
+ * 키 교체를 아직 안 하는 호출처(`analyze-gemini.ts`)에서도 답은 같다 — 키가 하나뿐이니
+ * 「키가 죽음」과 「공급자가 죽음」이 같은 말이다.
  */
 export function pruneChain(
   rest: readonly ChainCandidate[],
   failed: ChainCandidate,
   scope: ProviderFailureScope,
 ): ChainCandidate[] {
-  if (scope === 'provider') return rest.filter((c) => c.provider !== failed.provider)
+  if (scope === 'key' || scope === 'provider') return rest.filter((c) => c.provider !== failed.provider)
   return rest.filter((c) => !(c.provider === failed.provider && c.model === failed.model))
 }
 

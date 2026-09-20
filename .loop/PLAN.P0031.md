@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 키를 여러 개 두고 한도에 걸린 키를 건너뛴다
 플랜 ID: P0032
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0034
 목표 버전: v0.10.214
@@ -59,16 +59,29 @@
 의존: 없음
 
 ### I03 실패를 키 단위로 읽기
+상태: 통과
+모드: 경량
+범위: apps/web/lib/ai-chat/provider-errors.ts, apps/web/lib/ai-chat/provider-errors.test.ts, apps/web/lib/ai-chat/model-chain.ts, apps/web/lib/ai-chat/model-chain.test.ts, apps/web/lib/crm/ai/adapters/host.test.ts
+감사 기준:
+- classifyProviderError 가 429 에 scope 'key' 와 keyOutcome 'quota' 를 돌려줌 (limit: 0 은 지금대로 'model')
+- classifyProviderError 가 401 403 에 scope 'key' 와 keyOutcome 'auth' 를 돌려줌
+- pruneChain 이 scope 'key' 를 'provider' 와 같게 다룸 (키 교체는 pruneChain 앞에서 끝난다, 여기까지 온 것은 그 공급자 키가 다 마른 것)
+- 이 항목에서는 availability 를 건드리지 않음, 한도를 그 값으로 읽는 소비처 셋이 아직 살아 있음
+- pnpm test provider-errors model-chain host 통과
+의존: 없음
+
+### I03a 한도 판정을 모델 상태에서 떼어낸다
 상태: 대기
 모드: 경량
-범위: apps/web/lib/ai-chat/provider-errors.ts, apps/web/lib/ai-chat/provider-errors.test.ts, apps/web/lib/ai-chat/model-chain.ts, apps/web/lib/ai-chat/model-chain.test.ts
+범위: apps/web/lib/ai-chat/provider-errors.ts, apps/web/lib/crm/ai/runner.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/crm/ai/provider-quota.test.ts, apps/web/lib/api-docs/ai-layer.ts
 감사 기준:
-- classifyProviderError 가 429 에 scope 'key' 를 돌려줌 (limit: 0 은 지금대로 'model')
-- classifyProviderError 가 401 403 에 scope 'key' 를 돌려줌
-- pruneChain 이 scope 'key' 를 받으면 같은 공급자의 다른 후보를 지우지 않음
-- 429 가 더 이상 availability 'limited' 를 남기지 않음 (한도는 키의 상태이지 모델의 상태가 아님)
-- pnpm test provider-errors model-chain 통과
-의존: 없음
+- runner 가 availability 가 아니라 keyOutcome 으로 PROVIDER_QUOTA 를 던짐 (429 가 VALIDATION_FAILED 로 내려가면 여러 건 돌 때 중단 조건에 안 걸려 확정된 실패 호출이 수십 번 나감, v0.7.574 실측)
+- CRM 어댑터의 「전부 사용량 한도에 걸렸습니다」 안내가 그대로 나옴, 판정 근거만 keyOutcome 으로 바뀜
+- 429 가 더 이상 availability 'limited' 를 남기지 않음 (한도는 키의 상태이지 모델의 상태가 아님, 남기면 다른 키를 가진 사람에게도 그 모델이 내려간다)
+- 404 는 지금대로 availability 'unavailable' 을 남김 (없어진 모델은 정말 모델의 상태다)
+- 개발자센터 AI_FAILURE_RULES 가 바뀐 갈래를 설명함
+- pnpm test provider-quota host crm 통과
+의존: I03
 
 ### I04 서버 키 저장소
 상태: 대기
@@ -160,3 +173,4 @@
 ## 변경 이력
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0034)
 - v0.1.1 (2026-09-20) 마이그레이션 번호 263 을 옆 세션이 먼저 가져가 264/265 로 옮김 (audit:I01)
+- v0.1.2 (2026-09-20) I03 을 둘로 쪼갬: 429 가 availability 'limited' 를 남기는 것을 소비처보다 먼저 떼면 runner 의 PROVIDER_QUOTA 판정이 죽어 여러 건 돌 때 중단이 안 걸린다(v0.7.574 사고 재현). I03 은 scope 와 keyOutcome 만, I03a 가 소비처를 옮긴 뒤 availability 를 뗀다. pruneChain 은 'key' 를 'provider' 와 같게 다룬다 — 키 교체는 그 앞에서 끝난다 (audit:I03)

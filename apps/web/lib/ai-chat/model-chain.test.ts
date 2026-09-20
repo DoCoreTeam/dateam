@@ -145,6 +145,12 @@ test('pruneChain: provider 범위 실패는 그 공급자를 통째로 뺀다 (4
   assert.deepEqual(ids(got), ['claude:c'])
 })
 
+test('pruneChain: key 범위 실패도 그 공급자를 통째로 뺀다 — 여기 왔다는 건 키가 다 말랐다는 뜻이다', () => {
+  const got = pruneChain(REST, { provider: 'gemini', model: 'a', apiKey: 'k' }, 'key')
+  assert.deepEqual(ids(got), ['claude:c'],
+    '키가 남아 있으면 부르는 쪽이 pruneChain 을 부르지 않는다 — 불렸다면 더 쓸 키가 없다')
+})
+
 test('pruneChain: model 범위 실패는 그 모델만 뺀다', () => {
   const got = pruneChain(REST, { provider: 'gemini', model: 'a', apiKey: 'k' }, 'model')
   assert.deepEqual(ids(got), ['gemini:b', 'claude:c'])

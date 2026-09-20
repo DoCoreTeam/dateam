@@ -81,7 +81,8 @@ test('★ 429 는 그 공급자를 통째로 건너뛴다 — 이번 사고의 �
   const chain = [c('gemini', 'a'), c('gemini', 'b'), c('gemini', 'c'), c('openai', 'x')]
   const err = new Error('429 Too Many Requests: quota exceeded')
   const { scope } = classifyProviderError(err)
-  assert.equal(scope, 'provider', '429 를 provider 범위로 안 본다')
+  // 한도는 키 단위로 걸린다. 쓸 키가 남아 있으면 이 어댑터가 애초에 여기까지 안 온다
+  assert.equal(scope, 'key', '429 를 키 범위로 안 본다')
 
   const rest = pruneChain(chain.slice(1), chain[0], scope)
   assert.deepEqual(rest.map((x) => `${x.provider}:${x.model}`), ['openai:x'],
@@ -97,5 +98,11 @@ test('404 는 그 모델만 건너뛴다 — 같은 공급자의 다른 모델�
 })
 
 test('키 문제는 그 공급자를 건너뛴다 — 모델을 바꿔도 같은 답이 온다', () => {
-  assert.equal(classifyProviderError(new Error('401 invalid api key')).scope, 'provider')
+  const c401 = classifyProviderError(new Error('401 invalid api key'))
+  assert.equal(c401.scope, 'key')
+  assert.equal(c401.keyOutcome, 'auth', '기다려서 풀릴 일이 아니라 사람이 고쳐야 한다')
+  assert.deepEqual(
+    pruneChain([c('gemini', 'b'), c('openai', 'x')], c('gemini', 'a'), c401.scope).map((x) => x.provider),
+    ['openai'],
+  )
 })
