@@ -147,7 +147,9 @@ test('원본 고르기는 매입 견적서 최신을 고르고, 없으면 나머
 
   assert.equal(drawKindOf('application/pdf'), 'pdf')
   assert.equal(drawKindOf('image/webp'), 'image')
-  assert.equal(drawKindOf('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'other')
+  // 엑셀은 v0.10.32x 부터 «표로 펴서» 그린다 — 예전엔 여기서 other 로 떨어져 대조가 안 됐다
+  assert.equal(drawKindOf('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'sheet')
+  assert.equal(drawKindOf('application/x-hwp'), 'other')
   assert.equal(drawKindOf(null), 'other')
 })
 
@@ -371,4 +373,55 @@ test('차례는 원본에 나온 순서다 — 이름순으로 뒤집으면 원�
   const { groupPickedLines } = await import('../domain/quote-group.ts')
   const got = groupPickedLines(['하드웨어', '가나다'])
   assert.deepEqual(got.sections, [{ name: '하드웨어' }, { name: '가나다' }])
+})
+
+/* ── 쪽이 없는 원본도 세우나 (v0.10.32x) ─────────── */
+
+/*
+  **왜**: 견적서는 엑셀로 오는 일이 흔한데, 그동안 대조 화면은 「이 형식은 화면 안에
+  못 그려요」로 끝났다 — 대조하러 연 화면이 대조를 못 하는 상태다.
+  PDF 처럼 쪽을 오릴 수도 없다(엑셀에는 쪽이라는 것이 없다). 대신 표로 편다.
+*/
+
+test('★ 엑셀은 그릴 수 있는 것으로 본다 — 「못 그려요」로 떨어지면 대조가 안 된다', () => {
+  assert.equal(drawKindOf('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), 'sheet')
+  assert.equal(drawKindOf('application/vnd.ms-excel'), 'sheet')
+  assert.equal(drawKindOf('text/csv'), 'sheet')
+  // 매개변수가 붙어 와도 같은 형식이다 — 브라우저가 붙여 주는 일이 있다
+  assert.equal(drawKindOf('text/csv; charset=utf-8'), 'sheet')
+})
+
+test('그릴 수 없는 형식은 그대로 남는다 — 없는 것을 있는 척하지 않는다', () => {
+  assert.equal(drawKindOf('application/x-hwp'), 'other')
+  assert.equal(drawKindOf(null), 'other')
+  assert.equal(drawKindOf('application/pdf'), 'pdf')
+  assert.equal(drawKindOf('image/png'), 'image')
+})
+
+test('★ 대조 화면이 표를 값으로 그리고, 못 펴면 예전 안내로 물러선다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteOriginalCompare.tsx'))
+  assert.match(src, /const got = await readSheetPreview\(bytes\)/, '표를 안 편다')
+  assert.match(src, /sheet\.rows\.map\(/, '편 표를 안 그린다')
+  assert.match(src, /setNotDrawable\(true\)/, '못 폈을 때 물러설 길이 없다')
+  assert.match(src, /draw === 'other' \|\| notDrawable/, '못 폈는데도 안내가 안 뜬다')
+})
+
+test('★ 셀 값을 HTML 로 조립하지 않는다 — 남의 문서에서 온 글이다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteOriginalCompare.tsx'))
+  assert.ok(!/dangerouslySetInnerHTML/.test(src), '남이 심은 것이 우리 화면에서 돈다')
+  const preview = read(join(WEB, 'lib/crm/ui/quote-sheet-preview.ts'))
+  assert.ok(!/innerHTML|<td|<table/.test(preview), '읽는 쪽이 마크업을 만든다')
+})
+
+test('★ 표 읽는 도구는 그 자리에서만 불러온다 — 위에서 물면 견적 화면이 무거워진다', () => {
+  const src = read(join(WEB, 'lib/crm/ui/quote-sheet-preview.ts'))
+  const head = src.slice(0, src.indexOf('export function cellText') >= 0
+    ? src.indexOf('export function cellText') : src.indexOf('export const MAX_SHEET_ROWS'))
+  assert.ok(!/^import .*'xlsx'/m.test(head), '맨 위에서 표 도구를 물고 있다')
+  assert.match(src, /await import\('xlsx'\)/, '동적으로 안 불러온다')
+})
+
+test('★ 내려받기 길은 그대로 남는다 — 화면에 그렸다고 원본을 못 받으면 안 된다', () => {
+  const src = read(join(WEB, 'components/ui/crm/QuoteOriginalCompare.tsx'))
+  assert.match(src, /QUOTE_SOURCE\.download/, '내려받기가 사라졌다')
 })

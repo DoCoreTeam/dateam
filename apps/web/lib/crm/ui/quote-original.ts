@@ -18,13 +18,27 @@ export interface OriginalCandidate {
   createdAt: string
 }
 
-/** 화면 안에 그릴 수 있는 형식인가 */
-export type DrawKind = 'pdf' | 'image' | 'other'
+/**
+ * 화면 안에 그릴 수 있는 형식인가.
+ *
+ * `sheet` 는 브라우저가 못 그리는 형식이지만 **우리가 표로 펴서 그릴 수 있는** 것이다.
+ * 예전에는 엑셀 원본이 통째로 `other` 로 떨어져 「이 형식은 화면 안에 못 그려요」로 끝났다 —
+ * 그런데 견적서는 엑셀로 오는 일이 흔하고, 그때 대조 화면은 아무 쓸모가 없었다.
+ */
+export type DrawKind = 'pdf' | 'image' | 'sheet' | 'other'
+
+/** 우리가 표로 펴서 그릴 수 있는 형식 */
+const SHEET_MIMES = new Set([
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'text/csv',
+])
 
 export function drawKindOf(mimeType: string | null | undefined): DrawKind {
-  const m = (mimeType ?? '').toLowerCase()
+  const m = (mimeType ?? '').toLowerCase().split(';')[0].trim()
   if (m === 'application/pdf') return 'pdf'
   if (m.startsWith('image/')) return 'image'
+  if (SHEET_MIMES.has(m)) return 'sheet'
   return 'other'
 }
 

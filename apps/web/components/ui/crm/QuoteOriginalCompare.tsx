@@ -21,9 +21,10 @@ import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import { useEscClose } from '@/lib/use-esc-close'
-import { QUOTE_SOURCE, PREVIEW_CLOSE, progress, fillSourcePage } from '@/lib/terms'
+import { QUOTE_SOURCE, PREVIEW_CLOSE, progress, fillSourcePage, fillSheetTruncated } from '@/lib/terms'
 import { ATTACHMENT, ATTACHMENT_MAX_BYTES, ATTACHMENT_MIME_OK } from '@/lib/terms/attachment'
 import { pickOriginal, drawKindOf, pdfViewerHash, type OriginalCandidate } from '@/lib/crm/ui/quote-original'
+import { readSheetPreview, type SheetPreview } from '@/lib/crm/ui/quote-sheet-preview'
 import styles from './quote-original-compare.module.css'
 
 type Attachment = OriginalCandidate
@@ -196,6 +197,15 @@ function CompareOverlay({ original, whole, pageStart, pageEnd, sheet, onClose }:
   useEffect(() => { setMounted(true) }, [])
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  /**
+   * 엑셀 원본을 표로 편 것.
+   *
+   * 브라우저는 엑셀을 못 그린다. 그렇다고 「못 그려요」로 끝내면 대조하러 연 화면이
+   * 대조를 못 한다 — 견적서는 엑셀로 오는 일이 흔하다.
+   */
+  const [sheets, setSheets] = useState<SheetPreview[] | null>(null)
+  /** 표로도 못 폈나 — 그때만 예전 안내로 물러선다 */
+  const [notDrawable, setNotDrawable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** 거두어야 할 주소. state 로만 두면 정리 함수가 옛 값을 본다 */
   const madeRef = useRef<string | null>(null)
@@ -218,6 +228,19 @@ function CompareOverlay({ original, whole, pageStart, pageEnd, sheet, onClose }:
         const file = await fetch(body.url)
         if (!file.ok) { if (!dead) setError(QUOTE_SOURCE.loadFailed); return }
         const bytes = await file.arrayBuffer()
+
+        /*
+          엑셀은 **표로 펴서** 그린다. 브라우저가 못 그리는 형식이지만 셀은 우리가 읽을 수 있다.
+          못 펴면 아무것도 안 세우고 예전 안내로 물러선다 — 빈 표는 안내문보다 나쁘다.
+        */
+        if (draw === 'sheet') {
+          const got = await readSheetPreview(bytes)
+          if (dead) return
+          if (!got) { setError(null); setSheets(null); setNotDrawable(true); return }
+          setSheets(got)
+          return
+        }
+
         // 형식은 우리가 아는 값으로 박는다 — 내려받기용 주소라 응답 헤더가 첨부로 올 수 있다
         const url = URL.createObjectURL(new Blob([bytes], { type: shown.mimeType ?? 'application/octet-stream' }))
         if (dead) { URL.revokeObjectURL(url); return }
@@ -286,13 +309,42 @@ function CompareOverlay({ original, whole, pageStart, pageEnd, sheet, onClose }:
           <h3 className={styles.paneTitle}>{QUOTE_SOURCE.paneOriginal}</h3>
           <div className={styles.paneBody}>
             {error && <ErrorState message={error} />}
-            {!error && draw === 'other' && (
+            {!error && (draw === 'other' || notDrawable) && (
               <div className={styles.note}>
                 <strong>{QUOTE_SOURCE.cannotDraw}</strong>
                 <span>{QUOTE_SOURCE.cannotDrawHint}</span>
               </div>
             )}
-            {!error && draw !== 'other' && !blobUrl && (
+            {/*
+              **엑셀은 표로 펴서 세운다.** 읽은 결과가 아니라 그 파일의 셀이다 —
+              우리 해석을 왼쪽에 세우면 대조가 아니라 우리끼리 견주는 일이 된다.
+              셀 값은 남의 문서에서 온 글이라 **글자 노드로만** 넣는다(HTML 로 조립하지 않는다).
+            */}
+            {!error && draw === 'sheet' && sheets && (
+              <div className={styles.sheetWrap}>
+                <p className={styles.sheetNote}>{QUOTE_SOURCE.sheetNote}</p>
+                {sheets.map((sheet) => (
+                  <section key={sheet.name} className={styles.sheetBlock}>
+                    {sheets.length > 1 && (
+                      <h4 className={styles.sheetName}>{QUOTE_SOURCE.sheetName} {sheet.name}</h4>
+                    )}
+                    <table className={styles.sheetTable}>
+                      <tbody>
+                        {sheet.rows.map((row, r) => (
+                          <tr key={r}>
+                            {row.map((cell, c) => <td key={c}>{cell}</td>)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {sheet.droppedRows > 0 && (
+                      <p className={styles.sheetNote}>{fillSheetTruncated(sheet.droppedRows)}</p>
+                    )}
+                  </section>
+                ))}
+              </div>
+            )}
+            {!error && draw !== 'other' && !notDrawable && !blobUrl && !sheets && (
               <div className={styles.waiting}>
                 <AXDotLoader />
                 <span>{progress(QUOTE_SOURCE.paneOriginal)}</span>

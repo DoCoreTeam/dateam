@@ -157,14 +157,19 @@ export const QUOTE = {
   /** 로고 */
   logo: '로고',
   /**
-   * 날인 자리. 이미지를 찍는 대신 **문구로 대체**한다.
+   * 날인 자리 — **직인을 올렸으면 찍고, 안 올렸으면 이 문구가 대신 선다.**
    *
-   * **왜 이미지가 아닌가**: 직인 이미지를 파일에 박아 보내면 그 파일을 받은 누구나
-   * 도장을 오려내 다른 문서에 붙일 수 있다 — 견적서는 메일로 다시 전달되고 출력된다.
-   * 그래서 실무에서는 전자 발송 문서에 「(직인생략)」이라고 적는 것이 관례이고,
-   * 이 표기 자체가 «원본에는 날인이 있다»는 뜻으로 통용된다.
+   * 오래 이 문구만 썼다. 직인 이미지를 파일에 박으면 받은 사람이 도장을 오려
+   * 다른 문서에 붙일 수 있고, 그래서 전자 발송 문서에 「(직인생략)」이라고 적는 것이
+   * 실무 관례이며 그 표기 자체가 «원본에는 날인이 있다»는 뜻으로 통용되기 때문이다.
+   *
+   * 다만 그건 **회사가 고를 일**이지 코드가 정할 일이 아니었다 — 관공서·입찰 서류처럼
+   * 날인 없는 견적서를 안 받는 자리가 있다(사용자 지시 2026-09-21).
+   * 그래서 설정에 직인 그림을 두고, 올린 회사는 찍고 안 올린 회사는 이 문구를 쓴다.
    */
   sealOmitted: '(직인생략)',
+  /** 직인 그림 — 설정 이름이자 인쇄본의 대체 텍스트 */
+  seal: '직인',
 
   // ── 상태·안내 ────────────────────────────────
   supplierMissing: '공급자 정보가 아직 없어요',
@@ -253,6 +258,11 @@ export function fillDroppedLines(lineCount: number): string {
 export function fillSourcePage(start: number | null, end: number | null): string | null {
   if (start === null) return null
   return end !== null && end !== start ? `원본 ${start}-${end}쪽` : `원본 ${start}쪽`
+}
+
+/** 표가 길어 뒤를 못 그렸을 때 — 조용히 자르지 않는다 */
+export function fillSheetTruncated(rowCount: number): string {
+  return `표가 길어 ${rowCount}줄은 화면에 안 그렸어요. 전체는 내려받아 보실 수 있어요.`
 }
 
 /** 파일에서 항목을 하나도 못 찾았을 때 */
@@ -501,6 +511,15 @@ export const QUOTE_SOURCE = {
   showWhole: '파일 전체 보기',
   /** 전체를 보다가 다시 그 건의 쪽으로 */
   showCut: '이 건만 보기',
+  /**
+   * 엑셀 원본을 표로 펴서 보여 줄 때 — **우리가 읽은 결과가 아니라 그 파일**이라는 사실.
+   *
+   * 이 말이 없으면 사람은 왼쪽을 「시스템이 읽은 것」으로 오해하고, 그러면 대조가
+   * 우리 해석끼리 견주는 일이 된다.
+   */
+  sheetNote: '원본 파일의 표를 그대로 폈어요',
+  /** 시트가 여럿일 때 이름 앞에 붙는 말 */
+  sheetName: '시트',
   /** 대조 화면에서 원본만 따로 받아 볼 때 */
   download: '원본 내려받기',
 
@@ -854,14 +873,15 @@ export const SUPPLIER_SETTING_KEY: Record<SupplierField, string> = {
 /**
  * 견적서에 찍히는 **이미지** 설정 키.
  *
- * `SupplierField` 와 분리한 이유: 로고는 문서의 «항목»이 아니라 그림이다.
+ * `SupplierField` 와 분리한 이유: 로고와 직인은 문서의 «항목»이 아니라 그림이다.
  * 순서·라벨 표에 섞으면 「상호 · 사업자등록번호 · … · 로고」처럼 인쇄된다.
  * 키를 리터럴로 두는 이유는 위와 같다 — 배선 가드가 정적으로 찾을 수 있어야 한다.
  *
- * **직인은 여기 없다.** 이미지로 찍지 않고 `QUOTE.sealOmitted` 문구로 대체한다.
+ * **직인은 안 올려도 된다.** 비어 있으면 `QUOTE.sealOmitted` 문구가 그 자리에 선다.
  */
 export const SUPPLIER_IMAGE_KEY = {
   logo: 'quote.supplier.logo',
+  seal: 'quote.supplier.seal',
 } as const
 
 /**

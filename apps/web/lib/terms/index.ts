@@ -55,7 +55,7 @@ export {
   FILL_SPEECH_HINT, FILL_SPEECH_PLACEHOLDER, FILL_FILE_HINT, FILL_FILE_KINDS,
   FILL_REVIEW_HINT, FILL_UNCLEAR_TITLE, FILL_NO_PRICE, FILL_SOURCE_LABEL,
   FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_NOTHING_FOUND, fillFoundLine,
-  fillComponentsFold, fillDroppedComponents, fillDroppedLines, fillSourcePage,
+  fillComponentsFold, fillDroppedComponents, fillDroppedLines, fillSourcePage, fillSheetTruncated,
   fillFoundQuotesLine,
   fillPickTitle, fillQuoteName, FILL_PICK_BACK, FILL_PICK_ONE_ONLY,
   IMPORT_TITLE, IMPORT_FILE_HINT, IMPORT_DEST, IMPORT_DEST_HINT, type ImportDestKey,

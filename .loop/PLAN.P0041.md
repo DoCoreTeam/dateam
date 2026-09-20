@@ -40,7 +40,7 @@
 의존: 없음
 
 ### I02 쪽이 없는 원본도 대조 화면에 세운다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ui/quote-original.ts, apps/web/components/ui/crm/QuoteOriginalCompare.tsx, apps/web/components/ui/crm/quote-original-compare.module.css, apps/web/lib/crm/ui/quote-source-surface.test.ts
 감사 기준:

@@ -162,3 +162,73 @@ test('두 건짜리 PDF 를 올리면 견적마다 자기 쪽 조각을 갖고, 
     }
   }
 })
+
+/**
+ * 엑셀 원본 — **표로 펴서 세운다**
+ *
+ * 견적서는 엑셀로 오는 일이 흔한데, 그동안 대조 화면은 「이 형식은 화면 안에 못 그려요」로
+ * 끝났다. 대조하러 연 화면이 대조를 못 하는 상태다. 엑셀에는 쪽이 없어 오릴 수도 없으니
+ * 셀을 그대로 편다 — **우리가 읽은 결과가 아니라 그 파일**이어야 대조가 된다.
+ */
+test('엑셀 원본을 붙이면 대조 왼쪽이 그 표를 그린다', async ({ page }) => {
+  test.setTimeout(180_000)
+  const xlsx = path.join(__dirname, 'fixtures', 'quote-sheet.xlsx')
+  expect(fs.existsSync(xlsx), '붙박이 엑셀이 없다').toBe(true)
+
+  let quoteId: string | null = null
+  try {
+    await page.goto('/crm/deals')
+    await page.waitForLoadState('networkidle')
+    await closeUpdateNote(page)
+    const href = await page.locator('a[href^="/crm/deals/"]').first().getAttribute('href')
+    expect(href, '딜이 하나도 없다').toBeTruthy()
+    const dealId = href!.split('/').pop()!
+
+    // 견적 하나를 만들고 엑셀을 원본으로 붙인다 — 화면을 거치지 않고 창구로 간다
+    const made = await page.request.post('/api/crm/quotes', {
+      data: {
+        dealId,
+        title: '[E2E] 엑셀 원본 대조',
+        currency: 'KRW',
+        lines: [{ name: '검사용 항목', quantity: '1', unitPriceMinor: '1000', taxRate: '10' }],
+        sourceFileName: 'quote-sheet.xlsx',
+      },
+    })
+    expect(made.ok(), `견적을 못 만들었다: ${await made.text()}`).toBe(true)
+    quoteId = (await made.json()).id as string
+
+    const up = await page.request.post('/api/crm/attachments', {
+      multipart: {
+        file: {
+          name: 'quote-sheet.xlsx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          buffer: fs.readFileSync(xlsx),
+        },
+        target: 'QUOTE',
+        targetId: quoteId,
+        kind: 'SUPPLY_QUOTE',
+      },
+    })
+    expect(up.ok(), `원본을 못 붙였다: ${await up.text()}`).toBe(true)
+
+    await page.goto(`/crm/quotes/${quoteId}`)
+    await page.waitForLoadState('networkidle')
+    await closeUpdateNote(page)
+    await page.getByRole('button', { name: '원본 대조' }).first().click()
+
+    const overlay = page.getByRole('dialog', { name: '원본 대조' })
+    await expect(overlay).toBeVisible({ timeout: 15_000 })
+
+    // 「못 그려요」가 아니라 그 파일의 셀이 보여야 한다
+    await expect(overlay.getByText('원본 파일의 표를 그대로 폈어요')).toBeVisible({ timeout: 20_000 })
+    await expect(overlay.getByText('GIGABYTE R283-Z96-AAJ1').first()).toBeVisible()
+    await expect(overlay.getByText('Dual AMD EPYC 9005/9004 Server Processors')).toBeVisible()
+    await expect(overlay.getByText(/이 형식은 화면 안에 못 그려요/)).toHaveCount(0)
+    // 내려받기 길은 그대로 남아야 한다
+    await expect(overlay.getByRole('button', { name: '원본 내려받기' })).toBeVisible()
+
+    await page.screenshot({ path: shot('04-sheet'), fullPage: false })
+  } finally {
+    if (quoteId) await page.request.delete(`/api/crm/quotes/${quoteId}`).catch(() => {})
+  }
+})

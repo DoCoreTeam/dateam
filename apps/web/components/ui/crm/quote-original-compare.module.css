@@ -191,3 +191,47 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/*
+  엑셀 원본 — **표로 펴서** 세운다.
+
+  브라우저는 엑셀을 못 그린다. 그렇다고 「못 그려요」로 끝내면 대조하러 연 화면이
+  대조를 못 한다 — 견적서는 엑셀로 오는 일이 흔하다.
+  촘촘하게 그린다. 대조는 눈이 오가는 일이라 한 화면에 많이 보이는 편이 낫다.
+*/
+.sheetWrap {
+  height: 100%;
+  overflow: auto;
+  padding: var(--space-3);
+}
+
+.sheetNote {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.sheetBlock + .sheetBlock { margin-top: var(--space-4); }
+
+.sheetName {
+  margin: 0 0 var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.sheetTable {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+}
+
+.sheetTable td {
+  border: var(--border-w) solid var(--border-light);
+  padding: 2px 6px;
+  vertical-align: top;
+  white-space: pre-wrap;
+  /* 한 칸이 길어도 표가 가로로 무한정 늘어나지 않게 */
+  max-width: 28ch;
+}
