@@ -1,6 +1,6 @@
 # PLAN newAX: AI 공급자 키를 여러 개 두고 한도에 걸린 키를 건너뛴다
 플랜 ID: P0032
-플랜 버전: v0.1.6
+플랜 버전: v0.1.7
 상태: 진행중
 지시: ins_0034
 목표 버전: v0.10.214
@@ -110,9 +110,9 @@
 의존: I02, I04
 
 ### I06 AI 채팅 스트림 결선
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/lib/ai-chat/registry.ts, apps/web/lib/ai-chat/registry.test.ts
+범위: apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/lib/ai/key-rotation.ts, apps/web/lib/ai-chat/registry.test.ts
 감사 기준:
 - 후보 하나가 scope 'key' 로 실패하면 같은 공급자 같은 모델을 다음 키로 재시도함
 - 바깥 후보 상한 6 과 공급자당 2 가 그대로임 (키 교체가 후보 수를 늘리지 않음)
@@ -209,3 +209,4 @@
 - v0.1.4 (2026-09-20) I08 을 둘로 쪼갬. ①같은 키 교체 로직이 STT·임베딩·호출기 세 곳에 필요해 공용 부품으로 뺀다(재사용·단일구현 정책). ②원래 범위의 넷 중 ci/ai/meta.ts 와 gpu/extract-helpers.ts 는 고칠 것이 없다 - 둘 다 gemini-call 을 타므로 I05 로 이미 같은 저장소를 본다. 코드를 안 고치는 대신 「자기 방식으로 또 읽지 않는다」를 가드로 못 박는다 (audit:I08)
 - v0.1.5 (2026-09-20) I08a 범위에 key-rotation.ts 추가. 전사는 실패를 SttError 로 이미 분류해 던지는데 그 문구에 429 나 401 이 안 들어 있어 classifyProviderError 가 못 읽는다 - 한글 안내문이기 때문. 부르는 쪽이 자기 오류 형을 결말로 옮길 수 있게 outcomeOf 를 옵션으로 연다 (audit:I08a)
 - v0.1.6 (2026-09-20) I08a 에서 임베딩을 떼어 I08b 로 미룸. 옆 세션이 같은 파일에 묶음 임베딩(embedTexts)과 guardedVectors 를 만드는 중인데 둘 다 아직 HEAD 에 없다. 그 파일을 지금 커밋하면 없는 함수를 부르는 코드가 들어가 빌드가 깨진다. 배선은 작업 트리에 이미 있고 tsc 도 통과하므로 그 판이 커밋된 뒤에 얹는다. 남의 미완 작업을 대신 끝내지도, 되돌리지도 않는다 (audit:I08a)
+- v0.1.7 (2026-09-20) I06 범위에서 registry.ts 를 빼고 key-rotation.ts 를 넣음. 레지스트리는 META 에서 키 하나를 읽는 자리인데 그 값은 그대로 첫 키로 쓰이므로 고칠 것이 없다. 대신 키를 갈아탄 사실을 화면에 말하려면 「다음 키로 넘어가기 직전」을 알 수 있어야 하는데 공용 부품에 그 자리가 없다 - record 로 대신하면 마지막 키가 실패할 때도 「다른 키로 다시 답합니다」를 찍고 끝난다. onSwitch 를 연다 (audit:I06)

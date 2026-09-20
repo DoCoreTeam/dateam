@@ -29,6 +29,14 @@ export interface KeyRotationDeps {
    * 이미 안 사실을 문자열로 되돌려 다시 추측하게 만들지 않는다.
    */
   outcomeOf?: (err: unknown) => KeyOutcome
+  /**
+   * 다음 키로 넘어가기 **직전**에 부른다. 갈아탄 사실을 화면에 말할 자리다.
+   *
+   * **왜 record 로 대신하지 못하나**: 기록은 마지막 키가 실패할 때도 불린다.
+   * 그걸로 「다른 키로 다시 답합니다」를 찍으면, 실제로는 갈 곳이 없는데 간다고 말하고
+   * 그대로 끝난다 — 조용히 바꾸는 것보다 나쁘다.
+   */
+  onSwitch?: (from: KeyPoolEntry, to: KeyPoolEntry) => void
 }
 
 /** 이 실패에 키를 바꿀 것인가. 바꿀 것이면 그 키를 어떻게 적을지까지 */
@@ -106,6 +114,8 @@ export async function withProviderKeys<T>(
       await note(entry, outcome, e instanceof Error ? e.message : String(e ?? ''))
       // 키를 바꿔도 같은 답이 올 실패다. 남은 키를 태우지 않고 그대로 올린다
       if (outcome === 'transient') throw e
+      const next = entries[i + 1]
+      if (next) deps?.onSwitch?.(entry, next)
     }
   }
   throw lastError ?? new Error(`${provider} 키가 하나도 없습니다`)

@@ -21,6 +21,8 @@ import {
   formatFallbackNotice,
   type ChainCandidate,
 } from '@/lib/ai-chat/model-chain'
+import { withProviderKeys } from '@/lib/ai/key-rotation'
+import { readKeyPool, recordKeyOutcome } from '@/lib/ai/key-store'
 import type { AiChatConversation, AiChatCitation } from '@/types/database'
 
 export const runtime = 'nodejs' // extractDocumentText(officeparser) + Buffer 사용
@@ -517,8 +519,21 @@ export async function POST(req: NextRequest) {
           let emittedAny = false
 
           try {
-            outcome = await getProvider(cand.provider).streamChat({
-              apiKey: cand.apiKey,
+            /*
+              **후보 하나를 키 여러 개로 붙든다.**
+
+              한도(429)와 인증(401)은 모델이 아니라 **그 키**의 문제라, 후보를 버리기 전에
+              같은 공급자 같은 모델을 다음 키로 한 번 더 부른다. 여기서 안 하고 pruneChain 으로
+              내려가면 그 공급자가 통째로 빠지고, 등록해 둔 다른 키는 한 번도 안 쓰인다.
+
+              **후보 수는 늘지 않는다** — 사슬(상한 6 · 공급자당 2)은 위에서 이미 정해졌고
+              키 교체는 그 한 칸 안에서 일어난다.
+
+              갈아타면 반드시 말한다. 그리고 거기까지 흘린 조각은 다음 키의 답이 아니므로
+              화면 버퍼를 비우게 한다 — 모델을 갈아탈 때와 같은 규율이다.
+            */
+            outcome = await withProviderKeys(cand.provider, cand.apiKey, async (apiKey) => getProvider(cand.provider).streamChat({
+              apiKey,
               model: cand.model,
               system: systemForStream,
               turns,
@@ -532,6 +547,19 @@ export async function POST(req: NextRequest) {
                 if (collectCitation(c)) enqueue({ citation: c })
               },
               onToolStatus: (s) => enqueue({ toolStatus: s }),
+            }), {
+              entries: await readKeyPool(cand.provider),
+              record: recordKeyOutcome,
+              onSwitch: (from, to) => {
+                citations.length = 0
+                seenUrls.clear()
+                // 키 **이름**만 말한다. 원문은 화면으로 나가지 않는다
+                enqueue({
+                  switched: `${getProvider(cand.provider).label} 키 '${from.label}' 사용 불가, '${to.label}' 로 다시 답합니다`,
+                  reset: emittedAny,
+                })
+                emittedAny = false
+              },
             })
             break
           } catch (err) {

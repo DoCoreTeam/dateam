@@ -173,3 +173,69 @@ test('순서: 저장된 순서대로 후보가 나온다', () => {
   })
   assert.deepEqual(list.map((c) => c.id), ['groq', 'gemini'])
 })
+
+/* ── 채팅 스트림이 키를 갈아타는가 ──────────────────────────────
+   이 라우트는 사람이 글자가 흘러나오는 것을 보고 있는 자리다. 키가 마르면
+   화면은 그냥 멈춘 것처럼 보이고, 등록해 둔 다른 키는 한 번도 안 쓰인다.
+   실행으로 밟기 어려운 자리(대화·스트림·관리자 세션)라 배선을 센다. */
+
+import { readFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { MAX_CHAIN_CANDIDATES, MAX_PER_PROVIDER } from './model-chain.ts'
+
+const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const ROUTE = readFileSync(join(WEB, 'app/api/admin/ai-chat/stream/route.ts'), 'utf8')
+
+test('★ 후보를 버리기 전에 같은 공급자 같은 모델을 다음 키로 부른다', () => {
+  assert.match(ROUTE, /withProviderKeys\(cand\.provider, cand\.apiKey/,
+    '키 교체 없이 pruneChain 으로 내려가면 그 공급자가 통째로 빠지고 다른 키는 안 쓰인다')
+  // 교체는 **그 후보 안에서** 일어나야 한다 — 모델이 바뀌면 답의 성격이 달라진다
+  const i = ROUTE.indexOf('withProviderKeys(cand.provider')
+  assert.match(ROUTE.slice(i, i + 400), /model: cand\.model/)
+})
+
+test('★ 키 목록과 결말 기록이 저장소 한 곳을 지난다 — 라우트가 표를 직접 열지 않는다', () => {
+  assert.match(ROUTE, /readKeyPool\(cand\.provider\)/)
+  assert.match(ROUTE, /record: recordKeyOutcome/)
+  assert.ok(!ROUTE.includes("from('ai_provider_keys')"), '표를 직접 열면 원문 키가 흩어진다')
+})
+
+test('★ 키 교체가 후보 수를 늘리지 않는다 — 사슬 상한은 그대로다', () => {
+  assert.equal(MAX_CHAIN_CANDIDATES, 6)
+  assert.equal(MAX_PER_PROVIDER, 2)
+  assert.ok(!/maxCandidates:/.test(ROUTE), '라우트가 상한을 따로 올리면 기다리는 시간이 늘어난다')
+  assert.ok(!/maxPerProvider:/.test(ROUTE))
+})
+
+test('★ 키를 갈아탄 사실이 사용자에게 보이는 말로 남는다', () => {
+  const i = ROUTE.indexOf('onSwitch:')
+  assert.ok(i > 0, '갈아타는 자리에 알림이 없으면 화면은 멈춘 것처럼 보인다')
+  const block = ROUTE.slice(i, i + 500)
+  assert.match(block, /enqueue\(\{[\s\S]{0,200}switched:/)
+  assert.match(block, /reset: emittedAny/, '앞 키가 흘린 조각은 다음 키의 답이 아니다')
+})
+
+test('★ 갈아탐 안내에 키 이름만 나간다 — 원문 키는 화면으로 나가지 않는다', () => {
+  const i = ROUTE.indexOf('onSwitch:')
+  const block = ROUTE.slice(i, i + 500)
+  assert.match(block, /from\.label/)
+  assert.match(block, /to\.label/)
+  assert.ok(!/from\.apiKey|to\.apiKey/.test(block), '가림값도 아닌 원문이 스트림에 실린다')
+})
+
+test('★ 스트림 어디에도 키가 실리지 않는다 — enqueue 전수', () => {
+  const offenders = [...ROUTE.matchAll(/enqueue\(\{[\s\S]{0,300}?\}\)/g)]
+    .map((m) => m[0])
+    .filter((call) => /apiKey|api_key/.test(call))
+
+  assert.deepEqual(offenders, [], '스트림으로 나가는 조각에 키가 섞였다')
+})
+
+test('★ 인증 장치가 그대로 맨 앞에 있다 — 관리자 확인 없이 부를 수 없다', () => {
+  const gate = ROUTE.indexOf('requireAdminApi')
+  assert.ok(gate > 0, '관리자 확인이 사라졌다')
+  // 서비스롤을 쓰는 자리보다 **앞**이어야 한다. 뒤면 확인 전에 RLS 를 지나간다
+  assert.ok(gate < ROUTE.indexOf('createAdminClient('),
+    '사람 확인보다 서비스롤이 먼저 서면 그 확인은 아무것도 막지 않는다')
+})
