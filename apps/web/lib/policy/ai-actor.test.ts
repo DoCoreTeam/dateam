@@ -66,6 +66,28 @@ function scanLaneFiles(): string[] {
 
 const read = (f: string) => readFileSync(join(WEB, f), 'utf8')
 
+/**
+ * 벤더를 부르는 **인자 덩어리**만 잘라 낸다.
+ *
+ * 파일 아무 데나 있는 `actorId` 를 세면 안 된다 — 인자로 받아 두고 정작 호출에는 안 넘기는
+ * 코드가 그대로 통과한다. 실제로 그렇게 통과했다(daily-prompt-governance 에서 넘기는 줄
+ * 하나만 빼도 가드가 안 울었다). 그래서 여는 함수의 괄호 안만 본다.
+ */
+function callArgsIn(src: string): string[] {
+  const out: string[] = []
+  const re = new RegExp(`\\b(?:${LANE_OPENERS.join('|')})\\s*\\(`, 'g')
+  for (let m = re.exec(src); m; m = re.exec(src)) {
+    let i = m.index + m[0].length - 1
+    for (let depth = 0; i < src.length; i++) {
+      if (src[i] === '(') depth++
+      else if (src[i] === ')' && --depth === 0) break
+    }
+    out.push(src.slice(m.index, i + 1))
+  }
+  return out
+}
+
+
 test('★ 벤더로 나가는 파일이 전부 등재부에 있다', () => {
   const missing = scanLaneFiles().filter((f) => !laneOf(f))
   assert.deepEqual(missing, [], [
@@ -85,11 +107,20 @@ test('★ 사라진 자리는 등재부에서도 지운다', () => {
   ].join('\n'))
 })
 
-test('★ 사람이 누르는 자리는 주인을 넘긴다', () => {
-  const 빠진곳 = AI_LANES.filter((l) => needsActor(l) && !/actorId/.test(read(l.file)))
-  assert.deepEqual(빠진곳.map((l) => l.file), [], [
-    '사람이 누르는 창구인데 actorId 를 안 넘긴다. 그 호출은 원장에서 주인이 빈칸이 된다:',
-    ...빠진곳.map((l) => `  ${l.file} — ${l.why}`),
+test('★ 사람이 누르는 자리는 벤더를 부르는 그 자리에서 주인을 넘긴다', () => {
+  const 빠진곳: string[] = []
+  for (const lane of AI_LANES.filter(needsActor)) {
+    const args = callArgsIn(read(lane.file))
+    assert.ok(args.length > 0, `${lane.file} 에서 벤더를 부르는 자리를 못 찾았다`)
+    const 안넘기는곳 = args.filter((a) => !/\bactorId\b/.test(a))
+    if (안넘기는곳.length > 0) {
+      빠진곳.push(`  ${lane.file} — ${lane.why} (${안넘기는곳.length}/${args.length}곳)`)
+    }
+  }
+  assert.deepEqual(빠진곳, [], [
+    '사람이 누르는 창구인데 벤더를 부르는 자리에 actorId 가 없다.',
+    '인자로 받아 두고 안 넘기면 원장에서는 똑같이 빈칸이다:',
+    ...빠진곳,
   ].join('\n'))
 })
 

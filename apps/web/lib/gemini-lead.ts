@@ -235,6 +235,8 @@ async function callGemini(
   model: string,
   ledger: AiLedger,
   surface: string,
+  /** 리드를 올린 사람. 부르는 셋이 전부 쥐고 있는데 여기까지 안 내려오고 있었다 */
+  actorId: string | null,
 ): Promise<{ text: string; usage: { promptTokens: number; outputTokens: number; totalTokens: number } }> {
   /*
     예전에는 이 파일이 벤더 주소를 들고 스스로 fetch 했다. 가림과 기록은 이미
@@ -243,7 +245,7 @@ async function callGemini(
   */
   const out = await guardedGeminiText({
     prompt, apiKey, model, surface, purpose: 'lead_parse',
-    ledger, temperature: 0.1,
+    actorId, ledger, temperature: 0.1,
   })
   if (!out.text) throw new Error('Gemini 응답이 비어 있습니다')
   return {
@@ -265,7 +267,7 @@ export async function parseLeadInput(
 ): Promise<ParsedLeadData> {
   const surface = 'leads/parse'
   const prompt = `${LEAD_PARSE_PROMPT}\n\n입력:\n${rawInput}`
-  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface)
+  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface, userId ?? null)
   try {
     const parsed = JSON.parse(text)
     logTokenUsage({ userId: userId ?? null, feature: 'lead-parse' as AiFeature, model, ...usage })
@@ -314,7 +316,7 @@ export async function parseBulkLeadChunk(
   }).join('\n')
 
   const prompt = `${BULK_LEAD_PARSE_PROMPT}\n${rowsText}`
-  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface)
+  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface, userId ?? null)
 
   logTokenUsage({ userId: userId ?? null, feature: 'lead-parse' as AiFeature, model, ...usage })
 
@@ -342,7 +344,7 @@ export async function scoreFit(
 ): Promise<{ fit_score: number; fit_reason: string }> {
   const surface = 'leads/fit-score'
   const prompt = `${FIT_SCORE_PROMPT}\n\n거래처:\n${JSON.stringify(accountInfo, null, 2)}`
-  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface)
+  const { text, usage } = await callGemini(prompt, apiKey, model, ledger, surface, userId ?? null)
   try {
     const parsed = JSON.parse(text) as { fit_score?: number; fit_reason?: string }
     logTokenUsage({ userId: userId ?? null, feature: 'account-fit-score' as AiFeature, model, ...usage })

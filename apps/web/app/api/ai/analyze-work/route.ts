@@ -272,7 +272,7 @@ item.accountId = matchByName(item.accountName, accountList).matched?.id ?? null
       try {
         const nowIso = new Date().toISOString()
         await recordDailyOutcome(adminClient, { version: promptResult.version, input: text, items: collectedItems, userId: user.id, nowIso })
-        await maybeSelfTuneDaily(adminClient, { apiKey, model, sampleInput: text, nowIso })
+        await maybeSelfTuneDaily(adminClient, { apiKey, model, sampleInput: text, nowIso, actorId: user.id })
       } catch (e) {
         console.warn('[analyze-work] 자가학습 신호 처리 실패', e)
       }

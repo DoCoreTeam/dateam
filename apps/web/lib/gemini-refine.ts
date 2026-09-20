@@ -229,6 +229,8 @@ export async function refineReports(
   const out = await guardedGeminiText({
     prompt: `${SYSTEM_PROMPT}\n\n입력 데이터:\n${JSON.stringify(reports, null, 2)}`,
     apiKey, model, surface: 'weekly-report-refine', purpose: '보고 다듬기(옛 길)',
+    // 부르는 곳이 한 군데도 없는 길이라 넘겨받을 사람이 없다. 살아 있는 한 그 사실을 적어 둔다
+    actorId: null,
     temperature: 0.1,
   })
   const text = out.text

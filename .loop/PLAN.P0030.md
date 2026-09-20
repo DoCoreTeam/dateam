@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.1.7
+플랜 버전: v0.1.10
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.10.189
@@ -159,15 +159,39 @@
 의존: I08a
 범위 메모: daily-prompt-governance.ts 는 자기 인자에 사용자가 없어 부르는 라우트까지 고쳐야 해서 I08c 로 옮김. 등재부(actor.ts)는 기준선을 내려야 하므로 범위에 넣음
 
-### I08c 자가조정과 채팅에 주인을 잇는다
-상태: 대기
+### I08c 자가조정에 주인을 잇는다
+상태: 통과
 모드: 경량
-범위: apps/web/lib/daily-prompt-governance.ts, apps/web/app/api/ai/analyze-work/route.ts, apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/ai/actor.ts
+범위: apps/web/lib/daily-prompt-governance.ts, apps/web/app/api/ai/analyze-work/route.ts, apps/web/lib/ai/actor.ts, apps/web/lib/policy/ai-actor.test.ts, apps/web/lib/gemini-lead.ts, apps/web/lib/gemini-refine.ts
 감사 기준:
 - 프롬프트 자가조정이 그 사람의 일일업무에서 출발했음을 actor_id 로 남김 (라우트가 이미 쥔 user.id 를 내려보냄)
-- AI 채팅 호출의 actor_id 가 친 사람의 id 와 같음
-- 기준선이 6 에서 3 으로 내려감
+- 기준선이 6 에서 5 로 내려감
+- 사용자 원문 표본을 다루는 자리이므로 가림 한 겹을 그대로 지남 (기존 guardedGeminiText 유지 확인)
+- 가드가 파일 아무 데나 있는 actorId 가 아니라 **벤더를 부르는 자리 안**을 봄 (일부러 넘기는 줄만 빼서 확인)
+- 고친 가드가 찾아낸 기존 누락 둘을 그 자리에서 메움 (gemini-lead 도우미, gemini-refine 옛 길)
 의존: I08b
+범위 메모: AI 채팅은 호출부가 열한 곳이라 같은 항목에 못 넣고 I08e 로 뺌. 가드를 범위에 넣은 이유는 아래 감사에서 드러난 결함 때문임 — 파일 전체 문자열 검색이라 인자로 선언만 하고 안 넘겨도 통과했다
+
+### I08e AI 채팅이 주인을 반드시 받는다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/ai-chat/provider.ts, apps/web/lib/ai-chat/providers/gemini.ts, apps/web/lib/ai/actor.ts
+감사 기준:
+- StreamChatParams 의 actorId 가 선택이 아니라 필수라서 안 주면 형 검사가 실패함 (일부러 하나 빼서 확인)
+- gemini 공급자가 받은 주인을 관문 ctx 까지 넘김
+- 기준선이 5 에서 4 로 내려감
+의존: I08c
+범위 메모: 필수로 만들면 호출부 열한 곳이 전부 형 검사에서 걸린다, 그 결선은 I08f 에서 한다
+
+### I08f 채팅 호출부 열한 곳이 주인을 넘긴다
+상태: 대기
+모드: 경량
+범위: apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/app/(ai)/ai/actions.ts, apps/web/app/(ai)/ai/analyze/actions.ts, apps/web/app/(ai)/ai/analyze/template-actions.ts, apps/web/lib/ai-chat/analyze-core.ts, apps/web/lib/ai-chat/analyze-gemini.ts, apps/web/lib/ai-chat/analyze-runner-worker.ts, apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/rfp/ai/host-caller.ts
+감사 기준:
+- pnpm tsc --noEmit 가 통과함 (필수 칸이므로 한 곳이라도 빠지면 실패)
+- 사람이 누르는 호출부는 자기가 쥔 사용자 id 를, 배경 호출부는 null 과 사유를 넘김
+- 실측으로 확인: AI 채팅 한 번을 실제로 돌려 ai_llm_calls 의 그 줄 actor_id 가 친 사람 id 와 같음
+의존: I08e
 
 ### I08d 남은 창구에 주인을 잇는다
 상태: 대기
@@ -275,3 +299,6 @@
 - v0.1.5 (2026-09-20) I08 범위에 budget.ts 와 budget-gate.ts 를 넣음: 세는 자리가 server-only 를 달고 있어 던지기만 하려는 RFP 관문까지 서버 묶음에 묶였고 단위 시험 8개가 죽었다. 거절 예외를 규칙 계층으로 옮기고 창구를 guarded-call 한 곳에서만 고르게 했다. gemini-call.ts 는 beginGuardedCall 을 이미 지나므로 손대지 않음 (audit:I08)
 - v0.1.6 (2026-09-20) I08a 를 셋으로 나눔(I08a 자리와 등재부 / I08b 사람 창구 결선 / I08c 나머지 결선). 벤더로 나가는 파일이 35개이고 주인을 안 넘기는 곳이 10개라 한 항목으로는 한 번에 감사할 수 없었다. guarded-call.ts 는 이미 ctx.actorId 를 원장에 적고 있어 범위에서 뺌, 대신 주인을 받을 자리가 없는 gemini-call.ts 를 넣음 (audit:I08a)
 - v0.1.7 (2026-09-20) I08b 에서 daily-prompt-governance 를 빼 I08c 로 옮기고 남은 결선을 I08d 로 밀었다. 그 파일은 자기 인자에 사용자가 없어 부르는 라우트(analyze-work)까지 고쳐야 하는데, 그러면 한 항목이 일곱 파일이 되어 한 번에 감사할 수 없다. 등재부 actor.ts 는 기준선을 내리는 자리라 세 항목 모두의 범위에 들어간다 (audit:I08b)
+- v0.1.8 (2026-09-20) I08c 에서 AI 채팅을 빼 I08e(계약을 필수로)와 I08f(호출부 열한 곳 결선)로 나눔. StreamChatParams 를 고치면 호출부 열한 곳이 형 검사에 걸려 한 항목이 열세 파일이 된다. 계약과 결선을 나누면 각각 한 번의 자가감사로 판정된다 (audit:I08c)
+- v0.1.9 (2026-09-20) I08c 감사 중 가드 결함 발견: ai-actor 의 «사람이 누르는 자리는 주인을 넘긴다» 가 파일 전체에서 actorId 문자열만 찾아, 인자로 선언만 하고 벤더 호출에 안 넘겨도 통과했다(일부러 넘기는 줄을 빼도 실패하지 않음). 벤더를 부르는 자리의 인자 안을 보도록 고치고 가드 파일을 I08c 범위에 넣음 (audit:I08c)
+- v0.1.10 (2026-09-20) 고친 가드가 기존 누락 둘을 바로 찾아내서 I08c 범위에 넣음: gemini-lead 의 내부 도우미가 부르는 셋에게서 userId 를 받고도 관문에 안 넘기고 있었고(리드 해석·판정 호출이 전부 주인 없이 나갔다), gemini-refine 의 옛 길은 부르는 곳이 없어 넘겨받을 사람이 없으므로 사유와 함께 null 을 명시했다. 되돌리면 가드가 빨간 채로 남으므로 그 자리에서 메움 (audit:I08c)

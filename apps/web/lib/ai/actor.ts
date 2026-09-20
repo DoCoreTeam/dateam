@@ -95,7 +95,7 @@ export const AI_LANES: readonly AiLane[] = [
   { file: 'lib/meeting/digest-run.ts', kind: 'human', surfaces: ['meeting_digest', 'meeting_digest_condense'],
     why: '회의 정리, 받은 userId 를 호출기까지 내려보낸다' },
   { file: 'lib/daily-prompt-governance.ts', kind: 'human', surfaces: ['daily-prompt-synth'],
-    why: '프롬프트 개선은 사람의 일일업무 결과에서 출발한다', unwired: true },
+    why: '프롬프트 개선은 사람의 일일업무 결과에서 출발한다, 라우트가 쥔 user.id 를 내려보낸다' },
   { file: 'lib/ai-chat/providers/gemini.ts', kind: 'human', surfaces: ['ai-chat'],
     why: 'AI 채팅, 사람이 치는 자리인데 공급자 층까지 주인이 안 내려온다', unwired: true },
   { file: 'lib/crm/ai/runner.ts', kind: 'human', surfaces: ['crm'],
@@ -137,8 +137,8 @@ export function unwiredLanes(): readonly AiLane[] {
 /**
  * 아직 안 이어 붙인 자리의 기준선.
  *
- * 실측 2026-09-20 기준 열 곳이었다. I08b 가 넷을 없애 여섯이 남았고, I08c 가 셋,
- * I08d 가 나머지를 없앤다. 이 숫자를 올리는 변경은 가드가 막는다 —
+ * 실측 2026-09-20 기준 열 곳이었다. I08b 가 넷, I08c 가 하나를 없애 다섯이 남았고,
+ * I08e 와 I08f 가 채팅을, I08d 가 나머지를 없앤다. 이 숫자를 올리는 변경은 가드가 막는다 —
  * 새 자리를 「나중에」로 여는 길을 안 남긴다. 줄이면 이 값도 함께 내린다.
  */
-export const UNWIRED_BASELINE = 6
+export const UNWIRED_BASELINE = 5

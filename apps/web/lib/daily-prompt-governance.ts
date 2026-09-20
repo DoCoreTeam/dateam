@@ -79,7 +79,16 @@ function sanitizeSample(input: string): string {
  */
 export async function maybeSelfTuneDaily(
   db: Db,
-  p: { apiKey: string; model: string; sampleInput: string; nowIso: string },
+  p: {
+    apiKey: string; model: string; sampleInput: string; nowIso: string
+    /**
+     * 이 자가조정을 촉발한 사람. 표본이 그 사람의 일일업무 원문이므로 주인이 있다.
+     *
+     * 문턱을 넘겼을 때만 도는 일이라 «배경»처럼 보이지만, 나가는 글이 특정 사용자의
+     * 것이면 그 호출의 주인도 그 사람이다. 안 적으면 누구 글이 나갔는지 못 가린다.
+     */
+    actorId?: string | null
+  },
 ): Promise<{ action: 'none' | 'rolled_back' | 'proposed_held'; detail?: string }> {
   const sig = await recentDegradedSignal(db)
   if (sig.n < 5 || sig.rate < DEGRADED_RATE_TRIGGER) return { action: 'none' }
@@ -98,7 +107,7 @@ export async function maybeSelfTuneDaily(
   const last = await lastSynthHeldAt(db)
   if (last && new Date(p.nowIso).getTime() - last < SYNTH_COOLDOWN_MS) return { action: 'none', detail: 'cooldown' }
 
-  const candidate = await synthesizeDailyPrompt(p.apiKey, p.model, active.content, p.sampleInput)
+  const candidate = await synthesizeDailyPrompt(p.apiKey, p.model, active.content, p.sampleInput, p.actorId ?? null)
   if (!candidate) return { action: 'none' }
 
   // 보조 eval(held여도): 필수 출력필드 + 치환변수 보존 확인
@@ -123,6 +132,7 @@ export async function maybeSelfTuneDaily(
 /** 개선된 일일 추출 프롬프트를 Gemini로 합성(held 제안용). 입력 sanitize + 타임아웃. 실패 시 null. */
 export async function synthesizeDailyPrompt(
   apiKey: string, model: string, currentPrompt: string, sampleInput: string,
+  actorId: string | null = null,
 ): Promise<string | null> {
   const safeSample = sanitizeSample(sampleInput)
   const meta = `당신은 데이터 추출 프롬프트를 개선하는 메타 AI입니다.
@@ -143,6 +153,7 @@ ${safeSample}
     const out = await guardedGeminiText({
       prompt: meta, apiKey, model,
       surface: 'daily-prompt-synth', purpose: '일일 추출 프롬프트 개선',
+      actorId,
       json: false, temperature: 0.3, timeoutMs: SYNTH_TIMEOUT_MS,
     })
     const text = out.text.trim()
