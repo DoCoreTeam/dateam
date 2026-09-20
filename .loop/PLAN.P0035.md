@@ -60,7 +60,7 @@
 의존: I01
 
 ### I03 테스트가 운영 데이터를 지우지 못하게 가드로 잠근다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/test-db-safety.test.ts (신규), apps/web/package.json
 감사 기준:

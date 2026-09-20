@@ -36,12 +36,21 @@ async function cleanup() {
   const pIds = (await dbA.crmPerson.findMany({
     where: { name: { contains: MARK }, deletedAt: undefined }, select: { id: true },
   })).map((p) => p.id)
+  const dIds = (await dbA.crmDeal.findMany({
+    where: { companyId: { in: cIds } }, select: { id: true },
+  })).map((d) => d.id)
+
   await dbA.crmDealContact.deleteMany({ where: { personId: { in: pIds } } })
   await dbA.crmStageHistory.deleteMany({ where: { deal: { companyId: { in: cIds } } } })
   await dbA.crmDeal.deleteMany({ where: { companyId: { in: cIds } } })
   await dbA.crmPerson.deleteMany({ where: { id: { in: pIds } } })
   await dbA.crmCompany.deleteMany({ where: { id: { in: cIds } } })
-  await dbA.crmAuditLog.deleteMany({ where: { action: { startsWith: 'deal.contact' } } })
+  /*
+    이력도 **내가 만든 대상 id 로만** 지운다 — 종류(action)로 지우면 남의 이력이 함께 걸린다.
+    같은 모양의 구문이 사용자의 견적서 공급자 정보를 지웠다(2026-09-20).
+    lib/policy/test-db-safety.test.ts 가 이 모양을 막는다.
+  */
+  await dbA.crmAuditLog.deleteMany({ where: { targetId: { in: [...cIds, ...pIds, ...dIds] } } })
 }
 
 test('시작 전 잔여 정리', async () => { await cleanup() })

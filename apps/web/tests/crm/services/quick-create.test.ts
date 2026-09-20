@@ -39,6 +39,9 @@ function track(result: { created: { type: string; id: string }[] }) {
  * 그 잔여가 다음 실행에서 "이미 있는 회사"로 잡혀 **다른 테스트를 연쇄로 무너뜨린다**(실측).
  * 실패한 실행이 다음 실행을 오염시키지 않게 하는 것이 여기서 제일 중요하다.
  */
+/** 이 파일을 읽은 순간. 이보다 오래된 실행 기록은 남의 것이라 안 건드린다 */
+const RUN_SINCE = new Date()
+
 async function cleanup() {
   const ids = [...MADE.companies, ...MADE.people, ...MADE.deals]
   if (ids.length) await dbA.crmAuditLog.deleteMany({ where: { targetId: { in: ids } } })
@@ -68,8 +71,32 @@ async function cleanup() {
     await dbA.crmAuditLog.deleteMany({ where: { targetId: { in: strayIds } } })
     await dbA.crmCompany.deleteMany({ where: { id: { in: strayIds } } })
   }
-  await dbA.crmPerson.deleteMany({ where: { email: { contains: 'quick-create-test' } } })
-  await dbA.crmAiRun.deleteMany({ where: { model: 'mock' } })
+  /*
+    **종류로 지우지 않는다.** 예전 두 줄은 이랬다:
+
+        crmPerson.deleteMany({ where: { email: { contains: 'quick-create-test' } } })
+        crmAiRun.deleteMany({ where: { model: 'mock' } })
+
+    아래쪽이 특히 위험했다 — `mock` 은 테스트 전용 값이 아니라 **설정에 실제로 있는 선택지**다
+    (`ai.model.extract` 의 「AI 안 씀 (규칙만)」). 그걸 고른 워크스페이스의 실행 기록이
+    이 테스트를 한 번 돌릴 때마다 통째로 지워진다.
+    그래서 먼저 id 를 모으고 **그 id 로만** 지운다.
+    lib/policy/test-db-safety.test.ts 가 이 모양을 막는다.
+  */
+  const emailPersonIds = (await dbA.crmPerson.findMany({
+    where: { email: { contains: 'quick-create-test' } }, select: { id: true },
+  })).map((x) => x.id)
+  if (emailPersonIds.length) {
+    await dbA.crmPerson.deleteMany({ where: { id: { in: emailPersonIds } } })
+  }
+
+  // 이 테스트가 도는 동안 생긴 mock 실행만 — 시작 시각은 모듈을 읽는 순간으로 못 박는다
+  const runIds = (await dbA.crmAiRun.findMany({
+    where: { model: 'mock', createdAt: { gte: RUN_SINCE } }, select: { id: true },
+  })).map((r) => r.id)
+  if (runIds.length) {
+    await dbA.crmAiRun.deleteMany({ where: { id: { in: runIds } } })
+  }
   MADE.companies = []
   MADE.people = []
   MADE.deals = []
