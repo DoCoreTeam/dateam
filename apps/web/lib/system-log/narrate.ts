@@ -35,6 +35,12 @@ export interface NarrateInput {
    * 해결책은 "모델을 바꿔도 안 됩니다"라고 해서 **화면이 자기 말을 뒤집는다.**
    */
   webSearch?: boolean
+  /**
+   * 던진 쪽이 남긴 **한 줄 메시지**. 이미 `maskSecrets` 를 지난 값이어야 한다.
+   *
+   * 사유를 못 붙였을 때만 쓴다 — 사유가 붙은 자리에는 그 사유 전용 문장이 더 낫다.
+   */
+  message?: string | null
 }
 
 /**
@@ -77,9 +83,46 @@ export function detailOf(input: NarrateInput): string {
       return `외부 서비스가 오류를 돌려줬습니다${tail}. 우리 쪽에서 고칠 수 있는 문제가 아닐 수 있습니다.`
     case 'bad_json':
       return `AI 응답이 우리가 기대한 형식이 아니었습니다${tail}. 같은 일이 반복되면 모델을 바꿔 보세요.`
-    default:
-      return `원인을 자동으로 알아내지 못했습니다${tail}. 아래 원문을 펼쳐 확인해 주세요.`
+    default: {
+      /*
+        **원인을 못 붙였다고 해서, 원문이 이미 하고 있는 말까지 감추지 않는다.**
+
+        실측 2026-09-20: 원문에 「이 영상의 정보를 가져오지 못했습니다. 비공개이거나
+        삭제되었을 수 있습니다」라고 또렷이 적혀 있는데, 화면은 그 자리에
+        「원인을 자동으로 알아내지 못했습니다」를 띄웠다. 아는 것을 모른다고 말한 셈이다.
+
+        사유 아홉 가지에 없는 일은 앞으로도 계속 생긴다. 그때 없는 사유를 지어 붙이는
+        대신, 우리가 사람에게 쓴 문장을 그대로 올린다.
+      */
+      const said = humanSentenceOf(input.message)
+      return said
+        ? `${said}${tail}`
+        : `원인을 자동으로 알아내지 못했습니다${tail}. 아래 원문을 펼쳐 확인해 주세요.`
+    }
   }
+}
+
+/** 한 줄로 보여 줄 수 있는 길이. 넘으면 자르고, 원문은 접힌 채로 그대로 남는다 */
+const HUMAN_SENTENCE_MAX = 160
+
+/**
+ * 이 메시지가 **우리가 사람에게 쓴 문장**인가.
+ *
+ * 가르는 기준은 우리말이 들어 있는가 하나다. `Cannot read properties of undefined`
+ * 같은 런타임 예외는 관리자가 읽어도 할 일이 안 생기고, 그런 것까지 첫 줄에 올리면
+ * 화면이 다시 개발자 콘솔이 된다 — 그때는 예전 문구가 정직하다.
+ *
+ * **새 값을 열지 않는다.** 여기 들어오는 message 는 이미 `maskSecrets` 를 지난 값이고
+ * (record.ts 가 그렇게 넘긴다), 스택은 첫 줄에서 끊어 애초에 안 본다.
+ */
+export function humanSentenceOf(message: string | null | undefined): string | null {
+  const first = (message ?? '').split('\n')[0].trim()
+  // 우리말이 없으면 사람에게 쓴 문장이 아니다
+  if (!/[가-힣]/.test(first)) return null
+  // 던진 쪽의 이름표(`CrmError:`)는 관리자에게 아무 뜻이 없다
+  const body = first.replace(/^[A-Za-z][A-Za-z0-9_.$]*(Error|Exception):\s*/, '').trim()
+  if (!body) return null
+  return body.length > HUMAN_SENTENCE_MAX ? `${body.slice(0, HUMAN_SENTENCE_MAX)}…` : body
 }
 
 /**

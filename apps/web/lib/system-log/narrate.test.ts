@@ -5,7 +5,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { headlineOf, detailOf, occurrenceLine, truncateRaw, maskSecrets, RAW_MAX } from './narrate.ts'
+import { headlineOf, detailOf, occurrenceLine, truncateRaw, maskSecrets, humanSentenceOf, RAW_MAX } from './narrate.ts'
 import { classifySystemReason, severityOf, normalizeMessage, fingerprintOf } from './reason.ts'
 import { featureLabel, sourceLabel, reasonLabel } from './labels.ts'
 import { read, stripComments } from '../ui/component-scan.ts'
@@ -381,6 +381,61 @@ test('★ 재시도로 회수한 것은 안 올린다 — 올리면 진짜 죽�
     '재시도 대기(failed)까지 올리면 로그가 재시도 횟수만큼 부푼다',
   )
   assert.match(body, /buried\.length > 0/, '실제로 묻힌 것이 있을 때만 올려야 한다')
+})
+
+// ── 아는 것을 모른다고 말하지 않는다 (2026-09-20 실측) ────────────
+//
+// 사유를 못 붙였다고 원문이 이미 하고 있는 말까지 감췄다.
+// 화면: 「원인을 자동으로 알아내지 못했습니다」 / 원문: 「비공개이거나 삭제되었을 수 있습니다」
+
+test('★ 사유를 못 붙여도 우리가 쓴 문장은 그대로 올린다', () => {
+  const d = detailOf({
+    source: 'ci_job', reason: 'unknown', feature: 'ci-collect',
+    message: '이 영상의 정보를 가져오지 못했습니다. 비공개이거나 삭제되었을 수 있습니다',
+  })
+  assert.match(d, /비공개이거나 삭제/, '원문이 말하고 있는 것을 화면이 감추면 안 된다')
+  assert.ok(!d.includes('원인을 자동으로 알아내지 못했습니다'), '아는 것을 모른다고 말하지 않는다')
+})
+
+test('★ 사람 문장이 아니면 예전 문구가 정직하다 — 화면이 개발자 콘솔이 되면 안 된다', () => {
+  for (const message of [
+    "Cannot read properties of undefined (reading 'findMany')",
+    'Minified React error #310; visit https://react.dev/errors/310 for the full message',
+    'ChunkLoadError',
+  ]) {
+    const d = detailOf({ source: 'client', reason: 'unknown', message })
+    assert.match(d, /원인을 자동으로 알아내지 못했습니다/, message)
+  }
+  // 메시지가 아예 없을 때도 예전 그대로다
+  assert.match(detailOf({ source: 'client', reason: 'unknown' }), /원인을 자동으로 알아내지 못했습니다/)
+})
+
+test('★ 사유가 붙은 자리는 안 건드린다 — 그 사유 전용 문장이 더 낫다', () => {
+  const d = detailOf({ source: 'host_ai', reason: 'quota', message: '한도를 다 썼습니다' })
+  assert.match(d, /한도가 풀리기를 기다리거나/, '사유별 조언을 원문으로 덮으면 안 된다')
+})
+
+test('★ 첫 줄만 본다 — 스택이 화면 첫 줄로 새면 안 된다', () => {
+  const withStack = '이 영상의 정보를 가져오지 못했습니다\n    at n (/var/task/apps/web/.next/server/chunks/65312.js:1:4642)'
+  const said = humanSentenceOf(withStack)
+  assert.equal(said, '이 영상의 정보를 가져오지 못했습니다')
+  assert.ok(!said!.includes('/var/task'), '내부 경로가 화면 첫 줄에 실리면 안 된다')
+  // 던진 쪽 이름표는 관리자에게 아무 뜻이 없다
+  assert.equal(humanSentenceOf('CrmError: 권한이 없습니다'), '권한이 없습니다')
+  // 한 줄에 안 들어가는 길이는 자르고, 원문은 접힌 채로 그대로 남는다
+  assert.ok((humanSentenceOf('가'.repeat(400)) ?? '').length <= 161)
+})
+
+test('★ 화면 첫 줄로 가는 값은 가린 뒤의 것이어야 한다 — 로그가 유출 경로가 되면 안 된다', () => {
+  // record.ts 는 rawMessage 가 아니라 maskSecrets 를 지난 message 를 넘겨야 한다.
+  // 이름이 아니라 **어느 값이 가는지**를 본다(주석에 적어 두면 통과하는 가드는 가드가 아니다).
+  const src = stripComments(read('lib/system-log/record.ts'))
+  assert.match(src, /const message = maskSecrets\(rawMessage\)/)
+  const narrateBlock = src.slice(src.indexOf('const narrate = {'), src.indexOf('const stack ='))
+  assert.match(narrateBlock, /(^|[\s{,])message,/m, 'narrate 에 가린 message 를 넘겨야 한다')
+  assert.ok(!/rawMessage/.test(narrateBlock), '가리기 전 값이 화면 문장으로 가면 안 된다')
+  // 실제로 가려지는지도 확인한다 — 규칙만 보고 넘어가지 않는다
+  assert.ok(!humanSentenceOf(maskSecrets('키가 틀렸습니다 ?key=AIzaSyABCDEFGHIJKL'))!.includes('AIzaSy'))
 })
 
 // ── 웹 검색 한도는 다른 바구니다 (2026-08-24 실측) ────────────

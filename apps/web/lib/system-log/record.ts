@@ -124,6 +124,9 @@ export async function recordSystemEvent(input: RecordInput): Promise<void> {
       hint: input.hint ?? null,
       // 사실 문장과 해결책이 같은 말을 하도록 — 안 넘기면 둘이 서로를 뒤집는다
       webSearch: input.context?.webSearch === true,
+      // 사유를 못 붙였을 때 원문이 이미 하고 있는 말을 쓰기 위해.
+      // **가린 뒤의 값**을 넘긴다 — rawMessage 를 넘기면 화면 첫 줄이 유출 경로가 된다
+      message,
     }
 
     const stack = input.error instanceof Error && input.error.stack ? input.error.stack : rawMessage
