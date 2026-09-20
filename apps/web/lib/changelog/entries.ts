@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.278',
+    date: '2026-09-20',
+    title: '설정 화면이 한 벌로 정리됐어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🗂️',
+        headline: '설정을 분류 탭으로 나눴어요',
+        detail: '영업 CRM 설정은 카드 열세 장을 「영업 단계·견적·AI와 자동화·연동과 데이터」 넷으로, RFP 관리자는 셋으로 나눴어요. 고치러 온 것만 보면 되고, 나머지는 스크롤로 지나가지 않아도 돼요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🔎',
+        headline: '설정마다 검색 한 칸이 생겼어요',
+        detail: '어느 탭에 있는지 몰라도 이름으로 찾으면 바로 나와요. 「직인」처럼 제목에 없는 말로도 찾을 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📐',
+        headline: '설정 카드의 빈 자리를 없앴어요',
+        detail: '짧은 카드가 옆 카드 높이에 맞춰 늘어나면서 아래쪽이 텅 비어 있었어요. 이제 카드는 내용이 끝나는 자리에서 끝나요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🔀',
+        headline: 'RFP 이상 조항 규칙 스위치가 이제 저장돼요',
+        detail: '규칙을 껐다 들어오면 다시 켜져 있던 문제를 고쳤어요. 이제 껐다 새로고침해도 그대로 남아요.',
+      },
+    ],
+  },
+  {
     version: '0.10.272',
     date: '2026-09-20',
     title: '오래 걸리는 화면이 전부 지금 상태를 말해요',
