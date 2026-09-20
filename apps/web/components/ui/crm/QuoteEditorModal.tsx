@@ -549,13 +549,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     「H100 80GB」만으로는 SXM 인지 PCIe 인지 고객이 알 수 없다.
                   */}
                   <label className="label" htmlFor={`ln-spec-${i}`}>{QUOTE.lineSpec}</label>
-                  <input
+                  {/*
+                    **여러 줄이다.** 한 줄 칸이던 동안 파일에서 읽은 구성 열세 줄이
+                    들어올 자리가 없었고(실측 2026-09-20), 사람이 손으로 적을 수도 없었다.
+                    첫 줄이 규격, 아래가 구성이다 — 인쇄도 같은 약속으로 그린다
+                    (`lib/crm/domain/quote-spec.ts`).
+                  */}
+                  <textarea
                     id={`ln-spec-${i}`}
-                    className="input-field"
+                    className={`input-field ${styles.specInput}`}
+                    rows={2}
                     value={line.descriptionMd}
                     disabled={linesLocked}
                     onChange={(e) => setLine(i, { descriptionMd: e.target.value })}
-                    placeholder="예: SXM5 · 3년 무상보증"
+                    placeholder={QUOTE.lineSpecPlaceholder}
                   />
                 </div>
                 <div className={`${styles.field} ${styles.colQty}`}>

@@ -189,6 +189,19 @@
     행1  종류(2)  품목(5)         규격(5)
     행2  수량(2)  단위(1) 단가(2) 할인(2) 특별할인(2) 부가세(1) 합계(2)
 */
+/*
+  규격 칸은 **여러 줄**이다(v0.10.304~). 한 줄 칸이던 동안 파일에서 읽은 구성이
+  들어올 자리가 없었다(실측 2026-09-20: 섀시 구성 13줄). 세로로만 늘리고 가로는
+  못 늘리게 한다 — 사람이 끌어 넓히면 옆 칸 격자가 통째로 밀린다.
+
+  **미디어 쿼리 밖에 둔다.** 안에 두면 좁은 화면에서만 한 줄로 돌아간다.
+*/
+.specInput {
+  resize: vertical;
+  min-height: calc(var(--space-6) + var(--space-3));
+  line-height: 1.5;
+}
+
 @media (min-width: 900px) {
   .line {
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -213,6 +226,7 @@
     도움말이 길어지면 또 어긋난다. **기준선을 라벨 위쪽으로 옮긴다.**
   */
   .colSection, .colKind, .colRole, .colName, .colSpec { align-self: start; }
+
 
   /* 묶음이 있으면 앞 행이 넷이 된다 — 품목·규격이 한 칸씩 내준다 */
   /*

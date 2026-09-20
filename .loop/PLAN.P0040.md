@@ -92,7 +92,7 @@
 의존: I03
 
 ### I06 편집 칸이 여러 줄이 된다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/QuoteEditorModal.tsx, apps/web/components/ui/crm/quote-panel.module.css, apps/web/lib/ui/form-field-contract.test.ts
 감사 기준:

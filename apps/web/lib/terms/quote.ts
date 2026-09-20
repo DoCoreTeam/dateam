@@ -53,6 +53,11 @@ export const QUOTE = {
   lineNo: '번호',
   lineName: '품목',
   lineSpec: '규격·설명',
+  /**
+   * 규격 칸 안내 — **첫 줄이 규격, 아래가 구성**이라는 약속을 그 자리에서 말한다.
+   * 말 안 하면 사람은 한 줄짜리 칸인 줄 알고 구성을 쉼표로 이어 붙인다.
+   */
+  lineSpecPlaceholder: '예: SXM5 · 3년 무상보증 (아래 줄에 구성을 한 줄씩)',
   lineUnit: '단위',
   lineQuantity: '수량',
   lineUnitPrice: '단가',

@@ -23,6 +23,18 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { walkFiles, read, findJsxTags, jsxTagEnd } from './component-scan.ts'
 
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/**
+ * 앱 뿌리에서 잰 경로.
+ *
+ * `new URL(...).pathname` 을 쓰면 안 된다 — 이 저장소 경로에 한글이 들어 있어
+ * 퍼센트 인코딩된 문자열이 나오고 파일을 못 연다(실측: ENOENT).
+ */
+const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const at = (rel: string) => join(WEB, rel)
+
 const FIELD_TAGS = ['input', 'select', 'textarea'] as const
 
 /** 네이티브 위젯 — 필드 스타일이 렌더와 싸운다 */
@@ -90,4 +102,34 @@ test('findJsxTags: 여러 줄에 걸친 태그의 속성을 끝까지 읽는다'
   assert.equal(tags.length, 1)
   assert.equal(/input-field/.test(tags[0].attrs), true)
   assert.equal(tags[0].line, 1)
+})
+
+/* ── 여러 줄이 필요한 칸 (v0.10.30x) ─────────────── */
+
+/*
+  **왜 여기서 보나**: 여러 줄 값을 한 줄 칸에 받으면 사람은 줄바꿈을 못 넣고
+  전부 한 줄로 적는다. 견적 규격 칸이 정확히 그 상태였고, 그래서 파일에서 읽은
+  구성 열세 줄이 들어올 자리가 없었다(실측 2026-09-20).
+  거래 조건 설정이 같은 이유로 이미 textarea 다 — 같은 성격의 자리는 같아야 한다.
+*/
+test('★ 견적 규격 칸은 여러 줄이다 — 한 줄 칸이면 구성이 들어갈 자리가 없다', () => {
+  const src = read(at('components/ui/crm/QuoteEditorModal.tsx'))
+  const spec = src.slice(src.indexOf('id={`ln-spec-'))
+  const tag = spec.slice(0, spec.indexOf('/>') + 2)
+
+  assert.ok(src.includes('<textarea\n                    id={`ln-spec-'),
+    '규격 칸이 아직 한 줄 입력이다')
+  assert.match(tag, /className=\{`input-field/, '표준 클래스를 안 달았다 — 브라우저 기본 모양이 나온다')
+  assert.match(tag, /rows=\{2\}/, '기본 높이가 없다')
+})
+
+test('★ 저장 경로가 줄바꿈을 지우지 않는다 — 지우면 구성이 한 줄로 뭉친다', () => {
+  const shape = read(at('components/ui/crm/quote-draft-shape.ts'))
+  const spec = read(at('lib/crm/domain/quote-spec.ts'))
+  for (const [name, src] of [['quote-draft-shape', shape], ['quote-spec', spec]] as const) {
+    assert.ok(!/replace\(\/\\n\/g?[a-z]*,\s*['"` ]/.test(src),
+      `${name} 이 줄바꿈을 지운다`)
+  }
+  // 값이 나오는 단정 하나 — 규칙 파일이 실제로 줄바꿈으로 잇는지
+  assert.match(spec, /join\('\\n'\)/, '구성을 줄바꿈으로 잇지 않는다')
 })
