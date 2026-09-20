@@ -277,14 +277,26 @@ test('★ 시점 기본값은 추정 — 화면이 숫자 대신 값을 박으�
 })
 
 /*
-  **켠 경우에만 파일이 남는다.** 올린 파일은 원래 읽고 버린다 —
-  기본으로 남기면 참고로 훑어본 남의 견적서까지 우리 저장소에 쌓인다.
+  **원본은 기본으로 남는다**(사용자 지시 2026-09-20, 앞 판에서 뒤집힌 규칙이다).
+  읽은 값이 맞는지는 나중에 원본과 대조해야 알 수 있는데, 그때 파일이 없으면
+  대조할 방법이 아예 없다 — 끄는 것은 한 번 누르면 되지만 안 남긴 파일은 다시 만들 수 없다.
+  도착지도 안 가린다: 「이 숫자 어디서 왔지」는 원가에서만 생기는 질문이 아니다.
 */
-test('★ 「이 파일도 딜 첨부로 남기기」는 기본 꺼짐이고 켠 경우에만 올라간다', () => {
-  assert.match(IMPORT, /const \[keepFile, setKeepFile\] = useState\(false\)/, '첨부가 기본 켜짐이다')
-  assert.match(IMPORT, /if \(keepFile && costed > 0 && picked\)/, '안 켰는데 파일이 올라간다')
+test('★ 「원본 파일도 함께 남기기」는 기본 켜짐이고 견적이 생기면 그 견적에 붙는다', () => {
+  assert.match(IMPORT, /const \[keepFile, setKeepFile\] = useState\(true\)/, '원본 남기기가 기본 꺼짐이다')
+  // 원가로만 간 경우에도 남는다 — 예전 조건(costed > 0)이면 견적만 만든 경우가 빠진다
+  assert.match(
+    IMPORT, /if \(keepFile && picked && \(quoteIds\.length > 0 \|\| costed > 0\)\)/,
+    '견적만 만든 경우에 원본이 안 남는다',
+  )
   const attach = IMPORT.slice(IMPORT.indexOf('const attachSource'), IMPORT.indexOf('const submit'))
   assert.match(attach, /'SUPPLY_QUOTE'/, '종류를 안 주면 대외비 등급이 안 붙는다')
+  // 붙는 자리가 딜로 박혀 있으면 견적 열 개가 달린 딜에서 어느 파일이 이 견적의 것인지 모른다
+  assert.match(attach, /form\.append\('target', target\)/, '첨부 대상이 딜로 박혀 있다')
+  assert.match(
+    IMPORT, /quoteIds\.map\(\(id\) => \['QUOTE', id\]/,
+    '견적이 생겼는데 그 견적에 안 붙는다',
+  )
 })
 
 test('★ 판매 견적 함께 만들기도 기본 꺼짐 — 켜면 견적번호가 하나 나간다', () => {

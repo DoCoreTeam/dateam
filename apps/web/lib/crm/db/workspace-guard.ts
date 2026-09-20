@@ -16,7 +16,19 @@
 import { CrmError } from '../domain/errors.ts'
 
 /** ① 테넌트 무관 — 아무것도 주입하지 않는다. 환율은 워크스페이스 공용 데이터다. */
-export const TENANT_FREE: ReadonlySet<string> = new Set(['CrmExchangeRate'])
+export const TENANT_FREE: ReadonlySet<string> = new Set([
+  'CrmExchangeRate',
+  /*
+    **키가 곧 내용이다.** 견적서가 굳힌 그림(로고)을 담는 표인데, 기본키가 내용의
+    sha256 이라 «그 해시를 아는 것» 자체가 «그 바이트를 이미 가진 것»이다 —
+    모르는 그림을 뒤져 볼 길이 없다. 닿는 길도 워크스페이스 안이다: 견적 행의
+    logoAssetHash 로만 읽고, 그 견적은 이미 워크스페이스로 걸러진 것이다.
+
+    workspaceId 칼럼을 두지 않은 이유는 **같은 그림을 한 번만 담기 위해서**다
+    (실측 로고 97KB, 견적마다 복사하면 견적 천 건에 100MB).
+  */
+  'CrmQuoteAsset',
+])
 
 /**
  * ② workspaceId 가 nullable — GLOBAL 행(workspaceId = null)이 존재한다.

@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서는 스냅샷이다 — 할인 없으면 안 적고, 조건은 그날 것으로 굳히고, 원본을 남긴다
 플랜 ID: P0037
-플랜 버전: v0.2.1
+플랜 버전: v0.2.2
 상태: 진행중
 지시: ins_0047
 목표 버전: v0.10.281
@@ -94,7 +94,7 @@
 의존: 없음
 
 ### I06 되돌아오지 않게 가드로 잠근다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/domain/quote-discount-visibility.test.ts (신규), apps/web/package.json
 감사 기준:
@@ -105,7 +105,7 @@
 의존: I01, I02
 
 ### I07 공급자 정보와 로고를 굳힐 자리를 만들고 이미 있는 견적을 굳힌다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/271_quote_supplier_snapshot.sql (신규), apps/web/prisma/schema.prisma
 감사 기준:
@@ -117,7 +117,7 @@
 의존: 없음
 
 ### I08 만들 때 공급자와 로고를 굳히고, 읽을 때 굳은 것을 먼저 본다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/quote.ts, apps/web/lib/crm/services/quote-document.ts, apps/web/lib/crm/services/quote-asset.ts (신규)
 감사 기준:
@@ -129,7 +129,7 @@
 의존: I07
 
 ### I09 세 가지가 다 굳는지 가드로 잠근다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/quote-terms-snapshot.test.ts, apps/web/package.json
 감사 기준:
@@ -138,6 +138,17 @@
 - 보안: 테스트만 더한다 — 7절 세 질문 전부 아니오
 의존: I08
 
+### I10 종합 감사에서 드러난 가드 두 건을 맞춘다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/crm/db/workspace-guard.ts, apps/web/lib/ui/quote-layout.test.ts
+감사 기준:
+- CrmQuoteAsset 이 워크스페이스 분류 넷 중 하나에 들어가고 왜 그 분류인지가 주석에 있다 (workspaceId 칼럼이 없는 모델이 direct 로 남으면 런타임에 Prisma 가 던진다)
+- quote-layout 가드가 원본 남기기의 새 규칙(기본 켜짐, 도착지를 안 가림, 견적이 있으면 그 견적에 붙음)을 본다
+- pnpm test 전체 실패 0건
+- 보안: 분류를 정하는 일이라 새 데이터·새 창구·외부 입력이 없다 — 7절 세 질문 전부 아니오
+의존: 없음
+
 ## 종합 감사
 - (전 항목 통과 후 기록)
 
@@ -145,3 +156,4 @@
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0047)
 - v0.2.0 (2026-09-20) 견적서 스냅샷을 거래 조건만이 아니라 공급자 정보와 로고까지 넓힘, 회사 정보가 바뀌어도 이미 나간 견적서는 그대로여야 한다는 사용자 지시, I07 칸과 백필·I08 굳히기와 읽기·I09 가드 추가 (iv_0088)
 - v0.2.1 (2026-09-20) I05 범위에 견적 상세 화면과 인쇄 규칙 추가, 첨부 창구는 QUOTE 를 받는데 견적 상세에 첨부 절이 없어 붙여도 볼 자리가 없었다 (audit:I05)
+- v0.2.2 (2026-09-20) 종합 감사에서 가드 2건 어긋남 발견, 보완 항목 I10 추가 (audit:final)
