@@ -21,6 +21,8 @@ import { beginGuardedCall } from './guarded-call.ts'
 import { serverAiLedger } from './ledger.ts'
 import { serverKnownNames } from './known-names.ts'
 import { callFallbackJson } from './fallback-text.ts'
+import { orderKeys, type KeyPoolEntry, type KeyOutcome } from './key-pool.ts'
+import { metaEntry } from './key-store-core.ts'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -136,6 +138,18 @@ export interface CallGeminiJsonOptions {
   fallbackApiKey?: string
 
   /**
+   * 이 공급자에 등록된 키 여러 개. 주면 한도·인증으로 막힌 키를 건너뛰고 **같은 모델을
+   * 다음 키로** 이어 부른다.
+   *
+   * 안 주면 `ai_provider_keys` 에서 직접 읽고, 그것도 안 되면(표가 없거나 서버 밖이면)
+   * `apiKey` 하나로 지금과 똑같이 돈다. **키가 하나일 때의 호출 횟수는 전과 같다.**
+   *
+   * `apiKey` 는 언제나 첫 번째로 시도한다. 부르는 쪽이 특정 키를 지목한 것을
+   * 표가 덮어쓰면, 「이 키로 시험해 보기」 같은 자리가 엉뚱한 키를 두드리게 된다.
+   */
+  keys?: GeminiKeyPool
+
+  /**
    * 멀티모달 입력. 주면 `prompt` 대신 이 parts 를 보낸다.
    * `prompt` 는 그대로 받는다 — 폴백 공급자·로그가 쓸 텍스트가 필요하기 때문이다.
    *
@@ -171,6 +185,45 @@ interface RawCallOutcome {
   usage?: GeminiUsage
   reason?: GeminiFailureReason
   detail: string
+}
+
+/**
+ * 키 여러 개를 쓰는 배선. 고르는 규칙은 `key-pool.ts`, 표는 `key-store.ts` 가 맡는다.
+ * 여기서는 «다음 것을 달라»와 «이렇게 끝났다»만 안다.
+ */
+export interface GeminiKeyPool {
+  entries: KeyPoolEntry[]
+  /** 호출 결말을 표에 적는다. 없으면 적지 않는다(시험·임시 키) */
+  record?: (entry: KeyPoolEntry, outcome: KeyOutcome, errorMessage?: string) => Promise<void> | void
+}
+
+/**
+ * 부르는 쪽이 준 키를 맨 앞에 두고 나머지를 잇는다.
+ *
+ * 같은 키가 표에도 있으면 **표의 줄을 쓴다** — 그래야 결말이 그 줄에 적힌다.
+ * 표에 없으면 META 모양의 임시 줄로 감싼다(적을 데가 없다는 사실이 값에 드러난다).
+ */
+function mergeKeys(apiKey: string, rows: readonly KeyPoolEntry[]): KeyPoolEntry[] {
+  const mine = rows.find((r) => r.apiKey === apiKey)
+  return [mine ?? metaEntry('gemini', apiKey), ...rows.filter((r) => r.apiKey !== apiKey)]
+}
+
+/**
+ * 쓸 키 목록. 주입이 없으면 표에서 읽되, 못 읽으면 조용히 지금 키 하나로 돈다.
+ *
+ * **여기서 던지지 않는다.** 키 저장소가 없다는 이유로 AI 호출이 멈추면
+ * 고친 것보다 망가뜨린 것이 크다. 시험 환경에서는 `key-store` 가 server-only 라
+ * 애초에 불러지지 않고, 그 경로도 이 catch 로 들어와 한 개짜리 목록이 된다.
+ */
+async function resolveKeys(apiKey: string, given: GeminiKeyPool | undefined): Promise<GeminiKeyPool> {
+  if (given) return { entries: mergeKeys(apiKey, given.entries), record: given.record }
+  try {
+    const store = await import('./key-store.ts')
+    const rows = await store.readKeyPool('gemini')
+    return { entries: mergeKeys(apiKey, orderKeys(rows, Date.now())), record: store.recordKeyOutcome }
+  } catch {
+    return { entries: [metaEntry('gemini', apiKey)] }
+  }
 }
 
 /**
@@ -495,6 +548,7 @@ async function runGeminiChainInner(
     maxOutputTokens = GEMINI_MAX_OUTPUT_TOKENS,
     feature = 'gemini',
     fallbackApiKey,
+    keys: givenKeys,
     parts,
     onDelta,
     onAttempt,
@@ -538,6 +592,24 @@ async function runGeminiChainInner(
     lastReason = 'quota'
   }
 
+  /*
+    쓸 키를 정한다. 첫 번째는 언제나 부르는 쪽이 준 키라 **첫 호출은 전과 같다.**
+    뒤에 더 있으면 한도·인증으로 막힌 키를 건너뛰고 같은 모델을 그 키로 이어 부른다.
+  */
+  const pool = await resolveKeys(apiKey, givenKeys)
+  let keyIdx = 0
+  const currentKey = (): KeyPoolEntry => pool.entries[keyIdx]
+  const recordKey = async (outcome: KeyOutcome, detail?: string): Promise<void> => {
+    try { await pool.record?.(currentKey(), outcome, detail) } catch { /* 기록이 호출을 막지 않는다 */ }
+  }
+  /** 다음 키로 넘어간다. 더 없으면 false — 그때가 진짜로 이 공급자가 막힌 순간이다 */
+  const advanceKey = (): boolean => {
+    if (keyIdx >= pool.entries.length - 1) return false
+    keyIdx += 1
+    attempts.push(`Gemini: 키 '${pool.entries[keyIdx - 1].label}' 막힘 — '${currentKey().label}' 로 이어 감`)
+    return true
+  }
+
   let overall = 0
   for (const model of skipGemini ? [] : chain) {
     for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt++) {
@@ -553,12 +625,21 @@ async function runGeminiChainInner(
       overall += 1
 
       const remaining = Math.max(1_000, Math.min(timeoutMs, deadline - Date.now()))
-      const out = await callOnce(model, prompt, apiKey, temperature, remaining, maxOutputTokens, {
+      const out = await callOnce(model, prompt, currentKey().apiKey, temperature, remaining, maxOutputTokens, {
         parts, json: cfg.json, onDelta,
       })
       attempts.push(out.detail)
 
       if (out.kind === 'fatal') {
+        /*
+          키가 거부된 것이라면 **모델이 아니라 키를 바꿔야 한다.**
+          기다려서 풀릴 일이 아니므로 그 키는 사람이 고칠 때까지 멈춰 두고 다음 키로 간다.
+          다음 키가 없을 때만 지금처럼 즉시 끝낸다 — 그때는 정말 고칠 사람이 있어야 한다.
+        */
+        if (out.reason === 'auth') {
+          await recordKey('auth', out.detail)
+          if (advanceKey()) { attempt -= 1; continue }
+        }
         // 재시도해도, 모델을 바꿔도 결과가 같은 실패다 — 즉시 원인을 그대로 말하고 끝낸다.
         throw new GeminiCallError(
           out.reason ?? 'server',
@@ -582,6 +663,17 @@ async function runGeminiChainInner(
         //   (실측 v0.7.680: 이 3초 × 모델 4개 × 단계 4개 때문에 한 요청이 90초까지 늘어
         //    Vercel 함수 상한 60초를 넘길 뻔했다 — 그러면 사용자는 아무 말도 못 듣는다.)
         if (out.reason === 'quota') {
+          await recordKey('quota', out.detail)
+          /*
+            **모델보다 키를 먼저 바꾼다.** 한도는 키(프로젝트)마다 따로 차므로
+            다른 키에는 같은 모델의 한도가 남아 있다. 모델부터 바꾸면 같은 키로
+            사슬을 다 태운 뒤에야 다음 키에 닿아, 헛호출이 모델 수만큼 곱해진다.
+          */
+          if (advanceKey()) {
+            console.warn(`[${feature}] 한도 — 같은 모델을 다음 키로: ${out.detail}`)
+            attempt -= 1
+            continue
+          }
           console.warn(`[${feature}] 한도 — 재시도 없이 다음 모델로: ${out.detail}`)
           break
         }
@@ -608,6 +700,7 @@ async function runGeminiChainInner(
       try {
         const value = cfg.accept ? cfg.accept(text) : text
         quotaBlockedUntil = 0   // Gemini 가 답했다 = 한도가 풀렸다
+        await recordKey('ok')   // 이 키가 살아 있다 = 쉬는 시간과 연속 실패 기억을 지운다
         const usedFallback = model !== (configured ?? '').trim()
         return {
           value,
@@ -634,7 +727,15 @@ async function runGeminiChainInner(
   // 한도(429)는 모델을 바꿔도 안 풀린다 — 무료 티어 한도가 프로젝트 단위로 걸리기 때문이다
   // (실측 2026-08-27: 3개 모델 전부 429, quotaId …PerProjectPerModel-FreeTier, 값 20).
   // 공급자를 바꾸는 것만이 남은 길이다. 호출부가 키를 준 경우에만 간다.
-  if (lastReason === 'quota' && !skipGemini) quotaBlockedUntil = Date.now() + QUOTA_COOLDOWN_MS
+  /*
+    공급자 전체를 건너뛰는 기억은 **키를 다 써 본 뒤에만** 남긴다.
+    키 하나가 말랐다고 이 값을 세우면, 멀쩡한 다음 키를 가진 채로 10 분 동안
+    Gemini 를 통째로 건너뛴다 — 키를 여러 개 두는 이유가 사라진다.
+  */
+  const allKeysTried = keyIdx >= pool.entries.length - 1
+  if (lastReason === 'quota' && !skipGemini && allKeysTried) {
+    quotaBlockedUntil = Date.now() + QUOTA_COOLDOWN_MS
+  }
 
   if (canFallback) {
     const fb = await callFallbackJson({

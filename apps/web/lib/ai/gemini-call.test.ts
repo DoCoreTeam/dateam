@@ -12,7 +12,9 @@ import {
   GeminiCallError,
   callGeminiJson,
   isQuotaCooling, resetQuotaCooling, QUOTA_COOLDOWN_MS,
+  type GeminiKeyPool,
 } from './gemini-call.ts'
+import type { KeyPoolEntry, KeyOutcome } from './key-pool.ts'
 import { DEFAULT_GEMINI_MODEL } from './gemini-model.ts'
 
 type Reply = { status: number; body?: unknown }
@@ -355,5 +357,124 @@ describe('한도를 한도라고 부른다 (P0030 I02)', () => {
 
     assert.equal(err!.reason, 'auth')
     assert.match(err!.userMessage, /키/, '키를 다시 등록하라고 말해야 한다')
+  })
+})
+
+/* ── 키 여러 개 ────────────────────────────────────────────────
+   왜 세나: 키가 마르면 그 공급자를 쓰는 기능이 **그날 전부** 멈춘다. 그런데 이 실패는
+   조용하다 — 화면에는 「AI 사용량 한도를 초과했습니다」만 뜨고, 남은 키가 있었는지는
+   아무 데도 안 나온다. 그래서 「다음 키를 실제로 두드렸나」를 호출 수로 센다. */
+
+function keyEntry(label: string, apiKey: string): KeyPoolEntry {
+  return {
+    id: label, provider: 'gemini', label, apiKey,
+    priority: 0, isActive: true, cooldownUntil: null,
+    disabledReason: null, consecutiveFailures: 0,
+  }
+}
+
+/** 이 호출이 어느 키를 썼나 — 헤더로 센다 */
+const usedKeys = (): string[] =>
+  calls.map((c) => String((c.init.headers as Record<string, string>)['x-goog-api-key']))
+
+const QUOTA_429 = { status: 429, body: { error: { message: 'RESOURCE_EXHAUSTED: quota exceeded' } } }
+
+describe('키 여러 개', () => {
+  afterEach(() => { resetQuotaCooling() })
+
+  it('★ 429 를 받으면 같은 모델을 다음 키로 한 번 더 부른다', async () => {
+    stubFetch([QUOTA_429, { status: 200, body: okBody('{"a":1}') }])
+    const keys: GeminiKeyPool = { entries: [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')] }
+
+    const r = await callGeminiJson({ prompt: 'p', apiKey: 'k1', model: 'gemini-3.7-flash', keys })
+
+    assert.deepEqual(r.value, { a: 1 })
+    assert.deepEqual(usedKeys(), ['k1', 'k2'], '두 번째 키로 이어 부르지 않았다')
+    assert.ok(calls.every((c) => c.url.includes('gemini-3.7-flash')),
+      '모델을 먼저 바꾸면 같은 키로 사슬을 다 태우고서야 다음 키에 닿는다')
+  })
+
+  it('★ 키가 하나면 호출 횟수가 전과 같다 — 키 교체가 헛호출을 늘리지 않는다', async () => {
+    stubFetch([QUOTA_429, { status: 200, body: okBody('{"a":1}') }])
+    const keys: GeminiKeyPool = { entries: [keyEntry('하나', 'k1')] }
+
+    await callGeminiJson({ prompt: 'p', apiKey: 'k1', keys }).catch(() => {})
+    const withPool = calls.length
+
+    calls.length = 0
+    resetQuotaCooling()
+    stubFetch([QUOTA_429, { status: 200, body: okBody('{"a":1}') }])
+    await callGeminiJson({ prompt: 'p', apiKey: 'k1' }).catch(() => {})
+
+    assert.equal(withPool, calls.length)
+  })
+
+  it('★ 키를 다 쓰기 전에는 공급자 전체를 건너뛰지 않는다 — 멀쩡한 키를 두고 10분을 버리면 안 된다', async () => {
+    stubFetch([QUOTA_429, { status: 200, body: okBody('{"a":1}') }])
+    const keys: GeminiKeyPool = { entries: [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')] }
+
+    await callGeminiJson({ prompt: 'p', apiKey: 'k1', fallbackApiKey: 'fb', keys })
+
+    assert.equal(isQuotaCooling(), false)
+  })
+
+  it('★ 키가 전부 한도면 그때 두 번째 공급자로 내려간다', async () => {
+    // Gemini 는 무엇을 물어도 429, 폴백 공급자는 답한다
+    let i = 0
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), init })
+      i += 1
+      if (String(url).includes('generativelanguage')) {
+        return { ok: false, status: 429, json: async () => QUOTA_429.body }
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({ choices: [{ message: { content: '{"a":1}' } }], usage: {} }),
+      }
+    }) as unknown as typeof fetch
+
+    const keys: GeminiKeyPool = { entries: [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')] }
+    const r = await callGeminiJson({ prompt: 'p', apiKey: 'k1', fallbackApiKey: 'fb', keys })
+
+    assert.deepEqual(r.value, { a: 1 })
+    assert.ok(usedKeys().includes('k2'), '두 번째 키를 건너뛰고 공급자부터 바꿨다')
+    assert.ok(isQuotaCooling(), '키를 다 써 본 뒤에는 기억한다')
+    assert.ok(i > 0)
+  })
+
+  it('★ 인증이 깨진 키는 즉시 끝내지 않고 다음 키로 넘어간다', async () => {
+    stubFetch([{ status: 401, body: { error: { message: 'API key not valid' } } },
+               { status: 200, body: okBody('{"a":1}') }])
+    const keys: GeminiKeyPool = { entries: [keyEntry('깨진것', 'k1'), keyEntry('멀쩡한것', 'k2')] }
+
+    const r = await callGeminiJson({ prompt: 'p', apiKey: 'k1', keys })
+
+    assert.deepEqual(r.value, { a: 1 })
+    assert.deepEqual(usedKeys(), ['k1', 'k2'])
+  })
+
+  it('결말이 표에 적히도록 그대로 넘어간다 — 한도는 quota, 인증은 auth, 성공은 ok', async () => {
+    const seen: { label: string; outcome: KeyOutcome }[] = []
+    const keys: GeminiKeyPool = {
+      entries: [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')],
+      record: async (entry, outcome) => { seen.push({ label: entry.label, outcome }) },
+    }
+    stubFetch([QUOTA_429, { status: 200, body: okBody('{"a":1}') }])
+
+    await callGeminiJson({ prompt: 'p', apiKey: 'k1', keys })
+
+    assert.deepEqual(seen, [{ label: '첫째', outcome: 'quota' }, { label: '둘째', outcome: 'ok' }])
+  })
+
+  it('기록이 실패해도 호출은 그대로 끝난다', async () => {
+    const keys: GeminiKeyPool = {
+      entries: [keyEntry('첫째', 'k1')],
+      record: async () => { throw new Error('표가 없다') },
+    }
+    stubFetch([{ status: 200, body: okBody('{"a":1}') }])
+
+    const r = await callGeminiJson({ prompt: 'p', apiKey: 'k1', keys })
+
+    assert.deepEqual(r.value, { a: 1 })
   })
 })

@@ -122,7 +122,18 @@ describe('폴백 승급 — 시간 초과는 같은 모델을 또 부르지 않�
   })
 
   it('한도(429)의 같은 규칙이 유지된다 — 새 분기가 기존 동작을 덮지 않는다', () => {
-    assert.match(read(CALL), /if \(out\.reason === 'quota'\)[\s\S]{0,160}break/)
+    /*
+      예전엔 quota 와 break 사이의 **글자 수**로 쟀다(160자). 그 사이에 키 교체가 들어오자
+      동작은 그대로인데 가드만 깨졌다 — 길이는 계약이 아니다.
+      계약은 둘이다: ① 한도면 그 모델로 더 두드리지 않고 넘어간다 ② 백오프를 걸지 않는다.
+    */
+    const src = read(CALL)
+    const i = src.indexOf("if (out.reason === 'quota')")
+    assert.ok(i > 0, '한도 전용 분기가 있어야 한다')
+    const branch = src.slice(i, src.indexOf("if (out.reason === 'timeout')"))
+    assert.match(branch, /break/, '한도면 그 모델을 포기하고 넘어가야 한다')
+    assert.ok(!branch.includes('await sleep'),
+      '한도에 백오프를 걸면 3초씩 버리고 같은 벽에 다시 닿는다(실측 v0.7.680: 한 요청 90초)')
   })
 
   it('네트워크·서버 오류는 여전히 재시도한다 — 과교정하면 일시 장애에 약해진다', () => {

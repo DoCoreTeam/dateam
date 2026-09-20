@@ -98,7 +98,7 @@
 의존: I01, I02
 
 ### I05 Gemini 호출기 결선
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ai/gemini-call.ts, apps/web/lib/ai/gemini-call.test.ts
 감사 기준:
