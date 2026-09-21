@@ -6,7 +6,7 @@
 // claim은 세션의 현재 활성 grouping_revision 안에서만 이뤄진다(과거 리비전 재처리 방지).
 
 import { refineGroupItem, type RefineGroupOutcome } from './analyze-core.ts'
-import { getProvider } from './registry.ts'
+import { streamChatWithKeys } from './stream-with-keys.ts'
 import { logDbError } from './log-db-error.ts'
 import {
   assembleDocument,
@@ -206,9 +206,8 @@ export async function runSynthesis(
 
   // 정합 패스(크리틱) — 비차단. 실패해도 이미 완성된 문서를 그대로 쓴다(부록/재시도 없음).
   try {
-    const provider = getProvider('gemini')
-    const critic = await provider.streamChat({
-      apiKey: geminiConfig.apiKey,
+    // 키가 여럿이면 갈아 가며 부른다 — 한도는 모델이 아니라 그 키의 문제다
+    const critic = await streamChatWithKeys('gemini', geminiConfig.apiKey, {
       model: geminiConfig.model,
       turns: [{ role: 'user', content: buildCriticPrompt(docTitle, session.command, synthText) }],
       // 일꾼이 배경에서 돌지만 그 문서의 주인은 세션을 만든 사람이다

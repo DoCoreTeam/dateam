@@ -46,7 +46,7 @@
 의존: 없음
 
 ### I02 심층분석 세 곳도 같은 자리를 지난다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ai-chat/analyze-gemini.ts, apps/web/lib/ai-chat/analyze-core.ts, apps/web/lib/ai-chat/analyze-runner-worker.ts
 감사 기준:

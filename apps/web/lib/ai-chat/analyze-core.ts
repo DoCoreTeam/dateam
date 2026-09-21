@@ -3,7 +3,7 @@
 // command(사용자 자유 명령)가 항목분석·취합 양쪽 프롬프트를 지배 — command/항목/원문은
 // 인젝션·희석 방지를 위해 분리 주입한다(command+공통지시=system, 항목+맥락=user).
 
-import { getProvider } from './registry.ts'
+import { streamChatWithKeys } from './stream-with-keys.ts'
 import type { ChatUsage, StreamChatParams, StreamChatResult } from './provider.ts'
 import {
   buildSynthesisPrompt,
@@ -37,12 +37,17 @@ async function streamChatWithFallback(
   params: StreamChatParams,
   fallbackModel?: string,
 ): Promise<StreamChatResult> {
-  const provider = getProvider('gemini')
+  /*
+    모델을 바꾸기 **전에** 키부터 바꾼다. 한도(429)는 모델이 아니라 그 키의 문제라,
+    키가 남아 있는데 모델을 먼저 갈면 멀쩡한 모델을 죽은 것으로 적고 더 싼 모델로 내려간다.
+    등록해 둔 키가 한 번도 안 쓰이는 사고가 이것이었다(실측 2026-09-21).
+  */
+  const { apiKey, ...rest } = params
   try {
-    return await provider.streamChat(params)
+    return await streamChatWithKeys('gemini', apiKey, rest)
   } catch (err) {
     const fb = fallbackModel?.trim()
-    if (fb && fb !== params.model) return await provider.streamChat({ ...params, model: fb })
+    if (fb && fb !== params.model) return await streamChatWithKeys('gemini', apiKey, { ...rest, model: fb })
     throw err
   }
 }
@@ -77,7 +82,6 @@ export interface AnalyzeOneResult {
 /** 항목 1건 심층분석 — command 주도. system=명령+공통지시, user=맥락+항목(주입 분리). */
 export async function analyzeOneItem(p: AnalyzeOneParams): Promise<AnalyzeOneResult> {
   const command = p.command.trim() || DEFAULT_COMMAND
-  const provider = getProvider('gemini')
 
   const system = [
     '너는 목록 항목 심층분석 보조자다. 아래 "분석 대상 항목"을 사용자 명령에 따라 확산적으로 전개하라.',
@@ -95,8 +99,11 @@ export async function analyzeOneItem(p: AnalyzeOneParams): Promise<AnalyzeOneRes
   }
   userParts.push(`분석 대상 항목:\n"""\n${p.itemText}\n"""`)
 
-  const result = await provider.streamChat({
-    apiKey: p.apiKey,
+  /*
+    키가 여럿이면 갈아 가며 부른다. `onDelta` 를 화면으로 흘리는 호출처가 생기면
+    갈아탈 때 앞 키가 흘린 조각을 버리게 해야 한다 — 지금 호출처는 `result.text` 만 쓴다.
+  */
+  const result = await streamChatWithKeys('gemini', p.apiKey, {
     model: p.model,
     system,
     turns: [{ role: 'user', content: userParts.join('\n\n') }],

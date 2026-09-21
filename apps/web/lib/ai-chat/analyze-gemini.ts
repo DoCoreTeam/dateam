@@ -11,6 +11,7 @@ import { getProviderConfig, getProvider, getAvailableProviders } from '@/lib/ai-
 import type { ChatUsage } from '@/lib/ai-chat/provider'
 import { buildModelChain, pruneChain, type ChainCandidate } from '@/lib/ai-chat/model-chain'
 import { classifyProviderError } from '@/lib/ai-chat/provider-errors'
+import { streamChatWithKeys } from '@/lib/ai-chat/stream-with-keys'
 import { logTokenUsage } from '@/lib/token-logger'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,18 +73,22 @@ export async function callGeminiOnce(
     const cand = rest[0]
     rest = rest.slice(1)
     const controller = new AbortController()
-    let text = ''
     try {
-      const result = await getProvider(cand.provider).streamChat({
-        apiKey: cand.apiKey,
+      /*
+        **후보 하나를 키 여러 개로 붙든다.** 한도(429)는 모델이 아니라 그 키의 문제라,
+        후보를 버리기 전에 같은 공급자 같은 모델을 다음 키로 한 번 더 부른다.
+        여기서 안 하면 등록해 둔 나머지 키가 한 번도 안 쓰인다(실측 2026-09-21).
+
+        조각은 안 모은다 — 아래에서 `result.text` 를 쓴다. 키를 갈아타며 모으면
+        앞 키가 흘리다 만 글이 다음 키의 답 앞에 붙는다.
+      */
+      const result = await streamChatWithKeys(cand.provider, cand.apiKey, {
         model: cand.model,
         turns: [{ role: 'user', content: turnContent, attachments }],
         // 이 호출기는 부르는 쪽에서 userId 를 이미 받고 있었다
         actorId: userId,
         signal: controller.signal,
-        onDelta: (d) => {
-          text += d
-        },
+        onDelta: () => {},
       })
 
       logTokenUsage({
