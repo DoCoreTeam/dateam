@@ -17,6 +17,9 @@ import type { WeeklyRow } from '@/lib/work/activity-diff'
 
 const DEFAULT_LIMIT = 30
 const MAX_LIMIT = 100
+// 페어링·취소건수 계산용으로 다시 읽는 주차 활동의 상한. 한 주차 저장 횟수는 보통 한 자릿수라
+// 넉넉하다. 넘으면 오래된 쪽이 잘려 그 시점 되살리기가 안 보일 뿐(틀린 숫자를 말하지는 않음).
+const WEEK_ACT_CAP = 500
 const OP_ACTION: Record<string, string> = { insert: 'create', update: 'update', delete: 'delete', restore: 'restore' }
 
 function titleFrom(after: Record<string, unknown> | null, before: Record<string, unknown> | null): string | null {
@@ -104,7 +107,7 @@ export async function GET(req: NextRequest) {
 
   // ③ 주간보고 — 이벤트(weekly_report_activity) + 스냅샷/라이브 페어링으로 before/after 행.
   // ⚠️ 소유자 스코프는 RLS만으로 강제되지 않는다: weekly_reports(라이브, 마이그002)는 로그인 전원
-  // 공개, weekly_report_activity(마이그120)는 계층열람 허용 → 세 쿼리 모두 user_id 필터를 명시한다
+  // 공개, weekly_report_activity(마이그120)는 계층열람 허용 → 네 쿼리 모두 user_id 필터를 명시한다
   // (없으면 타 사용자 같은 주차 행이 liveByWeek에 섞여 diff 오염·열람권한 초과).
   if (wantSuccess && wantModule('weekly')) {
     let q = db.from('weekly_report_activity')
@@ -116,6 +119,13 @@ export async function GET(req: NextRequest) {
     const acts = (data ?? []) as Record<string, unknown>[]
     if (acts.length > 0) {
       const weeks = Array.from(new Set(acts.map((a) => String(a.week_start))))
+      // 이 페이지에 실린 활동이 속한 주차들의 활동을 **전부** 다시 읽는다.
+      // 페이지에 실린 것만으로 페어링하면 페이지 경계에서 after 가 라이브로 잘못 잡히고,
+      // "취소될 편집 N건"도 실제보다 작게 세어진다(사용자에게 거짓말이 된다).
+      const { data: weekActRows } = await db.from('weekly_report_activity')
+        .select('id, week_start, occurred_at')
+        .eq('user_id', user.id).in('week_start', weeks)
+        .order('occurred_at', { ascending: false }).limit(WEEK_ACT_CAP)
       // 그 주차들의 스냅샷 + 라이브 확정본(RLS로 본인 것만).
       const { data: snapRows } = await db.from('weekly_report_snapshots')
         .select('id, week_start, rows_json, taken_at').eq('user_id', user.id).in('week_start', weeks)
@@ -140,22 +150,19 @@ export async function GET(req: NextRequest) {
         })
         liveByWeek.set(wk, arr)
       }
-      // 주차별 페어링 결과.
+      // 주차별 페어링 결과. 입력은 페이지가 아니라 그 주차의 활동 전부(weekActRows).
       const baOf = new Map<string, BeforeAfter>()
-      for (const wk of weeks) {
-        const weekActs: WeeklyActivity[] = acts.filter((a) => String(a.week_start) === wk)
-          .map((a) => ({ id: String(a.id), occurredAt: String(a.occurred_at) }))
-        const resolved = resolveWeeklyBeforeAfter(weekActs, snapByWeek.get(wk) ?? [], liveByWeek.get(wk) ?? [])
-        resolved.forEach((v, k) => baOf.set(k, v))
+      const actsByWeek = new Map<string, WeeklyActivity[]>()
+      for (const r of (weekActRows ?? []) as Record<string, unknown>[]) {
+        const wk = String(r.week_start)
+        const arr = actsByWeek.get(wk) ?? []
+        arr.push({ id: String(r.id), occurredAt: String(r.occurred_at) })
+        actsByWeek.set(wk, arr)
       }
-
-      // 주간 되살리기는 그 주차 전체를 스냅샷 시점으로 replace(파괴적)한다. 오래된 활동에 되살리면
-      // 이후 최신 편집이 무경고로 사라지므로, 되돌리기는 주차별 '가장 최근 활동'에만 노출한다
-      // (= 최근 변경 취소). 더 과거 시점 복원은 주간보고 화면 WeeklyEditHistory에서 별도 제공.
-      const latestActIdByWeek = new Map<string, string>()   // acts는 occurred_at desc → 주차별 첫 등장이 최신
-      for (const a of acts) {
-        const wk = String(a.week_start)
-        if (!latestActIdByWeek.has(wk)) latestActIdByWeek.set(wk, String(a.id))
+      for (const wk of weeks) {
+        const resolved = resolveWeeklyBeforeAfter(
+          actsByWeek.get(wk) ?? [], snapByWeek.get(wk) ?? [], liveByWeek.get(wk) ?? [])
+        resolved.forEach((v, k) => baOf.set(k, v))
       }
 
       for (const a of acts) {
@@ -165,20 +172,19 @@ export async function GET(req: NextRequest) {
         // "없음 → 전체내용" 오표시 방지: 실제 before가 있을 때(또는 생성/삭제)만 diff 노출.
         // create=after(신규내용)로 판단, edit/delete=before가 있어야 diff 가능.
         const canDiff = !!ba && (action === 'create' ? ba.after.length > 0 : ba.before.length > 0)
-        // ⚠️ latestActIdByWeek는 이 페이지 내에서만 최신을 판정한다. 커서(before)가 있는 2페이지+에서는
-        // 페이지-로컬 최신이 전역 최신이 아닐 수 있어(다른 모듈 활동에 밀려 분산), 되살리기를 노출하면
-        // 오래된 활동으로 최신 편집을 무경고 덮어쓸 위험이 있다. 따라서 되살리기는 커서 없는 1페이지
-        // (=desc 정렬상 주차 최신이 반드시 여기 있음)에서만 노출한다. 더 깊은 복원은 WeeklyEditHistory.
-        const isLatestForWeek = !before && latestActIdByWeek.get(String(a.week_start)) === String(a.id)
-        // 되살리기: before 스냅샷 있음 + (1페이지의) 최신 활동 + edit/delete = 그 직전 시점으로 복원.
-        const canRestore = !!ba?.beforeSnapshotId && isLatestForWeek && (action === 'edit' || action === 'delete')
+        // 되살리기: before 스냅샷이 있고 edit/delete면 그 직전 시점으로 복원한다. 시점 제한은 없다.
+        // (예전엔 '주차 최신 1건 + 커서 없는 1페이지'로 막았는데, 되살리고 싶은 시점은 거의 항상
+        //  그보다 과거라 버튼이 아예 안 보였다. 실측 2026-09-21: 4건 중 3건이 되살릴 수 없었음.)
+        // 파괴적이긴 하나 replace_weekly_report 가 교체 직전 상태를 같은 트랜잭션에 스냅샷으로 남겨
+        // 되살리기 자체도 되돌릴 수 있다 → 막을 것이 아니라 laterEdits 로 미리 말할 것.
+        const canRestore = !!ba?.beforeSnapshotId && (action === 'edit' || action === 'delete')
         items.push({
           id: `wa_${a.id}`, module: 'weekly', action, status: 'success',
           title: `${a.week_start} 주간보고`, occurredAt: String(a.occurred_at),
           before: canDiff ? { rows: ba!.before } : null,
           after: canDiff ? { rows: ba!.after } : null,
           error: null,
-          restore: canRestore ? { kind: 'weekly', ref: ba!.beforeSnapshotId! } : null,
+          restore: canRestore ? { kind: 'weekly', ref: ba!.beforeSnapshotId!, laterEdits: ba!.laterEdits } : null,
         })
       }
     }

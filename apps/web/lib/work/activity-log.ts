@@ -79,7 +79,9 @@ export const ACTION_LABEL: Record<string, string> = {
 //  audit=restoreFromAudit(일일·부서) / weekly=restoreWeeklyReportSnapshot(주간 스냅샷) / project=restoreProject.
 export type RestoreRef =
   | { kind: 'audit'; ref: number }
-  | { kind: 'weekly'; ref: string }
+  // weekly 는 주차 전체를 그 시점으로 되돌린다(행 단위가 아님) → 취소될 이후 편집 수를 함께 싣는다.
+  // 화면이 누르기 전에 그 숫자를 말해야 하므로 참조의 일부다(계산은 서버, 문구는 화면).
+  | { kind: 'weekly'; ref: string; laterEdits: number }
   | { kind: 'project'; ref: string }
 
 // 통합 피드 정규화 아이템.
