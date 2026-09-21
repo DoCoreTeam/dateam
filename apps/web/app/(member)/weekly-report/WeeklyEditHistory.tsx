@@ -36,17 +36,28 @@ export default function WeeklyEditHistory({ weekStart, snapshots }: Props) {
   const router = useRouter()
   const [target, setTarget] = useState<WeeklySnapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   if (snapshots.length === 0) return null
 
   const handleRestore = () => {
     if (!target) return
+    const taken = target.taken_at
     setError(null)
     startTransition(async () => {
       const res = await restoreWeeklyReportSnapshot(target.id)
       if (res.ok) {
         setTarget(null)
+        setDone(`${formatKstDateTimeShort(taken)} 시점으로 되살렸습니다`)
+        // ⚠️ router.refresh() 만으로는 화면이 안 바뀐다 — 작성폼은 rows 를 useState 로 한 번만
+        // 받으므로, 서버가 복원된 내용을 새로 내려보내도 폼 key 가 같으면 예전 내용을 그대로
+        // 들고 있다. 그 상태로 저장하면 방금 되살린 것이 도로 덮인다.
+        // 그래서 복원한 주차 + 스냅샷 id 를 주소에 실어 폼을 다시 마운트시킨다.
+        // 시각을 덧붙이는 이유: 같은 스냅샷을 두 번 되살리면(되살린 뒤 저장해 덮은 경우)
+        // id 만으로는 주소가 그대로라 폼이 다시 마운트되지 않는다.
+        const mark = `${target.id}-${Date.now().toString(36)}`
+        router.replace(`/weekly-report?week=${res.weekStart}&restored=${mark}`, { scroll: false })
         router.refresh()
       } else {
         setError(res.error)
@@ -79,6 +90,11 @@ export default function WeeklyEditHistory({ weekStart, snapshots }: Props) {
         <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', margin: '0 0 var(--space-3)' }}>
           저장·삭제 직전 상태가 자동 보관됩니다. 내용이 사라졌다면 아래에서 되살리세요.
         </p>
+        {done && (
+          <p role="status" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', margin: '0 0 var(--space-3)' }}>
+            {done} · 위 작성폼이 그 내용으로 바뀌었습니다
+          </p>
+        )}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
           {snapshots.map((s) => (
             <li

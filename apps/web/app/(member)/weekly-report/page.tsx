@@ -35,7 +35,7 @@ interface TeamRow {
 }
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string; reset?: string; orgWeek?: string; week?: string }>
+  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string; reset?: string; orgWeek?: string; week?: string; restored?: string }>
 }
 
 export default async function WeeklyReportPage({ searchParams }: PageProps) {
@@ -44,8 +44,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { tab, editWeek, reset, orgWeek, week } = await searchParams
+  const { tab, editWeek, reset, orgWeek, week, restored } = await searchParams
   const justReset = reset === '1'
+  // 되살리기 표식. 작성폼은 rows 를 useState 로 한 번만 받으므로, 서버가 복원된 내용을 내려보내도
+  // 같은 key 면 화면이 예전 내용을 그대로 들고 있다(그 상태로 저장하면 복원이 도로 덮인다).
+  // 스냅샷 id 를 key 에 실어 복원 직후 폼을 다시 마운트시킨다.
+  const restoredToken = typeof restored === 'string' ? restored.slice(0, 64) : ''
 
   // 조직 권한 스코프 (조직 현황 탭 노출/데이터)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -184,7 +188,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               <OnboardingRestartLink variant="icon" seq="weekly" gateKey="weekly_report_onboarding_done" label="작성 가이드" />
             </div>
             <WeeklyReportForm
-              key={`${initialWeek}-${justReset ? 'reset' : 'normal'}`}
+              key={`${initialWeek}-${justReset ? 'reset' : 'normal'}-${restoredToken}`}
               weekOptions={weekOptions}
               thisWeek={thisWeek}
               initialWeek={initialWeek}
