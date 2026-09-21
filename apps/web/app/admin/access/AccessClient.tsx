@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 접근권한 화면 — **표면 하나를 펼쳐 그 자리에서 여닫는다**
+ * 접근권한 화면 — **표면 하나를 펼쳐 그 자리에서 허용하거나 차단한다**
  *
  * ## 왜 표면이 목록이고 부여가 그 안인가
  *
@@ -39,7 +39,7 @@ import {
   ACTION, failedTo, progress,
   accessGrantCount, accessOrphanLine, accessPeopleCount, accessSurfaceCount, accessSyncedLine,
 } from '@/lib/terms'
-import type { AccessAdminData, GrantRow, OrgOption } from './actions'
+import type { AccessAdminData, GrantRow, OrgOption, SurfaceRow } from './actions'
 
 type SubjectKind = 'user' | 'org'
 type Effect = 'allow' | 'deny'
@@ -49,10 +49,12 @@ interface Draft {
   subjectId: string
   effect: Effect
   includeDescendants: boolean
+  /** 부여를 걸 자리. 빈 값이면 표면 전체다 */
+  zoneKey: string
 }
 
 /** 조직이 기본이다 — 사람 한 명씩 여는 것은 예외이고, 예외를 기본으로 두면 부여가 금세 낡는다 */
-const EMPTY_DRAFT: Draft = { kind: 'org', subjectId: '', effect: 'allow', includeDescendants: true }
+const EMPTY_DRAFT: Draft = { kind: 'org', subjectId: '', effect: 'allow', includeDescendants: true, zoneKey: '' }
 
 const ROW: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap',
@@ -78,6 +80,18 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
     for (const g of grants) m.set(g.surface_key, [...(m.get(g.surface_key) ?? []), g])
     return m
   }, [grants])
+
+  /** 표면만 목록에 세우고, 자리는 그 표면을 펼쳤을 때 안에서 다룬다 */
+  const tops = useMemo(() => surfaces.filter((s) => s.parent_key === null), [surfaces])
+  const zonesOf = useMemo(() => {
+    const m = new Map<string, SurfaceRow[]>()
+    for (const s of surfaces) {
+      if (s.parent_key === null) continue
+      m.set(s.parent_key, [...(m.get(s.parent_key) ?? []), s])
+    }
+    return m
+  }, [surfaces])
+  const labelOfKey = useMemo(() => new Map(surfaces.map((s) => [s.key, s.label])), [surfaces])
 
   /** 이 부여가 실제로 걸리는 사람 수. 고르기 전에는 0 이고, 0 이면 저장할 것이 없다 */
   const previewCount = ((): number => {
@@ -150,8 +164,10 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
       </div>
 
       <div className="card">
-        {surfaces.map((s) => {
-          const mine = bySurface.get(s.key) ?? []
+        {tops.map((s) => {
+          const zones = zonesOf.get(s.key) ?? []
+          // 자리에 걸린 부여도 이 표면 줄에서 함께 본다 — 따로 두면 어느 표면의 자리인지 못 읽는다
+          const mine = [s.key, ...zones.map((z) => z.key)].flatMap((k) => bySurface.get(k) ?? [])
           const audience = s.default_audience === 'admin' ? 'admin' : 'all'
           const open = openKey === s.key
 
@@ -192,6 +208,9 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                             {ACCESS_SUBJECT_LABEL[g.subject_kind]}
                           </span>
                           <span style={{ color: 'var(--text)' }}>{nameOf.get(g.subject_id) ?? g.subject_id}</span>
+                          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)' }}>
+                            {g.surface_key === s.key ? ACCESS.wholeSurface : labelOfKey.get(g.surface_key) ?? g.surface_key}
+                          </span>
                           {g.subject_kind === 'org' && g.include_descendants && (
                             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
                               {ACCESS.includeDescendants}
@@ -210,13 +229,28 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
 
                   {/* 새 부여 — 카드 단위 저장(§2-5 (4)). 표면마다 따로 저장한다 */}
                   <div style={{ ...ROW, alignItems: 'flex-end', marginTop: 'var(--space-3)' }}>
+                    {zones.length > 0 && (
+                      <div>
+                        <label className="label" htmlFor={`zone-${s.key}`}>{ACCESS.zone}</label>
+                        <select
+                          id={`zone-${s.key}`}
+                          className="input-field"
+                          value={draft.zoneKey}
+                          onChange={(e) => setDraft({ ...draft, zoneKey: e.target.value })}
+                        >
+                          <option value="">{ACCESS.wholeSurface}</option>
+                          {zones.map((z) => <option key={z.key} value={z.key}>{z.label}</option>)}
+                        </select>
+                      </div>
+                    )}
+
                     <div>
                       <label className="label" htmlFor={`kind-${s.key}`}>{ACCESS.subject}</label>
                       <select
                         id={`kind-${s.key}`}
                         className="input-field"
                         value={draft.kind}
-                        onChange={(e) => setDraft({ ...EMPTY_DRAFT, kind: e.target.value as SubjectKind })}
+                        onChange={(e) => setDraft({ ...EMPTY_DRAFT, zoneKey: draft.zoneKey, kind: e.target.value as SubjectKind })}
                       >
                         {ACCESS_SUBJECT_ORDER.map((k) => (
                           <option key={k} value={k}>{ACCESS_SUBJECT_LABEL[k]}</option>
@@ -275,7 +309,7 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
 
                     <NbButton
                       disabled={busy || !draft.subjectId}
-                      onClick={() => save(s.key)}
+                      onClick={() => save(draft.zoneKey || s.key)}
                     >
                       {busy ? progress(ACTION.save) : ACTION.save}
                     </NbButton>

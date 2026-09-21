@@ -30,6 +30,30 @@ export type Audience = 'all' | 'admin'
  */
 export type SurfaceGroupKey = 'basic' | 'service' | 'legacy-sales' | 'pricing' | 'standalone'
 
+/**
+ * 표면 안의 더 작은 자리.
+ *
+ * ## 두 가지가 있고, 자동인 정도가 다르다
+ *
+ * · **경로 구역** — `/work/activity` 처럼 표면 주소 뒤에 조각이 붙는 자리.
+ *   `zoneKeyOf` 가 **등재부를 안 보고** 주소만으로 키를 만든다. 등재는 부여를 **고를 수 있게**
+ *   하는 일이지 판정을 가능하게 하는 일이 아니다 — 등재 안 된 조각도 판정은 되고,
+ *   부여가 없으니 표면 값이 그대로 내려간다.
+ * · **탭 구역** — `?tab=intake` 처럼 주소가 같고 질의만 다른 자리. 주소로는 가를 수 없으므로
+ *   **여기 적힌 것만** 구역이 된다. `tab` 값을 적어야 부르는 쪽이 그 값을 넘길 수 있다.
+ *
+ * 이름(`name`)은 경로 조각과 같아야 한다 — 다르면 주소에서 나온 키와 등재된 키가 어긋나
+ * 관리자가 연 구역과 사용자가 닿는 구역이 달라진다.
+ */
+export interface Zone {
+  /** 경로 조각과 같은 이름. 부여 키는 `표면키:이름` 이다 */
+  name: string
+  /** 화면에 그릴 이름 */
+  label: string
+  /** 경로가 아닌 탭이면 그 탭 값. 있으면 주소로는 못 찾는다 */
+  tab?: string
+}
+
 export interface Surface {
   /** 저장·부여에 쓰는 안정 키. 경로가 바뀌어도 이 값은 안 바뀐다 */
   key: string
@@ -46,12 +70,33 @@ export interface Surface {
    * 적지 않으면 `decide.test.ts` 가 실패한다. **메뉴 표보다 무른 기본값은 어떤 이유로도 못 적는다.**
    */
   gatedToday?: string
+  /**
+   * **부여할 수 있는** 구역 목록. 판정은 여기 없는 구역도 하지만(경로 구역은 자동),
+   * 저장은 여기 있는 것만 된다 — `access_grant` 가 `access_surface` 에 외래키를 걸고 있어
+   * 사본에 행이 서야 하고, 그 행은 이 목록에서 나온다.
+   *
+   * 소비자가 없는 구역은 적지 않는다. 적어 두면 관리자가 열거나 막아 놓고
+   * **아무 일도 안 일어나는 것**을 보게 된다 — 마이그 277 이 역할(role)을 안 넣은 것과 같은 이유다.
+   */
+  zones?: readonly Zone[]
 }
 
 export const SURFACES: readonly Surface[] = [
   // 업무 워크스페이스 — 로그인한 사람의 기본 화면
   { key: 'home', href: '/home', group: 'basic', defaultAudience: 'all' },
-  { key: 'work', href: '/work', group: 'basic', defaultAudience: 'all' },
+  /**
+   * 업무 허브. 하위 넷은 `(member)` 레이아웃 게이트가 이미 주소로 막아 주므로
+   * 구역을 열면 그 자리에서 곧바로 효과가 난다 — 그래서 여기만 먼저 연다.
+   */
+  {
+    key: 'work', href: '/work', group: 'basic', defaultAudience: 'all',
+    zones: [
+      { name: 'projects', label: '프로젝트 현황' },
+      { name: 'overview', label: '현황' },
+      { name: 'activity', label: '이력' },
+      { name: 'search', label: '검색' },
+    ],
+  },
   { key: 'daily', href: '/daily', group: 'basic', defaultAudience: 'all' },
   { key: 'dept-tasks', href: '/dept-tasks', group: 'basic', defaultAudience: 'all' },
   { key: 'weekly-report', href: '/weekly-report', group: 'basic', defaultAudience: 'all' },
@@ -142,4 +187,58 @@ export function surfaceOf(pathname: string): Surface | null {
     if (!best || s.href.length > best.href.length) best = s
   }
   return best
+}
+
+/** 부여 키의 구분자. 주소에도 표면 키에도 안 쓰는 글자여야 갈라도 안전하다 */
+const ZONE_SEP = ':'
+
+/** `crm` + `quotes` → `crm:quotes` */
+export function zoneKey(surfaceKey: string, zoneName: string): string {
+  return `${surfaceKey}${ZONE_SEP}${zoneName}`
+}
+
+/** `crm:quotes` → 표면 `crm` 과 구역 `quotes`. 구역이 없으면 `zone` 이 `null` */
+export function splitKey(key: string): { surfaceKey: string; zone: string | null } {
+  const at = key.indexOf(ZONE_SEP)
+  if (at < 0) return { surfaceKey: key, zone: null }
+  return { surfaceKey: key.slice(0, at), zone: key.slice(at + 1) }
+}
+
+/**
+ * 주소가 어느 구역인가 — **등재부를 안 본다.**
+ *
+ * `/work/activity` → `work:activity`. 표면 주소 바로 뒤 한 조각이 구역 이름이다.
+ * 더 깊은 자리(`/work/projects/123`)는 그 위 구역에 속한다 — 상세는 목록과 같은 자리다.
+ * 표면 자체이거나 표면을 못 찾으면 `null` 이고, 그때는 표면 키로 판정한다.
+ *
+ * 등재 안 된 조각도 키가 나온다. 그래야 «등재를 안 했으니 판정이 없다»가 아니라
+ * «부여가 없으니 표면 값이 내려온다»가 된다 — 새 하위 화면이 조용히 열리지 않는다.
+ */
+export function zoneKeyOf(pathname: string): string | null {
+  const surface = surfaceOf(pathname)
+  if (!surface) return null
+  const rest = pathname.slice(surface.href.length)
+  if (!rest.startsWith('/')) return null
+  const name = rest.slice(1).split('/')[0]
+  return name ? zoneKey(surface.key, name) : null
+}
+
+/**
+ * 저장할 수 있는 키 전부 — 표면과 **등재된** 구역.
+ *
+ * `access_grant.surface_key` 가 `access_surface(key)` 에 외래키를 걸고 있어
+ * 여기 없는 키는 행이 없고, 행이 없으면 저장 자체가 안 선다.
+ * 그래서 이 목록이 곧 «관리자가 고를 수 있는 것»이고 동기화가 쓰는 목록이다.
+ */
+export function grantableKeys(): string[] {
+  return SURFACES.flatMap((s) => [s.key, ...(s.zones ?? []).map((z) => zoneKey(s.key, z.name))])
+}
+
+/** 등재된 구역 하나 찾기. 저장 전에 «아는 구역인가»를 묻는 자리 */
+export function zoneOf(key: string): { surface: Surface; zone: Zone } | null {
+  const { surfaceKey, zone } = splitKey(key)
+  if (!zone) return null
+  const surface = surfaceByKey(surfaceKey)
+  const found = surface?.zones?.find((z) => z.name === zone)
+  return surface && found ? { surface, zone: found } : null
 }

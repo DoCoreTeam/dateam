@@ -140,6 +140,13 @@ export const BANNED_TERMS: { readonly bad: string; readonly good: string; readon
   { bad: '작성중', good: progress('작성'), why: '공백 없음' },
   { bad: '저장중', good: progress(ACTION.save), why: '공백 없음' },
   { bad: '재시도', good: ACTION.retry, why: '한자어보다 우리말' },
+  /**
+   * 접근권한 화면이 처음에 「열기·막기」로 나갔다가 지적받았다(2026-09-21).
+   * 이 시스템은 이미 `차단`·`차단됨` 을 쓴다 — `lib/gpu/confidence-gate.ts` 의 `block`,
+   * `lib/vercel/normalize.ts` 의 `BLOCKED`, CRM 예산 카드의 `blocked`. 셋 다 `status: 'blocker'` 다.
+   * 같은 뜻에 새 말을 지으면 사용자는 둘을 다른 일로 읽는다.
+   */
+  { bad: '막기', good: '차단', why: '이미 차단·차단됨을 쓴다(gpu 신뢰도 게이트·Vercel 배포 상태·CRM 예산)' },
   { bad: '영업기회', good: '딜', why: '구 화면(/deals) 잔재: CRM 개체 이름은 딜' },
   /*
     RFP 금지어 셋. 셋 다 **함수 이름이 화면으로 샌 것**이다.

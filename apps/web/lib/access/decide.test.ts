@@ -8,7 +8,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { decideAccess, type Grant, type Viewer } from './decide.ts'
-import { SURFACES, surfaceOf, surfaceByKey } from './surfaces.ts'
+import { SURFACES, surfaceOf, surfaceByKey, zoneKeyOf, zoneOf, grantableKeys } from './surfaces.ts'
 import { NAV_AUDIENCE, ADMIN_ONLY_GROUPS } from '../nav/menu.ts'
 
 const ADMIN: Viewer = { userId: 'u-admin', isAdmin: true, orgIds: [] }
@@ -145,4 +145,73 @@ test('관리자는 등재부 전체를 부여 없이 통과한다', () => {
   for (const s of SURFACES) {
     assert.equal(decideAccess(s.key, ADMIN, []).allowed, true, `${s.key}`)
   }
+})
+
+// ③ 구역 — 표면 안의 더 작은 자리 (I09)
+//
+// 왜 시험이 필요한가: 구역을 넣으면서 가장 쉽게 깨지는 것이 **안 건드린 자리**다.
+//   구역 부여가 하나 생겼다고 표면 부여가 무시되면, 관리자는 표면을 열어 뒀는데
+//   사용자에게는 닫혀 보인다. 그래서 «내려간다»를 한 줄씩 단정한다.
+
+test('하위 경로는 등재부를 안 보고 구역 키가 된다', () => {
+  assert.equal(zoneKeyOf('/work/activity'), 'work:activity')
+  // 더 깊은 자리는 그 위 구역에 속한다 — 상세는 목록과 같은 자리다
+  assert.equal(zoneKeyOf('/work/projects/123'), 'work:projects')
+  // 표면 자체는 구역이 아니다
+  assert.equal(zoneKeyOf('/work'), null)
+  // 등재 안 된 조각도 키는 나온다 — 판정은 되고 부여만 없다
+  assert.equal(zoneKeyOf('/work/무엇이든'), 'work:무엇이든')
+  // 표면이 아닌 주소는 구역도 아니다
+  assert.equal(zoneKeyOf('/없는표면/자리'), null)
+})
+
+test('경로가 아닌 탭은 등재부에 적힌 것만 구역이 된다', () => {
+  // 주소가 같으니 주소로는 못 찾는다 — 못 찾는다는 사실 자체를 단정한다
+  assert.equal(zoneKeyOf('/pricing/gpu'), null)
+  // 등재된 구역만 zoneOf 로 찾힌다
+  assert.equal(zoneOf('work:activity')?.zone.label, '이력')
+  assert.equal(zoneOf('work:없는구역'), null)
+  // 탭 구역을 적으면 tab 값이 함께 있어야 부르는 쪽이 넘길 수 있다
+  for (const s of SURFACES) {
+    for (const z of s.zones ?? []) {
+      assert.ok(z.label.length > 0, `${s.key}:${z.name} 구역에 이름이 없다`)
+    }
+  }
+})
+
+test('구역을 안 건드린 부여는 표면 값이 그대로 내려간다', () => {
+  const ZONE = 'work:activity'
+  // 표면에 차단을 걸면 자리도 막힌다
+  assert.equal(decideAccess(ZONE, MEMBER, [userGrant('deny', 'work')]).allowed, false)
+  // 표면에 아무것도 없으면 표면 기본값(work = 전부)이 내려온다
+  assert.equal(decideAccess(ZONE, MEMBER, []).allowed, true)
+  assert.equal(decideAccess(ZONE, MEMBER, []).reason, 'default')
+  // 다른 구역에 건 부여는 이 구역에 안 닿는다
+  assert.equal(decideAccess(ZONE, MEMBER, [userGrant('deny', 'work:projects')]).allowed, true)
+})
+
+test('구역 하나를 막아도 같은 표면의 다른 자리는 열려 있다', () => {
+  const grants = [userGrant('deny', 'work:activity')]
+  assert.equal(decideAccess('work:activity', MEMBER, grants).allowed, false)
+  assert.equal(decideAccess('work:projects', MEMBER, grants).allowed, true)
+  assert.equal(decideAccess('work', MEMBER, grants).allowed, true)
+})
+
+test('좁은 자리가 넓은 자리를 이긴다 — 표면을 막아도 구역을 열면 열린다', () => {
+  const grants = [userGrant('deny', 'work'), userGrant('allow', 'work:activity')]
+  assert.equal(decideAccess('work:activity', MEMBER, grants).allowed, true)
+  assert.equal(decideAccess('work:projects', MEMBER, grants).allowed, false)
+})
+
+test('관리자는 자리 차단도 통과한다', () => {
+  assert.equal(decideAccess('work:activity', ADMIN, [userGrant('deny', 'work:activity')]).allowed, true)
+})
+
+test('부여할 수 있는 키는 표면과 등재된 구역뿐이다', () => {
+  const keys = grantableKeys()
+  for (const s of SURFACES) assert.ok(keys.includes(s.key), `${s.key} 가 빠졌다`)
+  assert.ok(keys.includes('work:activity'))
+  assert.ok(!keys.includes('work:없는구역'))
+  // 중복이 있으면 동기화가 같은 행을 두 번 쓴다
+  assert.equal(new Set(keys).size, keys.length, '부여 키가 겹친다')
 })

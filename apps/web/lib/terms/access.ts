@@ -1,7 +1,7 @@
 /**
  * 접근권한의 말 — SSOT (용어집 §2-4)
  *
- * **왜 여기 있나**: 이 도메인의 말은 전부 새 말이다(표면·부여·열기·막기·하위 조직까지).
+ * **왜 여기 있나**: 이 도메인의 말은 전부 새 말이다(표면·부여·자리·하위 조직까지).
  * 새 말을 화면에 직접 적으면 두 번째 화면이 그 글자를 복붙하고, 그때부터 두 벌이 된다.
  * 회의노트 `STATUS_META` 가 세 화면에 오탈자까지 복제된 전례가 이미 있다(§0-2).
  * 그래서 화면보다 **먼저** 여기 적는다.
@@ -28,31 +28,44 @@ export const ACCESS = {
   /** 부여를 받는 쪽 — 사람이거나 조직이다 */
   subject: '주체',
   /**
-   * 열지 막을지 고르는 칸의 이름. **「열기」를 칸 이름으로 쓰지 않는다** —
-   * 고르는 값 하나(열기)가 칸 이름이면 「막기」를 고른 뒤 이름과 값이 어긋난다.
+   * 허용할지 차단할지 고르는 칸의 이름. **값 하나를 칸 이름으로 쓰지 않는다** —
+   * 「허용」이 칸 이름이면 「차단」을 고른 뒤 이름과 값이 어긋난다.
    */
-  effect: '여닫기',
+  effect: '접근',
   /** 부여가 0건일 때의 답 */
   defaultAudience: '기본값',
   /** 조직 부여가 하위 조직으로 내려가나 */
   includeDescendants: '하위 조직까지',
   /** 코드 등재부를 표에 맞추는 일 */
   sync: '등재',
+  /**
+   * 표면 안의 더 작은 자리. **「구역」이라고 부르지 않는다** —
+   * 코드 이름(`Zone`)은 그대로 두되, 관리자가 읽는 말은 「자리」다.
+   * 「구역」은 조직·지역을 먼저 떠올리게 하고 이 표는 조직도 옆에 있다.
+   */
+  zone: '자리',
+  /** 자리를 안 고른 것 — 표면에 걸면 그 아래 자리 전부에 내려간다 */
+  wholeSurface: '표면 전체',
 } as const
 
 /**
- * 막음이 열기를 이긴다(`lib/access/decide.ts` 판정 2단계).
+ * 차단이 허용을 이긴다(`lib/access/decide.ts` 판정 2단계).
  * 그 순서를 화면도 같은 말로 말해야 관리자가 결과를 예측할 수 있다.
+ *
+ * **「막기」라고 부르지 않는다.** 이 시스템은 이미 `차단`·`차단됨` 을 쓴다
+ * (`lib/gpu/confidence-gate.ts` 의 `block` · `lib/vercel/normalize.ts` 의 `BLOCKED` ·
+ * CRM 예산 카드의 `blocked`, 셋 다 `status: 'blocker'`). 같은 뜻에 새 말을 지으면
+ * 사용자는 「차단」과 「막기」를 다른 일로 읽는다 — 그것이 「지우기 vs 삭제」가 갈린 방식이다.
  */
 export const ACCESS_EFFECT_LABEL: Record<'allow' | 'deny', string> = {
-  allow: '열기',
-  deny: '막기',
+  allow: '허용',
+  deny: '차단',
 }
 
-/** 고르는 차례. 기본은 열기다 — 막기는 이미 열린 것을 되돌릴 때만 쓴다 */
+/** 고르는 차례. 기본은 허용이다 — 차단은 이미 허용된 것을 되돌릴 때만 쓴다 */
 export const ACCESS_EFFECT_ORDER: readonly ('allow' | 'deny')[] = ['allow', 'deny']
 
-/** 열린 것은 통과, 막힌 것은 멈춤 — 색이 뜻을 따라오게 `StatusKey` 에 맞춘다 */
+/** 허용은 통과, 차단은 멈춤 — 색이 뜻을 따라오게 `StatusKey` 에 맞춘다(차단은 기존 `blocker` 와 같은 색) */
 export const ACCESS_EFFECT_STATUS: Record<'allow' | 'deny', 'done' | 'blocker'> = {
   allow: 'done',
   deny: 'blocker',
@@ -116,7 +129,7 @@ export function accessOrphanLine(keys: readonly string[]): string {
 export const ACCESS_EMPTY_TITLE = `${ACCESS.grant}가 아직 없어요`
 
 /** 빈 상태는 다음 행동을 한 줄로 말한다(§0-2 문형) */
-export const ACCESS_EMPTY_HINT = `아래에서 ${ACCESS.subject}를 고르고 ${ACCESS.defaultAudience}과 다르게 여닫을 수 있어요`
+export const ACCESS_EMPTY_HINT = `아래에서 ${ACCESS.subject}를 고르고 ${ACCESS.defaultAudience}과 다르게 ${ACCESS_EFFECT_LABEL.allow}하거나 ${ACCESS_EFFECT_LABEL.deny}할 수 있어요`
 
 /** 부여가 0건이면 지금 화면과 같다 — 그 사실을 화면이 먼저 말한다 */
 export const ACCESS_DEFAULT_NOTE =

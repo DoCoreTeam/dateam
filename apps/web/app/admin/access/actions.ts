@@ -20,7 +20,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { activeMembers } from '@/lib/members/resigned-server'
-import { SURFACES, surfaceByKey } from '@/lib/access/surfaces'
+import { SURFACES, grantableKeys, splitKey, surfaceByKey, zoneOf } from '@/lib/access/surfaces'
 import { navLabel } from '@/lib/nav/menu'
 
 export interface SurfaceRow {
@@ -29,6 +29,8 @@ export interface SurfaceRow {
   group_key: string
   href: string
   default_audience: string
+  /** 구역이면 그 구역이 속한 표면 키. 표면 자신이면 null */
+  parent_key: string | null
 }
 
 export interface GrantRow {
@@ -73,20 +75,41 @@ export async function syncSurfaces(): Promise<{ justSynced: number; orphans: str
   const { data: before } = await (admin as any).from('access_surface').select('key')
   const known = new Set(((before ?? []) as { key: string }[]).map((r) => r.key))
 
-  const rows = SURFACES.map((s) => ({
-    key: s.key,
-    label: navLabel(s.href),
-    group_key: s.group,
-    href: s.href,
-    default_audience: s.defaultAudience,
-    synced_at: new Date().toISOString(),
-  }))
+  /**
+   * 표면과 **등재된 구역**을 함께 쓴다.
+   *
+   * 구역도 행이 있어야 한다 — `access_grant.surface_key` 가 이 표에 외래키를 걸고 있어
+   * 행이 없으면 구역 부여는 저장 자체가 안 선다. 즉 이 표가 곧 «부여할 수 있는 것»이고,
+   * 그 목록은 코드(`grantableKeys`)가 정한다.
+   *
+   * 구역의 주소는 표면 주소 뒤에 이름을 붙인 것이다(경로 구역). 탭 구역은 주소가 같아서
+   * 표면 주소를 그대로 쓴다 — 주소는 여기서 사람이 보는 값이지 판정이 쓰는 값이 아니다.
+   */
+  const now = new Date().toISOString()
+  const rows = SURFACES.flatMap((s) => [
+    {
+      key: s.key,
+      label: navLabel(s.href),
+      group_key: s.group,
+      href: s.href,
+      default_audience: s.defaultAudience,
+      synced_at: now,
+    },
+    ...(s.zones ?? []).map((z) => ({
+      key: `${s.key}:${z.name}`,
+      label: z.label,
+      group_key: s.group,
+      href: z.tab ? `${s.href}?tab=${z.tab}` : `${s.href}/${z.name}`,
+      default_audience: s.defaultAudience,
+      synced_at: now,
+    })),
+  ])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (admin as any).from('access_surface').upsert(rows, { onConflict: 'key' })
   if (error) throw new Error(`표면 동기화 실패: ${error.message}`)
 
-  const codeKeys = new Set(SURFACES.map((s) => s.key))
+  const codeKeys = new Set(grantableKeys())
   return {
     justSynced: rows.filter((r) => !known.has(r.key)).length,
     orphans: [...known].filter((k) => !codeKeys.has(k)).sort(),
@@ -118,7 +141,7 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
   const people = await activeMembers(admin, ((peopleRes.data ?? []) as PersonOption[]).filter((p) => p.name))
 
   return {
-    surfaces: ((surfaceRes.data ?? []) as SurfaceRow[]).sort((a, b) => a.key.localeCompare(b.key)),
+    surfaces: withParent((surfaceRes.data ?? []) as Omit<SurfaceRow, 'parent_key'>[]),
     grants: (grantRes.data ?? []) as GrantRow[],
     people,
     orgs: orgOptions(nodes, closure),
@@ -169,11 +192,31 @@ export interface SaveGrantInput {
   includeDescendants: boolean
 }
 
+/**
+ * 표면 먼저, 그 아래 구역 — 화면이 순서를 다시 정하지 않게 서버가 정렬해서 준다.
+ *
+ * 구역이 표면에서 떨어져 나오면 관리자는 `work:activity` 가 어디에 속한 자리인지
+ * 키를 읽어 짐작해야 한다. 짐작으로 허용하거나 차단하게 두지 않는다.
+ */
+export function withParent(rows: readonly Omit<SurfaceRow, 'parent_key'>[]): SurfaceRow[] {
+  return rows
+    .map((r) => ({ ...r, parent_key: splitKey(r.key).zone === null ? null : splitKey(r.key).surfaceKey }))
+    .sort((a, b) => {
+      const an = a.parent_key ?? a.key
+      const bn = b.parent_key ?? b.key
+      if (an !== bn) return an.localeCompare(bn)
+      // 같은 표면 안에서는 표면이 먼저, 그 다음 구역
+      return (a.parent_key === null ? 0 : 1) - (b.parent_key === null ? 0 : 1) || a.key.localeCompare(b.key)
+    })
+}
+
 /** 모르는 값을 걸러 낸다. 통과한 것만 저장한다 */
 export async function validateGrant(input: SaveGrantInput): Promise<string | null> {
-  if (!surfaceByKey(input.surfaceKey)) return '등재부에 없는 표면입니다'
+  // 표면이거나 **등재된** 구역이어야 한다. 등재 안 된 구역은 판정은 되지만 저장은 안 된다 —
+  // 저장해 두면 그 행이 아무 자리도 안 가리키는 부여가 되고, 관리자는 열었다고 믿는다
+  if (!surfaceByKey(input.surfaceKey) && !zoneOf(input.surfaceKey)) return '등재부에 없는 표면입니다'
   if (input.subjectKind !== 'user' && input.subjectKind !== 'org') return '주체 종류가 사람이나 조직이 아닙니다'
-  if (input.effect !== 'allow' && input.effect !== 'deny') return '열기나 막기가 아닙니다'
+  if (input.effect !== 'allow' && input.effect !== 'deny') return '허용이나 차단이 아닙니다'
 
   const admin = createAdminClient()
   const table = input.subjectKind === 'user' ? 'profiles' : 'org_nodes'

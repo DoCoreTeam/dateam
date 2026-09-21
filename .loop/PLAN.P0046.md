@@ -1,6 +1,6 @@
 # PLAN newAX: 접근권한으로 메뉴를 연다
 플랜 ID: P0046
-플랜 버전: v0.1.8
+플랜 버전: v0.1.10
 상태: 진행중
 지시: ins_0059
 목표 버전: v0.10.365
@@ -126,12 +126,15 @@
 의존: I07
 
 ### I09 표면 안의 자리를 가른다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/access/surfaces.ts, apps/web/lib/access/decide.ts, apps/web/lib/access/decide.test.ts, apps/web/app/admin/access/AccessClient.tsx
+범위: apps/web/lib/access/surfaces.ts, apps/web/lib/access/decide.ts, apps/web/lib/access/decide.test.ts, apps/web/lib/access/guard.ts, apps/web/app/admin/access/actions.ts, apps/web/app/admin/access/AccessClient.tsx, apps/web/lib/terms/access.ts, apps/web/lib/terms/action.ts, docs/ui-system/GLOSSARY.md
 감사 기준:
-- 하위 경로는 표면에서 자동으로 구역이 되고, 경로가 아닌 탭은 등재부에 적힌 것만 구역이 된다
-- 구역을 안 건드린 부여는 표면 값이 그대로 내려간다
+- 하위 경로는 등재부를 안 보고 구역 키가 된다 (zoneKeyOf('/work/activity') = 'work:activity'), 경로가 아닌 탭은 주소로 못 찾으므로 등재부에 탭 값을 적은 것만 구역이 된다
+- 구역을 안 건드린 부여는 표면 값이 그대로 내려간다 (구역 부여가 0건이면 판정 결과가 이 판 앞뒤로 같다)
+- 구역 하나를 막으면 그 주소만 막히고 같은 표면의 다른 자리는 열려 있다
+- 부여할 수 있는 구역은 등재된 것뿐이다 (DB 사본에 행이 서야 외래키가 선다, 모르는 구역 키는 저장되지 않는다)
+- 여닫는 말이 시스템 용어다 (허용·차단), 「막기」가 금지어 표에 들어가고 가드가 재유입을 막는다
 - pnpm test 통과
 의존: I08
 
@@ -180,3 +183,8 @@
 - v0.1.7 (2026-09-21) I07 뒤에 I07a 를 넣었다, 표면 25개 중 6개가 이름 자리에 주소를 그리고 이름은 lib/nav/menu.ts 가 SSOT 라 I07 범위 밖이다 (audit:I07)
 - v0.1.8 (2026-09-21) I08 범위에 AppShell.tsx 를 더했다, 전체 메뉴(QuickNav)는 셸만 그리는데 그 셸이 서버 컴포넌트라 판정을 여기서 한 번 하면 여섯 셸이 함께 바뀐다, 화면마다 목록을 넘기게 하면 넘기는 것을 잊은 셸에 죽은 문이 남는다 (audit:I08)
 - v0.1.8 (2026-09-21) I08 범위에 AppShell.tsx 를 더했다, 전체 메뉴를 그리는 셸이 서버 컴포넌트라 판정을 거기서 한 번 하면 여섯 셸이 함께 바뀐다 (audit:I08)
+- v0.1.9 (2026-09-21) I09 의 감사 기준을 실행 가능한 말로 다시 적고 범위에 guard.ts 와 actions.ts 를 더했다. 「자동으로 구역이 된다」를 두 가지로 갈랐다 — 판정은 자동(주소만 있으면 구역 키가 나오고 부여가 없으면 표면 값으로 내려간다), 부여는 등재된 것만(access_grant 가 access_surface 에 외래키를 걸고 있어 사본에 행이 없으면 저장 자체가 안 선다). 그리고 구역을 소비하는 자리가 라우트 게이트(guard.ts)와 동기화(actions.ts)라 둘 없이는 부여가 조용히 무시된다 (audit:I09)
+- v0.1.9 (2026-09-21) I09 감사 기준을 실행 가능하게 다시 적고 범위에 guard.ts 와 actions.ts 를 더했다, 구역을 소비하는 자리가 그 둘이라 없으면 부여가 조용히 무시된다 (audit:I09)
+- v0.1.10 (2026-09-21) I09 범위에 lib/terms/access.ts 를 더했다, 구역을 고르는 칸에 「자리」와 「표면 전체」라는 새 말이 필요하고 신규 말은 화면보다 먼저 용어집에 올린다 (audit:I09)
+- v0.1.10 (2026-09-21) I09 범위에 lib/terms/access.ts 를 더했다, 구역을 고르는 칸의 새 말을 화면보다 먼저 올린다 (audit:I09)
+- v0.1.11 (2026-09-21) I09 범위에 lib/terms/action.ts 와 용어집을 더하고 감사 기준에 말 한 줄을 넣었다. 사용자 지적 ins_0076: 「막기」는 시스템에 없는 말이고 이 시스템은 이미 차단·차단됨을 쓴다. 상수만 고치면 다음 사람이 또 지어내므로 금지어 표에 올려 가드가 막게 한다 (iv_0076)

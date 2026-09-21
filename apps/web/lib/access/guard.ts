@@ -26,7 +26,7 @@ import 'server-only'
 
 import { decideAccess, type Decision } from './decide.ts'
 import { loadViewerAccess } from './load.ts'
-import { surfaceOf } from './surfaces.ts'
+import { surfaceOf, zoneKeyOf, zoneOf } from './surfaces.ts'
 import { navLabel } from '../nav/menu.ts'
 
 /** 로그인 안 한 요청의 답. 화면은 그 전에 이미 로그인으로 보내지만, 여기서도 닫아 둔다 */
@@ -41,7 +41,8 @@ const NO_VIEWER: Decision = { allowed: false, reason: 'unregistered' }
 export async function decideHref(href: string): Promise<Decision> {
   const access = await loadViewerAccess()
   if (!access) return NO_VIEWER
-  return decideAccess(surfaceOf(href)?.key ?? href, access.viewer, access.grants)
+  // 구역이 있으면 구역 키로 묻는다 — 구역 부여가 없으면 판정이 알아서 표면으로 내려간다
+  return decideAccess(zoneKeyOf(href) ?? surfaceOf(href)?.key ?? href, access.viewer, access.grants)
 }
 
 export async function canOpen(href: string): Promise<boolean> {
@@ -93,6 +94,18 @@ export async function deniedSurfaceName(pathname: string | null): Promise<string
   if (!surface) return null
   const access = await loadViewerAccess()
   if (!access) return null
-  if (decideAccess(surface.key, access.viewer, access.grants).allowed) return null
-  return navLabel(surface.href)
+
+  /**
+   * 구역 키로 묻는다. 구역 부여가 없으면 판정이 표면으로 내려가므로,
+   * 구역을 안 건드린 경우의 답은 이 판 앞뒤로 같다.
+   */
+  const key = zoneKeyOf(pathname) ?? surface.key
+  if (decideAccess(key, access.viewer, access.grants).allowed) return null
+
+  /**
+   * 막힌 자리의 이름을 말한다. 구역이 등재돼 있으면 **구역 이름**을 쓴다 —
+   * 「업무에 접근할 권한이 없습니다」라고 하면 `/work` 는 열려 있는데도
+   * 업무 전체가 막힌 줄로 읽힌다.
+   */
+  return zoneOf(key)?.zone.label ?? navLabel(surface.href)
 }

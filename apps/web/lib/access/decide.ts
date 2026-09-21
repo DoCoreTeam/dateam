@@ -6,6 +6,7 @@
  *
  * 순서가 규칙의 전부다. 위에서부터 답이 나오면 거기서 끝난다.
  *
+ *   0 구역      — 주소가 표면 안의 더 작은 자리면 그 자리의 부여를 먼저 본다(`surfaces.ts` 의 `Zone`)
  *   1 관리자    — 항상 통과. 관리자를 잠그면 열어 줄 사람이 사라진다
  *   2 차단      — 막음이 하나라도 있으면 막는다. 열어 준 것보다 막은 것이 세다
  *   3 사람      — 그 사람에게 준 열기
@@ -15,7 +16,7 @@
  * 부여가 0건이면 5번만 남는다. 즉 **아무것도 부여하지 않으면 지금과 같다.**
  */
 
-import { surfaceByKey } from './surfaces.ts'
+import { splitKey, surfaceByKey } from './surfaces.ts'
 
 export type SubjectKind = 'user' | 'org'
 
@@ -52,12 +53,14 @@ function matches(subject: GrantSubject, viewer: Viewer): boolean {
 }
 
 export function decideAccess(
-  surfaceKey: string,
+  key: string,
   viewer: Viewer,
   grants: readonly Grant[],
 ): Decision {
   // 1 관리자
   if (viewer.isAdmin) return { allowed: true, reason: 'admin' }
+
+  const { surfaceKey, zone } = splitKey(key)
 
   /**
    * 등재 안 된 표면은 막는다.
@@ -65,11 +68,39 @@ export function decideAccess(
    * 열어 두면 화면을 새로 만들고 등재를 잊은 순간 **아무 표시 없이 전부에게 열린다.**
    * 막아 두면 그 화면이 안 보이므로 만든 사람이 바로 안다.
    * 등재를 잊는 것 자체는 `lib/policy/access-surface.test.ts` 가 커밋 전에 잡는다.
+   *
+   * **구역은 여기서 안 따진다.** 등재 안 된 구역도 판정은 된다 — 부여가 없을 뿐이고,
+   * 그러면 아래에서 표면 값이 그대로 내려온다. 그것이 「구역을 안 건드린 부여는
+   * 표면 값이 그대로 내려간다」의 실제 구현이다.
    */
   const surface = surfaceByKey(surfaceKey)
   if (!surface) return { allowed: false, reason: 'unregistered' }
 
-  const mine = grants.filter((g) => g.surfaceKey === surfaceKey && matches(g.subject, viewer))
+  /**
+   * 구역이 있으면 **구역 부여를 먼저 본다.** 구역에 걸린 것이 하나라도 있으면
+   * 그 답이 이긴다 — 좁은 자리에 적은 말이 넓은 자리보다 세다.
+   * 구역에 아무것도 없으면 표면 부여로 내려간다.
+   */
+  if (zone !== null) {
+    const zoned = decideFrom(grants, key, viewer)
+    if (zoned) return zoned
+  }
+
+  const own = decideFrom(grants, surfaceKey, viewer)
+  if (own) return own
+
+  // 5 기본값
+  return { allowed: surface.defaultAudience === 'all', reason: 'default' }
+}
+
+/**
+ * 키 하나에 걸린 내 부여로 답이 나오나. 없으면 `null` 이고 부르는 쪽이 한 단계 넓힌다.
+ *
+ * 순서는 2 차단 · 3 사람 · 4 조직이다 — 막음이 열기를 이기고, 사람이 조직보다 가깝다.
+ */
+function decideFrom(grants: readonly Grant[], key: string, viewer: Viewer): Decision | null {
+  const mine = grants.filter((g) => g.surfaceKey === key && matches(g.subject, viewer))
+  if (mine.length === 0) return null
 
   // 2 차단
   if (mine.some((g) => g.effect === 'deny')) return { allowed: false, reason: 'denied' }
@@ -84,6 +115,5 @@ export function decideAccess(
     return { allowed: true, reason: 'org' }
   }
 
-  // 5 기본값
-  return { allowed: surface.defaultAudience === 'all', reason: 'default' }
+  return null
 }
