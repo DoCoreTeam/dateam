@@ -10,25 +10,27 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { read, stripComments } from './component-scan.ts'
-import { NAV_LABEL, SERVICE_NAV, EXIT_TO_MAIN } from '../nav/menu.ts'
+import { NAV_LABEL, SERVICE_NAV, EXIT_TO_MAIN, SIDEBAR_GROUP_LINKS } from '../nav/menu.ts'
 
 const MEMBER_LAYOUT = 'app/(member)/layout.tsx'
 const QUICKNAV = 'components/ui/QuickNav.tsx'
 
 test('하위 서비스는 전부 메인 사이드바에 있다 (N-1)', () => {
-  const src = stripComments(read(MEMBER_LAYOUT))
   /**
    * **표를 펴 쓰는 것만 인정한다.** 항목을 손으로 적어도 되게 두면
    * 서비스가 하나 늘 때 그 목록만 안 고쳐진다 — 그게 CI 가 빠져 있던 이유다.
    *
-   * 느슨하게 잡으면 안 잡힌다: `SERVICE_NAV` 글자만 찾으면 **import 줄**이 걸리고,
-   * href 문자열을 찾으면 **아이콘 맵**(`SERVICE_ICON['/ci']`)이 걸린다.
-   * 둘 다 초판에서 실제로 통과시켰다 — 일부러 깨서 두 번 발견했다.
+   * v0.10.361 부터 사이드바 목록은 `lib/nav/menu.ts` 가 등재부에서 만든다.
+   * 그래서 소스 글자(`items: SERVICE_NAV.map(`)가 아니라 **만들어진 목록**을 본다 —
+   * 글자를 보면 화면이 그 글자만 남기고 다른 목록을 그려도 통과한다.
+   * 손목록이 화면에 다시 생기는 것은 `lib/nav/menu.test.ts` 가 따로 막는다.
    */
-  assert.ok(
-    /items:\s*SERVICE_NAV\.map\(/.test(src),
-    `「서비스」 그룹은 SERVICE_NAV 를 펴 씁니다 — 손으로 적으면 서비스가 늘 때 빠집니다(§2-3-3 N-1). ` +
-    `지금 목록: ${SERVICE_NAV.map((s) => s.href).join(' · ')}`,
+  const service = SIDEBAR_GROUP_LINKS.find((g) => g.key === 'service')
+  assert.ok(service, '사이드바에 「서비스」 묶음이 없습니다(§2-3-3 N-1)')
+  assert.deepEqual(
+    service.items.map((i) => i.href),
+    SERVICE_NAV.map((s) => s.href),
+    `「서비스」 묶음이 서비스 표와 갈렸습니다(§2-3-3 N-1)`,
   )
 })
 

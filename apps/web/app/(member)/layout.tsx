@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import OnboardingProvider from '@/components/onboarding/OnboardingProvider'
 import AppShell from '@/components/ui/shell/AppShell'
-import type { NavGroup } from '@/components/ui/shell/AppShell'
+import type { NavGroup, NavItem } from '@/components/ui/shell/AppShell'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
 import { resolveOrgScope, orgPathFromScope } from '@/lib/org-scope'
@@ -21,65 +21,52 @@ import { cookies } from 'next/headers'
 import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Network, Sparkles, Handshake, Radar, FileSearch } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
-import { navLabel, SERVICE_NAV, SERVICE_GROUP_LABEL, ADMIN_ONLY_GROUPS, canSeeNav } from '@/lib/nav/menu'
+import { ADMIN_ONLY_GROUPS, canSeeNav, SIDEBAR_TOP_LINKS, SIDEBAR_GROUP_LINKS, type MenuLink } from '@/lib/nav/menu'
 import { badgeTitle } from '@/lib/terms'
 import { MyOpenDeptTaskProvider } from '@/lib/work/dept-task-badge'
 
-// 이름은 lib/nav/menu 에서 온다 — 사이드바와 전체 메뉴가 갈리지 않게(§2-3-3 N-4)
-const NAV_ITEMS = [
-  { href: '/home', label: navLabel('/home'), icon: <Home size={16} /> },
-  { href: '/work', label: navLabel('/work'), icon: <Briefcase size={16} />, match: ['/daily', '/dept-tasks', '/weekly-report', '/work'] },
-  { href: '/calendar', label: navLabel('/calendar'), icon: <CalendarDays size={16} /> },
-  { href: '/meeting-notes', label: navLabel('/meeting-notes'), icon: <NotebookPen size={16} /> },
-  { href: '/org', label: navLabel('/org'), icon: <Network size={16} /> },
-]
-
-/** 하위 서비스로 들어가는 아이콘 — 이름은 표가, 그림은 화면이 정한다 */
 /**
- * 서비스 그림표 — **키가 `SERVICE_NAV` 에 묶여 있다.**
+ * 사이드바 그림표 — **이름과 주소는 여기 없다.**
  *
- * 예전엔 그냥 `Record<string, …>` 이었다. 그래서 서비스를 등재하고 여기를 안 고치면
- * 그 줄만 **아이콘 없이** 그려졌다(실측 v0.7.716: AI 스튜디오만 그림이 비어 있었다).
- * 빈 그림은 오류처럼 보이지도 않아서, 사람이 화면을 봐야 잡힌다.
- * 이제 키를 `SERVICE_NAV` 에서 뽑아 와 **빠뜨리면 타입에서 걸린다.**
- * 그림은 전체 메뉴(QuickNav)와 같은 것을 쓴다 — 같은 곳으로 가는 문이 두 모양이면 안 된다.
+ * 목록은 `lib/nav/menu.ts` 의 `SIDEBAR_TOP_LINKS`·`SIDEBAR_GROUP_LINKS` 가 주고,
+ * 그 둘은 등재부(`lib/access/surfaces.ts`)에서 나온다. 화면이 정하는 것은 **그림뿐**이다.
+ *
+ * 예전엔 이 파일이 href 목록을 손으로 들고 있었다. 그래서 화면을 새로 만들면
+ * 사이드바·전체 메뉴 두 목록을 사람이 기억해서 고쳐야 했고, 잊으면 그 화면은
+ * **있는 줄도 모르는 화면**이 됐다(콘텐츠 인텔리전스가 그랬다).
+ *
+ * 빠뜨린 그림은 오류처럼 보이지 않는다 — 그 줄만 조용히 비어 그려진다
+ * (실측 v0.7.716: AI 스튜디오만 그림이 없었다). 그래서 `lib/nav/menu.test.ts` 가
+ * 여기 있는 키와 목록을 대조해 **빠진 그림을 실패로 만든다.**
  */
-type ServiceHref = (typeof SERVICE_NAV)[number]['href']
-const SERVICE_ICON: Record<ServiceHref, React.ReactNode> = {
+const SIDEBAR_ICON: Record<string, React.ReactNode> = {
+  '/home': <Home size={16} />,
+  '/work': <Briefcase size={16} />,
+  '/calendar': <CalendarDays size={16} />,
+  '/meeting-notes': <NotebookPen size={16} />,
+  '/org': <Network size={16} />,
   '/crm': <Handshake size={16} />,
   '/ci': <Radar size={16} />,
   '/ai': <Sparkles size={16} />,
   '/rfp': <FileSearch size={16} />,
+  '/pricing/gpu': <DollarSign size={16} />,
+  '/pricing/catalog': <Tag size={16} />,
 }
 
-const NAV_GROUPS: NavGroup[] = [
-  {
-    /**
-     * 서비스 (§2-3-3 N-1) — 사이드바가 통째로 그 서비스 것으로 바뀌는 곳을 **한 자리에** 모은다.
-     *
-     * 예전엔 「영업」 그룹에 CRM 하나만 있었고 **콘텐츠 인텔리전스는 아예 없었다** —
-     * 전체 메뉴로만 들어갈 수 있어서, 있는 줄 모르면 못 찾았다.
-     *
-     * ⚠️ 지금은 admin 에게만 보인다(`ADMIN_ONLY_GROUPS`). 실제 접근 판정은 각 서비스의
-     *    멤버십이 한다(CRM=CrmMember · CI=워크스페이스). 비관리자 멤버가 생기면
-     *    그때 그 표만 고치면 된다 — 지금 미리 조회하면 화면마다 왕복이 한 번 는다
-     *    (v0.7.492 에서 줄인 그 왕복이다).
-     */
-    key: 'service',
-    label: SERVICE_GROUP_LABEL,
-    items: SERVICE_NAV.map((s) => ({
-      href: s.href, label: s.label, icon: SERVICE_ICON[s.href], match: [s.href],
-    })),
-  },
-  {
-    key: 'pricing',
-    label: '가격정책',
-    items: [
-      { href: '/pricing/gpu', label: navLabel('/pricing/gpu'), icon: <DollarSign size={16} /> },
-      { href: '/pricing/catalog', label: navLabel('/pricing/catalog'), icon: <Tag size={16} /> },
-    ],
-  },
-]
+const withIcon = (link: MenuLink): NavItem => ({
+  href: link.href,
+  label: link.label,
+  icon: SIDEBAR_ICON[link.href],
+  ...(link.match ? { match: link.match } : {}),
+})
+
+const NAV_ITEMS: NavItem[] = SIDEBAR_TOP_LINKS.map(withIcon)
+
+const NAV_GROUPS: NavGroup[] = SIDEBAR_GROUP_LINKS.map((g) => ({
+  key: g.key,
+  label: g.label,
+  items: g.items.map(withIcon),
+}))
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()

@@ -18,6 +18,7 @@
  */
 
 import { SERVICE_LABEL } from '../terms/index.ts'
+import { surfaceByKey, surfaceOf } from '../access/surfaces.ts'
 
 /**
  * 경로 → 화면 이름. **사이드바와 전체 메뉴가 이걸 읽는다.**
@@ -105,6 +106,8 @@ export const SERVICE_NAV = [
   { href: '/rfp', label: SERVICE_LABEL.rfp },
 ] as const
 
+export type ServiceHref = (typeof SERVICE_NAV)[number]['href']
+
 /** 「서비스」 그룹의 이름 — 화면이 직접 적지 않는다 */
 export const SERVICE_GROUP_LABEL = '서비스'
 
@@ -126,3 +129,130 @@ export const LEGACY_SALES_GROUP_LABEL = '구 영업 (CRM 으로 이관 중)'
  * 「홈으로 나가기」(계정 메뉴) · 「멤버 화면으로」(관리자). **셋 다 같은 곳으로 간다.**
  */
 export const EXIT_TO_MAIN = { href: '/home', label: '업무로 나가기' } as const
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 메뉴 배치 — **무엇이 어느 묶음에 서는가**
+ *
+ * 주소와 이름은 여기서 안 적는다. 배치는 **표면 키**만 가리키고,
+ * 주소는 등재부(`lib/access/surfaces.ts`)가, 이름은 위의 `NAV_LABEL` 이 준다.
+ *
+ * 왜 이렇게 바꿨나 (실측 2026-09-21): 사이드바(`app/(member)/layout.tsx`)와
+ * 전체 메뉴(`components/ui/QuickNav.tsx`)가 **각자 href 목록을 손으로 들고 있었다.**
+ * 한 벌이던 것은 이름뿐이라, 화면을 새로 만들면 두 목록을 사람이 기억해서 고쳐야 했고
+ * 그 목록에 없는 표면은 **있는 줄도 모르는 화면**이 됐다.
+ * 이제 두 화면은 여기서 나온 목록을 그리기만 한다 — 그림(아이콘)만 화면이 정한다.
+ */
+
+/** 배치 한 줄. `surface` 는 등재부의 키다 */
+export interface MenuEntry {
+  surface: string
+  /** 추가로 active 처리할 경로 (업무=/daily·/dept-tasks 에서도 강조) */
+  match?: readonly string[]
+  /** 새 창으로 여는 링크 */
+  external?: boolean
+}
+
+/** 화면이 그대로 그릴 수 있는 꼴 */
+export interface MenuLink {
+  href: string
+  label: string
+  match?: string[]
+  external?: boolean
+}
+
+export interface MenuSection<T> {
+  /** 권한 판정이 보는 키. 이름이 바뀌어도 키는 안 바뀐다 */
+  key?: string
+  label: string
+  items: readonly T[]
+}
+
+/** 배치 한 줄 → 링크. 등재 안 된 표면을 가리키면 **조용히 넘어가지 않는다** */
+export function menuLink(entry: MenuEntry): MenuLink {
+  const surface = surfaceByKey(entry.surface)
+  if (!surface) throw new Error(`메뉴 배치가 등재 안 된 표면을 가리킨다: ${entry.surface}`)
+  return {
+    href: surface.href,
+    label: navLabel(surface.href),
+    ...(entry.match ? { match: [...entry.match] } : {}),
+    ...(entry.external ? { external: true } : {}),
+  }
+}
+
+/** 주소가 어느 표면인지 — 배치가 등재부와 어긋나면 바로 드러난다 */
+function surfaceKeyOf(href: string): string {
+  const surface = surfaceOf(href)
+  if (!surface) throw new Error(`메뉴 배치의 주소가 등재부에 없다: ${href}`)
+  return surface.key
+}
+
+/** 사이드바 맨 위 — 묶음 없이 서는 항목들 */
+const SIDEBAR_TOP: readonly MenuEntry[] = [
+  { surface: 'home' },
+  { surface: 'work', match: ['/daily', '/dept-tasks', '/weekly-report', '/work'] },
+  { surface: 'calendar' },
+  { surface: 'meeting-notes' },
+  { surface: 'org' },
+]
+
+/** 사이드바 묶음 — 「서비스」는 `SERVICE_NAV` 가 목록이고 여기서는 자리만 잡는다 */
+const SIDEBAR_GROUPS: readonly MenuSection<MenuEntry>[] = [
+  {
+    key: 'service',
+    label: SERVICE_GROUP_LABEL,
+    items: SERVICE_NAV.map((s) => ({ surface: surfaceKeyOf(s.href), match: [s.href] })),
+  },
+  {
+    key: 'pricing',
+    label: '가격정책',
+    items: [{ surface: 'pricing.gpu' }, { surface: 'pricing.catalog' }],
+  },
+]
+
+/** 전체 메뉴 — 사이드바에서 내린 자리까지 전부 보이는 곳이라 묶음이 더 많다 */
+const QUICKNAV_SECTIONS: readonly MenuSection<MenuEntry>[] = [
+  {
+    label: '기본',
+    items: [{ surface: 'home' }, { surface: 'daily' }, { surface: 'calendar' }, { surface: 'weekly-report' }],
+  },
+  {
+    /**
+     * 사이드바의 「서비스」 묶음은 관리자에게만 보인다(`ADMIN_ONLY_GROUPS`).
+     * CRM 멤버인 비관리자가 들어갈 길이 여기 말고 없어서 전체 메뉴에는 남긴다.
+     */
+    label: '영업',
+    items: [{ surface: 'crm' }],
+  },
+  {
+    // 이름이 CRM 과 겹치는 것은 정상이다 — 구분은 묶음이 진다(위 NAV_LABEL 주석)
+    label: LEGACY_SALES_GROUP_LABEL,
+    items: [{ surface: 'accounts' }, { surface: 'contacts' }, { surface: 'deals' }, { surface: 'lead-intake' }],
+  },
+  {
+    label: '가격정책',
+    items: [{ surface: 'pricing.gpu' }, { surface: 'pricing.catalog' }],
+  },
+  {
+    // 사내 업무와 별개로 도는 독립 표면들
+    label: '별도 서비스',
+    items: [
+      { surface: 'ci' }, { surface: 'ai' }, { surface: 'rfp' },
+      { surface: 'api-keys' }, { surface: 'develop', external: true },
+    ],
+  },
+]
+
+function resolveSection(section: MenuSection<MenuEntry>): MenuSection<MenuLink> {
+  return { ...section, items: section.items.map(menuLink) }
+}
+
+/** 화면이 읽는 것 — 여기부터는 주소와 이름이 박혀 있다 */
+export const SIDEBAR_TOP_LINKS: readonly MenuLink[] = SIDEBAR_TOP.map(menuLink)
+export const SIDEBAR_GROUP_LINKS: readonly MenuSection<MenuLink>[] = SIDEBAR_GROUPS.map(resolveSection)
+export const QUICKNAV_LINKS: readonly MenuSection<MenuLink>[] = QUICKNAV_SECTIONS.map(resolveSection)
+
+/** 두 메뉴에 한 번이라도 서는 표면의 주소 — 아이콘 가드가 이걸 센다 */
+export function allMenuHrefs(sections: readonly MenuSection<MenuLink>[], top: readonly MenuLink[] = []): string[] {
+  return [...new Set([...top, ...sections.flatMap((s) => s.items)].map((l) => l.href))]
+}

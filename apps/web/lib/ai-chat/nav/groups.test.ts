@@ -3,7 +3,10 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { AI_NAV_GROUPS, aiNavMatchPaths } from './groups.ts'
-import { SERVICE_NAV, NAV_LABEL, NAV_AUDIENCE } from '../../nav/menu.ts'
+import {
+  SERVICE_NAV, NAV_LABEL, NAV_AUDIENCE,
+  SIDEBAR_TOP_LINKS, SIDEBAR_GROUP_LINKS, QUICKNAV_LINKS, allMenuHrefs,
+} from '../../nav/menu.ts'
 import { serviceOf, surfaceOf } from '../../nav/surface.ts'
 import { SERVICE_LABEL } from '../../terms/entity.ts'
 import { stripComments } from '../../ui/component-scan.ts'
@@ -174,21 +177,32 @@ test('★ 모델 화면은 모달과 같은 창구를 쓴다 — 두 벌로 읽�
 // 전부 초록인 채로 지나간다. 그래서 여기서 센다 — 셋을 나란히 두고 하나라도 비면 실패다.
 
 test('★ 서비스 셋이 사이드바에서 전부 아이콘을 갖는다 — 하나만 비면 그 서비스가 미완처럼 보인다', () => {
+  // v0.10.361 부터 목록은 등재부에서 나오고 화면은 그림만 정한다 — 그림표 이름이 바뀌었다
   const src = read(MEMBER_LAYOUT)
-  const map = src.slice(src.indexOf('const SERVICE_ICON'), src.indexOf('const NAV_GROUPS'))
+  const map = src.slice(src.indexOf('const SIDEBAR_ICON'), src.indexOf('const withIcon'))
+  assert.ok(map.length > 0, '사이드바 그림표(SIDEBAR_ICON)를 못 찾았다')
   for (const s of SERVICE_NAV) {
     assert.match(map, new RegExp(`'${s.href}':\\s*<`), `${s.label} 의 아이콘이 없다`)
   }
 })
 
-test('★ 그림표 키가 서비스 표에 묶여 있다 — 다음 서비스는 타입이 먼저 잡는다', () => {
-  assert.match(read(MEMBER_LAYOUT), /Record<ServiceHref, React\.ReactNode>/)
+test('★ 그림표가 빠진 줄을 못 갖게 묶여 있다 — 다음 서비스도 저절로 걸린다', () => {
+  /**
+   * 예전엔 `Record<ServiceHref, …>` 로 **타입이** 잡았다. 목록이 등재부에서 오면서
+   * href 가 문자열이 되어 그 타입 장치는 사라졌고, 대신 `lib/nav/menu.test.ts` 가
+   * **두 화면의 그림표를 목록과 대조**한다(서비스만이 아니라 메뉴에 선 자리 전부).
+   * 여기서는 서비스가 그 대조 범위 안에 있다는 것을 못 박는다 — 범위 밖이면 안 걸린다.
+   */
+  const covered = allMenuHrefs(SIDEBAR_GROUP_LINKS, SIDEBAR_TOP_LINKS)
+  for (const s of SERVICE_NAV) {
+    assert.ok(covered.includes(s.href), `${s.label} 이 사이드바 목록 밖이라 그림 대조에서 빠진다`)
+  }
 })
 
 test('★ 전체 메뉴에도 같은 문이 있다 — 사이드바에만 있으면 찾는 길이 한 벌뿐이다', () => {
-  const src = read('components/ui/QuickNav.tsx')
+  const quick = allMenuHrefs(QUICKNAV_LINKS)
   for (const s of SERVICE_NAV) {
-    assert.match(src, new RegExp(`href: '${s.href}'`), `${s.label} 이 전체 메뉴에 없다`)
+    assert.ok(quick.includes(s.href), `${s.label} 이 전체 메뉴에 없다`)
   }
 })
 

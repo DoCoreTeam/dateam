@@ -1,6 +1,6 @@
 # PLAN newAX: 접근권한으로 메뉴를 연다
 플랜 ID: P0046
-플랜 버전: v0.1.0
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0059
 목표 버전: v0.10.365
@@ -63,12 +63,13 @@
 의존: I02
 
 ### I04 메뉴가 등재부에서 나온다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/nav/menu.ts, apps/web/app/(member)/layout.tsx, apps/web/components/ui/QuickNav.tsx, apps/web/lib/nav/menu.test.ts
+범위: apps/web/lib/nav/menu.ts, apps/web/app/(member)/layout.tsx, apps/web/components/ui/QuickNav.tsx, apps/web/lib/nav/menu.test.ts, apps/web/lib/ui/nav-standard.test.ts, apps/web/lib/ai-chat/nav/groups.test.ts, apps/web/lib/rfp/rfp-guard.test.ts
 감사 기준:
 - 사이드바와 전체 메뉴의 항목이 등재부에서 생성된다 (손목록 상수 제거 확인)
 - 관리자와 일반 사용자가 보는 메뉴가 이 판 앞뒤로 동일하다 (테스트로 목록을 대조)
+- 손목록을 보던 가드 넷이 새 구조를 보도록 옮겨지고, 옮긴 뒤에도 일부러 깨뜨려 실패를 확인한다
 - pnpm test 통과
 의존: I02
 
@@ -158,3 +159,5 @@
 
 ## 변경 이력
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0059)
+- v0.1.2 (2026-09-21) I04 범위에 nav-standard.test.ts 와 ai-chat/nav/groups.test.ts 를 넣었다, 메뉴 항목을 등재부 생성으로 바꾸면 손목록 글자를 찾던 단정 넷이 같은 판에서 깨져 나눌 수 없다 (audit:I04)
+- v0.1.3 (2026-09-21) I04 범위에 rfp-guard.test.ts 를 더했다, 전체 메뉴에서 href 글자를 찾던 단정이 하나 더 있었고 pnpm test 전체를 돌려서야 드러났다 (audit:I04)

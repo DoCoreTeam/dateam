@@ -17,7 +17,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { SERVICE_LABEL } from '../terms/entity.ts'
-import { NAV_LABEL, SERVICE_NAV } from '../nav/menu.ts'
+import { NAV_LABEL, SERVICE_NAV, QUICKNAV_LINKS, allMenuHrefs } from '../nav/menu.ts'
 import { RFP_NAV_GROUPS, rfpNavFor, rfpNavMatchPaths } from './nav/groups.ts'
 import { RFP_SERVICE_LABEL } from './terms.ts'
 
@@ -49,7 +49,9 @@ test('★ 「서비스」 그룹에 들어 있다 — 전체 메뉴와 사이드
 test('★ 사이드바와 전체 메뉴에 그림이 있다 — 빈 그림은 오류처럼 보이지도 않는다', () => {
   // 실측 v0.7.716: AI 스튜디오만 그림이 비어 있었고 사람이 화면을 봐야 잡혔다
   assert.match(read('app/(member)/layout.tsx'), /'\/rfp': <\w+ size=\{16\} \/>/)
-  assert.match(read('components/ui/QuickNav.tsx'), /href: '\/rfp'/)
+  assert.match(read('components/ui/QuickNav.tsx'), /'\/rfp': <\w+ size=\{14\} \/>/)
+  // v0.10.361 부터 목록은 등재부에서 나온다 — 그림표에 줄이 있어도 목록에 없으면 안 그려진다
+  assert.ok(allMenuHrefs(QUICKNAV_LINKS).includes('/rfp'), '전체 메뉴 목록에 /rfp 가 없다')
 })
 
 // 화면이 실제로 있다

@@ -3,61 +3,39 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar, Handshake, FileSearch } from 'lucide-react'
-import { navLabel, canSeeNav, LEGACY_SALES_GROUP_LABEL } from '@/lib/nav/menu'
+import { canSeeNav, QUICKNAV_LINKS } from '@/lib/nav/menu'
 
-const PAGES = [
-  {
-    group: '기본',
-    items: [
-      { href: '/home', label: navLabel('/home'), icon: <Home size={14} /> },
-      { href: '/daily', label: navLabel('/daily'), icon: <NotebookPen size={14} /> },
-      { href: '/calendar', label: navLabel('/calendar'), icon: <CalendarDays size={14} /> },
-      { href: '/weekly-report', label: navLabel('/weekly-report'), icon: <FileText size={14} /> },
-    ],
-  },
-  {
-    /**
-     * 영업 CRM — 전체 메뉴에서 빠져 있었다.
-     *
-     * 사이드바 링크는 admin 에게만 보이는데(레이아웃 필터), 전체 메뉴에도 없으면
-     * CRM 멤버인 비관리자는 **주소를 직접 치는 것 말고 들어갈 방법이 없다.**
-     * 접근 판정은 CRM 셸이 하므로 여기서는 길만 열어 둔다.
-     */
-    group: '영업',
-    items: [
-      { href: '/crm', label: navLabel('/crm'), icon: <Handshake size={14} /> },
-    ],
-  },
-  {
-    // 이름이 CRM 과 겹치는 것은 정상이다 — 구분은 묶음이 진다(menu.ts 주석)
-    group: LEGACY_SALES_GROUP_LABEL,
-    items: [
-      { href: '/accounts', label: navLabel('/accounts'), icon: <Briefcase size={14} /> },
-      { href: '/contacts', label: navLabel('/contacts'), icon: <Users size={14} /> },
-      { href: '/deals', label: navLabel('/deals'), icon: <TrendingUp size={14} /> },
-      { href: '/lead-intake', label: navLabel('/lead-intake'), icon: <Inbox size={14} /> },
-    ],
-  },
-  {
-    group: '가격정책',
-    items: [
-      { href: '/pricing/gpu', label: navLabel('/pricing/gpu'), icon: <DollarSign size={14} /> },
-      { href: '/pricing/catalog', label: navLabel('/pricing/catalog'), icon: <Tag size={14} /> },
-    ],
-  },
-  {
-    // 사내 업무와 별개로 도는 독립 표면들. 개발자센터와 같은 성격이라 같은 자리에 둔다.
-    group: '별도 서비스',
-    items: [
-      { href: '/ci', label: navLabel('/ci'), icon: <Radar size={14} /> },
-      // 관리자 전용 — 권한은 canSeeNav 가 본다(NAV_AUDIENCE)
-      { href: '/ai', label: navLabel('/ai'), icon: <Sparkles size={14} /> },
-      { href: '/rfp', label: navLabel('/rfp'), icon: <FileSearch size={14} /> },
-      { href: '/api-keys', label: navLabel('/api-keys'), icon: <Key size={14} /> },
-      { href: '/develop', label: navLabel('/develop'), icon: <Code2 size={14} />, external: true },
-    ],
-  },
-]
+/**
+ * 전체 메뉴 그림표 — **이름과 주소는 여기 없다.**
+ *
+ * 목록은 `lib/nav/menu.ts` 의 `QUICKNAV_LINKS` 가 주고, 그것은 등재부에서 나온다.
+ * 예전엔 이 파일이 자기 href 목록을 들고 있어서 사이드바 목록과 **두 벌**이었다 —
+ * 그래서 같은 경로가 두 이름이 되고, 한쪽에만 있는 화면이 생겼다.
+ * 여기서 정하는 것은 그림뿐이다. 빠진 그림은 `lib/nav/menu.test.ts` 가 잡는다.
+ */
+const QUICKNAV_ICON: Record<string, React.ReactNode> = {
+  '/home': <Home size={14} />,
+  '/daily': <NotebookPen size={14} />,
+  '/calendar': <CalendarDays size={14} />,
+  '/weekly-report': <FileText size={14} />,
+  '/crm': <Handshake size={14} />,
+  '/accounts': <Briefcase size={14} />,
+  '/contacts': <Users size={14} />,
+  '/deals': <TrendingUp size={14} />,
+  '/lead-intake': <Inbox size={14} />,
+  '/pricing/gpu': <DollarSign size={14} />,
+  '/pricing/catalog': <Tag size={14} />,
+  '/ci': <Radar size={14} />,
+  '/ai': <Sparkles size={14} />,
+  '/rfp': <FileSearch size={14} />,
+  '/api-keys': <Key size={14} />,
+  '/develop': <Code2 size={14} />,
+}
+
+const PAGES = QUICKNAV_LINKS.map((section) => ({
+  group: section.label,
+  items: section.items.map((link) => ({ ...link, icon: QUICKNAV_ICON[link.href] })),
+}))
 
 /**
  * 전체 메뉴 — **권한을 받는다.**
