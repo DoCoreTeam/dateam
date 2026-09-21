@@ -74,7 +74,7 @@
 의존: I02
 
 ### I05 부여를 담을 표를 만든다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/277_access_control.sql (신규)
 감사 기준:
