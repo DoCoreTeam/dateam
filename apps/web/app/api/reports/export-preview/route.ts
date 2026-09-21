@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { canExport } from '@/lib/access/guard'
+import { EXPORT_DENIED } from '@/lib/terms'
 import { createClient } from '@/lib/supabase/server'
 import { buildDocx } from '@/lib/docx-builder'
 import { Packer } from 'docx'
@@ -29,6 +31,16 @@ export async function POST(req: NextRequest) {
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    /**
+     * 값이 파일로 나간다 — **내보내기 판정을 지난다** (LOOP.md 7절 S2 · I10a).
+     *
+     * 미리보기도 같은 빌더로 같은 문서를 만든다. 「미리보기니까」로 열어 두면
+     * 그 자리가 곧 내려받는 길이 된다.
+     */
+    if (!(await canExport('/weekly-report'))) {
+      return NextResponse.json({ error: EXPORT_DENIED }, { status: 403 })
     }
 
     const parsed = bodySchema.safeParse(await req.json())

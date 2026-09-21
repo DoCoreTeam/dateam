@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { canExport } from '@/lib/access/guard'
+import { EXPORT_DENIED } from '@/lib/terms'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { buildDocx } from '@/lib/docx-builder'
 import { mergeAndRefineByCategory } from '@/lib/gemini-refine'
@@ -25,6 +27,17 @@ export async function GET(req: NextRequest) {
 
   if (!profile || profile.role !== 'admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  /**
+   * 값이 파일로 나간다 — **내보내기 판정을 지난다** (LOOP.md 7절 S2 · I10a).
+   *
+   * 화면에서 단추를 숨기는 것으로는 못 막는다. 주소를 알면 단추 없이 부를 수 있고,
+   * 파일은 한 번 나가면 회수할 수 없다. 동작 축은 거부권이라 **부여가 0건이면 지금과 같다** —
+   * 관리자가 차단을 적은 뒤부터만 달라진다.
+   */
+  if (!(await canExport('/weekly-report'))) {
+    return NextResponse.json({ error: EXPORT_DENIED }, { status: 403 })
   }
 
   const week = req.nextUrl.searchParams.get('week')

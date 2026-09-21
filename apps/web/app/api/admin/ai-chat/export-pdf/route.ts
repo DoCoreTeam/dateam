@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { canExport } from '@/lib/access/guard'
+import { EXPORT_DENIED } from '@/lib/terms'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { conversationToHtmlDocument, sanitizeFilename } from '@/lib/ai-chat/export'
@@ -21,6 +23,16 @@ type AdminDb = any
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
+
+  /**
+   * 값이 파일로 나간다 — **내보내기 판정을 지난다** (LOOP.md 7절 S2 · I10a).
+   *
+   * 관리자 창구라 지금은 관리자만 부르지만, 그 사실이 이 창구의 보증은 아니다.
+   * 표면이 열리는 순간 이 창구도 함께 열린다 — 그때 막을 자리가 여기여야 한다.
+   */
+  if (!(await canExport('/ai'))) {
+    return NextResponse.json({ error: EXPORT_DENIED }, { status: 403 })
+  }
   const user = auth.user
 
   const conversationId = req.nextUrl.searchParams.get('c') ?? ''

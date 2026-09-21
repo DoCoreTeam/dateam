@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { canExport } from '@/lib/access/guard'
+import { EXPORT_DENIED } from '@/lib/terms'
 import { getMeetingNote, listOrgPeople } from '@/app/(member)/meeting-notes/actions'
 import { sanitizeRichHtml } from '@/components/ui/RichText'
 import { sanitizeFilename } from '@/lib/ai-chat/export'
@@ -48,6 +50,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const url = new URL(req.url)
+
+  /**
+   * 값이 파일로 나간다 — **내보내기 판정을 지난다** (LOOP.md 7절 S2 · I10a).
+   *
+   * 화면에서 단추를 숨기는 것으로는 못 막는다. 주소를 알면 단추 없이 부를 수 있고,
+   * 파일은 한 번 나가면 회수할 수 없다. 동작 축은 거부권이라 **부여가 0건이면 지금과 같다** —
+   * 관리자가 차단을 적은 뒤부터만 달라진다.
+   */
+  if (!(await canExport('/meeting-notes'))) {
+    return NextResponse.json({ error: EXPORT_DENIED }, { status: 403 })
+  }
   /**
    * 담을 것 — 모르는 값이 오면 기존 기본값(정제본)으로 떨어진다.
    * 손으로 나열하지 않고 배열에 담는다: 뷰가 하나 늘 때마다 여기를 고쳐야 하는 손목록이 되지 않게.

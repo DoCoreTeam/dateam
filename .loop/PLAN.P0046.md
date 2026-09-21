@@ -150,7 +150,7 @@
 의존: I09
 
 ### I10a 남은 내보내기 창구에도 판정을 붙인다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: apps/web/app/api/reports/export/route.ts, apps/web/app/api/reports/export-preview/route.ts, apps/web/app/api/meeting-notes/[id]/export/route.ts, apps/web/app/api/rfp/cases/[id]/export/route.ts, apps/web/app/api/admin/ai-chat/export/route.ts, apps/web/app/api/admin/ai-chat/export-pdf/route.ts, apps/web/app/api/admin/ai-chat/analyze-export-pdf/route.ts, apps/web/lib/policy/export-gate.test.ts
 감사 기준:

@@ -4,6 +4,8 @@
 // 그때 어느 쪽이 맞는지 아무도 모른다. 보고용은 근거·벤더·검증 배지를 뺄 뿐이다.
 
 import { readStoredReport, REPORT_VERSION_COLUMNS } from '@/lib/rfp/report/read-version'
+import { canExport } from '@/lib/access/guard'
+import { EXPORT_DENIED } from '@/lib/terms'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -18,6 +20,17 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const gate = await requireMemberApi()
   if (gate.error) return gate.error
+
+  /**
+   * 값이 파일로 나간다 — **내보내기 판정을 지난다** (LOOP.md 7절 S2 · I10a).
+   *
+   * 화면에서 단추를 숨기는 것으로는 못 막는다. 주소를 알면 단추 없이 부를 수 있고,
+   * 파일은 한 번 나가면 회수할 수 없다. 동작 축은 거부권이라 **부여가 0건이면 지금과 같다** —
+   * 관리자가 차단을 적은 뒤부터만 달라진다.
+   */
+  if (!(await canExport('/rfp'))) {
+    return NextResponse.json({ error: EXPORT_DENIED }, { status: 403 })
+  }
 
   const { id: caseId } = await ctx.params
   const url = new URL(req.url)

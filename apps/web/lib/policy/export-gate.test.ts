@@ -9,10 +9,10 @@
  *   목록을 기억해서 고쳐야 한다면 반드시 빠뜨린다. 그래서 `app/api` 아래에서
  *   **이름이 내보내기인 라우트를 전부 찾아** 판정을 부르는지 본다.
  *
- * **왜 ratchet 인가**: 이 판(I10)에서 붙인 창구는 `crm/export` 하나다. 나머지 일곱은
- *   각자 다른 서비스의 자리라 한 판에 같이 손대면 리뷰가 불가능하다(I10a 가 맡는다).
- *   그래서 **지금보다 늘면 차단**으로 건다 — 새 창구는 그 자리에서 막히고,
- *   목록은 줄기만 한다. 목록이 0이 되면 이 가드는 전수 차단이 된다.
+ * **지금은 전수 차단이다**: I10 은 `crm/export` 하나만 붙이고 나머지 일곱을 사유와 함께 유예했고,
+ *   I10a 가 그 일곱을 붙여 유예를 0으로 만들었다. 그래서 새 내보내기 창구는 판정을 안 부르면
+ *   **그 자리에서** 막힌다. 유예 목록은 비었지만 지우지 않는다 — 다음 사람이 유예를 다시 만들
+ *   자리를 못 찾으면 목록 대신 가드를 지우게 된다.
  */
 
 import { test } from 'node:test'
@@ -33,21 +33,13 @@ const GATE = /\bcanExport\b|\bcanDo\(/
  * 각 줄에 왜 이 판에서 안 붙였는지 적는다. 사유 없는 유예는 잊은 것과 구분되지 않는다.
  */
 const NOT_YET: Record<string, string> = {
-  'reports/export/route.ts':
-    '주간보고 취합 CSV. 표면이 /weekly-report 이고 관리자 취합 화면에서만 부른다 — I10a 가 붙인다.',
-  'reports/export-preview/route.ts':
-    '취합 미리보기. 위와 같은 표면이라 같은 판에서 함께 붙여야 한다 — I10a.',
-  'meeting-notes/[id]/export/route.ts':
-    '자기 회의노트 하나를 파일로. 소유자만 읽으므로 새는 범위가 자기 것뿐이다 — I10a.',
-  'rfp/cases/[id]/export/route.ts':
-    'RFP 리포트. 표면이 /rfp 이고 그 셸의 멤버십이 먼저 막는다 — I10a.',
-  'admin/ai-chat/export/route.ts':
-    'AI 분석 결과. 관리자 전용 창구라 지금도 관리자만 부른다 — I10a.',
-  'admin/ai-chat/export-pdf/route.ts':
-    'AI 분석 결과 PDF. 위와 같은 자리 — I10a.',
-  'admin/ai-chat/analyze-export-pdf/route.ts':
-    '목록 심층분석 PDF. 위와 같은 자리 — I10a.',
+  // I10a 에서 여덟 창구 전부에 판정을 붙여 목록이 비었다.
+  // **비었다고 지우지 않는다** — 목록이 사라지면 다음 사람이 유예를 다시 만들 자리를 못 찾고,
+  // 아래 단정이 「0이어야 한다」를 잴 대상도 없어진다.
 }
+
+/** 유예는 0이어야 한다. 하나라도 생기면 그 판에서 이유를 적고 다음 판에 붙인다 */
+const MAX_NOT_YET = 0
 
 function routeFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -86,6 +78,19 @@ test('유예 목록이 실제 파일을 가리키고 사유가 적혀 있다', (
     assert.ok(EXPORT_ROUTES.includes(rel), `NOT_YET 의 ${rel} 이 내보내기 창구 목록에 없다 — 지운 라우트가 남아 있으면 다음에 같은 이름을 만든 사람이 그냥 통과한다`)
     assert.ok(why.length > 20, `${rel} 의 사유가 너무 짧다`)
   }
+})
+
+test('★ 유예가 0이다 — 이제 전수 차단이다 (I10a)', () => {
+  assert.ok(
+    Object.keys(NOT_YET).length <= MAX_NOT_YET,
+    `유예가 ${Object.keys(NOT_YET).length}개 남았다. 붙일 수 없으면 사유를 적고 MAX_NOT_YET 를 올리는 대신 ` +
+    '그 판의 항목으로 세운다 — 유예는 늘리는 것이 아니라 없애는 것이다.',
+  )
+})
+
+test('★ 내보내기 창구 전부가 판정을 부른다', () => {
+  const open = EXPORT_ROUTES.filter((rel) => !GATE.test(readFileSync(join(API, rel), 'utf8')))
+  assert.deepEqual(open, [], `판정을 안 부르는 창구: ${open.join(', ')}`)
 })
 
 test('유예 목록이 줄기만 한다 — 이미 붙인 창구가 다시 목록에 오르지 않는다', () => {
