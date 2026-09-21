@@ -76,7 +76,7 @@
 의존: I01, I02, I03
 
 ### I05 종합 감사와 판 올리기
-상태: 대기
+상태: 통과
 모드: 경량
 범위: 루트 package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md, apps/web/lib/changelog/entries.ts
 감사 기준:
@@ -85,7 +85,15 @@
 의존: I01, I02, I03, I04
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+- pnpm typecheck 오류 0
+- pnpm lint 종료코드 0 (경고만, 전부 기존 것)
+- pnpm test 6598개 전부 통과, 실패 0
+- NEXT_DIST_DIR=.next-p0047 pnpm build 성공 (돌고 있는 dev 서버의 .next 를 안 덮음)
+- 완료 정의 대조: 호스트 공급자를 부르는 자리가 전부 키 교체를 지남(직접 호출 허용 3곳은 이유와 함께 목록에 있음), 안 지나는 호출이 새로 생기면 lib/policy/ai-key-rotation-guard.test.ts 가 실패함, 새 사용자 문구는 기존 문구 자리에 수를 더한 것뿐
+- 항목 대 결과 대조: I01 신규 2 + 수정 2, I02 수정 3, I03 수정 3, I04 신규 1 + 등재 1, 전부 존재하고 변경됨
+- 보안 재측정 (LOOP.md 7절 「기계가 세는 것」, 실행 2026-09-21): RLS 꺼진 표 0, anon 쓰기 표 0, TO public USING(true) 0, search_path 없는 SECURITY DEFINER 0, anon 읽는 SECURITY DEFINER 뷰 0
+- 내 커밋 넷의 diff 에 키 접두사(AIzaSy sk-ant sk-proj gsk_ xai-) 0건
+- 발견 사항: 같은 결함이 남은 자리가 하나 더 있다. 모델 목록 훑기(listModels describeModels probeModelIds)는 여전히 META 키 하나만 쓴다. 채팅 호출이 아니라 이번 범위 밖이고, 막히면 카탈로그가 안 갱신될 뿐 사용자 요청이 죽지는 않는다
 
 ## 변경 이력
 - v0.1.0 (2026-09-21) 최초 작성 (iv_0094)
