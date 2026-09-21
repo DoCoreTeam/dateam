@@ -7,6 +7,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { getProviderConfig, getProvider } from '@/lib/ai-chat/registry'
+import { streamChatWithKeys } from '@/lib/ai-chat/stream-with-keys'
 import { logTokenUsage } from '@/lib/token-logger'
 import { logDbError } from '@/lib/ai-chat/log-db-error'
 import { buildTemplateGenPrompt, parseTemplateSpec } from '@/lib/ai-chat/templates/generate'
@@ -158,10 +159,9 @@ export async function generateTemplate(command: string): Promise<TemplateResult<
 
   let text = ''
   try {
-    const provider = getProvider('gemini')
     const controller = new AbortController()
-    const result = await provider.streamChat({
-      apiKey: cfg.apiKey,
+    // 키가 여럿이면 갈아 가며 부른다 — 한도는 모델이 아니라 그 키의 문제다
+    const result = await streamChatWithKeys('gemini', cfg.apiKey, {
       model: cfg.model,
       turns: [{ role: 'user', content: buildTemplateGenPrompt(command) }],
       // requireAdminApi 가 확인한 그 관리자가 주인이다

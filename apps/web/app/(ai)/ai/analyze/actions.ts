@@ -11,6 +11,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { getProviderConfig, getProvider } from '@/lib/ai-chat/registry'
+import { streamChatWithKeys } from '@/lib/ai-chat/stream-with-keys'
 import type { ChatUsage } from '@/lib/ai-chat/provider'
 import { logTokenUsage } from '@/lib/token-logger'
 import { htmlToPlain } from '@/lib/html-to-plain'
@@ -70,19 +71,15 @@ async function callGemini(
   const cfg = getProviderConfig(meta, 'gemini')
   if (!cfg) throw new Error('Gemini API 키가 설정되지 않았습니다')
 
-  const provider = getProvider('gemini')
   const controller = new AbortController()
-  let text = ''
-  const result = await provider.streamChat({
-    apiKey: cfg.apiKey,
+  // 키가 여럿이면 갈아 가며 부른다. 조각은 안 모은다 — 아래에서 result.text 를 쓴다
+  const result = await streamChatWithKeys('gemini', cfg.apiKey, {
     model: cfg.model,
     turns: [{ role: 'user', content: turnContent, attachments }],
     // 이 도우미는 부르는 쪽에서 userId 를 이미 받고 있었다
     actorId: userId,
     signal: controller.signal,
-    onDelta: (d) => {
-      text += d
-    },
+    onDelta: () => {},
   })
 
   logTokenUsage({

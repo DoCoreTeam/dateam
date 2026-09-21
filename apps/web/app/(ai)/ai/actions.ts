@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { logTokenUsage } from '@/lib/token-logger'
 import { getAvailableProviders, getProvider, getProviderConfig } from '@/lib/ai-chat/registry'
+import { streamChatWithKeys } from '@/lib/ai-chat/stream-with-keys'
 import { isValidModelId } from '@/lib/ai-chat/model-id'
 import { buildThreadForChoice, getBranchGroups } from '@/lib/ai-chat/thread'
 import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
@@ -475,10 +476,10 @@ export async function autoTitle(
     }
 
     const pairText = msgs.map((m) => `${m.role}: ${m.content}`).join('\n')
-    const provider = getProvider(conv.provider)
     let generated = ''
-    const result = await provider.streamChat({
-      apiKey: config.apiKey,
+    // 키가 여럿이면 갈아 가며 부른다. 갈아탈 때 앞 키가 흘린 글자는 버린다 —
+    // 안 버리면 두 키의 답이 이어 붙어 제목이 두 번 적힌다
+    const result = await streamChatWithKeys(conv.provider, config.apiKey, {
       model: conv.model,
       system: '다음 대화에 어울리는 제목을 한국어 15자 이내 명사구로만 답하라. 따옴표·마침표·설명 금지.',
       turns: [{ role: 'user', content: pairText.slice(0, 4000) }],
@@ -489,7 +490,7 @@ export async function autoTitle(
       onDelta: (t) => {
         generated += t
       },
-    })
+    }, { keys: { onSwitch: () => { generated = '' } } })
 
     logTokenUsage({
       userId: ctx.userId,

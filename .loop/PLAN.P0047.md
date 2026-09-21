@@ -56,7 +56,7 @@
 의존: I01
 
 ### I03 서버 액션 세 곳도 같은 자리를 지난다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(ai)/ai/actions.ts, apps/web/app/(ai)/ai/analyze/actions.ts, apps/web/app/(ai)/ai/analyze/template-actions.ts
 감사 기준:
