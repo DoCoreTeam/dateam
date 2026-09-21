@@ -22,6 +22,7 @@ import type { ProviderId, AttachmentInput } from '../../../ai-chat/provider.ts'
 import { isAiProviderId } from '../../../ai/provider-catalog.ts'
 import { CrmError } from '../../domain/errors.ts'
 import { classifyProviderError } from '../../../ai-chat/provider-errors.ts'
+import { streamChatWithKeys } from '../../../ai-chat/stream-with-keys.ts'
 import {
   buildModelChain, pruneChain, meetsRequirements,
   type ChainCandidate, type ChainCatalogEntry, type ChainRequirements,
@@ -255,16 +256,35 @@ export async function hostAdapter(
       let res: Awaited<ReturnType<typeof provider.streamChat>> | null = null
       let lastError: unknown = null
 
+      /**
+       * 실제로 두드린 공급자와 키 수. 「전부 막혔다」가 **셀 수 있는 사실**이 되게 한다.
+       *
+       * 실측 2026-09-21: 등록된 키 넷 가운데 하나만 두드리고 「등록된 공급자가 전부 한도」라고
+       * 말했다. 사용자는 유료 키까지 넣어 둔 상태였다. 수를 안 적으면 그 거짓을 아무도 못 센다.
+       */
+      const providersTried = new Set<ProviderId>()
+      let keysTried = 0
+
       while (rest.length > 0) {
         const cand = rest[0]
         rest = rest.slice(1)
+        providersTried.add(cand.provider)
+        /** 이 후보에 쓴 키 수. 교체가 일어나면 는다 */
+        let keysForCand = 1
         // 앞 후보에서 모은 출처가 섞이지 않게 비운다 — 실패한 시도의 인용은 이 답의 근거가 아니다
         sources.length = 0
         seen.clear()
         try {
-          res = await getProvider(cand.provider).streamChat({
+          /*
+            **후보 하나를 키 여러 개로 붙든다.**
+
+            한도(429)와 인증(401)은 모델이 아니라 **그 키**의 문제다. 여기서 안 하고 바로
+            pruneChain 으로 내려가면 그 공급자가 통째로 빠지고, 등록해 둔 나머지 키는 한 번도
+            안 쓰인다 — 그것이 2026-09-21 사고의 정확한 모양이다(표의 키 여섯 줄 전부
+            last_used_at 이 비어 있었다). 후보 수는 안 는다, 교체는 이 한 칸 안에서 끝난다.
+          */
+          res = await streamChatWithKeys(cand.provider, cand.apiKey, {
             actorId: opts.actorId ?? null,
-            apiKey: cand.apiKey,
             model: cand.model,
             turns: [{
               role: 'user',
@@ -280,6 +300,18 @@ export async function hostAdapter(
               seen.add(c.url)
               sources.push({ url: c.url, title: c.title || c.url })
             },
+          }, {
+            keys: {
+              onSwitch: (from, to) => {
+                keysForCand += 1
+                // 앞 키가 흘린 출처는 다음 키의 답이 아니다 — 후보를 바꿀 때와 같은 규율
+                sources.length = 0
+                seen.clear()
+                // **키 이름만** 적는다. 원문은 로그에도 안 남긴다
+                console.warn('[crm/ai] 키 교체', `${cand.provider}:${cand.model}`,
+                  `'${from.label}' → '${to.label}'`)
+              },
+            },
           })
           used = cand
           break
@@ -292,6 +324,8 @@ export async function hostAdapter(
               e instanceof Error ? e.message.slice(0, 120) : String(e).slice(0, 120))
           }
           rest = pruneChain(rest, cand, scope)
+        } finally {
+          keysTried += keysForCand
         }
       }
 
@@ -306,7 +340,7 @@ export async function hostAdapter(
         // 인증 실패(`auth`)는 여기서 제외한다, 아래 문구가 말하는 처방이 다르다
         if (classifyProviderError(lastError).keyOutcome === 'quota') {
           throw new CrmError('PROVIDER_QUOTA',
-            '등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다. '
+            `등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다(공급자 ${providersTried.size}곳, 키 ${keysTried}개 시도). `
             + '한도가 풀릴 때까지 기다리거나 시스템 설정 → 통합에서 다른 공급자 키를 추가해 주세요.')
         }
         throw lastError ?? new CrmError('VALIDATION_FAILED', 'AI 응답을 받지 못했습니다.')

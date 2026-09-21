@@ -67,6 +67,40 @@ test('★ 전부 한도면 그렇다고 말한다 — 「응답 실패」로는 
   assert.match(SRC, /등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다/)
 })
 
+/* ── 등록한 키를 전부 쓰나 (실측 2026-09-21) ────────
+   키 넷 중 하나만 두드리고 「등록된 공급자가 전부 한도」라고 말했다. 그중 하나는 유료 키였고
+   표의 `last_used_at` 여섯 줄이 전부 비어 있었다 — 한 번도 안 불린 것이다.
+   교체가 실제로 도는지는 `lib/ai-chat/stream-with-keys.test.ts` 가 실행으로 재고,
+   여기서는 **이 어댑터가 그 자리를 지나는지**를 잠근다. 둘 중 하나만 있으면
+   「규칙은 맞는데 아무도 안 부르는」 상태를 못 잡는다. */
+
+test('★ 후보 하나를 키 여러 개로 붙든다 — 바로 pruneChain 으로 내려가면 등록한 키가 논다', () => {
+  assert.match(SRC, /streamChatWithKeys\(cand\.provider, cand\.apiKey/,
+    '키 교체 SSOT 를 안 지난다 — META 키 하나로 끝나고 나머지 키는 안 불린다')
+  assert.ok(
+    !/getProvider\([^)]*\)\.streamChat\(/.test(SRC),
+    '공급자를 직접 부르면 그 자리는 다시 키 하나짜리가 된다',
+  )
+})
+
+test('★ 키를 갈아탈 때 앞 키가 모은 출처를 버린다 — 실패한 시도의 인용은 이 답의 근거가 아니다', () => {
+  const onSwitch = SRC.slice(SRC.indexOf('onSwitch:'), SRC.indexOf('onSwitch:') + 400)
+  assert.match(onSwitch, /sources\.length = 0/)
+  assert.match(onSwitch, /seen\.clear\(\)/)
+})
+
+test('★ 키 원문은 로그로 안 나간다 — 이름만 적는다', () => {
+  const onSwitch = SRC.slice(SRC.indexOf('onSwitch:'), SRC.indexOf('onSwitch:') + 400)
+  assert.match(onSwitch, /from\.label/)
+  assert.ok(!/from\.apiKey|to\.apiKey|cand\.apiKey\}/.test(onSwitch), '키 원문을 찍는다')
+})
+
+test('★ 「전부 한도」라고 말할 때 몇 개를 시도했는지 함께 말한다 — 수가 없으면 거짓을 못 센다', () => {
+  assert.match(SRC, /공급자 \$\{providersTried\.size\}곳, 키 \$\{keysTried\}개 시도/)
+  // 성공하든 실패하든 그 후보에 쓴 키 수가 합계에 들어가야 한다
+  assert.match(SRC, /finally \{\s*\n\s*keysTried \+= keysForCand/)
+})
+
 test('카탈로그는 주입받는다 — 이 파일은 DB 를 모른다', () => {
   assert.match(SRC, /readCatalog: CatalogReader = async \(\) => \[\]/)
   assert.ok(!/createAdminClient|from\('ai_model_catalog'\)/.test(SRC), '어댑터가 DB 를 직접 연다')
