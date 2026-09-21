@@ -1,6 +1,6 @@
 # PLAN newAX: 접근권한으로 메뉴를 연다
 플랜 ID: P0046
-플랜 버전: v0.1.3
+플랜 버전: v0.1.5
 상태: 진행중
 지시: ins_0059
 목표 버전: v0.10.365
@@ -84,12 +84,13 @@
 의존: I02
 
 ### I06 부여를 읽되 화면은 그대로다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/access/load.ts (신규), apps/web/lib/access/load.test.ts (신규), apps/web/app/(member)/layout.tsx, apps/web/package.json
+범위: apps/web/lib/access/load.ts (신규), apps/web/lib/access/load-pure.ts (신규), apps/web/lib/access/load.test.ts (신규), apps/web/package.json
 감사 기준:
-- 부여가 0건이면 관리자와 일반 사용자의 메뉴가 I04 직후와 한 글자도 다르지 않다
-- 같은 요청 안에서 부여 조회가 1회로 고정된다 (요청 캐시 확인)
+- 부여가 0건이면 decideAccess 가 I04 직후의 사이드바 목록을 관리자·일반 각각 그대로 낸다
+- 화면 파일이 하나도 안 바뀐다 (git status 로 확인, 메뉴를 판정에 물리는 것은 I08)
+- 한 번 부를 때 부여 조회가 정확히 1회이고, 내보내는 함수가 getRequestProfile 과 같은 요청 캐시로 싸여 있다
 - pnpm test 통과
 의존: I04, I05
 
@@ -161,3 +162,5 @@
 - v0.1.0 (2026-09-20) 최초 작성 (ins_0059)
 - v0.1.2 (2026-09-21) I04 범위에 nav-standard.test.ts 와 ai-chat/nav/groups.test.ts 를 넣었다, 메뉴 항목을 등재부 생성으로 바꾸면 손목록 글자를 찾던 단정 넷이 같은 판에서 깨져 나눌 수 없다 (audit:I04)
 - v0.1.3 (2026-09-21) I04 범위에 rfp-guard.test.ts 를 더했다, 전체 메뉴에서 href 글자를 찾던 단정이 하나 더 있었고 pnpm test 전체를 돌려서야 드러났다 (audit:I04)
+- v0.1.4 (2026-09-21) I06 에서 layout.tsx 를 빼고 I08 로 옮겼다, 읽어만 두고 안 쓰는 값을 레이아웃에 넣으면 죽은 코드이고 메뉴를 판정에 물리는 판은 I08 이다. 그리고 전체 메뉴는 지금 죽은 문 넷을 그리고 있어 0건 부여로도 I04 와 같을 수 없다, 그 차이를 없애는 것이 I08 의 감사 기준이라 여기서는 사이드바만 대조한다 (audit:I06)
+- v0.1.5 (2026-09-21) I06 범위에 load-pure.ts 를 더했다, lib/supabase/server 가 server-only 를 달고 있어 load.ts 를 그대로 import 하면 node 시험 러너가 해석하지 못한다, org-scope 가 같은 이유로 org-scope-pure 를 두고 있어 그 관례를 따른다 (audit:I06)
