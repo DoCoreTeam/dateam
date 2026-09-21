@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { History, RotateCcw } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -39,7 +40,9 @@ export default function WeeklyEditHistory({ weekStart, snapshots }: Props) {
   const [done, setDone] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  if (snapshots.length === 0) return null
+  // 이력이 0건이어도 자리를 남긴다. 예전에는 null 을 돌려줘 이력 칸 자체가 사라졌고,
+  // 그러면 "되살리기가 없는 화면"과 "이 주차만 이력이 없는 화면"이 똑같이 보였다.
+  const empty = snapshots.length === 0
 
   const handleRestore = () => {
     if (!target) return
@@ -88,13 +91,21 @@ export default function WeeklyEditHistory({ weekStart, snapshots }: Props) {
         style={{ padding: 'var(--space-4)', marginTop: 'var(--space-3)', width: '100%', boxSizing: 'border-box' }}
       >
         <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', margin: '0 0 var(--space-3)' }}>
-          저장·삭제 직전 상태가 자동 보관됩니다. 내용이 사라졌다면 아래에서 되살리세요.
+          {empty
+            ? `${weekStart} 주차는 저장·삭제한 적이 없어 보관된 이력이 없습니다. 위에서 주차를 바꾸면 그 주차의 이력이 보입니다.`
+            : '저장·삭제 직전 상태가 자동 보관됩니다. 내용이 사라졌다면 아래에서 되살리세요.'}
         </p>
         {done && (
           <p role="status" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', margin: '0 0 var(--space-3)' }}>
             {done} · 위 작성폼이 그 내용으로 바뀌었습니다
           </p>
         )}
+        {empty && (
+          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 0 }}>
+            모든 주차의 시점은 <Link href="/work/activity" style={{ color: 'var(--brand)', fontWeight: 600 }}>활동 이력</Link>에서 한 번에 보고 되살립니다.
+          </p>
+        )}
+        {!empty && (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
           {snapshots.map((s) => (
             <li
@@ -128,6 +139,7 @@ export default function WeeklyEditHistory({ weekStart, snapshots }: Props) {
             </li>
           ))}
         </ul>
+        )}
       </div>
 
       {target && (
