@@ -66,7 +66,7 @@
 의존: I01
 
 ### I04 안 지나는 호출이 다시 생기지 않게 센다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/ai-key-rotation-guard.test.ts (신규), apps/web/package.json
 감사 기준:
