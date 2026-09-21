@@ -14,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import ListPager from '@/components/ui/list/ListPager'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import type { ListDefaults } from '@/lib/ui/list-query'
 import { fetcher } from '@/lib/swr-config'
@@ -78,13 +79,29 @@ export default function WorkActivityPage() {
   const [restoring, setRestoring] = useState<string | null>(null)   // 되살리는 중인 피드아이템 id
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
   const [, startRestore] = useTransition()
+  // 되살리기는 되돌릴 수 있지만 조용히 일어나면 안 된다 — 묻는 자리는 화면 표준 한 벌(§2-5)
+  const { ask, dialog } = useAskDialog()
 
   // '더 보기'는 URL(page)이 진실이다 — 새로고침해도 보던 만큼 다시 불러온다
   useEffect(() => { if (size !== query.page) setSize(query.page) }, [query.page, size, setSize])
 
   // 모듈별 복원 인프라 분기 — audit(일일·부서)/weekly(스냅샷)/project. 성공 시 피드 즉시 갱신(실시간).
-  function handleRestore(itemId: string, restore: RestoreRef) {
+  // 주간만 먼저 묻는다: 일일·부서·프로젝트는 그 행 하나를 되돌리지만, 주간은 그 주차 전체를
+  // 그 시점으로 바꾼다 — 이후 편집이 함께 취소되므로 몇 건인지 누르기 전에 말해야 한다.
+  async function handleRestore(itemId: string, restore: RestoreRef, occurredAt: string) {
     if (restoring) return
+    if (restore.kind === 'weekly') {
+      const later = restore.laterEdits > 0
+        ? ` 그 뒤에 저장한 편집 ${restore.laterEdits}건이 취소됩니다.`
+        : ''
+      const ok = await ask.confirm({
+        title: '이 시점으로 되돌릴까요?',
+        body: `${formatKstDateTimeShort(occurredAt)} 직전 상태로 그 주차 주간보고 전체를 되돌립니다.${later}`
+          + ' 되돌리기 직전 상태도 이력에 남으므로, 이 되돌리기도 다시 되돌릴 수 있습니다.',
+        confirmLabel: '되살리기',
+      })
+      if (!ok) return
+    }
     setRestoring(itemId); setRestoreMsg(null)
     startRestore(async () => {
       const res =
@@ -187,7 +204,7 @@ export default function WorkActivityPage() {
                   )}
                   <ChangeList action={it.action} module={it.module} before={it.before} after={it.after} />
                   {it.restore && (
-                    <button type="button" onClick={() => handleRestore(it.id, it.restore!)} disabled={restoring === it.id}
+                    <button type="button" onClick={() => { void handleRestore(it.id, it.restore!, it.occurredAt) }} disabled={restoring === it.id}
                       title="이 시점 상태로 되살립니다"
                       style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', color: 'var(--brand)', border: 'var(--hairline) solid var(--brand)', cursor: restoring === it.id ? 'wait' : 'pointer', fontSize: 'var(--fs-2xs)', fontWeight: 700 }}>
                       <Undo2 size={12} /> {restoring === it.id ? '되살리는 중…' : '되살리기'}
@@ -201,6 +218,7 @@ export default function WorkActivityPage() {
       )}
 
       {!error && <ListPager query={query} hasMore={hasMore} onChange={set} loading={isValidating && !isLoading} />}
+      {dialog}
     </WorkPageShell>
   )
 }
