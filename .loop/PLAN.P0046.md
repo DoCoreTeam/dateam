@@ -53,7 +53,7 @@
 의존: 없음
 
 ### I03 등재를 빠뜨리면 테스트가 실패한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/access-surface.test.ts (신규), apps/web/lib/access/surfaces.ts, apps/web/package.json
 감사 기준:

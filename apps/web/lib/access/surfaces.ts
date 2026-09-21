@@ -107,6 +107,24 @@ export const SURFACES: readonly Surface[] = [
   { key: 'security', href: '/security', group: 'standalone', defaultAudience: 'all' },
 ]
 
+/**
+ * **표면이 아닌 경로** — 등재를 잊은 것과 구분한다.
+ *
+ * `lib/policy/access-surface.test.ts` 가 `app` 아래 `page.tsx` 를 전수로 걸어
+ * 표면에 안 붙는 경로를 찾는다. 그때 여기 없으면 실패한다. 사유 없이 넣을 수 없다 —
+ * **사유를 적게 하는 것이 이 목록의 전부**다. 「일단 넣어 두고 나중에」가 안 되게.
+ */
+export const NOT_A_SURFACE: Readonly<Record<string, string>> = {
+  '/': '루트는 로그인 여부를 보고 /home 이나 /login 으로 보내기만 한다',
+  '/login': '로그인 화면, 로그인 전에 보는 자리라 접근권한을 걸 대상이 아니다',
+  '/mfa': '2단계 인증 화면, 같은 이유로 로그인 전 자리다',
+  '/change-password': '첫 로그인 비밀번호 변경, 로그인 직후 강제 경유라 막으면 들어올 길이 사라진다',
+  '/offline': '네트워크가 끊겼을 때 서비스워커가 보여 주는 화면, 서버 판정이 닿지 않는다',
+  '/api-access': '외부인이 API 사용을 신청하는 공개 양식, 사내 사용자 기준으로 막을 대상이 아니다',
+  '/intake': '/pricing/gpu?tab=intake 로 보내기만 하는 옛 주소, 도착지 표면이 판정한다',
+  '/ralph': '/pricing/gpu 로 보내기만 하는 옛 주소, 도착지 표면이 판정한다',
+}
+
 const BY_KEY = new Map(SURFACES.map((s) => [s.key, s]))
 
 export function surfaceByKey(key: string): Surface | null {
