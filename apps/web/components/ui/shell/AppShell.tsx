@@ -26,6 +26,8 @@ export type { NavGroup, NavItem }
 import SidebarProfile from '@/components/ui/SidebarProfile'
 import GlobalSearchBox from '@/components/ui/GlobalSearchBox'
 import QuickNav from '@/components/ui/QuickNav'
+import { QUICKNAV_LINKS } from '@/lib/nav/menu'
+import { openSurfaces } from '@/lib/access/guard'
 import type { DockItem } from './Dock'
 import ShellExit from './ShellExit'
 import { RecordingProvider } from '@/lib/meeting/recording-context'
@@ -78,7 +80,18 @@ export interface AppShellProps {
   children: ReactNode
 }
 
-export default function AppShell({
+/**
+ * 전체 메뉴에 무엇을 그릴지 **여기서 한 번** 묻는다 (I08).
+ *
+ * 왜 화면이 안 넘기고 셸이 묻나: `QuickNav` 를 그리는 곳은 이 파일 하나이고,
+ * 이 파일을 쓰는 셸은 여섯이다. 목록을 화면이 넘기게 하면 **넘기는 것을 잊은 셸**에
+ * 죽은 문이 그대로 남는다 — 예전에 전체 메뉴가 `isAdmin` 을 아예 안 받아서
+ * 사이드바에서 막은 화면이 여기서는 보였던 것과 같은 모양이다.
+ *
+ * 부여 조회는 요청당 한 번이라(`loadViewerAccess` 가 `cache()`), 사이드바가 이미
+ * 물어본 요청에서 질의가 늘지 않는다.
+ */
+export default async function AppShell({
   items = [],
   groups,
   session,
@@ -91,6 +104,8 @@ export default function AppShell({
   sidebarTop,
   children,
 }: AppShellProps) {
+  const openMenu = await openSurfaces(QUICKNAV_LINKS.flatMap((g) => g.items.map((i) => i.href)))
+
   return (
     <MobileShell
       items={items}
@@ -109,7 +124,7 @@ export default function AppShell({
         <>
           {extras?.headerExtra}
           <GlobalSearchBox action={search?.action} placeholder={search?.placeholder} />
-          <QuickNav isAdmin={session.isAdmin} />
+          <QuickNav openHrefs={[...openMenu]} />
         </>
       }
       footer={

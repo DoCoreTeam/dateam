@@ -1,6 +1,6 @@
 # PLAN newAX: 접근권한으로 메뉴를 연다
 플랜 ID: P0046
-플랜 버전: v0.1.7
+플랜 버전: v0.1.8
 상태: 진행중
 지시: ins_0059
 목표 버전: v0.10.365
@@ -116,9 +116,9 @@
 의존: I07
 
 ### I08 숨기는 것과 막는 것이 같은 판정을 쓴다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/access/guard.ts (신규), apps/web/app/(member)/layout.tsx, apps/web/components/ui/QuickNav.tsx, apps/web/app/(member)/accounts/layout.tsx, apps/web/app/(member)/contacts/layout.tsx, apps/web/app/(member)/deals/layout.tsx, apps/web/app/(member)/lead-intake/layout.tsx
+범위: apps/web/lib/access/guard.ts (신규), apps/web/app/(member)/layout.tsx, apps/web/components/ui/shell/AppShell.tsx, apps/web/components/ui/QuickNav.tsx, apps/web/app/(member)/accounts/layout.tsx, apps/web/app/(member)/contacts/layout.tsx, apps/web/app/(member)/deals/layout.tsx, apps/web/app/(member)/lead-intake/layout.tsx
 감사 기준:
 - 보안: 메뉴에서 숨긴 표면은 주소를 직접 쳐도 막힌다, 관리자는 항상 통과한다
 - 부여를 받은 일반 사용자의 사이드바와 전체 메뉴에 그 표면이 함께 나타난다
@@ -178,3 +178,5 @@
 - v0.1.7 (2026-09-21) I07 뒤에 I07a 를 넣었다, 접근권한 화면을 실제로 띄워 보니 표면 25개 중 6개(/admin·/dept-tasks·/kpi·/operations·/routine·/security)가 이름 자리에 주소를 그린다, navLabel 이 못 찾은 주소를 그대로 돌려주기 때문이고 그 여섯은 메뉴 배치에 없어 NAV_LABEL 에 이름이 없다, 이름은 lib/nav/menu.ts 가 SSOT 라 I07 범위 안에서 고칠 수 없다 (audit:I07)
 - v0.1.6 (2026-09-21) I07 범위에 lib/terms/access.ts 와 index.ts 와 용어집을 더했다, 신규 화면은 처음부터 @/lib/terms 만 쓰는 것이 중량 규정이고 이 도메인의 말이 아직 없다 (audit:I07)
 - v0.1.7 (2026-09-21) I07 뒤에 I07a 를 넣었다, 표면 25개 중 6개가 이름 자리에 주소를 그리고 이름은 lib/nav/menu.ts 가 SSOT 라 I07 범위 밖이다 (audit:I07)
+- v0.1.8 (2026-09-21) I08 범위에 AppShell.tsx 를 더했다, 전체 메뉴(QuickNav)는 셸만 그리는데 그 셸이 서버 컴포넌트라 판정을 여기서 한 번 하면 여섯 셸이 함께 바뀐다, 화면마다 목록을 넘기게 하면 넘기는 것을 잊은 셸에 죽은 문이 남는다 (audit:I08)
+- v0.1.8 (2026-09-21) I08 범위에 AppShell.tsx 를 더했다, 전체 메뉴를 그리는 셸이 서버 컴포넌트라 판정을 거기서 한 번 하면 여섯 셸이 함께 바뀐다 (audit:I08)

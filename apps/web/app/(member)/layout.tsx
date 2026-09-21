@@ -17,11 +17,13 @@ import RoutineCheckinGate from '@/components/ui/RoutineCheckinGate'
 import { getRoutineWeeklyStatus } from './routine/actions'
 import { getTodayPlannedCount } from './daily/actions'
 import { countMyOpenDeptTasks } from './dept-tasks/actions'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Network, Sparkles, Handshake, Radar, FileSearch } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
-import { ADMIN_ONLY_GROUPS, canSeeNav, SIDEBAR_TOP_LINKS, SIDEBAR_GROUP_LINKS, type MenuLink } from '@/lib/nav/menu'
+import { SIDEBAR_TOP_LINKS, SIDEBAR_GROUP_LINKS, type MenuLink } from '@/lib/nav/menu'
+import { openSurfaces, deniedSurfaceName } from '@/lib/access/guard'
+import AccessDenied from '@/components/ui/AccessDenied'
 import { badgeTitle } from '@/lib/terms'
 import { MyOpenDeptTaskProvider } from '@/lib/work/dept-task-badge'
 
@@ -148,9 +150,37 @@ export default async function MemberLayout({ children }: { children: React.React
 
   const isAdmin = profile?.role === 'admin'
 
+  /**
+   * 메뉴에 무엇을 그릴지 **막는 쪽과 같은 함수**에게 묻는다(`lib/access/guard.ts`).
+   *
+   * 예전엔 여기가 `canSeeNav`(표 하나)를, 라우트는 `requireAdmin` 을 봤다. 두 판정이
+   * 갈린 결과가 「메뉴에는 보이는데 들어가면 막히는 문」 넷이었다(실측 2026-09-21).
+   * 묶음 권한(`ADMIN_ONLY_GROUPS`)도 여기서 따로 안 본다 — 묶음이 통째로 닫히는 것은
+   * **그 안이 전부 닫힌 결과**여야 한다. 묶음과 항목이 각자 판정하면 묶음을 풀 때
+   * 권한이 같이 바뀐다(§2-3-3 N-3 이 막는 바로 그 패턴).
+   *
+   * 부여 조회는 요청당 한 번이다(`loadViewerAccess` 가 `cache()` 로 싸여 있다).
+   */
+  /**
+   * 숨긴 것은 **막힌 것과 같아야 한다.**
+   *
+   * 메뉴만 거르면 숨기기는 권한이 아니라 정리 도구가 된다 — 실측 2026-09-21:
+   * 부여로 `/pricing/gpu` 를 막았더니 메뉴에서는 사라졌는데 주소를 치면 그대로 열렸다.
+   * 화면마다 적게 하면 새 화면을 만든 사람이 기억해야 하고, 기억해야 하는 규칙은
+   * 반드시 빠뜨린다 — 그래서 `(member)` 전부를 여기 한 줄이 지킨다.
+   *
+   * 되돌려 보내지 않고 **그 자리에서 말한다.** 예전에 `/dashboard` 로 보냈다가
+   * next.config 가 그것을 `/home` 으로 되돌려, 사용자는 눌렀는데 홈에 와 있었다.
+   */
+  const deniedName = await deniedSurfaceName((await headers()).get('x-pathname'))
+
+  const open = await openSurfaces([
+    ...NAV_ITEMS.map((i) => i.href),
+    ...NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href)),
+  ])
+
   const navItemsWithBadge = NAV_ITEMS
-    // 항목 권한도 표 하나에서 온다 — `adminOnly` prop 을 화면이 따로 해석하지 않는다
-    .filter((item) => canSeeNav(item.href, isAdmin))
+    .filter((item) => open.has(item.href))
     .map((item) => {
       /*
         배지에는 **무엇을 세는지**를 함께 붙인다(§0-2 · `lib/terms/badge.ts`).
@@ -173,11 +203,8 @@ export default async function MemberLayout({ children }: { children: React.React
     <>
       <AppShell
         items={navItemsWithBadge}
-        // 권한은 **키**로 판정한다 — 예전엔 `g.label === '가격정책'` 이라 메뉴 이름만 바꿔도
-        // 권한이 바뀌었다(§2-3-3 N-3). 항목 권한은 `canSeeNav` 가 같은 표를 읽는다.
         groups={NAV_GROUPS
-          .filter((g) => isAdmin || !(g.key && ADMIN_ONLY_GROUPS.has(g.key)))
-          .map((g) => ({ ...g, items: g.items.filter((i) => canSeeNav(i.href, isAdmin)) }))
+          .map((g) => ({ ...g, items: g.items.filter((i) => open.has(i.href)) }))
           .filter((g) => g.items.length > 0)}
         branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
         session={{
@@ -211,7 +238,8 @@ export default async function MemberLayout({ children }: { children: React.React
           이것이 「배지를 눌렀는데 그 1건이 어디 있는지 모른다」를 끊는 자리다.
         */}
         <MyOpenDeptTaskProvider count={workBadge}>
-          <SWRProvider>{children}</SWRProvider>
+          {/* 셸은 그대로 두고 본문만 바꾼다 — 사이드바가 남아 있어야 «시스템이 고장 난 것»이 아니라 «내 권한이 아직 아닌 것»으로 읽힌다 */}
+          {deniedName ? <AccessDenied what={deniedName} /> : <SWRProvider>{children}</SWRProvider>}
         </MyOpenDeptTaskProvider>
       </AppShell>
       {profile?.must_change_password && <PasswordChangeModal />}
