@@ -43,7 +43,7 @@
 의존: 없음
 
 ### I02 표면 등재부와 판정 함수를 만든다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/access/surfaces.ts (신규), apps/web/lib/access/decide.ts (신규), apps/web/lib/access/decide.test.ts (신규), apps/web/package.json
 감사 기준:
