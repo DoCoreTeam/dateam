@@ -1,6 +1,6 @@
 # PLAN newAX: 접근권한으로 메뉴를 연다
 플랜 ID: P0046
-플랜 버전: v0.1.5
+플랜 버전: v0.1.7
 상태: 진행중
 지시: ins_0059
 목표 버전: v0.10.365
@@ -95,15 +95,25 @@
 의존: I04, I05
 
 ### I07 관리자가 화면에서 연다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/admin/access/page.tsx (신규), apps/web/app/admin/access/AccessClient.tsx (신규), apps/web/app/admin/access/actions.ts (신규), apps/web/app/api/admin/access/route.ts (신규), apps/web/app/admin/layout.tsx
+범위: apps/web/app/admin/access/page.tsx (신규), apps/web/app/admin/access/AccessClient.tsx (신규), apps/web/app/admin/access/actions.ts (신규), apps/web/app/api/admin/access/route.ts (신규), apps/web/app/admin/layout.tsx, apps/web/lib/terms/access.ts (신규), apps/web/lib/terms/index.ts, docs/ui-system/GLOSSARY.md
 감사 기준:
 - 보안: 창구가 requireAdminApi 를 부른다, 비관리자 호출이 403 을 받는다
 - 보안: 주체 id 와 표면 키를 등재부와 대조해 모르는 값은 저장하지 않는다
 - 표면에 부서를 붙이고 저장하면 그 부서 사람 수가 미리보기 숫자와 일치한다
 - 미등재 표면 수가 화면 위에 뜬다
 의존: I06
+
+### I07a 이름 없는 표면이 주소로 뜨지 않는다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/nav/menu.ts, apps/web/lib/nav/menu.test.ts
+감사 기준:
+- 등재부의 모든 표면이 NAV_LABEL 에 이름을 갖는다 (가드가 전수로 대조하고, 한 줄을 지워 실패를 확인한다)
+- 사이드바와 전체 메뉴 목록이 이 판 앞뒤로 동일하다 (배치에 없는 표면만 이름이 느는 것이라 목록은 안 바뀐다)
+- 접근권한 화면에 주소가 이름 자리에 뜨는 줄이 0개다
+의존: I07
 
 ### I08 숨기는 것과 막는 것이 같은 판정을 쓴다
 상태: 대기
@@ -164,3 +174,7 @@
 - v0.1.3 (2026-09-21) I04 범위에 rfp-guard.test.ts 를 더했다, 전체 메뉴에서 href 글자를 찾던 단정이 하나 더 있었고 pnpm test 전체를 돌려서야 드러났다 (audit:I04)
 - v0.1.4 (2026-09-21) I06 에서 layout.tsx 를 빼고 I08 로 옮겼다, 읽어만 두고 안 쓰는 값을 레이아웃에 넣으면 죽은 코드이고 메뉴를 판정에 물리는 판은 I08 이다. 그리고 전체 메뉴는 지금 죽은 문 넷을 그리고 있어 0건 부여로도 I04 와 같을 수 없다, 그 차이를 없애는 것이 I08 의 감사 기준이라 여기서는 사이드바만 대조한다 (audit:I06)
 - v0.1.5 (2026-09-21) I06 범위에 load-pure.ts 를 더했다, lib/supabase/server 가 server-only 를 달고 있어 load.ts 를 그대로 import 하면 node 시험 러너가 해석하지 못한다, org-scope 가 같은 이유로 org-scope-pure 를 두고 있어 그 관례를 따른다 (audit:I06)
+- v0.1.6 (2026-09-21) I07 범위에 lib/terms/access.ts 와 index.ts 와 용어집을 더했다, 신규 화면은 처음부터 @/lib/terms 만 쓰는 것이 중량 규정이고 이 도메인의 말(표면·부여·열기·막기·하위 포함)이 아직 어디에도 없다, 화면에 직접 적으면 두 번째 화면이 그대로 복붙한다 (audit:I07)
+- v0.1.7 (2026-09-21) I07 뒤에 I07a 를 넣었다, 접근권한 화면을 실제로 띄워 보니 표면 25개 중 6개(/admin·/dept-tasks·/kpi·/operations·/routine·/security)가 이름 자리에 주소를 그린다, navLabel 이 못 찾은 주소를 그대로 돌려주기 때문이고 그 여섯은 메뉴 배치에 없어 NAV_LABEL 에 이름이 없다, 이름은 lib/nav/menu.ts 가 SSOT 라 I07 범위 안에서 고칠 수 없다 (audit:I07)
+- v0.1.6 (2026-09-21) I07 범위에 lib/terms/access.ts 와 index.ts 와 용어집을 더했다, 신규 화면은 처음부터 @/lib/terms 만 쓰는 것이 중량 규정이고 이 도메인의 말이 아직 없다 (audit:I07)
+- v0.1.7 (2026-09-21) I07 뒤에 I07a 를 넣었다, 표면 25개 중 6개가 이름 자리에 주소를 그리고 이름은 lib/nav/menu.ts 가 SSOT 라 I07 범위 밖이다 (audit:I07)

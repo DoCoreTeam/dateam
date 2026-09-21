@@ -196,6 +196,48 @@
 
 ---
 
+## 2-4. 접근권한 — `lib/terms/access.ts`
+
+> **왜 따로인가**: 여기 말은 **관리자만** 보는 말이고, 한 낱말이 판정 결과를 바꾼다.
+> 「막기」를 「삭제」라 부르면 부여 한 줄을 없애는 것과 문을 닫는 것이 같아 보이는데
+> 둘은 결과가 다르다 — 부여를 없애면 기본값으로 돌아가고, 막기는 기본값을 이긴다.
+
+### 무엇을 부르는 말인가
+
+| 말 | 상수 | 왜 |
+|---|---|---|
+| **접근권한** | `ACCESS.screen` | 화면 이름. **사이드바(`app/admin/layout.tsx`)와 제목이 같은 상수를 읽는다**(N-4) |
+| **표면** | `ACCESS.surface` | 접근권한을 걸 수 있는 화면 하나. 하위 경로는 전부 그 표면에 속한다 |
+| **부여** | `ACCESS.grant` | 표면 하나를 누구에게 열거나 막은 기록 한 줄 |
+| **주체** | `ACCESS.subject` | 부여를 받는 쪽. 사람이거나 조직이다 |
+| **여닫기** | `ACCESS.effect` | 열지 막을지 고르는 칸의 이름. 값 하나(「열기」)를 칸 이름으로 쓰면 「막기」를 고른 뒤 이름과 값이 어긋난다 |
+| **기본값** | `ACCESS.defaultAudience` | 부여가 0건일 때의 답 |
+| **하위 조직까지** | `ACCESS.includeDescendants` | 조직 부여가 아래로 내려가나. ~~「하위 포함」~~ 은 무엇의 하위인지 안 밝힌다 |
+| **등재** | `ACCESS.sync` | 코드 등재부를 표에 맞추는 일. ~~「등록」~~ 은 금지어다 |
+
+### 고르는 값
+
+| 자리 | 상수 | 값 |
+|---|---|---|
+| 여닫기 | `ACCESS_EFFECT_LABEL` · 순서 `ACCESS_EFFECT_ORDER` | 열기 · 막기 |
+| 주체 종류 | `ACCESS_SUBJECT_LABEL` · 순서 `ACCESS_SUBJECT_ORDER` | 사람 · 조직 |
+| 표면 기본값 | `ACCESS_AUDIENCE_LABEL` | 전부 · 관리자 |
+
+색은 화면이 고르지 않는다 — `ACCESS_EFFECT_STATUS` · `ACCESS_AUDIENCE_STATUS` 가 `StatusKey` 로 넘긴다.
+
+### 세는 말과 문형
+
+| 자리 | 함수·상수 |
+|---|---|
+| 걸리는 사람 수 | `accessPeopleCount(12)` — 「구성원 12명」. **`ENTITY.person`(인물)은 CRM 고객 쪽 사람**이라 이름을 빌리지 않는다 |
+| 표면·부여 개수 | `accessSurfaceCount(26)` · `accessGrantCount(3)` |
+| 등재 상태 | `accessSyncedLine(4)` · `accessOrphanLine(['ci'])` — 사본이 코드를 못 따라간 자리를 화면이 먼저 말한다 |
+| 빈 상태 | `ACCESS_EMPTY_TITLE` + `ACCESS_EMPTY_HINT` — 다음 행동 한 줄 |
+| 기본 안내 | `ACCESS_DEFAULT_NOTE` — 부여가 0건이면 지금과 같다는 사실 |
+| 하위 조직 안내 | `ACCESS_DESCENDANTS_HINT` |
+
+---
+
 ## 3. 상태 — 도메인별 `lib/**/ui/*-status.ts`
 
 상태 라벨은 **반드시 `StatusKey` 에 매핑**한다(`lib/tokens/status-colors.ts`). 그래야 화면이 색을 안 정한다.

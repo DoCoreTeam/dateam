@@ -18,15 +18,19 @@ import {
   Bot,
   Building2,
   ShieldCheck,
-  MessageSquare, ScrollText } from 'lucide-react'
+  MessageSquare, ScrollText,
+  DoorOpen } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { getBranding } from '@/lib/branding'
+// 사이드바와 화면 제목이 같은 상수를 읽는다 — 같은 경로가 두 이름이면 다른 화면으로 읽힌다(§2-3-3 N-4)
+import { ACCESS } from '@/lib/terms'
 
 const ADMIN_NAV_GROUPS: NavGroup[] = [
   {
     label: '구성원 관리',
     items: [
       { href: '/admin/members', label: '구성원 관리', icon: <Users size={16} /> },
+      { href: '/admin/access', label: ACCESS.screen, icon: <DoorOpen size={16} /> },
     ],
   },
   {
