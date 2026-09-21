@@ -106,7 +106,7 @@
 의존: I06
 
 ### I07a 이름 없는 표면이 주소로 뜨지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/nav/menu.ts, apps/web/lib/nav/menu.test.ts
 감사 기준:

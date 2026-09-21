@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { NAV_LABEL, navLabel, SERVICE_NAV, EXIT_TO_MAIN } from './menu.ts'
+import { SURFACES } from '../access/surfaces.ts'
 import { SERVICE_LABEL } from '../terms/index.ts'
 
 test('서비스로 들어가는 링크는 간판과 같은 말을 쓴다', () => {
@@ -127,4 +128,30 @@ test('★ 메뉴에 선 자리는 전부 그림이 있다 — 빈 그림은 오�
 
 test('배치가 등재 안 된 표면을 가리키면 조용히 넘어가지 않는다', () => {
   assert.throws(() => menuLink({ surface: '없는표면' }), /등재 안 된 표면/)
+})
+
+// ── 등재부의 표면은 전부 이름이 있다 (I07a) ──
+//
+// 왜: `navLabel` 은 못 찾은 주소를 **그대로** 돌려준다. 메뉴만 보면 그 자리는 안 그려지니
+//   아무 일도 안 일어나지만, 접근권한 화면(`/admin/access`)은 등재부 **전부**를 그린다.
+//   실측 2026-09-21 — 표면 25개 중 6개(`/admin`·`/dept-tasks`·`/kpi`·`/operations`·
+//   `/routine`·`/security`)가 이름 자리에 주소를 그렸다. 관리자는 그 줄이 무슨 화면인지
+//   주소로 짐작해야 했고, 짐작으로 문을 여닫는 상태였다.
+//
+// 그래서 **배치가 아니라 등재부**를 기준으로 센다. 메뉴에 안 세운 화면도 이름은 있어야 한다.
+
+test('★ 등재부의 모든 표면이 이름을 갖는다 — 주소가 이름 자리에 뜨지 않는다', () => {
+  const nameless = SURFACES.filter((s) => navLabel(s.href) === s.href).map((s) => s.href)
+  assert.deepEqual(
+    nameless, [],
+    `이름 없는 표면: ${nameless.join(', ')}\n` +
+    'lib/nav/menu.ts 의 NAV_LABEL 에 이름을 적는다. 그 화면이 이미 쓰는 제목을 그대로 가져온다 — ' +
+    '여기서 새로 지으면 같은 화면이 두 이름을 갖는다(N-4).',
+  )
+})
+
+test('이름 표에 등재부에 없는 주소가 남아 있지 않다', () => {
+  // 화면을 지웠는데 이름만 남으면 다음 사람이 그 주소를 살아 있는 화면으로 읽는다
+  const stale = Object.keys(NAV_LABEL).filter((href) => !SURFACES.some((s) => s.href === href))
+  assert.deepEqual(stale, [], `사라진 주소가 이름 표에 남아 있다: ${stale.join(', ')}`)
 })
