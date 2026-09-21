@@ -20,7 +20,8 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { activeMembers } from '@/lib/members/resigned-server'
-import { SURFACES, grantableKeys, splitKey, surfaceByKey, zoneOf } from '@/lib/access/surfaces'
+import { SURFACES, grantableKeys, keyKind, parentKey } from '@/lib/access/surfaces'
+import { ACCESS_ACTION_LABEL } from '@/lib/terms'
 import { navLabel } from '@/lib/nav/menu'
 
 export interface SurfaceRow {
@@ -29,8 +30,10 @@ export interface SurfaceRow {
   group_key: string
   href: string
   default_audience: string
-  /** 구역이면 그 구역이 속한 표면 키. 표면 자신이면 null */
+  /** 한 단계 위 키. 표면 자신이면 null */
   parent_key: string | null
+  /** 표면인가 자리인가 동작인가. 화면은 앞의 둘만 그린다 */
+  kind: 'surface' | 'zone' | 'action'
 }
 
 export interface GrantRow {
@@ -86,7 +89,7 @@ export async function syncSurfaces(): Promise<{ justSynced: number; orphans: str
    * 표면 주소를 그대로 쓴다 — 주소는 여기서 사람이 보는 값이지 판정이 쓰는 값이 아니다.
    */
   const now = new Date().toISOString()
-  const rows = SURFACES.flatMap((s) => [
+  const base = SURFACES.flatMap((s) => [
     {
       key: s.key,
       label: navLabel(s.href),
@@ -104,6 +107,27 @@ export async function syncSurfaces(): Promise<{ justSynced: number; orphans: str
       synced_at: now,
     })),
   ])
+
+  /**
+   * 동작 키도 행을 갖는다 — 같은 외래키를 지나기 때문이다.
+   * 목록은 `grantableKeys()` 가 정하고 여기서는 이름만 붙인다. 두 곳이 각자 목록을 만들면
+   * 저장은 되는데 행이 없는 키, 또는 행은 있는데 저장이 안 되는 키가 생긴다.
+   */
+  const byKey = new Map(base.map((r) => [r.key, r]))
+  const rows = grantableKeys().map((key) => {
+    const own = byKey.get(key)
+    if (own) return own
+    const parent = byKey.get(parentKey(key) ?? '')
+    const action = key.slice(key.indexOf('#') + 1) as keyof typeof ACCESS_ACTION_LABEL
+    return {
+      key,
+      label: `${parent?.label ?? key} ${ACCESS_ACTION_LABEL[action] ?? action}`,
+      group_key: parent?.group_key ?? 'standalone',
+      href: parent?.href ?? '',
+      default_audience: parent?.default_audience ?? 'admin',
+      synced_at: now,
+    }
+  })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (admin as any).from('access_surface').upsert(rows, { onConflict: 'key' })
@@ -141,7 +165,7 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
   const people = await activeMembers(admin, ((peopleRes.data ?? []) as PersonOption[]).filter((p) => p.name))
 
   return {
-    surfaces: withParent((surfaceRes.data ?? []) as Omit<SurfaceRow, 'parent_key'>[]),
+    surfaces: withParent((surfaceRes.data ?? []) as Omit<SurfaceRow, 'parent_key' | 'kind'>[]),
     grants: (grantRes.data ?? []) as GrantRow[],
     people,
     orgs: orgOptions(nodes, closure),
@@ -184,6 +208,9 @@ export function orgOptions(
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
+/** 한 번만 만든다 — 요청마다 다시 만들면 25개 표면의 곱만큼 쓸데없이 돈다 */
+const GRANTABLE = new Set(grantableKeys())
+
 export interface SaveGrantInput {
   surfaceKey: string
   subjectKind: string
@@ -198,23 +225,28 @@ export interface SaveGrantInput {
  * 구역이 표면에서 떨어져 나오면 관리자는 `work:activity` 가 어디에 속한 자리인지
  * 키를 읽어 짐작해야 한다. 짐작으로 허용하거나 차단하게 두지 않는다.
  */
-export function withParent(rows: readonly Omit<SurfaceRow, 'parent_key'>[]): SurfaceRow[] {
+export function withParent(rows: readonly Omit<SurfaceRow, 'parent_key' | 'kind'>[]): SurfaceRow[] {
+  const RANK = { surface: 0, zone: 1, action: 2 } as const
   return rows
-    .map((r) => ({ ...r, parent_key: splitKey(r.key).zone === null ? null : splitKey(r.key).surfaceKey }))
+    .map((r) => ({ ...r, parent_key: parentKey(r.key), kind: keyKind(r.key) }))
     .sort((a, b) => {
-      const an = a.parent_key ?? a.key
-      const bn = b.parent_key ?? b.key
+      const an = a.kind === 'surface' ? a.key : a.key.split(/[:#]/)[0]
+      const bn = b.kind === 'surface' ? b.key : b.key.split(/[:#]/)[0]
       if (an !== bn) return an.localeCompare(bn)
-      // 같은 표면 안에서는 표면이 먼저, 그 다음 구역
-      return (a.parent_key === null ? 0 : 1) - (b.parent_key === null ? 0 : 1) || a.key.localeCompare(b.key)
+      return RANK[a.kind] - RANK[b.kind] || a.key.localeCompare(b.key)
     })
 }
 
 /** 모르는 값을 걸러 낸다. 통과한 것만 저장한다 */
 export async function validateGrant(input: SaveGrantInput): Promise<string | null> {
-  // 표면이거나 **등재된** 구역이어야 한다. 등재 안 된 구역은 판정은 되지만 저장은 안 된다 —
-  // 저장해 두면 그 행이 아무 자리도 안 가리키는 부여가 되고, 관리자는 열었다고 믿는다
-  if (!surfaceByKey(input.surfaceKey) && !zoneOf(input.surfaceKey)) return '등재부에 없는 표면입니다'
+  /**
+   * **부여할 수 있는 키**인가 — 표면·등재된 자리·그 둘의 동작.
+   *
+   * 등재 안 된 자리는 판정은 되지만 저장은 안 된다. 저장해 두면 그 행이 아무 자리도
+   * 안 가리키는 부여가 되고, 관리자는 열었다고 믿는다.
+   * 목록은 `grantableKeys()` 한 곳이다 — 동기화가 쓰는 목록과 같아야 외래키가 선다.
+   */
+  if (!GRANTABLE.has(input.surfaceKey)) return '등재부에 없는 표면입니다'
   if (input.subjectKind !== 'user' && input.subjectKind !== 'org') return '주체 종류가 사람이나 조직이 아닙니다'
   if (input.effect !== 'allow' && input.effect !== 'deny') return '허용이나 차단이 아닙니다'
 

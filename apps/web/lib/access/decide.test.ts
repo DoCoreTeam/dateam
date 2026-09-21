@@ -8,7 +8,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { decideAccess, type Grant, type Viewer } from './decide.ts'
-import { SURFACES, surfaceOf, surfaceByKey, zoneKeyOf, zoneOf, grantableKeys } from './surfaces.ts'
+import { SURFACES, surfaceOf, surfaceByKey, zoneKeyOf, zoneOf, grantableKeys, keyKind, parentKey } from './surfaces.ts'
+import { actionKey, actionChain, splitAction, vetoesAction, PRESET_DENIES } from './actions.ts'
 import { NAV_AUDIENCE, ADMIN_ONLY_GROUPS } from '../nav/menu.ts'
 
 const ADMIN: Viewer = { userId: 'u-admin', isAdmin: true, orgIds: [] }
@@ -207,11 +208,96 @@ test('관리자는 자리 차단도 통과한다', () => {
   assert.equal(decideAccess('work:activity', ADMIN, [userGrant('deny', 'work:activity')]).allowed, true)
 })
 
-test('부여할 수 있는 키는 표면과 등재된 구역뿐이다', () => {
+test('부여할 수 있는 키는 표면·등재된 자리·그 둘의 동작뿐이다', () => {
   const keys = grantableKeys()
   for (const s of SURFACES) assert.ok(keys.includes(s.key), `${s.key} 가 빠졌다`)
   assert.ok(keys.includes('work:activity'))
   assert.ok(!keys.includes('work:없는구역'))
+  // 동작도 행이 있어야 외래키가 선다. 「보기」는 바탕 키 자체라 따로 없다
+  assert.ok(keys.includes('work#export'))
+  assert.ok(keys.includes('work:activity#write'))
+  assert.ok(!keys.includes('work#view'))
   // 중복이 있으면 동기화가 같은 행을 두 번 쓴다
   assert.equal(new Set(keys).size, keys.length, '부여 키가 겹친다')
+})
+
+test('키 하나가 무엇인지 화면이 안 헤아린다', () => {
+  assert.equal(keyKind('work'), 'surface')
+  assert.equal(keyKind('work:activity'), 'zone')
+  assert.equal(keyKind('work#export'), 'action')
+  assert.equal(keyKind('work:activity#export'), 'action')
+  assert.equal(parentKey('work'), null)
+  assert.equal(parentKey('work:activity'), 'work')
+  assert.equal(parentKey('work:activity#export'), 'work:activity')
+})
+
+// ④ 동작 — 들어간 다음에 무엇까지 하나 (I10)
+//
+// 동작 축은 **거부권**이다. 「들어갈 수 있나」는 표면·자리 판정이나 서비스 셸이 이미 답했고,
+// 여기서 그 답을 다시 하면 두 답이 갈린다. 실제로 갈릴 뻔했다 — `crm` 표면 기본값은 관리자인데
+// CRM 셸은 멤버면 들여보낸다. 동작이 표면 기본값을 물려받으면 아무도 차단을 안 적었는데
+// 일반 사용자 CRM 멤버가 내보내기에서 막힌다. 그래서 여기서는 **적힌 것만** 본다.
+
+test('판정 함수는 동작 키를 안 받는다 — 섞으면 표면 기본값이 동작에 내려온다', () => {
+  assert.equal(decideAccess('home#export', MEMBER, []).reason, 'unregistered')
+  assert.equal(decideAccess('crm#export', MEMBER, []).allowed, false)
+})
+
+test('「보기」는 키를 안 붙인다 — 그것이 표면 판정 자체다', () => {
+  assert.equal(actionKey('crm', 'view'), 'crm')
+  assert.equal(actionKey('crm', 'export'), 'crm#export')
+  assert.equal(actionKey('crm:quotes', 'export'), 'crm:quotes#export')
+  // 「보기」는 볼 키가 없다 — 거부권 축에 보기가 없다는 뜻이다
+  assert.deepEqual(actionChain('view', ['crm']), [])
+})
+
+test('좁은 자리가 먼저, 그 다음 표면 — 동작 키 순서', () => {
+  assert.deepEqual(actionChain('export', ['crm:quotes', 'crm']), ['crm:quotes#export', 'crm#export'])
+})
+
+test('모르는 동작은 접히지 않는다 — 오타가 조용히 권한이 되면 안 된다', () => {
+  assert.equal(splitAction('crm#무엇').action, null)
+  assert.equal(splitAction('crm#export').action, 'export')
+  assert.equal(splitAction('crm').action, null)
+})
+
+test('프리셋은 차단의 묶음이다 — 허용으로 만들면 안 연 문 안에서 할 일을 정하게 된다', () => {
+  assert.deepEqual([...PRESET_DENIES.viewOnly], ['write', 'export'])
+  assert.deepEqual([...PRESET_DENIES.write], ['export'])
+  assert.deepEqual([...PRESET_DENIES.exportToo], [])
+})
+
+test('동작 차단이 없으면 안 막힌다 — 부여 0건이면 지금과 같다', () => {
+  assert.equal(vetoesAction('export', ['crm'], MEMBER, []), false)
+  assert.equal(vetoesAction('write', ['crm'], MEMBER, []), false)
+  // 표면이 관리자 전용이어도 동작 축은 그 사실을 물려받지 않는다.
+  // 물려받으면 일반 사용자 CRM 멤버가 아무도 차단을 안 적었는데 내보내기에서 막힌다
+  assert.equal(vetoesAction('export', ['crm'], MEMBER, [userGrant('deny', 'crm')]), false)
+})
+
+test('적힌 차단만 막는다', () => {
+  const grants = [userGrant('deny', actionKey('crm', 'export'))]
+  assert.equal(vetoesAction('export', ['crm'], MEMBER, grants), true)
+  assert.equal(vetoesAction('write', ['crm'], MEMBER, grants), false)
+})
+
+test('좁은 자리의 허용이 표면의 차단을 이긴다', () => {
+  const grants = [
+    userGrant('deny', actionKey('crm', 'export')),
+    userGrant('allow', actionKey('crm:quotes', 'export')),
+  ]
+  assert.equal(vetoesAction('export', ['crm:quotes', 'crm'], MEMBER, grants), false)
+  assert.equal(vetoesAction('export', ['crm:deals', 'crm'], MEMBER, grants), true)
+})
+
+test('보기만 프리셋은 쓰기와 내보내기를 막고 보기는 안 막는다', () => {
+  const grants = PRESET_DENIES.viewOnly.map((a) => userGrant('deny', actionKey('crm', a)))
+  assert.equal(vetoesAction('write', ['crm'], MEMBER, grants), true)
+  assert.equal(vetoesAction('export', ['crm'], MEMBER, grants), true)
+  assert.equal(vetoesAction('view', ['crm'], MEMBER, grants), false)
+})
+
+test('남에게 건 차단은 나를 안 막는다', () => {
+  const other = { surfaceKey: actionKey('crm', 'export'), subject: { kind: 'user' as const, id: 'u-남' }, effect: 'deny' as const }
+  assert.equal(vetoesAction('export', ['crm'], MEMBER, [other]), false)
 })

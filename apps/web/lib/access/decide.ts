@@ -6,7 +6,8 @@
  *
  * 순서가 규칙의 전부다. 위에서부터 답이 나오면 거기서 끝난다.
  *
- *   0 구역      — 주소가 표면 안의 더 작은 자리면 그 자리의 부여를 먼저 본다(`surfaces.ts` 의 `Zone`)
+ *   0 좁은 것    — 자리(`surfaces.ts` 의 `Zone`)와 동작(`actions.ts`)이 붙은 키를 먼저 본다.
+ *                  좁은 자리의 그 동작 → 표면의 그 동작 → 그 자리 → 표면 순이다
  *   1 관리자    — 항상 통과. 관리자를 잠그면 열어 줄 사람이 사라진다
  *   2 차단      — 막음이 하나라도 있으면 막는다. 열어 준 것보다 막은 것이 세다
  *   3 사람      — 그 사람에게 준 열기
@@ -17,6 +18,7 @@
  */
 
 import { splitKey, surfaceByKey } from './surfaces.ts'
+import { splitAction } from './actions.ts'
 
 export type SubjectKind = 'user' | 'org'
 
@@ -60,7 +62,19 @@ export function decideAccess(
   // 1 관리자
   if (viewer.isAdmin) return { allowed: true, reason: 'admin' }
 
-  const { surfaceKey, zone } = splitKey(key)
+  /**
+   * 여기는 **들어갈 수 있나**만 답한다. 동작(`#write`·`#export`)은 다른 질문이라
+   * `actions.ts` 의 `vetoesAction` 이 따로 답한다 — 섞으면 답이 틀린다.
+   *
+   * 왜 틀리나: 동작을 여기서 답하게 하면 표면 기본값이 동작에도 내려온다.
+   * `crm` 은 기본값이 관리자인데 CRM 셸은 **멤버면 들여보낸다**(축이 다르다).
+   * 그러면 일반 사용자 CRM 멤버가 내보내기에서 막힌다 — 아무도 차단을 안 적었는데.
+   * 그래서 동작 키는 여기 오면 안 되고, 오면 막는다.
+   */
+  if (key.includes('#')) return { allowed: false, reason: 'unregistered' }
+  const base = key
+
+  const { surfaceKey } = splitKey(base)
 
   /**
    * 등재 안 된 표면은 막는다.
@@ -77,21 +91,25 @@ export function decideAccess(
   if (!surface) return { allowed: false, reason: 'unregistered' }
 
   /**
-   * 구역이 있으면 **구역 부여를 먼저 본다.** 구역에 걸린 것이 하나라도 있으면
-   * 그 답이 이긴다 — 좁은 자리에 적은 말이 넓은 자리보다 세다.
-   * 구역에 아무것도 없으면 표면 부여로 내려간다.
+   * **좁은 것부터 넓은 것으로** 훑는다. 자리 → 표면 순이다.
+   * 어느 한 단계에서 내 부여가 있으면 거기서 끝난다. 하나도 없으면 표면 기본값이 내려온다 —
+   * 그것이 「안 건드린 부여는 표면 값이 그대로 내려간다」의 실제 구현이다.
    */
-  if (zone !== null) {
-    const zoned = decideFrom(grants, key, viewer)
-    if (zoned) return zoned
+  for (const candidate of zoneBases(base)) {
+    const hit = decideFrom(grants, candidate, viewer)
+    if (hit) return hit
   }
-
-  const own = decideFrom(grants, surfaceKey, viewer)
-  if (own) return own
 
   // 5 기본값
   return { allowed: surface.defaultAudience === 'all', reason: 'default' }
 }
+
+/** `crm:quotes` → `['crm:quotes', 'crm']`. 자리가 없으면 표면 하나뿐이다 */
+function zoneBases(base: string): string[] {
+  const { surfaceKey, zone } = splitKey(base)
+  return zone === null ? [surfaceKey] : [base, surfaceKey]
+}
+
 
 /**
  * 키 하나에 걸린 내 부여로 답이 나오나. 없으면 `null` 이고 부르는 쪽이 한 단계 넓힌다.

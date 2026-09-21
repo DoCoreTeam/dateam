@@ -231,7 +231,26 @@ export function zoneKeyOf(pathname: string): string | null {
  * 그래서 이 목록이 곧 «관리자가 고를 수 있는 것»이고 동기화가 쓰는 목록이다.
  */
 export function grantableKeys(): string[] {
-  return SURFACES.flatMap((s) => [s.key, ...(s.zones ?? []).map((z) => zoneKey(s.key, z.name))])
+  const bases = SURFACES.flatMap((s) => [s.key, ...(s.zones ?? []).map((z) => zoneKey(s.key, z.name))])
+  // 동작 키도 행이 있어야 한다 — 같은 외래키를 지난다. 「보기」는 바탕 키 그 자체라 안 붙인다
+  return [...bases, ...bases.flatMap((b) => GRANTABLE_ACTIONS.map((a) => `${b}#${a}`))]
+}
+
+/** 키를 갖는 동작. 「보기」는 바탕 키가 곧 그 답이라 여기 없다 (`actions.ts` 의 `actionKey`) */
+const GRANTABLE_ACTIONS = ['write', 'export'] as const
+
+/** 키 하나가 무엇인가 — 화면이 표면·자리만 그리고 동작 줄은 안 그리게 */
+export function keyKind(key: string): 'surface' | 'zone' | 'action' {
+  if (key.includes('#')) return 'action'
+  return splitKey(key).zone === null ? 'surface' : 'zone'
+}
+
+/** 한 단계 위 키. 자리면 표면, 동작이면 그 바탕. 표면이면 `null` */
+export function parentKey(key: string): string | null {
+  const at = key.indexOf('#')
+  if (at >= 0) return key.slice(0, at)
+  const { surfaceKey, zone } = splitKey(key)
+  return zone === null ? null : surfaceKey
 }
 
 /** 등재된 구역 하나 찾기. 저장 전에 «아는 구역인가»를 묻는 자리 */

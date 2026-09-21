@@ -15,6 +15,8 @@ import { CrmError } from '../domain/errors.ts'
 import { recordSystemEventAsync } from '../../system-log/record.ts'
 import { getCrmDb, type CrmDb } from '../db/client.ts'
 import { resolveCrmAccess, hasCrmRole, type CrmRole, type CrmSession } from '../auth/requireCrmMember.ts'
+import { canWrite } from '../../access/guard.ts'
+import { WRITE_DENIED } from '../../terms/index.ts'
 
 export interface CrmApiContext {
   session: CrmSession
@@ -23,6 +25,16 @@ export interface CrmApiContext {
 
 /** 쓰기는 MEMBER 이상, 읽기는 READONLY 이상 (명세 5장) */
 export type RequiredRole = CrmRole
+
+/**
+ * 어떤 요구 등급이 「쓰기」인가.
+ *
+ * `READONLY` 만 읽기다 — 나머지 셋은 전부 값을 바꿀 수 있는 자리라 쓰기로 센다.
+ * 등급이 늘면 여기도 늘려야 하고, 안 늘리면 **새 등급의 쓰기가 판정을 안 지난다.**
+ * 그래서 목록을 뒤집어 적는다(읽기만 빼기)가 아니라 **쓰기를 적어 둔다** — 빠뜨리면
+ * 새 등급이 조용히 통과하는 대신 조용히 막혀서, 빠뜨린 사실이 바로 드러난다.
+ */
+const WRITE_ROLES = new Set<CrmRole>(['OWNER', 'ADMIN', 'MEMBER'])
 
 export async function withCrmApi<T>(
   required: RequiredRole,
@@ -40,6 +52,22 @@ export async function withCrmApi<T>(
 
     if (!hasCrmRole(access.session.role, required)) {
       const err = new CrmError('FORBIDDEN', '이 작업을 할 권한이 없습니다.')
+      return NextResponse.json(err.toResponseBody(), { status: err.status })
+    }
+
+    /**
+     * **CRM 안의 등급과 별개로**, 관리자가 이 사람에게 쓰기를 닫아 뒀나 (I10).
+     *
+     * 두 표는 서로 다른 것을 안다. `CrmMember.role` 은 「이 워크스페이스에서 무슨 일을 맡나」를
+     * 알고, 접근권한은 「회사가 이 사람에게 이 문을 열어 줬나」를 안다. 한쪽이 열려 있어도
+     * 다른 쪽이 닫혀 있으면 닫힌 것이다 — 문을 안 연 사람에게 등급이 있다고 들여보내면
+     * 접근권한 화면에서 닫아 둔 것이 아무 뜻이 없어진다.
+     *
+     * 쓰기 등급을 요구하는 창구에서만 묻는다. 읽기 창구는 표면 판정이 이미 지나온 자리다.
+     * 그리고 동작 부여가 0건이면 이 판정은 표면 판정과 같은 답이라 **지금과 다르지 않다.**
+     */
+    if (WRITE_ROLES.has(required) && !(await canWrite('/crm'))) {
+      const err = new CrmError('FORBIDDEN', WRITE_DENIED)
       return NextResponse.json(err.toResponseBody(), { status: err.status })
     }
 

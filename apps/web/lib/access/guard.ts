@@ -27,6 +27,7 @@ import 'server-only'
 import { decideAccess, type Decision } from './decide.ts'
 import { loadViewerAccess } from './load.ts'
 import { surfaceOf, zoneKeyOf, zoneOf } from './surfaces.ts'
+import { vetoesAction, type AccessAction } from './actions.ts'
 import { navLabel } from '../nav/menu.ts'
 
 /** 로그인 안 한 요청의 답. 화면은 그 전에 이미 로그인으로 보내지만, 여기서도 닫아 둔다 */
@@ -108,4 +109,39 @@ export async function deniedSurfaceName(pathname: string | null): Promise<string
    * 업무 전체가 막힌 줄로 읽힌다.
    */
   return zoneOf(key)?.zone.label ?? navLabel(surface.href)
+}
+
+/**
+ * 이 자리에서 **이 동작까지** 되나 (I10).
+ *
+ * 창구가 부른다 — 화면이 아니라 창구다. 화면에서 단추를 숨기는 것은 편의이고,
+ * 실제로 막는 자리는 값이 나가는 창구뿐이다. 주소를 알면 단추 없이도 부를 수 있다.
+ *
+ * 동작 부여가 하나도 없으면 **보기와 같은 답**이 나온다 — 판정이 좁은 키에서 넓은 키로
+ * 내려가기 때문이다. 즉 이 함수를 붙여도 아무것도 안 바뀌고,
+ * 바뀌는 것은 관리자가 차단을 적은 뒤부터다.
+ */
+export async function canDo(href: string, action: AccessAction): Promise<boolean> {
+  const access = await loadViewerAccess()
+  if (!access) return false
+  // 관리자는 언제나 통과한다 — 잠그면 풀어 줄 사람이 사라진다(판정 1번과 같은 규칙)
+  if (access.viewer.isAdmin) return true
+
+  const surface = surfaceOf(href)
+  if (!surface) return false
+  const zone = zoneKeyOf(href)
+  const bases = zone ? [zone, surface.key] : [surface.key]
+
+  // **적힌 차단만** 본다. 아무 말도 없으면 통과 — 이 축은 거부권이라 새 문을 열지도 닫지도 않는다
+  return !vetoesAction(action, bases, access.viewer, access.grants)
+}
+
+/** 값이 파일로 나가도 되나. 내보내기 창구가 부르는 이름 */
+export async function canExport(href: string): Promise<boolean> {
+  return canDo(href, 'export')
+}
+
+/** 값을 바꿔도 되나. 쓰기 창구가 부르는 이름 */
+export async function canWrite(href: string): Promise<boolean> {
+  return canDo(href, 'write')
 }

@@ -1,6 +1,6 @@
 # PLAN newAX: 접근권한으로 메뉴를 연다
 플랜 ID: P0046
-플랜 버전: v0.1.10
+플랜 버전: v0.1.12
 상태: 진행중
 지시: ins_0059
 목표 버전: v0.10.365
@@ -139,14 +139,25 @@
 의존: I08
 
 ### I10 동작을 가르고 내보내기를 잠근다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/access/actions.ts (신규), apps/web/lib/access/decide.ts, apps/web/lib/policy/export-gate.test.ts (신규), apps/web/app/api/crm/export/route.ts, apps/web/lib/crm/services/export.ts, apps/web/package.json
+범위: apps/web/lib/access/actions.ts (신규), apps/web/lib/access/decide.ts, apps/web/lib/access/decide.test.ts, apps/web/lib/access/guard.ts, apps/web/lib/policy/export-gate.test.ts (신규), apps/web/app/api/crm/export/route.ts, apps/web/lib/crm/api/handler.ts, apps/web/lib/terms/access.ts, apps/web/app/admin/access/actions.ts, apps/web/app/admin/access/AccessClient.tsx, apps/web/package.json
 감사 기준:
 - 보안: 내보내기 라우트가 동작 판정을 부른다, 권한 없는 사용자가 403 을 받는다
-- 보안: 내보내기 판정을 안 부르는 내보내기 라우트가 있으면 가드가 실패한다, 일부러 깨뜨려 확인한다
-- 보기만 프리셋을 받은 사람은 쓰기 창구에서 403 을 받는다
+- 보안: 내보내기 판정을 안 부르는 내보내기 라우트가 **새로 생기면** 가드가 실패한다, 일부러 깨뜨려 확인한다. 지금 안 붙은 창구는 사유와 함께 적고 수가 늘지 않게 잠근다
+- 보기만 받은 사람은 CRM 쓰기 창구에서 403 을 받는다 (withCrmApi 가 쓰기 등급을 요구할 때 동작 판정도 함께 묻는다)
+- 동작 부여가 0건이면 판정 결과가 이 판 앞뒤로 같다
 의존: I09
+
+### I10a 남은 내보내기 창구에도 판정을 붙인다
+상태: 대기
+모드: 중량
+범위: apps/web/app/api/reports/export/route.ts, apps/web/app/api/reports/export-preview/route.ts, apps/web/app/api/meeting-notes/[id]/export/route.ts, apps/web/app/api/rfp/cases/[id]/export/route.ts, apps/web/app/api/admin/ai-chat/export/route.ts, apps/web/app/api/admin/ai-chat/export-pdf/route.ts, apps/web/app/api/admin/ai-chat/analyze-export-pdf/route.ts, apps/web/lib/policy/export-gate.test.ts
+감사 기준:
+- 보안: 일곱 창구가 각각 자기 표면의 내보내기 판정을 부른다, 권한 없는 호출이 403 을 받는다
+- 보안: 가드의 「아직 안 붙은 창구」 목록이 0이 되고, 그 뒤로는 새 창구가 하나라도 안 부르면 실패한다
+- 부여가 0건일 때 일곱 창구의 응답이 이 판 앞뒤로 같다
+의존: I10
 
 ### I11 값과 범위를 가른다
 상태: 대기
@@ -188,3 +199,6 @@
 - v0.1.10 (2026-09-21) I09 범위에 lib/terms/access.ts 를 더했다, 구역을 고르는 칸에 「자리」와 「표면 전체」라는 새 말이 필요하고 신규 말은 화면보다 먼저 용어집에 올린다 (audit:I09)
 - v0.1.10 (2026-09-21) I09 범위에 lib/terms/access.ts 를 더했다, 구역을 고르는 칸의 새 말을 화면보다 먼저 올린다 (audit:I09)
 - v0.1.11 (2026-09-21) I09 범위에 lib/terms/action.ts 와 용어집을 더하고 감사 기준에 말 한 줄을 넣었다. 사용자 지적 ins_0076: 「막기」는 시스템에 없는 말이고 이 시스템은 이미 차단·차단됨을 쓴다. 상수만 고치면 다음 사람이 또 지어내므로 금지어 표에 올려 가드가 막게 한다 (iv_0076)
+- v0.1.12 (2026-09-21) I10 범위와 기준을 고쳤다. 원래 범위에는 쓰기 창구가 하나도 없어 「보기만 받은 사람이 쓰기에서 403」을 잴 수 없었다 — withCrmApi 한 곳이 CRM 쓰기 전부를 지나므로 거기에 동작 판정을 건다(내부 역할 표는 그대로 두고 그 위에 문만 더한다). 내보내기 창구는 여덟인데 이 판에서 붙이는 것은 crm 하나라, 가드를 「지금보다 늘면 차단」으로 걸고 나머지는 사유와 함께 적는다. 나머지를 붙이는 일은 I10a 로 뺀다 (audit:I10)
+- v0.1.11 (2026-09-21) I10 범위에 쓰기 창구(withCrmApi)와 화면·용어를 더하고, 내보내기 가드를 지금보다 늘면 차단으로 걸었다 (audit:I10)
+- v0.1.12 (2026-09-21) I10 뒤에 I10a 를 넣었다, 내보내기 창구 여덟 중 이 판에서 붙이는 것은 하나라 나머지 일곱을 따로 세운다 (audit:I10)

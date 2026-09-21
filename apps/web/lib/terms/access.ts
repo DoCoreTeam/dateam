@@ -46,6 +46,8 @@ export const ACCESS = {
   zone: '자리',
   /** 자리를 안 고른 것 — 표면에 걸면 그 아래 자리 전부에 내려간다 */
   wholeSurface: '표면 전체',
+  /** 들어간 다음에 어디까지 하나 — 보기·쓰기·내보내기 */
+  canDo: '할 수 있는 것',
 } as const
 
 /**
@@ -137,3 +139,32 @@ export const ACCESS_DEFAULT_NOTE =
 
 /** 조직 부여에만 뜻이 있는 칸이라, 사람 부여에서는 왜 안 보이는지 밝힌다 */
 export const ACCESS_DESCENDANTS_HINT = '끄면 그 조직에 직접 속한 사람만 걸립니다'
+
+/** 파일로 빼는 것이 막혔을 때. 「권한이 없습니다」만 쓰면 무엇이 막혔는지 모른다 */
+export const EXPORT_DENIED = '이 자료를 파일로 내보낼 권한이 없습니다. 필요하면 관리자에게 요청해 주세요.'
+
+/** 값을 바꾸는 것이 막혔을 때 */
+export const WRITE_DENIED = '이 자료를 바꿀 권한이 없습니다. 보기만 할 수 있습니다.'
+
+/** 동작의 말 — 관리자 화면이 프리셋을 그릴 때 쓴다 */
+export const ACCESS_ACTION_LABEL: Record<'view' | 'write' | 'export', string> = {
+  view: '보기',
+  write: '쓰기',
+  export: '내보내기',
+}
+
+/**
+ * 프리셋의 말. **차단의 묶음**이라 이름도 「어디까지 되는가」로 적는다 —
+ * 「쓰기 금지」라고 적으면 무엇이 되는지를 관리자가 뺄셈으로 알아내야 한다.
+ */
+export const ACCESS_PRESET_LABEL: Record<'viewOnly' | 'write' | 'exportToo', string> = {
+  viewOnly: '보기만',
+  write: '쓰기까지',
+  exportToo: '내보내기까지',
+}
+
+export const ACCESS_PRESET_ORDER: readonly ('viewOnly' | 'write' | 'exportToo')[] =
+  ['viewOnly', 'write', 'exportToo']
+
+/** 프리셋을 안 쓰고 표면만 여닫을 때 */
+export const ACCESS_PRESET_NONE = '제한 없음'

@@ -36,10 +36,12 @@ import {
   ACCESS_EFFECT_LABEL, ACCESS_EFFECT_ORDER, ACCESS_EFFECT_STATUS,
   ACCESS_SUBJECT_LABEL, ACCESS_SUBJECT_ORDER,
   ACCESS_EMPTY_TITLE, ACCESS_EMPTY_HINT, ACCESS_DESCENDANTS_HINT,
+  ACCESS_PRESET_LABEL, ACCESS_PRESET_ORDER, ACCESS_PRESET_NONE,
   ACTION, failedTo, progress,
   accessGrantCount, accessOrphanLine, accessPeopleCount, accessSurfaceCount, accessSyncedLine,
 } from '@/lib/terms'
 import type { AccessAdminData, GrantRow, OrgOption, SurfaceRow } from './actions'
+import { PRESET_DENIES, actionKey, type AccessPreset } from '@/lib/access/actions'
 
 type SubjectKind = 'user' | 'org'
 type Effect = 'allow' | 'deny'
@@ -51,10 +53,12 @@ interface Draft {
   includeDescendants: boolean
   /** 부여를 걸 자리. 빈 값이면 표면 전체다 */
   zoneKey: string
+  /** 어디까지 할 수 있나. 빈 값이면 동작을 안 가린다 */
+  preset: '' | AccessPreset
 }
 
 /** 조직이 기본이다 — 사람 한 명씩 여는 것은 예외이고, 예외를 기본으로 두면 부여가 금세 낡는다 */
-const EMPTY_DRAFT: Draft = { kind: 'org', subjectId: '', effect: 'allow', includeDescendants: true, zoneKey: '' }
+const EMPTY_DRAFT: Draft = { kind: 'org', subjectId: '', effect: 'allow', includeDescendants: true, zoneKey: '', preset: '' }
 
 const ROW: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap',
@@ -82,11 +86,12 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
   }, [grants])
 
   /** 표면만 목록에 세우고, 자리는 그 표면을 펼쳤을 때 안에서 다룬다 */
-  const tops = useMemo(() => surfaces.filter((s) => s.parent_key === null), [surfaces])
+  const tops = useMemo(() => surfaces.filter((s) => s.kind === 'surface'), [surfaces])
   const zonesOf = useMemo(() => {
     const m = new Map<string, SurfaceRow[]>()
+    // 동작 줄은 안 그린다 — 프리셋이 대신 고르게 하고, 줄로 세우면 표면 하나가 열 줄이 된다
     for (const s of surfaces) {
-      if (s.parent_key === null) continue
+      if (s.kind !== 'zone' || s.parent_key === null) continue
       m.set(s.parent_key, [...(m.get(s.parent_key) ?? []), s])
     }
     return m
@@ -128,7 +133,15 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
     }
   }
 
+  /**
+   * 프리셋은 **차단의 묶음**이다(`lib/access/actions.ts` 의 `PRESET_DENIES`).
+   *
+   * 「보기만」을 고르면 바탕 부여 한 줄 뒤에 쓰기·내보내기 차단 두 줄이 더 간다.
+   * 창구는 한 번에 한 줄만 받는다 — 묶음을 창구가 알게 하면 창구와 화면 둘 다
+   * 프리셋 표를 갖게 되고, 둘이 갈리는 날이 온다.
+   */
   async function save(surfaceKey: string) {
+    const denies = draft.preset ? PRESET_DENIES[draft.preset] : []
     const ok = await send(
       '/api/admin/access',
       {
@@ -145,7 +158,26 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
       },
       '저장하지',
     )
-    if (ok) setDraft(EMPTY_DRAFT)
+    if (!ok) return
+    for (const action of denies) {
+      const done = await send(
+        '/api/admin/access',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            surfaceKey: actionKey(surfaceKey, action),
+            subjectKind: draft.kind,
+            subjectId: draft.subjectId,
+            effect: 'deny',
+            includeDescendants: draft.kind === 'org' ? draft.includeDescendants : true,
+          }),
+        },
+        '저장하지',
+      )
+      if (!done) return
+    }
+    setDraft(EMPTY_DRAFT)
   }
 
   async function remove(id: string) {
@@ -167,7 +199,9 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
         {tops.map((s) => {
           const zones = zonesOf.get(s.key) ?? []
           // 자리에 걸린 부여도 이 표면 줄에서 함께 본다 — 따로 두면 어느 표면의 자리인지 못 읽는다
-          const mine = [s.key, ...zones.map((z) => z.key)].flatMap((k) => bySurface.get(k) ?? [])
+          const under = [s.key, ...zones.map((z) => z.key)]
+          const mine = [...under, ...under.flatMap((k) => [actionKey(k, 'write'), actionKey(k, 'export')])]
+            .flatMap((k) => bySurface.get(k) ?? [])
           const audience = s.default_audience === 'admin' ? 'admin' : 'all'
           const open = openKey === s.key
 
@@ -272,6 +306,21 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                         {draft.kind === 'user'
                           ? people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
                           : orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="label" htmlFor={`preset-${s.key}`}>{ACCESS.canDo}</label>
+                      <select
+                        id={`preset-${s.key}`}
+                        className="input-field"
+                        value={draft.preset}
+                        onChange={(e) => setDraft({ ...draft, preset: e.target.value as '' | AccessPreset })}
+                      >
+                        <option value="">{ACCESS_PRESET_NONE}</option>
+                        {ACCESS_PRESET_ORDER.map((p) => (
+                          <option key={p} value={p}>{ACCESS_PRESET_LABEL[p]}</option>
+                        ))}
                       </select>
                     </div>
 
