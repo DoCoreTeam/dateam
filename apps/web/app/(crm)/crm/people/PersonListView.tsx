@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
+import Person from '@/components/ui/Person'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
@@ -20,6 +21,15 @@ import {
 import PersonFormModal from './PersonFormModal'
 import IntakeModal from '@/components/ui/crm/IntakeModal'
 
+interface PersonJson {
+  memberId: string
+  name: string
+  position: string | null
+  rank: string | null
+  explicitTitle: string | null
+  active: boolean
+}
+
 export interface PersonItem {
   id: string
   companyId: string | null
@@ -28,6 +38,10 @@ export interface PersonItem {
   phone: string | null
   title: string | null
   lifecycleStage: string
+  /** 우리 쪽에서 이 사람을 맡은 담당자 */
+  owner?: PersonJson | null
+  /** 등록한 사람. 안 바뀐다 */
+  creator?: PersonJson | null
   version: number
   updatedAt: string
 }
@@ -50,6 +64,24 @@ const COLUMNS: ColumnDef<PersonItem>[] = [
   { key: 'email', header: '이메일', cell: (r) => <ContactLink kind="email" value={r.email} icon={false} /> },
   // 폰에서 가장 필요한 칸이라 카드에서 숨기지 않는다(예전엔 hideOnCard 로 아예 안 보였다)
   { key: 'phone', header: '연락처', cell: (r) => <ContactLink kind="phone" value={r.phone} icon={false} /> },
+  {
+    key: 'owner', header: '담당자',
+    // 딜·거래처 목록과 **같은 부품**이다 — 같은 종류 화면이 서로 다른 모양이면 그것이 곧 결함이다
+    cell: (r) => (
+      <Person
+        name={r.owner?.name ?? null}
+        explicitTitle={r.owner?.explicitTitle}
+        position={r.owner?.position}
+        rank={r.owner?.rank}
+        emptyLabel="담당자 없음"
+        stacked
+      />
+    ),
+  },
+  {
+    key: 'creator', header: '작성자', hideOnCard: true,
+    cell: (r) => <Person name={r.creator?.name ?? null} emptyLabel="기록 없음" noAvatar muted />,
+  },
   {
     key: 'lifecycleStage',
     header: '단계',

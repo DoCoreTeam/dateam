@@ -10,6 +10,7 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
+import { loadMemberDisplays, toPersonJson } from './member-display.ts'
 import { normalizeEmail, normalizePhone, normalizeText, requireText } from '../domain/normalize.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
 import {
@@ -114,7 +115,17 @@ export async function listPeople(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     countIfFirstPage((db as any).crmPerson, where, decoded),
   ])
-  return toPage(rows as PersonRow[], limit, total)
+  /*
+    사람 정보를 한 벌로 붙인다 — 목록·상세가 같은 부품으로 같은 값을 그리게 한다.
+    딜 목록과 **같은 함수**를 쓴다. 자리마다 따로 읽으면 어떤 곳은 이름만, 어떤 곳은 직함까지가 된다.
+  */
+  const displays = await loadMemberDisplays(db)
+  const withPeople = (rows as PersonRow[]).map((r) => ({
+    ...r,
+    owner: toPersonJson(r.ownerId, displays),
+    creator: toPersonJson(r.createdById, displays),
+  }))
+  return toPage(withPeople as PersonRow[], limit, total)
 }
 
 export async function getPerson(db: CrmDb, id: string): Promise<PersonRow> {

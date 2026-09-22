@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, Sparkles, Upload} from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
+import Person from '@/components/ui/Person'
 import IntakeModal from '@/components/ui/crm/IntakeModal'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
@@ -32,6 +33,15 @@ import { ENRICH_BULK_MAX } from '@/lib/crm/domain/enrich-limits'
 import CompanyFormModal from './CompanyFormModal'
 
 /** 서버(`services/enrich-web.ts`)가 돌려주는 회사 한 곳의 결과 */
+interface PersonJson {
+  memberId: string
+  name: string
+  position: string | null
+  rank: string | null
+  explicitTitle: string | null
+  active: boolean
+}
+
 interface EnrichOne {
   companyId: string
   name: string
@@ -60,6 +70,10 @@ export interface CompanyItem {
   domain: string | null
   industry: string | null
   region: string | null
+  /** 지금 맡고 있는 사람 */
+  owner?: PersonJson | null
+  /** 등록한 사람. 안 바뀐다 */
+  creator?: PersonJson | null
   version: number
   updatedAt: string
 }
@@ -68,6 +82,25 @@ const COLUMNS: ColumnDef<CompanyItem>[] = [
   { key: 'name', header: '회사명', primary: true, cell: (r) => r.name },
   // 인물 목록의 이메일 칸과 같은 부품이다 — 목록에서 바로 홈페이지를 연다
   { key: 'domain', header: '도메인', cell: (r) => <ContactLink kind="domain" value={r.domain} icon={false} /> },
+  {
+    key: 'owner', header: '담당자',
+    // 딜 목록과 **같은 부품**이다 — 같은 종류 화면이 서로 다른 모양이면 그것이 곧 결함이다
+    cell: (r) => (
+      <Person
+        name={r.owner?.name ?? null}
+        explicitTitle={r.owner?.explicitTitle}
+        position={r.owner?.position}
+        rank={r.owner?.rank}
+        emptyLabel="담당자 없음"
+        stacked
+      />
+    ),
+  },
+  {
+    key: 'creator', header: '작성자', hideOnCard: true,
+    // 등록한 사람은 안 바뀐다. 기록이 없는 행은 지어내지 않고 없다고 말한다
+    cell: (r) => <Person name={r.creator?.name ?? null} emptyLabel="기록 없음" noAvatar muted />,
+  },
   {
     key: 'industry',
     header: '산업',

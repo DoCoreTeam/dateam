@@ -140,7 +140,7 @@
 의존: I04, I06, I08
 
 ### I09a 거래처와 고객 담당자 목록에도 같은 두 칸을 그린다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts, apps/web/app/(crm)/crm/companies (목록 표), apps/web/app/(crm)/crm/people (목록 표)
 감사 기준:
