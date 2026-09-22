@@ -317,12 +317,25 @@ test('★ CRM 능력 목록이 전사 표준을 그대로 읽는다 — 복사�
   assert.equal(CRM_CAPABILITIES, CAPABILITIES)
 })
 
-test('CRM 판정이 이 판 앞뒤로 같다 — 역할이 갖는 능력이 안 바뀌었다', () => {
-  assert.deepEqual(capabilitiesOf({ role: 'OWNER' }), ['cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve'])
+test('역할이 갖는 능력 — 표를 고정한다', () => {
+  /*
+    **왜 고정하나**: 이 표는 조용히 넓어지기 쉽다. 한 줄 더하면 그 역할의 모든 사람이
+    그 순간부터 그 일을 할 수 있는데 화면은 아무 말도 안 한다. 그래서 값을 박아 둔다.
+
+    2026-09-22 에 `owner.reassign`(담당자 변경)이 OWNER·ADMIN 에 들어왔다.
+    **멤버에는 일부러 안 넣었다** — 멤버가 남의 담당을 바꿀 수 있으면 담당자는 배정이 아니라
+    선착순이 된다. 본인 담당을 남에게 넘기는 것은 권한이 아니라 담당자 본인이면 되는 일이라
+    이 표와 무관하다.
+  */
+  assert.deepEqual(capabilitiesOf({ role: 'OWNER' }),
+    ['cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve', 'owner.reassign'])
+  assert.deepEqual(capabilitiesOf({ role: 'ADMIN' }),
+    ['cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve', 'owner.reassign'])
   assert.deepEqual(capabilitiesOf({ role: 'MEMBER' }), ['quote.send'])
   assert.deepEqual(capabilitiesOf({ role: 'READONLY' }), [])
-  // 사람마다 더하는 능력도 그대로 붙는다
+  // 사람마다 더하는 능력도 그대로 붙는다 — 팀장에게 역할을 안 올리고 담당자 변경만 주는 길
   assert.ok(capabilitiesOf({ role: 'MEMBER', capabilities: ['cost.view'] }).includes('cost.view'))
+  assert.ok(capabilitiesOf({ role: 'MEMBER', capabilities: ['owner.reassign'] }).includes('owner.reassign'))
 })
 
 const scope = (over: Partial<OrgScope>): OrgScope => ({

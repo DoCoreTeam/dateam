@@ -33,3 +33,19 @@ export function requireQuoteApprove(viewer: Viewer | null | undefined): void {
   if (hasCapability(viewer, 'quote.approve')) return
   throw new CrmError('FORBIDDEN', '견적을 승인할 권한이 없습니다. 관리자에게 문의해 주세요.')
 }
+
+/**
+ * **남의** 담당을 바꿀 수 있는가
+ *
+ * 본인 담당을 남에게 넘기는 길에는 이 관문을 두지 않는다 — 휴가와 인수인계는 막을 이유가 없고,
+ * 승인을 받게 하면 아무도 안 넘기고 그냥 방치한다. 그 판정(담당자 본인인가)은 담당자 값을
+ * 아는 자리에서 하고, 여기는 **권한만** 본다.
+ *
+ * 이 관문을 지나도 끝이 아니다. 권한 범위(조직도에서 계산한다)가 한 번 더 좁힌다 —
+ * 팀장은 자기 부서 안에서만 재배정한다. 두 판정을 한 함수에 합치지 않는 이유는,
+ * 합치면 「권한이 없어서 막힌 것」과 「범위 밖이라 막힌 것」을 사용자에게 구분해 말할 수 없어서다.
+ */
+export function requireOwnerReassign(viewer: Viewer | null | undefined): void {
+  if (hasCapability(viewer, 'owner.reassign')) return
+  throw new CrmError('FORBIDDEN', '담당자를 바꿀 권한이 없습니다. 본인 담당은 직접 넘길 수 있습니다.')
+}

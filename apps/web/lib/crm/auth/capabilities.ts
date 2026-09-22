@@ -6,14 +6,27 @@
  */
 import { cache } from 'react'
 import type { CrmDb } from '../db/client.ts'
-import { ROLE_CAPABILITIES, type Capability, type Viewer } from '../security/sensitivity.ts'
+import type { Capability, Viewer } from '../security/sensitivity.ts'
+import { CAPABILITIES } from '../../access/capabilities.ts'
+
+/**
+ * 아는 권한 이름 — **전사 등록부에서 온다.**
+ *
+ * 예전엔 역할 기본값(`ROLE_CAPABILITIES`)을 펼쳐 만들었다. 그러면 **어느 역할도 기본으로
+ * 안 가진 권한은 개별로 줘도 조용히 버려진다.** 관리자는 준 줄 알고, 받은 사람은 안 되고,
+ * 아무 데도 기록이 없다. 「조용한 무시가 제일 나쁘다」가 이 저장소의 판단이다(마이그 277).
+ *
+ * 지금은 우연히 문제가 안 난다 — 새로 넣은 `owner.reassign` 이 OWNER·ADMIN 기본값에 있어서다.
+ * 하지만 「팀장에게만 주는 권한」처럼 기본값 어디에도 없는 것을 만드는 순간 터진다.
+ * 그래서 기준을 **이름 목록**으로 바꾼다. 오타를 막는다는 원래 목적은 그대로다.
+ */
+const KNOWN = new Set<string>(CAPABILITIES)
 
 /** 멤버 행의 개별 부여 능력. 없으면 역할 기본값만 쓴다 */
 export const loadCapabilities = cache(async (db: CrmDb, memberId: string): Promise<readonly Capability[]> => {
   const row = await db.crmMember.findFirst({ where: { id: memberId }, select: { capabilities: true } })
-  const all = new Set<string>(Object.values(ROLE_CAPABILITIES).flat())
   // 모르는 문자열이 DB 에 있어도 권한으로 인정하지 않는다 — 오타가 권한이 되면 안 된다
-  return (row?.capabilities ?? []).filter((c): c is Capability => all.has(c))
+  return (row?.capabilities ?? []).filter((c): c is Capability => KNOWN.has(c))
 })
 
 /** 민감도 판정에 넘길 관람자 */

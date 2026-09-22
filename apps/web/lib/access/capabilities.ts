@@ -37,9 +37,20 @@ export type Capability =
   | 'margin.view'
   | 'quote.send'
   | 'quote.approve'
+  /**
+   * 남의 담당을 바꾼다.
+   *
+   * **왜 고치기 권한과 나누나**: 담당자는 실적이 집계되는 칸이다. 데이터를 고칠 수 있는
+   * 사람이면 담당자까지 바꿀 수 있게 두면, 팀원 누구나 남의 딜을 자기 앞으로 끌어올 수 있다.
+   * 그러면 담당자는 배정이 아니라 선착순이 된다.
+   *
+   * **본인 담당을 남에게 넘기는 것은 이 권한이 없어도 된다** — 휴가·인수인계는 막을 이유가 없고,
+   * 승인을 받게 하면 아무도 안 넘기고 그냥 방치한다. 판정은 `lib/crm/services/owner.ts` 가 한다.
+   */
+  | 'owner.reassign'
 
 export const CAPABILITIES: readonly Capability[] = [
-  'cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve',
+  'cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve', 'owner.reassign',
 ]
 
 /**

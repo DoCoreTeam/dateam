@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자와 작성자를 넣고 권한 기본값을 고친다
 플랜 ID: P0054
-플랜 버전: v0.1.4
+플랜 버전: v0.1.5
 상태: 진행중
 지시: ins_0091
 목표 버전: v0.10.402
@@ -84,9 +84,9 @@
 의존: I03
 
 ### I05 담당자 변경 권한을 만든다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/access/capabilities.ts, apps/web/lib/crm/security/sensitivity.ts, apps/web/lib/terms/access.ts, apps/web/lib/crm/auth/capabilities-gate.ts
+범위: apps/web/lib/access/capabilities.ts, apps/web/lib/crm/security/sensitivity.ts, apps/web/lib/terms/access.ts, apps/web/lib/crm/auth/capabilities-gate.ts, apps/web/lib/crm/auth/capabilities.ts, apps/web/lib/crm/auth/capabilities-gate.test.ts, apps/web/lib/access/decide.test.ts
 감사 기준:
 - 보안: owner.reassign 이 권한 목록에 들고 역할 기본값은 OWNER 와 ADMIN 만이다. MEMBER 와 READONLY 는 없다
 - 화면에 뜨는 이름이 lib/terms/access.ts 에 있다 (기존 다섯과 같은 자리)
@@ -170,3 +170,4 @@
 - v0.1.2 (2026-09-22) I02 에 lib/access/seat-role.ts 를 더한다. 등급을 actions.ts 리터럴로 두면 시험이 소스 글자를 찾는 수밖에 없고 그건 주석도 통과시킨다. 값으로 대조하려고 모듈로 뺀다 (audit:I02)
 - v0.1.3 (2026-09-22) I03 에 prisma/schema.prisma 를 더하고 외래키 조건을 뺀다. 이 저장소의 createdById 는 여덟 모델 전부 외래키 없는 TEXT 라 여기만 걸면 같은 뜻의 칸이 표마다 다른 규칙을 갖는다 (audit:I03)
 - v0.1.4 (2026-09-22) I04 에 가드 시험을 더한다. 값이 실제로 들어가는지와 고치는 길에 작성자가 없는지를 센다. 가드가 할일 SELECT 의 작성자 누락을 실제로 잡았다 (audit:I04)
+- v0.1.5 (2026-09-22) I05 에 세 파일을 더한다. 개별 부여를 거르는 필터가 역할 기본값 기준이라 어느 역할도 기본으로 안 가진 권한은 개별로 줘도 조용히 버려진다 (지금은 우연히 안 터지고 팀장 전용 권한을 만드는 순간 터진다). 이름 등록부 기준으로 고치고 가드를 붙였다. 역할 능력표 스냅샷 시험도 의도한 값으로 갱신 (audit:I05)

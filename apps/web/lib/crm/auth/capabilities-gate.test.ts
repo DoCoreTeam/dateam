@@ -17,8 +17,11 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { requireQuoteApprove, requireCostEdit, requireCostView } from './capabilities-gate.ts'
+import {
+  requireQuoteApprove, requireCostEdit, requireCostView, requireOwnerReassign,
+} from './capabilities-gate.ts'
 import { ROLE_CAPABILITIES, type Viewer } from '../security/sensitivity.ts'
+import { CAPABILITIES, type Capability } from '../../access/capabilities.ts'
 import { CrmError } from '../domain/errors.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -66,6 +69,48 @@ test('역할 기본값 표가 견적 승인을 ADMIN 이상에만 준다', () =>
   assert.ok(ROLE_CAPABILITIES.ADMIN.includes('quote.approve'))
   assert.ok(!ROLE_CAPABILITIES.MEMBER.includes('quote.approve'))
   assert.ok(!ROLE_CAPABILITIES.READONLY.includes('quote.approve'))
+})
+
+test('담당자 변경: 역할 기본값으로는 ADMIN 이상만 통과한다', () => {
+  assert.doesNotThrow(() => requireOwnerReassign(viewerOfRole('OWNER')))
+  assert.doesNotThrow(() => requireOwnerReassign(viewerOfRole('ADMIN')))
+  assert.ok(forbidden(() => requireOwnerReassign(viewerOfRole('MEMBER'))),
+    '멤버가 남의 담당을 바꿀 수 있으면 담당자는 배정이 아니라 선착순이 된다')
+  assert.ok(forbidden(() => requireOwnerReassign(viewerOfRole('READONLY'))))
+  assert.ok(forbidden(() => requireOwnerReassign(null)))
+})
+
+test('담당자 변경: 팀장에게 역할을 안 올리고 권한만 줄 수 있다', () => {
+  // 이 설계의 요점이다. 관리자로 올리면 원가와 마진까지 열린다
+  const 팀장: Viewer = { role: 'MEMBER', capabilities: ['owner.reassign'] }
+  assert.doesNotThrow(() => requireOwnerReassign(팀장))
+  // 권한만 줬으니 원가는 여전히 막혀야 한다
+  assert.ok(forbidden(() => requireCostView(팀장)), '담당자 권한이 원가까지 열면 안 된다')
+})
+
+test('역할 기본값 표가 담당자 변경을 ADMIN 이상에만 준다', () => {
+  assert.ok(ROLE_CAPABILITIES.OWNER.includes('owner.reassign'))
+  assert.ok(ROLE_CAPABILITIES.ADMIN.includes('owner.reassign'))
+  assert.ok(!ROLE_CAPABILITIES.MEMBER.includes('owner.reassign'))
+  assert.ok(!ROLE_CAPABILITIES.READONLY.includes('owner.reassign'))
+})
+
+test('개별 부여를 거르는 기준은 역할 기본값이 아니라 이름 등록부다', () => {
+  /*
+    역할 기본값을 펼쳐 거르면 **어느 역할도 기본으로 안 가진 권한은 개별로 줘도 버려진다.**
+    관리자는 준 줄 알고 받은 사람은 안 되고 기록도 없다 — 조용한 무시다.
+    그래서 거르는 기준이 이름 등록부(CAPABILITIES)여야 한다.
+  */
+  const src = readFileSync(join(HERE, 'capabilities.ts'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  assert.ok(!/Object\.values\(ROLE_CAPABILITIES\)/.test(src),
+    '역할 기본값으로 거르면 기본값에 없는 권한을 개별로 못 준다')
+  assert.match(src, /new Set<string>\(CAPABILITIES\)/,
+    '이름 등록부로 걸러야 오타는 막고 개별 부여는 산다')
+
+  // 등록부에 새 이름이 실제로 들어 있는가 — 안 들어 있으면 위 필터가 그 권한을 버린다
+  const known: readonly Capability[] = CAPABILITIES
+  assert.ok(known.includes('owner.reassign'), 'owner.reassign 이 이름 등록부에 없다')
 })
 
 test('원가 관문 둘도 같은 기준으로 막는다', () => {

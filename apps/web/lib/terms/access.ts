@@ -195,6 +195,7 @@ export const ACCESS_CAPABILITY_LABEL: Record<string, string> = {
   'margin.view': '마진 보기',
   'quote.send': '견적 보내기',
   'quote.approve': '견적 승인',
+  'owner.reassign': '담당자 변경',
 }
 
 /**

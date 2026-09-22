@@ -103,8 +103,11 @@ export const VISIBILITY_POLICY: Readonly<Record<Sensitivity, readonly string[]>>
 
 /** 역할이 기본으로 갖는 능력. 사람마다 더하거나 뺄 수 있다 */
 export const ROLE_CAPABILITIES: Readonly<Record<string, readonly Capability[]>> = {
-  OWNER: ['cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve'],
-  ADMIN: ['cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve'],
+  OWNER: ['cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve', 'owner.reassign'],
+  ADMIN: ['cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve', 'owner.reassign'],
+  // 멤버는 **본인 담당을 남에게 넘기는 것만** 된다. 그건 권한이 아니라 담당자 본인이면 되는 일이라
+  // 여기 없다. 남의 담당을 바꾸려면 관리자가 owner.reassign 을 따로 준다
+  // (팀장에게 역할을 안 올리고 이 권한만 주면 자기 부서 안에서만 재배정한다)
   MEMBER: ['quote.send'],
   READONLY: [],
 }
