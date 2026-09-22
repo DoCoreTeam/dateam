@@ -5,7 +5,7 @@
  *
  * 공급자가 돌려주는 문구에는 우리 조직 id 와 과금 페이지 주소가 들어 있다.
  * 실측 2026-09-22 의 실제 문구다 —
- * `429 Request too large for model 'qwen/...' in organization 'org_01kahw...'
+ * `429 Request too large for model 'qwen/...' in organization 'org_01EXAMPLE...'
  *  service tier 'on_demand' ... Upgrade to Dev Tier today at https://console.groq.com/settings/billing`
  * 이걸 화면에 그대로 실으면 내부 구조를 사용자에게 알려 주는 셈이고,
  * 사용자는 정작 «무엇 때문에 이 절이 비었나»는 못 읽는다.

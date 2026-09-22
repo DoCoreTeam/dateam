@@ -14,7 +14,7 @@ import { classifyFailure, missingSections } from './failure-reason.ts'
 /** 2026-09-22 케이스 e3338eb6 의 잡 기록에서 그대로 가져온 문구 */
 const REAL_TOO_LARGE =
   "no usable model (3 tried): 429 Request too large for model `qwen/qwen3.8-27b` in organization " +
-  "`org_01kahw7jbtfca940m70b1v3tv0` service tier `on_demand` on output tokens per minute (OTPM): " +
+  "`org_01EXAMPLEORGID000000000` service tier `on_demand` on output tokens per minute (OTPM): " +
   "Limit 1000, Requested 1333. The request's expected output tokens exceed the enforced limit; " +
   'reduce max_tokens (or the request\'s expected output) and try again. Need more tokens? ' +
   'Upgrade to Dev Tier today at https://console.groq.com/settings/billing'
@@ -49,7 +49,7 @@ test('접은 결과에 공급자 원문이 한 글자도 안 실린다', () => {
   const serialized = JSON.stringify(one)
   assert.equal(one.reason, 'too_large')
   // 원문에 있던 것들 — 조직 id, 모델 이름, 과금 주소
-  assert.ok(!serialized.includes('org_01kahw'), '조직 id 가 실렸다')
+  assert.ok(!serialized.includes('org_01EXAMPLE'), '조직 id 가 실렸다')
   assert.ok(!serialized.includes('qwen'), '모델 이름이 실렸다')
   assert.ok(!serialized.includes('console.groq.com'), '과금 주소가 실렸다')
 })
