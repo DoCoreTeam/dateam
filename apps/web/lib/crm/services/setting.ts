@@ -31,6 +31,7 @@ import {
 import { QUOTE_IMPORT_FALLBACK, QUOTE_IMPORT_CEILING } from './quote-import-config.ts'
 import type { SettingGroupKey } from '../domain/setting-group.ts'
 import { DEFAULT_QUOTE_NO_PATTERN, validateQuoteNoPattern } from '../domain/quote-number.ts'
+import { AI_PROVIDER_IDS } from '../../ai/provider-catalog.ts'
 
 export type SettingScope = 'GLOBAL' | 'WORKSPACE'
 
@@ -66,6 +67,18 @@ export interface SettingDef {
    * "그건 안 됩니다"를 듣는다. 고를 수 없는 것은 아예 안 보여야 한다.
    */
   choices?: (ctx: SettingContext) => { value: string; label: string; hint?: string }[]
+  /**
+   * 저장을 허용하는 값 — **화면 선택지와 일부러 다르다.**
+   *
+   * `choices` 는 «지금 고를 수 있는 것»이라 등록된 키에 따라 줄었다 늘었다 한다.
+   * 저장 검증을 거기에 걸면 키를 넣기 전에는 그 공급자를 미리 고를 수 없다.
+   * 반대로 검증을 아예 안 하면 **읽는 쪽이 모르는 값**이 들어온다 —
+   * 그러면 키를 넷 등록해 놓고도 기능 전체가 멈춘다(2026-09-20 실측, `global-model`).
+   *
+   * 그래서 여기 적는 집합은 «읽는 쪽이 이해하는 것»이고, 그 원본은 읽는 쪽 명세다.
+   * 안 적으면 `choices` 가 ctx 없이 내놓는 값들로 친다(고정 선택지인 설정들).
+   */
+  allowedValues?: () => readonly string[]
   /** 코드 기본값 — 설정이 하나도 없어도 시스템이 돈다 */
   fallback: unknown
   description: string
@@ -83,6 +96,8 @@ export const SETTING_DEFS: readonly SettingDef[] = [
   {
     key: 'ai.model.extract', label: '추출에 쓸 AI', kind: 'choice', group: 'ai',
     fallback: 'auto',
+    // 허용 집합의 원본은 공급자 명세다 — 여기 손으로 적으면 읽는 쪽(resolveProvider)과 갈린다
+    allowedValues: () => ['auto', 'mock', ...AI_PROVIDER_IDS],
     description: '명함·미팅에서 정보를 뽑을 때 쓸 AI입니다. 키는 시스템 설정에 등록된 것을 그대로 씁니다.',
     choices: (ctx) => [
       {
@@ -567,6 +582,17 @@ function pick(d: SettingDef, ctx?: SettingContext) {
 // 쓰기 — 감사에 남기되 값은 남기지 않는다
 // ------------------------------------------------------------
 
+/**
+ * 이 설정에 저장해도 되는 값들.
+ *
+ * `allowedValues` 를 적었으면 그것, 안 적었으면 `choices` 가 ctx 없이 내놓는 값들이다.
+ * 고정 선택지(켬·끔 같은)는 두 번 적을 필요가 없고, 두 번 적으면 한쪽만 고쳐서 갈린다.
+ */
+export function allowedValuesOf(def: SettingDef): readonly string[] {
+  if (def.allowedValues) return def.allowedValues()
+  return (def.choices?.({ availableProviders: [], defaultProvider: null }) ?? []).map((c) => c.value)
+}
+
 export async function setSetting(
   workspaceId: string,
   actorId: string | null,
@@ -595,6 +621,23 @@ export async function setSetting(
   if (def.kind === 'quoteNo') {
     const bad = validateQuoteNoPattern(String(rawValue))
     if (bad) throw new CrmError('VALIDATION_FAILED', bad, { field: key })
+  }
+
+  /*
+    **고르는 설정은 목록 밖의 값을 못 받는다.**
+
+    예전엔 아무 문자열이나 들어갔다. 그래서 `ai.model.extract` 에 `global-model` 이 들어앉았고,
+    읽는 쪽은 그 이름을 몰라 **등록된 키 넷을 한 번도 안 부르고** 추출 기능 전체를 거절했다.
+    화면은 드롭다운이라 안전해 보이지만, 창구는 화면만 부르는 게 아니다.
+    막을 자리는 읽는 쪽이 아니라 여기다 — 안 들어오면 안 터진다.
+  */
+  if (def.kind === 'choice') {
+    const allowed = allowedValuesOf(def)
+    if (allowed.length > 0 && !allowed.includes(String(rawValue))) {
+      throw new CrmError('VALIDATION_FAILED',
+        `고를 수 없는 값입니다: ${rawValue}. ${allowed.join(' · ')} 중에서 골라 주세요.`,
+        { field: key })
+    }
   }
 
   const stored: unknown = isSecret ? encryptSecret(String(rawValue)) : rawValue

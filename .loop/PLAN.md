@@ -1,6 +1,6 @@
 # PLAN newAX: 테스트가 심은 GLOBAL 설정이 운영 AI를 멈춰 세웠다
 플랜 ID: P0050
-플랜 버전: v0.1.1
+플랜 버전: v0.2.0
 상태: 진행중
 지시: ins_0092
 목표 버전: v0.10.388
@@ -61,6 +61,38 @@
 - 이미 pnpm test 에 등재된 파일이므로 등재는 그대로, 총 테스트 수가 늘어난 것을 확인
 의존: I02
 
+### I04 고르는 설정은 등록된 값만 저장된다 — 쓰기에서 막는다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/crm/services/setting.ts, apps/web/lib/crm/services/setting.test.ts (신규 또는 기존)
+감사 기준:
+- 보안: 밖에서 온 값을 다루므로, 허용 집합 밖의 값은 API 를 직접 불러도 VALIDATION_FAILED 로 거절
+- 허용 집합의 원본은 lib/ai/provider-catalog (읽는 쪽 resolveProvider 가 이해하는 것과 같은 집합), 손으로 또 적지 않음
+- setSetting(ws,'mb','ai.model.extract','global-model') 이 던짐, 'auto'·'mock'·등록된 공급자는 통과
+- choice 설정 셋 전부에 적용(ai.model.extract, quoteImport 둘)
+의존: I03
+
+### I05 모르는 값이 와도 멈추지 않는다 — 기본 AI로 넘어가고 그 사실을 남긴다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/crm/services/quick-create.ts, apps/web/lib/crm/ai/adapters/host.test.ts
+감사 기준:
+- 보안: 폴백이 조용하지 않음 — 시스템 로그에 남고, 어떤 값이 무엇으로 바뀌었는지 적힘
+- resolveProvider 가 모르는 값에 던지지 않고 기본 공급자를 돌려주며 무엇을 버렸는지 함께 돌려줌
+- 키가 하나도 없을 때는 지금처럼 그대로 던짐 (넘어갈 데가 없는 것과 값이 틀린 것은 다름)
+- host.test.ts 통과, 기존 「모르는 값은 조용히 넘어가지 않는다」 단정은 «로그에 남는다»로 옮김
+의존: I04
+
+### I06 화면이 이상값을 숨기지 않는다
+상태: 대기
+모드: 경량
+범위: apps/web/app/(crm)/crm/settings/SettingsCard.tsx, apps/web/lib/crm/domain/settings-tab.test.ts 또는 신규 가드
+감사 기준:
+- 저장된 값이 선택지에 없으면 화면이 그 사실을 말함 (지금은 select 가 첫 항목을 그려 「자동」으로 보임 — 실측)
+- 드롭다운에 그 값이 선택된 상태로 남고, 고르면 정상값으로 바뀜
+- 일부러 깨기: 이상값을 넣은 목록으로 렌더해 경고가 뜨는 것을 확인
+의존: I05
+
 ## 되돌리는 법 (I01 이 지운 행)
 
 지운 행 전문 (2026-09-22 실측, 삭제 1건)
@@ -116,3 +148,4 @@ VALUES ('st_test_global_0', 'GLOBAL', NULL, 'ai.model.extract', '"global-model"'
 ## 변경 이력
 - v0.1.0 (2026-09-22) 최초 작성 (ins_0092)
 - v0.1.1 (2026-09-22) I01 실브라우저 확인을 종합 감사로 옮기고 그 자리에 오류를 만든 함수 직접 확인을 넣음, I03 는 새 파일 대신 이미 등재된 lib/policy/test-db-safety.test.ts 를 늘림 (audit:I01)
+- v0.2.0 (2026-09-22) 사용자 개입: 키를 넷 넣었는데 설정 한 줄로 AI 전체가 멈춘 구조 자체를 고칠 것, 쓰기 차단·읽기 폴백·화면 경고 세 항목 추가 (iv_0103)
