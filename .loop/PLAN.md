@@ -73,7 +73,45 @@ VALUES ('st_test_global_0', 'GLOBAL', NULL, 'ai.model.extract', '"global-model"'
 되살릴 이유는 없음 — 테스트가 심은 값이고 운영 추출 AI 를 전부 막고 있었음
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+
+검사 넷 (2026-09-22)
+
+- pnpm tsc --noEmit: 통과 (exit 0)
+- pnpm lint: 통과 (exit 0, 기존 경고 2건은 내 범위 밖 useFormCore·useTour)
+- pnpm test: 6661/6661 통과, 실패 0
+- pnpm build: 통과 (Compiled successfully 39.2s, 정적 294/294)
+  - 첫 시도는 힙 부족으로 죽었음 — 격리 dev 서버와 동시에 돌린 탓, NODE_OPTIONS=--max-old-space-size=8192 로 재실행하여 통과
+
+보안 다섯 줄 (docs/policy/security-count.sql 실행)
+
+- rls_off_tables 0
+- anon_write_tables 0
+- public_using_true_policies 0
+- unpinned_secdef_functions 0
+- anon_readable_secdef_views 0
+
+완료 정의 대조
+
+- 검사 넷 통과: 충족
+- crm_app_setting 에 scope=GLOBAL 행 0개: 충족 (테스트 전체 실행 직후 재측정도 0)
+- 견적 파일 가져오기 모달에 AI 오류 문구 없음 (실브라우저): **못 함**
+  - 저장된 세션(apps/web/e2e/auth-state.json, 9/21)이 만료돼 401, auth.setup.ts 는 사람이 직접 로그인해야 갱신됨
+  - 크롬 확장도 연결돼 있지 않아 사용자 브라우저를 쓸 수 없었음
+  - 대신 오류 문구를 만들던 함수를 운영 데이터로 직접 확인: resolveSetting -> FALLBACK/'auto', resolveProvider(운영 META,'auto') -> 'gemini'
+  - 갱신 방법: rm apps/web/e2e/auth-state.json && npx playwright test --project=setup --headed 로 한 번 로그인
+- 새 설정 없음(env 추가 없음): 충족
+
+전체 diff (git diff 3ed35627..HEAD --stat)
+
+- 9 files, 317 insertions, 34 deletions
+- 범위 밖 변경 없음, 비밀 없음, 하드코딩 문자열 없음
+- 작업 트리에 남은 apps/web/tsconfig.json 변경은 옆 세션 것(.next-e2e-p0042·p0044·p0045), 내가 더한 두 줄은 되돌림
+
+항목 대 결과 대조
+
+- I01 -> apps/web/lib/changelog/entries.ts 에 0.10.388 블록, DB GLOBAL 행 0
+- I02 -> apps/web/tests/crm/services/setting.test.ts 17/17 (이전 15/17)
+- I03 -> apps/web/lib/policy/test-db-safety.test.ts 4 -> 6 테스트
 
 ## 변경 이력
 - v0.1.0 (2026-09-22) 최초 작성 (ins_0092)
