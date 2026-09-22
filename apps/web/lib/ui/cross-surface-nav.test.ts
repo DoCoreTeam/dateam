@@ -42,8 +42,6 @@ const ASKS = /useIsOpen\b/
  * 각 줄에 왜 아직인지 적는다 — 사유 없는 유예는 잊은 것과 구분되지 않는다.
  */
 const NOT_YET: Record<string, string> = {
-  'components/ui/WorkTabBar.tsx':
-    '업무 허브 탭 다섯. 표면 셋과 자리 둘을 건너간다 — P0049 I03 이 붙인다.',
   'components/ui/ProjectTabs.tsx':
     '구 영업 탭 넷. 네 표면을 건너간다 — P0049 I04 가 붙인다.',
   'app/(member)/home/page.tsx':

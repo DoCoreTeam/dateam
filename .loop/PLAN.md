@@ -52,7 +52,7 @@
 의존: I01
 
 ### I03 업무 탭바가 닫힌 곳을 안 그린다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/WorkTabBar.tsx, apps/web/lib/ui/cross-surface-nav.test.ts
 감사 기준:

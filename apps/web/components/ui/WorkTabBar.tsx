@@ -8,6 +8,7 @@ import { NotebookPen, Briefcase, FileText, FolderKanban, History } from 'lucide-
 import SegmentedTabs, { type SegmentedTab } from './SegmentedTabs'
 import { useMyOpenDeptTaskCount } from '@/lib/work/dept-task-badge'
 import { badgeTitle } from '@/lib/terms'
+import { useIsOpen } from '@/lib/access/open-context'
 
 const TABS: SegmentedTab[] = [
   { id: 'daily', label: '일일업무', href: '/daily', icon: <NotebookPen size={14} /> },
@@ -24,7 +25,17 @@ export default function WorkTabBar() {
     알 길이 없었다(사용자 지적 2026-09-09). 0이면 배지를 그리지 않는다.
   */
   const myOpenDeptTasks = useMyOpenDeptTaskCount()
-  const tabs = TABS.map((t) => (t.id === 'dept' && myOpenDeptTasks > 0
+
+  /*
+    **닫힌 곳은 안 그린다** (P0049 I03).
+
+    탭 다섯 중 셋은 다른 표면이고(일일업무·주간보고·부서 업무) 둘은 업무 안의 자리다
+    (프로젝트 현황·이력). 관리자가 그중 하나를 닫으면 사이드바에서는 사라지는데
+    여기는 손목록이라 그대로 남아 있었다 — 누르면 「접근할 권한이 없습니다」가 뜬다.
+    판정은 셸이 이미 재 뒀다(`lib/access/open-context.tsx`), 여기서는 읽기만 한다.
+  */
+  const isOpen = useIsOpen()
+  const tabs = TABS.filter((t) => isOpen(t.href ?? '')).map((t) => (t.id === 'dept' && myOpenDeptTasks > 0
     ? {
       ...t,
       // 배지를 누르고 오면 곧장 그 N건만 보이게 — 뜻과 도착지를 맞춘다
