@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자와 작성자를 넣고 권한 기본값을 고친다
 플랜 ID: P0054
-플랜 버전: v0.1.5
+플랜 버전: v0.1.6
 상태: 진행중
 지시: ins_0091
 목표 버전: v0.10.402
@@ -106,9 +106,9 @@
 의존: 없음
 
 ### I07 담당자를 바꾸는 창구를 연다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/crm/services/owner.ts (신규), apps/web/app/api/crm/deals/[id]/owner/route.ts (신규), apps/web/lib/crm/services/owner.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/crm/services/owner.ts (신규), apps/web/lib/crm/services/owner-decide.ts (신규), apps/web/lib/crm/services/owner-decide.test.ts (신규), apps/web/lib/crm/services/org-snapshot.ts (신규), apps/web/app/api/crm/deals/[id]/owner/route.ts (신규), apps/web/lib/crm/auth/capabilities-gate.ts, apps/web/lib/crm/auth/capabilities-gate.test.ts, apps/web/package.json
 감사 기준:
 - 보안 S2: 본인 담당을 남에게 넘기는 것은 담당자면 통과, 남의 담당을 바꾸는 것은 owner.reassign 이 있어야 하고 권한 범위 밖이면 403
 - 바꾸면 crm_audit_log 에 남는다 (누가 언제 누구에서 누구로)
@@ -171,3 +171,4 @@
 - v0.1.3 (2026-09-22) I03 에 prisma/schema.prisma 를 더하고 외래키 조건을 뺀다. 이 저장소의 createdById 는 여덟 모델 전부 외래키 없는 TEXT 라 여기만 걸면 같은 뜻의 칸이 표마다 다른 규칙을 갖는다 (audit:I03)
 - v0.1.4 (2026-09-22) I04 에 가드 시험을 더한다. 값이 실제로 들어가는지와 고치는 길에 작성자가 없는지를 센다. 가드가 할일 SELECT 의 작성자 누락을 실제로 잡았다 (audit:I04)
 - v0.1.5 (2026-09-22) I05 에 세 파일을 더한다. 개별 부여를 거르는 필터가 역할 기본값 기준이라 어느 역할도 기본으로 안 가진 권한은 개별로 줘도 조용히 버려진다 (지금은 우연히 안 터지고 팀장 전용 권한을 만드는 순간 터진다). 이름 등록부 기준으로 고치고 가드를 붙였다. 역할 능력표 스냅샷 시험도 의도한 값으로 갱신 (audit:I05)
+- v0.1.6 (2026-09-22) I07 을 판정(owner-decide)과 쓰기(owner)로 가르고 조직도 스냅샷 모듈을 뺀다. 범위 판정과 승계 판정이 같은 스냅샷을 봐야 바꿀 수 있다고 한 것과 실제로 간 곳이 안 갈린다. 그리고 I05 에서 만든 requireOwnerReassign 관문을 지운다 — 이관은 권한 없이 되므로 무조건 부를 수 없고, 그러면 선언만 되고 아무도 안 부르는 상태가 된다 (audit:I07)

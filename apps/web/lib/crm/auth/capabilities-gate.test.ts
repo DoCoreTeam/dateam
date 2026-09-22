@@ -17,10 +17,8 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import {
-  requireQuoteApprove, requireCostEdit, requireCostView, requireOwnerReassign,
-} from './capabilities-gate.ts'
-import { ROLE_CAPABILITIES, type Viewer } from '../security/sensitivity.ts'
+import { requireQuoteApprove, requireCostEdit, requireCostView } from './capabilities-gate.ts'
+import { ROLE_CAPABILITIES, capabilitiesOf, type Viewer } from '../security/sensitivity.ts'
 import { CAPABILITIES, type Capability } from '../../access/capabilities.ts'
 import { CrmError } from '../domain/errors.ts'
 
@@ -71,19 +69,15 @@ test('역할 기본값 표가 견적 승인을 ADMIN 이상에만 준다', () =>
   assert.ok(!ROLE_CAPABILITIES.READONLY.includes('quote.approve'))
 })
 
-test('담당자 변경: 역할 기본값으로는 ADMIN 이상만 통과한다', () => {
-  assert.doesNotThrow(() => requireOwnerReassign(viewerOfRole('OWNER')))
-  assert.doesNotThrow(() => requireOwnerReassign(viewerOfRole('ADMIN')))
-  assert.ok(forbidden(() => requireOwnerReassign(viewerOfRole('MEMBER'))),
-    '멤버가 남의 담당을 바꿀 수 있으면 담당자는 배정이 아니라 선착순이 된다')
-  assert.ok(forbidden(() => requireOwnerReassign(viewerOfRole('READONLY'))))
-  assert.ok(forbidden(() => requireOwnerReassign(null)))
-})
-
 test('담당자 변경: 팀장에게 역할을 안 올리고 권한만 줄 수 있다', () => {
-  // 이 설계의 요점이다. 관리자로 올리면 원가와 마진까지 열린다
+  /*
+    이 설계의 요점이다 — 관리자로 올리면 원가와 마진까지 열린다.
+    담당자 변경에는 **관문 함수를 두지 않는다.** 「내 담당을 남에게 넘기기」는 권한 없이 되고
+    「남의 담당 건드리기」는 필요해서, 무조건 부르는 관문으로는 둘을 못 가른다.
+    판정은 `owner-decide.ts` 가 하고 여기서는 권한이 붙고 떨어지는 것만 본다.
+  */
   const 팀장: Viewer = { role: 'MEMBER', capabilities: ['owner.reassign'] }
-  assert.doesNotThrow(() => requireOwnerReassign(팀장))
+  assert.ok(capabilitiesOf(팀장).includes('owner.reassign'))
   // 권한만 줬으니 원가는 여전히 막혀야 한다
   assert.ok(forbidden(() => requireCostView(팀장)), '담당자 권한이 원가까지 열면 안 된다')
 })
