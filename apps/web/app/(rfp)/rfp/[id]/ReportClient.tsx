@@ -282,15 +282,38 @@ export default function ReportClient({
             const bucket = report[sectionKey as keyof typeof report] as Record<string, ValueNode<unknown>>
             const entries = Object.entries(bucket ?? {})
               .filter(([, v]) => v?.value !== null && v?.value !== undefined)
-            if (entries.length === 0) return null
+            const miss = missingBySection.get(sectionKey)
+            /*
+              **비어 있는 것과 못 만든 것은 다르다.**
+
+              값이 0인데 분석은 성공했다면 원문에 없던 것이다 — 지금처럼 안 그린다.
+              못 만든 절은 그린다. 안 그리면 「원문에 없었다」와 똑같이 보이고,
+              사용자는 없는 것을 확인했다고 읽는다.
+            */
+            if (entries.length === 0) {
+              if (!miss) return null
+              return (
+                <section key={sectionKey} className="card">
+                  <div className={styles.sectionHead}>
+                    <div className={styles.between}>
+                      <span className={styles.sectionTitle}>{sectionLabel(sectionKey)}</span>
+                      <NbBadge status="blocker">{RFP_REPORT.missingOne}</NbBadge>
+                    </div>
+                    <span className={styles.sectionDesc}>{RFP_FAILURE_REASON[miss.reason]}</span>
+                  </div>
+                </section>
+              )
+            }
             const byKey = new Map(entries)
             return (
               <section key={sectionKey} className="card">
                 <div className={styles.sectionHead}>
                   <div className={styles.between}>
                     <span className={styles.sectionTitle}>{sectionLabel(sectionKey)}</span>
-                    <NbBadge status="note">{entries.length}</NbBadge>
+                    <NbBadge status={miss ? 'blocker' : 'note'}>{entries.length}</NbBadge>
                   </div>
+                  {/* 일부는 됐고 일부는 못 됐다 — 값이 있다고 다 본 것이 아니다 */}
+                  {miss && <span className={styles.sectionDesc}>{RFP_FAILURE_REASON[miss.reason]}</span>}
                 </div>
                 <div className={styles.valueList}>
                   {orderFields(Array.from(byKey.keys())).map((key) => (
@@ -307,13 +330,38 @@ export default function ReportClient({
             )
           })}
 
+          {/*
+            이상 조항은 **없다고 말하는 것 자체가 판단**이다.
+            못 봤는데 안 그리면 「이상 없음」으로 읽힌다 — 실측 2026-09-22 이 자리가 그랬다
+          */}
+          {anomalies.length === 0 && missingBySection.has('anomalies') && (
+            <section className="card">
+              <div className={styles.sectionHead}>
+                <div className={styles.between}>
+                  <span className={styles.sectionTitle}>{RFP_REPORT.anomalies}</span>
+                  <NbBadge status="blocker">{RFP_REPORT.missingOne}</NbBadge>
+                </div>
+                <span className={styles.sectionDesc}>
+                  {RFP_FAILURE_REASON[missingBySection.get('anomalies')!.reason]}
+                </span>
+              </div>
+            </section>
+          )}
+
           {anomalies.length > 0 && (
             <section className="card">
               <div className={styles.sectionHead}>
                 <div className={styles.between}>
                   <span className={styles.sectionTitle}>{RFP_REPORT.anomalies}</span>
-                  <NbBadge status="note">{anomalies.length}</NbBadge>
+                  <NbBadge status={missingBySection.has('anomalies') ? 'blocker' : 'note'}>
+                    {anomalies.length}
+                  </NbBadge>
                 </div>
+                {missingBySection.has('anomalies') && (
+                  <span className={styles.sectionDesc}>
+                    {RFP_FAILURE_REASON[missingBySection.get('anomalies')!.reason]}
+                  </span>
+                )}
               </div>
               <div className={styles.valueList}>
                 {anomalies.map((a, i) => (
