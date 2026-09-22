@@ -1,10 +1,12 @@
+import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
-import { Palette, Bot, Plug, Server } from 'lucide-react'
 import MfaPolicySettings from './MfaPolicySettings'
 import PageHeader from '@/components/ui/PageHeader'
-import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
-import SettingsSection from './SettingsSection'
+import SettingsCards, { type SettingsCardEntry } from '@/components/ui/settings/SettingsCards'
+import {
+  ADMIN_SETTINGS_CARDS, ADMIN_SETTINGS_TAB, ADMIN_SETTINGS_TAB_ORDER,
+} from '@/lib/admin/settings-tab'
 import YoutubeSettings from './YoutubeSettings'
 import G2bSettings from './G2bSettings'
 import VercelSettings from './VercelSettings'
@@ -154,124 +156,92 @@ export default async function AdminSettingsPage({
   ).size
   const maskedDbUrl = storedDbUrl ? storedDbUrl.replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/i, (_m, a, _pw, c) => `${a}••••••••${c}`) : null
 
-  // 탭 구성 — 아래로 계속 스크롤하는 대신 성격별로 나눈다.
-  // YouTube는 "AI 모델"이 아니라 데이터 수집용 API라 연동 탭으로 옮겼다(원래 자리가 틀렸다).
-  const tabs: SegmentedTab[] = [
-    {
-      id: 'branding',
-      label: '브랜딩',
-      icon: <Palette size={15} />,
-      content: (
-        <div className="settings-grid">
-          {/* 한 칸씩 차지하면 입력 폭이 읽기 좋은 크기가 되고, 두 카드 높이가 맞는다. */}
-          <SettingsSection title="브랜딩 설정" desc="로고와 이름은 사이드바·로그인 화면에 그대로 쓰입니다.">
-            <BrandingSettings
-              initialLogoUrl={branding.logoUrl}
-              initialBrandName={branding.brandName}
-              initialTagline={branding.tagline}
-            />
-          </SettingsSection>
-          <SettingsSection title="디자인 테마" desc="선택한 테마가 전 화면에 즉시 적용됩니다.">
-            <ThemeSettings initialTheme={activeTheme} />
-          </SettingsSection>
-        </div>
-      ),
-    },
-    {
-      id: 'ai',
-      label: 'AI 모델',
-      icon: <Bot size={15} />,
-      content: (
-        <div className="settings-stack">
-          <SettingsSection title="AI 모델 연동" desc="키를 등록한 모델만 AI 기능에서 고를 수 있습니다.">
-            <div className="settings-grid">
-              {/* 공급자 카드는 명세를 훑어 그린다 — 공급자를 하나 더하려면 명세에 한 줄을 더한다 */}
-              {AI_PROVIDERS.map((spec) => {
-                const key = readProviderKey(spec.id, meta)
-                return (
-                  <AiProviderCard
-                    key={spec.id}
-                    provider={spec.id}
-                    hasKey={Boolean(key)}
-                    maskedKey={key ? maskKey(key) : null}
-                    savedModel={readProviderModel(spec.id, meta)}
-                    // 전사 모델 칸은 그 키가 전사에도 쓰이는 공급자에게만 준다
-                    transcriptionModel={spec.alsoUsedFor ? sttModel : undefined}
-                    keyRows={keyRowsByProvider[spec.id] ?? []}
-                  />
-                )
-              })}
-              <AiProviderOrder
-                providers={AI_PROVIDERS.map((spec) => ({
-                  id: spec.id,
-                  label: spec.label,
-                  hasKey: Boolean(readProviderKey(spec.id, meta)),
-                }))}
-                order={getProviderOrder(meta)}
-                current={currentDefaultProvider}
-              />
-            </div>
-          </SettingsSection>
-          <SettingsSection title="AI 토큰 알림" desc="사용량이 기준을 넘으면 알려드립니다.">
-            <TokenAlertSettings currentThreshold={tokenAlertThreshold} />
-          </SettingsSection>
-        </div>
-      ),
-    },
-    {
-      id: 'integrations',
-      label: '외부 연동',
-      icon: <Plug size={15} />,
-      content: (
-        <div className="settings-stack">
-          <SettingsSection title="데이터 수집·저장 연동" desc="콘텐츠 수집과 자료 보관에 쓰이는 외부 서비스입니다.">
-            <div className="settings-grid">
-              <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />
-              <GoogleDriveSettings
-                connected={driveStatus.connected}
-                email={driveStatus.email}
-                outcome={typeof driveParam === 'string' ? driveParam : undefined}
-                reason={typeof params.reason === 'string' ? params.reason : undefined}
-              />
-              <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
-              <G2bSettings hasKey={Boolean(g2bKey)} maskedKey={g2bMasked} />
-              <VercelSettings
-                hasToken={Boolean(vercelToken)}
-                maskedToken={vercelToken ? maskToken(vercelToken) : null}
-                projectId={vercelProject}
-                teamId={vercelTeam}
-              />
-            </div>
-          </SettingsSection>
-        </div>
-      ),
-    },
-    {
-      id: 'system',
-      label: '시스템',
-      icon: <Server size={15} />,
-      content: (
-        <div className="settings-stack">
-          <SettingsSection title="보안" desc="로그인에 한 겹을 더할지 정합니다.">
-            <MfaPolicySettings
-              enabled={mfaRequiredForAdmin}
-              adminsWithMfa={adminsWithMfa}
-              adminsTotal={adminsTotal}
-            />
-          </SettingsSection>
-          <SettingsSection title="DB 연결" desc="마이그레이션과 운영 점검에 쓰는 연결 정보입니다.">
-            <DbSettings hasUrl={hasDbUrl} maskedUrl={maskedDbUrl} />
-          </SettingsSection>
-        </div>
-      ),
-    },
-  ]
+  // 카드가 서는 자리는 lib/admin/settings-tab.ts 가 정한다.
+  // 여기서는 이름과 알맹이만 짝지어 준다 — 목록에 없는 이름을 쓰면 시험이 먼저 잡는다.
+  //
+  // 예전에는 여기서 탭 넷을 직접 그리고 카드를 격자에 늘어놓았다. 설정 화면 넷 중
+  // 여기만 그랬고, 그래서 여기만 검색 칸이 없고 카드 위에 섹션 제목이 한 겹 더 있었다.
+  // YouTube는 "AI 모델"이 아니라 데이터 수집용 API라 연동 탭에 둔다(원래 자리가 틀렸다).
+  const node: Record<string, ReactNode> = {
+    BrandingSettings: (
+      <BrandingSettings
+        initialLogoUrl={branding.logoUrl}
+        initialBrandName={branding.brandName}
+        initialTagline={branding.tagline}
+      />
+    ),
+    ThemeSettings: <ThemeSettings initialTheme={activeTheme} />,
+    // 공급자 카드는 명세를 훑어 그린다 — 공급자를 하나 더하려면 명세에 한 줄을 더한다.
+    // 목록(settings-tab)도 같은 명세에서 파생하므로 여기와 저기가 갈릴 수 없다
+    ...Object.fromEntries(AI_PROVIDERS.map((spec) => {
+      const key = readProviderKey(spec.id, meta)
+      return [`AiProviderCard.${spec.id}`, (
+        <AiProviderCard
+          key={spec.id}
+          provider={spec.id}
+          hasKey={Boolean(key)}
+          maskedKey={key ? maskKey(key) : null}
+          savedModel={readProviderModel(spec.id, meta)}
+          // 전사 모델 칸은 그 키가 전사에도 쓰이는 공급자에게만 준다
+          transcriptionModel={spec.alsoUsedFor ? sttModel : undefined}
+          keyRows={keyRowsByProvider[spec.id] ?? []}
+        />
+      )] as const
+    })),
+    AiProviderOrder: (
+      <AiProviderOrder
+        providers={AI_PROVIDERS.map((spec) => ({
+          id: spec.id,
+          label: spec.label,
+          hasKey: Boolean(readProviderKey(spec.id, meta)),
+        }))}
+        order={getProviderOrder(meta)}
+        current={currentDefaultProvider}
+      />
+    ),
+    TokenAlertSettings: <TokenAlertSettings currentThreshold={tokenAlertThreshold} />,
+    YoutubeSettings: <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />,
+    GoogleDriveSettings: (
+      <GoogleDriveSettings
+        connected={driveStatus.connected}
+        email={driveStatus.email}
+        outcome={typeof driveParam === 'string' ? driveParam : undefined}
+        reason={typeof params.reason === 'string' ? params.reason : undefined}
+      />
+    ),
+    KoraeximSettings: <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />,
+    G2bSettings: <G2bSettings hasKey={Boolean(g2bKey)} maskedKey={g2bMasked} />,
+    VercelSettings: (
+      <VercelSettings
+        hasToken={Boolean(vercelToken)}
+        maskedToken={vercelToken ? maskToken(vercelToken) : null}
+        projectId={vercelProject}
+        teamId={vercelTeam}
+      />
+    ),
+    MfaPolicySettings: (
+      <MfaPolicySettings
+        enabled={mfaRequiredForAdmin}
+        adminsWithMfa={adminsWithMfa}
+        adminsTotal={adminsTotal}
+      />
+    ),
+    DbSettings: <DbSettings hasUrl={hasDbUrl} maskedUrl={maskedDbUrl} />,
+  }
+
+  const cards: SettingsCardEntry[] = ADMIN_SETTINGS_CARDS.map((c) => ({
+    id: c.id, tab: c.tab, title: c.title, keywords: c.keywords, content: node[c.id],
+  }))
 
   return (
     <>
       {driveParam === 'connected' && <DriveConnectedBanner />}
       <PageHeader title="시스템 설정" description="브랜딩·외부 연동·시스템 값을 한곳에서 관리합니다" />
-      <SegmentedTabs tabs={tabs} ariaLabel="시스템 설정 분류" />
+      {/* 카드마다 저장한다 — 탭 하단 일괄 저장 바를 두지 않는다 */}
+      <SettingsCards
+        groups={ADMIN_SETTINGS_TAB_ORDER.map((t) => ({ id: t, label: ADMIN_SETTINGS_TAB[t].label }))}
+        cards={cards}
+      />
     </>
   )
 }

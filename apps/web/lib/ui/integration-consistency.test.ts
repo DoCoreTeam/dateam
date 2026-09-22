@@ -123,10 +123,20 @@ test('§2-5(3) 기능: 연결 테스트가 가능한 카드는 전부 제공한�
   assert.deepEqual(missing, [], `연결 테스트가 빠진 카드: ${missing.join(', ')}`)
 })
 
-test('§2-5(5) 배치: 설정 화면은 행 정렬 그리드(.settings-grid)를 쓴다', () => {
+test('§2-5(5) 배치: 설정 화면은 배치를 공용 그릇에 맡긴다', () => {
+  /*
+    예전에는 이 자리가 「.settings-grid 를 쓰는가」를 물었다. 그때는 관리자 설정만
+    자기 격자를 짰기 때문이다 — 그래서 설정 화면 넷 중 여기만 검색 칸이 없고
+    카드 위에 섹션 제목이 한 겹 더 있었다(사용자 지적 2026-09-22).
+
+    배치는 이제 화면이 정하지 않는다. 그릇(SettingsCards)이 검색 한 칸과 분류 탭과
+    카드 쌓기를 함께 갖는다. 화면이 자기 격자를 다시 짜면 그 셋이 또 갈린다.
+  */
   const page = read('page.tsx')
-  assert.ok(page.includes('settings-grid'), '카드 배치는 .settings-grid로 한다')
-  // 열 균형(masonry)은 카드 시작점이 어긋나 보여 폐기했다 — 되살아나면 잡는다
-  assert.ok(!page.includes('settings-balance'),
-    '열 균형 배치는 카드 시작점이 어긋나 보인다. 행 정렬(.settings-grid)을 쓸 것')
+  assert.ok(page.includes('SettingsCards'),
+    '설정 화면은 카드를 공용 그릇(SettingsCards)에 담는다')
+  const own = ['settings-grid', 'settings-stack', 'settings-balance', 'gridTemplateColumns']
+    .filter((name) => page.includes(name))
+  assert.deepEqual(own, [],
+    `설정 화면이 자기 배치를 짠다(그릇에 맡길 것): ${own.join(', ')}`)
 })
