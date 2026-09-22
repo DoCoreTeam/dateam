@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자와 작성자를 넣고 권한 기본값을 고친다
 플랜 ID: P0054
-플랜 버전: v0.1.6
+플랜 버전: v0.1.7
 상태: 진행중
 지시: ins_0091
 목표 버전: v0.10.402
@@ -117,9 +117,9 @@
 의존: I05
 
 ### I08 사람을 한 벌로 그린다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/components/ui/Person.tsx (신규), apps/web/app/api/crm/members/route.ts, apps/web/app/(crm)/crm/members/MembersClient.tsx, apps/web/lib/ui/person.test.ts (신규), apps/web/package.json
+범위: apps/web/components/ui/Person.tsx (신규), apps/web/components/ui/Person.module.css (신규), apps/web/lib/ui/person.ts (신규), apps/web/lib/ui/person.test.ts (신규), apps/web/lib/crm/services/title-rule.ts (신규), apps/web/lib/crm/services/member-title.ts, apps/web/app/api/crm/members/route.ts, apps/web/app/(crm)/crm/members/MembersClient.tsx, apps/web/package.json
 감사 기준:
 - 보안 S2 S3: 멤버 목록 GET 의 등급 판정을 그대로 둔다. 직책과 직급이 새로 실려 나가므로 서비스롤로 profiles 를 읽는 자리는 이미 멤버인 사람의 id 로만 조회한다. 없는 사람을 물어 있는지 없는지가 새지 않게 한다
 - 이름 옆에 직책이 뜨고 직책이 없으면 직급이 뜬다. 둘 다 없으면 이름만이고 지어내지 않는다
@@ -172,3 +172,4 @@
 - v0.1.4 (2026-09-22) I04 에 가드 시험을 더한다. 값이 실제로 들어가는지와 고치는 길에 작성자가 없는지를 센다. 가드가 할일 SELECT 의 작성자 누락을 실제로 잡았다 (audit:I04)
 - v0.1.5 (2026-09-22) I05 에 세 파일을 더한다. 개별 부여를 거르는 필터가 역할 기본값 기준이라 어느 역할도 기본으로 안 가진 권한은 개별로 줘도 조용히 버려진다 (지금은 우연히 안 터지고 팀장 전용 권한을 만드는 순간 터진다). 이름 등록부 기준으로 고치고 가드를 붙였다. 역할 능력표 스냅샷 시험도 의도한 값으로 갱신 (audit:I05)
 - v0.1.6 (2026-09-22) I07 을 판정(owner-decide)과 쓰기(owner)로 가르고 조직도 스냅샷 모듈을 뺀다. 범위 판정과 승계 판정이 같은 스냅샷을 봐야 바꿀 수 있다고 한 것과 실제로 간 곳이 안 갈린다. 그리고 I05 에서 만든 requireOwnerReassign 관문을 지운다 — 이관은 권한 없이 되므로 무조건 부를 수 없고, 그러면 선언만 되고 아무도 안 부르는 상태가 된다 (audit:I07)
+- v0.1.7 (2026-09-22) I08 에서 직함 규칙을 title-rule.ts 로 뗀다. member-title.ts 는 조직에서 값을 읽는 함수도 같이 들고 있어 서버 전용 모듈을 끌고 오는데, webpack 은 함수 안의 늦은 import 도 따라가서 화면 부품이 그 규칙을 쓰는 순간 빌드가 깨졌다 (실측). member-title 이 다시 내보내므로 견적서 쪽은 안 바뀐다 (audit:I08)

@@ -12,27 +12,13 @@
  * (겸직·대외 직함). 그때 조직 값이 덮어쓰면 고칠 방법이 없다.
  */
 
-/** 조직에서 읽어 온 직함 조각 */
-export interface OrgTitle {
-  /** 직위 — 본부장·팀장·실장 */
-  position: string | null
-  /** 직급 — 상무·부장·차장 */
-  rank: string | null
-}
-
 /**
- * 문서에 찍을 직함 하나를 고른다.
- *
- * 둘 다 있으면 **직위**를 쓴다 — 「본부장」이 「상무」보다 상대에게 역할을 알려 준다.
- * 아무것도 없으면 `''` 다. 「직원」처럼 지어내지 않는다.
+ * 고르는 규칙은 `title-rule.ts` 에 있다 — 화면 부품도 그 규칙을 쓰는데,
+ * 이 파일은 서버 전용 모듈을 끌고 들어와서 클라이언트 번들에 못 들어간다(빌드 실패 실측 2026-09-23).
+ * 여기서 다시 내보내므로 예전부터 이 파일을 부르던 자리는 그대로다.
  */
-export function pickTitle(explicit: string | null | undefined, org: OrgTitle | null | undefined): string {
-  const e = (explicit ?? '').trim()
-  if (e) return e
-  const p = (org?.position ?? '').trim()
-  if (p) return p
-  return (org?.rank ?? '').trim()
-}
+export { pickTitle, type OrgTitle } from './title-rule.ts'
+import type { OrgTitle } from './title-rule.ts'
 
 /**
  * 호스트 프로필에서 직위·직급을 읽는다.

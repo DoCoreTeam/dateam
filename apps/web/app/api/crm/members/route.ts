@@ -10,11 +10,45 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { listMembers, addMember } from '@/lib/crm/services/member'
 import { activeMembers } from '@/lib/members/resigned-server'
 
+/** 조직에서 읽은 직급·직책을 멤버 줄에 붙인다 */
+async function attachOrgTitles<T extends { hostUserId: string }>(
+  members: T[],
+): Promise<(T & { position: string | null; rank: string | null })[]> {
+  const ids = members.map((m) => m.hostUserId).filter(Boolean)
+  if (ids.length === 0) return members.map((m) => ({ ...m, position: null, rank: null }))
+  try {
+    const sb = createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (sb.from('profiles') as any)
+      .select('id, rank, position')
+      .in('id', ids) as { data: { id: string; rank: string | null; position: string | null }[] | null }
+    const byId = new Map((data ?? []).map((p) => [p.id, p]))
+    return members.map((m) => ({
+      ...m,
+      position: byId.get(m.hostUserId)?.position ?? null,
+      rank: byId.get(m.hostUserId)?.rank ?? null,
+    }))
+  } catch {
+    return members.map((m) => ({ ...m, position: null, rank: null }))
+  }
+}
+
 export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ session }) => {
     const db = getCrmDb(session.workspaceId)
     const trash = req.nextUrl.searchParams.get('trash') === '1'
     const members = await listMembers(db, { trash })
+
+    /**
+     * 직급과 직책을 조직에서 붙인다 — CRM 은 자기 칸(`crm_member.title`)만 보고 있었고
+     * 그 칸은 손으로 채우는 자리라 **전원 비어 있었다**(실측 2026-09-22). 그래서 멤버 목록에
+     * 이름만 떴다. 값은 이미 `profiles` 에 있다(34명 중 직급 32, 직책 11).
+     *
+     * **이미 멤버인 사람의 id 로만 묻는다.** 조건 없이 훑으면 이 창구가 「그 사람이 있느냐」를
+     * 대답하는 자리가 된다(LOOP.md 7절 S3 이메일 열거와 같은 이유).
+     * 못 읽어도 목록은 나온다 — 직함은 있으면 좋은 값이지 없으면 화면이 멈출 값이 아니다.
+     */
+    const withOrgTitle = await attachOrgTitles(members)
 
     /**
      * 아직 안 들인 사람 목록도 함께 준다 — 관리자가 이름을 외워서 입력할 수는 없다.
@@ -56,7 +90,7 @@ export async function GET(req: NextRequest) {
       // 후보를 못 불러와도 멤버 목록은 보여 준다
     }
 
-    return { items: members, candidates }
+    return { items: withOrgTitle, candidates }
   })
 }
 

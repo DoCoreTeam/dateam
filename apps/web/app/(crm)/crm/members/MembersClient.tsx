@@ -17,6 +17,7 @@ import NbModal from '@/components/ui/nb/NbModal'
 import { ACTION, progress } from '@/lib/terms'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import ContactLink from '@/components/ui/ContactLink'
+import Person from '@/components/ui/Person'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
@@ -36,8 +37,11 @@ const PHONE_HINT = '고객이 이 번호로 직접 겁니다. 예: 010-0000-0000
 
 interface Member {
   id: string; hostUserId: string; displayName: string; email: string
-  /** 견적서 담당자 줄에 이름과 함께 찍힌다 */
+  /** 견적서 담당자 줄에 이름과 함께 찍힌다. 이 서비스에서 직접 지정한 값 */
   title: string | null
+  /** 조직의 직책·직급 — 여기서 또 입력하지 않고 조직도에서 읽어 온다 */
+  position: string | null
+  rank: string | null
   phone: string | null
   role: string; createdAt: string; deletedAt: string | null
 }
@@ -167,8 +171,14 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
           {items.map((m) => (
             <li key={m.id} className={styles.item}>
               <span className={styles.who}>
-                <span className={styles.name}>{m.displayName}</span>
-                {m.title && <span className={styles.title}>{m.title}</span>}
+                {/* 이름과 직책은 공용 부품이 그린다 — 자리마다 각자 그리면 한 곳만 고쳐진다 */}
+                <Person
+                  name={m.displayName}
+                  explicitTitle={m.title}
+                  position={m.position}
+                  rank={m.rank}
+                  noAvatar
+                />
                 {/* 팀원에게도 같은 방식으로 닿는다 — 화면마다 이메일 그리는 법이 다르면 안 된다(§2-5) */}
                 {m.email && <ContactLink kind="email" value={m.email} />}
                 {m.phone && <ContactLink kind="phone" value={m.phone} />}

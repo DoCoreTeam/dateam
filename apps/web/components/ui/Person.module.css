@@ -1,0 +1,89 @@
+/* 사람 한 명을 그리는 한 벌. 이름·직함·동그라미가 어디서나 같은 모양이다 */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.44rem;
+  min-width: 0;
+}
+
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  font-size: var(--fs-3xs, 0.625rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 담당자가 아니라 조직 상위가 대신 맡고 있는 상태 — 색으로도 구분된다 */
+.avatar.acting {
+  background: var(--warn, #b26a00);
+}
+
+.avatar.muted {
+  background: var(--text-faint);
+}
+
+.body {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+/* 좁은 자리에서는 이름 아래로 접힌다 */
+.body.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.name {
+  font-weight: 650;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title {
+  flex: none;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--accent-soft, color-mix(in srgb, var(--accent) 12%, transparent));
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.2rem;
+  white-space: nowrap;
+}
+
+.stacked .title {
+  background: none;
+  padding: 0;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+/* 값이 없을 때 — 지어내지 않고 없다고 말한다 */
+.none {
+  color: var(--text-faint);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.actingMark {
+  flex: none;
+  font-size: var(--fs-3xs, 0.625rem);
+  font-weight: 650;
+  color: var(--warn, #8a5200);
+  background: var(--warn-soft, color-mix(in srgb, var(--warn, #b26a00) 14%, transparent));
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.2rem;
+  white-space: nowrap;
+}
