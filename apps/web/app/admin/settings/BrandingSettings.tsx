@@ -79,7 +79,12 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
   const displayUrl = previewUrl ?? logoUrl
 
   return (
-    <SettingsCard>
+    <SettingsCard
+      title="브랜딩"
+      headingLevel={2}
+      icon={<ImageIcon size={16} />}
+      description="로고와 이름은 사이드바·로그인 화면에 그대로 쓰입니다"
+    >
       {/* 로고 미리보기 */}
       <div>
         <p className="label">로고 이미지</p>

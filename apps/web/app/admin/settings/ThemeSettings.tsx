@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Palette } from 'lucide-react'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
 
@@ -33,7 +34,12 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
   }
 
   return (
-    <SettingsCard>
+    <SettingsCard
+      title="디자인 테마"
+      headingLevel={2}
+      icon={<Palette size={16} />}
+      description="선택한 테마가 전 화면에 즉시 적용됩니다"
+    >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
         {THEMES.map((t) => {
           const selected = theme === t.id
