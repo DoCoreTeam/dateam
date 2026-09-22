@@ -52,7 +52,7 @@
 의존: I01
 
 ### I03 커밋되는 GLOBAL 생성을 정적으로 막는 가드
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/test-db-safety.test.ts
 감사 기준:
