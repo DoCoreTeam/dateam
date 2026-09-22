@@ -11,7 +11,9 @@ import type { SourceBlock } from '@/components/rfp/SourceViewer'
 import type { Report } from '@/lib/rfp/report/schema'
 import type { DocClass } from '@/lib/rfp/domain/doc-class'
 import type { FitVerdict } from '@/lib/rfp/terms'
-import { missingSections, type MissingSection } from '@/lib/rfp/analyze/failure-reason'
+import {
+  classifyFailure, missingSections, type MissingSection, type FailureReason,
+} from '@/lib/rfp/analyze/failure-reason'
 
 export const dynamic = 'force-dynamic'
 
@@ -213,8 +215,8 @@ export interface CaseProgress {
   fileCount: number
   /** 아직 안 끝난 잡 */
   runningJob: string | null
-  /** 죽은 잡과 사유 */
-  deadJob: { jobType: string; error: string } | null
+  /** 죽은 잡과 접힌 사유 — 공급자 원문은 여기 안 온다 */
+  deadJob: { jobType: string; reason: FailureReason } | null
   /** 잡은 끝났는데 못 만든 절 — 공급자 원문은 접혀서 사유 이름만 온다 */
   missing: MissingSection[]
   /** 공고 원문 주소 — 사람이 직접 열어 첨부를 받을 수 있게 */
@@ -260,7 +262,14 @@ async function loadProgress(db: unknown, caseId: string, sourceId: string | null
   return {
     fileCount: ((files as unknown[] | null) ?? []).length,
     runningJob: running?.job_type ?? null,
-    deadJob: dead ? { jobType: dead.job_type, error: dead.error ?? '' } : null,
+    /*
+      죽은 잡의 사유도 **접어서** 보낸다.
+
+      여기 담기는 것은 공급자가 돌려준 문구 그대로였다(잡은 그것을 그대로 적는다).
+      화면이 그걸 그대로 그렸으니 조직 id 와 과금 주소가 사용자 눈앞에 떴다 —
+      못 만든 절은 접어 보내면서 죽은 잡만 원문을 내보내면 같은 구멍이 남는다.
+    */
+    deadJob: dead ? { jobType: dead.job_type, reason: classifyFailure(dead.error ?? '') } : null,
     // 공급자 원문은 여기서 접힌다 — 화면으로 나가는 것은 사유 이름뿐이다
     missing: missingSections(analyzed?.progress),
     noticeUrl,

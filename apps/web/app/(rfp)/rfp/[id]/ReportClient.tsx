@@ -25,7 +25,7 @@ import {
   RFP_REPORT, RFP_LIST, DOC_CLASS_LABEL, FIT_VERDICT_LABEL, RFP_FAILURE_REASON,
   ANOMALY_SEVERITY_LABEL, type AnomalySeverity, type FitVerdict,
 } from '@/lib/rfp/terms'
-import { taskFace, type MissingSection } from '@/lib/rfp/analyze/failure-reason'
+import { taskFace, type MissingSection, type FailureReason } from '@/lib/rfp/analyze/failure-reason'
 import type { Report, ValueNode } from '@/lib/rfp/report/schema'
 import type { DocClass } from '@/lib/rfp/domain/doc-class'
 
@@ -57,7 +57,7 @@ export interface ReportClientProps {
   progress: {
     fileCount: number
     runningJob: string | null
-    deadJob: { jobType: string; error: string } | null
+    deadJob: { jobType: string; reason: FailureReason } | null
     /** 잡은 끝났는데 못 만든 절 — 빈 절과 못 만든 절은 다른 것이다 */
     missing: MissingSection[]
     noticeUrl: string | null
@@ -109,7 +109,13 @@ export default function ReportClient({
     const empty = progress.fileCount === 0
       ? { title: RFP_REPORT.noFiles, desc: RFP_REPORT.noFilesDesc }
       : progress.deadJob
-        ? { title: RFP_REPORT.analysisFailed, desc: progress.deadJob.error || RFP_REPORT.analysisFailedDesc }
+        // 접힌 사유를 그린다 — 못 접은 것(unknown)은 지금 문구로 떨어진다
+        ? {
+            title: RFP_REPORT.analysisFailed,
+            desc: progress.deadJob.reason === 'unknown'
+              ? RFP_REPORT.analysisFailedDesc
+              : RFP_FAILURE_REASON[progress.deadJob.reason],
+          }
         : progress.runningJob
           ? { title: RFP_REPORT.analyzing, desc: `${RFP_REPORT.analyzingDesc} (${progress.runningJob})` }
           : { title: RFP_REPORT.notReady, desc: RFP_REPORT.notReadyDesc }
