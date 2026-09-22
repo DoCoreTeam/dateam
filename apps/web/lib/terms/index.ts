@@ -113,4 +113,5 @@ export {
   accessPeopleCount, accessGrantCount, accessSurfaceCount, accessSyncedLine, accessOrphanLine,
   EXPORT_DENIED, WRITE_DENIED,
   ACCESS_ACTION_LABEL, ACCESS_PRESET_LABEL, ACCESS_PRESET_ORDER, ACCESS_PRESET_NONE,
+  ACCESS_RANGE_LABEL, ACCESS_RANGE_WHY, ACCESS_CAPABILITY_LABEL,
 } from './access.ts'

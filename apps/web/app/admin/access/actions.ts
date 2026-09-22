@@ -22,6 +22,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { activeMembers } from '@/lib/members/resigned-server'
 import { SURFACES, grantableKeys, keyKind, parentKey } from '@/lib/access/surfaces'
 import { ACCESS_ACTION_LABEL } from '@/lib/terms'
+import { rangeOfPerson, type AccessRange } from '@/lib/access/capabilities'
 import { navLabel } from '@/lib/nav/menu'
 
 export interface SurfaceRow {
@@ -48,7 +49,14 @@ export interface GrantRow {
 export interface PersonOption {
   id: string
   name: string
-  email: string | null
+  /**
+   * 이 사람이 **누구의 것을 보나**. 조직도에서 나온 값이라 여기서 정하지 않는다.
+   *
+   * 왜 목록에 싣나: 표면을 열어 주는 순간 이 사람은 그 화면의 **자기 범위만큼**을 본다.
+   * 저장하기 전에 그 범위를 모르면 관리자는 「한 사람에게 열었다」고 생각하는데
+   * 실제로는 부서 전체의 자료가 그 사람에게 보이기 시작한다.
+   */
+  range: AccessRange
 }
 
 export interface OrgOption {
@@ -140,6 +148,22 @@ export async function syncSurfaces(): Promise<{ justSynced: number; orphans: str
   }
 }
 
+/**
+ * 조회 하나를 꺼내되 **조용히 비지 않게** 한다.
+ *
+ * **왜 필요한가** (실측 2026-09-21): `profiles` 에 없는 `email` 칼럼을 골라 읽고 있었다.
+ * supabase-js 는 그걸 던지지 않고 `{ data: null, error }` 로 **돌려준다.** 그런데 부르는 쪽이
+ * `data ?? []` 만 보고 있어서, 사람 고르는 목록이 **오류 한 줄 없이 빈 채로** 그려졌다.
+ * 관리자 화면은 멀쩡해 보이고 아무도 못 고른다 — 조용히 0건이 되는 것이 제일 나쁘다.
+ *
+ * 그래서 던진다. 이 화면은 관리자 전용이고, 조회가 깨졌으면 **깨진 줄 알아야** 고친다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rows<T>(res: any, what: string): T[] {
+  if (res?.error) throw new Error(`${what}을(를) 읽지 못했습니다: ${res.error.message}`)
+  return (res?.data ?? []) as T[]
+}
+
 /** 화면이 그릴 것 전부. 동기화를 먼저 하므로 표면 목록은 언제나 코드와 같다 */
 export async function loadAccessAdminData(): Promise<AccessAdminData> {
   const admin = createAdminClient()
@@ -149,24 +173,29 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
   const [surfaceRes, grantRes, peopleRes, nodeRes, closureRes] = await Promise.all([
     (admin as any).from('access_surface').select('key, label, group_key, href, default_audience'),
     (admin as any).from('access_grant').select('id, surface_key, subject_kind, subject_id, effect, include_descendants'),
-    (admin as any).from('profiles').select('id, name, email').is('deleted_at', null).order('name'),
-    (admin as any).from('org_nodes').select('id, type, parent_id, name, user_id'),
+    (admin as any).from('profiles').select('id, name').is('deleted_at', null).order('name'),
+    (admin as any).from('org_nodes').select('id, type, parent_id, head_user_id, name, user_id'),
     (admin as any).from('org_node_closure').select('ancestor_id, descendant_id'),
   ])
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
-  const nodes = (nodeRes.data ?? []) as { id: string; type: string; parent_id: string | null; name: string; user_id: string | null }[]
-  const closure = (closureRes.data ?? []) as { ancestor_id: string; descendant_id: string }[]
+  const nodes = rows<{ id: string; type: string; parent_id: string | null; head_user_id: string | null; name: string; user_id: string | null }>(nodeRes, '조직도')
+  const closure = rows<{ ancestor_id: string; descendant_id: string }>(closureRes, '조직 계층')
 
   /**
    * 퇴사자는 고르는 목록에서 뺀다. 남겨 두면 나간 사람에게 문을 여는 부여가 생기고,
    * 그건 아무도 안 쓰는 부여가 아니라 **계정이 살아 있는 동안 열려 있는 문**이다.
    */
-  const people = await activeMembers(admin, ((peopleRes.data ?? []) as PersonOption[]).filter((p) => p.name))
+  const active = await activeMembers(
+    admin,
+    rows<Omit<PersonOption, 'range'>>(peopleRes, '구성원').filter((p) => p.name),
+  )
+  // 조직도를 사람 수만큼 다시 읽지 않는다 — 이미 읽은 nodes 로 셈만 한다
+  const people: PersonOption[] = active.map((p) => ({ ...p, range: rangeOfPerson(p.id, nodes) }))
 
   return {
-    surfaces: withParent((surfaceRes.data ?? []) as Omit<SurfaceRow, 'parent_key' | 'kind'>[]),
-    grants: (grantRes.data ?? []) as GrantRow[],
+    surfaces: withParent(rows<Omit<SurfaceRow, 'parent_key' | 'kind'>>(surfaceRes, '표면 사본')),
+    grants: rows<GrantRow>(grantRes, '부여'),
     people,
     orgs: orgOptions(nodes, closure),
     justSynced,

@@ -1,6 +1,6 @@
 # PLAN newAX: 접근권한으로 메뉴를 연다
 플랜 ID: P0046
-플랜 버전: v0.1.12
+플랜 버전: v0.1.13
 상태: 진행중
 지시: ins_0059
 목표 버전: v0.10.365
@@ -160,12 +160,13 @@
 의존: I10
 
 ### I11 값과 범위를 가른다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/access/capabilities.ts (신규), apps/web/lib/access/decide.ts, apps/web/lib/access/decide.test.ts, apps/web/app/admin/access/AccessClient.tsx
+범위: apps/web/lib/access/capabilities.ts (신규), apps/web/lib/access/decide.test.ts, apps/web/lib/crm/security/sensitivity.ts, apps/web/app/admin/access/actions.ts, apps/web/app/admin/access/AccessClient.tsx, apps/web/lib/terms/access.ts
 감사 기준:
-- CRM 능력 5종이 전사 표준 이름으로 올라오고 CRM 쪽 판정 결과가 바뀌지 않는다
-- 범위 셋(내 것, 부서, 전사)이 조직 스코프 결과와 일치한다
+- CRM 능력 5종이 전사 표준 이름으로 올라온다 (CRM 이 새 SSOT 를 import 하고 목록을 두 벌로 안 든다), CRM 쪽 판정 결과가 바뀌지 않는다
+- 범위 셋(내 것, 부서, 전사)이 조직 스코프 결과와 일치한다 (전사는 모든 부서, 부서는 관할 서브트리, 내 것은 관할 없음)
+- 관리자 화면이 사람마다 그 사람의 범위를 보여 준다 — 열어 주면 무엇까지 보는지 저장 전에 알 수 있어야 한다
 - pnpm test 통과
 의존: I10
 
@@ -202,3 +203,5 @@
 - v0.1.12 (2026-09-21) I10 범위와 기준을 고쳤다. 원래 범위에는 쓰기 창구가 하나도 없어 「보기만 받은 사람이 쓰기에서 403」을 잴 수 없었다 — withCrmApi 한 곳이 CRM 쓰기 전부를 지나므로 거기에 동작 판정을 건다(내부 역할 표는 그대로 두고 그 위에 문만 더한다). 내보내기 창구는 여덟인데 이 판에서 붙이는 것은 crm 하나라, 가드를 「지금보다 늘면 차단」으로 걸고 나머지는 사유와 함께 적는다. 나머지를 붙이는 일은 I10a 로 뺀다 (audit:I10)
 - v0.1.11 (2026-09-21) I10 범위에 쓰기 창구(withCrmApi)와 화면·용어를 더하고, 내보내기 가드를 지금보다 늘면 차단으로 걸었다 (audit:I10)
 - v0.1.12 (2026-09-21) I10 뒤에 I10a 를 넣었다, 내보내기 창구 여덟 중 이 판에서 붙이는 것은 하나라 나머지 일곱을 따로 세운다 (audit:I10)
+- v0.1.13 (2026-09-21) I11 범위에서 decide.ts 를 빼고 sensitivity.ts·actions.ts·terms 를 넣었다. 판정 순서는 안 바뀌므로 decide.ts 는 손댈 것이 없고, 「전사 표준으로 올라온다」를 목록 복사가 아니라 **CRM 이 새 SSOT 를 import 하는 것**으로 읽었다 — 복사면 두 벌이 되고 그 둘이 갈리는 날이 온다. 그리고 범위를 화면에 안 보이면 계산만 하고 아무도 안 쓰는 값이 된다 (audit:I11)
+- v0.1.13 (2026-09-21) I11 범위를 고쳤다, 능력은 CRM 이 새 SSOT 를 import 하게 하고 범위는 화면에 보인다 (audit:I11)

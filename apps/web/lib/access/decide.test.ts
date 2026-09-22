@@ -10,6 +10,9 @@ import assert from 'node:assert/strict'
 import { decideAccess, type Grant, type Viewer } from './decide.ts'
 import { SURFACES, surfaceOf, surfaceByKey, zoneKeyOf, zoneOf, grantableKeys, keyKind, parentKey } from './surfaces.ts'
 import { actionKey, actionChain, splitAction, vetoesAction, PRESET_DENIES } from './actions.ts'
+import { CAPABILITIES, RANGES, rangeOfScope, rangeOfPerson, deptIdsOfRange } from './capabilities.ts'
+import { ALL_CAPABILITIES as CRM_CAPABILITIES, capabilitiesOf } from '../crm/security/sensitivity.ts'
+import type { OrgScope } from '../org-scope-pure.ts'
 import { NAV_AUDIENCE, ADMIN_ONLY_GROUPS } from '../nav/menu.ts'
 
 const ADMIN: Viewer = { userId: 'u-admin', isAdmin: true, orgIds: [] }
@@ -300,4 +303,81 @@ test('보기만 프리셋은 쓰기와 내보내기를 막고 보기는 안 막�
 test('남에게 건 차단은 나를 안 막는다', () => {
   const other = { surfaceKey: actionKey('crm', 'export'), subject: { kind: 'user' as const, id: 'u-남' }, effect: 'deny' as const }
   assert.equal(vetoesAction('export', ['crm'], MEMBER, [other]), false)
+})
+
+// ⑤ 값과 범위 (I11)
+//
+// 이 판에서 지키는 것 둘
+//   ① 능력 이름이 **한 곳**에 있다 — CRM 이 복사해 가면 두 벌이 되고 그 둘이 갈린다
+//   ② 범위 셋이 조직 스코프와 **같은 답**을 낸다 — 다르면 관리자가 연 범위와 사용자가 보는 범위가 다르다
+
+test('★ CRM 능력 목록이 전사 표준을 그대로 읽는다 — 복사본이 없다', () => {
+  assert.deepEqual([...CRM_CAPABILITIES], [...CAPABILITIES])
+  // 같은 배열 객체여야 «읽는 것»이고, 값만 같으면 복사본이다
+  assert.equal(CRM_CAPABILITIES, CAPABILITIES)
+})
+
+test('CRM 판정이 이 판 앞뒤로 같다 — 역할이 갖는 능력이 안 바뀌었다', () => {
+  assert.deepEqual(capabilitiesOf({ role: 'OWNER' }), ['cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve'])
+  assert.deepEqual(capabilitiesOf({ role: 'MEMBER' }), ['quote.send'])
+  assert.deepEqual(capabilitiesOf({ role: 'READONLY' }), [])
+  // 사람마다 더하는 능력도 그대로 붙는다
+  assert.ok(capabilitiesOf({ role: 'MEMBER', capabilities: ['cost.view'] }).includes('cost.view'))
+})
+
+const scope = (over: Partial<OrgScope>): OrgScope => ({
+  editableDeptIds: [], readableDeptIds: [], isExecutive: false,
+  scopeRootIds: [], nodes: [], closure: [], ...over,
+})
+
+test('범위 셋이 조직 스코프 결과와 일치한다', () => {
+  // 전사 — 모든 부서를 읽는다
+  const all = scope({ isExecutive: true, readableDeptIds: ['d1', 'd2', 'd3'] })
+  assert.equal(rangeOfScope(all), 'all')
+  assert.deepEqual(deptIdsOfRange(all, 'all'), ['d1', 'd2', 'd3'])
+
+  // 부서 — 관할이 있고 그 서브트리를 읽는다
+  const dept = scope({ editableDeptIds: ['d1'], readableDeptIds: ['d1', 'd1-1'] })
+  assert.equal(rangeOfScope(dept), 'dept')
+  assert.deepEqual(deptIdsOfRange(dept, 'dept'), ['d1', 'd1-1'])
+
+  // 내 것 — 관할이 없다. 소속 부서가 readable 에 있어도 부서가 아니다
+  const self = scope({ readableDeptIds: ['d1'] })
+  assert.equal(rangeOfScope(self), 'self')
+  assert.deepEqual(deptIdsOfRange(self, 'self'), [])
+})
+
+test('소속 부서를 읽는 것만으로 부서 범위가 되지 않는다 — 그러면 전원이 부서가 된다', () => {
+  assert.equal(rangeOfScope(scope({ readableDeptIds: ['내부서'] })), 'self')
+  assert.equal(rangeOfScope(scope({ editableDeptIds: ['내부서'], readableDeptIds: ['내부서'] })), 'dept')
+})
+
+const ORG = [
+  { id: 'root', type: 'company', parent_id: null, head_user_id: null, user_id: null },
+  { id: 'ceo', type: 'role', parent_id: 'root', head_user_id: 'u-ceo', user_id: null },
+  { id: 'hq', type: 'department', parent_id: 'root', head_user_id: 'u-hq', user_id: null },
+  { id: 'team', type: 'department', parent_id: 'hq', head_user_id: 'u-head', user_id: null },
+  { id: 'p1', type: 'person', parent_id: 'team', head_user_id: null, user_id: 'u-1' },
+]
+
+test('조직도 원본만으로 구한 범위가 스코프 규칙과 같다', () => {
+  assert.equal(rangeOfPerson('u-ceo', ORG), 'all')
+  assert.equal(rangeOfPerson('u-head', ORG), 'dept')
+  assert.equal(rangeOfPerson('u-1', ORG), 'self')
+  assert.equal(rangeOfPerson('u-없는사람', ORG), 'self')
+})
+
+test('★ 루트 바로 아래의 장은 전사다 — 기존 스코프 규칙 그대로 옮긴 것이다', () => {
+  /*
+    `lib/org-scope.ts` 의 apex 판정이 「루트 head 이거나 **루트 직속 노드**의 head」다.
+    즉 본부가 회사 바로 아래 있으면 본부장이 전사로 잡힌다. 넓어 보이지만 **여기서 고치지 않는다** —
+    이 판의 기준은 「조직 스코프 결과와 일치한다」이고, 여기서만 좁히면 관리자 화면이 말하는 범위와
+    사용자가 실제로 보는 범위가 갈린다. 규칙을 바꾸려면 org-scope 를 바꾸는 판에서 함께 바꾼다.
+  */
+  assert.equal(rangeOfPerson('u-hq', ORG), 'all')
+})
+
+test('범위 이름 셋이 전부 있고 겹치지 않는다', () => {
+  assert.deepEqual([...RANGES], ['self', 'dept', 'all'])
+  assert.equal(new Set(RANGES).size, RANGES.length)
 })

@@ -37,6 +37,7 @@ import {
   ACCESS_SUBJECT_LABEL, ACCESS_SUBJECT_ORDER,
   ACCESS_EMPTY_TITLE, ACCESS_EMPTY_HINT, ACCESS_DESCENDANTS_HINT,
   ACCESS_PRESET_LABEL, ACCESS_PRESET_ORDER, ACCESS_PRESET_NONE,
+  ACCESS_RANGE_LABEL, ACCESS_RANGE_WHY,
   ACTION, failedTo, progress,
   accessGrantCount, accessOrphanLine, accessPeopleCount, accessSurfaceCount, accessSyncedLine,
 } from '@/lib/terms'
@@ -106,6 +107,11 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
     if (!org) return 0
     return draft.includeDescendants ? org.subtreeCount : org.directCount
   })()
+
+  /** 사람을 골랐으면 그 사람의 범위. 조직을 골랐으면 사람마다 달라서 한 값으로 못 말한다 */
+  const pickedRange = draft.kind === 'user'
+    ? people.find((p) => p.id === draft.subjectId)?.range ?? null
+    : null
 
   function toggle(key: string) {
     setOpenKey((prev) => (prev === key ? null : key))
@@ -304,9 +310,18 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                       >
                         <option value="" />
                         {draft.kind === 'user'
-                          ? people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
+                          ? people.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} · {ACCESS_RANGE_LABEL[p.range]}
+                              </option>
+                            ))
                           : orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                       </select>
+                      {pickedRange && (
+                        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: 'var(--space-1)' }}>
+                          {ACCESS_RANGE_WHY[pickedRange]}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -353,6 +368,8 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                     {draft.subjectId !== '' && (
                       <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
                         {accessPeopleCount(previewCount)}
+                        {/* 열어 주면 그 사람이 **자기 범위만큼** 본다 — 저장 전에 그 사실을 말한다 */}
+                        {pickedRange && ` · ${ACCESS_RANGE_LABEL[pickedRange]}`}
                       </span>
                     )}
 

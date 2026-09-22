@@ -15,20 +15,21 @@
  * **나중에 푸는 것은 표 한 줄이다.** VISIBILITY_POLICY 에 역할을 더하면 된다.
  */
 
+import { CAPABILITIES, type Capability } from '../../access/capabilities.ts'
+
 /** 민감 등급 — 셋뿐이다. 늘리면 판정이 흐려진다 */
 export type Sensitivity = 'public' | 'internal' | 'restricted'
 
-/** 능력(capability) — 역할을 늘리지 않고 능력을 사람마다 더하거나 뺀다 */
-export type Capability =
-  | 'cost.view'
-  | 'cost.edit'
-  | 'margin.view'
-  | 'quote.send'
-  | 'quote.approve'
-
-export const ALL_CAPABILITIES: readonly Capability[] = [
-  'cost.view', 'cost.edit', 'margin.view', 'quote.send', 'quote.approve',
-]
+/**
+ * 능력(capability) — 역할을 늘리지 않고 능력을 사람마다 더하거나 뺀다.
+ *
+ * **이름은 전사 표준이다**(`lib/access/capabilities.ts`). 여기서 다시 적지 않는다 —
+ * 값이 새는 자리는 CRM 만이 아니라서(견적·주간보고·RFP 도 금액을 다룬다), 이름을
+ * 서비스 안에 두면 두 번째 서비스가 같은 뜻에 다른 말을 붙인다.
+ * **판정은 여기가 계속 한다** — 필드 등급표(`FIELD_SENSITIVITY`)가 여기 있기 때문이다.
+ */
+export type { Capability }
+export { CAPABILITIES as ALL_CAPABILITIES }
 
 /**
  * 필드 → 등급.

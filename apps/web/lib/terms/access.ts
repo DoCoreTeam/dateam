@@ -168,3 +168,31 @@ export const ACCESS_PRESET_ORDER: readonly ('viewOnly' | 'write' | 'exportToo')[
 
 /** 프리셋을 안 쓰고 표면만 여닫을 때 */
 export const ACCESS_PRESET_NONE = '제한 없음'
+
+/**
+ * 범위의 말 — **누구의 것을 보나.**
+ *
+ * 조직 스코프가 정한 것을 옮겨 적기만 한다(`lib/access/capabilities.ts`).
+ * 화면이 「전사」라고 말하는데 실제로는 부서까지면 관리자가 잘못 연다.
+ */
+export const ACCESS_RANGE_LABEL: Record<'self' | 'dept' | 'all', string> = {
+  self: '내 것',
+  dept: '부서',
+  all: '전사',
+}
+
+/** 범위가 왜 그런지 — 관리자가 조직도를 안 열어 보고도 알 수 있게 */
+export const ACCESS_RANGE_WHY: Record<'self' | 'dept' | 'all', string> = {
+  self: '관할 부서가 없어 자기 것과 소속 부서만 봅니다',
+  dept: '관할 부서가 있어 그 아래까지 봅니다',
+  all: '전사 권한이라 모든 부서를 봅니다',
+}
+
+/** 값의 말 — 같은 화면 안에서도 가려지는 칸이 있다 */
+export const ACCESS_CAPABILITY_LABEL: Record<string, string> = {
+  'cost.view': '원가 보기',
+  'cost.edit': '원가 고치기',
+  'margin.view': '마진 보기',
+  'quote.send': '견적 보내기',
+  'quote.approve': '견적 승인',
+}
