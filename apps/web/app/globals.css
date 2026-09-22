@@ -2023,47 +2023,11 @@
   overflow-wrap: anywhere;
 }
 
-.settings-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
-.settings-section-head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-bottom: var(--space-4);
-}
-.settings-section-desc {
-  margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-}
 /* 카드가 저마다 max-width를 들고 있으면 폭이 제각각으로 보인다.
    폭은 레이아웃이 정하고 카드는 칸을 채운다(§2-4 full-width 반응형). */
 .settings-balance > *,
 .settings-pair > * { min-width: 0; max-width: none; }
 
-/* 배치 규칙 — 카드 «시작점»을 행 단위로 맞추고, 바닥은 내용이 끝나는 자리에서 끝낸다.
-   열 균형(masonry)은 시작점이 어긋나 "사이즈가 안 맞는" 것처럼 보인다 — 그래서 여전히 격자다.
-   예전에는 바닥까지 맞췄다(align-items: stretch + height: 100%). 그러면 짧은 카드가 옆 카드
-   높이만큼 늘어나 아래가 통째로 빈 상자가 된다 — 실측 2026-09-20 관리자 AI 모델 탭은
-   카드 높이 합 4,237px 중 624px(14.7%)이 그렇게 생긴 자리였다.
-   맞출 것은 시작점이고, 늘릴 것은 아무것도 없다(계측 apps/web/e2e/settings-whitespace.spec.ts). */
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-6);
-  align-items: start;
-}
-.settings-grid > * { min-width: 0; max-width: none; }
-/* 섹션(제목+카드) 형태와 카드 단독 형태 둘 다 지원 */
-.settings-grid > .settings-section { display: flex; flex-direction: column; }
-.settings-grid > .card { display: flex; flex-direction: column; }
-
-@media (max-width: 1023px) {
-  .settings-grid { grid-template-columns: minmax(0, 1fr); }
-}
 
 /* ─── 리드 인테이크 ────────────────────────────────────────────── */
 .tab-btn {

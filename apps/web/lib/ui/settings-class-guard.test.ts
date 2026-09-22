@@ -58,6 +58,23 @@ test('옛 설정 별칭 다섯이 0건이다 — 쓰는 곳이 없는 이름은 
     `쓰는 곳이 없는 옛 설정 별칭이 남아 있다: ${offenders.join(', ')}`)
 })
 
+test('걷어 낸 설정 배치 이름 다섯이 CSS 에 없다', () => {
+  /*
+    관리자 설정만 자기 격자(.settings-grid)와 섹션 머리(.settings-section-*)를 썼다.
+    그 화면이 공용 그릇으로 옮겨 온 뒤 쓰는 곳이 0 이 되어 걷어 냈다(2026-09-22).
+
+    **CSS 파일만 본다.** 이름이 다시 «정의»되는 것을 잡는 규칙이라 그렇다 —
+    트리 전체를 훑으면 이 이름을 금지어로 적어 둔 다른 가드 파일이 위반으로 잡힌다.
+  */
+  const DEAD = ['.settings-grid', '.settings-stack', '.settings-section', '.settings-section-head', '.settings-section-desc']
+  const offenders = FILES
+    .filter((f) => f.endsWith('.css'))
+    .filter((f) => { const src = read(f); return DEAD.some((n) => src.includes(`${n} {`) || src.includes(`${n},`)) })
+    .map(rel)
+  assert.deepEqual(offenders, [],
+    `걷어 낸 설정 배치 이름이 CSS 에 돌아왔다: ${offenders.join(', ')}`)
+})
+
 test('상태 배지 색은 globals.css 한 곳에서만 정해진다', () => {
   const css = read(join(WEB, 'app', 'globals.css'))
   for (const tone of ['ok', 'warn', 'danger', 'info', 'neutral']) {

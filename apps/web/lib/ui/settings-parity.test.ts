@@ -201,9 +201,15 @@ test('카드를 옆 카드 높이에 맞춰 늘리지 않는다', () => {
   assert.deepEqual(offenders, [],
     `설정 화면이 카드를 늘린다: ${offenders.join(', ')}`)
 
-  // 공용 격자 자신도 늘리지 않는다 — 여기 한 줄이 돌아오면 네 화면이 한꺼번에 늘어난다
+  /*
+    예전에는 여기서 `.settings-grid` 가 다시 stretch 로 늘리는지를 봤다.
+    그 격자는 관리자 설정만 쓰던 것이고, 그 화면이 공용 그릇으로 옮겨 오면서 쓰는 곳이 0 이 됐다.
+    쓰는 곳이 없는 이름을 CSS 에 남겨 두면 다음 사람이 **지금 써도 되는 이름**인 줄 안다 —
+    그러면 카드 배치가 다시 화면마다 갈린다(걷어 낸 자리를 지키는 것이 이 줄이다).
+  */
   const css = read(join(WEB, 'app', 'globals.css'))
-  const block = css.slice(css.indexOf('.settings-grid {'), css.indexOf('.settings-grid {') + 600)
-  assert.ok(!STRETCH.test(block), '.settings-grid 가 다시 stretch 로 늘린다')
-  assert.ok(!/height:\s*100%/.test(block), '.settings-grid 가 다시 height 100% 로 늘린다')
+  const revived = ['.settings-grid', '.settings-stack', '.settings-section-head', '.settings-section-desc']
+    .filter((name) => css.includes(`${name} {`) || css.includes(`${name},`))
+  assert.deepEqual(revived, [],
+    `걷어 낸 옛 배치 규칙이 CSS 에 돌아왔다(배치는 SettingsPanel 이 한다): ${revived.join(', ')}`)
 })
