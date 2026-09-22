@@ -23,6 +23,8 @@ export interface PersonProps extends PersonSource {
   noAvatar?: boolean
   /** 흐린 동그라미 — 내가 아닌 사람을 옅게 그릴 때 */
   muted?: boolean
+  /** 마우스를 올렸을 때 나오는 설명. 대행이면 왜 이 사람인지를 적는다 */
+  tooltip?: string
 }
 
 export default function Person({
@@ -31,6 +33,7 @@ export default function Person({
   stacked = false,
   noAvatar = false,
   muted = false,
+  tooltip,
   ...src
 }: PersonProps) {
   // 이름도 직함도 없으면 사람이 없는 것이다. 「이름 없음」을 그리는 것보다 정확하다
@@ -42,7 +45,7 @@ export default function Person({
     .filter(Boolean).join(' ')
 
   return (
-    <span className={styles.root}>
+    <span className={styles.root} title={tooltip}>
       {!noAvatar && <span className={avatarClass} aria-hidden="true">{initial}</span>}
       <span className={`${styles.body} ${stacked ? styles.stacked : ''}`}>
         <span className={styles.name}>{name}</span>

@@ -12,6 +12,7 @@ import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import Sensitive from '@/components/crm/Sensitive'
 import { Plus } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
+import Person from '@/components/ui/Person'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListSummary from '@/components/ui/list/ListSummary'
 import ListPager from '@/components/ui/list/ListPager'
@@ -33,7 +34,16 @@ import { BUSINESS_TYPE_LABEL_TEXT } from '@/lib/terms/ledger'
 import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
 import { dealBusinessTypeKey } from '@/lib/crm/domain/business-type'
 
-export interface DealRowItem {
+export interface PersonJson {
+  memberId: string
+  name: string
+  position: string | null
+  rank: string | null
+  explicitTitle: string | null
+  active: boolean
+}
+
+interface DealRowItem {
   id: string
   name: string
   companyId: string
@@ -46,6 +56,8 @@ export interface DealRowItem {
   /** 조인해서 온 것 — 표에 그대로 보여 준다 */
   companyName?: string | null
   ownerName?: string | null
+  owner?: PersonJson | null
+  creator?: PersonJson | null
   businessType?: string | null
   /** 사업 유형 키 — crm_business_type.key(마이그 242). 이것이 진실이다 */
   businessTypeKey?: string | null
@@ -163,7 +175,24 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
     },
     {
       key: 'owner', header: '담당자',
-      cell: (r) => r.ownerName ?? <span style={{ color: 'var(--text-faint)' }}>—</span>,
+      // 이름만 그리면 상세와 모양이 갈린다 — 같은 부품이 이름과 직책을 함께 그린다
+      cell: (r) => (
+        <Person
+          name={r.owner?.name ?? r.ownerName ?? null}
+          explicitTitle={r.owner?.explicitTitle}
+          position={r.owner?.position}
+          rank={r.owner?.rank}
+          emptyLabel="담당자 없음"
+          stacked
+        />
+      ),
+    },
+    {
+      key: 'creator', header: '작성자', hideOnCard: true,
+      // 등록한 사람은 안 바뀐다. 기록이 없는 행은 지어내지 않고 없다고 말한다
+      cell: (r) => (
+        <Person name={r.creator?.name ?? null} emptyLabel="기록 없음" noAvatar muted />
+      ),
     },
     {
       key: 'businessType', header: BUSINESS_TYPE_LABEL_TEXT, hideOnCard: true,

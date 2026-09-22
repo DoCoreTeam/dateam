@@ -21,6 +21,7 @@ import { normalizeText, requireText } from '../domain/normalize.ts'
 import { assertTransit, type DealStatus } from '../domain/state-machines.ts'
 import { toStageHistoryData, isRealMove } from '../domain/stage-history.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
+import { loadMemberDisplays, toPersonJson } from './member-display.ts'
 import { loadRules, runAutomations, type TriggerKind } from './automation.ts'
 import {
   clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage, countIfFirstPage,
@@ -319,12 +320,20 @@ export async function listDeals(db: CrmDb, input: ListDealInput = {}): Promise<C
   ])
 
   const nameOf = new Map(members.map((m) => [m.id, m.displayName]))
+  /*
+    직함까지 붙은 사람 한 벌 — 이름만 주면 목록과 상세가 서로 다른 모양으로 사람을 그린다.
+    멤버 표는 위에서 이미 읽었지만, 직급·직책은 조직에 있어서 한 번 더 모은다(요청당 1회).
+  */
+  const displays = await loadMemberDisplays(db)
   const withNames = (rows as (DealRow & { company?: { name: string } | null })[]).map((r) => {
     const { company, ...rest } = r
     return {
       ...rest,
       companyName: company?.name ?? null,
+      // 이름만 쓰던 자리가 아직 있다(리포트) — 그 자리를 안 깨뜨린다
       ownerName: r.ownerId ? nameOf.get(r.ownerId) ?? null : null,
+      owner: toPersonJson(r.ownerId, displays),
+      creator: toPersonJson(r.createdById, displays),
     }
   })
   return toPage(withNames as DealRow[], limit, total)

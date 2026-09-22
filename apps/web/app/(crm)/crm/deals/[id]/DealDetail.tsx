@@ -18,6 +18,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import Person from '@/components/ui/Person'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import Timeline from '@/components/ui/crm/Timeline'
@@ -64,6 +65,40 @@ interface Deal {
   lostReason: string | null
   version: number
   updatedAt: string
+  /** 지금 맡고 있는 사람. 대행이면 조직 상위가 들어온다 */
+  owner?: PersonJson | null
+  /** 담당자가 정해진 것이 아니라 조직 상위가 대신 맡고 있는 상태인가 */
+  ownerActing?: boolean
+  ownerActingVia?: string | null
+  /** 등록한 사람. 과거 사실이라 대행이 없고 바뀌지도 않는다 */
+  creator?: PersonJson | null
+}
+
+/** 화면이 받는 사람 한 명 — 서버가 조직에서 직함까지 붙여 준다 */
+interface PersonJson {
+  memberId: string
+  name: string
+  position: string | null
+  rank: string | null
+  explicitTitle: string | null
+  active: boolean
+}
+
+/** 사람 한 칸 — 값이 없으면 지어내지 않고 없다고 말한다 */
+function PersonField({ p, acting, via, emptyLabel }: {
+  p?: PersonJson | null; acting?: boolean; via?: string | null; emptyLabel: string
+}) {
+  if (!p) return <Person name={null} emptyLabel={emptyLabel} noAvatar />
+  return (
+    <Person
+      name={p.name}
+      explicitTitle={p.explicitTitle}
+      position={p.position}
+      rank={p.rank}
+      acting={acting}
+      tooltip={acting && via ? `${via} 의 장으로서 대신 맡고 있습니다` : undefined}
+    />
+  )
 }
 
 interface HistoryRow {
@@ -228,6 +263,21 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                 {deal.status === 'LOST' && (
                   <RecordField label="실주 사유">{deal.lostReason}</RecordField>
                 )}
+                {/*
+                  담당자와 작성자는 **성격이 다르다.** 담당자는 지금 누가 맡나(바뀐다),
+                  작성자는 누가 등록했나(안 바뀐다). 그래서 작성자 옆에는 누르는 자리가 없다.
+                */}
+                <RecordField label="담당자">
+                  <PersonField
+                    p={deal.owner}
+                    acting={deal.ownerActing}
+                    via={deal.ownerActingVia}
+                    emptyLabel="담당자 없음"
+                  />
+                </RecordField>
+                <RecordField label="작성자">
+                  <PersonField p={deal.creator} emptyLabel="기록 없음" />
+                </RecordField>
                 <RecordField label="최근 변경">{formatKstDateTimeShort(deal.updatedAt)}</RecordField>
               </RecordFieldList>
             </RecordPanel>

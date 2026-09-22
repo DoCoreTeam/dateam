@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자와 작성자를 넣고 권한 기본값을 고친다
 플랜 ID: P0054
-플랜 버전: v0.1.7
+플랜 버전: v0.1.9
 상태: 진행중
 지시: ins_0091
 목표 버전: v0.10.402
@@ -129,15 +129,25 @@
 의존: 없음
 
 ### I09 화면이 담당자와 작성자를 그린다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(crm)/crm/deals/[id]/DealDetail.tsx, apps/web/app/(crm)/crm/deals/DealsClient.tsx, apps/web/app/(crm)/crm/companies (목록)
+범위: apps/web/app/(crm)/crm/deals/[id]/DealDetail.tsx, apps/web/app/(crm)/crm/deals/DealTableView.tsx, apps/web/app/api/crm/deals/[id]/route.ts, apps/web/lib/crm/services/deal.ts, apps/web/lib/crm/services/member-display.ts (신규), apps/web/components/ui/Person.tsx
 감사 기준:
 - 딜 상세에 담당자와 작성자가 뜬다. 작성자 옆은 수정 불가 표시이고 누르는 자리가 없다
 - 담당자가 대행이면 대행 표시가 붙는다 (I06 판정을 읽는다)
 - 작성자가 없는 행은 기록 없음 으로 뜬다. 지어내지 않는다
 - pnpm tsc --noEmit 통과
 의존: I04, I06, I08
+
+### I09a 거래처와 고객 담당자 목록에도 같은 두 칸을 그린다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts, apps/web/app/(crm)/crm/companies (목록 표), apps/web/app/(crm)/crm/people (목록 표)
+감사 기준:
+- 거래처와 고객 담당자 목록이 딜 목록과 **같은 부품**으로 담당자와 작성자를 그린다 (같은 종류 화면은 골격이 같아야 한다)
+- 작성자가 없는 행은 기록 없음 으로 뜬다
+- pnpm tsc --noEmit 과 pnpm build 통과
+의존: I09
 
 ### I10 목록과 오늘 화면이 내 담당을 먼저 보인다
 상태: 대기
@@ -173,3 +183,5 @@
 - v0.1.5 (2026-09-22) I05 에 세 파일을 더한다. 개별 부여를 거르는 필터가 역할 기본값 기준이라 어느 역할도 기본으로 안 가진 권한은 개별로 줘도 조용히 버려진다 (지금은 우연히 안 터지고 팀장 전용 권한을 만드는 순간 터진다). 이름 등록부 기준으로 고치고 가드를 붙였다. 역할 능력표 스냅샷 시험도 의도한 값으로 갱신 (audit:I05)
 - v0.1.6 (2026-09-22) I07 을 판정(owner-decide)과 쓰기(owner)로 가르고 조직도 스냅샷 모듈을 뺀다. 범위 판정과 승계 판정이 같은 스냅샷을 봐야 바꿀 수 있다고 한 것과 실제로 간 곳이 안 갈린다. 그리고 I05 에서 만든 requireOwnerReassign 관문을 지운다 — 이관은 권한 없이 되므로 무조건 부를 수 없고, 그러면 선언만 되고 아무도 안 부르는 상태가 된다 (audit:I07)
 - v0.1.7 (2026-09-22) I08 에서 직함 규칙을 title-rule.ts 로 뗀다. member-title.ts 는 조직에서 값을 읽는 함수도 같이 들고 있어 서버 전용 모듈을 끌고 오는데, webpack 은 함수 안의 늦은 import 도 따라가서 화면 부품이 그 규칙을 쓰는 순간 빌드가 깨졌다 (실측). member-title 이 다시 내보내므로 견적서 쪽은 안 바뀐다 (audit:I08)
+- v0.1.8 (2026-09-22) I09 범위를 실제로 고친 파일로 맞춘다. 목록은 DealsClient 가 아니라 DealTableView 가 열을 그리고, 사람 정보를 한 번 읽어 나눠 쓸 자리(member-display)가 필요했다. 거래처 목록은 딜과 같은 모양이라 다음 판으로 미루지 않고 I09a 로 뺀다 (audit:I09)
+- v0.1.9 (2026-09-22) I09a 신설. I09 에서 뺀 거래처 목록을 범위 밖으로 넘기지 않고 항목으로 남긴다 — 같은 종류 화면이 서로 다른 모양이면 그것이 곧 결함이다 (audit:I09)
