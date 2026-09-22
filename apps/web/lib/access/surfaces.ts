@@ -79,6 +79,19 @@ export interface Surface {
    * **아무 일도 안 일어나는 것**을 보게 된다 — 마이그 277 이 역할(role)을 안 넣은 것과 같은 이유다.
    */
   zones?: readonly Zone[]
+  /**
+   * 부여 말고 **또 무엇이 있어야 들어가나**.
+   *
+   * 서비스 넷은 자기 멤버십 장치를 따로 갖고 있다(CRM 멤버·CI 워크스페이스·AI 관리자 전용).
+   * 부여만 주고 그 장치를 안 채우면 메뉴는 뜨는데 들어가면 막힌다 — **죽은 문**이다
+   * (실측 2026-09-22: 테스트 계정에 영업 CRM 을 열어 줬더니 「관리자에게 요청해 주세요」가 떴다).
+   *
+   * 여기 적힌 표면은 관리자 화면이 그 사실을 **저장하기 전에** 말한다.
+   * 창구가 자동으로 채워 주는 것은 `autoSeat` 가 참인 것뿐이다.
+   */
+  needsMembership?: string
+  /** 부여를 저장할 때 창구가 그 서비스의 자리까지 만들어 주나 */
+  autoSeat?: boolean
 }
 
 export const SURFACES: readonly Surface[] = [
@@ -120,9 +133,19 @@ export const SURFACES: readonly Surface[] = [
    * 서비스 — 사이드바에서 `ADMIN_ONLY_GROUPS` 가 묶음째 관리자에게만 그린다.
    * 각 서비스 안의 멤버십(CRM 멤버·CI 워크스페이스)은 그 서비스 셸이 계속 본다 — 축이 다르다.
    */
-  { key: 'crm', href: '/crm', group: 'service', defaultAudience: 'admin' },
-  { key: 'ci', href: '/ci', group: 'service', defaultAudience: 'admin' },
-  { key: 'ai', href: '/ai', group: 'service', defaultAudience: 'admin' },
+  {
+    key: 'crm', href: '/crm', group: 'service', defaultAudience: 'admin',
+    // 허용을 저장하면 창구가 읽기 전용 자리를 함께 만든다 — 그래서 여기만 바로 열린다
+    autoSeat: true,
+  },
+  {
+    key: 'ci', href: '/ci', group: 'service', defaultAudience: 'admin',
+    needsMembership: '콘텐츠 인텔리전스는 워크스페이스에 넣어야 들어갑니다. 허용만으로는 빈 화면이 뜹니다',
+  },
+  {
+    key: 'ai', href: '/ai', group: 'service', defaultAudience: 'admin',
+    needsMembership: 'AI 스튜디오는 아직 관리자 전용입니다(표 잠금도 관리자 기준). 허용해도 일반 사용자는 못 들어갑니다',
+  },
   { key: 'rfp', href: '/rfp', group: 'service', defaultAudience: 'admin' },
 
   // 구 영업 — 메뉴는 열어 두고 라우트는 막던 자리(죽은 문). 기본값은 라우트 쪽 사실을 적는다

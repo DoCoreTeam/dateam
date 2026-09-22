@@ -235,6 +235,16 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
               {/* 닫혀 있으면 본문을 그리지 않는다 — <details> 는 닫아도 자식을 문서에 둔다 */}
               {open && (
                 <div style={{ padding: '0 0 var(--space-4)' }}>
+                  {/*
+                    부여 말고 또 필요한 것이 있으면 **저장하기 전에** 말한다.
+                    안 말하면 관리자는 열었다고 믿고, 사용자는 눌렀는데 막힌다 —
+                    실측 2026-09-22 에 실제로 그렇게 됐다.
+                  */}
+                  {s.needs_membership && (
+                    <p role="note" style={{ margin: '0 0 var(--space-3)', color: 'var(--warning)', fontSize: 'var(--fs-sm)' }}>
+                      {s.needs_membership}
+                    </p>
+                  )}
                   {mine.length === 0 ? (
                     <EmptyState title={ACCESS_EMPTY_TITLE} description={ACCESS_EMPTY_HINT} />
                   ) : (

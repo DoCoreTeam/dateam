@@ -7,6 +7,9 @@
 // 이제 검색·계정·전체메뉴는 AppShell이 항상 넣고, CI는 메뉴·알림·어시스턴트만 얹는다.
 
 import { redirect } from 'next/navigation'
+import { canOpen } from '@/lib/access/guard'
+import AccessDenied from '@/components/ui/AccessDenied'
+import { SERVICE_LABEL } from '@/lib/terms'
 import { badgeTitle, type BadgeKey } from '@/lib/terms'
 import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import {
@@ -119,6 +122,18 @@ export default async function CiLayout({ children }: { children: React.ReactNode
   // (member)와 같은 이유 — role은 위 조회에 이미 들어 있다
   await redirectApiUser(profile?.role)
   await requireAdminMfa(profile?.role)
+
+  /**
+   * **접근권한이 이 문을 닫아 뒀나** (I11a).
+   *
+   * 서비스 멤버십과 별개의 질문이다. 멤버 표는 「이 서비스에서 무슨 일을 맡나」를 알고,
+   * 접근권한은 「회사가 이 사람에게 이 문을 열어 줬나」를 안다. 이 판정이 없으면
+   * 관리자 화면에서 닫아도 멤버인 사람은 그대로 들어온다 — 닫는 단추가 거짓말이 된다.
+   *
+   * 부여가 0건이면 표면 기본값(관리자)이 답하므로 **관리자는 그대로 통과**하고,
+   * 멤버는 자기 서비스 멤버십으로 들어오던 대로 들어온다 — 이 판 앞뒤가 같다.
+   */
+  if (!(await canOpen('/ci'))) return <AccessDenied what={SERVICE_LABEL.ci} standalone />
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const userEmail = user.email ?? ''
   const isAdmin = profile?.role === 'admin'

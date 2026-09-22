@@ -20,7 +20,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { activeMembers } from '@/lib/members/resigned-server'
-import { SURFACES, grantableKeys, keyKind, parentKey } from '@/lib/access/surfaces'
+import { SURFACES, grantableKeys, keyKind, parentKey, splitKey, surfaceByKey } from '@/lib/access/surfaces'
 import { ACCESS_ACTION_LABEL } from '@/lib/terms'
 import { rangeOfPerson, type AccessRange } from '@/lib/access/capabilities'
 import { navLabel } from '@/lib/nav/menu'
@@ -35,6 +35,8 @@ export interface SurfaceRow {
   parent_key: string | null
   /** 표면인가 자리인가 동작인가. 화면은 앞의 둘만 그린다 */
   kind: 'surface' | 'zone' | 'action'
+  /** 부여 말고 또 무엇이 있어야 들어가나. 없으면 부여만으로 들어간다 */
+  needs_membership: string | null
 }
 
 export interface GrantRow {
@@ -194,7 +196,7 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
   const people: PersonOption[] = active.map((p) => ({ ...p, range: rangeOfPerson(p.id, nodes) }))
 
   return {
-    surfaces: withParent(rows<Omit<SurfaceRow, 'parent_key' | 'kind'>>(surfaceRes, '표면 사본')),
+    surfaces: withParent(rows<Omit<SurfaceRow, 'parent_key' | 'kind' | 'needs_membership'>>(surfaceRes, '표면 사본')),
     grants: rows<GrantRow>(grantRes, '부여'),
     people,
     orgs: orgOptions(nodes, closure),
@@ -254,10 +256,16 @@ export interface SaveGrantInput {
  * 구역이 표면에서 떨어져 나오면 관리자는 `work:activity` 가 어디에 속한 자리인지
  * 키를 읽어 짐작해야 한다. 짐작으로 허용하거나 차단하게 두지 않는다.
  */
-export function withParent(rows: readonly Omit<SurfaceRow, 'parent_key' | 'kind'>[]): SurfaceRow[] {
+export function withParent(rows: readonly Omit<SurfaceRow, 'parent_key' | 'kind' | 'needs_membership'>[]): SurfaceRow[] {
   const RANK = { surface: 0, zone: 1, action: 2 } as const
   return rows
-    .map((r) => ({ ...r, parent_key: parentKey(r.key), kind: keyKind(r.key) }))
+    .map((r) => ({
+      ...r,
+      parent_key: parentKey(r.key),
+      kind: keyKind(r.key),
+      // 진실은 코드 등재부다 — DB 사본에 안 싣는다. 사본에 실으면 문구를 고쳐도 옛 말이 남는다
+      needs_membership: surfaceByKey(r.key)?.needsMembership ?? null,
+    }))
     .sort((a, b) => {
       const an = a.kind === 'surface' ? a.key : a.key.split(/[:#]/)[0]
       const bn = b.kind === 'surface' ? b.key : b.key.split(/[:#]/)[0]
@@ -306,7 +314,90 @@ export async function saveGrant(input: SaveGrantInput, actorId: string): Promise
     },
     { onConflict: 'surface_key,subject_kind,subject_id' },
   )
-  return error ? `저장 실패: ${error.message}` : null
+  if (error) return `저장 실패: ${error.message}`
+
+  /**
+   * 문을 열었으면 **들어갈 자리도 만든다.** 여기서 실패해도 부여는 남긴다 —
+   * 부여까지 되돌리면 관리자는 저장 자체가 안 된 줄 알고 같은 일을 다시 한다.
+   */
+  try {
+    await ensureServiceSeat(input)
+  } catch (e) {
+    return `문은 열었는데 서비스 자리를 못 만들었습니다: ${e instanceof Error ? e.message : String(e)}`
+  }
+  return null
+}
+
+/**
+ * 서비스 표면을 사람에게 허용하면 **그 서비스의 자리까지 만든다** (I11a).
+ *
+ * ## 왜 필요한가 (실측 2026-09-22)
+ *
+ * 테스트 계정에 영업 CRM 을 열어 주고 메뉴를 눌렀더니
+ * 「영업 CRM 사용 권한이 없습니다. 관리자에게 요청해 주세요」가 떴다.
+ * 서비스는 자기 멤버 표를 따로 보기 때문이다. 메뉴는 부여로 뜨고 문은 멤버 표로 막히니
+ * **죽은 문**이고, 그건 이 판이 없애려던 바로 그것이다.
+ *
+ * ## 왜 요청 중이 아니라 저장할 때인가
+ *
+ * 들어오는 요청마다 몰래 자리를 만들면 관리자는 자기가 무엇을 만들었는지 모른다.
+ * 저장은 관리자가 **명시적으로 누른 한 번**이라, 그 자리에서 만드는 것이 설명된다.
+ *
+ * ## 무엇을 만드나
+ *
+ * 가장 낮은 등급(READONLY)이다. 「보라고 열어 줬다」가 부여의 뜻이고, 그보다 더 주는 것은
+ * 관리자가 CRM 멤버 화면에서 따로 올린다. 이미 자리가 있으면 **손대지 않는다** —
+ * 등급을 덮으면 올려 둔 권한이 조용히 내려간다.
+ *
+ * 부여를 지울 때 자리를 지우지는 않는다. 그 사람에게 딸린 기록(담당·감사 로그)이 남아 있고,
+ * 문은 서비스 셸의 접근권한 판정이 닫는다.
+ */
+async function ensureServiceSeat(input: SaveGrantInput): Promise<void> {
+  if (input.subjectKind !== 'user' || input.effect !== 'allow') return
+  if (input.surfaceKey.includes('#')) return
+  const { surfaceKey, zone } = splitKey(input.surfaceKey)
+  if (zone !== null) return
+  if (!surfaceByKey(surfaceKey)?.autoSeat) return
+
+  const admin = createAdminClient()
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const { data: seat } = await (admin as any)
+    .from('crm_member')
+    .select('id')
+    .eq('hostUserId', input.subjectId)
+    .is('deletedAt', null)
+    .maybeSingle()
+  if (seat) return
+
+  // 워크스페이스는 하나다. 이름을 코드에 박지 않고 이미 있는 자리에서 꺼낸다
+  const { data: anyMember } = await (admin as any)
+    .from('crm_member').select('workspaceId').limit(1).maybeSingle()
+  const workspaceId = (anyMember as { workspaceId?: string } | null)?.workspaceId
+  if (!workspaceId) throw new Error('영업 CRM 워크스페이스를 찾지 못했습니다')
+
+  const { data: person } = await (admin as any)
+    .from('profiles').select('name').eq('id', input.subjectId).maybeSingle()
+
+  /**
+   * 메일 주소는 `auth.users` 에만 있다 — `profiles` 에는 그 칼럼이 없다.
+   * `crm_member.email` 은 NOT NULL 이라 빠뜨리면 자리 만들기가 통째로 실패한다
+   * (실측 2026-09-22: 첫 판이 그대로 실패했다).
+   */
+  const { data: authUser } = await admin.auth.admin.getUserById(input.subjectId)
+  const email = authUser?.user?.email
+  if (!email) throw new Error('메일 주소를 못 찾아 영업 CRM 자리를 만들지 못했습니다')
+
+  const { error: seatError } = await (admin as any).from('crm_member').insert({
+    id: `mb_grant_${input.subjectId.slice(0, 8)}_${Date.now().toString(36)}`,
+    workspaceId,
+    hostUserId: input.subjectId,
+    role: 'READONLY',
+    displayName: (person as { name?: string } | null)?.name ?? email,
+    email,
+    capabilities: [],
+  })
+  if (seatError) throw new Error(seatError.message)
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 export async function removeGrant(id: string): Promise<string | null> {

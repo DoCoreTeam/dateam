@@ -4,6 +4,9 @@
 // 접근은 임직원(admin·member)이다 — CRM 과 같다. 관리자 설정만 메뉴에서 갈린다.
 
 import { FileSearch, FilePlus2, Radar, Building2, MessagesSquare, Settings } from 'lucide-react'
+import { canOpen } from '@/lib/access/guard'
+import AccessDenied from '@/components/ui/AccessDenied'
+import { SERVICE_LABEL } from '@/lib/terms'
 import { redirect } from 'next/navigation'
 import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import { getRequestUser } from '@/lib/supabase/server'
@@ -35,6 +38,18 @@ export default async function RfpLayout({ children }: { children: React.ReactNod
   if (!user) redirect('/login')
   // 임직원만 — api_user 는 위에서, 비로그인은 여기서 걸린다
   if (profile?.role !== 'admin' && profile?.role !== 'member') redirect('/')
+
+  /**
+   * **접근권한이 이 문을 닫아 뒀나** (I11a).
+   *
+   * 서비스 멤버십과 별개의 질문이다. 멤버 표는 「이 서비스에서 무슨 일을 맡나」를 알고,
+   * 접근권한은 「회사가 이 사람에게 이 문을 열어 줬나」를 안다. 이 판정이 없으면
+   * 관리자 화면에서 닫아도 멤버인 사람은 그대로 들어온다 — 닫는 단추가 거짓말이 된다.
+   *
+   * 부여가 0건이면 표면 기본값(관리자)이 답하므로 **관리자는 그대로 통과**하고,
+   * 멤버는 자기 서비스 멤버십으로 들어오던 대로 들어온다 — 이 판 앞뒤가 같다.
+   */
+  if (!(await canOpen('/rfp'))) return <AccessDenied what={SERVICE_LABEL.rfp} standalone />
 
   const isAdmin = profile?.role === 'admin'
   const groups: NavGroup[] = rfpNavFor(isAdmin).map((g) => ({

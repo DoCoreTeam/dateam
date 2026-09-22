@@ -6,6 +6,9 @@
 // 멤버를 열 때 고칠 곳은 여기와 `NAV_AUDIENCE` 두 줄뿐이다.
 
 import { Sparkles, MessagesSquare, FolderKanban, ListTree, FolderOpen, Cpu } from 'lucide-react'
+import { canOpen } from '@/lib/access/guard'
+import AccessDenied from '@/components/ui/AccessDenied'
+import { SERVICE_LABEL } from '@/lib/terms'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import { getRequestUser } from '@/lib/supabase/server'
@@ -45,7 +48,16 @@ export default async function AiLayout({ children }: { children: React.ReactNode
   const profile = await getRequestProfile()
   await redirectApiUser(profile?.role)
   await requireAdminMfa(profile?.role)
+  /**
+   * **접근권한이 이 문을 닫아 뒀나** (I11a).
+   *
+   * 여는 쪽으로는 아직 못 쓴다 — AI 스튜디오는 표 잠금(마이그 150)까지 관리자 기준이라
+   * 일반 사용자를 들여보내면 빈 화면이 된다. 그래서 여기서는 **닫는 쪽만** 잇고,
+   * 그 사실을 관리자 화면이 `needsMembership` 으로 말한다(조용히 안 열리지 않게).
+   * `requireAdmin` 이 먼저라 일반 사용자는 어차피 못 온다 — 이 줄은 관리자를 닫을 때 일한다.
+   */
   await requireAdmin()
+  if (!(await canOpen('/ai'))) return <AccessDenied what={SERVICE_LABEL.ai} standalone />
 
   const [branding, globalTheme, user] = await Promise.all([
     getBranding(),
