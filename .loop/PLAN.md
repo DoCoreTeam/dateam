@@ -83,7 +83,7 @@
 의존: I01, I02
 
 ### I06 닫으면 네 자리에서 함께 사라진다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: .loop/PLAN.md, apps/web/lib/changelog/entries.ts, package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
 감사 기준:
