@@ -12,7 +12,7 @@
  * 영업 CRM 의 `lib/crm/domain/settings-tab.ts` 와 같은 자리다.
  */
 
-import { AI_PROVIDERS, type AiProviderSpec } from '@/lib/ai/provider-catalog'
+import { AI_PROVIDERS, type AiProviderSpec } from '../ai/provider-catalog.ts'
 
 export type AdminSettingsTabKey = 'branding' | 'ai' | 'integrations' | 'system'
 

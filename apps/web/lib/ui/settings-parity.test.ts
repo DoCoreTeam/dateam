@@ -8,7 +8,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -62,6 +62,35 @@ test('설정 화면 목록이 스스로 찬다 — RFP 관리자처럼 나중에
   ]
   const missing = musts.filter((m) => !SETTINGS_FILES.some((f) => rel(f).startsWith(m)))
   assert.deepEqual(missing, [], `설정 화면인데 목록에 없다(공용 부품을 안 쓴다): ${missing.join(', ')}`)
+})
+
+/**
+ * 설정 **페이지** 넷. 카드가 아니라 카드를 담는 자리다.
+ *
+ * 위 목록(SETTINGS_FILES)은 부품을 쓰는 파일이 스스로 찬다. 그래서 카드가 갈리는 것은 잡지만
+ * **그릇이 갈리는 것은 못 잡았다** — 관리자 설정은 카드를 전부 공용 부품으로 그리면서도
+ * 자기 탭 묶음을 직접 짜고 있었고, 그 화면에만 검색 칸이 없었다(사용자 지적 2026-09-22).
+ *
+ * 페이지는 스스로 안 찬다. 「여기가 설정 페이지다」를 아는 것은 사람뿐이라 손으로 적는다 —
+ * 다섯째 설정 화면을 만들면 여기 한 줄을 더해야 하고, 안 더하면 그 화면만 조용히 갈린다.
+ */
+const SETTINGS_PAGES = [
+  'app/admin/settings/page.tsx',
+  'app/(ci)/ci/settings/SettingsView.tsx',
+  'app/(crm)/crm/settings/page.tsx',
+  'app/(rfp)/rfp/admin/page.tsx',
+]
+
+test('★ 설정 페이지 넷이 전부 공용 그릇에 담는다 — 검색 칸과 분류 탭이 화면마다 갈리지 않게', () => {
+  const missing = SETTINGS_PAGES.filter((rel) => {
+    const f = join(WEB, rel)
+    if (!existsSync(f)) return true
+    const src = read(f)
+    return !/<Settings(Cards|Panel)\b/.test(src)
+  })
+  assert.deepEqual(missing, [],
+    '설정 페이지가 공용 그릇(SettingsCards·SettingsPanel)에 안 담는다. '
+    + '자기 탭 묶음을 짜면 그 화면만 검색 칸이 없어진다:\n' + missing.join('\n'))
 })
 
 test('설정 화면이 카드 껍데기를 자기 마크업으로 다시 그리지 않는다', () => {
