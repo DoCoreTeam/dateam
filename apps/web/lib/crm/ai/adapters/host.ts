@@ -54,47 +54,75 @@ function isProviderId(v: string): v is ProviderId {
   return isAiProviderId(v)
 }
 
+/** 설정값을 풀어 본 결과 — 무엇으로 돌지와, 무엇을 버렸는지 */
+export interface ResolvedProvider {
+  id: ProviderId
+  /** 설정에 적혀 있었지만 못 써서 버린 값. 버린 게 없으면 null */
+  ignored: string | null
+  /** 왜 버렸나 — 이름을 모르거나(unknown), 키가 없거나(no-key) */
+  reason: 'unknown' | 'no-key' | null
+}
+
 /**
  * 설정값을 프로바이더로 해석한다.
  *
  * - `'auto'`(또는 빈 값): 호스트가 기본으로 쓰는 프로바이더를 따른다.
- *   CRM 만 다른 모델로 도는 상황을 만들지 않는 게 기본값이어야 한다.
- * - `'gemini' | 'claude' | 'openai'`: 그것으로 고정한다.
- * - 그 밖의 값: **조용히 넘어가지 않는다.** 오타를 mock 으로 흘리면
- *   "AI 가 왜 이래?"를 아무도 설명하지 못한다.
+ * - 아는 이름이고 키도 있으면: 그것으로 고정한다.
+ * - 그 밖의 값: **기본 프로바이더로 넘어가고, 무엇을 버렸는지 함께 돌려준다.**
+ *
+ * ## 왜 던지지 않게 바뀌었나 (실측 2026-09-20 ~ 09-22)
+ *
+ * 예전에는 모르는 값이면 던졌다. 「조용히 넘어가지 않는다」는 뜻이었고 방향은 맞았다.
+ * 그런데 던지는 것은 조용하지 않은 게 아니라 **전부 멈추는 것**이었다.
+ * 설정 한 줄에 `global-model` 이 들어앉은 이틀 동안, 시스템 설정에 등록된 키 넷을
+ * **한 번도 안 부른 채** 견적서 읽기·명함 읽기가 모두 거절됐다.
+ * 사용자가 본 것은 「AI 키를 이렇게 넣었는데 AI 를 못 읽는다」였다.
+ *
+ * 값이 틀린 것과 쓸 데가 없는 것은 다르다. 쓸 수 있는 키가 하나라도 있으면 **돈다.**
+ * 대신 버린 값을 돌려주고, 부르는 쪽이 그 사실을 남긴다 — 그게 「조용하지 않다」의 뜻이다.
+ * 애초에 그런 값이 못 들어오게 막는 일은 저장하는 쪽이 한다(`setSetting` 의 choice 검증).
  */
 export function resolveProvider(
   meta: Record<string, unknown>,
   setting: string | null | undefined,
-): ProviderId {
+): ResolvedProvider {
   const want = (setting ?? '').trim().toLowerCase()
   const available = getAvailableProviders(meta).map((p) => p.id)
 
+  /*
+    **키가 하나도 없을 때는 그대로 던진다.** 넘어갈 데가 없기 때문이다.
+    이때의 「안 된다」는 사용자가 고칠 수 있는 안 된다 — 키를 등록하면 된다.
+  */
   if (available.length === 0) {
     throw new CrmError('VALIDATION_FAILED',
       'AI 키가 아직 등록되지 않았습니다. 시스템 설정 → 통합에서 Gemini·Claude·OpenAI 중 하나를 등록해 주세요.')
   }
 
+  const fallback = (ignored: string, reason: 'unknown' | 'no-key'): ResolvedProvider => {
+    const def = getDefaultProvider(meta)
+    // 기본이 안 잡혀 있어도 쓸 수 있는 것이 있으면 그것으로 간다 — 멈추는 것보다 낫다
+    const id = def?.id ?? available[0]
+    return { id, ignored, reason }
+  }
+
   if (!want || want === 'auto') {
     const def = getDefaultProvider(meta)
-    if (!def) {
-      throw new CrmError('VALIDATION_FAILED',
-        'AI 키가 아직 등록되지 않았습니다. 시스템 설정 → 통합에서 등록해 주세요.')
-    }
-    return def.id
+    if (def) return { id: def.id, ignored: null, reason: null }
+    return { id: available[0], ignored: null, reason: null }
   }
 
-  if (!isProviderId(want)) {
-    throw new CrmError('VALIDATION_FAILED',
-      `설정된 AI(${setting})를 모르겠습니다. gemini · claude · openai · auto · mock 중에서 골라 주세요.`)
-  }
+  if (!isProviderId(want)) return fallback(want, 'unknown')
+  if (!available.includes(want)) return fallback(want, 'no-key')
 
-  if (!available.includes(want)) {
-    throw new CrmError('VALIDATION_FAILED',
-      `${want} 키가 시스템 설정에 없습니다. 시스템 설정 → 통합에서 등록하거나 다른 AI를 골라 주세요.`)
-  }
+  return { id: want, ignored: null, reason: null }
+}
 
-  return want
+/** 버린 값을 사람 말로 — 로그와 화면이 같은 문장을 쓰게 한다 */
+export function describeFallback(r: ResolvedProvider): string | null {
+  if (!r.ignored || !r.reason) return null
+  return r.reason === 'unknown'
+    ? `설정된 AI(${r.ignored})를 몰라 ${r.id} 로 대신 돌렸습니다.`
+    : `${r.ignored} 키가 시스템 설정에 없어 ${r.id} 로 대신 돌렸습니다.`
 }
 
 export interface HostAdapterOptions {
@@ -123,6 +151,13 @@ export interface HostAdapterOptions {
    * 이미 한다 — CRM 이 프로바이더별 변환을 다시 짜지 않는다(재사용·단일구현 정책).
    */
   attachments?: AttachmentInput[]
+  /**
+   * 설정에 적힌 AI 를 못 써서 다른 것으로 넘어갔을 때 부른다.
+   *
+   * 남기는 일을 여기서 안 하는 이유: 이 파일은 DB 를 모른다(맨 위 설명).
+   * 안 주면 넘어간 사실이 아무 데도 안 남는다 — 그러면 예전의 「조용히」로 되돌아간다.
+   */
+  onFallback?: (info: ResolvedProvider) => void
 }
 
 /**
@@ -138,7 +173,10 @@ export async function hostAdapter(
   readCatalog: CatalogReader = async () => [],
 ): Promise<AiAdapter> {
   const meta = await readMeta()
-  const id = resolveProvider(meta, setting)
+  const resolved = resolveProvider(meta, setting)
+  // 넘어갔으면 부르는 쪽이 남긴다 — 이 파일은 DB 를 모른다
+  if (resolved.ignored) opts.onFallback?.(resolved)
+  const id = resolved.id
   const cfg = getProviderConfig(meta, id)
   if (!cfg) {
     throw new CrmError('VALIDATION_FAILED',

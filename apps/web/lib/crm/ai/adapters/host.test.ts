@@ -19,6 +19,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
+import { resolveProvider, describeFallback } from './host.ts'
 import { classifyProviderError } from '../../../ai-chat/provider-errors.ts'
 import { pruneChain, type ChainCandidate } from '../../../ai-chat/model-chain.ts'
 
@@ -139,4 +140,63 @@ test('키 문제는 그 공급자를 건너뛴다 — 모델을 바꿔도 같은
     pruneChain([c('gemini', 'b'), c('openai', 'x')], c('gemini', 'a'), c401.scope).map((x) => x.provider),
     ['openai'],
   )
+})
+
+/* ── 설정값이 틀려도 멈추지 않는다 (실측 2026-09-20 ~ 09-22) ───────── */
+
+/*
+  `ai.model.extract` 에 `global-model` 한 줄이 들어앉아 이틀 동안 추출 기능 전체가 멈췄다.
+  그때 시스템 설정에는 AI 키가 넷 등록돼 있었고 **한 번도 안 불렸다.**
+  사용자가 본 것은 「AI 키를 이렇게 넣었는데 AI 를 못 읽는다」였고, 맞는 말이었다.
+
+  값이 틀린 것과 쓸 데가 없는 것은 다르다 — 아래가 그 경계를 잠근다.
+*/
+
+/** 키가 등록된 것처럼 보이는 META. registry 가 보는 모양을 그대로 쓴다 */
+const META_GEMINI = { gemini_api_key: 'x'.repeat(20) }
+/* openai 는 기본 모델이 없어 모델까지 적어야 «쓸 수 있는 것»이 된다(registry.getProviderConfig) */
+const META_TWO = {
+  gemini_api_key: 'x'.repeat(20),
+  openai_api_key: 'sk-' + 'y'.repeat(20),
+  openai_model: 'gpt-4.1-mini',
+}
+
+test('★ 모르는 값이면 멈추지 않고 넘어간다 — 키가 있는데 안 부르는 일이 없어야 한다', () => {
+  const r = resolveProvider(META_GEMINI, 'global-model')
+  assert.equal(r.id, 'gemini', '쓸 수 있는 키가 있는데 안 골랐다')
+  assert.equal(r.ignored, 'global-model', '무엇을 버렸는지 안 알려 주면 남길 수가 없다')
+  assert.equal(r.reason, 'unknown')
+})
+
+test('★ 아는 이름인데 키가 없으면도 넘어간다 — 키를 지웠다고 기능이 죽으면 안 된다', () => {
+  const r = resolveProvider(META_GEMINI, 'claude')
+  assert.equal(r.id, 'gemini')
+  assert.equal(r.ignored, 'claude')
+  assert.equal(r.reason, 'no-key')
+})
+
+test('★ 제대로 고른 값은 그대로 쓰고 아무것도 안 버린다', () => {
+  const r = resolveProvider(META_TWO, 'openai')
+  assert.equal(r.id, 'openai')
+  assert.equal(r.ignored, null)
+  assert.equal(r.reason, null)
+})
+
+test('★ 키가 하나도 없을 때는 그대로 던진다 — 넘어갈 데가 없는 것은 다른 일이다', () => {
+  assert.throws(() => resolveProvider({}, 'auto'), /AI 키가 아직 등록되지 않았습니다/)
+  assert.throws(() => resolveProvider({}, 'global-model'), /AI 키가 아직 등록되지 않았습니다/)
+})
+
+test('★ 넘어간 사실이 말이 된다 — 로그와 화면이 같은 문장을 쓴다', () => {
+  assert.match(describeFallback(resolveProvider(META_GEMINI, 'global-model'))!, /global-model/)
+  assert.match(describeFallback(resolveProvider(META_GEMINI, 'global-model'))!, /gemini/)
+  assert.equal(describeFallback(resolveProvider(META_TWO, 'openai')), null, '안 버렸는데 말을 만든다')
+})
+
+test('★ 넘어갔으면 부르는 쪽에 알린다 — 안 알리면 예전의 「조용히」로 돌아간다', () => {
+  assert.match(SRC, /opts\.onFallback\?\.\(resolved\)/,
+    'hostAdapter 가 넘어간 사실을 안 넘긴다')
+  const quick = readFileSync(new URL('../../services/quick-create.ts', import.meta.url), 'utf-8')
+  assert.match(quick, /onFallback:/, '설정으로 어댑터를 만드는 자리가 그 통지를 안 받는다')
+  assert.match(quick, /recordSystemEventAsync\(/, '받아 놓고 아무 데도 안 남긴다')
 })

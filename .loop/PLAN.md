@@ -73,7 +73,7 @@
 의존: I03
 
 ### I05 모르는 값이 와도 멈추지 않는다 — 기본 AI로 넘어가고 그 사실을 남긴다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ai/adapters/host.ts, apps/web/lib/crm/services/quick-create.ts, apps/web/lib/crm/ai/adapters/host.test.ts
 감사 기준:

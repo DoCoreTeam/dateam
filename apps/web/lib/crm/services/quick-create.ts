@@ -22,7 +22,8 @@ import { runAi } from '../ai/runner.ts'
 import { QUICK_CREATE_V1 } from '../ai/prompts/quick-create.v1.ts'
 import { parseQuickCreate, type QuickCreateOutput } from '../ai/schemas/quick-create.ts'
 import { mockAdapter, mockWebSearchAdapter } from '../ai/adapters/mock.ts'
-import { hostAdapter, type HostAdapterOptions } from '../ai/adapters/host.ts'
+import { hostAdapter, describeFallback, type HostAdapterOptions } from '../ai/adapters/host.ts'
+import { recordSystemEventAsync } from '../../system-log/record.ts'
 import type { ChainCatalogEntry } from '../../ai-chat/model-chain.ts'
 import { enrichFromText } from './enrich.ts'
 import type { EnrichCandidate } from './enrich.ts'
@@ -361,7 +362,31 @@ export async function adapterFromSetting(
   // 스키마가 안 맞아 "AI 가 이해하지 못했습니다"가 뜨고, 원인이 mock 이라는 걸 아무도 모른다.
   if (name === 'mock') return opts.webSearch ? mockWebSearchAdapter() : mockAdapter()
 
-  return hostAdapter(readHostMeta, name, opts, readHostCatalog)
+  /*
+    **설정에 적힌 AI 를 못 쓰면 넘어가되, 넘어간 사실은 남긴다.**
+
+    예전엔 던졌다. 그래서 `ai.model.extract` 에 `global-model` 한 줄이 들어앉은 이틀 동안
+    등록된 키 넷을 한 번도 안 부르고 추출 기능 전체가 멈췄고, 아무 기록도 안 남아
+    사용자가 화면에서 빨간 띠를 볼 때까지 아무도 몰랐다.
+
+    이제는 돈다. 대신 여기서 남긴다 — 남기지 않으면 「왜 클로드가 아니라 제미나이로 돌지」를
+    아무도 설명하지 못하고, 그건 멈추는 것 다음으로 나쁘다.
+  */
+  return hostAdapter(readHostMeta, name, {
+    ...opts,
+    onFallback: (info) => {
+      void recordSystemEventAsync({
+        source: 'crm_ai',
+        feature: 'crm.ai.model',
+        error: new Error(describeFallback(info) ?? '설정된 AI 를 쓰지 못했습니다.'),
+        actorId: opts.actorId ?? null,
+        // 넘어갔다는 것은 기능이 돈다는 뜻이다 — 막힌 것이 아니므로 심각도를 올리지 않는다
+        blocksUser: false,
+        hint: info.id,
+        context: { setting: 'ai.model.extract', ignored: info.ignored, reason: info.reason },
+      })
+    },
+  }, readHostCatalog)
 }
 
 /**
