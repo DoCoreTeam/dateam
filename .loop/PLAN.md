@@ -62,7 +62,7 @@
 의존: I01, I02
 
 ### I04 구 영업 탭바가 닫힌 표면을 안 그린다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/ProjectTabs.tsx, apps/web/lib/ui/cross-surface-nav.test.ts
 감사 기준:
