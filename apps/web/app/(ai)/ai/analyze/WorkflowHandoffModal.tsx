@@ -6,6 +6,7 @@
 // 모달 표준(§2-2) 준수: useEscClose·X닫기·tape-title·boxShadow(var(--shadow-modal))·backdrop(var(--modal-backdrop)).
 
 import { CalendarClock, ClipboardList, FolderKanban, NotebookPen } from 'lucide-react'
+import { useIsOpen } from '@/lib/access/open-context'
 import { useRouter } from 'next/navigation'
 import NbModal from '@/components/ui/nb/NbModal'
 import { setWorkflowHandoff, type WorkflowTarget } from '@/lib/ai-chat/workflow-handoff'
@@ -56,6 +57,15 @@ const TARGETS: TargetDef[] = [
 ]
 
 export default function WorkflowHandoffModal({ title, bodyMd, onClose }: Props) {
+  /*
+    **닫힌 곳으로는 안 넘긴다** (P0049 I05).
+
+    넷 다 다른 표면·자리라 관리자가 그중 하나를 닫을 수 있다. 그때 그 자리로 넘기면
+    분석 결과를 들고 「접근할 권한이 없습니다」에 도착한다 — 넘기던 내용도 잃는다.
+  */
+  const isOpen = useIsOpen()
+  const targets = TARGETS.filter((t) => isOpen(t.href))
+
   const router = useRouter()
 
   function pick(target: TargetDef) {
@@ -72,7 +82,7 @@ export default function WorkflowHandoffModal({ title, bodyMd, onClose }: Props) 
           대상을 고르면 생성 화면으로 이동해 내용을 미리 채워줍니다. 저장은 그 화면에서 직접 확인 후 진행하세요.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-          {TARGETS.map((t) => {
+          {targets.map((t) => {
             const Icon = t.icon
             return (
               <button

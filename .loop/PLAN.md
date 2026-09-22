@@ -72,7 +72,7 @@
 의존: I01, I02
 
 ### I05 남은 내비게이터 셋이 닫힌 곳을 안 그린다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(member)/home/page.tsx, apps/web/components/ui/SidebarProfile.tsx, apps/web/app/(ai)/ai/analyze/WorkflowHandoffModal.tsx, apps/web/lib/ui/cross-surface-nav.test.ts
 감사 기준:

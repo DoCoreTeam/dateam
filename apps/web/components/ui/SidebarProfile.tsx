@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useIsOpen } from '@/lib/access/open-context'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -48,6 +49,12 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
    * 계정 메뉴는 «내 계정»만 다룬다.
    */
   const adminEntry = adminEntryFor(surface, isAdmin)
+  /*
+    **닫힌 곳은 안 그린다** (P0049 I05). 계정 메뉴도 표면을 건너간다 —
+    보안·API Keys·개발자센터가 각각 다른 표면이라 관리자가 하나를 닫을 수 있다.
+    비밀번호 변경은 표면이 아니라(`NOT_A_SURFACE`) 판정이 늘 참이다.
+  */
+  const isOpen = useIsOpen()
   const [open, setOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
   const [activeTheme, setActiveTheme] = useState<ThemeId | undefined>(currentTheme)
@@ -175,6 +182,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             <KeyRound size={14} />
             비밀번호 변경
           </Link>
+          {isOpen('/security') && (
           <Link
             href="/security"
             onClick={() => setOpen(false)}
@@ -183,6 +191,8 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             <ShieldCheck size={14} />
             보안
           </Link>
+          )}
+          {isOpen('/api-keys') && (
           <Link
             href="/api-keys"
             onClick={() => setOpen(false)}
@@ -191,6 +201,8 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             <Code2 size={14} />
             API Keys
           </Link>
+          )}
+          {isOpen('/develop') && (
           <Link
             href="/develop"
             onClick={() => setOpen(false)}
@@ -199,6 +211,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             <BookOpen size={14} />
             개발자센터
           </Link>
+          )}
           <div className={styles.divider} />
           {/*
             서비스로 들어가는 문(영업 CRM · 콘텐츠 인텔리전스 · AI 스튜디오)은 **여기 없다.**

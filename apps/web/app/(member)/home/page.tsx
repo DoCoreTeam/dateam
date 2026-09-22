@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { canOpen } from '@/lib/access/guard'
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { getCalendarDayLogs } from '../daily/actions'
@@ -55,6 +56,22 @@ export default async function HomePage() {
   const isCeo = profile?.position === '대표이사'
   const showAxTiles = !isCeo && await isMemberOfDivisionByName(adminClient, user.id, 'AX사업본부')
 
+  /**
+   * **닫힌 곳으로는 안 보낸다** (P0049 I05).
+   *
+   * 홈은 다른 표면으로 가는 지름길을 여럿 그린다. 관리자가 그중 하나를 닫으면
+   * 사이드바에서는 사라지는데 여기는 손목록이라 그대로 남아, 누르면 막힌다.
+   * 판정은 메뉴·라우트와 같은 함수다(`lib/access/guard`).
+   */
+  const [kpiOpen, routineOpen, opsOpen, weeklyOpen] = await Promise.all([
+    canOpen('/kpi'), canOpen('/routine'), canOpen('/operations'), canOpen('/weekly-report'),
+  ])
+  const openTiles = [
+    ...(kpiOpen ? ['/kpi'] : []),
+    ...(routineOpen ? ['/routine'] : []),
+    ...(opsOpen ? ['/operations'] : []),
+  ]
+
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const isFriday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(new Date()) === 'Fri'
   const hasThisWeekReport = (reports ?? []).some((r) => r.week_start === weekStartStr)
@@ -96,13 +113,13 @@ export default async function HomePage() {
                 {now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
               </span>
             }
-            actions={showAxTiles ? (
+            actions={showAxTiles && openTiles.length > 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                 {[
                   { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: 'var(--brand-soft)' },
                   { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: 'var(--info)', bg: 'var(--info-bg)' },
                   { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: 'var(--success)', bg: 'var(--success-bg)' },
-                ].map((item) => (
+                ].filter((item) => openTiles.includes(item.href)).map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -227,7 +244,7 @@ export default async function HomePage() {
                     <EmptyState
                       title="아직 주간보고가 없어요"
                       description="이번 주 한 일을 정리해 두면 취합이 쉬워집니다"
-                      action={{ label: '주간보고 작성', href: '/weekly-report' }}
+                      action={weeklyOpen ? { label: '주간보고 작성', href: '/weekly-report' } : undefined}
                     />
                   )}
                 </div>

@@ -34,21 +34,25 @@ import { SURFACES } from '../access/surfaces.ts'
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..') + '/'
 const rel = (f: string): string => (f.startsWith(WEB) ? f.slice(WEB.length) : f)
 
-/** 판정을 본다는 흔적 */
-const ASKS = /useIsOpen\b/
+/**
+ * 판정을 본다는 흔적.
+ *
+ * 클라이언트 부품은 `useIsOpen`(컨텍스트), 서버 부품은 `canOpen`·`openMap` 을 부른다 —
+ * 둘 다 같은 판정 함수로 내려가므로 어느 쪽이든 물은 것이다.
+ */
+const ASKS = /useIsOpen\b|canOpen\(|openMap\(/
 
 /**
  * 아직 판정을 안 보는 내비게이터. **줄기만 하고 늘지 않는다.**
  * 각 줄에 왜 아직인지 적는다 — 사유 없는 유예는 잊은 것과 구분되지 않는다.
  */
 const NOT_YET: Record<string, string> = {
-  'app/(member)/home/page.tsx':
-    '홈에서 루틴·KPI·본부 운영·주간보고로 보내는 자리 — P0049 I05 가 붙인다.',
-  'components/ui/SidebarProfile.tsx':
-    '계정 메뉴에서 API Keys·개발자센터·보안으로 보내는 자리 — P0049 I05 가 붙인다.',
-  'app/(ai)/ai/analyze/WorkflowHandoffModal.tsx':
-    'AI 분석 결과를 업무로 넘기는 모달. 부서 업무·주간보고·프로젝트 현황을 가리킨다 — P0049 I05 가 붙인다.',
+  // I05 에서 셋을 마저 붙여 목록이 비었다. **비었다고 지우지 않는다** —
+  // 목록이 사라지면 다음 사람이 유예를 만들 자리를 못 찾고 가드 쪽을 지우게 된다.
 }
+
+/** 유예는 0이어야 한다. 하나라도 생기면 그 판에서 사유를 적고 다음 판에 붙인다 */
+const MAX_NOT_YET = 0
 
 /**
  * **셸 밖** 화면 — 판정이 닿지 않는 자리라 물을 것이 없다.
@@ -121,6 +125,14 @@ test('유예·면제 목록이 실제 파일을 가리키고 사유가 적혀 �
     assert.ok(all.has(file), `NOT_YET 의 ${file} 이 내비게이터로 안 잡힌다 — 이미 고쳤으면 지운다`)
     assert.ok(why.length > 20, `${file} 의 사유가 너무 짧다`)
   }
+})
+
+test('★ 유예가 0이다 — 이제 전수 차단이다 (I05)', () => {
+  assert.ok(
+    Object.keys(NOT_YET).length <= MAX_NOT_YET,
+    `유예가 ${Object.keys(NOT_YET).length}개 남았다. 붙일 수 없으면 사유를 적고 MAX_NOT_YET 를 올리는 대신 ` +
+    '그 판의 항목으로 세운다 — 유예는 늘리는 것이 아니라 없애는 것이다.',
+  )
 })
 
 test('이미 고친 부품이 유예 목록에 남아 있지 않다', () => {
