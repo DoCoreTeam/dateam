@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자와 작성자를 넣고 권한 기본값을 고친다
 플랜 ID: P0054
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0091
 목표 버전: v0.10.402
@@ -50,9 +50,9 @@
 의존: 없음
 
 ### I02 접근권한으로 앉는 사람이 멤버가 되고 이력에 남는다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/admin/access/actions.ts, apps/web/lib/access/auto-seat.test.ts (신규), apps/web/package.json
+범위: apps/web/app/admin/access/actions.ts, apps/web/lib/access/seat-role.ts (신규), apps/web/lib/access/auto-seat.test.ts (신규), apps/web/package.json
 감사 기준:
 - 보안 S2: 자동 생성 역할이 MEMBER 다. 이미 자리가 있으면 역할을 안 덮는다 (올려 둔 권한이 내려가지 않는다)
 - 자리를 만들면 crm_audit_log 에 member.added 가 남는다. 지금은 한 줄도 안 남는다
@@ -166,3 +166,4 @@
 ## 변경 이력
 - v0.1.0 (2026-09-22) 최초 작성 (ins_0091)
 - v0.1.1 (2026-09-22) I01 관문을 서비스가 아니라 라우트에 붙인다, 기존 원가 관문과 같은 자리이고 호출처가 그 라우트 하나뿐이다. 대신 가드가 호출 자리를 센다 (audit:I01)
+- v0.1.2 (2026-09-22) I02 에 lib/access/seat-role.ts 를 더한다. 등급을 actions.ts 리터럴로 두면 시험이 소스 글자를 찾는 수밖에 없고 그건 주석도 통과시킨다. 값으로 대조하려고 모듈로 뺀다 (audit:I02)

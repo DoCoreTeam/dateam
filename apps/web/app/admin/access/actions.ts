@@ -23,6 +23,7 @@ import { activeMembers } from '@/lib/members/resigned-server'
 import { SURFACES, grantableKeys, keyKind, parentKey, splitKey, surfaceByKey } from '@/lib/access/surfaces'
 import { ACCESS_ACTION_LABEL } from '@/lib/terms'
 import { rangeOfPerson, type AccessRange } from '@/lib/access/capabilities'
+import { SEAT_ROLE } from '@/lib/access/seat-role'
 import { navLabel } from '@/lib/nav/menu'
 
 export interface SurfaceRow {
@@ -321,7 +322,7 @@ export async function saveGrant(input: SaveGrantInput, actorId: string): Promise
    * 부여까지 되돌리면 관리자는 저장 자체가 안 된 줄 알고 같은 일을 다시 한다.
    */
   try {
-    await ensureServiceSeat(input)
+    await ensureServiceSeat(input, actorId)
   } catch (e) {
     return `문은 열었는데 서비스 자리를 못 만들었습니다: ${e instanceof Error ? e.message : String(e)}`
   }
@@ -345,14 +346,25 @@ export async function saveGrant(input: SaveGrantInput, actorId: string): Promise
  *
  * ## 무엇을 만드나
  *
- * 가장 낮은 등급(READONLY)이다. 「보라고 열어 줬다」가 부여의 뜻이고, 그보다 더 주는 것은
- * 관리자가 CRM 멤버 화면에서 따로 올린다. 이미 자리가 있으면 **손대지 않는다** —
+ * **쓸 수 있는 등급(MEMBER)** 이다. 이미 자리가 있으면 **손대지 않는다** —
  * 등급을 덮으면 올려 둔 권한이 조용히 내려간다.
+ *
+ * ### 왜 READONLY 가 아닌가 (정정 2026-09-22)
+ *
+ * 처음엔 가장 낮은 등급으로 앉혔다. 근거는 「보라고 열어 줬다」였다. 그런데 그 결과가
+ * **아홉 명 중 여덟이 보기만**이었고, 화면마다 「이 작업을 할 권한이 없습니다」가 떴다
+ * (사용자 실측 2026-09-22). 영업 CRM 은 보는 도구가 아니라 쓰는 도구다. 자기 딜을 못 만들고
+ * 메모 한 줄 못 남기면 문을 연 것이 아니다.
+ *
+ * 「남의 것은 못 고치게」는 등급으로 풀 일이 아니다. 그건 **담당자**가 가른다 —
+ * 등급을 하나 더 만들면 관리자가 외울 것만 늘고 경계는 여전히 안 생긴다.
+ * 보기만은 남겨 둔다. 외부 감사나 참관처럼 실제로 쓸 자리가 있고,
+ * 그때는 관리자가 멤버 화면에서 **직접 내린다.**
  *
  * 부여를 지울 때 자리를 지우지는 않는다. 그 사람에게 딸린 기록(담당·감사 로그)이 남아 있고,
  * 문은 서비스 셸의 접근권한 판정이 닫는다.
  */
-async function ensureServiceSeat(input: SaveGrantInput): Promise<void> {
+async function ensureServiceSeat(input: SaveGrantInput, grantedBy: string): Promise<void> {
   if (input.effect !== 'allow') return
   if (input.surfaceKey.includes('#')) return
   const { surfaceKey, zone } = splitKey(input.surfaceKey)
@@ -397,7 +409,7 @@ async function ensureServiceSeat(input: SaveGrantInput): Promise<void> {
       id: `mb_grant_${id.slice(0, 8)}_${Date.now().toString(36)}`,
       workspaceId,
       hostUserId: id,
-      role: 'READONLY',
+      role: SEAT_ROLE,
       displayName: nameOf.get(id) ?? email,
       email,
       capabilities: [],
@@ -407,6 +419,45 @@ async function ensureServiceSeat(input: SaveGrantInput): Promise<void> {
 
   const { error: seatError } = await (admin as any).from('crm_member').insert(rowsToAdd)
   if (seatError) throw new Error(seatError.message)
+
+  /**
+   * 자리를 만들었으면 **남긴다.**
+   *
+   * 여태 이 경로는 기록을 안 남겼다. 그래서 아홉 명이 영업 CRM 에 들어와 있는데
+   * `crm_audit_log` 의 마지막 멤버 기록은 08-16 이었다 — 누가 언제 들어왔는지 물을 자리가
+   * 아예 없었다(실측 2026-09-22). 멤버 화면에서 사람이 추가하는 경로는 `member.added` 를
+   * 남기는데, 자동 경로만 빠져 있었다. 같은 일이면 같은 기록이 남아야 한다.
+   *
+   * **여기서 던지지 않는다.** 기록이 실패했다고 이미 만들어진 자리를 되돌리면
+   * 문은 열렸는데 들어갈 자리가 없는 상태로 돌아간다 — 이 함수가 없애려던 바로 그것이다.
+   * 기록은 놓치면 아쉬운 것이고, 자리는 없으면 사람이 못 들어온다.
+   */
+  const { data: actorSeat } = await (admin as any)
+    .from('crm_member').select('id').eq('hostUserId', grantedBy).is('deletedAt', null).maybeSingle()
+  const actorMemberId = (actorSeat as { id?: string } | null)?.id ?? null
+
+  const { error: auditError } = await (admin as any).from('crm_audit_log').insert(
+    rowsToAdd.map((r) => ({
+      id: `al_seat_${String(r.id).slice(-12)}_${Date.now().toString(36)}`,
+      workspaceId,
+      // 사람이 부여를 저장해서 생긴 자리다. 그 사람이 CRM 멤버가 아닐 수도 있어
+      // actorId 가 비는데, 그때도 누가 열었는지는 afterJson 에 남는다
+      actorType: actorMemberId ? 'HUMAN' : 'SYSTEM',
+      actorId: actorMemberId,
+      action: 'member.added',
+      targetType: 'member',
+      targetId: r.id,
+      afterJson: {
+        role: r.role,
+        displayName: r.displayName,
+        via: 'access_grant',
+        surfaceKey: input.surfaceKey,
+        grantedBy,
+      },
+    })),
+  )
+  // supabase-js 는 insert 오류를 던지지 않고 돌려준다 — 안 보면 조용히 0건이 된다
+  if (auditError) console.error('[access] 자리 생성 기록 실패', auditError.message)
   /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
