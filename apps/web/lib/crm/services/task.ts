@@ -41,6 +41,8 @@ export interface TaskRow {
   startAt: Date | null
   dueAt: Date | null
   assigneeId: string | null
+  /** 등록한 사람(CrmMember.id). 비어 있으면 기록이 없는 것이다 */
+  createdById: string | null
   companyId: string | null
   personId: string | null
   dealId: string | null
@@ -60,6 +62,7 @@ export type TaskListRow = TaskRow & RelationNames
 
 const SELECT = {
   id: true, title: true, status: true, startAt: true, dueAt: true, assigneeId: true,
+  createdById: true,
   companyId: true, personId: true, dealId: true, completedAt: true,
   createdAt: true, updatedAt: true,
 } as const
@@ -195,6 +198,14 @@ export async function createTask(
 ): Promise<TaskRow> {
   const data = normalizeInput(input, true)
   data.createdById = actorId
+  /**
+   * 담당자 기본값은 등록한 사람이다.
+   *
+   * 작성자는 이미 위에서 붙고 있었는데 담당자만 비어 있었다 — 열네 건 중 0건(실측 2026-09-22).
+   * 그래서 「오늘」 화면이 담당으로 걸를 값이 없어 누구에게나 같은 목록을 냈다.
+   * 만드는 쪽이 다른 사람을 지정했으면 그 값이 이긴다.
+   */
+  if (data.assigneeId == null) data.assigneeId = actorId
 
   return withCrmTx(workspaceId, async (tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

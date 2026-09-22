@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자와 작성자를 넣고 권한 기본값을 고친다
 플랜 ID: P0054
-플랜 버전: v0.1.3
+플랜 버전: v0.1.4
 상태: 진행중
 지시: ins_0091
 목표 버전: v0.10.402
@@ -72,12 +72,13 @@
 의존: 없음
 
 ### I04 새로 만들면 작성자와 담당자가 붙는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts, apps/web/lib/crm/services/deal.ts, apps/web/lib/crm/services/task.ts
+범위: apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts, apps/web/lib/crm/services/deal.ts, apps/web/lib/crm/services/task.ts, apps/web/lib/crm/services/created-by.test.ts (신규), apps/web/package.json
 감사 기준:
 - 만들 때 createdById 가 지금 멤버로 들어간다
 - ownerId 기본값이 createdById 다. 만드는 쪽에서 다른 사람을 넘기면 그 값이 이긴다
+- 고치는 길은 작성자를 안 건드린다 (normalizeInput 에 그 칸이 없다). 가드가 잠근다
 - 기존 행은 하나도 안 바뀐다
 - pnpm tsc --noEmit 통과
 의존: I03
@@ -168,3 +169,4 @@
 - v0.1.1 (2026-09-22) I01 관문을 서비스가 아니라 라우트에 붙인다, 기존 원가 관문과 같은 자리이고 호출처가 그 라우트 하나뿐이다. 대신 가드가 호출 자리를 센다 (audit:I01)
 - v0.1.2 (2026-09-22) I02 에 lib/access/seat-role.ts 를 더한다. 등급을 actions.ts 리터럴로 두면 시험이 소스 글자를 찾는 수밖에 없고 그건 주석도 통과시킨다. 값으로 대조하려고 모듈로 뺀다 (audit:I02)
 - v0.1.3 (2026-09-22) I03 에 prisma/schema.prisma 를 더하고 외래키 조건을 뺀다. 이 저장소의 createdById 는 여덟 모델 전부 외래키 없는 TEXT 라 여기만 걸면 같은 뜻의 칸이 표마다 다른 규칙을 갖는다 (audit:I03)
+- v0.1.4 (2026-09-22) I04 에 가드 시험을 더한다. 값이 실제로 들어가는지와 고치는 길에 작성자가 없는지를 센다. 가드가 할일 SELECT 의 작성자 누락을 실제로 잡았다 (audit:I04)

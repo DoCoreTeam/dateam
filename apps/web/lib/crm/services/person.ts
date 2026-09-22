@@ -28,13 +28,15 @@ export interface PersonRow {
   lifecycleStage: string
   memo: string | null
   ownerId: string | null
+  /** 등록한 사람(CrmMember.id). 비어 있으면 기록이 없는 것이다 */
+  createdById: string | null
   version: number
   updatedAt: Date
 }
 
 const SELECT = {
   id: true, companyId: true, name: true, email: true, phone: true, title: true,
-  lifecycleStage: true, memo: true, ownerId: true, version: true, updatedAt: true,
+  lifecycleStage: true, memo: true, ownerId: true, createdById: true, version: true, updatedAt: true,
 } as const
 
 export interface PersonInput {
@@ -128,6 +130,16 @@ export async function createPerson(
   input: PersonInput,
 ): Promise<PersonRow> {
   const data = normalizeInput(input)
+  /**
+   * 등록한 사람과 담당자는 **만들 때만** 정해진다.
+   *
+   * 작성자는 이 줄에서만 들어가고 고치는 길에는 없다 — 바꿀 수 있으면 이력이 아니다.
+   * 담당자 기본값은 등록한 사람이다. 비워 두면 「나중에 지정하지」가 되고,
+   * 그 결과가 거래처 381건이 전부 빈 칸이던 상태다(실측 2026-09-22).
+   * 만드는 쪽이 다른 사람을 넘겼으면 그 값이 이긴다.
+   */
+  data.createdById = actorId
+  if (data.ownerId == null) data.ownerId = actorId
 
   return withCrmTx(workspaceId, async (tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
