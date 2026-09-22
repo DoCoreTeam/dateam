@@ -95,7 +95,7 @@
 의존: 없음
 
 ### I06 담당자가 비면 조직 상위가 대행한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/owner-fallback.ts (신규), apps/web/lib/crm/services/owner-fallback.test.ts (신규), apps/web/package.json
 감사 기준:
