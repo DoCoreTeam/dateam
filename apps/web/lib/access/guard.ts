@@ -26,7 +26,7 @@ import 'server-only'
 
 import { decideAccess, type Decision } from './decide.ts'
 import { loadViewerAccess } from './load.ts'
-import { surfaceOf, zoneKeyOf, zoneOf } from './surfaces.ts'
+import { SURFACES, surfaceOf, zoneKey, zoneKeyOf, zoneOf } from './surfaces.ts'
 import { vetoesAction, type AccessAction } from './actions.ts'
 import { navLabel } from '../nav/menu.ts'
 
@@ -144,4 +144,28 @@ export async function canExport(href: string): Promise<boolean> {
 /** 값을 바꿔도 되나. 쓰기 창구가 부르는 이름 */
 export async function canWrite(href: string): Promise<boolean> {
   return canDo(href, 'write')
+}
+
+/**
+ * 표면과 등재된 자리 **전부**의 판정 — 셸이 한 번 재서 화면에 내려보낸다 (P0049 I01).
+ *
+ * **닫힌 것도 담는다.** 열린 것만 주면 `/work` 는 열려 있고 `/work/projects` 만 닫힌 경우를
+ * 받는 쪽이 구분할 수 없다(앞자리가 걸려 열린 것으로 읽힌다). 「가장 긴 쪽이 이긴다」가
+ * 성립하려면 닫힌 자리도 목록에 있어야 한다.
+ *
+ * 왕복은 안 는다 — `loadViewerAccess` 가 `cache()` 라 요청당 한 번이고, 아래는 순수 판정뿐이다.
+ */
+export async function openMap(): Promise<Record<string, boolean>> {
+  const access = await loadViewerAccess()
+  const out: Record<string, boolean> = {}
+  for (const s of SURFACES) {
+    const allow = (key: string) => (access ? decideAccess(key, access.viewer, access.grants).allowed : false)
+    out[s.href] = allow(s.key)
+    for (const z of s.zones ?? []) {
+      // 탭 자리는 주소가 표면과 같아 앞자리 맞추기로 못 가른다 — 경로 자리만 담는다
+      if (z.tab) continue
+      out[`${s.href}/${z.name}`] = allow(zoneKey(s.key, z.name))
+    }
+  }
+  return out
 }

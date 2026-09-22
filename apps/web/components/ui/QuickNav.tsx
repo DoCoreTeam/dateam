@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar, Handshake, FileSearch } from 'lucide-react'
 import { QUICKNAV_LINKS } from '@/lib/nav/menu'
+import { useIsOpen } from '@/lib/access/open-context'
 
 /**
  * 전체 메뉴 그림표 — **이름과 주소는 여기 없다.**
@@ -44,12 +45,13 @@ const PAGES = QUICKNAV_LINKS.map((section) => ({
  * 그 다음 판은 `canSeeNav`(표 하나)를 읽었는데, 라우트는 다른 것을 읽어서 **메뉴에는
  * 보이는데 들어가면 막히는 문**이 넷 남았다(실측 2026-09-21).
  *
- * 이제 여기서는 판정을 **안 한다.** 셸(`AppShell`)이 서버에서 `lib/access/guard` 에게
- * 한 번 묻고 그 결과만 내려준다 — 막는 쪽과 같은 함수의 답이라 갈릴 자리가 없다.
- * 받은 목록에 없는 주소는 그리지 않는다. 안 받으면 **아무것도 안 그린다** —
- * 넘기는 것을 잊은 자리가 조용히 전부 열린 것처럼 보이면 안 된다.
+ * 이제 여기서는 판정을 **안 한다.** 셸(`AppShell`)이 서버에서 한 번 재서 컨텍스트로 깔고
+ * 여기는 읽기만 한다 — 막는 쪽과 같은 함수의 답이라 갈릴 자리가 없다.
+ * props 로 받던 것을 컨텍스트로 바꾼 이유는 `lib/access/open-context.tsx` 에 있다:
+ * 넘기는 것을 잊은 자리에 죽은 문이 남기 때문이다.
  */
-export default function QuickNav({ openHrefs = [] }: { openHrefs?: readonly string[] }) {
+export default function QuickNav() {
+  const isOpen = useIsOpen()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -101,7 +103,7 @@ export default function QuickNav({ openHrefs = [] }: { openHrefs?: readonly stri
           </div>
           <div style={{ padding: '8px 0' }}>
             {PAGES
-              .map((g) => ({ ...g, items: g.items.filter((i) => openHrefs.includes(i.href)) }))
+              .map((g) => ({ ...g, items: g.items.filter((i) => isOpen(i.href)) }))
               .filter((g) => g.items.length > 0)
               .map(({ group, items }) => (
               <div key={group}>

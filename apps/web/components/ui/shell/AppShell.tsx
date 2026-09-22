@@ -26,8 +26,8 @@ export type { NavGroup, NavItem }
 import SidebarProfile from '@/components/ui/SidebarProfile'
 import GlobalSearchBox from '@/components/ui/GlobalSearchBox'
 import QuickNav from '@/components/ui/QuickNav'
-import { QUICKNAV_LINKS } from '@/lib/nav/menu'
-import { openSurfaces } from '@/lib/access/guard'
+import { openMap } from '@/lib/access/guard'
+import { OpenSurfacesProvider } from '@/lib/access/open-context'
 import type { DockItem } from './Dock'
 import ShellExit from './ShellExit'
 import { RecordingProvider } from '@/lib/meeting/recording-context'
@@ -81,15 +81,15 @@ export interface AppShellProps {
 }
 
 /**
- * 전체 메뉴에 무엇을 그릴지 **여기서 한 번** 묻는다 (I08).
+ * 무엇이 열렸는지 **여기서 한 번** 재서 아래 전부에 내려보낸다 (P0046 I08 · P0049 I01).
  *
- * 왜 화면이 안 넘기고 셸이 묻나: `QuickNav` 를 그리는 곳은 이 파일 하나이고,
- * 이 파일을 쓰는 셸은 여섯이다. 목록을 화면이 넘기게 하면 **넘기는 것을 잊은 셸**에
- * 죽은 문이 그대로 남는다 — 예전에 전체 메뉴가 `isAdmin` 을 아예 안 받아서
- * 사이드바에서 막은 화면이 여기서는 보였던 것과 같은 모양이다.
+ * 왜 화면이 안 넘기고 셸이 재나: 이 파일을 쓰는 셸은 여섯이고, 닫힌 곳을 안 그려야 하는
+ * 부품은 그 아래 여기저기 있다. 목록을 화면이 넘기게 하면 **넘기는 것을 잊은 자리**에
+ * 죽은 문이 그대로 남는다 — 실제로 남았다. 전체 메뉴는 P0046 에서 고쳤는데
+ * 업무 탭바·구 영업 탭바·홈은 손목록 그대로였다(실측 2026-09-22).
  *
- * 부여 조회는 요청당 한 번이라(`loadViewerAccess` 가 `cache()`), 사이드바가 이미
- * 물어본 요청에서 질의가 늘지 않는다.
+ * 그래서 props 로 잇지 않고 **컨텍스트**로 깐다. 새 부품은 배선 없이 읽기만 하면 된다.
+ * 부여 조회는 요청당 한 번이라(`loadViewerAccess` 가 `cache()`) 질의가 늘지 않는다.
  */
 export default async function AppShell({
   items = [],
@@ -104,9 +104,10 @@ export default async function AppShell({
   sidebarTop,
   children,
 }: AppShellProps) {
-  const openMenu = await openSurfaces(QUICKNAV_LINKS.flatMap((g) => g.items.map((i) => i.href)))
+  const open = await openMap()
 
   return (
+    <OpenSurfacesProvider value={open}>
     <MobileShell
       items={items}
       groups={groups}
@@ -124,7 +125,7 @@ export default async function AppShell({
         <>
           {extras?.headerExtra}
           <GlobalSearchBox action={search?.action} placeholder={search?.placeholder} />
-          <QuickNav openHrefs={[...openMenu]} />
+          <QuickNav />
         </>
       }
       footer={
@@ -159,5 +160,6 @@ export default async function AppShell({
         <RecordingBar />
       </RecordingProvider>
     </MobileShell>
+    </OpenSurfacesProvider>
   )
 }
