@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.388',
+    date: '2026-09-22',
+    title: 'AI로 견적서 읽기가 다시 됩니다',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📄',
+        headline: '견적서를 올리면 다시 읽어 드려요',
+        detail: '파일에서 견적 가져오기를 열면 빨간 안내만 뜨고 아무것도 못 하셨을 거예요. 어느 AI를 쓸지 정해 두는 자리에 잘못된 값이 들어가 있었습니다. 되돌렸고, 명함 읽기처럼 AI가 읽어 주는 다른 자리도 함께 풀렸어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.386',
     date: '2026-09-22',
     title: '못 들어가는 자리가 탭과 바로가기에서도 사라집니다',
