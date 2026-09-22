@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자와 작성자를 넣고 권한 기본값을 고친다
 플랜 ID: P0054
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0091
 목표 버전: v0.10.402
@@ -61,12 +61,12 @@
 의존: 없음
 
 ### I03 작성자 칼럼 셋을 만들고 되찾을 수 있는 만큼 채운다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: supabase/migrations/278_crm_created_by.sql (신규)
+범위: supabase/migrations/278_crm_created_by.sql (신규), apps/web/prisma/schema.prisma
 감사 기준:
 - 보안 S1: 새 표를 만들지 않는다. 기존 세 표의 RLS 가 이미 켜져 있음을 psql 로 확인하고 결과를 적는다. 사본을 뜨지 않는다
-- crm_company, crm_person, crm_deal 에 createdById 가 생기고 crm_member 를 참조한다
+- crm_company, crm_person, crm_deal 에 createdById 가 생긴다. 형과 규칙은 옆 표의 createdById 와 같다 (외래키 없는 TEXT, 이 저장소의 여덟 모델이 그렇다)
 - 변경 이력의 company.created, person.created, deal.created 에서 백필한다. 채워진 건수를 적는다 (실측 기대값 딜 8, 회사 9, 사람 8)
 - 헤더에 되돌리기 문장을 적는다
 의존: 없음
@@ -167,3 +167,4 @@
 - v0.1.0 (2026-09-22) 최초 작성 (ins_0091)
 - v0.1.1 (2026-09-22) I01 관문을 서비스가 아니라 라우트에 붙인다, 기존 원가 관문과 같은 자리이고 호출처가 그 라우트 하나뿐이다. 대신 가드가 호출 자리를 센다 (audit:I01)
 - v0.1.2 (2026-09-22) I02 에 lib/access/seat-role.ts 를 더한다. 등급을 actions.ts 리터럴로 두면 시험이 소스 글자를 찾는 수밖에 없고 그건 주석도 통과시킨다. 값으로 대조하려고 모듈로 뺀다 (audit:I02)
+- v0.1.3 (2026-09-22) I03 에 prisma/schema.prisma 를 더하고 외래키 조건을 뺀다. 이 저장소의 createdById 는 여덟 모델 전부 외래키 없는 TEXT 라 여기만 걸면 같은 뜻의 칸이 표마다 다른 규칙을 갖는다 (audit:I03)

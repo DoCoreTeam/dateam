@@ -292,6 +292,7 @@ model CrmCompany {
   region         String?
   descriptionMd  String?
   ownerId        String?
+  createdById    String? // CrmMember.id — 등록한 사람. 바뀌지 않는다
   source         CrmDataSource @default(HUMAN)
   verifiedFields Json          @default("[]") // 사람이 검증 확정한 필드명 배열, AI auto_apply 금지 대상
   version        Int           @default(0) // 낙관적 잠금
@@ -323,6 +324,7 @@ model CrmPerson {
   lifecycleStage CrmLifecycleStage @default(LEAD) // Lead 별도 엔터티 미도입(D-02)
   memo           String?
   ownerId        String?
+  createdById    String? // CrmMember.id — 등록한 사람. 바뀌지 않는다
   source         CrmDataSource     @default(HUMAN)
   verifiedFields Json              @default("[]")
   version        Int               @default(0)
@@ -435,6 +437,7 @@ model CrmDeal {
   wonAt             DateTime?
   lostReason        String?
   ownerId           String?
+  createdById       String? // CrmMember.id — 등록한 사람. 바뀌지 않는다
   healthScore       Int? // 0~100, AI 산출
   source            CrmDataSource @default(HUMAN)
   verifiedFields    Json          @default("[]")
