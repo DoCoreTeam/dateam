@@ -1,6 +1,6 @@
 # PLAN newAX: 접근권한으로 메뉴를 연다
 플랜 ID: P0046
-플랜 버전: v0.2.0
+플랜 버전: v0.2.1
 상태: 진행중
 지시: ins_0059
 목표 버전: v0.10.365
@@ -182,9 +182,9 @@
 의존: I11
 
 ### I12 첫 부여를 넣고 전체를 잰다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/admin/access/AccessClient.tsx, .loop/PLAN.P0046.md, apps/web/lib/changelog/entries.ts, package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
+범위: apps/web/app/admin/access/actions.ts, apps/web/app/admin/access/AccessClient.tsx, .loop/PLAN.P0046.md, apps/web/lib/changelog/entries.ts, package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
 감사 기준:
 - 보안: LOOP.md 7절 기계가 세는 것 다섯 줄을 실행해 전부 0 임을 기록한다
 - 제안서를 전체 공개로, CRM 을 두 부서에 연 상태에서 일반 사용자 화면을 실제로 확인한다
@@ -218,3 +218,5 @@
 - v0.1.13 (2026-09-21) I11 범위를 고쳤다, 능력은 CRM 이 새 SSOT 를 import 하게 하고 범위는 화면에 보인다 (audit:I11)
 - v0.1.14 (2026-09-22) I11a 를 넣었다. 사용자가 테스트 계정에 접근권한을 주고 메뉴를 눌렀더니 「영업 CRM 사용 권한이 없습니다. 관리자에게 요청해 주세요」가 떴다(ins_0078). 서비스 넷은 자기 멤버십 장치가 따로라 부여만으로는 안 열리고, 메뉴는 부여로 떠서 **죽은 문**이 됐다 — I08 이 없앤 것과 같은 모양이 서비스 쪽에 남아 있었다. 플랜 「범위 밖」의 «서비스 내부 역할은 그대로» 는 역할 체계를 안 건드린다는 뜻이지 문을 안 연다는 뜻이 아니므로, 문 여닫기만 여기서 잇는다 (iv_0078)
 - v0.2.0 (2026-09-22) 사용자 개입: 접근권한을 줘도 서비스 메뉴를 누르면 막힌다, 서비스 문까지 잇는 항목 I11a 를 넣었다 (audit:I11)
+- v0.2.1 (2026-09-22) I12 범위에 actions.ts 를 더했다. 「CRM 을 두 부서에 연다」를 실제로 하려면 조직 부여도 서비스 자리를 만들어야 한다 — I11a 는 사람 부여만 만들었고, 조직으로 열면 그 부서 사람들이 다시 죽은 문을 만난다 (audit:I12)
+- v0.2.1 (2026-09-22) I12 범위에 actions.ts 를 더했다, 조직 부여도 서비스 자리를 만들어야 두 부서에 열기가 실제로 된다 (audit:I12)

@@ -353,21 +353,24 @@ export async function saveGrant(input: SaveGrantInput, actorId: string): Promise
  * 문은 서비스 셸의 접근권한 판정이 닫는다.
  */
 async function ensureServiceSeat(input: SaveGrantInput): Promise<void> {
-  if (input.subjectKind !== 'user' || input.effect !== 'allow') return
+  if (input.effect !== 'allow') return
   if (input.surfaceKey.includes('#')) return
   const { surfaceKey, zone } = splitKey(input.surfaceKey)
   if (zone !== null) return
   if (!surfaceByKey(surfaceKey)?.autoSeat) return
 
   const admin = createAdminClient()
+  const userIds = input.subjectKind === 'user'
+    ? [input.subjectId]
+    : await orgMemberUserIds(admin, input.subjectId, input.includeDescendants)
+  if (userIds.length === 0) return
+
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  const { data: seat } = await (admin as any)
-    .from('crm_member')
-    .select('id')
-    .eq('hostUserId', input.subjectId)
-    .is('deletedAt', null)
-    .maybeSingle()
-  if (seat) return
+  const { data: seated } = await (admin as any)
+    .from('crm_member').select('hostUserId').in('hostUserId', userIds).is('deletedAt', null)
+  const has = new Set(((seated ?? []) as { hostUserId: string }[]).map((r) => r.hostUserId))
+  const missing = userIds.filter((id) => !has.has(id))
+  if (missing.length === 0) return
 
   // 워크스페이스는 하나다. 이름을 코드에 박지 않고 이미 있는 자리에서 꺼낸다
   const { data: anyMember } = await (admin as any)
@@ -375,29 +378,56 @@ async function ensureServiceSeat(input: SaveGrantInput): Promise<void> {
   const workspaceId = (anyMember as { workspaceId?: string } | null)?.workspaceId
   if (!workspaceId) throw new Error('영업 CRM 워크스페이스를 찾지 못했습니다')
 
-  const { data: person } = await (admin as any)
-    .from('profiles').select('name').eq('id', input.subjectId).maybeSingle()
+  const { data: profileRows } = await (admin as any)
+    .from('profiles').select('id, name').in('id', missing)
+  const nameOf = new Map(((profileRows ?? []) as { id: string; name: string | null }[]).map((p) => [p.id, p.name]))
 
-  /**
-   * 메일 주소는 `auth.users` 에만 있다 — `profiles` 에는 그 칼럼이 없다.
-   * `crm_member.email` 은 NOT NULL 이라 빠뜨리면 자리 만들기가 통째로 실패한다
-   * (실측 2026-09-22: 첫 판이 그대로 실패했다).
-   */
-  const { data: authUser } = await admin.auth.admin.getUserById(input.subjectId)
-  const email = authUser?.user?.email
-  if (!email) throw new Error('메일 주소를 못 찾아 영업 CRM 자리를 만들지 못했습니다')
+  const rowsToAdd: Record<string, unknown>[] = []
+  for (const id of missing) {
+    /**
+     * 메일 주소는 `auth.users` 에만 있다 — `profiles` 에는 그 칼럼이 없다.
+     * `crm_member.email` 은 NOT NULL 이라 빠뜨리면 자리 만들기가 통째로 실패한다
+     * (실측 2026-09-22: 첫 판이 그대로 실패했다).
+     */
+    const { data: authUser } = await admin.auth.admin.getUserById(id)
+    const email = authUser?.user?.email
+    // 메일이 없는 계정 하나 때문에 나머지를 못 앉히지 않는다. 남은 사람은 아래 반환이 센다
+    if (!email) continue
+    rowsToAdd.push({
+      id: `mb_grant_${id.slice(0, 8)}_${Date.now().toString(36)}`,
+      workspaceId,
+      hostUserId: id,
+      role: 'READONLY',
+      displayName: nameOf.get(id) ?? email,
+      email,
+      capabilities: [],
+    })
+  }
+  if (rowsToAdd.length === 0) return
 
-  const { error: seatError } = await (admin as any).from('crm_member').insert({
-    id: `mb_grant_${input.subjectId.slice(0, 8)}_${Date.now().toString(36)}`,
-    workspaceId,
-    hostUserId: input.subjectId,
-    role: 'READONLY',
-    displayName: (person as { name?: string } | null)?.name ?? email,
-    email,
-    capabilities: [],
-  })
+  const { error: seatError } = await (admin as any).from('crm_member').insert(rowsToAdd)
   if (seatError) throw new Error(seatError.message)
   /* eslint-enable @typescript-eslint/no-explicit-any */
+}
+
+/**
+ * 조직 하나에 걸리는 사람들 — **`appliesToMe` 와 같은 규칙**이어야 한다.
+ *
+ * 하위 포함이면 조상 사슬로 걸리는 사람 전부, 아니면 그 조직에 직접 속한 사람만이다.
+ * 여기서 다르게 세면 관리자가 연 사람 수와 실제로 자리가 생기는 사람 수가 어긋나고,
+ * 어긋난 쪽은 «열어 줬는데 못 들어가는 사람»으로 남는다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function orgMemberUserIds(admin: any, orgId: string, includeDescendants: boolean): Promise<string[]> {
+  let parents = [orgId]
+  if (includeDescendants) {
+    const { data } = await admin
+      .from('org_node_closure').select('descendant_id').eq('ancestor_id', orgId)
+    parents = [...new Set([orgId, ...((data ?? []) as { descendant_id: string }[]).map((r) => r.descendant_id)])]
+  }
+  const { data: people } = await admin
+    .from('org_nodes').select('user_id').eq('type', 'person').in('parent_id', parents)
+  return [...new Set(((people ?? []) as { user_id: string | null }[]).map((p) => p.user_id).filter((id): id is string => Boolean(id)))]
 }
 
 export async function removeGrant(id: string): Promise<string | null> {
