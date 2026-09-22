@@ -109,6 +109,24 @@ export function settingSaveDisabled(state: SettingFieldState): boolean {
 }
 
 /**
+ * 저장된 값이 고를 수 있는 목록에 없을 때 화면이 하는 말.
+ *
+ * ## 왜 필요한가 (실측 2026-09-20 ~ 09-22)
+ *
+ * `ai.model.extract` 에 `global-model` 이 들어앉았을 때, 드롭다운은 그 값에 맞는 항목이 없으니
+ * **첫 항목을 그렸다.** 화면은 「자동 (지금은 Gemini)」라고 말했고 기능은 죽어 있었다.
+ * 값이 이상하다는 사실을 화면이 숨기면, 고칠 사람이 고칠 자리를 못 찾는다.
+ */
+export function settingUnknownValue(value: string): string {
+  return `지금 저장된 값(${value})은 고를 수 있는 목록에 없습니다. 아래에서 다시 골라 주세요.`
+}
+
+/** 목록에 없는 값을 드롭다운에 그대로 보여 줄 때 붙이는 꼬리표 */
+export function settingUnknownOptionLabel(value: string): string {
+  return `${value} (알 수 없는 값)`
+}
+
+/**
  * 새로 만드는 진입 라벨 — `새 딜` · `새 회사`.
  *
  * **「추가」를 쓰지 않는다.** 무엇을 추가하는지 안 밝히면 버튼만 보고는 알 수 없다(실측 8곳).

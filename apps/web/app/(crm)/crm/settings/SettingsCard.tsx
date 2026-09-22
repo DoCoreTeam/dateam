@@ -16,6 +16,7 @@ import {
   SETTING_GROUP as GROUP, SETTING_GROUP_ORDER as GROUP_ORDER,
   type SettingGroupKey,
 } from '@/lib/crm/domain/setting-group'
+import { unknownChoiceValue } from '@/lib/crm/domain/setting-value'
 import QuoteNoField from './QuoteNoField'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import styles from './settings.module.css'
@@ -23,6 +24,7 @@ import SharedSettingsCard from '@/components/ui/settings/SettingsCard'
 import StatusPill from '@/components/ui/settings/StatusPill'
 import {
   ACTION, progress, settingFieldState, SETTING_SAVE_LABEL, settingSaveDisabled,
+  settingUnknownValue, settingUnknownOptionLabel,
 } from '@/lib/terms'
 
 interface Choice { value: string; label: string; hint?: string }
@@ -46,6 +48,17 @@ const SOURCE_LABEL: Record<SettingItem['source'], string> = {
   WORKSPACE: '이 워크스페이스',
   GLOBAL: '공통 설정',
   FALLBACK: '기본값',
+}
+
+/**
+ * 저장된 값이 고를 수 있는 목록 밖인가 — 판정 자체는 도메인에 있다(검사할 수 있어야 한다).
+ *
+ * 선택지가 아직 안 온 동안에는 묻지 않는다. 그때는 어떤 값이든 «목록 밖»이라
+ * 로딩 중에 경고가 번쩍인다.
+ */
+function unknownChoice(s: SettingItem): string | null {
+  if (s.kind !== 'choice' || !s.choices || s.choices.length === 0) return null
+  return unknownChoiceValue(s.value, s.choices)
 }
 
 /**
@@ -165,6 +178,9 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
               <StatusPill tone="neutral">{SOURCE_LABEL[s.source]}</StatusPill>
             </div>
             <p className="field-note">{s.description}</p>
+            {unknownChoice(s) !== null && (
+              <FormErrorBanner message={settingUnknownValue(unknownChoice(s)!)} />
+            )}
 
             <div className={styles.row}>
               <div className={styles.field}>
@@ -181,6 +197,16 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
                     value={drafts[s.key] ?? ''}
                     onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
                   >
+                    {/*
+                      목록 밖의 값이면 **그 값을 그대로 항목으로 얹는다.**
+                      안 얹으면 select 가 첫 항목을 그려, 이상한 값이 저장돼 있는데도
+                      화면은 멀쩡한 값을 고른 것처럼 보인다.
+                    */}
+                    {unknownChoice(s) !== null && (
+                      <option value={unknownChoice(s)!}>
+                        {settingUnknownOptionLabel(unknownChoice(s)!)}
+                      </option>
+                    )}
                     {(s.choices ?? []).map((c) => (
                       <option key={c.value} value={c.value}>{c.label}</option>
                     ))}

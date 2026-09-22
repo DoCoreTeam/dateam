@@ -84,7 +84,7 @@
 의존: I04
 
 ### I06 화면이 이상값을 숨기지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(crm)/crm/settings/SettingsCard.tsx, apps/web/lib/crm/domain/settings-tab.test.ts 또는 신규 가드
 감사 기준:

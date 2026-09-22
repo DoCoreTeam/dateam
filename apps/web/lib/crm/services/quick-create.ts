@@ -383,7 +383,14 @@ export async function adapterFromSetting(
         // 넘어갔다는 것은 기능이 돈다는 뜻이다 — 막힌 것이 아니므로 심각도를 올리지 않는다
         blocksUser: false,
         hint: info.id,
-        context: { setting: 'ai.model.extract', ignored: info.ignored, reason: info.reason },
+        /*
+          웹 검색을 켜고 불렀는지까지 싣는다 — 한도 조언이 갈리는 값이라
+          안 실으면 화면이 「다른 모델로 바꾸세요」라는 틀린 답을 한다(lib/system-log/narrate.test.ts).
+        */
+        context: {
+          setting: 'ai.model.extract', ignored: info.ignored, reason: info.reason,
+          webSearch: opts.webSearch === true,
+        },
       })
     },
   }, readHostCatalog)
