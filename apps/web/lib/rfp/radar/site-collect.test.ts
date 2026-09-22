@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   extractLinks, absolute, renderPage, buildSitePrompt, parseSiteNotices,
   noticesFromLinks, pickNoticeGroup, urlShape, looksDetail, cleanTitle, dateFromRow,
-  sourceKey, toSourceRows, fetchPage, MAX_NOTICES,
+  sourceKey, toSourceRows, fetchPage, classifyFetchError, MAX_NOTICES,
 } from './site-collect.ts'
 
 const HTML = `
@@ -225,4 +225,56 @@ test('사람이 보는 것과 같은 쪽을 받는다 — 기본 UA 를 막는 �
   })
   assert.ok(ua.length > 0)
   assert.ok(MAX_NOTICES > 0)
+})
+
+/*
+  왜 못 열었는지를 가르는 시험.
+
+  Node 의 fetch 는 무엇이 잘못됐든 `TypeError: fetch failed` 로 던지고 진짜 사유는
+  `cause.code` 에 있다. 그래서 «실제로 던져지는 모양»을 그대로 만들어 넣는다 —
+  지어낸 문구로 시험하면 운영에서 오는 모양은 한 번도 안 지난다.
+  아래 셋은 2026-09-22 에 실제로 받아 본 값이다.
+*/
+function thrown(code: string, causeMessage: string): unknown {
+  const e = new TypeError('fetch failed')
+  ;(e as { cause?: unknown }).cause = Object.assign(new Error(causeMessage), { code })
+  return e
+}
+
+test('인증서 사슬이 끊긴 것을 tls 로 가른다 — KISA 실측', () => {
+  assert.equal(
+    classifyFetchError(thrown('UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'unable to verify the first certificate')),
+    'tls',
+  )
+})
+
+test('주소를 못 찾은 것과 거부당한 것이 갈라진다', () => {
+  assert.equal(classifyFetchError(thrown('ENOTFOUND', 'getaddrinfo ENOTFOUND example.invalid')), 'dns')
+  assert.equal(classifyFetchError(thrown('ECONNREFUSED', 'connect ECONNREFUSED 127.0.0.1:59999')), 'refused')
+  assert.equal(classifyFetchError(thrown('ECONNRESET', 'socket hang up')), 'connection_lost')
+})
+
+test('시간 초과는 사슬을 안 파고도 잡힌다 — abort 는 우리가 건 것이다', () => {
+  const abort = new Error('This operation was aborted')
+  abort.name = 'AbortError'
+  assert.equal(classifyFetchError(abort), 'timeout')
+  assert.equal(classifyFetchError(thrown('UND_ERR_CONNECT_TIMEOUT', 'Connect Timeout Error')), 'timeout')
+})
+
+test('모르는 것은 fetch_failed 로 남는다 — 아는 척하지 않는다', () => {
+  assert.equal(classifyFetchError(new TypeError('fetch failed')), 'fetch_failed')
+  assert.equal(classifyFetchError(null), 'fetch_failed')
+})
+
+test('사유에 밖에서 온 문구가 안 실린다', () => {
+  const reason = classifyFetchError(thrown('UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'unable to verify the first certificate for www.kisa.or.kr'))
+  assert.ok(!reason.includes('kisa'), '주소가 사유에 실렸다')
+  assert.ok(!reason.includes(' '), '사유는 이름 한 개다')
+})
+
+test('fetchPage 가 그 사유를 그대로 돌려준다', async () => {
+  const boom = async () => { throw thrown('UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'unable to verify the first certificate') }
+  const out = await fetchPage('https://example.test/list', boom as unknown as typeof fetch, 1000)
+  assert.equal(out.ok, false)
+  assert.equal(out.reason, 'tls')
 })

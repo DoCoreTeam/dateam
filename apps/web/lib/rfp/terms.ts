@@ -508,6 +508,7 @@ export const RFP_RADAR = {
   lastRun: '마지막으로 본 때',
   siteNever: '아직 안 봤습니다',
   siteRulesOnly: 'AI 를 못 써서 제목만 가져왔습니다',
+  siteTitlesOnly: '목록에서 상세 주소를 못 얻어 제목만 가져왔습니다',
   adoptTitle: '케이스로 만들기',
   adoptDesc: '공고에 붙은 첨부를 그대로 받아 분석을 시작합니다',
   adopted: '첨부를 받아 분석을 걸었습니다',
@@ -533,6 +534,39 @@ export const RFP_RADAR = {
   revisionTitle: '정정공고 비교',
   revisionNone: '아직 정정공고가 없어요',
 } as const
+
+/**
+ * 왜 못 모았나 — `radar/site-collect` 가 남기는 사유 이름을 사람 말로
+ *
+ * 화면이 `fetch_failed` 를 그대로 찍고 있었다. 그건 기계가 자기에게 하는 말이고,
+ * 읽는 사람은 그 말로 아무것도 못 한다. 어떤 것은 사이트 주인에게 알릴 일이고
+ * (인증서), 어떤 것은 주소를 고칠 일이고(주소 못 찾음), 어떤 것은 그냥 기다릴 일이다.
+ *
+ * 밖에서 온 문구는 여기 오지 않는다 — 오는 것은 정해진 이름뿐이다.
+ */
+export const RFP_COLLECT_REASON: Record<string, string> = {
+  tls: '그 사이트가 보안 인증서를 온전히 보내지 않아 열지 못했습니다',
+  dns: '주소를 찾지 못했습니다',
+  refused: '연결을 거부당했습니다',
+  connection_lost: '연결이 도중에 끊겼습니다',
+  timeout: '시간 안에 응답이 없었습니다',
+  fetch_failed: '열지 못했습니다',
+  no_url: '목록 주소가 없습니다',
+  no_links: '목록에서 링크를 못 찾았습니다',
+  no_notices: '공고를 못 찾았습니다',
+  insert_failed: '찾은 공고를 담지 못했습니다',
+  no_service_key: '나라장터 서비스 키가 없습니다',
+}
+
+/** 사유 한 줄 — 모르는 이름이면 그 이름을 그대로 보인다(감추는 것보다 낫다) */
+export function collectReasonText(reason: string): string {
+  const known = RFP_COLLECT_REASON[reason]
+  if (known) return known
+  const http = /^http_(\d{3})$/.exec(reason)
+  if (http) return `사이트가 ${http[1]} 로 답했습니다`
+  return reason
+}
+
 
 /** 관리자 설정 */
 export const RFP_ADMIN = {

@@ -328,11 +328,46 @@ export async function fetchPage(
     if (!res.ok) return { ok: false, html: '', reason: `http_${res.status}` }
     return { ok: true, html: await res.text(), reason: null }
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    return { ok: false, html: '', reason: message.includes('abort') ? 'timeout' : 'fetch_failed' }
+    return { ok: false, html: '', reason: classifyFetchError(e) }
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * 왜 못 열었나 — **`message` 만 보면 전부 한 덩이가 된다**
+ *
+ * Node 의 fetch 는 무엇이 잘못됐든 `TypeError: fetch failed` 로 던진다.
+ * 진짜 사유는 `cause.code` 에 있다. 그걸 안 보고 `message` 만 보던 탓에
+ * 인증서 문제도 DNS 도 연결 거부도 화면에는 전부 `fetch_failed` 로 남았고,
+ * 사람은 「사이트가 죽었나」만 반복해서 확인했다.
+ *
+ * 실측 2026-09-22 — KISA(www.kisa.or.kr)는 잎 인증서만 보내고 중간 인증서를 안 보낸다.
+ * 브라우저와 curl 은 중간 인증서를 스스로 채워서 열리고, Node 는 거부한다.
+ * 「우리가 못 읽는 것」과 「사이트가 죽은 것」은 사람이 할 일이 전혀 다르다.
+ *
+ * 밖에서 온 문구는 **여기서 끝난다.** 돌려주는 것은 정해진 이름뿐이다.
+ */
+export function classifyFetchError(e: unknown): string {
+  const codes: string[] = []
+  const messages: string[] = []
+  for (let cur: unknown = e, depth = 0; cur && depth < 5; depth += 1) {
+    const err = cur as { code?: unknown; message?: unknown; name?: unknown; cause?: unknown }
+    if (typeof err.code === 'string') codes.push(err.code)
+    if (typeof err.message === 'string') messages.push(err.message)
+    if (typeof err.name === 'string') messages.push(err.name)
+    cur = err.cause
+  }
+  const code = codes.join(' ')
+  const text = messages.join(' ').toLowerCase()
+
+  if (/abort/.test(text)) return 'timeout'
+  if (/CERT|SSL|_SIGNATURE|TLS/.test(code) || /certificate/.test(text)) return 'tls'
+  if (/ENOTFOUND|EAI_AGAIN/.test(code) || /getaddrinfo/.test(text)) return 'dns'
+  if (/ECONNREFUSED/.test(code)) return 'refused'
+  if (/ECONNRESET|EPIPE|UND_ERR_SOCKET/.test(code)) return 'connection_lost'
+  if (/ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|UND_ERR_HEADERS_TIMEOUT/.test(code)) return 'timeout'
+  return 'fetch_failed'
 }
 
 function str(v: unknown): string | null {

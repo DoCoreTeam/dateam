@@ -17,7 +17,7 @@ import { Plus, X, ExternalLink } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
-import { RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
+import { collectReasonText, RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
 import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
 import styles from '@/app/(rfp)/rfp.module.css'
 
@@ -28,7 +28,10 @@ export interface SiteRow {
   url: string | null
   enabled: boolean
   last_run_at: string | null
-  last_result: { found?: number; inserted?: number; reason?: string | null; rulesOnly?: boolean } | null
+  last_result: {
+    found?: number; inserted?: number; reason?: string | null
+    rulesOnly?: boolean; titlesOnly?: boolean
+  } | null
 }
 
 export interface SourceSitesProps {
@@ -109,8 +112,11 @@ export default function SourceSites({ initialSites, initialHasServiceKey }: Sour
                 {s.last_run_at
                   ? ` · ${RFP_RADAR.lastRun} ${s.last_run_at.slice(0, 10)}`
                   : ` · ${RFP_RADAR.siteNever}`}
-                {s.last_result?.reason ? ` · ${s.last_result.reason}` : ''}
+                {/* 기계가 자기에게 하는 말(`fetch_failed`)을 그대로 찍으면 읽는 사람이 할 일이 없다.
+                    사유마다 할 일이 다르다 — 인증서는 사이트 주인에게, 주소 못 찾음은 주소를 고치는 일 */}
+                {s.last_result?.reason ? ` · ${collectReasonText(s.last_result.reason)}` : ''}
                 {s.last_result?.rulesOnly ? ` · ${RFP_RADAR.siteRulesOnly}` : ''}
+                {s.last_result?.titlesOnly ? ` · ${RFP_RADAR.siteTitlesOnly}` : ''}
               </span>
             </label>
             {/* 나라장터는 뺄 수 없다 — 빼면 되돌릴 길이 화면에 없다 */}
