@@ -41,7 +41,7 @@
 의존: 없음
 
 ### I02 테스트가 GLOBAL 행을 커밋하지 못하게
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/tests/crm/services/setting.test.ts
 감사 기준:

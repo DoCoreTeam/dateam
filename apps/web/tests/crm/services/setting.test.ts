@@ -10,7 +10,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 // loadEnv 부작용 때문에 _helpers 를 먼저 읽는다 — DATABASE_URL 이 여기서 채워진다
 import { catchError } from '../integrity/_helpers.ts'
-import { getCrmDb } from '../../../lib/crm/db/client.ts'
+import { getCrmDb, type CrmDb } from '../../../lib/crm/db/client.ts'
 import {
   setSetting, clearSetting, resolveSetting, readSecret, listSettings,
   encryptSecret, decryptSecret, maskSecret, settingDef, SETTING_DEFS,
@@ -59,40 +59,100 @@ const WS = 'ws_setting_test'
 const dbT = getCrmDb(WS)
 
 /**
- * 이 테스트가 만든 GLOBAL 행의 id.
- *
- * GLOBAL 행은 `workspaceId` 가 null 이라 **워크스페이스로 못 가른다.**
- * 그래서 키로 지우면 남이 넣은 GLOBAL 값까지 같이 지운다 — 위와 같은 사고다.
- * 만든 id 만 들고 있다가 그것만 지운다.
+ * 이 파일이 만드는 GLOBAL 행의 id 앞머리. 옛 판이 남긴 행을 찾아 지울 때 쓴다.
  */
-const MADE_GLOBAL: string[] = []
+const GLOBAL_ID_PREFIX = 'st_test_global'
 
-async function makeGlobal(key: string, value: string): Promise<void> {
-  const id = `st_test_global_${MADE_GLOBAL.length}`
-  MADE_GLOBAL.push(id)
-  await dbT.crmAppSetting.create({
-    data: { id, scope: 'GLOBAL', workspaceId: null, key, valueJson: value as never },
-  })
+/**
+ * GLOBAL 행은 **커밋하지 않는다** — 롤백되는 트랜잭션 안에서만 존재한다.
+ *
+ * ## 왜 정리 구문으로는 안 되나 (실측 2026-09-22)
+ *
+ * 예전 판은 만든 id 를 들고 있다가 끝에 지웠다:
+ *
+ *     dbT.crmAppSetting.deleteMany({ where: { id: { in: MADE_GLOBAL } } })
+ *
+ * **이 구문은 한 번도 GLOBAL 행을 지운 적이 없다.** 워크스페이스 가드는 지우기에
+ * GLOBAL 을 끼워 주지 않는다(`db/workspace-guard.ts` 의 「지우기에는 GLOBAL 을 끼워 넣지 않는다」) —
+ * 한 워크스페이스가 모두의 공용 기본값을 지우면 안 되기 때문이고, 그건 옳은 규칙이다.
+ * 그래서 위 조건은 `workspaceId: 'ws_setting_test'` 가 붙은 채로 나가고,
+ * `workspaceId` 가 null 인 GLOBAL 행에는 영영 안 걸린다.
+ *
+ * 남은 행은 **모든 워크스페이스의 기본값**이다. 실제로 `st_test_global_0` 이 이틀 남아
+ * 운영의 `ai.model.extract` 가 `global-model` 이 됐고, 견적서 읽기·명함 읽기 같은
+ * 추출 경로가 전부 「설정된 AI(global-model)를 모르겠습니다」로 막혔다.
+ *
+ * 고칠 방향은 «더 잘 지우기»가 아니다. 지울 수 없는 것은 **만들지 않는 것**이다 —
+ * 커밋되지 않으면 트랜잭션 밖에서는 존재한 적이 없다. 단정이 실패해도, 프로세스가 죽어도
+ * 되돌리는 쪽은 우리가 아니라 Postgres 다.
+ */
+class Rollback extends Error {}
+
+async function withGlobal<T>(
+  key: string,
+  value: string,
+  body: (tx: CrmDb) => Promise<T>,
+): Promise<T> {
+  let out: T | undefined
+  let ran = false
+  try {
+    await dbT.$transaction(async (tx) => {
+      await tx.crmAppSetting.create({
+        data: { id: `${GLOBAL_ID_PREFIX}_0`, scope: 'GLOBAL', workspaceId: null, key, valueJson: value as never },
+      })
+      out = await body(tx as unknown as CrmDb)
+      ran = true
+      throw new Rollback()
+    }, { timeout: 30_000 })
+  } catch (e) {
+    if (!(e instanceof Rollback)) throw e
+  }
+  assert.ok(ran, '롤백 트랜잭션이 본문까지 못 갔다 — 통과처럼 보이는 미실행이다')
+  return out as T
 }
 
 /**
  * 이 테스트가 만든 것만 지운다.
  *
- * 워크스페이스 행은 전용 워크스페이스 조건으로, GLOBAL 행은 만든 id 로 좁힌다.
+ * 워크스페이스 행은 전용 워크스페이스 조건으로 좁힌다.
  * 감사 로그도 마찬가지다 — `targetType` 만으로 지우면 남의 설정 변경 이력이 날아간다.
+ * GLOBAL 행은 여기서 안 지운다. 지울 것이 없다(위 `withGlobal` 참조).
  */
 async function cleanup() {
   await dbT.crmAppSetting.deleteMany({ where: { scope: 'WORKSPACE', workspaceId: WS } })
-  if (MADE_GLOBAL.length > 0) {
-    await dbT.crmAppSetting.deleteMany({ where: { id: { in: MADE_GLOBAL } } })
-    MADE_GLOBAL.length = 0
-  }
   await dbT.crmAuditLog.deleteMany({ where: { workspaceId: WS, targetType: 'setting' } })
 }
 
 test('시작 전 잔여 정리', async () => {
   process.env.CRM_SETTING_KEY ??= 'test-master-key-for-crm-settings'
   await cleanup()
+  /*
+    옛 판이 남긴 GLOBAL 행을 치운다. `workspaceId: null` 을 **명시해야** 가드가
+    그 조건을 존중한다 — 안 적으면 전용 워크스페이스가 주입돼 또 안 걸린다.
+  */
+  await dbT.crmAppSetting.deleteMany({
+    where: { workspaceId: null, id: { startsWith: GLOBAL_ID_PREFIX } },
+  })
+})
+
+test('★ GLOBAL 행은 커밋되지 않는다 — 남으면 모든 워크스페이스의 기본값이 된다', async () => {
+  await withGlobal(KEY, 'global-model', async (tx) => {
+    assert.equal((await resolveSetting(tx, KEY)).source, 'GLOBAL')
+  })
+  const after = await resolveSetting(dbT, KEY)
+  assert.equal(after.source, 'FALLBACK',
+    'GLOBAL 행이 커밋돼 남았다 — 이 한 줄이 운영 전체의 AI 설정을 덮는다')
+})
+
+test('★ 롤백 트랜잭션 안에서도 워크스페이스 가드가 살아 있다', async () => {
+  await withGlobal(KEY, 'global-model', async (tx) => {
+    await assert.rejects(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      () => (tx as any).crmAppSetting.findMany({ where: { workspaceId: 'ws_somebody_else' } }),
+      (e: unknown) => e instanceof CrmError && e.code === 'WORKSPACE_MISMATCH',
+      '트랜잭션 안에서 확장이 빠졌다 — 그러면 이 파일의 읽기가 남의 행까지 본다',
+    )
+  })
 })
 
 // ------------------------------------------------------------
@@ -105,27 +165,31 @@ test('설정이 하나도 없어도 코드 기본값으로 돈다', async () => 
   assert.equal(r.value, settingDef(KEY).fallback)
 })
 
+/*
+  `setSetting`·`clearSetting` 은 **자기 트랜잭션을 연다**(`withCrmTx`).
+  롤백 트랜잭션 안에서 부르면 이 연결 풀에 남는 연결이 없어
+  「Unable to start a transaction in the given time」으로 죽는다(실측).
+  그래서 쓰기는 밖에서 먼저 커밋하고, 롤백 트랜잭션은 GLOBAL 을 얹어 **읽기만** 한다.
+*/
 test('★ 워크스페이스 값이 GLOBAL 을 덮는다', async () => {
-  await makeGlobal(KEY, 'global-model')
-  const g = await resolveSetting(dbT, KEY)
-  assert.equal(g.value, 'global-model')
-  assert.equal(g.source, 'GLOBAL')
-
   await setSetting(WS, 'mb_owner', KEY, 'ws-model')
-  const w = await resolveSetting(dbT, KEY)
-  assert.equal(w.value, 'ws-model', '워크스페이스 설정이 안 먹었다')
-  assert.equal(w.source, 'WORKSPACE')
+  await withGlobal(KEY, 'global-model', async (tx) => {
+    const w = await resolveSetting(tx, KEY)
+    assert.equal(w.value, 'ws-model', '워크스페이스 설정이 안 먹었다')
+    assert.equal(w.source, 'WORKSPACE')
+  })
   await cleanup()
 })
 
 test('★ 워크스페이스 값을 지우면 GLOBAL 로 돌아간다 — 되돌릴 길이 있어야 한다', async () => {
-  await makeGlobal(KEY, 'global-model')
   await setSetting(WS, 'mb_owner', KEY, 'ws-model')
   await clearSetting(WS, 'mb_owner', KEY)
 
-  const r = await resolveSetting(dbT, KEY)
-  assert.equal(r.value, 'global-model')
-  assert.equal(r.source, 'GLOBAL')
+  await withGlobal(KEY, 'global-model', async (tx) => {
+    const r = await resolveSetting(tx, KEY)
+    assert.equal(r.value, 'global-model')
+    assert.equal(r.source, 'GLOBAL')
+  })
   await cleanup()
 })
 
