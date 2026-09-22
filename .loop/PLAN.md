@@ -145,6 +145,48 @@ VALUES ('st_test_global_0', 'GLOBAL', NULL, 'ai.model.extract', '"global-model"'
 - I02 -> apps/web/tests/crm/services/setting.test.ts 17/17 (이전 15/17)
 - I03 -> apps/web/lib/policy/test-db-safety.test.ts 4 -> 6 테스트
 
+## 종합 감사 2차 — 개입 iv_0103 이후 (2026-09-22)
+
+왜 2차인가: 1차 뒤 사용자가 「키를 이렇게 많이 넣었는데 AI 를 못 읽는 이슈라니」라고 지적함
+1차는 이번 행 하나를 치웠을 뿐, **설정 한 줄이 AI 전체를 멈출 수 있는 구조**는 그대로였음
+
+검사 넷
+
+- pnpm tsc --noEmit: 통과
+- pnpm lint: 통과 (Error 0)
+- pnpm test: 6676/6676 통과, 실패 0 (1차 6661 에서 15 늘어남)
+- pnpm build: 통과 (Compiled successfully 69s, 정적 294/294)
+
+보안 다섯 줄: rls_off_tables 0 · anon_write_tables 0 · public_using_true_policies 0 ·
+unpinned_secdef_functions 0 · anon_readable_secdef_views 0 · (덧) GLOBAL 행 0
+
+세 겹으로 막음
+
+- 들어오는 쪽: setSetting 이 고르는 설정의 목록 밖 값을 거절 (허용 집합 원본 = lib/ai/provider-catalog)
+- 읽는 쪽: resolveProvider 가 던지지 않고 쓸 수 있는 공급자로 넘어가며 버린 값을 돌려줌,
+  quick-create 가 시스템 로그에 남김 (키가 0개일 때만 여전히 던짐)
+- 보이는 쪽: 설정 화면이 목록 밖 값을 그대로 보여 주고 다시 고르라고 말함
+
+가드는 전부 일부러 깨서 빨강 확인함 (검증 제거 · 통지 제거 · 기록 제거 · 다시 throw · 화면 경고 제거)
+
+항목 대 결과 대조 2차
+
+- I04 -> apps/web/lib/crm/services/setting.ts + setting-choice.test.ts(5단정, 등재)
+- I05 -> apps/web/lib/crm/ai/adapters/host.ts + quick-create.ts, host.test.ts 14 -> 20
+- I06 -> SettingsCard.tsx + lib/crm/domain/setting-value.ts + 그 가드(5단정, 등재), 문구는 lib/terms
+
+부수 발견
+
+- 기존 가드 lib/system-log/narrate.test.ts 가 「기록하면서 webSearch 를 알면 그 값을 실어라」로
+  내 새 기록 호출을 잡음 — context 에 webSearch 추가함
+- git checkout 으로 일부러 깨기를 되돌리면 미커밋 작업까지 지워짐 (I04 에서 한 번 당함),
+  이후로는 백업 파일로 되돌림
+
+여전히 못 한 것
+
+- 견적 모달 실브라우저 확인 1건 (1차와 같은 이유: E2E 세션 만료, 갱신에 사람 로그인 필요)
+- 새 코드는 아직 배포 전임 — 운영은 DB 행을 지운 것으로 이미 풀려 있고, 세 겹 방어는 배포 뒤부터 돔
+
 ## 변경 이력
 - v0.1.0 (2026-09-22) 최초 작성 (ins_0092)
 - v0.1.1 (2026-09-22) I01 실브라우저 확인을 종합 감사로 옮기고 그 자리에 오류를 만든 함수 직접 확인을 넣음, I03 는 새 파일 대신 이미 등재된 lib/policy/test-db-safety.test.ts 를 늘림 (audit:I01)

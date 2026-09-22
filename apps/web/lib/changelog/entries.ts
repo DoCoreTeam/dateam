@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.401',
+    date: '2026-09-22',
+    title: '설정이 한 줄 틀려도 AI는 계속 돕니다',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🛟',
+        headline: '쓸 수 있는 AI가 있으면 멈추지 않아요',
+        detail: '「어떤 AI를 쓸지」가 알 수 없는 값으로 저장돼 있으면, 등록해 두신 키가 멀쩡해도 견적서 읽기가 통째로 멈췄어요. 이제는 쓸 수 있는 AI로 대신 돌리고, 무엇을 대신 썼는지 시스템 로그에 남깁니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🔎',
+        headline: '설정 값이 이상하면 그 자리에서 알려 드려요',
+        detail: '고르는 칸은 저장된 값이 목록에 없으면 첫 항목을 보여 주는 성질이 있어서, 이상한 값이 들어 있어도 멀쩡해 보였어요. 이제 그 값을 그대로 보여 주고 다시 고르라고 말합니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🧱',
+        headline: '목록에 없는 값은 아예 저장되지 않아요',
+        detail: '고르는 설정에 목록 밖의 값이 들어오면 저장을 거절합니다. 화면을 거치지 않고 들어오던 길까지 함께 막았어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.388',
     date: '2026-09-22',
     title: 'AI로 견적서 읽기가 다시 됩니다',
