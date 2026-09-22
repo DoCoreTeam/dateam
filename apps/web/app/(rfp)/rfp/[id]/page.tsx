@@ -11,6 +11,7 @@ import type { SourceBlock } from '@/components/rfp/SourceViewer'
 import type { Report } from '@/lib/rfp/report/schema'
 import type { DocClass } from '@/lib/rfp/domain/doc-class'
 import type { FitVerdict } from '@/lib/rfp/terms'
+import { missingSections, type MissingSection } from '@/lib/rfp/analyze/failure-reason'
 
 export const dynamic = 'force-dynamic'
 
@@ -214,6 +215,8 @@ export interface CaseProgress {
   runningJob: string | null
   /** 죽은 잡과 사유 */
   deadJob: { jobType: string; error: string } | null
+  /** 잡은 끝났는데 못 만든 절 — 공급자 원문은 접혀서 사유 이름만 온다 */
+  missing: MissingSection[]
   /** 공고 원문 주소 — 사람이 직접 열어 첨부를 받을 수 있게 */
   noticeUrl: string | null
 }
@@ -232,11 +235,20 @@ async function loadProgress(db: unknown, caseId: string, sourceId: string | null
   }
 
   const { data: files } = await q.from('rfp_document_files').select('id').eq('case_id', caseId).is('deleted_at', null)
-  const { data: jobs } = await q.from('rfp_analysis_jobs').select('job_type, status, error').eq('case_id', caseId)
+  /*
+    `progress` 도 같이 읽는다. 분석은 절 단위로 따로 돌아서 **잡은 성공인데 절은 실패**할 수 있고,
+    그 사실은 여기에만 남는다(`run-stage` 가 적는다). 이 칸을 안 읽으면 못 만든 절이
+    화면에서 「없음」과 똑같이 보인다 — 실측 2026-09-22 케이스 e3338eb6.
+  */
+  const { data: jobs } = await q.from('rfp_analysis_jobs')
+    .select('job_type, status, error, progress').eq('case_id', caseId)
 
-  const rows = ((jobs as { job_type: string; status: string; error: string | null }[] | null) ?? [])
+  const rows = ((jobs as {
+    job_type: string; status: string; error: string | null; progress: unknown
+  }[] | null) ?? [])
   const running = rows.find((j) => j.status === 'queued' || j.status === 'running') ?? null
   const dead = rows.find((j) => j.status === 'dead' || j.status === 'failed') ?? null
+  const analyzed = rows.find((j) => j.job_type === 'analyze' && j.status === 'done') ?? null
 
   let noticeUrl: string | null = null
   if (sourceId) {
@@ -249,6 +261,8 @@ async function loadProgress(db: unknown, caseId: string, sourceId: string | null
     fileCount: ((files as unknown[] | null) ?? []).length,
     runningJob: running?.job_type ?? null,
     deadJob: dead ? { jobType: dead.job_type, error: dead.error ?? '' } : null,
+    // 공급자 원문은 여기서 접힌다 — 화면으로 나가는 것은 사유 이름뿐이다
+    missing: missingSections(analyzed?.progress),
     noticeUrl,
   }
 }

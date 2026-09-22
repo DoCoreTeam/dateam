@@ -20,6 +20,7 @@
 
 import type { DocClass } from './domain/doc-class.ts'
 import type { Stage } from './domain/status.ts'
+import type { FailureReason } from './analyze/failure-reason.ts'
 
 import { ENTITY, SERVICE_LABEL } from '../terms/index.ts'
 
@@ -349,6 +350,31 @@ export const RFP_REPORT = {
   analysisFailedDesc: '사유를 확인한 뒤 다시 걸어 주세요',
   openNotice: '공고 열기',
   uploadFiles: '파일 올리기',
+  /*
+    분석은 절 단위로 따로 돈다. 그래서 「다 됐다」와 「다 못 됐다」 사이에
+    **일부만 됐다**가 있다. 그 자리를 안 그리면 못 만든 절이 「없음」으로 보이고,
+    사용자는 이상 조항이 없는 줄 안다 (실측 2026-09-22 케이스 e3338eb6,
+    예산·제출 서류·이상 조항 셋이 못 돌았는데 화면은 전부 「없음」이었다)
+  */
+  missingSome: '일부는 못 만들었습니다',
+  missingSomeDesc: '아래 절은 분석이 끝나지 못했습니다. 사유가 풀리면 다시 걸어 주세요',
+  missingOne: '이 절은 못 만들었습니다',
+  retryAnalyze: '분석 다시 걸기',
+} as const
+
+/**
+ * 못 만든 사유를 사람 말로 — `lib/rfp/analyze/failure-reason` 의 사유 이름과 짝이다
+ *
+ * 공급자 원문은 여기 오지 않는다. 오는 것은 접힌 이름뿐이고,
+ * 그래서 이 표에 없는 이름이 생기면 타입이 먼저 빨개진다.
+ */
+export const RFP_FAILURE_REASON: Record<FailureReason, string> = {
+  no_credit: 'AI 사용량이 소진됐습니다',
+  too_large: '문서가 한 번에 다룰 수 있는 양을 넘었습니다',
+  rate_limit: '요청이 한꺼번에 몰려 한도에 걸렸습니다',
+  timeout: '시간 안에 끝내지 못했습니다',
+  no_model: '쓸 수 있는 모델이 없었습니다',
+  unknown: '알 수 없는 이유로 멈췄습니다',
 } as const
 
 /** 교차검증 대화 */

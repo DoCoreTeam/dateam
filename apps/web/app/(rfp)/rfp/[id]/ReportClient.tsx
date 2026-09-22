@@ -22,9 +22,10 @@ import OutcomeForm, { type OutcomeFormProps } from '@/components/rfp/OutcomeForm
 import RevisionDiffPanel, { type RevisionChainItem } from '@/components/rfp/RevisionDiffPanel'
 import CrossVerifyDialog, { type CrossField } from '@/components/rfp/CrossVerifyDialog'
 import {
-  RFP_REPORT, RFP_LIST, DOC_CLASS_LABEL, FIT_VERDICT_LABEL,
+  RFP_REPORT, RFP_LIST, DOC_CLASS_LABEL, FIT_VERDICT_LABEL, RFP_FAILURE_REASON,
   ANOMALY_SEVERITY_LABEL, type AnomalySeverity, type FitVerdict,
 } from '@/lib/rfp/terms'
+import { taskFace, type MissingSection } from '@/lib/rfp/analyze/failure-reason'
 import type { Report, ValueNode } from '@/lib/rfp/report/schema'
 import type { DocClass } from '@/lib/rfp/domain/doc-class'
 
@@ -57,6 +58,8 @@ export interface ReportClientProps {
     fileCount: number
     runningJob: string | null
     deadJob: { jobType: string; error: string } | null
+    /** 잡은 끝났는데 못 만든 절 — 빈 절과 못 만든 절은 다른 것이다 */
+    missing: MissingSection[]
     noticeUrl: string | null
   }
 }
@@ -136,6 +139,18 @@ export default function ReportClient({
     )
   }
 
+  /*
+    못 만든 절 — 작업 이름과 사유를 화면 말로 바꿔 둔다.
+    모르는 작업 id 는 버린다(옛 기록). 버린 것까지 세면 「셋을 못 만들었다」인데
+    목록에는 둘만 있는 화면이 된다.
+  */
+  const missing = progress.missing
+    .map((m) => ({ ...m, face: taskFace(m.taskId) }))
+    .filter((m): m is MissingSection & { face: { title: string; section: string } } => m.face !== null)
+
+  /** 절 이름 → 그 절을 못 만든 사유. 절 카드가 자기 자리에서 말할 수 있게 */
+  const missingBySection = new Map(missing.map((m) => [m.face.section, m]))
+
   // 확인 안 된 값이 몇 개인가 — 보고용에서 「왜 흐린지」를 수로 밝힌다
   const unconfirmed = SECTIONS.reduce((n, sec) => {
     const bucket = report[sec.key as keyof typeof report] as Record<string, ValueNode<unknown>>
@@ -213,6 +228,36 @@ export default function ReportClient({
 
       <div className={mode === 'report' ? styles.stack : styles.reportGrid}>
         <div className={styles.stack}>
+          {/*
+            **일부만 됐다**를 맨 위에서 말한다.
+
+            분석은 절 단위로 따로 돌아서 잡은 성공인데 절은 실패할 수 있다.
+            그 절은 값이 0이라 아래에서 아예 안 그려지고, 사용자는 그 절이
+            «원문에 없었다»고 읽는다. 「이상 조항 없음」으로 읽힌 실측이 있다(2026-09-22).
+            보고용에서도 그대로 보인다 — 빠진 채로 보고되면 안 되는 사실이다.
+          */}
+          {missing.length > 0 && (
+            <section className="card">
+              <div className={styles.sectionHead}>
+                <div className={styles.between}>
+                  <span className={styles.sectionTitle}>{RFP_REPORT.missingSome}</span>
+                  <NbBadge status="blocker">{missing.length}</NbBadge>
+                </div>
+                <span className={styles.sectionDesc}>{RFP_REPORT.missingSomeDesc}</span>
+              </div>
+              <div className={styles.valueList}>
+                {missing.map((m) => (
+                  <div key={m.taskId} className={styles.valueRow}>
+                    <span className={styles.valueName}>{m.face.title}</span>
+                    <div className={styles.valueBody}>
+                      <span className={styles.valueText}>{RFP_FAILURE_REASON[m.reason]}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {fit && (
             <section className="card">
               <div className={styles.sectionHead}>
