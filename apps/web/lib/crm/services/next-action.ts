@@ -17,6 +17,7 @@
 
 import type { CrmDb } from '../db/client.ts'
 import { kstDateKey, kstTodayKey } from '../../datetime/kst.ts'
+import type { AttentionScope } from './attention.ts'
 
 export type NextActionState =
   /** 기한이 지났다 — 가장 급하다 */
@@ -148,11 +149,22 @@ export async function nextActions(
  * 다음 할 일이 없는 열린 딜을 센다.
  *
  * 이 숫자가 **영업 규율의 지표**다. 크면 딜이 조용히 멈춰 있다는 뜻이다.
+ *
+ * **범위를 받는다.** 오늘 화면이 내 담당만 보여 주는데 이 숫자만 워크스페이스 전체를 세면
+ * 한 화면 안에서 숫자의 뜻이 둘이 된다 — 목록에는 내 딜 셋이 떠 있는데 머리에는 마흔이 뜬다.
  */
-export async function countUnplanned(db: CrmDb, pipelineId?: string): Promise<number> {
+export async function countUnplanned(
+  db: CrmDb,
+  scope: AttentionScope,
+  pipelineId?: string,
+): Promise<number> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const open = await (db as any).crmDeal.findMany({
-    where: { status: 'OPEN', ...(pipelineId ? { pipelineId } : {}) },
+    where: {
+      status: 'OPEN',
+      ...(pipelineId ? { pipelineId } : {}),
+      ...(scope.ownerMemberIds === null ? {} : { ownerId: { in: [...scope.ownerMemberIds] } }),
+    },
     select: { id: true },
     take: 500,
   }) as { id: string }[]

@@ -24,6 +24,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { KIND_LABEL, type AttentionKind, type AttentionItem } from '@/lib/crm/services/attention'
@@ -31,6 +32,13 @@ import MeetingIntakeBox from '@/components/crm/MeetingIntakeBox'
 import type { TodayMeeting } from '@/lib/crm/services/today-meetings'
 import styles from './today.module.css'
 import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
+/*
+  누구 것을 볼 것인가. **기본은 내 담당이다** —
+  예전에는 어느 계정으로 들어와도 같은 목록이 떴다
+  (사용자 지적 2026-09-22: 「아무계정이나 들어가도 동일한 목록이 나오고 있음」).
+  넓은 탭은 범위가 넓은 사람에게만 서버가 실어 보낸다 — 화면이 정하지 않는다.
+*/
+import { scopeTabLabel } from '@/lib/crm/ui/scope-tabs'
 
 const ICON: Record<AttentionKind, React.ReactNode> = {
   overdue: <AlertTriangle size={14} />,
@@ -61,7 +69,11 @@ export default function TodayClient() {
   const [unplanned, setUnplanned] = useState(0)
   const [name, setName] = useState('')
   const [todayMeetings, setTodayMeetings] = useState<TodayMeeting[]>([])
+  const [scope, setScope] = useState('mine')
+  const [scopeTabs, setScopeTabs] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  /** 한 번이라도 그렸나 — 탭을 바꿀 때마다 화면을 통째로 걷어내면 방금 누른 탭이 사라진다 */
+  const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [ai, setAi] = useState<AiSuggestion[] | null>(null)
@@ -69,11 +81,11 @@ export default function TodayClient() {
   const [aiBusy, setAiBusy] = useState(false)
   const [applied, setApplied] = useState<Set<string>>(new Set())
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (which: string) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/crm/today')
+      const res = await fetch(`/api/crm/today?scope=${encodeURIComponent(which)}`)
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '불러오지 못했습니다.'); return }
       const a = body.attention ?? {}
@@ -83,14 +95,18 @@ export default function TodayClient() {
       setUnplanned(body.unplanned ?? 0)
       setName(body.displayName ?? '')
       setTodayMeetings(body.todayMeetings ?? [])
+      // 열 수 있는 탭은 **서버가** 정한다 — 화면이 세면 권한과 어긋난다
+      setScopeTabs(body.scope?.tabs ?? [])
+      setScope(body.scope?.active ?? 'mine')
     } catch {
       setError('불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setLoading(false)
+      setReady(true)
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load(scope) }, [load, scope])
 
   async function askAi() {
     setAiBusy(true)
@@ -128,7 +144,7 @@ export default function TodayClient() {
         return
       }
       setApplied((prev) => new Set(prev).add(s.dealId))
-      void load()
+      void load(scope)
       // 사이드바 배지·알림 벨도 같은 사실을 센다 — 알려 주지 않으면 그 둘만 옛 숫자로 남는다
       emitAttentionChanged()
     } catch {
@@ -136,9 +152,10 @@ export default function TodayClient() {
     }
   }
 
-  if (loading) return <AXDotLoader />
+  // 첫 그림만 통째로 기다린다. 그 뒤로는 탭 자리를 남기고 목록만 바뀐다
+  if (loading && !ready) return <AXDotLoader />
   if (error && items.length === 0 && total === 0) {
-    return <ErrorState message={error} onRetry={() => void load()} />
+    return <ErrorState message={error} onRetry={() => void load(scope)} />
   }
 
   return (
@@ -158,6 +175,24 @@ export default function TodayClient() {
       <MeetingIntakeBox todayMeetings={todayMeetings} />
 
       {/*
+        탭이 하나뿐이면 안 그린다 — 고를 것이 하나인 선택지는 선택지가 아니라 장식이다.
+        아래 두 가지(안 정한 딜 수 · 밀린 목록)가 **같은 범위**를 본다.
+      */}
+      {scopeTabs.length > 1 && (
+        <SegmentedTabs
+          ariaLabel="누구 것을 볼지"
+          tabs={scopeTabs.map((id) => ({ id, label: scopeTabLabel(id) }))}
+          activeId={scope}
+          onSelect={(id) => setScope(id)}
+        />
+      )}
+
+      {/*
+        탭이 바뀌는 동안 바뀌는 자리 — 숫자와 목록이 **한 범위**를 함께 본다.
+        갈아 끼우는 동안 흐릿하게 두어 「지금 값이 옛 탭의 것」임을 보이게 한다.
+      */}
+      <div className={styles.scoped} aria-busy={loading || undefined} data-loading={loading || undefined}>
+      {/*
         영업 규율 지표. 이 숫자가 크면 딜이 조용히 멈춰 있다는 뜻이다 —
         Pipedrive 원칙: "모든 열린 딜에는 다음 활동이 계획되어 있어야 한다".
       */}
@@ -172,7 +207,15 @@ export default function TodayClient() {
       {items.length === 0 ? (
         <EmptyState
           title="지금 볼 게 없어요"
-          description="기한이 지난 할 일이나 확인 기다리는 제안이 생기면 여기에 뜹니다."
+          /*
+            **비었다고 「회사에 아무 일도 없다」고 말하지 않는다.**
+            지금은 내 담당으로 좁혀 보고 있고, 담당자가 아직 안 붙은 것이 있으면
+            이 자리가 비어도 회사에는 밀린 것이 있다(실측 2026-09-23: 열린 딜 8건이
+            담당자 없음). 좁혀 보고 있다는 사실을 여기서 말해야 사람이 속지 않는다.
+          */
+          description={scopeTabs.length > 1
+            ? '내 담당만 보고 있어요. 위 탭에서 범위를 넓혀 보세요.'
+            : '기한이 지난 할 일이나 확인 기다리는 제안이 생기면 여기에 뜹니다.'}
           icon={<Clock size={28} />}
           action={{ label: '딜 보러 가기', href: '/crm/deals' }}
         />
@@ -193,6 +236,7 @@ export default function TodayClient() {
           ))}
         </ul>
       )}
+      </div>
 
       <section className={`card ${styles.aiCard}`}>
         <div className={styles.aiHead}>

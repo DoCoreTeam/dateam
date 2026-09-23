@@ -60,12 +60,42 @@ function daysBetween(from: Date, to: Date): number {
 }
 
 /**
+ * 누구의 것을 볼 것인가.
+ *
+ * **왜 인자로 받나** (실측 2026-09-22): 예전에는 이 함수가 보는 사람을 아예 안 받았다.
+ * 그래서 어느 계정으로 로그인해도 「오늘」 화면에 **같은 목록**이 떴다
+ * (사용자 지적: 「아무계정이나 들어가도 동일한 목록이 나오고 있음」).
+ * 인자를 기본값으로 두면 부르는 쪽이 안 넘겨도 조용히 전체가 나가므로 **필수로 받는다.**
+ */
+export interface AttentionScope {
+  /**
+   * 담당자가 이 안에 든 것만 본다. `null` 이면 제한 없음(전사 범위인 사람).
+   * 빈 배열은 「아무것도 아님」이라 결과가 비는데, 그것도 맞는 답이다 —
+   * 담당이 하나도 없는 사람에게 남의 일을 보여 줄 이유가 없다.
+   */
+  ownerMemberIds: readonly string[] | null
+}
+
+/** 워크스페이스 전체 — 전사 범위이거나 관리자 화면에서 쓴다 */
+export const ALL_SCOPE: AttentionScope = { ownerMemberIds: null }
+
+/** `{ in: [...] }` 조건을 만든다. 제한이 없으면 아무 조건도 안 붙인다 */
+function ownedBy(scope: AttentionScope, field: string): Record<string, unknown> {
+  if (scope.ownerMemberIds === null) return {}
+  return { [field]: { in: [...scope.ownerMemberIds] } }
+}
+
+/**
  * 지금 내가 봐야 할 것을 모은다.
  *
  * **전부 실패해도 화면은 떠야 한다.** 이건 부가 정보라, 하나가 실패했다고
  * 헤더가 통째로 안 그려지면 그게 더 큰 사고다. 종류별로 나눠 담고 실패는 건너뛴다.
  */
-export async function buildAttention(db: CrmDb, now: Date = new Date()): Promise<Attention> {
+export async function buildAttention(
+  db: CrmDb,
+  scope: AttentionScope,
+  now: Date = new Date(),
+): Promise<Attention> {
   const today = kstTodayKey(now)
   const items: AttentionItem[] = []
   const counts = { ...EMPTY }
@@ -75,7 +105,8 @@ export async function buildAttention(db: CrmDb, now: Date = new Date()): Promise
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tasks = await (db as any).crmTask.findMany({
-      where: { status: { in: ['TODO', 'DOING'] }, dueAt: { not: null } },
+      // 담당자로 좁힌다 — 이것이 없어서 계정마다 같은 목록이 나왔다
+      where: { status: { in: ['TODO', 'DOING'] }, dueAt: { not: null }, ...ownedBy(scope, 'assigneeId') },
       select: { id: true, title: true, dueAt: true },
       orderBy: { dueAt: 'asc' },
       take: PER_KIND * 2 + 1,
@@ -97,7 +128,15 @@ export async function buildAttention(db: CrmDb, now: Date = new Date()): Promise
     }
   } catch { /* 이 종류만 건너뛴다 — 나머지는 보여야 한다 */ }
 
-  // ② AI 가 뽑아 놓고 아직 확인 안 한 제안
+  /**
+   * ② AI 가 뽑아 놓고 아직 확인 안 한 제안.
+   *
+   * **여기만 범위를 안 좁힌다.** 제안 행에는 담당자 칸이 없다 —
+   * 미팅에서 뽑은 값이라 아직 누구의 것도 아니고, 인박스는 **함께 보는 대기줄**이다.
+   * 담당자로 좁히려면 제안이 가리키는 딜·회사를 되짚어야 하는데,
+   * 그건 조회를 늘리면서도 「담당자가 아직 없는 새 회사 제안」을 아무에게도 안 보이게 만든다.
+   * 그래서 좁히지 않고, 그 사실을 여기 적어 둔다 (조용히 다른 규칙을 쓰지 않는다).
+   */
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pending = await (db as any).crmAiSuggestion.count({
@@ -119,7 +158,7 @@ export async function buildAttention(db: CrmDb, now: Date = new Date()): Promise
     const cutoff = new Date(now.getTime() - STALLED_DAYS * 86_400_000)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deals = await (db as any).crmDeal.findMany({
-      where: { status: 'OPEN', updatedAt: { lt: cutoff } },
+      where: { status: 'OPEN', updatedAt: { lt: cutoff }, ...ownedBy(scope, 'ownerId') },
       select: { id: true, name: true, updatedAt: true, stage: { select: { name: true } } },
       orderBy: { updatedAt: 'asc' },
       take: PER_KIND + 1,

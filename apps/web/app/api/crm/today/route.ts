@@ -9,6 +9,7 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { getCrmDb } from '@/lib/crm/db/client'
 import { buildAttention, attentionSummary } from '@/lib/crm/services/attention'
+import { loadMyScope, scopeOfTab, activeTab } from '@/lib/crm/services/my-scope'
 import { countUnplanned } from '@/lib/crm/services/next-action'
 import { suggestNextBestActions } from '@/lib/crm/services/next-best-action'
 import { listTodayMeetings } from '@/lib/crm/services/today-meetings'
@@ -17,9 +18,17 @@ export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const wantAi = req.nextUrl.searchParams.get('ai') === '1'
+  /*
+    누구 것을 볼지는 **주소가 아니라 세션**이 정한다.
+    화면이 보내는 것은 탭 이름뿐이고, 그 이름이 이 사람에게 허용된 탭이 아니면
+    `scopeOfTab` 이 가장 좁은 것으로 본다 — 남의 id 를 실어 보내 넓히는 길이 없다.
+  */
+  const wantTab = req.nextUrl.searchParams.get('scope')
 
   return withCrmApi('READONLY', async ({ session }) => {
     const db = getCrmDb(session.workspaceId)
+    const my = await loadMyScope(db, session.memberId, session.role)
+    const scope = scopeOfTab(my, wantTab)
 
     // AI 는 느리다 — 같이 묶으면 화면 전체가 모델을 기다린다
     if (wantAi) {
@@ -27,9 +36,9 @@ export async function GET(req: NextRequest) {
     }
 
     const [attention, unplanned, todayMeetings] = await Promise.all([
-      buildAttention(db),
-      // 다음 할 일이 없는 딜 수 — 이 숫자가 영업 규율의 지표다
-      countUnplanned(db).catch(() => 0),
+      buildAttention(db, scope),
+      // 다음 할 일이 없는 딜 수 — 이 숫자가 영업 규율의 지표다. **같은 범위**로 센다
+      countUnplanned(db, scope).catch(() => 0),
       /**
        * 시작하기 안내.
        *
@@ -50,6 +59,12 @@ export async function GET(req: NextRequest) {
       unplanned,
       todayMeetings,
       displayName: session.displayName,
+      /*
+        그릴 수 있는 탭과 지금 탭.
+        범위가 자기 자신뿐인 사람에게는 탭이 하나뿐이라 화면이 아예 안 그린다 —
+        고를 것이 하나인 선택지는 선택지가 아니라 장식이다.
+      */
+      scope: { tabs: my.tabs, active: activeTab(my, wantTab) },
     }
   })
 }

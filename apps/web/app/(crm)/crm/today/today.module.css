@@ -182,3 +182,15 @@
   font-size: var(--fs-2xs);
   color: var(--text-muted);
 }
+
+/*
+  탭을 바꾸는 동안. 값을 지우지 않고 흐리게만 둔다 —
+  지우면 화면이 한 번 비었다가 채워져 방금 누른 것이 안 눌린 것처럼 보인다.
+*/
+.scoped {
+  transition: opacity var(--duration-fast, 150ms) ease-out;
+}
+
+.scoped[data-loading] {
+  opacity: 0.55;
+}
