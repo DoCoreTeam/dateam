@@ -20,8 +20,17 @@
   .record > :last-child { grid-column: auto; }
 }
 
+/*
+  한 열 안의 카드들.
+
+  **암묵 트랙을 `minmax(0, 1fr)` 로 못 박는다.** 안 박으면 트랙이 `auto` 라
+  기준 크기가 카드의 min-content 가 되고, 그게 칸보다 크면 **트랙이 칸 밖으로 자란다** —
+  칸은 300px 인데 카드가 370px 이 되어 가운데 칸을 덮었다(실측 2026-09-23, 미팅 상세
+  「이 미팅은」이 「회의 기록」 위로 올라탔다). 카드는 제 칸을 넘지 않고, 안에서 줄어야 한다.
+*/
 .col, .colMain {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   min-width: 0;
 }
@@ -130,8 +139,10 @@
   align-items: start;
 }
 
+/* 2열도 같다 — 트랙을 안 박으면 카드가 제 칸을 넘어 옆을 덮는다(위 `.col` 주석) */
 .colInfo, .colActions {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   min-width: 0;
 }

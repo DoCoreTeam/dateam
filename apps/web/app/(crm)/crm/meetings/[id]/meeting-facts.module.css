@@ -9,16 +9,22 @@
   gap: var(--space-3);
 }
 
-/* 날짜·시각은 한 줄이다 — 좁은 화면에서만 접힌다 */
+/*
+  날짜·시각은 한 줄이다 — **자리가 좁으면 저절로 접힌다.**
+
+  예전엔 `1fr 1fr` 고정에 화면 폭(767px) 으로만 접었다. 그런데 이 카드는 300px 짜리
+  상세 왼쪽 칸에도 선다 — 화면은 넓은데 **칸이 좁은** 경우다. 그때 두 칸의 min-content
+  (날짜칸 + 시각칸)가 334px 이라 칸을 넘어섰고, 넘은 만큼 카드가 자라 옆 칸을 덮었다
+  (실측 2026-09-23). 화면 폭이 아니라 **제 칸 폭**을 봐야 해서 `auto-fit` 으로 바꿨다.
+*/
 .pair {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: var(--space-3);
 }
 
-@media (max-width: 767px) {
-  .pair { grid-template-columns: 1fr; }
-}
+/* 칸이 내용보다 좁아질 수 있게 — 안 풀면 입력칸의 고유 너비가 바닥이 되어 또 넘친다 */
+.pair > * { min-width: 0; }
 
 .error {
   margin: 0;
