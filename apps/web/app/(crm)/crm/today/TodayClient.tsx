@@ -24,7 +24,6 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
-import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { KIND_LABEL, type AttentionKind, type AttentionItem } from '@/lib/crm/services/attention'
@@ -38,7 +37,7 @@ import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
   (사용자 지적 2026-09-22: 「아무계정이나 들어가도 동일한 목록이 나오고 있음」).
   넓은 탭은 범위가 넓은 사람에게만 서버가 실어 보낸다 — 화면이 정하지 않는다.
 */
-import { scopeTabLabel } from '@/lib/crm/ui/scope-tabs'
+import ScopeTabs from '@/components/crm/ScopeTabs'
 
 const ICON: Record<AttentionKind, React.ReactNode> = {
   overdue: <AlertTriangle size={14} />,
@@ -178,14 +177,7 @@ export default function TodayClient() {
         탭이 하나뿐이면 안 그린다 — 고를 것이 하나인 선택지는 선택지가 아니라 장식이다.
         아래 두 가지(안 정한 딜 수 · 밀린 목록)가 **같은 범위**를 본다.
       */}
-      {scopeTabs.length > 1 && (
-        <SegmentedTabs
-          ariaLabel="누구 것을 볼지"
-          tabs={scopeTabs.map((id) => ({ id, label: scopeTabLabel(id) }))}
-          activeId={scope}
-          onSelect={(id) => setScope(id)}
-        />
-      )}
+      <ScopeTabs tabs={scopeTabs} active={scope} onSelect={setScope} />
 
       {/*
         탭이 바뀌는 동안 바뀌는 자리 — 숫자와 목록이 **한 범위**를 함께 본다.

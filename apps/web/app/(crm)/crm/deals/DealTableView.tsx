@@ -21,6 +21,8 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import ScopeTabs from '@/components/crm/ScopeTabs'
+import { SCOPE_EMPTY } from '@/lib/crm/ui/scope-tabs'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
 import {
@@ -85,7 +87,7 @@ interface Props {
 export default function DealTableView({ pipelines, onCreate, reloadKey }: Props) {
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
-    filterKeys: ['pipelineId', 'status', ...TRASH_FILTER_KEYS],
+    filterKeys: ['scope', 'pipelineId', 'status', ...TRASH_FILTER_KEYS],
   })
   const [rows, setRows] = useState<DealRowItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -95,6 +97,13 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
   const [sums, setSums] = useState<{ byCurrency: Record<string, string>; countedDeals: number; unpricedDeals: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  /**
+   * 누구 것을 보나 — **주소가 기억한다**(§2-6). 기본은 내 담당이다.
+   * 목록에서는 전체 탭이 누구에게나 보인다 — 여기는 원래 다 보이던 자리다.
+   */
+  const scope = (query.filters?.scope as string) || 'mine'
+  const [scopeTabs, setScopeTabs] = useState<string[]>([])
 
   const q = query.q ?? ''
   const pipelineId = query.filters?.pipelineId ?? ''
@@ -123,6 +132,8 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
       if (pipelineId) sp.set('pipelineId', pipelineId)
       if (status) sp.set('status', status)
       if (trash) sp.set('trash', '1')
+      // 누구 것을 보나 — 서버가 세션에서 범위를 만들고, 여기서 보내는 것은 탭 이름뿐이다
+      sp.set('scope', scope)
       sp.set('limit', String(query.size))
       if (nextCursor) sp.set('cursor', nextCursor)
 
@@ -131,6 +142,8 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
       if (!res.ok) { setError(readApiError(body, '딜을 불러오지 못했습니다.')); return }
       setRows((prev) => (append ? [...prev, ...body.items] : body.items))
       setCursor(body.nextCursor)
+      // 열 수 있는 탭은 **서버가** 정한다 — 화면이 세면 권한과 어긋난다
+      setScopeTabs(body.scope?.tabs ?? [])
       if (!append) {
         setTotal(typeof body.total === 'number' ? body.total : undefined)
         setSums(body.sums ?? null)
@@ -255,6 +268,9 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
 
   return (
     <>
+      {/* 누구 것을 보나 — 기본은 내 담당, 넓히는 탭은 서버가 준 것만 그린다 */}
+      <ScopeTabs tabs={scopeTabs} active={scope} onSelect={(id) => set({ filters: { scope: id } })} />
+
       <ListToolbar
         query={query}
         onChange={set}
@@ -297,7 +313,7 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
         rowHref={trash ? undefined : (r) => `/crm/deals/${r.id}`}
         loading={loading && rows.length === 0}
         error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}
-        empty={trash ? TRASH_EMPTY : {
+        empty={trash ? TRASH_EMPTY : scope !== 'all' ? { ...SCOPE_EMPTY, action: { label: '딜 추가', onClick: onCreate } } : {
           title: q || pipelineId || status ? '조건에 맞는 딜이 없어요' : '아직 딜이 없어요',
           description: q || pipelineId || status
             ? '검색어나 필터를 바꿔 보세요.'

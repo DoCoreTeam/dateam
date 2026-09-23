@@ -15,13 +15,14 @@
 //   화면이 먼저 물어보지 않으면 사용자는 서버 오류를 보고서야 무엇이 필요한지 안다.
 
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import Sensitive from '@/components/crm/Sensitive'
 import Link from 'next/link'
 import { AlertTriangle, Clock, CheckCircle2, X, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
+import ScopeTabs from '@/components/crm/ScopeTabs'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import SectionSurface from '@/components/ui/SectionSurface'
@@ -119,6 +120,8 @@ const CLOSED_SHOWN = 30
 export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
   // 카드에서 상세의 «다음 할 일» 칸으로 바로 보낸다
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const [deals, setDeals] = useState<BoardDeal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -137,7 +140,23 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
   const [overStage, setOverStage] = useState<string | null>(null)
   const [closing, setClosing] = useState<{ deal: BoardDeal; stage: BoardStage } | null>(null)
 
-  const loadDeals = useCallback(async (pid: string) => {
+  /**
+   * 누구 것을 보나 — **주소가 기억한다**(§2-6). 표와 같은 `scope` 파라미터라
+   * 보드에서 고른 범위가 표로 넘어가도 그대로다. 기본은 내 담당이다.
+   */
+  const scope = searchParams.get('scope') || 'mine'
+  const [scopeTabs, setScopeTabs] = useState<string[]>([])
+
+  function setScope(next: string) {
+    const sp = new URLSearchParams(searchParams.toString())
+    if (next === 'mine') sp.delete('scope')
+    else sp.set('scope', next)
+    const qs = sp.toString()
+    // 스크롤을 되돌리지 않는다 — 보던 자리에서 범위만 바꾼 것이다
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
+  const loadDeals = useCallback(async (pid: string, who: string) => {
     setLoading(true)
     setError(null)
     try {
@@ -151,16 +170,20 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
       // 서버는 그때마다 상한 없는 합계까지 계산해 이 한 호출이 **1,248ms**(첫 호출은 235ms)였다.
       // 정작 보드는 그 합계도, 총 건수도 화면에 쓰지 않는다 → `agg=0`.
       // 닫힌 딜은 「방금 닫힌 것」만 보이면 되므로 최신 30건이면 충분하다.
-      const scope = pid ? `pipelineId=${pid}&` : ''
+      const pipeQuery = pid ? `pipelineId=${pid}&` : ''
+      // 누구 것을 보나 — 표와 같은 주소 파라미터를 쓴다. 보기(보드/표)를 바꿔도 범위가 안 바뀐다
+      const scopeQuery = `scope=${encodeURIComponent(who)}&`
       const [openRes, closedRes] = await Promise.all([
-        fetch(`/api/crm/deals?${scope}status=OPEN&limit=200&agg=0`),
-        fetch(`/api/crm/deals?${scope}status=WON,LOST&limit=${CLOSED_SHOWN}&agg=0`),
+        fetch(`/api/crm/deals?${pipeQuery}${scopeQuery}status=OPEN&limit=200&agg=0`),
+        fetch(`/api/crm/deals?${pipeQuery}${scopeQuery}status=WON,LOST&limit=${CLOSED_SHOWN}&agg=0`),
       ])
       const openBody = await openRes.json()
       const allBody = await closedRes.json()
       if (!openRes.ok) { setError(readApiError(openBody, '딜을 불러오지 못했습니다.')); return }
       const all: BoardDeal[] = allRows(allBody, openBody)
       setDeals(all)
+      // 열 수 있는 탭은 **서버가** 정한다 — 화면이 세면 권한과 어긋난다
+      setScopeTabs(openBody.scope?.tabs ?? [])
     } catch {
       setError(describeFetchFailure('딜'))
     } finally {
@@ -168,7 +191,7 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
     }
   }, [])
 
-  useEffect(() => { void loadDeals(pipelineId) }, [pipelineId, loadDeals, reloadKey])
+  useEffect(() => { void loadDeals(pipelineId, scope) }, [pipelineId, scope, loadDeals, reloadKey])
 
   /**
    * 그릴 파이프라인.
@@ -248,7 +271,7 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
   }
 
   if (error && deals.length === 0) {
-    return <ErrorState message={error} onRetry={() => void loadDeals(pipelineId)} />
+    return <ErrorState message={error} onRetry={() => void loadDeals(pipelineId, scope)} />
   }
   if (loading && deals.length === 0) return <AXDotLoader />
   if (shown.length === 0) {
@@ -263,6 +286,8 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
 
   return (
     <>
+      {/* 누구 것을 보나 — 기본은 내 담당, 넓히는 탭은 서버가 준 것만 그린다 */}
+      <ScopeTabs tabs={scopeTabs} active={scope} onSelect={setScope} />
       <FormErrorBanner message={moveError} />
       {moveNotice && <p className={styles.moveNotice}>{moveNotice}</p>}
 
@@ -456,7 +481,7 @@ export default function DealBoard({ pipelines, pipelineId, reloadKey }: Props) {
           deal={closing.deal}
           stage={closing.stage}
           onClose={() => setClosing(null)}
-          onDone={() => { setClosing(null); void loadDeals(pipelineId) }}
+          onDone={() => { setClosing(null); void loadDeals(pipelineId, scope) }}
         />
       )}
         </SectionSurface>

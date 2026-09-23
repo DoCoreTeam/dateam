@@ -19,3 +19,17 @@ export const SCOPE_TAB_LABEL: Record<ScopeTabKey, string> = {
 export function scopeTabLabel(id: string): string {
   return SCOPE_TAB_LABEL[id as ScopeTabKey] ?? id
 }
+
+/**
+ * 좁혀 보다 비었을 때 하는 말.
+ *
+ * **「없다」와 「내 것이 없다」는 다른 말이다.** 기본이 내 담당인데 빈 목록에
+ * 「등록된 회사가 아직 없어요」라고 쓰면, 회사가 382곳 있는데도 하나도 없다고 말하는 것이다
+ * (실측 2026-09-23: 담당자가 붙은 행이 아직 하나도 없어 세 목록이 전부 기본에서 빈다).
+ *
+ * 무엇을 세는지 말하지 않는다 — 회사·인물·딜에 같은 문장을 쓰려면 조사가 붙으면 안 된다(§0-2).
+ */
+export const SCOPE_EMPTY = {
+  title: '내 담당이 아직 없어요',
+  description: '지금은 내 담당만 보고 있어요. 위 탭에서 전체를 고르면 모두 보입니다.',
+} as const

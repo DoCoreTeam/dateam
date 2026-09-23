@@ -14,7 +14,7 @@ import { loadMemberDisplays } from './member-display.ts'
 import { decideMyScope, type MyScope } from './my-scope-decide.ts'
 import { hasCrmRole, type CrmRole } from '../auth/requireCrmMember.ts'
 
-export { activeTab, scopeOfTab } from './my-scope-decide.ts'
+export { activeTab, scopeOfTab, listTabs, listActiveTab, listScopeOf } from './my-scope-decide.ts'
 export type { MyScope, ScopeTab } from './my-scope-decide.ts'
 
 /**

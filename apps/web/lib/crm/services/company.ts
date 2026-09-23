@@ -81,6 +81,13 @@ export interface ListCompanyInput extends CursorInput {
   trash?: boolean
   /** 이름·도메인 부분 일치 */
   q?: string | null
+  /**
+   * 담당자로 좁힌다. `undefined`/`null` 이면 안 좁힌다(전체).
+   *
+   * 목록의 기본은 **내 담당**이다 — 예전에는 어느 계정으로 들어와도 같은 목록이 나왔다
+   * (사용자 지적 2026-09-22). 조건은 여기 한 곳에만 적는다, 목록과 합계가 어긋나지 않게.
+   */
+  ownerMemberIds?: readonly string[] | null
 }
 
 export async function listCompanies(
@@ -93,6 +100,7 @@ export async function listCompanies(
 
   const where: Record<string, unknown> = {}
   if (input.trash) where.deletedAt = { not: null }
+  if (input.ownerMemberIds) where.ownerId = { in: [...input.ownerMemberIds] }
   if (q) {
     where.OR = [
       { name: { contains: q, mode: 'insensitive' } },

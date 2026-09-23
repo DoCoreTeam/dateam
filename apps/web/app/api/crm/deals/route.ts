@@ -4,11 +4,16 @@ import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson, readListQuery } from '@/lib/crm/api/handler'
 import { listDeals, sumDeals, createDeal, toDealJson, type DealInput } from '@/lib/crm/services/deal'
 import { nextActions } from '@/lib/crm/services/next-action'
+import { loadMyScope, listScopeOf, listTabs, listActiveTab } from '@/lib/crm/services/my-scope'
 
 export async function GET(req: NextRequest) {
-  return withCrmApi('READONLY', async ({ db }) => {
+  return withCrmApi('READONLY', async ({ db, session }) => {
     const { cursor, limit, q } = readListQuery(req)
     const sp = new URL(req.url).searchParams
+
+    // 범위는 거래처·고객 담당자 목록과 같은 규칙이다 (lib/crm/services/my-scope-decide.ts)
+    const my = await loadMyScope(db, session.memberId, session.role)
+
     // 목록과 합계가 **같은 조건**을 본다 — 따로 적으면 둘이 어긋나고 합계가 틀린다
     const filter = {
       q,
@@ -16,6 +21,8 @@ export async function GET(req: NextRequest) {
       companyId: sp.get('companyId'),
       status: sp.get('status'),
       trash: sp.get('trash') === '1',
+      // 담당자 조건도 이 묶음에 든다 — 합계만 전체를 더하면 「내 담당 3건, 합계 40억」이 된다
+      ownerMemberIds: listScopeOf(my, sp.get('scope')).ownerMemberIds,
     }
     /**
      * `agg=0` 이면 총 건수·합계를 계산하지 않는다.
@@ -49,6 +56,7 @@ export async function GET(req: NextRequest) {
       // 실제로 회사·인물만 총 건수가 뜨고 딜만 안 뜨는 상태였다
       total: page.total,
       sums,
+      scope: { tabs: listTabs(my), active: listActiveTab(my, sp.get('scope')) },
     }
   })
 }

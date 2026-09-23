@@ -91,3 +91,27 @@ export function activeTab(my: MyScope, tab: string | null | undefined): ScopeTab
 export function scopeOfTab(my: MyScope, tab: string | null | undefined): AttentionScope {
   return activeTab(my, tab) === 'mine' ? my.mine : my.reachable
 }
+
+/**
+ * **목록의 탭은 오늘 화면과 다르다 — 전체가 누구에게나 보인다.**
+ *
+ * 오늘 화면은 「지금 손댈 것」을 모으는 자리라 남의 것을 안 보여도 손해가 없다.
+ * 그런데 목록은 **원래 다 보이던 자리**다. 여기서 전체를 감추면 기본값을 바꾸는 것이 아니라
+ * 있던 접근을 뺏는 것이고, 그건 이 판이 하려는 일이 아니다(영업은 남의 딜도 봐야 한다).
+ * 기본만 내 담당으로 좁히고, 넓히는 길은 열어 둔다.
+ */
+export function listTabs(my: MyScope): readonly ScopeTab[] {
+  return my.tabs.includes('all') ? my.tabs : [...my.tabs, 'all']
+}
+
+/** 목록에서 화면이 보낸 탭 이름을 맞춘다. 모르는 이름이면 기본인 내 담당 */
+export function listActiveTab(my: MyScope, tab: string | null | undefined): ScopeTab {
+  return listTabs(my).find((t) => t === tab) ?? 'mine'
+}
+
+/** 목록 탭 하나를 담당자 조건으로 바꾼다 */
+export function listScopeOf(my: MyScope, tab: string | null | undefined): AttentionScope {
+  const t = listActiveTab(my, tab)
+  if (t === 'all') return { ownerMemberIds: null }
+  return t === 'dept' ? my.reachable : my.mine
+}

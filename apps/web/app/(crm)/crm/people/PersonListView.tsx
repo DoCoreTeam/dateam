@@ -13,6 +13,8 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import NbButton from '@/components/ui/nb/NbButton'
 import ContactLink from '@/components/ui/ContactLink'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import ScopeTabs from '@/components/crm/ScopeTabs'
+import { SCOPE_EMPTY } from '@/lib/crm/ui/scope-tabs'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
 import {
@@ -92,7 +94,7 @@ const COLUMNS: ColumnDef<PersonItem>[] = [
 export default function PersonListView() {
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
-    filterKeys: [...TRASH_FILTER_KEYS],
+    filterKeys: ['scope', ...TRASH_FILTER_KEYS],
   })
   const [rows, setRows] = useState<PersonItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -103,6 +105,14 @@ export default function PersonListView() {
   const [formOpen, setFormOpen] = useState(false)
   /** 명함·서명·엑셀 — 회사 화면과 같은 입구 */
   const [intakeOpen, setIntakeOpen] = useState(false)
+
+  /**
+   * 누구 것을 보나 — **주소가 기억한다**(§2-6). 기본은 내 담당이다.
+   * 목록에서는 전체 탭이 누구에게나 보인다 — 여기는 원래 다 보이던 자리라
+   * 감추면 기본값을 바꾸는 것이 아니라 있던 접근을 뺏는 것이다.
+   */
+  const scope = (query.filters?.scope as string) || 'mine'
+  const [scopeTabs, setScopeTabs] = useState<string[]>([])
 
   const q = query.q ?? ''
   const trash = isTrashView(query)
@@ -117,6 +127,8 @@ export default function PersonListView() {
       const sp = new URLSearchParams()
       if (q) sp.set('q', q)
       if (trash) sp.set('trash', '1')
+      // 누구 것을 보나 — 서버가 세션에서 범위를 만들고, 여기서 보내는 것은 탭 이름뿐이다
+      sp.set('scope', scope)
       sp.set('limit', String(query.size))
       if (nextCursor) sp.set('cursor', nextCursor)
 
@@ -128,6 +140,8 @@ export default function PersonListView() {
       }
       setRows((prev) => (append ? [...prev, ...body.items] : body.items))
       setCursor(body.nextCursor)
+      // 열 수 있는 탭은 **서버가** 정한다 — 화면이 세면 권한과 어긋난다
+      setScopeTabs(body.scope?.tabs ?? [])
       if (!append) setTotal(typeof body.total === 'number' ? body.total : undefined)
     } catch {
       setError('목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -162,6 +176,9 @@ export default function PersonListView() {
 
   return (
     <>
+      {/* 누구 것을 보나 — 기본은 내 담당, 넓히는 탭은 서버가 준 것만 그린다 */}
+      <ScopeTabs tabs={scopeTabs} active={scope} onSelect={(id) => set({ filters: { scope: id } })} />
+
       <ListToolbar
         query={query}
         onChange={set}
@@ -193,7 +210,7 @@ export default function PersonListView() {
         rowHref={trash ? undefined : (r) => `/crm/people/${r.id}`}
         loading={loading && rows.length === 0}
         error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}
-        empty={trash ? TRASH_EMPTY : {
+        empty={trash ? TRASH_EMPTY : scope !== 'all' ? { ...SCOPE_EMPTY, action: { label: '인물 추가', onClick: () => setIntakeOpen(true) } } : {
           title: q ? '검색 결과가 없어요' : '등록된 인물이 아직 없어요',
           description: q
             ? '다른 이름이나 이메일로 찾아보세요.'

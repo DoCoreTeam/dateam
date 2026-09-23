@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자와 작성자를 넣고 권한 기본값을 고친다
 플랜 ID: P0054
-플랜 버전: v0.1.12
+플랜 버전: v0.1.14
 상태: 진행중
 지시: ins_0091
 목표 버전: v0.10.402
@@ -172,15 +172,18 @@
 - 조직도에서 소유자는 AX사업본부 부서장이라 조직도만 보면 소유자가 자기 부서 밖을 못 본다. 그래서 CRM 관리자(OWNER·ADMIN)는 조직도와 무관하게 전사로 본다
 
 ### I10a 목록이 내 담당을 먼저 보인다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/services/deal.ts, apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts, apps/web/app/api/crm/deals/route.ts, apps/web/app/api/crm/companies/route.ts, apps/web/app/api/crm/people/route.ts, apps/web/app/(crm)/crm/deals/DealsClient.tsx, apps/web/lib/crm/ui/scope-tabs.ts
+범위: apps/web/lib/crm/services/deal.ts, apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts, apps/web/lib/crm/services/my-scope.ts, apps/web/lib/crm/services/my-scope-decide.ts, apps/web/lib/crm/services/my-scope-decide.test.ts, apps/web/app/api/crm/deals/route.ts, apps/web/app/api/crm/companies/route.ts, apps/web/app/api/crm/people/route.ts, apps/web/app/(crm)/crm/deals/DealTableView.tsx, apps/web/app/(crm)/crm/deals/DealBoard.tsx, apps/web/app/(crm)/crm/companies/CompanyListView.tsx, apps/web/app/(crm)/crm/people/PersonListView.tsx, apps/web/app/(crm)/crm/today/TodayClient.tsx, apps/web/components/crm/ScopeTabs.tsx (신규), apps/web/lib/crm/ui/scope-tabs.ts, apps/web/lib/policy/list-scope-guard.test.ts (신규), apps/web/package.json
 감사 기준:
 - 보안 S2: 목록 창구의 인증 관문을 그대로 둔다. 탭은 기본 조건을 좁힐 뿐이고 서버가 범위를 넓히는 새 길을 만들지 않는다
 - 딜, 거래처, 고객 담당자 목록에 내 담당 탭이 있고 기본이 내 담당이다
 - 목록과 합계가 같은 조건을 본다 (지금 구조 그대로, 조건을 두 번 적지 않는다)
 - 목록에서는 전체 탭이 누구에게나 보인다. 오늘 화면과 달리 여기는 원래 다 보이던 자리라 감추면 있던 접근을 뺏는 것이다
 - 탭이 주소에 남아 새로고침과 공유가 같은 화면을 연다
+- 오늘 화면과 목록 넷이 **같은 부품**으로 탭을 그린다 (같은 선택을 화면마다 다시 그리면 같은 조건이 자리마다 다른 말이 된다)
+- 가드가 「선언만 하고 안 넘기는 판」을 잡는다. 호출 인자를 잘라 보고 일부러 깨뜨려 확인한다
+- 좁혀 보다 빈 목록이 「등록된 것이 아직 없어요」라고 말하지 않는다. 담당자가 안 붙은 행이 많아 기본 화면이 비는데, 그때 없다고 말하면 거짓말이다
 - pnpm tsc --noEmit 과 pnpm build 통과
 의존: I10
 
@@ -208,6 +211,8 @@
 - v0.1.6 (2026-09-22) I07 을 판정(owner-decide)과 쓰기(owner)로 가르고 조직도 스냅샷 모듈을 뺀다. 범위 판정과 승계 판정이 같은 스냅샷을 봐야 바꿀 수 있다고 한 것과 실제로 간 곳이 안 갈린다. 그리고 I05 에서 만든 requireOwnerReassign 관문을 지운다 — 이관은 권한 없이 되므로 무조건 부를 수 없고, 그러면 선언만 되고 아무도 안 부르는 상태가 된다 (audit:I07)
 - v0.1.7 (2026-09-22) I08 에서 직함 규칙을 title-rule.ts 로 뗀다. member-title.ts 는 조직에서 값을 읽는 함수도 같이 들고 있어 서버 전용 모듈을 끌고 오는데, webpack 은 함수 안의 늦은 import 도 따라가서 화면 부품이 그 규칙을 쓰는 순간 빌드가 깨졌다 (실측). member-title 이 다시 내보내므로 견적서 쪽은 안 바뀐다 (audit:I08)
 - v0.1.8 (2026-09-22) I09 범위를 실제로 고친 파일로 맞춘다. 목록은 DealsClient 가 아니라 DealTableView 가 열을 그리고, 사람 정보를 한 번 읽어 나눠 쓸 자리(member-display)가 필요했다. 거래처 목록은 딜과 같은 모양이라 다음 판으로 미루지 않고 I09a 로 뺀다 (audit:I09)
+- v0.1.14 (2026-09-23) I10a 에 빈 상태 문구를 더한다. 실측에서 담당자가 붙은 행이 하나도 없어 세 목록이 기본에서 전부 비는데, 그 자리의 기존 문구가 「등록된 회사가 아직 없어요」였다 — 회사가 382곳 있는데 없다고 말한다. 새로 만드는 길은 남긴다, 처음 온 사람에게는 그 자리가 유일한 입구다 (audit:I10a)
+- v0.1.13 (2026-09-23) I10a 범위를 실제 고친 파일로 맞춘다. 파일 열일곱으로 권장(다섯)을 넘지만 나누지 않는다 — 서버만 먼저 넣으면 목록이 조용히 내 담당으로 좁혀진 채 넓힐 길이 없는 판이 커밋된다. 보드는 useListQuery 를 안 써서 자기 손으로 주소를 쓰고, 탭 그림은 ScopeTabs 한 부품으로 모아 오늘 화면도 그것을 쓰게 바꿨다 (audit:I10a)
 - v0.1.12 (2026-09-23) my-scope 를 읽기(my-scope)와 판정(my-scope-decide)으로 가르고 today.module.css 를 범위에 넣는다. 읽는 쪽은 server-only 라 시험에서 부를 수 없어 판정을 값만 다루는 모듈로 떼야 가드가 선다(owner-decide 와 같은 모양). css 는 탭을 바꾸는 동안 값을 지우지 않고 흐리게 두는 한 클래스다 — 지우면 방금 누른 것이 안 눌린 것처럼 보인다 (audit:I10)
 - v0.1.11 (2026-09-23) 탭 이름표를 I10a 가 아니라 I10 에서 만든다. 화면 안에 라벨 맵을 두면 용어집 가드가 막는다(실측: 31 → 32 로 늘었다고 실패). 그리고 판정 모듈은 서버 전용 모듈을 끌고 오므로 화면이 그 파일에서 말을 가져오면 안 된다 — I08 에서 같은 이유로 깨졌다 (audit:I10)
 - v0.1.10 (2026-09-23) I10 범위를 실제 필요한 파일로 맞추고 목록은 I10a 로 뺀다. 범위를 멤버 id 집합으로 바꾸는 자리(my-scope)가 따로 필요했고 — 조직도는 호스트 사용자 id 를 돌려주는데 CRM 담당자 칸은 멤버 id 라 그냥 넣으면 아무것도 안 걸린다 — 오늘 화면의 나머지 숫자(머리글 뱃지, 안 정한 딜 수)가 옛 범위로 남으면 한 화면에서 숫자 뜻이 둘이 된다. 목록은 화면 셋과 서비스 셋이라 한 번의 자가감사로 못 본다 (audit:I10)
@@ -215,3 +220,6 @@
 - v0.1.10 (2026-09-22) I10 범위를 실제 필요한 파일로 맞추고 목록은 I10a 로 뺀다. 조직도는 호스트 사용자 id 를 주는데 담당자 칸은 멤버 id 라 대조할 자리(my-scope)가 필요했고, 같은 화면의 다른 숫자들이 옛 범위로 남으면 뜻이 둘이 된다 (audit:I10)
 - v0.1.11 (2026-09-22) 탭 이름표를 I10 에서 만든다. 화면 안 라벨 맵은 용어집 가드가 막고, 판정 모듈은 서버 전용 모듈을 끌고 와 화면이 거기서 말을 가져올 수 없다 (audit:I10)
 - v0.1.12 (2026-09-22) my-scope 를 읽기와 판정으로 가르고 today.module.css 를 범위에 넣는다. server-only 모듈은 시험에서 못 불러 판정을 값만 다루는 모듈로 떼야 가드가 선다 (audit:I10)
+- v0.1.14 (2026-09-23) I10a 에 빈 상태 문구를 더한다. 실측에서 담당자가 붙은 행이 하나도 없어 세 목록이 기본에서 전부 비는데, 그 자리의 기존 문구가 「등록된 회사가 아직 없어요」였다 — 회사가 382곳 있는데 없다고 말한다. 새로 만드는 길은 남긴다, 처음 온 사람에게는 그 자리가 유일한 입구다 (audit:I10a)
+- v0.1.13 (2026-09-23) I10a 범위를 실제 고친 파일로 맞춘다. 서버만 먼저 넣으면 목록이 조용히 좁혀진 채 넓힐 길이 없는 판이 커밋되므로 나누지 않는다 (audit:I10a)
+- v0.1.14 (2026-09-23) I10a 에 빈 상태 문구를 더한다. 담당자가 붙은 행이 없어 기본 화면이 비는데 기존 문구가 없다고 말한다(거래처 382곳) (audit:I10a)

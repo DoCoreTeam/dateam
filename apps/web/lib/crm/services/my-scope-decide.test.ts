@@ -8,7 +8,9 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { decideMyScope, activeTab, scopeOfTab } from './my-scope-decide.ts'
+import {
+  decideMyScope, activeTab, scopeOfTab, listTabs, listActiveTab, listScopeOf,
+} from './my-scope-decide.ts'
 
 const ME = { memberId: 'me', hostUserId: 'u-me', active: true }
 const YOU = { memberId: 'you', hostUserId: 'u-you', active: true }
@@ -96,4 +98,40 @@ test('관리자여도 조직도를 못 읽는 것과는 별개다 — 관리자�
     decideMyScope({ myMemberId: 'me', members: [ME], reach: null, admin: false }).tabs,
     ['mine'],
   )
+})
+
+// ── 목록의 탭은 오늘 화면과 다르다 ───────────────────────────
+//
+// 오늘 화면은 「지금 손댈 것」이라 남의 것을 안 보여도 손해가 없다.
+// 목록은 **원래 다 보이던 자리**다 — 여기서 전체를 감추면 기본값을 바꾸는 것이 아니라
+// 있던 접근을 뺏는 것이다.
+
+test('목록에서는 전체 탭이 범위가 좁은 사람에게도 보인다', () => {
+  const narrow = decideMyScope({ myMemberId: 'me', members: [ME], reach: ['u-me'] })
+
+  assert.deepEqual(narrow.tabs, ['mine'], '오늘 화면에서는 나 하나')
+  assert.deepEqual(listTabs(narrow), ['mine', 'all'], '목록에서는 전체가 있어야 한다')
+  assert.equal(listScopeOf(narrow, 'all').ownerMemberIds, null)
+})
+
+test('목록의 기본도 내 담당이다', () => {
+  const narrow = decideMyScope({ myMemberId: 'me', members: [ME], reach: ['u-me'] })
+
+  assert.equal(listActiveTab(narrow, null), 'mine')
+  assert.deepEqual(listScopeOf(narrow, undefined).ownerMemberIds, ['me'])
+  assert.deepEqual(listScopeOf(narrow, '없는탭').ownerMemberIds, ['me'])
+})
+
+test('부서 탭은 부서가 있는 사람에게만, 전체는 모두에게', () => {
+  const dept = decideMyScope({ myMemberId: 'me', members: [ME, YOU], reach: ['u-me', 'u-you'] })
+
+  assert.deepEqual(listTabs(dept), ['mine', 'dept', 'all'])
+  assert.deepEqual(listScopeOf(dept, 'dept').ownerMemberIds, ['me', 'you'])
+  assert.equal(listScopeOf(dept, 'all').ownerMemberIds, null)
+})
+
+test('관리자는 전체 탭이 두 번 생기지 않는다', () => {
+  const admin = decideMyScope({ myMemberId: 'me', members: [ME], reach: null, admin: true })
+
+  assert.deepEqual(listTabs(admin), ['mine', 'all'])
 })

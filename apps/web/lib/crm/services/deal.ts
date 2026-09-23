@@ -214,6 +214,13 @@ export interface ListDealInput extends CursorInput {
    * 쓰는 화면은 그대로 두고, **안 쓰는 화면만** 끈다.
    */
   agg?: boolean
+  /**
+   * 담당자로 좁힌다. `undefined`/`null` 이면 안 좁힌다(전체).
+   *
+   * 목록의 기본은 **내 담당**이다 — 예전에는 어느 계정으로 들어와도 같은 목록이 나왔다
+   * (사용자 지적 2026-09-22). 조건은 여기 한 곳에만 적는다, 목록과 합계가 어긋나지 않게.
+   */
+  ownerMemberIds?: readonly string[] | null
 }
 
 /**
@@ -279,6 +286,7 @@ function listDealsWhere(input: ListDealInput): Record<string, unknown> {
   if (input.trash) where.deletedAt = { not: null }
   if (input.pipelineId) where.pipelineId = input.pipelineId
   if (input.companyId) where.companyId = input.companyId
+  if (input.ownerMemberIds) where.ownerId = { in: [...input.ownerMemberIds] }
   // 쉼표면 여럿이다 — 「성사 또는 실주」를 한 번에 묻기 위해서(예전의 단일 값도 그대로 동작한다)
   if (input.status) {
     const many = input.status.split(',').map((v) => v.trim()).filter(Boolean)
