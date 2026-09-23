@@ -55,10 +55,15 @@ function mergeKeys(provider: AiProviderId, apiKey: string, rows: readonly KeyPoo
 
 /**
  * 쓸 키 목록. 주입이 없으면 표에서 읽되 **못 읽어도 던지지 않는다** —
+ *
+ * **내보내는 이유**: 키를 바꿔 가며 한 번 부르는 것(`withProviderKeys`)과 달리,
+ * 카탈로그 훑기는 **키마다 목록을 다시 받아 합쳐야** 한다(`probe-models`). 그쪽이
+ * 같은 병합 규칙을 손으로 다시 적으면 둘이 갈리고, 「화면이 보여 주는 키 순서」와
+ * 「훑을 때 쓰는 키 순서」가 다른 상태가 조용히 산다.
  * 키 저장소가 없다는 이유로 기능이 멈추면 고친 것보다 망가뜨린 것이 크다.
  * (시험 환경에서는 `key-store` 가 server-only 라 애초에 안 불리고 이 catch 로 온다)
  */
-async function resolveDeps(
+export async function resolveKeyEntries(
   provider: AiProviderId,
   apiKey: string,
   given: KeyRotationDeps | undefined,
@@ -100,7 +105,7 @@ export async function withProviderKeys<T>(
   run: (apiKey: string, entry: KeyPoolEntry) => Promise<T>,
   deps?: KeyRotationDeps,
 ): Promise<T> {
-  const { entries, record } = await resolveDeps(provider, apiKey, deps)
+  const { entries, record } = await resolveKeyEntries(provider, apiKey, deps)
   const outcomeOf = deps?.outcomeOf ?? keyOutcomeOf
   const note = async (entry: KeyPoolEntry, outcome: KeyOutcome, detail?: string): Promise<void> => {
     // 기록이 호출을 막지 않는다 — 다음 호출을 낫게 하는 장치이지 이번 호출의 조건이 아니다

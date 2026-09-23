@@ -74,6 +74,15 @@ export interface ProbeModelResult {
   reason?: string | null
   // 계정(키) 단위 실패 — 모델을 바꿔도 같은 결과. probeModelIds가 이걸 보고 조기 중단한다.
   accountLevel?: boolean
+  /**
+   * 그 키가 **어떻게** 죽었나. `accountLevel` 이 참일 때만 값이 있다.
+   *
+   * 조기 중단만 알면 「다음 모델을 그만 찌른다」까지가 끝이다. 다음 키로 넘어가려면
+   * 기다리면 풀리는 것(`quota`)과 사람이 고쳐야 하는 것(`auth`)을 갈라야 한다 —
+   * 크레딧 소진을 auth 로 적으면 멀쩡한 키가 사람 손을 기다리며 꺼져 있고,
+   * 무효 키를 quota 로 적으면 10 분마다 같은 401 을 다시 맞는다.
+   */
+  keyOutcome?: 'quota' | 'auth'
 }
 
 /** 공급자가 모델 한 줄에 대해 스스로 말해 준 사실. 안 주는 값은 없다 */

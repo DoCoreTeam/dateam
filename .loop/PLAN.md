@@ -1,6 +1,6 @@
 # PLAN newAX: 유료키까지 가 닿게 한다
 플랜 ID: P0055
-플랜 버전: v0.1.0
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0106
 목표 버전: v0.10.432
@@ -58,13 +58,15 @@
 의존: 없음
 
 ### I03 카탈로그가 키 하나의 사정을 모델에 안 적는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(ai)/ai/actions.ts, apps/web/lib/ai-chat/probe-models.ts, apps/web/lib/ai-chat/probe-models.test.ts, apps/web/package.json
+범위: apps/web/app/(ai)/ai/actions.ts, apps/web/lib/ai-chat/probe-models.ts, apps/web/lib/ai-chat/probe-models.test.ts, apps/web/lib/ai-chat/probe-result.ts, apps/web/lib/ai-chat/provider.ts, apps/web/lib/ai/key-rotation.ts, apps/web/lib/ai/key-pool.ts, apps/web/package.json
 감사 기준:
 - 보안 S2: 재훑기는 관리자 서버 액션 안에서만 불린다. 키 원문이 응답에 안 실린다
 - 훑기가 등록된 키 전부를 돌고 한 모델이라도 되는 키가 있으면 available 로 적는다
 - 되는 키가 하나도 없을 때만 unavailable 이다
+- 유료 키를 먼저 찌른다. 가장 많이 보는 키가 앞이라야 나머지 키의 헛호출이 준다
+- 유료로 순서를 정하는 자리는 key-pool.ts 하나로 남는다 (lib/policy/ai-key-pool.test.ts 가 센다)
 - 새 시험이 package.json test 스크립트에 등재되고 총 건수가 실제로 는다
 - pnpm tsc --noEmit 통과
 의존: I01
@@ -78,3 +80,7 @@
 - 견적서 파일 올리기가 실제로 성공한다
 - 버전 파일 여섯이 v0.10.432 로 같이 오른다
 의존: I01, I02, I03
+
+## 변경 이력
+- v0.1.1 (2026-09-23) I03 이 키 목록을 얻으려면 key-rotation 의 비공개 resolveDeps 를 써야 한다. 같은 병합 규칙을 probe 쪽에 다시 적는 대신 resolveKeyEntries 로 내보내 쓴다. 유료 키를 먼저 찌르는 기준도 함께 적었다 (audit:I03)
+- v0.1.2 (2026-09-23) 가드 ai-key-pool 이 잡았다. 훑기 순서를 probe-models 에 손으로 적으니 「유료로 순서를 정하는 자리는 key-pool 하나」 규칙을 깼다. orderKeysForProbe 를 key-pool 로 옮기고 범위에 넣었다. ProbeModelResult 의 keyOutcome 칸(probe-result, provider)도 이 항목이 쓰므로 함께 싣는다 (audit:I03)

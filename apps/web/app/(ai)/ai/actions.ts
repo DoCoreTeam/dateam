@@ -12,7 +12,7 @@ import { buildThreadForChoice, getBranchGroups } from '@/lib/ai-chat/thread'
 import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
 import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
-import { probeModelIds } from '@/lib/ai-chat/probe-models'
+import { probeModelIdsAcrossKeys } from '@/lib/ai-chat/probe-models'
 import type { ListedModelFacts } from '@/lib/ai-chat/provider'
 import { isAvailabilitySchemaMissing } from '@/lib/ai-chat/model-availability'
 import type {
@@ -1121,7 +1121,12 @@ export async function refreshModelCatalog(
 
   // listModels는 generateContent 지원 여부만 알려줄 뿐, 현재 키/요금제로 실제 전송 가능한지는
   // 보장하지 않는다(예: 요금제 할당량 0·신규 불가 모델). 실사용 프로브로 진짜 못 쓰는 모델만 걸러낸다.
-  const probeMap = await probeModelIds(getProvider(provider), config.apiKey, staleModelIds)
+  /*
+    **등록된 키 전부로 묻는다.** 키 하나로 훑으면 그 키의 사정이 모델의 사정으로 적히고,
+    그 값을 `buildModelChain` 이 읽어 멀쩡한 모델을 후보에서 뺀다 (실측 2026-09-23:
+    무료 키 하나로 훑은 결과가 한 달간 굳어 젬민 32개 중 4개만 쓸 수 있었다).
+  */
+  const probeMap = await probeModelIdsAcrossKeys(provider, config.apiKey, getProvider(provider), staleModelIds)
 
   const upsertRows = modelIds.map((modelId) => {
     const existing = existingMap.get(modelId)

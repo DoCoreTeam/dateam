@@ -36,6 +36,8 @@ export function classifyModelProbeFailure(
       availability: 'unavailable',
       reason: `${providerLabel} 계정의 크레딧이 소진되었거나 결제가 설정되지 않았습니다. 공급자 콘솔에서 결제 상태를 확인하세요.`,
       accountLevel: true,
+      // 결제가 붙으면 풀린다. 사람이 키를 고칠 일이 아니므로 쉬게만 두고 다음 키로 넘어간다
+      keyOutcome: 'quota',
     }
   }
 
@@ -60,6 +62,8 @@ export function classifyModelProbeFailure(
       availability: 'unknown',
       reason: 'API 키가 유효하지 않아 모델 상태를 확인하지 못했습니다.',
       accountLevel: true,
+      // 기다려도 안 풀린다. 사람이 키를 바꿔야 하므로 그렇게 적는다
+      keyOutcome: 'auth',
     }
   }
   if (status === 403) {

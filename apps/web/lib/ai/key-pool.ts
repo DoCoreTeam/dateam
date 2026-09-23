@@ -158,6 +158,28 @@ export function orderKeys(entries: readonly KeyPoolEntry[], now: number): KeyPoo
 }
 
 /**
+ * **훑을 순서.** 부를 순서(`orderKeys`)와 일부러 반대로, 유료가 앞이다.
+ *
+ * 둘이 왜 다른가: 부를 때는 무료를 먼저 태워 돈을 아끼는 것이 용건이고,
+ * 훑을 때는 **가장 많이 보는 눈**으로 먼저 보는 것이 용건이다.
+ * 유료 키가 뒤에 있으면 앞 키들이 못 보는 모델을 한 바퀴씩 헛되이 찌른 뒤에야 제대로 된 답이 온다.
+ *
+ * 이 함수가 `probe-models` 가 아니라 여기 있는 이유는 하나다 — **유료 여부로 순서를 정하는 일은
+ * 이 파일 밖에서 하지 않는다.** 훑기 쪽에 손으로 sort 를 적으면 「유료는 뒤」라는 이 파일의 약속과
+ * 조용히 갈라지고, 그때 관리자는 어느 키가 얼마나 불리는지 셀 수 없게 된다
+ * (가드: lib/policy/ai-key-pool.test.ts).
+ */
+export function orderKeysForProbe(entries: readonly KeyPoolEntry[]): KeyPoolEntry[] {
+  /*
+    **유료를 앞으로 당길 뿐, 나머지는 준 순서 그대로다.** 여기서 `byOrder` 로 다시 정렬하면
+    부르는 쪽이 이미 정해 둔 앞머리(META 키)가 뒤로 밀린다 — 순서를 두 곳에서 정하는 셈이고,
+    그러면 「내가 넘긴 키부터 쓴다」는 `withProviderKeys` 의 약속이 훑기에서만 깨진다.
+  */
+  const usable = entries.filter((e) => !isBlocked(e))
+  return [...usable.filter((e) => e.isPaid), ...usable.filter((e) => !e.isPaid)]
+}
+
+/**
  * 호출 결말을 받아 다음 상태를 만든다. 원본은 고치지 않는다.
  *
  * - ok        성공은 기억을 지운다. 한도가 풀린 키를 계속 벌주지 않는다
