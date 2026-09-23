@@ -53,6 +53,25 @@ export function classifyProviderError(err: unknown): {
   keyOutcome?: KeyFailureOutcome
 } {
   const raw = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase()
+  /*
+    **요청이 그 모델에 안 들어가는 것**은 한도가 아니다. 429 를 달고 오지만
+    기다려도 안 풀리고 키를 바꿔도 같다 — 그 모델의 한 번에 받는 양을 넘었을 뿐이다.
+
+    실측 2026-09-23: 107KB 짜리 견적서 PDF 를 올리자 groq 이
+     을 냈다.
+    이걸 한도로 적는 바람에 그 키가 10분 쉬게 됐고, 같은 키를 쓰는 다른 기능까지 같이 막혔다.
+    될 리 없는 재시도를 기다리느니 **그 모델만 건너뛰고** 다음 후보로 가는 것이 맞다.
+
+    카탈로그에는 안 적는다. 모델이 죽은 게 아니라 이번 첨부가 컸던 것이라,
+    적어 두면 작은 요청까지 그 모델을 못 쓰게 된다.
+  */
+  if (raw.includes('request too large') || raw.includes('too large for model')) {
+    return {
+      message: '파일이 이 AI 모델이 한 번에 읽을 수 있는 양을 넘습니다. 더 작게 나눠 올리거나 다른 모델을 선택하세요.',
+      fatalModel: false,
+      scope: 'model',
+    }
+  }
   if (raw.includes('limit: 0') || raw.includes('quota') || raw.includes('429') || raw.includes('resource_exhausted')) {
     const zero = raw.includes('limit: 0')
     return {

@@ -47,7 +47,7 @@
 의존: 없음
 
 ### I02 요청이 너무 크면 키를 벌주지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ai-chat/provider-errors.ts, apps/web/lib/ai-chat/provider-errors.test.ts
 감사 기준:

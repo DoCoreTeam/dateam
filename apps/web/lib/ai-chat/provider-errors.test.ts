@@ -96,3 +96,25 @@ test('원인 불명은 transient 이고 키 처리를 지시하지 않는다', (
   assert.equal(c.scope, 'transient')
   assert.equal(c.keyOutcome, undefined)
 })
+
+/* ── 요청이 너무 큰 것과 한도는 다른 말이다 (실측 2026-09-23) ── */
+
+test('★ request too large 는 그 모델만 건너뛴다 — 키를 벌주지 않는다', () => {
+  // groq 원문. 107KB 짜리 견적서 PDF 를 올렸을 때 실제로 온 값이다
+  const c = classifyProviderError(new Error(
+    '429 Request too large for model `qwen/qwen3.8-27b` in organization `org_x` '
+    + 'service tier `on_demand` on tokens per minute (TPM): Limit 15000, Requested 41231',
+  ))
+  assert.equal(c.scope, 'model', '키를 바꿔도 같은 요청은 안 들어간다')
+  assert.equal(c.keyOutcome, undefined,
+    '한도로 적으면 그 키가 10분 쉬고 같은 키를 쓰는 다른 기능까지 같이 막힌다')
+  assert.equal(c.availability, undefined,
+    '모델이 죽은 게 아니라 이번 첨부가 컸던 것이다. 적어 두면 작은 요청까지 그 모델을 못 쓴다')
+  assert.equal(c.fatalModel, false)
+})
+
+test('★ 그냥 429 는 여전히 키의 한도다 — 위 분기가 정상 한도를 삼키지 않는다', () => {
+  const c = classifyProviderError(new Error('429 You exceeded your current quota'))
+  assert.equal(c.scope, 'key')
+  assert.equal(c.keyOutcome, 'quota')
+})
