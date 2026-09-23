@@ -22,15 +22,25 @@ function keyEntry(label: string, apiKey: string): KeyPoolEntry {
 const QUOTA = () => new Error('429 RESOURCE_EXHAUSTED: quota exceeded')
 const AUTH = () => new Error('401 Unauthorized: API key not valid')
 const NETWORK = () => new Error('fetch failed: ECONNRESET')
+/* 실측 2026-09-23 의 원문. 무료 키 셋이 같은 순간 같은 모델에서 이것을 냈고 유료 키는 200 이었다 */
+const OVERLOAD = () => new Error('Gemini API 오류 (503): {"error":{"code":503,'
+  + '"message":"This model is currently experiencing high demand. Spikes in demand are expected."}}')
 
 /* ── 무엇을 키 문제로 보는가 ───────────────────────────────── */
 
-test('한도와 인증만 키 문제다 — 분류는 provider-errors 한 곳에서 온다', () => {
+test('한도와 인증과 과부하가 키 문제다 — 분류는 provider-errors 한 곳에서 온다', () => {
   assert.equal(keyOutcomeOf(QUOTA()), 'quota')
   assert.equal(keyOutcomeOf(AUTH()), 'auth')
+  assert.equal(keyOutcomeOf(OVERLOAD()), 'overload')
   assert.equal(keyOutcomeOf(NETWORK()), 'transient')
   assert.equal(keyOutcomeOf(new Error('404 model not found')), 'transient',
     '모델이 없어진 것은 키를 바꿔도 같다')
+})
+
+test('★ 404 는 과부하로 새지 않는다 — 그 모델이 없어진 것이지 붐비는 것이 아니다', () => {
+  // 실측 원문. 'no longer available' 안에 'available' 이 들어 있어 과부하 낱말과 스칠 수 있다
+  const gone = new Error('404 This model models/gemini-2.5-flash is no longer available to new users')
+  assert.equal(keyOutcomeOf(gone), 'transient', '키 문제가 아니므로 키를 안 태운다')
 })
 
 /* ── 넘어가는가 ────────────────────────────────────────────── */
@@ -304,4 +314,48 @@ test('★ CI 수집과 GPU 추출은 키를 자기 방식으로 또 읽지 않�
   // 그 «이미 한다»가 사실인지도 같이 센다. 아니면 위 둘은 아무 데도 안 닿는다
   assert.match(read('lib/ai/gemini-call.ts'), /await import\('\.\/key-store\.ts'\)/,
     '공통 호출기가 표를 안 보면 CI·GPU 는 여전히 키 하나로 돈다')
+})
+
+/* ── 과부하 (실측 2026-09-23) ──────────────────────────────── */
+
+test('★ 과부하에서도 다음 키로 넘어간다 — 유료 키까지 순서가 돌아간다', async () => {
+  const used: string[] = []
+  // 화면에 등록돼 있던 그대로. 무료 셋이 앞, 유료가 맨 뒤다
+  const entries = [
+    keyEntry('기본', 'free1'), keyEntry('pickup ai', 'free2'),
+    keyEntry('ai team', 'free3'), keyEntry('유료키', 'paid'),
+  ]
+  const got = await withProviderKeys('gemini', 'free1', async (key) => {
+    used.push(key)
+    if (key !== 'paid') throw OVERLOAD()
+    return '읽었다'
+  }, { entries })
+
+  assert.equal(got, '읽었다')
+  assert.deepEqual(used, ['free1', 'free2', 'free3', 'paid'],
+    '무료 셋이 전부 붐벼도 유료 키를 부른다. 여기서 멈추면 사고가 그대로 재현된다')
+})
+
+test('★ 과부하는 그 키를 한도로 적지 않는다 — 한도와 처방이 다르다', async () => {
+  const noted: Array<{ label: string; outcome: string }> = []
+  const entries = [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')]
+  await withProviderKeys('gemini', 'k1', async (key) => {
+    if (key === 'k1') throw OVERLOAD()
+    return 'ok'
+  }, {
+    entries,
+    record: (entry, outcome) => { noted.push({ label: entry.label, outcome }) },
+  })
+
+  assert.deepEqual(noted, [{ label: '첫째', outcome: 'overload' }, { label: '둘째', outcome: 'ok' }],
+    'quota 로 적으면 key-pool 이 그 키에 점점 긴 벌을 매긴다 (최대 6시간)')
+})
+
+test('원인 불명은 여전히 멈춘다 — 과부하를 열었다고 아무 실패나 키를 태우지 않는다', async () => {
+  const used: string[] = []
+  const entries = [keyEntry('첫째', 'k1'), keyEntry('둘째', 'k2')]
+  await assert.rejects(
+    withProviderKeys('gemini', 'k1', async (key) => { used.push(key); throw NETWORK() }, { entries }),
+  )
+  assert.deepEqual(used, ['k1'], '네트워크가 한 번 튄 것으로 남은 키를 소진하지 않는다')
 })

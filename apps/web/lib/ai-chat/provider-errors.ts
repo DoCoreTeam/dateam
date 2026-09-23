@@ -25,7 +25,11 @@ export type ProviderFailureScope = 'model' | 'key' | 'provider' | 'transient'
 
 /**
  * 이 실패가 **그 키를 어떻게 만들었나** — `lib/ai/key-pool.ts` 의 `KeyOutcome` 중
- * 키 상태를 실제로 바꾸는 둘이다. 기다리면 풀리는 것(`quota`)과 사람이 고쳐야 하는 것(`auth`).
+ * 키 상태를 실제로 바꾸는 셋이다. 기다리면 풀리는 것(`quota`), 사람이 고쳐야 하는 것(`auth`),
+ * 그리고 **다른 키면 지금 당장 되는 것**(`overload`).
+ *
+ * `overload` 를 `quota` 와 같게 적으면 안 된다. 한도는 그 키의 몫을 다 쓴 것이고
+ * 과부하는 남의 사정이라, 같이 적으면 멀쩡한 키가 점점 긴 벌(`cooldownMsFor`)을 받는다.
  *
  * 왜 `availability` 로 못 읽나: 저건 `ai_model_catalog` 에 쓰는 **모델의** 상태다.
  * 키가 말랐다고 모델을 「제한됨」으로 적으면 다른 키를 가진 사람에게도 그 모델이 내려간다.
@@ -33,7 +37,7 @@ export type ProviderFailureScope = 'model' | 'key' | 'provider' | 'transient'
  * `scope` 가 `key` 일 때만 있다. 404 는 키가 멀쩡한데 모델이 없어진 것이라 여기 해당이 없다 —
  * 그때 키에 쉬는 시간을 매기면 멀쩡한 키가 애먼 벌을 받는다.
  */
-export type KeyFailureOutcome = 'quota' | 'auth'
+export type KeyFailureOutcome = 'quota' | 'auth' | 'overload'
 
 export function classifyProviderError(err: unknown): {
   message: string
@@ -65,6 +69,24 @@ export function classifyProviderError(err: unknown): {
   }
   if (raw.includes('404') || raw.includes('not found') || raw.includes('no longer available') || raw.includes('is not supported')) {
     return { message: '이 모델은 더 이상 사용할 수 없습니다. 다른 모델을 선택하세요.', fatalModel: true, availability: 'unavailable', scope: 'model' }
+  }
+  /*
+    과부하(503)는 **그 키가 닿은 자리**가 미어터진 것이다. 한도도 아니고 원인 불명도 아니다.
+
+    실측 2026-09-23: `gemini-flash-latest` 가 무료 키 셋에서 전부 503 「high demand」였고
+    같은 순간 같은 모델이 유료 키에서는 200 이었다. 원인 불명(transient)으로 두면
+    `withProviderKeys` 가 그 자리에서 교체를 포기해 **유료 키는 순서가 영영 안 온다** —
+    그게 「유료키를 넣어 뒀는데 전부 한도라고 뜬다」의 정확한 모양이다.
+
+    그래서 키 범위로 본다. 다만 한도가 아니므로 그 키를 `quota` 로 적지 않는다(key-pool).
+  */
+  if (raw.includes('503') || raw.includes('overloaded') || raw.includes('high demand') || raw.includes('unavailable_error')) {
+    return {
+      message: 'AI 가 지금 몰려 있습니다. 잠시 후 다시 시도해 주세요.',
+      fatalModel: false,
+      scope: 'key',
+      keyOutcome: 'overload',
+    }
   }
   if (raw.includes('401') || raw.includes('403') || raw.includes('api key') || raw.includes('permission')) {
     // 모델을 바꿔 봐야 같은 답이 온다. 기다려도 안 풀리니 그 키는 사람이 고칠 때까지 멈춘다

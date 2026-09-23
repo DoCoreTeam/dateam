@@ -376,7 +376,19 @@ export async function hostAdapter(
       if (!res) {
         // 한도는 키의 상태다 — `availability` 가 아니라 `keyOutcome` 으로 읽는다.
         // 인증 실패(`auth`)는 여기서 제외한다, 아래 문구가 말하는 처방이 다르다
-        if (classifyProviderError(lastError).keyOutcome === 'quota') {
+        const outcome = classifyProviderError(lastError).keyOutcome
+        /*
+          **과부하를 한도라고 말하지 않는다.** 처방이 정반대다 —
+          한도는 기다리거나 키를 더 넣는 것이고, 과부하는 그냥 다시 누르면 되는 것이다.
+          2026-09-23 에 사용자가 본 「전부 사용량 한도」가 실은 이쪽이었고,
+          그래서 「유료키도 있는데 왜 한도냐」는 말이 맞았다.
+        */
+        if (outcome === 'overload') {
+          throw new CrmError('PROVIDER_QUOTA',
+            `AI 가 지금 몰려 있습니다(공급자 ${providersTried.size}곳, 키 ${keysTried}개 시도). `
+            + '잠시 후 다시 시도해 주세요.')
+        }
+        if (outcome === 'quota') {
           throw new CrmError('PROVIDER_QUOTA',
             `등록된 AI 공급자가 전부 사용량 한도에 걸렸습니다(공급자 ${providersTried.size}곳, 키 ${keysTried}개 시도). `
             + '한도가 풀릴 때까지 기다리거나 시스템 설정 → 통합에서 다른 공급자 키를 추가해 주세요.')

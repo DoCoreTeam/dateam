@@ -15,8 +15,16 @@ import type { AiProviderId } from './provider-catalog'
 /** 한 키가 왜 못 쓰는 상태인가. 기다리면 풀리는 것과 사람이 고쳐야 하는 것을 같은 말로 하지 않는다 */
 export type KeyDisabledReason = 'quota' | 'auth'
 
-/** 호출 한 번의 결말. provider-errors 의 분류를 키 관점으로 옮긴 값이다 */
-export type KeyOutcome = 'ok' | 'quota' | 'auth' | 'transient'
+/**
+ * 호출 한 번의 결말. provider-errors 의 분류를 키 관점으로 옮긴 값이다.
+ *
+ * `overload` 가 `transient` 에서 갈라져 나온 이유 (실측 2026-09-23):
+ * 503 「high demand」를 원인 불명으로 두면 `withProviderKeys` 가 그 자리에서 멈춰
+ * 등록해 둔 나머지 키를 한 번도 안 부른다. 무료 키 셋이 같은 모델에서 전부 503 이던 순간
+ * 유료 키는 같은 모델에서 200 이었다 — **다른 키면 되는 실패**라 넘어가야 한다.
+ * 그렇다고 한도는 아니므로 `disabled_reason` 은 안 건드리고 짧게만 쉰다.
+ */
+export type KeyOutcome = 'ok' | 'quota' | 'auth' | 'transient' | 'overload'
 
 /** ai_provider_keys 한 줄. 표 칼럼과 1:1 이되 이름은 코드 어법을 쓴다 */
 export interface KeyPoolEntry {
@@ -156,6 +164,7 @@ export function orderKeys(entries: readonly KeyPoolEntry[], now: number): KeyPoo
  * - quota     쉰다. 연속 실패가 쌓일수록 오래
  * - auth      **쉬는 게 아니라 멈춘다.** 사람이 키를 고치기 전에는 몇 번을 불러도 같은 답이다
  * - transient 짧게만 쉰다
+ * - overload  짧게만 쉬고 **`disabled_reason` 은 안 적는다.** 그 키가 마른 게 아니다
  */
 export function nextKeyState(
   entry: KeyPoolEntry,
@@ -188,6 +197,7 @@ export function nextKeyState(
     }
   }
 
+  // 과부하와 원인 불명은 같은 짧은 시간만 쉰다. 벌이 아니라 「지금 말고 조금 뒤」라는 표시다
   const ms = outcome === 'quota' ? cooldownMsFor(failures) : TRANSIENT_COOLDOWN_MS
   return {
     cooldownUntil: new Date(now + ms).toISOString(),

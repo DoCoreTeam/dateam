@@ -81,10 +81,16 @@ async function resolveDeps(
 /**
  * 키를 바꿔 가며 `run` 을 부른다.
  *
- * - 한도(429)와 인증(401·403)은 **그 키의 문제**다 → 다음 키로 같은 일을 다시 한다
- * - 그 밖의 실패는 키를 바꿔도 같다 → 그대로 올린다. 네트워크가 한 번 튄 것으로
+ * - 한도(429)와 인증(401·403)과 과부하(503)는 **그 키의 문제**다 → 다음 키로 같은 일을 다시 한다
+ * - 원인 불명(`transient`)만 그대로 올린다. 네트워크가 한 번 튄 것으로
  *   키를 하나씩 소진하면, 정작 한도가 찼을 때 쓸 키가 남아 있지 않다
+ *
  * - 키를 다 써도 안 되면 **마지막 오류를 그대로** 올린다. 원인을 우리 말로 바꾸지 않는다
+ *
+ * 과부하가 이 목록에 들어온 이유 (실측 2026-09-23): 무료 키 셋이 `gemini-flash-latest` 에서
+ * 전부 503 「high demand」를 내던 순간 유료 키는 같은 모델에서 200 이었다. 과부하를
+ * 원인 불명으로 두면 첫 키에서 멈춰 **등록해 둔 나머지 키가 한 번도 안 불린다** —
+ * 화면에는 「등록된 AI 공급자가 전부 사용량 한도」가 떴고, 정작 한도는 아니었다.
  *
  * 키가 하나면 `run` 은 정확히 한 번 불린다 — 교체가 헛호출을 늘리지 않는다.
  */
@@ -112,7 +118,8 @@ export async function withProviderKeys<T>(
       lastError = e
       const outcome = outcomeOf(e)
       await note(entry, outcome, e instanceof Error ? e.message : String(e ?? ''))
-      // 키를 바꿔도 같은 답이 올 실패다. 남은 키를 태우지 않고 그대로 올린다
+      // 키를 바꿔도 같은 답이 올 실패다. 남은 키를 태우지 않고 그대로 올린다.
+      // 과부하(`overload`)는 여기 해당이 없다 — 다른 키면 지금 당장 되는 실패다
       if (outcome === 'transient') throw e
       const next = entries[i + 1]
       if (next) deps?.onSwitch?.(entry, next)
