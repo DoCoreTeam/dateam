@@ -72,13 +72,13 @@
 의존: I01
 
 ### I04 실제로 되는지 확인하고 판을 올린다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md, apps/web/lib/changelog/entries.ts
 감사 기준:
 - 카탈로그를 다시 훑고 gemini 의 available 수가 4보다 커진다 (실측 대조)
 - 견적서 파일 올리기가 실제로 성공한다
-- 버전 파일 여섯이 v0.10.432 로 같이 오른다
+- 버전 파일 여섯이 같이 오른다 (번호는 커밋 직전에 다시 계산한 다음 패치)
 의존: I01, I02, I03
 
 ## 변경 이력
