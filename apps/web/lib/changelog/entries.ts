@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.442',
+    version: '0.10.443',
     date: '2026-09-25',
     title: '영업 CRM 이 「내 담당」을 먼저 보여 줘요',
     items: [
