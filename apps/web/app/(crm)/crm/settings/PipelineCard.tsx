@@ -16,6 +16,7 @@
 // 이미 붙은 딜은 그대로 산다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import { ChevronDown, ChevronUp, Eye, EyeOff, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -54,7 +55,8 @@ function dealsOf(p: PipelineRow): number {
   return p.stages.reduce((sum, s) => sum + (s.dealCount ?? 0), 0)
 }
 
-export default function PipelineCard({ canEdit }: { canEdit: boolean }) {
+export default function PipelineCard() {
+  const canEdit = useCanEdit()
   const [items, setItems] = useState<PipelineRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

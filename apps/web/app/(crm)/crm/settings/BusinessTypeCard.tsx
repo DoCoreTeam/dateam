@@ -12,6 +12,7 @@
 // 화면은 그 사실을 딜 수로 먼저 보여 준다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import { ChevronDown, ChevronUp, Eye, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -38,7 +39,8 @@ type Editing = null | 'new' | string
  *   버튼을 그려 두면 멤버가 눌러 보고서야 거절을 받는다. 영업 단계 화면은
  *   처음부터 `canEdit` 로 감췄는데 이 카드만 안 감췄다(§2-5 동종 UI, 2026-09-09).
  */
-export default function BusinessTypeCard({ canEdit }: { canEdit: boolean }) {
+export default function BusinessTypeCard() {
+  const canEdit = useCanEdit()
   const [items, setItems] = useState<BusinessTypeRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

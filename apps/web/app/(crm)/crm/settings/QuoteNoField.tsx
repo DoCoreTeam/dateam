@@ -21,9 +21,11 @@ interface Props {
   onChange: (next: string) => void
   /** 오늘(KST) — 미리보기를 만드는 기준. 화면이 시간을 정하지 않게 밖에서 받는다 */
   todayKey: string
+  /** 바꿀 수 없는 사람에게는 잠근다. 값과 미리보기는 그대로 보인다 */
+  disabled?: boolean
 }
 
-export default function QuoteNoField({ id, value, onChange, todayKey }: Props) {
+export default function QuoteNoField({ id, value, onChange, todayKey, disabled }: Props) {
   const error = value.trim() ? validateQuoteNoPattern(value) : null
   const preview = error ? [] : previewQuoteNo(value, todayKey)
   const scope = seqScopeOf(value)
@@ -35,6 +37,7 @@ export default function QuoteNoField({ id, value, onChange, todayKey }: Props) {
         className="input-field"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
         placeholder="DA-{YYYY}-{MMDD}-{SEQ:2}"
         aria-invalid={error ? true : undefined}
         aria-describedby={`${id}-preview`}
@@ -58,6 +61,7 @@ export default function QuoteNoField({ id, value, onChange, todayKey }: Props) {
             key={p.pattern}
             type="button"
             className={`${styles.preset}${p.pattern === value ? ` ${styles.presetOn}` : ''}`}
+            disabled={disabled}
             onClick={() => onChange(p.pattern)}
           >
             {p.label}

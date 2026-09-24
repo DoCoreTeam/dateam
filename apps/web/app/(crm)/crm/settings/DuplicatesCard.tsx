@@ -11,6 +11,7 @@
 //   ③ 합친 직후 **되돌리기**를 그 자리에 띄운다 (설정 어딘가로 보내지 않는다)
 
 import { useCallback, useEffect, useState } from 'react'
+import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
@@ -42,6 +43,7 @@ function sub(side: Side): string {
 }
 
 export default function DuplicatesCard() {
+  const canEdit = useCanEdit()
   const [target, setTarget] = useState<Target>('company')
   const [items, setItems] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(true)
@@ -143,9 +145,9 @@ export default function DuplicatesCard() {
   }
 
   return (
-    <SettingsCard title="중복 정리" headingLevel={2} headerAction={<><NbButton variant="ghost" onClick={() => void scan()} disabled={busy === 'scan'}>
+    <SettingsCard title="중복 정리" headingLevel={2} headerAction={<>{canEdit && <NbButton variant="ghost" onClick={() => void scan()} disabled={busy === 'scan'}>
           {busy === 'scan' ? '수집 중…' : '지금 수집'}
-        </NbButton></>}>
+        </NbButton>}</>}>
 
       <FormErrorBanner message={error} />
 
@@ -159,9 +161,9 @@ export default function DuplicatesCard() {
       {lastMerge && (
         <p className={styles.undo}>
           {lastMerge.label} 로 합쳤어요. 30일 안에 되돌릴 수 있습니다.{' '}
-          <NbButton variant="ghost" onClick={() => void undo()} disabled={busy === 'undo'}>
+          {canEdit && <NbButton variant="ghost" onClick={() => void undo()} disabled={busy === 'undo'}>
             {busy === 'undo' ? '되돌리는 중…' : '되돌리기'}
-          </NbButton>
+          </NbButton>}
         </p>
       )}
 
@@ -186,25 +188,29 @@ export default function DuplicatesCard() {
                     <div key={side.id} className={styles.dupeSide}>
                       <span className={styles.dupeName}>{side.name}</span>
                       <span className={styles.dupeSub}>{sub(side)}</span>
-                      <NbButton
-                        variant="ghost"
-                        disabled={busy === c.id}
-                        onClick={() => void merge(c, side, i === 0 ? c.b : c.a)}
-                      >
-                        이쪽을 남기기
-                      </NbButton>
+                      {canEdit && (
+                        <NbButton
+                          variant="ghost"
+                          disabled={busy === c.id}
+                          onClick={() => void merge(c, side, i === 0 ? c.b : c.a)}
+                        >
+                          이쪽을 남기기
+                        </NbButton>
+                      )}
                     </div>
                   ))}
                 </div>
                 {/* 잘못 잡힌 짝을 치울 길 — 없으면 같은 것을 영원히 보게 되고,
                     그러면 진짜 중복도 같이 안 보게 된다 */}
-                <NbButton
-                  variant="ghost"
-                  disabled={busy === c.id}
-                  onClick={() => void dismiss(c)}
-                >
-                  이건 중복 아니에요
-                </NbButton>
+                {canEdit && (
+                  <NbButton
+                    variant="ghost"
+                    disabled={busy === c.id}
+                    onClick={() => void dismiss(c)}
+                  >
+                    이건 중복 아니에요
+                  </NbButton>
+                )}
               </li>
             )
           })}

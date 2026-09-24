@@ -14,6 +14,7 @@
 // 없던 것은 클라이언트가 아니라 **CRM 이 그걸 쓰는 배선**이었다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useCanWrite } from '@/lib/crm/ui/can-edit'
 import { withReturnTo, currentReturnTo } from '@/lib/nav/return-to'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -46,6 +47,7 @@ const STATUS: Record<string, { label: string; status: StatusKey }> = {
 }
 
 export default function IntegrationCard() {
+  const canWrite = useCanWrite()
   const [items, setItems] = useState<Connection[]>([])
   /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
   const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
@@ -135,14 +137,16 @@ setWaiting(null); await load()
 
   return (
     <SettingsCard title="메일·일정 연동" headingLevel={2} headerAction={<>{/* 떠났다 돌아올 자리를 함께 실어 보낸다 — 동의를 마치면 이 카드로 돌아온다(복귀 경로 SSOT) */}
-        {items.length > 0 && (
+        {canWrite && items.length > 0 && (
           <NbButton variant="ghost" disabled={busy === 'sync'} onClick={() => void syncNow()}>
             {busy === 'sync' ? '가져오는 중…' : '지금 가져오기'}
           </NbButton>
         )}
-        <NbButton onClick={() => { window.location.href = withReturnTo('/api/auth/google-drive?purpose=crm', currentReturnTo()) }}>
-          {items.length > 0 ? '다시 연결' : '구글 계정 연결'}
-        </NbButton></>}>
+        {canWrite && (
+          <NbButton onClick={() => { window.location.href = withReturnTo('/api/auth/google-drive?purpose=crm', currentReturnTo()) }}>
+            {items.length > 0 ? '다시 연결' : '구글 계정 연결'}
+          </NbButton>
+        )}</>}>
 
       <FormErrorBanner message={error} />
       {notice && <p className={styles.undo}>{notice}</p>}
@@ -173,9 +177,11 @@ setWaiting(null); await load()
               <li key={c.id} className={styles.conn}>
                 <span className={styles.connName}>{c.provider === 'google' ? '구글' : c.provider}</span>
                 <StatusPill tone={toneFromStatusKey(meta.status)}>{meta.label}</StatusPill>
-                <NbButton variant="ghost" disabled={busy === c.id} onClick={() => void disconnect(c.id)}>
-                  {busy === c.id ? '해제 중…' : ACTION.disconnect}
-                </NbButton>
+                {canWrite && (
+                  <NbButton variant="ghost" disabled={busy === c.id} onClick={() => void disconnect(c.id)}>
+                    {busy === c.id ? '해제 중…' : ACTION.disconnect}
+                  </NbButton>
+                )}
               </li>
             )
           })}

@@ -11,6 +11,7 @@
 // 켠 칸은 **얼마나 확신할 때** 반영되는지.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import styles from './settings.module.css'
@@ -30,6 +31,7 @@ interface Row {
 const TARGET_LABEL: Record<string, string> = { company: '회사', person: '인물', deal: '딜' }
 
 export default function AutoApplyCard() {
+  const canEdit = useCanEdit()
   const [items, setItems] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
@@ -116,7 +118,8 @@ export default function AutoApplyCard() {
                         <input
                           type="checkbox"
                           checked={r.autoApply}
-                          disabled={busy === key}
+                          // 값은 보이게 두고 잠그기만 한다 — 감추면 지금 설정이 뭔지도 못 본다
+                          disabled={!canEdit || busy === key}
                           onChange={(e) => void save(r, { autoApply: e.target.checked })}
                         />
                         <span>{r.autoApply ? '자동 반영' : '사람 확인'}</span>
@@ -128,7 +131,7 @@ export default function AutoApplyCard() {
                           <select
                             className="input-field"
                             value={String(r.minConfidence)}
-                            disabled={busy === key}
+                            disabled={!canEdit || busy === key}
                             onChange={(e) => void save(r, { minConfidence: Number(e.target.value) })}
                             aria-label={`${r.label} 기준 확신도`}
                           >

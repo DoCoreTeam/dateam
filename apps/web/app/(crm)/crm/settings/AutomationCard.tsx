@@ -11,6 +11,7 @@
 // 잘못 만든 규칙이 딜을 옮길 때마다 할 일을 쏟아내면 그때부터 아무도 할 일 목록을 안 본다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import { Plus, Trash2, Zap, Play } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -38,6 +39,7 @@ function newId(): string {
 }
 
 export default function AutomationCard() {
+  const canEdit = useCanEdit()
   const [rules, setRules] = useState<AutomationRule[]>([])
   /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
   const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
@@ -173,6 +175,8 @@ export default function AutomationCard() {
                   <input
                     type="checkbox"
                     checked={r.enabled}
+                    // 값은 보이게 두고 잠그기만 한다 — 감추면 지금 규칙이 뭔지도 못 본다
+                    disabled={!canEdit}
                     onChange={(e) => patch(r.id, { enabled: e.target.checked })}
                   />{' '}
                   {r.enabled ? '켜짐' : '꺼짐'}
@@ -181,16 +185,19 @@ export default function AutomationCard() {
                   className="input-field"
                   value={r.name}
                   placeholder="규칙 이름 (예: 제안 후 확인 연락)"
+                  disabled={!canEdit}
                   onChange={(e) => patch(r.id, { name: e.target.value })}
                   aria-label="규칙 이름"
                 />
-                <NbButton
-                  variant="ghost"
-                  onClick={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
-                  aria-label={`규칙 ${ACTION.delete}`}
-                >
-                  <Trash2 size={14} />
-                </NbButton>
+                {canEdit && (
+                  <NbButton
+                    variant="ghost"
+                    onClick={() => setRules((prev) => prev.filter((x) => x.id !== r.id))}
+                    aria-label={`규칙 ${ACTION.delete}`}
+                  >
+                    <Trash2 size={14} />
+                  </NbButton>
+                )}
               </div>
 
               <div className={styles.ruleGrid}>
@@ -199,6 +206,7 @@ export default function AutomationCard() {
                   <select
                     className="input-field"
                     value={r.trigger}
+                    disabled={!canEdit}
                     onChange={(e) => patch(r.id, { trigger: e.target.value as TriggerKind })}
                   >
                     {TRIGGERS.map((t) => <option key={t} value={t}>{TRIGGER_LABEL[t]}</option>)}
@@ -211,6 +219,7 @@ export default function AutomationCard() {
                     <select
                       className="input-field"
                       value={r.stageId ?? ''}
+                      disabled={!canEdit}
                       onChange={(e) => patch(r.id, { stageId: e.target.value || null })}
                     >
                       <option value="">모든 단계</option>
@@ -231,6 +240,7 @@ export default function AutomationCard() {
                       type="number"
                       min={1}
                       value={r.stalledDays ?? 7}
+                      disabled={!canEdit}
                       onChange={(e) => patch(r.id, { stalledDays: Number(e.target.value) })}
                     />
                   </label>
@@ -242,6 +252,7 @@ export default function AutomationCard() {
                     className="input-field"
                     value={r.taskTitle}
                     placeholder="{회사} 확인 연락"
+                    disabled={!canEdit}
                     onChange={(e) => patch(r.id, { taskTitle: e.target.value })}
                   />
                 </label>
@@ -253,6 +264,7 @@ export default function AutomationCard() {
                     type="number"
                     min={1}
                     value={r.taskDueInDays ?? 3}
+                    disabled={!canEdit}
                     onChange={(e) => patch(r.id, { taskDueInDays: Number(e.target.value) })}
                   />
                 </label>
@@ -261,12 +273,14 @@ export default function AutomationCard() {
           ))}
 
           <div className={styles.actions}>
-            <NbButton variant="ghost" onClick={add}><Plus size={14} /> 규칙 추가</NbButton>
-            <NbButton onClick={() => void save()} disabled={saving}>
-              <Zap size={14} /> {saving ? '저장 중…' : '저장'}
-            </NbButton>
+            {canEdit && <NbButton variant="ghost" onClick={add}><Plus size={14} /> 규칙 추가</NbButton>}
+            {canEdit && (
+              <NbButton onClick={() => void save()} disabled={saving}>
+                <Zap size={14} /> {saving ? '저장 중…' : '저장'}
+              </NbButton>
+            )}
             {/* 하루 한 번 도는 규칙은 사람이 지금 확인할 수 있어야 한다 */}
-            {hasStalled && (
+            {canEdit && hasStalled && (
               <NbButton variant="ghost" onClick={() => void sweepNow()} disabled={sweeping}>
                 <Play size={14} /> {sweeping ? '확인 중…' : '지금 확인'}
               </NbButton>

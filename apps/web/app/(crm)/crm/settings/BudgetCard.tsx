@@ -10,6 +10,7 @@
 // 서버·화면이 서로 다른 단위를 쓰면 언젠가 100배 사고가 난다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -43,6 +44,7 @@ function usd(minor: string): string {
 }
 
 export default function BudgetCard() {
+  const canEdit = useCanEdit()
   const [budget, setBudget] = useState<Budget | null>(null)
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
@@ -141,13 +143,14 @@ export default function BudgetCard() {
               <label className="label" htmlFor="crm-budget-limit">이번 달 상한 (USD)</label>
               <input
                 id="crm-budget-limit" className="input-field" value={draft} inputMode="decimal"
+                disabled={!canEdit}
                 onChange={(e) => setDraft(e.target.value.replace(/[^\d.]/g, ''))}
               />
             </div>
             {/* 늘 「저장」이면 눌렀던 것이 먹었는지 못 말한다 — 칸의 상태가 단추의 말이다 */}
-            <NbButton onClick={() => void save()} disabled={saving || settingSaveDisabled(state)}>
+            {canEdit && <NbButton onClick={() => void save()} disabled={saving || settingSaveDisabled(state)}>
               {saving ? progress(ACTION.save) : SETTING_SAVE_LABEL[state]}
-            </NbButton>
+            </NbButton>}
           </div>
 
           <p className="field-note">

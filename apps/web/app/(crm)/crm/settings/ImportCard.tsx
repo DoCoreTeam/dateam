@@ -9,9 +9,11 @@
 // 몇 건이 새로 생기고 몇 건이 이미 있고 몇 건을 못 넣는지 먼저 세어 보여 준다.
 
 import { useRef, useState } from 'react'
-import { Upload, FileUp } from 'lucide-react'
+import { useCanWrite } from '@/lib/crm/ui/can-edit'
+import { Upload, FileUp, Lock } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import EmptyState from '@/components/ui/EmptyState'
 import { IMPORT_LABEL, type ImportKind, type ImportPreview, type ImportOutcome } from '@/lib/crm/services/import-csv'
 import styles from './settings.module.css'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
@@ -20,6 +22,7 @@ import StatusPill from '@/components/ui/settings/StatusPill'
 const KINDS: ImportKind[] = ['companies', 'people']
 
 export default function ImportCard() {
+  const canWrite = useCanWrite()
   const [kind, setKind] = useState<ImportKind>('companies')
   const [text, setText] = useState('')
   const [fileName, setFileName] = useState('')
@@ -74,6 +77,13 @@ export default function ImportCard() {
 
       <FormErrorBanner message={error} />
 
+      {!canWrite ? (
+        <EmptyState
+          title="가져오기 권한이 없어요"
+          description="관리자가 열어 주면 바로 넣을 수 있습니다."
+          icon={<Lock size={28} />}
+        />
+      ) : (
       <div className={styles.actions}>
         <label className="label">
           무엇을
@@ -103,6 +113,7 @@ export default function ImportCard() {
           </NbButton>
         )}
       </div>
+      )}
 
       {preview && (
         <div className={styles.undo}>

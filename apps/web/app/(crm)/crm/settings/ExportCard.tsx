@@ -10,10 +10,12 @@
 // CSV 이스케이프(수식 인젝션 방어)를 화면이 또 구현하게 된다.
 
 import { useState } from 'react'
+import { useCanExport } from '@/lib/crm/ui/can-edit'
 import { downloadFromApi } from '@/lib/crm/api/download'
-import { Download } from 'lucide-react'
+import { Download, Lock } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import EmptyState from '@/components/ui/EmptyState'
 import { EXPORT_LABEL, type ExportKind } from '@/lib/crm/services/export'
 import styles from './settings.module.css'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
@@ -21,6 +23,7 @@ import SettingsCard from '@/components/ui/settings/SettingsCard'
 const KINDS: ExportKind[] = ['companies', 'people', 'deals', 'meetings', 'tasks']
 
 export default function ExportCard() {
+  const canExport = useCanExport()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -59,6 +62,17 @@ export default function ExportCard() {
       <FormErrorBanner message={error} />
       {notice && <p className={styles.undo}>{notice}</p>}
 
+      {/*
+        내보내기는 역할이 아니라 **부여**가 정한다(app/api/crm/export/route.ts).
+        못 받는 사람에게 단추를 그려 놓고 403 을 돌려주면, 그건 안내가 아니라 함정이다.
+      */}
+      {!canExport ? (
+        <EmptyState
+          title="내보내기 권한이 없어요"
+          description="관리자가 열어 주면 바로 받을 수 있습니다."
+          icon={<Lock size={28} />}
+        />
+      ) : (
       <div className={styles.actions}>
         {KINDS.map((k) => (
           <NbButton key={k} variant="ghost" disabled={busy === k} onClick={() => void download(k)}>
@@ -66,6 +80,7 @@ export default function ExportCard() {
           </NbButton>
         ))}
       </div>
+      )}
     </SettingsCard>
   )
 }

@@ -200,14 +200,20 @@ test('★ 설정에 파이프라인 카드가 실제로 꽂혀 있다 — 만들
 test('★ 못 누를 버튼을 그리지 않는다 — 두 카드가 같은 방식으로 권한을 본다(§2-5)', () => {
   const page = read('app/(crm)/crm/settings/page.tsx')
   assert.ok(page.includes('hasCrmRole'), '서버에서 판정한다 — 화면이 스스로 정하지 않는다')
-  // 한 카드만 받으면 두 카드가 서로 다른 규칙으로 그려진다 — 그게 §2-5 가 막는 상태다
+  /*
+    예전에는 이 둘만 프롭으로 받았다(`<PipelineCard canEdit={canEdit} />`).
+    카드가 열넷이 되자 프롭을 하나씩 꽂는 방식이 **열둘을 빠뜨렸고**, 빠진 것을 아무도 몰랐다.
+    이제 권한은 문맥으로 한 번만 내려간다 — 그래서 여기서 보는 것도 「프롭을 받았나」가 아니라
+    「같은 자리에서 같은 답을 받나」다. 열넷 전체는 lib/ui/write-permission.test.ts 가 센다.
+  */
+  assert.match(page, /<CanEditProvider value=\{ability\}>/, '권한을 문맥에 안 싣는다')
   for (const card of ['PipelineCard', 'BusinessTypeCard']) {
-    assert.ok(
-      page.includes(`<${card} canEdit={canEdit} />`),
-      `${card} 가 서버 판정을 그대로 받는다 — 화면이 true 로 굳히지 않는다`,
-    )
     const src = read(`app/(crm)/crm/settings/${card}.tsx`)
-    assert.ok(src.includes('canEdit'), `${card}.tsx 가 canEdit 를 받는다`)
+    assert.ok(src.includes('useCanEdit()'), `${card}.tsx 가 서버 판정을 그대로 받는다`)
+    assert.ok(
+      !/canEdit \}: \{ canEdit: boolean \}/.test(src),
+      `${card}.tsx 가 옛 프롭 방식으로 되돌아갔다 — 둘만 다른 규칙이 된다`,
+    )
   }
 })
 

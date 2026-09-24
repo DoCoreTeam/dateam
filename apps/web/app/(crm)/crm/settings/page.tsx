@@ -16,6 +16,8 @@ import ImportCard from './ImportCard'
 import AutomationCard from './AutomationCard'
 import { resolveCrmAccess, hasCrmRole } from '@/lib/crm/auth/requireCrmMember'
 import SettingsCards, { type SettingsCardEntry } from '@/components/ui/settings/SettingsCards'
+import { CanEditProvider } from '@/lib/crm/ui/can-edit'
+import { canExport } from '@/lib/access/guard'
 import {
   CRM_SETTINGS_CARDS, CRM_SETTINGS_TAB, CRM_SETTINGS_TAB_ORDER,
 } from '@/lib/crm/domain/settings-tab'
@@ -29,7 +31,17 @@ export default async function CrmSettingsPage() {
     여기서 정하는 것은 «못 누를 버튼을 그리지 않는 것»뿐이다(영업 단계 화면과 같은 방식).
   */
   const access = await resolveCrmAccess()
-  const canEdit = access.ok ? hasCrmRole(access.session.role, 'ADMIN') : false
+  /*
+    카드마다 서버가 요구하는 것이 다르다(실측 2026-09-23):
+    파이프라인·사업 유형·거래 조건·예산·자동화·필드·중복 정리는 ADMIN,
+    가져오기·데이터 점검·연동은 MEMBER, 내보내기는 역할이 아니라 부여가 정한다.
+    하나로 묶어 ADMIN 으로 감추면 멤버가 **할 수 있는 일까지** 사라진다.
+  */
+  const ability = {
+    canEdit: access.ok ? hasCrmRole(access.session.role, 'ADMIN') : false,
+    canWrite: access.ok ? hasCrmRole(access.session.role, 'MEMBER') : false,
+    canExport: access.ok ? await canExport('/crm') : false,
+  }
 
   /*
     카드가 서는 자리는 `lib/crm/domain/settings-tab.ts` 가 정한다.
@@ -41,8 +53,8 @@ export default async function CrmSettingsPage() {
     이제 그 순서는 「영업 단계」 탭 안에 그대로 있다.
   */
   const node: Record<string, ReactNode> = {
-    PipelineCard: <PipelineCard canEdit={canEdit} />,
-    BusinessTypeCard: <BusinessTypeCard canEdit={canEdit} />,
+    PipelineCard: <PipelineCard />,
+    BusinessTypeCard: <BusinessTypeCard />,
     'SettingsCard.quote': <SettingsCard group="quote" />,
     QuoteTermsCard: <QuoteTermsCard />,
     'SettingsCard.quoteImport': <SettingsCard group="quoteImport" />,
@@ -69,11 +81,17 @@ export default async function CrmSettingsPage() {
         description="파이프라인·사업 유형·필드·AI·연동을 관리합니다."
         below={<CrmGroupTabs />}
       />
-      {/* 카드마다 저장한다(§2-5-4) — 탭 하단 일괄 저장 바를 두지 않는다 */}
-      <SettingsCards
-        groups={CRM_SETTINGS_TAB_ORDER.map((t) => ({ id: t, label: CRM_SETTINGS_TAB[t].label }))}
-        cards={cards}
-      />
+      {/*
+        카드마다 저장한다(§2-5-4) — 탭 하단 일괄 저장 바를 두지 않는다.
+        권한은 여기서 한 번만 내려 준다 — 카드 열넷에 프롭을 꽂으면 하나 빠뜨려도
+        아무도 모르고, 실제로 그렇게 열둘이 빠져 있었다.
+      */}
+      <CanEditProvider value={ability}>
+        <SettingsCards
+          groups={CRM_SETTINGS_TAB_ORDER.map((t) => ({ id: t, label: CRM_SETTINGS_TAB[t].label }))}
+          cards={cards}
+        />
+      </CanEditProvider>
     </>
   )
 }

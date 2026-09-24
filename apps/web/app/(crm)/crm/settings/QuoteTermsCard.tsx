@@ -11,6 +11,7 @@
 // 여기서 등록하고, 영업이 견적마다 고른다(QuoteEditorModal).
 
 import { useCallback, useEffect, useState } from 'react'
+import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -37,6 +38,7 @@ interface Term {
 const EMPTY = { title: '', body: '', businessType: '', isDefault: false }
 
 export default function QuoteTermsCard() {
+  const canEdit = useCanEdit()
   // 고를 수 있는 사업 유형은 설정의 표가 정한다(마이그 242) — 이 화면 바로 위 카드에서 관리한다
   const { rows: bizTypes, labelOf: bizLabelOf } = useBusinessTypes()
   const [items, setItems] = useState<Term[]>([])
@@ -120,7 +122,7 @@ export default function QuoteTermsCard() {
   if (loading && items.length === 0) return <AXDotLoader />
 
   return (
-    <SettingsCard title="거래 조건" headingLevel={3} headerAction={<><NbButton
+    <SettingsCard title="거래 조건" headingLevel={3} headerAction={<>{canEdit && <NbButton
           variant="ghost"
           onClick={() => {
             setEditing((v) => (v === null ? 'new' : null))
@@ -129,7 +131,7 @@ export default function QuoteTermsCard() {
           }}
         >
           <Plus size={14} /> 조건 추가
-        </NbButton></>}>
+        </NbButton>}</>}>
       <p className={styles.desc}>
         {/* JSX 는 마크다운을 렌더하지 않는다 — 별표가 글자로 찍힌다(실브라우저에서 보였다) */}
         견적서 아래에 인쇄됩니다. 등록해 두면 견적마다 필요한 것만 골라 쓸 수 있어요.
@@ -191,7 +193,7 @@ export default function QuoteTermsCard() {
         <EmptyState
           title="거래 조건이 아직 없어요"
           description="결제·납품·유효기간처럼 견적서마다 반복되는 문장을 등록해 두세요."
-          action={{ label: '조건 추가', onClick: () => { setEditing('new'); setDraft({ ...EMPTY }) } }}
+          action={canEdit ? { label: '조건 추가', onClick: () => { setEditing('new'); setDraft({ ...EMPTY }) } } : undefined}
         />
       ) : (
         <ul className={styles.list}>
@@ -204,7 +206,7 @@ export default function QuoteTermsCard() {
                 )}
                 {t.isDefault && <span className={`${styles.tag} ${styles.tagDefault}`}>기본</span>}
               </span>
-              <button
+              {canEdit && <button
                 type="button" className={styles.remove}
                 onClick={() => {
                   setEditing(t.id)
@@ -219,14 +221,14 @@ export default function QuoteTermsCard() {
                 aria-label={`${t.title} ${ACTION.edit}`}
               >
                 <Pencil size={14} />
-              </button>
-              <button
+              </button>}
+              {canEdit && <button
                 type="button" className={styles.remove}
                 onClick={() => void remove(t.id)}
                 aria-label={`${t.title} ${ACTION.delete}`}
               >
                 <Trash2 size={14} />
-              </button>
+              </button>}
             </li>
           ))}
         </ul>

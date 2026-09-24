@@ -9,6 +9,7 @@
 // 사용자가 "어? 아까 넣은 키가 왜 안 보이지"를 겪지 않는다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -70,6 +71,7 @@ function unknownChoice(s: SettingItem): string | null {
  * 실제로 AI 카드가 「견적」 탭에 실려 나왔다(실브라우저 확인 2026-09-20).
  */
 export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}) {
+  const canEdit = useCanEdit()
   // 「오늘」은 KST 다 — 미리보기 번호가 한국 자정~아침 9시에 어제 날짜로 보이면 안 된다
   const todayKey = kstTodayKey()
   const [items, setItems] = useState<SettingItem[]>([])
@@ -195,6 +197,8 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
                     id={`set-${s.key}`}
                     className="input-field"
                     value={drafts[s.key] ?? ''}
+                    // 값은 보이게 두고 잠그기만 한다 — 감추면 지금 설정이 뭔지도 못 본다
+                    disabled={!canEdit}
                     onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
                   >
                     {/*
@@ -222,6 +226,7 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
                     className="input-field"
                     type="file"
                     accept="image/png,image/jpeg"
+                    disabled={!canEdit}
                     onChange={(e) => void pickImage(s.key, e.target.files?.[0] ?? null)}
                   />
                 ) : s.kind === 'quoteNo' ? (
@@ -233,6 +238,7 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
                     id={`set-${s.key}`}
                     value={drafts[s.key] ?? ''}
                     onChange={(next) => setDrafts((d) => ({ ...d, [s.key]: next }))}
+                    disabled={!canEdit}
                     todayKey={todayKey}
                   />
                 ) : s.kind === 'multiline' ? (
@@ -245,6 +251,7 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
                     className="input-field"
                     rows={3}
                     value={drafts[s.key] ?? ''}
+                    disabled={!canEdit}
                     onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
                   />
                 ) : (
@@ -253,6 +260,7 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
                     className="input-field"
                     type={s.kind === 'secret' ? 'password' : 'text'}
                     value={drafts[s.key] ?? ''}
+                    disabled={!canEdit}
                     onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
                     placeholder={s.kind === 'secret'
                       ? (s.masked ? `저장됨 ${s.masked}: 바꾸려면 새 값을 넣으세요` : '아직 없음')
@@ -266,12 +274,14 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
                 지금 누르면 무슨 일이 나는지 둘 다 못 말한다 — 사람은 안 먹은 줄 알고 다시 누른다
                 (사용자 지적 2026-09-20). 말은 lib/terms 가 정한다.
               */}
-              <NbButton
-                onClick={() => void save(s.key)}
-                disabled={savingKey === s.key || settingSaveDisabled(fieldState(s))}
-              >
-                {savingKey === s.key ? progress(ACTION.save) : SETTING_SAVE_LABEL[fieldState(s)]}
-              </NbButton>
+              {canEdit && (
+                <NbButton
+                  onClick={() => void save(s.key)}
+                  disabled={savingKey === s.key || settingSaveDisabled(fieldState(s))}
+                >
+                  {savingKey === s.key ? progress(ACTION.save) : SETTING_SAVE_LABEL[fieldState(s)]}
+                </NbButton>
+              )}
             </div>
 
             {/* 고른 것이 무슨 뜻인지 그 자리에서 말한다 — 설명이 목록 밖에 있으면 아무도 안 읽는다 */}

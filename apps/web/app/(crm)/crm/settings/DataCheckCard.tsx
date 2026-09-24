@@ -11,6 +11,7 @@
 // 자동으로 채우면 그 값이 어디서 왔는지 아무도 모르게 된다.
 
 import { useState } from 'react'
+import { useCanWrite } from '@/lib/crm/ui/can-edit'
 import Link from 'next/link'
 import { ClipboardCheck } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -32,6 +33,7 @@ interface Result {
 const SHOW = 12
 
 export default function DataCheckCard() {
+  const canWrite = useCanWrite()
   const [result, setResult] = useState<Result | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,9 +58,9 @@ export default function DataCheckCard() {
   const rest = (result?.issues ?? []).filter((i) => !picked.has(i.key)).slice(0, SHOW)
 
   return (
-    <SettingsCard title="데이터 점검" headingLevel={2} headerAction={<><NbButton variant="ghost" onClick={() => void run()} disabled={busy}>
+    <SettingsCard title="데이터 점검" headingLevel={2} headerAction={<>{canWrite && <NbButton variant="ghost" onClick={() => void run()} disabled={busy}>
           {busy ? '보는 중…' : '지금 점검'}
-        </NbButton></>}>
+        </NbButton>}</>}>
 
       <FormErrorBanner message={error} />
 
