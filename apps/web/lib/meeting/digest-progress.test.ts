@@ -68,9 +68,12 @@ describe('정리 화면 — 첫 정리에도 진행이 보인다 (이번 결함 
   it('★ 진행 표시가 «결과가 있을 때»에 갇혀 있지 않다', () => {
     const s = read(PANEL)
     const progressAt = s.indexOf('digestProgress')
-    const branchAt = s.indexOf('!latest ?')
+    // 분기 조건은 v0.10.437 에 `!latest ?` → `slot !== 'result' ?` 로 바뀌었다
+    // (정리본이 없으면 빈 상자 대신 아무것도 안 그린다 — lib/meeting/digest-slot).
+    // 앵커가 사라지면 조용히 통과시키지 않고 여기서 멈춘다.
+    const branchAt = s.indexOf("slot !== 'result' ?")
     assert.ok(progressAt > -1, '패널이 진행 SSOT 를 써야 한다')
-    assert.ok(branchAt > -1, '빈 상태 분기를 찾지 못했다 — 가드가 헛돈다')
+    assert.ok(branchAt > -1, '결과 있음/없음 분기를 찾지 못했다 — 가드가 헛돈다')
     assert.ok(progressAt < branchAt,
       '진행 표시는 «결과 있음/없음» 분기보다 **먼저** 그려져야 한다.\n' +
       '분기 안에 두면 첫 정리에서 또 침묵한다 — 그게 이번 결함이다.')

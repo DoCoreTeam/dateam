@@ -15,17 +15,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Sparkles, History, TriangleAlert, FileDown, ArrowRight, Pencil } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import EmptyState from '@/components/ui/EmptyState'
 import InlineError from '@/components/ui/InlineError'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { FACT_ORIGIN_LABEL, type FactOrigin } from '@/lib/meeting/digest-prompt'
 import { digestProgress } from '@/lib/meeting/digest-progress'
 import {
   progress, ACTION,
-  DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_RERUN_LABEL, DIGEST_EMPTY_TITLE, digestMaterialLine, digestStaleLine, MEMO_LABEL,
+  DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_RERUN_LABEL, digestMaterialLine, digestStaleLine, MEMO_LABEL,
 } from '@/lib/terms'
 import MeetingExportModal from '@/app/(member)/meeting-notes/MeetingExportModal'
 import { hasMixedOrigins } from '@/lib/meeting/digest'
+import { digestSlot } from '@/lib/meeting/digest-slot'
 import type { DigestResult, DigestSources } from '@/lib/meeting/digest'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './digest.module.css'
@@ -203,6 +203,9 @@ export default function MeetingDigestPanel({
     segmentCount: segmentCount || latest?.sources?.transcriptSegments || 0,
   })
 
+  /* 정리 자리에 무엇을 그리나 — 결과·실행 단추 한 줄·아무것도 안 그림 셋 중 하나 */
+  const slot = digestSlot({ hasDigest: Boolean(latest), memoChars, segmentCount, canEdit })
+
   return (
     <div className={styles.stack}>
       {error && <InlineError spaced onDismiss={() => setError(null)}>{error}</InlineError>}
@@ -226,19 +229,20 @@ export default function MeetingDigestPanel({
         </div>
       )}
 
-      {!latest ? (
-        <EmptyState
-          title={DIGEST_EMPTY_TITLE}
-          description={canEdit
-            ? `누르면 ${MEMO_LABEL}과 받아적은 내용을 함께 읽어 안건별로 정리해 드려요. 어디서 나온 사실인지도 함께 표시됩니다.`
-            : '작성한 사람이 정리를 실행하면 여기에 나타납니다.'}
-          icon={<Sparkles size={28} />}
-          /*
-            실행 버튼은 **한 벌뿐이다**(`runButton`). 빈 상태가 자기 버튼을 따로 가지면
-            그 버튼은 `running` 을 모르고, 잠기지도 않아 같은 정리가 여러 번 돈다 — 그게 이번 결함이었다.
-          */
-          secondary={runButton}
-        />
+      {slot !== 'result' ? (
+        /*
+          **정리본이 없으면 결과 자리를 안 쓴다**(사용자 지적 2026-09-23).
+
+          예전엔 제목·설명·아이콘이 든 빈 상자를 그렸다. 그 상자가 카드 본문을 250px 쯤
+          차지해서 정작 글을 쓰는 원문 편집기가 그만큼 아래로 밀렸다 —
+          *"아래 입력 하는 부분을 쓰려고 할때 위에가 붕떠있어서"*.
+          결과가 없다는 말을 하려고 결과 자리를 통째로 쓸 이유가 없다.
+
+          실행 단추는 **한 벌뿐이다**(`runButton`). 빈 상태가 자기 버튼을 따로 가지면
+          그 버튼은 `running` 을 모르고, 잠기지도 않아 같은 정리가 여러 번 돈다.
+          그릴지 말지는 `digest-slot` 이 정한다(E-6).
+        */
+        slot === 'run' ? <div className={styles.runRow}>{runButton}</div> : null
       ) : (
         <>
           <div className={styles.head}>
