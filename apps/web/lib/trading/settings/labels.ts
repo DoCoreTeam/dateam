@@ -24,6 +24,7 @@ export const TRADING_GROUP_LABEL: Record<TradingSettingGroup, string> = {
   notify: '알림',
   knowledge: '지식과 설명',
   operator: 'AI 운영자',
+  autoorder: '자동 주문',
 }
 
 /**

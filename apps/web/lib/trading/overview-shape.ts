@@ -117,6 +117,27 @@ export interface SettingHelpRow {
   extra: string | null
 }
 
+/** 자동 주문 무장 상태 */
+export interface ArmingSummary {
+  env: string
+  armed: boolean
+  expiresAt: string | null
+  /** 무장할 수 있나. 못 하면 무엇이 모자란지 */
+  canArm: boolean
+  hint: string
+  /** 오늘 낸 주문 수와 상한 */
+  ordersToday: number
+  maxOrdersPerDay: number
+  /** 나갔는지 모르는 주문 수. 0 이 아니면 새 주문을 안 낸다 */
+  unknownOrders: number
+  /** 무엇이 막고 있나. 관문 이름을 사람 말로 */
+  blockedBy: string[]
+  /** 해제가 주문을 남기나. 화면이 이 사실을 말한다 */
+  disarmLeavesOrders: boolean
+  /** 지금 크론이 돌면 풀리나. 화면이 미리 말한다 */
+  willDisarm: boolean
+}
+
 /** 점검 한 줄 */
 export interface HealthRow {
   checkId: string
@@ -193,6 +214,7 @@ export interface TradingOverview {
   /** 마지막 실행이 지식으로 무엇을 했나 */
   knowledgeProgress: KnowledgeProgress | null
   operator: OperatorSummary
+  arming: ArmingSummary
   gate: GateSummary
   /** 관문 항목별 판정 */
   gateCriteria: CriterionResult[]

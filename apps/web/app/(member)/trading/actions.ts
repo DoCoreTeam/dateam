@@ -20,6 +20,12 @@ import { getRequestUser } from '@/lib/supabase/server'
 import { decideProposal } from '@/lib/trading/knowledge/proposal'
 import { ingestSource, ingestUrl } from '@/lib/trading/knowledge/sources'
 import { decideToggleNight } from '@/lib/trading/calendar/night-signal'
+import { arm, disarm } from '@/lib/trading/order/arming'
+import { cancelOrder } from '@/lib/trading/order/place'
+import { loadAccountRef, loadAppCredential } from '@/lib/trading/broker/credentials'
+import { getAccessToken } from '@/lib/trading/broker/token'
+import { isNightHour } from '@/lib/trading/calendar/session'
+import { type ArmEnv } from '@/lib/trading/order/arming-policy'
 
 export interface AckActionResult {
   ok: boolean
@@ -195,4 +201,101 @@ export async function setNightSignalEnabled(next: boolean): Promise<AckActionRes
   if (!saved.ok) return { ok: false, userMessage: saved.rejection.userMessage }
   revalidatePath('/trading')
   return { ok: true, userMessage: next ? '야간 신호를 켰습니다' : '야간 신호를 껐습니다' }
+}
+
+/**
+ * 자동 주문을 무장하고 해제한다 (Release 4 설계 §1·§2).
+ *
+ * 무장은 **사람만** 한다. 서버 액션이라 사람의 요청으로만 들어오고,
+ * 그 안에서 `arm()` 이 사용자 ID 를 필수로 받는다.
+ *
+ * 해제는 관문과 무관하게 언제나 된다 — 대칭으로 만들면 문제가 생긴 날 끄지도 못한다.
+ */
+export async function setAutoOrderArmed(next: boolean): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const user = await getRequestUser()
+  if (!user) return DENIED
+
+  const now = new Date()
+  const today = seoulToday(now)
+  const { values } = await loadTradingSettings(today)
+  const env = (String(values.kis_env ?? 'real') === 'paper' ? 'paper' : 'real') as ArmEnv
+
+  if (!next) {
+    await disarm({ env, reason: 'human_disarmed', actorUserId: user.id, now })
+    revalidatePath('/trading')
+    return { ok: true, userMessage: '해제했습니다' }
+  }
+
+  const overview = await loadTradingOverview(now)
+  const result = await arm({
+    env,
+    actorUserId: user.id,
+    now,
+    hours: Number(values.order_arm_hours) || 24,
+    ctx: {
+      env,
+      gatePassed: overview.gate.passed,
+      gateInsufficient: overview.gate.insufficientCount,
+      notifyEnabled: overview.notify.enabled,
+      /**
+       * 모의 자동 주문 일수를 아직 안 센다. **0 으로 둔다** — 0 이면 관문이 막고,
+       * 그것이 지금 정확한 상태다(모의로 한 번도 안 돌려 봤다)
+       */
+      paperAutoDays: 0,
+      requiredPaperDays: Number(values.order_required_paper_days) || 20,
+      reconciliationRequired: overview.position?.needsHumanUnlock === true,
+      gateFailCount: overview.gate.failedCount,
+      riskPerTradeKrw: 0,
+      dailyLossLimitKrw: Number(values.daily_loss_limit_krw) || 0,
+      paperExpectancyLowerR: null,
+    },
+  })
+  if (!result.armed) return { ok: false, userMessage: result.userMessage }
+  revalidatePath('/trading')
+  return { ok: true, userMessage: '무장했습니다' }
+}
+
+/**
+ * 미체결 주문을 취소한다 — **사람이 누를 때만**.
+ *
+ * 해제는 주문을 안 건드린다(설계 §6). 남은 것은 여기서 지운다.
+ * 취소는 위험을 줄이는 쪽이라 무장 여부를 안 본다.
+ */
+export async function cancelAutoOrder(orderId: string, brokerOrderNo: string): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const user = await getRequestUser()
+  if (!user) return DENIED
+
+  const now = new Date()
+  const today = seoulToday(now)
+  const { values } = await loadTradingSettings(today)
+  const env = (String(values.kis_env ?? 'real') === 'paper' ? 'paper' : 'real') as ArmEnv
+
+  const acct = await loadAccountRef(env, String(values.kis_account_product_code ?? '03'))
+  const credential = await loadAppCredential(env)
+  if (!acct || !credential) {
+    return { ok: false, userMessage: '증권사 계좌나 앱키가 등록되지 않았습니다' }
+  }
+  const token = await getAccessToken({
+    env,
+    refreshMarginMinutes: Number(values.kis_token_refresh_margin_minutes) || 30,
+    runId: `cancel:${orderId}`,
+    now,
+  })
+  if (!token.ok) return { ok: false, userMessage: token.userMessage }
+
+  const result = await cancelOrder({
+    env,
+    session: isNightHour(now) ? 'night' : 'day',
+    auth: { accessToken: token.accessToken, appKey: credential.appKey, appSecret: credential.appSecret },
+    acct,
+    orderId,
+    brokerOrderNo,
+    actorUserId: user.id,
+    now,
+  })
+  if (!result.cancelled) return { ok: false, userMessage: result.userMessage }
+  revalidatePath('/trading')
+  return { ok: true, userMessage: '취소했습니다' }
 }

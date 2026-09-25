@@ -42,6 +42,7 @@ export type TradingSettingGroup =
   | 'notify'     // 알림
   | 'knowledge'  // 지식과 설명
   | 'operator'   // AI 운영자
+  | 'autoorder'  // 자동 주문 (Release 4)
 
 /** 언제부터 이 값을 실제로 읽나. 「선언만 되고 아무도 안 읽는 값」을 없애려고 적는다 */
 export type UsedFrom = '1-A' | '1-B' | '1-C'
@@ -1008,6 +1009,62 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     max: 1,
     usedFrom: '1-C',
     source: '명세 §16 Release 3 점검',
+  },
+  // ── 자동 주문 (Release 4 · docs/trading/RELEASE4_DESIGN.md) ──
+  //
+  // 무장은 설정이 아니라 **상태**다(`trading_arming`). 여기 있는 것은 문턱뿐이다 —
+  // 설정 하나로 켜고 끄면 화면에서 스무 개 값 중 하나로 보이는데 그 하나가 돈을 움직인다.
+  {
+    key: 'order_max_per_day',
+    group: 'autoorder',
+    label: '하루 최대 주문 수',
+    help: '이만큼 채우면 그날 무장이 풀린다. 신호 상한 여섯에 진입·청산 둘씩',
+    type: 'number',
+    defaultValue: 12,
+    unit: '건',
+    min: 1,
+    max: 100,
+    usedFrom: '1-C',
+    source: '설계 §6 멈추는 장치',
+  },
+  {
+    key: 'order_max_failure_streak',
+    group: 'autoorder',
+    label: '주문 연속 실패 상한',
+    help: '이만큼 연달아 실패하면 무장이 풀린다. 나갔는지 모르는 것도 실패로 센다',
+    type: 'number',
+    defaultValue: 3,
+    unit: '회',
+    min: 1,
+    max: 20,
+    usedFrom: '1-C',
+    source: '설계 §6 멈추는 장치',
+  },
+  {
+    key: 'order_required_paper_days',
+    group: 'autoorder',
+    label: '무장 전 모의 자동 주문 거래일',
+    help: '모의 계좌로 이만큼 돌려 본 뒤에 무장할 수 있다. 실계좌는 여기에 순손익 하한까지 본다',
+    type: 'number',
+    defaultValue: 20,
+    unit: '일',
+    min: 1,
+    max: 120,
+    usedFrom: '1-C',
+    source: '설계 §2 A3 · 명세 §3.2 1-C',
+  },
+  {
+    key: 'order_arm_hours',
+    group: 'autoorder',
+    label: '무장 지속 시간',
+    help: '무장은 이 시간이 지나면 스스로 풀린다. 켜 놓고 잊는 일을 구조가 막는다',
+    type: 'number',
+    defaultValue: 24,
+    unit: '시간',
+    min: 1,
+    max: 24,
+    usedFrom: '1-C',
+    source: '설계 §1',
   },
 ] as const
 

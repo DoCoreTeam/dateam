@@ -18,7 +18,7 @@ import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
-  KnowledgeRow, SettingHelpRow, KnowledgeProgress, OperatorSummary, HealthRow,
+  KnowledgeRow, SettingHelpRow, KnowledgeProgress, OperatorSummary, HealthRow, ArmingSummary,
 } from './overview-shape.ts'
 import { emitProgressOf, knowledgeProgressOf } from './overview-shape.ts'
 import { cardsAsOf } from './knowledge/cards.ts'
@@ -32,6 +32,10 @@ import {
 } from './operator/intervention.ts'
 import { ACTION_LABEL } from './operator/remedy-policy.ts'
 import { decideToggleNight } from './calendar/night-signal.ts'
+import { readArming } from './order/arming.ts'
+import { checkArming, armingHint, ARM_CHECK_LABEL, type ArmEnv } from './order/arming-policy.ts'
+import { disarmLeavesOrders, wouldDisarm } from './order/disarm-view.ts'
+import { ordersToday, unknownOrders } from './order/place.ts'
 import { helpTopic } from './knowledge/setting-help-run.ts'
 import { TRADING_SETTINGS } from './settings/registry.ts'
 import { LATENCY_SEGMENTS, SEGMENT_LABEL, latencyReport, decideResult, type SignalTimes } from './position/pnl.ts'
@@ -278,6 +282,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     settingHelp: await loadSettingHelp(now),
     knowledgeProgress: knowledgeProgressOf(recentRuns[0]?.reason ?? null),
     operator: await loadOperator(now, today, values, gateVerdict),
+    arming: await loadArming(now, today, values, gateVerdict),
     gate: {
       passed: gateVerdict.passed,
       failedCount: gateVerdict.failedCount,
@@ -432,5 +437,76 @@ async function loadOperator(
         ? '야간 신호를 켤 수 있습니다'
         : nightDecision.userMessage,
     },
+  }
+}
+
+/**
+ * 자동 주문 무장 상태.
+ *
+ * 못 읽어도 화면은 선다. 그리고 **못 읽으면 해제로 그린다** —
+ * 읽기가 실패했을 때 「무장 중」으로 보이면 사람이 안심한다.
+ */
+async function loadArming(
+  now: Date,
+  today: string,
+  values: Readonly<Record<string, unknown>>,
+  gate: { passed: boolean; insufficientCount: number; failedCount: number },
+): Promise<ArmingSummary> {
+  const env = (String(values.kis_env ?? 'real') === 'paper' ? 'paper' : 'real') as ArmEnv
+  const maxOrdersPerDay = Number(values.order_max_per_day) || 12
+  const empty: ArmingSummary = {
+    env, armed: false, expiresAt: null, canArm: false,
+    hint: '무장 상태를 읽지 못했습니다', ordersToday: 0, maxOrdersPerDay, unknownOrders: 0,
+    blockedBy: [], disarmLeavesOrders: disarmLeavesOrders(), willDisarm: false,
+  }
+  try {
+    const state = await readArming(env)
+    const todayOrders = await ordersToday(
+      env,
+      new Date(`${today}T00:00:00+09:00`),
+      new Date(`${today}T23:59:59+09:00`),
+    )
+    const decision = checkArming({
+      env,
+      gatePassed: gate.passed,
+      gateInsufficient: gate.insufficientCount,
+      notifyEnabled: values.notify_enabled === true,
+      paperAutoDays: 0,
+      requiredPaperDays: Number(values.order_required_paper_days) || 20,
+      reconciliationRequired: false,
+      gateFailCount: gate.failedCount,
+      riskPerTradeKrw: 0,
+      dailyLossLimitKrw: Number(values.daily_loss_limit_krw) || 0,
+      paperExpectancyLowerR: null,
+    })
+    return {
+      env,
+      armed: state.armed && state.expiresAt.getTime() > now.getTime(),
+      expiresAt: state.expiresAt.toISOString(),
+      canArm: decision.allowed,
+      hint: armingHint(decision),
+      ordersToday: todayOrders,
+      maxOrdersPerDay,
+      unknownOrders: (await unknownOrders(env, 20)).length,
+      // 관문 이름을 사람 말로. 코드 이름(A3_paper_days)을 화면에 그대로 내면 못 읽는다
+      blockedBy: decision.allowed ? [] : decision.blocks.map((b) => ARM_CHECK_LABEL[b.check]),
+      disarmLeavesOrders: disarmLeavesOrders(),
+      /**
+       * 지금 크론이 돌면 풀리나. **읽기만 한다** — 화면을 여는 것만으로 무장이
+       * 풀리면 안 되므로 `wouldDisarm` 은 묻기만 하고 `runOrderJob` 이 실제로 푼다
+       */
+      willDisarm: wouldDisarm({
+        expiresAt: state.expiresAt,
+        now,
+        ordersToday: todayOrders,
+        maxOrdersPerDay,
+        orderFailureStreak: 0,
+        maxOrderFailureStreak: Number(values.order_max_failure_streak) || 3,
+        reconciliationRequired: false,
+        protectionBreached: false,
+      }),
+    }
+  } catch {
+    return empty
   }
 }

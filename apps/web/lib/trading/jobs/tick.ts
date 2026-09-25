@@ -39,6 +39,7 @@ import { runWatch } from './watch.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
 import { runOperatorJob } from './operator-job.ts'
+import { runOrderJob } from './order-job.ts'
 import { isHoldDominant } from '../judge/types.ts'
 import { loadInstrumentSpec } from '../settings/store.ts'
 import { sameDayExitAt } from '../calendar/session.ts'
@@ -508,6 +509,14 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    * 앞의 것이 다 끝난 뒤에만, 남은 시간 안에서, 한 분에 하나만 한다.
    * 먼저 돌면 AI 가 느린 날 그 분의 수집과 판단이 통째로 밀리고, 밀린 봉은 다시 안 온다.
    */
+  /**
+   * 9 자동 주문 — **열린 포지션 위험 바로 다음**(§10.2), 곁가지보다 앞.
+   *
+   * 신호 발행 뒤에 둔다: 이번 분에 난 신호를 같은 분에 주문한다.
+   * 무장이 안 됐으면 여기서 끝나고, 그것이 Release 1~3 과 같은 상태다.
+   */
+  const orderNote = await orderOrExplain({ now, today, str, num })
+
   const knowledgeNote = await knowledgeOrExplain({
     now, today, window, target, contractCode, num, str, indicators,
   })
@@ -523,7 +532,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   return {
     ok: true,
-    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${watchNote}|${emitNote}|${knowledgeNote}|${operatorNote}`,
+    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,
@@ -682,4 +691,46 @@ async function readOwnerId(today: string): Promise<string | null> {
   const { values } = await loadTradingSettings(today)
   const owner = String(values.owner_user_id ?? '').trim()
   return owner === '' ? null : owner
+}
+
+/** 주문 한 걸음. 실패해도 수집·판단·신호는 이미 끝났다 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function orderOrExplain(ctx: any): Promise<string> {
+  try {
+    const { now, today, str, num } = ctx
+    const env = str('kis_env', 'real') as 'real' | 'paper'
+    const result = await runOrderJob({
+      now,
+      env,
+      session: isNightHour(now) ? 'night' : 'day',
+      auth: { accessToken: '', appKey: '', appSecret: '' },
+      /**
+       * 계좌를 안 넘긴다. 무장이 안 된 지금은 `no_account` 로 끝나고,
+       * 무장을 켜는 날 여기를 채운다 — **빈 인증으로 주문이 나가는 길을 안 만든다.**
+       */
+      acct: null,
+      dayStart: new Date(`${today}T00:00:00+09:00`),
+      dayEnd: new Date(`${today}T23:59:59+09:00`),
+      maxOrdersPerDay: num('order_max_per_day', 12),
+      maxOrderFailureStreak: num('order_max_failure_streak', 3),
+      reconciliationRequired: false,
+      protectionBreached: false,
+      armCtx: {
+        env,
+        gatePassed: false, gateInsufficient: 0,
+        notifyEnabled: false,
+        paperAutoDays: 0, requiredPaperDays: num('order_required_paper_days', 20),
+        reconciliationRequired: false,
+        gateFailCount: 0,
+        riskPerTradeKrw: 0, dailyLossLimitKrw: num('daily_loss_limit_krw', 0),
+        paperExpectancyLowerR: null,
+      },
+      pendingEntry: null,
+      openPosition: null,
+      openOrderNos: [],
+    })
+    return result.reason
+  } catch (error) {
+    return `order_failed:${error instanceof Error ? error.message : 'unknown'}`
+  }
 }

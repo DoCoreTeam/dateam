@@ -16,6 +16,7 @@ import LatencyPanel from './LatencyPanel'
 import NotifyPanel from './NotifyPanel'
 import KnowledgePanel from './KnowledgePanel'
 import OperatorPanel from './OperatorPanel'
+import ArmingPanel from './ArmingPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -68,6 +69,7 @@ export default async function TradingPage() {
         <LatencyPanel rows={overview.latency} />
         <KnowledgePanel rows={overview.knowledge} progress={overview.knowledgeProgress} />
         <OperatorPanel operator={overview.operator} />
+        <ArmingPanel arming={overview.arming} />
         <BarCoverage days={overview.coverage} />
         <JudgmentList rows={overview.judgments} />
 

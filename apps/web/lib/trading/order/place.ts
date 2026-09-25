@@ -21,7 +21,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { armedNow } from './arming.ts'
 import { checkArming, type ArmContext, type ArmEnv } from './arming-policy.ts'
 import {
-  buildPlaceOrder, orderTrId, orderUrl, orderHeaders, readOrderNo, describeOrder,
+  buildPlaceOrder, buildCancelOrder, orderTrId, orderUrl, orderHeaders, readOrderNo, describeOrder,
   type Session,
 } from './order-request.ts'
 import type { AccountRef } from '../broker/account-request.ts'
@@ -270,4 +270,65 @@ export async function ordersToday(env: ArmEnv, from: Date, to: Date): Promise<nu
     .lt('requested_at', to.toISOString())
   if (error) throw new Error(`주문 수를 세지 못했습니다: ${error.message}`)
   return count ?? 0
+}
+
+export type CancelResult =
+  | { cancelled: true }
+  | { cancelled: false; reason: string; userMessage: string }
+
+/**
+ * 미체결 주문을 취소한다 — **사람이 누를 때만**.
+ *
+ * 해제는 주문을 안 건드린다(설계 §6). 미체결로 남은 것은 사람이 보고 지운다.
+ * 무장을 안 봐도 되는 이유: 취소는 **위험을 줄이는 쪽**이고, 무장이 풀린 뒤에도
+ * 남은 주문을 지울 수 있어야 한다.
+ */
+export async function cancelOrder(input: {
+  env: ArmEnv
+  session: Session
+  auth: KisAuth
+  acct: AccountRef
+  orderId: string
+  brokerOrderNo: string
+  actorUserId: string
+  now: Date
+}): Promise<CancelResult> {
+  if (!input.actorUserId) {
+    return { cancelled: false, reason: 'no_actor', userMessage: '사람만 취소할 수 있습니다' }
+  }
+  const tr = orderTrId('reviseCancel', input.env, input.session)
+  if (!tr.ok) {
+    return { cancelled: false, reason: tr.reason, userMessage: '모의투자로는 야간 취소를 할 수 없습니다' }
+  }
+  const built = buildCancelOrder({ acct: input.acct, originalOrderNo: input.brokerOrderNo })
+  if (!built.ok) return { cancelled: false, reason: built.reason, userMessage: built.userMessage }
+
+  // 취소도 한 번만 부른다. 두 번 불러도 KIS 가 막지만 우리가 먼저 안 부른다
+  let response: Response
+  try {
+    response = await fetch(orderUrl(input.env, 'reviseCancel'), {
+      method: 'POST',
+      headers: orderHeaders(input.auth, tr.trId),
+      body: JSON.stringify(built.body),
+      cache: 'no-store',
+    })
+  } catch (error) {
+    return {
+      cancelled: false,
+      reason: `network:${error instanceof Error ? error.name : 'unknown'}`,
+      userMessage: '증권사에 연결하지 못했습니다',
+    }
+  }
+  const body = (await response.json().catch(() => null)) as { rt_cd?: string } | null
+  if (!response.ok || body?.rt_cd !== '0') {
+    return {
+      cancelled: false,
+      reason: `kis:${body?.rt_cd ?? response.status}`,
+      userMessage: '증권사가 취소를 받지 않았습니다',
+    }
+  }
+  await finishOrder(input.orderId, {
+    status: 'failed', reason: 'cancelled_by_human', orderNo: input.brokerOrderNo, now: input.now,
+  })
+  return { cancelled: true }
 }
