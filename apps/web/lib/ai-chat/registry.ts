@@ -4,6 +4,7 @@ import { claudeProvider } from './providers/claude.ts'
 import { openaiProvider } from './providers/openai.ts'
 import { groqProvider } from './providers/groq.ts'
 import { grokProvider } from './providers/grok.ts'
+import { jevProvider } from './providers/jev.ts'
 import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 import {
   AI_PROVIDERS,
@@ -45,6 +46,7 @@ const PROVIDER_IMPL: Partial<Record<ProviderId, ChatProvider>> = {
   openai: openaiProvider,
   groq: groqProvider,
   grok: grokProvider,
+  jev: jevProvider,
 }
 
 export interface ProviderConfig {

@@ -119,6 +119,9 @@ export const AI_LANES: readonly AiLane[] = [
     why: '콘텐츠 분석 배치, 인입 뒤에 큐가 부른다' },
   { file: 'lib/gpu/company-enrich.ts', kind: 'background', surfaces: ['gpu-company-enrich'],
     why: '회사 보강 잡, 큐에서 돈다' },
+  { file: 'lib/trading/judge/jev.ts', kind: 'background', surfaces: ['trading'],
+    why: 'AI 트레이딩 판단. 1분 크론이 부르고 사람이 누르는 자리가 아니다 — 봉이 확정되면 스스로 묻는다' },
+
 ]
 
 const BY_FILE = new Map(AI_LANES.map((l) => [l.file, l]))

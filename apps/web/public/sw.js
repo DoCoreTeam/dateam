@@ -51,6 +51,14 @@ function isPassthrough(url, request) {
   if (url.origin !== self.location.origin) return true
   if (url.pathname.startsWith('/api/')) return true  // ① 영업 데이터는 캐시하지 않는다
   if (url.pathname.startsWith('/_next/webpack-hmr')) return true
+  /**
+   * ② AI 트레이딩 — 캐시하지 않는다.
+   *
+   * 이 화면은 「지금 몇 개나 모였나」를 말한다. 낡은 판을 보여 주면 빠진 봉이
+   * 이미 채워진 것처럼 보이고, 반대로 채워진 것이 빠진 것처럼 보인다.
+   * 시세를 다루는 화면에서 「몇 분 전 값」은 틀린 값과 같다.
+   */
+  if (url.pathname === '/trading' || url.pathname.startsWith('/trading/')) return true
   return false
 }
 
