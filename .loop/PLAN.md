@@ -1,6 +1,6 @@
 # PLAN newAX: 만든 것이 실제로 불리게 한다 — 체결 인식·포지션·손익·게이트 값·주문 배선
 플랜 ID: P0064
-플랜 버전: v0.1.3
+플랜 버전: v0.1.6
 상태: 진행중
 지시: ins_0111
 목표 버전: v0.10.536
@@ -46,30 +46,25 @@
 - 보안: 표에 쓴다(세 질문 ①) → 마이그 288 은 칼럼만 바꾸고 RLS 를 안 건드린다, `trading_fills` 가 여전히 RLS 켜짐·정책 0개·service_role 전용임을 psql 로 확인, 앱은 `createAdminClient` 로만 쓴다
 의존: 없음
 
-### I02 체결에서 우리 포지션을 세운다
-상태: 대기
+### I02 체결에서 포지션을 세워 감시에 넣는다
+상태: 통과
 모드: 경량
-범위: apps/web/lib/trading/position/from-fills.ts (신규), apps/web/lib/trading/position/from-fills.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/trading/position/from-fills.ts (신규), apps/web/lib/trading/position/from-fills.test.ts (신규), apps/web/lib/trading/position/plan.ts (신규), apps/web/lib/trading/position/fills.ts, apps/web/lib/trading/jobs/tick.ts, apps/web/lib/trading/bars/rollup.test.ts, apps/web/package.json
 감사 기준:
 - 체결 줄을 접어 `수량·방향·평균가`를 낸다, 사고 판 것이 같으면 `flat`
-- 닫힌 거래를 `RealizedTrade` 로 낸다 — `dayPnl` 이 바로 먹을 수 있는 꼴
-- 같은 분에 여러 체결이 와도 순서대로 접는다
-- `pnpm test` 에 등재하고 통과
-- 보안: 해당 없음 — 순수 계산 모듈이고 표·창구·외부 호출이 없음
+- 닫힌 거래를 `RealizedTrade` 로 낸다 — `dayPnl` 이 바로 먹을 수 있는 꼴, 수수료는 왕복
+- 조회가 역순으로 와도 시각으로 다시 세운다
+- `expected`·`positionState`·`direction`·`stopPrice`·`closedTrades`·`observedPrice` 가 고정값이 아니다
+- `stopPrice` 는 그 포지션을 연 신호에서 온다, 신호를 못 찾으면 null 이고 사유가 실행 기록에 남는다
+- 손절 확인 상태는 `trading_position_events` 의 마지막 줄에서 온다 — 지금은 늘 `unknown` 이라 포지션이 없어도 손절을 묻는다
+- 일부러 깨기: 손절가를 지난 값을 넣으면 `protection_breached` 가 대기 표에 들어간다 (운영 DB 는 BEGIN·ROLLBACK)
+- 시세를 감시보다 먼저 받는다 — 봉이 결측인 분이야말로 손절을 봐야 하는 분이다
+- 그 순서 바꿈으로 느슨해진 `rollup.test.ts` 가드를 **구간이 아니라 조건**으로 다시 쓴다
+- `pnpm test` 에 등재하고 통과, 배선 가드가 초록
+- 보안: 표를 읽고 쓴다(세 질문 ①) → 새 표 없음, 모두 service_role 전용 기존 표이고 `createAdminClient` 경유임을 확인
 의존: I01
 
-### I03 감시에 실값을 넣는다
-상태: 대기
-모드: 경량
-범위: apps/web/lib/trading/jobs/tick.ts
-감사 기준:
-- `expected`·`positionState`·`direction`·`stopPrice`·`closedTrades`·`observedPrice` 가 고정값이 아니다
-- `stopPrice` 는 그 포지션을 만든 신호에서 온다, 신호를 못 찾으면 null 이고 사유가 실행 기록에 남는다
-- 일부러 깨기: 손절가를 지난 값을 넣으면 `protection_breached` 가 대기 표에 들어간다 (운영 DB 는 BEGIN·ROLLBACK)
-- 보안: 표를 읽고 쓴다(세 질문 ①) → 새 표 없음, 모두 service_role 전용 기존 표이고 `createAdminClient` 경유임을 확인
-의존: I02
-
-### I04 게이트 값을 실제로 잰다
+### I03 게이트 값을 실제로 잰다
 상태: 대기
 모드: 경량
 범위: apps/web/lib/trading/gate/measure.ts (신규), apps/web/lib/trading/gate/measure.test.ts (신규), apps/web/lib/trading/jobs/tick.ts, apps/web/package.json
@@ -81,7 +76,7 @@
 - 보안: 밖에서 온 값을 다룬다(세 질문 ③) → KIS 증거금 응답을 숫자로 바꿀 때 `Number.isFinite` 로 거르고, 못 읽으면 「여유 있음」이 아니라 「모름」으로 둔다
 의존: I01
 
-### I05 주문에 계좌와 관문을 넘긴다
+### I04 주문에 계좌와 관문을 넘긴다
 상태: 대기
 모드: 중량
 범위: apps/web/lib/trading/jobs/tick.ts, apps/web/lib/trading/order/pending.ts (신규), apps/web/lib/trading/order/pending.test.ts (신규), apps/web/package.json
@@ -92,9 +87,9 @@
 - 무장이 꺼져 있으면 여전히 `order=not_armed` 로 끝난다 — 배선이 무장을 켜지 않는다
 - 일부러 깨기: 무장 표를 BEGIN 안에서 켜도 `checkArming` 이 막는 줄이 남는지 확인 후 ROLLBACK
 - 보안: 새 창구를 여나(②) 아니오, 표에 쓰나(①) 예 → `trading_orders` 가 RLS 켜짐·정책 0개임을 확인, 주문 인증은 `createAdminClient` 뒤에서만 만들어지고 화면으로 안 나간다
-의존: I02, I04
+의존: I02, I03
 
-### I06 재 본 값을 화면에 보인다
+### I05 재 본 값을 화면에 보인다
 상태: 대기
 모드: 경량
 범위: apps/web/lib/trading/overview.ts, apps/web/lib/trading/overview-shape.ts, apps/web/app/(member)/trading/OperatorPanel.tsx
@@ -103,9 +98,9 @@
 - 사용자 노출 문자열에 전각 대시가 없고 용어집 금지어가 없다
 - `pnpm test` 전체 통과
 - 보안: 해당 없음 — 읽기만 하고 기존 소유자 접근 게이트 안에 있음
-의존: I03
+의존: I02
 
-### I07 가드가 못 보던 둘을 세게 한다
+### I06 가드가 못 보던 둘을 세게 한다
 상태: 대기
 모드: 경량
 범위: apps/web/lib/policy/trading-wiring-guard.test.ts
@@ -115,7 +110,7 @@
 - 콜백 묶음(`BacktestParams`·`TickPorts`)을 오탐하지 않는다
 - 일부러 깨기: `positions()` 호출을 지우면 빨개지고, `closedTrades` 를 `[]` 로 되돌리면 빨개진다
 - 보안: 해당 없음 — 가드 파일만 바꿈
-의존: I05, I06
+의존: I04, I05
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
@@ -125,6 +120,12 @@
 - v0.1.1 (2026-09-25) 가드를 맨 앞에서 맨 뒤로 (audit:I01)
 - v0.1.2 (2026-09-25) I01 에 마이그 288 을 더함, KIS 가 체결 시각을 안 준다 (audit:I01)
 - v0.1.3 (2026-09-25) I01 이 계좌 창구를 한 벌로 합침, 큐가 둘이면 속도 제한을 넘긴다 (audit:I01)
+- v0.1.4 (2026-09-25) I02 와 I03 을 합침, 순수 모듈만 만들고 안 부르면 배선 가드가 잡는다 (audit:I02)
+- v0.1.5 (2026-09-25) I02 에 position/plan.ts 를 더함, 손절가와 손절 확인 상태를 읽을 자리가 필요 (audit:I02)
+- v0.1.6 (2026-09-25) I02 에 rollup.test.ts 를 더함, 시세를 앞으로 옮기니 구간 기반 가드가 느슨해졌다 (audit:I02)
 - v0.1.1 (2026-09-25) 가드를 맨 앞에서 맨 뒤로 옮겼다. 가드가 지금 상태를 잡으면 플랜 내내 빨갛고, 그러면 어느 항목도 통과 못 한다. 배선을 먼저 하고 가드로 잠근다 (audit:I01)
 - v0.1.2 (2026-09-25) KIS 주문체결내역에 체결시각 칼럼이 없다는 것을 공식 저장소에서 확인했다. filled_at 이 NOT NULL 이라 주문 시각을 넣으면 체결 지연이 조용히 0 이 된다. 마이그 288 로 null 허용 + first_seen_at 상한을 더해 하한과 상한으로 둔다 (audit:I01)
 - v0.1.3 (2026-09-25) 체결 조회를 붙이려니 AccountClient 를 또 만들게 됐다. 속도 제한 큐가 둘이면 KIS 제한을 두 배로 넘긴다. tick 이 한 벌 만들어 감시와 체결이 같이 쓰게 범위를 넓힌다 (audit:I01)
+- v0.1.4 (2026-09-25) 순수 모듈만 만드는 항목은 통과할 수 없다. 배선 가드가 소비처 0 을 잡기 때문이고 그것이 맞는 동작이다. 포지션 접기와 감시 배선을 한 항목으로 합친다 (audit:I02)
+- v0.1.5 (2026-09-25) 손절가는 포지션을 연 신호에 있고 손절 확인 상태는 position_events 마지막 줄에 있다. 둘을 읽을 자리가 없어 position/plan.ts 를 더한다 (audit:I02)
+- v0.1.6 (2026-09-25) 시세를 감시 앞으로 옮기니 rollup.test.ts 의 구간 기반 가드가 봉 조회 실패까지 세게 됐다. 구간이 아니라 price.ok·quote.ok 로 되돌아가는 조건이 있는지를 본다 (audit:I02)

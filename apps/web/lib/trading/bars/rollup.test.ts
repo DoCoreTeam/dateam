@@ -69,15 +69,34 @@ test('★ 크론이 시세를 불러 미결제약정을 채운다 — 명세 §6
   assert.match(tick, /openInterestOf\(/, '받아 놓고 봉에 안 넣는다')
 })
 
+/**
+ * 「저장 앞에 `return` 이 있나」가 아니라 **「시세 실패가 되돌아가는 길인가」**를 본다.
+ *
+ * 구간으로 보던 판(2026-09-26): 시세를 감시보다 앞으로 옮기자 그 구간에 **봉 조회 실패**
+ * 되돌아가기가 들어와 가드가 빨개졌다. 그것은 시세 탓이 아니고, 봉을 못 받은 분에는
+ * 애초에 저장할 것이 없다. 반대로 구간 밖이면 `if (!price.ok) return` 을 넣어도 안 잡혔다.
+ * 구간은 자리를 보고 조건은 뜻을 본다.
+ */
 test('★ 시세·호가가 실패해도 봉 저장을 막지 않는다 — 모으는 일이 먼저다', () => {
   const tick = readFileSync(join(HERE, '..', 'jobs', 'tick.ts'), 'utf8')
   const priceAt = tick.indexOf('kis.price(')
   const saveAt = tick.indexOf('saveBars({')
   assert.ok(priceAt > 0 && saveAt > priceAt, '순서를 못 찾았다')
 
-  // 시세 실패로 되돌아가는 길이 저장 앞에 있으면 안 된다
-  const between = tick.slice(priceAt, saveAt)
-  assert.doesNotMatch(between, /return \{ ok: false/,
-    '시세가 실패하면 봉을 안 남기고 돌아간다 — 그 분이 통째로 결측이 된다')
-  assert.match(tick, /side_failed=/, '실패 사실이 사유에 안 남는다')
+  // 주석에 적어 둔 것은 코드가 아니다
+  const code = tick.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+
+  // 시세·호가가 실패했다는 이유로 되돌아가거나 던지는 길이 아예 없어야 한다
+  for (const name of ['price', 'quote']) {
+    const bail = new RegExp(
+      `if\\s*\\(\\s*!${name}\\.ok\\s*\\)[^\\n]*\\n?\\s*(return|throw)`, 'm',
+    )
+    assert.doesNotMatch(code, bail,
+      `${name} 가 실패하면 되돌아간다 — 그 분의 봉이 통째로 결측이 된다`)
+  }
+
+  // 실패해도 값은 null 로 흘러야 한다. 여기가 없으면 위 단정은 공회전이다
+  assert.match(code, /price\.ok \?/, '시세 실패를 값으로 안 다룬다')
+  assert.match(code, /quote\.ok \?/, '호가 실패를 값으로 안 다룬다')
+  assert.match(code, /side_failed=/, '실패 사실이 사유에 안 남는다')
 })

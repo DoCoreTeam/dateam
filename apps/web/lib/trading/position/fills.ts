@@ -78,3 +78,44 @@ export async function saveFills(fills: readonly Fill[], now: Date): Promise<numb
   if (error) throw new Error(`체결을 적지 못했습니다: ${error.message}`)
   return rows.length
 }
+
+/**
+ * 그날 적어 둔 체결. 포지션과 실현 손익이 이것으로 계산된다.
+ *
+ * `first_seen_at` 으로 하루를 자른다 — `order_at` 은 없을 수 있고(시각 꼴이 아니면 null),
+ * 없는 값으로 자르면 그 줄이 어느 날에도 안 들어간다.
+ */
+export async function loadFills(contractCode: string, from: Date, to: Date): Promise<StoredFill[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_fills')
+    .select('order_no,contract_code,side,quantity,price,order_at,first_seen_at,fee_krw,signal_id')
+    .eq('contract_code', contractCode)
+    .gte('first_seen_at', from.toISOString())
+    .lt('first_seen_at', to.toISOString())
+  if (error) throw new Error(`체결을 읽지 못했습니다: ${error.message}`)
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    orderNo: String(row.order_no),
+    contractCode: String(row.contract_code),
+    side: row.side === 'sell' ? 'sell' : 'buy',
+    quantity: Number(row.quantity),
+    price: Number(row.price),
+    // 접는 순서는 주문 시각이 하한이라 그것을 쓰고, 없으면 처음 본 시각
+    at: String(row.order_at ?? row.first_seen_at),
+    feeKrw: row.fee_krw === null || row.fee_krw === undefined ? null : Number(row.fee_krw),
+    signalId: row.signal_id === null || row.signal_id === undefined ? null : String(row.signal_id),
+  }))
+}
+
+export interface StoredFill {
+  orderNo: string
+  contractCode: string
+  side: 'buy' | 'sell'
+  quantity: number
+  price: number
+  /** 접는 데 쓸 시각. 주문 시각이 있으면 그것, 없으면 처음 본 시각 */
+  at: string
+  feeKrw: number | null
+  signalId: string | null
+}

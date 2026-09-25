@@ -37,7 +37,9 @@ import { createServerJevJudge } from '../judge/jev.ts'
 import { runJudges, scheduledMinuteOf } from './tick-core.ts'
 import { runWatch } from './watch.ts'
 import { createAccountClient } from '../broker/account.ts'
-import { syncFills } from '../position/fills.ts'
+import { syncFills, loadFills } from '../position/fills.ts'
+import { foldFills, expectedFrom, type FoldResult } from '../position/from-fills.ts'
+import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
 import { runOperatorJob } from './operator-job.ts'
@@ -76,6 +78,12 @@ export interface TickResult {
   ran?: JudgeName[]
   skipped?: JudgeName[]
   deferred?: JudgeName[]
+}
+
+/** 숫자로 읽히는 것만. 못 읽으면 null 이다 — 0 은 「값이 0」이라는 다른 사실이다 */
+function finiteOrNull(raw: string | undefined): number | null {
+  const value = Number(raw)
+  return Number.isFinite(value) && raw !== undefined && raw !== '' ? value : null
 }
 
 function seoulToday(now: Date): string {
@@ -255,6 +263,23 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    *
    * 감시가 실패해도 수집은 계속한다 — 곁가지가 본 일을 죽이지 않는다.
    */
+  /**
+   * 시세와 호가를 **감시보다 먼저** 받는다 (§6.1).
+   *
+   * 감시가 손절 이탈을 보려면 지금 값이 있어야 한다. 봉 확정 뒤로 미루면
+   * 봉이 결측인 분에는 값이 아예 없는데, **그 분이야말로 우리가 눈이 먼 분**이다.
+   * 봉 저장은 이 값을 나중에 쓴다 — 못 받아도 저장을 안 막는다.
+   */
+  const quote = await kis.askingPrice(contractCode)
+  const price = await kis.price(contractCode)
+  const bestBid = quote.ok ? Number(quote.value.futs_bidp1) : NaN
+  const bestAsk = quote.ok ? Number(quote.value.futs_askp1) : NaN
+  const sideFailures = [
+    quote.ok ? null : `askingPrice:${quote.reason}`,
+    price.ok ? null : `price:${price.reason}`,
+  ].filter((x): x is string => x !== null)
+  const observedPrice = price.ok ? finiteOrNull(price.value.futs_prpr) : null
+
   let watchNote = 'watch=off'
   let fillNote = 'fills=off'
   const accountRef = await loadAccountRef(env, str('kis_account_product_code', '03'))
@@ -288,6 +313,49 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     fillNote = 'fills=no_account'
   }
 
+  /**
+   * 적어 둔 체결을 접어 **우리 기록의 포지션**을 세운다.
+   *
+   * 이 값이 비어 있으면 계좌 대조는 언제나 「계좌에만 있다」로 어긋나고,
+   * 실현 손익은 언제나 0원이라 일일 손실 한도가 영영 안 걸린다. 그것이 이 판 전까지의 상태였다.
+   */
+  const instrument = await loadInstrumentSpec(today)
+  const dayStart = new Date(`${today}T00:00:00+09:00`)
+  const dayEnd = new Date(`${today}T23:59:59.999+09:00`)
+  let folded: FoldResult = { open: null, closed: [] }
+  let positionNote = 'position=none'
+  try {
+    folded = foldFills(await loadFills(contractCode, dayStart, dayEnd), instrument)
+    positionNote = `position=${folded.open ? `${folded.open.direction}x${folded.open.quantity}` : 'flat'}`
+      + `,closed=${folded.closed.length}`
+  } catch (error) {
+    positionNote = `position_failed:${error instanceof Error ? error.message : 'unknown'}`
+  }
+
+  /**
+   * 손절가는 포지션을 연 **신호**에 있다. 신호를 못 찾으면 null 이고 사유를 남긴다 —
+   * 0 을 쓰면 모든 가격이 손절가를 지난 것이 되어 매분 경고가 울린다.
+   */
+  let plan: SignalPlan | null = null
+  if (folded.open?.signalId) {
+    try {
+      plan = await loadSignalPlan(folded.open.signalId)
+      if (!plan) positionNote += ',plan=signal_not_found'
+    } catch (error) {
+      positionNote += `,plan_failed:${error instanceof Error ? error.message : 'unknown'}`
+    }
+  } else if (folded.open) {
+    // 신호 없이 사람이 손으로 든 포지션. 손절가를 우리가 알 길이 없다
+    positionNote += ',plan=manual_trade'
+  }
+
+  let protection: ProtectionRecord = { state: folded.open ? 'unknown' : 'none', reportedAt: null }
+  try {
+    protection = await loadProtection(contractCode)
+  } catch (error) {
+    positionNote += `,protection_failed:${error instanceof Error ? error.message : 'unknown'}`
+  }
+
   if (account) {
     try {
       const watch = await runWatch({
@@ -302,17 +370,19 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
           maxNotifyFailureStreak: num('gate_max_notify_failure_streak', 3),
           maxUnopenedSignals: num('gate_max_unopened_signals', 3),
         },
-        // Release 1-C 는 우리 기록을 아직 안 쌓는다. 계좌에만 있는 것은 어긋남으로 잡힌다
-        expected: [],
-        positionState: 'flat',
-        protection: 'unknown',
-        protectionReportedAt: null,
+        expected: expectedFrom(contractCode, folded.open),
+        positionState: folded.open ? 'holding' : 'flat',
+        protection: protection.state,
+        protectionReportedAt: protection.reportedAt,
         protectionRecheckMinutes: num('protection_recheck_minutes', 60),
-        stopPrice: null,
-        direction: null,
-        observedPrice: null,
-        // 1-C 는 체결 연결이 없어 닫힌 거래가 비어 있다. 실현 손익은 0 이고 평가는 모른다
-        closedTrades: [],
+        stopPrice: plan?.stopPrice ?? null,
+        direction: folded.open?.direction ?? null,
+        observedPrice,
+        closedTrades: folded.closed,
+        /**
+         * 평가 손익은 **안 넣는다.** 한도가 보는 것은 실현이고(§8 D-32),
+         * 평가를 섞으면 들고 있는 것이 오르내릴 때마다 새 신호가 멈췄다 풀렸다 한다.
+         */
         unrealizedKrw: null,
         dailyTargetKrw: num('daily_target_krw', 0),
         brokerWasFailing: false,
@@ -360,26 +430,17 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   })
 
   if (decision.kind === 'retry') {
-    return { ok: true, reason: `bar_not_ready|${fillNote}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_not_ready|${fillNote}|${positionNote}|${watchNote}`, userMessage: null }
   }
   if (decision.kind === 'missing') {
     // 결측은 그 분의 판단을 건너뛰고 **사실을 남긴다**. 늦게 온 값으로 다시 판단하지 않는다
-    return { ok: true, reason: `bar_missing:${target.toISOString()}|${fillNote}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_missing:${target.toISOString()}|${fillNote}|${positionNote}|${watchNote}`, userMessage: null }
   }
 
   /**
    * 호가와 시세는 봉에 없어서 따로 받는다(명세 §6.1 이 최우선 호가와 미결제약정을 수집 항목에 넣는다).
    * **못 받아도 봉 저장은 안 막는다** — 모으는 일이 먼저고, 못 받은 사실은 사유로 남는다.
    */
-  const quote = await kis.askingPrice(contractCode)
-  const price = await kis.price(contractCode)
-  const bestBid = quote.ok ? Number(quote.value.futs_bidp1) : NaN
-  const bestAsk = quote.ok ? Number(quote.value.futs_askp1) : NaN
-  const sideFailures = [
-    quote.ok ? null : `askingPrice:${quote.reason}`,
-    price.ok ? null : `price:${price.reason}`,
-  ].filter((x): x is string => x !== null)
-
   await saveBars({
     contractCode,
     tf: '1m',
@@ -561,7 +622,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   return {
     ok: true,
-    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${fillNote}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
+    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${fillNote}|${positionNote}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,
