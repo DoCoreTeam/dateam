@@ -167,6 +167,71 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §19 「보유 기준」',
   },
   {
+    key: 'atr_period',
+    group: 'decision',
+    label: 'ATR 기간',
+    help: '변동성을 재는 봉 수. 손절 거리와 조건 세기가 전부 이 값 위에 선다',
+    type: 'number',
+    defaultValue: 14,
+    unit: '봉',
+    min: 2,
+    max: 120,
+    usedFrom: '1-A',
+    source: '명세 §8 (지표 기간, 1-B 에서 비교)',
+  },
+  {
+    key: 'sma_fast_period',
+    group: 'decision',
+    label: '단기 이동평균',
+    help: '교차 조건의 빠른 쪽. 장기보다 짧아야 한다',
+    type: 'number',
+    defaultValue: 5,
+    unit: '봉',
+    min: 2,
+    max: 120,
+    usedFrom: '1-A',
+    source: '명세 §7.1 진입 조건',
+  },
+  {
+    key: 'sma_slow_period',
+    group: 'decision',
+    label: '장기 이동평균',
+    help: '교차 조건의 느린 쪽',
+    type: 'number',
+    defaultValue: 20,
+    unit: '봉',
+    min: 3,
+    max: 240,
+    usedFrom: '1-A',
+    source: '명세 §7.1 진입 조건',
+  },
+  {
+    key: 'breakout_period',
+    group: 'decision',
+    label: '돌파 기준 봉 수',
+    help: '직전 이만큼의 고가·저가를 넘으면 돌파로 본다',
+    type: 'number',
+    defaultValue: 20,
+    unit: '봉',
+    min: 2,
+    max: 240,
+    usedFrom: '1-A',
+    source: '명세 §7.1 진입 조건',
+  },
+  {
+    key: 'breakout_atr_multiple',
+    group: 'decision',
+    label: '돌파 최소 폭',
+    help: 'ATR 의 몇 배를 넘어야 돌파로 치나. 0 이면 한 틱만 넘어도 걸린다',
+    type: 'number',
+    defaultValue: 0.1,
+    unit: 'ATR',
+    min: 0,
+    max: 3,
+    usedFrom: '1-A',
+    source: '명세 §7.1 진입 조건',
+  },
+  {
     key: 'jev_timeout_seconds',
     group: 'decision',
     label: 'Jev 대기 시간',
@@ -378,6 +443,15 @@ export function validateSetting(key: string, value: unknown): SettingRejection |
 export function validateSettingSet(
   values: Readonly<Record<string, TradingSettingValue>>,
 ): SettingRejection | null {
+  const fast = Number(values.sma_fast_period)
+  const slow = Number(values.sma_slow_period)
+  if (Number.isFinite(fast) && Number.isFinite(slow) && fast >= slow) {
+    return {
+      reason: 'fast_not_faster',
+      userMessage: '단기 이동평균은 장기보다 짧아야 합니다. 같거나 길면 교차가 일어나지 않습니다',
+    }
+  }
+
   const grace = Number(values.bar_grace_seconds)
   const missing = Number(values.bar_missing_after_seconds)
   if (Number.isFinite(grace) && Number.isFinite(missing) && missing <= grace) {

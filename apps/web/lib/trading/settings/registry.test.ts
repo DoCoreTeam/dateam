@@ -66,7 +66,7 @@ test('키는 겹치지 않고, 값마다 언제부터 쓰는지와 근거가 적
       )
     }
   }
-  assert.ok(seen.size >= 13, '등재된 설정이 13개보다 적다')
+  assert.ok(seen.size >= 18, '등재된 설정이 18개보다 적다')
 })
 
 test('비밀값은 설정에 없다 (S3)', () => {
@@ -145,6 +145,13 @@ test('모르는 키·틀린 형·범위 밖은 사유와 함께 막힌다', () =
   assert.equal(validateSetting('jev_timeout_seconds', 0)?.reason, 'below_min:jev_timeout_seconds')
   assert.equal(validateSetting('jev_timeout_seconds', 31)?.reason, 'above_max:jev_timeout_seconds')
   assert.equal(validateSetting('decision_tf', '3m')?.reason, 'not_a_choice:decision_tf')
+})
+
+test('단기 이동평균이 장기보다 길거나 같은 조합은 막힌다 — 교차가 일어나지 않는다', () => {
+  const same = { ...defaultSettings(), sma_fast_period: 20, sma_slow_period: 20 }
+  assert.equal(validateSettingSet(same)?.reason, 'fast_not_faster')
+  const flipped = { ...defaultSettings(), sma_fast_period: 30, sma_slow_period: 20 }
+  assert.equal(validateSettingSet(flipped)?.reason, 'fast_not_faster')
 })
 
 test('결측 판정이 확정 여유보다 빠른 조합은 막힌다', () => {
