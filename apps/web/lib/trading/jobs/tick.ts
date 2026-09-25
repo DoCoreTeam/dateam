@@ -17,9 +17,12 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import { currentDeployEnv, type DeployEnv } from '@/lib/ai/deploy-env'
 import { loadTradingSettings, seedTradingSettings } from '../settings/store.ts'
-import { ensureSessionWindow } from '../calendar/seed.ts'
+import { ensureSessionWindow, ensureNightWindow } from '../calendar/seed.ts'
+import {
+  isContinuousTrading, isNightHour, nightStartDateOf, type NightTradeDateRule,
+} from '../calendar/session.ts'
 import { loadDayConfig, freezeDayConfig, logicChangedToday } from './day-config.ts'
-import { isContinuousTrading } from '../calendar/session.ts'
+
 import { syncContracts } from '../contracts/sync.ts'
 import { getAccessToken } from '../broker/token.ts'
 import { loadAppCredential } from '../broker/credentials.ts'
@@ -185,7 +188,27 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    * 봉이 한 줄도 안 쌓이는데 오류는 한 건도 안 났다(실측 2026-09-26).
    */
   const session = await ensureSessionWindow(today, expiryDays)
-  const window = session.window
+  let window = session.window
+  /**
+   * 정규장 창이 없거나 지금이 그 밖이면 **야간장**을 본다(명세 §6.1 「야간장도 수집한다」).
+   *
+   * 야간 봉으로는 판단하지 않는다 — 모으는 것과 판단하는 것은 다른 일이고,
+   * 명세가 「신호는 정규장만」이라고 적는다. 그래도 모아 둬야 1-B 가 그 시간대를 볼 수 있다.
+   */
+  const nightWanted = Boolean(values.collect_night_session) && isNightHour(now)
+  let isNight = false
+  if (nightWanted && (!window || !isContinuousTrading(window, targetMinuteFor(now)))) {
+    const night = await ensureNightWindow(
+      nightStartDateOf(now),
+      str('night_trade_date_rule', 'next') as NightTradeDateRule,
+    )
+    if (night.window) {
+      window = night.window
+      isNight = true
+      syncReason = `${syncReason},${night.reason}`
+    }
+  }
+
   if (!window) {
     return { ok: true, reason: `${session.reason}|${syncReason}`, userMessage: null }
   }
@@ -298,7 +321,13 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     sideFailures.length > 0 ? `side_failed=${sideFailures.join('+')}` : null,
   ].filter(Boolean).join(',')
 
-  // 단일가 구간의 봉은 모으되 판단하지 않는다(§6.3 D-40)
+  /**
+   * 야간장 봉은 여기까지다 — **모았고, 판단은 안 한다**(명세 §6.1).
+   * 단일가 구간도 같다: 체결 방식이 다른 시장이라 그 봉으로 판단하면 다른 장을 보고 판단하는 것이다(D-40).
+   */
+  if (isNight) {
+    return { ok: true, reason: `night_collected${collectNote ? `|${collectNote}` : ''}`, userMessage: null }
+  }
   if (!isContinuousTrading(window, target)) {
     return { ok: true, reason: `not_continuous_trading${collectNote ? `|${collectNote}` : ''}`, userMessage: null }
   }

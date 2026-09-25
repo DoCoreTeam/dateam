@@ -18,7 +18,10 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { dateRange } from './date-range.ts'
-import { buildRegularSession, isWeekendInSeoul, type SessionWindow } from './session.ts'
+import {
+  buildRegularSession, buildNightSession, isWeekendInSeoul,
+  type NightTradeDateRule, type SessionWindow,
+} from './session.ts'
 import { decideEnsureSession } from './seed-window.ts'
 
 export interface SeedInput {
@@ -149,4 +152,52 @@ export async function ensureSessionWindow(
     throw new Error(`세션 줄을 세우지 못했습니다: ${error.message}`)
   }
   return { window: built, created: true, reason: action.isExpiryDay ? 'session_created:expiry' : 'session_created' }
+}
+
+/**
+ * 야간 세션 창을 확실히 마련한다 — 정규장과 같은 규율, 다른 창.
+ *
+ * 야간장은 자정을 넘으므로 「오늘」이 아니라 **저녁이 시작한 날**로 센다.
+ * 귀속 거래일은 설정이 정한다(§6.4).
+ */
+export async function ensureNightWindow(
+  startDate: string,
+  rule: NightTradeDateRule,
+): Promise<{ window: SessionWindow | null; created: boolean; reason: string }> {
+  const built = buildNightSession(startDate, rule)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_session_calendar')
+    .select('trade_date, session, open_auction_start, continuous_start, continuous_end, close_auction_end')
+    .eq('trade_date', built.tradeDate)
+    .eq('session', 'night')
+    .maybeSingle()
+  if (error) throw new Error(`야간 세션을 읽지 못했습니다: ${error.message}`)
+
+  if (data) {
+    return {
+      window: {
+        tradeDate: data.trade_date,
+        session: 'night',
+        openAuctionStart: null,
+        continuousStart: new Date(data.continuous_start),
+        continuousEnd: new Date(data.continuous_end),
+        closeAuctionEnd: null,
+      },
+      created: false,
+      reason: 'night_exists',
+    }
+  }
+
+  const { error: writeError } = await admin.from('trading_session_calendar').insert({
+    ...toRow(built),
+    note: '야간장 자동 생성 — 수집만 하고 판단은 정규장에서만 한다',
+  })
+  if (writeError) {
+    // 같은 분의 다른 실행이 먼저 세운 것이다. 오류가 아니라 경주다
+    return { window: built, created: false, reason: 'night_created_by_other' }
+  }
+  return { window: built, created: true, reason: 'night_created' }
 }

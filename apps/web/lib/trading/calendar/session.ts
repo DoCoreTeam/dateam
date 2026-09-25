@@ -154,3 +154,77 @@ export function isWeekendInSeoul(tradeDate: string): boolean {
   const day = new Date(`${tradeDate}T12:00:00+09:00`).getUTCDay()
   return day === 0 || day === 6
 }
+
+
+// ── 야간장 ───────────────────────────────────────────────
+
+/**
+ * 야간장 시각 (명세 §6.3 「야간장 18:00~06:00」).
+ *
+ * 자정을 넘는다 — 시작은 하루, 끝은 다음 날이다. 이 하나가 정규장과 다른 전부이고,
+ * 놓치면 자정 이후 봉이 통째로 「장외」로 밀린다.
+ */
+export const NIGHT_TIMES = { start: '18:00', end: '06:00' } as const
+
+/**
+ * 야간 세션이 **어느 거래일에 속하나** (명세 §6.4).
+ *
+ * `next`  — 저녁 18:00 에 시작한 장은 **다음 거래일**의 것이다(거래소 관례)
+ * `same`  — 시작한 날의 것이다
+ *
+ * 기본을 `next` 로 둔다. 손익과 일일 한도가 거래일 기준이라(§6.4) 귀속이 틀리면
+ * 밤에 난 결과가 어제 몫으로 잡히고, 한도가 이미 닫힌 날에 거래한 것처럼 보인다.
+ * 거래소 기준을 확인하면 설정으로 바꾼다.
+ */
+export type NightTradeDateRule = 'next' | 'same'
+
+/** 저녁 `startDate` 에 시작한 야간장이 속하는 거래일 */
+export function nightTradeDate(startDate: string, rule: NightTradeDateRule): string {
+  if (rule === 'same') return startDate
+  const at = new Date(`${startDate}T12:00:00+09:00`)
+  at.setUTCDate(at.getUTCDate() + 1)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(at)
+}
+
+/**
+ * 야간 세션 창 하나.
+ *
+ * @param startDate 저녁이 시작한 날 (`YYYY-MM-DD`, 서울)
+ */
+export function buildNightSession(startDate: string, rule: NightTradeDateRule): SessionWindow {
+  const endDate = nightTradeDate(startDate, 'next')
+  return {
+    tradeDate: nightTradeDate(startDate, rule),
+    session: 'night',
+    // 야간장에는 개장 전 단일가가 없다. 없는 것을 있다고 적지 않는다
+    openAuctionStart: null,
+    continuousStart: new Date(kstWallToIso(startDate, NIGHT_TIMES.start)),
+    continuousEnd: new Date(kstWallToIso(endDate, NIGHT_TIMES.end)),
+    closeAuctionEnd: null,
+  }
+}
+
+/**
+ * 이 시각이 야간장 시간대인가 — **캘린더 없이** 답한다.
+ *
+ * 줄을 세우기 전에 물어야 하는 질문이라 표를 안 본다.
+ * 자정을 넘으므로 「시작보다 크다」와 「끝보다 작다」를 한꺼번에 쓰면 틀린다.
+ */
+export function isNightHour(at: Date): boolean {
+  const hour = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Seoul', hour: '2-digit', hour12: false,
+  }).format(at))
+  return hour >= 18 || hour < 6
+}
+
+/** 이 시각이 속한 야간장의 **시작 날**. 새벽이면 전날 저녁이다 */
+export function nightStartDateOf(at: Date): string {
+  const seoulDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(at)
+  const hour = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Seoul', hour: '2-digit', hour12: false,
+  }).format(at))
+  if (hour >= 18) return seoulDate
+  const prev = new Date(`${seoulDate}T12:00:00+09:00`)
+  prev.setUTCDate(prev.getUTCDate() - 1)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(prev)
+}
