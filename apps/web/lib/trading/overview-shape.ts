@@ -33,6 +33,26 @@ export interface JudgmentRow {
   decisionAt: string | null
 }
 
+/** 신호 한 줄. 화면이 확인 단추를 그리는 데 필요한 것만 */
+export interface SignalRow {
+  id: string
+  contractCode: string
+  direction: 'long' | 'short'
+  referencePrice: number
+  stopPrice: number
+  targetPrice: number
+  barCloseAt: string
+  notifySentAt: string | null
+  openedAt: string | null
+  ackAt: string | null
+  orderAt: string | null
+  fillAt: string | null
+  result: string | null
+  userReportedStop: number | null
+  /** 보정 확률. 없으면 이 신호는 안 나갔어야 한다(M3) */
+  calibratedProb: number | null
+}
+
 export interface RunRow {
   scheduledMinute: string
   status: string
@@ -56,11 +76,24 @@ export interface TradingOverview {
   coverage: DayCoverage[]
   judgments: JudgmentRow[]
   recentRuns: RunRow[]
+  /** 최근 신호. 1-C 전에는 늘 비어 있다 */
+  signals: SignalRow[]
   gate: GateSummary
   /** 관문 항목별 판정 */
   gateCriteria: CriterionResult[]
   /** 아직 아무것도 안 모였나. 빈 화면과 고장난 화면을 구분해 말해야 한다 */
   empty: boolean
+}
+
+/**
+ * 신호가 아직 살아 있나 — 유효 시간 안인가.
+ *
+ * 결과가 이미 적힌 신호는 지나간 것이다. 살아 있는 것만 단추를 그린다 —
+ * 지나간 신호에 단추가 남아 있으면 사람은 눌러도 되는 줄 안다.
+ */
+export function isSignalActionable(row: SignalRow, now: Date, validMinutes: number): boolean {
+  if (row.result !== null) return false
+  return now.getTime() <= Date.parse(row.barCloseAt) + validMinutes * 60_000
 }
 
 /** 그날 수집이 온전한가. 사람이 「5거래일 결측 없음」을 셀 수 있게 한 줄로 답한다 */

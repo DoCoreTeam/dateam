@@ -3,14 +3,15 @@
 // 지금 이 화면이 하는 일은 하나다: **무엇으로 판단하게 되는가를 보여 준다.**
 // 봉 수집 상태와 판단 기록은 수집이 서고 나서 이 화면에 붙는다.
 //
-// 신호 단추·체결 단추는 없다. 1-C 것이고, 못 하는 동작의 단추를 그리면
-// 사용자는 눌러 보고 나서야 없다는 것을 안다.
+// 1-C 부터 신호와 확인 단추가 여기 선다. 단추 셋은 전부 「내가 이렇게 했다」이고
+// 우리가 대신 주문하는 것은 하나도 없다(C1 · M1).
 
 import { CandlestickChart } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import BarCoverage from './BarCoverage'
 import JudgmentList from './JudgmentList'
 import BacktestPanel from './BacktestPanel'
+import SignalPanel from './SignalPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -36,6 +37,10 @@ export default async function TradingPage() {
 
   const groups = Object.keys(TRADING_GROUP_LABEL) as TradingSettingGroup[]
 
+  // 유효 시간은 설정이다. 화면이 따로 정하면 규칙과 화면이 다른 마감을 본다
+  const rawValid = Number(values.signal_valid_minutes)
+  const validMinutes = Number.isFinite(rawValid) && rawValid > 0 ? rawValid : 10
+
   return (
     <>
       <PageHeader
@@ -49,6 +54,11 @@ export default async function TradingPage() {
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+        <SignalPanel
+          rows={overview.signals}
+          validMinutes={validMinutes}
+          notifyEnabled={values.notify_enabled === true}
+        />
         <BarCoverage days={overview.coverage} />
         <JudgmentList rows={overview.judgments} />
 

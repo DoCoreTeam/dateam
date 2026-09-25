@@ -16,11 +16,11 @@ import { dateRange } from './calendar/date-range.ts'
 import { loadSessionWindow } from './calendar/seed.ts'
 import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
-import type { DayCoverage, JudgmentRow, RunRow, TradingOverview } from './overview-shape.ts'
+import type { DayCoverage, JudgmentRow, RunRow, SignalRow, TradingOverview } from './overview-shape.ts'
 import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
 
-export type { DayCoverage, JudgmentRow, RunRow, TradingOverview, GateSummary } from './overview-shape.ts'
-export { isDayComplete, missingCount } from './overview-shape.ts'
+export type { DayCoverage, JudgmentRow, RunRow, SignalRow, TradingOverview, GateSummary } from './overview-shape.ts'
+export { isDayComplete, missingCount, isSignalActionable } from './overview-shape.ts'
 
 /** 오늘부터 거슬러 며칠을 보나. 1-A 완료 기준이 5거래일이라 주말을 감안해 넉넉히 */
 const LOOKBACK_DAYS = 10
@@ -107,6 +107,34 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     userMessage: (row.user_message as string | null) ?? null,
   }))
 
+  const { data: signalRows, error: signalError } = await admin
+    .from('trading_signals')
+    .select('id, contract_code, direction, reference_price, stop_price, target_price, bar_close_at,'
+      + ' notify_sent_at, opened_at, ack_at, order_at, fill_at, result, user_reported_stop, calibrated_prob')
+    .order('bar_close_at', { ascending: false })
+    .limit(20)
+  if (signalError) throw new Error(`신호를 읽지 못했습니다: ${signalError.message}`)
+
+  const signals: SignalRow[] = ((signalRows ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id),
+    contractCode: String(row.contract_code),
+    direction: row.direction === 'short' ? 'short' : 'long',
+    referencePrice: Number(row.reference_price),
+    stopPrice: Number(row.stop_price),
+    targetPrice: Number(row.target_price),
+    barCloseAt: String(row.bar_close_at),
+    notifySentAt: (row.notify_sent_at as string | null) ?? null,
+    openedAt: (row.opened_at as string | null) ?? null,
+    ackAt: (row.ack_at as string | null) ?? null,
+    orderAt: (row.order_at as string | null) ?? null,
+    fillAt: (row.fill_at as string | null) ?? null,
+    result: (row.result as string | null) ?? null,
+    userReportedStop: row.user_reported_stop === null || row.user_reported_stop === undefined
+      ? null : Number(row.user_reported_stop),
+    calibratedProb: row.calibrated_prob === null || row.calibrated_prob === undefined
+      ? null : Number(row.calibrated_prob),
+  }))
+
   /**
    * 관문 판정. 백테스트를 아직 안 돌렸으면 **전부 「아직 못 잼」** 이 나온다 —
    * 그것이 지금 상태의 정확한 이름이다. 「미달」로 말하면 전략이 나쁜 것으로 읽힌다.
@@ -149,12 +177,13 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     coverage,
     judgments,
     recentRuns,
+    signals,
     gate: {
       passed: gateVerdict.passed,
       failedCount: gateVerdict.failedCount,
       insufficientCount: gateVerdict.insufficientCount,
     },
     gateCriteria: gateVerdict.criteria,
-    empty: coverage.every((d) => d.actual === 0) && judgments.length === 0,
+    empty: coverage.every((d) => d.actual === 0) && judgments.length === 0 && signals.length === 0,
   }
 }
