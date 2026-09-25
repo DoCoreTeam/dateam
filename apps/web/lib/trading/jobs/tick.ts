@@ -26,6 +26,8 @@ import { loadAppCredential } from '../broker/credentials.ts'
 import { createKisClient } from '../broker/kis-client.ts'
 import { decideBarConfirmation, targetMinuteFor } from '../bars/confirm.ts'
 import { saveBars, loadBarsAsOf } from '../bars/store.ts'
+import { aggregateBars } from '../bars/confirm.ts'
+import { bucketsClosedBy, openInterestOf } from '../bars/rollup.ts'
 import { computeIndicators, evaluateTriggers, requiredBarCount } from '../judge/indicators.ts'
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
@@ -238,10 +240,18 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     return { ok: true, reason: `bar_missing:${target.toISOString()}`, userMessage: null }
   }
 
-  // 호가는 봉에 없어서 따로 받는다. 못 받아도 봉 저장은 막지 않는다
+  /**
+   * 호가와 시세는 봉에 없어서 따로 받는다(명세 §6.1 이 최우선 호가와 미결제약정을 수집 항목에 넣는다).
+   * **못 받아도 봉 저장은 안 막는다** — 모으는 일이 먼저고, 못 받은 사실은 사유로 남는다.
+   */
   const quote = await kis.askingPrice(contractCode)
+  const price = await kis.price(contractCode)
   const bestBid = quote.ok ? Number(quote.value.futs_bidp1) : NaN
   const bestAsk = quote.ok ? Number(quote.value.futs_askp1) : NaN
+  const sideFailures = [
+    quote.ok ? null : `askingPrice:${quote.reason}`,
+    price.ok ? null : `price:${price.reason}`,
+  ].filter((x): x is string => x !== null)
 
   await saveBars({
     contractCode,
@@ -253,11 +263,44 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
       bestBid: Number.isFinite(bestBid) ? bestBid : null,
       bestAsk: Number.isFinite(bestAsk) ? bestAsk : null,
     },
+    openInterest: openInterestOf(price.ok ? price.value : null),
   })
+
+  /**
+   * 묶음 봉 — 방금 확정한 분이 구간을 **닫을 때만** 만든다.
+   *
+   * `aggregateBars` 는 구성 1분 봉이 전부 있어야 만들고, 하나라도 빠지면 안 만든다.
+   * 그래서 여기서는 그 구간을 통째로 읽어 넘기기만 한다.
+   */
+  const rolledUp: string[] = []
+  for (const bucket of bucketsClosedBy(decision.bar.startAt)) {
+    const span = await loadBarsAsOf({
+      contractCode, tf: '1m', asOf: now, limit: 60,
+    })
+    const inBucket = span.filter((b) =>
+      b.startAt.getTime() >= bucket.from.getTime() &&
+      b.startAt.getTime() <= decision.bar.startAt.getTime())
+    const { bars: rolled, incomplete } = aggregateBars(inBucket, bucket.tf)
+    if (rolled.length > 0) {
+      await saveBars({
+        contractCode, tf: bucket.tf, bars: rolled, confirmedAt: now, source: 'kis',
+        openInterest: openInterestOf(price.ok ? price.value : null),
+      })
+      rolledUp.push(bucket.tf)
+    } else if (incomplete > 0) {
+      // 빠진 분이 있어 안 만들었다. 조용히 넘기면 5분 봉 구멍이 안 보인다
+      rolledUp.push(`${bucket.tf}:incomplete`)
+    }
+  }
+
+  const collectNote = [
+    rolledUp.length > 0 ? `rollup=${rolledUp.join('+')}` : null,
+    sideFailures.length > 0 ? `side_failed=${sideFailures.join('+')}` : null,
+  ].filter(Boolean).join(',')
 
   // 단일가 구간의 봉은 모으되 판단하지 않는다(§6.3 D-40)
   if (!isContinuousTrading(window, target)) {
-    return { ok: true, reason: 'not_continuous_trading', userMessage: null }
+    return { ok: true, reason: `not_continuous_trading${collectNote ? `|${collectNote}` : ''}`, userMessage: null }
   }
 
   // 5 진입 조건이 걸렸나
@@ -281,7 +324,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   const trigger = evaluateTriggers(bars, indicators, params)
   if (!trigger) {
-    return { ok: true, reason: 'no_trigger', userMessage: null }
+    return { ok: true, reason: `no_trigger${collectNote ? `|${collectNote}` : ''}`, userMessage: null }
   }
 
   // 6 선점한 판단기만 부른다
