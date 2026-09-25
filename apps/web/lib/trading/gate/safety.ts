@@ -141,6 +141,22 @@ export function checkSafetyGates(
 }
 
 /** 새 신호를 내도 되나 */
+/**
+ * 게이트 이름 **값** 목록.
+ *
+ * 형(union)만 두면 컴파일 뒤에 사라져 「열둘이 다 있나」를 물을 수 없고,
+ * 못 묻는 것은 하나 줄인 판이 들어와도 모른다. 형과 어긋나면 형 검사가 잡는다.
+ */
+export const GATE_IDS: readonly GateId[] = [
+  'SG-01', 'SG-02', 'SG-03', 'SG-04', 'SG-05', 'SG-06',
+  'SG-07', 'SG-08', 'SG-09', 'SG-10', 'SG-11', 'SG-12',
+]
+
+/** 걸린 게이트를 이름 순으로. 화면이 늘 같은 자리에 같은 것을 그린다 */
+export function sortGateHits(hits: readonly GateHit[]): GateHit[] {
+  return [...hits].sort((a, b) => GATE_IDS.indexOf(a.id) - GATE_IDS.indexOf(b.id))
+}
+
 export function newSignalAllowed(hits: readonly GateHit[]): boolean {
   return hits.length === 0
 }

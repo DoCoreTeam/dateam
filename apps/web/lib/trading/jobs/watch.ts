@@ -14,7 +14,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { RUN_BUDGET_MS } from './tick-core.ts'
 import { planWithinBudget, watchReason, type WatchTask } from './watch-plan.ts'
 import { watchTasks } from '../gate/safety.ts'
-import { checkSafetyGates, newSignalAllowed, type SafetyContext, type SafetyThresholds } from '../gate/safety.ts'
+import { checkSafetyGates, newSignalAllowed, sortGateHits, type SafetyContext, type SafetyThresholds } from '../gate/safety.ts'
 import { createAccountClient } from '../broker/account.ts'
 import { brokerFailureStreak } from '../broker/account-request.ts'
 import {
@@ -225,7 +225,7 @@ export async function runWatch(input: WatchInput): Promise<WatchResult> {
   const alert = topAlert({ position: positionState, protection: input.protection })
   return {
     reason: `${watchReason(plan)}${locked ? `,${locked}` : ''}${brokerNote}`
-      + `${gateHits.length > 0 ? `,gates=${gateHits.map((h) => h.id).join('+')}` : ''}`
+      + `${gateHits.length > 0 ? `,gates=${sortGateHits(gateHits).map((h) => h.id).join('+')}` : ''}`
       + `${recovery.action === 'reconcile_once' ? ',recovered' : ''}`
       + `${needsHumanUnlock(positionState) ? ',locked_until_human' : ''}`
       + `${alert ? `,top=${alert}` : ''}`,

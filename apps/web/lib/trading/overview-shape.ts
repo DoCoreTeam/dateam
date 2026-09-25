@@ -117,6 +117,33 @@ export interface SettingHelpRow {
   extra: string | null
 }
 
+/** 점검 한 줄 */
+export interface HealthRow {
+  checkId: string
+  status: string
+  userMessage: string
+  reason: string
+}
+
+/** AI 운영자 상태 */
+export interface OperatorSummary {
+  enabled: boolean
+  /** 손볼 것 수 */
+  attention: number
+  checks: HealthRow[]
+  /** 항목별 개입 수준 */
+  levels: { key: string; item: string; level: string; label: string }[]
+  /** 기본값에 자동이 섞였나. 섞였으면 아무도 안 고른 값으로 AI 가 일한다 */
+  autoByDefault: boolean
+  /**
+   * 설정에 있는 개입 키 수와 화면이 그리는 항목 수가 다른가.
+   * 다르면 화면이 일부를 안 그리고, 안 그린 항목은 사람이 못 고친다
+   */
+  levelsOutOfSync: boolean
+  /** 야간 신호 */
+  night: { enabled: boolean; canEnable: boolean; hint: string }
+}
+
 /** 알림을 켤 수 있나 (C4) */
 export interface NotifySummary {
   enabled: boolean
@@ -165,6 +192,7 @@ export interface TradingOverview {
   settingHelp: SettingHelpRow[]
   /** 마지막 실행이 지식으로 무엇을 했나 */
   knowledgeProgress: KnowledgeProgress | null
+  operator: OperatorSummary
   gate: GateSummary
   /** 관문 항목별 판정 */
   gateCriteria: CriterionResult[]

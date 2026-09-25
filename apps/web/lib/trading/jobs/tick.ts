@@ -38,6 +38,7 @@ import { runJudges, scheduledMinuteOf } from './tick-core.ts'
 import { runWatch } from './watch.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
+import { runOperatorJob } from './operator-job.ts'
 import { isHoldDominant } from '../judge/types.ts'
 import { loadInstrumentSpec } from '../settings/store.ts'
 import { sameDayExitAt } from '../calendar/session.ts'
@@ -511,9 +512,18 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     now, today, window, target, contractCode, num, str, indicators,
   })
 
+  /**
+   * 10 AI 운영자 — 지식과 같은 **맨 뒤**.
+   *
+   * 점검은 매분 하고 조치는 하나만 한다. 먼저 돌면 그 분의 수집과 판단이 밀린다.
+   */
+  const operatorNote = await operatorOrExplain({
+    now, today, num, str, coverage: { expected: null, actual: null },
+  })
+
   return {
     ok: true,
-    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${watchNote}|${emitNote}|${knowledgeNote}`,
+    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${watchNote}|${emitNote}|${knowledgeNote}|${operatorNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,
@@ -634,4 +644,42 @@ function seoulDaysAgo(today: string, days: number): string {
   const d = new Date(`${today}T00:00:00+09:00`)
   d.setUTCDate(d.getUTCDate() - Math.max(0, Math.round(days)))
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(d)
+}
+
+/** 운영자 한 걸음. 실패해도 수집·판단·신호·지식은 이미 끝났다 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function operatorOrExplain(ctx: any): Promise<string> {
+  try {
+    const { now, today } = ctx
+    const result = await runOperatorJob({
+      now,
+      tradeDate: today,
+      // 소유자는 설정에 있다. 없으면 넘길 곳이 없고 그 사실이 사유에 남는다
+      ownerUserId: await readOwnerId(today),
+      measurements: {
+        /**
+         * 1-C 는 아직 이 값들을 한자리에 모으지 않는다. **모르는 것은 null 로 넘긴다** —
+         * 0 으로 넘기면 점검이 「괜찮다」로 읽고, 그것이 이 항목이 막으려는 바로 그 일이다.
+         */
+        expectedBars: null, actualBars: null,
+        minutesSinceRun: null,
+        brokerFailureStreak: null,
+        notifyFailureStreak: null, pendingNotifications: null,
+        hasCalibration: null,
+        gatePassed: null, gateInsufficient: null,
+        aiSpentKrw: null, aiBudgetKrw: null,
+        reconciliationRequired: null,
+      },
+    })
+    return result.reason
+  } catch (error) {
+    return `operator_failed:${error instanceof Error ? error.message : 'unknown'}`
+  }
+}
+
+/** 소유자 ID. 없으면 사람에게 넘길 곳이 없다 */
+async function readOwnerId(today: string): Promise<string | null> {
+  const { values } = await loadTradingSettings(today)
+  const owner = String(values.owner_user_id ?? '').trim()
+  return owner === '' ? null : owner
 }

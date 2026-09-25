@@ -14,7 +14,7 @@ import {
   mayEmitNightSignal, nightTradeDateOf, nightRunsAllGates, inNightWindow, decideToggleNight,
   type NightSignalContext,
 } from './night-signal.ts'
-import { GATE_IDS_FOR_TEST } from './night-signal-ids.ts'
+import { GATE_IDS } from '../gate/safety.ts'
 import { TRADING_SETTINGS } from '../settings/registry.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -109,9 +109,9 @@ test('★ 게이트·신호 코드에 「야간이니까 건너뛴다」가 0개
 })
 
 test('★ 안전 게이트 열둘이 목록에 그대로 있다 — 야간용으로 줄인 판이 없다', () => {
-  assert.equal(GATE_IDS_FOR_TEST.length, 12)
+  assert.equal(GATE_IDS.length, 12)
   for (let i = 1; i <= 12; i += 1) {
-    assert.ok(GATE_IDS_FOR_TEST.includes(`SG-${String(i).padStart(2, '0')}`), `SG-${i} 가 없다`)
+    assert.ok(GATE_IDS.includes(`SG-${String(i).padStart(2, '0')}` as never), `SG-${i} 가 없다`)
   }
 })
 

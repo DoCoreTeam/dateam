@@ -18,7 +18,7 @@ import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
-  KnowledgeRow, SettingHelpRow, KnowledgeProgress,
+  KnowledgeRow, SettingHelpRow, KnowledgeProgress, OperatorSummary, HealthRow,
 } from './overview-shape.ts'
 import { emitProgressOf, knowledgeProgressOf } from './overview-shape.ts'
 import { cardsAsOf } from './knowledge/cards.ts'
@@ -27,6 +27,11 @@ import { reportsAsOf } from './knowledge/pattern.ts'
 import { proposalsAsOf } from './knowledge/proposal.ts'
 import { explanationsAsOf } from './knowledge/explain.ts'
 import { composeHelp } from './knowledge/setting-help.ts'
+import {
+  INTERVENTION_ITEMS, INTERVENTION_KEY_PREFIX, LEVEL_LABEL, interventionKey, readLevel, autoByDefault,
+} from './operator/intervention.ts'
+import { ACTION_LABEL } from './operator/remedy-policy.ts'
+import { decideToggleNight } from './calendar/night-signal.ts'
 import { helpTopic } from './knowledge/setting-help-run.ts'
 import { TRADING_SETTINGS } from './settings/registry.ts'
 import { LATENCY_SEGMENTS, SEGMENT_LABEL, latencyReport, decideResult, type SignalTimes } from './position/pnl.ts'
@@ -272,6 +277,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     knowledge: await loadKnowledge(now),
     settingHelp: await loadSettingHelp(now),
     knowledgeProgress: knowledgeProgressOf(recentRuns[0]?.reason ?? null),
+    operator: await loadOperator(now, today, values, gateVerdict),
     gate: {
       passed: gateVerdict.passed,
       failedCount: gateVerdict.failedCount,
@@ -361,4 +367,70 @@ async function loadSettingHelp(now: Date): Promise<SettingHelpRow[]> {
     if ('reason' in composed) return []
     return [{ key: composed.key, original: composed.original, extra: composed.extra }]
   })
+}
+
+/**
+ * AI 운영자 상태.
+ *
+ * 점검이 안 읽혀도 화면은 선다 — 곁가지가 본 일을 죽이지 않는다.
+ */
+async function loadOperator(
+  now: Date,
+  today: string,
+  values: Readonly<Record<string, unknown>>,
+  gate: { passed: boolean; insufficientCount: number },
+): Promise<OperatorSummary> {
+  let checks: HealthRow[] = []
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    const { data } = await admin
+      .from('trading_health_checks')
+      .select('check_id, status, user_message, reason')
+      .eq('trade_date', today)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    checks = ((data ?? []) as any[]).map((r) => ({
+      checkId: String(r.check_id),
+      status: String(r.status),
+      userMessage: String(r.user_message),
+      reason: String(r.reason),
+    }))
+  } catch {
+    checks = []
+  }
+
+  /**
+   * 개입 수준. 설정 키에 접두사가 붙어 있어 **한 자리에서 다 찾는다** —
+   * 화면이 키를 손으로 적으면 항목이 늘 때 그 화면만 옛 목록을 그린다.
+   */
+  const levels = INTERVENTION_ITEMS.map((item) => {
+    const key = interventionKey(item)
+    const level = readLevel(values[key])
+    return { key, item: ACTION_LABEL[item], level, label: LEVEL_LABEL[level] }
+  })
+  // 접두사로 찾은 설정과 항목 수가 같아야 한다. 다르면 화면이 일부를 안 그리고,
+  // 안 그린 항목은 사람이 못 고친다 — 못 고치는 항목은 기본값으로 남는다
+  const declared = Object.keys(values).filter((k) => k.startsWith(INTERVENTION_KEY_PREFIX)).length
+
+  const nightDecision = decideToggleNight(true, {
+    nightGatePassed: gate.passed && gate.insufficientCount === 0,
+    nightShadowDays: 0,
+    requiredShadowDays: Number(values.night_shadow_days_required) || 5,
+  })
+
+  return {
+    enabled: values.operator_enabled === true,
+    attention: checks.filter((c) => c.status !== 'ok').length,
+    checks,
+    levels,
+    autoByDefault: autoByDefault().length > 0,
+    levelsOutOfSync: declared !== levels.length,
+    night: {
+      enabled: values.night_signal_enabled === true,
+      canEnable: nightDecision.allowed,
+      hint: nightDecision.allowed
+        ? '야간 신호를 켤 수 있습니다'
+        : nightDecision.userMessage,
+    },
+  }
 }

@@ -984,6 +984,31 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     usedFrom: '1-C',
     source: '명세 §3.2 1-C 섀도 규율을 야간에 적용',
   },
+  {
+    key: 'operator_max_missing_bars',
+    group: 'operator',
+    label: '점검: 봉 결측 문턱',
+    help: '하루에 이만큼 넘게 빠지면 실패로 본다. 그 아래는 경고',
+    type: 'number',
+    defaultValue: 5,
+    unit: '개',
+    min: 0,
+    max: 400,
+    usedFrom: '1-C',
+    source: '명세 §16 Release 3 점검',
+  },
+  {
+    key: 'operator_ai_budget_warn_ratio',
+    group: 'operator',
+    label: '점검: AI 예산 경고 비율',
+    help: '예산을 이만큼 쓰면 경고한다',
+    type: 'number',
+    defaultValue: 0.8,
+    min: 0.1,
+    max: 1,
+    usedFrom: '1-C',
+    source: '명세 §16 Release 3 점검',
+  },
 ] as const
 
 const BY_KEY = new Map(TRADING_SETTINGS.map((s) => [s.key, s]))

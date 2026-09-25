@@ -19,6 +19,7 @@ import { decideEnableNotify, decideDisableNotify, auditLine } from '@/lib/tradin
 import { getRequestUser } from '@/lib/supabase/server'
 import { decideProposal } from '@/lib/trading/knowledge/proposal'
 import { ingestSource, ingestUrl } from '@/lib/trading/knowledge/sources'
+import { decideToggleNight } from '@/lib/trading/calendar/night-signal'
 
 export interface AckActionResult {
   ok: boolean
@@ -158,4 +159,40 @@ export async function addTradingSource(text: string): Promise<AckActionResult> {
   if (!result.stored) return { ok: false, userMessage: result.userMessage }
   revalidatePath('/trading')
   return { ok: true, userMessage: '자료를 넣었습니다. 곧 분석합니다' }
+}
+
+/**
+ * 야간 신호를 켜고 끈다.
+ *
+ * 켜려면 야간 표본으로 관문을 통과해야 하고, **끄는 것은 언제나 된다** —
+ * 대칭으로 만들면 야간에 문제가 생긴 날 끄지도 못한다.
+ */
+export async function setNightSignalEnabled(next: boolean): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const user = await getRequestUser()
+  if (!user) return DENIED
+
+  const now = new Date()
+  const today = seoulToday(now)
+  const overview = await loadTradingOverview(now)
+  const { values } = await loadTradingSettings(today)
+
+  const decision = decideToggleNight(next, {
+    nightGatePassed: overview.gate.passed && overview.gate.insufficientCount === 0,
+    nightShadowDays: 0,
+    requiredShadowDays: Number(values.night_shadow_days_required) || 5,
+  })
+  if (!decision.allowed) return { ok: false, userMessage: decision.userMessage }
+
+  const saved = await saveTradingSetting({
+    key: 'night_signal_enabled',
+    value: next,
+    source: 'admin',
+    changedBy: user.id,
+    effectiveTradeDate: today,
+    reason: `야간 신호 ${next ? '켬' : '끔'} · 사용자 ${user.id}`,
+  })
+  if (!saved.ok) return { ok: false, userMessage: saved.rejection.userMessage }
+  revalidatePath('/trading')
+  return { ok: true, userMessage: next ? '야간 신호를 켰습니다' : '야간 신호를 껐습니다' }
 }
