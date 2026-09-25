@@ -19,6 +19,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import { dateRange } from './date-range.ts'
 import { buildRegularSession, isWeekendInSeoul, type SessionWindow } from './session.ts'
+import { decideEnsureSession } from './seed-window.ts'
 
 export interface SeedInput {
   /** `YYYY-MM-DD` (서울). 포함 */
@@ -109,4 +110,43 @@ export async function loadSessionWindow(tradeDate: string): Promise<SessionWindo
     continuousEnd: new Date(data.continuous_end),
     closeAuctionEnd: data.close_auction_end ? new Date(data.close_auction_end) : null,
   }
+}
+
+/**
+ * 그날 세션 창을 확실히 마련한다 — **없으면 세우고 돌려준다.**
+ *
+ * 크론이 매분 부른다. 있는 날은 읽기 한 번으로 끝나고, 없는 날만 한 줄을 세운다.
+ * 이 함수가 없던 동안 캘린더는 영원히 비어 있었고 수집이 한 줄도 안 됐다.
+ *
+ * @param lastTradingDays 이 상품의 최종거래일들. 그 날은 접속매매가 15:20 에 끝난다
+ */
+export async function ensureSessionWindow(
+  tradeDate: string,
+  lastTradingDays: ReadonlySet<string>,
+): Promise<{ window: SessionWindow | null; created: boolean; reason: string }> {
+  const existing = await loadSessionWindow(tradeDate)
+  const action = decideEnsureSession({
+    tradeDate,
+    exists: existing !== null,
+    isWeekend: isWeekendInSeoul(tradeDate),
+    lastTradingDays,
+  })
+
+  if (action.kind === 'use') return { window: existing, created: false, reason: 'session_exists' }
+  if (action.kind === 'skip') return { window: null, created: false, reason: `no_session:${action.reason}` }
+
+  const built = buildRegularSession({ tradeDate, isExpiryDay: action.isExpiryDay })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { error } = await admin.from('trading_session_calendar').insert(toRow(built))
+  if (error) {
+    /**
+     * 유일 키에 걸렸으면 **같은 분에 다른 실행이 먼저 세운 것**이다. 오류가 아니라 경주다 —
+     * 그쪽이 세운 줄을 읽어 쓴다.
+     */
+    const again = await loadSessionWindow(tradeDate)
+    if (again) return { window: again, created: false, reason: 'session_created_by_other' }
+    throw new Error(`세션 줄을 세우지 못했습니다: ${error.message}`)
+  }
+  return { window: built, created: true, reason: action.isExpiryDay ? 'session_created:expiry' : 'session_created' }
 }

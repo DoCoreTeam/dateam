@@ -49,6 +49,13 @@ export interface ContractInfo {
   expiryMonth: string
   /** 근월물인가 */
   isFront: boolean
+  /**
+   * `YYYY-MM-DD`. 둘째 목요일이고 휴장이면 앞당긴다.
+   *
+   * 여기 함께 두는 이유: 그날이 만기일이면 접속매매가 15:20 에 끝나고, 그 사실을
+   * 세션 창을 세우는 쪽이 알아야 한다. 두 곳에서 따로 계산하면 언젠가 갈린다.
+   */
+  lastTradingDay: string
 }
 
 /**
@@ -91,7 +98,11 @@ export function expiryMonthOf(korName: string): string | null {
  * 연결선물(월물구분 0)과 옵션은 빠진다 — 기초자산이 KOSPI200 이어도 선물이 아니면
  * 봉의 뜻이 다르다.
  */
-export function contractsOf(rows: readonly MasterRow[], root: InstrumentRoot): ContractInfo[] {
+export function contractsOf(
+  rows: readonly MasterRow[],
+  root: InstrumentRoot,
+  holidays: ReadonlySet<string> = new Set(),
+): ContractInfo[] {
   const wanted = INFO_TYPE[root]
   const found: ContractInfo[] = []
   for (const row of rows) {
@@ -101,11 +112,13 @@ export function contractsOf(rows: readonly MasterRow[], root: InstrumentRoot): C
     if (row.monthClass === '0' || row.monthClass === '') continue
     const expiryMonth = expiryMonthOf(row.korName)
     if (!expiryMonth) continue
+    const [year, month] = expiryMonth.split('-').map(Number)
     found.push({
       code: row.shortCode,
       root,
       expiryMonth,
       isFront: row.monthClass === MONTH_CLASS.front,
+      lastTradingDay: lastTradingDay(year, month, holidays),
     })
   }
   return found.sort((a, b) => a.expiryMonth.localeCompare(b.expiryMonth))

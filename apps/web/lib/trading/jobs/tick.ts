@@ -14,8 +14,11 @@ import 'server-only'
  *   5 선점한 판단기만 부른다        — 밖으로 나가는 것은 여기 하나뿐이다
  */
 
-import { loadTradingSettings } from '../settings/store.ts'
-import { loadSessionWindow } from '../calendar/seed.ts'
+import { createAdminClient } from '@/lib/supabase/server'
+import { currentDeployEnv, type DeployEnv } from '@/lib/ai/deploy-env'
+import { loadTradingSettings, seedTradingSettings } from '../settings/store.ts'
+import { ensureSessionWindow } from '../calendar/seed.ts'
+import { loadDayConfig, freezeDayConfig, logicChangedToday } from './day-config.ts'
 import { isContinuousTrading } from '../calendar/session.ts'
 import { syncContracts } from '../contracts/sync.ts'
 import { getAccessToken } from '../broker/token.ts'
@@ -33,6 +36,21 @@ import {
 } from './claim.ts'
 import type { Judge, JudgeName } from '../judge/types.ts'
 
+/**
+ * 실행 이름 — **판마다 다르다.**
+ *
+ * `(job_name, scheduled_minute)` 이 유일 키라 이름이 같으면 운영과 개발이 **같은 분을 두고 다툰다.**
+ * 실측 2026-09-26: 로컬 격리 서버가 크론을 부를 때마다 `already_running` 이 돌아왔다 —
+ * 배포된 운영 크론이 그 분을 이미 잡고 있었기 때문이다.
+ *
+ * 개발이 이기면 더 나쁘다. 운영은 「남이 돌고 있다」로 넘어가고, 정작 수집은
+ * **키도 설정도 다른 개발 기계**가 한다. 그래서 판을 이름에 박는다.
+ */
+export function tickJobName(env: DeployEnv = currentDeployEnv()): string {
+  return env === 'production' ? 'trading-tick' : `trading-tick@${env}`
+}
+
+/** 운영 이름. 화면과 조회가 기본으로 보는 값 */
 export const TICK_JOB_NAME = 'trading-tick'
 
 export interface TickResult {
@@ -55,9 +73,10 @@ function seoulToday(now: Date): string {
  */
 export async function runTick(now: Date, runId: string): Promise<TickResult> {
   const scheduledMinute = scheduledMinuteOf(now)
+  const jobName = tickJobName()
 
-  // 1 이 분을 내가 맡는가
-  const mine = await startJobRun(TICK_JOB_NAME, scheduledMinute)
+  // 1 이 분을 내가 맡는가 — 같은 판 안에서만 다툰다
+  const mine = await startJobRun(jobName, scheduledMinute)
   if (!mine) {
     return { ok: true, reason: 'already_running', userMessage: null }
   }
@@ -65,7 +84,7 @@ export async function runTick(now: Date, runId: string): Promise<TickResult> {
   try {
     const result = await tickBody(now, runId)
     await finishJobRun({
-      jobName: TICK_JOB_NAME,
+      jobName,
       scheduledMinute,
       status: result.ok ? 'done' : 'failed',
       reason: result.reason,
@@ -75,7 +94,7 @@ export async function runTick(now: Date, runId: string): Promise<TickResult> {
   } catch (error) {
     const message = error instanceof Error ? error.message : '알 수 없는 오류'
     await finishJobRun({
-      jobName: TICK_JOB_NAME,
+      jobName,
       scheduledMinute,
       status: 'failed',
       reason: `threw:${message}`,
@@ -98,22 +117,76 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     return typeof value === 'string' && value !== '' ? value : fallback
   }
 
-  // 2 오늘 거래일인가
-  const window = await loadSessionWindow(today)
-  if (!window) {
-    return { ok: true, reason: 'no_session_row', userMessage: '오늘 세션 정보가 없어 건너뜁니다' }
+  const logicVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? null
+
+  /**
+   * 2 오늘 근월물 — **하루에 한 번만 정한다** (§14.4 · §6.3)
+   *
+   * `syncContracts` 는 92KB 마스터를 내려받는다. 분마다 부르면 하루 1,440번이다.
+   * 그래서 그날 굳혀 둔 값이 있으면 그것을 읽고, 없을 때만 받아서 굳힌다.
+   *
+   * 세션보다 먼저 정하는 이유: 그날이 만기일이면 접속매매가 15:20 에 끝나는데
+   * 그 사실은 **월물의 최종거래일**에서만 나온다. 순서를 뒤집으면 만기일마다
+   * 15분 늦은 창을 세우고 그 시간의 단일가 봉으로 판단하게 된다.
+   */
+  const frozen = await loadDayConfig(today)
+  let contractCode: string
+  let expiryDays: Set<string>
+  let syncReason = 'day_config_frozen'
+
+  if (frozen) {
+    contractCode = frozen.frontContractCode
+    // 굳은 날에는 마스터를 안 받는다. 최종거래일은 이미 trading_contracts 에 있다
+    expiryDays = await loadLastTradingDays()
+    if (logicChangedToday(frozen, logicVersion)) {
+      // 막지는 않는다(1-A 는 신호를 안 낸다). 그날을 갈라 셀 수 있게 사실만 남긴다
+      syncReason = `logic_changed:${frozen.tradingLogicVersion}->${logicVersion}`
+    }
+  } else {
+    const root = str('instrument_root', 'MINI_KOSPI200') as 'KOSPI200' | 'MINI_KOSPI200'
+    const sync = await syncContracts({
+      root,
+      overrideFrontCode: str('front_contract_code_override', ''),
+      today,
+    })
+    if (!sync.frontCode) {
+      return { ok: false, reason: sync.reason, userMessage: sync.userMessage }
+    }
+    contractCode = sync.frontCode
+    expiryDays = new Set(sync.contracts.map((c) => c.lastTradingDay))
+
+    /**
+     * 그날 처음 도는 실행이 설정 초기값도 심는다.
+     *
+     * 안 심으면 `settings_version` 이 영원히 0 이고, 「그날 무엇으로 판단했나」를
+     * 되짚을 근거가 없다. 이미 있는 키는 안 건드린다(관리자가 바꾼 값이 되돌아가면 안 된다).
+     */
+    const seeded = await seedTradingSettings(today)
+    const after = seeded.seeded.length > 0 ? await loadTradingSettings(today) : null
+
+    await freezeDayConfig({
+      tradeDate: today,
+      tradingLogicVersion: logicVersion ?? 'unknown',
+      settingsVersion: after?.version ?? settingsVersion,
+      frontContractCode: contractCode,
+    })
+    syncReason = seeded.seeded.length > 0
+      ? `${sync.reason},settings_seeded=${seeded.seeded.length}`
+      : sync.reason
   }
 
-  const root = str('instrument_root', 'MINI_KOSPI200') as 'KOSPI200' | 'MINI_KOSPI200'
-  const sync = await syncContracts({
-    root,
-    overrideFrontCode: str('front_contract_code_override', ''),
-    today,
-  })
-  if (!sync.frontCode) {
-    return { ok: false, reason: sync.reason, userMessage: sync.userMessage }
+  /**
+   * 3 오늘 세션 창 — **없으면 세운다.**
+   *
+   * 예전에는 없으면 그냥 건너뛰었다. 채우는 함수는 있었는데 아무도 안 불러서
+   * 캘린더가 영원히 비었고, 크론은 매분 「세션 정보가 없어 건너뜁니다」로 끝났다.
+   * 봉이 한 줄도 안 쌓이는데 오류는 한 건도 안 났다(실측 2026-09-26).
+   */
+  const session = await ensureSessionWindow(today, expiryDays)
+  const window = session.window
+  if (!window) {
+    return { ok: true, reason: `${session.reason}|${syncReason}`, userMessage: null }
   }
-  const contractCode = sync.frontCode
 
   const env = str('kis_env', 'real') as 'real' | 'paper'
   const token = await getAccessToken({
@@ -138,7 +211,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     minIntervalMs: num('kis_min_interval_ms', 200),
   })
 
-  // 3 직전 1분 봉이 확정됐나
+  // 4 직전 1분 봉이 확정됐나
   const target = targetMinuteFor(now)
   const fetched = await kis.minuteBars({
     contractCode,
@@ -187,7 +260,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     return { ok: true, reason: 'not_continuous_trading', userMessage: null }
   }
 
-  // 4 진입 조건이 걸렸나
+  // 5 진입 조건이 걸렸나
   const params = {
     atrPeriod: num('atr_period', 14),
     smaFastPeriod: num('sma_fast_period', 5),
@@ -211,7 +284,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     return { ok: true, reason: 'no_trigger', userMessage: null }
   }
 
-  // 5 선점한 판단기만 부른다
+  // 6 선점한 판단기만 부른다
   const judges = new Map<JudgeName, Judge>([['rule', createRuleJudge()]])
   const jevModel = str('jev_model', '')
   let jevUnavailable: string | null = null
@@ -236,7 +309,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   })
   const context = {
     triggerId: trigger.id,
-    tradingLogicVersion: process.env.NEXT_PUBLIC_APP_VERSION ?? null,
+    tradingLogicVersion: logicVersion,
     settingsVersion,
   }
 
@@ -276,4 +349,17 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     skipped: outcome.skipped,
     deferred: outcome.deferred,
   }
+}
+
+/**
+ * 상장된 월물들의 최종거래일. 굳은 날에는 마스터를 안 받으므로 표에서 읽는다.
+ *
+ * 세션 창을 세울 때 「오늘이 만기일인가」를 이 집합으로 답한다.
+ */
+async function loadLastTradingDays(): Promise<Set<string>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin.from('trading_contracts').select('last_trading_day')
+  if (error) throw new Error(`최종거래일을 읽지 못했습니다: ${error.message}`)
+  return new Set(((data ?? []) as { last_trading_day: string }[]).map((r) => r.last_trading_day))
 }

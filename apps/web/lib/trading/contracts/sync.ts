@@ -21,7 +21,6 @@ import {
   parseIndexFutureMaster,
   contractsOf,
   frontContractOf,
-  lastTradingDay,
   type ContractInfo,
   type InstrumentRoot,
 } from './contract-rules.ts'
@@ -112,7 +111,7 @@ export async function syncContracts(input: SyncInput): Promise<SyncResult> {
   }
 
   const { rows, dropped } = parseIndexFutureMaster(text)
-  const contracts = contractsOf(rows, input.root)
+  const contracts = contractsOf(rows, input.root, input.holidays)
   const front = frontContractOf(contracts)
 
   if (!front) {
@@ -153,12 +152,12 @@ async function persist(contracts: readonly ContractInfo[], input: SyncInput): Pr
 
   const now = new Date().toISOString()
   const rows = contracts.map((c) => {
-    const [year, month] = c.expiryMonth.split('-').map(Number)
     return {
       code: c.code,
       instrument_id: instrument.id,
       expiry_month: c.expiryMonth,
-      last_trading_day: lastTradingDay(year, month, input.holidays),
+      // contractsOf 가 이미 같은 휴장일로 계산했다. 여기서 다시 계산하면 두 값이 갈린다
+      last_trading_day: c.lastTradingDay,
       is_front: c.isFront,
       synced_at: now,
       // 이 사실을 실제로 알게 된 시각. 백테스트가 미래를 안 보게 하는 자물쇠다(§6.5)
