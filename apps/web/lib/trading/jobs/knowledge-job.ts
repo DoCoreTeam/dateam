@@ -12,7 +12,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import { RUN_BUDGET_MS } from './tick-core.ts'
 import { pickKnowledgeTask, knowledgeReason, type KnowledgeContext } from './knowledge-plan.ts'
-import { analyzeSource } from '../knowledge/sources.ts'
+import { analyzeSource, pendingSourceCount, nextPendingSourceId } from '../knowledge/sources.ts'
 import { explainSignal, signalsNeedingExplanation } from '../knowledge/explain.ts'
 import { makeReport } from '../knowledge/pattern.ts'
 import { proposeFromReport, proposalsAsOf } from '../knowledge/proposal.ts'
@@ -83,11 +83,7 @@ async function buildContext(input: KnowledgeJobInput): Promise<KnowledgeContext>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
 
-  const { count: pending, error: pendingError } = await admin
-    .from('trading_source_analyses')
-    .select('id', { count: 'exact', head: true })
-    .neq('status', 'done')
-  if (pendingError) throw new Error(`자료 대기 수를 세지 못했습니다: ${pendingError.message}`)
+  const pending = await pendingSourceCount()
 
   const unexplained = await signalsNeedingExplanation(5)
   const reports = await reportsAsOf(input.now, 5)
@@ -103,7 +99,7 @@ async function buildContext(input: KnowledgeJobInput): Promise<KnowledgeContext>
   const uncardedSources = analyzed.filter((s) => !haveTopics.has(sourceTopic(s.id))).length
 
   return {
-    pendingSources: pending ?? 0,
+    pendingSources: pending,
     unexplainedSignals: unexplained.length,
     holdingPosition: input.position !== null,
     reportMadeToday: reports.some((r) => r.windowTo === input.tradeDate),
@@ -129,16 +125,7 @@ async function doTask(task: string, input: KnowledgeJobInput): Promise<string> {
 }
 
 async function analyzeOne(input: KnowledgeJobInput): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any
-  const { data, error } = await admin
-    .from('trading_source_analyses')
-    .select('id')
-    .neq('status', 'done')
-    .order('created_at', { ascending: true })
-    .limit(1)
-  if (error) throw new Error(`자료를 고르지 못했습니다: ${error.message}`)
-  const id = (data ?? [])[0]?.id as string | undefined
+  const id = await nextPendingSourceId()
   if (!id) return 'none'
   const r = await analyzeSource(id, input.model)
   return r.analyzed ? `done:kept=${r.kept},dropped=${r.dropped}` : r.reason

@@ -66,6 +66,37 @@ export async function sourcesAsOf(asOf: Date, limit = 50): Promise<StoredSource[
   }))
 }
 
+/**
+ * 아직 분석 안 한 자료 수. **시점 조회가 아니다** — 「지금 할 일이 몇 건인가」이다.
+ *
+ * as-of 를 걸면 안 된다: 방금 넣은 자료를 「아직 알 수 없는 것」으로 보고 영영 안 분석한다.
+ * 할 일을 고르는 조회와 그때 알 수 있던 것을 읽는 조회는 다른 일이다.
+ */
+export async function pendingSourceCount(): Promise<number> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { count, error } = await admin
+    .from('trading_source_analyses')
+    .select('id', { count: 'exact', head: true })
+    .neq('status', 'done')
+  if (error) throw new Error(`자료 대기 수를 세지 못했습니다: ${error.message}`)
+  return count ?? 0
+}
+
+/** 다음에 분석할 자료 하나. 오래된 것부터 — 넣은 순서대로 처리한다 */
+export async function nextPendingSourceId(): Promise<string | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_source_analyses')
+    .select('id')
+    .neq('status', 'done')
+    .order('created_at', { ascending: true })
+    .limit(1)
+  if (error) throw new Error(`자료를 고르지 못했습니다: ${error.message}`)
+  return ((data ?? [])[0]?.id as string | undefined) ?? null
+}
+
 export type IngestResult =
   | { stored: true; id: string; hash: string }
   | { stored: false; reason: string; userMessage: string }
