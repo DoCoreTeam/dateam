@@ -43,6 +43,10 @@ const TRADING = join(WEB, 'lib', 'trading')
 const NOT_CALLED_ON_PURPOSE: Record<string, string> = {
   // 화면과 창구가 아직 안 쓰지만 설정을 바꾸는 유일한 길이다.
   // 설정 화면(1-A 골격 다음 판)이 이것을 부른다 — 그때 이 줄을 지운다
+  // 신호를 내는 규칙이다. 1-C 에서 안전 게이트·신호 규칙이 붙을 때 이어진다 —
+  // 1-B 는 「이 전략이 남는가」를 재는 단계라 신호를 내지 않는다(M3)
+  'meetsMinimumEv': 'SR-01 신호 규칙. 1-C 에서 신호를 낼 때 이어진다',
+  'checkSignalAllowed': 'SR-07 신호 규칙. 1-C 에서 신호를 낼 때 이어진다',
   'saveTradingSetting': '설정 저장의 유일한 길. 설정 편집 화면이 붙을 때 이어진다',
   'saveTradingCredentials': 'KIS 앱키 등록. 설정 화면이 붙을 때 이어진다',
   'getTradingCredentialStatus': '자격증명 등록 여부 표시. 설정 화면이 붙을 때 이어진다',

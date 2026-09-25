@@ -22,6 +22,7 @@ import 'server-only'
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { computeRisk, checkSettingsStorable } from '../risk/arithmetic.ts'
 import { pickEffective, type EffectiveRow } from './pick-effective.ts'
 import {
   TRADING_SETTINGS,
@@ -93,6 +94,17 @@ export async function saveTradingSetting(input: SaveSettingInput): Promise<SaveS
   const rejection = validateSetting(input.key, input.value)
   if (rejection) return { ok: false, rejection }
 
+  /**
+   * **리스크 산술이 안 맞는 설정은 저장되지 않는다** (M6 · §9).
+   *
+   * 일일 손실 한도가 1회 위험보다 작으면 그 설정으로는 어떤 신호도 못 나간다.
+   * 저장해 두면 화면에는 「신호가 안 온다」로만 보이고, 왜 안 오는지는 아무 데도 안 적힌다.
+   */
+  if (input.key === 'daily_loss_limit_krw' && typeof input.value === 'number') {
+    const blocked = await checkLimitAgainstRisk(input.value, input.effectiveTradeDate)
+    if (blocked) return { ok: false, rejection: blocked }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
 
@@ -160,3 +172,38 @@ export async function seedTradingSettings(effectiveTradeDate: string): Promise<{
 }
 
 export { validateSettingSet }
+
+/**
+ * 이 한도로 신호가 나갈 수 있나.
+ *
+ * 상품 규격과 손절 설정에서 「보통의 1회 위험」을 만들어 한도와 견준다.
+ * 규격을 못 읽으면 **막지 않는다** — 읽기 장애가 저장 금지가 되면 설정을 못 고친다.
+ */
+async function checkLimitAgainstRisk(
+  limitKrw: number,
+  tradeDate: string,
+): Promise<SettingRejection | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { values } = await loadTradingSettings(tradeDate)
+  const root = String(values.instrument_root ?? 'MINI_KOSPI200')
+  const { data } = await admin
+    .from('trading_instruments').select('multiplier, tick_size').eq('root', root).maybeSingle()
+  if (!data) return null
+
+  const atr = 1.3
+  const stopMultiple = Number(values.exit_stop_atr_multiple) || 1.2
+  const chaseMultiple = Number(values.exit_chase_atr_multiple) || 0.3
+  const reference = 1100
+  const risk = computeRisk({
+    direction: 'long',
+    instrument: { multiplier: Number(data.multiplier), tickSize: Number(data.tick_size) },
+    referencePrice: reference,
+    stopPrice: reference - stopMultiple * atr,
+    chaseDistance: chaseMultiple * atr,
+    stopSlippageTicks: Number(values.replay_fallback_ticks) || 2,
+    roundTripFeeKrw: Number(values.fee_rate) || 0,
+    quantity: 1,
+  })
+  return checkSettingsStorable({ dailyLossLimitKrw: limitKrw, typicalRisk: risk })
+}

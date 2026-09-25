@@ -12,7 +12,7 @@ import {
   makeRandom, groupByDay, bootstrapExpectancy, bootstrapDifference, isBetterThan,
   type TradeOutcome,
 } from './bootstrap.ts'
-import { profitFactor, maxDrawdownR, equityCurve, summarize } from './metrics.ts'
+import { profitFactor, maxDrawdownR, summarize } from './metrics.ts'
 
 const t = (day: string, r: number): TradeOutcome => ({ tradeDate: day, netPnlR: r })
 
@@ -129,14 +129,6 @@ test('★ 낙폭은 시간 순서를 따른다 — 정렬을 안 하면 값이 �
   const shuffled = [t('2026-01-02', 3), t('2026-01-01', -2)]
   assert.equal(maxDrawdownR(ordered), maxDrawdownR(shuffled))
   assert.equal(maxDrawdownR(ordered), 2)
-})
-
-test('누적 곡선이 날마다 한 점이다', () => {
-  const curve = equityCurve([t('2026-01-01', 1), t('2026-01-01', 1), t('2026-01-02', -0.5)])
-  assert.deepEqual(curve, [
-    { tradeDate: '2026-01-01', equityR: 2 },
-    { tradeDate: '2026-01-02', equityR: 1.5 },
-  ])
 })
 
 test('요약이 거래 수와 날 수를 따로 센다 — 실제 표본 크기는 날 수다', () => {

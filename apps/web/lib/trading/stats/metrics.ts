@@ -40,20 +40,6 @@ export function maxDrawdownR(trades: readonly TradeOutcome[]): number {
   return worst
 }
 
-/** 날짜별 누적 곡선. 화면이 그린다 */
-export function equityCurve(trades: readonly TradeOutcome[]): { tradeDate: string; equityR: number }[] {
-  const ordered = [...trades].sort((a, b) => a.tradeDate.localeCompare(b.tradeDate))
-  const out: { tradeDate: string; equityR: number }[] = []
-  let equity = 0
-  for (const trade of ordered) {
-    equity += trade.netPnlR
-    const last = out[out.length - 1]
-    if (last && last.tradeDate === trade.tradeDate) last.equityR = equity
-    else out.push({ tradeDate: trade.tradeDate, equityR: equity })
-  }
-  return out
-}
-
 export interface PerformanceSummary {
   tradeCount: number
   dayCount: number
