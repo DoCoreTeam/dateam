@@ -30,3 +30,51 @@ export const KIS_TOKEN_PATH = '/oauth2/tokenP'
 
 /** 재발급이 1분 제한에 걸렸을 때 KIS 가 주는 코드 (명세 §17.2 D-51) */
 export const KIS_TOKEN_RATE_LIMIT_CODE = 'EGW00133'
+
+/**
+ * 1-A 가 부르는 조회 넷. **이 배열이 곧 「이 저장소가 KIS 에 할 수 있는 말」의 전부다.**
+ *
+ * 값은 공식 저장소 `koreainvestment/open-trading-api` 의
+ * `examples_llm/domestic_futureoption/<기능명>/` 예제에서 읽어 맞췄다(2026-09-26 확인).
+ * 예제가 아니라 기억으로 적으면 `FID_COND_MRKT_DIV_CODE` 가 `JF` 인지 `F` 인지 같은 것이 틀린다 —
+ * 실제로 예제에는 **`F`(지수선물)** 로 돼 있다.
+ */
+export const KIS_QUOTATIONS = {
+  /** 분봉조회. 실전 1회 최대 102건, 날짜·시각 인자로 이어 조회 */
+  minuteChart: {
+    path: '/uapi/domestic-futureoption/v1/quotations/inquire-time-fuopchartprice',
+    trId: 'FHKIF03020200',
+    /** 모의투자 미지원(명세 §20). 그래서 개발 환경도 실전 조회 전용 키를 쓴다 */
+    paperSupported: false,
+    maxRowsPerCall: 102,
+  },
+  /** 시세. 현재가와 미결제약정을 함께 준다 */
+  price: {
+    path: '/uapi/domestic-futureoption/v1/quotations/inquire-price',
+    trId: 'FHMIF10000000',
+    paperSupported: true,
+    maxRowsPerCall: 1,
+  },
+  /** 시세호가. 최우선 호가로 스프레드를 기록한다 */
+  askingPrice: {
+    path: '/uapi/domestic-futureoption/v1/quotations/inquire-asking-price',
+    trId: 'FHMIF10010000',
+    paperSupported: true,
+    maxRowsPerCall: 1,
+  },
+  /** 기간별시세(일/주/월/년). 일봉 백필에만 쓴다 */
+  dailyChart: {
+    path: '/uapi/domestic-futureoption/v1/quotations/inquire-daily-fuopchartprice',
+    trId: 'FHKIF03020100',
+    paperSupported: true,
+    maxRowsPerCall: 100,
+  },
+} as const
+
+export type KisQuotationKey = keyof typeof KIS_QUOTATIONS
+
+/** 지수선물. 옵션('O')은 이 모듈이 다루지 않는다 */
+export const FID_MARKET_INDEX_FUTURES = 'F'
+
+/** 시간 구분 코드. 30 초와 1분만 있고 5·15분은 우리가 1분을 묶어 만든다(§6.2) */
+export const FID_HOUR_1M = '60'
