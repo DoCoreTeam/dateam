@@ -16,7 +16,7 @@
 // 우리 사실이 아니다.
 
 import {
-  GEMINI, CLAUDE, OPENAI, GROQ, GROK,
+  GEMINI, CLAUDE, OPENAI, GROQ, GROK, JEV,
   matchesKeyPrefix as matchesVendorKeyPrefix,
   detectProviderByKey as detectVendorByKey,
   type VendorCapabilities,
@@ -25,7 +25,7 @@ import {
 export type { VendorCapabilities as AiProviderCapabilities }
 
 /** 등록된 공급자. 새 공급자는 AI_PROVIDERS 에 더하고 이 합집합에 이름을 더한다 */
-export type AiProviderId = 'gemini' | 'claude' | 'openai' | 'groq' | 'grok'
+export type AiProviderId = 'gemini' | 'claude' | 'openai' | 'groq' | 'grok' | 'jev'
 
 export interface AiProviderSpec {
   id: AiProviderId
@@ -99,6 +99,19 @@ export const AI_PROVIDERS: readonly AiProviderSpec[] = [
     meta: { apiKey: 'xai_api_key', model: 'xai_model' },
     defaultModel: 'grok-4',
     purpose: '최신 사건을 묻는 데 강합니다. 시장 동향과 경쟁사 조사에 씁니다.',
+  },
+  {
+    ...JEV,
+    label: 'Jev (Vercel AI Gateway)',
+    meta: { apiKey: 'jev_api_key', model: 'jev_model' },
+    /**
+     * 기본 모델을 안 정한다. 관문 뒤에는 여러 벤더의 모델이 있고 이름이 수시로 바뀐다 —
+     * 여기에 하나를 박아 두면 그 이름이 사라진 날 조용히 404 가 나고,
+     * 화면에는 「AI 가 답을 안 한다」로 보인다. 관리자가 고른 것만 쓴다.
+     */
+    defaultModel: null,
+    purpose: 'AI 트레이딩의 판단 모델(Jev)을 부르는 관문입니다. 여러 벤더 모델을 키 하나로 씁니다.',
+    alsoUsedFor: 'AI 트레이딩 판단 기록에 이 키를 씁니다',
   },
 ] as const
 

@@ -51,7 +51,17 @@ export const CURATED_MODELS: Record<AiChatProviderId, Record<string, CuratedMode
     'grok-4': { label: 'Grok 4', contextLength: 256000, capabilities: { vision: true, longContext: true, reasoning: true }, releasedAt: '2025-07-09' },
     'grok-3': { label: 'Grok 3', contextLength: 131072, capabilities: { vision: true, longContext: true, reasoning: true }, releasedAt: '2025-02-17' },
     'grok-3-mini': { label: 'Grok 3 mini', contextLength: 131072, capabilities: { vision: false, longContext: true, reasoning: true }, releasedAt: '2025-02-17' },
+  },  /**
+   * 관문이라 뒤에 390개가 있다(2026-09-26 `/v1/models` 실측). 전부 적을 수도 없고,
+   * 적어 두면 벤더가 뺀 날 화면만 그대로 남는다. 그래서 **고르기 시작점 셋**만 둔다 —
+   * 값은 그날 관문이 실제로 돌려준 것이고(문맥 길이·출시일 포함), 나머지는 모델 목록 갱신이 채운다.
+   */
+  jev: {
+    'openai/gpt-5-mini': { label: 'GPT-5 mini (관문)', contextLength: 400000, capabilities: { vision: true, longContext: true, reasoning: true }, releasedAt: '2025-08-07' },
+    'anthropic/claude-sonnet-5': { label: 'Claude Sonnet 5 (관문)', contextLength: 1000000, capabilities: { vision: true, longContext: true, reasoning: true }, releasedAt: '2026-06-29' },
+    'google/gemini-2.5-flash': { label: 'Gemini 2.5 Flash (관문)', contextLength: 1000000, capabilities: { vision: true, longContext: true, reasoning: true }, releasedAt: '2025-03-20' },
   },
+
 }
 
 export interface ModelCatalogEntry {
@@ -205,7 +215,18 @@ const MODEL_HEURISTICS: Record<AiChatProviderId, ModelNameHeuristic> = {
     reasoning: (id) => /^grok-[3-9]/.test(id),
     contextLength: UNKNOWN_LENGTH,
     releasedAt: UNKNOWN_DATE,
+  },  jev: {
+    /**
+     * 관문 뒤가 어느 벤더인지는 모델 이름의 앞머리(`openai/…`·`anthropic/…`)가 말한다.
+     * 이름으로 못 읽는 것은 **비워 둔다** — 짐작으로 채우면 화면이 거짓을 말한다.
+     */
+    vision: (id) => /gpt-4o|gpt-5|claude|gemini|sonnet|opus|vision/.test(id),
+    longContext: (id) => /gemini|claude|sonnet|opus/.test(id),
+    reasoning: (id) => /o[134]|gpt-5|thinking|reasoning|opus|r1/.test(id),
+    contextLength: UNKNOWN_LENGTH,
+    releasedAt: UNKNOWN_DATE,
   },
+
 }
 
 /**

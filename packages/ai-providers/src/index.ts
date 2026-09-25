@@ -6,6 +6,7 @@ export {
   OPENAI,
   GROQ,
   GROK,
+  JEV,
 } from './vendor.ts'
 
 export {

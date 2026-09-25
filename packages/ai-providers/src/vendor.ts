@@ -73,6 +73,18 @@ export const GROQ: VendorSpec<'groq'> = {
   keyIssueUrl: 'https://console.groq.com/keys',
 }
 
+/**
+ * Vercel AI Gateway. Not a model maker but a gateway in front of many, so one key reaches
+ * whatever model a deployment settles on. The trading module's judge calls it; chat can too.
+ */
+export const JEV: VendorSpec<'jev'> = {
+  id: 'jev',
+  baseUrl: 'https://ai-gateway.vercel.sh/v1',
+  keyPrefixes: ['vck_'],
+  capabilities: { vision: true, tools: true, thinking: true, defaultMaxOutputTokens: 8192 },
+  keyIssueUrl: 'https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys',
+}
+
 export const GROK: VendorSpec<'grok'> = {
   id: 'grok',
   baseUrl: 'https://api.x.ai/v1',

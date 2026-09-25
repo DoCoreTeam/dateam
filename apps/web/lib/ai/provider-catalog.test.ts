@@ -15,10 +15,17 @@ import {
   type AiProviderSpec,
 } from './provider-catalog.ts'
 
-/* ── 명세가 다섯을 다 갖는가 ──────────────────────────────── */
+/* ── 명세가 여섯을 다 갖는가 ──────────────────────────────── */
 
-test('명세: 다섯 공급자가 순서대로 있다', () => {
-  assert.deepEqual(AI_PROVIDER_IDS, ['gemini', 'claude', 'openai', 'groq', 'grok'])
+test('명세: 여섯 공급자가 순서대로 있다', () => {
+  assert.deepEqual(AI_PROVIDER_IDS, ['gemini', 'claude', 'openai', 'groq', 'grok', 'jev'])
+})
+
+// 관문은 모델을 만들지 않는다. 기본 모델을 박아 두면 그 이름이 사라진 날 조용히 404 가 난다
+test('명세: Jev 는 관문이라 기본 모델이 없고 OpenAI 호환 주소를 갖는다', () => {
+  assert.equal(getProviderSpec('jev').defaultModel, null)
+  assert.equal(getProviderSpec('jev').baseUrl, 'https://ai-gateway.vercel.sh/v1')
+  assert.deepEqual(getProviderSpec('jev').keyPrefixes, ['vck_'])
 })
 
 test('명세: 공급자마다 아홉 자리가 전부 채워져 있다', () => {
@@ -93,11 +100,11 @@ test('명세: 키 접두사가 공급자마다 다르다', () => {
   assert.deepEqual(getProviderSpec('grok').keyPrefixes, ['xai-'])
 })
 
-/* ── 여섯째를 더하면 파생이 전부 따라오는가 ────────────────── */
+/* ── 일곱째를 더하면 파생이 전부 따라오는가 ────────────────── */
 
 // 확장성의 유일한 판정: 명세 배열에 한 줄을 더했을 때
-// 라벨·키맵·기본모델·순서 넷이 **손대지 않고** 여섯이 되는가.
-const SIXTH: AiProviderSpec = {
+// 라벨·키맵·기본모델·순서 넷이 **손대지 않고** 하나 늘어나는가.
+const SEVENTH: AiProviderSpec = {
   id: 'mistral' as AiProviderSpec['id'],
   label: 'Mistral',
   meta: { apiKey: 'mistral_api_key', model: 'mistral_model' },
@@ -109,20 +116,21 @@ const SIXTH: AiProviderSpec = {
   keyIssueUrl: 'https://console.mistral.ai/api-keys',
 }
 
-test('확장: 명세에 하나 더하면 파생 목록 넷이 전부 여섯이 된다', () => {
-  const specs = [...AI_PROVIDERS, SIXTH]
+test('확장: 명세에 하나 더하면 파생 목록 넷이 전부 하나씩 는다', () => {
+  const specs = [...AI_PROVIDERS, SEVENTH]
+  const expected = AI_PROVIDERS.length + 1
 
-  assert.equal(Object.keys(deriveLabels(specs)).length, 6)
+  assert.equal(Object.keys(deriveLabels(specs)).length, expected)
   assert.equal(deriveLabels(specs).mistral, 'Mistral')
 
-  assert.equal(Object.keys(deriveMetaKeys(specs)).length, 6)
+  assert.equal(Object.keys(deriveMetaKeys(specs)).length, expected)
   assert.deepEqual(deriveMetaKeys(specs).mistral, { apiKey: 'mistral_api_key', model: 'mistral_model' })
 
-  assert.equal(Object.keys(deriveDefaultModels(specs)).length, 6)
+  assert.equal(Object.keys(deriveDefaultModels(specs)).length, expected)
   assert.equal(deriveDefaultModels(specs).mistral, 'mistral-large-latest')
 
   assert.deepEqual(deriveOrder(specs).at(-1), 'mistral')
-  assert.equal(deriveOrder(specs).length, 6)
+  assert.equal(deriveOrder(specs).length, expected)
 })
 
 test('확장: 파생 목록은 실제 명세와도 맞는다', () => {
