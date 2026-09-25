@@ -167,6 +167,17 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §19 「보유 기준」',
   },
   {
+    key: 'jev_model',
+    group: 'decision',
+    label: 'Jev 모델',
+    help: '관문(Vercel AI Gateway) 뒤에서 부를 모델 이름. 비우면 Jev 판단을 안 부르고 rule 만 기록한다',
+    type: 'string',
+    // 기본값을 안 정한다. 관문 뒤 모델 이름은 벤더가 수시로 바꾸고, 박아 두면 사라진 날 조용히 404 가 난다
+    defaultValue: '',
+    usedFrom: '1-A',
+    source: '명세 §4 · §17.1 (Jev 호출)',
+  },
+  {
     key: 'atr_period',
     group: 'decision',
     label: 'ATR 기간',
