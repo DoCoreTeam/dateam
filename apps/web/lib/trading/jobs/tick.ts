@@ -39,6 +39,8 @@ import { runWatch } from './watch.ts'
 import { createAccountClient } from '../broker/account.ts'
 import { syncFills, loadFills } from '../position/fills.ts'
 import { foldFills, expectedFrom, type FoldResult } from '../position/from-fills.ts'
+import { measureGate, BROKER_OK_MARK, BROKER_FAILED_MARK } from '../gate/measure.ts'
+import { measurementNote } from '../gate/measure-core.ts'
 import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
@@ -356,6 +358,30 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     positionNote += `,protection_failed:${error instanceof Error ? error.message : 'unknown'}`
   }
 
+  /**
+   * 게이트가 볼 값 여섯을 **잰다.**
+   *
+   * 여기까지 오면 증권사 조회 넷(호가·시세·잔고·체결)의 성패를 안다. 그것을 실행 기록에
+   * 표식으로 남기고, 다음 실행이 그 표식을 뒤에서부터 세어 연속 실패를 잰다.
+   */
+  const brokerFailedThisRun = !price.ok || !quote.ok || fillNote.startsWith('fills_failed')
+  const gate = await measureGate({
+    /**
+     * 판마다 이름이 다르다(`trading-tick@preview`). 운영 이름을 박으면
+     * 미리보기 실행이 **운영의 연속 실패를 읽어** 남의 상태로 자기 게이트를 연다
+     */
+    jobName: tickJobName(),
+    now,
+    scheduledMinute: scheduledMinuteOf(now),
+    account,
+    brokerFailedThisRun,
+    calibrationVersion: str('calibration_version', ''),
+    specVersion: str('decision_spec_version', ''),
+    tightRatePercent: num('gate_margin_tight_rate_percent', 100),
+    aiSurface: 'trading',
+  })
+  const brokerMark = brokerFailedThisRun ? BROKER_FAILED_MARK : BROKER_OK_MARK
+
   if (account) {
     try {
       const watch = await runWatch({
@@ -391,13 +417,13 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
         gateContext: {
           barMissingOrLate: false,
           spreadAbnormal: false,
-          brokerFailureStreak: 0,
-          minutesSinceLastRun: 0,
+          brokerFailureStreak: gate.brokerFailureStreak,
+          minutesSinceLastRun: gate.minutesSinceLastRun,
           notifyFailureStreak: 0,
-          hasCalibration: false,
-          hasActiveSpec: false,
-          marginTight: false,
-          aiBudgetExhausted: false,
+          hasCalibration: gate.hasCalibration,
+          hasActiveSpec: gate.hasActiveSpec,
+          marginTight: gate.marginTight,
+          aiBudgetExhausted: gate.aiBudgetExhausted,
           marketAbnormal: false,
           logicChangedToday: syncReason.startsWith('logic_changed'),
         },
@@ -430,11 +456,11 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   })
 
   if (decision.kind === 'retry') {
-    return { ok: true, reason: `bar_not_ready|${fillNote}|${positionNote}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_not_ready|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate)}|${watchNote}`, userMessage: null }
   }
   if (decision.kind === 'missing') {
     // 결측은 그 분의 판단을 건너뛰고 **사실을 남긴다**. 늦게 온 값으로 다시 판단하지 않는다
-    return { ok: true, reason: `bar_missing:${target.toISOString()}|${fillNote}|${positionNote}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_missing:${target.toISOString()}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate)}|${watchNote}`, userMessage: null }
   }
 
   /**
@@ -622,7 +648,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   return {
     ok: true,
-    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${fillNote}|${positionNote}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
+    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate)}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,

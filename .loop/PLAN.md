@@ -1,6 +1,6 @@
 # PLAN newAX: 만든 것이 실제로 불리게 한다 — 체결 인식·포지션·손익·게이트 값·주문 배선
 플랜 ID: P0064
-플랜 버전: v0.1.6
+플랜 버전: v0.1.7
 상태: 진행중
 지시: ins_0111
 목표 버전: v0.10.536
@@ -65,13 +65,14 @@
 의존: I01
 
 ### I03 게이트 값을 실제로 잰다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/trading/gate/measure.ts (신규), apps/web/lib/trading/gate/measure.test.ts (신규), apps/web/lib/trading/jobs/tick.ts, apps/web/package.json
+범위: apps/web/lib/trading/gate/measure-core.ts (신규), apps/web/lib/trading/gate/measure-core.test.ts (신규), apps/web/lib/trading/gate/measure.ts (신규), apps/web/lib/trading/settings/registry.ts, apps/web/lib/trading/jobs/tick.ts, apps/web/package.json
 감사 기준:
 - `brokerFailureStreak` 가 **실제 최근 조회 결과**로 센다 — 지금은 `[{ok:false}]` 를 손으로 만들어 넘겨 늘 1 이다
 - `minutesSinceLastRun`·`hasCalibration`·`hasActiveSpec`·`marginTight`·`aiBudgetExhausted` 를 잰다, `marginTight` 는 `account.deposit()` 에서 온다
-- 못 재는 것은 `false` 대신 그 이유를 실행 기록에 남긴다
+- 못 재는 것은 `false` 대신 그 이유를 실행 기록에 남긴다 — 조용히 통과한 것과 재 보고 통과한 것은 다른 사실이다
+- 새 설정 둘(`calibration_version`·`gate_margin_tight_rate_percent`)은 env 가 아니라 설정 등록부에 넣는다
 - `pnpm test` 에 등재하고 통과
 - 보안: 밖에서 온 값을 다룬다(세 질문 ③) → KIS 증거금 응답을 숫자로 바꿀 때 `Number.isFinite` 로 거르고, 못 읽으면 「여유 있음」이 아니라 「모름」으로 둔다
 의존: I01
@@ -123,9 +124,11 @@
 - v0.1.4 (2026-09-25) I02 와 I03 을 합침, 순수 모듈만 만들고 안 부르면 배선 가드가 잡는다 (audit:I02)
 - v0.1.5 (2026-09-25) I02 에 position/plan.ts 를 더함, 손절가와 손절 확인 상태를 읽을 자리가 필요 (audit:I02)
 - v0.1.6 (2026-09-25) I02 에 rollup.test.ts 를 더함, 시세를 앞으로 옮기니 구간 기반 가드가 느슨해졌다 (audit:I02)
+- v0.1.7 (2026-09-25) I03 에 설정 등록부를 더함, 새 설정 둘이 등록부에 없으면 화면에서 못 고친다 (audit:I03)
 - v0.1.1 (2026-09-25) 가드를 맨 앞에서 맨 뒤로 옮겼다. 가드가 지금 상태를 잡으면 플랜 내내 빨갛고, 그러면 어느 항목도 통과 못 한다. 배선을 먼저 하고 가드로 잠근다 (audit:I01)
 - v0.1.2 (2026-09-25) KIS 주문체결내역에 체결시각 칼럼이 없다는 것을 공식 저장소에서 확인했다. filled_at 이 NOT NULL 이라 주문 시각을 넣으면 체결 지연이 조용히 0 이 된다. 마이그 288 로 null 허용 + first_seen_at 상한을 더해 하한과 상한으로 둔다 (audit:I01)
 - v0.1.3 (2026-09-25) 체결 조회를 붙이려니 AccountClient 를 또 만들게 됐다. 속도 제한 큐가 둘이면 KIS 제한을 두 배로 넘긴다. tick 이 한 벌 만들어 감시와 체결이 같이 쓰게 범위를 넓힌다 (audit:I01)
 - v0.1.4 (2026-09-25) 순수 모듈만 만드는 항목은 통과할 수 없다. 배선 가드가 소비처 0 을 잡기 때문이고 그것이 맞는 동작이다. 포지션 접기와 감시 배선을 한 항목으로 합친다 (audit:I02)
 - v0.1.5 (2026-09-25) 손절가는 포지션을 연 신호에 있고 손절 확인 상태는 position_events 마지막 줄에 있다. 둘을 읽을 자리가 없어 position/plan.ts 를 더한다 (audit:I02)
 - v0.1.6 (2026-09-25) 시세를 감시 앞으로 옮기니 rollup.test.ts 의 구간 기반 가드가 봉 조회 실패까지 세게 됐다. 구간이 아니라 price.ok·quote.ok 로 되돌아가는 조건이 있는지를 본다 (audit:I02)
+- v0.1.7 (2026-09-25) 증거금 빡빡 기준과 보정 판 번호가 설정 등록부에 없었다. 등록부에 없으면 화면에 안 뜨고 DB 에 저장할 자리도 없어 결국 코드 고정값이 된다 (audit:I03)

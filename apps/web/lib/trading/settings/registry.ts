@@ -90,6 +90,16 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §14.5 · M11',
   },
   {
+    key: 'calibration_version',
+    group: 'basic',
+    label: '보정 모델 판',
+    help: '이 판으로 맞춘 보정 모델이 있어야 신호가 나간다. 비워 두면 판을 안 가리고 아무 보정이나 있으면 된다',
+    type: 'string',
+    defaultValue: '',
+    usedFrom: '1-C',
+    source: '명세 §10.1 SG-08 · M3',
+  },
+  {
     key: 'decision_spec_version',
     group: 'basic',
     label: '판단 스펙 판',
@@ -761,6 +771,19 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
   // ── 안전 게이트 (§10.1) ─────────────────────────────────
   //
   // **기준값만 있고 끄는 설정은 없다.** 게이트를 끌 수 있으면 언젠가 꺼 놓은 채로 돈다.
+  {
+    key: 'gate_margin_tight_rate_percent',
+    group: 'safety',
+    label: 'SG-06 증거금 빡빡 판정 유지율',
+    help: '위탁증거금 유지율이 이 밑으로 내려가면 새 신호를 막는다. 추가 증거금이 붙으면 유지율과 상관없이 막는다',
+    type: 'number',
+    defaultValue: 100,
+    unit: '%',
+    min: 50,
+    max: 300,
+    usedFrom: '1-C',
+    source: '명세 §10.1 SG-06',
+  },
   {
     key: 'gate_max_broker_failure_streak',
     group: 'safety',
