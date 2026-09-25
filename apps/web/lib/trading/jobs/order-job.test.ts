@@ -33,13 +33,37 @@ test('★ 주문이 실패해도 앞의 일이 산다', () => {
   assert.ok(fn.includes('order_failed:'))
 })
 
-test('★ 빈 인증으로 주문이 나가는 길이 없다 — 계좌를 안 넘긴다', () => {
+/**
+ * **고정값의 존재가 아니라 뜻을 본다.**
+ *
+ * 처음에는 `fn.includes('acct: null')` 로 봤다. 그때는 크론이 정말 계좌를 안 넘겼고
+ * 그 줄이 그 사실이었다. 그런데 이 가드는 **배선하면 반드시 빨개진다** — 계좌를 넘기는
+ * 것이 목적인 판에서 「계좌를 안 넘겼나」를 물으니까. 그때 할 일은 가드를 지우는 것이
+ * 아니라 원래 지키려던 것을 다시 적는 것이다: **빈 인증이 주문 창구에 닿지 않는다.**
+ */
+test('★ 빈 인증으로 주문이 나가는 길이 없다', () => {
   const tick = readFileSync(join(HERE, 'tick.ts'), 'utf8')
   const fn = tick.slice(tick.indexOf('async function orderOrExplain'))
-  assert.ok(fn.includes('acct: null'), '계좌를 넘긴다 — 무장 전에 주문이 나갈 수 있다')
+  const code = fn.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+
+  // ① 빈 문자열 인증을 그 자리에서 지어내지 않는다
+  assert.doesNotMatch(code, /accessToken:\s*['"]['"]/,
+    '빈 접속표를 만들어 넘긴다 — 인증 없이 주문 창구를 두드린다')
+  assert.doesNotMatch(code, /appKey:\s*['"]['"]/, '빈 앱키를 만들어 넘긴다')
+
+  // ② 계좌가 없으면 주문 자체를 만들지 않는다
+  assert.match(code, /account \? await loadPendingEntry\(/,
+    '계좌가 없어도 낼 주문을 찾는다')
+
+  // ③ 그래도 계좌가 null 로 닿으면 주문 일이 첫 줄에서 돌려보낸다
   const job = readFileSync(join(HERE, 'order-job.ts'), 'utf8')
   assert.ok(job.includes("if (!input.acct) return { reason: 'order=no_account'"),
     '계좌가 없어도 진행한다')
+
+  // ④ 무장 확인이 계좌 확인 **다음**이다. 순서가 바뀌면 무장만으로 주문을 시도한다
+  const run = job.slice(job.indexOf('export async function runOrderJob'))
+  assert.ok(run.indexOf('!input.acct') < run.indexOf('armedNow('),
+    '계좌를 보기 전에 무장을 본다')
 })
 
 test('★ 순서가 규칙이다 — 무장 → 멈추는 장치 → 모르는 주문 → 청산 → 진입', () => {

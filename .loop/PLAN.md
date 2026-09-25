@@ -1,6 +1,6 @@
 # PLAN newAX: 만든 것이 실제로 불리게 한다 — 체결 인식·포지션·손익·게이트 값·주문 배선
 플랜 ID: P0064
-플랜 버전: v0.1.7
+플랜 버전: v0.1.8
 상태: 진행중
 지시: ins_0111
 목표 버전: v0.10.536
@@ -78,14 +78,16 @@
 의존: I01
 
 ### I04 주문에 계좌와 관문을 넘긴다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/trading/jobs/tick.ts, apps/web/lib/trading/order/pending.ts (신규), apps/web/lib/trading/order/pending.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/trading/jobs/tick.ts, apps/web/lib/trading/order/pending.ts (신규), apps/web/lib/trading/order/pending-core.ts (신규), apps/web/lib/trading/order/pending-core.test.ts (신규), apps/web/lib/trading/jobs/order-job.test.ts, apps/web/package.json
 감사 기준:
 - `acct`·`auth`·`armCtx`·`pendingEntry`·`openPosition`·`openOrderNos` 가 고정값이 아니다
 - `pendingEntry` 는 **아직 주문 안 낸 신호**만 — `trading_orders` 에 같은 신호의 `entry` 가 있으면 안 나온다
 - `openOrderNos` 는 `account.openOrders()` 에서 온다
 - 무장이 꺼져 있으면 여전히 `order=not_armed` 로 끝난다 — 배선이 무장을 켜지 않는다
+- 「빈 인증으로 주문이 나가는 길이 없다」 가드를 **고정값이 아니라 뜻으로** 다시 쓴다 — `acct: null` 이 박혀 있는지가 아니라 빈 인증이 갈 수 있는지를 본다
+- 봉이 없으면 청산 주문을 안 낸다 — 없을 때 손절가를 대신 넣으면 안 닿은 손절이 닿은 것이 된다
 - 일부러 깨기: 무장 표를 BEGIN 안에서 켜도 `checkArming` 이 막는 줄이 남는지 확인 후 ROLLBACK
 - 보안: 새 창구를 여나(②) 아니오, 표에 쓰나(①) 예 → `trading_orders` 가 RLS 켜짐·정책 0개임을 확인, 주문 인증은 `createAdminClient` 뒤에서만 만들어지고 화면으로 안 나간다
 의존: I02, I03
@@ -125,6 +127,7 @@
 - v0.1.5 (2026-09-25) I02 에 position/plan.ts 를 더함, 손절가와 손절 확인 상태를 읽을 자리가 필요 (audit:I02)
 - v0.1.6 (2026-09-25) I02 에 rollup.test.ts 를 더함, 시세를 앞으로 옮기니 구간 기반 가드가 느슨해졌다 (audit:I02)
 - v0.1.7 (2026-09-25) I03 에 설정 등록부를 더함, 새 설정 둘이 등록부에 없으면 화면에서 못 고친다 (audit:I03)
+- v0.1.8 (2026-09-25) I04 에 order-job.test.ts 를 더함, 고정값을 지키라고 쓴 가드는 배선하면 반드시 빨개진다 (audit:I04)
 - v0.1.1 (2026-09-25) 가드를 맨 앞에서 맨 뒤로 옮겼다. 가드가 지금 상태를 잡으면 플랜 내내 빨갛고, 그러면 어느 항목도 통과 못 한다. 배선을 먼저 하고 가드로 잠근다 (audit:I01)
 - v0.1.2 (2026-09-25) KIS 주문체결내역에 체결시각 칼럼이 없다는 것을 공식 저장소에서 확인했다. filled_at 이 NOT NULL 이라 주문 시각을 넣으면 체결 지연이 조용히 0 이 된다. 마이그 288 로 null 허용 + first_seen_at 상한을 더해 하한과 상한으로 둔다 (audit:I01)
 - v0.1.3 (2026-09-25) 체결 조회를 붙이려니 AccountClient 를 또 만들게 됐다. 속도 제한 큐가 둘이면 KIS 제한을 두 배로 넘긴다. tick 이 한 벌 만들어 감시와 체결이 같이 쓰게 범위를 넓힌다 (audit:I01)
@@ -132,3 +135,4 @@
 - v0.1.5 (2026-09-25) 손절가는 포지션을 연 신호에 있고 손절 확인 상태는 position_events 마지막 줄에 있다. 둘을 읽을 자리가 없어 position/plan.ts 를 더한다 (audit:I02)
 - v0.1.6 (2026-09-25) 시세를 감시 앞으로 옮기니 rollup.test.ts 의 구간 기반 가드가 봉 조회 실패까지 세게 됐다. 구간이 아니라 price.ok·quote.ok 로 되돌아가는 조건이 있는지를 본다 (audit:I02)
 - v0.1.7 (2026-09-25) 증거금 빡빡 기준과 보정 판 번호가 설정 등록부에 없었다. 등록부에 없으면 화면에 안 뜨고 DB 에 저장할 자리도 없어 결국 코드 고정값이 된다 (audit:I03)
+- v0.1.8 (2026-09-25) 빈 인증 가드가 acct: null 이 코드에 있는지를 봐서 배선하자마자 빨개졌다. 고정값의 존재가 아니라 빈 인증이 갈 수 있는지를 보도록 다시 쓴다 (audit:I04)

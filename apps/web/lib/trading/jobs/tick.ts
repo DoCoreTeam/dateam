@@ -40,6 +40,7 @@ import { createAccountClient } from '../broker/account.ts'
 import { syncFills, loadFills } from '../position/fills.ts'
 import { foldFills, expectedFrom, type FoldResult } from '../position/from-fills.ts'
 import { measureGate, BROKER_OK_MARK, BROKER_FAILED_MARK } from '../gate/measure.ts'
+import { loadPendingEntry, loadArmContext } from '../order/pending.ts'
 import { measurementNote } from '../gate/measure-core.ts'
 import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
@@ -284,6 +285,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   let watchNote = 'watch=off'
   let fillNote = 'fills=off'
+  let reconciliationRequired = false
   const accountRef = await loadAccountRef(env, str('kis_account_product_code', '03'))
   /**
    * 계좌 창구는 **한 벌**이다.
@@ -291,10 +293,13 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    * 감시도 체결도 게이트도 같은 계좌를 묻는다. 각자 만들면 속도 제한 큐가 셋이 되고
    * 큐는 자기 것만 세니까 셋이 동시에 나가 KIS 제한을 넘긴다. 한 벌을 돌려 쓴다.
    */
+  const auth = {
+    accessToken: token.accessToken, appKey: credential.appKey, appSecret: credential.appSecret,
+  }
   const account = accountRef
     ? createAccountClient({
       env,
-      auth: { accessToken: token.accessToken, appKey: credential.appKey, appSecret: credential.appSecret },
+      auth,
       acct: accountRef,
       minIntervalMs: num('kis_min_interval_ms', 200),
       isNight,
@@ -305,9 +310,12 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    * 체결을 먼저 읽는다 — 감시가 「우리 기록」과 계좌를 대조하는데,
    * 그 기록이 이것으로 쌓인다. 순서를 뒤집으면 늘 한 판 늦은 기록으로 대조한다.
    */
+  let openOrderNos: string[] = []
   if (account) {
     try {
-      fillNote = (await syncFills(account, today.replaceAll('-', ''), now)).reason
+      const synced = await syncFills(account, today.replaceAll('-', ''), now)
+      fillNote = synced.reason
+      openOrderNos = synced.openOrderNos
     } catch (error) {
       fillNote = `fills_failed:${error instanceof Error ? error.message : 'unknown'}`
     }
@@ -429,8 +437,16 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
         },
       })
       watchNote = watch.reason
+      /**
+       * 대조가 어긋난 사실을 **주문까지 들고 간다.**
+       * 어긋난 채로 주문하면 어긋남이 두 배가 되고, 그것을 A4 와 멈추는 장치가 본다.
+       */
+      reconciliationRequired = watch.lockedReason !== null
+        || watch.positionState === 'reconciliation_required'
     } catch (error) {
       watchNote = `watch_failed:${error instanceof Error ? error.message : 'unknown'}`
+      // 감시가 죽었으면 어긋났는지 모른다. 모르면 막는 쪽이다
+      reconciliationRequired = true
     }
   } else {
     watchNote = 'watch=no_account'
@@ -631,7 +647,21 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    * 신호 발행 뒤에 둔다: 이번 분에 난 신호를 같은 분에 주문한다.
    * 무장이 안 됐으면 여기서 끝나고, 그것이 Release 1~3 과 같은 상태다.
    */
-  const orderNote = await orderOrExplain({ now, today, str, num })
+  const orderNote = await orderOrExplain({
+    now, today, str, num, values, contractCode, window,
+    account, acct: accountRef, auth,
+    folded, plan,
+    reconciliationRequired,
+    /**
+     * 손절가를 지났나. 감시가 이미 판정해 알림까지 보냈고, 여기서는 **주문을 멈추는**
+     * 데 쓴다 — 손절을 지난 채로 새 진입을 내면 그 분에 두 배로 물린다.
+     */
+    protectionBreached: protection.state === 'breached',
+    openOrderNos,
+    // 청산 계기는 종가가 아니라 봉의 범위로 본다 (설계 §5)
+    barHigh: decision.bar.high,
+    barLow: decision.bar.low,
+  })
 
   const knowledgeNote = await knowledgeOrExplain({
     now, today, window, target, contractCode, num, str, indicators,
@@ -809,41 +839,72 @@ async function readOwnerId(today: string): Promise<string | null> {
   return owner === '' ? null : owner
 }
 
-/** 주문 한 걸음. 실패해도 수집·판단·신호는 이미 끝났다 */
+/**
+ * 주문 한 걸음. 실패해도 수집·판단·신호는 이미 끝났다.
+ *
+ * **여기가 무장을 켜지 않는다.** 계좌와 관문을 넘길 뿐이고, 막는 것은 `checkArming` 과
+ * `armedNow` 다. 무장이 꺼져 있으면 지금까지처럼 `order=not_armed` 로 끝난다.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function orderOrExplain(ctx: any): Promise<string> {
   try {
-    const { now, today, str, num } = ctx
+    const {
+      now, today, str, num, values, account, acct, auth,
+      folded, plan, protectionBreached, reconciliationRequired, openOrderNos, contractCode, window,
+    } = ctx
     const env = str('kis_env', 'real') as 'real' | 'paper'
+    const dayStart = new Date(`${today}T00:00:00+09:00`)
+    const dayEnd = new Date(`${today}T23:59:59+09:00`)
+
+    /**
+     * 미체결 주문번호는 **체결 조회가 이미 받아 온 것**을 쓴다.
+     * 여기서 또 물으면 같은 분에 같은 창구를 두 번 두드린다.
+     */
+    const open = openOrderNos as string[]
+
     const result = await runOrderJob({
       now,
       env,
       session: isNightHour(now) ? 'night' : 'day',
-      auth: { accessToken: '', appKey: '', appSecret: '' },
-      /**
-       * 계좌를 안 넘긴다. 무장이 안 된 지금은 `no_account` 로 끝나고,
-       * 무장을 켜는 날 여기를 채운다 — **빈 인증으로 주문이 나가는 길을 안 만든다.**
-       */
-      acct: null,
-      dayStart: new Date(`${today}T00:00:00+09:00`),
-      dayEnd: new Date(`${today}T23:59:59+09:00`),
+      auth,
+      acct,
+      dayStart,
+      dayEnd,
       maxOrdersPerDay: num('order_max_per_day', 12),
       maxOrderFailureStreak: num('order_max_failure_streak', 3),
-      reconciliationRequired: false,
-      protectionBreached: false,
-      armCtx: {
-        env,
-        gatePassed: false, gateInsufficient: 0,
-        notifyEnabled: false,
-        paperAutoDays: 0, requiredPaperDays: num('order_required_paper_days', 20),
-        reconciliationRequired: false,
-        gateFailCount: 0,
-        riskPerTradeKrw: 0, dailyLossLimitKrw: num('daily_loss_limit_krw', 0),
-        paperExpectancyLowerR: null,
-      },
-      pendingEntry: null,
-      openPosition: null,
-      openOrderNos: [],
+      reconciliationRequired,
+      protectionBreached,
+      armCtx: await loadArmContext({
+        env, jobName: tickJobName(), dayStart, dayEnd, values, reconciliationRequired,
+      }),
+      // 계좌가 없으면 주문도 없다. `runOrderJob` 이 첫 줄에서 돌려보낸다
+      pendingEntry: account ? await loadPendingEntry(contractCode, dayStart, dayEnd) : null,
+      /**
+       * 청산 계획은 포지션을 연 **신호**에 있다. 신호를 못 찾으면 청산 주문을 안 낸다 —
+       * 어디서 나올지 모르는 채로 파는 것은 자동 청산이 아니라 그냥 파는 것이다.
+       */
+      openPosition: folded.open && plan && folded.open.signalId
+        && Number.isFinite(ctx.barHigh) && Number.isFinite(ctx.barLow)
+        ? {
+          signalId: folded.open.signalId,
+          contractCode,
+          direction: folded.open.direction,
+          stopPrice: plan.stopPrice,
+          targetPrice: plan.targetPrice,
+          /**
+           * 봉이 없으면 청산 주문을 **안 낸다.** 예전에는 없을 때 손절가를 대신 넣었는데,
+           * 그러면 「봉의 저가가 손절가와 같다」가 되어 안 닿은 손절이 닿은 것이 된다.
+           * 없는 관측으로 파는 것은 자동 청산이 아니다.
+           */
+          barHigh: ctx.barHigh as number,
+          barLow: ctx.barLow as number,
+          minutesHeld: Math.max(0, Math.floor((now.getTime() - new Date(folded.open.openedAt).getTime()) / 60_000)),
+          timeExitMinutes: plan.timeExitMinutes,
+          now,
+          sameDayExitAt: sameDayExitAt(window, num('session_close_exit_minutes', 15)),
+        }
+        : null,
+      openOrderNos: open,
     })
     return result.reason
   } catch (error) {
