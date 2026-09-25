@@ -17,8 +17,9 @@ import { loadSessionWindow } from './calendar/seed.ts'
 import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
 import type { DayCoverage, JudgmentRow, RunRow, TradingOverview } from './overview-shape.ts'
+import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
 
-export type { DayCoverage, JudgmentRow, RunRow, TradingOverview } from './overview-shape.ts'
+export type { DayCoverage, JudgmentRow, RunRow, TradingOverview, GateSummary } from './overview-shape.ts'
 export { isDayComplete, missingCount } from './overview-shape.ts'
 
 /** 오늘부터 거슬러 며칠을 보나. 1-A 완료 기준이 5거래일이라 주말을 감안해 넉넉히 */
@@ -106,11 +107,54 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     userMessage: (row.user_message as string | null) ?? null,
   }))
 
+  /**
+   * 관문 판정. 백테스트를 아직 안 돌렸으면 **전부 「아직 못 잼」** 이 나온다 —
+   * 그것이 지금 상태의 정확한 이름이다. 「미달」로 말하면 전략이 나쁜 것으로 읽힌다.
+   */
+  const { data: runRows2, error: runErr } = await admin
+    .from('trading_backtest_runs')
+    .select('window_kind, trade_count, net_expectancy_r, profit_factor, max_drawdown_krw')
+    .order('started_at', { ascending: false })
+    .limit(50)
+  if (runErr) throw new Error(`백테스트 결과를 읽지 못했습니다: ${runErr.message}`)
+  const runs = (runRows2 ?? []) as Record<string, number | string | null>[]
+  const sumBy = (kind: string) => runs
+    .filter((r) => r.window_kind === kind)
+    .reduce((acc, r) => acc + Number(r.trade_count ?? 0), 0)
+
+  const gateVerdict = evaluateGate({
+    thresholds: {
+      minValidateTrades: Number(values.gate_min_validate_trades) || 500,
+      minLockboxTrades: Number(values.gate_min_lockbox_trades) || 100,
+      minProfitFactor: Number(values.gate_min_profit_factor) || 1.25,
+      maxDrawdownLimitMultiple: Number(values.gate_max_drawdown_multiple) || 8,
+      dailyLossLimitKrw: Number(values.daily_loss_limit_krw) || 0,
+      minJudgeImprovementR: Number(values.gate_min_judge_improvement_r) || 0.05,
+    },
+    validateTradeCount: sumBy('validate'),
+    lockboxTradeCount: sumBy('lockbox'),
+    validateExpectancy: null,
+    lockboxExpectancy: null,
+    harshExpectancyR: null,
+    profitFactor: null,
+    maxDrawdownR: null,
+    riskPerTradeKrw: null,
+    calibration: null,
+    judgeComparison: null,
+    riskArithmeticOk: null,
+  })
+
   return {
     contractCode,
     coverage,
     judgments,
     recentRuns,
+    gate: {
+      passed: gateVerdict.passed,
+      failedCount: gateVerdict.failedCount,
+      insufficientCount: gateVerdict.insufficientCount,
+    },
+    gateCriteria: gateVerdict.criteria,
     empty: coverage.every((d) => d.actual === 0) && judgments.length === 0,
   }
 }

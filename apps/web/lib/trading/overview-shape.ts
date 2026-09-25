@@ -40,11 +40,25 @@ export interface RunRow {
   userMessage: string | null
 }
 
+import type { CriterionResult } from './gate/criteria.ts'
+
+export type { CriterionResult }
+
+/** 관문 판정. 아직 아무것도 못 쟀으면 criteria 가 비어 있다 */
+export interface GateSummary {
+  passed: boolean
+  failedCount: number
+  insufficientCount: number
+}
+
 export interface TradingOverview {
   contractCode: string | null
   coverage: DayCoverage[]
   judgments: JudgmentRow[]
   recentRuns: RunRow[]
+  gate: GateSummary
+  /** 관문 항목별 판정 */
+  gateCriteria: CriterionResult[]
   /** 아직 아무것도 안 모였나. 빈 화면과 고장난 화면을 구분해 말해야 한다 */
   empty: boolean
 }

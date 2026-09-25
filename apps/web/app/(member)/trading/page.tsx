@@ -10,6 +10,7 @@ import { CandlestickChart } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import BarCoverage from './BarCoverage'
 import JudgmentList from './JudgmentList'
+import BacktestPanel from './BacktestPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -50,6 +51,13 @@ export default async function TradingPage() {
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
         <BarCoverage days={overview.coverage} />
         <JudgmentList rows={overview.judgments} />
+
+        <BacktestPanel
+          criteria={overview.gateCriteria}
+          passed={overview.gate.passed}
+          failedCount={overview.gate.failedCount}
+          insufficientCount={overview.gate.insufficientCount}
+        />
 
         {overview.recentRuns.length > 0 && (
           <section className="card">
