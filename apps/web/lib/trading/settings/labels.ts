@@ -18,6 +18,10 @@ export const TRADING_GROUP_LABEL: Record<TradingSettingGroup, string> = {
   risk: '일일 한도',
   replay: '체결 재현',
   validation: '검증',
+  signal: '신호 규칙',
+  safety: '안전 게이트',
+  exit: '청산',
+  notify: '알림',
 }
 
 /**

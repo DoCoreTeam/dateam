@@ -20,6 +20,7 @@ import {
   validateSettingSet,
 } from './registry.ts'
 import { pickEffective } from './pick-effective.ts'
+import { TRADING_GROUP_LABEL } from './labels.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const TRADING_DIR = join(HERE, '..')
@@ -179,4 +180,83 @@ test('거래일 기준으로 유효한 판만 고른다 — 미리 저장한 다
 
   const tomorrow = pickEffective(rows, '2026-09-26')
   assert.equal(tomorrow.get('jev_timeout_seconds')?.value, 20)
+})
+
+// ── 규칙이 읽을 값이 실제로 있나 ─────────────────────────
+
+/**
+ * `SignalRuleThresholds`·`SafetyThresholds` 는 값을 **인자로** 받는다.
+ * 그 인자를 채울 설정 키가 없으면 배선할 때 숫자를 코드에 적게 되고,
+ * 그러면 설정 화면과 규칙이 다른 값을 본다 — 「바꿨는데 안 바뀐다」가 된다.
+ *
+ * 이름으로 짝을 짓지 않고 **손으로 대응표를 적는다.** 이름 규칙으로 짝을 지으면
+ * 이름을 바꾸는 순간 조용히 안 걸린다.
+ */
+const THRESHOLD_TO_KEY: Record<string, string> = {
+  // SignalRuleThresholds
+  minNetExpectedValueR: 'signal_min_net_ev_r',
+  minEnterNowProb: 'signal_min_enter_now_prob',
+  openingBlockMinutes: 'signal_opening_block_minutes',
+  closingBlockMinutes: 'signal_closing_block_minutes',
+  dailyTargetKrw: 'daily_target_krw',
+  cooldownAfterLosses: 'signal_cooldown_after_losses',
+  cooldownMinutes: 'signal_cooldown_minutes',
+  maxSignalsPerDay: 'signal_max_per_day',
+  sameDirectionGapMinutes: 'signal_same_direction_gap_minutes',
+  minTargetCostMultiple: 'signal_min_target_cost_multiple',
+  // SafetyThresholds
+  maxBrokerFailureStreak: 'gate_max_broker_failure_streak',
+  maxMinutesSinceRun: 'gate_max_minutes_since_run',
+  maxNotifyFailureStreak: 'gate_max_notify_failure_streak',
+  maxUnopenedSignals: 'gate_max_unopened_signals',
+}
+
+/** `export interface X { ... }` 안의 칸 이름을 읽는다 */
+function fieldsOf(file: string, interfaceName: string): string[] {
+  const src = readFileSync(join(HERE, '..', ...file.split('/')), 'utf8')
+  const start = src.indexOf(`export interface ${interfaceName} {`)
+  assert.notEqual(start, -1, `${interfaceName} 를 못 찾았다`)
+  const body = src.slice(start, src.indexOf('\n}', start))
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
+  return [...body.matchAll(/^\s{2}([a-zA-Z][a-zA-Z0-9]*)\s*:/gm)].map((m) => m[1])
+}
+
+test('★ 신호 규칙의 기준값 칸마다 설정 키가 있다 — 없으면 그 규칙은 기준값 없이 돈다', () => {
+  const fields = fieldsOf('signal/rules.ts', 'SignalRuleThresholds')
+  assert.ok(fields.length >= 10, `칸을 ${fields.length}개밖에 못 읽었다 — 정규식이 형을 못 따라간다`)
+  for (const field of fields) {
+    const key = THRESHOLD_TO_KEY[field]
+    assert.ok(key, `SignalRuleThresholds.${field} 에 대응하는 설정 키가 대응표에 없다`)
+    assert.ok(TRADING_SETTINGS.some((s) => s.key === key), `설정 ${key} 가 레지스트리에 없다`)
+  }
+})
+
+test('★ 안전 게이트의 기준값 칸마다 설정 키가 있다', () => {
+  const fields = fieldsOf('gate/safety.ts', 'SafetyThresholds')
+  assert.ok(fields.length >= 4)
+  for (const field of fields) {
+    const key = THRESHOLD_TO_KEY[field]
+    assert.ok(key, `SafetyThresholds.${field} 에 대응하는 설정 키가 대응표에 없다`)
+    assert.ok(TRADING_SETTINGS.some((s) => s.key === key), `설정 ${key} 가 레지스트리에 없다`)
+  }
+})
+
+test('★ 게이트를 끄는 설정이 없다 — 끌 수 있으면 언젠가 꺼 놓은 채로 돈다', () => {
+  for (const s of TRADING_SETTINGS.filter((s) => s.group === 'safety')) {
+    assert.equal(s.type, 'number', `안전 게이트 설정 ${s.key} 가 켜고 끄는 값이다`)
+    assert.equal(/enabled|disable|bypass|skip|off/i.test(s.key), false, `${s.key} 가 끄는 이름이다`)
+  }
+})
+
+test('★ 알림 켜기는 꺼진 채로 시작한다 (C4)', () => {
+  const row = TRADING_SETTINGS.find((s) => s.key === 'notify_enabled')
+  assert.ok(row)
+  assert.equal(row.defaultValue, false, '검증 전에 알림이 켜진 채로 배포된다')
+})
+
+test('새 묶음에도 이름이 있다 — 이름 없는 절은 화면에서 사라진다', () => {
+  const groups = new Set(TRADING_SETTINGS.map((s) => s.group))
+  for (const g of groups) {
+    assert.ok(TRADING_GROUP_LABEL[g], `묶음 ${g} 에 이름이 없다`)
+  }
 })
