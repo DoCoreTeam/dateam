@@ -12,7 +12,10 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { addKstDays } from '@/lib/datetime/kst'
+import { dateRange } from './calendar/date-range.ts'
 import { loadSessionWindow } from './calendar/seed.ts'
+import { sameDayExitAt } from './calendar/session.ts'
+import { loadTradingSettings } from './settings/store.ts'
 import type { DayCoverage, JudgmentRow, RunRow, TradingOverview } from './overview-shape.ts'
 
 export type { DayCoverage, JudgmentRow, RunRow, TradingOverview } from './overview-shape.ts'
@@ -38,14 +41,18 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
   if (contractError) throw new Error(`월물을 읽지 못했습니다: ${contractError.message}`)
   const contractCode = ((front ?? [])[0]?.code as string | undefined) ?? null
 
-  const days: string[] = []
-  for (let i = LOOKBACK_DAYS - 1; i >= 0; i -= 1) days.push(addKstDays(today, -i))
+  const days = dateRange(addKstDays(today, -(LOOKBACK_DAYS - 1)), today)
+
+  // 청산 여유 분은 설정이다. 화면이 따로 계산하면 만기일에 규칙과 화면이 갈린다
+  const { values } = await loadTradingSettings(today)
+  const exitMinutes = Number(values.session_close_exit_minutes)
+  const exitBefore = Number.isFinite(exitMinutes) ? exitMinutes : 15
 
   const coverage: DayCoverage[] = []
   for (const tradeDate of days) {
     const window = await loadSessionWindow(tradeDate)
     if (!window || !contractCode) {
-      coverage.push({ tradeDate, expected: 0, actual: 0, unknown: true })
+      coverage.push({ tradeDate, expected: 0, actual: 0, unknown: true, sameDayExitAt: null })
       continue
     }
     const expected = Math.max(
@@ -60,7 +67,10 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
       .gte('bar_start_at', window.continuousStart.toISOString())
       .lt('bar_start_at', window.continuousEnd.toISOString())
     if (error) throw new Error(`봉 수를 세지 못했습니다: ${error.message}`)
-    coverage.push({ tradeDate, expected, actual: count ?? 0, unknown: false })
+    coverage.push({
+      tradeDate, expected, actual: count ?? 0, unknown: false,
+      sameDayExitAt: sameDayExitAt(window, exitBefore).toISOString(),
+    })
   }
 
   const { data: judgmentRows, error: judgmentError } = await admin

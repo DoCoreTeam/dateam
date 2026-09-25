@@ -17,31 +17,13 @@ import 'server-only'
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
-import { dateRange } from './date-range.ts'
 import {
   buildRegularSession, buildNightSession, isWeekendInSeoul,
   type NightTradeDateRule, type SessionWindow,
 } from './session.ts'
 import { decideEnsureSession } from './seed-window.ts'
 
-export interface SeedInput {
-  /** `YYYY-MM-DD` (서울). 포함 */
-  fromDate: string
-  /** 포함 */
-  toDate: string
-  /** 그 달 만기일들. `contracts/sync.ts` 가 계산해 넘긴다 */
-  expiryDates: readonly string[]
-}
-
-export interface SeedResult {
-  /** 새로 세운 거래일 수 */
-  inserted: number
-  /** 이미 있어서 건드리지 않은 날 수 */
-  skipped: number
-  /** 주말이라 안 세운 날 수 */
-  weekends: number
-}
-
+/** 코드가 쓰는 꼴을 표의 줄로 */
 function toRow(window: SessionWindow) {
   return {
     trade_date: window.tradeDate,
@@ -51,45 +33,7 @@ function toRow(window: SessionWindow) {
     continuous_end: window.continuousEnd.toISOString(),
     close_auction_end: window.closeAuctionEnd?.toISOString() ?? null,
     source: 'manual',
-    note: '평일 자동 생성 — 휴장일은 봉이 안 오는 것으로 드러난다',
-  }
-}
-
-/**
- * 없는 날만 세운다.
- *
- * **이미 있는 줄은 절대 덮지 않는다.** 관리자가 고쳐 둔 개장 시간이 자동 생성으로
- * 되돌아가면 그날 판단이 통째로 어긋난다(마이그레이션이 상태 플래그를 덮어쓴 전례와 같은 사고다).
- */
-export async function seedRegularSessions(input: SeedInput): Promise<SeedResult> {
-  const days = dateRange(input.fromDate, input.toDate)
-  const weekdays = days.filter((d) => !isWeekendInSeoul(d))
-  const expiry = new Set(input.expiryDates)
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any
-  const { data, error } = await admin
-    .from('trading_session_calendar')
-    .select('trade_date')
-    .eq('session', 'regular')
-    .gte('trade_date', input.fromDate)
-    .lte('trade_date', input.toDate)
-  if (error) throw new Error(`세션 캘린더를 읽지 못했습니다: ${error.message}`)
-
-  const existing = new Set(((data ?? []) as { trade_date: string }[]).map((r) => r.trade_date))
-  const missing = weekdays.filter((d) => !existing.has(d))
-  if (missing.length === 0) {
-    return { inserted: 0, skipped: weekdays.length, weekends: days.length - weekdays.length }
-  }
-
-  const rows = missing.map((d) => toRow(buildRegularSession({ tradeDate: d, isExpiryDay: expiry.has(d) })))
-  const { error: writeError } = await admin.from('trading_session_calendar').insert(rows)
-  if (writeError) throw new Error(`세션 캘린더를 세우지 못했습니다: ${writeError.message}`)
-
-  return {
-    inserted: rows.length,
-    skipped: weekdays.length - rows.length,
-    weekends: days.length - weekdays.length,
+    note: '자동 생성 — 휴장일은 봉이 안 오는 것으로 드러난다',
   }
 }
 

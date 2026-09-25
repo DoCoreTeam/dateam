@@ -14,6 +14,11 @@ export interface DayCoverage {
   actual: number
   /** 세션 정보가 없어 셀 수 없는 날 */
   unknown: boolean
+  /**
+   * 그날 당일 청산 시각 (ISO). 접속매매 종료 − N분이라 **날마다 다르다** —
+   * 만기일은 15:05, 평일은 15:20. 화면에 고정 시각을 두지 않는 이유가 이것이다(§6.3).
+   */
+  sameDayExitAt: string | null
 }
 
 export interface JudgmentRow {

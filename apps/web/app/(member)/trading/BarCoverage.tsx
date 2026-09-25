@@ -12,6 +12,7 @@
 import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
+import { formatKstTimeExact } from '@/lib/datetime/kst'
 import { isDayComplete, missingCount, type DayCoverage } from '@/lib/trading/overview-shape'
 
 const COLUMNS: ColumnDef<DayCoverage>[] = [
@@ -23,6 +24,14 @@ const COLUMNS: ColumnDef<DayCoverage>[] = [
   {
     key: 'actual', header: '모은 봉', align: 'right',
     cell: (d) => (d.unknown ? '—' : d.actual.toLocaleString('ko-KR')),
+  },
+  {
+    /**
+     * 날마다 다르다 — 평일 15:20, 만기일 15:05. 고정 시각을 적어 두면
+     * 만기일마다 이미 장이 끝난 시각을 청산 시각으로 말하게 된다(§6.3)
+     */
+    key: 'exit', header: '당일 청산', align: 'right',
+    cell: (d) => (d.sameDayExitAt ? formatKstTimeExact(d.sameDayExitAt) : '—'),
   },
   {
     key: 'missing', header: '빠진 봉', align: 'right',
