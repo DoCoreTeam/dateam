@@ -20,10 +20,19 @@ import {
 } from './outbox-policy.ts'
 
 export interface QueueInput {
-  signalId: string
+  /** 신호에 딸린 알림이면 그 신호. 손절 확인·증거금 경고처럼 신호가 없으면 null */
+  signalId: string | null
   kind: NotifyKind
   title: string
   body: string
+  /**
+   * 무엇을 하나로 볼 것인가 (§14.3).
+   *
+   * 없으면 `<신호 ID>:<종류>` 를 쓴다. **신호가 없으면 반드시 줘야 한다** —
+   * `signal_id` 가 NULL 이면 Postgres 에서 유일 키가 아무것도 안 막고,
+   * 매분 도는 크론이 같은 경고를 하루 390번 넣는다.
+   */
+  dedupeKey?: string
 }
 
 export type QueueResult =
@@ -41,11 +50,16 @@ export async function queueNotification(input: QueueInput): Promise<QueueResult>
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any
+    const dedupeKey = input.dedupeKey ?? (input.signalId ? `${input.signalId}:${input.kind}` : null)
+    if (!dedupeKey) {
+      return { queued: false, reason: 'error', detail: 'no_dedupe_key' }
+    }
     const { data, error } = await admin.from('trading_notifications').insert({
       signal_id: input.signalId,
       kind: input.kind,
       title: input.title,
       body: input.body,
+      dedupe_key: dedupeKey,
     }).select('id')
 
     if (error) {
@@ -94,6 +108,24 @@ export async function pendingNotifications(now: Date, limit = 50): Promise<Outbo
     .limit(limit)
   if (error) throw new Error(`알림 대기 목록을 읽지 못했습니다: ${error.message}`)
   return pickOrder(((data ?? []) as RawRow[]).map(toRow), now)
+}
+
+/**
+ * 최근 알림 — 최신 것 먼저. SG-06 이 연속 실패를 셀 자료다.
+ *
+ * `sent` 를 빼지 않는다 — 연속 실패는 성공을 만나면 멈추는 수라, 성공을 안 읽으면
+ * 한 달 전 실패가 오늘까지 이어진 것으로 세어진다.
+ */
+export async function recentNotifications(limit = 20): Promise<OutboxRow[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_notifications')
+    .select('id, kind, status, attempts, queued_at, last_attempt_at')
+    .order('queued_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(`알림 기록을 읽지 못했습니다: ${error.message}`)
+  return ((data ?? []) as RawRow[]).map(toRow)
 }
 
 /** 보낸 뒤 · 못 보낸 뒤 결과를 적는다. **행은 어느 쪽이든 남는다** */

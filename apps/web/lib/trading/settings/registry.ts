@@ -597,6 +597,17 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     usedFrom: '1-B',
     source: '명세 §19 「수수료율」',
   },
+  {
+    key: 'kis_account_product_code',
+    group: 'broker',
+    label: '계좌상품코드',
+    help: '계좌번호 뒤 두 자리. 선물옵션은 보통 03 이다. 계좌번호 자체는 여기 없고 암호화해 따로 둔다',
+    type: 'string',
+    defaultValue: '03',
+    usedFrom: '1-C',
+    source: '공식 예제 domestic_futureoption/inquire_balance (ex. 03)',
+  },
+
   // ── 신호 규칙 (§7.6) ────────────────────────────────────
   //
   // 규칙은 값을 인자로 받는다. 값이 코드에 박히면 설정 화면과 규칙이 다른 숫자를 보게 되고,

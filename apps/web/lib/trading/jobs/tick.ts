@@ -25,7 +25,7 @@ import { loadDayConfig, freezeDayConfig, logicChangedToday } from './day-config.
 
 import { syncContracts } from '../contracts/sync.ts'
 import { getAccessToken } from '../broker/token.ts'
-import { loadAppCredential } from '../broker/credentials.ts'
+import { loadAppCredential, loadAccountRef } from '../broker/credentials.ts'
 import { createKisClient } from '../broker/kis-client.ts'
 import { decideBarConfirmation, targetMinuteFor } from '../bars/confirm.ts'
 import { saveBars, loadBarsAsOf } from '../bars/store.ts'
@@ -35,6 +35,11 @@ import { computeIndicators, evaluateTriggers, requiredBarCount } from '../judge/
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
 import { runJudges, scheduledMinuteOf } from './tick-core.ts'
+import { runWatch } from './watch.ts'
+import { emitSignal } from './emit-signal.ts'
+import { isHoldDominant } from '../judge/types.ts'
+import { loadInstrumentSpec } from '../settings/store.ts'
+import { sameDayExitAt } from '../calendar/session.ts'
 import {
   claimJudgment, takeOverStaleClaim, finishJudgment,
   startJobRun, finishJobRun,
@@ -236,7 +241,74 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     minIntervalMs: num('kis_min_interval_ms', 200),
   })
 
-  // 4 직전 1분 봉이 확정됐나
+  /**
+   * 4 **먼저 포지션을 본다** (§10.2).
+   *
+   * 봉 확정 뒤로 미루면 안 된다 — 봉이 결측인 분은 `return` 으로 끝나는데,
+   * 그 분에도 포지션은 살아 있고 손절가를 지날 수 있다. 「어떤 경우에도 안 멈춤」이
+   * 뜻하는 것이 이것이다.
+   *
+   * 감시가 실패해도 수집은 계속한다 — 곁가지가 본 일을 죽이지 않는다.
+   */
+  let watchNote = 'watch=off'
+  const accountRef = await loadAccountRef(env, str('kis_account_product_code', '03'))
+  if (accountRef) {
+    try {
+      const watch = await runWatch({
+        now,
+        startedAt: now,
+        contractCode,
+        env,
+        auth: { accessToken: token.accessToken, appKey: credential.appKey, appSecret: credential.appSecret },
+        acct: accountRef,
+        minIntervalMs: num('kis_min_interval_ms', 200),
+        isNight,
+        tradeDate: today,
+        thresholds: {
+          maxBrokerFailureStreak: num('gate_max_broker_failure_streak', 3),
+          maxMinutesSinceRun: num('gate_max_minutes_since_run', 5),
+          maxNotifyFailureStreak: num('gate_max_notify_failure_streak', 3),
+          maxUnopenedSignals: num('gate_max_unopened_signals', 3),
+        },
+        // Release 1-C 는 우리 기록을 아직 안 쌓는다. 계좌에만 있는 것은 어긋남으로 잡힌다
+        expected: [],
+        positionState: 'flat',
+        protection: 'unknown',
+        protectionReportedAt: null,
+        protectionRecheckMinutes: num('protection_recheck_minutes', 60),
+        stopPrice: null,
+        direction: null,
+        observedPrice: null,
+        // 1-C 는 체결 연결이 없어 닫힌 거래가 비어 있다. 실현 손익은 0 이고 평가는 모른다
+        closedTrades: [],
+        unrealizedKrw: null,
+        dailyTargetKrw: num('daily_target_krw', 0),
+        brokerWasFailing: false,
+        reconciledSinceRecovery: false,
+        sameDayExitAt: sameDayExitAt(window, num('session_close_exit_minutes', 15)),
+        gateContext: {
+          barMissingOrLate: false,
+          spreadAbnormal: false,
+          brokerFailureStreak: 0,
+          minutesSinceLastRun: 0,
+          notifyFailureStreak: 0,
+          hasCalibration: false,
+          hasActiveSpec: false,
+          marginTight: false,
+          aiBudgetExhausted: false,
+          marketAbnormal: false,
+          logicChangedToday: syncReason.startsWith('logic_changed'),
+        },
+      })
+      watchNote = watch.reason
+    } catch (error) {
+      watchNote = `watch_failed:${error instanceof Error ? error.message : 'unknown'}`
+    }
+  } else {
+    watchNote = 'watch=no_account'
+  }
+
+  // 5 직전 1분 봉이 확정됐나
   const target = targetMinuteFor(now)
   const fetched = await kis.minuteBars({
     contractCode,
@@ -256,11 +328,11 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   })
 
   if (decision.kind === 'retry') {
-    return { ok: true, reason: 'bar_not_ready', userMessage: null }
+    return { ok: true, reason: `bar_not_ready|${watchNote}`, userMessage: null }
   }
   if (decision.kind === 'missing') {
     // 결측은 그 분의 판단을 건너뛰고 **사실을 남긴다**. 늦게 온 값으로 다시 판단하지 않는다
-    return { ok: true, reason: `bar_missing:${target.toISOString()}`, userMessage: null }
+    return { ok: true, reason: `bar_missing:${target.toISOString()}|${watchNote}`, userMessage: null }
   }
 
   /**
@@ -319,6 +391,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   const collectNote = [
     rolledUp.length > 0 ? `rollup=${rolledUp.join('+')}` : null,
     sideFailures.length > 0 ? `side_failed=${sideFailures.join('+')}` : null,
+    watchNote,
   ].filter(Boolean).join(',')
 
   /**
@@ -332,7 +405,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     return { ok: true, reason: `not_continuous_trading${collectNote ? `|${collectNote}` : ''}`, userMessage: null }
   }
 
-  // 5 진입 조건이 걸렸나
+  // 6 진입 조건이 걸렸나
   const params = {
     atrPeriod: num('atr_period', 14),
     smaFastPeriod: num('sma_fast_period', 5),
@@ -356,7 +429,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     return { ok: true, reason: `no_trigger${collectNote ? `|${collectNote}` : ''}`, userMessage: null }
   }
 
-  // 6 선점한 판단기만 부른다
+  // 7 선점한 판단기만 부른다
   const judges = new Map<JudgeName, Judge>([['rule', createRuleJudge()]])
   const jevModel = str('jev_model', '')
   let jevUnavailable: string | null = null
@@ -415,13 +488,97 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     now,
   )
 
+  /**
+   * 8 판단에서 신호까지 — **정해진 순서로만**(M2).
+   *
+   * 지금은 보정 모델이 없어 대부분 「보정 없음」에서 멈춘다. 그래도 지나가게 해 둔다 —
+   * 안 부르는 코드는 안 도는 코드이고, 보정이 생기는 날 「왜 안 나가지」를 여기서 찾게 된다.
+   * 막힌 단계와 사유는 실행 기록에 남는다.
+   */
+  const emitNote = await emitOrExplain({
+    now, today, window, target, contractCode, trigger, indicators,
+    num, str, values, outcome, watchNote,
+  })
+
   return {
     ok: true,
-    reason: jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged',
+    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${watchNote}|${emitNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,
     deferred: outcome.deferred,
+  }
+}
+
+/** 신호 발행 한 걸음. 실패해도 판단 기록은 이미 남았다 — 곁가지가 본 일을 죽이지 않는다 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function emitOrExplain(ctx: any): Promise<string> {
+  try {
+    const { now, today, window, target, contractCode, trigger, indicators, num, str, outcome } = ctx
+    const completed = outcome.results?.find?.(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (r: any) => r.judge === 'rule' && r.result?.status === 'completed',
+    )
+    const rawScore = completed?.result?.rawScore ?? null
+    const instrument = await loadInstrumentSpec(today)
+    const barCloseAt = new Date(target.getTime() + 60_000)
+    const result = await emitSignal({
+      judgmentId: completed?.judgmentId ?? null,
+      contractCode,
+      barCloseAt,
+      trigger,
+      indicators,
+      referencePrice: indicators.smaFast,
+      instrument,
+      // 보정 모델이 아직 없다. 없으면 확률이 아니므로 신호를 안 낸다(M3)
+      calibratedProb: null,
+      netExpectedValueR: null,
+      holdDominant: rawScore ? isHoldDominant(rawScore) : true,
+      enterNowProb: null,
+      gateHits: [],
+      thresholds: {
+        minNetExpectedValueR: num('signal_min_net_ev_r', 0.1),
+        minEnterNowProb: num('signal_min_enter_now_prob', 0.55),
+        openingBlockMinutes: num('signal_opening_block_minutes', 5),
+        closingBlockMinutes: num('signal_closing_block_minutes', 30),
+        dailyTargetKrw: num('daily_target_krw', 0),
+        cooldownAfterLosses: num('signal_cooldown_after_losses', 2),
+        cooldownMinutes: num('signal_cooldown_minutes', 60),
+        maxSignalsPerDay: num('signal_max_per_day', 6),
+        sameDirectionGapMinutes: num('signal_same_direction_gap_minutes', 10),
+        minTargetCostMultiple: num('signal_min_target_cost_multiple', 3),
+      },
+      rules: {
+        minutesSinceOpen: Math.floor((target.getTime() - window.continuousStart.getTime()) / 60_000),
+        minutesUntilClose: Math.floor((window.continuousEnd.getTime() - target.getTime()) / 60_000),
+        rolloverOrExpiryDay: false,
+        inEventBlackout: false,
+        realizedPnlKrw: 0,
+        remainingLossBudgetKrw: num('daily_loss_limit_krw', 0),
+        consecutiveLosses: 0,
+        minutesSinceLastLoss: null,
+      },
+      exit: {
+        stopAtrMultiple: num('exit_stop_atr_multiple', 1.2),
+        targetAtrMultiple: num('exit_target_atr_multiple', 1.5),
+        chaseAtrMultiple: num('exit_chase_atr_multiple', 0.3),
+        stopSlippageTicks: num('replay_fallback_ticks', 2),
+        roundTripFeeKrw: num('fee_rate', 0),
+        timeExitMinutes: num('min_hold_minutes', 15),
+        sessionCloseAt: window.continuousEnd,
+      },
+      versions: {
+        signalRules: str('decision_spec_version', 'v1'),
+        calibration: null,
+        evModel: null,
+      },
+      sessionDayStart: window.continuousStart,
+      sessionDayEnd: window.continuousEnd,
+      now,
+    })
+    return result.reason
+  } catch (error) {
+    return `emit_failed:${error instanceof Error ? error.message : 'unknown'}`
   }
 }
 

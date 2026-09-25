@@ -95,6 +95,38 @@ export interface DecryptedAppCredential {
 }
 
 /**
+ * 계좌 번호 — **조회에만 쓴다.**
+ *
+ * 앱키와 따로 여는 이유: 계좌 조회는 계좌번호가 필요하고 분봉 조회는 안 필요하다.
+ * 한 함수가 둘 다 열면 필요 없는 자리에도 계좌번호가 흘러 들어간다.
+ * 화면과 로그로 나갈 때는 `maskAccountNo` 를 지난다(S3).
+ */
+export interface DecryptedAccountRef {
+  cano: string
+  acntPrdtCd: string
+}
+
+/**
+ * @param acntPrdtCd 계좌상품코드. 비밀이 아니라 설정이다(`kis_account_product_code`)
+ */
+export async function loadAccountRef(
+  env: KisEnv, acntPrdtCd: string,
+): Promise<DecryptedAccountRef | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_broker_credentials')
+    .select('account_no_enc')
+    .eq('env', env)
+    .maybeSingle()
+  if (error) throw new Error(`계좌 번호를 읽지 못했습니다: ${error.message}`)
+  if (!data || !data.account_no_enc) return null
+  const cano = openTradingSecret(data.account_no_enc).replace(/\D/g, '')
+  if (cano === '') return null
+  return { cano, acntPrdtCd }
+}
+
+/**
  * 서버가 KIS 를 부를 때만 연다.
  *
  * 화면이나 창구가 이 값을 받아 가는 길은 만들지 않는다 — 부르는 곳은

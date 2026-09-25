@@ -18,8 +18,8 @@
  * 여기는 게이트와 규칙을 먼저 본다. 판단기에서 알림으로 가는 지름길은 없다.
  */
 
-import type { GateHit } from '../gate/safety.ts'
-import type { RuleBlock } from './rules.ts'
+import { newSignalAllowed, type GateHit } from '../gate/safety.ts'
+import { signalAllowed, type RuleBlock } from './rules.ts'
 
 /** 지나야 하는 관문들. **순서가 값이다** */
 export const EMIT_STAGES = [
@@ -56,8 +56,8 @@ export interface EmitInput {
  * 사람은 전략을 고치려 든다 — 고칠 것은 데이터인데.
  */
 export function decideEmit(input: EmitInput): EmitOutcome {
-  // ① 안전 게이트
-  if (input.gateHits.length > 0) {
+  // ① 안전 게이트 — 「막혔나」 판정은 게이트 모듈이 한다. 여기서 다시 세면 규칙이 두 곳이 된다
+  if (!newSignalAllowed(input.gateHits)) {
     const first = input.gateHits[0]
     return {
       kind: 'blocked', stage: 'safety_gate',
@@ -92,8 +92,8 @@ export function decideEmit(input: EmitInput): EmitOutcome {
     }
   }
 
-  // ⑤ 신호 규칙
-  if (input.ruleBlocks.length > 0) {
+  // ⑤ 신호 규칙 — 같은 이유로 판정을 규칙 모듈에서 가져온다
+  if (!signalAllowed(input.ruleBlocks)) {
     const first = input.ruleBlocks[0]
     return {
       kind: 'blocked', stage: 'signal_rules',

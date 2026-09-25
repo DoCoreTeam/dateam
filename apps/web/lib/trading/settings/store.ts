@@ -174,6 +174,26 @@ export async function seedTradingSettings(effectiveTradeDate: string): Promise<{
 export { validateSettingSet }
 
 /**
+ * 상품 규격 — 승수와 호가 간격. **숫자를 코드에 안 적는다**(M6).
+ *
+ * `trading_instruments` 가 유일한 출처다. 못 읽으면 던진다 —
+ * 기본값을 끼워 넣으면 미니와 정규의 승수가 5배 다른데 그것을 모르고 위험을 계산한다.
+ */
+export async function loadInstrumentSpec(
+  tradeDate: string,
+): Promise<{ multiplier: number; tickSize: number }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { values } = await loadTradingSettings(tradeDate)
+  const root = String(values.instrument_root ?? 'MINI_KOSPI200')
+  const { data, error } = await admin
+    .from('trading_instruments').select('multiplier, tick_size').eq('root', root).maybeSingle()
+  if (error) throw new Error(`상품 규격을 읽지 못했습니다: ${error.message}`)
+  if (!data) throw new Error(`상품 규격이 없습니다: ${root}`)
+  return { multiplier: Number(data.multiplier), tickSize: Number(data.tick_size) }
+}
+
+/**
  * 이 한도로 신호가 나갈 수 있나.
  *
  * 상품 규격과 손절 설정에서 「보통의 1회 위험」을 만들어 한도와 견준다.

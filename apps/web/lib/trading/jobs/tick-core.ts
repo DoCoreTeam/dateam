@@ -42,6 +42,19 @@ export interface JudgeTiming {
   aiResponseAt: Date | null
 }
 
+/**
+ * 부른 판단기 하나의 결과.
+ *
+ * 신호 발행이 이것을 본다 — 판단 ID 가 있어야 §14.3 의 유일 키 `(판단 ID, 규칙 판)` 를 만들고,
+ * 원점수가 있어야 「관망이 가장 높은가」를 잰다. 이름과 개수만 돌려주면 그 둘을 다시 읽어야 하고,
+ * 다시 읽으면 **그 사이에 바뀐 값**을 보게 된다.
+ */
+export interface JudgeRunRecord {
+  judge: JudgeName
+  judgmentId: string
+  result: JudgeResult
+}
+
 export interface TickOutcome {
   /** 실제로 부른 판단기 */
   ran: JudgeName[]
@@ -49,6 +62,8 @@ export interface TickOutcome {
   skipped: JudgeName[]
   /** 시간이 모자라 다음 실행으로 넘긴 판단기 */
   deferred: JudgeName[]
+  /** 부른 것들의 결과. 신호 발행이 여기서 판단 ID 와 원점수를 가져간다 */
+  results: JudgeRunRecord[]
 }
 
 /**
@@ -63,7 +78,7 @@ export async function runJudges(
   ports: TickPorts,
   startedAt: Date,
 ): Promise<TickOutcome> {
-  const outcome: TickOutcome = { ran: [], skipped: [], deferred: [] }
+  const outcome: TickOutcome = { ran: [], skipped: [], deferred: [], results: [] }
 
   for (const name of order) {
     if (ports.now().getTime() - startedAt.getTime() >= RUN_BUDGET_MS) {
@@ -97,6 +112,7 @@ export async function runJudges(
       aiResponseAt: responseAt,
     })
     outcome.ran.push(name)
+    outcome.results.push({ judge: name, judgmentId: id, result })
   }
 
   return outcome

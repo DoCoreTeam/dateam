@@ -12,7 +12,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   NOTIFY_KINDS, KIND_PRIORITY, MAX_ATTEMPTS, backoffSecondsFor,
-  decideSend, pickOrder, patchAfterSend, patchAfterFailure, failureStreak,
+  decideSend, pickOrder, patchAfterSend, patchAfterFailure, failureStreak, dailyDedupeKey,
   type OutboxRow, type NotifyKind,
 } from './outbox-policy.ts'
 
@@ -162,4 +162,25 @@ test('종류 목록이 DB 검사 제약과 같다', () => {
   const inDb = (sql.match(/kind\s+TEXT\s+NOT NULL CHECK \(kind IN \(([\s\S]*?)\)\)/)?.[1] ?? '')
     .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean)
   assert.deepEqual([...inDb].sort(), [...NOTIFY_KINDS].sort() as NotifyKind[])
+})
+
+// ── 신호 없는 알림도 두 번 안 간다 (§14.3) ────────────────
+
+test('★ 신호가 없으면 유일 키를 따로 만든다 — NULL 은 서로 달라서 아무것도 안 막는다', () => {
+  assert.equal(dailyDedupeKey('101W12', 'safety', '2026-09-25'), '101W12:safety:2026-09-25')
+  // 같은 날 같은 종류는 한 번
+  assert.equal(
+    dailyDedupeKey('101W12', 'safety', '2026-09-25'),
+    dailyDedupeKey('101W12', 'safety', '2026-09-25'))
+  // 날이 바뀌면 다시 간다
+  assert.notEqual(
+    dailyDedupeKey('101W12', 'safety', '2026-09-25'),
+    dailyDedupeKey('101W12', 'safety', '2026-09-26'))
+})
+
+test('★ 유일 키 없이는 대기 표에 안 들어간다', () => {
+  const src = readFileSync(join(HERE, 'outbox.ts'), 'utf8')
+  assert.ok(src.includes("reason: 'error', detail: 'no_dedupe_key'"),
+    '유일 키가 없어도 넣는다 — 그러면 같은 알림이 매분 쌓인다')
+  assert.ok(src.includes('dedupe_key: dedupeKey'), '유일 키를 안 적는다')
 })

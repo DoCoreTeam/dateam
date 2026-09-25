@@ -135,6 +135,16 @@ export function patchAfterFailure(row: OutboxRow, error: string, now: Date): Att
   }
 }
 
+/**
+ * 신호 없는 알림의 유일 키. 종목·종류·거래일 하나로 본다.
+ *
+ * 손절 확인이나 증거금 경고는 하루에 한 번이면 충분하다 — 매분 다시 보내면
+ * 사람은 그 종류 전체를 무시하게 되고, 그러면 정말 급한 날에도 안 본다.
+ */
+export function dailyDedupeKey(contractCode: string, kind: NotifyKind, tradeDate: string): string {
+  return `${contractCode}:${kind}:${tradeDate}`
+}
+
 /** 연속으로 못 보낸 수 (SG-06). 최근 것부터 세고 `sent` 를 만나면 멈춘다 */
 export function failureStreak(rows: readonly OutboxRow[]): number {
   let streak = 0
