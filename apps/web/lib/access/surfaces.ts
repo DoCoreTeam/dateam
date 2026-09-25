@@ -172,6 +172,21 @@ export const SURFACES: readonly Surface[] = [
     gatedToday: 'app/admin/layout.tsx 가 role !== admin 을 되돌린다',
   },
   { key: 'develop', href: '/develop', group: 'standalone', defaultAudience: 'all' },
+  /**
+   * AI 트레이딩 — **소유자 한 사람만** 본다(명세 M11).
+   *
+   * 기본값을 관리자로 두지만 그것만으로는 모자라다. 이 등재부의 판정은 관리자를
+   * 맨 먼저 통과시키는데, 여기 든 것은 한 사람의 매매 판단 기록이라 관리자라는 이유로
+   * 열리면 안 된다. 그래서 `lib/trading/access.ts` 가 그 위에 한 겹 더 선다 —
+   * 그 사실을 `needsMembership` 에 적어 두어야 관리자가 허용을 눌러 놓고
+   * **아무 일도 안 일어나는 것**을 보지 않는다.
+   */
+  {
+    key: 'trading', href: '/trading', group: 'standalone', defaultAudience: 'admin',
+    gatedToday: 'app/(member)/trading/layout.tsx 가 소유자가 아니면 되돌린다',
+    needsMembership: 'AI 트레이딩은 소유자 한 사람만 들어갑니다. 허용해도 소유자가 아니면 막힙니다',
+  },
+
   { key: 'security', href: '/security', group: 'standalone', defaultAudience: 'all' },
 ]
 

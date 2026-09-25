@@ -65,7 +65,9 @@ const BEFORE = {
     { label: '영업', items: ['/crm'] },
     { label: '구 영업 (CRM 으로 이관 중)', items: ['/accounts', '/contacts', '/deals', '/lead-intake'] },
     { label: '가격정책', items: ['/pricing/gpu', '/pricing/catalog'] },
-    { label: '별도 서비스', items: ['/ci', '/ai', '/rfp', '/api-keys', '/develop'] },
+    // v0.10.449 에 `/trading`(AI 트레이딩) 한 줄을 일부러 더했다. 사이드바에는 안 세운다 —
+    // 소유자 한 사람이 쓰는 모듈이라 모든 관리자의 사이드바를 차지할 이유가 없다
+    { label: '별도 서비스', items: ['/ci', '/ai', '/rfp', '/api-keys', '/trading', '/develop'] },
   ],
 }
 
@@ -96,11 +98,12 @@ test('★ 관리자와 일반 사용자가 보는 것이 이 판 앞뒤로 같�
   assert.deepEqual(sidebarFor(true), BEFORE.sidebarGroups)
   assert.deepEqual(quickFor(true), BEFORE.quickNav.map((g) => g.items))
 
-  // 일반 사용자: 「서비스」 묶음이 통째로 빠지고 전체 메뉴에서 /ai 만 빠진다 — 지금과 같다
+  // 일반 사용자: 「서비스」 묶음이 통째로 빠지고 전체 메뉴에서 관리자 전용 둘이 빠진다.
+  // 목록을 여기 손으로 적는 것이 일부러다 — `canSeeNav` 로 거르면 구현을 구현으로 시험하게 된다
   assert.deepEqual(sidebarFor(false), [{ key: 'pricing', items: ['/pricing/gpu', '/pricing/catalog'] }])
   assert.deepEqual(
     quickFor(false),
-    BEFORE.quickNav.map((g) => g.items.filter((h) => h !== '/ai')),
+    BEFORE.quickNav.map((g) => g.items.filter((h) => h !== '/ai' && h !== '/trading')),
   )
 })
 
@@ -154,4 +157,22 @@ test('이름 표에 등재부에 없는 주소가 남아 있지 않다', () => {
   // 화면을 지웠는데 이름만 남으면 다음 사람이 그 주소를 살아 있는 화면으로 읽는다
   const stale = Object.keys(NAV_LABEL).filter((href) => !SURFACES.some((s) => s.href === href))
   assert.deepEqual(stale, [], `사라진 주소가 이름 표에 남아 있다: ${stale.join(', ')}`)
+})
+
+// ── AI 트레이딩은 소유자 한 사람의 모듈이다 (P0057 I03a) ──
+//
+// 메뉴에 띄워 놓고 라우트에서 막으면 **죽은 문**이 하나 생긴다 — 이 저장소가
+// `/accounts`·`/contacts`·`/deals`·`/lead-intake` 넷으로 이미 겪은 모양이다.
+// 그래서 일반 사용자에게는 메뉴에서부터 안 보인다.
+
+test('★ AI 트레이딩은 일반 사용자 메뉴에 안 뜬다', () => {
+  assert.equal(canSeeNav('/trading', false), false, '일반 사용자에게 죽은 문이 생겼다')
+  assert.equal(canSeeNav('/trading', true), true, '관리자 메뉴에서도 사라지면 소유자가 들어갈 길이 없다')
+  assert.equal(navLabel('/trading'), 'AI 트레이딩')
+})
+
+test('★ AI 트레이딩은 사이드바를 차지하지 않는다', () => {
+  const sidebar = allMenuHrefs(SIDEBAR_GROUP_LINKS, SIDEBAR_TOP_LINKS)
+  assert.equal(sidebar.includes('/trading'), false, '한 사람이 쓰는 모듈이 모두의 사이드바에 섰다')
+  assert.equal(allMenuHrefs(QUICKNAV_LINKS).includes('/trading'), true, '전체 메뉴에도 없으면 들어갈 길이 없다')
 })

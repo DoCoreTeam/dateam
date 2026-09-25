@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar, Handshake, FileSearch } from 'lucide-react'
+import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, CandlestickChart, ChevronRight, Sparkles, Radar, Handshake, FileSearch } from 'lucide-react'
 import { QUICKNAV_LINKS } from '@/lib/nav/menu'
 import { useIsOpen } from '@/lib/access/open-context'
 
@@ -30,6 +30,7 @@ const QUICKNAV_ICON: Record<string, React.ReactNode> = {
   '/ai': <Sparkles size={14} />,
   '/rfp': <FileSearch size={14} />,
   '/api-keys': <Key size={14} />,
+  '/trading': <CandlestickChart size={14} />,
   '/develop': <Code2 size={14} />,
 }
 

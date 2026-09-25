@@ -35,6 +35,7 @@ export const NAV_LABEL: Record<string, string> = {
   '/pricing/gpu': 'GPU 관리',
   '/pricing/catalog': '판매가격표',
   '/api-keys': 'API Keys',
+  '/trading': 'AI 트레이딩',
 
   // 서비스로 들어가는 링크 — 간판과 같은 말을 쓴다
   '/crm': SERVICE_LABEL.crm,
@@ -102,6 +103,8 @@ export type NavAudience = 'all' | 'admin'
 
 export const NAV_AUDIENCE: Record<string, NavAudience> = {
   '/ai': 'admin',
+  // 소유자 한 사람의 모듈이다. 일반 사용자 메뉴에 띄워 놓고 막으면 죽은 문이 하나 생긴다
+  '/trading': 'admin',
 }
 
 export function canSeeNav(href: string, isAdmin: boolean): boolean {
@@ -256,7 +259,7 @@ const QUICKNAV_SECTIONS: readonly MenuSection<MenuEntry>[] = [
     label: '별도 서비스',
     items: [
       { surface: 'ci' }, { surface: 'ai' }, { surface: 'rfp' },
-      { surface: 'api-keys' }, { surface: 'develop', external: true },
+      { surface: 'api-keys' }, { surface: 'trading' }, { surface: 'develop', external: true },
     ],
   },
 ]
