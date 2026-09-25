@@ -17,6 +17,7 @@ export const TRADING_GROUP_LABEL: Record<TradingSettingGroup, string> = {
   broker: '증권사 연결',
   risk: '일일 한도',
   replay: '체결 재현',
+  validation: '검증',
 }
 
 /**

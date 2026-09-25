@@ -35,6 +35,7 @@ export type TradingSettingGroup =
   | 'broker'     // 증권사 연결
   | 'risk'       // 일일 한도
   | 'replay'     // 체결 재현
+  | 'validation' // 검증
 
 /** 언제부터 이 값을 실제로 읽나. 「선언만 되고 아무도 안 읽는 값」을 없애려고 적는다 */
 export type UsedFrom = '1-A' | '1-B' | '1-C'
@@ -368,6 +369,68 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     min: 0,
     usedFrom: '1-C',
     source: '명세 §19 「일일 목표」',
+  },
+
+  // ── 검증 관문 (§13.5) ───────────────────────────────────
+  {
+    key: 'gate_min_validate_trades',
+    group: 'validation',
+    label: '관문 최소 거래 수',
+    help: '검증 구간 합계가 이만큼은 돼야 기대값을 믿을 수 있습니다. 적으면 미달이 아니라 아직 못 잰 것입니다',
+    type: 'number',
+    defaultValue: 500,
+    unit: '건',
+    min: 50,
+    usedFrom: '1-B',
+    source: '명세 §13.5 · §13.4 (표본 크기 감각)',
+  },
+  {
+    key: 'gate_min_lockbox_trades',
+    group: 'validation',
+    label: '최종 검증 최소 거래 수',
+    type: 'number',
+    help: '최종 검증 구간에서 이만큼은 나와야 마지막 확인이 뜻을 갖습니다',
+    defaultValue: 100,
+    unit: '건',
+    min: 20,
+    usedFrom: '1-B',
+    source: '명세 §13.5 (D-44)',
+  },
+  {
+    key: 'gate_min_profit_factor',
+    group: 'validation',
+    label: '관문 Profit Factor',
+    help: '번 것 ÷ 잃은 것이 이만큼은 돼야 합니다',
+    type: 'number',
+    defaultValue: 1.25,
+    min: 1,
+    usedFrom: '1-B',
+    source: '명세 §13.5',
+  },
+  {
+    key: 'gate_max_drawdown_multiple',
+    group: 'validation',
+    label: '최대 낙폭 상한',
+    help: '일일 손실 한도의 몇 배까지 견딜 것인가. 넘으면 평균이 좋아도 사람이 먼저 그만둡니다',
+    type: 'number',
+    defaultValue: 8,
+    unit: '배',
+    min: 1,
+    max: 50,
+    usedFrom: '1-B',
+    source: '명세 §13.5',
+  },
+  {
+    key: 'gate_min_judge_improvement_r',
+    group: 'validation',
+    label: '판단기 최소 개선폭',
+    help: '다른 판단기보다 이만큼은 나아야 낫다고 말합니다. 하한만 보면 +0.001R 로도 낫다고 하게 됩니다',
+    type: 'number',
+    defaultValue: 0.05,
+    unit: 'R',
+    min: 0,
+    usedFrom: '1-B',
+    source: '명세 §13.4',
   },
 
   // ── 체결 재현 ───────────────────────────────────────────
