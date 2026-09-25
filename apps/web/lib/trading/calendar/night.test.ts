@@ -94,6 +94,11 @@ test('★ 야간도 새 창구를 안 연다 — 같은 크론 라우트를 쓴�
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)])
   const routes = walk(api).filter((f) => f.endsWith('route.ts'))
-  assert.equal(routes.length, 1, `트레이딩 창구가 ${routes.length}개다. 야간 때문에 하나 더 열면 지킬 자리가 는다`)
-  assert.match(routes[0], /cron[/\\]tick[/\\]route\.ts$/)
+  /**
+   * 야간 전용 창구가 없어야 한다. 창구 수 자체는 다른 일(검증)로도 늘 수 있으므로
+   * **개수가 아니라 이름**을 본다 — 개수로 세면 남의 항목이 창구를 열 때마다 이 시험이 깨진다.
+   */
+  const nightRoutes = routes.filter((f) => /night/i.test(f))
+  assert.deepEqual(nightRoutes, [], '야간 전용 창구가 생겼다. 같은 크론이 처리한다')
+  assert.ok(routes.some((f) => f.includes('tick')), '수집 창구가 없다')
 })
