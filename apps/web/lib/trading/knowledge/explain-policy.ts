@@ -64,6 +64,24 @@ export function factLines(f: SignalFacts): string[] {
  * 「지어내지 말라」를 적고, 그것만으로 안 끝낸다 — 입력 자체에 신호 기록 밖의 값이
  * 없으므로 지어낼 재료가 없다. 재료를 주고 쓰지 말라고 하는 것보다 안 주는 것이 낫다.
  */
+/**
+ * 넘길 값에 목록 밖의 것이 섞였나.
+ *
+ * 형이 맞아도 값 객체에 칸이 더 붙어 올 수 있다(DB 행을 그대로 넘기는 경우).
+ * 그 칸이 프롬프트로 새면 「신호 기록만 본다」가 깨진다.
+ */
+export function checkFactKeys(f: Record<string, unknown>): ExplainRejection | null {
+  const allowed = new Set<string>(ALLOWED_FACT_KEYS as readonly string[])
+  const extra = Object.keys(f).filter((k) => !allowed.has(k))
+  if (extra.length > 0) {
+    return {
+      reason: `extra_facts:${extra.join(',')}`.slice(0, 200),
+      userMessage: '신호 기록 밖의 값이 섞여 설명을 만들지 않았습니다',
+    }
+  }
+  return null
+}
+
 export function buildExplainPrompt(f: SignalFacts): string {
   return [
     '너는 방금 나간 트레이딩 신호를 사람에게 설명하는 사람이다.',

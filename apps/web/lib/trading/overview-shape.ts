@@ -75,6 +75,48 @@ export interface PositionRow {
   needsHumanUnlock: boolean
 }
 
+/** 지식 한 줄. 화면이 무엇이 쌓였는지 보여 준다 */
+export interface KnowledgeRow {
+  kind: 'card' | 'source' | 'report' | 'proposal' | 'explanation'
+  id: string
+  title: string
+  detail: string
+  availableAt: string
+  /** 사람이 결정해야 하는 것인가 (스펙 후보) */
+  needsDecision: boolean
+}
+
+import { KNOWLEDGE_TASKS, TASK_LABEL, type KnowledgeTask } from './jobs/knowledge-plan.ts'
+
+/**
+ * 마지막 실행이 지식으로 무엇을 했나.
+ *
+ * 「아무 일도 안 일어난다」와 「자료 분석을 하고 있다」가 화면에서 같아 보이면
+ * 사람은 기능이 죽은 줄 안다.
+ */
+export interface KnowledgeProgress {
+  task: KnowledgeTask
+  label: string
+  outcome: string
+}
+
+export function knowledgeProgressOf(reason: string | null): KnowledgeProgress | null {
+  if (!reason) return null
+  const found = reason.split(/[|,]/).map((p) => p.trim()).find((p) => p.startsWith('knowledge='))
+  if (!found) return null
+  const rest = found.slice('knowledge='.length)
+  const task = KNOWLEDGE_TASKS.find((t) => rest.startsWith(t))
+  if (!task) return null
+  return { task, label: TASK_LABEL[task], outcome: rest.slice(task.length + 1) || '완료' }
+}
+
+/** 설정 하나에 붙는 설명. 우리 설명은 늘 있고 도우미는 있을 수도 없을 수도 */
+export interface SettingHelpRow {
+  key: string
+  original: string
+  extra: string | null
+}
+
 /** 알림을 켤 수 있나 (C4) */
 export interface NotifySummary {
   enabled: boolean
@@ -117,6 +159,12 @@ export interface TradingOverview {
   notify: NotifySummary
   /** 마지막 실행이 신호를 어디까지 밀고 갔나. 「신호 없음」의 이유다 */
   emitProgress: EmitProgress | null
+  /** 지금 시점에 볼 수 있는 지식 (as-of). 미래에 쓴 것은 안 섞인다 */
+  knowledge: KnowledgeRow[]
+  /** 설정별 설명. 도우미가 없어도 우리 설명은 있다 */
+  settingHelp: SettingHelpRow[]
+  /** 마지막 실행이 지식으로 무엇을 했나 */
+  knowledgeProgress: KnowledgeProgress | null
   gate: GateSummary
   /** 관문 항목별 판정 */
   gateCriteria: CriterionResult[]

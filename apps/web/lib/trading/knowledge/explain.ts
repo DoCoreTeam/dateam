@@ -13,7 +13,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { callKnowledge } from './ai-call.ts'
 import { applyAsOf } from './as-of.ts'
 import {
-  buildExplainPrompt, checkExplanation, normalizeExplanation, type SignalFacts,
+  buildExplainPrompt, checkExplanation, checkFactKeys, normalizeExplanation, type SignalFacts,
 } from './explain-policy.ts'
 
 export interface StoredExplanation {
@@ -97,6 +97,10 @@ export type ExplainResult =
 export async function explainSignal(
   signalId: string, facts: SignalFacts, promptVersion: string, model?: string | null,
 ): Promise<ExplainResult> {
+  // 목록 밖의 값이 섞였으면 프롬프트를 아예 안 만든다
+  const extra = checkFactKeys(facts as unknown as Record<string, unknown>)
+  if (extra) return { explained: false, ...extra }
+
   const call = await callKnowledge({
     purpose: 'signal_explain',
     prompt: buildExplainPrompt(facts),

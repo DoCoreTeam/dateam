@@ -165,5 +165,17 @@ test('★ 대기 시간 초과·예산 초과가 실패가 아니라 기권이�
   assert.ok(src.includes("reason: `timeout:${input.timeoutMs}ms`"), '초과를 기권으로 안 적는다')
   assert.ok(src.includes("status: 'abstain' as const, reason: 'budget_denied'"), '예산 거절을 실패로 적는다')
   // 기권도 기록한다 — 기권률을 세어 봐야 편향이 생겼는지 안다
-  assert.ok(src.includes('await finish(claimed, outcome, requestAt, responseAt, model)'))
+  assert.ok(src.includes('await finish(claimed, outcome, requestAt, responseAt, model, input.now)'))
+})
+
+test('★ 판단 계층이 지금 시각을 직접 안 묻는다 (M5) — 백테스트가 미래를 본다', () => {
+  const src = readFileSync(join(HERE, 'exit-jev.ts'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
+  // `new Date(input.now.getTime() + ...)` 처럼 **받은 시각에서 파생**하는 것만 된다
+  const bare = [...src.matchAll(/new Date\(([^)]*)\)/g)].map((m) => m[1].trim())
+  for (const arg of bare) {
+    assert.notEqual(arg, '', '인자 없는 new Date() 가 있다 — 지금 시각을 직접 묻는다')
+    assert.ok(arg.includes('input.now'), `받은 시각에서 안 나온 시각이 있다: new Date(${arg})`)
+  }
+  assert.equal(/Date\.now\(\)/.test(src), false, 'Date.now() 를 쓴다')
 })

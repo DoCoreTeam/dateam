@@ -40,6 +40,7 @@ export type TradingSettingGroup =
   | 'safety'     // 안전 게이트 (기준값만, 끄는 설정은 없다)
   | 'exit'       // 청산
   | 'notify'     // 알림
+  | 'knowledge'  // 지식과 설명
 
 /** 언제부터 이 값을 실제로 읽나. 「선언만 되고 아무도 안 읽는 값」을 없애려고 적는다 */
 export type UsedFrom = '1-A' | '1-B' | '1-C'
@@ -862,6 +863,56 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     max: 60,
     usedFrom: '1-C',
     source: '명세 §3.2 1-C',
+  },
+  // ── 지식과 설명 (Release 2 · §16) ───────────────────────
+  {
+    key: 'gemini_model',
+    group: 'knowledge',
+    label: 'Gemini 모델',
+    help: '지식 카드·소스 분석·패턴 리포트·설명을 만들 때 쓰는 모델. 비우면 기본 사슬을 쓴다',
+    type: 'string',
+    defaultValue: '',
+    usedFrom: '1-C',
+    source: '명세 §16 · §17.1 기존 AI 계층',
+  },
+  {
+    key: 'pattern_window_days',
+    group: 'knowledge',
+    label: '패턴 리포트 구간',
+    help: '며칠치를 보고 패턴을 세나. 짧으면 표본이 모자라고 길면 옛 장이 섞인다',
+    type: 'number',
+    defaultValue: 20,
+    unit: '일',
+    min: 5,
+    max: 250,
+    usedFrom: '1-C',
+    source: '명세 §16 패턴 리포트',
+  },
+  {
+    key: 'pattern_min_samples',
+    group: 'knowledge',
+    label: '패턴 최소 표본',
+    help: '이만큼 안 모이면 리포트를 안 만든다. 세 건으로 「패턴을 찾았다」고 말하지 않는다',
+    type: 'number',
+    defaultValue: 30,
+    unit: '건',
+    min: 5,
+    max: 1000,
+    usedFrom: '1-C',
+    source: '명세 §16 패턴 리포트',
+  },
+  {
+    key: 'pattern_min_bucket',
+    group: 'knowledge',
+    label: '패턴 묶음 최소 표본',
+    help: '시간대·조건별 칸이 이만큼은 돼야 표에 올린다. 두 건짜리 칸의 승률은 패턴이 아니다',
+    type: 'number',
+    defaultValue: 5,
+    unit: '건',
+    min: 2,
+    max: 200,
+    usedFrom: '1-C',
+    source: '명세 §16 패턴 리포트',
   },
 ] as const
 

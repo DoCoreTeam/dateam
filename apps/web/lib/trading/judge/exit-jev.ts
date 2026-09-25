@@ -39,6 +39,11 @@ export interface ExitJudgeInput {
   closes: readonly number[]
   timeoutMs: number
   model: string
+  /**
+   * 지금 시각. **받는다** — 판단 계층이 `new Date()` 를 직접 부르면 백테스트가 미래를 본다(M5).
+   * 시각을 밖에서 주면 과거 시점으로 같은 코드를 돌릴 수 있다.
+   */
+  now: Date
 }
 
 const TIMED_OUT = Symbol('exit_timeout')
@@ -56,19 +61,20 @@ export async function judgeExitShadow(input: ExitJudgeInput): Promise<ExitJudgeO
 
   const model = input.model.trim()
   if (model === '') {
-    await finish(claimed, { status: 'abstain', reason: 'model_not_set' }, null, null, model)
+    await finish(claimed, { status: 'abstain', reason: 'model_not_set' }, null, null, model, input.now)
     return { status: 'abstain', reason: 'model_not_set' }
   }
 
   const choice = await resolveProviderKey('jev', null)
   if (!choice.apiKey) {
     const outcome = { status: 'abstain' as const, reason: `key_unavailable:${choice.reason}` }
-    await finish(claimed, outcome, null, null, model)
+    await finish(claimed, outcome, null, null, model, input.now)
     return outcome
   }
 
   const prompt = buildExitPrompt(input.ctx, input.closes)
-  const requestAt = new Date()
+  const requestAt = input.now
+  const started = monotonicNow()
   let text: string | typeof TIMED_OUT
   try {
     text = await Promise.race<string | typeof TIMED_OUT>([
@@ -81,27 +87,36 @@ export async function judgeExitShadow(input: ExitJudgeInput): Promise<ExitJudgeO
     const outcome = error instanceof BudgetDeniedError
       ? { status: 'abstain' as const, reason: 'budget_denied' }
       : { status: 'failed' as const, reason: `call_failed:${error instanceof Error ? error.message : 'unknown'}`.slice(0, 200) }
-    await finish(claimed, outcome, requestAt, new Date(), model)
+    await finish(claimed, outcome, requestAt, new Date(input.now.getTime() + elapsedSince(started)), model, input.now)
     return outcome
   }
 
-  const responseAt = new Date()
+  // 응답 시각은 실제로 걸린 만큼 흘러야 한다. 시작 시각을 그대로 쓰면 지연이 0 이 된다
+  const responseAt = new Date(input.now.getTime() + elapsedSince(started))
   if (text === TIMED_OUT) {
     const outcome = { status: 'abstain' as const, reason: `timeout:${input.timeoutMs}ms` }
-    await finish(claimed, outcome, requestAt, responseAt, model)
+    await finish(claimed, outcome, requestAt, responseAt, model, input.now)
     return outcome
   }
 
   const score = parseExitResponse(text)
   if (!score) {
     const outcome = { status: 'abstain' as const, reason: 'unreadable_response' }
-    await finish(claimed, outcome, requestAt, responseAt, model)
+    await finish(claimed, outcome, requestAt, responseAt, model, input.now)
     return outcome
   }
 
   const outcome = { status: 'completed' as const, score }
-  await finish(claimed, outcome, requestAt, responseAt, model)
+  await finish(claimed, outcome, requestAt, responseAt, model, input.now)
   return outcome
+}
+
+/** 흐른 시간만 잰다. 벽시계가 아니라 경과라 과거 재현에도 뜻이 같다 */
+function monotonicNow(): number {
+  return typeof performance !== 'undefined' ? performance.now() : 0
+}
+function elapsedSince(started: number): number {
+  return Math.max(0, Math.round(monotonicNow() - started))
 }
 
 /** 선점. 유일 키에 걸리면 남이 이미 이 분을 맡았다 */
@@ -128,6 +143,7 @@ async function finish(
   requestAt: Date | null,
   responseAt: Date | null,
   model: string,
+  now: Date,
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
@@ -137,7 +153,7 @@ async function finish(
     abstain_reason: outcome.status === 'completed' ? null : outcome.reason,
     jev_model_version: model,
     jev_prompt_version: EXIT_PROMPT_VERSION,
-    decision_at: new Date().toISOString(),
+    decision_at: now.toISOString(),
     ai_request_at: requestAt?.toISOString() ?? null,
     ai_response_at: responseAt?.toISOString() ?? null,
   }).eq('id', id)

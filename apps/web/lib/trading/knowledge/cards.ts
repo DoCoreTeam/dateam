@@ -125,10 +125,16 @@ export async function makeCard(input: MakeCardInput): Promise<MakeCardResult> {
   if (isRejection(parsed)) {
     return { made: false, reason: parsed.reason, userMessage: parsed.userMessage }
   }
-  return saveCard(parsed, call.model, input.promptVersion)
+  return saveCardDraft(parsed, call.model, input.promptVersion)
 }
 
-async function saveCard(
+/**
+ * 이미 글이 있는 초안을 카드로 넣는다.
+ *
+ * 설정 도우미처럼 **AI 를 이미 한 번 부른** 자리가 쓴다. `makeCard` 를 다시 부르면
+ * 같은 글을 만들려고 AI 를 두 번 부르게 되고, 예산이 두 배로 나간다.
+ */
+export async function saveCardDraft(
   draft: CardDraft, model: string, promptVersion: string,
 ): Promise<MakeCardResult> {
   const revision = nextRevision(await latestRevision(draft.topic))

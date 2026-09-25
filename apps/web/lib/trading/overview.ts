@@ -18,8 +18,17 @@ import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
+  KnowledgeRow, SettingHelpRow, KnowledgeProgress,
 } from './overview-shape.ts'
-import { emitProgressOf } from './overview-shape.ts'
+import { emitProgressOf, knowledgeProgressOf } from './overview-shape.ts'
+import { cardsAsOf } from './knowledge/cards.ts'
+import { sourcesAsOf } from './knowledge/sources.ts'
+import { reportsAsOf } from './knowledge/pattern.ts'
+import { proposalsAsOf } from './knowledge/proposal.ts'
+import { explanationsAsOf } from './knowledge/explain.ts'
+import { composeHelp } from './knowledge/setting-help.ts'
+import { helpTopic } from './knowledge/setting-help-run.ts'
+import { TRADING_SETTINGS } from './settings/registry.ts'
 import { LATENCY_SEGMENTS, SEGMENT_LABEL, latencyReport, decideResult, type SignalTimes } from './position/pnl.ts'
 import { PROTECTION_LABEL, needsHumanUnlock, DEFAULT_PROTECTION, type ProtectionState } from './position/state.ts'
 import { decideEnableNotify, enableHint } from './notify/enable-gate.ts'
@@ -260,6 +269,9 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     position,
     notify,
     emitProgress: emitProgressOf(recentRuns[0]?.reason ?? null),
+    knowledge: await loadKnowledge(now),
+    settingHelp: await loadSettingHelp(now),
+    knowledgeProgress: knowledgeProgressOf(recentRuns[0]?.reason ?? null),
     gate: {
       passed: gateVerdict.passed,
       failedCount: gateVerdict.failedCount,
@@ -268,4 +280,85 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     gateCriteria: gateVerdict.criteria,
     empty: coverage.every((d) => d.actual === 0) && judgments.length === 0 && signals.length === 0,
   }
+}
+
+/**
+ * 지금 볼 수 있는 지식 (as-of).
+ *
+ * 다섯 갈래를 한 목록으로 합친다 — 화면에 표를 다섯 개 두면 사람이 다섯 번 훑어야 하고,
+ * 실제로 궁금한 것은 「최근에 무엇이 쌓였나」 하나다.
+ *
+ * 지식이 안 읽혀도 화면은 서야 한다. 곁가지가 본 일을 죽이지 않는다.
+ */
+async function loadKnowledge(now: Date): Promise<KnowledgeRow[]> {
+  const rows: KnowledgeRow[] = []
+  try {
+    for (const c of await cardsAsOf(now, 20)) {
+      rows.push({
+        kind: 'card', id: c.id, title: c.title,
+        detail: `${c.topic} · 판 ${c.revision} · 근거 ${c.sources.length}건`,
+        availableAt: c.availableAt.toISOString(), needsDecision: false,
+      })
+    }
+    for (const s of await sourcesAsOf(now, 20)) {
+      rows.push({
+        kind: 'source', id: s.id, title: s.summary ?? s.ref,
+        detail: `${s.ref} · ${s.status}${s.reason ? ` · ${s.reason}` : ''}`,
+        availableAt: s.availableAt.toISOString(), needsDecision: false,
+      })
+    }
+    for (const r of await reportsAsOf(now, 6)) {
+      rows.push({
+        kind: 'report', id: r.id, title: `${r.windowFrom} ~ ${r.windowTo} 패턴`,
+        detail: `${r.sampleCount}건${r.narrative ? '' : ' · 설명 없음'}`,
+        availableAt: r.availableAt.toISOString(), needsDecision: false,
+      })
+    }
+    for (const p of await proposalsAsOf(now, 20)) {
+      rows.push({
+        kind: 'proposal', id: p.id, title: `${p.settingKey} 변경 제안`,
+        detail: `${JSON.stringify(p.currentValue)} → ${JSON.stringify(p.proposedValue)}`
+          + ` · ${p.effectiveTradeDate ?? '날짜 미정'}부터 · ${p.rationale}`,
+        availableAt: p.availableAt.toISOString(),
+        // 대기 중인 것만 사람이 결정한다
+        needsDecision: p.status === 'proposed',
+      })
+    }
+    for (const e of await explanationsAsOf(now, 20)) {
+      rows.push({
+        kind: 'explanation', id: e.signalId, title: '신호 설명',
+        detail: e.body, availableAt: e.availableAt.toISOString(), needsDecision: false,
+      })
+    }
+  } catch {
+    // 지식을 못 읽어도 화면은 선다. 무엇이 안 읽혔는지는 실행 기록에 남는다
+    return rows
+  }
+  return rows.sort((a, b) => b.availableAt.localeCompare(a.availableAt))
+}
+
+/**
+ * 설정별 설명. **우리 설명이 늘 먼저다.**
+ *
+ * 도우미 카드가 있으면 그 아래 붙고, 없으면 우리 설명만 뜬다 —
+ * 도우미가 원래 설명을 덮으면 AI 가 죽은 날 화면이 빈다.
+ */
+async function loadSettingHelp(now: Date): Promise<SettingHelpRow[]> {
+  let extraByKey = new Map<string, string>()
+  try {
+    const cards = await cardsAsOf(now, 200)
+    extraByKey = new Map(
+      TRADING_SETTINGS
+        .map((s) => [s.key, cards.find((c) => c.topic === helpTopic(s.key))?.body])
+        .filter((pair): pair is [string, string] => typeof pair[1] === 'string'),
+    )
+  } catch {
+    // 도우미를 못 읽어도 우리 설명은 나간다
+    extraByKey = new Map()
+  }
+  return TRADING_SETTINGS.flatMap((s) => {
+    const composed = composeHelp(s.key, extraByKey.get(s.key) ?? null)
+    if ('reason' in composed) return []
+    return [{ key: composed.key, original: composed.original, extra: composed.extra }]
+  })
 }

@@ -17,6 +17,8 @@ import { loadTradingSettings, saveTradingSetting } from '@/lib/trading/settings/
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { decideEnableNotify, decideDisableNotify, auditLine } from '@/lib/trading/notify/enable-gate'
 import { getRequestUser } from '@/lib/supabase/server'
+import { decideProposal } from '@/lib/trading/knowledge/proposal'
+import { ingestSource, ingestUrl } from '@/lib/trading/knowledge/sources'
 
 export interface AckActionResult {
   ok: boolean
@@ -114,4 +116,46 @@ export async function setNotifyEnabled(next: boolean): Promise<AckActionResult> 
   if (!saved.ok) return { ok: false, userMessage: saved.rejection.userMessage }
   revalidatePath('/trading')
   return { ok: true, userMessage: null }
+}
+
+/**
+ * 설정 변경 제안을 사람이 결정한다 (§15.3).
+ *
+ * AI 는 올리기만 하고 여기를 못 부른다 — 서버 액션이라 사람의 요청으로만 들어온다.
+ */
+export async function decideSpecCandidate(proposalId: string, accept: boolean): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const user = await getRequestUser()
+  if (!user) return DENIED
+
+  const result = await decideProposal({ proposalId, accept, actorUserId: user.id })
+  if (!result.ok) return { ok: false, userMessage: result.userMessage }
+  revalidatePath('/trading')
+  return {
+    ok: true,
+    userMessage: result.applied
+      ? `${result.effectiveTradeDate} 부터 적용됩니다`
+      : '후보를 물렸습니다',
+  }
+}
+
+/**
+ * 자료를 넣는다. 주소처럼 보이면 받아 오고, 아니면 붙여 넣은 글로 본다.
+ *
+ * 분석은 여기서 안 한다 — 크론이 다음 분에 한다. 넣기와 분석을 묶으면
+ * AI 가 죽은 날 자료까지 못 받는다.
+ */
+export async function addTradingSource(text: string): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const body = text.trim()
+  if (body === '') return { ok: false, userMessage: '자료가 비어 있습니다' }
+
+  const looksLikeUrl = /^https?:\/\/\S+$/.test(body)
+  const result = looksLikeUrl
+    ? await ingestUrl(body)
+    : await ingestSource({ kind: 'text', ref: '붙여 넣은 글', rawText: body })
+
+  if (!result.stored) return { ok: false, userMessage: result.userMessage }
+  revalidatePath('/trading')
+  return { ok: true, userMessage: '자료를 넣었습니다. 곧 분석합니다' }
 }

@@ -37,6 +37,7 @@ import { createServerJevJudge } from '../judge/jev.ts'
 import { runJudges, scheduledMinuteOf } from './tick-core.ts'
 import { runWatch } from './watch.ts'
 import { emitSignal } from './emit-signal.ts'
+import { runKnowledgeJob } from './knowledge-job.ts'
 import { isHoldDominant } from '../judge/types.ts'
 import { loadInstrumentSpec } from '../settings/store.ts'
 import { sameDayExitAt } from '../calendar/session.ts'
@@ -500,9 +501,19 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     num, str, values, outcome, watchNote,
   })
 
+  /**
+   * 9 지식 작업 — **맨 뒤다** (§10.2).
+   *
+   * 앞의 것이 다 끝난 뒤에만, 남은 시간 안에서, 한 분에 하나만 한다.
+   * 먼저 돌면 AI 가 느린 날 그 분의 수집과 판단이 통째로 밀리고, 밀린 봉은 다시 안 온다.
+   */
+  const knowledgeNote = await knowledgeOrExplain({
+    now, today, window, target, contractCode, num, str, indicators,
+  })
+
   return {
     ok: true,
-    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${watchNote}|${emitNote}`,
+    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${watchNote}|${emitNote}|${knowledgeNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,
@@ -593,4 +604,34 @@ async function loadLastTradingDays(): Promise<Set<string>> {
   const { data, error } = await admin.from('trading_contracts').select('last_trading_day')
   if (error) throw new Error(`최종거래일을 읽지 못했습니다: ${error.message}`)
   return new Set(((data ?? []) as { last_trading_day: string }[]).map((r) => r.last_trading_day))
+}
+
+/** 지식 한 걸음. 실패해도 수집·판단·신호는 이미 끝났다 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function knowledgeOrExplain(ctx: any): Promise<string> {
+  try {
+    const { now, today, window, target, num, str } = ctx
+    const result = await runKnowledgeJob({
+      now,
+      startedAt: now,
+      tradeDate: today,
+      continuousTrading: isContinuousTrading(window, target),
+      model: str('gemini_model', '') || null,
+      // 1-C 는 체결 연결이 없어 우리가 쥔 포지션이 없다. 생기면 여기로 넘긴다
+      position: null,
+      reportFrom: seoulDaysAgo(today, num('pattern_window_days', 20)),
+      reportMinSamples: num('pattern_min_samples', 30),
+      reportMinBucketSamples: num('pattern_min_bucket', 5),
+    })
+    return result.reason
+  } catch (error) {
+    return `knowledge_failed:${error instanceof Error ? error.message : 'unknown'}`
+  }
+}
+
+/** 서울 기준 며칠 전 */
+function seoulDaysAgo(today: string, days: number): string {
+  const d = new Date(`${today}T00:00:00+09:00`)
+  d.setUTCDate(d.getUTCDate() - Math.max(0, Math.round(days)))
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(d)
 }

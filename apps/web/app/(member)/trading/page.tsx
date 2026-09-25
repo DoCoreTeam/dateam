@@ -14,6 +14,7 @@ import BacktestPanel from './BacktestPanel'
 import SignalPanel from './SignalPanel'
 import LatencyPanel from './LatencyPanel'
 import NotifyPanel from './NotifyPanel'
+import KnowledgePanel from './KnowledgePanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -64,6 +65,7 @@ export default async function TradingPage() {
         />
         <NotifyPanel notify={overview.notify} position={overview.position} />
         <LatencyPanel rows={overview.latency} />
+        <KnowledgePanel rows={overview.knowledge} progress={overview.knowledgeProgress} />
         <BarCoverage days={overview.coverage} />
         <JudgmentList rows={overview.judgments} />
 
