@@ -69,6 +69,15 @@ export type JudgeResult =
 
 export interface Judge {
   readonly name: JudgeName
+  /**
+   * 이 판단기가 **밖으로 나가나**.
+   *
+   * 이름으로 가르지 않는다 — 이름을 보면 그것이 곧 특권이 된다(§7.2).
+   * 밖으로 나가는 판단기만 요청·응답 시각을 남긴다: 안 나갔는데 나간 시각을 적으면
+   * 지연 중앙값이 0 쪽으로 끌려 내려가고, 그 숫자로 「사람 지연보다 빠르다」는
+   * 틀린 결론이 나온다(§14.2 는 지연을 네 구간으로 가르라고 적는다).
+   */
+  readonly external: boolean
   /** 이 판단기가 쓴 모델·프롬프트 판. `rule` 은 없다 */
   readonly modelVersion?: string
   readonly promptVersion?: string

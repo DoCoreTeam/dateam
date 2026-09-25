@@ -45,6 +45,8 @@ export const RULE_SPEC = 'rule-v1'
 export function createRuleJudge(): Judge {
   return {
     name: 'rule',
+    // 지표만 보고 답한다. 벤더로 나가지 않으므로 요청·응답 시각이 없다
+    external: false,
     modelVersion: RULE_SPEC,
     async judge(input: JudgeInput): Promise<JudgeResult> {
       const last = input.bars[input.bars.length - 1]

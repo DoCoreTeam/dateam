@@ -371,12 +371,14 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
       claim: (judge) => claimJudgment(key(judge), context, now),
       takeOver: (judge) => takeOverStaleClaim(key(judge), now),
       judges,
-      finish: async (id, _judge, result, at) => {
+      finish: async (id, _judge, result, at, timing) => {
         await finishJudgment(id, {
           status: result.status,
           rawScore: result.status === 'completed' ? { ...result.rawScore } : null,
           abstainReason: result.status === 'completed' ? null : result.abstainReason,
           decisionAt: at,
+          aiRequestAt: timing.aiRequestAt,
+          aiResponseAt: timing.aiResponseAt,
         })
       },
       now: () => new Date(),

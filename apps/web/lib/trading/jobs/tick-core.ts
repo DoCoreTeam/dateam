@@ -26,9 +26,20 @@ export interface TickPorts {
   takeOver(judge: JudgeName): Promise<string | null>
   /** 판단기 하나 부르기 */
   judges: ReadonlyMap<JudgeName, Judge>
-  /** 결과 저장 */
-  finish(id: string, judge: JudgeName, result: JudgeResult, at: Date): Promise<void>
+  /** 결과 저장. 밖으로 나간 판단기는 요청·응답 시각이 함께 온다 */
+  finish(id: string, judge: JudgeName, result: JudgeResult, at: Date, timing: JudgeTiming): Promise<void>
   now(): Date
+}
+
+/**
+ * 밖으로 나간 시각. 안 나간 판단기는 둘 다 null 이다(§14.2).
+ *
+ * 이 둘이 비어 있으면 「봉 마감 → 판단」 지연을 서버·AI·사람으로 가를 수 없다 —
+ * 실측 2026-09-26: 칼럼도 인자도 있었는데 아무도 안 넘겨서 전부 null 이었다.
+ */
+export interface JudgeTiming {
+  aiRequestAt: Date | null
+  aiResponseAt: Date | null
 }
 
 export interface TickOutcome {
@@ -78,8 +89,13 @@ export async function runJudges(
       continue
     }
 
+    const requestAt = judge.external ? ports.now() : null
     const result = await judge.judge(input)
-    await ports.finish(id, name, result, ports.now())
+    const responseAt = judge.external ? ports.now() : null
+    await ports.finish(id, name, result, ports.now(), {
+      aiRequestAt: requestAt,
+      aiResponseAt: responseAt,
+    })
     outcome.ran.push(name)
   }
 

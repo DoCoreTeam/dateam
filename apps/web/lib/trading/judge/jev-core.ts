@@ -48,6 +48,8 @@ export function createJevJudge(options: JevOptions): Judge {
 
   return {
     name: 'jev',
+    // 관문을 지나 벤더까지 간다. 요청·응답 시각이 남아야 지연을 잴 수 있다
+    external: true,
     modelVersion: options.modelVersion,
     promptVersion: JEV_PROMPT_VERSION,
 
