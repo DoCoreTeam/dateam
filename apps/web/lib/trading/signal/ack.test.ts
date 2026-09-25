@@ -82,9 +82,32 @@ test('숫자가 아니면 사람이 읽을 문장으로 거절한다', () => {
 
 test('★ 확인 창구가 기존 소유자 확인을 지난다 — 새 인증을 안 만든다', () => {
   const src = readFileSync(join(TRADING_APP, 'actions.ts'), 'utf8')
-  assert.ok(src.includes('tradingAccess'), '서버 액션이 소유자 확인을 안 부른다')
-  assert.equal(/getRequestUser|createServerClient|auth\.getUser|profiles/.test(src), false,
+  assert.equal(/createServerClient|auth\.getUser|from\('profiles'\)/.test(src), false,
     '서버 액션이 제 나름의 인증을 만든다 — 판정이 두 곳으로 갈린다')
+
+  /**
+   * 내보낸 액션 **하나하나**가 `tradingAccess()` 를 먼저 지나야 한다.
+   *
+   * 파일 어딘가에 있으면 통과시키면 안 된다 — 액션이 셋인데 둘만 확인을 부르는
+   * 상태가 초록이 된다. 그리고 `getRequestUser` 는 누가 눌렀는지를 적을 때 쓰는 값이라
+   * 금지가 아니라 **순서**가 규칙이다: 소유자 확인이 먼저다.
+   */
+  const actions = [...src.matchAll(/export async function (\w+)/g)].map((m) => m[1])
+  assert.ok(actions.length >= 2, `창구를 ${actions.length}개밖에 못 읽었다`)
+  for (const name of actions) {
+    const start = src.indexOf(`export async function ${name}`)
+    const next = actions
+      .map((n) => src.indexOf(`export async function ${n}`))
+      .filter((i) => i > start)
+      .sort((a, b) => a - b)[0] ?? src.length
+    const body = src.slice(start, next)
+    const gateAt = body.indexOf('tradingAccess()')
+    assert.ok(gateAt > 0, `${name} 이 소유자 확인을 안 부른다`)
+    const userAt = body.indexOf('getRequestUser(')
+    if (userAt > 0) {
+      assert.ok(gateAt < userAt, `${name} 이 소유자 확인보다 먼저 사용자를 읽는다`)
+    }
+  }
 })
 
 test('★ 화면과 창구에 주문을 부르는 자리가 없다 (M1)', () => {

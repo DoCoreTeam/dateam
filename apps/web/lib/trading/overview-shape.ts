@@ -53,6 +53,38 @@ export interface SignalRow {
   calibratedProb: number | null
 }
 
+/** 네 구간 지연 한 줄. 못 잰 건수가 같이 온다 — 0 으로 채우면 「우리는 빠르다」가 된다 */
+export interface LatencyRow {
+  segment: string
+  label: string
+  measured: number
+  unmeasured: number
+  medianSeconds: number | null
+  p90Seconds: number | null
+  p95Seconds: number | null
+}
+
+/** 지금 포지션. 대조가 어긋나면 사람이 화면에서 풀어야 한다 */
+export interface PositionRow {
+  positionState: string
+  protectionState: string
+  protectionLabel: string
+  reason: string
+  occurredAt: string
+  /** 코드가 스스로 못 푸는 상태인가 */
+  needsHumanUnlock: boolean
+}
+
+/** 알림을 켤 수 있나 (C4) */
+export interface NotifySummary {
+  enabled: boolean
+  canEnable: boolean
+  /** 왜 못 켜는지. 켤 수 있으면 그렇다고 말한다 */
+  hint: string
+  shadowTradeDays: number
+  requiredShadowDays: number
+}
+
 export interface RunRow {
   scheduledMinute: string
   status: string
@@ -78,6 +110,13 @@ export interface TradingOverview {
   recentRuns: RunRow[]
   /** 최근 신호. 1-C 전에는 늘 비어 있다 */
   signals: SignalRow[]
+  /** 네 구간 지연 (§14.2) */
+  latency: LatencyRow[]
+  /** 지금 포지션. 없으면 null */
+  position: PositionRow | null
+  notify: NotifySummary
+  /** 마지막 실행이 신호를 어디까지 밀고 갔나. 「신호 없음」의 이유다 */
+  emitProgress: EmitProgress | null
   gate: GateSummary
   /** 관문 항목별 판정 */
   gateCriteria: CriterionResult[]
@@ -94,6 +133,38 @@ export interface TradingOverview {
 export function isSignalActionable(row: SignalRow, now: Date, validMinutes: number): boolean {
   if (row.result !== null) return false
   return now.getTime() <= Date.parse(row.barCloseAt) + validMinutes * 60_000
+}
+
+import { EMIT_STAGES, stageIndex, type EmitStage } from './signal/emit.ts'
+
+/**
+ * 마지막 실행이 신호를 어디까지 밀고 갔나.
+ *
+ * 실행 기록의 사유에 `emit:<단계>:<사유>` 가 들어 있다. 「신호 없음」만 보여 주면
+ * 사람은 전략을 의심하는데, 실제로는 보정 모델이 없어서 네 번째에서 멈춘 것일 수 있다.
+ */
+export interface EmitProgress {
+  stage: EmitStage
+  /** 다섯 중 몇 번째에서 멈췄나 (1부터) */
+  step: number
+  total: number
+  reason: string
+}
+
+export function emitProgressOf(reason: string | null): EmitProgress | null {
+  if (!reason) return null
+  const found = reason.split(/[|,]/).map((p) => p.trim()).find((p) => p.startsWith('emit:'))
+  if (!found) return null
+  const rest = found.slice('emit:'.length)
+  const stage = EMIT_STAGES.find((s) => rest.startsWith(s))
+  if (!stage) return null
+  const index = stageIndex(stage)
+  return {
+    stage,
+    step: index + 1,
+    total: EMIT_STAGES.length,
+    reason: rest.slice(stage.length + 1) || rest,
+  }
 }
 
 /** 그날 수집이 온전한가. 사람이 「5거래일 결측 없음」을 셀 수 있게 한 줄로 답한다 */

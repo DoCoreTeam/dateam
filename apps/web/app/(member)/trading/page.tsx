@@ -12,6 +12,8 @@ import BarCoverage from './BarCoverage'
 import JudgmentList from './JudgmentList'
 import BacktestPanel from './BacktestPanel'
 import SignalPanel from './SignalPanel'
+import LatencyPanel from './LatencyPanel'
+import NotifyPanel from './NotifyPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -57,8 +59,11 @@ export default async function TradingPage() {
         <SignalPanel
           rows={overview.signals}
           validMinutes={validMinutes}
-          notifyEnabled={values.notify_enabled === true}
+          notifyEnabled={overview.notify.enabled}
+          emitProgress={overview.emitProgress}
         />
+        <NotifyPanel notify={overview.notify} position={overview.position} />
+        <LatencyPanel rows={overview.latency} />
         <BarCoverage days={overview.coverage} />
         <JudgmentList rows={overview.judgments} />
 

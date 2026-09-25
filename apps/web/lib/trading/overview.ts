@@ -16,10 +16,19 @@ import { dateRange } from './calendar/date-range.ts'
 import { loadSessionWindow } from './calendar/seed.ts'
 import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
-import type { DayCoverage, JudgmentRow, RunRow, SignalRow, TradingOverview } from './overview-shape.ts'
+import type {
+  DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
+} from './overview-shape.ts'
+import { emitProgressOf } from './overview-shape.ts'
+import { LATENCY_SEGMENTS, SEGMENT_LABEL, latencyReport, decideResult, type SignalTimes } from './position/pnl.ts'
+import { PROTECTION_LABEL, needsHumanUnlock, DEFAULT_PROTECTION, type ProtectionState } from './position/state.ts'
+import { decideEnableNotify, enableHint } from './notify/enable-gate.ts'
 import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
 
-export type { DayCoverage, JudgmentRow, RunRow, SignalRow, TradingOverview, GateSummary } from './overview-shape.ts'
+export type {
+  DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary,
+  EmitProgress, TradingOverview, GateSummary,
+} from './overview-shape.ts'
 export { isDayComplete, missingCount, isSignalActionable } from './overview-shape.ts'
 
 /** 오늘부터 거슬러 며칠을 보나. 1-A 완료 기준이 5거래일이라 주말을 감안해 넉넉히 */
@@ -172,12 +181,85 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     riskArithmeticOk: null,
   })
 
+  /**
+   * 네 구간 지연 (§14.2).
+   *
+   * 결과가 정해진 신호만 센다 — 아직 진행 중인 신호를 넣으면 「아직 안 일어난 일」이
+   * 못 잼으로 세어지고, 못 잼 건수가 늘 커 보인다.
+   */
+  const times: SignalTimes[] = signals.map((row) => ({
+    barCloseAt: new Date(row.barCloseAt),
+    notifySentAt: row.notifySentAt ? new Date(row.notifySentAt) : null,
+    openedAt: row.openedAt ? new Date(row.openedAt) : null,
+    orderAt: row.orderAt ? new Date(row.orderAt) : null,
+    fillAt: row.fillAt ? new Date(row.fillAt) : null,
+  }))
+  const validMinutes = Number(values.signal_valid_minutes) || 10
+  const settled = times.filter((t, i) => decideResult({
+    times: t, validMinutes, skipped: signals[i].result === 'skipped', now,
+  }) !== null)
+  const report = latencyReport(settled)
+  const latency: LatencyRow[] = LATENCY_SEGMENTS.map((segment) => ({
+    segment,
+    label: SEGMENT_LABEL[segment],
+    ...report[segment],
+  }))
+
+  const { data: positionRows, error: positionError } = await admin
+    .from('trading_position_events')
+    .select('position_state, protection_state, reason, occurred_at')
+    .order('occurred_at', { ascending: false })
+    .limit(1)
+  if (positionError) throw new Error(`포지션 기록을 읽지 못했습니다: ${positionError.message}`)
+  const latest = (positionRows ?? [])[0] as Record<string, string> | undefined
+  const position: PositionRow | null = latest
+    ? {
+        positionState: latest.position_state,
+        protectionState: latest.protection_state,
+        protectionLabel: PROTECTION_LABEL[(latest.protection_state as ProtectionState) ?? DEFAULT_PROTECTION]
+          ?? PROTECTION_LABEL[DEFAULT_PROTECTION],
+        reason: latest.reason,
+        occurredAt: latest.occurred_at,
+        needsHumanUnlock: needsHumanUnlock(latest.position_state as never),
+      }
+    : null
+
+  /**
+   * 알림을 켤 수 있나 (C4).
+   *
+   * 섀도 거래일은 「신호가 실제로 난 날 수」다 — 크론이 돈 날이 아니다.
+   * 돌기만 하고 아무것도 안 난 날을 세면 5일이 하루 만에 찬다.
+   */
+  const shadowTradeDays = new Set(
+    signals.map((s) => s.barCloseAt.slice(0, 10)),
+  ).size
+  const requiredShadowDays = Number(values.notify_shadow_days_required) || 5
+  const notifyCtx = {
+    gatePassed: gateVerdict.passed,
+    gateInsufficientCount: gateVerdict.insufficientCount,
+    gateFailedCount: gateVerdict.failedCount,
+    shadowTradeDays,
+    requiredShadowDays,
+    currentlyEnabled: values.notify_enabled === true,
+  }
+  const notify: NotifySummary = {
+    enabled: notifyCtx.currentlyEnabled,
+    canEnable: decideEnableNotify({ kind: 'human', userId: 'preview' }, notifyCtx).allowed,
+    hint: enableHint(notifyCtx),
+    shadowTradeDays,
+    requiredShadowDays,
+  }
+
   return {
     contractCode,
     coverage,
     judgments,
     recentRuns,
     signals,
+    latency,
+    position,
+    notify,
+    emitProgress: emitProgressOf(recentRuns[0]?.reason ?? null),
     gate: {
       passed: gateVerdict.passed,
       failedCount: gateVerdict.failedCount,

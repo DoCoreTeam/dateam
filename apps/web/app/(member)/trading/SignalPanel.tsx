@@ -18,7 +18,7 @@ import { ACK_LABEL, type AckAction } from '@/lib/trading/signal/ack-policy'
 import {
   DIRECTION_LABEL, signalResultLabel, formatIndexPrice, formatProbability,
 } from '@/lib/trading/signal-labels'
-import { isSignalActionable, type SignalRow } from '@/lib/trading/overview-shape'
+import { isSignalActionable, type SignalRow, type EmitProgress } from '@/lib/trading/overview-shape'
 import { recordSignalOpened, submitSignalAck } from './actions'
 
 interface Props {
@@ -26,9 +26,11 @@ interface Props {
   validMinutes: number
   /** 알림이 켜져 있나. 꺼져 있으면 왜 안 오는지를 화면이 말한다 */
   notifyEnabled: boolean
+  /** 마지막 실행이 어디서 멈췄나. 「신호 없음」만으로는 고칠 곳을 못 찾는다 */
+  emitProgress: EmitProgress | null
 }
 
-export default function SignalPanel({ rows, validMinutes, notifyEnabled }: Props) {
+export default function SignalPanel({ rows, validMinutes, notifyEnabled, emitProgress }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   const [stopText, setStopText] = useState<Record<string, string>>({})
   const [pending, startTransition] = useTransition()
@@ -123,6 +125,11 @@ export default function SignalPanel({ rows, validMinutes, notifyEnabled }: Props
           ? '주문은 직접 하시고 여기에 무엇을 하셨는지만 알려 주세요. 시스템은 주문하지 않습니다'
           : '알림이 꺼져 있습니다. 검증 관문을 지난 뒤에 켤 수 있고, 그때까지는 기록만 남습니다'}
       </p>
+      {emitProgress && (
+        <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 0, marginBottom: 'var(--space-3)' }}>
+          마지막 실행은 {emitProgress.total}단계 중 {emitProgress.step}단계에서 멈췄습니다 · {emitProgress.reason}
+        </p>
+      )}
       {message && (
         <p role="status" style={{ fontSize: 'var(--fs-sm)', color: 'var(--nb-danger)', margin: 0, marginBottom: 'var(--space-3)' }}>
           {message}
