@@ -5,8 +5,12 @@
  * 그 경계를 지키는 것이 문서가 아니라 이 파일이다 — 문서만 있으면 언젠가
  * 「조회 하나 더」처럼 보이는 줄이 들어오고, 그 줄은 화면에서 아무 일도 안 일어난 것처럼 보인다.
  *
- * Release 4 에서 자동 주문을 별도 설계·승인으로 열 때 이 가드를 함께 푼다.
- * 그때까지는 **푸는 것이 곧 결정**이라 조용히 못 지나간다.
+ * Release 4 에서 자동 주문을 열었다. **가드를 푼 것이 아니라 경계를 옮겼다** —
+ * 주문 코드는 `lib/trading/order/**` 안에서만 있고, 밖에서는 지금까지처럼 0건을 센다.
+ * 그 폴더 안을 보는 것은 `lib/policy/trading-order-guard.test.ts` 다.
+ *
+ * 경계를 옮긴 이유: 통째로 풀면 「조회 하나 더」처럼 보이는 줄이 엉뚱한 곳에 생기고,
+ * 그 줄은 화면에서 아무 일도 안 일어난 것처럼 보인다.
  *
  * 무엇을 세나
  *   ① 주문 계열 KIS 경로 — **경로 넷만.** 계좌 조회도 같은 `/trading/` 아래 살아서
@@ -63,11 +67,21 @@ function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
 }
 
+/**
+ * 주문 코드가 사는 자리. **여기 하나뿐이다** (Release 4 설계 §0).
+ *
+ * 이 폴더 안은 이 가드가 안 보고, `trading-order-guard.test.ts` 가 따로 본다 —
+ * 무장 없이 주문하는 길·재시도·수량 2 같은 것을 거기서 센다.
+ */
+const ORDER_DIR = 'lib/trading/order/'
+
 function sources(): { file: string; src: string }[] {
-  return ROOTS.flatMap(walk).map((file) => ({
-    file: relative(WEB, file),
-    src: stripComments(readFileSync(file, 'utf8')),
-  }))
+  return ROOTS.flatMap(walk)
+    .map((file) => ({
+      file: relative(WEB, file),
+      src: stripComments(readFileSync(file, 'utf8')),
+    }))
+    .filter(({ file }) => !file.replace(/\\/g, '/').startsWith(ORDER_DIR))
 }
 
 const ORDER_PATTERNS: { re: RegExp; why: string }[] = [
@@ -145,6 +159,24 @@ test('★ 주문 경로는 막고 조회 경로는 통과시킨다', () => {
   ]) assert.equal(hits(p), true, `주문 경로 ${p} 를 안 막는다`)
   for (const key of Object.keys(KIS_ACCOUNT_QUERIES) as (keyof typeof KIS_ACCOUNT_QUERIES)[]) {
     assert.equal(hits(KIS_ACCOUNT_QUERIES[key].path), false, `조회 경로 ${key} 가 막혔다`)
+  }
+})
+
+test('★ 주문 폴더가 실제로 있고, 그 안에 주문 코드가 있다', () => {
+  // 예외를 뒀는데 그 폴더가 비어 있으면 이 가드는 아무것도 안 지킨다
+  const orderFiles = walk(join(WEB, 'lib', 'trading', 'order'))
+  assert.ok(orderFiles.length >= 4, `주문 폴더에 파일이 ${orderFiles.length}개뿐이다`)
+  const joined = orderFiles.map((f) => readFileSync(f, 'utf8')).join('\n')
+  assert.ok(/\b[A-Z]{4}\d{4}U\b/.test(joined), '주문 폴더에 주문 TR 이 없다')
+  assert.ok(joined.includes('/uapi/domestic-futureoption/v1/trading/order'), '주문 경로가 없다')
+})
+
+test('★ 주문 폴더 밖은 예전 그대로 0건이다', () => {
+  const outside = sources()
+  assert.ok(outside.length >= 60, `밖의 파일이 ${outside.length}개뿐이다`)
+  for (const { file } of outside) {
+    assert.equal(file.replace(/\\/g, '/').startsWith(ORDER_DIR), false,
+      `${file} 이 예외 안에 있는데 밖으로 세어졌다`)
   }
 })
 

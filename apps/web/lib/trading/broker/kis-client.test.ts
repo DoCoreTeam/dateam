@@ -222,6 +222,7 @@ test('★ broker 폴더 어디에도 주문 TR·주문 경로가 없다', () => 
     /\/uapi\/domestic-futureoption\/v1\/trading\/(ngt-)?order(-rvsecncl)?(?![a-z-])/,
     /\b[A-Z]{4}\d{4}U\b/,
   ]
+  // broker 폴더에는 여전히 주문이 0건이다. 주문은 lib/trading/order 에만 산다
   for (const name of readdirSync(HERE)) {
     if (!name.endsWith('.ts') || name.endsWith('.test.ts')) continue
     const src = readFileSync(join(HERE, name), 'utf8')
