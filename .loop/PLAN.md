@@ -106,7 +106,7 @@
 의존: I02
 
 ### I06 가드가 못 보던 둘을 세게 한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/trading-wiring-guard.test.ts
 감사 기준:

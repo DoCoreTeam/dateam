@@ -272,3 +272,171 @@ test('면제 목록에 죽은 줄이 없다 — 지운 이름이 사유만 남�
   const stale = Object.keys(NOT_CALLED_ON_PURPOSE).filter((n) => !declared.has(n))
   assert.deepEqual(stale, [], `없는 이름이 면제 목록에 남아 있다: ${stale.join(', ')}`)
 })
+
+// ── 이름 말고 **자리**를 보는 두 가지 ─────────────────────────
+//
+// 위 단정은 값 export 의 이름을 센다. 그 그물을 두 가지가 빠져나갔고
+// 둘 다 이 저장소에서 실제로 오래 살아 있었다 (실측 2026-09-26).
+//
+//   ① **객체 메서드** — `createAccountClient` 는 불렸으니 초록이었는데,
+//      그것이 돌려주는 `fills`·`openOrders`·`deposit` 는 **아무도 안 불렀다.**
+//      1-C 가 「KIS 체결 인식·대조, 손익 기록」을 만들었다고 적어 두었지만
+//      `trading_fills` 는 한 줄도 없었고 실현 손익은 언제나 0원이었다.
+//
+//   ② **고정값으로 넘기는 인자** — `runWatch({ closedTrades: [], stopPrice: null, ... })`.
+//      부르는 꼴은 완벽하다. 값이 없을 뿐이다. 그래서 손절 이탈 알림이
+//      **구조적으로 한 번도 못 나갔다** — 손절가가 늘 null 이라 판정 자체를 안 했다.
+//
+// 가드는 이름을 보면 안 되고 **값이 가는지**를 봐야 한다.
+
+/** 공장이 돌려주는 창구 인터페이스 이름들. `export function createX(...): Y` 의 Y */
+function clientInterfaces(files: readonly string[]): { iface: string; file: string }[] {
+  const out: { iface: string; file: string }[] = []
+  for (const file of files) {
+    const src = stripComments(readFileSync(file, 'utf8'))
+    for (const m of src.matchAll(/^export function create\w+\([^)]*\):\s*(\w+)\s*\{/gm)) {
+      out.push({ iface: m[1], file })
+    }
+  }
+  return out
+}
+
+/** `export interface X { m(...): ... }` 의 메서드 이름들 */
+function interfaceMethods(src: string, name: string): string[] {
+  const start = src.indexOf(`export interface ${name} {`)
+  if (start < 0) return []
+  const end = src.indexOf('\n}', start)
+  if (end < 0) return []
+  const body = stripComments(src.slice(start, end))
+  return [...body.matchAll(/^\s{2}(\w+)\s*\(/gm)].map((m) => m[1])
+}
+
+/**
+ * 안 불려도 되는 메서드. **왜**를 적는다.
+ *
+ * 콜백 묶음(부르는 쪽이 넘기고 받는 쪽이 부르는 것)은 여기 오지 않는다 —
+ * 공장이 돌려주는 인터페이스만 보기 때문에 `BacktestParams`·`TickPorts` 는 애초에 대상이 아니다.
+ */
+const METHOD_NOT_CALLED_ON_PURPOSE: Record<string, string> = {
+  'RateQueue.totalWaitedMs': '속도 제한에 기다린 시간. 실행 기록에 실을 자리를 정하기 전까지 재기만 한다',
+}
+
+test('★ 공장이 돌려주는 창구의 메서드가 전부 불린다 — 이름만 보면 안 보인다', () => {
+  const tradingFiles = walk(TRADING).filter((f) => !f.endsWith('.test.ts'))
+  const consumers = [...walk(join(WEB, 'lib')), ...walk(join(WEB, 'app'))]
+    .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
+
+  const clients = clientInterfaces(tradingFiles)
+  assert.ok(clients.length >= 3,
+    `공장을 ${clients.length}개밖에 못 찾았다. 정규식이 안 맞는지 확인한다`)
+
+  const orphans: string[] = []
+  let checked = 0
+  for (const { iface, file } of clients) {
+    const methods = interfaceMethods(readFileSync(file, 'utf8'), iface)
+    for (const method of methods) {
+      checked += 1
+      if (METHOD_NOT_CALLED_ON_PURPOSE[`${iface}.${method}`]) continue
+      /**
+       * **`.이름(` 으로 찾는다.** 구현 자리는 `async fills(tradeDate) {` 라 안 걸리고,
+       * 부르는 자리만 `account.fills(` 로 걸린다. 이름만 찾으면 구현이 자기를 통과시킨다.
+       */
+      const call = new RegExp(`\\.${method}\\s*\\(`)
+      const called = consumers.some((f) => call.test(stripImports(readFileSync(f, 'utf8'))))
+      if (!called) orphans.push(`${relative(WEB, file)} 의 ${iface}.${method}`)
+    }
+  }
+  assert.ok(checked >= 8, `메서드를 ${checked}개밖에 못 찾았다 — 본문 자르기가 틀렸는지 확인한다`)
+  assert.deepEqual(orphans, [],
+    `만들어만 놓고 아무도 안 부르는 창구가 ${orphans.length}개다:\n  ${orphans.join('\n  ')}\n\n`
+      + `공장이 불린다고 그 창구가 쓰이는 것은 아니다. 배선하거나, 왜 안 불려도 되는지 적는다.`)
+})
+
+// ── 고정값으로 넘기는 자리 ───────────────────────────────────
+
+/** 괄호 균형으로 `이름({ ... })` 의 인자 덩어리를 통째로 잘라 낸다 */
+function callArgument(src: string, callee: string): string | null {
+  const at = src.indexOf(`${callee}({`)
+  if (at < 0) return null
+  let depth = 0
+  for (let i = src.indexOf('{', at); i < src.length; i += 1) {
+    if (src[i] === '{') depth += 1
+    else if (src[i] === '}') {
+      depth -= 1
+      if (depth === 0) return src.slice(at, i + 1)
+    }
+  }
+  return null
+}
+
+/** `이름: 고정값` 인 줄들. 중첩 객체 안까지 본다 */
+function literalProps(argument: string): string[] {
+  const code = argument.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
+  const literal = /^\s*(\w+):\s*(null|false|true|0|\[\]|''|""),?\s*$/gm
+  return [...code.matchAll(literal)].map((m) => `${m[1]}=${m[2]}`)
+}
+
+/**
+ * 고정값으로 남겨도 되는 자리. **무엇을 재야 하는지 알면서 안 재는 것은 여기 못 온다.**
+ *
+ * 「아직 안 이었다」는 사유가 아니다. 그것이 이 가드가 잡으라고 있는 상태다.
+ */
+const LITERAL_ON_PURPOSE: Record<string, string> = {
+  // 게이트 값 — 아직 재는 길이 없고, 재는 날 measure.ts 에 붙인다
+  'runWatch.barMissingOrLate=false': '봉 결측 판정은 이 호출보다 뒤에서 난다. 감시는 봉을 안 기다린다',
+  'runWatch.spreadAbnormal=false': '평소 스프레드 분포를 아직 안 쌓았다. 기준이 없으면 「이상」을 말할 수 없다',
+  'runWatch.marketAbnormal=false': '서킷브레이커·사이드카를 주는 창구를 아직 안 붙였다',
+  'runWatch.notifyFailureStreak=0': 'runWatch 가 안에서 recentNotifications 로 다시 센다. 여기 값은 안 쓴다',
+  /**
+   * 평가 손익은 **일부러** 안 넣는다. 한도가 보는 것은 실현이고(§8 D-32),
+   * 평가를 섞으면 들고 있는 것이 오르내릴 때마다 새 신호가 멈췄다 풀렸다 한다.
+   */
+  'runWatch.unrealizedKrw=null': '한도는 실현만 본다 (§8 D-32). 평가를 섞으면 신호가 깜빡인다',
+  'runWatch.brokerWasFailing=false': '직전 실행의 증권사 상태는 measureGate 가 세고, 복구 대조는 그 값을 아직 안 쓴다',
+  'runWatch.reconciledSinceRecovery=false': '위와 한 쌍이다. 복구 대조를 붙이는 날 함께 채운다',
+}
+
+test('★ 감시와 주문에 고정값을 안 넘긴다 — 부르는 꼴은 완벽한데 값이 없던 자리', () => {
+  const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
+
+  const found: string[] = []
+  let scanned = 0
+  for (const callee of ['runWatch', 'runOrderJob']) {
+    const argument = callArgument(tick, callee)
+    assert.ok(argument, `${callee}({ ... }) 호출을 못 찾았다 — 부르는 꼴이 바뀌었는지 확인한다`)
+    scanned += 1
+    for (const prop of literalProps(argument as string)) {
+      if (LITERAL_ON_PURPOSE[`${callee}.${prop}`]) continue
+      found.push(`${callee} 의 ${prop}`)
+    }
+  }
+  assert.equal(scanned, 2, '두 호출을 다 봐야 한다')
+
+  assert.deepEqual(found, [],
+    `재야 할 값을 고정값으로 넘기는 자리가 ${found.length}개다:\n  ${found.join('\n  ')}\n\n`
+      + `부르는 꼴이 맞다고 값이 가는 것은 아니다. 재거나, 왜 못 재는지 LITERAL_ON_PURPOSE 에 적는다.`)
+})
+
+test('면제 목록 둘에 죽은 줄이 없다', () => {
+  const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
+  const live = new Set<string>()
+  for (const callee of ['runWatch', 'runOrderJob']) {
+    const argument = callArgument(tick, callee)
+    if (!argument) continue
+    for (const prop of literalProps(argument)) live.add(`${callee}.${prop}`)
+  }
+  assert.deepEqual(
+    Object.keys(LITERAL_ON_PURPOSE).filter((k) => !live.has(k)), [],
+    '이미 재고 있는 자리가 면제 목록에 남아 있다',
+  )
+
+  const tradingFiles = walk(TRADING).filter((f) => !f.endsWith('.test.ts'))
+  const declared = new Set<string>()
+  for (const { iface, file } of clientInterfaces(tradingFiles)) {
+    for (const m of interfaceMethods(readFileSync(file, 'utf8'), iface)) declared.add(`${iface}.${m}`)
+  }
+  assert.deepEqual(
+    Object.keys(METHOD_NOT_CALLED_ON_PURPOSE).filter((k) => !declared.has(k)), [],
+    '없는 메서드가 면제 목록에 남아 있다',
+  )
+})
