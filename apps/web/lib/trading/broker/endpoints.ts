@@ -78,3 +78,12 @@ export const FID_MARKET_INDEX_FUTURES = 'F'
 
 /** 시간 구분 코드. 30 초와 1분만 있고 5·15분은 우리가 1분을 묶어 만든다(§6.2) */
 export const FID_HOUR_1M = '60'
+
+/**
+ * 종목정보 마스터. 월물 목록과 「지금 무엇이 근월물인가」가 여기 있다(명세 §20).
+ *
+ * KIS 조회 API 가 아니라 다운로드 서버다. 주소는 공식 저장소 예제
+ * `stocks_info/domestic_index_future_code.py` 의 값이고 상수다 — 바깥 값이 안 섞인다.
+ */
+export const KIS_INDEX_FUTURE_MASTER_URL =
+  'https://new.real.download.dws.co.kr/common/master/fo_idx_code_mts.mst.zip'
