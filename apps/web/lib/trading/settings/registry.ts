@@ -41,6 +41,7 @@ export type TradingSettingGroup =
   | 'exit'       // 청산
   | 'notify'     // 알림
   | 'knowledge'  // 지식과 설명
+  | 'operator'   // AI 운영자
 
 /** 언제부터 이 값을 실제로 읽나. 「선언만 되고 아무도 안 읽는 값」을 없애려고 적는다 */
 export type UsedFrom = '1-A' | '1-B' | '1-C'
@@ -913,6 +914,51 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     max: 200,
     usedFrom: '1-C',
     source: '명세 §16 패턴 리포트',
+  },
+  // ── AI 운영자 (Release 3 · §15.3) ───────────────────────
+  //
+  // **자동이 기본인 항목이 하나도 없다.** 기본값은 아무도 안 고른 값이고,
+  // 아무도 안 고른 값으로 AI 가 돈이 걸린 일을 하면 그것은 「하기로 정한 것」이 아니라
+  // 「막지 않은 것」이다. 키 접두사가 `ai_intervention_` 이라 스펙 후보 금지 목록이 통째로 막는다.
+  {
+    key: 'ai_intervention_retry_notifications',
+    group: 'operator',
+    label: '개입: 안 나간 알림 다시 보내기',
+    help: '자동·승인 뒤·끔. 안전해 보여도 승인으로 시작한다 — 안전한지는 며칠 돌려 보고 사람이 정한다',
+    type: 'string',
+    defaultValue: 'approve',
+    usedFrom: '1-C',
+    source: '명세 §15.3 AI 개입',
+  },
+  {
+    key: 'ai_intervention_backfill_bars',
+    group: 'operator',
+    label: '개입: 빠진 봉 다시 받기',
+    help: '자동·승인 뒤·끔',
+    type: 'string',
+    defaultValue: 'approve',
+    usedFrom: '1-C',
+    source: '명세 §15.3 AI 개입',
+  },
+  {
+    key: 'ai_intervention_reanalyze_source',
+    group: 'operator',
+    label: '개입: 자료 다시 분석하기',
+    help: '자동·승인 뒤·끔',
+    type: 'string',
+    defaultValue: 'approve',
+    usedFrom: '1-C',
+    source: '명세 §15.3 AI 개입',
+  },
+  {
+    key: 'operator_enabled',
+    group: 'operator',
+    label: 'AI 운영자 켜기',
+    help: '점검과 브리핑을 돌린다. 조치는 위 개입 수준을 따로 따른다',
+    type: 'boolean',
+    defaultValue: false,
+    usedFrom: '1-C',
+    source: '명세 §16 Release 3',
   },
 ] as const
 

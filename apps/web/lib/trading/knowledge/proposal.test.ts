@@ -46,6 +46,8 @@ test('★ 명세 §15.3 의 「AI 가 절대 바꿀 수 없는 것」이 전부 
     'notify_enabled', 'notify_shadow_days_required',
     'protection_recheck_minutes',
     'validation_lockbox_days',
+    // AI 개입 수준 자체와 운영자 스위치 (§15.3)
+    'ai_intervention_retry_notifications', 'operator_enabled',
   ]
   for (const key of mustBlock) {
     assert.ok(aiMayPropose(key), `${key} 가 AI 에게 열려 있다`)
@@ -53,7 +55,8 @@ test('★ 명세 §15.3 의 「AI 가 절대 바꿀 수 없는 것」이 전부 
 })
 
 test('★ 접두사로도 막는다 — 새 키가 생겨도 조용히 안 열린다', () => {
-  assert.deepEqual([...AI_FORBIDDEN_PREFIXES], ['gate_', 'notify_', 'kis_', 'protection_'])
+  assert.deepEqual([...AI_FORBIDDEN_PREFIXES],
+    ['gate_', 'notify_', 'kis_', 'protection_', 'ai_intervention_', 'operator_'])
   for (const p of AI_FORBIDDEN_PREFIXES) {
     assert.ok(aiMayPropose(`${p}brand_new_key_nobody_reviewed`), `${p}* 가 안 막힌다`)
   }
@@ -61,7 +64,7 @@ test('★ 접두사로도 막는다 — 새 키가 생겨도 조용히 안 열�
 
 test('★ 지금 레지스트리에 있는 금지 갈래 설정이 하나도 안 새어 나간다', () => {
   const leaked = TRADING_SETTINGS
-    .filter((s) => ['safety', 'notify', 'broker'].includes(s.group))
+    .filter((s) => ['safety', 'notify', 'broker', 'operator'].includes(s.group))
     .filter((s) => aiMayPropose(s.key) === null)
     .map((s) => s.key)
   assert.deepEqual(leaked, [], `안전 게이트·알림·증권사 설정이 AI 에게 열렸다: ${leaked.join(', ')}`)

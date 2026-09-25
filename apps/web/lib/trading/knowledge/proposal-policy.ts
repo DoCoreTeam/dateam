@@ -45,6 +45,10 @@ export const AI_FORBIDDEN_PREFIXES: readonly string[] = [
   'kis_',
   // 손절 보호 정책
   'protection_',
+  // AI 개입 수준 자체. **AI 가 자기 권한을 못 넓힌다** (§15.3)
+  'ai_intervention_',
+  // AI 운영자를 켜고 끄는 일도 사람 몫이다
+  'operator_',
 ]
 
 export interface Proposal {

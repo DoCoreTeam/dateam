@@ -23,6 +23,7 @@ export const TRADING_GROUP_LABEL: Record<TradingSettingGroup, string> = {
   exit: '청산',
   notify: '알림',
   knowledge: '지식과 설명',
+  operator: 'AI 운영자',
 }
 
 /**
