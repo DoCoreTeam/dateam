@@ -9,9 +9,12 @@
  * 그때까지는 **푸는 것이 곧 결정**이라 조용히 못 지나간다.
  *
  * 무엇을 세나
- *   ① 주문 계열 KIS 경로 (`/uapi/…/trading/…` · 야간 주문)
- *   ② 주문 계열 TR ID (국내선물옵션 주문은 끝이 `U`, 실전 `TTTO`·`JTCE`, 모의 `VTTO`)
- *   ③ 계좌 조회 TR — 1-A 범위 밖이다(§3.2, 1-C 에서 확정한다)
+ *   ① 주문 계열 KIS 경로 — **경로 넷만.** 계좌 조회도 같은 `/trading/` 아래 살아서
+ *      경로를 통째로 막으면 1-C 의 잔고·체결 조회까지 같이 막힌다
+ *   ② 주문 계열 TR ID — **끝 글자로 판정한다.** 조회는 `R`, 주문은 `U` 다.
+ *      앞 네 글자로 판정하면 안 된다: `TTTO5201R` 은 조회이고 `TTTO1101U` 는 주문이며,
+ *      실전 야간 주문 `STTN1101U` 와 정정취소 `TTTN1103U` 는 앞머리 목록에 아예 없었다
+ *      (2026-09-26 공식 예제 `order.py`·`order_rvsecncl.py` 에서 확인, 그때까지 이 가드의 구멍이었다)
  */
 
 import { test } from 'node:test'
@@ -19,6 +22,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { KIS_ACCOUNT_QUERIES } from '../trading/broker/endpoints.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -48,24 +52,43 @@ function walk(dir: string): string[] {
   return out
 }
 
+/**
+ * 주석을 지운다.
+ *
+ * 주석은 API 를 못 부른다. 그런데 「조회와 주문을 어떻게 가르는가」를 설명하려면
+ * 주문 TR 을 예로 적어야 하고, 주석까지 세면 **설명이 위반이 된다** — 그러면 설명을 지우게 되고
+ * 다음 사람은 왜 이렇게 갈랐는지 모른다. 값이 가는 자리만 센다.
+ */
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
+}
+
 function sources(): { file: string; src: string }[] {
-  return ROOTS.flatMap(walk).map((file) => ({ file: relative(WEB, file), src: readFileSync(file, 'utf8') }))
+  return ROOTS.flatMap(walk).map((file) => ({
+    file: relative(WEB, file),
+    src: stripComments(readFileSync(file, 'utf8')),
+  }))
 }
 
 const ORDER_PATTERNS: { re: RegExp; why: string }[] = [
-  { re: /\/uapi\/domestic-futureoption\/v1\/trading\//, why: '국내선물옵션 주문 계열 경로' },
+  // 주문 경로는 이 넷뿐이다. `inquire-` 로 시작하는 것은 조회다
+  { re: /\/uapi\/domestic-futureoption\/v1\/trading\/(ngt-)?order(?![a-z-])/, why: '선물옵션 주문 경로' },
+  { re: /\/uapi\/domestic-futureoption\/v1\/trading\/(ngt-)?order-rvsecncl/, why: '선물옵션 정정취소 경로' },
   { re: /\/uapi\/domestic-stock\/v1\/trading\//, why: '주식 주문 계열 경로' },
-  // 국내선물옵션 주문 TR 은 끝이 U 다. 실전 TTTO·JTCE, 모의 VTTO
-  { re: /\b(TTTO|JTCE|VTTO)\d{4}U\b/, why: '주문 TR ID' },
-  { re: /order-?rvsecncl|order-cash|order-credit/, why: '정정·취소·현금주문 경로' },
+  // **끝 U 가 주문이다.** 앞 네 글자로 가르면 TTTO5201R(조회)를 막고 STTN1101U(야간 주문)를 놓친다
+  { re: /\b[A-Z]{4}\d{4}U\b/, why: '주문 TR ID (끝이 U)' },
+  { re: /order-cash|order-credit/, why: '현금·신용 주문 경로' },
 ]
 
-/** 계좌 조회 TR — 1-A 가 아니다(§3.2). 1-C 에서 이 목록을 줄인다 */
-const ACCOUNT_TR_PATTERNS: { re: RegExp; why: string }[] = [
-  { re: /inquire-balance/, why: '잔고 조회 (1-C)' },
-  { re: /inquire-ccnl/, why: '체결 조회 (1-C)' },
-  { re: /inquire-psbl-order/, why: '주문가능 조회 (1-C)' },
-  { re: /inquire-deposit/, why: '예수금 조회 (1-C)' },
+/**
+ * 계좌 조회 — **1-C 부터 허용**이다(§3.2).
+ *
+ * 허용했다고 아무것이나 되는 것이 아니다. 조회 TR 은 끝이 `R` 이어야 하고,
+ * 그 규칙을 아래 시험이 `KIS_ACCOUNT_QUERIES` 표에 대고 확인한다.
+ */
+const ACCOUNT_QUERY_PATHS = [
+  'inquire-balance', 'inquire-ccnl', 'inquire-deposit', 'inquire-psbl-order',
+  'inquire-ngt-balance', 'inquire-ngt-ccnl', 'ngt-margin-detail',
 ]
 
 test('★ 트레이딩 코드에 주문을 부르는 자리가 없다 (M1)', () => {
@@ -83,18 +106,46 @@ test('★ 트레이딩 코드에 주문을 부르는 자리가 없다 (M1)', () 
   )
 })
 
-test('★ 1-A 는 계좌를 조회하지 않는다 — 그것은 1-C 다', () => {
-  const offenders: string[] = []
-  for (const { file, src } of sources()) {
-    for (const { re, why } of ACCOUNT_TR_PATTERNS) {
-      if (re.test(src)) offenders.push(`${file} — ${why}`)
+test('★ 계좌 조회 TR 은 전부 끝이 R 이다 — 하나라도 U 면 그것은 주문이다', () => {
+  const bad: string[] = []
+  for (const [key, spec] of Object.entries(KIS_ACCOUNT_QUERIES)) {
+    for (const trId of [spec.trId, spec.paperTrId]) {
+      if (!trId) continue
+      if (!/^[A-Z]{4}\d{4}R$/.test(trId)) bad.push(`${key} — ${trId}`)
+    }
+    if (!ACCOUNT_QUERY_PATHS.some((p) => spec.path.endsWith(p))) {
+      bad.push(`${key} — 허용 목록에 없는 경로 ${spec.path}`)
     }
   }
-  assert.deepEqual(
-    offenders, [],
-    `계좌 조회가 들어왔다:\n  ${offenders.join('\n  ')}\n` +
-      `명세 「구현 범위 잠금」이 1-A 에서 계좌 조회를 만들지 말라고 한다.`,
-  )
+  assert.deepEqual(bad, [], `조회 표에 조회가 아닌 것이 있다:\n  ${bad.join('\n  ')}`)
+})
+
+test('★ 실전 야간 주문 TR 도 잡힌다 — 앞머리 목록에는 없던 값들이다', () => {
+  // 공식 예제에서 읽은 실제 주문 TR 전부. 하나라도 안 걸리면 그 길이 열려 있다
+  const orderTrIds = ['TTTO1101U', 'STTN1101U', 'VTTO1101U', 'TTTO1103U', 'TTTN1103U', 'VTTO1103U']
+  const rule = ORDER_PATTERNS.find((p) => p.why.startsWith('주문 TR ID'))
+  assert.ok(rule)
+  for (const trId of orderTrIds) {
+    assert.equal(rule.re.test(`const x = '${trId}'`), true, `${trId} 를 안 잡는다`)
+  }
+  // 조회 TR 은 안 걸려야 한다 — 걸리면 1-C 가 아예 못 돈다
+  for (const trId of ['TTTO5201R', 'VTTO5201R', 'CTFO6118R', 'STTN5201R']) {
+    assert.equal(rule.re.test(`const x = '${trId}'`), false, `${trId} 는 조회인데 막혔다`)
+  }
+})
+
+test('★ 주문 경로는 막고 조회 경로는 통과시킨다', () => {
+  const pathRules = ORDER_PATTERNS.filter((p) => p.why.includes('경로'))
+  const hits = (line: string) => pathRules.some((p) => p.re.test(line))
+  for (const p of [
+    '/uapi/domestic-futureoption/v1/trading/order',
+    '/uapi/domestic-futureoption/v1/trading/order-rvsecncl',
+    '/uapi/domestic-futureoption/v1/trading/ngt-order',
+    '/uapi/domestic-stock/v1/trading/order-cash',
+  ]) assert.equal(hits(p), true, `주문 경로 ${p} 를 안 막는다`)
+  for (const key of Object.keys(KIS_ACCOUNT_QUERIES) as (keyof typeof KIS_ACCOUNT_QUERIES)[]) {
+    assert.equal(hits(KIS_ACCOUNT_QUERIES[key].path), false, `조회 경로 ${key} 가 막혔다`)
+  }
 })
 
 test('규칙이 실제로 도는 대상이 있다 — 파일이 0개면 위 단정은 언제나 초록이다', () => {

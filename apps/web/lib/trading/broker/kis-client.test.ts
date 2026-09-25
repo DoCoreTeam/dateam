@@ -215,14 +215,17 @@ test('앞 호출이 실패해도 줄이 끊기지 않는다', async () => {
 // ── 파일 전체를 훑는 가드 ────────────────────────────────
 
 test('★ broker 폴더 어디에도 주문 TR·주문 경로가 없다', () => {
+  // 1-C 부터 계좌 조회가 같은 `/trading/` 아래로 들어온다. 경로를 통째로 막으면 조회까지 막히므로
+  // 주문 경로 이름만 막고, TR 은 **끝 글자**로 가른다 — 조회 R, 주문 U.
+  // 앞 네 글자로 가르면 TTTO5201R(조회)을 막고 STTN1101U(야간 주문)를 놓친다
   const banned = [
-    /\/uapi\/domestic-futureoption\/v1\/trading\//,
-    // 국내선물옵션 주문 TR 앞자리. 조회는 FH 로 시작한다
-    /\bTTTO\d{4}U\b/, /\bJTCE\d{4}U\b/, /\bVTTO\d{4}U\b/,
+    /\/uapi\/domestic-futureoption\/v1\/trading\/(ngt-)?order(-rvsecncl)?(?![a-z-])/,
+    /\b[A-Z]{4}\d{4}U\b/,
   ]
   for (const name of readdirSync(HERE)) {
     if (!name.endsWith('.ts') || name.endsWith('.test.ts')) continue
     const src = readFileSync(join(HERE, name), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
     for (const pattern of banned) {
       assert.equal(pattern.test(src), false, `${name} 에 주문 흔적이 있다: ${pattern}`)
     }

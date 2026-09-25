@@ -87,3 +87,74 @@ export const FID_HOUR_1M = '60'
  */
 export const KIS_INDEX_FUTURE_MASTER_URL =
   'https://new.real.download.dws.co.kr/common/master/fo_idx_code_mts.mst.zip'
+
+/**
+ * 1-C 가 부르는 계좌 조회. **조회뿐이다** — 이 표에 주문은 없다(M1).
+ *
+ * TR ID 는 공식 저장소 `koreainvestment/open-trading-api` 의
+ * `examples_llm/domestic_futureoption/<기능명>/<기능명>.py` 에서 읽었다(2026-09-26 확인).
+ * 기억으로 적지 않는다 — 조회와 주문은 앞 네 글자가 겹친다(`TTTO5201R` 은 조회, `TTTO1101U` 는 주문).
+ * **끝 글자가 갈라 준다: 조회는 `R`, 주문은 `U`.**
+ *
+ * 야간(파생 야간시장)은 낮과 TR 이 다르고, 공식 예제에 모의 TR 이 없다 —
+ * 모의투자 계좌로는 야간 조회를 못 한다고 보고 `paperTrId: null` 로 적는다.
+ */
+export const KIS_ACCOUNT_QUERIES = {
+  /** 선물옵션 잔고현황. 지금 무엇을 몇 장 들고 있나 */
+  balance: {
+    path: '/uapi/domestic-futureoption/v1/trading/inquire-balance',
+    trId: 'CTFO6118R',
+    paperTrId: 'VTFO6118R',
+  },
+  /** 선물옵션 주문체결내역조회. 체결과 미체결을 `CCLD_NCCS_DVSN` 으로 가른다 */
+  fills: {
+    path: '/uapi/domestic-futureoption/v1/trading/inquire-ccnl',
+    trId: 'TTTO5201R',
+    paperTrId: 'VTTO5201R',
+  },
+  /** 선물옵션 총자산현황. 예수금과 평가금 */
+  deposit: {
+    path: '/uapi/domestic-futureoption/v1/trading/inquire-deposit',
+    trId: 'CTRP6550R',
+    paperTrId: null,
+  },
+  /** 선물옵션 주문가능. 증거금과 주문가능 수량 */
+  orderable: {
+    path: '/uapi/domestic-futureoption/v1/trading/inquire-psbl-order',
+    trId: 'TTTO5105R',
+    paperTrId: 'VTTO5105R',
+  },
+  /** (야간) 선물옵션 잔고현황 */
+  nightBalance: {
+    path: '/uapi/domestic-futureoption/v1/trading/inquire-ngt-balance',
+    trId: 'CTFN6118R',
+    paperTrId: null,
+  },
+  /** (야간) 선물옵션 주문체결내역조회 */
+  nightFills: {
+    path: '/uapi/domestic-futureoption/v1/trading/inquire-ngt-ccnl',
+    trId: 'STTN5201R',
+    paperTrId: null,
+  },
+  /** (야간) 선물옵션 증거금 상세 */
+  nightMargin: {
+    path: '/uapi/domestic-futureoption/v1/trading/ngt-margin-detail',
+    trId: 'CTFN7107R',
+    paperTrId: null,
+  },
+} as const
+
+export type KisAccountKey = keyof typeof KIS_ACCOUNT_QUERIES
+
+/** 낮 조회와 밤 조회의 짝. 야간 세션이면 오른쪽을 부른다 */
+export const NIGHT_EQUIVALENT: Partial<Record<KisAccountKey, KisAccountKey>> = {
+  balance: 'nightBalance',
+  fills: 'nightFills',
+  orderable: 'nightMargin',
+}
+
+/** 체결·미체결 구분 (`CCLD_NCCS_DVSN`). 공식 예제 `inquire_ccnl` 의 값 */
+export const CCLD_DVSN = { all: '00', filled: '01', open: '02' } as const
+
+/** 매도매수 구분 (`SLL_BUY_DVSN_CD`). 00 전체 · 01 매도 · 02 매수 */
+export const SLL_BUY_DVSN = { all: '00', sell: '01', buy: '02' } as const
