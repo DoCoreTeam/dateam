@@ -960,6 +960,30 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     usedFrom: '1-C',
     source: '명세 §16 Release 3',
   },
+  // ── 야간장 (Release 3 · §6.1 · §6.3) ────────────────────
+  {
+    key: 'night_signal_enabled',
+    group: 'instrument',
+    label: '야간 신호 켜기',
+    help: '야간장에서도 신호를 낸다. 야간 표본으로 관문을 통과해야 켜진다 — 정규장 통과는 야간에 쓰지 않는다',
+    type: 'boolean',
+    defaultValue: false,
+    usedFrom: '1-C',
+    source: '명세 §3.1 Release 3 · §6.1',
+  },
+  {
+    key: 'night_shadow_days_required',
+    group: 'instrument',
+    label: '야간 신호 켜기 전 섀도 거래일',
+    help: '야간 섀도를 이만큼 돌려 본 뒤에 켤 수 있다',
+    type: 'number',
+    defaultValue: 5,
+    unit: '일',
+    min: 1,
+    max: 60,
+    usedFrom: '1-C',
+    source: '명세 §3.2 1-C 섀도 규율을 야간에 적용',
+  },
 ] as const
 
 const BY_KEY = new Map(TRADING_SETTINGS.map((s) => [s.key, s]))
