@@ -111,6 +111,8 @@ export const AI_LANES: readonly AiLane[] = [
     why: 'GPU 통합입력 도우미, GpuGeminiOptions 의 actorId 가 필수라 부르는 창구가 못 빠뜨린다' },
 
   // ── 사람이 없는 자리. 이름이 주인을 대신한다 ────────────────────────────────
+  { file: 'lib/trading/knowledge/ai-call.ts', kind: 'background', surfaces: ['trading_knowledge'],
+    why: '트레이딩 지식 여섯(카드·소스·패턴·후보·설명·설정도우미)을 크론이 돌린다, 사람이 누른 순간이 없다' },
   { file: 'lib/ci/ai/creative-server.ts', kind: 'background', surfaces: ['ci-verify'],
     why: '콘텐츠 인입 큐가 부른다, 사람이 누른 순간이 없다' },
   { file: 'lib/ci/ai/discover-server.ts', kind: 'background', surfaces: ['ci-discover', 'ci-discover-cluster'],

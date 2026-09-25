@@ -11,7 +11,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  KNOWLEDGE_TABLES, visibleAsOf, futureCount, applyAsOf, availableNow, asOfContext,
+  KNOWLEDGE_TABLES, visibleAsOf, futureCount, applyAsOf, asOfContext,
 } from './as-of.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -51,11 +51,16 @@ test('질의에 as-of 를 건다', () => {
   assert.deepEqual(calls, [['available_at', T0.toISOString()]])
 })
 
-test('★ 넣을 때 쓰는 값이 인자를 안 받는다 — 「그때도 알았던 것으로 해 두자」가 못 생긴다', () => {
-  assert.equal(availableNow.length, 0, 'availableNow 가 인자를 받는다')
-  const before = Date.now()
-  const at = Date.parse(availableNow())
-  assert.ok(at >= before && at <= Date.now() + 1000)
+test('★ 값을 만드는 함수 자체가 없다 — 통로가 없으면 고를 수도 없다', () => {
+  const src = readFileSync(join(HERE, 'as-of.ts'), 'utf8')
+  assert.equal(/export function available/.test(src), false,
+    'available_at 값을 만드는 함수가 있다 — 그 함수에 인자가 붙는 날 시각을 고를 수 있게 된다')
+  // DB 기본값이 박는다는 사실을 마이그레이션에서 확인한다
+  const sql = readFileSync(
+    join(HERE, '..', '..', '..', '..', '..', 'supabase', 'migrations', '285_trading_knowledge.sql'), 'utf8')
+  const defaults = sql.match(/available_at\s+TIMESTAMPTZ NOT NULL DEFAULT now\(\)/g) ?? []
+  assert.equal(defaults.length, KNOWLEDGE_TABLES.length,
+    `available_at 기본값이 ${defaults.length}개다 — 표 ${KNOWLEDGE_TABLES.length}개 전부에 있어야 한다`)
 })
 
 test('★ AI 에게 넘기는 자료도 같은 규율을 지나고, 뺀 수가 남는다', () => {
@@ -105,14 +110,48 @@ test('★ 지식 표를 읽으면서 as-of 를 손으로 거는 자리가 0개�
     `지식 표에 as-of 를 손으로 건다 — 한 곳을 빠뜨리면 그 자리가 조용히 미래를 본다:\n  ${offenders.join('\n  ')}`)
 })
 
-test('★ 지식 표에 available_at 을 손으로 써 넣는 자리가 0개다', () => {
+/**
+ * `.insert({...})` · `.update({...})` 의 **인자 덩어리**만 잘라 낸다.
+ *
+ * 파일 전체에서 `available_at:` 를 찾으면 응답을 읽는 형 선언(`available_at: string`)까지
+ * 잡힌다 — 읽는 것은 문제가 아니다. 쓰는 자리만 봐야 한다. 괄호 균형으로 자른다.
+ */
+function writeBodies(src: string): string[] {
+  const out: string[] = []
+  const re = /\.(insert|update|upsert)\s*\(/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(src)) !== null) {
+    let depth = 0
+    let i = m.index + m[0].length - 1
+    const start = i
+    for (; i < src.length; i += 1) {
+      if (src[i] === '(') depth += 1
+      else if (src[i] === ')') { depth -= 1; if (depth === 0) break }
+    }
+    out.push(src.slice(start, i + 1))
+  }
+  return out
+}
+
+test('★ 지식 표에 available_at 을 써 넣는 자리가 0개다 — DB 기본값이 박는다', () => {
   const offenders: string[] = []
   for (const { file, src } of sources()) {
     if (file === 'knowledge/as-of.ts') continue
     if (!KNOWLEDGE_TABLES.some((t) => src.includes(`'${t}'`))) continue
-    // `available_at: <무언가>` 를 직접 적으면 시각을 고를 수 있게 된다
-    if (/available_at\s*:/.test(src)) offenders.push(file)
+    for (const body of writeBodies(src)) {
+      if (/available_at/.test(body)) offenders.push(file)
+    }
   }
-  assert.deepEqual(offenders, [],
-    `available_at 을 손으로 넣는다 — 「그때도 알았던 것으로 해 두자」가 생긴다:\n  ${offenders.join('\n  ')}`)
+  assert.deepEqual([...new Set(offenders)], [],
+    `available_at 을 써 넣는다 — 「그때도 알았던 것으로 해 두자」가 생긴다:\n  ${offenders.join('\n  ')}`)
+})
+
+test('★ 자르는 규칙이 실제로 쓰는 자리를 집는다 — 0개를 집으면 위 단정은 공회전이다', () => {
+  const sample = "await admin.from('x').insert({ a: 1, b: f(2) }).select('id')"
+  const bodies = writeBodies(sample)
+  assert.equal(bodies.length, 1)
+  assert.ok(bodies[0].includes('a: 1') && bodies[0].includes('b: f(2)'))
+  assert.equal(bodies[0].includes('select'), false, '괄호 균형이 안 맞아 뒤까지 먹었다')
+  // 읽는 형 선언은 안 집는다
+  assert.deepEqual(writeBodies('interface R { available_at: string }'), [])
 })
