@@ -1,6 +1,57 @@
 import 'server-only'
 
 /**
+ * 지금 들고 있는 것과 오늘 실현 손익.
+ *
+ * 크론과 **같은 함수**로 접는다(`foldFills`). 화면이 따로 세면 두 숫자가 갈라지고,
+ * 갈라진 날 사람은 어느 쪽을 믿어야 할지 모른다.
+ */
+async function loadHolding(
+  contractCode: string | null, today: string,
+): Promise<{ holding: HoldingRow | null; dayPnl: DayPnlRow }> {
+  if (!contractCode) {
+    return { holding: null, dayPnl: { realizedKrw: null, tradeCount: 0, unmeasuredReason: '근월물이 없습니다' } }
+  }
+  const dayStart = new Date(`${today}T00:00:00+09:00`)
+  const dayEnd = new Date(`${today}T23:59:59.999+09:00`)
+  try {
+    const instrument = await loadInstrumentSpec(today)
+    const folded = foldFills(await loadFills(contractCode, dayStart, dayEnd), instrument)
+    const plan = folded.open?.signalId ? await loadSignalPlan(folded.open.signalId) : null
+    return {
+      holding: folded.open
+        ? {
+          direction: folded.open.direction,
+          quantity: folded.open.quantity,
+          avgPrice: folded.open.avgPrice,
+          openedAt: folded.open.openedAt,
+          signalId: folded.open.signalId,
+          stopPrice: plan?.stopPrice ?? null,
+          targetPrice: plan?.targetPrice ?? null,
+        }
+        : null,
+      dayPnl: {
+        realizedKrw: pnlForLimits(dayPnl(folded.closed, null)),
+        tradeCount: folded.closed.length,
+        unmeasuredReason: '',
+      },
+    }
+  } catch (error) {
+    /**
+     * 못 읽었으면 **0원이 아니라 모름**이다. 0원은 「오늘 본전」이라는 사실이고,
+     * 그것을 보고 사람은 아무 일도 없었다고 읽는다.
+     */
+    return {
+      holding: null,
+      dayPnl: {
+        realizedKrw: null, tradeCount: 0,
+        unmeasuredReason: error instanceof Error ? error.message : '읽지 못했습니다',
+      },
+    }
+  }
+}
+
+/**
  * 화면이 볼 것 — **모였나, 빠졌나, 무엇으로 판단했나**
  *
  * 1-A 가 끝났다는 기준은 「5거래일 결측 없는 수집」과 「판단 기록이 봉마다 한 번만」이다.
@@ -18,6 +69,7 @@ import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
+  HoldingRow, DayPnlRow,
   KnowledgeRow, SettingHelpRow, KnowledgeProgress, OperatorSummary, HealthRow, ArmingSummary,
 } from './overview-shape.ts'
 import { emitProgressOf, knowledgeProgressOf } from './overview-shape.ts'
@@ -38,14 +90,18 @@ import { disarmLeavesOrders, wouldDisarm } from './order/disarm-view.ts'
 import { ordersToday, unknownOrders } from './order/place.ts'
 import { helpTopic } from './knowledge/setting-help-run.ts'
 import { TRADING_SETTINGS } from './settings/registry.ts'
-import { LATENCY_SEGMENTS, SEGMENT_LABEL, latencyReport, decideResult, type SignalTimes } from './position/pnl.ts'
+import { LATENCY_SEGMENTS, SEGMENT_LABEL, latencyReport, decideResult, dayPnl, pnlForLimits, type SignalTimes } from './position/pnl.ts'
 import { PROTECTION_LABEL, needsHumanUnlock, DEFAULT_PROTECTION, type ProtectionState } from './position/state.ts'
 import { decideEnableNotify, enableHint } from './notify/enable-gate.ts'
 import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
+import { loadFills } from './position/fills.ts'
+import { foldFills } from './position/from-fills.ts'
+import { loadSignalPlan } from './position/plan.ts'
+import { loadInstrumentSpec } from './settings/store.ts'
 
 export type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary,
-  EmitProgress, TradingOverview, GateSummary,
+  EmitProgress, TradingOverview, GateSummary, HoldingRow, DayPnlRow,
 } from './overview-shape.ts'
 export { isDayComplete, missingCount, isSignalActionable } from './overview-shape.ts'
 
@@ -276,6 +332,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     signals,
     latency,
     position,
+    ...(await loadHolding(contractCode, today)),
     notify,
     emitProgress: emitProgressOf(recentRuns[0]?.reason ?? null),
     knowledge: await loadKnowledge(now),

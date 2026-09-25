@@ -13,6 +13,7 @@ import JudgmentList from './JudgmentList'
 import BacktestPanel from './BacktestPanel'
 import SignalPanel from './SignalPanel'
 import LatencyPanel from './LatencyPanel'
+import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
 import KnowledgePanel from './KnowledgePanel'
 import OperatorPanel from './OperatorPanel'
@@ -65,6 +66,7 @@ export default async function TradingPage() {
           notifyEnabled={overview.notify.enabled}
           emitProgress={overview.emitProgress}
         />
+        <PositionPanel holding={overview.holding} dayPnl={overview.dayPnl} />
         <NotifyPanel notify={overview.notify} position={overview.position} />
         <LatencyPanel rows={overview.latency} />
         <KnowledgePanel rows={overview.knowledge} progress={overview.knowledgeProgress} />

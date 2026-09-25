@@ -75,6 +75,35 @@ export interface PositionRow {
   needsHumanUnlock: boolean
 }
 
+/**
+ * 지금 들고 있는 것. 체결을 접어 만든 **우리 기록**이다.
+ *
+ * 계좌 잔고와 다른 값일 수 있고, 다르면 대조가 어긋나 `PositionRow` 가 잠금을 말한다.
+ */
+export interface HoldingRow {
+  direction: 'long' | 'short'
+  quantity: number
+  avgPrice: number
+  openedAt: string
+  /** 이 포지션을 연 신호. 없으면 사람이 손으로 든 것 */
+  signalId: string | null
+  /**
+   * 청산 계획. **모르면 null 이고 화면이 모른다고 말한다** —
+   * 빈 칸으로 두면 「손절 없음」과 구별이 안 된다.
+   */
+  stopPrice: number | null
+  targetPrice: number | null
+}
+
+/** 오늘 실현 손익. 평가액은 안 섞는다 (§8 D-32) */
+export interface DayPnlRow {
+  /** 못 쟀으면 null. **0 원과 다른 사실이다** */
+  realizedKrw: number | null
+  tradeCount: number
+  /** 왜 못 쟀나. 잰 날은 빈 문자열 */
+  unmeasuredReason: string
+}
+
 /** 지식 한 줄. 화면이 무엇이 쌓였는지 보여 준다 */
 export interface KnowledgeRow {
   kind: 'card' | 'source' | 'report' | 'proposal' | 'explanation'
@@ -204,6 +233,10 @@ export interface TradingOverview {
   latency: LatencyRow[]
   /** 지금 포지션. 없으면 null */
   position: PositionRow | null
+  /** 지금 들고 있는 것. 체결을 접어 만든다. 없으면 null */
+  holding: HoldingRow | null
+  /** 오늘 실현 손익 */
+  dayPnl: DayPnlRow
   notify: NotifySummary
   /** 마지막 실행이 신호를 어디까지 밀고 갔나. 「신호 없음」의 이유다 */
   emitProgress: EmitProgress | null
