@@ -222,6 +222,8 @@ export interface Fill {
   /** 체결 평균 지수 */
   avgPrice: number | null
   rejectedQty: number
+  /** 수수료 합계(`fee_smtl`). 체결 재현(§13.2)이 비용을 본다 */
+  feeKrw: number | null
   accountMasked: string
 }
 
@@ -243,6 +245,7 @@ export function parseFills(output1: readonly unknown[]): Fill[] {
       filledQty: num(raw.tot_ccld_qty) ?? 0,
       avgPrice: num(raw.avg_idx),
       rejectedQty: num(raw.rjct_qty) ?? 0,
+      feeKrw: num(raw.fee_smtl),
       accountMasked: maskAccountNo(typeof raw.cano === 'string' ? raw.cano : ''),
     })
   }

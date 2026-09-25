@@ -15,7 +15,7 @@ import { RUN_BUDGET_MS } from './tick-core.ts'
 import { planWithinBudget, watchReason, type WatchTask } from './watch-plan.ts'
 import { watchTasks } from '../gate/safety.ts'
 import { checkSafetyGates, newSignalAllowed, sortGateHits, type SafetyContext, type SafetyThresholds } from '../gate/safety.ts'
-import { createAccountClient } from '../broker/account.ts'
+import type { AccountClient } from '../broker/account.ts'
 import { brokerFailureStreak } from '../broker/account-request.ts'
 import {
   reconcilePositions, lockReason, stateAfterReconcile, afterBrokerRecovery,
@@ -30,18 +30,18 @@ import { queueNotification, flushNotifications, recentNotifications } from '../n
 import { dailyDedupeKey, failureStreak, type NotifyKind } from '../notify/outbox-policy.ts'
 import { dayPnl, pnlForLimits, type RealizedTrade } from '../position/pnl.ts'
 import { unopenedSignalStreak } from '../signal/store.ts'
-import type { KisAuth } from '../broker/kis-request.ts'
-import type { KisEnv } from '../broker/endpoints.ts'
 
 export interface WatchInput {
   now: Date
   startedAt: Date
   contractCode: string
-  env: KisEnv
-  auth: KisAuth
-  acct: { cano: string; acntPrdtCd: string }
-  minIntervalMs: number
-  isNight: boolean
+  /**
+   * 계좌 창구. **부르는 쪽이 만들어 넘긴다.**
+   *
+   * 여기서 만들면 체결 조회도 자기 것을 만들게 되고, 그러면 속도 제한 큐가 둘이 되어
+   * KIS 제한을 두 배로 넘긴다. 큐는 창구마다가 아니라 **한 벌**이어야 한다.
+   */
+  account: AccountClient
   thresholds: SafetyThresholds
   /** 우리 기록의 포지션. 계좌와 다르면 계좌가 맞다 */
   expected: readonly ExpectedPosition[]
@@ -89,10 +89,7 @@ export interface WatchResult {
 const PER_TASK_MS = 4_000
 
 export async function runWatch(input: WatchInput): Promise<WatchResult> {
-  const account = createAccountClient({
-    env: input.env, auth: input.auth, acct: input.acct,
-    minIntervalMs: input.minIntervalMs, isNight: input.isNight,
-  })
+  const account = input.account
 
   // 계좌를 먼저 본다 — 우리 기록이 맞는지는 계좌가 답한다
   const positions = await account.positions()

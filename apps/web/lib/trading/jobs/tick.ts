@@ -36,6 +36,8 @@ import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
 import { runJudges, scheduledMinuteOf } from './tick-core.ts'
 import { runWatch } from './watch.ts'
+import { createAccountClient } from '../broker/account.ts'
+import { syncFills } from '../position/fills.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
 import { runOperatorJob } from './operator-job.ts'
@@ -254,18 +256,45 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    * 감시가 실패해도 수집은 계속한다 — 곁가지가 본 일을 죽이지 않는다.
    */
   let watchNote = 'watch=off'
+  let fillNote = 'fills=off'
   const accountRef = await loadAccountRef(env, str('kis_account_product_code', '03'))
-  if (accountRef) {
+  /**
+   * 계좌 창구는 **한 벌**이다.
+   *
+   * 감시도 체결도 게이트도 같은 계좌를 묻는다. 각자 만들면 속도 제한 큐가 셋이 되고
+   * 큐는 자기 것만 세니까 셋이 동시에 나가 KIS 제한을 넘긴다. 한 벌을 돌려 쓴다.
+   */
+  const account = accountRef
+    ? createAccountClient({
+      env,
+      auth: { accessToken: token.accessToken, appKey: credential.appKey, appSecret: credential.appSecret },
+      acct: accountRef,
+      minIntervalMs: num('kis_min_interval_ms', 200),
+      isNight,
+    })
+    : null
+
+  /**
+   * 체결을 먼저 읽는다 — 감시가 「우리 기록」과 계좌를 대조하는데,
+   * 그 기록이 이것으로 쌓인다. 순서를 뒤집으면 늘 한 판 늦은 기록으로 대조한다.
+   */
+  if (account) {
+    try {
+      fillNote = (await syncFills(account, today.replaceAll('-', ''), now)).reason
+    } catch (error) {
+      fillNote = `fills_failed:${error instanceof Error ? error.message : 'unknown'}`
+    }
+  } else {
+    fillNote = 'fills=no_account'
+  }
+
+  if (account) {
     try {
       const watch = await runWatch({
         now,
         startedAt: now,
         contractCode,
-        env,
-        auth: { accessToken: token.accessToken, appKey: credential.appKey, appSecret: credential.appSecret },
-        acct: accountRef,
-        minIntervalMs: num('kis_min_interval_ms', 200),
-        isNight,
+        account,
         tradeDate: today,
         thresholds: {
           maxBrokerFailureStreak: num('gate_max_broker_failure_streak', 3),
@@ -331,11 +360,11 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   })
 
   if (decision.kind === 'retry') {
-    return { ok: true, reason: `bar_not_ready|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_not_ready|${fillNote}|${watchNote}`, userMessage: null }
   }
   if (decision.kind === 'missing') {
     // 결측은 그 분의 판단을 건너뛰고 **사실을 남긴다**. 늦게 온 값으로 다시 판단하지 않는다
-    return { ok: true, reason: `bar_missing:${target.toISOString()}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_missing:${target.toISOString()}|${fillNote}|${watchNote}`, userMessage: null }
   }
 
   /**
@@ -532,7 +561,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   return {
     ok: true,
-    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
+    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${fillNote}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,
