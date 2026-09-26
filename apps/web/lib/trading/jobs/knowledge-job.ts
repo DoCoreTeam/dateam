@@ -23,9 +23,8 @@ import { sourcesAsOf } from '../knowledge/sources.ts'
 import { metricsToLines } from '../knowledge/pattern-core.ts'
 import { TRADING_SETTINGS } from '../settings/registry.ts'
 import { judgeExitShadow } from '../judge/exit-jev.ts'
-import { buildExitContext, exitCloses, leansExit } from '../judge/exit-core.ts'
+import { buildExitContext, exitCloses, leansExit, type ExitBars } from '../judge/exit-core.ts'
 import { asOfContext, futureCount } from '../knowledge/as-of.ts'
-import type { JudgeInput } from '../judge/types.ts'
 
 export interface KnowledgeJobInput {
   now: Date
@@ -47,7 +46,12 @@ export interface KnowledgeJobInput {
     specVersion: string
     jevTimeoutMs: number
     jevModel: string
-    judgeInput: JudgeInput
+    /**
+     * 청산 판단이 볼 봉과 지표. **진입 조건은 안 받는다** — 들고 있는 것을 언제
+     * 놓을지는 새로 들어갈 이유와 상관이 없고, 받으면 진입 조건이 안 걸린 분에
+     * 넘길 값이 없어 섀도가 통째로 안 돈다
+     */
+    view: ExitBars
   } | null
   /** 패턴 리포트가 볼 구간 */
   reportFrom: string
@@ -151,7 +155,7 @@ async function exitShadow(input: KnowledgeJobInput): Promise<string> {
     currentPrice: p.currentPrice,
     stopPrice: p.stopPrice,
     targetPrice: p.targetPrice,
-    atr: p.judgeInput.indicators.atr,
+    atr: p.view.indicators.atr,
     minutesHeld: p.minutesHeld,
     minutesToSessionExit: p.minutesToSessionExit,
   })
@@ -162,7 +166,7 @@ async function exitShadow(input: KnowledgeJobInput): Promise<string> {
     barCloseAt: p.barCloseAt,
     specVersion: p.specVersion,
     ctx,
-    closes: exitCloses(p.judgeInput, 20),
+    closes: exitCloses(p.view, 20),
     timeoutMs: p.jevTimeoutMs,
     model: p.jevModel,
     now: input.now,

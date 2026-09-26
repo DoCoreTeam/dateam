@@ -138,8 +138,18 @@ export function leansExit(score: ExitScore): boolean {
   return score.p_exit > score.p_hold
 }
 
-/** 진입 판단 입력에서 최근 종가를 ATR 배수로 */
-export function exitCloses(input: JudgeInput, count: number): number[] {
+/**
+ * 청산 판단이 보는 것 — **봉과 지표뿐이다.**
+ *
+ * 전에는 진입 판단 입력(`JudgeInput`) 전체를 받았고, 그 형에는 「어떤 진입 조건이
+ * 판단을 부르게 했나」가 필수로 들어 있다. 그래서 진입 조건이 안 걸린 분에는
+ * 넘길 값을 만들 수 없었고, 청산 섀도가 **진입 조건이 걸린 분에만** 돌았다.
+ * 들고 있는 것을 언제 놓을지는 새로 들어갈 이유와 아무 상관이 없다.
+ */
+export type ExitBars = Pick<JudgeInput, 'bars' | 'indicators'>
+
+/** 최근 종가를 ATR 배수로. 지금이 0 이다 */
+export function exitCloses(input: ExitBars, count: number): number[] {
   const atr = input.indicators.atr
   if (!(atr > 0)) return []
   const bars = input.bars.slice(Math.max(0, input.bars.length - count))

@@ -877,7 +877,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
      * 「청산했어야 한다」를 말하고, 그 기록으로 Release 2 를 평가하게 된다.
      */
     open: folded.open, plan, observedPrice,
-    bars, trigger,
+    bars,
   })
 
   /**
@@ -1091,13 +1091,17 @@ async function loadLastTradingDays(): Promise<Set<string>> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function knowledgeOrExplain(ctx: any): Promise<string> {
   try {
-    const { now, today, window, target, num, str, open, plan, observedPrice, bars, trigger, indicators, contractCode } = ctx
+    const { now, today, window, target, num, str, open, plan, observedPrice, bars, indicators, contractCode } = ctx
     const minutesTo = (at: Date) => Math.max(0, Math.floor((at.getTime() - now.getTime()) / 60_000))
     /**
-     * 넷 중 하나라도 없으면 안 넘긴다 — 포지션·계획·지금 값·판단 입력.
+     * 넷 중 하나라도 없으면 안 넘긴다 — 포지션·계획·지금 값·지표.
      * 하나를 지어내면 섀도의 판단은 그 지어낸 값 위에 선다.
+     *
+     * **진입 조건은 안 본다.** 전에는 다섯째로 진입 조건을 요구했고, 그래서
+     * 포지션을 들고 있어도 진입 조건이 걸린 분에만 청산 판단이 쌓였다 —
+     * 하루에 몇 분이다. 들고 있는 것을 언제 놓을지는 새로 들어갈 이유와 상관이 없다.
      */
-    const position = open && plan && observedPrice !== null && indicators && trigger
+    const position = open && plan && observedPrice !== null && indicators
       ? {
         contractCode,
         direction: open.direction,
@@ -1113,15 +1117,7 @@ async function knowledgeOrExplain(ctx: any): Promise<string> {
         specVersion: str('decision_spec_version', 'v1'),
         jevTimeoutMs: num('jev_timeout_seconds', 10) * 1000,
         jevModel: str('jev_model', ''),
-        judgeInput: {
-          asOf: now,
-          contractCode,
-          decisionTf: '1m',
-          bars,
-          trigger,
-          minutesSinceOpen: Math.floor((target.getTime() - window.continuousStart.getTime()) / 60_000),
-          indicators,
-        },
+        view: { bars, indicators },
       }
       : null
     const result = await runKnowledgeJob({

@@ -15,6 +15,7 @@ import {
 import { WATCH_ORDER } from './watch-plan.ts'
 import { RUN_BUDGET_MS } from './tick-core.ts'
 import { knowledgeProgressOf } from '../overview-shape.ts'
+import { exitCloses, buildExitContext, type ExitBars } from '../judge/exit-core.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -139,4 +140,46 @@ test('★ 지식 작업이 설정을 직접 안 바꾼다 — 후보를 올릴 �
     .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
   assert.equal(/saveTradingSetting|decideProposal/.test(job), false,
     '지식 작업이 설정을 바꾸거나 제 제안을 스스로 받아들인다')
+})
+
+/**
+ * **청산 섀도가 진입 조건에 안 걸린다** (§7.3 D-11)
+ *
+ * 전에는 tick 이 섀도에 넘길 값을 만들 때 진입 조건을 **다섯째 필수 조건**으로 요구했다.
+ * 진입 조건은 하루에 몇 분만 걸리므로, 포지션을 들고 있어도 청산 판단은 그 몇 분에만
+ * 쌓였다. 보정에 쓸 표본이 그만큼 안 모인다 — 1-B 가 「Jev 가 나은가」를 못 재게 된다.
+ *
+ * 들고 있는 것을 언제 놓을지는 **새로 들어갈 이유와 상관이 없다.**
+ */
+test('★ 청산 섀도는 진입 조건 없이 돈다 — 봉과 지표만 본다', () => {
+  // ① 진입 조건이 없는 입력으로 실제로 값이 나온다
+  const view: ExitBars = {
+    bars: [{ close: 100 }, { close: 101 }, { close: 102 }],
+    indicators: { atr: 2 },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any
+  assert.deepEqual(exitCloses(view, 3), [-1, -0.5, 0])
+  assert.ok(buildExitContext({
+    direction: 'long', entryPrice: 100, currentPrice: 102,
+    stopPrice: 98, targetPrice: 105, atr: view.indicators.atr,
+    minutesHeld: 7, minutesToSessionExit: 40,
+  }), '진입 조건 없이 보유 상태를 못 만든다')
+
+  // ② tick 이 넘기는 값에도 진입 조건이 없다
+  const tick = readFileSync(join(HERE, 'tick.ts'), 'utf8')
+  const at = tick.indexOf('const position = open && plan')
+  assert.ok(at > 0, '섀도에 넘길 값을 안 만든다')
+  const cond = tick.slice(at, tick.indexOf('\n', at))
+  assert.equal(/\btrigger\b/.test(cond), false,
+    '진입 조건이 있어야 청산 판단을 한다 — 하루 몇 분만 쌓인다')
+  assert.ok(tick.includes('view: { bars, indicators }'), '봉과 지표를 안 넘긴다')
+
+  // ③ 그래도 넷은 여전히 요구한다 — 지어낸 값으로 판단하지 않는다
+  for (const need of ['open', 'plan', 'observedPrice !== null', 'indicators']) {
+    assert.ok(cond.includes(need), `${need} 없이도 판단한다 — 없는 값을 지어낸다`)
+  }
+
+  // ④ 일의 형에도 진입 판단 입력이 안 남아 있다
+  const job = readFileSync(join(HERE, 'knowledge-job.ts'), 'utf8')
+  assert.equal(job.includes('judgeInput'), false, '진입 판단 입력을 아직 요구한다')
 })
