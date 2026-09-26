@@ -4,7 +4,7 @@ import 'server-only'
  * 이벤트 표 읽고 쓰기 (§6.6)
  *
  * 서비스롤로 지나간다 — 표에 정책이 하나도 없고, 사람 확인은 창구
- * (`app/(member)/trading/actions.ts`)에서 `tradingAccess` 로 한 번만 한다.
+ * (`app/(trading)/trading/actions.ts`)에서 `tradingAccess` 로 한 번만 한다.
  * 두 곳에서 각자 확인하면 두 판정이 갈리고, 갈린 결과가
  * 「화면은 열리는데 창구가 403」 이거나 그 반대다.
  */

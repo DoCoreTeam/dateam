@@ -14,7 +14,7 @@ export {
 } from './action.ts'
 
 export {
-  ENTITY, SURFACE_LABEL, SERVICE_LABEL, count, countOnly,
+  ENTITY, SURFACE_LABEL, SERVICE_LABEL, TRADING_NAV_LABEL, count, countOnly,
   type EntityKey, type EntityMeta, type Counter, type ServiceKey, type SurfaceKey,
 } from './entity.ts'
 

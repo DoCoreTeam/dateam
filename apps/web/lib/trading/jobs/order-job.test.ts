@@ -11,9 +11,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { wouldDisarm, disarmLeavesOrders } from '../order/disarm-view.ts'
 import { TRADING_SETTINGS } from '../settings/registry.ts'
+import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const APP = join(HERE, '..', '..', '..', 'app', '(member)', 'trading')
+const APP = join(HERE, '..', '..', '..', TRADING_APP_DIR)
 const T0 = new Date('2026-09-25T04:00:00Z')
 
 test('★ 주문이 감시 다음이고 지식·운영자보다 앞이다', () => {

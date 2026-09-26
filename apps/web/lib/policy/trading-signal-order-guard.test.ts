@@ -18,10 +18,11 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EMIT_STAGES } from '../trading/signal/emit.ts'
+import { TRADING_APP_DIR } from './app-dirs.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TRADING = join(WEB, 'lib', 'trading')
-const TRADING_APP = join(WEB, 'app', '(member)', 'trading')
+const TRADING_APP = join(WEB, TRADING_APP_DIR)
 const TRADING_API = join(WEB, 'app', 'api', 'trading')
 
 function walk(dir: string): string[] {

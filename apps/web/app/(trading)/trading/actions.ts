@@ -1,6 +1,6 @@
 'use server'
 
-// app/(member)/trading/actions.ts — 신호 확인 창구
+// app/(trading)/trading/actions.ts — 신호 확인 창구
 //
 // **왜 창구가 하나인가**: 단추 셋이 값을 바꾼다. 화면 안에서 직접 쓰면 소유자 확인이
 // 화면마다 흩어지고, 새 화면을 만든 사람이 기억해야 한다. 기억해야 하는 규칙은 빠뜨린다.

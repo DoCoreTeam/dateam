@@ -12,9 +12,10 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { emitProgressOf, isSignalActionable, isDayComplete, missingCount, type SignalRow } from './overview-shape.ts'
 import { EMIT_STAGES } from './signal/emit.ts'
+import { TRADING_APP_DIR } from '../policy/app-dirs.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const APP = join(HERE, '..', '..', 'app', '(member)', 'trading')
+const APP = join(HERE, '..', '..', TRADING_APP_DIR)
 
 test('★ 멈춘 단계를 실행 사유에서 읽는다', () => {
   const p = emitProgressOf('judged|watch=none|emit:calibrate:no_calibration')

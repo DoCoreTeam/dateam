@@ -1,4 +1,4 @@
-// app/(member)/trading/page.tsx — AI 트레이딩 설정 골격 (Release 1-A)
+// app/(trading)/trading/page.tsx — AI 트레이딩 설정 골격 (Release 1-A)
 //
 // 지금 이 화면이 하는 일은 하나다: **무엇으로 판단하게 되는가를 보여 준다.**
 // 봉 수집 상태와 판단 기록은 수집이 서고 나서 이 화면에 붙는다.

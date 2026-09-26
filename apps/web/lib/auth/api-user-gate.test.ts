@@ -13,6 +13,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { TRADING_SHELL_LAYOUT } from '../policy/app-dirs.ts'
 
 /** 게이트를 반드시 부르는 레이아웃 */
 const GATED_LAYOUTS = [
@@ -20,6 +21,9 @@ const GATED_LAYOUTS = [
   'app/(crm)/layout.tsx', // dacrm T1-01
   'app/(ai)/layout.tsx', // AI 스튜디오 — 관리자 전용이지만 api_user 차단은 같은 SSOT 를 쓴다
   'app/(rfp)/layout.tsx', // RFP 분석기 — 임직원 전용, 같은 SSOT 를 쓴다
+  // AI 트레이딩 — 소유자 한 사람만 보지만 api_user 차단은 같은 SSOT 를 쓴다.
+  // 이 줄이 없으면 (member) 밖으로 옮긴 순간 그 화면이 어느 게이트에도 안 걸린다
+  TRADING_SHELL_LAYOUT,
 ]
 
 /** api_user에게 원래 열려 있는 화면 — 막으면 안 된다 */
@@ -80,6 +84,33 @@ test('게이트 레이아웃 전부가 api_user 게이트를 부른다', () => {
     missing,
     [],
     `게이트 호출이 빠진 레이아웃이다 — 이 그룹의 화면 전체가 api_user에게 열린다:\n  ${missing.join('\n  ')}`,
+  )
+})
+
+/**
+ * 서비스 셸은 **접근권한까지** 묻는다 (2026-09-27).
+ *
+ * **왜 지금 적나**: AI 트레이딩을 `(member)` 밖으로 옮기면서 `(member)` 레이아웃이 걸던
+ * 표면 판정(`deniedSurfaceName`)이 그 화면에 더 이상 안 걸리게 됐다. 그 사실은 오류를 안 낸다 —
+ * 화면은 멀쩡히 열리고, 관리자 화면에서 그 문을 닫아도 **닫히지 않는다.** 닫는 단추가
+ * 거짓말이 되는 것이고, 그건 권한 화면 전체의 신뢰를 깎는다.
+ *
+ * 옮길 때마다 사람이 기억해야 하는 규칙은 반드시 빠뜨린다. 그래서 센다.
+ */
+const ACCESS_EXEMPT: Record<string, string> = {
+  'app/admin/layout.tsx':
+    '관리자 표면 자신이다. 역할(role !== admin)로 직접 막고, 그 판정을 접근권한 부여로 열고 닫게 하면 '
+    + '자기를 잠근 관리자를 풀어 줄 사람이 사라진다',
+}
+
+test('서비스 셸은 접근권한도 묻는다 — 옮기면서 문이 빠지지 않게', () => {
+  const missing = GATED_LAYOUTS
+    .filter((f) => !(f in ACCESS_EXEMPT))
+    .filter((f) => !/canOpen\s*\(|deniedSurfaceName\s*\(/.test(readFileSync(f, 'utf8')))
+  assert.deepEqual(
+    missing,
+    [],
+    `접근권한을 안 묻는 셸이다 — 관리자 화면에서 닫아도 안 닫힌다:\n  ${missing.join('\n  ')}`,
   )
 })
 

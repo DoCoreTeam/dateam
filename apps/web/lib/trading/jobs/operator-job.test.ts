@@ -13,9 +13,10 @@ import { TRADING_SETTINGS } from '../settings/registry.ts'
 import { CHECK_IDS } from '../operator/checks.ts'
 import { GATE_IDS } from '../gate/safety.ts'
 import { CHECK_STATUS_LABEL } from '../operator-labels.ts'
+import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const APP = join(HERE, '..', '..', '..', 'app', '(member)', 'trading')
+const APP = join(HERE, '..', '..', '..', TRADING_APP_DIR)
 
 test('★ 운영자가 tick 에서 맨 뒤에 불린다', () => {
   const tick = readFileSync(join(HERE, 'tick.ts'), 'utf8')

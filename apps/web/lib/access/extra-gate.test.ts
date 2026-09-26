@@ -19,6 +19,7 @@ import { join } from 'node:path'
 import { EXTRA_GATED, hasExtraGate, passesExtraGate } from './extra-gate.ts'
 import { decideTradingAccess } from '../trading/access-decide.ts'
 import { SURFACES } from './surfaces.ts'
+import { TRADING_APP_DIR } from '../policy/app-dirs.ts'
 
 const WEB = join(import.meta.dirname, '..', '..')
 const read = (rel: string): string => readFileSync(join(WEB, rel), 'utf8')
@@ -93,7 +94,7 @@ test('숨기는 쪽이 막는 쪽을 대신하지 않는다', () => {
    * 진짜 막는 자리는 그 화면의 레이아웃이다. 주소는 손으로 칠 수 있으므로
    * 메뉴에서 지운 것만으로는 아무것도 안 막힌다.
    */
-  const layout = read('app/(member)/trading/layout.tsx')
+  const layout = read(`${TRADING_APP_DIR}/layout.tsx`)
   assert.match(layout, /await tradingAccess\(\)/, '트레이딩 레이아웃이 소유자 확인을 안 한다')
   assert.match(layout, /if \(!decision\.allowed\)/, '확인해 놓고 결과를 안 쓴다')
   assert.match(layout, /AccessDenied/, '막으면서 사유를 안 말한다')

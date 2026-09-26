@@ -183,7 +183,7 @@ export const SURFACES: readonly Surface[] = [
    */
   {
     key: 'trading', href: '/trading', group: 'standalone', defaultAudience: 'admin',
-    gatedToday: 'app/(member)/trading/layout.tsx 가 소유자가 아니면 되돌린다',
+    gatedToday: 'app/(trading)/trading/layout.tsx 가 소유자가 아니면 되돌린다',
     needsMembership: 'AI 트레이딩은 소유자 한 사람만 들어갑니다. 허용해도 소유자가 아니면 막힙니다',
   },
 

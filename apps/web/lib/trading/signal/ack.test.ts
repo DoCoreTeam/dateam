@@ -13,9 +13,10 @@ import {
   ACK_ACTIONS, ACK_LABEL, decideAck, resultFor, parseStopPrice,
   type AckAction, type AckState,
 } from './ack-policy.ts'
+import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const TRADING_APP = join(HERE, '..', '..', '..', 'app', '(member)', 'trading')
+const TRADING_APP = join(HERE, '..', '..', '..', TRADING_APP_DIR)
 const FRESH: AckState = { result: null, ackedAt: null, expired: false }
 
 test('★ 버튼이 명세 §12 의 셋뿐이다', () => {

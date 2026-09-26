@@ -34,6 +34,7 @@ const SERVICE_ROUTES: { key: ServiceKey; prefixes: string[] }[] = [
   { key: 'ci', prefixes: ['/ci'] },
   { key: 'ai', prefixes: ['/ai'] },
   { key: 'rfp', prefixes: ['/rfp'] },
+  { key: 'trading', prefixes: ['/trading'] },
   // 셸 밖 공개 화면 — 로그인 없이 외부인이 본다
   { key: 'develop', prefixes: ['/develop', '/api-access'] },
 ]
@@ -59,6 +60,7 @@ export const SERVICE_HOME: Record<ServiceKey, string> = {
   ci: '/ci',
   ai: '/ai',
   rfp: '/rfp',
+  trading: '/trading',
   admin: '/admin/users',
   develop: '/develop',
 }

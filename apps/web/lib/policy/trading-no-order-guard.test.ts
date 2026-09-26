@@ -27,6 +27,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { KIS_ACCOUNT_QUERIES } from '../trading/broker/endpoints.ts'
+import { TRADING_APP_DIR } from './app-dirs.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -34,7 +35,7 @@ const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ROOTS = [
   join(WEB, 'lib', 'trading'),
   join(WEB, 'app', 'api', 'trading'),
-  join(WEB, 'app', '(member)', 'trading'),
+  join(WEB, TRADING_APP_DIR),
 ]
 
 function walk(dir: string): string[] {

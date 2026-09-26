@@ -17,10 +17,11 @@ import { fileURLToPath } from 'node:url'
 import { KNOWLEDGE_TABLES } from '../trading/knowledge/as-of.ts'
 import { KNOWLEDGE_SURFACE, KNOWLEDGE_PURPOSES } from '../trading/knowledge/surface.ts'
 import { AI_LANES } from '../ai/actor.ts'
+import { TRADING_APP_DIR } from './app-dirs.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TRADING = join(WEB, 'lib', 'trading')
-const TRADING_APP = join(WEB, 'app', '(member)', 'trading')
+const TRADING_APP = join(WEB, TRADING_APP_DIR)
 
 function walk(dir: string): string[] {
   let out: string[] = []
@@ -101,7 +102,7 @@ const SETTING_WRITERS = [
   // 사람이 후보를 받아들이는 자리. 사람 ID 가 필수다
   'lib/trading/knowledge/proposal.ts',
   // 사람이 화면에서 누르는 창구
-  'app/(member)/trading/actions.ts',
+  `${TRADING_APP_DIR}/actions.ts`,
   /**
    * 소유자 한 값만 바꾼다. 관리자가 접근권한 화면에서 누르는 자리이고 창구
    * (`app/api/admin/trading-owner/route.ts`)의 `requireAdminApi` 를 지난 뒤에만 불린다.
