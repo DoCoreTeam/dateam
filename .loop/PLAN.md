@@ -1,0 +1,190 @@
+# PLAN newAX: 청산과 주문이 매분 돈다 — 진입 조건 뒤에 갇힌 일 셋과 갈라진 기준가
+플랜 ID: P0073
+플랜 버전: v0.1.3
+상태: 진행중
+지시: ins_0126
+목표 버전: v0.10.590
+작성: 2026-09-26
+시작 커밋: d9847cd9
+
+## 목표
+- 포지션을 들고 있으면 진입 조건이 안 걸린 분에도 자동 청산 주문이 돈다 (지금은 안 돈다)
+- 청산 Jev 섀도가 포지션이 있는 매분 판단을 쌓는다, 지금은 진입 조건이 걸린 분에만 불려 표본이 거의 안 쌓인다
+- 손절·목표를 실시간과 백테스트가 같은 기준가·같은 함수로 잡는다, 지금은 실시간이 단기 이동평균이고 백테스트가 봉 종가다
+- Jev 가 꺼져 있다는 사실과 켜는 방법이 현황 화면에 뜬다
+
+## 범위 밖
+- 명세 §7.2 판단기 위상 변경 (Jev 에 특권을 주는 일), 이번 플랜은 명세를 지키는 쪽으로만 고침
+- Jev 공급자 키 등록과 모델 이름 지정 — 사람이 화면에서 하는 일이고 코드가 대신 못 함
+- 신호 경로를 rule 에서 jev 로 바꾸는 일 (§13.5 관문 통과 전에는 못 함)
+- 보정·기대값 모델 신설, 백테스트 결과 재산출
+- 스테일 플랜 .loop/PLAN.P0052.md 정리
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 통과
+- 진입 조건이 안 걸린 분에도 자동 주문·지식(청산 Jev)·운영자 점검이 불린다
+- 청산 Jev 섀도 입력에 진입 조건이 필요 없다
+- 손절·목표 계산 함수가 트리 전체에 하나뿐이고, 백테스트는 그것을 들여와 쓴다
+- 실시간 기준가와 백테스트 기준가가 같은 값(확정 봉 종가)이다
+- 현황 화면이 Jev 꺼짐을 사유와 함께 말한다
+- 사용자 노출 문자열은 화면 문구 관례를 따름 (용어집 `@/lib/terms`)
+- 설정값은 env 추가 없이 DB 저장 + UI 관리
+
+## 참조
+- newplan/TRD/AI_TRADING_SPEC.md §10.2 (우선순위), M4 (백테스트와 실시간은 같은 함수·같은 확정 봉), §7.2 (판단기 특권 없음), §7.3 D-11 (청산 Jev 섀도)
+- apps/web/lib/trading/jobs/tick.ts:731~737 조기 반환 두 줄이 이번 플랜의 원인
+- apps/web/lib/trading/jobs/emit-signal.ts:82~87 (실시간 손절·목표) 와 apps/web/lib/trading/backtest/run.ts:81~96 buildExitPlan (백테스트 손절·목표) — 같은 식의 사본 둘
+- apps/web/lib/policy/trading-backtest-parity.test.ts LIVE_OWNED (사본을 세는 가드, buildExitPlan 이 빠져 있어 못 셌음)
+- 감사 2026-09-27: 봉 0건·판단 0건·Jev 꺼짐, jev_model 기본값이 빈 문자열
+- LOOP.md 7절 보안 기준, 부록 버전 규칙
+
+## 항목
+
+### I01 기획 보고 규칙을 발행한다
+상태: 통과
+모드: 경량
+범위: LOOP.md, package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
+감사 기준:
+- LOOP.md 부록 「기획 보고」 절이 커밋에 들어간다 (git show --stat 으로 확인)
+- pnpm test policy-sync 통과 (정책 세 파일 버전 줄 일치)
+- 버전 파일 다섯이 v0.10.590 으로 함께 오른다
+- 보안: 해당 없음 — 문서와 버전 문자열만 바뀌고 표·창구·외부 입력을 안 건드림
+의존: 없음
+
+### I02 열린 포지션 일이 진입 조건에 안 걸린다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/trading/jobs/tick.ts, apps/web/lib/trading/jobs/order-job.test.ts, apps/web/lib/trading/jobs/knowledge-job.test.ts, apps/web/lib/trading/jobs/operator-job.test.ts, apps/web/lib/trading/jobs/watch.test.ts
+감사 기준:
+- 진입 조건이 안 걸린 분(no_trigger)과 봉이 모자란 분(not_enough_bars)에도 orderOrExplain, knowledgeOrExplain, operatorOrExplain 이 불린다 — 가드가 조기 반환 뒤에 그 셋이 오는지 센다
+- 판단기와 신호 발행은 진입 조건이 걸린 분에만 돈다 (지금 동작이 안 바뀜)
+- 실행 기록 사유에 그 분에 무엇을 건너뛰었는지 남는다 (no_trigger 가 사유에서 안 사라짐)
+- 가드를 일부러 깨뜨려(조기 반환을 되살려) 실패하는 것을 확인 (S6)
+- 보안: 해당 없음 — 이미 인증을 지난 크론 안의 호출 순서만 바뀌고 새 창구·새 표가 없음
+의존: 없음
+
+### I03 청산 Jev 섀도가 진입 조건 없이 돈다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/trading/jobs/tick.ts, apps/web/lib/trading/jobs/knowledge-job.ts, apps/web/lib/trading/jobs/knowledge-job.test.ts, apps/web/lib/trading/judge/exit-core.ts
+감사 기준:
+- 포지션·계획·현재가·지표가 있으면 진입 조건이 없어도 청산 판단 섀도가 불린다 (가짜 입력으로 실행 확인)
+- 청산 섀도 입력에 진입 조건 필드가 남아 있지 않다 (형이 요구하지 않음을 tsc 로 확인)
+- 넷 중 하나라도 없으면 여전히 안 부른다 (지어낸 값으로 판단하지 않음)
+- 청산 섀도가 신호·알림 표로 가는 길은 여전히 없다 (기존 가드 재실행)
+- 보안: 해당 없음 — 같은 키·같은 예산·같은 원장을 그대로 지나가고 새 창구가 없음
+의존: I02
+
+### I04 기준가와 청산 계획 식이 하나다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/trading/judge/exit-plan-math.ts (신규), apps/web/lib/trading/jobs/emit-signal.ts, apps/web/lib/trading/backtest/run.ts, apps/web/lib/trading/jobs/tick.ts, apps/web/lib/policy/trading-backtest-parity.test.ts, apps/web/package.json
+감사 기준:
+- 손절·목표·추격 한계가를 만드는 함수가 트리에 하나뿐이고 백테스트가 그것을 들여온다 (패리티 가드가 사본을 0건으로 셈)
+- 패리티 가드 LIVE_OWNED 에 그 함수 이름이 등재되고, 검증 쪽에 사본을 심어 가드가 실패하는 것을 확인 (S6)
+- 실시간 기준가가 확정 봉 종가다 — 단기 이동평균을 기준가로 쓰지 않는다
+- 같은 방향·같은 ATR·같은 기준가에서 실시간과 백테스트의 손절·목표가 같은 값이다 (실행으로 확인)
+- 신규 시험 파일이 apps/web/package.json 의 test 스크립트에 등재되고 총 시험 수가 실제로 는다
+- 보안: 해당 없음 — 순수 계산 함수이고 표·창구·외부 입력을 안 건드림
+의존: 없음
+
+### I05 Jev 가 꺼져 있으면 현황이 그렇게 말한다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/trading/overview.ts, apps/web/lib/trading/overview-shape.ts, apps/web/lib/trading/jev-labels.ts (신규), apps/web/app/(trading)/trading/JevPanel.tsx (신규), apps/web/app/(trading)/trading/page.tsx, apps/web/lib/trading/overview-shape.test.ts
+감사 기준:
+- jev_model 이 비어 있으면 현황 화면이 「Jev 판단 꺼짐」과 사유를 말하고 설정으로 가는 길을 준다
+- 모델은 있는데 키가 없으면 사유가 그 둘을 갈라서 말한다 (키 없음 vs 모델 없음)
+- 켜져 있으면 그 자리가 아예 안 뜬다 (켜진 화면에 경고가 남지 않음)
+- 화면 문구는 용어집을 지나고 새 하드코딩 한글 문자열이 없다
+- 보안: 설정 읽기가 소유자 관문 안에서만 일어나고 키 원문은 화면·응답 어디에도 안 실림 (있음 없음만 말함)
+의존: 없음
+
+### I06 종합 감사와 업데이트 내역
+상태: 통과
+모드: 경량
+범위: .loop/PLAN.md, apps/web/lib/changelog/entries.ts, package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
+감사 기준:
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 네 개 전부 통과 (결과를 PLAN.md 에 적음)
+- LOOP.md 7절 「기계가 세는 것」 다섯 줄을 실제로 실행하고 결과가 전부 0
+- git diff d9847cd9..HEAD --stat 에 범위 밖 변경·비밀 없음
+- 사용자 체감 변경(청산이 매분 돈다·기준가 통일·Jev 꺼짐 표시)이 entries.ts 맨 위 이번 버전 블록에 적힌다
+- 보안: 위 다섯 줄이 이 항목의 보안 감사 기준임
+의존: I01, I02, I03, I04, I05
+
+## 종합 감사
+
+실행 2026-09-27, 시작 커밋 d9847cd9 기준
+
+### 1 검사 넷
+
+| 명령 | 결과 |
+|---|---|
+| pnpm tsc --noEmit | 통과 (오류 0) |
+| pnpm lint | 통과 (오류 0) |
+| pnpm test | 통과 — 시험 7,910개 전부 통과, 실패 0 |
+| NEXT_DIST_DIR=.next-p0073 pnpm build | 통과 — /trading 3.68kB · 공유 104kB |
+
+빌드는 격리 dist 로 돌렸다, 쓰고 있는 dev 판의 .next 를 안 덮게
+
+### 2 완료 정의 대조
+
+| 완료 정의 | 확인 |
+|---|---|
+| 검사 넷 통과 | 위 표 |
+| 진입 조건이 안 걸린 분에도 주문·지식·운영자가 불린다 | order-job.test.ts 「★ 진입 조건이 없어도 주문·지식·운영자가 돈다」, 조기 반환 되살려 실패 확인 |
+| 청산 Jev 섀도 입력에 진입 조건이 필요 없다 | knowledge-job.test.ts 「★ 청산 섀도는 진입 조건 없이 돈다」, 형에 judgeInput 0건 |
+| 손절·목표 함수가 트리에 하나 | 패리티 가드 LIVE_OWNED 에 buildExitPlan 등재, 사본 심어 실패 확인 |
+| 실시간과 백테스트 기준가가 같다 | 둘 다 확정 봉 종가, exit-plan-math.test.ts 가 같은 함수 객체임을 확인 |
+| 현황이 Jev 꺼짐을 사유와 함께 말한다 | overview-shape.test.ts 4건, 켜지면 안 그리는 것도 확인 |
+| 화면 문구가 용어집을 지남 | 라벨 표는 lib/trading/jev-labels.ts, glossary·ui-phrases 가드 통과 |
+| env 추가 없음 | 새 env 키 0개, jev_model 은 기존 DB 설정 |
+
+### 3 보안 — 기계가 세는 다섯 줄
+
+2026-09-27 운영 DB 실행 (docs/policy/security-count.sql)
+
+| 세는 것 | 결과 |
+|---|---|
+| RLS 꺼진 public 표 | 0 |
+| anon 이 INSERT UPDATE DELETE TRUNCATE 권한을 가진 표 | 0 |
+| TO public 에 USING (true) 인 정책 | 0 |
+| search_path 가 안 박힌 SECURITY DEFINER 함수 | 0 |
+| anon 이 읽을 수 있는 SECURITY DEFINER 뷰 | 0 |
+
+다섯 줄 전부 0
+
+항목별 보안 판정: I01·I02·I03·I04 는 해당 없음(문서·호출 순서·순수 계산, 새 표·창구·외부 입력 없음), I05 만 해당 — 키 값이 화면 형과 함수 본문에 안 들어가고 reason 만 옮기는 것을 가드로 잠갔다(S3), 일부러 키를 만지게 고쳐 실패를 확인했다
+
+### 4 전체 diff
+
+git diff d9847cd9..HEAD --stat — 24파일 636추가 149삭제
+
+- 범위 밖 변경 없음, 파일 전부가 항목 범위(plan revise 로 정정한 것 포함) 안
+- 비밀 없음 — diff 에서 키·토큰·비밀번호 꼴 0건
+- 새 하드코딩 화면 문자열은 라벨 표 안에만 있음
+
+### 5 항목 대 결과 대조
+
+| 항목 | 커밋 | 범위 파일이 실제로 바뀜 |
+|---|---|---|
+| I01 | 57002a10 v0.10.590 | LOOP.md +29 |
+| I02 | 0de6ff11 v0.10.591 | tick.ts, order-job.test.ts 외 셋 |
+| I03 | 09a53615 v0.10.592 | tick.ts, knowledge-job.ts, exit-core.ts |
+| I04 | 25d26338 v0.10.593 | exit-plan-math.ts(신규), emit-signal.ts, backtest/run.ts |
+| I05 | 69b4f22b v0.10.594 | jev-labels.ts·JevPanel.tsx(신규), overview.ts |
+
+### 6 발견 사항
+
+- 패리티 가드가 내내 초록이던 이유는 세는 목록(LIVE_OWNED)에 buildExitPlan 이 없어서였다 — 가드가 있는 것과 그 가드가 이 함수를 보는 것은 다르다
+- 순서 가드 셋이 `const emitNote =` 를 글자 그대로 찾고 있었다, 대입문으로 바뀌자 빨개졌다 — 보는 것(순서)은 그대로 두고 찾는 모양만 넓혔다
+- 이번 플랜이 Jev 를 켜지는 못한다, 모델 이름과 공급자 키는 사람이 화면에서 넣는 값이다. 그 사실을 화면이 말하게 한 것이 I05 다
+
+## 변경 이력
+- v0.1.0 (2026-09-26) 최초 작성 (ins_0126)
+- v0.1.3 (2026-09-27) I05 범위 정정 — 화면 폴더가 app/(member)/trading 이 아니라 app/(trading)/trading 이고(라우트 그룹 이동), 말은 화면 밖 라벨 표에 두는 관례라 jev-labels.ts 와 JevPanel.tsx 를 더했다 (audit:I05)
+- v0.1.2 (2026-09-27) I03 범위에 exit-core.ts 추가 — 청산 판단이 진입 판단 입력 전체를 받고 있었고 그 형에 진입 조건이 필수라, 형을 좁히지 않으면 진입 조건 없이 부를 방법이 없다 (audit:I03)
+- v0.1.1 (2026-09-27) I02 범위에 순서 가드 세 파일 추가 — `const emitNote =` 를 글자 그대로 찾던 가드 셋이 조건 안으로 들어간 대입문을 못 봐 빨개졌다, 보는 것은 순서 그대로이고 찾는 모양만 넓혔다 (audit:I02)
+- v0.1.1 (2026-09-26) I02 범위에 순서 가드 세 파일 추가 — const emitNote = 를 글자 그대로 찾던 가드 셋이 조건 안으로 들어간 대입문을 못 봐 빨개졌다, 보는 것은 순서 그대로이고 찾는 모양만 넓혔다 (audit:I02)
+- v0.1.2 (2026-09-26) I03 범위에 exit-core.ts 추가 — 청산 판단이 진입 판단 입력 전체를 받고 있었고 그 형에 진입 조건이 필수라, 형을 좁히지 않으면 진입 조건 없이 부를 방법이 없다 (audit:I03)
+- v0.1.3 (2026-09-26) I05 범위 정정 — 화면 폴더가 app/(member)/trading 이 아니라 app/(trading)/trading 이고, 말은 화면 밖 라벨 표에 두는 관례라 jev-labels.ts 와 JevPanel.tsx 를 더했다 (audit:I05)
