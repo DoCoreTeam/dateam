@@ -16,7 +16,6 @@ import { planWithinBudget, watchReason, type WatchTask } from './watch-plan.ts'
 import { watchTasks } from '../gate/safety.ts'
 import { checkSafetyGates, newSignalAllowed, sortGateHits, type SafetyContext, type SafetyThresholds } from '../gate/safety.ts'
 import type { AccountClient } from '../broker/account.ts'
-import { brokerFailureStreak } from '../broker/account-request.ts'
 import {
   reconcilePositions, lockReason, stateAfterReconcile, afterBrokerRecovery,
   type ExpectedPosition,
@@ -218,7 +217,15 @@ export async function runWatch(input: WatchInput): Promise<WatchResult> {
 
   if (locked) await lockPosition(input.contractCode, locked)
 
-  const brokerNote = brokerOk ? '' : `,broker_failed:${brokerFailureStreak([{ ok: false }])}`
+  /**
+   * 연속 실패 수는 **재 온 값에 이번을 더한 것**이다.
+   *
+   * 전에는 `brokerFailureStreak([{ ok: false }])` 로 그 자리에서 배열을 만들어 넘겼다.
+   * 한 줄짜리 배열의 연속 실패는 언제나 1 이라 「며칠째 안 되는지」가 기록에 영영 안 남았다
+   * (P0064 가 `measure.ts` 에서 고친 것과 같은 꼴이 여기 남아 있었다).
+   * 지금 값은 `measureGate` 가 실행 기록 표식을 세어 준 것이고, 이번 실패를 하나 더한다.
+   */
+  const brokerNote = brokerOk ? '' : `,broker_failed:${input.gateContext.brokerFailureStreak + 1}`
   const alert = topAlert({ position: positionState, protection: input.protection })
   return {
     reason: `${watchReason(plan)}${locked ? `,${locked}` : ''}${brokerNote}`

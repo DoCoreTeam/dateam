@@ -447,7 +447,19 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
          */
         unrealizedKrw: null,
         dailyTargetKrw: num('daily_target_krw', 0),
-        brokerWasFailing: false,
+        /**
+         * 직전 실행들이 실패 중이었나 (§10 복구 대조).
+         *
+         * `measureGate` 가 실행 기록의 표식을 뒤에서부터 세어 둔 값이다. 이번 실행 줄은
+         * 아직 표식이 없어 안 세어진다 — 자기를 빼야 「직전」이 된다.
+         * 고정 `false` 면 끊겼다 돌아온 분이 평소 분과 구분되지 않는다.
+         */
+        brokerWasFailing: gate.brokerFailureStreak > 0,
+        /**
+         * **대조는 이 실행 안에서 지금 한다.** `runWatch` 가 첫 줄에서 계좌를 읽고
+         * `reconcilePositions` 를 부른다. 그러니 이 값은 「이 실행에 들어오기 전에 이미
+         * 했나」이고 답은 언제나 아니다. `true` 로 주면 복구한 분에 대조를 건너뛴다.
+         */
         reconciledSinceRecovery: false,
         sameDayExitAt: sameDayExitAt(window, num('session_close_exit_minutes', 15)),
         gateContext: {

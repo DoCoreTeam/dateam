@@ -388,8 +388,9 @@ const LITERAL_ON_PURPOSE: Record<string, string> = {
    * 평가를 섞으면 들고 있는 것이 오르내릴 때마다 새 신호가 멈췄다 풀렸다 한다.
    */
   'runWatch.unrealizedKrw=null': '한도는 실현만 본다 (§8 D-32). 평가를 섞으면 신호가 깜빡인다',
-  'runWatch.brokerWasFailing=false': '직전 실행의 증권사 상태는 measureGate 가 세고, 복구 대조는 그 값을 아직 안 쓴다',
-  'runWatch.reconciledSinceRecovery=false': '위와 한 쌍이다. 복구 대조를 붙이는 날 함께 채운다',
+  'runWatch.reconciledSinceRecovery=false':
+    '대조는 이 실행 안에서 지금 한다(runWatch 가 첫 줄에서 계좌를 읽는다). '
+    + '이 값은 「이 실행에 들어오기 전에 이미 했나」라 답이 언제나 아니오다. true 면 복구한 분에 대조를 건너뛴다',
 }
 
 test('★ 감시와 주문에 고정값을 안 넘긴다 — 부르는 꼴은 완벽한데 값이 없던 자리', () => {

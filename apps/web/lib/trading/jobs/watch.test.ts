@@ -210,3 +210,45 @@ test('★ 신호 없는 알림에 유일 키를 준다 — NULL 은 아무것도
   assert.ok(body.includes('dedupeKey:'), '유일 키를 안 준다 — 같은 경고가 매분 쌓인다')
   assert.ok(body.includes('dailyDedupeKey('), '유일 키를 손으로 조립한다 — 규칙이 두 곳이 된다')
 })
+
+/**
+ * **세는 함수에 그 자리에서 만든 배열을 넘기면 세는 것이 아니다.**
+ *
+ * 실측 2026-09-26: `watch.ts` 가 `brokerFailureStreak([{ ok: false }])` 로 실행 기록에
+ * 싣는 숫자를 만들고 있었다. 한 줄짜리 배열의 연속 실패는 언제나 1 이라
+ * 「며칠째 안 되는지」가 기록에 영영 안 남는다. 사람이 그 숫자를 읽고 판단한다.
+ *
+ * P0064 가 `measure.ts` 에서 같은 꼴을 고쳤는데 여기 하나가 남아 있었다 —
+ * 한 자리를 고치고 같은 꼴을 안 세면 나머지는 그대로 남는다.
+ */
+test('★ 연속 실패 수를 그 자리에서 만든 배열로 세지 않는다', () => {
+  const dir = join(HERE, '..')
+  const files: string[] = []
+  const walk = (at: string) => {
+    for (const entry of readdirSync(at, { withFileTypes: true })) {
+      if (entry.isDirectory()) { walk(join(at, entry.name)); continue }
+      if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) files.push(join(at, entry.name))
+    }
+  }
+  walk(dir)
+  assert.ok(files.length > 0, '검사 대상 파일이 0개다')
+
+  const offenders: string[] = []
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
+    // `brokerFailureStreak([` — 인자가 그 자리에서 만든 배열 리터럴이다
+    if (/brokerFailureStreak\s*\(\s*\[/.test(src)) {
+      offenders.push(file.slice(file.indexOf('lib/trading')))
+    }
+  }
+  assert.deepEqual(offenders, [], `세는 척하는 자리가 있다:\n  ${offenders.join('\n  ')}`)
+})
+
+test('★ 실행 기록의 연속 실패 숫자가 재 온 값에서 나온다', () => {
+  const src = readFileSync(join(HERE, 'watch.ts'), 'utf8')
+  assert.ok(
+    /broker_failed:\$\{input\.gateContext\.brokerFailureStreak \+ 1\}/.test(src),
+    'broker_failed 숫자가 gateContext 의 연속 실패 수에서 안 나온다',
+  )
+})
