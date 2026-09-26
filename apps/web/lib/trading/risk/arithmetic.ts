@@ -124,25 +124,6 @@ export function remainingLossBudget(input: BudgetInput): number {
 
 export type RiskRejection = { reason: string; userMessage: string }
 
-/**
- * 이 신호를 내도 되나 (SR-07).
- *
- * @returns 막아야 하면 사유, 괜찮으면 null
- */
-export function checkSignalAllowed(
-  risk: RiskResult,
-  budget: BudgetInput,
-): RiskRejection | null {
-  const remaining = remainingLossBudget(budget)
-  if (risk.riskPerTradeKrw > remaining) {
-    return {
-      reason: `risk_exceeds_budget:${Math.round(risk.riskPerTradeKrw)}>${Math.round(remaining)}`,
-      userMessage: `이 신호의 1회 위험(${Math.round(risk.riskPerTradeKrw).toLocaleString('ko-KR')}원)이 `
-        + `남은 손실 여유(${Math.round(remaining).toLocaleString('ko-KR')}원)보다 큽니다`,
-    }
-  }
-  return null
-}
 
 /**
  * 이 설정을 **저장해도 되나** (M6).

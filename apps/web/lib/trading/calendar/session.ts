@@ -132,22 +132,6 @@ export function sameDayExitAt(window: SessionWindow, minutesBefore: number): Dat
   return new Date(window.continuousEnd.getTime() - minutesBefore * 60_000)
 }
 
-/**
- * 새 신호를 내면 안 되는 구간인가 (SR-04 의 시간 부분).
- *
- * 1-A 는 신호를 내지 않지만 **판단 기록에 이 사실을 남겨 둬야** 1-B 가
- * 「그때 신호를 냈다면」을 같은 기준으로 다시 셀 수 있다.
- */
-export function isNewEntryBlocked(
-  window: SessionWindow,
-  at: Date,
-  options: { openingMinutes: number; closingMinutes: number },
-): boolean {
-  if (!isContinuousTrading(window, at)) return true
-  const sinceOpen = at.getTime() - window.continuousStart.getTime()
-  const untilClose = window.continuousEnd.getTime() - at.getTime()
-  return sinceOpen < options.openingMinutes * 60_000 || untilClose <= options.closingMinutes * 60_000
-}
 
 /** 주말인가. 공휴일은 여기서 모른다 — 거래소 공지를 사람이 넣는다(§6.6) */
 export function isWeekendInSeoul(tradeDate: string): boolean {

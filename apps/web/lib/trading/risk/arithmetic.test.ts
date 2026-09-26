@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   worstEntryPrice, computeRisk, remainingLossBudget,
-  checkSignalAllowed, checkSettingsStorable, toR,
+  checkSettingsStorable, toR,
 } from './arithmetic.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -107,39 +107,7 @@ test('남은 여유는 한도에서 실현 손실과 열린 위험을 뺀 값이
   }), 280_000)
 })
 
-test('★ 1회 위험이 남은 여유보다 크면 신호를 막고 숫자로 말한다', () => {
-  const risk = computeRisk({
-    direction: 'long', instrument: REGULAR, referencePrice: 1105, stopPrice: 1103.44,
-    chaseDistance: 0.4, stopSlippageTicks: 2, roundTripFeeKrw: 0, quantity: 1,
-  })
-  const blocked = checkSignalAllowed(risk, {
-    dailyLossLimitKrw: 500_000, realizedLossKrw: 0, openPositionRiskKrw: 0,
-  })
-  assert.ok(blocked, '515,000원 위험이 500,000원 한도를 지났는데 통과했다')
-  assert.match(blocked.reason, /^risk_exceeds_budget:/)
-  assert.ok(blocked.userMessage.includes('515,000'), '얼마나 넘었는지가 문장에 없다')
 
-  // 미니면 통과한다
-  const mini = computeRisk({
-    direction: 'long', instrument: MINI, referencePrice: 1105, stopPrice: 1103.44,
-    chaseDistance: 0.4, stopSlippageTicks: 2, roundTripFeeKrw: 0, quantity: 1,
-  })
-  assert.equal(checkSignalAllowed(mini, {
-    dailyLossLimitKrw: 500_000, realizedLossKrw: 0, openPositionRiskKrw: 0,
-  }), null)
-})
-
-test('★ 열린 포지션 위험이 여유를 먹는다 — 안 빼면 두 배를 질 수 있다', () => {
-  const mini = computeRisk({
-    direction: 'long', instrument: MINI, referencePrice: 1105, stopPrice: 1103.44,
-    chaseDistance: 0.4, stopSlippageTicks: 2, roundTripFeeKrw: 0, quantity: 1,
-  })
-  // 여유 500,000 인데 이미 450,000 이 열려 있으면 100,000 짜리 신호는 못 낸다
-  const blocked = checkSignalAllowed(mini, {
-    dailyLossLimitKrw: 500_000, realizedLossKrw: 0, openPositionRiskKrw: 450_000,
-  })
-  assert.ok(blocked, '열린 포지션 위험을 안 뺐다')
-})
 
 // ── 저장 불가 (M6) ───────────────────────────────────────
 

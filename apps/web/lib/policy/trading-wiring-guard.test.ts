@@ -46,7 +46,6 @@ const NOT_CALLED_ON_PURPOSE: Record<string, string> = {
   // 신호를 내는 규칙이다. 1-C 에서 안전 게이트·신호 규칙이 붙을 때 이어진다 —
   // 1-B 는 「이 전략이 남는가」를 재는 단계라 신호를 내지 않는다(M3)
   'meetsMinimumEv': 'SR-01 신호 규칙. 1-C 에서 신호를 낼 때 이어진다',
-  'checkSignalAllowed': 'SR-07 신호 규칙. 1-C 에서 신호를 낼 때 이어진다',
   'saveTradingSetting': '설정 저장의 유일한 길. 설정 편집 화면이 붙을 때 이어진다',
   'saveTradingCredentials': 'KIS 앱키 등록. 설정 화면이 붙을 때 이어진다',
   'getTradingCredentialStatus': '자격증명 등록 여부 표시. 설정 화면이 붙을 때 이어진다',
@@ -64,7 +63,6 @@ const NOT_CALLED_ON_PURPOSE: Record<string, string> = {
   'nextContractOf': '차근월물. 교체 판정(shouldRollover)에 넘길 값이라 1-B 에서 이어진다',
   'shouldRollover': '교체 규칙. 거래량 비교가 붙는 1-B 에서 이어진다',
   'isAuctionWindow': '단일가 구간 판정. 수집은 하고 판단은 안 하는 자리를 화면이 밝힐 때 쓴다',
-  'isNewEntryBlocked': '개장 직후·마감 전 금지. 신호를 내는 1-C 에서 이어진다',
   'isHoldDominant': '기권 판정. 보정이 붙는 1-B 에서 이어진다',
   'RULE_SPEC': 'rule 판단기 판 번호. createRuleJudge 가 쓴다',
   'JEV_RESPONSE_SHAPE': '답 꼴. buildJevPrompt 가 쓰고 시험이 대조한다',
@@ -369,6 +367,19 @@ function callArgument(src: string, callee: string): string | null {
   return null
 }
 
+/**
+ * 값을 **들고 가야 하는** 호출들.
+ *
+ * 여기 없는 호출은 고정값을 넘겨도 아무도 안 본다. 실측으로 두 번 그랬다 —
+ * `measureMarket` 은 배선한 판에 가드가 안 보고 있었고(상한가를 `null` 로 되돌려도 초록),
+ * `runOperatorJob` 은 열한 칸이 전부 `null` 인 채로 오래 있었다.
+ *
+ * **새 크론 단계를 만들면 여기에 이름을 더한다.** 안 더하면 그 단계는 안 보인다.
+ */
+const CALLS_THAT_MUST_CARRY_VALUES = [
+  'runWatch', 'runOrderJob', 'measureMarket', 'emitSignal', 'runOperatorJob', 'runKnowledgeJob',
+] as const
+
 /** `이름: 고정값` 인 줄들. 중첩 객체 안까지 본다 */
 function literalProps(argument: string): string[] {
   const code = argument.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
@@ -394,6 +405,8 @@ const LITERAL_ON_PURPOSE: Record<string, string> = {
    * (2026-09-26 공식 저장소 chk_inquire_price.py·chk_inquire_asking_price.py 확인).
    * `crbr_aply_mxpr` 는 「서킷브레이커 적용 상한가」이지 발동 여부가 아니다.
    */
+  /** I02a 에서 배선한다. 적어 두지 않으면 미룬 줄도 모른다 */
+  'runKnowledgeJob.position=null': '청산 판단 섀도에 포지션을 넘기는 배선이 다음 항목이다',
   'measureMarket.halted=null': 'KIS 선물 시세·호가 응답 컬럼에 거래 정지·서킷브레이커·사이드카 플래그가 없다',
   'runWatch.reconciledSinceRecovery=false':
     '대조는 이 실행 안에서 지금 한다(runWatch 가 첫 줄에서 계좌를 읽는다). '
@@ -405,7 +418,7 @@ test('★ 감시·주문·시장 재기·신호 발행에 고정값을 안 넘�
 
   const found: string[] = []
   let scanned = 0
-  for (const callee of ['runWatch', 'runOrderJob', 'measureMarket', 'emitSignal']) {
+  for (const callee of CALLS_THAT_MUST_CARRY_VALUES) {
     const argument = callArgument(tick, callee)
     assert.ok(argument, `${callee}({ ... }) 호출을 못 찾았다 — 부르는 꼴이 바뀌었는지 확인한다`)
     scanned += 1
@@ -414,7 +427,7 @@ test('★ 감시·주문·시장 재기·신호 발행에 고정값을 안 넘�
       found.push(`${callee} 의 ${prop}`)
     }
   }
-  assert.equal(scanned, 4, '네 호출을 다 봐야 한다')
+  assert.equal(scanned, CALLS_THAT_MUST_CARRY_VALUES.length, '훑어야 할 호출을 다 봐야 한다')
 
   assert.deepEqual(found, [],
     `재야 할 값을 고정값으로 넘기는 자리가 ${found.length}개다:\n  ${found.join('\n  ')}\n\n`
@@ -424,7 +437,7 @@ test('★ 감시·주문·시장 재기·신호 발행에 고정값을 안 넘�
 test('면제 목록 둘에 죽은 줄이 없다', () => {
   const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
   const live = new Set<string>()
-  for (const callee of ['runWatch', 'runOrderJob', 'measureMarket', 'emitSignal']) {
+  for (const callee of CALLS_THAT_MUST_CARRY_VALUES) {
     const argument = callArgument(tick, callee)
     if (!argument) continue
     for (const prop of literalProps(argument)) live.add(`${callee}.${prop}`)

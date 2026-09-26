@@ -13,7 +13,6 @@ import {
   isContinuousTrading,
   isAuctionWindow,
   sameDayExitAt,
-  isNewEntryBlocked,
   isWeekendInSeoul,
   REGULAR_TIMES,
   EXPIRY_TIMES,
@@ -85,15 +84,6 @@ test('★ 만기일 청산 시각이 평일 청산 시각보다 이르다 — �
   assert.equal(hhmm(expiryExit), '15:05')
 })
 
-test('개장 직후·마감 전에는 새 신호를 안 낸다 (SR-04 시간 부분)', () => {
-  const options = { openingMinutes: 5, closingMinutes: 30 }
-  assert.equal(isNewEntryBlocked(weekday, seoul(DAY, '08:47'), options), true, '개장 2분 뒤인데 열렸다')
-  assert.equal(isNewEntryBlocked(weekday, seoul(DAY, '08:50'), options), false)
-  assert.equal(isNewEntryBlocked(weekday, seoul(DAY, '15:05'), options), true, '마감 30분 전인데 열렸다')
-  assert.equal(isNewEntryBlocked(weekday, seoul(DAY, '15:04'), options), false)
-  // 만기일은 같은 30분이 15:20 기준으로 당겨진다
-  assert.equal(isNewEntryBlocked(expiry, seoul(EXPIRY, '14:51'), options), true)
-})
 
 test('거래소가 시간을 바꾼 날은 적힌 값이 기본값을 이긴다', () => {
   const special = buildRegularSession({

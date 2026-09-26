@@ -51,6 +51,7 @@ import { directionOf, probabilitiesFrom } from '../signal/models-core.ts'
 import { lossStreakFrom, rolloverVerdict } from '../signal/context-core.ts'
 import { loadEventsAround } from '../calendar/events.ts'
 import { measureOps } from '../operator/measure-ops.ts'
+import { remainingLossBudget } from '../risk/arithmetic.ts'
 import { blackoutEventAt } from '../calendar/events-core.ts'
 import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
@@ -805,6 +806,16 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     now, today, window, target, contractCode, trigger, indicators,
     num, str, values, outcome, watchNote,
     gateHits, realizedToday, closedToday: folded.closed,
+    /**
+     * 열린 포지션이 지금 손절되면 더 질 손실 (§9.1).
+     * 손절가를 모르면 0 이 아니라 **모름**이고, 모르면 여유를 늘려 잡지 않는다 —
+     * 그래서 계획이 없으면 한도 전부를 위험으로 본다
+     */
+    openPositionRiskKrw: folded.open
+      ? (plan
+        ? Math.abs(folded.open.avgPrice - plan.stopPrice) * instrument.multiplier * folded.open.quantity
+        : num('daily_loss_limit_krw', 0))
+      : 0,
     frontLastTradingDay, previousFrontCode,
   })
 
@@ -970,7 +981,19 @@ async function emitOrExplain(ctx: any): Promise<string> {
         rolloverOrExpiryDay: rollover.blocked,
         inEventBlackout: blackout !== null,
         realizedPnlKrw: ctx.realizedToday,
-        remainingLossBudgetKrw: Math.max(0, num('daily_loss_limit_krw', 0) + Math.min(0, ctx.realizedToday)),
+        /**
+         * 남은 손실 여유는 §9.1 의 셈을 **그대로** 쓴다 —
+         * 한도 − 오늘 실현 손실 − **열린 포지션의 남은 위험**.
+         *
+         * 직접 빼면 마지막 항을 빠뜨린다(실제로 그랬다). 빠뜨리면 이미 들고 있는 것이
+         * 손절될 때 질 손실을 여유로 세게 되고, SR-07 이 통과시킨 새 신호가
+         * 그 손실과 겹쳐 한도를 넘는다.
+         */
+        remainingLossBudgetKrw: Math.max(0, remainingLossBudget({
+          dailyLossLimitKrw: num('daily_loss_limit_krw', 0),
+          realizedLossKrw: Math.max(0, -ctx.realizedToday),
+          openPositionRiskKrw: ctx.openPositionRiskKrw ?? 0,
+        })),
         consecutiveLosses: streak.consecutiveLosses,
         minutesSinceLastLoss: streak.minutesSinceLastLoss,
       },
