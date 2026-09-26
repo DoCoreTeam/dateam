@@ -395,12 +395,6 @@ const LITERAL_ON_PURPOSE: Record<string, string> = {
    * `crbr_aply_mxpr` 는 「서킷브레이커 적용 상한가」이지 발동 여부가 아니다.
    */
   'measureMarket.halted=null': 'KIS 선물 시세·호가 응답 컬럼에 거래 정지·서킷브레이커·사이드카 플래그가 없다',
-  /**
-   * 이벤트 캘린더(§6.6 [필수])가 아직 없다. 표와 관리자 화면을 같이 만들어야 해서
-   * 다음 판으로 미뤘다 — **미룬 사실을 여기 적어 두지 않으면 미룬 줄도 모른다.**
-   * 표가 생기는 날 이 줄을 지우고 SR-05 가 실제로 걸리는지 확인한다.
-   */
-  'emitSignal.inEventBlackout=false': '이벤트 캘린더 표와 화면이 아직 없다 (§6.6). 표가 생기면 이 줄을 지운다',
   'runWatch.reconciledSinceRecovery=false':
     '대조는 이 실행 안에서 지금 한다(runWatch 가 첫 줄에서 계좌를 읽는다). '
     + '이 값은 「이 실행에 들어오기 전에 이미 했나」라 답이 언제나 아니오다. true 면 복구한 분에 대조를 건너뛴다',

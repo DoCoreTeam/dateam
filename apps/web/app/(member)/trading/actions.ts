@@ -25,6 +25,7 @@ import { cancelOrder } from '@/lib/trading/order/place'
 import { loadAccountRef, loadAppCredential } from '@/lib/trading/broker/credentials'
 import { getAccessToken } from '@/lib/trading/broker/token'
 import { isNightHour } from '@/lib/trading/calendar/session'
+import { addEvent, removeEvent, listEvents, type EventRow } from '@/lib/trading/calendar/events'
 import { type ArmEnv } from '@/lib/trading/order/arming-policy'
 
 export interface AckActionResult {
@@ -298,4 +299,43 @@ export async function cancelAutoOrder(orderId: string, brokerOrderNo: string): P
   if (!result.cancelled) return { ok: false, userMessage: result.userMessage }
   revalidatePath('/trading')
   return { ok: true, userMessage: '취소했습니다' }
+}
+
+// ── 이벤트 캘린더 (§6.6) ──────────────────────────────────
+
+/**
+ * 이벤트를 더한다.
+ *
+ * **새 인증을 안 만든다** — 위의 창구들과 같은 `tradingAccess` 를 부른다.
+ * 여기서 제 나름의 확인을 만들면 두 판정이 갈리고, 갈린 결과가
+ * 「화면은 열리는데 창구가 403」 이거나 그 반대다.
+ */
+export async function addTradingEvent(name: string, occursAtLocal: string): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  /**
+   * 화면이 주는 것은 `YYYY-MM-DDTHH:mm` 이고 시간대가 없다. 그대로 `new Date` 에 넣으면
+   * 브라우저가 아니라 **서버의 시간대**로 읽혀 아홉 시간 어긋난다. KST 로 못을 박는다.
+   */
+  const anchored = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(occursAtLocal)
+    ? `${occursAtLocal}:00+09:00`
+    : occursAtLocal
+  const result = await addEvent({ name, occursAt: anchored })
+  if (!result.ok) return { ok: false, userMessage: result.userMessage }
+  revalidatePath('/trading')
+  return { ok: true, userMessage: null }
+}
+
+/** 이벤트를 지운다. 되돌리기를 안 두는 이유: 다시 넣으면 그만이다 */
+export async function removeTradingEvent(id: string): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const result = await removeEvent(id)
+  if (!result.ok) return { ok: false, userMessage: result.userMessage }
+  revalidatePath('/trading')
+  return { ok: true, userMessage: null }
+}
+
+/** 화면이 그릴 목록 */
+export async function loadTradingEvents(): Promise<EventRow[]> {
+  if (!(await tradingAccess()).allowed) return []
+  return listEvents()
 }

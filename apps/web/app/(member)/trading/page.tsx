@@ -18,6 +18,7 @@ import NotifyPanel from './NotifyPanel'
 import KnowledgePanel from './KnowledgePanel'
 import OperatorPanel from './OperatorPanel'
 import ArmingPanel from './ArmingPanel'
+import EventPanel from './EventPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -27,6 +28,7 @@ import {
   formatTradingSettingValue,
 } from '@/lib/trading/settings/labels'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
+import { listEvents } from '@/lib/trading/calendar/events'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,12 +42,23 @@ export default async function TradingPage() {
   const today = todayInSeoul()
   const { values, version } = await loadTradingSettings(today)
   const overview = await loadTradingOverview(now)
+  /**
+   * 이벤트 목록. 못 읽어도 화면은 서야 한다 — 곁가지가 본 일을 죽이지 않는다.
+   * 판단 쪽은 못 읽으면 막는 쪽으로 가지만(tick), 화면은 비어 보이면 된다.
+   */
+  const events = await listEvents().catch(() => [])
 
   const groups = Object.keys(TRADING_GROUP_LABEL) as TradingSettingGroup[]
 
   // 유효 시간은 설정이다. 화면이 따로 정하면 규칙과 화면이 다른 마감을 본다
   const rawValid = Number(values.signal_valid_minutes)
   const validMinutes = Number.isFinite(rawValid) && rawValid > 0 ? rawValid : 10
+
+  /** 설정값 하나를 숫자로. 화면이 자기 상수를 들면 규칙과 다른 값을 그린다 */
+  const numSetting = (key: string, fallback: number): number => {
+    const raw = Number(values[key])
+    return Number.isFinite(raw) ? raw : fallback
+  }
 
   return (
     <>
@@ -72,6 +85,11 @@ export default async function TradingPage() {
         <KnowledgePanel rows={overview.knowledge} progress={overview.knowledgeProgress} />
         <OperatorPanel operator={overview.operator} />
         <ArmingPanel arming={overview.arming} />
+        <EventPanel
+          rows={events.map((e) => ({ id: e.id, name: e.name, occursAt: e.occursAt }))}
+          beforeMinutes={numSetting('signal_event_block_before_minutes', 30)}
+          afterMinutes={numSetting('signal_event_block_after_minutes', 15)}
+        />
         <BarCoverage days={overview.coverage} />
         <JudgmentList rows={overview.judgments} />
 

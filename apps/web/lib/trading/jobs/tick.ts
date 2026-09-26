@@ -48,6 +48,8 @@ import { measureMarket } from '../gate/measure-market.ts'
 import { loadSignalModels } from '../signal/models.ts'
 import { directionOf, probabilitiesFrom } from '../signal/models-core.ts'
 import { lossStreakFrom, rolloverVerdict } from '../signal/context-core.ts'
+import { loadEventsAround } from '../calendar/events.ts'
+import { blackoutEventAt } from '../calendar/events-core.ts'
 import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
@@ -852,6 +854,28 @@ async function emitOrExplain(ctx: any): Promise<string> {
       frontCode: contractCode,
     })
 
+    /**
+     * 이벤트 금지 구간 (§6.6 · SR-05).
+     *
+     * 못 읽으면 **막는 쪽**이다. 이벤트 표를 못 읽었는데 안 막으면
+     * 금통위 발표 5분 전에 신호가 나가고, 그 순간 가격이 움직이는 이유는
+     * 우리 지표가 아니라 발표문이다.
+     */
+    const eventBefore = num('signal_event_block_before_minutes', 30)
+    const eventAfter = num('signal_event_block_after_minutes', 15)
+    let blackout: { name: string } | null = null
+    let eventNote = ''
+    try {
+      blackout = blackoutEventAt({
+        events: await loadEventsAround(now, eventBefore, eventAfter),
+        at: now, beforeMinutes: eventBefore, afterMinutes: eventAfter,
+      })
+      if (blackout) eventNote = `,event=${blackout.name}`
+    } catch (error) {
+      blackout = { name: 'unreadable' }
+      eventNote = `,event_failed:${error instanceof Error ? error.message : 'unknown'}`
+    }
+
     const direction = directionOf(rawScore)
     let models = null
     let modelNote = direction ? '' : ',models=no_direction'
@@ -899,11 +923,7 @@ async function emitOrExplain(ctx: any): Promise<string> {
         minutesSinceOpen: Math.floor((target.getTime() - window.continuousStart.getTime()) / 60_000),
         minutesUntilClose: Math.floor((window.continuousEnd.getTime() - target.getTime()) / 60_000),
         rolloverOrExpiryDay: rollover.blocked,
-        /**
-         * 이벤트 캘린더는 아직 없다 (§6.6 [필수], 표·화면 신설이 필요해 다음 판).
-         * `false` 라 SR-05 는 안 걸린다 — 그 사실이 면제 목록에 사유와 함께 있다
-         */
-        inEventBlackout: false,
+        inEventBlackout: blackout !== null,
         realizedPnlKrw: ctx.realizedToday,
         remainingLossBudgetKrw: Math.max(0, num('daily_loss_limit_krw', 0) + Math.min(0, ctx.realizedToday)),
         consecutiveLosses: streak.consecutiveLosses,
@@ -927,7 +947,7 @@ async function emitOrExplain(ctx: any): Promise<string> {
       sessionDayEnd: window.continuousEnd,
       now,
     })
-    return `${result.reason}${modelNote}${rollover.blocked ? `,roll=${rollover.reason}` : ''}`
+    return `${result.reason}${modelNote}${eventNote}${rollover.blocked ? `,roll=${rollover.reason}` : ''}`
   } catch (error) {
     return `emit_failed:${error instanceof Error ? error.message : 'unknown'}`
   }
