@@ -71,7 +71,7 @@
 의존: I04
 
 ### I05a 실브라우저로 소유자 지정부터 진입까지 확인한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: (검증 전용, 코드 변경 없음 · 발견한 고장은 해당 항목으로 되돌아가 고친다)
 감사 기준:
@@ -83,7 +83,7 @@
 의존: I05
 
 ### I01 관리자가 이미 들어간다는 사실을 화면이 말한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/access/actions.ts, apps/web/app/admin/access/AccessClient.tsx, apps/web/lib/terms/access.ts, apps/web/lib/access/admin-row.test.ts (신규), apps/web/package.json
 감사 기준:

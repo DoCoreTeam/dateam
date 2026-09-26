@@ -29,14 +29,14 @@ import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
-import EmptyState from '@/components/ui/EmptyState'
 import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
 import {
   ACCESS,
   ACCESS_AUDIENCE_LABEL, ACCESS_AUDIENCE_STATUS,
   ACCESS_EFFECT_LABEL, ACCESS_EFFECT_ORDER, ACCESS_EFFECT_STATUS,
   ACCESS_SUBJECT_LABEL, ACCESS_SUBJECT_ORDER,
-  ACCESS_EMPTY_TITLE, ACCESS_EMPTY_HINT, ACCESS_DESCENDANTS_HINT,
+  ACCESS_DESCENDANTS_HINT,
+  ACCESS_ADMIN_ALWAYS, ACCESS_ADMIN_ALWAYS_BUT, ACCESS_ADMIN_SOURCE,
   ACCESS_PRESET_LABEL, ACCESS_PRESET_ORDER, ACCESS_PRESET_NONE,
   ACCESS_RANGE_LABEL, ACCESS_RANGE_WHY,
   ACCESS_OWNER_WHY, ACCESS_OWNER_NONE, ACCESS_OWNER_GONE,
@@ -67,7 +67,7 @@ const ROW: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap',
 }
 
-export default function AccessClient({ surfaces, grants, people, orgs, justSynced, orphans, owner }: AccessAdminData) {
+export default function AccessClient({ surfaces, grants, people, orgs, justSynced, orphans, owner, admins }: AccessAdminData) {
   const router = useRouter()
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
@@ -334,11 +334,27 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                     </div>
                   )}
 
-                  {mine.length === 0 ? (
-                    <EmptyState title={ACCESS_EMPTY_TITLE} description={ACCESS_EMPTY_HINT} />
-                  ) : (
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                      {mine.map((g) => (
+                  <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                    {/*
+                      **맨 위에 역할 줄.** 부여가 0건이어도 이 줄은 선다 —
+                      0건을 빈 상태로 그리면 화면이 「아무도 안 들어간다」라고 말하는데
+                      관리자 전부가 이미 들어가고 있다(실측 2026-09-26).
+
+                      지울 수 없다. 이 줄은 `access_grant` 의 행이 아니라 `profiles.role` 에서
+                      나온 사실이라 지울 대상이 없다 — 단추를 두면 눌러 놓고 아무 일도 안 난다.
+                    */}
+                    {/* 관리자가 한 명도 없으면 말할 사실이 없다 — 빈 이름으로 줄을 세우지 않는다 */}
+                    {admins.length > 0 && (
+                      <li style={{ ...ROW, padding: 'var(--space-2) 0', color: 'var(--text-faint)' }}>
+                        <NbBadge>{ACCESS_ADMIN_SOURCE}</NbBadge>
+                        <span style={{ fontSize: 'var(--fs-xs)' }}>{ACCESS.admin}</span>
+                        <span>{admins.map((a) => a.name).join(', ')}</span>
+                        <span style={{ fontSize: 'var(--fs-xs)' }}>
+                          {s.needs_membership ? ACCESS_ADMIN_ALWAYS_BUT : ACCESS_ADMIN_ALWAYS}
+                        </span>
+                      </li>
+                    )}
+                    {mine.map((g) => (
                         <li key={g.id} style={{ ...ROW, padding: 'var(--space-2) 0' }}>
                           <NbBadge status={ACCESS_EFFECT_STATUS[g.effect]}>
                             {ACCESS_EFFECT_LABEL[g.effect]}
@@ -362,9 +378,8 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                             </NbButton>
                           </span>
                         </li>
-                      ))}
-                    </ul>
-                  )}
+                    ))}
+                  </ul>
 
                   {/* 새 부여 — 카드 단위 저장(§2-5 (4)). 표면마다 따로 저장한다 */}
                   <div style={{ ...ROW, alignItems: 'flex-end', marginTop: 'var(--space-3)' }}>

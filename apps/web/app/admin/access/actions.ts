@@ -63,6 +63,22 @@ export interface PersonOption {
   range: AccessRange
 }
 
+/**
+ * 부여 없이 표면을 지나는 사람 — **역할에서 나온다.**
+ *
+ * `access_grant` 에는 이 사람들의 줄이 한 개도 없다. 판정 1번(`lib/access/decide.ts`)이
+ * 관리자를 맨 먼저 통과시키기 때문이다. 그래서 부여 목록만 그리면 화면은
+ * 「아무도 안 들어간다」라고 말하는데 실제로는 관리자 전부가 들어가고 있다
+ * (실측 2026-09-26: 관리자가 그 화면을 보고 자기에게 부여를 하나 더 만들려 했다).
+ *
+ * 저장하지 않는다. 화면이 **있는 사실을 말하기만** 한다 — 줄을 저장하면
+ * 역할과 부여 두 곳이 같은 것을 말하게 되고, 역할이 바뀌는 날 한쪽만 낡는다.
+ */
+export interface AdminOption {
+  id: string
+  name: string
+}
+
 export interface OrgOption {
   id: string
   name: string
@@ -102,6 +118,8 @@ export interface AccessAdminData {
   orphans: string[]
   /** 부여와 별개로 걸리는 소유자 문 */
   owner: SurfaceOwner
+  /** 역할로 이미 지나는 사람들. 저장된 부여가 아니다 */
+  admins: AdminOption[]
 }
 
 /** 코드 등재부를 DB 사본에 맞춘다. **넣고 고치기만 하고 지우지 않는다** */
@@ -198,7 +216,7 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
   const [surfaceRes, grantRes, peopleRes, nodeRes, closureRes] = await Promise.all([
     (admin as any).from('access_surface').select('key, label, group_key, href, default_audience'),
     (admin as any).from('access_grant').select('id, surface_key, subject_kind, subject_id, effect, include_descendants'),
-    (admin as any).from('profiles').select('id, name').is('deleted_at', null).order('name'),
+    (admin as any).from('profiles').select('id, name, role').is('deleted_at', null).order('name'),
     (admin as any).from('org_nodes').select('id, type, parent_id, head_user_id, name, user_id'),
     (admin as any).from('org_node_closure').select('ancestor_id, descendant_id'),
   ])
@@ -211,10 +229,9 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
    * 퇴사자는 고르는 목록에서 뺀다. 남겨 두면 나간 사람에게 문을 여는 부여가 생기고,
    * 그건 아무도 안 쓰는 부여가 아니라 **계정이 살아 있는 동안 열려 있는 문**이다.
    */
-  const active = await activeMembers(
-    admin,
-    rows<Omit<PersonOption, 'range'>>(peopleRes, '구성원').filter((p) => p.name),
-  )
+  const profiles = rows<{ id: string; name: string; role: string | null }>(peopleRes, '구성원')
+    .filter((p) => p.name)
+  const active = await activeMembers(admin, profiles.map(({ id, name }) => ({ id, name })))
   // 조직도를 사람 수만큼 다시 읽지 않는다 — 이미 읽은 nodes 로 셈만 한다
   const people: PersonOption[] = active.map((p) => ({ ...p, range: rangeOfPerson(p.id, nodes) }))
 
@@ -226,6 +243,13 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
     justSynced,
     orphans,
     owner: await readTradingOwner(),
+    /**
+     * **퇴사 여부로 거르지 않는다.** 이 줄이 답하는 것은 「지금 누가 지나는가」이고,
+     * 판정이 보는 것은 `role` 하나다. 퇴사자를 빼면 화면이 실제보다 적게 말하게 되고,
+     * 그건 「안 들어가는 사람이 들어간다」보다 나쁜 거짓말이다 — 안 보이는 문이 된다.
+     * (퇴사자를 실제로 막는 자리는 `(member)` 레이아웃의 `isResigned` 다.)
+     */
+    admins: profiles.filter((p) => p.role === 'admin').map(({ id, name }) => ({ id, name })),
   }
 }
 
