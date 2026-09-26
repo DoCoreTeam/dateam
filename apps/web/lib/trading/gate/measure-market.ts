@@ -18,7 +18,8 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import {
   spreadAbnormalFrom, barMissingOrLateFrom, medianSpread, foldMarket,
-  type SpreadSample, type MarketMeasurement,
+  marketAbnormalFrom, unseenMarketSignals,
+  type SpreadSample, type MarketMeasurement, type MarketStateInput,
 } from './measure-core.ts'
 
 /** 기준선을 뽑을 때 훑는 봉 수. 1분 봉이면 두 시간 남짓이다 */
@@ -36,6 +37,8 @@ export interface MarketInput {
   spreadMultiple: number
   /** 마지막 봉이 몇 분 전이면 늦은 것인가 */
   lateMinutes: number
+  /** SG-11 이 볼 것들. 지금 볼 수 있는 것은 동시호가 하나뿐이다 */
+  marketState: MarketStateInput
 }
 
 /**
@@ -95,6 +98,12 @@ export async function measureMarket(input: MarketInput): Promise<MarketMeasureme
     barMissingOrLate: readFailed ? null : barMissingOrLateFrom({
       lastBarStartAt, now: input.now, lateMinutes: input.lateMinutes,
     }),
+    /**
+     * 봉을 못 읽은 것과 시장 상태는 상관없다 — 세션 창은 DB 조회가 아니라
+     * 이미 손에 든 값이다. 봉 실패에 묶으면 볼 수 있는 것까지 못 보게 된다.
+     */
+    marketAbnormal: marketAbnormalFrom(input.marketState),
+    unseenMarketSignals: unseenMarketSignals(input.marketState),
   })
   return readFailed
     ? { ...folded, unmeasured: [...folded.unmeasured, 'barsUnreadable'] }

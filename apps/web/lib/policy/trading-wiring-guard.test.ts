@@ -382,8 +382,6 @@ function literalProps(argument: string): string[] {
  * 「아직 안 이었다」는 사유가 아니다. 그것이 이 가드가 잡으라고 있는 상태다.
  */
 const LITERAL_ON_PURPOSE: Record<string, string> = {
-  // 게이트 값 — 아직 재는 길이 없고, 재는 날 measure.ts 에 붙인다
-  'runWatch.marketAbnormal=false': '서킷브레이커·사이드카를 주는 창구를 아직 안 붙였다',
   'runWatch.notifyFailureStreak=0': 'runWatch 가 안에서 recentNotifications 로 다시 센다. 여기 값은 안 쓴다',
   /**
    * 평가 손익은 **일부러** 안 넣는다. 한도가 보는 것은 실현이고(§8 D-32),

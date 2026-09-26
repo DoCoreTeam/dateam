@@ -50,7 +50,7 @@ import { runOperatorJob } from './operator-job.ts'
 import { runOrderJob } from './order-job.ts'
 import { isHoldDominant } from '../judge/types.ts'
 import { loadInstrumentSpec } from '../settings/store.ts'
-import { sameDayExitAt } from '../calendar/session.ts'
+import { sameDayExitAt, isAuctionWindow } from '../calendar/session.ts'
 import {
   claimJudgment, takeOverStaleClaim, finishJudgment,
   startJobRun, finishJobRun,
@@ -406,6 +406,16 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     bestAsk: Number.isFinite(bestAsk) ? bestAsk : null,
     spreadMultiple: num('gate_spread_abnormal_multiple', 3),
     lateMinutes: num('gate_bar_late_minutes', 2),
+    /**
+     * SG-11 (§10.1) 은 다섯을 든다 — 서킷브레이커·사이드카·가격제한 근접·거래 정지·동시호가.
+     * **볼 수 있는 것은 동시호가 하나뿐이다.** 나머지 넷은 KIS 에서 받을 자리를 아직 안 정했고,
+     * `null` 로 넘겨 실행 기록의 unmeasured 에 이름이 남는다 — 안 보고 통과한 것이 보이게.
+     */
+    marketState: {
+      inAuction: isAuctionWindow(window, now),
+      halted: null,
+      priceLimitNear: null,
+    },
   })
 
   if (account) {
@@ -450,7 +460,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
           hasActiveSpec: gate.hasActiveSpec,
           marginTight: gate.marginTight,
           aiBudgetExhausted: gate.aiBudgetExhausted,
-          marketAbnormal: false,
+          marketAbnormal: market.marketAbnormal,
           logicChangedToday: syncReason.startsWith('logic_changed'),
         },
       })

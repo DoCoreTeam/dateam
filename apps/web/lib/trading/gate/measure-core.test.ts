@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   marginTightFrom, minutesSince, foldMeasurement, measurementNote,
   spreadOf, medianSpread, spreadAbnormalFrom, barMissingOrLateFrom, foldMarket,
-  MIN_SPREAD_SAMPLES,
+  marketAbnormalFrom, unseenMarketSignals, MIN_SPREAD_SAMPLES,
 } from './measure-core.ts'
 
 test('추가 증거금이 붙으면 유지율을 볼 것도 없이 빡빡하다', () => {
@@ -173,10 +173,11 @@ test('마지막 봉이 기준보다 오래됐으면 늦은 것이다', () => {
 })
 
 test('★ 못 잰 둘은 false 로 가되 못 쟀다는 사실이 남는다', () => {
-  const folded = foldMarket({ barMissingOrLate: null, spreadAbnormal: null })
+  const folded = foldMarket({ barMissingOrLate: null, spreadAbnormal: null, marketAbnormal: null })
   assert.equal(folded.barMissingOrLate, false)
   assert.equal(folded.spreadAbnormal, false)
-  assert.deepEqual(folded.unmeasured, ['barMissingOrLate', 'spreadAbnormal'])
+  assert.equal(folded.marketAbnormal, false)
+  assert.deepEqual(folded.unmeasured, ['barMissingOrLate', 'spreadAbnormal', 'marketAbnormal'])
 })
 
 test('실행 기록 한 줄에 SG-01 값 둘과 못 잰 것이 함께 실린다', () => {
@@ -184,10 +185,47 @@ test('실행 기록 한 줄에 SG-01 값 둘과 못 잰 것이 함께 실린다'
     brokerFailureStreak: 0, minutesSinceLastRun: 1,
     hasCalibration: true, hasActiveSpec: true, marginTight: false, aiBudgetExhausted: false,
   })
-  const note = measurementNote(gate, foldMarket({ barMissingOrLate: true, spreadAbnormal: null }))
+  const note = measurementNote(gate, foldMarket({
+    barMissingOrLate: true, spreadAbnormal: null, marketAbnormal: false,
+    unseenMarketSignals: ['halted'],
+  }))
   assert.ok(note.includes('bar_late=true'), note)
   assert.ok(note.includes('spread_wide=false'), note)
-  assert.ok(note.includes('unmeasured=spreadAbnormal'), note)
+  assert.ok(note.includes('market_abnormal=false'), note)
+  assert.ok(note.includes('unmeasured=spreadAbnormal+halted'), note)
   // 시장 값을 안 주면 옛 줄 그대로다 — 부르는 자리가 늘어나도 기존 기록이 안 바뀐다
   assert.equal(measurementNote(gate).includes('bar_late'), false)
+})
+
+// ── SG-11 시장 상태 (§10.1) ───────────────────────────────
+
+const UNSEEN = { halted: null, priceLimitNear: null } as const
+
+test('동시호가 구간이면 시장 상태가 이상이다 — 단일가 값으로 접속매매 규칙을 판단하지 않는다', () => {
+  assert.equal(marketAbnormalFrom({ inAuction: true, ...UNSEEN }), true)
+})
+
+test('접속매매 구간이면 아는 범위에서는 이상 없음이다', () => {
+  assert.equal(marketAbnormalFrom({ inAuction: false, ...UNSEEN }), false)
+})
+
+test('★ 전부 모르면 null 이다 — 세션 창을 못 읽은 날 「시장 정상」이라고 쓰지 않는다', () => {
+  assert.equal(marketAbnormalFrom({ inAuction: null, ...UNSEEN }), null)
+})
+
+test('아는 것 하나라도 참이면 참이다', () => {
+  assert.equal(marketAbnormalFrom({ inAuction: false, halted: true, priceLimitNear: null }), true)
+})
+
+test('★ 안 본 항목 이름이 남는다 — 안 보고 통과한 것과 보고 통과한 것은 다른 사실이다', () => {
+  assert.deepEqual(unseenMarketSignals({ inAuction: false, ...UNSEEN }), ['halted', 'priceLimitNear'])
+  assert.deepEqual(unseenMarketSignals({ inAuction: true, halted: false, priceLimitNear: false }), [])
+})
+
+test('일부만 본 판정도 안 본 항목을 실행 기록에 남긴다', () => {
+  const folded = foldMarket({
+    barMissingOrLate: false, spreadAbnormal: false, marketAbnormal: false,
+    unseenMarketSignals: ['halted', 'priceLimitNear'],
+  })
+  assert.deepEqual(folded.unmeasured, ['halted', 'priceLimitNear'])
 })

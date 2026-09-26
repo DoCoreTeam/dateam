@@ -127,28 +127,79 @@ export function barMissingOrLateFrom(input: BarLateInput): boolean | null {
   return minutes > input.lateMinutes
 }
 
-/** SG-01 이 볼 값 둘과, 그중 못 잰 것 */
+// ── SG-11 시장 상태 (§10.1) ───────────────────────────────
+
+/**
+ * SG-11 이 보는 것들. **하나하나가 따로 모름일 수 있다.**
+ *
+ * 명세는 서킷브레이커·사이드카·가격제한 근접·거래 정지·동시호가 다섯을 든다.
+ * 우리가 지금 볼 수 있는 것은 **동시호가 하나뿐**이다 — 나머지 넷을 주는 창구를
+ * 아직 안 붙였다. 다섯을 한 칸으로 접으면 「동시호가 아님」이 「시장 정상」이 되고,
+ * 서킷브레이커가 걸린 날 화면이 정상이라고 말한다.
+ */
+export interface MarketStateInput {
+  /** 단일가(동시호가) 구간인가. 세션 창을 모르면 null */
+  inAuction: boolean | null
+  /** 거래 정지·서킷브레이커·사이드카. 주는 창구가 없어 지금은 언제나 null */
+  halted: boolean | null
+  /** 가격제한폭에 가까운가. 상·하한가를 주는 창구가 없어 지금은 언제나 null */
+  priceLimitNear: boolean | null
+}
+
+const MARKET_SIGNALS = ['inAuction', 'halted', 'priceLimitNear'] as const
+
+/**
+ * 시장이 평소와 다른가.
+ *
+ * 아는 것 중 하나라도 참이면 참이다. **전부 모르면 `null`** 이고,
+ * 일부만 알면 아는 범위의 답을 돌려주되 모르는 항목은 `unseenMarketSignals` 가 남긴다.
+ */
+export function marketAbnormalFrom(input: MarketStateInput): boolean | null {
+  const known = MARKET_SIGNALS.map((k) => input[k]).filter((v): v is boolean => v !== null)
+  if (known.length === 0) return null
+  return known.some((v) => v)
+}
+
+/** 못 본 항목 이름들. 실행 기록에 실려 「무엇을 안 보고 통과했나」가 남는다 */
+export function unseenMarketSignals(input: MarketStateInput): string[] {
+  return MARKET_SIGNALS.filter((k) => input[k] === null)
+}
+
+/** SG-01 과 SG-11 이 볼 값 셋과, 그중 못 잰 것 */
 export interface MarketMeasurement {
   barMissingOrLate: boolean
   spreadAbnormal: boolean
+  marketAbnormal: boolean
   unmeasured: string[]
 }
 
-/** `null` 을 게이트 꼴로 접는다. 접는 규칙은 foldMeasurement 와 같다 */
+/**
+ * `null` 을 게이트 꼴로 접는다. 접는 규칙은 foldMeasurement 와 같다.
+ *
+ * 셋을 **선택 칸으로 두지 않는다** — 안 넘기면 조용히 `false` 가 되고,
+ * 그것이 이 파일이 없애려는 바로 그 모양이다.
+ */
 export function foldMarket(raw: {
   barMissingOrLate: boolean | null
   spreadAbnormal: boolean | null
+  marketAbnormal: boolean | null
+  /** 시장 신호 중 못 본 항목. 전부 모르면 marketAbnormal 이 null 이라 따로 안 적어도 된다 */
+  unseenMarketSignals?: readonly string[]
 }): MarketMeasurement {
   const unmeasured: string[] = []
   const known = (name: string, value: boolean | null): boolean => {
     if (value === null) { unmeasured.push(name); return false }
     return value
   }
-  return {
+  const result = {
     barMissingOrLate: known('barMissingOrLate', raw.barMissingOrLate),
     spreadAbnormal: known('spreadAbnormal', raw.spreadAbnormal),
+    marketAbnormal: known('marketAbnormal', raw.marketAbnormal),
     unmeasured,
   }
+  // 일부만 본 경우에도 무엇을 안 봤는지 남긴다. 전부 모르면 위에서 이미 남았다
+  if (raw.marketAbnormal !== null) unmeasured.push(...(raw.unseenMarketSignals ?? []))
+  return result
 }
 
 export interface GateMeasurement {
@@ -204,7 +255,11 @@ export function measurementNote(m: GateMeasurement, market?: MarketMeasurement):
     `ai_budget_out=${m.aiBudgetExhausted}`,
   ]
   if (market) {
-    parts.push(`bar_late=${market.barMissingOrLate}`, `spread_wide=${market.spreadAbnormal}`)
+    parts.push(
+      `bar_late=${market.barMissingOrLate}`,
+      `spread_wide=${market.spreadAbnormal}`,
+      `market_abnormal=${market.marketAbnormal}`,
+    )
   }
   const unmeasured = [...m.unmeasured, ...(market?.unmeasured ?? [])]
   if (unmeasured.length > 0) parts.push(`unmeasured=${unmeasured.join('+')}`)
