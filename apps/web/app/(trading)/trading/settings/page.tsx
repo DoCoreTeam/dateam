@@ -17,7 +17,8 @@ import { pendingByKey, editingValue, type PendingChange } from '@/lib/trading/se
 import { whyElsewhere } from '@/lib/trading/settings/editable'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
-import SettingsForm, { type SettingRow } from './SettingsForm'
+import { type SettingRow } from './SettingsForm'
+import SettingsGroups, { type SettingGroupBlock } from './SettingsGroups'
 import CredentialPanel, { type CredentialStatusRow } from './CredentialPanel'
 import { getTradingCredentialStatus } from '@/lib/trading/broker/credentials'
 
@@ -51,6 +52,20 @@ export default async function TradingSettingsPage() {
     }),
   )
 
+  /**
+   * 묶음마다 줄을 만들어 둔다. 비어 있는 묶음은 안 세운다 —
+   * 펼쳐 봐야 아무것도 없는 칸은 눌러 놓고 아무 일도 안 난다.
+   */
+  const blocks: SettingGroupBlock[] = groups
+    .map((group) => ({
+      key: group,
+      label: TRADING_GROUP_LABEL[group],
+      rows: TRADING_SETTINGS
+        .filter((s) => s.group === group)
+        .map((s) => toRow(s, values[s.key], pending.get(s.key))),
+    }))
+    .filter((b) => b.rows.length > 0)
+
   return (
     <>
       <PageHeader
@@ -63,27 +78,7 @@ export default async function TradingSettingsPage() {
         {/* 처음 한 번 넣는 것이라 맨 위다 — 이게 없으면 나머지 값이 다 있어도 아무것도 안 돈다 */}
         <CredentialPanel rows={credentials} />
 
-        {groups.map((group) => {
-          const rows = TRADING_SETTINGS.filter((s) => s.group === group)
-          if (rows.length === 0) return null
-          return (
-            <section key={group} className="card">
-              <h2
-                style={{
-                  fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)',
-                  margin: 0, marginBottom: 'var(--space-3)',
-                }}
-              >
-                {TRADING_GROUP_LABEL[group]}
-              </h2>
-              <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
-                {rows.map((s) => (
-                  <SettingsForm key={s.key} row={toRow(s, values[s.key], pending.get(s.key))} />
-                ))}
-              </div>
-            </section>
-          )
-        })}
+        <SettingsGroups groups={blocks} />
       </div>
     </>
   )

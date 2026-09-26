@@ -31,6 +31,7 @@ const read = (rel: string): string => readFileSync(join(WEB, rel), 'utf8')
 const ACTIONS = `${TRADING_APP_DIR}/settings/actions.ts`
 const PAGE = `${TRADING_APP_DIR}/settings/page.tsx`
 const FORM = `${TRADING_APP_DIR}/settings/SettingsForm.tsx`
+const GROUPS = `${TRADING_APP_DIR}/settings/SettingsGroups.tsx`
 
 test('저장 창구는 서버 액션이다 — 이 모듈은 라우트를 안 연다', () => {
   const src = read(ACTIONS)
@@ -114,10 +115,34 @@ test('저장한 값이 화면에서 사라지지 않는다 — 예약된 판을 
 
 test('설정 화면이 값 전부를 그린다 — 고칠 수 없는 값이 숨지 않는다', () => {
   const page = read(PAGE)
-  assert.match(page, /TRADING_SETTINGS\.filter/, '레지스트리에서 줄을 안 만든다')
-  assert.match(page, /SettingsForm/, '고치는 칸을 안 그린다')
+  // 줄바꿈이 끼므로 사이를 열어 둔다 — `TRADING_SETTINGS\n  .filter(...)` 꼴이다
+  assert.match(page, /TRADING_SETTINGS[\s\S]{0,20}?\.filter/, '레지스트리에서 줄을 안 만든다')
   assert.match(page, /whyElsewhere/, '못 바꾸는 값의 사유를 화면에 안 넘긴다')
+
+  /**
+   * **고치는 칸까지 값이 가는지를 본다.** 화면이 `SettingsForm` 이라는 글자를 들고 있는지가
+   * 아니라, 레지스트리 줄이 `toRow` 를 지나 접는 부품으로 넘어가고 그 부품이 칸을 그리는지다 —
+   * 이름만 찾으면 렌더를 다른 데로 옮긴 순간 통과하면서 화면은 비어 있을 수 있다.
+   */
+  assert.match(page, /toRow\(s, values\[s\.key\], pending\.get\(s\.key\)\)/, '레지스트리 줄을 화면 꼴로 안 바꾼다')
+  assert.match(page, /<SettingsGroups groups=\{blocks\}/, '만든 줄을 그리는 자리로 안 넘긴다')
+  assert.match(read(GROUPS), /<SettingsForm key=\{row\.key\} row=\{row\}/, '고치는 칸을 안 그린다')
 
   /** 예전처럼 읽기 전용으로만 그리면 이 화면은 전시로 돌아간다 */
   assert.doesNotMatch(page, /formatTradingSettingValue/, '아직 읽기 전용으로 그린다')
+})
+
+test('설정 묶음이 접힌다 — 88개가 한 번에 안 펼쳐진다', () => {
+  const groups = read(GROUPS)
+
+  /**
+   * 실측 2026-09-27: 화면을 일곱으로 나눈 뒤에도 설정만 8445px 였다(나머지는 720~1722px).
+   * 값이 88개라 더 나눠도 안 줄고 접어야 준다.
+   */
+  assert.match(groups, /<details/, '묶음을 접지 않는다')
+  assert.match(groups, /\{open && \(/, '닫혀 있어도 본문을 그린다 — 88개 입력칸을 문서에 들고 있게 된다')
+  assert.match(groups, /\$\{g\.rows\.length\}개/, '묶음 머리에 값 개수가 없다 — 어느 것을 펼칠지 고를 수 없다')
+
+  /** 자격증명은 접지 않는다 — 처음 한 번 넣는 것이고 안 넣으면 아무것도 안 돈다 */
+  assert.match(read(PAGE), /<CredentialPanel rows=\{credentials\}/, '자격증명 절이 사라졌다')
 })

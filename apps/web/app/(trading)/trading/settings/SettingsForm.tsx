@@ -97,7 +97,13 @@ export default function SettingsForm({ row }: { row: SettingRow }) {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexShrink: 0 }}>
+      {/* 단추가 좁아져 글자가 세로로 쪼개지지 않게 — 줄바꿈을 막고 줄이지 않는다 */}
+      <div
+        style={{
+          display: 'flex', gap: 'var(--space-2)', alignItems: 'center',
+          flexShrink: 0, whiteSpace: 'nowrap',
+        }}
+      >
         {row.type === 'boolean' ? (
           <select
             id={`set-${row.key}`}
