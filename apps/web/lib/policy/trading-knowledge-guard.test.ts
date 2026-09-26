@@ -102,6 +102,15 @@ const SETTING_WRITERS = [
   'lib/trading/knowledge/proposal.ts',
   // 사람이 화면에서 누르는 창구
   'app/(member)/trading/actions.ts',
+  /**
+   * 소유자 한 값만 바꾼다. 관리자가 접근권한 화면에서 누르는 자리이고 창구
+   * (`app/api/admin/trading-owner/route.ts`)의 `requireAdminApi` 를 지난 뒤에만 불린다.
+   *
+   * 왜 위의 창구로 못 합치나: 그 창구는 `/trading` **안에** 있다. 소유자가 비면 그 화면에
+   * 못 들어가므로 소유자를 정할 수도 없었다(실측 2026-09-26). 소유자를 정하는 일만
+   * 문 밖으로 꺼낸 것이라 자리가 하나 더 필요하다. AI 가 닿는 경로는 아니다.
+   */
+  'lib/trading/owner-admin.ts',
 ]
 
 test('★ AI 가 설정을 직접 쓰는 길이 0개다', () => {

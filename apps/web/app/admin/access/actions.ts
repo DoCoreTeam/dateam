@@ -21,7 +21,8 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import { activeMembers } from '@/lib/members/resigned-server'
 import { SURFACES, grantableKeys, keyKind, parentKey, splitKey, surfaceByKey } from '@/lib/access/surfaces'
-import { ACCESS_ACTION_LABEL } from '@/lib/terms'
+import { ACCESS, ACCESS_ACTION_LABEL, failedTo } from '@/lib/terms'
+import { TRADING_OWNER_SURFACE, loadTradingOwner } from '@/lib/trading/owner-admin'
 import { rangeOfPerson, type AccessRange } from '@/lib/access/capabilities'
 import { SEAT_ROLE } from '@/lib/access/seat-role'
 import { navLabel } from '@/lib/nav/menu'
@@ -71,6 +72,25 @@ export interface OrgOption {
   subtreeCount: number
 }
 
+/**
+ * 부여로는 못 여는 문이 하나 있는 표면과, 지금 그 문을 가진 사람.
+ *
+ * **왜 부여 목록 옆에 세우나** (실측 2026-09-26): `access_grant` 에 AI 트레이딩을 관리자에게
+ * 여는 줄이 이미 있는데도 아무도 못 들어갔다. 소유자가 빈 값이면 그 위에 선 문이 따로 닫히고,
+ * 그 값을 정하는 화면은 **그 문 안에** 있었다. 관리자는 허용을 눌러 놓고
+ * 아무 일도 안 일어나는 것만 봤다. 그래서 값을 여기로 꺼낸다.
+ */
+export interface SurfaceOwner {
+  /** 소유자 문이 걸린 표면. 화면이 이 키의 줄에만 소유자 칸을 세운다 */
+  surfaceKey: string
+  /** 빈 문자열이면 아직 아무도 아니다 */
+  userId: string
+  /** id 가 가리키는 사람이 없으면 null — 이름 자리에 id 를 그리지 않는다 */
+  name: string | null
+  /** 읽지 못했으면 그 사실. 화면이 빈 칸 대신 이 줄을 그린다 */
+  error: string | null
+}
+
 export interface AccessAdminData {
   surfaces: SurfaceRow[]
   grants: GrantRow[]
@@ -80,6 +100,8 @@ export interface AccessAdminData {
   justSynced: number
   /** DB 에 있는데 코드에 없는 표면 — 사람이 봐야 한다 */
   orphans: string[]
+  /** 부여와 별개로 걸리는 소유자 문 */
+  owner: SurfaceOwner
 }
 
 /** 코드 등재부를 DB 사본에 맞춘다. **넣고 고치기만 하고 지우지 않는다** */
@@ -203,6 +225,32 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
     orgs: orgOptions(nodes, closure),
     justSynced,
     orphans,
+    owner: await readTradingOwner(),
+  }
+}
+
+/**
+ * 소유자를 읽되 **이 화면 전체를 데리고 죽지는 않는다.**
+ *
+ * 위의 `rows` 는 못 읽으면 던진다. 그 자리들은 이 화면이 그려야 할 본체라 못 읽으면
+ * 고장난 것을 보여 주는 편이 맞다. 소유자는 다르다 — 한 표면에 딸린 한 값이고,
+ * 이것 때문에 던지면 관리자가 **모든 표면의 접근권한을 못 다루게 된다.**
+ * 접근권한 화면은 문이 잘못 열렸을 때 닫으러 오는 자리라 그 손해가 더 크다.
+ *
+ * 대신 조용히 비우지도 않는다. 실패 사실을 화면까지 들고 가서 그 칸에 그린다.
+ */
+async function readTradingOwner(): Promise<SurfaceOwner> {
+  try {
+    const owner = await loadTradingOwner()
+    return { surfaceKey: TRADING_OWNER_SURFACE, userId: owner.userId, name: owner.name, error: null }
+  } catch (e) {
+    console.error('[access] 소유자를 읽지 못했습니다', e instanceof Error ? e.message : String(e))
+    return {
+      surfaceKey: TRADING_OWNER_SURFACE,
+      userId: '',
+      name: null,
+      error: failedTo(ACCESS.owner, '읽지'),
+    }
   }
 }
 

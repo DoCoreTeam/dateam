@@ -24,12 +24,13 @@
  * 하위 포함이면 조상 사슬, 아니면 직접 소속.
  */
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
+import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
 import {
   ACCESS,
   ACCESS_AUDIENCE_LABEL, ACCESS_AUDIENCE_STATUS,
@@ -38,6 +39,7 @@ import {
   ACCESS_EMPTY_TITLE, ACCESS_EMPTY_HINT, ACCESS_DESCENDANTS_HINT,
   ACCESS_PRESET_LABEL, ACCESS_PRESET_ORDER, ACCESS_PRESET_NONE,
   ACCESS_RANGE_LABEL, ACCESS_RANGE_WHY,
+  ACCESS_OWNER_WHY, ACCESS_OWNER_NONE, ACCESS_OWNER_GONE,
   ACTION, failedTo, progress,
   accessGrantCount, accessOrphanLine, accessPeopleCount, accessSurfaceCount, accessSyncedLine,
 } from '@/lib/terms'
@@ -65,10 +67,16 @@ const ROW: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap',
 }
 
-export default function AccessClient({ surfaces, grants, people, orgs, justSynced, orphans }: AccessAdminData) {
+export default function AccessClient({ surfaces, grants, people, orgs, justSynced, orphans, owner }: AccessAdminData) {
   const router = useRouter()
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
+  /**
+   * 소유자 칸의 초안. `null` 은 **아직 안 건드림**이고 `{ id: '' }` 는 **비우려는 것**이다.
+   * 둘을 한 값으로 합치면 「안 골랐다」와 「해제하겠다」가 구분되지 않아
+   * 잘못 지정한 소유자를 되돌릴 길이 사라진다.
+   */
+  const [ownerDraft, setOwnerDraft] = useState<RecordOption | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -113,26 +121,45 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
     ? people.find((p) => p.id === draft.subjectId)?.range ?? null
     : null
 
+  /**
+   * 소유자 후보는 서버가 이미 보낸 `people` 이다 — **활성 구성원 전부**이고 잘라 온 목록이
+   * 아니라서 여기서 걸러도 못 찾는 사람이 안 생긴다.
+   * (`RecordPicker` 가 「검색은 서버가 한다」를 기본으로 삼는 이유는 100건만 받아 온 목록에서
+   * 거르면 101번째가 영원히 안 보이기 때문이다. 그 조건이 여기엔 없다.)
+   */
+  const searchPeople: RecordSearch = useCallback(async (query) => {
+    const needle = query.trim().toLowerCase()
+    return people
+      .filter((p) => needle === '' || p.name.toLowerCase().includes(needle))
+      .map((p) => ({ id: p.id, name: p.name }))
+  }, [people])
+
+  const ownerValue = ownerDraft ? ownerDraft.id : owner.userId
+  const ownerName = ownerDraft ? ownerDraft.name : (owner.name ?? '')
+  /** 저장할 것이 있나. 같은 사람을 다시 골랐으면 판을 하나 더 쌓지 않는다 */
+  const ownerChanged = ownerDraft !== null && ownerDraft.id !== owner.userId
+
   function toggle(key: string) {
     setOpenKey((prev) => (prev === key ? null : key))
     setDraft(EMPTY_DRAFT)
+    setOwnerDraft(null)
     setError(null)
   }
 
-  async function send(url: string, init: RequestInit, verb: string) {
+  async function send(url: string, init: RequestInit, verb: string, noun: string = ACCESS.grant) {
     setBusy(true)
     setError(null)
     try {
       const res = await fetch(url, init)
       const body = (await res.json().catch(() => ({}))) as { error?: string }
       if (!res.ok) {
-        setError(body.error ?? failedTo(ACCESS.grant, verb))
+        setError(body.error ?? failedTo(noun, verb))
         return false
       }
       router.refresh()
       return true
     } catch {
-      setError(failedTo(ACCESS.grant, verb))
+      setError(failedTo(noun, verb))
       return false
     } finally {
       setBusy(false)
@@ -190,6 +217,26 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
     await send(`/api/admin/access?id=${encodeURIComponent(id)}`, { method: 'DELETE' }, '삭제하지')
   }
 
+  /**
+   * 소유자는 **부여 창구로 안 보낸다.** 저장되는 자리가 다르다 —
+   * 부여는 `access_grant` 한 줄이고 소유자는 `trading_settings` 의 판이다.
+   * 한 창구에 둘을 태우면 그 창구가 두 표를 알게 되고, 그때부터 한쪽만 고쳐진다.
+   */
+  async function saveOwner() {
+    if (!ownerDraft) return
+    const ok = await send(
+      '/api/admin/trading-owner',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: ownerDraft.id }),
+      },
+      '저장하지',
+      ACCESS.owner,
+    )
+    if (ok) setOwnerDraft(null)
+  }
+
   return (
     <div>
       {/* 등재 상태 — 사본이 코드를 못 따라간 자리를 화면이 먼저 말한다 */}
@@ -245,6 +292,48 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                       {s.needs_membership}
                     </p>
                   )}
+                  {/*
+                    부여와 **다른 축의 문**이다. 이 줄에만 선다(어느 표면인지는 서버가 준다).
+                    실측 2026-09-26: 부여는 이미 있었는데 이 값이 비어 있어 아무도 못 들어갔고,
+                    값을 정하는 화면은 그 문 안에 있어 영영 못 정했다.
+                  */}
+                  {owner.surfaceKey === s.key && (
+                    <div style={{ marginBottom: 'var(--space-4)' }}>
+                      <label className="label" htmlFor={`owner-${s.key}`}>{ACCESS.owner}</label>
+                      <div style={{ ...ROW, alignItems: 'flex-end' }}>
+                        <div style={{ minWidth: '14rem' }}>
+                          <RecordPickerField
+                            id={`owner-${s.key}`}
+                            noun={ACCESS.owner}
+                            value={ownerValue}
+                            valueName={ownerName}
+                            onChange={(picked) => setOwnerDraft(picked ?? { id: '', name: '' })}
+                            search={searchPeople}
+                            placeholder={ACCESS_OWNER_NONE}
+                            disabled={busy}
+                          />
+                        </div>
+                        <NbButton disabled={busy || !ownerChanged} onClick={saveOwner}>
+                          {busy ? progress(ACTION.save) : ACTION.save}
+                        </NbButton>
+                      </div>
+                      <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
+                        {ACCESS_OWNER_WHY}
+                      </p>
+                      {/* 적힌 사람이 없어졌다 — 「지정됨」으로 보이는데 실제로는 닫혀 있는 상태다 */}
+                      {owner.userId !== '' && owner.name === null && !owner.error && (
+                        <p role="alert" style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
+                          {ACCESS_OWNER_GONE}
+                        </p>
+                      )}
+                      {owner.error && (
+                        <p role="alert" style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
+                          {owner.error}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {mine.length === 0 ? (
                     <EmptyState title={ACCESS_EMPTY_TITLE} description={ACCESS_EMPTY_HINT} />
                   ) : (

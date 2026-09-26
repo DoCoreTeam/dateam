@@ -23,8 +23,13 @@ export type { TradingAccessDecision, TradingAccessReason } from './access-decide
  * 설정 전체(`loadTradingSettings`)를 쓰지 않는 이유: 문을 여는 데 필요한 것은 한 줄인데
  * 전체를 읽으면 문 하나 여는 비용이 설정 개수에 비례해 늘어난다. 그리고 문은 요청마다 선다.
  *
- * 왜 오늘 날짜로 고르나: 소유자를 바꾸면 그 변경도 **다음 거래일부터**다.
- * 장중에 소유자가 바뀌어 그날 판단 기록의 주인이 중간에 달라지지 않게 한다.
+ * 왜 오늘 날짜로 고르나: 유효일이 아직 안 온 판은 아직 값이 아니기 때문이다.
+ *
+ * **소유자는 그중 예외다** (2026-09-26). 다른 설정은 다음 거래일부터 듣지만 소유자는
+ * 전략 값이 아니라 **문**이라 그날 바로 듣는다. 다음 거래일부터로 두면 관리자가 지정하고도
+ * 그날은 아무도 못 들어가고, 그건 지정을 안 한 것과 화면에서 구별되지 않는다.
+ * 그래서 `lib/trading/owner-admin.ts` 가 **오늘 날짜로** 판을 쌓는다 — 여기 걸리는 조건은
+ * 그대로 두고 쓰는 쪽이 날짜를 정한다.
  */
 async function readOwnerUserId(todayIso: string): Promise<string | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
