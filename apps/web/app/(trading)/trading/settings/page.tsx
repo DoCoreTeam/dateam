@@ -5,20 +5,18 @@
 // 88줄이 따라오니 현황이 설정 목록에 파묻혔고, 정작 설정을 찾는 사람은 그 아래까지
 // 스크롤해야 했다. 매일 여는 것과 처음 한 번 정하는 것은 같은 화면에 두지 않는다.
 //
-// 이 판에서는 **자리만** 만든다. 고치는 일은 다음 항목에서 붙는다 —
-// 옮기는 일과 고치는 일을 한 커밋에 섞으면 어느 쪽이 깨졌는지 못 가린다.
+// **값마다 저장한다.** 88개를 한 단추로 저장하면 하나가 거절될 때 나머지가 어떻게 됐는지
+// 화면이 말할 수 없다. 저장기가 값 하나를 한 판으로 쌓으므로 화면도 같은 단위로 둔다.
 
 import { Settings } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
-import {
-  TRADING_GROUP_LABEL,
-  TRADING_USED_FROM_LABEL,
-  formatTradingSettingValue,
-} from '@/lib/trading/settings/labels'
+import { TRADING_GROUP_LABEL, TRADING_USED_FROM_LABEL } from '@/lib/trading/settings/labels'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
+import { whyElsewhere } from '@/lib/trading/settings/editable'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
+import SettingsForm, { type SettingRow } from './SettingsForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +29,7 @@ export default async function TradingSettingsPage() {
       <PageHeader
         title={TRADING_NAV_LABEL.settings}
         icon={<Settings size={22} />}
-        description={`지금 쓰는 값입니다. 판 ${version}`}
+        description={`지금 쓰는 값 ${TRADING_SETTINGS.length}개입니다. 고치면 다음 거래일부터 적용됩니다. 판 ${version}`}
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
@@ -48,39 +46,35 @@ export default async function TradingSettingsPage() {
               >
                 {TRADING_GROUP_LABEL[group]}
               </h2>
-              <dl style={{ display: 'grid', gap: 'var(--space-3)', margin: 0 }}>
+              <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
                 {rows.map((s) => (
-                  <div
-                    key={s.key}
-                    style={{
-                      display: 'flex', gap: 'var(--space-3)', alignItems: 'baseline',
-                      flexWrap: 'wrap', justifyContent: 'space-between',
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <dt style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)' }}>
-                        {s.label}
-                      </dt>
-                      <dd style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                        {s.help}
-                      </dd>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-                        {formatTradingSettingValue(values[s.key])}
-                        {s.unit ? <span style={{ color: 'var(--text-muted)' }}> {s.unit}</span> : null}
-                      </div>
-                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                        {TRADING_USED_FROM_LABEL[s.usedFrom]}
-                      </div>
-                    </div>
-                  </div>
+                  <SettingsForm key={s.key} row={toRow(s, values[s.key])} />
                 ))}
-              </dl>
+              </div>
             </section>
           )
         })}
       </div>
     </>
   )
+}
+
+/**
+ * 레지스트리 한 줄을 화면이 그릴 꼴로.
+ *
+ * 지금 값을 **글자로** 넘긴다 — 입력칸이 다루는 것은 언제나 글자이고,
+ * 형으로 되돌리는 일은 저장 창구가 레지스트리를 보고 한다(두 곳이 각자 읽으면 갈린다).
+ */
+function toRow(spec: (typeof TRADING_SETTINGS)[number], value: unknown): SettingRow {
+  return {
+    key: spec.key,
+    label: spec.label,
+    help: spec.help,
+    type: spec.type,
+    ...(spec.choices ? { choices: spec.choices } : {}),
+    ...(spec.unit ? { unit: spec.unit } : {}),
+    value: spec.type === 'boolean' ? String(value === true) : String(value ?? ''),
+    elsewhere: whyElsewhere(spec.key),
+    usedFrom: TRADING_USED_FROM_LABEL[spec.usedFrom],
+  }
 }

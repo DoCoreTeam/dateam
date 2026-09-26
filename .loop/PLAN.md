@@ -1,6 +1,6 @@
 # PLAN newAX: AI 트레이딩이 서비스가 된다 — 자기 셸·메뉴 구성·설정 화면
 플랜 ID: P0072
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0117
 목표 버전: v0.10.582
@@ -73,12 +73,13 @@
 의존: I01
 
 ### I03 설정을 화면에서 고친다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/(trading)/trading/settings/page.tsx (신규), apps/web/app/(trading)/trading/settings/SettingsClient.tsx (신규), apps/web/app/api/trading/settings/route.ts (신규), apps/web/lib/trading/settings/edit.ts (신규), apps/web/lib/policy/trading-settings-surface.test.ts (신규), apps/web/package.json
+범위: apps/web/app/(trading)/trading/settings/page.tsx, apps/web/app/(trading)/trading/settings/SettingsForm.tsx (신규), apps/web/app/(trading)/trading/settings/actions.ts (신규), apps/web/lib/trading/settings/editable.ts (신규), apps/web/lib/trading/settings/editable.test.ts (신규), apps/web/lib/policy/trading-settings-surface.test.ts (신규), apps/web/lib/policy/trading-knowledge-guard.test.ts, apps/web/package.json
 감사 기준:
-- 보안: 새 창구다, 소유자 확인을 부르고 소유자가 아니면 403 이다, 서비스롤 자리 위에 사람 확인이 있다, apps/web/lib/policy/api-auth-surface.test.ts 통과
+- 보안: 새 창구는 **서버 액션**이다 (이 모듈은 API 라우트를 안 연다), 소유자 확인(tradingAccess)을 부르고 소유자가 아니면 거절 사유를 돌려준다, 서비스롤 자리 위에 그 확인이 있다
 - 보안: 밖에서 온 값은 key 와 value 둘이고 레지스트리에 있는 key 만 받는다, 형과 범위는 validateSetting 이 보고 거절 사유를 돌려준다 — 모르는 key 는 저장 안 함
+- 보안: **관문이 있는 값은 이 화면에서 못 바꾼다** (notify_enabled 는 검증 관문·섀도 일수를, night_signal_enabled 는 야간 규칙을 지나야 한다), 소유자는 접근권한 화면이 정한다, 셋 다 어디서 바꾸는지를 화면이 말한다
 - 보안: 새 모듈 맨 위에 import 'server-only' 가 있다
 - 저장은 saveTradingSetting 을 지난다, trading_settings 를 직접 insert 하지 않는다 — grep 으로 확인
 - 묶음 15개가 절로 서고 값 88개가 형에 맞는 입력칸으로 그려진다 (참/거짓·숫자·글자·고르기)
@@ -133,3 +134,5 @@
 - v0.1.1 (2026-09-26) I01 범위 확대 — 옛 경로를 손으로 든 가드 8개를 app-dirs 한 표로, 셸이 그릴 메뉴 표를 당겨옴 (audit:I01)
 - v0.1.2 (2026-09-27) I02 범위에 셋 추가 — 화면 이름은 lib/terms/entity.ts 의 TRADING_NAV_LABEL 을 지나야 사이드바와 제목이 갈리지 않고(N-4), 새 자리마다 그림이 있어야 해 셸의 아이콘 표를 채웠으며, lib/trading/signal/ack.test.ts 의 주문 금지 스캔이 맨 위 칸만 읽고 있어 하위 폴더 화면이 그 규칙 밖으로 나가 있었다(재귀로 고침) (audit:I02)
 - v0.1.2 (2026-09-26) I02 범위에 terms·셸 아이콘·ack 재귀 스캔 추가 (audit:I02)
+- v0.1.3 (2026-09-27) I03 설계 정정 — 창구를 API 라우트로 잡았는데 이 모듈은 **서버 액션만** 쓴다(actions.ts 머리말 「새 인증을 안 만든다」, 가드 둘이 'use server' 를 단정). 라우트로 열면 api-auth-surface 가 tradingAccess 를 인증 장치로 모르므로 열린 창구로 잡히고, 모듈의 문 구조도 두 벌이 된다. 그리고 보안 기준 한 줄을 더했다 — 관문을 지나야 켜지는 값 둘(notify_enabled·night_signal_enabled)과 접근권한 화면이 정하는 값 하나(owner_user_id)를 이 화면에서 그냥 쓰게 두면 관문을 우회하는 길이 생긴다 (audit:I03)
+- v0.1.3 (2026-09-26) I03 창구를 API 라우트에서 서버 액션으로 정정, 관문 우회 금지 기준 추가 (audit:I03)

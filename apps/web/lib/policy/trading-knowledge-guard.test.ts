@@ -112,6 +112,12 @@ const SETTING_WRITERS = [
    * 문 밖으로 꺼낸 것이라 자리가 하나 더 필요하다. AI 가 닿는 경로는 아니다.
    */
   'lib/trading/owner-admin.ts',
+  /**
+   * 설정 화면의 저장 창구. 소유자가 화면에서 누르는 자리이고 `tradingAccess()` 를 지난다.
+   * **관문이 있는 값은 저장하지 않는다**(`lib/trading/settings/editable.ts`) —
+   * 그게 이 자리를 열면서 같이 걸어야 했던 조건이다. AI 가 닿는 경로는 아니다.
+   */
+  `${TRADING_APP_DIR}/settings/actions.ts`,
 ]
 
 test('★ AI 가 설정을 직접 쓰는 길이 0개다', () => {
