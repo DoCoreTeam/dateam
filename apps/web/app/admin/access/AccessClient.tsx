@@ -134,6 +134,20 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
       .map((p) => ({ id: p.id, name: p.name }))
   }, [people])
 
+  /**
+   * 주체 후보. 사람이냐 조직이냐는 **고르는 종류**가 정하고, 목록은 서버가 이미 보낸 것이다.
+   *
+   * 조직에는 사람 수를 곁들인다 — 조직에 열면 그 아래 전부에게 열리므로
+   * 고르는 순간 몇 명인지 보이는 편이 저장 전에 한 번 더 생각하게 만든다.
+   */
+  const searchSubjects: RecordSearch = useCallback(async (query) => {
+    const needle = query.trim().toLowerCase()
+    const list: RecordOption[] = draft.kind === 'user'
+      ? people.map((p) => ({ id: p.id, name: p.name, ...(p.dept ? { hint: p.dept } : {}) }))
+      : orgs.map((o) => ({ id: o.id, name: o.name, hint: accessPeopleCount(o.subtreeCount) }))
+    return list.filter((o) => needle === '' || o.name.toLowerCase().includes(needle))
+  }, [draft.kind, people, orgs])
+
   const ownerValue = ownerDraft ? ownerDraft.id : owner.userId
   const ownerName = ownerDraft ? ownerDraft.name : (owner.name ?? '')
   /** 저장할 것이 있나. 같은 사람을 다시 골랐으면 판을 하나 더 쌓지 않는다 */
@@ -412,31 +426,26 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                       </select>
                     </div>
 
+                    {/*
+                      **드롭다운이 아니라 모달이다**(§2-5 · `components/ui/RecordPicker.tsx`).
+                      사람과 조직은 **개수가 자라는** 목록이라 native select 로 두면
+                      늘어난 만큼 그대로 길어지고, 검색이 없으니 눈으로 훑는 것 말고는
+                      찾을 방법이 없다. 이름 옆 꼬리표는 소속 부서이고(동명이인을 가르는 것은
+                      소속이다), 범위의 뜻은 고른 뒤 안내 한 문장에서 푼다.
+                    */}
                     <div style={{ minWidth: '14rem' }}>
                       <label className="label" htmlFor={`who-${s.key}`}>
                         {ACCESS_SUBJECT_LABEL[draft.kind]}
                       </label>
-                      <select
+                      <RecordPickerField
                         id={`who-${s.key}`}
-                        className="input-field"
+                        noun={ACCESS_SUBJECT_LABEL[draft.kind]}
                         value={draft.subjectId}
-                        onChange={(e) => setDraft({ ...draft, subjectId: e.target.value })}
-                      >
-                        <option value="" />
-                        {/*
-                          이름 옆 꼬리표는 **소속 부서**다. 예전엔 「이름 · 내 것」 「이름 · 부서」였는데,
-                          그 둘은 판정이 쓰는 말이라 사람을 가르는 표지로 읽혔고 동명이인을
-                          가려야 하는 자리에서 아무것도 안 가려 줬다. 범위의 뜻은
-                          고른 뒤 안내 한 문장에서 푼다.
-                        */}
-                        {draft.kind === 'user'
-                          ? people.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.dept ? `${p.name} · ${p.dept}` : p.name}
-                              </option>
-                            ))
-                          : orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                      </select>
+                        valueName={nameOf.get(draft.subjectId) ?? ''}
+                        onChange={(picked) => setDraft({ ...draft, subjectId: picked?.id ?? '' })}
+                        search={searchSubjects}
+                        disabled={busy}
+                      />
                       {pickedRange && (
                         <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: 'var(--space-1)' }}>
                           {ACCESS_RANGE_WHY[pickedRange]}

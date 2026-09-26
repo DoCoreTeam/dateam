@@ -105,7 +105,7 @@
 의존: I01
 
 ### I03 사람과 조직을 드롭다운이 아니라 모달로 고른다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/access/AccessClient.tsx, apps/web/lib/ui/picker-standard.test.ts (신규), apps/web/package.json
 감사 기준:
