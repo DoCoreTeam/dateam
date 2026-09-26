@@ -85,6 +85,20 @@ export interface KisClient {
   price(contractCode: string): Promise<KisResult<Record<string, string>>>
   /** 최우선 호가 */
   askingPrice(contractCode: string): Promise<KisResult<Record<string, string>>>
+  /**
+   * 기준일부터의 휴장일 표. 한 번에 100일 남짓이라 이어 조회한다.
+   *
+   * 「몇 거래일 남았나」를 이 표로 센다. 주말만 빼고 세면 추석이 낀 해에
+   * 여유가 실제보다 많아 보여 월물 교체가 늦는다.
+   */
+  holidays(input: { from: Date; maxPages?: number }): Promise<KisResult<HolidayRow[]>>
+}
+
+export interface HolidayRow {
+  /** YYYY-MM-DD (서울) */
+  date: string
+  /** 개장일인가 */
+  open: boolean
 }
 
 export function createKisClient(options: KisClientOptions): KisClient {
@@ -134,6 +148,42 @@ export function createKisClient(options: KisClientOptions): KisClient {
       return { ok: true, value: output }
     },
 
+    async holidays({ from, maxPages: pages }) {
+      const rows: HolidayRow[] = []
+      let fk = ''
+      let nk = ''
+      const limit = pages ?? maxPages
+      for (let page = 0; page < limit; page += 1) {
+        const result = await call<Record<string, string>[]>(queue, env, auth, 'holidays', {
+          BASS_DT: seoulYmd(from),
+          CTX_AREA_FK: fk,
+          CTX_AREA_NK: nk,
+        })
+        if (!result.ok) return result
+        const output = (result.value.output ?? result.value.output1 ?? []) as Record<string, string>[]
+        for (const row of output) {
+          const raw = (row.bass_dt ?? '').trim()
+          // 여덟 자리가 아니면 우리가 읽을 수 있는 날짜가 아니다. 조용히 오늘로 접지 않는다
+          if (!/^\d{8}$/.test(raw)) continue
+          rows.push({
+            date: `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`,
+            open: (row.opnd_yn ?? '').trim().toUpperCase() === 'Y',
+          })
+        }
+        // 이어 조회 열쇠가 안 오거나 그대로면 끝이다
+        const envelope = result.value as unknown as Record<string, string>
+        const nextFk = (envelope.ctx_area_fk100 ?? '').trim()
+        const nextNk = (envelope.ctx_area_nk100 ?? '').trim()
+        if (output.length === 0 || (nextFk === fk && nextNk === nk)) break
+        fk = nextFk
+        nk = nextNk
+        if (fk === '' && nk === '') break
+      }
+      // 같은 날이 두 번 오면 하나만 남긴다
+      const byDate = new Map(rows.map((r) => [r.date, r]))
+      return { ok: true, value: [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)) }
+    },
+
     async askingPrice(contractCode) {
       const result = await call<Record<string, string>>(queue, env, auth, 'askingPrice', symbolParams(contractCode))
       if (!result.ok) return result
@@ -142,6 +192,11 @@ export function createKisClient(options: KisClientOptions): KisClient {
       return { ok: true, value: output }
     },
   }
+}
+
+/** 서울 기준 YYYYMMDD. KIS 는 하이픈 없는 여덟 자리를 받는다 */
+function seoulYmd(at: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(at).replace(/-/g, '')
 }
 
 /** 서울 기준 그날 00:00 */

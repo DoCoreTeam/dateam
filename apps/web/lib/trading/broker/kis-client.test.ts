@@ -25,20 +25,31 @@ const AUTH = { accessToken: 'token-value', appKey: 'app-key', appSecret: 'app-se
 
 // ── ① 주문 경로가 없다 (M1) ──────────────────────────────
 
-test('★ 부를 수 있는 것은 조회 넷뿐이고 주문 경로가 없다', () => {
+/**
+ * 선물옵션이 아닌 영역을 쓰는 창구. **이름과 이유를 함께 적는다** —
+ * 「조회니까 괜찮다」로 열어 두면 다음에 무엇이 들어와도 괜찮아진다.
+ */
+const NON_FUTURES_PATH: Record<string, string> = {
+  // 휴장일은 시장 전체의 것이라 상품별로 나뉘지 않는다. 선물옵션 영역에 같은 창구가 없다
+  holidays: '/uapi/domestic-stock/v1/quotations/',
+}
+
+test('★ 부를 수 있는 것은 조회 다섯뿐이고 주문 경로가 없다', () => {
   const entries = Object.entries(KIS_QUOTATIONS)
-  assert.equal(entries.length, 4, `조회 창구가 ${entries.length}개다. 1-A 는 넷뿐이다`)
+  assert.equal(entries.length, 5, `조회 창구가 ${entries.length}개다. 지금은 다섯이다`)
 
   const expected: Record<string, string> = {
     minuteChart: 'FHKIF03020200',
     price: 'FHMIF10000000',
     askingPrice: 'FHMIF10010000',
     dailyChart: 'FHKIF03020100',
+    holidays: 'CTCA0903R',
   }
   for (const [key, spec] of entries) {
     assert.equal(spec.trId, expected[key], `${key} 의 TR ID 가 명세 §20 과 다르다`)
-    assert.ok(spec.path.startsWith('/uapi/domestic-futureoption/v1/quotations/'),
-      `${key} 가 국내선물옵션 조회 경로가 아니다: ${spec.path}`)
+    const allowed = NON_FUTURES_PATH[key] ?? '/uapi/domestic-futureoption/v1/quotations/'
+    assert.ok(spec.path.startsWith(allowed),
+      `${key} 가 허용된 조회 경로가 아니다: ${spec.path} (기대 ${allowed})`)
     // 주문 계열 경로 조각. 하나라도 들어오면 이 저장소가 돈을 움직일 수 있게 된다
     for (const banned of ['order', 'trading/', 'ccnl-notice', 'cancel', 'revise']) {
       assert.equal(spec.path.includes(banned), false, `${key} 경로에 「${banned}」가 있다`)

@@ -62,6 +62,19 @@ export const KIS_QUOTATIONS = {
     paperSupported: true,
     maxRowsPerCall: 1,
   },
+  /**
+   * 국내휴장일조회. **선물 영역이 아니라 주식 영역에 있다** —
+   * 휴장일은 시장 전체의 것이라 상품별로 나뉘지 않는다.
+   *
+   * 이것이 없으면 「최종거래일까지 몇 거래일 남았나」를 주말만 빼고 세게 되고,
+   * 추석이 낀 해에는 실제보다 여유가 많은 것으로 보여 월물 교체가 늦는다.
+   */
+  holidays: {
+    path: '/uapi/domestic-stock/v1/quotations/chk-holiday',
+    trId: 'CTCA0903R',
+    paperSupported: true,
+    maxRowsPerCall: 100,
+  },
   /** 기간별시세(일/주/월/년). 일봉 백필에만 쓴다 */
   dailyChart: {
     path: '/uapi/domestic-futureoption/v1/quotations/inquire-daily-fuopchartprice',

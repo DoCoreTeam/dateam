@@ -24,6 +24,7 @@ import {
 import { loadDayConfig, freezeDayConfig, logicChangedToday } from './day-config.ts'
 
 import { syncContracts } from '../contracts/sync.ts'
+import { decideRoll } from '../contracts/roll.ts'
 import { getAccessToken } from '../broker/token.ts'
 import { loadAppCredential, loadAccountRef } from '../broker/credentials.ts'
 import { createKisClient } from '../broker/kis-client.ts'
@@ -54,7 +55,7 @@ import { runOperatorJob } from './operator-job.ts'
 import { runOrderJob } from './order-job.ts'
 import { isHoldDominant } from '../judge/types.ts'
 import { loadInstrumentSpec } from '../settings/store.ts'
-import { sameDayExitAt, isAuctionWindow } from '../calendar/session.ts'
+import { sameDayExitAt, isAuctionWindow, isWeekendInSeoul } from '../calendar/session.ts'
 import {
   claimJudgment, takeOverStaleClaim, finishJudgment,
   startJobRun, finishJobRun,
@@ -166,6 +167,8 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   let syncReason = 'day_config_frozen'
   /** 우리 월물의 최종거래일. SR-04 가 「오늘이 만기일인가」를 이 값으로 답한다 */
   let frontLastTradingDay: string | null = null
+  /** 오늘 교체를 물은 결과. 굳은 날에는 안 묻는다 */
+  let rollNote = ''
 
   if (frozen) {
     contractCode = frozen.frontContractCode
@@ -188,6 +191,59 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     }
     contractCode = sync.frontCode
     expiryDays = new Set(sync.contracts.map((c) => c.lastTradingDay))
+
+    /**
+     * **오늘 갈아탈까** (§6.3). 그날 값을 굳히기 전 한 번만 묻는다.
+     *
+     * 매분 물으면 KIS 호출이 분마다 둘 늘고, 장중에 답이 바뀌면 같은 날 앞뒤 봉이
+     * 서로 다른 월물로 판단된다. `shouldRollover` 는 1-A 때 만들어 놓고
+     * **부르는 곳이 0곳이었다** — 규칙이 문서에만 있었다.
+     */
+    // 주말에는 안 묻는다. 교체는 거래일 결정이고, 물으면 KIS 호출만 셋 는다
+    if (isWeekendInSeoul(today)) {
+      rollNote = 'roll_no=weekend'
+    } else {
+      const rollEnv = str('kis_env', 'real') as 'real' | 'paper'
+      const rollToken = await getAccessToken({
+        env: rollEnv,
+        refreshMarginMinutes: num('kis_token_refresh_margin_minutes', 30),
+        runId, now,
+      })
+      const rollCredential = rollToken.ok ? await loadAppCredential(rollEnv) : null
+      if (!rollToken.ok || !rollCredential) {
+        // 못 물었다고 그날 수집까지 죽이지 않는다. 안 갈아탄 사유만 남긴다
+        rollNote = `roll_no=no_auth:${rollToken.ok ? 'no_credential' : rollToken.reason}`
+      } else {
+        const rollKis = createKisClient({
+          env: rollEnv,
+          auth: {
+            accessToken: rollToken.accessToken,
+            appKey: rollCredential.appKey,
+            appSecret: rollCredential.appSecret,
+          },
+          minIntervalMs: num('kis_min_interval_ms', 200),
+        })
+        const openDays = await rollKis.holidays({ from: new Date(`${today}T00:00:00+09:00`) })
+        const roll = await decideRoll({
+          today,
+          contracts: sync.contracts,
+          frontCode: contractCode,
+          openDays: openDays.ok ? openDays.value : [],
+          daysBefore: num('rollover_days_before_last', 3),
+          volumeOf: async (code) => {
+            const r = await rollKis.price(code)
+            if (!r.ok) return null
+            const raw = Number(r.value.acml_vol)
+            return Number.isFinite(raw) ? raw : null
+          },
+        })
+        if (roll.rolled) contractCode = roll.frontCode
+        rollNote = roll.rolled
+          ? `roll=${roll.reason}:${roll.fromCode}->${roll.frontCode}`
+          : `roll_no=${roll.reason}`
+      }
+    }
+
     frontLastTradingDay = sync.contracts.find((c) => c.code === contractCode)?.lastTradingDay ?? null
 
     /**
@@ -205,9 +261,10 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
       settingsVersion: after?.version ?? settingsVersion,
       frontContractCode: contractCode,
     })
-    syncReason = seeded.seeded.length > 0
-      ? `${sync.reason},settings_seeded=${seeded.seeded.length}`
-      : sync.reason
+    syncReason = [
+      seeded.seeded.length > 0 ? `${sync.reason},settings_seeded=${seeded.seeded.length}` : sync.reason,
+      rollNote,
+    ].filter((x) => x !== '').join(',')
   }
 
   /**
