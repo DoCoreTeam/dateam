@@ -19,18 +19,18 @@
 import type { MinuteBarInput } from '../bars/confirm.ts'
 import { computeIndicators, evaluateTriggers, requiredBarCount, type TriggerParams } from '../judge/indicators.ts'
 import type { Judge, JudgeInput, RawScore } from '../judge/types.ts'
-import { replayExecution, type ExitPlan, type OrderKind, type ReplayResult } from '../replay/execution.ts'
+import { replayExecution, type OrderKind, type ReplayResult } from '../replay/execution.ts'
+/**
+ * 청산 계획 식은 **실시간 쪽이 주인이다** (M4). 여기서 다시 선언하지 않고 들여온다 —
+ * 사본이 생기면 고칠 때 한쪽만 고치고, 그날부터 이 백테스트는 실제로 안 도는
+ * 전략의 성적을 말한다.
+ */
+import { buildExitPlan, type ExitPlanParams } from '../judge/exit-plan-math.ts'
+
+export { buildExitPlan }
+export type { ExitPlanParams }
 import { computeRisk, toR, type InstrumentSpec } from '../risk/arithmetic.ts'
 
-export interface ExitPlanParams {
-  /** 손절 = 기준가 ∓ 이 배수 × ATR (§8) */
-  stopAtrMultiple: number
-  /** 목표 = 기준가 ± 이 배수 × ATR */
-  targetAtrMultiple: number
-  /** 진입 한계 = 기준가 ± 이 배수 × ATR */
-  chaseAtrMultiple: number
-  timeExitMinutes: number
-}
 
 export interface BacktestParams {
   triggers: TriggerParams
@@ -77,23 +77,6 @@ export interface BacktestSummary {
 
 const MINUTE_MS = 60_000
 
-/** 청산 계획 — 방향이 부호를 정한다 (§8) */
-export function buildExitPlan(
-  direction: 'long' | 'short',
-  referencePrice: number,
-  atr: number,
-  params: ExitPlanParams,
-  sessionCloseAt: Date,
-): ExitPlan {
-  const sign = direction === 'long' ? 1 : -1
-  return {
-    stopPrice: referencePrice - sign * params.stopAtrMultiple * atr,
-    targetPrice: referencePrice + sign * params.targetAtrMultiple * atr,
-    chaseLimitPrice: referencePrice + sign * params.chaseAtrMultiple * atr,
-    timeExitMinutes: params.timeExitMinutes,
-    sessionCloseAt,
-  }
-}
 
 /**
  * 과거 봉에 전략을 돌린다.

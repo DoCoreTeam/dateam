@@ -39,6 +39,14 @@ const LIVE_OWNED = [
   'isContinuousTrading', 'sameDayExitAt', 'buildRegularSession',
   // 리스크 — lib/trading/risk/arithmetic.ts
   'computeRisk', 'worstEntryPrice', 'remainingLossBudget',
+  /**
+   * 청산 계획 — lib/trading/judge/exit-plan-math.ts
+   *
+   * 이 줄이 없어서 못 봤다: 실시간은 `jobs/emit-signal.ts` 안에서 손절·목표를 직접
+   * 계산했고 백테스트는 `backtest/run.ts` 에 자기 `buildExitPlan` 을 갖고 있었다.
+   * 사본이 둘인 채로 가드는 내내 초록이었다 — **세는 목록에 없으면 안 세는 것이다.**
+   */
+  'buildExitPlan',
 ]
 
 function walk(dir: string): string[] {
@@ -80,7 +88,7 @@ test('★ 검증 쪽에 실시간 함수의 복사본이 없다 (M4)', () => {
 
 test('★ 백테스트가 실시간 모듈을 실제로 들여온다 — 안 들여오면 복사본도 없고 호출도 없다', () => {
   const run = readFileSync(join(TRADING, 'backtest', 'run.ts'), 'utf8')
-  for (const from of ['../judge/indicators.ts', '../replay/execution.ts', '../risk/arithmetic.ts']) {
+  for (const from of ['../judge/indicators.ts', '../replay/execution.ts', '../risk/arithmetic.ts', '../judge/exit-plan-math.ts']) {
     assert.ok(run.includes(from), `backtest/run.ts 가 ${from} 를 안 들여온다`)
   }
 })

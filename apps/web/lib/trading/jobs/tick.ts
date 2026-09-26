@@ -820,6 +820,8 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
      */
     emitNote = await emitOrExplain({
       now, today, window, target, contractCode, trigger, indicators,
+      // 판단 대상 봉의 종가. 판단과 신호가 같은 봉을 본다
+      referencePrice: decision.bar.close,
       num, str, values, outcome, watchNote,
       gateHits, realizedToday, closedToday: folded.closed,
       /**
@@ -985,7 +987,14 @@ async function emitOrExplain(ctx: any): Promise<string> {
       barCloseAt,
       trigger,
       indicators,
-      referencePrice: indicators.smaFast,
+      /**
+       * 기준가는 **확정 봉의 종가**다 (§13.1 「신호 시점 가격」 · M4).
+       *
+       * 전에는 단기 이동평균을 넘겼다. 최근 다섯 봉의 평균이라 돌파로 걸린 신호에서는
+       * 실제 가격과 크게 벌어지고, 그 값 위에 손절·목표가 선다. 백테스트는 같은 자리에
+       * 봉 종가를 쓰고 있었으니 **같은 전략을 두 가격으로 재고 있었다.**
+       */
+      referencePrice: ctx.referencePrice,
       instrument,
       calibratedProb: prob.calibratedProb,
       netExpectedValueR: prob.netExpectedValueR,

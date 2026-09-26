@@ -21,6 +21,7 @@ import { checkSignalRules, type SignalRuleContext, type SignalRuleThresholds } f
 import { saveSignal, countSignalsOn, minutesSinceSameDirection } from '../signal/store.ts'
 import { queueNotification } from '../notify/outbox.ts'
 import { computeRisk, type InstrumentSpec } from '../risk/arithmetic.ts'
+import { buildExitPlan } from '../judge/exit-plan-math.ts'
 import { DIRECTION_LABEL } from '../signal-labels.ts'
 import type { GateHit } from '../gate/safety.ts'
 import type { Indicators, TriggerHit } from '../judge/types.ts'
@@ -79,12 +80,20 @@ export async function emitSignal(input: EmitSignalInput): Promise<EmitSignalResu
   const direction = input.trigger.direction
   const atr = input.indicators.atr
 
-  const stopPrice = direction === 'long'
-    ? input.referencePrice - input.exit.stopAtrMultiple * atr
-    : input.referencePrice + input.exit.stopAtrMultiple * atr
-  const targetPrice = direction === 'long'
-    ? input.referencePrice + input.exit.targetAtrMultiple * atr
-    : input.referencePrice - input.exit.targetAtrMultiple * atr
+  /**
+   * 청산 계획은 **백테스트와 같은 함수**로 만든다 (M4).
+   *
+   * 전에는 이 자리에 식을 직접 적었고 백테스트는 자기 것을 갖고 있었다. 사본이 둘이면
+   * 고칠 때 한쪽만 고치는 날이 오고, 그날부터 백테스트 성적은 실제로 안 도는 전략의 것이다.
+   */
+  const plan = buildExitPlan(direction, input.referencePrice, atr, {
+    stopAtrMultiple: input.exit.stopAtrMultiple,
+    targetAtrMultiple: input.exit.targetAtrMultiple,
+    chaseAtrMultiple: input.exit.chaseAtrMultiple,
+    timeExitMinutes: input.exit.timeExitMinutes,
+  }, input.exit.sessionCloseAt)
+  const stopPrice = plan.stopPrice
+  const targetPrice = plan.targetPrice
 
   const risk = computeRisk({
     direction,
