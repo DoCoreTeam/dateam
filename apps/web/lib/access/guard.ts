@@ -28,6 +28,8 @@ import { decideAccess, type Decision } from './decide.ts'
 import { loadViewerAccess } from './load.ts'
 import { SURFACES, surfaceOf, zoneKey, zoneKeyOf, zoneOf } from './surfaces.ts'
 import { vetoesAction, type AccessAction } from './actions.ts'
+import { hasExtraGate, passesExtraGate, type ExtraGateContext } from './extra-gate.ts'
+import { tradingOwnerUserId } from '../trading/access.ts'
 import { navLabel } from '../nav/menu.ts'
 
 /** 로그인 안 한 요청의 답. 화면은 그 전에 이미 로그인으로 보내지만, 여기서도 닫아 둔다 */
@@ -51,6 +53,17 @@ export async function canOpen(href: string): Promise<boolean> {
 }
 
 /**
+ * 추가 문이 쓰는 값을 모은다 — **필요할 때만 읽는다.**
+ *
+ * 표면 판정에서 이미 닫힌 사람에게는 부르지 않는다. 그래서 일반 사용자의 화면 전환에는
+ * 왕복이 안 붙고, 통과한 사람(관리자·부여받은 사람)에게만 한 번 붙는다.
+ * 그 한 번도 `cache()` 라 요청당 하나다.
+ */
+async function extraGateContext(): Promise<ExtraGateContext> {
+  return { tradingOwnerUserId: await tradingOwnerUserId() }
+}
+
+/**
  * 메뉴가 쓰는 꼴 — 주소 여럿을 한 번에 걸러 **열린 것만** 돌려준다.
  *
  * 집합으로 주는 이유: 사이드바는 묶음 안에서, 전체 메뉴는 절 안에서 각각 거르는데
@@ -61,9 +74,16 @@ export async function openSurfaces(hrefs: readonly string[]): Promise<Set<string
   const access = await loadViewerAccess()
   if (!access) return new Set()
   const open = new Set<string>()
+  /** 통과한 것 중에 추가 문이 걸린 것이 있을 때만 값을 읽는다 */
+  let extra: ExtraGateContext | null = null
   for (const href of hrefs) {
     const key = surfaceOf(href)?.key ?? href
-    if (decideAccess(key, access.viewer, access.grants).allowed) open.add(href)
+    if (!decideAccess(key, access.viewer, access.grants).allowed) continue
+    if (hasExtraGate(key)) {
+      extra ??= await extraGateContext()
+      if (!passesExtraGate(key, access.viewer, extra)) continue
+    }
+    open.add(href)
   }
   return open
 }
@@ -157,9 +177,19 @@ export async function canWrite(href: string): Promise<boolean> {
  */
 export async function openMap(): Promise<Record<string, boolean>> {
   const access = await loadViewerAccess()
+  /**
+   * 여기서는 미리 읽는다. 이 함수는 표면 **전부**를 재므로 추가 문이 걸린 표면을
+   * 반드시 지나고, 지연해 읽어도 결국 한 번은 읽는다.
+   */
+  const extra = access ? await extraGateContext() : null
   const out: Record<string, boolean> = {}
   for (const s of SURFACES) {
-    const allow = (key: string) => (access ? decideAccess(key, access.viewer, access.grants).allowed : false)
+    const allow = (key: string) => {
+      if (!access || !extra) return false
+      if (!decideAccess(key, access.viewer, access.grants).allowed) return false
+      // 추가 문은 **닫기만 한다** — 표면 판정이 이미 닫은 것을 열지 않는다
+      return passesExtraGate(key, access.viewer, extra)
+    }
     out[s.href] = allow(s.key)
     for (const z of s.zones ?? []) {
       // 탭 자리는 주소가 표면과 같아 앞자리 맞추기로 못 가른다 — 경로 자리만 담는다

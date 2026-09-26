@@ -18,7 +18,7 @@ import { getRoutineWeeklyStatus } from './routine/actions'
 import { getTodayPlannedCount } from './daily/actions'
 import { countMyOpenDeptTasks } from './dept-tasks/actions'
 import { cookies, headers } from 'next/headers'
-import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Network, Sparkles, Handshake, Radar, FileSearch } from 'lucide-react'
+import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Network, Sparkles, Handshake, Radar, FileSearch, CandlestickChart } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
 import { SIDEBAR_TOP_LINKS, SIDEBAR_GROUP_LINKS, type MenuLink } from '@/lib/nav/menu'
@@ -51,6 +51,7 @@ const SIDEBAR_ICON: Record<string, React.ReactNode> = {
   '/ci': <Radar size={16} />,
   '/ai': <Sparkles size={16} />,
   '/rfp': <FileSearch size={16} />,
+  '/trading': <CandlestickChart size={16} />,
   '/pricing/gpu': <DollarSign size={16} />,
   '/pricing/catalog': <Tag size={16} />,
 }

@@ -45,6 +45,7 @@ import {
   SIDEBAR_TOP_LINKS, SIDEBAR_GROUP_LINKS, QUICKNAV_LINKS,
   ADMIN_ONLY_GROUPS, canSeeNav, menuLink, allMenuHrefs,
 } from './menu.ts'
+import { hasExtraGate, passesExtraGate } from '../access/extra-gate.ts'
 
 /** apps/web/lib/nav → apps/web */
 const WEB = join(import.meta.dirname, '..', '..')
@@ -57,7 +58,13 @@ const QUICKNAV = 'components/ui/QuickNav.tsx'
 const BEFORE = {
   sidebarTop: ['/home', '/work', '/calendar', '/meeting-notes', '/org'],
   sidebarGroups: [
-    { key: 'service', items: ['/crm', '/ci', '/ai', '/rfp'] },
+    /**
+     * v0.10.576 에 `/trading` 한 줄을 더했다. 그때까지는 일부러 안 세웠고
+     * 이유는 「소유자 한 사람이 쓰는 모듈이라 모든 관리자의 사이드바를 차지할 이유가 없다」였다.
+     * 이제 `lib/access/extra-gate.ts` 가 소유자가 아닌 사람에게서 이 줄을 지우므로
+     * 차지하는 사람은 소유자 한 명뿐이다 — 안 세운 대가로 소유자가 자기 모듈을 못 찾았다.
+     */
+    { key: 'service', items: ['/crm', '/ci', '/ai', '/rfp', '/trading'] },
     { key: 'pricing', items: ['/pricing/gpu', '/pricing/catalog'] },
   ],
   quickNav: [
@@ -65,8 +72,7 @@ const BEFORE = {
     { label: '영업', items: ['/crm'] },
     { label: '구 영업 (CRM 으로 이관 중)', items: ['/accounts', '/contacts', '/deals', '/lead-intake'] },
     { label: '가격정책', items: ['/pricing/gpu', '/pricing/catalog'] },
-    // v0.10.449 에 `/trading`(AI 트레이딩) 한 줄을 일부러 더했다. 사이드바에는 안 세운다 —
-    // 소유자 한 사람이 쓰는 모듈이라 모든 관리자의 사이드바를 차지할 이유가 없다
+    // v0.10.449 에 `/trading`(AI 트레이딩) 한 줄을 일부러 더했다
     { label: '별도 서비스', items: ['/ci', '/ai', '/rfp', '/api-keys', '/trading', '/develop'] },
   ],
 }
@@ -159,11 +165,17 @@ test('이름 표에 등재부에 없는 주소가 남아 있지 않다', () => {
   assert.deepEqual(stale, [], `사라진 주소가 이름 표에 남아 있다: ${stale.join(', ')}`)
 })
 
-// ── AI 트레이딩은 소유자 한 사람의 모듈이다 (P0057 I03a) ──
+// ── AI 트레이딩은 소유자 한 사람의 모듈이다 (P0057 I03a · P0071 I05) ──
 //
 // 메뉴에 띄워 놓고 라우트에서 막으면 **죽은 문**이 하나 생긴다 — 이 저장소가
 // `/accounts`·`/contacts`·`/deals`·`/lead-intake` 넷으로 이미 겪은 모양이다.
 // 그래서 일반 사용자에게는 메뉴에서부터 안 보인다.
+//
+// P0057 때는 그 죽은 문을 **배치에서 빼서** 막았다(사이드바에 안 세움). 그 방식은
+// 소유자에게도 안 보이게 만든다 — 소유자로 지정된 관리자가 자기 모듈을 못 찾았다
+// (사용자 지적 2026-09-26). 이제는 배치에 세우고 `lib/access/extra-gate.ts` 가
+// **소유자가 아닌 사람에게서만** 그 줄을 지운다. 죽은 문은 여전히 안 생기고,
+// 들어갈 사람에게는 길이 생긴다.
 
 test('★ AI 트레이딩은 일반 사용자 메뉴에 안 뜬다', () => {
   assert.equal(canSeeNav('/trading', false), false, '일반 사용자에게 죽은 문이 생겼다')
@@ -171,8 +183,24 @@ test('★ AI 트레이딩은 일반 사용자 메뉴에 안 뜬다', () => {
   assert.equal(navLabel('/trading'), 'AI 트레이딩')
 })
 
-test('★ AI 트레이딩은 사이드바를 차지하지 않는다', () => {
+test('★ AI 트레이딩은 사이드바에 서되 소유자에게만 그려진다', () => {
   const sidebar = allMenuHrefs(SIDEBAR_GROUP_LINKS, SIDEBAR_TOP_LINKS)
-  assert.equal(sidebar.includes('/trading'), false, '한 사람이 쓰는 모듈이 모두의 사이드바에 섰다')
+  assert.equal(sidebar.includes('/trading'), true, '소유자가 자기 모듈을 사이드바에서 못 찾는다')
   assert.equal(allMenuHrefs(QUICKNAV_LINKS).includes('/trading'), true, '전체 메뉴에도 없으면 들어갈 길이 없다')
+
+  /**
+   * 「모두의 사이드바를 차지하지 않는다」는 이제 **배치가 아니라 추가 문**이 든다.
+   * 배치에서 빼던 예전 방식은 소유자에게도 안 보이게 만들었다.
+   */
+  assert.ok(hasExtraGate('trading'), '추가 문이 없으면 관리자 전부의 사이드바에 선다')
+  assert.equal(
+    passesExtraGate('trading', { userId: 'someone', isAdmin: true }, { tradingOwnerUserId: 'owner' }),
+    false,
+    '소유자가 아닌 관리자에게 줄이 남는다 — 눌러도 못 들어가는 죽은 문이다',
+  )
+  assert.equal(
+    passesExtraGate('trading', { userId: 'owner', isAdmin: false }, { tradingOwnerUserId: 'owner' }),
+    true,
+    '소유자에게서도 줄이 사라지면 들어갈 길이 없다',
+  )
 })

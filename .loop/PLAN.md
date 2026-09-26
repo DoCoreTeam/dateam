@@ -1,6 +1,6 @@
 # PLAN newAX: 관리자가 AI 트레이딩에 닿는다 — 소유자 지정·메뉴 배치·접근권한 화면
 플랜 ID: P0071
-플랜 버전: v0.3.3
+플랜 버전: v0.3.5
 상태: 진행중
 지시: ins_0116
 목표 버전: v0.10.575
@@ -57,9 +57,9 @@
 의존: 없음
 
 ### I05 사이드바가 AI 트레이딩을 그리고, 메뉴와 문이 같은 답을 한다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/nav/menu.ts, apps/web/lib/access/guard.ts, apps/web/app/(member)/layout.tsx, apps/web/lib/policy/menu-placement.test.ts (신규), apps/web/lib/access/extra-gate.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/nav/menu.ts, apps/web/lib/access/guard.ts, apps/web/lib/access/extra-gate.ts (신규), apps/web/lib/trading/access.ts, apps/web/app/(member)/layout.tsx, apps/web/lib/nav/menu.test.ts, apps/web/lib/ui/nav-standard.test.ts, apps/web/lib/access/load.test.ts, apps/web/lib/policy/menu-placement.test.ts (신규), apps/web/lib/access/extra-gate.test.ts (신규), apps/web/package.json
 감사 기준:
 - 보안: 메뉴가 숨기는 것과 라우트가 막는 것이 같은 답이다, /trading 이 openMap 에서 소유자가 아닌 사람에게 false 다
 - 보안: 추가 문은 숨기기만 하고 막기를 대신하지 않는다, app/(member)/trading/layout.tsx 의 소유자 확인을 지우지 않는다 — 파일이 그대로인 것을 확인
@@ -138,3 +138,7 @@
 - v0.3.1 (2026-09-26) I04 범위에 lib/terms/access.ts 추가 — 소유자 칸 문자열은 용어집을 지나야 한다 (audit:I04)
 - v0.3.2 (2026-09-26) I04 범위에 trading-knowledge-guard.test.ts 추가 — 설정 쓰기 허용 목록 등재 (audit:I04)
 - v0.3.3 (2026-09-26) I04 범위에 lib/trading/access.ts 추가 — 소유자 유효일 주석이 사실과 반대가 되어 정정 (audit:I04)
+- v0.4.0 (2026-09-26) I05 범위 넷 추가 — 추가 문 판정을 순수 모듈 lib/access/extra-gate.ts 에 둬야 node --test 로 세 경우를 잴 수 있고(guard.ts 는 server-only), 소유자 한 값을 요청당 한 번만 읽으려면 lib/trading/access.ts 가 그것을 내놓아야 하며, 사이드바에 한 줄이 서면 기존 스냅샷 가드 둘(lib/nav/menu.test.ts 의 BEFORE·lib/ui/nav-standard.test.ts 의 N-1 동일성)이 그 사실을 반영해야 한다 (audit:I05)
+- v0.3.4 (2026-09-26) I05 범위에 extra-gate.ts·trading/access.ts·menu.test.ts·nav-standard.test.ts 추가 (audit:I05)
+- v0.4.1 (2026-09-26) I05 범위에 apps/web/lib/access/load.test.ts 추가 — 그 가드가 사이드바를 decideAccess 하나로만 본떠서, 추가 문이 지우는 줄을 모른 채 실패했다, 본뜨는 자리에도 추가 문을 넣어야 화면과 같은 것을 본다 (audit:I05)
+- v0.3.5 (2026-09-26) I05 범위에 load.test.ts 추가 — 사이드바 모형에 추가 문 반영 (audit:I05)

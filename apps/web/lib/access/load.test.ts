@@ -21,6 +21,7 @@ import {
 import { decideAccess } from './decide.ts'
 import { SIDEBAR_TOP_LINKS, SIDEBAR_GROUP_LINKS, ADMIN_ONLY_GROUPS, canSeeNav } from '../nav/menu.ts'
 import { surfaceOf } from './surfaces.ts'
+import { passesExtraGate } from './extra-gate.ts'
 
 const ME = 'u-me'
 const TEAM = 'org-team'
@@ -40,14 +41,34 @@ const row = (over: Partial<GrantRow> = {}): GrantRow => ({
 
 test('★ 부여가 0건이면 사이드바가 I04 직후와 같다 — 관리자', () => {
   const viewer = { userId: ME, isAdmin: true, orgIds: [] }
-  const groups = SIDEBAR_GROUP_LINKS
+  /**
+   * 본뜨는 자리에도 **추가 문**을 넣는다(P0071 I05).
+   *
+   * 안 넣으면 이 모형은 `/trading` 을 관리자 전부에게 그리는데 화면은 소유자에게만 그린다 —
+   * 모형이 화면과 다른 것을 보면 그 모형으로 잰 답은 아무것도 보증하지 못한다.
+   */
+  const sidebarFor = (tradingOwnerUserId: string | null) => SIDEBAR_GROUP_LINKS
     .filter((g) => !(g.key && ADMIN_ONLY_GROUPS.has(g.key)) || viewer.isAdmin)
     .map((g) => ({
       key: g.key,
-      items: g.items.filter((i) => decideAccess(surfaceOf(i.href)!.key, viewer, []).allowed).map((i) => i.href),
+      items: g.items
+        .filter((i) => {
+          const key = surfaceOf(i.href)!.key
+          return decideAccess(key, viewer, []).allowed
+            && passesExtraGate(key, viewer, { tradingOwnerUserId })
+        })
+        .map((i) => i.href),
     }))
-  assert.deepEqual(groups, [
+
+  // 소유자가 아닌 관리자에게는 I04 직후 그대로다 — 늘어난 줄이 없다
+  assert.deepEqual(sidebarFor('someone-else'), [
     { key: 'service', items: ['/crm', '/ci', '/ai', '/rfp'] },
+    { key: 'pricing', items: ['/pricing/gpu', '/pricing/catalog'] },
+  ])
+
+  // 소유자에게만 AI 트레이딩 한 줄이 더 선다
+  assert.deepEqual(sidebarFor(ME), [
+    { key: 'service', items: ['/crm', '/ci', '/ai', '/rfp', '/trading'] },
     { key: 'pricing', items: ['/pricing/gpu', '/pricing/catalog'] },
   ])
   assert.deepEqual(
@@ -62,7 +83,13 @@ test('★ 부여가 0건이면 사이드바가 I04 직후와 같다 — 일반 �
     .filter((g) => !(g.key && ADMIN_ONLY_GROUPS.has(g.key)))
     .map((g) => ({
       key: g.key,
-      items: g.items.filter((i) => decideAccess(surfaceOf(i.href)!.key, viewer, []).allowed).map((i) => i.href),
+      items: g.items
+        .filter((i) => {
+          const key = surfaceOf(i.href)!.key
+          return decideAccess(key, viewer, []).allowed
+            && passesExtraGate(key, viewer, { tradingOwnerUserId: ME })
+        })
+        .map((i) => i.href),
     }))
     .filter((g) => g.items.length > 0)
   // 지금 일반 사용자가 보는 것 그대로 — 「서비스」 묶음이 통째로 빠지고 가격정책만 남는다

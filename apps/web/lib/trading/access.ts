@@ -53,6 +53,18 @@ function todayInSeoul(): string {
 }
 
 /**
+ * 지금 소유자 한 값. **문과 메뉴가 같은 값을 본다.**
+ *
+ * 메뉴 쪽(`lib/access/extra-gate.ts`)도 이 값이 있어야 소유자가 아닌 관리자에게서
+ * 「AI 트레이딩」 줄을 지운다. 그쪽이 자기 조회를 따로 들면 왕복이 둘이 되고,
+ * 더 나쁘게는 **둘이 다른 날짜로 고르는 날**이 온다.
+ *
+ * `cache()` 라 한 요청 안에서는 한 번만 돈다 — 사이드바가 표면 스무 줄을 걸러도 질의는 하나다.
+ */
+export const tradingOwnerUserId = cache(async (): Promise<string | null> =>
+  readOwnerUserId(todayInSeoul()))
+
+/**
  * 한 요청 안에서는 한 번만 묻는다 — 레이아웃과 창구가 각각 불러도 왕복은 하나다.
  * (`getRequestUser` 도 같은 이유로 `cache()` 로 싸여 있다)
  */
@@ -60,7 +72,7 @@ export const tradingAccess = cache(async (): Promise<TradingAccessDecision> => {
   const user = await getRequestUser()
   if (!user) return decideTradingAccess({ userId: null, isAdmin: false }, null)
 
-  const ownerUserId = await readOwnerUserId(todayInSeoul())
+  const ownerUserId = await tradingOwnerUserId()
   /**
    * `isAdmin` 을 굳이 넘기지 않는다. 판정이 안 쓰는 값을 넘기면 다음 사람이
    * 「관리자는 통과하겠지」로 읽는다 — 읽는 사람의 짐작이 규칙이 되면 안 된다.

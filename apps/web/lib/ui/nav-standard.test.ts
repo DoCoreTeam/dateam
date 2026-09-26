@@ -27,11 +27,21 @@ test('하위 서비스는 전부 메인 사이드바에 있다 (N-1)', () => {
    */
   const service = SIDEBAR_GROUP_LINKS.find((g) => g.key === 'service')
   assert.ok(service, '사이드바에 「서비스」 묶음이 없습니다(§2-3-3 N-1)')
-  assert.deepEqual(
-    service.items.map((i) => i.href),
-    SERVICE_NAV.map((s) => s.href),
-    `「서비스」 묶음이 서비스 표와 갈렸습니다(§2-3-3 N-1)`,
-  )
+
+  /**
+   * **포함**을 본다(예전엔 동일성이었다).
+   *
+   * 이 규칙이 지키려는 것은 제목 그대로 「하위 서비스는 **전부** 사이드바에 있다」다.
+   * 빠진 것은 여전히 잡힌다. 더 선 것까지 막던 것은 규칙의 뜻이 아니라 쓰다 보니 그렇게 된
+   * 것이었고, 실제로 `/trading` 을 그 묶음에 세울 때 이 줄이 걸렸다 — 트레이딩은
+   * 셸을 안 바꿔서 `SERVICE_NAV` 에 없지만 사용자에게는 같은 층의 서비스다.
+   *
+   * 묶음의 정확한 목록은 `lib/nav/menu.test.ts` 의 BEFORE 스냅샷이 따로 못 박는다 —
+   * 즉 몰래 늘어나는 것은 그쪽이 잡는다.
+   */
+  const inSidebar = new Set(service.items.map((i) => i.href))
+  const missing = SERVICE_NAV.map((s) => s.href).filter((h) => !inSidebar.has(h))
+  assert.deepEqual(missing, [], `「서비스」 묶음에서 빠진 서비스가 있습니다(§2-3-3 N-1): ${missing.join(', ')}`)
 })
 
 test('나가는 문은 한 자리에만 있다 (N-2)', () => {

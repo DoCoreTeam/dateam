@@ -222,7 +222,24 @@ const SIDEBAR_GROUPS: readonly MenuSection<MenuEntry>[] = [
   {
     key: 'service',
     label: SERVICE_GROUP_LABEL,
-    items: SERVICE_NAV.map((s) => ({ surface: surfaceKeyOf(s.href), match: [s.href] })),
+    items: [
+      ...SERVICE_NAV.map((s) => ({ surface: surfaceKeyOf(s.href), match: [s.href] })),
+      /**
+       * AI 트레이딩은 `SERVICE_NAV` 에 없다 — 그 표는 **사이드바가 통째로 그 서비스 것으로
+       * 바뀌는 곳**의 목록이고, 트레이딩은 셸을 안 바꾼다. 그래도 사용자에게는 같은 층의
+       * 서비스라 같은 묶음에 세운다. 셸이 바뀌는지는 우리 쪽 사정이지 보는 사람의 구분이 아니다.
+       *
+       * **왜 이제 와서 사이드바에 세우나** (v0.10.449 에는 일부러 안 세웠다):
+       * 그때 이유는 「소유자 한 사람이 쓰는 모듈이라 모든 관리자의 사이드바를 차지할 이유가
+       * 없다」였고 그 판단은 옳았다. 그런데 그 이유는 **사이드바가 관리자 전부에게 같은 줄을
+       * 그릴 때**의 이야기다. 이제 `lib/access/extra-gate.ts` 가 소유자가 아닌 사람에게서
+       * 이 줄을 지우므로, 차지하는 사람은 소유자 한 명뿐이다.
+       *
+       * 그리고 안 세운 대가가 실제로 났다 — 소유자로 지정된 관리자가 자기 모듈을
+       * 찾지 못했다(사용자 지적 2026-09-26: 「내가 관리자인데 막 구현한 AI트레이딩이 안보이고」).
+       */
+      { surface: 'trading' },
+    ],
   },
   {
     key: 'pricing',
