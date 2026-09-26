@@ -405,8 +405,6 @@ const LITERAL_ON_PURPOSE: Record<string, string> = {
    * (2026-09-26 공식 저장소 chk_inquire_price.py·chk_inquire_asking_price.py 확인).
    * `crbr_aply_mxpr` 는 「서킷브레이커 적용 상한가」이지 발동 여부가 아니다.
    */
-  /** I02a 에서 배선한다. 적어 두지 않으면 미룬 줄도 모른다 */
-  'runKnowledgeJob.position=null': '청산 판단 섀도에 포지션을 넘기는 배선이 다음 항목이다',
   'measureMarket.halted=null': 'KIS 선물 시세·호가 응답 컬럼에 거래 정지·서킷브레이커·사이드카 플래그가 없다',
   'runWatch.reconciledSinceRecovery=false':
     '대조는 이 실행 안에서 지금 한다(runWatch 가 첫 줄에서 계좌를 읽는다). '

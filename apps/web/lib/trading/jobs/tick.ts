@@ -849,6 +849,18 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   const knowledgeNote = await knowledgeOrExplain({
     now, today, window, target, contractCode, num, str, indicators,
+    /**
+     * 청산 판단 섀도(§7.3 D-11)가 볼 포지션.
+     *
+     * 전에는 `null` 고정이었고 주석은 「1-C 는 체결 연결이 없어 쥔 포지션이 없다」고
+     * 적혀 있었다 — **체결 연결은 그 뒤에 붙었고 주석만 남았다.**
+     * 그 사이 `judgeExitShadow` 는 만들어만 놓고 한 번도 안 불렸다.
+     *
+     * 계획이 없으면 안 넘긴다. 손절가·목표가를 지어내면 섀도가 그 지어낸 값으로
+     * 「청산했어야 한다」를 말하고, 그 기록으로 Release 2 를 평가하게 된다.
+     */
+    open: folded.open, plan, observedPrice,
+    bars, trigger,
   })
 
   /**
@@ -1062,15 +1074,46 @@ async function loadLastTradingDays(): Promise<Set<string>> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function knowledgeOrExplain(ctx: any): Promise<string> {
   try {
-    const { now, today, window, target, num, str } = ctx
+    const { now, today, window, target, num, str, open, plan, observedPrice, bars, trigger, indicators, contractCode } = ctx
+    const minutesTo = (at: Date) => Math.max(0, Math.floor((at.getTime() - now.getTime()) / 60_000))
+    /**
+     * 넷 중 하나라도 없으면 안 넘긴다 — 포지션·계획·지금 값·판단 입력.
+     * 하나를 지어내면 섀도의 판단은 그 지어낸 값 위에 선다.
+     */
+    const position = open && plan && observedPrice !== null && indicators && trigger
+      ? {
+        contractCode,
+        direction: open.direction,
+        entryPrice: open.avgPrice,
+        currentPrice: observedPrice,
+        stopPrice: plan.stopPrice,
+        targetPrice: plan.targetPrice,
+        minutesHeld: Math.max(0, Math.floor((now.getTime() - new Date(open.openedAt).getTime()) / 60_000)),
+        minutesToSessionExit: minutesTo(
+          sameDayExitAt(window, num('session_close_exit_minutes', 15)),
+        ),
+        barCloseAt: new Date(target.getTime() + 60_000),
+        specVersion: str('decision_spec_version', 'v1'),
+        jevTimeoutMs: num('jev_timeout_seconds', 10) * 1000,
+        jevModel: str('jev_model', ''),
+        judgeInput: {
+          asOf: now,
+          contractCode,
+          decisionTf: '1m',
+          bars,
+          trigger,
+          minutesSinceOpen: Math.floor((target.getTime() - window.continuousStart.getTime()) / 60_000),
+          indicators,
+        },
+      }
+      : null
     const result = await runKnowledgeJob({
       now,
       startedAt: now,
       tradeDate: today,
       continuousTrading: isContinuousTrading(window, target),
       model: str('gemini_model', '') || null,
-      // 1-C 는 체결 연결이 없어 우리가 쥔 포지션이 없다. 생기면 여기로 넘긴다
-      position: null,
+      position,
       reportFrom: seoulDaysAgo(today, num('pattern_window_days', 20)),
       reportMinSamples: num('pattern_min_samples', 30),
       reportMinBucketSamples: num('pattern_min_bucket', 5),
