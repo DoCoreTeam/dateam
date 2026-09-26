@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.563',
+    date: '2026-09-26',
+    title: '발표가 있는 시각에는 신호를 쉬어 갑니다',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📢',
+        headline: '금통위·CPI 같은 발표 시각을 등록하면 그 앞뒤로 신호를 쉬어요',
+        detail: '트레이딩 화면에 이벤트 캘린더가 생겼어요. 이름과 시각을 넣어 두면 기본으로 30분 전부터 15분 뒤까지 새 신호를 내지 않습니다. 그 시간대에 값이 움직이는 이유는 지표가 아니라 발표 내용이기 때문이에요. 등록하지 않은 이벤트는 막히지 않으니 미리 넣어 두세요.',
+      },
+    ],
+  },
+  {
     version: '0.10.559',
     date: '2026-09-26',
     title: '신호가 막히던 길을 뚫고, 쉬어야 할 날을 알아봅니다',
