@@ -46,6 +46,111 @@ export function minutesSince(lastRunAt: Date | null, now: Date): number | null {
   return Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : null
 }
 
+// ── SG-01 이 볼 둘 (§10.1) ────────────────────────────────
+
+export interface SpreadSample {
+  bestBid: number | null
+  bestAsk: number | null
+}
+
+/**
+ * 스프레드 한 줄. 음수거나 숫자가 아니면 **없는 것으로 친다.**
+ *
+ * 매도호가가 매수호가보다 낮은 값은 우리가 잘못 읽은 것이지 시장이 그런 것이 아니다.
+ * 그런 줄을 0 으로 접어 넣으면 중앙값이 내려가고, 내려간 중앙값은 멀쩡한 분을 이상으로 만든다.
+ */
+export function spreadOf(sample: SpreadSample): number | null {
+  const bid = Number.isFinite(sample.bestBid as number) ? (sample.bestBid as number) : null
+  const ask = Number.isFinite(sample.bestAsk as number) ? (sample.bestAsk as number) : null
+  if (bid === null || ask === null) return null
+  const spread = ask - bid
+  return spread >= 0 ? spread : null
+}
+
+/**
+ * 평소 스프레드. 표본이 이만큼은 있어야 「평소」라고 부른다.
+ *
+ * 평균이 아니라 중앙값이다 — 개장 직후 한 분이 스무 배로 벌어지면 평균은 그쪽으로 끌려가고,
+ * 끌려간 평균은 정작 그 다음에 벌어진 분을 정상으로 본다.
+ */
+export const MIN_SPREAD_SAMPLES = 20
+
+export function medianSpread(samples: readonly SpreadSample[]): number | null {
+  const values = samples.map(spreadOf).filter((v): v is number => v !== null).sort((a, b) => a - b)
+  if (values.length < MIN_SPREAD_SAMPLES) return null
+  const mid = Math.floor(values.length / 2)
+  const median = values.length % 2 === 1 ? values[mid] : (values[mid - 1] + values[mid]) / 2
+  // 평소가 0 이면 배수로 잴 수 없다. 0 의 세 배도 0 이라 어떤 값이든 이상이 된다
+  return median > 0 ? median : null
+}
+
+export interface SpreadInput {
+  now: SpreadSample
+  /** 최근 봉들에서 뽑은 평소 폭. 모르면 null */
+  baseline: number | null
+  /** 이 배수를 넘으면 이상 */
+  multiple: number
+}
+
+/**
+ * 지금 호가가 평소보다 이상하게 넓은가.
+ *
+ * **모르면 `null`.** 기준선이 없는 날(수집 첫날, 표본 부족)에 `false` 를 돌려주면
+ * 화면에는 「호가 정상」이 뜨는데 실제로는 아무도 안 보고 있다.
+ */
+export function spreadAbnormalFrom(input: SpreadInput): boolean | null {
+  const spread = spreadOf(input.now)
+  if (spread === null) return null
+  if (input.baseline === null || !(input.baseline > 0)) return null
+  if (!Number.isFinite(input.multiple) || input.multiple <= 0) return null
+  return spread > input.baseline * input.multiple
+}
+
+export interface BarLateInput {
+  /** 마지막으로 확정된 판단 봉의 시작 시각. 하나도 없으면 null */
+  lastBarStartAt: Date | null
+  now: Date
+  /** 이만큼 전 봉이 마지막이면 늦은 것으로 본다 */
+  lateMinutes: number
+}
+
+/**
+ * 봉이 빠졌거나 늦었나.
+ *
+ * 봉이 **하나도 없는** 것은 `false`(정상)가 아니라 `null`(모름)이다 —
+ * 수집이 한 번도 안 돈 상태와 방금 돈 상태를 같은 값으로 말하면 둘을 구분할 수 없다.
+ */
+export function barMissingOrLateFrom(input: BarLateInput): boolean | null {
+  if (!input.lastBarStartAt) return null
+  const minutes = (input.now.getTime() - input.lastBarStartAt.getTime()) / 60_000
+  if (!Number.isFinite(minutes)) return null
+  return minutes > input.lateMinutes
+}
+
+/** SG-01 이 볼 값 둘과, 그중 못 잰 것 */
+export interface MarketMeasurement {
+  barMissingOrLate: boolean
+  spreadAbnormal: boolean
+  unmeasured: string[]
+}
+
+/** `null` 을 게이트 꼴로 접는다. 접는 규칙은 foldMeasurement 와 같다 */
+export function foldMarket(raw: {
+  barMissingOrLate: boolean | null
+  spreadAbnormal: boolean | null
+}): MarketMeasurement {
+  const unmeasured: string[] = []
+  const known = (name: string, value: boolean | null): boolean => {
+    if (value === null) { unmeasured.push(name); return false }
+    return value
+  }
+  return {
+    barMissingOrLate: known('barMissingOrLate', raw.barMissingOrLate),
+    spreadAbnormal: known('spreadAbnormal', raw.spreadAbnormal),
+    unmeasured,
+  }
+}
+
 export interface GateMeasurement {
   brokerFailureStreak: number
   minutesSinceLastRun: number | null
@@ -89,7 +194,7 @@ export function foldMeasurement(raw: {
 }
 
 /** 실행 기록에 실을 한 줄 */
-export function measurementNote(m: GateMeasurement): string {
+export function measurementNote(m: GateMeasurement, market?: MarketMeasurement): string {
   const parts = [
     `broker_fail=${m.brokerFailureStreak}`,
     `since_run=${m.minutesSinceLastRun ?? 'unknown'}`,
@@ -98,6 +203,10 @@ export function measurementNote(m: GateMeasurement): string {
     `margin_tight=${m.marginTight}`,
     `ai_budget_out=${m.aiBudgetExhausted}`,
   ]
-  if (m.unmeasured.length > 0) parts.push(`unmeasured=${m.unmeasured.join('+')}`)
+  if (market) {
+    parts.push(`bar_late=${market.barMissingOrLate}`, `spread_wide=${market.spreadAbnormal}`)
+  }
+  const unmeasured = [...m.unmeasured, ...(market?.unmeasured ?? [])]
+  if (unmeasured.length > 0) parts.push(`unmeasured=${unmeasured.join('+')}`)
   return `gate(${parts.join(',')})`
 }

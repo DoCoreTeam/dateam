@@ -383,8 +383,6 @@ function literalProps(argument: string): string[] {
  */
 const LITERAL_ON_PURPOSE: Record<string, string> = {
   // 게이트 값 — 아직 재는 길이 없고, 재는 날 measure.ts 에 붙인다
-  'runWatch.barMissingOrLate=false': '봉 결측 판정은 이 호출보다 뒤에서 난다. 감시는 봉을 안 기다린다',
-  'runWatch.spreadAbnormal=false': '평소 스프레드 분포를 아직 안 쌓았다. 기준이 없으면 「이상」을 말할 수 없다',
   'runWatch.marketAbnormal=false': '서킷브레이커·사이드카를 주는 창구를 아직 안 붙였다',
   'runWatch.notifyFailureStreak=0': 'runWatch 가 안에서 recentNotifications 로 다시 센다. 여기 값은 안 쓴다',
   /**

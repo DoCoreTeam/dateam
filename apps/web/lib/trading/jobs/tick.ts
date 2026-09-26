@@ -42,6 +42,7 @@ import { foldFills, expectedFrom, type FoldResult } from '../position/from-fills
 import { measureGate, BROKER_OK_MARK, BROKER_FAILED_MARK } from '../gate/measure.ts'
 import { loadPendingEntry, loadArmContext } from '../order/pending.ts'
 import { measurementNote } from '../gate/measure-core.ts'
+import { measureMarket } from '../gate/measure-market.ts'
 import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
@@ -390,6 +391,23 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   })
   const brokerMark = brokerFailedThisRun ? BROKER_FAILED_MARK : BROKER_OK_MARK
 
+  /**
+   * SG-01 이 볼 둘을 **잰다** (§10.1).
+   *
+   * 지금 호가는 위에서 이미 받았고(`bestBid`·`bestAsk`), 평소 폭과 마지막 봉은
+   * 우리가 이미 모아 둔 `trading_bars` 에 있다. 새로 모을 것이 없는데
+   * 여기 `false` 를 적어 두면 SG-01 은 영영 안 걸린다.
+   */
+  const market = await measureMarket({
+    contractCode,
+    tf: str('decision_tf', '1m'),
+    now,
+    bestBid: Number.isFinite(bestBid) ? bestBid : null,
+    bestAsk: Number.isFinite(bestAsk) ? bestAsk : null,
+    spreadMultiple: num('gate_spread_abnormal_multiple', 3),
+    lateMinutes: num('gate_bar_late_minutes', 2),
+  })
+
   if (account) {
     try {
       const watch = await runWatch({
@@ -423,8 +441,8 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
         reconciledSinceRecovery: false,
         sameDayExitAt: sameDayExitAt(window, num('session_close_exit_minutes', 15)),
         gateContext: {
-          barMissingOrLate: false,
-          spreadAbnormal: false,
+          barMissingOrLate: market.barMissingOrLate,
+          spreadAbnormal: market.spreadAbnormal,
           brokerFailureStreak: gate.brokerFailureStreak,
           minutesSinceLastRun: gate.minutesSinceLastRun,
           notifyFailureStreak: 0,
@@ -472,11 +490,11 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   })
 
   if (decision.kind === 'retry') {
-    return { ok: true, reason: `bar_not_ready|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate)}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_not_ready|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
   }
   if (decision.kind === 'missing') {
     // 결측은 그 분의 판단을 건너뛰고 **사실을 남긴다**. 늦게 온 값으로 다시 판단하지 않는다
-    return { ok: true, reason: `bar_missing:${target.toISOString()}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate)}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_missing:${target.toISOString()}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
   }
 
   /**
@@ -678,7 +696,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   return {
     ok: true,
-    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate)}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
+    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,
