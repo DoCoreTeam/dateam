@@ -19,6 +19,8 @@ import { getRequestUser } from '@/lib/supabase/server'
 import { saveTradingSetting } from '@/lib/trading/settings/store'
 import { tradingSetting, validateSetting, type TradingSettingValue } from '@/lib/trading/settings/registry'
 import { editableHere, whyElsewhere } from '@/lib/trading/settings/editable'
+import { saveTradingCredentials } from '@/lib/trading/broker/credentials'
+import type { KisEnv } from '@/lib/trading/broker/endpoints'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
 export interface SaveSettingResult {
@@ -106,4 +108,56 @@ function parseByType(type: string, raw: string): TradingSettingValue | null {
 function nextTradeDate(): string {
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
   return kstTodayKey(tomorrow)
+}
+
+export interface SaveCredentialActionResult {
+  ok: boolean
+  userMessage: string | null
+}
+
+/**
+ * 증권사 자격증명을 넣는다 — **넣는 길만 만든다.**
+ *
+ * ## 왜 이제야 생기나 (실측 2026-09-27)
+ *
+ * `saveTradingCredentials` 는 있었는데 **부르는 자리가 0곳**이었다. 저장 로직·암호화·가린
+ * 계좌번호까지 다 만들어 두고 넣을 화면이 없어서, 실제로 넣으려면 사람이 DB 를 직접 만져야 했다.
+ *
+ * ## 돌려주지 않는다
+ *
+ * 앱키와 시크릿은 저장한 뒤 화면으로 다시 나가지 않는다(`credentials.ts` 머리말).
+ * 이 함수도 성공 여부만 돌려준다 — 「확인용으로 한 번만」을 만들면 그 길이 곧 유출 경로다.
+ * 그래서 결과에 `userMessage` 말고는 아무것도 없다.
+ *
+ * ## 모의와 실전은 따로다
+ *
+ * `env` 가 유일 키라 한쪽을 넣어도 다른 쪽은 그대로다. 둘을 한 줄로 합치면
+ * 모의로 시험하다가 실전 자격증명을 덮어쓴다.
+ */
+export async function saveTradingCredentialsAction(
+  env: string,
+  appKey: string,
+  appSecret: string,
+  accountNo: string,
+): Promise<SaveCredentialActionResult> {
+  if (!(await tradingAccess()).allowed) return { ok: false, userMessage: DENIED.userMessage }
+  const user = await getRequestUser()
+  if (!user) return { ok: false, userMessage: DENIED.userMessage }
+
+  // 밖에서 온 값이라 아는 둘 말고는 안 받는다. 모르는 값이면 그 환경이 새로 생긴다
+  if (env !== 'real' && env !== 'paper') {
+    return { ok: false, userMessage: '모르는 증권사 환경입니다' }
+  }
+
+  const saved = await saveTradingCredentials({
+    env: env as KisEnv,
+    appKey,
+    appSecret,
+    accountNo,
+    updatedBy: user.id,
+  })
+  if (!saved.ok) return { ok: false, userMessage: saved.userMessage }
+
+  revalidatePath('/trading/settings')
+  return { ok: true, userMessage: null }
 }

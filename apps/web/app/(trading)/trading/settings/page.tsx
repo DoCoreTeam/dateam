@@ -17,12 +17,32 @@ import { whyElsewhere } from '@/lib/trading/settings/editable'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
 import SettingsForm, { type SettingRow } from './SettingsForm'
+import CredentialPanel, { type CredentialStatusRow } from './CredentialPanel'
+import { getTradingCredentialStatus } from '@/lib/trading/broker/credentials'
 
 export const dynamic = 'force-dynamic'
 
 export default async function TradingSettingsPage() {
   const { values, version } = await loadTradingSettings(kstTodayKey())
   const groups = Object.keys(TRADING_GROUP_LABEL) as TradingSettingGroup[]
+
+  /**
+   * 자격증명 상태. **비밀은 안 읽는다** — 넣었는지와 가린 계좌번호뿐이다.
+   * 못 읽어도 설정 화면 전체가 죽지는 않게 한다: 곁가지가 본 일을 죽이지 않는다.
+   */
+  const credentials: CredentialStatusRow[] = await Promise.all(
+    ([
+      { env: 'paper' as const, label: '모의' },
+      { env: 'real' as const, label: '실전' },
+    ]).map(async ({ env, label }) => {
+      try {
+        const st = await getTradingCredentialStatus(env)
+        return { env, label, configured: st.configured, accountMask: st.accountMask, updatedAt: st.updatedAt }
+      } catch {
+        return { env, label, configured: false, accountMask: null, updatedAt: null }
+      }
+    }),
+  )
 
   return (
     <>
@@ -33,6 +53,9 @@ export default async function TradingSettingsPage() {
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+        {/* 처음 한 번 넣는 것이라 맨 위다 — 이게 없으면 나머지 값이 다 있어도 아무것도 안 돈다 */}
+        <CredentialPanel rows={credentials} />
+
         {groups.map((group) => {
           const rows = TRADING_SETTINGS.filter((s) => s.group === group)
           if (rows.length === 0) return null

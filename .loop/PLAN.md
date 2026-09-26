@@ -1,6 +1,6 @@
 # PLAN newAX: AI 트레이딩이 서비스가 된다 — 자기 셸·메뉴 구성·설정 화면
 플랜 ID: P0072
-플랜 버전: v0.1.3
+플랜 버전: v0.1.4
 상태: 진행중
 지시: ins_0117
 목표 버전: v0.10.582
@@ -90,11 +90,11 @@
 의존: I02
 
 ### I04 증권사 자격증명을 화면에서 등록한다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/(trading)/trading/settings/CredentialPanel.tsx (신규), apps/web/app/api/trading/credentials/route.ts (신규), apps/web/lib/policy/trading-credential-surface.test.ts (신규), apps/web/package.json
+범위: apps/web/app/(trading)/trading/settings/CredentialPanel.tsx (신규), apps/web/app/(trading)/trading/settings/actions.ts, apps/web/app/(trading)/trading/settings/page.tsx, apps/web/lib/policy/trading-credential-surface.test.ts (신규), apps/web/package.json
 감사 기준:
-- 보안: 새 창구다, 소유자 확인을 부르고 소유자가 아니면 403 이다
+- 보안: 새 창구는 **서버 액션**이다(I03 과 같은 이유), 소유자 확인을 부르고 소유자가 아니면 거절 사유를 돌려준다
 - 보안: 비밀은 저장 뒤 화면으로 **다시 안 나간다**, 응답과 화면에 있는 것은 등록 여부와 등록 시각뿐이다 — 응답 본문을 grep 으로 확인
 - 보안: 비밀이 코드·로그·오류 메시지에 안 적힌다, 저장은 기존 sealTradingSecret 을 지난다
 - 보안: 모의와 실전 환경이 갈려 저장되고 한쪽을 지워도 다른 쪽이 안 지워진다
@@ -136,3 +136,5 @@
 - v0.1.2 (2026-09-26) I02 범위에 terms·셸 아이콘·ack 재귀 스캔 추가 (audit:I02)
 - v0.1.3 (2026-09-27) I03 설계 정정 — 창구를 API 라우트로 잡았는데 이 모듈은 **서버 액션만** 쓴다(actions.ts 머리말 「새 인증을 안 만든다」, 가드 둘이 'use server' 를 단정). 라우트로 열면 api-auth-surface 가 tradingAccess 를 인증 장치로 모르므로 열린 창구로 잡히고, 모듈의 문 구조도 두 벌이 된다. 그리고 보안 기준 한 줄을 더했다 — 관문을 지나야 켜지는 값 둘(notify_enabled·night_signal_enabled)과 접근권한 화면이 정하는 값 하나(owner_user_id)를 이 화면에서 그냥 쓰게 두면 관문을 우회하는 길이 생긴다 (audit:I03)
 - v0.1.3 (2026-09-26) I03 창구를 API 라우트에서 서버 액션으로 정정, 관문 우회 금지 기준 추가 (audit:I03)
+- v0.1.4 (2026-09-27) I04 도 창구를 서버 액션으로 정정 — I03 과 같은 이유이고, 설정 화면의 한 절이라 같은 actions.ts 에 둔다 (audit:I04)
+- v0.1.4 (2026-09-26) I04 창구도 서버 액션으로 정정 (audit:I04)
