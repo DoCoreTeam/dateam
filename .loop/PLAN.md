@@ -117,7 +117,7 @@
 의존: I02
 
 ### I06 종합 감사와 업데이트 내역
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/changelog/entries.ts, 루트 package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
 감사 기준:
@@ -128,7 +128,59 @@
 의존: I03
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+결과: pass (2026-09-26)
+
+### 검사 넷
+- `pnpm tsc --noEmit` — 통과 (오류 0)
+- `pnpm lint` — 통과 (오류 0, 경고는 전부 이 판 밖의 기존 것)
+- `pnpm test` — 7871/7871 통과, 실패 0 (플랜 시작 시점 7839 → 등재 파일 635 → 640)
+- `pnpm build` — 통과 (`NEXT_DIST_DIR=.next-p0071b`, Compiled successfully in 86s, 정적 295/295, 오류 0)
+  - 새 창구가 빌드 산출에 실제로 섬: `ƒ /api/admin/trading-owner`
+- `pnpm design:check` — 통과 (hex 0, 기준 초과 0)
+
+### 완료 정의 대조
+- 소유자를 지정한 뒤 그 사람의 사이드바에 AI 트레이딩이 서고 눌러서 들어간다 — I05a 실브라우저 확인, 스크린샷 5·6
+- 소유자가 아닌 관리자에게는 사이드바·전체 메뉴 둘 다에 없다 — `lib/access/extra-gate.ts` 가 두 메뉴 함수(openSurfaces·openMap)에서 지움, 단정은 extra-gate.test.ts
+- 관리자 두 사람이 표면 줄마다 회색으로 보인다 — I01, `profiles.role='admin'` 에서 나오고 삭제 단추 없음
+- 사람·조직 고르기가 RecordPickerField 이고 native select 가 남아 있지 않다 — I03, picker-standard.test.ts 가 그 화면을 0 으로 건다
+- 사용자 노출 문자열은 lib/terms 경유 — 새 문자열 여덟이 전부 `lib/terms/access.ts` 에 있고 화면은 `@/lib/terms` 하나만 import
+- 실브라우저로 소유자 지정부터 진입까지 통과 — I05a
+
+### 보안 다섯 줄 (LOOP.md 7절 「기계가 세는 것」)
+`psql $DATABASE_URL -f docs/policy/security-count.sql` 실행 결과, 2026-09-26
+
+| 세는 것 | 결과 |
+|---|---|
+| rls_off_tables | 0 |
+| anon_write_tables | 0 |
+| public_using_true_policies | 0 |
+| unpinned_secdef_functions | 0 |
+| anon_readable_secdef_views | 0 |
+
+다섯 줄 전부 0
+
+### 전체 diff 검토
+`git diff 54c16c15..HEAD --stat` — 파일 26개, 1541 추가 / 73 삭제
+- 범위 밖 변경 없음 (모든 파일이 항목 범위에 적혀 있고, 늘어난 넷은 plan revise 로 사유와 함께 올렸음)
+- 비밀 없음 — 추가 줄에서 service_role·토큰·키 형태 0건
+- 하드코딩된 사용자 노출 문자열 없음 — 새 문구는 전부 lib/terms
+- 새 표 0개 (기존 `trading_settings` 에 판을 쌓을 뿐), 마이그레이션 0개 → S1 해당 없음
+- 새 창구 1개 (`POST /api/admin/trading-owner`), `requireAdminApi` 뒤에 있고 api-auth-surface 가 확인
+
+### 항목 대 결과 대조
+- I04 `lib/trading/owner-admin.ts`·`app/api/admin/trading-owner/route.ts` 신설 확인, 접근권한 화면에 소유자 칸 존재
+- I05 `lib/access/extra-gate.ts` 신설, 사이드바 배치에 `{ surface: 'trading' }` 존재, 아이콘 등재
+- I05a 코드 변경 없음(검증 전용), 확인 뒤 임시 스펙 삭제·격리 서버 종료·tsconfig 되돌림
+- I01 `lib/access/admin-row.test.ts` 신설, `admins` 가 `AccessAdminData` 에 있음
+- I02 `PersonOption.dept` 존재, `ACCESS_RANGE_LABEL` 사용처 0곳이 되어 제거
+- I03 `lib/ui/picker-standard.test.ts` 신설(RecordPicker 머리말이 가리키던 그 파일), 등재 완료
+- I06 이 절
+
+### 발견 사항
+- 되돌린 결정 하나: v0.10.449 에 「AI 트레이딩은 사이드바를 차지하지 않는다」로 일부러 뺐던 것을 세웠다. 그때 이유(모든 관리자의 사이드바를 차지한다)는 추가 문이 비소유자에게서 그 줄을 지우면서 사라졌고, 안 세운 대가로 소유자가 자기 모듈을 못 찾았다
+- 가드가 실제로 잡은 것 둘: `trading-knowledge-guard` 가 새 설정 쓰기 자리를 잡아 허용 목록 등재를 요구했고, `load.test.ts` 의 사이드바 모형이 추가 문을 몰라 실패했다 — 둘 다 고쳤다
+- 주석 하나 정정: `lib/trading/access.ts` 가 「소유자 변경은 다음 거래일부터」라고 적고 있었는데 이번 판이 오늘부터로 쌓으므로 사실과 반대가 되어 고쳤다
+- 남는 빚 아님(기록용): 드롭다운으로 그리는 목록이 아직 109곳이다. picker-standard 가 「늘면 차단」으로 잠갔고 줄이는 것은 그 화면을 건드릴 때 함께 한다
 
 ## 변경 이력
 - v0.1.0 (2026-09-26) 최초 작성 (ins_0116)

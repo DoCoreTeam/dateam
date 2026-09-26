@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.580',
+    date: '2026-09-26',
+    title: 'AI 트레이딩이 사이드바에 자리를 잡았어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📈',
+        headline: 'AI 트레이딩을 사이드바에서 바로 열 수 있어요',
+        detail: '지금까지는 전체 메뉴에만 있어서 매번 찾아 들어가야 했어요. 이제 왼쪽 서비스 묶음에 자리를 잡아 한 번에 들어갑니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔐',
+        headline: '소유자가 아니면 메뉴에 아예 안 떠요',
+        detail: 'AI 트레이딩은 소유자 한 사람만 보는 화면이에요. 이제 소유자가 아니면 메뉴에서부터 보이지 않아, 눌렀다가 막히는 일이 없습니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.572',
     date: '2026-09-26',
     title: '자동 점검이 실제 숫자를 보고, 한도 계산이 정확해졌습니다',
