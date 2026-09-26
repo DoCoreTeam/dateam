@@ -29,13 +29,14 @@ import { getAccessToken } from '../broker/token.ts'
 import { loadAppCredential, loadAccountRef } from '../broker/credentials.ts'
 import { createKisClient } from '../broker/kis-client.ts'
 import { decideBarConfirmation, targetMinuteFor } from '../bars/confirm.ts'
+import { retryPlan, retryNote } from '../bars/retry-core.ts'
 import { saveBars, loadBarsAsOf } from '../bars/store.ts'
 import { aggregateBars } from '../bars/confirm.ts'
 import { bucketsClosedBy, openInterestOf } from '../bars/rollup.ts'
 import { computeIndicators, evaluateTriggers, requiredBarCount } from '../judge/indicators.ts'
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
-import { runJudges, scheduledMinuteOf } from './tick-core.ts'
+import { runJudges, scheduledMinuteOf, RUN_BUDGET_MS } from './tick-core.ts'
 import { runWatch } from './watch.ts'
 import type { GateHit } from '../gate/safety.ts'
 import { createAccountClient } from '../broker/account.ts'
@@ -598,20 +599,51 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     return { ok: false, reason: fetched.reason, userMessage: fetched.userMessage }
   }
 
-  const decision = decideBarConfirmation({
+  const confirmOf = (bars: typeof fetched.value.bars, at: Date) => decideBarConfirmation({
     target,
-    now,
-    bars: fetched.value.bars,
+    now: at,
+    bars,
     graceSec: num('bar_grace_seconds', 10),
     missingAfterSec: num('bar_missing_after_seconds', 25),
   })
+  let decision = confirmOf(fetched.value.bars, now)
+
+  /**
+   * 아직이면 **같은 실행 안에서** 한두 번 더 물어본다 (§6.2 의사코드 `retryLater`).
+   *
+   * 그냥 돌아가면 다음 크론까지 1분을 통째로 기다리는데, 그 사이 봉은 도착해 있다.
+   * 1분 봉으로 판단하는 시스템에서 1분 지각은 그 판을 통째로 놓치는 것이다.
+   *
+   * 예산을 넘기지 않는다 — 넘기면 뒤에 오는 일이 밀리고 밀린 몫은 안 돌아온다.
+   */
+  const barRetry = retryPlan({
+    maxAttempts: num('bar_retry_count', 2),
+    delayMs: num('bar_retry_delay_ms', 3_000),
+    elapsedMs: Date.now() - now.getTime(),
+    budgetMs: RUN_BUDGET_MS,
+    perAttemptMs: num('kis_min_interval_ms', 200) + 1_000,
+  })
+  let used = 0
+  while (decision.kind === 'retry' && used < barRetry.attempts) {
+    await new Promise((resolve) => setTimeout(resolve, barRetry.delayMs))
+    used += 1
+    const again = await kis.minuteBars({
+      contractCode,
+      from: new Date(target.getTime() - 60_000 * 5),
+      until: new Date(),
+    })
+    // 다시 물어 실패하면 **가진 답을 그대로 쓴다.** 첫 답을 버리면 결측도 아니고 확정도 아니다
+    if (!again.ok) break
+    decision = confirmOf(again.value.bars, new Date())
+  }
+  const barRetryNote = retryNote(barRetry, used, decision.kind === 'confirm')
 
   if (decision.kind === 'retry') {
-    return { ok: true, reason: `bar_not_ready|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_not_ready|${barRetryNote}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
   }
   if (decision.kind === 'missing') {
     // 결측은 그 분의 판단을 건너뛰고 **사실을 남긴다**. 늦게 온 값으로 다시 판단하지 않는다
-    return { ok: true, reason: `bar_missing:${target.toISOString()}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_missing:${target.toISOString()}|${barRetryNote}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
   }
 
   /**
