@@ -67,7 +67,7 @@ test('키는 겹치지 않고, 값마다 언제부터 쓰는지와 근거가 적
       )
     }
   }
-  assert.ok(seen.size >= 37, '등재된 설정이 37개보다 적다')
+  assert.ok(seen.size >= 39, '등재된 설정이 39개보다 적다')
 })
 
 test('비밀값은 설정에 없다 (S3)', () => {
@@ -245,6 +245,53 @@ test('★ 게이트를 끄는 설정이 없다 — 끌 수 있으면 언젠가 �
   for (const s of TRADING_SETTINGS.filter((s) => s.group === 'safety')) {
     assert.equal(s.type, 'number', `안전 게이트 설정 ${s.key} 가 켜고 끄는 값이다`)
     assert.equal(/enabled|disable|bypass|skip|off/i.test(s.key), false, `${s.key} 가 끄는 이름이다`)
+  }
+})
+
+/**
+ * SG-01 은 값이 **둘** 있어야 걸린다 — 스프레드가 얼마나 넓어야 이상이고,
+ * 봉이 몇 분 안 와야 결측인가. 둘 중 하나라도 등록부에 없으면 재는 코드가
+ * 자기 숫자를 들게 되고, 그러면 화면에서 고칠 수 없는 값이 판단을 바꾼다.
+ */
+test('★ SG-01 이 볼 기준값 둘이 등록부에 있다', () => {
+  const wanted = ['gate_spread_abnormal_multiple', 'gate_bar_late_minutes']
+  const found = TRADING_SETTINGS.filter((s) => wanted.includes(s.key))
+  assert.equal(found.length, 2, `SG-01 기준값이 ${found.length}개다: ${found.map((s) => s.key).join(', ')}`)
+  for (const s of found) {
+    assert.equal(s.group, 'safety', `${s.key} 가 안전 게이트 묶음에 없다 — 화면의 다른 절에 섞인다`)
+    assert.equal(typeof s.min, 'number', `${s.key} 에 하한이 없다`)
+    assert.equal(typeof s.max, 'number', `${s.key} 에 상한이 없다`)
+    assert.ok(s.source.includes('SG-01'), `${s.key} 의 근거가 SG-01 이 아니다`)
+  }
+  // 범위를 벗어난 값은 막힌다. 배수 1 은 「중앙값보다 넓으면 전부 이상」이라 매분 걸린다
+  assert.equal(validateSetting('gate_spread_abnormal_multiple', 1)?.reason,
+    'below_min:gate_spread_abnormal_multiple')
+  assert.equal(validateSetting('gate_bar_late_minutes', 0)?.reason,
+    'below_min:gate_bar_late_minutes')
+})
+
+/**
+ * 게이트 이름을 설정 이름표에 적어 두면 사람이 그 줄을 보고 어느 게이트를 고치는지 안다.
+ * 틀린 번호를 적으면 다른 게이트를 고친 줄 알고 화면을 덮는다 —
+ * 실제로 증거금 기준값이 `SG-06` 으로 적혀 있었고 코드는 `SG-09` 를 올리고 있었다.
+ */
+test('★ 안전 게이트 설정의 이름표 번호가 실제로 올리는 게이트와 같다', () => {
+  const safety = readFileSync(join(TRADING_DIR, 'gate', 'safety.ts'), 'utf8')
+  const RAISED: Record<string, string> = {
+    gate_spread_abnormal_multiple: 'SG-01',
+    gate_bar_late_minutes: 'SG-01',
+    gate_max_broker_failure_streak: 'SG-02',
+    gate_max_minutes_since_run: 'SG-03',
+    gate_max_notify_failure_streak: 'SG-06',
+    gate_max_unopened_signals: 'SG-07',
+    gate_margin_tight_rate_percent: 'SG-09',
+  }
+  for (const s of TRADING_SETTINGS.filter((x) => x.group === 'safety')) {
+    const id = RAISED[s.key]
+    assert.ok(id, `안전 게이트 설정 ${s.key} 가 어느 게이트를 올리는지 대응표에 없다`)
+    assert.ok(s.label.startsWith(id), `${s.key} 의 이름표가 ${id} 로 시작하지 않는다: ${s.label}`)
+    assert.ok(s.source.includes(id), `${s.key} 의 근거 절이 ${id} 가 아니다: ${s.source}`)
+    assert.ok(safety.includes(`'${id}'`), `${id} 를 올리는 코드가 safety.ts 에 없다`)
   }
 })
 
