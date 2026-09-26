@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.548',
+    version: '0.10.550',
     date: '2026-09-26',
     title: '값이 이상한 순간에는 신호를 쉬어 갑니다',
     items: [
