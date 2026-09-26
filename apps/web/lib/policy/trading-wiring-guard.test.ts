@@ -395,17 +395,23 @@ const LITERAL_ON_PURPOSE: Record<string, string> = {
    * `crbr_aply_mxpr` 는 「서킷브레이커 적용 상한가」이지 발동 여부가 아니다.
    */
   'measureMarket.halted=null': 'KIS 선물 시세·호가 응답 컬럼에 거래 정지·서킷브레이커·사이드카 플래그가 없다',
+  /**
+   * 이벤트 캘린더(§6.6 [필수])가 아직 없다. 표와 관리자 화면을 같이 만들어야 해서
+   * 다음 판으로 미뤘다 — **미룬 사실을 여기 적어 두지 않으면 미룬 줄도 모른다.**
+   * 표가 생기는 날 이 줄을 지우고 SR-05 가 실제로 걸리는지 확인한다.
+   */
+  'emitSignal.inEventBlackout=false': '이벤트 캘린더 표와 화면이 아직 없다 (§6.6). 표가 생기면 이 줄을 지운다',
   'runWatch.reconciledSinceRecovery=false':
     '대조는 이 실행 안에서 지금 한다(runWatch 가 첫 줄에서 계좌를 읽는다). '
     + '이 값은 「이 실행에 들어오기 전에 이미 했나」라 답이 언제나 아니오다. true 면 복구한 분에 대조를 건너뛴다',
 }
 
-test('★ 감시·주문·시장 재기에 고정값을 안 넘긴다 — 부르는 꼴은 완벽한데 값이 없던 자리', () => {
+test('★ 감시·주문·시장 재기·신호 발행에 고정값을 안 넘긴다 — 부르는 꼴은 완벽한데 값이 없던 자리', () => {
   const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
 
   const found: string[] = []
   let scanned = 0
-  for (const callee of ['runWatch', 'runOrderJob', 'measureMarket']) {
+  for (const callee of ['runWatch', 'runOrderJob', 'measureMarket', 'emitSignal']) {
     const argument = callArgument(tick, callee)
     assert.ok(argument, `${callee}({ ... }) 호출을 못 찾았다 — 부르는 꼴이 바뀌었는지 확인한다`)
     scanned += 1
@@ -414,7 +420,7 @@ test('★ 감시·주문·시장 재기에 고정값을 안 넘긴다 — 부르
       found.push(`${callee} 의 ${prop}`)
     }
   }
-  assert.equal(scanned, 3, '세 호출을 다 봐야 한다')
+  assert.equal(scanned, 4, '네 호출을 다 봐야 한다')
 
   assert.deepEqual(found, [],
     `재야 할 값을 고정값으로 넘기는 자리가 ${found.length}개다:\n  ${found.join('\n  ')}\n\n`
@@ -424,7 +430,7 @@ test('★ 감시·주문·시장 재기에 고정값을 안 넘긴다 — 부르
 test('면제 목록 둘에 죽은 줄이 없다', () => {
   const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
   const live = new Set<string>()
-  for (const callee of ['runWatch', 'runOrderJob', 'measureMarket']) {
+  for (const callee of ['runWatch', 'runOrderJob', 'measureMarket', 'emitSignal']) {
     const argument = callArgument(tick, callee)
     if (!argument) continue
     for (const prop of literalProps(argument)) live.add(`${callee}.${prop}`)
@@ -443,4 +449,37 @@ test('면제 목록 둘에 죽은 줄이 없다', () => {
     Object.keys(METHOD_NOT_CALLED_ON_PURPOSE).filter((k) => !declared.has(k)), [],
     '없는 메서드가 면제 목록에 남아 있다',
   )
+})
+
+// ── 등록부에 없는 설정 키 ───────────────────────────────────
+
+/**
+ * **`num('...')` 은 아무 이름이나 받는다.**
+ *
+ * 등록부에 없는 키를 읽으면 DB 에 그 줄이 영영 안 생기므로 값은 늘 기본값이고,
+ * 화면에는 그 항목이 안 뜬다. 즉 **코드에 박은 상수와 똑같은데 설정처럼 보인다.**
+ *
+ * 실측 2026-09-26: 셋이 있었고 그중 `risk_per_trade_krw` 는 원래 있던 것이라
+ * 무장 관문(A6)이 화면에서 못 고치는 값을 보고 있었다.
+ * 등록부 쪽 가드(`registry.test.ts`)는 `UPPER_CASE` 상수 선언만 훑어 이것을 못 봤다 —
+ * 이름을 찾는 가드는 **읽는 자리**를 못 본다.
+ */
+test('★ 등록부에 없는 설정 키를 읽지 않는다 — 설정처럼 보이는 상수가 된다', () => {
+  const registry = readFileSync(join(TRADING, 'settings', 'registry.ts'), 'utf8')
+  const known = new Set([...registry.matchAll(/key:\s*'([a-z0-9_]+)'/g)].map((m) => m[1]))
+  assert.ok(known.size > 50, `등록부에서 키를 ${known.size}개밖에 못 읽었다 — 정규식을 확인한다`)
+
+  const offenders: string[] = []
+  let scanned = 0
+  for (const file of walk(TRADING).filter((f) => !f.endsWith('.test.ts'))) {
+    const src = stripImports(readFileSync(file, 'utf8'))
+    for (const m of src.matchAll(/\b(?:num|str|bool)\(\s*'([a-z0-9_]+)'/g)) {
+      scanned += 1
+      if (!known.has(m[1])) offenders.push(`${relative(WEB, file)} 의 ${m[1]}`)
+    }
+  }
+  assert.ok(scanned > 20, `읽는 자리를 ${scanned}개밖에 못 찾았다 — 정규식을 확인한다`)
+  assert.deepEqual(offenders, [],
+    `등록부에 없는 설정 키를 읽는 자리가 ${offenders.length}개다:\n  ${offenders.join('\n  ')}\n\n`
+      + `등록부에 없으면 DB 에 줄이 안 생기고 화면에도 안 떠서, 설정처럼 보이는 코드 상수가 된다.`)
 })
