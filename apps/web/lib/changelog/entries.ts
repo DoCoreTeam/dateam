@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.552',
+    date: '2026-09-26',
+    title: '가격이 상·하한가에 붙으면 신호를 쉬어 갑니다',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🚧',
+        headline: '상한가나 하한가에 가까워지면 새 신호를 내지 않아요',
+        detail: '가격이 제한폭에 닿으면 반대편 호가가 사라져서 손절 주문이 나가지 못해요. 그래서 제한폭에 가까워지는 순간부터는 새로 들어가지 않습니다. 얼마나 가까울 때 멈출지는 설정에서 고칠 수 있어요(기본 20틱).',
+      },
+    ],
+  },
+  {
     version: '0.10.550',
     date: '2026-09-26',
     title: '값이 이상한 순간에는 신호를 쉬어 갑니다',
