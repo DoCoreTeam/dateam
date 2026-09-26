@@ -6,6 +6,8 @@
  * 빌드가 「서버 전용을 클라이언트에서 부른다」로 죽는다 — 실제로 한 번 죽였다.
  */
 
+import type { JevOffReason } from './jev-labels.ts'
+
 export interface DayCoverage {
   tradeDate: string
   /** 그날 접속매매 시간에 있어야 할 1분 봉 수 */
@@ -240,6 +242,8 @@ export interface TradingOverview {
   notify: NotifySummary
   /** 마지막 실행이 신호를 어디까지 밀고 갔나. 「신호 없음」의 이유다 */
   emitProgress: EmitProgress | null
+  /** Jev 판단을 부를 수 있나. 못 부르면 그 이유 */
+  jev: JevStatus
   /** 지금 시점에 볼 수 있는 지식 (as-of). 미래에 쓴 것은 안 섞인다 */
   knowledge: KnowledgeRow[]
   /** 설정별 설명. 도우미가 없어도 우리 설명은 있다 */
@@ -296,6 +300,38 @@ export function emitProgressOf(reason: string | null): EmitProgress | null {
     total: EMIT_STAGES.length,
     reason: rest.slice(stage.length + 1) || rest,
   }
+}
+
+/**
+ * Jev 판단을 부를 수 있나 — **꺼진 이유까지 말한다**
+ *
+ * 「안 쌓인다」는 화면에서 「아직 아무 일도 없다」와 똑같이 보인다. 둘은 다르다:
+ * 앞의 것은 기다리면 풀리지 않고 사람이 값을 넣어야 풀린다. 실측 2026-09-27 기준
+ * 판단 0건·Jev 꺼짐이었고, 화면 어디에도 그 사실이 없었다.
+ */
+export interface JevStatus {
+  /** 판단을 부를 수 있나 */
+  on: boolean
+  /** 못 부르는 이유. 켜져 있으면 null */
+  reason: JevOffReason | null
+}
+
+/**
+ * **부르는 쪽과 같은 순서로 가른다.**
+ *
+ * `jobs/tick.ts` 는 모델 이름을 먼저 보고(`jev_model_not_set`) 그 다음에 키를 찾는다.
+ * 화면이 키를 먼저 보면 둘 다 없을 때 실행 기록과 다른 이유를 댄다.
+ *
+ * 키는 **있는지 없는지만** 받는다. 키 값이 이 형에 들어오면 화면 데이터로 흘러간다(S3).
+ */
+export function jevStatusOf(input: {
+  model: string
+  keyReason: 'pool' | 'meta' | 'no_key' | 'env_blocked'
+}): JevStatus {
+  if (input.model.trim() === '') return { on: false, reason: 'model_missing' }
+  if (input.keyReason === 'no_key') return { on: false, reason: 'key_missing' }
+  if (input.keyReason === 'env_blocked') return { on: false, reason: 'env_blocked' }
+  return { on: true, reason: null }
 }
 
 /** 그날 수집이 온전한가. 사람이 「5거래일 결측 없음」을 셀 수 있게 한 줄로 답한다 */

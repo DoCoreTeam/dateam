@@ -12,6 +12,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import SignalPanel from './SignalPanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
+import JevPanel from './JevPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
 import { kstTodayKey } from '@/lib/datetime/kst'
@@ -40,6 +41,8 @@ export default async function TradingPage() {
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+        {/* 꺼져 있을 때만 그린다. 켜져 있으면 이 자리가 없다 */}
+        <JevPanel jev={overview.jev} />
         <SignalPanel
           rows={overview.signals}
           validMinutes={validMinutes}

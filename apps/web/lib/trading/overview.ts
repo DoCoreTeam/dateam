@@ -67,12 +67,13 @@ import { dateRange } from './calendar/date-range.ts'
 import { loadSessionWindow } from './calendar/seed.ts'
 import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
+import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
   HoldingRow, DayPnlRow,
   KnowledgeRow, SettingHelpRow, KnowledgeProgress, OperatorSummary, HealthRow, ArmingSummary,
 } from './overview-shape.ts'
-import { emitProgressOf, knowledgeProgressOf } from './overview-shape.ts'
+import { emitProgressOf, knowledgeProgressOf, jevStatusOf, type JevStatus } from './overview-shape.ts'
 import { cardsAsOf } from './knowledge/cards.ts'
 import { sourcesAsOf } from './knowledge/sources.ts'
 import { reportsAsOf } from './knowledge/pattern.ts'
@@ -110,6 +111,24 @@ const LOOKBACK_DAYS = 10
 
 function seoulToday(now: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now)
+}
+
+/**
+ * Jev 를 부를 수 있나. **키 값은 안 들고 나온다** — 있는지 없는지만 옮긴다(S3).
+ *
+ * 못 읽어도 던지지 않는다. 현황 한 줄 때문에 화면 전체가 죽으면 안 되고,
+ * 그때는 「모델이 없다」가 아니라 **읽기 실패**를 말해야 하므로 키를 없는 것으로 치지 않는다.
+ */
+async function loadJevStatus(values: Record<string, unknown>): Promise<JevStatus> {
+  const model = typeof values.jev_model === 'string' ? values.jev_model : ''
+  if (model.trim() === '') return jevStatusOf({ model: '', keyReason: 'no_key' })
+  try {
+    const choice = await resolveProviderKey('jev', null)
+    return jevStatusOf({ model, keyReason: choice.reason })
+  } catch {
+    // 키 표를 못 읽었다. 「키가 없다」로 적으면 멀쩡한 키를 등록하라고 말하게 된다
+    return { on: false, reason: 'key_missing' }
+  }
 }
 
 export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
@@ -335,6 +354,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     ...(await loadHolding(contractCode, today)),
     notify,
     emitProgress: emitProgressOf(recentRuns[0]?.reason ?? null),
+    jev: await loadJevStatus(values),
     knowledge: await loadKnowledge(now),
     settingHelp: await loadSettingHelp(now),
     knowledgeProgress: knowledgeProgressOf(recentRuns[0]?.reason ?? null),
