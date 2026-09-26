@@ -50,6 +50,7 @@ import { loadSignalModels } from '../signal/models.ts'
 import { directionOf, probabilitiesFrom } from '../signal/models-core.ts'
 import { lossStreakFrom, rolloverVerdict } from '../signal/context-core.ts'
 import { loadEventsAround } from '../calendar/events.ts'
+import { measureOps } from '../operator/measure-ops.ts'
 import { blackoutEventAt } from '../calendar/events-core.ts'
 import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
@@ -363,6 +364,8 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   let watchNote = 'watch=off'
   let gateHits: GateHit[] = []
   let realizedToday = 0
+  /** 감시가 센 알림 연속 실패 수. 감시가 안 돌면 모른다 — 0 이 아니다 */
+  let notifyFailures: number | null = null
   let fillNote = 'fills=off'
   let reconciliationRequired = false
   const accountRef = await loadAccountRef(env, str('kis_account_product_code', '03'))
@@ -573,6 +576,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
        */
       gateHits = watch.gateHits
       realizedToday = watch.realizedPnlKrw
+      notifyFailures = watch.notifyFailureStreak
       /**
        * 대조가 어긋난 사실을 **주문까지 들고 간다.**
        * 어긋난 채로 주문하면 어긋남이 두 배가 되고, 그것을 A4 와 멈추는 장치가 본다.
@@ -841,8 +845,17 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    *
    * 점검은 매분 하고 조치는 하나만 한다. 먼저 돌면 그 분의 수집과 판단이 밀린다.
    */
+  /**
+   * 점검이 볼 값을 잰다. **어제 접속매매 구간의 봉 수**를 세는 것이라
+   * 오늘 창이 아니라 지난 거래일 창을 쓴다 — 오늘 것을 세면 장중에는 늘 모자라고,
+   * 점검은 매분 「결측」이라고 말한다.
+   */
+  const previousSession = await loadPreviousSessionWindow(today)
+  const ops = await measureOps({ contractCode, previousSession, now })
+
   const operatorNote = await operatorOrExplain({
-    now, today, num, str, coverage: { expected: null, actual: null },
+    now, today, num, str,
+    ops, gate, notifyFailures, reconciliationRequired,
   })
 
   return {
@@ -1045,6 +1058,30 @@ async function knowledgeOrExplain(ctx: any): Promise<string> {
   }
 }
 
+/**
+ * 지난 거래일의 접속매매 창. 없으면 null — 오늘 창으로 대신하지 않는다.
+ * 오늘 것을 세면 장중에는 늘 모자라 점검이 매분 결측이라고 말한다.
+ */
+async function loadPreviousSessionWindow(
+  tradeDate: string,
+): Promise<{ start: Date; end: Date } | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_session_calendar')
+    .select('continuous_start, continuous_end')
+    .eq('session', 'regular')
+    .lt('trade_date', tradeDate)
+    .order('trade_date', { ascending: false })
+    .limit(1)
+  if (error) return null
+  const row = (data ?? [])[0] as { continuous_start: string; continuous_end: string } | undefined
+  if (!row) return null
+  const start = new Date(row.continuous_start)
+  const end = new Date(row.continuous_end)
+  return Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) ? { start, end } : null
+}
+
 /** 서울 기준 며칠 전 */
 function seoulDaysAgo(today: string, days: number): string {
   const d = new Date(`${today}T00:00:00+09:00`)
@@ -1056,25 +1093,34 @@ function seoulDaysAgo(today: string, days: number): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function operatorOrExplain(ctx: any): Promise<string> {
   try {
-    const { now, today } = ctx
+    const { now, today, ops, gate, notifyFailures, reconciliationRequired } = ctx
     const result = await runOperatorJob({
       now,
       tradeDate: today,
       // 소유자는 설정에 있다. 없으면 넘길 곳이 없고 그 사실이 사유에 남는다
       ownerUserId: await readOwnerId(today),
+      /**
+       * **모르는 것만 null 로 넘긴다.** 0 으로 넘기면 점검이 「괜찮다」로 읽는다.
+       * 전에는 열한 칸이 전부 null 이라 점검이 매번 「잴 수 없음」만 말했고,
+       * 그것은 점검을 안 하는 것과 같았다.
+       */
       measurements: {
+        expectedBars: ops.expectedBars,
+        actualBars: ops.actualBars,
+        minutesSinceRun: gate.minutesSinceLastRun,
+        brokerFailureStreak: gate.brokerFailureStreak,
+        notifyFailureStreak: notifyFailures,
+        pendingNotifications: ops.pendingNotifications,
+        hasCalibration: gate.hasCalibration,
         /**
-         * 1-C 는 아직 이 값들을 한자리에 모으지 않는다. **모르는 것은 null 로 넘긴다** —
-         * 0 으로 넘기면 점검이 「괜찮다」로 읽고, 그것이 이 항목이 막으려는 바로 그 일이다.
+         * 관문 통과와 못 잰 항목 수는 **무장 관문 쪽 값**이고, 그것을 읽는 자리는
+         * 주문 경로(`order/pending.ts`)다. 감시 경로에서 또 읽으면 KIS 조회가 늘고
+         * 두 값이 같은 분에 갈릴 수 있다 — 한 곳에서만 읽는다
          */
-        expectedBars: null, actualBars: null,
-        minutesSinceRun: null,
-        brokerFailureStreak: null,
-        notifyFailureStreak: null, pendingNotifications: null,
-        hasCalibration: null,
         gatePassed: null, gateInsufficient: null,
+        // AI 원장 집계는 달 단위라 분마다 묻지 않는다. 브리핑이 하루 한 번 묻는다
         aiSpentKrw: null, aiBudgetKrw: null,
-        reconciliationRequired: null,
+        reconciliationRequired,
       },
     })
     return result.reason

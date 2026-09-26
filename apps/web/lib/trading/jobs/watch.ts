@@ -90,6 +90,11 @@ export interface WatchResult {
    * 감시가 이미 재 놓은 것을 돌려주기만 하면 되는 일이었다.
    */
   gateHits: GateHit[]
+  /**
+   * 알림 연속 실패 수. 감시가 이미 세는데 자기 안에서만 쓰고 안 돌려줬다 —
+   * 그래서 운영자 점검은 이 값을 `null` 로 받아 「잴 수 없음」만 말했다
+   */
+  notifyFailureStreak: number
 }
 
 /** 일 하나에 이만큼 걸린다고 본다. 넘으면 다음 실행으로 미룬다 */
@@ -247,6 +252,7 @@ export async function runWatch(input: WatchInput): Promise<WatchResult> {
     sent: flushed.sent,
     lockedReason: locked,
     gateHits: sortGateHits(gateHits),
+    notifyFailureStreak: notifyFailures,
     positionState,
     realizedPnlKrw,
   }
