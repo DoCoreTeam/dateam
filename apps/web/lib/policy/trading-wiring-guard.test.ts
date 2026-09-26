@@ -383,7 +383,14 @@ const CALLS_THAT_MUST_CARRY_VALUES = [
 /** `이름: 고정값` 인 줄들. 중첩 객체 안까지 본다 */
 function literalProps(argument: string): string[] {
   const code = argument.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
-  const literal = /^\s*(\w+):\s*(null|false|true|0|\[\]|''|""),?\s*$/gm
+  /**
+   * **줄 끝에 못을 박지 않는다.**
+   *
+   * 전에는 `^...$` 로 한 줄에 한 칸만 봤다. 그래서 `gatePassed: null, gateInsufficient: null,`
+   * 처럼 **두 칸을 한 줄에 쓰면 가드가 못 봤다** — 실측 2026-09-26 에 그렇게 숨은 칸이 넷이었다.
+   * 줄바꿈이 아니라 칸 경계(`{` `,` 다음)로 찾는다.
+   */
+  const literal = /(?:^|[{,])\s*(\w+):\s*(null|false|true|0|\[\]|''|"")\s*(?=[,}\n])/g
   return [...code.matchAll(literal)].map((m) => `${m[1]}=${m[2]}`)
 }
 
@@ -405,6 +412,15 @@ const LITERAL_ON_PURPOSE: Record<string, string> = {
    * (2026-09-26 공식 저장소 chk_inquire_price.py·chk_inquire_asking_price.py 확인).
    * `crbr_aply_mxpr` 는 「서킷브레이커 적용 상한가」이지 발동 여부가 아니다.
    */
+  /**
+   * 무장 관문 값 둘. 주문 경로(order/pending.ts)가 읽는 값이고 그쪽은 KIS 를 부른다.
+   * 감시 경로에서 또 읽으면 한 분에 조회가 두 배가 되고 두 값이 같은 분에 갈릴 수 있다.
+   */
+  'runOperatorJob.gatePassed=null': '무장 관문 값은 주문 경로가 읽는다. 두 곳에서 읽으면 같은 분에 갈린다',
+  'runOperatorJob.gateInsufficient=null': '위와 한 쌍이다',
+  /** AI 원장 집계는 달 단위다. 분마다 물으면 집계 질의가 하루 390번이다 */
+  'runOperatorJob.aiSpentKrw=null': 'AI 원장 집계는 달 단위라 분마다 안 묻는다. 브리핑이 하루 한 번 묻는다',
+  'runOperatorJob.aiBudgetKrw=null': '위와 한 쌍이다',
   'measureMarket.halted=null': 'KIS 선물 시세·호가 응답 컬럼에 거래 정지·서킷브레이커·사이드카 플래그가 없다',
   'runWatch.reconciledSinceRecovery=false':
     '대조는 이 실행 안에서 지금 한다(runWatch 가 첫 줄에서 계좌를 읽는다). '
