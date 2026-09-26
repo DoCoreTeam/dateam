@@ -36,7 +36,7 @@ import { bucketsClosedBy, openInterestOf } from '../bars/rollup.ts'
 import { computeIndicators, evaluateTriggers, requiredBarCount } from '../judge/indicators.ts'
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
-import { runJudges, scheduledMinuteOf, RUN_BUDGET_MS } from './tick-core.ts'
+import { runJudges, scheduledMinuteOf, RUN_BUDGET_MS, type TickOutcome } from './tick-core.ts'
 import { runWatch } from './watch.ts'
 import type { GateHit } from '../gate/safety.ts'
 import { createAccountClient } from '../broker/account.ts'
@@ -727,97 +727,114 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     limit: requiredBarCount(params) + 5,
   })
   const indicators = computeIndicators(bars, params)
-  if (!indicators) {
-    return { ok: true, reason: `not_enough_bars:${bars.length}`, userMessage: null }
-  }
-
-  const trigger = evaluateTriggers(bars, indicators, params)
-  if (!trigger) {
-    return { ok: true, reason: `no_trigger${collectNote ? `|${collectNote}` : ''}`, userMessage: null }
-  }
-
-  // 7 선점한 판단기만 부른다
-  const judges = new Map<JudgeName, Judge>([['rule', createRuleJudge()]])
-  const jevModel = str('jev_model', '')
-  let jevUnavailable: string | null = null
-  if (jevModel !== '') {
-    try {
-      judges.set('jev', await createServerJevJudge({
-        timeoutMs: num('jev_timeout_seconds', 10) * 1000,
-        model: jevModel,
-      }))
-    } catch (error) {
-      // Jev 를 못 만들어도 rule 기록은 남긴다. 사유는 실행 기록에 실어 보낸다
-      jevUnavailable = error instanceof Error ? error.message : 'jev_unavailable'
-    }
-  } else {
-    jevUnavailable = 'jev_model_not_set'
-  }
-
-  const barCloseAt = new Date(target.getTime() + 60_000)
-  const specVersion = str('decision_spec_version', 'v1')
-  const key = (judge: JudgeName) => ({
-    contractCode, decisionTf: '1m', barCloseAt, specVersion, judge,
-  })
-  const context = {
-    triggerId: trigger.id,
-    tradingLogicVersion: logicVersion,
-    settingsVersion,
-  }
-
-  const outcome = await runJudges(
-    [...judges.keys()],
-    {
-      asOf: now,
-      contractCode,
-      decisionTf: '1m',
-      bars,
-      trigger,
-      minutesSinceOpen: Math.floor((target.getTime() - window.continuousStart.getTime()) / 60_000),
-      indicators,
-    },
-    {
-      claim: (judge) => claimJudgment(key(judge), context, now),
-      takeOver: (judge) => takeOverStaleClaim(key(judge), now),
-      judges,
-      finish: async (id, _judge, result, at, timing) => {
-        await finishJudgment(id, {
-          status: result.status,
-          rawScore: result.status === 'completed' ? { ...result.rawScore } : null,
-          abstainReason: result.status === 'completed' ? null : result.abstainReason,
-          decisionAt: at,
-          aiRequestAt: timing.aiRequestAt,
-          aiResponseAt: timing.aiResponseAt,
-        })
-      },
-      now: () => new Date(),
-    },
-    now,
-  )
+  const trigger = indicators ? evaluateTriggers(bars, indicators, params) : null
 
   /**
-   * 8 판단에서 신호까지 — **정해진 순서로만**(M2).
+   * 판단을 건너뛰는 분에도 **여기서 안 돌아간다** (§10.2).
    *
-   * 지금은 보정 모델이 없어 대부분 「보정 없음」에서 멈춘다. 그래도 지나가게 해 둔다 —
-   * 안 부르는 코드는 안 도는 코드이고, 보정이 생기는 날 「왜 안 나가지」를 여기서 찾게 된다.
-   * 막힌 단계와 사유는 실행 기록에 남는다.
+   * 전에는 봉이 모자라거나 진입 조건이 안 걸리면 이 자리에서 그대로 돌아갔다.
+   * 그 말은 포지션을 들고 있는 동안 진입 조건이 안 걸린 분에는 **자동 청산 주문도,
+   * 청산 판단 섀도도, 운영자 점검도 한 번을 안 돌았다**는 뜻이다. 진입 조건은 하루에
+   * 몇 분만 걸리므로 사실상 늘 안 돌았고, 손절가를 지나도 주문이 안 나갔다.
+   *
+   * §10.2 의 순서는 「1 열린 포지션 위험 … 6 새 신호」다. 새 신호가 없는 것이 앞의
+   * 다섯을 멈출 이유가 못 된다. 그래서 **판단과 신호 발행만** 건너뛰고 그 뒤의
+   * 주문·지식·운영자는 그대로 지나간다. 무엇을 건너뛰었는지는 사유에 남는다.
    */
-  const emitNote = await emitOrExplain({
-    now, today, window, target, contractCode, trigger, indicators,
-    num, str, values, outcome, watchNote,
-    gateHits, realizedToday, closedToday: folded.closed,
+  const decisionSkip = !indicators
+    ? `not_enough_bars:${bars.length}`
+    : (!trigger ? 'no_trigger' : '')
+
+  /**
+   * 판단기와 신호 발행은 **진입 조건이 걸린 분에만** 돈다 (§7.1 · M2).
+   * 건너뛴 분에도 아래의 주문·지식·운영자는 그대로 지나간다.
+   */
+  let jevUnavailable: string | null = null
+  let outcome: TickOutcome = { ran: [], skipped: [], deferred: [], results: [] }
+  let emitNote = 'emit=skipped'
+  if (indicators && trigger) {
+    // 7 선점한 판단기만 부른다
+    const judges = new Map<JudgeName, Judge>([['rule', createRuleJudge()]])
+    const jevModel = str('jev_model', '')
+    if (jevModel !== '') {
+      try {
+        judges.set('jev', await createServerJevJudge({
+          timeoutMs: num('jev_timeout_seconds', 10) * 1000,
+          model: jevModel,
+        }))
+      } catch (error) {
+        // Jev 를 못 만들어도 rule 기록은 남긴다. 사유는 실행 기록에 실어 보낸다
+        jevUnavailable = error instanceof Error ? error.message : 'jev_unavailable'
+      }
+    } else {
+      jevUnavailable = 'jev_model_not_set'
+    }
+
+    const barCloseAt = new Date(target.getTime() + 60_000)
+    const specVersion = str('decision_spec_version', 'v1')
+    const key = (judge: JudgeName) => ({
+      contractCode, decisionTf: '1m', barCloseAt, specVersion, judge,
+    })
+    const context = {
+      triggerId: trigger.id,
+      tradingLogicVersion: logicVersion,
+      settingsVersion,
+    }
+
+    outcome = await runJudges(
+      [...judges.keys()],
+      {
+        asOf: now,
+        contractCode,
+        decisionTf: '1m',
+        bars,
+        trigger,
+        minutesSinceOpen: Math.floor((target.getTime() - window.continuousStart.getTime()) / 60_000),
+        indicators,
+      },
+      {
+        claim: (judge) => claimJudgment(key(judge), context, now),
+        takeOver: (judge) => takeOverStaleClaim(key(judge), now),
+        judges,
+        finish: async (id, _judge, result, at, timing) => {
+          await finishJudgment(id, {
+            status: result.status,
+            rawScore: result.status === 'completed' ? { ...result.rawScore } : null,
+            abstainReason: result.status === 'completed' ? null : result.abstainReason,
+            decisionAt: at,
+            aiRequestAt: timing.aiRequestAt,
+            aiResponseAt: timing.aiResponseAt,
+          })
+        },
+        now: () => new Date(),
+      },
+      now,
+    )
+
     /**
-     * 열린 포지션이 지금 손절되면 더 질 손실 (§9.1).
-     * 손절가를 모르면 0 이 아니라 **모름**이고, 모르면 여유를 늘려 잡지 않는다 —
-     * 그래서 계획이 없으면 한도 전부를 위험으로 본다
+     * 8 판단에서 신호까지 — **정해진 순서로만**(M2).
+     *
+     * 지금은 보정 모델이 없어 대부분 「보정 없음」에서 멈춘다. 그래도 지나가게 해 둔다 —
+     * 안 부르는 코드는 안 도는 코드이고, 보정이 생기는 날 「왜 안 나가지」를 여기서 찾게 된다.
+     * 막힌 단계와 사유는 실행 기록에 남는다.
      */
-    openPositionRiskKrw: folded.open
-      ? (plan
-        ? Math.abs(folded.open.avgPrice - plan.stopPrice) * instrument.multiplier * folded.open.quantity
-        : num('daily_loss_limit_krw', 0))
-      : 0,
-    frontLastTradingDay, previousFrontCode,
-  })
+    emitNote = await emitOrExplain({
+      now, today, window, target, contractCode, trigger, indicators,
+      num, str, values, outcome, watchNote,
+      gateHits, realizedToday, closedToday: folded.closed,
+      /**
+       * 열린 포지션이 지금 손절되면 더 질 손실 (§9.1).
+       * 손절가를 모르면 0 이 아니라 **모름**이고, 모르면 여유를 늘려 잡지 않는다 —
+       * 그래서 계획이 없으면 한도 전부를 위험으로 본다
+       */
+      openPositionRiskKrw: folded.open
+        ? (plan
+          ? Math.abs(folded.open.avgPrice - plan.stopPrice) * instrument.multiplier * folded.open.quantity
+          : num('daily_loss_limit_krw', 0))
+        : 0,
+      frontLastTradingDay, previousFrontCode,
+    })
+  }
 
   /**
    * 9 지식 작업 — **맨 뒤다** (§10.2).
@@ -883,7 +900,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   return {
     ok: true,
-    reason: `${jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged'}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
+    reason: `${decisionSkip ? `${decisionSkip}${collectNote ? `|${collectNote}` : ''}` : (jevUnavailable ? `judged:jev_off(${jevUnavailable})` : 'judged')}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}|${emitNote}|${orderNote}|${knowledgeNote}|${operatorNote}`,
     userMessage: null,
     ran: outcome.ran,
     skipped: outcome.skipped,

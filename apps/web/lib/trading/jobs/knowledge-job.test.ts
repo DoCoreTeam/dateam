@@ -107,7 +107,7 @@ test('★ 지식이 §10.2 우선순위의 어디에도 안 낀다 — 감시 �
 test('★ 지식이 tick 에서 맨 뒤에 불린다', () => {
   const tick = readFileSync(join(HERE, 'tick.ts'), 'utf8')
   const watchAt = tick.search(/const watch = await runWatch\(/)
-  const emitAt = tick.search(/const emitNote = await emitOrExplain\(/)
+  const emitAt = tick.search(/(?:const )?emitNote = await emitOrExplain\(/)
   const knowAt = tick.search(/const knowledgeNote = await knowledgeOrExplain\(/)
   assert.ok(watchAt > 0 && emitAt > 0 && knowAt > 0, '셋 중 하나가 안 불린다')
   assert.ok(watchAt < knowAt, '지식이 감시보다 먼저 돈다')

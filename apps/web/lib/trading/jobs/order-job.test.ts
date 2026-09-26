@@ -175,3 +175,39 @@ test('★ 문턱이 설정에서 온다', () => {
   assert.equal(TRADING_SETTINGS.some((s) => /arm(ed)?_enabled|auto_order_enabled/.test(s.key)), false,
     '무장이 설정으로 있다 — 화면에서 스무 개 값 중 하나로 보인다')
 })
+
+/**
+ * **진입 조건이 안 걸린 분에도 열린 포지션 일이 돈다** (§10.2)
+ *
+ * 전에는 봉이 모자라거나 진입 조건이 안 걸리면 그 자리에서 돌아갔다. 진입 조건은
+ * 하루에 몇 분만 걸리므로, 포지션을 들고 있어도 자동 청산 주문·청산 판단 섀도·운영자
+ * 점검이 사실상 한 번을 안 돌았다. 손절가를 지나도 주문이 안 나가는 상태였다.
+ *
+ * 그래서 **조기 반환이 되살아나는지**를 센다. 「판단을 건너뛴다」와 「그 분을 통째로
+ * 건너뛴다」는 다른 것이고, 뒤의 것이 §10.2 위반이다.
+ */
+test('★ 진입 조건이 없어도 주문·지식·운영자가 돈다', () => {
+  const tick = readFileSync(join(HERE, 'tick.ts'), 'utf8')
+
+  // ① 판단을 건너뛰는 두 자리가 그 분을 통째로 끝내지 않는다
+  assert.doesNotMatch(tick, /return \{ ok: true, reason: `no_trigger/,
+    '진입 조건이 없다고 그 분을 끝낸다 — 청산 주문이 안 나간다')
+  assert.doesNotMatch(tick, /return \{ ok: true, reason: `not_enough_bars/,
+    '봉이 모자라다고 그 분을 끝낸다 — 청산 주문이 안 나간다')
+
+  // ② 건너뛴 사실은 사라지지 않는다
+  assert.ok(tick.includes('const decisionSkip'), '무엇을 건너뛰었는지 안 남긴다')
+  assert.ok(tick.includes('${decisionSkip'), '건너뛴 사유가 실행 기록에 안 실린다')
+
+  // ③ 판단기와 신호 발행만 조건 안에 있다
+  const guardAt = tick.indexOf('if (indicators && trigger) {')
+  assert.ok(guardAt > 0, '판단기를 조건 없이 부른다')
+  assert.ok(guardAt < tick.indexOf('runJudges('), '판단기가 조건 밖에 있다')
+  assert.ok(guardAt < tick.indexOf('emitOrExplain('), '신호 발행이 조건 밖에 있다')
+
+  // ④ 주문·지식·운영자는 그 조건 밖이다 — 조건이 닫힌 뒤에 온다
+  const closeAt = tick.indexOf('\n  }\n', tick.indexOf('emitOrExplain('))
+  for (const call of ['orderOrExplain(', 'knowledgeOrExplain(', 'operatorOrExplain(']) {
+    assert.ok(tick.indexOf(call, closeAt) > closeAt, `${call} 가 진입 조건 안에 갇혀 있다`)
+  }
+})

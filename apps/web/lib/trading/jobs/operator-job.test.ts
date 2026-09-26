@@ -21,7 +21,7 @@ const APP = join(HERE, '..', '..', '..', TRADING_APP_DIR)
 test('★ 운영자가 tick 에서 맨 뒤에 불린다', () => {
   const tick = readFileSync(join(HERE, 'tick.ts'), 'utf8')
   const watchAt = tick.search(/const watch = await runWatch\(/)
-  const emitAt = tick.search(/const emitNote = await emitOrExplain\(/)
+  const emitAt = tick.search(/(?:const )?emitNote = await emitOrExplain\(/)
   const knowAt = tick.search(/const knowledgeNote = await knowledgeOrExplain\(/)
   const opAt = tick.search(/const operatorNote = await operatorOrExplain\(/)
   assert.ok(watchAt > 0 && emitAt > 0 && knowAt > 0 && opAt > 0, '넷 중 하나가 안 불린다')

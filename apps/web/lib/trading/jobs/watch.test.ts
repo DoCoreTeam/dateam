@@ -154,7 +154,7 @@ test('★ 신호 발행이 tick 에서 불린다 — 1-C 의 본체다', () => {
 test('★ 신호 발행이 판단 뒤에 온다 — 판단 없이 신호가 설 수 없다', () => {
   const tick = readFileSync(join(HERE, 'tick.ts'), 'utf8')
   const judgeAt = tick.search(/await runJudges\(/)
-  const emitAt = tick.search(/const emitNote = await emitOrExplain\(/)
+  const emitAt = tick.search(/(?:const )?emitNote = await emitOrExplain\(/)
   assert.ok(judgeAt > 0 && emitAt > 0)
   assert.ok(judgeAt < emitAt, '판단보다 먼저 신호를 낸다')
 })
