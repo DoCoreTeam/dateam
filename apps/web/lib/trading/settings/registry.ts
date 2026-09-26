@@ -100,6 +100,29 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §10.1 SG-08 · M3',
   },
   {
+    key: 'ev_model_version',
+    group: 'basic',
+    label: '기대값 모델 판',
+    help: '이 판으로 만든 기대값 평균표를 쓴다. 비워 두면 가장 최근 판을 쓴다. 보정이 돼도 이 표가 없으면 SR-01 을 잴 수 없어 신호가 안 나간다',
+    type: 'string',
+    defaultValue: '',
+    usedFrom: '1-C',
+    source: '명세 §7.5',
+  },
+  {
+    key: 'ev_min_bucket_samples',
+    group: 'basic',
+    label: '기대값 구간 최소 표본',
+    help: '보정 확률이 속한 구간에 표본이 이만큼은 있어야 그 평균을 기대값으로 쓴다. 적은 표본의 평균은 값이 아니라 잡음이다',
+    type: 'number',
+    defaultValue: 1,
+    unit: '건',
+    min: 1,
+    max: 1000,
+    usedFrom: '1-C',
+    source: '명세 §7.5 · §13.4',
+  },
+  {
     key: 'decision_spec_version',
     group: 'basic',
     label: '판단 스펙 판',
@@ -363,6 +386,24 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
   },
 
   // ── 일일 한도 ───────────────────────────────────────────
+  {
+    /**
+     * 실제 1회 위험은 신호마다 ATR 과 손절가로 **계산한다**(§9.1).
+     * 이 값은 신호가 아직 없을 때 무장 관문(A6)이 보는 **가정값**이다 —
+     * 0 이면 「모른다」라서 관문이 막는다. 실측 2026-09-26: 이 키를 읽는 코드는
+     * 있는데 등록부에 없어서 화면에서 고칠 수 없었다
+     */
+    key: 'risk_per_trade_krw',
+    group: 'risk',
+    label: '1회 위험 가정값',
+    help: '무장 관문이 「한 번에 이만큼 걸 수 있나」를 볼 때 쓰는 값. 실제 신호의 1회 위험은 매번 ATR 과 손절가로 계산하고 이 값을 쓰지 않는다',
+    type: 'number',
+    defaultValue: 0,
+    unit: '원',
+    min: 0,
+    usedFrom: '1-C',
+    source: '명세 §9.1 · 설계 §2 A6',
+  },
   {
     key: 'daily_loss_limit_krw',
     group: 'risk',

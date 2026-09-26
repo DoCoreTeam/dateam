@@ -43,6 +43,8 @@ import { measureGate, BROKER_OK_MARK, BROKER_FAILED_MARK } from '../gate/measure
 import { loadPendingEntry, loadArmContext } from '../order/pending.ts'
 import { measurementNote } from '../gate/measure-core.ts'
 import { measureMarket } from '../gate/measure-market.ts'
+import { loadSignalModels } from '../signal/models.ts'
+import { directionOf, probabilitiesFrom } from '../signal/models-core.ts'
 import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
@@ -749,6 +751,35 @@ async function emitOrExplain(ctx: any): Promise<string> {
     const rawScore = completed?.result?.rawScore ?? null
     const instrument = await loadInstrumentSpec(today)
     const barCloseAt = new Date(target.getTime() + 60_000)
+
+    /**
+     * 저장된 보정·기대값 모델을 **읽는다** (§7.4 · §7.5).
+     *
+     * 전에는 `calibratedProb: null` 을 손으로 적어 넘겼다. 그 말은
+     * `trading_calibrations` 에 줄이 생겨도 신호가 **영영 안 나간다**는 뜻이다 —
+     * 「아직 보정이 없어서」와 「읽는 코드가 없어서」는 다른 사실이고,
+     * 앞의 것은 기다리면 풀리지만 뒤의 것은 기다려도 안 풀린다.
+     *
+     * 모델을 못 읽어도 던지지 않는다. 신호가 안 나갈 뿐이고, 그것이 지금 동작과 같다.
+     */
+    const direction = directionOf(rawScore)
+    let models = null
+    let modelNote = direction ? '' : ',models=no_direction'
+    if (direction) {
+      try {
+        models = await loadSignalModels({
+          judge: 'rule',
+          direction,
+          calibrationVersion: str('calibration_version', ''),
+          evModelVersion: str('ev_model_version', ''),
+        })
+      } catch (error) {
+        modelNote = `,models_failed:${error instanceof Error ? error.message : 'unknown'}`
+      }
+    }
+    const prob = probabilitiesFrom(rawScore, models, num('ev_min_bucket_samples', 1))
+    if (prob.stoppedAt) modelNote += `,prob=${prob.stoppedAt}`
+
     const result = await emitSignal({
       judgmentId: completed?.judgmentId ?? null,
       contractCode,
@@ -757,11 +788,10 @@ async function emitOrExplain(ctx: any): Promise<string> {
       indicators,
       referencePrice: indicators.smaFast,
       instrument,
-      // 보정 모델이 아직 없다. 없으면 확률이 아니므로 신호를 안 낸다(M3)
-      calibratedProb: null,
-      netExpectedValueR: null,
+      calibratedProb: prob.calibratedProb,
+      netExpectedValueR: prob.netExpectedValueR,
       holdDominant: rawScore ? isHoldDominant(rawScore) : true,
-      enterNowProb: null,
+      enterNowProb: prob.enterNowProb,
       gateHits: [],
       thresholds: {
         minNetExpectedValueR: num('signal_min_net_ev_r', 0.1),
@@ -796,14 +826,14 @@ async function emitOrExplain(ctx: any): Promise<string> {
       },
       versions: {
         signalRules: str('decision_spec_version', 'v1'),
-        calibration: null,
-        evModel: null,
+        calibration: prob.calibrationVersion,
+        evModel: prob.evModelVersion,
       },
       sessionDayStart: window.continuousStart,
       sessionDayEnd: window.continuousEnd,
       now,
     })
-    return result.reason
+    return `${result.reason}${modelNote}`
   } catch (error) {
     return `emit_failed:${error instanceof Error ? error.message : 'unknown'}`
   }
