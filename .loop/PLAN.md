@@ -95,7 +95,7 @@
 의존: I05a
 
 ### I02 사람 옆 꼬리표를 내부 용어에서 소속 부서로 바꾼다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/admin/access/actions.ts, apps/web/app/admin/access/AccessClient.tsx, apps/web/lib/terms/access.ts
 감사 기준:

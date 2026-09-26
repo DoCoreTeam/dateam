@@ -38,7 +38,7 @@ import {
   ACCESS_DESCENDANTS_HINT,
   ACCESS_ADMIN_ALWAYS, ACCESS_ADMIN_ALWAYS_BUT, ACCESS_ADMIN_SOURCE,
   ACCESS_PRESET_LABEL, ACCESS_PRESET_ORDER, ACCESS_PRESET_NONE,
-  ACCESS_RANGE_LABEL, ACCESS_RANGE_WHY,
+  ACCESS_RANGE_WHY,
   ACCESS_OWNER_WHY, ACCESS_OWNER_NONE, ACCESS_OWNER_GONE,
   ACTION, failedTo, progress,
   accessGrantCount, accessOrphanLine, accessPeopleCount, accessSurfaceCount, accessSyncedLine,
@@ -423,10 +423,16 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                         onChange={(e) => setDraft({ ...draft, subjectId: e.target.value })}
                       >
                         <option value="" />
+                        {/*
+                          이름 옆 꼬리표는 **소속 부서**다. 예전엔 「이름 · 내 것」 「이름 · 부서」였는데,
+                          그 둘은 판정이 쓰는 말이라 사람을 가르는 표지로 읽혔고 동명이인을
+                          가려야 하는 자리에서 아무것도 안 가려 줬다. 범위의 뜻은
+                          고른 뒤 안내 한 문장에서 푼다.
+                        */}
                         {draft.kind === 'user'
                           ? people.map((p) => (
                               <option key={p.id} value={p.id}>
-                                {p.name} · {ACCESS_RANGE_LABEL[p.range]}
+                                {p.dept ? `${p.name} · ${p.dept}` : p.name}
                               </option>
                             ))
                           : orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -479,11 +485,13 @@ export default function AccessClient({ surfaces, grants, people, orgs, justSynce
                     )}
 
                     {/* 저장하기 전에 몇 명인지 말한다 — 열어 놓고 확인을 미루지 않게 */}
+                    {/*
+                      숫자만 말한다. 범위는 **한 자리에서만** 말한다(위의 안내 문장) —
+                      두 자리에서 되풀이하면 읽는 쪽은 둘이 다른 것을 가리키는 줄 안다.
+                    */}
                     {draft.subjectId !== '' && (
                       <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
                         {accessPeopleCount(previewCount)}
-                        {/* 열어 주면 그 사람이 **자기 범위만큼** 본다 — 저장 전에 그 사실을 말한다 */}
-                        {pickedRange && ` · ${ACCESS_RANGE_LABEL[pickedRange]}`}
                       </span>
                     )}
 

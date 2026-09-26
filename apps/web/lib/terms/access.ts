@@ -177,18 +177,19 @@ export const ACCESS_PRESET_ORDER: readonly ('viewOnly' | 'write' | 'exportToo')[
 export const ACCESS_PRESET_NONE = '제한 없음'
 
 /**
- * 범위의 말 — **누구의 것을 보나.**
+ * 범위의 말 — **한 문장으로만 한다.**
+ *
+ * 예전엔 낱말 표(`내 것`·`부서`·`전사`)가 따로 있었고 사람 이름 옆에 꼬리표로 붙었다.
+ * 그 자리에서 그 말들은 판정 용어라 사람을 가르는 표지로 읽혔고, 정작 동명이인을
+ * 가려야 하는 자리에서 아무것도 안 가려 줬다(사용자 지적 2026-09-26:
+ * 「내것, 부서 이렇게 표시 되어 있는건 이게 도대체 시스템 용어냐」).
+ * 이름 옆에는 **소속 부서**가 붙고(`PersonOption.dept`), 범위는 아래 한 문장이 푼다.
+ *
+ * 낱말 표를 남겨 두지 않는다 — 남기면 다음 화면이 그 표를 다시 꼬리표로 쓴다.
  *
  * 조직 스코프가 정한 것을 옮겨 적기만 한다(`lib/access/capabilities.ts`).
  * 화면이 「전사」라고 말하는데 실제로는 부서까지면 관리자가 잘못 연다.
  */
-export const ACCESS_RANGE_LABEL: Record<'self' | 'dept' | 'all', string> = {
-  self: '내 것',
-  dept: '부서',
-  all: '전사',
-}
-
-/** 범위가 왜 그런지 — 관리자가 조직도를 안 열어 보고도 알 수 있게 */
 export const ACCESS_RANGE_WHY: Record<'self' | 'dept' | 'all', string> = {
   self: '관할 부서가 없어 자기 것과 소속 부서만 봅니다',
   dept: '관할 부서가 있어 그 아래까지 봅니다',

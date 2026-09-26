@@ -59,8 +59,20 @@ export interface PersonOption {
    * 왜 목록에 싣나: 표면을 열어 주는 순간 이 사람은 그 화면의 **자기 범위만큼**을 본다.
    * 저장하기 전에 그 범위를 모르면 관리자는 「한 사람에게 열었다」고 생각하는데
    * 실제로는 부서 전체의 자료가 그 사람에게 보이기 시작한다.
+   *
+   * **고르는 목록에는 안 쓴다.** 「내 것」·「부서」는 판정이 쓰는 말이고, 이름 옆에 붙이면
+   * 사람을 가르는 표지로 읽힌다 — 동명이인을 가려야 하는 자리에서 아무것도 안 가려 준다.
+   * 고른 뒤 안내 한 문장(`ACCESS_RANGE_WHY`)에서만 뜻이 풀린다.
    */
   range: AccessRange
+  /**
+   * 조직도에서 이 사람이 달린 자리의 이름. **이름 옆 꼬리표는 이것을 쓴다.**
+   *
+   * 왜: 관리자가 사람을 고를 때 필요한 것은 「이 김도현이 그 김도현인가」이고,
+   * 그 답은 소속이 한다. 배치 안 된 사람은 빈 값이고 꼬리표를 안 그린다 —
+   * 「미배치」 같은 말을 지어내면 조직도에 없는 상태를 조직도에 있는 것처럼 말하게 된다.
+   */
+  dept: string
 }
 
 /**
@@ -233,7 +245,11 @@ export async function loadAccessAdminData(): Promise<AccessAdminData> {
     .filter((p) => p.name)
   const active = await activeMembers(admin, profiles.map(({ id, name }) => ({ id, name })))
   // 조직도를 사람 수만큼 다시 읽지 않는다 — 이미 읽은 nodes 로 셈만 한다
-  const people: PersonOption[] = active.map((p) => ({ ...p, range: rangeOfPerson(p.id, nodes) }))
+  const people: PersonOption[] = active.map((p) => ({
+    ...p,
+    range: rangeOfPerson(p.id, nodes),
+    dept: deptOfPerson(p.id, nodes),
+  }))
 
   return {
     surfaces: withParent(rows<Omit<SurfaceRow, 'parent_key' | 'kind' | 'needs_membership'>>(surfaceRes, '표면 사본')),
@@ -276,6 +292,21 @@ async function readTradingOwner(): Promise<SurfaceOwner> {
       error: failedTo(ACCESS.owner, '읽지'),
     }
   }
+}
+
+/**
+ * 이 사람이 **어디 소속인가** — 조직도에서 그 사람 노드의 **부모** 이름.
+ *
+ * 사람 노드는 자기 이름을 갖고 부모가 부서·본부다. 그래서 답은 부모 쪽에 있다.
+ * 조직도에 안 달린 사람은 빈 문자열이다 — 없는 소속을 지어내지 않는다.
+ */
+export function deptOfPerson(
+  userId: string,
+  nodes: readonly { id: string; type: string; parent_id: string | null; name: string; user_id: string | null }[],
+): string {
+  const me = nodes.find((n) => n.type === 'person' && n.user_id === userId)
+  if (!me?.parent_id) return ''
+  return nodes.find((n) => n.id === me.parent_id)?.name ?? ''
 }
 
 /**
