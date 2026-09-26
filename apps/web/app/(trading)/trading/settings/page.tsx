@@ -12,7 +12,8 @@ import { Settings } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
 import { TRADING_GROUP_LABEL, TRADING_USED_FROM_LABEL } from '@/lib/trading/settings/labels'
-import { loadTradingSettings } from '@/lib/trading/settings/store'
+import { loadTradingSettings, loadAllSettingVersions } from '@/lib/trading/settings/store'
+import { pendingByKey, editingValue, type PendingChange } from '@/lib/trading/settings/pending'
 import { whyElsewhere } from '@/lib/trading/settings/editable'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
@@ -23,7 +24,13 @@ import { getTradingCredentialStatus } from '@/lib/trading/broker/credentials'
 export const dynamic = 'force-dynamic'
 
 export default async function TradingSettingsPage() {
-  const { values, version } = await loadTradingSettings(kstTodayKey())
+  const today = kstTodayKey()
+  const { values, version } = await loadTradingSettings(today)
+  /**
+   * 예약된 판까지 읽는다. 안 읽으면 방금 저장한 값이 **사라진 것처럼** 보인다 —
+   * 전략 변경은 다음 거래일부터라 오늘 값에 안 섞이기 때문이다.
+   */
+  const pending = pendingByKey(await loadAllSettingVersions(), today)
   const groups = Object.keys(TRADING_GROUP_LABEL) as TradingSettingGroup[]
 
   /**
@@ -71,7 +78,7 @@ export default async function TradingSettingsPage() {
               </h2>
               <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
                 {rows.map((s) => (
-                  <SettingsForm key={s.key} row={toRow(s, values[s.key])} />
+                  <SettingsForm key={s.key} row={toRow(s, values[s.key], pending.get(s.key))} />
                 ))}
               </div>
             </section>
@@ -88,7 +95,13 @@ export default async function TradingSettingsPage() {
  * 지금 값을 **글자로** 넘긴다 — 입력칸이 다루는 것은 언제나 글자이고,
  * 형으로 되돌리는 일은 저장 창구가 레지스트리를 보고 한다(두 곳이 각자 읽으면 갈린다).
  */
-function toRow(spec: (typeof TRADING_SETTINGS)[number], value: unknown): SettingRow {
+function toRow(
+  spec: (typeof TRADING_SETTINGS)[number],
+  value: unknown,
+  pending: PendingChange | undefined,
+): SettingRow {
+  /** 고치는 대상은 **다음에 쓸 값**이다. 오늘 값은 그 옆에서 따로 말한다 */
+  const editing = editingValue(pending) ?? value
   return {
     key: spec.key,
     label: spec.label,
@@ -96,7 +109,11 @@ function toRow(spec: (typeof TRADING_SETTINGS)[number], value: unknown): Setting
     type: spec.type,
     ...(spec.choices ? { choices: spec.choices } : {}),
     ...(spec.unit ? { unit: spec.unit } : {}),
-    value: spec.type === 'boolean' ? String(value === true) : String(value ?? ''),
+    value: spec.type === 'boolean' ? String(editing === true) : String(editing ?? ''),
+    // 예약이 있으면 「지금 X · 언제부터 Y」를 말한다. 안 말하면 저장이 안 된 줄 안다
+    ...(pending?.next !== null && pending?.from
+      ? { today: spec.type === 'boolean' ? String(value === true) : String(value ?? ''), from: pending.from }
+      : {}),
     elsewhere: whyElsewhere(spec.key),
     usedFrom: TRADING_USED_FROM_LABEL[spec.usedFrom],
   }

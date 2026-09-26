@@ -97,6 +97,21 @@ test('막은 값 셋이 실제로 관문을 가진 값이다 — 아무거나 �
   }
 })
 
+test('저장한 값이 화면에서 사라지지 않는다 — 예약된 판을 읽는다', () => {
+  const page = read(PAGE)
+
+  /**
+   * 설정은 **다음 거래일부터** 듣는다. 화면이 오늘 값만 읽으면 방금 저장한 값이
+   * 입력칸에서 사라지고, 사용자는 저장이 안 된 줄 안다(실측 2026-09-27).
+   */
+  assert.match(page, /loadAllSettingVersions/, '예약된 판을 안 읽는다 — 저장한 값이 화면에서 사라진다')
+  assert.match(page, /pendingByKey\(/, '예약을 고르는 자리가 없다')
+  assert.match(page, /editingValue\(pending\)/, '입력칸이 예약된 값을 안 쓴다')
+
+  /** 그리고 오늘 값과 다르면 그 사실을 말해야 한다 — 안 말하면 화면과 판단이 다른 말을 한다 */
+  assert.match(read(FORM), /row\.today !== undefined && row\.from/, '예약을 화면이 안 말한다')
+})
+
 test('설정 화면이 값 전부를 그린다 — 고칠 수 없는 값이 숨지 않는다', () => {
   const page = read(PAGE)
   assert.match(page, /TRADING_SETTINGS\.filter/, '레지스트리에서 줄을 안 만든다')

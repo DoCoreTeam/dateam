@@ -21,8 +21,12 @@ export interface SettingRow {
   type: 'boolean' | 'number' | 'string' | 'choice'
   choices?: readonly string[]
   unit?: string
-  /** 지금 값. 화면이 보여 주는 글자 그대로 */
+  /** 입력칸에 들어갈 값. 예약된 판이 있으면 그 값이다 */
   value: string
+  /** 예약이 있을 때만: 오늘 판단에 쓰이는 값 */
+  today?: string
+  /** 예약이 언제부터인가 */
+  from?: string
   /** 여기서 못 바꾸는 값이면 어디서 바꾸는지. 바꿀 수 있으면 null */
   elsewhere: string | null
   usedFrom: string
@@ -66,6 +70,15 @@ export default function SettingsForm({ row }: { row: SettingRow }) {
           <span style={{ color: 'var(--text-faint)' }}>{` · ${row.usedFrom}`}</span>
         </p>
         {/* 못 바꾸는 값은 숨기지 않는다 — 없으면 왜 없는지 물을 데가 없다 */}
+        {/*
+          예약된 판이 있으면 **둘 다** 말한다. 입력칸에는 예약된 값이 들어 있는데
+          오늘 판단은 아직 옛 값으로 돈다 — 그 사실을 안 적으면 화면과 판단이 다른 말을 한다.
+        */}
+        {row.today !== undefined && row.from && (
+          <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--info)' }}>
+            {`오늘은 ${row.today} · ${row.from}부터 ${row.value}`}
+          </p>
+        )}
         {locked && (
           <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--warning)' }}>
             {row.elsewhere}

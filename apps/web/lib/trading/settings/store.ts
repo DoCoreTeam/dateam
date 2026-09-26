@@ -70,6 +70,28 @@ export async function loadTradingSettings(tradeDate: string): Promise<TradingSet
   return { values, version }
 }
 
+/**
+ * 판 **전부**를 읽는다 — 유효일 제한 없이.
+ *
+ * **왜 따로 있나** (실측 2026-09-27): `loadTradingSettings` 는 이름 그대로 「이 거래일에 쓸 값」을
+ * 준다. 판단이 묻는 것은 언제나 그것이라 옳은 기본값이다. 그런데 **설정 화면**이 묻는 것은
+ * 하나 더 있다 — 「내가 방금 저장한 값은 어디 갔나」. 전략 변경은 다음 거래일부터라
+ * 그 값은 오늘 것에 안 섞이고, 그래서 화면에서 사라진 것처럼 보였다.
+ *
+ * 판단 경로가 이 함수를 부르면 안 된다. 아직 유효일이 안 온 값을 오늘 판단에 섞는 순간
+ * 「다음 거래일부터」가 그 자리에서 깨진다 — 고르기는 `pendingByKey` 가 하고,
+ * 여기는 **읽기만** 한다.
+ */
+export async function loadAllSettingVersions(): Promise<EffectiveRow[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_settings')
+    .select('key, value, version, effective_trade_date')
+  if (error) throw new Error(`설정 판을 읽지 못했습니다: ${error.message}`)
+  return (data ?? []) as EffectiveRow[]
+}
+
 export interface SaveSettingInput {
   key: string
   value: TradingSettingValue
