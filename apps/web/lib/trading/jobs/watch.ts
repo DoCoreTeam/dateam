@@ -14,7 +14,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { RUN_BUDGET_MS } from './tick-core.ts'
 import { planWithinBudget, watchReason, type WatchTask } from './watch-plan.ts'
 import { watchTasks } from '../gate/safety.ts'
-import { checkSafetyGates, newSignalAllowed, sortGateHits, type SafetyContext, type SafetyThresholds } from '../gate/safety.ts'
+import { checkSafetyGates, newSignalAllowed, sortGateHits, type GateHit, type SafetyContext, type SafetyThresholds } from '../gate/safety.ts'
 import type { AccountClient } from '../broker/account.ts'
 import {
   reconcilePositions, lockReason, stateAfterReconcile, afterBrokerRecovery,
@@ -82,6 +82,14 @@ export interface WatchResult {
   positionState: PositionState
   /** 오늘 실현 손익(원). **한도와 목표가 보는 값** */
   realizedPnlKrw: number
+  /**
+   * 이번 분에 걸린 안전 게이트들.
+   *
+   * 신호 규칙은 「게이트 통과 후」 평가한다(§10). 그러려면 규칙 쪽이 이 목록을
+   * 받아야 하는데, 전에는 tick 이 빈 배열을 넘겨 **게이트가 신호를 막은 적이 없었다.**
+   * 감시가 이미 재 놓은 것을 돌려주기만 하면 되는 일이었다.
+   */
+  gateHits: GateHit[]
 }
 
 /** 일 하나에 이만큼 걸린다고 본다. 넘으면 다음 실행으로 미룬다 */
@@ -238,6 +246,7 @@ export async function runWatch(input: WatchInput): Promise<WatchResult> {
     queued,
     sent: flushed.sent,
     lockedReason: locked,
+    gateHits: sortGateHits(gateHits),
     positionState,
     realizedPnlKrw,
   }

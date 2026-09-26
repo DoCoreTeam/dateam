@@ -49,8 +49,18 @@ export interface FoldResult {
   /** 지금 들고 있는 것. 사고 판 것이 같으면 null(=flat) */
   open: OpenPosition | null
   /** 닫힌 왕복들. `dayPnl` 이 바로 먹는다 */
-  closed: RealizedTrade[]
+  closed: ClosedTrade[]
 }
+
+/**
+ * 닫힌 왕복에 **닫힌 시각**을 붙인다.
+ *
+ * `RealizedTrade` 는 손익만 재면 되니 시각이 없다. 그런데 SR-08 은
+ * 「마지막 손실 이후 몇 분」을 묻고, 규칙은 모르면 쿨다운 중으로 본다 —
+ * 시각이 없으면 2연패한 날 새 신호가 **영영 안 나간다.**
+ * 안 재는 것이 여기서는 막는 쪽으로 틀린다.
+ */
+export type ClosedTrade = RealizedTrade & { closedAt: string }
 
 /** 한 조각. 아직 안 닫힌 진입 한 계약 */
 interface Leg {
@@ -84,7 +94,7 @@ export function foldFills(
 ): FoldResult {
   const ordered = [...fills].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
   const legs: Leg[] = []
-  const closed: RealizedTrade[] = []
+  const closed: ClosedTrade[] = []
 
   for (const fill of ordered) {
     if (fill.quantity <= 0 || !Number.isFinite(fill.price)) continue
@@ -103,6 +113,8 @@ export function foldFills(
         instrument,
         // 왕복이다 — 들어갈 때 한 장치 + 나올 때 한 장치
         feeKrw: leg.feePerUnit + unitFee,
+        // 닫은 체결의 시각이다. 연 시각이 아니다 — 쿨다운은 나온 뒤부터 센다
+        closedAt: fill.at,
       })
       remaining -= 1
     }

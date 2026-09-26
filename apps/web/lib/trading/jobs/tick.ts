@@ -36,6 +36,7 @@ import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
 import { runJudges, scheduledMinuteOf } from './tick-core.ts'
 import { runWatch } from './watch.ts'
+import type { GateHit } from '../gate/safety.ts'
 import { createAccountClient } from '../broker/account.ts'
 import { syncFills, loadFills } from '../position/fills.ts'
 import { foldFills, expectedFrom, type FoldResult } from '../position/from-fills.ts'
@@ -45,6 +46,7 @@ import { measurementNote } from '../gate/measure-core.ts'
 import { measureMarket } from '../gate/measure-market.ts'
 import { loadSignalModels } from '../signal/models.ts'
 import { directionOf, probabilitiesFrom } from '../signal/models-core.ts'
+import { lossStreakFrom, rolloverVerdict } from '../signal/context-core.ts'
 import { loadSignalPlan, loadProtection, type SignalPlan, type ProtectionRecord } from '../position/plan.ts'
 import { emitSignal } from './emit-signal.ts'
 import { runKnowledgeJob } from './knowledge-job.ts'
@@ -162,11 +164,14 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   let contractCode: string
   let expiryDays: Set<string>
   let syncReason = 'day_config_frozen'
+  /** 우리 월물의 최종거래일. SR-04 가 「오늘이 만기일인가」를 이 값으로 답한다 */
+  let frontLastTradingDay: string | null = null
 
   if (frozen) {
     contractCode = frozen.frontContractCode
     // 굳은 날에는 마스터를 안 받는다. 최종거래일은 이미 trading_contracts 에 있다
     expiryDays = await loadLastTradingDays()
+    frontLastTradingDay = await loadLastTradingDayOf(contractCode)
     if (logicChangedToday(frozen, logicVersion)) {
       // 막지는 않는다(1-A 는 신호를 안 낸다). 그날을 갈라 셀 수 있게 사실만 남긴다
       syncReason = `logic_changed:${frozen.tradingLogicVersion}->${logicVersion}`
@@ -183,6 +188,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     }
     contractCode = sync.frontCode
     expiryDays = new Set(sync.contracts.map((c) => c.lastTradingDay))
+    frontLastTradingDay = sync.contracts.find((c) => c.code === contractCode)?.lastTradingDay ?? null
 
     /**
      * 그날 처음 도는 실행이 설정 초기값도 심는다.
@@ -203,6 +209,14 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
       ? `${sync.reason},settings_seeded=${seeded.seeded.length}`
       : sync.reason
   }
+
+  /**
+   * 어제 굳힌 근월물. 오늘 것과 다르면 **오늘 교체한 것**이다 (§6.3).
+   *
+   * 교체를 따로 기록하지 않아도 된다 — 굳힌 값 둘을 견주면 나온다.
+   * 새 표도 새 호출도 없다.
+   */
+  const previousFrontCode = await loadPreviousFrontCode(today)
 
   /**
    * 3 오늘 세션 창 — **없으면 세운다.**
@@ -287,6 +301,8 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   const observedPrice = price.ok ? finiteOrNull(price.value.futs_prpr) : null
 
   let watchNote = 'watch=off'
+  let gateHits: GateHit[] = []
+  let realizedToday = 0
   let fillNote = 'fills=off'
   let reconciliationRequired = false
   const accountRef = await loadAccountRef(env, str('kis_account_product_code', '03'))
@@ -491,6 +507,13 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
       })
       watchNote = watch.reason
       /**
+       * 게이트 결과와 오늘 실현 손익을 **신호 쪽으로 들고 간다.**
+       * 전에는 여기서 버리고 `emitSignal` 에 `gateHits: []` 와 `realizedPnlKrw: 0` 을
+       * 손으로 적어 넘겼다 — §10 의 「게이트 통과 후 규칙」이 말뿐이었다
+       */
+      gateHits = watch.gateHits
+      realizedToday = watch.realizedPnlKrw
+      /**
        * 대조가 어긋난 사실을 **주문까지 들고 간다.**
        * 어긋난 채로 주문하면 어긋남이 두 배가 되고, 그것을 A4 와 멈추는 장치가 본다.
        */
@@ -686,6 +709,8 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   const emitNote = await emitOrExplain({
     now, today, window, target, contractCode, trigger, indicators,
     num, str, values, outcome, watchNote,
+    gateHits, realizedToday, closedToday: folded.closed,
+    frontLastTradingDay, previousFrontCode,
   })
 
   /**
@@ -762,6 +787,14 @@ async function emitOrExplain(ctx: any): Promise<string> {
      *
      * 모델을 못 읽어도 던지지 않는다. 신호가 안 나갈 뿐이고, 그것이 지금 동작과 같다.
      */
+    const streak = lossStreakFrom(ctx.closedToday ?? [], now)
+    const rollover = rolloverVerdict({
+      today,
+      frontLastTradingDay: ctx.frontLastTradingDay ?? null,
+      previousFrontCode: ctx.previousFrontCode ?? null,
+      frontCode: contractCode,
+    })
+
     const direction = directionOf(rawScore)
     let models = null
     let modelNote = direction ? '' : ',models=no_direction'
@@ -792,7 +825,7 @@ async function emitOrExplain(ctx: any): Promise<string> {
       netExpectedValueR: prob.netExpectedValueR,
       holdDominant: rawScore ? isHoldDominant(rawScore) : true,
       enterNowProb: prob.enterNowProb,
-      gateHits: [],
+      gateHits: ctx.gateHits,
       thresholds: {
         minNetExpectedValueR: num('signal_min_net_ev_r', 0.1),
         minEnterNowProb: num('signal_min_enter_now_prob', 0.55),
@@ -808,12 +841,16 @@ async function emitOrExplain(ctx: any): Promise<string> {
       rules: {
         minutesSinceOpen: Math.floor((target.getTime() - window.continuousStart.getTime()) / 60_000),
         minutesUntilClose: Math.floor((window.continuousEnd.getTime() - target.getTime()) / 60_000),
-        rolloverOrExpiryDay: false,
+        rolloverOrExpiryDay: rollover.blocked,
+        /**
+         * 이벤트 캘린더는 아직 없다 (§6.6 [필수], 표·화면 신설이 필요해 다음 판).
+         * `false` 라 SR-05 는 안 걸린다 — 그 사실이 면제 목록에 사유와 함께 있다
+         */
         inEventBlackout: false,
-        realizedPnlKrw: 0,
-        remainingLossBudgetKrw: num('daily_loss_limit_krw', 0),
-        consecutiveLosses: 0,
-        minutesSinceLastLoss: null,
+        realizedPnlKrw: ctx.realizedToday,
+        remainingLossBudgetKrw: Math.max(0, num('daily_loss_limit_krw', 0) + Math.min(0, ctx.realizedToday)),
+        consecutiveLosses: streak.consecutiveLosses,
+        minutesSinceLastLoss: streak.minutesSinceLastLoss,
       },
       exit: {
         stopAtrMultiple: num('exit_stop_atr_multiple', 1.2),
@@ -833,7 +870,7 @@ async function emitOrExplain(ctx: any): Promise<string> {
       sessionDayEnd: window.continuousEnd,
       now,
     })
-    return `${result.reason}${modelNote}`
+    return `${result.reason}${modelNote}${rollover.blocked ? `,roll=${rollover.reason}` : ''}`
   } catch (error) {
     return `emit_failed:${error instanceof Error ? error.message : 'unknown'}`
   }
@@ -844,6 +881,30 @@ async function emitOrExplain(ctx: any): Promise<string> {
  *
  * 세션 창을 세울 때 「오늘이 만기일인가」를 이 집합으로 답한다.
  */
+/** 이 월물의 최종거래일 한 줄. 없으면 null — 모르는 것은 SR-04 가 막는 쪽으로 쓴다 */
+async function loadLastTradingDayOf(code: string): Promise<string | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_contracts').select('last_trading_day').eq('code', code).maybeSingle()
+  if (error) throw new Error(`최종거래일을 읽지 못했습니다: ${error.message}`)
+  return (data?.last_trading_day as string | undefined) ?? null
+}
+
+/** 직전 거래일에 굳힌 근월물 코드. 첫 거래일이면 null */
+async function loadPreviousFrontCode(tradeDate: string): Promise<string | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_day_config')
+    .select('front_contract_code')
+    .lt('trade_date', tradeDate)
+    .order('trade_date', { ascending: false })
+    .limit(1)
+  if (error) throw new Error(`직전 거래일 설정을 읽지 못했습니다: ${error.message}`)
+  return ((data ?? [])[0]?.front_contract_code as string | undefined) ?? null
+}
+
 async function loadLastTradingDays(): Promise<Set<string>> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
