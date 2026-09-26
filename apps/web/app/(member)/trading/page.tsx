@@ -19,6 +19,7 @@ import KnowledgePanel from './KnowledgePanel'
 import OperatorPanel from './OperatorPanel'
 import ArmingPanel from './ArmingPanel'
 import EventPanel from './EventPanel'
+import CsvImportPanel from './CsvImportPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -91,6 +92,7 @@ export default async function TradingPage() {
           afterMinutes={numSetting('signal_event_block_after_minutes', 15)}
         />
         <BarCoverage days={overview.coverage} />
+        <CsvImportPanel contractCode={overview.contractCode} />
         <JudgmentList rows={overview.judgments} />
 
         <BacktestPanel

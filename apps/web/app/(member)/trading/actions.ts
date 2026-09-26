@@ -26,6 +26,8 @@ import { loadAccountRef, loadAppCredential } from '@/lib/trading/broker/credenti
 import { getAccessToken } from '@/lib/trading/broker/token'
 import { isNightHour } from '@/lib/trading/calendar/session'
 import { addEvent, removeEvent, listEvents, type EventRow } from '@/lib/trading/calendar/events'
+import { importBarCsv } from '@/lib/trading/backfill/csv'
+import { MAX_CSV_ROWS } from '@/lib/trading/backfill/csv-core'
 import { type ArmEnv } from '@/lib/trading/order/arming-policy'
 
 export interface AckActionResult {
@@ -338,4 +340,47 @@ export async function removeTradingEvent(id: string): Promise<AckActionResult> {
 export async function loadTradingEvents(): Promise<EventRow[]> {
   if (!(await tradingAccess()).allowed) return []
   return listEvents()
+}
+
+// ── CSV 가져오기 (§6.1) ───────────────────────────────────
+
+/** 본문 크기 상한(바이트). 크기를 안 재면 한 번에 메모리를 통째로 먹는다 */
+const MAX_CSV_BYTES = 8 * 1024 * 1024
+
+export interface CsvImportResult extends AckActionResult {
+  saved: number
+  rejected: number
+}
+
+/**
+ * CSV 본문을 받아 봉으로 채운다.
+ *
+ * **본문을 파일로 안 남긴다** — 봉으로 저장하고 버린다. 남기면 그 파일을 누가 읽을 수
+ * 있는지를 또 정해야 하고, 정하지 않은 저장소는 열려 있는 저장소다.
+ */
+export async function importTradingBarCsv(
+  contractCode: string, tf: string, text: string,
+): Promise<CsvImportResult> {
+  if (!(await tradingAccess()).allowed) return { ...DENIED, saved: 0, rejected: 0 }
+  if (contractCode.trim() === '') {
+    return { ok: false, userMessage: '월물 코드를 적어 주세요', saved: 0, rejected: 0 }
+  }
+  if (tf !== '1m' && tf !== '5m' && tf !== '15m') {
+    return { ok: false, userMessage: '봉 종류가 올바르지 않습니다', saved: 0, rejected: 0 }
+  }
+  // 줄 수 상한은 파서가 보고, 여기서는 바이트로 먼저 막는다 — 줄을 세려면 다 읽어야 한다
+  if (Buffer.byteLength(text, 'utf8') > MAX_CSV_BYTES) {
+    return {
+      ok: false,
+      userMessage: `파일이 너무 큽니다 (한 번에 ${MAX_CSV_ROWS.toLocaleString()}줄, 8MB 까지)`,
+      saved: 0, rejected: 0,
+    }
+  }
+
+  const result = await importBarCsv({
+    contractCode: contractCode.trim(), tf, text, now: new Date(),
+  })
+  if (!result.ok) return { ok: false, userMessage: result.userMessage, saved: 0, rejected: 0 }
+  revalidatePath('/trading')
+  return { ok: true, userMessage: result.summary, saved: result.saved, rejected: result.rejected }
 }
