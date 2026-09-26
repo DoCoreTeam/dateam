@@ -1,70 +1,36 @@
-// app/(trading)/trading/page.tsx — AI 트레이딩 설정 골격 (Release 1-A)
+// app/(trading)/trading/page.tsx — 현황
 //
-// 지금 이 화면이 하는 일은 하나다: **무엇으로 판단하게 되는가를 보여 준다.**
-// 봉 수집 상태와 판단 기록은 수집이 서고 나서 이 화면에 붙는다.
+// **왜 여기에 셋만 있나** (사용자 지적 2026-09-27: 「지금 화면 스크롤은 너무 과한데?」):
+// 이 화면은 패널 12개 + 최근 실행 + 설정 묶음 15개를 한 장에 세로로 쌓고 있었다.
+// 매일 보는 것은 「신호가 나갔나 · 지금 뭘 들고 있나 · 알림이 켜져 있나」 셋인데,
+// 그 셋을 보려고 나머지 전부를 스크롤로 지나야 했다.
 //
-// 1-C 부터 신호와 확인 단추가 여기 선다. 단추 셋은 전부 「내가 이렇게 했다」이고
-// 우리가 대신 주문하는 것은 하나도 없다(C1 · M1).
+// 나머지는 사라지지 않았다. 사이드바의 다른 자리로 갔고 목록은 `lib/trading/nav/groups.ts` 다.
 
 import { CandlestickChart } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
-import BarCoverage from './BarCoverage'
-import JudgmentList from './JudgmentList'
-import BacktestPanel from './BacktestPanel'
 import SignalPanel from './SignalPanel'
-import LatencyPanel from './LatencyPanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
-import KnowledgePanel from './KnowledgePanel'
-import OperatorPanel from './OperatorPanel'
-import ArmingPanel from './ArmingPanel'
-import EventPanel from './EventPanel'
-import CsvImportPanel from './CsvImportPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
-import { TRADING_SETTINGS, type TradingSettingGroup } from '@/lib/trading/settings/registry'
-import { formatKstDateTimeExact } from '@/lib/datetime/kst'
-import {
-  TRADING_GROUP_LABEL,
-  TRADING_USED_FROM_LABEL,
-  formatTradingSettingValue,
-} from '@/lib/trading/settings/labels'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
-import { listEvents } from '@/lib/trading/calendar/events'
+import { kstTodayKey } from '@/lib/datetime/kst'
+import { TRADING_NAV_LABEL } from '@/lib/terms'
 
 export const dynamic = 'force-dynamic'
 
-/** 서울 기준 오늘. 설정은 거래일 기준으로 유효한 판을 고른다 */
-function todayInSeoul(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
-}
-
 export default async function TradingPage() {
-  const now = new Date()
-  const today = todayInSeoul()
-  const { values, version } = await loadTradingSettings(today)
-  const overview = await loadTradingOverview(now)
-  /**
-   * 이벤트 목록. 못 읽어도 화면은 서야 한다 — 곁가지가 본 일을 죽이지 않는다.
-   * 판단 쪽은 못 읽으면 막는 쪽으로 가지만(tick), 화면은 비어 보이면 된다.
-   */
-  const events = await listEvents().catch(() => [])
-
-  const groups = Object.keys(TRADING_GROUP_LABEL) as TradingSettingGroup[]
+  const { values } = await loadTradingSettings(kstTodayKey())
+  const overview = await loadTradingOverview(new Date())
 
   // 유효 시간은 설정이다. 화면이 따로 정하면 규칙과 화면이 다른 마감을 본다
   const rawValid = Number(values.signal_valid_minutes)
   const validMinutes = Number.isFinite(rawValid) && rawValid > 0 ? rawValid : 10
 
-  /** 설정값 하나를 숫자로. 화면이 자기 상수를 들면 규칙과 다른 값을 그린다 */
-  const numSetting = (key: string, fallback: number): number => {
-    const raw = Number(values[key])
-    return Number.isFinite(raw) ? raw : fallback
-  }
-
   return (
     <>
       <PageHeader
-        title="AI 트레이딩"
+        title={TRADING_NAV_LABEL.overview}
         icon={<CandlestickChart size={22} />}
         description={
           overview.contractCode
@@ -82,89 +48,6 @@ export default async function TradingPage() {
         />
         <PositionPanel holding={overview.holding} dayPnl={overview.dayPnl} />
         <NotifyPanel notify={overview.notify} position={overview.position} />
-        <LatencyPanel rows={overview.latency} />
-        <KnowledgePanel rows={overview.knowledge} progress={overview.knowledgeProgress} />
-        <OperatorPanel operator={overview.operator} />
-        <ArmingPanel arming={overview.arming} />
-        <EventPanel
-          rows={events.map((e) => ({ id: e.id, name: e.name, occursAt: e.occursAt }))}
-          beforeMinutes={numSetting('signal_event_block_before_minutes', 30)}
-          afterMinutes={numSetting('signal_event_block_after_minutes', 15)}
-        />
-        <BarCoverage days={overview.coverage} />
-        <CsvImportPanel contractCode={overview.contractCode} />
-        <JudgmentList rows={overview.judgments} />
-
-        <BacktestPanel
-          criteria={overview.gateCriteria}
-          passed={overview.gate.passed}
-          failedCount={overview.gate.failedCount}
-          insufficientCount={overview.gate.insufficientCount}
-        />
-
-        {overview.recentRuns.length > 0 && (
-          <section className="card">
-            <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)', margin: 0, marginBottom: 'var(--space-3)' }}>
-              최근 실행
-            </h2>
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 'var(--space-2)' }}>
-              {overview.recentRuns.map((run) => (
-                <li key={run.scheduledMinute} style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-                  <span style={{ color: 'var(--text)' }}>{formatKstDateTimeExact(run.scheduledMinute)}</span>
-                  {' · '}
-                  {run.status}
-                  {run.reason ? ` · ${run.reason}` : ''}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {groups.map((group) => {
-          const rows = TRADING_SETTINGS.filter((s) => s.group === group)
-          if (rows.length === 0) return null
-          return (
-            <section key={group} className="card">
-              <h2
-                style={{
-                  fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)',
-                  margin: 0, marginBottom: 'var(--space-3)',
-                }}
-              >
-                {TRADING_GROUP_LABEL[group]}
-              </h2>
-              <dl style={{ display: 'grid', gap: 'var(--space-3)', margin: 0 }}>
-                {rows.map((s) => (
-                  <div
-                    key={s.key}
-                    style={{
-                      display: 'flex', gap: 'var(--space-3)', alignItems: 'baseline',
-                      flexWrap: 'wrap', justifyContent: 'space-between',
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <dt style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)' }}>
-                        {s.label}
-                      </dt>
-                      <dd style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                        {s.help}
-                      </dd>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-                        {formatTradingSettingValue(values[s.key])}
-                        {s.unit ? <span style={{ color: 'var(--text-muted)' }}> {s.unit}</span> : null}
-                      </div>
-                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                        {TRADING_USED_FROM_LABEL[s.usedFrom]}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          )
-        })}
       </div>
     </>
   )

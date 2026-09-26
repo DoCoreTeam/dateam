@@ -154,8 +154,20 @@ export const SERVICE_LABEL = {
  * `/lead-intake` 가 사이드바에선 「프로젝트관리」, 전체 메뉴에선 「리드 인테이크」였던 전례.
  */
 export const TRADING_NAV_LABEL = {
-  /** 첫 화면. 지금 무슨 일이 벌어지고 있나 */
+  /** 첫 화면. 지금 무슨 일이 벌어지고 있나 — 신호·들고 있는 것·알림 */
   overview: '현황',
+  /** 내가 무엇을 하기로 했나의 기록. 쌓이는 목록이라 자기 자리가 있어야 한다 */
+  judgments: '판단 기록',
+  /** 이 전략으로 실제 돈을 걸어도 되나 — 관문과 지연 */
+  validation: '검증',
+  /** 도는 것을 지켜보는 자리 — AI 운영자 점검·자동 주문 무장·최근 실행 */
+  operations: '운영',
+  /** 판단의 재료가 제대로 모이고 있나 — 봉 수집·파일 넣기·이벤트 */
+  data: '자료',
+  /** 무엇을 근거로 그렇게 판단하나 */
+  knowledge: '지식',
+  /** 처음 한 번 정하고 가끔 손보는 것. 그래서 맨 아래다 */
+  settings: '설정',
 } as const
 
 export type ServiceKey = keyof typeof SERVICE_LABEL

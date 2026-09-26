@@ -21,9 +21,19 @@ export interface TradingNavItem {
 /**
  * 순서는 **여는 빈도**다. 매일 보는 것이 위, 처음 한 번 정하는 것이 아래.
  *
- * 지금은 한 줄이다 — 한 화면에 쌓여 있던 것을 나누는 일은 다음 항목에서 한다.
- * 갈 곳을 먼저 만들어 두지 않는다: 빈 줄은 눌러 놓고 아무 일도 안 난다.
+ * 왜 나눴나 (사용자 지적 2026-09-27: 「지금 화면 스크롤은 너무 과한데?」):
+ * 한 장에 패널 12개 + 최근 실행 + 설정 묶음 15개(값 88개)가 세로로 쌓여 있었다.
+ * 매일 보는 신호 세 줄을 보려고 그 전부를 스크롤로 지나야 했다.
+ *
+ * 묶음(`groups`)을 안 만든다 — 일곱이면 머리글 없이 한눈에 들어오고,
+ * 항목이 둘뿐인 묶음에 이름을 붙이면 이름이 항목보다 많아진다(§2-3-3 N-3).
  */
 export const TRADING_NAV: readonly TradingNavItem[] = [
   { href: '/trading', label: TRADING_NAV_LABEL.overview },
+  { href: '/trading/judgments', label: TRADING_NAV_LABEL.judgments },
+  { href: '/trading/validation', label: TRADING_NAV_LABEL.validation },
+  { href: '/trading/operations', label: TRADING_NAV_LABEL.operations },
+  { href: '/trading/data', label: TRADING_NAV_LABEL.data },
+  { href: '/trading/knowledge', label: TRADING_NAV_LABEL.knowledge },
+  { href: '/trading/settings', label: TRADING_NAV_LABEL.settings },
 ]

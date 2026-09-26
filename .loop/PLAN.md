@@ -1,6 +1,6 @@
 # PLAN newAX: AI 트레이딩이 서비스가 된다 — 자기 셸·메뉴 구성·설정 화면
 플랜 ID: P0072
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0117
 목표 버전: v0.10.582
@@ -60,9 +60,9 @@
 의존: 없음
 
 ### I02 메뉴 구성 — 한 장을 여섯으로 나눈다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/trading/nav/groups.ts (신규), apps/web/app/(trading)/trading/ 하위 화면들, apps/web/lib/policy/trading-page-split.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/trading/nav/groups.ts, apps/web/app/(trading)/trading/ 하위 화면들 (신규 6), apps/web/app/(trading)/trading/RecentRuns.tsx (신규), apps/web/app/(trading)/layout.tsx, apps/web/lib/terms/entity.ts, apps/web/lib/trading/signal/ack.test.ts, apps/web/lib/policy/trading-page-split.test.ts (신규), apps/web/package.json
 감사 기준:
 - 패널 12개가 성격별 경로로 나뉘고, 어느 화면도 패널을 열 개 넘게 쌓지 않는다
 - 메뉴 항목이 둘 이상이고 한 개짜리 묶음이 없다 (N-3)
@@ -131,3 +131,5 @@
 - v0.1.0 (2026-09-27) 최초 작성 (ins_0117)
 - v0.1.1 (2026-09-27) I01 범위 확대 — 화면 폴더를 옮기자 그 경로를 **손으로 들고 있던 가드 여덟 개**가 한꺼번에 빨개졌다, 여덟 곳을 각자 고치면 다음에 또 여덟 곳이므로 lib/policy/app-dirs.ts 한 표를 만들어 전부 그것을 읽게 했다, 그 밖에 셸 목록·서비스 표·주석 세 곳이 옛 경로를 가리키고 있었고 사이드바 메뉴 표(lib/trading/nav/groups.ts)는 셸이 그릴 것이 있어야 해 I02 에서 당겨왔다 (audit:I01)
 - v0.1.1 (2026-09-26) I01 범위 확대 — 옛 경로를 손으로 든 가드 8개를 app-dirs 한 표로, 셸이 그릴 메뉴 표를 당겨옴 (audit:I01)
+- v0.1.2 (2026-09-27) I02 범위에 셋 추가 — 화면 이름은 lib/terms/entity.ts 의 TRADING_NAV_LABEL 을 지나야 사이드바와 제목이 갈리지 않고(N-4), 새 자리마다 그림이 있어야 해 셸의 아이콘 표를 채웠으며, lib/trading/signal/ack.test.ts 의 주문 금지 스캔이 맨 위 칸만 읽고 있어 하위 폴더 화면이 그 규칙 밖으로 나가 있었다(재귀로 고침) (audit:I02)
+- v0.1.2 (2026-09-26) I02 범위에 terms·셸 아이콘·ack 재귀 스캔 추가 (audit:I02)

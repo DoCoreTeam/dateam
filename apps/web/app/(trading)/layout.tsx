@@ -24,7 +24,9 @@ import { getBranding } from '@/lib/branding'
 import { getRequestProfile } from '@/lib/auth/request-profile'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import { getRequestUser } from '@/lib/supabase/server'
-import { CandlestickChart, FileText } from 'lucide-react'
+import {
+  CandlestickChart, FileText, ClipboardList, ShieldCheck, Activity, Database, BookOpen, Settings,
+} from 'lucide-react'
 import { SERVICE_LABEL } from '@/lib/terms'
 import { TRADING_NAV } from '@/lib/trading/nav/groups'
 
@@ -36,6 +38,12 @@ import { TRADING_NAV } from '@/lib/trading/nav/groups'
  */
 const NAV_ICON: Record<string, React.ReactNode> = {
   '/trading': <CandlestickChart size={16} />,
+  '/trading/judgments': <ClipboardList size={16} />,
+  '/trading/validation': <ShieldCheck size={16} />,
+  '/trading/operations': <Activity size={16} />,
+  '/trading/data': <Database size={16} />,
+  '/trading/knowledge': <BookOpen size={16} />,
+  '/trading/settings': <Settings size={16} />,
 }
 
 const NAV_ITEMS: NavItem[] = TRADING_NAV.map((n) => ({

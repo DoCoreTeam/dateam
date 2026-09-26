@@ -6,8 +6,8 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   ACK_ACTIONS, ACK_LABEL, decideAck, resultFor, parseStopPrice,
@@ -111,10 +111,29 @@ test('★ 확인 창구가 기존 소유자 확인을 지난다 — 새 인증�
   }
 })
 
-test('★ 화면과 창구에 주문을 부르는 자리가 없다 (M1)', () => {
-  for (const name of readdirSync(TRADING_APP)) {
+/**
+ * 화면 폴더 **전체**를 훑는다.
+ *
+ * 예전엔 맨 위 칸만 읽었다(`readdirSync` 한 번). 그때는 화면이 한 장이라 그걸로 충분했는데,
+ * 2026-09-27 에 화면을 경로로 나누면서 하위 폴더가 생겼다 — 확장자 필터가 폴더를 건너뛰므로
+ * **그 안의 새 화면들은 이 규칙 밖으로 나갔다.** 규칙이 깨진 것도 아니고 실패하지도 않는다.
+ * 그냥 안 보게 되는 것이고, 그게 잠든 가드다.
+ */
+function sourcesUnder(dir: string, out: { name: string; src: string }[] = []) {
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name)
+    if (statSync(full).isDirectory()) { sourcesUnder(full, out); continue }
     if (!name.endsWith('.ts') && !name.endsWith('.tsx')) continue
-    const src = readFileSync(join(TRADING_APP, name), 'utf8')
+    out.push({ name: relative(TRADING_APP, full), src: readFileSync(full, 'utf8') })
+  }
+  return out
+}
+
+test('★ 화면과 창구에 주문을 부르는 자리가 없다 (M1)', () => {
+  const files = sourcesUnder(TRADING_APP)
+  assert.ok(files.length > 12, `화면 파일을 ${files.length}개밖에 못 찾았다 — 규칙이 헛돈다`)
+  for (const { name, src: raw } of files) {
+    const src = raw
       .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
     assert.equal(/\b[A-Z]{4}\d{4}U\b/.test(src), false, `${name} 에 주문 TR 이 있다`)
     assert.equal(/uapi\/domestic/.test(src), false, `${name} 이 증권사를 직접 부른다`)
