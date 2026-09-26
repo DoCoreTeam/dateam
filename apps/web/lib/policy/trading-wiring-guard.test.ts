@@ -388,17 +388,24 @@ const LITERAL_ON_PURPOSE: Record<string, string> = {
    * 평가를 섞으면 들고 있는 것이 오르내릴 때마다 새 신호가 멈췄다 풀렸다 한다.
    */
   'runWatch.unrealizedKrw=null': '한도는 실현만 본다 (§8 D-32). 평가를 섞으면 신호가 깜빡인다',
+  /**
+   * 「못 재는 것」은 **창구에 값이 없다**는 뜻이지 「아직 안 붙였다」가 아니다.
+   * KIS 선물 시세·호가 응답 컬럼 목록에 거래 정지·서킷브레이커·사이드카 플래그가 없다
+   * (2026-09-26 공식 저장소 chk_inquire_price.py·chk_inquire_asking_price.py 확인).
+   * `crbr_aply_mxpr` 는 「서킷브레이커 적용 상한가」이지 발동 여부가 아니다.
+   */
+  'measureMarket.halted=null': 'KIS 선물 시세·호가 응답 컬럼에 거래 정지·서킷브레이커·사이드카 플래그가 없다',
   'runWatch.reconciledSinceRecovery=false':
     '대조는 이 실행 안에서 지금 한다(runWatch 가 첫 줄에서 계좌를 읽는다). '
     + '이 값은 「이 실행에 들어오기 전에 이미 했나」라 답이 언제나 아니오다. true 면 복구한 분에 대조를 건너뛴다',
 }
 
-test('★ 감시와 주문에 고정값을 안 넘긴다 — 부르는 꼴은 완벽한데 값이 없던 자리', () => {
+test('★ 감시·주문·시장 재기에 고정값을 안 넘긴다 — 부르는 꼴은 완벽한데 값이 없던 자리', () => {
   const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
 
   const found: string[] = []
   let scanned = 0
-  for (const callee of ['runWatch', 'runOrderJob']) {
+  for (const callee of ['runWatch', 'runOrderJob', 'measureMarket']) {
     const argument = callArgument(tick, callee)
     assert.ok(argument, `${callee}({ ... }) 호출을 못 찾았다 — 부르는 꼴이 바뀌었는지 확인한다`)
     scanned += 1
@@ -407,7 +414,7 @@ test('★ 감시와 주문에 고정값을 안 넘긴다 — 부르는 꼴은 �
       found.push(`${callee} 의 ${prop}`)
     }
   }
-  assert.equal(scanned, 2, '두 호출을 다 봐야 한다')
+  assert.equal(scanned, 3, '세 호출을 다 봐야 한다')
 
   assert.deepEqual(found, [],
     `재야 할 값을 고정값으로 넘기는 자리가 ${found.length}개다:\n  ${found.join('\n  ')}\n\n`
@@ -417,7 +424,7 @@ test('★ 감시와 주문에 고정값을 안 넘긴다 — 부르는 꼴은 �
 test('면제 목록 둘에 죽은 줄이 없다', () => {
   const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
   const live = new Set<string>()
-  for (const callee of ['runWatch', 'runOrderJob']) {
+  for (const callee of ['runWatch', 'runOrderJob', 'measureMarket']) {
     const argument = callArgument(tick, callee)
     if (!argument) continue
     for (const prop of literalProps(argument)) live.add(`${callee}.${prop}`)

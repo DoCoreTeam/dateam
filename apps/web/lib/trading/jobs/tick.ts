@@ -408,13 +408,24 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     lateMinutes: num('gate_bar_late_minutes', 2),
     /**
      * SG-11 (§10.1) 은 다섯을 든다 — 서킷브레이커·사이드카·가격제한 근접·거래 정지·동시호가.
-     * **볼 수 있는 것은 동시호가 하나뿐이다.** 나머지 넷은 KIS 에서 받을 자리를 아직 안 정했고,
-     * `null` 로 넘겨 실행 기록의 unmeasured 에 이름이 남는다 — 안 보고 통과한 것이 보이게.
+     * **볼 수 있는 것은 동시호가와 가격제한 근접 둘이다.** 남은 셋은 KIS 선물 시세·호가
+     * 응답 컬럼에 플래그 자체가 없다(2026-09-26 공식 저장소 확인). `null` 로 넘겨
+     * 실행 기록의 unmeasured 에 이름이 남는다 — 안 보고 통과한 것이 보이게.
      */
     marketState: {
       inAuction: isAuctionWindow(window, now),
       halted: null,
-      priceLimitNear: null,
+    },
+    /**
+     * 상한가·하한가는 **이미 받은 응답에 들어 있었다.** 새 호출이 아니라
+     * 위에서 부른 `kis.price` 의 같은 줄이다 (futs_mxpr·futs_llam).
+     */
+    priceLimit: {
+      current: observedPrice,
+      upperLimit: price.ok ? finiteOrNull(price.value.futs_mxpr) : null,
+      lowerLimit: price.ok ? finiteOrNull(price.value.futs_llam) : null,
+      tickSize: instrument.tickSize,
+      nearTicks: num('gate_price_limit_near_ticks', 20),
     },
   })
 

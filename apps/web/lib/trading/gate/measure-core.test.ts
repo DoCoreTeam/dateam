@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   marginTightFrom, minutesSince, foldMeasurement, measurementNote,
   spreadOf, medianSpread, spreadAbnormalFrom, barMissingOrLateFrom, foldMarket,
-  marketAbnormalFrom, unseenMarketSignals, MIN_SPREAD_SAMPLES,
+  marketAbnormalFrom, unseenMarketSignals, priceLimitNearFrom, MIN_SPREAD_SAMPLES,
 } from './measure-core.ts'
 
 test('추가 증거금이 붙으면 유지율을 볼 것도 없이 빡빡하다', () => {
@@ -228,4 +228,49 @@ test('일부만 본 판정도 안 본 항목을 실행 기록에 남긴다', () 
     unseenMarketSignals: ['halted', 'priceLimitNear'],
   })
   assert.deepEqual(folded.unmeasured, ['halted', 'priceLimitNear'])
+})
+
+// ── SG-11 가격제한 근접 (§10.1) ───────────────────────────
+
+/** 코스피200 미니선물 얼개. 한 틱 0.05, 제한폭은 예시값 */
+const band = { upperLimit: 440, lowerLimit: 360, tickSize: 0.05, nearTicks: 20 }
+
+test('상한가에 붙으면 근접이다 — 제한폭에 닿으면 반대편 호가가 사라져 손절이 안 나간다', () => {
+  // 20틱 = 1.00 이므로 439.00 부터 근접
+  assert.equal(priceLimitNearFrom({ current: 439.5, ...band }), true)
+  assert.equal(priceLimitNearFrom({ current: 439, ...band }), true)
+  assert.equal(priceLimitNearFrom({ current: 438.5, ...band }), false)
+})
+
+test('하한가 쪽도 같은 규칙이다', () => {
+  assert.equal(priceLimitNearFrom({ current: 360.5, ...band }), true)
+  assert.equal(priceLimitNearFrom({ current: 361, ...band }), true)
+  assert.equal(priceLimitNearFrom({ current: 361.5, ...band }), false)
+})
+
+test('가운데에 있으면 근접이 아니다', () => {
+  assert.equal(priceLimitNearFrom({ current: 400, ...band }), false)
+})
+
+test('★ 값을 못 읽으면 null 이다 — 「제한폭에서 멀다」로 접으면 이상한 응답이 가장 안전해 보인다', () => {
+  assert.equal(priceLimitNearFrom({ current: null, ...band }), null)
+  assert.equal(priceLimitNearFrom({ current: 400, ...band, upperLimit: null }), null)
+  assert.equal(priceLimitNearFrom({ current: 400, ...band, lowerLimit: Number.NaN }), null)
+})
+
+test('★ 상한이 하한보다 낮은 말이 안 되는 짝은 null 이다', () => {
+  assert.equal(priceLimitNearFrom({ current: 400, ...band, upperLimit: 360, lowerLimit: 440 }), null)
+  // 상한과 하한이 같아도 폭이 0 이라 잴 수 없다
+  assert.equal(priceLimitNearFrom({ current: 400, ...band, upperLimit: 400, lowerLimit: 400 }), null)
+})
+
+test('틱이나 기준 틱 수가 이상하면 null 이다', () => {
+  assert.equal(priceLimitNearFrom({ current: 400, ...band, tickSize: 0 }), null)
+  assert.equal(priceLimitNearFrom({ current: 400, ...band, nearTicks: 0 }), null)
+})
+
+test('가격제한 근접이 잡히면 SG-11 이 걸린다 — 동시호가가 아니어도', () => {
+  assert.equal(marketAbnormalFrom({ inAuction: false, halted: null, priceLimitNear: true }), true)
+  assert.deepEqual(
+    unseenMarketSignals({ inAuction: false, halted: null, priceLimitNear: true }), ['halted'])
 })

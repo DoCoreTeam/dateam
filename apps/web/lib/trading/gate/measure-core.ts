@@ -133,8 +133,14 @@ export function barMissingOrLateFrom(input: BarLateInput): boolean | null {
  * SG-11 이 보는 것들. **하나하나가 따로 모름일 수 있다.**
  *
  * 명세는 서킷브레이커·사이드카·가격제한 근접·거래 정지·동시호가 다섯을 든다.
- * 우리가 지금 볼 수 있는 것은 **동시호가 하나뿐**이다 — 나머지 넷을 주는 창구를
- * 아직 안 붙였다. 다섯을 한 칸으로 접으면 「동시호가 아님」이 「시장 정상」이 되고,
+ * 지금 볼 수 있는 것은 **동시호가와 가격제한 근접 둘**이다.
+ *
+ * 나머지 셋(서킷브레이커·사이드카·거래 정지)은 「아직 안 붙였다」가 아니라
+ * **KIS 선물 시세·호가 응답 컬럼 목록에 그런 플래그가 없다**(2026-09-26 공식 저장소
+ * `chk_inquire_price.py`·`chk_inquire_asking_price.py` 확인). `crbr_aply_mxpr` 는
+ * 「서킷브레이커 적용 상한가」이지 발동 여부가 아니다.
+ *
+ * 다섯을 한 칸으로 접으면 「동시호가 아님」이 「시장 정상」이 되고,
  * 서킷브레이커가 걸린 날 화면이 정상이라고 말한다.
  */
 export interface MarketStateInput {
@@ -142,8 +148,49 @@ export interface MarketStateInput {
   inAuction: boolean | null
   /** 거래 정지·서킷브레이커·사이드카. 주는 창구가 없어 지금은 언제나 null */
   halted: boolean | null
-  /** 가격제한폭에 가까운가. 상·하한가를 주는 창구가 없어 지금은 언제나 null */
+  /** 가격제한폭에 가까운가. 시세 응답의 futs_mxpr·futs_llam 로 잰다 */
   priceLimitNear: boolean | null
+}
+
+export interface PriceLimitInput {
+  /** 지금 값 */
+  current: number | null
+  /** 상한가 (KIS futs_mxpr) */
+  upperLimit: number | null
+  /** 하한가 (KIS futs_llam) */
+  lowerLimit: number | null
+  /** 한 틱의 크기 */
+  tickSize: number
+  /** 어느 쪽이든 이 틱 수 이내로 붙으면 근접 */
+  nearTicks: number
+}
+
+/**
+ * 가격이 제한폭에 붙었나.
+ *
+ * ## 왜 이것이 게이트인가
+ *
+ * 상한가나 하한가에 닿으면 **반대편 호가가 사라진다.** 그러면 손절 주문이 안 나가고,
+ * 안 나간 손절은 없는 손절이다. 들어가기 전에 막는 것이 유일한 방어다.
+ *
+ * ## 모르면 null
+ *
+ * 셋 중 하나라도 숫자가 아니거나, 상한이 하한보다 낮은 말이 안 되는 짝이면 `null`.
+ * 그런 응답을 「제한폭에서 멀다」로 접으면, KIS 가 답을 이상하게 준 날이
+ * 화면에서 가장 안전한 날로 보인다.
+ */
+export function priceLimitNearFrom(input: PriceLimitInput): boolean | null {
+  const n = (v: number | null): number | null =>
+    Number.isFinite(v as number) ? (v as number) : null
+  const current = n(input.current)
+  const upper = n(input.upperLimit)
+  const lower = n(input.lowerLimit)
+  if (current === null || upper === null || lower === null) return null
+  if (!(upper > lower)) return null
+  if (!Number.isFinite(input.tickSize) || input.tickSize <= 0) return null
+  if (!Number.isFinite(input.nearTicks) || input.nearTicks <= 0) return null
+  const margin = input.tickSize * input.nearTicks
+  return current >= upper - margin || current <= lower + margin
 }
 
 const MARKET_SIGNALS = ['inAuction', 'halted', 'priceLimitNear'] as const

@@ -18,7 +18,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import {
   spreadAbnormalFrom, barMissingOrLateFrom, medianSpread, foldMarket,
-  marketAbnormalFrom, unseenMarketSignals,
+  marketAbnormalFrom, unseenMarketSignals, priceLimitNearFrom,
   type SpreadSample, type MarketMeasurement, type MarketStateInput,
 } from './measure-core.ts'
 
@@ -37,8 +37,20 @@ export interface MarketInput {
   spreadMultiple: number
   /** 마지막 봉이 몇 분 전이면 늦은 것인가 */
   lateMinutes: number
-  /** SG-11 이 볼 것들. 지금 볼 수 있는 것은 동시호가 하나뿐이다 */
-  marketState: MarketStateInput
+  /**
+   * SG-11 이 볼 것들 중 **밖에서 정해져 오는 것**. 지금은 동시호가 하나다.
+   * 가격제한 근접은 시세 값으로 여기서 직접 재므로 부르는 쪽이 안 넘긴다 —
+   * 넘기게 하면 부르는 자리마다 같은 셈을 다시 쓰게 되고 그러다 하나가 틀린다.
+   */
+  marketState: Omit<MarketStateInput, 'priceLimitNear'>
+  /** 가격제한 근접을 잴 값들. KIS 시세 응답의 futs_prpr·futs_mxpr·futs_llam */
+  priceLimit: {
+    current: number | null
+    upperLimit: number | null
+    lowerLimit: number | null
+    tickSize: number
+    nearTicks: number
+  }
 }
 
 /**
@@ -89,6 +101,11 @@ export async function measureMarket(input: MarketInput): Promise<MarketMeasureme
     readFailed = true
   }
 
+  const marketState: MarketStateInput = {
+    ...input.marketState,
+    priceLimitNear: priceLimitNearFrom(input.priceLimit),
+  }
+
   const folded = foldMarket({
     spreadAbnormal: readFailed ? null : spreadAbnormalFrom({
       now: { bestBid: input.bestBid, bestAsk: input.bestAsk },
@@ -102,8 +119,8 @@ export async function measureMarket(input: MarketInput): Promise<MarketMeasureme
      * 봉을 못 읽은 것과 시장 상태는 상관없다 — 세션 창은 DB 조회가 아니라
      * 이미 손에 든 값이다. 봉 실패에 묶으면 볼 수 있는 것까지 못 보게 된다.
      */
-    marketAbnormal: marketAbnormalFrom(input.marketState),
-    unseenMarketSignals: unseenMarketSignals(input.marketState),
+    marketAbnormal: marketAbnormalFrom(marketState),
+    unseenMarketSignals: unseenMarketSignals(marketState),
   })
   return readFailed
     ? { ...folded, unmeasured: [...folded.unmeasured, 'barsUnreadable'] }
