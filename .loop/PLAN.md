@@ -129,7 +129,7 @@
 의존: I03a
 
 ### I05 실브라우저로 셸 교체부터 설정 저장까지 확인한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: (검증 전용, 코드 변경 없음 · 발견한 고장은 해당 항목으로 되돌아가 고친다)
 감사 기준:
@@ -141,7 +141,7 @@
 의존: I04
 
 ### I06 종합 감사와 업데이트 내역
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/changelog/entries.ts, 루트 package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
 감사 기준:
@@ -152,7 +152,71 @@
 의존: I05
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+결과: pass (2026-09-27)
+
+### 검사 넷
+- `pnpm tsc --noEmit` — 통과 (오류 0)
+- `pnpm lint` — 통과 (오류 0)
+- `pnpm test` — 7899/7899 통과, 실패 0 (플랜 시작 시점 7871 → 등재 파일 641 → 645)
+- `pnpm build` — 통과 (`NEXT_DIST_DIR=.next-p0072b`, Compiled successfully in 92s, 오류 0)
+  - 새 화면 일곱이 산출에 섬: `/trading` `/trading/judgments` `/trading/validation` `/trading/operations` `/trading/data` `/trading/knowledge` `/trading/settings`
+- `pnpm design:check` — 통과 (hex 0, 기준 초과 0)
+
+### 완료 정의 대조
+- `/trading` 에 들어가면 사이드바가 AI 트레이딩 것으로 바뀌고 하단에 나가는 문 — I05 실브라우저 확인, 스크린샷 1-shell.png
+- `SERVICE_NAV` 등재로 N-1 이 **동일성**으로 돌아갔다 — `lib/ui/nav-standard.test.ts` 에서 포함(subset)을 되돌림
+- 어느 화면도 패널을 열 개 넘게 안 쌓는다 — `lib/policy/trading-page-split.test.ts` 가 상한 6칸으로 센다, 가장 많은 화면이 3칸
+- 설정 88개를 화면에서 고치고 저장한 값이 다음 판으로 쌓인다 — I05 에서 10→11 저장, 판 4, 새로고침 뒤 유지 확인
+- 증권사 자격증명을 화면에서 등록하고 등록 여부가 뜬다 — 모의·실전 각각 「아직 없음」 배지와 입력칸, 비밀은 다시 안 나온다
+- 사용자 노출 문자열은 lib/terms 경유 — 화면 이름 일곱이 `TRADING_NAV_LABEL`, 가드가 제목을 직접 적는 것을 막는다
+- 실브라우저로 셸 교체부터 설정 저장까지 통과 — I05
+
+### 스크롤 실측 (사용자 지적 「지금 화면 스크롤은 너무 과한데?」)
+실제 스크롤 칸(`main.page-inner`)으로 쟀다. `document.body.scrollHeight` 는 셸에서 안 늘어나 전부 720px 로 나온다
+
+| 화면 | 전 | 후 |
+|---|---|---|
+| 현황 (매일 여는 것) | 한 장에 패널 12 + 최근 실행 + 설정 묶음 15(값 88) | 856px |
+| 판단 기록 | 〃 | 720px (스크롤 없음) |
+| 검증 | 〃 | 1212px |
+| 운영 | 〃 | 1516px |
+| 자료 | 〃 | 1722px |
+| 지식 | 〃 | 720px (스크롤 없음) |
+| 설정 | 〃 | 8445px → **1372px** (묶음 접기) |
+
+### 보안 다섯 줄 (LOOP.md 7절 「기계가 세는 것」)
+`psql $DATABASE_URL -f docs/policy/security-count.sql`, 2026-09-27
+
+| 세는 것 | 결과 |
+|---|---|
+| rls_off_tables | 0 |
+| anon_write_tables | 0 |
+| public_using_true_policies | 0 |
+| unpinned_secdef_functions | 0 |
+| anon_readable_secdef_views | 0 |
+
+다섯 줄 전부 0
+
+### 전체 diff 검토
+`git diff 4b12363d..HEAD --stat` — 파일 62개, 1975 추가 / 227 삭제
+- 범위 밖 변경 없음 (늘어난 것은 전부 plan revise 로 사유와 함께 올렸음, 개정 일곱 번)
+- 비밀 없음, 새 표 0개, 마이그레이션 0개
+- 새 API 라우트 0개 — 값 바꾸는 길은 전부 서버 액션이다(이 모듈의 규칙)
+
+### 항목 대 결과 대조
+- I01 `app/(trading)/layout.tsx` 신설, 화면 폴더 이동, SERVICE_NAV·SERVICE_ROUTES·SERVICE_LABEL 등재
+- I02 화면 일곱, `lib/trading/nav/groups.ts`, `lib/policy/trading-page-split.test.ts`
+- I03 설정 편집(서버 액션 + 관문 우회 금지), I03a 예약된 판 표시, I03b 묶음 접기
+- I04 증권사 자격증명 등록
+- I05 실브라우저 확인 (한 번 실패하고 I03b 를 넣은 뒤 재확인)
+- I06 이 절
+
+### 발견 사항
+- 옛 경로를 손으로 든 가드가 여덟이었다 → `lib/policy/app-dirs.ts` 한 표로 모았다. 하나라도 빠뜨리면 없는 폴더를 훑어 0건으로 통과하는 **잠든 가드**가 된다
+- `ack.test.ts` 의 「화면에 주문을 부르는 자리가 없다」(M1 안전 규칙)가 폴더 맨 위 칸만 읽고 있었다 → 하위 폴더를 만드는 순간 새 화면이 규칙 밖으로 나갈 뻔했다, 재귀로 고침
+- 설정 저장은 되는데 **화면이 그 사실을 못 말하던** 자리 → 다음 거래일부터라 오늘 값에 안 섞인다, I03a 로 예약된 판을 읽게 함
+- 가드 자체의 결함 둘을 만들다 잡았다 — 이름만 찾으면 import 줄이 잡히는 것(I01 때 겪은 모양), 렌더를 다른 부품으로 옮기면 통과하는 것
+- 남는 빚 아님(기록용): 화면마다 `loadTradingOverview` 를 한 번씩 부른다. 지식 화면이 신호·포지션까지 읽는 셈이라 낭비가 있지만, 쪼개려면 overview 를 나눠야 하고 그건 이 판의 일이 아니다
 
 ## 변경 이력
 - v0.1.0 (2026-09-27) 최초 작성 (ins_0117)
