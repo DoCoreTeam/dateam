@@ -67,7 +67,7 @@ test('키는 겹치지 않고, 값마다 언제부터 쓰는지와 근거가 적
       )
     }
   }
-  assert.ok(seen.size >= 39, '등재된 설정이 39개보다 적다')
+  assert.ok(seen.size >= 40, '등재된 설정이 40개보다 적다')
 })
 
 test('비밀값은 설정에 없다 (S3)', () => {
@@ -285,6 +285,7 @@ test('★ 안전 게이트 설정의 이름표 번호가 실제로 올리는 게
     gate_max_notify_failure_streak: 'SG-06',
     gate_max_unopened_signals: 'SG-07',
     gate_margin_tight_rate_percent: 'SG-09',
+    gate_price_limit_near_ticks: 'SG-11',
   }
   for (const s of TRADING_SETTINGS.filter((x) => x.group === 'safety')) {
     const id = RAISED[s.key]
