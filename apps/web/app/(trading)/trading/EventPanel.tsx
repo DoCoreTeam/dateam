@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from 'react'
 import { CalendarClock, Trash2 } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
 import { addTradingEvent, removeTradingEvent } from './actions'
@@ -79,9 +80,9 @@ export default function EventPanel({ rows, beforeMinutes, afterMinutes }: Props)
             onChange={(e) => setAt(e.target.value)}
           />
         </div>
-        <button type="button" className="btn" onClick={add} disabled={pending || name.trim() === '' || at === ''}>
+        <NbButton onClick={add} disabled={pending || name.trim() === '' || at === ''}>
           {pending ? '저장하는 중' : '이벤트 추가'}
-        </button>
+        </NbButton>
       </div>
 
       {message && (
@@ -112,16 +113,16 @@ export default function EventPanel({ rows, beforeMinutes, afterMinutes }: Props)
                   {formatKstDateTimeExact(row.occursAt)}
                 </span>
               </span>
-              <button
-                type="button"
-                className="btn-icon"
+              <NbButton
+                /* 목록 행의 삭제 — 채운 빨강은 행을 덮는다 */
+                variant="danger-ghost"
                 onClick={() => remove(row.id)}
                 disabled={pending}
                 aria-label={`${row.name} 삭제`}
                 title={`${row.name} 삭제`}
               >
                 <Trash2 size={14} />
-              </button>
+              </NbButton>
             </li>
           ))}
         </ul>

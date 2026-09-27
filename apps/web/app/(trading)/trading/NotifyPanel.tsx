@@ -9,6 +9,7 @@
 
 import { useState, useTransition } from 'react'
 import { BellOff, BellRing } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import type { NotifySummary, PositionRow } from '@/lib/trading/overview-shape'
 import { setNotifyEnabled } from './actions'
 
@@ -42,18 +43,17 @@ export default function NotifyPanel({ notify, position }: Props) {
 
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
         {notify.enabled ? (
-          <button type="button" className="btn btn-sm" disabled={pending} onClick={() => toggle(false)}>
+          <NbButton variant="secondary" disabled={pending} onClick={() => toggle(false)}>
             <BellOff size={14} /> 알림 끄기
-          </button>
+          </NbButton>
         ) : (
-          <button
-            type="button" className="btn btn-sm btn-primary"
+          <NbButton
             disabled={pending || !notify.canEnable}
             title={notify.canEnable ? undefined : notify.hint}
             onClick={() => toggle(true)}
           >
             <BellRing size={14} /> 알림 켜기
-          </button>
+          </NbButton>
         )}
       </div>
 

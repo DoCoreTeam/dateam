@@ -6,8 +6,8 @@
 // 실측 2026-09-27: 판단 0건·Jev 꺼짐이었는데 화면 어디에도 그 사실이 없었다.
 // 「아직 아무 일도 없다」와 「사람이 값을 넣어야 시작된다」가 같은 빈 화면으로 보였다.
 
-import Link from 'next/link'
 import { AlertTriangle } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import type { JevStatus } from '@/lib/trading/overview-shape'
 import {
   JEV_OFF_TITLE, JEV_OFF_REASON_LABEL, JEV_OFF_REMEDY_LABEL, JEV_OFF_CONSEQUENCE,
@@ -47,9 +47,9 @@ export default function JevPanel({ jev }: Props) {
         단추를 그려 두면 소유자가 눌러서 막히는 자리로 간다 — 그것은 길이 아니다
       */}
       {jev.reason === 'model_missing' && (
-        <Link href="/trading/settings" className="btn btn-sm">
+        <NbButton variant="secondary" href="/trading/settings">
           {TRADING_NAV_LABEL.settings}
-        </Link>
+        </NbButton>
       )}
     </section>
   )

@@ -8,6 +8,7 @@
 
 import { useState, useTransition } from 'react'
 import { Moon, MoonStar } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
@@ -67,18 +68,17 @@ export default function OperatorPanel({ operator }: { operator: OperatorSummary 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{operator.night.hint}</span>
         {operator.night.enabled ? (
-          <button type="button" className="btn btn-sm" disabled={pending} onClick={() => toggleNight(false)}>
+          <NbButton variant="secondary" disabled={pending} onClick={() => toggleNight(false)}>
             <Moon size={14} /> 야간 신호 끄기
-          </button>
+          </NbButton>
         ) : (
-          <button
-            type="button" className="btn btn-sm"
+          <NbButton
             disabled={pending || !operator.night.canEnable}
             title={operator.night.canEnable ? undefined : operator.night.hint}
             onClick={() => toggleNight(true)}
           >
             <MoonStar size={14} /> 야간 신호 켜기
-          </button>
+          </NbButton>
         )}
       </div>
 

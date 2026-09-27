@@ -9,6 +9,7 @@
 
 import { useState, useTransition } from 'react'
 import { ShieldCheck, ShieldOff } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
 import type { ArmingSummary } from '@/lib/trading/overview-shape'
 import { setAutoOrderArmed } from './actions'
@@ -66,18 +67,19 @@ export default function ArmingPanel({ arming }: { arming: ArmingSummary }) {
           {arming.disarmLeavesOrders ? ' · 해제해도 이미 낸 주문은 남습니다' : ''}
         </span>
         {arming.armed ? (
-          <button type="button" className="btn btn-sm" disabled={pending} onClick={() => toggle(false)}>
+          <NbButton variant="secondary" disabled={pending} onClick={() => toggle(false)}>
             <ShieldOff size={14} /> 해제
-          </button>
+          </NbButton>
         ) : (
-          <button
-            type="button" className="btn btn-sm"
+          <NbButton
+            /* 누르면 실주문이 나가기 시작한다 — 되돌리는 단추와 같은 색이면 안 된다 */
+            variant="danger"
             disabled={pending || !arming.canArm}
             title={arming.canArm ? undefined : arming.hint}
             onClick={() => toggle(true)}
           >
             <ShieldCheck size={14} /> 무장
-          </button>
+          </NbButton>
         )}
       </div>
 

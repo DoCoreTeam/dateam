@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { BellRing, BellOff, KeyRound } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import {
   PUSH_PANEL_TITLE, PUSH_WHY, PUSH_ON_LABEL, PUSH_OFF_LABEL,
   PUSH_SUBSCRIBE_LABEL, PUSH_UNSUBSCRIBE_LABEL, PUSH_MAKE_KEY_LABEL,
@@ -134,19 +135,19 @@ export default function PushPanel({ publicKey }: Props) {
 
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
         {!key && (
-          <button type="button" className="btn btn-sm" disabled={pending} onClick={makeKey}>
+          <NbButton disabled={pending} onClick={makeKey}>
             <KeyRound size={14} /> {PUSH_MAKE_KEY_LABEL}
-          </button>
+          </NbButton>
         )}
         {key && !on && (
-          <button type="button" className="btn btn-sm btn-primary" disabled={pending} onClick={subscribe}>
+          <NbButton disabled={pending} onClick={subscribe}>
             <BellRing size={14} /> {PUSH_SUBSCRIBE_LABEL}
-          </button>
+          </NbButton>
         )}
         {on && (
-          <button type="button" className="btn btn-sm" disabled={pending} onClick={unsubscribe}>
+          <NbButton variant="secondary" disabled={pending} onClick={unsubscribe}>
             <BellOff size={14} /> {PUSH_UNSUBSCRIBE_LABEL}
-          </button>
+          </NbButton>
         )}
       </div>
 

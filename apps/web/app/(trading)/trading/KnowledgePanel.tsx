@@ -10,6 +10,7 @@
 import { useState, useTransition } from 'react'
 import ListSurface from '@/components/ui/list/ListSurface'
 import RowActions from '@/components/ui/list/RowActions'
+import NbButton from '@/components/ui/nb/NbButton'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -57,12 +58,12 @@ export default function KnowledgePanel({ rows, progress }: Props) {
         if (!r.needsDecision) return null
         return (
           <RowActions inline={2} subject={r.title}>
-            <button type="button" className="btn btn-sm" disabled={pending} onClick={() => decide(r, true)}>
+            <NbButton disabled={pending} onClick={() => decide(r, true)}>
               받아들임
-            </button>
-            <button type="button" className="btn btn-sm" disabled={pending} onClick={() => decide(r, false)}>
+            </NbButton>
+            <NbButton variant="secondary" disabled={pending} onClick={() => decide(r, false)}>
               물림
-            </button>
+            </NbButton>
           </RowActions>
         )
       },
@@ -99,9 +100,9 @@ export default function KnowledgePanel({ rows, progress }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        <button type="button" className="btn btn-sm" disabled={pending || text.trim() === ''} onClick={addSource}>
+        <NbButton disabled={pending || text.trim() === ''} onClick={addSource}>
           자료 넣기
-        </button>
+        </NbButton>
       </div>
 
       {message && (

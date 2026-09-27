@@ -11,6 +11,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import ListSurface from '@/components/ui/list/ListSurface'
 import RowActions from '@/components/ui/list/RowActions'
+import NbButton from '@/components/ui/nb/NbButton'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
@@ -81,12 +82,12 @@ export default function SignalPanel({ rows, validMinutes, notifyEnabled, emitPro
               value={stopText[r.id] ?? ''}
               onChange={(e) => setStopText((prev) => ({ ...prev, [r.id]: e.target.value }))}
             />
-            <button
-              type="button" className="btn btn-sm" disabled={pending}
+            <NbButton
+              variant="secondary" disabled={pending}
               onClick={() => press(r, 'stop_reported')}
             >
               {ACK_LABEL.stop_reported}
-            </button>
+            </NbButton>
           </span>
         )
       },
@@ -97,18 +98,18 @@ export default function SignalPanel({ rows, validMinutes, notifyEnabled, emitPro
         if (!isSignalActionable(r, now, validMinutes)) return null
         return (
           <RowActions inline={2} subject={`${formatKstDateTimeExact(r.barCloseAt)} 신호`}>
-            <button
-              type="button" className="btn btn-sm" disabled={pending}
+            <NbButton
+              disabled={pending}
               onClick={() => press(r, 'ordered')}
             >
               {ACK_LABEL.ordered}
-            </button>
-            <button
-              type="button" className="btn btn-sm" disabled={pending}
+            </NbButton>
+            <NbButton
+              variant="secondary" disabled={pending}
               onClick={() => press(r, 'skipped')}
             >
               {ACK_LABEL.skipped}
-            </button>
+            </NbButton>
           </RowActions>
         )
       },
