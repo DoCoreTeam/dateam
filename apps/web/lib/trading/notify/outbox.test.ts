@@ -184,3 +184,53 @@ test('★ 유일 키 없이는 대기 표에 안 들어간다', () => {
     '유일 키가 없어도 넣는다 — 그러면 같은 알림이 매분 쌓인다')
   assert.ok(src.includes('dedupe_key: dedupeKey'), '유일 키를 안 적는다')
 })
+
+/**
+ * **대기 표가 실제로 밖으로 나가는가**
+ *
+ * 전에는 `flushNotifications` 가 행을 `sent` 로 적기만 했다. 신호가 났는데 사람에게는
+ * 아무 일도 안 일어나는 상태였고, 화면을 안 보고 있으면 그 신호는 지나갔다.
+ * 그래서 「보냈다고 적는 길」이 다시 생기는지를 센다.
+ */
+test('★ 보내지 않고 보냈다고 적는 길이 없다', () => {
+  const src = readFileSync(join(HERE, 'outbox.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('export async function flushNotifications'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+
+  assert.ok(body.includes('sendPush('), '실제로 보내지 않는다')
+  // 보내기 전에 성공을 적는 자리가 없어야 한다
+  assert.ok(body.indexOf('sendPush(') < body.indexOf("recordAttempt(row, { ok: true }"),
+    '보내기 전에 보냈다고 적는다')
+})
+
+test('★ 받을 기기가 0대면 보냈다고 안 적는다 — 조용한 성공이 고장을 감춘다', () => {
+  const src = readFileSync(join(HERE, 'outbox.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('export async function flushNotifications'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+
+  assert.ok(body.includes('devices.length === 0'), '기기가 없는 경우를 안 가른다')
+  assert.ok(body.includes("error: 'no_subscription'"), '기기가 없는데 그 사실을 행에 안 적는다')
+  assert.ok(body.includes("error: 'no_push_key'"), '열쇠가 없는데 그 사실을 행에 안 적는다')
+  // 「0건 보냄」과 「보낼 것이 없었다」와 「받을 기기가 없었다」가 다 달라야 한다
+  for (const reason of ['notify=nothing_due', 'notify=no_push_key', 'notify=no_device']) {
+    assert.ok(body.includes(reason), `${reason} 를 구분해 말하지 않는다`)
+  }
+})
+
+test('★ 죽은 기기는 지운다 — 영원히 재시도하지 않는다', () => {
+  const src = readFileSync(join(HERE, 'outbox.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('export async function flushNotifications'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+  assert.ok(body.includes('result.gone'), '404·410 을 안 가른다')
+  assert.ok(body.includes('deleteSubscription('), '죽은 기기를 안 지운다')
+})
+
+test('★ 실패해도 행은 남고 기존 재시도 정책을 지난다', () => {
+  const src = readFileSync(join(HERE, 'outbox.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('export async function flushNotifications'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+  // 실패 기록은 patchAfterFailure 를 지난다 — 거기 MAX_ATTEMPTS·BACKOFF 가 있다
+  assert.ok(body.includes("recordAttempt(row, { ok: false"), '실패를 안 적는다')
+  assert.equal(/\.delete\(\)[\s\S]{0,40}trading_notifications/.test(body), false,
+    '실패한 알림 행을 지운다 — 「안 왔다」와 「없었다」가 같아진다')
+})

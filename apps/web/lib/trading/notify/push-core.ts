@@ -6,8 +6,6 @@
  * 저쪽은 소스를 읽어 규율을 확인하고, 이쪽은 실제로 돌려 값을 확인한다.
  */
 
-import { createHash } from 'node:crypto'
-
 /** 푸시 규격은 `+ / =` 를 안 받는다. 그대로 보내면 서버가 400 을 준다 */
 export function toBase64Url(buf: Buffer): string {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -16,11 +14,6 @@ export function toBase64Url(buf: Buffer): string {
 export function fromBase64Url(value: string): Buffer {
   const pad = value.length % 4 === 0 ? '' : '='.repeat(4 - (value.length % 4))
   return Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/') + pad, 'base64')
-}
-
-/** 열쇠가 바뀌었는지 사람이 알아볼 수 있는 짧은 지문. **공개키만** 넣는다 */
-export function keyFingerprint(publicKey: string): string {
-  return createHash('sha256').update(publicKey).digest('hex').slice(0, 12)
 }
 
 /**

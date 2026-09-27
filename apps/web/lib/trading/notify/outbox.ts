@@ -18,6 +18,8 @@ import {
   decideSend, pickOrder, patchAfterSend, patchAfterFailure,
   type NotifyKind, type OutboxRow,
 } from './outbox-policy.ts'
+import { sendPush } from './web-push.ts'
+import { listSubscriptions, loadVapidKeys, deleteSubscription, recordSubscriptionOutcome } from './push-store.ts'
 
 export interface QueueInput {
   /** 신호에 딸린 알림이면 그 신호. 손절 확인·증거금 경고처럼 신호가 없으면 null */
@@ -144,29 +146,126 @@ export async function recordAttempt(row: OutboxRow, outcome: { ok: true } | { ok
   if (error) throw new Error(`알림 결과를 적지 못했습니다: ${error.message}`)
 }
 
+/** 대기 행의 본문. 정책은 `OutboxRow` 만 보고, 보내는 데는 이 값이 더 필요하다 */
+interface OutboxContent {
+  title: string
+  body: string
+  signalId: string | null
+}
+
+async function loadContents(ids: readonly string[]): Promise<Map<string, OutboxContent>> {
+  if (ids.length === 0) return new Map()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin
+    .from('trading_notifications').select('id, title, body, signal_id').in('id', [...ids])
+  if (error) throw new Error(`알림 본문을 읽지 못했습니다: ${error.message}`)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new Map(((data ?? []) as any[]).map((r) => [r.id as string, {
+    title: String(r.title ?? '알림'),
+    body: String(r.body ?? ''),
+    signalId: (r.signal_id as string | null) ?? null,
+  }]))
+}
+
+/** 급한 것은 사용자가 지울 때까지 화면에 남는다 (§10.2 우선순위 앞의 셋) */
+const URGENT_KINDS = new Set<NotifyKind>(['protection_breached', 'safety', 'daily_limit'])
+
+export interface FlushResult {
+  sent: number
+  failed: number
+  /**
+   * 왜 그렇게 됐나. **「0건 보냄」만 돌려주면 고장과 구분되지 않는다** —
+   * 보낼 것이 없었는지, 받을 기기가 없었는지, 열쇠가 없었는지가 다 다른 일이다.
+   */
+  reason: string
+}
+
 /**
- * 이 저장소에는 푸시 발송 장치가 없다.
+ * 대기 표를 비운다 — **실제로 기기로 보낸다.**
  *
- * 그래서 「보낸다」는 대기 표에 넣고 `sent` 로 표시하는 것까지고, 사람은 신호 화면에서 본다.
- * 장치가 생기면 여기만 바꾸면 된다 — 정책과 표는 그대로 쓴다.
+ * 전에는 이 함수가 행을 `sent` 로 적기만 했다. 그 말은 신호가 났는데 사람에게는
+ * 아무 일도 안 일어난다는 뜻이고, 화면을 안 보고 있으면 그 신호는 지나간다.
+ *
+ * 규율 셋:
+ *   ① 받을 기기가 0대면 **「보냈다」로 안 적는다.** 조용한 성공은 고장을 감춘다
+ *   ② 404·410 은 그 기기를 지운다. 죽은 주소에 영원히 재시도하지 않는다
+ *   ③ 한 대라도 성공하면 그 알림은 나간 것이다. 남은 기기의 실패는 기기 쪽에 적는다
  */
-export async function flushNotifications(now: Date): Promise<{ sent: number; failed: number }> {
+export async function flushNotifications(now: Date): Promise<FlushResult> {
   const rows = await pendingNotifications(now)
+  const due = rows.filter((row) => decideSend(row, now).send)
+  if (due.length === 0) return { sent: 0, failed: 0, reason: 'notify=nothing_due' }
+
+  const keys = await loadVapidKeys()
+  if (!keys) {
+    // 보낼 수 없다는 것을 **행에 적는다.** 안 적으면 다음 실행이 같은 것을 또 집고
+    // 화면에는 「대기 중」만 쌓인다
+    for (const row of due) {
+      await recordAttempt(row, { ok: false, error: 'no_push_key' }, now).catch(() => {})
+    }
+    return { sent: 0, failed: due.length, reason: `notify=no_push_key:${due.length}` }
+  }
+
+  const devices = await listSubscriptions()
+  if (devices.length === 0) {
+    for (const row of due) {
+      await recordAttempt(row, { ok: false, error: 'no_subscription' }, now).catch(() => {})
+    }
+    return { sent: 0, failed: due.length, reason: `notify=no_device:${due.length}` }
+  }
+
+  const contents = await loadContents(due.map((r) => r.id))
   let sent = 0
   let failed = 0
-  for (const row of rows) {
-    if (!decideSend(row, now).send) continue
-    try {
-      await recordAttempt(row, { ok: true }, now)
-      sent += 1
-    } catch (err) {
+  let removed = 0
+
+  for (const row of due) {
+    const content = contents.get(row.id)
+    if (!content) {
       failed += 1
-      try {
-        await recordAttempt(row, { ok: false, error: err instanceof Error ? err.message : String(err) }, now)
-      } catch {
-        // 결과조차 못 적었다. 행은 그대로 남아 다음 실행이 다시 집는다
+      await recordAttempt(row, { ok: false, error: 'content_missing' }, now).catch(() => {})
+      continue
+    }
+    let anyOk = false
+    let lastError = 'no_device'
+    for (const device of devices) {
+      const result = await sendPush({
+        target: { endpoint: device.endpoint, p256dh: device.p256dh, auth: device.auth },
+        payload: {
+          title: content.title,
+          body: content.body,
+          url: content.signalId ? `/trading?signal=${content.signalId}` : '/trading',
+          tag: row.kind,
+          urgent: URGENT_KINDS.has(row.kind),
+        },
+        keys,
+        now,
+      })
+      if (result.ok) {
+        anyOk = true
+        await recordSubscriptionOutcome(device.endpoint, { ok: true }, now).catch(() => {})
+        continue
       }
+      lastError = result.reason
+      if (result.gone) {
+        await deleteSubscription(device.endpoint).catch(() => {})
+        removed += 1
+        continue
+      }
+      await recordSubscriptionOutcome(device.endpoint, { ok: false, error: result.reason }, now).catch(() => {})
+    }
+
+    try {
+      if (anyOk) { await recordAttempt(row, { ok: true }, now); sent += 1 }
+      else { await recordAttempt(row, { ok: false, error: lastError }, now); failed += 1 }
+    } catch {
+      // 결과조차 못 적었다. 행은 그대로 남아 다음 실행이 다시 집는다
+      failed += 1
     }
   }
-  return { sent, failed }
+
+  const note = [`sent=${sent}`, `failed=${failed}`, `devices=${devices.length}`]
+  if (removed > 0) note.push(`removed=${removed}`)
+  return { sent, failed, reason: `notify=${note.join(',')}` }
 }

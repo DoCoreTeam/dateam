@@ -16,7 +16,7 @@ import 'server-only'
  *   ③ 기기 주소(`endpoint`)가 유일 키다. 같은 기기가 두 줄이면 알림이 두 번 간다(M9)
  */
 
-import { generateKeyPairSync, createPublicKey, createPrivateKey } from 'node:crypto'
+import { generateKeyPairSync } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { sealTradingSecret, openTradingSecret, canSealTradingSecret } from '../broker/crypto.ts'
 import { toBase64Url, rawPublicKeyFromSpki } from './push-core.ts'
@@ -216,13 +216,4 @@ export async function ensureVapidKeys(subject: string): Promise<EnsureKeysResult
     return { ok: false, reason: `key_save_failed:${error.message}`, userMessage: '알림 열쇠를 저장하지 못했습니다' }
   }
   return { ok: true, created: true, publicKey: publicKeyB64 }
-}
-
-/** PEM 을 서명에 쓸 수 있는 꼴로. 여기서만 비밀키를 만진다 */
-export function privateKeyFrom(pem: string) {
-  return createPrivateKey(pem)
-}
-
-export function publicKeyFrom(pem: string) {
-  return createPublicKey(pem)
 }

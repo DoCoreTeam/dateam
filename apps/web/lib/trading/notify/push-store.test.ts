@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { toBase64Url, fromBase64Url, keyFingerprint, rawPublicKeyFromSpki } from './push-core.ts'
+import { toBase64Url, fromBase64Url, rawPublicKeyFromSpki } from './push-core.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const MIGRATIONS = join(HERE, '..', '..', '..', '..', '..', 'supabase', 'migrations')
@@ -30,12 +30,6 @@ test('공개키는 압축 안 한 점만 받는다 — 아니면 브라우저가
   const bad = Buffer.concat([Buffer.alloc(26), Buffer.from([0x02]), Buffer.alloc(64)])
   assert.throws(() => rawPublicKeyFromSpki(bad))
   assert.throws(() => rawPublicKeyFromSpki(Buffer.alloc(10)))
-})
-
-test('지문은 같은 공개키에 같은 값이고 다른 키에 다른 값이다', () => {
-  assert.equal(keyFingerprint('BAAA'), keyFingerprint('BAAA'))
-  assert.notEqual(keyFingerprint('BAAA'), keyFingerprint('BAAB'))
-  assert.equal(keyFingerprint('BAAA').length, 12)
 })
 
 /* ── 보안 ──────────────────────────────────────────────── */

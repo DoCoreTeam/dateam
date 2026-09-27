@@ -245,7 +245,13 @@ export async function runWatch(input: WatchInput): Promise<WatchResult> {
       + `${gateHits.length > 0 ? `,gates=${sortGateHits(gateHits).map((h) => h.id).join('+')}` : ''}`
       + `${recovery.action === 'reconcile_once' ? ',recovered' : ''}`
       + `${needsHumanUnlock(positionState) ? ',locked_until_human' : ''}`
-      + `${alert ? `,top=${alert}` : ''}`,
+      + `${alert ? `,top=${alert}` : ''}`
+      /**
+       * **왜 안 나갔는지가 여기 남는다.**
+       * 「0건 보냄」만 남기면 보낼 것이 없었는지, 받을 기기가 없었는지,
+       * 열쇠가 없었는지가 다 같은 얼굴이 된다.
+       */
+      + `,${flushed.reason}`,
     ran: plan.run,
     deferred: plan.deferred,
     queued,
