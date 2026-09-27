@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  tabsFor, pairForModelKey, MODEL_PAIRS, NO_KEY_WHY, NO_KEY_HOW,
+  tabsFor, pairForModelKey, pickTroubles, MODEL_PAIRS, NO_KEY_WHY, NO_KEY_HOW,
 } from './model-pick.ts'
 import { TRADING_SETTINGS } from './registry.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
@@ -91,12 +91,131 @@ test('★ 키 원문이 목록 응답에 안 실린다 (S3)', () => {
   assert.equal(/apiKey:\s|apiKey\s*\}/.test(body), false, '키 값을 응답에 담는다')
 })
 
-test('★ 화면을 그리는 것만으로 표를 훑지 않는다', () => {
+/**
+ * **여기는 앞 판의 결정을 뒤집은 자리다.**
+ *
+ * 앞 판은 「창을 열 때만 묻는다」로 잠갔다. 표를 덜 훑자는 뜻이었고 그 자체는 맞다.
+ * 그런데 그 결과 「jev · gemini-3.6-flash」처럼 **채워져 있는데 안 도는** 상태가
+ * 창을 안 열면 영영 안 보였다(실측 2026-09-28: 판단 0건·신호 0건인데 화면은 멀쩡했다).
+ * 고장을 보려고 창을 열어야 한다면 그 화면은 고장을 숨기고 있는 것이다.
+ *
+ * 그래서 묻기는 하되 **한 번만** 묻는다 — 고르는 자리가 둘이라 마운트에서 같은 물음이
+ * 두 번 나가던 것을 진행 중인 하나로 합친다.
+ */
+test('★ 창을 안 열어도 묻되, 같은 물음이 두 번 안 나간다', () => {
   const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
   const at = field.indexOf('useEffect(')
   const body = field.slice(at, field.indexOf('}, [', at))
-  assert.ok(body.includes('if (!open || withKey !== null) return'),
-    '창을 안 열어도 목록을 읽는다 — 설정 화면을 열 때마다 표를 훑는다')
+  assert.equal(/\bopen\b/.test(body), false,
+    '창을 열어야만 묻는다 — 안 열면 막힌 것이 안 보인다')
+  assert.ok(body.includes('if (withKey !== null) return'), '한 번 읽고도 또 읽는다')
+  assert.ok(field.includes('askOnce()'), '자리마다 따로 물어 같은 물음이 두 번 나간다')
+  assert.ok(field.includes('inflight = null'), '진행 중인 물음을 안 비워 값이 굳는다')
+})
+
+/* ── 채워져 있는데 안 도는 것을 말한다 ────────────────── */
+
+const CATALOG = [
+  { provider: 'gemini', modelId: 'gemini-3.6-flash' },
+  { provider: 'gemini', modelId: 'gemini-3.6-pro' },
+  { provider: 'openai', modelId: 'gpt-5' },
+  { provider: 'jev', modelId: 'jev-small' },
+]
+
+test('★ 고른 공급자에 키가 없으면 그 사실과 키가 있는 공급자를 함께 말한다', () => {
+  const [t, ...rest] = pickTroubles({
+    provider: 'jev', model: 'jev-small',
+    withKey: ['gemini', 'groq', 'openai'], catalog: CATALOG,
+  })
+  assert.deepEqual(rest, [], '한 가지만 막혔는데 여러 줄을 말한다')
+  assert.equal(t.kind, 'provider_has_no_key')
+  assert.match(t.why, /키가 없어 판단을 못 부릅니다/)
+  assert.match(t.why, /jev/, '어느 공급자인지를 안 말한다')
+  // 갈 곳을 짚는다 — 「키가 없습니다」만으로는 무엇을 고를지 모른다
+  for (const id of ['gemini', 'groq', 'openai']) assert.match(t.how, new RegExp(id))
+})
+
+test('★ 공급자와 모델이 어긋나 있으면 그 사실을 말한다 (실측 jev · gemini-*)', () => {
+  const troubles = pickTroubles({
+    provider: 'jev', model: 'gemini-3.6-flash',
+    withKey: ['jev', 'gemini'], catalog: CATALOG,
+  })
+  assert.equal(troubles.length, 1)
+  assert.equal(troubles[0].kind, 'model_elsewhere')
+  assert.match(troubles[0].why, /gemini-3\.6-flash 모델이 없습니다/)
+  assert.match(troubles[0].how, /gemini/, '어느 공급자 것인지를 안 짚는다')
+  // 조사를 변수 뒤에 붙이지 않는다 — 영문 이름 뒤의 「이/가」는 반반씩 틀린다
+  for (const t of troubles) {
+    assert.equal(/[a-z0-9]\s?(이|가|을|를|은|는)\s/.test(`${t.why} ${t.how}`), false,
+      `영문 뒤에 조사를 붙였다: ${t.why} · ${t.how}`)
+  }
+})
+
+test('★ 키도 없고 모델도 어긋나면 둘 다 말한다 — 하나를 고쳐도 안 도는 일을 막는다', () => {
+  const troubles = pickTroubles({
+    provider: 'jev', model: 'gemini-3.6-flash',
+    withKey: ['gemini', 'openai'], catalog: CATALOG,
+  })
+  assert.deepEqual(troubles.map((t) => t.kind), ['provider_has_no_key', 'model_elsewhere'])
+})
+
+test('★ 어디에도 없는 이름은 「목록에 없다」로 말한다', () => {
+  const troubles = pickTroubles({
+    provider: 'gemini', model: 'gemini-9-turbo',
+    withKey: ['gemini'], catalog: CATALOG,
+  })
+  assert.equal(troubles[0].kind, 'model_unknown')
+  assert.match(troubles[0].why, /gemini-9-turbo/, '어느 이름이 없는지를 안 말한다')
+  assert.equal(/[a-z0-9]\s?(이|가)\s/.test(troubles[0].why), false, '영문 뒤에 조사를 붙였다')
+})
+
+test('★ 키가 아무 데도 없으면 그 하나만 말한다', () => {
+  const troubles = pickTroubles({
+    provider: 'jev', model: 'gemini-3.6-flash', withKey: [], catalog: CATALOG,
+  })
+  assert.deepEqual(troubles, [{ kind: 'no_provider_at_all', why: NO_KEY_WHY, how: NO_KEY_HOW }])
+})
+
+test('★ 모르는 것은 지어내지 않는다 — 목록을 못 읽었거나 안 골랐으면 모델 판정을 안 한다', () => {
+  assert.deepEqual(pickTroubles({ provider: 'gemini', model: 'gemini-3.6-flash', withKey: ['gemini'], catalog: [] }), [])
+  assert.deepEqual(pickTroubles({ provider: 'gemini', model: '', withKey: ['gemini'], catalog: CATALOG }), [])
+})
+
+test('★ 제대로 고른 자리는 아무 말도 안 한다 — 늘 뜨는 경고는 안 읽힌다', () => {
+  assert.deepEqual(pickTroubles({
+    provider: 'gemini', model: 'gemini-3.6-flash', withKey: ['gemini', 'openai'], catalog: CATALOG,
+  }), [])
+})
+
+test('★ 공급자 이름을 이 모듈이 정하지 않는다 — 표는 한 곳에만 둔다', () => {
+  const troubles = pickTroubles({
+    provider: 'jev', model: 'jev-small', withKey: ['gemini'], catalog: CATALOG,
+    providerName: (id) => (id === 'jev' ? '우리 관문' : id.toUpperCase()),
+  })
+  assert.match(troubles[0].why, /우리 관문/)
+  assert.match(troubles[0].how, /GEMINI/)
+
+  const src = readFileSync(join(HERE, 'model-pick.ts'), 'utf8')
+  assert.equal(/PROVIDER_LABELS|import /.test(src), false,
+    '순수 모듈이 표를 들여온다 — 이름이 두 곳에서 갈린다')
+})
+
+test('★ 화면이 이 판정을 실제로 그린다 — 창을 여닫는 것과 무관하게', () => {
+  const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
+  assert.ok(field.includes('pickTroubles({'), '판정을 안 부른다')
+  assert.ok(field.includes('troubles.map('), '판정을 부르고 안 그린다')
+  // 그리는 자리가 `open &&` 안에 있으면 창을 열어야만 보인다
+  const at = field.indexOf('troubles.map(')
+  const before = field.slice(Math.max(0, at - 200), at)
+  assert.equal(/\{open &&/.test(before), false, '열어야만 보이는 자리에 그린다')
+})
+
+test('★ 키 값이 들어올 자리가 애초에 없다 (S3)', () => {
+  const src = readFileSync(join(HERE, 'model-pick.ts'), 'utf8')
+  const at = src.indexOf('export interface ModelPickState')
+  const body = src.slice(at, src.indexOf('\n}', at))
+  assert.equal(/apiKey|secret|token/i.test(body), false, '입력 꼴에 비밀 자리가 있다')
+  assert.ok(body.includes('withKey: readonly string[]'), '있음·없음만 받는 자리가 없다')
 })
 
 /**

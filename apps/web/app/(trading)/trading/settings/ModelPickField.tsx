@@ -20,11 +20,26 @@ import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import type { AiChatProviderId } from '@/types/database'
 import { JUDGE_PROVIDERS } from '@/lib/trading/settings/registry'
 import {
-  tabsFor, MODEL_PICK, MODEL_NOT_PICKED, NO_KEY_WHY, NO_KEY_HOW,
+  tabsFor, pickTroubles, MODEL_PICK, MODEL_NOT_PICKED,
 } from '@/lib/trading/settings/model-pick'
 import { ACTION } from '@/lib/terms'
 import { listJudgeModels, savePickedModel } from './actions'
 import styles from './ModelPickField.module.css'
+
+/**
+ * **진행 중인 물음 하나를 나눠 쓴다.**
+ *
+ * 설정 화면에는 고르는 자리가 둘(판단·지식)이고, 둘 다 마운트에서 같은 것을 묻는다.
+ * 캐시가 아니라 겹침 방지다 — 끝나면 비우므로 다음 물음은 새로 나간다.
+ * 브라우저 탭 하나 안의 값이라 사용자끼리 섞이지 않는다.
+ */
+let inflight: ReturnType<typeof listJudgeModels> | null = null
+
+function askOnce(): ReturnType<typeof listJudgeModels> {
+  if (inflight) return inflight
+  inflight = listJudgeModels().finally(() => { inflight = null })
+  return inflight
+}
 
 interface Props {
   /** 공급자 설정 키. 모델과 함께 저장된다 */
@@ -44,6 +59,7 @@ export default function ModelPickField({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [withKey, setWithKey] = useState<string[] | null>(null)
+  const [catalog, setCatalog] = useState<{ provider: string; modelId: string }[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -52,19 +68,32 @@ export default function ModelPickField({
    * 부품이 관리자 서버 액션을 직접 부르면 소유자가 관리자가 아닌 날 통째로 막힌다.
    */
   const load = useCallback(async () => {
-    const r = await listJudgeModels()
+    const r = await askOnce()
     setWithKey(r.withKey ?? [])
+    setCatalog((r.items ?? []).map((i) => ({ provider: i.provider as string, modelId: i.modelId })))
     return r
   }, [])
 
-  // 창을 열 때만 어느 공급자에 키가 있는지 묻는다. 그려지는 것만으로 표를 훑지 않는다
+  /**
+   * **창을 열기 전에 묻는다.**
+   *
+   * 전에는 열 때만 물었다. 그래서 「jev · gemini-3.6-flash」처럼 **채워져 있는데 안 도는**
+   * 상태가 화면에서 정상과 똑같이 보였고, 창을 안 열면 영영 안 보였다(실측 2026-09-28).
+   * 고장을 보려고 창을 열어야 한다면 그 화면은 고장을 숨기고 있는 것이다.
+   */
   useEffect(() => {
-    if (!open || withKey !== null) return
+    if (withKey !== null) return
     void load()
-  }, [open, withKey, load])
+  }, [withKey, load])
 
   const tabs = tabsFor([...JUDGE_PROVIDERS], withKey ?? [])
   const noKey = withKey !== null && tabs.length === 0
+
+  /** 지금 고른 쌍이 실제로 돌 수 있나. 못 읽었으면 아무 말도 안 한다 */
+  const troubles = withKey === null ? [] : pickTroubles({
+    provider, model: current, withKey, catalog,
+    providerName: (id) => PROVIDER_LABELS[id as AiChatProviderId] ?? id,
+  })
 
   function handleSelect(picked: AiChatProviderId, model: string) {
     start(async () => {
@@ -90,12 +119,15 @@ export default function ModelPickField({
       </button>
       {message && <span role="status" className={styles.muted}>{message}</span>}
 
-      {/* 키가 하나도 없으면 고를 것이 없다 — 창을 열어 빈 목록을 보여 주는 대신 할 일을 적는다 */}
-      {open && noKey && (
-        <span role="status" className={styles.blocked}>
-          {`${NO_KEY_WHY} · ${NO_KEY_HOW}`}
+      {/*
+        막힌 곳은 **늘 보인다.** 창을 여닫는 것과 상관없다 —
+        열어야 보이는 고장은 안 보이는 고장과 같다
+      */}
+      {troubles.map((t) => (
+        <span key={t.kind} role="status" className={styles.blocked}>
+          {`${t.why} · ${t.how}`}
         </span>
-      )}
+      ))}
 
       {open && !noKey && (
         <ModelPickerModal

@@ -45,3 +45,89 @@ export function pairForModelKey(key: string): ModelPair | null {
 export function tabsFor(all: readonly string[], withKey: readonly string[]): string[] {
   return all.filter((id) => withKey.includes(id))
 }
+
+/* ── 지금 고른 쌍이 실제로 돌 수 있나 ─────────────────── */
+
+/**
+ * **고를 수 있는 것과 도는 것은 다르다.**
+ *
+ * 실측 2026-09-28: 판단 공급자가 `jev`, 판단 모델이 `gemini-3.6-flash` 로 저장돼 있었고
+ * `ai_provider_keys` 에 `jev` 키는 0개였다(gemini 4 · groq 1 · openai 1). 화면에는
+ * 「jev · gemini-3.6-flash」가 멀쩡히 적혀 있었고, 판단은 한 건도 안 남았다.
+ * 값이 비어 있으면 사람이 알아채지만 **채워져 있는데 안 도는 것**은 아무도 못 본다.
+ *
+ * 그래서 고른 자리가 스스로 말한다 — 창을 열지 않아도.
+ */
+export type ModelPickTroubleKind =
+  /** 키가 등록된 공급자가 하나도 없다 */
+  | 'no_provider_at_all'
+  /** 고른 공급자에 키가 없다 */
+  | 'provider_has_no_key'
+  /** 그 모델은 다른 공급자 것이다 */
+  | 'model_elsewhere'
+  /** 고른 공급자의 목록에 그 이름이 없다 */
+  | 'model_unknown'
+
+export interface ModelPickTrouble {
+  kind: ModelPickTroubleKind
+  /** 무엇이 막혔나 */
+  why: string
+  /** 무엇을 하면 풀리나 */
+  how: string
+}
+
+export interface ModelPickState {
+  provider: string
+  model: string
+  /**
+   * 키가 등록된 공급자. **값이 아니라 있음·없음만** 온다 —
+   * 비밀을 개수로만 답하는 규칙이 여기서 끝나야 화면까지 안 샌다
+   */
+  withKey: readonly string[]
+  /** 고를 수 있는 모델. 못 읽었으면 빈 배열이고, 그때는 아무 판정도 안 한다 */
+  catalog: readonly { provider: string; modelId: string }[]
+  /** 공급자를 사람이 부르는 이름으로. 표를 이 모듈에 두지 않는다 */
+  providerName?: (id: string) => string
+}
+
+export function pickTroubles(s: ModelPickState): ModelPickTrouble[] {
+  const name = s.providerName ?? ((id: string) => id)
+
+  // 아무 데도 키가 없으면 그것 하나만 말한다. 나머지는 그 뒤의 이야기다
+  if (s.withKey.length === 0) {
+    return [{ kind: 'no_provider_at_all', why: NO_KEY_WHY, how: NO_KEY_HOW }]
+  }
+
+  const out: ModelPickTrouble[] = []
+
+  if (!s.withKey.includes(s.provider)) {
+    out.push({
+      kind: 'provider_has_no_key',
+      why: `${name(s.provider)}에 키가 없어 판단을 못 부릅니다`,
+      how: `키가 있는 공급자: ${s.withKey.map(name).join(', ')}`,
+    })
+  }
+
+  // 아직 안 골랐거나 목록을 못 읽었으면 **지어내지 않는다** — 모르는 것은 모르는 것이다
+  if (s.model === '' || s.catalog.length === 0) return out
+
+  const here = s.catalog.some((c) => c.provider === s.provider && c.modelId === s.model)
+  if (here) return out
+
+  const elsewhere = [...new Set(s.catalog.filter((c) => c.modelId === s.model).map((c) => c.provider))]
+  if (elsewhere.length > 0) {
+    out.push({
+      kind: 'model_elsewhere',
+      /** 조사를 변수 뒤에 안 붙인다 — 모델 이름은 영문이라 「이/가」가 반반씩 틀린다 */
+      why: `${name(s.provider)}에는 ${s.model} 모델이 없습니다`,
+      how: `이 모델은 ${elsewhere.map(name).join(', ')} 쪽에 있습니다. 공급자를 바꾸거나 다른 모델을 고르세요`,
+    })
+  } else {
+    out.push({
+      kind: 'model_unknown',
+      why: `${name(s.provider)}의 모델 목록에 없는 이름입니다 (${s.model})`,
+      how: '모델 고르기에서 다시 골라 주세요',
+    })
+  }
+  return out
+}
