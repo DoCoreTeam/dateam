@@ -131,7 +131,7 @@ function TaskRow({ task, today, nameMap, deptNameMap, showDept }: {
   const assignee = task.assignee_user_id ? nameMap[task.assignee_user_id] ?? '—' : '미지정'
   const dept = task.department_id ? deptNameMap[task.department_id] ?? '' : ''
   return (
-    <li className="home-dept-row">
+    <li>
       <Link href={`/dept-tasks?selected=${task.id}`} className="home-dept-row-link">
         <span className="home-dept-due" style={{ color: DUE_TONE_COLOR[due.tone] }}>{due.text}</span>
         <span className="home-dept-title">{task.content}</span>

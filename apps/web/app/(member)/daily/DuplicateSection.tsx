@@ -86,7 +86,7 @@ export function DuplicateSection({ groupLogs, pool }: DuplicateSectionProps) {
                   <>
                     <button
                       type="button"
-                      className="dup-btn dup-btn-ignore"
+                      className="dup-btn"
                       onClick={() => dismiss(pair.key)}
                       disabled={isPending}
                     >

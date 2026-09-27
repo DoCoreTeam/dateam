@@ -269,7 +269,14 @@ test('★ 서랍 배지는 서버가 센다 — 클라이언트가 세면 접힌
 })
 
 test('★ 홈 인사말은 compact — 가장 안 눌리는 자리가 가장 컸다', () => {
-  const head = HOME.slice(HOME.indexOf('home-section-header'), HOME.indexOf('home-section-calendar'))
+  /**
+   * **부품 이름을 짚는다.** 예전엔 `home-section-header` 라는 **아무것도 안 꾸미는 클래스**를
+   * 본문 자르는 표식으로 썼다 — 그 이름을 지우자 이 가드가 깨졌다(2026-09-28).
+   * 표식으로 쓰인 이름은 지울 수 없는 이름이 되고, 다음 사람은 왜 못 지우는지 모른다.
+   */
+  const at = HOME.indexOf('<PageHeader')
+  assert.ok(at > 0, '홈에 공용 머리글 부품이 없다')
+  const head = HOME.slice(at, HOME.indexOf('/>', at))
   assert.match(head, /page-header--compact/, '인사말이 다시 두 줄 밀도로 돌아갔다(실측 84px)')
 })
 

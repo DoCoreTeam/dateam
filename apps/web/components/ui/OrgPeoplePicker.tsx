@@ -110,7 +110,7 @@ export default function OrgPeoplePicker({ people, tree, existingIds, onConfirm, 
       .filter(Boolean)
     if (!showHead && childEls.length === 0) return null // 실제로 표시할 사람이 없는 브랜치 생략
     return (
-      <div key={node.id} className="oap-branch">
+      <div key={node.id}>
         <div className="oap-branch-head" style={{ paddingLeft: `calc(var(--space-2) + ${depth} * var(--space-4))` }}>
           <ChevronRight size={13} className="oap-branch-icon" /> {node.name}
         </div>
@@ -128,14 +128,12 @@ export default function OrgPeoplePicker({ people, tree, existingIds, onConfirm, 
   return (
     <div
       className="oap-backdrop"
-      style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
         className="oap-card"
-        style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-modal)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="oap-head">

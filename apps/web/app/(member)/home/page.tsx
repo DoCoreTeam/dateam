@@ -104,7 +104,7 @@ export default async function HomePage() {
           두 줄로 84px 를 먹어 그리드 시작을 화면의 40.8% 까지 밀어냈다(실측 v0.7.617).
           오늘 날짜는 캘린더가 이미 강조해 보여 준다 — 제목 옆 한 줄로 붙인다.
         */}
-        <div className="home-section-header">
+        <div>
           <PageHeader
             className="page-header--compact"
             title={`안녕하세요, ${displayName}님`}
@@ -158,7 +158,7 @@ export default async function HomePage() {
           * 지금은 `/calendar` 와 **같은 보드**다(부품 하나 · §재사용·단일구현).
           * 날짜를 누르면 그 날의 작업대가 열리고 거기서 미팅·일정·할 일을 바로 시작한다.
           */}
-        <div className="home-section-calendar">
+        <div>
           <Suspense fallback={<AXDotLoader />}>
             <CalendarBoard basePath="/home" compact />
           </Suspense>

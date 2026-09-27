@@ -5,6 +5,7 @@
 // 목록 표준(§2-6)으로 옮겼다: 세 표를 ListSurface 한 벌로 그리고, 요청 로그는 ListPager가 넘긴다.
 // 화면 조건(기간·프로바이더)은 URL이 진실이다 — 새로고침·링크 공유에서 같은 화면이 나와야 한다.
 
+import NbButton from '@/components/ui/nb/NbButton'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { TrendingUp, Activity, Database, AlertTriangle, DollarSign, ExternalLink } from 'lucide-react'
@@ -235,9 +236,9 @@ export default function AiUsageDashboard({
     {
       key: 'edit', header: '상한', align: 'right',
       cell: (u) => (
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(u)}>
+        <NbButton variant="secondary" onClick={() => setEditing(u)}>
           {u.limit ? '바꾸기' : '정하기'}
-        </button>
+        </NbButton>
       ),
     },
   ]
@@ -577,10 +578,10 @@ function BudgetEditor({ usage, onClose }: { usage: FeatureUsage; onClose: () => 
         {error && <p role="alert" style={{ margin: 0, color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>취소</button>
-          <button type="button" className="btn btn-primary" onClick={submit} disabled={saving}>
+          <NbButton variant="secondary" onClick={onClose} disabled={saving}>취소</NbButton>
+          <NbButton onClick={submit} disabled={saving}>
             {saving ? '저장 중…' : '저장'}
-          </button>
+          </NbButton>
         </div>
       </div>
     </div>
