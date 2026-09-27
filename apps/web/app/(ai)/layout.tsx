@@ -36,8 +36,8 @@ const NAV_GROUPS: NavGroup[] = AI_NAV_GROUPS.map((g) => ({
     href: it.href,
     label: it.label,
     icon: NAV_ICON[it.href] ?? <Sparkles size={16} />,
-    // 「채팅」은 섹션 루트라 exact 로 둔다 — 안 그러면 /ai/* 어디서나 켜져 있다
-    exact: it.href === '/ai',
+    // 어디가 섹션 루트인지는 목록이 정한다 — 여기서 href 를 박으면 목록과 화면이 갈라진다
+    exact: it.exact === true,
     match: aiNavMatchPaths(it).slice(1),
   })),
 }))

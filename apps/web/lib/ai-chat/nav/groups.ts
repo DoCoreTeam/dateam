@@ -19,6 +19,11 @@ export interface AiNavItem {
   label: string
   /** 이 경로 아래에 있어도 이 자리가 켜져 있어야 한다 — 안 그러면 내가 어디 있는지 사라진다 */
   match?: string[]
+  /**
+   * 경로가 정확히 같을 때만 켠다. 섹션 루트에만 붙인다 — 없으면 그 아래 **모든 화면**에서
+   * 이 자리가 같이 켜져 「홈이 항상 활성」으로 보인다.
+   */
+  exact?: boolean
 }
 
 export interface AiNavGroup {
@@ -38,7 +43,7 @@ export const AI_NAV_GROUPS: readonly AiNavGroup[] = [
     label: '대화',
     items: [
       // 대화 목록·공유 링크는 전부 이 화면의 갈래다
-      { href: '/ai', label: '채팅', match: ['/ai/shared'] },
+      { href: '/ai', label: '채팅', match: ['/ai/shared'], exact: true },
       { href: '/ai/projects', label: '프로젝트' },
     ],
   },

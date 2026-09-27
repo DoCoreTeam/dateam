@@ -11,6 +11,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { read, stripComments } from './component-scan.ts'
 import { NAV_LABEL, SERVICE_NAV, EXIT_TO_MAIN, SIDEBAR_GROUP_LINKS } from '../nav/menu.ts'
+import { isNavActive, type NavMatchable } from './nav-active.ts'
+import { TRADING_NAV } from '../trading/nav/groups.ts'
+import { AI_NAV_GROUPS } from '../ai-chat/nav/groups.ts'
+import { RFP_NAV_GROUPS } from '../rfp/nav/groups.ts'
+import { CRM_NAV_GROUPS } from '../crm/nav/groups.ts'
 
 const MEMBER_LAYOUT = 'app/(member)/layout.tsx'
 const QUICKNAV = 'components/ui/QuickNav.tsx'
@@ -44,6 +49,68 @@ test('하위 서비스는 전부 메인 사이드바에 있다 (N-1)', () => {
     SERVICE_NAV.map((s) => s.href),
     `「서비스」 묶음이 서비스 표와 갈렸습니다(§2-3-3 N-1)`,
   )
+})
+
+/**
+ * **섹션 루트가 하위 화면에서 같이 켜지지 않는다 (N-5)**
+ *
+ * 왜 생겼나 (사용자 지적 2026-09-28: 「왼쪽 메뉴중 현황에는 계속 색이 들어가 있네?」):
+ * `isNavActive` 는 접두어로 맞춘다. 그래서 `/trading` 은 `/trading/settings` 에서도 켜졌고
+ * AI 트레이딩은 일곱 화면 중 여섯에서 「현황」이 같이 켜져 있었다.
+ *
+ * `exact` 라는 장치는 **이미 있었다.** `/ai`·`/rfp`·`/ci` 는 쓰고 있었고 트레이딩만 안 달았다.
+ * 규칙이 글로만 있으면 새 셸이 그것을 모른다 — 그래서 목록을 기계가 본다.
+ *
+ * **글자가 아니라 판정을 본다.** `exact: true` 가 적혀 있는지가 아니라 `isNavActive` 를 실제로
+ * 불러 「다른 줄의 화면에서 이 줄이 켜지나」를 묻는다. 적어 두고 안 넘기는 것을 잡으려면
+ * 값이 가는지를 봐야 한다.
+ */
+const NAV_LISTS: readonly { name: string; items: readonly NavMatchable[] }[] = [
+  { name: 'AI 트레이딩', items: TRADING_NAV },
+  { name: 'AI 채팅', items: AI_NAV_GROUPS.flatMap((g) => g.items) },
+  { name: '제안서', items: RFP_NAV_GROUPS.flatMap((g) => g.items) },
+  // 영업 CRM 의 사이드바 줄은 묶음 자신이다 (묶음 안의 tabs 는 탭바라 축이 다르다)
+  { name: '영업 CRM', items: CRM_NAV_GROUPS },
+]
+
+test('★ 섹션 루트는 하위 화면에서 같이 켜지지 않는다 (N-5)', () => {
+  const bad: string[] = []
+  for (const { name, items } of NAV_LISTS) {
+    for (const item of items) {
+      for (const other of items) {
+        if (other.href === item.href) continue
+        // 다른 줄의 화면을 열었을 때 이 줄이 같이 켜지면 어디 있는지가 사라진다
+        if (isNavActive(other.href, item)) bad.push(`${name}: ${other.href} 에서 ${item.href} 가 같이 켜진다`)
+      }
+    }
+  }
+  assert.deepEqual(bad, [],
+    `섹션 루트에 exact 가 없습니다 — 그 아래 모든 화면에서 계속 켜져 있습니다:\n  ${bad.join('\n  ')}`)
+})
+
+/**
+ * **목록이 정한 exact 가 화면까지 간다.**
+ *
+ * 위 시험은 **목록**만 본다. 그래서 목록에 `exact: true` 를 적어 두고 셸이 그 값을 안 넘겨도
+ * 초록이었다 — 이 가드를 만들며 일부러 깨뜨려 보고 알았다(2026-09-28).
+ * 「선언만 하고 안 넘긴다」는 이 저장소가 여러 번 반복한 결함이라 그 자리를 따로 잠근다.
+ *
+ * 함께 막는 것 하나 더: 레이아웃에서 `it.href === '/ai'` 처럼 박으면 목록을 고쳐도
+ * 화면이 안 따라오고, 새 셸은 그런 줄이 있는지도 모른다.
+ */
+test('★ 레이아웃은 목록이 정한 exact 를 그대로 넘긴다 (N-5)', () => {
+  const layouts = ['app/(ai)/layout.tsx', 'app/(rfp)/layout.tsx', 'app/(trading)/layout.tsx']
+  const hardcoded: string[] = []
+  const notPassed: string[] = []
+  for (const f of layouts) {
+    const src = stripComments(read(f))
+    if (/exact:\s*[A-Za-z_$][\w$]*\.href\s*===/.test(src)) hardcoded.push(f)
+    // 목록 항목의 exact 를 **읽는** 자리가 있어야 한다. `exact: true` 를 셸이 직접 적는 것은
+    // 목록을 안 읽은 것이므로 통과시키지 않는다
+    if (!/\.exact\b/.test(src)) notPassed.push(f)
+  }
+  assert.deepEqual(hardcoded, [], `레이아웃이 exact 를 href 비교로 정합니다 — 목록이 정해야 합니다: ${hardcoded.join(', ')}`)
+  assert.deepEqual(notPassed, [], `목록의 exact 를 셸이 안 넘깁니다 — 목록만 맞고 화면은 그대로입니다: ${notPassed.join(', ')}`)
 })
 
 test('나가는 문은 한 자리에만 있다 (N-2)', () => {

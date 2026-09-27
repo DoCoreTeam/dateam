@@ -14,6 +14,11 @@ export interface RfpNavItem {
   label: string
   /** 이 경로 아래에 있어도 이 자리가 켜져 있어야 한다 */
   match?: string[]
+  /**
+   * 경로가 정확히 같을 때만 켠다. 섹션 루트에만 붙인다 — 없으면 그 아래 **모든 화면**에서
+   * 이 자리가 같이 켜져 「홈이 항상 활성」으로 보인다.
+   */
+  exact?: boolean
   /** 관리자만 보이는 자리 */
   adminOnly?: boolean
 }
@@ -34,7 +39,7 @@ export const RFP_NAV_GROUPS: readonly RfpNavGroup[] = [
   {
     label: '분석',
     items: [
-      { href: '/rfp', label: RFP_NAV.cases, match: ['/rfp/cases'] },
+      { href: '/rfp', label: RFP_NAV.cases, match: ['/rfp/cases'], exact: true },
       { href: '/rfp/new', label: RFP_NAV.newCase },
       { href: '/rfp/assistant', label: RFP_NAV.assistant },
     ],

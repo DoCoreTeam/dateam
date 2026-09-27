@@ -16,6 +16,14 @@ export interface TradingNavItem {
   label: string
   /** 이 자리를 켜 둘 추가 경로. 하위 화면에 들어가도 사이드바에서 자리를 잃지 않게 */
   match?: readonly string[]
+  /**
+   * 경로가 정확히 같을 때만 켠다.
+   *
+   * 섹션 루트(`/trading`)는 이것 없이는 `/trading/settings` 에서도 켜진다 — 접두어로 맞추기
+   * 때문이다. 실제로 일곱 화면 중 여섯에서 「현황」이 같이 켜져 있었다
+   * (사용자 지적 2026-09-28: 「왼쪽 메뉴중 현황에는 계속 색이 들어가 있네?」).
+   */
+  exact?: boolean
 }
 
 /**
@@ -29,7 +37,7 @@ export interface TradingNavItem {
  * 항목이 둘뿐인 묶음에 이름을 붙이면 이름이 항목보다 많아진다(§2-3-3 N-3).
  */
 export const TRADING_NAV: readonly TradingNavItem[] = [
-  { href: '/trading', label: TRADING_NAV_LABEL.overview },
+  { href: '/trading', label: TRADING_NAV_LABEL.overview, exact: true },
   { href: '/trading/judgments', label: TRADING_NAV_LABEL.judgments },
   { href: '/trading/validation', label: TRADING_NAV_LABEL.validation },
   { href: '/trading/operations', label: TRADING_NAV_LABEL.operations },

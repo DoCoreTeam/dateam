@@ -58,8 +58,8 @@ export default async function RfpLayout({ children }: { children: React.ReactNod
       href: it.href,
       label: it.label,
       icon: NAV_ICON[it.href] ?? <FileSearch size={16} />,
-      // 「케이스」는 섹션 루트라 exact 로 둔다 — 안 그러면 /rfp/* 어디서나 켜져 있다
-      exact: it.href === '/rfp',
+      // 어디가 섹션 루트인지는 목록이 정한다 — 여기서 href 를 박으면 목록과 화면이 갈라진다
+      exact: it.exact === true,
       match: rfpNavMatchPaths(it).slice(1),
     })),
   }))

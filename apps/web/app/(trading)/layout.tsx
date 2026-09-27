@@ -52,6 +52,8 @@ const NAV_ITEMS: NavItem[] = TRADING_NAV.map((n) => ({
   // 빠뜨린 그림은 오류처럼 안 보이고 그 줄만 조용히 빈다 — 기본값을 둬 빈 칸을 안 만든다
   icon: NAV_ICON[n.href] ?? <FileText size={16} />,
   ...(n.match ? { match: [...n.match] } : {}),
+  // 선언만 하고 안 넘기면 목록은 맞는데 화면은 그대로다 — 값이 가는지를 가드가 본다
+  ...(n.exact ? { exact: true } : {}),
 }))
 
 export default async function TradingShellLayout({ children }: { children: React.ReactNode }) {
