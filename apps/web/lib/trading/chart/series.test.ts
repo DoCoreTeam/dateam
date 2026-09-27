@@ -27,6 +27,7 @@ const BARS = [
 const SIGNAL = {
   id: 'sig-1', direction: 'long' as const, barCloseAt: '2026-09-28T00:02:00.000Z',
   referencePrice: 404, stopPrice: 396, targetPrice: 412, calibratedProb: 0.61,
+  netExpectedValueR: 0.32,
 }
 
 /* ── 있을 때 ──────────────────────────────────────────── */
@@ -38,6 +39,13 @@ test('봉과 신호가 한 벌로 나온다', () => {
   assert.equal(s.blocked, null, '그릴 것이 있는데 막혔다고 말한다')
   assert.equal(s.marks[0].direction, 'long')
   assert.equal(s.marks[0].prob, 0.61)
+  // 기대값은 평균표가 정한 값을 그대로 옮긴다 — 여기서 공식으로 짓지 않는다 (§7.5 D-10)
+  assert.equal(s.marks[0].evR, 0.32)
+  assert.equal(
+    buildSeries({ bars: BARS, signals: [{ ...SIGNAL, netExpectedValueR: null }], lastRunReason: null }).marks[0].evR,
+    null,
+    '못 잰 기대값을 0 으로 채우면 「본전이 기대된다」가 된다',
+  )
 })
 
 test('봉은 오래된 것부터 선다 — 표에서 거꾸로 와도', () => {
@@ -59,6 +67,26 @@ test('시각을 못 읽는 봉도 안 그린다', () => {
     bars: [{ startAt: 'not-a-time', open: 1, high: 1, low: 1, close: 1 }], signals: [], lastRunReason: null,
   })
   assert.deepEqual(s.bars, [])
+})
+
+test('★ 표식이 설 봉을 여기서 한 번만 정한다 — 신호 시각은 봉이 닫힌 때다', () => {
+  // 00:02 봉은 00:03 에 닫힌다. 그 신호는 00:02 봉 위에 서야 한다
+  const s = buildSeries({
+    bars: BARS,
+    signals: [{ ...SIGNAL, barCloseAt: '2026-09-28T00:03:00.000Z' }],
+    lastRunReason: null,
+  })
+  assert.equal(s.marks[0].barAt, '2026-09-28T00:03:00.000Z')
+  const mid = buildSeries({
+    bars: BARS,
+    signals: [{ ...SIGNAL, barCloseAt: '2026-09-28T00:02:30.000Z' }],
+    lastRunReason: null,
+  })
+  assert.equal(mid.marks[0].barAt, '2026-09-28T00:02:00.000Z', '봉 안의 시각이 다음 봉으로 튀었다')
+  // 정한 자리는 반드시 실재하는 봉이다 — 없는 눈금에 찍으면 표식이 조용히 사라진다
+  for (const m of [...s.marks, ...mid.marks]) {
+    assert.ok(s.bars.some((b) => b.at === m.barAt), `없는 봉 위에 찍는다: ${m.barAt}`)
+  }
 })
 
 test('봉 구간 밖의 신호는 안 찍는다 — 화면 밖의 표식은 거짓말이다', () => {
@@ -167,6 +195,50 @@ test('★ 창구를 새로 안 연다 (S2) — 서버 컴포넌트가 직접 읽
   const page = readFileSync(join(WEB, TRADING_APP_DIR, 'page.tsx'), 'utf8')
   assert.equal(/'use server'/.test(page), false, '현황이 서버 액션을 새로 연다')
   assert.match(stripComments(page), /loadTradingOverview\(/, '현황이 서버에서 직접 안 읽는다')
+})
+
+/* ── 화면 ─────────────────────────────────────────────── */
+
+const PANEL = join(WEB, TRADING_APP_DIR, 'ChartPanel.tsx')
+
+test('★ 현황 맨 위가 그림이다', () => {
+  const page = stripComments(readFileSync(join(WEB, TRADING_APP_DIR, 'page.tsx'), 'utf8'))
+  const at = page.indexOf('<ChartPanel')
+  assert.ok(at > 0, '현황이 그림 칸을 안 그린다')
+  for (const other of ['<JevPanel', '<SignalPanel', '<PositionPanel', '<NotifyPanel', '<PushPanel']) {
+    const o = page.indexOf(other)
+    assert.ok(o > at, `${other} 이 그림보다 위에 있다 — 그림을 보려고 표를 지나야 한다`)
+  }
+  // 봉·신호·사유를 다 넘긴다. 하나라도 빠지면 그 자리가 조용히 빈다
+  const props = page.slice(at, page.indexOf('/>', at))
+  for (const need of ['chart={overview.chart}', 'signals={overview.signals}', 'emitProgress={overview.emitProgress}']) {
+    assert.ok(props.includes(need), `${need} 를 안 넘긴다`)
+  }
+})
+
+test('★ recharts 는 잘라서 불러온다 — 현황 첫 화면 비용에 안 얹는다', () => {
+  const src = stripComments(readFileSync(PANEL, 'utf8'))
+  assert.equal(/^\s*import\s[^\n]*from\s*'recharts'/m.test(src), false,
+    '맨 위에서 통째로 들여온다 — 봉이 0건인 날에도 차트 묶음이 내려간다')
+  assert.match(src, /import\('recharts'\)/, '잘라서 불러오는 자리가 없다')
+})
+
+test('★ 봉이 0건이면 빈 차트를 안 그리고 막힌 곳을 말한다', () => {
+  const src = stripComments(readFileSync(PANEL, 'utf8'))
+  assert.match(src, /chart\.bars\.length === 0/, '봉이 없는 날을 안 가른다')
+  assert.match(src, /가격 봉이 아직 없습니다/, '왜 비었는지를 안 말한다')
+  assert.match(src, /chart\.blocked/, 'I04 가 준 사유를 안 쓴다')
+  // 빈 자리는 공용 부품이 그린다 — 화면마다 자작하면 생김새가 갈린다 (§2-5)
+  assert.match(src, /<EmptyState/, '빈 상태를 자작했다')
+  // 그림을 그리는 자리는 봉이 있을 때만 닿는다
+  const empty = src.indexOf('chart.bars.length === 0')
+  assert.ok(src.indexOf('<PriceChart') > empty, '봉이 0건이어도 그림을 그린다')
+})
+
+test('★ 없는 값을 0 으로 안 적는다', () => {
+  const src = stripComments(readFileSync(PANEL, 'utf8'))
+  assert.match(src, /UNKNOWN_TEXT/, '못 잰 기대값을 0 으로 적으면 「본전이 기대된다」가 된다')
+  assert.match(src, /아직 판단이 없습니다/, '판단이 없는 날 빈 칸만 남는다')
 })
 
 test('★ 순수하다 — 읽기도 시각도 없다', () => {

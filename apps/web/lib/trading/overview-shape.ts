@@ -53,6 +53,12 @@ export interface SignalRow {
   userReportedStop: number | null
   /** 보정 확률. 없으면 이 신호는 안 나갔어야 한다(M3) */
   calibratedProb: number | null
+  /**
+   * 순 기대값(R). **못 쟀으면 null 이고 0 이 아니다** —
+   * 0 은 「본전이 기대된다」는 사실이라 그것을 보고 사람은 들어가도 된다고 읽는다.
+   * 값은 평균표가 정한다(§7.5 D-10). 화면이 공식으로 지어내지 않는다
+   */
+  netExpectedValueR: number | null
 }
 
 /** 네 구간 지연 한 줄. 못 잰 건수가 같이 온다 — 0 으로 채우면 「우리는 빠르다」가 된다 */

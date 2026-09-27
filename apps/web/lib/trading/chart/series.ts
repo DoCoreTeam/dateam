@@ -32,6 +32,12 @@ export interface ChartBar {
 export interface ChartMark {
   signalId: string
   at: string
+  /**
+   * **어느 봉 위에 서나.** 신호 시각은 봉이 닫힌 때(`bar_close_at`)라
+   * 봉이 시작한 때와 1분 어긋난다. 그 어긋남을 화면이 각자 맞추게 두면
+   * 표식이 화면마다 한 칸씩 다른 자리에 선다 — 여기서 한 번만 정한다
+   */
+  barAt: string
   direction: 'long' | 'short'
   /** 그때 우리가 본 값 */
   price: number
@@ -39,6 +45,8 @@ export interface ChartMark {
   targetPrice: number
   /** 보정 확률. 없으면 이 신호는 안 나갔어야 한다 */
   prob: number | null
+  /** 순 기대값(R). 평균표가 정한 값이고, 못 쟀으면 null 이다 */
+  evR: number | null
 }
 
 export interface ChartSeries {
@@ -86,6 +94,7 @@ export interface SeriesInput {
     stopPrice: number
     targetPrice: number
     calibratedProb: number | null
+    netExpectedValueR: number | null
   }[]
   /**
    * 가장 최근 실행이 남긴 사유. **화면이 따로 판정하지 않는다** —
@@ -120,11 +129,13 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     .map((s) => ({
       signalId: s.id,
       at: s.barCloseAt,
+      barAt: barUnder(bars, Date.parse(s.barCloseAt)),
       direction: s.direction,
       price: s.referencePrice,
       stopPrice: s.stopPrice,
       targetPrice: s.targetPrice,
       prob: s.calibratedProb,
+      evR: s.netExpectedValueR,
     }))
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
 
@@ -133,6 +144,19 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     ...marks.flatMap((m) => [m.price, m.stopPrice, m.targetPrice].filter((v) => Number.isFinite(v))),
   ]
   return { bars, marks, domain: axisDomain(Math.min(...values), Math.max(...values)), blocked: null }
+}
+
+/**
+ * 그 시각을 담는 봉. 신호는 봉이 **닫힌** 때를 적으므로 그 봉은
+ * 시작 시각이 그보다 **앞**인 마지막 봉이다.
+ */
+function barUnder(bars: readonly ChartBar[], at: number): string {
+  let found = bars[0].at
+  for (const b of bars) {
+    if (Date.parse(b.at) > at) break
+    found = b.at
+  }
+  return found
 }
 
 /**

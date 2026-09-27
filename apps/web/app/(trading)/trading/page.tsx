@@ -9,6 +9,7 @@
 
 import { CandlestickChart } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
+import ChartPanel from './ChartPanel'
 import SignalPanel from './SignalPanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
@@ -45,6 +46,16 @@ export default async function TradingPage() {
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+        {/*
+          **맨 위가 그림이다.** 사용자 지적 2026-09-28 「차트 보이고 예측한 답은
+          어디서 보는 거야? 그게 메인이어야 될 텐데」 — 숫자 표를 먼저 세우면
+          가격이 어디로 갔는지를 보려고 표 두 개를 눈으로 맞춰야 한다
+        */}
+        <ChartPanel
+          chart={overview.chart}
+          signals={overview.signals}
+          emitProgress={overview.emitProgress}
+        />
         {/* 꺼져 있을 때만 그린다. 켜져 있으면 이 자리가 없다 */}
         <JevPanel jev={overview.jev} />
         <SignalPanel

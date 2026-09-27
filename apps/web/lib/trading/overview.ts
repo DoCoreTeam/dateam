@@ -214,7 +214,8 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
   const { data: signalRows, error: signalError } = await admin
     .from('trading_signals')
     .select('id, contract_code, direction, reference_price, stop_price, target_price, bar_close_at,'
-      + ' notify_sent_at, opened_at, ack_at, order_at, fill_at, result, user_reported_stop, calibrated_prob')
+      + ' notify_sent_at, opened_at, ack_at, order_at, fill_at, result, user_reported_stop, calibrated_prob,'
+      + ' net_expected_value_r')
     .order('bar_close_at', { ascending: false })
     .limit(20)
   if (signalError) throw new Error(`신호를 읽지 못했습니다: ${signalError.message}`)
@@ -237,6 +238,9 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
       ? null : Number(row.user_reported_stop),
     calibratedProb: row.calibrated_prob === null || row.calibrated_prob === undefined
       ? null : Number(row.calibrated_prob),
+    // 못 쟀으면 null 이다. 0 으로 채우면 「본전이 기대된다」는 사실이 되어 버린다
+    netExpectedValueR: row.net_expected_value_r === null || row.net_expected_value_r === undefined
+      ? null : Number(row.net_expected_value_r),
   }))
 
   /**
