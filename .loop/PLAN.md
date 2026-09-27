@@ -1,0 +1,191 @@
+# PLAN newAX: 트레이딩이 막힌 곳을 말하고 차트로 답을 보여 준다
+플랜 ID: P0080
+플랜 버전: v0.1.3
+상태: 진행중
+지시: ins_0137
+목표 버전: v0.10.634
+작성: 2026-09-27
+시작 커밋: cdde98de
+
+## 목표
+- 왜 아무것도 안 나오는지를 화면이 그 자리에서 말한다 — 봉이 0건인 것, 고른 판단 모델의 공급자에 키가 없는 것
+- 예측한 답을 차트 위에서 본다 — 현황 맨 위에 가격과 신호가 함께 뜨고 스스로 다시 읽는다
+- 왼쪽 메뉴가 지금 보는 화면만 켠다
+- 운영 화면이 기계 말을 그대로 안 찍고 가로로 안 터진다
+- 시작하기가 채울 값을 채우기 전에 고칠 수 있다
+
+## 범위 밖
+- 봉이 안 들어오는 원인 자체를 고치는 것 (증권사 응답 kis_APAC0071 은 KIS 쪽 코드이고 우리 코드에 없음, 이번 판은 「막혔다는 사실을 화면이 말하게」까지)
+- 판단기 교체·검증 관문 기준 (지금 값 그대로 둠)
+- 차트에 지표선을 얹는 것 (봉이 쌓인 뒤에 정함)
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 통과
+- 왼쪽 메뉴에서 「현황」이 /trading 에서만 켜진다
+- 운영 「최근 실행」에 기계 원문이 안 뜨고 카드가 가로로 안 넘친다
+- 현황 맨 위에 차트 자리가 있고, 그릴 것이 없으면 왜 없는지를 그 자리가 말한다
+- 현황이 새로고침 없이 스스로 다시 읽는다
+- 시작하기 미리보기의 값 여섯을 그 자리에서 고쳐 채울 수 있다
+- 창구를 새로 안 연다 — 서버 액션·API 라우트 추가 0건
+
+## 참조
+- 실측 2026-09-28 trading_bars 0행, trading_judgments 0건, trading_signals 0건
+- 실측 2026-09-28 오늘 유효값 jev_provider=jev · jev_model=gemini-3.6-flash, ai_provider_keys 에 jev 키 0개 (gemini 4 · groq 1 · openai 1)
+- 실측 2026-09-28 최근 실행 사유 bar_not_ready|bar_retry=2/2,still_missing|fills_failed:kis:kis_APAC0071|broker=failed, 2시간 안 120건 중 6건 http_500
+- components/ui/MobileShell.tsx:44 isNavActive 는 접두어로 맞춘다, exact 를 켠 곳은 app/(ci)/layout.tsx 하나
+- recharts 는 이미 깔려 있고 쓰는 곳은 app/admin/ai-usage/AiUsageDashboard.tsx 하나
+
+## 항목
+
+### I01 현황이 자기 화면에서만 켜진다
+상태: 통과
+모드: 경량
+범위: lib/ui/nav-active.ts (신규), components/ui/MobileShell.tsx, lib/trading/nav/groups.ts, app/(trading)/layout.tsx, lib/ai-chat/nav/groups.ts, app/(ai)/layout.tsx, lib/rfp/nav/groups.ts, app/(rfp)/layout.tsx, lib/ui/nav-standard.test.ts
+감사 기준:
+- 활성 판정이 순수 모듈에 있고 화면 부품이 그것을 부른다 (규칙을 옮겨 적지 않음)
+- 사이드바 목록 넷(트레이딩·AI 채팅·제안서·영업 CRM) 어디에도 다른 줄의 화면에서 같이 켜지는 줄이 없다 — 글자가 아니라 isNavActive 를 실제로 불러 단정
+- 어디가 섹션 루트인지는 목록이 정한다 — 레이아웃이 href 비교로 박지 않고 목록의 exact 를 읽어 넘긴다
+- 일부러 깨뜨려 셋을 확인한다: 목록의 exact 제거 · 셸이 안 넘김 · 레이아웃이 href 를 박음
+의존: 없음
+
+### I01a 주석 지우개가 열세 벌이다
+상태: 통과
+모드: 경량
+범위: lib/ui/component-scan.ts, lib/ui/component-scan.test.ts (신규), lib/ui/css-defined.test.ts, lib/crm/auth/capabilities-gate.test.ts, lib/crm/domain/pipeline.test.ts, lib/policy/rfp-layer-guard.test.ts, lib/policy/trading-knowledge-guard.test.ts, lib/policy/trading-no-order-guard.test.ts, lib/policy/trading-operator-guard.test.ts, lib/policy/trading-order-guard.test.ts, lib/policy/trading-signal-order-guard.test.ts, lib/policy/trading-wiring-guard.test.ts, app/develop/page.tsx, app/(ci)/ci/studio/StudioView.tsx, app/(member)/lead-intake/LeadIntakeForm.tsx, apps/web/package.json
+감사 기준:
+- stripComments 가 한 곳에만 있고 나머지 가드가 그것을 들여온다 — 남기는 둘(SQL 주석·저장소 루트 스크립트)은 사유와 함께 목록에 적고, 그 밖의 사본이 생기면 가드가 잡는다
+- 합친 판이 옛 판보다 정확하다: 문자열 안의 //, 정규식 안의 역따옴표, 줄을 넘는 템플릿을 안 헷갈리고 자리를 공백으로만 바꿔 줄 수와 위치를 보존한다
+- 그 함수를 쓰는 가드 전부가 여전히 통과한다 (pnpm test 실패 0, 총 시험 수는 줄지 않음)
+- 가드가 정확해지며 드러난 기존 위반을 같은 판에서 고친다 (숨어 있던 것을 다시 숨기지 않음)
+- 시험이 등재되고 일부러 깨뜨려 셋을 확인한다: 사본 추가 · 정규식 건너뛰기 제거 · 문자열 상태 무시
+의존: I01
+
+### I02 운영 화면이 사람 말을 하고 가로로 안 터진다
+상태: 통과
+모드: 경량
+범위: lib/trading/operator/run-reason.ts (신규), lib/trading/operator/run-reason.test.ts (신규), app/(trading)/trading/RecentRuns.tsx, apps/web/package.json
+감사 기준:
+- bar_not_ready·broker=failed·still_missing·http_500 같은 표식이 사람 말 한 줄로 바뀐다 (순수 함수, 모르는 표식은 버리지 않고 접어 둔다)
+- 원문은 사라지지 않는다 — 펼치면 보이고, 펼친 자리도 긴 글자가 줄바꿈된다 (overflow-wrap)
+- 최근 실행 카드가 가로로 안 넘친다 (긴 사유 한 줄을 넣어도 컨테이너 폭 안)
+- pnpm test 에 등재되고 총 시험 수가 늘어난다
+의존: 없음
+
+### I03 판단 모델 고르는 자리가 키 없는 공급자를 말한다
+상태: 통과
+모드: 경량
+범위: app/(trading)/trading/settings/actions.ts, lib/trading/settings/model-pick.ts, app/(trading)/trading/settings/ModelPickField.tsx, lib/trading/settings/model-pick.test.ts
+감사 기준:
+- 고른 공급자에 쓸 수 있는 키가 0개면 그 자리가 「이 공급자에 키가 없어 판단을 못 부릅니다」를 말하고, 키가 있는 공급자를 함께 알려 준다
+- 공급자와 모델이 어긋난 채로 저장돼 있으면 (공급자 jev · 모델 gemini-*) 그 사실을 말한다
+- 키 개수만 읽고 키 값은 화면으로 안 내려간다 (보안: 새 창구 없음, 서비스롤 안 씀, 비밀은 개수로만 답함 — 있는지 없는지를 넘는 정보를 안 줌)
+- 관문은 그대로 tradingAccess 다 (보안: 소유자 확인이 창구 첫 줄에 남아 있음)
+의존: 없음
+
+### I04 봉과 신호를 현황이 함께 읽는다
+상태: 통과
+모드: 경량
+범위: lib/trading/overview.ts, lib/trading/overview-shape.ts, lib/trading/chart/series.ts (신규), lib/trading/chart/series.test.ts (신규), apps/web/package.json
+감사 기준:
+- 현황이 최근 봉과 그 구간의 신호를 함께 읽어 한 벌로 내려준다 (봉 0건이면 빈 배열과 막힌 사유를 함께)
+- 막힌 사유는 최근 실행에서 뽑는다 — 화면이 따로 판정하지 않는다 (I02 의 같은 함수를 씀)
+- 봉을 화면 좌표로 바꾸는 일이 순수 모듈 한 곳에 있다 (같은 변환을 두 벌 안 적음)
+- 창구를 새로 안 연다 — 서버 컴포넌트가 직접 읽는다 (보안: 새 라우트·서버 액션 0건, 관문은 (trading) 레이아웃이 이미 들고 있음)
+- pnpm test 에 등재되고 총 시험 수가 늘어난다
+의존: I02
+
+### I05 현황 맨 위에 차트와 지금 예측
+상태: 통과
+모드: 경량
+범위: app/(trading)/trading/ChartPanel.tsx (신규), app/(trading)/trading/ChartPanel.module.css (신규), app/(trading)/trading/page.tsx, lib/trading/overview-shape.ts, lib/trading/overview.ts, lib/trading/chart/series.ts, lib/trading/chart/series.test.ts
+감사 기준:
+- 현황 맨 위가 차트다 — 가격 봉과 그 위의 신호 표식(롱·숏)이 한 그림에 있다
+- 가장 최근 예측이 큰 글자로 그 옆에 선다 (방향·확률·기대값, 없으면 「아직 판단이 없습니다」와 그 이유)
+- 기대값은 지어내지 않는다 — trading_signals.net_expected_value_r 에 적힌 값을 읽고, 안 적혔으면 못 쟀다고 말한다 (공식으로 계산하면 명세 D-10 위반)
+- 봉이 0건이면 빈 차트를 안 그리고 막힌 곳을 말한다 (「가격 봉이 아직 없습니다」 + I04 가 준 사유)
+- recharts 는 잘라서 불러온다 (dynamic import, 현황을 처음 여는 비용에 안 얹음)
+- 없는 클래스 0개 (css-defined 가드 통과)
+의존: I04
+
+### I06 현황이 스스로 다시 읽는다
+상태: 통과
+모드: 경량
+범위: app/(trading)/trading/LiveRefresh.tsx (신규), app/(trading)/trading/page.tsx, lib/trading/settings/registry.ts
+감사 기준:
+- 현황이 정해진 간격마다 스스로 다시 읽는다 (router.refresh, 기본 간격은 설정값이고 env 추가 없음)
+- 탭이 뒤에 있으면 안 읽는다 (document.hidden 확인, 안 보는 화면을 위해 서버를 두드리지 않음)
+- 다시 읽는 중임을 화면이 말한다 — 마지막으로 읽은 시각이 뜬다
+- 간격 설정이 설정 화면의 묶음에 뜨고 값마다 저장된다
+의존: I05
+
+### I07 시작하기가 채우기 전에 고칠 수 있다
+상태: 통과
+모드: 경량
+범위: app/(trading)/trading/settings/StartPanel.tsx, app/(trading)/trading/settings/StartPanel.module.css, lib/trading/settings/onboarding.ts, app/(trading)/trading/settings/actions.ts
+감사 기준:
+- 미리보기 표의 값 여섯을 그 자리에서 고칠 수 있고, 고친 값으로 「이대로 채우기」가 간다
+- 고치면 한 번에 잃을 수 있는 금액이 다시 계산돼 같은 화면에서 바뀐다
+- 손 댄 값에는 표식이 붙어 계산된 값과 구분된다 (직접 답한 값 표식과 같은 꼴)
+- 저장은 기존 창구를 그대로 지난다 — 서버 액션 추가 0건 (보안: 새 창구 없음, 값 검증은 기존 저장기가 이미 함)
+의존: 없음
+
+### I08 종합 감사와 업데이트 내역
+상태: 통과
+모드: 경량
+범위: apps/web/lib/changelog/entries.ts, .loop/PLAN.md
+감사 기준:
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 네 개 전부 통과 (결과를 PLAN.md 에 적음)
+- LOOP.md 7절 「기계가 세는 것」 다섯 줄을 실제로 실행하고 결과가 전부 0
+- 시작 커밋부터 HEAD 까지의 diff 에 범위 밖 변경·비밀 없음
+- 사용자 체감 변경이 entries.ts 맨 위 이번 버전 블록에 적힌다
+의존: I01, I02, I03, I05, I06, I07
+
+## 종합 감사
+실행 2026-09-28, 시작 커밋 cdde98de .. HEAD v0.10.641
+
+### 넷 다 돌렸다
+- `pnpm tsc --noEmit` 통과 (오류 0)
+- `pnpm lint` 통과 (오류 0, 경고 6은 이 판 전부터 있던 것)
+- `pnpm test` 통과 — 8116/8116, 실패 0 (시작 8057 → 8116, +59)
+- `NEXT_DIST_DIR=.next-loop pnpm build` 통과 — Compiled successfully in 77s, 295쪽 생성, 오류 0
+  (dev 서버가 `.next` 를 쓰고 있어 따로 낸 자리에서 빌드했다)
+
+### 완료 정의 한 줄씩
+- 왼쪽 메뉴에서 「현황」이 /trading 에서만 켜진다 — I01, 실브라우저에서 /trading/settings 에 있을 때 현황이 안 켜진 것을 확인
+- 운영 「최근 실행」에 기계 원문이 안 뜨고 카드가 가로로 안 넘친다 — 실측 390px 에서 카드 scrollWidth=clientWidth(356=356), 넘치는 요소 0개
+- 현황 맨 위에 차트 자리가 있고, 그릴 것이 없으면 왜 없는지를 그 자리가 말한다 — 실데이터(봉 0건)에서 「가격 봉이 아직 없습니다 · 봉을 2번까지 다시 물었지만 안 들어왔습니다」
+- 현황이 새로고침 없이 스스로 다시 읽는다 — 35초 지켜보니 1회 다시 읽고 줄이 「오전 06:44에 읽었습니다」로 바뀜, 탭을 숨기면 12초 동안 0회
+- 시작하기 미리보기의 값 여섯을 그 자리에서 고쳐 채울 수 있다 — 고칠 수 있는 칸 6개, 한도를 500,000 → 1,200,000 으로 고치니 「5번분」 → 「12번분」
+- 창구를 새로 안 연다 — 새 API 라우트 0개, `'use server'` 새 파일 0개, 설정 서버 액션 수 8 → 8 (previewStart 는 인자만 늘었고 새 창구가 아니다)
+
+### 보안 다섯 줄 (LOOP.md 7절)
+`psql -f docs/policy/security-count.sql` 실행 결과, 전부 0
+
+| 세는 것 | 결과 |
+|---|---|
+| RLS 꺼진 public 표 | 0 |
+| anon 이 INSERT/UPDATE/DELETE/TRUNCATE 권한을 가진 표 | 0 |
+| TO public 에 USING (true) 인 정책 | 0 |
+| search_path 가 안 박힌 SECURITY DEFINER 함수 | 0 |
+| anon 이 읽을 수 있는 SECURITY DEFINER 뷰 | 0 |
+
+### 전체 diff
+`git diff cdde98de..HEAD --stat` 52개 파일, +2372 / -173
+- 범위 밖 변경 없음 — 바뀐 파일이 전부 I01~I07 의 범위이거나 버전 파일 다섯이다
+  (항목 범위를 넘어간 파일 넷은 각 항목 pass 기록에 사유를 적었다:
+   LiveRefresh.module.css · registry.test.ts · start-labels.ts · onboarding.test.ts)
+- 비밀 없음 — 추가된 줄에 키·토큰·비밀번호 꼴 0건
+
+### 부수 확인
+- recharts 를 자른 것이 실제로 먹었다: `/trading` 첫 화면 JS 120 kB,
+  recharts 를 맨 위에서 들여오는 `/admin/ai-usage` 는 226 kB
+- 사용자 체감 변경 여섯 줄을 `apps/web/lib/changelog/entries.ts` v0.10.641 블록에 적었다
+
+## 변경 이력
+- v0.1.0 (2026-09-28) 최초 작성 (ins_0137)
+- v0.1.1 (2026-09-28) 활성 판정이 화면 부품 안에 숨어 있어 가드가 부를 수 없었다, 순수 모듈로 빼고 같은 결함을 가진 셸 셋을 함께 범위에 넣음. 더해서 「어디가 섹션 루트인가」를 레이아웃이 href 로 박고 있어 목록 쪽으로 옮김 (audit:I01)
+- v0.1.2 (2026-09-28) 앞 판이 css-defined 에 stripComments 를 새로 적었는데 component-scan 에 이미 같은 이름의 함수가 있었다, 합치는 항목을 I01 뒤에 끼움 (audit:I01)
+- v0.1.3 (2026-09-28) 세어 보니 두 벌이 아니라 열세 벌이었고 규칙이 셋으로 갈려 있었다, 범위를 그 전부로 넓힘. 합친 판이 정규식 안의 역따옴표에 속아 몇 줄을 건너뛰던 것도 같은 판에서 고치고, 가드가 정확해지며 드러난 기존 위반 셋(「—」)을 함께 고치도록 기준을 더함 (audit:I01a)
+- v0.1.1 (2026-09-27) 활성 판정을 순수 모듈로 빼고 같은 결함을 가진 셸 셋을 I01 범위에 넣음, 주석 지우개가 두 벌인 것을 고치는 I01a 를 끼움 (audit:I01)
+- v0.1.2 (2026-09-27) 사본이 두 벌이 아니라 열세 벌이고 규칙이 셋으로 갈려 있어 범위를 전부로 넓힘, 합치며 드러난 기존 위반 셋도 같은 판에서 고치도록 기준을 더함 (audit:I01a)
+- v0.1.3 (2026-09-27) 기대값을 화면에 세우려는데 SignalRow 에 그 칸이 없었다. 값은 이미 trading_signals.net_expected_value_r 에 적혀 있고 현황이 안 읽고 있던 것뿐이라, 읽어 오는 자리 셋(overview-shape·overview·chart/series)을 I05 범위에 넣음. 공식으로 계산하는 길은 명세 D-10 이 막고 있어 안 만든다 (audit:I05)
