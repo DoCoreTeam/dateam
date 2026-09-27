@@ -135,6 +135,67 @@ test('★ 고른 공급자에 키가 없으면 그 사실과 키가 있는 공�
   for (const id of ['gemini', 'groq', 'openai']) assert.match(t.how, new RegExp(id))
 })
 
+/**
+ * **키가 없는 것과 이 판에서 안 쓰는 것은 다른 일이다** (실측 2026-09-28)
+ *
+ * Jev 키(`vck_…`)가 등록돼 있는데 화면은 「키가 없어 판단을 못 부릅니다」를 말했다.
+ * 둘을 같은 말로 뭉치면 **이미 키를 넣은 사람이 키를 또 넣는다.**
+ */
+test('★ 키는 있는데 이 판에서 안 쓰는 것을 「키가 없다」로 말하지 않는다', () => {
+  const troubles = pickTroubles({
+    provider: 'jev', model: 'jev-small',
+    withKey: ['gemini'], catalog: CATALOG,
+    keyState: { jev: 'env_blocked', gemini: 'pool' },
+    envBlockedText: '이 판에 쓸 키를 따로 등록해 주세요',
+  })
+  assert.equal(troubles[0].kind, 'provider_key_not_for_this_env')
+  assert.equal(/키가 없/.test(troubles[0].why), false, `이미 넣은 키를 또 넣으라고 한다: ${troubles[0].why}`)
+  assert.match(troubles[0].how, /따로 등록/)
+
+  // 진짜로 없는 것은 그대로 「키가 없다」다
+  const missing = pickTroubles({
+    provider: 'jev', model: 'jev-small',
+    withKey: ['gemini'], catalog: CATALOG,
+    keyState: { jev: 'no_key', gemini: 'pool' },
+  })
+  assert.equal(missing[0].kind, 'provider_has_no_key')
+  assert.match(missing[0].why, /키가 없어/)
+})
+
+test('★ 사유를 안 주면 예전처럼 둘로만 본다 — 안 주는 자리가 깨지지 않는다', () => {
+  const troubles = pickTroubles({ provider: 'jev', model: 'jev-small', withKey: ['gemini'], catalog: CATALOG })
+  assert.equal(troubles[0].kind, 'provider_has_no_key')
+})
+
+test('★ 창구가 공급자별 사유를 내려 주고 화면이 그것을 쓴다', () => {
+  const actions = readFileSync(join(SETTINGS_DIR, 'actions.ts'), 'utf8')
+  const at = actions.indexOf('export async function listJudgeModels')
+  const body = actions.slice(at, actions.indexOf('\n}\n', at))
+  assert.ok(body.includes('keyState[id] = choice.reason'), '사유를 안 옮긴다')
+  // 키 값은 여전히 안 싣는다
+  assert.equal(/apiKey:\s|apiKey\s*\}/.test(body), false, '키 값을 응답에 담는다')
+
+  const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
+  assert.ok(field.includes('keyState'), '화면이 사유를 안 읽는다')
+  assert.ok(body.includes('envBlockedMessage: ENV_BLOCKED_MESSAGE'), '이 판 문장을 안 실어 보낸다')
+  assert.ok(field.includes('envBlockedText'), '화면이 그 문장을 안 쓴다')
+  /**
+   * 화면이 이 모듈을 **값으로** 들여오면 그 안의 동적 import 가 server-only 를 끌고 와
+   * 설정 화면이 통째로 500 이 된다 (실측 2026-09-28). 형만 들여온다.
+   */
+  assert.equal(/^import \{[^}]*\} from '@\/lib\/ai\/provider-key-source'/m.test(field), false,
+    '화면이 키 고르는 모듈을 값으로 들여온다 — 빌드가 server-only 로 죽는다')
+})
+
+test('★ 고를 수 있는 탭에는 실제로 부를 수 있는 공급자만 선다', () => {
+  // withKey 는 apiKey 가 실제로 나온 공급자만 담는다 — env_blocked 는 안 담긴다
+  const actions = readFileSync(join(SETTINGS_DIR, 'actions.ts'), 'utf8')
+  const at = actions.indexOf('export async function listJudgeModels')
+  const body = actions.slice(at, actions.indexOf('\n}\n', at))
+  assert.ok(body.includes('if (choice.apiKey) withKey.push(id)'), '부를 수 없는 공급자도 탭에 세운다')
+  assert.deepEqual(tabsFor(['gemini', 'jev'], ['gemini']), ['gemini'])
+})
+
 test('★ 공급자와 모델이 어긋나 있으면 그 사실을 말한다 (실측 jev · gemini-*)', () => {
   const troubles = pickTroubles({
     provider: 'jev', model: 'gemini-3.6-flash',

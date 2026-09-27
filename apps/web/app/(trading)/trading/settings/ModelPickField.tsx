@@ -22,6 +22,12 @@ import { JUDGE_PROVIDERS } from '@/lib/trading/settings/registry'
 import {
   tabsFor, pickTroubles, MODEL_PICK, MODEL_NOT_PICKED,
 } from '@/lib/trading/settings/model-pick'
+/**
+ * **형만 들여온다.** 이 모듈을 값으로 들여오면 그 안의 `import('./key-store.ts')` 가
+ * 클라이언트 묶음으로 끌려 들어가 빌드가 「server-only 를 화면에서 부른다」로 죽는다
+ * (실측 2026-09-28, 설정 화면이 500 이 됐다). 문장은 창구가 실어 보낸다.
+ */
+import type { KeyChoice } from '@/lib/ai/provider-key-source'
 import { ACTION } from '@/lib/terms'
 import { listJudgeModels, savePickedModel } from './actions'
 import styles from './ModelPickField.module.css'
@@ -59,6 +65,8 @@ export default function ModelPickField({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [withKey, setWithKey] = useState<string[] | null>(null)
+  const [keyState, setKeyState] = useState<Record<string, KeyChoice['reason']>>({})
+  const [envBlockedText, setEnvBlockedText] = useState<string | undefined>(undefined)
   const [catalog, setCatalog] = useState<{ provider: string; modelId: string }[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -70,6 +78,8 @@ export default function ModelPickField({
   const load = useCallback(async () => {
     const r = await askOnce()
     setWithKey(r.withKey ?? [])
+    setKeyState(r.keyState ?? {})
+    setEnvBlockedText(r.envBlockedMessage)
     setCatalog((r.items ?? []).map((i) => ({ provider: i.provider as string, modelId: i.modelId })))
     return r
   }, [])
@@ -91,8 +101,10 @@ export default function ModelPickField({
 
   /** 지금 고른 쌍이 실제로 돌 수 있나. 못 읽었으면 아무 말도 안 한다 */
   const troubles = withKey === null ? [] : pickTroubles({
-    provider, model: current, withKey, catalog,
+    provider, model: current, withKey, catalog, keyState,
     providerName: (id) => PROVIDER_LABELS[id as AiChatProviderId] ?? id,
+    // 「이 판에서는 운영 키를 안 쓴다」는 문장은 키를 고르는 자리 한 곳에만 있다
+    envBlockedText,
   })
 
   function handleSelect(picked: AiChatProviderId, model: string) {

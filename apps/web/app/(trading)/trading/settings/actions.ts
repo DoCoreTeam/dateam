@@ -38,6 +38,7 @@ import {
   fillFrom, riskView, raisesLossLimit, filledNumber,
   type Answers, type FilledValue, type RiskView, type StartOverrides,
 } from '@/lib/trading/settings/onboarding'
+import { ENV_BLOCKED_MESSAGE, type KeyChoice } from '@/lib/ai/provider-key-source'
 import { computeRisk } from '@/lib/trading/risk/arithmetic'
 import { loadInstrumentSpec } from '@/lib/trading/settings/store'
 
@@ -197,6 +198,20 @@ export async function listJudgeModels(): Promise<{
   items?: ModelCatalogItem[]
   /** 키가 등록된 공급자. 화면이 없는 키의 탭을 안 세운다 */
   withKey?: string[]
+  /**
+   * 공급자마다 **왜** 쓸 수 있나 없나. `resolveProviderKey` 의 사유를 그대로 옮긴다.
+   *
+   * 있음·없음 둘로만 답하면 「키가 없다」와 「키는 있는데 이 판에서는 운영 키를 안 쓴다」가
+   * 같은 말이 된다. 조치가 정반대다 — 앞은 키를 넣어야 하고 뒤는 이미 넣은 키가 맞다.
+   * 키 값은 안 싣는다. 이 표에 실리는 것은 사유 글자뿐이다 (S3)
+   */
+  keyState?: Record<string, KeyChoice['reason']>
+  /**
+   * 「이 판에서는 운영 키를 안 씁니다」를 뭐라고 말하나.
+   * 문장은 키를 고르는 모듈 한 곳에만 있고, 화면은 그것을 받아 그린다 —
+   * 화면이 직접 들여오면 그 모듈의 동적 import 가 server-only 를 끌고 들어온다
+   */
+  envBlockedMessage?: string
   error?: string
 }> {
   if (!(await tradingAccess()).allowed) return { ok: false, error: '이 화면의 소유자만 볼 수 있습니다' }
@@ -212,12 +227,17 @@ export async function listJudgeModels(): Promise<{
     if (error) return { ok: false, error: `모델 목록을 읽지 못했습니다: ${error.message}` }
 
     const withKey: string[] = []
+    const keyState: Record<string, KeyChoice['reason']> = {}
     for (const id of JUDGE_PROVIDERS) {
       const choice = await resolveProviderKey(id as AiProviderId, null)
-      // 있음·없음만 옮긴다. 값은 이 함수 밖으로 안 나간다
+      // 사유만 옮긴다. 값은 이 함수 밖으로 안 나간다
+      keyState[id] = choice.reason
       if (choice.apiKey) withKey.push(id)
     }
-    return { ok: true, withKey, items: toModelCatalogItems((data ?? []) as ModelCatalogRow[]) }
+    return {
+      ok: true, withKey, keyState, envBlockedMessage: ENV_BLOCKED_MESSAGE,
+      items: toModelCatalogItems((data ?? []) as ModelCatalogRow[]),
+    }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : '모델 목록을 읽지 못했습니다' }
   }
