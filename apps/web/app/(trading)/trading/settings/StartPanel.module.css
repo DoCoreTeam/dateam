@@ -27,14 +27,42 @@
 
 .previewHead { font-size: var(--fs-sm); font-weight: 600; }
 
-.filled { display: grid; gap: var(--space-1); margin: 0; }
+.filled { display: grid; gap: var(--space-2); margin: 0; }
 .filledRow {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: var(--space-3);
   font-size: var(--fs-sm);
+  flex-wrap: wrap;
+  min-width: 0;
 }
-.filledValue { font-variant-numeric: tabular-nums; }
+
+/* 이름 쪽. 표식이 붙어 길어지므로 줄바꿈을 허용한다 */
+.filledName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 값 쪽. 고칠 수 있는 칸이라 입력기와 되돌리기가 한 줄에 선다 */
+.filledValue {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.filledValue input {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  width: 9rem;
+}
+
+/* 손댄 값 표식. 직접 답한 값 표식과 같은 크기, 색만 달리해 갈라 읽힌다 */
+.editedMark {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+}
 
 /* 한 번에 얼마를 잃을 수 있나 */
 .risk { font-size: var(--fs-sm); }

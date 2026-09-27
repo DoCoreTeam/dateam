@@ -10,15 +10,19 @@
 // 저장은 기존 창구를 지나 다음 거래일부터 듣는다(M7).
 
 import { useState, useTransition } from 'react'
-import { Compass, Check } from 'lucide-react'
+import { Compass, Check, RotateCcw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import {
   START_TITLE, START_WHY, START_STANCE_Q, START_STANCE_HINT, STANCE_LABEL,
   START_TARGET_Q, START_TARGET_HINT, START_LOSS_Q, START_LOSS_HINT,
   START_ASK, START_APPLY, START_FILLED_HEAD, START_WHEN,
-  START_PERSON_MARK, riskLine, riskUnmeasured, raiseWarning,
+  START_PERSON_MARK, START_EDITED_MARK, START_RESET_ONE, START_EDIT_HINT,
+  riskLine, riskUnmeasured, raiseWarning,
 } from '@/lib/trading/settings/start-labels'
-import { STANCES, type Stance, type FilledValue, type RiskView } from '@/lib/trading/settings/onboarding'
+import {
+  STANCES, riskView, raisesLossLimit,
+  type Stance, type FilledValue, type RiskView, type StartOverrides,
+} from '@/lib/trading/settings/onboarding'
 import { previewStart, applyStart } from './actions'
 import styles from './StartPanel.module.css'
 
@@ -28,28 +32,69 @@ export default function StartPanel() {
   const [loss, setLoss] = useState('500000')
   const [filled, setFilled] = useState<FilledValue[] | null>(null)
   const [risk, setRisk] = useState<RiskView | null>(null)
-  const [raises, setRaises] = useState(false)
+  const [currentLimit, setCurrentLimit] = useState(0)
   const [message, setMessage] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  /**
+   * 미리보기 표에서 손댄 값. **글자 그대로** 들고 있다가 보낼 때 숫자로 바꾼다 —
+   * 숫자로 즉시 바꾸면 지우는 도중(빈칸·마이너스만 남은 칸)에 0 으로 튄다
+   */
+  const [edits, setEdits] = useState<Record<string, string>>({})
 
   const answers = { stance, targetKrw: Number(target) || 0, lossLimitKrw: Number(loss) || 0 }
+
+  /** 보낼 꼴. 숫자로 안 읽히는 칸은 아예 안 보낸다 — 창구가 계산된 값으로 돌아간다 */
+  function overridesOf(): StartOverrides {
+    const out: Record<string, number> = {}
+    for (const [key, text] of Object.entries(edits)) {
+      const n = Number(text)
+      if (text.trim() !== '' && Number.isFinite(n)) out[key] = n
+    }
+    return out
+  }
+
+  /**
+   * 지금 표에 보이는 값. **손댄 값이 이기고**, 창구가 보낸 값이 그 아래에 있다.
+   * 화면이 이 자리에서 계산해야 한 글자 고칠 때마다 서버를 두드리지 않는다
+   */
+  function shownValue(f: FilledValue): string {
+    return edits[f.key] ?? String(f.value)
+  }
+
+  function isEdited(f: FilledValue): boolean {
+    const text = edits[f.key]
+    if (text === undefined) return f.edited
+    return text.trim() !== '' && Number(text) !== Number(f.computed)
+  }
+
+  /** 손댄 손실 한도. 없으면 창구가 계산한 값 */
+  const shownLimit = (() => {
+    const row = filled?.find((f) => f.key === 'daily_loss_limit_krw')
+    if (!row) return answers.lossLimitKrw
+    const n = Number(shownValue(row))
+    return Number.isFinite(n) ? n : Number(row.value)
+  })()
+
+  // 같은 순수 함수로 다시 잰다 — 화면이 자기 셈을 따로 두면 창구와 갈린다 (M6)
+  const shownRisk = risk ? riskView(risk.onceKrw, shownLimit) : null
+  const shownRaises = raisesLossLimit(shownLimit, currentLimit)
 
   function preview() {
     setMessage(null)
     start(async () => {
-      const r = await previewStart(answers)
+      const r = await previewStart(answers, overridesOf())
       setFilled(r.filled ?? null)
       setRisk(r.risk ?? null)
-      setRaises(r.raisesLimit === true)
+      setCurrentLimit(r.currentLossLimitKrw ?? 0)
       if (!r.ok) setMessage(r.userMessage)
     })
   }
 
   function apply() {
     start(async () => {
-      const r = await applyStart(answers)
+      const r = await applyStart(answers, overridesOf())
       setMessage(r.userMessage)
-      if (r.ok) setFilled(null)
+      if (r.ok) { setFilled(null); setEdits({}) }
     })
   }
 
@@ -113,25 +158,52 @@ export default function StartPanel() {
         {filled && filled.length > 0 && (
           <div className={styles.preview}>
             <span className={styles.previewHead}>{START_FILLED_HEAD}</span>
+            <span className={styles.hint}>{START_EDIT_HINT}</span>
             <dl className={styles.filled}>
               {filled.map((f) => (
                 <div key={f.key} className={styles.filledRow}>
-                  <dt>
-                    {f.label}
+                  <dt className={styles.filledName}>
+                    <label htmlFor={`start-fill-${f.key}`}>{f.label}</label>
                     {/* 사람이 답해야 하는 값은 그 사실을 남긴다 (§15.3) */}
                     {f.needsPerson && <span className={styles.hint}> {START_PERSON_MARK}</span>}
+                    {/* 손댄 값도 같은 꼴로 갈라 적는다 — 계산된 값과 섞이면 고친 줄을 못 찾는다 */}
+                    {isEdited(f) && <span className={styles.editedMark}> {START_EDITED_MARK}</span>}
                   </dt>
-                  <dd className={`mono ${styles.filledValue}`} style={{ margin: 0 }}>{String(f.value)}</dd>
+                  <dd className={styles.filledValue}>
+                    <input
+                      id={`start-fill-${f.key}`}
+                      className="input-field mono"
+                      type="number"
+                      step="any"
+                      value={shownValue(f)}
+                      disabled={pending}
+                      onChange={(e) => setEdits((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    />
+                    {isEdited(f) && (
+                      <NbButton
+                        type="button"
+                        variant="ghost"
+                        disabled={pending}
+                        onClick={() => setEdits((prev) => {
+                          const next = { ...prev }
+                          delete next[f.key]
+                          return next
+                        })}
+                      >
+                        <RotateCcw size={13} /> {START_RESET_ONE}
+                      </NbButton>
+                    )}
+                  </dd>
                 </div>
               ))}
             </dl>
 
-            {risk && (
-              <span className={risk.fits ? styles.risk : styles.riskBad}>
-                {risk.onceKrw > 0 ? riskLine(risk) : riskUnmeasured()}
+            {shownRisk && (
+              <span className={shownRisk.fits ? styles.risk : styles.riskBad}>
+                {shownRisk.onceKrw > 0 ? riskLine(shownRisk) : riskUnmeasured()}
               </span>
             )}
-            {raises && <span className={styles.warn}>{raiseWarning()}</span>}
+            {shownRaises && <span className={styles.warn}>{raiseWarning()}</span>}
 
             <span className={styles.hint}>{START_WHEN}</span>
             <div className={styles.actions}>

@@ -130,15 +130,104 @@ test('★ 저장이 화면이 보낸 값이 아니라 답에서 다시 계산한
   const at = actions.indexOf('export async function applyStart')
   assert.ok(at > 0, '저장 창구가 없다')
   const body = actions.slice(at, actions.indexOf('\n}\n', at))
-  assert.ok(body.includes('fillFrom(answers)'), '화면이 보낸 값을 그대로 저장한다')
+  /**
+   * **여기는 앞 판의 문장을 고친 자리다.**
+   *
+   * 앞 판은 `fillFrom(answers)` 글자를 찾아 「화면이 보낸 값을 안 쓴다」를 지켰다.
+   * 지금은 미리보기 표를 고칠 수 있어야 하므로(사용자 지적 2026-09-28 「이대로
+   * 채우기는 있는데 수정은 못하네? 이상하다 CRUD는 기본인건데」) 손댄 값이 들어온다.
+   *
+   * 지켜야 하는 것은 글자가 아니라 **화면이 만든 줄을 그대로 저장하지 않는 것**이다.
+   * 손댄 값도 `fillFrom` 을 다시 지나며 답이 만든 키에만 얹히고 등록부 규칙으로 걸러진다.
+   */
+  assert.ok(body.includes('fillFrom(answers, overrides)'), '손댄 값을 다시 안 만든다')
+  const signature = actions.slice(at, actions.indexOf('{', actions.indexOf(')', at)))
+  assert.equal(/FilledValue/.test(signature), false,
+    '화면이 만든 줄을 통째로 받는다 — 그러면 아무 키나 저장된다')
   assert.ok(body.includes('saveTradingSettingValue('), '기존 창구를 안 지난다')
   assert.ok(body.includes('tradingAccess()'), '소유자 확인을 안 한다')
   assert.ok(body.indexOf('tradingAccess()') < body.indexOf('fillFrom('), '확인보다 먼저 일한다')
 })
 
+/* ── 채우기 전에 고칠 수 있다 ─────────────────────────── */
+
+test('★ 손댄 값은 답이 만든 키에만 얹힌다 — 여기가 설정 전체를 여는 문이 되지 않는다', () => {
+  const base = fillFrom(ANSWER)
+  const withEdit = fillFrom(ANSWER, {
+    daily_target_krw: 777000,
+    // 답이 안 만드는 키. 등록부에 있는 진짜 키라도 이 자리로는 못 들어간다
+    owner_user_id: 'someone-else',
+    // 아예 없는 키
+    made_up_key: 1,
+  })
+  assert.deepEqual(
+    withEdit.map((f) => f.key), base.map((f) => f.key),
+    '답이 안 만든 키가 표에 끼어들었다',
+  )
+  assert.equal(withEdit.find((f) => f.key === 'daily_target_krw')?.value, 777000)
+})
+
+test('★ 범위 밖 값은 계산된 값으로 돌아간다 — 저장 못 할 값을 「이렇게 채웁니다」로 안 보여 준다', () => {
+  const spec = TRADING_SETTINGS.find((s) => s.key === 'signal_max_per_day')
+  assert.ok(spec?.max !== undefined, '이 시험이 기대는 상한이 없어졌다')
+  const over = fillFrom(ANSWER, { signal_max_per_day: (spec?.max ?? 0) + 1 })
+  const row = over.find((f) => f.key === 'signal_max_per_day')
+  assert.equal(row?.edited, false, '범위 밖 값을 손댄 값으로 받아들였다')
+  assert.equal(row?.value, row?.computed, '계산된 값으로 안 돌아갔다')
+
+  // 형이 안 맞는 것도 같다
+  const wrongType = fillFrom(ANSWER, { daily_target_krw: 'many' as unknown as number })
+  assert.equal(wrongType.find((f) => f.key === 'daily_target_krw')?.edited, false)
+})
+
+test('★ 손댄 줄에 표가 남는다 — 계산된 값과 화면에서 갈린다', () => {
+  const edited = fillFrom(ANSWER, { daily_loss_limit_krw: 900000 })
+  const row = edited.find((f) => f.key === 'daily_loss_limit_krw')
+  assert.equal(row?.edited, true)
+  assert.equal(row?.value, 900000)
+  assert.equal(row?.computed, ANSWER.lossLimitKrw, '손대기 전 값을 안 들고 있어 되돌릴 수 없다')
+  // 같은 값을 다시 적은 것은 고친 것이 아니다 — 아닌 줄에 표가 붙으면 표를 안 믿는다
+  assert.equal(fillFrom(ANSWER, { daily_loss_limit_krw: ANSWER.lossLimitKrw })[1].edited, false)
+})
+
+test('★ 고친 손실 한도로 위험을 다시 잰다 (M6)', () => {
+  const actions = readFileSync(join(SETTINGS_DIR, 'actions.ts'), 'utf8')
+  const at = actions.indexOf('export async function previewStart')
+  const body = actions.slice(at, actions.indexOf('\n}\n', at))
+  assert.ok(body.includes("filledNumber(filled, 'daily_loss_limit_krw'"),
+    '답의 값으로 견준다 — 표에서 한도를 고쳐도 화면이 옛 숫자로 「몇 번분입니다」를 말한다')
+
+  const panel = readFileSync(join(SETTINGS_DIR, 'StartPanel.tsx'), 'utf8')
+  assert.ok(panel.includes('riskView(risk.onceKrw'), '화면이 손댄 값으로 다시 안 잰다')
+  assert.ok(panel.includes("from '@/lib/trading/settings/onboarding'"),
+    '화면이 자기 셈을 따로 뒀다 — 창구와 갈린다')
+})
+
+test('★ 미리보기 표를 그 자리에서 고칠 수 있다', () => {
+  const panel = readFileSync(join(SETTINGS_DIR, 'StartPanel.tsx'), 'utf8')
+  assert.match(panel, /id=\{`start-fill-\$\{f\.key\}`\}/, '값 칸이 읽기 전용이다')
+  assert.match(panel, /setEdits\(/, '고친 값을 안 들고 있다')
+  assert.ok(panel.includes('START_EDITED_MARK'), '고친 줄에 표를 안 붙인다')
+  assert.ok(panel.includes('START_RESET_ONE'), '되돌릴 길이 없다')
+  // 고친 값으로 채우기가 간다
+  assert.ok(panel.includes('applyStart(answers, overridesOf())'), '고친 값이 채우기에 안 실린다')
+  assert.ok(panel.includes('previewStart(answers, overridesOf())'), '고친 값으로 다시 안 묻는다')
+})
+
+test('★ 창구를 새로 안 연다 — 쓰던 둘을 그대로 쓴다 (S2)', () => {
+  const actions = readFileSync(join(SETTINGS_DIR, 'actions.ts'), 'utf8')
+  const exported = [...actions.matchAll(/export async function (\w+)/g)].map((m) => m[1])
+  for (const name of ['previewStart', 'applyStart']) {
+    assert.ok(exported.includes(name), `${name} 이 없어졌다`)
+  }
+  assert.equal(exported.filter((n) => /^(apply|preview)Start/.test(n)).length, 2,
+    '시작하기 창구가 늘었다 — 늘어난 창구마다 소유자 확인을 다시 붙여야 한다')
+})
+
 test('★ 화면이 채울 값과 위험을 저장 전에 보여 준다', () => {
   const panel = readFileSync(join(SETTINGS_DIR, 'StartPanel.tsx'), 'utf8')
   assert.ok(panel.includes('f.label') && panel.includes('f.value'), '무엇이 채워지는지 안 보여 준다')
+  assert.ok(panel.includes('shownRisk'), '고친 값 기준으로 안 보여 준다')
   assert.ok(panel.includes('riskLine('), '한 번에 얼마를 잃는지 안 말한다')
   assert.ok(panel.includes('raiseWarning'), '한도를 올릴 때 경고가 없다')
   assert.ok(panel.includes('START_WHEN'), '언제부터 듣는지를 안 말한다')

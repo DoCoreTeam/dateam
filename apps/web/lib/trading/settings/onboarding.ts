@@ -19,7 +19,7 @@
  * 이 파일에 DB 도 AI 도 없다. 답을 값으로 바꾸는 셈만 한다.
  */
 
-import { TRADING_SETTINGS, type TradingSettingValue } from './registry.ts'
+import { TRADING_SETTINGS, validateSetting, type TradingSettingValue } from './registry.ts'
 import { aiMayPropose } from '../knowledge/proposal-policy.ts'
 
 /** 얼마나 조심스럽게 갈까요 */
@@ -45,7 +45,23 @@ export interface FilledValue {
    * 저장할 때도 사람이 답한 값이라는 사실이 기록에 남는다.
    */
   needsPerson: boolean
+  /**
+   * 사람이 미리보기에서 **손댄 값**인가.
+   *
+   * 사용자 지적 2026-09-28: 「이대로 채우기는 있는데 수정은 못하네? 이상하다
+   * CRUD는 기본인건데」. 계산된 값과 손댄 값이 화면에서 똑같아 보이면, 고친 뒤에도
+   * 사람은 자기가 고친 것이 실제로 들어갔는지 모른다 — 그 줄에 표를 남긴다.
+   */
+  edited: boolean
+  /** 답이 계산한 값. 손대기 전의 값을 보여 줘야 되돌릴 수 있다 */
+  computed: TradingSettingValue
 }
+
+/**
+ * 미리보기에서 손댄 값들. **키는 답이 만든 것만** 받는다 —
+ * 밖에서 온 키를 그대로 저장하면 이 자리가 설정 전체를 여는 문이 된다.
+ */
+export type StartOverrides = Readonly<Record<string, TradingSettingValue>>
 
 /**
  * 답 셋에서 채울 값들.
@@ -56,7 +72,7 @@ export interface FilledValue {
  * 성향은 신호를 얼마나 까다롭게 고를지만 바꾼다. 기본값 대비 한 걸음이고,
  * 그 배수는 규칙이지 「이만큼이 보수적이다」라는 판정이 아니다.
  */
-export function fillFrom(answers: Answers): FilledValue[] {
+export function fillFrom(answers: Answers, overrides?: StartOverrides): FilledValue[] {
   const step = answers.stance === 'careful' ? 'less' : answers.stance === 'bold' ? 'more' : 'same'
   const scale = (base: number, dir: 'up' | 'down'): number => {
     if (step === 'same') return base
@@ -91,9 +107,32 @@ export function fillFrom(answers: Answers): FilledValue[] {
     const spec = TRADING_SETTINGS.find((s) => s.key === key)
     // 등재 안 된 키는 안 채운다. 지어낸 키가 저장 창구까지 가지 않게
     if (!spec) continue
-    out.push({ key, label: spec.label, value, needsPerson: aiMayPropose(key) !== null })
+    /**
+     * 손댄 값은 **답이 만든 줄에만** 얹는다. 그래서 밖에서 새 키를 밀어 넣어도
+     * 여기서 떨어진다 — 이 자리가 설정 전체를 여는 문이 되지 않는다.
+     *
+     * 값도 그 자리에서 검사한다. 안 맞으면 **조용히 버리고 계산된 값으로 돌아간다** —
+     * 저장 창구가 나중에 막아 주기는 하지만, 그러면 미리보기가 저장 못 할 값을
+     * 「이렇게 채웁니다」로 보여 주게 된다.
+     */
+    const edit = overrides?.[key]
+    const useEdit = edit !== undefined && edit !== value && validateSetting(key, edit) === null
+    out.push({
+      key,
+      label: spec.label,
+      value: useEdit ? edit : value,
+      needsPerson: aiMayPropose(key) !== null,
+      edited: useEdit,
+      computed: value,
+    })
   }
   return out
+}
+
+/** 채운 값 중 하나를 골라 읽는다. 화면과 창구가 같은 자리를 본다 */
+export function filledNumber(filled: readonly FilledValue[], key: string, fallback: number): number {
+  const found = filled.find((f) => f.key === key)
+  return typeof found?.value === 'number' ? found.value : fallback
 }
 
 /** 한 번에 얼마를 잃을 수 있나. 화면이 한도와 견줘 보여 준다 (M6) */

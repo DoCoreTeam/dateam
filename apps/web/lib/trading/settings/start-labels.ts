@@ -29,6 +29,11 @@ export const START_WHEN = '채운 값은 다음 거래일부터 듣습니다'
 /** 사람이 직접 답해야 하는 값. AI 는 이 값을 못 바꿉니다 (§15.3) */
 export const START_PERSON_MARK = '직접 답하신 값입니다'
 
+/** 미리보기에서 손댄 값. 계산된 값과 화면에서 갈라 보여야 한다 */
+export const START_EDITED_MARK = '고치신 값입니다'
+export const START_RESET_ONE = '되돌리기'
+export const START_EDIT_HINT = '값을 고치면 그 값으로 채웁니다'
+
 /** 한 번에 얼마를 잃을 수 있나. 한도와 견줘 말합니다 (M6) */
 export function riskLine(risk: RiskView): string {
   const once = risk.onceKrw.toLocaleString('ko-KR')

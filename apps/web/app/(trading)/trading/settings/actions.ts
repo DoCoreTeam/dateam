@@ -35,8 +35,8 @@ import {
 } from '@/lib/trading/settings/assistant'
 import { callKnowledge } from '@/lib/trading/knowledge/ai-call'
 import {
-  fillFrom, riskView, raisesLossLimit,
-  type Answers, type FilledValue, type RiskView,
+  fillFrom, riskView, raisesLossLimit, filledNumber,
+  type Answers, type FilledValue, type RiskView, type StartOverrides,
 } from '@/lib/trading/settings/onboarding'
 import { computeRisk } from '@/lib/trading/risk/arithmetic'
 import { loadInstrumentSpec } from '@/lib/trading/settings/store'
@@ -326,6 +326,11 @@ export interface StartPreview {
   risk?: RiskView
   /** 손실 한도를 올리는 답인가. 올리면 화면이 확인을 받는다 */
   raisesLimit?: boolean
+  /**
+   * 지금 저장돼 있는 손실 한도. 화면이 손댄 값으로 **다시 견주려면** 이 값이 있어야 한다 —
+   * 없으면 표를 고칠 때마다 창구를 다시 불러야 하고, 그러면 한 글자마다 서버를 두드린다
+   */
+  currentLossLimitKrw?: number
   userMessage: string | null
 }
 
@@ -335,11 +340,13 @@ export interface StartPreview {
  * 한 번의 위험을 돈으로 환산해 함께 준다 — 명세 M6 이 「리스크 산술이 안 맞는 설정은
  * 저장되지 않는다」고 정했으므로, 저장 창구가 거절하기 전에 화면이 먼저 말해야 한다.
  */
-export async function previewStart(answers: Answers): Promise<StartPreview> {
+export async function previewStart(
+  answers: Answers, overrides?: StartOverrides,
+): Promise<StartPreview> {
   if (!(await tradingAccess()).allowed) return { ok: false, userMessage: DENIED.userMessage }
   const today = kstTodayKey()
   const { values } = await loadTradingSettings(today)
-  const filled = fillFrom(answers)
+  const filled = fillFrom(answers, overrides)
 
   /**
    * 한 번의 위험은 **상품 규격과 손절 설정**에서 나온다. 지어내지 않는다.
@@ -367,11 +374,19 @@ export async function previewStart(answers: Answers): Promise<StartPreview> {
     onceKrw = 0
   }
 
+  /**
+   * 한도는 **채운 표의 값**으로 견준다. 답의 값으로 견주면 표에서 한도를 고친 뒤에도
+   * 화면이 고치기 전 숫자로 「몇 번분입니다」를 말한다 — 고친 사람이 그것을 믿는다.
+   */
+  const limitKrw = filledNumber(filled, 'daily_loss_limit_krw', answers.lossLimitKrw)
+  const currentLossLimitKrw = typeof values.daily_loss_limit_krw === 'number'
+    ? values.daily_loss_limit_krw : 0
   return {
     ok: true,
     filled,
-    risk: riskView(onceKrw, answers.lossLimitKrw),
-    raisesLimit: raisesLossLimit(answers.lossLimitKrw, values.daily_loss_limit_krw ?? 0),
+    risk: riskView(onceKrw, limitKrw),
+    raisesLimit: raisesLossLimit(limitKrw, currentLossLimitKrw),
+    currentLossLimitKrw,
     userMessage: null,
   }
 }
@@ -383,10 +398,15 @@ export async function previewStart(answers: Answers): Promise<StartPreview> {
  * 화면이 값을 바꿔 보내도 답이 만든 값만 저장된다.
  */
 export async function applyStart(
-  answers: Answers,
+  answers: Answers, overrides?: StartOverrides,
 ): Promise<{ ok: boolean; saved: number; userMessage: string }> {
   if (!(await tradingAccess()).allowed) return { ok: false, saved: 0, userMessage: DENIED.userMessage! }
-  const filled = fillFrom(answers)
+  /**
+   * 손댄 값도 **여기서 다시 만든다.** 화면이 보낸 줄을 그대로 저장하지 않는다 —
+   * `fillFrom` 이 답이 만든 키에만 손댄 값을 얹고 등록부 규칙으로 걸러 내므로,
+   * 화면이 없는 키나 범위 밖 값을 보내도 여기서 떨어진다.
+   */
+  const filled = fillFrom(answers, overrides)
   if (filled.length === 0) return { ok: false, saved: 0, userMessage: '채울 값이 없습니다' }
 
   let saved = 0
