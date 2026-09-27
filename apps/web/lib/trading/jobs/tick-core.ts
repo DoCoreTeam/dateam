@@ -122,3 +122,63 @@ export async function runJudges(
 export function scheduledMinuteOf(now: Date): Date {
   return new Date(Math.floor(now.getTime() / 60_000) * 60_000)
 }
+
+/* ── 지금 장이 어느 국면인가 ───────────────────────────── */
+
+/**
+ * 장이 어느 국면인가 — **「봉이 없다」가 고장인지 아닌지를 가르는 값**
+ *
+ * 사용자 지적 2026-09-28: 「장이 안 열렸다는 거 뻔히 아는데 봉을 못 불러왔다 무슨 뜻인지?」
+ *
+ * 실측 2026-09-28 08:00~08:19 KST 실행 기록이 전부
+ * `bar_not_ready|bar_retry=2/2,still_missing|…|broker=failed` 였다. 접속매매는 08:45 에
+ * 시작하므로 그 시간에 1분 봉이 없는 것은 **정상**인데, 크론은 봉을 물어 보고 두 번 더 묻고
+ * 「안 들어왔다」를 남겼다. 봉 판정이 세션 판정보다 **앞**에 있어서 `not_continuous_trading`
+ * 가지에는 구조적으로 못 닿았기 때문이다.
+ *
+ * 주말·휴장일은 창 자체가 안 만들어져 이미 `no_session` 으로 제대로 말한다(실측 09-26·09-27).
+ * 구멍은 **평일 장 시작 전과 끝난 뒤**뿐이라 그 둘을 여기서 이름 붙인다.
+ */
+export type MarketPhase =
+  /** 아직 단일가도 시작 안 했다 */
+  | 'before_open'
+  /** 단일가 구간. 모으기는 하고 판단은 안 한다 (§6.1 · D-40) */
+  | 'auction'
+  /** 접속매매 중 */
+  | 'open'
+  /** 그날 장이 끝났다 */
+  | 'after_close'
+
+export interface PhaseWindow {
+  openAuctionStart: Date | null
+  continuousStart: Date
+  continuousEnd: Date
+  closeAuctionEnd: Date | null
+}
+
+export function marketPhaseOf(window: PhaseWindow, at: Date): MarketPhase {
+  const t = at.getTime()
+  if (t >= window.continuousStart.getTime() && t < window.continuousEnd.getTime()) return 'open'
+  /**
+   * 단일가 시작이 안 적힌 세션(야간)은 접속매매 시작을 그 자리로 본다 —
+   * 그러면 「단일가 없는 장」에 없는 구간이 생기지 않는다
+   */
+  const auctionStart = (window.openAuctionStart ?? window.continuousStart).getTime()
+  if (t < auctionStart) return 'before_open'
+  if (t < window.continuousStart.getTime()) return 'auction'
+  const closeEnd = (window.closeAuctionEnd ?? window.continuousEnd).getTime()
+  if (t < closeEnd) return 'auction'
+  return 'after_close'
+}
+
+/**
+ * 지금 봉을 물어야 하나.
+ *
+ * **안 물어야 할 때 묻는 것이 두 가지를 망친다.** 하나는 사람이 읽는 사유가 거짓 고장이 되는 것,
+ * 다른 하나는 장 전 계좌 조회 실패가 **연속 실패로 쌓여**(실측 broker_fail=9) 정작 장이 열릴 때
+ * 안전 게이트 SG-02 를 닫는 것이다.
+ */
+export function shouldAskForBars(input: { phase: MarketPhase; isNight: boolean }): boolean {
+  if (input.isNight) return true
+  return input.phase === 'open' || input.phase === 'auction'
+}

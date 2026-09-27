@@ -11,7 +11,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { runJudges, scheduledMinuteOf, RUN_BUDGET_MS, type TickPorts } from './tick-core.ts'
+import {
+  runJudges, scheduledMinuteOf, marketPhaseOf, shouldAskForBars,
+  RUN_BUDGET_MS, type TickPorts,
+} from './tick-core.ts'
 
 const HERE_TICK = dirname(fileURLToPath(import.meta.url))
 import type { Judge, JudgeName, JudgeInput, JudgeResult } from '../judge/types.ts'
@@ -204,4 +207,72 @@ test('★ 판단기가 밖으로 나가는지를 이름이 아니라 값으로 �
   const body = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
   assert.doesNotMatch(body, /name\s*===\s*'jev'/, '이름으로 가르면 그것이 곧 특권이 된다')
   assert.match(body, /judge\.external/, '밖으로 나가는지를 값으로 안 묻는다')
+})
+
+/* ── 장이 어느 국면인가 (실측 2026-09-28) ─────────────────── */
+
+/** 평일 정규장 한 판 (선물 기준, KST). 단일가 08:30, 접속매매 08:45~15:45, 마감 단일가 15:50 */
+const DAY = {
+  openAuctionStart: new Date('2026-09-28T08:30:00+09:00'),
+  continuousStart: new Date('2026-09-28T08:45:00+09:00'),
+  continuousEnd: new Date('2026-09-28T15:45:00+09:00'),
+  closeAuctionEnd: new Date('2026-09-28T15:50:00+09:00'),
+}
+
+const kst = (hhmm: string): Date => new Date(`2026-09-28T${hhmm}:00+09:00`)
+
+/**
+ * **사용자 지적 2026-09-28** 「장이 안 열렸다는 거 뻔히 아는데 봉을 못 불러왔다 무슨 뜻인지?」
+ *
+ * 실측 08:00~08:19 기록이 전부 `bar_not_ready|bar_retry=2/2,still_missing|…` 였다.
+ */
+test('★ 장 시작 전·단일가·접속매매·마감 뒤를 가른다', () => {
+  assert.equal(marketPhaseOf(DAY, kst('08:00')), 'before_open', '실측이 걸렸던 그 시각이다')
+  assert.equal(marketPhaseOf(DAY, kst('08:29')), 'before_open')
+  assert.equal(marketPhaseOf(DAY, kst('08:30')), 'auction')
+  assert.equal(marketPhaseOf(DAY, kst('08:44')), 'auction')
+  assert.equal(marketPhaseOf(DAY, kst('08:45')), 'open')
+  assert.equal(marketPhaseOf(DAY, kst('15:44')), 'open')
+  assert.equal(marketPhaseOf(DAY, kst('15:45')), 'auction', '마감 단일가는 아직 장 안이다')
+  assert.equal(marketPhaseOf(DAY, kst('15:50')), 'after_close')
+  assert.equal(marketPhaseOf(DAY, kst('23:00')), 'after_close')
+})
+
+test('★ 단일가 시각이 없는 세션에도 빈 구간이 안 생긴다', () => {
+  const night = { ...DAY, openAuctionStart: null, closeAuctionEnd: null }
+  assert.equal(marketPhaseOf(night, kst('08:00')), 'before_open')
+  assert.equal(marketPhaseOf(night, kst('08:45')), 'open')
+  assert.equal(marketPhaseOf(night, kst('15:45')), 'after_close')
+})
+
+test('★ 장이 닫혔으면 봉을 묻지 않는다 — 거짓 고장도 연속 실패도 안 쌓인다', () => {
+  assert.equal(shouldAskForBars({ phase: 'before_open', isNight: false }), false)
+  assert.equal(shouldAskForBars({ phase: 'after_close', isNight: false }), false)
+  // 단일가는 모은다 — 그 봉으로 판단만 안 한다 (§6.1 · D-40)
+  assert.equal(shouldAskForBars({ phase: 'auction', isNight: false }), true)
+  assert.equal(shouldAskForBars({ phase: 'open', isNight: false }), true)
+})
+
+test('★ 야간 수집은 지금처럼 그대로 돈다', () => {
+  for (const phase of ['before_open', 'auction', 'open', 'after_close'] as const) {
+    assert.equal(shouldAskForBars({ phase, isNight: true }), true, `야간인데 ${phase} 에서 안 묻는다`)
+  }
+})
+
+test('★ 크론이 이 판정을 실제로 부르고, 봉을 묻기 전에 부른다', () => {
+  const tick = readFileSync(join(HERE_TICK, 'tick.ts'), 'utf8')
+  const decide = tick.indexOf('shouldAskForBars({')
+  const ask = tick.indexOf('kis.minuteBars({')
+  assert.ok(decide > 0, '판정을 안 부른다')
+  assert.ok(ask > 0, '봉을 묻는 자리를 못 찾겠다')
+  assert.ok(decide < ask, '봉을 먼저 묻고 나서 장 시간을 본다 — 순서가 뒤집히면 고친 것이 없다')
+  assert.match(tick, /market_closed=\$\{phase\}/, '어느 국면이라 안 물었는지를 안 남긴다')
+})
+
+test('★ 주말·휴장일의 지금 동작은 안 바뀐다 — 창이 없으면 그 전에 돌아간다', () => {
+  const tick = readFileSync(join(HERE_TICK, 'tick.ts'), 'utf8')
+  const noWindow = tick.indexOf('if (!window) {')
+  const decide = tick.indexOf('shouldAskForBars({')
+  assert.ok(noWindow > 0 && noWindow < decide,
+    '창이 없는 날 판정이 뒤로 밀렸다 — no_session 이 안 나온다')
 })

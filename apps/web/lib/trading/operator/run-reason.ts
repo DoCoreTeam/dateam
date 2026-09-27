@@ -138,6 +138,19 @@ const RULES: Rule[] = [
   { re: /^night_collected$/, say: () => line('야간장이라 봉만 모으고 판단은 안 했습니다', 'ok') },
   { re: /^not_continuous_trading$/, say: () => line('접속매매 시간이 아니라 판단을 안 했습니다', 'ok') },
 
+  /**
+   * **장이 안 열린 것은 고장이 아니다** (사용자 지적 2026-09-28
+   * 「장이 안 열렸다는 거 뻔히 아는데 봉을 못 불러왔다 무슨 뜻인지?」).
+   *
+   * 그래서 tone 이 ok 다. 매일 아침 45분 동안 빨간 줄이 뜨면 사람은 빨간색을 안 믿게 되고,
+   * 정작 진짜 고장이 난 날 그 줄도 같이 흘려보낸다.
+   */
+  { re: /^market_closed=before_open$/, say: () => line('장이 아직 안 열렸습니다', 'ok') },
+  { re: /^market_closed=after_close$/, say: () => line('오늘 장이 끝났습니다', 'ok') },
+  { re: /^market_closed=auction$/, say: () => line('단일가 구간이라 판단을 안 했습니다', 'ok') },
+  { re: /^market_closed=(.+)$/, say: () => line('지금은 장 시간이 아닙니다', 'ok') },
+  { re: /^market=auction$/, say: () => line('단일가 구간입니다 — 그 봉으로는 판단하지 않습니다', 'ok') },
+
   // ── 가격 봉 ─────────────────────────────────────────
   { re: /^bar_not_ready$/, say: () => line('가격 봉이 아직 안 닫혔습니다', 'waiting') },
   { re: /^bar_missing:(.+)$/, say: () => line('그 분 가격 봉이 안 들어왔습니다', 'blocked') },

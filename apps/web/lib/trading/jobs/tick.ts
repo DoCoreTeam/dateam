@@ -37,7 +37,9 @@ import { computeIndicators, evaluateTriggers, requiredBarCount } from '../judge/
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
 import type { AiProviderId } from '@/lib/ai/provider-catalog'
-import { runJudges, scheduledMinuteOf, RUN_BUDGET_MS, type TickOutcome } from './tick-core.ts'
+import {
+  runJudges, scheduledMinuteOf, marketPhaseOf, shouldAskForBars, RUN_BUDGET_MS, type TickOutcome,
+} from './tick-core.ts'
 import { runWatch } from './watch.ts'
 import type { GateHit } from '../gate/safety.ts'
 import { createAccountClient } from '../broker/account.ts'
@@ -607,6 +609,27 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 
   // 5 직전 1분 봉이 확정됐나
   const target = targetMinuteFor(now)
+
+  /**
+   * **장이 안 열렸으면 봉을 묻지 않는다** (사용자 지적 2026-09-28
+   * 「장이 안 열렸다는 거 뻔히 아는데 봉을 못 불러왔다 무슨 뜻인지?」).
+   *
+   * 아래 봉 판정이 세션 판정보다 앞이라, 평일 장 시작 전에도 봉을 물어 보고 두 번 더 묻고
+   * 「안 들어왔다」를 남겼다 — 접속매매는 08:45 에 시작하는데 08:00 기록이 전부 그 꼴이었다.
+   * 그 사유는 화면에서 고장으로 읽히고, 그때 함께 실패한 계좌 조회는 **연속 실패로 쌓여**
+   * 정작 장이 열릴 때 SG-02 를 닫는다.
+   */
+  const phase = marketPhaseOf(window, target)
+  if (!shouldAskForBars({ phase, isNight })) {
+    return {
+      ok: true,
+      reason: `market_closed=${phase}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`,
+      userMessage: null,
+    }
+  }
+  /** 단일가 구간이면 모으기는 하되 그 사실을 남긴다 — 그 봉으로는 판단하지 않는다 (D-40) */
+  const phaseNote = phase === 'auction' ? '|market=auction' : ''
+
   const fetched = await kis.minuteBars({
     contractCode,
     from: new Date(target.getTime() - 60_000 * 5),
@@ -656,11 +679,11 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   const barRetryNote = retryNote(barRetry, used, decision.kind === 'confirm')
 
   if (decision.kind === 'retry') {
-    return { ok: true, reason: `bar_not_ready|${barRetryNote}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_not_ready${phaseNote}|${barRetryNote}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
   }
   if (decision.kind === 'missing') {
     // 결측은 그 분의 판단을 건너뛰고 **사실을 남긴다**. 늦게 온 값으로 다시 판단하지 않는다
-    return { ok: true, reason: `bar_missing:${target.toISOString()}|${barRetryNote}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
+    return { ok: true, reason: `bar_missing:${target.toISOString()}${phaseNote}|${barRetryNote}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`, userMessage: null }
   }
 
   /**

@@ -154,6 +154,45 @@ test('지식 일감은 이름과 결과를 말한다', () => {
 })
 
 // ─────────────────────────────────────────────────────────────
+// ④a 장이 안 열린 시간
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * **장이 안 열린 것을 고장으로 말하면 빨간색이 값을 잃는다.**
+ *
+ * 실측 2026-09-28: 08:00~08:19 기록이 전부 「봉을 2번까지 다시 물었지만 안 들어왔습니다」
+ * 였다. 접속매매는 08:45 에 시작하므로 그 시간에 봉이 없는 것은 정상이다.
+ * 매일 아침 45분씩 빨간 줄이 뜨면 사람은 빨간색을 안 믿게 되고,
+ * 정작 진짜 고장이 난 날 그 줄도 같이 흘려보낸다.
+ */
+test('★ 장이 안 열린 시간은 고장이 아니다', () => {
+  const cases: [string, string][] = [
+    ['market_closed=before_open', '장이 아직 안 열렸습니다'],
+    ['market_closed=after_close', '오늘 장이 끝났습니다'],
+    ['market_closed=auction', '단일가 구간이라 판단을 안 했습니다'],
+  ]
+  for (const [mark, text] of cases) {
+    const view = readRunReason(`${mark}|position=flat,closed=0|broker=ok`)
+    assert.equal(view.unknown.length, 0, `못 알아본 표식: ${view.unknown.join(' · ')}`)
+    assert.equal(view.lines[0].text, text)
+    assert.equal(view.lines[0].tone, 'ok', `${mark} 을 고장으로 말한다`)
+    assert.notEqual(view.headline?.tone, 'blocked', `${mark} 인데 머리줄이 빨갛다`)
+  }
+})
+
+test('★ 모르는 국면 이름도 장 시간이 아니라고는 말한다 — 표식을 안 버린다', () => {
+  const view = readRunReason('market_closed=brand_new_phase')
+  assert.deepEqual(view.unknown, [])
+  assert.equal(view.lines[0].tone, 'ok')
+})
+
+test('★ 단일가 구간에 봉이 없는 것도 그 사실과 함께 뜬다', () => {
+  const view = readRunReason('bar_not_ready|market=auction|bar_retry=2/2,still_missing')
+  assert.equal(view.unknown.length, 0)
+  assert.ok(view.lines.some((l) => l.text.includes('단일가 구간')), '단일가라는 사실이 안 뜬다')
+})
+
+// ─────────────────────────────────────────────────────────────
 // ⑤ 실행 상태
 // ─────────────────────────────────────────────────────────────
 
