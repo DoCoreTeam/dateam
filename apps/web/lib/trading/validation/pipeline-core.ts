@@ -130,3 +130,45 @@ export interface PipelineProgress {
 export function initialProgress(steps: readonly PipelineStep[]): PipelineProgress {
   return { total: steps.length, done: 0, currentLabel: steps[0]?.label ?? null, failed: [] }
 }
+
+/* ── Jev 호출 상한 ─────────────────────────────────────── */
+
+/**
+ * **검증이 Jev 를 부를 때 몇 번까지 부르나**
+ *
+ * ## 왜 상한이 먼저인가
+ *
+ * 백테스트는 진입 조건이 걸린 봉마다 판단기를 부른다. `rule` 과 `ml` 은 공짜지만
+ * Jev 는 벤더 호출이고 한 번에 10초까지 기다린다. 상한 없이 열면 **한 번 돌릴 때마다
+ * 수백 번**이 나가고, 그 사실은 예산이 마른 뒤에야 보인다.
+ * 실측 전례가 있다 — 상한을 아는 자리가 0곳이라 하루 23,318건이 나갔고
+ * 그중 22,131건은 어차피 한도로 실패했다.
+ *
+ * ## 넘으면 기권이다, 오류가 아니다
+ *
+ * 상한에 닿으면 그 뒤의 판단은 **기권**으로 적는다. 던지면 그때까지 쌓은 결과가
+ * 통째로 버려지고, 「몇 번까지 봤는지」도 안 남는다.
+ */
+export interface CallBudget {
+  /** 이번 검증에서 부를 수 있는 최대 횟수. 0 이면 아예 안 부른다 */
+  max: number
+  used: number
+}
+
+export function newCallBudget(max: number): CallBudget {
+  return { max: Math.max(0, Math.floor(max)), used: 0 }
+}
+
+/** 한 번 부를 자리가 남았나. 남았으면 쓴 것으로 세고 참을 돌려준다 */
+export function takeCall(budget: CallBudget): boolean {
+  if (budget.used >= budget.max) return false
+  budget.used += 1
+  return true
+}
+
+/** 사람이 읽을 한 줄. **안 부른 것과 못 부른 것을 가른다** */
+export function budgetNote(budget: CallBudget, abstained: number): string {
+  if (budget.max === 0) return 'jev=off:budget_zero'
+  const capped = budget.used >= budget.max
+  return `jev=calls:${budget.used}/${budget.max},abstain:${abstained}${capped ? ',capped' : ''}`
+}

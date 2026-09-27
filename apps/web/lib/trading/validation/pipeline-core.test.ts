@@ -11,7 +11,10 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { planSteps, checkStepOrder, stepMayRead, initialProgress } from './pipeline-core.ts'
+import {
+  planSteps, checkStepOrder, stepMayRead, initialProgress,
+  newCallBudget, takeCall, budgetNote,
+} from './pipeline-core.ts'
 import type { WalkForwardPlan } from '../backtest/windows.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -128,4 +131,75 @@ test('★ 트레이딩 창구가 둘뿐이다 — 검증 때문에 셋째가 생
     e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)])
   const routes = walk(api).filter((f) => f.endsWith('route.ts'))
   assert.equal(routes.length, 2, `창구가 ${routes.length}개다. 지킬 자리가 늘었다`)
+})
+
+/**
+ * **검증이 Jev 를 부를 때는 상한이 먼저다** (§13.4 · §17.1)
+ *
+ * 백테스트는 진입 조건이 걸린 봉마다 판단기를 부른다. `rule`·`ml` 은 공짜지만 Jev 는
+ * 벤더 호출이라 상한 없이 열면 한 바퀴에 수백 번이 나가고, 그 사실은 예산이 마른
+ * 뒤에야 보인다. 실측 전례가 있다 — 상한을 아는 자리가 0곳이라 하루 23,318건이 나갔다.
+ */
+test('★ 상한을 넘으면 더 안 부른다', () => {
+  const budget = newCallBudget(3)
+  assert.equal(takeCall(budget), true)
+  assert.equal(takeCall(budget), true)
+  assert.equal(takeCall(budget), true)
+  assert.equal(takeCall(budget), false, '상한을 넘겨 부른다')
+  assert.equal(budget.used, 3, '못 부른 것까지 쓴 것으로 센다')
+})
+
+test('★ 0 이면 한 번도 안 부른다 — 「안 켰다」가 「무제한」이 되면 안 된다', () => {
+  const budget = newCallBudget(0)
+  assert.equal(takeCall(budget), false)
+  assert.equal(budgetNote(budget, 0), 'jev=off:budget_zero')
+})
+
+test('★ 음수·소수는 정수 상한으로 읽는다', () => {
+  assert.equal(newCallBudget(-5).max, 0, '음수가 무제한이 된다')
+  assert.equal(newCallBudget(2.9).max, 2)
+})
+
+test('★ 몇 번 불렀고 몇 번 기권했는지가 사유에 남는다', () => {
+  const budget = newCallBudget(5)
+  takeCall(budget); takeCall(budget)
+  assert.equal(budgetNote(budget, 1), 'jev=calls:2/5,abstain:1')
+  // 상한에 닿았으면 그 사실도 말한다 — 「표본이 적다」와 「상한에 걸렸다」는 다른 일이다
+  const full = newCallBudget(2)
+  takeCall(full); takeCall(full); takeCall(full)
+  assert.match(budgetNote(full, 3), /capped/)
+})
+
+test('★ Jev 가 안 돌았으면 「졌다」가 아니라 「안 쟀다」로 적는다', () => {
+  const src = readFileSync(join(HERE, 'pipeline.ts'), 'utf8')
+  assert.ok(src.includes('jevTrades.length > 0'), '표본 0건으로 비교를 낸다')
+  assert.ok(src.includes("jev_better=not_measured"), '안 쟀다는 것을 사유에 안 남긴다')
+  assert.ok(src.includes('`jev=off:${jev.reason}`'), '왜 안 돌았는지를 안 남긴다')
+})
+
+test('★ 키나 모델이 없어도 검증이 안 죽는다', () => {
+  const src = readFileSync(join(HERE, 'pipeline.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('async function jevForValidation'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+  assert.ok(body.includes('try {') && body.includes('catch'), '만들다 실패하면 검증 전체가 죽는다')
+  assert.ok(body.includes("reason: 'model_not_set'"), '모델이 없는 것을 안 가른다')
+  assert.equal(/throw/.test(body), false, '던진다 — 그날 검증이 통째로 사라진다')
+})
+
+test('★ 상한에 닿으면 기권이지 오류가 아니다', () => {
+  const src = readFileSync(join(HERE, 'pipeline.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('function cappedJudge'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+  assert.ok(body.includes("status: 'abstain'"), '상한에서 기권이 아니다')
+  assert.ok(body.includes("abstainReason: 'call_cap'"), '왜 기권했는지를 안 남긴다')
+  assert.equal(/throw/.test(body), false, '상한에서 던진다 — 그때까지 쌓은 결과가 버려진다')
+})
+
+test('★ 상한이 접기마다 새로 생기지 않는다 — 접기 수만큼 곱해진다', () => {
+  const src = readFileSync(join(HERE, 'pipeline.ts'), 'utf8')
+  const declaredAt = src.indexOf('const jev = await jevForValidation(')
+  const foldAt = src.indexOf('for (const fold of')
+  assert.ok(declaredAt > 0, 'Jev 판단기를 안 만든다')
+  assert.ok(foldAt > 0, '접기 반복을 못 찾았다')
+  assert.ok(declaredAt < foldAt, '접기 안에서 상한을 새로 만든다 — 상한이 뜻을 잃는다')
 })

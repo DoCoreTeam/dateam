@@ -19,6 +19,9 @@ import { judgeCalibration } from '../calibrate/metrics.ts'
 import { buildEvModel, expectedValueFor } from '../ev/model.ts'
 import { fitMl, createMlJudge, featuresOf } from '../judge/ml.ts'
 import { createRuleJudge } from '../judge/rule.ts'
+import { createServerJevJudge } from '../judge/jev.ts'
+import type { Judge } from '../judge/types.ts'
+import { newCallBudget, takeCall, budgetNote, type CallBudget } from './pipeline-core.ts'
 import { bootstrapExpectancy, bootstrapDifference, isBetterThan } from '../stats/bootstrap.ts'
 import { summarize, profitFactor, maxDrawdownR } from '../stats/metrics.ts'
 import { evaluateGate, type GateVerdict } from '../gate/criteria.ts'
@@ -59,6 +62,47 @@ async function loadTradeDates(contractCode: string): Promise<string[]> {
   if (error) throw new Error(`거래일을 읽지 못했습니다: ${error.message}`)
   const days = new Set(((data ?? []) as { bar_start_at: string }[]).map((r) => tradeDateOf(new Date(r.bar_start_at))))
   return [...days].sort()
+}
+
+/**
+ * 상한을 지키는 Jev 판단기.
+ *
+ * 상한에 닿으면 **기권**을 돌려준다 — 던지면 그때까지 쌓은 결과가 통째로 버려지고
+ * 「몇 번까지 봤는지」도 안 남는다. 기권은 판단 기록에 남는 정상 결과다(§7.3 D-41).
+ */
+function cappedJudge(judge: Judge, budget: CallBudget, onAbstain: () => void): Judge {
+  return {
+    name: judge.name,
+    external: judge.external,
+    judge: async (input: Parameters<Judge['judge']>[0]) => {
+      if (!takeCall(budget)) {
+        onAbstain()
+        return { status: 'abstain', abstainReason: 'call_cap' }
+      }
+      return judge.judge(input)
+    },
+  }
+}
+
+/**
+ * 검증이 쓸 Jev 판단기. **없으면 없다고 말한다.**
+ *
+ * 키나 모델이 없어도 던지지 않는다 — 그날 검증 전체가 죽을 이유가 아니고,
+ * 「Jev 없이 돌았다」와 「Jev 가 졌다」는 완전히 다른 사실이라 사유로 갈라 남긴다.
+ */
+type JevForValidation =
+  | { on: true; judge: Judge; budget: CallBudget }
+  | { on: false; judge: null; reason: string }
+
+async function jevForValidation(maxCalls: number, model: string, timeoutMs: number): Promise<JevForValidation> {
+  if (maxCalls <= 0) return { on: false, judge: null, reason: 'budget_zero' }
+  if (model.trim() === '') return { on: false, judge: null, reason: 'model_not_set' }
+  try {
+    const base = await createServerJevJudge({ timeoutMs, model })
+    return { on: true, judge: base, budget: newCallBudget(maxCalls) }
+  } catch (error) {
+    return { on: false, judge: null, reason: error instanceof Error ? error.message : 'jev_unavailable' }
+  }
 }
 
 export interface ValidationInput {
@@ -193,6 +237,17 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
 
   const validateTrades: { tradeDate: string; netPnlR: number }[] = []
   const mlTrades: { tradeDate: string; netPnlR: number }[] = []
+  const jevTrades: { tradeDate: string; netPnlR: number }[] = []
+  let jevAbstained = 0
+  /**
+   * Jev 는 벤더 호출이라 **한 바퀴 전체에 걸린 상한**을 쓴다.
+   * 접기마다 새로 만들면 접기 수만큼 곱해져 상한이 뜻을 잃는다.
+   */
+  const jev = await jevForValidation(
+    num('validation_jev_max_calls', 0),
+    String(values.jev_model ?? ''),
+    num('jev_timeout_seconds', 10) * 1000,
+  )
   let calibrationVerdict: ReturnType<typeof judgeCalibration> | null = null
 
   for (const fold of planned.plan.folds) {
@@ -284,6 +339,26 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
       if (t.netPnlR !== null) mlTrades.push({ tradeDate: tradeDateOf(t.barCloseAt), netPnlR: t.netPnlR })
     }
 
+    /**
+     * Jev 도 **같은 봉·같은 보정·같은 비용**으로 돌린다 (§7.2 · §13.4).
+     *
+     * 전에는 검증이 Jev 를 한 번도 안 불렀다. 그 말은 「Jev 가 나은가」를 재는 관문이
+     * 영영 답을 못 낸다는 뜻이고, 그러면 Jev 는 켜도 신호 경로에 못 닿는다.
+     *
+     * 상한이 먼저다 — 벤더 호출이라 상한 없이 열면 한 바퀴에 수백 번이 나간다.
+     */
+    if (jev.on) {
+      const run = await runBacktest(validateBars, cappedJudge(jev.judge, jev.budget, () => { jevAbstained += 1 }), params(typical))
+      for (const t of run.trades) {
+        if (t.netPnlR !== null) jevTrades.push({ tradeDate: tradeDateOf(t.barCloseAt), netPnlR: t.netPnlR })
+      }
+      await saveBacktestRun({
+        contractCode: input.contractCode, decisionTf: '1m', judge: 'jev',
+        windowKind: 'validate', windowFrom: fold.validateFrom, windowTo: fold.validateTo,
+        slippageTicks: typical, versions, summary: run,
+      }).catch(() => undefined)
+    }
+
     await saveBacktestRun({
       contractCode: input.contractCode, decisionTf: '1m', judge: 'rule',
       windowKind: 'validate', windowFrom: fold.validateFrom, windowTo: fold.validateTo,
@@ -294,10 +369,24 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
   }
 
   // ⑤ 판단기 비교 — 차이의 신뢰구간
+  const seed = num('validation_seed', 1)
+  const minImprovement = num('gate_min_judge_improvement_r', 0.05)
   const comparison = isBetterThan(
-    bootstrapDifference(validateTrades, mlTrades, { seed: num('validation_seed', 1) }),
-    num('gate_min_judge_improvement_r', 0.05),
+    bootstrapDifference(validateTrades, mlTrades, { seed }),
+    minImprovement,
   )
+  /**
+   * Jev 가 규칙보다 나은가 (§13.4).
+   *
+   * 안 돌았으면 **판정을 안 한다.** 표본이 0건인 비교는 「졌다」가 아니라 「안 쟀다」다 —
+   * 둘을 섞으면 키를 안 넣은 날과 Jev 가 진 날이 같은 얼굴이 된다.
+   */
+  const jevComparison = jevTrades.length > 0
+    ? isBetterThan(bootstrapDifference(jevTrades, validateTrades, { seed }), minImprovement)
+    : null
+  const jevNote = jev.on
+    ? budgetNote(jev.budget, jevAbstained)
+    : `jev=off:${jev.reason}`
   progress.done += 1
 
   /**
@@ -360,7 +449,12 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
     ok: true,
     reason: `validated:folds=${planned.plan.folds.length},trades=${validateTrades.length},`
       + `days=${summary.dayCount},assumed_spread=${(assumedRatio * 100).toFixed(0)}%,`
-      + `sensitivity=${sensitivityResults.map((r) => `${r.ticks}t:${r.expectancyR?.toFixed(3) ?? 'n/a'}`).join('|')}`,
+      + `sensitivity=${sensitivityResults.map((r) => `${r.ticks}t:${r.expectancyR?.toFixed(3) ?? 'n/a'}`).join('|')},`
+      /**
+       * **Jev 가 돌았는지가 여기 남는다.** 「안 쟀다」와 「졌다」는 다른 사실이고,
+       * 사유에 안 적으면 화면에서 둘이 같은 얼굴이 된다.
+       */
+      + `${jevNote}${jevComparison ? `,jev_better=${jevComparison.better}` : ',jev_better=not_measured'}`,
     userMessage: null,
     progress,
     gate,
