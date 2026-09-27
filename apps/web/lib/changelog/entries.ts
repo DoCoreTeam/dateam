@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.608',
+    date: '2026-09-27',
+    title: 'AI 트레이딩 판단을 우리가 쓰던 AI 키로 부를 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🔑',
+        headline: '판단 모델 공급자를 골라서 쓸 수 있어요',
+        detail: '설정에서 Vercel 관문 대신 이미 등록해 둔 Gemini 키를 쓰도록 바꿀 수 있습니다. 좋은 모델이 등급 때문에 막히는 일을 피할 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔄',
+        headline: '키 하나가 막혀도 다음 키로 이어서 물어봐요',
+        detail: '등록된 키를 순서대로 쓰고 한도나 일시 과부하에 걸리면 다음 키로 넘어갑니다. 무료 키를 먼저 쓰고 유료 키는 마지막에 씁니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.604',
     date: '2026-09-27',
     title: 'AI 트레이딩 알림이 이제 휴대폰으로 갑니다',
