@@ -292,7 +292,13 @@ test('★ 안전 게이트 설정의 이름표 번호가 실제로 올리는 게
   for (const s of TRADING_SETTINGS.filter((x) => x.group === 'safety')) {
     const id = RAISED[s.key]
     assert.ok(id, `안전 게이트 설정 ${s.key} 가 어느 게이트를 올리는지 대응표에 없다`)
-    assert.ok(s.label.startsWith(id), `${s.key} 의 이름표가 ${id} 로 시작하지 않는다: ${s.label}`)
+    /**
+     * **번호는 근거에 남고 이름에는 안 나온다.**
+     *
+     * 전에는 이름표가 `SG-01 …` 으로 시작하는지를 봤다. 그런데 사람은 `SG-01` 을 모른다
+     * (사용자 지적 2026-09-27 「이게 무슨말이야」). 추적은 끊기면 안 되므로
+     * 번호를 `source` 로 옮겼고, 이 가드도 그 자리를 본다.
+     */
     assert.ok(s.source.includes(id), `${s.key} 의 근거 절이 ${id} 가 아니다: ${s.source}`)
     assert.ok(safety.includes(`'${id}'`), `${id} 를 올리는 코드가 safety.ts 에 없다`)
   }
@@ -347,9 +353,17 @@ test('★ 목록이 공급자 명세에서 나온다 — 새 공급자가 따라
   assert.equal(/\['jev'|"jev"/.test(body), false, '목록을 손으로 적었다')
 })
 
-test('★ 도움말이 무엇을 고르면 되는지 말한다 — 근거와 함께', () => {
-  const spec = TRADING_SETTINGS.find((s) => s.key === 'jev_provider')
-  assert.ok(spec?.help.includes('2026-09-27'), '실측 날짜가 없다 — 근거 없는 권장은 취향이다')
-  const model = TRADING_SETTINGS.find((s) => s.key === 'jev_model')
-  assert.ok(model?.help.includes('gemini-3.8-flash'), '권장 모델을 안 말한다')
+/**
+ * **권장은 고르는 자리에 있어야 한다.**
+ *
+ * 전에는 이 가드가 도움말에 실측 날짜와 권장 모델 이름이 적혀 있는지를 봤다.
+ * 그래서 도움말이 개발 기록이 됐고 사용자가 읽고 「이게 무슨말이야」라고 물었다
+ * (2026-09-27). 권장은 글로 적는 것이 아니라 **고를 때 보여 주는 것**이다.
+ */
+test('★ 고르는 설정에는 고를 것이 있다 — 빈칸에 적어 넣게 두지 않는다', () => {
+  const choices = TRADING_SETTINGS.filter((s) => s.type === 'choice')
+  assert.ok(choices.length > 0, '고르는 설정이 하나도 없다')
+  for (const s of choices) {
+    assert.ok((s.choices ?? []).length > 0, `${s.key} 가 고를 것을 안 준다`)
+  }
 })
