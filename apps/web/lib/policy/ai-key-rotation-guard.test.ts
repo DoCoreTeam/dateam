@@ -142,3 +142,54 @@ test('키 교체는 모델 폴백보다 먼저다 — 키가 남았는데 더 �
     '모델을 바꾼 뒤에야 키를 갈아탄다',
   )
 })
+
+/**
+ * **벤더 주소를 직접 두드리는 자리도 교체를 지난다**
+ *
+ * 위의 규칙은 `.streamChat(` 을 센다 — 채팅 어댑터를 쓰는 자리를 위한 것이다.
+ * 그런데 트레이딩 판단기는 어댑터를 안 쓰고 OpenAI 호환 주소를 **직접 `fetch`** 한다.
+ * 그래서 규칙 밖에 있었고, 키 넷이 등록돼 있어도 첫 키 하나만 쓰고 끝났다.
+ *
+ * 실측 2026-09-27: 등록된 Gemini 키 넷 중 하나가 그 순간 503 이었다. 첫 키만 쓰면
+ * 그 분의 판단은 그냥 사라진다 — 하필 바쁜 순간에만 빠지는 편향이고, D-41 이 경계하는 것이다.
+ *
+ * 그래서 **채팅 창구를 직접 여는 파일**을 세고, 그 파일이 교체를 부르는지 본다.
+ */
+const OPENS_CHAT_ENDPOINT = /fetch\s*\([^)]*chat\/completions/
+
+/** 창구를 직접 열어도 교체가 필요 없는 자리. **이유를 함께 적는다** */
+const MAY_OPEN_WITHOUT_ROTATION: Record<string, string> = {}
+
+function filesUnder(rel: string): string[] {
+  const root = join(WEB, rel)
+  const out: string[] = []
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name)
+      if (statSync(full).isDirectory()) { walk(full); continue }
+      if (!full.endsWith('.ts') || full.endsWith('.test.ts')) continue
+      out.push(relative(WEB, full))
+    }
+  }
+  try { walk(root) } catch { /* 없는 폴더는 셀 것이 없다 */ }
+  return out
+}
+
+test('★ 채팅 창구를 직접 여는 자리는 키 교체를 부른다 — 어댑터를 안 써도 규칙은 같다', () => {
+  const offenders: string[] = []
+  for (const rel of [...filesUnder('lib/trading'), ...filesUnder('lib/ai'), ...filesUnder('lib/ai-chat')]) {
+    const src = code(rel)
+    if (!OPENS_CHAT_ENDPOINT.test(src)) continue
+    if (rel in MAY_OPEN_WITHOUT_ROTATION) continue
+    if (!CALLS_ROTATION.test(src)) offenders.push(rel)
+  }
+  assert.deepEqual(offenders, [],
+    `창구를 직접 열면서 키 교체를 안 부른다:\n  ${offenders.join('\n  ')}\n\n`
+    + '등록된 키가 넷이어도 첫 키 하나로 끝난다. 한 키가 막힌 순간의 판단이 그냥 사라진다.')
+})
+
+test('★ 세는 대상이 0개가 아니다 — 0개면 위 단정은 언제나 초록이다', () => {
+  const opens = [...filesUnder('lib/trading'), ...filesUnder('lib/ai-chat')]
+    .filter((rel) => OPENS_CHAT_ENDPOINT.test(code(rel)))
+  assert.ok(opens.length > 0, '채팅 창구를 직접 여는 파일을 하나도 못 찾았다 — 정규식이 낡았다')
+})

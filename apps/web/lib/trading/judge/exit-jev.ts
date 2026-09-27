@@ -17,6 +17,7 @@ import { serverKnownNames } from '@/lib/ai/known-names'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import { openAiCompatibleBaseUrl, type AiProviderId } from '@/lib/ai/provider-catalog'
 import { BudgetDeniedError } from '@/lib/ai/budget'
+import { withProviderKeys } from '@/lib/ai/key-rotation'
 import {
   buildExitPrompt, parseExitResponse, EXIT_PROMPT_VERSION,
   type ExitContext, type ExitScore,
@@ -183,10 +184,11 @@ async function callVendor(
       knownNames: await serverKnownNames(),
     },
     serverAiLedger(),
-    async (masked) => {
+    // 진입과 **같은 교체 규칙**을 쓴다. 한쪽만 첫 키로 끝내면 둘의 성적이 다른 조건의 것이 된다
+    async (masked) => withProviderKeys(provider, apiKey, async (key) => {
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
         body: JSON.stringify({
           model,
           messages: [{ role: 'user', content: masked }],
@@ -194,19 +196,20 @@ async function callVendor(
           response_format: { type: 'json_object' },
         }),
       })
-      if (!response.ok) throw new Error(`jev_http_${response.status}`)
+      // 상태 코드를 남긴다 — 교체 판정이 이 글자로 키 문제와 모델 문제를 가른다
+      if (!response.ok) throw new Error(`${provider}_http_${response.status}`)
       const body = (await response.json()) as {
         choices?: { message?: { content?: string } }[]
         usage?: { prompt_tokens?: number; completion_tokens?: number }
       }
       const text = body.choices?.[0]?.message?.content
-      if (typeof text !== 'string') throw new Error('jev_empty_choice')
+      if (typeof text !== 'string') throw new Error(`${provider}_empty_choice`)
       return {
         text,
         inputTokens: body.usage?.prompt_tokens ?? null,
         outputTokens: body.usage?.completion_tokens ?? null,
       }
-    },
+    }),
   )
   return result.text
 }

@@ -20,6 +20,7 @@ import { serverKnownNames } from '@/lib/ai/known-names'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import { openAiCompatibleBaseUrl, type AiProviderId } from '@/lib/ai/provider-catalog'
 import { BudgetDeniedError } from '@/lib/ai/budget'
+import { withProviderKeys } from '@/lib/ai/key-rotation'
 import { createJevJudge, JevBudgetDeniedError, type JevCaller } from './jev-core.ts'
 import type { Judge } from './types.ts'
 
@@ -52,12 +53,24 @@ function gatewayCaller(provider: AiProviderId, apiKey: string, model: string): J
         knownNames: await serverKnownNames(),
       },
       serverAiLedger(),
-      async (prompt) => {
+      /**
+       * **키를 갈아 가며 한 번 부른다** (`lib/ai/key-rotation.ts`).
+       *
+       * 한 키가 한도(429)·인증(401·403)·과부하(503)에 걸리면 다음 키로 같은 일을 다시 한다.
+       * 무료 키가 먼저고 유료 키가 나중이다(`lib/ai/key-pool.ts`).
+       *
+       * **왜 이 자리인가** (실측 2026-09-27): 등록된 Gemini 키 넷 중 하나는 그 순간
+       * 503 이었고 다른 셋은 200 이었다. 첫 키 하나만 쓰면 그 분의 판단은 그냥 사라진다 —
+       * 하필 바쁜 순간에만 빠지는 편향이 되고, 그것이 D-41 이 경계하는 것이다.
+       *
+       * 원장은 이 바깥이라 **한 판단이 한 줄**로 남는다. 교체는 그 안의 일이다.
+       */
+      async (prompt) => withProviderKeys(provider, apiKey, async (key) => {
         const response = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
-            authorization: `Bearer ${apiKey}`,
+            authorization: `Bearer ${key}`,
           },
           body: JSON.stringify({
             model,
@@ -68,7 +81,12 @@ function gatewayCaller(provider: AiProviderId, apiKey: string, model: string): J
           }),
         })
         if (!response.ok) {
-          // 벤더 본문을 그대로 싣지 않는다 — 내부 구조가 오류 문장으로 샌다
+          /**
+           * 벤더 본문을 그대로 싣지 않는다 — 내부 구조가 오류 문장으로 샌다.
+           *
+           * 상태 코드는 남긴다. 교체 판정이 이 글자를 보고 「이 키의 문제」와
+           * 「모델의 문제」를 가른다 — 404 는 키를 안 태우고 그대로 올린다.
+           */
           throw new Error(`${provider}_http_${response.status}`)
         }
         const body = (await response.json()) as {
@@ -82,7 +100,7 @@ function gatewayCaller(provider: AiProviderId, apiKey: string, model: string): J
           inputTokens: body.usage?.prompt_tokens ?? null,
           outputTokens: body.usage?.completion_tokens ?? null,
         }
-      },
+      }),
     )
     return result.text
   }

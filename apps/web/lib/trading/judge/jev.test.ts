@@ -258,3 +258,41 @@ test('★ 검증과 실시간이 같은 공급자를 쓴다 (M4)', () => {
     '검증이 공급자를 안 넘긴다 — 잰 성적이 실전의 것이 아니게 된다')
   assert.ok(pipe.includes("values.jev_provider"), '검증이 설정을 안 읽는다')
 })
+
+/**
+ * **키가 막히면 다음 키로 이어 부른다** (`lib/ai/key-rotation.ts`)
+ *
+ * 실측 2026-09-27: 등록된 Gemini 키 넷 중 하나가 그 순간 503 이었고 나머지 셋은 200 이었다.
+ * 첫 키 하나만 쓰면 그 분의 판단은 그냥 사라진다 — 하필 바쁜 순간에만 빠지는 편향이고
+ * 그것이 D-41 이 경계하는 것이다.
+ */
+test('★ 판단 호출이 교체를 지난다 — 첫 키 하나로 끝내지 않는다', () => {
+  for (const file of ['jev.ts', 'exit-jev.ts']) {
+    const src = readFileSync(join(HERE, file), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+    assert.ok(/withProviderKeys\s*\(/.test(src), `${file} 이 교체를 안 부른다`)
+    // 들여오기만 해 두고 안 부르면 통과하면 안 된다
+    assert.ok(src.includes('withProviderKeys(provider, apiKey'), `${file} 이 교체에 공급자·키를 안 넘긴다`)
+    // 교체가 고른 키를 써야 한다. 받은 키를 그대로 쓰면 교체는 흉내만 난다
+    assert.ok(/authorization: `Bearer \$\{key\}`/.test(src), `${file} 이 교체가 고른 키를 안 쓴다`)
+    assert.equal(/authorization: `Bearer \$\{apiKey\}`/.test(src), false,
+      `${file} 이 받은 키를 그대로 쓴다 — 교체가 흉내만 난다`)
+  }
+})
+
+test('★ 상태 코드를 남긴다 — 교체가 키 문제와 모델 문제를 그 글자로 가른다', () => {
+  for (const file of ['jev.ts', 'exit-jev.ts']) {
+    const src = readFileSync(join(HERE, file), 'utf8')
+    assert.ok(src.includes('${provider}_http_${response.status}'),
+      `${file} 이 상태 코드를 안 남긴다 — 429 도 404 도 원인 불명이 된다`)
+  }
+})
+
+test('★ 원장은 교체 바깥이다 — 한 판단이 한 줄로 남는다', () => {
+  const src = readFileSync(join(HERE, 'jev.ts'), 'utf8')
+  const guardedAt = src.indexOf('await guardedText(')
+  const rotateAt = src.indexOf('withProviderKeys(provider, apiKey')
+  assert.ok(guardedAt > 0 && rotateAt > 0)
+  assert.ok(guardedAt < rotateAt,
+    '교체가 원장 바깥이다 — 키를 넷 태우면 원장에 네 줄이 남아 「AI 호출이 얼마나 나갔나」가 틀어진다')
+})
