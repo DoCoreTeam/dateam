@@ -1,0 +1,24 @@
+/* 스스로 다시 읽는 자리 — 화면 맨 위 한 줄
+   기다리는 자리가 무엇을 하는지 말한다 (정책 B-7) */
+
+.bar {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.spinning {
+  animation: liveSpin 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning { animation: none; }
+}
+
+@keyframes liveSpin {
+  to { transform: rotate(360deg); }
+}

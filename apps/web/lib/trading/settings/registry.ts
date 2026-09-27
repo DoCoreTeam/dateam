@@ -136,6 +136,26 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §7.5 · §13.4',
   },
   {
+    /**
+     * 현황이 스스로 다시 읽는 간격.
+     *
+     * **env 로 안 둔다.** 값을 바꾸려고 배포를 기다려야 하면 아무도 안 바꾼다.
+     * 0 을 허용하지 않는 이유: 0 은 「안 읽음」과 「쉬지 않고 읽음」 둘 다로 읽힌다 —
+     * 끄고 싶으면 상한 쪽으로 올린다.
+     */
+    key: 'overview_refresh_seconds',
+    group: 'basic',
+    label: '현황 새로 읽는 간격',
+    help: '현황 화면이 이 시간마다 스스로 다시 읽습니다. 화면을 안 보고 있으면 안 읽습니다',
+    type: 'number',
+    defaultValue: 30,
+    unit: '초',
+    min: 5,
+    max: 600,
+    usedFrom: '1-A',
+    source: '사용자 지적 2026-09-28 「실시간으로 보여지는 화면 형태여야」',
+  },
+  {
     key: 'decision_spec_version',
     group: 'basic',
     label: '판단 규칙 판',

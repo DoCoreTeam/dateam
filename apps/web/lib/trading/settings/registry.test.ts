@@ -367,3 +367,58 @@ test('★ 고르는 설정에는 고를 것이 있다 — 빈칸에 적어 넣�
     assert.ok((s.choices ?? []).length > 0, `${s.key} 가 고를 것을 안 준다`)
   }
 })
+
+/* ── 현황이 스스로 다시 읽는 간격 ─────────────────────── */
+
+/**
+ * **실시간처럼 보이는 화면은 스스로 읽는 화면이다** (사용자 지적 2026-09-28
+ * 「실시간으로 보여지는 화면 형태여야」).
+ *
+ * 간격을 env 로 두면 값을 바꾸려고 배포를 기다려야 하고, 그러면 아무도 안 바꾼다.
+ * 그래서 설정값이고, 설정값이면 화면이 그 값을 **실제로 읽어야** 뜻이 있다.
+ */
+const TRADING_APP = join(HERE, '..', '..', '..', 'app', '(trading)', 'trading')
+
+test('★ 현황 새로 읽는 간격이 설정이다 — env 가 아니다', () => {
+  const s = tradingSetting('overview_refresh_seconds')
+  assert.ok(s, '간격 설정이 등록부에 없다')
+  assert.equal(s?.type, 'number')
+  assert.equal(s?.group, 'basic', '묶음이 없으면 설정 화면에서 안 보인다')
+  assert.ok((s?.min ?? 0) >= 5, '0 이나 1초를 허용하면 서버를 쉬지 않고 두드린다')
+  assert.ok((s?.max ?? 0) <= 3600)
+  assert.equal(defaultSettings().overview_refresh_seconds, 30)
+
+  const page = readFileSync(join(TRADING_APP, 'page.tsx'), 'utf8')
+  assert.match(page, /values\.overview_refresh_seconds/, '화면이 그 값을 안 읽는다')
+  assert.match(page, /<LiveRefresh\s+everySeconds=\{/, '읽은 값을 안 넘긴다')
+})
+
+test('★ 안 보는 화면을 위해 서버를 두드리지 않는다', () => {
+  const src = readFileSync(join(TRADING_APP, 'LiveRefresh.tsx'), 'utf8')
+  /**
+   * **이름이 어디 있는지가 아니라 어느 자리에 있는지를 본다.**
+   *
+   * 파일 아무 데나 `document.hidden` 이 있으면 통과시키면, 돌아왔을 때 쓰는 쪽에만
+   * 남기고 시계가 부르는 쪽에서 지워도 초록이 된다 — 실제로 그렇게 깨 봤더니 통과했다.
+   * 그래서 **시계가 부르는 함수의 몸통**을 잘라 그 안에서 찾는다.
+   */
+  const at = src.indexOf('const read = ')
+  assert.ok(at > 0, '시계가 부르는 함수를 못 찾겠다 — 이름이 바뀌었으면 가드도 따라와야 한다')
+  const body = src.slice(at, src.indexOf('\n    }', at))
+  assert.match(body, /document\.hidden/, '시계가 탭이 뒤에 있는지 안 보고 읽는다')
+  assert.match(src, /setInterval\(read,/, '시계가 그 함수를 안 부른다')
+  assert.match(src, /visibilitychange/, '돌아왔을 때 한 번 안 읽어 옛 값이 남는다')
+  assert.match(src, /router\.refresh\(\)/, '창구를 새로 열어 읽는다 — 관문이 갈린다')
+  assert.equal(/process\.env/.test(src), false, '간격을 env 에서 읽는다')
+  // 값은 넘겨받는다. 화면이 스스로 정하면 설정과 화면이 다른 간격을 본다
+  assert.equal(/setInterval\([^,]+,\s*\d{3,}\s*\)/.test(src), false, '간격을 코드에 박았다')
+})
+
+test('★ 다시 읽는 중임을 말하고 마지막으로 읽은 때를 적는다 (B-7)', () => {
+  const src = readFileSync(join(TRADING_APP, 'LiveRefresh.tsx'), 'utf8')
+  assert.match(src, /다시 읽는 중/, '기다리는 자리가 무엇을 하는지 안 말한다')
+  assert.match(src, /읽었습니다/, '마지막으로 읽은 때를 안 적는다')
+  assert.match(src, /role="status"/, '화면 읽기 도구가 이 줄이 바뀐 것을 모른다')
+  // 시각은 화면이 잰다 — 서버가 적어 보내면 그것은 「서버가 그린 때」다
+  assert.match(src, /seoulTimeText\(/, '시각을 우리 표기로 안 적는다')
+})

@@ -10,6 +10,7 @@
 import { CandlestickChart } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import ChartPanel from './ChartPanel'
+import LiveRefresh from './LiveRefresh'
 import SignalPanel from './SignalPanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
@@ -33,6 +34,10 @@ export default async function TradingPage() {
   const rawValid = Number(values.signal_valid_minutes)
   const validMinutes = Number.isFinite(rawValid) && rawValid > 0 ? rawValid : 10
 
+  // 다시 읽는 간격도 설정이다. env 에 두면 값을 바꾸려고 배포를 기다려야 한다
+  const rawRefresh = Number(values.overview_refresh_seconds)
+  const refreshSeconds = Number.isFinite(rawRefresh) && rawRefresh >= 5 ? rawRefresh : 30
+
   return (
     <>
       <PageHeader
@@ -46,6 +51,8 @@ export default async function TradingPage() {
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+        {/* 화면이 스스로 다시 읽는다. 마지막으로 읽은 때를 이 줄이 말한다 */}
+        <LiveRefresh everySeconds={refreshSeconds} />
         {/*
           **맨 위가 그림이다.** 사용자 지적 2026-09-28 「차트 보이고 예측한 답은
           어디서 보는 거야? 그게 메인이어야 될 텐데」 — 숫자 표를 먼저 세우면
