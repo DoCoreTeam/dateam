@@ -25,6 +25,15 @@ export interface VendorSpec<Id extends string = string> {
    * in which case the SDK owns the address.
    */
   baseUrl: string | null
+  /**
+   * OpenAI-compatible endpoint that exists **in addition to** the official SDK.
+   *
+   * Some vendors ship both: the SDK is richer, but a plain JSON call can go through the
+   * compatible endpoint with no extra dependency. `baseUrl` keeps its meaning — "this is
+   * how we talk to the vendor" — and this field says "there is also this door".
+   * Null when the vendor offers no such door.
+   */
+  openAiBaseUrl?: string | null
   /** Checked before a key is stored, so a key pasted into the wrong field fails there */
   keyPrefixes: readonly string[]
   capabilities: VendorCapabilities
@@ -35,6 +44,8 @@ export interface VendorSpec<Id extends string = string> {
 export const GEMINI: VendorSpec<'gemini'> = {
   id: 'gemini',
   baseUrl: null,
+  // Measured 2026-09-27: a paid key reaches all 44 models here, JSON mode included
+  openAiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
   keyPrefixes: ['AIza'],
   capabilities: { vision: true, tools: true, thinking: false, defaultMaxOutputTokens: 8192 },
   keyIssueUrl: 'https://aistudio.google.com/apikey',

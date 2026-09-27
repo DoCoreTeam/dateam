@@ -36,6 +36,7 @@ import { bucketsClosedBy, openInterestOf } from '../bars/rollup.ts'
 import { computeIndicators, evaluateTriggers, requiredBarCount } from '../judge/indicators.ts'
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import { runJudges, scheduledMinuteOf, RUN_BUDGET_MS, type TickOutcome } from './tick-core.ts'
 import { runWatch } from './watch.ts'
 import type { GateHit } from '../gate/safety.ts'
@@ -772,6 +773,8 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
         judges.set('jev', await createServerJevJudge({
           timeoutMs: num('jev_timeout_seconds', 10) * 1000,
           model: jevModel,
+          // 어느 공급자로 부를지는 설정이 정한다 (§7.2). 기본은 Vercel 관문이다
+          provider: str('jev_provider', 'jev') as AiProviderId,
         }))
       } catch (error) {
         // Jev 를 못 만들어도 rule 기록은 남긴다. 사유는 실행 기록에 실어 보낸다
@@ -1198,6 +1201,7 @@ async function knowledgeOrExplain(ctx: any): Promise<string> {
         specVersion: str('decision_spec_version', 'v1'),
         jevTimeoutMs: num('jev_timeout_seconds', 10) * 1000,
         jevModel: str('jev_model', ''),
+        jevProvider: str('jev_provider', 'jev') as AiProviderId,
         view: { bars, indicators },
       }
       : null

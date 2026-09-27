@@ -143,11 +143,22 @@ test('★ 섀도가 아닌 행은 DB 가 거절한다 — 코드만으로 안 �
 test('★ 진입 Jev 와 같은 키·같은 예산·같은 원장을 쓴다 (§17.1)', () => {
   const exit = readFileSync(join(HERE, 'exit-jev.ts'), 'utf8')
   const entry = readFileSync(join(HERE, 'jev.ts'), 'utf8')
-  for (const shared of ['guardedText', 'serverAiLedger', 'resolveProviderKey', "getProviderSpec('jev')"]) {
+  for (const shared of ['guardedText', 'serverAiLedger', 'resolveProviderKey', 'openAiCompatibleBaseUrl(']) {
     assert.ok(exit.includes(shared), `청산이 ${shared} 를 안 쓴다`)
     assert.ok(entry.includes(shared), `진입이 ${shared} 를 안 쓴다 — 비교 대상이 틀렸다`)
   }
-  assert.ok(exit.includes("resolveProviderKey('jev'"), '청산이 다른 공급자 키를 쓴다')
+  /**
+   * **공급자를 박지 않고 받아 쓴다.**
+   *
+   * 전에는 양쪽 다 `'jev'` 가 박혀 있어 「같다」가 저절로 참이었다. 진입이 설정으로
+   * 공급자를 고르게 되자 청산만 Vercel 에 남아 갈렸다 — 그때 이 가드가 잡았다.
+   * 이제는 **둘 다 받아서 쓰는지**를 본다. 한쪽만 박으면 다시 갈린다.
+   */
+  assert.ok(exit.includes('resolveProviderKey(input.provider'), '청산이 공급자를 박아 쓴다')
+  assert.ok(entry.includes('resolveProviderKey(provider'), '진입이 공급자를 박아 쓴다')
+  assert.equal(/resolveProviderKey\('jev'/.test(exit + entry), false, '아직 벤더가 박혀 있다')
+  assert.ok(exit.includes('providerId: provider,'), '청산 원장이 늘 jev 로 적힌다')
+  assert.ok(entry.includes('providerId: provider,'), '진입 원장이 늘 jev 로 적힌다')
 })
 
 test('★ 선점한 실행만 벤더를 부른다 (§14.3 D-33)', () => {

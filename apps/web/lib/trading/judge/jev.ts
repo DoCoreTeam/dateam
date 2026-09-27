@@ -18,7 +18,7 @@ import { guardedText } from '@/lib/ai/guarded-call'
 import { serverAiLedger } from '@/lib/ai/ledger'
 import { serverKnownNames } from '@/lib/ai/known-names'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
-import { getProviderSpec } from '@/lib/ai/provider-catalog'
+import { openAiCompatibleBaseUrl, type AiProviderId } from '@/lib/ai/provider-catalog'
 import { BudgetDeniedError } from '@/lib/ai/budget'
 import { createJevJudge, JevBudgetDeniedError, type JevCaller } from './jev-core.ts'
 import type { Judge } from './types.ts'
@@ -36,13 +36,10 @@ export class JevNotConfiguredError extends Error {
 
 /**
  * 관문(OpenAI 호환)으로 한 번 부른다.
- *
- * 주소는 공급자 명세의 `baseUrl` 상수다 — 바깥 값이 주소에 안 섞인다(S4).
  */
-function gatewayCaller(apiKey: string, model: string): JevCaller {
-  const spec = getProviderSpec('jev')
-  const baseUrl = spec.baseUrl
-  if (!baseUrl) throw new JevNotConfiguredError('jev_base_url_missing')
+function gatewayCaller(provider: AiProviderId, apiKey: string, model: string): JevCaller {
+  const baseUrl = openAiCompatibleBaseUrl(provider)
+  if (!baseUrl) throw new JevNotConfiguredError(`${provider}_base_url_missing`)
 
   return async (maskedPrompt: string): Promise<string> => {
     const result = await guardedText(
@@ -50,7 +47,7 @@ function gatewayCaller(apiKey: string, model: string): JevCaller {
       {
         surface: SURFACE,
         purpose: PURPOSE,
-        providerId: 'jev',
+        providerId: provider,
         modelName: model,
         knownNames: await serverKnownNames(),
       },
@@ -72,14 +69,14 @@ function gatewayCaller(apiKey: string, model: string): JevCaller {
         })
         if (!response.ok) {
           // 벤더 본문을 그대로 싣지 않는다 — 내부 구조가 오류 문장으로 샌다
-          throw new Error(`jev_http_${response.status}`)
+          throw new Error(`${provider}_http_${response.status}`)
         }
         const body = (await response.json()) as {
           choices?: { message?: { content?: string } }[]
           usage?: { prompt_tokens?: number; completion_tokens?: number }
         }
         const text = body.choices?.[0]?.message?.content
-        if (typeof text !== 'string') throw new Error('jev_empty_choice')
+        if (typeof text !== 'string') throw new Error(`${provider}_empty_choice`)
         return {
           text,
           inputTokens: body.usage?.prompt_tokens ?? null,
@@ -96,6 +93,15 @@ export interface JevJudgeOptions {
   timeoutMs: number
   /** 관리자가 고른 모델 이름. 관문 뒤 모델은 우리가 못 정한다 */
   model: string
+  /**
+   * 어느 공급자로 부르나. 기본은 Vercel 관문(`jev`)이다.
+   *
+   * **왜 고를 수 있어야 하나** (실측 2026-09-27): Vercel 관문 무료 등급은
+   * anthropic·google 모델이 전부 403 이다. 정작 우리는 Gemini 유료 키를 이미 갖고 있고
+   * 그 키로는 44개 모델이 다 열린다. 판단기는 특권이 없으므로(§7.2) 어느 벤더의 모델을
+   * 쓰는지는 **설정이 정할 일**이지 코드가 박아 둘 일이 아니다.
+   */
+  provider?: AiProviderId
 }
 
 /**
@@ -103,14 +109,21 @@ export interface JevJudgeOptions {
  * 반쯤 된 판단기를 돌려주면 그 사실이 판단 기록에서 「기권」으로 섞여 원인을 못 찾는다.
  */
 export async function createServerJevJudge(options: JevJudgeOptions): Promise<Judge> {
+  const provider = options.provider ?? 'jev'
   const model = options.model.trim()
-  if (model === '') throw new JevNotConfiguredError('jev_model_missing')
+  if (model === '') throw new JevNotConfiguredError(`${provider}_model_missing`)
 
-  const choice = await resolveProviderKey('jev', null)
+  /**
+   * 부를 문이 없으면 **판단기를 안 만든다.**
+   * 반쯤 된 판단기를 돌려주면 그 사실이 판단 기록에서 「기권」으로 섞여 원인을 못 찾는다.
+   */
+  if (!openAiCompatibleBaseUrl(provider)) throw new JevNotConfiguredError(`${provider}_base_url_missing`)
+
+  const choice = await resolveProviderKey(provider, null)
   // 「키가 없다」와 「판이 달라 안 쓴다」를 구분해 남긴다 — 둘의 조치가 다르다
-  if (!choice.apiKey) throw new JevNotConfiguredError(`jev_key_unavailable:${choice.reason}`)
+  if (!choice.apiKey) throw new JevNotConfiguredError(`${provider}_key_unavailable:${choice.reason}`)
 
-  const call = gatewayCaller(choice.apiKey, model)
+  const call = gatewayCaller(provider, choice.apiKey, model)
   return createJevJudge({
     timeoutMs: options.timeoutMs,
     modelVersion: model,

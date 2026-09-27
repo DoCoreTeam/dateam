@@ -229,10 +229,20 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §19 「보유 기준」',
   },
   {
+    key: 'jev_provider',
+    group: 'decision',
+    label: '판단 모델 공급자',
+    help: '판단(Jev)을 어느 공급자로 부르나. jev 는 Vercel 관문이고 gemini 는 시스템 설정의 Gemini 키를 그대로 쓴다. 실측 2026-09-27 Vercel 무료 등급은 좋은 모델이 전부 막혀 있고 Gemini 유료 키는 다 열린다',
+    type: 'string',
+    defaultValue: 'jev',
+    usedFrom: '1-A',
+    source: '명세 §7.2 판단기는 교체 가능 · §17.1 기존 AI 계층',
+  },
+  {
     key: 'jev_model',
     group: 'decision',
     label: 'Jev 모델',
-    help: '관문(Vercel AI Gateway) 뒤에서 부를 모델 이름. 비우면 Jev 판단을 안 부르고 rule 만 기록한다',
+    help: '고른 공급자에서 부를 모델 이름. 비우면 Jev 판단을 안 부르고 rule 만 기록한다. gemini 를 고르면 gemini-3.8-flash 처럼 적는다 (실측 2026-09-27 세 문제 3/3, 2~5초)',
     type: 'string',
     // 기본값을 안 정한다. 관문 뒤 모델 이름은 벤더가 수시로 바꾸고, 박아 두면 사라진 날 조용히 404 가 난다
     defaultValue: '',

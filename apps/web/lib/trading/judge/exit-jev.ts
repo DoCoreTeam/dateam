@@ -15,7 +15,7 @@ import { guardedText } from '@/lib/ai/guarded-call'
 import { serverAiLedger } from '@/lib/ai/ledger'
 import { serverKnownNames } from '@/lib/ai/known-names'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
-import { getProviderSpec } from '@/lib/ai/provider-catalog'
+import { openAiCompatibleBaseUrl, type AiProviderId } from '@/lib/ai/provider-catalog'
 import { BudgetDeniedError } from '@/lib/ai/budget'
 import {
   buildExitPrompt, parseExitResponse, EXIT_PROMPT_VERSION,
@@ -39,6 +39,12 @@ export interface ExitJudgeInput {
   closes: readonly number[]
   timeoutMs: number
   model: string
+  /**
+   * 어느 공급자로 부르나. **진입 Jev 와 같아야 한다** (§17.1) —
+   * 갈리면 같은 키·같은 예산·같은 원장이라는 전제가 깨지고, 청산 섀도 성적이
+   * 진입과 다른 벤더의 것이 된다.
+   */
+  provider: AiProviderId
   /**
    * 지금 시각. **받는다** — 판단 계층이 `new Date()` 를 직접 부르면 백테스트가 미래를 본다(M5).
    * 시각을 밖에서 주면 과거 시점으로 같은 코드를 돌릴 수 있다.
@@ -65,7 +71,7 @@ export async function judgeExitShadow(input: ExitJudgeInput): Promise<ExitJudgeO
     return { status: 'abstain', reason: 'model_not_set' }
   }
 
-  const choice = await resolveProviderKey('jev', null)
+  const choice = await resolveProviderKey(input.provider, null)
   if (!choice.apiKey) {
     const outcome = { status: 'abstain' as const, reason: `key_unavailable:${choice.reason}` }
     await finish(claimed, outcome, null, null, model, input.now)
@@ -78,7 +84,7 @@ export async function judgeExitShadow(input: ExitJudgeInput): Promise<ExitJudgeO
   let text: string | typeof TIMED_OUT
   try {
     text = await Promise.race<string | typeof TIMED_OUT>([
-      callVendor(choice.apiKey, model, prompt.text),
+      callVendor(input.provider, choice.apiKey, model, prompt.text),
       new Promise<typeof TIMED_OUT>((resolve) =>
         setTimeout(() => resolve(TIMED_OUT), input.timeoutMs)),
     ])
@@ -161,16 +167,18 @@ async function finish(
 }
 
 /** 진입 Jev 와 같은 관문·같은 원장 */
-async function callVendor(apiKey: string, model: string, prompt: string): Promise<string> {
-  const baseUrl = getProviderSpec('jev').baseUrl
-  if (!baseUrl) throw new Error('jev_base_url_missing')
+async function callVendor(
+  provider: AiProviderId, apiKey: string, model: string, prompt: string,
+): Promise<string> {
+  const baseUrl = openAiCompatibleBaseUrl(provider)
+  if (!baseUrl) throw new Error(`${provider}_base_url_missing`)
 
   const result = await guardedText(
     prompt,
     {
       surface: SURFACE,
       purpose: PURPOSE,
-      providerId: 'jev',
+      providerId: provider,
       modelName: model,
       knownNames: await serverKnownNames(),
     },

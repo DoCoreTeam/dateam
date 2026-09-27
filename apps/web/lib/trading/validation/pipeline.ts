@@ -20,6 +20,7 @@ import { buildEvModel, expectedValueFor } from '../ev/model.ts'
 import { fitMl, createMlJudge, featuresOf } from '../judge/ml.ts'
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import type { Judge } from '../judge/types.ts'
 import { newCallBudget, takeCall, budgetNote, type CallBudget } from './pipeline-core.ts'
 import { bootstrapExpectancy, bootstrapDifference, isBetterThan } from '../stats/bootstrap.ts'
@@ -94,11 +95,14 @@ type JevForValidation =
   | { on: true; judge: Judge; budget: CallBudget }
   | { on: false; judge: null; reason: string }
 
-async function jevForValidation(maxCalls: number, model: string, timeoutMs: number): Promise<JevForValidation> {
+async function jevForValidation(
+  maxCalls: number, model: string, timeoutMs: number, provider: AiProviderId,
+): Promise<JevForValidation> {
   if (maxCalls <= 0) return { on: false, judge: null, reason: 'budget_zero' }
   if (model.trim() === '') return { on: false, judge: null, reason: 'model_not_set' }
   try {
-    const base = await createServerJevJudge({ timeoutMs, model })
+    // 검증과 실시간이 **같은 공급자**를 써야 한다. 다르면 잰 성적이 실전의 것이 아니다(M4)
+    const base = await createServerJevJudge({ timeoutMs, model, provider })
     return { on: true, judge: base, budget: newCallBudget(maxCalls) }
   } catch (error) {
     return { on: false, judge: null, reason: error instanceof Error ? error.message : 'jev_unavailable' }
@@ -247,6 +251,7 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
     num('validation_jev_max_calls', 0),
     String(values.jev_model ?? ''),
     num('jev_timeout_seconds', 10) * 1000,
+    (String(values.jev_provider ?? 'jev') || 'jev') as AiProviderId,
   )
   let calibrationVerdict: ReturnType<typeof judgeCalibration> | null = null
 

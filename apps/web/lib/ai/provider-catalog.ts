@@ -39,6 +39,14 @@ export interface AiProviderSpec {
    * (벤더 사실이라 값은 `@ax/ai-providers` 에서 온다)
    */
   baseUrl: string | null
+  /**
+   * SDK 를 쓰는 공급자에게도 **OpenAI 호환 문이 따로 있는 경우** 그 주소.
+   *
+   * `baseUrl` 의 뜻은 그대로 둔다 — 「이 벤더와는 이렇게 말한다」. 이 값은 「그 말고 이 문도
+   * 있다」이고, JSON 한 번이면 되는 호출(판단기)은 이 문으로 간다. 없으면 null 이다.
+   * (벤더 사실이라 값은 `@ax/ai-providers` 에서 온다)
+   */
+  openAiBaseUrl?: string | null
   /** 저장 전에 확인하는 키 접두사. 남의 공급자 키를 잘못 붙여 넣는 사고를 그 자리에서 잡는다 */
   keyPrefixes: readonly string[]
   /** 모델 미설정 시 쓸 값. null 이면 관리자가 고르기 전까지 후보에서 빠진다 */
@@ -56,6 +64,18 @@ export interface AiProviderSpec {
  * 등록된 공급자. **순서가 곧 폴백 기본 순서다** — 앞에 있는 것부터 시도한다.
  * (조직이 순서를 바꿔 저장하면 그 값이 이깁니다. 여기 순서는 저장값이 없을 때의 기본)
  */
+/**
+ * OpenAI 호환 문이 있으면 그 주소. 없으면 null.
+ *
+ * `baseUrl` 이 그 자체로 호환 창구인 공급자(Vercel 관문 등)는 그 값을 쓰고,
+ * SDK 를 쓰되 호환 문이 따로 있는 공급자(Gemini)는 `openAiBaseUrl` 을 쓴다.
+ * **주소는 여기 상수에서만 온다** — 설정값이 주소에 섞이면 그 자리가 바깥으로 나가는 창구가 된다(S4).
+ */
+export function openAiCompatibleBaseUrl(provider: AiProviderId): string | null {
+  const spec = getProviderSpec(provider)
+  return spec.baseUrl ?? spec.openAiBaseUrl ?? null
+}
+
 export const AI_PROVIDERS: readonly AiProviderSpec[] = [
   {
     ...GEMINI,

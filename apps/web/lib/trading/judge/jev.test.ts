@@ -17,6 +17,7 @@ import { buildJevPrompt, parseJevResponse, relativeCloses, JEV_PROMPT_VERSION } 
 import { createJevJudge, JevBudgetDeniedError } from './jev-core.ts'
 import type { JudgeInput } from './types.ts'
 import type { MinuteBarInput } from '../bars/confirm.ts'
+import { openAiCompatibleBaseUrl } from '../../ai/provider-catalog.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -194,4 +195,66 @@ test('★ 판단 계층에 알림·신호 호출이 0건이다 (M3)', () => {
         `${name} 이 판단 밖의 일을 한다. 원점수만 만든다 — 보정 전 값으로 신호를 내지 않는다(M3)`)
     }
   }
+})
+
+/**
+ * **판단기는 특권이 없다 — 어느 벤더를 쓸지는 설정이 정한다** (§7.2)
+ *
+ * 실측 2026-09-27: Vercel 관문 무료 등급은 anthropic·google 모델이 전부 403 이었다.
+ * 정작 우리는 Gemini 유료 키를 갖고 있었고 그 키로는 44개 모델이 다 열렸다.
+ * 코드가 벤더를 박아 두면 그 사실을 알아도 못 쓴다.
+ */
+test('★ 공급자마다 부를 문이 있거나 없다 — 없으면 안 만든다', () => {
+  // Vercel 관문은 그 자체가 OpenAI 호환 창구다
+  assert.equal(openAiCompatibleBaseUrl('jev'), 'https://ai-gateway.vercel.sh/v1')
+  // Gemini 는 SDK 를 쓰지만 호환 문이 따로 있다. 판단은 JSON 한 번이라 그 문으로 간다
+  assert.equal(openAiCompatibleBaseUrl('gemini'), 'https://generativelanguage.googleapis.com/v1beta/openai')
+  // 문이 없는 공급자는 null 이다 — 지어내지 않는다
+  assert.equal(openAiCompatibleBaseUrl('claude'), null)
+})
+
+/**
+ * **주소는 벤더 명세 상수에서만 온다** (S4).
+ *
+ * 설정은 「어느 공급자」만 고른다. 설정값이 주소에 섞이면 그 자리가 곧 바깥으로 나가는
+ * 창구가 되고, 설정을 고칠 수 있는 사람이 요청을 아무 데로나 보낼 수 있게 된다.
+ */
+test('★ 설정값이 주소에 안 섞인다 (S4)', () => {
+  const src = readFileSync(join(HERE, 'jev.ts'), 'utf8')
+  const catalog = readFileSync(join(HERE, '..', '..', 'ai', 'provider-catalog.ts'), 'utf8')
+  const fn = catalog.slice(catalog.indexOf('export function openAiCompatibleBaseUrl'))
+  const body = fn.slice(0, fn.indexOf('\n}'))
+  assert.ok(body.includes('getProviderSpec(provider)'), '명세에서 주소를 안 가져온다')
+  assert.equal(/https?:\/\//.test(body), false, '주소를 이 자리에서 짓는다')
+
+  // fetch 가 쓰는 주소가 명세에서 온 값 하나뿐이어야 한다
+  const caller = src.slice(src.indexOf('function gatewayCaller'))
+  assert.ok(caller.includes('const baseUrl = openAiCompatibleBaseUrl(provider)'), '주소를 다른 데서 만든다')
+  assert.ok(caller.includes('fetch(`${baseUrl}/chat/completions`'), '주소를 안 쓰고 부른다')
+  assert.equal(/fetch\(\s*`?https?:/.test(caller), false, '주소를 박아 부른다')
+})
+
+test('★ 기본값은 지금 동작 그대로다 — 고치지 않은 판이 안 바뀐다', () => {
+  const src = readFileSync(join(HERE, 'jev.ts'), 'utf8')
+  assert.ok(src.includes("options.provider ?? 'jev'"), '기본 공급자가 없다')
+  const reg = readFileSync(join(HERE, '..', 'settings', 'registry.ts'), 'utf8')
+  const at = reg.indexOf("key: 'jev_provider'")
+  assert.ok(at > 0, '공급자 설정이 없다')
+  assert.ok(reg.slice(at, at + 400).includes("defaultValue: 'jev'"), '기본값이 지금 동작과 다르다')
+})
+
+test('★ 사유에 어느 공급자였는지가 남는다 — 둘을 쓰면 「안 됐다」만으로는 못 찾는다', () => {
+  const src = readFileSync(join(HERE, 'jev.ts'), 'utf8')
+  for (const pat of ['${provider}_model_missing', '${provider}_base_url_missing', '${provider}_key_unavailable']) {
+    assert.ok(src.includes(pat), `${pat} 가 공급자 이름을 안 싣는다`)
+  }
+  // 원장에도 그 공급자로 적혀야 「어느 쪽이 얼마나 썼나」를 센다
+  assert.ok(src.includes('providerId: provider,'), '원장에 늘 jev 로 적힌다')
+})
+
+test('★ 검증과 실시간이 같은 공급자를 쓴다 (M4)', () => {
+  const pipe = readFileSync(join(HERE, '..', 'validation', 'pipeline.ts'), 'utf8')
+  assert.ok(pipe.includes('createServerJevJudge({ timeoutMs, model, provider })'),
+    '검증이 공급자를 안 넘긴다 — 잰 성적이 실전의 것이 아니게 된다')
+  assert.ok(pipe.includes("values.jev_provider"), '검증이 설정을 안 읽는다')
 })

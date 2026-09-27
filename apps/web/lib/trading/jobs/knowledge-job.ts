@@ -23,6 +23,7 @@ import { sourcesAsOf } from '../knowledge/sources.ts'
 import { metricsToLines } from '../knowledge/pattern-core.ts'
 import { TRADING_SETTINGS } from '../settings/registry.ts'
 import { judgeExitShadow } from '../judge/exit-jev.ts'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import { buildExitContext, exitCloses, leansExit, type ExitBars } from '../judge/exit-core.ts'
 import { asOfContext, futureCount } from '../knowledge/as-of.ts'
 
@@ -46,6 +47,8 @@ export interface KnowledgeJobInput {
     specVersion: string
     jevTimeoutMs: number
     jevModel: string
+    /** 진입 Jev 와 같은 공급자. 갈리면 같은 키·같은 예산이라는 전제가 깨진다 */
+    jevProvider: AiProviderId
     /**
      * 청산 판단이 볼 봉과 지표. **진입 조건은 안 받는다** — 들고 있는 것을 언제
      * 놓을지는 새로 들어갈 이유와 상관이 없고, 받으면 진입 조건이 안 걸린 분에
@@ -169,6 +172,8 @@ async function exitShadow(input: KnowledgeJobInput): Promise<string> {
     closes: exitCloses(p.view, 20),
     timeoutMs: p.jevTimeoutMs,
     model: p.jevModel,
+    // 진입 Jev 와 **같은 공급자**여야 한다 (§17.1)
+    provider: p.jevProvider,
     now: input.now,
   })
   if (r.status !== 'completed') return `${r.status}:${r.reason}`
