@@ -23,6 +23,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { JOB_TYPES, RUNNABLE_JOB_TYPES, isRunnable } from '../rfp/jobs/stages.ts'
+import { stripComments } from '../ui/component-scan.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const RFP_ROOTS = ['lib/rfp', 'app/api/rfp', 'app/(rfp)', 'components/rfp']
@@ -73,10 +74,6 @@ test('★ 걸 수 있는데 안 도는 단계는 문 앞에서 막힌다', () =>
   ].join('\n'))
 })
 
-/** 주석을 걷어낸다. 규칙을 적어 둔 주석까지 잡으면 규칙을 적는 것이 위반이 된다 */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1')
-}
 
 /** 그 줄이 「그렇게 쓰지 않는다」고 말하고 있나 */
 function isProhibition(line: string): boolean {

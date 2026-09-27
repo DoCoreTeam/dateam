@@ -31,6 +31,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stripComments } from '../ui/component-scan.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TRADING = join(WEB, 'lib', 'trading')
@@ -174,16 +175,6 @@ function valueExports(src: string): string[] {
   return names
 }
 
-/**
- * 주석을 지운다.
- *
- * **적어 둔 것은 쓴 것이 아니다.** 실측 2026-09-26: 배선을 떼고 가드를 돌렸는데 통과했다 —
- * 다른 파일 주석에 그 이름이 적혀 있었기 때문이다(「aggregateBars 는 … 만들고」).
- * 이름을 찾는 가드는 반드시 주석과 import 를 먼저 지워야 한다.
- */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
-}
 
 /**
  * `import`·`export ... from` 줄을 지운다.

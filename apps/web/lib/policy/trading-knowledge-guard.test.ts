@@ -18,6 +18,7 @@ import { KNOWLEDGE_TABLES } from '../trading/knowledge/as-of.ts'
 import { KNOWLEDGE_SURFACE, KNOWLEDGE_PURPOSES } from '../trading/knowledge/surface.ts'
 import { AI_LANES } from '../ai/actor.ts'
 import { TRADING_APP_DIR } from './app-dirs.ts'
+import { stripComments } from '../ui/component-scan.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TRADING = join(WEB, 'lib', 'trading')
@@ -37,9 +38,6 @@ function walk(dir: string): string[] {
   return out
 }
 
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
-}
 
 /** `import` 줄을 지운다. **들여온 것은 부른 것이 아니다** */
 function stripImports(src: string): string {

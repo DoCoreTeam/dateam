@@ -18,7 +18,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { walkFiles, read } from './component-scan.ts'
+import { walkFiles, read, stripComments } from './component-scan.ts'
 
 /**
  * **Tailwind 기본 유틸리티.** 우리 CSS 에 규칙이 없는 것이 맞다 — Tailwind 가 만든다.
@@ -44,43 +44,6 @@ function allCss(): string {
 /** `.token` 이 선택자로 등장하나 — 뒤따르는 문자가 클래스명 문자가 아니어야 한다 */
 function definedIn(css: string, token: string): boolean {
   return new RegExp(`\\.${token.replace(/[-]/g, '\\-')}(?![\\w-])`).test(css)
-}
-
-/**
- * 주석을 지운다 — 길이는 그대로 두고 그 자리만 공백으로 바꾼다.
- *
- * 왜: 주석에 적은 `'use client'` 를 코드로 읽어 짝인 `client` 를 없는 클래스로 잡았다.
- * 가드가 주석을 읽으면 사실이 아닌 것을 사실로 보고한다.
- *
- * 문자열 안의 `//` 는 주석이 아니므로 따옴표 안에서는 세지 않는다. 줄이 끝나면 따옴표
- * 상태를 푼다 — 여는 따옴표가 없는 JSX 본문의 홑따옴표가 그 아래를 통째로 삼키지 않게.
- */
-function stripComments(src: string): string {
-  const out = src.split('')
-  let i = 0
-  let quote: string | null = null
-  while (i < src.length) {
-    const c = src[i]
-    if (quote) {
-      if (c === '\\') { i += 2; continue }
-      if (c === quote || (c === '\n' && quote !== '`')) quote = null
-      i += 1
-      continue
-    }
-    if (c === "'" || c === '"' || c === '`') { quote = c; i += 1; continue }
-    if (c === '/' && src[i + 1] === '/') {
-      while (i < src.length && src[i] !== '\n') { out[i] = ' '; i += 1 }
-      continue
-    }
-    if (c === '/' && src[i + 1] === '*') {
-      const end = src.indexOf('*/', i + 2)
-      const stop = end === -1 ? src.length : end + 2
-      for (; i < stop; i += 1) if (src[i] !== '\n') out[i] = ' '
-      continue
-    }
-    i += 1
-  }
-  return out.join('')
 }
 
 /**

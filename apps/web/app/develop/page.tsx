@@ -223,7 +223,7 @@ function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id:
   "meta": { "total": 373, "nextCursor": "…", "hasMore": true }
 }
 
-// 실패 — 사람이 읽을 수 있는 말로 옵니다
+// 실패, 사람이 읽을 수 있는 말로 옵니다
 {
   "success": false,
   "error": "분당 요청 한도(60회)를 넘었습니다. 12초 후 다시 시도해 주세요."

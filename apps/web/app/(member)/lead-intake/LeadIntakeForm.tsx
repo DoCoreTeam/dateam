@@ -325,7 +325,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
             )}
           </div>
           <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', margin: '0.375rem 0 0' }}>
-            명함·미팅 메모·이메일 본문을 붙여넣거나, 이미지·PDF·DOCX·CSV를 첨부, 🎤로 받아쓰기 — XLSX는 대량 업로드로 처리됩니다
+            명함·미팅 메모·이메일 본문을 붙여넣거나, 이미지·PDF·DOCX·CSV를 첨부, 🎤로 받아쓰기. XLSX는 대량 업로드로 처리됩니다
           </p>
           {envWarn && <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--warning)', margin: '0.25rem 0 0', fontWeight: 600 }}>⚠️ {envWarn}</p>}
         </div>

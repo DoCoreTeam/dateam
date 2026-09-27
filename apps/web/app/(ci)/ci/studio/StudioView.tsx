@@ -317,7 +317,7 @@ export default function StudioView({ workspaceId, initialAssetId = null }: Props
               />
             </div>
             <span className="field-note">
-              <Film size={12} /> 영상은 올리지 않습니다 — 이 브라우저에서 분석하고 결과만 전송합니다
+              <Film size={12} /> 영상은 올리지 않습니다. 이 브라우저에서 분석하고 결과만 전송합니다
             </span>
           </div>
         )}

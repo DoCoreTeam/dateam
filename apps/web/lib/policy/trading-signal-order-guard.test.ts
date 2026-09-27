@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { EMIT_STAGES } from '../trading/signal/emit.ts'
 import { agreedDirection } from '../trading/signal/models-core.ts'
 import { TRADING_APP_DIR } from './app-dirs.ts'
+import { stripComments } from '../ui/component-scan.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TRADING = join(WEB, 'lib', 'trading')
@@ -41,10 +42,6 @@ function walk(dir: string): string[] {
   return out
 }
 
-/** 주석은 코드를 실행하지 않는다. 설명을 위반으로 세면 설명을 지우게 된다 */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
-}
 
 /**
  * `import` 줄을 지운다.

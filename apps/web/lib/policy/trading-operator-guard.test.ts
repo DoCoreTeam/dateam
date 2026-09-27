@@ -20,6 +20,7 @@ import { INTERVENTION_ITEMS, DEFAULT_LEVELS, interventionKey, INTERVENTION_KEY_P
 import { AI_FORBIDDEN_PREFIXES, aiMayPropose } from '../trading/knowledge/proposal-policy.ts'
 import { TRADING_SETTINGS } from '../trading/settings/registry.ts'
 import { GATE_IDS } from '../trading/gate/safety.ts'
+import { stripComments } from '../ui/component-scan.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TRADING = join(WEB, 'lib', 'trading')
@@ -39,9 +40,6 @@ function walk(dir: string): string[] {
   return out
 }
 
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
-}
 
 function sources(root = TRADING): { file: string; src: string }[] {
   return walk(root).map((file) => ({

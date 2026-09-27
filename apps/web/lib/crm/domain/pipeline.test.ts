@@ -17,6 +17,7 @@ import {
   canSetWinProbability,
   WIN_PROBABILITY_ERROR_TEXT,
 } from './pipeline.ts'
+import { stripComments } from '../../ui/component-scan.ts'
 
 const ROOT = join(process.cwd())
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -226,16 +227,6 @@ test('★ 영업 단계 화면이 파이프라인 편집을 다시 만들지 않
   assert.ok(src.includes('ControlRow'), '딜 보드와 같은 도구 줄을 쓴다(§2-5)')
 })
 
-/**
- * 주석을 걷어낸다.
- *
- * 이 파일들의 주석에는 「예전엔 「+ 새 영업 단계」라고 불렀다」처럼 **틀렸던 말을 인용한
- * 설명**이 들어 있다. 그건 위반이 아니라 위반의 기록이고, 지우면 다음 사람이 왜 이렇게
- * 됐는지 알 길이 없어진다. 가드가 봐야 할 것은 **사용자가 화면에서 읽는 글자**다.
- */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ')
-}
 
 test('★ 파이프라인을 「영업 단계」라 부르지 않는다 — 이 자리가 15곳 오용의 진원이다', () => {
   const targets = [

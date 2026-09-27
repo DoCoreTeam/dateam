@@ -28,6 +28,7 @@ import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { KIS_ACCOUNT_QUERIES } from '../trading/broker/endpoints.ts'
 import { TRADING_APP_DIR } from './app-dirs.ts'
+import { stripComments } from '../ui/component-scan.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -57,16 +58,6 @@ function walk(dir: string): string[] {
   return out
 }
 
-/**
- * 주석을 지운다.
- *
- * 주석은 API 를 못 부른다. 그런데 「조회와 주문을 어떻게 가르는가」를 설명하려면
- * 주문 TR 을 예로 적어야 하고, 주석까지 세면 **설명이 위반이 된다** — 그러면 설명을 지우게 되고
- * 다음 사람은 왜 이렇게 갈랐는지 모른다. 값이 가는 자리만 센다.
- */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
-}
 
 /**
  * 주문 코드가 사는 자리. **여기 하나뿐이다** (Release 4 설계 §0).

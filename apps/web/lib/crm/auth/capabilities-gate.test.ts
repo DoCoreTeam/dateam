@@ -21,6 +21,7 @@ import { requireQuoteApprove, requireCostEdit, requireCostView } from './capabil
 import { ROLE_CAPABILITIES, capabilitiesOf, type Viewer } from '../security/sensitivity.ts'
 import { CAPABILITIES, type Capability } from '../../access/capabilities.ts'
 import { CrmError } from '../domain/errors.ts'
+import { stripComments } from '../../ui/component-scan.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const WEB = join(HERE, '..', '..', '..')
@@ -117,10 +118,6 @@ test('원가 관문 둘도 같은 기준으로 막는다', () => {
 
 // ── ② 부르는 자리 ─────────────────────────────────────────
 
-/** 주석을 지운다 — 주석에 남은 이름이 가드를 통과시키면 가드가 아니다 */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-}
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

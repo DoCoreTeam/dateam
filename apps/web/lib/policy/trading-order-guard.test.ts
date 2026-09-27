@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { ORDER_TR, FIXED_QUANTITY } from '../trading/order/order-request.ts'
 import { DISARM_TRIGGERS } from '../trading/order/disarm.ts'
 import { ARM_CHECKS } from '../trading/order/arming-policy.ts'
+import { stripComments } from '../ui/component-scan.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ORDER = join(WEB, 'lib', 'trading', 'order')
@@ -38,9 +39,6 @@ function walk(dir: string): string[] {
   return out
 }
 
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
-}
 
 function orderSources(): { file: string; src: string }[] {
   return walk(ORDER).map((file) => ({
