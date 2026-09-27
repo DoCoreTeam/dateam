@@ -1336,8 +1336,6 @@
   "apps/web/components/ui/NavigationLoader.tsx::zindex": 1,
   "apps/web/components/ui/OrgPeoplePicker.tsx::emptytext": 2,
   "apps/web/components/ui/OrgPeoplePicker.tsx::inlinebutton": 1,
-  "apps/web/components/ui/OrgPeoplePicker.tsx::inlinecard": 1,
-  "apps/web/components/ui/OrgPeoplePicker.tsx::zindex": 1,
   "apps/web/components/ui/PasswordChangeModal.tsx::inlinebutton": 1,
   "apps/web/components/ui/PasswordChangeModal.tsx::inlinecard": 1,
   "apps/web/components/ui/QueryToast.tsx::inlinecard": 1,
