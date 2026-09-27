@@ -22,6 +22,11 @@ import { editableHere, whyElsewhere } from '@/lib/trading/settings/editable'
 import { saveTradingCredentials } from '@/lib/trading/broker/credentials'
 import type { KisEnv } from '@/lib/trading/broker/endpoints'
 import { kstTodayKey } from '@/lib/datetime/kst'
+import { createAdminClient } from '@/lib/supabase/server'
+import { resolveProviderKey } from '@/lib/ai/provider-key-source'
+import { JUDGE_PROVIDERS } from '@/lib/trading/settings/registry'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
+import type { JudgeModelRow } from '@/lib/trading/settings/model-pick'
 
 export interface SaveSettingResult {
   ok: boolean
@@ -160,4 +165,56 @@ export async function saveTradingCredentialsAction(
 
   revalidatePath('/trading/settings')
   return { ok: true, userMessage: null }
+}
+
+/* ── 모델 고르기 ───────────────────────────────────────── */
+
+/**
+ * 판단에 쓸 모델 목록. **소유자 문을 지난다.**
+ *
+ * AI 화면의 목록 창구(`listModelCatalog`)는 관리자 전용이다. 그것을 그대로 부르면
+ * 「화면은 열리는데 창구가 403」이 된다 — 이 파일 머리말이 경계하는 바로 그 상태다.
+ * 같은 표를 읽되 문은 이 화면의 문을 쓴다.
+ *
+ * **키 원문은 안 나간다.** 어느 공급자에 키가 있나(있음·없음)만 함께 준다.
+ */
+export async function listJudgeModels(): Promise<{
+  ok: boolean
+  rows?: JudgeModelRow[]
+  /** 키가 등록된 공급자. 화면이 「키가 없습니다」를 말할 수 있게 */
+  withKey?: string[]
+  error?: string
+}> {
+  if (!(await tradingAccess()).allowed) return { ok: false, error: '이 화면의 소유자만 볼 수 있습니다' }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    const { data, error } = await admin
+      .from('ai_model_catalog')
+      .select('provider, model_id, label, availability, is_active')
+      .in('provider', [...JUDGE_PROVIDERS])
+      .eq('is_active', true)
+      .order('released_at', { ascending: false, nullsFirst: false })
+    if (error) return { ok: false, error: `모델 목록을 읽지 못했습니다: ${error.message}` }
+
+    const withKey: string[] = []
+    for (const id of JUDGE_PROVIDERS) {
+      const choice = await resolveProviderKey(id as AiProviderId, null)
+      // 있음·없음만 옮긴다. 값은 이 함수 밖으로 안 나간다
+      if (choice.apiKey) withKey.push(id)
+    }
+    return {
+      ok: true,
+      withKey,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rows: ((data ?? []) as any[]).map((r) => ({
+        provider: String(r.provider),
+        modelId: String(r.model_id),
+        label: (r.label as string | null) ?? null,
+        availability: (r.availability as string | null) ?? null,
+      })),
+    }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : '모델 목록을 읽지 못했습니다' }
+  }
 }

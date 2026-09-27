@@ -124,7 +124,8 @@ test('설정 화면이 값 전부를 그린다 — 고칠 수 없는 값이 숨�
    * 아니라, 레지스트리 줄이 `toRow` 를 지나 접는 부품으로 넘어가고 그 부품이 칸을 그리는지다 —
    * 이름만 찾으면 렌더를 다른 데로 옮긴 순간 통과하면서 화면은 비어 있을 수 있다.
    */
-  assert.match(page, /toRow\(s, values\[s\.key\], pending\.get\(s\.key\)\)/, '레지스트리 줄을 화면 꼴로 안 바꾼다')
+  // 인자가 늘어도 뜻은 같다 — 레지스트리 줄·오늘 값·예약이 `toRow` 를 지나는가
+  assert.match(page, /toRow\(s, values\[s\.key\], pending\.get\(s\.key\)[^)]*\)/, '레지스트리 줄을 화면 꼴로 안 바꾼다')
   assert.match(page, /<SettingsGroups groups=\{blocks\}/, '만든 줄을 그리는 자리로 안 넘긴다')
   assert.match(read(GROUPS), /<SettingsForm key=\{row\.key\} row=\{row\}/, '고치는 칸을 안 그린다')
 

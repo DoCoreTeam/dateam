@@ -18,6 +18,7 @@ import { createJevJudge, JevBudgetDeniedError } from './jev-core.ts'
 import type { JudgeInput } from './types.ts'
 import type { MinuteBarInput } from '../bars/confirm.ts'
 import { openAiCompatibleBaseUrl } from '../../ai/provider-catalog.ts'
+import { TRADING_SETTINGS } from '../settings/registry.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -237,10 +238,15 @@ test('★ 설정값이 주소에 안 섞인다 (S4)', () => {
 test('★ 기본값은 지금 동작 그대로다 — 고치지 않은 판이 안 바뀐다', () => {
   const src = readFileSync(join(HERE, 'jev.ts'), 'utf8')
   assert.ok(src.includes("options.provider ?? 'jev'"), '기본 공급자가 없다')
-  const reg = readFileSync(join(HERE, '..', 'settings', 'registry.ts'), 'utf8')
-  const at = reg.indexOf("key: 'jev_provider'")
-  assert.ok(at > 0, '공급자 설정이 없다')
-  assert.ok(reg.slice(at, at + 400).includes("defaultValue: 'jev'"), '기본값이 지금 동작과 다르다')
+  /**
+   * **글자를 자르지 말고 값을 본다.**
+   *
+   * 전에는 `key: 'jev_provider'` 뒤 400자를 잘라 읽었다. 도움말이 길어지자 그 창 밖으로
+   * `defaultValue` 가 밀려 빨개졌다 — 규칙은 맞았고 보는 방법이 약했다.
+   */
+  const spec = TRADING_SETTINGS.find((x) => x.key === 'jev_provider')
+  assert.ok(spec, '공급자 설정이 없다')
+  assert.equal(spec.defaultValue, 'jev', '기본값이 지금 동작과 다르다')
 })
 
 test('★ 사유에 어느 공급자였는지가 남는다 — 둘을 쓰면 「안 됐다」만으로는 못 찾는다', () => {

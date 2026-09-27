@@ -13,6 +13,7 @@ import { useState, useTransition } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { ACTION, progress } from '@/lib/terms'
 import { saveTradingSettingValue } from './actions'
+import ModelPickField from './ModelPickField'
 
 export interface SettingRow {
   key: string
@@ -27,6 +28,11 @@ export interface SettingRow {
   today?: string
   /** 예약이 언제부터인가 */
   from?: string
+  /**
+   * 모델 이름 칸이면 지금 고른 공급자. 그 공급자의 모델만 보여 주려고 받는다.
+   * 다른 칸은 없다 — 있으면 모든 칸이 이 값을 아는 척하게 된다
+   */
+  pickProvider?: string
   /** 여기서 못 바꾸는 값이면 어디서 바꾸는지. 바꿀 수 있으면 null */
   elsewhere: string | null
   usedFrom: string
@@ -127,6 +133,17 @@ export default function SettingsForm({ row }: { row: SettingRow }) {
           >
             {(row.choices ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+        ) : row.pickProvider ? (
+          /**
+           * 모델 이름은 **고르는 것**이지 적는 것이 아니다.
+           * 벤더가 이름을 수시로 바꾸고 후보가 수십 개다 — 오타 하나면 판단이 통째로 안 돈다
+           */
+          <ModelPickField
+            provider={row.pickProvider}
+            current={draft}
+            disabled={locked || pending}
+            onPick={setDraft}
+          />
         ) : (
           <input
             id={`set-${row.key}`}

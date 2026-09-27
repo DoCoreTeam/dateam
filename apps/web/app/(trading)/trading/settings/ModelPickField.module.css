@@ -1,0 +1,6 @@
+/* 판단 모델 고르기 — 목록 줄은 왼쪽 정렬이다
+   모델 이름 길이가 제각각이라 가운데 정렬이면 눈이 매번 다른 자리에서 시작한다 */
+.row {
+  justify-content: flex-start;
+  text-align: left;
+}
