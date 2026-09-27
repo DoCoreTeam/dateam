@@ -142,7 +142,13 @@ test('설정 묶음이 접힌다 — 88개가 한 번에 안 펼쳐진다', () =
    */
   assert.match(groups, /<details/, '묶음을 접지 않는다')
   assert.match(groups, /\{open && \(/, '닫혀 있어도 본문을 그린다 — 88개 입력칸을 문서에 들고 있게 된다')
-  assert.match(groups, /\$\{g\.rows\.length\}개/, '묶음 머리에 값 개수가 없다 — 어느 것을 펼칠지 고를 수 없다')
+  /**
+   * **조수사는 용어집이 붙인다.** 전에는 `${g.rows.length}개` 를 글자 그대로 찾았는데,
+   * 그러면 화면이 조수사를 고르는 상태를 가드가 굳혀 준다(용어집 §0-2 규칙 3).
+   * 보는 것은 그대로다 — 머리에 개수가 있는가.
+   */
+  assert.match(groups, /count\('setting', g\.rows\.length\)/,
+    '묶음 머리에 값 개수가 없다 — 어느 것을 펼칠지 고를 수 없다')
 
   /** 자격증명은 접지 않는다 — 처음 한 번 넣는 것이고 안 넣으면 아무것도 안 돈다 */
   assert.match(read(PAGE), /<CredentialPanel rows=\{credentials\}/, '자격증명 절이 사라졌다')

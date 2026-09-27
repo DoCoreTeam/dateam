@@ -23,6 +23,7 @@ import CredentialPanel, { type CredentialStatusRow } from './CredentialPanel'
 import AssistantPanel from './AssistantPanel'
 import { getTradingCredentialStatus } from '@/lib/trading/broker/credentials'
 import { pairForModelKey } from '@/lib/trading/settings/model-pick'
+import { dailySettings, changedCount, DAILY_LABEL } from '@/lib/trading/settings/daily'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,6 +70,16 @@ export default async function TradingSettingsPage() {
   const providerValue = (key: string): string =>
     String(editingValue(pending.get(key)) ?? values[key] ?? 'jev')
 
+  /**
+   * 매일 보는 여덟을 앞에 세운다. **묶음에서 빼지 않는다** —
+   * 빠지면 「안전 게이트를 다 봤다」고 믿은 사람이 못 본 값이 생긴다.
+   */
+  const dailyBlock: SettingGroupBlock = {
+    key: '__daily',
+    label: DAILY_LABEL,
+    rows: dailySettings().map((spec) => toRow(spec, values[spec.key], pending.get(spec.key), providerValue)),
+  }
+
   const blocks: SettingGroupBlock[] = groups
     .map((group) => ({
       key: group,
@@ -76,6 +87,11 @@ export default async function TradingSettingsPage() {
       rows: TRADING_SETTINGS
         .filter((s) => s.group === group)
         .map((s) => toRow(s, values[s.key], pending.get(s.key), providerValue)),
+      // 접혀 있어도 무엇이 바뀌어 있는지는 보인다
+      changed: changedCount(
+        TRADING_SETTINGS.filter((s) => s.group === group).map((s) => s.key),
+        values,
+      ),
     }))
     .filter((b) => b.rows.length > 0)
 
@@ -94,7 +110,9 @@ export default async function TradingSettingsPage() {
 
       <CredentialPanel rows={credentials} />
 
-        <SettingsGroups groups={blocks} />
+        {/* 매일 보는 것이 먼저다. 나머지는 접힌 채로 뒤에 선다 */}
+      <SettingsGroups groups={[dailyBlock]} defaultOpen="__daily" />
+      <SettingsGroups groups={blocks} />
       </div>
     </>
   )

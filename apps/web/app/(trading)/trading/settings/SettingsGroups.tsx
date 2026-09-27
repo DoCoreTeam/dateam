@@ -15,16 +15,27 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import SettingsForm, { type SettingRow } from './SettingsForm'
+import { count } from '@/lib/terms'
+import { SETTING_CHANGED, SETTING_CHANGED_TITLE } from '@/lib/trading/settings/daily'
 
 export interface SettingGroupBlock {
   key: string
   label: string
   rows: SettingRow[]
+  /**
+   * 이 묶음에서 기본값과 다른 값의 개수.
+   *
+   * **접었다고 사실이 사라지지 않는다.** 이 수가 없으면 접힌 묶음은 「안 건드린 곳」으로
+   * 보이고, 정작 그 안에서 바꿔 둔 값이 신호를 바꾸고 있어도 아무도 안 본다.
+   */
+  changed?: number
 }
 
-export default function SettingsGroups({ groups }: { groups: readonly SettingGroupBlock[] }) {
+export default function SettingsGroups(
+  { groups, defaultOpen }: { groups: readonly SettingGroupBlock[]; defaultOpen?: string },
+) {
   /** 한 번에 하나만 편다 — 여럿을 펴 두면 접은 뜻이 없어진다 */
-  const [openKey, setOpenKey] = useState<string | null>(null)
+  const [openKey, setOpenKey] = useState<string | null>(defaultOpen ?? null)
 
   return (
     <div className="card">
@@ -49,8 +60,19 @@ export default function SettingsGroups({ groups }: { groups: readonly SettingGro
               <span style={{ fontWeight: 700, color: 'var(--text)' }}>{g.label}</span>
               {/* 개수가 없으면 어느 묶음에 무엇이 들었는지 펼쳐 봐야만 안다 */}
               <span style={{ marginLeft: 'auto', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                {`${g.rows.length}개`}
+                {count('setting', g.rows.length)}
               </span>
+              {/* 바꿔 둔 값이 있으면 펴 보지 않아도 알게 한다 */}
+              {(g.changed ?? 0) > 0 && (
+                <span
+                  className="badge"
+                  data-status="note"
+                  title={SETTING_CHANGED_TITLE}
+                  style={{ fontSize: 'var(--fs-xs)' }}
+                >
+                  {SETTING_CHANGED(g.changed ?? 0)}
+                </span>
+              )}
             </summary>
 
             {/* 닫혀 있으면 안 그린다 — <details> 는 닫아도 자식을 문서에 둔다 */}

@@ -34,7 +34,7 @@ export type EntityKey =
   | 'company' | 'person' | 'deal' | 'quote' | 'cost' | 'product' | 'meeting' | 'note'
   | 'task' | 'event' | 'pipeline' | 'stage'
   | 'channel' | 'content'
-  | 'dailyLog' | 'weeklyReport'
+  | 'dailyLog' | 'weeklyReport' | 'setting'
   | 'bid' | 'project' | 'doc' | 'requirement'
   | 'anomaly' | 'report' | 'companyProfile' | 'source'
 
@@ -68,6 +68,11 @@ export const ENTITY: Record<EntityKey, EntityMeta> = {
   channel: { label: '채널', id: 'channel', counter: '곳', surface: 'ci' },
   /** `콘텐츠` 금지 — 표면 이름(콘텐츠 인텔리전스)과 충돌한다 */
   content: { label: '게시물', id: 'content', counter: '건', surface: 'ci' },
+  /**
+   * 설정 한 줄. 조수사는 **개** 다 — 설정은 사건도 장소도 사람도 아닌 구조물이다
+   * (용어집 §0-2 규칙 3).
+   */
+  setting: { label: '설정', id: 'setting', counter: '개', surface: 'member' },
   dailyLog: { label: '일일업무', id: 'daily_log', counter: '건', surface: 'member' },
   weeklyReport: { label: '주간보고', id: 'weekly_report', counter: '건', surface: 'member' },
 
