@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.616',
+    date: '2026-09-27',
+    title: '설정을 말로 바꾸고, 모델은 공급자와 함께 골라요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🪄',
+        headline: '하고 싶은 걸 쓰면 바꿀 값을 찾아 줘요',
+        detail: '「좀 더 보수적으로, 하루 신호는 세 번까지」처럼 쓰면 어떤 값을 어떻게 바꿀지 보여 드립니다. 확인을 누르기 전에는 아무것도 바뀌지 않아요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔀',
+        headline: '등록한 AI 키를 전부 쓸 수 있어요',
+        detail: '모델 고르기에서 공급자와 모델을 함께 고릅니다. 한 회사 모델에만 묶여 있던 자리를 없앴습니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🛡️',
+        headline: '바꾸면 안 되는 값은 말로도 안 바뀌어요',
+        detail: '계좌 정보·안전 장치·손실 한도 올리기 같은 것은 후보에도 오르지 않습니다. 왜 안 올랐는지도 함께 보여 드려요.',
+      },
+    ],
+  },
+  {
     version: '0.10.612',
     date: '2026-09-27',
     title: 'AI 트레이딩 판단 모델을 목록에서 골라요',

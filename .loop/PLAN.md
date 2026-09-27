@@ -1,0 +1,134 @@
+# PLAN newAX: 모델은 공급자와 함께 고르고, 설정은 말로 바꾼다
+플랜 ID: P0077
+플랜 버전: v0.1.1
+상태: 진행중
+지시: ins_0134
+목표 버전: v0.10.614
+작성: 2026-09-27
+시작 커밋: b939d809
+
+## 목표
+- 모델을 고를 때 공급자도 같은 모달에서 고른다, 설정 이름에 벤더를 안 박는다
+- 등록한 AI 키를 전부 쓸 수 있다, 한 공급자만 쓸 수 있는 자리를 없앤다
+- 설정을 말로 바꾼다, 사람이 승인하고 다음 거래일부터 듣는다
+
+## 범위 밖
+- AI 가 스스로 설정을 바꾸는 자동 모드 (명세 Release 3, 지금은 사람이 승인하는 것까지)
+- 금지 목록 자체를 넓히거나 줄이는 일 (§15.3 그대로 씀)
+- 즉시 적용 (§15.2 가 신호를 막는 쪽만 허용, 이번에는 안 만듦)
+- 3문항 초기 설정 화면
+- KIS 조회 실패 진단
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 통과
+- 모델 고르기 모달이 공급자 탭을 갖고, 고르면 공급자와 모델이 함께 저장된다
+- 키가 등록된 공급자만 탭에 뜬다
+- 설정 이름에 벤더 이름이 박힌 자리가 0개다
+- 말로 바꾼 것도 금지 목록(§15.3)에 걸리면 제안조차 안 만들어진다
+- 사람이 승인하기 전에는 아무 값도 안 바뀐다
+- 저장이 기존 창구를 그대로 지나 다음 거래일부터 듣는다 (M7)
+- 리스크 산술이 안 맞는 값은 저장되지 않는다 (M6)
+
+## 참조
+- newplan/TRD/AI_TRADING_SPEC.md §15.3 AI 개입 금지 목록, §15.2 언제부터 적용, M6·M7·M8
+- apps/web/lib/trading/knowledge/proposal-policy.ts — 금지 목록·검증·적용 시점이 이미 있다
+- apps/web/app/(trading)/trading/settings/ModelPickField.tsx — 지금은 공급자를 밖에서 받는다
+- apps/web/lib/trading/settings/registry.ts:1052 `gemini_model` — 이름에 벤더가 박혀 있다
+- 사용자 지적 2026-09-27 「gemini로 박지 말라고 우리 AI 키 들어 간거 다 쓸수 있도록 공용방식이어야지」
+- 사용자 지적 2026-09-27 「설정 어렵다고 했다 프롬프트로 한번에 설정하거나 AI가 설정 해주거나」
+
+## 항목
+
+### I01 모델을 공급자와 함께 고른다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/ai/openai-compatible-text.ts (신규), apps/web/lib/ai/actor.ts, apps/web/lib/trading/knowledge/ai-call.ts, apps/web/lib/trading/knowledge/sources.ts, apps/web/lib/trading/knowledge/explain.ts, apps/web/lib/trading/knowledge/cards.ts, apps/web/lib/trading/knowledge/pattern.ts, apps/web/lib/trading/knowledge/proposal.ts, apps/web/lib/trading/jobs/knowledge-job.ts, apps/web/lib/trading/settings/model-pick.ts, apps/web/lib/trading/settings/model-pick.test.ts, apps/web/app/(trading)/trading/settings/ModelPickField.tsx, apps/web/app/(trading)/trading/settings/ModelPickField.module.css, apps/web/app/(trading)/trading/settings/SettingsForm.tsx, apps/web/app/(trading)/trading/settings/page.tsx, apps/web/app/(trading)/trading/settings/actions.ts, apps/web/lib/trading/settings/registry.ts, apps/web/lib/trading/jobs/tick.ts
+감사 기준:
+- 모달에 공급자 탭이 있고 키가 등록된 공급자만 뜬다
+- 모델을 고르면 공급자와 모델이 **함께** 저장된다, 한 쪽만 바뀌는 길이 없다
+- 설정 이름에 벤더가 박힌 자리가 0개다 (가드가 셈)
+- 지식 일이 고른 공급자·모델을 쓴다, 예전 키를 읽는 자리가 안 남는다
+- 보안: 창구가 소유자 확인을 먼저 지나고 키 원문이 응답에 안 실린다 (기존 가드 재실행)
+의존: 없음
+
+### I02 설정을 말로 바꾼다
+상태: 통과
+모드: 중량
+범위: apps/web/lib/trading/settings/assistant.ts (신규), apps/web/lib/trading/settings/assistant.test.ts (신규), apps/web/app/(trading)/trading/settings/actions.ts, apps/web/app/(trading)/trading/settings/AssistantPanel.tsx (신규), apps/web/app/(trading)/trading/settings/page.tsx, apps/web/lib/trading/settings/assistant-labels.ts (신규), apps/web/package.json
+감사 기준:
+- 프롬프트를 넣으면 바꿀 값 목록이 나오고, 각 줄에 지금 값·바꿀 값·왜가 붙는다
+- 금지 목록(§15.3)에 걸리는 키는 제안 목록에 아예 안 오른다, aiMayPropose 를 지난다
+- 레지스트리에 없는 키, 범위 밖 값, 지금과 같은 값은 걸러진다
+- 사람이 승인을 누르기 전에는 아무 값도 안 바뀐다 (미리보기만)
+- 승인하면 기존 저장 창구를 그대로 지나 다음 거래일부터 듣는다 (M7)
+- 리스크 산술이 안 맞으면 저장이 거절되고 그 사유가 화면에 뜬다 (M6)
+- 보안: 창구가 소유자 확인을 먼저 지나고, AI 호출이 기존 계층(예산·가림·원장)을 지나며, 프롬프트에 키·계좌번호가 안 실린다 (S3), 일부러 금지 키를 제안하게 해 막히는 것을 확인 (S6)
+의존: I01
+
+### I03 종합 감사와 업데이트 내역
+상태: 통과
+모드: 경량
+범위: .loop/PLAN.md, apps/web/lib/changelog/entries.ts, package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
+감사 기준:
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 네 개 전부 통과 (결과를 PLAN.md 에 적음)
+- LOOP.md 7절 「기계가 세는 것」 다섯 줄을 실제로 실행하고 결과가 전부 0
+- git diff b939d809..HEAD --stat 에 범위 밖 변경·비밀 없음
+- 사용자 체감 변경이 entries.ts 맨 위 이번 버전 블록에 적힌다
+- 보안: 위 다섯 줄이 이 항목의 보안 감사 기준임
+의존: I01, I02
+
+## 종합 감사
+
+실행 2026-09-27, 시작 커밋 b939d809 기준
+
+### 1 검사 넷
+
+| 명령 | 결과 |
+|---|---|
+| pnpm tsc --noEmit | 통과 |
+| pnpm lint | 통과 |
+| pnpm test | 통과 — 시험 8,007개 전부, 실패 0 |
+| NEXT_DIST_DIR=.next-p0077 pnpm build | 통과 — /trading/settings 6.8kB |
+
+### 2 완료 정의 대조
+
+| 완료 정의 | 확인 |
+|---|---|
+| 모달이 공급자 탭을 갖는다 | tabsFor 가 키 있는 공급자만 세움 |
+| 고르면 공급자와 모델이 함께 저장 | savePickedModel 이 둘을 저장, 가드가 확인 |
+| 설정 이름에 벤더 0개 | 가드가 라벨 전부를 훑어 셈 |
+| 금지 목록은 제안조차 안 됨 | 금지 키 전부를 하나씩 넣어 확인 |
+| 승인 전에는 아무것도 안 바뀜 | 미리보기 창구에 저장 호출이 0건 |
+| 저장이 기존 창구를 지남 | applySettingChanges 가 saveTradingSettingValue 를 지남 |
+| 리스크 산술 위반은 거절 | 저장 창구가 그 판정을 갖고 있고 사유를 화면에 올림 |
+
+### 3 보안 — 기계가 세는 다섯 줄
+
+2026-09-27 운영 DB 실행, 다섯 줄 전부 0.
+이번 판의 보안 판정은 셋이고 전부 가드로 잠갔다
+- S2 새 창구 셋(목록·미리보기·저장)이 소유자 확인을 먼저 지난다
+- S3 질문에 금지 키와 비밀이 안 실린다, 키 원문이 응답에 안 실린다
+- M12 AI 호출이 기존 계층(예산·가림·원장)을 지난다
+
+### 4 전체 diff
+
+git diff b939d809..HEAD --stat — 27파일 1,007추가 83삭제. 범위 밖 변경 없음, 비밀 없음
+
+### 5 항목 대 결과 대조
+
+| 항목 | 커밋 |
+|---|---|
+| I01 공급자와 모델을 함께 | 21e6e1be |
+| I02 말로 설정 바꾸기 | d693f27c |
+
+### 6 발견 사항
+
+- 이름만 바꾸면 안 됐다. 「Gemini 모델」을 「지식·설명 모델」로 바꿔도 부르는 자리가 한 벤더에 묶여 있었다. 판단기가 쓰던 호환 창구를 한 벌로 뽑아 지식도 같은 길을 쓰게 했다 — 판단기 둘이 들고 있던 같은 스물몇 줄도 이 한 벌로 모였다
+- gemini 는 전용 길을 남겼다. 모델 사슬이 있어 고른 모델이 사라진 날 다음 후보로 내려간다, 호환 창구로 보내면 그 사슬이 사라진다
+- 벤더 등재부 가드가 새 파일을 잡았고 이어서 배경 작업 규칙이 잡았다. 임의 문자열 대신 아는 표면 이름 둘만 받게 조였다 — 원장 50,243건의 주인이 비어 있던 전례가 그 규칙의 이유다
+- 규정 기계가 이미 있었다. §15.3 금지 목록·검증·적용 시점이 proposal-policy.ts 에 있어서, 말로 바꾸는 길은 그 기계에 말만 이어 붙이는 일이었다
+
+## 변경 이력
+- v0.1.0 (2026-09-27) 최초 작성 (ins_0134)
+- v0.1.1 (2026-09-27) I01 범위에 지식 경로 일곱 파일과 공용 호출 한 벌 추가 — 「Gemini 모델」을 이름만 바꾸면 부르는 자리가 여전히 한 벤더에 묶여 있어, 판단기가 쓰던 호환 창구를 한 벌로 뽑아 지식도 같은 길을 쓰게 했다 (audit:I01)
+- v0.1.1 (2026-09-27) I01 범위에 지식 경로와 공용 호출 한 벌 추가 — 이름만 바꾸면 부르는 자리가 여전히 한 벤더에 묶여 있다 (audit:I01)
