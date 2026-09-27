@@ -38,6 +38,39 @@ export function directionOf(score: RawScore | null): Direction | null {
   return long > short ? 'long' : 'short'
 }
 
+/**
+ * 판단과 진입 조건이 **같은 방향을 말하나** — 방향은 한 곳에서만 난다
+ *
+ * ## 왜 필요했나
+ *
+ * 방향이 두 곳에서 따로 났다. `jobs/tick.ts` 는 원점수로 `directionOf` 를 불러 보정
+ * 모델을 고르고, `jobs/emit-signal.ts` 는 **진입 조건의 방향**으로 손절·목표 부호를
+ * 정했다. 둘이 어긋나면 **롱 보정으로 숏 신호를 내고 손절가가 반대로 붙는다.**
+ * 화면에서는 아무 일도 안 일어난다 — 숫자가 조용히 반대일 뿐이다.
+ *
+ * ## 어긋나면 안 낸다
+ *
+ * 진입 조건은 후보 시점을 고를 뿐이고 **방향을 정하는 것은 판단기**다(§7.2).
+ * 둘이 다르면 그 자리는 「모르겠다」에 가깝다. 한쪽을 골라 내보내면 그 선택이
+ * 어디에도 안 적힌다.
+ */
+export type DirectionVerdict =
+  | { direction: Direction; conflict: false }
+  /** 방향이 없거나 둘이 다르다. `reason` 이 어느 쪽인지 말한다 */
+  | { direction: null; conflict: true; reason: string }
+
+export function agreedDirection(
+  score: RawScore | null,
+  triggerDirection: Direction,
+): DirectionVerdict {
+  const judged = directionOf(score)
+  if (!judged) return { direction: null, conflict: true, reason: 'no_direction' }
+  if (judged !== triggerDirection) {
+    return { direction: null, conflict: true, reason: `direction_conflict:${judged}!=${triggerDirection}` }
+  }
+  return { direction: judged, conflict: false }
+}
+
 /** 고른 방향의 원점수 */
 export function scoreForDirection(score: RawScore, direction: Direction): number {
   return direction === 'long' ? score.p_long : score.p_short

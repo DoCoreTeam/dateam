@@ -25,6 +25,7 @@ import { buildExitPlan } from '../judge/exit-plan-math.ts'
 import { DIRECTION_LABEL } from '../signal-labels.ts'
 import type { GateHit } from '../gate/safety.ts'
 import type { Indicators, TriggerHit } from '../judge/types.ts'
+import type { Direction } from '../signal/models-core.ts'
 
 export interface EmitSignalInput {
   judgmentId: string | null
@@ -33,6 +34,11 @@ export interface EmitSignalInput {
   trigger: TriggerHit
   indicators: Indicators
   referencePrice: number
+  /**
+   * 판단기가 고른 방향 (§7.2). 진입 조건의 방향과 **같은 것이 확인된 값**이다 —
+   * `agreedDirection` 이 판정하고, 어긋나면 이 창구를 아예 안 부른다
+   */
+  direction: Direction
   instrument: InstrumentSpec
   /** 보정 확률. 없으면 여기서 멈춘다(M3) */
   calibratedProb: number | null
@@ -77,7 +83,14 @@ export interface EmitSignalResult {
 }
 
 export async function emitSignal(input: EmitSignalInput): Promise<EmitSignalResult> {
-  const direction = input.trigger.direction
+  /**
+   * 방향은 **받는다.** 여기서 진입 조건으로 다시 정하지 않는다.
+   *
+   * 전에는 이 자리가 `input.trigger.direction` 이었고, 보정 모델은 원점수의 방향으로
+   * 골랐다. 둘이 어긋나면 롱 보정으로 숏 신호가 나가고 손절가가 반대로 붙는다.
+   * 어긋났는지는 부르는 쪽이 이미 판정했고, 어긋났으면 여기까지 안 온다.
+   */
+  const direction = input.direction
   const atr = input.indicators.atr
 
   /**

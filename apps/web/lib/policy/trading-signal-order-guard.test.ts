@@ -18,6 +18,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EMIT_STAGES } from '../trading/signal/emit.ts'
+import { agreedDirection } from '../trading/signal/models-core.ts'
 import { TRADING_APP_DIR } from './app-dirs.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -151,4 +152,52 @@ test('★ 알림 켜기가 관문 판정을 지난다 (C4)', () => {
     assert.ok(/\bdecideEnableNotify\s*\(/.test(src), `${file} 이 관문을 안 지나고 알림을 켠다`)
     assert.ok(/\bdecideDisableNotify\s*\(/.test(src), `${file} 이 끄기 판정을 안 지난다`)
   }
+})
+
+/**
+ * **방향은 한 곳에서만 난다** (§7.2)
+ *
+ * 전에는 두 곳에서 따로 났다. `jobs/tick.ts` 는 원점수로 보정 모델을 골랐고,
+ * `jobs/emit-signal.ts` 는 **진입 조건의 방향**으로 손절·목표 부호를 정했다.
+ * 어긋나면 롱 보정으로 숏 신호가 나가고 손절가가 반대로 붙는다 —
+ * 화면에서는 아무 일도 안 일어나고 숫자만 조용히 반대다.
+ */
+test('★ 발행 쪽이 방향을 다시 정하지 않는다', () => {
+  const emit = readFileSync(join(TRADING, 'jobs', 'emit-signal.ts'), 'utf8')
+  const fn = emit.slice(emit.indexOf('export async function emitSignal'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+  assert.equal(/const direction = input\.trigger\.direction/.test(body), false,
+    '발행이 진입 조건에서 방향을 다시 뽑는다 — 판단과 어긋나도 모른다')
+  assert.ok(body.includes('const direction = input.direction'), '방향을 받아서 안 쓴다')
+})
+
+test('★ 어긋나면 신호가 안 나가고 사유가 남는다', () => {
+  // 판단이 롱인데 진입 조건이 숏이면 낼 수 없다
+  assert.deepEqual(
+    agreedDirection({ p_long: 0.6, p_short: 0.2, p_hold: 0.2 }, 'short'),
+    { direction: null, conflict: true, reason: 'direction_conflict:long!=short' })
+  // 관망이 가장 높으면 방향이 없다 (§7.4 D-09)
+  assert.deepEqual(
+    agreedDirection({ p_long: 0.3, p_short: 0.2, p_hold: 0.5 }, 'long'),
+    { direction: null, conflict: true, reason: 'no_direction' })
+  // 같은 말을 하면 그 방향이다
+  assert.deepEqual(
+    agreedDirection({ p_long: 0.6, p_short: 0.2, p_hold: 0.2 }, 'long'),
+    { direction: 'long', conflict: false })
+  assert.deepEqual(
+    agreedDirection({ p_long: 0.1, p_short: 0.7, p_hold: 0.2 }, 'short'),
+    { direction: 'short', conflict: false })
+
+  const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
+  assert.ok(tick.includes('agreedDirection(rawScore, trigger.direction)'), '어긋남을 안 본다')
+  assert.ok(tick.includes('return `emit:judge:${verdict.reason}'), '어긋났는데 사유를 안 남긴다')
+})
+
+test('★ 손절·목표 부호가 그 하나의 방향에서 나온다', () => {
+  const emit = readFileSync(join(TRADING, 'jobs', 'emit-signal.ts'), 'utf8')
+  const fn = emit.slice(emit.indexOf('export async function emitSignal'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+  // 청산 계획도 위험 계산도 같은 `direction` 을 쓴다
+  assert.ok(body.includes('buildExitPlan(direction,'), '청산 계획이 다른 방향을 쓴다')
+  assert.ok(/computeRisk\(\{\s*\n\s*direction,/.test(body), '위험 계산이 다른 방향을 쓴다')
 })

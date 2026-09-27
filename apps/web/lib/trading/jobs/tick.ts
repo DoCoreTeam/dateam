@@ -47,7 +47,7 @@ import { loadPendingEntry, loadArmContext } from '../order/pending.ts'
 import { measurementNote } from '../gate/measure-core.ts'
 import { measureMarket } from '../gate/measure-market.ts'
 import { loadSignalModels } from '../signal/models.ts'
-import { directionOf, probabilitiesFrom } from '../signal/models-core.ts'
+import { agreedDirection, probabilitiesFrom } from '../signal/models-core.ts'
 import { lossStreakFrom, rolloverVerdict } from '../signal/context-core.ts'
 import { loadEventsAround } from '../calendar/events.ts'
 import { measureOps } from '../operator/measure-ops.ts'
@@ -974,20 +974,31 @@ async function emitOrExplain(ctx: any): Promise<string> {
       eventNote = `,event_failed:${error instanceof Error ? error.message : 'unknown'}`
     }
 
-    const direction = directionOf(rawScore)
+    /**
+     * 방향은 **여기서 한 번만** 난다 (§7.2).
+     *
+     * 전에는 이 자리가 보정 모델을 고르는 데만 쓰였고, 손절·목표 부호는 발행 쪽이
+     * 진입 조건에서 따로 뽑았다. 둘이 어긋나면 롱 보정으로 숏 신호가 나가고
+     * 손절가가 반대로 붙는다 — 화면에서는 아무 일도 안 일어나고 숫자만 반대다.
+     *
+     * 진입 조건은 후보 시점을 고를 뿐이고 방향을 정하는 것은 판단기다.
+     * 둘이 다르면 그 자리는 「모르겠다」에 가까워 아예 안 낸다.
+     */
+    const verdict = agreedDirection(rawScore, trigger.direction)
+    if (verdict.conflict) return `emit:judge:${verdict.reason}${eventNote}`
+    const direction = verdict.direction
+
     let models = null
-    let modelNote = direction ? '' : ',models=no_direction'
-    if (direction) {
-      try {
-        models = await loadSignalModels({
-          judge: 'rule',
-          direction,
-          calibrationVersion: str('calibration_version', ''),
-          evModelVersion: str('ev_model_version', ''),
-        })
-      } catch (error) {
-        modelNote = `,models_failed:${error instanceof Error ? error.message : 'unknown'}`
-      }
+    let modelNote = ''
+    try {
+      models = await loadSignalModels({
+        judge: 'rule',
+        direction,
+        calibrationVersion: str('calibration_version', ''),
+        evModelVersion: str('ev_model_version', ''),
+      })
+    } catch (error) {
+      modelNote = `,models_failed:${error instanceof Error ? error.message : 'unknown'}`
     }
     const prob = probabilitiesFrom(rawScore, models, num('ev_min_bucket_samples', 1))
     if (prob.stoppedAt) modelNote += `,prob=${prob.stoppedAt}`
@@ -998,6 +1009,7 @@ async function emitOrExplain(ctx: any): Promise<string> {
       barCloseAt,
       trigger,
       indicators,
+      direction,
       /**
        * 기준가는 **확정 봉의 종가**다 (§13.1 「신호 시점 가격」 · M4).
        *
