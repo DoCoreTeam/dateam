@@ -95,6 +95,8 @@ import { LATENCY_SEGMENTS, SEGMENT_LABEL, latencyReport, decideResult, dayPnl, p
 import { PROTECTION_LABEL, needsHumanUnlock, DEFAULT_PROTECTION, type ProtectionState } from './position/state.ts'
 import { decideEnableNotify, enableHint } from './notify/enable-gate.ts'
 import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
+import { loadBarsAsOf } from './bars/store.ts'
+import { buildSeries, type ChartSeries } from './chart/series.ts'
 import { loadFills } from './position/fills.ts'
 import { foldFills } from './position/from-fills.ts'
 import { loadSignalPlan } from './position/plan.ts'
@@ -366,7 +368,41 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
       insufficientCount: gateVerdict.insufficientCount,
     },
     gateCriteria: gateVerdict.criteria,
+    chart: await loadChart(contractCode, now, signals, recentRuns[0]?.reason ?? null),
     empty: coverage.every((d) => d.actual === 0) && judgments.length === 0 && signals.length === 0,
+  }
+}
+
+/** 차트에 세울 봉 수. 접속매매 한 판이 6시간쯤이라 그 절반 정도를 본다 */
+const CHART_BARS = 180
+
+/**
+ * 차트 한 벌 — **봉과 신호를 같이 읽는다**
+ *
+ * 따로 읽으면 화면이 둘을 맞춰야 하고, 맞추는 규칙이 화면마다 달라진다.
+ * 창구는 안 연다 — 서버 컴포넌트가 여기로 직접 들어오고 소유자 확인은
+ * `(trading)` 레이아웃 한 겹이 이미 하고 있다.
+ *
+ * 못 읽어도 **던지지 않는다.** 차트 한 칸 때문에 현황 전체가 죽으면
+ * 무엇이 막혔는지 볼 자리 자체가 사라진다.
+ */
+async function loadChart(
+  contractCode: string | null,
+  now: Date,
+  signals: readonly SignalRow[],
+  lastRunReason: string | null,
+): Promise<ChartSeries> {
+  if (!contractCode) {
+    return { bars: [], marks: [], domain: null, blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' } }
+  }
+  try {
+    const bars = await loadBarsAsOf({ contractCode, tf: '1m', asOf: now, limit: CHART_BARS })
+    return buildSeries({ bars, signals, lastRunReason })
+  } catch (error) {
+    return {
+      bars: [], marks: [], domain: null,
+      blocked: { text: `봉을 읽지 못했습니다: ${error instanceof Error ? error.message : '알 수 없음'}`, tone: 'blocked' },
+    }
   }
 }
 

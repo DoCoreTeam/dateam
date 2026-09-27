@@ -255,9 +255,17 @@ export interface TradingOverview {
   gate: GateSummary
   /** 관문 항목별 판정 */
   gateCriteria: CriterionResult[]
+  /**
+   * 맨 위 차트가 그릴 것. **봉이 0건이면 빈 배열과 막힌 사유가 함께 온다** —
+   * 빈 차트를 그리면 사람은 「값이 0」으로 읽는데 실제로는 한 줄도 안 들어온 것이다
+   */
+  chart: ChartSeries
   /** 아직 아무것도 안 모였나. 빈 화면과 고장난 화면을 구분해 말해야 한다 */
   empty: boolean
 }
+
+import type { ChartSeries } from './chart/series.ts'
+export type { ChartSeries, ChartBar, ChartMark } from './chart/series.ts'
 
 /**
  * 신호가 아직 살아 있나 — 유효 시간 안인가.
