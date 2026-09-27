@@ -7,7 +7,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -154,14 +154,36 @@ test('★ 대기 목록이 sent 를 아예 안 읽는다', () => {
   assert.ok(src.includes(".neq('status', 'sent')"), '보낸 것을 걸러내는 질의가 없다')
 })
 
+/**
+ * 종류 목록이 DB 검사 제약과 같다.
+ *
+ * **마지막으로 정의한 판을 본다.** 전에는 282 한 파일만 읽었는데, 종류가 늘어 제약을
+ * 넓히는 판(291)이 생기자 이 가드가 옛 목록을 들고 빨개졌다 — 규칙은 맞았고 보는
+ * 자리가 낡았던 것이다. 코퍼스에서 **가장 나중에 정의한 것**이 실제로 도는 제약이다.
+ */
 test('종류 목록이 DB 검사 제약과 같다', () => {
-  const sql = readFileSync(join(HERE, '..', '..', '..', '..', '..', 'supabase', 'migrations', '282_trading_signals.sql'), 'utf8')
+  const dir = join(HERE, '..', '..', '..', '..', '..', 'supabase', 'migrations')
+  const defs = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
+    .map((f) => ({ file: f, src: readFileSync(join(dir, f), 'utf8') }))
+    .map(({ file, src }) => ({
+      file,
+      // 표를 만들며 건 것과 나중에 넓힌 것을 둘 다 본다
+      body: src.match(/CHECK \(kind IN \(([\s\S]*?)\)\)/)?.[1] ?? null,
+    }))
+    .filter((d) => d.body !== null)
+  assert.ok(defs.length > 0, '검사 제약을 정의한 마이그레이션이 없다')
+
+  const last = defs[defs.length - 1]
+  const inDb = (last.body ?? '')
+    .split(',').map((x) => x.trim())
+    .map((x) => x.replace(/--[^\n]*/g, '').trim())
+    .map((x) => x.replace(/^'|'$/g, ''))
+    .filter((x) => x !== '' && !x.startsWith('--'))
   for (const kind of NOTIFY_KINDS) {
-    assert.ok(sql.includes(`'${kind}'`), `DB 제약에 ${kind} 가 없다`)
+    assert.ok(inDb.includes(kind), `DB 제약(${last.file})에 ${kind} 가 없다 — 넣는 순간 거절된다`)
   }
-  const inDb = (sql.match(/kind\s+TEXT\s+NOT NULL CHECK \(kind IN \(([\s\S]*?)\)\)/)?.[1] ?? '')
-    .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean)
-  assert.deepEqual([...inDb].sort(), [...NOTIFY_KINDS].sort() as NotifyKind[])
+  assert.deepEqual([...inDb].sort(), [...NOTIFY_KINDS].sort() as NotifyKind[],
+    `DB 제약(${last.file})과 코드 목록이 다르다`)
 })
 
 // ── 신호 없는 알림도 두 번 안 간다 (§14.3) ────────────────

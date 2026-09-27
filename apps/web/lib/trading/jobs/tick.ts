@@ -533,6 +533,17 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
         stopPrice: plan?.stopPrice ?? null,
         direction: folded.open?.direction ?? null,
         observedPrice,
+        /**
+         * 목표 도달·시간 청산 알림이 볼 값 (§8 D-32).
+         *
+         * 계획이 없으면 안 넘긴다 — 지어낸 목표가로 「닿았습니다」를 보내면
+         * 사람은 그 값으로 정리한다.
+         */
+        targetPrice: plan?.targetPrice ?? null,
+        minutesHeld: folded.open
+          ? Math.max(0, Math.floor((now.getTime() - new Date(folded.open.openedAt).getTime()) / 60_000))
+          : null,
+        timeExitMinutes: plan?.timeExitMinutes ?? null,
         closedTrades: folded.closed,
         /**
          * 평가 손익은 **안 넣는다.** 한도가 보는 것은 실현이고(§8 D-32),

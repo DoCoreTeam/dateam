@@ -21,7 +21,7 @@ import {
   type ExpectedPosition,
 } from '../position/reconcile.ts'
 import {
-  detectBreach, shouldAskProtection, topAlert, nextState, needsHumanUnlock,
+  detectBreach, reachedTarget, timeExitDue, shouldAskProtection, topAlert, nextState, needsHumanUnlock,
   canTransition, isSystemVerifiedProtection, DEFAULT_PROTECTION,
   type PositionState, type ProtectionState,
 } from '../position/state.ts'
@@ -48,6 +48,15 @@ export interface WatchInput {
   protection: ProtectionState
   protectionReportedAt: Date | null
   protectionRecheckMinutes: number
+  /**
+   * 청산 계획의 목표가와 보유 시간 (§8 D-32).
+   *
+   * 없으면 그 알림을 안 낸다 — 지어낸 목표가로 「닿았습니다」를 보내면
+   * 사람은 그 값으로 정리한다.
+   */
+  targetPrice: number | null
+  minutesHeld: number | null
+  timeExitMinutes: number | null
   stopPrice: number | null
   direction: 'long' | 'short' | null
   /** 오늘 닫힌 거래. **실현 손익은 여기서만 나온다** — 평가와 안 섞인다 */
@@ -198,6 +207,35 @@ export async function runWatch(input: WatchInput): Promise<WatchResult> {
       if (breached) {
         await queue('protection_breached', '손절가를 지났습니다',
           '포지션이 남아 있습니다. 지금 확인해 주세요')
+      }
+
+      /**
+       * 목표 도달과 시간 청산 (§8 D-32).
+       *
+       * 채택해 놓고 안 만들어 둔 것이다 — 손절 쪽만 있어서 목표에 닿아도, 보유 시간이
+       * 지나도 사람에게 아무 말이 안 갔다. **가격 관측이지 체결이 아니라** 포지션 상태와
+       * 실현 손익은 그대로 두고 알림만 낸다.
+       *
+       * 하루에 한 번만 간다 — 유일 키가 `(월물, 종류, 거래일)` 이라 매분 도는 크론이
+       * 같은 말을 390번 넣지 않는다(마이그 284).
+       */
+      if (input.targetPrice !== null && input.direction !== null && input.observedPrice !== null
+        && reachedTarget({
+          positionState: input.positionState,
+          direction: input.direction,
+          targetPrice: input.targetPrice,
+          observedPrice: input.observedPrice,
+        })) {
+        await queue('target_reached', '목표가에 닿았습니다',
+          '지금 정리할지 확인해 주세요. 체결은 사람이 합니다')
+      }
+      if (input.minutesHeld !== null && input.timeExitMinutes !== null && timeExitDue({
+        positionState: input.positionState,
+        minutesHeld: input.minutesHeld,
+        timeExitMinutes: input.timeExitMinutes,
+      })) {
+        await queue('time_exit', '보유 시간이 지났습니다',
+          `${input.timeExitMinutes}분을 넘겼습니다. 정리할지 확인해 주세요`)
       }
       continue
     }

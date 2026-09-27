@@ -15,6 +15,8 @@ import {
   type WatchTask,
 } from './watch-plan.ts'
 import { RUN_BUDGET_MS } from './tick-core.ts'
+import { reachedTarget, timeExitDue } from '../position/state.ts'
+import { NOTIFY_KINDS, KIND_PRIORITY } from '../notify/outbox-policy.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -251,4 +253,79 @@ test('★ 실행 기록의 연속 실패 숫자가 재 온 값에서 나온다',
     /broker_failed:\$\{input\.gateContext\.brokerFailureStreak \+ 1\}/.test(src),
     'broker_failed 숫자가 gateContext 의 연속 실패 수에서 안 나온다',
   )
+})
+
+/**
+ * **목표에 닿으면, 시간이 지나면 말한다** (명세 §8 D-32)
+ *
+ * D-32 는 「가격이 목표·손절에 닿으면 청산하세요 알림」을 **채택**해 뒀는데, 손절 쪽만
+ * 있었다. 목표에 닿아도, 보유 시간이 지나도 사람에게 아무 말이 안 갔다.
+ * 예측을 잘해도 매도 시점을 안 알리면 수익이 안 난다.
+ */
+test('★ 목표가에 닿으면 알린다 — 방향이 부호를 정한다', () => {
+  const base = { positionState: 'holding' as const, targetPrice: 1107, observedPrice: 1107 }
+  assert.equal(reachedTarget({ ...base, direction: 'long' }), true)
+  assert.equal(reachedTarget({ ...base, direction: 'long', observedPrice: 1106.95 }), false)
+  // 숏은 내려가야 목표다. 부호를 안 나누면 숏에서 영영 안 울린다
+  assert.equal(reachedTarget({ ...base, direction: 'short', observedPrice: 1106.95 }), true)
+  assert.equal(reachedTarget({ ...base, direction: 'short', observedPrice: 1107.05 }), false)
+})
+
+test('★ 들고 있을 때만 말한다 — 없는 포지션의 목표는 뜻이 없다', () => {
+  for (const state of ['flat', 'entry_pending', 'reconciliation_required'] as const) {
+    assert.equal(reachedTarget({
+      positionState: state, direction: 'long', targetPrice: 1100, observedPrice: 1200,
+    }), false, state)
+    assert.equal(timeExitDue({ positionState: state, minutesHeld: 999, timeExitMinutes: 15 }), false, state)
+  }
+  assert.equal(reachedTarget({
+    positionState: 'exit_pending', direction: 'long', targetPrice: 1100, observedPrice: 1200,
+  }), true, '청산 대기 중에도 가격은 봐야 한다')
+})
+
+test('★ 보유 시간 0 은 안 쓴다는 뜻이다 — 「지금 당장」이 아니다', () => {
+  assert.equal(timeExitDue({ positionState: 'holding', minutesHeld: 0, timeExitMinutes: 0 }), false,
+    '진입하자마자 알림이 간다')
+  assert.equal(timeExitDue({ positionState: 'holding', minutesHeld: 14, timeExitMinutes: 15 }), false)
+  assert.equal(timeExitDue({ positionState: 'holding', minutesHeld: 15, timeExitMinutes: 15 }), true)
+})
+
+test('★ 새 종류가 DB 검사 제약과 같은 목록이다', () => {
+  const sql = readFileSync(join(HERE, '..', '..', '..', '..', '..', 'supabase', 'migrations', '291_trading_notify_kinds.sql'), 'utf8')
+  for (const kind of NOTIFY_KINDS) {
+    assert.ok(sql.includes(`'${kind}'`), `${kind} 가 DB 검사 제약에 없다 — 넣는 순간 거절된다`)
+  }
+  assert.ok(NOTIFY_KINDS.includes('target_reached'))
+  assert.ok(NOTIFY_KINDS.includes('time_exit'))
+})
+
+test('★ 들고 있는 것에 관한 말이 하루치 요약보다 앞이다 (§10.2)', () => {
+  assert.ok(KIND_PRIORITY.protection_breached < KIND_PRIORITY.target_reached, '손절 이탈보다 목표가 앞이다')
+  assert.ok(KIND_PRIORITY.target_reached < KIND_PRIORITY.exit, '하루치 요약이 목표 도달보다 앞이다')
+  assert.ok(KIND_PRIORITY.time_exit < KIND_PRIORITY.signal, '새 신호가 시간 청산보다 앞이다')
+})
+
+/**
+ * **가격 도달은 알림일 뿐이다** (D-32).
+ * 상태와 실현 손익은 KIS 에서 청산 체결을 확인했을 때만 바뀐다.
+ */
+test('★ 가격 도달이 포지션 상태를 안 바꾼다', () => {
+  const src = readFileSync(join(HERE, 'watch.ts'), 'utf8')
+  const at = src.indexOf("await queue('target_reached'")
+  assert.ok(at > 0, '목표 도달을 안 알린다')
+  const around = src.slice(at - 600, at + 400)
+  assert.equal(/nextState\(|lockPosition\(|realizedKrw/.test(around), false,
+    '가격 관측으로 상태를 바꾼다 — 체결이 아닌데 체결처럼 다룬다')
+})
+
+test('★ 계획이 없으면 목표 알림을 안 낸다 — 지어낸 값으로 정리하게 두지 않는다', () => {
+  const src = readFileSync(join(HERE, 'watch.ts'), 'utf8')
+  const at = src.indexOf("await queue('target_reached'")
+  const before = src.slice(src.lastIndexOf('if (input.targetPrice', at), at)
+  assert.ok(before.includes('input.targetPrice !== null'), '목표가가 없어도 알린다')
+  assert.ok(before.includes('input.observedPrice !== null'), '지금 값이 없어도 알린다')
+
+  const tick = readFileSync(join(HERE, 'tick.ts'), 'utf8')
+  assert.ok(tick.includes('targetPrice: plan?.targetPrice ?? null'), '없는 계획을 지어내 넘긴다')
+  assert.ok(tick.includes('timeExitMinutes: plan?.timeExitMinutes ?? null'))
 })

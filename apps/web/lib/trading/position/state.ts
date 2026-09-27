@@ -197,6 +197,48 @@ export function detectBreach(input: BreachInput): boolean {
     : input.observedPrice >= input.stopPrice
 }
 
+export interface ReachInput {
+  positionState: PositionState
+  direction: 'long' | 'short'
+  targetPrice: number
+  /** 지금 본 값. 장중 관측이라 체결이 아니다(D-32) */
+  observedPrice: number
+}
+
+/**
+ * 목표가에 닿았나 (§8 D-32).
+ *
+ * `detectBreach` 와 **같은 꼴로** 쓴다 — 손절 쪽만 있고 목표 쪽이 없어서 목표에 닿아도
+ * 사람에게 아무 말도 안 갔다. 부호만 반대다.
+ *
+ * 가격 관측이지 체결이 아니다. 그래서 포지션 상태도 실현 손익도 안 바꾸고 **알림만** 바꾼다.
+ */
+export function reachedTarget(input: ReachInput): boolean {
+  if (input.positionState !== 'holding' && input.positionState !== 'exit_pending') return false
+  return input.direction === 'long'
+    ? input.observedPrice >= input.targetPrice
+    : input.observedPrice <= input.targetPrice
+}
+
+export interface TimeExitInput {
+  positionState: PositionState
+  /** 진입 후 지난 분 */
+  minutesHeld: number
+  /** 설정 `exit_time_minutes`. 0 이면 시간 청산을 안 쓴다 */
+  timeExitMinutes: number
+}
+
+/**
+ * 보유 시간이 지났나 (§8 「시간 청산」).
+ *
+ * 0 이면 안 쓴다는 뜻이다 — 0 을 「지금 당장」으로 읽으면 진입하자마자 알림이 간다.
+ */
+export function timeExitDue(input: TimeExitInput): boolean {
+  if (input.positionState !== 'holding' && input.positionState !== 'exit_pending') return false
+  if (!(input.timeExitMinutes > 0)) return false
+  return input.minutesHeld >= input.timeExitMinutes
+}
+
 // ── 알림 우선순위 ────────────────────────────────────────
 
 /**

@@ -18,6 +18,13 @@
 /** 알림 종류. DB 검사 제약과 같은 목록이다 */
 export const NOTIFY_KINDS = [
   'signal', 'exit', 'safety', 'daily_limit', 'session_close', 'protection_breached',
+  /**
+   * 가격이 목표에 닿았다 · 보유 시간이 지났다 (§8 D-32).
+   *
+   * `exit` 와 헷갈리면 안 된다 — 저것은 「오늘 **수익 목표**에 닿았다」로 하루 한 번이고,
+   * 이 둘은 **들고 있는 포지션마다** 온다. 같은 이름으로 묶으면 한 줄에 섞인다.
+   */
+  'target_reached', 'time_exit',
 ] as const
 export type NotifyKind = (typeof NOTIFY_KINDS)[number]
 
@@ -34,8 +41,11 @@ export const KIND_PRIORITY: Record<NotifyKind, number> = {
   safety: 1,
   daily_limit: 2,
   session_close: 3,
-  exit: 4,
-  signal: 5,
+  // 들고 있는 것에 관한 말이 하루치 요약보다 급하다 (§10.2 「열린 포지션 위험」이 앞이다)
+  target_reached: 4,
+  time_exit: 5,
+  exit: 6,
+  signal: 7,
 }
 
 /** 몇 번까지 다시 보내나. 넘으면 그만 보내되 **행은 남는다** */
