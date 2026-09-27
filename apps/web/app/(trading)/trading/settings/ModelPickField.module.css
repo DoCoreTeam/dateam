@@ -7,6 +7,14 @@
   gap: var(--space-2);
   flex-wrap: wrap;
   justify-content: flex-end;
+  /*
+    설정 한 줄 안에 들어앉는 칸이다. **폭을 여기서 끊는다** —
+    줄바꿈을 허용하는 칸이라도 바깥이 `flex-shrink: 0` 이면 폭은
+    「안 접었을 때의 합」으로 잡힌다. 그래서 안내 두 줄이 붙는 순간 칸이 1100px 이 됐다
+  */
+  min-width: 0;
+  max-width: 26rem;
+  margin-left: auto;
 }
 
 /* 모델 이름은 글자가 섞이기 쉬워 고정폭으로 읽는다 */
@@ -22,8 +30,32 @@
   color: var(--text-muted);
 }
 
+/*
+  좁은 화면에서는 더 일찍 끊는다. 바깥 칸이 `flex-shrink: 0` 이라 폭이 저절로
+  줄지 않으므로, 끊는 자리를 화면 폭에 맞춰 우리가 정한다
+  (기준은 SettingsForm.module.css 가 이미 쓰는 40rem)
+*/
+@media (max-width: 40rem) {
+  .field { max-width: 14rem; }
+}
+
 /* 못 고르는 이유와 할 일 */
 .blocked {
   font-size: var(--fs-xs);
   color: var(--warning);
+  /*
+    **한 줄을 통째로 쓰고 거기서 접는다.**
+
+    설정 한 줄의 오른쪽 칸은 단추 글자가 세로로 쪼개지지 않게 `white-space: nowrap`
+    과 `flex-shrink: 0` 을 들고 있다(SettingsForm.tsx). 그 두 가지가 물려 내려오면
+    긴 안내 문장이 **한 줄로 쭉 뻗어** 설정 줄 전체를 옆으로 밀어낸다 —
+    실측 2026-09-28 설정 화면이 1512px 로 터졌고, 옆 줄(알림 켜기)까지 같이 밀렸다.
+    그래서 여기서 물려받은 것을 끊고 읽기 좋은 폭에서 접는다.
+  */
+  flex-basis: 100%;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
