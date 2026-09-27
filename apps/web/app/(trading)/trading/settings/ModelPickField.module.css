@@ -1,83 +1,6 @@
-/* 공급자와 모델 고르기 */
+/* 공급자와 모델 고르기 — 값과 단추가 한 줄에서 겹치지 않게
+   (모달 표시는 공용 부품 components/ui/ModelPickerModal 에 있다) */
 
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  display: grid;
-  place-items: center;
-  background: var(--modal-backdrop);
-  padding: var(--space-4);
-}
-
-.panel {
-  max-width: 34rem;
-  width: 100%;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.tabs {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-3);
-}
-
-.list {
-  display: grid;
-  gap: var(--space-1);
-}
-
-/* 모델 이름 길이가 제각각이라 가운데 정렬이면 눈이 매번 다른 자리에서 시작한다 */
-.row {
-  justify-content: flex-start;
-  text-align: left;
-}
-
-/* 머리·본문·바닥. 다른 모달과 같은 골격이다 */
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: var(--border-w) solid var(--border-color);
-}
-
-.head h3 {
-  margin: 0;
-  font-size: var(--fs-md);
-  font-weight: 600;
-}
-
-.body {
-  padding: var(--space-4);
-  display: grid;
-  gap: var(--space-3);
-}
-
-.foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-top: var(--border-w) solid var(--border-color);
-}
-
-.panel { padding: 0; }
-
-/* 목록 줄. 이름과 표가 양끝으로 간다 */
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  width: 100%;
-  text-align: left;
-}
-
-/* 값과 단추가 한 줄에서 겹치지 않게 */
 .field {
   display: flex;
   align-items: center;
@@ -86,8 +9,11 @@
   justify-content: flex-end;
 }
 
+/* 모델 이름은 글자가 섞이기 쉬워 고정폭으로 읽는다 */
 .current {
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-sm);
+  color: var(--text);
 }
 
 /* 곁말. 전역에 .text-muted 클래스가 없어 여기 둔다 */
@@ -97,6 +23,7 @@
 }
 
 /* 못 고르는 이유와 할 일 */
-.blocked { display: grid; gap: 0.15rem; }
-.blockedWhy { margin: 0; font-size: var(--fs-sm); color: var(--warning); }
-.blockedHow { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }
+.blocked {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+}

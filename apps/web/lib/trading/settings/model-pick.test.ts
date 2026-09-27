@@ -11,8 +11,7 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  pickState, tabsFor, pairForModelKey, MODEL_PAIRS,
-  PICK_STATE_LABEL, PICK_STATE_REMEDY,
+  tabsFor, pairForModelKey, MODEL_PAIRS, NO_KEY_WHY, NO_KEY_HOW,
 } from './model-pick.ts'
 import { TRADING_SETTINGS } from './registry.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
@@ -21,37 +20,18 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const WEB = join(HERE, '..', '..', '..')
 const SETTINGS_DIR = join(WEB, TRADING_APP_DIR, 'settings')
 
-const rows = [
-  { provider: 'gemini', modelId: 'gemini-3.8-flash', label: null, availability: 'ok' },
-  { provider: 'gemini', modelId: 'gemini-2.5-pro', label: null, availability: 'ok' },
-  { provider: 'openai', modelId: 'gpt-5-mini', label: null, availability: 'ok' },
-]
-
-test('★ 넷을 갈라 말한다 — 조치가 다르기 때문이다', () => {
-  assert.deepEqual(pickState({ hasKey: true, rows, error: null, provider: 'gemini' }),
-    { kind: 'ready', count: 2 })
-  // 키가 없다 → 키 등록이 먼저
-  assert.deepEqual(pickState({ hasKey: false, rows, error: null, provider: 'gemini' }),
-    { kind: 'no_key' })
-  // 키는 있는데 그 공급자 목록이 0건 → 새로고침이 먼저
-  assert.deepEqual(pickState({ hasKey: true, rows, error: null, provider: 'jev' }),
-    { kind: 'empty' })
-  // 못 읽었다 → 빈 목록과 다른 사실이다
-  assert.deepEqual(pickState({ hasKey: true, rows: null, error: '표를 못 읽음', provider: 'gemini' }),
-    { kind: 'failed', reason: '표를 못 읽음' })
-})
-
-test('★ 안 읽은 것을 빈 목록으로 말하지 않는다', () => {
-  assert.equal(pickState({ hasKey: true, rows: null, error: null, provider: 'gemini' }).kind, 'failed')
-})
-
-test('★ 상태마다 무엇을 하면 되는지 말한다', () => {
-  for (const kind of ['no_key', 'empty', 'failed'] as const) {
-    assert.ok(PICK_STATE_LABEL[kind], `${kind} 사유가 없다`)
-    assert.ok(PICK_STATE_REMEDY[kind], `${kind} 에 할 일이 없다`)
-  }
-  // 고를 수 있으면 아무 말도 안 한다 — 늘 뜨는 안내는 배경이 된다
-  assert.equal(PICK_STATE_LABEL.ready, '')
+/**
+ * **가려 말하는 일은 공용 모달이 한다.**
+ *
+ * 목록이 비었는지·못 읽었는지·막힌 모델이 몇 개인지는 연동 카드가 쓰는 것과 같은
+ * 부품이 말한다. 여기 남는 사실은 그 부품이 모르는 것 하나 — 고를 공급자가 아예 없다.
+ */
+test('★ 고를 공급자가 없으면 왜와 무엇을 하면 되는지를 같이 말한다', () => {
+  assert.ok(NO_KEY_WHY.length > 0, '왜 못 고르는지를 안 말한다')
+  assert.ok(NO_KEY_HOW.length > 0, '무엇을 하면 되는지를 안 말한다')
+  assert.notEqual(NO_KEY_WHY, NO_KEY_HOW, '사유와 할 일이 같은 말이다')
+  // 할 일은 **갈 곳**을 짚어야 한다. 「등록해 주세요」만으로는 어디인지 모른다
+  assert.ok(/설정|공급자/.test(NO_KEY_HOW), '어디로 가야 하는지 안 적혀 있다')
 })
 
 /* ── 화면과 창구 ───────────────────────────────────────── */
@@ -115,7 +95,7 @@ test('★ 화면을 그리는 것만으로 표를 훑지 않는다', () => {
   const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
   const at = field.indexOf('useEffect(')
   const body = field.slice(at, field.indexOf('}, [', at))
-  assert.ok(body.includes('if (!open || rows !== null) return'),
+  assert.ok(body.includes('if (!open || withKey !== null) return'),
     '창을 안 열어도 목록을 읽는다 — 설정 화면을 열 때마다 표를 훑는다')
 })
 
@@ -178,17 +158,48 @@ test('★ 지식·설명도 고른 공급자로 간다 — 한 벤더에 안 묶
 })
 
 /**
- * **모달이 다른 모달과 같은 골격이다** (§2-5 동종 UI 통일)
+ * **모달을 자작하지 않는다** (§2-5 동종 UI 통일)
  *
- * 자작한 창은 스타일이 안 붙어 날것으로 뜬다 (사용자 지적 2026-09-27 「디자인 미쳤어?」).
+ * 사용자 지적 2026-09-27 「디자인 미쳤어?」, 2026-09-28 「디자인이 안되어 있다니깐
+ * 모달이랑 버튼 배치랑 글자 크기도 저기만 유독 이상하네」.
+ *
+ * 앞 판에서 이 자리를 「머리·본문·바닥이 있나」로 잠갔는데, 그것은 **자작한 창을
+ * 굳히는 가드**였다. 골격을 세는 대신 공용 부품을 쓰는지를 본다.
  */
-test('★ 모달이 머리·본문·바닥을 갖는다', () => {
+test('★ 모델 고르기가 앱의 공용 모달을 쓴다', () => {
   const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
-  for (const part of ['styles.head', 'styles.body', 'styles.foot']) {
-    assert.ok(field.includes(part), `${part} 가 없다 — 골격이 다른 모달과 다르다`)
+  assert.ok(field.includes("from '@/components/ui/ModelPickerModal'"),
+    '공용 모달을 안 쓴다 — 연동 카드와 다른 창이 된다')
+  assert.ok(field.includes('<ModelPickerModal'), '부품을 들여만 놓고 안 그린다')
+
+  // 자작 창의 자취가 남아 있으면 둘 중 하나가 죽은 코드다
+  const css = readFileSync(join(SETTINGS_DIR, 'ModelPickField.module.css'), 'utf8')
+  for (const part of ['.backdrop', '.panel', '.head', '.foot', '.tabs', '.list']) {
+    assert.equal(css.includes(part), false, `${part} 가 남아 있다 — 자작 창의 자취다`)
   }
-  // 머리와 바닥 둘 다에 닫는 길이 있다
-  assert.ok((field.match(/ACTION\.close/g) ?? []).length >= 2, '닫는 길이 한 곳뿐이다')
+  assert.equal(/position:\s*fixed|z-index/.test(css), false, '화면이 창을 직접 세운다')
+})
+
+/**
+ * **관문은 부르는 쪽이 들고 있다.**
+ *
+ * 부품이 관리자 서버 액션을 직접 부르면 소유자가 관리자가 아닌 날 모달이 통째로
+ * 「관리자 권한이 필요합니다」가 된다. 두 화면의 문이 서로 다르기 때문이다.
+ */
+test('★ 공용 모달이 자기 관문을 안 들고 다닌다', () => {
+  const here = join(WEB, 'components', 'ui', 'ModelPickerModal.tsx')
+  const modal = readFileSync(here, 'utf8')
+  assert.equal(/from '@\/app\/\(ai\)/.test(modal), false,
+    '부품이 관리자 전용 창구를 직접 부른다')
+  assert.ok(modal.includes('load: () =>'), '목록 읽기를 인자로 안 받는다')
+  assert.ok(modal.includes('refresh?:'), '새로고침이 필수라 읽기 전용 화면이 못 쓴다')
+  // 못 하는 일이면 단추를 안 그린다
+  assert.ok(modal.includes('{refresh && ('), '새로고침을 못 해도 단추를 그린다')
+
+  const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
+  assert.ok(field.includes('load={load}'), '목록 읽기를 안 넘긴다')
+  assert.equal(/refresh=\{/.test(field), false,
+    '읽기만 하는 화면이 새로고침을 넘긴다 — 누르면 관리자 문에서 막힌다')
 })
 
 test('★ 화면이 꼴을 인라인으로 안 짓는다 — 토큰과 모듈로 간다', () => {

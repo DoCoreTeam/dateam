@@ -26,7 +26,10 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import { JUDGE_PROVIDERS } from '@/lib/trading/settings/registry'
 import type { AiProviderId } from '@/lib/ai/provider-catalog'
-import { MODEL_PAIRS, type JudgeModelRow } from '@/lib/trading/settings/model-pick'
+import { MODEL_PAIRS } from '@/lib/trading/settings/model-pick'
+import {
+  toModelCatalogItems, type ModelCatalogItem, type ModelCatalogRow,
+} from '@/lib/ai-chat/model-catalog-item'
 import {
   buildAssistantPrompt, planChanges, parseAssistantResponse, type AssistantPlan,
 } from '@/lib/trading/settings/assistant'
@@ -190,11 +193,10 @@ export async function saveTradingCredentialsAction(
  */
 export async function listJudgeModels(): Promise<{
   ok: boolean
-  rows?: JudgeModelRow[]
-  /** 키가 등록된 공급자. 화면이 「키가 없습니다」를 말할 수 있게 */
+  /** 관리자 연동 카드가 받는 것과 **같은 줄**이다. 같은 변환기를 지난다 */
+  items?: ModelCatalogItem[]
+  /** 키가 등록된 공급자. 화면이 없는 키의 탭을 안 세운다 */
   withKey?: string[]
-  /** 고를 수 있는 공급자 전부. 화면이 탭을 세운다 */
-  providers?: string[]
   error?: string
 }> {
   if (!(await tradingAccess()).allowed) return { ok: false, error: '이 화면의 소유자만 볼 수 있습니다' }
@@ -203,7 +205,7 @@ export async function listJudgeModels(): Promise<{
     const admin = createAdminClient() as any
     const { data, error } = await admin
       .from('ai_model_catalog')
-      .select('provider, model_id, label, availability, is_active')
+      .select('provider, model_id, label, context_length, capabilities, released_at, is_active, availability, availability_reason, availability_checked_at')
       .in('provider', [...JUDGE_PROVIDERS])
       .eq('is_active', true)
       .order('released_at', { ascending: false, nullsFirst: false })
@@ -215,18 +217,7 @@ export async function listJudgeModels(): Promise<{
       // 있음·없음만 옮긴다. 값은 이 함수 밖으로 안 나간다
       if (choice.apiKey) withKey.push(id)
     }
-    return {
-      ok: true,
-      withKey,
-      providers: [...JUDGE_PROVIDERS],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rows: ((data ?? []) as any[]).map((r) => ({
-        provider: String(r.provider),
-        modelId: String(r.model_id),
-        label: (r.label as string | null) ?? null,
-        availability: (r.availability as string | null) ?? null,
-      })),
-    }
+    return { ok: true, withKey, items: toModelCatalogItems((data ?? []) as ModelCatalogRow[]) }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : '모델 목록을 읽지 못했습니다' }
   }
