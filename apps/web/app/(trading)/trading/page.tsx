@@ -13,7 +13,9 @@ import SignalPanel from './SignalPanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
 import JevPanel from './JevPanel'
+import PushPanel from './PushPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
+import { getPushKey } from './actions'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
@@ -23,6 +25,8 @@ export const dynamic = 'force-dynamic'
 export default async function TradingPage() {
   const { values } = await loadTradingSettings(kstTodayKey())
   const overview = await loadTradingOverview(new Date())
+  // 공개 열쇠만 내려간다. 비밀키는 server-only 모듈 밖으로 안 나온다(S3)
+  const pushKey = await getPushKey()
 
   // 유효 시간은 설정이다. 화면이 따로 정하면 규칙과 화면이 다른 마감을 본다
   const rawValid = Number(values.signal_valid_minutes)
@@ -51,6 +55,8 @@ export default async function TradingPage() {
         />
         <PositionPanel holding={overview.holding} dayPnl={overview.dayPnl} />
         <NotifyPanel notify={overview.notify} position={overview.position} />
+        {/* 알림을 켜 놓아도 받을 기기가 없으면 화면에만 남는다 */}
+        <PushPanel publicKey={pushKey.publicKey} />
       </div>
     </>
   )

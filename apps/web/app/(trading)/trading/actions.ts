@@ -29,6 +29,9 @@ import { addEvent, removeEvent, listEvents, type EventRow } from '@/lib/trading/
 import { importBarCsv } from '@/lib/trading/backfill/csv'
 import { MAX_CSV_ROWS } from '@/lib/trading/backfill/csv-core'
 import { type ArmEnv } from '@/lib/trading/order/arming-policy'
+import {
+  saveSubscription, deleteSubscription, ensureVapidKeys, pushKeyStatus,
+} from '@/lib/trading/notify/push-store'
 
 export interface AckActionResult {
   ok: boolean
@@ -383,4 +386,65 @@ export async function importTradingBarCsv(
   if (!result.ok) return { ok: false, userMessage: result.userMessage, saved: 0, rejected: 0 }
   revalidatePath('/trading')
   return { ok: true, userMessage: result.summary, saved: result.saved, rejected: result.rejected }
+}
+
+/* ── 알림 받을 기기 ────────────────────────────────────── */
+
+export interface PushKeyView {
+  configured: boolean
+  publicKey: string | null
+}
+
+/**
+ * 화면이 구독할 때 쓸 공개 열쇠. **비밀키는 안 내려간다** (S3).
+ *
+ * 없으면 만들지 않는다 — 만드는 것은 사람이 누를 때만 한다. 화면을 여는 것만으로
+ * 서버 상태가 바뀌면 「언제 생겼는지」를 아무도 모른다.
+ */
+export async function getPushKey(): Promise<PushKeyView> {
+  if (!(await tradingAccess()).allowed) return { configured: false, publicKey: null }
+  const status = await pushKeyStatus()
+  return { configured: status.configured, publicKey: status.publicKey }
+}
+
+/** 열쇠를 한 번 만든다. 이미 있으면 그대로 둔다 — 갈면 등록된 기기가 조용히 안 받는다 */
+export async function createPushKey(): Promise<AckActionResult & { publicKey: string | null }> {
+  if (!(await tradingAccess()).allowed) return { ...DENIED, publicKey: null }
+  const result = await ensureVapidKeys('mailto:admin@data-alliance.com')
+  if (!result.ok) return { ok: false, userMessage: result.userMessage, publicKey: null }
+  return {
+    ok: true,
+    userMessage: result.created ? '알림 열쇠를 만들었습니다' : '이미 만들어진 열쇠가 있습니다',
+    publicKey: result.publicKey,
+  }
+}
+
+export interface RegisterPushInput {
+  endpoint: string
+  p256dh: string
+  auth: string
+  label: string | null
+}
+
+/** 이 기기를 등록한다. 주소가 유일 키라 같은 기기가 두 줄이 안 된다 (M9) */
+export async function registerPushDevice(input: RegisterPushInput): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const user = await getRequestUser()
+  const result = await saveSubscription({
+    endpoint: input.endpoint,
+    p256dh: input.p256dh,
+    auth: input.auth,
+    userId: user?.id ?? null,
+    label: input.label,
+  })
+  if (!result.ok) return { ok: false, userMessage: result.userMessage }
+  revalidatePath('/trading')
+  return { ok: true, userMessage: result.created ? '이 기기로 알림을 받습니다' : '기기 등록을 갱신했습니다' }
+}
+
+export async function unregisterPushDevice(endpoint: string): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  await deleteSubscription(endpoint)
+  revalidatePath('/trading')
+  return { ok: true, userMessage: '이 기기에서 알림을 껐습니다' }
 }
