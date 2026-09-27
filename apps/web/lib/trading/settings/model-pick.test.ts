@@ -176,3 +176,39 @@ test('★ 지식·설명도 고른 공급자로 간다 — 한 벤더에 안 묶
   assert.ok(call.includes('input.provider ?? '), '지식 호출이 공급자를 안 받는다')
   assert.ok(call.includes('callCompatibleText('), '다른 공급자로 갈 길이 없다')
 })
+
+/**
+ * **모달이 다른 모달과 같은 골격이다** (§2-5 동종 UI 통일)
+ *
+ * 자작한 창은 스타일이 안 붙어 날것으로 뜬다 (사용자 지적 2026-09-27 「디자인 미쳤어?」).
+ */
+test('★ 모달이 머리·본문·바닥을 갖는다', () => {
+  const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
+  for (const part of ['styles.head', 'styles.body', 'styles.foot']) {
+    assert.ok(field.includes(part), `${part} 가 없다 — 골격이 다른 모달과 다르다`)
+  }
+  // 머리와 바닥 둘 다에 닫는 길이 있다
+  assert.ok((field.match(/ACTION\.close/g) ?? []).length >= 2, '닫는 길이 한 곳뿐이다')
+})
+
+test('★ 화면이 꼴을 인라인으로 안 짓는다 — 토큰과 모듈로 간다', () => {
+  const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
+  assert.equal(/style=\{\{/.test(field), false, '인라인 style 이 남아 있다')
+  assert.equal(/rgba\(|#[0-9a-fA-F]{6}/.test(field), false, '색을 화면에서 짓는다')
+})
+
+test('★ 화면 문구가 라벨 표에서 온다', () => {
+  const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
+  /**
+   * 주석은 뺀다. **주석 속 한글은 위반이 아니다** — 오히려 다음 사람에게 필요한 것이고,
+   * 주석을 위반으로 세면 설명을 안 쓰게 된다.
+   *
+   * 한 줄 안에서만 찾는다. 줄을 넘겨 찾으면 주석 블록 두 개 사이가 통째로 잡힌다.
+   */
+  const code = field
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((l) => !/^\s*\/\//.test(l))
+  const hangul = code.flatMap((l) => l.match(/'[^'\n]*[가-힣][^'\n]*'/g) ?? [])
+  assert.deepEqual(hangul, [], `화면에 한글을 직접 적었다: ${hangul.join(', ')}`)
+})

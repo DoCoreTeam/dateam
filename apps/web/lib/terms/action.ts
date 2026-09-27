@@ -152,6 +152,14 @@ export const MEETING_CAPTURE_LABEL = '미팅 기록'
  * 가드(`lib/ui/glossary.test.ts`)가 이 표를 읽어 화면 코드를 스캔한다.
  * **여기 추가하면 그 순간부터 새 위반이 차단된다.**
  */
+/**
+ * 고를 것 중 명세가 정한 값. **하나에만 붙는다.**
+ *
+ * 나머지 둘은 기본값에서 한 걸음 간 값이고 「이만큼이 보수적이다」를 뜻하지 않는다.
+ * 그 판정은 검증 표본이 쌓여야 할 수 있고, 지금 붙이면 그 숫자가 근거처럼 보인다.
+ */
+export const SETTING_RECOMMENDED = '기본값입니다'
+
 export const BANNED_TERMS: { readonly bad: string; readonly good: string; readonly why: string }[] = [
   { bad: '지우기', good: ACTION.delete, why: '삭제 16곳 vs 지우기 5곳: 코드 식별자도 전부 delete' },
   { bad: '삭제중', good: progress(ACTION.delete), why: '공백 없음. 표준은 `{동사} 중…`' },

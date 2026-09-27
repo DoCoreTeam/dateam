@@ -34,3 +34,69 @@
   justify-content: flex-start;
   text-align: left;
 }
+
+/* 머리·본문·바닥. 다른 모달과 같은 골격이다 */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-w) solid var(--border-color);
+}
+
+.head h3 {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.body {
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-w) solid var(--border-color);
+}
+
+.panel { padding: 0; }
+
+/* 목록 줄. 이름과 표가 양끝으로 간다 */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+}
+
+/* 값과 단추가 한 줄에서 겹치지 않게 */
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.current {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 곁말. 전역에 .text-muted 클래스가 없어 여기 둔다 */
+.muted {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* 못 고르는 이유와 할 일 */
+.blocked { display: grid; gap: 0.15rem; }
+.blockedWhy { margin: 0; font-size: var(--fs-sm); color: var(--warning); }
+.blockedHow { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }

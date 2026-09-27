@@ -11,9 +11,12 @@
 
 import { useState, useTransition } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
-import { ACTION, progress } from '@/lib/terms'
+import { ACTION, progress, SETTING_RECOMMENDED } from '@/lib/terms'
 import { saveTradingSettingValue } from './actions'
 import ModelPickField from './ModelPickField'
+import { presetsFor, stepFor, canSlide } from '@/lib/trading/settings/presets'
+import { tradingSetting } from '@/lib/trading/settings/registry'
+import styles from './SettingsForm.module.css'
 
 export interface SettingRow {
   key: string
@@ -58,6 +61,9 @@ export default function SettingsForm({ row }: { row: SettingRow }) {
       setMessage(res.ok ? `판 ${res.version}으로 저장했습니다. 다음 거래일부터 적용됩니다` : res.userMessage)
     })
   }
+
+  /** 숫자면 그 설정의 범위를 가져온다. 고를 것과 슬라이더가 이 값에서 나온다 */
+  const numberSpec = row.type === 'number' ? tradingSetting(row.key) ?? null : null
 
   return (
     <div
@@ -133,6 +139,53 @@ export default function SettingsForm({ row }: { row: SettingRow }) {
           >
             {(row.choices ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+        ) : numberSpec ? (
+          /**
+           * 숫자는 **고를 것 셋과 슬라이더**로 준다.
+           *
+           * 최솟값과 최댓값을 코드가 이미 아는데 화면이 빈칸만 주고 있었다
+           * (사용자 지적 2026-09-27). 가운데 것만 명세가 정한 값이라 권장이 붙는다.
+           */
+          <div className={styles.ctl}>
+            <div className={styles.presets}>
+              {presetsFor(numberSpec).map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  className={`btn btn-sm ${styles.preset} ${String(p.value) === draft ? 'btn-primary' : ''}`}
+                  disabled={locked || pending}
+                  onClick={() => setDraft(String(p.value))}
+                  title={p.recommended ? SETTING_RECOMMENDED : undefined}
+                >
+                  {p.label}{p.recommended ? ' ★' : ''}
+                </button>
+              ))}
+            </div>
+            <div className={styles.slider}>
+              {canSlide(numberSpec) && (
+                <input
+                  type="range"
+                  aria-label={row.label}
+                  min={numberSpec.min}
+                  max={numberSpec.max}
+                  step={stepFor(numberSpec)}
+                  value={Number(draft) || 0}
+                  disabled={locked || pending}
+                  onChange={(e) => setDraft(e.target.value)}
+                />
+              )}
+              <input
+                id={`set-${row.key}`}
+                className={`input-field mono ${styles.value}`}
+                type="number"
+                min={numberSpec.min}
+                max={numberSpec.max}
+                value={draft}
+                disabled={locked || pending}
+                onChange={(e) => setDraft(e.target.value)}
+              />
+            </div>
+          </div>
         ) : row.pickProvider ? (
           /**
            * 모델 이름은 **고르는 것**이지 적는 것이 아니다.

@@ -42,6 +42,12 @@ export function pickState(input: {
   return mine.length > 0 ? { kind: 'ready', count: mine.length } : { kind: 'empty' }
 }
 
+export const MODEL_LIST_FAILED = '모델 목록을 읽지 못했습니다'
+export const MODEL_PICK = '모델 고르기'
+export const MODEL_PICK_TITLE = '공급자와 모델 고르기'
+export const MODEL_NOT_PICKED = '아직 안 골랐습니다'
+export const MODEL_IN_USE = '지금 씁니다'
+
 export const PICK_STATE_LABEL: Record<PickState['kind'], string> = {
   ready: '',
   no_key: '이 공급자의 키가 아직 없습니다',

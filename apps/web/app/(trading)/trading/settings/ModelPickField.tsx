@@ -14,8 +14,11 @@ import { useState, useEffect, useTransition } from 'react'
 import { Cpu } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import {
-  pickState, tabsFor, PICK_STATE_LABEL, PICK_STATE_REMEDY, type JudgeModelRow,
+  pickState, tabsFor, PICK_STATE_LABEL, PICK_STATE_REMEDY,
+  MODEL_PICK, MODEL_PICK_TITLE, MODEL_NOT_PICKED, MODEL_IN_USE, MODEL_LIST_FAILED,
+  type JudgeModelRow,
 } from '@/lib/trading/settings/model-pick'
+import { ACTION } from '@/lib/terms'
 import { listJudgeModels, savePickedModel } from './actions'
 import styles from './ModelPickField.module.css'
 
@@ -51,7 +54,7 @@ export default function ModelPickField({
     start(async () => {
       const r = await listJudgeModels()
       if (r.ok) { setRows(r.rows ?? []); setWithKey(r.withKey ?? []); setAll(r.providers ?? []) }
-      else setError(r.error ?? '모델 목록을 읽지 못했습니다')
+      else setError(r.error ?? MODEL_LIST_FAILED)
     })
   }, [open, rows])
 
@@ -69,16 +72,14 @@ export default function ModelPickField({
   }
 
   return (
-    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
-      <span className="mono" style={{ fontSize: 'var(--fs-sm)', color: current ? 'var(--text)' : 'var(--text-muted)' }}>
-        {current ? `${provider} · ${current}` : '아직 안 골랐습니다'}
+    <div className={styles.field}>
+      <span className={`mono ${styles.current}`}>
+        {current ? `${provider} · ${current}` : MODEL_NOT_PICKED}
       </span>
       <button type="button" className="btn btn-sm" disabled={disabled || pending} onClick={() => setOpen(true)}>
-        <Cpu size={14} /> {current ? '모델 변경' : '모델 고르기'}
+        <Cpu size={14} /> {current ? ACTION.change : MODEL_PICK}
       </button>
-      {message && (
-        <span role="status" style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{message}</span>
-      )}
+      {message && <span role="status" className={styles.muted}>{message}</span>}
 
       {open && (
         <div
@@ -88,10 +89,12 @@ export default function ModelPickField({
           onClick={() => setOpen(false)}
         >
           <div className={`card ${styles.panel}`} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: 0, marginBottom: 'var(--space-3)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>
-              공급자와 모델 고르기
-            </h3>
+            <div className={styles.head}>
+              <h3>{MODEL_PICK_TITLE}</h3>
+              <button type="button" className="btn btn-sm" onClick={() => setOpen(false)}>{ACTION.close}</button>
+            </div>
 
+            <div className={styles.body}>
             {/* 키가 등록된 공급자만 세운다 */}
             <div className={styles.tabs}>
               {tabs.map((id) => (
@@ -107,13 +110,9 @@ export default function ModelPickField({
             </div>
 
             {state.kind !== 'ready' && (
-              <div style={{ marginBottom: 'var(--space-3)' }}>
-                <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--warning)' }}>
-                  {PICK_STATE_LABEL[state.kind]}
-                </p>
-                <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-                  {PICK_STATE_REMEDY[state.kind]}
-                </p>
+              <div className={styles.blocked}>
+                <p className={styles.blockedWhy}>{PICK_STATE_LABEL[state.kind]}</p>
+                <p className={styles.blockedHow}>{PICK_STATE_REMEDY[state.kind]}</p>
               </div>
             )}
 
@@ -122,20 +121,24 @@ export default function ModelPickField({
                 <button
                   key={row.modelId}
                   type="button"
-                  className={`btn btn-sm ${styles.row}`}
+                  className="btn btn-sm"
                   disabled={pending}
                   onClick={() => pick(row.modelId)}
                 >
-                  <span className="mono">{row.modelId}</span>
-                  {row.modelId === current && tab === provider && (
-                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>· 지금 값</span>
-                  )}
+                  <span className={styles.row}>
+                    <span className="mono">{row.modelId}</span>
+                    {row.modelId === current && tab === provider && (
+                      <span className={styles.muted}>{MODEL_IN_USE}</span>
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
 
-            <div style={{ marginTop: 'var(--space-3)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-sm" onClick={() => setOpen(false)}>닫기</button>
+            </div>
+
+            <div className={styles.foot}>
+              <button type="button" className="btn btn-sm" onClick={() => setOpen(false)}>{ACTION.close}</button>
             </div>
           </div>
         </div>
