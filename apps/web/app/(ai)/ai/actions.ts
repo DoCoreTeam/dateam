@@ -11,7 +11,8 @@ import { isValidModelId } from '@/lib/ai-chat/model-id'
 import { buildThreadForChoice, getBranchGroups } from '@/lib/ai-chat/thread'
 import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
-import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
+import { mergeModelCatalogEntry, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
+import { toModelCatalogItems, type ModelCatalogItem, type ModelCatalogRow } from '@/lib/ai-chat/model-catalog-item'
 import { probeModelIdsAcrossKeys } from '@/lib/ai-chat/probe-models'
 import type { ListedModelFacts } from '@/lib/ai-chat/provider'
 import { isAvailabilitySchemaMissing } from '@/lib/ai-chat/model-availability'
@@ -953,18 +954,11 @@ export async function toggleShare(
 // ⑤ 모델 선택 모달 — DB 캐시 기반 모델 카탈로그(마이그 156 ai_model_catalog)
 // ════════════════════════════════════════════════════════════════════════
 
-export interface ModelCatalogItem {
-  provider: AiChatProviderId
-  modelId: string
-  label: string
-  contextLength: number | null
-  capabilities: ModelCapabilities
-  releasedAt: string | null
-  useCase: string   // "무엇에 쓰는지" 친절 안내
-  availability: 'available' | 'limited' | 'unavailable' | 'unknown'
-  availabilityReason: string | null
-  availabilityCheckedAt: string | null
-}
+/**
+ * 화면이 그리는 한 줄. **모양과 변환은 `lib/ai-chat/model-catalog-item` 한 곳에 있다** —
+ * 같은 표를 읽는 다른 화면(트레이딩 설정)이 관리자 관문을 지나지 않고도 같은 줄을 만든다.
+ */
+export type { ModelCatalogItem } from '@/lib/ai-chat/model-catalog-item'
 
 export interface ModelAvailabilitySnapshot {
   modelId: string
@@ -973,18 +967,6 @@ export interface ModelAvailabilitySnapshot {
   availabilityCheckedAt: string
 }
 
-interface ModelCatalogRow {
-  provider: AiChatProviderId
-  model_id: string
-  label: string
-  context_length: number | null
-  capabilities: Partial<ModelCapabilities> | null
-  released_at: string | null
-  is_active: boolean
-  availability: ModelCatalogItem['availability']
-  availability_reason: string | null
-  availability_checked_at: string | null
-}
 
 // ── 키가 설정된 프로바이더의 카탈로그(is_active만) 조회 — 모델 선택 모달 데이터 소스 ──
 export async function listModelCatalog(): Promise<{
@@ -1014,33 +996,10 @@ export async function listModelCatalog(): Promise<{
   }
   if (error) return { ok: false, error: `모델 카탈로그 조회 중 오류가 발생했습니다 (${error.code ?? 'unknown'})` }
 
-  const rows = (data ?? []) as ModelCatalogRow[]
-  // 비채팅 모델 제외 + 표시 시점 추론 fallback(이미 저장된 빈칸 행도 능력·출시일이 즉시 뜨게).
-  const items: ModelCatalogItem[] = rows
-    .filter((r) => r.is_active && isChatModel(r.provider, r.model_id))
-    .map((r) => {
-      const inferred = inferModelMeta(r.provider, r.model_id)
-      const dbCaps = r.capabilities ?? {}
-      const capsEmpty = !dbCaps.vision && !dbCaps.longContext && !dbCaps.reasoning
-      const capabilities = capsEmpty
-        ? inferred.capabilities
-        : { vision: false, longContext: false, reasoning: false, ...dbCaps }
-      return {
-        provider: r.provider,
-        modelId: r.model_id,
-        label: r.label ?? inferred.label,
-        contextLength: r.context_length ?? inferred.contextLength ?? null,
-        capabilities,
-        releasedAt: r.released_at ?? inferred.releasedAt ?? null,
-        useCase: inferModelUseCase(r.provider, r.model_id, capabilities),
-        availability: r.is_active ? (r.availability ?? 'unknown') : 'unavailable',
-        availabilityReason: r.is_active ? r.availability_reason : '더 이상 공급자 모델 목록에 없는 모델입니다.',
-        availabilityCheckedAt: r.availability_checked_at,
-      }
-    })
-  // 선택 가능 여부(available·unknown) 필터는 모달이 담당한다. 여기서 미리 걸러버리면
+  // 비채팅 모델 제외 + 표시 시점 추론 fallback 은 공용 변환기가 한다.
+  // 선택 가능 여부(available·unknown) 필터는 모달이 담당한다 — 여기서 미리 걸러버리면
   // "차단된 모델이 N개 있다"는 사실 자체가 사라져 화면이 "카탈로그에 모델이 없습니다"로 거짓말한다.
-  return { ok: true, items }
+  return { ok: true, items: toModelCatalogItems((data ?? []) as ModelCatalogRow[]) }
 }
 
 // 가용 상태 재사용 창(6h). 모달을 열 때마다 모델 수만큼 실 API를 때리면 비용이 들고

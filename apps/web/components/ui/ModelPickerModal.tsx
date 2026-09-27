@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X, RefreshCw, Eye, BookOpenText, Brain, CircleCheck, CircleAlert, CircleX, CircleHelp } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import type { AiChatProviderId } from '@/types/database'
-import { listModelCatalog, refreshModelCatalog, type ModelCatalogItem } from '@/app/(ai)/ai/actions'
+import type { ModelCatalogItem } from '@/lib/ai-chat/model-catalog-item'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { MODEL_STATUS_LABEL, MODEL_STATUS_COLOR } from '@/lib/ai-chat/model-status'
 import { isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
@@ -24,6 +24,19 @@ interface Props {
   currentModel: string | null
   onSelect: (provider: AiChatProviderId, model: string) => void
   onClose: () => void
+  /**
+   * 목록을 읽어 오는 일. **부품이 아니라 부르는 쪽이 들고 있다.**
+   *
+   * 왜: 관문이 화면마다 다르다 — 연동 카드는 관리자만, AI 트레이딩 설정은 그 화면의
+   * 소유자만 본다. 부품이 관리자 서버 액션을 직접 import 하면 소유자가 관리자가 아닌 날
+   * 모달이 통째로 「관리자 권한이 필요합니다」가 된다.
+   */
+  load: () => Promise<{ ok: boolean; items?: ModelCatalogItem[]; error?: string }>
+  /**
+   * 공급자에게 최신 목록을 다시 물어 카탈로그를 채우는 일. **없으면 그 단추를 안 그린다.**
+   * 읽기만 하는 화면은 남이 채운 목록을 본다 — 못 하는 단추를 그려 두는 것보다 낫다.
+   */
+  refresh?: (provider: AiChatProviderId, options?: { force?: boolean }) => Promise<{ ok: boolean; error?: string }>
 }
 
 function formatReleased(d: string | null): string {
@@ -57,7 +70,7 @@ function formatCheckedAt(value: string | null): string {
 
 // 모델 선택 모달(⑤) — DB 카탈로그(능력·출시일)에서 선택 + "모델 새로고침"으로 실 프로바이더 목록 반영.
 // 표준: useEscClose·tape-title·boxShadow(--shadow-modal)·backdrop(--modal-backdrop).
-export default function ModelPickerModal({ providers, currentProvider, currentModel, onSelect, onClose }: Props) {
+export default function ModelPickerModal({ providers, currentProvider, currentModel, onSelect, onClose, load, refresh }: Props) {
   useEscClose(onClose)
   const [tab, setTab] = useState<AiChatProviderId | null>(currentProvider ?? providers[0]?.id ?? null)
   const [items, setItems] = useState<ModelCatalogItem[]>([])
@@ -69,14 +82,14 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
 
   useEffect(() => {
     let alive = true
-    listModelCatalog().then((r) => {
+    load().then((r) => {
       if (!alive) return
       if (r.ok && r.items) setItems(r.items)
       else setError(r.error ?? '모델 카탈로그 조회에 실패했습니다')
       setLoading(false)
     })
     return () => { alive = false }
-  }, [])
+  }, [load])
 
   const allForTab = useMemo(() => items.filter((i) => i.provider === tab), [items, tab])
   const itemsForTab = useMemo(
@@ -121,11 +134,12 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
 
   // force=false(탭 자동 진입)는 최근 확인분을 재사용하고, 사용자가 버튼을 누른 경우에만 전량 재확인한다.
   const refreshProvider = useCallback(async (provider: AiChatProviderId, force: boolean) => {
+    if (!refresh) return
     setRefreshing(true)
     setError(null)
-    const r = await refreshModelCatalog(provider, { force })
+    const r = await refresh(provider, { force })
     if (r.ok) {
-      const list = await listModelCatalog()
+      const list = await load()
       if (list.ok && list.items) {
         setItems(list.items)
         setPicked((value) => list.items?.some((item) => item.provider === provider && item.modelId === value) ? value : null)
@@ -136,16 +150,16 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
       setError(r.error ?? '모델 새로고침에 실패했습니다')
     }
     setRefreshing(false)
-  }, [])
+  }, [load, refresh])
 
   useEffect(() => {
-    if (!tab || loading || probedProviders.current.has(tab)) return
+    if (!tab || loading || !refresh || probedProviders.current.has(tab)) return
     probedProviders.current.add(tab)
     void refreshProvider(tab, false)
-  }, [loading, refreshProvider, tab])
+  }, [loading, refresh, refreshProvider, tab])
 
   function handleRefresh() {
-    if (!tab || refreshing) return
+    if (!tab || refreshing || !refresh) return
     void refreshProvider(tab, true)
   }
 
@@ -197,17 +211,20 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
               onSelect={(id) => { if (!refreshing) handleTabChange(id as AiChatProviderId) }}
             />
           )}
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={!tab || refreshing}
-            title="모델 새로고침"
-            className="btn-ghost"
-            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', cursor: refreshing ? 'wait' : 'pointer' }}
-          >
-            <RefreshCw size={13} className={refreshing ? 'ai-chat-spin' : undefined} />
-            {refreshing ? '새로고침 중…' : '모델 새로고침'}
-          </button>
+          {/* 못 하는 일이면 단추를 안 그린다 — 눌리지 않는 단추는 고장으로 읽힌다 */}
+          {refresh && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={!tab || refreshing}
+              title="모델 새로고침"
+              className="btn-ghost"
+              style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', cursor: refreshing ? 'wait' : 'pointer' }}
+            >
+              <RefreshCw size={13} className={refreshing ? 'ai-chat-spin' : undefined} />
+              {refreshing ? '새로고침 중…' : '모델 새로고침'}
+            </button>
+          )}
         </ControlRow>
 
         <div style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', lineHeight: 1.5 }}>
@@ -243,8 +260,10 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
           {!loading && !refreshing && itemsForTab.length === 0 && blockedForTab.total === 0 && (
             <EmptyState
               title="카탈로그에 모델이 없어요"
-              description="모델 새로고침으로 최신 목록을 가져오세요"
-              action={{ label: '모델 새로고침', onClick: handleRefresh }}
+              description={refresh
+                ? '모델 새로고침으로 최신 목록을 가져오세요'
+                : '관리자 설정의 연동 카드에서 모델 새로고침을 한 번 눌러 주세요'}
+              action={refresh ? { label: '모델 새로고침', onClick: handleRefresh } : undefined}
             />
           )}
           {/* 선택 가능한 게 있어도 가려진 것이 있으면 개수를 밝힌다 — 조용히 숨기면

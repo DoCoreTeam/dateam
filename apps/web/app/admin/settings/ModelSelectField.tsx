@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { Cpu } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ModelPickerModal from '@/components/ui/ModelPickerModal'
+import { listModelCatalog, refreshModelCatalog } from '@/app/(ai)/ai/actions'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import type { AiChatProviderId } from '@/types/database'
 
@@ -80,6 +81,9 @@ export default function ModelSelectField({ provider, hasKey, savedModel, onSave 
           currentModel={currentModel}
           onSelect={handleSelect}
           onClose={() => setOpen(false)}
+          /* 관문은 이 화면이 들고 있다 — 두 서버 액션 모두 관리자만 지난다 */
+          load={listModelCatalog}
+          refresh={refreshModelCatalog}
         />
       )}
     </div>
