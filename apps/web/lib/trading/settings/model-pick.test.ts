@@ -10,7 +10,11 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { pickState, PICK_STATE_LABEL, PICK_STATE_REMEDY } from './model-pick.ts'
+import {
+  pickState, tabsFor, pairForModelKey, MODEL_PAIRS,
+  PICK_STATE_LABEL, PICK_STATE_REMEDY,
+} from './model-pick.ts'
+import { TRADING_SETTINGS } from './registry.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -60,8 +64,9 @@ test('★ 모델 칸이 글자 입력이 아니라 고르기다', () => {
     '글자 입력이 먼저라 고르기에 안 닿는다')
 
   const page = readFileSync(join(SETTINGS_DIR, 'page.tsx'), 'utf8')
-  assert.ok(page.includes("spec.key === 'jev_model' ? { pickProvider: judgeProvider }"),
-    '모델 칸에 공급자를 안 넘긴다')
+  // 쌍을 아는 함수가 정하고, 화면은 그 결과만 넘긴다 — 키를 화면이 또 적으면 갈린다
+  assert.ok(page.includes('pairForModelKey(spec.key)'), '모델 칸에 공급자를 안 넘긴다')
+  assert.ok(page.includes('pickProvider: {'), '짝을 안 넘긴다')
 })
 
 /**
@@ -70,11 +75,11 @@ test('★ 모델 칸이 글자 입력이 아니라 고르기다', () => {
  */
 test('★ 공급자를 바꿔 뒀으면 그 공급자의 모델을 보여 준다', () => {
   const page = readFileSync(join(SETTINGS_DIR, 'page.tsx'), 'utf8')
-  const at = page.indexOf('const judgeProvider')
+  const at = page.indexOf('const providerValue')
   assert.ok(at > 0, '공급자를 안 정한다')
   const body = page.slice(at, page.indexOf('\n\n', at))
-  assert.ok(body.includes("editingValue(pending.get('jev_provider'))"), '예약된 판을 안 본다')
-  assert.ok(body.includes('values.jev_provider'), '예약이 없을 때 오늘 값을 안 본다')
+  assert.ok(body.includes('editingValue(pending.get(key))'), '예약된 판을 안 본다')
+  assert.ok(body.includes('values[key]'), '예약이 없을 때 오늘 값을 안 본다')
 })
 
 /**
@@ -112,4 +117,62 @@ test('★ 화면을 그리는 것만으로 표를 훑지 않는다', () => {
   const body = field.slice(at, field.indexOf('}, [', at))
   assert.ok(body.includes('if (!open || rows !== null) return'),
     '창을 안 열어도 목록을 읽는다 — 설정 화면을 열 때마다 표를 훑는다')
+})
+
+/**
+ * **공급자와 모델은 한 벌이다** (사용자 지적 2026-09-27)
+ *
+ * 모델만 바꾸고 공급자가 그대로면 그 공급자에 없는 모델을 가리키게 된다.
+ * 화면에는 이름이 멀쩡히 적혀 있는데 그 자리는 한 건도 안 돈다.
+ */
+test('★ 모델 칸마다 짝이 되는 공급자 칸이 있다', () => {
+  assert.ok(MODEL_PAIRS.length >= 2, '쌍이 모자란다')
+  for (const pair of MODEL_PAIRS) {
+    assert.ok(TRADING_SETTINGS.some((s) => s.key === pair.providerKey), `${pair.providerKey} 설정이 없다`)
+    assert.ok(TRADING_SETTINGS.some((s) => s.key === pair.modelKey), `${pair.modelKey} 설정이 없다`)
+    assert.deepEqual(pairForModelKey(pair.modelKey), pair)
+  }
+  assert.equal(pairForModelKey('atr_period'), null, '아무 칸이나 고르기가 된다')
+})
+
+/**
+ * **이름에 벤더를 안 박는다.**
+ * 등록된 키가 넷인데 이름부터 한 벌에 묶여 있으면 나머지 키는 있으나 마나다.
+ */
+test('★ 설정 이름에 벤더가 박힌 자리가 0개다', () => {
+  const offenders = TRADING_SETTINGS
+    .filter((s) => /gemini|claude|openai|grok|groq/i.test(s.label))
+    .map((s) => `${s.key}: ${s.label}`)
+  assert.deepEqual(offenders, [], `이름에 벤더가 박혀 있다:\n  ${offenders.join('\n  ')}`)
+})
+
+test('★ 탭에는 키가 등록된 공급자만 선다 — 없는 키를 고르면 영영 안 돈다', () => {
+  assert.deepEqual(tabsFor(['gemini', 'openai', 'jev'], ['gemini', 'jev']), ['gemini', 'jev'])
+  assert.deepEqual(tabsFor(['gemini', 'openai'], []), [])
+})
+
+test('★ 저장이 둘을 함께 한다 — 한쪽만 바뀌는 길이 없다', () => {
+  const actions = readFileSync(join(SETTINGS_DIR, 'actions.ts'), 'utf8')
+  const at = actions.indexOf('export async function savePickedModel')
+  assert.ok(at > 0, '함께 저장하는 창구가 없다')
+  const body = actions.slice(at, actions.indexOf('\n}\n', at))
+  assert.ok(body.includes('saveTradingSettingValue(providerKey, provider)'), '공급자를 안 저장한다')
+  assert.ok(body.includes('saveTradingSettingValue(modelKey, model)'), '모델을 안 저장한다')
+  // 등재된 쌍이 아니면 아무것도 안 한다 — 밖에서 온 키다
+  assert.ok(body.includes('MODEL_PAIRS.find('), '아무 키나 저장한다')
+  assert.ok(body.includes('tradingAccess()'), '소유자 확인을 안 한다')
+
+  const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
+  assert.ok(field.includes('savePickedModel('), '화면이 함께 저장하는 창구를 안 부른다')
+})
+
+test('★ 지식·설명도 고른 공급자로 간다 — 한 벤더에 안 묶인다', () => {
+  const tick = readFileSync(join(HERE, '..', 'jobs', 'tick.ts'), 'utf8')
+  assert.ok(tick.includes("str('knowledge_model', '')"), '지식이 옛 키를 읽는다')
+  assert.ok(tick.includes("str('knowledge_provider', 'gemini')"), '지식이 공급자를 안 읽는다')
+  assert.equal(/str\('gemini_model'/.test(tick), false, '벤더가 박힌 키가 남아 있다')
+
+  const call = readFileSync(join(HERE, '..', 'knowledge', 'ai-call.ts'), 'utf8')
+  assert.ok(call.includes('input.provider ?? '), '지식 호출이 공급자를 안 받는다')
+  assert.ok(call.includes('callCompatibleText('), '다른 공급자로 갈 길이 없다')
 })

@@ -21,6 +21,8 @@ import { callGeminiText, GeminiCallError } from '@/lib/ai/gemini-call'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import { BudgetDeniedError } from '@/lib/ai/budget'
 import { knowledgeFeature, KNOWLEDGE_SURFACE, type KnowledgePurpose } from './surface.ts'
+import { callCompatibleText, canCallCompatible } from '@/lib/ai/openai-compatible-text'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 
 export { KNOWLEDGE_SURFACE, KNOWLEDGE_PURPOSES, type KnowledgePurpose } from './surface.ts'
 
@@ -29,6 +31,14 @@ export interface KnowledgeCallInput {
   prompt: string
   /** 관리자가 고른 모델. 비면 기본 사슬 */
   model?: string | null
+  /**
+   * 어느 공급자로 부르나. 기본은 gemini 다.
+   *
+   * **왜 고를 수 있어야 하나** (사용자 지적 2026-09-27 「gemini로 박지 말라고 우리 AI 키
+   * 들어 간거 다 쓸수 있도록」): 등록된 키가 여럿인데 이 자리가 한 벤더에 묶여 있으면
+   * 나머지 키는 있으나 마나다.
+   */
+  provider?: AiProviderId | null
   /** JSON 을 요구하나 */
   json: boolean
   maxOutputTokens?: number
@@ -62,6 +72,32 @@ export async function callKnowledge(input: KnowledgeCallInput): Promise<Knowledg
   const feature = knowledgeFeature(input.purpose)
   if (!feature.startsWith(expectedSurface)) {
     return { ok: false, reason: 'surface_drift', userMessage: USER_MESSAGE.call_failed }
+  }
+
+  const provider = (input.provider ?? 'gemini') as AiProviderId
+
+  /**
+   * gemini 는 **전용 길**로 간다.
+   *
+   * 그쪽에는 모델 사슬(`lib/ai/gemini-model.ts`)이 있어 고른 모델이 사라진 날
+   * 다음 후보로 내려간다. 호환 창구로 보내면 그 사슬이 사라져 404 하나로 끝난다.
+   * 나머지 공급자는 사슬이 없으므로 공용 호환 창구로 간다 — 규칙은 같고 길만 다르다.
+   */
+  if (provider !== 'gemini') {
+    if (!canCallCompatible(provider)) {
+      return { ok: false, reason: `no_door:${provider}`, userMessage: USER_MESSAGE.call_failed }
+    }
+    const r = await callCompatibleText({
+      provider,
+      model: input.model ?? '',
+      prompt: input.prompt,
+      surface: KNOWLEDGE_SURFACE,
+      purpose: feature,
+      json: input.json,
+    })
+    return r.ok
+      ? { ok: true, text: r.text, model: input.model ?? '' }
+      : { ok: false, reason: r.reason, userMessage: USER_MESSAGE.call_failed }
   }
 
   const choice = await resolveProviderKey('gemini', null)

@@ -10,6 +10,7 @@ import 'server-only'
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import { callKnowledge } from './ai-call.ts'
 import { applyAsOf } from './as-of.ts'
 import {
@@ -95,7 +96,8 @@ export type ExplainResult =
  * 실패해도 신호와 알림은 그대로다 — 이 함수는 신호 표를 안 만진다.
  */
 export async function explainSignal(
-  signalId: string, facts: SignalFacts, promptVersion: string, model?: string | null,
+  signalId: string, facts: SignalFacts, promptVersion: string,
+  model?: string | null, provider?: AiProviderId | null,
 ): Promise<ExplainResult> {
   // 목록 밖의 값이 섞였으면 프롬프트를 아예 안 만든다
   const extra = checkFactKeys(facts as unknown as Record<string, unknown>)
@@ -105,6 +107,7 @@ export async function explainSignal(
     purpose: 'signal_explain',
     prompt: buildExplainPrompt(facts),
     model,
+    provider,
     json: false,
     maxOutputTokens: 1024,
   })

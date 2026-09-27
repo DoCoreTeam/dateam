@@ -1210,7 +1210,9 @@ async function knowledgeOrExplain(ctx: any): Promise<string> {
       startedAt: now,
       tradeDate: today,
       continuousTrading: isContinuousTrading(window, target),
-      model: str('gemini_model', '') || null,
+      // 지식·설명도 고른 공급자로 간다. 이름에 벤더가 박혀 있으면 나머지 키가 있으나 마나다
+      model: str('knowledge_model', '') || null,
+      provider: str('knowledge_provider', 'gemini') as AiProviderId,
       position,
       reportFrom: seoulDaysAgo(today, num('pattern_window_days', 20)),
       reportMinSamples: num('pattern_min_samples', 30),

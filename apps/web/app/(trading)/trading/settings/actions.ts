@@ -26,7 +26,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import { JUDGE_PROVIDERS } from '@/lib/trading/settings/registry'
 import type { AiProviderId } from '@/lib/ai/provider-catalog'
-import type { JudgeModelRow } from '@/lib/trading/settings/model-pick'
+import { MODEL_PAIRS, type JudgeModelRow } from '@/lib/trading/settings/model-pick'
 
 export interface SaveSettingResult {
   ok: boolean
@@ -183,6 +183,8 @@ export async function listJudgeModels(): Promise<{
   rows?: JudgeModelRow[]
   /** 키가 등록된 공급자. 화면이 「키가 없습니다」를 말할 수 있게 */
   withKey?: string[]
+  /** 고를 수 있는 공급자 전부. 화면이 탭을 세운다 */
+  providers?: string[]
   error?: string
 }> {
   if (!(await tradingAccess()).allowed) return { ok: false, error: '이 화면의 소유자만 볼 수 있습니다' }
@@ -206,6 +208,7 @@ export async function listJudgeModels(): Promise<{
     return {
       ok: true,
       withKey,
+      providers: [...JUDGE_PROVIDERS],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       rows: ((data ?? []) as any[]).map((r) => ({
         provider: String(r.provider),
@@ -217,4 +220,30 @@ export async function listJudgeModels(): Promise<{
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : '모델 목록을 읽지 못했습니다' }
   }
+}
+
+/**
+ * 공급자와 모델을 **함께** 저장한다.
+ *
+ * 한쪽만 저장하는 길을 안 둔다 — 모델만 바꾸고 공급자가 그대로면 그 공급자에 없는 모델을
+ * 가리키게 되고, 화면에는 이름이 멀쩡히 적혀 있는데 그 자리는 한 건도 안 돈다.
+ *
+ * 저장은 **기존 창구를 그대로 지난다**(M7) — 다음 거래일부터 듣는다.
+ */
+export async function savePickedModel(
+  providerKey: string, modelKey: string, provider: string, model: string,
+): Promise<SaveSettingResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const pair = MODEL_PAIRS.find((p) => p.providerKey === providerKey && p.modelKey === modelKey)
+  // 밖에서 온 키다. 등재된 쌍이 아니면 아무것도 안 한다
+  if (!pair) return { ok: false, userMessage: '고를 수 있는 자리가 아닙니다' }
+  if (!JUDGE_PROVIDERS.includes(provider)) {
+    return { ok: false, userMessage: '고를 수 있는 공급자가 아닙니다' }
+  }
+
+  const first = await saveTradingSettingValue(providerKey, provider)
+  if (!first.ok) return first
+  const second = await saveTradingSettingValue(modelKey, model)
+  if (!second.ok) return second
+  return { ok: true, userMessage: `${provider} · ${model} 로 저장했습니다. 다음 거래일부터 듣습니다`, version: second.version }
 }

@@ -33,6 +33,8 @@ export interface KnowledgeJobInput {
   tradeDate: string
   continuousTrading: boolean
   model: string | null
+  /** 지식·설명을 부를 공급자. 모델과 짝이다 */
+  provider: AiProviderId
   /** 지금 들고 있는 포지션. 없으면 null */
   position: {
     contractCode: string
@@ -134,14 +136,14 @@ async function doTask(task: string, input: KnowledgeJobInput): Promise<string> {
 async function analyzeOne(input: KnowledgeJobInput): Promise<string> {
   const id = await nextPendingSourceId()
   if (!id) return 'none'
-  const r = await analyzeSource(id, input.model)
+  const r = await analyzeSource(id, input.model, input.provider)
   return r.analyzed ? `done:kept=${r.kept},dropped=${r.dropped}` : r.reason
 }
 
 async function explainOne(input: KnowledgeJobInput): Promise<string> {
   const [next] = await signalsNeedingExplanation(1)
   if (!next) return 'none'
-  const r = await explainSignal(next.id, next.facts, 'explain-v1', input.model)
+  const r = await explainSignal(next.id, next.facts, 'explain-v1', input.model, input.provider)
   return r.explained ? 'done' : r.reason
 }
 
@@ -204,6 +206,7 @@ async function cardOne(input: KnowledgeJobInput): Promise<string> {
     topic: sourceTopic(next.id),
     facts: next.findings.map((f) => `${f.claim} (원문: ${f.quote})`),
     model: input.model,
+    provider: input.provider,
     promptVersion: 'card-from-source-v1',
   })
   return r.made ? `done:${next.id}` : r.reason
@@ -216,6 +219,7 @@ async function reportOne(input: KnowledgeJobInput): Promise<string> {
     minSamples: input.reportMinSamples,
     minBucketSamples: input.reportMinBucketSamples,
     model: input.model,
+    provider: input.provider,
   })
   return r.made ? `done:${r.sampleCount}` : r.reason
 }
@@ -237,6 +241,7 @@ async function proposeOne(input: KnowledgeJobInput): Promise<string> {
     tradeDate: input.tradeDate,
     reportLines: metricsToLines(latest.metrics),
     model: input.model,
+    provider: input.provider,
   })
   const rejected = r.rejected.length > 0 ? `,rejected=${r.rejected.length}` : ''
   const future = hidden > 0 ? `,hidden_future=${hidden}` : ''

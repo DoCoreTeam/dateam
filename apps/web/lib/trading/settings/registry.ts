@@ -1048,11 +1048,28 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §3.2 1-C',
   },
   // ── 지식과 설명 (Release 2 · §16) ───────────────────────
+  /**
+   * 지식·설명이 쓰는 공급자와 모델 — **이름에 벤더를 안 박는다**
+   *
+   * 전에는 「Gemini 모델」이었다. 등록된 키가 넷인데 이름부터 한 벌에 묶여 있으면
+   * 나머지 키는 있으나 마나다 (사용자 지적 2026-09-27).
+   */
   {
-    key: 'gemini_model',
+    key: 'knowledge_provider',
     group: 'knowledge',
-    label: 'Gemini 모델',
-    help: '지식 카드·소스 분석·패턴 리포트·설명을 만들 때 쓰는 모델. 비우면 기본 사슬을 쓴다',
+    label: '지식·설명 공급자',
+    help: '지식 카드·소스 분석·패턴 리포트·설명을 만들 때 부를 공급자. 모델과 함께 고른다',
+    type: 'choice',
+    choices: JUDGE_PROVIDERS,
+    defaultValue: 'gemini',
+    usedFrom: '1-C',
+    source: '명세 §16 · §17.1 기존 AI 계층',
+  },
+  {
+    key: 'knowledge_model',
+    group: 'knowledge',
+    label: '지식·설명 모델',
+    help: '위 공급자에서 부를 모델. 비우면 기본 사슬을 쓴다 (gemini 만 사슬이 있다)',
     type: 'string',
     defaultValue: '',
     usedFrom: '1-C',

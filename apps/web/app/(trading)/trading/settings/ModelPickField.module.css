@@ -1,5 +1,35 @@
-/* 판단 모델 고르기 — 목록 줄은 왼쪽 정렬이다
-   모델 이름 길이가 제각각이라 가운데 정렬이면 눈이 매번 다른 자리에서 시작한다 */
+/* 공급자와 모델 고르기 */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  background: var(--modal-backdrop);
+  padding: var(--space-4);
+}
+
+.panel {
+  max-width: 34rem;
+  width: 100%;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* 모델 이름 길이가 제각각이라 가운데 정렬이면 눈이 매번 다른 자리에서 시작한다 */
 .row {
   justify-content: flex-start;
   text-align: left;

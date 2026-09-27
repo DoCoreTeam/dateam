@@ -9,6 +9,7 @@ import 'server-only'
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import { saveTradingSetting, loadTradingSettings } from '../settings/store.ts'
 import { TRADING_SETTINGS } from '../settings/registry.ts'
 import { callKnowledge } from './ai-call.ts'
@@ -88,12 +89,15 @@ export async function proposeFromReport(input: {
   tradeDate: string
   reportLines: readonly string[]
   model?: string | null
+  /** 지식·설명을 부를 공급자. 모델과 짝이다 */
+  provider?: AiProviderId | null
 }): Promise<ProposeResult> {
   const allowed = await allowedSettings(input.tradeDate)
   const call = await callKnowledge({
     purpose: 'spec_candidate',
     prompt: buildProposalPrompt(allowed, input.reportLines),
     model: input.model,
+    provider: input.provider,
     json: true,
     maxOutputTokens: 4096,
   })

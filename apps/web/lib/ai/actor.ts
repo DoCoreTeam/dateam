@@ -111,6 +111,12 @@ export const AI_LANES: readonly AiLane[] = [
     why: 'GPU 통합입력 도우미, GpuGeminiOptions 의 actorId 가 필수라 부르는 창구가 못 빠뜨린다' },
 
   // ── 사람이 없는 자리. 이름이 주인을 대신한다 ────────────────────────────────
+  /**
+   * 공용 호환 창구. **부르는 쪽이 표면을 준다** — 이 파일 자체는 주인이 없고,
+   * 누가 태웠는지는 넘겨받은 `surface` 가 말한다(판단은 trading, 지식은 trading_knowledge).
+   */
+  { file: 'lib/ai/openai-compatible-text.ts', kind: 'background', surfaces: ['trading', 'trading_knowledge'],
+    why: '판단기와 지식이 함께 쓰는 한 벌. 표면을 인자로 받아 원장에 그대로 적는다' },
   { file: 'lib/trading/judge/exit-jev.ts', kind: 'background', surfaces: ['trading'],
     why: '청산 판단 섀도를 크론이 매분 돌린다, 사람이 누른 순간이 없다' },
   { file: 'lib/trading/knowledge/ai-call.ts', kind: 'background', surfaces: ['trading_knowledge'],

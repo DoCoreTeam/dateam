@@ -10,6 +10,7 @@ import 'server-only'
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import { safeFetchText } from '@/lib/security/safe-fetch'
 import { callKnowledge } from './ai-call.ts'
 import { applyAsOf } from './as-of.ts'
@@ -173,7 +174,9 @@ export type AnalyzeResult =
   | { analyzed: false; reason: string; userMessage: string }
 
 /** 아직 분석 안 한 자료 하나를 분석한다. 실패해도 원문은 남는다 */
-export async function analyzeSource(id: string, model?: string | null): Promise<AnalyzeResult> {
+export async function analyzeSource(
+  id: string, model?: string | null, provider?: AiProviderId | null,
+): Promise<AnalyzeResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
   const { data, error } = await admin
@@ -192,6 +195,7 @@ export async function analyzeSource(id: string, model?: string | null): Promise<
     purpose: 'source_analysis',
     prompt: buildSourcePrompt(row.source_ref, row.raw_text),
     model,
+    provider,
     json: true,
     maxOutputTokens: 8192,
   })

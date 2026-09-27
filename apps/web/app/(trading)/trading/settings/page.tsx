@@ -21,6 +21,7 @@ import { type SettingRow } from './SettingsForm'
 import SettingsGroups, { type SettingGroupBlock } from './SettingsGroups'
 import CredentialPanel, { type CredentialStatusRow } from './CredentialPanel'
 import { getTradingCredentialStatus } from '@/lib/trading/broker/credentials'
+import { pairForModelKey } from '@/lib/trading/settings/model-pick'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,9 +61,12 @@ export default async function TradingSettingsPage() {
    * 모델 칸이 볼 공급자 — **예약된 판이 있으면 그것**이다.
    * 오늘 값으로 목록을 뽑으면 공급자를 바꿔 둔 날 엉뚱한 목록에서 고르게 된다.
    */
-  const judgeProvider = String(
-    editingValue(pending.get('jev_provider')) ?? values.jev_provider ?? 'jev',
-  )
+  /**
+   * 모델 칸이 볼 공급자 — **예약된 판이 있으면 그것**이다.
+   * 오늘 값으로 목록을 뽑으면 공급자를 바꿔 둔 날 엉뚱한 목록에서 고르게 된다.
+   */
+  const providerValue = (key: string): string =>
+    String(editingValue(pending.get(key)) ?? values[key] ?? 'jev')
 
   const blocks: SettingGroupBlock[] = groups
     .map((group) => ({
@@ -70,7 +74,7 @@ export default async function TradingSettingsPage() {
       label: TRADING_GROUP_LABEL[group],
       rows: TRADING_SETTINGS
         .filter((s) => s.group === group)
-        .map((s) => toRow(s, values[s.key], pending.get(s.key), judgeProvider)),
+        .map((s) => toRow(s, values[s.key], pending.get(s.key), providerValue)),
     }))
     .filter((b) => b.rows.length > 0)
 
@@ -102,8 +106,8 @@ function toRow(
   spec: (typeof TRADING_SETTINGS)[number],
   value: unknown,
   pending: PendingChange | undefined,
-  /** 지금 고른 판단 공급자. 모델 칸이 이 공급자의 목록만 보여 준다 */
-  judgeProvider: string,
+  /** 공급자 설정 키를 지금 값으로 바꿔 주는 함수. 모델 칸이 짝을 찾을 때 쓴다 */
+  providerValue: (key: string) => string,
 ): SettingRow {
   /** 고치는 대상은 **다음에 쓸 값**이다. 오늘 값은 그 옆에서 따로 말한다 */
   const editing = editingValue(pending) ?? value
@@ -117,7 +121,14 @@ function toRow(
      * 모델 이름 칸만 고르기로 바꾼다. 지금 고른 공급자를 함께 넘겨
      * **그 공급자의 모델만** 보여 준다 — 남의 공급자 모델을 고르면 판단이 안 돈다
      */
-    ...(spec.key === 'jev_model' ? { pickProvider: judgeProvider } : {}),
+    ...(pairForModelKey(spec.key)
+      ? {
+        pickProvider: {
+          providerKey: pairForModelKey(spec.key)!.providerKey,
+          provider: providerValue(pairForModelKey(spec.key)!.providerKey),
+        },
+      }
+      : {}),
     ...(spec.unit ? { unit: spec.unit } : {}),
     value: spec.type === 'boolean' ? String(editing === true) : String(editing ?? ''),
     // 예약이 있으면 「지금 X · 언제부터 Y」를 말한다. 안 말하면 저장이 안 된 줄 안다

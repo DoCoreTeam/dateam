@@ -10,6 +10,7 @@ import 'server-only'
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import { callKnowledge } from './ai-call.ts'
 import { applyAsOf } from './as-of.ts'
 import {
@@ -105,6 +106,8 @@ export interface MakeReportInput {
   minSamples: number
   minBucketSamples: number
   model?: string | null
+  /** 지식·설명을 부를 공급자. 모델과 짝이다 */
+  provider?: AiProviderId | null
 }
 
 export async function makeReport(input: MakeReportInput): Promise<MakeReportResult> {
@@ -126,6 +129,7 @@ export async function makeReport(input: MakeReportInput): Promise<MakeReportResu
     purpose: 'pattern_report',
     prompt: buildPatternPrompt(metricsToLines(metrics)),
     model: input.model,
+    provider: input.provider,
     json: false,
     maxOutputTokens: 2048,
   })

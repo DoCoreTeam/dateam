@@ -29,10 +29,10 @@ export interface SettingRow {
   /** 예약이 언제부터인가 */
   from?: string
   /**
-   * 모델 이름 칸이면 지금 고른 공급자. 그 공급자의 모델만 보여 주려고 받는다.
+   * 모델 이름 칸이면 짝이 되는 공급자 설정과 지금 값.
    * 다른 칸은 없다 — 있으면 모든 칸이 이 값을 아는 척하게 된다
    */
-  pickProvider?: string
+  pickProvider?: { providerKey: string; provider: string }
   /** 여기서 못 바꾸는 값이면 어디서 바꾸는지. 바꿀 수 있으면 null */
   elsewhere: string | null
   usedFrom: string
@@ -139,10 +139,12 @@ export default function SettingsForm({ row }: { row: SettingRow }) {
            * 벤더가 이름을 수시로 바꾸고 후보가 수십 개다 — 오타 하나면 판단이 통째로 안 돈다
            */
           <ModelPickField
-            provider={row.pickProvider}
+            providerKey={row.pickProvider.providerKey}
+            modelKey={row.key}
+            provider={row.pickProvider.provider}
             current={draft}
             disabled={locked || pending}
-            onPick={setDraft}
+            onSaved={(_p, model) => setDraft(model)}
           />
         ) : (
           <input

@@ -11,6 +11,7 @@ import 'server-only'
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import { callKnowledge } from './ai-call.ts'
 import { applyAsOf } from './as-of.ts'
 import {
@@ -93,6 +94,8 @@ export interface MakeCardInput {
   /** 확인된 사실. 여기 없는 것은 카드에 못 들어간다 */
   facts: readonly string[]
   model?: string | null
+  /** 지식·설명을 부를 공급자. 모델과 짝이다 */
+  provider?: AiProviderId | null
   promptVersion: string
 }
 
@@ -109,6 +112,7 @@ export async function makeCard(input: MakeCardInput): Promise<MakeCardResult> {
     purpose: 'knowledge_card',
     prompt: buildCardPrompt(input.topic, input.facts),
     model: input.model,
+    provider: input.provider,
     json: true,
     maxOutputTokens: 4096,
   })
