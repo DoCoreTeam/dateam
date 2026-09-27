@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.604',
+    date: '2026-09-27',
+    title: 'AI 트레이딩 알림이 이제 휴대폰으로 갑니다',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📱',
+        headline: '신호와 경고를 휴대폰으로 받아요',
+        detail: '트레이딩 현황에서 「이 기기로 받기」를 누르면 그 기기로 알림이 갑니다. 그전에는 화면을 보고 있어야만 알 수 있었어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🔔',
+        headline: '목표가에 닿거나 보유 시간이 지나면 알려 드려요',
+        detail: '손절 쪽만 알려 주던 것을 목표 도달과 시간 초과까지 넓혔습니다. 매도 시점을 놓치지 않게 챙겨 드립니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🤝',
+        headline: '두 판단이 같은 방향일 때만 신호를 냅니다',
+        detail: '규칙 판단과 Jev 판단이 서로 다른 방향을 말하면 신호를 내지 않습니다. 어느 단계에서 멈췄는지도 화면에서 볼 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🧪',
+        headline: '검증이 Jev 성적도 함께 재요',
+        detail: 'Jev 가 규칙 판단보다 나은지를 같은 조건으로 비교합니다. 호출 상한을 정해 두어 비용이 갑자기 늘지 않습니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.595',
     date: '2026-09-27',
     title: 'AI 트레이딩이 들고 있는 것을 한 분도 안 놓치고 지켜봐요',
