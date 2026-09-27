@@ -62,6 +62,8 @@ export const CLAUDE: VendorSpec<'claude'> = {
 export const OPENAI: VendorSpec<'openai'> = {
   id: 'openai',
   baseUrl: null,
+  // The SDK is what we chat through; this is the same vendor's plain JSON door
+  openAiBaseUrl: 'https://api.openai.com/v1',
   keyPrefixes: ['sk-'],
   capabilities: { vision: true, tools: false, thinking: false, defaultMaxOutputTokens: 16384 },
   keyIssueUrl: 'https://platform.openai.com/api-keys',

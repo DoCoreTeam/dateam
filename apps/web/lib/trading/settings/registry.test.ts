@@ -18,7 +18,9 @@ import {
   tradingSetting,
   validateSetting,
   validateSettingSet,
+  JUDGE_PROVIDERS,
 } from './registry.ts'
+import { AI_PROVIDERS, openAiCompatibleBaseUrl, type AiProviderId } from '../../ai/provider-catalog.ts'
 import { pickEffective } from './pick-effective.ts'
 import { TRADING_GROUP_LABEL } from './labels.ts'
 
@@ -307,4 +309,47 @@ test('새 묶음에도 이름이 있다 — 이름 없는 절은 화면에서 �
   for (const g of groups) {
     assert.ok(TRADING_GROUP_LABEL[g], `묶음 ${g} 에 이름이 없다`)
   }
+})
+
+/**
+ * **공급자 목록을 손으로 안 적는다** (§7.2)
+ *
+ * 사본을 적어 두면 공급자를 하나 늘린 날 그 줄이 안 따라오고, 화면에는 멀쩡한 공급자가
+ * 영영 안 보인다. 이 저장소가 같은 함정에 여러 번 빠졌다.
+ */
+test('★ 판단 공급자를 목록에서 고른다 — 글자로 적지 않는다', () => {
+  const spec = TRADING_SETTINGS.find((s) => s.key === 'jev_provider')
+  assert.ok(spec, '판단 공급자 설정이 없다')
+  assert.equal(spec.type, 'choice', '글자로 적게 두면 오타 하나로 판단이 안 돈다')
+  assert.ok((spec.choices ?? []).length > 0, '고를 것이 없다')
+  assert.equal(spec.defaultValue, 'jev', '기본값이 지금 동작과 다르다')
+  assert.ok((spec.choices ?? []).includes('jev'))
+})
+
+test('★ 고를 수 있는 것은 판단을 부를 문이 있는 공급자뿐이다', () => {
+  for (const id of JUDGE_PROVIDERS) {
+    assert.notEqual(openAiCompatibleBaseUrl(id as AiProviderId), null,
+      `${id} 는 부를 문이 없는데 목록에 있다 — 골라도 판단기가 안 만들어진다`)
+  }
+  // 문이 없는 공급자는 안 나온다. claude 는 SDK 로만 말한다
+  for (const spec of AI_PROVIDERS) {
+    if (openAiCompatibleBaseUrl(spec.id) === null) {
+      assert.equal(JUDGE_PROVIDERS.includes(spec.id), false, `${spec.id} 가 문 없이 목록에 있다`)
+    }
+  }
+})
+
+test('★ 목록이 공급자 명세에서 나온다 — 새 공급자가 따라온다', () => {
+  const src = readFileSync(join(HERE, 'registry.ts'), 'utf8')
+  const at = src.indexOf('export const JUDGE_PROVIDERS')
+  const body = src.slice(at, src.indexOf('\n\n', at))
+  assert.ok(body.includes('AI_PROVIDERS'), '명세에서 안 가져온다')
+  assert.equal(/\['jev'|"jev"/.test(body), false, '목록을 손으로 적었다')
+})
+
+test('★ 도움말이 무엇을 고르면 되는지 말한다 — 근거와 함께', () => {
+  const spec = TRADING_SETTINGS.find((s) => s.key === 'jev_provider')
+  assert.ok(spec?.help.includes('2026-09-27'), '실측 날짜가 없다 — 근거 없는 권장은 취향이다')
+  const model = TRADING_SETTINGS.find((s) => s.key === 'jev_model')
+  assert.ok(model?.help.includes('gemini-3.8-flash'), '권장 모델을 안 말한다')
 })

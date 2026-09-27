@@ -26,6 +26,19 @@
  * 값이라 비밀이 섞이면 그날로 새어 나간다.
  */
 
+import { AI_PROVIDERS, openAiCompatibleBaseUrl } from '../../ai/provider-catalog.ts'
+
+/**
+ * 판단을 부를 수 있는 공급자 — **문이 있는 것만**.
+ *
+ * 공식 SDK 로만 말하는 공급자는 여기 안 온다. 판단 호출은 JSON 한 번이라 OpenAI 호환
+ * 창구로 가고, 그 문이 없으면 `createServerJevJudge` 가 판단기를 아예 안 만든다.
+ * 목록을 손으로 적지 않는 이유: 공급자를 하나 늘린 날 그 사본이 안 따라온다.
+ */
+export const JUDGE_PROVIDERS: readonly string[] = AI_PROVIDERS
+  .filter((p) => openAiCompatibleBaseUrl(p.id) !== null)
+  .map((p) => p.id)
+
 /** 값 하나가 어느 묶음에 속하나. 설정 화면의 절이 이 순서로 선다 */
 export type TradingSettingGroup =
   | 'basic'      // 기본
@@ -232,8 +245,14 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     key: 'jev_provider',
     group: 'decision',
     label: '판단 모델 공급자',
-    help: '판단(Jev)을 어느 공급자로 부르나. jev 는 Vercel 관문이고 gemini 는 시스템 설정의 Gemini 키를 그대로 쓴다. 실측 2026-09-27 Vercel 무료 등급은 좋은 모델이 전부 막혀 있고 Gemini 유료 키는 다 열린다',
-    type: 'string',
+    help: '판단(Jev)을 어느 공급자로 부르나. jev 는 Vercel 관문이고 gemini 는 시스템 설정의 Gemini 키를 그대로 쓴다. 실측 2026-09-27 Vercel 무료 등급은 좋은 모델이 전부 403 이고 Gemini 유료 키는 44개가 다 열렸다 — 그때 gemini-3.8-flash 가 세 문제를 다 맞히고 2.8초였다',
+    type: 'choice',
+    /**
+     * **목록을 손으로 안 적는다.** 판단을 부를 문(OpenAI 호환 창구)이 있는 공급자만 나온다.
+     * 사본을 적어 두면 공급자를 하나 늘린 날 이 줄이 안 따라오고, 화면에는 멀쩡한 공급자가
+     * 영영 안 보인다 — 이 저장소가 같은 함정에 여러 번 빠졌다.
+     */
+    choices: JUDGE_PROVIDERS,
     defaultValue: 'jev',
     usedFrom: '1-A',
     source: '명세 §7.2 판단기는 교체 가능 · §17.1 기존 AI 계층',
