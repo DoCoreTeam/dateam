@@ -1,0 +1,48 @@
+/* 세 문항. 답하면 무엇이 채워지는지 같은 화면에서 보인다 */
+
+.panel { display: grid; gap: var(--space-4); }
+
+.q { display: grid; gap: var(--space-2); }
+.label { font-size: var(--fs-base); font-weight: 600; }
+.hint { font-size: var(--fs-xs); color: var(--text-muted); }
+
+.seg { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.money { display: flex; align-items: baseline; gap: var(--space-2); }
+.money input {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  width: 10rem;
+}
+.unit { font-size: var(--fs-sm); color: var(--text-muted); }
+
+/* 채울 값 미리보기 */
+.preview {
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.previewHead { font-size: var(--fs-sm); font-weight: 600; }
+
+.filled { display: grid; gap: var(--space-1); margin: 0; }
+.filledRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+}
+.filledValue { font-variant-numeric: tabular-nums; }
+
+/* 한 번에 얼마를 잃을 수 있나 */
+.risk { font-size: var(--fs-sm); }
+.riskBad { font-size: var(--fs-sm); color: var(--danger); }
+
+.warn {
+  font-size: var(--fs-sm);
+  color: var(--warning);
+}
+
+.actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }

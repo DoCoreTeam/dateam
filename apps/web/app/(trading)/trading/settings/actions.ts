@@ -31,6 +31,12 @@ import {
   buildAssistantPrompt, planChanges, parseAssistantResponse, type AssistantPlan,
 } from '@/lib/trading/settings/assistant'
 import { callKnowledge } from '@/lib/trading/knowledge/ai-call'
+import {
+  fillFrom, riskView, raisesLossLimit,
+  type Answers, type FilledValue, type RiskView,
+} from '@/lib/trading/settings/onboarding'
+import { computeRisk } from '@/lib/trading/risk/arithmetic'
+import { loadInstrumentSpec } from '@/lib/trading/settings/store'
 
 export interface SaveSettingResult {
   ok: boolean
@@ -319,4 +325,87 @@ export async function applySettingChanges(
     saved += 1
   }
   return { ok: true, saved, userMessage: `${saved}개를 저장했습니다. 다음 거래일부터 듣습니다` }
+}
+
+/* ── 세 문항으로 시작하기 ──────────────────────────────── */
+
+export interface StartPreview {
+  ok: boolean
+  filled?: FilledValue[]
+  risk?: RiskView
+  /** 손실 한도를 올리는 답인가. 올리면 화면이 확인을 받는다 */
+  raisesLimit?: boolean
+  userMessage: string | null
+}
+
+/**
+ * 답 셋으로 무엇을 채울지 **보여 주기만** 한다. 저장은 안 한다.
+ *
+ * 한 번의 위험을 돈으로 환산해 함께 준다 — 명세 M6 이 「리스크 산술이 안 맞는 설정은
+ * 저장되지 않는다」고 정했으므로, 저장 창구가 거절하기 전에 화면이 먼저 말해야 한다.
+ */
+export async function previewStart(answers: Answers): Promise<StartPreview> {
+  if (!(await tradingAccess()).allowed) return { ok: false, userMessage: DENIED.userMessage }
+  const today = kstTodayKey()
+  const { values } = await loadTradingSettings(today)
+  const filled = fillFrom(answers)
+
+  /**
+   * 한 번의 위험은 **상품 규격과 손절 설정**에서 나온다. 지어내지 않는다.
+   * 규격을 못 읽으면 위험을 0 으로 두고 화면이 「아직 못 잽니다」를 말한다.
+   */
+  let onceKrw = 0
+  try {
+    const instrument = await loadInstrumentSpec(today)
+    const atr = Number(values.risk_reference_atr) || 1.3
+    const stopMultiple = Number(values.exit_stop_atr_multiple) || 1.2
+    const chaseMultiple = Number(values.exit_chase_atr_multiple) || 0.3
+    const reference = 1100
+    onceKrw = computeRisk({
+      direction: 'long',
+      instrument,
+      referencePrice: reference,
+      stopPrice: reference - stopMultiple * atr,
+      chaseDistance: chaseMultiple * atr,
+      stopSlippageTicks: Number(values.replay_fallback_ticks) || 2,
+      roundTripFeeKrw: Number(values.fee_rate) || 0,
+      quantity: 1,
+    }).riskPerTradeKrw
+  } catch {
+    // 규격을 못 읽어도 미리보기를 막지 않는다. 못 쟀다는 사실만 화면에 남는다
+    onceKrw = 0
+  }
+
+  return {
+    ok: true,
+    filled,
+    risk: riskView(onceKrw, answers.lossLimitKrw),
+    raisesLimit: raisesLossLimit(answers.lossLimitKrw, values.daily_loss_limit_krw ?? 0),
+    userMessage: null,
+  }
+}
+
+/**
+ * 확인한 값을 저장한다. **기존 창구를 그대로 지난다** (M7) — 다음 거래일부터 듣는다.
+ *
+ * 화면이 보낸 값은 밖에서 온 값이라 **답에서 다시 계산해** 대조한다.
+ * 화면이 값을 바꿔 보내도 답이 만든 값만 저장된다.
+ */
+export async function applyStart(
+  answers: Answers,
+): Promise<{ ok: boolean; saved: number; userMessage: string }> {
+  if (!(await tradingAccess()).allowed) return { ok: false, saved: 0, userMessage: DENIED.userMessage! }
+  const filled = fillFrom(answers)
+  if (filled.length === 0) return { ok: false, saved: 0, userMessage: '채울 값이 없습니다' }
+
+  let saved = 0
+  for (const item of filled) {
+    // 리스크 산술(M6)은 이 창구가 본다. 안 맞으면 그 줄에서 멈추고 사유를 올린다
+    const result = await saveTradingSettingValue(item.key, String(item.value))
+    if (!result.ok) {
+      return { ok: false, saved, userMessage: `${item.label}: ${result.userMessage ?? '저장하지 못했습니다'}` }
+    }
+    saved += 1
+  }
+  return { ok: true, saved, userMessage: `${saved}개를 채웠습니다. 다음 거래일부터 듣습니다` }
 }

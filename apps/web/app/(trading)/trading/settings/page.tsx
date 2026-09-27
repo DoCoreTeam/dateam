@@ -21,6 +21,7 @@ import { type SettingRow } from './SettingsForm'
 import SettingsGroups, { type SettingGroupBlock } from './SettingsGroups'
 import CredentialPanel, { type CredentialStatusRow } from './CredentialPanel'
 import AssistantPanel from './AssistantPanel'
+import StartPanel from './StartPanel'
 import { getTradingCredentialStatus } from '@/lib/trading/broker/credentials'
 import { pairForModelKey } from '@/lib/trading/settings/model-pick'
 import { dailySettings, changedCount, DAILY_LABEL } from '@/lib/trading/settings/daily'
@@ -105,7 +106,8 @@ export default async function TradingSettingsPage() {
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
         {/* 처음 한 번 넣는 것이라 맨 위다 — 이게 없으면 나머지 값이 다 있어도 아무것도 안 돈다 */}
-        {/* 101개를 다 읽지 않아도 되게, 말로 먼저 물어볼 자리를 맨 위에 둔다 */}
+        {/* 92개를 다 읽지 않아도 되게, 묻는 자리를 맨 위에 둔다 */}
+      <StartPanel />
       <AssistantPanel />
 
       <CredentialPanel rows={credentials} />
