@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.624',
+    date: '2026-09-27',
+    title: 'AI 트레이딩 설정이 읽히고 골라집니다',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🧭',
+        headline: '세 가지만 답하면 나머지를 채워 드려요',
+        detail: '얼마나 조심스럽게 갈지, 하루 목표와 감당할 손실만 정하면 됩니다. 채우기 전에 무엇이 어떻게 바뀌는지, 한 번에 얼마를 잃을 수 있는지 보여 드려요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🎚️',
+        headline: '빈칸 대신 고를 것을 드려요',
+        detail: '숫자를 적던 칸에 「적게·기본·많게」와 슬라이더가 붙었습니다. 기본값에는 별표가 붙어 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📌',
+        headline: '매일 보는 여덟 가지가 맨 위에 있어요',
+        detail: '나머지는 접혀 있고, 접힌 묶음에는 기본값과 다른 값이 몇 개인지 표시됩니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '💬',
+        headline: '설정 이름과 설명을 알아들을 수 있게 바꿨어요',
+        detail: '「SR-09 거래일 최대 신호 수」를 「하루 최대 신호」로, 설명도 전부 쉬운 말로 다시 썼습니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.616',
     date: '2026-09-27',
     title: '설정을 말로 바꾸고, 모델은 공급자와 함께 골라요',
