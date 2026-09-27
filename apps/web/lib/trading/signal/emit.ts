@@ -23,7 +23,15 @@ import { signalAllowed, type RuleBlock } from './rules.ts'
 
 /** 지나야 하는 관문들. **순서가 값이다** */
 export const EMIT_STAGES = [
-  'safety_gate', 'trigger', 'judge', 'calibrate', 'signal_rules',
+  'safety_gate', 'trigger', 'judge',
+  /**
+   * 판단기 합의 (§7.2 · §13.5).
+   *
+   * 판단 **뒤**, 보정 **앞**이다. 뒤인 이유는 부를 판단기가 답을 내야 견줄 것이 생기고,
+   * 앞인 이유는 합의 안 된 방향으로 보정 모델을 고르면 그 확률이 다른 방향의 것이기 때문이다.
+   */
+  'judge_consensus',
+  'calibrate', 'signal_rules',
 ] as const
 
 export type EmitStage = (typeof EMIT_STAGES)[number]
@@ -42,6 +50,18 @@ export interface EmitInput {
   /** 판단이 완료됐나 */
   judgeCompleted: boolean
   judgeAbstainReason: string | null
+  /**
+   * 판단기들이 같은 방향을 말했나 (§7.2).
+   *
+   * `null` 이면 **견줄 것이 없다** — Jev 가 꺼졌거나 기권한 것이다.
+   * 그때 어떻게 할지는 `requireConsensus` 가 정한다.
+   */
+  consensus: { agreed: boolean; reason: string } | null
+  /**
+   * 합의가 없으면 신호를 멈추나. 설정이고 **기본은 멈춤**이다 —
+   * rule 단독으로 내보내면 목표가가 고정으로 돌아가 예측이 아닌 신호가 나간다
+   */
+  requireConsensus: boolean
   /** 보정 확률이 있나 (M3) */
   hasCalibration: boolean
   /** 신호 규칙에 막힌 것들 */
@@ -83,7 +103,24 @@ export function decideEmit(input: EmitInput): EmitOutcome {
     }
   }
 
-  // ④ 보정 — 없으면 신호 없음(M3)
+  // ④ 판단기 합의 — 방향이 갈리면 안 낸다 (§7.2)
+  if (input.consensus == null) {
+    if (input.requireConsensus) {
+      return {
+        kind: 'blocked', stage: 'judge_consensus',
+        reason: 'no_second_judge',
+        userMessage: 'Jev 판단이 없어 신호를 내지 않습니다',
+      }
+    }
+  } else if (!input.consensus.agreed) {
+    return {
+      kind: 'blocked', stage: 'judge_consensus',
+      reason: `disagreed:${input.consensus.reason}`,
+      userMessage: '판단기들이 다른 방향을 말해 신호를 내지 않습니다',
+    }
+  }
+
+  // ⑤ 보정 — 없으면 신호 없음(M3)
   if (!input.hasCalibration) {
     return {
       kind: 'blocked', stage: 'calibrate',
@@ -92,7 +129,7 @@ export function decideEmit(input: EmitInput): EmitOutcome {
     }
   }
 
-  // ⑤ 신호 규칙 — 같은 이유로 판정을 규칙 모듈에서 가져온다
+  // ⑥ 신호 규칙 — 같은 이유로 판정을 규칙 모듈에서 가져온다
   if (!signalAllowed(input.ruleBlocks)) {
     const first = input.ruleBlocks[0]
     return {

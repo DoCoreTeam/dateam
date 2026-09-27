@@ -71,6 +71,38 @@ export function agreedDirection(
   return { direction: judged, conflict: false }
 }
 
+/**
+ * 두 판단기의 확률을 **보수적으로** 합친다 (§7.2 「특권 없음」)
+ *
+ * ## 왜 낮은 쪽인가
+ *
+ * 둘이 같은 방향을 말했다고 확신이 더해지는 것이 아니다. 두 값 중 높은 쪽을 쓰면
+ * 판단기를 하나 더 붙일 때마다 신호가 쉬워지고, 그것은 검증이 아니라 **관문 완화**다.
+ * 낮은 쪽을 쓰면 판단기를 더해도 신호가 느슨해지지 않는다.
+ *
+ * ## 한쪽이 없으면 있는 쪽을 쓴다
+ *
+ * 둘째 판단기의 보정이 아직 없는 것은 정상 상태다(1-B 전). 그때 신호를 아예 막을지는
+ * 합의 단계가 정하고, 여기서는 **값만** 만든다.
+ */
+export function conservativeProb(
+  a: { calibratedProb: number | null; netExpectedValueR: number | null; enterNowProb: number | null },
+  b: { calibratedProb: number | null; netExpectedValueR: number | null; enterNowProb: number | null } | null,
+): { calibratedProb: number | null; netExpectedValueR: number | null; enterNowProb: number | null; usedBoth: boolean } {
+  if (!b) return { ...a, usedBoth: false }
+  const lower = (x: number | null, y: number | null): number | null => {
+    if (x === null) return y
+    if (y === null) return x
+    return Math.min(x, y)
+  }
+  return {
+    calibratedProb: lower(a.calibratedProb, b.calibratedProb),
+    netExpectedValueR: lower(a.netExpectedValueR, b.netExpectedValueR),
+    enterNowProb: lower(a.enterNowProb, b.enterNowProb),
+    usedBoth: b.calibratedProb !== null,
+  }
+}
+
 /** 고른 방향의 원점수 */
 export function scoreForDirection(score: RawScore, direction: Direction): number {
   return direction === 'long' ? score.p_long : score.p_short

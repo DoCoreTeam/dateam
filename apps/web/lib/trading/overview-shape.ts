@@ -291,7 +291,16 @@ export function emitProgressOf(reason: string | null): EmitProgress | null {
   const found = reason.split(/[|,]/).map((p) => p.trim()).find((p) => p.startsWith('emit:'))
   if (!found) return null
   const rest = found.slice('emit:'.length)
-  const stage = EMIT_STAGES.find((s) => rest.startsWith(s))
+  /**
+   * **가장 긴 것부터 맞춰 본다.**
+   *
+   * 단계 이름에 접두사가 겹치는 순간(`judge` 와 `judge_consensus`) 배열 순서대로 찾으면
+   * 앞의 것이 뒤의 것을 가로챈다. 그러면 합의에서 멈춘 분이 화면에 「판단에서 멈춤」으로
+   * 뜨고, 사람은 판단기를 의심한다 — 고칠 것은 합의인데.
+   */
+  const stage = [...EMIT_STAGES]
+    .sort((a, b) => b.length - a.length)
+    .find((s) => rest.startsWith(s))
   if (!stage) return null
   const index = stageIndex(stage)
   return {

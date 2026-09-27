@@ -129,13 +129,15 @@ test('★ 게이트·규칙을 끄는 말이 0개다', () => {
   assert.deepEqual(offenders, [], `게이트를 끄는 말이 생겼다:\n  ${offenders.join('\n  ')}`)
 })
 
-test('★ 다섯 단계가 한 곳에서만 정해진다 — 두 곳이 되면 갈린다', () => {
+test('★ 발행 단계가 한 곳에서만 정해진다 — 두 곳이 되면 갈린다', () => {
   const definers = ALL().filter(({ src }) => src.includes('EMIT_STAGES ='))
   assert.deepEqual(definers.map((d) => d.file), ['lib/trading/signal/emit.ts'])
-  assert.equal(EMIT_STAGES.length, 5)
+  // 숫자를 박지 않는다. 단계는 늘 수 있고, 줄면 그것이 규칙이 사라진 것이다
+  assert.ok(EMIT_STAGES.length >= 5, '단계가 사라졌다')
+  assert.deepEqual([...new Set(EMIT_STAGES)].length, EMIT_STAGES.length, '같은 단계가 두 번 있다')
 })
 
-test('★ 발행 판정이 다섯 단계를 전부 본다 — 한 칸을 안 보면 그 단계가 사라진다', () => {
+test('★ 발행 판정이 모든 단계를 전부 본다 — 한 칸을 안 보면 그 단계가 사라진다', () => {
   const src = readFileSync(join(TRADING, 'signal', 'emit.ts'), 'utf8')
   const fn = src.slice(src.indexOf('export function decideEmit'))
   const body = fn.slice(0, fn.indexOf("\n  return { kind: 'signal' }"))

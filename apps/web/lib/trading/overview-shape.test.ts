@@ -22,8 +22,9 @@ test('★ 멈춘 단계를 실행 사유에서 읽는다', () => {
   const p = emitProgressOf('judged|watch=none|emit:calibrate:no_calibration')
   assert.ok(p)
   assert.equal(p.stage, 'calibrate')
-  assert.equal(p.step, 4)
-  assert.equal(p.total, 5)
+  // 숫자를 박지 않는다 — 단계가 늘면 이 시험이 규칙이 아니라 옛 기억이 된다
+  assert.equal(p.step, EMIT_STAGES.indexOf('calibrate') + 1)
+  assert.equal(p.total, EMIT_STAGES.length)
   assert.equal(p.reason, 'no_calibration')
 })
 

@@ -642,6 +642,16 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §13.5',
   },
   {
+    key: 'signal_requires_jev',
+    group: 'decision',
+    label: 'Jev 없이도 신호를 내나',
+    help: '끄면(false) Jev 가 꺼졌거나 기권한 날에도 규칙 판단만으로 신호를 낸다. 기본은 안 낸다 — 규칙 단독이면 목표가가 고정이라 예측이 아닌 신호가 나간다',
+    type: 'string',
+    defaultValue: 'true',
+    usedFrom: '1-C',
+    source: '명세 §7.2 판단기 · §13.5 관문',
+  },
+  {
     key: 'validation_jev_max_calls',
     group: 'decision',
     label: '검증에서 Jev 호출 상한',

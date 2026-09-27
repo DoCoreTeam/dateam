@@ -39,6 +39,13 @@ export interface EmitSignalInput {
    * `agreedDirection` 이 판정하고, 어긋나면 이 창구를 아예 안 부른다
    */
   direction: Direction
+  /**
+   * 같은 봉의 Jev 판단. 합의를 재고 신호 행에 남긴다 (§13.5).
+   * `null` 이면 Jev 가 꺼졌거나 기권한 것이다 — 「반대했다」와 다르다
+   */
+  jev: { judgmentId: string; direction: Direction | null } | null
+  /** 합의가 없으면 신호를 멈추나. 설정이고 기본은 멈춤 */
+  requireConsensus: boolean
   instrument: InstrumentSpec
   /** 보정 확률. 없으면 여기서 멈춘다(M3) */
   calibratedProb: number | null
@@ -144,11 +151,26 @@ export async function emitSignal(input: EmitSignalInput): Promise<EmitSignalResu
       : 0,
   }
 
+  /**
+   * 판단기들이 같은 방향을 말했나 (§7.2).
+   *
+   * Jev 가 없거나 기권했으면 `null` 이다 — **「반대했다」와 다른 사실**이다.
+   * 둘을 섞으면 키를 안 넣은 날과 Jev 가 반대한 날이 같은 얼굴이 된다.
+   */
+  const consensus = input.jev && input.jev.direction
+    ? {
+      agreed: input.jev.direction === direction,
+      reason: `${direction}vs${input.jev.direction}`,
+    }
+    : null
+
   const emitInput: EmitInput = {
     gateHits: input.gateHits,
     triggerFired: true,
     judgeCompleted: input.judgmentId !== null,
     judgeAbstainReason: null,
+    consensus,
+    requireConsensus: input.requireConsensus,
     hasCalibration: input.calibratedProb !== null,
     ruleBlocks: checkSignalRules(ruleContext, input.thresholds),
   }
@@ -167,6 +189,10 @@ export async function emitSignal(input: EmitSignalInput): Promise<EmitSignalResu
     contractCode: input.contractCode,
     direction,
     referencePrice: input.referencePrice,
+    jevJudgmentId: input.jev?.judgmentId ?? null,
+    consensus: consensus
+      ? `${consensus.agreed ? 'agreed' : 'disagreed'}:${consensus.reason}`
+      : 'single:rule',
     stopPrice,
     targetPrice,
     chaseLimitPrice: risk.worstEntryPrice,

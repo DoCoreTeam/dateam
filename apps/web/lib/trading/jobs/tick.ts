@@ -47,7 +47,7 @@ import { loadPendingEntry, loadArmContext } from '../order/pending.ts'
 import { measurementNote } from '../gate/measure-core.ts'
 import { measureMarket } from '../gate/measure-market.ts'
 import { loadSignalModels } from '../signal/models.ts'
-import { agreedDirection, probabilitiesFrom } from '../signal/models-core.ts'
+import { agreedDirection, directionOf, probabilitiesFrom, conservativeProb } from '../signal/models-core.ts'
 import { lossStreakFrom, rolloverVerdict } from '../signal/context-core.ts'
 import { loadEventsAround } from '../calendar/events.ts'
 import { measureOps } from '../operator/measure-ops.ts'
@@ -931,6 +931,20 @@ async function emitOrExplain(ctx: any): Promise<string> {
       (r: any) => r.judge === 'rule' && r.result?.status === 'completed',
     )
     const rawScore = completed?.result?.rawScore ?? null
+
+    /**
+     * 같은 봉의 Jev 판단 (§7.2 · §13.5).
+     *
+     * 전에는 이 자리가 없어서 Jev 는 기록만 되고 신호에 닿는 길이 0개였다.
+     * **기권은 반대가 아니다** — 기권이면 방향이 없고, 그때 어떻게 할지는 설정이 정한다.
+     */
+    const jevRun = outcome.results?.find?.(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (r: any) => r.judge === 'jev' && r.result?.status === 'completed',
+    )
+    const jev = jevRun
+      ? { judgmentId: jevRun.judgmentId as string, direction: directionOf(jevRun.result?.rawScore ?? null) }
+      : null
     const instrument = await loadInstrumentSpec(today)
     const barCloseAt = new Date(target.getTime() + 60_000)
 
@@ -1000,8 +1014,36 @@ async function emitOrExplain(ctx: any): Promise<string> {
     } catch (error) {
       modelNote = `,models_failed:${error instanceof Error ? error.message : 'unknown'}`
     }
-    const prob = probabilitiesFrom(rawScore, models, num('ev_min_bucket_samples', 1))
-    if (prob.stoppedAt) modelNote += `,prob=${prob.stoppedAt}`
+    const ruleProb = probabilitiesFrom(rawScore, models, num('ev_min_bucket_samples', 1))
+    if (ruleProb.stoppedAt) modelNote += `,prob=${ruleProb.stoppedAt}`
+
+    /**
+     * Jev 의 보정·기대값도 읽는다 (§7.4 · M3).
+     *
+     * 전에는 보정 라인이 `rule` 하나뿐이라, Jev 를 켜도 그 원점수가 확률이 될 길이 없었다.
+     * 같은 함수·같은 표를 쓰되 판단기 이름만 다르다 — 판단기마다 다른 잣대를 쓰면
+     * §13.5 의 비교가 공정하지 않다.
+     *
+     * 합칠 때는 **낮은 쪽**을 쓴다. 높은 쪽을 쓰면 판단기를 하나 더 붙일 때마다
+     * 신호가 쉬워지고, 그것은 검증이 아니라 관문 완화다.
+     */
+    let jevProb = null
+    if (jev?.direction === direction) {
+      try {
+        const jevModels = await loadSignalModels({
+          judge: 'jev',
+          direction,
+          calibrationVersion: str('calibration_version', ''),
+          evModelVersion: str('ev_model_version', ''),
+        })
+        jevProb = probabilitiesFrom(jevRun?.result?.rawScore ?? null, jevModels, num('ev_min_bucket_samples', 1))
+        if (jevProb.stoppedAt) modelNote += `,jev_prob=${jevProb.stoppedAt}`
+      } catch (error) {
+        modelNote += `,jev_models_failed:${error instanceof Error ? error.message : 'unknown'}`
+      }
+    }
+    const prob = conservativeProb(ruleProb, jevProb)
+    if (jevProb) modelNote += `,prob_source=${prob.usedBoth ? 'both' : 'rule'}`
 
     const result = await emitSignal({
       judgmentId: completed?.judgmentId ?? null,
@@ -1010,6 +1052,13 @@ async function emitOrExplain(ctx: any): Promise<string> {
       trigger,
       indicators,
       direction,
+      jev,
+      /**
+       * Jev 가 없는 날 신호를 낼 것인가. **기본은 안 낸다** —
+       * rule 단독이면 목표가가 고정으로 돌아가 예측이 아닌 신호가 나간다.
+       * 바꾸는 것은 사람이 설정 화면에서 한다.
+       */
+      requireConsensus: str('signal_requires_jev', 'true') !== 'false',
       /**
        * 기준가는 **확정 봉의 종가**다 (§13.1 「신호 시점 가격」 · M4).
        *
@@ -1069,8 +1118,8 @@ async function emitOrExplain(ctx: any): Promise<string> {
       },
       versions: {
         signalRules: str('decision_spec_version', 'v1'),
-        calibration: prob.calibrationVersion,
-        evModel: prob.evModelVersion,
+        calibration: ruleProb.calibrationVersion,
+        evModel: ruleProb.evModelVersion,
       },
       sessionDayStart: window.continuousStart,
       sessionDayEnd: window.continuousEnd,

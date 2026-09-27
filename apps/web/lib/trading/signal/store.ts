@@ -14,6 +14,10 @@ export interface SignalRecord {
   judgmentId: string
   contractCode: string
   direction: 'long' | 'short'
+  /** 같은 봉의 Jev 판단. 없으면 Jev 없이 난 신호다 (§13.5 를 나중에 재려면 필요하다) */
+  jevJudgmentId?: string | null
+  /** 무엇과 무엇의 합의였나 */
+  consensus?: string | null
   referencePrice: number
   stopPrice: number
   targetPrice: number
@@ -40,6 +44,8 @@ export async function saveSignal(record: SignalRecord): Promise<SaveSignalResult
     judgment_id: record.judgmentId,
     contract_code: record.contractCode,
     direction: record.direction,
+    jev_judgment_id: record.jevJudgmentId ?? null,
+    consensus: record.consensus ?? null,
     reference_price: record.referencePrice,
     stop_price: record.stopPrice,
     target_price: record.targetPrice,
