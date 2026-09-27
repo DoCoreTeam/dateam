@@ -11,6 +11,7 @@
 
 import { useState, useTransition } from 'react'
 import { Compass, Check } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import {
   START_TITLE, START_WHY, START_STANCE_Q, START_STANCE_HINT, STANCE_LABEL,
   START_TARGET_Q, START_TARGET_HINT, START_LOSS_Q, START_LOSS_HINT,
@@ -64,15 +65,16 @@ export default function StartPanel() {
           <span className={styles.label}>{START_STANCE_Q}</span>
           <div className={styles.seg}>
             {STANCES.map((s) => (
-              <button
+              <NbButton
                 key={s}
                 type="button"
-                className={`btn btn-sm ${s === stance ? 'btn-primary' : ''}`}
+                /* 고른 것만 채워 그린다 — 셋이 다 같은 색이면 무엇을 골랐는지 화면이 말 안 한다 */
+                variant={s === stance ? 'primary' : 'secondary'}
                 disabled={pending}
                 onClick={() => setStance(s)}
               >
                 {STANCE_LABEL[s]}
-              </button>
+              </NbButton>
             ))}
           </div>
           <span className={styles.hint}>{START_STANCE_HINT}</span>
@@ -103,9 +105,9 @@ export default function StartPanel() {
         </div>
 
         <div className={styles.actions}>
-          <button type="button" className="btn btn-sm btn-primary" disabled={pending} onClick={preview}>
+          <NbButton disabled={pending} onClick={preview}>
             <Compass size={14} /> {START_ASK}
-          </button>
+          </NbButton>
         </div>
 
         {filled && filled.length > 0 && (
@@ -133,9 +135,9 @@ export default function StartPanel() {
 
             <span className={styles.hint}>{START_WHEN}</span>
             <div className={styles.actions}>
-              <button type="button" className="btn btn-sm btn-primary" disabled={pending} onClick={apply}>
+              <NbButton disabled={pending} onClick={apply}>
                 <Check size={14} /> {START_APPLY}
-              </button>
+              </NbButton>
             </div>
           </div>
         )}

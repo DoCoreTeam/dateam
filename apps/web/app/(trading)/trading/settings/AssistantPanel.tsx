@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from 'react'
 import { Wand2, Check } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import {
   ASSISTANT_TITLE, ASSISTANT_WHY, ASSISTANT_PLACEHOLDER, ASSISTANT_ASK,
   ASSISTANT_APPLY, ASSISTANT_EMPTY, ASSISTANT_WHEN, ASSISTANT_REJECTED_TITLE,
@@ -65,9 +66,9 @@ export default function AssistantPanel() {
         onChange={(e) => setAsk(e.target.value)}
         style={{ width: '100%', marginBottom: 'var(--space-2)' }}
       />
-      <button type="button" className="btn btn-sm btn-primary" disabled={pending || ask.trim() === ''} onClick={propose}>
+      <NbButton disabled={pending || ask.trim() === ''} onClick={propose}>
         <Wand2 size={14} /> {ASSISTANT_ASK}
-      </button>
+      </NbButton>
 
       {plan && plan.changes.length === 0 && (
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: 0, marginTop: 'var(--space-3)' }}>
@@ -93,9 +94,9 @@ export default function AssistantPanel() {
           <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 'var(--space-2) 0' }}>
             {ASSISTANT_WHEN}
           </p>
-          <button type="button" className="btn btn-sm btn-primary" disabled={pending} onClick={apply}>
+          <NbButton disabled={pending} onClick={apply}>
             <Check size={14} /> {ASSISTANT_APPLY}
-          </button>
+          </NbButton>
         </div>
       )}
 

@@ -149,16 +149,18 @@ export default function SettingsForm({ row }: { row: SettingRow }) {
           <div className={styles.ctl}>
             <div className={styles.presets}>
               {presetsFor(numberSpec).map((p) => (
-                <button
+                <NbButton
                   key={p.label}
                   type="button"
-                  className={`btn btn-sm ${styles.preset} ${String(p.value) === draft ? 'btn-primary' : ''}`}
+                  /* 고른 것만 채워 그린다 — 셋이 다 같은 색이면 무엇을 골랐는지 화면이 말 안 한다 */
+                  variant={String(p.value) === draft ? 'primary' : 'secondary'}
+                  className={styles.preset}
                   disabled={locked || pending}
                   onClick={() => setDraft(String(p.value))}
                   title={p.recommended ? SETTING_RECOMMENDED : undefined}
                 >
                   {p.label}{p.recommended ? ' ★' : ''}
-                </button>
+                </NbButton>
               ))}
             </div>
             <div className={styles.slider}>

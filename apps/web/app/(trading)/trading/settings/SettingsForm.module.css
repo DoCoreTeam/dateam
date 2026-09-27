@@ -14,10 +14,11 @@
   justify-content: flex-end;
 }
 
+/* 글자만 줄인다. 높이는 전역 규약(--control-h)을 그대로 둔다 —
+   손가락으로 누르는 자리를 화면 하나가 저 혼자 좁히면 그 화면만 못 누르게 된다 */
 .preset {
   font-size: var(--fs-xs);
-  padding: 0.15rem 0.5rem;
-  min-height: auto;
+  padding: 0.35rem 0.7rem;
 }
 
 .slider {
