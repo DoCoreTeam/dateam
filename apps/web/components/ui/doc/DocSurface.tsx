@@ -248,7 +248,7 @@ export default function DocSurface({ title, actions, onClose, children, fitToPag
             줄이는 것은 **안쪽**이다. 종이는 A4 폭·여백을 그대로 지킨다 —
             종이째 줄이면 오른쪽에 흰 띠가 남고 여백까지 함께 작아진다.
           */}
-          <div className={`${styles.fit} doc-fitbox`} ref={fitRef}>{children}</div>
+          <div className={styles.fit} ref={fitRef}>{children}</div>
         </div>
       </div>
     </div>,

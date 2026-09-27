@@ -85,7 +85,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact', onGoToMemoTa
             {shown.map((m) => {
               const st = STALENESS_STYLE[m.staleness]
               return (
-                <li key={m.id} className={`memo-widget-item${m.staleness === 'stale' ? ' memo-pulse' : ''}`}
+                <li key={m.id} className={`${m.staleness === 'stale' ? 'memo-pulse' : ''}`}
                   style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius)', background: 'var(--color-bg)', border: 'var(--hairline) solid var(--surface-muted)' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>

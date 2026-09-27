@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { ShieldCheck, ShieldAlert, Smartphone, Trash2 } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import { ACTION, progress } from '@/lib/terms'
 import { startEnroll, confirmEnroll, removeFactor } from './actions'
 import type { MfaFactor } from '@/lib/auth/mfa'
@@ -98,14 +99,14 @@ export default function MfaPanel({ verified, isAdmin, requiredForAdmin }: Props)
                   {new Date(f.createdAt).toLocaleDateString('ko-KR')} 등록
                 </div>
               </div>
-              <button
-                type="button"
-                className="btn btn-sm nb-danger"
+              <NbButton
+                /* 목록 행의 삭제 — 채운 빨강은 행을 덮는다 */
+                variant="danger-ghost"
                 onClick={() => drop(f.id)}
                 disabled={pending}
               >
                 <Trash2 size={13} /> {pending ? progress(ACTION.delete) : ACTION.delete}
-              </button>
+              </NbButton>
             </div>
           ))}
           <p style={{ margin: 'var(--space-3) 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
@@ -116,9 +117,9 @@ export default function MfaPanel({ verified, isAdmin, requiredForAdmin }: Props)
 
       {!active && !setup && (
         <div>
-          <button type="button" className="btn btn-primary" onClick={begin} disabled={pending}>
+          <NbButton onClick={begin} disabled={pending}>
             {pending ? '준비하는 중…' : '2단계 인증 등록'}
-          </button>
+          </NbButton>
         </div>
       )}
 
@@ -166,12 +167,12 @@ export default function MfaPanel({ verified, isAdmin, requiredForAdmin }: Props)
           />
 
           <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-4)' }}>
-            <button type="button" className="btn btn-primary" onClick={finish} disabled={pending || code.length !== 6}>
+            <NbButton onClick={finish} disabled={pending || code.length !== 6}>
               {pending ? progress(ACTION.confirm) : ACTION.confirm}
-            </button>
-            <button type="button" className="btn" onClick={() => { setSetup(null); setCode(''); setError(null) }} disabled={pending}>
+            </NbButton>
+            <NbButton variant="secondary" onClick={() => { setSetup(null); setCode(''); setError(null) }} disabled={pending}>
               {ACTION.cancel}
-            </button>
+            </NbButton>
           </div>
         </div>
       )}

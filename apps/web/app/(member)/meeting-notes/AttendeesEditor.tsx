@@ -161,7 +161,7 @@ export default function AttendeesEditor({ people, tree, members, externals, pers
           {/* CRM 인물과 이어진 사람 — 소속까지 보여야 「누구인지」가 확실해진다 */}
           {persons.map((p) => (
             <li key={`per-${p.id}`}>
-              <span className={`badge badge-green ${styles.linked}`} title={`영업 CRM 인물 · ${p.companyName ?? '소속 없음'}`}>
+              <span className={`badge badge-emerald ${styles.linked}`} title={`영업 CRM 인물 · ${p.companyName ?? '소속 없음'}`}>
                 <Link2 size={11} />
                 {p.name}
                 {p.companyName && <span className={styles.linkedOrg}>{p.companyName}</span>}
