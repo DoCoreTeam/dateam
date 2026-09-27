@@ -59,3 +59,50 @@ test('쓸 수 있을 때는 알릴 말이 없다', () => {
   assert.equal(messageFor(chooseKey({ env: 'production', metaKey: 'k' })), null)
   assert.equal(messageFor(chooseKey({ env: 'development', poolKey: 'k' })), null)
 })
+
+/* ── META 에만 있는 키를 찾아오는가 (실측 2026-09-28) ──────── */
+
+import { readFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const HERE = dirname(fileURLToPath(import.meta.url))
+const SOURCE = readFileSync(join(HERE, 'provider-key-source.ts'), 'utf8')
+
+/**
+ * **키가 있는데 없다고 한 자리다.**
+ *
+ * 이 함수가 `firstKeyValue` 를 쓰고 있었는데 그 함수는 META 로 떨어진 줄을 일부러 걸러낸다.
+ * 그래서 표에 줄이 없고 META 에만 키가 있는 공급자(Jev)는 **화면에서도 판단에서도 없는 키**가
+ * 됐다. 이름만 비슷한 함수를 골라 쓴 것이 한 공급자를 통째로 죽인 것이다.
+ */
+test('★ 쓸 수 있는 키를 묻는다 — 표 첫 줄만 보는 함수를 쓰지 않는다', () => {
+  const at = SOURCE.indexOf('export async function resolveProviderKey')
+  assert.ok(at > 0, '키를 고르는 자리가 없다')
+  const body = SOURCE.slice(at)
+  assert.match(body, /firstUsableKey\s*\(/, 'META 에만 있는 키를 못 찾는 함수를 쓴다')
+  assert.equal(/firstKeyValue\s*\(/.test(body), false,
+    'firstKeyValue 는 META 를 걸러낸다 — 그 함수로는 Jev 같은 공급자가 영영 안 보인다')
+})
+
+/**
+ * META 키를 `poolKey` 자리로 넣으면 **판 검사를 건너뛴다.**
+ * 그러면 개발하는 사람의 노트북이 운영 키로 벤더를 두드리고 운영 원장에 남는다 —
+ * 이 파일이 애초에 생긴 이유가 그것이다.
+ */
+test('★ 곳간이 준 META 값은 metaKey 자리로 간다 — 판 검사를 건너뛰지 않는다', () => {
+  const at = SOURCE.indexOf('export async function resolveProviderKey')
+  const body = SOURCE.slice(at)
+  assert.match(body, /from === 'meta'\)\s*storedMetaKey = /,
+    'META 에서 온 값을 표에서 온 것처럼 다룬다')
+  assert.match(body, /metaKey:\s*metaKey\s*\?\?\s*storedMetaKey/,
+    '부르는 쪽이 준 값과 곳간이 준 값의 순서가 없다')
+  // 판 검사는 chooseKey 한 곳에만 있어야 한다
+  assert.equal(/mayUseProductionKeys/.test(body), false,
+    '판 검사가 두 곳으로 갈렸다 — 한쪽만 고치면 다른 쪽이 남는다')
+})
+
+test('★ 고른 결과에 키 값 말고 다른 비밀이 안 실린다 (S3)', () => {
+  const c = chooseKey({ env: 'production', metaKey: 'vck_secret' })
+  assert.deepEqual(Object.keys(c).sort(), ['apiKey', 'env', 'reason'])
+})

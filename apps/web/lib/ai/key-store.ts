@@ -22,6 +22,8 @@ import {
   toKeyView,
   reorderPriorities,
   isMetaEntry,
+  pickUsable,
+  type KeyOrigin,
   type KeyRow,
   type KeyStoreGateway,
   type KeyView,
@@ -204,6 +206,15 @@ export async function firstKeyValue(provider: AiProviderId): Promise<string | nu
   const first = pool.find((e) => !isMetaEntry(e))
   return first?.apiKey ?? null
 }
+
+export async function firstUsableKey(
+  provider: AiProviderId,
+): Promise<{ apiKey: string; from: KeyOrigin } | null> {
+  return pickUsable(await readKeyPool(provider))
+}
+
+export { pickUsable } from './key-store-core'
+export type { KeyOrigin } from './key-store-core'
 
 export { isMetaEntry, META_ENTRY_PREFIX } from './key-store-core'
 export type { KeyRow, KeyStoreGateway, KeyView, KeyViewStatus } from './key-store-core'

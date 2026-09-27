@@ -66,6 +66,32 @@ export function isMetaEntry(entry: KeyPoolEntry): boolean {
   return entry.id.startsWith(META_ENTRY_PREFIX)
 }
 
+/** 어디서 온 키인가. 부르는 쪽이 판 규칙을 그 출처에 맞게 적용한다 */
+export type KeyOrigin = 'pool' | 'meta'
+
+/**
+ * 지금 부를 수 있는 키 하나 — **META 로 떨어진 줄도 센다.**
+ *
+ * `firstKeyValue` 와 갈라 둔 이유 (실측 2026-09-28): 그 함수는 「META 를 표 첫 줄과
+ * 맞추는」 용도라 META 줄을 일부러 걸러낸다. 그런데 「쓸 수 있는 키가 있나」를 묻는 자리가
+ * 그 함수를 쓰고 있었고, 그래서 **표에 줄이 없고 META 에만 키가 있는 공급자는 어디서도
+ * 안 보였다.** Jev 키(`vck_…`)가 META 에 멀쩡히 있는데 현황은 「키가 등록되지 않았습니다」를
+ * 말했고, 판단기도 만들어지지 않았다 — 화면만 거짓말한 것이 아니라 기능이 진짜로 안 돌았다.
+ *
+ * 출처를 함께 돌려주는 이유: META 키는 **운영 설정**이라 개발 판이 집으면 안 된다.
+ * 그 판정은 `chooseKey` 한 곳에만 있어야 하므로 여기서는 「어디서 왔나」만 말한다.
+ */
+export function pickUsable(
+  pool: readonly KeyPoolEntry[],
+): { apiKey: string; from: KeyOrigin } | null {
+  // 표의 줄이 먼저다. META 는 표가 빌 때의 기본이지 표를 이기는 값이 아니다
+  const row = pool.find((e) => !isMetaEntry(e))
+  if (row) return { apiKey: row.apiKey, from: 'pool' }
+  const meta = pool.find((e) => isMetaEntry(e))
+  return meta ? { apiKey: meta.apiKey, from: 'meta' } : null
+}
+
+
 function asDisabledReason(v: string | null): KeyDisabledReason | null {
   return v === 'quota' || v === 'auth' ? v : null
 }

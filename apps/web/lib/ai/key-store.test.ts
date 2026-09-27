@@ -17,6 +17,7 @@ import {
   metaEntry,
   metaApiKey,
   isMetaEntry,
+  pickUsable,
   redactSecrets,
   reorderPriorities,
   toKeyView,
@@ -357,4 +358,66 @@ test('★ 유료 표시를 바꾸는 서버액션이 사람 확인을 먼저 부
   assert.ok(body.indexOf('requireAdmin()') < body.indexOf('setKeyPaid('),
     '표를 고친 뒤에 확인하면 이미 고쳐진 뒤다')
   assert.ok(body.includes('syncMetaFirstKey('), '순서가 바뀌면 첫 줄도 바뀌는데 META 를 안 맞춘다')
+})
+
+/* ── META 에만 있는 키도 있는 키다 (실측 2026-09-28) ────────── */
+
+/**
+ * **Jev 키가 META 에 멀쩡히 있는데 어디서도 안 보였다.**
+ *
+ * `firstKeyValue` 는 「META 를 표 첫 줄과 맞추는」 용도라 META 줄을 일부러 걸러낸다.
+ * 그런데 「쓸 수 있는 키가 있나」를 묻는 자리(`resolveProviderKey`)가 그 함수를 쓰고 있었고,
+ * 그래서 표에 줄이 없고 META 에만 키가 있는 공급자는 **화면에서도 판단에서도 없는 키**가 됐다.
+ * Gemini·Groq·OpenAI 는 표에 줄이 있어 안 걸렸고 Jev 만 걸렸다 — 한 공급자만 조용히 죽는 꼴이다.
+ */
+test('★ 표가 비고 META 에만 있으면 그 키를 쓰고 출처를 말한다', async () => {
+  const pool = await readKeyPoolWith(
+    gatewayOf({ readRows: async () => [], readMeta: async () => ({ jev_api_key: 'vck_from_meta' }) }),
+    'jev', NOW,
+  )
+  assert.deepEqual(pickUsable(pool), { apiKey: 'vck_from_meta', from: 'meta' })
+})
+
+test('★ 표에 줄이 있으면 그 줄이 이긴다 — META 로 안 떨어진다', async () => {
+  const pool = await readKeyPoolWith(
+    gatewayOf({
+      readRows: async () => [row({ id: 'a', api_key: 'from-table' })],
+      readMeta: async () => ({ gemini_api_key: 'from-meta' }),
+    }),
+    'gemini', NOW,
+  )
+  assert.deepEqual(pickUsable(pool), { apiKey: 'from-table', from: 'pool' })
+
+  /**
+   * **둘이 같이 있는 묶음으로도 본다.**
+   *
+   * 위의 단정만으로는 고르는 순서를 못 본다 — 표에 줄이 있으면 `readKeyPoolWith` 가
+   * META 줄을 애초에 안 만들기 때문이다. 그래서 순서를 뒤집어도 초록이었다(일부러 깨 확인).
+   * 고르는 규칙을 보려면 둘이 **함께 있는** 묶음을 줘야 한다.
+   */
+  const both = [
+    metaEntry('gemini', 'from-meta'),
+    rowToEntry(row({ id: 'a', api_key: 'from-table' }), 'gemini'),
+  ]
+  assert.deepEqual(pickUsable(both), { apiKey: 'from-table', from: 'pool' },
+    'META 줄이 앞에 있다고 그것을 집었다')
+})
+
+test('★ 둘 다 없으면 없다고 한다 — 빈 문자열을 키로 쓰지 않는다', async () => {
+  const pool = await readKeyPoolWith(gatewayOf(), 'jev', NOW)
+  assert.equal(pickUsable(pool), null)
+  assert.equal(pickUsable([]), null)
+})
+
+/**
+ * `firstKeyValue` 의 용도는 안 바뀐다. 그 함수는 **표 첫 줄**을 META 에 되쓰는 자리라,
+ * META 줄을 돌려주면 자기가 쓴 값을 자기가 다시 읽는 고리가 된다.
+ */
+test('★ 표 첫 줄을 찾는 쪽은 그대로 META 를 안 본다', async () => {
+  const pool = await readKeyPoolWith(
+    gatewayOf({ readRows: async () => [], readMeta: async () => ({ jev_api_key: 'vck_from_meta' }) }),
+    'jev', NOW,
+  )
+  assert.equal(pool.filter((e) => !isMetaEntry(e)).length, 0, '표에서 온 줄이 있다')
+  assert.equal(pool.length, 1, 'META 줄 하나가 있어야 한다')
 })

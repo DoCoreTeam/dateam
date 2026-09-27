@@ -90,12 +90,23 @@ export async function resolveProviderKey(
 ): Promise<KeyChoice> {
   const env = currentDeployEnv()
   let poolKey: string | null = null
+  /**
+   * 키 곳간이 META 로 떨어져 준 값. **`metaKey` 자리로 넣는다** —
+   * 표에서 온 것처럼 `poolKey` 로 넣으면 아래 판 검사를 건너뛰어 개발 판이 운영 키를 집는다.
+   */
+  let storedMetaKey: string | null = null
   try {
-    const { firstKeyValue } = await import('./key-store.ts')
-    poolKey = await firstKeyValue(provider)
+    const { firstUsableKey } = await import('./key-store.ts')
+    const found = await firstUsableKey(provider)
+    if (found?.from === 'pool') poolKey = found.apiKey
+    else if (found?.from === 'meta') storedMetaKey = found.apiKey
   } catch (e) {
     // 표를 못 읽는다고 기능을 멈추지 않는다 — META 로 물러나고 그 사실만 남긴다
     console.error('[ai] 키 표 읽기 실패, META 로 물러남', e instanceof Error ? e.message : e)
   }
-  return chooseKey({ env, poolKey, metaKey })
+  /**
+   * 부르는 쪽이 준 META 값이 먼저다. 그쪽은 그 자리의 사정을 알고 고른 값이고,
+   * 곳간이 준 것은 「아무도 안 골랐을 때의 기본」이다.
+   */
+  return chooseKey({ env, poolKey, metaKey: metaKey ?? storedMetaKey })
 }
