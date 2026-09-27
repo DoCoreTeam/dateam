@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.631',
+    date: '2026-09-28',
+    title: 'AI 트레이딩 화면이 나머지 화면과 같아졌어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔘',
+        headline: '트레이딩 화면 단추가 제대로 보여요',
+        detail: '설정과 현황 화면의 단추 스물세 자리가 꾸밈 없이 밋밋하게 보이던 것을 고쳤어요. 이제 다른 화면의 단추와 생김새가 같습니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🧩',
+        headline: '모델 고르기가 다른 화면과 같은 창으로 열려요',
+        detail: 'AI 트레이딩에서 판단 모델을 고를 때도 공급자 탭과 모델의 상태·출시일이 함께 보입니다. 다른 화면에서 쓰던 그 창 그대로예요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🔐',
+        headline: '2단계 인증 화면 단추도 같이 고쳤어요',
+        detail: '등록과 확인, 해제 단추가 밋밋하게 보이던 것을 바로잡았습니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '💚',
+        headline: '회의 참석자의 영업 연결 표가 초록으로 보여요',
+        detail: '영업 정보에 이미 있는 분에게 붙는 표가 색 없이 보이던 것을 고쳤어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.624',
     date: '2026-09-27',
     title: 'AI 트레이딩 설정이 읽히고 골라집니다',
