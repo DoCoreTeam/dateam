@@ -1,0 +1,128 @@
+# PLAN newAX: 트레이딩 설정에서 공급자와 모델을 목록에서 고른다
+플랜 ID: P0076
+플랜 버전: v0.1.2
+상태: 진행중
+지시: ins_0133
+목표 버전: v0.10.610
+작성: 2026-09-27
+시작 커밋: 964c69a7
+
+## 목표
+- 판단 공급자를 글자로 적지 않고 목록에서 고른다
+- 판단 모델을 AI 공급자 화면과 **같은 「모델 고르기」**로 고른다, 이름을 외워 적지 않는다
+- 고를 때 무엇이 권장인지 화면이 말한다
+
+## 범위 밖
+- 모델 목록을 우리가 다시 훑는 기능 (기존 새로고침을 그대로 씀)
+- AI 공급자 화면 개편
+- 3문항 초기 설정 화면
+- KIS 자격증명
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 통과
+- 공급자 설정이 드롭다운이고 고를 수 있는 것은 판단을 부를 문이 있는 공급자뿐이다
+- 모델 설정이 「모델 고르기」 단추이고 고른 값이 그대로 저장된다
+- 목록 읽기가 트레이딩 관문(소유자)을 지난다, 화면은 열리는데 창구가 막히는 상태를 안 만든다
+- 키가 없는 공급자를 고르면 그 사실을 화면이 말한다
+- 화면 문구는 라벨 표를 지난다
+
+## 참조
+- apps/web/components/ui/ModelPickerModal.tsx — 이미 있는 모델 고르기 (AI 공급자 화면이 씀)
+- apps/web/app/admin/settings/ModelSelectField.tsx — 그 부품을 카드에 붙인 본보기
+- apps/web/app/(trading)/trading/settings/SettingsForm.tsx — 형마다 입력칸을 그리는 자리
+- apps/web/lib/trading/settings/registry.ts — `choice` 형이 이미 드롭다운이 된다
+- 실측 2026-09-27: ai_model_catalog 에 gemini 46개(활성 28)가 있고 jev 는 0개다
+- 실측 2026-09-27: gemini-3.8-flash 가 세 문제 3/3, 두 번 물어도 같은 답, 2.8초
+
+## 항목
+
+### I01 공급자를 목록에서 고른다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/trading/settings/registry.ts, apps/web/lib/trading/settings/registry.test.ts, packages/ai-providers/src/vendor.ts
+감사 기준:
+- 공급자 설정이 choice 형이고 고를 수 있는 값이 판단을 부를 문이 있는 공급자뿐이다
+- 목록이 공급자 명세에서 나온다, 손으로 적은 사본이 아니다 (새 공급자가 생기면 따라온다)
+- 도움말이 권장 모델과 그 근거(실측 날짜)를 말한다
+- 보안: 해당 없음 — 설정 정의만 바뀌고 표·창구·외부 입력을 안 건드림
+의존: 없음
+
+### I02 모델을 「모델 고르기」로 고른다
+상태: 통과
+모드: 경량
+범위: apps/web/app/(trading)/trading/settings/ModelPickField.tsx (신규), apps/web/app/(trading)/trading/settings/actions.ts, apps/web/app/(trading)/trading/settings/SettingsForm.tsx, apps/web/app/(trading)/trading/settings/page.tsx, apps/web/lib/trading/settings/model-pick.ts (신규), apps/web/lib/trading/settings/model-pick.test.ts (신규), apps/web/lib/policy/trading-settings-surface.test.ts, apps/web/lib/trading/judge/jev.test.ts, apps/web/package.json
+감사 기준:
+- 모델 칸이 글자 입력이 아니라 「모델 고르기」 단추이고 고른 값이 저장된다
+- 목록 읽기가 tradingAccess 를 지난다, 관리자 전용 창구를 화면이 부르지 않는다
+- 모달이 목록 불러오는 길을 밖에서 받을 수 있고 기본은 지금 쓰던 길 그대로다 (AI 화면이 안 바뀐다)
+- 키가 없거나 목록이 빈 공급자면 그 사실을 화면이 말한다 (빈 목록과 고장을 가른다)
+- 보안: 새 창구가 소유자 확인을 먼저 지나고 키 원문이 목록 응답에 안 실린다, 일부러 확인을 빼 가드 실패 확인 (S2·S6)
+의존: I01
+
+### I03 종합 감사와 업데이트 내역
+상태: 통과
+모드: 경량
+범위: .loop/PLAN.md, apps/web/lib/changelog/entries.ts, package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
+감사 기준:
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 네 개 전부 통과 (결과를 PLAN.md 에 적음)
+- LOOP.md 7절 「기계가 세는 것」 다섯 줄을 실제로 실행하고 결과가 전부 0
+- git diff 964c69a7..HEAD --stat 에 범위 밖 변경·비밀 없음
+- 사용자 체감 변경이 entries.ts 맨 위 이번 버전 블록에 적힌다
+- 보안: 위 다섯 줄이 이 항목의 보안 감사 기준임
+의존: I01, I02
+
+## 종합 감사
+
+실행 2026-09-27, 시작 커밋 964c69a7 기준
+
+### 1 검사 넷
+
+| 명령 | 결과 |
+|---|---|
+| pnpm tsc --noEmit | 통과 |
+| pnpm lint | 통과 |
+| pnpm test | 통과 — 시험 7,991개 전부, 실패 0 |
+| NEXT_DIST_DIR=.next-p0076 pnpm build | 통과 — /trading/settings 5.49kB |
+
+### 2 완료 정의 대조
+
+| 완료 정의 | 확인 |
+|---|---|
+| 공급자가 드롭다운이고 문 있는 것만 | JUDGE_PROVIDERS 가 명세에서 파생, 가드가 확인 |
+| 모델이 「모델 고르기」 | SettingsForm 이 pickProvider 로 갈라 그림 |
+| 목록 읽기가 소유자 문을 지남 | listJudgeModels 가 tradingAccess 먼저, 가드가 순서까지 확인 |
+| 키 없음·빈 목록·못 읽음을 가름 | pickState 넷, 상태마다 할 일 문구 |
+| 화면 문구가 라벨 표를 지남 | model-pick.ts 의 표에서만 옴 |
+
+### 3 보안 — 기계가 세는 다섯 줄
+
+2026-09-27 운영 DB 실행, 다섯 줄 전부 0.
+이번 판의 보안 판정은 S2(새 창구가 소유자 확인을 먼저 지난다)와
+S3(키 원문이 목록 응답에 안 실린다) 둘이고 가드로 잠갔다.
+소유자 확인을 빼 가드가 실패하는 것을 확인했다
+
+### 4 전체 diff
+
+git diff 964c69a7..HEAD --stat — 17파일 481추가 14삭제. 범위 밖 변경 없음, 비밀 없음
+
+### 5 항목 대 결과 대조
+
+| 항목 | 커밋 |
+|---|---|
+| I01 공급자 목록 | 273664d8 |
+| I02 모델 고르기 | 3727de2b |
+
+### 6 발견 사항
+
+- 기존 모달을 그대로 못 썼다. AI 화면의 목록 창구가 관리자 전용이라 소유자 화면에서 부르면 「화면은 열리는데 창구가 403」이 된다. 같은 표를 읽되 문은 이 화면의 문으로 새로 냈다
+- OpenAI 가 목록에서 빠져 있었다. 자기 이름의 호환 창구가 있는데 벤더 명세에 안 적혀 있었다 — 키가 등록돼 있는데 못 고르는 상태였다
+- 가드 셋이 글자를 세고 있었다. toRow 인자가 하나 늘자 빨개졌고, 도움말이 길어져 400자 창 밖으로 기본값이 밀렸고, ESC 가드가 새 대화상자를 잡았다. 앞의 둘은 값을 보게 고쳤고 셋째는 진짜 결함이라 useEscClose 를 붙였다
+- 커밋 훅이 디자인 위반 셋을 막았다. z-index 고정값·인라인 rgba·자작 버튼. 토큰과 CSS Module 로 고쳤고, 화면 전용 CSS 는 globals 가 아니라 도메인 폴더에 둔다는 규칙도 훅이 알려 줬다
+- I01 을 시험 하나가 빨간 채로 통과시켰다. I02 에서 바로잡았고 원인은 위의 400자 창이다
+
+## 변경 이력
+- v0.1.0 (2026-09-27) 최초 작성 (ins_0133)
+- v0.1.2 (2026-09-27) I02 범위 정정 — 기존 모달은 관리자 전용 창구에 묶여 있어 그대로 못 썼고 소유자 문을 지나는 고르기 칸을 따로 만들었다. 인자가 하나 는 것을 글자로 찾던 화면 가드와, I01 에서 도움말이 길어져 창 밖으로 밀린 기본값 가드를 값으로 보게 고쳤다 (audit:I02)
+- v0.1.1 (2026-09-27) I01 범위에 vendor.ts 추가 — OpenAI 는 자기 이름의 호환 창구가 있는데 명세에 안 적혀 있어 목록에서 빠져 있었다, 키가 등록돼 있는데 못 고르는 상태였다 (audit:I01)
+- v0.1.1 (2026-09-27) I01 범위에 vendor.ts 추가 — OpenAI 의 호환 창구가 명세에 없어 키가 있는데도 목록에서 빠져 있었다 (audit:I01)
+- v0.1.2 (2026-09-27) I02 범위 정정 — 기존 모달이 관리자 전용 창구에 묶여 있어 소유자 문을 지나는 고르기 칸을 따로 만들었다 (audit:I02)

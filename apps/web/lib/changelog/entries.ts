@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.612',
+    date: '2026-09-27',
+    title: 'AI 트레이딩 판단 모델을 목록에서 골라요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '📋',
+        headline: '모델 이름을 외워 적지 않아도 돼요',
+        detail: '트레이딩 설정에서 「모델 고르기」를 누르면 쓸 수 있는 모델이 목록으로 뜹니다. 공급자도 드롭다운에서 고릅니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '💬',
+        headline: '못 고르는 이유를 알려 줘요',
+        detail: '키가 없는 건지, 목록을 아직 안 받은 건지, 읽지 못한 건지를 갈라 말하고 무엇을 하면 되는지까지 적습니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.608',
     date: '2026-09-27',
     title: 'AI 트레이딩 판단을 우리가 쓰던 AI 키로 부를 수 있어요',
