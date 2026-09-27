@@ -16,7 +16,7 @@
 import { revalidatePath } from 'next/cache'
 import { tradingAccess } from '@/lib/trading/access'
 import { getRequestUser } from '@/lib/supabase/server'
-import { saveTradingSetting } from '@/lib/trading/settings/store'
+import { saveTradingSetting, loadTradingSettings } from '@/lib/trading/settings/store'
 import { tradingSetting, validateSetting, type TradingSettingValue } from '@/lib/trading/settings/registry'
 import { editableHere, whyElsewhere } from '@/lib/trading/settings/editable'
 import { saveTradingCredentials } from '@/lib/trading/broker/credentials'
@@ -27,6 +27,10 @@ import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import { JUDGE_PROVIDERS } from '@/lib/trading/settings/registry'
 import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import { MODEL_PAIRS, type JudgeModelRow } from '@/lib/trading/settings/model-pick'
+import {
+  buildAssistantPrompt, planChanges, parseAssistantResponse, type AssistantPlan,
+} from '@/lib/trading/settings/assistant'
+import { callKnowledge } from '@/lib/trading/knowledge/ai-call'
 
 export interface SaveSettingResult {
   ok: boolean
@@ -246,4 +250,73 @@ export async function savePickedModel(
   const second = await saveTradingSettingValue(modelKey, model)
   if (!second.ok) return second
   return { ok: true, userMessage: `${provider} · ${model} 로 저장했습니다. 다음 거래일부터 듣습니다`, version: second.version }
+}
+
+/* ── 말로 설정 바꾸기 ──────────────────────────────────── */
+
+export interface AssistantResult {
+  ok: boolean
+  plan?: AssistantPlan
+  userMessage: string | null
+}
+
+/**
+ * 말을 받아 **바꿀 값 목록만** 만든다. 저장은 안 한다.
+ *
+ * 사람이 확인하기 전에는 아무 값도 안 바뀐다 — 이 창구에는 저장하는 길이 없다.
+ * 금지 목록(§15.3)에 걸리는 키는 `planChanges` 가 후보로도 안 올린다.
+ */
+export async function proposeSettingChanges(ask: string): Promise<AssistantResult> {
+  if (!(await tradingAccess()).allowed) return { ok: false, userMessage: DENIED.userMessage }
+  const question = ask.trim()
+  if (question === '') return { ok: false, userMessage: '무엇을 하고 싶은지 적어 주세요' }
+
+  const today = kstTodayKey()
+  const { values } = await loadTradingSettings(today)
+  const call = await callKnowledge({
+    purpose: 'setting_help',
+    prompt: buildAssistantPrompt(question, values),
+    model: (values.knowledge_model as string) || null,
+    provider: (values.knowledge_provider as AiProviderId) ?? 'gemini',
+    json: true,
+  })
+  if (!call.ok) return { ok: false, userMessage: call.userMessage }
+
+  const plan = planChanges(parseAssistantResponse(call.text), values)
+  return { ok: true, plan, userMessage: null }
+}
+
+/**
+ * 확인한 것만 저장한다. **기존 창구를 그대로 지난다** (M7) — 다음 거래일부터 듣는다.
+ *
+ * 여기서 규정을 한 번 더 본다. 미리보기와 저장 사이에 금지 목록이 늘었을 수 있고,
+ * 화면이 보낸 값은 **밖에서 온 값**이다.
+ */
+export async function applySettingChanges(
+  changes: readonly { key: string; nextValue: unknown }[],
+): Promise<{ ok: boolean; saved: number; userMessage: string }> {
+  if (!(await tradingAccess()).allowed) return { ok: false, saved: 0, userMessage: DENIED.userMessage! }
+  const today = kstTodayKey()
+  const { values } = await loadTradingSettings(today)
+  const plan = planChanges(
+    changes.map((c) => ({ key: c.key, value: c.nextValue, why: '사람이 확인함' })),
+    values,
+  )
+  if (plan.changes.length === 0) {
+    return { ok: false, saved: 0, userMessage: plan.rejected[0]?.userMessage ?? '저장할 값이 없습니다' }
+  }
+
+  let saved = 0
+  for (const change of plan.changes) {
+    // 리스크 산술(M6)은 이 창구가 본다. 안 맞으면 그 줄에서 멈춘다
+    const result = await saveTradingSettingValue(change.key, String(change.nextValue))
+    if (!result.ok) {
+      return {
+        ok: false, saved,
+        userMessage: `${change.label}: ${result.userMessage ?? '저장하지 못했습니다'}`,
+      }
+    }
+    saved += 1
+  }
+  return { ok: true, saved, userMessage: `${saved}개를 저장했습니다. 다음 거래일부터 듣습니다` }
 }
