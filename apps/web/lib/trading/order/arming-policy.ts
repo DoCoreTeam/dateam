@@ -14,6 +14,8 @@
  * 게이트가 걸린다. 무장할 때 한 번만 재면 「아침에 멀쩡했으니 하루 종일 멀쩡하다」가 된다.
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
+
 export const ARM_CHECKS = [
   'A1_gate_passed', 'A2_notify_enabled', 'A3_paper_days',
   'A4_reconciled', 'A5_no_gate_fail', 'A6_risk_within_limit',
@@ -51,7 +53,7 @@ export interface ArmContext {
   /** A6 */
   riskPerTradeKrw: number
   dailyLossLimitKrw: number
-  /** A7 — 모의 실적의 순손익 하한(R). 못 쟀으면 null */
+  /** A7 — 모의 실적의 순손익 하한(R). 안 쟀으면 null */
   paperExpectancyLowerR: number | null
 }
 
@@ -81,7 +83,7 @@ export function checkArming(ctx: ArmContext): ArmDecision {
 
   if (ctx.gateInsufficient > 0) {
     blocks.push(block('A1_gate_passed', `gate_insufficient:${ctx.gateInsufficient}`,
-      `검증 관문에서 아직 못 잰 항목이 ${ctx.gateInsufficient}개 있습니다`))
+      `검증 관문에서 ${NOT_MEASURED}인 항목이 ${ctx.gateInsufficient}개 있습니다`))
   } else if (!ctx.gatePassed) {
     blocks.push(block('A1_gate_passed', 'gate_not_passed', '검증 관문을 통과하지 못했습니다'))
   }
@@ -116,7 +118,7 @@ export function checkArming(ctx: ArmContext): ArmDecision {
   if (ctx.env === 'real') {
     if (ctx.paperExpectancyLowerR === null) {
       blocks.push(block('A7_paper_expectancy_positive', 'no_paper_expectancy',
-        '모의 실적을 아직 못 쟀습니다'))
+        `모의 실적이 ${NOT_MEASURED}입니다`))
     } else if (ctx.paperExpectancyLowerR <= 0) {
       blocks.push(block('A7_paper_expectancy_positive', `lower:${ctx.paperExpectancyLowerR}`,
         '모의에서 남지 않았습니다. 「돌려 봤다」와 「남았다」는 다릅니다'))

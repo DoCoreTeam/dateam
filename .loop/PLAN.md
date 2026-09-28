@@ -1,6 +1,6 @@
 # PLAN newAX: 화면이 저장된 값을 읽고 모순 없이 말한다
 플랜 ID: P0085
-플랜 버전: v0.1.4
+플랜 버전: v0.2.1
 상태: 진행중
 지시: ins_0143
 목표 버전: v0.10.668
@@ -41,6 +41,18 @@
 - 한 거래 위험 계산이 한 자리에만 있음 — 파이프라인의 고정값 1100·1.56·0.4 와 설정 저장소의 사본(store.ts 의 atr 1.3·reference 1100)이 그 자리로 들어가고 설정에서 나옴
 - 새 가드가 고정 null 을 되살린 판과 계산을 한 자리 더 복사한 판에서 실패함 (깨뜨려 확인)
 - 보안: 새 표도 새 창구도 없음, 읽는 표는 이미 이 함수가 읽던 것 — 해당 없음
+의존: 없음
+
+### I01a 「못 잼」을 시스템 용어로 바꾼다
+상태: 통과
+모드: 경량
+범위: lib/terms/measure.ts (신규), lib/terms/measure.test.ts (신규), lib/terms/index.ts, lib/trading/gate/labels.ts, lib/trading/gate/criteria.ts, lib/trading/position-labels.ts, lib/trading/operator/report-core.ts, app/(trading)/trading/BacktestPanel.tsx, app/(trading)/trading/LatencyPanel.tsx, app/(trading)/trading/validation/page.tsx, lib/trading/operator/checks.ts, lib/trading/operator/handoff-content.ts, lib/trading/operator/run-reason.ts, lib/trading/notify/enable-gate.ts, lib/trading/order/arming-policy.ts, lib/trading/settings/registry.ts, lib/trading/settings/start-labels.ts, app/(trading)/trading/PositionPanel.tsx, lib/trading/overview-shape.test.ts, lib/trading/operator/report.test.ts
+감사 기준:
+- 화면에 「못 잼」·「못 쟀습니다」·「잴 수 없습니다」·「잰 것 없음」이 없음 (`grep -rn "못 잼\|못 쟀\|못 잽\|잰 것 없음" lib app --include=*.ts --include=*.tsx` 가 주석 밖에서 0건)
+- 그 자리의 말이 한 곳에서 나옴 — 화면 파일 안에 라벨 문자열을 안 둠
+- 세 상태가 같은 결의 말임 (통과·미달과 나란히 읽히는 명사)
+- 가드가 금지어를 값으로 대조하고, 옛 말을 되살린 판에서 실패함 (깨뜨려 확인)
+- 보안: 문자열만 바뀜 — 해당 없음
 의존: 없음
 
 ### I02 관문 안내가 이미 한 일을 하라고 시키지 않는다
@@ -118,3 +130,5 @@
 - v0.1.1 (2026-09-28) I01 범위에 risk/arithmetic.ts 와 validation/pipeline.ts 추가 — 한 거래 위험 계산이 파이프라인에만 있어 overview 로 복사하면 두 자리가 갈린다 (audit:I01)
 - v0.1.3 (2026-09-28) I01 범위에 settings/store.ts 추가 — 같은 계산의 세 번째 사본이 checkLimitAgainstRisk 안에 있었다, 두 자리만 합치면 한도 검사만 옛 셈법으로 남는다 (audit:I01)
 - v0.1.4 (2026-09-28) I01 범위에 validation/pipeline-core.test.ts 추가 — 기존 배선 가드가 computeRisk( 라는 이름을 요구해 한 자리로 모으자 빨개졌다, 가드가 요구할 이름은 typicalTradeRisk( 다 (audit:I01)
+- v0.2.0 (2026-09-28) I01a 삽입 — 사용자 개입: 「아직 못 잼」은 시스템 용어가 아니다, 화면 넷과 라벨 셋에 같은 말투가 퍼져 있어 한 판에 바꿔야 화면이 안 섞인다 (iv_0125)
+- v0.2.1 (2026-09-28) I01a 범위에 열 파일 추가 — 새 가드가 눈으로 못 본 열 자리를 찾아냈다(운영 점검·알림 관문·무장 판정·설정 도움말·손익 화면), 옛 가드 둘은 옛 말을 글자로 들고 있어 같이 고침 (audit:I01a)

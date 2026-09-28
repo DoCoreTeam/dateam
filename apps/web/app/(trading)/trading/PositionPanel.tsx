@@ -1,11 +1,12 @@
 // 지금 들고 있는 것과 오늘 손익
 //
-// 못 잰 값을 0 으로 그리지 않는다. 실현 손익 0원은 「오늘 본전」이라는 사실이고,
-// 사람은 그것을 보고 아무 일도 없었다고 읽는다. 못 쟀으면 못 쟀다고 쓴다.
+// 안 잰 값을 0 으로 그리지 않는다. 실현 손익 0원은 「오늘 본전」이라는 사실이고,
+// 사람은 그것을 보고 아무 일도 없었다고 읽는다. 안 쟀으면 안 쟀다고 쓴다.
 //
 // 손절가도 같다. 빈 칸으로 두면 「손절 없음」과 구별이 안 되는데,
 // 둘 중 하나는 손절을 안 건 것이고 다른 하나는 우리가 모르는 것이다.
 
+import { NOT_MEASURED } from '@/lib/terms'
 import { DIRECTION_LABEL } from '@/lib/trading/signal-labels'
 import { wonText, priceText, seoulTimeText, isRiskyUnknown } from '@/lib/trading/position-labels'
 import type { HoldingRow, DayPnlRow } from '@/lib/trading/overview-shape'
@@ -77,7 +78,7 @@ export default function PositionPanel({
 
       {dayPnl.unmeasuredReason !== '' && (
         <p role="status" style={{ fontSize: 'var(--fs-sm)', color: 'var(--nb-danger)', margin: 0, marginTop: 'var(--space-2)' }}>
-          손익을 못 쟀습니다: {dayPnl.unmeasuredReason}
+          손익이 {NOT_MEASURED}입니다: {dayPnl.unmeasuredReason}
         </p>
       )}
 

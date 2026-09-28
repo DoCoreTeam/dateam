@@ -5,6 +5,7 @@
  * 「우리 시스템은 빠르다」는 결론이 표본 0건에서 나온다.
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -48,23 +49,23 @@ test('★ 표본이 0 이면 비율이 0% 가 아니라 null — 0 으로 안 �
   assert.equal(m.measuredSegments, 0)
 })
 
-test('★ 「잰 것 없음」이 화면에서 0% 와 다르게 보인다', () => {
+test('★ 안 잰 비율이 화면에서 0% 와 다르게 보인다', () => {
   const lines = reportLines(computeReport(EMPTY) as never)
-  assert.ok(lines.some((l) => l === '따른 비율: 잰 것 없음'))
+  assert.ok(lines.some((l) => l === `따른 비율: ${NOT_MEASURED}`))
   assert.ok(lines.some((l) => l === '지연: 잰 구간이 없습니다'))
   assert.ok(lines.some((l) => l === '점검: 본 날이 없습니다'))
   assert.equal(lines.some((l) => l.includes('0%')), false, '표본 0 을 0% 로 적었다')
   assert.equal(lines.some((l) => l.includes('0.0초')), false, '못 잰 것을 0.0초로 적었다')
 })
 
-test('★ 구간 하나만 못 재도 그 구간만 「못 잼」이다', () => {
+test('★ 구간 하나만 안 재도 그 구간만 「측정 전」이다', () => {
   const m = computeReport({ ...FULL, medianToOpenSec: null })
   assert.ok(!isReportRejection(m))
   assert.equal(m.measuredSegments, 3)
   const lines = reportLines(m)
   const delay = lines.find((l) => l.startsWith('지연 중앙값'))
   assert.ok(delay)
-  assert.ok(delay.includes('사람 보기 못 잼'))
+  assert.ok(delay.includes(`사람 보기 ${NOT_MEASURED}`))
   assert.ok(delay.includes('서버 3.2초'))
 })
 

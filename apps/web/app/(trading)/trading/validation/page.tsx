@@ -9,6 +9,7 @@ import BacktestPanel from '../BacktestPanel'
 import LatencyPanel from '../LatencyPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
+import { VALIDATION_PAGE_DESCRIPTION } from '@/lib/trading/gate/labels'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export default async function TradingValidationPage() {
       <PageHeader
         title={TRADING_NAV_LABEL.validation}
         icon={<ShieldCheck size={22} />}
-        description="관문을 다 지나야 알림을 켤 수 있습니다. 못 잰 항목은 표본이 더 쌓여야 합니다"
+        description={VALIDATION_PAGE_DESCRIPTION}
       />
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
         <BacktestPanel

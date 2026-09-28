@@ -2,6 +2,7 @@
  * 시작하기 화면이 쓰는 말 — **화면 파일 안에 두지 않는다** (CEO.md §0-2)
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
 import type { Stance, RiskView } from './onboarding.ts'
 
 export const START_TITLE = '시작하기'
@@ -45,7 +46,7 @@ export function riskLine(risk: RiskView): string {
 }
 
 export function riskUnmeasured(): string {
-  return '상품 정보를 아직 못 읽어 한 번에 얼마를 잃을 수 있는지는 못 쟀습니다'
+  return `상품 정보를 아직 못 읽어 한 번에 얼마를 잃을 수 있는지는 ${NOT_MEASURED}입니다`
 }
 
 export function raiseWarning(): string {

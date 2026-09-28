@@ -163,7 +163,7 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ④ Profit Factor
   if (input.profitFactor === null) {
-    criteria.push(unknown('profit_factor', 'Profit Factor', '잃은 거래가 없어 아직 못 잽니다'))
+    criteria.push(unknown('profit_factor', 'Profit Factor', '잃은 거래가 없어 아직 측정할 수 없습니다'))
   } else {
     criteria.push(input.profitFactor >= t.minProfitFactor
       ? pass('profit_factor', 'Profit Factor', input.profitFactor, t.minProfitFactor,

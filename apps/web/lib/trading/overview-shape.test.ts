@@ -5,6 +5,7 @@
  * 안 말하면 사람은 전략을 의심하는데, 실제로는 보정 모델이 없어서 네 번째에서 멈춘 것이다.
  */
 
+import { NOT_MEASURED } from '../terms/index.ts'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -80,10 +81,11 @@ test('수집 완결과 결측 셈', () => {
 
 // ── 화면 배선 ────────────────────────────────────────────
 
-test('★ 지연 화면이 못 잰 건수를 같이 그린다 — 안 그리면 두 건짜리 중앙값이 같아 보인다', () => {
+test('★ 지연 화면이 안 잰 건수를 같이 그린다 — 안 그리면 두 건짜리 중앙값이 같아 보인다', () => {
   const src = readFileSync(join(APP, 'LatencyPanel.tsx'), 'utf8')
-  assert.ok(src.includes('unmeasured'), '못 잼 건수를 안 그린다')
-  assert.ok(src.includes('못 잼'), '못 잰 값을 0 으로 그린다')
+  assert.ok(src.includes('unmeasured'), '안 잰 건수를 안 그린다')
+  // 말 자체가 아니라 **용어집을 지나는지**를 본다 — 글자로 적으면 용어가 바뀔 때 여기만 늙는다
+  assert.ok(src.includes('NOT_MEASURED'), '안 잰 값을 0 으로 그린다')
 })
 
 test('★ 알림 켜기 창구가 기존 소유자 확인을 지난다 (S2)', () => {

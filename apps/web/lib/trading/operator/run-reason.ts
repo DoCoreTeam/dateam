@@ -16,6 +16,7 @@
  * 3 **순수하다.** 읽기도 시각도 없다 — 같은 글자를 넣으면 늘 같은 답이 나온다.
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
 import { DIRECTION_LABEL } from '../signal-labels.ts'
 import { emitProgressOf, knowledgeProgressOf } from '../overview-shape.ts'
 import { withJosa, eulReul } from '../../ui/josa.ts'
@@ -118,7 +119,7 @@ function gateLines(inner: string): RunReasonLine[] {
     else if (key === 'bar_late' && value === 'true') { hit.push('가격 봉이 늦음'); worst = worst === 'blocked' ? worst : 'waiting' }
     else if (key === 'spread_wide' && value === 'true') { hit.push('호가 폭이 평소보다 넓음'); worst = worst === 'blocked' ? worst : 'waiting' }
     else if (key === 'market_abnormal' && value === 'true') { hit.push('시장이 정상 범위 밖'); worst = 'blocked' }
-    else if (key === 'unmeasured') { hit.push(`못 잰 것 ${value.split('+').length}가지`); worst = 'blocked' }
+    else if (key === 'unmeasured') { hit.push(`${NOT_MEASURED}인 것 ${value.split('+').length}가지`); worst = 'blocked' }
   }
   if (hit.length === 0) return line('관문 점검에 걸린 것이 없습니다', 'ok')
   return line(`관문 점검에 걸렸습니다: ${hit.join(', ')}`, worst)

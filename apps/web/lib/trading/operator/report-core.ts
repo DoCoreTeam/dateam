@@ -13,6 +13,8 @@
  * 지연이 컸다면 그날 점검이 빨갰는지를 본다.
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
+
 export interface ReportInput {
   from: string
   to: string
@@ -67,10 +69,10 @@ export function isReportRejection(v: ReportMetrics | ReportRejection): v is Repo
 }
 
 function pct(v: number | null): string {
-  return v === null ? '잰 것 없음' : `${(v * 100).toFixed(0)}%`
+  return v === null ? NOT_MEASURED : `${(v * 100).toFixed(0)}%`
 }
 function sec(v: number | null): string {
-  return v === null ? '못 잼' : `${v.toFixed(1)}초`
+  return v === null ? NOT_MEASURED : `${v.toFixed(1)}초`
 }
 
 /** 사람이 읽을 줄. **AI 에게 이 줄들을 준다** */
@@ -96,7 +98,7 @@ export function buildReportPrompt(lines: readonly string[]): string {
     '',
     '규칙',
     '- 아래 표에 **있는 숫자만** 쓴다. 새로 계산하지 않는다',
-    '- 「잰 것 없음」·「못 잼」을 0 으로 바꿔 말하지 않는다',
+    `- 「${NOT_MEASURED}」을 0 으로 바꿔 말하지 않는다`,
     '- 예측하지 않고 설정을 바꾸라고 말하지 않는다',
     '- 네 문단 이내',
     '',

@@ -20,6 +20,8 @@
  * 사람만 켠다.
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
+
 /** 누가 켜려 하나. AI 는 못 켠다 */
 export type EnableActor =
   | { kind: 'human'; userId: string }
@@ -66,7 +68,7 @@ export function decideEnableNotify(actor: EnableActor, ctx: EnableContext): Enab
   if (ctx.gateInsufficientCount > 0) {
     return {
       allowed: false, reason: 'gate_insufficient',
-      userMessage: `검증 관문에서 아직 못 잰 항목이 ${ctx.gateInsufficientCount}개 있습니다. 표본이 더 쌓여야 합니다`,
+      userMessage: `검증 관문에서 ${NOT_MEASURED}인 항목이 ${ctx.gateInsufficientCount}개 있습니다. 표본이 더 쌓여야 합니다`,
     }
   }
   if (!ctx.gatePassed) {

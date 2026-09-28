@@ -26,6 +26,7 @@
  * 값이라 비밀이 섞이면 그날로 새어 나간다.
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
 import { AI_PROVIDERS, openAiCompatibleBaseUrl } from '../../ai/provider-catalog.ts'
 
 /**
@@ -653,7 +654,7 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     key: 'gate_min_validate_trades',
     group: 'validation',
     label: '관문 최소 거래 수',
-    help: '검증 구간 합계가 이만큼은 돼야 기대값을 믿을 수 있습니다. 적으면 미달이 아니라 아직 못 잰 것입니다',
+    help: `검증 구간 합계가 이만큼은 돼야 기대값을 믿을 수 있습니다. 적으면 미달이 아니라 ${NOT_MEASURED}입니다`,
     type: 'number',
     defaultValue: 500,
     unit: '건',

@@ -15,6 +15,8 @@
  * **모르는 것은 모른다고 적고, 그 자체가 점검 대상이다.**
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
+
 export const CHECK_IDS = [
   /** 어제 봉이 다 모였나 */
   'bars_complete',
@@ -207,7 +209,7 @@ export function checkGate(input: CheckInput): CheckResult {
   if (input.gateInsufficient > 0) {
     return {
       id: 'gate_progress', status: 'warn', reason: `insufficient:${input.gateInsufficient}`,
-      userMessage: `관문에서 아직 못 잰 항목이 ${input.gateInsufficient}개 있습니다`, measured,
+      userMessage: `관문에서 ${NOT_MEASURED}인 항목이 ${input.gateInsufficient}개 있습니다`, measured,
     }
   }
   if (!input.gatePassed) {

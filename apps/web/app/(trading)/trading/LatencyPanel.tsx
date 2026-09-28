@@ -5,16 +5,17 @@
 // 「신호에서 체결까지 4분」만 알면 고칠 곳을 못 찾는다. 서버가 늦은 것과
 // 사람이 화면을 늦게 본 것과 보고도 망설인 것과 주문이 안 채워진 것은 고치는 방법이 다르다.
 //
-// 못 잰 건수를 같이 보여 준다. 안 보여 주면 표본 두 건으로 낸 중앙값이
+// 안 잰 건수를 같이 보여 준다. 안 보여 주면 표본 두 건으로 낸 중앙값이
 // 스무 건으로 낸 값과 화면에서 똑같아 보인다.
 
 import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
 import type { LatencyRow } from '@/lib/trading/overview-shape'
+import { NOT_MEASURED, notMeasuredCount } from '@/lib/terms'
 
 function seconds(value: number | null): string {
-  if (value === null) return '못 잼'
+  if (value === null) return NOT_MEASURED
   return `${value.toFixed(1)}초`
 }
 
@@ -25,7 +26,7 @@ const COLUMNS: ColumnDef<LatencyRow>[] = [
   { key: 'p95', header: '95%', align: 'right', cell: (r) => seconds(r.p95Seconds) },
   {
     key: 'measured', header: '잰 건수', align: 'right',
-    cell: (r) => (r.unmeasured > 0 ? `${r.measured}건 · 못 잼 ${r.unmeasured}건` : `${r.measured}건`),
+    cell: (r) => (r.unmeasured > 0 ? `${r.measured}건 · ${notMeasuredCount(r.unmeasured)}` : `${r.measured}건`),
   },
 ]
 
@@ -36,7 +37,7 @@ export default function LatencyPanel({ rows }: { rows: readonly LatencyRow[] }) 
         지연
       </h2>
       <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 0, marginBottom: 'var(--space-3)' }}>
-        결과가 정해진 신호만 셉니다. 시각이 하나라도 비면 그 구간은 못 잰 것으로 둡니다
+        결과가 정해진 신호만 셉니다. 시각이 하나라도 비면 그 구간은 {NOT_MEASURED}으로 둡니다
       </p>
       <ListSurface
         rows={[...rows]}

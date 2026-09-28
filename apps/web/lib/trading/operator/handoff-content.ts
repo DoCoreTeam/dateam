@@ -6,6 +6,7 @@
  * 못 묻는 규칙은 언젠가 한 줄이 빠진다.
  */
 
+import { NOT_MEASURED } from '../../terms/index.ts'
 import { type CheckResult } from './checks.ts'
 
 /**
@@ -20,7 +21,7 @@ export const WHAT_IS_NEEDED: Record<string, string> = {
   broker_reachable: '증권사 앱키가 유효한지와 점검 시간이 아닌지 봅니다',
   notify_flowing: '알림 대기 표에서 실패 사유를 보고 그 원인을 고칩니다',
   calibration_present: '검증 단계를 돌려 보정 모델을 만듭니다',
-  gate_progress: '관문에서 미달·못 잼 항목을 보고 표본을 더 쌓습니다',
+  gate_progress: `관문에서 미달·${NOT_MEASURED} 항목을 보고 표본을 더 쌓습니다`,
   ai_budget: 'AI 예산 상한을 확인하고 필요하면 올립니다',
   reconciled: '증권사 계좌와 기록을 비교하고 화면에서 확인을 누릅니다',
 }

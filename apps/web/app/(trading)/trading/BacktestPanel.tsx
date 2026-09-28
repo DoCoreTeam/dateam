@@ -13,7 +13,7 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import styles from './BacktestPanel.module.css'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
-import { GATE_STATUS_LABEL, GATE_STATUS_COLOR } from '@/lib/trading/gate/labels'
+import { GATE_STATUS_LABEL, GATE_STATUS_COLOR, GATE_HEADLINE_NOT_MEASURED, GATE_HELP } from '@/lib/trading/gate/labels'
 import type { CriterionResult } from '@/lib/trading/overview-shape'
 
 const COLUMNS: ColumnDef<CriterionResult>[] = [
@@ -50,7 +50,7 @@ export default function BacktestPanel(props: BacktestPanelProps) {
     ? '관문을 통과했습니다'
     : props.failedCount > 0
       ? `${props.failedCount}개 항목이 미달입니다`
-      : '아직 잴 수 없습니다. 표본이 더 모여야 합니다'
+      : GATE_HEADLINE_NOT_MEASURED
 
   return (
     <section className="card">
@@ -61,7 +61,7 @@ export default function BacktestPanel(props: BacktestPanelProps) {
         {headline}
       </p>
       <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 0, marginBottom: 'var(--space-3)' }}>
-        여덟 줄을 전부 넘어야 알림 단계로 넘어갑니다. 「아직 못 잼」은 나쁜 것이 아니라 표본이 모자란 것입니다
+        {GATE_HELP}
       </p>
       <ListSurface
         rows={[...props.criteria]}
