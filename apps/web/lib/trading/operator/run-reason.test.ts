@@ -193,6 +193,41 @@ test('★ 단일가 구간에 봉이 없는 것도 그 사실과 함께 뜬다',
 })
 
 // ─────────────────────────────────────────────────────────────
+// ④b 증권사가 거절한 이유
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * **사용자 지적 2026-09-28** 「에러인듯?」 — 운영 화면에
+ * `체결 조회가 실패했습니다: kis:kis_APAC0071` 이 매분 빨갛게 떠 있었다.
+ * 코드만으로는 무엇이 문제인지도 어디서 고치는지도 모른다.
+ */
+test('★ 뜻을 아는 증권사 코드는 뜻과 할 일을 말한다', () => {
+  const view = readRunReason('fills_failed:kis:kis_APAC0071|broker=failed')
+  assert.equal(view.unknown.length, 0)
+  const said = view.lines[0].text
+  assert.match(said, /계좌번호가 없습니다/, '무엇이 문제인지 안 말한다')
+  assert.match(said, /증권사 자격증명/, '어디서 고치는지 안 말한다')
+  assert.equal(/kis_|APAC/.test(said), false, `기계 글자가 샜다: ${said}`)
+  assert.equal(view.lines[0].tone, 'blocked')
+})
+
+test('★ 모르는 증권사 코드는 지어내지 않고 접어 둔다', () => {
+  const view = readRunReason('fills_failed:kis:kis_ZZZZ9999')
+  // 뜻을 모르면 옛 꼴로 떨어져 원문을 남긴다 — 버리지도 지어내지도 않는다
+  assert.equal(view.unknown.length, 0)
+  assert.match(view.lines[0].text, /ZZZZ9999/, '모르는 코드를 통째로 버렸다')
+  assert.match(view.lines[0].text, /거절/, '무슨 일이 났는지는 말해야 한다')
+})
+
+test('★ 코드 표가 실측 근거를 들고 있다 — 짐작으로 적은 뜻이 없게', () => {
+  const src = readFileSync(join(WEB, 'lib', 'trading', 'broker', 'kis-codes.ts'), 'utf8')
+  assert.match(src, /source:/, '근거 칸이 없다')
+  assert.match(src, /실측 2026-09-28/, '언제 무엇을 보고 적었는지가 없다')
+  // 증권사 원문을 화면 말로 그대로 쓰지 않는다 — 계좌·내부 구조가 섞여 나올 수 있다 (S3)
+  assert.equal(/why: '계좌번호가 존재하지 않습니다\.'/.test(src), false, '증권사 원문을 화면 말로 썼다')
+})
+
+// ─────────────────────────────────────────────────────────────
 // ⑤ 실행 상태
 // ─────────────────────────────────────────────────────────────
 

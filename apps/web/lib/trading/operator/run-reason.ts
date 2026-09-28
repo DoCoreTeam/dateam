@@ -19,6 +19,7 @@
 import { DIRECTION_LABEL } from '../signal-labels.ts'
 import { emitProgressOf, knowledgeProgressOf } from '../overview-shape.ts'
 import { withJosa, eulReul } from '../../ui/josa.ts'
+import { kisCodeMeaning } from '../broker/kis-codes.ts'
 
 /**
  * 이 줄이 무엇을 말하나.
@@ -176,6 +177,20 @@ const RULES: Rule[] = [
   { re: /^no_credential$/, say: () => line('증권사 앱키가 등록되지 않았습니다', 'blocked') },
   { re: /^http_(\d+)(?::no_body)?$/, say: (m) => httpText(Number(m[1])) },
   { re: /^fills=no_account$/, say: () => line('계좌가 연결되지 않아 체결을 못 읽었습니다', 'blocked') },
+  {
+    /**
+     * **증권사 코드를 그대로 안 찍는다** (사용자 지적 2026-09-28 「에러인듯?」).
+     * `kis:kis_APAC0071` 은 고칠 때 쓰라고 만든 글자다 — 읽는 사람은 무엇이 문제인지,
+     * 어디서 고치는지 알 수 없다. 뜻을 아는 코드는 그 뜻과 할 일을 말한다.
+     */
+    re: /^fills_failed:kis:kis_([A-Z0-9]+)$/,
+    say: (m) => {
+      const meaning = kisCodeMeaning(m[1])
+      // 뜻을 모르면 **코드를 그대로 보여 준다.** 접어 버리면 고칠 실마리까지 사라진다
+      if (!meaning) return line(`체결 조회가 거절됐습니다 (증권사 코드 ${m[1]})`, 'blocked')
+      return line(`체결 조회가 거절됐습니다 — ${meaning.why} · ${meaning.how}`, meaning.tone)
+    },
+  },
   { re: /^fills_failed:(.+)$/, say: (m) => line(`체결 조회가 실패했습니다: ${m[1]}`, 'blocked') },
 
   // ── 포지션 ──────────────────────────────────────────
