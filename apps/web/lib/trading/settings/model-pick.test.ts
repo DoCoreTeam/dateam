@@ -237,9 +237,71 @@ test('★ 키가 아무 데도 없으면 그 하나만 말한다', () => {
   assert.deepEqual(troubles, [{ kind: 'no_provider_at_all', why: NO_KEY_WHY, how: NO_KEY_HOW }])
 })
 
-test('★ 모르는 것은 지어내지 않는다 — 목록을 못 읽었거나 안 골랐으면 모델 판정을 안 한다', () => {
-  assert.deepEqual(pickTroubles({ provider: 'gemini', model: 'gemini-3.6-flash', withKey: ['gemini'], catalog: [] }), [])
+test('★ 아직 안 골랐으면 모델 판정을 안 한다 — 모르는 것은 지어내지 않는다', () => {
   assert.deepEqual(pickTroubles({ provider: 'gemini', model: '', withKey: ['gemini'], catalog: CATALOG }), [])
+})
+
+/**
+ * **고를 것이 없는데 고르라고 하지 않는다** (사용자 지적 2026-09-28
+ * 「jev는 안에 상세모델이 원래 없는거면 어떻게 저장해야 하는거야」).
+ *
+ * 실측 2026-09-28 `ai_model_catalog` 의 jev 모델이 0개인데 화면은
+ * 「공급자를 바꾸거나 다른 모델을 고르세요」라고 말했다. 창을 열어도 빈 목록이었다.
+ */
+test('★ 그 공급자의 모델이 0개면 「목록을 아직 안 받았습니다」라고 말한다', () => {
+  const t = pickTroubles({
+    provider: 'jev', model: 'gemini-3.6-flash',
+    withKey: ['jev'], catalog: [{ provider: 'gemini', modelId: 'gemini-3.6-flash' }],
+  })
+  assert.equal(t.length, 1, '고를 것이 없는데 여러 가지를 말한다')
+  assert.equal(t[0].kind, 'catalog_empty')
+  assert.equal(/다른 모델을 고르세요/.test(t[0].how), false, '고를 것이 없는데 고르라고 한다')
+  assert.match(t[0].how, /목록 받기/, '받는 길을 안 알려 준다')
+})
+
+test('★ 관문이면 이름 꼴을 함께 말한다 — 짐작이 아니라 사실이다', () => {
+  const empty = pickTroubles({
+    provider: 'jev', model: 'gemini-3.6-flash', withKey: ['jev'], catalog: [],
+    slashModelIds: true,
+  })
+  assert.match(empty[0].how, /벤더\/모델/, '관문 이름 꼴을 안 말한다')
+
+  // 목록은 있는데 이름이 안 맞을 때도 그 사실이 이유다
+  const wrong = pickTroubles({
+    provider: 'jev', model: 'gemini-3.6-flash', withKey: ['jev'],
+    catalog: [{ provider: 'jev', modelId: 'google/gemini-2.5-flash' }],
+    slashModelIds: true,
+  })
+  assert.equal(wrong[0].kind, 'model_unknown')
+  assert.match(wrong[0].how, /google\/gemini-2\.5-flash/, '예시를 안 준다')
+
+  // 관문이 아니면 그 말을 안 붙인다 — 아무 데나 붙이면 말이 값을 잃는다
+  const plain = pickTroubles({
+    provider: 'gemini', model: 'nope', withKey: ['gemini'],
+    catalog: [{ provider: 'gemini', modelId: 'gemini-2.5-flash' }],
+  })
+  assert.equal(/벤더\/모델/.test(plain[0].how), false, '관문이 아닌데 관문 말을 한다')
+})
+
+test('★ 목록이 0개인 것과 이름이 안 맞는 것을 갈라 말한다 — 조치가 다르다', () => {
+  const empty = pickTroubles({ provider: 'jev', model: 'x', withKey: ['jev'], catalog: [] })
+  const wrong = pickTroubles({
+    provider: 'jev', model: 'x', withKey: ['jev'],
+    catalog: [{ provider: 'jev', modelId: 'google/gemini-2.5-flash' }],
+  })
+  assert.notEqual(empty[0].kind, wrong[0].kind)
+})
+
+test('★ 화면이 고칠 수 있는 길을 함께 준다 — 말만 하고 끝내지 않는다', () => {
+  const field = readFileSync(join(SETTINGS_DIR, 'ModelPickField.tsx'), 'utf8')
+  assert.ok(field.includes('refreshJudgeModels('), '목록 받는 창구를 안 부른다')
+  assert.ok(field.includes('MODEL_LIST_FETCH'), '단추 글자를 화면에서 짓는다')
+  assert.ok(field.includes('MODEL_LIST_FETCHING'), '기다리는 동안 무엇을 하는지 안 말한다 (B-7)')
+  // 받은 뒤 그 자리에서 다시 읽는다 — 창을 닫았다 열게 하지 않는다
+  assert.match(field, /if \(r\.ok\) \{ setWithKey\(null\); await load\(\) \}/, '받고도 화면이 안 바뀐다')
+  // 고칠 것이 있을 때만 단추가 뜬다
+  assert.match(field, /troubles\.some\(\(t\) => t\.kind === 'catalog_empty' \|\| t\.kind === 'model_unknown'\)/,
+    '늘 떠 있는 단추가 된다')
 })
 
 test('★ 제대로 고른 자리는 아무 말도 안 한다 — 늘 뜨는 경고는 안 읽힌다', () => {

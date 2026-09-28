@@ -14,13 +14,15 @@
 // 새로고침은 안 넘긴다 — 목록은 관리자 연동 카드가 채우고 이 화면은 읽기만 한다.
 
 import { useState, useEffect, useCallback, useTransition } from 'react'
-import { Cpu } from 'lucide-react'
+import { Cpu, DownloadCloud } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
 import ModelPickerModal from '@/components/ui/ModelPickerModal'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import type { AiChatProviderId } from '@/types/database'
 import { JUDGE_PROVIDERS } from '@/lib/trading/settings/registry'
 import {
-  tabsFor, pickTroubles, MODEL_PICK, MODEL_NOT_PICKED,
+  tabsFor, pickTroubles, GATEWAY_PROVIDERS,
+  MODEL_PICK, MODEL_NOT_PICKED, MODEL_LIST_FETCH, MODEL_LIST_FETCHING,
 } from '@/lib/trading/settings/model-pick'
 /**
  * **형만 들여온다.** 이 모듈을 값으로 들여오면 그 안의 `import('./key-store.ts')` 가
@@ -29,7 +31,7 @@ import {
  */
 import type { KeyChoice } from '@/lib/ai/provider-key-source'
 import { ACTION } from '@/lib/terms'
-import { listJudgeModels, savePickedModel } from './actions'
+import { listJudgeModels, savePickedModel, refreshJudgeModels } from './actions'
 import styles from './ModelPickField.module.css'
 
 /**
@@ -67,6 +69,8 @@ export default function ModelPickField({
   const [withKey, setWithKey] = useState<string[] | null>(null)
   const [keyState, setKeyState] = useState<Record<string, KeyChoice['reason']>>({})
   const [envBlockedText, setEnvBlockedText] = useState<string | undefined>(undefined)
+  /** 목록 받기를 눌렀나. 몇 초 걸리는 일이라 무엇을 하는 중인지 말한다 (정책 B-7) */
+  const [fetching, setFetching] = useState(false)
   const [catalog, setCatalog] = useState<{ provider: string; modelId: string }[]>([])
   const [message, setMessage] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -105,7 +109,30 @@ export default function ModelPickField({
     providerName: (id) => PROVIDER_LABELS[id as AiChatProviderId] ?? id,
     // 「이 판에서는 운영 키를 안 쓴다」는 문장은 키를 고르는 자리 한 곳에만 있다
     envBlockedText,
+    // 관문은 모델 이름이 `벤더/모델` 꼴이다. 지금 값이 그 꼴이 아니면 그것이 이유다
+    slashModelIds: GATEWAY_PROVIDERS.includes(provider),
   })
+
+  /**
+   * 목록을 그 자리에서 받아 온다.
+   *
+   * **창을 열어 놓고 고르라고만 하면 고칠 수가 없다** — 목록이 0개인 공급자는
+   * 창을 열어도 빈 목록이다 (실측 2026-09-28 jev 모델 0개).
+   */
+  function fetchList() {
+    setMessage(null)
+    setFetching(true)
+    start(async () => {
+      try {
+        const r = await refreshJudgeModels(provider)
+        setMessage(r.userMessage)
+        // 받았으면 그 자리에서 다시 읽는다 — 창을 닫았다 열게 하지 않는다
+        if (r.ok) { setWithKey(null); await load() }
+      } finally {
+        setFetching(false)
+      }
+    })
+  }
 
   function handleSelect(picked: AiChatProviderId, model: string) {
     start(async () => {
@@ -140,6 +167,16 @@ export default function ModelPickField({
           {`${t.why} · ${t.how}`}
         </span>
       ))}
+
+      {/*
+        **고칠 수 있는 자리를 같이 둔다.** 목록이 비었거나 이름이 안 맞는 것은
+        둘 다 목록을 받아 오면 풀린다 — 말만 하고 길을 안 주면 읽는 사람이 막힌다
+      */}
+      {troubles.some((t) => t.kind === 'catalog_empty' || t.kind === 'model_unknown') && (
+        <NbButton type="button" variant="secondary" disabled={disabled || pending} onClick={fetchList}>
+          <DownloadCloud size={14} /> {fetching ? MODEL_LIST_FETCHING : MODEL_LIST_FETCH}
+        </NbButton>
+      )}
 
       {open && !noKey && (
         <ModelPickerModal

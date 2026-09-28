@@ -16,6 +16,14 @@ export const NO_KEY_WHY = '아직 쓸 수 있는 AI 공급자가 없습니다'
 export const NO_KEY_HOW = '시스템 설정의 AI 공급자에서 키를 먼저 등록해 주세요'
 
 export const MODEL_PICK = '모델 고르기'
+export const MODEL_LIST_FETCH = '모델 목록 받기'
+export const MODEL_LIST_FETCHING = '목록을 받는 중…'
+
+/**
+ * 모델을 만들지 않고 **여러 벤더 앞에 서는 관문**. 이름이 `벤더/모델` 꼴이라
+ * 다른 공급자의 이름을 그대로 넣으면 관문이 모르는 이름이 된다 (실측 2026-09-28 jev 403)
+ */
+export const GATEWAY_PROVIDERS: readonly string[] = ['jev']
 export const MODEL_NOT_PICKED = '아직 안 골랐습니다'
 
 /* ── 공급자와 모델은 한 벌이다 ─────────────────────────── */
@@ -74,6 +82,14 @@ export type ModelPickTroubleKind =
   | 'model_elsewhere'
   /** 고른 공급자의 목록에 그 이름이 없다 */
   | 'model_unknown'
+  /**
+   * 그 공급자의 모델을 **한 번도 받아 온 적이 없다.**
+   *
+   * 실측 2026-09-28: `ai_model_catalog` 의 jev 모델이 0개인데 화면은
+   * 「공급자를 바꾸거나 다른 모델을 고르세요」라고 말했다 — 고를 것이 하나도 없는데.
+   * 고칠 수 없는 것을 고치라고 말하는 화면은 없느니만 못하다.
+   */
+  | 'catalog_empty'
 
 export interface ModelPickTrouble {
   kind: ModelPickTroubleKind
@@ -102,6 +118,11 @@ export interface ModelPickState {
   keyState?: Readonly<Record<string, 'pool' | 'meta' | 'no_key' | 'env_blocked'>>
   /** 「이 판에서는 운영 키를 안 씁니다」를 뭐라고 말하나. 문장은 한 곳에만 둔다 */
   envBlockedText?: string
+  /**
+   * 이 공급자의 모델 이름이 `벤더/모델` 꼴인가 (관문이 그렇다).
+   * 지금 값이 그 꼴이 아니면 그것이 「없는 이름」의 이유다 — 짐작이 아니라 사실을 말한다
+   */
+  slashModelIds?: boolean
 }
 
 export function pickTroubles(s: ModelPickState): ModelPickTrouble[] {
@@ -134,8 +155,24 @@ export function pickTroubles(s: ModelPickState): ModelPickTrouble[] {
       })
   }
 
-  // 아직 안 골랐거나 목록을 못 읽었으면 **지어내지 않는다** — 모르는 것은 모르는 것이다
-  if (s.model === '' || s.catalog.length === 0) return out
+  /**
+   * **목록이 비었으면 「다른 것을 고르라」고 하지 않는다.**
+   * 고를 것이 없는데 고르라고 하는 것은 할 일을 알려 주는 것이 아니라 떠넘기는 것이다.
+   */
+  const mine = s.catalog.filter((c) => c.provider === s.provider)
+  if (mine.length === 0) {
+    out.push({
+      kind: 'catalog_empty',
+      why: `${name(s.provider)}의 모델 목록을 아직 안 받았습니다`,
+      how: s.slashModelIds
+        ? '목록 받기를 누르면 관문이 아는 모델을 받아 옵니다 (이름이 벤더/모델 꼴입니다)'
+        : '목록 받기를 누르면 고를 수 있습니다',
+    })
+    return out
+  }
+
+  // 아직 안 골랐으면 **지어내지 않는다** — 모르는 것은 모르는 것이다
+  if (s.model === '') return out
 
   const here = s.catalog.some((c) => c.provider === s.provider && c.modelId === s.model)
   if (here) return out
@@ -152,7 +189,10 @@ export function pickTroubles(s: ModelPickState): ModelPickTrouble[] {
     out.push({
       kind: 'model_unknown',
       why: `${name(s.provider)}의 모델 목록에 없는 이름입니다 (${s.model})`,
-      how: '모델 고르기에서 다시 골라 주세요',
+      how: s.slashModelIds && !s.model.includes('/')
+        // 관문 이름은 `벤더/모델` 꼴이다. 그 꼴이 아니면 그것이 바로 이유다
+        ? `${name(s.provider)}는 관문이라 이름이 벤더/모델 꼴입니다 (예: google/gemini-2.5-flash). 모델 고르기에서 다시 골라 주세요`
+        : '모델 고르기에서 다시 골라 주세요',
     })
   }
   return out
