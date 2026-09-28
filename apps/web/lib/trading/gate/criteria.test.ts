@@ -201,3 +201,70 @@ test('★ 검증 화면이 그 할 일을 실제로 그린다', () => {
   assert.match(panel, /c\.how && /, '할 일을 안 그린다')
   assert.match(panel, /styles\.how/, '곁말로 안 구분한다')
 })
+
+// ── 안내가 이미 한 일을 시키지 않는다 (I02) ─────────────────────────
+
+const NOTHING_YET: GateInput = {
+  thresholds: {
+    minValidateTrades: 500, minLockboxTrades: 100, minProfitFactor: 1.25,
+    maxDrawdownLimitMultiple: 8, dailyLossLimitKrw: 500_000, minJudgeImprovementR: 0.05,
+  },
+  validateTradeCount: 0, lockboxTradeCount: 0,
+  validateExpectancy: null, lockboxExpectancy: null, harshExpectancyR: null,
+  profitFactor: null, maxDrawdownR: null, riskPerTradeKrw: null,
+  calibration: null, judgeComparison: null, riskArithmeticOk: null,
+}
+const lineOf = (input: GateInput, id: string) => {
+  const c = evaluateGate(input).criteria.find((x) => x.id === id)
+  assert.ok(c, `${id} 줄이 사라졌다`)
+  return c
+}
+
+test('★ 판단기 비교가 이미 골라 둔 모델을 또 고르라고 하지 않는다', () => {
+  const c = lineOf(NOTHING_YET, 'judge_comparison')
+  /*
+    실측 2026-09-28: 모델은 골라져 있었고 두 판단기가 하루 44건씩 나란히 쌓이는데
+    화면은 「설정에서 AI 판단 모델을 고르면」이라고 적고 있었다.
+  */
+  for (const text of [c.detail, c.how ?? '']) {
+    assert.doesNotMatch(text, /모델을 고르면|모델을 골라/, `이미 한 일을 시킨다: ${text}`)
+  }
+  assert.match(c.detail, /쌓이고 있지만|짝지어/, '두 판단기가 이미 기록되고 있다는 사실을 안 말한다')
+})
+
+test('★ 리스크 산술이 이미 정해 둔 값을 또 정하라고 하지 않는다', () => {
+  const c = lineOf(NOTHING_YET, 'risk_arithmetic')
+  // 한도와 손절 폭은 설정에 기본값이 있어 비어 있을 수 없다 — 못 읽은 것은 상품 규격뿐이다
+  assert.doesNotMatch(c.detail, /한도가 정해지지|감당할 손실을 정하면/, `정해 둔 것을 또 정하라 한다: ${c.detail}`)
+  assert.match(c.detail, /상품 규격/, '실제로 못 읽은 것을 안 짚는다')
+})
+
+test('★ 거래가 0건인데 「잃은 거래가 없어」라고 하지 않는다', () => {
+  const none = lineOf(NOTHING_YET, 'profit_factor')
+  assert.doesNotMatch(none.detail, /잃은 거래가 없어/,
+    `거래가 한 건도 없는데 이긴 거래는 있었던 것처럼 말한다: ${none.detail}`)
+  // 거래가 있는데 진 것만 없는 경우는 그대로 그 말이 맞다
+  const won = lineOf({ ...NOTHING_YET, validateTradeCount: 600 }, 'profit_factor')
+  assert.match(won.detail, /잃은 거래가 없어/)
+})
+
+test('★ 못 잰 줄이 얼마나 모자란지 숫자로 말한다', () => {
+  const v = evaluateGate({ ...NOTHING_YET, validateTradeCount: 12 })
+  const insufficient = v.criteria.filter((c) => c.status === 'insufficient')
+  assert.ok(insufficient.length >= 5, '못 잰 줄이 거의 없다 — 시험이 아무것도 안 지킨다')
+  // 거래가 쌓여야 잴 수 있는 줄은 몇 건 중 몇 건인지 말한다
+  const byTrades = insufficient.filter((c) => /검증 거래가/.test(c.how ?? ''))
+  assert.ok(byTrades.length >= 4, '거래가 모자라 못 재는 줄이 그 사실을 숫자로 안 말한다')
+  for (const c of byTrades) {
+    assert.match(c.how ?? '', /12건/, `지금 몇 건인지 안 적는다: ${c.how}`)
+    assert.match(c.how ?? '', /500건/, `몇 건이 필요한지 안 적는다: ${c.how}`)
+    // I02c 의 길 찾기가 이 문장에 기대고 있다 — 화면 이름이 빠지면 링크가 사라진다
+    assert.match(c.how ?? '', /자료 화면/, '갈 곳을 안 짚어 링크가 사라진다')
+  }
+})
+
+test('거래가 쌓이기 전에도 잴 수 있는 줄은 거래 수를 핑계 대지 않는다', () => {
+  const c = lineOf(NOTHING_YET, 'risk_arithmetic')
+  assert.doesNotMatch(c.how ?? '', /검증 거래가 \d+건/,
+    '설정만으로 잴 수 있는 줄인데 거래가 모자라서라고 말한다')
+})

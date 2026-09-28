@@ -56,7 +56,7 @@
 의존: 없음
 
 ### I02 관문 안내가 이미 한 일을 하라고 시키지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: lib/trading/gate/criteria.ts, lib/trading/gate/criteria.test.ts
 감사 기준:

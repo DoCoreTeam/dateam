@@ -48,6 +48,17 @@ export interface CriterionResult {
  */
 const RUN_VALIDATION = '봉이 더 쌓이면 밤마다 도는 검증이 거래를 만듭니다. 자료 화면에서 모인 봉을 볼 수 있습니다'
 
+/**
+ * 「무엇이 얼마나 모자란가」 — **같은 한 줄을 아홉 번 쓰지 않는다**
+ *
+ * 실측 2026-09-28: 못 잰 아홉 줄이 전부 같은 문장을 달고 있었다. 읽는 사람은
+ * 아홉 번째쯤에서 그 줄을 안 읽게 되고, 그러면 안내가 있으나 없으나 같아진다.
+ * 거래 수는 줄마다 같지만 **얼마나 모자란지는 숫자로 말할 수 있다.**
+ */
+function needTrades(have: number, need: number): string {
+  return `검증 거래가 ${have}건입니다. ${need}건이 모이면 이 줄을 잽니다 — ${RUN_VALIDATION}`
+}
+
 export interface GateThresholds {
   minValidateTrades: number
   minLockboxTrades: number
@@ -125,7 +136,8 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ② 기대값 신뢰구간 하한
   if (!input.validateExpectancy) {
-    criteria.push(unknown('expectancy_lower', '기대값 하한', '아직 신뢰구간을 낼 표본이 없습니다'))
+    criteria.push(unknown('expectancy_lower', '기대값 하한', '아직 신뢰구간을 낼 표본이 없습니다',
+      null, null, needTrades(input.validateTradeCount, t.minValidateTrades)))
   } else if (input.validateExpectancy.lower > 0) {
     criteria.push(pass('expectancy_lower', '기대값 하한', input.validateExpectancy.lower, 0,
       `하한 ${input.validateExpectancy.lower.toFixed(3)}R`))
@@ -152,7 +164,8 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ③ 가혹 조건
   if (input.harshExpectancyR === null) {
-    criteria.push(unknown('harsh_slippage', '가혹 슬리피지', '아직 가혹 조건으로 안 돌렸습니다'))
+    criteria.push(unknown('harsh_slippage', '가혹 슬리피지', '아직 가혹 조건으로 안 돌렸습니다',
+      null, null, needTrades(input.validateTradeCount, t.minValidateTrades)))
   } else {
     criteria.push(input.harshExpectancyR > 0
       ? pass('harsh_slippage', '가혹 슬리피지', input.harshExpectancyR, 0,
@@ -163,7 +176,18 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ④ Profit Factor
   if (input.profitFactor === null) {
-    criteria.push(unknown('profit_factor', 'Profit Factor', '잃은 거래가 없어 아직 측정할 수 없습니다'))
+    /*
+      거래가 한 건도 없는 것과 「졌던 거래가 없다」는 다른 사실이다.
+      0 건인데 뒤엣말을 적으면 이긴 거래는 있었던 것처럼 읽힌다.
+    */
+    criteria.push(unknown('profit_factor', 'Profit Factor',
+      input.validateTradeCount === 0
+        ? '아직 잴 거래가 없습니다'
+        : '잃은 거래가 없어 아직 측정할 수 없습니다',
+      null, null,
+      input.validateTradeCount === 0
+        ? needTrades(input.validateTradeCount, t.minValidateTrades)
+        : RUN_VALIDATION))
   } else {
     criteria.push(input.profitFactor >= t.minProfitFactor
       ? pass('profit_factor', 'Profit Factor', input.profitFactor, t.minProfitFactor,
@@ -174,7 +198,8 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ⑤ MDD
   if (input.maxDrawdownR === null || input.riskPerTradeKrw === null) {
-    criteria.push(unknown('max_drawdown', '최대 낙폭', '아직 낙폭을 낼 거래가 없습니다'))
+    criteria.push(unknown('max_drawdown', '최대 낙폭', '아직 낙폭을 낼 거래가 없습니다',
+      null, null, needTrades(input.validateTradeCount, t.minValidateTrades)))
   } else {
     const drawdownKrw = input.maxDrawdownR * input.riskPerTradeKrw
     const limit = t.dailyLossLimitKrw * t.maxDrawdownLimitMultiple
@@ -188,7 +213,8 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ⑥ 보정
   if (!input.calibration || input.calibration.insufficient) {
-    criteria.push(unknown('calibration', '보정', '보정을 판정할 표본이 모자랍니다'))
+    criteria.push(unknown('calibration', '보정', '보정을 판정할 표본이 모자랍니다',
+      null, null, needTrades(input.validateTradeCount, t.minValidateTrades)))
   } else {
     const ok = input.calibration.betterThanBaseRate && input.calibration.monotonic
     criteria.push(ok
@@ -201,8 +227,17 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ⑦ 판단기 비교
   if (!input.judgeComparison) {
-    criteria.push(unknown('judge_comparison', '판단기 비교', '아직 비교할 다른 판단기 결과가 없습니다',
-      null, null, '설정에서 AI 판단 모델을 고르면 규칙 판단과 나란히 돌아 비교됩니다'))
+    /*
+      실측 2026-09-28: 여기가 「설정에서 AI 판단 모델을 고르면」이라고 적고 있었는데
+      모델은 이미 골라져 있었고 두 판단기가 하루에 44건씩 **나란히 기록되고 있었다.**
+      이미 한 일을 시키면 사람은 그것을 또 하고, 그래도 안 바뀌니 화면을 안 믿게 된다.
+
+      비교에 정말 모자란 것은 판단기가 아니라 **짝지을 거래**다(§13.4: 같은 날짜끼리
+      짝지은 차이의 신뢰구간). 그래서 모자란 것을 그대로 적는다.
+    */
+    criteria.push(unknown('judge_comparison', '판단기 비교',
+      '두 판단기의 점수는 쌓이고 있지만 아직 짝지어 비교할 거래가 없습니다',
+      null, null, needTrades(input.validateTradeCount, t.minValidateTrades)))
   } else {
     criteria.push(input.judgeComparison.better
       ? pass('judge_comparison', '판단기 비교', null, t.minJudgeImprovementR, input.judgeComparison.reason)
@@ -212,8 +247,14 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ⑧ 리스크 산술
   if (input.riskArithmeticOk === null) {
-    criteria.push(unknown('risk_arithmetic', '리스크 산술', '아직 상품·손절·한도가 정해지지 않았습니다',
-      null, null, '설정의 시작하기에서 하루 목표와 감당할 손실을 정하면 잽니다'))
+    /*
+      이 줄이 못 잼으로 남는 경우는 하나다 — **상품 규격을 못 읽은 것**.
+      손절 폭과 한도는 설정에 기본값이 있어 비어 있을 수 없다. 그런데도 「하루 목표와
+      감당할 손실을 정하면」이라고 적으면, 이미 정해 둔 사람에게 또 정하라고 말하게 된다.
+    */
+    criteria.push(unknown('risk_arithmetic', '리스크 산술',
+      '상품 규격을 못 읽어 한 거래에 얼마가 걸리는지 아직 못 구했습니다',
+      null, null, '설정의 상품에서 어떤 상품인지 고르면 잽니다. 거래가 쌓이기 전에도 잴 수 있는 줄입니다'))
   } else {
     criteria.push(input.riskArithmeticOk
       ? pass('risk_arithmetic', '리스크 산술', null, null, '§9 를 통과합니다')
