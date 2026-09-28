@@ -14,6 +14,7 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
 import { formatKstTimeExact } from '@/lib/datetime/kst'
 import { isDayComplete, missingCount, type DayCoverage } from '@/lib/trading/overview-shape'
+import { emptyDayKind, EMPTY_DAY_LABEL, EMPTY_DAY_HINT } from '@/lib/trading/bars/coverage-labels'
 
 const COLUMNS: ColumnDef<DayCoverage>[] = [
   { key: 'tradeDate', header: '거래일', primary: true, cell: (d) => d.tradeDate },
@@ -36,7 +37,18 @@ const COLUMNS: ColumnDef<DayCoverage>[] = [
   {
     key: 'missing', header: '빠진 봉', align: 'right',
     cell: (d) => {
-      if (d.unknown) return <span style={{ color: 'var(--text-muted)' }}>세션 정보 없음</span>
+      /*
+        빈 줄이라고 다 같은 빈 줄이 아니다. 토·일은 **고칠 것이 없는 날**이고
+        평일은 아직 안 모은 날이다. 한 말로 적으면 아홉 줄이 다 고칠 것으로 보인다
+      */
+      if (d.unknown) {
+        const kind = emptyDayKind(d.tradeDate)
+        return (
+          <span style={{ color: 'var(--text-muted)' }} title={EMPTY_DAY_HINT[kind]}>
+            {EMPTY_DAY_LABEL[kind]}
+          </span>
+        )
+      }
       if (isDayComplete(d)) return <span style={{ color: 'var(--text-muted)' }}>없음</span>
       // 빠진 것만 붉게. 0 을 붉게 칠하면 붉은색이 아무 뜻도 없어진다
       return <span style={{ color: 'var(--nb-danger)' }}>{missingCount(d).toLocaleString('ko-KR')}</span>
