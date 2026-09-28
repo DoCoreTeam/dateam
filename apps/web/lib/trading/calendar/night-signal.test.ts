@@ -65,7 +65,16 @@ test('★ 끄는 것은 언제나 된다 — 야간에 문제가 생긴 날 끄�
 // ── 거래일 귀속 (§6.3) ───────────────────────────────────
 
 test('★ 야간 거래일 규칙이 설정에서 온다 — 코드에 박으면 바뀐 날 집계가 두 갈래가 된다', () => {
-  assert.equal(nightTradeDateOf('2026-09-25', 'next'), '2026-09-26')
+  // 평일 밤은 다음 날 몫이다
+  assert.equal(nightTradeDateOf('2026-09-28', 'next'), '2026-09-29')
+  assert.equal(nightTradeDateOf('2026-09-28', 'same'), '2026-09-28')
+  /*
+    금요일 밤은 **토요일이 아니라 다음 거래일** 몫이다. 예전에는 달력 하루를 더해
+    토요일로 잡았는데, 그러면 손익이 장이 없는 날에 잡히고 일일 한도가 아무도 안 쓰는
+    날에 소진된다(§6.4). 이 시험은 규칙이 설정에서 온다는 것을 보는 자리이지
+    그 옛 셈법을 지키는 자리가 아니다.
+  */
+  assert.equal(nightTradeDateOf('2026-09-25', 'next'), '2026-09-28')
   assert.equal(nightTradeDateOf('2026-09-25', 'same'), '2026-09-25')
   const row = TRADING_SETTINGS.find((s) => s.key === 'night_trade_date_rule')
   assert.ok(row, '야간 거래일 규칙이 설정에 없다')

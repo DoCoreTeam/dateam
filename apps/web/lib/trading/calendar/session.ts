@@ -162,12 +162,39 @@ export const NIGHT_TIMES = { start: '18:00', end: '06:00' } as const
  */
 export type NightTradeDateRule = 'next' | 'same'
 
-/** 저녁 `startDate` 에 시작한 야간장이 속하는 거래일 */
-export function nightTradeDate(startDate: string, rule: NightTradeDateRule): string {
-  if (rule === 'same') return startDate
-  const at = new Date(`${startDate}T12:00:00+09:00`)
+/** 서울 기준 하루 뒤 날짜 */
+function nextDay(dateKey: string): string {
+  const at = new Date(`${dateKey}T12:00:00+09:00`)
   at.setUTCDate(at.getUTCDate() + 1)
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(at)
+}
+
+/**
+ * 저녁 `startDate` 에 시작한 야간장이 속하는 거래일.
+ *
+ * **달력 하루가 아니라 거래일로 센다.** 금요일 밤 장은 토요일 몫이 아니라 월요일 몫이다 —
+ * 토요일에는 장이 안 서므로 그 날짜로 귀속시키면 손익이 장이 없는 날에 잡히고,
+ * 일일 한도가 아무도 안 쓰는 날에 소진된다(§6.4).
+ *
+ * 공휴일은 여전히 못 가른다. 그것은 달력이 채워지면 드러나는 사실이고,
+ * 주말은 달력 없이 아는 것이라 이것만이라도 맞춘다.
+ */
+export function nightTradeDate(startDate: string, rule: NightTradeDateRule): string {
+  if (rule === 'same') return startDate
+  let d = nextDay(startDate)
+  while (isWeekendInSeoul(d)) d = nextDay(d)
+  return d
+}
+
+/**
+ * 이 저녁에 야간장이 서나 — **토·일 저녁에는 안 선다.**
+ *
+ * 실측 2026-09-29: `trading_session_calendar` 에 `trade_date 2026-09-27 night` 줄이 있었다.
+ * 그것은 **토요일 저녁**(9/26 18:00)에 만든 줄이고, 그런 장은 없다.
+ * `ensureSessionWindow` 는 주말을 보는데 `ensureNightWindow` 만 안 봐서 생긴 줄이다.
+ */
+export function hasNightSession(startDate: string): boolean {
+  return !isWeekendInSeoul(startDate)
 }
 
 /**
@@ -176,7 +203,12 @@ export function nightTradeDate(startDate: string, rule: NightTradeDateRule): str
  * @param startDate 저녁이 시작한 날 (`YYYY-MM-DD`, 서울)
  */
 export function buildNightSession(startDate: string, rule: NightTradeDateRule): SessionWindow {
-  const endDate = nightTradeDate(startDate, 'next')
+  /*
+    **끝나는 시각은 달력 하루 뒤다.** 귀속 거래일과 다르다 — 금요일 밤 장은
+    토요일 06:00 에 끝나지만 그 손익은 월요일 몫이다. 둘을 같은 함수로 세면
+    금요일 밤 장이 월요일 새벽까지 이어지는 것으로 잡힌다.
+  */
+  const endDate = nextDay(startDate)
   return {
     tradeDate: nightTradeDate(startDate, rule),
     session: 'night',

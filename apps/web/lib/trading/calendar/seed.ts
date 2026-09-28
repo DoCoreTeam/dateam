@@ -18,7 +18,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import {
-  buildRegularSession, buildNightSession, isWeekendInSeoul,
+  buildRegularSession, buildNightSession, isWeekendInSeoul, hasNightSession,
   type NightTradeDateRule, type SessionWindow,
 } from './session.ts'
 import { decideEnsureSession } from './seed-window.ts'
@@ -108,6 +108,13 @@ export async function ensureNightWindow(
   startDate: string,
   rule: NightTradeDateRule,
 ): Promise<{ window: SessionWindow | null; created: boolean; reason: string }> {
+  /*
+    **정규장과 같은 규율을 지난다.** `ensureSessionWindow` 는 주말을 보는데 여기만 안 봐서,
+    토요일 저녁마다 있지도 않은 야간장 줄이 생겼다 (실측 2026-09-29: trade_date 2026-09-27 night).
+  */
+  if (!hasNightSession(startDate)) {
+    return { window: null, created: false, reason: 'no_night:weekend_evening' }
+  }
   const built = buildNightSession(startDate, rule)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

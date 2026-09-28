@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   buildNightSession, nightTradeDate, isNightHour, nightStartDateOf,
-  isContinuousTrading, NIGHT_TIMES,
+  isContinuousTrading, NIGHT_TIMES, hasNightSession,
 } from './session.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -101,4 +101,47 @@ test('★ 야간도 새 창구를 안 연다 — 같은 크론 라우트를 쓴�
   const nightRoutes = routes.filter((f) => /night/i.test(f))
   assert.deepEqual(nightRoutes, [], '야간 전용 창구가 생겼다. 같은 크론이 처리한다')
   assert.ok(routes.some((f) => f.includes('tick')), '수집 창구가 없다')
+})
+
+// ── 장이 안 서는 저녁에는 야간 줄을 안 만든다 (P0086 I01) ─────────────
+
+test('★ 토·일 저녁에는 야간장이 안 선다', () => {
+  /*
+    실측 2026-09-29: `trading_session_calendar` 에 trade_date 2026-09-27 night 줄이 있었다.
+    그것은 토요일 저녁(9/26 18:00)에 만든 줄이고 그런 장은 없다.
+    `ensureSessionWindow` 는 주말을 보는데 `ensureNightWindow` 만 안 봐서 생긴 줄이다.
+  */
+  assert.equal(hasNightSession('2026-09-26'), false, '토요일 저녁')
+  assert.equal(hasNightSession('2026-09-27'), false, '일요일 저녁')
+  assert.equal(hasNightSession('2026-09-25'), true, '금요일 저녁 — 이건 선다')
+  assert.equal(hasNightSession('2026-09-28'), true, '월요일 저녁')
+})
+
+test('★ 금요일 밤 장은 토요일이 아니라 다음 거래일 몫이다', () => {
+  /*
+    달력 하루를 더하면 금요일 밤이 토요일 몫이 된다. 토요일에는 장이 안 서므로
+    손익이 장이 없는 날에 잡히고 일일 한도가 아무도 안 쓰는 날에 소진된다(§6.4).
+  */
+  assert.equal(nightTradeDate('2026-09-25', 'next'), '2026-09-28', '금요일 밤 → 월요일')
+  assert.equal(nightTradeDate('2026-09-28', 'next'), '2026-09-29', '월요일 밤 → 화요일')
+  // 'same' 규칙은 시작한 날 그대로다 — 거래일로 안 민다
+  assert.equal(nightTradeDate('2026-09-25', 'same'), '2026-09-25')
+})
+
+test('★ 끝나는 시각은 달력 하루 뒤다 — 귀속 거래일과 다르다', () => {
+  const fri = buildNightSession('2026-09-25', 'next')
+  assert.equal(fri.tradeDate, '2026-09-28', '귀속은 월요일')
+  // 장은 토요일 새벽에 끝난다. 여기까지 거래일로 밀면 주말 내내 열린 것으로 잡힌다
+  const endKst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(fri.continuousEnd)
+  assert.equal(endKst, '2026-09-26', '끝은 토요일 새벽')
+  assert.ok(fri.continuousEnd.getTime() - fri.continuousStart.getTime() <= 13 * 60 * 60_000,
+    '한 밤보다 긴 야간장이 만들어진다')
+})
+
+test('★ 씨 뿌리는 자리가 그 검사를 실제로 지난다', () => {
+  const src = readFileSync(join(HERE, 'seed.ts'), 'utf8')
+  assert.ok(src.includes('hasNightSession('),
+    'ensureNightWindow 가 주말을 안 본다 — 토요일마다 없는 장이 생긴다')
+  assert.ok(src.includes('no_night:weekend_evening'),
+    '안 만들었다는 사실을 실행 사유에 안 남긴다')
 })
