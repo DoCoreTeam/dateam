@@ -48,6 +48,19 @@ test('봉과 신호가 한 벌로 나온다', () => {
   )
 })
 
+/**
+ * **화면이 「지금 무엇을 기다리는지」를 말하려면 이 값이 있어야 한다**
+ * (사용자 지적 2026-09-28 「실시간이어야 하는데 30초는 왜? 이게 뭘 하고 있는건지 모르겠네」).
+ */
+test('★ 마지막 봉 시각을 함께 내려 준다', () => {
+  const s = buildSeries({ bars: BARS, signals: [], lastRunReason: null })
+  assert.equal(s.lastBarAt, BARS[BARS.length - 1].startAt, '가장 늦은 봉이 아니다')
+  // 거꾸로 와도 같은 답이어야 한다
+  assert.equal(buildSeries({ bars: [...BARS].reverse(), signals: [], lastRunReason: null }).lastBarAt, s.lastBarAt)
+  // 봉이 없으면 없다고 한다 — 지어내지 않는다
+  assert.equal(buildSeries({ bars: [], signals: [], lastRunReason: null }).lastBarAt, null)
+})
+
 test('봉은 오래된 것부터 선다 — 표에서 거꾸로 와도', () => {
   const s = buildSeries({ bars: [...BARS].reverse(), signals: [], lastRunReason: null })
   assert.deepEqual(s.bars.map((b) => b.at), BARS.map((b) => b.startAt))

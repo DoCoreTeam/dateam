@@ -123,23 +123,35 @@ export interface JudgmentStreak {
 export function failingStreak(
   rows: readonly { judge: string; status: string; abstainReason: string | null }[],
 ): JudgmentStreak | null {
-  // 성공한 판단기(규칙 등)는 건너뛴다 — 같은 봉에 둘이 나란히 남으므로
-  const bad = rows.filter((r) => r.status === 'failed' || r.status === 'abstain')
-  if (bad.length === 0) return null
+  const isBad = (r: { status: string }): boolean => r.status === 'failed' || r.status === 'abstain'
 
-  const first = bad[0]
-  const issue = judgmentIssue(first.abstainReason)
-  if (!issue) return null
+  /**
+   * **지금도 못 하고 있을 때만 말한다.**
+   *
+   * 실측 2026-09-28: 가장 최근 실패만 찾아 세었더니, 그 뒤에 성공한 판단이 쌓인 뒤에도
+   * 「2번 이어서 못 했습니다」가 계속 떠 있었다. 이미 풀린 일을 경고로 두면
+   * 사람은 그 자리를 안 믿게 되고, 진짜로 막힌 날의 같은 줄도 같이 흘려보낸다.
+   *
+   * 그래서 **판단기별로 가장 최근 줄**을 보고, 그것이 실패일 때만 센다.
+   */
+  const judges = [...new Set(rows.map((r) => r.judge))]
+  for (const judge of judges) {
+    const mine = rows.filter((r) => r.judge === judge)
+    if (mine.length === 0 || !isBad(mine[0])) continue
+    const issue = judgmentIssue(mine[0].abstainReason)
+    if (!issue) continue
 
-  let count = 0
-  for (const r of bad) {
-    if (r.judge !== first.judge) continue
-    const it = judgmentIssue(r.abstainReason)
-    // **같은 종류의 실패만** 센다. 다른 이유가 섞이면 「N번 이어서」가 거짓말이 된다
-    if (!it || it.text !== issue.text) break
-    count += 1
+    let count = 0
+    for (const r of mine) {
+      if (!isBad(r)) break
+      const it = judgmentIssue(r.abstainReason)
+      // **같은 종류의 실패만** 센다. 다른 이유가 섞이면 「N번 이어서」가 거짓말이 된다
+      if (!it || it.text !== issue.text) break
+      count += 1
+    }
+    if (count >= 2) return { count, judge, issue }
   }
-  return count >= 2 ? { count, judge: first.judge, issue } : null
+  return null
 }
 
 export function streakLine(streak: JudgmentStreak): string {

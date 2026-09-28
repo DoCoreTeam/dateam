@@ -62,6 +62,14 @@ export interface ChartSeries {
   domain: [number, number] | null
   /** 그릴 것이 없으면 왜 없나. 있으면 null */
   blocked: RunReasonLine | null
+  /**
+   * 마지막 봉이 시작한 시각 (ISO). 없으면 null.
+   *
+   * **화면이 「지금 무엇을 기다리는지」를 말하려면 이 값이 있어야 한다.**
+   * 1분 봉이라 데이터는 1분에 한 번 바뀐다 — 30초마다 다시 읽는다는 말만으로는
+   * 사람이 「그래서 지금 뭘 하고 있나」를 못 읽는다 (사용자 지적 2026-09-28).
+   */
+  lastBarAt: string | null
 }
 
 /**
@@ -116,7 +124,7 @@ export function buildSeries(input: SeriesInput): ChartSeries {
   bars.sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
 
   if (bars.length === 0) {
-    return { bars: [], marks: [], domain: null, blocked: blockedLine(input.lastRunReason) }
+    return { bars: [], marks: [], domain: null, lastBarAt: null, blocked: blockedLine(input.lastRunReason) }
   }
 
   const from = Date.parse(bars[0].at)
@@ -143,7 +151,13 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     ...bars.flatMap((b) => [b.high, b.low]),
     ...marks.flatMap((m) => [m.price, m.stopPrice, m.targetPrice].filter((v) => Number.isFinite(v))),
   ]
-  return { bars, marks, domain: axisDomain(Math.min(...values), Math.max(...values)), blocked: null }
+  return {
+    bars,
+    marks,
+    domain: axisDomain(Math.min(...values), Math.max(...values)),
+    lastBarAt: bars[bars.length - 1].at,
+    blocked: null,
+  }
 }
 
 /**

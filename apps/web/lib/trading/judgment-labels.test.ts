@@ -89,6 +89,32 @@ test('★ 한 번뿐이면 안 뜬다 — 늘 뜨는 경고는 안 읽힌다', (
   assert.equal(failingStreak([]), null)
 })
 
+/**
+ * **이미 풀린 일을 계속 경고하지 않는다** (실측 2026-09-28: 시간 초과 둘 뒤에
+ * 성공이 쌓였는데도 「2번 이어서 못 했습니다」가 화면에 남아 있었다).
+ * 풀린 경고가 남아 있으면 사람은 그 자리를 안 믿게 된다.
+ */
+test('★ 그 뒤에 성공했으면 안 뜬다 — 지금도 못 하고 있을 때만 말한다', () => {
+  // 목록은 최신이 위다
+  const rows = [
+    { judge: 'jev', status: 'completed', abstainReason: null },
+    row(), row(), row(),
+  ]
+  assert.equal(failingStreak(rows), null, '이미 풀렸는데 경고가 남아 있다')
+})
+
+test('★ 판단기마다 따로 본다 — 한쪽이 멀쩡해도 다른 쪽이 막혔으면 말한다', () => {
+  const rows = [
+    { judge: 'rule', status: 'completed', abstainReason: null },
+    row(), 
+    { judge: 'rule', status: 'completed', abstainReason: null },
+    row(),
+  ]
+  const streak = failingStreak(rows)
+  assert.equal(streak?.judge, 'jev')
+  assert.equal(streak?.count, 2)
+})
+
 test('★ 성공만 있으면 요약 줄이 없다', () => {
   const rows = [
     { judge: 'rule', status: 'completed', abstainReason: null },

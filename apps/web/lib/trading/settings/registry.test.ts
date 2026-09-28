@@ -393,6 +393,37 @@ test('★ 현황 새로 읽는 간격이 설정이다 — env 가 아니다', ()
   assert.match(page, /<LiveRefresh\s+everySeconds=\{/, '읽은 값을 안 넘긴다')
 })
 
+/**
+ * **「30초마다 다시 읽습니다」는 지금 무엇을 하는지를 말하지 않는다**
+ * (사용자 지적 2026-09-28 「실시간이어야 하는데 30초는 왜? 이게 뭘 하고 있는건지 모르겠네」).
+ *
+ * 가격은 1분 봉이라 데이터가 1분에 한 번만 바뀐다. 그 사실과 다음 읽기까지 남은 초를
+ * 함께 말해야 사람이 「멈춘 것」과 「기다리는 것」을 가를 수 있다.
+ */
+test('★ 맨 위 줄이 마지막 봉 시각과 남은 시간을 말한다', () => {
+  const src = readFileSync(join(TRADING_APP, 'LiveRefresh.tsx'), 'utf8')
+  assert.match(src, /lastBarAt/, '마지막 봉 시각을 안 받는다')
+  assert.match(src, /마지막 봉/, '마지막 봉이 언제 것인지 안 말한다')
+  assert.match(src, /초 뒤 다시 읽습니다/, '남은 시간을 안 말한다')
+  // 봉이 없으면 없다고 한다 — 빈 칸을 지어내지 않는다
+  assert.match(src, /가격 봉이 아직 없습니다/, '봉이 없는 날 빈 자리가 된다')
+
+  const page = readFileSync(join(TRADING_APP, 'page.tsx'), 'utf8')
+  assert.match(page, /lastBarAt=\{overview\.chart\.lastBarAt\}/, '화면이 그 값을 안 넘긴다')
+})
+
+test('★ 1초 시계가 서버를 안 두드린다 — 살아 있는 것을 보여 주려고 서버를 죽이지 않는다', () => {
+  const src = readFileSync(join(TRADING_APP, 'LiveRefresh.tsx'), 'utf8')
+  const at = src.indexOf('tick = setInterval(')
+  assert.ok(at > 0, '1초 시계가 없다')
+  const body = src.slice(at, src.indexOf('}, 1000)', at))
+  assert.equal(/router\.refresh|fetch\(|listJudge|load\(/.test(body), false,
+    '1초마다 서버를 두드린다')
+  assert.match(body, /setLeftSec/, '남은 시간을 안 줄인다')
+  // 탭이 뒤에 있으면 숫자도 안 센다 — 안 보는 화면에서 도는 시계다
+  assert.match(body, /document\.hidden/, '안 보는 화면에서도 시계가 돈다')
+})
+
 test('★ 안 보는 화면을 위해 서버를 두드리지 않는다', () => {
   const src = readFileSync(join(TRADING_APP, 'LiveRefresh.tsx'), 'utf8')
   /**
@@ -417,7 +448,7 @@ test('★ 안 보는 화면을 위해 서버를 두드리지 않는다', () => {
 test('★ 다시 읽는 중임을 말하고 마지막으로 읽은 때를 적는다 (B-7)', () => {
   const src = readFileSync(join(TRADING_APP, 'LiveRefresh.tsx'), 'utf8')
   assert.match(src, /다시 읽는 중/, '기다리는 자리가 무엇을 하는지 안 말한다')
-  assert.match(src, /읽었습니다/, '마지막으로 읽은 때를 안 적는다')
+  assert.match(src, /읽음/, '마지막으로 읽은 때를 안 적는다')
   assert.match(src, /role="status"/, '화면 읽기 도구가 이 줄이 바뀐 것을 모른다')
   // 시각은 화면이 잰다 — 서버가 적어 보내면 그것은 「서버가 그린 때」다
   assert.match(src, /seoulTimeText\(/, '시각을 우리 표기로 안 적는다')

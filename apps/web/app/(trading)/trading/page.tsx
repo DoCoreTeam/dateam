@@ -52,7 +52,7 @@ export default async function TradingPage() {
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
         {/* 화면이 스스로 다시 읽는다. 마지막으로 읽은 때를 이 줄이 말한다 */}
-        <LiveRefresh everySeconds={refreshSeconds} />
+        <LiveRefresh everySeconds={refreshSeconds} lastBarAt={overview.chart.lastBarAt} />
         {/*
           **맨 위가 그림이다.** 사용자 지적 2026-09-28 「차트 보이고 예측한 답은
           어디서 보는 거야? 그게 메인이어야 될 텐데」 — 숫자 표를 먼저 세우면

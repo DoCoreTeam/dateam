@@ -397,14 +397,14 @@ async function loadChart(
   lastRunReason: string | null,
 ): Promise<ChartSeries> {
   if (!contractCode) {
-    return { bars: [], marks: [], domain: null, blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' } }
+    return { bars: [], marks: [], domain: null, lastBarAt: null, blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' } }
   }
   try {
     const bars = await loadBarsAsOf({ contractCode, tf: '1m', asOf: now, limit: CHART_BARS })
     return buildSeries({ bars, signals, lastRunReason })
   } catch (error) {
     return {
-      bars: [], marks: [], domain: null,
+      bars: [], marks: [], domain: null, lastBarAt: null,
       blocked: { text: `봉을 읽지 못했습니다: ${error instanceof Error ? error.message : '알 수 없음'}`, tone: 'blocked' },
     }
   }

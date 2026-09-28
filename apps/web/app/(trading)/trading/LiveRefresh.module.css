@@ -11,12 +11,34 @@
   min-width: 0;
 }
 
+/* 무엇을 기다리는지가 먼저 읽혀야 한다 */
+.head {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sep { color: var(--text-faint); }
+
+/* 마지막으로 읽은 때. 곁말이라 흐리게 */
+.quiet { color: var(--text-faint); }
+
 .spinning {
   animation: liveSpin 1s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinning { animation: none; }
+  /* 무엇을 기다리는지가 먼저 읽혀야 한다 */
+.head {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sep { color: var(--text-faint); }
+
+/* 마지막으로 읽은 때. 곁말이라 흐리게 */
+.quiet { color: var(--text-faint); }
+
+.spinning { animation: none; }
 }
 
 @keyframes liveSpin {

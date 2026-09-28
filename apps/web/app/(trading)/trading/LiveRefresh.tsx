@@ -23,9 +23,17 @@ import styles from './LiveRefresh.module.css'
 interface Props {
   /** 다시 읽는 간격(초). 설정값이고 env 가 아니다 */
   everySeconds: number
+  /**
+   * 마지막 봉이 시작한 시각 (ISO). 없으면 null.
+   *
+   * **「30초마다 다시 읽습니다」만으로는 지금 무엇을 하는지 알 수 없다**
+   * (사용자 지적 2026-09-28 「실시간이어야 하는데 30초는 왜? 이게 뭘 하고 있는건지 모르겠네」).
+   * 1분 봉이라 데이터는 1분에 한 번 바뀐다 — 그 사실과 다음 읽기까지 남은 초를 함께 말한다.
+   */
+  lastBarAt: string | null
 }
 
-export default function LiveRefresh({ everySeconds }: Props) {
+export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
   const router = useRouter()
   const [pending, start] = useTransition()
   /**
@@ -34,13 +42,22 @@ export default function LiveRefresh({ everySeconds }: Props) {
    * 첫 렌더에서는 비워 둔다(서버와 다른 글자를 그리면 하이드레이션이 어긋난다).
    */
   const [readAt, setReadAt] = useState<string | null>(null)
+  /**
+   * 다음 읽기까지 남은 초. **화면 안에서만 센다** — 1초마다 서버를 두드리면
+   * 「살아 있다」를 보여 주려고 서버를 죽이는 셈이다.
+   * 서버 렌더에서는 null 이라 첫 그림이 서버와 같다(하이드레이션).
+   */
+  const [leftSec, setLeftSec] = useState<number | null>(null)
 
   useEffect(() => {
     const everyMs = Math.max(5, everySeconds) * 1000
     let timer: ReturnType<typeof setInterval> | null = null
+    let tick: ReturnType<typeof setInterval> | null = null
+    let nextAt = Date.now() + everyMs
 
     const read = (): void => {
       if (document.hidden) return
+      nextAt = Date.now() + everyMs
       start(() => {
         router.refresh()
         setReadAt(new Date().toISOString())
@@ -54,9 +71,14 @@ export default function LiveRefresh({ everySeconds }: Props) {
     }
 
     timer = setInterval(read, everyMs)
+    // 1초마다 남은 시간만 줄인다. 이 시계는 서버에 아무것도 안 묻는다
+    tick = setInterval(() => {
+      setLeftSec(document.hidden ? null : Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)))
+    }, 1000)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       if (timer) clearInterval(timer)
+      if (tick) clearInterval(tick)
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [everySeconds, router])
@@ -64,13 +86,28 @@ export default function LiveRefresh({ everySeconds }: Props) {
   return (
     <p className={styles.bar} role="status">
       <RefreshCw size={13} className={pending ? styles.spinning : undefined} aria-hidden />
+      {/*
+        **무엇을 기다리는지 먼저 말한다.** 가격은 1분 봉이라 1분에 한 번만 바뀐다 —
+        그 사실을 안 말하면 「30초마다 읽는데 왜 안 바뀌나」가 된다
+      */}
+      <span className={styles.head}>{barLine(lastBarAt)}</span>
+      <span className={styles.sep} aria-hidden>·</span>
       <span>
         {pending
           ? '다시 읽는 중…'
-          : readAt
-            ? `${seoulTimeText(readAt)}에 읽었습니다`
+          : leftSec !== null
+            ? `${leftSec}초 뒤 다시 읽습니다`
             : `${everySeconds}초마다 스스로 다시 읽습니다`}
       </span>
+      {readAt && !pending && (
+        <span className={styles.quiet}>{`(${seoulTimeText(readAt)}에 읽음)`}</span>
+      )}
     </p>
   )
+}
+
+/** 마지막 봉이 언제 것인가. 없으면 없다고 말한다 — 빈 칸을 지어내지 않는다 */
+function barLine(lastBarAt: string | null): string {
+  if (!lastBarAt) return '가격 봉이 아직 없습니다'
+  return `마지막 봉 ${seoulTimeText(lastBarAt)}`
 }
