@@ -40,3 +40,108 @@ export function leaningLabel(raw: Record<string, number> | null): string {
   const name = top === hold ? '관망' : top === long ? '롱' : '숏'
   return `${name} ${(top * 100).toFixed(0)}%`
 }
+
+/* ── 왜 판단이 안 남았나 ──────────────────────────────── */
+
+/**
+ * 판단 기록의 실패 사유를 **사람 말로 읽는다.**
+ *
+ * 사용자 지적 2026-09-28: 「정상 동작 하고 있는건지 모르겠네」 — 표에 `call_failed:jev_http_403`
+ * 이 열여섯 줄 찍혀 있었다. 그것은 고칠 때 쓰라고 남긴 글자이지 읽으라고 남긴 것이 아니다.
+ * 읽는 사람은 **무엇을 하면 되는지**를 알아야 하는데 화면은 표식을 보여 주고 해석을 떠넘겼다.
+ *
+ * 운영 화면의 `lib/trading/operator/run-reason.ts` 와 같은 규칙이다 —
+ * **모르는 표식은 버리지 않고** 원문을 그대로 돌려준다.
+ */
+export interface JudgmentIssue {
+  text: string
+  /** 사람이 손대야 풀리나 (`blocked`), 기다리면 풀리나 (`waiting`) */
+  tone: 'blocked' | 'waiting'
+  /** 못 알아본 표식인가. 화면이 원문을 함께 보여 줄지 정한다 */
+  known: boolean
+}
+
+/** 증권사·관문 응답 번호를 사람 말로. 넷의 조치가 서로 다르다 */
+function httpIssue(status: number): JudgmentIssue {
+  if (status === 403) {
+    return { text: 'AI 가 그 모델을 거절했습니다 — 이름이 맞는지, 그 계정에 권한이 있는지 보세요', tone: 'blocked', known: true }
+  }
+  if (status === 401) return { text: 'AI 키가 거절됐습니다 — 키를 다시 등록해 주세요', tone: 'blocked', known: true }
+  if (status === 429) return { text: 'AI 호출 한도에 걸렸습니다 — 잠시 뒤 다시 돕니다', tone: 'waiting', known: true }
+  if (status === 404) return { text: 'AI 가 모르는 모델 이름입니다 — 모델을 다시 골라 주세요', tone: 'blocked', known: true }
+  if (status >= 500) return { text: 'AI 쪽 서버 오류입니다 — 잠시 뒤 다시 돕니다', tone: 'waiting', known: true }
+  return { text: `AI 호출이 실패했습니다 (${status})`, tone: 'blocked', known: true }
+}
+
+export function judgmentIssue(abstainReason: string | null | undefined): JudgmentIssue | null {
+  const raw = (abstainReason ?? '').trim()
+  if (raw === '') return null
+
+  const http = raw.match(/_http_(\d{3})\b/)
+  if (http) return httpIssue(Number(http[1]))
+
+  const timeout = raw.match(/^timeout:(\d+)ms$/)
+  if (timeout) {
+    const seconds = Math.round(Number(timeout[1]) / 1000)
+    return {
+      text: `AI 가 ${seconds}초 안에 답을 안 줘서 건너뛰었습니다 — 설정의 판단 대기 시간을 늘리거나 더 빠른 모델을 고르세요`,
+      tone: 'blocked',
+      known: true,
+    }
+  }
+  if (raw.startsWith('budget_denied')) {
+    return { text: '오늘 AI 호출 한도를 다 써서 안 불렀습니다', tone: 'waiting', known: true }
+  }
+  if (raw.startsWith('unreadable')) {
+    return { text: 'AI 답을 못 읽었습니다 — 다른 모델을 고르면 풀리는 경우가 많습니다', tone: 'blocked', known: true }
+  }
+  if (raw.startsWith('call_failed')) {
+    return { text: 'AI 호출이 실패했습니다', tone: 'blocked', known: true }
+  }
+  if (raw === 'atr_zero') {
+    return { text: '변동폭이 0 이라 판단할 수 없었습니다', tone: 'waiting', known: true }
+  }
+  if (raw === 'no_model') {
+    return { text: '학습 모델이 아직 없습니다', tone: 'waiting', known: true }
+  }
+  // 모르는 표식은 버리지 않는다 — 원문을 그대로 돌려주고 「모른다」고 표시한다
+  return { text: raw, tone: 'blocked', known: false }
+}
+
+/**
+ * 같은 실패가 이어지나 — **표만 보고 「정상인가」를 사람이 세지 않게.**
+ *
+ * 맨 위 줄이 세어 주지 않으면 사람은 스무 줄을 눈으로 세야 하고, 대개 안 센다.
+ */
+export interface JudgmentStreak {
+  /** 가장 최근부터 이어서 실패한 판단 수 */
+  count: number
+  judge: string
+  issue: JudgmentIssue
+}
+
+export function failingStreak(
+  rows: readonly { judge: string; status: string; abstainReason: string | null }[],
+): JudgmentStreak | null {
+  // 성공한 판단기(규칙 등)는 건너뛴다 — 같은 봉에 둘이 나란히 남으므로
+  const bad = rows.filter((r) => r.status === 'failed' || r.status === 'abstain')
+  if (bad.length === 0) return null
+
+  const first = bad[0]
+  const issue = judgmentIssue(first.abstainReason)
+  if (!issue) return null
+
+  let count = 0
+  for (const r of bad) {
+    if (r.judge !== first.judge) continue
+    const it = judgmentIssue(r.abstainReason)
+    // **같은 종류의 실패만** 센다. 다른 이유가 섞이면 「N번 이어서」가 거짓말이 된다
+    if (!it || it.text !== issue.text) break
+    count += 1
+  }
+  return count >= 2 ? { count, judge: first.judge, issue } : null
+}
+
+export function streakLine(streak: JudgmentStreak): string {
+  return `${JUDGE_LABEL[streak.judge] ?? streak.judge}이 ${streak.count}번 이어서 못 했습니다 · ${streak.issue.text}`
+}

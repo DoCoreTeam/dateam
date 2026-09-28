@@ -10,7 +10,9 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
-import { JUDGE_LABEL, JUDGMENT_STATUS_LABEL, leaningLabel } from '@/lib/trading/judgment-labels'
+import {
+  JUDGE_LABEL, JUDGMENT_STATUS_LABEL, leaningLabel, judgmentIssue, failingStreak, streakLine,
+} from '@/lib/trading/judgment-labels'
 import type { JudgmentRow } from '@/lib/trading/overview-shape'
 
 const COLUMNS: ColumnDef<JudgmentRow>[] = [
@@ -23,11 +25,25 @@ const COLUMNS: ColumnDef<JudgmentRow>[] = [
   { key: 'leaning', header: '기운 쪽', cell: (r) => leaningLabel(r.rawScore) },
   {
     key: 'status', header: '상태',
-    cell: (r) => `${JUDGMENT_STATUS_LABEL[r.status] ?? r.status}${r.abstainReason ? ` · ${r.abstainReason}` : ''}`,
+    /**
+     * **기계 글자를 그대로 안 찍는다** (사용자 지적 2026-09-28 「정상 동작 하고 있는건지
+     * 모르겠네」 — `call_failed:jev_http_403` 이 열여섯 줄 찍혀 있었다).
+     * 못 알아본 표식은 버리지 않고 원문을 그대로 둔다.
+     */
+    cell: (r) => {
+      const label = JUDGMENT_STATUS_LABEL[r.status] ?? r.status
+      const issue = judgmentIssue(r.abstainReason)
+      return issue ? `${label} · ${issue.text}` : label
+    },
   },
 ]
 
 export default function JudgmentList({ rows }: { rows: readonly JudgmentRow[] }) {
+  /**
+   * 같은 실패가 이어지면 **표 위에서 한 줄로** 말한다.
+   * 안 세어 주면 사람이 스무 줄을 눈으로 세야 하고, 대개 안 센다.
+   */
+  const streak = failingStreak(rows)
   return (
     <section className="card">
       <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)', margin: 0, marginBottom: 'var(--space-2)' }}>
@@ -36,6 +52,19 @@ export default function JudgmentList({ rows }: { rows: readonly JudgmentRow[] })
       <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 0, marginBottom: 'var(--space-3)' }}>
         보정 전 원점수입니다. 검증 단계를 지나기 전에는 이 값으로 신호를 내지 않습니다
       </p>
+      {/* 잘 돌고 있으면 이 줄이 없다 — 늘 뜨는 경고는 안 읽힌다 */}
+      {streak && (
+        <p
+          role="status"
+          style={{
+            fontSize: 'var(--fs-sm)', margin: 0, marginBottom: 'var(--space-3)',
+            color: streak.issue.tone === 'blocked' ? 'var(--danger)' : 'var(--warning)',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {streakLine(streak)}
+        </p>
+      )}
       <ListSurface
         rows={[...rows]}
         columns={COLUMNS}
