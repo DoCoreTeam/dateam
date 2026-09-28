@@ -156,3 +156,48 @@ test('★ 관문 숫자를 코드에 박지 않는다 — 화면이 말하는 �
   assert.match(body, /t\.minProfitFactor/)
   assert.match(body, /t\.maxDrawdownLimitMultiple/)
 })
+
+/* ── 못 잰 줄에 할 일이 붙는다 (사용자 지적 2026-09-28) ── */
+
+import { readFileSync as readSrcFile } from 'node:fs'
+import { join as joinSrcPath, dirname as dirSrcPath } from 'node:path'
+import { fileURLToPath as urlSrcPath } from 'node:url'
+
+const WEB_ROOT = joinSrcPath(dirSrcPath(urlSrcPath(import.meta.url)), '..', '..', '..')
+
+/**
+ * **「없습니다」만 있는 화면은 읽는 사람의 일을 늘리기만 한다.**
+ * 실측 2026-09-28 검증 화면 열 줄이 전부 「아직 못 잼」이고 할 일이 한 줄도 없었다.
+ */
+test('★ 못 잰 줄마다 무엇을 하면 되는지가 붙는다', () => {
+  const src = readSrcFile(joinSrcPath(WEB_ROOT, 'lib', 'trading', 'gate', 'criteria.ts'), 'utf8')
+  // 못 잰 줄을 만드는 자리가 할 일을 기본으로 들고 있다
+  assert.match(src, /how: string = RUN_VALIDATION/, '할 일 기본값이 없다')
+  assert.match(src, /return \{ id, label, status: 'insufficient', actual, required, detail, how \}/,
+    '할 일을 만들어 놓고 안 담는다')
+  // 잰 줄에는 안 붙는다 — 늘 뜨는 안내는 안 읽힌다
+  const passLine = src.slice(src.indexOf('function pass('), src.indexOf('function fail('))
+  assert.equal(/how/.test(passLine), false, '지나간 줄에도 할 일이 붙는다')
+})
+
+/**
+ * **할 일이 참이어야 한다.** 「밤마다 도는 검증이 거래를 만듭니다」라고 쓰려면
+ * 그 검증이 실제로 돌아야 한다 — 실측 2026-09-28 그 크론이 등록조차 안 돼 있었고,
+ * 그래서 봉이 쌓여도 거래가 영영 0건이었다.
+ */
+test('★ 검증이 실제로 도는 크론이 등록돼 있다 — 안 그러면 그 할 일은 거짓말이다', () => {
+  const vercel = JSON.parse(
+    readSrcFile(joinSrcPath(WEB_ROOT, 'vercel.json'), 'utf8'),
+  ) as { crons: { path: string; schedule: string }[] }
+  const validate = vercel.crons.find((c) => c.path === '/api/trading/cron/validate')
+  assert.ok(validate, '검증 크론이 없다 — 아무도 안 부르면 거래가 영영 0건이다')
+  // 매분 도는 수집과 달리 가끔 부른다. 한 바퀴가 길고 결과가 달라지려면 봉이 며칠은 쌓여야 한다
+  assert.equal(/^\* \* \* \* \*$/.test(validate!.schedule), false, '무거운 일을 매분 돌린다')
+  assert.ok(vercel.crons.some((c) => c.path === '/api/trading/cron/tick'), '수집 크론이 사라졌다')
+})
+
+test('★ 검증 화면이 그 할 일을 실제로 그린다', () => {
+  const panel = readSrcFile(joinSrcPath(WEB_ROOT, 'app', '(trading)', 'trading', 'BacktestPanel.tsx'), 'utf8')
+  assert.match(panel, /c\.how && /, '할 일을 안 그린다')
+  assert.match(panel, /styles\.how/, '곁말로 안 구분한다')
+})

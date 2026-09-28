@@ -50,6 +50,10 @@
     {
       "path": "/api/trading/cron/tick",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/trading/cron/validate",
+      "schedule": "30 18 * * *"
     }
   ]
 }

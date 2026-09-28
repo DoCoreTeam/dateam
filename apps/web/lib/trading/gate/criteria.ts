@@ -30,7 +30,23 @@ export interface CriterionResult {
   required: number | null
   /** 사람이 읽을 한 줄 */
   detail: string
+  /**
+   * 못 잰 줄에 붙는 **할 일**. 잰 줄에는 없다.
+   *
+   * 사용자 지적 2026-09-28: 관문 열 줄이 전부 「아직 못 잼」인데 무엇을 하면 되는지가
+   * 한 줄도 없었다. 「없습니다」만 있는 화면은 읽는 사람의 일을 늘리기만 한다.
+   */
+  how?: string
 }
+
+/**
+ * 검증 한 바퀴가 돌아야 생기는 값들의 할 일 — **한 곳에 둔다.**
+ *
+ * 실측 2026-09-28: `/api/trading/cron/validate` 가 `vercel.json` 크론에 없어
+ * **아무도 안 불렀다.** 그래서 봉이 쌓여도 거래가 영영 0건이었고 이 줄들이 전부 못 잼이었다.
+ * 그 크론을 등록했으므로 이제 이 말이 참이 된다 — 안 등록했으면 이 문장은 거짓말이다.
+ */
+const RUN_VALIDATION = '봉이 더 쌓이면 밤마다 도는 검증이 거래를 만듭니다. 자료 화면에서 모인 봉을 볼 수 있습니다'
 
 export interface GateThresholds {
   minValidateTrades: number
@@ -77,8 +93,12 @@ function pass(id: string, label: string, actual: number | null, required: number
 function fail(id: string, label: string, actual: number | null, required: number | null, detail: string): CriterionResult {
   return { id, label, status: 'fail', actual, required, detail }
 }
-function unknown(id: string, label: string, detail: string, actual: number | null = null, required: number | null = null): CriterionResult {
-  return { id, label, status: 'insufficient', actual, required, detail }
+function unknown(
+  id: string, label: string, detail: string,
+  actual: number | null = null, required: number | null = null,
+  how: string = RUN_VALIDATION,
+): CriterionResult {
+  return { id, label, status: 'insufficient', actual, required, detail, how }
 }
 
 export function evaluateGate(input: GateInput): GateVerdict {
@@ -116,7 +136,8 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ②' Lockbox 는 부호 유지 + 검증 구간 추정 범위 안
   if (!input.lockboxExpectancy || !input.validateExpectancy) {
-    criteria.push(unknown('lockbox_consistency', '최종 검증 일관성', '아직 최종 검증을 열지 않았습니다'))
+    criteria.push(unknown('lockbox_consistency', '최종 검증 일관성', '아직 최종 검증을 열지 않았습니다',
+      null, null, '앞 관문을 지난 뒤에 열립니다. 먼저 학습·검증 구간 성적이 기준을 넘어야 합니다'))
   } else {
     const sameSign = Math.sign(input.lockboxExpectancy.estimate) === Math.sign(input.validateExpectancy.estimate)
     const inRange = input.lockboxExpectancy.estimate >= input.validateExpectancy.lower
@@ -180,7 +201,8 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ⑦ 판단기 비교
   if (!input.judgeComparison) {
-    criteria.push(unknown('judge_comparison', '판단기 비교', '아직 비교할 다른 판단기 결과가 없습니다'))
+    criteria.push(unknown('judge_comparison', '판단기 비교', '아직 비교할 다른 판단기 결과가 없습니다',
+      null, null, '설정에서 AI 판단 모델을 고르면 규칙 판단과 나란히 돌아 비교됩니다'))
   } else {
     criteria.push(input.judgeComparison.better
       ? pass('judge_comparison', '판단기 비교', null, t.minJudgeImprovementR, input.judgeComparison.reason)
@@ -190,7 +212,8 @@ export function evaluateGate(input: GateInput): GateVerdict {
 
   // ⑧ 리스크 산술
   if (input.riskArithmeticOk === null) {
-    criteria.push(unknown('risk_arithmetic', '리스크 산술', '아직 상품·손절·한도가 정해지지 않았습니다'))
+    criteria.push(unknown('risk_arithmetic', '리스크 산술', '아직 상품·손절·한도가 정해지지 않았습니다',
+      null, null, '설정의 시작하기에서 하루 목표와 감당할 손실을 정하면 잽니다'))
   } else {
     criteria.push(input.riskArithmeticOk
       ? pass('risk_arithmetic', '리스크 산술', null, null, '§9 를 통과합니다')

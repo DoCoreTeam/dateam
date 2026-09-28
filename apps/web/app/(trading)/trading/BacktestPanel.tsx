@@ -11,6 +11,7 @@
 
 import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
+import styles from './BacktestPanel.module.css'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
 import { GATE_STATUS_LABEL, GATE_STATUS_COLOR } from '@/lib/trading/gate/labels'
 import type { CriterionResult } from '@/lib/trading/overview-shape'
@@ -21,7 +22,20 @@ const COLUMNS: ColumnDef<CriterionResult>[] = [
     key: 'status', header: '상태',
     cell: (c) => <span style={{ color: GATE_STATUS_COLOR[c.status] }}>{GATE_STATUS_LABEL[c.status]}</span>,
   },
-  { key: 'detail', header: '내용', cell: (c) => c.detail },
+  {
+    key: 'detail', header: '내용',
+    /**
+     * **못 잰 줄에는 할 일을 같이 적는다** (사용자 지적 2026-09-28
+     * 「이것도 없다 그러고」 — 열 줄이 전부 「아직 못 잼」이고 할 일이 한 줄도 없었다).
+     * 잰 줄에는 안 붙는다 — 늘 뜨는 안내는 안 읽힌다.
+     */
+    cell: (c) => (
+      <span className={styles.detailCell}>
+        <span>{c.detail}</span>
+        {c.how && <span className={styles.how}>{c.how}</span>}
+      </span>
+    ),
+  },
 ]
 
 export interface BacktestPanelProps {

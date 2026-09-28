@@ -1,0 +1,14 @@
+/* 검증 관문 한 줄 — 못 잰 줄에는 할 일이 아래에 붙는다 */
+
+.detailCell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 무엇을 하면 그 값이 생기나. 곁말이라 흐리게 두되 읽히게 */
+.how {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
