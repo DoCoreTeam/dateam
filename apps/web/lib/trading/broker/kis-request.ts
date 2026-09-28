@@ -216,16 +216,37 @@ export interface KisFailure {
  * KIS 의 `msg1` 을 그대로 보여 주지 않는다 — 내부 구조나 계좌 관련 문구가 섞여 나올 수 있다.
  * 기계가 읽을 자리(`reason`)에는 코드만 남긴다.
  */
-export function readEnvelope<T>(body: KisEnvelope<T> | null, httpStatus: number): KisFailure | null {
+export function readEnvelope<T>(
+  body: KisEnvelope<T> | null,
+  httpStatus: number,
+  /**
+   * 어느 조회였나 (`minuteChart`·`fills` 같은 창구 이름).
+   *
+   * **없으면 사유가 `http_500` 한 마디로 끝난다.** 실측 2026-09-29: 크론 최근 1000회 중
+   * 76회가 그 한 줄이었고, 시세가 죽었는지 계좌가 죽었는지 구별할 방법이 없었다.
+   * 부르는 쪽은 자기가 무엇을 불렀는지 알므로 그 이름을 여기로 넘긴다.
+   */
+  where?: string,
+): KisFailure | null {
+  const at = where ? `:${where}` : ''
   if (!body) {
-    return { reason: `http_${httpStatus}:no_body`, userMessage: '증권사 응답을 읽지 못했습니다' }
+    return { reason: `http_${httpStatus}:no_body${at}`, userMessage: '증권사 응답을 읽지 못했습니다' }
   }
   if (httpStatus < 200 || httpStatus >= 300) {
-    return { reason: `http_${httpStatus}`, userMessage: '증권사 조회가 실패했습니다' }
+    /*
+      **상태 코드만 보고 몸통을 안 버린다.** KIS 는 5xx 에도 `msg_cd` 를 실어 주는 때가 있고,
+      그 코드가 「무엇이 왜」의 유일한 단서다. 없으면 없는 대로 두되 있으면 반드시 싣는다.
+    */
+    const code = body.msg_cd ?? body.rt_cd
+    return {
+      reason: `http_${httpStatus}${at}${code ? `:kis_${code}` : ''}`,
+      userMessage: '증권사 조회가 실패했습니다',
+      detail: body.msg1,
+    }
   }
   if (body.rt_cd !== undefined && body.rt_cd !== '0') {
     return {
-      reason: `kis_${body.msg_cd ?? body.rt_cd}`,
+      reason: `kis_${body.msg_cd ?? body.rt_cd}${at}`,
       userMessage: '증권사가 조회를 거절했습니다',
       detail: body.msg1,
     }

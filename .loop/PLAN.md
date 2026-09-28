@@ -1,6 +1,6 @@
 # PLAN newAX: 크론이 못 모으는 것을 말하고, 헛일을 멈춘다
 플랜 ID: P0086
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0144
 목표 버전: v0.10.681
@@ -59,9 +59,9 @@
 의존: 없음
 
 ### I03 증권사 조회가 죽으면 무엇이 왜 죽었는지 남는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: app/api/trading/cron/tick/route.ts, lib/trading/jobs/tick-fail.ts (신규), lib/trading/jobs/tick-fail.test.ts (신규)
+범위: lib/trading/broker/kis-request.ts, lib/trading/broker/kis-client.ts, lib/trading/broker/account.ts, lib/trading/broker/kis-client.test.ts
 감사 기준:
 - 실패 사유가 http_500 한 마디가 아니라 어느 조회가 어떤 벤더 코드로 죽었는지 담는다 (실측: 최근 1000회 중 76회가 http_500 이고 전부 같은 한 줄이었다)
 - 벤더 원문을 그대로 안 싣는다 — 키 조각이 섞여 오므로 코드와 우리 말만 남긴다 (S3)
@@ -89,3 +89,5 @@
 - v0.1.1 (2026-09-28) I01 범위 정정, night-signal.test.ts 포함 (audit:I01)
 - v0.1.4 (2026-09-29) I02 범위 정정 — endpoints.ts 는 안 건드렸고(주소를 안 더하는 것이 이 항목의 뜻), 대신 판정이 사는 tick-core.ts 와 그 가드가 들어감 (audit:I02)
 - v0.1.2 (2026-09-28) I02 범위 정정 (audit:I02)
+- v0.1.6 (2026-09-29) I03 범위 정정 — 새 모듈이 필요 없었다, 사유를 만드는 자리(readEnvelope)가 이미 한 곳이라 거기에 「어느 조회」와 벤더 코드를 실었다 (audit:I03)
+- v0.1.3 (2026-09-28) I03 범위 정정, 새 모듈 대신 readEnvelope 보강 (audit:I03)

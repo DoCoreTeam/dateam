@@ -301,3 +301,48 @@ test('★ 설명이 없으면 로그도 안 남긴다 — 빈 줄로 로그를 �
 test('★ 설명 칸은 선택이다 — 없던 자리가 안 깨진다', () => {
   assert.match(REQUEST_SRC, /detail\?: string/, '설명 칸이 필수라 기존 호출부가 깨진다')
 })
+
+// ── 실패가 무엇이 왜 죽었는지 남긴다 (P0086 I03) ────────────────────
+
+test('★ 5xx 에도 어느 조회였는지가 사유에 남는다', () => {
+  /*
+    실측 2026-09-29: 크론 최근 1000회 중 76회가 `http_500` 한 마디로 끝났다.
+    시세가 죽었는지 계좌가 죽었는지 구별할 방법이 없었고, 그래서 아무도 못 고쳤다.
+  */
+  const f = readEnvelope({}, 500, 'minuteChart')
+  assert.ok(f, '5xx 인데 실패로 안 본다')
+  assert.match(f.reason, /minuteChart/, '어느 조회가 죽었는지 안 남는다')
+  assert.match(f.reason, /^http_500/, '상태 코드가 사라졌다')
+})
+
+test('★ 5xx 몸통에 벤더 코드가 있으면 버리지 않는다', () => {
+  // KIS 는 5xx 에도 msg_cd 를 실어 줄 때가 있다. 그 코드가 유일한 단서다
+  const f = readEnvelope({ msg_cd: 'EGW00201', msg1: '초당 거래건수를 초과' }, 500, 'minuteChart')
+  assert.ok(f)
+  assert.match(f.reason, /kis_EGW00201/, '벤더 코드를 버렸다 — 무엇이 왜인지 영영 모른다')
+  assert.equal(f.detail, '초당 거래건수를 초과', '설명을 로그로 넘기지 않는다')
+})
+
+test('★ 벤더 설명은 사용자 응답에 안 실린다 (S3)', () => {
+  const f = readEnvelope({ msg_cd: 'APAC0071', msg1: '계좌번호 12345678-01 이 없습니다' }, 200)
+  assert.ok(f === null || !f.userMessage.includes('12345678'), '계좌번호가 화면으로 나간다')
+  const g = readEnvelope({ rt_cd: '1', msg_cd: 'APAC0071', msg1: '계좌번호 12345678-01 이 없습니다' }, 200, 'fills')
+  assert.ok(g)
+  assert.doesNotMatch(g.userMessage, /\d{6,}/, '사용자 문장에 계좌 숫자가 섞였다')
+  assert.doesNotMatch(g.reason, /\d{6,}/, '기계 사유에 계좌 숫자가 섞였다')
+  assert.match(g.reason, /fills/, '어느 조회였는지 안 남는다')
+})
+
+test('어느 조회인지 안 주면 지금처럼 코드만 남는다 — 부르는 쪽을 안 깨뜨린다', () => {
+  const f = readEnvelope({}, 500)
+  assert.ok(f)
+  assert.equal(f.reason, 'http_500')
+})
+
+test('★ 부르는 자리 둘이 실제로 이름을 넘긴다 — 만들어만 두지 않는다', () => {
+  for (const rel of ['kis-client.ts', 'account.ts']) {
+    const src = readFileSync(join(HERE, rel), 'utf8')
+    assert.match(src, /readEnvelope\(body, response\.status, key\)/,
+      `${rel} 이 어느 조회였는지를 안 넘긴다 — 사유가 다시 http_500 한 마디가 된다`)
+  }
+})

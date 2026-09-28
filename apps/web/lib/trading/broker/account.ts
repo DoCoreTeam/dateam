@@ -60,7 +60,7 @@ async function call<T>(
       }
     }
     const body = (await response.json().catch(() => null)) as KisEnvelope<T> | null
-    const failure = readEnvelope(body, response.status)
+    const failure = readEnvelope(body, response.status, key)
     if (failure) {
       /**
        * **증권사가 준 설명을 로그에 남긴다.**

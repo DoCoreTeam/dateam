@@ -62,7 +62,7 @@ async function call<T>(
       }
     }
     const body = (await response.json().catch(() => null)) as KisEnvelope<T> | null
-    const failure = readEnvelope(body, response.status)
+    const failure = readEnvelope(body, response.status, key)
     if (failure) {
       // 시세 쪽 거절도 설명을 로그에만 남긴다 — 응답에는 코드만 간다 (S3)
       void noteBrokerRefusal(failure)
