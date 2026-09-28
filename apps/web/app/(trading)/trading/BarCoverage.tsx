@@ -42,7 +42,7 @@ const COLUMNS: ColumnDef<DayCoverage>[] = [
         평일은 아직 안 모은 날이다. 한 말로 적으면 아홉 줄이 다 고칠 것으로 보인다
       */
       if (d.unknown) {
-        const kind = emptyDayKind(d.tradeDate)
+        const kind = emptyDayKind(d.tradeDate, d.collectingSince)
         return (
           <span style={{ color: 'var(--text-muted)' }} title={EMPTY_DAY_HINT[kind]}>
             {EMPTY_DAY_LABEL[kind]}

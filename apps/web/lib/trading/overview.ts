@@ -159,11 +159,28 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
   const exitMinutes = Number(values.session_close_exit_minutes)
   const exitBefore = Number.isFinite(exitMinutes) ? exitMinutes : 15
 
+  /**
+   * 수집이 언제 시작됐나. **첫 크론 실행이 그 답이다** —
+   * 그 앞의 빈 날은 「아직 안 모은 날」이 아니라 아무도 안 보고 있던 날이고,
+   * 사람이 물을 것이 없다 (실측 2026-09-29: 첫 실행 9/26 01:37, 그 앞 평일 다섯 날).
+   */
+  const { data: firstRun } = await admin
+    .from('trading_job_runs')
+    .select('scheduled_minute')
+    .order('scheduled_minute', { ascending: true })
+    .limit(1)
+  const firstRunAt = (firstRun ?? [])[0]?.scheduled_minute as string | undefined
+  const collectingSince = firstRunAt
+    ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date(firstRunAt))
+    : null
+
   const coverage: DayCoverage[] = []
   for (const tradeDate of days) {
     const window = await loadSessionWindow(tradeDate)
     if (!window || !contractCode) {
-      coverage.push({ tradeDate, expected: 0, actual: 0, unknown: true, sameDayExitAt: null })
+      coverage.push({
+        tradeDate, expected: 0, actual: 0, unknown: true, sameDayExitAt: null, collectingSince,
+      })
       continue
     }
     const expected = Math.max(
@@ -181,6 +198,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     coverage.push({
       tradeDate, expected, actual: count ?? 0, unknown: false,
       sameDayExitAt: sameDayExitAt(window, exitBefore).toISOString(),
+      collectingSince,
     })
   }
 

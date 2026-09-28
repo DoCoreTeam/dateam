@@ -70,7 +70,7 @@
 의존: 없음
 
 ### I04 수집 시작 전 날과 빠진 날을 가른다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: lib/trading/bars/coverage-labels.ts, lib/trading/bars/coverage-labels.test.ts, lib/trading/overview-shape.ts, lib/trading/overview.ts, app/(trading)/trading/BarCoverage.tsx
 감사 기준:
