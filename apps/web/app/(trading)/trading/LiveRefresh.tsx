@@ -18,6 +18,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw } from 'lucide-react'
 import { seoulTimeText } from '@/lib/trading/position-labels'
+import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine } from '@/lib/trading/live-window'
 import styles from './LiveRefresh.module.css'
 
 interface Props {
@@ -48,6 +49,12 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
    * 서버 렌더에서는 null 이라 첫 그림이 서버와 같다(하이드레이션).
    */
   const [leftSec, setLeftSec] = useState<number | null>(null)
+  /**
+   * 지금 장이 서 있나. **첫 렌더에서는 「살아 있다」로 둔다** —
+   * 서버가 그린 글자와 달라지면 하이드레이션이 어긋나기 때문이다.
+   * 마운트한 뒤 곧바로 실제 판정으로 바뀌고, 1분마다 다시 본다.
+   */
+  const [closed, setClosed] = useState<{ reason: keyof typeof CLOSED_REASON_LABEL; nextOpenAt: string } | null>(null)
 
   useEffect(() => {
     const everyMs = Math.max(5, everySeconds) * 1000
@@ -57,6 +64,11 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
 
     const read = (): void => {
       if (document.hidden) return
+      /*
+        **닫힌 장은 안 두드린다.** 값이 안 바뀌는데 30초마다 서버를 부르면
+        사람에게는 「뭔가 오고 있다」로 보이고 서버는 밤새 헛일을 한다.
+      */
+      if (!liveWindowAt(new Date()).live) return
       nextAt = Date.now() + everyMs
       start(() => {
         router.refresh()
@@ -73,7 +85,10 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
     timer = setInterval(read, everyMs)
     // 1초마다 남은 시간만 줄인다. 이 시계는 서버에 아무것도 안 묻는다
     tick = setInterval(() => {
-      setLeftSec(document.hidden ? null : Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)))
+      const w = liveWindowAt(new Date())
+      setClosed(w.live ? null : { reason: w.reason!, nextOpenAt: w.nextOpenAt! })
+      // 멈춘 동안에는 남은 시간을 안 센다 — 세고 있으면 곧 뭔가 온다는 뜻이 된다
+      setLeftSec(document.hidden || !w.live ? null : Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)))
     }, 1000)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
@@ -93,11 +108,14 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
       <span className={styles.head}>{barLine(lastBarAt)}</span>
       <span className={styles.sep} aria-hidden>·</span>
       <span>
-        {pending
-          ? '다시 읽는 중…'
-          : leftSec !== null
-            ? `${leftSec}초 뒤 다시 읽습니다`
-            : `${everySeconds}초마다 스스로 다시 읽습니다`}
+        {closed
+          /* 멈춘 자리가 죽은 화면으로 안 읽히게 — 왜 멈췄고 언제 다시 여는지 */
+          ? `${CLOSED_REASON_LABEL[closed.reason]} · ${nextOpenLine(closed.nextOpenAt)}`
+          : pending
+            ? '다시 읽는 중…'
+            : leftSec !== null
+              ? `${leftSec}초 뒤 다시 읽습니다`
+              : `${everySeconds}초마다 스스로 다시 읽습니다`}
       </span>
       {readAt && !pending && (
         <span className={styles.quiet}>{`(${seoulTimeText(readAt)}에 읽음)`}</span>

@@ -146,7 +146,7 @@
 의존: 없음
 
 ### I06 장이 닫히면 다시 읽기를 멈춘다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: lib/trading/live-window.ts (신규), lib/trading/live-window.test.ts (신규), app/(trading)/trading/LiveRefresh.tsx, app/(trading)/trading/page.tsx
 감사 기준:
