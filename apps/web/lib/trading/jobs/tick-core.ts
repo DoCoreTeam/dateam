@@ -178,7 +178,16 @@ export function marketPhaseOf(window: PhaseWindow, at: Date): MarketPhase {
  * 다른 하나는 장 전 계좌 조회 실패가 **연속 실패로 쌓여**(실측 broker_fail=9) 정작 장이 열릴 때
  * 안전 게이트 SG-02 를 닫는 것이다.
  */
-export function shouldAskForBars(input: { phase: MarketPhase; isNight: boolean }): boolean {
-  if (input.isNight) return true
+export function shouldAskForBars(input: {
+  phase: MarketPhase
+  isNight: boolean
+  /**
+   * 야간에 쓸 시세 창구가 있나. **없으면 묻지 않는다** —
+   * 실측 2026-09-29: 낮 창구로 밤에 물어 최근 1000회 중 476회가 `bar_not_ready` 였다.
+   * 기본을 `false` 로 두지 않는다. 안 주고 부른 자리가 있으면 그 자리는 여전히 헛일한다
+   */
+  hasNightQuote: boolean
+}): boolean {
+  if (input.isNight) return input.hasNightQuote
   return input.phase === 'open' || input.phase === 'auction'
 }

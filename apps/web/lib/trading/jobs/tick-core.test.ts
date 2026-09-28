@@ -13,8 +13,11 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   runJudges, scheduledMinuteOf, marketPhaseOf, shouldAskForBars,
-  RUN_BUDGET_MS, type TickPorts,
+  RUN_BUDGET_MS, type TickPorts, type MarketPhase,
 } from './tick-core.ts'
+import {
+  hasNightQuotation, NO_NIGHT_QUOTE_REASON, NO_NIGHT_QUOTE_MESSAGE,
+} from '../bars/night-quote.ts'
 
 const HERE_TICK = dirname(fileURLToPath(import.meta.url))
 import type { Judge, JudgeName, JudgeInput, JudgeResult } from '../judge/types.ts'
@@ -246,17 +249,40 @@ test('★ 단일가 시각이 없는 세션에도 빈 구간이 안 생긴다', 
 })
 
 test('★ 장이 닫혔으면 봉을 묻지 않는다 — 거짓 고장도 연속 실패도 안 쌓인다', () => {
-  assert.equal(shouldAskForBars({ phase: 'before_open', isNight: false }), false)
-  assert.equal(shouldAskForBars({ phase: 'after_close', isNight: false }), false)
+  const day = (phase: MarketPhase) => shouldAskForBars({ phase, isNight: false, hasNightQuote: false })
+  assert.equal(day('before_open'), false)
+  assert.equal(day('after_close'), false)
   // 단일가는 모은다 — 그 봉으로 판단만 안 한다 (§6.1 · D-40)
-  assert.equal(shouldAskForBars({ phase: 'auction', isNight: false }), true)
-  assert.equal(shouldAskForBars({ phase: 'open', isNight: false }), true)
+  assert.equal(day('auction'), true)
+  assert.equal(day('open'), true)
+  // 낮에는 야간 창구 유무가 아무것도 안 바꾼다
+  assert.equal(shouldAskForBars({ phase: 'open', isNight: false, hasNightQuote: true }), true)
 })
 
-test('★ 야간 수집은 지금처럼 그대로 돈다', () => {
+test('★ 야간 창구가 있으면 어느 국면이든 모은다', () => {
   for (const phase of ['before_open', 'auction', 'open', 'after_close'] as const) {
-    assert.equal(shouldAskForBars({ phase, isNight: true }), true, `야간인데 ${phase} 에서 안 묻는다`)
+    assert.equal(shouldAskForBars({ phase, isNight: true, hasNightQuote: true }), true,
+      `야간 창구가 있는데 ${phase} 에서 안 묻는다`)
   }
+})
+
+test('★ 야간 창구가 없으면 안 묻는다 — 476회의 헛일이 여기서 났다', () => {
+  /*
+    실측 2026-09-29: 크론 최근 1000회 중 476회가 `bar_not_ready` 였다.
+    낮 창구로 밤에 물어보고, 못 받으면 3초 뒤 두 번 더 물어보고, 그래도 없으니
+    「아직 안 들어왔다」를 남긴 것이다. 하룻밤이면 같은 빈 답을 받으러 2천 번 나간다.
+  */
+  for (const phase of ['before_open', 'auction', 'open', 'after_close'] as const) {
+    assert.equal(shouldAskForBars({ phase, isNight: true, hasNightQuote: false }), false,
+      `야간 창구가 없는데 ${phase} 에서 또 묻는다`)
+  }
+})
+
+test('★ 야간 창구가 비어 있다는 것이 값으로 있다 — 주석으로만 적지 않는다', () => {
+  // 주석은 늙는다. 「없다」와 「아직 안 적었다」를 구별하려면 값이어야 한다
+  assert.equal(hasNightQuotation('minuteChart'), false, '야간 분봉 창구가 생겼다면 안내와 시험을 다시 보라')
+  assert.match(NO_NIGHT_QUOTE_REASON, /night/, '실행 기록에 남을 말이 야간을 안 가리킨다')
+  assert.match(NO_NIGHT_QUOTE_MESSAGE, /창구/, '사람이 읽을 말이 없다')
 })
 
 test('★ 크론이 이 판정을 실제로 부르고, 봉을 묻기 전에 부른다', () => {
@@ -267,6 +293,9 @@ test('★ 크론이 이 판정을 실제로 부르고, 봉을 묻기 전에 부�
   assert.ok(ask > 0, '봉을 묻는 자리를 못 찾겠다')
   assert.ok(decide < ask, '봉을 먼저 묻고 나서 장 시간을 본다 — 순서가 뒤집히면 고친 것이 없다')
   assert.match(tick, /market_closed=\$\{phase\}/, '어느 국면이라 안 물었는지를 안 남긴다')
+  // 「장이 닫혔다」와 「야간 창구가 없다」는 사람이 할 일이 다르다 — 한 말로 적지 않는다
+  assert.ok(tick.includes('NO_NIGHT_QUOTE_REASON'), '야간 창구가 없어 안 물은 것을 따로 안 적는다')
+  assert.ok(tick.includes('hasNightQuotation('), '야간 창구 유무를 안 보고 판정에 넘긴다')
 })
 
 test('★ 주말·휴장일의 지금 동작은 안 바뀐다 — 창이 없으면 그 전에 돌아간다', () => {

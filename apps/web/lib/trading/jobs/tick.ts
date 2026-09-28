@@ -19,6 +19,9 @@ import { currentDeployEnv, type DeployEnv } from '@/lib/ai/deploy-env'
 import { loadTradingSettings, seedTradingSettings } from '../settings/store.ts'
 import { ensureSessionWindow, ensureNightWindow } from '../calendar/seed.ts'
 import {
+  hasNightQuotation, NO_NIGHT_QUOTE_REASON, NO_NIGHT_QUOTE_MESSAGE,
+} from '../bars/night-quote.ts'
+import {
   isContinuousTrading, isNightHour, nightStartDateOf, type NightTradeDateRule,
 } from '../calendar/session.ts'
 import { loadDayConfig, freezeDayConfig, logicChangedToday } from './day-config.ts'
@@ -620,11 +623,18 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
    * 정작 장이 열릴 때 SG-02 를 닫는다.
    */
   const phase = marketPhaseOf(window, target)
-  if (!shouldAskForBars({ phase, isNight })) {
+  const nightQuote = hasNightQuotation('minuteChart')
+  if (!shouldAskForBars({ phase, isNight, hasNightQuote: nightQuote })) {
+    /*
+      **왜 안 물었는지를 갈라 적는다.** 「장이 닫혔다」와 「야간 창구가 없다」는
+      사람이 할 일이 다르다 — 앞은 기다리면 되고 뒤는 값을 하나 채워야 한다.
+      한 말로 적으면 밤새 쌓인 기록에서 그 차이가 안 보인다.
+    */
+    const why = isNight && !nightQuote ? NO_NIGHT_QUOTE_REASON : `market_closed=${phase}`
     return {
       ok: true,
-      reason: `market_closed=${phase}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`,
-      userMessage: null,
+      reason: `${why}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`,
+      userMessage: isNight && !nightQuote ? NO_NIGHT_QUOTE_MESSAGE : null,
     }
   }
   /** 단일가 구간이면 모으기는 하되 그 사실을 남긴다 — 그 봉으로는 판단하지 않는다 (D-40) */

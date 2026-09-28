@@ -1,6 +1,6 @@
 # PLAN newAX: 크론이 못 모으는 것을 말하고, 헛일을 멈춘다
 플랜 ID: P0086
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0144
 목표 버전: v0.10.681
@@ -47,9 +47,9 @@
 의존: 없음
 
 ### I02 야간에 낮 분봉 창구를 되풀이 부르지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: lib/trading/broker/endpoints.ts, lib/trading/bars/night-quote.ts (신규), lib/trading/bars/night-quote.test.ts (신규), lib/trading/jobs/tick.ts
+범위: lib/trading/bars/night-quote.ts (신규), lib/trading/bars/night-quote.test.ts (신규), lib/trading/jobs/tick.ts, lib/trading/jobs/tick-core.ts, lib/trading/jobs/tick-core.test.ts
 감사 기준:
 - 야간 세션에서 분봉을 부르기 전에 「이 세션에 쓸 조회 창구가 있나」를 묻고, 없으면 안 부른다 (실측: 최근 1000회 중 bar_not_ready 476회가 이 헛일이다)
 - 없다는 사실이 실행 사유에 남는다 — bar_not_ready 가 아니라 「야간 분봉 창구가 없다」로 적힌다
@@ -87,3 +87,5 @@
 - v0.1.0 (2026-09-29) 최초 작성 (ins_0144)
 - v0.1.2 (2026-09-29) I01 범위 정정 — seed-window 는 안 건드렸고, 대신 night-signal.test.ts 가 옛 셈법(금요일 밤 → 토요일)을 예시로 박고 있어 사실만 고침 (audit:I01)
 - v0.1.1 (2026-09-28) I01 범위 정정, night-signal.test.ts 포함 (audit:I01)
+- v0.1.4 (2026-09-29) I02 범위 정정 — endpoints.ts 는 안 건드렸고(주소를 안 더하는 것이 이 항목의 뜻), 대신 판정이 사는 tick-core.ts 와 그 가드가 들어감 (audit:I02)
+- v0.1.2 (2026-09-28) I02 범위 정정 (audit:I02)
