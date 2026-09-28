@@ -22,7 +22,7 @@ import 'server-only'
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
-import { computeRisk, checkSettingsStorable } from '../risk/arithmetic.ts'
+import { typicalTradeRisk, checkSettingsStorable } from '../risk/arithmetic.ts'
 import { pickEffective, type EffectiveRow } from './pick-effective.ts'
 import {
   TRADING_SETTINGS,
@@ -233,19 +233,12 @@ async function checkLimitAgainstRisk(
     .from('trading_instruments').select('multiplier, tick_size').eq('root', root).maybeSingle()
   if (!data) return null
 
-  const atr = 1.3
-  const stopMultiple = Number(values.exit_stop_atr_multiple) || 1.2
-  const chaseMultiple = Number(values.exit_chase_atr_multiple) || 0.3
-  const reference = 1100
-  const risk = computeRisk({
-    direction: 'long',
+  const risk = typicalTradeRisk({
     instrument: { multiplier: Number(data.multiplier), tickSize: Number(data.tick_size) },
-    referencePrice: reference,
-    stopPrice: reference - stopMultiple * atr,
-    chaseDistance: chaseMultiple * atr,
+    stopAtrMultiple: Number(values.exit_stop_atr_multiple) || 1.2,
+    chaseAtrMultiple: Number(values.exit_chase_atr_multiple) || 0.3,
     stopSlippageTicks: Number(values.replay_fallback_ticks) || 2,
     roundTripFeeKrw: Number(values.fee_rate) || 0,
-    quantity: 1,
   })
   return checkSettingsStorable({ dailyLossLimitKrw: limitKrw, typicalRisk: risk })
 }

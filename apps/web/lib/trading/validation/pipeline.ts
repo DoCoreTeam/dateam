@@ -34,7 +34,7 @@ import { planSteps, checkStepOrder, initialProgress, stepMayRead, type PipelineP
 import { backfillMinuteBars } from '../backfill/minute-backfill.ts'
 import { plannedCallCount } from '../backfill/plan.ts'
 import { assertLockboxReadable, openLockbox } from '../backtest/lockbox.ts'
-import { computeRisk } from '../risk/arithmetic.ts'
+import { typicalTradeRisk } from '../risk/arithmetic.ts'
 import type { MinuteBarInput } from '../bars/confirm.ts'
 
 export interface ValidationResult {
@@ -421,10 +421,12 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
 
   // ⑦ 관문
   const summary = summarize(validateTrades)
-  const typicalRisk = computeRisk({
-    direction: 'long', instrument: { multiplier: instrument.multiplier, tickSize: instrument.tickSize },
-    referencePrice: 1100, stopPrice: 1100 - 1.56, chaseDistance: 0.4,
-    stopSlippageTicks: typical, roundTripFeeKrw: num('fee_rate', 0), quantity: 1,
+  const typicalRisk = typicalTradeRisk({
+    instrument: { multiplier: instrument.multiplier, tickSize: instrument.tickSize },
+    stopAtrMultiple: num('exit_stop_atr_multiple', 1.2),
+    chaseAtrMultiple: num('exit_chase_atr_multiple', 0.3),
+    stopSlippageTicks: typical,
+    roundTripFeeKrw: num('fee_rate', 0),
   })
   const gate = evaluateGate({
     thresholds: {

@@ -109,7 +109,13 @@ test('★ 파이프라인이 1-B 부품을 실제로 부른다 — 만들어만 
     'buildEvModel(', 'expectedValueFor(', 'fitMl(', 'createMlJudge(',
     'bootstrapExpectancy(', 'bootstrapDifference(', 'isBetterThan(',
     'evaluateGate(', 'spreadStats(', 'typicalTicks(', 'judgeCalibration(',
-    'backfillMinuteBars(', 'saveBacktestRun(', 'computeRisk(', 'profitFactor(', 'maxDrawdownR(',
+    'backfillMinuteBars(', 'saveBacktestRun(', 'profitFactor(', 'maxDrawdownR(',
+    /*
+      대표 1회 위험은 `typicalTradeRisk` 가 유일한 출처다(그 안에서 `computeRisk` 를 부른다).
+      여기서 `computeRisk(` 를 요구하면 **계산을 한 자리 더 복사한 판이 초록이 된다** —
+      가드가 막아야 할 바로 그 판이다.
+    */
+    'typicalTradeRisk(',
   ]) {
     assert.ok(body.includes(call), `파이프라인이 ${call} 를 안 부른다 — 만들어만 둔 부품이다`)
   }

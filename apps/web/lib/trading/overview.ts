@@ -101,6 +101,8 @@ import { loadFills } from './position/fills.ts'
 import { foldFills } from './position/from-fills.ts'
 import { loadSignalPlan } from './position/plan.ts'
 import { loadInstrumentSpec } from './settings/store.ts'
+import { typicalTradeRisk } from './risk/arithmetic.ts'
+import { buildGateInput, type BacktestRunRow } from './overview-gate.ts'
 
 export type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary,
@@ -253,12 +255,29 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     .order('started_at', { ascending: false })
     .limit(50)
   if (runErr) throw new Error(`백테스트 결과를 읽지 못했습니다: ${runErr.message}`)
-  const runs = (runRows2 ?? []) as Record<string, number | string | null>[]
-  const sumBy = (kind: string) => runs
-    .filter((r) => r.window_kind === kind)
-    .reduce((acc, r) => acc + Number(r.trade_count ?? 0), 0)
+  const runs = (runRows2 ?? []) as unknown as BacktestRunRow[]
 
-  const gateVerdict = evaluateGate({
+  /**
+   * 한 거래에 걸리는 돈. **밤에 도는 검증과 같은 함수로 잰다** —
+   * 화면이 따로 세면 같은 관문이 낮과 밤에 다른 답을 낸다.
+   * 상품 규격을 못 읽으면 못 잰 것이고, 0 으로 채우지 않는다.
+   */
+  let typicalRiskKrw: number | null = null
+  try {
+    const instrument = await loadInstrumentSpec(today)
+    typicalRiskKrw = typicalTradeRisk({
+      instrument,
+      stopAtrMultiple: Number(values.exit_stop_atr_multiple) || 1.2,
+      chaseAtrMultiple: Number(values.exit_chase_atr_multiple) || 0.3,
+      stopSlippageTicks: Number(values.replay_fallback_ticks) || 2,
+      roundTripFeeKrw: Number(values.fee_rate) || 0,
+    }).riskPerTradeKrw
+  } catch {
+    /* 규격을 못 읽으면 리스크 산술은 「아직 못 잼」이다 — 화면 전체를 막지는 않는다 */
+  }
+
+  const gateVerdict = evaluateGate(buildGateInput({
+    runs,
     thresholds: {
       minValidateTrades: Number(values.gate_min_validate_trades) || 500,
       minLockboxTrades: Number(values.gate_min_lockbox_trades) || 100,
@@ -267,18 +286,8 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
       dailyLossLimitKrw: Number(values.daily_loss_limit_krw) || 0,
       minJudgeImprovementR: Number(values.gate_min_judge_improvement_r) || 0.05,
     },
-    validateTradeCount: sumBy('validate'),
-    lockboxTradeCount: sumBy('lockbox'),
-    validateExpectancy: null,
-    lockboxExpectancy: null,
-    harshExpectancyR: null,
-    profitFactor: null,
-    maxDrawdownR: null,
-    riskPerTradeKrw: null,
-    calibration: null,
-    judgeComparison: null,
-    riskArithmeticOk: null,
-  })
+    typicalRiskKrw,
+  }))
 
   /**
    * 네 구간 지연 (§14.2).

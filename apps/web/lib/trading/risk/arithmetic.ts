@@ -152,3 +152,43 @@ export function toR(netPnlKrw: number, riskPerTradeKrw: number): number | null {
   if (!(riskPerTradeKrw > 0)) return null
   return netPnlKrw / riskPerTradeKrw
 }
+
+/**
+ * 「이 상품에서 한 거래에 보통 얼마가 걸리나」 — **한 자리에만 둔다**
+ *
+ * 관문의 리스크 산술(§9)과 MDD 환산이 둘 다 이 숫자를 쓴다. 검증 파이프라인은
+ * 이 값을 `referencePrice: 1100, stopPrice: 1100 - 1.56, chaseDistance: 0.4` 처럼
+ * **고정값으로 들고 있었고**, 현황 화면은 아예 안 구해서 관문에 null 을 넘겼다.
+ * 그래서 같은 관문이 밤에는 값을 내고 낮에는 「아직 못 잼」이 됐다.
+ *
+ * 대표 시세와 대표 변동폭은 고정이다. 실제 거래가 아니라 **설정이 말이 되는지**를
+ * 재는 자이므로, 날마다 바뀌는 값을 넣으면 같은 설정이 날마다 다른 판정을 받는다.
+ * 손절 거리와 따라가는 거리는 설정에서 온다 — 사람이 바꾸는 값이 그것들이다.
+ */
+export const TYPICAL_PRICE_POINTS = 1100
+/** 대표 변동폭(ATR, 포인트). 미니 코스피200 1분봉의 평상시 값에서 잡았다 */
+export const TYPICAL_ATR_POINTS = 1.3
+
+export function typicalTradeRisk(input: {
+  instrument: { multiplier: number; tickSize: number }
+  /** 설정 `exit_stop_atr_multiple` */
+  stopAtrMultiple: number
+  /** 설정 `exit_chase_atr_multiple` */
+  chaseAtrMultiple: number
+  /** 설정의 평상시 슬리피지 틱 수 */
+  stopSlippageTicks: number
+  /** 설정 `fee_rate` */
+  roundTripFeeKrw: number
+}): RiskResult {
+  const stopDistance = TYPICAL_ATR_POINTS * input.stopAtrMultiple
+  return computeRisk({
+    direction: 'long',
+    instrument: input.instrument,
+    referencePrice: TYPICAL_PRICE_POINTS,
+    stopPrice: TYPICAL_PRICE_POINTS - stopDistance,
+    chaseDistance: TYPICAL_ATR_POINTS * input.chaseAtrMultiple,
+    stopSlippageTicks: input.stopSlippageTicks,
+    roundTripFeeKrw: input.roundTripFeeKrw,
+    quantity: 1,
+  })
+}
