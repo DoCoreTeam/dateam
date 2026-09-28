@@ -199,6 +199,15 @@ export interface KisEnvelope<T> {
 export interface KisFailure {
   reason: string
   userMessage: string
+  /**
+   * 증권사가 준 설명 그대로 (`msg1`).
+   *
+   * **화면으로 안 나간다.** 이 값에는 계좌나 내부 구조가 섞여 나올 수 있어
+   * 사용자 응답에 실으면 S3 를 어긴다. 대신 **시스템 로그**에 남겨 운영하는 사람이 읽는다 —
+   * 코드만 남기면 `kis_APAC0071` 이 사흘째 반복돼도 무엇이 문제인지 아무도 모른다
+   * (실측 2026-09-26~28, 그동안 안전 게이트 SG-02 가 닫혀 신호가 0건이었다).
+   */
+  detail?: string
 }
 
 /**
@@ -218,6 +227,7 @@ export function readEnvelope<T>(body: KisEnvelope<T> | null, httpStatus: number)
     return {
       reason: `kis_${body.msg_cd ?? body.rt_cd}`,
       userMessage: '증권사가 조회를 거절했습니다',
+      detail: body.msg1,
     }
   }
   return null

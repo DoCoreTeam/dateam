@@ -243,3 +243,61 @@ test('★ broker 폴더 어디에도 주문 TR·주문 경로가 없다', () => 
     }
   }
 })
+
+/* ── 증권사가 거절한 이유를 사람이 읽을 수 있게 (실측 2026-09-28) ── */
+
+import { readFileSync as readSrc } from 'node:fs'
+import { join as joinSrc, dirname as dirSrc } from 'node:path'
+import { fileURLToPath as urlSrc } from 'node:url'
+
+const BROKER_DIR = dirSrc(urlSrc(import.meta.url))
+const CLIENT_SRC = readSrc(joinSrc(BROKER_DIR, 'kis-client.ts'), 'utf8')
+const ACCOUNT_SRC = readSrc(joinSrc(BROKER_DIR, 'account.ts'), 'utf8')
+const REQUEST_SRC = readSrc(joinSrc(BROKER_DIR, 'kis-request.ts'), 'utf8')
+
+/**
+ * **코드만 남기면 아무도 못 고친다.**
+ *
+ * 실측 2026-09-26~28: `kis_APAC0071` 이 사흘째 매분 반복됐고 그동안 안전 게이트 SG-02 가
+ * 닫혀 신호가 0건이었다. 증권사는 `msg1` 로 이유를 말해 주는데 우리가 그것을 버리고 있었다.
+ */
+test('★ 증권사가 거절하면 그쪽 설명을 들고 온다', () => {
+  const failure = readEnvelope({ rt_cd: '1', msg_cd: 'APAC0071', msg1: '모의투자 미지원 TR 입니다' }, 200)
+  assert.equal(failure?.reason, 'kis_APAC0071')
+  assert.equal(failure?.detail, '모의투자 미지원 TR 입니다', '설명을 버린다')
+})
+
+test('★ 그 설명은 화면으로 안 나간다 (S3)', () => {
+  const failure = readEnvelope({ rt_cd: '1', msg_cd: 'APAC0071', msg1: '계좌 12345678 권한 없음' }, 200)
+  // 사람에게 가는 문장에는 증권사 문구가 안 섞인다 — 계좌·내부 구조가 딸려 나온다
+  assert.equal(/12345678|권한 없음/.test(failure?.userMessage ?? ''), false)
+  assert.equal(failure?.userMessage, '증권사가 조회를 거절했습니다')
+  // 시세 쪽 응답에서도 설명 칸을 떼고 돌려준다
+  assert.match(CLIENT_SRC, /const \{ detail: _detail, \.\.\.safe \} = failure/,
+    '거절 설명이 호출부 응답에 그대로 실린다')
+})
+
+test('★ 로그에는 남긴다 — 둘 다 남겨야 고칠 수 있다', () => {
+  for (const [name, src] of [['시세', CLIENT_SRC], ['계좌', ACCOUNT_SRC]] as const) {
+    assert.match(src, /noteBrokerRefusal\(/, `${name} 쪽이 거절을 안 남긴다`)
+    assert.match(src, /recordSystemEvent/, `${name} 쪽이 시스템 로그를 안 쓴다`)
+    // 기록이 조회를 막으면 안 된다 — 기다리지 않고 실패도 삼킨다
+    assert.match(src, /void noteBrokerRefusal\(/, `${name} 쪽이 기록을 기다린다`)
+    const at = src.indexOf('async function noteBrokerRefusal')
+    const body = src.slice(at, src.indexOf('\n}', at))
+    assert.match(body, /} catch \{/, `${name} 쪽 기록 실패가 위로 올라간다`)
+  }
+})
+
+test('★ 설명이 없으면 로그도 안 남긴다 — 빈 줄로 로그를 채우지 않는다', () => {
+  const failure = readEnvelope({ rt_cd: '1', msg_cd: 'APAC0071' }, 200)
+  assert.equal(failure?.detail, undefined)
+  for (const src of [CLIENT_SRC, ACCOUNT_SRC]) {
+    const at = src.indexOf('async function noteBrokerRefusal')
+    assert.match(src.slice(at, at + 200), /if \(!failure\.detail\) return/, '빈 설명도 로그로 보낸다')
+  }
+})
+
+test('★ 설명 칸은 선택이다 — 없던 자리가 안 깨진다', () => {
+  assert.match(REQUEST_SRC, /detail\?: string/, '설명 칸이 필수라 기존 호출부가 깨진다')
+})

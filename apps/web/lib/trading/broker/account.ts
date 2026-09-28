@@ -13,7 +13,7 @@ import 'server-only'
  */
 
 import { createRateQueue, type RateQueue } from './rate-queue.ts'
-import { readEnvelope, type KisAuth, type KisEnvelope } from './kis-request.ts'
+import { readEnvelope, type KisAuth, type KisEnvelope, type KisFailure } from './kis-request.ts'
 import { type KisEnv, type KisAccountKey } from './endpoints.ts'
 import {
   accountKeyFor, accountTrId, accountHeaders, accountUrl, accountFailure,
@@ -61,9 +61,40 @@ async function call<T>(
     }
     const body = (await response.json().catch(() => null)) as KisEnvelope<T> | null
     const failure = readEnvelope(body, response.status)
-    if (failure) return { ok: false as const, ...accountFailure('kis', failure.reason) }
+    if (failure) {
+      /**
+       * **증권사가 준 설명을 로그에 남긴다.**
+       *
+       * 응답에는 코드만 간다(S3) — 그 문구에 계좌나 내부 구조가 섞여 나올 수 있다.
+       * 그런데 코드만 남기면 `kis_APAC0071` 이 사흘째 반복돼도 무엇이 문제인지 아무도 모른다
+       * (실측 2026-09-26~28, 그동안 안전 게이트가 닫혀 신호가 0건이었다).
+       * 기록은 **조회를 막지 않는다** — 감사 때문에 사용자 동작이 멈추면 안 된다.
+       */
+      void noteBrokerRefusal(key, failure)
+      return { ok: false as const, ...accountFailure('kis', failure.reason) }
+    }
     return { ok: true as const, value: body as KisEnvelope<T> }
   })
+}
+
+/**
+ * 증권사 거절을 시스템 로그로. **던지지 않는다** — 기록이 조회를 막으면 안 된다.
+ * 비밀 가리기는 `recordSystemEvent` 가 이미 한다.
+ */
+async function noteBrokerRefusal(key: string, failure: KisFailure): Promise<void> {
+  if (!failure.detail) return
+  try {
+    const { recordSystemEvent } = await import('@/lib/system-log/record')
+    await recordSystemEvent({
+      source: 'cron',
+      feature: 'trading/broker',
+      error: new Error(`${failure.reason}: ${failure.detail}`),
+      hint: key,
+      blocksUser: false,
+    })
+  } catch {
+    // 로그를 못 남겨도 조회는 그대로 간다
+  }
 }
 
 export interface AccountClient {

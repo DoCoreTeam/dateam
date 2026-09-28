@@ -63,9 +63,30 @@ async function call<T>(
     }
     const body = (await response.json().catch(() => null)) as KisEnvelope<T> | null
     const failure = readEnvelope(body, response.status)
-    if (failure) return { ok: false as const, ...failure }
+    if (failure) {
+      // 시세 쪽 거절도 설명을 로그에만 남긴다 — 응답에는 코드만 간다 (S3)
+      void noteBrokerRefusal(failure)
+      const { detail: _detail, ...safe } = failure
+      return { ok: false as const, ...safe }
+    }
     return { ok: true as const, value: body as KisEnvelope<T> }
   })
+}
+
+/** 증권사 거절을 시스템 로그로. 던지지 않는다 — 기록이 조회를 막으면 안 된다 */
+async function noteBrokerRefusal(failure: KisFailure): Promise<void> {
+  if (!failure.detail) return
+  try {
+    const { recordSystemEvent } = await import('@/lib/system-log/record')
+    await recordSystemEvent({
+      source: 'cron',
+      feature: 'trading/broker',
+      error: new Error(`${failure.reason}: ${failure.detail}`),
+      blocksUser: false,
+    })
+  } catch {
+    // 로그를 못 남겨도 조회는 그대로 간다
+  }
 }
 
 export interface MinuteBarsResult {
