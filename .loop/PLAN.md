@@ -1,6 +1,6 @@
 # PLAN newAX: 화면이 저장된 값을 읽고 모순 없이 말한다
 플랜 ID: P0085
-플랜 버전: v0.4.1
+플랜 버전: v0.4.2
 상태: 진행중
 지시: ins_0143
 목표 버전: v0.10.668
@@ -135,9 +135,9 @@
 의존: 없음
 
 ### I05 지금 예측이 언제 것인지 말한다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: lib/trading/chart/series.ts, lib/trading/chart/series.test.ts, app/(trading)/trading/ChartPanel.tsx
+범위: lib/trading/chart/series.ts, lib/trading/chart/series.test.ts, app/(trading)/trading/ChartPanel.tsx, app/(trading)/trading/ChartPanel.module.css
 감사 기준:
 - 판단 시각이 지금보다 한참 전이면 그 나이를 화면에 적음 (오후 07:42 에 오후 03:26 판단이면 「4시간 전」)
 - 나이 계산이 서버 시각이 아니라 화면 시각 기준이면 하이드레이션이 안 어긋남
@@ -183,3 +183,5 @@
 - v0.4.0 (2026-09-28) 사용자 개입: 화면 데이터까지 점검하고 안 된 것을 빨리 고치라 함. 실브라우저 사용성 점검에서 나온 넷을 항목으로 넣음 (iv_0129)
 - v0.4.2 (2026-09-28) I02b 범위에 lib/terms/wait.ts 추가 — 기다리는 동안 할 말은 용어집이 정하고 화면이 적지 않는다, 두 문장을 그 표에 넣음 (audit:I02b)
 - v0.4.2 (2026-09-28) I02b 범위에 lib/terms/wait.ts 추가 (audit:I02b)
+- v0.4.4 (2026-09-28) I05 범위에 ChartPanel.module.css 추가 — 나이 글자가 시각보다 약해야 사실로 읽히고 경고로 안 읽힌다 (audit:I05)
+- v0.4.2 (2026-09-28) I05 범위에 ChartPanel.module.css 추가 (audit:I05)

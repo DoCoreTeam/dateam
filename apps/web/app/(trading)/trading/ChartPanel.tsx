@@ -18,7 +18,7 @@ import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import type { ChartSeries, SignalRow } from '@/lib/trading/overview-shape'
-import { pickNowCall } from '@/lib/trading/chart/series'
+import { pickNowCall, callAgeLabel } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
 import { formatIndexPrice, formatProbability } from '@/lib/trading/signal-labels'
 import { UNKNOWN_TEXT, seoulTimeText } from '@/lib/trading/position-labels'
@@ -97,6 +97,20 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
    * (사용자 지적 2026-09-28: 판단 기록엔 숏 90% 가 줄줄이 있었다).
    */
   const call = pickNowCall({ signals, calls: chart.calls })
+  /*
+    **나이는 화면이 잰다.** 서버에서 재서 글자로 내려보내면 그 글자는 찍힌 순간에 멈추고,
+    탭을 열어 둔 채 한 시간이 지나도 「1분 전」이다. 첫 렌더에는 안 그린다 —
+    서버가 그린 것과 달라지면 하이드레이션이 어긋난다.
+  */
+  const [callAge, setCallAge] = useState<string | null>(null)
+  useEffect(() => {
+    if (!call) { setCallAge(null); return }
+    const tick = () => setCallAge(callAgeLabel(call.at, new Date()))
+    tick()
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [call?.at])
+
   return (
     <section className={`card ${styles.panel}`}>
       <div className={styles.chartSide}>
@@ -133,7 +147,8 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
                 </div>
                 <div className={styles.fact}>
                   <dt>시각</dt>
-                  <dd>{seoulTimeText(call.at)}</dd>
+                  {/* 언제 것인지까지 말한다 — 시각만 있으면 어제 것이 오늘 것으로 읽힌다 */}
+                  <dd>{seoulTimeText(call.at)}{callAge && <span className={styles.age}> · {callAge}</span>}</dd>
                 </div>
                 {call.from === 'signal' && (
                   <>

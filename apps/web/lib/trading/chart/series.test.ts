@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain, pickNowCall } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
 import { stripComments } from '../../ui/component-scan.ts'
@@ -369,4 +369,49 @@ test('★ 도움말이 그 봉의 판단도 보여 준다 — 표식만 보고�
   assert.match(body, /c\.barAt === row\.at/, '그 봉의 판단만 고르지 않는다')
   assert.match(body, /JUDGE_LABEL\[c\.judge\]/, '어느 판단기인지 안 말한다')
   assert.match(body, /LEANING_LABEL\[c\.direction\]/, '어느 쪽으로 기울었는지 안 말한다')
+})
+
+// ── 「지금 예측」이 언제 것인지 (I05) ──────────────────────────────
+
+test('★ 갓 나온 판단에는 나이를 안 적는다', () => {
+  const now = new Date('2026-09-28T10:00:00+09:00')
+  // 늘 「1분 전」이 붙어 있으면 그 글자는 배경이 되고, 네 시간 전일 때도 안 읽힌다
+  assert.equal(callAgeLabel('2026-09-28T09:59:30+09:00', now), null)
+  assert.equal(callAgeLabel('2026-09-28T09:58:00+09:00', now), null)
+})
+
+test('★ 한참 지난 판단은 얼마나 전인지 적는다', () => {
+  const now = new Date('2026-09-28T19:42:00+09:00')
+  // 실측한 그 화면: 오후 7시42분에 오후 3시26분 판단을 「지금 예측」이라 부르고 있었다
+  assert.equal(callAgeLabel('2026-09-28T15:26:00+09:00', now), '4시간 전')
+  assert.equal(callAgeLabel('2026-09-28T19:30:00+09:00', now), '12분 전')
+  assert.equal(callAgeLabel('2026-09-27T15:26:00+09:00', now), '1일 전')
+})
+
+test('시계가 어긋나 앞선 시각이 와도 「-3분 전」을 적지 않는다', () => {
+  const now = new Date('2026-09-28T10:00:00+09:00')
+  assert.equal(callAgeLabel('2026-09-28T10:05:00+09:00', now), null)
+  assert.equal(callAgeLabel('망가진 값', now), null)
+})
+
+test('★ 날이 바뀌었는지 안다 — 시각만으로는 어제 것이 오늘 것으로 읽힌다', () => {
+  const now = new Date('2026-09-29T09:00:00+09:00')
+  assert.equal(isOtherDay('2026-09-28T15:26:00+09:00', now), true)
+  assert.equal(isOtherDay('2026-09-29T08:59:00+09:00', now), false)
+  // 자정 직전·직후는 KST 로 갈린다 — UTC 로 세면 아홉 시간이 밀린다
+  assert.equal(isOtherDay('2026-09-29T00:01:00+09:00', now), false)
+  assert.equal(isOtherDay('2026-09-28T23:59:00+09:00', now), true)
+})
+
+test('★ 화면이 나이를 그리고, 서버가 찍은 글자를 쓰지 않는다', () => {
+  const src = readFileSync(join(WEB, TRADING_APP_DIR, 'ChartPanel.tsx'), 'utf8')
+  assert.ok(src.includes('callAgeLabel('), '나이를 안 잰다')
+  assert.ok(src.includes('{callAge'), '재 놓고 화면에 안 그린다')
+  /*
+    첫 렌더에 서버 시각으로 만든 글자를 그리면 화면이 다시 그릴 때 값이 달라져
+    하이드레이션이 어긋난다. 그래서 effect 안에서만 계산해야 한다.
+  */
+  assert.ok(/useEffect\([\s\S]{0,400}callAgeLabel\(/.test(src),
+    '첫 렌더에서 나이를 계산한다 — 하이드레이션이 어긋난다')
+  assert.ok(src.includes('setInterval('), '한 번만 재면 탭을 열어 둔 채로 글자가 멈춘다')
 })

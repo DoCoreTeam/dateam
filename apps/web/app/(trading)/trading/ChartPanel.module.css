@@ -130,3 +130,9 @@
   color: var(--text);
   overflow-wrap: anywhere;
 }
+
+/* 판단이 언제 것인지. 시각 옆에 붙되 시각보다 약하게 — 사실이지 경고가 아니다 */
+.age {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

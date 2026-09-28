@@ -18,6 +18,7 @@
 
 import { readRunReason, type RunReasonLine } from '../operator/run-reason.ts'
 import { leaningOf, type Leaning } from '../judgment-labels.ts'
+import { formatKstAgo, kstDateKey } from '../../datetime/kst.ts'
 
 /** 그림이 읽는 봉 한 개. 시각은 ISO 그대로 두고 눈금은 화면이 만든다 */
 export interface ChartBar {
@@ -336,4 +337,39 @@ export function pickNowCall(input: {
     targetPrice: null,
     evR: null,
   }
+}
+
+/**
+ * 「지금 예측」이 정말 지금 것인가 — **아니면 언제 것인지 말한다**
+ *
+ * 실측 2026-09-28 오후 7시42분: 화면이 「지금 예측 · 시각 오후 03:26」이라고 적고 있었다.
+ * 시각만 있고 날짜도 경과도 없어서, 장이 끝난 지 네 시간이 지난 판단이 방금 난 것처럼 보였다.
+ * 다음 날 아침에 열면 **어제 것이 오늘 것으로 읽힌다** — 같은 화면이 날마다 거짓말을 한다.
+ *
+ * ## 갓 나온 것은 안 적는다
+ *
+ * 늘 「1분 전」이 붙어 있으면 그 글자는 배경이 되고, 정작 네 시간 전일 때도 안 읽힌다.
+ * 판단 봉이 1분이라 몇 분 안쪽은 「지금」이라고 불러도 거짓이 아니다.
+ *
+ * ## 서버가 아니라 화면이 잰다
+ *
+ * 서버에서 재서 글자로 내려보내면 그 글자는 **찍힌 순간에 멈춘다.** 탭을 열어 둔 채
+ * 한 시간이 지나도 「1분 전」이다. 그리고 서버 시각으로 만든 글자를 처음 그리면
+ * 화면이 다시 그릴 때 값이 달라져 하이드레이션이 어긋난다 —
+ * 그래서 이 함수는 `now` 를 받고, 화면은 마운트한 뒤에 부른다.
+ */
+export const CALL_FRESH_MS = 3 * 60_000
+
+export function callAgeLabel(atIso: string, now: Date): string | null {
+  const at = new Date(atIso)
+  if (Number.isNaN(at.getTime())) return null
+  const elapsed = now.getTime() - at.getTime()
+  // 앞선 시각은 시계가 어긋난 것이다. 「-3분 전」을 적느니 아무 말도 안 한다
+  if (elapsed < CALL_FRESH_MS) return null
+  return formatKstAgo(atIso, now)
+}
+
+/** 날이 바뀌었으면 시각만으로는 모자라다 — 어느 날 것인지 같이 적는다 */
+export function isOtherDay(atIso: string, now: Date): boolean {
+  return kstDateKey(atIso) !== kstDateKey(now.toISOString())
 }
