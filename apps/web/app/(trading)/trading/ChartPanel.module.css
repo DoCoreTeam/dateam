@@ -44,6 +44,43 @@
 .up { fill: var(--danger); stroke: var(--danger); }
 .down { fill: var(--accent); stroke: var(--accent); }
 
+/* 봉 도움말 — 기본 도움말이 dataKey 를 그대로 찍어서 우리가 그린다 */
+.tip {
+  background: var(--surface-bg);
+  border: var(--border-w) solid var(--border-color);
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  min-width: 0;
+}
+
+.tipTime {
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.tipRows {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, auto));
+  gap: 2px var(--space-3);
+}
+
+.tipRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.tipRow dt { color: var(--text-muted); }
+.tipRow dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.tipCall {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
 /* 지금 예측 */
 .call {
   font-size: var(--fs-2xl);

@@ -344,3 +344,29 @@ test('★ 현황이 판단을 창구에서 받아 온다', () => {
   assert.match(overview, /loadChart\(contractCode, now, signals, judgments,/, '판단을 안 넘긴다')
   assert.match(overview, /buildSeries\(\{ bars, signals, judgments, lastRunReason \}\)/, '판단을 안 쓴다')
 })
+
+/* ── 차트 도움말 (사용자 지적 2026-09-28 「이거 설명도 없고」) ── */
+
+/**
+ * recharts 기본 도움말은 `dataKey` 를 그대로 찍는다 — 실측 화면에
+ * `band : 1092.28,1093.3` 이 떠 있었다. 읽는 사람은 그것이 무엇인지 알 길이 없다.
+ */
+test('★ 봉 도움말이 기계 이름을 안 찍는다', () => {
+  const panel = readFileSync(join(WEB, TRADING_APP_DIR, 'ChartPanel.tsx'), 'utf8')
+  // 기본 도움말을 그대로 쓰면 dataKey 가 샌다
+  assert.equal(/<R\.Tooltip\s*\n?\s*formatter=/.test(panel), false, '기본 도움말을 쓴다')
+  assert.match(panel, /<R\.Tooltip content=\{<BarTip/, '우리 도움말을 안 그린다')
+  for (const word of ['시가', '고가', '저가', '종가']) {
+    assert.ok(panel.includes(`'${word}'`), `${word} 를 안 보여 준다`)
+  }
+})
+
+test('★ 도움말이 그 봉의 판단도 보여 준다 — 표식만 보고는 무엇을 판단했는지 모른다', () => {
+  const panel = readFileSync(join(WEB, TRADING_APP_DIR, 'ChartPanel.tsx'), 'utf8')
+  const at = panel.indexOf('function BarTip')
+  assert.ok(at > 0, '도움말 부품이 없다')
+  const body = panel.slice(at, panel.indexOf('\n}\n', at))
+  assert.match(body, /c\.barAt === row\.at/, '그 봉의 판단만 고르지 않는다')
+  assert.match(body, /JUDGE_LABEL\[c\.judge\]/, '어느 판단기인지 안 말한다')
+  assert.match(body, /LEANING_LABEL\[c\.direction\]/, '어느 쪽으로 기울었는지 안 말한다')
+})

@@ -33,6 +33,45 @@ interface Props {
 }
 
 /**
+ * 봉 하나를 사람 말로 — 시가·고가·저가·종가와 그 봉에서 난 판단.
+ *
+ * **기계 이름을 안 찍는다.** recharts 기본 도움말은 `dataKey` 를 그대로 보여 주므로
+ * `band : 1092.28,1093.3` 이 된다. 읽는 사람은 그것이 무엇인지 알 길이 없다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function BarTip({ active, payload, calls }: any) {
+  const row = payload?.[0]?.payload as
+    | { at: string; label: string; open: number; high: number; low: number; close: number }
+    | undefined
+  if (!active || !row) return null
+  const mine = (calls as ChartSeries['calls']).filter((c) => c.barAt === row.at)
+  const up = row.close >= row.open
+  return (
+    <div className={styles.tip}>
+      <strong className={styles.tipTime}>{row.label}</strong>
+      <dl className={styles.tipRows}>
+        {([['시가', row.open], ['고가', row.high], ['저가', row.low], ['종가', row.close]] as const).map(
+          ([name, value]) => (
+            <div key={name} className={styles.tipRow}>
+              <dt>{name}</dt>
+              <dd className={name === '종가' ? (up ? styles.long : styles.short) : undefined}>
+                {formatIndexPrice(value)}
+              </dd>
+            </div>
+          ),
+        )}
+      </dl>
+      {/* 그 봉에서 난 판단도 같이 — 표식만 보고 무엇을 판단했는지 몰랐다 */}
+      {mine.map((c) => (
+        <span key={c.judgmentId} className={styles.tipCall}>
+          {`${JUDGE_LABEL[c.judge] ?? c.judge} · ${LEANING_LABEL[c.direction]} ${formatProbability(c.prob)}`}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/**
  * 그 봉의 종가. 판단에는 가격이 없으므로 **그 봉 위에** 찍는다 —
  * 없는 값을 지어내지 않고 같은 봉의 값을 쓴다
  */
@@ -211,10 +250,12 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
             stroke="var(--text-faint)"
             tickFormatter={(v: number) => v.toFixed(1)}
           />
-          <R.Tooltip
-            formatter={(v: unknown, name: string) => [String(v), name]}
-            labelFormatter={(l: string) => l}
-          />
+          {/*
+            **도움말을 우리가 그린다.** 기본 도움말은 `dataKey` 를 그대로 찍어
+            `band : 1092.28,1093.3` 처럼 나온다 — 사람이 읽으라고 만든 이름이 아니다
+            (사용자 지적 2026-09-28 「이거 설명도 없고」).
+          */}
+          <R.Tooltip content={<BarTip calls={chart.calls} />} />
           <R.Bar dataKey="band" shape={<Candle />} isAnimationActive={false} />
           {/*
             **판단 표식은 신호보다 작고 연하다.** 신호는 관문을 다 지난 것이고
