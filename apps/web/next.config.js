@@ -67,6 +67,36 @@ const nextConfig = {
   images: { unoptimized: true },
 
   /**
+   * **빌드가 메모리로 죽지 않게 한다** (실측 2026-09-28).
+   *
+   * Vercel 배포 v0.10.651 이 `std::bad_alloc` + `SIGABRT` 로 죽었다 — V8 힙 상한이 아니라
+   * **네이티브 메모리 고갈**이라 힙 상한을 올리면 더 나빠진다.
+   *
+   * webpack 이 파일 캐시를 쓰면 빌드 끝에 **모듈 전체를 직렬화해 들고 있다가** 쓴다.
+   * dev 에서는 그 캐시가 다시 켤 때를 빠르게 해 주지만, **한 번 내고 버리는 프로덕션 빌드에는
+   * 다음 번이 없다** — Vercel 은 매번 새 컨테이너다. 그래서 프로덕션에서는 끈다.
+   *
+   * ## 재 보고 골랐다 (같은 기계·같은 커밋, `/usr/bin/time -l` 최대 RSS)
+   *
+   * | 설정 | 최대 RSS | 시간 |
+   * |---|---|---|
+   * | 손 안 댄 것 | 6.61 GB | 151초 |
+   * | `webpackMemoryOptimizations` + `cpus: 2` 만 | 7.00 GB | 156초 |
+   * | 캐시 끄기만 | 4.44 GB | 160초 |
+   * | **캐시 끄기 + `webpackMemoryOptimizations`** | **4.22 GB** | 159초 |
+   *
+   * 생성 쪽 수(295/295)와 공용 첫 화면 JS(104 kB)는 넷 다 같다 — 결과물은 안 바뀐다.
+   * `cpus: 2` 는 혼자서는 오히려 더 썼으므로 **안 켠다** (짐작으로 켜지 않는다).
+   * 8초(5%) 느려지는 것은 배포가 죽는 것과 바꿀 값이 아니다.
+   */
+  experimental: { webpackMemoryOptimizations: true },
+
+  webpack: (config, { dev }) => {
+    if (!dev) config.cache = false
+    return config
+  },
+
+  /**
    * 워크스페이스 패키지는 타입이 붙은 채로 온다.
    *
    * 실측 2026-09-10: 여기 안 올려도 빌드는 통과했다. pnpm 이 만든 심볼릭 링크가
