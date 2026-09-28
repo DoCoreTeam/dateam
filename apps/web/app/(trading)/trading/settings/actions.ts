@@ -39,6 +39,7 @@ import {
   type Answers, type FilledValue, type RiskView, type StartOverrides,
 } from '@/lib/trading/settings/onboarding'
 import { ENV_BLOCKED_MESSAGE, type KeyChoice } from '@/lib/ai/provider-key-source'
+import { refreshCatalogFor } from '@/lib/ai-chat/model-catalog-refresh'
 import { computeRisk } from '@/lib/trading/risk/arithmetic'
 import { loadInstrumentSpec } from '@/lib/trading/settings/store'
 
@@ -240,6 +241,52 @@ export async function listJudgeModels(): Promise<{
     }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : '모델 목록을 읽지 못했습니다' }
+  }
+}
+
+/**
+ * 판단에 쓸 공급자의 모델 목록을 **관문에서 받아 채운다.**
+ *
+ * ## 왜 이 창구가 필요한가 (실측 2026-09-28)
+ *
+ * `ai_model_catalog` 에 jev 모델이 **0개**였다. 관문(Vercel AI Gateway)은 자기 모델을
+ * `GET /v1/models` 로 알려 주는데(실측 391개) 아무도 그것을 받아 온 적이 없었기 때문이다.
+ * 받아 오는 창구는 있었지만 **관리자 전용**이라 트레이딩 소유자가 못 불렀다.
+ * 그 결과 화면은 「다른 모델을 고르세요」라고 말하는데 고를 것이 하나도 없었다.
+ *
+ * ## 안 하는 것 셋
+ *
+ * 1 **관리자 창구를 그대로 안 부른다.** 소유자가 관리자가 아닌 날 통째로 막힌다 —
+ *   일은 `refreshCatalogFor` 한 곳에 있고 관문만 여기서 다시 건다
+ * 2 **아무 공급자나 안 받는다.** 밖에서 온 값이므로 판단에 쓸 수 있는 목록으로만 거른다
+ * 3 **모델마다 찔러 보지 않는다.** 관문 뒤에 391개가 있어 전부 부르면 목록 한 번에
+ *   391번을 부른다. 고르는 데는 목록이면 족하고, 상태는 「모름」으로 정직하게 둔다
+ *
+ * 키는 서버 밖으로 안 나간다 — 돌려주는 것은 받은 개수와 사유뿐이다 (S3).
+ */
+export async function refreshJudgeModels(
+  provider: string,
+): Promise<{ ok: boolean; count?: number; userMessage: string }> {
+  if (!(await tradingAccess()).allowed) {
+    return { ok: false, userMessage: '이 화면의 소유자만 할 수 있습니다' }
+  }
+  if (!JUDGE_PROVIDERS.includes(provider)) {
+    return { ok: false, userMessage: '판단에 쓸 수 있는 공급자가 아닙니다' }
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    const r = await refreshCatalogFor(admin, provider as AiProviderId, { probe: false })
+    if (!r.ok) return { ok: false, userMessage: r.error ?? '모델 목록을 받지 못했습니다' }
+    if ((r.count ?? 0) === 0) {
+      return { ok: true, count: 0, userMessage: '관문이 고를 수 있는 모델을 하나도 안 줬습니다' }
+    }
+    return { ok: true, count: r.count, userMessage: `${r.count}개를 받았습니다. 이제 고를 수 있습니다` }
+  } catch (error) {
+    return {
+      ok: false,
+      userMessage: error instanceof Error ? error.message : '모델 목록을 받지 못했습니다',
+    }
   }
 }
 
