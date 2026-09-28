@@ -127,22 +127,22 @@ test('★ 모델이 비면 모델 없음이다 — 키를 먼저 보지 않는�
   // 부르는 쪽(jobs/tick.ts)이 모델을 먼저 본다. 화면이 키를 먼저 보면 둘 다 없을 때
   // 실행 기록은 jev_model_not_set 이라 적고 화면은 키를 등록하라고 말한다
   assert.deepEqual(jevStatusOf({ model: '', keyReason: 'no_key' }),
-    { on: false, reason: 'model_missing' })
+    { on: false, reason: 'model_missing', aiJudgedToday: 0 })
   assert.deepEqual(jevStatusOf({ model: '   ', keyReason: 'pool' }),
-    { on: false, reason: 'model_missing' })
+    { on: false, reason: 'model_missing', aiJudgedToday: 0 })
 })
 
 test('★ 모델은 있는데 키가 없으면 그 둘을 갈라 말한다', () => {
   assert.deepEqual(jevStatusOf({ model: 'some-model', keyReason: 'no_key' }),
-    { on: false, reason: 'key_missing' })
-  // 「키가 없다」와 「판이 달라 안 쓴다」는 조치가 다르다
-  assert.deepEqual(jevStatusOf({ model: 'some-model', keyReason: 'env_blocked' }),
-    { on: false, reason: 'env_blocked' })
+    { on: false, reason: 'key_missing', aiJudgedToday: 0 })
+  // 「키가 없다」와 「키는 있는데 이 화면이 안 쓴다」는 조치가 다르다
+  assert.deepEqual(jevStatusOf({ model: 'some-model', keyReason: 'env_blocked', aiJudgedToday: 44 }),
+    { on: false, reason: 'env_blocked', aiJudgedToday: 44 })
 })
 
 test('★ 켜져 있으면 이유가 없다 — 화면이 그 자리를 아예 안 그린다', () => {
   for (const keyReason of ['pool', 'meta'] as const) {
-    assert.deepEqual(jevStatusOf({ model: 'some-model', keyReason }), { on: true, reason: null })
+    assert.deepEqual(jevStatusOf({ model: 'some-model', keyReason }), { on: true, reason: null, aiJudgedToday: 0 })
   }
   const panel = readFileSync(join(APP, 'JevPanel.tsx'), 'utf8')
   assert.ok(panel.includes('if (jev.on || !jev.reason) return null'),

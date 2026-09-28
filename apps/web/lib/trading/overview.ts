@@ -123,15 +123,19 @@ function seoulToday(now: Date): string {
  * 못 읽어도 던지지 않는다. 현황 한 줄 때문에 화면 전체가 죽으면 안 되고,
  * 그때는 「모델이 없다」가 아니라 **읽기 실패**를 말해야 하므로 키를 없는 것으로 치지 않는다.
  */
-async function loadJevStatus(values: Record<string, unknown>): Promise<JevStatus> {
+async function loadJevStatus(
+  values: Record<string, unknown>,
+  /** 오늘 쌓인 AI 판단 건수. 이 화면이 안 부르는 것과 아무도 안 부르는 것을 가른다 */
+  aiJudgedToday: number,
+): Promise<JevStatus> {
   const model = typeof values.jev_model === 'string' ? values.jev_model : ''
-  if (model.trim() === '') return jevStatusOf({ model: '', keyReason: 'no_key' })
+  if (model.trim() === '') return jevStatusOf({ model: '', keyReason: 'no_key', aiJudgedToday })
   try {
     const choice = await resolveProviderKey('jev', null)
-    return jevStatusOf({ model, keyReason: choice.reason })
+    return jevStatusOf({ model, keyReason: choice.reason, aiJudgedToday })
   } catch {
     // 키 표를 못 읽었다. 「키가 없다」로 적으면 멀쩡한 키를 등록하라고 말하게 된다
-    return { on: false, reason: 'key_missing' }
+    return { on: false, reason: 'key_missing', aiJudgedToday }
   }
 }
 
@@ -186,6 +190,18 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     .order('bar_close_at', { ascending: false })
     .limit(50)
   if (judgmentError) throw new Error(`판단 기록을 읽지 못했습니다: ${judgmentError.message}`)
+
+  /**
+   * 오늘 쌓인 AI 판단 건수. **위 목록에서 세지 않는다** — 그 목록은 화면에 그릴 만큼만
+   * 가져온 최근 50줄이라 오늘이 그보다 많으면 적게 센다. 「몇 건 쌓였다」는 사실을
+   * 말할 자리에 모자란 수를 적으면 그것도 거짓말이다.
+   */
+  const { count: aiJudgedCount } = await admin
+    .from('trading_judgments')
+    .select('id', { count: 'exact', head: true })
+    .eq('judge', 'jev')
+    .gte('bar_close_at', new Date(`${today}T00:00:00+09:00`).toISOString())
+  const aiJudgedToday = Number(aiJudgedCount ?? 0)
 
   const judgments: JudgmentRow[] = ((judgmentRows ?? []) as Record<string, unknown>[]).map((row) => ({
     id: String(row.id),
@@ -369,7 +385,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     ...(await loadHolding(contractCode, today)),
     notify,
     emitProgress: emitProgressOf(recentRuns[0]?.reason ?? null),
-    jev: await loadJevStatus(values),
+    jev: await loadJevStatus(values, aiJudgedToday),
     knowledge: await loadKnowledge(now),
     settingHelp: await loadSettingHelp(now),
     knowledgeProgress: knowledgeProgressOf(recentRuns[0]?.reason ?? null),

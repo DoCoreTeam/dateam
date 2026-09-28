@@ -10,7 +10,7 @@ import { AlertTriangle } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import type { JevStatus } from '@/lib/trading/overview-shape'
 import {
-  JEV_OFF_TITLE, JEV_OFF_REASON_LABEL, JEV_OFF_REMEDY_LABEL, JEV_OFF_CONSEQUENCE,
+  jevOffTitle, JEV_OFF_REASON_LABEL, JEV_OFF_REMEDY_LABEL, jevConsequenceLine,
 } from '@/lib/trading/jev-labels'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
 
@@ -30,7 +30,7 @@ export default function JevPanel({ jev }: Props) {
           margin: 0, marginBottom: 'var(--space-2)',
         }}
       >
-        <AlertTriangle size={16} /> {JEV_OFF_TITLE}
+        <AlertTriangle size={16} /> {jevOffTitle(jev.reason)}
       </h2>
       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', margin: 0, marginBottom: 'var(--space-2)' }}>
         {JEV_OFF_REASON_LABEL[jev.reason]}
@@ -39,7 +39,7 @@ export default function JevPanel({ jev }: Props) {
         {JEV_OFF_REMEDY_LABEL[jev.reason]}
       </p>
       <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 0, marginBottom: 'var(--space-3)' }}>
-        {JEV_OFF_CONSEQUENCE}
+        {jevConsequenceLine({ reason: jev.reason, todayCount: jev.aiJudgedToday })}
       </p>
 
       {/*

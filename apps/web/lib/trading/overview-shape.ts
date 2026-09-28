@@ -337,6 +337,11 @@ export interface JevStatus {
   on: boolean
   /** 못 부르는 이유. 켜져 있으면 null */
   reason: JevOffReason | null
+  /**
+   * 오늘 쌓인 AI 판단 건수. **화면이 스스로 모순되지 않게 하는 값이다** —
+   * 이 화면이 AI 판단을 안 부르는 것과 AI 판단이 아무 데서도 안 도는 것은 다르다.
+   */
+  aiJudgedToday: number
 }
 
 /**
@@ -350,11 +355,14 @@ export interface JevStatus {
 export function jevStatusOf(input: {
   model: string
   keyReason: 'pool' | 'meta' | 'no_key' | 'env_blocked'
+  /** 오늘 쌓인 AI 판단 건수. 안 주면 0 으로 보되 **없다는 사실**이지 0 건이라는 주장은 아니다 */
+  aiJudgedToday?: number
 }): JevStatus {
-  if (input.model.trim() === '') return { on: false, reason: 'model_missing' }
-  if (input.keyReason === 'no_key') return { on: false, reason: 'key_missing' }
-  if (input.keyReason === 'env_blocked') return { on: false, reason: 'env_blocked' }
-  return { on: true, reason: null }
+  const aiJudgedToday = input.aiJudgedToday ?? 0
+  if (input.model.trim() === '') return { on: false, reason: 'model_missing', aiJudgedToday }
+  if (input.keyReason === 'no_key') return { on: false, reason: 'key_missing', aiJudgedToday }
+  if (input.keyReason === 'env_blocked') return { on: false, reason: 'env_blocked', aiJudgedToday }
+  return { on: true, reason: null, aiJudgedToday }
 }
 
 /** 그날 수집이 온전한가. 사람이 「5거래일 결측 없음」을 셀 수 있게 한 줄로 답한다 */
