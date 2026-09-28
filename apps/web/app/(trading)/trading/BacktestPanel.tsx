@@ -13,7 +13,8 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import styles from './BacktestPanel.module.css'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
-import { GATE_STATUS_LABEL, GATE_STATUS_COLOR, GATE_HEADLINE_NOT_MEASURED, GATE_HELP } from '@/lib/trading/gate/labels'
+import Link from 'next/link'
+import { GATE_STATUS_LABEL, GATE_STATUS_COLOR, GATE_HEADLINE_NOT_MEASURED, GATE_HELP, howHref } from '@/lib/trading/gate/labels'
 import type { CriterionResult } from '@/lib/trading/overview-shape'
 
 const COLUMNS: ColumnDef<CriterionResult>[] = [
@@ -32,7 +33,13 @@ const COLUMNS: ColumnDef<CriterionResult>[] = [
     cell: (c) => (
       <span className={styles.detailCell}>
         <span>{c.detail}</span>
-        {c.how && <span className={styles.how}>{c.how}</span>}
+        {c.how && (() => {
+          /* 가라고 말한 화면이 있으면 그 자리에서 갈 수 있어야 한다 — 주소는 배치에서 온다 */
+          const href = howHref(c.how)
+          return href
+            ? <Link href={href} className={styles.how}>{c.how}</Link>
+            : <span className={styles.how}>{c.how}</span>
+        })()}
       </span>
     ),
   },

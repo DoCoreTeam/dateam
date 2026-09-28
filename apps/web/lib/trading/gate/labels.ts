@@ -5,6 +5,7 @@
 
 import type { CriterionStatus } from './criteria.ts'
 import { NOT_MEASURED, NOT_MEASURED_SENTENCE } from '../../terms/index.ts'
+import { TRADING_NAV } from '../nav/groups.ts'
 
 export const GATE_STATUS_LABEL: Record<CriterionStatus, string> = {
   pass: '통과',
@@ -33,3 +34,22 @@ export const GATE_HEADLINE_NOT_MEASURED = `${NOT_MEASURED_SENTENCE}. 표본이 �
 /** 세 상태가 무엇을 뜻하는지 — 「측정 전」이 미달로 읽히지 않게 */
 export const GATE_HELP =
   `여덟 줄을 전부 넘어야 알림 단계로 넘어갑니다. 「${NOT_MEASURED}」은 미달이 아니라 표본이 모자란 것입니다`
+
+/**
+ * 안내가 가리키는 화면으로 가는 길 — **말한 곳에는 갈 수 있어야 한다**
+ *
+ * 실측 2026-09-28: 검증 화면이 「자료 화면에서 모인 봉을 볼 수 있습니다」를 **아홉 번**
+ * 말하는데 그 화면에 링크가 **0개**였다. 읽은 사람은 사이드바에서 스스로 찾아가야 했다.
+ * 가라고 말해 놓고 길을 안 주면 그 문장은 안내가 아니라 훈수다.
+ *
+ * 주소를 여기 적지 않고 **사이드바 배치에서 찾는다.** 두 곳에 적으면 메뉴를 옮긴 날
+ * 안내만 옛 주소를 가리키고, 그것은 아무도 안 깨진 것처럼 보인다.
+ */
+export function howHref(how: string | undefined | null): string | null {
+  if (!how) return null
+  for (const item of TRADING_NAV) {
+    // 「자료 화면에서」처럼 화면 이름 뒤에 「화면」이 붙은 자리만 길로 본다
+    if (how.includes(`${item.label} 화면`)) return item.href
+  }
+  return null
+}

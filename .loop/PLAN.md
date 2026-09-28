@@ -114,7 +114,7 @@
 의존: 없음
 
 ### I02c 화면이 말한 곳으로 갈 수 있다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: app/(trading)/trading/BacktestPanel.tsx, lib/trading/gate/labels.ts, lib/trading/gate/labels.test.ts (신규)
 감사 기준:
