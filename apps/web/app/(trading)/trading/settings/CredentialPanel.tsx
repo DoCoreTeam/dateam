@@ -14,6 +14,7 @@ import { useState, useTransition } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import { ACTION, progress } from '@/lib/terms'
+import { eulReul, gwaWa, withJosa } from '@/lib/ui/josa'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
 import { saveTradingCredentialsAction } from './actions'
 
@@ -55,6 +56,20 @@ function EnvForm({ row }: { row: CredentialStatusRow }) {
   const [pending, startTransition] = useTransition()
 
   const filled = appKey.trim() !== '' && appSecret.trim() !== ''
+  /*
+    **왜 못 누르는지 화면이 말한다** (실측 2026-09-28: 이유가 아무 데도 없었다 — title 조차).
+    앱키만 넣고 저장이 안 켜지면 사람은 값이 틀렸다고 읽고 지웠다 다시 넣는다.
+    계좌번호는 `filled` 가 안 보므로 필수가 아니다 — 그 사실도 같이 말한다.
+  */
+  const missing = [
+    appKey.trim() === '' ? '앱키' : null,
+    appSecret.trim() === '' ? '앱시크릿' : null,
+  ].filter((w): w is string => w !== null)
+  /* 조사를 손으로 적으면 「앱키과 앱시크릿를」이 된다 — 받침은 `lib/ui/josa` 가 본다 */
+  const blocked = missing.length > 0
+    ? `${missing.map((w, i) => (i < missing.length - 1 ? withJosa(w, gwaWa) : w)).join(' ')}`
+      + `${eulReul(missing[missing.length - 1])} 넣어야 저장할 수 있습니다`
+    : null
 
   function save() {
     setMessage(null)
@@ -111,7 +126,7 @@ function EnvForm({ row }: { row: CredentialStatusRow }) {
           />
         </div>
         <div>
-          <label className="label" htmlFor={`account-${row.env}`}>계좌번호</label>
+          <label className="label" htmlFor={`account-${row.env}`}>계좌번호 (나중에 넣어도 됩니다)</label>
           <input
             id={`account-${row.env}`}
             className="input-field"
@@ -121,10 +136,16 @@ function EnvForm({ row }: { row: CredentialStatusRow }) {
             onChange={(e) => setAccountNo(e.target.value)}
           />
         </div>
-        <NbButton disabled={pending || !filled} onClick={save}>
+        <NbButton disabled={pending || !filled} onClick={save} title={blocked ?? undefined}>
           {pending ? progress(ACTION.save) : ACTION.save}
         </NbButton>
       </div>
+
+      {blocked && (
+        <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 'var(--space-2) 0 0' }}>
+          {blocked}
+        </p>
+      )}
 
       {message && (
         <p

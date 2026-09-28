@@ -125,7 +125,7 @@
 의존: 없음
 
 ### I02d 자격증명 저장이 무엇이 모자란지 말한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: app/(trading)/trading/settings/CredentialPanel.tsx
 감사 기준:
