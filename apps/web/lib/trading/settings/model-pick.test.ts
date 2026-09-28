@@ -465,3 +465,49 @@ test('★ 화면 문구가 라벨 표에서 온다', () => {
   const hangul = code.flatMap((l) => l.match(/'[^'\n]*[가-힣][^'\n]*'/g) ?? [])
   assert.deepEqual(hangul, [], `화면에 한글을 직접 적었다: ${hangul.join(', ')}`)
 })
+
+/* ── 같은 말이 두 뜻으로 쓰이지 않는다 ────────────────── */
+
+import { JUDGE_LABEL } from '../judgment-labels.ts'
+import { JEV_OFF_TITLE, JEV_OFF_REASON_LABEL, JEV_OFF_REMEDY_LABEL } from '../jev-labels.ts'
+import { tradingSetting } from './registry.ts'
+
+/**
+ * **사용자 질문 2026-09-28** 「jev에도 모델명이 있다고? 나는 잘 모르는 이야긴데
+ * 그냥 jev 자체 아닌가?」
+ *
+ * 이 저장소에서 Jev 는 **AI 판단기의 이름**인데 공급자 목록에도 같은 낱말이 있다
+ * (Vercel 관문). 화면에 그 낱말만 찍으면 읽는 사람은 그것이 모델 이름인지 회사 이름인지
+ * 판단기 이름인지 알 수 없다 — 물어봐야 아는 화면은 안 만든 화면과 같다.
+ */
+test('★ 판단기 이름은 무엇을 하는 것인지로 부른다', () => {
+  assert.equal(JUDGE_LABEL.jev, 'AI 판단', '판단기 자리에 설명 없는 낱말이 남아 있다')
+  assert.equal(JUDGE_LABEL.rule, '규칙 판단')
+  // 판단기 이름과 공급자 이름이 화면에서 같은 낱말이면 안 된다
+  assert.equal(/^Jev$/.test(JUDGE_LABEL.jev), false)
+})
+
+test('★ 꺼져 있다는 말도 판단기 쪽 말로 한다', () => {
+  assert.match(JEV_OFF_TITLE, /AI 판단/)
+  for (const v of Object.values(JEV_OFF_REASON_LABEL)) {
+    assert.equal(/Jev/.test(v), false, `설명 없는 낱말이 남아 있다: ${v}`)
+  }
+  for (const v of Object.values(JEV_OFF_REMEDY_LABEL)) {
+    assert.equal(/Jev/.test(v), false, `할 일에 설명 없는 낱말이 남아 있다: ${v}`)
+  }
+  // 할 일은 **갈 곳**을 짚는다
+  assert.match(JEV_OFF_REMEDY_LABEL.model_missing, /AI 판단에 쓸 모델/)
+})
+
+test('★ 설정 이름과 설명이 무엇을 정하는 값인지 말한다', () => {
+  const provider = tradingSetting('jev_provider')
+  const model = tradingSetting('jev_model')
+  assert.ok(provider && model)
+  // 이름에 설명 없는 낱말을 안 쓴다
+  assert.equal(/Jev/.test(provider!.label), false, `설정 이름에 설명 없는 낱말: ${provider!.label}`)
+  assert.equal(/Jev/.test(model!.label), false, `설정 이름에 설명 없는 낱말: ${model!.label}`)
+  // 설명은 그 낱말이 무엇인지 한 번은 말해 준다 — 안 쓰는 것과 설명 없이 쓰는 것은 다르다
+  assert.match(provider!.help, /관문/, '관문이라는 사실을 안 말한다')
+  // 관문 모델 이름 꼴을 알려 준다 — 그것을 몰라서 403 이 났다
+  assert.match(model!.help, /google\/gemini/, '이름 꼴 예시가 없다')
+})

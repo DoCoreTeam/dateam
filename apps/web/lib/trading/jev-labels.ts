@@ -12,21 +12,21 @@
  */
 export type JevOffReason = 'model_missing' | 'key_missing' | 'env_blocked'
 
-export const JEV_OFF_TITLE = 'Jev 판단이 꺼져 있습니다'
+export const JEV_OFF_TITLE = 'AI 판단이 꺼져 있습니다'
 
 export const JEV_OFF_REASON_LABEL: Record<JevOffReason, string> = {
-  model_missing: '부를 모델 이름이 비어 있습니다',
-  key_missing: 'Jev 공급자 키가 등록되지 않았습니다',
-  env_blocked: '이 판에서 쓸 Jev 키가 따로 등록되지 않았습니다',
+  model_missing: 'AI 판단에 쓸 모델을 아직 안 골랐습니다',
+  key_missing: '고른 곳의 AI 키가 등록되지 않았습니다',
+  env_blocked: '이 판에서 쓸 AI 키가 따로 등록되지 않았습니다',
 }
 
 /** 무엇을 하면 켜지나. 사실만 적고 언제 될지는 약속하지 않는다 */
 export const JEV_OFF_REMEDY_LABEL: Record<JevOffReason, string> = {
-  model_missing: '트레이딩 설정의 「Jev 모델」에 관문 뒤에서 부를 모델 이름을 넣으면 켜집니다',
-  key_missing: '시스템 설정의 AI 공급자 키에 Jev 키를 등록하면 켜집니다',
-  env_blocked: '시스템 설정의 AI 공급자 키에 이 판에서 쓸 Jev 키를 등록하면 켜집니다',
+  model_missing: '트레이딩 설정의 「AI 판단에 쓸 모델」에서 하나 고르면 켜집니다',
+  key_missing: '시스템 설정의 AI 공급자 키에 그 곳의 키를 등록하면 켜집니다',
+  env_blocked: '시스템 설정의 AI 공급자 키에 이 판에서 쓸 키를 등록하면 켜집니다',
 }
 
 /** 꺼져 있는 동안 무슨 일이 벌어지나. 「아무 일도 없다」가 아니라 「표본이 안 쌓인다」이다 */
 export const JEV_OFF_CONSEQUENCE =
-  '그동안은 규칙 판단만 기록됩니다. Jev 원점수가 안 쌓이면 보정도 판단기 비교도 시작할 수 없습니다'
+  '그동안은 규칙 판단만 기록됩니다. AI 판단 점수가 안 쌓이면 보정도 판단기 비교도 시작할 수 없습니다'

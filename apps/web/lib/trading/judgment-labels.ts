@@ -12,10 +12,17 @@ export const JUDGMENT_STATUS_LABEL: Record<string, string> = {
   failed: '실패',
 }
 
+/**
+ * 판단기 이름 — **무엇을 하는 것인지로 부른다.**
+ *
+ * 「Jev」는 이 저장소가 AI 판단기에 붙인 이름인데, 공급자 목록에도 같은 낱말이 있다
+ * (Vercel 관문). 화면에 그 낱말만 찍으면 읽는 사람은 그것이 모델 이름인지 회사 이름인지
+ * 판단기 이름인지 알 수 없다 (사용자 질문 2026-09-28).
+ */
 export const JUDGE_LABEL: Record<string, string> = {
-  rule: '규칙',
+  rule: '규칙 판단',
   ml: '학습 모델',
-  jev: 'Jev',
+  jev: 'AI 판단',
 }
 
 /**

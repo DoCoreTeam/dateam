@@ -264,8 +264,15 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
   {
     key: 'jev_provider',
     group: 'decision',
-    label: '판단 모델 공급자',
-    help: '판단 모델을 어느 회사 것으로 부를지 정합니다',
+    label: 'AI 판단을 어디에 맡길까',
+    /**
+     * **「Jev」를 설명 없이 쓰지 않는다** (사용자 질문 2026-09-28
+     * 「jev에도 모델명이 있다고? 나는 잘 모르는 이야긴데 그냥 jev 자체 아닌가?」).
+     *
+     * 이 저장소에서 Jev 는 **AI 판단기의 이름**인데 공급자 목록에도 같은 낱말이 있다
+     * (Vercel 관문). 같은 낱말이 두 뜻이면 화면만 읽어서는 무엇을 정하는 값인지 알 수 없다.
+     */
+    help: 'AI 에게 방향을 물을 때 어디 모델을 쓸지 정합니다. Jev 는 여러 곳을 잇는 관문입니다',
     type: 'choice',
     /**
      * **목록을 손으로 안 적는다.** 판단을 부를 문(OpenAI 호환 창구)이 있는 공급자만 나온다.
@@ -280,8 +287,8 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
   {
     key: 'jev_model',
     group: 'decision',
-    label: '판단 모델',
-    help: '방향을 판단할 때 부를 모델입니다',
+    label: 'AI 판단에 쓸 모델',
+    help: '위에서 고른 곳의 모델입니다. 관문이면 google/gemini-2.5-flash 처럼 씁니다',
     type: 'string',
     // 기본값을 안 정한다. 관문 뒤 모델 이름은 벤더가 수시로 바꾸고, 박아 두면 사라진 날 조용히 404 가 난다
     defaultValue: '',
