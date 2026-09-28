@@ -373,3 +373,19 @@ export function callAgeLabel(atIso: string, now: Date): string | null {
 export function isOtherDay(atIso: string, now: Date): boolean {
   return kstDateKey(atIso) !== kstDateKey(now.toISOString())
 }
+
+/**
+ * 차트 제목 — **그리지 않은 것을 제목에 적지 않는다**
+ *
+ * 실측 2026-09-28: 신호가 0건인데 제목이 「가격과 신호」였다. 사람은 제목을 읽고
+ * 신호를 찾다가 못 찾고, 그때 의심하는 것은 제목이 아니라 **차트가 고장났나**이다.
+ * 제목은 화면에서 가장 먼저 읽히는 글자라 틀리면 그 아래 전부가 의심받는다.
+ *
+ * 판단은 매분 쌓이고 신호는 관문을 다 지나야 나간다. 지금처럼 판단만 있는 판이
+ * 오래 가므로, 그동안 제목이 「판단」이라고 말해 주는 편이 정확하다.
+ */
+export function chartTitle(input: { signalCount: number; callCount: number }): string {
+  if (input.signalCount > 0) return '가격과 신호'
+  if (input.callCount > 0) return '가격과 판단'
+  return '가격'
+}

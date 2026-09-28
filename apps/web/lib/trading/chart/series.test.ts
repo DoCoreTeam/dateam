@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
 import { stripComments } from '../../ui/component-scan.ts'
@@ -414,4 +414,38 @@ test('★ 화면이 나이를 그리고, 서버가 찍은 글자를 쓰지 않�
   assert.ok(/useEffect\([\s\S]{0,400}callAgeLabel\(/.test(src),
     '첫 렌더에서 나이를 계산한다 — 하이드레이션이 어긋난다')
   assert.ok(src.includes('setInterval('), '한 번만 재면 탭을 열어 둔 채로 글자가 멈춘다')
+})
+
+// ── 차트 제목이 실제로 그리는 것을 말한다 (I07) ────────────────────
+
+test('★ 신호가 0건이면 제목이 「신호」라고 하지 않는다', () => {
+  // 실측한 그 화면: 신호 0건 · 판단 44건인데 제목이 「가격과 신호」였다
+  assert.equal(chartTitle({ signalCount: 0, callCount: 44 }), '가격과 판단')
+  assert.equal(chartTitle({ signalCount: 0, callCount: 0 }), '가격')
+  for (const t of [chartTitle({ signalCount: 0, callCount: 44 }), chartTitle({ signalCount: 0, callCount: 0 })]) {
+    assert.doesNotMatch(t, /신호/, `안 그린 것을 제목에 적는다: ${t}`)
+  }
+})
+
+test('신호가 있으면 신호라고 한다 — 관문을 다 지난 것이라 무게가 다르다', () => {
+  assert.equal(chartTitle({ signalCount: 1, callCount: 0 }), '가격과 신호')
+  assert.equal(chartTitle({ signalCount: 3, callCount: 44 }), '가격과 신호')
+})
+
+test('★ 화면이 제목을 고정값으로 안 적는다', () => {
+  const src = readFileSync(join(WEB, TRADING_APP_DIR, 'ChartPanel.tsx'), 'utf8')
+  assert.ok(src.includes('chartTitle('), '제목 규칙을 안 부른다')
+  assert.doesNotMatch(src, />가격과 신호</, '제목을 화면에 박아 뒀다')
+})
+
+test('★ 판단이 있으면 차트에 점이 실제로 찍힌다', () => {
+  const src = readFileSync(join(WEB, TRADING_APP_DIR, 'ChartPanel.tsx'), 'utf8')
+  /*
+    제목만 「판단」으로 바꾸고 점을 안 찍으면 더 나빠진다 — 있다고 말해 놓고 안 보인다.
+    기운 쪽이 없는(hold) 판단은 찍을 자리가 없으므로 거르는 것이 맞다.
+  */
+  const dots = src.slice(src.indexOf('chart.calls.filter'))
+  assert.ok(src.includes('chart.calls.filter'), '판단을 거르는 자리가 없다')
+  assert.ok(dots.slice(0, 200).includes('ReferenceDot'),
+    '판단 점을 안 그린다 — 제목만 판단이라고 말하게 된다')
 })

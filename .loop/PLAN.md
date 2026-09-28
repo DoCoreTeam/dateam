@@ -157,7 +157,7 @@
 의존: 없음
 
 ### I07 차트 제목이 실제로 그리는 것을 말한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: app/(trading)/trading/ChartPanel.tsx, lib/trading/chart/series.ts, lib/trading/chart/series.test.ts
 감사 기준:

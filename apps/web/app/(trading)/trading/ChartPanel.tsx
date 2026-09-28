@@ -18,7 +18,7 @@ import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import type { ChartSeries, SignalRow } from '@/lib/trading/overview-shape'
-import { pickNowCall, callAgeLabel } from '@/lib/trading/chart/series'
+import { pickNowCall, callAgeLabel, chartTitle } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
 import { formatIndexPrice, formatProbability } from '@/lib/trading/signal-labels'
 import { UNKNOWN_TEXT, seoulTimeText } from '@/lib/trading/position-labels'
@@ -114,7 +114,8 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
   return (
     <section className={`card ${styles.panel}`}>
       <div className={styles.chartSide}>
-        <h2 className={styles.title}>가격과 신호</h2>
+        {/* 제목이 실제로 그리는 것을 말한다 — 신호가 0건인데 「신호」라고 적지 않는다 */}
+        <h2 className={styles.title}>{chartTitle({ signalCount: signals.length, callCount: chart.calls.length })}</h2>
         {chart.bars.length === 0
           ? (
             <EmptyState
