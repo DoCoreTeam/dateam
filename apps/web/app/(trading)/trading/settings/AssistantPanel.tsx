@@ -11,6 +11,10 @@
 import { useState, useTransition } from 'react'
 import { Wand2, Check } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import WaitProgress from '@/components/ui/WaitProgress'
+import { useElapsedMs } from '@/components/ui/useElapsedMs'
+import { waitProgress } from '@/lib/ui/wait-progress'
+import { WAIT } from '@/lib/terms/wait'
 import {
   ASSISTANT_TITLE, ASSISTANT_WHY, ASSISTANT_PLACEHOLDER, ASSISTANT_ASK,
   ASSISTANT_APPLY, ASSISTANT_EMPTY, ASSISTANT_WHEN, ASSISTANT_REJECTED_TITLE,
@@ -23,24 +27,39 @@ export default function AssistantPanel() {
   const [plan, setPlan] = useState<AssistantPlan | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  /*
+    **기다리는 자리가 무엇을 하는지 말한다** (정책 B-7).
+    실측 2026-09-28: 누르면 4~6초 동안 단추만 잠기고 화면에 아무 말이 없었다.
+    AI 호출이라 더 걸리는 날도 있고, 그때 사람은 눌렸는지조차 모른다.
+    문턱과 경과 표기는 `waitProgress` 가 정한다 — 여기서 다시 정하지 않는다.
+  */
+  const [waitFrom, setWaitFrom] = useState<number | null>(null)
+  const [doing, setDoing] = useState<string>(WAIT.settingPropose)
+  const elapsedMs = useElapsedMs(waitFrom)
 
   function propose() {
     setMessage(null)
+    setDoing(WAIT.settingPropose)
+    setWaitFrom(Date.now())
     start(async () => {
       const r = await proposeSettingChanges(ask)
       setPlan(r.plan ?? null)
       if (!r.ok) setMessage(r.userMessage)
+      setWaitFrom(null)
     })
   }
 
   function apply() {
     if (!plan || plan.changes.length === 0) return
+    setDoing(WAIT.settingApply)
+    setWaitFrom(Date.now())
     start(async () => {
       const r = await applySettingChanges(
         plan.changes.map((c) => ({ key: c.key, nextValue: c.nextValue })),
       )
       setMessage(r.userMessage)
       if (r.ok) setPlan(null)
+      setWaitFrom(null)
     })
   }
 
@@ -69,6 +88,11 @@ export default function AssistantPanel() {
       <NbButton disabled={pending || ask.trim() === ''} onClick={propose}>
         <Wand2 size={14} /> {ASSISTANT_ASK}
       </NbButton>
+
+      {waitFrom !== null && (() => {
+        const w = waitProgress(elapsedMs, doing)
+        return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
+      })()}
 
       {plan && plan.changes.length === 0 && (
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: 0, marginTop: 'var(--space-3)' }}>

@@ -1,6 +1,6 @@
 # PLAN newAX: 화면이 저장된 값을 읽고 모순 없이 말한다
 플랜 ID: P0085
-플랜 버전: v0.4.0
+플랜 버전: v0.4.1
 상태: 진행중
 지시: ins_0143
 목표 버전: v0.10.668
@@ -103,9 +103,9 @@
 의존: 없음
 
 ### I02b 기다리는 자리가 무엇을 하는지 말한다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: app/(trading)/trading/settings/AssistantPanel.tsx, lib/trading/settings/assistant-labels.ts, lib/trading/settings/assistant-labels.test.ts
+범위: app/(trading)/trading/settings/AssistantPanel.tsx, lib/trading/settings/assistant-labels.ts, lib/trading/settings/assistant-labels.test.ts (신규), lib/terms/wait.ts
 감사 기준:
 - 「찾아보기」를 누른 뒤 화면에 무엇을 하는 중인지 뜸 (실측 2026-09-28: 4~6초 동안 단추만 잠기고 스피너도 진행 문구도 없었음)
 - 예상 시간을 약속하지 않음 — 정책 B-7 (lib/ui/wait-progress 규칙)
@@ -181,3 +181,5 @@
 - v0.3.2 (2026-09-28) I03 범위에 overview-shape.test.ts 추가 — JevStatus 에 오늘 건수를 붙이자 기존 deepEqual 셋이 깨졌다, 새 칸까지 재도록 고침 (audit:I03)
 - v0.3.2 (2026-09-28) I03 범위에 overview-shape.test.ts 추가 (audit:I03)
 - v0.4.0 (2026-09-28) 사용자 개입: 화면 데이터까지 점검하고 안 된 것을 빨리 고치라 함. 실브라우저 사용성 점검에서 나온 넷을 항목으로 넣음 (iv_0129)
+- v0.4.2 (2026-09-28) I02b 범위에 lib/terms/wait.ts 추가 — 기다리는 동안 할 말은 용어집이 정하고 화면이 적지 않는다, 두 문장을 그 표에 넣음 (audit:I02b)
+- v0.4.2 (2026-09-28) I02b 범위에 lib/terms/wait.ts 추가 (audit:I02b)

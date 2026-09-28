@@ -42,6 +42,10 @@ export const WAIT = {
   cardRead: '명함 사진에서 글자를 읽고 있어요',
   /** 읽은 명함을 등록 */
   cardSave: '읽은 내용을 등록하고 있어요',
+  /** 말로 설정 바꾸기 — 바꿀 값 찾기 */
+  settingPropose: '적어 주신 말에서 바꿀 설정을 찾고 있어요',
+  /** 말로 설정 바꾸기 — 찾은 값 저장 */
+  settingApply: '찾은 값을 설정에 올리고 있어요',
 } as const
 
 export type WaitKey = keyof typeof WAIT
