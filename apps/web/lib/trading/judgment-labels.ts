@@ -31,14 +31,35 @@ export const JUDGE_LABEL: Record<string, string> = {
  * `hold` 가 가장 높으면 관망이다(§7.4) — 롱과 숏 중 큰 쪽만 보면
  * 「관망이 60%인데 롱 25%」를 롱으로 읽는다.
  */
-export function leaningLabel(raw: Record<string, number> | null): string {
-  if (!raw) return '—'
+export type Leaning = 'long' | 'short' | 'hold'
+
+export const LEANING_LABEL: Record<Leaning, string> = {
+  long: '롱',
+  short: '숏',
+  hold: '관망',
+}
+
+/**
+ * 어느 쪽으로 얼마나 기울었나 — **글자가 아니라 값으로.**
+ *
+ * 화면 여럿이 같은 판단을 다르게 읽지 않게 여기서 한 번만 고른다.
+ * 글자가 필요한 자리는 `leaningLabel` 이 이것을 감싼다.
+ */
+export function leaningOf(raw: Record<string, number> | null): { direction: Leaning; prob: number } | null {
+  if (!raw) return null
   const long = raw.p_long ?? 0
   const short = raw.p_short ?? 0
   const hold = raw.p_hold ?? 0
   const top = Math.max(long, short, hold)
-  const name = top === hold ? '관망' : top === long ? '롱' : '숏'
-  return `${name} ${(top * 100).toFixed(0)}%`
+  if (!Number.isFinite(top)) return null
+  const direction: Leaning = top === hold ? 'hold' : top === long ? 'long' : 'short'
+  return { direction, prob: top }
+}
+
+export function leaningLabel(raw: Record<string, number> | null): string {
+  const leaning = leaningOf(raw)
+  if (!leaning) return '—'
+  return `${LEANING_LABEL[leaning.direction]} ${(leaning.prob * 100).toFixed(0)}%`
 }
 
 /* ── 왜 판단이 안 남았나 ──────────────────────────────── */

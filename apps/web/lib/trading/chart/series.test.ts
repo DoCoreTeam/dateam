@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
 import { stripComments } from '../../ui/component-scan.ts'
@@ -188,8 +188,8 @@ test('★ 현황이 이 한 벌을 실제로 내려준다', () => {
   assert.match(src, /\bloadBarsAsOf\s*\(/, '봉을 안 읽는다')
   assert.match(src, /chart:\s*await loadChart\(/, '한 벌을 화면에 안 내려준다')
   // 신호와 사유를 같이 넘긴다 — 하나라도 빠지면 표식이나 사유가 조용히 사라진다
-  assert.match(src, /loadChart\(contractCode, now, signals, recentRuns\[0\]\?\.reason \?\? null\)/,
-    '봉·신호·사유를 함께 안 넘긴다')
+  assert.match(src, /loadChart\(contractCode, now, signals, judgments, recentRuns\[0\]\?\.reason \?\? null\)/,
+    '봉·신호·판단·사유를 함께 안 넘긴다')
 })
 
 test('★ 같은 변환을 화면에서 또 적지 않는다', () => {
@@ -208,6 +208,73 @@ test('★ 창구를 새로 안 연다 (S2) — 서버 컴포넌트가 직접 읽
   const page = readFileSync(join(WEB, TRADING_APP_DIR, 'page.tsx'), 'utf8')
   assert.equal(/'use server'/.test(page), false, '현황이 서버 액션을 새로 연다')
   assert.match(stripComments(page), /loadTradingOverview\(/, '현황이 서버에서 직접 안 읽는다')
+})
+
+/* ── 판단도 보여 준다 (사용자 지적 2026-09-28) ────────── */
+
+const JUDGMENTS = [
+  {
+    id: 'j-ai', barCloseAt: '2026-09-28T00:02:00.000Z', judge: 'jev', status: 'completed',
+    rawScore: { p_long: 0.05, p_short: 0.9, p_hold: 0.05 },
+  },
+  {
+    id: 'j-rule', barCloseAt: '2026-09-28T00:02:00.000Z', judge: 'rule', status: 'completed',
+    rawScore: { p_long: 0.2, p_short: 0.6, p_hold: 0.2 },
+  },
+]
+
+/**
+ * **실측 2026-09-28**: 판단 88건 · 신호 0건인데 화면은
+ * 「아직 판단이 없습니다 · 판단이 한 번도 안 돌았습니다」라고 말했다.
+ * 신호만 보고 판단을 안 봤기 때문이다 — 화면이 거짓말을 한 것이다.
+ */
+test('★ 신호가 0건이어도 판단을 봉 위에 찍는다', () => {
+  const s = buildSeries({ bars: BARS, signals: [], judgments: JUDGMENTS, lastRunReason: null })
+  assert.deepEqual(s.marks, [], '신호는 없다')
+  assert.equal(s.calls.length, 2, '판단을 안 찍는다')
+  assert.equal(s.calls[0].direction, 'short')
+  assert.ok(s.calls.every((c) => s.bars.some((b) => b.at === c.barAt)), '없는 봉 위에 찍는다')
+})
+
+test('★ 안 끝난 판단과 구간 밖 판단은 안 찍는다', () => {
+  const s = buildSeries({
+    bars: BARS, signals: [],
+    judgments: [
+      ...JUDGMENTS,
+      /**
+       * **점수가 있는 실패 줄**로 센다. 점수를 null 로 두면 그 줄은 다른 이유(점수 없음)로도
+       * 떨어져서, 상태를 안 보게 고쳐도 시험이 안 운다 — 일부러 깨 보고 알았다
+       */
+      { id: 'x', barCloseAt: '2026-09-28T00:02:00.000Z', judge: 'jev', status: 'failed', rawScore: { p_short: 0.99 } },
+      { id: 'y', barCloseAt: '2026-09-27T00:02:00.000Z', judge: 'jev', status: 'completed', rawScore: { p_short: 1 } },
+    ],
+    lastRunReason: null,
+  })
+  assert.deepEqual(s.calls.map((c) => c.judgmentId).sort(), ['j-ai', 'j-rule'])
+})
+
+test('★ 신호가 없으면 가장 최근 판단이 「지금 예측」이 된다', () => {
+  const s = buildSeries({ bars: BARS, signals: [], judgments: JUDGMENTS, lastRunReason: null })
+  const call = pickNowCall({ signals: [], calls: s.calls })
+  assert.equal(call?.from, 'judgment')
+  assert.equal(call?.direction, 'short')
+  assert.equal(call?.prob, 0.9, '같은 봉에 둘이면 AI 쪽을 앞세운다')
+  assert.equal(call?.judge, 'jev')
+  // 판단에는 기준가·손절·목표가 없다 — 지어내지 않는다
+  assert.equal(call?.referencePrice, null)
+  assert.equal(call?.evR, null)
+})
+
+test('★ 신호가 있으면 신호가 이긴다 — 관문을 다 지난 것이다', () => {
+  const s = buildSeries({ bars: BARS, signals: [SIGNAL], judgments: JUDGMENTS, lastRunReason: null })
+  const call = pickNowCall({ signals: [SIGNAL], calls: s.calls })
+  assert.equal(call?.from, 'signal')
+  assert.equal(call?.direction, 'long')
+  assert.equal(call?.evR, 0.32, '신호의 기대값을 안 쓴다')
+})
+
+test('★ 둘 다 없을 때만 없다고 한다', () => {
+  assert.equal(pickNowCall({ signals: [], calls: [] }), null)
 })
 
 /* ── 화면 ─────────────────────────────────────────────── */
@@ -259,4 +326,21 @@ test('★ 순수하다 — 읽기도 시각도 없다', () => {
   const src = stripComments(readFileSync(join(HERE, 'series.ts'), 'utf8'))
   assert.equal(/createAdminClient|server-only|new Date\(\)|Date\.now\(\)/.test(src), false,
     '순수 모듈이 표를 읽거나 지금 시각을 본다 — 같은 값에 같은 답이 안 나온다')
+})
+
+test('★ 현황 화면이 판단을 실제로 그린다', () => {
+  const panel = readFileSync(join(WEB, TRADING_APP_DIR, 'ChartPanel.tsx'), 'utf8')
+  assert.match(panel, /pickNowCall\(\{ signals, calls: chart\.calls \}\)/, '판단을 안 본다')
+  assert.match(panel, /chart\.calls\.filter/, '판단 표식을 안 찍는다')
+  // 판단은 아직 신호가 아니라는 사실을 같은 자리에서 말한다
+  assert.match(panel, /NOT_A_SIGNAL/, '판단을 신호처럼 보여 준다')
+  // 「판단이 한 번도 안 돌았습니다」는 정말 없을 때만 나와야 한다
+  const at = panel.indexOf('아직 판단이 없습니다')
+  assert.ok(at > panel.indexOf('call\n'), '없다는 말이 있는 것보다 앞에 있다')
+})
+
+test('★ 현황이 판단을 창구에서 받아 온다', () => {
+  const overview = readFileSync(join(WEB, 'lib', 'trading', 'overview.ts'), 'utf8')
+  assert.match(overview, /loadChart\(contractCode, now, signals, judgments,/, '판단을 안 넘긴다')
+  assert.match(overview, /buildSeries\(\{ bars, signals, judgments, lastRunReason \}\)/, '판단을 안 쓴다')
 })

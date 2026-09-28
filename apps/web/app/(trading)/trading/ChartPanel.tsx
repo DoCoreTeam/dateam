@@ -18,7 +18,9 @@ import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import type { ChartSeries, SignalRow } from '@/lib/trading/overview-shape'
-import { DIRECTION_LABEL, formatIndexPrice, formatProbability } from '@/lib/trading/signal-labels'
+import { pickNowCall } from '@/lib/trading/chart/series'
+import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
+import { formatIndexPrice, formatProbability } from '@/lib/trading/signal-labels'
 import { UNKNOWN_TEXT, seoulTimeText } from '@/lib/trading/position-labels'
 import styles from './ChartPanel.module.css'
 
@@ -30,6 +32,19 @@ interface Props {
   emitProgress: { step: number; total: number; reason: string } | null
 }
 
+/**
+ * 그 봉의 종가. 판단에는 가격이 없으므로 **그 봉 위에** 찍는다 —
+ * 없는 값을 지어내지 않고 같은 봉의 값을 쓴다
+ */
+function priceAt(chart: ChartSeries, barAt: string): number | undefined {
+  return chart.bars.find((b) => b.at === barAt)?.close
+}
+
+/** 이 답이 어디서 왔나. 신호와 판단은 무게가 다르다 */
+const SIGNAL_SOURCE = '관문을 지난 신호'
+const JUDGMENT_SOURCE = '판단 기록'
+const NOT_A_SIGNAL = '아직 신호로는 안 나갔습니다'
+
 /** 기대값은 평균표가 정한다. 없으면 없다고 말한다 — 0 은 「본전이 기대된다」는 사실이다 */
 function evText(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return UNKNOWN_TEXT
@@ -37,7 +52,12 @@ function evText(value: number | null): string {
 }
 
 export default function ChartPanel({ chart, signals, emitProgress }: Props) {
-  const latest = signals[0] ?? null
+  /**
+   * **있는 것을 먼저 보여 준다.** 신호가 0건이어도 판단은 매분 쌓인다 —
+   * 그것을 안 보고 「판단이 한 번도 안 돌았습니다」라고 하면 화면이 거짓말을 한다
+   * (사용자 지적 2026-09-28: 판단 기록엔 숏 90% 가 줄줄이 있었다).
+   */
+  const call = pickNowCall({ signals, calls: chart.calls })
   return (
     <section className={`card ${styles.panel}`}>
       <div className={styles.chartSide}>
@@ -55,38 +75,56 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
 
       <div className={styles.callSide}>
         <h2 className={styles.title}>지금 예측</h2>
-        {latest
+        {call
           ? (
             <>
-              <strong className={`${styles.call} ${latest.direction === 'long' ? styles.long : styles.short}`}>
-                {DIRECTION_LABEL[latest.direction]}
+              <strong className={`${styles.call} ${call.direction === 'long' ? styles.long : call.direction === 'short' ? styles.short : styles.hold}`}>
+                {LEANING_LABEL[call.direction]}
               </strong>
+              {/* 신호인지 판단인지를 말한다 — 신호는 관문을 다 지난 것이라 무게가 다르다 */}
+              <span className={styles.source}>
+                {call.from === 'signal'
+                  ? SIGNAL_SOURCE
+                  : `${JUDGE_LABEL[call.judge ?? ''] ?? call.judge ?? ''} · ${JUDGMENT_SOURCE}`}
+              </span>
               <dl className={styles.facts}>
                 <div className={styles.fact}>
-                  <dt>확률</dt>
-                  <dd>{formatProbability(latest.calibratedProb)}</dd>
-                </div>
-                <div className={styles.fact}>
-                  <dt>기대값</dt>
-                  <dd>{evText(latest.netExpectedValueR)}</dd>
-                </div>
-                <div className={styles.fact}>
-                  <dt>기준가</dt>
-                  <dd>{formatIndexPrice(latest.referencePrice)}</dd>
-                </div>
-                <div className={styles.fact}>
-                  <dt>손절</dt>
-                  <dd>{formatIndexPrice(latest.stopPrice)}</dd>
-                </div>
-                <div className={styles.fact}>
-                  <dt>목표</dt>
-                  <dd>{formatIndexPrice(latest.targetPrice)}</dd>
+                  <dt>{call.from === 'signal' ? '확률' : '원점수'}</dt>
+                  <dd>{formatProbability(call.prob)}</dd>
                 </div>
                 <div className={styles.fact}>
                   <dt>시각</dt>
-                  <dd>{seoulTimeText(latest.barCloseAt)}</dd>
+                  <dd>{seoulTimeText(call.at)}</dd>
                 </div>
+                {call.from === 'signal' && (
+                  <>
+                    <div className={styles.fact}>
+                      <dt>기대값</dt>
+                      <dd>{evText(call.evR)}</dd>
+                    </div>
+                    <div className={styles.fact}>
+                      <dt>기준가</dt>
+                      <dd>{formatIndexPrice(call.referencePrice)}</dd>
+                    </div>
+                    <div className={styles.fact}>
+                      <dt>손절</dt>
+                      <dd>{formatIndexPrice(call.stopPrice)}</dd>
+                    </div>
+                    <div className={styles.fact}>
+                      <dt>목표</dt>
+                      <dd>{formatIndexPrice(call.targetPrice)}</dd>
+                    </div>
+                  </>
+                )}
               </dl>
+              {/* 판단은 아직 신호가 아니다 — 왜 안 나갔는지를 같은 자리에서 말한다 */}
+              {call.from === 'judgment' && (
+                <span className={styles.notYet}>
+                  {emitProgress
+                    ? `${NOT_A_SIGNAL} · ${emitProgress.total}단계 중 ${emitProgress.step}단계에서 멈췄습니다`
+                    : NOT_A_SIGNAL}
+                </span>
+              )}
             </>
           )
           : (
@@ -178,6 +216,21 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
             labelFormatter={(l: string) => l}
           />
           <R.Bar dataKey="band" shape={<Candle />} isAnimationActive={false} />
+          {/*
+            **판단 표식은 신호보다 작고 연하다.** 신호는 관문을 다 지난 것이고
+            판단은 그 앞이라, 같은 크기로 찍으면 둘이 같은 무게로 읽힌다
+          */}
+          {chart.calls.filter((c) => c.direction !== 'hold').map((c) => (
+            <R.ReferenceDot
+              key={c.judgmentId}
+              x={seoulTimeText(c.barAt)}
+              y={priceAt(chart, c.barAt)}
+              r={3}
+              fill={c.direction === 'long' ? 'var(--danger)' : 'var(--accent)'}
+              fillOpacity={0.45}
+              stroke="none"
+            />
+          ))}
           {marks.map((m) => (
             <R.ReferenceDot
               key={m.signalId}
@@ -193,7 +246,7 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
               stroke="var(--surface-bg)"
               strokeWidth={2}
               label={{
-                value: DIRECTION_LABEL[m.direction],
+                value: LEANING_LABEL[m.direction],
                 position: m.direction === 'long' ? 'top' : 'bottom',
                 // 표식에서 띄운다 — 붙으면 글자가 봉과 겹쳐 둘 다 안 읽힌다
                 offset: 10,

@@ -53,6 +53,20 @@
 
 .long { color: var(--danger); }
 .short { color: var(--accent); }
+.hold { color: var(--text-muted); }
+
+/* 이 답이 어디서 왔나 — 신호인지 판단인지 */
+.source {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* 판단은 아직 신호가 아니다 */
+.notYet {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+  overflow-wrap: anywhere;
+}
 
 .facts {
   margin: 0;

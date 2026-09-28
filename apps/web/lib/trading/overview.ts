@@ -372,7 +372,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
       insufficientCount: gateVerdict.insufficientCount,
     },
     gateCriteria: gateVerdict.criteria,
-    chart: await loadChart(contractCode, now, signals, recentRuns[0]?.reason ?? null),
+    chart: await loadChart(contractCode, now, signals, judgments, recentRuns[0]?.reason ?? null),
     empty: coverage.every((d) => d.actual === 0) && judgments.length === 0 && signals.length === 0,
   }
 }
@@ -394,17 +394,18 @@ async function loadChart(
   contractCode: string | null,
   now: Date,
   signals: readonly SignalRow[],
+  judgments: readonly JudgmentRow[],
   lastRunReason: string | null,
 ): Promise<ChartSeries> {
   if (!contractCode) {
-    return { bars: [], marks: [], domain: null, lastBarAt: null, blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' } }
+    return { bars: [], marks: [], calls: [], domain: null, lastBarAt: null, blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' } }
   }
   try {
     const bars = await loadBarsAsOf({ contractCode, tf: '1m', asOf: now, limit: CHART_BARS })
-    return buildSeries({ bars, signals, lastRunReason })
+    return buildSeries({ bars, signals, judgments, lastRunReason })
   } catch (error) {
     return {
-      bars: [], marks: [], domain: null, lastBarAt: null,
+      bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
       blocked: { text: `봉을 읽지 못했습니다: ${error instanceof Error ? error.message : '알 수 없음'}`, tone: 'blocked' },
     }
   }

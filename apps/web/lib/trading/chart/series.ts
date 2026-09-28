@@ -17,6 +17,7 @@
  */
 
 import { readRunReason, type RunReasonLine } from '../operator/run-reason.ts'
+import { leaningOf, type Leaning } from '../judgment-labels.ts'
 
 /** 그림이 읽는 봉 한 개. 시각은 ISO 그대로 두고 눈금은 화면이 만든다 */
 export interface ChartBar {
@@ -49,9 +50,51 @@ export interface ChartMark {
   evR: number | null
 }
 
+/**
+ * 판단 하나를 봉 위에 찍는다.
+ *
+ * **신호와 다르다.** 신호는 안전 관문과 신호 규칙을 다 지난 것이고, 판단은 그 앞이다.
+ * 실측 2026-09-28: 판단이 88건 나왔는데 신호는 0건이었다(관문이 닫혀 있었다).
+ * 그런데 화면은 신호만 보고 「판단이 한 번도 안 돌았습니다」라고 말했다 — 거짓말이었다.
+ */
+export interface ChartCall {
+  judgmentId: string
+  at: string
+  /** 어느 봉 위에 서나 */
+  barAt: string
+  direction: Leaning
+  /** 기운 쪽의 원점수(0~1). 보정 전이라 확률이 아니다 */
+  prob: number
+  /** 어느 판단기가 낸 것인가 */
+  judge: string
+}
+
+/**
+ * 지금 화면 맨 위에 세울 답 하나.
+ *
+ * **신호가 있으면 신호가 이긴다** — 관문을 다 지난 것이라 판단보다 무겁다.
+ * 없으면 가장 최근 판단을 보여 준다. 둘 다 없을 때만 「없다」고 한다.
+ */
+export interface NowCall {
+  from: 'signal' | 'judgment'
+  at: string
+  direction: Leaning
+  /** 신호면 보정 확률, 판단이면 기운 쪽 원점수. 못 잰 값이면 null */
+  prob: number | null
+  /** 판단에서 왔으면 어느 판단기인가 */
+  judge: string | null
+  /** 신호에서 왔을 때만 채워진다 — 판단에는 이 값들이 없다 */
+  referencePrice: number | null
+  stopPrice: number | null
+  targetPrice: number | null
+  evR: number | null
+}
+
 export interface ChartSeries {
   bars: ChartBar[]
   marks: ChartMark[]
+  /** 신호로는 안 나갔지만 기록된 판단들. 봉 구간 안의 것만 */
+  calls: ChartCall[]
   /**
    * 가격 축 범위. **봉과 신호를 함께 담고 여유까지 더한 값**이라
    * 화면은 이 값을 그대로 축에 넘기면 된다 — 같은 셈을 화면에서 또 하지 않는다.
@@ -87,6 +130,14 @@ function num(value: unknown): number | null {
 }
 
 export interface SeriesInput {
+  /** 판단 기록. 신호가 0건이어도 이쪽은 쌓인다 */
+  judgments?: readonly {
+    id: string
+    barCloseAt: string
+    judge: string
+    status: string
+    rawScore: Record<string, number> | null
+  }[]
   /** 오래된 것부터. 표에서 읽은 그대로 넣어도 된다 */
   bars: readonly {
     startAt: Date | string
@@ -124,7 +175,10 @@ export function buildSeries(input: SeriesInput): ChartSeries {
   bars.sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
 
   if (bars.length === 0) {
-    return { bars: [], marks: [], domain: null, lastBarAt: null, blocked: blockedLine(input.lastRunReason) }
+    return {
+      bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
+      blocked: blockedLine(input.lastRunReason),
+    }
   }
 
   const from = Date.parse(bars[0].at)
@@ -147,6 +201,32 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     }))
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
 
+  /**
+   * 판단 표식. 같은 봉에 판단기가 둘(규칙·AI)이면 **둘 다 남긴다** —
+   * 어느 쪽이 무엇을 봤는지가 보여야 비교가 된다.
+   */
+  const calls: ChartCall[] = (input.judgments ?? [])
+    .filter((j) => {
+      if (j.status !== 'completed') return false
+      const at = Date.parse(j.barCloseAt)
+      return Number.isFinite(at) && at >= from && at <= to
+    })
+    .map((j) => {
+      const leaning = leaningOf(j.rawScore)
+      return leaning
+        ? {
+          judgmentId: j.id,
+          at: j.barCloseAt,
+          barAt: barUnder(bars, Date.parse(j.barCloseAt)),
+          direction: leaning.direction,
+          prob: leaning.prob,
+          judge: j.judge,
+        }
+        : null
+    })
+    .filter((c): c is ChartCall => c !== null)
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+
   const values = [
     ...bars.flatMap((b) => [b.high, b.low]),
     ...marks.flatMap((m) => [m.price, m.stopPrice, m.targetPrice].filter((v) => Number.isFinite(v))),
@@ -154,6 +234,7 @@ export function buildSeries(input: SeriesInput): ChartSeries {
   return {
     bars,
     marks,
+    calls,
     domain: axisDomain(Math.min(...values), Math.max(...values)),
     lastBarAt: bars[bars.length - 1].at,
     blocked: null,
@@ -196,4 +277,63 @@ export function axisDomain(low: number | null, high: number | null): [number, nu
   const span = high - low
   const pad = span === 0 ? Math.max(Math.abs(high) * 0.001, 0.01) : span * 0.08
   return [low - pad, high + pad]
+}
+
+/**
+ * 지금 화면 맨 위에 세울 답 하나를 고른다.
+ *
+ * **사용자 지적 2026-09-28**: 판단 기록에는 「AI 판단 숏 90%」가 줄줄이 있는데
+ * 현황은 「아직 판단이 없습니다 · 판단이 한 번도 안 돌았습니다」라고 말하고 있었다.
+ * 화면이 신호(`trading_signals`)만 보고 판단(`trading_judgments`)을 안 봤기 때문이다.
+ * 신호는 안전 관문을 다 지나야 나오는데 그 관문이 닫혀 있어 88건 대 0건이었다.
+ *
+ * **없는 것과 안 보여 준 것은 다르다.** 있는 것을 먼저 보여 준다.
+ */
+export function pickNowCall(input: {
+  signals: readonly {
+    direction: 'long' | 'short'
+    barCloseAt: string
+    referencePrice: number
+    stopPrice: number
+    targetPrice: number
+    calibratedProb: number | null
+    netExpectedValueR: number | null
+  }[]
+  calls: readonly ChartCall[]
+}): NowCall | null {
+  // 신호가 있으면 신호가 이긴다 — 관문을 다 지난 것이라 판단보다 무겁다
+  const signal = input.signals[0]
+  if (signal) {
+    return {
+      from: 'signal',
+      at: signal.barCloseAt,
+      direction: signal.direction,
+      prob: signal.calibratedProb,
+      judge: null,
+      referencePrice: signal.referencePrice,
+      stopPrice: signal.stopPrice,
+      targetPrice: signal.targetPrice,
+      evR: signal.netExpectedValueR,
+    }
+  }
+
+  /**
+   * 신호가 없으면 **가장 최근 판단**이다. 같은 봉에 판단기가 둘이면 AI 쪽을 앞세운다 —
+   * 규칙은 수식이고 AI 는 그 판의 답이라, 사람이 「지금 예측」으로 읽는 것은 뒤쪽이다.
+   */
+  const latest = [...input.calls].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0]
+  if (!latest) return null
+  const sameBar = input.calls.filter((c) => c.at === latest.at)
+  const pick = sameBar.find((c) => c.judge !== 'rule') ?? latest
+  return {
+    from: 'judgment',
+    at: pick.at,
+    direction: pick.direction,
+    prob: pick.prob,
+    judge: pick.judge,
+    referencePrice: null,
+    stopPrice: null,
+    targetPrice: null,
+    evR: null,
+  }
 }
