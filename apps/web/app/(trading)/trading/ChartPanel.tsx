@@ -103,13 +103,18 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
     서버가 그린 것과 달라지면 하이드레이션이 어긋난다.
   */
   const [callAge, setCallAge] = useState<string | null>(null)
+  /*
+    `call` 전체가 아니라 **시각 하나만** 본다. `pickNowCall` 이 매 렌더마다 새 객체를
+    만들어서, 객체를 의존성에 두면 30초 시계가 렌더마다 풀렸다 다시 걸린다.
+  */
+  const callAt = call?.at ?? null
   useEffect(() => {
-    if (!call) { setCallAge(null); return }
-    const tick = () => setCallAge(callAgeLabel(call.at, new Date()))
+    if (!callAt) { setCallAge(null); return }
+    const tick = () => setCallAge(callAgeLabel(callAt, new Date()))
     tick()
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
-  }, [call?.at])
+  }, [callAt])
 
   return (
     <section className={`card ${styles.panel}`}>
