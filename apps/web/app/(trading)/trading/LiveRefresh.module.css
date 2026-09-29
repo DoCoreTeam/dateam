@@ -44,3 +44,21 @@
 @keyframes liveSpin {
   to { transform: rotate(360deg); }
 }
+
+/*
+  지금 시각 — **이 줄이 1초마다 바뀌는 것이 화면이 살아 있다는 증거다.**
+  숫자가 흔들리면 오히려 눈에 거슬리므로 고정폭으로 세운다.
+*/
+.clock {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+/* 마지막 봉이 들어온 지 몇 초. 사실이지 경고가 아니라 약하게 */
+.age {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}

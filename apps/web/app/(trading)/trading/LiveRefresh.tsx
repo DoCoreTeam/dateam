@@ -17,7 +17,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw } from 'lucide-react'
-import { seoulTimeText } from '@/lib/trading/position-labels'
+import { seoulTimeText, seoulClockText } from '@/lib/trading/position-labels'
 import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine } from '@/lib/trading/live-window'
 import styles from './LiveRefresh.module.css'
 
@@ -55,6 +55,20 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
    * 마운트한 뒤 곧바로 실제 판정으로 바뀌고, 1분마다 다시 본다.
    */
   const [closed, setClosed] = useState<{ reason: keyof typeof CLOSED_REASON_LABEL; nextOpenAt: string } | null>(null)
+  /**
+   * 지금 시각(초까지)과 마지막 봉이 들어온 지 몇 초인가.
+   *
+   * 사용자 지적 2026-09-29: 「초나 시간이 실시간으로 흐르는것도 봤으면 좋겠어 지금은
+   * 분까지만 있고 이게 변하고 있는지를 모르겠거든」.
+   *
+   * **「다음 읽기까지 29초」는 우리 시계이지 데이터가 오고 있다는 증거가 아니다.**
+   * 크론이 죽어도 그 숫자는 똑같이 줄어든다. 그래서 「마지막 봉 이후 몇 초」를 같이 둔다 —
+   * 이 값이 60을 크게 넘어 가면 봉이 안 들어오고 있다는 뜻이고, 그것은 화면이 말해야 한다.
+   *
+   * 첫 렌더에는 null 이다. 서버가 그린 글자와 달라지면 하이드레이션이 어긋난다.
+   */
+  const [nowText, setNowText] = useState<string | null>(null)
+  const [barAgeSec, setBarAgeSec] = useState<number | null>(null)
 
   useEffect(() => {
     const everyMs = Math.max(5, everySeconds) * 1000
@@ -85,8 +99,21 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
     timer = setInterval(read, everyMs)
     // 1초마다 남은 시간만 줄인다. 이 시계는 서버에 아무것도 안 묻는다
     tick = setInterval(() => {
-      const w = liveWindowAt(new Date())
+      const now = new Date()
+      const w = liveWindowAt(now)
       setClosed(w.live ? null : { reason: w.reason!, nextOpenAt: w.nextOpenAt! })
+      // 초까지 흐르는 시계. 이 줄만 봐도 화면이 살아 있는지 안다
+      setNowText(seoulClockText(now))
+      /*
+        장이 닫혀 있으면 봉이 안 오는 것이 정상이다. 그 자리에 초를 세면
+        멀쩡한 상태가 고장으로 읽힌다 — 그때는 안 그린다.
+      */
+      const at = lastBarAt ? Date.parse(lastBarAt) : Number.NaN
+      setBarAgeSec(
+        w.live && Number.isFinite(at)
+          ? Math.max(0, Math.floor((now.getTime() - at) / 1000))
+          : null,
+      )
       // 멈춘 동안에는 남은 시간을 안 센다 — 세고 있으면 곧 뭔가 온다는 뜻이 된다
       setLeftSec(document.hidden || !w.live ? null : Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)))
     }, 1000)
@@ -96,7 +123,7 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
       if (tick) clearInterval(tick)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [everySeconds, router])
+  }, [everySeconds, router, lastBarAt])
 
   return (
     <p className={styles.bar} role="status">
@@ -106,6 +133,13 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
         그 사실을 안 말하면 「30초마다 읽는데 왜 안 바뀌나」가 된다
       */}
       <span className={styles.head}>{barLine(lastBarAt)}</span>
+      {/*
+        **봉이 들어온 지 몇 초인가.** 1분봉이라 이 값은 0에서 60 사이를 돈다 —
+        60을 크게 넘어 가면 봉이 안 들어오고 있다는 뜻이고, 그 사실이 여기서 보인다
+      */}
+      {barAgeSec !== null && (
+        <span className={styles.age}>{`${barAgeSec}초 전`}</span>
+      )}
       <span className={styles.sep} aria-hidden>·</span>
       <span>
         {closed
@@ -119,6 +153,10 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
       </span>
       {readAt && !pending && (
         <span className={styles.quiet}>{`(${seoulTimeText(readAt)}에 읽음)`}</span>
+      )}
+      {/* 지금 시각. **이 줄이 1초마다 바뀌는 것이 화면이 살아 있다는 증거다** */}
+      {nowText && (
+        <span className={styles.clock} aria-label="지금 시각">{nowText}</span>
       )}
     </p>
   )

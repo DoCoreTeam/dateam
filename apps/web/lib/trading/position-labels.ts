@@ -35,6 +35,20 @@ export function seoulTimeText(iso: string): string {
   }).format(new Date(parsed))
 }
 
+/**
+ * 지금 시각을 **초까지**. 화면이 1초마다 다시 그리는 자리에 쓴다.
+ *
+ * 사용자 지적 2026-09-29: 「초나 시간이 실시간으로 흐르는것도 봤으면 좋겠어 지금은
+ * 분까지만 있고 이게 변하고 있는지를 모르겠거든」 — 분까지만 있으면 60초 동안
+ * 같은 글자라, 멈춘 화면과 도는 화면이 똑같아 보인다.
+ */
+export function seoulClockText(at: Date): string {
+  if (!Number.isFinite(at.getTime())) return UNKNOWN_PRICE_TEXT
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).format(at)
+}
+
 /** 손절가를 모르는 자리는 빨갛게. 모른다는 것이 그냥 정보가 아니라 위험이다 */
 export function isRiskyUnknown(stopPrice: number | null): boolean {
   return stopPrice === null

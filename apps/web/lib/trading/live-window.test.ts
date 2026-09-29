@@ -14,9 +14,11 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine } from './live-window.ts'
+import { seoulClockText, UNKNOWN_PRICE_TEXT } from './position-labels.ts'
 import { TRADING_APP_DIR } from '../policy/app-dirs.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
+const WEB = join(HERE, '..', '..')
 const at = (s: string) => new Date(`${s}+09:00`)
 
 test('★ 정규장이 끝나고 야간장 전인 빈 구간에는 멈춘다', () => {
@@ -79,4 +81,36 @@ test('★ 화면이 그 판정을 실제로 쓴다 — 만들어만 두지 않�
   */
   assert.ok(/if\s*\(!?\s*live/.test(src) || src.includes('if (!live)'),
     '멈춘다고 적어 놓고 타이머는 안 끈다')
+})
+
+
+/* ── 화면이 살아 있다는 것을 보여 준다 (사용자 지적 2026-09-29) ── */
+
+/**
+ * **분까지만 있으면 멈춘 화면과 도는 화면이 똑같아 보인다.**
+ * 60초 동안 같은 글자라 사용자는 「이게 변하고 있는지를 모르겠다」고 했다.
+ */
+test('★ 지금 시각이 초까지 나온다', () => {
+  const at = new Date('2026-09-29T02:31:07.000Z') // KST 11:31:07
+  const said = seoulClockText(at)
+  assert.match(said, /11:31:07/, `초가 없다: ${said}`)
+  // 못 읽는 시각은 지어내지 않는다
+  assert.equal(seoulClockText(new Date(Number.NaN)), UNKNOWN_PRICE_TEXT)
+})
+
+test('★ 화면이 1초 시계 안에서 지금 시각과 봉 나이를 같이 고쳐 잡는다', () => {
+  const src = readFileSync(join(WEB, TRADING_APP_DIR, 'LiveRefresh.tsx'), 'utf8')
+  assert.match(src, /seoulClockText\(now\)/, '지금 시각을 안 그린다')
+  /*
+    **「다음 읽기까지 29초」는 우리 시계이지 데이터가 오고 있다는 증거가 아니다.**
+    크론이 죽어도 그 숫자는 똑같이 줄어든다. 봉 나이가 그 자리를 메운다.
+  */
+  assert.match(src, /setBarAgeSec/, '마지막 봉이 들어온 지 몇 초인지를 안 그린다')
+  assert.match(src, /초 전/, '봉 나이를 화면에 안 적는다')
+  // 장이 닫혀 있으면 봉이 안 오는 것이 정상이다 — 그 자리에 초를 세면 고장으로 읽힌다
+  const at = src.indexOf('setBarAgeSec(')
+  const body = src.slice(at, src.indexOf('))', at))
+  assert.ok(body.includes('w.live'), '장이 닫혀도 봉 나이를 센다')
+  // 첫 렌더에는 안 그린다 — 서버가 그린 글자와 달라지면 하이드레이션이 어긋난다
+  assert.match(src, /useState<string \| null>\(null\)/, '첫 렌더에 화면 시계를 그린다')
 })
