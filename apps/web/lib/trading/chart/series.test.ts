@@ -10,7 +10,8 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall } from './series.ts'
+import type { PlanParams } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
 import { stripComments } from '../../ui/component-scan.ts'
@@ -187,9 +188,15 @@ test('★ 현황이 이 한 벌을 실제로 내려준다', () => {
   assert.match(src, /\bbuildSeries\s*\(/, '만들어 두고 안 부른다')
   assert.match(src, /\bloadBarsAsOf\s*\(/, '봉을 안 읽는다')
   assert.match(src, /chart:\s*await loadChart\(/, '한 벌을 화면에 안 내려준다')
-  // 신호와 사유를 같이 넘긴다 — 하나라도 빠지면 표식이나 사유가 조용히 사라진다
-  assert.match(src, /loadChart\(contractCode, now, signals, judgments, recentRuns\[0\]\?\.reason \?\? null\)/,
-    '봉·신호·판단·사유를 함께 안 넘긴다')
+  /*
+    신호와 사유를 같이 넘긴다 — 하나라도 빠지면 표식이나 사유가 조용히 사라진다.
+
+    **글자 한 벌을 통째로 맞추지 않는다.** 전에는 한 줄짜리 호출을 그대로 찾았고,
+    인자가 하나 늘어 줄이 나뉘자 규칙은 그대로인데 가드가 빨개졌다.
+  */
+  for (const name of ['contractCode', 'now', 'signals', 'judgments', 'recentRuns[0]?.reason']) {
+    assert.ok(loadChartArgs(src).includes(name), `${name} 을 함께 안 넘긴다`)
+  }
 })
 
 test('★ 같은 변환을 화면에서 또 적지 않는다', () => {
@@ -341,8 +348,14 @@ test('★ 현황 화면이 판단을 실제로 그린다', () => {
 
 test('★ 현황이 판단을 창구에서 받아 온다', () => {
   const overview = readFileSync(join(WEB, 'lib', 'trading', 'overview.ts'), 'utf8')
-  assert.match(overview, /loadChart\(contractCode, now, signals, judgments,/, '판단을 안 넘긴다')
-  assert.match(overview, /buildSeries\(\{ bars, signals, judgments, lastRunReason \}\)/, '판단을 안 쓴다')
+  assert.ok(loadChartArgs(overview).includes('judgments'), '판단을 안 넘긴다')
+  // 여기도 인자 차례가 아니라 **값이 가는지**를 본다
+  const at = overview.indexOf('buildSeries({')
+  assert.ok(at > 0, '한 벌을 안 만든다')
+  const args = overview.slice(at, overview.indexOf('})', at))
+  for (const name of ['bars', 'signals', 'judgments', 'lastRunReason', 'plan']) {
+    assert.ok(args.includes(name), `buildSeries 에 ${name} 을 안 넘긴다`)
+  }
 })
 
 /* ── 차트 도움말 (사용자 지적 2026-09-28 「이거 설명도 없고」) ── */
@@ -448,4 +461,127 @@ test('★ 판단이 있으면 차트에 점이 실제로 찍힌다', () => {
   assert.ok(src.includes('chart.calls.filter'), '판단을 거르는 자리가 없다')
   assert.ok(dots.slice(0, 200).includes('ReferenceDot'),
     '판단 점을 안 그린다 — 제목만 판단이라고 말하게 된다')
+})
+
+
+/**
+ * `chart: await loadChart(...)` 가 실제로 넘기는 인자 글자.
+ *
+ * 함수 선언이 아니라 **부르는 자리**를 잘라 낸다 — 선언에 이름이 있는 것과
+ * 그 값이 넘어가는 것은 다르다.
+ */
+function loadChartArgs(src: string): string {
+  const at = src.indexOf('await loadChart(')
+  if (at < 0) return ''
+  let depth = 0
+  for (let i = src.indexOf('(', at); i < src.length; i += 1) {
+    if (src[i] === '(') depth += 1
+    else if (src[i] === ')') {
+      depth -= 1
+      if (depth === 0) return src.slice(at, i)
+    }
+  }
+  return ''
+}
+
+
+/* ── 주문 계획 (사용자 지적 2026-09-29 「주문을 어떻게 해야 하는지 모르겠어」) ── */
+
+/** 지표를 구할 만큼 봉을 만든다. ATR 기간 14 면 15개가 필요하다 */
+function manyBars(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    startAt: new Date(Date.UTC(2026, 8, 28, 0, i + 1)).toISOString(),
+    open: 400 + i, high: 402 + i, low: 399 + i, close: 401 + i, volume: 10,
+  }))
+}
+
+const PLAN: PlanParams = {
+  atrPeriod: 14, smaFastPeriod: 5, smaSlowPeriod: 20, breakoutPeriod: 20,
+  stopAtrMultiple: 1.2, targetAtrMultiple: 1.5, chaseAtrMultiple: 0.3,
+  timeExitMinutes: 15, validMinutes: 10,
+  sameDayExitAt: '2026-09-28T06:20:00.000Z',
+}
+
+test('★ 판단에도 계획이 선다 — 신호가 0건이어도 주문할 값이 나온다', () => {
+  const bars = manyBars(30)
+  const s = buildSeries({ bars, signals: [], lastRunReason: null, plan: PLAN })
+  assert.ok(s.planBase, '계획 재료를 안 만든다')
+  assert.equal(s.planBlocked, null, '세웠는데 못 세웠다고 말한다')
+
+  const call = { from: 'judgment' as const, at: bars[29].startAt, direction: 'long' as const, prob: 0.85, judge: 'jev', referencePrice: null, stopPrice: null, targetPrice: null, evR: null }
+  const plan = planForCall(call, s)
+  assert.ok(plan, '판단에는 계획을 안 준다 — 방향과 점수만으로는 주문을 못 낸다')
+  assert.equal(plan.from, 'preview', '예고를 기록으로 적는다')
+  assert.equal(plan.referencePrice, bars[29].close, '기준가가 그 봉 종가가 아니다')
+  // 값은 buildExitPlan 이 정한다. 롱이면 손절이 아래, 목표가 위다
+  assert.ok(plan.stopPrice < plan.referencePrice, '롱인데 손절이 위에 있다')
+  assert.ok(plan.targetPrice > plan.referencePrice, '롱인데 목표가 아래에 있다')
+  assert.ok(plan.chaseLimitPrice !== null && plan.chaseLimitPrice > plan.referencePrice,
+    '롱 진입 한계가가 기준가보다 아래다 — D-31 부호 버그다')
+  assert.equal(plan.timeExitMinutes, 15)
+  assert.equal(plan.validMinutes, 10)
+  assert.equal(plan.sameDayExitAt, PLAN.sameDayExitAt)
+
+  // 숏이면 부호가 뒤집힌다
+  const shortPlan = planForCall({ ...call, direction: 'short' }, s)
+  assert.ok(shortPlan && shortPlan.stopPrice > shortPlan.referencePrice, '숏인데 손절이 아래에 있다')
+  assert.ok(shortPlan.chaseLimitPrice !== null && shortPlan.chaseLimitPrice < shortPlan.referencePrice,
+    '숏 진입 한계가가 기준가보다 위다')
+})
+
+test('★ 지표를 못 구하면 계획 자리를 비우고 왜 없는지 말한다', () => {
+  const s = buildSeries({ bars: BARS, signals: [], lastRunReason: null, plan: PLAN })
+  assert.equal(s.planBase, null, '봉 3개로 ATR 14 를 구했다고 한다')
+  assert.match(s.planBlocked ?? '', /봉이 \d+개 필요/, '몇 개가 모자란지를 안 말한다')
+  // 0 으로 때우면 손절 거리가 0 이 되고 그것은 「즉시 손절」이라는 뜻이 된다
+  const call = { from: 'judgment' as const, at: BARS[2].startAt, direction: 'long' as const, prob: 0.9, judge: 'jev', referencePrice: null, stopPrice: null, targetPrice: null, evR: null }
+  assert.equal(planForCall(call, s), null, '재료가 없는데 계획을 지어낸다')
+})
+
+test('★ 설정을 안 주면 계획을 안 세운다 — 배수를 코드가 지어내지 않는다', () => {
+  const s = buildSeries({ bars: manyBars(30), signals: [], lastRunReason: null })
+  assert.equal(s.planBase, null)
+  assert.match(s.planBlocked ?? '', /설정/, '왜 없는지를 안 말한다')
+})
+
+test('★ 관망에는 계획이 없다 — 주문할 것이 없는데 가격을 그리면 거짓말이다', () => {
+  const s = buildSeries({ bars: manyBars(30), signals: [], lastRunReason: null, plan: PLAN })
+  const call = { from: 'judgment' as const, at: '2026-09-28T00:30:00.000Z', direction: 'hold' as const, prob: 0.4, judge: 'rule', referencePrice: null, stopPrice: null, targetPrice: null, evR: null }
+  assert.equal(planForCall(call, s), null)
+})
+
+test('★ 신호가 있으면 기록이 이긴다 — 지금 다시 셈하면 신호와 다른 값을 말한다', () => {
+  const s = buildSeries({ bars: manyBars(30), signals: [], lastRunReason: null, plan: PLAN })
+  const call = {
+    from: 'signal' as const, at: '2026-09-28T00:20:00.000Z', direction: 'long' as const,
+    prob: 0.61, judge: null, referencePrice: 404, stopPrice: 396, targetPrice: 412, evR: 0.32,
+  }
+  const plan = planForCall(call, s)
+  assert.ok(plan)
+  assert.equal(plan.from, 'signal')
+  assert.equal(plan.referencePrice, 404, '기록된 기준가를 안 쓴다')
+  assert.equal(plan.stopPrice, 396)
+  assert.equal(plan.targetPrice, 412)
+  // 신호 행에 안 남는 값이다. 지어내면 「이 값에 걸었는데 시스템은 다른 값을 봤다」가 된다
+  assert.equal(plan.chaseLimitPrice, null, '기록에 없는 진입 한계가를 지어낸다')
+})
+
+test('★ 화면이 계획을 신호일 때만 그리지 않는다', () => {
+  const panel = readFileSync(PANEL, 'utf8')
+  assert.match(panel, /planForCall\(/, '계획을 안 셈한다')
+  /*
+    **계획 블록이 `call.from === 'signal'` 안에 있으면 안 된다.** 전에는 기준가·손절·
+    목표가 그 안에 있었고, 신호가 0건인 판에서는 화면에 숫자가 하나도 없었다.
+  */
+  const guardAt = panel.indexOf("call.from === 'signal' &&")
+  const blockAt = panel.indexOf('<PlanBlock plan={plan} />')
+  assert.ok(blockAt > 0, '계획 블록을 안 그린다')
+  assert.ok(guardAt < 0 || blockAt > panel.indexOf('</dl>', guardAt),
+    '계획이 아직도 신호일 때만 그려진다')
+  // 예고를 지시로 읽지 않게 어디서 온 값인지 같은 자리에서 말한다
+  assert.match(panel, /PLAN_SOURCE_LABEL/, '기록인지 예고인지를 안 말한다')
+  // 들어갈 수 있는 동안과 들고 있는 동안은 다른 시계다. 한 글자로 뭉치지 않는다
+  assert.match(panel, /PLAN_LABEL\.validFor/, '진입 유효 시간을 안 말한다')
+  assert.match(panel, /PLAN_LABEL\.holdFor/, '시간 청산을 안 말한다')
+  assert.match(panel, /PLAN_LABEL\.sessionExit/, '당일 청산 시각을 안 말한다')
 })

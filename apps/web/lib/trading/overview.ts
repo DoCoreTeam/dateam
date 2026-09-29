@@ -96,7 +96,7 @@ import { PROTECTION_LABEL, needsHumanUnlock, DEFAULT_PROTECTION, type Protection
 import { decideEnableNotify, enableHint } from './notify/enable-gate.ts'
 import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
 import { loadBarsAsOf } from './bars/store.ts'
-import { buildSeries, type ChartSeries } from './chart/series.ts'
+import { buildSeries, type ChartSeries, type PlanParams } from './chart/series.ts'
 import { loadFills } from './position/fills.ts'
 import { foldFills } from './position/from-fills.ts'
 import { loadSignalPlan } from './position/plan.ts'
@@ -415,7 +415,11 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
       insufficientCount: gateVerdict.insufficientCount,
     },
     gateCriteria: gateVerdict.criteria,
-    chart: await loadChart(contractCode, now, signals, judgments, recentRuns[0]?.reason ?? null),
+    chart: await loadChart(
+      contractCode, now, signals, judgments, recentRuns[0]?.reason ?? null,
+      // 당일 청산 시각은 오늘 세션이 정한다. 만기일은 15:05, 평일은 15:20 이라 날마다 다르다
+      planParamsOf(values, coverage.find((d) => d.tradeDate === today)?.sameDayExitAt ?? null),
+    ),
     empty: coverage.every((d) => d.actual === 0) && judgments.length === 0 && signals.length === 0,
   }
 }
@@ -439,18 +443,50 @@ async function loadChart(
   signals: readonly SignalRow[],
   judgments: readonly JudgmentRow[],
   lastRunReason: string | null,
+  /** 계획 설정 한 벌. 화면이 배수를 직접 적지 않게 여기서 실어 보낸다 */
+  plan: PlanParams,
 ): Promise<ChartSeries> {
   if (!contractCode) {
-    return { bars: [], marks: [], calls: [], domain: null, lastBarAt: null, blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' } }
+    return {
+      bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
+      blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' },
+      planBase: null, planBlocked: '근월물이 정해지지 않았습니다',
+    }
   }
   try {
     const bars = await loadBarsAsOf({ contractCode, tf: '1m', asOf: now, limit: CHART_BARS })
-    return buildSeries({ bars, signals, judgments, lastRunReason })
+    return buildSeries({ bars, signals, judgments, lastRunReason, plan })
   } catch (error) {
+    const text = `봉을 읽지 못했습니다: ${error instanceof Error ? error.message : '알 수 없음'}`
     return {
       bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
-      blocked: { text: `봉을 읽지 못했습니다: ${error instanceof Error ? error.message : '알 수 없음'}`, tone: 'blocked' },
+      blocked: { text, tone: 'blocked' },
+      planBase: null, planBlocked: text,
     }
+  }
+}
+
+/**
+ * 계획 설정을 한 벌로 — **기본값을 화면이 아니라 여기서 한 번만 정한다.**
+ *
+ * `|| 기본값` 을 쓰는 이유는 설정 표의 다른 자리와 같다: 값이 비었거나 숫자가 아니면
+ * 레지스트리의 기본값으로 떨어져야 하고, 0 을 넣어 손절 거리를 0 으로 만들면 안 된다.
+ */
+function planParamsOf(
+  values: Readonly<Record<string, unknown>>,
+  sameDayExitAt: string | null,
+): PlanParams {
+  return {
+    atrPeriod: Number(values.atr_period) || 14,
+    smaFastPeriod: Number(values.sma_fast_period) || 5,
+    smaSlowPeriod: Number(values.sma_slow_period) || 20,
+    breakoutPeriod: Number(values.breakout_period) || 20,
+    stopAtrMultiple: Number(values.exit_stop_atr_multiple) || 1.2,
+    targetAtrMultiple: Number(values.exit_target_atr_multiple) || 1.5,
+    chaseAtrMultiple: Number(values.exit_chase_atr_multiple) || 0.3,
+    timeExitMinutes: Number(values.min_hold_minutes) || 15,
+    validMinutes: Number(values.signal_valid_minutes) || 10,
+    sameDayExitAt,
   }
 }
 

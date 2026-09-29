@@ -19,6 +19,8 @@
 import { readRunReason, type RunReasonLine } from '../operator/run-reason.ts'
 import { leaningOf, type Leaning } from '../judgment-labels.ts'
 import { formatKstAgo, kstDateKey } from '../../datetime/kst.ts'
+import { computeIndicators, requiredBarCount, type IndicatorParams } from '../judge/indicators.ts'
+import { buildExitPlan, type ExitPlanParams } from '../judge/exit-plan-math.ts'
 
 /** 그림이 읽는 봉 한 개. 시각은 ISO 그대로 두고 눈금은 화면이 만든다 */
 export interface ChartBar {
@@ -91,6 +93,64 @@ export interface NowCall {
   evR: number | null
 }
 
+/**
+ * 계획을 세우는 데 필요한 설정 한 벌 — **서버가 실어 보낸다**
+ *
+ * 화면이 배수를 직접 적으면 설정 화면에서 손절 배수를 바꿔도 현황은 옛 배수로 말한다.
+ * 그 어긋남은 「화면이 말한 손절가에 걸었는데 시스템은 다른 값을 봤다」로 나타난다.
+ */
+export interface PlanParams extends IndicatorParams, ExitPlanParams {
+  /** 신호가 난 뒤 들어갈 수 있는 동안(분). `signal_valid_minutes` */
+  validMinutes: number
+  /** 당일 청산 시각(ISO). 세션을 모르면 null — 만기일은 15:05, 평일은 15:20 이라 날마다 다르다 */
+  sameDayExitAt: string | null
+}
+
+/**
+ * 그 답대로 주문한다면 얼마에 들어가고 얼마에 끊고 얼마에 나오나.
+ *
+ * 사용자 지적 2026-09-29: 「내가 지금 주문을 어떻게 해야 하는지 모르겠어」.
+ * 화면에는 「롱 · 원점수 85%」만 있었다. 방향과 점수는 판단이지 주문이 아니다.
+ *
+ * **값은 `buildExitPlan` 하나가 만든다**(M4). 화면이 식을 따로 적으면 백테스트가 재는
+ * 전략과 화면이 말하는 전략이 갈리고, 갈린 날부터 성적은 안 도는 전략의 것이 된다.
+ */
+export interface CallPlan {
+  direction: 'long' | 'short'
+  /** 이 계획이 어느 봉을 기준으로 선 것인가 (ISO) */
+  barAt: string
+  /** 기준가 — 그 봉의 종가다 (§13.1) */
+  referencePrice: number
+  stopPrice: number
+  targetPrice: number
+  /**
+   * 진입 한계가 — 여기를 넘으면 안 따라간다.
+   * 신호 행에는 안 남는 값이라 기록에서 온 계획에는 null 이다
+   */
+  chaseLimitPrice: number | null
+  /** 들어간 뒤 이 분이 지나면 시간 청산 */
+  timeExitMinutes: number
+  /** 당일 청산 시각(ISO). 모르면 null */
+  sameDayExitAt: string | null
+  /** 들어갈 수 있는 동안(분) */
+  validMinutes: number
+  /** 기록에 남은 계획인가, 지금 셈한 예고인가 */
+  from: 'signal' | 'preview'
+}
+
+/**
+ * 계획을 세울 재료. **지표를 못 구하면 null 이고 그 이유를 `planBlocked` 가 말한다.**
+ *
+ * 0 으로 때우지 않는 이유: ATR 이 0 이면 손절 거리가 0 이고 그것은 「즉시 손절」이라는
+ * 뜻이 된다. 「손절 없음」과 「손절 모름」이 화면에서 같아 보이면 안 된다.
+ */
+export interface PlanBase {
+  barAt: string
+  referencePrice: number
+  atr: number
+  params: PlanParams
+}
+
 export interface ChartSeries {
   bars: ChartBar[]
   marks: ChartMark[]
@@ -114,6 +174,10 @@ export interface ChartSeries {
    * 사람이 「그래서 지금 뭘 하고 있나」를 못 읽는다 (사용자 지적 2026-09-28).
    */
   lastBarAt: string | null
+  /** 마지막 봉에서 잰 계획 재료. 못 재면 null */
+  planBase: PlanBase | null
+  /** 계획을 못 세운 이유. 세웠으면 null — 빈 칸으로 두면 「계획 없음」으로 읽힌다 */
+  planBlocked: string | null
 }
 
 /**
@@ -161,6 +225,11 @@ export interface SeriesInput {
    * 운영 화면과 같은 함수로 읽어야 두 화면이 같은 말을 한다
    */
   lastRunReason: string | null
+  /**
+   * 계획 설정. 안 주면 계획을 안 세운다 — 기본 배수를 여기서 지어내면
+   * 설정 화면이 말하는 값과 현황이 말하는 값이 갈린다
+   */
+  plan?: PlanParams
 }
 
 export function buildSeries(input: SeriesInput): ChartSeries {
@@ -179,6 +248,7 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     return {
       bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
       blocked: blockedLine(input.lastRunReason),
+      planBase: null, planBlocked: '가격 봉이 아직 없습니다',
     }
   }
 
@@ -232,6 +302,7 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     ...bars.flatMap((b) => [b.high, b.low]),
     ...marks.flatMap((m) => [m.price, m.stopPrice, m.targetPrice].filter((v) => Number.isFinite(v))),
   ]
+  const plan = planBaseOf(bars, input.plan)
   return {
     bars,
     marks,
@@ -239,6 +310,88 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     domain: axisDomain(Math.min(...values), Math.max(...values)),
     lastBarAt: bars[bars.length - 1].at,
     blocked: null,
+    planBase: plan.base,
+    planBlocked: plan.blocked,
+  }
+}
+
+/**
+ * 마지막 봉에서 계획 재료를 잰다 — **지표는 판단기와 같은 함수로 구한다.**
+ *
+ * 화면이 ATR 을 따로 세면 같은 순간에 판단기와 화면이 다른 손절가를 말하게 되고,
+ * 그때 사람은 어느 쪽에 걸어야 하는지 모른다.
+ */
+function planBaseOf(
+  bars: readonly ChartBar[],
+  params: PlanParams | undefined,
+): { base: PlanBase | null; blocked: string | null } {
+  if (!params) return { base: null, blocked: '계획 설정을 못 읽었습니다' }
+  const need = requiredBarCount(params)
+  if (bars.length < need) {
+    // 몇 개가 모자란지까지 말한다. 「계획 없음」만으로는 기다리면 되는지 알 수 없다
+    return { base: null, blocked: `지표를 구하려면 봉이 ${need}개 필요합니다 (지금 ${bars.length}개)` }
+  }
+  const atrBars = bars.map((b) => ({
+    startAt: new Date(b.at), open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume ?? 0,
+  }))
+  const indicators = computeIndicators(atrBars, params)
+  // 반쪽 지표로 계획을 세우지 않는다. 0 으로 때우면 손절 거리가 0 이 되고 「즉시 손절」이 된다
+  if (!indicators || !Number.isFinite(indicators.atr) || indicators.atr <= 0) {
+    return { base: null, blocked: '지표를 구하지 못했습니다' }
+  }
+  const last = bars[bars.length - 1]
+  return {
+    base: { barAt: last.at, referencePrice: last.close, atr: indicators.atr, params },
+    blocked: null,
+  }
+}
+
+/**
+ * 그 답대로 주문한다면 어떤 값이 되나.
+ *
+ * **기록이 있으면 기록이 이긴다.** 신호로 나간 것은 그때 그 값으로 나갔고,
+ * 지금 다시 셈하면 그 사이 봉이 바뀌어 화면이 신호와 다른 숫자를 말한다.
+ *
+ * 방향이 관망이면 null 이다 — 주문할 것이 없는데 가격을 그리면 그림이 거짓말을 한다.
+ */
+export function planForCall(call: NowCall, chart: ChartSeries): CallPlan | null {
+  if (call.direction !== 'long' && call.direction !== 'short') return null
+
+  if (call.from === 'signal'
+    && call.referencePrice !== null && call.stopPrice !== null && call.targetPrice !== null) {
+    return {
+      direction: call.direction,
+      barAt: call.at,
+      referencePrice: call.referencePrice,
+      stopPrice: call.stopPrice,
+      targetPrice: call.targetPrice,
+      // 신호 행에 안 남는 값이다. 모르면 모른다고 둔다
+      chaseLimitPrice: null,
+      timeExitMinutes: chart.planBase?.params.timeExitMinutes ?? 0,
+      sameDayExitAt: chart.planBase?.params.sameDayExitAt ?? null,
+      validMinutes: chart.planBase?.params.validMinutes ?? 0,
+      from: 'signal',
+    }
+  }
+
+  const base = chart.planBase
+  if (!base) return null
+  /**
+   * 당일 청산 시각은 세션 캘린더가 정한다. `buildExitPlan` 은 받은 값을 그대로 돌려줄
+   * 뿐이라 여기서는 **가격 넷만 읽고** 시각은 설정에서 온 것을 그대로 쓴다.
+   */
+  const prices = buildExitPlan(call.direction, base.referencePrice, base.atr, base.params, new Date(base.barAt))
+  return {
+    direction: call.direction,
+    barAt: base.barAt,
+    referencePrice: base.referencePrice,
+    stopPrice: prices.stopPrice,
+    targetPrice: prices.targetPrice,
+    chaseLimitPrice: prices.chaseLimitPrice,
+    timeExitMinutes: prices.timeExitMinutes,
+    sameDayExitAt: base.params.sameDayExitAt,
+    validMinutes: base.params.validMinutes,
+    from: 'preview',
   }
 }
 

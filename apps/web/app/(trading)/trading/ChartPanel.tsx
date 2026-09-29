@@ -18,9 +18,13 @@ import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import type { ChartSeries, SignalRow } from '@/lib/trading/overview-shape'
-import { pickNowCall, callAgeLabel, chartTitle } from '@/lib/trading/chart/series'
+import { pickNowCall, callAgeLabel, chartTitle, planForCall } from '@/lib/trading/chart/series'
+import type { CallPlan } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
-import { formatIndexPrice, formatProbability } from '@/lib/trading/signal-labels'
+import {
+  formatIndexPrice, formatProbability, formatMinutes, formatDistance,
+  PLAN_LABEL, PLAN_SOURCE_LABEL,
+} from '@/lib/trading/signal-labels'
 import { UNKNOWN_TEXT, seoulTimeText } from '@/lib/trading/position-labels'
 import styles from './ChartPanel.module.css'
 
@@ -90,6 +94,70 @@ function evText(value: number | null): string {
   return `${value > 0 ? '+' : ''}${value.toFixed(2)}R`
 }
 
+/**
+ * 주문 계획 — **얼마에 들어가고 얼마에 끊고 얼마에 나오나**
+ *
+ * 사용자 지적 2026-09-29: 「내가 지금 주문을 어떻게 해야 하는지 모르겠어」.
+ * 방향과 점수만으로는 주문을 못 낸다. 값은 전부 `planForCall` 이 만든 것이고
+ * 이 자리에서 식을 다시 적지 않는다(M4).
+ */
+function PlanBlock({ plan }: { plan: CallPlan }) {
+  const rows: { name: string; value: string; hint?: string }[] = [
+    { name: PLAN_LABEL.reference, value: formatIndexPrice(plan.referencePrice) },
+    {
+      name: PLAN_LABEL.chase,
+      // 신호 행에는 안 남는 값이다. 없으면 없다고 말하고 기준가로 채우지 않는다
+      value: formatIndexPrice(plan.chaseLimitPrice),
+      hint: plan.chaseLimitPrice === null ? undefined : '여기를 넘으면 안 따라갑니다',
+    },
+    {
+      name: PLAN_LABEL.stop,
+      value: formatIndexPrice(plan.stopPrice),
+      hint: formatDistance(plan.referencePrice, plan.stopPrice),
+    },
+    {
+      name: PLAN_LABEL.target,
+      value: formatIndexPrice(plan.targetPrice),
+      hint: formatDistance(plan.referencePrice, plan.targetPrice),
+    },
+  ]
+  return (
+    <div className={styles.plan}>
+      {/* 기록인지 예고인지를 먼저 말한다 — 예고를 지시로 읽으면 사람이 그대로 주문한다 */}
+      <p className={styles.planSource}>{PLAN_SOURCE_LABEL[plan.from]}</p>
+      <dl className={styles.facts}>
+        {rows.map((r) => (
+          <div key={r.name} className={styles.fact}>
+            <dt>{r.name}</dt>
+            <dd>
+              {r.value}
+              {r.hint && <span className={styles.age}> · {r.hint}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {/*
+        **언제까지가 둘이다.** 들어갈 수 있는 동안과 들어간 뒤 들고 있는 동안은
+        다른 시계다. 한 글자로 뭉치면 「10분 뒤에 나오라는 건가」가 된다
+      */}
+      <dl className={styles.facts}>
+        <div className={styles.fact}>
+          <dt>{PLAN_LABEL.validFor}</dt>
+          <dd>{formatMinutes(plan.validMinutes)}<span className={styles.age}> · 그 안에 못 들어가면 버립니다</span></dd>
+        </div>
+        <div className={styles.fact}>
+          <dt>{PLAN_LABEL.holdFor}</dt>
+          <dd>{formatMinutes(plan.timeExitMinutes)}<span className={styles.age}> · 들어간 뒤부터 셉니다</span></dd>
+        </div>
+        <div className={styles.fact}>
+          <dt>{PLAN_LABEL.sessionExit}</dt>
+          <dd>{plan.sameDayExitAt ? seoulTimeText(plan.sameDayExitAt) : UNKNOWN_TEXT}</dd>
+        </div>
+      </dl>
+    </div>
+  )
+}
+
 export default function ChartPanel({ chart, signals, emitProgress }: Props) {
   /**
    * **있는 것을 먼저 보여 준다.** 신호가 0건이어도 판단은 매분 쌓인다 —
@@ -97,6 +165,11 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
    * (사용자 지적 2026-09-28: 판단 기록엔 숏 90% 가 줄줄이 있었다).
    */
   const call = pickNowCall({ signals, calls: chart.calls })
+  /**
+   * 그 답대로 주문한다면 얼마인가. **관망이거나 지표를 못 구했으면 null 이고**,
+   * 그때는 왜 없는지를 `chart.planBlocked` 가 말한다 — 빈 칸은 「계획 없음」으로 읽힌다.
+   */
+  const plan = call ? planForCall(call, chart) : null
   /*
     **나이는 화면이 잰다.** 서버에서 재서 글자로 내려보내면 그 글자는 찍힌 순간에 멈추고,
     탭을 열어 둔 채 한 시간이 지나도 「1분 전」이다. 첫 렌더에는 안 그린다 —
@@ -157,26 +230,26 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
                   <dd>{seoulTimeText(call.at)}{callAge && <span className={styles.age}> · {callAge}</span>}</dd>
                 </div>
                 {call.from === 'signal' && (
-                  <>
-                    <div className={styles.fact}>
-                      <dt>기대값</dt>
-                      <dd>{evText(call.evR)}</dd>
-                    </div>
-                    <div className={styles.fact}>
-                      <dt>기준가</dt>
-                      <dd>{formatIndexPrice(call.referencePrice)}</dd>
-                    </div>
-                    <div className={styles.fact}>
-                      <dt>손절</dt>
-                      <dd>{formatIndexPrice(call.stopPrice)}</dd>
-                    </div>
-                    <div className={styles.fact}>
-                      <dt>목표</dt>
-                      <dd>{formatIndexPrice(call.targetPrice)}</dd>
-                    </div>
-                  </>
+                  <div className={styles.fact}>
+                    <dt>기대값</dt>
+                    <dd>{evText(call.evR)}</dd>
+                  </div>
                 )}
               </dl>
+              {/*
+                **계획은 신호에만 있는 것이 아니다.** 전에는 이 네 줄이 신호일 때만
+                떴고, 신호가 0건인 판에서는 화면에 숫자가 하나도 없었다 —
+                방향과 점수만 보고는 주문을 못 낸다 (사용자 지적 2026-09-29).
+              */}
+              {plan
+                ? <PlanBlock plan={plan} />
+                : (
+                  <p className={styles.planSource}>
+                    {call.direction === 'hold'
+                      ? '관망이라 주문할 것이 없습니다'
+                      : chart.planBlocked ?? '계획을 세우지 못했습니다'}
+                  </p>
+                )}
               {/* 판단은 아직 신호가 아니다 — 왜 안 나갔는지를 같은 자리에서 말한다 */}
               {call.from === 'judgment' && (
                 <span className={styles.notYet}>

@@ -136,3 +136,24 @@
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/*
+  주문 계획 — 판단 숫자와 **한 겹 떨어뜨린다**
+
+  방향·점수와 같은 무게로 붙여 두면 예고가 지시로 읽힌다. 위에 선 하나를 두어
+  「여기부터는 그대로 주문한다면」이라는 것을 자리로 말한다.
+*/
+.plan {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+/* 기록인지 예고인지. 사실이지 경고가 아니라 약하게 */
+.planSource {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
