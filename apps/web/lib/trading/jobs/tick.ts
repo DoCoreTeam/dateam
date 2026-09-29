@@ -1240,6 +1240,8 @@ async function knowledgeOrExplain(ctx: any): Promise<string> {
         jevTimeoutMs: num('jev_timeout_seconds', 10) * 1000,
         jevModel: str('jev_model', ''),
         jevProvider: str('jev_provider', 'jev') as AiProviderId,
+        // 진입 판단과 **같은 설정 키**다. 두 곳이 다른 값을 쓰면 섀도가 진입과 못 견준다
+        jevReasoningEffort: str('jev_reasoning_effort', 'low'),
         view: { bars, indicators },
       }
       : null

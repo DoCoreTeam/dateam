@@ -97,7 +97,7 @@
 보안: 해당 없음 — 읽는 봉 수와 그리는 자리만 바뀐다, 새 표·창구·바깥 값이 없다
 
 ### I03 청산 섀도도 같은 길로 간다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/trading/judge/exit-jev.ts, apps/web/lib/trading/jobs/knowledge-job.ts, apps/web/lib/trading/jobs/tick.ts
 감사 기준:

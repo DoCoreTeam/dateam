@@ -47,6 +47,15 @@ export interface ExitJudgeInput {
    */
   provider: AiProviderId
   /**
+   * 생각 깊이. **진입 Jev 와 같은 설정 키(`jev_reasoning_effort`)를 읽는다** (§17.1).
+   *
+   * 갈리면 청산 섀도 성적이 진입과 다른 조건의 것이 된다 — 깊게 생각한 판과 얕게
+   * 생각한 판은 같은 입력에 다른 답을 준다 (실측 2026-09-28: 0.85/0.05/0.10 대 0.7/0.1/0.2).
+   *
+   * 빈 값이면 줄을 아예 안 싣는다. 빈 문자열은 관문이 400 으로 거절한다.
+   */
+  reasoningEffort: string
+  /**
    * 지금 시각. **받는다** — 판단 계층이 `new Date()` 를 직접 부르면 백테스트가 미래를 본다(M5).
    * 시각을 밖에서 주면 과거 시점으로 같은 코드를 돌릴 수 있다.
    */
@@ -85,7 +94,7 @@ export async function judgeExitShadow(input: ExitJudgeInput): Promise<ExitJudgeO
   let text: string | typeof TIMED_OUT
   try {
     text = await Promise.race<string | typeof TIMED_OUT>([
-      callVendor(input.provider, choice.apiKey, model, prompt.text),
+      callVendor(input.provider, choice.apiKey, model, prompt.text, input.reasoningEffort),
       new Promise<typeof TIMED_OUT>((resolve) =>
         setTimeout(() => resolve(TIMED_OUT), input.timeoutMs)),
     ])
@@ -169,7 +178,7 @@ async function finish(
 
 /** 진입 Jev 와 같은 관문·같은 원장 */
 async function callVendor(
-  provider: AiProviderId, apiKey: string, model: string, prompt: string,
+  provider: AiProviderId, apiKey: string, model: string, prompt: string, reasoningEffort: string,
 ): Promise<string> {
   const baseUrl = openAiCompatibleBaseUrl(provider)
   if (!baseUrl) throw new Error(`${provider}_base_url_missing`)
@@ -194,6 +203,15 @@ async function callVendor(
           messages: [{ role: 'user', content: masked }],
           temperature: 0,
           response_format: { type: 'json_object' },
+          /**
+           * 진입 Jev 와 **같은 줄**이다 (`judge/jev.ts`). 안 정하면 관문이 제 마음대로
+           * 오래 생각하고, 그 사이 우리가 먼저 끊는다 — 실측 2026-09-28 에 같은 프롬프트가
+           * 19.7~21.5초 걸렸고 출력 3,290토큰 중 3,254개가 생각이었다.
+           *
+           * 빈 값이면 줄을 아예 뺀다. 빈 문자열은 관문이 400 으로 거절하고
+           * 그 400 이 키 문제·모델 문제와 섞인다.
+           */
+          ...(reasoningEffort === '' ? {} : { reasoning_effort: reasoningEffort }),
         }),
       })
       // 상태 코드를 남긴다 — 교체 판정이 이 글자로 키 문제와 모델 문제를 가른다
