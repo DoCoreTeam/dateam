@@ -158,6 +158,28 @@ export interface PlanBase {
   params: PlanParams
 }
 
+/**
+ * 그 봉까지의 봉으로 계획 재료를 잰다 — **뒤 봉을 안 섞는다.**
+ *
+ * 실측 2026-09-29: 계획이 늘 **마지막 봉**을 기준으로 섰다. 09:58 판단의 그 봉 종가는
+ * 1083.58 인데 화면은 10:03 봉의 1087.84 를 그렸고, 분이 갈 때마다 1086.64 · 1088.66 으로
+ * 움직였다. 목표 폭이 2.44점인데 기준가가 4점 넘게 흔들린 것이다 — 화면을 보고 건 주문과
+ * 시스템이 본 값이 달라진다.
+ *
+ * 뒤 봉을 섞으면 **그 시점에 세울 수 없던 계획**이 된다(미래 참조). 그래서 자른다.
+ */
+export function planBaseAt(
+  bars: readonly ChartBar[],
+  barAt: string,
+  params: PlanParams | null,
+): { base: PlanBase | null; blocked: string | null } {
+  if (!params) return { base: null, blocked: '계획 설정을 못 읽었습니다' }
+  const index = bars.findIndex((b) => b.at === barAt)
+  if (index < 0) return { base: null, blocked: '그 봉을 차트에서 못 찾았습니다' }
+  // 그 봉까지만. 슬라이스 끝이 그 봉이라 뒤 봉은 지표에 안 들어간다
+  return planBaseOf(bars.slice(0, index + 1), params)
+}
+
 export interface ChartSeries {
   bars: ChartBar[]
   marks: ChartMark[]
@@ -342,6 +364,17 @@ export function buildSeries(input: SeriesInput): ChartSeries {
   }
 }
 
+/**
+ * 그 답이 서는 봉. 판단 시각은 봉이 **닫힌** 때라 그 봉은 시작이 그보다 앞인 마지막 봉이다
+ * (표식을 찍는 `barUnder` 와 같은 규칙 — 두 곳이 다른 봉을 고르면 표식과 계획이 어긋난다).
+ */
+function callBarAt(call: NowCall, chart: ChartSeries): string {
+  if (chart.bars.length === 0) return ''
+  const at = Date.parse(call.at)
+  if (!Number.isFinite(at)) return chart.bars[chart.bars.length - 1].at
+  return barUnder(chart.bars, at)
+}
+
 /** 시각 + 분. 못 읽는 시각이나 0 이하 분이면 null — 지어낸 마감을 그리지 않는다 */
 function deadlineOf(atIso: string, minutes: number): string | null {
   const at = Date.parse(atIso)
@@ -446,7 +479,12 @@ export function planForCall(call: NowCall, chart: ChartSeries): CallPlan | null 
     }
   }
 
-  const base = chart.planBase
+  /**
+   * **판단이 난 봉으로 센다.** `chart.planBase` 는 마지막 봉의 것이라 분마다 바뀐다 —
+   * 같은 판단인데 볼 때마다 다른 값을 말하면 그것은 예고가 아니라 잡음이다.
+   */
+  const anchored = planBaseAt(chart.bars, callBarAt(call, chart), chart.planBase?.params ?? null)
+  const base = anchored.base
   if (!base) return null
   /**
    * 당일 청산 시각은 세션 캘린더가 정한다. `buildExitPlan` 은 받은 값을 그대로 돌려줄

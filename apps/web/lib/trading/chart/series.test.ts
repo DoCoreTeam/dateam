@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf, planBaseAt } from './series.ts'
 import { deadlineLeftText } from '../signal-labels.ts'
 import type { PlanParams } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
@@ -708,4 +708,58 @@ test('★ 제목이 무슨 봉인지 말한다 — 1분인지 5분인지 모르�
   // 새로고침 줄도 같은 말을 한다 — 「계속 바뀌나」는 그 줄을 보고 묻는 질문이다
   const live = readFileSync(join(WEB, TRADING_APP_DIR, 'LiveRefresh.tsx'), 'utf8')
   assert.match(live, /마지막 1분봉/, '새로고침 줄이 봉 주기를 안 말한다')
+})
+
+
+/* ── 계획이 판단이 난 봉에 붙는다 (repainting, 실측 2026-09-29) ── */
+
+/**
+ * **같은 판단은 볼 때마다 같은 값이어야 한다.**
+ *
+ * 실측: 09:58 판단의 그 봉 종가는 1083.58 인데 화면은 10:03 봉의 1087.84 를 그렸고,
+ * 분이 갈 때마다 1086.64 · 1088.66 으로 움직였다. 목표 폭 2.44점짜리에 기준가가
+ * 4점 넘게 흔들렸다 — 화면을 보고 건 주문과 시스템이 본 값이 달라진다.
+ */
+test('★ 봉이 더 들어와도 같은 판단의 계획이 안 바뀐다', () => {
+  const bars = manyBars(40)
+  const callAt = bars[25].startAt
+  const call = { from: 'judgment' as const, at: callAt, direction: 'long' as const, prob: 0.85, judge: 'jev', referencePrice: null, stopPrice: null, targetPrice: null, evR: null }
+
+  // 그 판단 직후에 본 판
+  const early = buildSeries({ bars: bars.slice(0, 26), signals: [], lastRunReason: null, plan: PLAN })
+  // 열네 봉이 더 들어온 뒤에 본 판
+  const late = buildSeries({ bars, signals: [], lastRunReason: null, plan: PLAN })
+
+  const a = planForCall(call, early)
+  const b = planForCall(call, late)
+  assert.ok(a && b, '계획을 못 세운다')
+  assert.equal(b.referencePrice, a.referencePrice, '봉이 들어오자 기준가가 바뀐다 (repainting)')
+  assert.equal(b.stopPrice, a.stopPrice, '손절가가 바뀐다')
+  assert.equal(b.targetPrice, a.targetPrice, '목표가가 바뀐다')
+  assert.equal(b.barAt, a.barAt, '계획이 다른 봉에 붙는다')
+  // 마지막 봉이 아니라 **판단의 봉**이어야 한다
+  assert.equal(b.barAt, callAt, '계획이 마지막 봉에 붙었다')
+  assert.notEqual(b.barAt, bars[bars.length - 1].startAt)
+})
+
+test('★ 지표도 그 봉까지만 본다 — 뒤 봉을 섞으면 그때 세울 수 없던 계획이다', () => {
+  const bars = manyBars(40)
+  const all = buildSeries({ bars, signals: [], lastRunReason: null, plan: PLAN })
+  const upTo = buildSeries({ bars: bars.slice(0, 26), signals: [], lastRunReason: null, plan: PLAN })
+  // 40봉을 가진 판에서 25번 봉 기준으로 잰 재료가, 26봉만 가진 판의 마지막 봉 재료와 같아야 한다
+  const anchored = planBaseAt(all.bars, bars[25].startAt, PLAN)
+  assert.ok(anchored.base && upTo.planBase)
+  assert.equal(anchored.base.atr, upTo.planBase.atr, '뒤 봉이 지표에 섞였다')
+  assert.equal(anchored.base.referencePrice, upTo.planBase.referencePrice)
+})
+
+test('★ 그 봉까지 봉이 모자라면 계획을 안 세운다', () => {
+  const bars = manyBars(40)
+  const all = buildSeries({ bars, signals: [], lastRunReason: null, plan: PLAN })
+  // 세 번째 봉 기준이면 ATR 14 를 못 구한다
+  const early = planBaseAt(all.bars, bars[2].startAt, PLAN)
+  assert.equal(early.base, null, '봉 3개로 ATR 14 를 구했다고 한다')
+  assert.match(early.blocked ?? '', /봉이 \d+개 필요/, '몇 개가 모자란지를 안 말한다')
+  // 차트에 없는 봉이면 지어내지 않는다
+  assert.equal(planBaseAt(all.bars, '2020-01-01T00:00:00.000Z', PLAN).base, null)
 })
