@@ -27,16 +27,21 @@
   margin: 0;
 }
 
-/* 그림 자리. 높이를 여기서 정해야 ResponsiveContainer 가 설 바닥이 생긴다 */
+/*
+  그림 자리. 높이를 여기서 정해야 ResponsiveContainer 가 설 바닥이 생긴다.
+
+  구간 띠가 아래 22px 을 가져가므로 280 에서 320 으로 올린다 — 안 올리면
+  띠가 생긴 만큼 봉이 낮아지고, 같은 가격 폭이 전보다 작아 보인다.
+*/
 .chartBox {
   width: 100%;
-  height: 280px;
+  height: 320px;
   min-width: 0;
 }
 
 /* 차트 묶음을 불러오는 동안. 자리 높이를 지켜 화면이 안 튀게 한다 */
 .loadingChart {
-  height: 280px;
+  height: 320px;
   min-width: 0;
 }
 

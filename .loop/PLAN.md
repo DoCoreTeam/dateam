@@ -83,7 +83,7 @@
 보안: 해당 없음 — 이미 읽고 있는 봉과 설정으로 셈만 더한다, 새 표·새 창구·바깥에서 오는 값이 없다
 
 ### I02b 차트가 오늘을 보여 주고 구간을 잡아 어제까지 넓힌다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/trading/chart/series.ts, apps/web/lib/trading/overview.ts, apps/web/app/(trading)/trading/ChartPanel.tsx, apps/web/app/(trading)/trading/ChartPanel.module.css, apps/web/lib/trading/chart/series.test.ts
 감사 기준:

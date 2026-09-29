@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf } from './series.ts'
 import type { PlanParams } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
@@ -584,4 +584,73 @@ test('★ 화면이 계획을 신호일 때만 그리지 않는다', () => {
   assert.match(panel, /PLAN_LABEL\.validFor/, '진입 유효 시간을 안 말한다')
   assert.match(panel, /PLAN_LABEL\.holdFor/, '시간 청산을 안 말한다')
   assert.match(panel, /PLAN_LABEL\.sessionExit/, '당일 청산 시각을 안 말한다')
+})
+
+
+/* ── 오늘 장 (사용자 지적 2026-09-29 「실시간 시스템처럼 차트가 움직여야」) ── */
+
+/** 어제 오후 세 개 + 오늘 아침 네 개. 사용자 화면이 바로 이 꼴이었다 */
+const TWO_DAYS = [
+  { startAt: '2026-09-28T06:32:00.000Z', open: 1085, high: 1086, low: 1084, close: 1085, volume: 1 },
+  { startAt: '2026-09-28T06:33:00.000Z', open: 1085, high: 1086, low: 1084, close: 1085, volume: 1 },
+  { startAt: '2026-09-28T06:34:00.000Z', open: 1085, high: 1086, low: 1084, close: 1085, volume: 1 },
+  { startAt: '2026-09-28T23:45:00.000Z', open: 1083, high: 1086, low: 1082, close: 1082, volume: 1 },
+  { startAt: '2026-09-28T23:46:00.000Z', open: 1082, high: 1084, low: 1082, close: 1084, volume: 1 },
+  { startAt: '2026-09-29T00:00:00.000Z', open: 1082, high: 1084, low: 1080, close: 1082, volume: 1 },
+  { startAt: '2026-09-29T00:01:00.000Z', open: 1082, high: 1085, low: 1082, close: 1085, volume: 1 },
+]
+
+test('★ 처음 그리는 구간이 마지막 날이다 — 어제가 화면을 채우면 오늘이 안 움직여 보인다', () => {
+  const s = buildSeries({ bars: TWO_DAYS, signals: [], lastRunReason: null })
+  assert.ok(s.window, '구간을 안 정한다')
+  // 어제(KST 9/28 15:32~15:34) 셋은 창 밖, 오늘(9/29 08:45~09:01) 넷이 창 안이다
+  assert.equal(s.window.startIndex, 3, '어제까지 창에 넣는다 — 오늘 봉이 묻힌다')
+  assert.equal(s.window.endIndex, TWO_DAYS.length - 1, '마지막 봉이 창 밖이다')
+  // 어제를 **버리지는 않는다** — 띠로 넓히면 그대로 나와야 한다
+  assert.equal(s.bars.length, TWO_DAYS.length, '창 밖 봉을 아예 버린다 — 넓힐 길이 사라진다')
+})
+
+test('★ 그 날 봉이 모자라면 앞날까지 거슬러 채운다', () => {
+  // 지표에 15개가 필요한데 마지막 날은 넷뿐이다
+  const w = defaultWindow(buildSeries({ bars: TWO_DAYS, signals: [], lastRunReason: null }).bars, 6)
+  assert.ok(w)
+  assert.equal(w.startIndex, 1, '모자란 만큼 안 채운다 — 넷만 그리면 「거의 안 움직였다」로 읽힌다')
+  // 있는 것보다 많이 달라고 해도 0 아래로는 안 간다
+  const w2 = defaultWindow(buildSeries({ bars: TWO_DAYS, signals: [], lastRunReason: null }).bars, 999)
+  assert.equal(w2?.startIndex, 0)
+})
+
+test('★ 날이 바뀌는 자리에 경계가 선다 — 열일곱 시간이 한 칸으로 붙지 않게', () => {
+  const s = buildSeries({ bars: TWO_DAYS, signals: [], lastRunReason: null })
+  assert.equal(s.dayBreaks.length, 1, '경계를 안 센다')
+  assert.equal(s.dayBreaks[0].index, 3, '경계 자리가 틀렸다')
+  assert.match(s.dayBreaks[0].dateLabel, /^\d{2}\/\d{2}$/, '날짜를 사람이 읽을 꼴로 안 적는다')
+  // 첫 봉은 경계가 아니다 — 그 앞이 없으므로 「바뀌었다」고 말할 수 없다
+  assert.equal(dayBreaksOf(s.bars).some((d) => d.index === 0), false)
+  // 하루짜리면 경계가 없다
+  assert.equal(buildSeries({ bars: BARS, signals: [], lastRunReason: null }).dayBreaks.length, 0)
+})
+
+test('★ 봉이 0건이면 구간도 경계도 없다 — 빈 차트에 띠를 그리지 않는다', () => {
+  const s = buildSeries({ bars: [], signals: [], lastRunReason: null })
+  assert.equal(s.window, null)
+  assert.deepEqual(s.dayBreaks, [])
+})
+
+test('★ 화면이 구간 띠와 날 경계를 실제로 그린다', () => {
+  const panel = readFileSync(PANEL, 'utf8')
+  assert.match(panel, /<R\.Brush/, '구간 띠를 안 그린다 — 어제를 볼 길이 없다')
+  // 서버가 정한 창을 실제로 넘겨야 한다. 안 넘기면 recharts 가 전체를 그린다
+  assert.match(panel, /startIndex=\{chart\.window\.startIndex\}/, '정한 창을 띠에 안 넘긴다')
+  assert.match(panel, /endIndex=\{chart\.window\.endIndex\}/, '끝 자리를 안 넘긴다')
+  // 봉이 0건이면 안 그린다
+  assert.match(panel, /chart\.window && \(/, '봉 0건에도 띠를 그린다')
+  assert.match(panel, /chart\.dayBreaks\.map/, '날 경계를 안 그린다')
+  /*
+    **띠와 경계에 롱·숏 색을 쓰지 않는다.** 이 그림에서 빨강·파랑은 방향이라
+    같은 색을 쓰면 경계선이 판단으로 읽힌다.
+  */
+  const brushAt = panel.indexOf('<R.Brush')
+  const brush = panel.slice(brushAt, panel.indexOf('/>', brushAt))
+  assert.equal(/--danger|--accent/.test(brush), false, '띠에 방향 색을 쓴다')
 })

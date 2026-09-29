@@ -450,6 +450,7 @@ async function loadChart(
     return {
       bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
       blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' },
+      window: null, dayBreaks: [],
       planBase: null, planBlocked: '근월물이 정해지지 않았습니다',
     }
   }
@@ -461,6 +462,7 @@ async function loadChart(
     return {
       bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
       blocked: { text, tone: 'blocked' },
+      window: null, dayBreaks: [],
       planBase: null, planBlocked: text,
     }
   }

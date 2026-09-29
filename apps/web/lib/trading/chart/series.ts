@@ -174,6 +174,23 @@ export interface ChartSeries {
    * 사람이 「그래서 지금 뭘 하고 있나」를 못 읽는다 (사용자 지적 2026-09-28).
    */
   lastBarAt: string | null
+  /**
+   * 처음 그릴 구간 (`bars` 의 자리 번호, 양끝 포함). 봉이 0건이면 null.
+   *
+   * **오늘 봉이 기본이다.** 지금까지는 180봉을 날 안 가리고 그렸고, 장이 막 열린
+   * 아침에는 그중 넷만 오늘 것이라 새 봉이 들어와도 화면이 안 움직였다
+   * (사용자 지적 2026-09-29 「실시간 시스템처럼 차트가 움직여야」).
+   *
+   * 어제 것을 **버리지는 않는다** — 구간 띠로 넓히면 그대로 나온다.
+   */
+  window: { startIndex: number; endIndex: number } | null
+  /**
+   * 날이 바뀌는 자리 (`bars` 의 자리 번호와 그 날짜). 첫 봉은 안 센다.
+   *
+   * 경계 없이 이으면 어제 15:34 다음 칸이 오늘 09:03 이 되어 **밤새 가격이
+   * 안 움직인 것처럼** 읽힌다 — 실제로는 열일곱 시간이 비어 있다.
+   */
+  dayBreaks: { index: number; at: string; dateLabel: string }[]
   /** 마지막 봉에서 잰 계획 재료. 못 재면 null */
   planBase: PlanBase | null
   /** 계획을 못 세운 이유. 세웠으면 null — 빈 칸으로 두면 「계획 없음」으로 읽힌다 */
@@ -248,6 +265,7 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     return {
       bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
       blocked: blockedLine(input.lastRunReason),
+      window: null, dayBreaks: [],
       planBase: null, planBlocked: '가격 봉이 아직 없습니다',
     }
   }
@@ -310,9 +328,48 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     domain: axisDomain(Math.min(...values), Math.max(...values)),
     lastBarAt: bars[bars.length - 1].at,
     blocked: null,
+    window: defaultWindow(bars, input.plan ? requiredBarCount(input.plan) : 0),
+    dayBreaks: dayBreaksOf(bars),
     planBase: plan.base,
     planBlocked: plan.blocked,
   }
+}
+
+/**
+ * 처음 그릴 구간 — **마지막 날부터**.
+ *
+ * 지표를 구할 만큼 안 모였으면 그만큼 앞으로 거슬러 채운다. 오늘 봉 넷만 그리면
+ * 화면은 「가격이 거의 안 움직였다」로 읽히고, 그것은 오늘 장의 사실이 아니라
+ * 우리가 넷만 그린 사실이다.
+ */
+export function defaultWindow(
+  bars: readonly ChartBar[],
+  atLeast: number,
+): { startIndex: number; endIndex: number } | null {
+  if (bars.length === 0) return null
+  const endIndex = bars.length - 1
+  const lastDay = kstDateKey(bars[endIndex].at)
+  let start = endIndex
+  while (start > 0 && kstDateKey(bars[start - 1].at) === lastDay) start -= 1
+  // 그 날 봉이 모자라면 앞날까지 거슬러 채운다
+  const need = Math.max(1, atLeast)
+  if (endIndex - start + 1 < need) start = Math.max(0, endIndex - need + 1)
+  return { startIndex: start, endIndex }
+}
+
+/** 날이 바뀌는 자리. 첫 봉은 경계가 아니다 — 그 앞이 없으므로 「바뀌었다」고 말할 수 없다 */
+export function dayBreaksOf(
+  bars: readonly ChartBar[],
+): { index: number; at: string; dateLabel: string }[] {
+  const out: { index: number; at: string; dateLabel: string }[] = []
+  for (let i = 1; i < bars.length; i += 1) {
+    const day = kstDateKey(bars[i].at)
+    if (day !== kstDateKey(bars[i - 1].at)) {
+      // 연도는 안 적는다 — 차트가 보는 구간은 길어야 며칠이고 연도는 자리만 먹는다
+      out.push({ index: i, at: bars[i].at, dateLabel: day.slice(5).replace('-', '/') })
+    }
+  }
+  return out
 }
 
 /**

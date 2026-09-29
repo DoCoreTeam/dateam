@@ -352,6 +352,23 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
           <R.Tooltip content={<BarTip calls={chart.calls} />} />
           <R.Bar dataKey="band" shape={<Candle />} isAnimationActive={false} />
           {/*
+            **날이 바뀌는 자리에 선을 긋는다.** 없으면 어제 15:34 다음 칸이 오늘 09:03 이
+            되어 밤새 가격이 안 움직인 것처럼 읽힌다 — 실제로는 열일곱 시간이 비어 있다
+            (사용자 지적 2026-09-29).
+
+            선은 **회색이다.** 빨강·파랑은 이 그림에서 롱·숏이라 같은 색을 쓰면
+            경계가 판단으로 읽힌다.
+          */}
+          {chart.dayBreaks.map((d) => (
+            <R.ReferenceLine
+              key={d.at}
+              x={seoulTimeText(d.at)}
+              stroke="var(--text-faint)"
+              strokeDasharray="4 4"
+              label={{ value: d.dateLabel, position: 'insideTopLeft', fontSize: 11, fill: 'var(--text-muted)' }}
+            />
+          ))}
+          {/*
             **판단 표식은 신호보다 작고 연하다.** 신호는 관문을 다 지난 것이고
             판단은 그 앞이라, 같은 크기로 찍으면 둘이 같은 무게로 읽힌다
           */}
@@ -391,6 +408,24 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
               }}
             />
           ))}
+          {/*
+            **구간 띠.** 처음에는 오늘만 그리고, 띠를 넓히면 어제까지 나온다 —
+            되돌릴 길이 없는 창은 갇히는 것이다.
+
+            색은 표식과 달리 **테두리뿐**이다. 신호·판단 표식과 같은 무게로 칠하면
+            어느 것이 우리가 말한 것인지 그림에서 안 갈린다.
+          */}
+          {chart.window && (
+            <R.Brush
+              dataKey="label"
+              height={22}
+              travellerWidth={8}
+              startIndex={chart.window.startIndex}
+              endIndex={chart.window.endIndex}
+              stroke="var(--text-faint)"
+              fill="var(--surface-bg)"
+            />
+          )}
         </R.ComposedChart>
       </R.ResponsiveContainer>
     </div>
