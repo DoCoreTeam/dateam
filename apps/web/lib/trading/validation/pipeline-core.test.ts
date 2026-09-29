@@ -209,3 +209,43 @@ test('★ 상한이 접기마다 새로 생기지 않는다 — 접기 수만큼
   assert.ok(foldAt > 0, '접기 반복을 못 찾았다')
   assert.ok(declaredAt < foldAt, '접기 안에서 상한을 새로 만든다 — 상한이 뜻을 잃는다')
 })
+
+
+/* ── 검증이 실시간과 같은 장 규칙으로 잰다 (점검 2026-09-29) ── */
+
+/**
+ * **다른 규칙으로 잰 성적은 실제로 안 도는 전략의 것이다** (M4).
+ *
+ * 점검 전에는 이 자리가 `sessionCloseAt = 진입봉 + 24시간`, `isDecidable = () => true`,
+ * `minutesSinceOpen = () => 0` 이었다. 장 끝 직전 진입을 세고 다음 날까지 들고 있는 것으로
+ * 셈했으니, 그 성적으로 관문을 통과해도 그 숫자는 실시간의 것이 아니다.
+ */
+test('★ 검증 백테스트가 장 규칙을 고정값으로 안 쓴다', () => {
+  const src = readFileSync(join(HERE, 'pipeline.ts'), 'utf8')
+  const at = src.indexOf('const params = (slippageTicks')
+  assert.ok(at > 0, '백테스트 인자를 못 찾았다')
+  const body = src.slice(at, src.indexOf('\n  })', at))
+
+  // 「무조건 된다」와 「장 연 지 0분」은 실시간에 없는 규칙이다
+  assert.equal(/isDecidable:\s*\(\)\s*=>\s*true/.test(body), false,
+    '아무 봉에서나 진입하는 것으로 잰다 — 장 끝 직전 진입이 성적에 섞인다')
+  assert.equal(/minutesSinceOpen:\s*\(\)\s*=>\s*0/.test(body), false,
+    '장이 열린 지 0분이라고 잰다')
+  assert.equal(/24 \* 60 \* 60_000/.test(body.slice(0, body.indexOf('isDecidable'))), false,
+    '당일 청산 대신 24시간 뒤로 잰다 — 다음 날까지 들고 있는 것으로 셈한다')
+
+  // 실시간이 쓰는 그 함수를 써야 한다. 여기서 규칙을 새로 적으면 또 갈린다
+  for (const fn of ['sameDayExitAt(', 'isContinuousTrading(', 'isAuctionWindow(']) {
+    assert.ok(body.includes(fn), `${fn} 을 안 쓴다 — 실시간과 다른 규칙을 여기서 새로 적었다`)
+  }
+  // 청산 여유 분도 설정이다. 화면·실시간과 같은 키를 읽어야 한다
+  assert.ok(src.includes("num('session_close_exit_minutes'"), '청산 여유를 설정에서 안 읽는다')
+})
+
+test('★ 세션을 모르는 날은 「되는 날」로 안 친다', () => {
+  const src = readFileSync(join(HERE, 'pipeline.ts'), 'utf8')
+  const at = src.indexOf('isDecidable: (barStartAt)')
+  const body = src.slice(at, src.indexOf('},', at))
+  assert.ok(body.includes('if (!w) return false'),
+    '세션을 모르는 날을 판단 가능으로 친다 — 그 성적은 짐작이다')
+})

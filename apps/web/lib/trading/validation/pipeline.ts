@@ -32,6 +32,8 @@ import {
 } from '../replay/slippage.ts'
 import { planSteps, checkStepOrder, initialProgress, stepMayRead, type PipelineProgress } from './pipeline-core.ts'
 import { backfillMinuteBars } from '../backfill/minute-backfill.ts'
+import { loadSessionWindow } from '../calendar/seed.ts'
+import { isContinuousTrading, isAuctionWindow, sameDayExitAt } from '../calendar/session.ts'
 import { plannedCallCount } from '../backfill/plan.ts'
 import { assertLockboxReadable, openLockbox } from '../backtest/lockbox.ts'
 import { typicalTradeRisk } from '../risk/arithmetic.ts'
@@ -210,6 +212,24 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
   /** 호가를 못 받아 가정값으로 떨어진 비율. 높으면 그 성적은 실측이 아니다 */
   const assumedRatio = fallbackRatio(slippage)
 
+  /**
+   * **검증이 실시간과 같은 장 규칙을 쓴다** (M4).
+   *
+   * 실측 2026-09-29 점검: 이 자리가 `sessionCloseAt = 진입봉 + 24시간`,
+   * `isDecidable = () => true`, `minutesSinceOpen = () => 0` 이었다. 실시간은 그날
+   * 접속매매가 끝나기 `session_close_exit_minutes` 분 전에 정리하고 단일가 구간에는
+   * 판단을 안 한다. **다른 규칙으로 잰 성적은 실제로 안 도는 전략의 것이다** —
+   * 장 끝 직전 진입을 세고, 다음 날까지 들고 있는 것으로 셈했다.
+   *
+   * 날마다 세션 창이 다르므로(만기일 15:05 · 평일 15:20) 한 번 읽어 표로 들고 쓴다.
+   */
+  const sessionWindows = new Map<string, Awaited<ReturnType<typeof loadSessionWindow>>>()
+  for (const day of [...new Set(allBars.map((b) => tradeDateOf(b.startAt)))]) {
+    sessionWindows.set(day, await loadSessionWindow(day))
+  }
+  const exitBefore = num('session_close_exit_minutes', 15)
+  const windowAt = (barStartAt: Date) => sessionWindows.get(tradeDateOf(barStartAt)) ?? null
+
   const params = (slippageTicks: number): BacktestParams => ({
     triggers: {
       atrPeriod: num('atr_period', 14),
@@ -231,9 +251,25 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
     slippageTicks,
     stopSlippageTicks: slippageTicks,
     roundTripFeeKrw: num('fee_rate', 0),
-    sessionCloseAt: (barStartAt) => new Date(barStartAt.getTime() + 24 * 60 * 60_000),
-    isDecidable: () => true,
-    minutesSinceOpen: () => 0,
+    sessionCloseAt: (barStartAt) => {
+      const w = windowAt(barStartAt)
+      // 세션을 모르는 날은 `isDecidable` 이 이미 막는다. 여기 오면 그 봉으로 연 거래가 없다
+      return w ? sameDayExitAt(w, exitBefore) : new Date(barStartAt.getTime() + 24 * 60 * 60_000)
+    },
+    /**
+     * 실시간이 판단하는 자리와 같다 — 접속매매 안이고 단일가 구간이 아니다.
+     * 세션을 모르는 날은 **안 센다**. 모르는 날을 「되는 날」로 치면 그 성적은 짐작이다
+     */
+    isDecidable: (barStartAt) => {
+      const w = windowAt(barStartAt)
+      if (!w) return false
+      return isContinuousTrading(w, barStartAt) && !isAuctionWindow(w, barStartAt)
+    },
+    minutesSinceOpen: (barStartAt) => {
+      const w = windowAt(barStartAt)
+      if (!w) return 0
+      return Math.max(0, Math.floor((barStartAt.getTime() - w.continuousStart.getTime()) / 60_000))
+    },
   })
 
   const versions = {

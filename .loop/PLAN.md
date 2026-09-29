@@ -198,7 +198,7 @@
 보안: 해당 없음 — 셈하는 자리만 옮긴다
 
 ### I04e 검증이 실시간과 같은 청산 규칙으로 잰다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/trading/validation/pipeline.ts, apps/web/lib/trading/validation/pipeline-core.test.ts
 감사 기준:
