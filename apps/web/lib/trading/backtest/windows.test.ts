@@ -20,6 +20,7 @@ const days = (n: number) =>
 
 const BASE: WalkForwardInput = {
   tradeDates: days(100), foldCount: 3, validateDays: 10, minTrainDays: 30, lockboxDays: 20,
+  embargoDays: 1,
 }
 
 function planned(input: WalkForwardInput) {
@@ -108,8 +109,71 @@ test('Lockbox 가 개발 구간을 덮으면 순서 확인이 잡는다', () => 
 })
 
 test('딱 맞는 길이면 통과한다 — 경계에서 한 칸 차이로 거부하지 않는다', () => {
-  const need = 20 + 30 + 3 * 10
+  // Lockbox 20 + 학습 30 + 띄움 1 + 검증 3×10. 띄우는 날도 필요한 날에 든다
+  const need = 20 + 30 + BASE.embargoDays + 3 * 10
   const plan = planned({ ...BASE, tradeDates: days(need) })
   assert.equal(plan.folds.length, 3)
   assert.equal(checkOrder(plan), null)
+})
+
+
+/* ── 학습과 검증 사이를 띄운다 (점검 2026-09-29) ── */
+
+/**
+ * **붙여 두면 라벨이 경계를 넘는다.**
+ *
+ * 라벨은 진입 뒤 손절·목표·시간청산 중 무엇이 먼저 닿았나다. 학습 마지막 날 늦게 연
+ * 거래는 그 날 안에 안 끝날 수 있고, 붙어 있으면 그 결과가 검증 첫날 가격으로 정해진다.
+ * 점검 전에는 `trainTo = dates[validateStart-1]` 로 **하루도 안 띄우고** 있었다.
+ */
+test('★ 학습 끝과 검증 시작 사이에 띄운 날이 있다', () => {
+  const dates = days(100)
+  for (const embargo of [1, 3, 5]) {
+    const plan = planned({ ...BASE, embargoDays: embargo })
+    for (const fold of plan.folds) {
+      const gap = dates.filter((d) => d > fold.trainTo && d < fold.validateFrom).length
+      assert.equal(gap, embargo, `${fold.index + 1}번째 접기가 ${gap}일만 띄웠다 (${embargo}일 필요)`)
+      assert.ok(fold.trainTo < fold.validateFrom, '학습이 검증보다 뒤다')
+    }
+    assert.equal(plan.embargoDays, embargo, '계획이 띄운 날 수를 안 들고 다닌다')
+  }
+})
+
+test('★ 띄우면 필요한 날이 그만큼 늘고, 모자라면 왜 모자란지 말한다', () => {
+  // 100일에서 딱 맞던 설정이 띄움을 크게 주면 거절돼야 한다
+  const tight = planWalkForward({ ...BASE, embargoDays: 30 })
+  assert.ok('rejection' in tight, '자료가 모자란데 계획을 세운다')
+  assert.match(tight.rejection.userMessage, /띄움|학습 구간/, '왜 모자란지를 안 말한다')
+})
+
+test('★ 띄울 날 수가 이상하면 계획을 안 세운다 — 조용히 0 으로 안 떨어진다', () => {
+  for (const bad of [-1, 1.5, Number.NaN]) {
+    const r = planWalkForward({ ...BASE, embargoDays: bad })
+    assert.ok('rejection' in r, `띄움 ${bad} 인데 계획을 세운다`)
+  }
+  // 값을 아예 안 주면 undefined 라 그것도 거절이다 — 기본값을 여기서 지어내지 않는다
+  const missing = planWalkForward({ ...BASE, embargoDays: undefined as unknown as number })
+  assert.ok('rejection' in missing, '안 줬는데 0 으로 떨어진다')
+})
+
+test('★ checkOrder 가 실제로 띄워졌는지 센다 — 앞뒤 순서만으로는 모자라다', () => {
+  const dates = days(100)
+  const plan = planned({ ...BASE, embargoDays: 2 })
+  assert.equal(checkOrder(plan, dates), null, '멀쩡한 계획을 막는다')
+
+  // 학습 끝을 검증 시작 **직전**으로 도로 붙인 계획 (점검 전 동작)
+  const glued = {
+    ...plan,
+    folds: plan.folds.map((f) => {
+      const at = dates.indexOf(f.validateFrom)
+      return { ...f, trainTo: dates[at - 1] }
+    }),
+  }
+  const problem = checkOrder(glued, dates)
+  assert.ok(problem, '하루도 안 띄운 계획이 통과한다')
+  assert.match(problem.reason, /embargo_too_small/, '사유가 띄움 문제라고 안 말한다')
+  assert.match(problem.userMessage, /학습에 들어갑니다/, '무엇이 문제인지 안 말한다')
+
+  // 거래일을 안 주면 못 센다 — 그때는 앞뒤 순서만 본다(옛 부르는 자리가 안 깨진다)
+  assert.equal(checkOrder(glued), null)
 })

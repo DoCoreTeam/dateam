@@ -210,7 +210,7 @@
 보안: 해당 없음 — 검증 셈법이고 새 표·창구가 없다
 
 ### I04f 학습과 검증 사이를 띄운다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/trading/backtest/windows.ts, apps/web/lib/trading/backtest/windows.test.ts, apps/web/lib/trading/settings/registry.ts
 감사 기준:

@@ -586,6 +586,26 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §13.3',
   },
   {
+    key: 'validation_embargo_days',
+    group: 'validation',
+    label: '학습과 검증 사이 띄울 날',
+    /**
+     * **붙여 두면 성적이 부풀려진다.**
+     *
+     * 라벨은 진입 뒤 손절·목표·시간청산 중 무엇이 먼저 닿았나다. 학습 마지막 날 늦게 연
+     * 거래는 그 날 안에 안 끝날 수 있고, 붙어 있으면 그 결과가 검증 첫날 가격으로 정해진다.
+     * 실측 2026-09-29 점검: 이 값이 없어 하루도 안 띄우고 있었다.
+     */
+    help: '이만큼은 학습에도 검증에도 안 씁니다. 붙여 두면 경계에 걸친 거래가 성적을 부풀립니다',
+    type: 'number',
+    defaultValue: 1,
+    unit: '거래일',
+    min: 0,
+    max: 10,
+    usedFrom: '1-B',
+    source: '명세 §13.3 워크포워드 (점검 2026-09-29)',
+  },
+  {
     key: 'validation_lockbox_days',
     group: 'validation',
     label: '최종 검증 길이',

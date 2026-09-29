@@ -157,6 +157,8 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
     validateDays: num('validation_validate_days', 10),
     minTrainDays: num('validation_min_train_days', 30),
     lockboxDays: num('validation_lockbox_days', 20),
+    // 학습과 검증 사이를 띄운다. 붙여 두면 경계에 걸친 거래의 결과가 학습에 들어간다
+    embargoDays: num('validation_embargo_days', 1),
   })
   if ('rejection' in planned) {
     return {
@@ -164,7 +166,8 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
       progress: { total: 0, done: 0, currentLabel: null, failed: [] }, gate: null,
     }
   }
-  const orderProblem = checkOrder(planned.plan)
+  // 거래일 목록을 같이 준다 — 안 주면 「하루도 안 띄운 계획」이 그대로 통과한다
+  const orderProblem = checkOrder(planned.plan, tradeDates)
   if (orderProblem) {
     return {
       ok: false, reason: orderProblem.reason, userMessage: orderProblem.userMessage,

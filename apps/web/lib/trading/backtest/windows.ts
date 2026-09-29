@@ -29,6 +29,8 @@ export interface Fold {
 
 export interface WalkForwardPlan {
   folds: Fold[]
+  /** 이 계획이 띄운 거래일 수. `checkOrder` 가 실제로 띄워졌는지 이 값으로 센다 */
+  embargoDays: number
   /** 개발 구간(학습·검증이 도는 자리) */
   developFrom: string
   developTo: string
@@ -50,6 +52,17 @@ export interface WalkForwardInput {
   minTrainDays: number
   /** Lockbox 로 떼어 둘 마지막 거래일 수 */
   lockboxDays: number
+  /**
+   * 학습 끝과 검증 시작 사이에 **버릴 거래일 수**(embargo).
+   *
+   * 라벨은 진입 뒤 손절·목표·시간청산 중 무엇이 먼저 닿았나다. 학습 마지막 날 늦게 연
+   * 거래는 그 날 안에 안 끝날 수 있고, 학습과 검증이 **붙어 있으면** 그 결과가 검증 첫날에
+   * 걸친다. 그러면 검증 구간의 가격이 학습 라벨에 들어간 셈이라 성적이 부풀려진다.
+   *
+   * 실측 2026-09-29 점검: 이 값이 없어 `trainTo = dates[validateStart-1]` 로
+   * **하루도 안 띄우고** 있었다.
+   */
+  embargoDays: number
 }
 
 /**
@@ -86,14 +99,20 @@ export function planWalkForward(
     return { rejection: { reason: 'fold_count_below_one', userMessage: '접는 수는 1 이상이어야 합니다' } }
   }
 
-  const needed = input.lockboxDays + input.minTrainDays + input.foldCount * input.validateDays
+  if (!Number.isInteger(input.embargoDays) || input.embargoDays < 0) {
+    return { rejection: { reason: 'embargo_invalid', userMessage: '띄울 날 수는 0 이상 정수여야 합니다' } }
+  }
+  // 띄우는 날은 학습에도 검증에도 안 쓰이므로 필요한 날이 그만큼 늘어난다
+  const needed = input.lockboxDays + input.minTrainDays + input.embargoDays
+    + input.foldCount * input.validateDays
   if (dates.length < needed) {
     return {
       rejection: {
         reason: `not_enough_days:${dates.length}<${needed}`,
         userMessage: `거래일이 ${dates.length}일뿐입니다. `
           + `${input.foldCount}겹 워크포워드에는 최소 ${needed}일이 필요합니다 `
-          + `(Lockbox ${input.lockboxDays} + 학습 ${input.minTrainDays} + 검증 ${input.foldCount}×${input.validateDays})`,
+          + `(Lockbox ${input.lockboxDays} + 학습 ${input.minTrainDays} + 띄움 ${input.embargoDays}`
+          + ` + 검증 ${input.foldCount}×${input.validateDays})`,
       },
     }
   }
@@ -107,18 +126,24 @@ export function planWalkForward(
      */
     const validateEnd = developEnd - (input.foldCount - 1 - i) * input.validateDays
     const validateStart = validateEnd - input.validateDays
-    if (validateStart < input.minTrainDays) {
+    /**
+     * 학습은 검증 시작보다 `embargoDays` 만큼 **앞에서 끝난다**.
+     * 그 사이 날은 학습에도 검증에도 안 쓴다 — 라벨이 경계를 넘지 못하게 버리는 자리다.
+     */
+    const trainEnd = validateStart - input.embargoDays
+    if (trainEnd < input.minTrainDays) {
       return {
         rejection: {
-          reason: `fold_${i}_train_too_short:${validateStart}<${input.minTrainDays}`,
-          userMessage: `${i + 1}번째 접기의 학습 구간이 ${validateStart}일뿐입니다 (최소 ${input.minTrainDays}일)`,
+          reason: `fold_${i}_train_too_short:${trainEnd}<${input.minTrainDays}`,
+          userMessage: `${i + 1}번째 접기의 학습 구간이 ${trainEnd}일뿐입니다 `
+            + `(최소 ${input.minTrainDays}일, 띄움 ${input.embargoDays}일을 뺀 값입니다)`,
         },
       }
     }
     folds.push({
       index: i,
       trainFrom: dates[0],
-      trainTo: dates[validateStart - 1],
+      trainTo: dates[trainEnd - 1],
       validateFrom: dates[validateStart],
       validateTo: dates[validateEnd - 1],
     })
@@ -127,6 +152,7 @@ export function planWalkForward(
   return {
     plan: {
       folds,
+      embargoDays: input.embargoDays,
       developFrom: dates[0],
       developTo: dates[developEnd - 1],
       lockboxFrom: dates[developEnd],
@@ -141,8 +167,25 @@ export function planWalkForward(
  * 학습이 검증보다 앞이고, Lockbox 가 개발 구간과 안 겹쳐야 한다.
  * 이 함수가 실패를 돌려주는 계획은 어디에도 넘기지 않는다.
  */
-export function checkOrder(plan: WalkForwardPlan): WindowRejection | null {
+export function checkOrder(
+  plan: WalkForwardPlan,
+  /**
+   * 거래일 목록. 주면 **실제로 띄워졌는지**까지 센다 —
+   * 「학습이 검증보다 앞」만으로는 하루도 안 띄운 계획이 그대로 통과한다.
+   */
+  tradeDates?: readonly string[],
+): WindowRejection | null {
   for (const fold of plan.folds) {
+    if (tradeDates && plan.embargoDays > 0) {
+      const gap = tradeDates.filter((d) => d > fold.trainTo && d < fold.validateFrom).length
+      if (gap < plan.embargoDays) {
+        return {
+          reason: `fold_${fold.index}_embargo_too_small:${gap}<${plan.embargoDays}`,
+          userMessage: `${fold.index + 1}번째 접기가 학습과 검증 사이를 ${gap}일밖에 안 띄웠습니다 `
+            + `(${plan.embargoDays}일 필요). 경계에 걸친 거래의 결과가 학습에 들어갑니다`,
+        }
+      }
+    }
     if (fold.trainTo >= fold.validateFrom) {
       return {
         reason: `fold_${fold.index}_train_not_before_validate`,
