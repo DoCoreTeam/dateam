@@ -223,7 +223,7 @@
 보안: 해당 없음 — 설정 한 줄과 셈법이다
 
 ### I04g 리플레이가 백테스트와 같은 답을 내는지 대조한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/trading/replay/parity.test.ts (신규), apps/web/package.json
 감사 기준:
