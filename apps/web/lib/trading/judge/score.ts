@@ -23,6 +23,7 @@ import { buildExitPlan, type ExitPlanParams } from './exit-plan-math.ts'
 import { computeIndicators, requiredBarCount, type IndicatorParams } from './indicators.ts'
 import { replayExecution, type OrderKind } from '../replay/execution.ts'
 import { computeRisk, type InstrumentSpec } from '../risk/arithmetic.ts'
+import { roundTripFeeKrw } from '../risk/fees.ts'
 import type { MinuteBarInput } from '../bars/confirm.ts'
 
 /** 채점할 판단 하나. 방향이 없는 판단(관망)은 여기 안 들어온다 */
@@ -44,7 +45,13 @@ export interface ScoreParams {
   orderKind: OrderKind
   slippagePoints: number
   stopSlippagePoints: number
-  roundTripFeeKrw: number
+  /**
+   * 편도 수수료율(%). **약정금액에 비례한다** — 정액으로 받으면 지수가 움직일 때
+   * 비용이 안 따라간다 (`risk/fees.ts` 가 이유를 적는다)
+   */
+  feePercentPerSide: number
+  /** 요율로 안 잡히는 고정 비용(원, 왕복). 유관기관제비용 같은 것 */
+  feeFlatKrw: number
   /** 그날 당일 청산 시각 */
   sessionCloseAt(barStartAt: Date): Date
 }
@@ -142,6 +149,18 @@ export function scoreJudgment(
     targetPrice: plan.targetPrice,
   }
 
+  /**
+   * 거래비용은 **그 판단의 기준가로** 센다. 선물 수수료는 약정금액에 비례하므로
+   * 지수가 다른 날의 판단은 비용도 다르다.
+   */
+  const feeKrw = roundTripFeeKrw({
+    referencePrice,
+    multiplier: params.instrument.multiplier,
+    quantity: params.quantity,
+    percentPerSide: params.feePercentPerSide,
+    flatKrw: params.feeFlatKrw,
+  })
+
   const risk = computeRisk({
     direction: judgment.direction,
     instrument: params.instrument,
@@ -150,7 +169,7 @@ export function scoreJudgment(
     stopPrice: plan.stopPrice,
     chaseDistance: Math.abs(plan.chaseLimitPrice - referencePrice),
     stopSlippageTicks: params.stopSlippagePoints / params.instrument.tickSize,
-    roundTripFeeKrw: params.roundTripFeeKrw,
+    roundTripFeeKrw: feeKrw,
   })
 
   const replay = replayExecution(
@@ -164,7 +183,7 @@ export function scoreJudgment(
       slippagePoints: params.slippagePoints,
       stopSlippagePoints: params.stopSlippagePoints,
       contractValue: params.instrument.multiplier * params.quantity,
-      roundTripFeeKrw: params.roundTripFeeKrw,
+      roundTripFeeKrw: feeKrw,
     },
     bars,
   )

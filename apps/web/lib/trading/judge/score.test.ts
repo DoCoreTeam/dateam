@@ -36,7 +36,8 @@ const PARAMS: ScoreParams = {
   orderKind: 'market',
   slippagePoints: 0,
   stopSlippagePoints: 0,
-  roundTripFeeKrw: 0,
+  feePercentPerSide: 0,
+  feeFlatKrw: 0,
   sessionCloseAt: () => new Date(START.getTime() + 10_000 * 60_000),
 }
 

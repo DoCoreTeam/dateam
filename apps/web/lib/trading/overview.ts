@@ -99,6 +99,7 @@ import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
 import { loadBarsAsOf } from './bars/store.ts'
 import { buildSeries, type ChartSeries, type PlanParams } from './chart/series.ts'
 import { scoreJudgment, summarizeScores, type JudgmentScore } from './judge/score.ts'
+import { feeConfigured } from './risk/fees.ts'
 import { leaningOf } from './judgment-labels.ts'
 import { loadFills } from './position/fills.ts'
 import { foldFills } from './position/from-fills.ts'
@@ -452,10 +453,11 @@ async function loadAccuracy(
   exitBefore: number,
 ): Promise<AccuracySummary> {
   const baseKrw = Number(values.account_base_krw) || 0
-  const feeKrw = Number(values.fee_rate) || 0
+  const feePercent = Number(values.fee_percent_per_side) || 0
+  const feeFlat = Number(values.fee_rate) || 0
   const empty = (reason: string): AccuracySummary => ({
     rows: [], tradeDays: 0, unmeasuredReason: reason,
-    contracts: 1, multiplier: 0, baseKrw, feeIncluded: feeKrw > 0,
+    contracts: 1, multiplier: 0, baseKrw, feeIncluded: feeConfigured(feePercent, feeFlat),
   })
   if (!contractCode) return empty('근월물이 정해지지 않았습니다')
   try {
@@ -503,7 +505,8 @@ async function loadAccuracy(
           orderKind: String(values.replay_order_type ?? 'market') === 'limit' ? 'limit' : 'market',
           slippagePoints: slippage,
           stopSlippagePoints: slippage,
-          roundTripFeeKrw: feeKrw,
+          feePercentPerSide: feePercent,
+          feeFlatKrw: feeFlat,
           // 실시간과 같은 규칙으로 판다 — 그날 접속매매 끝 N분 전
           sessionCloseAt: (barStartAt) => {
             const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(barStartAt)
@@ -541,7 +544,7 @@ async function loadAccuracy(
       contracts: 1,
       multiplier: instrument.multiplier,
       baseKrw,
-      feeIncluded: feeKrw > 0,
+      feeIncluded: feeConfigured(feePercent, feeFlat),
     }
   } catch (error) {
     return empty(error instanceof Error ? error.message : '읽지 못했습니다')
