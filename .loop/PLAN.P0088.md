@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자를 화면에서 바꾼다
 플랜 ID: P0088
-플랜 버전: v0.1.4
+플랜 버전: v0.1.6
 상태: 진행중
 지시: iv_0145
 목표 버전: v0.10.712
@@ -76,13 +76,16 @@
 보안: S2 권한 우회 경로를 닫는 항목이다. 이것이 이 판에서 가장 보안에 가까운 자리다
 
 ### I04 담당자를 고르는 부품 하나를 만든다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/components/crm/OwnerPicker.tsx (신규), apps/web/components/crm/owner-picker.module.css (신규)
+범위: apps/web/components/crm/OwnerPicker.tsx (신규), apps/web/components/crm/owner-picker.module.css (신규), apps/web/app/api/crm/members/route.ts
 감사 기준:
 - `/api/crm/members` 를 읽어 **활성 멤버만** 보인다, 퇴사자와 삭제된 멤버는 고를 수 없다
 - 지금 담당자가 무엇인지 열기 전에 보인다, 고르면 저장하고 실패하면 사람 말로 말하고 원래 값으로 되돌린다
 - 바꿀 수 없는 사람에게는 **누르는 자리를 안 그린다**, 못 하는 동작의 버튼을 안 그린다 (P0054 I11 과 같은 규칙)
+- **화면이 자기 권한을 알 길이 없었다** (실측 2026-09-29: `owner.reassign` 을 클라이언트에 주는 창구가 0곳). 새 창구를 열지 않고 이미 있는 `GET /api/crm/members` 응답에 `viewer: { memberId, canReassign }` 를 실어 준다, 「이 목록에서 나는 누구인가」는 그 창구가 대답할 자리다
+- 판정은 서버가 계속 한다, 화면이 단추를 그리는 것과 서버가 허락하는 것은 다른 일이고 단추를 숨기는 것이 보안이 아니다
+- 담당자 본인은 권한 없이도 넘길 수 있다(이관), 그러니 단추 조건은 「내가 담당이거나 권한이 있거나」다
 - 세 화면이 이 부품 하나를 쓴다, 화면마다 따로 적지 않는다
 - 폼 표준 클래스를 쓴다 (`input-field`·`label`), 날것 태그를 안 쓴다
 - `pnpm tsc --noEmit` 통과, `pnpm test css-defined` 통과
@@ -149,3 +152,5 @@
 - v0.1.2 (2026-09-29) api-auth-surface 가드가 import 줄에 걸려 인증 없는 창구를 통과시키는 것을 실측, 가드를 호출 자리를 보게 고치는 기준을 I02 에 더함 (audit:I02)
 - v0.1.3 (2026-09-29) I03 착수 중 딜에도 같은 PATCH 구멍이 있는 것을 실측, deal.ts 를 I03 범위에 넣고 기준 둘을 더함 (audit:I03)
 - v0.1.4 (2026-09-29) 딜 PATCH 도 담당자를 권한 검사 없이 받는 것을 실측, deal.ts 를 I03 범위에 더함 (audit:I03)
+- v0.1.5 (2026-09-29) I04 착수 중 화면이 자기 권한을 아는 창구가 없는 것을 실측, 새 창구 대신 멤버 목록 응답에 viewer 를 싣기로 하고 그 파일을 범위에 더함 (audit:I04)
+- v0.1.6 (2026-09-29) 화면이 owner.reassign 을 알 길이 없어 멤버 목록 응답에 viewer 를 싣기로 함, 새 창구는 안 연다 (audit:I04)

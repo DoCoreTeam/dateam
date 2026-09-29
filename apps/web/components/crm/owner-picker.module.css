@@ -1,0 +1,96 @@
+/* 담당자 바꾸기 — 딜·거래처·고객이 같은 것을 쓴다 */
+
+.wrap {
+  position: relative;
+  display: inline-block;
+}
+
+/* 값처럼 보이되 누를 수 있다는 것은 보여야 한다.
+   속성 카드의 다른 칸과 나란히 서므로 기본은 테두리 없이 두고 마우스를 올렸을 때만 드러난다 */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-1);
+  margin: -2px calc(var(--space-1) * -1);
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trigger:hover:not(:disabled),
+.trigger:focus-visible {
+  border-color: var(--border-color);
+  background: var(--surface-bg);
+}
+
+.trigger:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.caret {
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  line-height: 1;
+}
+
+.panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  min-width: 220px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  box-shadow: var(--shadow-lg);
+}
+
+.row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover:not(:disabled),
+.row:focus-visible {
+  background: var(--surface-subtle);
+}
+
+/* 지금 담당자 — 고르는 자리에서 「이미 이 사람」을 알 수 있어야 헛클릭이 안 난다 */
+.rowOn {
+  background: var(--surface-subtle);
+  font-weight: 600;
+}
+
+/* 실패는 값 아래에 남긴다 — 패널이 닫혀도 왜 안 바뀌었는지가 보여야 한다 */
+.error {
+  margin: var(--space-1) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-xs);
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

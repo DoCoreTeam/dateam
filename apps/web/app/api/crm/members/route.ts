@@ -5,6 +5,8 @@
 // **들일 화면이 없었다** — 팀이 쓰기 시작하는 순간 제품이 멈추는 상태였다.
 import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
+import { viewerOf } from '@/lib/crm/auth/capabilities'
+import { hasCapability } from '@/lib/crm/security/sensitivity'
 import { getCrmDb } from '@/lib/crm/db/client'
 import { createAdminClient } from '@/lib/supabase/server'
 import { listMembers, addMember } from '@/lib/crm/services/member'
@@ -90,7 +92,29 @@ export async function GET(req: NextRequest) {
       // 후보를 못 불러와도 멤버 목록은 보여 준다
     }
 
-    return { items: withOrgTitle, candidates }
+    /**
+     * **이 목록에서 나는 누구인가.**
+     *
+     * 담당자를 바꾸는 단추를 그릴지 화면이 정하려면 둘을 알아야 한다 —
+     * 내 멤버 id(내가 담당이면 권한 없이 넘길 수 있다)와 `owner.reassign` 권한
+     * (남의 담당을 건드리려면 필요하다). 실측 2026-09-29: 이 둘을 화면에 주는 창구가 0곳이라
+     * 「못 하는 동작의 버튼을 안 그린다」를 지킬 방법이 없었다.
+     *
+     * 새 창구를 열지 않고 여기 싣는다. 멤버 목록을 읽는 자리가 「나는 누구인가」를
+     * 대답하기에 가장 가까운 자리다.
+     *
+     * **이 값은 단추를 그릴지만 정한다.** 허락은 서버가 한다 —
+     * 담당자 변경 창구가 판정을 다시 하므로, 이 값을 손으로 바꿔도 권한은 안 늘어난다.
+     */
+    const viewer = await viewerOf(getCrmDb(session.workspaceId), session)
+    return {
+      items: withOrgTitle,
+      candidates,
+      viewer: {
+        memberId: session.memberId,
+        canReassign: hasCapability(viewer, 'owner.reassign'),
+      },
+    }
   })
 }
 
