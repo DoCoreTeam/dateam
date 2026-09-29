@@ -389,9 +389,13 @@ function deadlineOf(atIso: string, minutes: number): string | null {
  * 화면은 「가격이 거의 안 움직였다」로 읽히고, 그것은 오늘 장의 사실이 아니라
  * 우리가 넷만 그린 사실이다.
  */
+export const DEFAULT_WINDOW_BARS = 120
+
 export function defaultWindow(
   bars: readonly ChartBar[],
   atLeast: number,
+  /** 처음에 보여줄 최대 봉 수. 이보다 앞은 밀어서 본다 */
+  maxSpan: number = DEFAULT_WINDOW_BARS,
 ): { startIndex: number; endIndex: number } | null {
   if (bars.length === 0) return null
   const endIndex = bars.length - 1
@@ -401,6 +405,15 @@ export function defaultWindow(
   // 그 날 봉이 모자라면 앞날까지 거슬러 채운다
   const need = Math.max(1, atLeast)
   if (endIndex - start + 1 < need) start = Math.max(0, endIndex - need + 1)
+  /**
+   * **창이 실어 온 봉 전부가 되면 밀 자리가 사라진다.**
+   *
+   * 실측 2026-09-29: 오늘 봉이 318개인데 창도 318개라 구간 띠를 끌어도 밀어도
+   * 아무 일이 안 일어났다 — 기능이 있는데 쓸 자리가 없었던 것이다.
+   * 그리고 한 화면에 318개를 그리면 새 봉 하나가 1/318 이라 «움직이는지»도 안 보인다.
+   */
+  const capped = Math.max(need, Math.max(1, maxSpan))
+  if (endIndex - start + 1 > capped) start = endIndex - capped + 1
   return { startIndex: start, endIndex }
 }
 

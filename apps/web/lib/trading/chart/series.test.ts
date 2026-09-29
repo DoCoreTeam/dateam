@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf, planBaseAt } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf, planBaseAt, DEFAULT_WINDOW_BARS } from './series.ts'
 import { deadlineLeftText } from '../signal-labels.ts'
 import type { PlanParams } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
@@ -782,4 +782,31 @@ test('★ 그 봉까지 봉이 모자라면 계획을 안 세운다', () => {
   assert.match(early.blocked ?? '', /봉이 \d+개 필요/, '몇 개가 모자란지를 안 말한다')
   // 차트에 없는 봉이면 지어내지 않는다
   assert.equal(planBaseAt(all.bars, '2020-01-01T00:00:00.000Z', PLAN).base, null)
+})
+
+
+/* ── 창이 전부가 되면 밀 자리가 없다 (실측 2026-09-29) ── */
+
+test('★ 처음 창이 실어 온 봉 전부가 되지 않는다 — 그러면 밀 자리가 없다', () => {
+  // 같은 날 봉 300개. 창이 300이면 띠를 끌어도 밀어도 아무 일이 안 일어난다
+  const oneDay = Array.from({ length: 300 }, (_, i) => ({
+    startAt: new Date(Date.UTC(2026, 8, 29, 0, i)).toISOString(),
+    open: 400, high: 401, low: 399, close: 400, volume: 1,
+  }))
+  const s = buildSeries({ bars: oneDay, signals: [], lastRunReason: null, plan: PLAN })
+  assert.ok(s.window)
+  const span = s.window.endIndex - s.window.startIndex + 1
+  assert.ok(span < s.bars.length, `창(${span})이 실어 온 봉(${s.bars.length}) 전부다 — 밀 자리가 없다`)
+  assert.equal(s.window.endIndex, s.bars.length - 1, '창이 마지막 봉에 안 붙어 있다')
+  assert.ok(span <= DEFAULT_WINDOW_BARS, `한 화면에 ${span}개를 그린다 — 새 봉 하나가 안 보인다`)
+})
+
+test('★ 봉이 창보다 적으면 있는 대로 다 그린다', () => {
+  const few = Array.from({ length: 40 }, (_, i) => ({
+    startAt: new Date(Date.UTC(2026, 8, 29, 0, i)).toISOString(),
+    open: 400, high: 401, low: 399, close: 400, volume: 1,
+  }))
+  const s = buildSeries({ bars: few, signals: [], lastRunReason: null, plan: PLAN })
+  assert.equal(s.window?.startIndex, 0, '있는 봉이 적은데 잘라 낸다')
+  assert.equal(s.window?.endIndex, 39)
 })

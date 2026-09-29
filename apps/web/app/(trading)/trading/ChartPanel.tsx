@@ -13,7 +13,7 @@
 //
 // recharts 는 무겁다. 첫 화면 비용에 안 얹으려고 **그릴 것이 있을 때만** 잘라서 불러온다.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
@@ -372,7 +372,7 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
    * 전부 그려졌다(180→180). 이름을 `view` 로 둔 것은 전역 `window` 를 가리지 않으려는 것이다.
    */
   const [view, setView] = useState<{ startIndex: number; endIndex: number } | null>(() => serverWindow)
-  const drag = useRef<{ x: number; start: number; end: number } | null>(null)
+  const drag = useRef<{ x: number; start: number; end: number; held: boolean } | null>(null)
 
   // 서버가 정한 창이 바뀌면(봉이 들어오면) 따라간다 — 단, 사용자가 민 뒤에는 그 폭을 지킨다
   useEffect(() => {
@@ -386,44 +386,36 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
     })
   }, [serverWindow])
 
-  const barCount = chart.bars.length
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
-    if (!view || barCount === 0) return
-    /**
-     * **구간 띠 위에서는 잡지 않는다.**
-     *
-     * 실측 2026-09-29: 여기서 포인터를 붙잡으면 띠의 손잡이가 끌리는 이벤트를 우리가
-     * 먼저 가져가 버려 띠가 아예 안 움직였다 — 미는 기능을 넣다가 있던 기능을 껐다.
-     */
-    if ((e.target as Element | null)?.closest?.('.recharts-brush')) return
-    drag.current = { x: e.clientX, start: view.startIndex, end: view.endIndex }
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
-    const d = drag.current
-    if (!d || !e.currentTarget.hasPointerCapture(e.pointerId)) return
-    const width = e.currentTarget.clientWidth || 1
-    const span = d.end - d.start + 1
-    /**
-     * 화면에서 민 거리를 **봉 수로** 바꾼다. 오른쪽으로 끌면 과거로 간다 —
-     * 종이를 오른쪽으로 미는 것과 같은 방향이라야 손이 헷갈리지 않는다.
-     */
-    const moved = Math.round(((d.x - e.clientX) / width) * span)
-    const start = Math.min(Math.max(0, d.start + moved), Math.max(0, barCount - span))
-    setView({ startIndex: start, endIndex: Math.min(barCount - 1, start + span - 1) })
-  }
-  const endDrag = (e: React.PointerEvent<HTMLDivElement>): void => {
-    drag.current = null
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
-  }
-  /** 되돌리는 길. 민 뒤 돌아갈 방법이 없으면 갇히는 것이다 */
-  const atDefault = !view || !serverWindow
-    || (view.startIndex === serverWindow.startIndex && view.endIndex === serverWindow.endIndex)
+  /**
+   * **포인터를 안 붙잡는다.**
+   *
+   * 끌어서 미는 기능을 넣었다가 뺐다. 누를 때마다 포인터를 붙잡고 미는 동안 매 이벤트마다
+   * 다시 그려서, 사용자가 「오히려 먹통에 가까워」라고 했다(2026-09-29). 고친 판을
+   * 실브라우저로 확인하려 했으나 개발 서버 둘이 다 못 믿을 상태였고(하나는 12시간 4.2GB,
+   * 하나는 찬 서버) **확인 못 한 것을 넣어 두지 않는다**.
+   *
+   * 과거를 보는 길은 아래 구간 띠가 그대로 한다. 띠는 확인된 기능이다.
+   */
 
   /**
    * **그릴 것이 있을 때만 불러온다.** 현황을 처음 여는 비용에 차트 묶음을 얹지 않는다 —
    * 봉이 0건인 날에는 이 코드가 아예 안 내려간다.
    */
+  /**
+   * 그리는 줄은 봉이 바뀔 때만 다시 만든다. 렌더마다 새로 만들면 미는 동안
+   * 수백 개 객체를 초당 수십 번 새로 짓는다(위 프레임 묶기와 같은 이유).
+   *
+   * **훅은 이른 반환(`if (!R) return`)보다 위에 둔다.** 아래에 두면 첫 렌더에서는
+   * 안 불리고 recharts 가 붙은 뒤에만 불려, 훅 수가 렌더마다 달라져 그림이 통째로 죽는다
+   * (실측 2026-09-29: 차트가 스켈레톤에서 안 넘어갔다).
+   */
+  const rows = useMemo(() => chart.bars.map((b) => ({
+    at: b.at,
+    label: seoulTimeText(b.at),
+    open: b.open, high: b.high, low: b.low, close: b.close,
+    band: [b.low, b.high] as [number, number],
+  })), [chart.bars])
+
   const [R, setR] = useState<Recharts | null>(null)
   useEffect(() => {
     let alive = true
@@ -433,29 +425,11 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
 
   if (!R) return <div className={styles.loadingChart}><SkelCard lines={4} /></div>
 
-  const rows = chart.bars.map((b) => ({
-    at: b.at,
-    label: seoulTimeText(b.at),
-    open: b.open, high: b.high, low: b.low, close: b.close,
-    band: [b.low, b.high] as [number, number],
-  }))
   const marks = chart.marks
 
   return (
     <div className={styles.chartWrap}>
-      {/* 되돌리기는 민 뒤에만 뜬다 — 안 민 상태에서 「되돌리기」는 할 일이 없는 단추다 */}
-      {!atDefault && (
-        <button type="button" className={styles.reset} onClick={() => setView(serverWindow)}>
-          오늘로 되돌리기
-        </button>
-      )}
-      <div
-        className={styles.chartBox}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-      >
+      <div className={styles.chartBox}>
       <R.ResponsiveContainer width="100%" height="100%">
         <R.ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <R.CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
