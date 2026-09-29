@@ -263,10 +263,34 @@ export interface AccuracyRow {
   averageR: number | null
   totalR: number | null
   netKrw: number | null
+  /**
+   * 기준금액 대비 수익률(0~1). 기준금액이 0(미설정)이거나 못 쟀으면 null.
+   * **0% 로 적지 않는다** — 0% 는 「본전이었다」는 사실이다
+   */
+  returnRate: number | null
 }
 
 export interface AccuracySummary {
   rows: AccuracyRow[]
+  /**
+   * 몇 계약 기준인가. **없으면 원 금액이 무엇의 것인지 알 수 없다** —
+   * 실제 승수는 상품 표가 정한다(미니 50,000원 · 정규 250,000원)
+   */
+  contracts: number
+  /** 1계약 승수(원). 「1계약이 얼마짜리인가」를 화면이 말할 수 있어야 한다 */
+  multiplier: number
+  /**
+   * 투자 기준금액(원). 설정 `account_base_krw`, 0 이면 미설정이다.
+   * 미설정이면 수익률 자리를 **비운다** — 0 으로 나누지도, 기본값을 지어내지도 않는다
+   */
+  baseKrw: number
+  /**
+   * 거래비용이 빠졌나. `fee_rate` 가 0 이면 false 다.
+   *
+   * **말 안 하면 이 숫자를 실제 수익으로 읽는다.** 실측 2026-09-29: 수수료가 0원이라
+   * 성적에 거래비용이 하나도 안 빠져 있었다
+   */
+  feeIncluded: boolean
   /** 잰 구간 (거래일 수). 표본이 며칠짜리인지 없으면 숫자를 못 읽는다 */
   tradeDays: number
   /** 못 쟀으면 왜. 쟀으면 빈 문자열 */

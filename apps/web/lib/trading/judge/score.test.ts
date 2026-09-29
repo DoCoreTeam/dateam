@@ -144,3 +144,39 @@ test('★ 채점이 체결 재현을 새로 안 적는다 (M4)', () => {
   assert.equal(/bar\.high\s*>=|bar\.low\s*<=/.test(src), false,
     '닿았는지를 이 파일에서 또 판정한다 — 화면 적중률과 검증 성적이 갈린다')
 })
+
+
+/* ── 성적을 기준금액 대비로 말한다 (사용자 지시 2026-09-29) ── */
+
+test('★ 화면이 몇 계약 기준인지와 수수료가 빠졌는지를 말한다', () => {
+  const panel = readFileSync(join(HERE, '..', '..', '..', 'app', '(trading)', 'trading', 'AccuracyPanel.tsx'), 'utf8')
+  // 「+714,660원」만 있으면 1계약인지 열 계약인지 알 수 없다
+  assert.match(panel, /계약 기준/, '몇 계약 기준인지 안 말한다')
+  assert.match(panel, /accuracy\.multiplier/, '1계약이 얼마짜리인지 안 말한다')
+  /*
+    **수수료가 0원인 것을 말 안 하면 이 숫자를 실제 수익으로 읽는다.**
+    선물은 왕복 수수료가 건당 손익을 쉽게 뒤집는다.
+  */
+  assert.match(panel, /accuracy\.feeIncluded/, '거래비용이 빠졌는지를 안 본다')
+  assert.match(panel, /수수료가 0원/, '수수료가 안 빠진 사실을 화면이 안 말한다')
+  // 기준금액을 안 정했으면 수익률 자리를 비우고 무엇을 하면 되는지 말한다
+  assert.match(panel, /기준금액을 정하면/, '기준금액이 없을 때 할 일을 안 말한다')
+})
+
+test('★ 기준금액이 0이면 수익률을 안 짓는다 — 0 으로 나누지도 0% 로 적지도 않는다', () => {
+  const src = readFileSync(join(HERE, '..', 'overview.ts'), 'utf8')
+  const at = src.indexOf('returnRate:')
+  assert.ok(at > 0, '수익률을 안 낸다')
+  const line = src.slice(at, src.indexOf('\n', at))
+  assert.ok(line.includes('baseKrw > 0'), '기준금액이 0 인데 나눈다')
+  assert.ok(line.includes('!== null'), '못 잰 손익으로 수익률을 짓는다')
+})
+
+test('★ 투자 기준금액이 설정에 있고 기본이 미설정이다', async () => {
+  const { TRADING_SETTINGS } = await import('../settings/registry.ts')
+  const spec = TRADING_SETTINGS.find((x) => x.key === 'account_base_krw')
+  assert.ok(spec, '투자 기준금액을 화면에서 고칠 수 없다')
+  // 0 은 「미설정」이다. 임의 기본값을 넣으면 사용자가 정하지 않은 수익률을 말하게 된다
+  assert.equal(spec.defaultValue, 0, '기준금액 기본값을 지어낸다')
+  assert.equal(spec.unit, '원')
+})

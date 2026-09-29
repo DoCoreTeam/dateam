@@ -451,7 +451,12 @@ async function loadAccuracy(
   today: string,
   exitBefore: number,
 ): Promise<AccuracySummary> {
-  const empty = (reason: string): AccuracySummary => ({ rows: [], tradeDays: 0, unmeasuredReason: reason })
+  const baseKrw = Number(values.account_base_krw) || 0
+  const feeKrw = Number(values.fee_rate) || 0
+  const empty = (reason: string): AccuracySummary => ({
+    rows: [], tradeDays: 0, unmeasuredReason: reason,
+    contracts: 1, multiplier: 0, baseKrw, feeIncluded: feeKrw > 0,
+  })
   if (!contractCode) return empty('근월물이 정해지지 않았습니다')
   try {
     // 승수와 호가 간격은 표가 유일한 출처다(M6). 못 읽으면 못 잰 것이고 기본값을 안 끼운다
@@ -498,7 +503,7 @@ async function loadAccuracy(
           orderKind: String(values.replay_order_type ?? 'market') === 'limit' ? 'limit' : 'market',
           slippagePoints: slippage,
           stopSlippagePoints: slippage,
-          roundTripFeeKrw: Number(values.fee_rate) || 0,
+          roundTripFeeKrw: feeKrw,
           // 실시간과 같은 규칙으로 판다 — 그날 접속매매 끝 N분 전
           sessionCloseAt: (barStartAt) => {
             const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(barStartAt)
@@ -512,7 +517,15 @@ async function loadAccuracy(
     const days = new Set(scores.map((x) => x.barAt.slice(0, 10))).size
     const row = (label: string, list: readonly JudgmentScore[]) => {
       const x = summarizeScores(list)
-      return { label, ...x }
+      return {
+        label,
+        ...x,
+        /*
+          **기준금액이 0이면 수익률이 없다.** 0 으로 나누면 무한대고,
+          기본값을 지어내면 화면이 사용자가 정하지 않은 수익률을 말하게 된다.
+        */
+        returnRate: baseKrw > 0 && x.netKrw !== null ? x.netKrw / baseKrw : null,
+      }
     }
     return {
       rows: [
@@ -524,6 +537,11 @@ async function loadAccuracy(
       ].filter((r) => r.settled + r.pending + r.unscored > 0),
       tradeDays: days,
       unmeasuredReason: '',
+      // 지금은 한 판단에 한 계약이다. 화면이 그 사실을 말해야 원 금액을 읽을 수 있다
+      contracts: 1,
+      multiplier: instrument.multiplier,
+      baseKrw,
+      feeIncluded: feeKrw > 0,
     }
   } catch (error) {
     return empty(error instanceof Error ? error.message : '읽지 못했습니다')

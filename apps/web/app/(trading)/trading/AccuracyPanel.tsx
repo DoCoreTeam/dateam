@@ -25,6 +25,16 @@ function rateText(value: number | null): string {
   return `${Math.round(value * 100)}%`
 }
 
+/**
+ * 기준금액 대비 수익률. **기준금액을 안 정했으면 빈 칸이다** —
+ * 0% 로 적으면 「본전이었다」는 사실이 되고, 0 으로 나누면 무한대가 된다.
+ */
+function rateOfReturnText(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return ''
+  const sign = value > 0 ? '+' : value < 0 ? '−' : ''
+  return `${sign}${(Math.abs(value) * 100).toFixed(2)}%`
+}
+
 function krwText(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '아직'
   const sign = value > 0 ? '+' : value < 0 ? '−' : ''
@@ -50,7 +60,13 @@ function Row({ row }: { row: AccuracyRow }) {
       <strong className={`${styles.money} ${up ? styles.up : down ? styles.down : ''}`}>
         {rText(row.averageR)}
       </strong>
-      <span className={styles.krw}>{krwText(row.netKrw)}</span>
+      <span className={styles.krw}>
+        {krwText(row.netKrw)}
+        {/* 기준금액을 정했으면 「얼마 넣어 얼마」로도 읽히게 한다 */}
+        {row.returnRate !== null && (
+          <span className={styles.pct}>{` ${rateOfReturnText(row.returnRate)}`}</span>
+        )}
+      </span>
       {/*
         적중률은 **표본과 한 덩어리로** 읽혀야 한다.
         3건 중 2건과 300건 중 200건은 같은 67% 가 아니다
@@ -85,6 +101,26 @@ export default function AccuracyPanel({ accuracy }: { accuracy: AccuracySummary 
       <p className={styles.note}>
         판단대로 매번 들어갔다면 어땠을지를 지난 봉으로 되짚은 값입니다. 실제 주문 기록이 아닙니다
       </p>
+      {/*
+        **몇 계약 기준인지 말한다.** 「+714,660원」만 있으면 그것이 1계약인지 열 계약인지
+        알 수 없다 (사용자 지적 2026-09-29 「투자하는 기준금액이 있는거 같은데」).
+      */}
+      <p className={styles.basis}>
+        {`${accuracy.contracts}계약 기준`}
+        {accuracy.multiplier > 0 && ` · 1계약 ${accuracy.multiplier.toLocaleString('ko-KR')}원짜리`}
+        {accuracy.baseKrw > 0
+          ? ` · 기준금액 ${accuracy.baseKrw.toLocaleString('ko-KR')}원`
+          : ' · 기준금액을 정하면 수익률로도 보여드립니다'}
+      </p>
+      {/*
+        **수수료가 0원이면 그 사실을 말한다.** 말 안 하면 이 숫자를 실제 수익으로 읽는다 —
+        선물은 왕복 수수료와 세금이 건당 손익을 쉽게 뒤집는다.
+      */}
+      {!accuracy.feeIncluded && accuracy.rows.length > 0 && (
+        <p className={styles.warn}>
+          수수료가 0원으로 설정돼 있어 거래비용이 하나도 안 빠진 숫자입니다. 설정에서 실제 수수료를 넣으면 이 성적이 낮아집니다
+        </p>
+      )}
       {accuracy.rows.length === 0
         ? (
           <EmptyState

@@ -121,3 +121,28 @@
   font-size: var(--fs-xs);
   color: var(--warning);
 }
+
+/* 몇 계약 기준인가. 숫자를 읽기 전에 알아야 하는 사실 */
+.basis {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/*
+  수수료가 안 빠졌다는 경고 — **사실이 아니라 위험이다.**
+  이걸 모르고 보면 실제보다 좋은 성적으로 읽는다
+*/
+.warn {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--warning);
+  overflow-wrap: anywhere;
+}
+
+/* 기준금액 대비 수익률. 원 금액 옆에 붙되 약하게 */
+.pct {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
