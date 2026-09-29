@@ -44,6 +44,24 @@ export const KIS_CODE_MEANING: Readonly<Record<string, KisCodeMeaning>> = {
     tone: 'waiting',
     source: '실측 2026-09-28 error_description 「접근토큰 발급 잠시 후 다시 시도하세요(1분당 1회)」',
   },
+  EGW00201: {
+    why: '증권사에 너무 빨리 이어서 물었습니다',
+    how: '다음 분에 스스로 다시 부릅니다. 자주 나면 트레이딩 설정의 「증권사 호출 간격」을 늘려 주세요',
+    tone: 'waiting',
+    source: '실측 2026-09-29 msg1 「초당 거래건수를 초과하였습니다.」 (분봉 조회 6건 · 잔고 조회 13건)',
+  },
+  SKFT2101: {
+    why: '증권사가 예수금을 한 건으로 못 찾았습니다',
+    how: '선물옵션 계좌가 맞는지 확인해 주세요. 계좌번호가 틀리면 이 답이 같이 납니다',
+    tone: 'blocked',
+    source: '실측 2026-09-29 msg1 「정확히 1건의 레코드가 조회되어야 합니다.」 (예수금 조회 1,015건)',
+  },
+  KIOK0560: {
+    why: '그 계좌에 선물옵션 잔고가 없습니다',
+    how: '계좌번호가 맞는데도 이 답이 나면 아직 들고 있는 것이 없다는 뜻입니다',
+    tone: 'waiting',
+    source: '실측 2026-09-29 msg1 「조회할 내용이 없습니다」 (잔고 조회 322건)',
+  },
 }
 
 /**
@@ -52,4 +70,19 @@ export const KIS_CODE_MEANING: Readonly<Record<string, KisCodeMeaning>> = {
  */
 export function kisCodeMeaning(code: string): KisCodeMeaning | null {
   return KIS_CODE_MEANING[code.trim()] ?? null
+}
+
+/**
+ * 어느 조회였나 — 사유 뒤에 붙는 이름(`minuteChart`·`fills`)을 사람 말로.
+ *
+ * 이름 그대로 두면 「minuteChart 조회가 거절됐습니다」가 된다. 읽는 사람은 그것이
+ * 시세인지 계좌인지 모르고, 시세가 죽은 것과 계좌가 죽은 것은 할 일이 다르다.
+ */
+export const BROKER_CALL_LABEL: Readonly<Record<string, string>> = {
+  minuteChart: '분봉',
+  fills: '체결',
+  nightFills: '야간 체결',
+  balance: '잔고',
+  nightBalance: '야간 잔고',
+  deposit: '예수금',
 }

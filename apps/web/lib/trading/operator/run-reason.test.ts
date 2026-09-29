@@ -13,6 +13,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readEnvelope } from '../broker/kis-request.ts'
 import { readRunReason, runStatusLabel, runStatusTone } from './run-reason.ts'
 import { DIRECTION_LABEL } from '../signal-labels.ts'
 import { stripComments } from '../../ui/component-scan.ts'
@@ -271,4 +272,54 @@ test('긴 글자가 카드를 가로로 터뜨리지 않는다', () => {
   assert.match(src, /overflowWrap:\s*'anywhere'/, '원문 자리가 아무 데서나 꺾여야 한다')
   assert.match(src, /whiteSpace:\s*'pre-wrap'/, '원문 줄바꿈은 살리되 넘치지는 않게')
   assert.match(src, /minWidth:\s*0/, 'grid·flex 칸은 minWidth 0 이 없으면 안 줄어든다')
+})
+
+
+/* ── 사유를 만드는 쪽과 읽는 쪽이 같은 글자를 본다 ── */
+
+/**
+ * **가드가 손으로 적은 글자를 보면 안 된다.**
+ *
+ * 실측 2026-09-29: 번역 규칙은 `^fills_failed:kis:kis_([A-Z0-9]+)$` 였고 가드도 꼬리 없는
+ * 글자를 넣어 초록이었다. 그런데 실제 사유에는 조회 이름이 붙어 `…:fills` 였고
+ * (v0.10.683 이 붙였다), 화면에는 사흘 내내 `kis:kis_APAC0071:fills` 가 떴다.
+ * 만들어 배포한 번역이 아무에게도 안 보인 채 꺼져 있었던 것이다.
+ *
+ * 그래서 이 가드는 **`readEnvelope` 이 실제로 만든 글자**를 그대로 읽힌다.
+ */
+test('★ 증권사가 만든 사유를 그대로 읽어도 번역된다 — 손으로 적은 글자가 아니라', () => {
+  const failure = readEnvelope(
+    { rt_cd: '7', msg_cd: 'APAC0071', msg1: '계좌번호가 존재하지 않습니다.' },
+    200,
+    'fills',
+  )
+  assert.ok(failure, '거절을 실패로 안 본다')
+  // tick 이 사유를 적는 꼴 그대로 (`fills_failed:kis:` + readEnvelope 의 reason)
+  const view = readRunReason(`fills_failed:kis:${failure.reason}|broker=failed`)
+  const said = view.lines[0].text
+  assert.match(said, /계좌번호가 없습니다/, `번역이 안 걸린다: ${said}`)
+  assert.match(said, /증권사 자격증명/, '어디서 고치는지 안 말한다')
+  assert.equal(/kis_|APAC/.test(said), false, `기계 글자가 샜다: ${said}`)
+})
+
+test('★ 500 뒤에 증권사 코드가 있으면 코드를 먼저 말한다', () => {
+  const failure = readEnvelope(
+    { rt_cd: '1', msg_cd: 'EGW00201', msg1: '초당 거래건수를 초과하였습니다.' },
+    500,
+    'minuteChart',
+  )
+  assert.ok(failure)
+  const said = readRunReason(failure.reason).lines[0]
+  // 「500」은 우리 쪽 잘못처럼 읽힌다. 실제 뜻은 속도 제한이고 할 일이 완전히 다르다
+  assert.match(said.text, /너무 빨리/, `속도 제한을 안 말한다: ${said.text}`)
+  assert.match(said.text, /분봉/, '어느 조회였는지 안 말한다')
+  // 기다리면 풀리는 것을 사람이 손대야 하는 것으로 적지 않는다
+  assert.equal(said.tone, 'waiting')
+  assert.equal(/kis_|EGW|http_/.test(said.text), false, `기계 글자가 샜다: ${said.text}`)
+})
+
+test('★ 조회 이름이 없던 옛 사유도 그대로 읽힌다 — 쌓인 기록이 안 깨진다', () => {
+  const said = readRunReason('fills_failed:kis:kis_APAC0071').lines[0].text
+  assert.match(said, /계좌번호가 없습니다/)
+  assert.match(readRunReason('http_503').lines[0].text, /503/)
 })

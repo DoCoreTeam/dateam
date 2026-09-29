@@ -20,7 +20,7 @@ import { NOT_MEASURED } from '../../terms/index.ts'
 import { DIRECTION_LABEL } from '../signal-labels.ts'
 import { emitProgressOf, knowledgeProgressOf } from '../overview-shape.ts'
 import { withJosa, eulReul } from '../../ui/josa.ts'
-import { kisCodeMeaning } from '../broker/kis-codes.ts'
+import { kisCodeMeaning, BROKER_CALL_LABEL } from '../broker/kis-codes.ts'
 
 /**
  * 이 줄이 무엇을 말하나.
@@ -176,7 +176,22 @@ const RULES: Rule[] = [
   { re: /^broker=ok$/, say: () => line('증권사 조회는 정상입니다', 'ok') },
   { re: /^broker=failed$/, say: () => line('증권사 조회가 실패했습니다', 'blocked') },
   { re: /^no_credential$/, say: () => line('증권사 앱키가 등록되지 않았습니다', 'blocked') },
-  { re: /^http_(\d+)(?::no_body)?$/, say: (m) => httpText(Number(m[1])) },
+  { re: /^http_(\d+)(?::no_body)?(?::[a-zA-Z]+)?$/, say: (m) => httpText(Number(m[1])) },
+  {
+    /**
+     * `http_500:minuteChart:kis_EGW00201` — **상태 코드보다 증권사 코드가 먼저다.**
+     *
+     * 실측 2026-09-29: 이 꼴이 화면에 통째로 떴다. 「500」은 우리 쪽이 잘못한 것처럼
+     * 읽히지만 실제 뜻은 「초당 거래건수를 초과했다」였고, 할 일이 완전히 다르다.
+     */
+    re: /^http_\d+(?::([a-zA-Z]+))?:kis_([A-Z0-9]+)$/,
+    say: (m) => {
+      const meaning = kisCodeMeaning(m[2])
+      const where = m[1] ? `${BROKER_CALL_LABEL[m[1]] ?? m[1]} ` : ''
+      if (!meaning) return line(`${where}조회가 거절됐습니다 (증권사 코드 ${m[2]})`, 'blocked')
+      return line(`${where}조회가 거절됐습니다 — ${meaning.why} · ${meaning.how}`, meaning.tone)
+    },
+  },
   { re: /^fills=no_account$/, say: () => line('계좌가 연결되지 않아 체결을 못 읽었습니다', 'blocked') },
   {
     /**
@@ -184,7 +199,12 @@ const RULES: Rule[] = [
      * `kis:kis_APAC0071` 은 고칠 때 쓰라고 만든 글자다 — 읽는 사람은 무엇이 문제인지,
      * 어디서 고치는지 알 수 없다. 뜻을 아는 코드는 그 뜻과 할 일을 말한다.
      */
-    re: /^fills_failed:kis:kis_([A-Z0-9]+)$/,
+    /*
+      **뒤에 붙는 조회 이름까지 받는다.** 규칙은 `$` 로 끝나 있었고, 사유에 조회 이름을
+      붙이는 판(v0.10.683)이 `:fills` 를 덧붙이자 이 줄이 **조용히 안 걸리게** 됐다.
+      번역은 만들어 배포까지 했는데 화면에는 사흘 내내 `kis:kis_APAC0071:fills` 가 떴다.
+    */
+    re: /^fills_failed:kis:kis_([A-Z0-9]+)(?::[a-zA-Z]+)?$/,
     say: (m) => {
       const meaning = kisCodeMeaning(m[1])
       // 뜻을 모르면 **코드를 그대로 보여 준다.** 접어 버리면 고칠 실마리까지 사라진다
