@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자를 화면에서 바꾼다
 플랜 ID: P0088
-플랜 버전: v0.1.0
+플랜 버전: v0.1.2
 상태: 진행중
 지시: iv_0145
 목표 버전: v0.10.712
@@ -47,14 +47,16 @@
 보안: S2 권한 판정이 바뀐다. `decideReassign` 을 안 지나는 경로가 하나라도 생기면 남의 담당을 권한 없이 가져갈 수 있다. 시험으로 인수 거절을 확인한다
 
 ### I02 담당자 변경 창구를 거래처와 고객에도 연다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/api/crm/companies/[id]/owner/route.ts (신규), apps/web/app/api/crm/people/[id]/owner/route.ts (신규)
+범위: apps/web/app/api/crm/companies/[id]/owner/route.ts (신규), apps/web/app/api/crm/people/[id]/owner/route.ts (신규), apps/web/lib/policy/api-auth-surface.test.ts
 감사 기준:
 - 두 창구가 딜 창구와 같은 모양이다, `withCrmApi('MEMBER')` 로 인증을 지나고 `hasCapability(viewer, 'owner.reassign')` 를 **값으로** 넘겨 판정은 서비스가 한다
 - 관문 함수를 라우트에서 직접 부르지 않는다, 그러면 이관까지 막혀 휴가 때 일을 넘길 수 없다 (딜 라우트 주석과 같은 이유)
 - 로그인 없이 부르면 통과하지 않는다
 - `pnpm test api-auth-surface` 통과, 두 창구가 공개 목록에 안 올라간다
+- **그 가드가 실제로 새 창구를 보는지 확인한다.** 실측 2026-09-29: 인증 장치를 지우고 돌렸는데 통과했다 — 가드가 파일 전체를 훑어 `import { withCrmApi }` 줄에 걸렸다. 이름만 찾으면 import 만 남아도 통과한다(같은 파일의 세 번째 시험이 이미 그 교훈을 적어 두었는데 창구 하나에만 적용돼 있었다)
+- 가드를 **부르는 자리를 보게** 고치고, 인증 장치를 지운 판으로 일부러 깨뜨려 실패를 확인한다 (S6)
 의존: I01
 보안: S2 창구 둘을 새로 연다. 누가 부를 수 있는지가 이 항목의 본문이다. 서비스롤은 안 쓴다
 
@@ -141,3 +143,5 @@
 
 ## 변경 이력
 - v0.1.0 (2026-09-29) 최초 작성 (iv_0145)
+- v0.1.1 (2026-09-29) I02 착수 중 api-auth-surface 가드가 import 만 보고 통과시키는 것을 실측, 가드 파일을 I02 범위에 넣고 기준 둘을 더함 (audit:I02)
+- v0.1.2 (2026-09-29) api-auth-surface 가드가 import 줄에 걸려 인증 없는 창구를 통과시키는 것을 실측, 가드를 호출 자리를 보게 고치는 기준을 I02 에 더함 (audit:I02)

@@ -38,6 +38,11 @@ const AUTH_MARKERS = [
   'requireWorkspace', 'orgScope',
   // API 키
   'authenticatePublicApi', 'requireAdminKey', 'publicApiAuth',
+  // API 키를 안에서 부르는 감싸개 — 라우트에는 이 이름만 보인다.
+  // 둘 다 몸통 첫 줄이 `await authenticatePublicApi(request)` 다
+  // (lib/public-api/crm-bridge.ts:43 · lib/public-api/ci-bridge.ts:49, 실측 2026-09-29).
+  // 호출 자리를 보게 고치면서 `public/v1/**` 11개가 여기 없어서 열린 것으로 잡혔다
+  'withPublicCrmApi', 'withPublicCiApi', 'withPublicCiList',
   // 기계(크론·워커)
   'CRON_SECRET', 'WORKER_TOKEN', 'machineAuth', 'assertMachine',
 ]
@@ -50,6 +55,25 @@ const OPEN_ON_PURPOSE: Record<string, string> = {
     '로그인 화면이 회사 이름과 로고를 그리려면 로그인 전에 읽어야 한다. 읽기 전용이고 브랜딩 값만 나간다.',
   'public/api-access/route.ts':
     'API 사용 신청 폼 — 계정이 없는 사람이 쓰는 창구다. 대신 시간당 한도(lib/public-rate-limit)와 같은 대답 규칙을 지킨다.',
+}
+
+/**
+ * import 줄과 주석을 걷어낸 **몸통**만 남긴다.
+ *
+ * 이걸 안 하면 `import { withCrmApi } from …` 한 줄이 게이트로 잡힌다. 그러면 게이트를
+ * 부르지 않는 라우트가 조용히 통과한다 — 실측 2026-09-29: 새로 만든 담당자 변경 창구에서
+ * `withCrmApi(` 호출을 지우고 돌렸는데 이 가드가 통과했다. 이름을 찾는 가드는 가드가 아니다.
+ *
+ * 같은 교훈이 이 파일 세 번째 시험에 이미 적혀 있었는데(「import 만 남기고 호출을 지워도
+ * 통과하면 안 된다」) 창구 하나에만 걸려 있었다. 전수로 옮긴다.
+ */
+function bodyOf(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    // `import … from '…'` 한 줄짜리와 여러 줄짜리 둘 다 지운다
+    .replace(/^\s*import\s[\s\S]*?from\s*['"][^'"]*['"];?\s*$/gm, '')
+    .replace(/^\s*import\s+['"][^'"]*['"];?\s*$/gm, '')
 }
 
 function routeFiles(dir: string, out: string[] = []): string[] {
@@ -71,7 +95,7 @@ test('인증을 안 거치는 API 창구는 이유와 함께 적힌 것뿐이다
   for (const f of files) {
     const rel = relative(API, f)
     if (rel in OPEN_ON_PURPOSE) continue
-    if (marker.test(readFileSync(f, 'utf8'))) continue
+    if (marker.test(bodyOf(readFileSync(f, 'utf8')))) continue
     open.push(`  ${rel}`)
   }
 
