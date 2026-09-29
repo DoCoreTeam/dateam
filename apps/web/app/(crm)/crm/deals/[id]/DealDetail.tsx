@@ -19,6 +19,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import Person from '@/components/ui/Person'
+import OwnerPicker from '@/components/crm/OwnerPicker'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import Timeline from '@/components/ui/crm/Timeline'
@@ -84,9 +85,14 @@ interface PersonJson {
   active: boolean
 }
 
-/** 사람 한 칸 — 값이 없으면 지어내지 않고 없다고 말한다 */
-function PersonField({ p, acting, via, emptyLabel }: {
-  p?: PersonJson | null; acting?: boolean; via?: string | null; emptyLabel: string
+/**
+ * 사람 한 칸 — 값이 없으면 지어내지 않고 없다고 말한다
+ *
+ * **못 바꾸는 사람을 그리는 자리다.** 담당자는 `OwnerPicker` 가 맡는다(대행 표시도 거기 있다).
+ * 여기 남은 것은 작성자처럼 안 바뀌는 값뿐이라 대행·설명 인자를 안 받는다.
+ */
+function PersonField({ p, emptyLabel }: {
+  p?: PersonJson | null; emptyLabel: string
 }) {
   if (!p) return <Person name={null} emptyLabel={emptyLabel} noAvatar />
   return (
@@ -95,8 +101,6 @@ function PersonField({ p, acting, via, emptyLabel }: {
       explicitTitle={p.explicitTitle}
       position={p.position}
       rank={p.rank}
-      acting={acting}
-      tooltip={acting && via ? `${via} 의 장으로서 대신 맡고 있습니다` : undefined}
     />
   )
 }
@@ -266,13 +270,20 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                 {/*
                   담당자와 작성자는 **성격이 다르다.** 담당자는 지금 누가 맡나(바뀐다),
                   작성자는 누가 등록했나(안 바뀐다). 그래서 작성자 옆에는 누르는 자리가 없다.
+
+                  그 구분을 여기 적어 두고도 **담당자 옆에도 누르는 자리가 없었다**
+                  (실측 2026-09-29: 창구는 열려 있는데 부르는 화면이 0곳). 수정 모달에도
+                  담당자 칸이 없어서, 화면에서 담당자를 바꿀 길이 아예 없었다.
                 */}
                 <RecordField label="담당자">
-                  <PersonField
-                    p={deal.owner}
+                  <OwnerPicker
+                    entity="deal"
+                    id={dealId}
+                    version={deal.version}
+                    owner={deal.owner ?? null}
                     acting={deal.ownerActing}
-                    via={deal.ownerActingVia}
-                    emptyLabel="담당자 없음"
+                    actingVia={deal.ownerActingVia}
+                    onChanged={() => { void load() }}
                   />
                 </RecordField>
                 <RecordField label="작성자">
