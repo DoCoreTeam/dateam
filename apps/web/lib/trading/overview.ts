@@ -100,6 +100,7 @@ import { loadBarsAsOf } from './bars/store.ts'
 import { buildSeries, type ChartSeries, type PlanParams } from './chart/series.ts'
 import { scoreJudgment, summarizeScores, type JudgmentScore } from './judge/score.ts'
 import { feeConfigured } from './risk/fees.ts'
+import { buildLineage, type Lineage } from './judge/lineage.ts'
 import { leaningOf } from './judgment-labels.ts'
 import { loadFills } from './position/fills.ts'
 import { foldFills } from './position/from-fills.ts'
@@ -420,6 +421,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     },
     gateCriteria: gateVerdict.criteria,
     accuracy: await loadAccuracy(contractCode, now, values, today, exitBefore),
+    lineage: await loadLineage(contractCode, now, values, today, emitProgressOf(recentRuns[0]?.reason ?? null)),
     chart: await loadChart(
       contractCode, now, signals, judgments, recentRuns[0]?.reason ?? null,
       // 당일 청산 시각은 오늘 세션이 정한다. 만기일은 15:05, 평일은 15:20 이라 날마다 다르다
@@ -548,6 +550,85 @@ async function loadAccuracy(
     }
   } catch (error) {
     return empty(error instanceof Error ? error.message : '읽지 못했습니다')
+  }
+}
+
+/**
+ * 가장 최근 판단의 계보 — **물음을 저장하지 않고 되살린다.**
+ *
+ * `buildJevPrompt` 가 결정적이라 그 봉의 지표로 다시 조립하면 같은 문장이 나온다.
+ * 긴 글자를 표에 쌓으면 같은 사실이 두 곳에 생기고, 갈리는 날 어느 쪽이 진짜인지 모른다.
+ *
+ * 못 세워도 던지지 않는다 — 계보 한 칸 때문에 현황이 죽으면 안 된다.
+ */
+async function loadLineage(
+  contractCode: string | null,
+  now: Date,
+  values: Readonly<Record<string, unknown>>,
+  today: string,
+  emitProgress: { step: number; total: number; reason: string } | null,
+): Promise<Lineage> {
+  const none = (reason: string): Lineage => ({
+    barAt: null, judgmentId: null, model: '', promptVersion: '', steps: [], unavailable: reason,
+  })
+  if (!contractCode) return none('근월물이 정해지지 않았습니다')
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    const bars = await loadBarsAsOf({ contractCode, tf: '1m', asOf: now, limit: CHART_BARS })
+    if (bars.length === 0) return none('가격 봉이 아직 없습니다')
+
+    const { data, error } = await admin
+      .from('trading_judgments')
+      .select('id, bar_close_at, judge, status, raw_score, abstain_reason, jev_model_version,'
+        + ' jev_prompt_version, ai_request_at, ai_response_at')
+      .order('bar_close_at', { ascending: false })
+      .limit(20)
+    if (error) return none(`판단을 읽지 못했습니다: ${error.message}`)
+
+    type Row = {
+      id: string; bar_close_at: string; judge: string; status: string
+      raw_score: Record<string, number> | null; abstain_reason: string | null
+      jev_model_version: string | null; jev_prompt_version: string | null
+      ai_request_at: string | null; ai_response_at: string | null
+    }
+    const rows = (data ?? []) as Row[]
+    const jevRow = rows.find((r) => r.judge === 'jev') ?? null
+    if (!jevRow) return none('아직 AI 판단이 없습니다')
+    // 같은 봉의 규칙 판단. 둘을 맞춰야 합의 줄을 그릴 수 있다
+    const ruleRow = rows.find((r) => r.judge === 'rule' && r.bar_close_at === jevRow.bar_close_at) ?? null
+
+    const window = await loadSessionWindow(today)
+    return buildLineage({
+      bars,
+      jev: {
+        id: jevRow.id,
+        barCloseAt: jevRow.bar_close_at,
+        status: jevRow.status,
+        rawScore: jevRow.raw_score,
+        abstainReason: jevRow.abstain_reason,
+        modelVersion: jevRow.jev_model_version,
+        promptVersion: jevRow.jev_prompt_version,
+        requestAt: jevRow.ai_request_at,
+        responseAt: jevRow.ai_response_at,
+      },
+      rule: ruleRow ? { rawScore: ruleRow.raw_score } : null,
+      params: {
+        atrPeriod: Number(values.atr_period) || 14,
+        smaFastPeriod: Number(values.sma_fast_period) || 5,
+        smaSlowPeriod: Number(values.sma_slow_period) || 20,
+        breakoutPeriod: Number(values.breakout_period) || 20,
+        breakoutAtrMultiple: Number(values.breakout_atr_multiple) || 0.1,
+      },
+      sessionOpenAt: window ? window.continuousStart.toISOString() : null,
+      configuredModel: String(values.jev_model ?? ''),
+      reasoningEffort: String(values.jev_reasoning_effort ?? ''),
+      timeoutMs: (Number(values.jev_timeout_seconds) || 10) * 1000,
+      blocked: emitProgress,
+      shown: null,
+    })
+  } catch (error) {
+    return none(error instanceof Error ? error.message : '읽지 못했습니다')
   }
 }
 

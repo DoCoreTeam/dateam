@@ -13,9 +13,9 @@ import ChartPanel from './ChartPanel'
 import LiveRefresh from './LiveRefresh'
 import SignalPanel from './SignalPanel'
 import AccuracyPanel from './AccuracyPanel'
+import LineagePanel from './LineagePanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
-import JevPanel from './JevPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
 import { kstTodayKey } from '@/lib/datetime/kst'
@@ -65,8 +65,11 @@ export default async function TradingPage() {
           「그래서 이 예측이 그동안 맞았나」다 — 그 답이 멀리 있으면 아무도 안 찾는다
         */}
         <AccuracyPanel accuracy={overview.accuracy} />
-        {/* 꺼져 있을 때만 그린다. 켜져 있으면 이 자리가 없다 */}
-        <JevPanel jev={overview.jev} />
+        {/*
+          **성적 바로 아래가 계보다.** 「그동안 얼마나 벌었나」를 보고 나면 다음 질문이
+          「그래서 이 판단이 어떻게 나온 건가」다 — 그 답이 멀리 있으면 아무도 안 찾는다
+        */}
+        <LineagePanel lineage={overview.lineage} jev={overview.jev} />
         <SignalPanel
           rows={overview.signals}
           validMinutes={validMinutes}

@@ -302,6 +302,8 @@ export interface TradingOverview {
   coverage: DayCoverage[]
   /** 그동안 얼마나 맞았고 얼마를 벌었나 */
   accuracy: AccuracySummary
+  /** 가장 최근 판단이 어디서 나왔나 — 걸음마다 누가·무엇을 보고·무엇을 냈는지 */
+  lineage: Lineage
   judgments: JudgmentRow[]
   recentRuns: RunRow[]
   /** 최근 신호. 1-C 전에는 늘 비어 있다 */
@@ -340,6 +342,7 @@ export interface TradingOverview {
 }
 
 import type { ChartSeries } from './chart/series.ts'
+import type { Lineage } from './judge/lineage.ts'
 export type { ChartSeries, ChartBar, ChartMark } from './chart/series.ts'
 
 /**

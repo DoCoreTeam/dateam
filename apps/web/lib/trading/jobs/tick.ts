@@ -39,6 +39,7 @@ import { bucketsClosedBy, openInterestOf } from '../bars/rollup.ts'
 import { computeIndicators, evaluateTriggers, requiredBarCount } from '../judge/indicators.ts'
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
+import { JEV_PROMPT_VERSION } from '../judge/jev-prompt.ts'
 import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import {
   runJudges, scheduledMinuteOf, marketPhaseOf, shouldAskForBars, RUN_BUDGET_MS, type TickOutcome,
@@ -831,6 +832,15 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
       triggerId: trigger.id,
       tradingLogicVersion: logicVersion,
       settingsVersion,
+      /**
+       * **어느 모델이·어느 물음으로 답했나를 그 줄에 남긴다.**
+       *
+       * 실측 2026-09-29: `ClaimContext` 에 칸은 있는데 아무도 안 넘겨 줄곧 빈 값으로
+       * 쌓이고 있었다. 모델을 바꾼 날 성적이 달라져도 「언제부터 다른 모델이었나」를
+       * 못 가른다 — 판단 계보 칸이 이 값을 읽는다.
+       */
+      jevModelVersion: jevModel || null,
+      jevPromptVersion: JEV_PROMPT_VERSION,
     }
 
     outcome = await runJudges(

@@ -1,0 +1,184 @@
+.panel {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.meta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.chain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+/*
+  한 걸음. 왼쪽에 번호, 그 옆에 누가·무엇을.
+  좁은 화면에서는 번호 줄을 접어 가로 스크롤을 안 만든다.
+*/
+.step {
+  display: grid;
+  grid-template-columns: 1.9rem minmax(0, 1fr);
+  gap: 0 var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-light);
+  min-width: 0;
+}
+
+.step:last-child { border-bottom: none; }
+
+/*
+  **AI 줄만 바탕이 다르다.** 여덟 걸음 중 하나뿐이라, 이 한 줄이 갈리면
+  「AI 가 이상한 소리를 했나」와 「코드가 잘못 셌나」를 바로 가른다
+*/
+.aiStep {
+  background: var(--surface-alt, rgba(127, 127, 127, 0.06));
+  border-radius: var(--radius-sm);
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+.rail {
+  grid-row: 1 / span 2;
+  display: flex;
+  justify-content: center;
+}
+
+.no {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.who {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+
+.kind {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  flex: none;
+}
+
+.kind-code { color: var(--text-muted); }
+.kind-ai { color: var(--warning); }
+.kind-view { color: var(--text); }
+
+.name {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.where {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 참조·한 것·낸 것을 같은 자리에 세워야 여러 걸음을 세로로 훑을 수 있다 */
+.line {
+  display: grid;
+  grid-template-columns: 3.4rem minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: baseline;
+  min-width: 0;
+}
+
+@media (max-width: 560px) {
+  .line { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+.line dt {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.line dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.produced { font-weight: 600; }
+
+/* 막힌 걸음은 낸 것이 빨갛다 — 어디서 멈췄는지가 한눈에 보여야 한다 */
+.blocked .produced { color: var(--danger); }
+.waiting .produced { color: var(--warning); }
+.ok .produced { color: var(--text); }
+
+/*
+  물음과 답 원문. 줄바꿈을 살리되 긴 줄은 이 칸 안에서만 가로로 흐른다 —
+  페이지가 옆으로 밀리면 안 된다
+*/
+.slab {
+  margin: 6px 0 0;
+  padding: var(--space-2);
+  background: var(--surface-bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+  max-height: 16rem;
+  overflow-y: auto;
+}
