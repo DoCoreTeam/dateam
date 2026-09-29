@@ -120,7 +120,7 @@
 보안: 해당 없음, 화면 그리기와 이미 있는 창구 부르기다
 
 ### I07 세 화면이 같은 자리를 갖는지 가드가 센다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/owner-change-surface.test.ts, apps/web/package.json
 감사 기준:

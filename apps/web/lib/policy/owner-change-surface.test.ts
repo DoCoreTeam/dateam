@@ -109,3 +109,77 @@ test('만드는 길은 계속 담당자를 받는다', () => {
     assert.doesNotMatch(body, /delete\s+data\.ownerId\b/, `${label} 만드는 길에서 담당자를 지운다`)
   }
 })
+
+/* ── 화면 셋이 같은 자리를 갖는가 ─────────────────────────── */
+
+/** 개체 → (상세 화면, OwnerPicker 에 넘길 entity 값) */
+const SCREENS: ReadonlyArray<readonly [string, string, string]> = [
+  ['딜', 'app/(crm)/crm/deals/[id]/DealDetail.tsx', 'deal'],
+  ['거래처', 'app/(crm)/crm/companies/[id]/CompanyDetail.tsx', 'company'],
+  ['고객', 'app/(crm)/crm/people/[id]/PersonDetail.tsx', 'person'],
+]
+
+/** `<OwnerPicker` 부터 여는 태그가 닫힐 때까지 — 넘기는 값을 통째로 꺼낸다 */
+function pickerTag(src: string): string | null {
+  const at = src.indexOf('<OwnerPicker')
+  if (at < 0) return null
+  let depth = 0
+  for (let i = at; i < src.length; i += 1) {
+    if (src[i] === '{') depth += 1
+    else if (src[i] === '}') depth -= 1
+    else if (src[i] === '>' && depth === 0) return src.slice(at, i + 1)
+  }
+  return null
+}
+
+for (const [label, screen, entity] of SCREENS) {
+  test(`${label} 상세에 담당자를 바꾸는 자리가 있다`, () => {
+    const src = code(screen)
+    const tag = pickerTag(src)
+    assert.ok(tag, `${label} 상세가 OwnerPicker 를 안 쓴다 — 창구는 열려 있는데 부르는 화면이 없어진다`)
+
+    // 이름만 있으면 안 된다. **값이 실제로 가는지**를 본다 —
+    // import 만 남기거나 고정값을 박아도 통과하면 가드가 아니다
+    assert.match(tag, new RegExp(`entity=["']${entity}["']`), `${label} 이 잘못된 개체로 부른다`)
+    for (const prop of ['id=', 'version=', 'owner=', 'onChanged=']) {
+      assert.ok(tag.includes(prop), `${label} 이 ${prop} 를 안 넘긴다`)
+    }
+    // 버전을 고정값으로 박으면 낙관적 잠금이 죽는다
+    assert.doesNotMatch(tag, /version=\{\s*\d+\s*\}/, `${label} 이 버전을 고정값으로 넘긴다`)
+    // 담당자를 고정으로 null 로 넘기면 「담당자 없음」만 뜬다
+    assert.doesNotMatch(tag, /owner=\{\s*null\s*\}/, `${label} 이 담당자를 고정값으로 넘긴다`)
+  })
+
+  test(`${label} 상세는 작성자 옆에 바꾸는 자리를 안 만든다`, () => {
+    const src = code(screen)
+    // 작성자 칸 안에 OwnerPicker 가 있으면 안 된다 — 작성자는 기록이라 안 바뀐다
+    const at = src.indexOf('label="작성자"')
+    assert.ok(at > 0, `${label} 상세에 작성자 칸이 없다`)
+    const field = src.slice(at, at + 600)
+    const end = field.indexOf('</RecordField>')
+    assert.ok(end > 0, `${label} 작성자 칸이 안 닫힌다`)
+    assert.ok(
+      !field.slice(0, end).includes('<OwnerPicker'),
+      `${label} 이 작성자를 바꿀 수 있게 그린다 — 바꿀 수 있으면 이력이 아니다`,
+    )
+  })
+
+  test(`${label} 상세에 담당자 칸이 있다`, () => {
+    assert.ok(code(screen).includes('label="담당자"'), `${label} 상세에 담당자 칸이 없다`)
+  })
+}
+
+test('상세 창구 셋이 담당자와 작성자를 사람으로 펴서 준다', () => {
+  // 화면이 그릴 값이 없으면 칸만 있고 늘 비어 보인다(실측 2026-09-29: 상세가 날 행만 줬다)
+  for (const [label, service] of [
+    ['거래처', 'lib/crm/services/company.ts'],
+    ['고객', 'lib/crm/services/person.ts'],
+  ] as const) {
+    const src = code(service)
+    const at = src.search(/export async function get[A-Za-z]*\(/)
+    assert.ok(at >= 0, `${label} 상세 함수를 못 찾았다`)
+    const body = src.slice(at, at + 900)
+    assert.match(body, /owner:\s*toPersonJson\(/, `${label} 상세가 담당자를 안 붙인다`)
+    assert.match(body, /creator:\s*toPersonJson\(/, `${label} 상세가 작성자를 안 붙인다`)
+  }
+})
