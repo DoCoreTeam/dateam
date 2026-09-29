@@ -162,3 +162,44 @@
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
+
+/* 되돌리기 단추를 그림 위에 얹을 자리 */
+.chartWrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+/*
+  **끌 수 있다는 것을 손이 알게 한다.** 커서가 안 바뀌면 그림을 밀어 볼 생각을 안 한다.
+  `touch-action: pan-y` 는 세로 스크롤을 브라우저에 그대로 남긴다 — 차트가 세로
+  스크롤을 뺏으면 사용자가 말한 그 문제를 우리가 만드는 것이다.
+*/
+.chartBox {
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.chartBox:active {
+  cursor: grabbing;
+}
+
+/* 민 뒤에만 뜬다. 안 민 상태에서 「되돌리기」는 할 일이 없는 단추다 */
+.reset {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  padding: 2px var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  background: var(--surface-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.reset:hover {
+  color: var(--text);
+  border-color: var(--text-faint);
+}

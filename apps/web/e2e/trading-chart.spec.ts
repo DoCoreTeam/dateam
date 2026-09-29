@@ -167,4 +167,50 @@ test.describe('현황 차트', () => {
     expect(await candles.count(), '넓혔는데 봉이 안 늘어난다 — 되돌릴 길이 없다')
       .toBeGreaterThan(barsAfter)
   })
+
+/**
+ * **끌어서 좌우로 민다** (사용자 지적 2026-09-29 「차트에서 스크롤이 안먹더라」).
+ *
+ * 실측하니 세로 스크롤은 정상이었다 — 없는 것은 좌우 이동이었다.
+ * 그래서 둘을 **같이** 본다: 미는 것이 되는지, 그리고 미는 기능이 세로 스크롤을 안 뺏는지.
+ */
+test('차트를 끌면 좌우로 움직이고, 되돌릴 수 있다', async ({ page }) => {
+  test.skip(!(await chartReady(page)), '봉이 0건')
+  const chart = page.locator('.recharts-wrapper').first()
+  const box = await chart.boundingBox()
+  const ticks = page.locator('.recharts-xAxis .recharts-cartesian-axis-tick')
+  const before = await ticks.first().textContent()
+
+  // 오른쪽으로 끌면 과거로 간다 — 종이를 미는 것과 같은 방향
+  await page.mouse.move(box!.x + box!.width * 0.35, box!.y + box!.height * 0.5)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + box!.width * 0.75, box!.y + box!.height * 0.5, { steps: 12 })
+  await page.mouse.up()
+  await page.waitForTimeout(500)
+
+  const after = await ticks.first().textContent()
+  expect(after, `끌었는데 그림이 그대로다 (${before} → ${after})`).not.toBe(before)
+
+  // 되돌릴 길이 있어야 한다 — 되돌릴 방법이 없는 이동은 갇히는 것이다
+  const reset = page.getByRole('button', { name: '오늘로 되돌리기' })
+  await expect(reset).toBeVisible()
+  await reset.click()
+  await page.waitForTimeout(400)
+  expect(await ticks.first().textContent()).toBe(before)
+  await expect(reset).toBeHidden()
+})
+
+test('차트가 세로 스크롤을 안 뺏는다 — 뺏으면 우리가 그 문제를 만드는 것이다', async ({ page }) => {
+  test.skip(!(await chartReady(page)), '봉이 0건')
+  const box = await page.locator('.recharts-wrapper').first().boundingBox()
+  const top = async () => page.evaluate(() => document.querySelector('main')?.scrollTop ?? 0)
+  const before = await top()
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+  await page.mouse.wheel(0, 500)
+  await page.waitForTimeout(400)
+  const after = await top()
+  expect(after, `차트 위에서 휠을 굴렸는데 페이지가 안 내려간다 (${before} → ${after})`)
+    .toBeGreaterThan(before)
+})
+
 })

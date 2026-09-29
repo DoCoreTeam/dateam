@@ -655,19 +655,30 @@ test('★ 봉이 0건이면 구간도 경계도 없다 — 빈 차트에 띠를 
 test('★ 화면이 구간 띠와 날 경계를 실제로 그린다', () => {
   const panel = readFileSync(PANEL, 'utf8')
   assert.match(panel, /<R\.Brush/, '구간 띠를 안 그린다 — 어제를 볼 길이 없다')
-  // 서버가 정한 창을 실제로 넘겨야 한다. 안 넘기면 recharts 가 전체를 그린다
-  assert.match(panel, /startIndex=\{chart\.window\.startIndex\}/, '정한 창을 띠에 안 넘긴다')
-  assert.match(panel, /endIndex=\{chart\.window\.endIndex\}/, '끝 자리를 안 넘긴다')
+  /*
+    서버가 정한 창을 실제로 넘겨야 한다. 안 넘기면 recharts 가 전체를 그린다.
+
+    **변수 이름을 외우지 않는다** — 창을 사용자가 밀 수 있게 되면서 `chart.window` 를
+    그대로 넘기던 자리가 화면 상태(`view`)로 바뀌었고, 규칙은 그대로인데 가드가 빨개졌다.
+  */
+  const brushStart = panel.indexOf('<R.Brush')
+  const brushProps = panel.slice(brushStart, panel.indexOf('/>', brushStart))
+  assert.match(brushProps, /startIndex=\{[^}]*startIndex\}/, '정한 창을 띠에 안 넘긴다')
+  assert.match(brushProps, /endIndex=\{[^}]*endIndex\}/, '끝 자리를 안 넘긴다')
   // 봉이 0건이면 안 그린다
-  assert.match(panel, /chart\.window && \(/, '봉 0건에도 띠를 그린다')
+  assert.match(panel, /\{view && \(/, '봉 0건에도 띠를 그린다')
+  /*
+    **첫 렌더부터 창을 들고 시작해야 한다.** 효과로 나중에 넣으면 그 사이 한 번은
+    전체가 그려지고 recharts 가 그때 잡은 범위를 그대로 쓴다 (실측 2026-09-29: 180→180).
+  */
+  assert.match(panel, /useState<[^>]*>\(\(\) => serverWindow\)/,
+    '창을 첫 렌더 뒤에 넣는다 — recharts 가 그때 잡은 전체 범위를 그대로 쓴다')
   assert.match(panel, /chart\.dayBreaks\.map/, '날 경계를 안 그린다')
   /*
     **띠와 경계에 롱·숏 색을 쓰지 않는다.** 이 그림에서 빨강·파랑은 방향이라
     같은 색을 쓰면 경계선이 판단으로 읽힌다.
   */
-  const brushAt = panel.indexOf('<R.Brush')
-  const brush = panel.slice(brushAt, panel.indexOf('/>', brushAt))
-  assert.equal(/--danger|--accent/.test(brush), false, '띠에 방향 색을 쓴다')
+  assert.equal(/--danger|--accent/.test(brushProps), false, '띠에 방향 색을 쓴다')
 })
 
 

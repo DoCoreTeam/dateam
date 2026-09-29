@@ -297,7 +297,7 @@
 보안: 해당 없음 — 설정 한 줄과 셈이다
 
 ### I04l 차트를 좌우로 민다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(trading)/trading/ChartPanel.tsx, apps/web/app/(trading)/trading/ChartPanel.module.css, apps/web/e2e/trading-chart.spec.ts
 감사 기준:

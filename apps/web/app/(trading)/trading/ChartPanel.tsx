@@ -13,7 +13,8 @@
 //
 // recharts 는 무겁다. 첫 화면 비용에 안 얹으려고 **그릴 것이 있을 때만** 잘라서 불러온다.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type React from 'react'
 import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
@@ -351,6 +352,75 @@ function Candle(props: any) {
 
 function PriceChart({ chart }: { chart: ChartSeries }) {
   /**
+   * **차트를 끌어서 좌우로 민다** (사용자 지적 2026-09-29 「차트에서 스크롤이 안먹더라」).
+   *
+   * 실측하니 세로 스크롤은 정상이었다 — 차트 위에서 휠을 굴리면 페이지가 0→600 으로
+   * 내려갔다. 없는 것은 **좌우 이동**이었다. 구간 띠의 손잡이를 정확히 집어야만
+   * 구간을 바꿀 수 있었고, 그림을 그냥 밀어 보는 길이 없었다.
+   *
+   * ## 휠은 안 건드린다
+   *
+   * 휠로 좌우를 밀면 차트 위에서 페이지가 안 내려간다 — 사용자가 말한 그 문제를
+   * 우리가 만드는 셈이다. 그래서 **끄는 것(드래그)만** 좌우 이동에 쓴다.
+   */
+  const serverWindow = chart.window
+  /**
+   * **첫 렌더부터 창을 들고 시작한다.**
+   *
+   * 효과(`useEffect`)로 나중에 넣으면 그 사이 한 번은 전체가 그려지고, recharts 는
+   * 그때 잡은 범위를 그대로 쓴다 — 실측 2026-09-29: 구간 띠가 서 있는데도 봉 180개가
+   * 전부 그려졌다(180→180). 이름을 `view` 로 둔 것은 전역 `window` 를 가리지 않으려는 것이다.
+   */
+  const [view, setView] = useState<{ startIndex: number; endIndex: number } | null>(() => serverWindow)
+  const drag = useRef<{ x: number; start: number; end: number } | null>(null)
+
+  // 서버가 정한 창이 바뀌면(봉이 들어오면) 따라간다 — 단, 사용자가 민 뒤에는 그 폭을 지킨다
+  useEffect(() => {
+    if (!serverWindow) { setView(null); return }
+    setView((prev) => {
+      if (!prev) return serverWindow
+      // 폭은 사용자 것, 오른쪽 끝은 새 봉을 따라간다
+      const span = prev.endIndex - prev.startIndex
+      const end = serverWindow.endIndex
+      return { startIndex: Math.max(0, end - span), endIndex: end }
+    })
+  }, [serverWindow])
+
+  const barCount = chart.bars.length
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (!view || barCount === 0) return
+    /**
+     * **구간 띠 위에서는 잡지 않는다.**
+     *
+     * 실측 2026-09-29: 여기서 포인터를 붙잡으면 띠의 손잡이가 끌리는 이벤트를 우리가
+     * 먼저 가져가 버려 띠가 아예 안 움직였다 — 미는 기능을 넣다가 있던 기능을 껐다.
+     */
+    if ((e.target as Element | null)?.closest?.('.recharts-brush')) return
+    drag.current = { x: e.clientX, start: view.startIndex, end: view.endIndex }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    const d = drag.current
+    if (!d || !e.currentTarget.hasPointerCapture(e.pointerId)) return
+    const width = e.currentTarget.clientWidth || 1
+    const span = d.end - d.start + 1
+    /**
+     * 화면에서 민 거리를 **봉 수로** 바꾼다. 오른쪽으로 끌면 과거로 간다 —
+     * 종이를 오른쪽으로 미는 것과 같은 방향이라야 손이 헷갈리지 않는다.
+     */
+    const moved = Math.round(((d.x - e.clientX) / width) * span)
+    const start = Math.min(Math.max(0, d.start + moved), Math.max(0, barCount - span))
+    setView({ startIndex: start, endIndex: Math.min(barCount - 1, start + span - 1) })
+  }
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>): void => {
+    drag.current = null
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+  /** 되돌리는 길. 민 뒤 돌아갈 방법이 없으면 갇히는 것이다 */
+  const atDefault = !view || !serverWindow
+    || (view.startIndex === serverWindow.startIndex && view.endIndex === serverWindow.endIndex)
+
+  /**
    * **그릴 것이 있을 때만 불러온다.** 현황을 처음 여는 비용에 차트 묶음을 얹지 않는다 —
    * 봉이 0건인 날에는 이 코드가 아예 안 내려간다.
    */
@@ -372,7 +442,20 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
   const marks = chart.marks
 
   return (
-    <div className={styles.chartBox}>
+    <div className={styles.chartWrap}>
+      {/* 되돌리기는 민 뒤에만 뜬다 — 안 민 상태에서 「되돌리기」는 할 일이 없는 단추다 */}
+      {!atDefault && (
+        <button type="button" className={styles.reset} onClick={() => setView(serverWindow)}>
+          오늘로 되돌리기
+        </button>
+      )}
+      <div
+        className={styles.chartBox}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
       <R.ResponsiveContainer width="100%" height="100%">
         <R.ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <R.CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
@@ -455,19 +538,25 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
             색은 표식과 달리 **테두리뿐**이다. 신호·판단 표식과 같은 무게로 칠하면
             어느 것이 우리가 말한 것인지 그림에서 안 갈린다.
           */}
-          {chart.window && (
+          {view && (
             <R.Brush
               dataKey="label"
               height={22}
               travellerWidth={8}
-              startIndex={chart.window.startIndex}
-              endIndex={chart.window.endIndex}
+              startIndex={view.startIndex}
+              endIndex={view.endIndex}
+              onChange={(r: { startIndex?: number; endIndex?: number }) => {
+                // 띠를 끌어도 같은 창을 쓴다 — 두 길이 서로 다른 창을 들면 화면이 튄다
+                if (r.startIndex === undefined || r.endIndex === undefined) return
+                setView({ startIndex: r.startIndex, endIndex: r.endIndex })
+              }}
               stroke="var(--text-faint)"
               fill="var(--surface-bg)"
             />
           )}
         </R.ComposedChart>
       </R.ResponsiveContainer>
+      </div>
     </div>
   )
 }
