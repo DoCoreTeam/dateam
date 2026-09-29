@@ -1,6 +1,6 @@
 # PLAN newAX: 판단이 생각하다 제 시간에 안 끊기게 한다
 플랜 ID: P0087
-플랜 버전: v0.1.0
+플랜 버전: v0.2.1
 상태: 진행중
 지시: ins_0146
 목표 버전: v0.10.689
@@ -12,6 +12,7 @@
 - 관문 실측 2026-09-28: 같은 판단 프롬프트가 19.7~21.5초 걸렸고 제한시간은 20초, 출력 3,290토큰 중 3,254개가 생각 토큰이었음
 - 어제 장중 실측: 관문은 22건 전부 200 으로 답했는데 `trading_judgments` 에는 완료 17 · `timeout:20000ms` 3 · `timeout:10000ms` 2 로 남음, 다섯 중 하나를 우리가 버림
 - 생각 깊이를 관리자가 정하게 해서 속도와 판단 품질의 맞바꿈을 운영자가 쥐게 함 (실측 low=9.9초 · none=1.7초 · 지금(무지정)=20.4초)
+- 현황 차트를 확대해 볼 수 있고, 봉에 마우스를 올리면 그 봉의 값과 그때 난 판단이 뜸 (사용자 지시 2026-09-29)
 
 ## 범위 밖
 - `jev_timeout_seconds` 의 상한(30초) 조정 — 생각 깊이 low 면 9.9초라 20초 안에 여유가 있음
@@ -52,14 +53,15 @@
 보안: 해당 없음 — 표·창구·바깥 값 셋 다 아니고, 레지스트리 상수 한 줄 추가다. 7절 「닿는 자리」 어디에도 안 걸린다
 
 ### I02 진입 판단이 그 값을 관문까지 들고 간다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/trading/judge/jev.ts, apps/web/lib/trading/jobs/tick.ts
+범위: apps/web/lib/trading/judge/jev.ts, apps/web/lib/trading/jobs/tick.ts, apps/web/lib/trading/validation/pipeline.ts, apps/web/lib/trading/judge/jev.test.ts
 감사 기준:
 - `JevJudgeOptions` 에 생각 깊이가 있고, `gatewayCaller` 의 fetch 본문(JSON.stringify 인자)에 그 값이 실린다 — 선언만 하고 안 넘기는 자리가 없다
 - `tick.ts` 가 `str('jev_reasoning_effort', 'low')` 로 읽어 `createServerJevJudge` 에 넘긴다
-- 설정을 빼고 부르면 기본 `low` 가 나간다 (값이 undefined 로 새지 않는다)
-- `pnpm tsc --noEmit` 통과
+- **부르는 자리가 셋이다.** `tick.ts` 말고 `validation/pipeline.ts` 도 같은 판단기를 만든다 — 검증이 실시간과 다른 깊이로 생각하면 잰 성적이 실전의 것이 아니다(M4, 그 파일이 공급자를 맞추는 이유와 같다). 셋 다 같은 설정 키를 읽는다
+- 빈 값이면 `reasoning_effort` 줄을 아예 안 싣는다 (빈 문자열은 관문이 400 으로 거절하고 그 400 이 키·모델 문제와 섞인다)
+- `pnpm tsc --noEmit` 통과, `pnpm test jev` 통과
 의존: I01
 보안: 해당 없음 — 바깥으로 나가는 값이 늘지만 관문 주소는 그대로(`openAiCompatibleBaseUrl`)고 새 창구도 새 표도 없다. 프롬프트는 안 바뀌므로 가림(마스킹) 경로도 그대로다
 
@@ -88,19 +90,48 @@
 의존: I03
 보안: 해당 없음 — 가드 파일 하나와 등재 한 줄이다
 
-### I05 버전과 업데이트 내역을 올린다
+### I04a 차트에서 구간을 잡아 확대하고 되돌린다
 상태: 대기
 모드: 경량
-범위: package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md, apps/web/lib/changelog/entries.ts
+범위: apps/web/app/(trading)/trading/ChartPanel.tsx, apps/web/app/(trading)/trading/ChartPanel.module.css
 감사 기준:
-- 부록 「버전 규칙」의 여섯 파일을 순서대로 올린다, 다음 버전은 `git log --oneline -5` 와 package.json 중 큰 쪽에 patch 1
-- `entries.ts` 맨 위에 이번 버전 블록이 있고 사용자 말로 적힌다 (판단이 중간에 끊기던 것이 안 끊긴다)
+- 차트 아래에 구간 선택 띠가 서고, 띠를 좁히면 위 차트가 그 구간만 그린다 (recharts `Brush`)
+- 확대한 뒤 되돌리는 길이 있다 — 되돌릴 방법이 없는 확대는 갇히는 것이다
+- 봉이 0건이면 띠를 안 그린다 (빈 차트를 「값이 0」으로 읽히게 하지 않는다는 이 파일의 기존 규칙과 같은 이유)
+- 띠에도 판단 표식과 같은 색을 쓰지 않는다 — 신호·판단 표식과 구간 띠가 같은 무게로 읽히면 안 된다
+- `pnpm tsc --noEmit` 통과, `pnpm test css-defined` 통과 (새 클래스가 CSS 에 실제로 있는지)
+의존: 없음
+보안: 해당 없음 — 화면 그리기만이고 새 표·창구·바깥 값이 없다
+
+### I04b 확대와 호버가 실제로 되는지 실브라우저로 본다
+상태: 대기
+모드: 경량
+범위: apps/web/e2e/trading-chart.spec.ts (신규), apps/web/package.json
+감사 기준:
+- 봉 위에 마우스를 올리면 시가·고가·저가·종가가 뜬다 — 지금 배선(`R.Tooltip content={<BarTip/>}`)이 화면에서 실제로 도는지 확인한다, 코드에 있는 것과 뜨는 것은 다르다
+- 도움말에 `band : 1092.28,1093.3` 같은 기계 이름이 안 뜬다
+- 구간 띠를 끌면 X축 눈금이 줄어든다 (확대가 실제로 먹는지)
+- 격리 서버로 돈다 (`NEXT_DIST_DIR` + `:3100` + `E2E_BASE_URL`), 공유 :3000 을 쓰지 않는다 — 공유 판이 28판 뒤를 물어 헛짚은 전례가 있다
+- 패치노트 백드롭이 클릭을 삼키는지 먼저 확인하고 떠 있으면 닫고 시작한다
+의존: I04a
+보안: 해당 없음 — 시험 파일과 등재 한 줄이다
+
+### I05 업데이트 내역을 올린다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/changelog/entries.ts
+감사 기준:
+- `entries.ts` 맨 위에 이번 버전 블록이 있고 사용자 말로 적힌다 (판단이 중간에 끊기던 것이 안 끊긴다 · 차트를 확대해 볼 수 있다)
+- 버전 파일 다섯(package.json 둘 · CEO.md · AGENTS.md · GEMINI.md)은 `loop pass` 가 항목 커밋마다 이미 올리므로 여기서 손대지 않는다, 여섯째만 남은 것이다
+- 블록의 버전은 **그때 다시 계산한 다음 패치**다, 플랜을 세울 때 잡은 목표값이 아니다
 - `pnpm test policy-sync`, `pnpm test version-rule` 통과
-의존: I04
-보안: 해당 없음 — 문서와 버전 문자열이다
+의존: I04b
+보안: 해당 없음 — 문서 문자열이다
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
 
 ## 변경 이력
 - v0.1.0 (2026-09-28) 최초 작성 (ins_0146)
+- v0.2.0 (2026-09-28) 사용자 지시로 현황 차트 확대와 호버 상세 확인을 범위에 더함 (I04a·I04b), I05 는 버전 파일 다섯을 CLI 가 이미 올리므로 changelog 한 파일로 좁힘 (ins_0147)
+- v0.2.1 (2026-09-28) I02 구현 중 세 번째 호출 자리 발견 — validation/pipeline.ts 도 createServerJevJudge 를 부른다, 검증이 실시간과 다른 깊이로 생각하면 성적이 실전의 것이 아니므로 범위에 넣음 (audit:I02)

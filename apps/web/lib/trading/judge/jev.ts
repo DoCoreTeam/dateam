@@ -38,7 +38,12 @@ export class JevNotConfiguredError extends Error {
 /**
  * 관문(OpenAI 호환)으로 한 번 부른다.
  */
-function gatewayCaller(provider: AiProviderId, apiKey: string, model: string): JevCaller {
+function gatewayCaller(
+  provider: AiProviderId,
+  apiKey: string,
+  model: string,
+  reasoningEffort: string,
+): JevCaller {
   const baseUrl = openAiCompatibleBaseUrl(provider)
   if (!baseUrl) throw new JevNotConfiguredError(`${provider}_base_url_missing`)
 
@@ -78,6 +83,18 @@ function gatewayCaller(provider: AiProviderId, apiKey: string, model: string): J
             // 판단은 재현 가능해야 한다. 같은 입력에 다른 답이 나오면 보정이 배울 것이 없다
             temperature: 0,
             response_format: { type: 'json_object' },
+            /**
+             * **생각 깊이를 안 정하면 관문이 제 마음대로 오래 생각한다.**
+             *
+             * 실측 2026-09-28: 이 줄이 없을 때 같은 프롬프트가 19.7~21.5초 걸렸고
+             * 출력 3,290토큰 중 3,254개가 생각이었다. 대기 시간은 20초였으므로
+             * 관문이 답을 쓰는 중에 우리가 끊었다 — 원장에는 22건 전부 ok 인데
+             * 판단 기록에는 다섯 건이 `timeout` 으로 남았다.
+             *
+             * 빈 값이면 **줄을 아예 안 싣는다.** 빈 문자열을 보내면 관문이 400 으로
+             * 거절하고, 그 400 은 키 문제·모델 문제와 섞여 원인을 못 찾게 된다.
+             */
+            ...(reasoningEffort === '' ? {} : { reasoning_effort: reasoningEffort }),
           }),
         })
         if (!response.ok) {
@@ -120,6 +137,15 @@ export interface JevJudgeOptions {
    * 쓰는지는 **설정이 정할 일**이지 코드가 박아 둘 일이 아니다.
    */
   provider?: AiProviderId
+  /**
+   * 설정 `jev_reasoning_effort`. 관문이 받는 값 그대로다
+   * (none·minimal·low·medium·high·xhigh·max, 그 밖은 관문이 400 으로 거절한다).
+   *
+   * **기본을 여기 안 박는다.** 값을 코드가 정하면 설정 화면이 말하는 것과 실제로 나가는 것이
+   * 갈리고, 그 어긋남은 「화면에는 low 라고 적혀 있는데 판단이 20초 걸린다」로 나타난다.
+   * 부르는 쪽(`tick.ts`)이 설정에서 읽어 넣는다.
+   */
+  reasoningEffort: string
 }
 
 /**
@@ -141,7 +167,7 @@ export async function createServerJevJudge(options: JevJudgeOptions): Promise<Ju
   // 「키가 없다」와 「판이 달라 안 쓴다」를 구분해 남긴다 — 둘의 조치가 다르다
   if (!choice.apiKey) throw new JevNotConfiguredError(`${provider}_key_unavailable:${choice.reason}`)
 
-  const call = gatewayCaller(provider, choice.apiKey, model)
+  const call = gatewayCaller(provider, choice.apiKey, model, options.reasoningEffort)
   return createJevJudge({
     timeoutMs: options.timeoutMs,
     modelVersion: model,

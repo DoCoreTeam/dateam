@@ -97,12 +97,18 @@ type JevForValidation =
 
 async function jevForValidation(
   maxCalls: number, model: string, timeoutMs: number, provider: AiProviderId,
+  reasoningEffort: string,
 ): Promise<JevForValidation> {
   if (maxCalls <= 0) return { on: false, judge: null, reason: 'budget_zero' }
   if (model.trim() === '') return { on: false, judge: null, reason: 'model_not_set' }
   try {
-    // 검증과 실시간이 **같은 공급자**를 써야 한다. 다르면 잰 성적이 실전의 것이 아니다(M4)
-    const base = await createServerJevJudge({ timeoutMs, model, provider })
+    /**
+     * 검증과 실시간이 **같은 공급자**를 써야 한다. 다르면 잰 성적이 실전의 것이 아니다(M4).
+     *
+     * 생각 깊이도 같은 이유로 맞춘다 — 검증이 깊게 생각하고 실시간이 얕게 생각하면
+     * 검증에서 잰 적중률은 실시간에 없는 모델의 것이다.
+     */
+    const base = await createServerJevJudge({ timeoutMs, model, provider, reasoningEffort })
     return { on: true, judge: base, budget: newCallBudget(maxCalls) }
   } catch (error) {
     return { on: false, judge: null, reason: error instanceof Error ? error.message : 'jev_unavailable' }
@@ -252,6 +258,7 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
     String(values.jev_model ?? ''),
     num('jev_timeout_seconds', 10) * 1000,
     (String(values.jev_provider ?? 'jev') || 'jev') as AiProviderId,
+    String(values.jev_reasoning_effort ?? 'low'),
   )
   let calibrationVerdict: ReturnType<typeof judgeCalibration> | null = null
 

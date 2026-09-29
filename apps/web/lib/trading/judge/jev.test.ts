@@ -258,11 +258,42 @@ test('★ 사유에 어느 공급자였는지가 남는다 — 둘을 쓰면 「
   assert.ok(src.includes('providerId: provider,'), '원장에 늘 jev 로 적힌다')
 })
 
-test('★ 검증과 실시간이 같은 공급자를 쓴다 (M4)', () => {
+test('★ 검증과 실시간이 같은 공급자·같은 생각 깊이를 쓴다 (M4)', () => {
   const pipe = readFileSync(join(HERE, '..', 'validation', 'pipeline.ts'), 'utf8')
-  assert.ok(pipe.includes('createServerJevJudge({ timeoutMs, model, provider })'),
-    '검증이 공급자를 안 넘긴다 — 잰 성적이 실전의 것이 아니게 된다')
-  assert.ok(pipe.includes("values.jev_provider"), '검증이 설정을 안 읽는다')
+  /**
+   * **글자 한 벌을 통째로 맞추지 않는다.** 전에는 `createServerJevJudge({ timeoutMs, model,
+   * provider })` 를 그대로 찾았다. 인자가 하나 늘자 규칙은 그대로인데 가드가 빨개졌다 —
+   * 값이 가는지를 보는 것이 규칙이고, 인자 차례는 규칙이 아니다.
+   */
+  const callAt = pipe.indexOf('createServerJevJudge({')
+  assert.ok(callAt > 0, '검증이 판단기를 안 만든다')
+  const args = pipe.slice(callAt, pipe.indexOf('})', callAt))
+  for (const name of ['timeoutMs', 'model', 'provider', 'reasoningEffort']) {
+    assert.ok(args.includes(name), `검증이 ${name} 을 안 넘긴다 — 잰 성적이 실전의 것이 아니게 된다`)
+  }
+  assert.ok(pipe.includes('values.jev_provider'), '검증이 공급자 설정을 안 읽는다')
+  assert.ok(pipe.includes('values.jev_reasoning_effort'), '검증이 생각 깊이 설정을 안 읽는다')
+})
+
+/**
+ * **선언만 하고 안 넘기는 자리가 없어야 한다.**
+ *
+ * 실측 2026-09-28: 생각 깊이를 안 실으면 관문이 19.7~21.5초를 쓰고 그 사이 우리가 끊는다.
+ * 옵션에 이름만 있고 본문에 안 실리면 화면은 low 라 적혀 있는데 판단은 20초 걸린다.
+ */
+test('★ 생각 깊이가 관문 본문까지 간다 — 이름만 있고 안 나가면 안 된다', () => {
+  const src = readFileSync(join(HERE, 'jev.ts'), 'utf8')
+  const caller = src.slice(src.indexOf('function gatewayCaller'))
+  const body = caller.slice(caller.indexOf('JSON.stringify({'), caller.indexOf('})', caller.indexOf('JSON.stringify({')))
+  assert.ok(body.includes('reasoning_effort: reasoningEffort'),
+    '관문에 나가는 본문에 생각 깊이가 안 실린다')
+  // 빈 값이면 줄을 아예 빼야 한다. 빈 문자열은 관문이 400 으로 거절하고 키·모델 문제와 섞인다
+  assert.ok(body.includes("reasoningEffort === '' ? {} :"), '빈 값을 그대로 실어 보낸다')
+  // 부르는 쪽이 설정에서 읽어야 한다. 코드가 기본을 박으면 화면과 실제가 갈린다
+  const tick = readFileSync(join(HERE, '..', 'jobs', 'tick.ts'), 'utf8')
+  assert.ok(tick.includes("str('jev_reasoning_effort'"), 'tick 이 설정을 안 읽는다')
+  assert.ok(/reasoningEffort:\s*str\('jev_reasoning_effort'/.test(tick),
+    'tick 이 읽고도 판단기에 안 넘긴다')
 })
 
 /**

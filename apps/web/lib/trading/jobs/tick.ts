@@ -808,6 +808,11 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
           model: jevModel,
           // 어느 공급자로 부를지는 설정이 정한다 (§7.2). 기본은 Vercel 관문이다
           provider: str('jev_provider', 'jev') as AiProviderId,
+          /**
+           * 생각 깊이도 설정이 정한다. **대기 시간과 한 벌**이라 같은 자리에서 읽는다 —
+           * 깊이를 올리고 대기 시간을 그대로 두면 그 판단은 매번 끊긴다 (실측 2026-09-28)
+           */
+          reasoningEffort: str('jev_reasoning_effort', 'low'),
         }))
       } catch (error) {
         // Jev 를 못 만들어도 rule 기록은 남긴다. 사유는 실행 기록에 실어 보낸다
