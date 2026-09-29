@@ -170,7 +170,20 @@ export async function createPerson(
   })
 }
 
-export interface UpdatePersonInput extends Partial<PersonInput> {
+/**
+ * 고치는 길은 **담당자를 안 받는다.**
+ *
+ * 실측 2026-09-29: `PATCH /api/crm/people/[id]` 가 본문을 `{ ...body }` 로 그대로 흘리고
+ * `normalizeInput` 이 `ownerId` 를 받아 써서, **`owner.reassign` 권한 검사 없이 담당자가 바뀌었다.**
+ * 딜에만 권한이 걸려 있었고 거래처·고객은 수정 창구로 그냥 통과했다.
+ *
+ * 담당자를 바꾸는 길은 `POST /api/crm/people/[id]/owner` 하나다. 그 창구는 이관·인수·재배정을
+ * 갈라 보고 권한과 조직 범위를 판정한다(`owner-decide.ts`).
+ *
+ * **형으로만 막으면 안 막힌다.** 라우트가 `as UpdatePersonInput` 로 넘겨서 타입 검사가 안 걸린다.
+ * 그래서 아래에서 값을 지운다 — 들어와도 안 쓰는 것이지, 안 들어온다고 믿는 것이 아니다.
+ */
+export interface UpdatePersonInput extends Omit<Partial<PersonInput>, 'ownerId'> {
   version: number
 }
 
@@ -185,6 +198,8 @@ export async function updatePerson(
     ? normalizeInput(rest as PersonInput)
     : normalizeInput({ ...rest, name: '__keep__' } as PersonInput)
   if (rest.name === undefined) delete data.name
+  // 형을 우회해 들어와도 안 쓴다 — 담당자는 전용 창구에서만 바뀐다
+  delete data.ownerId
 
   return withCrmTx(workspaceId, async (tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

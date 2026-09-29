@@ -419,7 +419,20 @@ export async function createDeal(
   })
 }
 
-export interface UpdateDealInput extends Partial<DealInput> {
+/**
+ * 고치는 길은 **담당자를 안 받는다.**
+ *
+ * 실측 2026-09-29: `PATCH /api/crm/deals/[id]` 가 본문을 `{ ...body }` 로 그대로 흘리고
+ * `normalizeInput` 이 `ownerId` 를 받아 써서, **`owner.reassign` 권한 검사 없이 담당자가 바뀌었다.**
+ * 딜은 전용 창구(`deals/[id]/owner`)를 만들어 둔 개체라 더 큰 구멍이다 — 권한이 걸린 줄 알았던 자리다.
+ *
+ * 담당자를 바꾸는 길은 `POST /api/crm/deals/[id]/owner` 하나다. 그 창구는 이관·인수·재배정을
+ * 갈라 보고 권한과 조직 범위를 판정하며, 딸린 할 일과 견적을 같이 옮길지도 거기서 정한다.
+ *
+ * **형으로만 막으면 안 막힌다.** 라우트가 `as UpdateDealInput` 로 넘겨서 타입 검사가 안 걸린다.
+ * 그래서 아래에서 값을 지운다 — 들어와도 안 쓰는 것이지, 안 들어온다고 믿는 것이 아니다.
+ */
+export interface UpdateDealInput extends Omit<Partial<DealInput>, 'ownerId'> {
   version: number
 }
 
@@ -431,6 +444,8 @@ export async function updateDeal(
 ): Promise<DealRow> {
   const { version, ...rest } = input
   const data = normalizeInput(rest, false)
+  // 형을 우회해 들어와도 안 쓴다 — 담당자는 전용 창구에서만 바뀐다
+  delete data.ownerId
 
   return withCrmTx(workspaceId, async (tx) => {
     await assertBusinessTypeKey(tx, data.businessTypeKey)

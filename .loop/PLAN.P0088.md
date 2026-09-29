@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자를 화면에서 바꾼다
 플랜 ID: P0088
-플랜 버전: v0.1.2
+플랜 버전: v0.1.4
 상태: 진행중
 지시: iv_0145
 목표 버전: v0.10.712
@@ -61,12 +61,14 @@
 보안: S2 창구 둘을 새로 연다. 누가 부를 수 있는지가 이 항목의 본문이다. 서비스롤은 안 쓴다
 
 ### I03 PATCH 로 담당자가 검사 없이 바뀌는 구멍을 막는다
-상태: 대기
-범위: apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts, apps/web/lib/policy/owner-change-surface.test.ts (신규), apps/web/package.json
+상태: 통과
+범위: apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts, apps/web/lib/crm/services/deal.ts, apps/web/lib/policy/owner-change-surface.test.ts (신규), apps/web/package.json
 모드: 중량
 감사 기준:
 - 실측: 지금 `PATCH /api/crm/companies/[id]` 가 본문을 그대로 흘려 `ownerId` 가 `owner.reassign` 검사 없이 통과한다 (route.ts 가 `...body` 를 넘기고 company.ts:69 가 받는다). 인물도 같다
 - 고친 뒤 수정 창구는 담당자를 안 받는다, 담당자는 I02 의 전용 창구로만 바뀐다
+- **딜도 같다** (실측 2026-09-29, 착수 중 발견): `UpdateDealInput extends Partial<DealInput>` 이고 `normalizeInput` 이 담당자를 쓰며 라우트가 `{ ...body }` 를 흘린다. 전용 창구를 이미 만들어 둔 개체라 구멍이 더 크다, 권한이 걸린 줄 알았던 자리다
+- 형으로만 막으면 안 막힌다, 라우트가 `as Update...Input` 으로 넘겨 타입 검사가 안 걸린다. 값을 지우는 줄이 있어야 한다
 - 가드가 **호출 자리를 본다**, 이름만 찾으면 안 된다. 수정 입력 형에 담당자가 남아 있으면 실패한다
 - 가드를 일부러 깨뜨려 실패를 확인하고 그 사실을 pass 기록에 적는다 (S6)
 - `pnpm test owner-change-surface` 통과
@@ -145,3 +147,5 @@
 - v0.1.0 (2026-09-29) 최초 작성 (iv_0145)
 - v0.1.1 (2026-09-29) I02 착수 중 api-auth-surface 가드가 import 만 보고 통과시키는 것을 실측, 가드 파일을 I02 범위에 넣고 기준 둘을 더함 (audit:I02)
 - v0.1.2 (2026-09-29) api-auth-surface 가드가 import 줄에 걸려 인증 없는 창구를 통과시키는 것을 실측, 가드를 호출 자리를 보게 고치는 기준을 I02 에 더함 (audit:I02)
+- v0.1.3 (2026-09-29) I03 착수 중 딜에도 같은 PATCH 구멍이 있는 것을 실측, deal.ts 를 I03 범위에 넣고 기준 둘을 더함 (audit:I03)
+- v0.1.4 (2026-09-29) 딜 PATCH 도 담당자를 권한 검사 없이 받는 것을 실측, deal.ts 를 I03 범위에 더함 (audit:I03)
