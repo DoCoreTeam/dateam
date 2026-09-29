@@ -11,6 +11,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf } from './series.ts'
+import { deadlineLeftText } from '../signal-labels.ts'
 import type { PlanParams } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
 import { TRADING_APP_DIR } from '../../policy/app-dirs.ts'
@@ -433,16 +434,16 @@ test('★ 화면이 나이를 그리고, 서버가 찍은 글자를 쓰지 않�
 
 test('★ 신호가 0건이면 제목이 「신호」라고 하지 않는다', () => {
   // 실측한 그 화면: 신호 0건 · 판단 44건인데 제목이 「가격과 신호」였다
-  assert.equal(chartTitle({ signalCount: 0, callCount: 44 }), '가격과 판단')
-  assert.equal(chartTitle({ signalCount: 0, callCount: 0 }), '가격')
+  assert.equal(chartTitle({ signalCount: 0, callCount: 44 }), '1분봉 가격과 판단')
+  assert.equal(chartTitle({ signalCount: 0, callCount: 0 }), '1분봉 가격')
   for (const t of [chartTitle({ signalCount: 0, callCount: 44 }), chartTitle({ signalCount: 0, callCount: 0 })]) {
     assert.doesNotMatch(t, /신호/, `안 그린 것을 제목에 적는다: ${t}`)
   }
 })
 
 test('신호가 있으면 신호라고 한다 — 관문을 다 지난 것이라 무게가 다르다', () => {
-  assert.equal(chartTitle({ signalCount: 1, callCount: 0 }), '가격과 신호')
-  assert.equal(chartTitle({ signalCount: 3, callCount: 44 }), '가격과 신호')
+  assert.equal(chartTitle({ signalCount: 1, callCount: 0 }), '1분봉 가격과 신호')
+  assert.equal(chartTitle({ signalCount: 3, callCount: 44 }), '1분봉 가격과 신호')
 })
 
 test('★ 화면이 제목을 고정값으로 안 적는다', () => {
@@ -580,10 +581,15 @@ test('★ 화면이 계획을 신호일 때만 그리지 않는다', () => {
     '계획이 아직도 신호일 때만 그려진다')
   // 예고를 지시로 읽지 않게 어디서 온 값인지 같은 자리에서 말한다
   assert.match(panel, /PLAN_SOURCE_LABEL/, '기록인지 예고인지를 안 말한다')
-  // 들어갈 수 있는 동안과 들고 있는 동안은 다른 시계다. 한 글자로 뭉치지 않는다
-  assert.match(panel, /PLAN_LABEL\.validFor/, '진입 유효 시간을 안 말한다')
-  assert.match(panel, /PLAN_LABEL\.holdFor/, '시간 청산을 안 말한다')
+  /*
+    **들어갈 때와 나올 때가 시각이어야 한다** (사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」).
+    「10분」은 언제부터 10분인지 읽는 사람이 판단 시각에 더해야 알 수 있었다.
+  */
+  assert.match(panel, /PLAN_LABEL\.entryBy/, '진입 마감 시각을 안 말한다')
+  assert.match(panel, /PLAN_LABEL\.exitAt/, '나올 시각을 안 말한다')
   assert.match(panel, /PLAN_LABEL\.sessionExit/, '당일 청산 시각을 안 말한다')
+  // 분만 남은 자리가 없어야 한다 — 시각 옆 보조로만 쓴다
+  assert.match(panel, /seoulTimeText\(plan\.entryDeadlineAt\)/, '마감을 시각으로 안 그린다')
 })
 
 
@@ -653,4 +659,53 @@ test('★ 화면이 구간 띠와 날 경계를 실제로 그린다', () => {
   const brushAt = panel.indexOf('<R.Brush')
   const brush = panel.slice(brushAt, panel.indexOf('/>', brushAt))
   assert.equal(/--danger|--accent/.test(brush), false, '띠에 방향 색을 쓴다')
+})
+
+
+/* ── 들어갈 때와 나올 때가 시각이다 (사용자 지적 2026-09-29) ── */
+
+test('★ 진입 마감이 시각으로 나온다 — 「10분」은 언제부터인지 사람이 세야 한다', () => {
+  const bars = manyBars(30)
+  const s = buildSeries({ bars, signals: [], lastRunReason: null, plan: PLAN })
+  const at = '2026-09-29T00:58:00.000Z'
+  const call = { from: 'judgment' as const, at, direction: 'long' as const, prob: 0.85, judge: 'jev', referencePrice: null, stopPrice: null, targetPrice: null, evR: null }
+  const plan = planForCall(call, s)
+  assert.ok(plan)
+  // 판단 시각 + 진입 유효 10분
+  assert.equal(plan.entryDeadlineAt, '2026-09-29T01:08:00.000Z')
+  /*
+    **기준 봉이 아니라 판단이 난 때부터 센다.** 판단이 09:58 것인데 봉이 10:03 이면
+    기준 봉으로 세는 순간 마감을 5분 늦게 잡는다 — 이미 지난 신호를 살아 있다고 그리게 된다.
+  */
+  assert.notEqual(plan.entryDeadlineAt, s.planBase?.barAt)
+})
+
+test('★ 마감을 못 세면 지어내지 않는다', () => {
+  const s = buildSeries({ bars: manyBars(30), signals: [], lastRunReason: null, plan: { ...PLAN, validMinutes: 0 } })
+  const call = { from: 'judgment' as const, at: '2026-09-29T00:58:00.000Z', direction: 'long' as const, prob: 0.85, judge: 'jev', referencePrice: null, stopPrice: null, targetPrice: null, evR: null }
+  assert.equal(planForCall(call, s)?.entryDeadlineAt, null)
+  const bad = { ...call, at: '언제인지 모름' }
+  assert.equal(planForCall(bad, buildSeries({ bars: manyBars(30), signals: [], lastRunReason: null, plan: PLAN }))?.entryDeadlineAt, null)
+})
+
+test('★ 마감이 지났으면 지났다고 말한다 — 지난 시각은 아직 된다고 읽힌다', () => {
+  const now = new Date('2026-09-29T01:10:00.000Z')
+  assert.equal(deadlineLeftText('2026-09-29T01:08:00.000Z', now), '지났습니다')
+  assert.equal(deadlineLeftText('2026-09-29T01:13:00.000Z', now), '3분 남음')
+  // 1분이 안 남으면 「0분 남음」이 된다. 그것은 지금이 마지막이라는 뜻이라 따로 쓴다
+  assert.equal(deadlineLeftText('2026-09-29T01:10:30.000Z', now), '1분 안')
+  assert.equal(deadlineLeftText(null, now), '')
+})
+
+test('★ 제목이 무슨 봉인지 말한다 — 1분인지 5분인지 모르면 같은 그림이 다른 뜻이다', () => {
+  for (const t of [
+    chartTitle({ signalCount: 0, callCount: 0 }),
+    chartTitle({ signalCount: 0, callCount: 44 }),
+    chartTitle({ signalCount: 3, callCount: 44 }),
+  ]) {
+    assert.match(t, /1분봉/, `봉 주기를 안 말한다: ${t}`)
+  }
+  // 새로고침 줄도 같은 말을 한다 — 「계속 바뀌나」는 그 줄을 보고 묻는 질문이다
+  const live = readFileSync(join(WEB, TRADING_APP_DIR, 'LiveRefresh.tsx'), 'utf8')
+  assert.match(live, /마지막 1분봉/, '새로고침 줄이 봉 주기를 안 말한다')
 })

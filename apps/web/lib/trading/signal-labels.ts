@@ -49,8 +49,12 @@ export const PLAN_LABEL = {
   chase: '진입 한계가',
   stop: '손절가',
   target: '목표가',
-  validFor: '진입 유효',
-  holdFor: '시간 청산',
+  /**
+   * **시각이지 길이가 아니다** (사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」).
+   * 「진입 유효 10분」은 언제부터 10분인지 읽는 사람이 판단 시각에 더해야 안다.
+   */
+  entryBy: '진입 마감',
+  exitAt: '나올 시각',
   sessionExit: '당일 청산',
 } as const
 
@@ -74,4 +78,19 @@ export function formatDistance(from: number | null, to: number | null): string {
   if (from === null || to === null || !Number.isFinite(from) || !Number.isFinite(to)) return ''
   const gap = Math.abs(to - from)
   return `${gap.toFixed(2)}점`
+}
+
+/**
+ * 마감까지 남은 시간 한 줄. **지났으면 지났다고 말한다** —
+ * 지난 시각을 그대로 두면 아직 들어가도 되는 것으로 읽힌다.
+ */
+export function deadlineLeftText(deadlineIso: string | null, now: Date): string {
+  if (!deadlineIso) return ''
+  const left = Date.parse(deadlineIso) - now.getTime()
+  if (!Number.isFinite(left)) return ''
+  if (left <= 0) return '지났습니다'
+  const minutes = Math.floor(left / 60_000)
+  // 1분이 안 남았으면 분으로 「0분」이 된다. 그것은 「지금이 마지막」이라는 뜻이라 따로 쓴다
+  if (minutes < 1) return '1분 안'
+  return `${minutes}분 남음`
 }

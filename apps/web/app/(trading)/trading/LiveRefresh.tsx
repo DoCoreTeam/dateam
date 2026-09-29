@@ -127,5 +127,10 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
 /** 마지막 봉이 언제 것인가. 없으면 없다고 말한다 — 빈 칸을 지어내지 않는다 */
 function barLine(lastBarAt: string | null): string {
   if (!lastBarAt) return '가격 봉이 아직 없습니다'
-  return `마지막 봉 ${seoulTimeText(lastBarAt)}`
+  /*
+    **몇 분짜리 봉인지를 같이 말한다.** 사용자 지적 2026-09-29 「1분 단위로 계속 바뀌나?」 —
+    시각만 있으면 그 시각이 봉 하나인지 다섯 분치인지 모른다. 옆줄이 「몇 초 뒤 다시 읽는다」를
+    말하고 있어, 여기서 봉 주기를 말해야 둘이 이어 읽힌다.
+  */
+  return `마지막 1분봉 ${seoulTimeText(lastBarAt)}`
 }

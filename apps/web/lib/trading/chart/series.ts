@@ -132,8 +132,15 @@ export interface CallPlan {
   timeExitMinutes: number
   /** 당일 청산 시각(ISO). 모르면 null */
   sameDayExitAt: string | null
-  /** 들어갈 수 있는 동안(분) */
+  /** 들어갈 수 있는 동안(분). 시각을 셈한 재료로만 남긴다 */
   validMinutes: number
+  /**
+   * **언제까지 들어갈 수 있나 (ISO).** 판단 시각 + `validMinutes`.
+   *
+   * 사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」 — 「10분」은 언제부터 10분인지
+   * 읽는 사람이 판단 시각에 더해야 안다. 그 덧셈은 화면이 할 일이지 사람이 할 일이 아니다.
+   */
+  entryDeadlineAt: string | null
   /** 기록에 남은 계획인가, 지금 셈한 예고인가 */
   from: 'signal' | 'preview'
 }
@@ -335,6 +342,13 @@ export function buildSeries(input: SeriesInput): ChartSeries {
   }
 }
 
+/** 시각 + 분. 못 읽는 시각이나 0 이하 분이면 null — 지어낸 마감을 그리지 않는다 */
+function deadlineOf(atIso: string, minutes: number): string | null {
+  const at = Date.parse(atIso)
+  if (!Number.isFinite(at) || !Number.isFinite(minutes) || minutes <= 0) return null
+  return new Date(at + minutes * 60_000).toISOString()
+}
+
 /**
  * 처음 그릴 구간 — **마지막 날부터**.
  *
@@ -427,6 +441,7 @@ export function planForCall(call: NowCall, chart: ChartSeries): CallPlan | null 
       timeExitMinutes: chart.planBase?.params.timeExitMinutes ?? 0,
       sameDayExitAt: chart.planBase?.params.sameDayExitAt ?? null,
       validMinutes: chart.planBase?.params.validMinutes ?? 0,
+      entryDeadlineAt: deadlineOf(call.at, chart.planBase?.params.validMinutes ?? 0),
       from: 'signal',
     }
   }
@@ -448,6 +463,11 @@ export function planForCall(call: NowCall, chart: ChartSeries): CallPlan | null 
     timeExitMinutes: prices.timeExitMinutes,
     sameDayExitAt: base.params.sameDayExitAt,
     validMinutes: base.params.validMinutes,
+    /**
+     * 마감은 **판단이 난 때**부터 센다. 기준 봉(`base.barAt`)이 아니다 —
+     * 판단이 09:58 것인데 봉이 10:03 이면 마감을 5분 늦게 잡게 된다.
+     */
+    entryDeadlineAt: deadlineOf(call.at, base.params.validMinutes),
     from: 'preview',
   }
 }
@@ -595,7 +615,12 @@ export function isOtherDay(atIso: string, now: Date): boolean {
  * 오래 가므로, 그동안 제목이 「판단」이라고 말해 주는 편이 정확하다.
  */
 export function chartTitle(input: { signalCount: number; callCount: number }): string {
-  if (input.signalCount > 0) return '가격과 신호'
-  if (input.callCount > 0) return '가격과 판단'
-  return '가격'
+  /*
+    **무슨 봉인지를 제목이 말한다.** 사용자 지적 2026-09-29 「1분 단위로 계속 바뀌나?
+    이거 차트가? 내가 정확히 몰라서」 — 봉 하나가 1분인지 5분인지 모르면 같은 그림이
+    전혀 다른 뜻이 된다. 화면 어디에도 그 말이 없었다.
+  */
+  if (input.signalCount > 0) return '1분봉 가격과 신호'
+  if (input.callCount > 0) return '1분봉 가격과 판단'
+  return '1분봉 가격'
 }

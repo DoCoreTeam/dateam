@@ -101,9 +101,15 @@ test.describe('현황 차트', () => {
     for (const label of ['진입 기준가', '손절가', '목표가']) {
       await expect(panel.getByText(label, { exact: true })).toBeVisible()
     }
-    // 들어갈 수 있는 동안과 들고 있는 동안은 다른 시계다. 한 글자로 뭉치면 안 된다
-    await expect(panel.getByText('진입 유효', { exact: true })).toBeVisible()
-    await expect(panel.getByText('시간 청산', { exact: true })).toBeVisible()
+    /*
+      **들어갈 때와 나올 때가 시각이어야 한다** (사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」).
+      「진입 유효 10분」은 언제부터 10분인지 읽는 사람이 판단 시각에 더해야 알 수 있었다.
+    */
+    await expect(panel.getByText('진입 마감', { exact: true })).toBeVisible()
+    await expect(panel.getByText('나올 시각', { exact: true })).toBeVisible()
+    await expect(panel.getByText('당일 청산', { exact: true })).toBeVisible()
+    // 시각이 실제로 시각 꼴로 떠야 한다 — 분만 남은 자리가 없어야 한다
+    await expect(panel.getByText(/(오전|오후) \d{1,2}:\d{2}/).first()).toBeVisible()
 
     // 예고를 지시로 읽으면 사람이 그대로 주문한다 — 어디서 온 값인지가 같은 자리에 있어야 한다
     const source = panel.getByText(/신호에 적힌 값입니다|이 판단이 신호가 된다면 나갈 값입니다/)

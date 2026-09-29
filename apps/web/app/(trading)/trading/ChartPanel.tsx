@@ -23,7 +23,7 @@ import type { CallPlan } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
 import {
   formatIndexPrice, formatProbability, formatMinutes, formatDistance,
-  PLAN_LABEL, PLAN_SOURCE_LABEL,
+  deadlineLeftText, PLAN_LABEL, PLAN_SOURCE_LABEL,
 } from '@/lib/trading/signal-labels'
 import { UNKNOWN_TEXT, seoulTimeText } from '@/lib/trading/position-labels'
 import styles from './ChartPanel.module.css'
@@ -102,6 +102,28 @@ function evText(value: number | null): string {
  * 이 자리에서 식을 다시 적지 않는다(M4).
  */
 function PlanBlock({ plan }: { plan: CallPlan }) {
+  /*
+    **시각은 화면이 잰다.** 서버가 「2분 남음」을 글자로 내려보내면 그 글자는 찍힌 순간에
+    멈추고, 탭을 열어 둔 채 십 분이 지나도 「2분 남음」이다 (이 파일이 `callAge` 를
+    화면에서 재는 이유와 같다). 첫 렌더에는 안 그린다 — 서버가 그린 것과 달라지면
+    하이드레이션이 어긋난다.
+  */
+  const [left, setLeft] = useState<string>('')
+  const [exitAt, setExitAt] = useState<string | null>(null)
+  const deadline = plan.entryDeadlineAt
+  const holdMinutes = plan.timeExitMinutes
+  useEffect(() => {
+    const tick = (): void => {
+      const now = new Date()
+      setLeft(deadlineLeftText(deadline, now))
+      setExitAt(holdMinutes > 0 ? new Date(now.getTime() + holdMinutes * 60_000).toISOString() : null)
+    }
+    tick()
+    // 분 단위로 보여 주므로 20초면 충분하다. 1초마다 고쳐 그릴 값이 아니다
+    const id = setInterval(tick, 20_000)
+    return () => clearInterval(id)
+  }, [deadline, holdMinutes])
+
   const rows: { name: string; value: string; hint?: string }[] = [
     { name: PLAN_LABEL.reference, value: formatIndexPrice(plan.referencePrice) },
     {
@@ -137,21 +159,39 @@ function PlanBlock({ plan }: { plan: CallPlan }) {
         ))}
       </dl>
       {/*
-        **언제까지가 둘이다.** 들어갈 수 있는 동안과 들어간 뒤 들고 있는 동안은
-        다른 시계다. 한 글자로 뭉치면 「10분 뒤에 나오라는 건가」가 된다
+        **언제까지가 둘이고, 둘 다 시각이다.**
+
+        사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」 — 「진입 유효 10분」은
+        언제부터 10분인지 읽는 사람이 판단 시각에 더해야 알 수 있었다. 그 덧셈을 화면이 한다.
+        들어갈 수 있는 때와 들어간 뒤 나올 때는 다른 시계라 자리도 따로 둔다.
       */}
       <dl className={styles.facts}>
         <div className={styles.fact}>
-          <dt>{PLAN_LABEL.validFor}</dt>
-          <dd>{formatMinutes(plan.validMinutes)}<span className={styles.age}> · 그 안에 못 들어가면 버립니다</span></dd>
+          <dt>{PLAN_LABEL.entryBy}</dt>
+          <dd>
+            {plan.entryDeadlineAt ? seoulTimeText(plan.entryDeadlineAt) : UNKNOWN_TEXT}
+            {/* 남은 시간은 화면이 센다. 서버가 적어 보내면 탭을 열어 둔 채 굳는다 */}
+            {left && <span className={styles.age}> · {left}</span>}
+          </dd>
         </div>
         <div className={styles.fact}>
-          <dt>{PLAN_LABEL.holdFor}</dt>
-          <dd>{formatMinutes(plan.timeExitMinutes)}<span className={styles.age}> · 들어간 뒤부터 셉니다</span></dd>
+          <dt>{PLAN_LABEL.exitAt}</dt>
+          {/*
+            들어간 뒤부터 세는 시계라 **지금 들어간다고 볼 때**의 시각이다.
+            첫 렌더에는 안 그린다 — 서버가 그린 것과 달라지면 하이드레이션이 어긋난다.
+          */}
+          <dd>
+            {exitAt
+              ? <>{seoulTimeText(exitAt)}<span className={styles.age}> · 지금 들어가면</span></>
+              : <>{formatMinutes(plan.timeExitMinutes)}<span className={styles.age}> · 들어간 뒤부터</span></>}
+          </dd>
         </div>
         <div className={styles.fact}>
           <dt>{PLAN_LABEL.sessionExit}</dt>
-          <dd>{plan.sameDayExitAt ? seoulTimeText(plan.sameDayExitAt) : UNKNOWN_TEXT}</dd>
+          <dd>
+            {plan.sameDayExitAt ? seoulTimeText(plan.sameDayExitAt) : UNKNOWN_TEXT}
+            <span className={styles.age}> · 늦어도 이때는 정리합니다</span>
+          </dd>
         </div>
       </dl>
     </div>
