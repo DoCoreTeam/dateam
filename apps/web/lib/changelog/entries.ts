@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.716',
+    version: '0.10.719',
     date: '2026-09-29',
     title: '지금 예측이 얼마에 들어가고 얼마에 나오는지까지 알려드려요',
     items: [
