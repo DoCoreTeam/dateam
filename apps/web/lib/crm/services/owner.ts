@@ -1,5 +1,12 @@
 /**
- * 딜 담당자를 바꾼다 — 판정은 `owner-decide.ts`, 여기는 그 판정에 필요한 값을 모으고 쓴다
+ * 담당자를 바꾼다(딜·거래처·고객) — 판정은 `owner-decide.ts`, 여기는 그 판정에 필요한 값을 모으고 쓴다
+ *
+ * ## 세 개체가 판정을 나눠 쓴다
+ *
+ * 거래처와 고객에 담당자 변경을 붙이면서 딜의 판정을 복사할 뻔했다. 복사하면 그날부터
+ * 두 벌이 되고, 한쪽만 고쳐지는 날 **권한이 개체마다 다르게 걸린다.**
+ * 그래서 「누가 바꿔도 되나」는 `decideOwnerChange` 한 곳만 지난다. 개체마다 다른 것은
+ * 표 이름·기록 이름·화면에 쓸 말 셋뿐이고 그건 `ENTITY` 표에 값으로 적는다.
  *
  * ## 값이 두 벌이라 대조가 필요하다
  *
@@ -23,6 +30,8 @@ import {
   decideReassign, reachableUserIds, REASSIGN_DENY_MESSAGE,
   type OrgSnapshot, type ReassignKind,
 } from './owner-decide.ts'
+import { ENTITY } from '../../terms/entity.ts'
+import { eulReul, withJosa } from '../../ui/josa.ts'
 
 /** 같이 옮길 것 — 화면이 건수를 보여 주고 고르게 한다 */
 export interface CascadeOptions {
@@ -61,6 +70,50 @@ async function loadMembers(tx: any): Promise<MemberMap> {
   }
 }
 
+/**
+ * 「이 사람이 이 행의 담당자를 저 사람으로 바꿔도 되나」 — **세 개체가 이 한 곳만 지난다.**
+ *
+ * 판정 자체는 `decideReassign` 이 값으로 하고, 여기는 그 앞에 필요한 대조를 붙인다.
+ * 멤버 id 와 호스트 사용자 id 를 맞추는 일이 그것이고, 안 맞추면 범위 판정이 늘 「범위 밖」이 된다.
+ *
+ * 거절은 던진다. 부르는 쪽이 `if (!ok)` 를 잊어도 조용히 통과하지 않게 하려는 것이다.
+ */
+async function decideOwnerChange(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx: any,
+  input: {
+    actorMemberId: string
+    currentOwnerId: string | null
+    nextOwnerMemberId: string
+    canReassign: boolean
+    org: OrgSnapshot
+  },
+): Promise<{ kind: ReassignKind }> {
+  const members = await loadMembers(tx)
+  const actorUserId = members.hostOf.get(input.actorMemberId)
+  if (!actorUserId) throw new CrmError('FORBIDDEN', '이 CRM 의 멤버가 아닙니다.')
+
+  const decision = decideReassign({
+    actorUserId,
+    // 대조가 안 되는 값(나간 멤버가 담당이던 경우)은 «주인 없음»으로 본다
+    currentOwnerUserId: input.currentOwnerId
+      ? members.hostOf.get(input.currentOwnerId) ?? null
+      : null,
+    nextOwnerUserId: members.hostOf.get(input.nextOwnerMemberId) ?? '',
+    nextIsActiveMember: members.active.has(input.nextOwnerMemberId),
+    canReassign: input.canReassign,
+    reach: reachableUserIds(actorUserId, input.org),
+  })
+  if (!decision.ok) {
+    // 「이미 그 사람」은 막을 일이지 권한 문제가 아니다 — 코드를 나눠야 화면이 맞게 말한다
+    throw new CrmError(
+      decision.reason === 'no_change' ? 'VALIDATION_FAILED' : 'FORBIDDEN',
+      REASSIGN_DENY_MESSAGE[decision.reason],
+    )
+  }
+  return { kind: decision.kind }
+}
+
 /** 확정돼 나간 견적으로 보는 상태 — 이 상태의 담당자는 기본으로 안 옮긴다 */
 const SETTLED_QUOTE_STATUS = ['SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED']
 
@@ -95,27 +148,13 @@ export async function reassignDealOwner(
     }) as { id: string; name: string; ownerId: string | null; version: number } | null
     if (!before) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.')
 
-    const members = await loadMembers(tx)
-    const actorUserId = members.hostOf.get(actorMemberId)
-    if (!actorUserId) throw new CrmError('FORBIDDEN', '이 CRM 의 멤버가 아닙니다.')
-
-    const decision = decideReassign({
-      actorUserId,
-      // 대조가 안 되는 값(나간 멤버가 담당이던 경우)은 «주인 없음»으로 본다
-      currentOwnerUserId: before.ownerId ? members.hostOf.get(before.ownerId) ?? null : null,
-      nextOwnerUserId: members.hostOf.get(nextOwnerMemberId) ?? '',
-      nextIsActiveMember: members.active.has(nextOwnerMemberId),
+    const decision = await decideOwnerChange(tx, {
+      actorMemberId,
+      currentOwnerId: before.ownerId,
+      nextOwnerMemberId,
       canReassign,
-      reach: reachableUserIds(actorUserId, org),
+      org,
     })
-    if (!decision.ok) {
-      const message = REASSIGN_DENY_MESSAGE[decision.reason]
-      // 「이미 그 사람」은 막을 일이지 권한 문제가 아니다 — 코드를 나눠야 화면이 맞게 말한다
-      throw new CrmError(
-        decision.reason === 'no_change' ? 'VALIDATION_FAILED' : 'FORBIDDEN',
-        message,
-      )
-    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await (tx as any).crmDeal.updateMany({
@@ -162,4 +201,94 @@ export async function reassignDealOwner(
       moved,
     }
   })
+}
+
+/**
+ * 거래처·고객은 무엇이 다른가 — **표 이름·기록 이름·화면에 쓸 말 셋뿐이다.**
+ * 판정도 잠금도 기록도 딜과 같은 것을 쓴다. 여기 값을 더하는 것 말고
+ * 함수를 하나 더 쓰기 시작하면 그날부터 규칙이 갈린다.
+ */
+const SIMPLE_ENTITY = {
+  company: { delegate: 'crmCompany', action: 'company.owner_changed', target: 'company' },
+  person: { delegate: 'crmPerson', action: 'person.owner_changed', target: 'person' },
+} as const
+
+export type SimpleOwnerEntity = keyof typeof SIMPLE_ENTITY
+
+export interface SimpleReassignInput {
+  id: string
+  version: number
+  nextOwnerMemberId: string
+  canReassign: boolean
+  org: OrgSnapshot
+}
+
+/**
+ * 거래처·고객의 담당자를 바꾼다.
+ *
+ * 딜과 달리 **딸려 옮길 것을 안 받는다.** 딜은 그 아래 할 일과 견적이 매달려 있어
+ * 안 옮기면 이전 담당자 화면에 계속 뜨지만, 거래처와 고객은 그렇게 매달린 것이 없다.
+ * 나중에 생기면 그때 `CascadeOptions` 를 여기에도 붙인다 — 지금 없는 것을 미리 받지 않는다.
+ */
+async function reassignSimpleOwner(
+  entity: SimpleOwnerEntity,
+  workspaceId: string,
+  actorMemberId: string,
+  input: SimpleReassignInput,
+): Promise<ReassignResult> {
+  const meta = SIMPLE_ENTITY[entity]
+  const { id, version, nextOwnerMemberId, canReassign, org } = input
+
+  return withCrmTx(workspaceId, async (tx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const table = (tx as any)[meta.delegate]
+    const before = await table.findFirst({
+      where: { id },
+      select: { id: true, ownerId: true, version: true },
+    }) as { id: string; ownerId: string | null; version: number } | null
+    // 말은 용어집이 정하고 조사는 받침이 정한다 — 「인물를」이 안 나오게
+    const label = ENTITY[entity].label
+    if (!before) throw new CrmError('NOT_FOUND', `${withJosa(label, eulReul)} 찾을 수 없습니다.`)
+
+    const decision = await decideOwnerChange(tx, {
+      actorMemberId,
+      currentOwnerId: before.ownerId,
+      nextOwnerMemberId,
+      canReassign,
+      org,
+    })
+
+    const res = await table.updateMany({
+      where: lockWhere(id, version),
+      data: { ownerId: nextOwnerMemberId, ...BUMP_VERSION },
+    })
+    assertUpdated(res.count, { exists: true, version: before.version }, label)
+
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId: actorMemberId,
+      action: meta.action, targetType: meta.target, targetId: id,
+      beforeJson: { ownerId: before.ownerId },
+      afterJson: { ownerId: nextOwnerMemberId, kind: decision.kind },
+    })
+
+    return {
+      kind: decision.kind,
+      fromMemberId: before.ownerId,
+      toMemberId: nextOwnerMemberId,
+      // 딸려 옮긴 것이 없다는 뜻이다. 「안 셌다」가 아니라 「없다」다
+      moved: { tasks: 0, quotes: 0 },
+    }
+  })
+}
+
+export function reassignCompanyOwner(
+  workspaceId: string, actorMemberId: string, input: SimpleReassignInput,
+): Promise<ReassignResult> {
+  return reassignSimpleOwner('company', workspaceId, actorMemberId, input)
+}
+
+export function reassignPersonOwner(
+  workspaceId: string, actorMemberId: string, input: SimpleReassignInput,
+): Promise<ReassignResult> {
+  return reassignSimpleOwner('person', workspaceId, actorMemberId, input)
 }
