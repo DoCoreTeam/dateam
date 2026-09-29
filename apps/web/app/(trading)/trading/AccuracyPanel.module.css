@@ -1,0 +1,123 @@
+.panel {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+/* 며칠짜리 표본인가. 제목 옆에 붙되 제목보다 약하게 */
+.days {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 이 숫자가 무엇인지. 실제 주문 기록과 섞이면 화면이 거짓말을 한다 */
+.note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.rows {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/*
+  칸을 고정폭으로 나눈다. 묶음마다 자리가 흔들리면 세로로 훑을 수 없다.
+  좁은 화면에서는 줄바꿈으로 흐르게 둔다 — 가로 스크롤을 만들지 않는다.
+*/
+.row {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) minmax(72px, auto) minmax(90px, auto) minmax(96px, auto) minmax(0, 1.2fr);
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.header {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.header .money,
+.header .krw,
+.header .rate {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.label {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* **돈이 먼저다.** 이 줄에서 가장 큰 글자 */
+.money {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.krw {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 오르면 빨강, 내리면 파랑 — 차트와 같은 쪽으로 읽는다 */
+.up { color: var(--danger); }
+.down { color: var(--accent); }
+
+.rate {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 표본은 적중률과 한 덩어리다 — 3/5 와 300/500 은 같은 60% 가 아니다 */
+.sample {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.aside {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 표본이 적다는 것은 경고다 — 이 숫자로 결정하면 안 된다는 뜻 */
+.thin {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+}

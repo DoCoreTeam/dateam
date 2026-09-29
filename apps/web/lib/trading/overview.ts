@@ -70,6 +70,7 @@ import { loadTradingSettings } from './settings/store.ts'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
+  AccuracySummary,
   HoldingRow, DayPnlRow,
   KnowledgeRow, SettingHelpRow, KnowledgeProgress, OperatorSummary, HealthRow, ArmingSummary,
 } from './overview-shape.ts'
@@ -97,6 +98,8 @@ import { decideEnableNotify, enableHint } from './notify/enable-gate.ts'
 import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
 import { loadBarsAsOf } from './bars/store.ts'
 import { buildSeries, type ChartSeries, type PlanParams } from './chart/series.ts'
+import { scoreJudgment, summarizeScores, type JudgmentScore } from './judge/score.ts'
+import { leaningOf } from './judgment-labels.ts'
 import { loadFills } from './position/fills.ts'
 import { foldFills } from './position/from-fills.ts'
 import { loadSignalPlan } from './position/plan.ts'
@@ -415,12 +418,115 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
       insufficientCount: gateVerdict.insufficientCount,
     },
     gateCriteria: gateVerdict.criteria,
+    accuracy: await loadAccuracy(contractCode, now, values, today, exitBefore),
     chart: await loadChart(
       contractCode, now, signals, judgments, recentRuns[0]?.reason ?? null,
       // 당일 청산 시각은 오늘 세션이 정한다. 만기일은 15:05, 평일은 15:20 이라 날마다 다르다
       planParamsOf(values, coverage.find((d) => d.tradeDate === today)?.sameDayExitAt ?? null),
     ),
     empty: coverage.every((d) => d.actual === 0) && judgments.length === 0 && signals.length === 0,
+  }
+}
+
+/**
+ * 채점에 쓸 봉 수 — **차트보다 넉넉히 읽는다.**
+ *
+ * 판단이 난 뒤 결판이 날 때까지의 봉이 있어야 채점이 되고, 앞으로는 지표를 구할 만큼
+ * 더 필요하다. 차트용 180봉으로 재면 오래된 판단이 죄다 「아직」으로 잡힌다.
+ */
+const SCORE_BARS = 3_000
+
+/**
+ * 그동안 얼마나 맞았고 **얼마를 벌었나**.
+ *
+ * 채점은 `judge/score.ts` 가 하고 그 안은 백테스트가 쓰는 `replayExecution` 이다(M4).
+ * 여기서는 읽어 오고 묶기만 한다 — 셈을 여기서 또 하면 화면과 검증이 갈린다.
+ *
+ * 못 읽어도 **던지지 않는다.** 적중률 한 칸 때문에 현황 전체가 죽으면 안 된다.
+ */
+async function loadAccuracy(
+  contractCode: string | null,
+  now: Date,
+  values: Readonly<Record<string, unknown>>,
+  today: string,
+  exitBefore: number,
+): Promise<AccuracySummary> {
+  const empty = (reason: string): AccuracySummary => ({ rows: [], tradeDays: 0, unmeasuredReason: reason })
+  if (!contractCode) return empty('근월물이 정해지지 않았습니다')
+  try {
+    // 승수와 호가 간격은 표가 유일한 출처다(M6). 못 읽으면 못 잰 것이고 기본값을 안 끼운다
+    const instrument = await loadInstrumentSpec(today)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    const bars = await loadBarsAsOf({ contractCode, tf: '1m', asOf: now, limit: SCORE_BARS })
+    if (bars.length === 0) return empty('가격 봉이 아직 없습니다')
+
+    const { data, error } = await admin
+      .from('trading_judgments')
+      .select('id, bar_close_at, judge, raw_score')
+      .eq('status', 'completed')
+      .not('raw_score', 'is', null)
+      .order('bar_close_at', { ascending: false })
+      .limit(2_000)
+    if (error) return empty(`판단을 읽지 못했습니다: ${error.message}`)
+
+    const slippage = instrument.tickSize * 2
+    const scores: JudgmentScore[] = []
+    for (const row of (data ?? []) as { id: string; bar_close_at: string; judge: string; raw_score: Record<string, number> }[]) {
+      const lean = leaningOf(row.raw_score)
+      // 관망은 채점하지 않는다 — 들어갈 자리가 없으므로 맞고 틀림이 없다
+      if (!lean || lean.direction === 'hold') continue
+      scores.push(scoreJudgment(
+        { id: row.id, barCloseAt: row.bar_close_at, judge: row.judge, direction: lean.direction },
+        bars,
+        {
+          indicators: {
+            atrPeriod: Number(values.atr_period) || 14,
+            smaFastPeriod: Number(values.sma_fast_period) || 5,
+            smaSlowPeriod: Number(values.sma_slow_period) || 20,
+            breakoutPeriod: Number(values.breakout_period) || 20,
+          },
+          exit: {
+            stopAtrMultiple: Number(values.exit_stop_atr_multiple) || 1.2,
+            targetAtrMultiple: Number(values.exit_target_atr_multiple) || 1.5,
+            chaseAtrMultiple: Number(values.exit_chase_atr_multiple) || 0.3,
+            timeExitMinutes: Number(values.min_hold_minutes) || 15,
+          },
+          instrument,
+          quantity: 1,
+          delayMinutes: Number(values.replay_delay_minutes) || 2,
+          orderKind: String(values.replay_order_type ?? 'market') === 'limit' ? 'limit' : 'market',
+          slippagePoints: slippage,
+          stopSlippagePoints: slippage,
+          roundTripFeeKrw: Number(values.fee_rate) || 0,
+          // 실시간과 같은 규칙으로 판다 — 그날 접속매매 끝 N분 전
+          sessionCloseAt: (barStartAt) => {
+            const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(barStartAt)
+            return new Date(new Date(`${day}T15:45:00+09:00`).getTime() - exitBefore * 60_000)
+          },
+        },
+      ))
+    }
+    if (scores.length === 0) return empty('채점할 판단이 아직 없습니다')
+
+    const days = new Set(scores.map((x) => x.barAt.slice(0, 10))).size
+    const row = (label: string, list: readonly JudgmentScore[]) => {
+      const x = summarizeScores(list)
+      return { label, ...x }
+    }
+    return {
+      rows: [
+        row('전체', scores),
+        row('롱', scores.filter((x) => x.direction === 'long')),
+        row('숏', scores.filter((x) => x.direction === 'short')),
+        row('AI 판단', scores.filter((x) => x.judge === 'jev')),
+        row('규칙 판단', scores.filter((x) => x.judge === 'rule')),
+      ].filter((r) => r.settled + r.pending + r.unscored > 0),
+      tradeDays: days,
+      unmeasuredReason: '',
+    }
+  } catch (error) {
+    return empty(error instanceof Error ? error.message : '읽지 못했습니다')
   }
 }
 

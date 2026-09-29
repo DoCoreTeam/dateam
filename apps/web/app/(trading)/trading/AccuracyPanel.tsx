@@ -1,0 +1,110 @@
+// app/(trading)/trading/AccuracyPanel.tsx — 그동안 얼마나 맞았고 얼마를 벌었나
+//
+// 사용자 지시 2026-09-29:
+//   「어차피 거래는 내가 직접 할거야 이건 정보를 주는 서비스라구」
+//   「결국 돈 버는게 핵심이야 수익 관점에서 다 움직여야 하는거야 알지?」
+//
+// **적중률을 앞에 세우지 않는다.** 실측 2026-09-29: 적중률 27% 인데 건당 +0.028R 이었다 —
+// 적중률만 보면 나쁜 예측이지만 돈은 벌었다. 작게 여러 번 이기고 크게 한 번 지는 반대 판도
+// 있다. 그래서 **건당 손익이 큰 글자**고 적중률은 그 옆이다.
+
+import { Target } from 'lucide-react'
+import EmptyState from '@/components/ui/EmptyState'
+import type { AccuracySummary, AccuracyRow } from '@/lib/trading/overview-shape'
+import styles from './AccuracyPanel.module.css'
+
+/** 건당 손익(R). **없으면 없다고 말한다** — 0 은 「본전이었다」는 사실이다 */
+function rText(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '아직'
+  return `${value > 0 ? '+' : ''}${value.toFixed(3)}R`
+}
+
+/** 적중률. 결판난 것이 0건이면 0% 가 아니라 모름이다 */
+function rateText(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '아직'
+  return `${Math.round(value * 100)}%`
+}
+
+function krwText(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '아직'
+  const sign = value > 0 ? '+' : value < 0 ? '−' : ''
+  return `${sign}${Math.abs(Math.round(value)).toLocaleString('ko-KR')}원`
+}
+
+/**
+ * 표본이 적으면 숫자를 믿으면 안 된다.
+ *
+ * 30건은 임의로 고른 값이 아니라 **이 화면이 「적다」고 말할 최소선**이다. 그 아래에서는
+ * 건당 손익이 한두 건에 통째로 흔들린다 — 숫자를 지우지는 않고 무게만 낮춘다.
+ */
+const THIN_SAMPLE = 30
+
+function Row({ row }: { row: AccuracyRow }) {
+  const thin = row.settled < THIN_SAMPLE
+  const up = (row.averageR ?? 0) > 0
+  const down = (row.averageR ?? 0) < 0
+  return (
+    <div className={styles.row}>
+      <span className={styles.label}>{row.label}</span>
+      {/* **돈이 먼저다.** 건당 손익이 이 줄에서 가장 큰 글자다 */}
+      <strong className={`${styles.money} ${up ? styles.up : down ? styles.down : ''}`}>
+        {rText(row.averageR)}
+      </strong>
+      <span className={styles.krw}>{krwText(row.netKrw)}</span>
+      {/*
+        적중률은 **표본과 한 덩어리로** 읽혀야 한다.
+        3건 중 2건과 300건 중 200건은 같은 67% 가 아니다
+      */}
+      <span className={styles.rate}>
+        {rateText(row.hitRate)}
+        <span className={styles.sample}>{` (${row.hit}/${row.settled}건)`}</span>
+      </span>
+      <span className={styles.aside}>
+        {row.pending > 0 && `아직 ${row.pending}건`}
+        {row.pending > 0 && row.unscored > 0 && ' · '}
+        {row.unscored > 0 && `못 들어간 ${row.unscored}건`}
+      </span>
+      {thin && <span className={styles.thin}>표본이 적습니다</span>}
+    </div>
+  )
+}
+
+export default function AccuracyPanel({ accuracy }: { accuracy: AccuracySummary }) {
+  return (
+    <section className={`card ${styles.panel}`}>
+      <div className={styles.head}>
+        <h2 className={styles.title}>그동안 얼마나 벌었나</h2>
+        {accuracy.tradeDays > 0 && (
+          <span className={styles.days}>{`${accuracy.tradeDays}거래일치`}</span>
+        )}
+      </div>
+      {/*
+        **무엇을 세는지 먼저 말한다.** 이 숫자는 「그 판단대로 매번 들어갔다면」이고
+        실제로 낸 주문이 아니다. 그 둘을 섞으면 화면이 거짓말을 한다
+      */}
+      <p className={styles.note}>
+        판단대로 매번 들어갔다면 어땠을지를 지난 봉으로 되짚은 값입니다. 실제 주문 기록이 아닙니다
+      </p>
+      {accuracy.rows.length === 0
+        ? (
+          <EmptyState
+            icon={<Target size={28} />}
+            title="아직 채점할 것이 없습니다"
+            description={accuracy.unmeasuredReason || '판단이 쌓이면 여기에 성적이 뜹니다'}
+          />
+        )
+        : (
+          <div className={styles.rows}>
+            <div className={`${styles.row} ${styles.header}`}>
+              <span className={styles.label}>묶음</span>
+              <span className={styles.money}>건당</span>
+              <span className={styles.krw}>합계</span>
+              <span className={styles.rate}>적중</span>
+              <span className={styles.aside} />
+            </div>
+            {accuracy.rows.map((r) => <Row key={r.label} row={r} />)}
+          </div>
+        )}
+    </section>
+  )
+}

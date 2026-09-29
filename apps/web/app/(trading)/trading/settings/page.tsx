@@ -22,6 +22,8 @@ import SettingsGroups, { type SettingGroupBlock } from './SettingsGroups'
 import CredentialPanel, { type CredentialStatusRow } from './CredentialPanel'
 import AssistantPanel from './AssistantPanel'
 import StartPanel from './StartPanel'
+import PushPanel from '../PushPanel'
+import { getPushKey } from '../actions'
 import { getTradingCredentialStatus } from '@/lib/trading/broker/credentials'
 import { pairForModelKey } from '@/lib/trading/settings/model-pick'
 import { dailySettings, changedCount, DAILY_LABEL } from '@/lib/trading/settings/daily'
@@ -36,6 +38,8 @@ export default async function TradingSettingsPage() {
    * 전략 변경은 다음 거래일부터라 오늘 값에 안 섞이기 때문이다.
    */
   const pending = pendingByKey(await loadAllSettingVersions(), today)
+  // 공개 열쇠만 내려간다. 비밀키는 server-only 모듈 밖으로 안 나온다(S3)
+  const pushKey = await getPushKey()
   const groups = Object.keys(TRADING_GROUP_LABEL) as TradingSettingGroup[]
 
   /**
@@ -111,6 +115,12 @@ export default async function TradingSettingsPage() {
       <AssistantPanel />
 
       <CredentialPanel rows={credentials} />
+      {/*
+        **알림 받을 기기 등록은 처음 한 번 하는 일이다.**
+        현황에 두면 매일 보는 화면이 한 칸 길어지고, 정작 등록은 한 번만 한다
+        (이 화면이 생긴 이유와 같다 — 매일 여는 것과 한 번 정하는 것을 안 섞는다).
+      */}
+      <PushPanel publicKey={pushKey.publicKey} />
 
         {/* 매일 보는 것이 먼저다. 나머지는 접힌 채로 뒤에 선다 */}
       <SettingsGroups groups={[dailyBlock]} defaultOpen="__daily" />

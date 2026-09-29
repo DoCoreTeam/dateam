@@ -12,12 +12,11 @@ import PageHeader from '@/components/ui/PageHeader'
 import ChartPanel from './ChartPanel'
 import LiveRefresh from './LiveRefresh'
 import SignalPanel from './SignalPanel'
+import AccuracyPanel from './AccuracyPanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
 import JevPanel from './JevPanel'
-import PushPanel from './PushPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
-import { getPushKey } from './actions'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
@@ -27,8 +26,6 @@ export const dynamic = 'force-dynamic'
 export default async function TradingPage() {
   const { values } = await loadTradingSettings(kstTodayKey())
   const overview = await loadTradingOverview(new Date())
-  // 공개 열쇠만 내려간다. 비밀키는 server-only 모듈 밖으로 안 나온다(S3)
-  const pushKey = await getPushKey()
 
   // 유효 시간은 설정이다. 화면이 따로 정하면 규칙과 화면이 다른 마감을 본다
   const rawValid = Number(values.signal_valid_minutes)
@@ -63,6 +60,11 @@ export default async function TradingPage() {
           signals={overview.signals}
           emitProgress={overview.emitProgress}
         />
+        {/*
+          **차트 바로 아래가 성적이다.** 지금 예측을 보고 나면 다음 질문은
+          「그래서 이 예측이 그동안 맞았나」다 — 그 답이 멀리 있으면 아무도 안 찾는다
+        */}
+        <AccuracyPanel accuracy={overview.accuracy} />
         {/* 꺼져 있을 때만 그린다. 켜져 있으면 이 자리가 없다 */}
         <JevPanel jev={overview.jev} />
         <SignalPanel
@@ -73,8 +75,6 @@ export default async function TradingPage() {
         />
         <PositionPanel holding={overview.holding} dayPnl={overview.dayPnl} />
         <NotifyPanel notify={overview.notify} position={overview.position} />
-        {/* 알림을 켜 놓아도 받을 기기가 없으면 화면에만 남는다 */}
-        <PushPanel publicKey={pushKey.publicKey} />
       </div>
     </>
   )

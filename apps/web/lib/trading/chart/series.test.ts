@@ -293,9 +293,18 @@ test('★ 현황 맨 위가 그림이다', () => {
   const page = stripComments(readFileSync(join(WEB, TRADING_APP_DIR, 'page.tsx'), 'utf8'))
   const at = page.indexOf('<ChartPanel')
   assert.ok(at > 0, '현황이 그림 칸을 안 그린다')
-  for (const other of ['<JevPanel', '<SignalPanel', '<PositionPanel', '<NotifyPanel', '<PushPanel']) {
-    const o = page.indexOf(other)
-    assert.ok(o > at, `${other} 이 그림보다 위에 있다 — 그림을 보려고 표를 지나야 한다`)
+  /*
+    **화면에 있는 칸을 세지, 목록을 외우지 않는다.**
+
+    전에는 칸 이름 다섯을 손으로 적어 두었다. `PushPanel` 을 설정 화면으로 옮기자
+    `indexOf` 가 -1 이 되어 「그림보다 위에 있다」로 빨개졌다 — 규칙은 지켜졌는데
+    가드가 옛 목록을 보고 있었던 것이다.
+  */
+  const others = [...page.matchAll(/<([A-Z][A-Za-z0-9]*Panel)\b/g)]
+    .filter((m) => m[1] !== 'ChartPanel')
+  assert.ok(others.length >= 3, `현황에서 칸을 ${others.length}개밖에 못 찾았다 — 규칙이 헛돈다`)
+  for (const m of others) {
+    assert.ok(m.index! > at, `<${m[1]} 이 그림보다 위에 있다 — 그림을 보려고 표를 지나야 한다`)
   }
   // 봉·신호·사유를 다 넘긴다. 하나라도 빠지면 그 자리가 조용히 빈다
   const props = page.slice(at, page.indexOf('/>', at))

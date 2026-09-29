@@ -237,9 +237,47 @@ export interface GateSummary {
   insufficientCount: number
 }
 
+/**
+ * 그동안 얼마나 맞았고 **얼마를 벌었나**.
+ *
+ * 사용자 지시 2026-09-29: 「어차피 거래는 내가 직접 할거야 이건 정보를 주는 서비스라구」
+ * 「결국 돈 버는게 핵심이야 수익 관점에서 다 움직여야 하는거야」.
+ *
+ * **적중률만으로는 돈이 되는지 알 수 없다.** 작게 여러 번 이기고 크게 한 번 지는 판은
+ * 적중률이 높아도 돈을 잃는다. 실측 2026-09-29: 적중률 27% 인데 건당 +0.028R 이었다 —
+ * 적중률만 보면 나쁜 예측이지만 돈은 벌었다. 그래서 둘을 같이 내고 돈을 앞에 둔다.
+ */
+export interface AccuracyRow {
+  /** 무엇을 잰 묶음인가 (전체·롱·숏·AI·규칙) */
+  label: string
+  /** 결판난 건수. 적중률의 분모다 */
+  settled: number
+  hit: number
+  /** 아직 안 끝난 건수. 분모에 안 든다 */
+  pending: number
+  /** 진입 한계를 못 넘어 체결이 없던 건수 등, 못 센 것 */
+  unscored: number
+  /** 0~1. 결판난 것이 0건이면 null — 0% 는 「다 틀렸다」는 사실이 된다 */
+  hitRate: number | null
+  /** 건당 손익(R). **이것이 돈이다** */
+  averageR: number | null
+  totalR: number | null
+  netKrw: number | null
+}
+
+export interface AccuracySummary {
+  rows: AccuracyRow[]
+  /** 잰 구간 (거래일 수). 표본이 며칠짜리인지 없으면 숫자를 못 읽는다 */
+  tradeDays: number
+  /** 못 쟀으면 왜. 쟀으면 빈 문자열 */
+  unmeasuredReason: string
+}
+
 export interface TradingOverview {
   contractCode: string | null
   coverage: DayCoverage[]
+  /** 그동안 얼마나 맞았고 얼마를 벌었나 */
+  accuracy: AccuracySummary
   judgments: JudgmentRow[]
   recentRuns: RunRow[]
   /** 최근 신호. 1-C 전에는 늘 비어 있다 */
