@@ -1,6 +1,6 @@
 # PLAN newAX: 담당자를 화면에서 바꾼다
 플랜 ID: P0088
-플랜 버전: v0.1.6
+플랜 버전: v0.1.8
 상태: 진행중
 지시: iv_0145
 목표 버전: v0.10.712
@@ -106,11 +106,12 @@
 보안: 해당 없음, 이미 있는 창구를 부르는 자리다
 
 ### I06 거래처와 고객 상세에 담당자와 작성자를 그리고 바꾼다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(crm)/crm/companies/[id]/CompanyDetail.tsx, apps/web/app/(crm)/crm/people/[id]/PersonDetail.tsx
+범위: apps/web/app/(crm)/crm/companies/[id]/CompanyDetail.tsx, apps/web/app/(crm)/crm/people/[id]/PersonDetail.tsx, apps/web/lib/crm/services/company.ts, apps/web/lib/crm/services/person.ts
 감사 기준:
 - 실측: 두 화면에 담당자·작성자 칸이 **아예 없다**, 목록에는 있는데 상세에는 없어 한 화면 안에서 말이 갈렸다
+- **상세 창구가 사람 정보를 안 준다** (실측 2026-09-29: `getCompany`·`getPerson` 이 날 행만 돌려주고 `owner`·`creator` 를 안 붙인다, 목록만 `loadMemberDisplays` 로 붙인다). 상세도 목록과 **같은 함수**로 붙인다, 자리마다 따로 읽으면 어떤 곳은 이름만 어떤 곳은 직함까지가 된다
 - 딜 상세와 **같은 부품**으로 담당자와 작성자를 그린다, 같은 종류 화면은 골격이 같아야 한다
 - 담당자 옆에 바꾸는 자리가 서고 작성자 옆에는 없다, 딜과 같다
 - 작성자가 비면 「기록 없음」으로 그린다, 없는 사람을 지어내지 않는다
@@ -154,3 +155,5 @@
 - v0.1.4 (2026-09-29) 딜 PATCH 도 담당자를 권한 검사 없이 받는 것을 실측, deal.ts 를 I03 범위에 더함 (audit:I03)
 - v0.1.5 (2026-09-29) I04 착수 중 화면이 자기 권한을 아는 창구가 없는 것을 실측, 새 창구 대신 멤버 목록 응답에 viewer 를 싣기로 하고 그 파일을 범위에 더함 (audit:I04)
 - v0.1.6 (2026-09-29) 화면이 owner.reassign 을 알 길이 없어 멤버 목록 응답에 viewer 를 싣기로 함, 새 창구는 안 연다 (audit:I04)
+- v0.1.7 (2026-09-29) I06 착수 중 상세 창구가 owner·creator 를 안 붙이는 것을 실측, 두 서비스를 범위에 더함 (audit:I06)
+- v0.1.8 (2026-09-29) getCompany·getPerson 이 사람 정보를 안 붙여 상세가 담당자를 그릴 값이 없음, 두 서비스를 I06 범위에 더함 (audit:I06)

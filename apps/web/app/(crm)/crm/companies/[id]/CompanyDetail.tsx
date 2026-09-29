@@ -17,6 +17,9 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
 import NbButton from '@/components/ui/nb/NbButton'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import Person from '@/components/ui/Person'
+import OwnerPicker from '@/components/crm/OwnerPicker'
+import type { PersonJson } from '@/lib/crm/services/member-display'
 import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import RelatedList from '@/components/ui/crm/RelatedList'
 import ContactLink from '@/components/ui/ContactLink'
@@ -44,6 +47,9 @@ interface Company {
   descriptionMd: string | null
   version: number
   updatedAt: string
+  /** 담당자는 바뀌고 작성자는 안 바뀐다 — 상세도 목록과 같은 부품으로 그린다 */
+  owner: PersonJson | null
+  creator: PersonJson | null
 }
 
 // 연락처까지 받는다 — 예전엔 email 을 받아 놓고 화면에서 버려, 회사에서 담당자에게 연락할 길이 없었다
@@ -174,6 +180,32 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
               <RecordField label="규모" field="employeeRange"
                 verified={verify.verified.includes('employeeRange')}
                 onToggleVerified={verify.toggle}>{company.employeeRange ? `${company.employeeRange}명` : null}</RecordField>
+              {/*
+                담당자와 작성자는 **성격이 다르다.** 담당자는 지금 누가 맡나(바뀐다),
+                작성자는 누가 등록했나(안 바뀐다). 그래서 작성자 옆에는 누르는 자리가 없다.
+                딜 상세와 같은 부품·같은 순서다 — 같은 종류 화면은 골격이 같아야 한다.
+              */}
+              <RecordField label="담당자">
+                <OwnerPicker
+                  entity="company"
+                  id={company.id}
+                  version={company.version}
+                  owner={company.owner ?? null}
+                  onChanged={() => { void load() }}
+                />
+              </RecordField>
+              <RecordField label="작성자">
+                {company.creator
+                  ? (
+                    <Person
+                      name={company.creator.name}
+                      explicitTitle={company.creator.explicitTitle}
+                      position={company.creator.position}
+                      rank={company.creator.rank}
+                    />
+                  )
+                  : <Person name={null} emptyLabel="기록 없음" noAvatar />}
+              </RecordField>
               <RecordField label="최근 변경">{formatKstDateTimeShort(company.updatedAt)}</RecordField>
             </RecordFieldList>
           </RecordPanel>

@@ -14,7 +14,7 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { loadMemberDisplays, toPersonJson } from './member-display.ts'
+import { loadMemberDisplays, toPersonJson, type PersonJson } from './member-display.ts'
 import { normalizeDomain, normalizeText, requireText } from '../domain/normalize.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
 import {
@@ -35,6 +35,9 @@ export interface CompanyRow {
   ownerId: string | null
   /** 등록한 사람(CrmMember.id). 비어 있으면 기록이 없는 것이다 */
   createdById: string | null
+  /** 담당자·작성자를 사람으로 편 것. 목록과 상세가 같은 부품으로 그린다 */
+  owner?: PersonJson | null
+  creator?: PersonJson | null
   version: number
   updatedAt: Date
 }
@@ -141,7 +144,17 @@ export async function getCompany(db: CrmDb, id: string): Promise<CompanyRow> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const row = await (db as any).crmCompany.findFirst({ where: { id }, select: SELECT })
   if (!row) throw new CrmError('NOT_FOUND', '회사를 찾을 수 없습니다.')
-  return row as CompanyRow
+  /*
+    사람 정보를 붙인다 — **목록과 같은 함수**를 쓴다.
+    실측 2026-09-29: 목록은 담당자와 작성자를 붙이는데 상세는 날 행만 돌려줬다. 그래서
+    상세 화면에는 담당자 칸을 그릴 값이 아예 없었고, 목록에는 있는 칸이 상세에는 없었다.
+  */
+  const displays = await loadMemberDisplays(db)
+  return {
+    ...(row as CompanyRow),
+    owner: toPersonJson(row.ownerId, displays),
+    creator: toPersonJson(row.createdById, displays),
+  } as CompanyRow
 }
 
 export async function createCompany(

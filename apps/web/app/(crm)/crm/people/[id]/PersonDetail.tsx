@@ -16,6 +16,9 @@ import ErrorState from '@/components/ui/ErrorState'
 import NbButton from '@/components/ui/nb/NbButton'
 import ContactLink from '@/components/ui/ContactLink'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import Person from '@/components/ui/Person'
+import OwnerPicker from '@/components/crm/OwnerPicker'
+import type { PersonJson } from '@/lib/crm/services/member-display'
 import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import { useVerified } from '@/lib/crm/use-verified'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -38,6 +41,9 @@ interface Person {
   lifecycleStage: string
   version: number
   updatedAt: string
+  /** 담당자는 바뀌고 작성자는 안 바뀐다 — 상세도 목록과 같은 부품으로 그린다 */
+  owner: PersonJson | null
+  creator: PersonJson | null
 }
 
 interface CompanyRow { id: string; name: string; domain: string | null }
@@ -154,6 +160,32 @@ export default function PersonDetail({ personId }: { personId: string }) {
               </RecordField>
               <RecordField label="단계">
                 {STAGE_LABEL[person.lifecycleStage] ?? person.lifecycleStage}
+              </RecordField>
+              {/*
+                담당자와 작성자는 **성격이 다르다.** 담당자는 지금 누가 맡나(바뀐다),
+                작성자는 누가 등록했나(안 바뀐다). 그래서 작성자 옆에는 누르는 자리가 없다.
+                딜 상세와 같은 부품·같은 순서다 — 같은 종류 화면은 골격이 같아야 한다.
+              */}
+              <RecordField label="담당자">
+                <OwnerPicker
+                  entity="person"
+                  id={person.id}
+                  version={person.version}
+                  owner={person.owner ?? null}
+                  onChanged={() => { void load() }}
+                />
+              </RecordField>
+              <RecordField label="작성자">
+                {person.creator
+                  ? (
+                    <Person
+                      name={person.creator.name}
+                      explicitTitle={person.creator.explicitTitle}
+                      position={person.creator.position}
+                      rank={person.creator.rank}
+                    />
+                  )
+                  : <Person name={null} emptyLabel="기록 없음" noAvatar />}
               </RecordField>
               <RecordField label="최근 변경">{formatKstDateTimeShort(person.updatedAt)}</RecordField>
             </RecordFieldList>
