@@ -107,7 +107,24 @@ export function nextOpenLine(nextOpenAt: string): string {
  *
  * 도착 시각으로 재면 정상 범위가 0~60초다. 그 밖으로 나가면 진짜로 안 오고 있는 것이다.
  */
-export const BAR_LATE_SECONDS = 90
+/**
+ * **늦었다고 말할 문턱은 고정값이 아니다.**
+ *
+ * 화면이 보는 나이는 「마지막으로 읽어 온 봉이 도착한 지 몇 초」다. 다음 봉은 60초 뒤에
+ * 생기고, 화면이 그것을 보는 것은 다시 읽는 차례가 돌아올 때다 — 그래서 정상일 때도
+ * 나이가 `60 + 다시 읽는 간격` 까지 올라간다.
+ *
+ * 종합 감사 2026-09-30 실측: 간격이 30초인 화면에서 86초가 떴다. 고정 90초로 두면
+ * 멀쩡한 상태가 4초 차이로 고장이 된다 — 그런 경고는 한 번 틀리면 다시는 안 읽힌다.
+ * 그래서 간격을 받아 셈하고, 그 위에 한 판(30초)을 더 얹는다.
+ */
+export const BAR_PERIOD_SECONDS = 60
+export const BAR_LATE_MARGIN_SECONDS = 30
+
+export function barLateAfter(refreshSeconds: number): number {
+  const every = Number.isFinite(refreshSeconds) && refreshSeconds > 0 ? refreshSeconds : 30
+  return BAR_PERIOD_SECONDS + every + BAR_LATE_MARGIN_SECONDS
+}
 
 export interface BarFreshness {
   /** 몇 초 전에 도착했나. 잴 수 없으면 null */
@@ -126,11 +143,13 @@ export function barFreshness(input: {
   availableAt: string | null
   now: Date
   live: boolean
+  /** 화면이 다시 읽는 간격(초). 문턱이 이 값을 타고 올라간다 */
+  refreshSeconds: number
 }): BarFreshness {
   const { availableAt, now, live } = input
   if (!live || !availableAt) return { ageSeconds: null, late: false }
   const at = Date.parse(availableAt)
   if (!Number.isFinite(at)) return { ageSeconds: null, late: false }
   const ageSeconds = Math.max(0, Math.floor((now.getTime() - at) / 1000))
-  return { ageSeconds, late: ageSeconds > BAR_LATE_SECONDS }
+  return { ageSeconds, late: ageSeconds > barLateAfter(input.refreshSeconds) }
 }

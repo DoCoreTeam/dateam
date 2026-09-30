@@ -14,14 +14,12 @@ import LiveRefresh from './LiveRefresh'
 import SignalPanel from './SignalPanel'
 import AccuracyPanel from './AccuracyPanel'
 import LineagePanel from './LineagePanel'
-import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
 import { getRequestUser } from '@/lib/supabase/server'
 import { loadOpenManualEntry } from '@/lib/trading/position/manual-entry-store'
 import { pickNowCall, planForCall } from '@/lib/trading/chart/series'
-import EntryPanel from './EntryPanel'
-import AccountPanel from './AccountPanel'
+import HoldingPanel from './HoldingPanel'
 import { contractHeadline } from '@/lib/trading/overview-labels'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
 import { kstTodayKey } from '@/lib/datetime/kst'
@@ -121,23 +119,22 @@ export default async function TradingPage() {
           emitProgress={overview.emitProgress}
         />
         {/*
-          **내가 적은 것이 증권사 기록보다 위다.** 지금 들고 있는 것을 보려고 온 사람이
-          먼저 만나는 값이고, 아래 「포지션과 손익」은 증권사가 준 체결이라 뜻이 다르다
-          (사용자 지시 2026-09-30 「들어갔으면 체크하게 해줘 얼마에 들어갔는지 확인하고」)
+          **들고 있는 것을 묻는 칸은 하나다.** 내가 적은 것 · 증권사가 준 체결 ·
+          증권사 계좌 셋은 같은 질문에 답하므로 카드 한 장 안에 둔다
+          (사용자 지시 2026-09-30 「들어갔으면 체크하게 해줘 얼마에 들어갔는지 확인하고
+          말이야 계좌를 직접 볼 수 있으면 그것도 하고」).
+          내가 적은 것이 맨 위다 — 증권사 계좌가 막혀 있어도 그 줄은 늘 산다.
         */}
-        <EntryPanel
-          open={openEntry}
-          nowPrice={overview.lastPrice?.price ?? null}
-          multiplier={overview.accuracy.multiplier}
-          suggested={suggested}
+        <HoldingPanel
+          entry={{
+            open: openEntry,
+            nowPrice: overview.lastPrice?.price ?? null,
+            multiplier: overview.accuracy.multiplier,
+            suggested,
+          }}
+          holding={overview.holding}
+          dayPnl={overview.dayPnl}
         />
-        <PositionPanel holding={overview.holding} dayPnl={overview.dayPnl} />
-        {/*
-          **증권사 계좌는 눌러야 읽는다.** 그릴 때마다 부르면 탭을 열어 두는 것만으로
-          호출이 계속 나가고 매분 도는 수집과 같은 초당 제한에 함께 걸린다
-          (사용자 지시 2026-09-30 「계좌를 직접 볼 수 있으면 그것도 하고」)
-        */}
-        <AccountPanel />
         <NotifyPanel notify={overview.notify} position={overview.position} />
       </div>
     </>

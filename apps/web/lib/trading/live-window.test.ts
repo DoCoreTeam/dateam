@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine, barFreshness, BAR_LATE_SECONDS } from './live-window.ts'
+import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine, barFreshness, barLateAfter } from './live-window.ts'
 import { seoulClockText, UNKNOWN_PRICE_TEXT } from './position-labels.ts'
 import { TRADING_APP_DIR } from '../policy/app-dirs.ts'
 
@@ -121,11 +121,17 @@ test('도착 시각으로 재면 정상 범위가 0에서 60초다', () => {
   // 실측 2026-09-30: 13:26봉이 13:27:04 에 저장됐다
   const arrived = '2026-09-30T04:27:04.000Z'
   const at = (plusSec: number) =>
-    barFreshness({ availableAt: arrived, now: new Date(Date.parse(arrived) + plusSec * 1000), live: true })
+    barFreshness({
+      availableAt: arrived,
+      now: new Date(Date.parse(arrived) + plusSec * 1000),
+      live: true,
+      refreshSeconds: 30,
+    })
   assert.deepEqual(at(0), { ageSeconds: 0, late: false })
   assert.deepEqual(at(59), { ageSeconds: 59, late: false })
-  assert.equal(at(BAR_LATE_SECONDS).late, false)
-  assert.equal(at(BAR_LATE_SECONDS + 1).late, true)
+  const threshold = barLateAfter(30)
+  assert.equal(at(threshold).late, false)
+  assert.equal(at(threshold + 1).late, true)
 })
 
 test('봉 시작 시각으로 재던 옛 셈법은 정상일 때도 60초를 넘겼다', () => {
@@ -135,7 +141,7 @@ test('봉 시작 시각으로 재던 옛 셈법은 정상일 때도 60초를 넘
   const oldWay = Math.floor((now.getTime() - started) / 1000)
   assert.equal(oldWay, 133, '옛 셈법이 133초를 냈다')
   // 같은 순간을 도착 시각(01:23:04)으로 재면 69초다 — 아직 늦은 것이 아니다
-  const f = barFreshness({ availableAt: '2026-09-30T04:23:04.000Z', now, live: true })
+  const f = barFreshness({ availableAt: '2026-09-30T04:23:04.000Z', now, live: true, refreshSeconds: 30 })
   assert.equal(f.ageSeconds, 69)
   assert.equal(f.late, false)
 })
@@ -143,12 +149,34 @@ test('봉 시작 시각으로 재던 옛 셈법은 정상일 때도 60초를 넘
 test('장이 닫혀 있거나 값이 없으면 안 잰다 — 모르는 것을 고장이라 하지 않는다', () => {
   const now = new Date('2026-09-30T04:27:40.000Z')
   for (const input of [
-    { availableAt: '2026-09-30T04:27:04.000Z', now, live: false },
-    { availableAt: null, now, live: true },
-    { availableAt: 'broken', now, live: true },
+    { availableAt: '2026-09-30T04:27:04.000Z', now, live: false, refreshSeconds: 30 },
+    { availableAt: null, now, live: true, refreshSeconds: 30 },
+    { availableAt: 'broken', now, live: true, refreshSeconds: 30 },
   ]) {
     const f = barFreshness(input)
     assert.equal(f.ageSeconds, null, JSON.stringify(input))
     assert.equal(f.late, false)
   }
+})
+
+test('문턱이 다시 읽는 간격을 탄다 — 정상인 상태가 고장으로 안 읽히게', () => {
+  /*
+    실측 2026-09-30 종합 감사: 다시 읽는 간격이 30초인 화면에 86초가 떠 있었다.
+    나이는 「마지막으로 읽어 온 봉이 도착한 지 몇 초」라, 다음 봉이 생기고 화면이 그것을
+    볼 때까지 `60 + 간격` 까지 정상으로 올라간다. 고정 90초로 두면 4초 차이로 거짓 경보다.
+  */
+  assert.equal(barLateAfter(30), 120)
+  assert.equal(barLateAfter(10), 100)
+  // 간격을 모르면 넉넉한 쪽으로 — 거짓 경보가 놓친 경보보다 나쁘다
+  assert.equal(barLateAfter(0), 120)
+  assert.equal(barLateAfter(Number.NaN), 120)
+
+  const arrived = '2026-09-30T04:27:04.000Z'
+  const at86 = barFreshness({
+    availableAt: arrived,
+    now: new Date(Date.parse(arrived) + 86_000),
+    live: true,
+    refreshSeconds: 30,
+  })
+  assert.equal(at86.late, false, '정상인 86초를 늦었다고 말한다')
 })

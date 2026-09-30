@@ -9,7 +9,7 @@
  * 판단도 계획도 여기서 안 한다(그것은 `entry-window.ts` 와 `order-card.ts` 몫이다).
  */
 
-import { seoulClockText, UNKNOWN_PRICE_TEXT } from '../position-labels.ts'
+import { seoulClockText } from '../position-labels.ts'
 import { formatIndexPrice } from '../signal-labels.ts'
 
 /** 이 자리가 쓰는 말. 화면 파일 안에 두지 않는다 */
@@ -87,6 +87,3 @@ export function gapFromNow(nowPrice: number | null, target: number | null): stri
   if (Math.abs(gap) < 0.005) return '지금 가격과 같습니다'
   return `지금보다 ${Math.abs(gap).toFixed(2)}점 ${gap > 0 ? '위' : '아래'}`
 }
-
-/** 값이 아예 없는 자리에 쓸 글자. 표에서 자리가 안 흔들리게 한 곳에서 쓴다 */
-export const NOW_PRICE_UNKNOWN = UNKNOWN_PRICE_TEXT

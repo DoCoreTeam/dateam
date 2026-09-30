@@ -8,7 +8,7 @@
 
 import { NOT_MEASURED } from '@/lib/terms'
 import { DIRECTION_LABEL } from '@/lib/trading/signal-labels'
-import { wonText, priceText, seoulTimeText, isRiskyUnknown } from '@/lib/trading/position-labels'
+import { wonText, priceText, seoulTimeText, isRiskyUnknown, HOLDING_PANEL_LABEL } from '@/lib/trading/position-labels'
 import type { HoldingRow, DayPnlRow } from '@/lib/trading/overview-shape'
 
 const ROW: React.CSSProperties = {
@@ -21,10 +21,11 @@ export default function PositionPanel({
   holding, dayPnl,
 }: { holding: HoldingRow | null; dayPnl: DayPnlRow }) {
   return (
-    <section className="card">
-      <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)', margin: 0, marginBottom: 'var(--space-2)' }}>
-        포지션과 손익
-      </h2>
+    <div>
+      {/* 카드는 위(`HoldingPanel`)가 한 장만 연다 — 들고 있는 것을 묻는 칸이 셋으로 갈리면 안 된다 */}
+      <h3 style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)', margin: 0, marginBottom: 'var(--space-2)' }}>
+        {HOLDING_PANEL_LABEL.fromBroker}
+      </h3>
 
       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', margin: 0, marginBottom: 'var(--space-3)' }}>
         {holding
@@ -85,6 +86,6 @@ export default function PositionPanel({
       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: 0, marginTop: 'var(--space-3)' }}>
         실현 손익은 닫은 거래만 셉니다. 들고 있는 것의 평가액은 섞지 않습니다
       </p>
-    </section>
+    </div>
   )
 }

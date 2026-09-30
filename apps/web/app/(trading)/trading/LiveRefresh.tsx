@@ -119,7 +119,13 @@ export default function LiveRefresh({ everySeconds, lastBarAt, lastBarAvailableA
         정상일 때도 60초 밑으로 안 내려간다 — 늘 늦어 보이는 숫자는 고장 신호가 못 된다.
         장이 닫혀 있으면 봉이 안 오는 것이 정상이라 아예 안 센다.
       */
-      const fresh = barFreshness({ availableAt: lastBarAvailableAt, now, live: w.live })
+      const fresh = barFreshness({
+        availableAt: lastBarAvailableAt,
+        now,
+        live: w.live,
+        // 문턱이 이 간격을 탄다 — 간격이 길면 정상 나이도 그만큼 길다
+        refreshSeconds: everySeconds,
+      })
       setBarAgeSec(fresh.ageSeconds)
       setBarLate(fresh.late)
       // 멈춘 동안에는 남은 시간을 안 센다 — 세고 있으면 곧 뭔가 온다는 뜻이 된다

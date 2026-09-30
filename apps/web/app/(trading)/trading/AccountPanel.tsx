@@ -23,6 +23,7 @@ import {
   ACCOUNT_VIEW_LABEL,
   type AccountMoneyRow, type AccountPositionRow,
 } from '@/lib/trading/broker/account-view'
+import { readBrokerAccount } from './actions'
 import { DIRECTION_LABEL, formatIndexPrice } from '@/lib/trading/signal-labels'
 import { wonText, UNKNOWN_TEXT } from '@/lib/trading/position-labels'
 import styles from './AccountPanel.module.css'
@@ -42,16 +43,19 @@ export default function AccountPanel() {
     setFailed(null)
     start(async () => {
       try {
-        const res = await fetch('/api/trading/account', { cache: 'no-store' })
-        const body = await res.json()
-        if (!res.ok || !body.ok) {
+        /*
+          **창구를 새로 안 연다.** 트레이딩 API 라우트는 크론 둘뿐이고 셋째를 열면
+          소유자 확인이 흩어진다 — 서버 액션이 그 확인을 안에서 한다
+        */
+        const r = await readBrokerAccount()
+        if (!r.ok) {
           setLoaded(null)
-          setFailed({ why: body.why ?? '못 읽었습니다', how: body.how ?? '', code: body.code ?? null })
+          setFailed({ why: r.why, how: r.how, code: r.code })
           return
         }
-        setLoaded({ money: body.money ?? [], positions: body.positions ?? [], partial: body.partial ?? null })
+        setLoaded({ money: [...r.money], positions: [...r.positions], partial: r.partial })
       } catch {
-        // 창구에 못 닿은 것과 증권사가 거절한 것은 다르다. 섞어 적지 않는다
+        // 서버에 못 닿은 것과 증권사가 거절한 것은 다르다. 섞어 적지 않는다
         setLoaded(null)
         setFailed({ why: '서버에 닿지 못했습니다', how: '연결을 확인하고 다시 눌러 주세요', code: null })
       }
@@ -59,9 +63,9 @@ export default function AccountPanel() {
   }
 
   return (
-    <section className={`card ${styles.panel}`}>
+    <div className={styles.panel}>
       <div className={styles.head}>
-        <h2 className={styles.title}>{ACCOUNT_VIEW_LABEL.title}</h2>
+        <h3 className={styles.title}>{ACCOUNT_VIEW_LABEL.title}</h3>
         <span className={styles.note}>{ACCOUNT_VIEW_LABEL.note}</span>
         <NbButton onClick={read} disabled={pending}>
           <Landmark size={14} /> {pending ? ACCOUNT_VIEW_LABEL.reading : ACCOUNT_VIEW_LABEL.read}
@@ -123,6 +127,6 @@ export default function AccountPanel() {
             )}
         </>
       )}
-    </section>
+    </div>
   )
 }

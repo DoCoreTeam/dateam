@@ -37,26 +37,14 @@ export function formatProbability(value: number | null): string {
   return `${(value * 100).toFixed(0)}%`
 }
 
-/**
- * 주문 계획이 쓰는 말 — **화면 파일 안에 두지 않는다**
- *
- * 사용자 지적 2026-09-29: 「얼마동안 이게 유지가 될지 얼마에 들어갔다가 얼마에 나와야
- * 하는지 이런것도 알려주게 되어 있지? 요렇게 되어 있으니 내가 지금 주문을 어떻게 해야
- * 하는지 모르겠어」. 화면에는 방향과 점수만 있었다.
- */
-export const PLAN_LABEL = {
-  reference: '진입 기준가',
-  chase: '진입 한계가',
-  stop: '손절가',
-  target: '목표가',
-  /**
-   * **시각이지 길이가 아니다** (사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」).
-   * 「진입 유효 10분」은 언제부터 10분인지 읽는 사람이 판단 시각에 더해야 안다.
-   */
-  entryBy: '진입 마감',
-  exitAt: '나올 시각',
-  sessionExit: '당일 청산',
-} as const
+/*
+  **`PLAN_LABEL` 은 여기서 없앴다.**
+
+  「진입 기준가·진입 한계가·손절가·목표가」는 값 이름이었고, 값 이름만으로는 무엇을
+  하라는 것인지 안 읽혔다 (사용자 지시 2026-09-30 「젤 명확한게 얼마에 사고 얼마에
+  팔아라 (…) 이게 핵심이야」). 지금은 `chart/order-card.ts` 가 같은 값을 말로 바꾼다 —
+  「1084.22 에 팝니다」처럼. 이름표를 두 벌 두면 화면마다 다른 말이 된다.
+*/
 
 /** 기록에 남은 계획인가 지금 셈한 예고인가. 둘의 무게가 다르다 */
 export const PLAN_SOURCE_LABEL: Record<'signal' | 'preview', string> = {
@@ -64,21 +52,13 @@ export const PLAN_SOURCE_LABEL: Record<'signal' | 'preview', string> = {
   preview: '이 판단이 신호가 된다면 나갈 값입니다',
 }
 
-/** 분 한 줄. 없거나 0 이하면 없다고 말한다 — 「0분」은 즉시 청산이라는 뜻이 된다 */
-export function formatMinutes(value: number | null): string {
-  if (value === null || !Number.isFinite(value) || value <= 0) return '값 없음'
-  return `${Math.round(value)}분`
-}
+/*
+  **`formatMinutes` 와 `formatDistance` 도 없앴다.**
 
-/**
- * 손절까지·목표까지 몇 점인가. **거리를 같이 말한다** —
- * 가격만 있으면 그것이 가까운 값인지 먼 값인지 읽는 사람이 빼기를 해야 한다.
- */
-export function formatDistance(from: number | null, to: number | null): string {
-  if (from === null || to === null || !Number.isFinite(from) || !Number.isFinite(to)) return ''
-  const gap = Math.abs(to - from)
-  return `${gap.toFixed(2)}점`
-}
+  길이(「15분」)와 점수 차(「1.47점」)를 적던 자리는 이제 각각 시각(「오후 02:11 쯤」)과
+  돈(「+73,500원」)을 적는다 — 둘 다 `chart/order-card.ts` 가 만든다
+  (사용자 지시 2026-09-30 「몇 점 이게 필요한것도 아닌데」).
+*/
 
 /**
  * 마감까지 남은 시간 한 줄. **지났으면 지났다고 말한다** —

@@ -36,9 +36,6 @@ const AUTH_MARKERS = [
   // 도메인별 게이트
   'withCrmApi', 'resolveCrmAccess', 'requireCrmMember', 'requireCiMember', 'requireRfp',
   'requireWorkspace', 'orgScope',
-  // 트레이딩 소유자 게이트. `(trading)` 레이아웃과 **같은 함수**를 쓴다 —
-  // 제 나름의 확인을 만들면 두 판정이 갈리고 「화면은 열리는데 창구가 403」이 된다
-  'tradingAccess',
   // API 키
   'authenticatePublicApi', 'requireAdminKey', 'publicApiAuth',
   // API 키를 안에서 부르는 감싸개 — 라우트에는 이 이름만 보인다.

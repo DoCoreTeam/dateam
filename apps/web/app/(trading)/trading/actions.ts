@@ -33,6 +33,11 @@ import {
   saveSubscription, deleteSubscription, ensureVapidKeys, pushKeyStatus,
 } from '@/lib/trading/notify/push-store'
 import { checkEntry } from '@/lib/trading/position/manual-entry'
+import { createAccountClient } from '@/lib/trading/broker/account'
+import {
+  moneyRows, positionRows, accountFailureView,
+  type AccountMoneyRow, type AccountPositionRow,
+} from '@/lib/trading/broker/account-view'
 import { insertManualEntry, closeManualEntry } from '@/lib/trading/position/manual-entry-store'
 
 export interface AckActionResult {
@@ -41,6 +46,20 @@ export interface AckActionResult {
 }
 
 const DENIED: AckActionResult = { ok: false, userMessage: '이 화면의 소유자만 확인할 수 있습니다' }
+
+/** 계좌 읽기 결과. 실패해도 **무엇을 하면 되는지**까지 준다 */
+export type AccountReadResult =
+  | {
+    ok: true
+    money: readonly AccountMoneyRow[]
+    positions: readonly AccountPositionRow[]
+    partial: { why: string; how: string } | null
+  }
+  | { ok: false; why: string; how: string; code: string | null }
+
+/** 계좌 읽기 최소 간격. 한 판에서만 세는 턱이다 */
+const ACCOUNT_READ_MIN_INTERVAL_MS = 3_000
+let lastAccountReadAt = 0
 
 function seoulToday(now: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now)
@@ -528,4 +547,92 @@ export async function markExited(input: { id: string; price: number }): Promise<
 /** 0 이하는 값이 아니다. 모르는 것을 0 으로 적으면 손절가 0 이 된다 */
 function positiveOrNull(value: number | null): number | null {
   return value !== null && Number.isFinite(value) && value > 0 ? value : null
+}
+
+/* ── 증권사 계좌 읽기 (사용자 지시 2026-09-30 「계좌를 직접 볼 수 있으면 그것도 하고」) ── */
+
+/**
+ * 지금 한 번 계좌를 읽는다.
+ *
+ * **창구를 새로 안 연다.** 트레이딩 API 라우트는 크론 둘뿐이고, 셋째를 열면
+ * 소유자 확인이 흩어진다 — 그 규칙은 세 곳이 함께 지킨다
+ * (`jobs/watch.test.ts` · `bars/last-price.test.ts` · `validation/pipeline-core.test.ts`).
+ *
+ * **조회만 부른다.** 조회와 주문은 같은 경로에 살고 끝 글자로만 갈리므로
+ * `AccountClient` 의 조회 메서드 밖으로 안 나간다.
+ *
+ * **증권사 원문을 안 돌려준다.** 사유 표식에서 코드만 떼어 우리 표로 뜻을 찾는다 —
+ * `msg1` 에는 계좌나 내부 구조가 섞여 나올 수 있다(S3).
+ */
+export async function readBrokerAccount(): Promise<AccountReadResult> {
+  if (!(await tradingAccess()).allowed) {
+    return { ok: false, why: '이 화면의 소유자만 볼 수 있습니다', how: '', code: null }
+  }
+
+  /*
+    **연타는 막는다.** 한 판(instance)에서만 세므로 정확한 한도가 아니라
+    실수로 스무 번 누르는 것을 막는 턱이다. 매분 도는 수집도 같은 계좌를 묻고 있어
+    초당 제한을 함께 쓴다.
+  */
+  const now = Date.now()
+  if (now - lastAccountReadAt < ACCOUNT_READ_MIN_INTERVAL_MS) {
+    return { ok: false, why: '너무 자주 눌렀습니다', how: '잠시 뒤 다시 눌러 주세요', code: null }
+  }
+  lastAccountReadAt = now
+
+  try {
+    const today = seoulToday(new Date())
+    const { values } = await loadTradingSettings(today)
+    const env: ArmEnv = String(values.kis_env ?? 'paper') === 'real' ? 'real' : 'paper'
+
+    const acct = await loadAccountRef(env, String(values.kis_account_product_code ?? '03'))
+    if (!acct) {
+      return {
+        ok: false,
+        why: '증권사 계좌번호가 아직 없습니다',
+        how: '트레이딩 설정의 증권사 자격증명에서 선물옵션 계좌번호를 넣어 주세요',
+        code: null,
+      }
+    }
+    const credential = await loadAppCredential(env)
+    if (!credential) {
+      return {
+        ok: false,
+        why: '증권사 앱 키가 아직 없습니다',
+        how: '트레이딩 설정의 증권사 자격증명을 먼저 채워 주세요',
+        code: null,
+      }
+    }
+
+    const token = await getAccessToken({
+      env,
+      refreshMarginMinutes: Number(values.kis_token_refresh_margin_minutes) || 30,
+      runId: 'account-view',
+      now: new Date(),
+    })
+    if (!token.ok) return { ok: false, ...accountFailureView(token.reason) }
+
+    const client = createAccountClient({
+      env,
+      auth: { accessToken: token.accessToken, appKey: credential.appKey, appSecret: credential.appSecret },
+      acct,
+      minIntervalMs: Number(values.kis_min_interval_ms) || 200,
+      isNight: isNightHour(new Date()),
+    })
+
+    const [deposit, positions] = await Promise.all([client.deposit(), client.positions()])
+    // 둘 다 실패면 같은 원인이다
+    if (!deposit.ok && !positions.ok) return { ok: false, ...accountFailureView(deposit.reason) }
+
+    /* 한쪽만 실패했으면 그 사실을 말한다 — 빈 목록을 「없다」로 읽으면 안 된다 */
+    const halfFailed = !deposit.ok ? deposit.reason : !positions.ok ? positions.reason : null
+    return {
+      ok: true,
+      money: moneyRows(deposit.ok ? deposit.value : null),
+      positions: positions.ok ? positionRows(positions.value) : [],
+      partial: halfFailed === null ? null : accountFailureView(halfFailed),
+    }
+  } catch (error) {
+    return { ok: false, ...accountFailureView(error instanceof Error ? error.message : '') }
+  }
 }

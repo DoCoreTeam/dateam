@@ -53,3 +53,15 @@ export function seoulClockText(at: Date): string {
 export function isRiskyUnknown(stopPrice: number | null): boolean {
   return stopPrice === null
 }
+
+/**
+ * 「지금 들고 있는 것」 한 카드가 쓰는 말 — **화면 파일 안에 두지 않는다**
+ *
+ * 세 블록의 뜻이 서로 다르다. 내가 적은 것과 증권사가 준 것을 섞어 읽으면
+ * 대조가 무의미해지므로, 소제목이 그 차이를 말한다.
+ */
+export const HOLDING_PANEL_LABEL = {
+  title: '지금 들고 있는 것',
+  /** 증권사가 준 체결에서 접은 우리 기록 */
+  fromBroker: '증권사가 준 체결',
+} as const

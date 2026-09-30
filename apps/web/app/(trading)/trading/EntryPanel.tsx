@@ -104,9 +104,9 @@ export default function EntryPanel({ open, nowPrice, multiplier, suggested }: En
   }
 
   return (
-    <section className={`card ${styles.panel}`}>
+    <div className={styles.panel}>
       <div className={styles.head}>
-        <h2 className={styles.title}>{MANUAL_ENTRY_LABEL.title}</h2>
+        <h3 className={styles.title}>{MANUAL_ENTRY_LABEL.title}</h3>
         {/* 이것이 무엇인지 — 증권사 체결과 섞이면 대조가 늘 어긋난다 */}
         <span className={styles.note}>{MANUAL_ENTRY_LABEL.note}</span>
       </div>
@@ -192,6 +192,6 @@ export default function EntryPanel({ open, nowPrice, multiplier, suggested }: En
         )}
 
       {message && <p role="status" className={styles.message}>{message}</p>}
-    </section>
+    </div>
   )
 }
