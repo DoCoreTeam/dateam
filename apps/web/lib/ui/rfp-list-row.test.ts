@@ -146,3 +146,37 @@ test('한 번에 빼기는 바뀐 것만 화면에서 뺀다', () => {
   assert.match(body, /changed\.has\(h\.id\)/, '바뀐 것만 빼지 않는다')
   assert.match(body, /body\.failed/, '못 바꾼 수를 안 말한다')
 })
+
+// 뺀 공고를 다시 보고 되돌린다 — I06
+
+test('뺀 공고를 보는 길이 있다', () => {
+  // 되돌릴 수 있다고 말해 놓고 볼 길이 없으면 그 약속은 지켜지지 않는다.
+  // 저장소는 같은 실수를 이미 했다 — 할 일 확인창이 「30일 안에 되돌릴 수 있어요」라고
+  // 약속하는데 휴지통 보기가 없었다(v0.7.705)
+  const src = live('components/rfp/RadarRules.tsx')
+  assert.match(src, /RFP_RADAR\.hitShowDismissed/, '뺀 공고를 보는 단추가 없다')
+  assert.match(src, /RFP_RADAR\.hitShowActive/, '돌아오는 길이 없다')
+  assert.match(src, /status=\$\{dismissed \? 'dismissed' : 'new'\}/, '상태를 골라 안 받는다')
+})
+
+test('뺀 공고에서 되돌릴 수 있다', () => {
+  const src = live('components/rfp/RadarRules.tsx')
+  assert.match(src, /RFP_RADAR\.hitRestore/, '되돌리기 단추가 없다')
+  const at = src.indexOf('const restore')
+  const body = src.slice(at, src.indexOf('}, [])', at))
+  assert.match(body, /status: 'new'/, '되돌리기가 상태를 원래대로 안 바꾼다')
+})
+
+test('보는 것에 따라 줄 단추가 갈린다', () => {
+  // 뺀 공고에 「케이스로 만들기」가 있으면 뺀 것을 케이스로 만들 수 있게 되어
+  // 「뺐다」와 「담았다」가 동시에 참이 된다
+  const src = live('components/rfp/RadarRules.tsx')
+  assert.match(src, /\{!showDismissed && \([\s\S]{0,200}?RFP_RADAR\.openCase/, '뺀 공고에도 케이스로 만들기가 뜬다')
+  assert.match(src, /showDismissed \? \([\s\S]{0,400}?void restore\(h\.id\)/, '뺀 공고에 되돌리기가 안 뜬다')
+})
+
+test('뺀 공고가 비었을 때 무엇을 하면 되는지 말한다', () => {
+  const src = live('components/rfp/RadarRules.tsx')
+  assert.match(src, /RFP_RADAR\.hitDismissedEmpty/, '빈 상태 문구가 없다')
+  assert.match(src, /RFP_RADAR\.hitDismissedEmptyDesc/, '무엇을 하면 되는지 안 말한다')
+})

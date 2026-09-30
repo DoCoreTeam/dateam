@@ -128,3 +128,11 @@ test('한 번에 바꾸기 창구도 표 정책에 판정을 맡긴다', () => {
 function noImports(src: string): string {
   return src.replace(/^[ \t]*import\s[\s\S]*?from\s+['"][^'"]+['"];?[ \t]*$/gm, '')
 }
+
+test('목록 창구가 상태를 골라 받고 모르는 값은 기본값으로 떨어진다', () => {
+  const src = noImports(stripComments(readFileSync(new URL('app/api/rfp/radar/route.ts', WEB), 'utf8')))
+  assert.match(src, /listStatusOf\s*\(/, '상태를 골라 안 받는다')
+  // 고정값으로 두면 뺀 것을 볼 길이 없다
+  assert.doesNotMatch(src, /\.eq\('status', 'new'\)/, '상태가 고정값이다')
+  assert.match(src, /\.eq\('status', status\)/, '고른 상태로 안 거른다')
+})

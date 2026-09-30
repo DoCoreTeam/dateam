@@ -536,6 +536,11 @@ export const RFP_RADAR = {
   hitDismissSelected: '고른 것 빼기',
   /** 고른 수와 바뀐 수가 다를 수 있다. 다르면 그 수를 말한다 */
   hitBulkPartial: '건은 바꾸지 못했어요',
+  hitShowDismissed: '뺀 공고 보기',
+  hitShowActive: '찾은 공고로 돌아가기',
+  hitDismissedTitle: '뺀 공고',
+  hitDismissedEmpty: '아직 뺀 공고가 없어요',
+  hitDismissedEmptyDesc: '목록에서 「빼기」를 누르면 여기로 옵니다. 여기서 언제든 되돌릴 수 있어요',
   siteRulesOnly: 'AI 를 못 써서 제목만 가져왔습니다',
   siteTitlesOnly: '목록에서 상세 주소를 못 얻어 제목만 가져왔습니다',
   adoptTitle: '케이스로 만들기',

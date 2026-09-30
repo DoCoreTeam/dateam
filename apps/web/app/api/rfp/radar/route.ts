@@ -24,6 +24,7 @@ import { sweep, type NoticeCandidate } from '@/lib/rfp/radar/sweep'
 import { collectNotices } from '@/lib/rfp/radar/collect'
 import { collectFromSite, type SiteRow } from '@/lib/rfp/radar/collect-sites'
 import { attachNotices } from '@/lib/rfp/radar/hit-notice'
+import { listStatusOf } from '@/lib/rfp/radar/hit-status'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,10 +41,16 @@ export async function GET(req: NextRequest) {
   if (gate.error) return gate.error
 
   const db = await createClient()
+  /*
+    볼 상태를 골라 받는다. 모르는 값이면 기본값(아직 정하지 않은 것)으로 떨어진다 —
+    주소창에 아무 글자나 넣었다고 빈 목록을 보여 주면 사용자는 「공고가 없다」로 읽는다.
+    뺀 것을 다시 보려면 이 갈래가 있어야 한다
+  */
+  const status = listStatusOf(new URL(req.url).searchParams.get('status'))
   const { data, error } = await (db as any)
     .from('rfp_radar_hits')
     .select('id, rule_id, source_id, case_id, pre_score, reason, status, created_at')
-    .eq('status', 'new')
+    .eq('status', status)
     .order('pre_score', { ascending: false })
     .limit(50)
 

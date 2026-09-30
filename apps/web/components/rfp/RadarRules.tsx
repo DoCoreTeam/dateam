@@ -112,6 +112,45 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
    */
   const [dismissing, setDismissing] = useState<string | null>(null)
 
+  /** 지금 보는 것이 「뺀 공고」인가. 뺀 것을 되돌리려면 먼저 볼 수 있어야 한다 */
+  const [showDismissed, setShowDismissed] = useState(false)
+
+  /** 상태를 골라 목록을 다시 받는다 */
+  const load = useCallback(async (dismissed: boolean) => {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/rfp/radar?status=${dismissed ? 'dismissed' : 'new'}`, { cache: 'no-store' })
+      if (!res.ok) { setError(RFP_COMMON.error); return }
+      setHits((await res.json()).hits ?? [])
+      setShowDismissed(dismissed)
+      setPicked(new Set())
+    } catch {
+      setError(RFP_COMMON.error)
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  /** 뺀 것을 되돌린다 — 다시 「찾은 공고」로 간다 */
+  const restore = useCallback(async (id: string) => {
+    setDismissing(id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/rfp/radar/hits/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'new' }),
+      })
+      if (!res.ok) { setError(RFP_RADAR.hitDismissFailed); return }
+      setHits((prev) => prev.filter((h) => h.id !== id))
+    } catch {
+      setError(RFP_RADAR.hitDismissFailed)
+    } finally {
+      setDismissing(null)
+    }
+  }, [])
+
   /** 골라 둔 적중. 화면을 다시 그려도 고른 것이 안 풀리게 id 로 든다 */
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
 
@@ -418,8 +457,14 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
       <section className="card">
         <div className={styles.sectionHead}>
           <div className={styles.between}>
-            <span className={styles.sectionTitle}>{RFP_RADAR.hits}</span>
+            <span className={styles.sectionTitle}>
+              {showDismissed ? RFP_RADAR.hitDismissedTitle : RFP_RADAR.hits}
+            </span>
             {hits.length > 0 && <NbBadge status="note">{hits.length}</NbBadge>}
+            {/* 뺀 것을 되돌리려면 먼저 볼 수 있어야 한다 */}
+            <NbButton variant="ghost" onClick={() => void load(!showDismissed)} disabled={busy}>
+              {showDismissed ? RFP_RADAR.hitShowActive : RFP_RADAR.hitShowDismissed}
+            </NbButton>
           </div>
           {/* 고른 것이 있을 때만 보인다 — 늘 보이면 안 쓰는 단추가 자리를 차지한다 */}
           {picked.size > 0 && (
@@ -436,7 +481,10 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
         </div>
 
         {hits.length === 0 ? (
-          <EmptyState title={RFP_RADAR.emptyTitle} description={RFP_RADAR.emptyDesc} />
+          <EmptyState
+            title={showDismissed ? RFP_RADAR.hitDismissedEmpty : RFP_RADAR.emptyTitle}
+            description={showDismissed ? RFP_RADAR.hitDismissedEmptyDesc : RFP_RADAR.emptyDesc}
+          />
         ) : (
           <div className={styles.ruleList}>
             {/* 사전 점수 높은 것부터 — 사용자는 위에서 몇 개만 본다 */}
@@ -463,22 +511,34 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
                 <span className={styles.ruleActions}>
                   <NbBadge status="doing">{h.pre_score ?? 0}</NbBadge>
                   {/* 공고에 붙은 첨부를 그대로 받아 분석까지 건다 — 사람이 다시 내려받을 이유가 없다 */}
-                  <NbButton variant="secondary" onClick={() => void adopt(h)} disabled={busy}>
-                    {RFP_RADAR.openCase}
-                  </NbButton>
+                  {!showDismissed && (
+                    <NbButton variant="secondary" onClick={() => void adopt(h)} disabled={busy}>
+                      {RFP_RADAR.openCase}
+                    </NbButton>
+                  )}
                   {/*
                     빼기는 되돌릴 수 있다고 말해야 누를 수 있다. 못 되돌리는 줄 알면
                     아무도 안 누르고, 그러면 목록은 영영 안 줄어든다
                   */}
-                  <NbButton
-                    variant="ghost"
-                    onClick={() => void dismiss(h.id)}
-                    disabled={dismissing === h.id}
-                    title={RFP_RADAR.hitDismissHint}
-                    aria-label={`${RFP_RADAR.hitDismiss} — ${RFP_RADAR.hitDismissHint}`}
-                  >
-                    <X size={14} /> {dismissing === h.id ? RFP_RADAR.hitDismissing : RFP_RADAR.hitDismiss}
-                  </NbButton>
+                  {showDismissed ? (
+                    <NbButton
+                      variant="secondary"
+                      onClick={() => void restore(h.id)}
+                      disabled={dismissing === h.id}
+                    >
+                      {RFP_RADAR.hitRestore}
+                    </NbButton>
+                  ) : (
+                    <NbButton
+                      variant="ghost"
+                      onClick={() => void dismiss(h.id)}
+                      disabled={dismissing === h.id}
+                      title={RFP_RADAR.hitDismissHint}
+                      aria-label={`${RFP_RADAR.hitDismiss} — ${RFP_RADAR.hitDismissHint}`}
+                    >
+                      <X size={14} /> {dismissing === h.id ? RFP_RADAR.hitDismissing : RFP_RADAR.hitDismiss}
+                    </NbButton>
+                  )}
                 </span>
               </div>
             ))}
