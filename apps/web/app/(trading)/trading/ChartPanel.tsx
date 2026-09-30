@@ -24,6 +24,7 @@ import {
   buildDisplayBars, isForming, isChartTimeframe,
   CHART_TIMEFRAMES, DEFAULT_CHART_TIMEFRAME, type ChartTimeframe, type DisplayBar,
 } from '@/lib/trading/chart/forming'
+import { nowPriceLine, NOW_PRICE_LABEL } from '@/lib/trading/chart/now-price'
 import { liveWindowAt } from '@/lib/trading/live-window'
 import type { CallPlan } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
@@ -239,11 +240,24 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice }: 
    * **시계를 화면이 쥔다.** 서버 시각으로 만들면 형성 봉이 안 움직인다
    */
   const [tick, setTick] = useState(0)
+  /**
+   * 화면의 시계. **첫 렌더에는 null 이다** — 서버가 그린 글자와 달라지면
+   * 하이드레이션이 어긋난다. 마운트한 뒤 1초마다 채워진다.
+   */
+  const [clock, setClock] = useState<Date | null>(null)
   useEffect(() => {
     // 값이 안 바뀌어도 「몇 초 지났나」가 바뀌므로 형성 봉 판정을 다시 한다
-    const id = setInterval(() => setTick((n) => n + 1), 1_000)
+    const beat = (): void => { setTick((n) => n + 1); setClock(new Date()) }
+    beat()
+    const id = setInterval(beat, 1_000)
     return () => clearInterval(id)
   }, [])
+
+  /**
+   * **지금 얼마인가.** 계획 값은 이 값과 견줘야 읽힌다
+   * (사용자 지적 2026-09-30 「어떻게 이용해야 하는건지를 모르겠어」).
+   */
+  const nowPrice = useMemo(() => nowPriceLine(lastPrice, clock), [lastPrice, clock])
   const displayBars = useMemo(() => {
     void tick
     const now = new Date()
@@ -320,6 +334,28 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice }: 
       </div>
 
       <div className={styles.callSide}>
+        {/*
+          **지금 가격이 맨 위다.** 아래 계획 값 전부가 이 값과의 거리로 읽힌다 —
+          이 줄이 없으면 「1084.22 에 팔라」가 지금보다 위인지 아래인지 알 길이 없다
+        */}
+        <div className={styles.nowPrice}>
+          <span className={styles.nowPriceHead}>{NOW_PRICE_LABEL.title}</span>
+          {nowPrice.price
+            ? (
+              <>
+                <strong className={styles.nowPriceValue}>{nowPrice.price}</strong>
+                {nowPrice.at && (
+                  <span className={styles.nowPriceMeta}>
+                    {nowPrice.at}
+                    {nowPrice.age && ` · ${nowPrice.age}`}
+                  </span>
+                )}
+                {/* 멈춘 값은 멈췄다고 말한다 — 안 말하면 오래된 값으로 주문한다 */}
+                {nowPrice.stale && <span className={styles.nowPriceStale}>{NOW_PRICE_LABEL.stale}</span>}
+              </>
+            )
+            : <span className={styles.nowPriceMissing}>{nowPrice.missing}</span>}
+        </div>
         <h2 className={styles.title}>지금 예측</h2>
         {call
           ? (
