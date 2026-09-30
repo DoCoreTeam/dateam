@@ -7,7 +7,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { EXPORT_FONT_FAMILY, EXPORT_FONT_STACK, fontFaceCss, parseFontFaces, pickKoreanFontFaces } from './font-subset.ts'
+import { EXPORT_FONT_FAMILY, EXPORT_FONT_STACK, PUBLIC_CANDIDATES, fontFaceCss, parseFontFaces, pickKoreanFontFaces } from './font-subset.ts'
 
 const CSS = readFileSync(path.join(process.cwd(), 'public/fonts/fonts.css'), 'utf8')
 const FACES = parseFontFaces(CSS, 'Pretendard Variable')
@@ -60,4 +60,39 @@ test('문서에 박는 한 줄에 자형 바이트와 unicode-range 가 둘 다 
 
 test('글꼴 차례 맨 앞이 들고 가는 자형이다 — 시스템 글꼴을 먼저 찾으면 서버에서 또 빈칸이다', () => {
   assert.ok(EXPORT_FONT_STACK.startsWith(EXPORT_FONT_FAMILY), `글꼴 차례가 ${EXPORT_FONT_STACK} 로 시작합니다`)
+})
+
+// ── 배포본에서 자형 자리를 찾아내는가 ────────────────────────────────────────
+// 「찾는다」로 바꾼 이유: cwd 모양으로 갈라 짚으면 못 본 모양 하나에서 없는 경로를 짚고,
+// 그 증상은 이 사고와 똑같이 **프로덕션에서만** 「한글만 빈칸」이다.
+
+test('후보 자리 중 실제로 조각이 있는 곳을 찾아낸다 — 이 기계에서 92개가 열린다', async () => {
+  const { readFile, access } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  // embed-korean-font.ts 는 server-only 라 여기서 못 부른다 — 대신 **그것이 쓰는 목록 자체**를 본다
+  const cwd = process.cwd()
+  const candidates = PUBLIC_CANDIDATES.map((c) => join(cwd, ...c.split('/')))
+  let root = ''
+  for (const c of candidates) {
+    try { await access(join(c, 'fonts', 'fonts.css')); root = c; break } catch { /* 다음 */ }
+  }
+  assert.ok(root, `후보 어디에도 fonts.css 가 없습니다: ${candidates.join(' · ')}`)
+
+  const faces = parseFontFaces(await readFile(join(root, 'fonts', 'fonts.css'), 'utf8'), 'Pretendard Variable')
+  // 목록에 적힌 조각이 **전부 실제로 열려야** 한다 — 하나라도 없으면 그 글자가 빈칸이다
+  const missing: string[] = []
+  for (const f of faces) {
+    try { await access(join(root, f.file)) } catch { missing.push(f.file) }
+  }
+  assert.deepEqual(missing, [], `fonts.css 에 적혔는데 없는 조각: ${missing.join(', ')}`)
+  assert.equal(faces.length, 92, `조각 수가 ${faces.length}개입니다 — 글꼴을 갱신했다면 이 수를 같이 고치세요`)
+})
+
+test('후보 자리는 저장소 안 고정 경로뿐이다 — 밖에서 온 값이 경로에 안 섞인다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(path.join(process.cwd(), 'lib/export/font-subset.ts'), 'utf8')
+  const list = /export const PUBLIC_CANDIDATES = \[([^\]]*)\]/.exec(src)?.[1] ?? ''
+  assert.ok(list, '후보 목록을 못 찾았습니다')
+  // 따옴표로 묶인 글자와 path.join 만 있어야 한다. 변수·인자·환경값이 끼면 경로가 밖에서 정해진다
+  assert.ok(!/process\.env|req|params|searchParams|input|arg/.test(list), `후보에 밖에서 온 값이 섞였습니다: ${list}`)
 })

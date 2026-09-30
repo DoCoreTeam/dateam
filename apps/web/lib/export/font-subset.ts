@@ -19,6 +19,18 @@ export const EXPORT_FONT_FAMILY = "'Pretendard Variable'"
 export const EXPORT_FONT_STACK =
   `${EXPORT_FONT_FAMILY}, -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`
 
+/**
+ * 배포본에서 `public/` 이 있을 수 있는 자리 — 실행 디렉터리 기준 상대 경로.
+ *
+ * 모노레포라 실행 디렉터리가 저장소 루트일 수도, `apps/web` 일 수도, λ 의 `/var/task` 일 수도 있다.
+ * 모양을 보고 고르면 못 본 모양 하나에서 없는 경로를 짚고, 그때 증상은 다시 「한글만 빈칸」이다 —
+ * 이 사고와 똑같이 **프로덕션에서만** 그렇다. 그래서 읽는 쪽이 차례로 열어 보고 되는 자리를 쓴다.
+ *
+ * 전부 저장소 안 고정 문자열이다 — 밖에서 온 값이 경로에 안 섞인다(경로 조작 여지 0).
+ * 읽는 쪽과 가드가 **이 한 목록**을 같이 본다(두 벌이면 한쪽만 고쳐진다).
+ */
+export const PUBLIC_CANDIDATES = ['public', 'apps/web/public']
+
 /** fonts.css 한 줄에서 뽑아낸 조각 하나 — 어느 파일이 어느 글자를 덮는가. */
 export interface FontFace {
   /** public 아래 상대 경로 (예: fonts/pretendard/PretendardVariable.subset.3.woff2) */
