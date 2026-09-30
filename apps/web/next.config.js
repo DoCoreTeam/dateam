@@ -31,6 +31,23 @@ const SERVERLESS_CHROMIUM = [
   '../../node_modules/.pnpm/puppeteer-core@*/node_modules/puppeteer-core/**/*',
 ]
 
+// 한글 자형을 배포본에 싣는 경로 (실측 2026-09-30).
+//
+// @sparticuz/chromium 이 λ 에 푸는 글꼴은 `bin/fonts.tar.br` 를 풀어 보면
+// `Open_Sans/{Regular,Bold,Italic}.ttf` **셋뿐**이다 — 한글 자형이 서버에 하나도 없다.
+// 그래서 내보낸 PDF·이미지에서 숫자와 로마자만 찍히고 한글은 전부 빈칸으로 나갔다.
+// 로컬 macOS 에는 Apple SD Gothic Neo 가 있어 **로컬에서는 100% 정상**이었고,
+// 그 어긋남 때문에 아무도 못 잡았다.
+//
+// 자형을 문서에 data: 로 박아 보내는데(lib/export/embed-korean-font.ts),
+// 그 바이트를 읽으려면 조각 파일이 λ 안에 있어야 한다. public/ 은 CDN 으로만 올라가고
+// 함수 파일 계통에는 안 실리므로 여기서 **명시적으로** 싣는다.
+// 이 줄이 빠지면 글꼴 CSS 가 빈 문자열이 되고 증상은 다시 「한글만 빈칸」이다.
+const KOREAN_FONT = [
+  './public/fonts/fonts.css',
+  './public/fonts/pretendard/*.woff2',
+]
+
 // 한글 문서 파서(WASM) 를 배포본에 싣는 경로.
 //
 // `@rhwp/core` 는 `rhwp_bg.wasm` 을 **파일로 읽는다**(`initSync({module: readFileSync(...)})`).
@@ -144,9 +161,10 @@ const nextConfig = {
   //    심링크 안쪽 의존성(tar-fs·ws·chromium-bidi)은 기본 추적이 **실물 경로로 이미 잡는다**.
   // 가드: lib/ui/deploy-fragile.test.ts ②-b 가 넓은 glob 을 차단한다.
   outputFileTracingIncludes: {
-    '/api/meeting-notes/[id]/export': SERVERLESS_CHROMIUM,
-    '/api/admin/ai-chat/export-pdf': SERVERLESS_CHROMIUM,
-    '/api/admin/ai-chat/analyze-export-pdf': SERVERLESS_CHROMIUM,
+    // 헤드리스로 문서를 그리는 셋 — 크로미움 바이너리와 한글 자형을 **함께** 싣는다
+    '/api/meeting-notes/[id]/export': [...SERVERLESS_CHROMIUM, ...KOREAN_FONT],
+    '/api/admin/ai-chat/export-pdf': [...SERVERLESS_CHROMIUM, ...KOREAN_FONT],
+    '/api/admin/ai-chat/analyze-export-pdf': [...SERVERLESS_CHROMIUM, ...KOREAN_FONT],
     // 한글 문서를 읽는 경로 — RFP 첨부 인입과 프로필 초안
     '/api/rfp/cases/[id]/files': RHWP_WASM,
     '/api/rfp/profile/draft': RHWP_WASM,
