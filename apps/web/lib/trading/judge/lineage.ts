@@ -257,14 +257,21 @@ export function buildLineage(input: LineageInput): Lineage {
   })
 
   add({
+    /*
+      **이름을 화면과 맞춘다.** 화면은 이 칸을 더 이상 「지금 예측」이라 부르지 않는다 —
+      판단은 매분 안 나고 진입 조건이 걸린 분에만 나기 때문이다
+      (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」). 계보가 옛 이름을 쓰면
+      읽는 사람이 화면에서 그 칸을 못 찾는다.
+
+      점수도 안 적는다 — 화면에서 뺀 값을 계보만 적으면 두 자리가 다른 말을 한다
+      (사용자 지시 2026-09-30 「점수를 보여주는게 뭐가 중요해」).
+    */
     actor: 'view',
-    name: '지금 예측',
+    name: '마지막 판단',
     where: 'ChartPanel.tsx',
     referenced: '가장 최근 판단 (신호가 있으면 신호가 이깁니다)',
-    did: '방향과 원점수를 꺼내고, 그 봉으로 진입·손절·목표를 셈함',
-    produced: input.shown
-      ? `${input.shown.direction}${input.shown.prob === null ? '' : ` ${Math.round(input.shown.prob * 100)}%`}`
-      : '화면에 그릴 값이 없습니다',
+    did: '방향을 꺼내고, 그 봉으로 진입·손절·목표를 셈함',
+    produced: input.shown ? input.shown.direction : '화면에 그릴 값이 없습니다',
     detail: input.shown?.plan ?? null,
     tone: input.blocked ? 'waiting' : 'ok',
   })

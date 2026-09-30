@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf, planBaseAt, DEFAULT_WINDOW_BARS, zoomWindow, MIN_WINDOW_BARS } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf, planBaseAt, DEFAULT_WINDOW_BARS, zoomWindow, MIN_WINDOW_BARS, callTitleAt, CALL_TITLE } from './series.ts'
 import { deadlineLeftText } from '../signal-labels.ts'
 import type { PlanParams } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
@@ -908,4 +908,47 @@ test('★ 화면이 휠을 차트 안에서만 가로챈다', () => {
   assert.match(body, /zoomWindow\(/, '줌 셈을 화면이 새로 적는다')
   // 매 이벤트가 아니라 프레임마다 한 번
   assert.match(body, /queueView\(/, '휠 이벤트마다 다시 그린다 — 무거워진다')
+})
+
+/* ── 이 칸이 무엇인가 (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」) ── */
+
+test('★ 유효 시간 안이면 마지막 판단이다', () => {
+  const t = callTitleAt({
+    at: '2026-09-30T04:24:00.000Z',
+    validMinutes: 10,
+    now: new Date('2026-09-30T04:30:00.000Z'),
+  })
+  assert.equal(t.title, CALL_TITLE.fresh)
+  assert.equal(t.stale, false)
+})
+
+test('★ 유효 시간을 넘기면 지난 판단이라고 말한다', () => {
+  const t = callTitleAt({
+    at: '2026-09-30T04:24:00.000Z',
+    validMinutes: 10,
+    now: new Date('2026-09-30T04:34:00.000Z'), // 딱 10분
+  })
+  assert.equal(t.title, CALL_TITLE.stale)
+  assert.equal(t.stale, true)
+})
+
+test('★ 시계나 유효 시간을 모르면 지났다고 말하지 않는다', () => {
+  for (const input of [
+    { at: '2026-09-30T04:24:00.000Z', validMinutes: 10, now: null },
+    { at: '2026-09-30T04:24:00.000Z', validMinutes: 0, now: new Date('2026-10-30T00:00:00.000Z') },
+    { at: 'broken', validMinutes: 10, now: new Date('2026-10-30T00:00:00.000Z') },
+  ]) {
+    const t = callTitleAt(input)
+    assert.equal(t.stale, false, JSON.stringify(input))
+    assert.equal(t.title, CALL_TITLE.fresh)
+  }
+})
+
+test('★ 화면이 「지금 예측」이라고 부르지 않는다', () => {
+  const panel = readFileSync(PANEL, 'utf8')
+  const drawn = panel.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  assert.equal(drawn.includes('지금 예측'), false, '아직도 지금 예측이라고 부른다')
+  assert.match(drawn, /CALL_TITLE|callTitleAt/, '제목을 사실대로 안 정한다')
+  // 왜 매분 안 바뀌는지를 같은 자리에서 말한다 — 안 말하면 멈춘 화면으로 읽힌다
+  assert.match(drawn, /CALL_CADENCE_NOTE/, '판단이 언제 나는지를 안 말한다')
 })

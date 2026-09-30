@@ -392,3 +392,16 @@
 
 /* 모르는 것을 경고로 칠하지 않는다 — 모른다는 사실 그대로 */
 .verdict-unknown .verdictText { color: var(--text-muted); }
+
+/*
+  왜 매분 안 바뀌나 — **제목 바로 아래**
+
+  판단은 진입 조건이 걸린 분에만 난다. 그 사실을 안 말하면 9분 전 값이 고장으로 읽힌다
+  (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」).
+*/
+.cadence {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  word-break: keep-all;
+}

@@ -1,6 +1,6 @@
 'use client'
 
-// app/(trading)/trading/ChartPanel.tsx — 가격과 지금 예측
+// app/(trading)/trading/ChartPanel.tsx — 가격과 마지막 판단
 //
 // 사용자 지적 2026-09-28: 「차트 보이고 예측한 답은 어디서 보는 거야? 그게 메인이어야
 // 될 텐데 그리고 실시간으로 보여지는 화면 형태여야」
@@ -19,7 +19,10 @@ import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import type { ChartSeries, SignalRow } from '@/lib/trading/overview-shape'
-import { pickNowCall, callAgeLabel, chartTitle, planForCall, zoomWindow, defaultWindow } from '@/lib/trading/chart/series'
+import {
+  pickNowCall, callAgeLabel, chartTitle, planForCall, zoomWindow, defaultWindow,
+  callTitleAt, CALL_CADENCE_NOTE,
+} from '@/lib/trading/chart/series'
 import {
   buildDisplayBars, isForming, isChartTimeframe,
   CHART_TIMEFRAMES, DEFAULT_CHART_TIMEFRAME, type ChartTimeframe, type DisplayBar,
@@ -49,6 +52,11 @@ interface Props {
    * (사용자 지시 2026-09-30 「몇 점 이게 필요한것도 아닌데」). 모르면 0 이고 그때는 점으로 쓴다
    */
   multiplier: number
+  /**
+   * 판단이 몇 분 동안 쓸 만한가. **설정값이다** — 화면이 따로 정하면 규칙과 화면이
+   * 다른 마감을 본다. 이 값이 지나면 제목이 「지난 판단」으로 바뀐다
+   */
+  validMinutes: number
 }
 
 /**
@@ -180,7 +188,7 @@ function OrderBlock({ plan, nowPrice, clock, multiplier }: {
   )
 }
 
-export default function ChartPanel({ chart, signals, emitProgress, lastPrice, multiplier }: Props) {
+export default function ChartPanel({ chart, signals, emitProgress, lastPrice, multiplier, validMinutes }: Props) {
   /**
    * **있는 것을 먼저 보여 준다.** 신호가 0건이어도 판단은 매분 쌓인다 —
    * 그것을 안 보고 「판단이 한 번도 안 돌았습니다」라고 하면 화면이 거짓말을 한다
@@ -326,7 +334,16 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice, mu
             )
             : <span className={styles.nowPriceMissing}>{nowPrice.missing}</span>}
         </div>
-        <h2 className={styles.title}>지금 예측</h2>
+        {/*
+          **이름을 사실대로 쓴다.** 판단은 매분 나지 않고 진입 조건이 걸린 분에만 난다 —
+          그런데 이 칸이 「지금 예측」이라 9분 전 값이 고장으로 읽혔다
+          (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」).
+        */}
+        <h2 className={styles.title}>
+          {call ? callTitleAt({ at: call.at, validMinutes, now: clock }).title : '판단'}
+        </h2>
+        {/* 왜 매분 안 바뀌는지. 이 줄이 없으면 멈춘 화면으로 읽힌다 */}
+        <p className={styles.cadence}>{CALL_CADENCE_NOTE}</p>
         {call
           ? (
             <>

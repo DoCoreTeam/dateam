@@ -676,6 +676,55 @@ export function chartTitle(input: { signalCount: number; callCount: number }): s
   return '1분봉 가격'
 }
 
+/**
+ * 이 칸이 무엇인가 — **「지금 예측」이 아니다**
+ *
+ * 사용자 지적 2026-09-30: 「이거 실시간으로 왜 안움직여? (…) 원점수 80% 시각 오후 01:15 · 9분 전」.
+ *
+ * 화면은 그 칸을 「지금 예측」이라 불렀는데, 판단은 매분 나지 않는다 —
+ * **진입 조건이 걸린 분에만** 난다(`jobs/tick.ts` 의 `if (indicators && trigger)`).
+ * 실측 2026-09-30 오늘 판단 시각은 12:55 · 13:02 · 13:12 · 13:15 · 13:24 · 13:33 · 13:36 이었다.
+ *
+ * 그러니 9분 전 값이 뜨는 것이 정상인데 이름이 「지금」이라 고장으로 읽혔다.
+ * 이름을 사실대로 바꾸고, 왜 안 바뀌는지를 옆줄이 말한다.
+ */
+export const CALL_TITLE = {
+  /** 아직 유효한 판단 */
+  fresh: '마지막 판단',
+  /** 유효 시간이 지난 판단. 값은 그대로 보여 주되 지났다고 말한다 */
+  stale: '지난 판단',
+} as const
+
+/** 왜 매분 안 바뀌나. 이 한 줄이 없으면 멈춘 화면으로 읽힌다 */
+export const CALL_CADENCE_NOTE = '판단은 진입 조건이 걸린 분에만 새로 납니다'
+
+export interface CallTitle {
+  title: string
+  /** 유효 시간이 지났나 */
+  stale: boolean
+}
+
+/**
+ * 판단 하나가 아직 살아 있나.
+ *
+ * **시계를 밖에서 받는다** — 없으면 지났다고 말하지 않는다(서버 렌더).
+ * 지난 것을 안 지났다고 하는 쪽이 그 반대보다 나쁘므로, 모를 때는 그냥 「마지막 판단」이다.
+ */
+export function callTitleAt(input: {
+  at: string
+  validMinutes: number
+  now: Date | null
+}): CallTitle {
+  const { at, validMinutes, now } = input
+  if (!now || !Number.isFinite(validMinutes) || validMinutes <= 0) {
+    return { title: CALL_TITLE.fresh, stale: false }
+  }
+  const made = Date.parse(at)
+  if (!Number.isFinite(made)) return { title: CALL_TITLE.fresh, stale: false }
+  const stale = now.getTime() - made >= validMinutes * 60_000
+  return { title: stale ? CALL_TITLE.stale : CALL_TITLE.fresh, stale }
+}
+
 /** 휠로 줄일 수 있는 가장 좁은 창. 이보다 좁으면 봉 몇 개만 남아 흐름이 안 보인다 */
 export const MIN_WINDOW_BARS = 20
 

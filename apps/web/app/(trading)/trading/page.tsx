@@ -67,6 +67,8 @@ export default async function TradingPage() {
           lastPrice={overview.lastPrice}
           /* 점을 돈으로 바꾸는 값. 성적표가 이미 읽어 둔 것을 돌려 쓴다 — 두 곳이 다른 승수를 쓰면 같은 값이 두 금액이 된다 */
           multiplier={overview.accuracy.multiplier}
+          /* 판단이 얼마나 쓸 만한가. 설정값이고 화면이 따로 정하면 규칙과 다른 마감을 본다 */
+          validMinutes={validMinutes}
         />
         {/*
           **차트 바로 아래가 성적이다.** 지금 예측을 보고 나면 다음 질문은
