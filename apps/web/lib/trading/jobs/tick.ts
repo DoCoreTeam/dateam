@@ -68,6 +68,7 @@ import { runOrderJob } from './order-job.ts'
 import { isHoldDominant } from '../judge/types.ts'
 import { loadInstrumentSpec } from '../settings/store.ts'
 import { sameDayExitAt, isAuctionWindow, isWeekendInSeoul } from '../calendar/session.ts'
+import { saveLastPrice } from '../bars/last-price.ts'
 import {
   claimJudgment, takeOverStaleClaim, finishJudgment,
   startJobRun, finishJobRun,
@@ -368,6 +369,17 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     price.ok ? null : `price:${price.reason}`,
   ].filter((x): x is string => x !== null)
   const observedPrice = price.ok ? finiteOrNull(price.value.futs_prpr) : null
+  /**
+   * **받은 현재가를 남긴다.** 전에는 여기서 쓰고 버렸다 — 저장하는 자리가 없어
+   * 화면은 봉이 확정될 때만 바뀌었고, 맨 오른쪽 봉이 실시간으로 모양을 바꿀 재료가 없었다.
+   *
+   * 못 받은 분에는 안 덮어쓴다(`saveLastPrice` 가 판정).
+   *
+   * **기다린다.** 불 지르고 잊으면 그 쓰기는 응답과 함께 사라진다 —
+   * 기록이 조용히 0건이 되는 가장 흔한 길이다(실측 전례). 던지지 않는 함수라
+   * 기다려도 크론이 안 죽는다.
+   */
+  await saveLastPrice(contractCode, observedPrice, now)
 
   let watchNote = 'watch=off'
   let gateHits: GateHit[] = []
