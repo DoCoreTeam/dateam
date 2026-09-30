@@ -116,14 +116,8 @@ test('글꼴 차례 맨 앞이 문서가 들고 간 자형이다 — 시스템 �
   assert.ok(family.startsWith("'Pretendard Variable'"), `글꼴 차례가 ${family} 로 시작합니다`)
 })
 
-test('받은 자형을 스타일 맨 앞에 둔다 — 규칙보다 뒤에 있으면 늦게 잡힌다', () => {
-  const html = buildMeetingExportHtml({ ...base, fontFaceCss: '@font-face{font-family:X;src:url(data:font/woff2;base64,AA)}' })
-  assert.ok(html.includes('data:font/woff2;base64,AA'), '받은 자형이 문서에 안 들어갔습니다')
-  assert.ok(html.indexOf('@font-face') < html.indexOf('box-sizing'), '자형 선언이 스타일 규칙보다 뒤에 있습니다')
-})
-
-test('자형을 안 넘기면 한 바이트도 안 싣는다 — 미리보기에 1MB 를 딸려 보내지 않는다', () => {
+test('문서 자체에는 자형 바이트를 안 싣는다 — 굽기 직전에 얹는다(미리보기와 같은 문서로 남게)', () => {
   const html = buildMeetingExportHtml(base)
-  assert.ok(!html.includes('data:font'), '자형을 안 넘겼는데 문서에 실렸습니다')
-  assert.ok(!html.includes('@font-face'), '빈 @font-face 껍데기가 남았습니다')
+  assert.ok(!html.includes('data:font'), '문서에 자형 바이트가 박혔습니다')
+  assert.ok(!html.includes('@font-face'), '문서에 @font-face 가 박혔습니다')
 })

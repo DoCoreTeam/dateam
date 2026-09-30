@@ -4,7 +4,7 @@ import { EXPORT_DENIED } from '@/lib/terms'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { conversationToHtmlDocument, sanitizeFilename } from '@/lib/ai-chat/export'
-import { launchOptions } from '@/lib/security/headless-fetch'
+import { renderDocument } from '@/lib/export/render-document'
 import { recordSystemEvent } from '@/lib/system-log/record'
 import type { AiChatCitation } from '@/types/database'
 
@@ -92,16 +92,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     messages,
   )
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let browser: any = null
   let pdf: Uint8Array
   try {
-    const puppeteer = (await import('puppeteer-core')).default
-    const opt = await launchOptions()
-    browser = await puppeteer.launch({ args: opt.args, executablePath: opt.executablePath, headless: opt.headless })
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'domcontentloaded' })
-    pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' } })
+    // 굽는 일은 한 자리에서 한다 — 한글 자형도 거기서 얹는다(서버 크로미움에 한글이 없다)
+    pdf = await renderDocument({ html, format: 'pdf', route: '/api/admin/ai-chat/export-pdf', pdfMargin: '20px' })
   } catch (err) {
     // 예전엔 `catch {` 로 오류를 통째로 버렸다 — 프로덕션에서 죽어도 남는 게 없었다.
     await recordSystemEvent({
@@ -109,8 +103,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       route: '/api/admin/ai-chat/export-pdf', blocksUser: true,
     }).catch(() => { /* 기록 실패가 응답을 막지 않는다 */ })
     return NextResponse.json({ error: 'PDF 생성 중 오류가 발생했습니다' }, { status: 500 })
-  } finally {
-    try { await browser?.close() } catch { /* noop */ }
   }
 
   const base = sanitizeFilename(conversation.title)

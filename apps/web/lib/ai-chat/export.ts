@@ -5,6 +5,7 @@
 
 import { formatKstDateTimeShort } from '../datetime/kst.ts'
 import { htmlToPlain } from '../html-to-plain.ts'
+import { EXPORT_FONT_STACK } from '../export/font-subset.ts'
 
 export interface ExportConversation {
   title: string
@@ -141,7 +142,7 @@ export function conversationToHtmlDocument(
 <meta charset="utf-8" />
 <title>${escapeHtml(conv.title)}</title>
 <style>
-  body { font-family: -apple-system, 'Malgun Gothic', sans-serif; color: #1a1a1a; margin: 32px; line-height: 1.6; }
+  body { font-family: ${EXPORT_FONT_STACK}; color: #1a1a1a; margin: 32px; line-height: 1.6; }
   h1 { font-size: 20px; margin-bottom: 4px; }
   .meta { color: #666; font-size: 12px; margin-bottom: 24px; }
   .msg { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e5e5e5; }
