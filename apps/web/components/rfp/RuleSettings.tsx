@@ -74,7 +74,7 @@ export default function RuleSettings({ saved }: RuleSettingsProps) {
               disabled={saving === r.id}
               onChange={() => { void toggle(r.id) }}
             />
-            <span className={`${styles.ruleName} ${styles.tight}`}>
+            <span className={`${styles.ruleMain} ${styles.tight}`}>
               <span style={{ fontWeight: 600 }}>{r.title}</span>
               <span className={styles.sectionDesc}>
                 {saving === r.id ? RFP_ADMIN.ruleSaving : r.id}

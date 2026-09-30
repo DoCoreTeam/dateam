@@ -107,7 +107,7 @@ export default function G2bServices({ hasServiceKey, initialStates = [] }: G2bSe
           const status = serviceStatus(s, state)
           return (
             <div key={s.id} className={styles.ruleItem}>
-              <span className={`${styles.ruleName} ${styles.tight}`}>
+              <span className={`${styles.ruleMain} ${styles.tight}`}>
                 <span style={{ fontWeight: 600 }}>{G2B_SERVICE_NAME[s.id] ?? s.id}</span>
                 <span className={styles.sectionDesc}>{G2B_SERVICE_GIVES[s.id] ?? ''}</span>
                 <span className={styles.sectionDesc}>{RFP_ADMIN.g2bPortalNo} {s.portalNo}</span>

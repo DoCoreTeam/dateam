@@ -47,7 +47,7 @@ export default function VendorSettings({ vendors }: { vendors: VendorRow[] }) {
           <div className={styles.ruleList}>
             {vendors.map((v) => (
               <div key={v.id} className={styles.ruleItem}>
-                <div className={`${styles.ruleName} ${styles.tight}`}>
+                <div className={`${styles.ruleMain} ${styles.tight}`}>
                   <span style={{ fontWeight: 600 }}>{v.name}</span>
                   <span className={styles.sectionDesc}>
                     {v.modelName ?? RFP_ADMIN.notRegistered}

@@ -96,7 +96,7 @@ export default function SourceSites({ initialSites, initialHasServiceKey }: Sour
       <div className={styles.ruleList}>
         {sites.map((s) => (
           <div key={s.id} className={styles.ruleItem}>
-            <label className={styles.tight}>
+            <label className={`${styles.ruleMain} ${styles.tight}`}>
               <span className={styles.row}>
                 <input type="checkbox" checked={s.enabled} onChange={() => void toggle(s)} />
                 <span className={styles.ruleName}>{s.name}</span>

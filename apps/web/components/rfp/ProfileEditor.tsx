@@ -364,7 +364,7 @@ function RowSection<T>({ title, desc, rows, onAdd, onRemove, render }: RowSectio
       <div className={styles.ruleList}>
         {rows.map((row, i) => (
           <div key={i} className={styles.ruleItem}>
-            {render(row, i)}
+            <div className={styles.ruleMain}>{render(row, i)}</div>
             <NbButton variant="ghost" onClick={() => onRemove(i)} aria-label={RFP_PROFILE.removeRow}>
               <X size={12} />
             </NbButton>

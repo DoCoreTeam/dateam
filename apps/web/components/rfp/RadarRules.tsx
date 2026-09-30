@@ -255,11 +255,11 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
         <div className={styles.ruleList}>
           {rules.map((r) => (
             <div key={r.id} className={styles.ruleItem}>
-              <label className={styles.row}>
+              <label className={`${styles.ruleMain} ${styles.row}`}>
                 <input type="checkbox" checked={r.enabled} onChange={() => void toggle(r)} />
                 <span className={styles.ruleName}>{r.name}</span>
               </label>
-              <span className={styles.row}>
+              <span className={styles.ruleActions}>
                 {r.keywords.length > 0 && <NbBadge status="note">{r.keywords.join(', ')}</NbBadge>}
                 {(r.agencies?.length ?? 0) > 0 && <NbBadge status="note">{r.agencies?.join(', ')}</NbBadge>}
                 {(r.budget_min !== null || r.budget_max !== null) && (
@@ -360,7 +360,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
             {/* 사전 점수 높은 것부터 — 사용자는 위에서 몇 개만 본다 */}
             {hits.map((h) => (
               <div key={h.id} className={styles.ruleItem}>
-                <span className={styles.tight}>
+                <span className={`${styles.ruleMain} ${styles.tight}`}>
                   {/* 무엇이 걸렸는지가 먼저다. 점수와 사유만으로는 아무것도 못 정한다 */}
                   {/* 제목이 없으면 그렇게 말한다. 내부 번호를 찍으면 사용자는 그것을 공고 이름으로 읽는다 */}
                   <span className={styles.ruleName}>{h.notice?.title || RFP_RADAR.noticeNoTitle}</span>
@@ -371,7 +371,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
                   </span>
                   <span className={styles.sectionDesc}>{h.reason}</span>
                 </span>
-                <span className={styles.row}>
+                <span className={styles.ruleActions}>
                   <NbBadge status="doing">{h.pre_score ?? 0}</NbBadge>
                   {/* 공고에 붙은 첨부를 그대로 받아 분석까지 건다 — 사람이 다시 내려받을 이유가 없다 */}
                   <NbButton variant="secondary" onClick={() => void adopt(h)} disabled={busy}>

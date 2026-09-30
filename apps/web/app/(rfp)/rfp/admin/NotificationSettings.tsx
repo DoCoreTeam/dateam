@@ -66,7 +66,7 @@ export default function NotificationSettings() {
           {rows.map((n) => (
             <li key={n.id} className={styles.ruleItem}>
               <StatusPill tone={toneFromStatusKey('note')}>{NOTIFY_KIND_LABEL[n.kind] ?? n.kind}</StatusPill>
-              <span className={`${styles.ruleName} ${styles.tight}`}>
+              <span className={`${styles.ruleMain} ${styles.tight}`}>
                 <span style={{ fontWeight: 600 }}>{n.title}</span>
                 <span className={styles.sectionDesc}>{formatKstDateTimeExact(n.created_at)}</span>
               </span>
