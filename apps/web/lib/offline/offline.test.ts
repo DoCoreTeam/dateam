@@ -216,12 +216,19 @@ test('★ 한 번 어긋나면 그때부터 자주 묻는다 — 판정까지 30
     '판정이 끝난 뒤에야 간격을 줄인다 — 그러면 판정 자체가 늦어진다')
 })
 
-test('★ 살아나면 아무것도 안 눌러도 배너가 사라진다 — 돌아온 순간에만 올린다', () => {
+test('★ 살아나면 아무것도 안 눌러도 올린다 — 전환만 보지 않는다', () => {
   const measure = measureBody()
   assert.match(measure, /nextFailureStreak\(streakRef\.current, answered\)/, '실패 셈을 안 굴린다')
   assert.match(measure, /setReachable\(!down\)/, '잰 결과를 화면에 안 넘긴다')
-  assert.match(measure, /if \(!down && wasDownRef\.current\)/,
-    '돌아온 순간을 안 가른다 — 닿는 동안 계속 올리기를 걸면 재는 일이 서버를 누른다')
+  /*
+    실브라우저 실측 2026-09-30: 건네기가 「안 닿음 → 닿음」 전환에서만 돌았다.
+    회의 만들기 한 번만 튕기고 `/api/ping` 은 멀쩡했던 판에서는 그 전환이 없어서,
+    기기에 적힌 회의가 3분을 기다려도 서버로 안 건너갔다. 그래서 조건을 뺐다.
+  */
+  assert.match(measure, /if \(!down\) \{/, '닿는 동안 올리기를 안 건다')
+  assert.ok(!/if \(!down && wasDownRef\.current\)/.test(measure),
+    '전환에만 걸려 있다 — 끊긴 적 없이 실패한 회의가 영영 안 올라간다')
+  assert.match(measure, /wasDownRef\.current = down/, '다음 판을 위한 기록이 없다')
 })
 
 test('★ 기기가 끊겨 있으면 묻지 않는다 — 답이 뻔한 요청을 던지지 않는다', () => {

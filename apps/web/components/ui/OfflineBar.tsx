@@ -140,9 +140,16 @@ export default function OfflineBar() {
     const down = !deviceOnline || isUnreachable(streakRef.current)
     setReachable(!down)
 
-    // 돌아온 «순간»에만 — 닿는 동안 30초마다 올리기를 거는 것은 재는 일이 아니다
-    if (!down && wasDownRef.current) {
-      setStatus((prev) => (prev === 'OFFLINE' ? null : prev))
+    if (!down) {
+      if (wasDownRef.current) setStatus((prev) => (prev === 'OFFLINE' ? null : prev))
+      /*
+        **전환 때만 부르지 않는다** (실브라우저 실측 2026-09-30).
+        회의 만들기 한 번이 튕겼는데 `/api/ping` 은 멀쩡했던 판에서는 「안 닿음」 전환이
+        일어나지 않는다. 전환에만 걸어 두면 그 회의는 기기에 **영원히** 남는다.
+
+        닿는 동안 반복해도 헛일이 아니다 — 건넬 회의가 없으면 창구를 한 번도 안 부르고,
+        올릴 구간이 없으면 곧장 돌아온다. 무른 읽기 두 번이 값의 전부다.
+      */
       void sync()
     }
     wasDownRef.current = down
