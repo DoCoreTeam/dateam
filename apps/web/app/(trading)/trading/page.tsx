@@ -21,6 +21,7 @@ import { getRequestUser } from '@/lib/supabase/server'
 import { loadOpenManualEntry } from '@/lib/trading/position/manual-entry-store'
 import { pickNowCall, planForCall } from '@/lib/trading/chart/series'
 import EntryPanel from './EntryPanel'
+import AccountPanel from './AccountPanel'
 import { contractHeadline } from '@/lib/trading/overview-labels'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
 import { kstTodayKey } from '@/lib/datetime/kst'
@@ -131,6 +132,12 @@ export default async function TradingPage() {
           suggested={suggested}
         />
         <PositionPanel holding={overview.holding} dayPnl={overview.dayPnl} />
+        {/*
+          **증권사 계좌는 눌러야 읽는다.** 그릴 때마다 부르면 탭을 열어 두는 것만으로
+          호출이 계속 나가고 매분 도는 수집과 같은 초당 제한에 함께 걸린다
+          (사용자 지시 2026-09-30 「계좌를 직접 볼 수 있으면 그것도 하고」)
+        */}
+        <AccountPanel />
         <NotifyPanel notify={overview.notify} position={overview.position} />
       </div>
     </>

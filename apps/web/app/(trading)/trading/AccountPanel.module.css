@@ -1,0 +1,123 @@
+/*
+  증권사 계좌 — **읽기만 한다**
+
+  사용자 지시 2026-09-30: 「계좌를 직접 볼 수 있으면 그것도 하고 직접 매매는 안해도
+  데이터는 받을수있으니」. 조회만 하는 칸이라는 것이 글자와 자리로 보여야 한다.
+*/
+.panel {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  word-break: keep-all;
+}
+
+/* 못 읽었으면 뜻과 갈 곳을 함께 — 코드만 찍으면 아무도 못 고친다 */
+.failed {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm, 8px);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  word-break: keep-all;
+}
+
+.how {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.link {
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  justify-self: start;
+}
+
+/* 증권사 코드. 고치는 사람이 찾아볼 값이라 남기되 약하게 둔다 */
+.code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-2);
+}
+
+.fact {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.fact dt {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  word-break: keep-all;
+}
+
+.fact dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 추가 증거금이 0 이 아니면 마진콜이다. 이 줄만 색이 다르다 */
+.danger { color: var(--danger); }
+
+.positions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.position {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, minmax(0, auto));
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.position:last-child { border-bottom: none; }
+
+.posName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.win { color: var(--danger); }
+.lose { color: var(--accent); }
