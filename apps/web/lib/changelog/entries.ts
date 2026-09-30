@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.797',
+    date: '2026-09-30',
+    title: '화면의 숫자에 쉼표가 붙어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🔢',
+        headline: '천 단위마다 쉼표가 들어가요',
+        detail: 'AI 트레이딩의 지금 가격·주문 카드·차트 눈금이 「1086.44」처럼 붙어 나와서 자릿수를 세어야 했어요. 이제 「1,086.44」로 보입니다. AI 사용량 비용, GPU 견적 단가, RFP 이상 조항의 예산 금액도 같이 바뀌었어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.789',
     date: '2026-09-30',
     title: 'RFP 분석 결과가 근거와 판정을 같이 보여 줘요',
