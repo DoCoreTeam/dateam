@@ -14,7 +14,7 @@
  */
 
 import { runBase, type TaskRunner } from './run-base.ts'
-import { persistReport, nextVersion } from './persist.ts'
+import { persistReport, nextVersion, recordAnalysisRun } from './persist.ts'
 import { parseFields, outputSpec } from './parse-fields.ts'
 import { buildInstruction } from '../report/tasks.ts'
 import { callWithFallback, NoModelAvailableError, type GatewayDeps } from '../ai/gateway.ts'
@@ -147,6 +147,8 @@ export async function runAnalyze(
   db: Parameters<typeof persistReport>[0],
   input: AnalyzeInput,
 ): Promise<AnalyzeOutput> {
+  const startedAt = new Date().toISOString()
+  const startedMs = Date.now()
   const { doc, fileIdByBlock } = mergeDocs(input.parts)
   const pick = pickModels(input.models, { docClass: input.docClass })
   if (pick.chain.length === 0) {
@@ -207,10 +209,26 @@ export async function runAnalyze(
     ((versions ?? []) as { version: number }[]).map((r) => Number(r.version)),
   )
 
+  // 이력을 먼저 적고 그 id 를 리포트에 싣는다. 안 실으면 「이 리포트가 어느 실행에서 나왔나」를
+  // 되물을 길이 없다 — run_id 는 지금까지 늘 null 이었다
+  const runId = await recordAnalysisRun(db, {
+    orgId: input.orgId,
+    caseId: input.caseId,
+    mode: 'base',
+    baseModelId: pick.chain[0].id,
+    crossModelIds: [],
+    costKrw: spent,
+    durationMs: Date.now() - startedMs,
+    // 태스크가 하나라도 실패했으면 성공이라 적지 않는다. 다 실패해도 리포트는 나온다
+    status: base.outcomes.some((o) => !o.ok) ? 'failed' : 'succeeded',
+    startedAt,
+    fallbackApplied: [],
+  })
+
   await persistReport(db, {
     orgId: input.orgId,
     caseId: input.caseId,
-    runId: null,
+    runId,
     report: base.report,
     version,
     schemaId: null,

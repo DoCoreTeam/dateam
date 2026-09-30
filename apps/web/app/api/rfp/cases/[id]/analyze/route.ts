@@ -51,11 +51,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     // 본문 없이 불러도 된다
   }
 
-  // 다시 돌리려면 판을 올려 새 키를 만든다. 같은 키면 있던 잡을 돌려준다
-  const { data: runs } = await (db as any)
+  // 다시 돌리려면 판을 올려 새 키를 만든다. 같은 키면 있던 잡을 돌려준다.
+  //
+  // 이 셈이 틀리면 증상이 「분석이 안 걸린다」로 나온다 — 판이 그대로면 dedupeKey 가 같고
+  // 큐가 있던 잡을 돌려주기 때문이다. 그래서 못 세면 세었다고 하지 않는다
+  const { data: runs, error: runsError } = await (db as any)
     .from('rfp_analysis_runs')
     .select('id')
     .eq('case_id', caseId)
+
+  if (runsError) {
+    return NextResponse.json(
+      { error: '지난 분석 이력을 세지 못해 새 분석을 걸지 않았습니다' },
+      { status: 500 },
+    )
+  }
   const version = (runs?.length ?? 0) + (body.rerun ? 1 : 0) + 1
 
   try {

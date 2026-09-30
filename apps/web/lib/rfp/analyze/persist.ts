@@ -195,3 +195,65 @@ function describe(error: unknown): string {
 export function nextVersion(existing: readonly number[]): number {
   return existing.length === 0 ? 1 : Math.max(...existing) + 1
 }
+
+/**
+ * 분석 한 판을 실행 이력에 적는다.
+ *
+ * ## 왜 필요한가
+ *
+ * `rfp_analysis_runs` 는 **읽히기만 하고 한 번도 안 쓰였다.** 분석을 거는 창구가 그 표의
+ * 행 수로 판 번호를 세는데, 늘 0건이라 판 번호가 언제나 1이었다. 그래서 같은 dedupeKey 가
+ * 나오고 다시 분석을 걸면 새 잡 대신 있던 잡이 돌아왔다. 실측 2026-09-30: 표 0행.
+ *
+ * ## 왜 끝나고 적나
+ *
+ * 비용과 소요 시간은 **끝나야 안다.** 걸 때 적으면 status 가 running 에 멈춘 채
+ * cost_krw 가 영영 null 인 반쪽 줄이 남는다 — 그것은 이 플랜이 고치려는 바로 그 모양이다.
+ *
+ * ## 못 적어도 분석을 세우지 않는다
+ *
+ * 이력은 분석 결과가 아니다. 리포트는 이미 저장됐고, 이력 한 줄 때문에 그것을 버리면
+ * 사용자가 잃는 것이 훨씬 크다. 그래서 실패하면 null 을 돌려주고 판 번호만 못 오른다.
+ */
+export interface RunInput {
+  orgId: string
+  caseId: string
+  mode: 'base' | 'cross_pre' | 'cross_post'
+  baseModelId: string | null
+  crossModelIds: string[]
+  costKrw: number
+  durationMs: number
+  status: 'succeeded' | 'failed'
+  startedAt: string
+  fallbackApplied: unknown[]
+}
+
+/** uuid 로 안 생긴 값은 안 넣는다. 칸이 uuid 라 아무 글자나 넣으면 줄 전체가 죽는다 */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export async function recordAnalysisRun(db: PersistClient, input: RunInput): Promise<string | null> {
+  try {
+    const { data, error } = await db
+      .from('rfp_analysis_runs')
+      .insert({
+        org_id: input.orgId,
+        case_id: input.caseId,
+        mode: input.mode,
+        base_model_id: input.baseModelId && UUID.test(input.baseModelId) ? input.baseModelId : null,
+        cross_model_ids: input.crossModelIds.filter((id) => UUID.test(id)),
+        target_fields: [],
+        fallback_applied: input.fallbackApplied,
+        cost_krw: input.costKrw,
+        duration_ms: input.durationMs,
+        status: input.status,
+        started_at: input.startedAt,
+        finished_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+    if (error || !data) return null
+    return String((data as { id: unknown }).id)
+  } catch {
+    return null
+  }
+}

@@ -12,7 +12,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { readFileSync } from 'node:fs'
-import { persistReport } from './persist.ts'
+import { persistReport, recordAnalysisRun } from './persist.ts'
 import { emptyReport, type Report } from '../report/schema.ts'
 
 /**
@@ -171,3 +171,69 @@ test('여러 행을 넣는 자리에 single() 이 붙어 있지 않다', () => {
     '여러 행을 넣고 single() 을 부르면 PostgREST 가 넣던 것까지 되돌린다',
   )
 })
+
+// 실행 이력 — rfp_analysis_runs 는 읽히기만 하고 한 번도 안 쓰였다
+
+test('분석 한 판이 실행 이력에 적힌다', async () => {
+  const { client, captured } = spyClient()
+  const id = await recordAnalysisRun(client as never, {
+    orgId: 'o1', caseId: 'c1', mode: 'base',
+    baseModelId: '11111111-2222-4333-8444-555555555555',
+    crossModelIds: [], costKrw: 1234, durationMs: 5678,
+    status: 'succeeded', startedAt: '2026-09-30T00:00:00.000Z', fallbackApplied: [],
+  })
+  assert.equal(id, 'rv-1')
+  const row = captured['rfp_analysis_runs']?.[0] as Record<string, unknown>
+  assert.ok(row, 'rfp_analysis_runs 에 아무것도 안 실렸다')
+  assert.equal(row.mode, 'base')
+  assert.equal(row.cost_krw, 1234, '비용을 안 실으면 원장과 대조할 것이 없다')
+  assert.equal(row.duration_ms, 5678)
+  assert.equal(row.status, 'succeeded')
+  assert.equal(row.base_model_id, '11111111-2222-4333-8444-555555555555')
+  assert.ok(row.finished_at, '끝난 시각이 없으면 running 에 멈춘 줄과 구분이 안 된다')
+})
+
+test('uuid 가 아닌 모델 id 는 안 싣는다', async () => {
+  const { client, captured } = spyClient()
+  await recordAnalysisRun(client as never, {
+    orgId: 'o1', caseId: 'c1', mode: 'base',
+    baseModelId: 'gemini-2.5-flash', crossModelIds: ['also-not-uuid'],
+    costKrw: 0, durationMs: 1, status: 'succeeded',
+    startedAt: '2026-09-30T00:00:00.000Z', fallbackApplied: [],
+  })
+  const row = captured['rfp_analysis_runs']?.[0] as Record<string, unknown>
+  // 칸이 uuid 라 아무 글자나 넣으면 줄 전체가 죽는다. 이력 한 줄 때문에 분석을 버리지 않는다
+  assert.equal(row.base_model_id, null)
+  assert.deepEqual(row.cross_model_ids, [])
+})
+
+test('이력을 못 적어도 분석을 세우지 않는다', async () => {
+  const failing = {
+    from: () => ({
+      insert: () => ({
+        select: () => ({
+          single: async () => ({ data: null, error: { message: '권한 없음' } }),
+          then: (r: (v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: '권한 없음' } }).then(r),
+        }),
+      }),
+    }),
+  }
+  // 리포트는 이미 저장됐다. 이력 한 줄 때문에 그것을 버리면 사용자가 잃는 것이 훨씬 크다
+  assert.equal(await recordAnalysisRun(failing as never, {
+    orgId: 'o1', caseId: 'c1', mode: 'base', baseModelId: null, crossModelIds: [],
+    costKrw: 0, durationMs: 1, status: 'failed',
+    startedAt: '2026-09-30T00:00:00.000Z', fallbackApplied: [],
+  }), null)
+})
+
+test('분석 경로가 이력을 적고 그 id 를 리포트에 싣는다', () => {
+  const src = stripComments(readFileSync(new URL('./run-analyze.ts', import.meta.url), 'utf8'))
+  assert.equal((src.match(/\brecordAnalysisRun\s*\(/g) ?? []).length, 1, '이력을 적는 자리가 하나가 아니다')
+  assert.match(src, /runId,/, '적은 이력 id 를 리포트에 안 싣는다 — run_id 가 계속 null 이 된다')
+  assert.doesNotMatch(src, /runId:\s*null/, 'runId 를 고정값 null 로 넘기고 있다')
+})
+
+/** 줄 주석과 블록 주석을 지운다 — 이름만 찾는 가드는 주석 처리를 통과시킨다 */
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
+}
