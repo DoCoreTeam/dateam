@@ -304,6 +304,11 @@ export interface TradingOverview {
   accuracy: AccuracySummary
   /** 가장 최근 판단이 어디서 나왔나 — 걸음마다 누가·무엇을 보고·무엇을 냈는지 */
   lineage: Lineage
+  /**
+   * 마지막으로 받은 현재가. **형성 중인 봉이 이 값으로 모양을 바꾼다.**
+   * 못 받았으면 null — 0 을 넣으면 화면이 0원짜리 봉을 그린다
+   */
+  lastPrice: { price: number; observedAt: string } | null
   judgments: JudgmentRow[]
   recentRuns: RunRow[]
   /** 최근 신호. 1-C 전에는 늘 비어 있다 */

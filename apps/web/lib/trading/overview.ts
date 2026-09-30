@@ -101,6 +101,7 @@ import { buildSeries, type ChartSeries, type PlanParams } from './chart/series.t
 import { scoreJudgment, summarizeScores, type JudgmentScore } from './judge/score.ts'
 import { feeConfigured } from './risk/fees.ts'
 import { buildLineage, type Lineage } from './judge/lineage.ts'
+import { loadLastPrice } from './bars/last-price.ts'
 import { leaningOf } from './judgment-labels.ts'
 import { loadFills } from './position/fills.ts'
 import { foldFills } from './position/from-fills.ts'
@@ -422,6 +423,14 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     gateCriteria: gateVerdict.criteria,
     accuracy: await loadAccuracy(contractCode, now, values, today, exitBefore),
     lineage: await loadLineage(contractCode, now, values, today, emitProgressOf(recentRuns[0]?.reason ?? null)),
+    /**
+     * 형성 중인 봉이 읽을 값. **새 창구를 안 연다** — 트레이딩 창구는 크론 둘뿐이고
+     * 그 규칙을 가드 셋이 지킨다. 화면이 이미 스스로 다시 읽으므로 그 길에 한 줄 얹는다
+     */
+    lastPrice: await (async () => {
+      const last = await loadLastPrice(contractCode)
+      return last ? { price: last.price, observedAt: last.observedAt } : null
+    })(),
     chart: await loadChart(
       contractCode, now, signals, judgments, recentRuns[0]?.reason ?? null,
       // 당일 청산 시각은 오늘 세션이 정한다. 만기일은 15:05, 평일은 15:20 이라 날마다 다르다

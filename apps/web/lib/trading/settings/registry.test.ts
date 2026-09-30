@@ -386,7 +386,12 @@ test('★ 현황 새로 읽는 간격이 설정이다 — env 가 아니다', ()
   assert.equal(s?.group, 'basic', '묶음이 없으면 설정 화면에서 안 보인다')
   assert.ok((s?.min ?? 0) >= 5, '0 이나 1초를 허용하면 서버를 쉬지 않고 두드린다')
   assert.ok((s?.max ?? 0) <= 3600)
-  assert.equal(defaultSettings().overview_refresh_seconds, 30)
+  /*
+    기본을 30에서 10으로 낮췄다 — 형성 중인 봉이 이 간격으로 움직이는데
+    30초면 1분에 두 번뿐이라 「모양이 변한다」가 안 보인다(사용자 지시 2026-09-29).
+    하한 5초는 그대로 둔다: 서버를 쉬지 않고 두드리지 말라는 규칙이 먼저다.
+  */
+  assert.equal(defaultSettings().overview_refresh_seconds, 10)
 
   const page = readFileSync(join(TRADING_APP, 'page.tsx'), 'utf8')
   assert.match(page, /values\.overview_refresh_seconds/, '화면이 그 값을 안 읽는다')

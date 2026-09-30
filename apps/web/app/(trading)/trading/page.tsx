@@ -33,7 +33,7 @@ export default async function TradingPage() {
 
   // 다시 읽는 간격도 설정이다. env 에 두면 값을 바꾸려고 배포를 기다려야 한다
   const rawRefresh = Number(values.overview_refresh_seconds)
-  const refreshSeconds = Number.isFinite(rawRefresh) && rawRefresh >= 5 ? rawRefresh : 30
+  const refreshSeconds = Number.isFinite(rawRefresh) && rawRefresh >= 5 ? rawRefresh : 10
 
   return (
     <>

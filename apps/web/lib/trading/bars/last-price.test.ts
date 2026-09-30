@@ -6,7 +6,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -67,4 +67,29 @@ test('★ tick 이 실제로 부르고 기다린다 — 불 지르고 잊으면 
     'tick 이 현재가를 안 남기거나 안 기다린다')
   assert.equal(/void saveLastPrice/.test(tick), false,
     '불 지르고 잊는다 — 그 쓰기는 응답과 함께 사라진다')
+})
+
+test('★ 현황이 현재가를 함께 내려준다 — 새 창구를 안 연다', () => {
+  const overview = readFileSync(join(HERE, '..', 'overview.ts'), 'utf8')
+  assert.match(overview, /loadLastPrice\(contractCode\)/, '현황이 현재가를 안 읽는다')
+  assert.match(overview, /lastPrice:/, '현황이 현재가를 안 내려준다')
+  /*
+    트레이딩 창구는 크론 둘뿐이다. 창구를 늘리면 지킬 자리가 늘고,
+    그 규칙을 이미 가드 셋이 지킨다 — 현황이 이미 도는 새로고침에 한 줄을 얹는다.
+  */
+  const api = join(HERE, '..', '..', '..', 'app', 'api', 'trading')
+  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]))
+  assert.equal(walk(api).filter((f) => f.endsWith('route.ts')).length, 2,
+    '트레이딩 창구가 늘었다 — 현재가는 현황 payload 로 간다')
+})
+
+test('★ 다시 읽는 간격이 형성 봉을 움직일 만큼 짧다', async () => {
+  const { TRADING_SETTINGS } = await import('../settings/registry.ts')
+  const spec = TRADING_SETTINGS.find((x) => x.key === 'overview_refresh_seconds')
+  assert.ok(spec)
+  // 30초면 1분에 두 번뿐이라 「모양이 변한다」가 안 보인다
+  assert.ok(Number(spec.defaultValue) <= 10, `기본 ${spec.defaultValue}초는 형성 봉이 안 움직인다`)
+  // 하한 5초는 그대로다 — 서버를 쉬지 않고 두드리지 말라는 규칙이 먼저다
+  assert.equal(Number(spec.min), 5, '하한이 바뀌었다')
 })
