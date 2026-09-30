@@ -69,6 +69,7 @@ import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
 import type { ContractHead } from './overview-labels.ts'
 import { gateEmptyReason, type GateEmptyReason } from './gate/empty-reason.ts'
+import { whyNegativeLine, type ReplayRule } from './judge/accuracy-note.ts'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
@@ -473,6 +474,18 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
  */
 const SCORE_BARS = 3_000
 
+/** 되짚기 규칙 한 벌. **설정이 유일한 출처다** — 화면도 여기서 받아 쓴다(M4) */
+function replayRuleOf(values: Readonly<Record<string, unknown>>, feeIncluded: boolean): ReplayRule {
+  return {
+    delayMinutes: Number(values.replay_delay_minutes) || 2,
+    orderKind: String(values.replay_order_type ?? 'market') === 'limit' ? 'limit' : 'market',
+    stopAtrMultiple: Number(values.exit_stop_atr_multiple) || 1.2,
+    targetAtrMultiple: Number(values.exit_target_atr_multiple) || 1.5,
+    timeExitMinutes: Number(values.min_hold_minutes) || 15,
+    feeIncluded,
+  }
+}
+
 /**
  * 그동안 얼마나 맞았고 **얼마를 벌었나**.
  *
@@ -494,6 +507,8 @@ async function loadAccuracy(
   const empty = (reason: string): AccuracySummary => ({
     rows: [], tradeDays: 0, unmeasuredReason: reason,
     contracts: 1, multiplier: 0, baseKrw, feeIncluded: feeConfigured(feePercent, feeFlat),
+    replay: replayRuleOf(values, feeConfigured(feePercent, feeFlat)),
+    whyNegative: null,
   })
   if (!contractCode) return empty('근월물이 정해지지 않았습니다')
   try {
@@ -581,6 +596,17 @@ async function loadAccuracy(
       multiplier: instrument.multiplier,
       baseKrw,
       feeIncluded: feeConfigured(feePercent, feeFlat),
+      replay: replayRuleOf(values, feeConfigured(feePercent, feeFlat)),
+      /*
+        **왜 마이너스인지는 「전체」 줄로 판정한다.** 묶음마다 적으면 같은 말이 다섯 번
+        뜨고, 다섯 번 뜨는 설명은 한 번도 안 읽힌다
+        (사용자 지적 2026-09-30 「그리고 다 마이너스네」)
+      */
+      whyNegative: whyNegativeLine({
+        hitRate: summarizeScores(scores).hitRate,
+        stopAtrMultiple: Number(values.exit_stop_atr_multiple) || 1.2,
+        targetAtrMultiple: Number(values.exit_target_atr_multiple) || 1.5,
+      }),
     }
   } catch (error) {
     return empty(error instanceof Error ? error.message : '읽지 못했습니다')

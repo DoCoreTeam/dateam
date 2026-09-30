@@ -8,6 +8,7 @@
 
 import type { ContractHead } from './overview-labels.ts'
 import type { GateEmptyReason } from './gate/empty-reason.ts'
+import type { ReplayRule } from './judge/accuracy-note.ts'
 import type { JevOffReason } from './jev-labels.ts'
 
 export interface DayCoverage {
@@ -286,6 +287,13 @@ export interface AccuracySummary {
   contracts: number
   /** 1계약 승수(원). 「1계약이 얼마짜리인가」를 화면이 말할 수 있어야 한다 */
   multiplier: number
+  /**
+   * 어떻게 되짚었나. **설정에서 온 값이고 화면이 숫자를 다시 적지 않는다**(M4)
+   * (사용자 지적 2026-09-30 「어떤 근거의 데이터인지 설명 좀 써주고」)
+   */
+  replay: ReplayRule
+  /** 왜 마이너스인가 한 줄. 본전선을 넘었으면 null */
+  whyNegative: string | null
   /**
    * 투자 기준금액(원). 설정 `account_base_krw`, 0 이면 미설정이다.
    * 미설정이면 수익률 자리를 **비운다** — 0 으로 나누지도, 기본값을 지어내지도 않는다

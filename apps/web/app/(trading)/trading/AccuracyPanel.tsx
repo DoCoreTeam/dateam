@@ -11,6 +11,7 @@
 import { Target } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import type { AccuracySummary, AccuracyRow } from '@/lib/trading/overview-shape'
+import { replayLines, HIT_MEANING, UNSCORED_MEANING } from '@/lib/trading/judge/accuracy-note'
 import styles from './AccuracyPanel.module.css'
 
 /** 건당 손익(R). **없으면 없다고 말한다** — 0 은 「본전이었다」는 사실이다 */
@@ -101,6 +102,26 @@ export default function AccuracyPanel({ accuracy }: { accuracy: AccuracySummary 
       <p className={styles.note}>
         판단대로 매번 들어갔다면 어땠을지를 지난 봉으로 되짚은 값입니다. 실제 주문 기록이 아닙니다
       </p>
+      {/*
+        **어떻게 되짚었는지를 적는다** (사용자 지적 2026-09-30 「어떤 근거의 데이터인지
+        설명 좀 써주고」). 규칙을 안 말하면 이 숫자를 믿을 근거가 없다.
+        늘 펼쳐 두면 안 읽히므로 접어 둔다 — 값은 매일 보고 규칙은 한 번 본다.
+      */}
+      <details className={styles.how}>
+        <summary className={styles.howSummary}>어떻게 셈한 값인가</summary>
+        <ul className={styles.howList}>
+          {replayLines(accuracy.replay).map((line) => <li key={line}>{line}</li>)}
+          <li>{HIT_MEANING}</li>
+          <li>{UNSCORED_MEANING}</li>
+        </ul>
+      </details>
+      {/*
+        **왜 마이너스인지 말한다** (사용자 지적 2026-09-30 「그리고 다 마이너스네」).
+        본전선을 넘으면 이 줄이 사라진다 — 늘 뜨는 설명은 안 읽힌다.
+      */}
+      {accuracy.whyNegative && (
+        <p className={styles.warn}>{accuracy.whyNegative}</p>
+      )}
       {/*
         **몇 계약 기준인지 말한다.** 「+714,660원」만 있으면 그것이 1계약인지 열 계약인지
         알 수 없다 (사용자 지적 2026-09-29 「투자하는 기준금액이 있는거 같은데」).

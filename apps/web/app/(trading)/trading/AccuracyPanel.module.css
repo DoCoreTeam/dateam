@@ -146,3 +146,34 @@
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
+
+/*
+  어떻게 셈한 값인가 — **접어 둔다**
+
+  사용자 지적 2026-09-30: 「어떤 근거의 데이터인지 설명 좀 써주고」.
+  규칙을 안 말하면 이 숫자를 믿을 근거가 없다. 다만 값은 매일 보고 규칙은 한 번 보므로
+  늘 펼쳐 두면 값이 밀려난다.
+*/
+.how {
+  margin: 0 0 var(--space-3);
+  min-width: 0;
+}
+
+.howSummary {
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+.howSummary:hover { color: var(--text); }
+
+.howList {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  word-break: keep-all;
+}
