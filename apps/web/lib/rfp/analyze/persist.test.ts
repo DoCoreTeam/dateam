@@ -14,6 +14,7 @@ import { AI_CONTRACT_VERSION } from '@ax/ai-core'
 import { readFileSync } from 'node:fs'
 import { persistReport, recordAnalysisRun } from './persist.ts'
 import { emptyReport, type Report } from '../report/schema.ts'
+import { stripComments } from '../../ui/component-scan.ts'
 
 /**
  * insert 에 넘어간 것을 붙잡는 가짜. 실제 표 이름별로 나눠 담는다
@@ -233,7 +234,3 @@ test('분석 경로가 이력을 적고 그 id 를 리포트에 싣는다', () =
   assert.doesNotMatch(src, /runId:\s*null/, 'runId 를 고정값 null 로 넘기고 있다')
 })
 
-/** 줄 주석과 블록 주석을 지운다 — 이름만 찾는 가드는 주석 처리를 통과시킨다 */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
-}

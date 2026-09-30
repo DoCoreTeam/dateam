@@ -10,8 +10,8 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { stripComments } from '../../ui/component-scan.ts'
 import { readFileSync } from 'node:fs'
-import { emptyProfile, type CompanyProfile } from './profile.ts'
 import { RFP_PROFILE } from '../terms.ts'
 
 import {
@@ -316,6 +316,3 @@ test('분석 경로가 적합도 층을 실제로 부른다', () => {
   assert.match(src, /\bisUsableForAssessment\s*\(/, '초안 프로필을 걸러 내지 않는다')
 })
 
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
-}

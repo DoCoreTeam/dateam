@@ -10,6 +10,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { recordAudit, type AuditDbClient } from './audit.ts'
+import { stripComments } from '../../ui/component-scan.ts'
 
 const UUID_A = '11111111-2222-4333-8444-555555555555'
 const UUID_B = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
@@ -102,6 +103,3 @@ test('감사 기록에 서비스롤을 쓰지 않는다', () => {
   assert.doesNotMatch(audit, /createAdminClient|service_role|SERVICE_ROLE/, '감사 모듈이 서비스롤을 든다')
 })
 
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
-}

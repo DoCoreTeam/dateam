@@ -10,6 +10,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { attachNotices, toNotice, NOTICE_COLS, type NoticeDbClient } from './hit-notice.ts'
+import { stripComments } from '../../ui/component-scan.ts'
 
 function db(rows: Record<string, unknown>[], asked: { cols?: string; ids?: string[] } = {}): NoticeDbClient {
   return {
@@ -110,8 +111,3 @@ test('제목이 없을 때 내부 번호를 화면에 안 찍는다', () => {
   assert.match(ui, /RFP_RADAR\.noticeNoTitle/, '제목이 없을 때 쓸 말이 없다')
 })
 
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '')
-    .replace(/^[ \t]*\/\/.*$/gm, '')
-}

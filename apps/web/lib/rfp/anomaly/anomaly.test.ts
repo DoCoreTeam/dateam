@@ -19,6 +19,7 @@ import {
 } from './engine.ts'
 import { mergeAnomalies, factsFromReport, applyRuleLayer } from './merge.ts'
 import { readFileSync } from 'node:fs'
+import { stripComments } from '../../ui/component-scan.ts'
 
 const 규칙 = (id: RuleId): AnomalyRule => {
   const r = DEFAULT_RULES.find((x) => x.id === id)
@@ -341,10 +342,6 @@ test('분석 경로가 규칙 층을 실제로 부른다', () => {
   assert.match(src, /applyRuleLayer\s*\(\s*\n?\s*mergeRules\s*\(/, 'DB 규칙을 안 합쳐서 넘긴다')
 })
 
-/** 줄 주석과 블록 주석을 지운다. 문자열 안의 // 는 이 파일들에 없어 단순히 간다 */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
-}
 
 test('규칙 층이 AI 후보를 지우지 않고 합친다', () => {
   const merged = applyRuleLayer(DEFAULT_RULES, {

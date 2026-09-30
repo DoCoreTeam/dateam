@@ -9,6 +9,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { stripComments } from '../../ui/component-scan.ts'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -318,6 +319,3 @@ test('레이더가 기계 갈래에서만 서비스롤을 쓴다', () => {
   assert.match(src, /requireMemberApi\s*\(/, '사람 인증 갈래가 사라졌다')
 })
 
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
-}

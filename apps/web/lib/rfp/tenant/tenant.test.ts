@@ -9,6 +9,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { stripComments } from '../../ui/component-scan.ts'
 import { readFileSync } from 'node:fs'
 
 import { can, capsOf, validateOrg, canDemote, ORG_ROLES, MAX_ORG_NAME } from './org.ts'
@@ -304,6 +305,3 @@ test('원장 기록이 호출 결과를 막지 않는다', () => {
   assert.match(gateway, /return result/, '결과를 안 돌려준다')
 })
 
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
-}
