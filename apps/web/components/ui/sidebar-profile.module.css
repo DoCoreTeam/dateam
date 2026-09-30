@@ -64,3 +64,19 @@
 .trigger:hover,
 .trigger:focus-visible,
 .trigger[data-open='true'] { background: var(--nav-hover-bg); }
+
+/* 오른쪽으로 펼쳐지는 서브메뉴(「다른 서비스로」).
+ * z 는 토큰으로 적는다 — 숫자를 화면에 적으면 서브메뉴가 하나 늘 때마다 또 적게 되고,
+ * 그때부터 어느 것이 위인지 아무도 모른다. 쌓임은 --z-overlay 한 층이면 된다. */
+.flyout {
+  position: absolute;
+  left: 100%; /* 간격 없이 인접 — 호버 이동 시 mouseleave 누락 방지 */
+  top: 0;
+  min-width: 210px;
+  background: var(--nb-white);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  z-index: var(--z-overlay);
+}

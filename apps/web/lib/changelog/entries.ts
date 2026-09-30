@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.786',
+    date: '2026-09-30',
+    title: '서비스 안에서 바로 옆 서비스로 갈 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🚪',
+        headline: '계정 메뉴에서 다른 서비스로 바로 넘어가요',
+        detail: '영업 CRM·콘텐츠 인텔리전스·AI 스튜디오·RFP 분석기·AI 트레이딩 안에 들어가면 왼쪽 메뉴가 그 서비스 것으로 바뀌어서, 옆 서비스로 가려면 업무 화면으로 나갔다가 다시 들어가야 했어요. 이제 왼쪽 아래 계정 메뉴에 「다른 서비스로」가 생겼고 거기서 한 번에 넘어갑니다. 지금 보고 있는 서비스에는 체크가 붙어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.774',
     date: '2026-09-30',
     title: '계좌번호를 고칠 수 있고, 성적표가 왜 그런지 말해 줘요',

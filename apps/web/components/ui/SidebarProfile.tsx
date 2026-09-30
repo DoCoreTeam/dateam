@@ -5,8 +5,9 @@ import { useIsOpen } from '@/lib/access/open-context'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, SlidersHorizontal, ShieldCheck } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, SlidersHorizontal, ShieldCheck, ArrowLeftRight } from 'lucide-react'
 import { surfaceOf, adminEntryFor } from '@/lib/nav/surface'
+import { serviceSwitchLinks, SERVICE_SWITCH_LABEL } from '@/lib/nav/service-switch'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import { clearPersistedSwrCache } from '@/lib/swr-persist'
 import styles from './sidebar-profile.module.css'
@@ -55,7 +56,13 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
     비밀번호 변경은 표면이 아니라(`NOT_A_SURFACE`) 판정이 늘 참이다.
   */
   const isOpen = useIsOpen()
+  /**
+   * 옆으로 가는 길. **목록은 여기서 안 만든다**(`lib/nav/service-switch.ts`) —
+   * 손으로 적으면 서비스가 하나 늘 때 이 줄만 안 따라온다. 빈 배열이면 묶음을 안 그린다.
+   */
+  const services = serviceSwitchLinks(pathname, isOpen)
   const [open, setOpen] = useState(false)
+  const [servicesOpen, setServicesOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
   const [activeTheme, setActiveTheme] = useState<ThemeId | undefined>(currentTheme)
   const [applying, setApplying] = useState(false)
@@ -96,12 +103,14 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
+        setServicesOpen(false)
         setThemeOpen(false)
       }
     }
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setOpen(false)
+        setServicesOpen(false)
         setThemeOpen(false)
         triggerRef.current?.focus()
       }
@@ -142,9 +151,64 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             zIndex: 100,
           }}
         >
+          {/*
+            **옆으로 가는 길** (사용자 지적 2026-09-30: 「각 서비스에서 계정 메뉴에서 다른
+            서비스로 이동할 수 있도록 구현되어 있는걸로 알고 있었는데?」).
+
+            앞 판까지 이 자리에는 「여기 없다」는 주석만 있었다. 근거는 v0.7.716 인데 그때
+            지적받은 것은 **셋 중 하나만 손으로 박혀 있던 것**이지 서비스가 여기 있는 것이
+            아니었다. 그래서 하나를 지웠고, 옆으로 가는 길이 통째로 사라졌다 —
+            하위 서비스에 들어가면 사이드바가 그 서비스 것으로 바뀌어 다른 서비스 이름이
+            화면에서 없어지고, 옆으로 가려면 `/home` 에 나갔다 다시 들어가야 했다.
+
+            나가는 문(N-2)과 **목적지가 다르다.** 그건 집으로 가고 이건 옆으로 간다.
+            그리고 이번엔 **넷이 아니라 표 전체**가 온다 — 대접이 갈릴 자리가 없다.
+          */}
+          {services.length > 0 && (
+            <>
+              <div
+                style={{ position: 'relative' }}
+                onMouseEnter={() => setServicesOpen(true)}
+                onMouseLeave={() => setServicesOpen(false)}
+              >
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={servicesOpen}
+                  onClick={() => setServicesOpen(true)}
+                  className={styles.row}
+                  data-open={servicesOpen}
+                >
+                  <ArrowLeftRight size={14} />
+                  {SERVICE_SWITCH_LABEL}
+                  <ChevronRight size={14} className={styles.chevron} />
+                </button>
+
+                {servicesOpen && (
+                  <div role="menu" className={styles.flyout}>
+                    {services.map((s) => (
+                      /* 지금 서비스도 그린다 — 빼면 내가 어디 있는지 이 목록이 말을 안 한다 */
+                      <Link
+                        key={s.href}
+                        href={s.href}
+                        role="menuitem"
+                        aria-current={s.current ? 'page' : undefined}
+                        onClick={() => { setOpen(false); setServicesOpen(false) }}
+                        className={styles.row}
+                      >
+                        <span className={styles.grow}>{s.label}</span>
+                        {s.current && <Check size={14} style={{ flexShrink: 0, color: 'var(--brand)' }} />}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className={styles.divider} />
+            </>
+          )}
           {/**
-            * **나가는 문이 먼저다.** 관리자 여부와 무관하게 그린다 —
-            * 여기에 `isAdmin &&` 을 걸면 일반 멤버가 다시 갇힌다.
+            * 관리자 패널로 **들어가는** 문. 관리자 여부와 무관하게 판정한다 —
+            * 여기에 `isAdmin &&` 을 걸면 일반 멤버가 다시 갇힌다(판정은 `adminEntryFor`).
             */}
           {adminEntry && (
             <>
@@ -213,13 +277,6 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
           </Link>
           )}
           <div className={styles.divider} />
-          {/*
-            서비스로 들어가는 문(영업 CRM · 콘텐츠 인텔리전스 · AI 스튜디오)은 **여기 없다.**
-            예전엔 콘텐츠 인텔리전스만 이 메뉴에 손으로 박혀 있었다 — 사이드바 「서비스」 묶음이
-            생기기 전 유일한 길이었기 때문이다. 그 묶음이 생긴 뒤로는 같은 곳으로 가는 문이 둘이 됐고,
-            셋 중 하나만 여기 있어서 **서비스마다 대접이 달라 보였다**(사용자 지적 v0.7.716).
-            길은 사이드바 「서비스」 묶음과 전체 메뉴 두 곳이면 충분하다.
-          */}
           {/* 패치노트 — 사이드바 버전 클릭과 동일한 모달을 window 이벤트로 연다(MobileShell이 수신). */}
           <button
             type="button"

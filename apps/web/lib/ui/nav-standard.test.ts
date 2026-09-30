@@ -189,3 +189,31 @@ test('★ 서비스로 가는 문은 계정 메뉴에 두지 않는다 — 셋 �
     )
   }
 })
+
+/**
+ * **옆으로 가는 길 (N-6)** — 사용자 지적 2026-09-30:
+ * 「각 서비스에서 계정 메뉴에서 다른 서비스로 이동할 수 있도록 구현되어 있는걸로 알고 있었는데?」
+ *
+ * 하위 서비스에 들어가면 사이드바가 그 서비스 것으로 바뀌어 **다른 서비스 이름이 화면에서
+ * 사라진다.** 그래서 계정 메뉴가 그 길을 든다. 목록은 표에서 나와야 한다 — 손으로 적으면
+ * 서비스가 하나 늘 때 이 목록만 안 따라오고, 그건 이 시스템이 두 번 겪은 일이다.
+ *
+ * 무엇이 나오는지는 `lib/nav/service-switch.test.ts` 가 함수를 불러서 본다.
+ * 여기서는 **화면이 그 함수를 쓰는지**만 본다 — 둘을 한 파일에서 보면 화면이 자기 목록을
+ * 그려도 함수 시험은 초록이라 통과한다.
+ */
+test('계정 메뉴가 서비스 목록을 직접 만들지 않는다 (N-6)', () => {
+  const profile = stripComments(read('components/ui/SidebarProfile.tsx'))
+  assert.ok(
+    /serviceSwitchLinks\s*\(/.test(profile),
+    '계정 메뉴에 옆으로 가는 길이 없습니다 — serviceSwitchLinks 를 부르세요(§2-3-3 N-6)',
+  )
+  const hardcoded = SERVICE_NAV.filter(
+    (s) => profile.includes(`'${s.label}'`) || profile.includes(`"${s.label}"`) || profile.includes(`'${s.href}'`),
+  )
+  assert.deepEqual(
+    hardcoded.map((s) => s.label),
+    [],
+    '서비스 이름·주소를 계정 메뉴가 직접 적고 있습니다 — 표(SERVICE_NAV)를 펴 쓰세요(N-6)',
+  )
+})
