@@ -26,6 +26,7 @@ import {
 } from '@/lib/trading/chart/forming'
 import { nowPriceLine, NOW_PRICE_LABEL } from '@/lib/trading/chart/now-price'
 import { buildOrderCard } from '@/lib/trading/chart/order-card'
+import { entryWindowNow } from '@/lib/trading/chart/entry-window'
 import { liveWindowAt } from '@/lib/trading/live-window'
 import type { CallPlan } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
@@ -125,10 +126,24 @@ function OrderBlock({ plan, nowPrice, clock }: {
   clock: Date | null
 }) {
   const card = buildOrderCard({ plan, nowPrice, now: clock })
+  /**
+   * **지금 들어가도 되나.** 규칙은 원래 화면에 있었다 — 「진입 한계가 1083.93 · 여기를
+   * 넘으면 안 따라갑니다」. 다만 그 규칙을 사람이 지금 가격과 매번 손으로 견줘야 했다
+   * (사용자 지시 2026-09-30 「어떻게 이용해야 하는건지를 모르겠어」). 그 뺄셈을 화면이 한다.
+   */
+  const gate = entryWindowNow({ plan, nowPrice, now: clock })
   return (
     <div className={styles.plan}>
       {/* 기록인지 예고인지를 먼저 말한다 — 예고를 지시로 읽으면 사람이 그대로 주문한다 */}
       <p className={styles.planSource}>{PLAN_SOURCE_LABEL[plan.from]}</p>
+      {/*
+        **판정이 값보다 먼저다.** 아래 여섯 줄은 「들어간다면 얼마에」이고,
+        이 줄은 「지금 들어가도 되나」다 — 뒤 질문의 답이 아니오면 앞 값은 안 읽어도 된다
+      */}
+      <p className={`${styles.verdict} ${styles[`verdict-${gate.verdict}`]}`}>
+        <span className={styles.verdictText}>{gate.text}</span>
+        {gate.note && <span className={styles.verdictNote}>{gate.note}</span>}
+      </p>
       {/* 방향을 이름이 아니라 **할 일**로. 「숏」보다 「먼저 팝니다」가 주문에 가깝다 */}
       <strong className={styles.orderHeadline}>{card.headline}</strong>
       <dl className={styles.order}>
