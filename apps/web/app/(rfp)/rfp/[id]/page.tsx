@@ -11,6 +11,7 @@ import type { SourceBlock } from '@/components/rfp/SourceViewer'
 import type { Report } from '@/lib/rfp/report/schema'
 import type { DocClass } from '@/lib/rfp/domain/doc-class'
 import type { FitVerdict } from '@/lib/rfp/terms'
+import { noticeUrlOf } from '@/lib/rfp/radar/notice-url'
 import {
   classifyFailure, missingSections, type MissingSection, type FailureReason,
 } from '@/lib/rfp/analyze/failure-reason'
@@ -256,7 +257,7 @@ async function loadProgress(db: unknown, caseId: string, sourceId: string | null
   if (sourceId) {
     const { data: src } = await q.from('rfp_sources').select('raw').eq('id', sourceId).maybeSingle()
     const raw = ((src as { raw?: Record<string, unknown> } | null)?.raw ?? {}) as Record<string, unknown>
-    noticeUrl = typeof raw.url === 'string' ? raw.url : null
+    noticeUrl = noticeUrlOf(raw)
   }
 
   return {
