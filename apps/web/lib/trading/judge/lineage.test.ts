@@ -54,7 +54,13 @@ test('★ 여덟 걸음이 서고 AI 는 한 줄뿐이다', () => {
   assert.ok(l.steps.length >= 8, `걸음이 ${l.steps.length}개뿐이다`)
   const ai = l.steps.filter((s) => s.actor === 'ai')
   assert.equal(ai.length, 1, 'AI 줄이 하나가 아니다 — 코드와 AI 를 못 가른다')
-  assert.equal(ai[0].name, 'Jev')
+  /*
+    **「Jev」라고 안 부른다.** 그 낱말은 판단기 이름이자 공급자 이름이라 읽는 사람이
+    무엇인지 못 가른다 (사용자 지적 2026-09-30 「AI 스럽게 또 이야기 하네」).
+    판단 기록 표가 쓰는 말과 같아야 두 화면이 같은 것을 같게 부른다.
+  */
+  assert.equal(ai[0].name, 'AI 판단기')
+  assert.equal(ai[0].name.includes('Jev'), false)
   // 줄 번호가 이어진다
   assert.deepEqual(l.steps.map((s) => s.no), l.steps.map((_, i) => i + 1))
 })

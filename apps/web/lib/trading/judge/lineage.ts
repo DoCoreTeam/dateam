@@ -224,7 +224,14 @@ export function buildLineage(input: LineageInput): Lineage {
   const jevLean = leaningOf(input.jev.rawScore)
   add({
     actor: 'ai',
-    name: 'Jev',
+    /*
+      **「Jev」라고 안 쓴다.** 그 낱말은 이 저장소가 AI 판단기에 붙인 이름인데
+      공급자 목록에도 같은 낱말이 있어, 화면에 그것만 찍으면 읽는 사람은 그것이
+      모델 이름인지 회사 이름인지 판단기 이름인지 알 수 없다
+      (사용자 질문 2026-09-28, 다시 2026-09-30 「AI 스럽게 또 이야기 하네」).
+      판단 기록 표가 쓰는 말과 같게 둔다 — 두 화면이 같은 것을 다르게 부르면 안 된다.
+    */
+    name: 'AI 판단기',
     where: model,
     referenced: '위 물음 그것뿐 — 봉도 DB 도 우리 코드도 못 봅니다',
     did: took !== null && Number.isFinite(took)
@@ -256,6 +263,10 @@ export function buildLineage(input: LineageInput): Lineage {
     tone: agreed ? 'ok' : 'waiting',
   })
 
+  /** 화면이 실제로 그리는 방향. 안 넘어오면 위에서 꺼낸 AI 판단을 쓴다 */
+  const shownDirection = input.shown?.direction
+    ?? (jevLean ? LEANING_LABEL[jevLean.direction] : null)
+
   add({
     /*
       **이름을 화면과 맞춘다.** 화면은 이 칸을 더 이상 「지금 예측」이라 부르지 않는다 —
@@ -271,7 +282,13 @@ export function buildLineage(input: LineageInput): Lineage {
     where: 'ChartPanel.tsx',
     referenced: '가장 최근 판단 (신호가 있으면 신호가 이깁니다)',
     did: '방향을 꺼내고, 그 봉으로 진입·손절·목표를 셈함',
-    produced: input.shown ? input.shown.direction : '화면에 그릴 값이 없습니다',
+    /*
+      **화면이 그리고 있는 것을 적는다.** 부르는 쪽이 `shown` 을 안 넘기면 위에서 이미
+      꺼낸 판단을 쓴다 — 실측 2026-09-30 그 값이 안 넘어와서, 화면에는 「롱」이 크게 떠 있는데
+      계보만 「화면에 그릴 값이 없습니다」라고 적고 있었다. 계보가 화면과 다른 말을 하면
+      계보를 읽을 이유가 없어진다.
+    */
+    produced: shownDirection ?? '화면에 그릴 값이 없습니다',
     detail: input.shown?.plan ?? null,
     tone: input.blocked ? 'waiting' : 'ok',
   })
