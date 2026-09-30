@@ -44,7 +44,18 @@ export type GatewayStore = GatewayCoreStore<DocClass>
 export type ModelCaller = GatewayModelCaller<AiModel, DocClass>
 
 /** 호출처는 창구와 호출 함수만 준다. 등급 관문은 이 파일이 끼운다 */
-export type GatewayDeps = Omit<GatewayCoreDeps<AiModel, DocClass>, 'gate'>
+/**
+ * 게이트웨이가 쓰는 것에 **원장 기록**을 더한다.
+ *
+ * 비용은 호출이 끝나야 안다. 그래서 부른 자리에서 그때 쌓는다 —
+ * 나중에 rfp_llm_calls 를 훑어 합치면 그 합계는 훑는 시점의 규칙으로 계산한 값이 되고,
+ * 한도는 「그때 얼마를 썼나」로 재야 한다.
+ *
+ * 없으면 안 쌓는다. 시험이 원장 없이도 게이트웨이를 돌릴 수 있어야 한다
+ */
+export type GatewayDeps = Omit<GatewayCoreDeps<AiModel, DocClass>, 'gate'> & {
+  recordUsage?: (costKrw: number) => Promise<void>
+}
 
 /** 이 모델에 이 문서를 보내도 되나 */
 function docClassGate(model: AiModel, req: CallRequest): GateDecision {
@@ -87,5 +98,16 @@ export async function callWithFallback(
   const decision = await gate.check(RFP_BUDGET_FEATURE)
   if (!decision.allowed) throw new BudgetDeniedError(decision)
 
-  return callGateway(chain, req, { ...deps, gate: docClassGate })
+  const result = await callGateway(chain, req, { ...deps, gate: docClassGate })
+
+  // 쓴 만큼 원장에 쌓는다. 쌓기가 실패해도 이미 받아 온 답을 버리지 않는다 —
+  // 그러면 사용자는 돈을 쓰고 아무것도 못 받는다
+  if (deps.recordUsage) {
+    try {
+      await deps.recordUsage(result.meta.costKrw)
+    } catch {
+      // 부르는 쪽이 이미 사유를 남긴다. 여기서 또 삼키지 않게 기록은 그쪽 몫이다
+    }
+  }
+  return result
 }

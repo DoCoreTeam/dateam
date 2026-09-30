@@ -9,13 +9,14 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 import { can, capsOf, validateOrg, canDemote, ORG_ROLES, MAX_ORG_NAME } from './org.ts'
 import {
   validateInvite, acceptInvite, makeToken, expiryFrom, INVITE_TTL_DAYS, TOKEN_BYTES, type Invite,
 } from './invite.ts'
 import {
-  checkQuota, summarize, currentPeriod, toPlan, usageDelta, USAGE_KINDS,
+  checkQuota, summarize, currentPeriod, toPlan, usageDelta, USAGE_KINDS, recordUsage,
   type Plan, type UsageRow,
 } from './usage.ts'
 
@@ -244,3 +245,65 @@ test('DB 행을 요금제로 옮긴다', () => {
   assert.equal(p.crossVerify, false)
   assert.equal(toPlan({ id: 'internal', monthly_ai_krw: null }).monthlyAiKrw, null)
 })
+
+// 원장 쌓기 — usageDelta 는 「워커가 부른다」고 적혀 있었지만 부르는 곳이 없었다
+
+test('원장에 더하기를 DB 함수로 넘긴다', async () => {
+  const calls: { fn: string; args: Record<string, unknown> }[] = []
+  const db = {
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      calls.push({ fn, args })
+      return { error: null }
+    },
+  }
+  const r = await recordUsage(db, usageDelta('o1', 'llm', 1, 250, Date.UTC(2026, 8, 30)))
+  assert.equal(r.ok, true)
+  assert.equal(calls.length, 1)
+  // 읽고 더해서 쓰면 동시에 난 호출 중 하나가 사라진다. 더하기는 한 문장이어야 한다
+  assert.equal(calls[0].fn, 'rfp_add_usage')
+  assert.equal(calls[0].args.p_org, 'o1')
+  assert.equal(calls[0].args.p_kind, 'llm')
+  assert.equal(calls[0].args.p_units, 1)
+  assert.equal(calls[0].args.p_cost, 250)
+  assert.equal(calls[0].args.p_period, currentPeriod(Date.UTC(2026, 8, 30)))
+})
+
+test('기록이 실패해도 던지지 않고 사유를 준다', async () => {
+  // 원장은 호출의 결과가 아니라 기록이다. 기록에 실패했다고 이미 받아 온 답을 버리면
+  // 사용자는 돈을 쓰고 아무것도 못 받는다
+  const db = { rpc: async () => ({ error: { message: '권한 없음' } }) }
+  const r = await recordUsage(db, usageDelta('o1', 'llm', 1, 250))
+  assert.equal(r.ok, false)
+  assert.match(String(r.reason), /권한 없음/, '사유를 안 준다 — 조용히 넘어가는 것과 같다')
+})
+
+test('rpc 가 던져도 잡아서 사유로 바꾼다', async () => {
+  const db = { rpc: async () => { throw new Error('연결 끊김') } }
+  const r = await recordUsage(db, usageDelta('o1', 'llm', 1, 250))
+  assert.equal(r.ok, false)
+  assert.match(String(r.reason), /연결 끊김/)
+})
+
+test('AI 호출 경로가 원장에 쌓는다', () => {
+  // usageDelta 는 「워커가 부른다」고 적혀 있었지만 부르는 곳이 자기 시험뿐이었다.
+  // 실측 2026-09-30: rfp_usage_ledger 0행
+  const worker = stripComments(readFileSync(
+    new URL('../../../app/api/rfp/worker/tick/route.ts', import.meta.url), 'utf8'))
+  assert.equal((worker.match(/\brecordUsage\s*\(/g) ?? []).length, 1, '워커가 원장에 안 쌓는다')
+  assert.match(worker, /\busageDelta\s*\(/, '더할 값을 안 만든다')
+  assert.match(worker, /recordUsage:/, '게이트웨이에 원장 기록을 안 넘긴다')
+
+  const gateway = stripComments(readFileSync(new URL('../ai/gateway.ts', import.meta.url), 'utf8'))
+  assert.match(gateway, /deps\.recordUsage/, '게이트웨이가 넘겨받은 기록을 안 부른다')
+})
+
+test('원장 기록이 호출 결과를 막지 않는다', () => {
+  const gateway = stripComments(readFileSync(new URL('../ai/gateway.ts', import.meta.url), 'utf8'))
+  // 기록을 await 한 뒤 결과를 돌려주되, 기록이 던져도 결과가 살아야 한다
+  assert.match(gateway, /try\s*\{[\s\S]*deps\.recordUsage[\s\S]*\}\s*catch/, '기록 실패가 호출 결과를 죽인다')
+  assert.match(gateway, /return result/, '결과를 안 돌려준다')
+})
+
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
+}

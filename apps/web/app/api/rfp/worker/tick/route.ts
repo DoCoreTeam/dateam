@@ -22,6 +22,7 @@ import { getAvailableProviders } from '@/lib/ai-chat/registry'
 import { embedTexts } from '@/lib/gemini-embedding'
 import type { GatewayStore } from '@/lib/rfp/ai/gateway'
 import { recorded, notRecorded } from '@ax/ai-gateway'
+import { recordUsage, usageDelta } from '@/lib/rfp/tenant/usage'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -185,7 +186,15 @@ async function runJob(db: ReturnType<typeof createAdminClient>, job: Job): Promi
         docClass: kase.docClass as 'public' | 'restricted' | 'nda',
         parts: docs.map((d) => ({ fileId: d.fileId, role: roleById.get(d.fileId), doc: d.doc })),
         models: ai.models,
-        gateway: { store, call: caller },
+        gateway: {
+          store, call: caller,
+          // 쓴 만큼 원장에 쌓는다. 한도를 재는 기록이라 호출 끝마다 그때 쌓아야 한다
+          recordUsage: async (costKrw) => {
+            const r = await recordUsage(db as never, usageDelta(kase.orgId, 'llm', 1, costKrw))
+            // 기록 실패가 분석을 막지는 않는다. 다만 조용히 넘어가지도 않는다
+            if (!r.ok) console.error('[rfp] 사용량 원장 기록 실패', r.reason)
+          },
+        },
       })
       return {
         version: out.version, title: out.title,

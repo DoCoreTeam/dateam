@@ -147,3 +147,45 @@ export function usageDelta(
 ): UsageRow {
   return { orgId, period: currentPeriod(now), kind, units, costKrw }
 }
+
+/**
+ * 원장에 더한다 — 워커가 AI 호출 뒤에 부른다.
+ *
+ * ## 왜 더하기를 DB 함수에 맡기나
+ *
+ * 한 분석에서 AI 호출이 아홉 번 **동시에** 난다. 읽고 더해서 쓰면 겹친 둘 중 하나가
+ * 사라지고, 사라진 사실은 아무 데도 안 남는다. `rfp_add_usage` 가 한 문장으로 더한다.
+ *
+ * ## 왜 안 던지나
+ *
+ * 원장은 호출의 결과가 아니라 **기록**이다. 기록에 실패했다고 이미 받아 온 답을 버리면
+ * 사용자는 돈을 쓰고 아무것도 못 받는다. 그래서 실패를 돌려주고 부르는 쪽이 남기게 한다.
+ * 조용히 넘어가지도 않는다 — 돌려주는 값에 사유가 들어 있다.
+ */
+export interface UsageRecordResult {
+  ok: boolean
+  reason: string | null
+}
+
+export interface UsageDbClient {
+  rpc(fn: string, args: Record<string, unknown>): Promise<{ error: unknown }>
+}
+
+export async function recordUsage(db: UsageDbClient, row: UsageRow): Promise<UsageRecordResult> {
+  try {
+    const { error } = await db.rpc('rfp_add_usage', {
+      p_org: row.orgId,
+      p_period: row.period,
+      p_kind: row.kind,
+      p_units: row.units,
+      p_cost: row.costKrw,
+    })
+    if (error) {
+      const message = (error as { message?: unknown })?.message
+      return { ok: false, reason: String(message ?? error) }
+    }
+    return { ok: true, reason: null }
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : String(e) }
+  }
+}
