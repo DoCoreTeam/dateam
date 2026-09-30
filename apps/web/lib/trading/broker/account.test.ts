@@ -212,3 +212,28 @@ test('★ 계좌 모듈이 값을 쓰는 창구를 안 만든다 — 조회만 �
   }
   assert.ok(src.includes("method: 'GET'"))
 })
+
+/* ── 계좌번호 뒤 두 자리 (사용자 지적 2026-09-30 「-01 이 없어서 그런거 아냐?」) ── */
+
+test('★ 계좌번호를 숫자만 남겨 통째로 보내지 않는다', () => {
+  const src = readFileSync(new URL('./credentials.ts', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/^\s*\/\/.*$/gm, '')
+
+  /*
+    증권사 계좌는 `12345678-01` 처럼 여덟 자리 뒤에 상품코드 두 자리가 붙는다.
+    전에는 `replace(/\D/g, '')` 로 붙임표를 지워 열 자리를 통째로 `CANO` 로 보냈고,
+    그러면 증권사는 그런 계좌가 없다고 답한다(실측 `APAC0071`).
+  */
+  const at = src.indexOf('export async function loadAccountRef')
+  assert.ok(at > 0, 'loadAccountRef 를 못 찾았다')
+  const body = src.slice(at, src.indexOf('\nexport ', at + 1))
+  assert.match(body, /splitAccountNo\(/, '계좌번호를 두 조각으로 안 가른다')
+  assert.equal(
+    /replace\(\/\\D\/g/.test(body),
+    false,
+    '숫자만 남겨 통째로 쓴다 — 뒤 두 자리가 계좌번호에 섞인다',
+  )
+  // 사람이 안 적었으면 설정값이 그대로 가야 한다
+  assert.match(body, /productCode \?\? acntPrdtCd/, '안 적은 경우에 설정값으로 안 떨어진다')
+})
