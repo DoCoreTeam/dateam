@@ -452,6 +452,15 @@ export const RFP_PROFILE = {
   proposalOutline: '제안서 목차',
   proposalStrategy: '제안 전략',
   uncovered: '목차에 안 들어간 요구사항',
+  /**
+   * 판정을 못 했을 때. 점수를 지어내는 대신 무엇이 없어서 못 했는지와 넣으러 갈 곳을 말한다.
+   * 「없다」로 끝나는 안내는 읽는 쪽의 일을 늘리기만 한다
+   */
+  fitBlockedNoProfile: '회사 정보를 먼저 넣어 주세요',
+  fitBlockedDraft: '회사 정보를 확인하고 저장해 주세요',
+  fitBlockedDesc: '적합도는 공고와 우리 회사 정보를 대조해 나옵니다. 정보가 없으면 판정을 지어내지 않습니다',
+  fitBlockedDraftDesc: '문서로 채운 초안은 아직 판정에 쓰지 않습니다. 틀린 값으로 부적합이 나오면 그 이유를 알 수 없습니다',
+  fitBlockedCta: '회사 정보 넣으러 가기',
 } as const
 
 /** 레이더와 결과 */

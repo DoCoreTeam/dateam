@@ -246,3 +246,117 @@ function buildGaps(unmet: readonly HardCheck[], score: number, verdict: Verdict)
   }
   return gaps
 }
+
+/**
+ * 리포트를 판정 입력으로 옮기고 판정한다 — 분석 경로가 부르는 자리.
+ *
+ * ## 왜 판정을 안 할 때가 있나
+ *
+ * 적합도는 **우리 회사 정보와 공고를 대조한 결과**다. 회사 정보가 없으면 대조할 것이 없고,
+ * 그때 점수를 내면 그 점수는 공고만 보고 지어낸 숫자가 된다. 사용자는 그것을 판정으로 읽는다.
+ * 그래서 안 낸다. 대신 **무엇이 없어서 못 냈는지**와 넣으러 갈 곳을 돌려준다.
+ *
+ * 초안 프로필도 안 쓴다(`isUsableForAssessment`). 자동으로 뽑은 값이 틀린 채 판정에 쓰이면
+ * 부적합의 이유가 「우리 회사 정보가 틀려서」가 되고 사용자는 그것을 영영 모른다.
+ *
+ * ## 모르는 값에 0 을 넣지 않는다
+ *
+ * 약한 점수 다섯 중 경쟁 환경은 볼 데이터가 아직 없다. 0 을 넣으면 「경쟁이 없다」가 아니라
+ * 「경쟁에서 최하점」이 되어 점수를 끌어내린다. 그래서 중립인 0.5 를 쓴다.
+ */
+
+/** 자격 요건이 들어 있는 칸들. 하나라도 빠지면 그 요건은 판정에서 통째로 사라진다 */
+const HARD_KEYS = ['eligibility', 'technical', 'legal', 'security', 'personnel', 'subcontracting'] as const
+
+/** 값이 글이든 글 목록이든 줄 목록으로 편다 */
+function textsOf(node: { value: unknown } | undefined): string[] {
+  const v = node?.value
+  if (typeof v === 'string') return v.split('\n').map((s) => s.trim()).filter(Boolean)
+  if (Array.isArray(v)) {
+    return v.flatMap((x) => (typeof x === 'string' ? [x.trim()] : [])).filter(Boolean)
+  }
+  return []
+}
+
+export interface FitReportLike {
+  scope?: Record<string, { value: unknown }>
+  budget?: Record<string, { value: unknown }>
+  schedule?: Record<string, { value: unknown }>
+  constraints?: Record<string, { value: unknown }>
+}
+
+/** 제약 칸에서 자격 요건 줄을 뽑는다. 근거 블록은 리포트가 안 들고 있어 null 이다 */
+export function hardRequirementsFrom(report: FitReportLike): HardRequirement[] {
+  const out: HardRequirement[] = []
+  for (const key of HARD_KEYS) {
+    for (const text of textsOf(report.constraints?.[key])) {
+      out.push({ text, blockId: null })
+    }
+  }
+  return out
+}
+
+/** 이상 조항 심각도를 0~1 위험도로 — 막는 조항 하나면 이미 절반이다 */
+const RISK_OF: Record<string, number> = { blocking: 0.5, margin: 0.25, contract: 0.15, competition: 0.1 }
+
+export function softInputsFrom(input: {
+  report: FitReportLike
+  profile: CompanyProfile
+  anomalies: readonly { severity: string }[]
+}): SoftInputs {
+  const { report, profile, anomalies } = input
+
+  const tags = new Set(profile.capabilities.map((c) => c.tag.toLowerCase()).filter(Boolean))
+  const wanted = textsOf(report.scope?.workItems).concat(textsOf(report.scope?.deliverables))
+  const hitCount = wanted.filter((w) => {
+    const low = w.toLowerCase()
+    return Array.from(tags).some((t) => low.includes(t))
+  }).length
+
+  const budget = report.budget?.totalAmount?.value
+  const budgetNum = typeof budget === 'number' && Number.isFinite(budget) ? budget : null
+  const biggest = profile.trackRecords.reduce((m, r) => Math.max(m, r.amountKrw ?? 0), 0)
+
+  return {
+    // 볼 것이 없으면 0.5 — 0 은 「안 맞는다」는 주장이고, 우리는 그 주장을 할 근거가 없다
+    capability: wanted.length === 0 || tags.size === 0 ? 0.5 : clamp01(hitCount / wanted.length),
+    trackRecord: profile.trackRecords.length === 0 ? 0 : clamp01(profile.trackRecords.length / 5),
+    scale: budgetNum === null || biggest === 0 ? 0.5 : clamp01(biggest / budgetNum),
+    risk: clamp01(anomalies.reduce((n, a) => n + (RISK_OF[a.severity] ?? 0.1), 0)),
+    // 경쟁 환경은 볼 데이터가 아직 없다. 중립값이지 관측값이 아니다
+    competition: 0.5,
+  }
+}
+
+function clamp01(n: number): number {
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0
+}
+
+export type FitBlockedReason = 'no_profile' | 'draft_profile'
+
+export interface FitLayerResult {
+  assessment: Assessment | null
+  /** 판정을 못 한 이유. 지어내는 대신 이것을 화면에 보여 준다 */
+  blocked: FitBlockedReason | null
+}
+
+export function applyFitLayer(input: {
+  profile: CompanyProfile | null
+  usable: boolean
+  report: FitReportLike
+  anomalies: readonly { severity: string }[]
+  reportVersion: number
+}): FitLayerResult {
+  if (!input.profile) return { assessment: null, blocked: 'no_profile' }
+  if (!input.usable) return { assessment: null, blocked: 'draft_profile' }
+
+  return {
+    assessment: assess({
+      hardRequirements: hardRequirementsFrom(input.report),
+      profile: input.profile,
+      soft: softInputsFrom({ report: input.report, profile: input.profile, anomalies: input.anomalies }),
+      reportVersion: input.reportVersion,
+    }),
+    blocked: null,
+  }
+}

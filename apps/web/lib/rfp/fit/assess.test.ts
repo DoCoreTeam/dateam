@@ -10,12 +10,16 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { emptyProfile, type CompanyProfile } from './profile.ts'
+import { RFP_PROFILE } from '../terms.ts'
 
 import {
   emptyProfile, classifyRequirement, parseAmount, parseCount, type CompanyProfile,
 } from './profile.ts'
 import {
   assess, checkHard, softScore, SOFT_WEIGHTS, FULL_SCORE_MIN, PARTIAL_SCORE_MIN,
+  applyFitLayer, hardRequirementsFrom, softInputsFrom,
   type SoftInputs, type HardRequirement,
 } from './assess.ts'
 
@@ -225,3 +229,93 @@ test('요건이 없으면 점수만으로 판정한다', () => {
   assert.equal(r.verdict, 'full')
   assert.deepEqual(r.summary, { met: 0, unmet: 0, unknown: 0 })
 })
+
+// 배선 — 적합도가 분석 경로에서 실제로 나는가
+
+const 빈프로필 = (over: Partial<CompanyProfile> = {}): CompanyProfile => ({
+  ...emptyProfile(1), ...over,
+})
+
+test('회사 정보가 없으면 판정을 지어내지 않는다', () => {
+  const r = applyFitLayer({
+    profile: null, usable: false, report: {}, anomalies: [], reportVersion: 1,
+  })
+  assert.equal(r.assessment, null, '프로필이 없는데 점수를 냈다')
+  assert.equal(r.blocked, 'no_profile')
+})
+
+test('초안 프로필로는 판정하지 않는다', () => {
+  // 자동으로 뽑은 값이 틀린 채 판정에 쓰이면 부적합의 이유가
+  // 「우리 회사 정보가 틀려서」가 되고 사용자는 그것을 영영 모른다
+  const r = applyFitLayer({
+    profile: 빈프로필({ status: 'draft' }), usable: false,
+    report: {}, anomalies: [], reportVersion: 1,
+  })
+  assert.equal(r.assessment, null)
+  assert.equal(r.blocked, 'draft_profile')
+})
+
+test('못 한 자리에 넣으러 갈 곳이 함께 나온다', () => {
+  // 「없습니다」로 끝나는 안내는 읽는 쪽의 일을 늘리기만 한다
+  assert.ok(RFP_PROFILE.fitBlockedNoProfile)
+  assert.ok(RFP_PROFILE.fitBlockedDesc)
+  assert.ok(RFP_PROFILE.fitBlockedCta, '넣으러 가는 길이 없다')
+  assert.notEqual(RFP_PROFILE.fitBlockedDesc, RFP_PROFILE.fitBlockedDraftDesc, '두 사유가 같은 말을 한다')
+})
+
+test('프로필이 있으면 모자란 자격이 갭으로 나온다', () => {
+  const r = applyFitLayer({
+    profile: 빈프로필({
+      status: 'active',
+      basic: { ...emptyProfile(1).basic, companyName: '데이터얼라이언스', capitalKrw: 100_000_000 },
+    }),
+    usable: true,
+    report: { constraints: { eligibility: { value: '자본금 10억원 이상\nISMS 인증 보유' } } },
+    anomalies: [], reportVersion: 3,
+  })
+  assert.ok(r.assessment, '프로필이 있는데 판정이 없다')
+  assert.equal(r.blocked, null)
+  assert.equal(r.assessment.reportVersion, 3, '어느 판을 보고 판정했는지 안 적혔다')
+  assert.ok(r.assessment.hardChecks.length >= 2, '자격 요건 두 줄을 안 읽었다')
+  assert.ok(r.assessment.gaps.length > 0, '자본금도 인증도 모자란데 채울 것이 없다고 한다')
+})
+
+test('제약 칸을 여섯 다 읽는다', () => {
+  // 한 칸이라도 빠지면 그 요건은 판정에서 통째로 사라지고, 사라진 사실은 아무 데도 안 나온다
+  const report = {
+    constraints: {
+      eligibility: { value: 'A' }, technical: { value: 'B' }, legal: { value: 'C' },
+      security: { value: 'D' }, personnel: { value: 'E' }, subcontracting: { value: 'F' },
+    },
+  }
+  assert.deepEqual(hardRequirementsFrom(report).map((r) => r.text), ['A', 'B', 'C', 'D', 'E', 'F'])
+})
+
+test('볼 데이터가 없는 약한 점수에 0 을 넣지 않는다', () => {
+  // 0 은 「안 맞는다」는 주장이다. 근거 없이 그 주장을 하면 점수가 거짓으로 내려간다
+  const soft = softInputsFrom({ report: {}, profile: 빈프로필(), anomalies: [] })
+  assert.equal(soft.capability, 0.5, '볼 것이 없는데 역량을 0 으로 깎았다')
+  assert.equal(soft.scale, 0.5)
+  assert.equal(soft.competition, 0.5, '경쟁 환경은 아직 볼 데이터가 없다')
+  assert.equal(soft.risk, 0, '이상 조항이 없으면 위험도 없다')
+  assert.equal(soft.trackRecord, 0, '실적 없음은 관측된 사실이라 0 이 맞다')
+})
+
+test('이상 조항이 무거울수록 위험이 오른다', () => {
+  const low = softInputsFrom({ report: {}, profile: 빈프로필(), anomalies: [{ severity: 'competition' }] })
+  const high = softInputsFrom({ report: {}, profile: 빈프로필(), anomalies: [{ severity: 'blocking' }] })
+  assert.ok(high.risk > low.risk, '막는 조항이 경쟁 조항보다 안 무겁다')
+  assert.ok(high.risk <= 1 && low.risk >= 0, '위험도가 0~1 을 벗어났다')
+})
+
+test('분석 경로가 적합도 층을 실제로 부른다', () => {
+  const src = stripComments(readFileSync(new URL('../analyze/run-analyze.ts', import.meta.url), 'utf8'))
+  assert.equal((src.match(/\bapplyFitLayer\s*\(/g) ?? []).length, 1, '적합도 층을 부르는 자리가 하나가 아니다')
+  assert.match(src, /report\.fit\s*=/, '판정을 리포트에 안 돌려놓는다')
+  assert.match(src, /\bloadProfile\s*\(/, '회사 프로필을 안 읽는다 — 그러면 늘 no_profile 이 된다')
+  assert.match(src, /\bisUsableForAssessment\s*\(/, '초안 프로필을 걸러 내지 않는다')
+})
+
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
+}

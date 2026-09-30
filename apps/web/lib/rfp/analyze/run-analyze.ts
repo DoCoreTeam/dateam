@@ -20,10 +20,14 @@ import { buildInstruction } from '../report/tasks.ts'
 import { callWithFallback, NoModelAvailableError, type GatewayDeps } from '../ai/gateway.ts'
 import { mergeRules, toRule, RULE_COLS, type AnomalyRule } from '../anomaly/rules.ts'
 import { applyRuleLayer } from '../anomaly/merge.ts'
+import { applyFitLayer } from '../fit/assess.ts'
+import { isUsableForAssessment } from '../fit/draft.ts'
+import { loadProfile } from '../db/profile.ts'
 import { pickModels, costKrw, type AiModel } from '../ai/models.ts'
-import { AI_NOTICE } from '../terms.ts'
+import { AI_NOTICE, RFP_PROFILE } from '../terms.ts'
 import type { DocClass } from '../domain/doc-class.ts'
 import type { IrDocument } from '../ir/types.ts'
+import type { ValueNode } from '../report/schema.ts'
 
 /** 본문이 앞이다. 같은 값이 여럿이면 앞의 것이 이긴다 */
 export const ROLE_ORDER = ['main', 'scope', 'notice', 'special_terms', 'proposal_guide', 'qna', 'amendment', 'forms', 'etc']
@@ -209,6 +213,10 @@ export async function runAnalyze(
     ((versions ?? []) as { version: number }[]).map((r) => Number(r.version)),
   )
 
+  // 적합도도 여기서 낸다. 규칙 층과 같은 이유다 — assess 를 부르는 곳이 자기 시험뿐이라
+  // 리포트의 적합도 칸은 늘 비어 있었다. 판 번호가 정해진 뒤라야 「어느 판을 보고 판정했나」를 적는다
+  base.report.fit = await withFitLayer(db, base.report, version)
+
   // 이력을 먼저 적고 그 id 를 리포트에 싣는다. 안 실으면 「이 리포트가 어느 실행에서 나왔나」를
   // 되물을 길이 없다 — run_id 는 지금까지 늘 null 이었다
   const runId = await recordAnalysisRun(db, {
@@ -261,5 +269,72 @@ async function loadRules(db: unknown, orgId: string): Promise<AnomalyRule[]> {
     return (data as Record<string, unknown>[]).map(toRule)
   } catch {
     return []
+  }
+}
+
+/**
+ * 회사 프로필을 읽어 적합도를 낸다.
+ *
+ * 프로필을 못 읽어도 분석을 세우지 않는다 — 리포트는 이미 다 만들어졌고,
+ * 적합도 한 칸 때문에 그것을 버리면 사용자가 잃는 것이 훨씬 크다.
+ * 대신 왜 판정이 없는지를 그 칸에 적어 화면이 그대로 말하게 한다.
+ */
+async function withFitLayer(
+  db: unknown,
+  report: { anomalies: unknown[] } & Parameters<typeof applyFitLayer>[0]['report'],
+  reportVersion: number,
+): Promise<Record<string, ValueNode<unknown>> | null> {
+  let profile: Awaited<ReturnType<typeof loadProfile>> = null
+  try {
+    profile = await loadProfile(db as never)
+  } catch {
+    // 못 읽은 것과 없는 것은 다르지만, 둘 다 「지어내지 않는다」로 간다
+    profile = null
+  }
+
+  const out = applyFitLayer({
+    profile,
+    usable: profile ? isUsableForAssessment(profile) : false,
+    report,
+    anomalies: (report.anomalies ?? []).flatMap((a) => {
+      const row = a as { severity?: unknown }
+      return typeof row?.severity === 'string' ? [{ severity: row.severity }] : []
+    }),
+    reportVersion,
+  })
+
+  /**
+   * 리포트의 적합도 칸은 값 노드 모음이다. 판정을 못 했으면 사유를 그 모양으로 담는다.
+   *
+   * 판정값은 confirmed 다 — 저장된 프로필과 리포트에서 규칙으로 계산한 값이지 모델의 짐작이 아니다.
+   * 못 했다는 안내는 unconfirmed 다 — 근거가 있어서 적은 것이 아니라 근거가 없어서 적은 것이다.
+   */
+  const node = (value: unknown, grounding: 'confirmed' | 'unconfirmed'): ValueNode<unknown> => ({
+    value, evidence: [], confidence: null, grounding,
+    vendor: null, verification: 'single',
+  })
+
+  if (out.blocked) {
+    const none = out.blocked === 'no_profile'
+    return {
+      blocked: node(out.blocked, 'unconfirmed'),
+      title: node(none ? RFP_PROFILE.fitBlockedNoProfile : RFP_PROFILE.fitBlockedDraft, 'unconfirmed'),
+      desc: node(none ? RFP_PROFILE.fitBlockedDesc : RFP_PROFILE.fitBlockedDraftDesc, 'unconfirmed'),
+      cta: node(RFP_PROFILE.fitBlockedCta, 'unconfirmed'),
+    }
+  }
+
+  const a = out.assessment
+  if (!a) return null
+  return {
+    verdict: node(a.verdict, 'confirmed'),
+    conditional: node(a.conditional, 'confirmed'),
+    score: node(a.score, 'confirmed'),
+    parts: node(a.parts, 'confirmed'),
+    hardChecks: node(a.hardChecks, 'confirmed'),
+    summary: node(a.summary, 'confirmed'),
+    gaps: node(a.gaps, 'confirmed'),
+    profileVersion: node(a.profileVersion, 'confirmed'),
+    reportVersion: node(a.reportVersion, 'confirmed'),
   }
 }
