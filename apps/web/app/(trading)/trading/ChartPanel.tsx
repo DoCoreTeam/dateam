@@ -20,6 +20,11 @@ import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import type { ChartSeries, SignalRow } from '@/lib/trading/overview-shape'
 import { pickNowCall, callAgeLabel, chartTitle, planForCall } from '@/lib/trading/chart/series'
+import {
+  buildDisplayBars, isForming, isChartTimeframe,
+  CHART_TIMEFRAMES, DEFAULT_CHART_TIMEFRAME, type ChartTimeframe, type DisplayBar,
+} from '@/lib/trading/chart/forming'
+import { liveWindowAt } from '@/lib/trading/live-window'
 import type { CallPlan } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
 import {
@@ -35,6 +40,8 @@ interface Props {
   signals: readonly SignalRow[]
   /** 신호가 없는 이유 — 마지막 실행이 어디까지 갔나 */
   emitProgress: { step: number; total: number; reason: string } | null
+  /** 마지막으로 받은 현재가. 형성 중인 봉이 이 값으로 모양을 바꾼다 */
+  lastPrice: { price: number; observedAt: string } | null
 }
 
 /**
@@ -88,6 +95,9 @@ function priceAt(chart: ChartSeries, barAt: string): number | undefined {
 const SIGNAL_SOURCE = '관문을 지난 신호'
 const JUDGMENT_SOURCE = '판단 기록'
 const NOT_A_SIGNAL = '아직 신호로는 안 나갔습니다'
+
+/** 고른 봉 단위를 화면이 기억한다. 설정이 아니라 보는 사람 취향이다 */
+const TF_KEY = 'trading.chart.tf'
 
 /** 기대값은 평균표가 정한다. 없으면 없다고 말한다 — 0 은 「본전이 기대된다」는 사실이다 */
 function evText(value: number | null): string {
@@ -199,12 +209,55 @@ function PlanBlock({ plan }: { plan: CallPlan }) {
   )
 }
 
-export default function ChartPanel({ chart, signals, emitProgress }: Props) {
+export default function ChartPanel({ chart, signals, emitProgress, lastPrice }: Props) {
   /**
    * **있는 것을 먼저 보여 준다.** 신호가 0건이어도 판단은 매분 쌓인다 —
    * 그것을 안 보고 「판단이 한 번도 안 돌았습니다」라고 하면 화면이 거짓말을 한다
    * (사용자 지적 2026-09-28: 판단 기록엔 숏 90% 가 줄줄이 있었다).
    */
+  /**
+   * **화면 봉 단위.** 통상 HTS 처럼 고르게 둔다.
+   *
+   * 이것은 **보는 단위**일 뿐이고 시스템은 계속 1분으로 판단한다 — 판단 단위를 바꾸면
+   * 그 전 판단과 성적을 못 견주고 보정·기대값표를 다시 쌓아야 한다. 둘을 섞으면 안 된다.
+   *
+   * 첫 렌더는 기본값이다. 기억한 값을 처음부터 쓰면 서버가 그린 것과 달라져
+   * 하이드레이션이 어긋난다.
+   */
+  const [tf, setTf] = useState<ChartTimeframe>(DEFAULT_CHART_TIMEFRAME)
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(TF_KEY))
+    if (isChartTimeframe(saved)) setTf(saved)
+  }, [])
+  const pickTf = (next: ChartTimeframe): void => {
+    setTf(next)
+    try { window.localStorage.setItem(TF_KEY, String(next)) } catch { /* 저장 못 해도 화면은 돈다 */ }
+  }
+
+  /**
+   * 그릴 봉 — 확정 1분봉을 고른 단위로 묶고, 맨 뒤에 형성 중인 봉을 붙인다.
+   * **시계를 화면이 쥔다.** 서버 시각으로 만들면 형성 봉이 안 움직인다
+   */
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    // 값이 안 바뀌어도 「몇 초 지났나」가 바뀌므로 형성 봉 판정을 다시 한다
+    const id = setInterval(() => setTick((n) => n + 1), 1_000)
+    return () => clearInterval(id)
+  }, [])
+  const displayBars = useMemo(() => {
+    void tick
+    const now = new Date()
+    return buildDisplayBars({
+      bars: chart.bars,
+      minutes: tf,
+      lastPrice,
+      now,
+      // 한 단위가 지나도록 값이 안 오면 멈춘 것이다
+      staleAfterSeconds: Math.max(60, tf * 60),
+      live: liveWindowAt(now).live,
+    })
+  }, [chart.bars, tf, lastPrice, tick])
+
   const call = pickNowCall({ signals, calls: chart.calls })
   /**
    * 그 답대로 주문한다면 얼마인가. **관망이거나 지표를 못 구했으면 null 이고**,
@@ -234,7 +287,27 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
     <section className={`card ${styles.panel}`}>
       <div className={styles.chartSide}>
         {/* 제목이 실제로 그리는 것을 말한다 — 신호가 0건인데 「신호」라고 적지 않는다 */}
-        <h2 className={styles.title}>{chartTitle({ signalCount: signals.length, callCount: chart.calls.length })}</h2>
+        <div className={styles.chartHead}>
+          <h2 className={styles.title}>{chartTitle({ signalCount: signals.length, callCount: chart.calls.length })}</h2>
+          {/*
+            **보는 단위지 판단 단위가 아니다.** 시스템은 계속 1분으로 판단한다 —
+            그 사실을 옆줄이 말한다. 섞이면 「60분으로 바꿨으니 판단도 60분」으로 읽는다
+          */}
+          <div className={styles.tfPick} role="group" aria-label="봉 단위">
+            {CHART_TIMEFRAMES.map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={`${styles.tfBtn} ${m === tf ? styles.tfOn : ''}`}
+                aria-pressed={m === tf}
+                onClick={() => pickTf(m)}
+              >
+                {`${m}분`}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className={styles.tfNote}>판단은 1분봉으로 합니다. 이 고르기는 보는 단위만 바꿉니다</p>
         {chart.bars.length === 0
           ? (
             <EmptyState
@@ -243,7 +316,7 @@ export default function ChartPanel({ chart, signals, emitProgress }: Props) {
               description={chart.blocked?.text}
             />
           )
-          : <PriceChart chart={chart} />}
+          : <PriceChart chart={chart} bars={displayBars} minutes={tf} />}
       </div>
 
       <div className={styles.callSide}>
@@ -327,9 +400,9 @@ type Recharts = typeof import('recharts')
 function Candle(props: any) {
   const { x, y, width, height, payload } = props as {
     x: number; y: number; width: number; height: number
-    payload: { open: number; high: number; low: number; close: number }
+    payload: { open: number; high: number; low: number; close: number; forming?: boolean }
   }
-  const { open, high, low, close } = payload
+  const { open, high, low, close, forming } = payload
   const span = high - low
   const toY = (price: number): number => (span === 0 ? y + height / 2 : y + ((high - price) / span) * height)
   const up = close >= open
@@ -337,8 +410,12 @@ function Candle(props: any) {
   const bodyBottom = toY(Math.min(open, close))
   const cx = x + width / 2
   const bodyWidth = Math.max(1, width * 0.6)
+  /**
+   * **아직 안 닫힌 봉은 속을 비운다.** 확정 봉과 똑같이 그리면 아직 바뀔 값을
+   * 사람이 확정으로 읽는다 (사용자 지시 2026-09-29 「모양이 변하더라고」).
+   */
   return (
-    <g className={up ? styles.up : styles.down}>
+    <g className={`${up ? styles.up : styles.down} ${forming ? styles.forming : ''}`}>
       <line x1={cx} x2={cx} y1={y} y2={y + height} strokeWidth={1} />
       <rect
         x={cx - bodyWidth / 2}
@@ -350,7 +427,9 @@ function Candle(props: any) {
   )
 }
 
-function PriceChart({ chart }: { chart: ChartSeries }) {
+function PriceChart(
+  { chart, bars, minutes }: { chart: ChartSeries; bars: DisplayBar[]; minutes: number },
+) {
   /**
    * **차트를 끌어서 좌우로 민다** (사용자 지적 2026-09-29 「차트에서 스크롤이 안먹더라」).
    *
@@ -409,12 +488,14 @@ function PriceChart({ chart }: { chart: ChartSeries }) {
    * 안 불리고 recharts 가 붙은 뒤에만 불려, 훅 수가 렌더마다 달라져 그림이 통째로 죽는다
    * (실측 2026-09-29: 차트가 스켈레톤에서 안 넘어갔다).
    */
-  const rows = useMemo(() => chart.bars.map((b) => ({
+  const rows = useMemo(() => bars.map((b) => ({
     at: b.at,
     label: seoulTimeText(b.at),
     open: b.open, high: b.high, low: b.low, close: b.close,
     band: [b.low, b.high] as [number, number],
-  })), [chart.bars])
+    /** 아직 안 닫힌 봉인가. 그리는 자리가 이 값으로 속을 비운다 */
+    forming: isForming(b),
+  })), [bars])
 
   const [R, setR] = useState<Recharts | null>(null)
   useEffect(() => {

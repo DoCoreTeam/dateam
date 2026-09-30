@@ -59,6 +59,7 @@ export default async function TradingPage() {
           chart={overview.chart}
           signals={overview.signals}
           emitProgress={overview.emitProgress}
+          lastPrice={overview.lastPrice}
         />
         {/*
           **차트 바로 아래가 성적이다.** 지금 예측을 보고 나면 다음 질문은

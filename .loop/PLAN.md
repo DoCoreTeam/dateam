@@ -89,7 +89,7 @@
 보안: 해당 없음 — 화면 그리기만이다
 
 ### I03a 화면에서 봉 단위를 고른다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/trading/chart/timeframe.ts (신규), apps/web/lib/trading/chart/timeframe.test.ts (신규), apps/web/lib/trading/overview.ts, apps/web/lib/trading/overview-shape.ts, apps/web/app/(trading)/trading/ChartPanel.tsx, apps/web/app/(trading)/trading/ChartPanel.module.css, apps/web/package.json
 감사 기준:
