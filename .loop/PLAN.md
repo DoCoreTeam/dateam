@@ -116,7 +116,7 @@
 의존: I06
 
 ### I07 실브라우저로 끝까지 본다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/e2e/offline-recording.spec.ts (신규)
 감사 기준:
