@@ -28,6 +28,8 @@ export default async function TradingValidationPage() {
           passed={overview.gate.passed}
           failedCount={overview.gate.failedCount}
           insufficientCount={overview.gate.insufficientCount}
+          /* 한 번도 안 돌았으면 왜인지 — 「모자라다」와 「안 돌았다」는 할 일이 다르다 */
+          empty={overview.gateEmpty}
         />
         <LatencyPanel rows={overview.latency} />
       </div>

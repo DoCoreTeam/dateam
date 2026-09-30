@@ -16,6 +16,7 @@ import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
 import Link from 'next/link'
 import { GATE_STATUS_LABEL, GATE_STATUS_COLOR, GATE_HEADLINE_NOT_MEASURED, GATE_HELP, howHref } from '@/lib/trading/gate/labels'
 import type { CriterionResult } from '@/lib/trading/overview-shape'
+import type { GateEmptyReason } from '@/lib/trading/gate/empty-reason'
 
 const COLUMNS: ColumnDef<CriterionResult>[] = [
   { key: 'label', header: '항목', primary: true, cell: (c) => c.label },
@@ -50,14 +51,28 @@ export interface BacktestPanelProps {
   passed: boolean
   failedCount: number
   insufficientCount: number
+  /**
+   * 한 번도 안 돌았으면 왜인지. 돌았으면 null
+   * (사용자 개입 2026-09-30 「검증쪽은 뭐가 다 없대 이상하네」)
+   */
+  empty: GateEmptyReason | null
 }
 
 export default function BacktestPanel(props: BacktestPanelProps) {
-  const headline = props.passed
-    ? '관문을 통과했습니다'
-    : props.failedCount > 0
-      ? `${props.failedCount}개 항목이 미달입니다`
-      : GATE_HEADLINE_NOT_MEASURED
+  /*
+    **「모자라다」와 「안 돌았다」는 할 일이 다르다.**
+
+    전에는 둘 다 「표본이 더 모여야 합니다」로 덮여 있었다. 앞의 것은 기다리면 되고
+    뒤의 것은 기다려도 안 되는데, 화면이 같은 말을 하니 사람은 계속 기다린다
+    (사용자 개입 2026-09-30 「검증쪽은 뭐가 다 없대 이상하네」).
+  */
+  const headline = props.empty
+    ? props.empty.headline
+    : props.passed
+      ? '관문을 통과했습니다'
+      : props.failedCount > 0
+        ? `${props.failedCount}개 항목이 미달입니다`
+        : GATE_HEADLINE_NOT_MEASURED
 
   return (
     <section className="card">
@@ -67,6 +82,13 @@ export default function BacktestPanel(props: BacktestPanelProps) {
       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', margin: 0, marginBottom: 'var(--space-1)' }}>
         {headline}
       </p>
+      {/* 지금 무엇을 가졌고 무엇이 있어야 도나. 셋을 세어서 적는다 */}
+      {props.empty && (
+        <div className={styles.empty}>
+          <p className={styles.emptyFacts}>{props.empty.facts.join(' · ')}</p>
+          <p className={styles.emptyNext}>{props.empty.next}</p>
+        </div>
+      )}
       <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', margin: 0, marginBottom: 'var(--space-3)' }}>
         {GATE_HELP}
       </p>

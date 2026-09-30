@@ -7,6 +7,7 @@
  */
 
 import type { ContractHead } from './overview-labels.ts'
+import type { GateEmptyReason } from './gate/empty-reason.ts'
 import type { JevOffReason } from './jev-labels.ts'
 
 export interface DayCoverage {
@@ -324,6 +325,11 @@ export interface TradingOverview {
   recentRuns: RunRow[]
   /** 최근 신호. 1-C 전에는 늘 비어 있다 */
   signals: SignalRow[]
+  /**
+   * 관문이 빈 이유. 백테스트가 한 번이라도 돌았으면 null
+   * (사용자 개입 2026-09-30 「검증쪽은 뭐가 다 없대 이상하네」)
+   */
+  gateEmpty: GateEmptyReason | null
   /** 네 구간 지연 (§14.2) */
   latency: LatencyRow[]
   /** 지금 포지션. 없으면 null */

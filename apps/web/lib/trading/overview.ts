@@ -68,6 +68,7 @@ import { loadSessionWindow } from './calendar/seed.ts'
 import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
 import type { ContractHead } from './overview-labels.ts'
+import { gateEmptyReason, type GateEmptyReason } from './gate/empty-reason.ts'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
@@ -444,6 +445,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
       insufficientCount: gateVerdict.insufficientCount,
     },
     gateCriteria: gateVerdict.criteria,
+    gateEmpty: await loadGateEmpty(contractCode),
     accuracy: await loadAccuracy(contractCode, now, values, today, exitBefore),
     lineage: await loadLineage(contractCode, now, values, today, emitProgressOf(recentRuns[0]?.reason ?? null)),
     /**
@@ -661,6 +663,65 @@ async function loadLineage(
     })
   } catch (error) {
     return none(error instanceof Error ? error.message : '읽지 못했습니다')
+  }
+}
+
+/**
+ * 관문이 왜 비었나 — **세어서 말한다**
+ *
+ * 사용자 개입 2026-09-30: 「검증쪽은 뭐가 다 없대 이상하네」. 화면은 「표본이 더 모여야
+ * 합니다」라고만 적고 있었는데 실제로는 백테스트가 **한 번도 안 돌았다**.
+ * 「모자라다」와 「안 돌았다」는 할 일이 다르다.
+ *
+ * 못 세어도 던지지 않는다 — 안내 한 줄 때문에 검증 화면 전체가 죽으면 안 된다.
+ */
+async function loadGateEmpty(contractCode: string | null): Promise<GateEmptyReason | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    const [runs, bars, signals] = await Promise.all([
+      admin.from('trading_backtest_runs').select('id', { count: 'exact', head: true }),
+      contractCode
+        ? admin.from('trading_bars').select('bar_start_at', { count: 'exact', head: true })
+          .eq('contract_code', contractCode).eq('tf', '1m')
+        : Promise.resolve({ count: 0 }),
+      admin.from('trading_signals').select('id', { count: 'exact', head: true }),
+    ])
+    const backtestRuns = Number(runs?.count ?? 0)
+    if (backtestRuns > 0) return null
+
+    /* 며칠치인지는 양끝 봉 두 줄만 읽으면 된다 — 전부 가져와 세지 않는다 */
+    const edge = async (ascending: boolean): Promise<string | null> => {
+      if (!contractCode) return null
+      const { data } = await admin.from('trading_bars').select('bar_start_at')
+        .eq('contract_code', contractCode).eq('tf', '1m')
+        .order('bar_start_at', { ascending }).limit(1)
+      const at = (data ?? [])[0]?.bar_start_at as string | undefined
+      return at ? seoulToday(new Date(at)) : null
+    }
+    const [firstBarDay, lastBarDay] = await Promise.all([edge(true), edge(false)])
+
+    /*
+      **검증이 마지막으로 한 말.** 필요한 날 수 식은 `backtest/windows.ts` 하나가 쥐고
+      있으므로(M4) 화면이 다시 셈하지 않고 그 문장을 그대로 쓴다
+    */
+    const { data: lastRun } = await admin
+      .from('trading_job_runs').select('user_message')
+      .eq('job_name', 'trading-validate')
+      .order('scheduled_minute', { ascending: false }).limit(1)
+    const lastRunMessage = ((lastRun ?? [])[0]?.user_message as string | undefined) ?? null
+
+    return gateEmptyReason({
+      backtestRuns,
+      bars: Number(bars?.count ?? 0),
+      firstBarDay,
+      lastBarDay,
+      signals: Number(signals?.count ?? 0),
+      lastRunMessage,
+    })
+  } catch {
+    // 못 세면 안내를 안 띄운다. 틀린 안내보다 없는 안내가 낫다
+    return null
   }
 }
 

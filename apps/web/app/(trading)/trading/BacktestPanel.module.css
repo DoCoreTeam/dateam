@@ -12,3 +12,33 @@
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
+
+/*
+  한 번도 안 돌았을 때 — **셋을 세어서 보여 준다**
+
+  「표본이 더 모여야 합니다」만으로는 얼마나 모자란지도, 기다리면 되는 것인지도 모른다
+  (사용자 개입 2026-09-30 「검증쪽은 뭐가 다 없대 이상하네」).
+*/
+.empty {
+  display: grid;
+  gap: 2px;
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm, 8px);
+}
+
+.emptyFacts {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+}
+
+.emptyNext {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  word-break: keep-all;
+}
