@@ -14,6 +14,8 @@ import { priceText } from './position-labels.ts'
 import { evaluateTriggers } from './judge/indicators.ts'
 import { factLines } from './knowledge/explain-policy.ts'
 import { buildLineage } from './judge/lineage.ts'
+import { gapFromNow } from './chart/now-price.ts'
+import { manualPnl } from './position/manual-entry.ts'
 
 test('가격 한 줄은 두 포맷터 모두 쉼표를 단다', () => {
   assert.equal(formatIndexPrice(1086.44), '1,086.44')
@@ -84,4 +86,12 @@ test('판단 계보의 지표 숫자도 쉼표를 단다', () => {
   const step = lineage.steps.find((s) => s.name === '지표 계산')
   assert.ok(step?.produced, '지표 계산 줄이 없습니다')
   assert.match(step!.produced!, /1,0\d\d\.\d\d/, `계보의 지표가 맨몸으로 나갔습니다: ${step!.produced}`)
+})
+
+test('차이를 말하는 숫자도 같은 함수를 지난다 — 1000 을 넘으면 쉼표를 단다', () => {
+  // 점수 차이는 보통 한 자리지만, 갭이 크게 벌어진 날에는 네 자리가 된다.
+  // 「보통 작으니 괜찮다」는 가정이 곧 그 화면의 버그가 된다
+  assert.equal(gapFromNow(0, 1086.44), '지금보다 1,086.44점 위')
+  const pnl = manualPnl({ direction: 'long', entryPrice: 1000, nowPrice: 2234.5, quantity: 1, multiplier: null })
+  assert.equal(pnl?.text, '+1,234.50점')
 })

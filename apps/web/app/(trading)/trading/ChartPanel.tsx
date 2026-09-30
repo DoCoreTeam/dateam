@@ -13,6 +13,7 @@
 //
 // recharts 는 무겁다. 첫 화면 비용에 안 얹으려고 **그릴 것이 있을 때만** 잘라서 불러온다.
 
+import { fmtNumOr } from '@/lib/ui/number-format'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { CandlestickChart, HelpCircle } from 'lucide-react'
@@ -597,7 +598,7 @@ function PriceChart(
             tick={{ fontSize: 11 }}
             width={56}
             stroke="var(--text-faint)"
-            tickFormatter={(v: number) => v.toFixed(1)}
+            tickFormatter={(v: number) => fmtNumOr(v, '', 1)}
           />
           {/*
             **도움말을 우리가 그린다.** 기본 도움말은 `dataKey` 를 그대로 찍어

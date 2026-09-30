@@ -12,6 +12,7 @@
  * 가격부터 보면 「들어가도 됩니다」 다음에 「그런데 시간이 지났습니다」가 붙는다.
  */
 
+import { fmtNum } from '../../ui/number-format.ts'
 import type { CallPlan } from './series.ts'
 import { formatIndexPrice } from '../signal-labels.ts'
 
@@ -74,7 +75,7 @@ export function entryWindowNow(input: {
   const limit = plan.chaseLimitPrice
   const beyond = plan.direction === 'long' ? nowPrice > limit : nowPrice < limit
   if (beyond) {
-    const over = Math.abs(nowPrice - limit).toFixed(2)
+    const over = fmtNum(Math.abs(nowPrice - limit), 2)
     return verdict(
       'beyond_chase',
       `한계가 ${formatIndexPrice(limit)} 를 ${over}점 ${plan.direction === 'long' ? '넘었습니다' : '밑돕니다'}`,
@@ -82,7 +83,7 @@ export function entryWindowNow(input: {
   }
 
   // 4 아직 괜찮다. 기준가와 얼마나 떨어져 있는지를 같이 말한다
-  const gap = Math.abs(nowPrice - plan.referencePrice).toFixed(2)
+  const gap = fmtNum(Math.abs(nowPrice - plan.referencePrice), 2)
   return verdict('ok', `기준가 ${formatIndexPrice(plan.referencePrice)} 와 ${gap}점 차이입니다`)
 }
 

@@ -12,6 +12,7 @@
  * 그대로 표에 들어간다(S4).
  */
 
+import { fmtNum } from '../../ui/number-format.ts'
 import { formatIndexPrice } from '../signal-labels.ts'
 
 /** 이 자리가 쓰는 말 */
@@ -110,7 +111,7 @@ export function manualPnl(input: {
     points,
     won,
     text: won === null
-      ? `${sign}${points.toFixed(2)}점`
+      ? `${sign}${fmtNum(points, 2)}점`
       : `${sign}${won.toLocaleString('ko-KR')}원`,
   }
 }

@@ -9,6 +9,7 @@
  * 판단도 계획도 여기서 안 한다(그것은 `entry-window.ts` 와 `order-card.ts` 몫이다).
  */
 
+import { fmtNum } from '../../ui/number-format.ts'
 import { seoulClockText } from '../position-labels.ts'
 import { formatIndexPrice } from '../signal-labels.ts'
 
@@ -85,5 +86,5 @@ export function gapFromNow(nowPrice: number | null, target: number | null): stri
   if (!Number.isFinite(nowPrice) || !Number.isFinite(target)) return null
   const gap = target - nowPrice
   if (Math.abs(gap) < 0.005) return '지금 가격과 같습니다'
-  return `지금보다 ${Math.abs(gap).toFixed(2)}점 ${gap > 0 ? '위' : '아래'}`
+  return `지금보다 ${fmtNum(Math.abs(gap), 2)}점 ${gap > 0 ? '위' : '아래'}`
 }

@@ -14,6 +14,7 @@
  * 백테스트가 재는 전략이 갈린다.
  */
 
+import { fmtNum } from '../../ui/number-format.ts'
 import type { CallPlan } from './series.ts'
 import { gapFromNow } from './now-price.ts'
 import { formatIndexPrice, deadlineLeftText } from '../signal-labels.ts'
@@ -175,7 +176,7 @@ function gainText(
   if (multiplier !== null && Number.isFinite(multiplier) && multiplier > 0) {
     return `${sign}${Math.round(gap * multiplier).toLocaleString('ko-KR')}원`
   }
-  return `${sign}${gap.toFixed(2)}점`
+  return `${sign}${fmtNum(gap, 2)}점`
 }
 
 /** 들고 있는 길이. 「약」을 붙인다 — 이 값은 시간 청산 한도이지 약속이 아니다 */

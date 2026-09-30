@@ -22,7 +22,7 @@ import { saveSignal, countSignalsOn, minutesSinceSameDirection } from '../signal
 import { queueNotification } from '../notify/outbox.ts'
 import { computeRisk, type InstrumentSpec } from '../risk/arithmetic.ts'
 import { buildExitPlan } from '../judge/exit-plan-math.ts'
-import { DIRECTION_LABEL } from '../signal-labels.ts'
+import { DIRECTION_LABEL, formatIndexPrice } from '../signal-labels.ts'
 import type { GateHit } from '../gate/safety.ts'
 import type { Indicators, TriggerHit } from '../judge/types.ts'
 import type { Direction } from '../signal/models-core.ts'
@@ -216,7 +216,7 @@ export async function emitSignal(input: EmitSignalInput): Promise<EmitSignalResu
     signalId: saved.signalId,
     kind: 'signal',
     title: `${DIRECTION_LABEL[direction]} 신호`,
-    body: `기준 ${input.referencePrice.toFixed(2)} · 손절 ${stopPrice.toFixed(2)} · 목표 ${targetPrice.toFixed(2)}`,
+    body: `기준 ${formatIndexPrice(input.referencePrice)} · 손절 ${formatIndexPrice(stopPrice)} · 목표 ${formatIndexPrice(targetPrice)}`,
   })
   await markNotifyQueued(saved.signalId, input.now)
 
