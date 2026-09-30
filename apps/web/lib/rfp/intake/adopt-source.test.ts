@@ -1,6 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { stripComments } from '../../ui/component-scan.ts'
+import {
+  HIT_STATUS, HIT_STATUSES, DEFAULT_LIST_STATUS, USER_SETTABLE, isUserSettable,
+} from '../radar/hit-status.ts'
 import { join } from 'node:path'
 
 import { adoptSource, TITLE_PENDING, MAX_ATTACHMENTS, type AdoptPorts, type AdoptInput } from './adopt-source.ts'
@@ -165,4 +169,46 @@ test('★ 두 창구가 같은 배선을 쓴다', () => {
     assert.match(src, /missing_doc_class/, p)
     assert.match(src, /requireMemberApi\(\)/, p)
   }
+})
+
+// 케이스로 만든 적중이 목록에서 빠진다 — I01
+
+test('케이스로 만들면 적중 상태가 표에 있는 값으로 바뀐다', () => {
+  // 코드가 쓰는 낱말이 표의 CHECK 에 없으면 UPDATE 가 늘 실패하고,
+  // supabase-js 는 그 실패를 던지지 않고 돌려준다. 증상은 「목록에 계속 있다」로만 나온다
+  const sql = readFileSync(
+    new URL('../../../../../supabase/migrations/301_rfp_radar_hit_adopted.sql', import.meta.url), 'utf8',
+  ).replace(/^\s*--.*$/gm, '')
+
+  for (const s of HIT_STATUSES) {
+    assert.ok(sql.includes(`'${s}'::text`), `제약에 ${s} 가 없다`)
+  }
+  // 표를 만들거나 사본을 뜨지 않는다
+  assert.doesNotMatch(sql, /create table/i)
+})
+
+test('담기 경로가 상수를 쓰고 오류를 읽는다', () => {
+  const src = stripComments(readFileSync(new URL('./adopt-ports.ts', import.meta.url), 'utf8'))
+  // 글자를 손으로 적으면 표에 없는 값을 또 쓸 수 있다
+  assert.doesNotMatch(src, /status:\s*'adopted'/, '상태값을 손으로 적었다')
+  assert.match(src, /HIT_STATUS\.adopted/, '상태 상수를 안 쓴다')
+  // 오류를 안 읽으면 실패가 「아무 일도 안 일어남」으로 보인다
+  assert.match(src, /const \{ error \}[\s\S]{0,300}?rfp_radar_hits/, '쓰기 결과를 안 받는다')
+  assert.match(src, /if \(error\)/, '쓰기 오류를 안 읽는다')
+})
+
+test('목록 기본 상태는 아직 정하지 않은 것만 본다', () => {
+  // 케이스가 된 것과 뺀 것이 기본 목록에 남으면 「지웠는데 그대로」가 된다
+  assert.equal(DEFAULT_LIST_STATUS, HIT_STATUS.new)
+  assert.notEqual(DEFAULT_LIST_STATUS, HIT_STATUS.adopted)
+  assert.notEqual(DEFAULT_LIST_STATUS, HIT_STATUS.dismissed)
+})
+
+test('사람이 바꿀 수 있는 상태는 둘뿐이다', () => {
+  // 케이스로 만드는 것은 담기 경로가 정한다 — 화면에서 adopted 로 못 바꾼다
+  assert.deepEqual([...USER_SETTABLE].sort(), ['dismissed', 'new'])
+  assert.equal(isUserSettable('adopted'), false, '화면이 케이스 상태를 지어낼 수 있다')
+  assert.equal(isUserSettable('opened'), false)
+  assert.equal(isUserSettable('dismissed'), true)
+  assert.equal(isUserSettable('없는값'), false)
 })

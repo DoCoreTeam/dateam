@@ -15,6 +15,7 @@ import { checkKind } from '../parse/quality.ts'
 import { enqueueJob } from '../jobs/queue.ts'
 import { dedupeKey, JOB_PRIORITY } from '../jobs/stages.ts'
 import type { AdoptPorts } from './adopt-source.ts'
+import { HIT_STATUS } from '../radar/hit-status.ts'
 import { recordAudit } from '../db/audit.ts'
 
 /** 같은 파일이 두 번 붙어 있으면 유니크가 막는다. 그건 실패가 아니다 */
@@ -114,7 +115,22 @@ export function realAdoptPorts(db: any, admin: any): AdoptPorts {
     },
 
     async markAdopted(sourceId, caseId) {
-      await db.from('rfp_radar_hits').update({ status: 'adopted', case_id: caseId }).eq('source_id', sourceId)
+      /*
+        **오류를 읽는다.** supabase-js 는 제약 위반을 던지지 않고 돌려준다.
+        실측 2026-09-30: 이 자리가 표에 없는 상태값(`adopted`)을 쓰고 있었고 UPDATE 는 늘 실패했다.
+        아무도 안 읽어서 증상은 「케이스로 만들었는데 그 공고가 목록에 계속 있다」로만 나왔고,
+        사용자는 단추가 안 먹은 줄 알고 다시 눌러 같은 공고로 케이스를 또 만들었다.
+        (상태값은 마이그레이션 301 이 표에 더했다)
+      */
+      const { error } = await db.from('rfp_radar_hits')
+        .update({ status: HIT_STATUS.adopted, case_id: caseId })
+        .eq('source_id', sourceId)
+
+      // 표시를 못 해도 케이스와 파일은 남는다 — 되돌리면 사용자가 잃는 것이 더 크다.
+      // 다만 조용히 넘어가지도 않는다
+      if (error) {
+        console.error('[rfp] 적중을 케이스로 표시하지 못했다', (error as { message?: unknown })?.message ?? error)
+      }
     },
   }
 }
