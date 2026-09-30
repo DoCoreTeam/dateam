@@ -55,6 +55,8 @@ const OPEN_ON_PURPOSE: Record<string, string> = {
     '로그인 화면이 회사 이름과 로고를 그리려면 로그인 전에 읽어야 한다. 읽기 전용이고 브랜딩 값만 나간다.',
   'public/api-access/route.ts':
     'API 사용 신청 폼 — 계정이 없는 사람이 쓰는 창구다. 대신 시간당 한도(lib/public-rate-limit)와 같은 대답 규칙을 지킨다.',
+  'ping/route.ts':
+    '「이 주소에 서버가 떠 있나」만 대답한다. 나가는 값이 {"ok":true} 한 가지라 로그인을 봐도 볼 것이 없고, DB·쿠키·환경변수를 하나도 안 만진다. 화면이 연결 여부를 재는 자리이므로 로그인 전에도 답해야 한다. 값이 하나라도 붙으면 lib/offline/reachable.test.ts 가 막는다.',
 }
 
 /**
