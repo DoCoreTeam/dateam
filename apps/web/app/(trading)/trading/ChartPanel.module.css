@@ -279,3 +279,72 @@
   font-weight: 600;
   color: var(--warning);
 }
+
+/*
+  주문서 — **읽는 순서가 주문하는 순서다**
+
+  사용자 지시 2026-09-30: 「젤 명확한게 얼마에 사고 얼마에 팔아라 그리고 대충 얼마정도
+  유지해라 시간 정확히 보여주고 이게 핵심이야」.
+
+  그래서 두 칸짜리 표를 버렸다. 표는 값 여섯 개를 같은 무게로 세우고, 그때 사람은
+  무엇부터 봐야 하는지를 스스로 정해야 한다. 한 줄에 하나씩 세로로 두면 순서가 곧 차례다.
+*/
+.orderHeadline {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.order {
+  margin: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.orderStep {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 6rem) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.orderName {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* 값과 할 일이 한 문장이다. 「1084.22 에 팝니다」에서 둘을 떼면 다시 붙여 읽어야 한다 */
+.orderText {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  /*
+    **낱말 안에서 자르지 않는다.** 칸이 좁을 때 「끊습니\A다」로 잘리면 읽는 사람이
+    그 자리에서 한 번 멈춘다. 한국어는 `keep-all` 이라야 낱말 단위로 넘어간다.
+  */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 옆에 붙는 사실. 문장보다 약하게 — 읽어도 되고 안 읽어도 되는 값이다 */
+.orderNote {
+  margin-left: var(--space-2);
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  근거 — **주문서 아래**
+
+  점수를 지우지 않는다. 나중에 「왜 그랬나」를 따질 때 필요한 값이다.
+  다만 주문할 때 보는 것과 한 겹 떨어뜨려, 무엇이 지시이고 무엇이 설명인지를 자리로 말한다.
+*/
+.basis {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}

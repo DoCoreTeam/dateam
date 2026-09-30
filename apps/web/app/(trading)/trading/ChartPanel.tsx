@@ -25,6 +25,7 @@ import {
   CHART_TIMEFRAMES, DEFAULT_CHART_TIMEFRAME, type ChartTimeframe, type DisplayBar,
 } from '@/lib/trading/chart/forming'
 import { nowPriceLine, NOW_PRICE_LABEL } from '@/lib/trading/chart/now-price'
+import { buildOrderCard } from '@/lib/trading/chart/order-card'
 import { liveWindowAt } from '@/lib/trading/live-window'
 import type { CallPlan } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
@@ -107,104 +108,54 @@ function evText(value: number | null): string {
 }
 
 /**
- * 주문 계획 — **얼마에 들어가고 얼마에 끊고 얼마에 나오나**
+ * 주문서 — **얼마에 사고 얼마에 팔고 얼마나 들고 있나**
  *
- * 사용자 지적 2026-09-29: 「내가 지금 주문을 어떻게 해야 하는지 모르겠어」.
- * 방향과 점수만으로는 주문을 못 낸다. 값은 전부 `planForCall` 이 만든 것이고
- * 이 자리에서 식을 다시 적지 않는다(M4).
+ * 사용자 지시 2026-09-30: 「여기 점수로 이야기 하면 모르겠어 난, 젤 명확한게 얼마에 사고
+ * 얼마에 팔아라 그리고 대충 얼마정도 유지해라 시간 정확히 보여주고 이게 핵심이야」.
+ *
+ * 그래서 이 묶음에는 **점수가 없다.** 점수는 아래 근거 줄로 내려갔다 —
+ * 값을 지우지 않되, 주문할 때 보는 것과 나중에 따질 것을 자리로 가른다.
+ *
+ * 말은 전부 `buildOrderCard` 가 만든다. 화면이 「삽니다/팝니다」를 여기서 정하면
+ * 방향 규칙이 두 곳에 생기고, 그중 한 곳만 고치는 날 사람이 반대로 주문한다.
  */
-function PlanBlock({ plan }: { plan: CallPlan }) {
-  /*
-    **시각은 화면이 잰다.** 서버가 「2분 남음」을 글자로 내려보내면 그 글자는 찍힌 순간에
-    멈추고, 탭을 열어 둔 채 십 분이 지나도 「2분 남음」이다 (이 파일이 `callAge` 를
-    화면에서 재는 이유와 같다). 첫 렌더에는 안 그린다 — 서버가 그린 것과 달라지면
-    하이드레이션이 어긋난다.
-  */
-  const [left, setLeft] = useState<string>('')
-  const [exitAt, setExitAt] = useState<string | null>(null)
-  const deadline = plan.entryDeadlineAt
-  const holdMinutes = plan.timeExitMinutes
-  useEffect(() => {
-    const tick = (): void => {
-      const now = new Date()
-      setLeft(deadlineLeftText(deadline, now))
-      setExitAt(holdMinutes > 0 ? new Date(now.getTime() + holdMinutes * 60_000).toISOString() : null)
-    }
-    tick()
-    // 분 단위로 보여 주므로 20초면 충분하다. 1초마다 고쳐 그릴 값이 아니다
-    const id = setInterval(tick, 20_000)
-    return () => clearInterval(id)
-  }, [deadline, holdMinutes])
-
-  const rows: { name: string; value: string; hint?: string }[] = [
-    { name: PLAN_LABEL.reference, value: formatIndexPrice(plan.referencePrice) },
-    {
-      name: PLAN_LABEL.chase,
-      // 신호 행에는 안 남는 값이다. 없으면 없다고 말하고 기준가로 채우지 않는다
-      value: formatIndexPrice(plan.chaseLimitPrice),
-      hint: plan.chaseLimitPrice === null ? undefined : '여기를 넘으면 안 따라갑니다',
-    },
-    {
-      name: PLAN_LABEL.stop,
-      value: formatIndexPrice(plan.stopPrice),
-      hint: formatDistance(plan.referencePrice, plan.stopPrice),
-    },
-    {
-      name: PLAN_LABEL.target,
-      value: formatIndexPrice(plan.targetPrice),
-      hint: formatDistance(plan.referencePrice, plan.targetPrice),
-    },
-  ]
+function OrderBlock({ plan, nowPrice, clock }: {
+  plan: CallPlan
+  nowPrice: number | null
+  clock: Date | null
+}) {
+  const card = buildOrderCard({ plan, nowPrice, now: clock })
   return (
     <div className={styles.plan}>
       {/* 기록인지 예고인지를 먼저 말한다 — 예고를 지시로 읽으면 사람이 그대로 주문한다 */}
       <p className={styles.planSource}>{PLAN_SOURCE_LABEL[plan.from]}</p>
-      <dl className={styles.facts}>
-        {rows.map((r) => (
-          <div key={r.name} className={styles.fact}>
-            <dt>{r.name}</dt>
-            <dd>
-              {r.value}
-              {r.hint && <span className={styles.age}> · {r.hint}</span>}
+      {/* 방향을 이름이 아니라 **할 일**로. 「숏」보다 「먼저 팝니다」가 주문에 가깝다 */}
+      <strong className={styles.orderHeadline}>{card.headline}</strong>
+      <dl className={styles.order}>
+        {card.steps.map((s) => (
+          <div key={s.name} className={styles.orderStep}>
+            <dt className={styles.orderName}>{s.name}</dt>
+            <dd className={styles.orderText}>
+              {s.text}
+              {s.note && <span className={styles.orderNote}>{s.note}</span>}
             </dd>
           </div>
         ))}
       </dl>
       {/*
-        **언제까지가 둘이고, 둘 다 시각이다.**
-
-        사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」 — 「진입 유효 10분」은
-        언제부터 10분인지 읽는 사람이 판단 시각에 더해야 알 수 있었다. 그 덧셈을 화면이 한다.
-        들어갈 수 있는 때와 들어간 뒤 나올 때는 다른 시계라 자리도 따로 둔다.
+        **시각은 따로 묶는다.** 값과 시각을 한 표에 섞으면 「1082.75」와 「오후 01:34」가
+        같은 무게로 읽히고, 그때 사람은 무엇이 가격이고 무엇이 시계인지 다시 세야 한다.
       */}
-      <dl className={styles.facts}>
-        <div className={styles.fact}>
-          <dt>{PLAN_LABEL.entryBy}</dt>
-          <dd>
-            {plan.entryDeadlineAt ? seoulTimeText(plan.entryDeadlineAt) : UNKNOWN_TEXT}
-            {/* 남은 시간은 화면이 센다. 서버가 적어 보내면 탭을 열어 둔 채 굳는다 */}
-            {left && <span className={styles.age}> · {left}</span>}
-          </dd>
-        </div>
-        <div className={styles.fact}>
-          <dt>{PLAN_LABEL.exitAt}</dt>
-          {/*
-            들어간 뒤부터 세는 시계라 **지금 들어간다고 볼 때**의 시각이다.
-            첫 렌더에는 안 그린다 — 서버가 그린 것과 달라지면 하이드레이션이 어긋난다.
-          */}
-          <dd>
-            {exitAt
-              ? <>{seoulTimeText(exitAt)}<span className={styles.age}> · 지금 들어가면</span></>
-              : <>{formatMinutes(plan.timeExitMinutes)}<span className={styles.age}> · 들어간 뒤부터</span></>}
-          </dd>
-        </div>
-        <div className={styles.fact}>
-          <dt>{PLAN_LABEL.sessionExit}</dt>
-          <dd>
-            {plan.sameDayExitAt ? seoulTimeText(plan.sameDayExitAt) : UNKNOWN_TEXT}
-            <span className={styles.age}> · 늦어도 이때는 정리합니다</span>
-          </dd>
-        </div>
+      <dl className={styles.order}>
+        {card.times.map((t) => (
+          <div key={t.name} className={styles.orderStep}>
+            <dt className={styles.orderName}>{t.name}</dt>
+            <dd className={styles.orderText}>
+              {t.text}
+              {t.note && <span className={styles.orderNote}>{t.note}</span>}
+            </dd>
+          </div>
+        ))}
       </dl>
     </div>
   )
@@ -363,36 +314,19 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice }: 
               <strong className={`${styles.call} ${call.direction === 'long' ? styles.long : call.direction === 'short' ? styles.short : styles.hold}`}>
                 {LEANING_LABEL[call.direction]}
               </strong>
-              {/* 신호인지 판단인지를 말한다 — 신호는 관문을 다 지난 것이라 무게가 다르다 */}
-              <span className={styles.source}>
-                {call.from === 'signal'
-                  ? SIGNAL_SOURCE
-                  : `${JUDGE_LABEL[call.judge ?? ''] ?? call.judge ?? ''} · ${JUDGMENT_SOURCE}`}
-              </span>
-              <dl className={styles.facts}>
-                <div className={styles.fact}>
-                  <dt>{call.from === 'signal' ? '확률' : '원점수'}</dt>
-                  <dd>{formatProbability(call.prob)}</dd>
-                </div>
-                <div className={styles.fact}>
-                  <dt>시각</dt>
-                  {/* 언제 것인지까지 말한다 — 시각만 있으면 어제 것이 오늘 것으로 읽힌다 */}
-                  <dd>{seoulTimeText(call.at)}{callAge && <span className={styles.age}> · {callAge}</span>}</dd>
-                </div>
-                {call.from === 'signal' && (
-                  <div className={styles.fact}>
-                    <dt>기대값</dt>
-                    <dd>{evText(call.evR)}</dd>
-                  </div>
-                )}
-              </dl>
               {/*
-                **계획은 신호에만 있는 것이 아니다.** 전에는 이 네 줄이 신호일 때만
-                떴고, 신호가 0건인 판에서는 화면에 숫자가 하나도 없었다 —
-                방향과 점수만 보고는 주문을 못 낸다 (사용자 지적 2026-09-29).
+                **주문서가 점수보다 먼저다.**
+
+                사용자 지시 2026-09-30: 「여기 점수로 이야기 하면 모르겠어 난, 젤 명확한게
+                얼마에 사고 얼마에 팔아라 (…) 이게 핵심이야」. 전에는 원점수와 시각이
+                방향 바로 아래에 있었고, 주문할 값은 그 아래 표에 「진입 기준가」 같은
+                이름으로 있었다. 읽는 순서가 주문하는 순서가 아니었다.
+
+                계획은 신호에만 있는 것이 아니다 — 신호가 0건인 판에도 판단은 쌓이고,
+                방향과 점수만으로는 주문을 못 낸다 (사용자 지적 2026-09-29).
               */}
               {plan
-                ? <PlanBlock plan={plan} />
+                ? <OrderBlock plan={plan} nowPrice={lastPrice?.price ?? null} clock={clock} />
                 : (
                   <p className={styles.planSource}>
                     {call.direction === 'hold'
@@ -400,14 +334,42 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice }: 
                       : chart.planBlocked ?? '계획을 세우지 못했습니다'}
                   </p>
                 )}
-              {/* 판단은 아직 신호가 아니다 — 왜 안 나갔는지를 같은 자리에서 말한다 */}
-              {call.from === 'judgment' && (
-                <span className={styles.notYet}>
-                  {emitProgress
-                    ? `${NOT_A_SIGNAL} · ${emitProgress.total}단계 중 ${emitProgress.step}단계에서 멈췄습니다`
-                    : NOT_A_SIGNAL}
+              {/*
+                **근거는 주문서 아래다.** 점수를 지우지 않는다 — 나중에 「왜 그랬나」를
+                따질 때 필요한 값이다. 다만 주문할 때 보는 것과 자리를 가른다
+              */}
+              <div className={styles.basis}>
+                <span className={styles.source}>
+                  {call.from === 'signal'
+                    ? SIGNAL_SOURCE
+                    : `${JUDGE_LABEL[call.judge ?? ''] ?? call.judge ?? ''} · ${JUDGMENT_SOURCE}`}
                 </span>
-              )}
+                <dl className={styles.facts}>
+                  <div className={styles.fact}>
+                    <dt>{call.from === 'signal' ? '확률' : '원점수'}</dt>
+                    <dd>{formatProbability(call.prob)}</dd>
+                  </div>
+                  <div className={styles.fact}>
+                    <dt>시각</dt>
+                    {/* 언제 것인지까지 말한다 — 시각만 있으면 어제 것이 오늘 것으로 읽힌다 */}
+                    <dd>{seoulTimeText(call.at)}{callAge && <span className={styles.age}> · {callAge}</span>}</dd>
+                  </div>
+                  {call.from === 'signal' && (
+                    <div className={styles.fact}>
+                      <dt>기대값</dt>
+                      <dd>{evText(call.evR)}</dd>
+                    </div>
+                  )}
+                </dl>
+                {/* 판단은 아직 신호가 아니다 — 왜 안 나갔는지를 같은 자리에서 말한다 */}
+                {call.from === 'judgment' && (
+                  <span className={styles.notYet}>
+                    {emitProgress
+                      ? `${NOT_A_SIGNAL} · ${emitProgress.total}단계 중 ${emitProgress.step}단계에서 멈췄습니다`
+                      : NOT_A_SIGNAL}
+                  </span>
+                )}
+              </div>
             </>
           )
           : (

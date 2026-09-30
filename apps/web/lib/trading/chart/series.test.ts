@@ -584,21 +584,46 @@ test('★ 화면이 계획을 신호일 때만 그리지 않는다', () => {
     목표가 그 안에 있었고, 신호가 0건인 판에서는 화면에 숫자가 하나도 없었다.
   */
   const guardAt = panel.indexOf("call.from === 'signal' &&")
-  const blockAt = panel.indexOf('<PlanBlock plan={plan} />')
+  const blockAt = panel.indexOf('<OrderBlock plan={plan}')
   assert.ok(blockAt > 0, '계획 블록을 안 그린다')
-  assert.ok(guardAt < 0 || blockAt > panel.indexOf('</dl>', guardAt),
-    '계획이 아직도 신호일 때만 그려진다')
+  /*
+    계획 블록이 신호 조건보다 **앞**에 있으면 그 조건 안에 들어 있을 수 없다.
+    「닫는 `</dl>` 뒤에 있나」로 물으면 조건이 계획 아래로 내려간 판을 못 가른다.
+  */
+  assert.ok(guardAt < 0 || blockAt < guardAt, '계획이 아직도 신호일 때만 그려진다')
   // 예고를 지시로 읽지 않게 어디서 온 값인지 같은 자리에서 말한다
   assert.match(panel, /PLAN_SOURCE_LABEL/, '기록인지 예고인지를 안 말한다')
-  /*
-    **들어갈 때와 나올 때가 시각이어야 한다** (사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」).
-    「10분」은 언제부터 10분인지 읽는 사람이 판단 시각에 더해야 알 수 있었다.
-  */
-  assert.match(panel, /PLAN_LABEL\.entryBy/, '진입 마감 시각을 안 말한다')
-  assert.match(panel, /PLAN_LABEL\.exitAt/, '나올 시각을 안 말한다')
-  assert.match(panel, /PLAN_LABEL\.sessionExit/, '당일 청산 시각을 안 말한다')
-  // 분만 남은 자리가 없어야 한다 — 시각 옆 보조로만 쓴다
-  assert.match(panel, /seoulTimeText\(plan\.entryDeadlineAt\)/, '마감을 시각으로 안 그린다')
+})
+
+/**
+ * **주문서가 점수보다 위에 있어야 한다**
+ *
+ * 사용자 지시 2026-09-30: 「여기 점수로 이야기 하면 모르겠어 난, 젤 명확한게 얼마에 사고
+ * 얼마에 팔아라 (…) 이게 핵심이야」. 값이 화면에 있는 것과 먼저 읽히는 것은 다르다 —
+ * 순서가 뒤집히면 다시 같은 지적이 온다.
+ */
+test('★ 주문서가 점수보다 먼저 온다', () => {
+  const panel = readFileSync(PANEL, 'utf8')
+  const orderAt = panel.indexOf('<OrderBlock plan={plan}')
+  const scoreAt = panel.indexOf("'원점수'")
+  assert.ok(orderAt > 0 && scoreAt > 0, '주문서나 원점수 자리를 못 찾는다')
+  assert.ok(orderAt < scoreAt, '점수가 주문서보다 위에 있다')
+  // 점수는 지우는 것이 아니라 근거 자리로 내려간 것이다
+  assert.match(panel, /styles\.basis/, '근거 자리를 안 가른다')
+})
+
+/**
+ * **들어갈 때·나올 때·늦어도 언제가 전부 시각이어야 한다**
+ * (사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」).
+ * 「10분」은 언제부터 10분인지 읽는 사람이 판단 시각에 더해야 알 수 있었다.
+ */
+test('★ 시각은 시각으로 말한다 — 길이만 남은 자리가 없다', () => {
+  const card = readFileSync(new URL('./order-card.ts', import.meta.url), 'utf8')
+  assert.match(card, /ORDER_STEP_LABEL\.entryBy/, '진입 마감 자리가 없다')
+  assert.match(card, /ORDER_STEP_LABEL\.hold/, '들고 있는 시간 자리가 없다')
+  assert.match(card, /ORDER_STEP_LABEL\.sessionExit/, '당일 청산 자리가 없다')
+  assert.match(card, /seoulTimeText\(plan\.entryDeadlineAt\)/, '마감을 시각으로 안 그린다')
+  assert.match(card, /seoulTimeText\(plan\.sameDayExitAt\)/, '당일 청산을 시각으로 안 그린다')
 })
 
 
