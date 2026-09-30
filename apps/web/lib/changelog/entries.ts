@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.797',
+    version: '0.10.799',
     date: '2026-09-30',
     title: '화면의 숫자에 쉼표가 붙어요',
     items: [
