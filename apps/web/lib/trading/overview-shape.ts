@@ -6,6 +6,7 @@
  * 빌드가 「서버 전용을 클라이언트에서 부른다」로 죽는다 — 실제로 한 번 죽였다.
  */
 
+import type { ContractHead } from './overview-labels.ts'
 import type { JevOffReason } from './jev-labels.ts'
 
 export interface DayCoverage {
@@ -299,6 +300,11 @@ export interface AccuracySummary {
 
 export interface TradingOverview {
   contractCode: string | null
+  /**
+   * 지금 보는 월물이 무슨 종목인가. 기호만으로는 화면이 이름을 못 부른다
+   * (사용자 개입 2026-09-30 「A05610 근월물을 모으는 중입니다 — 이런 내용은 또 왜 있는지」)
+   */
+  contract: ContractHead | null
   coverage: DayCoverage[]
   /** 그동안 얼마나 맞았고 얼마를 벌었나 */
   accuracy: AccuracySummary

@@ -17,6 +17,7 @@ import LineagePanel from './LineagePanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
+import { contractHeadline } from '@/lib/trading/overview-labels'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { TRADING_NAV_LABEL } from '@/lib/terms'
@@ -40,11 +41,15 @@ export default async function TradingPage() {
       <PageHeader
         title={TRADING_NAV_LABEL.overview}
         icon={<CandlestickChart size={22} />}
-        description={
-          overview.contractCode
-            ? `${overview.contractCode} 근월물을 모으는 중입니다. 알림은 검증 단계를 지난 뒤에 켭니다`
-            : '아직 월물이 정해지지 않았습니다. 종목 정보가 들어오면 여기에 뜹니다'
-        }
+        /*
+          **머리글은 무엇을 보는 화면인지 하나만 말한다.**
+
+          사용자 개입 2026-09-30: 「A05610 근월물을 모으는 중입니다. 알림은 검증 단계를
+          지난 뒤에 켭니다 — 이런 내용은 또 왜 있는지 모르겠네」. 한 줄에 사실이 둘 섞여
+          있었고 둘 다 읽는 사람 것이 아니었다. 「근월물」은 선물 용어이고, 알림 이야기는
+          아래 알림 칸이 이미 하는 말이다 — 같은 말이 두 곳에 있으면 둘이 갈린다.
+        */
+        description={contractHeadline(overview.contract)}
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>

@@ -67,6 +67,7 @@ import { dateRange } from './calendar/date-range.ts'
 import { loadSessionWindow } from './calendar/seed.ts'
 import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
+import type { ContractHead } from './overview-labels.ts'
 import { resolveProviderKey } from '@/lib/ai/provider-key-source'
 import type {
   DayCoverage, JudgmentRow, RunRow, SignalRow, LatencyRow, PositionRow, NotifySummary, TradingOverview,
@@ -150,13 +151,32 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
   const admin = createAdminClient() as any
   const today = seoulToday(now)
 
+  /*
+    **기호만으로는 무슨 종목인지 못 말한다.** 머리글이 「A05610 근월물」이라고만 적고 있어
+    읽는 사람이 무엇을 보는 화면인지 몰랐다 (사용자 개입 2026-09-30). 종목 뿌리와 만기월을
+    같은 판에서 읽어 와야 화면이 「미니 코스피200 선물 2026년 10월물」이라고 부를 수 있다.
+  */
   const { data: front, error: contractError } = await admin
     .from('trading_contracts')
-    .select('code')
+    .select('code, expiry_month, trading_instruments(root)')
     .eq('is_front', true)
     .limit(1)
   if (contractError) throw new Error(`월물을 읽지 못했습니다: ${contractError.message}`)
-  const contractCode = ((front ?? [])[0]?.code as string | undefined) ?? null
+  const frontRow = (front ?? [])[0] as
+    | { code?: string; expiry_month?: string; trading_instruments?: { root?: string } | { root?: string }[] }
+    | undefined
+  const contractCode = (frontRow?.code as string | undefined) ?? null
+  // 조인 결과는 한 줄일 수도 배열일 수도 있다. 둘 다 받아 두지 않으면 모양 하나에 조용히 null 이 된다
+  const joined = Array.isArray(frontRow?.trading_instruments)
+    ? frontRow?.trading_instruments[0]
+    : frontRow?.trading_instruments
+  const contract: ContractHead | null = contractCode
+    ? {
+      code: contractCode,
+      root: joined?.root ?? null,
+      expiryMonth: frontRow?.expiry_month ?? null,
+    }
+    : null
 
   const days = dateRange(addKstDays(today, -(LOOKBACK_DAYS - 1)), today)
 
@@ -400,6 +420,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
 
   return {
     contractCode,
+    contract,
     coverage,
     judgments,
     recentRuns,
