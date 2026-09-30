@@ -55,7 +55,18 @@ const ALLOWLIST: Record<string, string> = {
     '인증이 getMeetingNote() 안에 있다 — RLS 클라이언트로 getUser 후 !user면 null 반환(actions.ts). 라우트는 그 결과가 없으면 404를 낸다.',
   '/api/settings/branding':
     '조직명·태그라인·로고 URL만 반환. 같은 값을 공개 /login 화면이 이미 서버렌더로 보여준다(login/page.tsx). 호출처 0건.',
+  '/api/ping':
+    '「이 주소에 서버가 떠 있나」만 답한다. 나가는 값이 {"ok":true} 한 가지라 로그인을 봐도 볼 것이 없고, DB·쿠키·환경변수를 하나도 안 만진다. 화면이 연결 여부를 재는 자리라 로그인 전에도 답해야 한다(lib/offline/reachable.ts). 값이 하나라도 붙으면 lib/offline/reachable.test.ts 가 막는다.',
 }
+
+/**
+ * ⚠️ **열어 둔 창구를 세는 목록은 여기 말고 한 곳 더 있다** —
+ * `lib/policy/api-auth-surface.test.ts` 의 `OPEN_ON_PURPOSE` 다.
+ * 둘은 같은 규칙을 다른 방식으로 센다(이쪽은 URL, 저쪽은 파일 경로). 그래서
+ * **한 쪽에만 적으면 다른 쪽이 실패한다** — 실측 2026-09-30, `/api/ping` 을 저쪽에만 적고
+ * 항목을 통과시켰다가 종합 감사의 전체 시험에서 이 줄 하나가 걸렸다(8422/8423).
+ * 창구를 열 때는 **두 곳 다** 적는다.
+ */
 
 function walkRoutes(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

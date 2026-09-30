@@ -49,6 +49,10 @@ const AUTH_MARKERS = [
 
 /**
  * 일부러 열어 둔 창구. 적을 때는 **왜 열려 있어도 되는지** 를 함께 적는다.
+ *
+ * ⚠️ **같은 규칙을 세는 목록이 한 곳 더 있다** — `lib/auth/api-route-auth.test.ts` 의
+ * `ALLOWLIST` 다. 이쪽은 파일 경로로, 저쪽은 URL 로 센다. **한 쪽에만 적으면 다른 쪽이
+ * 실패한다**(실측 2026-09-30, `/api/ping`). 창구를 열 때는 두 곳 다 적는다.
  */
 const OPEN_ON_PURPOSE: Record<string, string> = {
   'settings/branding/route.ts':
