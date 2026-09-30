@@ -535,19 +535,35 @@ function PriceChart(
    * 「차트 스크롤을 마우스 휠로 할 수 있어야 한다는 말이었어」).
    *
    * 차트 위에서는 페이지가 아니라 차트가 움직인다. 차트 **밖**에서는 그대로 페이지가
-   * 내려간다 — `preventDefault` 를 이 상자 안에서만 부른다.
+   * 내려간다 — 기본 동작을 이 상자 안에서만 취소한다.
+   *
+   * ## React 의 `onWheel` 로는 못 막는다
+   *
+   * React 는 `wheel` 을 루트에 **passive 로** 건다(react-dom 19.2.0 에서
+   * `touchstart`·`touchmove`·`wheel` 셋만 그렇게 한다). passive 리스너 안에서 부른
+   * `preventDefault()` 는 브라우저가 그냥 무시하므로, `onWheel={...}` 에 적어 두면
+   * 줌은 되는데 페이지도 같이 내려간다 (사용자 지적 2026-09-30 「차트안에 마우스커서가
+   * 있을때는 화면 스크롤이 안되야 하는데 자꾸 스크롤이 되네」).
+   *
+   * 그래서 `{ passive: false }` 로 직접 건다. 이 저장소의 조직도 두 화면이 이미
+   * 그렇게 하고 있었다. 가드는 `lib/policy/chart-wheel-guard.test.ts`.
    *
    * 한 프레임에 한 번만 반영한다. 휠은 초당 수십 번 오고, 매번 다시 그리면 무거워진다
    * (실측 전례: 미는 동안 화면이 먹통에 가까워졌다).
    */
-  const onWheel = (e: React.WheelEvent<HTMLDivElement>): void => {
-    if (!view || barCount === 0) return
-    e.preventDefault()
-    const box = e.currentTarget.getBoundingClientRect()
-    // 커서가 창의 어디쯤인가. 그 자리 봉이 제자리에 남는다
-    const at = box.width > 0 ? (e.clientX - box.left) / box.width : 0.5
-    queueView(zoomWindow(view, barCount, at, e.deltaY > 0 ? -1 : 1))
-  }
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  /**
+   * 리스너는 한 번만 걸고 값은 여기서 읽는다. 창이 바뀔 때마다 다시 걸면
+   * 굴리는 도중에 붙였다 뗐다 하고, 그 틈에 온 휠은 페이지로 샌다
+   */
+  const wheelState = useRef({ view, barCount })
+  useEffect(() => { wheelState.current = { view, barCount } }, [view, barCount])
+  /**
+   * `queueView` 는 렌더마다 새로 만들어지지만 몸통이 `pending`·`frame` 두 ref 와
+   * `setView` 뿐이라 어느 판을 붙잡아도 하는 일이 같다. 그래서 의존에 안 넣는다
+   */
+  const queueRef = useRef(queueView)
+  queueRef.current = queueView
 
   /**
    * **끌어서 미는 기능은 없다.** 넣었다가 뺐다 — 누를 때마다 포인터를 붙잡아
@@ -582,13 +598,37 @@ function PriceChart(
     return () => { alive = false }
   }, [])
 
+  /**
+   * 리스너를 거는 자리. **`R` 이 들어온 뒤에야 상자가 생긴다** — recharts 를 잘라서
+   * 불러오는 동안에는 아래 이른 반환이 스켈레톤을 그리고, 그때 `boxRef` 는 비어 있다.
+   * 그래서 `R` 을 의존에 넣어 상자가 붙은 렌더에서 한 번 더 돈다.
+   */
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent): void => {
+      // 커서가 차트 위에 있으면 페이지는 **무조건** 안 움직인다. 그릴 봉이 없어
+      // 줌할 것이 없을 때도 마찬가지다 — 어떤 때는 밀리고 어떤 때는 안 밀리면
+      // 사용자는 그것을 고장으로 읽는다
+      e.preventDefault()
+      const { view, barCount } = wheelState.current
+      if (!view || barCount === 0) return
+      const box = el.getBoundingClientRect()
+      // 커서가 창의 어디쯤인가. 그 자리 봉이 제자리에 남는다
+      const at = box.width > 0 ? (e.clientX - box.left) / box.width : 0.5
+      queueRef.current(zoomWindow(view, barCount, at, e.deltaY > 0 ? -1 : 1))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [R])
+
   if (!R) return <div className={styles.loadingChart}><SkelCard lines={4} /></div>
 
   const marks = chart.marks
 
   return (
     <div className={styles.chartWrap}>
-      <div className={styles.chartBox} onWheel={onWheel}>
+      <div className={styles.chartBox} ref={boxRef}>
       <R.ResponsiveContainer width="100%" height="100%">
         <R.ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <R.CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />

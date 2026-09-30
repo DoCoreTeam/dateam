@@ -899,15 +899,35 @@ test('★ 봉이 하한보다 적으면 있는 대로 둔다', () => {
   assert.deepEqual(zoomWindow(w, 0, 0.5, 1), w, '봉이 0건인데 창을 만든다')
 })
 
+/*
+  이 가드는 **한 번 틀린 계약을 붙잡고 있었다.** 원래는 `onWheel={onWheel}` 이 있는지를
+  물었는데, 그것이 바로 고쳐야 할 대상이었다 — React 는 `wheel` 을 루트에 passive 로 걸어
+  그 안의 `preventDefault()` 가 무시된다(2026-09-30). 가드가 결함을 요구하고 있으면
+  옳게 고친 판이 빨개지고, 고치는 사람은 가드를 믿고 되돌린다.
+
+  그래서 묻는 것을 **거는 방식**에서 **지켜야 할 것**으로 옮겼다. passive 여부는
+  lib/policy/chart-wheel-guard.test.ts 가 세고, 여기서는 이 화면에만 있는 셋을 센다.
+*/
 test('★ 화면이 휠을 차트 안에서만 가로챈다', () => {
   const panel = readFileSync(PANEL, 'utf8')
-  assert.match(panel, /onWheel=\{onWheel\}/, '휠을 안 받는다')
   const at = panel.indexOf('const onWheel')
-  const body = panel.slice(at, panel.indexOf('\n  }', at))
+  assert.notEqual(at, -1, '휠을 받는 자리가 없다')
+  const body = panel.slice(at, panel.indexOf('\n    }', at))
   assert.match(body, /e\.preventDefault\(\)/, '휠을 안 가로채면 페이지가 같이 내려간다')
   assert.match(body, /zoomWindow\(/, '줌 셈을 화면이 새로 적는다')
   // 매 이벤트가 아니라 프레임마다 한 번
-  assert.match(body, /queueView\(/, '휠 이벤트마다 다시 그린다 — 무거워진다')
+  assert.match(body, /queueRef\.current\(|queueView\(/, '휠 이벤트마다 다시 그린다 — 무거워진다')
+  // **차트 상자에만 건다.** window 나 document 에 걸면 화면 아무 데서나 페이지가 굳는다
+  assert.match(
+    panel,
+    /el\.addEventListener\('wheel'/,
+    '휠을 차트 상자가 아닌 데 건다 — 차트 밖에서도 페이지가 안 내려가게 된다',
+  )
+  assert.doesNotMatch(
+    panel,
+    /(?:window|document)\.addEventListener\(\s*'wheel'/,
+    '휠을 window 나 document 에 건다 — 차트 밖 스크롤까지 막힌다',
+  )
 })
 
 /* ── 이 칸이 무엇인가 (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」) ── */
