@@ -26,6 +26,8 @@ const LONG: CallPlan = {
   chaseLimitPrice: 1086.97,
 }
 const NOW = new Date('2026-09-30T04:27:40.000Z') // 오후 01:27:40
+/** 실측 2026-09-30 trading_instruments MINI_KOSPI200 승수 */
+const MULTIPLIER = 50_000
 
 test('롱이면 사고 팔고 끊는 순서로 말한다', () => {
   const card = buildOrderCard({ plan: LONG, nowPrice: 1085.70, now: NOW })
@@ -52,12 +54,25 @@ test('숏이면 팔고 되사고 끊는 순서로 말이 바뀐다', () => {
 
 test('목표는 언제나 벌고 손절은 언제나 잃는다 — 방향이 반대여도 부호가 안 뒤집힌다', () => {
   for (const plan of [LONG, SHORT]) {
-    const card = buildOrderCard({ plan, nowPrice: 1085.70, now: NOW })
-    assert.match(card.steps[1].note ?? '', /^\+\d+\.\d\d점$/, `${plan.direction} 목표`)
-    assert.match(card.steps[2].note ?? '', /^-\d+\.\d\d점$/, `${plan.direction} 손절`)
+    const card = buildOrderCard({ plan, nowPrice: 1085.70, now: NOW, multiplier: MULTIPLIER })
+    assert.match(card.steps[1].note ?? '', /^\+[\d,]+원$/, `${plan.direction} 목표`)
+    assert.match(card.steps[2].note ?? '', /^-[\d,]+원$/, `${plan.direction} 손절`)
   }
-  assert.equal(buildOrderCard({ plan: SHORT, nowPrice: null, now: NOW }).steps[1].note, '+1.47점')
-  assert.equal(buildOrderCard({ plan: SHORT, nowPrice: null, now: NOW }).steps[2].note, '-1.18점')
+})
+
+test('점이 아니라 돈으로 말한다 — 승수를 곱해서', () => {
+  // 실측 MINI_KOSPI200 승수 50,000원. 목표 1.47점 = 73,500원, 손절 1.18점 = 59,000원
+  const card = buildOrderCard({ plan: SHORT, nowPrice: null, now: NOW, multiplier: MULTIPLIER })
+  assert.equal(card.steps[1].note, '+73,500원')
+  assert.equal(card.steps[2].note, '-59,000원')
+})
+
+test('승수를 모르면 돈을 지어내지 않고 점으로 돌아간다', () => {
+  for (const m of [null, undefined, 0, Number.NaN]) {
+    const card = buildOrderCard({ plan: SHORT, nowPrice: null, now: NOW, multiplier: m })
+    assert.equal(card.steps[1].note, '+1.47점', `승수 ${String(m)}`)
+    assert.equal(card.steps[2].note, '-1.18점', `승수 ${String(m)}`)
+  }
 })
 
 test('들어갈 값 옆에는 지금 가격과의 거리가 붙는다', () => {
@@ -93,7 +108,7 @@ test('시계가 없으면(서버 렌더) 남은 시간과 나올 시각을 안 �
 })
 
 test('주문서 안에는 점수가 없다 — 점수는 근거이지 주문이 아니다', () => {
-  const card = buildOrderCard({ plan: SHORT, nowPrice: 1085.70, now: NOW })
+  const card = buildOrderCard({ plan: SHORT, nowPrice: 1085.70, now: NOW, multiplier: MULTIPLIER })
   const all = [...card.steps, ...card.times].map((s) => `${s.name} ${s.text} ${s.note ?? ''}`).join(' ')
   assert.equal(all.includes('%'), false)
   assert.equal(all.includes('원점수'), false)
@@ -104,4 +119,15 @@ test('마감이 지났으면 지났다고 말한다 — 지난 시각을 그대�
   const late = new Date('2026-09-30T04:40:00.000Z')
   const card = buildOrderCard({ plan: SHORT, nowPrice: 1085.70, now: late })
   assert.equal(card.times.find((t) => t.name === ORDER_STEP_LABEL.entryBy)?.note, '지났습니다')
+})
+
+test('돈은 화면에 뜬 가격으로 셈한다 — 보이는 값끼리 맞아떨어져야 한다', () => {
+  // 1079.26 에서 1077.61 은 1.65점이고 승수 50,000 이면 82,500원이다.
+  // 원값의 긴 소수로 곱하면 82,607원이 나와 화면과 안 맞는다 (실측 2026-09-30)
+  const plan = { ...SHORT, referencePrice: 1079.2612, targetPrice: 1077.6091, stopPrice: 1080.5843 }
+  const card = buildOrderCard({ plan, nowPrice: null, now: NOW, multiplier: MULTIPLIER })
+  assert.equal(card.steps[1].text, '1077.61 에 되삽니다')
+  assert.equal(card.steps[1].note, '+82,500원')
+  assert.equal(card.steps[2].text, '1080.58 에 끊습니다')
+  assert.equal(card.steps[2].note, '-66,000원')
 })

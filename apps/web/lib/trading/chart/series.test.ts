@@ -596,20 +596,40 @@ test('★ 화면이 계획을 신호일 때만 그리지 않는다', () => {
 })
 
 /**
- * **주문서가 점수보다 위에 있어야 한다**
+ * **현황에는 점수가 없어야 한다**
  *
  * 사용자 지시 2026-09-30: 「여기 점수로 이야기 하면 모르겠어 난, 젤 명확한게 얼마에 사고
- * 얼마에 팔아라 (…) 이게 핵심이야」. 값이 화면에 있는 것과 먼저 읽히는 것은 다르다 —
- * 순서가 뒤집히면 다시 같은 지적이 온다.
+ * 얼마에 팔아라 (…) 이게 핵심이야」. 같은 날 다시: 「점수를 보여주는게 뭐가 중요해」.
+ *
+ * 처음에는 점수를 주문서 아래 근거 자리로 내렸다. 그래도 화면에 있으면 읽는 사람이
+ * 그것을 기준으로 삼는다 — 그래서 이 화면에서는 아예 뺐다. 점수를 보러 가는 자리는
+ * 「판단 기록」이고 거기에는 그대로 있다.
  */
-test('★ 주문서가 점수보다 먼저 온다', () => {
+test('★ 현황 카드가 점수를 안 그린다', () => {
   const panel = readFileSync(PANEL, 'utf8')
   const orderAt = panel.indexOf('<OrderBlock plan={plan}')
-  const scoreAt = panel.indexOf("'원점수'")
-  assert.ok(orderAt > 0 && scoreAt > 0, '주문서나 원점수 자리를 못 찾는다')
-  assert.ok(orderAt < scoreAt, '점수가 주문서보다 위에 있다')
-  // 점수는 지우는 것이 아니라 근거 자리로 내려간 것이다
+  assert.ok(orderAt > 0, '주문서를 안 그린다')
+  /*
+    주석에는 왜 뺐는지가 적혀 있으므로 **그리는 자리**만 센다.
+    이름으로만 찾으면 주석이 통과시킨다.
+  */
+  const drawn = panel.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  assert.equal(drawn.includes("'원점수'"), false, '원점수를 아직 그린다')
+  assert.equal(drawn.includes('formatProbability'), false, '확률을 아직 그린다')
+  // 누가 언제 말했나는 남는다 — 없으면 어제 판단을 오늘 것으로 읽는다
+  assert.match(drawn, /seoulTimeText\(call\.at\)/, '판단 시각을 안 말한다')
   assert.match(panel, /styles\.basis/, '근거 자리를 안 가른다')
+})
+
+/**
+ * **점이 아니라 돈으로 말해야 한다** (사용자 지시 2026-09-30 「몇 점 이게 필요한것도 아닌데」).
+ * 승수를 화면이 안 받으면 곱할 값이 없어 영영 점으로 돌아간다.
+ */
+test('★ 주문서가 승수를 받아 돈으로 말한다', () => {
+  const panel = readFileSync(PANEL, 'utf8')
+  assert.match(panel, /multiplier=\{multiplier\}/, '주문서에 승수를 안 넘긴다')
+  const page = readFileSync(new URL('../../../app/(trading)/trading/page.tsx', import.meta.url), 'utf8')
+  assert.match(page, /multiplier=\{overview\.accuracy\.multiplier\}/, '화면이 승수를 안 넘긴다')
 })
 
 /**

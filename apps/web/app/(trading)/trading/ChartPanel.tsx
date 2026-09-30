@@ -31,8 +31,7 @@ import { liveWindowAt } from '@/lib/trading/live-window'
 import type { CallPlan } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
 import {
-  formatIndexPrice, formatProbability, formatMinutes, formatDistance,
-  deadlineLeftText, PLAN_LABEL, PLAN_SOURCE_LABEL,
+  formatIndexPrice, PLAN_SOURCE_LABEL,
 } from '@/lib/trading/signal-labels'
 import { UNKNOWN_TEXT, seoulTimeText } from '@/lib/trading/position-labels'
 import styles from './ChartPanel.module.css'
@@ -45,6 +44,11 @@ interface Props {
   emitProgress: { step: number; total: number; reason: string } | null
   /** 마지막으로 받은 현재가. 형성 중인 봉이 이 값으로 모양을 바꾼다 */
   lastPrice: { price: number; observedAt: string } | null
+  /**
+   * 1계약 승수(원). **점을 돈으로 바꾸는 값이다**
+   * (사용자 지시 2026-09-30 「몇 점 이게 필요한것도 아닌데」). 모르면 0 이고 그때는 점으로 쓴다
+   */
+  multiplier: number
 }
 
 /**
@@ -76,10 +80,13 @@ function BarTip({ active, payload, calls }: any) {
           ),
         )}
       </dl>
-      {/* 그 봉에서 난 판단도 같이 — 표식만 보고 무엇을 판단했는지 몰랐다 */}
+      {/*
+        그 봉에서 난 판단도 같이 — 표식만 보고 무엇을 판단했는지 몰랐다.
+        **점수는 안 적는다** (사용자 지시 2026-09-30 「점수를 보여주는게 뭐가 중요해」)
+      */}
       {mine.map((c) => (
         <span key={c.judgmentId} className={styles.tipCall}>
-          {`${JUDGE_LABEL[c.judge] ?? c.judge} · ${LEANING_LABEL[c.direction]} ${formatProbability(c.prob)}`}
+          {`${JUDGE_LABEL[c.judge] ?? c.judge} · ${LEANING_LABEL[c.direction]}`}
         </span>
       ))}
     </div>
@@ -102,11 +109,6 @@ const NOT_A_SIGNAL = '아직 신호로는 안 나갔습니다'
 /** 고른 봉 단위를 화면이 기억한다. 설정이 아니라 보는 사람 취향이다 */
 const TF_KEY = 'trading.chart.tf'
 
-/** 기대값은 평균표가 정한다. 없으면 없다고 말한다 — 0 은 「본전이 기대된다」는 사실이다 */
-function evText(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return UNKNOWN_TEXT
-  return `${value > 0 ? '+' : ''}${value.toFixed(2)}R`
-}
 
 /**
  * 주문서 — **얼마에 사고 얼마에 팔고 얼마나 들고 있나**
@@ -114,18 +116,20 @@ function evText(value: number | null): string {
  * 사용자 지시 2026-09-30: 「여기 점수로 이야기 하면 모르겠어 난, 젤 명확한게 얼마에 사고
  * 얼마에 팔아라 그리고 대충 얼마정도 유지해라 시간 정확히 보여주고 이게 핵심이야」.
  *
- * 그래서 이 묶음에는 **점수가 없다.** 점수는 아래 근거 줄로 내려갔다 —
- * 값을 지우지 않되, 주문할 때 보는 것과 나중에 따질 것을 자리로 가른다.
+ * 그래서 이 묶음에는 **점수가 없다.** 처음에는 아래 근거 줄로 내렸다가, 그래도 화면에
+ * 있으면 읽는 사람이 그것을 기준으로 삼길래 이 화면에서는 아예 뺐다
+ * (사용자 지시 2026-09-30 「점수를 보여주는게 뭐가 중요해」). 점수를 보는 자리는 판단 기록이다.
  *
  * 말은 전부 `buildOrderCard` 가 만든다. 화면이 「삽니다/팝니다」를 여기서 정하면
  * 방향 규칙이 두 곳에 생기고, 그중 한 곳만 고치는 날 사람이 반대로 주문한다.
  */
-function OrderBlock({ plan, nowPrice, clock }: {
+function OrderBlock({ plan, nowPrice, clock, multiplier }: {
   plan: CallPlan
   nowPrice: number | null
   clock: Date | null
+  multiplier: number
 }) {
-  const card = buildOrderCard({ plan, nowPrice, now: clock })
+  const card = buildOrderCard({ plan, nowPrice, now: clock, multiplier })
   /**
    * **지금 들어가도 되나.** 규칙은 원래 화면에 있었다 — 「진입 한계가 1083.93 · 여기를
    * 넘으면 안 따라갑니다」. 다만 그 규칙을 사람이 지금 가격과 매번 손으로 견줘야 했다
@@ -176,7 +180,7 @@ function OrderBlock({ plan, nowPrice, clock }: {
   )
 }
 
-export default function ChartPanel({ chart, signals, emitProgress, lastPrice }: Props) {
+export default function ChartPanel({ chart, signals, emitProgress, lastPrice, multiplier }: Props) {
   /**
    * **있는 것을 먼저 보여 준다.** 신호가 0건이어도 판단은 매분 쌓인다 —
    * 그것을 안 보고 「판단이 한 번도 안 돌았습니다」라고 하면 화면이 거짓말을 한다
@@ -341,7 +345,7 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice }: 
                 방향과 점수만으로는 주문을 못 낸다 (사용자 지적 2026-09-29).
               */}
               {plan
-                ? <OrderBlock plan={plan} nowPrice={lastPrice?.price ?? null} clock={clock} />
+                ? <OrderBlock plan={plan} nowPrice={lastPrice?.price ?? null} clock={clock} multiplier={multiplier} />
                 : (
                   <p className={styles.planSource}>
                     {call.direction === 'hold'
@@ -354,28 +358,23 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice }: 
                 따질 때 필요한 값이다. 다만 주문할 때 보는 것과 자리를 가른다
               */}
               <div className={styles.basis}>
+                {/*
+                  **점수를 안 적는다.** 사용자 지시 2026-09-30: 「점수를 보여주는게 뭐가
+                  중요해」. 원점수 75%는 주문할 때 쓰는 값이 아니고, 이 자리에 있으면
+                  읽는 사람이 그것을 견줄 기준으로 삼는다. 점수를 보러 가는 자리는
+                  「판단 기록」이고 거기에는 그대로 남아 있다.
+
+                  남기는 것은 **누가 언제 말했나** 둘뿐이다 — 이 둘은 값이 언제 것인지를
+                  가르는 사실이라, 없으면 어제 판단을 오늘 것으로 읽는다.
+                */}
                 <span className={styles.source}>
                   {call.from === 'signal'
                     ? SIGNAL_SOURCE
                     : `${JUDGE_LABEL[call.judge ?? ''] ?? call.judge ?? ''} · ${JUDGMENT_SOURCE}`}
+                  {' · '}
+                  {seoulTimeText(call.at)}
+                  {callAge && <span className={styles.age}>{` · ${callAge}`}</span>}
                 </span>
-                <dl className={styles.facts}>
-                  <div className={styles.fact}>
-                    <dt>{call.from === 'signal' ? '확률' : '원점수'}</dt>
-                    <dd>{formatProbability(call.prob)}</dd>
-                  </div>
-                  <div className={styles.fact}>
-                    <dt>시각</dt>
-                    {/* 언제 것인지까지 말한다 — 시각만 있으면 어제 것이 오늘 것으로 읽힌다 */}
-                    <dd>{seoulTimeText(call.at)}{callAge && <span className={styles.age}> · {callAge}</span>}</dd>
-                  </div>
-                  {call.from === 'signal' && (
-                    <div className={styles.fact}>
-                      <dt>기대값</dt>
-                      <dd>{evText(call.evR)}</dd>
-                    </div>
-                  )}
-                </dl>
                 {/* 판단은 아직 신호가 아니다 — 왜 안 나갔는지를 같은 자리에서 말한다 */}
                 {call.from === 'judgment' && (
                   <span className={styles.notYet}>

@@ -71,8 +71,15 @@ export function buildOrderCard(input: {
   plan: CallPlan
   nowPrice: number | null
   now: Date | null
+  /**
+   * 1계약 승수(원). **점을 돈으로 바꾸는 값이다** —
+   * 사용자 지시 2026-09-30 「몇 점 이게 필요한것도 아닌데」. 1.39점이 얼마인지는
+   * 승수를 알아야 나온다(실측 MINI_KOSPI200 50,000원). 모르면 점으로 말한다.
+   */
+  multiplier?: number | null
 }): OrderCard {
   const { plan, nowPrice, now } = input
+  const multiplier = input.multiplier ?? null
   const act = ORDER_ACTION[plan.direction]
 
   const steps: OrderStep[] = [
@@ -85,14 +92,14 @@ export function buildOrderCard(input: {
     {
       name: ORDER_STEP_LABEL.target,
       text: `${formatIndexPrice(plan.targetPrice)} 에 ${act.target}`,
-      // 목표는 언제나 버는 쪽이다. 가격이 위인지 아래인지가 아니라 **몇 점 버나**를 적는다
-      note: profitText(plan.referencePrice, plan.targetPrice),
+      // 목표는 언제나 버는 쪽이다. 가격이 위인지 아래인지가 아니라 **얼마 버나**를 적는다
+      note: gainText(plan.referencePrice, plan.targetPrice, multiplier, '+'),
     },
     {
       name: ORDER_STEP_LABEL.stop,
       text: `${formatIndexPrice(plan.stopPrice)} 에 ${act.stop}`,
       // 손절은 언제나 잃는 쪽이다. 부호를 빼면 목표와 구분이 안 된다
-      note: lossText(plan.referencePrice, plan.stopPrice),
+      note: gainText(plan.referencePrice, plan.stopPrice, multiplier, '-'),
     },
   ]
 
@@ -122,18 +129,30 @@ export function buildOrderCard(input: {
   return { headline: act.headline, steps, times }
 }
 
-/** 목표까지 몇 점 버나. 0 이면 본전이 아니라 값이 이상한 것이므로 안 적는다 */
-function profitText(reference: number, target: number): string | null {
-  const gap = Math.abs(target - reference)
+/**
+ * 그 값까지 가면 **얼마인가**.
+ *
+ * 사용자 지시 2026-09-30: 「몇 점 이게 필요한것도 아닌데」. 「+1.39점」은 선물 단위이고,
+ * 그 단위가 얼마인지는 상품 승수를 알아야 나온다 — 그 곱셈은 화면이 할 일이다.
+ * 승수를 모르면 **돈을 지어내지 않고** 점으로 말한다. 0원으로 때우면 「안 벌린다」가 된다.
+ *
+ * 부호는 뜻이다. 목표는 언제나 `+`, 손절은 언제나 `-` — 방향이 반대여도 안 뒤집힌다.
+ */
+function gainText(
+  reference: number, to: number, multiplier: number | null, sign: '+' | '-',
+): string | null {
+  const round2 = (v: number): number => Math.round(v * 100) / 100
+  /*
+    **화면에 뜬 값으로 셈한다.** 가격은 소수 둘까지 그리는데 원값은 그보다 길다 —
+    원값으로 곱하면 「1079.26 에서 1077.61 인데 왜 82,607원인가」가 된다(1.65점이면 82,500원).
+    보이는 것이 안 맞으면 읽는 사람은 다른 값도 못 믿는다.
+  */
+  const gap = Math.round(Math.abs(round2(to) - round2(reference)) * 100) / 100
   if (!Number.isFinite(gap) || gap < 0.005) return null
-  return `+${gap.toFixed(2)}점`
-}
-
-/** 손절까지 몇 점 잃나. 부호를 빼면 목표와 같은 글자가 된다 */
-function lossText(reference: number, stop: number): string | null {
-  const gap = Math.abs(stop - reference)
-  if (!Number.isFinite(gap) || gap < 0.005) return null
-  return `-${gap.toFixed(2)}점`
+  if (multiplier !== null && Number.isFinite(multiplier) && multiplier > 0) {
+    return `${sign}${Math.round(gap * multiplier).toLocaleString('ko-KR')}원`
+  }
+  return `${sign}${gap.toFixed(2)}점`
 }
 
 /** 들고 있는 길이. 「약」을 붙인다 — 이 값은 시간 청산 한도이지 약속이 아니다 */

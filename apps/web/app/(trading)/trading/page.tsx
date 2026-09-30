@@ -65,6 +65,8 @@ export default async function TradingPage() {
           signals={overview.signals}
           emitProgress={overview.emitProgress}
           lastPrice={overview.lastPrice}
+          /* 점을 돈으로 바꾸는 값. 성적표가 이미 읽어 둔 것을 돌려 쓴다 — 두 곳이 다른 승수를 쓰면 같은 값이 두 금액이 된다 */
+          multiplier={overview.accuracy.multiplier}
         />
         {/*
           **차트 바로 아래가 성적이다.** 지금 예측을 보고 나면 다음 질문은
