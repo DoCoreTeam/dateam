@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.812',
+    date: '2026-10-01',
+    title: '찾은 공고에서 상관없는 것을 뺄 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🧹',
+        headline: '상관없는 공고를 빼거나 골라서 한 번에 치울 수 있어요',
+        detail: '줄마다 「빼기」가 생겼고, 여러 건을 골라 한 번에 뺄 수도 있어요. 목록에서만 빼는 것이라 공고 자체는 그대로예요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '↩️',
+        headline: '뺀 공고를 다시 보고 되돌릴 수 있어요',
+        detail: '「뺀 공고 보기」로 지금까지 뺀 것을 모아 보고, 언제든 원래 목록으로 되돌릴 수 있어요. 잘못 빼도 괜찮아요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '📁',
+        headline: '케이스로 만든 공고가 목록에서 빠져요',
+        detail: '케이스로 만들었는데도 그 공고가 목록에 계속 남아 있던 문제를 고쳤어요. 같은 공고를 두 번 담을 일이 없어졌어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📐',
+        headline: '목록의 단추가 한 줄로 가지런해졌어요',
+        detail: '제목 길이에 따라 단추가 좌우로 흩어지던 것을 바로잡았어요. 눈으로 훑기 쉬워졌어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.810',
     date: '2026-10-01',
     title: '차트 위에서 휠을 굴려도 화면이 안 밀려요',
