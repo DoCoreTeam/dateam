@@ -18,7 +18,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw } from 'lucide-react'
 import { seoulTimeText, seoulClockText } from '@/lib/trading/position-labels'
-import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine } from '@/lib/trading/live-window'
+import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine, barFreshness } from '@/lib/trading/live-window'
 import styles from './LiveRefresh.module.css'
 
 interface Props {
@@ -32,9 +32,17 @@ interface Props {
    * 1분 봉이라 데이터는 1분에 한 번 바뀐다 — 그 사실과 다음 읽기까지 남은 초를 함께 말한다.
    */
   lastBarAt: string | null
+  /**
+   * 마지막 봉이 **도착한** 시각 (ISO). 없으면 null.
+   *
+   * 봉이 시작한 시각과 다르다 — 실측 2026-09-30 1분봉은 시작 + 64초쯤에 저장된다.
+   * 「몇 초 전」을 시작 시각으로 재면 정상일 때도 64~154초가 나와 화면이 늘 늦어 보였고,
+   * 그 숫자는 고장 신호로도 못 쓴다 (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」).
+   */
+  lastBarAvailableAt: string | null
 }
 
-export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
+export default function LiveRefresh({ everySeconds, lastBarAt, lastBarAvailableAt }: Props) {
   const router = useRouter()
   const [pending, start] = useTransition()
   /**
@@ -69,6 +77,8 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
    */
   const [nowText, setNowText] = useState<string | null>(null)
   const [barAgeSec, setBarAgeSec] = useState<number | null>(null)
+  /** 봉이 진짜로 안 오고 있나. 정상 범위를 넘었을 때만 true */
+  const [barLate, setBarLate] = useState(false)
 
   useEffect(() => {
     const everyMs = Math.max(5, everySeconds) * 1000
@@ -105,15 +115,13 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
       // 초까지 흐르는 시계. 이 줄만 봐도 화면이 살아 있는지 안다
       setNowText(seoulClockText(now))
       /*
-        장이 닫혀 있으면 봉이 안 오는 것이 정상이다. 그 자리에 초를 세면
-        멀쩡한 상태가 고장으로 읽힌다 — 그때는 안 그린다.
+        **봉이 도착한 시각으로 잰다.** 시작한 시각으로 재면 실측상 64초가 이미 지나 있어
+        정상일 때도 60초 밑으로 안 내려간다 — 늘 늦어 보이는 숫자는 고장 신호가 못 된다.
+        장이 닫혀 있으면 봉이 안 오는 것이 정상이라 아예 안 센다.
       */
-      const at = lastBarAt ? Date.parse(lastBarAt) : Number.NaN
-      setBarAgeSec(
-        w.live && Number.isFinite(at)
-          ? Math.max(0, Math.floor((now.getTime() - at) / 1000))
-          : null,
-      )
+      const fresh = barFreshness({ availableAt: lastBarAvailableAt, now, live: w.live })
+      setBarAgeSec(fresh.ageSeconds)
+      setBarLate(fresh.late)
       // 멈춘 동안에는 남은 시간을 안 센다 — 세고 있으면 곧 뭔가 온다는 뜻이 된다
       setLeftSec(document.hidden || !w.live ? null : Math.max(0, Math.ceil((nextAt - Date.now()) / 1000)))
     }, 1000)
@@ -123,7 +131,7 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
       if (tick) clearInterval(tick)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [everySeconds, router, lastBarAt])
+  }, [everySeconds, router, lastBarAvailableAt])
 
   return (
     <p className={styles.bar} role="status">
@@ -134,11 +142,13 @@ export default function LiveRefresh({ everySeconds, lastBarAt }: Props) {
       */}
       <span className={styles.head}>{barLine(lastBarAt)}</span>
       {/*
-        **봉이 들어온 지 몇 초인가.** 1분봉이라 이 값은 0에서 60 사이를 돈다 —
-        60을 크게 넘어 가면 봉이 안 들어오고 있다는 뜻이고, 그 사실이 여기서 보인다
+        **봉이 들어온 지 몇 초인가.** 도착 시각으로 재므로 정상이면 0에서 60 사이를 돈다 —
+        그 밖으로 나가면 진짜로 안 오고 있는 것이고, 그때만 빨갛게 말한다
       */}
       {barAgeSec !== null && (
-        <span className={styles.age}>{`${barAgeSec}초 전`}</span>
+        <span className={barLate ? styles.late : styles.age}>
+          {barLate ? `${barAgeSec}초째 안 들어옵니다` : `${barAgeSec}초 전에 들어옴`}
+        </span>
       )}
       <span className={styles.sep} aria-hidden>·</span>
       <span>

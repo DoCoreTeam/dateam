@@ -93,3 +93,44 @@ export const CLOSED_REASON_LABEL: Record<ClosedReason, string> = {
 export function nextOpenLine(nextOpenAt: string): string {
   return `${nextOpenAt} 에 다시 읽기 시작합니다`
 }
+
+/**
+ * 봉이 늦었나 — **도착한 시각으로 잰다**
+ *
+ * 사용자 지적 2026-09-30: 「이거 실시간으로 왜 안움직여?」. 그때 화면은
+ * 「마지막 1분봉 오후 01:22 · 133초 전」이라고 적고 있었고, 그 값은 **정상이었다**.
+ *
+ * 실측 2026-09-30: 1분봉은 시작 + 64초쯤에 저장된다(13:26봉 → 13:27:04).
+ * 그런데 화면은 봉이 **시작한** 시각부터 세고 있었다. 그래서 아무 문제가 없어도
+ * 64초 밑으로는 절대 안 내려갔고, 다시 읽는 간격까지 더해 늘 100초 넘게 떠 있었다.
+ * 「정상인데 늘 늦어 보이는 숫자」는 고장 신호로도 못 쓴다 — 매번 그러니까.
+ *
+ * 도착 시각으로 재면 정상 범위가 0~60초다. 그 밖으로 나가면 진짜로 안 오고 있는 것이다.
+ */
+export const BAR_LATE_SECONDS = 90
+
+export interface BarFreshness {
+  /** 몇 초 전에 도착했나. 잴 수 없으면 null */
+  ageSeconds: number | null
+  /** 늦었나. 잴 수 없으면 false — 모르는 것을 고장이라고 하지 않는다 */
+  late: boolean
+}
+
+/**
+ * 마지막 봉이 도착한 지 몇 초인가.
+ *
+ * 장이 닫혀 있으면 **안 잰다** — 봉이 안 오는 것이 정상인 시간에 초를 세면
+ * 멀쩡한 상태가 고장으로 읽힌다.
+ */
+export function barFreshness(input: {
+  availableAt: string | null
+  now: Date
+  live: boolean
+}): BarFreshness {
+  const { availableAt, now, live } = input
+  if (!live || !availableAt) return { ageSeconds: null, late: false }
+  const at = Date.parse(availableAt)
+  if (!Number.isFinite(at)) return { ageSeconds: null, late: false }
+  const ageSeconds = Math.max(0, Math.floor((now.getTime() - at) / 1000))
+  return { ageSeconds, late: ageSeconds > BAR_LATE_SECONDS }
+}

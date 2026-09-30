@@ -204,6 +204,14 @@ export interface ChartSeries {
    */
   lastBarAt: string | null
   /**
+   * 마지막 봉을 **우리가 알게 된 시각** (ISO). 없으면 null.
+   *
+   * `lastBarAt` 과 다르다 — 실측 2026-09-30 1분봉은 시작 + 64초쯤에 저장된다
+   * (13:26봉이 13:27:04). 「몇 초 전」을 시작 시각으로 재면 정상일 때도 64~154초가 나와
+   * 화면이 늘 늦어 보인다 (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」).
+   */
+  lastBarAvailableAt: string | null
+  /**
    * 처음 그릴 구간 (`bars` 의 자리 번호, 양끝 포함). 봉이 0건이면 null.
    *
    * **오늘 봉이 기본이다.** 지금까지는 180봉을 날 안 가리고 그렸고, 장이 막 열린
@@ -254,6 +262,8 @@ export interface SeriesInput {
     startAt: Date | string
     open: unknown; high: unknown; low: unknown; close: unknown
     volume?: unknown
+    /** 이 봉을 우리가 알게 된 시각. 화면이 「늦었나」를 이 값으로 잰다 */
+    availableAt?: Date | string
   }[]
   /** 이 구간의 신호. 봉 범위 밖의 것은 알아서 떨어진다 */
   signals: readonly {
@@ -292,7 +302,7 @@ export function buildSeries(input: SeriesInput): ChartSeries {
 
   if (bars.length === 0) {
     return {
-      bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
+      bars: [], marks: [], calls: [], domain: null, lastBarAt: null, lastBarAvailableAt: null,
       blocked: blockedLine(input.lastRunReason),
       window: null, dayBreaks: [],
       planBase: null, planBlocked: '가격 봉이 아직 없습니다',
@@ -356,6 +366,7 @@ export function buildSeries(input: SeriesInput): ChartSeries {
     calls,
     domain: axisDomain(Math.min(...values), Math.max(...values)),
     lastBarAt: bars[bars.length - 1].at,
+    lastBarAvailableAt: lastAvailableAt(input.bars),
     blocked: null,
     window: defaultWindow(bars, input.plan ? requiredBarCount(input.plan) : 0),
     dayBreaks: dayBreaksOf(bars),
@@ -723,6 +734,17 @@ export function callTitleAt(input: {
   if (!Number.isFinite(made)) return { title: CALL_TITLE.fresh, stale: false }
   const stale = now.getTime() - made >= validMinutes * 60_000
   return { title: stale ? CALL_TITLE.stale : CALL_TITLE.fresh, stale }
+}
+
+/**
+ * 마지막 봉을 언제 알게 됐나. 없으면 null — **시작 시각으로 때우지 않는다.**
+ * 때우면 정상일 때도 64초를 더한 값이 나와 화면이 늘 늦었다고 말한다.
+ */
+function lastAvailableAt(bars: SeriesInput['bars']): string | null {
+  const last = bars[bars.length - 1]
+  if (!last?.availableAt) return null
+  const at = last.availableAt instanceof Date ? last.availableAt : new Date(last.availableAt)
+  return Number.isFinite(at.getTime()) ? at.toISOString() : null
 }
 
 /** 휠로 줄일 수 있는 가장 좁은 창. 이보다 좁으면 봉 몇 개만 남아 흐름이 안 보인다 */

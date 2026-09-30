@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine } from './live-window.ts'
+import { liveWindowAt, CLOSED_REASON_LABEL, nextOpenLine, barFreshness, BAR_LATE_SECONDS } from './live-window.ts'
 import { seoulClockText, UNKNOWN_PRICE_TEXT } from './position-labels.ts'
 import { TRADING_APP_DIR } from '../policy/app-dirs.ts'
 
@@ -113,4 +113,42 @@ test('★ 화면이 1초 시계 안에서 지금 시각과 봉 나이를 같이 
   assert.ok(body.includes('w.live'), '장이 닫혀도 봉 나이를 센다')
   // 첫 렌더에는 안 그린다 — 서버가 그린 글자와 달라지면 하이드레이션이 어긋난다
   assert.match(src, /useState<string \| null>\(null\)/, '첫 렌더에 화면 시계를 그린다')
+})
+
+/* ── 봉이 늦었나 (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」) ── */
+
+test('도착 시각으로 재면 정상 범위가 0에서 60초다', () => {
+  // 실측 2026-09-30: 13:26봉이 13:27:04 에 저장됐다
+  const arrived = '2026-09-30T04:27:04.000Z'
+  const at = (plusSec: number) =>
+    barFreshness({ availableAt: arrived, now: new Date(Date.parse(arrived) + plusSec * 1000), live: true })
+  assert.deepEqual(at(0), { ageSeconds: 0, late: false })
+  assert.deepEqual(at(59), { ageSeconds: 59, late: false })
+  assert.equal(at(BAR_LATE_SECONDS).late, false)
+  assert.equal(at(BAR_LATE_SECONDS + 1).late, true)
+})
+
+test('봉 시작 시각으로 재던 옛 셈법은 정상일 때도 60초를 넘겼다', () => {
+  // 그때 화면이 적은 값: 봉 시작 01:22, 지금 01:24:13 → 133초
+  const started = Date.parse('2026-09-30T04:22:00.000Z')
+  const now = new Date('2026-09-30T04:24:13.000Z')
+  const oldWay = Math.floor((now.getTime() - started) / 1000)
+  assert.equal(oldWay, 133, '옛 셈법이 133초를 냈다')
+  // 같은 순간을 도착 시각(01:23:04)으로 재면 69초다 — 아직 늦은 것이 아니다
+  const f = barFreshness({ availableAt: '2026-09-30T04:23:04.000Z', now, live: true })
+  assert.equal(f.ageSeconds, 69)
+  assert.equal(f.late, false)
+})
+
+test('장이 닫혀 있거나 값이 없으면 안 잰다 — 모르는 것을 고장이라 하지 않는다', () => {
+  const now = new Date('2026-09-30T04:27:40.000Z')
+  for (const input of [
+    { availableAt: '2026-09-30T04:27:04.000Z', now, live: false },
+    { availableAt: null, now, live: true },
+    { availableAt: 'broken', now, live: true },
+  ]) {
+    const f = barFreshness(input)
+    assert.equal(f.ageSeconds, null, JSON.stringify(input))
+    assert.equal(f.late, false)
+  }
 })

@@ -62,3 +62,15 @@
   color: var(--text-faint);
   font-size: var(--fs-xs);
 }
+
+/*
+  봉이 진짜로 안 올 때만 빨갛다 — **정상 범위에서는 조용하다**
+
+  전에는 이 숫자가 봉 시작 시각부터 세어 정상일 때도 100초를 넘겼다. 늘 늦어 보이는
+  숫자는 고장 신호가 못 된다 (사용자 지적 2026-09-30 「이거 실시간으로 왜 안움직여?」).
+*/
+.late {
+  color: var(--danger);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

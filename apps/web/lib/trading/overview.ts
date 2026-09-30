@@ -695,7 +695,7 @@ async function loadChart(
 ): Promise<ChartSeries> {
   if (!contractCode) {
     return {
-      bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
+      bars: [], marks: [], calls: [], domain: null, lastBarAt: null, lastBarAvailableAt: null,
       blocked: { text: '근월물이 정해지지 않았습니다', tone: 'blocked' },
       window: null, dayBreaks: [],
       planBase: null, planBlocked: '근월물이 정해지지 않았습니다',
@@ -707,7 +707,7 @@ async function loadChart(
   } catch (error) {
     const text = `봉을 읽지 못했습니다: ${error instanceof Error ? error.message : '알 수 없음'}`
     return {
-      bars: [], marks: [], calls: [], domain: null, lastBarAt: null,
+      bars: [], marks: [], calls: [], domain: null, lastBarAt: null, lastBarAvailableAt: null,
       blocked: { text, tone: 'blocked' },
       window: null, dayBreaks: [],
       planBase: null, planBlocked: text,

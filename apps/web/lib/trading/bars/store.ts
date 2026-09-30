@@ -78,7 +78,7 @@ export async function loadBarsAsOf(input: {
   const admin = createAdminClient() as any
   const { data, error } = await admin
     .from('trading_bars')
-    .select('bar_start_at, open, high, low, close, volume')
+    .select('bar_start_at, open, high, low, close, volume, available_at')
     .eq('contract_code', input.contractCode)
     .eq('tf', input.tf)
     .lte('available_at', input.asOf.toISOString())
@@ -94,6 +94,8 @@ export async function loadBarsAsOf(input: {
       low: Number(row.low),
       close: Number(row.close),
       volume: Number(row.volume),
+      // 봉이 시작한 때가 아니라 **우리가 알게 된 때**. 화면이 늦었나를 이 값으로 잰다
+      availableAt: new Date(String(row.available_at)),
     }))
     .reverse()
 }
