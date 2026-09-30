@@ -105,3 +105,25 @@ test('문서의 끝을 알리고 발행 주체를 밝힌다', () => {
   assert.match(html, /— 이 상 —/)
   assert.match(html, /데이터얼라이언스 · AX사업본부/)
 })
+
+// ── 한글 자형을 문서가 들고 간다 (실측 2026-09-30) ───────────────────────────
+// 서버 크로미움에는 한글 자형이 하나도 없다(@sparticuz/chromium 은 Open Sans 셋만 싣는다).
+// 그래서 내보낸 PDF·이미지에서 한글이 전부 빈칸으로 나갔다. 아래 둘이 그 자리를 잠근다.
+
+test('글꼴 차례 맨 앞이 문서가 들고 간 자형이다 — 시스템 글꼴을 먼저 찾으면 서버에서 빈칸이다', () => {
+  const html = buildMeetingExportHtml(base)
+  const family = /font-family:\s*([^;]+);/.exec(html)?.[1] ?? ''
+  assert.ok(family.startsWith("'Pretendard Variable'"), `글꼴 차례가 ${family} 로 시작합니다`)
+})
+
+test('받은 자형을 스타일 맨 앞에 둔다 — 규칙보다 뒤에 있으면 늦게 잡힌다', () => {
+  const html = buildMeetingExportHtml({ ...base, fontFaceCss: '@font-face{font-family:X;src:url(data:font/woff2;base64,AA)}' })
+  assert.ok(html.includes('data:font/woff2;base64,AA'), '받은 자형이 문서에 안 들어갔습니다')
+  assert.ok(html.indexOf('@font-face') < html.indexOf('box-sizing'), '자형 선언이 스타일 규칙보다 뒤에 있습니다')
+})
+
+test('자형을 안 넘기면 한 바이트도 안 싣는다 — 미리보기에 1MB 를 딸려 보내지 않는다', () => {
+  const html = buildMeetingExportHtml(base)
+  assert.ok(!html.includes('data:font'), '자형을 안 넘겼는데 문서에 실렸습니다')
+  assert.ok(!html.includes('@font-face'), '빈 @font-face 껍데기가 남았습니다')
+})

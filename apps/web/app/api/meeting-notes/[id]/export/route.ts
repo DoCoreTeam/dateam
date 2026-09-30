@@ -7,6 +7,7 @@ import { sanitizeFilename } from '@/lib/ai-chat/export'
 import { formatKstDateTimeKorean } from '@/lib/datetime/kst'
 import { exportFailureMessage } from '@/lib/meeting/export-failure'
 import { buildMeetingExportHtml, type MeetingExportView, type ExportDigest } from '@/lib/meeting/export-html'
+import { buildKoreanFontCss } from '@/lib/export/embed-korean-font'
 import { createClient } from '@/lib/supabase/server'
 import { listTranscriptSegments, formatSegmentTime } from '@/lib/meeting/transcript'
 import { listMeetingDigests } from '@/lib/meeting/digest-run'
@@ -19,6 +20,17 @@ export const maxDuration = 30
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PuppeteerBrowser = any
+
+/**
+ * 자형이 다 붙기 전에 찍으면 **빈칸이 그대로 파일에 박힌다.**
+ *
+ * `domcontentloaded` 는 마크업만 보고 끝난다 — 문서에 data: 로 박은 woff2 는 그 뒤에 해독된다.
+ * 실패해도 그림은 찍어야 하므로(파일 자체를 막지 않는다) 실패를 삼키되, 기다리는 일은 반드시 한다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function waitForFonts(page: any): Promise<void> {
+  try { await page.evaluate(() => document.fonts.ready.then(() => undefined)) } catch { /* noop */ }
+}
 
 /** 회의 참석자 분류 — user_ids→조직원(이름 매칭), 그 외 attendees→외부. MeetingDetailClient와 동일 규칙. */
 function classifyAttendees(
@@ -108,7 +120,18 @@ export async function GET(
     }
   }
 
-  const html = buildMeetingExportHtml({
+  /**
+   * 문서가 자형을 **들고 간다** — 미리보기는 빼고.
+   *
+   * 서버 크로미움에는 한글 자형이 하나도 없어(Open Sans 셋뿐) 안 실으면 한글이 전부 빈칸으로
+   * 찍힌다(실측 2026-09-30). 미리보기는 사용자 브라우저가 그리므로 이미 한글이 나오고,
+   * `sandbox=""` iframe 은 불투명 출처라 자형을 넣으려면 부모 CSP 의 font-src 까지 건드려야 한다.
+   * 고장난 쪽에만 싣는다.
+   *
+   * 무엇을 실을지는 **완성된 문서를 보고** 정한다: 먼저 자형 없이 한 번 지어 그 글자를 세고,
+   * 필요한 조각만 골라 다시 짓는다. 이래야 문서에 있는 글자를 한 자도 안 빠뜨린다.
+   */
+  const compose = (fontFaceCss?: string) => buildMeetingExportHtml({
     title: note.title ?? '',
     meetingAtLabel: note.meeting_at ? formatKstDateTimeKorean(note.meeting_at) : '일시 미지정',
     authorName: authorName,
@@ -120,15 +143,20 @@ export async function GET(
     bodyHtml: sanitizeRichHtml(note.body ?? ''),
     segments,
     digest,
+    fontFaceCss,
   })
+
+  const plain = compose()
 
   // 미리보기는 여기서 끝 — 브라우저 엔진을 띄우지 않는다(빠르고, 엔진이 죽어도 미리보기는 뜬다).
   if (isPreview) {
-    return new NextResponse(html, {
+    return new NextResponse(plain, {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
     })
   }
+
+  const html = compose(await buildKoreanFontCss(plain, '/api/meeting-notes/[id]/export'))
 
   let browser: PuppeteerBrowser = null
   let bytes: Uint8Array
@@ -141,12 +169,14 @@ export async function GET(
       // 문서 폭 고정 + 레티나(2x)로 선명한 이미지. .doc 엘리먼트만 캡처해 내용에 딱 맞게 크롭(하단 여백 제거).
       await page.setViewport({ width: 760, height: 1120, deviceScaleFactor: 2 })
       await page.setContent(html, { waitUntil: 'domcontentloaded' })
+      await waitForFonts(page)
       const el = await page.$('.doc')
       bytes = el
         ? await el.screenshot({ type: 'png' })
         : await page.screenshot({ fullPage: true, type: 'png' })
     } else {
       await page.setContent(html, { waitUntil: 'domcontentloaded' })
+      await waitForFonts(page)
       bytes = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '24px', bottom: '24px', left: '24px', right: '24px' } })
     }
   } catch (err) {

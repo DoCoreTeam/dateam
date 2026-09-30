@@ -8,6 +8,7 @@
 //   · 서버 puppeteer가 page.setContent로 렌더 → page.pdf() / page.screenshot()로 산출.
 //   · 순수 함수(부수효과·I/O 없음) → 단위 테스트 대상.
 import { escapeHtml } from '../ai-chat/export.ts'
+import { EXPORT_FONT_STACK } from '../export/font-subset.ts'
 
 /**
  * 무엇을 담아 내보낼지.
@@ -65,6 +66,14 @@ export interface MeetingExportInput {
   segments?: ExportSegment[]
   /** digest 뷰용. 없으면 «정리하지 않았다»고 문서가 밝힌다 */
   digest?: ExportDigest | null
+  /**
+   * 문서가 **들고 갈** 한글 자형(@font-face 묶음).
+   *
+   * 왜 호출부가 넘기나: 렌더 환경마다 필요한 것이 다르다. 헤드리스 크로미움에는 한글 자형이
+   * 하나도 없어(Open Sans 셋뿐) 반드시 실어야 하고, 미리보기는 사용자 브라우저가 그리므로
+   * 1MB 를 더 보낼 이유가 없다. 빌더는 받은 것을 넣을 뿐 어느 쪽인지 판단하지 않는다.
+   */
+  fontFaceCss?: string
 }
 
 const EMPTY_HTML = new Set(['', '<p></p>', '<p><br></p>', '<p><br/></p>', '<p><br /></p>'])
@@ -156,7 +165,8 @@ function metaRow(label: string, value: string): string {
 }
 
 /**
- * 회의록 문서 HTML. 외부 리소스 없음(폰트=시스템, CSS 인라인) → 오프라인·CSP 안전.
+ * 회의록 문서 HTML. 외부 리소스 없음(자형은 data: 로 문서 안에, CSS 인라인) → 오프라인·CSP 안전.
+ * 자형을 문서가 들고 가는 이유는 lib/export/font-subset.ts 머리에 적혀 있다.
  */
 export function buildMeetingExportHtml(input: MeetingExportInput): string {
   const title = input.title.trim() || '(제목 없음)'
@@ -175,10 +185,11 @@ export function buildMeetingExportHtml(input: MeetingExportInput): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(title)}</title>
 <style>
+${input.fontFaceCss ?? ''}
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #ffffff; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    font-family: ${EXPORT_FONT_STACK};
     color: #1f2937; line-height: 1.75; -webkit-font-smoothing: antialiased;
   }
   .doc { max-width: 740px; margin: 0 auto; padding: 56px 48px 44px; }
