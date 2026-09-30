@@ -185,4 +185,53 @@ test('차트가 세로 스크롤을 가둘 수 있는 css 를 안 건다', async
   expect(css!.touchAction, 'touch-action 을 걸면 세로 스크롤을 뺏을 수 있다').toBe('auto')
   expect(css!.overflowY, '차트가 자기 스크롤을 만들면 페이지 스크롤이 갇힌다').not.toBe('hidden')
 })
+
+/**
+ * **봉 단위를 바꿔도 봉이 그려져야 한다.**
+ *
+ * 실측 2026-09-30: 서버가 준 창(1분봉 420개 기준)을 그대로 쓰다가 5분봉으로 바꾸니
+ * 봉이 **0개**로 나왔다 — 묶으면 봉 수가 1/5 인데 창은 300번대를 가리켜 범위 밖이었다.
+ */
+test('봉 단위를 바꾸면 그 단위로 다시 그린다', async ({ page }) => {
+  test.skip(!(await chartReady(page)), '봉이 0건')
+  const bars = () => page.locator('.recharts-bar-rectangle').count()
+  const at1m = await bars()
+  expect(at1m, '1분봉이 0개다').toBeGreaterThan(0)
+
+  for (const label of ['5분', '15분', '60분']) {
+    await page.getByRole('button', { name: label, exact: true }).click()
+    await page.waitForTimeout(800)
+    const n = await bars()
+    expect(n, `${label}으로 바꾸니 봉이 ${n}개다`).toBeGreaterThan(0)
+    expect(n, `${label}인데 1분봉보다 봉이 많다`).toBeLessThan(at1m)
+  }
+})
+
+test('휠을 굴리면 보는 봉 수가 바뀐다', async ({ page }) => {
+  test.skip(!(await chartReady(page)), '봉이 0건')
+  const box = await page.locator('.recharts-wrapper').first().boundingBox()
+  const bars = () => page.locator('.recharts-bar-rectangle').count()
+  const before = await bars()
+  await page.mouse.move(box!.x + box!.width * 0.5, box!.y + box!.height * 0.5)
+  for (let i = 0; i < 6; i += 1) { await page.mouse.wheel(0, -120); await page.waitForTimeout(80) }
+  await page.waitForTimeout(500)
+  const after = await bars()
+  expect(after, `휠을 굴렸는데 봉 수가 그대로다 (${before} → ${after})`).toBeLessThan(before)
+})
+
+/**
+ * **차트 밖에서는 페이지가 내려가야 한다.** 차트 위에서 페이지 스크롤을 뺏는 것이
+ * 의도이지만, 그 바깥까지 뺏으면 화면이 갇힌다.
+ */
+test('차트 밖에서 휠을 굴리면 페이지가 내려간다', async ({ page }) => {
+  test.skip(!(await chartReady(page)), '봉이 0건')
+  const box = await page.locator('.recharts-wrapper').first().boundingBox()
+  const top = async () => page.evaluate(() => (document.querySelector('main') as HTMLElement)?.scrollTop ?? -1)
+  const before = await top()
+  await page.mouse.move(box!.x + 300, box!.y - 70)
+  await page.mouse.wheel(0, 500)
+  await page.waitForTimeout(400)
+  expect(await top(), '차트 밖인데 페이지가 안 내려간다').toBeGreaterThan(before)
+})
+
 })

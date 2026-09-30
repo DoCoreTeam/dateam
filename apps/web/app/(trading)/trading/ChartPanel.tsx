@@ -19,7 +19,7 @@ import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import type { ChartSeries, SignalRow } from '@/lib/trading/overview-shape'
-import { pickNowCall, callAgeLabel, chartTitle, planForCall, zoomWindow } from '@/lib/trading/chart/series'
+import { pickNowCall, callAgeLabel, chartTitle, planForCall, zoomWindow, defaultWindow } from '@/lib/trading/chart/series'
 import {
   buildDisplayBars, isForming, isChartTimeframe,
   CHART_TIMEFRAMES, DEFAULT_CHART_TIMEFRAME, type ChartTimeframe, type DisplayBar,
@@ -442,7 +442,15 @@ function PriceChart(
    * 휠로 좌우를 밀면 차트 위에서 페이지가 안 내려간다 — 사용자가 말한 그 문제를
    * 우리가 만드는 셈이다. 그래서 **끄는 것(드래그)만** 좌우 이동에 쓴다.
    */
-  const serverWindow = chart.window
+  const barCount = bars.length
+  /**
+   * **창은 그리는 봉 기준이다.**
+   *
+   * 실측 2026-09-30: 서버가 준 창(1분봉 420개 기준)을 그대로 쓰다가 5분봉으로 바꾸니
+   * 봉이 **0개**로 나왔다 — 묶으면 봉 수가 1/5 이 되는데 창은 300번대를 가리키고 있어
+   * 범위 밖이었다. 창은 지금 그리는 봉의 개수로 다시 잡아야 한다.
+   */
+  const serverWindow = useMemo(() => defaultWindow(bars, 0), [bars])
   /**
    * **첫 렌더부터 창을 들고 시작한다.**
    *
@@ -451,7 +459,13 @@ function PriceChart(
    * 전부 그려졌다(180→180). 이름을 `view` 로 둔 것은 전역 `window` 를 가리지 않으려는 것이다.
    */
   const [view, setView] = useState<{ startIndex: number; endIndex: number } | null>(() => serverWindow)
-  const barCount = bars.length
+  /** 봉 단위를 바꾸면 창을 새로 잡는다 — 개수가 통째로 달라지기 때문 */
+  const lastCount = useRef(barCount)
+  useEffect(() => {
+    if (lastCount.current === barCount) return
+    lastCount.current = barCount
+    setView(serverWindow)
+  }, [barCount, serverWindow])
 
   /**
    * 한 프레임에 한 번만 다시 그린다. 휠은 초당 수십 번 오고, 매번 상태를 고치면
@@ -469,17 +483,17 @@ function PriceChart(
     })
   }
 
-  // 서버가 정한 창이 바뀌면(봉이 들어오면) 따라간다 — 단, 사용자가 민 뒤에는 그 폭을 지킨다
+  // 새 봉이 들어오면 따라간다 — 단, 사용자가 줌한 뒤에는 그 폭을 지킨다
   useEffect(() => {
     if (!serverWindow) { setView(null); return }
     setView((prev) => {
       if (!prev) return serverWindow
-      // 폭은 사용자 것, 오른쪽 끝은 새 봉을 따라간다
-      const span = prev.endIndex - prev.startIndex
+      // 폭은 사용자 것, 오른쪽 끝은 새 봉을 따라간다. 봉 수 안으로 조인다
+      const span = Math.min(prev.endIndex - prev.startIndex, Math.max(0, barCount - 1))
       const end = serverWindow.endIndex
       return { startIndex: Math.max(0, end - span), endIndex: end }
     })
-  }, [serverWindow])
+  }, [serverWindow, barCount])
 
   /**
    * **휠로 시간축을 줌한다** — HTS 관례다 (사용자 지시 2026-09-29
