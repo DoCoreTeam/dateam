@@ -132,3 +132,59 @@ export const REJECT_NEXT: Record<PortalReject, 'apply' | 'wait' | 'fix_key' | 'r
   bad_key: 'fix_key',
   unknown: 'report',
 }
+
+/**
+ * 신청 상태와 구현 여부는 **다른 축이다**
+ *
+ * `inUse` 는 「우리 코드가 부르나」이고 코드 상수다. 신청은 「포털에 활용 신청을 냈나」이고
+ * 조직마다 다르며 사람이 포털에서 하는 일이라 우리가 알 수 없다. 그래서 사람이 적어 둔다.
+ *
+ * 둘을 한 배지로 뭉치면 화면이 거짓말을 한다 — 「안 씀」이 신청을 안 해서인지
+ * 코드가 아직 안 불러서인지 사용자가 갈라 볼 수 없고, 할 일이 다르다:
+ *   신청 안 함  → 포털에서 신청하면 열린다
+ *   신청했는데 안 씀 → 기다리면 우리가 붙인다 (사용자가 할 일이 없다)
+ */
+export type G2bServiceStatus = 'live' | 'applied_unused' | 'needs_apply' | 'unknown'
+
+export interface G2bServiceState {
+  serviceId: G2bServiceId
+  applied: boolean
+  appliedAt: string | null
+  note: string | null
+}
+
+/** DB 행 → 상태. 칸 이름이 바뀌면 여기 한 곳만 고친다 */
+export const SERVICE_STATE_COLS = 'service_id, applied, applied_at, note'
+
+export function toServiceState(row: Record<string, unknown>): G2bServiceState {
+  return {
+    serviceId: String(row.service_id) as G2bServiceId,
+    applied: row.applied === true,
+    appliedAt: row.applied_at === null || row.applied_at === undefined ? null : String(row.applied_at),
+    note: row.note === null || row.note === undefined ? null : String(row.note),
+  }
+}
+
+/**
+ * 배지가 말할 것을 정한다.
+ *
+ * 적어 둔 것이 없으면 `unknown` 이다 — `false` 로 두면 「신청 안 함」이라고 단정하게 되고,
+ * 그것은 우리가 모르는 사실이다. 모르는 것을 아는 것처럼 말하지 않는다.
+ */
+export function serviceStatus(service: G2bService, state: G2bServiceState | undefined): G2bServiceStatus {
+  if (!state) return service.inUse ? 'live' : 'unknown'
+  if (!state.applied) return 'needs_apply'
+  return service.inUse ? 'live' : 'applied_unused'
+}
+
+/** 상태를 서비스 id 로 찾기 좋게 */
+export function stateMap(rows: readonly G2bServiceState[]): Map<G2bServiceId, G2bServiceState> {
+  return new Map(rows.map((r) => [r.serviceId, r]))
+}
+
+/** 신청해야 열리는 것이 몇 개인가 — 화면이 「할 일」을 셀 때 쓴다 */
+export function needsApplyCount(
+  services: readonly G2bService[], states: ReadonlyMap<G2bServiceId, G2bServiceState>,
+): number {
+  return services.filter((s) => serviceStatus(s, states.get(s.id)) === 'needs_apply').length
+}

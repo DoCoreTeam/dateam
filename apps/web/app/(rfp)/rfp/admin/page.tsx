@@ -5,6 +5,7 @@
 
 import G2bServices from './G2bServices'
 import { G2B_KEY_FIELD } from '@/lib/rfp/g2b/client'
+import { SERVICE_STATE_COLS, toServiceState } from '@/lib/rfp/g2b/services'
 import NotificationSettings from './NotificationSettings'
 import PageHeader from '@/components/ui/PageHeader'
 import SettingsCards, { type SettingsCardEntry } from '@/components/ui/settings/SettingsCards'
@@ -51,6 +52,11 @@ export default async function RfpAdminPage() {
   const db = await createClient()
   const q = db as never as Q
   const { data: orgId } = await q.rpc('rfp_default_org')
+
+  // 신청 상태를 첫 렌더에서 같이 읽는다. 안 읽으면 화면이 잠깐 「안 적혀 있음」을 보여 주고,
+  // 사용자는 그 한순간을 사실로 읽는다
+  const { data: stateRows } = await q.from('rfp_g2b_service_states').select(SERVICE_STATE_COLS).limit(20)
+  const serviceStates = ((stateRows ?? []) as Record<string, unknown>[]).map(toServiceState)
 
   const [{ data: policies }, { data: rules }, { data: transfers }, { data: usage }, { data: members }] =
     await Promise.all([
@@ -128,6 +134,7 @@ export default async function RfpAdminPage() {
       content: (
         <G2bServices
           hasServiceKey={typeof meta[G2B_KEY_FIELD] === 'string' && String(meta[G2B_KEY_FIELD]).trim().length > 0}
+          initialStates={serviceStates}
         />
       ),
     },

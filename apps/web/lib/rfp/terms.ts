@@ -643,6 +643,18 @@ export const RFP_ADMIN = {
   g2bInUse: '쓰는 중',
   g2bNotUsed: '아직 안 씀',
   g2bPortalNo: '포털 번호',
+  /**
+   * 신청 여부와 구현 여부는 다른 축이다. 한 배지로 뭉치면 「안 씀」이 신청을 안 해서인지
+   * 코드가 아직 안 불러서인지 갈라 볼 수 없고, 그 둘은 사용자가 할 일이 다르다
+   */
+  g2bNeedsApply: '신청해야 열려요',
+  g2bAppliedUnused: '신청됨 · 아직 안 씀',
+  g2bStateUnknown: '신청했는지 안 적혀 있어요',
+  g2bApplied: '신청함',
+  g2bMarkApplied: '신청했다고 표시',
+  g2bUnmarkApplied: '신청 표시 지우기',
+  g2bNeedsApplyCount: '신청해야 하는 것',
+  g2bAdminOnly: '관리자만 바꿀 수 있어요',
 } as const
 
 /** 서비스가 무엇을 주는지 — 코드의 gives 를 사람 말로 옮긴다 */
