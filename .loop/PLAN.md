@@ -105,7 +105,7 @@
 보안: 해당 없음 — 이미 실어 온 봉을 묶어 그릴 뿐이고 새 표·창구·바깥 값이 없다
 
 ### I04 형성 중인 봉이 판단에 안 들어간다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/forming-bar-isolation.test.ts (신규), apps/web/package.json
 감사 기준:
