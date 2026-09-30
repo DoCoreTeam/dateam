@@ -79,12 +79,27 @@ export function isIsoDate(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}([T ]|$)/.test(s) && !Number.isNaN(Date.parse(s))
 }
 
+/** 결과 하나 */
+export interface PgResult {
+  data: unknown
+  error: unknown
+}
+
+/**
+ * `insert().select()` 의 결과.
+ *
+ * 그대로 기다리면 **넣은 행 전부**가 오고, `single()` 을 붙이면 한 행만 온다.
+ * 여러 행을 넣고 `single()` 을 붙이면 PostgREST 가 거절하면서 **넣던 것까지 되돌린다** —
+ * 그래서 여러 행 자리에서는 이 형이 `single()` 없이 쓰이는지가 중요하다.
+ */
+export interface SelectResult extends PromiseLike<PgResult> {
+  single(): Promise<PgResult>
+}
+
 /** supabase-js 에서 우리가 쓰는 것만 */
 export interface PersistClient {
   from(table: string): {
-    insert(values: unknown): {
-      select(cols: string): { single(): Promise<{ data: unknown; error: unknown }> }
-    }
+    insert(values: unknown): { select(cols: string): SelectResult }
   }
   rpc(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>
 }
@@ -134,7 +149,9 @@ export async function persistReport(db: PersistClient, input: PersistInput): Pro
 
   const rows = toFieldRows(input.report)
   if (rows.length > 0) {
-    const { error: fieldError } = await db
+    // single() 을 붙이지 않는다. 여러 행을 넣고 한 행을 달라고 하면 PostgREST 가 거절하면서
+    // 넣던 것까지 되돌린다 — 그러면 근거 필드가 한 행도 안 남는다
+    const { data: fieldData, error: fieldError } = await db
       .from('rfp_report_fields')
       .insert(rows.map((r) => ({
         org_id: input.orgId,
@@ -150,20 +167,21 @@ export async function persistReport(db: PersistClient, input: PersistInput): Pro
         contract_version: AI_CONTRACT_VERSION,
       })))
       .select('id')
-      .single()
-    // 파생이 실패해도 원본은 남는다. 목록이 비는 것과 근거를 잃는 것 중 앞쪽이 덜 나쁘다
-    if (fieldError && !isEmptyResult(fieldError)) {
+
+    if (fieldError) {
       throw new Error(`리포트 파생 필드를 저장하지 못했다: ${describe(fieldError)}`)
+    }
+    // 오류가 없어도 행 수를 센다. 일부만 들어간 것은 다 들어간 것처럼 보이고,
+    // 그 사실은 화면에서 근거가 비었을 때에야 드러난다
+    const inserted = Array.isArray(fieldData) ? fieldData.length : 0
+    if (inserted !== rows.length) {
+      throw new Error(
+        `리포트 파생 필드를 ${rows.length}행 넣으려 했는데 ${inserted}행만 들어갔다`,
+      )
     }
   }
 
   return { reportVersionId: row.id, version: row.version, fieldCount: rows.length }
-}
-
-/** 여러 행을 넣고 single() 을 부르면 나는 오류 — 실패가 아니다 */
-function isEmptyResult(error: unknown): boolean {
-  const code = (error as { code?: unknown })?.code
-  return code === 'PGRST116'
 }
 
 function describe(error: unknown): string {

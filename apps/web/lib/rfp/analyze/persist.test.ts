@@ -15,17 +15,40 @@ import { readFileSync } from 'node:fs'
 import { persistReport } from './persist.ts'
 import { emptyReport, type Report } from '../report/schema.ts'
 
-/** insert 에 넘어간 것을 붙잡는 가짜. 실제 표 이름별로 나눠 담는다 */
-function spyClient() {
+/**
+ * insert 에 넘어간 것을 붙잡는 가짜. 실제 표 이름별로 나눠 담는다
+ *
+ * `select()` 는 **기다려지기도 하고 single() 도 갖는다** — 실제 supabase-js 가 그렇다.
+ * 가짜가 single() 만 갖고 있으면 코드가 single() 을 떼도 시험이 안 깨져서,
+ * 바로 그 결함을 이 시험이 못 본다.
+ *
+ * @param fieldIds 파생 필드 insert 가 돌려줄 행 목록. 넣은 수와 다르게 주면 「일부만 들어감」이 된다
+ */
+function spyClient(opts: { fieldIds?: (n: number) => { id: string }[] } = {}) {
   const captured: Record<string, unknown[]> = {}
   const client = {
     from(table: string) {
       return {
         insert(rows: unknown) {
-          captured[table] = (captured[table] ?? []).concat(Array.isArray(rows) ? rows : [rows])
+          const list = Array.isArray(rows) ? rows : [rows]
+          captured[table] = (captured[table] ?? []).concat(list)
+          const result =
+            table === 'rfp_report_fields'
+              ? {
+                  data: (opts.fieldIds ?? ((n: number) =>
+                    Array.from({ length: n }, (_, i) => ({ id: `f-${i}` }))))(list.length),
+                  error: null,
+                }
+              : { data: { id: 'rv-1', version: 3 }, error: null }
           return {
             select: () => ({
-              single: async () => ({ data: { id: 'rv-1', version: 3 }, error: null }),
+              // PostgREST 를 흉내낸다: 한 행을 달라고 했는데 결과가 한 행이 아니면
+              // 거절하면서 **넣던 것까지 되돌린다**. 그래서 data 가 비어 돌아온다
+              single: async () =>
+                Array.isArray(result.data) && result.data.length !== 1
+                  ? { data: null, error: { code: 'PGRST116', message: 'multiple rows returned' } }
+                  : { data: Array.isArray(result.data) ? result.data[0] : result.data, error: null },
+              then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
             }),
           }
         },
@@ -48,6 +71,18 @@ const REPORT = {
     aiNotice: '',
   } as never),
   overview: { title: NODE },
+} as unknown as Report
+
+/** 말단 값 셋 — 버킷을 갈라 두어 편 결과가 셋인지 셀 수 있게 한다 */
+const REPORT_3 = {
+  ...emptyReport({
+    analysisMode: 'base', baseVendor: 'v1', crossVendors: [], fallbackApplied: false,
+    costKrw: 0, durationMs: 0, parserQuality: 1, generatedAt: '2026-09-14T00:00:00.000Z',
+    aiNotice: '',
+  } as never),
+  overview: { title: NODE },
+  budget: { amountKrw: { ...NODE, value: 1_000_000 } },
+  schedule: { dueAt: { ...NODE, value: '2026-10-01' } },
 } as unknown as Report
 
 test('리포트 원본에 계약 판 번호가 실린다', async () => {
@@ -85,4 +120,54 @@ test('판 번호를 손으로 적은 숫자로 두지 않는다', () => {
   const src = readFileSync(new URL('./persist.ts', import.meta.url), 'utf8')
   assert.match(src, /AI_CONTRACT_VERSION/, '패키지 상수를 안 읽는다')
   assert.doesNotMatch(src, /contract_version:\s*\d/, '판 번호가 숫자로 박혀 있다 — 계약이 올라도 여기만 옛 판을 적게 된다')
+})
+
+test('필드 셋짜리 리포트를 넣으면 세 행이 들어간다', async () => {
+  const { client, captured } = spyClient()
+  const result = await persistReport(client as never, {
+    orgId: 'o1', caseId: 'c1', runId: 'r1', schemaId: 's1', version: 3, report: REPORT_3,
+  })
+  const rows = (captured['rfp_report_fields'] ?? []) as Record<string, unknown>[]
+  assert.equal(rows.length, 3, '펴야 할 말단 값이 셋인데 넣은 행이 셋이 아니다')
+  assert.equal(result.fieldCount, 3)
+  assert.deepEqual(
+    rows.map((r) => r.field_path).sort(),
+    ['budget.amountKrw', 'overview.title', 'schedule.dueAt'],
+  )
+})
+
+test('넣은 행 수가 기대와 다르면 던진다', async () => {
+  // 셋을 넣었는데 둘만 돌아온 상황. 오류가 없어도 이것은 실패다
+  const { client } = spyClient({ fieldIds: () => [{ id: 'f-0' }, { id: 'f-1' }] })
+  await assert.rejects(
+    () => persistReport(client as never, {
+      orgId: 'o1', caseId: 'c1', runId: 'r1', schemaId: 's1', version: 3, report: REPORT_3,
+    }),
+    /3행 넣으려 했는데 2행만/,
+    '일부만 들어간 것을 다 들어간 것으로 넘겼다',
+  )
+})
+
+test('한 행도 안 돌아오면 던진다', async () => {
+  // single() 이 붙어 있던 시절의 증상 — PostgREST 가 거절하며 넣던 것까지 되돌린다
+  const { client } = spyClient({ fieldIds: () => [] })
+  await assert.rejects(
+    () => persistReport(client as never, {
+      orgId: 'o1', caseId: 'c1', runId: 'r1', schemaId: 's1', version: 3, report: REPORT_3,
+    }),
+    /3행 넣으려 했는데 0행만/,
+  )
+})
+
+test('여러 행을 넣는 자리에 single() 이 붙어 있지 않다', () => {
+  const src = readFileSync(new URL('./persist.ts', import.meta.url), 'utf8')
+  const at = src.indexOf("from('rfp_report_fields')")
+  assert.ok(at > 0, '파생 필드를 넣는 자리를 못 찾았다')
+  // 그 insert 사슬이 끝나는 곳까지만 본다 — 다음 문장 전까지
+  const chain = src.slice(at, src.indexOf('if (fieldError)', at))
+  assert.doesNotMatch(
+    chain,
+    /\.single\(\)/,
+    '여러 행을 넣고 single() 을 부르면 PostgREST 가 넣던 것까지 되돌린다',
+  )
 })

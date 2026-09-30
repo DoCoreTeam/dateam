@@ -225,14 +225,20 @@ test('원본을 넣고 파생을 잇는다', async () => {
       return {
         insert(values) {
           inserted.push({ table, values })
+          const rows = Array.isArray(values) ? values : [values]
+          // 파생은 넣은 수만큼 돌려준다. 옛 가짜는 여기서 PGRST116 을 돌려주고
+          // persist 가 그것을 성공으로 넘겼다 — 그래서 근거 필드가 한 행도 안 쌓였다
+          const result =
+            table === 'rfp_report_versions'
+              ? { data: { id: 'rv1', version: 1 }, error: null }
+              : { data: rows.map((_, i) => ({ id: `f${i}` })), error: null }
           return {
             select() {
               return {
                 async single() {
-                  return table === 'rfp_report_versions'
-                    ? { data: { id: 'rv1', version: 1 }, error: null }
-                    : { data: null, error: { code: 'PGRST116' } }
+                  return result
                 },
+                then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
               }
             },
           }
@@ -262,7 +268,15 @@ test('원본 저장이 실패하면 파생을 안 만든다', async () => {
     from() {
       return {
         insert() {
-          return { select() { return { async single() { return { data: null, error: { message: '권한 없음' } } } } } }
+          const result = { data: null, error: { message: '권한 없음' } }
+          return {
+            select() {
+              return {
+                async single() { return result },
+                then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
+              }
+            },
+          }
         },
       }
     },
