@@ -13,6 +13,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import { sealTradingSecret, openTradingSecret, maskAccountNo, canSealTradingSecret } from './crypto.ts'
 import type { KisEnv } from './endpoints.ts'
+import { credentialIntent, splitAccountNo } from './credential-input.ts'
 
 export interface TradingCredentialInput {
   env: KisEnv
@@ -47,13 +48,50 @@ export async function saveTradingCredentials(
   }
   const appKey = input.appKey.trim()
   const appSecret = input.appSecret.trim()
-  if (appKey === '' || appSecret === '') {
-    return { ok: false, reason: 'empty_credential', userMessage: '앱키와 앱시크릿을 모두 입력해 주세요' }
+  const accountNo = (input.accountNo ?? '').trim()
+
+  /*
+    **계좌번호만 고치는 길이 있어야 한다** (사용자 지적 2026-09-30 「수정좀 가능하게
+    해줄래? 키만 넣으면 수정이 안되네」). 앱키와 시크릿은 넣고 나면 화면으로 다시 안 나오는데,
+    저장이 그 둘을 늘 요구하면 계좌번호 하나를 고치려고 보이지도 않는 값을 다시 적어야 한다.
+    그건 고칠 수 없다는 뜻이다.
+
+    판정은 `credentialIntent` 하나가 한다 — 화면이 「저장 가능」이라 하고 서버가 거절하면
+    사람은 값이 틀렸다고 읽는다.
+  */
+  const configured = (await getTradingCredentialStatus(input.env)).configured
+  const intent = credentialIntent({ appKey, appSecret, accountNo, configured })
+  if (intent.kind === 'blocked') {
+    return {
+      ok: false,
+      reason: 'empty_credential',
+      userMessage: `${intent.missing.join('과 ')}을 입력해 주세요`,
+    }
   }
 
-  const accountNo = (input.accountNo ?? '').trim()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
+
+  if (intent.kind === 'account_only') {
+    /*
+      **비밀 칸은 손대지 않는다.** 빈 값으로 덮으면 저장해 둔 앱키가 사라지고,
+      그때부터 증권사를 아예 못 부른다 — 그리고 그 값은 다시 넣을 수도 없다
+    */
+    const { error: patchError } = await admin
+      .from('trading_broker_credentials')
+      .update({
+        account_no_enc: sealTradingSecret(accountNo),
+        account_mask: maskAccountNo(accountNo),
+        updated_at: new Date().toISOString(),
+        updated_by: input.updatedBy ?? null,
+      })
+      .eq('env', input.env)
+    if (patchError) {
+      return { ok: false, reason: `write_failed:${patchError.message}`, userMessage: '계좌번호를 저장하지 못했습니다' }
+    }
+    return { ok: true }
+  }
+
   const { error } = await admin.from('trading_broker_credentials').upsert({
     env: input.env,
     appkey_enc: sealTradingSecret(appKey),
@@ -121,9 +159,16 @@ export async function loadAccountRef(
     .maybeSingle()
   if (error) throw new Error(`계좌 번호를 읽지 못했습니다: ${error.message}`)
   if (!data || !data.account_no_enc) return null
-  const cano = openTradingSecret(data.account_no_enc).replace(/\D/g, '')
-  if (cano === '') return null
-  return { cano, acntPrdtCd }
+  /*
+    **뒤 두 자리를 살린다** (사용자 지적 2026-09-30 「-01 이 없어서 그런거 아냐?」).
+    증권사 계좌는 `12345678-01` 처럼 여덟 자리 뒤에 상품코드 두 자리가 붙는다.
+    전에는 숫자가 아닌 글자를 다 지워 열 자리를 통째로 계좌번호로 보냈고,
+    그러면 증권사는 그런 계좌가 없다고 답한다(실측 `APAC0071`).
+    사람이 안 적었으면 설정값(`kis_account_product_code`)이 그대로 쓰인다.
+  */
+  const parts = splitAccountNo(openTradingSecret(data.account_no_enc))
+  if (!parts) return null
+  return { cano: parts.cano, acntPrdtCd: parts.productCode ?? acntPrdtCd }
 }
 
 /**
