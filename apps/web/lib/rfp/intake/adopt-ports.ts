@@ -15,6 +15,7 @@ import { checkKind } from '../parse/quality.ts'
 import { enqueueJob } from '../jobs/queue.ts'
 import { dedupeKey, JOB_PRIORITY } from '../jobs/stages.ts'
 import type { AdoptPorts } from './adopt-source.ts'
+import { recordAudit } from '../db/audit.ts'
 
 /** 같은 파일이 두 번 붙어 있으면 유니크가 막는다. 그건 실패가 아니다 */
 const UNIQUE_VIOLATION = '23505'
@@ -41,7 +42,21 @@ export function realAdoptPorts(db: any, admin: any): AdoptPorts {
         stage: 'uploaded',
         created_by: input.userId,
       }).select('id').single()
-      return data ? { id: String(data.id) } : null
+      if (!data) return null
+
+      // 레이더로 들어온 케이스도 누가 담았는지 남긴다. 한쪽만 적으면
+      // 「이 케이스는 어디서 왔지」에 답할 수 있는 케이스와 없는 케이스가 섞인다
+      const audit = await recordAudit(db, {
+        orgId: input.orgId,
+        userId: input.userId ?? null,
+        action: 'case.create',
+        targetType: 'case',
+        targetId: String(data.id),
+        detail: { docClass: input.docClass, via: 'adopt', sourceId: input.sourceId ?? null },
+      })
+      if (!audit.ok) console.error('[rfp] 케이스 담기 감사 기록 실패', audit.reason)
+
+      return { id: String(data.id) }
     },
 
     async download(att) {

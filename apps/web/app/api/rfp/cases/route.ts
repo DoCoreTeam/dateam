@@ -10,6 +10,7 @@ import type { NextRequest } from 'next/server'
 
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
+import { recordAudit } from '@/lib/rfp/db/audit'
 import { validateCaseInput, readPageSize } from '@/lib/rfp/db/cases'
 
 export const dynamic = 'force-dynamic'
@@ -88,5 +89,19 @@ export async function POST(req: NextRequest) {
   if (error) {
     return NextResponse.json({ error: '케이스를 만들지 못했습니다' }, { status: 500 })
   }
+
+  // 누가 언제 만들었나를 남긴다. 기록이 실패해도 만든 것을 되돌리지 않는다 —
+  // 그러면 사용자는 「만들기가 안 된다」를 겪고 우리는 이유를 모른다
+  const audit = await recordAudit(db as never, {
+    orgId: String(orgId),
+    userId: gate.user.id,
+    action: 'case.create',
+    targetType: 'case',
+    targetId: data?.id ? String(data.id) : null,
+    // 제목은 사용자가 적은 것이라 그대로 남기지 않고 길이만 센다
+    detail: { docClass: v.docClass, via: 'manual', titleLength: v.title.length },
+  })
+  if (!audit.ok) console.error('[rfp] 케이스 생성 감사 기록 실패', audit.reason)
+
   return NextResponse.json({ case: data }, { status: 201 })
 }
