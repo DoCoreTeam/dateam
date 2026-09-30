@@ -179,6 +179,16 @@ test('통계 단독은 참고로 붙는다', () => {
   assert.deepEqual(merged[0].statMetrics, ['요구사항수'])
 })
 
+test('통계 근거의 금액은 쉼표를 단다 — 예산은 억 단위라 맨몸으로는 안 읽힌다', () => {
+  const merged = mergeAnomalies([], [], [
+    { metric: '사업예산', value: 1_200_000_000, median: 300_000_000, ratio: 4, sampleSize: 30 },
+  ])
+  const line = merged[0]!.rationale
+  assert.ok(line.includes('사업예산 값'), '통계 근거 줄이 없습니다')
+  assert.match(line, /1,200,000,000/, '값이 맨몸으로 나갔습니다')
+  assert.match(line, /300,000,000/, '중앙값이 맨몸으로 나갔습니다')
+})
+
 test('무거운 등급이 위로 온다', () => {
   const merged = mergeAnomalies(
     [규칙결과({ ruleId: 'R03', grade: 'confirmed', title: '법정 공고 기간', evidence: [{ blockId: 'b7', quote: 'q', pageNo: null }] })],

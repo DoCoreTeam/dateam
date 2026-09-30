@@ -17,6 +17,7 @@
  * 셀 수 없다. 기각 데이터로 임계값을 조정하려면 **어느 규칙이 냈는지** 알아야 한다.
  */
 
+import { fmtNum } from '../../ui/number-format.ts'
 import type { Anomaly, AnomalyEvidence } from './engine.ts'
 import { runAll } from './engine.ts'
 import type { AnomalyRule } from './rules.ts'
@@ -148,7 +149,8 @@ export function mergeAnomalies(
     b.titles.push(`${s.metric} 이 지난 공고와 다르다`)
     b.statMetrics.push(s.metric)
     b.severities.push('margin')
-    b.rationales.push(`${s.metric} 값 ${s.value} 이 표본 ${s.sampleSize}건 중앙값 ${s.median} 의 ${s.ratio.toFixed(1)}배다`)
+    // 예산·매출은 억 단위다 — 맨몸으로 적으면 「값 1200000000」이 되어 아무도 못 읽는다
+    b.rationales.push(`${s.metric} 값 ${fmtNum(s.value)} 이 표본 ${s.sampleSize}건 중앙값 ${fmtNum(s.median)} 의 ${s.ratio.toFixed(1)}배다`)
   }
 
   return buckets.map((b) => ({

@@ -1,5 +1,6 @@
 'use client'
 
+import { fmtNum } from '@/lib/ui/number-format'
 import { useState } from 'react'
 import { useSWRConfig } from 'swr'
 import { useEscClose } from '@/lib/use-esc-close'
@@ -278,7 +279,7 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
       {(deleteState.phase === 'confirm' || deleteState.phase === 'force' || deleteState.phase === 'busy') && (
         <ImpactDeleteDialog
           title="견적 삭제"
-          subject={`${quote.supplier_name ? quote.supplier_name + ' ' : ''}$${quote.unit_price_usd.toFixed(4)} 견적`}
+          subject={`${quote.supplier_name ? quote.supplier_name + ' ' : ''}${fmtNum(quote.unit_price_usd, 4)} 견적`}
           impactDetail={deleteState.phase === 'force' ? deleteState.impactDetail : undefined}
           forceMode={deleteState.phase === 'force'}
           busy={deleteState.phase === 'busy'}

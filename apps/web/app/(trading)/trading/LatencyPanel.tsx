@@ -8,6 +8,7 @@
 // 안 잰 건수를 같이 보여 준다. 안 보여 주면 표본 두 건으로 낸 중앙값이
 // 스무 건으로 낸 값과 화면에서 똑같아 보인다.
 
+import { fmtNum } from '@/lib/ui/number-format'
 import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
@@ -16,7 +17,7 @@ import { NOT_MEASURED, notMeasuredCount } from '@/lib/terms'
 
 function seconds(value: number | null): string {
   if (value === null) return NOT_MEASURED
-  return `${value.toFixed(1)}초`
+  return `${fmtNum(value, 1)}초`
 }
 
 const COLUMNS: ColumnDef<LatencyRow>[] = [

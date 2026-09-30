@@ -5,6 +5,7 @@
 // 목록 표준(§2-6)으로 옮겼다: 세 표를 ListSurface 한 벌로 그리고, 요청 로그는 ListPager가 넘긴다.
 // 화면 조건(기간·프로바이더)은 URL이 진실이다 — 새로고침·링크 공유에서 같은 화면이 나와야 한다.
 
+import { fmtNum } from '@/lib/ui/number-format'
 import NbButton from '@/components/ui/nb/NbButton'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -55,7 +56,7 @@ const providerLabel = (p: string | null) => (p == null ? 'legacy Gemini' : PROVI
 const providerKey = (p: string | null) => p ?? 'legacy'
 
 // 추정 비용(USD) 표기 — 미등록 모델은 null → '-'. 극소액은 '<$0.01'.
-const fmtUsd = (c: number | null) => (c == null ? '-' : c === 0 ? '$0.00' : c < 0.01 ? '<$0.01' : `$${c.toFixed(2)}`)
+const fmtUsd = (c: number | null) => (c == null ? '-' : c === 0 ? '$0.00' : c < 0.01 ? '<$0.01' : `${fmtNum(c, 2)}`)
 
 const DAY_OPTIONS = [7, 30, 90]
 const DEFAULT_DAYS = 30
