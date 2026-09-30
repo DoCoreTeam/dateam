@@ -7,7 +7,8 @@
 // 격리된 iframe(srcDoc·sandbox)에 그대로 띄워, 본 것과 받는 것을 같게 만든다.
 import { useCallback, useEffect, useState } from 'react'
 import { EXPORT_VIEW_LABEL, type MeetingExportView } from '@/lib/meeting/export-html'
-import { FileDown, ImageIcon } from 'lucide-react'
+import { copyExportDocument } from '@/lib/meeting/export-clipboard'
+import { Check, ClipboardCopy, FileDown, ImageIcon } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -27,6 +28,15 @@ export default function MeetingExportModal({ meetingNoteId, view, onClose }: Pro
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState<null | 'pdf' | 'png'>(null)
+  /** 복사하고 나서 화면이 할 말. 담긴 것이 서식까지인지 글자뿐인지를 가려 말한다. */
+  const [copied, setCopied] = useState('')
+
+  // 복사 안내는 잠깐만 띄운다. 창이 닫히면 타이머도 같이 거둔다.
+  useEffect(() => {
+    if (!copied) return
+    const t = window.setTimeout(() => setCopied(''), 4000)
+    return () => window.clearTimeout(t)
+  }, [copied])
 
   const endpoint = useCallback(
     (format: string) => `/api/meeting-notes/${meetingNoteId}/export?view=${view}&format=${format}`,
@@ -54,9 +64,26 @@ export default function MeetingExportModal({ meetingNoteId, view, onClose }: Pro
     return () => { alive = false }
   }, [endpoint])
 
+  /**
+   * 파일로 받지 않고 바로 붙여넣는 길.
+   *
+   * 미리보기로 이미 받아 둔 문서를 그대로 쓴다 — 복사용 문서를 따로 만들면 화면에서 본 것과
+   * 붙여넣은 것이 갈라지고, 그 어긋남은 붙여넣어 봐야만 드러난다.
+   */
+  async function copy() {
+    if (!canCopy) return
+    setErr(''); setCopied('')
+    try {
+      const how = await copyExportDocument(html)
+      setCopied(how === 'rich' ? '서식까지 복사했습니다' : '글자만 복사했습니다 (이 브라우저는 서식을 못 담습니다)')
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : '복사하지 못했습니다.')
+    }
+  }
+
   async function download(format: 'pdf' | 'png') {
     if (saving) return
-    setSaving(format); setErr('')
+    setSaving(format); setErr(''); setCopied('')
     try {
       const res = await fetch(endpoint(format))
       if (!res.ok) {
@@ -81,6 +108,11 @@ export default function MeetingExportModal({ meetingNoteId, view, onClose }: Pro
   }
 
   const busy = loading || !!err || !!saving
+  /**
+   * 복사는 오류가 떠도 다시 누를 수 있어야 한다 — 저장 단추는 `err` 에 잠기는데(기존 동작),
+   * 복사까지 잠그면 「한 번 실패하면 창을 닫았다 열어야」 한다. 미리보기만 있으면 복사는 된다.
+   */
+  const canCopy = !loading && !saving && !!html
 
   return (
     <NbModal
@@ -90,10 +122,15 @@ export default function MeetingExportModal({ meetingNoteId, view, onClose }: Pro
       ariaLabel="내보내기 미리보기"
       footer={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-          <span role={err ? 'alert' : undefined} style={{ fontSize: 'var(--fs-sm)', color: err ? 'var(--danger)' : 'var(--text-faint)' }}>
-            {err || '형식을 고르면 바로 저장됩니다.'}
+          <span role={err || copied ? 'alert' : undefined}
+            style={{ fontSize: 'var(--fs-sm)', color: err ? 'var(--danger)' : copied ? 'var(--text-muted)' : 'var(--text-faint)' }}>
+            {err || copied || '복사해서 바로 붙여넣거나, 형식을 골라 파일로 받습니다.'}
           </span>
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <NbButton variant="secondary" onClick={copy} disabled={!canCopy}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              {copied ? <Check size={15} /> : <ClipboardCopy size={15} />} {copied ? '복사됨' : '복사'}
+            </NbButton>
             <NbButton variant="secondary" onClick={() => download('png')} disabled={busy}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <ImageIcon size={15} /> {saving === 'png' ? '저장 중…' : '이미지로 저장'}
