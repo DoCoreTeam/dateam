@@ -54,7 +54,7 @@
 의존: I01
 
 ### I03 기기가 회의 id 를 먼저 만든다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/offline/local-meeting.ts (신규), apps/web/lib/offline/local-meeting.test.ts (신규), apps/web/package.json
 감사 기준:
