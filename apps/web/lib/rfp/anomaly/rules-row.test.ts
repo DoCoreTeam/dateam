@@ -10,6 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DEFAULT_RULES, RULE_COLS, toRow, toRule } from './rules.ts'
+import { readFileSync } from 'node:fs'
 
 const ORG = '00000000-0000-4000-8000-000000000001'
 
@@ -56,4 +57,49 @@ test('읽는 칸 목록이 표에 실재하는 이름만 쓴다', () => {
   const asked = RULE_COLS.split(',').map((c) => c.trim())
   const unknown = asked.filter((c) => !REAL.has(c))
   assert.deepEqual(unknown, [], `표에 없는 칸을 읽으려 한다: ${unknown.join(', ')}`)
+})
+
+// 조직 둘 이상 — 마이그레이션 300
+
+test('규칙 줄은 조직 없이 만들어지지 않는다', () => {
+  // 읽기 정책에 `org_id is null` 갈래가 있던 시절, 조직을 비운 줄은
+  // **조직을 안 가리고 읽혔다.** 300 이 기본키를 (org_id, id) 로 바꿔 그 줄을
+  // 표가 아예 못 받게 했지만, 코드가 빈 값을 보내면 이제 저장이 통째로 실패한다.
+  // 어느 쪽이든 빈 org_id 를 만들 이유가 없다
+  for (const rule of DEFAULT_RULES) {
+    const org = toRow(rule, ORG).org_id
+    assert.ok(org, `${rule.id} 의 org_id 가 비었다`)
+    assert.match(String(org), /^[0-9a-f-]{36}$/i, `${rule.id} 의 org_id 가 uuid 가 아니다`)
+  }
+})
+
+test('같은 규칙 id 를 조직 둘이 가질 수 있다', () => {
+  // 기본키가 id 하나이던 시절, R01 을 가질 수 있는 조직은 저장소 전체에 하나뿐이었다.
+  // 쓰기 정책은 org_id 를 요구하므로 둘째 조직은 규칙을 영영 저장할 수 없었다.
+  // 표의 기본키는 마이그레이션 300 이 (org_id, id) 로 바꿨다(실측: 조직 둘에 R01 두 행)
+  const OTHER = '00000000-0000-4000-8000-0000000000ff'
+  const a = toRow(DEFAULT_RULES[0], ORG)
+  const b = toRow(DEFAULT_RULES[0], OTHER)
+  assert.equal(a.id, b.id, '같은 규칙이면 id 가 같아야 한다')
+  assert.notEqual(a.org_id, b.org_id)
+  // 두 줄을 가르는 것은 id 가 아니라 (org_id, id) 다
+  assert.notDeepEqual([a.org_id, a.id], [b.org_id, b.id])
+})
+
+test('300 이 기본키와 외래키를 함께 옮긴다', () => {
+  // 가리키는 쪽 키가 두 칸이 되면 가리키는 외래키도 두 칸이어야 한다.
+  // 기본키만 바꾸고 외래키를 두고 가면 마이그레이션이 그 자리에서 죽는다
+  // 주석을 먼저 지운다. 이 파일의 설명글에 「사본(CREATE TABLE AS)을 뜨지 않는다」가 있어
+  // 지우지 않으면 가드가 자기 주석을 보고 빨개진다 — 실제로 그렇게 한 번 빨개졌다
+  const sql = readFileSync(
+    new URL('../../../../../supabase/migrations/300_rfp_anomaly_rule_org_key.sql', import.meta.url),
+    'utf8',
+  ).replace(/^\s*--.*$/gm, '')
+  assert.match(sql, /primary key \(org_id, id\)/i, '기본키를 두 칸으로 안 바꾼다')
+  assert.match(sql, /foreign key \(org_id, rule_id\)/i, '외래키를 두 칸으로 안 바꾼다')
+  // 그냥 set null 이면 org_id 까지 비우려 들고, 그 칸은 NOT NULL 이라 규칙 삭제가 통째로 실패한다
+  assert.match(sql, /on delete set null \(rule_id\)/i, '비울 칸을 안 집어 준다')
+  assert.match(sql, /alter column org_id set not null/i, 'org_id 를 NOT NULL 로 안 올린다')
+  // 사본을 뜨면 원본의 RLS 를 안 물려받는다
+  assert.doesNotMatch(sql, /create table/i, '표를 새로 만들거나 사본을 뜬다')
 })
