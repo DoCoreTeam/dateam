@@ -12,8 +12,11 @@ import { readFileSync } from 'node:fs'
 import { stripComments } from '../../ui/component-scan.ts'
 import {
   HIT_STATUS, HIT_STATUSES, DEFAULT_LIST_STATUS, USER_SETTABLE,
-  isHitStatus, isUserSettable, listStatusOf,
+  isHitStatus, isUserSettable, listStatusOf, checkBulk, MAX_BULK,
 } from './hit-status.ts'
+
+const UUID_A = '11111111-2222-4333-8444-555555555555'
+const UUID_B = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
 
 const WEB = new URL('../../../', import.meta.url)
 const ROOT = new URL('../../../../../', import.meta.url)
@@ -72,3 +75,56 @@ test('상태값을 손으로 적은 자리가 없다', () => {
     assert.doesNotMatch(src, /status:\s*'(new|opened|dismissed|adopted)'/, `${rel} 가 상태값을 손으로 적었다`)
   }
 })
+
+// 한 번에 바꾸기 — I05
+
+test('고른 것이 없으면 거절한다', () => {
+  assert.deepEqual(checkBulk([], 'dismissed'), { ok: false, ids: [], reason: 'empty' })
+  assert.equal(checkBulk(null, 'dismissed').reason, 'empty')
+})
+
+test('바꿀 수 없는 상태는 거절한다', () => {
+  assert.equal(checkBulk([UUID_A], 'adopted').reason, 'bad_status')
+  assert.equal(checkBulk([UUID_A], '없는값').reason, 'bad_status')
+})
+
+test('uuid 가 아닌 것은 조용히 버리지 않고 걸러 센다', () => {
+  // 조용히 버리면 열 개를 골랐는데 여덟 개만 바뀌고 화면은 열 개가 바뀐 것처럼 보인다
+  const r = checkBulk([UUID_A, 'not-a-uuid', UUID_B, 42, null], 'dismissed')
+  assert.deepEqual(r.ids, [UUID_A, UUID_B])
+  assert.equal(r.ok, true)
+})
+
+test('같은 id 를 두 번 골라도 한 번만 센다', () => {
+  assert.deepEqual(checkBulk([UUID_A, UUID_A], 'dismissed').ids, [UUID_A])
+})
+
+test('상한을 넘으면 몇 개까지인지 말한다', () => {
+  // 상한이 없으면 「전부 고르기」가 수천 건을 한 요청에 싣고 그 요청은 타임아웃으로 죽는다.
+  // 죽으면 일부만 바뀐 채로 끝나고 사용자는 무엇이 바뀌었는지 모른다
+  const many = Array.from({ length: MAX_BULK + 1 }, (_, i) =>
+    `${String(i).padStart(8, '0')}-0000-4000-8000-000000000000`)
+  const r = checkBulk(many, 'dismissed')
+  assert.equal(r.ok, false)
+  assert.equal(r.reason, 'too_many')
+
+  const exact = many.slice(0, MAX_BULK)
+  assert.equal(checkBulk(exact, 'dismissed').ok, true, '딱 상한만큼은 받아야 한다')
+})
+
+test('한 번에 바꾸기 창구도 표 정책에 판정을 맡긴다', () => {
+  // import 줄을 함께 지운다 — 이름만 찾으면 들여오기만 남아도 통과한다(실제로 그랬다)
+  const src = noImports(stripComments(readFileSync(new URL('app/api/rfp/radar/hits/route.ts', WEB), 'utf8')))
+  assert.match(src, /requireMemberApi\s*\(/, '로그인 확인이 없다')
+  assert.doesNotMatch(src, /createAdminClient/, '창구가 서비스롤을 쓴다')
+  assert.match(src, /checkBulk\s*\(/, '넘어온 목록을 안 거른다')
+  // 고른 수와 바뀐 수가 다를 수 있다. 안 세면 화면이 전부 바뀐 것처럼 보인다
+  assert.match(src, /failed:/, '못 바꾼 수를 안 돌려준다')
+  assert.match(src, /\$\{MAX_BULK\}/, '몇 개까지인지 안 말한다')
+})
+
+
+/** import 줄을 지운다. 이름만 찾는 가드는 들여오기만 남아도 통과한다 */
+function noImports(src: string): string {
+  return src.replace(/^[ \t]*import\s[\s\S]*?from\s+['"][^'"]+['"];?[ \t]*$/gm, '')
+}

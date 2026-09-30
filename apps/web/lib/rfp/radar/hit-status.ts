@@ -51,3 +51,38 @@ export function listStatusOf(raw: unknown): HitStatus {
 export function isUserSettable(v: unknown): v is HitStatus {
   return isHitStatus(v) && (USER_SETTABLE as readonly string[]).includes(v)
 }
+
+/**
+ * 한 번에 바꿀 수 있는 최대 건수.
+ *
+ * 상한이 없으면 화면이 「전부 고르기」로 수천 건을 한 요청에 실어 보내고, 그 요청은
+ * 타임아웃으로 죽는다. 죽으면 **일부만 바뀐 채로** 끝나고 사용자는 무엇이 바뀌었는지 모른다.
+ * 상한이 있으면 적어도 「몇 개까지」를 말해 줄 수 있다.
+ */
+export const MAX_BULK = 100
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export interface BulkCheck {
+  ok: boolean
+  ids: string[]
+  /** 왜 안 되는지 — 화면이 그대로 보여 준다 */
+  reason: 'empty' | 'too_many' | 'bad_status' | null
+}
+
+/**
+ * 한 번에 바꾸기 요청을 검사한다.
+ *
+ * uuid 가 아닌 것은 **버리지 않고 걸러 센다** — 조용히 버리면 열 개를 골랐는데 여덟 개만
+ * 바뀌고 화면은 열 개가 바뀐 것처럼 보인다.
+ */
+export function checkBulk(rawIds: unknown, rawStatus: unknown): BulkCheck {
+  if (!isUserSettable(rawStatus)) return { ok: false, ids: [], reason: 'bad_status' }
+
+  const list = Array.isArray(rawIds) ? rawIds : []
+  const ids = Array.from(new Set(list.filter((v): v is string => typeof v === 'string' && UUID.test(v))))
+
+  if (ids.length === 0) return { ok: false, ids: [], reason: 'empty' }
+  if (ids.length > MAX_BULK) return { ok: false, ids, reason: 'too_many' }
+  return { ok: true, ids, reason: null }
+}

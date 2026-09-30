@@ -125,3 +125,24 @@ test('서버가 받아들인 뒤에 화면에서 뺀다', () => {
   const filterAt = body.indexOf('prev.filter')
   assert.ok(okAt > 0 && filterAt > okAt, '실패를 확인하기 전에 화면에서 뺀다')
 })
+
+// 골라서 한 번에 빼기 — I05
+
+test('줄마다 고르는 칸이 있고 고른 수가 보인다', () => {
+  const src = live('components/rfp/RadarRules.tsx')
+  assert.match(src, /type="checkbox"[\s\S]{0,160}?picked\.has\(h\.id\)/, '줄마다 고르는 칸이 없다')
+  assert.match(src, /RFP_RADAR\.hitSelected/, '고른 수를 안 보여 준다')
+  assert.match(src, /RFP_RADAR\.hitDismissSelected/, '한 번에 빼기 단추가 없다')
+  assert.match(src, /RFP_RADAR\.hitClearSelection/, '고른 것을 풀 길이 없다')
+})
+
+test('한 번에 빼기는 바뀐 것만 화면에서 뺀다', () => {
+  // 서버가 못 바꾼 것이 있을 수 있다(남의 조직 것이 섞였거나 그 사이에 지워졌거나).
+  // 고른 것을 전부 빼면 화면과 DB 가 어긋난 채로 남는다
+  const src = live('components/rfp/RadarRules.tsx')
+  const at = src.indexOf('const dismissPicked')
+  const body = src.slice(at, src.indexOf('}, [picked])', at))
+  assert.match(body, /body\.changed/, '서버가 바꿨다고 한 것을 안 읽는다')
+  assert.match(body, /changed\.has\(h\.id\)/, '바뀐 것만 빼지 않는다')
+  assert.match(body, /body\.failed/, '못 바꾼 수를 안 말한다')
+})

@@ -112,6 +112,49 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
    */
   const [dismissing, setDismissing] = useState<string | null>(null)
 
+  /** 골라 둔 적중. 화면을 다시 그려도 고른 것이 안 풀리게 id 로 든다 */
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
+
+  const togglePick = useCallback((id: string) => {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  /**
+   * 고른 것을 한 번에 뺀다.
+   *
+   * 바뀐 수를 서버가 세어 준다 — 고른 수와 다를 수 있다(남의 조직 것이 섞였거나 그 사이에 지워졌거나).
+   * 안 말하면 화면은 전부 바뀐 것처럼 보이고 사용자는 다시 열었을 때에야 남은 것을 본다
+   */
+  const dismissPicked = useCallback(async () => {
+    const ids = Array.from(picked)
+    if (ids.length === 0) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/rfp/radar/hits', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids, status: 'dismissed' }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setError(String(body?.error ?? RFP_RADAR.hitDismissFailed)); return }
+
+      const changed = new Set<string>(body.changed ?? [])
+      setHits((prev) => prev.filter((h) => !changed.has(h.id)))
+      setPicked(new Set())
+      if ((body.failed ?? 0) > 0) setNote(`${body.failed}${RFP_RADAR.hitBulkPartial}`)
+    } catch {
+      setError(RFP_RADAR.hitDismissFailed)
+    } finally {
+      setBusy(false)
+    }
+  }, [picked])
+
   /** 적중 한 건을 목록에서 뺀다. 지우지 않고 상태만 바꾸므로 되돌릴 수 있다 */
   const dismiss = useCallback(async (id: string) => {
     setDismissing(id)
@@ -378,6 +421,18 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
             <span className={styles.sectionTitle}>{RFP_RADAR.hits}</span>
             {hits.length > 0 && <NbBadge status="note">{hits.length}</NbBadge>}
           </div>
+          {/* 고른 것이 있을 때만 보인다 — 늘 보이면 안 쓰는 단추가 자리를 차지한다 */}
+          {picked.size > 0 && (
+            <div className={styles.row}>
+              <NbBadge status="doing">{RFP_RADAR.hitSelected} {picked.size}</NbBadge>
+              <NbButton variant="secondary" onClick={() => void dismissPicked()} disabled={busy}>
+                <X size={14} /> {RFP_RADAR.hitDismissSelected}
+              </NbButton>
+              <NbButton variant="ghost" onClick={() => setPicked(new Set())} disabled={busy}>
+                {RFP_RADAR.hitClearSelection}
+              </NbButton>
+            </div>
+          )}
         </div>
 
         {hits.length === 0 ? (
@@ -387,6 +442,13 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
             {/* 사전 점수 높은 것부터 — 사용자는 위에서 몇 개만 본다 */}
             {hits.map((h) => (
               <div key={h.id} className={styles.ruleItem}>
+                {/* 골라서 한 번에 빼려면 줄마다 고르는 칸이 있어야 한다 */}
+                <input
+                  type="checkbox"
+                  checked={picked.has(h.id)}
+                  onChange={() => togglePick(h.id)}
+                  aria-label={`${h.notice?.title || RFP_RADAR.noticeNoTitle} ${RFP_RADAR.hitSelected}`}
+                />
                 <span className={`${styles.ruleMain} ${styles.tight}`}>
                   {/* 무엇이 걸렸는지가 먼저다. 점수와 사유만으로는 아무것도 못 정한다 */}
                   {/* 제목이 없으면 그렇게 말한다. 내부 번호를 찍으면 사용자는 그것을 공고 이름으로 읽는다 */}

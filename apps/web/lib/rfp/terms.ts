@@ -530,6 +530,12 @@ export const RFP_RADAR = {
   hitRestore: '되돌리기',
   hitDismissing: '빼는 중',
   hitDismissFailed: '빼지 못했어요. 잠시 뒤 다시 눌러 주세요',
+  hitSelectAll: '전부 고르기',
+  hitClearSelection: '고른 것 풀기',
+  hitSelected: '고른 공고',
+  hitDismissSelected: '고른 것 빼기',
+  /** 고른 수와 바뀐 수가 다를 수 있다. 다르면 그 수를 말한다 */
+  hitBulkPartial: '건은 바꾸지 못했어요',
   siteRulesOnly: 'AI 를 못 써서 제목만 가져왔습니다',
   siteTitlesOnly: '목록에서 상세 주소를 못 얻어 제목만 가져왔습니다',
   adoptTitle: '케이스로 만들기',
