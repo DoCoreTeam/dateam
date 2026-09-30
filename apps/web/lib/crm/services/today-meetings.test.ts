@@ -129,7 +129,18 @@ test('★ 서버가 오늘 미팅을 실제로 보낸다', () => {
 })
 
 test('★ 한 번 누르면 곧장 작업대 — 제목·시각을 묻지 않는다', () => {
-  assert.match(BOX, /startMeeting\(\)/, '진입 SSOT 를 안 쓴다')
+  /*
+    v0.10.744: 진입 SSOT 가 `startMeeting` 에서 **한 겹 올라갔다**.
+    서버에 못 닿을 때 기기가 먼저 회의를 만드는 갈래가 생겼기 때문이다(`lib/meeting/begin-recording.ts`).
+    `beginRecording` 은 그 안에서 `startMeeting` 을 그대로 부르므로
+    「제목·시각을 안 묻는다」는 원래 뜻은 하나도 안 바뀌었다 — 이름만 옮겨 적는다.
+
+    옛 경로가 되살아나면 실패시킨다. 첫 화면이 `startMeeting` 을 직접 부르면
+    연결이 없을 때 **녹음이 아예 시작되지 않는다** — 그것이 2026-09-30 의 사고다.
+  */
+  assert.match(BOX, /beginRecording\(\)/, '진입 SSOT 를 안 쓴다')
+  assert.ok(!/await startMeeting\(/.test(BOX),
+    '첫 화면이 옛 경로를 직접 부른다 — 연결이 없으면 녹음이 시작조차 안 된다')
   assert.ok(!/제목|시각을 입력/.test(BOX.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '')),
     '회의 중에 폼을 묻고 있다')
 })
