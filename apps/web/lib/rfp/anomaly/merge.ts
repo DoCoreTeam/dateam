@@ -18,6 +18,8 @@
  */
 
 import type { Anomaly, AnomalyEvidence } from './engine.ts'
+import { runAll } from './engine.ts'
+import type { AnomalyRule } from './rules.ts'
 import type { AnomalyGrade, AnomalySeverity, RuleId } from './rules.ts'
 import type { LlmCandidate } from './llm.ts'
 import type { StatOutlier } from './stat.ts'
@@ -204,4 +206,96 @@ export function dismissalRate(
     if (n > 0) out[ruleId] = (byRule[ruleId] ?? 0) / n
   }
   return out
+}
+
+/**
+ * 리포트와 문서를 규칙 실행기가 먹는 모양으로 옮긴다.
+ *
+ * ## 왜 여기 있나
+ *
+ * 규칙 층은 **리포트가 이미 뽑아 둔 값**으로 판정한다(`AnomalyFacts`). 그 값은 태스크가
+ * 채운 칸에 들어 있고, 칸 이름은 `report/tasks.ts` 가 정한다. 두 이름표를 잇는 자리가
+ * 없으면 부르는 쪽마다 제 나름대로 잇게 되고, 칸 이름이 바뀌면 그 모두가 조용히 null 이 된다.
+ * 층을 합치는 이 모듈이 이미 세 층을 다 알고 있으므로 여기서 잇는다.
+ *
+ * ## 모르는 것은 null 로 둔다
+ *
+ * 실적 건수·자본금·매출 같은 값은 지금 어느 태스크도 **숫자로** 뽑지 않는다(제약 칸에
+ * 글로만 들어온다). 지어내면 R04·R05 가 없는 근거로 조항을 잡는다. null 이면 그 규칙은
+ * 아무것도 안 낸다 — 안 잡는 것이 틀리게 잡는 것보다 낫다.
+ */
+
+import type { AnomalyFacts, DocBlock } from './engine.ts'
+import { emptyFacts } from './engine.ts'
+
+/** 값 노드에서 원래 값만 꺼낸다 */
+function valueOf(bucket: Record<string, { value: unknown }> | undefined, key: string): unknown {
+  return bucket?.[key]?.value
+}
+
+function numOf(bucket: Record<string, { value: unknown }> | undefined, key: string): number | null {
+  const v = valueOf(bucket, key)
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
+function strOf(bucket: Record<string, { value: unknown }> | undefined, key: string): string | null {
+  const v = valueOf(bucket, key)
+  return typeof v === 'string' && v.trim() ? v.trim() : null
+}
+
+export interface ReportLike {
+  scope?: Record<string, { value: unknown }>
+  schedule?: Record<string, { value: unknown }>
+  budget?: Record<string, { value: unknown }>
+}
+
+/** 문서 블록을 실행기가 보는 모양으로 — 글자가 없는 블록은 규칙이 볼 것이 없다 */
+export function blocksFromDoc(
+  doc: { blocks: readonly { blockId: string; text?: string | null; pageNo?: number | null }[] },
+): DocBlock[] {
+  return doc.blocks
+    .filter((b) => typeof b.text === 'string' && b.text.trim().length > 0)
+    .map((b) => ({ blockId: b.blockId, text: String(b.text), pageNo: b.pageNo ?? null }))
+}
+
+/** 리포트에서 규칙이 쓸 사실만 추린다. 칸 이름은 report/tasks.ts 와 한 벌이다 */
+export function factsFromReport(report: ReportLike): AnomalyFacts {
+  const requirements = valueOf(report.scope, 'requirements')
+  const mentions = valueOf(report.budget, 'mentions')
+
+  return {
+    ...emptyFacts(),
+    budgetAmount: numOf(report.budget, 'totalAmount'),
+    durationMonths: numOf(report.schedule, 'durationMonths'),
+    proposalDeadline: strOf(report.schedule, 'proposalDeadline'),
+    requirementCount: Array.isArray(requirements) ? requirements.length : null,
+    amountMentions: Array.isArray(mentions)
+      ? mentions.flatMap((m) => {
+          const row = m as { amount?: unknown; blockId?: unknown }
+          return typeof row?.amount === 'number' && Number.isFinite(row.amount)
+            ? [{ amount: row.amount, blockId: String(row.blockId ?? '') }]
+            : []
+        })
+      : [],
+    // noticeDate·실적·자본금·매출은 숫자로 뽑는 태스크가 아직 없다. 지어내지 않고 비워 둔다
+  }
+}
+
+/**
+ * 규칙 층을 돌려 AI 후보와 합친다 — 분석 경로가 부르는 자리.
+ *
+ * DB 를 모르는 순수 함수로 둔다. 규칙을 어디서 읽었는지는 부르는 쪽 사정이고,
+ * 여기가 DB 를 알면 이 배선을 시험으로 확인할 길이 사라진다.
+ */
+export function applyRuleLayer(
+  rules: readonly AnomalyRule[],
+  doc: { blocks: readonly { blockId: string; text?: string | null; pageNo?: number | null }[] },
+  report: ReportLike & { anomalies?: unknown[] },
+): MergedAnomaly[] {
+  const hits = runAll(rules, blocksFromDoc(doc), factsFromReport(report))
+  // AI 후보는 태스크가 이미 채워 뒀다. 모양이 아닌 것만 버린다 — 규칙 결과까지 같이 죽이지 않는다
+  const ai = (report.anomalies ?? []).filter(
+    (c): c is LlmCandidate => Boolean(c) && typeof (c as LlmCandidate).title === 'string',
+  )
+  return mergeAnomalies(hits, ai, [])
 }

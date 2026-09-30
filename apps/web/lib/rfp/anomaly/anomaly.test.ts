@@ -17,6 +17,8 @@ import {
 import {
   runRule, runAll, emptyFacts, sentences, dedupe, type DocBlock, type AnomalyFacts,
 } from './engine.ts'
+import { mergeAnomalies, factsFromReport, applyRuleLayer } from './merge.ts'
+import { readFileSync } from 'node:fs'
 
 const 규칙 = (id: RuleId): AnomalyRule => {
   const r = DEFAULT_RULES.find((x) => x.id === id)
@@ -273,4 +275,94 @@ test('같은 규칙이 같은 자리를 두 번 잡으면 접는다', () => {
 
 test('문장 자르기가 줄바꿈과 마침표를 둘 다 본다', () => {
   assert.deepEqual(sentences('가나. 다라\n마바'), ['가나.', '다라', '마바'])
+})
+
+// 배선 — 규칙 층이 분석 경로에서 실제로 도는가
+
+test('규칙이 잡은 것은 확정, AI 만 잡은 것은 의심', () => {
+  const blocks = [블록('데이터베이스는 Oracle 19c 를 사용한다.', 'b1')]
+  const hits = runAll(DEFAULT_RULES, blocks, 사실())
+  assert.ok(hits.some((a) => a.ruleId === 'R01'), '규칙이 상표를 안 잡았다')
+
+  const merged = mergeAnomalies(hits, [{
+    title: '하자보수 기간이 길다',
+    rationale: '하자보수 기간이 36개월로 적혀 있다',
+    severity: 'contract',
+    blockIds: ['b9'],
+    quote: '하자보수 36개월',
+    modelId: 'm1',
+  }], [])
+
+  const byRule = merged.find((m) => m.ruleIds.includes('R01'))
+  assert.ok(byRule, '규칙이 낸 것이 병합 결과에 없다')
+  assert.equal(byRule.grade, 'confirmed', '규칙이 확정한 것은 확정이어야 한다')
+
+  const byAi = merged.find((m) => m.modelIds.includes('m1'))
+  assert.ok(byAi, 'AI 가 낸 것이 병합 결과에 없다')
+  assert.equal(byAi.grade, 'suspected', 'AI 단독은 의심이어야 한다')
+  assert.deepEqual(byAi.ruleIds, [], 'AI 단독인데 규칙 출처가 붙었다')
+})
+
+test('리포트 칸 이름과 실행기 사실이 이어져 있다', () => {
+  const facts = factsFromReport({
+    budget: { totalAmount: { value: 100_000_000 }, mentions: { value: [{ amount: 200_000_000, blockId: 'b2' }] } },
+    schedule: { durationMonths: { value: 6 }, proposalDeadline: { value: '2026-03-21' } },
+    scope: { requirements: { value: [1, 2, 3] } },
+  })
+  assert.equal(facts.budgetAmount, 100_000_000)
+  assert.equal(facts.durationMonths, 6)
+  assert.equal(facts.proposalDeadline, '2026-03-21')
+  assert.equal(facts.requirementCount, 3)
+  assert.deepEqual(facts.amountMentions, [{ amount: 200_000_000, blockId: 'b2' }])
+  // 숫자로 뽑는 태스크가 없는 값은 지어내지 않는다 — 지어내면 R04·R05 가 없는 근거로 잡는다
+  assert.equal(facts.requiredCapital, null)
+  assert.equal(facts.requiredRecordCount, null)
+})
+
+test('빈 리포트를 줘도 실행기가 안 죽는다', () => {
+  const facts = factsFromReport({})
+  assert.equal(facts.budgetAmount, null)
+  assert.deepEqual(facts.amountMentions, [])
+  assert.deepEqual(runAll(DEFAULT_RULES, [], facts), [], '근거가 없는데 무엇인가를 잡았다')
+})
+
+test('분석 경로가 규칙 층을 실제로 부른다', () => {
+  // 시험만 부르고 제품 코드가 안 부르면 규칙 층은 있으나 마나다.
+  // 실측 2026-09-30: runAll 을 부르는 곳이 자기 시험 하나뿐이었다.
+  //
+  // **주석을 먼저 지운다.** 이름만 찾는 가드는 배선을 주석 처리해도 통과한다 —
+  // 이 가드를 처음 썼을 때 실제로 그랬다(배선을 주석으로 만들었는데 37개가 다 초록이었다).
+  const src = stripComments(readFileSync(new URL('../analyze/run-analyze.ts', import.meta.url), 'utf8'))
+
+  const calls = src.match(/\bapplyRuleLayer\s*\(/g) ?? []
+  assert.equal(calls.length, 1, '분석 경로가 규칙 층을 부르는 자리가 하나가 아니다')
+  assert.match(src, /report\.anomalies\s*=\s*applyRuleLayer/, '합친 결과를 리포트에 안 돌려놓는다')
+  // 규칙을 DB 에서 읽어 넘기는가. 기본값만 쓰면 관리자가 고친 값이 안 먹는다
+  assert.match(src, /applyRuleLayer\s*\(\s*\n?\s*mergeRules\s*\(/, 'DB 규칙을 안 합쳐서 넘긴다')
+})
+
+/** 줄 주석과 블록 주석을 지운다. 문자열 안의 // 는 이 파일들에 없어 단순히 간다 */
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
+}
+
+test('규칙 층이 AI 후보를 지우지 않고 합친다', () => {
+  const merged = applyRuleLayer(DEFAULT_RULES, {
+    blocks: [{ blockId: 'b1', text: '데이터베이스는 Oracle 19c 를 사용한다.', pageNo: 1 }],
+  }, {
+    budget: {}, schedule: {}, scope: {},
+    anomalies: [{
+      title: '하자보수 기간이 길다', rationale: '36개월로 적혀 있다',
+      severity: 'contract', blockIds: ['b9'], quote: '하자보수 36개월', modelId: 'm1',
+    }],
+  })
+  assert.ok(merged.some((m) => m.ruleIds.includes('R01') && m.grade === 'confirmed'), '규칙이 낸 확정이 없다')
+  assert.ok(merged.some((m) => m.modelIds.includes('m1') && m.grade === 'suspected'), 'AI 후보가 사라졌다')
+})
+
+test('AI 후보가 엉뚱한 모양이어도 규칙 결과는 산다', () => {
+  const merged = applyRuleLayer(DEFAULT_RULES, {
+    blocks: [{ blockId: 'b1', text: '데이터베이스는 Oracle 19c 를 사용한다.', pageNo: 1 }],
+  }, { anomalies: [null, 'candidate', { nope: 1 }] as unknown[] })
+  assert.ok(merged.some((m) => m.ruleIds.includes('R01')), 'AI 쪽이 깨졌다고 규칙 결과까지 죽었다')
 })

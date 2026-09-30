@@ -18,6 +18,8 @@ import { persistReport, nextVersion } from './persist.ts'
 import { parseFields, outputSpec } from './parse-fields.ts'
 import { buildInstruction } from '../report/tasks.ts'
 import { callWithFallback, NoModelAvailableError, type GatewayDeps } from '../ai/gateway.ts'
+import { mergeRules, toRule, RULE_COLS, type AnomalyRule } from '../anomaly/rules.ts'
+import { applyRuleLayer } from '../anomaly/merge.ts'
 import { pickModels, costKrw, type AiModel } from '../ai/models.ts'
 import { AI_NOTICE } from '../terms.ts'
 import type { DocClass } from '../domain/doc-class.ts'
@@ -192,6 +194,12 @@ export async function runAnalyze(
     },
   }, run)
 
+  // 규칙 층을 여기서 돌린다. AI 만 돌면 「규칙이 확정한 것」과 「AI 가 의심하는 것」이
+  // 한 무더기로 섞여, 사용자가 어디에 시간을 들여야 하는지 알 수 없다
+  base.report.anomalies = applyRuleLayer(
+    mergeRules(await loadRules(db, input.orgId)), doc, base.report,
+  )
+
   const { data: versions } = await (db as unknown as {
     from(t: string): { select(c: string): { eq(k: string, v: string): Promise<{ data: unknown }> } }
   }).from('rfp_report_versions').select('version').eq('case_id', input.caseId)
@@ -224,3 +232,16 @@ export async function runAnalyze(
 }
 
 export { costKrw }
+
+/** 조직이 고친 규칙만 가져온다. 못 읽으면 빈 목록 — mergeRules 가 기본값으로 채운다 */
+async function loadRules(db: unknown, orgId: string): Promise<AnomalyRule[]> {
+  try {
+    const { data, error } = await (db as {
+      from(t: string): { select(c: string): { eq(k: string, v: string): Promise<{ data: unknown; error: unknown }> } }
+    }).from('rfp_anomaly_rules').select(RULE_COLS).eq('org_id', orgId)
+    if (error || !Array.isArray(data)) return []
+    return (data as Record<string, unknown>[]).map(toRule)
+  } catch {
+    return []
+  }
+}
