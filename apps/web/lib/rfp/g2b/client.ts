@@ -147,6 +147,31 @@ export const LIST_ROWS = 100
 /** 며칠치를 훑나 — 크론이 15분마다 도니 하루면 충분하고, 처음 켤 때만 넓게 본다 */
 export const DEFAULT_LOOKBACK_DAYS = 2
 
+/**
+ * 아무리 밀려도 이만큼까지만 훑는다.
+ *
+ * 상한이 없으면 오래 꺼져 있던 저장소가 다시 켜질 때 수백 일을 한 번에 훑으려 들고,
+ * 그 호출은 타임아웃으로 죽는다. 죽으면 마지막 성공 시각이 또 안 올라가서 다음에는 더 넓어진다.
+ */
+export const MAX_LOOKBACK_DAYS = 30
+
+/**
+ * 마지막으로 성공한 때부터 며칠치를 훑을지 센다.
+ *
+ * **왜 고정값이면 안 되나**: 폭이 늘 2일이면 크론이 사흘 멈췄을 때 가운데 하루가
+ * 영영 안 들어온다. 빠진 공고는 목록에 없으니 아무도 못 찾고, 화면은 「새 공고 0건」으로
+ * 평소와 똑같이 보인다. 그래서 **못 본 구간을 폭으로 되갚는다.**
+ *
+ * 하루를 더 얹는 이유: 공고는 등록 시각과 공고일이 다를 수 있고, 경계에 걸친 것을
+ * 놓치면 그 한 건은 영영 안 들어온다. 겹쳐 훑는 비용은 중복 제거가 흡수한다.
+ */
+export function lookbackDaysSince(lastSuccessMs: number | null, nowMs: number): number {
+  if (lastSuccessMs === null || !Number.isFinite(lastSuccessMs)) return DEFAULT_LOOKBACK_DAYS
+  const elapsedDays = Math.ceil((nowMs - lastSuccessMs) / (24 * 60 * 60 * 1000))
+  // 시계가 뒤로 갔거나 미래 값이 들어와도 기본폭 아래로 안 내려간다
+  return Math.max(DEFAULT_LOOKBACK_DAYS, Math.min(MAX_LOOKBACK_DAYS, elapsedDays + 1))
+}
+
 export interface SearchNoticesInput {
   serviceKey: string
   /** 조회 시작 (KST 기준 yyyyMMddHHmm) */

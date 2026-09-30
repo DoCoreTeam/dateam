@@ -12,7 +12,7 @@
  * 그래도 미리 걸러 보내는 이유는, 100건을 매번 다시 넣으면 실패 로그가 100줄씩 쌓여서다.
  */
 
-import { searchNotices, inquiryRange, readServiceKey, type G2bResult } from '../g2b/client.ts'
+import { searchNotices, inquiryRange, readServiceKey, lookbackDaysSince, type G2bResult } from '../g2b/client.ts'
 import { toSourceRow, toDbColumns } from '../g2b/map.ts'
 
 export interface CollectDb {
@@ -54,7 +54,11 @@ export async function collectNotices(db: CollectDb, input: CollectInput): Promis
     return { ...empty, reason: 'no_service_key', guide: '관리자 설정에 나라장터 서비스 키를 넣어 주세요' }
   }
 
-  const { from, to } = inquiryRange((input.now ?? Date.now)(), input.lookbackDays)
+  // 폭을 **마지막으로 성공한 때부터** 센다. 고정 2일이면 크론이 사흘 멈췄을 때
+  // 가운데 하루가 영영 안 들어오고, 화면은 「새 공고 0건」으로 평소와 똑같이 보인다
+  const nowMs = (input.now ?? Date.now)()
+  const lookback = input.lookbackDays ?? lookbackDaysSince(await lastCollectedAt(db, input.orgId), nowMs)
+  const { from, to } = inquiryRange(nowMs, lookback)
   const maxPages = Math.max(1, Math.min(input.maxPages ?? MAX_PAGES, 10))
 
   const rows: Record<string, unknown>[] = []
@@ -105,5 +109,29 @@ export async function collectNotices(db: CollectDb, input: CollectInput): Promis
     skipped: rows.length - fresh.length,
     reason: null,
     guide: null,
+  }
+}
+
+/**
+ * 마지막으로 공고를 담은 때.
+ *
+ * 따로 칸을 두지 않고 **이미 담은 것 중 가장 최근**을 본다. 칸을 새로 두면 그 칸을
+ * 올리는 코드가 또 배선이 되고, 안 이어지면 폭이 늘 최대가 된다.
+ *
+ * 못 읽으면 null 을 돌려 기본폭으로 간다 — 넓게 훑는 것이 안 훑는 것보다 낫다.
+ */
+async function lastCollectedAt(db: CollectDb, orgId: string): Promise<number | null> {
+  try {
+    const { data } = await db.from('rfp_sources')
+      .select('created_at')
+      .eq('org_id', orgId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    const row = ((data ?? []) as { created_at?: unknown }[])[0]
+    if (!row?.created_at) return null
+    const ms = Date.parse(String(row.created_at))
+    return Number.isFinite(ms) ? ms : null
+  } catch {
+    return null
   }
 }

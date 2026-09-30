@@ -54,6 +54,14 @@
     {
       "path": "/api/trading/cron/validate",
       "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/rfp/worker/tick",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/rfp/radar",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

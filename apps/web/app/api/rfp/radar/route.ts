@@ -16,7 +16,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { isMachineCall, machineAuthUnconfigured } from '@/lib/crm/jobs/machine-auth'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { toRadarRule } from '@/lib/rfp/radar/rules'
 import { sweep, type NoticeCandidate } from '@/lib/rfp/radar/sweep'
@@ -26,7 +27,15 @@ import { attachNotices } from '@/lib/rfp/radar/hit-notice'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  /*
+    **Vercel 크론은 GET 으로 온다.** 훑기를 POST 에만 두면 크론은 목록만 읽고 돌아가고,
+    화면에는 아무 일도 안 일어난 채 「새 공고 0건」만 뜬다. 이 저장소는 그 사고를
+    이미 한 번 겪었다(크론이 POST 에만 열린 창구를 여덟 시간 두드렸다).
+    그래서 기계가 GET 으로 오면 훑기로 넘긴다.
+  */
+  if (isMachineCall(req)) return POST(req)
+
   const gate = await requireMemberApi()
   if (gate.error) return gate.error
 
@@ -46,12 +55,27 @@ export async function GET() {
   return NextResponse.json({ hits })
 }
 
-export async function POST(_req: NextRequest) {
-  const gate = await requireMemberApi()
-  if (gate.error) return gate.error
+/**
+ * 크론도 이 창구를 쓴다.
+ *
+ * 사람이 누를 때는 사람 인증과 그 사람의 클라이언트를 쓰고, 크론일 때는 기계 토큰을 보고
+ * 서비스롤로 돈다 — 크론에는 세션이 없어 `rfp_default_org` 가 아무것도 못 준다.
+ * 서비스롤 위의 사람 확인이 곧 기계 토큰이다(워커와 같은 모양).
+ *
+ * **열린 창구는 하나도 안 는다.** 토큰이 없으면 사람 인증으로 떨어지고, 그것도 없으면 거절이다.
+ */
+export async function POST(req: NextRequest) {
+  const machine = isMachineCall(req)
+  if (machine && machineAuthUnconfigured()) {
+    return NextResponse.json({ error: '기계 인증이 설정되지 않았습니다' }, { status: 500 })
+  }
+  if (!machine) {
+    const gate = await requireMemberApi()
+    if (gate.error) return gate.error
+  }
 
-  const db = await createClient()
-  const { data: orgId } = await (db as any).rpc('rfp_default_org')
+  const db = machine ? createAdminClient() : await createClient()
+  const orgId = machine ? await firstOrgId(db) : (await (db as any).rpc('rfp_default_org')).data
   if (!orgId) return NextResponse.json({ error: '조직을 찾지 못했습니다' }, { status: 403 })
 
   // ① 먼저 모은다. 못 모아도 이미 담긴 것으로 거르기는 계속한다 —
@@ -124,4 +148,15 @@ export async function POST(_req: NextRequest) {
 
   // 몇 건을 새로 모았는지 화면이 말해야 한다 — 「0건」이 «없다»인지 «못 가져왔다»인지 갈린다
   return NextResponse.json({ hits, swept: candidates.length, collected, siteResults })
+}
+
+/**
+ * 크론이 돌 조직. 지금은 하나지만 늘면 여기서 갈린다.
+ *
+ * 세션이 없으니 `rfp_default_org` 를 못 쓴다 — 그 함수는 지금 로그인한 사람의 조직을 준다.
+ */
+async function firstOrgId(db: unknown): Promise<string | null> {
+  const { data } = await (db as any).from('rfp_orgs').select('id').order('created_at').limit(1)
+  const row = ((data ?? []) as { id?: unknown }[])[0]
+  return row?.id ? String(row.id) : null
 }
