@@ -22,6 +22,7 @@ import { toRadarRule } from '@/lib/rfp/radar/rules'
 import { sweep, type NoticeCandidate } from '@/lib/rfp/radar/sweep'
 import { collectNotices } from '@/lib/rfp/radar/collect'
 import { collectFromSite, type SiteRow } from '@/lib/rfp/radar/collect-sites'
+import { attachNotices } from '@/lib/rfp/radar/hit-notice'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,11 @@ export async function GET() {
     .limit(50)
 
   if (error) return NextResponse.json({ error: '후보를 불러오지 못했습니다' }, { status: 500 })
-  return NextResponse.json({ hits: data ?? [] })
+
+  // 서버 첫 렌더와 **같은 함수**로 공고를 붙인다. 여기서 안 붙이면 훑기를 누른 직후
+  // 클라이언트가 이 창구로 다시 받으면서 제목이 사라진다
+  const hits = await attachNotices(db as never, (data ?? []) as { source_id: string }[])
+  return NextResponse.json({ hits })
 }
 
 export async function POST(_req: NextRequest) {

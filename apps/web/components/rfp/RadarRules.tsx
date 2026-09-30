@@ -351,7 +351,8 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
               <div key={h.id} className={styles.ruleItem}>
                 <span className={styles.tight}>
                   {/* 무엇이 걸렸는지가 먼저다. 점수와 사유만으로는 아무것도 못 정한다 */}
-                  <span className={styles.ruleName}>{h.notice?.title ?? h.source_id}</span>
+                  {/* 제목이 없으면 그렇게 말한다. 내부 번호를 찍으면 사용자는 그것을 공고 이름으로 읽는다 */}
+                  <span className={styles.ruleName}>{h.notice?.title || RFP_RADAR.noticeNoTitle}</span>
                   <span className={styles.sectionDesc}>
                     {RFP_RADAR.noticeAgency} {h.notice?.agency ?? '-'}
                     {' · '}{RFP_RADAR.noticeBudget} {money(h.notice?.budgetAmount)}

@@ -1,0 +1,117 @@
+/**
+ * 적중에 공고 정보를 붙이는 가드
+ *
+ * 붙이는 코드가 서버 첫 렌더에만 있었다. 훑기를 누르면 클라이언트가 GET 으로 다시 받고
+ * 그 응답에는 공고 정보가 없어 **제목이 사라졌다**(실측 2026-09-30).
+ * 사용자가 보기에는 「훑었더니 목록이 망가졌다」다.
+ */
+
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { attachNotices, toNotice, NOTICE_COLS, type NoticeDbClient } from './hit-notice.ts'
+
+function db(rows: Record<string, unknown>[], asked: { cols?: string; ids?: string[] } = {}): NoticeDbClient {
+  return {
+    from: () => ({
+      select: (cols: string) => ({
+        in: async (_k: string, ids: string[]) => {
+          asked.cols = cols
+          asked.ids = ids
+          return { data: rows }
+        },
+      }),
+    }),
+  }
+}
+
+test('적중에 제목과 발주처와 예산과 공고일이 붙는다', async () => {
+  const asked: { cols?: string; ids?: string[] } = {}
+  const out = await attachNotices(db([{
+    id: 's1', title: '데이터 플랫폼 구축', announcing_agency: '한국전력',
+    budget_amount: '1200000000', notice_date: '2026-09-01',
+  }], asked), [{ source_id: 's1', id: 'h1' }])
+
+  assert.equal(out.length, 1)
+  assert.equal(out[0].notice?.title, '데이터 플랫폼 구축')
+  assert.equal(out[0].notice?.agency, '한국전력')
+  assert.equal(out[0].notice?.budgetAmount, 1_200_000_000, '글자로 온 금액을 숫자로 안 바꿨다')
+  assert.equal(out[0].notice?.noticeDate, '2026-09-01')
+  assert.equal(out[0].id, 'h1', '원래 적중 값이 사라졌다')
+  assert.deepEqual(asked.ids, ['s1'])
+})
+
+test('같은 공고를 두 번 안 묻는다', async () => {
+  const asked: { ids?: string[] } = {}
+  await attachNotices(db([], asked), [
+    { source_id: 's1' }, { source_id: 's1' }, { source_id: 's2' },
+  ])
+  assert.deepEqual(asked.ids, ['s1', 's2'])
+})
+
+test('원천이 지워진 적중도 목록에 남는다', async () => {
+  // 임베드(!inner)로 읽으면 그 줄이 통째로 사라진다. 그건 「어제 본 공고가 없어짐」이다
+  const out = await attachNotices(db([]), [{ source_id: 'gone', id: 'h1' }])
+  assert.equal(out.length, 1, '원천이 없다고 적중을 버렸다')
+  assert.equal(out[0].notice, null)
+})
+
+test('공고를 못 읽어도 적중은 돌려준다', async () => {
+  const failing: NoticeDbClient = {
+    from: () => ({ select: () => ({ in: async () => { throw new Error('끊김') } }) }),
+  }
+  const out = await attachNotices(failing, [{ source_id: 's1', id: 'h1' }])
+  // 제목이 없는 목록이 목록이 없는 것보다 낫다
+  assert.equal(out.length, 1)
+  assert.equal(out[0].notice, null)
+})
+
+test('빈 목록이면 묻지 않는다', async () => {
+  const asked: { ids?: string[] } = {}
+  const out = await attachNotices(db([], asked), [])
+  assert.deepEqual(out, [])
+  assert.equal(asked.ids, undefined, '물을 것이 없는데 물었다')
+})
+
+test('빈 글자는 없음으로 본다', () => {
+  // 빈 글자를 제목으로 두면 화면이 「제목 없음」 대신 빈 칸을 그린다
+  const n = toNotice({ id: 's1', title: '   ', announcing_agency: '', budget_amount: null, notice_date: null })
+  assert.equal(n.title, null)
+  assert.equal(n.agency, null)
+  assert.equal(n.budgetAmount, null)
+})
+
+test('읽는 칸 목록이 표에 실재하는 이름만 쓴다', () => {
+  // 없는 칸을 하나라도 적으면 select 가 통째로 오류가 되고 제목이 조용히 사라진다
+  const REAL = new Set(['id', 'title', 'announcing_agency', 'budget_amount', 'notice_date'])
+  const unknown = NOTICE_COLS.split(',').map((c) => c.trim()).filter((c) => !REAL.has(c))
+  assert.deepEqual(unknown, [], `표에 없는 칸을 읽으려 한다: ${unknown.join(', ')}`)
+})
+
+test('서버 첫 렌더와 다시 받기가 같은 함수를 쓴다', () => {
+  // 한쪽만 붙이면 훑은 직후 제목이 사라진다. 그것이 이 항목의 원래 증상이다
+  const page = stripComments(readFileSync(
+    new URL('../../../app/(rfp)/rfp/radar/page.tsx', import.meta.url), 'utf8'))
+  const route = stripComments(readFileSync(
+    new URL('../../../app/api/rfp/radar/route.ts', import.meta.url), 'utf8'))
+
+  for (const [name, src] of [['서버 첫 렌더', page], ['GET 창구', route]] as const) {
+    assert.match(src, /\battachNotices\s*\(/, `${name} 가 공고를 안 붙인다`)
+  }
+  // 붙이는 코드를 화면 쪽에 다시 적으면 두 벌이 되고 한쪽만 고쳐진다
+  assert.doesNotMatch(page, /announcing_agency/, '화면이 공고 칸을 직접 읽는다 — 붙이는 코드가 두 벌이다')
+})
+
+test('제목이 없을 때 내부 번호를 화면에 안 찍는다', () => {
+  const ui = stripComments(readFileSync(
+    new URL('../../../components/rfp/RadarRules.tsx', import.meta.url), 'utf8'))
+  // uuid 를 찍으면 사용자는 그것을 공고 이름으로 읽고 그 줄이 무엇인지 영영 모른다
+  assert.doesNotMatch(ui, /notice\?\.title\s*\?\?\s*h\.source_id/, '제목 자리에 내부 번호를 찍는다')
+  assert.match(ui, /RFP_RADAR\.noticeNoTitle/, '제목이 없을 때 쓸 말이 없다')
+})
+
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '')
+    .replace(/^[ \t]*\/\/.*$/gm, '')
+}

@@ -516,6 +516,11 @@ export const RFP_RADAR = {
   saveKey: '키 저장',
   lastRun: '마지막으로 본 때',
   siteNever: '아직 안 봤습니다',
+  /**
+   * 공고 제목이 정말 없을 때만 쓴다. 내부 번호(uuid)를 대신 찍으면 사용자는 그것을
+   * 공고 이름으로 읽고, 그 줄이 무엇인지 영영 모른다
+   */
+  noticeNoTitle: '제목 없음',
   siteRulesOnly: 'AI 를 못 써서 제목만 가져왔습니다',
   siteTitlesOnly: '목록에서 상세 주소를 못 얻어 제목만 가져왔습니다',
   adoptTitle: '케이스로 만들기',
