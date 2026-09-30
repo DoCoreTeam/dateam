@@ -8,6 +8,7 @@
 // 적중률만 보면 나쁜 예측이지만 돈은 벌었다. 작게 여러 번 이기고 크게 한 번 지는 반대 판도
 // 있다. 그래서 **건당 손익이 큰 글자**고 적중률은 그 옆이다.
 
+import { fmtNum } from '@/lib/ui/number-format'
 import { Target } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import type { AccuracySummary, AccuracyRow } from '@/lib/trading/overview-shape'
@@ -17,7 +18,7 @@ import styles from './AccuracyPanel.module.css'
 /** 건당 손익(R). **없으면 없다고 말한다** — 0 은 「본전이었다」는 사실이다 */
 function rText(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '아직'
-  return `${value > 0 ? '+' : ''}${value.toFixed(3)}R`
+  return `${value > 0 ? '+' : ''}${fmtNum(value, 3)}R`
 }
 
 /** 적중률. 결판난 것이 0건이면 0% 가 아니라 모름이다 */

@@ -1,5 +1,6 @@
 // lib/ci/queries/trends.ts — 트렌드 시장·공식·이슈 탭 데이터 (서버 전용)
 
+import { fmtNum } from '../../ui/number-format.ts'
 import { createAdminClient } from '@/lib/supabase/server'
 import { CORPUS_FILTER } from '../corpus.ts'
 import { formatBasis, formatOutlier, SEASON_MIN_WINDOW_DAYS } from '../format/metrics.ts'
@@ -418,7 +419,7 @@ function sliceOf(
       label: labelOf(k),
       count: mine.length,
       medianOutlierText: median != null && values.length >= TIMING_MIN_SAMPLE
-        ? `평소 대비 ${median.toFixed(1)}배`
+        ? `평소 대비 ${fmtNum(median, 1)}배`
         : null,
     }
   }).filter((s) => s.count > 0)
