@@ -1,6 +1,6 @@
 # PLAN newAX: 서버에 닿지 않으면 화면이 그렇다고 말한다
 플랜 ID: P0090
-플랜 버전: v0.1.0
+플랜 버전: v0.1.1
 상태: 진행중
 지시: iv_0159
 목표 버전: v0.10.724
@@ -41,15 +41,16 @@
 의존: 없음
 
 ### I02 연결 판정을 navigator.onLine 에서 실측으로 옮긴다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/components/ui/OfflineBar.tsx, apps/web/lib/offline/ui/sync-status.ts, apps/web/lib/offline/offline.test.ts
+범위: apps/web/components/ui/OfflineBar.tsx, apps/web/lib/offline/ui/sync-status.ts, apps/web/lib/offline/offline.test.ts, apps/web/e2e/offline-unreachable.spec.ts (신규)
 감사 기준:
 - `navigator.onLine` 이 true 여도 서버가 안 답하면 배너가 뜬다 — **밀린 것이 0건이어도 뜬다**
 - 한 번 실패로는 안 뜬다 (연속 2회) — 깜빡임이 고장 신호로 읽히면 안 된다
 - 서버가 살아나면 아무것도 안 눌러도 배너가 사라진다
 - 기존 가드 「잃을 것이 없으면 연결 없음을 안 띄운다」를 **닿을 때에 한정**하도록 고치고, 고친 이유를 시험 주석에 적는다
 - `pnpm test offline` 통과
+- **실브라우저로 본다** — 로그인한 화면에서 `/api/ping` 을 끊으면 배너가 뜨고, 다시 이으면 스스로 사라진다 (e2e 1건)
 보안: 해당 없음 — 화면 판정과 말만이다
 의존: I01
 
@@ -69,3 +70,4 @@
 
 ## 변경 이력
 - v0.1.0 (2026-09-30) 최초 작성 (iv_0159)
+- v0.1.1 (2026-09-30) I02 를 실브라우저로도 본다 — 화면 판정을 고치는 항목인데 근거가 소스 읽기뿐이면 「그려지는가」를 못 센다. /api/ping 을 끊었다 잇는 e2e 1건을 범위에 넣는다 (audit:I02)

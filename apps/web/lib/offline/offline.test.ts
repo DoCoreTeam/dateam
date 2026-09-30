@@ -143,15 +143,87 @@ test('★ 이벤트를 놓쳐도 화면으로 돌아오면 다시 잰다 — 배
   assert.match(BAR, /removeEventListener\('focus'/, '정리하지 않으면 리스너가 쌓인다')
 })
 
-test('★ 잃을 것이 없으면 「연결 없음」을 띄우지 않는다 — 상시 배너는 고장으로 읽힌다', () => {
-  // 이 줄의 일은 「끊겼지만 쓴 것은 안전하다」를 말하는 것이다.
-  // 밀린 것이 0건이면 안심시킬 것이 없고, 늘 떠 있는 경고는 장애 신호로 읽힌다.
-  assert.match(BAR, /!online\s*\n?\s*\? \(pending > 0 \? 'OFFLINE' : null\)/,
-    '밀린 것이 없어도 연결 없음을 띄운다')
+/*
+ * ⚠️ 여기 있던 가드 「잃을 것이 없으면 연결 없음을 띄우지 않는다」를 **바꿨다** (v0.10.726).
+ *
+ * 그 규칙은 이 줄의 일이 「끊겼지만 쓴 것은 안전하다」 하나일 때만 맞았다. 밀린 것이 0건이면
+ * 안심시킬 것이 없으니 조용히 있으라는 뜻이었고, 그때는 옳았다.
+ *
+ * 그런데 실측 2026-09-30, 사용자가 전날 열어 둔 CRM 첫 화면에서 「녹음 시작」을 눌렀고
+ * 화면에 뜬 말이 「Failed to fetch」였다. 서버는 내려가 있었고 화면만 살아 있었다 —
+ * 딜이 「32일째」라고 적혀 있었는데 그날 서버가 세면 33일째였다. 밀린 것은 0건이었으므로
+ * 이 줄은 규칙대로 **아무 말도 하지 않았다.**
+ *
+ * 그래서 규칙을 고쳤다. 조용히 있어도 되는 조건은 「잃을 것이 없을 때」가 아니라
+ * **「닿을 때」**다. 안 닿는 동안에는 밀린 것이 0건이어도 말해야 한다 —
+ * 그때 화면에 보이는 값은 전부 지난 것이고, 그때 누르는 것은 전부 실패한다.
+ */
+test('★ 안 닿으면 밀린 것이 0건이어도 말한다 — 이번 사고의 자리다', () => {
+  // 「!reachable 이면 UNREACHABLE」이 pending 을 안 본다는 것을 값으로 확인한다.
+  // 이름만 찾으면 `pending > 0 && !reachable` 같은 판으로 되돌아가도 통과한다.
+  const branch = BAR.slice(BAR.indexOf('const key: SyncStatusKey | null'), BAR.indexOf('if (!key) return null'))
+  assert.match(branch, /!reachable\s*\n?\s*\? 'UNREACHABLE'/, '안 닿을 때 말하는 자리가 없다')
+  assert.ok(!/UNREACHABLE[^\n]*pending/.test(branch), '안 닿는데 밀린 것 수를 따진다 — 0건이면 또 침묵한다')
+})
+
+test('★ 닿고 밀린 것도 없으면 조용하다 — 늘 떠 있는 배너는 아무도 안 본다', () => {
+  const branch = BAR.slice(BAR.indexOf('const key: SyncStatusKey | null'), BAR.indexOf('if (!key) return null'))
+  assert.match(branch, /live \?\? \(pending > 0 \? 'QUEUED' : null\)/, '닿을 때도 무언가를 계속 띄운다')
 })
 
 test('밀린 것이 없으면 아무 말도 안 한다 — 늘 떠 있으면 아무도 안 본다', () => {
   assert.match(BAR, /if \(!key\) return null/, '항상 렌더한다')
+})
+
+/* ── ⑤ 연결 판정의 근거 (v0.10.726) ──────────────────────── */
+
+test('★ 연결 판정이 navigator.onLine 하나에 걸려 있지 않다 — 그 값은 서버를 모른다', () => {
+  // 실측 2026-09-30: 와이파이는 멀쩡했고 navigator.onLine 은 true 였다. 죽은 것은 서버였다.
+  assert.match(BAR, /pingServer\(/, '실제로 물어보지 않는다 — 기기 상태만 보고 판정한다')
+  assert.match(BAR, /await pingServer\(\(url, init\) => fetch\(url, init\)\)/,
+    'ping 을 import 만 하고 안 부른다')
+})
+
+test('★ 재는 일이 주기적으로 스스로 돈다 — 사고는 사용자가 아무것도 안 하는 동안 일어난다', () => {
+  assert.match(BAR, /setInterval\(/, '한 번만 재고 만다 — 열어 둔 탭은 영원히 어제 상태다')
+  assert.match(BAR, /clearInterval\(/, '정리하지 않으면 타이머가 쌓인다')
+})
+
+test('★ 배경 탭에서는 묻지 않는다 — 안 보는 화면의 연결 상태는 아무에게도 필요 없다', () => {
+  const timer = BAR.slice(BAR.indexOf('setInterval('))
+  assert.match(timer.slice(0, timer.indexOf('}, suspect')), /visibilityState === 'hidden'\) return/,
+    '배경 탭에서도 계속 서버를 두드린다')
+})
+
+test('★ 한 번 어긋나면 그때부터 자주 묻는다 — 판정까지 30초를 두 번 기다리면 늦다', () => {
+  // 실측: 어긋난 뒤에도 30초 간격을 유지하니 배너가 60초 뒤에야 떴다.
+  assert.match(BAR, /setSuspect\(streakRef\.current > 0\)/, '어긋난 것을 간격에 반영하지 않는다')
+  assert.match(BAR, /\}, suspect \? PING_EVERY_DOWN_MS : PING_EVERY_MS\)/,
+    '판정이 끝난 뒤에야 간격을 줄인다 — 그러면 판정 자체가 늦어진다')
+})
+
+test('★ 살아나면 아무것도 안 눌러도 배너가 사라진다 — 돌아온 순간에만 올린다', () => {
+  const measure = BAR.slice(BAR.indexOf('const measure = useCallback'), BAR.indexOf('useEffect(() => {'))
+  assert.match(measure, /nextFailureStreak\(streakRef\.current, answered\)/, '실패 셈을 안 굴린다')
+  assert.match(measure, /setReachable\(!down\)/, '잰 결과를 화면에 안 넘긴다')
+  assert.match(measure, /if \(!down && wasDownRef\.current\)/,
+    '돌아온 순간을 안 가른다 — 닿는 동안 계속 올리기를 걸면 재는 일이 서버를 누른다')
+})
+
+test('★ 기기가 끊겨 있으면 묻지 않는다 — 답이 뻔한 요청을 던지지 않는다', () => {
+  const measure = BAR.slice(BAR.indexOf('const measure = useCallback'), BAR.indexOf('useEffect(() => {'))
+  assert.match(measure, /deviceOnline\s*\n?\s*\? await pingServer/, '끊긴 줄 알면서도 물어본다')
+})
+
+test('★ 끊긴 것과 안 답하는 것을 갈라 말한다 — 사람이 할 일이 다르다', () => {
+  assert.equal(SYNC_STATUS_META.OFFLINE.status, 'note', '기기가 끊긴 것은 우리 고장이 아니다')
+  assert.equal(SYNC_STATUS_META.UNREACHABLE.status, 'blocker', '서버가 안 답하는 것은 고장이다')
+  assert.notEqual(SYNC_STATUS_META.OFFLINE.label, SYNC_STATUS_META.UNREACHABLE.label)
+})
+
+test('★ 안 닿을 때 «값이 언제 것인지»를 말한다 — 이 한 줄이 없어서 사고가 났다', () => {
+  assert.match(BAR, /key === 'UNREACHABLE' &&[\s\S]{0,120}마지막으로 받은 것/,
+    '안 닿는다고만 하고 화면의 값이 지난 것이라는 말을 안 한다')
 })
 
 /* ── ④ 셸이 뜬다 (PWA) ──────────────────────────────────── */

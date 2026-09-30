@@ -12,11 +12,19 @@
 import type { StatusKey } from '../../tokens/status-colors.ts'
 import { progress } from '../../terms/action.ts'
 
-export type SyncStatusKey = 'OFFLINE' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED'
+export type SyncStatusKey = 'OFFLINE' | 'UNREACHABLE' | 'QUEUED' | 'SYNCING' | 'SYNCED' | 'FAILED'
 
 export const SYNC_STATUS_META: Record<SyncStatusKey, { label: string; status: StatusKey }> = {
   /** 연결이 없다 — **고장이 아니다.** 그 구분을 화면이 말해야 사람이 기다리지 않는다 */
   OFFLINE: { label: '연결 없음', status: 'note' },
+  /**
+   * 연결은 있는데 **우리 서버가 안 답한다** — 이쪽은 고장이다.
+   *
+   * 앞의 「연결 없음」과 갈라 두는 이유: 사람이 할 일이 다르다. 연결이 없으면 기다리면 되지만,
+   * 서버가 안 답하면 기다려도 화면의 값은 낡아만 간다. 그리고 이 상태에서 보이는 화면은
+   * **마지막으로 받은 것**이라 지금 누르는 것이 전부 실패한다(실측 2026-09-30).
+   */
+  UNREACHABLE: { label: '서버에 닿지 않음', status: 'blocker' },
   /** 기기에 있고 아직 안 올렸다 */
   QUEUED: { label: '대기', status: 'planned' },
   SYNCING: { label: progress('올리는'), status: 'doing' },
@@ -26,4 +34,4 @@ export const SYNC_STATUS_META: Record<SyncStatusKey, { label: string; status: St
 }
 
 /** 사람이 겪는 순서 — 끊기고 → 쌓이고 → 올라가고 → 끝나거나 실패한다 */
-export const SYNC_STATUS_ORDER: SyncStatusKey[] = ['OFFLINE', 'QUEUED', 'SYNCING', 'SYNCED', 'FAILED']
+export const SYNC_STATUS_ORDER: SyncStatusKey[] = ['OFFLINE', 'UNREACHABLE', 'QUEUED', 'SYNCING', 'SYNCED', 'FAILED']
