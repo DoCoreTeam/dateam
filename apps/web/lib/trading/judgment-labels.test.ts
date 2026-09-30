@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { judgmentIssue, failingStreak, streakLine, JUDGE_LABEL } from './judgment-labels.ts'
+import { judgmentIssue, failingStreak, streakLine, JUDGE_LABEL, judgeWithModel, NO_MODEL_TEXT } from './judgment-labels.ts'
 import { TRADING_APP_DIR } from '../policy/app-dirs.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -135,4 +135,26 @@ test('★ 이어지는 실패를 표 위에서 요약한다', () => {
   assert.match(LIST, /streakLine\(streak\)/, '세어 놓고 안 그린다')
   // 잘 돌 때는 그 줄이 없어야 한다
   assert.match(LIST, /\{streak && \(/, '늘 떠 있는 줄이 된다')
+})
+
+/* ── 어느 모델이 판단했나 (사용자 지시 2026-09-30) ── */
+
+test('AI 판단에는 실제 모델 이름을 적는다', () => {
+  // 실측 2026-09-30 trading_judgments.jev_model_version
+  assert.deepEqual(judgeWithModel('jev', 'google/gemini-2.5-flash'), {
+    name: 'AI 판단', model: 'google/gemini-2.5-flash',
+  })
+})
+
+test('모델을 못 적은 옛 줄은 지어내지 않는다', () => {
+  // 실측 2026-09-30: 모델이 안 남은 줄이 25건 있었다
+  for (const v of [null, undefined, '', '   ']) {
+    assert.deepEqual(judgeWithModel('jev', v), { name: 'AI 판단', model: NO_MODEL_TEXT })
+  }
+})
+
+test('규칙 판단에는 모델을 안 적는다 — 값이 들어 있어도', () => {
+  // 실측 2026-09-30: rule 줄 45건에도 같은 모델 값이 들어 있다. 규칙은 AI 가 아니다
+  assert.deepEqual(judgeWithModel('rule', 'google/gemini-2.5-flash'), { name: '규칙 판단', model: null })
+  assert.deepEqual(judgeWithModel('ml', 'google/gemini-2.5-flash'), { name: '학습 모델', model: null })
 })

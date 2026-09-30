@@ -41,6 +41,11 @@ export interface JudgmentRow {
   rawScore: Record<string, number> | null
   abstainReason: string | null
   decisionAt: string | null
+  /**
+   * 어느 모델이 답했나. AI 판단에만 뜻이 있고, 못 적은 옛 줄은 null 이다
+   * (사용자 지시 2026-09-30 「AI 판단이 어떤 모델이 한 판단인지 정확히 적어」)
+   */
+  modelVersion: string | null
 }
 
 /** 신호 한 줄. 화면이 확인 단추를 그리는 데 필요한 것만 */

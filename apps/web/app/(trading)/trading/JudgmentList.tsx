@@ -11,7 +11,7 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { STATIC_LIST_QUERY } from '@/lib/ui/static-list-query'
 import { formatKstDateTimeExact } from '@/lib/datetime/kst'
 import {
-  JUDGE_LABEL, JUDGMENT_STATUS_LABEL, leaningLabel, judgmentIssue, failingStreak, streakLine,
+  JUDGMENT_STATUS_LABEL, leaningLabel, judgmentIssue, failingStreak, streakLine, judgeWithModel,
 } from '@/lib/trading/judgment-labels'
 import type { JudgmentRow } from '@/lib/trading/overview-shape'
 
@@ -20,7 +20,24 @@ const COLUMNS: ColumnDef<JudgmentRow>[] = [
     key: 'barCloseAt', header: '봉 마감', primary: true,
     cell: (r) => formatKstDateTimeExact(r.barCloseAt),
   },
-  { key: 'judge', header: '판단기', cell: (r) => JUDGE_LABEL[r.judge] ?? r.judge },
+  {
+    key: 'judge', header: '판단기',
+    /**
+     * **어느 모델이 답했는지까지 적는다** (사용자 지시 2026-09-30 「AI 판단이 어떤
+     * 모델이 한 판단인지 정확히 적어」). 모델을 바꿔 가며 쓰는 판에서 이름이 없으면
+     * 어제 것과 오늘 것이 같은 글자로 보인다.
+     */
+    cell: (r) => {
+      const { name, model } = judgeWithModel(r.judge, r.modelVersion)
+      if (!model) return name
+      return (
+        <span style={{ display: 'grid', gap: '2px' }}>
+          <span>{name}</span>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', wordBreak: 'break-all' }}>{model}</span>
+        </span>
+      )
+    },
+  },
   { key: 'triggerId', header: '진입 조건', cell: (r) => r.triggerId ?? '—' },
   { key: 'leaning', header: '기운 쪽', cell: (r) => leaningLabel(r.rawScore) },
   {

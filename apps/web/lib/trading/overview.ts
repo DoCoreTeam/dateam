@@ -230,7 +230,7 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
 
   const { data: judgmentRows, error: judgmentError } = await admin
     .from('trading_judgments')
-    .select('id, contract_code, bar_close_at, judge, status, trigger_id, raw_score, abstain_reason, decision_at')
+    .select('id, contract_code, bar_close_at, judge, status, trigger_id, raw_score, abstain_reason, decision_at, jev_model_version')
     .order('bar_close_at', { ascending: false })
     .limit(50)
   if (judgmentError) throw new Error(`판단 기록을 읽지 못했습니다: ${judgmentError.message}`)
@@ -257,6 +257,8 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     rawScore: (row.raw_score as Record<string, number> | null) ?? null,
     abstainReason: (row.abstain_reason as string | null) ?? null,
     decisionAt: (row.decision_at as string | null) ?? null,
+    // 어느 모델이 답했나. 규칙 줄에도 값이 들어 있으므로 화면이 판단기를 보고 가른다
+    modelVersion: (row.jev_model_version as string | null) ?? null,
   }))
 
   const { data: runRows, error: runError } = await admin

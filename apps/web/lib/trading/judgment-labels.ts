@@ -25,6 +25,30 @@ export const JUDGE_LABEL: Record<string, string> = {
   jev: 'AI 판단',
 }
 
+/** 모델을 못 적은 옛 줄. **지어내지 않는다** — 실측 2026-09-30 그런 줄이 25건 있었다 */
+export const NO_MODEL_TEXT = '모델 기록 없음'
+
+/**
+ * 어느 판단기가, **어느 모델로** 판단했나.
+ *
+ * 사용자 지시 2026-09-30: 「AI 판단이 어떤 모델이 한 판단인지 정확히 적어」.
+ * 표에는 「AI 판단」만 있었는데, 그 이름은 무엇이 답했는지를 안 말한다 —
+ * 모델을 바꿔 가며 쓰는 판에서 어제 것과 오늘 것이 같은 글자로 보인다.
+ *
+ * **규칙 판단에는 모델을 안 적는다.** 그 줄에도 `jev_model_version` 값이 들어 있지만
+ * (실측 2026-09-30 rule 45줄 전부) 규칙은 AI 가 아니다 — 있는 값을 그대로 찍으면
+ * 규칙이 그 모델로 판단한 것처럼 읽힌다.
+ */
+export function judgeWithModel(
+  judge: string,
+  modelVersion: string | null | undefined,
+): { name: string; model: string | null } {
+  const name = JUDGE_LABEL[judge] ?? judge
+  if (judge !== 'jev') return { name, model: null }
+  const model = (modelVersion ?? '').trim()
+  return { name, model: model === '' ? NO_MODEL_TEXT : model }
+}
+
 /**
  * 어느 쪽으로 기울었나 한 줄로.
  *
