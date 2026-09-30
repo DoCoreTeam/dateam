@@ -25,7 +25,21 @@ const SYNC = readFileSync(new URL('./sync-parts.ts', import.meta.url), 'utf8')
 const CTX = readFileSync(new URL('../meeting/recording-context.tsx', import.meta.url), 'utf8')
 const SHELL = readFileSync(new URL('../../components/ui/shell/AppShell.tsx', import.meta.url), 'utf8')
 const BAR = readFileSync(new URL('../../components/ui/OfflineBar.tsx', import.meta.url), 'utf8')
+const RECBAR = readFileSync(new URL('../../components/meeting/RecordingBar.tsx', import.meta.url), 'utf8')
 const SW = readFileSync(new URL('../../public/sw.js', import.meta.url), 'utf8')
+
+/**
+ * 재는 함수의 몸통만 떼어 온다.
+ *
+ * 앞에서 `useEffect` 를 하나 더 쓰기 시작하자 `indexOf('useEffect')` 로 끝을 잡던 판이
+ * **빈 문자열을 검사하게 됐다**(그래도 통과했으면 가드가 죽은 채로 남았을 것이다).
+ * 시작 위치 다음에서 찾는다.
+ */
+function measureBody(): string {
+  const from = BAR.indexOf('const measure = useCallback')
+  const to = BAR.indexOf('useEffect(() => {', from)
+  return BAR.slice(from, to === -1 ? undefined : to)
+}
 const BOOT = readFileSync(new URL('../../components/ui/ServiceWorkerBoot.tsx', import.meta.url), 'utf8')
 const ROOT = readFileSync(new URL('../../app/layout.tsx', import.meta.url), 'utf8')
 const MW = readFileSync(new URL('../../middleware.ts', import.meta.url), 'utf8')
@@ -203,7 +217,7 @@ test('★ 한 번 어긋나면 그때부터 자주 묻는다 — 판정까지 30
 })
 
 test('★ 살아나면 아무것도 안 눌러도 배너가 사라진다 — 돌아온 순간에만 올린다', () => {
-  const measure = BAR.slice(BAR.indexOf('const measure = useCallback'), BAR.indexOf('useEffect(() => {'))
+  const measure = measureBody()
   assert.match(measure, /nextFailureStreak\(streakRef\.current, answered\)/, '실패 셈을 안 굴린다')
   assert.match(measure, /setReachable\(!down\)/, '잰 결과를 화면에 안 넘긴다')
   assert.match(measure, /if \(!down && wasDownRef\.current\)/,
@@ -211,7 +225,7 @@ test('★ 살아나면 아무것도 안 눌러도 배너가 사라진다 — 돌
 })
 
 test('★ 기기가 끊겨 있으면 묻지 않는다 — 답이 뻔한 요청을 던지지 않는다', () => {
-  const measure = BAR.slice(BAR.indexOf('const measure = useCallback'), BAR.indexOf('useEffect(() => {'))
+  const measure = measureBody()
   assert.match(measure, /deviceOnline\s*\n?\s*\? await pingServer/, '끊긴 줄 알면서도 물어본다')
 })
 
@@ -224,6 +238,41 @@ test('★ 끊긴 것과 안 답하는 것을 갈라 말한다 — 사람이 할 
 test('★ 안 닿을 때 «값이 언제 것인지»를 말한다 — 이 한 줄이 없어서 사고가 났다', () => {
   assert.match(BAR, /key === 'UNREACHABLE' &&[\s\S]{0,120}마지막으로 받은 것/,
     '안 닿는다고만 하고 화면의 값이 지난 것이라는 말을 안 한다')
+})
+
+/* ── ⑥ 오프라인에서 시작한 회의가 서버로 건너가는가 (v0.10.739) ───────
+   사용자 지시 2026-09-30: "어떤 상황이든 누락되는게 발생되면 안되는거야
+   오프라인에서도 되게 만들어". 부품이 다 있어도 **부르는 자리**가 없으면
+   그 회의는 기기에만 남고 아무도 못 본다. 그 자리를 값으로 센다. */
+
+test('★ 올리기 전에 회의를 서버로 건넨다 — 순서가 뒤집히면 올릴 주소가 없다', () => {
+  const body = BAR.slice(BAR.indexOf('const sync = useCallback'), BAR.indexOf('const measure = useCallback'))
+  const reconcileAt = body.indexOf('reconcilePendingMeetings(')
+  const syncAt = body.indexOf('syncPendingParts(')
+  assert.ok(reconcileAt > 0, 'reconcile 을 아예 안 부른다 — 오프라인 회의가 영영 안 올라간다')
+  assert.ok(syncAt > reconcileAt, '올린 다음에 건넨다 — 그 판에서는 올릴 주소가 없다')
+})
+
+test('★ 녹음 중인 회의는 안 건네도록 넘긴다 — 건너면 그 뒤 구간이 고아가 된다', () => {
+  assert.match(BAR, /reconcilePendingMeetings\(\{ activeNoteId: activeNoteIdRef\.current \}\)/,
+    '지금 녹음 중인 회의를 안 알려 준다')
+})
+
+test('★ 아직 안 건너간 구간이 있으면 「다 됐다」고 말하지 않는다', () => {
+  assert.match(BAR, /r\.waitingLocal > 0/, '남은 것을 안 센다')
+  assert.match(BAR, /아직 서버로 안 건너간 구간/, '남은 것을 말하지 않는다')
+})
+
+test('★ 기기가 만든 회의에는 링크를 안 건다 — 누르면 오프라인에서 화면이 죽는다', () => {
+  assert.match(RECBAR, /const local = isLocalNoteId\(rec\.target\.noteId\)/, '로컬 회의를 가르지 않는다')
+  assert.match(RECBAR, /\{!local && \(\s*<Link/, '로컬 회의에도 링크를 건다')
+})
+
+test('★ 기기가 만든 회의에서 상주 바가 사라지지 않는다 — 녹음 중이라는 유일한 표시다', () => {
+  // href 를 현재 화면으로 두므로, 로컬을 안 가르면 「그 회의 화면에 있음」으로 보고 통째로 숨긴다
+  assert.match(RECBAR, /const onTargetScreen = !local && pathname ===/,
+    '로컬 회의에서도 화면이 같다는 이유로 바를 숨긴다')
+  assert.match(RECBAR, /이 기기에 저장 중/, '어디에 저장되고 있는지 안 말한다')
 })
 
 /* ── ④ 셸이 뜬다 (PWA) ──────────────────────────────────── */

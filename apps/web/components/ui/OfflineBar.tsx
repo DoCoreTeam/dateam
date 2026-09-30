@@ -24,6 +24,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { CloudOff, CloudUpload, CircleAlert, Check, ServerOff } from 'lucide-react'
 import * as blobStore from '@/lib/offline/blob-store'
 import { syncPendingParts } from '@/lib/offline/sync-parts'
+import { reconcilePendingMeetings } from '@/lib/offline/reconcile'
+import { useRecordingSession } from '@/lib/meeting/recording-context'
 import { SYNC_STATUS_META, type SyncStatusKey } from '@/lib/offline/ui/sync-status'
 import { pingServer, nextFailureStreak, isUnreachable } from '@/lib/offline/reachable'
 import styles from './offline-bar.module.css'
@@ -61,6 +63,15 @@ export default function OfflineBar() {
   const [status, setStatus] = useState<SyncStatusKey | null>(null)
   const [detail, setDetail] = useState<string | null>(null)
 
+  /**
+   * 지금 녹음이 붙어 있는 회의 — 이것만은 서버로 안 건넨다.
+   * 건너는 동안에도 구간이 쌓이므로 옮기고 지우면 뒤 구간이 고아가 된다.
+   * 값이 아니라 칸으로 들고 있는 이유: 대상이 바뀔 때마다 올리는 함수를 새로 만들 이유가 없다.
+   */
+  const rec = useRecordingSession()
+  const activeNoteIdRef = useRef<string | null>(null)
+  useEffect(() => { activeNoteIdRef.current = rec.target?.noteId ?? null }, [rec.target])
+
   /** 연속 실패 셈 — 한 번 튄 요청에 경고가 깜빡이면 그 배너는 고장 신호가 된다 */
   const streakRef = useRef(0)
   /** 한 번이라도 어긋났나 — 아직 말하지는 않지만 **자주 묻기 시작한다** */
@@ -76,6 +87,14 @@ export default function OfflineBar() {
   /** 올린다. 스스로도 부르고, 「다시 시도」도 이걸 부른다 */
   const sync = useCallback(async () => {
     if (!blobStore.isSupported()) return
+
+    /*
+      **올리기 전에 건넨다.** 연결이 없을 때 시작한 녹음은 `local_…` 밑에 쌓여 있고,
+      그 회의가 서버에 생기기 전에는 올릴 주소가 없다. 이 한 줄이 없으면 부품은 다 있는데
+      오프라인 회의만 영영 안 올라간다 — 이 저장소가 여러 번 겪은 그 상태다.
+    */
+    await reconcilePendingMeetings({ activeNoteId: activeNoteIdRef.current }).catch(() => {})
+
     const before = await blobStore.countPending().catch(() => 0)
     if (before === 0) return
 
@@ -85,6 +104,12 @@ export default function OfflineBar() {
     await refresh()
 
     if (r.skipped) { setStatus(null); return }
+    if (r.waitingLocal > 0 && r.failed.length === 0) {
+      // 올린 것은 올렸고, 아직 회의가 서버에 안 생긴 구간이 남았다. 「다 됐다」고 말하지 않는다
+      setStatus('QUEUED')
+      setDetail(`아직 서버로 안 건너간 구간 ${r.waitingLocal}개`)
+      return
+    }
     if (r.failed.length > 0) {
       setStatus('FAILED')
       // 무엇이 안 올라갔는지 **숫자가 아니라 이름으로** 말한다
