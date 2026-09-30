@@ -17,6 +17,7 @@
  */
 
 import { kstParts, kstTodayKey } from '../../datetime/kst.ts'
+import { SERVER_UNREACHABLE_MESSAGE } from '../../offline/reachable.ts'
 
 /**
  * 제목을 안 물어보고 시작한다 — 회의는 이미 시작됐고 사용자는 녹음 버튼을 찾고 있다.
@@ -92,13 +93,26 @@ export function buildStartBody(input: StartMeetingInput = {}): Record<string, un
 /**
  * 실제로 만든다. 실패하면 **던진다** — 부르는 화면이 사용자에게 읽히는 말로 보여 줘야 한다.
  * 조용히 null 을 돌려주면 버튼을 눌렀는데 아무 일도 안 일어나는 화면이 된다.
+ *
+ * **실패가 두 종류라 말도 둘이다** (실측 2026-09-30):
+ *   ① 요청이 아예 못 나갔다 — 브라우저가 주는 원문은 「Failed to fetch」다. 그 말은 영어인 데다
+ *      무엇이 잘못됐는지도 무엇을 하면 되는지도 말하지 않는다. 사용자가 이 말을 봤다.
+ *   ② 서버가 답했는데 거절했다 — 그 사유는 서버가 더 잘 아니 그대로 전한다.
+ * 둘을 한 말로 뭉개면, 권한이 없어서 막힌 사람에게 「연결을 확인하세요」라고 말하게 된다.
  */
 export async function startMeeting(input: StartMeetingInput = {}): Promise<StartedMeeting> {
-  const res = await fetch('/api/crm/meetings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildStartBody(input)),
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/crm/meetings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildStartBody(input)),
+    })
+  } catch {
+    // 답이 하나도 안 왔다. 여기서 브라우저 원문을 그대로 올리면 화면에 「Failed to fetch」가 뜬다
+    throw new Error(SERVER_UNREACHABLE_MESSAGE)
+  }
+
   const body = await res.json().catch(() => null)
   if (!res.ok) {
     throw new Error(body?.error?.message ?? '미팅을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')

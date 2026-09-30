@@ -55,7 +55,7 @@
 의존: I01
 
 ### I03 창구가 안 닿을 때 「Failed to fetch」를 사용자에게 보이지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ui/start-meeting.ts, apps/web/lib/crm/ui/start-meeting.test.ts
 감사 기준:
