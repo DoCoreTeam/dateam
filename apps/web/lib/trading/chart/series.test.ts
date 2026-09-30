@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf, planBaseAt, DEFAULT_WINDOW_BARS } from './series.ts'
+import { buildSeries, axisDomain, pickNowCall, callAgeLabel, isOtherDay, chartTitle, planForCall, defaultWindow, dayBreaksOf, planBaseAt, DEFAULT_WINDOW_BARS, zoomWindow, MIN_WINDOW_BARS } from './series.ts'
 import { deadlineLeftText } from '../signal-labels.ts'
 import type { PlanParams } from './series.ts'
 import { readRunReason } from '../operator/run-reason.ts'
@@ -809,4 +809,58 @@ test('★ 봉이 창보다 적으면 있는 대로 다 그린다', () => {
   const s = buildSeries({ bars: few, signals: [], lastRunReason: null, plan: PLAN })
   assert.equal(s.window?.startIndex, 0, '있는 봉이 적은데 잘라 낸다')
   assert.equal(s.window?.endIndex, 39)
+})
+
+
+/* ── 휠로 시간축을 줌한다 (사용자 지시 2026-09-29) ── */
+
+test('★ 휠을 올리면 좁아지고 내리면 넓어진다', () => {
+  const w = { startIndex: 100, endIndex: 219 } // 120봉
+  const inn = zoomWindow(w, 300, 0.5, 1)
+  const out = zoomWindow(w, 300, 0.5, -1)
+  const span = (x: { startIndex: number; endIndex: number }) => x.endIndex - x.startIndex + 1
+  assert.ok(span(inn) < 120, `좁아지지 않았다 (${span(inn)})`)
+  assert.ok(span(out) > 120, `넓어지지 않았다 (${span(out)})`)
+})
+
+/**
+ * **커서 아래 봉이 제자리에 남아야 한다.**
+ * 가운데만 기준으로 하면 줌할 때마다 보던 봉이 옆으로 달아난다.
+ */
+test('★ 커서 자리를 기준으로 줄고 는다', () => {
+  const w = { startIndex: 100, endIndex: 219 }
+  // 왼쪽 끝에 커서를 두면 왼쪽이 거의 안 움직인다
+  const left = zoomWindow(w, 300, 0, 1)
+  assert.equal(left.startIndex, 100, '왼쪽 끝에 커서를 뒀는데 왼쪽이 움직였다')
+  // 오른쪽 끝에 두면 오른쪽이 거의 안 움직인다
+  const right = zoomWindow(w, 300, 1, 1)
+  assert.equal(right.endIndex, 219, '오른쪽 끝에 커서를 뒀는데 오른쪽이 움직였다')
+})
+
+test('★ 너무 좁아지거나 실어 온 봉보다 넓어지지 않는다', () => {
+  let w = { startIndex: 0, endIndex: 299 }
+  // 계속 좁혀도 하한에서 멈춘다
+  for (let i = 0; i < 50; i += 1) w = zoomWindow(w, 300, 0.5, 1)
+  assert.equal(w.endIndex - w.startIndex + 1, MIN_WINDOW_BARS, '하한을 안 지킨다')
+  // 계속 넓혀도 실어 온 봉을 안 넘는다
+  for (let i = 0; i < 50; i += 1) w = zoomWindow(w, 300, 0.5, -1)
+  assert.equal(w.startIndex, 0)
+  assert.equal(w.endIndex, 299, '실어 온 봉보다 넓어졌다')
+})
+
+test('★ 봉이 하한보다 적으면 있는 대로 둔다', () => {
+  const w = { startIndex: 0, endIndex: 9 }
+  assert.deepEqual(zoomWindow(w, 10, 0.5, 1), w, '봉 10개뿐인데 더 좁힌다')
+  assert.deepEqual(zoomWindow(w, 0, 0.5, 1), w, '봉이 0건인데 창을 만든다')
+})
+
+test('★ 화면이 휠을 차트 안에서만 가로챈다', () => {
+  const panel = readFileSync(PANEL, 'utf8')
+  assert.match(panel, /onWheel=\{onWheel\}/, '휠을 안 받는다')
+  const at = panel.indexOf('const onWheel')
+  const body = panel.slice(at, panel.indexOf('\n  }', at))
+  assert.match(body, /e\.preventDefault\(\)/, '휠을 안 가로채면 페이지가 같이 내려간다')
+  assert.match(body, /zoomWindow\(/, '줌 셈을 화면이 새로 적는다')
+  // 매 이벤트가 아니라 프레임마다 한 번
+  assert.match(body, /queueView\(/, '휠 이벤트마다 다시 그린다 — 무거워진다')
 })

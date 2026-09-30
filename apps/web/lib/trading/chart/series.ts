@@ -675,3 +675,39 @@ export function chartTitle(input: { signalCount: number; callCount: number }): s
   if (input.callCount > 0) return '1분봉 가격과 판단'
   return '1분봉 가격'
 }
+
+/** 휠로 줄일 수 있는 가장 좁은 창. 이보다 좁으면 봉 몇 개만 남아 흐름이 안 보인다 */
+export const MIN_WINDOW_BARS = 20
+
+/**
+ * 휠 한 번에 창을 넓히거나 좁힌다 — **커서 자리를 기준으로**.
+ *
+ * 화면 가운데만 기준으로 하면 줌할 때마다 보던 봉이 옆으로 달아난다. HTS 는 커서
+ * 아래 봉이 제자리에 있고 그 둘레가 줄고 는다.
+ *
+ * @param at 커서가 창의 어디쯤인가 (0 왼쪽 끝 ~ 1 오른쪽 끝)
+ * @param direction 1 이면 좁힌다(확대), -1 이면 넓힌다(축소)
+ */
+export function zoomWindow(
+  window: { startIndex: number; endIndex: number },
+  barCount: number,
+  at: number,
+  direction: 1 | -1,
+  step = 0.2,
+): { startIndex: number; endIndex: number } {
+  if (barCount <= 0) return window
+  const span = window.endIndex - window.startIndex + 1
+  const max = barCount
+  const min = Math.min(MIN_WINDOW_BARS, max)
+  // 한 번에 20%씩. 곱으로 바꿔야 넓은 창에서도 좁은 창에서도 같은 느낌이 난다
+  const wanted = direction === 1 ? Math.round(span * (1 - step)) : Math.round(span / (1 - step))
+  const next = Math.min(max, Math.max(min, wanted))
+  if (next === span) return window
+
+  // 커서 아래 봉이 제자리에 남도록 양쪽을 나눠 줄인다
+  const ratio = Math.min(1, Math.max(0, at))
+  const anchor = window.startIndex + ratio * (span - 1)
+  let start = Math.round(anchor - ratio * (next - 1))
+  start = Math.min(Math.max(0, start), Math.max(0, barCount - next))
+  return { startIndex: start, endIndex: Math.min(barCount - 1, start + next - 1) }
+}

@@ -19,7 +19,7 @@ import { CandlestickChart, HelpCircle } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import type { ChartSeries, SignalRow } from '@/lib/trading/overview-shape'
-import { pickNowCall, callAgeLabel, chartTitle, planForCall } from '@/lib/trading/chart/series'
+import { pickNowCall, callAgeLabel, chartTitle, planForCall, zoomWindow } from '@/lib/trading/chart/series'
 import {
   buildDisplayBars, isForming, isChartTimeframe,
   CHART_TIMEFRAMES, DEFAULT_CHART_TIMEFRAME, type ChartTimeframe, type DisplayBar,
@@ -451,7 +451,23 @@ function PriceChart(
    * 전부 그려졌다(180→180). 이름을 `view` 로 둔 것은 전역 `window` 를 가리지 않으려는 것이다.
    */
   const [view, setView] = useState<{ startIndex: number; endIndex: number } | null>(() => serverWindow)
-  const drag = useRef<{ x: number; start: number; end: number; held: boolean } | null>(null)
+  const barCount = bars.length
+
+  /**
+   * 한 프레임에 한 번만 다시 그린다. 휠은 초당 수십 번 오고, 매번 상태를 고치면
+   * 봉 수백 개짜리 차트가 그만큼 다시 그려진다 (실측 전례: 화면이 먹통에 가까워졌다).
+   */
+  const frame = useRef<number | null>(null)
+  const pending = useRef<{ startIndex: number; endIndex: number } | null>(null)
+  useEffect(() => () => { if (frame.current !== null) cancelAnimationFrame(frame.current) }, [])
+  const queueView = (next: { startIndex: number; endIndex: number }): void => {
+    pending.current = next
+    if (frame.current !== null) return
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null
+      if (pending.current) setView(pending.current)
+    })
+  }
 
   // 서버가 정한 창이 바뀌면(봉이 들어오면) 따라간다 — 단, 사용자가 민 뒤에는 그 폭을 지킨다
   useEffect(() => {
@@ -466,14 +482,27 @@ function PriceChart(
   }, [serverWindow])
 
   /**
-   * **포인터를 안 붙잡는다.**
+   * **휠로 시간축을 줌한다** — HTS 관례다 (사용자 지시 2026-09-29
+   * 「차트 스크롤을 마우스 휠로 할 수 있어야 한다는 말이었어」).
    *
-   * 끌어서 미는 기능을 넣었다가 뺐다. 누를 때마다 포인터를 붙잡고 미는 동안 매 이벤트마다
-   * 다시 그려서, 사용자가 「오히려 먹통에 가까워」라고 했다(2026-09-29). 고친 판을
-   * 실브라우저로 확인하려 했으나 개발 서버 둘이 다 못 믿을 상태였고(하나는 12시간 4.2GB,
-   * 하나는 찬 서버) **확인 못 한 것을 넣어 두지 않는다**.
+   * 차트 위에서는 페이지가 아니라 차트가 움직인다. 차트 **밖**에서는 그대로 페이지가
+   * 내려간다 — `preventDefault` 를 이 상자 안에서만 부른다.
    *
-   * 과거를 보는 길은 아래 구간 띠가 그대로 한다. 띠는 확인된 기능이다.
+   * 한 프레임에 한 번만 반영한다. 휠은 초당 수십 번 오고, 매번 다시 그리면 무거워진다
+   * (실측 전례: 미는 동안 화면이 먹통에 가까워졌다).
+   */
+  const onWheel = (e: React.WheelEvent<HTMLDivElement>): void => {
+    if (!view || barCount === 0) return
+    e.preventDefault()
+    const box = e.currentTarget.getBoundingClientRect()
+    // 커서가 창의 어디쯤인가. 그 자리 봉이 제자리에 남는다
+    const at = box.width > 0 ? (e.clientX - box.left) / box.width : 0.5
+    queueView(zoomWindow(view, barCount, at, e.deltaY > 0 ? -1 : 1))
+  }
+
+  /**
+   * **끌어서 미는 기능은 없다.** 넣었다가 뺐다 — 누를 때마다 포인터를 붙잡아
+   * 화면이 먹통에 가까워졌다(2026-09-29). 좌우로 보는 길은 휠과 구간 띠가 한다.
    */
 
   /**
@@ -510,7 +539,7 @@ function PriceChart(
 
   return (
     <div className={styles.chartWrap}>
-      <div className={styles.chartBox}>
+      <div className={styles.chartBox} onWheel={onWheel}>
       <R.ResponsiveContainer width="100%" height="100%">
         <R.ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <R.CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />

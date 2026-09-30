@@ -118,7 +118,7 @@
 보안: 해당 없음 — 가드 파일 하나와 등재 한 줄이다
 
 ### I05 마우스 휠로 차트를 움직인다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(trading)/trading/ChartPanel.tsx, apps/web/app/(trading)/trading/ChartPanel.module.css, apps/web/lib/trading/chart/series.ts, apps/web/lib/trading/chart/series.test.ts
 감사 기준:
