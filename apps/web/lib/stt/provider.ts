@@ -70,13 +70,25 @@ export class SttError extends Error {
   readonly userMessage: string
   /** 다시 시도해서 풀릴 종류인가 — 아니면 재시도가 그냥 같은 실패를 반복한다 */
   readonly retryable: boolean
+  /**
+   * 업체가 **힌트를 문제 삼았나.** 힌트는 빼면 되는 것이라 이 한 가지만 따로 센다 —
+   * 재시도 여부(`retryable`)와는 다른 질문이다. 이건 「같은 것을 다시」가 아니라
+   * 「덜어 내고 다시」다.
+   */
+  readonly promptRejected: boolean
 
-  constructor(reason: SttFailureReason, userMessage: string, retryable: boolean) {
+  constructor(
+    reason: SttFailureReason,
+    userMessage: string,
+    retryable: boolean,
+    promptRejected = false,
+  ) {
     super(`${reason}: ${userMessage}`)
     this.name = 'SttError'
     this.reason = reason
     this.userMessage = userMessage
     this.retryable = retryable
+    this.promptRejected = promptRejected
   }
 }
 
@@ -141,7 +153,32 @@ export function mapVerboseJson(raw: unknown): SttSegment[] {
 }
 
 /** HTTP 상태를 사람이 읽을 실패로 옮긴다 — "다시 시도"가 100% 또 실패할 것은 그렇게 말하지 않는다 */
-export function classifyHttpFailure(status: number, body: string): SttError {
+/**
+ * 업체가 받아 주는 힌트(prompt) 상한.
+ *
+ * Whisper 계열은 224 토큰까지이고 업체는 그것을 **896자**로 환산해 거절한다
+ * (실측 원문: `prompt length must be 896 characters or fewer`).
+ * 여유를 두고 자른다 — 자르는 것이 첫 겹이고, 그래도 거절당하면 **빼고 다시 보내는 것**이 둘째 겹이다.
+ */
+export const MAX_PROMPT_CHARS = 880
+
+/**
+ * 이 400 이 **힌트 탓인가.**
+ *
+ * 아무 400 이나 힌트 탓으로 돌리면, 형식이 틀린 파일을 두 번 보내게 된다.
+ * 반대로 안 가리면 힌트 하나 때문에 10분치 소리를 버린다 — 2026-09-30 에 실제로 그랬다.
+ */
+export function isPromptRejection(status: number, body: string): boolean {
+  return status === 400 && /prompt/i.test(body)
+}
+
+/** 보낸 힌트의 사정 — 사유에 길이를 남겨야 다음 실패가 스스로 원인을 말한다 */
+export interface PromptTrace {
+  chars: number
+  sent: boolean
+}
+
+export function classifyHttpFailure(status: number, body: string, prompt?: PromptTrace): SttError {
   if (status === 401 || status === 403) {
     return new SttError('auth', '음성 인식 키가 올바르지 않습니다. 시스템 설정 → 통합에서 확인해 주세요.', false)
   }
@@ -154,7 +191,22 @@ export function classifyHttpFailure(status: number, body: string): SttError {
   if (status >= 500) {
     return new SttError('server', '음성 인식 서비스가 응답하지 않습니다. 잠시 후 자동으로 다시 시도합니다.', true)
   }
-  return new SttError('server', `음성 인식에 실패했습니다 (${status}). ${body.slice(0, 120)}`, false)
+  /*
+    사유에 **힌트 길이**를 적는다. 2026-09-30 의 실패는 업체가 「936자를 보냈다」고 말해 줬는데
+    우리 쪽 사유에는 그 숫자가 없어서, 어디서 936 이 나왔는지를 코드만 보고는 못 맞췄다.
+    몸통은 120자까지만 싣는다 — 응답 원문을 통째로 남기면 내부 구조가 그대로 따라 나온다.
+  */
+  const hint = !prompt || prompt.chars === 0
+    ? ''
+    : prompt.sent
+      ? ` (힌트 ${prompt.chars}자)`
+      : ` (힌트 ${prompt.chars}자를 빼고도 실패)`
+  return new SttError(
+    'server',
+    `음성 인식에 실패했습니다 (${status}).${hint} ${body.slice(0, 120)}`,
+    false,
+    isPromptRejection(status, body),
+  )
 }
 
 /**
@@ -189,13 +241,28 @@ export function openAiCompatibleStt(opts: {
         throw new SttError('too_large', '녹음 구간이 너무 큽니다. 더 짧게 나눠 주세요.', false)
       }
 
-      const form = new FormData()
-      form.append('file', new Blob([new Uint8Array(input.bytes)], { type: input.mimeType }), input.filename)
-      form.append('model', opts.model)
-      form.append('response_format', 'verbose_json')
-      if (input.language) form.append('language', input.language)
-      // 앞 구간의 끝을 문맥으로 준다 — 고유명사·회사명이 구간 경계에서 흔들리는 걸 줄인다
-      if (input.priorContext) form.append('prompt', input.priorContext.slice(0, 800))
+      /**
+       * 요청 몸통을 **시도마다 새로 만든다.**
+       *
+       * 둘 다를 위해서다 — 힌트를 뺀 판을 보내려면 다른 몸통이 필요하고,
+       * 키를 갈아 가며 보낼 때 한 번 쓴 몸통을 다시 쓰면 스트림이 이미 소비돼 있다.
+       */
+      const promptChars = input.priorContext
+        ? Math.min(input.priorContext.length, MAX_PROMPT_CHARS)
+        : 0
+      const buildForm = (withPrompt: boolean): FormData => {
+        const form = new FormData()
+        form.append('file', new Blob([new Uint8Array(input.bytes)], { type: input.mimeType }), input.filename)
+        form.append('model', opts.model)
+        form.append('response_format', 'verbose_json')
+        if (input.language) form.append('language', input.language)
+        // 앞 구간의 끝을 문맥으로 준다 — 고유명사·회사명이 구간 경계에서 흔들리는 걸 줄인다.
+        // **있으면 좋은 것이지 필요한 것이 아니다.** 거절당하면 이것부터 버린다
+        if (withPrompt && input.priorContext) {
+          form.append('prompt', input.priorContext.slice(0, MAX_PROMPT_CHARS))
+        }
+        return form
+      }
 
       /*
         녹음은 **소리**라 글자 가림이 애초에 안 닿는다. 가린 척하지 않고
@@ -217,7 +284,7 @@ export function openAiCompatibleStt(opts: {
         분류는 우리가 이미 SttError 로 해 두었으므로 문구로 되돌려 추측하게 하지 않는다.
       */
       const providerId = isAiProviderId(opts.vendor) ? opts.vendor : null
-      const runOnce = async (apiKey: string, keyRef: string | null): Promise<SttResult> => {
+      const send = async (apiKey: string, keyRef: string | null, withPrompt: boolean): Promise<SttResult> => {
       const out = await guardedMedia(
         input.bytes.byteLength,
         {
@@ -237,7 +304,7 @@ export function openAiCompatibleStt(opts: {
             res = await fetch(opts.endpoint, {
               method: 'POST',
               headers: { Authorization: `Bearer ${apiKey}` },
-              body: form,
+              body: buildForm(withPrompt),
               signal: ctl.signal,
             })
           } catch (e) {
@@ -250,7 +317,9 @@ export function openAiCompatibleStt(opts: {
           }
 
           if (!res.ok) {
-            throw classifyHttpFailure(res.status, await res.text().catch(() => ''))
+            throw classifyHttpFailure(res.status, await res.text().catch(() => ''), {
+              chars: promptChars, sent: withPrompt,
+            })
           }
           // 관문은 글자를 기다리지만 우리가 쓸 것은 구간이다 — 원문을 같이 들고 나간다
           const raw = await res.json()
@@ -264,6 +333,28 @@ export function openAiCompatibleStt(opts: {
         throw new SttError('empty', '이 구간에서 말소리를 찾지 못했습니다. 마이크가 꺼져 있었을 수 있어요.', false)
       }
       return { segments, model: opts.model }
+      }
+
+      /**
+       * **힌트가 거절당하면 힌트를 빼고 다시 보낸다.**
+       *
+       * 실측 2026-09-30: 52분 회의의 한 구간이 `prompt length must be 896 characters or fewer`
+       * 400 으로 통째로 버려졌다. 힌트는 고유명사를 덜 흔들리게 하려고 얹는 것이지
+       * 전사에 필요한 것이 아니다. **있으면 좋은 것 때문에 본문을 잃지 않는다.**
+       *
+       * 힌트를 안 보냈으면 뺄 것이 없으니 다시 보내지 않는다 —
+       * 그러면 같은 실패를 두 배로 치를 뿐이다.
+       */
+      const runOnce = async (apiKey: string, keyRef: string | null): Promise<SttResult> => {
+        try {
+          return await send(apiKey, keyRef, true)
+        } catch (e) {
+          const hintCouldBeTheCause = promptChars > 0
+            && e instanceof SttError
+            && e.promptRejected
+          if (!hintCouldBeTheCause) throw e
+          return send(apiKey, keyRef, false)
+        }
       }
 
       if (!providerId) return runOnce(opts.apiKey, null)
