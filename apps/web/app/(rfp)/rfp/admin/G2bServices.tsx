@@ -11,7 +11,10 @@
 import SettingsCard from '@/components/ui/settings/SettingsCard'
 import StatusPill, { toneFromStatusKey } from '@/components/ui/settings/StatusPill'
 import { G2B_SERVICES } from '@/lib/rfp/g2b/services'
-import { RFP_ADMIN, G2B_SERVICE_NAME, G2B_SERVICE_GIVES } from '@/lib/rfp/terms'
+import { RFP_ADMIN, RFP_RADAR, G2B_SERVICE_NAME, G2B_SERVICE_GIVES } from '@/lib/rfp/terms'
+import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
+import NbButton from '@/components/ui/nb/NbButton'
+import { ExternalLink } from 'lucide-react'
 import styles from '@/app/(rfp)/rfp.module.css'
 
 export interface G2bServicesProps {
@@ -29,11 +32,21 @@ export default function G2bServices({ hasServiceKey }: G2bServicesProps) {
       headingLevel={2}
       status={{ tone: toneFromStatusKey('note'), label: `${inUse} / ${G2B_SERVICES.length}` }}
     >
-      {/* 키가 없으면 그 사실을 먼저 말한다. 나머지를 흐리게만 두면 왜 안 되는지 모른다 */}
+      {/*
+        키가 없으면 그 사실을 먼저 말한다. 나머지를 흐리게만 두면 왜 안 되는지 모른다.
+        그리고 **넣으러 갈 곳을 옆에 둔다** — 「관리자 설정에서 넣으세요」라고만 쓰면
+        읽는 쪽이 그 설정을 찾아야 하고, 그것은 우리가 대신할 수 있는 일이다.
+        주소는 공급자 카드·수집처 카드와 같은 상수를 쓴다
+      */}
       {!hasServiceKey && (
-        <p role="status" className={styles.sectionDesc} style={{ color: 'var(--danger)' }}>
-          {RFP_ADMIN.g2bNoKey}
-        </p>
+        <div role="status" className={styles.tight}>
+          <p className={styles.sectionDesc} style={{ color: 'var(--danger)' }}>
+            {RFP_ADMIN.g2bNoKey}
+          </p>
+          <NbButton variant="secondary" href={HOST_AI_SETTINGS_HREF}>
+            <ExternalLink size={14} /> {RFP_RADAR.serviceKeyLink}
+          </NbButton>
+        </div>
       )}
 
       <div className={styles.ruleList}>

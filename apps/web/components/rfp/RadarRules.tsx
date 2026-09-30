@@ -19,13 +19,14 @@
 // 자동으로 만들면 분석 비용이 자동으로 나가고 아무도 안 볼 리포트가 쌓인다.
 
 import { useCallback, useState } from 'react'
-import { Radar as RadarIcon, Plus, X, Wand2 } from 'lucide-react'
+import { Radar as RadarIcon, Plus, X, Wand2, ExternalLink } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { isEnterKey, isImeComposing } from '@/lib/ui/ime'
 import { RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
+import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
 import styles from '@/app/(rfp)/rfp.module.css'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { useElapsedMs } from '@/components/ui/useElapsedMs'
@@ -101,6 +102,8 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
   const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
   const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [hits, setHits] = useState(initialHits)
+  // 키가 없어서 못 가져왔나 — 안내 옆에 넣으러 가는 길을 켤지 정한다
+  const [needKey, setNeedKey] = useState(false)
   const [draft, setDraft] = useState<NewRule | null>(null)
   const [ask, setAsk] = useState('')
   const [asking, setAsking] = useState(false)
@@ -111,6 +114,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
   const sweep = useCallback(async () => {
     setError(null)
     setNote(null)
+    setNeedKey(false)
     setBusy(true)
     try {
       const res = await fetch('/api/rfp/radar', { method: 'POST' })
@@ -118,7 +122,8 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
       if (!res.ok) { setError(RFP_COMMON.error); return }
 
       // 0건이 «없다»인지 «못 가져왔다»인지 화면이 말해야 한다
-      if (body.collected?.reason === 'no_service_key') setNote(RFP_RADAR.noServiceKey)
+      // 키가 없다고만 말하면 읽는 쪽이 어디로 갈지 모른다. 안내 옆에 길을 같이 켠다
+      if (body.collected?.reason === 'no_service_key') { setNote(RFP_RADAR.noServiceKey); setNeedKey(true) }
       else if (body.reason === 'no_rules') setNote(RFP_RADAR.noRules)
       else setNote(`${RFP_RADAR.collected} ${body.collected?.inserted ?? 0} · ${RFP_RADAR.matched} ${body.hits?.length ?? 0}`)
 
@@ -331,6 +336,12 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
         </div>
 
         {note && <span className={styles.sectionDesc}>{note}</span>}
+        {/* 키가 없어서 못 가져온 것이면 넣으러 갈 곳을 같이 둔다 */}
+        {needKey && (
+          <NbButton variant="secondary" href={HOST_AI_SETTINGS_HREF}>
+            <ExternalLink size={14} /> {RFP_RADAR.serviceKeyLink}
+          </NbButton>
+        )}
       </section>
 
       {/* ② 걸린 공고 */}
