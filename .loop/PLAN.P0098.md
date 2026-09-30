@@ -45,7 +45,7 @@
 의존: 없음
 
 ### I02 이 판을 사용자가 본다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/changelog/entries.ts
 감사 기준:

@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.810',
+    date: '2026-10-01',
+    title: '차트 위에서 휠을 굴려도 화면이 안 밀려요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🖱️',
+        headline: '차트 안에서는 차트만 움직여요',
+        detail: 'AI 트레이딩 차트 위에 마우스를 올리고 휠을 굴리면 차트가 확대·축소되면서 화면까지 같이 아래로 밀려 내려갔어요. 이제 차트 안에서는 차트만 움직이고, 차트 밖에서는 예전처럼 화면이 내려갑니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.799',
     date: '2026-09-30',
     title: '화면의 숫자에 쉼표가 붙어요',
