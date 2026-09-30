@@ -55,6 +55,12 @@ export interface OrderStep {
 export interface OrderCard {
   /** 「먼저 팝니다」 — 방향을 이름이 아니라 **할 일**로 */
   headline: string
+  /**
+   * 이 계획이 아직 살아 있나. **지난 계획은 흐리게 그린다** —
+   * 지금 할 일과 같은 무게로 두면 읽는 사람이 그대로 주문한다
+   * (사용자 지적 2026-09-30 「디자인 정책좀 따르자 이게 뭐냐」)
+   */
+  past: boolean
   /** 들어갈 때 · 벌 때 · 틀릴 때, 이 순서다 */
   steps: readonly OrderStep[]
   /** 시각 셋. 전부 시:분이고 길이가 아니다 */
@@ -80,6 +86,11 @@ export function buildOrderCard(input: {
 }): OrderCard {
   const { plan, nowPrice, now } = input
   const multiplier = input.multiplier ?? null
+  /*
+    **지났나.** 들어갈 수 있는 시각이 지났거나 그날 청산 시각이 지났으면 지난 것이다.
+    지난 계획의 값은 지우지 않는다 — 무엇을 말했었는지는 남아야 한다. 무게만 낮춘다.
+  */
+  const past = isPast(plan.entryDeadlineAt, now) || isPast(plan.sameDayExitAt, now)
   const act = ORDER_ACTION[plan.direction]
 
   const steps: OrderStep[] = [
@@ -117,16 +128,28 @@ export function buildOrderCard(input: {
         시각은 그 18분이 언제 끝나는지를 확인하는 값이다.
       */
       text: holdText(plan.timeExitMinutes),
-      note: exitNote(plan.timeExitMinutes, now),
+      /*
+        **들어갈 수 있을 때만 적는다.** 실측 2026-09-30 오후 03:51 화면에
+        「지금 들어가면 오후 04:06 쯤」이 떠 있었다 — 그 시각엔 장이 없다.
+      */
+      note: past ? null : exitNote(plan.timeExitMinutes, now),
     },
     {
       name: ORDER_STEP_LABEL.sessionExit,
       text: plan.sameDayExitAt ? seoulTimeText(plan.sameDayExitAt) : UNKNOWN_TEXT,
-      note: '그날 안에 정리합니다',
+      // 이미 지난 시각을 미래처럼 두지 않는다 (실측 「오후 03:20」이 오후 03:51 에 떠 있었다)
+      note: isPast(plan.sameDayExitAt, now) ? '지났습니다' : '그날 안에 정리합니다',
     },
   ]
 
-  return { headline: act.headline, steps, times }
+  return { headline: act.headline, past, steps, times }
+}
+
+/** 그 시각이 지났나. 시계를 모르면 지났다고 말하지 않는다 */
+function isPast(at: string | null, now: Date | null): boolean {
+  if (!now || !at) return false
+  const t = Date.parse(at)
+  return Number.isFinite(t) && now.getTime() >= t
 }
 
 /**

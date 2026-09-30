@@ -85,10 +85,7 @@
   flex: 1 1 8rem;
 }
 
-.fieldLabel {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
+/* 이름표 글자 모양은 표준 `label` 클래스가 정한다 — 여기서 또 정하지 않는다 */
 
 .message {
   margin: 0;

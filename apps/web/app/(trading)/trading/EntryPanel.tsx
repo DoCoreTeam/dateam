@@ -141,15 +141,17 @@ export default function EntryPanel({ open, nowPrice, multiplier, suggested }: En
               </div>
             </dl>
             <div className={styles.row}>
-              <label className={styles.field}>
-                <span className={styles.fieldLabel}>나온 가격</span>
+              {/* 이름표는 표준 `label` 클래스다 — 화면이 제 나름의 글자 스타일을 안 만든다 */}
+              <div className={styles.field}>
+                <label className="label" htmlFor="manual-exit-price">{MANUAL_ENTRY_LABEL.exitPrice}</label>
                 <input
+                  id="manual-exit-price"
                   className="input-field"
                   inputMode="decimal"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                 />
-              </label>
+              </div>
               <NbButton variant="danger" onClick={exit} disabled={pending}>
                 <LogOut size={14} /> {MANUAL_ENTRY_LABEL.exit}
               </NbButton>
@@ -161,31 +163,33 @@ export default function EntryPanel({ open, nowPrice, multiplier, suggested }: En
           <>
             <p className={styles.line}>{MANUAL_ENTRY_LABEL.none}</p>
             <div className={styles.row}>
-              <label className={styles.field}>
-                <span className={styles.fieldLabel}>{MANUAL_ENTRY_LABEL.entryPrice}</span>
+              <div className={styles.field}>
+                <label className="label" htmlFor="manual-entry-price">{MANUAL_ENTRY_LABEL.entryPrice}</label>
                 <input
+                  id="manual-entry-price"
                   className="input-field"
                   inputMode="decimal"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                 />
-              </label>
-              <label className={styles.field}>
-                <span className={styles.fieldLabel}>계약 수</span>
+              </div>
+              <div className={styles.field}>
+                <label className="label" htmlFor="manual-entry-qty">{MANUAL_ENTRY_LABEL.quantity}</label>
                 <input
+                  id="manual-entry-qty"
                   className="input-field"
                   inputMode="numeric"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                 />
-              </label>
+              </div>
             </div>
             <div className={styles.row}>
               <NbButton onClick={() => enter('long')} disabled={pending}>
-                <LogIn size={14} /> 샀습니다 (롱)
+                <LogIn size={14} /> {MANUAL_ENTRY_LABEL.buy}
               </NbButton>
               <NbButton onClick={() => enter('short')} disabled={pending}>
-                <LogIn size={14} /> 팔았습니다 (숏)
+                <LogIn size={14} /> {MANUAL_ENTRY_LABEL.sell}
               </NbButton>
             </div>
           </>

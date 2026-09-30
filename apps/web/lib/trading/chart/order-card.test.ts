@@ -131,3 +131,43 @@ test('돈은 화면에 뜬 가격으로 셈한다 — 보이는 값끼리 맞아
   assert.equal(card.steps[2].text, '1080.58 에 끊습니다')
   assert.equal(card.steps[2].note, '-66,000원')
 })
+
+/* ── 지나간 계획 (사용자 지적 2026-09-30 「디자인 정책좀 따르자 이게 뭐냐」) ── */
+
+test('진입 시간이 지나면 지난 계획으로 표시한다', () => {
+  const live = buildOrderCard({ plan: SHORT, nowPrice: 1085.7, now: NOW, multiplier: MULTIPLIER })
+  assert.equal(live.past, false)
+  const late = buildOrderCard({
+    plan: SHORT, nowPrice: 1085.7, now: new Date('2026-09-30T04:40:00.000Z'), multiplier: MULTIPLIER,
+  })
+  assert.equal(late.past, true)
+})
+
+test('지난 계획에는 「지금 들어가면」을 안 적는다 — 그 시각엔 장이 없다', () => {
+  // 실측 2026-09-30 오후 03:51 화면에 「지금 들어가면 오후 04:06 쯤」이 떠 있었다
+  const late = buildOrderCard({
+    plan: SHORT, nowPrice: 1085.7, now: new Date('2026-09-30T06:51:00.000Z'), multiplier: MULTIPLIER,
+  })
+  assert.equal(late.times.find((t) => t.name === ORDER_STEP_LABEL.hold)?.note, null)
+  // 값 자체는 지우지 않는다 — 무엇을 말했었는지는 남아야 한다
+  assert.equal(late.times.find((t) => t.name === ORDER_STEP_LABEL.hold)?.text, '약 18분')
+})
+
+test('당일 청산 시각이 지났으면 지났다고 적는다', () => {
+  // 실측: 「늦어도 이때는 오후 03:20」이 오후 03:51 에 미래처럼 떠 있었다
+  const late = buildOrderCard({
+    plan: SHORT, nowPrice: 1085.7, now: new Date('2026-09-30T06:51:00.000Z'), multiplier: MULTIPLIER,
+  })
+  const same = late.times.find((t) => t.name === ORDER_STEP_LABEL.sessionExit)
+  assert.equal(same?.text, '오후 03:20')
+  assert.equal(same?.note, '지났습니다')
+  // 아직 안 지났으면 원래 말을 한다
+  const live = buildOrderCard({ plan: SHORT, nowPrice: 1085.7, now: NOW, multiplier: MULTIPLIER })
+  assert.equal(live.times.find((t) => t.name === ORDER_STEP_LABEL.sessionExit)?.note, '그날 안에 정리합니다')
+})
+
+test('시계를 모르면 지났다고 말하지 않는다', () => {
+  const card = buildOrderCard({ plan: SHORT, nowPrice: 1085.7, now: null, multiplier: MULTIPLIER })
+  assert.equal(card.past, false)
+  assert.equal(card.times.find((t) => t.name === ORDER_STEP_LABEL.sessionExit)?.note, '그날 안에 정리합니다')
+})

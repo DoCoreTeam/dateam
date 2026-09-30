@@ -145,7 +145,12 @@ function OrderBlock({ plan, nowPrice, clock, multiplier }: {
    */
   const gate = entryWindowNow({ plan, nowPrice, now: clock })
   return (
-    <div className={styles.plan}>
+    /*
+      **지난 계획은 흐리게.** 값은 지우지 않는다 — 무엇을 말했었는지는 남아야 한다.
+      다만 지금 할 일과 같은 무게로 두면 읽는 사람이 그대로 주문한다
+      (사용자 지적 2026-09-30 「디자인 정책좀 따르자 이게 뭐냐」)
+    */
+    <div className={`${styles.plan} ${card.past ? styles.planPast : ''}`}>
       {/* 기록인지 예고인지를 먼저 말한다 — 예고를 지시로 읽으면 사람이 그대로 주문한다 */}
       <p className={styles.planSource}>{PLAN_SOURCE_LABEL[plan.from]}</p>
       {/*

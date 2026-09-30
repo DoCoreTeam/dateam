@@ -328,9 +328,15 @@
   overflow-wrap: break-word;
 }
 
-/* 옆에 붙는 사실. 문장보다 약하게 — 읽어도 되고 안 읽어도 되는 값이다 */
+/*
+  옆에 붙는 사실. 문장보다 약하게 — 읽어도 되고 안 읽어도 되는 값이다.
+
+  **줄을 따로 쓴다.** 같은 줄에 붙이면 좁은 칸에서 「1086.16 에 / 끊습니다 -51,000원」처럼
+  낱말 가운데서 접힌다 (실측 2026-09-30). 아래로 내리면 문장이 늘 통째로 읽힌다.
+*/
 .orderNote {
-  margin-left: var(--space-2);
+  display: block;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -404,4 +410,21 @@
   font-size: var(--fs-xs);
   color: var(--text-muted);
   word-break: keep-all;
+}
+
+/*
+  지나간 계획 — **흐리게**
+
+  사용자 지적 2026-09-30: 실측 오후 03:51 화면에 「시간이 지났습니다」가 떠 있는데
+  그 아래 주문서 여섯 줄이 평소와 같은 굵기로 그대로 있었다. 값을 지우지는 않는다 —
+  무엇을 말했었는지는 남아야 한다. 무게만 낮춘다.
+*/
+.planPast {
+  opacity: 0.55;
+}
+
+.planPast .orderHeadline,
+.planPast .orderText {
+  font-weight: 500;
+  color: var(--text-muted);
 }
