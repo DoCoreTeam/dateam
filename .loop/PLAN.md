@@ -1,6 +1,6 @@
 # PLAN newAX: 녹음은 어떤 상황에서도 안 잃는다 — 오프라인에서도 시작된다
 플랜 ID: P0091
-플랜 버전: v0.1.0
+플랜 버전: v0.1.1
 상태: 진행중
 지시: ins_0148
 목표 버전: v0.10.733
@@ -66,9 +66,9 @@
 의존: 없음
 
 ### I04 안 닿아도 녹음이 시작된다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/meeting/begin-recording.ts (신규), apps/web/lib/meeting/begin-recording.test.ts (신규), apps/web/components/crm/MeetingIntakeBox.tsx, apps/web/package.json
+범위: apps/web/lib/meeting/begin-recording.ts (신규), apps/web/lib/meeting/begin-recording.test.ts (신규), apps/web/lib/crm/ui/start-meeting.ts, apps/web/lib/offline/reachable.ts, apps/web/components/crm/MeetingIntakeBox.tsx, apps/web/package.json
 감사 기준:
 - 서버가 답하면 지금과 똑같다 — 회의를 만들고 작업대로 간다
 - 서버에 못 닿으면 **화면을 옮기지 않고** 그 자리에서 녹음을 켠다 — 없는 주소로 이동하면 오프라인에서 화면이 통째로 죽는다
@@ -117,3 +117,4 @@
 
 ## 변경 이력
 - v0.1.0 (2026-09-30) 최초 작성 (ins_0148)
+- v0.1.1 (2026-09-30) I04 범위에 start-meeting.ts 와 reachable.ts 를 넣는다 — 「서버에 못 닿음」과 「서버가 거절함」을 글자 비교가 아니라 형으로 갈라야 오프라인 분기가 안전하다. 문구를 고치면 분기가 조용히 죽는 판을 만들지 않는다 (audit:I04)

@@ -36,6 +36,20 @@ export const UNREACHABLE_STREAK = 2
 export const SERVER_UNREACHABLE_MESSAGE =
   '서버에 닿지 못했어요. 연결이 끊겼거나 서버가 내려간 것입니다. 잠시 뒤 다시 눌러 주세요.'
 
+/**
+ * **답이 하나도 안 왔다**는 실패. 서버가 답하고 거절한 것과는 다른 종류다.
+ *
+ * 형으로 갈라 두는 이유: 부르는 쪽이 이 둘에 **다르게 대응한다.**
+ * 못 닿은 것은 기기에 쌓아 두고 나중에 보내면 되고, 거절당한 것은 사람이 고쳐야 한다.
+ * 문구를 비교해서 가르면 문구를 다듬는 순간 그 분기가 조용히 죽는다.
+ */
+export class ServerUnreachableError extends Error {
+  constructor(message: string = SERVER_UNREACHABLE_MESSAGE) {
+    super(message)
+    this.name = 'ServerUnreachableError'
+  }
+}
+
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
 
 /**

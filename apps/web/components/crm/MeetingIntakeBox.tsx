@@ -18,11 +18,13 @@
 // 만드는 행위가 아니라 **이미 일어나는 일을 받아적는 행위**라 「새 미팅」이 아니다.
 
 import { useCallback, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Mic, PenLine, ClipboardPaste, ArrowRight } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
-import { startMeeting, meetingHref } from '@/lib/crm/ui/start-meeting'
+import { meetingHref } from '@/lib/crm/ui/start-meeting'
+import { beginRecording } from '@/lib/meeting/begin-recording'
+import { useRecordingSession } from '@/lib/meeting/recording-context'
 import { MEETING_CAPTURE_LABEL, progress } from '@/lib/terms'
 import { formatKstTime } from '@/lib/datetime/kst'
 import styles from './meeting-intake.module.css'
@@ -61,8 +63,12 @@ interface Props {
 
 export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const rec = useRecordingSession()
   const [busy, setBusy] = useState<Entry | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** 화면이 안 바뀌는 경우가 생겼다 — 눌렀는데 아무 말도 없으면 안 된 줄 안다 */
+  const [notice, setNotice] = useState<string | null>(null)
 
   /**
    * 한 번 누르면 곧장 작업대.
@@ -74,15 +80,36 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
     if (busy) return
     setBusy(entry)
     setError(null)
+    setNotice(null)
     try {
-      const { id } = await startMeeting()
-      router.push(`${meetingHref(id)}?wb=${ENTRY[entry].wb}`)
+      const out = await beginRecording()
+
+      if (out.kind === 'server') {
+        router.push(`${meetingHref(out.id)}?wb=${ENTRY[entry].wb}`)
+        return
+      }
+
+      /*
+        서버에 못 닿았다. **화면을 옮기지 않는다** — 그 주소는 아직 어디에도 없고,
+        없는 주소로 가면 오프라인에서 화면이 통째로 죽는다.
+        대신 녹음을 그 자리에서 켠다. 제공자가 셸에 있어 화면이 바뀌어도 안 끊긴다.
+      */
+      if (entry !== 'record') {
+        // 쓰는 화면은 서버가 그려 준다. 못 여는 것을 여는 척하지 않는다
+        setError('연결이 없어 작성 화면을 열 수 없어요. 지금은 녹음으로 남겨 주세요.')
+        setBusy(null)
+        return
+      }
+
+      await rec.start({ noteId: out.localId, title: out.title, href: pathname || '/crm/today' })
+      setNotice('연결이 없어 이 기기에 녹음하고 있어요. 연결되면 자동으로 올라갑니다.')
+      setBusy(null)
     } catch (e) {
       // 조용히 삼키지 않는다 — 눌렀는데 아무 일도 안 일어나는 화면이 가장 나쁘다
       setError(e instanceof Error ? e.message : '미팅을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
       setBusy(null)
     }
-  }, [busy, router])
+  }, [busy, router, rec, pathname])
 
   return (
     <section className={`card ${styles.box}`} aria-labelledby="meeting-intake-title">
@@ -106,6 +133,9 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
           </NbButton>
         ))}
       </div>
+
+      {/* 화면이 안 바뀌었을 때 무슨 일이 일어났는지 — 이 줄이 없으면 안 된 줄 안다 */}
+      {notice && <p className="field-note">{notice}</p>}
 
       {/*
         오늘 잡혀 있는 미팅이 있으면 후보로 보여 준다.

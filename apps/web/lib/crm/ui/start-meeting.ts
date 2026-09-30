@@ -17,7 +17,7 @@
  */
 
 import { kstParts, kstTodayKey } from '../../datetime/kst.ts'
-import { SERVER_UNREACHABLE_MESSAGE } from '../../offline/reachable.ts'
+import { ServerUnreachableError } from '../../offline/reachable.ts'
 
 /**
  * 제목을 안 물어보고 시작한다 — 회의는 이미 시작됐고 사용자는 녹음 버튼을 찾고 있다.
@@ -109,8 +109,9 @@ export async function startMeeting(input: StartMeetingInput = {}): Promise<Start
       body: JSON.stringify(buildStartBody(input)),
     })
   } catch {
-    // 답이 하나도 안 왔다. 여기서 브라우저 원문을 그대로 올리면 화면에 「Failed to fetch」가 뜬다
-    throw new Error(SERVER_UNREACHABLE_MESSAGE)
+    // 답이 하나도 안 왔다. 여기서 브라우저 원문을 그대로 올리면 화면에 「Failed to fetch」가 뜬다.
+    // 형을 따로 두는 이유는 부르는 쪽이 **기기에 쌓아 두는 길**로 갈라 가기 때문이다
+    throw new ServerUnreachableError()
   }
 
   const body = await res.json().catch(() => null)
