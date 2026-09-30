@@ -115,6 +115,26 @@ export async function countPending(noteId?: string): Promise<number> {
   return noteId ? all.filter((p) => p.noteId === noteId).length : all.length
 }
 
+/**
+ * 구간의 주인을 바꾼다 — 기기가 만든 id 에서 서버가 준 id 로.
+ *
+ * **왜 필요한가**: 연결이 없을 때 시작한 녹음은 `local_…` 밑에 쌓인다. 연결이 돌아와
+ * 서버에 회의가 생기면 그 구간들은 **새 주소로 올라가야 한다.** 주소가 안 바뀌면
+ * 없는 회의로 올리게 되고, 시도 횟수만 쌓이면서 그 소리는 영영 안 올라간다.
+ *
+ * **새 키로 먼저 쓰고 옛 키를 지운다.** 순서가 뒤집히면 중간에 멈췄을 때 그 구간이 사라진다 —
+ * 이 파일의 다른 계약과 같은 이유다.
+ */
+export async function rekeyNote(fromNoteId: string, toNoteId: string): Promise<number> {
+  if (fromNoteId === toNoteId) return 0
+  const rows = (await listPending()).filter((p) => p.noteId === fromNoteId)
+  for (const r of rows) {
+    await tx('readwrite', (s) => s.put({ ...r, key: partKey(toNoteId, r.partIdx), noteId: toNoteId }))
+    await tx('readwrite', (s) => s.delete(r.key))
+  }
+  return rows.length
+}
+
 /** 시도 기록 — 몇 번 실패했는지 보여야 "계속 안 되는 중"을 사람이 안다 */
 export async function markTried(noteId: string, partIdx: number, error: string): Promise<void> {
   const key = partKey(noteId, partIdx)

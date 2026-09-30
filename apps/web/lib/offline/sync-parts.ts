@@ -14,6 +14,7 @@
  */
 
 import * as blobStore from './blob-store.ts'
+import { isLocalNoteId } from './local-meeting.ts'
 
 export interface SyncResult {
   /** 올린 구간 수 */
@@ -22,6 +23,13 @@ export interface SyncResult {
   failed: { noteId: string; partIdx: number; error: string }[]
   /** 시도하지 않음(오프라인이거나 저장소 미지원) */
   skipped: boolean
+  /**
+   * 아직 서버로 안 건너간 회의의 구간 수.
+   *
+   * **0 이 아니면 아직 잃을 것이 남아 있다.** 이 숫자를 안 돌려주면 화면이
+   * 「올릴 것 없음」이라고 말하게 되고, 그건 거짓이다.
+   */
+  waitingLocal: number
 }
 
 /** 구간 하나 올리기 — 녹음 중 경로와 복구 경로가 **같은 요청**을 쓴다 */
@@ -46,18 +54,24 @@ export async function uploadOnePart(
  * 회의 뒷부분이 통째로 안 올라간다.
  */
 export async function syncPendingParts(): Promise<SyncResult> {
-  if (!blobStore.isSupported()) return { uploaded: 0, failed: [], skipped: true }
+  if (!blobStore.isSupported()) return { uploaded: 0, failed: [], skipped: true, waitingLocal: 0 }
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return { uploaded: 0, failed: [], skipped: true }
+    return { uploaded: 0, failed: [], skipped: true, waitingLocal: 0 }
   }
 
   const pending = await blobStore.listPending().catch(() => [])
-  if (pending.length === 0) return { uploaded: 0, failed: [], skipped: false }
+  if (pending.length === 0) return { uploaded: 0, failed: [], skipped: false, waitingLocal: 0 }
 
   let uploaded = 0
+  let waitingLocal = 0
   const failed: SyncResult['failed'] = []
 
   for (const p of pending) {
+    /*
+      아직 서버로 안 건너간 회의다(`reconcile` 이 할 일). 여기서 올리면 없는 주소로 가서
+      404 를 받고 시도 횟수만 쌓인다 — 그러면 화면에 뜨는 사유가 거짓이 된다.
+    */
+    if (isLocalNoteId(p.noteId)) { waitingLocal += 1; continue }
     try {
       await uploadOnePart(p.noteId, p.partIdx, p.durationSec, p.blob)
       await blobStore.remove(p.noteId, p.partIdx)
@@ -69,5 +83,5 @@ export async function syncPendingParts(): Promise<SyncResult> {
     }
   }
 
-  return { uploaded, failed, skipped: false }
+  return { uploaded, failed, skipped: false, waitingLocal }
 }

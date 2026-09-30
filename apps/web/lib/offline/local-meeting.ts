@@ -45,6 +45,14 @@ export interface PendingMeeting {
   companyId: string | null
   /** 기기에 쓴 시각(ms). 보관 기한을 여기서 잰다 */
   savedAt: number
+  /**
+   * 서버에 회의를 만든 뒤 받은 진짜 id.
+   *
+   * **왜 적어 두나**: 회의를 만든 다음에 구간 키를 옮기다 실패할 수 있다. 그때 이 값이 없으면
+   * 다음 판이 회의를 **또 만든다** — 같은 회의가 두 벌이 되고 딜에 붙는 기록도 둘이 된다.
+   * 적어 두면 다음 판은 만들기를 건너뛰고 옮기기부터 이어 한다.
+   */
+  serverNoteId?: string | null
 }
 
 export function newLocalNoteId(): string {
@@ -120,6 +128,15 @@ export function expiredPendingMeetings(now: number = Date.now(), store?: Storage
 export function addPendingMeeting(m: PendingMeeting, store?: Storage): boolean {
   const rows = readAll(store).filter((x) => x.localId !== m.localId)
   rows.push(m)
+  return writeAll(rows, store)
+}
+
+/** 서버에 회의를 만든 사실을 적어 둔다 — 여기까지 왔으면 다시 만들지 않는다 */
+export function markPendingMeetingCreated(localId: string, serverNoteId: string, store?: Storage): boolean {
+  const rows = readAll(store)
+  const at = rows.findIndex((m) => m.localId === localId)
+  if (at === -1) return false
+  rows[at] = { ...rows[at], serverNoteId }
   return writeAll(rows, store)
 }
 

@@ -1,6 +1,6 @@
 # PLAN newAX: 녹음은 어떤 상황에서도 안 잃는다 — 오프라인에서도 시작된다
 플랜 ID: P0091
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0148
 목표 버전: v0.10.733
@@ -79,14 +79,15 @@
 의존: I03
 
 ### I05 연결이 돌아오면 회의가 서버로 건너간다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/offline/reconcile.ts (신규), apps/web/lib/offline/reconcile.test.ts (신규), apps/web/lib/offline/blob-store.ts, apps/web/lib/offline/sync-parts.ts, apps/web/package.json
+범위: apps/web/lib/offline/reconcile.ts (신규), apps/web/lib/offline/reconcile.test.ts (신규), apps/web/lib/offline/blob-store.ts, apps/web/lib/offline/sync-parts.ts, apps/web/lib/offline/local-meeting.ts, apps/web/package.json
 감사 기준:
 - 대기 회의마다 서버에 회의를 만들고, 기기에 쌓인 그 회의 구간의 **키를 진짜 id 로 다시 매긴 뒤** 올린다 — 구간을 잃지 않는다
 - 회의 만들기가 실패하면 대기 목록에서 **안 지운다** — 지우면 그 회의가 영영 안 올라간다
 - `syncPendingParts` 가 아직 건너오지 않은 로컬 구간을 **건너뛴다** — 없는 주소로 올리면 시도 횟수만 쌓이고 사유가 거짓이 된다
-- 같은 회의를 두 번 만들지 않는다 — 두 벌이 되면 딜에 붙는 기록도 둘이 된다
+- 같은 회의를 두 번 만들지 않는다 — 만들자마자 서버 id 를 대기 회의에 적어 두고, 다음 판은 만들기를 건너뛴다
+- **녹음 중인 회의는 안 건넌다** — 건너는 동안에도 구간이 계속 쌓이므로 옮기고 지우면 뒤 구간이 고아가 된다
 - `pnpm test reconcile` 통과
 보안: 해당 없음 — 새 창구를 열지 않고 기존 창구(POST /api/crm/meetings)를 쓴다
 의존: I03
@@ -118,3 +119,4 @@
 ## 변경 이력
 - v0.1.0 (2026-09-30) 최초 작성 (ins_0148)
 - v0.1.1 (2026-09-30) I04 범위에 start-meeting.ts 와 reachable.ts 를 넣는다 — 「서버에 못 닿음」과 「서버가 거절함」을 글자 비교가 아니라 형으로 갈라야 오프라인 분기가 안전하다. 문구를 고치면 분기가 조용히 죽는 판을 만들지 않는다 (audit:I04)
+- v0.1.2 (2026-09-30) I05 에 local-meeting.ts 를 넣고 감사 기준 둘을 고친다 — 회의를 만든 뒤 키 옮기기가 실패하면 다음 판이 회의를 또 만든다(서버 id 를 적어 두어야 멱등해진다). 그리고 녹음 중인 회의를 건너면 그 뒤에 쌓이는 구간이 고아가 된다 (audit:I05)
