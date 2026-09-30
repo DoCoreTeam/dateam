@@ -43,7 +43,7 @@
 의존: 없음
 
 ### I02 오늘 잃은 10분을 되살린다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/scripts/retranscribe-part.mjs (신규)
 감사 기준:
