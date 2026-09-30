@@ -521,6 +521,15 @@ export const RFP_RADAR = {
    * 공고 이름으로 읽고, 그 줄이 무엇인지 영영 모른다
    */
   noticeNoTitle: '제목 없음',
+  /**
+   * 빼기는 **되돌릴 수 있다고 말해야** 누를 수 있다.
+   * 못 되돌리는 줄 알면 아무도 안 누르고, 그러면 목록은 영영 안 줄어든다
+   */
+  hitDismiss: '빼기',
+  hitDismissHint: '목록에서만 빼요. 「뺀 공고」에서 언제든 되돌릴 수 있어요',
+  hitRestore: '되돌리기',
+  hitDismissing: '빼는 중',
+  hitDismissFailed: '빼지 못했어요. 잠시 뒤 다시 눌러 주세요',
   siteRulesOnly: 'AI 를 못 써서 제목만 가져왔습니다',
   siteTitlesOnly: '목록에서 상세 주소를 못 얻어 제목만 가져왔습니다',
   adoptTitle: '케이스로 만들기',

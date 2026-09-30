@@ -104,6 +104,33 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
   const [hits, setHits] = useState(initialHits)
   // 키가 없어서 못 가져왔나 — 안내 옆에 넣으러 가는 길을 켤지 정한다
   const [needKey, setNeedKey] = useState(false)
+  /**
+   * 지금 빼는 중인 적중 id.
+   *
+   * 한 덩이 busy 로 두면 한 줄을 빼는 동안 **목록 전체가 잠긴다.** 쉰 줄짜리 목록에서
+   * 하나씩 빼야 하는데 매번 전체가 멈추면 못 쓴다. 그래서 줄마다 따로 잠근다
+   */
+  const [dismissing, setDismissing] = useState<string | null>(null)
+
+  /** 적중 한 건을 목록에서 뺀다. 지우지 않고 상태만 바꾸므로 되돌릴 수 있다 */
+  const dismiss = useCallback(async (id: string) => {
+    setDismissing(id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/rfp/radar/hits/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'dismissed' }),
+      })
+      if (!res.ok) { setError(RFP_RADAR.hitDismissFailed); return }
+      // 서버가 받아들인 뒤에 화면에서 뺀다 — 먼저 빼면 실패했을 때 줄이 사라진 채로 남는다
+      setHits((prev) => prev.filter((h) => h.id !== id))
+    } catch {
+      setError(RFP_RADAR.hitDismissFailed)
+    } finally {
+      setDismissing(null)
+    }
+  }, [])
   const [draft, setDraft] = useState<NewRule | null>(null)
   const [ask, setAsk] = useState('')
   const [asking, setAsking] = useState(false)
@@ -376,6 +403,19 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
                   {/* 공고에 붙은 첨부를 그대로 받아 분석까지 건다 — 사람이 다시 내려받을 이유가 없다 */}
                   <NbButton variant="secondary" onClick={() => void adopt(h)} disabled={busy}>
                     {RFP_RADAR.openCase}
+                  </NbButton>
+                  {/*
+                    빼기는 되돌릴 수 있다고 말해야 누를 수 있다. 못 되돌리는 줄 알면
+                    아무도 안 누르고, 그러면 목록은 영영 안 줄어든다
+                  */}
+                  <NbButton
+                    variant="ghost"
+                    onClick={() => void dismiss(h.id)}
+                    disabled={dismissing === h.id}
+                    title={RFP_RADAR.hitDismissHint}
+                    aria-label={`${RFP_RADAR.hitDismiss} — ${RFP_RADAR.hitDismissHint}`}
+                  >
+                    <X size={14} /> {dismissing === h.id ? RFP_RADAR.hitDismissing : RFP_RADAR.hitDismiss}
                   </NbButton>
                 </span>
               </div>

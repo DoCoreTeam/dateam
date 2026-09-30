@@ -82,3 +82,46 @@ test('글 칸 뜻으로 ruleName 을 쓰지 않는다', () => {
     )
   }
 })
+
+// 찾은 공고를 뺄 수 있는가 — I04
+
+test('적중 줄마다 빼기 단추가 있다', () => {
+  // 사용자 지적 2026-09-30: 「공고 찾았으면 상관없는건 제거하거나 뺄수 있는 방법이 있어야지」
+  const src = live('components/rfp/RadarRules.tsx')
+  assert.match(src, /RFP_RADAR\.hitDismiss\b/, '빼기 단추가 없다')
+  assert.match(src, /dismiss\(h\.id\)/, '그 줄을 안 뺀다')
+  assert.match(src, /method: 'PATCH'/, '상태를 안 바꾼다')
+})
+
+test('빼기가 되돌릴 수 있다고 말한다', () => {
+  // 못 되돌리는 줄 알면 아무도 안 누르고, 그러면 목록은 영영 안 줄어든다
+  const src = live('components/rfp/RadarRules.tsx')
+  assert.match(src, /hitDismissHint/, '되돌릴 수 있다는 말이 단추에 안 붙었다')
+  assert.match(src, /aria-label=/, '읽어 주는 이름이 없다')
+})
+
+test('빼는 중에는 그 줄만 잠긴다', () => {
+  /*
+    한 덩이 busy 로 잠그면 한 줄을 빼는 동안 목록 전체가 멈춘다.
+    쉰 줄에서 하나씩 빼야 하는데 매번 전체가 멈추면 못 쓴다
+  */
+  const src = live('components/rfp/RadarRules.tsx')
+  // 이름이 어딘가에 있는 것으로는 모자란다 — 라벨에도 같은 식이 쓰인다.
+  // **잠그는 자리**가 줄 단위인지를 본다 (처음 쓴 가드가 그래서 통과했다)
+  assert.match(src, /disabled=\{dismissing === h\.id\}/, '줄마다 안 잠그고 전체를 잠근다')
+  assert.doesNotMatch(
+    src,
+    /onClick=\{\(\) => void dismiss\(h\.id\)\}[\s\S]{0,120}?disabled=\{busy\}/,
+    '빼기가 공용 busy 로 잠긴다',
+  )
+})
+
+test('서버가 받아들인 뒤에 화면에서 뺀다', () => {
+  // 먼저 빼면 실패했을 때 줄이 사라진 채로 남아, 새로고침해야 돌아온다
+  const src = live('components/rfp/RadarRules.tsx')
+  const at = src.indexOf('const dismiss')
+  const body = src.slice(at, src.indexOf('}, [])', at))
+  const okAt = body.indexOf('if (!res.ok)')
+  const filterAt = body.indexOf('prev.filter')
+  assert.ok(okAt > 0 && filterAt > okAt, '실패를 확인하기 전에 화면에서 뺀다')
+})
