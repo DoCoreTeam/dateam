@@ -75,7 +75,7 @@
 보안: 해당 없음 — 새 표·창구가 없고, 이미 서버가 읽는 값을 한 줄 더 실어 보낼 뿐이다. 가격과 시각뿐이라 비밀이 섞일 자리가 없다
 
 ### I03 맨 오른쪽 봉이 형성 중인 봉이 된다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/trading/chart/forming.ts (신규), apps/web/lib/trading/chart/forming.test.ts (신규), apps/web/app/(trading)/trading/ChartPanel.tsx, apps/web/app/(trading)/trading/ChartPanel.module.css, apps/web/package.json
 감사 기준:
