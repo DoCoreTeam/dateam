@@ -1,0 +1,97 @@
+/*
+  내가 들어간 것 — **증권사 체결과 자리를 가른다**
+
+  사용자 지시 2026-09-30: 「들어갔으면 체크하게 해줘 얼마에 들어갔는지 확인하고 말이야」.
+  이 칸은 내가 적는 기록이고, 아래 「포지션과 손익」은 증권사가 준 체결이다.
+  둘이 같은 모양이면 섞여 읽힌다.
+*/
+.panel {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  word-break: keep-all;
+}
+
+.line {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  word-break: keep-all;
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-2);
+}
+
+.fact {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.fact dt {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  word-break: keep-all;
+}
+
+.fact dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 번 것과 잃은 것은 색이 달라야 한 눈에 갈린다 */
+.win { color: var(--danger); }
+.lose { color: var(--accent); }
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 8rem;
+}
+
+.fieldLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}

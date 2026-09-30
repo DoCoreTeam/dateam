@@ -17,6 +17,10 @@ import LineagePanel from './LineagePanel'
 import PositionPanel from './PositionPanel'
 import NotifyPanel from './NotifyPanel'
 import { loadTradingOverview } from '@/lib/trading/overview'
+import { getRequestUser } from '@/lib/supabase/server'
+import { loadOpenManualEntry } from '@/lib/trading/position/manual-entry-store'
+import { pickNowCall, planForCall } from '@/lib/trading/chart/series'
+import EntryPanel from './EntryPanel'
 import { contractHeadline } from '@/lib/trading/overview-labels'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
 import { kstTodayKey } from '@/lib/datetime/kst'
@@ -27,6 +31,31 @@ export const dynamic = 'force-dynamic'
 export default async function TradingPage() {
   const { values } = await loadTradingSettings(kstTodayKey())
   const overview = await loadTradingOverview(new Date())
+
+  /*
+    **내가 적은 진입 기록은 사람마다 다르다.** 개요 한 벌은 서비스롤로 읽어 모두에게 같은
+    값을 주므로 여기 안 넣고, 이 화면이 지금 로그인한 사람 것만 따로 읽는다.
+    소유자 확인은 `(trading)` 레이아웃 한 겹이 이미 했다.
+  */
+  const user = await getRequestUser()
+  const openEntry = user && overview.contractCode
+    ? await loadOpenManualEntry(user.id, overview.contractCode).catch(() => null)
+    : null
+
+  /*
+    지금 화면이 권하는 값. 들어갈 때 손절·목표를 같이 적어 두면
+    나중에 「그대로 했나」를 볼 수 있다. 식은 `planForCall` 하나가 쥔다(M4)
+  */
+  const nowCall = pickNowCall({ signals: overview.signals, calls: overview.chart.calls })
+  const nowPlan = nowCall ? planForCall(nowCall, overview.chart) : null
+  const suggested = nowPlan && nowPlan.direction !== undefined
+    ? {
+      direction: nowPlan.direction,
+      referencePrice: nowPlan.referencePrice,
+      stopPrice: nowPlan.stopPrice,
+      targetPrice: nowPlan.targetPrice,
+    }
+    : null
 
   // 유효 시간은 설정이다. 화면이 따로 정하면 규칙과 화면이 다른 마감을 본다
   const rawValid = Number(values.signal_valid_minutes)
@@ -89,6 +118,17 @@ export default async function TradingPage() {
           validMinutes={validMinutes}
           notifyEnabled={overview.notify.enabled}
           emitProgress={overview.emitProgress}
+        />
+        {/*
+          **내가 적은 것이 증권사 기록보다 위다.** 지금 들고 있는 것을 보려고 온 사람이
+          먼저 만나는 값이고, 아래 「포지션과 손익」은 증권사가 준 체결이라 뜻이 다르다
+          (사용자 지시 2026-09-30 「들어갔으면 체크하게 해줘 얼마에 들어갔는지 확인하고」)
+        */}
+        <EntryPanel
+          open={openEntry}
+          nowPrice={overview.lastPrice?.price ?? null}
+          multiplier={overview.accuracy.multiplier}
+          suggested={suggested}
         />
         <PositionPanel holding={overview.holding} dayPnl={overview.dayPnl} />
         <NotifyPanel notify={overview.notify} position={overview.position} />

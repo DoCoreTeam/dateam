@@ -32,6 +32,8 @@ import { type ArmEnv } from '@/lib/trading/order/arming-policy'
 import {
   saveSubscription, deleteSubscription, ensureVapidKeys, pushKeyStatus,
 } from '@/lib/trading/notify/push-store'
+import { checkEntry } from '@/lib/trading/position/manual-entry'
+import { insertManualEntry, closeManualEntry } from '@/lib/trading/position/manual-entry-store'
 
 export interface AckActionResult {
   ok: boolean
@@ -447,4 +449,83 @@ export async function unregisterPushDevice(endpoint: string): Promise<AckActionR
   await deleteSubscription(endpoint)
   revalidatePath('/trading')
   return { ok: true, userMessage: '이 기기에서 알림을 껐습니다' }
+}
+
+/* ── 내가 들어간 것 (사용자 지시 2026-09-30 「들어갔으면 체크하게 해줘」) ── */
+
+/**
+ * 들어갔다고 적는다.
+ *
+ * **주문은 안 나간다.** 사용자가 못 박았다 — 「직접 매매는 안해도 데이터는 받을수있으니」.
+ * 이 창구는 표 한 줄을 적을 뿐이고 증권사에 아무것도 안 보낸다.
+ *
+ * 값은 **서버가 다시 본다**(S4). 화면이 막아도 창구는 열려 있고,
+ * 창구가 받은 값이 그대로 표에 들어간다.
+ */
+export async function markEntered(input: {
+  direction: string
+  price: number
+  quantity: number
+  stopPrice: number | null
+  targetPrice: number | null
+  judgmentId: string | null
+}): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const user = await getRequestUser()
+  if (!user) return DENIED
+
+  const checked = checkEntry(input)
+  if (!checked.ok) return { ok: false, userMessage: checked.reason }
+
+  try {
+    const overview = await loadTradingOverview(new Date())
+    if (!overview.contractCode) return { ok: false, userMessage: '볼 월물이 아직 없습니다' }
+    await insertManualEntry({
+      userId: user.id,
+      contractCode: overview.contractCode,
+      direction: checked.value.direction,
+      entryPrice: checked.value.price,
+      quantity: checked.value.quantity,
+      stopPrice: positiveOrNull(input.stopPrice),
+      targetPrice: positiveOrNull(input.targetPrice),
+      judgmentId: input.judgmentId,
+    })
+    revalidatePath('/trading')
+    return { ok: true, userMessage: '적었습니다' }
+  } catch (error) {
+    // 유일 인덱스가 막으면 이미 열린 줄이 있다는 뜻이다. 기계 글자를 그대로 안 보낸다
+    const message = error instanceof Error ? error.message : ''
+    return {
+      ok: false,
+      userMessage: message.includes('uq_trading_manual_entries_one_open')
+        ? '이미 들어간 것이 있습니다. 먼저 「나왔습니다」로 닫아 주세요'
+        : '적지 못했습니다',
+    }
+  }
+}
+
+/** 나왔다고 적는다. 그 줄이 닫히고 번 돈이 남는다 */
+export async function markExited(input: { id: string; price: number }): Promise<AckActionResult> {
+  if (!(await tradingAccess()).allowed) return DENIED
+  const user = await getRequestUser()
+  if (!user) return DENIED
+  if (!Number.isFinite(input.price) || input.price <= 0) {
+    return { ok: false, userMessage: '나온 가격을 숫자로 적어 주세요' }
+  }
+  try {
+    await closeManualEntry({
+      userId: user.id,
+      id: input.id,
+      exitPrice: Math.round(input.price * 100) / 100,
+    })
+    revalidatePath('/trading')
+    return { ok: true, userMessage: '닫았습니다' }
+  } catch {
+    return { ok: false, userMessage: '닫지 못했습니다' }
+  }
+}
+
+/** 0 이하는 값이 아니다. 모르는 것을 0 으로 적으면 손절가 0 이 된다 */
+function positiveOrNull(value: number | null): number | null {
+  return value !== null && Number.isFinite(value) && value > 0 ? value : null
 }
