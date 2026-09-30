@@ -55,7 +55,7 @@ test('지금 가격을 모르면 손익을 안 만든다 — 0원으로 때우�
 })
 
 test('들어간 줄은 사고 팔았다는 말로 쓴다', () => {
-  assert.equal(entryLine('long', 1084.22, 1), '1084.22 에 샀습니다')
-  assert.equal(entryLine('short', 1084.22, 1), '1084.22 에 팔았습니다')
-  assert.equal(entryLine('short', 1084.22, 3), '1084.22 에 3계약 팔았습니다')
+  assert.equal(entryLine('long', 1084.22, 1), '1,084.22 에 샀습니다')
+  assert.equal(entryLine('short', 1084.22, 1), '1,084.22 에 팔았습니다')
+  assert.equal(entryLine('short', 1084.22, 3), '1,084.22 에 3계약 팔았습니다')
 })

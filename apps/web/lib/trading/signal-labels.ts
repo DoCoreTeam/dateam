@@ -6,6 +6,7 @@
  */
 
 import type { SignalResult } from './position/pnl.ts'
+import { fmtNum, fmtNumOr } from '../ui/number-format.ts'
 
 export const DIRECTION_LABEL: Record<'long' | 'short', string> = {
   long: '매수',
@@ -25,16 +26,21 @@ export function signalResultLabel(result: string | null): string {
   return SIGNAL_RESULT_LABEL[result as SignalResult] ?? result
 }
 
-/** 가격 한 줄. 자릿수를 고정해 표에서 자리가 안 흔들리게 한다 */
+/**
+ * 가격 한 줄. 자릿수를 고정해 표에서 자리가 안 흔들리게 하고, **천 단위에 쉼표를 단다**.
+ *
+ * 쉼표는 장식이 아니다 — 지수가 1000 을 넘으므로 「1086.44」는 자릿수를 세어야 읽힌다
+ * (사용자 지적 2026-09-30 「모든 숫자에 콤마찍는건 기본 아닌가」). 굽는 자리는
+ * `lib/ui/number-format.ts` 한 곳이다.
+ */
 export function formatIndexPrice(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '값 없음'
-  return value.toFixed(2)
+  return fmtNumOr(value, '값 없음', 2)
 }
 
 /** 확률 한 줄. 없으면 없다고 말한다 — 0% 로 적으면 「0%로 계산했다」가 된다 */
 export function formatProbability(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '보정 없음'
-  return `${(value * 100).toFixed(0)}%`
+  return `${fmtNum(value * 100, 0)}%`
 }
 
 /*

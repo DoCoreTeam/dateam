@@ -10,6 +10,7 @@
  * 손절가도 같다 — 빈 칸은 「손절 없음」으로도 「우리가 모름」으로도 읽힌다.
  */
 
+import { fmtNumOr } from '../ui/number-format.ts'
 import { NOT_MEASURED } from '../terms/index.ts'
 
 /** 안 잰 값 자리에 쓰는 말. 용어집이 정한다 — 여기서 또 적지 않는다 */
@@ -22,8 +23,7 @@ export function wonText(value: number | null): string {
 }
 
 export function priceText(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return UNKNOWN_PRICE_TEXT
-  return value.toFixed(2)
+  return fmtNumOr(value, UNKNOWN_PRICE_TEXT, 2)
 }
 
 /** 시각을 못 읽으면 지어내지 않는다 */

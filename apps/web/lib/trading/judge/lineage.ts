@@ -21,6 +21,7 @@
  * 「AI 가 이상한 소리를 했나」와 「우리 코드가 잘못 셌나」를 사람이 가를 수 있다.
  */
 
+import { fmtNumOr } from '../../ui/number-format.ts'
 import { computeIndicators, requiredBarCount, evaluateTriggers, type TriggerParams } from './indicators.ts'
 import { buildJevPrompt, JEV_PROMPT_VERSION } from './jev-prompt.ts'
 import { leaningOf, LEANING_LABEL } from '../judgment-labels.ts'
@@ -107,7 +108,7 @@ const MINUTE_MS = 60_000
 
 /** 숫자 한 줄. 못 읽으면 물음표 — 지어내지 않는다 */
 function num(value: number | null | undefined, digits = 2): string {
-  return value === null || value === undefined || !Number.isFinite(value) ? '?' : value.toFixed(digits)
+  return fmtNumOr(value, '?', digits)
 }
 
 function empty(reason: string): Lineage {

@@ -32,14 +32,14 @@ test('아직 괜찮으면 들어가도 된다고 말하고 기준가와의 거�
   const w = entryWindowNow({ plan: SHORT, nowPrice: 1085.70, now: IN_TIME })
   assert.equal(w.verdict, 'ok')
   assert.equal(w.text, ENTRY_VERDICT_TEXT.ok)
-  assert.equal(w.note, '기준가 1084.22 와 1.48점 차이입니다')
+  assert.equal(w.note, '기준가 1,084.22 와 1.48점 차이입니다')
 })
 
 test('숏은 한계가 밑으로 내려가면 따라가지 말라고 한다', () => {
   const w = entryWindowNow({ plan: SHORT, nowPrice: 1083.43, now: IN_TIME })
   assert.equal(w.verdict, 'beyond_chase')
   assert.equal(w.text, ENTRY_VERDICT_TEXT.beyond_chase)
-  assert.equal(w.note, '한계가 1083.93 를 0.50점 밑돕니다')
+  assert.equal(w.note, '한계가 1,083.93 를 0.50점 밑돕니다')
   // 경계 그 값은 아직 괜찮다 — 넘은 것이 아니다
   assert.equal(entryWindowNow({ plan: SHORT, nowPrice: 1083.93, now: IN_TIME }).verdict, 'ok')
 })
@@ -47,7 +47,7 @@ test('숏은 한계가 밑으로 내려가면 따라가지 말라고 한다', ()
 test('롱은 한계가 위로 올라가면 따라가지 말라고 한다', () => {
   const w = entryWindowNow({ plan: LONG, nowPrice: 1087.50, now: IN_TIME })
   assert.equal(w.verdict, 'beyond_chase')
-  assert.equal(w.note, '한계가 1086.97 를 0.53점 넘었습니다')
+  assert.equal(w.note, '한계가 1,086.97 를 0.53점 넘었습니다')
   assert.equal(entryWindowNow({ plan: LONG, nowPrice: 1086.97, now: IN_TIME }).verdict, 'ok')
   // 같은 가격이라도 방향이 반대면 판정이 반대다
   assert.equal(entryWindowNow({ plan: LONG, nowPrice: 1080.00, now: IN_TIME }).verdict, 'ok')

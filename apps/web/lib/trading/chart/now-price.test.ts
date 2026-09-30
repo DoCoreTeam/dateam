@@ -18,7 +18,7 @@ test('현재가를 못 받았으면 0 을 안 그리고 못 받았다고 말한�
 
 test('값이 있으면 값과 받은 시각을 초까지 말한다', () => {
   const line = nowPriceLine({ price: 1085.7, observedAt: AT }, now(3))
-  assert.equal(line.price, '1085.70')
+  assert.equal(line.price, '1,085.70')
   assert.equal(line.missing, null)
   assert.match(line.at ?? '', /01:27:40/)
 })
@@ -41,7 +41,7 @@ test('오래되면 몇 초 전인지 붙고, 더 오래되면 멈춘 값이라�
 
 test('시각이 깨졌어도 값은 버리지 않고 시각만 비운다', () => {
   const line = nowPriceLine({ price: 1085.7, observedAt: 'not-a-time' }, now(0))
-  assert.equal(line.price, '1085.70')
+  assert.equal(line.price, '1,085.70')
   assert.equal(line.at, null)
   assert.equal(line.missing, null)
 })
@@ -56,7 +56,7 @@ test('거리는 부호를 살려 위인지 아래인지까지 말한다', () => 
 
 test('시계가 없으면(서버 렌더) 값과 시각만 말하고 나이는 안 적는다', () => {
   const line = nowPriceLine({ price: 1085.7, observedAt: AT }, null)
-  assert.equal(line.price, '1085.70')
+  assert.equal(line.price, '1,085.70')
   assert.match(line.at ?? '', /01:27:40/)
   assert.equal(line.age, null)
   assert.equal(line.stale, false)

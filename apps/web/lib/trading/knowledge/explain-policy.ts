@@ -14,6 +14,8 @@
  * 시스템이 본 무언가로 읽는다. 그래서 프롬프트에 넣는 값을 여기서 만든다.
  */
 
+import { fmtNumOr } from '../../ui/number-format.ts'
+
 export interface SignalFacts {
   direction: 'long' | 'short'
   referencePrice: number
@@ -44,7 +46,7 @@ export type ExplainRejection = { reason: string; userMessage: string }
 
 /** 사람이 읽을 사실 줄. AI 에게 이 줄들만 준다 */
 export function factLines(f: SignalFacts): string[] {
-  const price = (v: number) => v.toFixed(2)
+  const price = (v: number) => fmtNumOr(v, '값 없음', 2)
   const prob = (v: number | null) => (v === null ? '없음' : `${(v * 100).toFixed(0)}%`)
   const r = (v: number | null) => (v === null ? '없음' : `${v.toFixed(2)}R`)
   return [

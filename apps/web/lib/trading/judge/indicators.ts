@@ -12,6 +12,7 @@
  * 여기 들어오는 봉은 부르는 쪽이 이미 `available_at ≤ 판단 시각`으로 걸러 온 것이다.
  */
 
+import { fmtNumOr } from '../../ui/number-format.ts'
 import type { MinuteBarInput } from '../bars/confirm.ts'
 import type { Indicators, TriggerHit } from './types.ts'
 
@@ -111,20 +112,22 @@ export function evaluateTriggers(
   const last = bars[bars.length - 1]
   if (!last) return null
   const margin = indicators.atr * params.breakoutAtrMultiple
+  // 지수는 1000 을 넘는다 — 맨몸으로 끼우면 「종가 1086.44」가 되어 자릿수를 세어야 한다
+  const p = (v: number) => fmtNumOr(v, '?', 2)
 
   // T1 돌파 — 직전 N봉의 범위를 ATR 배수만큼 넘어섰나
   if (last.close > indicators.recentHigh + margin) {
     return {
       id: 'breakout_up',
       direction: 'long',
-      detail: `종가 ${last.close} > 최근 고가 ${indicators.recentHigh} + ${margin.toFixed(2)}`,
+      detail: `종가 ${p(last.close)} > 최근 고가 ${p(indicators.recentHigh)} + ${p(margin)}`,
     }
   }
   if (last.close < indicators.recentLow - margin) {
     return {
       id: 'breakout_down',
       direction: 'short',
-      detail: `종가 ${last.close} < 최근 저가 ${indicators.recentLow} - ${margin.toFixed(2)}`,
+      detail: `종가 ${p(last.close)} < 최근 저가 ${p(indicators.recentLow)} - ${p(margin)}`,
     }
   }
 

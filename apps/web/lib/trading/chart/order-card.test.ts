@@ -33,9 +33,9 @@ test('롱이면 사고 팔고 끊는 순서로 말한다', () => {
   const card = buildOrderCard({ plan: LONG, nowPrice: 1085.70, now: NOW })
   assert.equal(card.headline, '먼저 삽니다')
   assert.deepEqual(card.steps.map((s) => s.text), [
-    '1086.64 에 삽니다',
-    '1088.29 에 팝니다',
-    '1085.32 에 끊습니다',
+    '1,086.64 에 삽니다',
+    '1,088.29 에 팝니다',
+    '1,085.32 에 끊습니다',
   ])
   assert.deepEqual(card.steps.map((s) => s.name), [
     ORDER_STEP_LABEL.entry, ORDER_STEP_LABEL.target, ORDER_STEP_LABEL.stop,
@@ -46,9 +46,9 @@ test('숏이면 팔고 되사고 끊는 순서로 말이 바뀐다', () => {
   const card = buildOrderCard({ plan: SHORT, nowPrice: 1085.70, now: NOW })
   assert.equal(card.headline, '먼저 팝니다')
   assert.deepEqual(card.steps.map((s) => s.text), [
-    '1084.22 에 팝니다',
-    '1082.75 에 되삽니다',
-    '1085.40 에 끊습니다',
+    '1,084.22 에 팝니다',
+    '1,082.75 에 되삽니다',
+    '1,085.40 에 끊습니다',
   ])
 })
 
@@ -104,7 +104,7 @@ test('시계가 없으면(서버 렌더) 남은 시간과 나올 시각을 안 �
   assert.equal(card.times.find((t) => t.name === ORDER_STEP_LABEL.entryBy)?.note, null)
   assert.equal(card.times.find((t) => t.name === ORDER_STEP_LABEL.hold)?.note, null)
   // 값은 그대로 나온다 — 시계가 없다고 계획을 비우지 않는다
-  assert.equal(card.steps[0].text, '1084.22 에 팝니다')
+  assert.equal(card.steps[0].text, '1,084.22 에 팝니다')
 })
 
 test('주문서 안에는 점수가 없다 — 점수는 근거이지 주문이 아니다', () => {
@@ -126,9 +126,9 @@ test('돈은 화면에 뜬 가격으로 셈한다 — 보이는 값끼리 맞아
   // 원값의 긴 소수로 곱하면 82,607원이 나와 화면과 안 맞는다 (실측 2026-09-30)
   const plan = { ...SHORT, referencePrice: 1079.2612, targetPrice: 1077.6091, stopPrice: 1080.5843 }
   const card = buildOrderCard({ plan, nowPrice: null, now: NOW, multiplier: MULTIPLIER })
-  assert.equal(card.steps[1].text, '1077.61 에 되삽니다')
+  assert.equal(card.steps[1].text, '1,077.61 에 되삽니다')
   assert.equal(card.steps[1].note, '+82,500원')
-  assert.equal(card.steps[2].text, '1080.58 에 끊습니다')
+  assert.equal(card.steps[2].text, '1,080.58 에 끊습니다')
   assert.equal(card.steps[2].note, '-66,000원')
 })
 
