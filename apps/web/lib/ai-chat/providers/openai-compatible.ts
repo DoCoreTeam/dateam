@@ -130,8 +130,8 @@ export function createOpenAiCompatibleProvider(opts: OpenAiCompatibleOptions): C
       })
       return { usable: true, availability: 'available', reason: null }
     } catch (error) {
-      const { status, detail, code } = getProviderErrorDetail(error)
-      return classifyModelProbeFailure(spec.label, status, detail, code)
+      const { status, detail, code, type } = getProviderErrorDetail(error)
+      return classifyModelProbeFailure(spec.label, status, detail, code, type)
     }
   }
 

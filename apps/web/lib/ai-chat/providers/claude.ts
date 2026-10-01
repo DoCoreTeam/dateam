@@ -211,8 +211,8 @@ async function probeModel(apiKey: string, model: string): Promise<import('../pro
     })
     return { usable: true, availability: 'available', reason: null }
   } catch (error) {
-    const { status, detail, code } = getProviderErrorDetail(error)
-    return classifyModelProbeFailure('Claude', status, detail, code)
+    const { status, detail, code, type } = getProviderErrorDetail(error)
+    return classifyModelProbeFailure('Claude', status, detail, code, type)
   }
 }
 

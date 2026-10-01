@@ -7,17 +7,34 @@ function unavailableReason(providerLabel: string): string {
 // 계정(키) 단위 실패 — 모델을 바꿔도 똑같이 실패한다. 대표적으로 OpenAI insufficient_quota는
 // HTTP 429로 오지만 "잠시 후 재시도"로 절대 풀리지 않는다(크레딧 소진·결제수단 미등록).
 // 모델별 한도 초과와 반드시 구분해야 사용자가 진짜 원인(결제)을 볼 수 있다.
-const ACCOUNT_QUOTA_TOKENS = [
+//
+// **두 갈래로 본다** — 기계 코드와 본문 문구.
+// 실측 2026-10-01: OpenAI 가 `type: insufficient_quota` · `code: credit_balance_exhausted` ·
+// 「You have no credits remaining」을 돌려줬는데, 문구 목록이 옛말(`exceeded your current quota`)만
+// 알아서 모델 91개가 전부 「잠시 후 다시 확인하세요」로 적혔다. 공급자는 문구를 바꾼다.
+// 그래서 문구에만 기대지 않고 **기계 코드(code·type)를 먼저 본다**.
+const ACCOUNT_QUOTA_CODES = [
+  'insufficient_quota',        // OpenAI error.type (예전에는 code 로도 왔다)
+  'credit_balance_exhausted',  // OpenAI error.code, 실측 2026-10-01
+  'billing_not_active',
+  'billing_hard_limit_reached',
+]
+
+const ACCOUNT_QUOTA_PHRASES = [
   'insufficient_quota',
   'exceeded your current quota',
   'check your plan and billing',
   'billing_not_active',
   'credit balance is too low',
+  'no credits remaining',   // 실측 2026-10-01
+  'add credits to continue',
 ]
 
-function isAccountQuotaFailure(raw: string, code: string | undefined): boolean {
-  if (code && ACCOUNT_QUOTA_TOKENS.includes(code)) return true
-  return ACCOUNT_QUOTA_TOKENS.some((token) => raw.includes(token))
+function isAccountQuotaFailure(raw: string, code: string | undefined, type?: string): boolean {
+  for (const signal of [code, type]) {
+    if (signal && ACCOUNT_QUOTA_CODES.includes(signal)) return true
+  }
+  return ACCOUNT_QUOTA_PHRASES.some((phrase) => raw.includes(phrase))
 }
 
 /** 최소 생성 호출의 실패를 모델 가용 상태로 변환하는 SSOT. */
@@ -26,11 +43,12 @@ export function classifyModelProbeFailure(
   status: number | undefined,
   detail: string,
   code?: string,
+  type?: string,
 ): ProbeModelResult {
   const raw = detail.toLowerCase()
 
   // 계정 단위 실패는 status 분기보다 우선 — 남은 모델을 더 찔러봐야 결과가 같다(조기 중단 신호).
-  if (isAccountQuotaFailure(raw, code?.toLowerCase())) {
+  if (isAccountQuotaFailure(raw, code?.toLowerCase(), type?.toLowerCase())) {
     return {
       usable: false,
       availability: 'unavailable',
@@ -86,12 +104,14 @@ export function getProviderErrorDetail(error: unknown): {
   status: number | undefined
   detail: string
   code: string | undefined
+  type: string | undefined
 } {
   const candidate = error as {
     status?: unknown
     code?: unknown
+    type?: unknown
     message?: unknown
-    error?: { message?: unknown; code?: unknown }
+    error?: { message?: unknown; code?: unknown; type?: unknown }
   } | null
   const status = typeof candidate?.status === 'number' ? candidate.status : undefined
   const detail = typeof candidate?.error?.message === 'string'
@@ -100,5 +120,12 @@ export function getProviderErrorDetail(error: unknown): {
   // OpenAI/Anthropic SDK는 기계판독 코드를 error.code(또는 code)에 담는다 — 문구 변경에 안 흔들리는 판정 근거.
   const rawCode = candidate?.error?.code ?? candidate?.code
   const code = typeof rawCode === 'string' ? rawCode : undefined
-  return { status, detail, code }
+  /*
+    `type` 도 같이 꺼낸다. OpenAI 는 크레딧 소진을 `type: insufficient_quota` 로 말하고
+    `code` 쪽은 사정에 따라 바꾼다(실측 2026-10-01 `credit_balance_exhausted`).
+    code 하나만 보면 공급자가 code 를 바꿀 때마다 계정 실패가 모델 한도로 둔갑한다.
+  */
+  const rawType = candidate?.error?.type ?? candidate?.type
+  const type = typeof rawType === 'string' ? rawType : undefined
+  return { status, detail, code, type }
 }
