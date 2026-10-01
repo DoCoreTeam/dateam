@@ -27,6 +27,7 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { isEnterKey, isImeComposing } from '@/lib/ui/ime'
 import { RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
 import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
+import { selectedCount } from '@/lib/terms/action'
 import styles from '@/app/(rfp)/rfp.module.css'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { useElapsedMs } from '@/components/ui/useElapsedMs'
@@ -105,14 +106,14 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
   // 키가 없어서 못 가져왔나 — 안내 옆에 넣으러 가는 길을 켤지 정한다
   const [needKey, setNeedKey] = useState(false)
   /**
-   * 지금 빼는 중인 적중 id.
+   * 지금 숨기는 중인 적중 id.
    *
-   * 한 덩이 busy 로 두면 한 줄을 빼는 동안 **목록 전체가 잠긴다.** 쉰 줄짜리 목록에서
-   * 하나씩 빼야 하는데 매번 전체가 멈추면 못 쓴다. 그래서 줄마다 따로 잠근다
+   * 한 덩이 busy 로 두면 한 줄을 숨기는 동안 **목록 전체가 잠긴다.** 쉰 줄짜리 목록에서
+   * 하나씩 숨겨야 하는데 매번 전체가 멈추면 못 쓴다. 그래서 줄마다 따로 잠근다
    */
   const [dismissing, setDismissing] = useState<string | null>(null)
 
-  /** 지금 보는 것이 「뺀 공고」인가. 뺀 것을 되돌리려면 먼저 볼 수 있어야 한다 */
+  /** 지금 보는 것이 「숨긴 공고」인가. 숨긴 것을 다시 보이게 하려면 먼저 볼 수 있어야 한다 */
   const [showDismissed, setShowDismissed] = useState(false)
 
   /** 상태를 골라 목록을 다시 받는다 */
@@ -132,7 +133,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
     }
   }, [])
 
-  /** 뺀 것을 되돌린다 — 다시 「찾은 공고」로 간다 */
+  /** 숨긴 것을 다시 보이게 한다 — 「찾은 공고」로 돌아간다 */
   const restore = useCallback(async (id: string) => {
     setDismissing(id)
     setError(null)
@@ -151,7 +152,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
     }
   }, [])
 
-  /** 골라 둔 적중. 화면을 다시 그려도 고른 것이 안 풀리게 id 로 든다 */
+  /** 선택한 적중. 화면을 다시 그려도 선택이 안 풀리게 id 로 든다 */
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set())
 
   const togglePick = useCallback((id: string) => {
@@ -164,9 +165,9 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
   }, [])
 
   /**
-   * 고른 것을 한 번에 뺀다.
+   * 선택한 것을 한 번에 숨긴다.
    *
-   * 바뀐 수를 서버가 세어 준다 — 고른 수와 다를 수 있다(남의 조직 것이 섞였거나 그 사이에 지워졌거나).
+   * 바뀐 수를 서버가 세어 준다 — 선택한 수와 다를 수 있다(남의 조직 것이 섞였거나 그 사이에 지워졌거나).
    * 안 말하면 화면은 전부 바뀐 것처럼 보이고 사용자는 다시 열었을 때에야 남은 것을 본다
    */
   const dismissPicked = useCallback(async () => {
@@ -194,7 +195,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
     }
   }, [picked])
 
-  /** 적중 한 건을 목록에서 뺀다. 지우지 않고 상태만 바꾸므로 되돌릴 수 있다 */
+  /** 적중 한 건을 목록에서 숨긴다. 삭제하지 않고 상태만 바꾸므로 다시 보이게 할 수 있다 */
   const dismiss = useCallback(async (id: string) => {
     setDismissing(id)
     setError(null)
@@ -205,7 +206,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
         body: JSON.stringify({ status: 'dismissed' }),
       })
       if (!res.ok) { setError(RFP_RADAR.hitDismissFailed); return }
-      // 서버가 받아들인 뒤에 화면에서 뺀다 — 먼저 빼면 실패했을 때 줄이 사라진 채로 남는다
+      // 서버가 받아들인 뒤에 화면에서 내린다 — 먼저 내리면 실패했을 때 줄이 사라진 채로 남는다
       setHits((prev) => prev.filter((h) => h.id !== id))
     } catch {
       setError(RFP_RADAR.hitDismissFailed)
@@ -461,15 +462,15 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
               {showDismissed ? RFP_RADAR.hitDismissedTitle : RFP_RADAR.hits}
             </span>
             {hits.length > 0 && <NbBadge status="note">{hits.length}</NbBadge>}
-            {/* 뺀 것을 되돌리려면 먼저 볼 수 있어야 한다 */}
+            {/* 숨긴 것을 다시 보이게 하려면 먼저 볼 수 있어야 한다 */}
             <NbButton variant="ghost" onClick={() => void load(!showDismissed)} disabled={busy}>
               {showDismissed ? RFP_RADAR.hitShowActive : RFP_RADAR.hitShowDismissed}
             </NbButton>
           </div>
-          {/* 고른 것이 있을 때만 보인다 — 늘 보이면 안 쓰는 단추가 자리를 차지한다 */}
+          {/* 선택한 것이 있을 때만 보인다 — 늘 보이면 안 쓰는 단추가 자리를 차지한다 */}
           {picked.size > 0 && (
             <div className={styles.row}>
-              <NbBadge status="doing">{RFP_RADAR.hitSelected} {picked.size}</NbBadge>
+              <NbBadge status="doing">{selectedCount(picked.size)}</NbBadge>
               <NbButton variant="secondary" onClick={() => void dismissPicked()} disabled={busy}>
                 <X size={14} /> {RFP_RADAR.hitDismissSelected}
               </NbButton>
@@ -490,7 +491,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
             {/* 사전 점수 높은 것부터 — 사용자는 위에서 몇 개만 본다 */}
             {hits.map((h) => (
               <div key={h.id} className={styles.ruleItem}>
-                {/* 골라서 한 번에 빼려면 줄마다 고르는 칸이 있어야 한다 */}
+                {/* 선택해서 한 번에 숨기려면 줄마다 선택 칸이 있어야 한다 */}
                 <input
                   type="checkbox"
                   checked={picked.has(h.id)}
@@ -517,7 +518,7 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
                     </NbButton>
                   )}
                   {/*
-                    빼기는 되돌릴 수 있다고 말해야 누를 수 있다. 못 되돌리는 줄 알면
+                    숨기기는 다시 보이게 할 수 있다고 말해야 누를 수 있다. 못 되돌리는 줄 알면
                     아무도 안 누르고, 그러면 목록은 영영 안 줄어든다
                   */}
                   {showDismissed ? (

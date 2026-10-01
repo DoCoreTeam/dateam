@@ -9,7 +9,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, createLabel, progress,
-  settingFieldState, SETTING_SAVE_LABEL, settingSaveDisabled,
+  settingFieldState, SETTING_SAVE_LABEL, settingSaveDisabled, onSelected, selectedCount,
 } from './action.ts'
 import { AI_KEY } from './ai-key.ts'
 import { ENTITY, SURFACE_LABEL, count, countOnly, type EntityKey } from './entity.ts'
@@ -18,6 +18,10 @@ import { emptyTitle, failedTo, confirmDelete, notEnough } from './sentence.ts'
 import { roundingUnitName, roundingUnitLabel, roundingNote } from './quote.ts'
 import { ROUNDING_UNITS } from '../crm/domain/quote-math.ts'
 import { readFileSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+const LIB = join(import.meta.dirname, '..')
+
 
 test('진행 표기는 공백 + 말줄임표를 둘 다 갖는다', () => {
   assert.equal(progress(ACTION.save), '저장 중…')
@@ -297,3 +301,103 @@ test('★ 단추 말이 셋 다 다르다 — 같으면 상태를 말하지 못�
   const said = new Set(Object.values(SETTING_SAVE_LABEL))
   assert.equal(said.size, 3, `단추 말이 ${said.size}가지뿐이다`)
 })
+
+// 숨기기·보이기·선택 — 2026-10-01 지적
+
+test('목록에서 내리는 말이 삭제와 갈려 있다', () => {
+  // 삭제라고 쓰면 사용자는 되돌릴 수 없다고 읽고 손이 멈춘다. 실제로는 언제든 되돌릴 수 있다
+  assert.equal(ACTION.hide, '숨기기')
+  assert.equal(ACTION.unhide, '보이기')
+  assert.notEqual(ACTION.hide, ACTION.delete)
+  // 숨긴 것은 사라진 적이 없다 — 「되돌리기」는 삭제한 것을 되살리는 말이라 자리가 다르다
+  assert.notEqual(ACTION.unhide, ACTION.restore)
+})
+
+test('고르는 말이 하나다', () => {
+  // 실측으로 화면이 이미 「선택」을 쓴다(선택 삭제·선택됨·선택된 항목이 없습니다)
+  assert.equal(ACTION.select, '선택')
+  assert.equal(onSelected(ACTION.hide), '선택 숨기기')
+  assert.equal(onSelected(ACTION.delete), '선택 삭제')
+  assert.equal(selectedCount(3), '선택 3')
+})
+
+test('진행 표기를 손으로 적지 않는다', () => {
+  // 공백과 말줄임표가 둘 다 있어야 한다. 「빼는 중」처럼 적으면 표준을 벗어난다
+  assert.equal(progress(ACTION.hide), '숨기기 중…')
+  assert.match(progress(ACTION.save), / 중…$/)
+})
+
+test('지어낸 말이 금지어 목록에 올라 있다', () => {
+  // 2026-10-01 에 실제로 화면에 나가 있던 셋이다 — 전부 이미 있는 말을 안 찾아보고 지은 것
+  const bad = BANNED_TERMS.map((b) => b.bad)
+  for (const w of ['빼기', '고르기', '고른 것']) {
+    assert.ok(bad.includes(w), `「${w}」 가 금지어 목록에 없다`)
+  }
+})
+
+test('기능별 문구 파일에 금지어가 없다', () => {
+  /*
+    용어집 가드(lib/ui/glossary.test.ts)는 app·components·lib/nav·lib/terms 만 훑는다.
+    그래서 **기능별 문구 파일 20개가 규칙 밖**이었고, 그 틈으로 말이 갈라졌다.
+    여기서 그 파일들을 센다 — 가드 범위를 넓히는 것은 I01b 가 한다.
+  */
+  const files = termFiles()
+  assert.ok(files.length >= 15, `문구 파일이 ${files.length}개뿐이다 — 경로가 바뀌었는지 확인한다`)
+
+  const hits: string[] = []
+  for (const f of files) {
+    const values = [...readFileSync(f, 'utf8').matchAll(/:\s*'([^']{2,})'/g)].map((m) => m[1])
+    for (const b of BANNED_TERMS) {
+      for (const v of values.filter((x) => x.includes(b.bad))) {
+        hits.push(`${f}: 「${v}」 — 「${b.bad}」 대신 「${b.good}」 (${b.why})`)
+      }
+    }
+  }
+  assert.deepEqual(hits, [], ['문구 파일에 금지어가 있다:', ...hits.map((h) => `  · ${h}`)].join('\n'))
+})
+
+/** lib 아래의 기능별 문구 파일. lib/terms 자신은 뺀다(거기가 SSOT 다) */
+function termFiles(): string[] {
+  const out: string[] = []
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name)
+      if (statSync(p).isDirectory()) { if (p !== join(LIB, 'terms')) walk(p); continue }
+      if (!name.endsWith('.ts') || name.includes('.test.')) continue
+      if (name.includes('terms') || name.includes('labels')) out.push(p)
+    }
+  }
+  walk(LIB)
+  return out.sort()
+}
+
+test('기능 파일이 진행 표기를 손으로 적지 않는다', () => {
+  /*
+    `progress()` 가 공백과 말줄임표를 붙인다. 손으로 적으면 「숨기는 중」처럼
+    표준을 벗어난 모양이 생기고, 복붙이 그 오탈자까지 복제한다.
+    표준 함수를 **쓰는지**를 보지 않으면 가드가 함수만 시험하고 실사용은 못 본다
+  */
+  const hits: string[] = []
+  for (const f of termFiles()) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/:\s*'([^']*\s중…?)'/g)) {
+      if (STATE_NOT_PROGRESS.has(m[1])) continue
+      hits.push(`${f}: 「${m[1]}」 — progress() 를 쓴다`)
+    }
+  }
+  assert.deepEqual(hits, [], ['진행 표기를 손으로 적었다:', ...hits.map((h) => `  · ${h}`)].join('\n'))
+})
+
+
+/**
+ * 「~ 중」으로 끝나지만 **진행이 아니라 상태**인 말.
+ *
+ * 면제가 아니라 **분류**다 — 진행 표기는 「하는 동안 잠깐」이고, 아래는 「계속 그러함」이다.
+ * 「쓰는 중…」처럼 말줄임표를 붙이면 곧 끝날 일처럼 읽힌다.
+ *
+ * 늘릴 때는 왜 진행이 아닌지를 여기 적는다. 적을 말이 없으면 진행 표기다.
+ */
+const STATE_NOT_PROGRESS = new Set([
+  '쓰는 중', // 포털 서비스를 지금 쓰고 있다는 상태. 반대말이 「아직 안 씀」이라 진행이 아니다
+  '처리 중', // 판단 기록의 상태. 기록됨·기권·실패와 나란히 선 값이라 진행 표시가 아니다
+])

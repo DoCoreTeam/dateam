@@ -55,7 +55,7 @@ export function isUserSettable(v: unknown): v is HitStatus {
 /**
  * 한 번에 바꿀 수 있는 최대 건수.
  *
- * 상한이 없으면 화면이 「전부 고르기」로 수천 건을 한 요청에 실어 보내고, 그 요청은
+ * 상한이 없으면 화면이 「전체 선택」으로 수천 건을 한 요청에 실어 보내고, 그 요청은
  * 타임아웃으로 죽는다. 죽으면 **일부만 바뀐 채로** 끝나고 사용자는 무엇이 바뀌었는지 모른다.
  * 상한이 있으면 적어도 「몇 개까지」를 말해 줄 수 있다.
  */
@@ -73,7 +73,7 @@ export interface BulkCheck {
 /**
  * 한 번에 바꾸기 요청을 검사한다.
  *
- * uuid 가 아닌 것은 **버리지 않고 걸러 센다** — 조용히 버리면 열 개를 골랐는데 여덟 개만
+ * uuid 가 아닌 것은 **버리지 않고 걸러 센다** — 조용히 버리면 열 개를 선택했는데 여덟 개만
  * 바뀌고 화면은 열 개가 바뀐 것처럼 보인다.
  */
 export function checkBulk(rawIds: unknown, rawStatus: unknown): BulkCheck {

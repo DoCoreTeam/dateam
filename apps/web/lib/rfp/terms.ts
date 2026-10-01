@@ -23,6 +23,7 @@ import type { Stage } from './domain/status.ts'
 import type { FailureReason } from './analyze/failure-reason.ts'
 
 import { ENTITY, SERVICE_LABEL } from '../terms/index.ts'
+import { ACTION, progress, onSelected } from '../terms/action.ts'
 
 /**
  * 서비스 간판. 용어집에서 가져온다.
@@ -74,18 +75,18 @@ export const DOC_CLASS_EFFECT: Record<DocClass, string> = {
 export const STAGE_LABEL: Record<Stage, string> = {
   uploaded: '올림',
   classified: '역할 분류',
-  parsing: '읽는 중',
+  parsing: progress('읽는'),
   parsed: '읽음',
-  structuring: '구조 잡는 중',
+  structuring: progress('구조 잡는'),
   structured: '구조 잡음',
-  indexing: '색인 만드는 중',
+  indexing: progress('색인 만드는'),
   indexed: '색인 만듦',
-  analyzing: '분석 중',
+  analyzing: progress('분석'),
   reported: '리포트 나옴',
-  cross_verifying: '교차검증 중',
-  assessing: '적합도 보는 중',
+  cross_verifying: progress('교차검증'),
+  assessing: progress('적합도 보는'),
   assessed: '적합도 나옴',
-  comparing: '비교 중',
+  comparing: progress('비교'),
   compared: '비교 나옴',
 }
 
@@ -242,7 +243,7 @@ export const RFP_INTAKE = {
   fileLabel: '첨부 파일',
   fileHint: '제안요청서·과업내용서·공고문·서식을 함께 올리면 한 케이스로 묶습니다',
   dropHere: '여기에 끌어다 놓거나',
-  filePick: '파일 고르기',
+  filePick: `파일 ${ACTION.select}`,
   removeFile: '뺀다',
   docClassWhy: '등급이 어느 AI 까지 이 문서를 볼 수 있는지 정합니다. 고르지 않으면 시작할 수 없습니다',
   titleFromDoc: '사업명은 공고문에서 읽습니다. 따로 적지 않아도 됩니다',
@@ -251,7 +252,7 @@ export const RFP_INTAKE = {
   caseQuota: '한 케이스에 500MB 까지 올릴 수 있어요',
   duplicate: '같은 내용의 파일이 이미 있어요',
   submit: '분석 시작',
-  submitting: '올리는 중',
+  submitting: progress('올리는'),
   uploaded: '올렸어요',
   failed: '올리지 못했어요',
   goReport: '리포트 보기',
@@ -261,8 +262,8 @@ export const RFP_INTAKE = {
   linkHint: '공고 쪽 주소를 그대로 붙여넣으면 첨부를 받아 옵니다. 파일을 따로 안 올려도 됩니다',
   linkPlaceholder: 'https://www.g2b.go.kr/... 또는 기관 공고 쪽 주소',
   fetchNotice: '공고 가져오기',
-  fetchingNotice: '공고를 여는 중',
-  linkClear: '링크 빼기',
+  fetchingNotice: progress('공고를 여는'),
+  linkClear: `링크 ${ACTION.clear}`,
   linkFound: '이 공고를 분석합니다',
   linkTitleUnknown: '사업명을 못 읽었습니다. 분석하면서 문서에서 찾습니다',
   linkAttachments: '받아 올 첨부',
@@ -336,7 +337,7 @@ export const RFP_REPORT = {
   sourceTables: '표',
   sourceSections: '절',
   sourceSearch: '원문에서 찾기',
-  sourceClear: '지우기',
+  sourceClear: ACTION.clear,
   sourceNoHit: '찾는 글자가 없습니다',
   print: '인쇄',
   unconfirmedCount: '확인 안 된 값',
@@ -387,7 +388,7 @@ export const RFP_CROSS = {
   confirm: '검증 시작',
   cancel: '그만두기',
   conflict: '값이 갈렸어요',
-  chooseFinal: '쓸 값 고르기',
+  chooseFinal: `쓸 값 ${ACTION.select}`,
   noBase: '기본 분석이 끝난 뒤에 쓸 수 있어요',
 } as const
 
@@ -431,7 +432,7 @@ export const RFP_PROFILE = {
   partnerName: '협력사 이름',
   partnerCapabilities: '맡을 부분',
   addRow: '줄 추가',
-  removeRow: '이 줄 빼기',
+  removeRow: `이 줄 ${ACTION.delete}`,
   emptyRows: '아직 없습니다',
   missing: '아직 못 채운 칸',
   missingHint: '이걸 채우기 전에는 적합도가 얕게 나옵니다',
@@ -473,7 +474,7 @@ export const RFP_RADAR = {
   askPlaceholder: '예: AI 관련 3억 이상 공공기관 사업',
   askHint: '말하듯이 적으면 조건으로 바꿔 드립니다. 바꾼 결과는 아래에서 고칠 수 있습니다',
   askSubmit: '조건으로 바꾸기',
-  askBusy: '바꾸는 중',
+  askBusy: progress('바꾸는'),
   askEmpty: '찾고 싶은 것을 한 줄로 적어 주세요',
   askAiSkipped: 'AI 를 못 써서 낱말만 뽑았습니다. 아래에서 고쳐 주세요',
   reviewTitle: '이렇게 찾습니다',
@@ -497,17 +498,17 @@ export const RFP_RADAR = {
   keywordsHint: '쉼표로 나눠 적습니다',
   enabled: '켜짐',
   disabled: '꺼짐',
-  removeRule: '조건 지우기',
+  removeRule: `조건 ${ACTION.delete}`,
   noticeAgency: '발주처',
   noticeBudget: '배정 예산',
   noticeDate: '공고일',
-  sitesTitle: '어디를 뒤질까',
+  sitesTitle: ENTITY.source.label,
   sitesDesc: '입찰 공고는 기관 자기 게시판에도 올라옵니다. 볼 곳을 여기에 등록합니다',
   siteName: '이름',
   siteUrl: '공고 목록 주소',
   siteUrlHint: '상세 화면이 아니라 목록이 보이는 주소',
   addSite: '사이트 추가',
-  removeSite: '이 사이트 빼기',
+  removeSite: `이 ${ENTITY.source.label} ${ACTION.delete}`,
   serviceKey: '나라장터 서비스 키',
   serviceKeyHint: '공공데이터포털에서 발급받은 키. 없으면 나라장터 공고를 못 가져옵니다',
   serviceKeyLink: '관리자 설정에서 키 넣기',
@@ -525,22 +526,27 @@ export const RFP_RADAR = {
    * 빼기는 **되돌릴 수 있다고 말해야** 누를 수 있다.
    * 못 되돌리는 줄 알면 아무도 안 누르고, 그러면 목록은 영영 안 줄어든다
    */
-  hitDismiss: '빼기',
-  hitDismissHint: '목록에서만 빼요. 「뺀 공고」에서 언제든 되돌릴 수 있어요',
-  hitRestore: '되돌리기',
-  hitDismissing: '빼는 중',
-  hitDismissFailed: '빼지 못했어요. 잠시 뒤 다시 눌러 주세요',
-  hitSelectAll: '전부 고르기',
-  hitClearSelection: '고른 것 풀기',
-  hitSelected: '고른 공고',
-  hitDismissSelected: '고른 것 빼기',
+  /*
+    아래 말은 **전부 lib/terms 에서 온다.** 2026-10-01 에 이 자리에 「빼기」·「고른 것」을
+    지어 넣었다가 지적받았다 — 같은 뜻을 가진 말이 이미 있는데 안 찾아본 것이었다.
+    진행 표기도 손으로 적으면 안 된다. progress() 가 공백과 말줄임표를 붙인다
+  */
+  hitDismiss: ACTION.hide,
+  hitDismissHint: `목록에서만 ${ACTION.hide}. 「${ACTION.hide}ㄴ 공고」에서 언제든 ${ACTION.unhide} 할 수 있어요`,
+  hitRestore: ACTION.unhide,
+  hitDismissing: progress(ACTION.hide),
+  hitDismissFailed: `${ACTION.hide}지 못했어요. 잠시 뒤 다시 눌러 주세요`,
+  hitSelectAll: `전체 ${ACTION.select}`,
+  hitClearSelection: `${ACTION.select} 해제`,
+  hitSelected: ACTION.select,
+  hitDismissSelected: onSelected(ACTION.hide),
   /** 고른 수와 바뀐 수가 다를 수 있다. 다르면 그 수를 말한다 */
   hitBulkPartial: '건은 바꾸지 못했어요',
-  hitShowDismissed: '뺀 공고 보기',
+  hitShowDismissed: '숨긴 공고 보기',
   hitShowActive: '찾은 공고로 돌아가기',
-  hitDismissedTitle: '뺀 공고',
-  hitDismissedEmpty: '아직 뺀 공고가 없어요',
-  hitDismissedEmptyDesc: '목록에서 「빼기」를 누르면 여기로 옵니다. 여기서 언제든 되돌릴 수 있어요',
+  hitDismissedTitle: '숨긴 공고',
+  hitDismissedEmpty: '아직 숨긴 공고가 없어요',
+  hitDismissedEmptyDesc: `목록에서 「${ACTION.hide}」를 누르면 여기로 옵니다. 여기서 언제든 ${ACTION.unhide} 할 수 있어요`,
   siteRulesOnly: 'AI 를 못 써서 제목만 가져왔습니다',
   siteTitlesOnly: '목록에서 상세 주소를 못 얻어 제목만 가져왔습니다',
   adoptTitle: '케이스로 만들기',
@@ -639,7 +645,7 @@ export const RFP_ADMIN = {
    * 스위치가 **원래대로 돌아갔다**는 사실을 함께 말해야 다시 누를지 판단할 수 있다.
    */
   ruleSaveFailed: '저장하지 못해 원래대로 돌렸어요. 잠시 후 다시 시도해 주세요',
-  ruleSaving: '저장 중',
+  ruleSaving: progress('저장'),
   transferLog: '외부 전송 기록',
   usage: '사용량',
   monthlyBudget: '월 예산 상한',
@@ -672,7 +678,7 @@ export const RFP_ADMIN = {
   g2bStateUnknown: '신청했는지 안 적혀 있어요',
   g2bApplied: '신청함',
   g2bMarkApplied: '신청했다고 표시',
-  g2bUnmarkApplied: '신청 표시 지우기',
+  g2bUnmarkApplied: '신청 표시 해제',
   g2bNeedsApplyCount: '신청해야 하는 것',
   g2bAdminOnly: '관리자만 바꿀 수 있어요',
 } as const
@@ -714,7 +720,7 @@ export const RFP_ASSISTANT = {
   ask: '질문',
   placeholder: '무엇이든 물어보세요',
   send: '묻기',
-  thinking: '찾는 중',
+  thinking: progress('찾는'),
   citations: '근거',
   relatedCases: '관련 케이스',
   noAnswer: '자료에서 찾지 못했어요',
@@ -745,7 +751,7 @@ export const ORG_ROLE_LABEL: Record<'admin' | 'member' | 'viewer', string> = {
 
 /** 공통 버튼과 상태 */
 export const RFP_COMMON = {
-  loading: '불러오는 중',
+  loading: progress('불러오는'),
   error: '문제가 생겼어요',
   retry: '다시 시도',
   cancel: '취소',

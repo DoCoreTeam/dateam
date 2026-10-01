@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest) {
     // 몇 개까지인지 말한다. 「너무 많습니다」만 쓰면 몇 개로 줄여야 하는지 모른다
     const message = check.reason === 'too_many'
       ? `한 번에 ${MAX_BULK}건까지만 바꿀 수 있습니다`
-      : check.reason === 'bad_status' ? '바꿀 수 없는 상태입니다' : '고른 것이 없습니다'
+      : check.reason === 'bad_status' ? '바꿀 수 없는 상태입니다' : '선택된 항목이 없습니다'
     return NextResponse.json({ error: message, reason: check.reason }, { status: 400 })
   }
 

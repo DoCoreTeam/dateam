@@ -18,6 +18,9 @@ export type ActionKey =
   | 'save' | 'delete' | 'disconnect' | 'create' | 'edit' | 'change'
   | 'cancel' | 'close' | 'confirm' | 'apply' | 'restore' | 'retry' | 'clear' | 'open'
   | 'export'
+  | 'hide'
+  | 'unhide'
+  | 'select'
 
 export const ACTION: Record<ActionKey, string> = {
   /** 폼·모달의 확정 버튼. **언제나 「저장」**이다(§2-5 (4)) — 카드별 변형 금지 */
@@ -63,6 +66,38 @@ export const ACTION: Record<ActionKey, string> = {
    * 「다운로드」는 받는 쪽 동작이라 무엇이 만들어지는지 안 밝힌다.
    */
   export: '내보내기',
+  /**
+   * **목록에서 내린다. 데이터는 안 사라진다** — 그래서 삭제가 아니다.
+   *
+   * 「연결 해제」가 삭제와 갈린 것과 같은 이유다(§2-5 (2)). 삭제라고 쓰면 사용자는
+   * 되돌릴 수 없다고 읽고 손이 멈춘다. 실제로는 언제든 되돌릴 수 있다.
+   *
+   * 새 말이 아니다 — GPU 가격표가 취급 안 하는 모델에, CRM 업종 설정이 안 쓰는 줄에
+   * 이미 이 말을 쓴다. 같은 뜻에 새 말을 지으면 사용자는 둘을 다른 일로 읽는다.
+   */
+  hide: '숨기기',
+  /**
+   * 숨긴 것을 다시 목록에 올린다.
+   *
+   * 「되돌리기」(restore)와 자리가 다르다 — 그쪽은 **삭제한 것**을 되살리는 말이다.
+   * 숨긴 것은 사라진 적이 없으므로 되살린다고 하면 없었던 일을 있었던 것처럼 말하게 된다.
+   *
+   * 실측 2026-10-01 에 반대말이 둘로 갈려 있었다 — GPU 는 「노출」, CRM 은 「보이기」.
+   * 우리말을 쓴다(「재시도」를 「다시 시도」로 고친 것과 같은 기준).
+   */
+  unhide: '보이기',
+  /** 여럿 중 고른다. 실측으로 화면이 이미 「선택」을 쓴다(선택 삭제·선택됨·선택된 항목이 없습니다) */
+  select: '선택',
+}
+
+/** 「선택 삭제」·「선택 숨기기」처럼 고른 것에 거는 동작 */
+export function onSelected(action: string): string {
+  return `${ACTION.select} ${action}`
+}
+
+/** 고른 수를 말한다 — 「선택 3」 */
+export function selectedCount(n: number): string {
+  return `${ACTION.select} ${n}`
 }
 
 /**
@@ -181,4 +216,11 @@ export const BANNED_TERMS: { readonly bad: string; readonly good: string; readon
   { bad: '훑기', good: '수집', why: 'sweep 이라는 함수 이름이 화면에 샜다' },
   { bad: '어디를 뒤질까', good: '수집처', why: '개체 이름이 있는데 설명문으로 부르고 있었다' },
   { bad: '독소조항', good: '이상 조항', why: '단정이 세다. 확정과 의심을 함께 담는 말이어야 한다' },
+  /*
+    2026-10-01 사용자 지적: *"워딩과 키워드가 다 용어집을 따르지 않고 그냥 생각나는대로 만들어내네"*
+    아래 셋은 그때 실제로 화면에 나가 있던 말이다 — 셋 다 **이미 있는 말을 안 찾아보고 지은 것**이다.
+  */
+  { bad: '빼기', good: ACTION.hide, why: '숨기기를 GPU 가격표·CRM 업종이 이미 쓴다' },
+  { bad: '고르기', good: ACTION.select, why: '선택을 화면 여덟 곳이 이미 쓴다' },
+  { bad: '고른 것', good: ACTION.select, why: '같은 뜻에 두 말을 두지 않는다' },
 ]
