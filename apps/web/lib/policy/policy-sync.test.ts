@@ -308,3 +308,84 @@ test('★ B-7 이 가리키는 SSOT 와 가드가 실재한다 — 없는 파일
   assert.match(b7!, /digest-progress/, 'B-7 이 문구 SSOT 를 안 가리킨다')
   assert.match(b7!, /WaitProgress/, 'B-7 이 그리는 부품을 안 가리킨다')
 })
+
+// ------------------------------------------------------------
+// U-N 제품 화면 문구 · F-N 기능 완결성 (사용자 지시 2026-10-01)
+// ------------------------------------------------------------
+
+/*
+  **왜 B-N 과 똑같은 대조를 또 만드나**: 규칙 표를 세 파일에 붙여 놓기만 하면
+  다음에 한 파일만 고쳐지고 갈라진다. 그 일이 이 저장소에서 이미 두 번 일어났다 —
+  `GEMINI.md` 가 53패치 뒤처진 채 돌았고, B-N 표는 아무도 안 보는 채로 살아 있었다.
+
+  **그리고 LOOP.md 도 본다**: 매 세션 읽는 것은 LOOP.md 하나다. 중량 문서에만 두면
+  LOOP 만 읽는 세션은 규칙을 볼 길이 없다 — 버전 규칙이 열일곱 판 동안 안 지켜진 것과
+  완료 보고 규칙(8절)이 여기로 옮겨 온 것이 **같은 구멍**이다.
+
+  가드는 만든 뒤 일부러 깨서 실패를 확인했다(U-1 한 글자 변경 · F-1 한 글자 변경 ·
+  LOOP.md 9절 삭제 · 가드가 가리키는 파일 이름 변경).
+*/
+
+/** `| **U-3** | …` 같은 줄을 규칙 번호별로 모은다 (bRules 와 같은 방식, 접두어만 다르다) */
+function ruleRows(text: string, prefix: 'U' | 'F'): Map<string, string> {
+  const out = new Map<string, string>()
+  const re = new RegExp(`^\\| \\*\\*(${prefix}-[\\w-]+)\\*\\* \\|`)
+  for (const line of text.split('\n')) {
+    const m = re.exec(line)
+    if (m) out.set(m[1], line.trim())
+  }
+  return out
+}
+
+for (const [prefix, least, what] of [
+  ['U', 10, '제품 화면 문구'],
+  ['F', 12, '기능 완결성'],
+] as const) {
+  test(`★ ${prefix}-N(${what}) 규칙이 정책 3파일에 모두 있거나 모두 없다`, () => {
+    const [a, b, c] = POLICY_FILES.map((f) => [...ruleRows(read(f.file), prefix).keys()].sort())
+    assert.ok(
+      a.length >= least,
+      `${prefix}-N 규칙을 ${a.length}개만 찾았다 (최소 ${least}) — 훑는 규칙이 헛돌거나 표가 지워졌다`,
+    )
+    assert.deepEqual(a, b, `CEO.md 와 AGENTS.md 의 ${prefix}-N 목록이 다르다`)
+    assert.deepEqual(a, c, `CEO.md 와 GEMINI.md 의 ${prefix}-N 목록이 다르다`)
+  })
+
+  test(`★ 같은 ${prefix}-N 규칙의 문장이 정책 3파일에서 동일하다 — 한 파일만 고치면 규칙이 갈린다`, () => {
+    const maps = POLICY_FILES.map((f) => ruleRows(read(f.file), prefix))
+    for (const key of maps[0].keys()) {
+      assert.equal(maps[1].get(key), maps[0].get(key), `${key} 가 AGENTS.md 에서 다르다`)
+      assert.equal(maps[2].get(key), maps[0].get(key), `${key} 가 GEMINI.md 에서 다르다`)
+    }
+  })
+}
+
+test('★ U-N·F-N 이 매 세션 읽는 LOOP.md 에도 있다 — 중량 문서에만 있으면 LOOP 만 읽는 세션은 못 본다', () => {
+  const loop = read('LOOP.md')
+  assert.match(loop, /^## 9 화면과 기능의 기준$/m, 'LOOP.md 에 9절이 없다')
+  assert.match(loop, /U-N 제품 화면 문구/, 'LOOP.md 9절에 U-N 항목이 없다')
+  assert.match(loop, /F-N 기능 완결성/, 'LOOP.md 9절에 F-N 항목이 없다')
+})
+
+test('★ 항목마다 도는 자가감사가 U-N·F-N 을 부른다 — 절만 있고 안 불리면 글로만 남는다', () => {
+  const loop = read('LOOP.md')
+  // 2절 자가감사 목록에 화면 문구(h)와 기능 완결성(i) 줄이 실재하는가
+  assert.match(loop, /^\s+h 화면 문구:.*U-N/m, '자가감사에 화면 문구 줄이 없다')
+  assert.match(loop, /^\s+i 기능 완결성:.*F-N/m, '자가감사에 기능 완결성 줄이 없다')
+  assert.match(loop, /자가감사 9항/, '자가감사 항 수가 안 맞는다 — 줄을 더하고 머리말을 안 고쳤다')
+})
+
+test('★ U-N·F-N 이 가리키는 가드와 부품이 실재한다 — 없는 파일을 가리키면 규칙이 헛말이다', () => {
+  const ceo = read(POLICY_FILES[0].file)
+  const u = ruleRows(ceo, 'U')
+  assert.match(u.get('U-1') ?? '', /product-copy\.test\.ts/, 'U-1 이 가드를 안 가리킨다')
+  assert.match(u.get('U-7') ?? '', /useAskDialog/, 'U-7 이 대체 부품을 안 가리킨다')
+  for (const path of [
+    'components/ui/useAskDialog.tsx',
+    'components/ui/ConfirmDeleteDialog.tsx',
+    'lib/terms/index.ts',
+  ]) {
+    assert.ok(existsSync(join(ROOT, 'apps/web', path)), `U-N 이 없는 파일을 가리킨다: ${path}`)
+  }
+  assert.ok(existsSync(join(ROOT, 'scripts/ui-phrases.mjs')), 'U-6 이 가리키는 판정 SSOT 가 없다')
+})
