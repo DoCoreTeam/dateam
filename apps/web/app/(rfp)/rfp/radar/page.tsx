@@ -9,8 +9,7 @@ import { G2B_KEY_FIELD } from '@/lib/rfp/g2b/client'
 import RadarRules, { type RadarHitRow, type RadarRuleRow } from '@/components/rfp/RadarRules'
 import SourceSites, { type SiteRow } from '@/components/rfp/SourceSites'
 import { attachNotices } from '@/lib/rfp/radar/hit-notice'
-import { PAGE_SIZE } from '@/lib/rfp/radar/hit-page'
-import { DEFAULT_LIST_STATUS } from '@/lib/rfp/radar/hit-status'
+import { PAGE_SIZE, MAX_SCAN, groupHits, slicePage, type RawHit } from '@/lib/rfp/radar/hit-page'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,18 +34,19 @@ export default async function RfpRadarPage() {
       .select('id, rule_id, source_id, case_id, pre_score, reason, status')
       .eq('status', 'new')
       .order('pre_score', { ascending: false })
-      .limit(PAGE_SIZE),
+      .limit(MAX_SCAN),
   ])
 
   // 걸린 공고가 **무엇인지**를 함께 읽는다. 점수와 사유만 보이면 아무것도 정할 수 없다.
   // 임베드(!inner) 대신 두 번 읽는 이유와 붙이는 모양은 lib/rfp/radar/hit-notice.ts 에 있다.
   // 여기서만 붙이던 시절, 훑기를 누르면 GET 으로 다시 받으면서 제목이 사라졌다
-  // 첫 렌더부터 실제 건수를 말한다. 안 세면 배지가 한 쪽 크기를 전체인 것처럼 보여 준다
-  const { count: hitCount } = await (db as never as {
-    from(t: string): { select(c: string, o: unknown): { eq(k: string, v: string): Promise<{ count: number | null }> } }
-  }).from('rfp_radar_hits').select('id', { count: 'exact', head: true }).eq('status', DEFAULT_LIST_STATUS)
-
-  const hitRows = ((hits as RadarHitRow[] | null) ?? [])
+  /*
+    창구와 **같은 방식으로** 묶고 자른다. 한쪽만 묶으면 첫 화면과 더보기 뒤 화면이
+    서로 다른 줄 수를 보여 주고, 사용자는 새로고침할 때마다 목록이 바뀐다고 읽는다
+  */
+  const grouped = groupHits((hits as RawHit[] | null) ?? [])
+  const hitCount = grouped.length
+  const hitRows = slicePage(grouped, { offset: 0, limit: PAGE_SIZE }) as unknown as RadarHitRow[]
   const withNotice = await attachNotices(db as never, hitRows)
 
   // 어디를 뒤지는지와 키가 있는지 — 「왜 0건인지」의 절반이 여기서 갈린다

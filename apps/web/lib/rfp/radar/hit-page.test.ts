@@ -9,7 +9,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { stripComments } from '../../ui/component-scan.ts'
-import { pageOf, hasMore, isLastPage, PAGE_SIZE, MAX_PAGE_SIZE } from './hit-page.ts'
+import {
+  pageOf, hasMore, isLastPage, PAGE_SIZE, MAX_PAGE_SIZE,
+  groupHits, slicePage, type RawHit,
+} from './hit-page.ts'
 
 const WEB = new URL('../../../', import.meta.url)
 const live = (rel: string): string =>
@@ -54,11 +57,11 @@ test('전체를 못 세도 더보기를 없애지 않는다', () => {
 test('목록 창구가 쪽을 나눠 주고 실제 건수를 센다', () => {
   const src = live('app/api/rfp/radar/route.ts')
   assert.match(src, /pageOf\s*\(/, '밖에서 온 쪽 값을 안 접는다')
-  assert.match(src, /\.range\(/, '쪽을 안 나눈다')
+  // 쪽은 **묶은 뒤에** 자른다 — 자른 다음 묶으면 한 공고가 쪽 경계에 걸친다
+  assert.match(src, /slicePage\(/, '쪽을 안 나눈다')
   assert.doesNotMatch(src, /\.limit\(50\)/, '고정 상한이 남아 있다')
   // 가져온 수를 세면 배지가 늘 한 쪽 크기를 말한다
-  assert.match(src, /count:\s*'exact'/, '실제 건수를 안 센다')
-  assert.match(src, /total:/, '실제 건수를 안 돌려준다')
+  assert.match(src, /total,/, '실제 건수를 안 돌려준다')
   // 점수가 같으면 순서가 흔들려 더보기가 같은 줄을 두 번 준다
   assert.match(src, /order\('id'/, '동점일 때 순서가 안 정해져 있다')
 })
@@ -76,4 +79,88 @@ test('화면이 이어 받고 앞선 줄을 안 버린다', () => {
 test('배지가 가져온 수가 아니라 실제 건수를 말한다', () => {
   const src = live('components/rfp/RadarRules.tsx')
   assert.match(src, /RFP_RADAR\.hitShown\(hits\.length, total\)/, '배지가 실제 건수를 안 말한다')
+})
+
+// 한 공고를 한 줄로 — I04a
+
+const hit = (over: Partial<RawHit> = {}): RawHit => ({
+  id: 'h1', source_id: 's1', rule_id: 'r1', pre_score: 10, reason: '키워드 AI',
+  case_id: null, status: 'new', created_at: '2026-10-01T00:00:00Z', ...over,
+})
+
+test('같은 공고는 한 줄로 묶인다', () => {
+  // 적중은 규칙마다 하나씩 생긴다. 안 묶으면 같은 공고가 규칙 수만큼 뜬다
+  const out = groupHits([
+    hit({ id: 'h1', rule_id: 'r1' }),
+    hit({ id: 'h2', rule_id: 'r2' }),
+    hit({ id: 'h3', source_id: 's2' }),
+  ])
+  assert.equal(out.length, 2)
+  assert.deepEqual(out.find((g) => g.source_id === 's1')?.ids.sort(), ['h1', 'h2'])
+})
+
+test('묶어도 왜 걸렸는지를 잃지 않는다', () => {
+  const out = groupHits([
+    hit({ id: 'h1', rule_id: 'r1', reason: '키워드 AI' }),
+    hit({ id: 'h2', rule_id: 'r2', reason: '발주처 조달청' }),
+  ])
+  assert.deepEqual(out[0].rule_ids, ['r1', 'r2'])
+  assert.match(String(out[0].reason), /키워드 AI/)
+  assert.match(String(out[0].reason), /발주처 조달청/)
+})
+
+test('같은 사유를 두 번 적지 않는다', () => {
+  const out = groupHits([hit({ id: 'h1', reason: '최근 공고' }), hit({ id: 'h2', rule_id: 'r2', reason: '최근 공고' })])
+  assert.equal(out[0].reason, '최근 공고')
+})
+
+test('점수는 가장 높은 것을 쓴다', () => {
+  // 낮은 쪽으로 접으면 걸릴 만한 공고가 아래로 내려간다
+  const out = groupHits([hit({ id: 'h1', pre_score: 10 }), hit({ id: 'h2', rule_id: 'r2', pre_score: 40 })])
+  assert.equal(out[0].pre_score, 40)
+  assert.equal(out[0].id, 'h2', '대표 줄이 높은 점수 쪽이어야 한다')
+})
+
+test('점수 높은 공고가 앞에 온다', () => {
+  const out = groupHits([
+    hit({ id: 'a', source_id: 's1', pre_score: 10 }),
+    hit({ id: 'b', source_id: 's2', pre_score: 40 }),
+  ])
+  assert.deepEqual(out.map((g) => g.source_id), ['s2', 's1'])
+})
+
+test('묶은 다음에 자른다', () => {
+  // 자른 다음 묶으면 한 공고의 적중이 쪽 경계에 걸쳐 묶여도 소용이 없다
+  const rows = Array.from({ length: 5 }, (_, i) => ({ i }))
+  assert.deepEqual(slicePage(rows, { offset: 0, limit: 2 }), [{ i: 0 }, { i: 1 }])
+  assert.deepEqual(slicePage(rows, { offset: 4, limit: 2 }), [{ i: 4 }])
+})
+
+test('창구가 묶은 뒤에 자르고 공고 수를 센다', () => {
+  const src = live('app/api/rfp/radar/route.ts')
+  const groupAt = src.indexOf('groupHits(')
+  const sliceAt = src.indexOf('slicePage(')
+  assert.ok(groupAt > 0 && sliceAt > groupAt, '자른 다음에 묶는다')
+  // 배지는 공고 수를 센다. 적중 수를 세면 화면 줄 수와 안 맞는다
+  assert.match(src, /const total = grouped\.length/, '적중 수를 센다')
+  // 상한에 닿은 것을 조용히 자르면 없는 것처럼 보인다
+  assert.match(src, /truncated:/, '상한에 닿은 것을 안 말한다')
+})
+
+test('숨기기가 그 공고의 적중 전부에 걸린다', () => {
+  // 하나만 숨기면 나머지가 남아 다음 쪽에서 다시 나온다
+  const src = live('components/rfp/RadarRules.tsx')
+  // 숨기기와 보이기 **둘 다** 전부에 걸어야 한다. 한 자리만 보면 다른 쪽이 통과시킨다
+  const all = (src.match(/ids: row\.ids \?\? \[row\.id\]/g) ?? []).length
+  assert.equal(all, 2, `적중 전부에 거는 자리가 ${all}곳이다 — 숨기기와 보이기 둘이어야 한다`)
+  assert.doesNotMatch(src, /hits\/\$\{row\.id\}/, '한 건 창구로 숨긴다')
+  // 한 번에 숨기기도 묶음의 적중을 전부 편다
+  assert.match(src, /flatMap\(\(id\) => byId\.get\(id\)\?\.ids \?\? \[id\]\)/, '고른 줄의 적중을 안 편다')
+})
+
+test('서버 첫 렌더도 같은 방식으로 묶는다', () => {
+  // 한쪽만 묶으면 첫 화면과 더보기 뒤 화면이 서로 다른 줄 수를 보여 준다
+  const src = live('app/(rfp)/rfp/radar/page.tsx')
+  assert.match(src, /groupHits\(/, '첫 렌더가 안 묶는다')
+  assert.match(src, /slicePage\(/, '첫 렌더가 쪽을 안 자른다')
 })

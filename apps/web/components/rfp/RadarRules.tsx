@@ -39,7 +39,11 @@ import { WAIT } from '@/lib/terms/wait'
 
 export interface RadarHitRow {
   id: string
-  rule_id: string
+  /** 이 공고의 적중 전부. 한 줄 뒤에 규칙 수만큼의 적중이 있다 */
+  ids?: string[]
+  rule_id?: string
+  /** 걸린 규칙들 */
+  rule_ids?: string[]
   source_id: string
   case_id: string | null
   pre_score: number | null
@@ -182,18 +186,19 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
     }
   }, [])
 
-  /** 숨긴 것을 다시 보이게 한다 — 「찾은 공고」로 돌아간다 */
-  const restore = useCallback(async (id: string) => {
-    setDismissing(id)
+  /** 숨긴 것을 다시 보이게 한다. 숨길 때와 같이 그 공고의 적중 전부에 건다 */
+  const restore = useCallback(async (row: RadarHitRow) => {
+    setDismissing(row.id)
     setError(null)
     try {
-      const res = await fetch(`/api/rfp/radar/hits/${id}`, {
+      const res = await fetch('/api/rfp/radar/hits', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'new' }),
+        body: JSON.stringify({ ids: row.ids ?? [row.id], status: 'new' }),
       })
       if (!res.ok) { setError(RFP_RADAR.hitDismissFailed); return }
-      setHits((prev) => prev.filter((h) => h.id !== id))
+      setHits((prev) => prev.filter((h) => h.id !== row.id))
+      setTotal((t) => (t === null ? t : Math.max(0, t - 1)))
     } catch {
       setError(RFP_RADAR.hitDismissFailed)
     } finally {
@@ -220,7 +225,9 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
    * 안 말하면 화면은 전부 바뀐 것처럼 보이고 사용자는 다시 열었을 때에야 남은 것을 본다
    */
   const dismissPicked = useCallback(async () => {
-    const ids = Array.from(picked)
+    // 고른 줄들이 들고 있는 적중을 전부 편다 — 한 줄 뒤에 여러 적중이 있다
+    const byId = new Map(hitsRef.current.map((h) => [h.id, h]))
+    const ids = Array.from(picked).flatMap((id) => byId.get(id)?.ids ?? [id])
     if (ids.length === 0) return
     setBusy(true)
     setError(null)
@@ -244,19 +251,26 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
     }
   }, [picked])
 
-  /** 적중 한 건을 목록에서 숨긴다. 삭제하지 않고 상태만 바꾸므로 다시 보이게 할 수 있다 */
-  const dismiss = useCallback(async (id: string) => {
-    setDismissing(id)
+  /**
+   * 공고 한 건을 목록에서 숨긴다.
+   *
+   * **그 공고의 적중 전부**를 넘긴다. 한 줄로 보이지만 뒤에는 규칙 수만큼의 적중이 있고,
+   * 하나만 숨기면 나머지가 남아 다음 쪽에서 다시 나온다 — 사용자는 숨긴 것이
+   * 되살아났다고 읽는다.
+   */
+  const dismiss = useCallback(async (row: RadarHitRow) => {
+    setDismissing(row.id)
     setError(null)
     try {
-      const res = await fetch(`/api/rfp/radar/hits/${id}`, {
+      const res = await fetch('/api/rfp/radar/hits', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'dismissed' }),
+        body: JSON.stringify({ ids: row.ids ?? [row.id], status: 'dismissed' }),
       })
       if (!res.ok) { setError(RFP_RADAR.hitDismissFailed); return }
       // 서버가 받아들인 뒤에 화면에서 내린다 — 먼저 내리면 실패했을 때 줄이 사라진 채로 남는다
-      setHits((prev) => prev.filter((h) => h.id !== id))
+      setHits((prev) => prev.filter((h) => h.id !== row.id))
+      setTotal((t) => (t === null ? t : Math.max(0, t - 1)))
     } catch {
       setError(RFP_RADAR.hitDismissFailed)
     } finally {
@@ -600,7 +614,7 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
                   {showDismissed ? (
                     <NbButton
                       variant="secondary"
-                      onClick={() => void restore(h.id)}
+                      onClick={() => void restore(h)}
                       disabled={dismissing === h.id}
                     >
                       {RFP_RADAR.hitRestore}
@@ -608,7 +622,7 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
                   ) : (
                     <NbButton
                       variant="ghost"
-                      onClick={() => void dismiss(h.id)}
+                      onClick={() => void dismiss(h)}
                       disabled={dismissing === h.id}
                       title={RFP_RADAR.hitDismissHint}
                       aria-label={`${RFP_RADAR.hitDismiss} — ${RFP_RADAR.hitDismissHint}`}

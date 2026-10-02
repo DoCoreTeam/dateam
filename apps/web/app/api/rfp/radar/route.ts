@@ -25,7 +25,7 @@ import { collectNotices } from '@/lib/rfp/radar/collect'
 import { collectFromSite, type SiteRow } from '@/lib/rfp/radar/collect-sites'
 import { attachNotices } from '@/lib/rfp/radar/hit-notice'
 import { listStatusOf } from '@/lib/rfp/radar/hit-status'
-import { pageOf } from '@/lib/rfp/radar/hit-page'
+import { pageOf, groupHits, slicePage, MAX_SCAN, type RawHit } from '@/lib/rfp/radar/hit-page'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,34 +52,38 @@ export async function GET(req: NextRequest) {
   const page = pageOf(params.get('offset'), params.get('limit'))
 
   /*
-    **실제 건수를 따로 센다.** 가져온 수를 세면 배지가 늘 한 쪽 크기를 말한다 —
-    실측 2026-10-01 에 적중 80건인데 화면이 「50」이라고 떴다. 숫자가 거짓말을 하면
-    사용자는 나머지가 있는 줄도 모른다.
-  */
-  const { count: total } = await (db as any)
-    .from('rfp_radar_hits')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', status)
+    **묶은 다음에 자른다.** 적중은 규칙마다 하나씩 생기므로 같은 공고가 여러 줄로 온다.
+    자른 다음 묶으면 한 공고의 적중이 쪽 경계에 걸쳐 묶여도 소용이 없다.
 
+    그래서 상한까지 읽어 묶고 그 뒤에 쪽을 자른다. 적중이 MAX_SCAN 을 넘으면
+    점수 낮은 쪽부터 안 보이는데, 그 사실을 응답에 담아 화면이 말할 수 있게 한다.
+  */
   const { data, error } = await (db as any)
     .from('rfp_radar_hits')
     .select('id, rule_id, source_id, case_id, pre_score, reason, status, created_at')
     .eq('status', status)
     .order('pre_score', { ascending: false })
-    // 점수가 같으면 순서가 흔들려 더보기가 같은 줄을 두 번 준다
+    // 점수가 같으면 순서가 흔들려 같은 줄이 두 쪽에 나뉜다
     .order('id', { ascending: true })
-    .range(page.offset, page.offset + page.limit - 1)
+    .limit(MAX_SCAN)
 
   if (error) return NextResponse.json({ error: '후보를 불러오지 못했습니다' }, { status: 500 })
 
+  const grouped = groupHits((data ?? []) as RawHit[])
+  // 배지는 **공고 수**를 센다. 적중 수를 세면 화면 줄 수와 안 맞는다
+  const total = grouped.length
+  const pageRows = slicePage(grouped, page)
+
   // 서버 첫 렌더와 **같은 함수**로 공고를 붙인다. 여기서 안 붙이면 훑기를 누른 직후
   // 클라이언트가 이 창구로 다시 받으면서 제목이 사라진다
-  const hits = await attachNotices(db as never, (data ?? []) as { source_id: string }[])
+  const hits = await attachNotices(db as never, pageRows)
   return NextResponse.json({
     hits,
-    total: typeof total === 'number' ? total : null,
+    total,
     offset: page.offset,
     limit: page.limit,
+    // 상한에 닿았으면 화면이 그 사실을 말해야 한다 — 조용히 자르면 없는 것처럼 보인다
+    truncated: (data ?? []).length >= MAX_SCAN,
   })
 }
 
