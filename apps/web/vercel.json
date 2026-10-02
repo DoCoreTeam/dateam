@@ -44,6 +44,10 @@
       "schedule": "30 4 * * *"
     },
     {
+      "path": "/api/cron/fx-sync",
+      "schedule": "30 3 * * *"
+    },
+    {
       "path": "/api/meeting-notes/jobs/audio-purge",
       "schedule": "30 4 * * *"
     },

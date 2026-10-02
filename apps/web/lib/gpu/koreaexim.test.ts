@@ -7,6 +7,21 @@ import { KOREAEXIM_INTERMEDIATE_CA, KOREAEXIM_BASE, KOREAEXIM_TIMEOUT_MS } from 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const MOD = 'lib/gpu/koreaexim.ts'
 
+/** 훑을 소스 — `.ts`·`.tsx` 전부. 목록을 손으로 들지 않으려고 트리를 직접 센다 */
+function sources(roots: string[]): string[] {
+  const out: string[] = []
+  const walk = (dir: string) => {
+    for (const e of readdirSync(join(process.cwd(), dir))) {
+      if (e === 'node_modules' || e.startsWith('.')) continue
+      const rel = `${dir}/${e}`
+      if (statSync(join(process.cwd(), rel)).isDirectory()) walk(rel)
+      else if (e.endsWith('.ts') || e.endsWith('.tsx')) out.push(rel)
+    }
+  }
+  for (const r of roots) walk(r)
+  return out
+}
+
 describe('환율 API — 서버가 빠뜨린 것을 우리가 채운다', () => {
   it('★ 중간 인증서를 들고 있다 — 서버가 리프만 보내서 Node 가 경로를 못 잇는다', () => {
     assert.match(KOREAEXIM_INTERMEDIATE_CA, /^-----BEGIN CERTIFICATE-----/)
@@ -41,14 +56,38 @@ describe('환율 API — 서버가 빠뜨린 것을 우리가 채운다', () => 
     assert.match(src, /req\.on\('error', \(\) => resolve/, '네트워크 오류도 던지지 않는다')
   })
 
-  it('★ 이 서버를 부르는 곳은 전부 SSOT 를 쓴다 — 맨 fetch 가 하나라도 남으면 그 화면만 죽는다', () => {
-    const callers = ['app/api/pricing/gpu/fx/route.ts', 'app/admin/settings/actions.ts']
-    for (const p of callers) {
-      const src = read(p)
-      assert.match(src, /fetchKoraeximJson/, `${p} 가 SSOT 를 써야 한다`)
-      assert.doesNotMatch(src, /fetch\([^)]*oapi\.koreaexim/,
-        `${p} 에 맨 fetch 가 남아 있다 — TLS·쿠키 처리를 건너뛴다`)
-    }
+  /*
+    **손목록이 아니라 훑는다.**
+
+    예전에는 부르는 자리를 배열에 적어 두고 그 파일들만 봤다. 그 목록은 두 가지를 못 한다.
+    ① **새로 생긴 호출 자리**는 목록에 없으니 애초에 안 본다 — 맨 fetch 를 들고 들어와도 조용하다.
+    ② 호출 자리가 **옮겨 가면** 목록이 틀린 파일을 가리키며 빨개진다. 실측 2026-10-02:
+       받아 오는 일을 `lib/gpu/fx-sync.ts` 로 모았더니 그 라우트에서 `fetchKoraeximJson` 이
+       사라져 가드가 실패했다 — 코드는 더 나아졌는데 가드가 막았다.
+
+    그래서 이름을 세지 않고 **주소를 센다.** 이 서버로 가는 요청은 SSOT 모듈 안에만 있어야 한다.
+  */
+  it('★ 이 서버로 가는 요청은 SSOT 모듈 안에만 있다 — 맨 fetch 가 하나라도 남으면 그 화면만 죽는다', () => {
+    const files = sources(['app', 'lib'])
+    assert.ok(files.length > 500, `훑은 파일이 ${files.length}개뿐이다 — 규칙이 헛돈다`)
+
+    const raw = files.filter((f) => {
+      if (f === MOD) return false   // SSOT 자신은 당연히 그 주소를 든다
+      return /fetch\([^)]*oapi\.koreaexim|https:\/\/oapi\.koreaexim/.test(read(f))
+    })
+    assert.deepEqual(
+      raw, [],
+      `이 서버 주소를 SSOT 밖에서 직접 들고 있다:\n  ${raw.join('\n  ')}\n\n` +
+        `이 서버는 중간 인증서를 안 보내서 맨 fetch 는 Node 에서 TLS 검증에 실패한다(일주일째 500 이던 그 사고다).\n` +
+        `${MOD} 의 fetchKoraeximJson 을 쓴다.`,
+    )
+
+    // 부르는 자리가 적어도 하나는 살아 있어야 한다 — 0곳이면 받아 오는 길이 끊긴 것이다
+    const callers = files.filter((f) => f !== MOD && /fetchKoraeximJson\s*\(/.test(read(f)))
+    assert.ok(
+      callers.length > 0,
+      'fetchKoraeximJson 을 부르는 자리가 0곳이다 — 환율을 받아 오는 길이 끊겼다',
+    )
   })
 
   it('주소는 한 곳에서만 정한다', () => {

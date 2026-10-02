@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.867',
+    date: '2026-10-02',
+    title: '환율이 날마다 저절로 갱신돼요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔄',
+        headline: '누가 가격표를 열지 않아도 환율이 그날 것으로 바뀝니다',
+        detail: '전에는 관리자가 GPU 가격표를 그날 처음 열 때만 환율을 받아 왔어요. 아무도 안 열면 환율이 그 자리에 섰고, 외화 금액이 묵은 환율로 환산됐습니다. 이제는 날마다 저절로 받아 둬요.',
+      },
+    ],
+  },
+  {
     version: '0.10.866',
     date: '2026-10-02',
     title: '달러로 받은 견적을 달러 그대로 원가에 담을 수 있어요',
