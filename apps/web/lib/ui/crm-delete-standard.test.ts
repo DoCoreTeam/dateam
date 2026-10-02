@@ -25,10 +25,10 @@
  * **가드는 있었는데 CRM 만 보고 있었다.** 그래서 RFP 는 규칙 밖이었고 같은 구멍이 다시 생겼다.
  * 한 번 더 그러지 않게 여기서 RFP 도 함께 센다.
  *
- * RFP 는 지우는 모양이 다르다 — 지우지 않고 **상태로 뺀다**(`PATCH status=dismissed`).
+ * RFP 는 지우는 모양이 다르다 — 지우지 않고 **상태로 숨긴다**(`PATCH status=dismissed`).
  * 원천을 지우면 다음 훑기에 또 들어와 뺀 것이 되살아나기 때문이다.
  * 그래서 규칙을 둘로 본다: 지우는 API 가 있으면 지울 길이 있어야 하고,
- * 상태로 빼는 창구가 있으면 **빼는 길과 되돌리는 길이 둘 다** 있어야 한다.
+ * 상태로 숨기는 창구가 있으면 **숨기는 길과 보이게 하는 길이 둘 다** 있어야 한다.
  */
 
 import { test } from 'node:test'
@@ -164,7 +164,7 @@ test('규칙이 도는 대상이 실제로 있다', () => {
 const RFP_SCREEN_ROOT = 'app/(rfp)/rfp'
 const RFP_COMPONENT_ROOT = 'components/rfp'
 
-/** 상태로 빼는 창구 — 있으면 화면에 빼는 길과 되돌리는 길이 둘 다 있어야 한다 */
+/** 상태로 숨기는 창구 — 있으면 화면에 숨기는 길과 보이게 하는 길이 둘 다 있어야 한다 */
 const RFP_DISMISS_APIS = [
   'app/api/rfp/radar/hits/[id]/route.ts',
   'app/api/rfp/radar/hits/route.ts',
@@ -173,7 +173,7 @@ const RFP_DISMISS_APIS = [
 /** 그 창구를 쓰는 화면 */
 const RFP_DISMISS_SCREENS = ['components/rfp/RadarRules.tsx']
 
-test('RFP: 상태로 빼는 창구가 있으면 화면에 빼는 길이 있다', () => {
+test('RFP: 상태로 숨기는 창구가 있으면 화면에 숨기는 길이 있다', () => {
   // 창구만 있고 화면이 안 부르면 사용자에게는 «없는 기능»이다 — CRM 에서 이미 겪은 그 모양이다
   const live = RFP_DISMISS_APIS.filter((f) => existsSync(f))
   assert.ok(live.length > 0, '상태로 빼는 창구가 하나도 없다 — 경로가 바뀌었는지 확인한다')
@@ -182,24 +182,25 @@ test('RFP: 상태로 빼는 창구가 있으면 화면에 빼는 길이 있다',
     const src = readFileSync(f, 'utf8')
     return !src.includes("status: 'dismissed'")
   })
-  assert.deepEqual(missing, [], `빼는 창구를 안 부르는 화면: ${missing.join(', ')}`)
+  assert.deepEqual(missing, [], `숨기는 창구를 안 부르는 화면: ${missing.join(', ')}`)
 })
 
-test('RFP: 뺄 수 있으면 되돌릴 수 있어야 한다', () => {
+test('RFP: 숨길 수 있으면 다시 보이게 할 수 있어야 한다', () => {
   /*
-    빼기는 되돌릴 수 있어야 누를 수 있다. 되돌릴 길이 없으면 사용자는 안 누르고,
+    숨기기는 다시 보이게 할 수 있어야 누를 수 있다. 그 길이 없으면 사용자는 안 누르고,
     그러면 목록은 영영 안 줄어들어 기능이 있으나 마나가 된다.
     CRM 에서 「30일 안에 되돌릴 수 있어요」라고 약속해 놓고 휴지통 보기가 없던 것과 같은 자리다.
   */
   const missing = RFP_DISMISS_SCREENS.filter((f) => {
     const src = readFileSync(f, 'utf8')
-    const 뺀목록을본다 = src.includes("status=${dismissed ? 'dismissed' : 'new'}")
-    const 되돌린다 = src.includes("status: 'new'")
-    return !(뺀목록을본다 && 되돌린다)
+    // 질의를 URLSearchParams 로 만들어도 상태는 골라 보내야 한다
+    const 숨긴목록을본다 = src.includes("status: dismissed ? 'dismissed' : 'new'")
+    const 다시보인다 = src.includes("status: 'new'")
+    return !(숨긴목록을본다 && 다시보인다)
   })
   assert.deepEqual(missing, [], [
-    '뺄 수는 있는데 되돌릴 길이 없다:',
-    ...missing.map((f) => `  · ${f} — 뺀 목록 보기와 되돌리기를 둘 다 둔다`),
+    '숨길 수는 있는데 다시 보이게 할 길이 없다:',
+    ...missing.map((f) => `  · ${f} — 숨긴 목록 보기와 보이기를 둘 다 둔다`),
   ].join('\n'))
 })
 
