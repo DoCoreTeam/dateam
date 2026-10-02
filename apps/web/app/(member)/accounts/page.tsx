@@ -20,6 +20,7 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import type { ListDefaults } from '@/lib/ui/list-query'
 import { ACCOUNT_SEGMENTS } from '@/lib/crm'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 type PageData = { items: Account[]; nextCursor: string | null; hasMore: boolean; capped?: boolean }
 
@@ -175,11 +176,17 @@ export default function AccountsPage() {
 }
 
 function AccountDetail({ account, onClose, onDeleted }: { account: Account; onClose: () => void; onDeleted: () => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   async function handleDelete() {
-    if (!confirm(`거래처 "${account.name}"을(를) 삭제하시겠습니까?`)) return
+    if (!await ask.confirm({
+      title: '거래처를 삭제할까요?',
+      body: `"${account.name}" 이 목록에서 사라집니다.`,
+      confirmLabel: '삭제', danger: true,
+    })) return
     const res = await fetch(`/api/accounts/${account.id}`, { method: 'DELETE' })
     if (res.ok) onDeleted()
-    else alert('삭제에 실패했습니다')
+    else await ask.notice({ title: '삭제하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
   }
   const fc = fitColor(account.fit_score)
   return (
@@ -245,6 +252,7 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
           삭제
         </button>
       </div>
+    {dialog}
     </div>
   )
 }

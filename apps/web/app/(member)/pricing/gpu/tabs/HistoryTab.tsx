@@ -7,6 +7,7 @@ import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { fmtUSD } from '@/lib/gpu/format-price'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface AuditLog {
   id: string
@@ -111,6 +112,8 @@ function renderDetail(type: string, detail: Record<string, unknown>): string | n
 }
 
 export default function HistoryTab() {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data, mutate } = useSWR<{ logs: AuditLog[] }>('/api/pricing/gpu/audit', fetcher)
   const { mutate: globalMutate } = useSWRConfig()
   const logs = data?.logs ?? []
@@ -124,7 +127,13 @@ export default function HistoryTab() {
   const batchDelete = async () => {
     const ids = Array.from(selected)
     if (ids.length === 0) return
-    if (!confirm(`로그 ${ids.length}건${withData ? ' + 연결된 견적 데이터' : ''}을 삭제할까요?`)) return
+    if (!await ask.confirm({
+      title: `로그 ${ids.length}건을 삭제할까요?`,
+      body: withData
+        ? '이 로그에 걸린 견적 데이터도 함께 사라집니다. 되돌릴 수 없습니다.'
+        : '견적 데이터는 그대로 남고 로그만 사라집니다. 되돌릴 수 없습니다.',
+      confirmLabel: '삭제', danger: true,
+    })) return
     setDeleting(true)
     try {
       const res = await fetch('/api/pricing/gpu/audit', {
@@ -132,8 +141,16 @@ export default function HistoryTab() {
         body: JSON.stringify({ ids, delete_data: withData }),
       })
       const j = await res.json().catch(() => ({}))
-      if (!res.ok) { alert(j.error ?? '삭제 실패'); return }
-      alert(`삭제 완료: 로그 ${j.logs_deleted}건${j.data_deleted ? ` · 견적 ${j.data_deleted}건` : ''}`)
+      if (!res.ok) {
+        console.error('[gpu/history delete]', res.status, j)
+        await ask.notice({ title: '삭제하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
+        return
+      }
+      // 실제로 지워진 수를 서버 응답에서 받아 말한다 (U-5 결과를 확인한 뒤 알린다)
+      await ask.notice({
+        title: '삭제했습니다',
+        body: `로그 ${j.logs_deleted}건${j.data_deleted ? `, 견적 ${j.data_deleted}건` : ''}을 지웠습니다.`,
+      })
       setSelected(new Set()); mutate(); mutateGpu(globalMutate)
     } finally { setDeleting(false) }
   }
@@ -244,6 +261,7 @@ export default function HistoryTab() {
           })
         )}
       </div>
+    {dialog}
     </div>
   )
 }

@@ -123,7 +123,7 @@
 의존: I04
 
 ### I06 나머지 화면도 같은 기준으로 옮긴다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(member)/pricing/gpu/tabs/, apps/web/components/pricing/gpu/unified/, apps/web/app/(member)/api-keys/page.tsx, apps/web/app/(member)/accounts/page.tsx, apps/web/scripts/.product-copy-baseline.json
 감사 기준:

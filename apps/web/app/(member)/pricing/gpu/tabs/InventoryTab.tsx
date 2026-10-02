@@ -14,6 +14,7 @@ import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 import InlineError from '@/components/ui/InlineError'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface SupplierAvail {
   supplier_id: string | null
@@ -241,6 +242,8 @@ function PoolQtyEditor({ item, onSaved }: { item: InventoryItem; onSaved: () => 
 }
 
 function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [expanded, setExpanded] = useState(false)
   const maxQty = item.supplier_availability.reduce((a, s) => Math.max(a, s.resp_qty ?? 0), item.fresh_available_qty || 10)
 
@@ -368,9 +371,18 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
                     {sup.supplier_id != null && sup.has_qty && (
                       <button
                         onClick={async () => {
-                          if (!confirm(`${sup.name} 재고를 삭제할까요?`)) return
+                          if (!await ask.confirm({
+                            title: '재고를 삭제할까요?',
+                            body: `${sup.name} 의 재고 기록이 사라집니다. 공급사와 견적은 그대로 남습니다.`,
+                            confirmLabel: '삭제', danger: true,
+                          })) return
                           const res = await fetch(`/api/pricing/gpu/availability?product_id=${item.id}&supplier_id=${sup.supplier_id}`, { method: 'DELETE' })
-                          if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '삭제 실패'); return }
+                          if (!res.ok) {
+                            const j = await res.json().catch(() => ({}))
+                            console.error('[gpu/inventory delete]', res.status, j)
+                            await ask.notice({ title: '삭제하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
+                            return
+                          }
                           onMutate()
                         }}
                         title="재고 삭제" aria-label="재고 삭제"
@@ -415,6 +427,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
           )}
         </div>
       )}
+    {dialog}
     </div>
   )
 }

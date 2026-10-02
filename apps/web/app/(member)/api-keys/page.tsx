@@ -14,6 +14,7 @@ import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface ApiKey {
   id: string
@@ -59,6 +60,8 @@ function fmtDate(value: string | null): string {
 }
 
 export default function ApiKeysPage() {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/api-keys' })
 
   const [keys, setKeys] = useState<ApiKey[]>([])
@@ -142,7 +145,7 @@ export default function ApiKeysPage() {
     try {
       const res = await fetch(`/api/user/api-keys/${id}`, { method: 'DELETE' })
       if (isAuthRedirect(res)) {
-        alert('세션이 만료되었습니다. 다시 로그인한 뒤 시도해주세요.')
+        await ask.notice({ title: '다시 로그인해 주세요', body: '로그인이 만료됐습니다. 다시 들어온 뒤 시도해 주세요. 키는 그대로 남아 있습니다.' })
         return
       }
       const data = await res.json().catch(() => null)
@@ -150,10 +153,12 @@ export default function ApiKeysPage() {
         setRevokeConfirm(null)
         fetchKeys()
       } else {
-        alert(data?.error ?? `키 폐기에 실패했습니다 (HTTP ${res.status}).`)
+        // HTTP 상태는 진단용으로만 — 화면에 내부 구조를 싣지 않는다 (7절 S3)
+        console.error('[user/api-keys revoke]', res.status, data)
+        await ask.notice({ title: '키를 폐기하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 이 키는 아직 쓸 수 있습니다.' })
       }
     } catch {
-      alert('네트워크 오류로 키 폐기에 실패했습니다. 잠시 후 다시 시도해주세요.')
+      await ask.notice({ title: '키를 폐기하지 못했습니다', body: '서버에 닿지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요. 이 키는 아직 쓸 수 있습니다.' })
     }
   }
 
@@ -221,7 +226,10 @@ export default function ApiKeysPage() {
               onClick={(e) => {
                 e.stopPropagation()
                 if (k.raw_key) copyText(k.raw_key, `${k.id}-copy`)
-                else alert('이전에 생성된 키는 원문을 불러올 수 없습니다. 기존 키를 폐기하고 새 키를 생성해주세요.')
+                else void ask.notice({
+                  title: '이 키는 다시 볼 수 없습니다',
+                  body: '예전에 만든 키는 원문을 보관하지 않습니다. 이 키를 폐기하고 새 키를 만들면 그때 원문을 한 번 보여 드립니다.',
+                })
               }}
               style={{ display: 'inline-flex', alignItems: 'center', opacity: k.raw_key ? 1 : 0.5 }}
             >
@@ -358,6 +366,7 @@ export default function ApiKeysPage() {
       />
 
       <ListPager query={query} total={filtered.length} onChange={set} />
+    {dialog}
     </div>
   )
 }

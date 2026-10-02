@@ -21,6 +21,7 @@ import { GPU_TERMS } from '@/lib/gpu/terms'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import MarginControl from '@/components/pricing/gpu/MarginControl'
 import InlineError from '@/components/ui/InlineError'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 const ProductAddModal = dynamic(() => import('@/components/pricing/gpu/ProductAddModal'), { ssr: false })
 const ProductEditModal = dynamic(() => import('@/components/pricing/gpu/ProductEditModal'), { ssr: false })
@@ -236,6 +237,8 @@ function AssignSupplier({ quoteId, onAssigned }: { quoteId: string; onAssigned: 
 }
 
 function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }: ExpandedRowProps) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data } = useSWR<{ quotes: Quote[] }>(
     `/api/pricing/gpu/quotes?product_id=${productId}`,
     fetcher
@@ -279,7 +282,12 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
       const res = await fetch(`/api/pricing/gpu/quotes/${qid}/select`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ selected: next }),
       })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '채택 실패'); return }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        console.error('[gpu/pricing adopt]', res.status, j)
+        await ask.notice({ title: '채택하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 바뀌지 않았습니다.' })
+        return
+      }
       mutate(`/api/pricing/gpu/quotes?product_id=${productId}`); mutateGpu(mutate)
     } finally { setSelecting(null) }
   }
@@ -454,12 +462,15 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
         />
       )}
       {listBox}
+    {dialog}
     </div>
   )
 }
 
 // 파트너 등급(partner_tiers) 관리 모달 — 목록/추가/수정/삭제 (CRUD)
 function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: PartnerTier[]; onClose: () => void; onChanged: () => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [name, setName] = useState('')
   const [rate, setRate] = useState('')
   const [busy, setBusy] = useState(false)
@@ -475,12 +486,18 @@ function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: Partner
   }
   const patch = async (id: string, body: Record<string, unknown>) => {
     const res = await fetch(`/api/pricing/gpu/partner-tiers/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    if (res.ok) onChanged(); else alert('수정 실패')
+    if (res.ok) onChanged()
+    else await ask.notice({ title: '수정하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 저장되지 않았습니다.' })
   }
   const del = async (id: string, nm: string) => {
-    if (!confirm(`'${nm}' 등급을 삭제할까요?`)) return
+    if (!await ask.confirm({
+      title: '등급을 삭제할까요?',
+      body: `'${nm}' 등급이 사라집니다. 이 등급을 쓰던 가격은 기본 등급으로 돌아갑니다.`,
+      confirmLabel: '삭제', danger: true,
+    })) return
     const res = await fetch(`/api/pricing/gpu/partner-tiers/${id}`, { method: 'DELETE' })
-    if (res.ok) onChanged(); else alert('삭제 실패')
+    if (res.ok) onChanged()
+    else await ask.notice({ title: '삭제하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
   }
   // ESC로도 닫힌다(§2-2) — 롤백용 구뷰라도 대화상자 계약은 같다
   useEscClose(onClose)
@@ -521,6 +538,7 @@ function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: Partner
           <InlineError compact>{err}</InlineError>
         </div>
       </div>
+    {dialog}
     </div>
   )
 }

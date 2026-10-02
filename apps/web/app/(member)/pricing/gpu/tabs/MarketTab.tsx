@@ -19,6 +19,7 @@ import SortIcon from '@/components/ui/SortIcon'
 import { buildTierModelGroups, tierKey, modelKey, TIER_META } from '@/lib/gpu/group'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import InlineError from '@/components/ui/InlineError'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 const MarketPriceEditModal = dynamic(() => import('@/components/pricing/gpu/MarketPriceEditModal'), { ssr: false })
 
@@ -1101,6 +1102,8 @@ function PriceRegisterModal({
 function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
   mappings: Mapping[]; competitors: Competitor[]; onClose: () => void; onChanged: () => void
 }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   useEscClose(onClose)
   const { data: prodData } = useSWR<{ products: { id: string; model_name: string; memory: string }[] }>('/api/pricing/gpu/products', fetcher)
   const products = prodData?.products ?? []
@@ -1122,9 +1125,14 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
     } finally { setBusy(false) }
   }
   const del = async (id: string) => {
-    if (!confirm('이 매핑을 삭제할까요? (연결된 시세도 함께 삭제)')) return
+    if (!await ask.confirm({
+      title: '매핑을 삭제할까요?',
+      body: '이 매핑에 걸린 시세도 함께 사라집니다.',
+      confirmLabel: '삭제', danger: true,
+    })) return
     const res = await fetch(`/api/pricing/gpu/market/mappings/${id}`, { method: 'DELETE' })
-    if (res.ok) onChanged(); else alert('삭제 실패')
+    if (res.ok) onChanged()
+    else await ask.notice({ title: '삭제하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
   }
   return (
     <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
@@ -1164,6 +1172,7 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
           </div>
         </div>
       </div>
+    {dialog}
     </div>
   )
 }
@@ -1253,14 +1262,25 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
   autoCreate?: boolean
   onAutoCreateConsumed?: () => void
 }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data, isLoading, mutate } = useSWR<MarketData>('/api/pricing/gpu/market', fetcher, {
     refreshInterval: 0,
   })
   const [editingMarketPrice, setEditingMarketPrice] = useState<MarketPriceForEdit | null>(null)
   const deleteMarketPrice = async (priceId: string) => {
-    if (!confirm('이 경쟁가를 삭제할까요?')) return
+    if (!await ask.confirm({
+      title: '경쟁가를 삭제할까요?',
+      body: '이 한 건만 사라지고 다른 시세는 그대로 남습니다.',
+      confirmLabel: '삭제', danger: true,
+    })) return
     const res = await fetch(`/api/pricing/gpu/market/prices?id=${priceId}`, { method: 'DELETE' })
-    if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '삭제 실패'); return }
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      console.error('[gpu/market price delete]', res.status, j)
+      await ask.notice({ title: '삭제하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
+      return
+    }
     mutate()
   }
   const [currencyMode, setCurrencyMode] = useState<CurrencyMode>('KRW')
@@ -2066,6 +2086,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
         외부 자료(제안서·홈페이지)에 직접 인용 금지 · 가격은 <b style={{ color: 'var(--gpu-ink-2)' }}>마지막 수집값을 항상 표시</b>(수집 시점은 신선도 배지로 확인)
       </div>
       </div>{/* end 스크롤 영역 */}
+    {dialog}
     </div>
   )
 }

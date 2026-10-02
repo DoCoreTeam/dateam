@@ -23,6 +23,7 @@ import { formatCardMemory, perCardMemory, memoryTitle } from '@/lib/gpu/card-mem
 import type { UnifiedRow } from '@/lib/gpu/unified-row'
 import type { QuoteForEdit } from '@/components/pricing/gpu/QuoteEditModal'
 import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 const QuoteEditModal = dynamic(() => import('@/components/pricing/gpu/QuoteEditModal'), { ssr: false })
 const MarketPriceEditModal = dynamic(() => import('@/components/pricing/gpu/MarketPriceEditModal'), { ssr: false })
@@ -74,6 +75,8 @@ interface DetailPanelProps {
 }
 
 export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }, onRegisterQuote, onManageMapping, isAdmin = false }: DetailPanelProps) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const mKrw = (krw: number | null) => fmtMoneyFromKrw(krw, currency.mode, currency.usdKrw)
   const mUsd = (usd: number | null) => fmtMoneyFromUsd(usd, currency.mode, currency.usdKrw)
   const [tab, setTab] = useState<DetailTab>('cost')
@@ -95,12 +98,13 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
-        alert(j.error ?? '등급 변경에 실패했습니다.')
+        console.error('[gpu/tier change]', j)
+        await ask.notice({ title: '등급을 바꾸지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 바뀌지 않았습니다.' })
         return
       }
       mutateGpu(globalMutate)  // 가격표·콕핏 전역 즉시 갱신
     } catch {
-      alert('등급 변경 중 오류가 발생했습니다.')
+      await ask.notice({ title: '등급을 바꾸지 못했습니다', body: '서버에 닿지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.' })
     } finally {
       setTierSaving(false)
     }
@@ -166,13 +170,14 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
-        alert(j.error ?? '공급가 지정에 실패했습니다.')
+        console.error('[gpu/cost basis]', j)
+        await ask.notice({ title: '공급가를 지정하지 못했습니다', body: '값을 다시 확인한 뒤 시도해 주세요. 아직 저장되지 않았습니다.' })
         return
       }
       mutateQuotes()
       mutateGpu(globalMutate)
     } catch {
-      alert('공급가 지정 중 오류가 발생했습니다.')
+      await ask.notice({ title: '공급가를 지정하지 못했습니다', body: '서버에 닿지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.' })
     } finally {
       setDesignating(null)
     }
@@ -572,6 +577,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
           </div>
         </div>
       )}
+    {dialog}
     </div>
   )
 }

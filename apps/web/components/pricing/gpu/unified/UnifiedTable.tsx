@@ -18,6 +18,7 @@ import { baseModelKey, baseModelName, modelVariantLabel } from '@/lib/gpu/canoni
 import { generationRank } from '@/lib/gpu/generation'
 import type { UnifiedRow, CurrencyCtx } from '@/lib/gpu/unified-row'
 import type { CurrencyMode } from '@/lib/gpu/format-price'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface UnifiedTableProps {
   rows: UnifiedRow[]
@@ -71,6 +72,8 @@ function sortValue(row: UnifiedRow, key: string): number | string | null {
 }
 
 export default function UnifiedTable({ rows, loading = false, error = null, usdKrw = 1, marginPct, isAdmin = false, onMarginSaved, onVisibilityChanged, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   // 하이드레이션 안전: 서버/첫 렌더는 DEFAULT_VIEW, mount 후 저장된 보기로 복원(localStorage 불일치 방지).
   const [view, setView] = useState<GpuViewId>(DEFAULT_VIEW)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -187,7 +190,9 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
       }
       onVisibilityChanged?.()
     } catch (e) {
-      alert(e instanceof Error ? e.message : '노출 변경에 실패했습니다.')
+      // 서버가 보낸 문장을 그대로 띄우지 않는다 — 내부 구조가 샌다 (7절 S3)
+      console.error('[gpu/visibility]', e)
+      await ask.notice({ title: '노출을 바꾸지 못했습니다', body: '잠시 후 다시 시도해 주세요. 목록은 원래 상태로 돌아갑니다.' })
     } finally {
       setBusyKey(null)
     }
@@ -397,6 +402,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
       {bulkOpen && (
         <BulkReflectPanel rows={rows} currency={currency} onClose={() => setBulkOpen(false)} />
       )}
+    {dialog}
     </div>
   )
 }

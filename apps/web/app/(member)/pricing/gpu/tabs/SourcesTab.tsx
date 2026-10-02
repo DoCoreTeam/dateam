@@ -8,6 +8,7 @@ import { fetcher } from '@/lib/swr-config'
 import { RefreshCw, ExternalLink, Save, Link2 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface SourceRow {
   id: string
@@ -35,6 +36,8 @@ function domainOf(url: string): string {
 }
 
 export default function SourcesTab() {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data, isLoading, mutate } = useSWR<{ sources: SourceRow[]; lastRun: LastRun | null }>(
     '/api/pricing/gpu/sources', fetcher,
   )
@@ -69,7 +72,12 @@ export default function SourcesTab() {
       const res = await fetch(`/api/pricing/gpu/competitors/${editing.competitorId}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pricing_url: editing.url }),
       })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '저장에 실패했어요'); return }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        console.error('[gpu/sources save]', res.status, j)
+        await ask.notice({ title: '저장하지 못했습니다', body: '값을 다시 확인한 뒤 시도해 주세요. 아직 저장되지 않았습니다.' })
+        return
+      }
       setEditing(null)
       await mutate()
     } finally { setSaving(false) }
@@ -148,6 +156,7 @@ export default function SourcesTab() {
           </tbody>
         </table>
       )}
+    {dialog}
     </div>
   )
 }
