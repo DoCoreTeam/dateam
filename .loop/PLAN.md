@@ -58,7 +58,7 @@
 의존: I01
 
 ### I03 합계가 통화를 센다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/domain/cost.ts, apps/web/lib/crm/domain/cost.test.ts, apps/web/lib/crm/services/cost.ts
 감사 기준:

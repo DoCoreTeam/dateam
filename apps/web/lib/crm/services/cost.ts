@@ -183,6 +183,8 @@ export interface DealCostView {
   margin: Margin
   /** 수주 매출 — 마진 계산의 분모. 화면이 다시 구하지 않게 함께 준다 */
   revenueMinor: string
+  /** 합계와 매출의 통화. 항목마다의 통화와 다를 수 있다 */
+  currency: string
 }
 
 /** 딜 하나의 원가 전부 + 합계 + 마진 */
@@ -190,8 +192,12 @@ export async function listDealCosts(db: CrmDb, dealId: string): Promise<DealCost
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deal = await (db as any).crmDeal.findFirst({
     where: { id: dealId },
-    select: { bookedNetMinor: true, contractNetMinor: true, quotedNetMinor: true, budgetNetMinor: true, amountMinor: true },
-  }) as Record<string, bigint | null> | null
+    select: {
+      bookedNetMinor: true, contractNetMinor: true, quotedNetMinor: true, budgetNetMinor: true, amountMinor: true,
+      // 합계를 **어느 돈으로 셀 것인가** — 매출이 그 통화이므로 마진도 그 위에서만 뜻을 갖는다
+      currency: true,
+    },
+  }) as (Record<string, bigint | null> & { currency?: string | null }) | null
   if (!deal) throw new CrmError('NOT_FOUND', '딜을 찾을 수 없습니다.')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,12 +216,20 @@ export async function listDealCosts(db: CrmDb, dealId: string): Promise<DealCost
     stage: r.stage,
     inputMode: r.inputMode,
     amountMinor: r.amountMinor,
+    /*
+      **통화와 환율을 함께 넘긴다.** 안 넘기면 합계가 USD 센트와 원을 그대로 더한다 —
+      숫자는 나오고 아무도 못 알아본다(실측 2026-10-02 마진율 94.6% 대 참값 27.3%).
+    */
+    currency: r.currency,
+    fxRate: r.fxRate as number | null,
+    fxDate: r.fxDate ? r.fxDate.toISOString().slice(0, 10) : null,
     effortMm: r.effortMm as number | null,
     ratioPct: r.ratioPct as number | null,
     ratioBase: r.ratioBase as 'REVENUE' | 'COST' | null,
   }))
 
-  const totals = computeCostTotals(asRows, revenue)
+  const baseCurrency = (deal.currency ?? 'KRW').toUpperCase()
+  const totals = computeCostTotals(asRows, revenue, baseCurrency)
 
   /*
     **비율 항목은 저장된 금액이 0이다.**
@@ -233,6 +247,7 @@ export async function listDealCosts(db: CrmDb, dealId: string): Promise<DealCost
     totals,
     margin: computeMargin(revenue, totals.totalMinor),
     revenueMinor: revenue.toString(),
+    currency: baseCurrency,
   }
 }
 
@@ -441,14 +456,28 @@ export function toTotalsJson(v: DealCostView): Record<string, unknown> {
   return {
     items: v.items.map(toCostJson),
     revenueMinor: v.revenueMinor,
+    /** 합계·매출·마진이 선 통화. 항목마다의 통화와 다를 수 있다 */
+    currency: v.currency,
     totals: {
       totalMinor: v.totals.totalMinor.toString(),
+      currency: v.totals.currency,
       byCategory: Object.fromEntries(
         Object.entries(v.totals.byCategory).map(([k, x]) => [k, (x as bigint).toString()]),
       ),
       byStage: Object.fromEntries(
         Object.entries(v.totals.byStage).map(([k, x]) => [k, (x as bigint).toString()]),
       ),
+      /*
+        **환산액과 빠진 것을 함께 보낸다.** 화면이 「$1,080.00 (1,454,112원)」을 적으려면
+        환산액이 필요하고, 「환율이 없어 1건이 합계에서 빠졌다」를 말하려면 빠진 목록이 필요하다.
+        안 보내면 화면은 작아진 합계를 사실인 것처럼 그린다.
+      */
+      baseAmounts: v.totals.baseAmounts.map((x) => (x === null ? null : x.toString())),
+      skipped: v.totals.skipped.map((s) => ({
+        id: s.id ?? null,
+        amountMinor: s.amountMinor.toString(),
+        currency: s.currency,
+      })),
     },
     margin: {
       grossProfitMinor: v.margin.grossProfitMinor.toString(),
