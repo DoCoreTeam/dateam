@@ -516,6 +516,23 @@ export default function QuoteFromFileModal({
               descriptionMd: r.lines[i].descriptionMd,
               // 금액은 **이미 낸 값**을 쓴다 — 검수 화면이 보여 준 그 숫자여야 한다
               amountMinor: r.checks[i].ourAmountMinor.toString(),
+              /*
+                **통화는 그 건의 통화다.** 이 한 줄이 없던 동안 $1,080.00 의 센트값 108000 이
+                원화로 앉아 「108,000원」으로 떴다(실측 2026-10-02, 참값의 13.46분의 1) —
+                원가가 작아지면 마진은 커지고, 그 딜은 「남는 장사」로 보인 채 값이 정해진다.
+              */
+              currency: r.currency,
+              /*
+                **수량·단가·종류·비고도 읽은 그대로 간다.** 금액 한 칸만 넘기면 나중에
+                「몇 대에 얼마였나」를 문서를 다시 열어야 알 수 있고, 그 원가는 견적 줄로
+                되돌릴 수도 없다 — 단가가 없으면 마진을 줄 단위로 못 센다.
+                여기 값은 **검수 화면이 보여 준 원본**이다(판매가 계획을 입힌 쪽이 아니다).
+              */
+              kind: r.lines[i].kind,
+              quantity: r.lines[i].quantity,
+              unit: r.lines[i].unit,
+              unitPriceMinor: r.lines[i].unitPriceMinor,
+              remark: r.lines[i].remark,
               sourceText: r.sources[i],
             }))
             const items = toCostPayloads(

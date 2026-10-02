@@ -1,6 +1,6 @@
 # PLAN newAX: 공급사 외화 견적이 통화를 지닌 채 원가에 앉고 견적으로 돌아간다
 플랜 ID: P0102
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0173
 목표 버전: v0.10.835
@@ -47,9 +47,9 @@
 의존: 없음
 
 ### I02 읽은 것을 그대로 싣는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/domain/quote-cost-intake.ts, apps/web/lib/crm/domain/quote-cost-intake.test.ts, apps/web/lib/crm/services/cost.ts, apps/web/components/ui/crm/QuoteFromFileModal.tsx
+범위: apps/web/lib/crm/domain/currency.ts, apps/web/lib/crm/domain/quote-cost-intake.ts, apps/web/lib/crm/domain/quote-cost-intake.test.ts, apps/web/lib/crm/services/cost.ts, apps/web/components/ui/crm/QuoteFromFileModal.tsx
 감사 기준:
 - 보안: 밖에서 온 통화 코드를 그대로 저장하지 않는다, ISO 세 글자 대문자만 받고 아니면 VALIDATION_FAILED, 단위 시험으로 확인한다
 - toCostPayloads 가 currency quantity unit unitPriceMinor kind remark descriptionMd 를 싣는다, 단위 시험이 USD 줄에서 그 일곱 칸을 단정하고 규격이 descriptionMd 첫 줄에 서는 것도 단정한다
@@ -115,3 +115,5 @@
 - v0.1.1 (2026-10-02) I01 감사 기준이 실제 칼럼 규약과 달랐다, crm_deal_cost 는 따옴표 캐멀케이스를 쓰고 통화 칸(currency)은 229 가 이미 만들어 두었다, source_currency 를 새로 만들면 통화가 두 칸이 된다 (audit:I01)
 - v0.1.2 (2026-10-02) spec 칸을 안 만든다, 규격은 crm_quote_line 에도 칸이 없고 descriptionMd 첫 줄 약속(quote-spec.ts)이 SSOT 다, 원가에만 칸을 만들면 규격이 두 자리에 살고 견적 줄로 옮길 때 어느 쪽을 믿을지 모른다 (audit:I01)
 - v0.1.2 (2026-10-02) spec 칸을 안 만든다, 규격은 crm_quote_line 에도 칸이 없고 descriptionMd 첫 줄 약속(quote-spec.ts)이 SSOT 다 (audit:I01)
+- v0.1.3 (2026-10-02) I02 범위에 domain/currency.ts 를 넣는다, 통화 코드가 ISO 세 글자인지 묻는 자리는 환산 SSOT 옆이 제자리다, 받은 견적서 길에만 두면 직접 입력 길이 같은 검사를 안 지난다 (audit:I02)
+- v0.1.3 (2026-10-02) I02 범위에 domain/currency.ts 추가, 통화 코드 ISO 검사를 환산 SSOT 옆에 둔다 (audit:I02)

@@ -37,6 +37,27 @@ export function minorDigits(currency: string): number {
 }
 
 /**
+ * ISO 4217 통화 코드인가 — **밖에서 온 코드를 그대로 저장하지 않기 위한 문지기.**
+ *
+ * 받은 견적서에서 읽은 통화는 사람도 기계도 틀릴 수 있는 값이다. 틀린 코드를
+ * 조용히 KRW 로 눕히면 $1,080.00 이 108,000원으로 앉는다(실측 2026-10-02) —
+ * **열세 배 작아졌는데 그럴듯한 금액으로 보이는 것**이 이 사고의 성질이다.
+ * 그래서 아는 코드만 받고, 모르는 코드는 받는 자리에서 거절한다.
+ *
+ * 자릿수 표(`MINOR_DIGITS`)로 묻지 않는다 — 그 표에 넷만 적혀 있는 것은
+ * 「자릿수가 2 가 아닌 통화」만 적어 둔 것이고, 거기 없는 코드도 쓸 수 있는 통화다.
+ */
+export function isCurrencyCode(code: string | null | undefined): boolean {
+  return /^[A-Z]{3}$/.test((code ?? '').trim().toUpperCase())
+}
+
+/** 저장 모양으로 — 세 글자 대문자. 코드가 아니면 `null` 이고, 부르는 쪽이 거절한다 */
+export function toCurrencyCode(code: string | null | undefined): string | null {
+  const up = (code ?? '').trim().toUpperCase()
+  return isCurrencyCode(up) ? up : null
+}
+
+/**
  * from 통화의 minor 금액을 to 통화의 minor 금액으로 바꾼다.
  * 환율을 찾지 못하면 **0 으로 때우지 않고 null 을 돌려준다** —
  * 못 세는 것을 0으로 세면 합계가 조용히 작아지고, 아무도 눈치채지 못한다.

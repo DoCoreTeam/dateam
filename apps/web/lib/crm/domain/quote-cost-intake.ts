@@ -15,17 +15,35 @@
  */
 
 import {
-  COST_CATEGORY_ORDER, COST_STAGE_ORDER,
-  type CostCategory, type CostStage,
+  COST_CATEGORY_ORDER, COST_STAGE_ORDER, LINE_KIND_ORDER,
+  type CostCategory, type CostStage, type QuoteLineKind,
 } from '../../terms/cost.ts'
 
 /** 원가로 옮길 줄 하나 — 사람이 검수를 마친 뒤의 값 */
 export interface IntakeLine {
   name: string
-  /** 규격·설명 */
+  /** 규격·설명 — 첫 줄이 규격이고 그 아래가 구성이다(`quote-spec.ts` 의 약속) */
   descriptionMd?: string | null
   /** 그 줄의 금액(부가세 전). minor 단위 문자열 */
   amountMinor: string
+  /**
+   * **그 금액이 어느 돈인가.** 문서에 적힌 통화다.
+   *
+   * 이 칸이 없던 동안 $1,080.00 의 센트값 108000 이 원화로 앉아
+   * 화면에 「108,000원」으로 떴다(실측 2026-10-02, 참값의 13.46분의 1).
+   * 안 넘기면 서버가 KRW 로 본다 — 그래서 **외화 문서를 읽은 쪽이 반드시 넘긴다.**
+   */
+  currency?: string | null
+  /** 줄 종류. 안 넘기면 서버가 수량(QUANTITY)으로 본다 */
+  kind?: QuoteLineKind | null
+  /** 수량. 문서에서 못 읽었으면 비운다 — 0 과 「못 읽었다」는 다른 사실이다 */
+  quantity?: string | null
+  /** 단위(대·EA·M/M·개월) */
+  unit?: string | null
+  /** 단가. `currency` 기준 minor 문자열 */
+  unitPriceMinor?: string | null
+  /** 비고 — 견적서 표 맨 오른쪽 열 */
+  remark?: string | null
   /** 문서에서 이 줄이 있던 자리의 원문 조각 */
   sourceText?: string | null
   /** 같은 건으로 방금 만든 판매 견적의 그 줄. 없으면 null */
@@ -46,7 +64,14 @@ export interface CostPayload {
   stage: CostStage
   inputMode: 'AMOUNT'
   amountMinor: string
+  /** 세 글자 대문자이거나 null. 코드가 아닌 값은 여기까지 오지 않고 서버가 거절한다 */
+  currency: string | null
+  kind: QuoteLineKind | null
+  quantity: string | null
+  unit: string | null
+  unitPriceMinor: string | null
   descriptionMd: string | null
+  remark: string | null
   basisNote: string | null
   quoteLineId: string | null
 }
@@ -116,6 +141,23 @@ function normalizeStage(v: CostStage): CostStage {
 }
 
 /**
+ * 줄 종류는 **아는 것만** 넘긴다.
+ *
+ * 모르는 값을 그대로 넘기면 서버가 그 건 전체를 거절한다(enum 이다) — 한 줄 때문에
+ * 견적서 한 장이 안 들어가는 것보다, 그 줄을 수량으로 보고 들여놓는 것이 낫다.
+ * 갈래·시점이 기본값으로 내려앉는 것과 같은 규칙이다.
+ */
+function normalizeKind(v: QuoteLineKind | null | undefined): QuoteLineKind | null {
+  if (!v) return null
+  return LINE_KIND_ORDER.includes(v) ? v : null
+}
+
+/** 빈 칸과 0 은 다른 사실이다 — 못 읽은 것을 0 으로 적으면 0원짜리 줄이 조용히 들어간다 */
+function keepOrNull(v: string | null | undefined): string | null {
+  return (v ?? '').trim() || null
+}
+
+/**
  * 검수한 줄을 원가 항목 모양으로.
  *
  * **이름이 빈 줄은 뺀다.** 서버가 거절하는 값이라 함께 보내면 한 줄 때문에 그 건 전체가 실패한다.
@@ -136,7 +178,21 @@ export function toCostPayloads(
       stage,
       inputMode: 'AMOUNT' as const,
       amountMinor: (l.amountMinor ?? '').trim() || '0',
+      /*
+        **통화는 읽은 그대로 간다.** 여기서 하는 일은 공백을 떼고 대문자로 올리는 것뿐이고,
+        세 글자 코드인지는 **서버가 묻는다**(`insertCost` 가 VALIDATION_FAILED 를 낸다).
+
+        모르는 코드를 여기서 `null` 로 눕히면 서버는 「안 넘긴 것」과 구별할 수 없고,
+        그러면 기본값 KRW 가 앉는다 — 달러 금액이 원화로 앉는 바로 그 사고다.
+        틀린 값은 **조용히 고쳐지는 것보다 거절당하는 것**이 낫다.
+      */
+      currency: keepOrNull(l.currency)?.toUpperCase() ?? null,
+      kind: normalizeKind(l.kind),
+      quantity: keepOrNull(l.quantity),
+      unit: keepOrNull(l.unit),
+      unitPriceMinor: keepOrNull(l.unitPriceMinor),
       descriptionMd: (l.descriptionMd ?? '').trim() || null,
+      remark: keepOrNull(l.remark),
       basisNote: costBasisNote(options.fileName, l.sourceText),
       quoteLineId: l.quoteLineId ?? null,
     }))

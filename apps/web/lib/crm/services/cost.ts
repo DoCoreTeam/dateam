@@ -21,12 +21,21 @@ import {
   computeCostAmount, computeCostTotals, computeMargin,
   type CostRow, type CostTotals, type Margin,
 } from '../domain/cost.ts'
-import { COST_CATEGORY_ORDER, COST_STAGE_ORDER, type CostCategory, type CostStage, type CostInputMode } from '../../terms/cost.ts'
+import {
+  COST_CATEGORY_ORDER, COST_STAGE_ORDER, LINE_KIND_ORDER,
+  LINE_KIND_QUANTITY_LABEL, LINE_KIND_PRICE_LABEL,
+  type CostCategory, type CostStage, type CostInputMode, type QuoteLineKind,
+} from '../../terms/cost.ts'
 import { toMinor } from '../domain/money.ts'
+import { isCurrencyCode } from '../domain/currency.ts'
+import { eulReul, eunNeun, withJosa } from '../../ui/josa.ts'
+import { latestFxRate, needsFx } from './fx.ts'
 
 const SELECT = {
   id: true, dealId: true, quoteLineId: true, category: true, stage: true, inputMode: true,
   name: true, descriptionMd: true, amountMinor: true, currency: true,
+  fxRate: true, fxDate: true, fxSource: true,
+  kind: true, quantity: true, unit: true, unitPriceMinor: true, remark: true,
   laborGradeId: true, effortMm: true, ratioPct: true, ratioBase: true, basisNote: true,
   createdAt: true, updatedAt: true,
 } as const
@@ -42,6 +51,15 @@ export interface DealCostRow {
   descriptionMd: string | null
   amountMinor: bigint
   currency: string
+  /** 만든 날의 환율. KRW 면 null 이고, **못 받았을 때도 null** 이다(1 로 눕히지 않는다) */
+  fxRate: unknown
+  fxDate: Date | null
+  fxSource: string | null
+  kind: QuoteLineKind
+  quantity: unknown
+  unit: string | null
+  unitPriceMinor: bigint | null
+  remark: string | null
   laborGradeId: string | null
   effortMm: unknown
   ratioPct: unknown
@@ -56,6 +74,13 @@ export interface DealCostInput {
   name: string
   descriptionMd?: string | null
   amountMinor?: string | number | null
+  /** 세 글자 코드만 받는다. 안 넘기면 KRW — 표의 기본값과 같다 */
+  currency?: string | null
+  kind?: string | null
+  quantity?: string | number | null
+  unit?: string | null
+  unitPriceMinor?: string | number | null
+  remark?: string | null
   laborGradeId?: string | null
   effortMm?: string | number | null
   ratioPct?: string | number | null
@@ -70,6 +95,75 @@ function assertEnum<T extends string>(v: string | undefined, allowed: readonly T
     throw new CrmError('VALIDATION_FAILED', `모르는 ${field} 입니다: ${v}`, { field })
   }
   return v as T
+}
+
+/**
+ * 통화는 **세 글자 코드만** 받는다.
+ *
+ * 안 넘기면 KRW 다(표의 기본값과 같다). 넘겼는데 코드가 아니면 **그 자리에서 거절한다** —
+ * 조용히 KRW 로 눕히면 $1,080.00 의 센트값 108000 이 「108,000원」으로 앉는다
+ * (실측 2026-10-02, 참값의 13.46분의 1). 열세 배 작아졌는데 그럴듯한 금액으로 보이는 것이
+ * 이 사고의 성질이고, 그래서 **틀린 값은 고쳐 주지 않고 되돌려 보낸다.**
+ */
+function assertCurrency(v: string | null | undefined, fallback = 'KRW'): string {
+  if (v === undefined || v === null || v.trim() === '') return fallback
+  const code = v.trim().toUpperCase()
+  if (!isCurrencyCode(code)) {
+    throw new CrmError('VALIDATION_FAILED', `모르는 통화입니다: ${v}`, { field: 'currency' })
+  }
+  return code
+}
+
+/**
+ * 만든 날의 환율을 **박아 둔다.**
+ *
+ * 조회할 때마다 환산하면 어제 본 마진이 오늘 달라진다 — 아무도 손대지 않은 원가가
+ * 아침에 바뀌어 있는 상태다. KRW 면 환산할 것이 없어 셋 다 null 이고,
+ * **환율을 못 받았을 때도 null 이다** — 0 이나 1 로 눕히면 1,454,112원이 1,080원으로 앉는다.
+ */
+async function stampFx(currency: string): Promise<{ fxRate: number | null; fxDate: Date | null; fxSource: string | null }> {
+  if (!needsFx(currency)) return { fxRate: null, fxDate: null, fxSource: null }
+  const fx = await latestFxRate(currency)
+  return {
+    fxRate: fx?.rate ?? null,
+    fxDate: fx ? new Date(fx.date) : null,
+    fxSource: fx?.source ?? null,
+  }
+}
+
+/**
+ * 숫자 칸의 문지기 — **빈 칸과 0 을 가른다.**
+ *
+ * 못 읽은 것을 0 으로 적으면 0원짜리 줄이 조용히 들어가고, 그 줄은 합계를 안 움직여
+ * 아무도 못 알아본다. 음수도 안 받는다 — 할인은 금액을 음수로 만드는 일이 아니다.
+ *
+ * 오류 문구에 칼럼 이름을 적지 않는다(사람은 `unitPriceMinor` 가 무엇인지 모른다).
+ * 고칠 칸은 `field` 로 함께 보내고, 사람에게는 그 칸의 이름으로 말한다.
+ */
+function assertNumber(v: string | number, field: string, label: string): number {
+  const n = typeof v === 'number' ? v : Number(v)
+  if (!Number.isFinite(n)) {
+    throw new CrmError('VALIDATION_FAILED', `${withJosa(label, eulReul)} 숫자로 입력해 주세요.`, { field })
+  }
+  if (n < 0) {
+    throw new CrmError('VALIDATION_FAILED', `${withJosa(label, eunNeun)} 0보다 작을 수 없어요.`, { field })
+  }
+  return n
+}
+
+/** 단가는 minor 정수다 */
+function minorOrNull(v: string | number | null | undefined, field: string, label: string): bigint | null {
+  if (v === null || v === undefined || v === '') return null
+  assertNumber(v, field, label)
+  // 금액을 정수로 만드는 일은 `money.ts` 한 곳에서 한다 — 두 곳에 두면 한쪽만 고쳐진다
+  return toMinor(v)
+}
+
+/** 수량은 소수를 쓴다(1.5 M/M). 저장은 문자열로 넘긴다 — 부동소수를 거치지 않기 위해서다 */
+function decimalOrNull(v: string | number | null | undefined, field: string, label: string): string | null {
+  if (v === null || v === undefined || v === '') return null
+  assertNumber(v, field, label)
+  return String(v)
 }
 
 /** 등급 단가는 **서버가 읽는다.** 화면이 보낸 단가를 믿으면 원가를 마음대로 낮출 수 있다 */
@@ -188,7 +282,7 @@ async function insertCost(
   const stage = assertEnum(input.stage, COST_STAGE_ORDER, 'ESTIMATE', 'stage')
   const inputMode = assertEnum(input.inputMode, ['AMOUNT', 'EFFORT', 'RATIO'] as const, 'AMOUNT', 'inputMode')
 
-  const unit = await gradeCost(tx, input.laborGradeId)
+  const gradeUnitMinor = await gradeCost(tx, input.laborGradeId)
   /*
     금액은 **서버가 계산한다.** 화면이 보낸 값을 그대로 저장하면 공수·단가와
     금액이 어긋난 행이 생기고, 합계는 맞는데 내역이 안 맞는 상태가 된다.
@@ -197,10 +291,14 @@ async function insertCost(
     category, stage, inputMode,
     amountMinor: input.amountMinor,
     effortMm: input.effortMm,
-    gradeCostPerMmMinor: unit,
+    gradeCostPerMmMinor: gradeUnitMinor,
     ratioPct: input.ratioPct,
     ratioBase: (input.ratioBase as 'REVENUE' | 'COST' | null) ?? null,
   })
+
+  const currency = assertCurrency(input.currency)
+  const kind = assertEnum(input.kind ?? undefined, LINE_KIND_ORDER, 'QUANTITY', 'kind')
+  const fx = await stampFx(currency)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const row = await (tx as any).crmDealCost.create({
@@ -210,6 +308,13 @@ async function insertCost(
       category, stage, inputMode,
       descriptionMd: (input.descriptionMd ?? '').trim() || null,
       amountMinor,
+      currency,
+      ...fx,
+      kind,
+      quantity: decimalOrNull(input.quantity, 'quantity', LINE_KIND_QUANTITY_LABEL[kind]),
+      unit: (input.unit ?? '').trim() || null,
+      unitPriceMinor: minorOrNull(input.unitPriceMinor, 'unitPriceMinor', LINE_KIND_PRICE_LABEL[kind]),
+      remark: (input.remark ?? '').trim() || null,
       laborGradeId: input.laborGradeId || null,
       effortMm: input.effortMm === null || input.effortMm === undefined || input.effortMm === '' ? null : String(input.effortMm),
       ratioPct: input.ratioPct === null || input.ratioPct === undefined || input.ratioPct === '' ? null : String(input.ratioPct),
@@ -223,7 +328,7 @@ async function insertCost(
   await writeAudit(tx, {
     actorType: 'HUMAN', actorId, action: 'deal_cost.created',
     targetType: 'deal_cost', targetId: row.id,
-    afterJson: { name, category, stage, amountMinor: amountMinor.toString() },
+    afterJson: { name, category, stage, amountMinor: amountMinor.toString(), currency },
   })
   return row
 }
@@ -240,16 +345,28 @@ export async function updateDealCost(
     const stage = assertEnum(input.stage ?? before.stage, COST_STAGE_ORDER, 'ESTIMATE', 'stage')
     const inputMode = assertEnum(input.inputMode ?? before.inputMode, ['AMOUNT', 'EFFORT', 'RATIO'] as const, 'AMOUNT', 'inputMode')
     const gradeId = input.laborGradeId !== undefined ? input.laborGradeId : before.laborGradeId
-    const unit = await gradeCost(tx, gradeId)
+    const gradeUnitMinor = await gradeCost(tx, gradeId)
 
     const amountMinor = computeCostAmount({
       category, stage, inputMode,
       amountMinor: input.amountMinor !== undefined ? input.amountMinor : before.amountMinor,
       effortMm: input.effortMm !== undefined ? input.effortMm : (before.effortMm as number | null),
-      gradeCostPerMmMinor: unit,
+      gradeCostPerMmMinor: gradeUnitMinor,
       ratioPct: input.ratioPct !== undefined ? input.ratioPct : (before.ratioPct as number | null),
       ratioBase: (input.ratioBase ?? before.ratioBase) as 'REVENUE' | 'COST' | null,
     })
+
+    /*
+      **통화를 바꿀 때만 환율을 다시 박는다.**
+
+      통화가 그대로인데 다시 받으면 어제 본 마진이 오늘 달라진다 — 아무도 손대지 않은
+      원가가 아침에 바뀌어 있는 상태다. 반대로 통화를 고쳤는데 옛 환율이 남으면
+      달러 금액에 엔화 환율이 붙는다. **바뀐 사실만 따라간다.**
+    */
+    const currency = assertCurrency(input.currency, before.currency)
+    const fx = currency === before.currency ? null : await stampFx(currency)
+    // 라벨은 **고친 뒤의 종류**로 말한다 — M/M 짜리 줄에 「수량」이라 하면 사람이 다른 칸을 본다
+    const kind = assertEnum(input.kind ?? before.kind, LINE_KIND_ORDER, before.kind, 'kind')
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const row = await (tx as any).crmDealCost.update({
@@ -259,6 +376,15 @@ export async function updateDealCost(
         category, stage, inputMode,
         descriptionMd: input.descriptionMd !== undefined ? (input.descriptionMd?.trim() || null) : undefined,
         amountMinor,
+        currency,
+        ...(fx ?? {}),
+        kind: input.kind !== undefined ? kind : undefined,
+        quantity: input.quantity !== undefined ? decimalOrNull(input.quantity, 'quantity', LINE_KIND_QUANTITY_LABEL[kind]) : undefined,
+        unit: input.unit !== undefined ? ((input.unit ?? '').trim() || null) : undefined,
+        unitPriceMinor: input.unitPriceMinor !== undefined
+          ? minorOrNull(input.unitPriceMinor, 'unitPriceMinor', LINE_KIND_PRICE_LABEL[kind])
+          : undefined,
+        remark: input.remark !== undefined ? ((input.remark ?? '').trim() || null) : undefined,
         laborGradeId: gradeId || null,
         effortMm: input.effortMm === '' ? null : input.effortMm !== undefined ? String(input.effortMm) : undefined,
         ratioPct: input.ratioPct === '' ? null : input.ratioPct !== undefined ? String(input.ratioPct) : undefined,
@@ -271,8 +397,8 @@ export async function updateDealCost(
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: 'deal_cost.updated',
       targetType: 'deal_cost', targetId: id,
-      beforeJson: { amountMinor: before.amountMinor.toString() },
-      afterJson: { amountMinor: amountMinor.toString() },
+      beforeJson: { amountMinor: before.amountMinor.toString(), currency: before.currency },
+      afterJson: { amountMinor: amountMinor.toString(), currency },
     })
     return row
   })
@@ -299,6 +425,15 @@ export function toCostJson(r: DealCostRow): Record<string, unknown> {
     amountMinor: r.amountMinor.toString(),
     effortMm: r.effortMm === null ? null : String(r.effortMm),
     ratioPct: r.ratioPct === null ? null : String(r.ratioPct),
+    /*
+      **환율과 단가도 실어 보낸다.** 서버가 안 주면 화면은 통화만 알고 환산은 못 한다 —
+      그러면 「$1,080.00」 옆에 원화가 비고, 사람은 그 금액이 큰지 작은지 모른다.
+      고시일은 날짜만 보낸다(시각은 뜻이 없고, 화면이 또 자르게 만들 뿐이다).
+    */
+    fxRate: r.fxRate === null || r.fxRate === undefined ? null : String(r.fxRate),
+    fxDate: r.fxDate ? r.fxDate.toISOString().slice(0, 10) : null,
+    quantity: r.quantity === null || r.quantity === undefined ? null : String(r.quantity),
+    unitPriceMinor: r.unitPriceMinor === null ? null : r.unitPriceMinor.toString(),
   }
 }
 
