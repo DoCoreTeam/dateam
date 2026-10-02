@@ -85,22 +85,23 @@ test('글 칸 뜻으로 ruleName 을 쓰지 않는다', () => {
 
 // 찾은 공고를 뺄 수 있는가 — I04
 
-test('적중 줄마다 빼기 단추가 있다', () => {
+test('적중 줄마다 숨기기 단추가 있다', () => {
   // 사용자 지적 2026-09-30: 「공고 찾았으면 상관없는건 제거하거나 뺄수 있는 방법이 있어야지」
   const src = live('components/rfp/RadarRules.tsx')
-  assert.match(src, /RFP_RADAR\.hitDismiss\b/, '빼기 단추가 없다')
-  assert.match(src, /dismiss\(h\.id\)/, '그 줄을 안 뺀다')
+  assert.match(src, /RFP_RADAR\.hitDismiss\b/, '숨기기 단추가 없다')
+  // 한 줄 뒤에 규칙 수만큼의 적중이 있다. 줄을 통째로 넘겨야 전부에 걸린다
+  assert.match(src, /dismiss\(h\)/, '그 줄을 안 숨긴다')
   assert.match(src, /method: 'PATCH'/, '상태를 안 바꾼다')
 })
 
-test('빼기가 되돌릴 수 있다고 말한다', () => {
+test('숨기기가 다시 보이게 할 수 있다고 말한다', () => {
   // 못 되돌리는 줄 알면 아무도 안 누르고, 그러면 목록은 영영 안 줄어든다
   const src = live('components/rfp/RadarRules.tsx')
   assert.match(src, /hitDismissHint/, '되돌릴 수 있다는 말이 단추에 안 붙었다')
   assert.match(src, /aria-label=/, '읽어 주는 이름이 없다')
 })
 
-test('빼는 중에는 그 줄만 잠긴다', () => {
+test('숨기는 중에는 그 줄만 잠긴다', () => {
   /*
     한 덩이 busy 로 잠그면 한 줄을 빼는 동안 목록 전체가 멈춘다.
     쉰 줄에서 하나씩 빼야 하는데 매번 전체가 멈추면 못 쓴다
@@ -111,8 +112,8 @@ test('빼는 중에는 그 줄만 잠긴다', () => {
   assert.match(src, /disabled=\{dismissing === h\.id\}/, '줄마다 안 잠그고 전체를 잠근다')
   assert.doesNotMatch(
     src,
-    /onClick=\{\(\) => void dismiss\(h\.id\)\}[\s\S]{0,120}?disabled=\{busy\}/,
-    '빼기가 공용 busy 로 잠긴다',
+    /onClick=\{\(\) => void dismiss\(h\)\}[\s\S]{0,120}?disabled=\{busy\}/,
+    '숨기기가 공용 busy 로 잠긴다',
   )
 })
 
@@ -149,33 +150,34 @@ test('한 번에 빼기는 바뀐 것만 화면에서 뺀다', () => {
 
 // 뺀 공고를 다시 보고 되돌린다 — I06
 
-test('뺀 공고를 보는 길이 있다', () => {
-  // 되돌릴 수 있다고 말해 놓고 볼 길이 없으면 그 약속은 지켜지지 않는다.
+test('숨긴 공고를 보는 길이 있다', () => {
+  // 다시 보이게 할 수 있다고 말해 놓고 볼 길이 없으면 그 약속은 지켜지지 않는다.
   // 저장소는 같은 실수를 이미 했다 — 할 일 확인창이 「30일 안에 되돌릴 수 있어요」라고
   // 약속하는데 휴지통 보기가 없었다(v0.7.705)
   const src = live('components/rfp/RadarRules.tsx')
   assert.match(src, /RFP_RADAR\.hitShowDismissed/, '뺀 공고를 보는 단추가 없다')
   assert.match(src, /RFP_RADAR\.hitShowActive/, '돌아오는 길이 없다')
-  assert.match(src, /status=\$\{dismissed \? 'dismissed' : 'new'\}/, '상태를 골라 안 받는다')
+  // 질의 문자열을 URLSearchParams 로 만든 뒤에도 상태는 골라 보내야 한다
+  assert.match(src, /status: dismissed \? 'dismissed' : 'new'/, '상태를 골라 안 받는다')
 })
 
-test('뺀 공고에서 되돌릴 수 있다', () => {
+test('숨긴 공고에서 다시 보이게 할 수 있다', () => {
   const src = live('components/rfp/RadarRules.tsx')
-  assert.match(src, /RFP_RADAR\.hitRestore/, '되돌리기 단추가 없다')
+  assert.match(src, /RFP_RADAR\.hitRestore/, '다시 보이게 하는 단추가 없다')
   const at = src.indexOf('const restore')
   const body = src.slice(at, src.indexOf('}, [])', at))
-  assert.match(body, /status: 'new'/, '되돌리기가 상태를 원래대로 안 바꾼다')
+  assert.match(body, /status: 'new'/, '보이기가 상태를 원래대로 안 바꾼다')
 })
 
 test('보는 것에 따라 줄 단추가 갈린다', () => {
-  // 뺀 공고에 「케이스로 만들기」가 있으면 뺀 것을 케이스로 만들 수 있게 되어
-  // 「뺐다」와 「담았다」가 동시에 참이 된다
+  // 숨긴 공고에 「케이스로 만들기」가 있으면 숨긴 것을 케이스로 만들 수 있게 되어
+  // 「숨겼다」와 「담았다」가 동시에 참이 된다
   const src = live('components/rfp/RadarRules.tsx')
-  assert.match(src, /\{!showDismissed && \([\s\S]{0,200}?RFP_RADAR\.openCase/, '뺀 공고에도 케이스로 만들기가 뜬다')
-  assert.match(src, /showDismissed \? \([\s\S]{0,400}?void restore\(h\.id\)/, '뺀 공고에 되돌리기가 안 뜬다')
+  assert.match(src, /\{!showDismissed && \([\s\S]{0,200}?RFP_RADAR\.openCase/, '숨긴 공고에도 케이스로 만들기가 뜬다')
+  assert.match(src, /showDismissed \? \([\s\S]{0,400}?void restore\(h\)/, '숨긴 공고에 다시 보이게 하는 단추가 안 뜬다')
 })
 
-test('뺀 공고가 비었을 때 무엇을 하면 되는지 말한다', () => {
+test('숨긴 공고가 비었을 때 무엇을 하면 되는지 말한다', () => {
   const src = live('components/rfp/RadarRules.tsx')
   assert.match(src, /RFP_RADAR\.hitDismissedEmpty/, '빈 상태 문구가 없다')
   assert.match(src, /RFP_RADAR\.hitDismissedEmptyDesc/, '무엇을 하면 되는지 안 말한다')
