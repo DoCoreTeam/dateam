@@ -1279,7 +1279,26 @@ model CrmDealCost {
 
   /// 계산 결과. 입력 방식이 무엇이든 여기로 수렴한다
   amountMinor   BigInt   @default(0)
+  /// **이 금액이 어느 돈인가.** 229 가 만들어 두었는데 아무도 쓰지 않아,
+  /// $1,080.00 의 센트값 108000 이 「108,000원」으로 앉았다(실측 2026-10-02).
   currency      String   @default("KRW") @db.Char(3)
+
+  /// 만든 날의 환율을 박아 둔다 — crm_quote 의 셋과 같은 이름·같은 뜻.
+  /// 조회할 때마다 환산하면 어제 본 마진이 오늘 달라진다.
+  /// KRW 면 셋 다 NULL 이고, **환율을 못 받았을 때도 NULL 이다**(1 로 눕히지 않는다).
+  fxRate        Decimal?  @db.Decimal(18, 6)
+  fxDate        DateTime? @db.Date
+  fxSource      String?
+
+  /// ── 줄 (crm_quote_line 과 같은 이름) ──────────────────────
+  /// 이름이 다르면 원가를 견적 줄로 옮길 때 매핑이 또 생기고, 그 매핑이 칸을 떨어뜨린다.
+  /// 견적 줄과 달리 NULL 을 허용한다 — 문서에서 못 읽은 것과 0 은 다른 사실이다.
+  kind           CrmQuoteLineKind @default(QUANTITY)
+  quantity       Decimal? @db.Decimal(12, 3)
+  unit           String?
+  unitPriceMinor BigInt?
+  /// 비고. 규격은 descriptionMd 의 첫 줄이고 그 아래가 구성이다(quote-spec.ts 의 약속)
+  remark         String?
 
   /// EFFORT 로 넣었을 때
   laborGradeId  String?
