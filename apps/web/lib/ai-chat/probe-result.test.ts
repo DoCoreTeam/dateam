@@ -89,3 +89,28 @@ test('getProviderErrorDetail 은 code 와 type 을 둘 다 꺼낸다', () => {
   assert.equal(got.code, 'credit_balance_exhausted')
   assert.equal(got.type, 'insufficient_quota', 'type 을 안 꺼내면 code 가 바뀔 때 판정이 통째로 어긋난다')
 })
+
+/* ── 멈추는 판단과 말하는 판단은 다른 질문이다 ──────────────────
+   젬민 무료 등급은 하루치 한도를 다 쓰면 「exceeded your current quota, please check your
+   plan and billing details」라고 답하고 자정이면 풀린다. 돈이 떨어진 것이 아니다.
+   그 문구로 「결제하세요」라고 말하면 반대쪽으로 거짓말하는 것이고, 그렇다고 그 키로
+   남은 모델을 더 찔러 봐야 답은 같다 — 그래서 멈추기는 하고 말하지는 않는다. */
+
+test('옛 문구는 훑기를 멈추게는 하되 결제라고 단정하지 않는다', async () => {
+  const { isAccountQuotaFailure, isCreditExhaustedFailure } = await import('./probe-result.ts')
+  const geminiFreeTier = 'you exceeded your current quota, please check your plan and billing details.'
+  assert.equal(isAccountQuotaFailure(geminiFreeTier), true, '멈추지 않으면 남은 모델에 헛호출이 나간다')
+  assert.equal(isCreditExhaustedFailure(geminiFreeTier), false, '자정이면 풀리는 것을 결제 문제로 적으면 안 된다')
+})
+
+test('돈이 떨어진 신호는 둘 다 참이다', async () => {
+  const { isAccountQuotaFailure, isCreditExhaustedFailure } = await import('./probe-result.ts')
+  for (const [raw, code, type] of [
+    ['you have no credits remaining.', undefined, undefined],
+    ['something', 'credit_balance_exhausted', undefined],
+    ['something', undefined, 'insufficient_quota'],
+  ] as Array<[string, string | undefined, string | undefined]>) {
+    assert.equal(isCreditExhaustedFailure(raw, code, type), true, `${raw}/${code}/${type}`)
+    assert.equal(isAccountQuotaFailure(raw, code, type), true, `${raw}/${code}/${type}`)
+  }
+})

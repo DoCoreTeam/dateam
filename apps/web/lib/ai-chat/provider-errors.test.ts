@@ -140,8 +140,9 @@ test('classifyProviderError: 크레딧 소진도 키 범위다 — 다음 키로
   assert.equal(fatalModel, false, '모델을 카탈로그에서 내리면 안 된다 — 다른 키로는 멀쩡하다')
 })
 
-test('classifyProviderError: 옛 문구(exceeded your current quota)도 결제를 가리킨다', () => {
-  const { message } = classifyProviderError(new Error('429 You exceeded your current quota, please check your plan and billing details.'))
+test('classifyProviderError: 크레딧 소진은 기계 코드 없이 문구만으로도 걸린다', () => {
+  // SDK 를 안 거치는 자리(원문 문자열만 올라오는 길)도 같은 답을 내야 한다
+  const { message } = classifyProviderError(new Error('429 insufficient_quota: add credits to continue'))
   assert.match(message, /결제/)
 })
 
@@ -150,5 +151,14 @@ test('classifyProviderError: 평범한 한도 429 는 기존 문장 그대로', 
   assert.match(message, /잠시 후 다시 시도/)
   assert.doesNotMatch(message, /결제/)
   assert.equal(scope, 'key')
+  assert.equal(keyOutcome, 'quota')
+})
+
+test('classifyProviderError: 젬민 무료 등급의 하루 한도는 결제가 아니라 한도다', () => {
+  // 자정이면 풀린다. 결제로 말하면 사용자가 안 써도 될 돈을 쓴다
+  const { message, keyOutcome } = classifyProviderError(new Error(
+    'Gemini API 오류 (429): You exceeded your current quota, please check your plan and billing details.'))
+  assert.match(message, /한도/)
+  assert.doesNotMatch(message, /결제/)
   assert.equal(keyOutcome, 'quota')
 })

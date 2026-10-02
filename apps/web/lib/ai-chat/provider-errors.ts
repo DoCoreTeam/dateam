@@ -21,7 +21,7 @@
  * 이제 키를 여러 개 두므로(ai_provider_keys) 둘은 다른 말이다 — 키가 마르면
  * **같은 공급자의 다음 키**로 이어 가고, 그 공급자의 키가 다 마른 뒤에야 공급자를 뺀다.
  */
-import { isAccountQuotaFailure } from './probe-result.ts'
+import { isCreditExhaustedFailure } from './probe-result.ts'
 
 export type ProviderFailureScope = 'model' | 'key' | 'provider' | 'transient'
 
@@ -83,10 +83,12 @@ export function classifyProviderError(err: unknown): {
     모델 선택 창의 91개가 전부 「잠시 후 다시 확인하세요」로 적혔다.
 
     판정 목록은 `probe-result` 한 곳에 있다. 여기서 다시 적으면 두 화면이 갈라진다.
+    다만 **돈이 떨어진 것만** 본다. 젬민 무료 등급의 「exceeded your current quota」는
+    하루치를 다 쓴 것이라 자정이면 풀린다 — 그것까지 결제로 말하면 반대쪽으로 거짓말한다.
 
     키 범위인 것은 그대로다 — 그 계정(키)의 사정이므로 다른 키가 있으면 거기로 이어 간다.
   */
-  if (isAccountQuotaFailure(raw)) {
+  if (isCreditExhaustedFailure(raw)) {
     return {
       message: 'AI 공급자 계정의 크레딧이 소진되어 이 모델을 쓸 수 없습니다. 관리자에게 결제 확인을 요청하세요.',
       fatalModel: false,

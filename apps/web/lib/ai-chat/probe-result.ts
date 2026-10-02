@@ -13,34 +13,62 @@ function unavailableReason(providerLabel: string): string {
 // 「You have no credits remaining」을 돌려줬는데, 문구 목록이 옛말(`exceeded your current quota`)만
 // 알아서 모델 91개가 전부 「잠시 후 다시 확인하세요」로 적혔다. 공급자는 문구를 바꾼다.
 // 그래서 문구에만 기대지 않고 **기계 코드(code·type)를 먼저 본다**.
-const ACCOUNT_QUOTA_CODES = [
+/*
+  **돈이 떨어진 것**만 여기 적는다. 시간이 지나도 안 풀리고 결제가 붙어야 풀리는 신호다.
+  이 목록이 「결제하세요」라는 말의 유일한 근거다.
+*/
+const CREDIT_EXHAUSTED_CODES = [
   'insufficient_quota',        // OpenAI error.type (예전에는 code 로도 왔다)
   'credit_balance_exhausted',  // OpenAI error.code, 실측 2026-10-01
   'billing_not_active',
   'billing_hard_limit_reached',
 ]
 
-const ACCOUNT_QUOTA_PHRASES = [
+const CREDIT_EXHAUSTED_PHRASES = [
   'insufficient_quota',
-  'exceeded your current quota',
-  'check your plan and billing',
   'billing_not_active',
   'credit balance is too low',
   'no credits remaining',   // 실측 2026-10-01
   'add credits to continue',
 ]
 
+/*
+  **애매한 옛 문구.** 젬민 무료 등급은 하루치 한도를 다 쓰면 이 말을 하고, 자정이면 풀린다.
+  결제를 권하는 말투지만 돈이 떨어진 것이 아니다 — 그래서 사용자에게 「결제하세요」라고
+  말하는 근거로는 쓰지 않는다 (실측 가드: lib/crm/ai/provider-quota.test.ts).
+
+  그래도 **훑기를 멈추는 신호로는** 쓴다. 이 답이 온 키로는 다음 모델도 같은 답이 오므로
+  모델 수만큼 더 찔러 봐야 결과가 같다. 멈추는 판단과 말하는 판단은 다른 질문이다.
+*/
+const SPENT_QUOTA_PHRASES = [
+  'exceeded your current quota',
+  'check your plan and billing',
+]
+
+function hits(raw: string, phrases: string[], codes: string[], code?: string, type?: string): boolean {
+  for (const signal of [code, type]) {
+    if (signal && codes.includes(signal)) return true
+  }
+  return phrases.some((phrase) => raw.includes(phrase))
+}
+
 /**
- * 이 실패가 **계정이 막힌 것**인가 (모델·순간의 한도가 아니라).
+ * **돈이 떨어졌는가** — 기다려도 안 풀리고 결제가 붙어야 풀리는 실패인가.
  *
  * 내보내는 이유: 같은 질문을 채팅 쪽(`provider-errors`)에서도 한다. 목록을 두 벌 두면
  * 모델 선택 창은 「결제하세요」라고 하는데 채팅은 「잠시 후 다시」라고 하는 날이 온다.
  */
+export function isCreditExhaustedFailure(raw: string, code?: string, type?: string): boolean {
+  return hits(raw, CREDIT_EXHAUSTED_PHRASES, CREDIT_EXHAUSTED_CODES, code, type)
+}
+
+/**
+ * **이 키로는 더 물어봐야 소용없는가** — 훑기를 멈출지 정하는 질문.
+ * 돈이 떨어진 경우를 포함하고, 거기에 「할당량을 다 썼다」는 애매한 답까지 센다.
+ */
 export function isAccountQuotaFailure(raw: string, code?: string, type?: string): boolean {
-  for (const signal of [code, type]) {
-    if (signal && ACCOUNT_QUOTA_CODES.includes(signal)) return true
-  }
-  return ACCOUNT_QUOTA_PHRASES.some((phrase) => raw.includes(phrase))
+  return isCreditExhaustedFailure(raw, code, type)
+    || hits(raw, SPENT_QUOTA_PHRASES, [], code, type)
 }
 
 /** 최소 생성 호출의 실패를 모델 가용 상태로 변환하는 SSOT. */
