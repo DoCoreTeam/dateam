@@ -16,11 +16,15 @@
  * 그래서 두 번 읽고 없는 것은 없는 대로 둔다.
  */
 
+import { noticeUrlOf } from './notice-url.ts'
+
 export interface HitNotice {
   title: string | null
   agency: string | null
   budgetAmount: number | null
   noticeDate: string | null
+  /** 발주처 사이트의 공고 원문. 없으면 null — 눌러도 갈 데가 없다는 뜻이다 */
+  url: string | null
 }
 
 export interface HitLike {
@@ -28,7 +32,7 @@ export interface HitLike {
 }
 
 /** 공고 표에서 읽을 칸. 한 곳에 적어 두 경로가 같은 것을 읽게 한다 */
-export const NOTICE_COLS = 'id, title, announcing_agency, budget_amount, notice_date'
+export const NOTICE_COLS = 'id, title, announcing_agency, budget_amount, notice_date, raw'
 
 export interface NoticeDbClient {
   from(table: string): {
@@ -52,6 +56,8 @@ export function toNotice(row: Record<string, unknown>): HitNotice {
     agency: str(row.announcing_agency),
     budgetAmount: num(row.budget_amount),
     noticeDate: str(row.notice_date),
+    // 원문 주소는 받아 온 응답 안에 들어 있다. 어느 칸에 들었는지는 noticeUrlOf 가 안다
+    url: noticeUrlOf(row.raw),
   }
 }
 

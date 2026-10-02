@@ -28,6 +28,8 @@ import { isEnterKey, isImeComposing } from '@/lib/ui/ime'
 import { RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
 import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
 import { selectedCount } from '@/lib/terms/action'
+import { EXTERNAL_LINK_PROPS } from '@/lib/rfp/radar/notice-url'
+import type { HitNotice } from '@/lib/rfp/radar/hit-notice'
 import styles from '@/app/(rfp)/rfp.module.css'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { useElapsedMs } from '@/components/ui/useElapsedMs'
@@ -42,13 +44,8 @@ export interface RadarHitRow {
   pre_score: number | null
   reason: string | null
   status: string
-  /** 걸린 공고가 무엇인지 — 이게 없으면 점수와 사유만 보인다 */
-  notice?: {
-    title: string | null
-    agency: string | null
-    budgetAmount: number | null
-    noticeDate: string | null
-  } | null
+  /** 걸린 공고가 무엇인지. 모양은 서버가 정한다 — 두 벌로 두면 한쪽만 늘어난다 */
+  notice?: HitNotice | null
 }
 
 export interface RadarRuleRow {
@@ -501,7 +498,27 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
                 <span className={`${styles.ruleMain} ${styles.tight}`}>
                   {/* 무엇이 걸렸는지가 먼저다. 점수와 사유만으로는 아무것도 못 정한다 */}
                   {/* 제목이 없으면 그렇게 말한다. 내부 번호를 찍으면 사용자는 그것을 공고 이름으로 읽는다 */}
-                  <span className={styles.ruleName}>{h.notice?.title || RFP_RADAR.noticeNoTitle}</span>
+                  {/*
+                    제목이 곧 원문으로 가는 길이다. 케이스를 만들어야만 원문을 볼 수 있으면
+                    판단하려고 먼저 비용을 치르는 셈이 된다.
+                    주소가 없으면 누를 수 없게 두고 왜 없는지 말한다
+                  */}
+                  {h.notice?.url ? (
+                    <a
+                      className={styles.ruleName}
+                      href={h.notice.url}
+                      target={EXTERNAL_LINK_PROPS.target}
+                      rel={EXTERNAL_LINK_PROPS.rel}
+                      title={RFP_RADAR.noticeOpen}
+                    >
+                      {h.notice.title || RFP_RADAR.noticeNoTitle}
+                      <ExternalLink size={12} aria-hidden style={{ marginInlineStart: 'var(--space-1)' }} />
+                    </a>
+                  ) : (
+                    <span className={styles.ruleName} title={RFP_RADAR.noticeNoUrl}>
+                      {h.notice?.title || RFP_RADAR.noticeNoTitle}
+                    </span>
+                  )}
                   <span className={styles.sectionDesc}>
                     {RFP_RADAR.noticeAgency} {h.notice?.agency ?? '-'}
                     {' · '}{RFP_RADAR.noticeBudget} {money(h.notice?.budgetAmount)}

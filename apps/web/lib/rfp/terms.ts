@@ -542,6 +542,9 @@ export const RFP_RADAR = {
   hitDismissSelected: onSelected(ACTION.hide),
   /** 고른 수와 바뀐 수가 다를 수 있다. 다르면 그 수를 말한다 */
   hitBulkPartial: '건은 바꾸지 못했어요',
+  /** 원문으로 보내는 자리. 「열기」는 대상 하나를 여는 말이라 자리가 맞다 */
+  noticeOpen: `공고 원문 ${ACTION.open}`,
+  noticeNoUrl: '공고 주소를 못 받았어요',
   hitShowDismissed: '숨긴 공고 보기',
   hitShowActive: '찾은 공고로 돌아가기',
   hitDismissedTitle: '숨긴 공고',

@@ -84,7 +84,7 @@ test('빈 글자는 없음으로 본다', () => {
 
 test('읽는 칸 목록이 표에 실재하는 이름만 쓴다', () => {
   // 없는 칸을 하나라도 적으면 select 가 통째로 오류가 되고 제목이 조용히 사라진다
-  const REAL = new Set(['id', 'title', 'announcing_agency', 'budget_amount', 'notice_date'])
+  const REAL = new Set(['id', 'title', 'announcing_agency', 'budget_amount', 'notice_date', 'raw'])
   const unknown = NOTICE_COLS.split(',').map((c) => c.trim()).filter((c) => !REAL.has(c))
   assert.deepEqual(unknown, [], `표에 없는 칸을 읽으려 한다: ${unknown.join(', ')}`)
 })
@@ -111,3 +111,47 @@ test('제목이 없을 때 내부 번호를 화면에 안 찍는다', () => {
   assert.match(ui, /RFP_RADAR\.noticeNoTitle/, '제목이 없을 때 쓸 말이 없다')
 })
 
+
+// 원문으로 가는 길 — I02
+
+test('적중에 공고 원문 주소가 함께 붙는다', async () => {
+  // 케이스를 만들어야만 원문을 볼 수 있으면 판단하려고 먼저 비용을 치르는 셈이 된다
+  const u = 'https://www.g2b.go.kr/link/PNPE027_01/single/?bidPbancNo=R26BK01746331'
+  const out = await attachNotices(db([{ id: 's1', title: 'ㄱ', raw: { bidNtceUrl: u } }]), [{ source_id: 's1' }])
+  assert.equal(out[0].notice?.url, u)
+})
+
+test('기관 사이트에서 온 공고의 주소도 붙는다', async () => {
+  const u = 'https://www.kisa.or.kr/403/form?postSeq=10849'
+  const out = await attachNotices(db([{ id: 's1', title: 'ㄱ', raw: { url: u } }]), [{ source_id: 's1' }])
+  assert.equal(out[0].notice?.url, u)
+})
+
+test('주소가 없거나 못 쓰는 것이면 null 이다', async () => {
+  // 눌러도 갈 데가 없다는 뜻이고, 화면은 그 사실을 말해야 한다
+  for (const raw of [undefined, {}, { url: '' }, { bidNtceUrl: 'javascript:alert(1)' }]) {
+    const out = await attachNotices(db([{ id: 's1', title: 'ㄱ', raw }]), [{ source_id: 's1' }])
+    assert.equal(out[0].notice?.url, null, `${JSON.stringify(raw)} 에서 주소가 나왔다`)
+  }
+})
+
+test('목록 화면이 제목을 원문으로 보낸다', () => {
+  const src = stripComments(readFileSync(
+    new URL('../../../components/rfp/RadarRules.tsx', import.meta.url), 'utf8'))
+  assert.match(src, /href=\{h\.notice\.url\}/, '제목이 원문으로 안 간다')
+  // 바깥으로 나가는 링크다. opener 로 우리 탭 주소를 바꿀 수 있는 자리다
+  assert.match(src, /rel=\{EXTERNAL_LINK_PROPS\.rel\}/, '바깥 링크에 rel 이 없다')
+  assert.match(src, /target=\{EXTERNAL_LINK_PROPS\.target\}/, '새 탭으로 안 연다')
+  // 주소를 손으로 적으면 한 자리에서 rel 이 빠진다
+  assert.doesNotMatch(src, /rel="noopener"/, '링크 속성을 손으로 적었다')
+  // 주소가 없으면 누를 수 없어야 한다
+  assert.match(src, /h\.notice\?\.url \?/, '주소가 없어도 링크로 그린다')
+  assert.match(src, /noticeNoUrl/, '왜 못 누르는지 안 말한다')
+})
+
+test('공고 모양을 화면이 따로 적지 않는다', () => {
+  // 두 벌로 두면 서버가 칸을 늘려도 화면 쪽 모양이 안 따라오고, 그 사실은 값이 안 뜰 때에야 드러난다
+  const src = stripComments(readFileSync(
+    new URL('../../../components/rfp/RadarRules.tsx', import.meta.url), 'utf8'))
+  assert.match(src, /notice\?:\s*HitNotice\s*\|\s*null/, '화면이 공고 모양을 따로 적었다')
+})
