@@ -153,9 +153,13 @@ export function slicePage<T>(rows: readonly T[], page: PageInput): T[] {
  *
  * ## 검색어는 밖에서 온 값이다
  *
- * `like` 에서 `%` 와 `_` 는 **아무 글자**를 뜻한다. 그대로 넘기면 「%」 한 글자가
- * 모든 공고에 걸리는 검색이 되고, 사용자는 거르려다 오히려 전부를 받는다.
- * 그래서 글자로 찾겠다는 뜻이면 글자로 넘긴다.
+ * 거르기를 **SQL 이 아니라 여기서** 한다. `like` 로 넘기면 `%` 와 `_` 가 아무 글자를 뜻해
+ * 「%」 한 글자가 모든 공고에 걸리고, 사용자는 거르려다 오히려 전부를 받는다.
+ * `includes` 에는 그 뜻이 없어 넘어온 글자를 글자 그대로 찾는다 —
+ * **이스케이프할 것이 없는 쪽을 고른 것**이지 빠뜨린 것이 아니다.
+ * (실측 2026-10-02: q=% 는 0건, q=_ 는 밑줄이 실제로 든 2건)
+ *
+ * 길이는 자른다. 질의를 길게 만들어 봐야 찾는 것은 같다.
  */
 
 /** 검색어 길이 상한. 더 길면 자른다 — 질의를 길게 만들어 봐야 찾는 것은 같다 */
@@ -176,16 +180,6 @@ export function queryOf(raw: unknown): string | null {
   if (typeof raw !== 'string') return null
   const q = raw.trim().slice(0, MAX_QUERY)
   return q.length > 0 ? q : null
-}
-
-/**
- * `like` 의 뜻있는 글자를 글자 그대로 바꾼다.
- *
- * 안 바꾸면 「%」 하나로 전부가 걸리고 「_」 하나로 아무 한 글자나 걸린다.
- * 역슬래시를 먼저 바꾸지 않으면 뒤에 붙인 역슬래시가 또 뜻을 갖는다.
- */
-export function escapeLike(q: string): string {
-  return q.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
 }
 
 export interface NoticeLike {

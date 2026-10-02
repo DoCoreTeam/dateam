@@ -25,6 +25,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { stripComments } from '../ui/component-scan.ts'
 
 const WEB = new URL('../../', import.meta.url)
 const ROOT = new URL('../../../../', import.meta.url)
@@ -220,4 +221,115 @@ test('이 플랜의 마이그레이션이 표를 열어 두지 않는다', () =>
     // 정책 대상에 public 을 쓰지 않는다
     assert.doesNotMatch(sql, /for\s+(select|all|insert|update|delete)\s+to\s+public/i, `${f} 의 정책 대상이 public 이다`)
   }
+})
+
+// ─────────────────────────────────────────────────────────────
+// 공고 레이더 — 사용자가 「무엇을 할지 고르는」 경로가 끊기지 않았나
+// ─────────────────────────────────────────────────────────────
+
+/*
+  이 화면의 일은 **50건 중 뭘 할지 고르는 것**이다. 그러려면 셋이 다 있어야 한다:
+  본다 → 판단한다 → 남기거나 숨긴다.
+
+  사용자 지적 2026-10-01: *"공고를 누르면 상세가 나와야 하는거 아냐?"*,
+  *"더보기로 더 수집 가능하게 해야 할거 아냐"*.
+  숨기기만 만들고 그 앞의 「본다」를 확인도 안 한 결과였다.
+*/
+
+test('공고 원문으로 가는 길이 살아 있다', () => {
+  // 케이스를 만들어야만 원문을 볼 수 있으면 판단하려고 먼저 분석 비용을 치르는 셈이 된다
+  const url = live('lib/rfp/radar/notice-url.ts')
+  // 열에 아홉이 bidNtceUrl 로 온다. 하나만 읽으면 한 길에서 들어온 공고가 통째로 링크를 잃는다
+  assert.match(url, /'bidNtceUrl'/, '나라장터 주소 칸을 안 읽는다')
+  assert.match(url, /'url'/, '기관 사이트 주소 칸을 안 읽는다')
+  // 밖에서 온 값이 href 가 된다. javascript: 가 들어가면 그 자리가 실행 통로다
+  assert.match(url, /SAFE_PROTOCOLS/, '규약을 안 가린다')
+
+  const ui = live('components/rfp/RadarRules.tsx')
+  assert.match(ui, /href=\{h\.notice\.url\}/, '목록이 원문으로 안 보낸다')
+  assert.match(ui, /rel=\{EXTERNAL_LINK_PROPS\.rel\}/, '바깥 링크에 rel 이 없다')
+  assert.doesNotMatch(ui, /rel="noopener"/, '링크 속성을 손으로 적었다')
+
+  const detail = live('app/(rfp)/rfp/[id]/page.tsx')
+  assert.match(detail, /noticeUrlOf\(/, '케이스 상세가 주소 함수를 안 쓴다')
+  assert.doesNotMatch(detail, /raw\.url\b/, '케이스 상세가 한 칸만 읽는다')
+})
+
+test('판단에 필요한 것이 목록에 실린다', () => {
+  // 표에 537건씩 차 있는데 화면이 네 칸만 보여 주고 있었다
+  const cols = live('lib/rfp/radar/hit-notice.ts')
+  for (const c of ['demand_agency', 'estimated_price', 'bid_open_at', 'contract_method', 'award_method', 'is_urgent']) {
+    assert.ok(cols.includes(`'${c}'`), `${c} 를 안 읽는다`)
+  }
+  const ui = live('components/rfp/RadarRules.tsx')
+  assert.match(ui, /noticeFacts\(/, '사실 줄을 한곳에서 안 만든다')
+})
+
+test('찾은 것을 끝까지 볼 수 있다', () => {
+  // 적중 80건인데 50건만 보이고 30건은 어디에도 없었다. 배지도 50 이라고 떴다
+  const route = live('app/api/rfp/radar/route.ts')
+  assert.match(route, /slicePage\(/, '쪽을 안 나눈다')
+  assert.doesNotMatch(route, /\.limit\(50\)/, '고정 상한이 남아 있다')
+  assert.match(route, /const total = sorted\.length/, '좁힌 뒤의 공고 수를 안 센다')
+
+  const ui = live('components/rfp/RadarRules.tsx')
+  assert.match(ui, /RFP_RADAR\.hitMore/, '더보기가 없다')
+  assert.match(ui, /hasMore\(/, '끝에 닿아도 더보기가 남는다')
+  assert.match(ui, /RFP_RADAR\.hitShown\(hits\.length, total\)/, '배지가 가져온 수를 센다')
+})
+
+test('같은 공고가 한 줄로 뜨고 숨기기가 전부에 걸린다', () => {
+  // 하나만 숨기면 나머지가 남아 다음 쪽에서 다시 나온다
+  const route = live('app/api/rfp/radar/route.ts')
+  const g = route.indexOf('groupHits('), s = route.indexOf('slicePage(')
+  assert.ok(g > 0 && s > g, '자른 다음에 묶는다')
+
+  const ui = live('components/rfp/RadarRules.tsx')
+  const all = (ui.match(/ids: row\.ids \?\? \[row\.id\]/g) ?? []).length
+  assert.equal(all, 2, `적중 전부에 거는 자리가 ${all}곳이다 — 숨기기와 보이기 둘이어야 한다`)
+})
+
+test('좁혀 보기가 밖에서 온 값을 안 믿는다', () => {
+  const page = live('lib/rfp/radar/hit-page.ts')
+  /*
+    거르기는 SQL 이 아니라 여기서 한다. `like` 로 넘기면 「%」 한 글자가 모든 공고에 걸려
+    거르려다 오히려 전부를 받는다. `includes` 에는 그 뜻이 없다 —
+    이스케이프할 것이 없는 쪽을 고른 것이지 빠뜨린 것이 아니다
+  */
+  assert.match(page, /\.includes\(needle\)/, '글자 그대로 찾지 않는다')
+  assert.doesNotMatch(page, /\.(i?like)\(/, 'SQL like 로 넘긴다 — 특수문자를 거르거나 여기서 걸러야 한다')
+  assert.match(page, /MAX_QUERY/, '검색어 길이에 상한이 없다')
+  assert.match(page, /MAX_PAGE_SIZE/, '한 쪽 크기에 상한이 없다')
+
+  const route = live('app/api/rfp/radar/route.ts')
+  const a = route.indexOf('attachNotices('), f = route.indexOf('matchesQuery(')
+  assert.ok(a > 0 && f > a, '공고를 붙이기 전에 거른다 — 찾을 글자가 어디에도 없다')
+})
+
+test('수집이 옛 공고도 본다', () => {
+  // 최근 500건만 읽으면 그 밖의 공고는 새 규칙에 영영 안 걸린다
+  const route = live('app/api/rfp/radar/route.ts')
+  assert.match(route, /sweepRanges\(/, '수집 범위를 안 나눈다')
+  assert.doesNotMatch(route, /from\('rfp_sources'\)[\s\S]{0,300}?\.limit\(500\)/, '최근 500건만 읽는다')
+  assert.match(route, /sweepTruncated\(/, '다 못 본 것을 안 말한다')
+})
+
+test('이 화면의 말이 전부 용어집에서 온다', () => {
+  /*
+    사용자 지적 2026-10-01: *"워딩과 키워드가 다 용어집을 따르지 않고 그냥 생각나는대로 만들어내네"*
+    기능 파일에서 지어내면 같은 뜻에 두 말이 생기고, 사용자는 둘을 다른 일로 읽는다.
+  */
+  const terms = readFileSync(new URL('lib/rfp/terms.ts', WEB), 'utf8')
+  assert.match(terms, /from '\.\.\/terms\/action\.ts'/, 'RFP 문구가 용어집을 안 물고 있다')
+  // 이 화면이 쓰는 동작 말은 지어내지 않고 ACTION 에서 가져온다
+  // 값이 실제로 그 상수에서 오는지를 본다. 이름이 파일 어딘가에 있는 것으로는 모자라다
+  assert.match(terms, /hitDismiss:\s*ACTION\.hide/, '숨기기를 지어냈다')
+  assert.match(terms, /hitRestore:\s*ACTION\.unhide/, '보이기를 지어냈다')
+  assert.match(terms, /hitSelected:\s*ACTION\.select/, '선택을 지어냈다')
+  assert.match(terms, /hitDismissing:\s*progress\(/, '진행 표기를 손으로 적었다')
+  /*
+    진행 표기와 금지어는 **lib/terms/terms.test.ts 와 lib/ui/glossary.test.ts 가 센다.**
+    여기서 또 세면 두 가드가 서로 다른 지식을 들게 되고(상태인지 진행인지의 분류 같은 것),
+    둘이 어긋나는 날 어느 쪽이 맞는지 아무도 모른다.
+  */
 })

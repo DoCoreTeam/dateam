@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs'
 import { stripComments } from '../../ui/component-scan.ts'
 import {
   pageOf, hasMore, isLastPage, PAGE_SIZE, MAX_PAGE_SIZE,
-  groupHits, slicePage, queryOf, escapeLike, matchesQuery, sortKeyOf, sortRows, MAX_QUERY,
+  groupHits, slicePage, queryOf, matchesQuery, sortKeyOf, sortRows, MAX_QUERY,
   type RawHit,
 } from './hit-page.ts'
 
@@ -178,13 +178,17 @@ test('찾을 글자를 다듬는다', () => {
   assert.equal(queryOf('가'.repeat(MAX_QUERY + 50))?.length, MAX_QUERY, '길이를 안 잘랐다')
 })
 
-test('like 의 뜻있는 글자를 글자로 바꾼다', () => {
-  // 안 바꾸면 「%」 하나가 모든 공고에 걸려, 거르려다 오히려 전부를 받는다
-  assert.equal(escapeLike('100%'), '100\\%')
-  assert.equal(escapeLike('a_b'), 'a\\_b')
-  // 역슬래시를 먼저 안 바꾸면 뒤에 붙인 역슬래시가 또 뜻을 갖는다
-  assert.equal(escapeLike('a\\b'), 'a\\\\b')
-  assert.equal(escapeLike('\\%'), '\\\\\\%')
+test('특수문자를 글자 그대로 찾는다', () => {
+  /*
+    거르기를 SQL 이 아니라 여기서 한다. `like` 로 넘기면 「%」 한 글자가 모든 공고에 걸려
+    거르려다 오히려 전부를 받는다. `includes` 에는 그런 뜻이 없다
+  */
+  const n = { title: '달성률 100% 사업', agency: null, noticeDate: null }
+  const m = { title: 'a_b 시스템', agency: null, noticeDate: null }
+  assert.equal(matchesQuery(n, '%'), true, '진짜 % 가 든 것은 찾아야 한다')
+  assert.equal(matchesQuery(m, '%'), false, '% 가 아무 글자로 쓰였다 — 전부가 걸린다')
+  assert.equal(matchesQuery(m, '_'), true)
+  assert.equal(matchesQuery(n, '_'), false, '_ 가 아무 한 글자로 쓰였다')
 })
 
 test('제목과 발주처에서 찾는다', () => {
