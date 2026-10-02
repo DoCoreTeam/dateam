@@ -239,3 +239,33 @@ test('★ 인증 장치가 그대로 맨 앞에 있다 — 관리자 확인 없�
   assert.ok(gate < ROUTE.indexOf('createAdminClient('),
     '사람 확인보다 서비스롤이 먼저 서면 그 확인은 아무것도 막지 않는다')
 })
+
+/* ── 안 쓰기로 한 공급자 ────────────────────────────────────────
+   끄는 길이 「연결 해제」(키 삭제) 하나뿐이라, 결제를 안 할 공급자를 끄려면
+   키를 버려야 했다. 끈 공급자는 키가 살아 있어도 후보가 아니다. */
+
+test('안 쓰기로 한 공급자는 후보에서 빠진다 — 키가 살아 있어도', async () => {
+  const { getProviderConfig, getAvailableProviders, getDefaultProvider } = await import('./registry.ts')
+  const meta: Record<string, unknown> = {
+    gemini_api_key: 'AIza-test-key',
+    openai_api_key: 'sk-proj-test-key',
+    openai_model: 'gpt-5.5',
+    ai_chat_default_provider: 'openai',
+  }
+  assert.ok(getProviderConfig(meta, 'openai'), '끄기 전에는 후보다')
+
+  const off = { ...meta, ai_provider_disabled: ['openai'] }
+  assert.equal(getProviderConfig(off, 'openai'), null)
+  assert.ok(!getAvailableProviders(off).some((p) => p.id === 'openai'), '폴백 후보에 남으면 계속 부른다')
+  assert.notEqual(getDefaultProvider(off)?.id, 'openai', '기본으로 고르면 첫 요청부터 막힌다')
+  assert.ok(getAvailableProviders(off).some((p) => p.id === 'gemini'), '남의 공급자까지 끄면 안 된다')
+})
+
+test('끈 것을 다시 켜면 그대로 돌아온다', async () => {
+  const { getProviderConfig } = await import('./registry.ts')
+  const base: Record<string, unknown> = { openai_api_key: 'sk-proj-test-key', openai_model: 'gpt-5.5' }
+  const off = { ...base, ai_provider_disabled: ['openai'] }
+  const on = { ...base, ai_provider_disabled: [] }
+  assert.equal(getProviderConfig(off, 'openai'), null)
+  assert.equal(getProviderConfig(on, 'openai')?.model, 'gpt-5.5', '키를 안 지웠으니 되돌아와야 한다')
+})

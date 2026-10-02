@@ -12,6 +12,7 @@ import {
   deriveDefaultModels,
   deriveOrder,
 } from '../ai/provider-catalog.ts'
+import { isProviderDisabled } from '../ai/provider-disabled.ts'
 
 // META 기반 프로바이더 가용성·설정 (순수 함수 — 단위테스트 대상, 04 §7)
 // META 조회 자체는 호출측(route/action)에서 createAdminClient()로 읽어 전달.
@@ -71,6 +72,15 @@ export function getProviderConfig(
   id: ProviderId,
 ): ProviderConfig | null {
   if (!isWired(id)) return null
+
+  /*
+    **안 쓰기로 한 공급자는 여기서 빠진다.** 키가 살아 있어도 후보가 아니다.
+
+    이 한 줄이 폴백 후보·기본 공급자·모델 고르기를 한꺼번에 끈다 —
+    셋 다 `getAvailableProviders` 를 지나기 때문이다. 바깥에서 각자 거르면
+    한 곳을 빠뜨리고, 그 한 곳이 「안 쓴다고 했는데 왜 또 부르지」가 된다.
+  */
+  if (isProviderDisabled(meta, id)) return null
 
   const keys = META_KEYS[id]
   if (!keys) return null
