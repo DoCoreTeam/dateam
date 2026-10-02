@@ -30,7 +30,13 @@ const ACCOUNT_QUOTA_PHRASES = [
   'add credits to continue',
 ]
 
-function isAccountQuotaFailure(raw: string, code: string | undefined, type?: string): boolean {
+/**
+ * 이 실패가 **계정이 막힌 것**인가 (모델·순간의 한도가 아니라).
+ *
+ * 내보내는 이유: 같은 질문을 채팅 쪽(`provider-errors`)에서도 한다. 목록을 두 벌 두면
+ * 모델 선택 창은 「결제하세요」라고 하는데 채팅은 「잠시 후 다시」라고 하는 날이 온다.
+ */
+export function isAccountQuotaFailure(raw: string, code?: string, type?: string): boolean {
   for (const signal of [code, type]) {
     if (signal && ACCOUNT_QUOTA_CODES.includes(signal)) return true
   }

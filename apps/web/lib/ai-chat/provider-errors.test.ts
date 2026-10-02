@@ -118,3 +118,37 @@ test('★ 그냥 429 는 여전히 키의 한도다 — 위 분기가 정상 한
   assert.equal(c.scope, 'key')
   assert.equal(c.keyOutcome, 'quota')
 })
+
+/* ── 계정 크레딧 소진 ─────────────────────────────────────────────
+   429 를 전부 「잠시 후 다시 시도」로 읽으면 결제 문제가 영원히 안 풀리는 기다림이 된다.
+   실측 2026-10-01: OpenAI 가 「You have no credits remaining」을 429 로 돌려줬고
+   화면은 기다리라고만 했다. 판정 문구는 probe-result 와 **같은 목록**을 본다 — 한쪽만
+   고치면 모델 선택 창과 채팅이 같은 상황에 다른 말을 한다. */
+
+const NO_CREDITS_ERROR = new Error('429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.')
+
+test('classifyProviderError: 크레딧 소진 → 결제를 가리킨다', () => {
+  const { message } = classifyProviderError(NO_CREDITS_ERROR)
+  assert.match(message, /결제/)
+  assert.doesNotMatch(message, /잠시 후/, '기다려도 안 풀린다')
+})
+
+test('classifyProviderError: 크레딧 소진도 키 범위다 — 다음 키로 이어 간다', () => {
+  const { scope, keyOutcome, fatalModel } = classifyProviderError(NO_CREDITS_ERROR)
+  assert.equal(scope, 'key', '그 키의 사정이지 모델의 사정이 아니다')
+  assert.equal(keyOutcome, 'quota')
+  assert.equal(fatalModel, false, '모델을 카탈로그에서 내리면 안 된다 — 다른 키로는 멀쩡하다')
+})
+
+test('classifyProviderError: 옛 문구(exceeded your current quota)도 결제를 가리킨다', () => {
+  const { message } = classifyProviderError(new Error('429 You exceeded your current quota, please check your plan and billing details.'))
+  assert.match(message, /결제/)
+})
+
+test('classifyProviderError: 평범한 한도 429 는 기존 문장 그대로', () => {
+  const { message, scope, keyOutcome } = classifyProviderError(new Error('429 Rate limit reached for gpt-4o on requests per min (RPM)'))
+  assert.match(message, /잠시 후 다시 시도/)
+  assert.doesNotMatch(message, /결제/)
+  assert.equal(scope, 'key')
+  assert.equal(keyOutcome, 'quota')
+})

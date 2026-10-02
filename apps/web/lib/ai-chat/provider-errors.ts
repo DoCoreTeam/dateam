@@ -21,6 +21,8 @@
  * 이제 키를 여러 개 두므로(ai_provider_keys) 둘은 다른 말이다 — 키가 마르면
  * **같은 공급자의 다음 키**로 이어 가고, 그 공급자의 키가 다 마른 뒤에야 공급자를 뺀다.
  */
+import { isAccountQuotaFailure } from './probe-result.ts'
+
 export type ProviderFailureScope = 'model' | 'key' | 'provider' | 'transient'
 
 /**
@@ -70,6 +72,26 @@ export function classifyProviderError(err: unknown): {
       message: '파일이 이 AI 모델이 한 번에 읽을 수 있는 양을 넘습니다. 더 작게 나눠 올리거나 다른 모델을 선택하세요.',
       fatalModel: false,
       scope: 'model',
+    }
+  }
+  /*
+    **크레딧이 없는 것**은 한도가 아니다. 429 를 달고 오지만 시간이 지나도 안 풀린다 —
+    결제가 붙어야 풀린다. 아래 한도 분기에 섞이면 화면이 「잠시 후 다시 시도」라고만 하고,
+    사용자는 할 수 없는 일(기다리기)을 하며 할 수 있는 일(결제)을 모른다.
+
+    실측 2026-10-01: OpenAI 가 모든 모델에 429 「You have no credits remaining」을 줬고
+    모델 선택 창의 91개가 전부 「잠시 후 다시 확인하세요」로 적혔다.
+
+    판정 목록은 `probe-result` 한 곳에 있다. 여기서 다시 적으면 두 화면이 갈라진다.
+
+    키 범위인 것은 그대로다 — 그 계정(키)의 사정이므로 다른 키가 있으면 거기로 이어 간다.
+  */
+  if (isAccountQuotaFailure(raw)) {
+    return {
+      message: 'AI 공급자 계정의 크레딧이 소진되어 이 모델을 쓸 수 없습니다. 관리자에게 결제 확인을 요청하세요.',
+      fatalModel: false,
+      scope: 'key',
+      keyOutcome: 'quota',
     }
   }
   if (raw.includes('limit: 0') || raw.includes('quota') || raw.includes('429') || raw.includes('resource_exhausted')) {
