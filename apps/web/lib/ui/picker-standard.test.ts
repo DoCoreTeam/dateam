@@ -73,6 +73,8 @@ const WHY_SELECT: Readonly<Record<string, string>> = {
     '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
   'components/ui/crm/CostPanel.tsx#CURRENCY_CHOICES':
     '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
+  'components/ui/crm/CostToQuoteModal.tsx#CURRENCY_CHOICES':
+    '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
 }
 
 function tsxFiles(dir: string, out: string[] = []): string[] {

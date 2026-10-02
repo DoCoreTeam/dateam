@@ -83,7 +83,7 @@
 의존: I03
 
 ### I05 견적서가 딜 원가를 가져온다
-상태: 진행중
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/domain/cost-to-quote.ts (신규), apps/web/lib/crm/domain/cost-to-quote.test.ts (신규), apps/web/components/ui/crm/CostToQuoteModal.tsx (신규), apps/web/components/ui/crm/QuotePanel.tsx, apps/web/lib/terms/quote.ts, apps/web/lib/ui/picker-standard.test.ts, apps/web/package.json
 감사 기준:

@@ -10,7 +10,7 @@
 // canTransitQuote 가 판정하므로, 여기서 버튼을 감추는 것은 안전장치가 아니라 안내다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Copy, FileText, Plus, Pencil, Trash2, RotateCcw, Upload } from 'lucide-react'
+import { Copy, FileText, Plus, Pencil, Trash2, RotateCcw, Upload, Calculator } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
@@ -30,6 +30,7 @@ import {
 import NbModal from '@/components/ui/nb/NbModal'
 import QuoteEditorModal, { newQuoteDraft, quoteToDraft, type QuoteDraft } from './QuoteEditorModal'
 import QuoteFromFileModal, { type AppendTarget } from './QuoteFromFileModal'
+import CostToQuoteModal, { type CostToQuotePick } from './CostToQuoteModal'
 import styles from './quote-panel.module.css'
 
 interface QuoteLine {
@@ -104,6 +105,13 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
   const [variantOf, setVariantOf] = useState<Quote | null>(null)
   const [variantLabel, setVariantLabel] = useState('2안')
   const [editing, setEditing] = useState<QuoteDraft | null>(null)
+  /**
+   * 딜 원가에서 가져오는 중인가.
+   *
+   * 원가에서 바로 견적을 만들지 않는다 — 고른 결과를 **초안**으로 받아 편집기를 열고,
+   * 사람이 단가를 보고 저장한다. 바로 저장하면 「원가 그대로 나간 견적」이 조용히 생긴다.
+   */
+  const [costing, setCosting] = useState(false)
   /**
    * 휴지통은 별도 화면이 아니라 **보기 전환**이다(trash.tsx 와 같은 약속).
    * 지운 것을 찾으러 다른 메뉴로 가게 하면 사람은 지우기를 무서워한다.
@@ -255,9 +263,15 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
               길이 있는데 첫 화면에 없으면 없는 것과 같다.
             */
             secondary={
-              <button type="button" className={styles.trashToggle} onClick={() => setImporting(true)}>
-                {QUOTE.importByFile}
-              </button>
+              <>
+                <button type="button" className={styles.trashToggle} onClick={() => setImporting(true)}>
+                  {QUOTE.importByFile}
+                </button>
+                {/* 견적이 하나도 없는 딜에 원가는 이미 쌓여 있을 수 있다 — 그때가 이 길이 가장 필요한 때다 */}
+                <button type="button" className={styles.trashToggle} onClick={() => setCosting(true)}>
+                  {QUOTE.fromDealCost}
+                </button>
+              </>
             }
           />
         )
@@ -386,6 +400,13 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
               <NbButton variant="ghost" onClick={() => setImporting(true)}>
                 <Upload size={16} /> {QUOTE.importByFile}
               </NbButton>
+              {/*
+                **원가에서 오는 길.** 받은 견적서를 원가로 보내는 길은 있었는데
+                되돌아오는 길이 없어, 사람이 같은 품목을 편집기에 손으로 다시 적었다.
+              */}
+              <NbButton variant="ghost" onClick={() => setCosting(true)}>
+                <Calculator size={16} /> {QUOTE.fromDealCost}
+              </NbButton>
             </div>
           )}
         </>
@@ -413,6 +434,28 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
             setImportNote(message)
             void load()
             onChanged?.()
+          }}
+        />
+      )}
+
+      {/*
+        **이 창은 저장하지 않는다.** 고른 원가를 초안으로 받아 편집기를 연다 —
+        원가에서 바로 견적을 만들면 단가를 아무도 안 보고 나간다.
+      */}
+      {costing && (
+        <CostToQuoteModal
+          dealId={dealId}
+          dealCurrency={dealCurrency}
+          onClose={() => setCosting(false)}
+          onPicked={(pick) => {
+            setCosting(false)
+            setEditing(draftFromCost(pick, dealName, validDays))
+            /*
+              환산 근거와 마진을 **옮긴 직후 한 줄로** 전한다. 편집기 안에서는 단가만 보이고
+              「왜 이 값인가」는 안 보이므로, 그 말을 여기서 남긴다 —
+              견적서에 인쇄되는 칸에는 안 적는다(원가가 외화 매입에서 왔다는 사실이 고객에게 간다).
+            */
+            setImportNote([pick.note, fxNote(pick)].filter(Boolean).join(' '))
           }}
         />
       )}
@@ -468,4 +511,22 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
       )}
     </div>
   )
+}
+
+/**
+ * 고른 원가를 **견적 초안**으로.
+ *
+ * 새 견적의 기본값(제목·유효기간·절사)은 `newQuoteDraft` 한 곳이 정한다 —
+ * 여기서 다시 적으면 그쪽을 고치는 날 이 길만 옛 기본값으로 남는다.
+ */
+function draftFromCost(pick: CostToQuotePick, dealName: string, validDays: number): QuoteDraft {
+  const base = newQuoteDraft(dealName, pick.currency, validDays)
+  return { ...base, currency: pick.currency, lines: pick.lines }
+}
+
+/** 환산 근거 한 줄 — 환산한 것이 없으면 빈 말을 하지 않는다 */
+function fxNote(pick: CostToQuotePick): string {
+  if (!pick.fxRate) return ''
+  const rate = Number(pick.fxRate).toLocaleString('ko-KR')
+  return `환산 환율 ${rate}원${pick.fxDate ? ` (${pick.fxDate} 매매기준율)` : ''} 기준입니다.`
 }
