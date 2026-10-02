@@ -138,7 +138,7 @@ export default function ProjectsPage() {
   return (
     <WorkPageShell
       title="프로젝트 현황"
-      description="프로젝트를 관리하고, 고객·딜·프로젝트별 업무 현황을 한눈에 봅니다."
+      description="고객·딜별로 묶어 봅니다"
       subTabs={
         <WorkSubTabs
           items={[{ key: 'projects', label: '프로젝트', testId: 'view-projects' }, { key: 'overview', label: '현황', testId: 'view-overview' }]}

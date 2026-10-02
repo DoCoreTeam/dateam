@@ -405,7 +405,7 @@ export default function InboxView({
           className="btn-ghost"
           style={{ marginLeft: 'auto' }}
           onClick={() => set({ filters: { group: grouped ? '' : '1' } })}
-          title="채널별로 묶어 어느 채널의 게시물인지 한눈에 봅니다"
+          title="채널별로 묶어 어느 채널의 게시물인지 봅니다"
         >
           {grouped ? '표로 보기' : '채널별로 묶기'}
         </button>

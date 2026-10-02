@@ -1,6 +1,6 @@
 # PLAN newAX: 화면은 제품의 말을 하고, 기능은 끝까지 이어진다
 플랜 ID: P0100
-플랜 버전: v0.3.2
+플랜 버전: v0.3.3
 상태: 진행중
 지시: ins_0158
 목표 버전: v0.10.835
@@ -84,14 +84,15 @@
 의존: I01a
 
 ### I03 화면이 실제로 그 말을 안 한다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/trading/jev-labels.ts, apps/web/app/(ci)/ci/inbox/InboxView.tsx, apps/web/app/(member)/calendar/loading.tsx, apps/web/app/(member)/org/page.tsx, apps/web/app/(member)/work/projects/page.tsx, apps/web/lib/onboarding/steps.ts
+범위: apps/web/app/(ci)/ci/inbox/InboxView.tsx, apps/web/app/(member)/calendar/loading.tsx, apps/web/app/(member)/org/page.tsx, apps/web/app/(member)/work/projects/page.tsx, apps/web/app/(member)/pricing/catalog/page.tsx, apps/web/lib/onboarding/steps.ts, apps/web/scripts/.product-copy-baseline.json
 감사 기준:
 - I02 가드의 개발 보고 문구 수가 1 에서 **0** 이 됨
 - 홍보 수식어 「한눈에」 7건이 **사라지거나 근거 있는 말로 바뀜** — 지우면서 사용자가 알아야 할 조건·제약을 같이 지우지 않음 (바꾼 줄마다 전후를 적음)
 - 「이 화면에서는 AI 판단을 쓰지 않습니다」가 **무엇이 안 되는지와 어떻게 하면 되는지**를 말하는 문장으로 바뀜 (개발 보고가 아니라 사용자 안내)
-- baseline 이 줄어든 값으로 다시 잠김
+- baseline 이 줄어든 값으로 다시 잠김 (promo 7 -> 0)
+- 「준비 중」이 **데이터가 빈 것을 기능이 곧 나온다고 말하던 자리**에서 걷힘 — GPU 가격이 없는 칸이 「준비 중」이라 사용자가 없는 일정을 기다렸다 (U-5·U-6)
 - 보안: 해당 없음 — 화면에 뜨는 글만 바뀜. 권한·저장·창구 안 건드림
 의존: I02
 
@@ -208,10 +209,13 @@
 ## 변경 이력
 - v0.1.0 (2026-10-01) 최초 작성 (ins_0158)
 - v0.1.1 (2026-10-01) I01 범위에 policy-sync.test.ts 추가 — B-N 과 같은 대조를 안 붙이면 새 절이 세 파일에서 갈라져도 아무것도 안 잡는다 (audit:I01)
+- v0.3.3 (2026-10-02) I03 범위에 pricing/catalog/page.tsx 추가 — 「준비 중」이 가격 미정을 가리던 자리를 함께 고침 (audit:I03)
 - v0.3.2 (2026-10-01) I02 범위에 jev-labels.ts 와 policy-sync.test.ts 추가 — 0 에서 잠그는 가드는 위반이 0 일 때만 커밋되므로 그 한 건을 I03 에서 앞으로 당김 (audit:I02)
 - v0.2.1 (2026-10-01) I01a 의 LOOP.md 자리를 부록에서 본문 9절로 올림 — 자가감사가 부르는 규정은 관례 자리에 두지 않는다 (audit:I01a)
 - v0.2.0 (2026-10-01) 사용자 개입(ins_0158 후속) — 기능 완결성 규칙 F-N 과 전수 조사 항목 넷(I01a·I09·I10·I11·I12) 추가. 첫 지시가 「화면이 무엇을 말하는가」라면 이번 것은 「기능이 어디까지 이어지는가」라 계열을 나눔
 - v0.1.1 (2026-09-30) I01 범위에 policy-sync.test.ts 추가 — P-N 대조가 없으면 새 절이 갈라져도 안 잡힌다 (audit:I01)
 - v0.3.0 (2026-09-30) 사용자 개입(ins_0158 후속 지시) — 기능 완결성 F-N 계열과 전수 조사 항목 다섯 추가, 완료 판정을 실브라우저 실사용으로 옮김 (ins_0158)
 - v0.3.1 (2026-10-01) I01a 의 LOOP.md 자리를 부록에서 본문 9절로 올림 (audit:I01a)
+- v0.3.3 (2026-10-02) I03 범위에 pricing/catalog/page.tsx 추가 — 「준비 중」이 가격 미정을 가리던 자리를 함께 고침 (audit:I03)
 - v0.3.2 (2026-10-01) I02 에 개발 보고 문구 1건 수정 포함 — 0 에서 잠그는 가드는 위반이 남은 채 커밋 불가 (audit:I02)
+- v0.3.3 (2026-10-02) I03 범위에 pricing/catalog 추가 — 「준비 중」이 가격 미정을 가리고 있었다 (audit:I03)

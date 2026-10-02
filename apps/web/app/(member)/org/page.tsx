@@ -52,7 +52,7 @@ export default async function OrgPage() {
 
   return (
     <div className="page-inner" id="onboarding-org-tree">
-      <PageHeader title="조직도" description="본부·팀·담당자를 한눈에 봅니다 (스크롤: 줌 · 드래그: 이동)" />
+      <PageHeader title="조직도" description="스크롤: 줌 · 드래그: 이동" />
       <OrgPublicTree nodes={nodes} emailMap={emailMap} profileMap={profileMap} />
     </div>
   )

@@ -392,7 +392,7 @@ export default function SalePriceCatalogPage() {
                           <div className="sale-catalog-unit">시간당</div>
                         </>
                       )
-                    ) : <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>준비 중</span>}
+                    ) : <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>가격 미정</span>}
                   </div>
 
                   {/* /월 — 항상 표시 */}

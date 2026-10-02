@@ -89,7 +89,7 @@ const MAIN_SEQUENCE: OnboardingSequence = {
       element: '#onboarding-org-tree',
       title: '조직과 내 위치를 확인해요',
       description:
-        '회사 조직도와 내가 속한 부서를 한눈에 볼 수 있습니다. 동료를 찾거나 보고 라인을 확인할 때 유용해요.',
+        '동료를 찾거나 보고 라인을 확인할 때 씁니다. 스크롤로 줌, 드래그로 이동해요.',
       side: 'top',
       align: 'center',
     },
@@ -100,7 +100,7 @@ const MAIN_SEQUENCE: OnboardingSequence = {
       element: '.gpu-pricing-root',
       title: 'GPU 가격표를 확인해요',
       description:
-        'GPU별 우리 판매가를 가격표에서 한눈에 봅니다. 행을 펼치면 시장가 대비·상세 근거도 확인할 수 있어요.',
+        'GPU별 우리 판매가를 봅니다. 행을 펼치면 시장가 대비와 상세 근거가 나와요.',
       side: 'over',
       align: 'center',
     },
@@ -146,7 +146,7 @@ const GPU_SEQUENCE: OnboardingSequence = {
       element: '.gpu-pricing-root',
       title: 'GPU 가격표를 확인해요',
       description:
-        'GPU별 우리 판매가를 가격표에서 한눈에 봅니다. 행을 펼치면 시장가 대비·상세 근거도 확인할 수 있어요.',
+        'GPU별 우리 판매가를 봅니다. 행을 펼치면 시장가 대비와 상세 근거가 나와요.',
       side: 'over',
       align: 'center',
     },
