@@ -11,7 +11,8 @@ import { readFileSync } from 'node:fs'
 import { stripComments } from '../../ui/component-scan.ts'
 import {
   pageOf, hasMore, isLastPage, PAGE_SIZE, MAX_PAGE_SIZE,
-  groupHits, slicePage, type RawHit,
+  groupHits, slicePage, queryOf, escapeLike, matchesQuery, sortKeyOf, sortRows, MAX_QUERY,
+  type RawHit,
 } from './hit-page.ts'
 
 const WEB = new URL('../../../', import.meta.url)
@@ -142,7 +143,9 @@ test('창구가 묶은 뒤에 자르고 공고 수를 센다', () => {
   const sliceAt = src.indexOf('slicePage(')
   assert.ok(groupAt > 0 && sliceAt > groupAt, '자른 다음에 묶는다')
   // 배지는 공고 수를 센다. 적중 수를 세면 화면 줄 수와 안 맞는다
-  assert.match(src, /const total = grouped\.length/, '적중 수를 센다')
+  // 좁힌 뒤의 **공고 수**를 센다. 적중 수를 세면 화면 줄 수와 안 맞고,
+  // 좁히기 전 수를 세면 걸러 놓고도 전체 건수를 말하게 된다
+  assert.match(src, /const total = sorted\.length/, '좁힌 뒤의 공고 수를 안 센다')
   // 상한에 닿은 것을 조용히 자르면 없는 것처럼 보인다
   assert.match(src, /truncated:/, '상한에 닿은 것을 안 말한다')
 })
@@ -164,3 +167,96 @@ test('서버 첫 렌더도 같은 방식으로 묶는다', () => {
   assert.match(src, /groupHits\(/, '첫 렌더가 안 묶는다')
   assert.match(src, /slicePage\(/, '첫 렌더가 쪽을 안 자른다')
 })
+
+// 좁혀 보기 — I05
+
+test('찾을 글자를 다듬는다', () => {
+  assert.equal(queryOf('  AI  '), 'AI')
+  assert.equal(queryOf(''), null, '빈 글자는 안 거른다는 뜻이다')
+  assert.equal(queryOf('   '), null)
+  assert.equal(queryOf(null), null)
+  assert.equal(queryOf('가'.repeat(MAX_QUERY + 50))?.length, MAX_QUERY, '길이를 안 잘랐다')
+})
+
+test('like 의 뜻있는 글자를 글자로 바꾼다', () => {
+  // 안 바꾸면 「%」 하나가 모든 공고에 걸려, 거르려다 오히려 전부를 받는다
+  assert.equal(escapeLike('100%'), '100\\%')
+  assert.equal(escapeLike('a_b'), 'a\\_b')
+  // 역슬래시를 먼저 안 바꾸면 뒤에 붙인 역슬래시가 또 뜻을 갖는다
+  assert.equal(escapeLike('a\\b'), 'a\\\\b')
+  assert.equal(escapeLike('\\%'), '\\\\\\%')
+})
+
+test('제목과 발주처에서 찾는다', () => {
+  const n = { title: 'AI 플랫폼 구축', agency: '한국전력', noticeDate: null }
+  assert.equal(matchesQuery(n, 'AI'), true)
+  assert.equal(matchesQuery(n, '한국전력'), true)
+  assert.equal(matchesQuery(n, 'ai'), true, '대소문자를 가린다')
+  assert.equal(matchesQuery(n, '없는말'), false)
+  assert.equal(matchesQuery(null, 'AI'), false)
+})
+
+test('모르는 정렬 기준은 기본값으로 떨어진다', () => {
+  assert.equal(sortKeyOf('noticeDate'), 'noticeDate')
+  assert.equal(sortKeyOf('없는기준'), 'score')
+  assert.equal(sortKeyOf(undefined), 'score')
+})
+
+test('공고일순은 날짜 없는 것을 뒤로 보낸다', () => {
+  // 앞에 두면 모르는 것이 가장 최근인 것처럼 보인다
+  const rows = [
+    { pre_score: 1, notice: { title: null, agency: null, noticeDate: null } },
+    { pre_score: 1, notice: { title: null, agency: null, noticeDate: '2026-09-01' } },
+    { pre_score: 1, notice: { title: null, agency: null, noticeDate: '2026-10-01' } },
+  ]
+  assert.deepEqual(
+    sortRows(rows, 'noticeDate').map((r) => r.notice.noticeDate),
+    ['2026-10-01', '2026-09-01', null],
+  )
+})
+
+test('점수순이 기본이다', () => {
+  const rows = [{ pre_score: 10 }, { pre_score: 40 }]
+  assert.deepEqual(sortRows(rows, 'score').map((r) => r.pre_score), [40, 10])
+})
+
+test('창구가 공고를 붙인 뒤에 거른다', () => {
+  /*
+    제목과 발주처는 적중이 아니라 공고가 들고 있다.
+    붙이기 전에 거르면 찾을 글자가 어디에도 없어 늘 0건이 된다
+  */
+  const src = live('app/api/rfp/radar/route.ts')
+  const attachAt = src.indexOf('attachNotices(')
+  const filterAt = src.indexOf('matchesQuery(')
+  assert.ok(attachAt > 0 && filterAt > attachAt, '공고를 붙이기 전에 거른다')
+  assert.match(src, /queryOf\(/, '찾을 글자를 안 다듬는다')
+  assert.match(src, /sortKeyOf\(/, '모르는 정렬 기준을 안 거른다')
+})
+
+test('화면이 찾기와 세우기를 주고 0건이면 푸는 길을 준다', () => {
+  const src = live('components/rfp/RadarRules.tsx')
+  assert.match(src, /RFP_RADAR\.hitSearch\b/, '찾는 칸이 없다')
+  assert.match(src, /RFP_RADAR\.hitSortDate/, '세우는 기준을 못 바꾼다')
+  // 0건이 「없다」인지 「조건이 좁다」인지 갈라 말해야 한다
+  assert.match(src, /RFP_RADAR\.hitSearchEmpty/, '조건 때문에 0건인 것을 안 말한다')
+  // 푸는 글자만 있고 누를 자리가 없으면 길이 아니다. 빈 자리 블록만 떼어 본다
+  const emptyBox = block(src, 'RFP_RADAR.hitSearchEmpty')
+  assert.match(emptyBox, /action=\{\{/, '0건일 때 조건을 푸는 단추가 없다')
+  assert.match(emptyBox, /hitSearchClear/, '그 단추에 푸는 말이 없다')
+  /*
+    같은 이름이 파일 안 다른 자리에도 있다(규칙 입력 칸). 그래서 **찾는 칸의 블록만**
+    떼어 본다 — 이름이 어딘가 있는 것으로는 그 칸이 막혔는지 알 수 없다
+  */
+  const searchBox = block(src, 'RFP_RADAR.hitSearch}')
+  assert.match(searchBox, /isEnterKey\(/, '찾는 칸이 엔터를 안 받는다')
+  assert.match(searchBox, /isImeComposing\(/, '조합 중 엔터가 요청을 보낸다')
+  // 상한에 닿은 것을 조용히 자르면 없는 것처럼 보인다
+  assert.match(src, /RFP_RADAR\.hitTruncated/, '상한에 닿은 것을 안 말한다')
+})
+
+
+/** 어떤 글자가 나오는 자리 둘레만 떼어 낸다. 파일 어딘가에 있는 것으로는 모자랄 때 쓴다 */
+function block(src: string, needle: string, span = 600): string {
+  const at = src.indexOf(needle)
+  return at < 0 ? '' : src.slice(Math.max(0, at - span), at + span)
+}

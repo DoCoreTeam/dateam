@@ -30,7 +30,7 @@ import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
 import { selectedCount } from '@/lib/terms/action'
 import { EXTERNAL_LINK_PROPS } from '@/lib/rfp/radar/notice-url'
 import { bidClosed, type HitNotice } from '@/lib/rfp/radar/hit-notice'
-import { PAGE_SIZE, hasMore } from '@/lib/rfp/radar/hit-page'
+import { PAGE_SIZE, hasMore, type SortKey } from '@/lib/rfp/radar/hit-page'
 import styles from '@/app/(rfp)/rfp.module.css'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { useElapsedMs } from '@/components/ui/useElapsedMs'
@@ -142,6 +142,14 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
   const [total, setTotal] = useState<number | null>(initialTotal ?? null)
   /** 마지막으로 받은 쪽에서 몇 줄이 왔나 */
   const [lastGot, setLastGot] = useState(initialHits.length)
+  /** 찾는 글자와 세우는 기준. 바꾸면 처음부터 다시 받는다 */
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<SortKey>('score')
+  const [truncated, setTruncated] = useState(false)
+  const queryRef = useRef(query)
+  queryRef.current = query
+  const sortRef = useRef<SortKey>(sort)
+  sortRef.current = sort
   // 키가 없어서 못 가져왔나 — 안내 옆에 넣으러 가는 길을 켤지 정한다
   const [needKey, setNeedKey] = useState(false)
   /**
@@ -161,21 +169,30 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
    * 이어 붙일 때 **앞서 받은 줄을 안 버린다** — 버리면 더보기를 누를 때마다 화면이
    * 처음으로 돌아가고 선택도 풀린다.
    */
-  const load = useCallback(async (dismissed: boolean, append = false) => {
+  const load = useCallback(async (
+    dismissed: boolean, append = false, nextQuery?: string, nextSort?: SortKey,
+  ) => {
     setBusy(true)
     setError(null)
     try {
       const offset = append ? hitsRef.current.length : 0
-      const res = await fetch(
-        `/api/rfp/radar?status=${dismissed ? 'dismissed' : 'new'}&offset=${offset}&limit=${PAGE_SIZE}`,
-        { cache: 'no-store' },
-      )
+      const qs = new URLSearchParams({
+        status: dismissed ? 'dismissed' : 'new',
+        offset: String(offset),
+        limit: String(PAGE_SIZE),
+        sort: nextSort ?? sortRef.current,
+      })
+      // 빈 글자는 안 보낸다 — 보내면 창구가 「아무것도 안 맞는 조건」으로 읽을 수 있다
+      const q = nextQuery ?? queryRef.current
+      if (q.trim()) qs.set('q', q.trim())
+      const res = await fetch(`/api/rfp/radar?${qs.toString()}`, { cache: 'no-store' })
       if (!res.ok) { setError(RFP_COMMON.error); return }
       const body = await res.json()
       const got = (body.hits ?? []) as RadarHitRow[]
       setHits((prev) => (append ? [...prev, ...got] : got))
       setTotal(typeof body.total === 'number' ? body.total : null)
       setLastGot(got.length)
+      setTruncated(body.truncated === true)
       setShowDismissed(dismissed)
       // 보기를 바꿀 때만 선택을 푼다. 더보기로 이어 받을 때 풀면 고르던 것이 사라진다
       if (!append) setPicked(new Set())
@@ -535,6 +552,35 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
               {showDismissed ? RFP_RADAR.hitShowActive : RFP_RADAR.hitShowDismissed}
             </NbButton>
           </div>
+          {/* 129건을 눈으로만 훑는 것은 쓸 수 있는 방법이 아니다 */}
+          <div className={styles.row}>
+            <input
+              className="input-field"
+              value={query}
+              placeholder={RFP_RADAR.hitSearch}
+              aria-label={RFP_RADAR.hitSearch}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // 조합 중 엔터는 글자를 고르는 것이지 보내는 것이 아니다
+                if (isEnterKey(e) && !isImeComposing(e)) void load(showDismissed, false, e.currentTarget.value)
+              }}
+            />
+            {query && (
+              <NbButton variant="ghost" onClick={() => { setQuery(''); void load(showDismissed, false, '') }}>
+                {RFP_RADAR.hitSearchClear}
+              </NbButton>
+            )}
+            <select
+              className="input-field"
+              value={sort}
+              aria-label={RFP_RADAR.hitSortScore}
+              onChange={(e) => { const v = e.target.value as SortKey; setSort(v); void load(showDismissed, false, undefined, v) }}
+            >
+              <option value="score">{RFP_RADAR.hitSortScore}</option>
+              <option value="noticeDate">{RFP_RADAR.hitSortDate}</option>
+            </select>
+          </div>
+
           {/* 선택한 것이 있을 때만 보인다 — 늘 보이면 안 쓰는 단추가 자리를 차지한다 */}
           {picked.size > 0 && (
             <div className={styles.row}>
@@ -550,10 +596,19 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
         </div>
 
         {hits.length === 0 ? (
-          <EmptyState
-            title={showDismissed ? RFP_RADAR.hitDismissedEmpty : RFP_RADAR.emptyTitle}
-            description={showDismissed ? RFP_RADAR.hitDismissedEmptyDesc : RFP_RADAR.emptyDesc}
-          />
+          /* 0건이 「없다」인지 「조건이 좁다」인지 갈라 말하고, 좁은 쪽이면 푸는 길을 같이 준다 */
+          query ? (
+            <EmptyState
+              title={RFP_RADAR.hitSearchEmpty}
+              description={RFP_RADAR.hitSearch}
+              action={{ label: RFP_RADAR.hitSearchClear, onClick: () => { setQuery(''); void load(showDismissed, false, '') } }}
+            />
+          ) : (
+            <EmptyState
+              title={showDismissed ? RFP_RADAR.hitDismissedEmpty : RFP_RADAR.emptyTitle}
+              description={showDismissed ? RFP_RADAR.hitDismissedEmptyDesc : RFP_RADAR.emptyDesc}
+            />
+          )
         ) : (
           <div className={styles.ruleList}>
             {/* 사전 점수 높은 것부터 — 사용자는 위에서 몇 개만 본다 */}
@@ -634,6 +689,10 @@ export default function RadarRules({ initialRules, initialHits, initialTotal }: 
               </div>
             ))}
           </div>
+        )}
+
+        {truncated && (
+          <span role="status" className={styles.sectionDesc}>{RFP_RADAR.hitTruncated}</span>
         )}
 
         {/* 끝에 닿으면 사라진다 — 누를 것이 없는 단추는 고장으로 읽힌다 */}

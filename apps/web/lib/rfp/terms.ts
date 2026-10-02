@@ -553,6 +553,13 @@ export const RFP_RADAR = {
   /** 개찰이 지난 공고. 검토해도 낼 수 없으므로 그 사실을 먼저 말한다 */
   noticeClosed: '개찰 지남',
   noticeNoUrl: '공고 주소를 못 받았어요',
+  hitSearch: '제목이나 발주처로 찾기',
+  hitSearchEmpty: '찾는 조건에 맞는 공고가 없어요',
+  hitSearchClear: `조건 ${ACTION.clear}`,
+  hitSortScore: '점수순',
+  hitSortDate: '공고일순',
+  /** 상한에 닿았을 때. 조용히 자르면 없는 것처럼 보인다 */
+  hitTruncated: '너무 많아 일부만 보여 드려요. 조건으로 좁혀 주세요',
   hitMore: '더 보기',
   hitLoadingMore: progress('더 보기'),
   /** 몇 건 중 몇 건을 보고 있나. 배지가 가져온 수만 말하면 나머지가 있는 줄도 모른다 */

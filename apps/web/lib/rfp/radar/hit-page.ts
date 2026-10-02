@@ -145,3 +145,71 @@ export function groupHits(rows: readonly RawHit[]): GroupedHit[] {
 export function slicePage<T>(rows: readonly T[], page: PageInput): T[] {
   return rows.slice(page.offset, page.offset + page.limit)
 }
+
+/**
+ * 좁혀 보기 — 검색과 정렬
+ *
+ * 129건을 눈으로만 훑는 것은 쓸 수 있는 방법이 아니다.
+ *
+ * ## 검색어는 밖에서 온 값이다
+ *
+ * `like` 에서 `%` 와 `_` 는 **아무 글자**를 뜻한다. 그대로 넘기면 「%」 한 글자가
+ * 모든 공고에 걸리는 검색이 되고, 사용자는 거르려다 오히려 전부를 받는다.
+ * 그래서 글자로 찾겠다는 뜻이면 글자로 넘긴다.
+ */
+
+/** 검색어 길이 상한. 더 길면 자른다 — 질의를 길게 만들어 봐야 찾는 것은 같다 */
+export const MAX_QUERY = 100
+
+export type SortKey = 'score' | 'noticeDate'
+
+export const SORT_KEYS: readonly SortKey[] = ['score', 'noticeDate']
+
+export function sortKeyOf(raw: unknown): SortKey {
+  return typeof raw === 'string' && (SORT_KEYS as readonly string[]).includes(raw)
+    ? (raw as SortKey)
+    : 'score'
+}
+
+/** 찾을 글자를 다듬는다. 빈 글자면 null — 안 거른다는 뜻이다 */
+export function queryOf(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const q = raw.trim().slice(0, MAX_QUERY)
+  return q.length > 0 ? q : null
+}
+
+/**
+ * `like` 의 뜻있는 글자를 글자 그대로 바꾼다.
+ *
+ * 안 바꾸면 「%」 하나로 전부가 걸리고 「_」 하나로 아무 한 글자나 걸린다.
+ * 역슬래시를 먼저 바꾸지 않으면 뒤에 붙인 역슬래시가 또 뜻을 갖는다.
+ */
+export function escapeLike(q: string): string {
+  return q.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
+export interface NoticeLike {
+  title: string | null
+  agency: string | null
+  noticeDate: string | null
+}
+
+/** 제목이나 발주처에 그 글자가 들어 있나. 대소문자는 안 가린다 */
+export function matchesQuery(n: NoticeLike | null | undefined, q: string): boolean {
+  if (!n) return false
+  const needle = q.toLowerCase()
+  return (n.title ?? '').toLowerCase().includes(needle)
+    || (n.agency ?? '').toLowerCase().includes(needle)
+}
+
+/** 고른 기준으로 줄을 세운다 */
+export function sortRows<T extends { pre_score: number | null; notice?: NoticeLike | null }>(
+  rows: readonly T[], key: SortKey,
+): T[] {
+  const out = [...rows]
+  if (key === 'noticeDate') {
+    // 날짜가 없는 것은 뒤로 — 앞에 두면 모르는 것이 가장 최근인 것처럼 보인다
+    return out.sort((a, b) => (b.notice?.noticeDate ?? '').localeCompare(a.notice?.noticeDate ?? ''))
+  }
+  return out.sort((a, b) => (b.pre_score ?? 0) - (a.pre_score ?? 0))
+}

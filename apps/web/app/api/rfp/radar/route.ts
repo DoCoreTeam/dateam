@@ -25,7 +25,10 @@ import { collectNotices } from '@/lib/rfp/radar/collect'
 import { collectFromSite, type SiteRow } from '@/lib/rfp/radar/collect-sites'
 import { attachNotices } from '@/lib/rfp/radar/hit-notice'
 import { listStatusOf } from '@/lib/rfp/radar/hit-status'
-import { pageOf, groupHits, slicePage, MAX_SCAN, type RawHit } from '@/lib/rfp/radar/hit-page'
+import {
+  pageOf, groupHits, slicePage, MAX_SCAN, queryOf, matchesQuery, sortRows, sortKeyOf,
+  type RawHit,
+} from '@/lib/rfp/radar/hit-page'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,15 +73,27 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: '후보를 불러오지 못했습니다' }, { status: 500 })
 
   const grouped = groupHits((data ?? []) as RawHit[])
+
+  /*
+    **좁히기는 공고 정보가 붙은 뒤에 한다.** 제목과 발주처는 적중이 아니라 공고가 들고 있어서,
+    붙이기 전에 거르면 찾을 글자가 어디에도 없다.
+
+    그래서 묶은 전부에 공고를 붙이고 → 거르고 → 세우고 → 자른다.
+    상한이 2000건이라 이 일이 한 요청 안에서 끝난다.
+  */
+  const withNotice = await attachNotices(db as never, grouped)
+  const q = queryOf(params.get('q'))
+  const filtered = q ? withNotice.filter((h) => matchesQuery(h.notice, q)) : withNotice
+  const sorted = sortRows(filtered, sortKeyOf(params.get('sort')))
+
   // 배지는 **공고 수**를 센다. 적중 수를 세면 화면 줄 수와 안 맞는다
-  const total = grouped.length
-  const pageRows = slicePage(grouped, page)
+  const total = sorted.length
+  const pageRows = slicePage(sorted, page)
 
   // 서버 첫 렌더와 **같은 함수**로 공고를 붙인다. 여기서 안 붙이면 훑기를 누른 직후
   // 클라이언트가 이 창구로 다시 받으면서 제목이 사라진다
-  const hits = await attachNotices(db as never, pageRows)
   return NextResponse.json({
-    hits,
+    hits: pageRows,
     total,
     offset: page.offset,
     limit: page.limit,
