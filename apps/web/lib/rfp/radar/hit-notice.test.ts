@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { attachNotices, toNotice, NOTICE_COLS, type NoticeDbClient } from './hit-notice.ts'
+import { attachNotices, toNotice, NOTICE_COLS, bidClosed, type NoticeDbClient } from './hit-notice.ts'
 import { stripComments } from '../../ui/component-scan.ts'
 
 function db(rows: Record<string, unknown>[], asked: { cols?: string; ids?: string[] } = {}): NoticeDbClient {
@@ -84,7 +84,8 @@ test('빈 글자는 없음으로 본다', () => {
 
 test('읽는 칸 목록이 표에 실재하는 이름만 쓴다', () => {
   // 없는 칸을 하나라도 적으면 select 가 통째로 오류가 되고 제목이 조용히 사라진다
-  const REAL = new Set(['id', 'title', 'announcing_agency', 'budget_amount', 'notice_date', 'raw'])
+  const REAL = new Set(['id', 'title', 'announcing_agency', 'budget_amount', 'notice_date', 'raw',
+    'demand_agency', 'estimated_price', 'bid_open_at', 'contract_method', 'award_method', 'is_urgent'])
   const unknown = NOTICE_COLS.split(',').map((c) => c.trim()).filter((c) => !REAL.has(c))
   assert.deepEqual(unknown, [], `표에 없는 칸을 읽으려 한다: ${unknown.join(', ')}`)
 })
@@ -154,4 +155,55 @@ test('공고 모양을 화면이 따로 적지 않는다', () => {
   const src = stripComments(readFileSync(
     new URL('../../../components/rfp/RadarRules.tsx', import.meta.url), 'utf8'))
   assert.match(src, /notice\?:\s*HitNotice\s*\|\s*null/, '화면이 공고 모양을 따로 적었다')
+})
+
+// 판단에 필요한 것 — I03
+
+test('판단에 쓰는 칸이 목록에 실린다', async () => {
+  // 표에 537건씩 차 있는데 화면은 네 칸만 보여 주고 있었다
+  const out = await attachNotices(db([{
+    id: 's1', title: 'ㄱ', announcing_agency: '조달청', demand_agency: '한국전력',
+    budget_amount: 1000, estimated_price: 900, bid_open_at: '2026-10-10T14:00:00Z',
+    contract_method: '일반경쟁', award_method: '협상에 의한 계약', is_urgent: true, raw: {},
+  }]), [{ source_id: 's1' }])
+  const n = out[0].notice
+  assert.equal(n?.demandAgency, '한국전력')
+  assert.equal(n?.estimatedPrice, 900)
+  assert.equal(n?.bidOpenAt, '2026-10-10T14:00:00Z')
+  assert.equal(n?.contractMethod, '일반경쟁')
+  assert.equal(n?.awardMethod, '협상에 의한 계약')
+  assert.equal(n?.urgent, true)
+})
+
+test('없는 값은 null 로 두고 지어내지 않는다', async () => {
+  const out = await attachNotices(db([{ id: 's1', title: 'ㄱ' }]), [{ source_id: 's1' }])
+  const n = out[0].notice
+  assert.equal(n?.demandAgency, null)
+  assert.equal(n?.estimatedPrice, null)
+  assert.equal(n?.bidOpenAt, null)
+  assert.equal(n?.urgent, false, '긴급인지 모르는 것을 긴급으로 읽으면 안 된다')
+})
+
+test('개찰이 지났으면 지났다고 한다', () => {
+  const 지금 = Date.UTC(2026, 9, 2)
+  assert.equal(bidClosed('2026-10-01T10:00:00Z', 지금), true)
+  assert.equal(bidClosed('2026-10-10T10:00:00Z', 지금), false)
+})
+
+test('개찰 시각을 모르면 지났다고 하지 않는다', () => {
+  // 모르는 것을 단정하면 멀쩡한 공고를 숨기게 된다
+  const 지금 = Date.UTC(2026, 9, 2)
+  assert.equal(bidClosed(null, 지금), false)
+  assert.equal(bidClosed('', 지금), false)
+  assert.equal(bidClosed('날짜아님', 지금), false)
+})
+
+test('목록 줄이 없는 값에 빈칸을 안 그린다', () => {
+  // 「-」를 늘어놓으면 「없음」과 「못 받음」이 같아 보이고 줄만 길어진다
+  const src = stripComments(readFileSync(
+    new URL('../../../components/rfp/RadarRules.tsx', import.meta.url), 'utf8'))
+  assert.match(src, /noticeFacts\(/, '사실 줄을 한곳에서 안 만든다')
+  assert.doesNotMatch(src, /noticeAgency\} \{h\.notice\?\.agency \?\? '-'\}/, '없는 값에 빈칸을 그린다')
+  // 수요기관이 발주처와 같으면 두 번 말하지 않는다
+  assert.match(src, /demandAgency !== n\.agency/, '같은 기관을 두 번 말한다')
 })

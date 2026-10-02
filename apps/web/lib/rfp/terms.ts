@@ -544,6 +544,14 @@ export const RFP_RADAR = {
   hitBulkPartial: '건은 바꾸지 못했어요',
   /** 원문으로 보내는 자리. 「열기」는 대상 하나를 여는 말이라 자리가 맞다 */
   noticeOpen: `공고 원문 ${ACTION.open}`,
+  noticeDemandAgency: '수요기관',
+  noticeEstimated: '추정가',
+  noticeBidOpen: '개찰',
+  noticeContractMethod: '계약방법',
+  noticeAwardMethod: '낙찰방법',
+  noticeUrgent: '긴급',
+  /** 개찰이 지난 공고. 검토해도 낼 수 없으므로 그 사실을 먼저 말한다 */
+  noticeClosed: '개찰 지남',
   noticeNoUrl: '공고 주소를 못 받았어요',
   hitShowDismissed: '숨긴 공고 보기',
   hitShowActive: '찾은 공고로 돌아가기',

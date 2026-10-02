@@ -29,7 +29,7 @@ import { RFP_RADAR, RFP_COMMON } from '@/lib/rfp/terms'
 import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
 import { selectedCount } from '@/lib/terms/action'
 import { EXTERNAL_LINK_PROPS } from '@/lib/rfp/radar/notice-url'
-import type { HitNotice } from '@/lib/rfp/radar/hit-notice'
+import { bidClosed, type HitNotice } from '@/lib/rfp/radar/hit-notice'
 import styles from '@/app/(rfp)/rfp.module.css'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { useElapsedMs } from '@/components/ui/useElapsedMs'
@@ -87,6 +87,31 @@ function toForm(d: {
 }
 
 /** 억 단위로 읽는다 — 원 단위 열한 자리는 사람이 못 읽는다 */
+/**
+ * 목록 한 줄이 말할 사실들. **있는 것만** 담는다.
+ *
+ * 없는 값에 「-」를 그리면 줄이 길어지기만 하고 「없음」과 「못 받음」이 같아 보인다.
+ */
+function noticeFacts(n: HitNotice | null | undefined): string[] {
+  if (!n) return []
+  const out: string[] = []
+  if (n.urgent) out.push(RFP_RADAR.noticeUrgent)
+  // 개찰이 지났으면 그것부터 말한다 — 검토해도 낼 수 없다
+  if (bidClosed(n.bidOpenAt)) out.push(RFP_RADAR.noticeClosed)
+  if (n.agency) out.push(`${RFP_RADAR.noticeAgency} ${n.agency}`)
+  // 수요기관이 발주처와 같으면 두 번 말하지 않는다
+  if (n.demandAgency && n.demandAgency !== n.agency) {
+    out.push(`${RFP_RADAR.noticeDemandAgency} ${n.demandAgency}`)
+  }
+  if (n.budgetAmount !== null) out.push(`${RFP_RADAR.noticeBudget} ${money(n.budgetAmount)}`)
+  if (n.estimatedPrice !== null) out.push(`${RFP_RADAR.noticeEstimated} ${money(n.estimatedPrice)}`)
+  if (n.noticeDate) out.push(`${RFP_RADAR.noticeDate} ${n.noticeDate}`)
+  if (n.bidOpenAt) out.push(`${RFP_RADAR.noticeBidOpen} ${n.bidOpenAt.slice(0, 16).replace('T', ' ')}`)
+  if (n.contractMethod) out.push(n.contractMethod)
+  if (n.awardMethod) out.push(n.awardMethod)
+  return out
+}
+
 function money(v: number | null | undefined): string {
   if (v === null || v === undefined) return '-'
   if (v >= 100_000_000) return `${(v / 100_000_000).toFixed(1)}${RFP_RADAR.unitEok}`
@@ -519,10 +544,12 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
                       {h.notice?.title || RFP_RADAR.noticeNoTitle}
                     </span>
                   )}
+                  {/*
+                    판단에 필요한 것을 보여 준다. 없는 값은 **빈칸을 그리지 않는다** —
+                    「-」를 늘어놓으면 「없음」과 「못 받음」이 같아 보이고 줄만 길어진다
+                  */}
                   <span className={styles.sectionDesc}>
-                    {RFP_RADAR.noticeAgency} {h.notice?.agency ?? '-'}
-                    {' · '}{RFP_RADAR.noticeBudget} {money(h.notice?.budgetAmount)}
-                    {' · '}{RFP_RADAR.noticeDate} {h.notice?.noticeDate ?? '-'}
+                    {noticeFacts(h.notice).join(' · ')}
                   </span>
                   <span className={styles.sectionDesc}>{h.reason}</span>
                 </span>

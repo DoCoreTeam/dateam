@@ -25,6 +25,15 @@ export interface HitNotice {
   noticeDate: string | null
   /** 발주처 사이트의 공고 원문. 없으면 null — 눌러도 갈 데가 없다는 뜻이다 */
   url: string | null
+  /** 실제로 일을 받는 기관. 발주처와 다를 때가 있고 그때 판단이 갈린다 */
+  demandAgency: string | null
+  /** 추정가. 배정 예산과 다르다 — 배정은 쓸 수 있는 돈이고 추정은 이 일의 값이다 */
+  estimatedPrice: number | null
+  /** 개찰일시. 지난 것을 검토하는 것은 시간 낭비다 */
+  bidOpenAt: string | null
+  contractMethod: string | null
+  awardMethod: string | null
+  urgent: boolean
 }
 
 export interface HitLike {
@@ -32,7 +41,11 @@ export interface HitLike {
 }
 
 /** 공고 표에서 읽을 칸. 한 곳에 적어 두 경로가 같은 것을 읽게 한다 */
-export const NOTICE_COLS = 'id, title, announcing_agency, budget_amount, notice_date, raw'
+export const NOTICE_COLS = [
+  'id', 'title', 'announcing_agency', 'budget_amount', 'notice_date', 'raw',
+  // 판단에 쓰는 것들. 표에 537건씩 차 있는데 화면이 네 칸만 보여 주고 있었다
+  'demand_agency', 'estimated_price', 'bid_open_at', 'contract_method', 'award_method', 'is_urgent',
+].join(', ')
 
 export interface NoticeDbClient {
   from(table: string): {
@@ -58,6 +71,12 @@ export function toNotice(row: Record<string, unknown>): HitNotice {
     noticeDate: str(row.notice_date),
     // 원문 주소는 받아 온 응답 안에 들어 있다. 어느 칸에 들었는지는 noticeUrlOf 가 안다
     url: noticeUrlOf(row.raw),
+    demandAgency: str(row.demand_agency),
+    estimatedPrice: num(row.estimated_price),
+    bidOpenAt: str(row.bid_open_at),
+    contractMethod: str(row.contract_method),
+    awardMethod: str(row.award_method),
+    urgent: row.is_urgent === true,
   }
 }
 
@@ -80,4 +99,18 @@ export async function attachNotices<T extends HitLike>(
     // 제목이 없는 목록이 목록이 없는 것보다 낫다
   }
   return hits.map((h) => ({ ...h, notice: byId.get(h.source_id) ?? null }))
+}
+
+/**
+ * 개찰이 지났나.
+ *
+ * 지난 공고를 검토하는 것은 시간 낭비다. 목록이 말해 주지 않으면 사용자는 제목만 보고
+ * 열어 본 뒤에야 안다.
+ *
+ * 시각을 못 읽으면 **지났다고 하지 않는다** — 모르는 것을 단정하면 멀쩡한 공고를 숨기게 된다.
+ */
+export function bidClosed(bidOpenAt: string | null, now: number = Date.now()): boolean {
+  if (!bidOpenAt) return false
+  const ms = Date.parse(bidOpenAt)
+  return Number.isFinite(ms) && ms < now
 }
