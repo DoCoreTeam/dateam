@@ -23,6 +23,7 @@ import { toRadarRule } from '@/lib/rfp/radar/rules'
 import { sweep, type NoticeCandidate } from '@/lib/rfp/radar/sweep'
 import { collectNotices } from '@/lib/rfp/radar/collect'
 import { collectFromSite, type SiteRow } from '@/lib/rfp/radar/collect-sites'
+import { sweepRanges, sweepTruncated } from '@/lib/rfp/radar/sweep-scope'
 import { attachNotices } from '@/lib/rfp/radar/hit-notice'
 import { listStatusOf } from '@/lib/rfp/radar/hit-status'
 import {
@@ -152,11 +153,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ hits: [], swept: 0, reason: 'no_rules', collected, siteResults })
   }
 
-  const { data: sourceRows } = await (db as any)
+  /*
+    **옛 공고도 본다.** 최근 500건만 읽던 시절, 공고 567건 중 옛 67건은 어떤 규칙에도
+    안 걸렸다(실측 2026-10-01). 규칙을 새로 만들어도 그 전에 들어온 공고에는 영영 안 걸려
+    사용자는 「규칙이 안 먹는다」로 읽는다.
+
+    한 번에 다 읽지는 않는다 — 공고는 계속 쌓이고, 한 요청이 전부를 읽으려 들면
+    어느 날부터 그 요청이 죽는다. 죽으면 아무것도 안 걸린다. 그래서 나눠 돈다.
+  */
+  const { count: sourceTotal } = await (db as any)
     .from('rfp_sources')
-    .select('id, notice_no, title, announcing_agency, budget_amount, notice_date')
-    .order('notice_date', { ascending: false })
-    .limit(500)
+    .select('id', { count: 'exact', head: true })
+
+  const ranges = sweepRanges(sourceTotal ?? 0)
+  const sourceRows: Record<string, unknown>[] = []
+  for (const r of ranges) {
+    const { data: part } = await (db as any)
+      .from('rfp_sources')
+      .select('id, notice_no, title, announcing_agency, budget_amount, notice_date')
+      .order('notice_date', { ascending: false })
+      // 같은 날짜가 여럿이면 쪽마다 순서가 흔들려 어떤 공고는 영영 안 읽힌다
+      .order('id', { ascending: true })
+      .range(r.offset, r.offset + r.limit - 1)
+    if (!part || part.length === 0) break
+    sourceRows.push(...(part as Record<string, unknown>[]))
+  }
 
   const candidates: NoticeCandidate[] = (sourceRows ?? []).map((r: Record<string, unknown>) => ({
     sourceId: String(r.id),
@@ -194,7 +215,14 @@ export async function POST(req: NextRequest) {
     .in('id', rules.map((r: { id: string }) => r.id))
 
   // 몇 건을 새로 모았는지 화면이 말해야 한다 — 「0건」이 «없다»인지 «못 가져왔다»인지 갈린다
-  return NextResponse.json({ hits, swept: candidates.length, collected, siteResults })
+  return NextResponse.json({
+    hits,
+    swept: candidates.length,
+    collected,
+    siteResults,
+    // 이번에 다 못 봤으면 말한다. 조용히 끊으면 안 걸린 공고가 없는 것처럼 보인다
+    sweepTruncated: sweepTruncated(sourceTotal ?? 0),
+  })
 }
 
 /**
