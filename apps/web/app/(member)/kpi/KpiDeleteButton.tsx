@@ -3,12 +3,19 @@
 import { useTransition } from 'react'
 import { deleteKpi } from './actions'
 import { Trash2 } from 'lucide-react'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 export default function KpiDeleteButton({ id }: { id: string }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [isPending, startTransition] = useTransition()
 
-  function handleDelete() {
-    if (!confirm('이 KPI 항목을 삭제하시겠습니까?')) return
+  async function handleDelete() {
+    if (!await ask.confirm({
+      title: 'KPI 항목을 삭제할까요?',
+      body: '이 항목에 쌓인 실적 기록도 함께 사라집니다.',
+      confirmLabel: '삭제', danger: true,
+    })) return
     startTransition(async () => { await deleteKpi(id) })
   }
 
@@ -33,6 +40,7 @@ export default function KpiDeleteButton({ id }: { id: string }) {
       }}
     >
       <Trash2 size={13} />
+    {dialog}
     </button>
   )
 }

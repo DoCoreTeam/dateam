@@ -14,6 +14,7 @@ import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { deleteKpi, updateKpi } from './actions'
 import type { KpiEntry } from '@/types/database'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 export interface WeeklyKpiTarget {
   label: string
@@ -45,6 +46,8 @@ interface EditForm {
 }
 
 export default function KpiHistoryTable({ entries, weeklyTargets, h1Kpi, yearKpi }: Props) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/kpi' })
   const [pending, startTransition] = useTransition()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -98,8 +101,12 @@ export default function KpiHistoryTable({ entries, weeklyTargets, h1Kpi, yearKpi
     })
   }
 
-  function handleDelete(entry: KpiEntry) {
-    if (!confirm('이 실적을 삭제하시겠습니까?')) return
+  async function handleDelete(entry: KpiEntry) {
+    if (!await ask.confirm({
+      title: '실적을 삭제할까요?',
+      body: '이 한 건만 사라지고 KPI 항목과 다른 실적은 그대로 남습니다.',
+      confirmLabel: '삭제', danger: true,
+    })) return
     startTransition(async () => { await deleteKpi(entry.id) })
   }
 
@@ -210,6 +217,7 @@ export default function KpiHistoryTable({ entries, weeklyTargets, h1Kpi, yearKpi
           : { title: '아직 등록된 실적이 없어요', description: '위 입력창에서 이번 주 실적을 기록해 보세요' }}
       />
       <ListPager query={query} total={filtered.length} onChange={set} />
+    {dialog}
     </>
   )
 }

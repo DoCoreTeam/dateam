@@ -11,6 +11,7 @@ import type { OrgPickerNode } from '@/components/ui/OrgPeoplePicker'
 import { consumeWorkflowHandoff } from '@/lib/ai-chat/workflow-handoff'
 import { escapeHtml } from '@/lib/ai-chat/export'
 import { isEnterKey } from '@/lib/ui/ime'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 export interface MeetingNoteDraft {
   id?: string
@@ -54,6 +55,8 @@ function nowLocalInput(): string {
 }
 
 export default function MeetingEditor({ initial, mode, onExit }: Props) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const router = useRouter()
   const [title, setTitle] = useState(initial.title)
   const [meetingAtLocal, setMeetingAtLocal] = useState(
@@ -211,9 +214,13 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
     })
   }
 
-  function remove() {
+  async function remove() {
     if (!initial.id) return
-    if (!confirm(`회의노트 "${title || '(제목 없음)'}"을(를) 삭제하시겠습니까? 되돌릴 수 없습니다.`)) return
+    if (!await ask.confirm({
+      title: '회의 기록을 삭제할까요?',
+      body: `"${title || '(제목 없음)'}" 과 그 전사·요약이 함께 사라집니다. 되돌릴 수 없습니다.`,
+      confirmLabel: '삭제', danger: true,
+    })) return
     startDelete(async () => {
       try {
         const res = await deleteMeetingNote(initial.id!)
@@ -342,6 +349,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
           </NbButton>
         </div>
       </div>
+    {dialog}
     </div>
   )
 }

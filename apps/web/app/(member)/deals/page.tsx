@@ -15,6 +15,7 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { ENTITY, confirmDelete, failedTo, emptyTitle } from '@/lib/terms'
 import type { ListDefaults } from '@/lib/ui/list-query'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 type DealWithAccount = Deal & { accounts: Pick<Account, 'id' | 'name'> | null }
 type PageData = { items: DealWithAccount[]; nextCursor: string | null; hasMore: boolean; total: number; capped?: boolean }
@@ -262,12 +263,18 @@ export default function DealsPage() {
 }
 
 function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; onClose: () => void; onDeleted: () => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const st = STAGE_STYLE[d.stage] ?? STAGE_STYLE['신규']
   async function handleDelete() {
-    if (!confirm(confirmDelete('deal', 1, { stays: '거래처와 연결된 기록' }))) return
+    if (!await ask.confirm({
+      title: `${ENTITY.deal.label}을 삭제할까요?`,
+      body: '거래처와 연결된 기록은 그대로 남습니다.',
+      confirmLabel: '삭제', danger: true,
+    })) return
     const res = await fetch(`/api/deals/${d.id}`, { method: 'DELETE' })
     if (res.ok) onDeleted()
-    else alert(failedTo(ENTITY.deal.label, '삭제'))
+    else await ask.notice({ title: failedTo(ENTITY.deal.label, '삭제'), body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
   }
   return (
     <div>
@@ -327,6 +334,7 @@ function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; on
           삭제
         </button>
       </div>
+    {dialog}
     </div>
   )
 }

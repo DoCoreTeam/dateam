@@ -26,6 +26,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
 import { fmtUSD } from '@/lib/gpu/format-price'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface Metrics {
   review_items: { total: number; pending: number; confirmed: number; rejected: number; superseded: number; low_confidence: number }
@@ -79,6 +80,8 @@ const DRILL_TITLE: Record<MetricKey, string> = {
 }
 
 export default function DataQualityDashboard() {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data, isLoading, mutate } = useSWR<{ metrics: Metrics }>('/api/admin/data-quality', fetcher, { refreshInterval: 30000 })
   const m = data?.metrics
   const [drill, setDrill] = useState<MetricKey | null>(null)
@@ -102,14 +105,22 @@ export default function DataQualityDashboard() {
     fetch(`/api/pricing/gpu/review/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, rejected_reason: action === 'reject' ? '데이터 품질 점검: 반려' : undefined }) })
 
   const rejectItem = async (id: string) => {
-    if (!confirm('이 항목을 반려할까요?')) return
+    if (!await ask.confirm({
+      title: '이 항목을 반려할까요?',
+      body: '반려하면 가격표에 반영되지 않고 검수 목록에서 내려갑니다.',
+      confirmLabel: '반려',
+    })) return
     const r = await reviewAction(id, 'reject')
     if (r.ok) { setItems((p) => p.filter((it) => it.id !== id)); setMsg('반려 완료'); mutate() }
     else { const j = await r.json().catch(() => ({})); setMsg(j.error ?? '반려 실패') }
   }
 
   const confirmItem = async (id: string) => {
-    if (!confirm('이 항목을 확정할까요?')) return
+    if (!await ask.confirm({
+      title: '이 항목을 확정할까요?',
+      body: '확정하면 이 값이 가격표에 반영됩니다.',
+      confirmLabel: '확정',
+    })) return
     const r = await reviewAction(id, 'confirm')
     if (r.ok) { setItems((p) => p.filter((it) => it.id !== id)); setMsg('확정 완료'); mutate() }
     else { const j = await r.json().catch(() => ({})); setMsg(j.error ?? '확정 실패') }
@@ -119,7 +130,11 @@ export default function DataQualityDashboard() {
   const mergeDups = async (group: { product_hint: string; ids: string[] }) => {
     const dupes = (group.ids ?? []).slice(1)
     if (dupes.length === 0) return
-    if (!confirm(`"${group.product_hint}" 중복 ${dupes.length}건을 반려하고 1건만 남길까요?`)) return
+    if (!await ask.confirm({
+      title: `중복 ${dupes.length}건을 반려할까요?`,
+      body: `"${group.product_hint}" 에서 가장 최근 1건만 남고 나머지는 검수 목록에서 내려갑니다.`,
+      confirmLabel: '반려',
+    })) return
     const results = await Promise.all(dupes.map((id) => reviewAction(id, 'reject')))
     const ok = results.filter((r) => r.ok).length
     setMsg(`${ok}/${dupes.length}건 정리 완료`); mutate()
@@ -221,6 +236,7 @@ export default function DataQualityDashboard() {
         <MetricCard label="中 (60~89)" value={m.supply_quotes.mid} tone="warn" sub="검토 권장" />
         <MetricCard label="低 (<60)" value={m.supply_quotes.low} tone={m.supply_quotes.low > 0 ? 'bad' : 'ok'} sub="저신뢰: 재확인" />
       </div>
+    {dialog}
     </div>
   )
 }

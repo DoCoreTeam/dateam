@@ -6,6 +6,7 @@ import { Compass } from 'lucide-react'
 import InlineError from '@/components/ui/InlineError'
 import NbButton from '@/components/ui/nb/NbButton'
 import { withSubmitGuard } from '@/lib/forms/submit-guard'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface Props {
   userId: string
@@ -13,12 +14,18 @@ interface Props {
 }
 
 export default function ResetOnboardingButton({ userId, userName }: Props) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleReset = async () => {
-    if (!confirm(`${userName}님의 온보딩을 초기화하시겠습니까?\n다음 로그인 시 온보딩 가이드가 다시 표시됩니다.`)) return
+    if (!await ask.confirm({
+      title: '온보딩을 초기화할까요?',
+      body: `${userName}님이 다음에 들어올 때 안내가 처음부터 다시 나옵니다. 다른 데이터는 그대로입니다.`,
+      confirmLabel: '초기화',
+    })) return
     setLoading(true)
     await withSubmitGuard(async () => {
       setDone(false)
@@ -41,6 +48,7 @@ export default function ResetOnboardingButton({ userId, userName }: Props) {
         {loading ? '처리 중' : '온보딩 초기화'}
       </NbButton>
       <InlineError compact>{error}</InlineError>
+    {dialog}
     </span>
   )
 }

@@ -14,6 +14,7 @@ import MeetingReadBody from './MeetingReadBody'
 import CrmPublishCard from './CrmPublishCard'
 import MeetingWorkbench from '@/components/meeting/MeetingWorkbench'
 import { deleteMeetingNote } from './actions'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 export interface MeetingNoteRecord {
   id: string
@@ -61,6 +62,8 @@ export interface NoteCrmFactsView {
 }
 
 export default function MeetingDetailClient({ note, people, crm }: { note: MeetingNoteRecord; people: { id: string; name: string }[]; crm?: NoteCrmFactsView | null }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [deleting, startDelete] = useTransition()
@@ -119,16 +122,25 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
     return { memberChips: mem, externalChips: attendeeNames.filter((n) => !memNames.has(n)) }
   }, [people, userIds, attendeeNames])
 
-  function handleDelete() {
-    if (!confirm(`회의노트 "${note.title || '(제목 없음)'}"을(를) 삭제하시겠습니까? 되돌릴 수 없습니다.`)) return
+  async function handleDelete() {
+    if (!await ask.confirm({
+      title: '회의 기록을 삭제할까요?',
+      body: `"${note.title || '(제목 없음)'}" 과 그 전사·요약이 함께 사라집니다. 되돌릴 수 없습니다.`,
+      confirmLabel: '삭제', danger: true,
+    })) return
     startDelete(async () => {
       try {
         const res = await deleteMeetingNote(note.id)
-        if (!res.ok) { alert(res.error); return }
+        if (!res.ok) {
+      // 서버가 보낸 문장을 그대로 띄우지 않는다 (7절 S3)
+      console.error('[meeting-notes delete]', res.error)
+      await ask.notice({ title: '삭제하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
+      return
+    }
         router.push('/meeting-notes')
         router.refresh()
       } catch {
-        alert('삭제에 실패했습니다.')
+        await ask.notice({ title: '삭제하지 못했습니다', body: '서버에 닿지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.' })
       }
     })
   }
@@ -295,6 +307,7 @@ export default function MeetingDetailClient({ note, people, crm }: { note: Meeti
             CRM 멤버가 아니면 카드 자체가 안 보인다(못 쓰는 버튼을 보여 주지 않는다).
             본문 아래에 두는 이유: 회의록을 읽고 나서 "이건 영업 건이네"를 판단하는 순서다. */}
       </div>
+    {dialog}
     </div>
   )
 }

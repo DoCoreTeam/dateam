@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { Image as ImageIcon, Trash2, Upload } from 'lucide-react'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface BrandingSettingsProps {
   initialLogoUrl: string | null
@@ -11,6 +12,8 @@ interface BrandingSettingsProps {
 }
 
 export default function BrandingSettings({ initialLogoUrl, initialBrandName, initialTagline }: BrandingSettingsProps) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl)
   const [brandName, setBrandName] = useState(initialBrandName)
   const [tagline, setTagline] = useState(initialTagline)
@@ -55,7 +58,11 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
   }
 
   const handleDeleteLogo = async () => {
-    if (!confirm('로고를 삭제하시겠습니까?')) return
+    if (!await ask.confirm({
+      title: '로고를 삭제할까요?',
+      body: '화면과 내보낸 문서에서 로고가 빠지고 기본 모양으로 돌아갑니다. 파일을 다시 올리면 됩니다.',
+      confirmLabel: '삭제', danger: true,
+    })) return
     setSaving(true)
     setMessage(null)
     try {
@@ -197,6 +204,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           </p>
         )}
       </div>
+    {dialog}
     </SettingsCard>
   )
 }

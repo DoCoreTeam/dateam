@@ -6,6 +6,7 @@ import InlineError from '@/components/ui/InlineError'
 import NbButton from '@/components/ui/nb/NbButton'
 import { withSubmitGuard } from '@/lib/forms/submit-guard'
 import { resetUserMfa } from './actions'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface Props {
   userId: string
@@ -19,12 +20,18 @@ interface Props {
  * 장치를 잃은 계정은 영영 못 들어온다.
  */
 export default function ResetMfaButton({ userId, userName }: Props) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleReset = async () => {
-    if (!confirm(`${userName}님의 2단계 인증을 해제하시겠습니까?\n해제하면 비밀번호만으로 로그인할 수 있게 되므로, 본인 확인을 먼저 하세요.`)) return
+    if (!await ask.confirm({
+      title: '2단계 인증을 해제할까요?',
+      body: `${userName}님이 비밀번호만으로 로그인할 수 있게 됩니다. 본인인지 먼저 확인하세요.`,
+      confirmLabel: '해제', danger: true,
+    })) return
     setLoading(true)
     await withSubmitGuard(async () => {
       setDone(null)
@@ -46,6 +53,7 @@ export default function ResetMfaButton({ userId, userName }: Props) {
       </NbButton>
       {done && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{done}</div>}
       {error && <InlineError compact>{error}</InlineError>}
+    {dialog}
     </div>
   )
 }

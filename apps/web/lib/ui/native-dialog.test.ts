@@ -49,7 +49,14 @@ const SKIP = [/native-dialog\.test\.ts$/, /useAskDialog\.tsx$/]
  * `window.alert(` 은 센다 — 같은 브라우저 대화상자다.
  */
 function countCalls(src: string, name: string): number {
-  const body = stripComments(src)
+  // **선언은 호출이 아니다.** 이 저장소에는 `function confirm()` 이라는 우리 함수가
+  // 다섯 곳 있다(ModelPickerModal·OrgPeoplePicker·ExtractConfirmModal 등). 선언을 호출로
+  // 세면 0 에 영원히 못 닿고, 세는 값이 틀리면 진척을 잴 수 없다
+  // (실측 2026-10-02: 31건 중 5건이 이 오탐이었다).
+  const body = stripComments(src).replace(
+    /\b(?:async\s+)?function\s+(?:alert|confirm|prompt)\s*\(/g,
+    '',
+  )
   const re = new RegExp(String.raw`(?:^|[^.\w$])(?:window\s*\.\s*)?${name}\s*\(`, 'g')
   return [...body.matchAll(re)].length
 }
@@ -84,6 +91,16 @@ function loadBaseline(): Counts {
   return JSON.parse(readFileSync(BASELINE, 'utf8')) as Counts
 }
 
+/**
+ * **파일을 읽는 시점이 중요하다.**
+ *
+ * 아래 ratchet 은 값이 줄면 baseline 을 **그 자리에서 고쳐 쓴다.** 그래서 0 고정 단정이
+ * 실행 중에 파일을 다시 읽으면, 손으로 1 로 올려 놓아도 ratchet 이 이미 0 으로
+ * 되돌려 놓은 뒤라 **아무것도 안 잡는다** (실측 2026-10-02: 일부러 1 로 올렸는데 초록이었다).
+ * 그래서 **아무 시험도 돌기 전의 값**을 여기서 한 번 떠 둔다.
+ */
+const BASELINE_AT_LOAD = loadBaseline()
+
 test('★ 브라우저 기본 대화상자가 지금보다 늘지 않는다 (U-7)', () => {
   const hits = scan()
   const now = total(hits, ['alert', 'confirm'])
@@ -111,6 +128,24 @@ test('★ 브라우저 기본 대화상자가 지금보다 늘지 않는다 (U-7
   }
 })
 
+/**
+ * **0 에 닿은 뒤에는 0 이 기준이다.**
+ *
+ * ratchet 은 숫자를 내려 적는 장치라, 0 에 닿으면 그 자체로 즉시 차단이 된다.
+ * 그런데 baseline 은 그냥 JSON 이라 손으로 올려 적으면 다시 열린다 — 「한 자리만
+ * 예외로」가 들어오는 길이다. 그래서 **저장된 값이 0 인지도 센다.**
+ * 정말 열어야 하는 자리가 생기면 이 단정을 고치면서 사유를 남기게 된다.
+ */
+test('★ 기준이 0 에서 다시 올라가지 않는다', () => {
+  const base = BASELINE_AT_LOAD
+  assert.equal(
+    base.nativeDialog,
+    0,
+    `브라우저 기본 대화상자 기준이 ${base.nativeDialog} 로 올라갔다 — 0 에 닿은 기준은 되돌리지 않는다. ` +
+      '정말 예외가 필요하면 이 단정을 고치면서 그 자리와 사유를 함께 적는다',
+  )
+})
+
 test('★ window.prompt 는 0 에서 잠근다 — 한 칸 묻기는 ask.text 가 한다', () => {
   const hits = scan().filter((h) => h.kind === 'prompt')
   assert.deepEqual(
@@ -134,6 +169,8 @@ test('★ 세는 규칙이 우리 함수를 오탐하지 않는다', () => {
   assert.equal(countCalls("toast.alert('x')", 'alert'), 0, '메서드 호출을 셌다')
   assert.equal(countCalls("confirmDelete('x')", 'confirm'), 0, 'confirmDelete 를 셌다')
   assert.equal(countCalls('await ask.confirm({})', 'confirm'), 0, 'ask.confirm 을 셌다')
+  assert.equal(countCalls('function confirm() {}', 'confirm'), 0, '우리 함수 선언을 셌다')
+  assert.equal(countCalls('async function confirm() {}', 'confirm'), 0, 'async 선언을 셌다')
   // 브라우저 것은 센다
   assert.equal(countCalls("alert('x')", 'alert'), 1, '맨몸 alert 를 놓쳤다')
   assert.equal(countCalls("window.alert('x')", 'alert'), 1, 'window.alert 를 놓쳤다')

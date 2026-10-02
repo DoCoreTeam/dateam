@@ -9,6 +9,7 @@ import DeptReportPanel, { aggBadge, type AnyRow, type AggState } from './DeptRep
 import { TIMELINESS_COLORS } from '@/lib/tokens/status-colors'
 import EmptyState from '@/components/ui/EmptyState'
 import type { MemberTimeliness } from '@/lib/weekly-report/timeliness'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface SlimNode { id: string; type: string; parent_id: string | null; name: string }
 interface DeptStat { memberCount: number; reportedCount: number; agg: AggState }
@@ -35,6 +36,8 @@ interface Props {
 }
 
 export default function OrgWeeklyView(props: Props) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { weekStart, thisWeek, nodes, editableDeptIds, deptStats, deptBodies } = props
   const deptTimeliness = props.deptTimeliness ?? {}
   const isAdmin = props.isAdmin ?? false
@@ -49,7 +52,11 @@ export default function OrgWeeklyView(props: Props) {
     setExporting(true)
     try {
       const r = await exportTimelinessCsv(weekStart)
-      if (!r.ok) { alert(r.error); return }
+      if (!r.ok) {
+        console.error('[weekly-report org]', r.error)
+        await ask.notice({ title: '저장하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 쓰신 내용은 아직 저장되지 않았습니다.' })
+        return
+      }
       const blob = new Blob([r.csv], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -178,6 +185,7 @@ export default function OrgWeeklyView(props: Props) {
           })}
         </div>
       )}
+    {dialog}
     </div>
   )
 }

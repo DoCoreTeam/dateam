@@ -21,6 +21,7 @@ import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { useEscClose } from '@/lib/use-esc-close'
 import { isEnterKey } from '@/lib/ui/ime'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const fetcher = (u: string) => fetch(u).then((r) => r.json())
@@ -283,13 +284,19 @@ function PromptsTab() {
 }
 
 function HistoryTab() {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data, mutate } = useSWR<{ revisions: Revision[] }>('/api/admin/ai-prompts?view=history', fetcher)
   const [msg, setMsg] = useState('')
   const [open, setOpen] = useState<Set<string>>(new Set())
   const revs = data?.revisions ?? []
   const toggle = (id: string) => setOpen((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
   const rollback = async (id: string) => {
-    if (!confirm('이 버전으로 롤백할까요? (현재 활성본을 이 버전으로 되돌림)')) return
+    if (!await ask.confirm({
+      title: '이 판으로 되돌릴까요?',
+      body: '지금 쓰이는 판이 이 판으로 바뀝니다. 지금 판도 이력에 남아 다시 되돌릴 수 있습니다.',
+      confirmLabel: '되돌리기',
+    })) return
     const r = await fetch('/api/admin/ai-prompts/rollback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision_id: id }) })
     const j = await r.json().catch(() => ({}))
     setMsg(r.ok ? `롤백 완료 → ${j.restored}` : (j.error ?? '실패')); mutate()
@@ -349,6 +356,7 @@ function HistoryTab() {
           )
         })}
       </div>
+    {dialog}
     </>
   )
 }

@@ -4,8 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { approveRequest, rejectRequest } from './actions'
 import { CheckCircle2, XCircle, Copy, Check } from 'lucide-react'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 export default function ApproveRejectButtons({ requestId }: { requestId: string }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showReject, setShowReject] = useState(false)
@@ -20,7 +23,8 @@ export default function ApproveRejectButtons({ requestId }: { requestId: string 
       if (res.success && res.tempPassword) {
         setResult({ type: 'approved', tempPassword: res.tempPassword })
       } else {
-        alert(res.error ?? '승인 실패')
+        console.error('[admin/api-access approve]', res.error)
+      await ask.notice({ title: '승인하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 승인되지 않았습니다.' })
       }
     } finally {
       setLoading(false)
@@ -35,7 +39,8 @@ export default function ApproveRejectButtons({ requestId }: { requestId: string 
         setResult({ type: 'rejected' })
         router.refresh()
       } else {
-        alert(res.error ?? '거절 실패')
+        console.error('[admin/api-access reject]', res.error)
+      await ask.notice({ title: '거절하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 거절되지 않았습니다.' })
       }
     } finally {
       setLoading(false)
@@ -119,6 +124,7 @@ export default function ApproveRejectButtons({ requestId }: { requestId: string 
       >
         <XCircle size={14} /> 거절
       </button>
+    {dialog}
     </div>
   )
 }

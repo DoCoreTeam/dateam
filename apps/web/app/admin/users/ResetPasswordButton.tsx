@@ -6,6 +6,7 @@ import { RefreshCw } from 'lucide-react'
 import InlineError from '@/components/ui/InlineError'
 import NbButton from '@/components/ui/nb/NbButton'
 import { withSubmitGuard } from '@/lib/forms/submit-guard'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface Props {
   userId: string
@@ -14,12 +15,18 @@ interface Props {
 }
 
 export default function ResetPasswordButton({ userId, userEmail, userName }: Props) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleReset = async () => {
-    if (!confirm(`${userName}님의 비밀번호를 초기화하시겠습니까?\n이후 빈 비밀번호로 로그인하면 새 비밀번호를 설정하게 됩니다.`)) return
+    if (!await ask.confirm({
+      title: '비밀번호를 초기화할까요?',
+      body: `${userName}님의 지금 비밀번호가 바로 쓸 수 없게 됩니다. 빈 비밀번호로 들어와 새로 정하게 됩니다.`,
+      confirmLabel: '초기화', danger: true,
+    })) return
     setLoading(true)
     await withSubmitGuard(async () => {
       setDone(false)
@@ -46,6 +53,7 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
         {loading ? '처리 중' : 'PW초기화'}
       </NbButton>
       <InlineError compact>{error}</InlineError>
+    {dialog}
     </span>
   )
 }

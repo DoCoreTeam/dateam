@@ -29,16 +29,23 @@ export default function IntakeActions({ intakeId, notes }: Props) {
       body: JSON.stringify({ notes: next }),
     })
     if (res.ok) router.refresh()
-    else alert('수정에 실패했습니다')
+    else await ask.notice({ title: '수정하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 쓰신 메모는 아직 저장되지 않았습니다.' })
     setLoading(false)
   }
 
   async function handleDelete() {
-    if (!confirm('이 인테이크 기록을 삭제하시겠습니까?')) return
+    if (!await ask.confirm({
+      title: '받은 기록을 삭제할까요?',
+      body: '이 기록이 목록에서 사라집니다.',
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
     setLoading(true)
     const res = await fetch(`/api/lead-intakes/${intakeId}`, { method: 'DELETE' })
     if (res.ok) router.refresh()
-    else { alert('삭제에 실패했습니다'); setLoading(false) }
+    else {
+      await ask.notice({ title: '삭제하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
+      setLoading(false)
+    }
   }
 
   const btn = { fontSize: 'var(--fs-xs)', fontWeight: 600, background: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)', minHeight: '32px' } as const
