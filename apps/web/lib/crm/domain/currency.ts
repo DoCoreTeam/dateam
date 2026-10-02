@@ -58,6 +58,16 @@ export function toCurrencyCode(code: string | null | undefined): string | null {
 }
 
 /**
+ * 사람이 **고를 수 있는** 통화 — 화면의 통화 칸 하나뿐인 목록.
+ *
+ * 저장은 ISO 세 글자면 다 받는다(`isCurrencyCode`). 이 목록은 **고르는 칸**만을 위한 것이고,
+ * 우리가 실제로 견적·원가를 적는 네 가지다. 목록을 화면마다 적어 두면 한 화면에만
+ * 통화가 늘고, 같은 딜을 다른 화면에서 열었을 때 고를 수 없는 통화가 생긴다
+ * (실측 2026-10-02: 이 배열이 딜 성사 모달과 딜 폼 모달에 두 벌로 있었다).
+ */
+export const CURRENCY_CHOICES: readonly string[] = ['KRW', 'USD', 'JPY', 'EUR']
+
+/**
  * from 통화의 minor 금액을 to 통화의 minor 금액으로 바꾼다.
  * 환율을 찾지 못하면 **0 으로 때우지 않고 null 을 돌려준다** —
  * 못 세는 것을 0으로 세면 합계가 조용히 작아지고, 아무도 눈치채지 못한다.

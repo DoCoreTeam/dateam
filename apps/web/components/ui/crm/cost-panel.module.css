@@ -94,17 +94,65 @@
   white-space: nowrap;
 }
 
-/* 이 금액이 어디서 나왔나 — 흐리게, 그러나 지우지 않는다 */
+/*
+  이 금액이 어디서 나왔나 — 흐리게, 그러나 지우지 않는다.
+
+  **한 줄로 묶지 않는다.** `nowrap` 이면 근거가 길 때(「견적서_KTL_2026.pdf: H100 SXM…」)
+  그 칸이 안 줄어들어 줄 전체가 옆으로 터지고, 390 폭에서는 금액이 화면 밖으로 나간다.
+  두 줄까지 접고 그보다 길면 끝을 자른다 — 근거는 제목이 아니라 꼬리표다.
+*/
 .basis {
   font-size: var(--fs-2xs);
   color: var(--text-faint);
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 금액과 환산액은 한 칸에 위아래로 — 환산을 다른 칸에 두면 줄이 네 칸을 넘는다 */
+.amountCell {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  min-width: 0;
 }
 
 .itemAmount {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* 환산액과 고시일 — 금액 아래 한 줄. 견적서 인쇄의 그 줄과 같은 말을 쓴다 */
+.fxNote {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* 환율이 없는 항목 — 0 으로 보이지 않게, 빠진 사실을 그 줄에서 말한다 */
+.fxMissing {
+  font-size: var(--fs-2xs);
+  color: var(--warning);
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* 합계에서 빠진 것이 있다는 말 — 합계 바로 아래 */
+.fxWarn {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
 }
 
 .remove {
@@ -136,9 +184,17 @@
 /* 확정은 오른쪽 끝, 취소는 그 왼쪽 — §2-3-2 L-6 */
 .modalFoot { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
+/*
+  **부모 칸에 최대 폭을 준다.** 자식에 overflow-wrap 만 걸면 `auto` 칸이 내용만큼 늘어나
+  줄이 통째로 터진다(이 저장소가 여러 번 밟은 자리). 칸이 먼저 줄어들어야 글이 접힌다.
+*/
+.item > .basis { max-width: 40%; }
+.item > .amountCell { max-width: 45%; }
+
 @media screen and (max-width: 767px) {
   .summary { grid-template-columns: 1fr; }
   .row { grid-template-columns: 1fr; }
-  .item { grid-template-columns: 1fr auto auto; }
-  .basis { grid-column: 1 / -1; }
+  .item { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .basis { grid-column: 1 / -1; max-width: 100%; }
+  .item > .amountCell { max-width: 60%; }
 }

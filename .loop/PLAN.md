@@ -1,6 +1,6 @@
 # PLAN newAX: 공급사 외화 견적이 통화를 지닌 채 원가에 앉고 견적으로 돌아간다
 플랜 ID: P0102
-플랜 버전: v0.1.3
+플랜 버전: v0.1.6
 상태: 진행중
 지시: ins_0173
 목표 버전: v0.10.835
@@ -69,9 +69,9 @@
 의존: I02
 
 ### I04 원가 화면이 통화와 환산을 말한다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/components/ui/crm/CostPanel.tsx, apps/web/components/ui/crm/cost-panel.module.css, apps/web/lib/terms/cost.ts
+범위: apps/web/components/ui/crm/CostPanel.tsx, apps/web/components/ui/crm/cost-panel.module.css, apps/web/lib/terms/cost.ts, apps/web/lib/crm/domain/currency.ts, apps/web/app/(crm)/crm/deals/DealCloseModal.tsx, apps/web/app/(crm)/crm/deals/DealFormModal.tsx, apps/web/app/(crm)/crm/deals/amount.ts, apps/web/app/(crm)/crm/deals/amount.test.ts, apps/web/lib/ui/picker-standard.test.ts
 감사 기준:
 - 보안: 해당 없음, 읽기 화면이고 원가 권한 게이트(cost.view)는 기존 창구가 그대로 본다
 - 항목 금액이 그 항목의 통화로 그려진다, USD 항목이 $1,080.00 으로 보인다
@@ -117,3 +117,9 @@
 - v0.1.2 (2026-10-02) spec 칸을 안 만든다, 규격은 crm_quote_line 에도 칸이 없고 descriptionMd 첫 줄 약속(quote-spec.ts)이 SSOT 다 (audit:I01)
 - v0.1.3 (2026-10-02) I02 범위에 domain/currency.ts 를 넣는다, 통화 코드가 ISO 세 글자인지 묻는 자리는 환산 SSOT 옆이 제자리다, 받은 견적서 길에만 두면 직접 입력 길이 같은 검사를 안 지난다 (audit:I02)
 - v0.1.3 (2026-10-02) I02 범위에 domain/currency.ts 추가, 통화 코드 ISO 검사를 환산 SSOT 옆에 둔다 (audit:I02)
+- v0.1.4 (2026-10-02) I04 범위에 통화 고르기 목록 SSOT 를 넣는다, ['KRW','USD','JPY','EUR'] 가 딜 성사 모달과 딜 폼 모달에 이미 두 벌 있어 원가 모달이 세 벌째가 된다, 목록을 domain/currency.ts 로 올리고 있던 두 벌도 그것을 쓰게 한다 (audit:I04)
+- v0.1.4 (2026-10-02) I04 범위에 통화 목록 SSOT(domain/currency.ts)와 이미 같은 배열을 든 딜 모달 둘을 넣는다 (audit:I04)
+- v0.1.5 (2026-10-02) I04 범위에 금액 표시 SSOT(deals/amount.ts)를 넣는다, maximumFractionDigits 만 줘서 USD 108000 센트가 「$1,080」으로, 108050 이 「$1,080.5」로 떴다, 돈을 그렇게 적는 곳은 없고 quote-xlsx 는 이미 #,##0.00 을 쓴다, 최소 자리수를 통화 자리수로 박아 화면과 엑셀이 같은 말을 하게 한다 (audit:I04)
+- v0.1.5 (2026-10-02) I04 범위에 금액 표시 SSOT(deals/amount.ts) 추가, USD 센트가 $1,080.5 로 뜨던 것을 두 자리로 박는다 (audit:I04)
+- v0.1.6 (2026-10-02) I04 범위에 picker-standard.test.ts 를 넣는다, 통화 칸이 드롭다운이라 「사유 없는 드롭다운」 수가 109 에서 110 으로 늘어 가드가 막았다, 통화는 그 가드 머리말이 적은 「고정 목록」의 예라 WHY_SELECT 에 사유를 적고 같은 배열을 쓰던 딜 모달 둘도 함께 적어 기준값을 107 로 내린다 (audit:I04)
+- v0.1.6 (2026-10-02) I04 범위에 picker-standard.test.ts 추가, 통화 드롭다운 사유 등재와 기준값 107 로 하향 (audit:I04)

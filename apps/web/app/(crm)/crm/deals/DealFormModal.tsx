@@ -27,6 +27,7 @@ import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
 import { selectableBusinessTypes } from '@/lib/crm/domain/business-type'
 import { selectablePipelines, defaultPipelineId } from '@/lib/crm/domain/pipeline'
 import styles from './board.module.css'
+import { CURRENCY_CHOICES } from '@/lib/crm/domain/currency'
 
 /** 안 고른 상태 — 「없음」이 아니다. 아직 정하지 않았다는 뜻이다 */
 const NOT_SET = '아직 안 정함'
@@ -60,7 +61,6 @@ interface Props {
   onSaved: () => void
 }
 
-const CURRENCIES = ['KRW', 'USD', 'JPY', 'EUR']
 
 export default function DealFormModal({ pipelines, initial, onClose, onSaved }: Props) {
   const editing = Boolean(initial?.id)
@@ -263,7 +263,7 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
               id="crm-deal-currency" className="input-field" value={currency ?? 'KRW'}
               onChange={(e) => setCurrency(e.target.value)}
             >
-              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {CURRENCY_CHOICES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>

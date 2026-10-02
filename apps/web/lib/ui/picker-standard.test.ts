@@ -40,7 +40,7 @@ const WEB = join(import.meta.dirname, '..', '..')
  * 지금 남아 있는 「사유 없는 드롭다운」 자리 수. **늘면 실패한다.**
  * 줄이면 이 숫자를 그만큼 내린다 — 내리지 않으면 되돌아가도 안 걸린다.
  */
-const BASELINE = 109
+const BASELINE = 107
 
 /** 접근권한 화면은 이 판에서 옮겼다. 여기만 0 으로 건다 */
 const CONVERTED = ['app/admin/access/AccessClient.tsx']
@@ -60,6 +60,19 @@ const WHY_SELECT: Readonly<Record<string, string>> = {
     '보기만·쓰기·내보내기까지 셋뿐이고 코드에 박혀 있다. 자라지 않는다',
   'app/admin/access/AccessClient.tsx#zones':
     '표면 하나에 달린 자리 목록이고 등재부(lib/access/surfaces.ts)가 코드로 정한다. 표면당 많아야 네댓이라 자라지 않는다',
+
+  /*
+    통화는 이 가드 머리말이 적은 「고정 목록」의 그 예다 — 네 개이고 코드에 박혀 있다
+    (`lib/crm/domain/currency.ts` 의 `CURRENCY_CHOICES`). 세 자리가 **같은 배열**을 쓴다:
+    딜을 만들 때·딜을 성사로 넘길 때·원가 항목을 넣을 때. 자리마다 적어 두는 이유는
+    가드가 자리 단위로 세기 때문이고, 셋이 한 배열을 쓴다는 사실이 사유의 핵심이다.
+  */
+  'app/(crm)/crm/deals/DealFormModal.tsx#CURRENCY_CHOICES':
+    '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
+  'app/(crm)/crm/deals/DealCloseModal.tsx#CURRENCY_CHOICES':
+    '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
+  'components/ui/crm/CostPanel.tsx#CURRENCY_CHOICES':
+    '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
 }
 
 function tsxFiles(dir: string, out: string[] = []): string[] {

@@ -13,6 +13,7 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import type { BoardDeal, BoardStage } from './DealBoard'
+import { CURRENCY_CHOICES } from '@/lib/crm/domain/currency'
 
 interface Props {
   deal: BoardDeal
@@ -22,7 +23,6 @@ interface Props {
   onDone: () => void
 }
 
-const CURRENCIES = ['KRW', 'USD', 'JPY', 'EUR']
 
 export default function DealCloseModal({ deal, stage, onClose, onDone }: Props) {
   const won = stage.kind === 'WON'
@@ -103,7 +103,7 @@ export default function DealCloseModal({ deal, stage, onClose, onDone }: Props) 
                   id="crm-close-currency" className="input-field" value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
                 >
-                  {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {CURRENCY_CHOICES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
