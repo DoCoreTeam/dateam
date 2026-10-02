@@ -18,7 +18,7 @@
 // 자동은 **찾기까지**다. 케이스로 만드는 것은 사람이 고른다 —
 // 자동으로 만들면 분석 비용이 자동으로 나가고 아무도 안 볼 리포트가 쌓인다.
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Radar as RadarIcon, Plus, X, Wand2, ExternalLink } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
@@ -30,6 +30,7 @@ import { HOST_AI_SETTINGS_HREF } from '@/lib/rfp/ai/host-providers'
 import { selectedCount } from '@/lib/terms/action'
 import { EXTERNAL_LINK_PROPS } from '@/lib/rfp/radar/notice-url'
 import { bidClosed, type HitNotice } from '@/lib/rfp/radar/hit-notice'
+import { PAGE_SIZE, hasMore } from '@/lib/rfp/radar/hit-page'
 import styles from '@/app/(rfp)/rfp.module.css'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { useElapsedMs } from '@/components/ui/useElapsedMs'
@@ -61,6 +62,8 @@ export interface RadarRuleRow {
 export interface RadarRulesProps {
   initialRules: RadarRuleRow[]
   initialHits: RadarHitRow[]
+  /** 전체가 몇 건인가. 서버가 세어 넘긴다 — 화면이 가져온 수를 세면 배지가 거짓말을 한다 */
+  initialTotal?: number | null
 }
 
 interface NewRule {
@@ -119,12 +122,22 @@ function money(v: number | null | undefined): string {
   return String(v)
 }
 
-export default function RadarRules({ initialRules, initialHits }: RadarRulesProps) {
+export default function RadarRules({ initialRules, initialHits, initialTotal }: RadarRulesProps) {
   const [rules, setRules] = useState(initialRules)
   /* 기다리는 동안 무엇을 하는 중인지 말한다 (정책 B-7) */
   const [waiting, setWaiting] = useState<{ from: number; doing: string } | null>(null)
   const elapsedMs = useElapsedMs(waiting?.from ?? null)
   const [hits, setHits] = useState(initialHits)
+  /*
+    offset 을 셀 때 쓴다. hits 를 의존성에 넣으면 load 가 매번 새로 만들어지고,
+    그러면 더보기를 누를 때마다 이전 요청이 들고 있던 옛 offset 으로 중복이 온다
+  */
+  const hitsRef = useRef(hits)
+  hitsRef.current = hits
+  /** 전체가 몇 건인가. null 이면 못 셌다는 뜻이고, 그때는 더보기를 받은 수로 판단한다 */
+  const [total, setTotal] = useState<number | null>(initialTotal ?? null)
+  /** 마지막으로 받은 쪽에서 몇 줄이 왔나 */
+  const [lastGot, setLastGot] = useState(initialHits.length)
   // 키가 없어서 못 가져왔나 — 안내 옆에 넣으러 가는 길을 켤지 정한다
   const [needKey, setNeedKey] = useState(false)
   /**
@@ -138,16 +151,30 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
   /** 지금 보는 것이 「숨긴 공고」인가. 숨긴 것을 다시 보이게 하려면 먼저 볼 수 있어야 한다 */
   const [showDismissed, setShowDismissed] = useState(false)
 
-  /** 상태를 골라 목록을 다시 받는다 */
-  const load = useCallback(async (dismissed: boolean) => {
+  /**
+   * 목록을 받는다. `append` 면 이어 붙이고 아니면 새로 받는다.
+   *
+   * 이어 붙일 때 **앞서 받은 줄을 안 버린다** — 버리면 더보기를 누를 때마다 화면이
+   * 처음으로 돌아가고 선택도 풀린다.
+   */
+  const load = useCallback(async (dismissed: boolean, append = false) => {
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch(`/api/rfp/radar?status=${dismissed ? 'dismissed' : 'new'}`, { cache: 'no-store' })
+      const offset = append ? hitsRef.current.length : 0
+      const res = await fetch(
+        `/api/rfp/radar?status=${dismissed ? 'dismissed' : 'new'}&offset=${offset}&limit=${PAGE_SIZE}`,
+        { cache: 'no-store' },
+      )
       if (!res.ok) { setError(RFP_COMMON.error); return }
-      setHits((await res.json()).hits ?? [])
+      const body = await res.json()
+      const got = (body.hits ?? []) as RadarHitRow[]
+      setHits((prev) => (append ? [...prev, ...got] : got))
+      setTotal(typeof body.total === 'number' ? body.total : null)
+      setLastGot(got.length)
       setShowDismissed(dismissed)
-      setPicked(new Set())
+      // 보기를 바꿀 때만 선택을 푼다. 더보기로 이어 받을 때 풀면 고르던 것이 사라진다
+      if (!append) setPicked(new Set())
     } catch {
       setError(RFP_COMMON.error)
     } finally {
@@ -483,7 +510,12 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
             <span className={styles.sectionTitle}>
               {showDismissed ? RFP_RADAR.hitDismissedTitle : RFP_RADAR.hits}
             </span>
-            {hits.length > 0 && <NbBadge status="note">{hits.length}</NbBadge>}
+            {hits.length > 0 && (
+              <NbBadge status="note">
+                {/* 가져온 수가 아니라 실제 건수를 말한다 */}
+                {total !== null ? RFP_RADAR.hitShown(hits.length, total) : hits.length}
+              </NbBadge>
+            )}
             {/* 숨긴 것을 다시 보이게 하려면 먼저 볼 수 있어야 한다 */}
             <NbButton variant="ghost" onClick={() => void load(!showDismissed)} disabled={busy}>
               {showDismissed ? RFP_RADAR.hitShowActive : RFP_RADAR.hitShowDismissed}
@@ -588,6 +620,13 @@ export default function RadarRules({ initialRules, initialHits }: RadarRulesProp
               </div>
             ))}
           </div>
+        )}
+
+        {/* 끝에 닿으면 사라진다 — 누를 것이 없는 단추는 고장으로 읽힌다 */}
+        {hits.length > 0 && hasMore(hits.length, total, lastGot, PAGE_SIZE) && (
+          <NbButton variant="secondary" onClick={() => void load(showDismissed, true)} disabled={busy}>
+            {busy ? RFP_RADAR.hitLoadingMore : RFP_RADAR.hitMore}
+          </NbButton>
         )}
       </section>
     </div>

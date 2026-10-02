@@ -25,6 +25,7 @@ import { collectNotices } from '@/lib/rfp/radar/collect'
 import { collectFromSite, type SiteRow } from '@/lib/rfp/radar/collect-sites'
 import { attachNotices } from '@/lib/rfp/radar/hit-notice'
 import { listStatusOf } from '@/lib/rfp/radar/hit-status'
+import { pageOf } from '@/lib/rfp/radar/hit-page'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,20 +47,40 @@ export async function GET(req: NextRequest) {
     주소창에 아무 글자나 넣었다고 빈 목록을 보여 주면 사용자는 「공고가 없다」로 읽는다.
     뺀 것을 다시 보려면 이 갈래가 있어야 한다
   */
-  const status = listStatusOf(new URL(req.url).searchParams.get('status'))
+  const params = new URL(req.url).searchParams
+  const status = listStatusOf(params.get('status'))
+  const page = pageOf(params.get('offset'), params.get('limit'))
+
+  /*
+    **실제 건수를 따로 센다.** 가져온 수를 세면 배지가 늘 한 쪽 크기를 말한다 —
+    실측 2026-10-01 에 적중 80건인데 화면이 「50」이라고 떴다. 숫자가 거짓말을 하면
+    사용자는 나머지가 있는 줄도 모른다.
+  */
+  const { count: total } = await (db as any)
+    .from('rfp_radar_hits')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', status)
+
   const { data, error } = await (db as any)
     .from('rfp_radar_hits')
     .select('id, rule_id, source_id, case_id, pre_score, reason, status, created_at')
     .eq('status', status)
     .order('pre_score', { ascending: false })
-    .limit(50)
+    // 점수가 같으면 순서가 흔들려 더보기가 같은 줄을 두 번 준다
+    .order('id', { ascending: true })
+    .range(page.offset, page.offset + page.limit - 1)
 
   if (error) return NextResponse.json({ error: '후보를 불러오지 못했습니다' }, { status: 500 })
 
   // 서버 첫 렌더와 **같은 함수**로 공고를 붙인다. 여기서 안 붙이면 훑기를 누른 직후
   // 클라이언트가 이 창구로 다시 받으면서 제목이 사라진다
   const hits = await attachNotices(db as never, (data ?? []) as { source_id: string }[])
-  return NextResponse.json({ hits })
+  return NextResponse.json({
+    hits,
+    total: typeof total === 'number' ? total : null,
+    offset: page.offset,
+    limit: page.limit,
+  })
 }
 
 /**
