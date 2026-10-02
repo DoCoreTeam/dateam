@@ -168,6 +168,90 @@ export function parseMinuteBars(rows: readonly RawMinuteBar[]): {
   return { bars, dropped }
 }
 
+/* ── 일봉 ───────────────────────────────────────────────── */
+
+export interface RawDailyBar {
+  stck_bsop_date?: string
+  futs_prpr?: string
+  futs_oprc?: string
+  futs_hgpr?: string
+  futs_lwpr?: string
+  acml_vol?: string
+}
+
+export interface ParsedDailyBar {
+  /** 거래일 (서울, `YYYY-MM-DD`) */
+  tradeDate: string
+  open: number
+  high: number
+  low: number
+  close: number
+  /** 그날 하루의 거래량 */
+  volume: number
+}
+
+export interface DailyBarQuery {
+  contractCode: string
+  from: Date
+  until: Date
+}
+
+/**
+ * 일봉 조회 인자.
+ *
+ * **분봉과 다른 질문이다.** 분봉은 「이 시각 이전」을 묻지만 일봉은 구간을 묻는다.
+ * 월물 교체 판정이 이것을 쓴다 — 자정에 당일 누적 거래량을 견주면 둘 다 0 이라
+ * 동전 던지기가 되기 때문이다(실측 2026-10-02).
+ */
+export function dailyBarParams(query: DailyBarQuery): Record<string, string> {
+  return {
+    FID_COND_MRKT_DIV_CODE: FID_MARKET_INDEX_FUTURES,
+    FID_INPUT_ISCD: query.contractCode,
+    FID_INPUT_DATE_1: seoulYmd(query.from),
+    FID_INPUT_DATE_2: seoulYmd(query.until),
+    /** D=일, W=주, M=월. 하루치 거래량이 필요하므로 일이다 */
+    FID_PERIOD_DIV_CODE: 'D',
+  }
+}
+
+/**
+ * 일봉 응답을 읽는다. 분봉과 같은 규율 — **읽을 수 없는 줄은 버리고 센다.**
+ *
+ * 거래량이 0 인 날은 정상이다(그 월물에 그날 거래가 없었다는 사실이다).
+ * 날짜를 못 읽은 줄만 버린다 — 날짜가 없으면 그 값이 어느 날 것인지 모른다.
+ */
+export function parseDailyBars(rows: readonly RawDailyBar[]): {
+  bars: ParsedDailyBar[]
+  dropped: number
+} {
+  const bars: ParsedDailyBar[] = []
+  let dropped = 0
+  for (const row of rows) {
+    const raw = row.stck_bsop_date ?? ''
+    const close = num(row.futs_prpr)
+    if (!/^\d{8}$/.test(raw) || close === null) {
+      dropped += 1
+      continue
+    }
+    bars.push({
+      tradeDate: `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`,
+      open: num(row.futs_oprc) ?? close,
+      high: num(row.futs_hgpr) ?? close,
+      low: num(row.futs_lwpr) ?? close,
+      close,
+      volume: num(row.acml_vol) ?? 0,
+    })
+  }
+  // 최신순으로 오지만 순서를 믿지 않는다. 부르는 쪽은 「마지막으로 끝난 날」을 집는다
+  bars.sort((a, b) => (a.tradeDate < b.tradeDate ? -1 : a.tradeDate > b.tradeDate ? 1 : 0))
+  return { bars, dropped }
+}
+
+/** `2026-09-26T…+09:00` → `20260926` (서울) */
+export function seoulYmd(at: Date): string {
+  return seoulDateTimeParts(at).date
+}
+
 /**
  * 이어 조회 커서 — **다음에 어디부터 물을 것인가**
  *

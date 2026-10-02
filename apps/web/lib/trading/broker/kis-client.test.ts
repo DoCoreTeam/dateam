@@ -17,6 +17,7 @@ import { KIS_QUOTATIONS, kisHost, KIS_HOST_REAL, KIS_HOST_PAPER } from './endpoi
 import {
   buildUrl, buildHeaders, minuteBarParams, symbolParams,
   parseMinuteBars, nextMinuteCursor, readEnvelope, seoulStampToDate, seoulDateTimeParts,
+  dailyBarParams, parseDailyBars, seoulYmd,
 } from './kis-request.ts'
 import { createRateQueue } from './rate-queue.ts'
 
@@ -345,4 +346,69 @@ test('★ 부르는 자리 둘이 실제로 이름을 넘긴다 — 만들어만
     assert.match(src, /readEnvelope\(body, response\.status, key\)/,
       `${rel} 이 어느 조회였는지를 안 넘긴다 — 사유가 다시 http_500 한 마디가 된다`)
   }
+})
+
+// ── 일봉 — 월물 교체가 「거래가 끝난 날」을 보려고 쓴다 ──────────────
+
+test('★ 일봉 주소도 상수 경로 그대로다 — 바깥 값은 질의 문자열에만 들어간다', () => {
+  const url = buildUrl('real', 'dailyChart', dailyBarParams({
+    contractCode: '../../etc/passwd',
+    from: new Date('2026-09-28T00:00:00+09:00'),
+    until: new Date('2026-10-01T00:00:00+09:00'),
+  }))
+  const parsed = new URL(url)
+  assert.equal(parsed.origin, KIS_HOST_REAL, '호스트가 바깥 값으로 바뀌었다')
+  assert.equal(parsed.pathname, KIS_QUOTATIONS.dailyChart.path, '경로가 바깥 값으로 바뀌었다')
+  // 종목코드는 질의 문자열에만 있다 — 주소를 못 바꾼다
+  assert.equal(parsed.searchParams.get('FID_INPUT_ISCD'), '../../etc/passwd')
+})
+
+test('★ 일봉은 구간을 묻는다 — 분봉처럼 「이 시각 이전」이 아니다', () => {
+  const params = dailyBarParams({
+    contractCode: 'A05610',
+    from: new Date('2026-09-28T09:00:00+09:00'),
+    until: new Date('2026-10-01T15:40:00+09:00'),
+  })
+  assert.equal(params.FID_INPUT_DATE_1, '20260928')
+  assert.equal(params.FID_INPUT_DATE_2, '20261001')
+  assert.equal(params.FID_PERIOD_DIV_CODE, 'D', '일이 아니면 하루치 거래량이 안 나온다')
+})
+
+test('★ 일봉을 오래된 날부터 돌려준다 — 「마지막으로 끝난 날」을 집으려면 순서가 사실이어야 한다', () => {
+  const { bars, dropped } = parseDailyBars([
+    { stck_bsop_date: '20261001', futs_prpr: '1105.5', acml_vol: '84206' },
+    { stck_bsop_date: '20260930', futs_prpr: '1102.1', acml_vol: '91010' },
+    { stck_bsop_date: '20260929', futs_prpr: '1099.8', acml_vol: '77311' },
+  ])
+  assert.deepEqual(bars.map((b) => b.tradeDate), ['2026-09-29', '2026-09-30', '2026-10-01'])
+  assert.equal(bars[bars.length - 1].volume, 84206)
+  assert.equal(dropped, 0)
+})
+
+test('★ 응답이 비면 빈 배열이고 던지지 않는다 — 거래가 없었던 것은 실패가 아니다', () => {
+  assert.deepEqual(parseDailyBars([]), { bars: [], dropped: 0 })
+})
+
+test('★ 거래량이 없는 날은 0 으로 읽고 버리지 않는다 — 그 월물에 거래가 없었다는 사실이다', () => {
+  const { bars, dropped } = parseDailyBars([
+    { stck_bsop_date: '20261001', futs_prpr: '1105.5' },
+  ])
+  assert.equal(bars.length, 1)
+  assert.equal(bars[0].volume, 0)
+  assert.equal(dropped, 0)
+})
+
+test('★ 날짜나 종가를 못 읽은 줄은 버리고 센다 — 조용히 빼면 결측이 된다', () => {
+  const { bars, dropped } = parseDailyBars([
+    { stck_bsop_date: '2026100', futs_prpr: '1105.5', acml_vol: '10' },
+    { stck_bsop_date: '20261001', futs_prpr: '', acml_vol: '10' },
+    { stck_bsop_date: '20260930', futs_prpr: '1102.1', acml_vol: '20' },
+  ])
+  assert.equal(bars.length, 1)
+  assert.equal(dropped, 2)
+})
+
+test('★ 날짜 변환이 서울 기준이다 — UTC 로 읽으면 하루가 밀린다', () => {
+  // 서울 2026-10-02 00:30 은 UTC 로 10-01 15:30 이다
+  assert.equal(seoulYmd(new Date('2026-10-02T00:30:00+09:00')), '20261002')
 })

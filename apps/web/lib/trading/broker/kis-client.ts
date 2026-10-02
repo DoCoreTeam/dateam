@@ -15,15 +15,20 @@ import {
   buildHeaders,
   buildUrl,
   minuteBarParams,
+  dailyBarParams,
   symbolParams,
   parseMinuteBars,
+  parseDailyBars,
   nextMinuteCursor,
   readEnvelope,
+  seoulYmd,
   type KisAuth,
   type KisEnvelope,
   type KisFailure,
   type ParsedMinuteBar,
+  type ParsedDailyBar,
   type RawMinuteBar,
+  type RawDailyBar,
 } from './kis-request.ts'
 import { KIS_QUOTATIONS, type KisEnv, type KisQuotationKey } from './endpoints.ts'
 
@@ -101,6 +106,13 @@ export interface MinuteBarsResult {
   truncated: boolean
 }
 
+export interface DailyBarsResult {
+  /** 오래된 날부터 */
+  bars: ParsedDailyBar[]
+  /** 읽을 수 없어 버린 줄 수 */
+  dropped: number
+}
+
 export interface KisClient {
   /**
    * `from` 부터 `until` 까지의 1분 봉. 한 번에 102건까지라 필요하면 이어 조회한다.
@@ -110,6 +122,13 @@ export interface KisClient {
   price(contractCode: string): Promise<KisResult<Record<string, string>>>
   /** 최우선 호가 */
   askingPrice(contractCode: string): Promise<KisResult<Record<string, string>>>
+  /**
+   * 구간의 **하루치** 봉. 월물 교체 판정이 「거래가 끝난 날」의 거래량을 보려고 쓴다.
+   *
+   * 분봉으로 대신할 수 없다 — 하루치를 모으려면 400번대 분봉을 이어 조회해야 하고,
+   * 그 비용을 자정마다 두 월물에 치를 이유가 없다.
+   */
+  dailyBars(input: { contractCode: string; from: Date; until: Date }): Promise<KisResult<DailyBarsResult>>
   /**
    * 기준일부터의 휴장일 표. 한 번에 100일 남짓이라 이어 조회한다.
    *
@@ -212,6 +231,20 @@ export function createKisClient(options: KisClientOptions): KisClient {
       return { ok: true, value: [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)) }
     },
 
+    async dailyBars({ contractCode, from, until }) {
+      const result = await call<RawDailyBar[]>(
+        queue, env, auth, 'dailyChart', dailyBarParams({ contractCode, from, until }), requestTimeoutMs,
+      )
+      if (!result.ok) return result
+      /*
+        **비어 있는 것은 실패가 아니다.** 그 월물에 그 구간 거래가 없었다는 사실이고,
+        교체 판정은 그 사실을 보고 「아직 근월물이 무겁다」로 읽어야 한다.
+      */
+      const rows = (result.value.output2 ?? result.value.output1 ?? result.value.output ?? []) as RawDailyBar[]
+      const parsed = parseDailyBars(Array.isArray(rows) ? rows : [])
+      return { ok: true, value: { bars: parsed.bars, dropped: parsed.dropped } }
+    },
+
     async askingPrice(contractCode) {
       const result = await call<Record<string, string>>(
         queue, env, auth, 'askingPrice', symbolParams(contractCode), requestTimeoutMs,
@@ -225,9 +258,6 @@ export function createKisClient(options: KisClientOptions): KisClient {
 }
 
 /** 서울 기준 YYYYMMDD. KIS 는 하이픈 없는 여덟 자리를 받는다 */
-function seoulYmd(at: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(at).replace(/-/g, '')
-}
 
 /** 서울 기준 그날 00:00 */
 function startOfSeoulDay(at: Date): Date {
