@@ -11,6 +11,7 @@ import {
   describeKeyRemoval,
   describeKeySaved,
   describeConnectionOk,
+  describeConnection,
   describeConnectionFailed,
   describeMissingKey,
   readProviderKey,
@@ -297,4 +298,80 @@ test('★ 끝에서 더 밀면 아무것도 바꾸지 않는다 — 빈 목록�
   assert.deepEqual(reorderPriorities(line('a', 'b'), 'a', 'up'), [])
   assert.deepEqual(reorderPriorities(line('a', 'b'), 'b', 'down'), [])
   assert.deepEqual(reorderPriorities(line('a', 'b'), '없는줄', 'up'), [])
+})
+
+/* ── 연결 확인이 확인한 것만 말하는가 ───────────────────────────
+   실측 2026-10-01: OpenAI 크레딧이 0원이라 어느 모델도 못 부르는데 연결 테스트는
+   「연결 성공: 120개 모델 사용 가능」이라고 했다. 목록 받기(models.list)는 크레딧과
+   무관하게 되기 때문이다. 같은 화면에서 모델 선택 창은 「전부 사용 불가」라고 했고,
+   사용자는 둘 중 어느 쪽이 맞는지 알 길이 없었다. */
+
+test('연결: 목록만 받은 문장은 「사용 가능」이라고 단정하지 않는다', () => {
+  const line = describeConnectionOk('openai', 120)
+  assert.match(line, /120/)
+  assert.doesNotMatch(line, /사용 가능/, '불러 보지도 않고 쓸 수 있다고 하면 안 된다')
+})
+
+test('연결: 호출까지 되면 둘 다 말하고 성공이다', () => {
+  const r = describeConnection('openai', {
+    modelCount: 120,
+    probe: { model: 'gpt-5.5', availability: 'available', reason: null },
+  })
+  assert.equal(r.ok, true)
+  assert.match(r.message, /120/)
+  assert.match(r.message, /gpt-5\.5/)
+})
+
+test('연결: 목록은 받았는데 호출이 막히면 실패로 말한다', () => {
+  const r = describeConnection('openai', {
+    modelCount: 120,
+    probe: {
+      model: 'gpt-5.5',
+      availability: 'unavailable',
+      reason: 'OpenAI 계정의 크레딧이 소진되었거나 결제가 설정되지 않았습니다. 공급자 콘솔에서 결제 상태를 확인하세요.',
+    },
+  })
+  assert.equal(r.ok, false, '쓸 수 없는데 초록으로 보이면 연결 테스트가 거짓말을 한다')
+  assert.match(r.message, /120/, '목록은 받았다는 사실도 함께 말한다')
+  assert.match(r.message, /결제/, '막힌 이유를 말한다')
+})
+
+test('연결: 한도에 걸린 것도 지금은 못 쓰는 것이다', () => {
+  const r = describeConnection('openai', {
+    modelCount: 120,
+    probe: { model: 'gpt-4o', availability: 'limited', reason: '현재 요청 또는 토큰 한도에 도달했습니다. 잠시 후 다시 확인하세요.' },
+  })
+  assert.equal(r.ok, false)
+  assert.match(r.message, /한도/)
+})
+
+test('연결: 호출 결과를 모르면 성공이되 모른다고 적는다', () => {
+  const r = describeConnection('openai', {
+    modelCount: 120,
+    probe: { model: 'gpt-4o', availability: 'unknown', reason: '접근 권한이 없어 확인하지 못했습니다(키 권한 또는 이 모델의 접근 등급).' },
+  })
+  assert.equal(r.ok, true, '모르는 것을 실패로 적으면 멀쩡한 키가 빨개진다')
+  assert.match(r.message, /확인하지 못했/)
+})
+
+test('연결: 안 불러 봤으면 목록만 말한다', () => {
+  const r = describeConnection('jev', { modelCount: 391, probe: null })
+  assert.equal(r.ok, true)
+  assert.match(r.message, /391/)
+  assert.doesNotMatch(r.message, /사용 가능/)
+})
+
+test('비밀: 연결 확인 문장에 원문 키가 섞이지 않는다', () => {
+  for (const id of AI_PROVIDER_IDS) {
+    const key = sampleKey(id)
+    const lines = [
+      describeConnection(id, { modelCount: 3, probe: null }).message,
+      describeConnection(id, { modelCount: 3, probe: { model: key, availability: 'available', reason: null } }).message,
+      describeConnection(id, { modelCount: 3, probe: { model: 'm', availability: 'unavailable', reason: `키 ${key} 가 섞인 사유` } }).message,
+    ]
+    // 모델 이름과 사유는 부르는 쪽이 넘기는 값이다 — 공급자 원문을 그대로 넘기지 않는 것이 규칙이고,
+    // 그 규칙을 지키는지는 부르는 자리(app/admin/settings/actions.ts)가 책임진다.
+    // 여기서는 이 함수가 **스스로** 키를 끌어다 쓰지 않는다는 것만 센다.
+    assert.ok(!lines[0].includes(key), `${id}: 아무것도 안 넘겼는데 키가 나왔다`)
+  }
 })

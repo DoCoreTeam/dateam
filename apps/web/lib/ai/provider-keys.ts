@@ -9,6 +9,7 @@
 // 네트워크 없이 규칙을 확인할 수 있다.
 
 import { getProviderSpec, matchesKeyPrefix, type AiProviderId } from './provider-catalog.ts'
+import type { ModelAvailability } from '../ai-chat/model-status.ts'
 
 /**
  * 이 공급자 키가 함께 데리고 다니는 설정.
@@ -111,11 +112,63 @@ export function describeKeySaved(id: AiProviderId, raw: string): string {
   return `${getProviderSpec(id).label} 키를 저장했습니다 (${maskKey(raw)})`
 }
 
-/** 연결 확인 성공 문장. 그 키가 또 하는 일이 있으면 같이 말한다 */
+/**
+ * 목록을 받았다는 사실만 말하는 문장. **쓸 수 있다고 단정하지 않는다.**
+ *
+ * 실측 2026-10-01: 여기서 「120개 모델 사용 가능」이라고 적고 있었는데 그 계정은
+ * 크레딧이 0원이라 어느 모델도 못 불렀다. 목록 받기(`models.list`)는 크레딧과 무관하게
+ * 되기 때문이다. 같은 화면의 모델 선택 창은 「전부 사용 불가」라고 했고, 한 화면이
+ * 두 말을 하니 사용자는 어느 쪽이 맞는지 알 수 없었다. 확인한 것만 말한다.
+ */
 export function describeConnectionOk(id: AiProviderId, modelCount: number): string {
   const spec = getProviderSpec(id)
   const tail = spec.alsoUsedFor ? ` (${spec.alsoUsedFor})` : ''
-  return `연결 성공: ${modelCount}개 모델 사용 가능${tail}`
+  return `연결 성공: 모델 목록 ${modelCount}개를 받았습니다${tail}`
+}
+
+/** 모델 하나를 실제로 불러 본 결과. 안 불러 봤으면 null */
+export interface ConnectionProbe {
+  /** 어느 모델로 불러 봤나 */
+  model: string
+  availability: ModelAvailability
+  /** 왜 그 상태인지. 고정 문장만 들어온다 (공급자 원문 금지) */
+  reason: string | null
+}
+
+export interface ConnectionCheck {
+  modelCount: number
+  probe: ConnectionProbe | null
+}
+
+/**
+ * 연결 확인의 **판정과 문장**.
+ *
+ * 질문이 둘이다 — 「키가 공급자에 닿나」와 「그 키로 부를 수 있나」. 앞만 보고 성공이라
+ * 적으면 크레딧이 떨어진 계정이 초록으로 보인다. 그래서 불러 본 결과가 있으면 그것이
+ * 판정을 정하고, 목록 수는 함께 적되 판정을 대신하지 않는다.
+ *
+ * `unknown` 은 실패가 아니다. 모르는 것을 실패로 적으면 등급 제한 모델 하나나 일시 장애로
+ * 멀쩡한 키가 빨개진다.
+ */
+export function describeConnection(id: AiProviderId, check: ConnectionCheck): { ok: boolean; message: string } {
+  const spec = getProviderSpec(id)
+  const tail = spec.alsoUsedFor ? ` (${spec.alsoUsedFor})` : ''
+  const { modelCount, probe } = check
+
+  if (!probe) return { ok: true, message: describeConnectionOk(id, modelCount) }
+
+  if (probe.availability === 'available') {
+    return { ok: true, message: `연결 성공: 모델 목록 ${modelCount}개를 받았고 ${probe.model} 호출도 됩니다${tail}` }
+  }
+  /*
+    모델 이름 뒤에 조사를 붙이지 않는다 — `gpt-5.5` 같은 id 는 받침을 셀 수 없어
+    「을(를)」이 나오거나 틀린 조사가 붙는다(lib/ui/josa). 문장을 그렇게 짓지 않는다.
+  */
+  const why = probe.reason ? ` ${probe.reason}` : ''
+  if (probe.availability === 'unknown') {
+    return { ok: true, message: `연결 성공: 모델 목록 ${modelCount}개를 받았습니다. ${probe.model} 호출 여부는 확인하지 못했습니다.${why}` }
+  }
+  return { ok: false, message: `모델 목록 ${modelCount}개는 받았지만 지금 ${probe.model} 호출이 안 됩니다.${why}` }
 }
 
 /**

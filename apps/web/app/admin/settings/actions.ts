@@ -18,7 +18,9 @@ import {
   readProviderKey,
   describeKeySaved,
   maskKey,
-  describeConnectionOk,
+  describeConnection,
+  readProviderModel,
+  type ConnectionProbe,
   describeConnectionFailed,
   describeMissingKey,
   describeKeyRemovalAt,
@@ -495,12 +497,32 @@ export async function checkProviderConnection(
   const client = await requireAdmin()
   if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
 
-  const apiKey = readProviderKey(provider, await getMetaValue(client))
+  const meta = await getMetaValue(client)
+  const apiKey = readProviderKey(provider, meta)
   if (!apiKey) return { ok: false, message: describeMissingKey(provider) }
 
   try {
-    const models = await getProvider(provider).listModels(apiKey)
-    return { ok: true, message: describeConnectionOk(provider, models.length) }
+    const adapter = getProvider(provider)
+    const models = await adapter.listModels(apiKey)
+
+    /*
+      **목록만 보고 성공이라 하지 않는다.**
+
+      `models.list` 는 크레딧이 0원이어도 된다. 실측 2026-10-01 에 그래서 이 창구가
+      「120개 모델 사용 가능」이라고 적었고, 같은 화면의 모델 선택 창은 같은 키로
+      「전부 사용 불가」라고 적었다. 한 번 불러 보면 그 모순이 사라진다.
+
+      부르는 모델은 **지금 설정된 그 모델**이다. 아무거나 고르면 사용자가 실제로 쓰는
+      모델이 막혀 있어도 초록으로 보인다. 설정이 없으면 목록의 첫 모델로 대신한다.
+    */
+    const model = readProviderModel(provider, meta) ?? models[0] ?? null
+    let probe: ConnectionProbe | null = null
+    if (adapter.probeModel && model) {
+      const r = await adapter.probeModel(apiKey, model)
+      // 사유는 classifyModelProbeFailure 가 만든 고정 문장이다 — 공급자 원문이 아니다 (S3)
+      probe = { model, availability: r.availability ?? 'unknown', reason: r.reason ?? null }
+    }
+    return describeConnection(provider, { modelCount: models.length, probe })
   } catch (e) {
     console.error('[settings] 연결 확인 실패', provider, e)
     return { ok: false, message: describeConnectionFailed(provider, statusOf(e)) }
