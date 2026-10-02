@@ -31,7 +31,7 @@ export interface KeyChoice {
   /** 어느 판에서 고른 것인가. 원장에 그대로 적는다 */
   env: DeployEnv
   /** 왜 이 값인지. 화면과 로그가 「키가 없다」와 「판이 달라 안 쓴다」를 구별할 수 있게 한다 */
-  reason: 'pool' | 'meta' | 'no_key' | 'env_blocked'
+  reason: 'pool' | 'meta' | 'no_key' | 'env_blocked' | 'disabled'
 }
 
 /** 키가 없을 때 AI 대신 내놓는 고정 응답 */
@@ -42,9 +42,19 @@ export const NO_KEY_MESSAGE =
 export const ENV_BLOCKED_MESSAGE =
   '개발 판에서는 운영 AI 키를 쓰지 않습니다. 이 판에 쓸 키를 따로 등록해 주세요.'
 
+/**
+ * 안 쓰기로 해 둔 공급자에게 하는 말.
+ *
+ * 「키가 없다」와 섞으면 안 된다 — 저쪽은 키를 넣어야 풀리고 이쪽은 스위치를 켜야 풀린다.
+ * 섞어 적으면 이미 있는 키를 또 넣으려 든다 (실제로 그래서 `no_key` 와 `env_blocked` 를 갈랐다).
+ */
+export const DISABLED_MESSAGE =
+  '이 AI 공급자는 안 쓰기로 되어 있습니다. 쓰려면 관리자 설정에서 다시 켜 주세요.'
+
 export function messageFor(choice: KeyChoice): string | null {
   if (choice.reason === 'no_key') return NO_KEY_MESSAGE
   if (choice.reason === 'env_blocked') return ENV_BLOCKED_MESSAGE
+  if (choice.reason === 'disabled') return DISABLED_MESSAGE
   return null
 }
 
@@ -60,7 +70,15 @@ export function chooseKey(input: {
   poolKey?: string | null
   /** META 에서 온 것 — 운영 키로 본다. 운영 설정 한 벌뿐이라 판 구분이 없다 */
   metaKey?: string | null
+  /** 이 공급자를 안 쓰기로 해 뒀나 (META `ai_provider_disabled`) */
+  disabled?: boolean
 }): KeyChoice {
+  /*
+    **안 씀이 제일 먼저다.** 키가 있는지, 판이 맞는지를 따지기 전에 끝난다 —
+    안 쓰기로 한 공급자에 원문 키를 꺼내 줄 이유가 없다(S3). 그래서 이 줄이 위에 있다.
+  */
+  if (input.disabled) return { apiKey: null, env: input.env, reason: 'disabled' }
+
   const pool = (input.poolKey ?? '').trim()
   if (pool) return { apiKey: pool, env: input.env, reason: 'pool' }
 
@@ -90,14 +108,24 @@ export async function resolveProviderKey(
 ): Promise<KeyChoice> {
   const env = currentDeployEnv()
   let poolKey: string | null = null
+  /** 안 쓰기로 해 둔 공급자인가. 못 읽으면 false — 읽기 실패로 공급자를 끄지 않는다 */
+  let disabled = false
   /**
    * 키 곳간이 META 로 떨어져 준 값. **`metaKey` 자리로 넣는다** —
    * 표에서 온 것처럼 `poolKey` 로 넣으면 아래 판 검사를 건너뛰어 개발 판이 운영 키를 집는다.
    */
   let storedMetaKey: string | null = null
   try {
-    const { firstUsableKey } = await import('./key-store.ts')
-    const found = await firstUsableKey(provider)
+    const { firstUsableKey, readDisabledProviderIds } = await import('./key-store.ts')
+    /*
+      둘을 **같이** 묻는다. 줄 세우면 AI 호출마다 왕복이 하나 더 붙는다 —
+      이 자리는 모든 공급자 호출이 지나는 길목이다.
+    */
+    const [found, disabledIds] = await Promise.all([
+      firstUsableKey(provider),
+      readDisabledProviderIds(),
+    ])
+    disabled = disabledIds.includes(provider)
     if (found?.from === 'pool') poolKey = found.apiKey
     else if (found?.from === 'meta') storedMetaKey = found.apiKey
   } catch (e) {
@@ -108,5 +136,5 @@ export async function resolveProviderKey(
    * 부르는 쪽이 준 META 값이 먼저다. 그쪽은 그 자리의 사정을 알고 고른 값이고,
    * 곳간이 준 것은 「아무도 안 골랐을 때의 기본」이다.
    */
-  return chooseKey({ env, poolKey, metaKey: metaKey ?? storedMetaKey })
+  return chooseKey({ env, poolKey, metaKey: metaKey ?? storedMetaKey, disabled })
 }

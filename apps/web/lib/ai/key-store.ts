@@ -14,6 +14,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import type { AiProviderId } from './provider-catalog'
+import { readDisabledProviders } from './provider-disabled'
 import type { KeyPoolEntry, KeyOutcome, KeyStatePatch } from './key-pool'
 import {
   readKeyPoolWith,
@@ -211,6 +212,24 @@ export async function firstUsableKey(
   provider: AiProviderId,
 ): Promise<{ apiKey: string; from: KeyOrigin } | null> {
   return pickUsable(await readKeyPool(provider))
+}
+
+/**
+ * 안 쓰기로 해 둔 공급자 목록.
+ *
+ * META 를 읽는 자리가 여기(게이트웨이) 하나라 같이 둔다 — 밖에서 `org_content` 를
+ * 또 열면 서비스롤로 그 표를 여는 자리가 둘이 된다.
+ *
+ * 못 읽으면 **빈 목록**이다. 읽기 실패로 공급자가 통째로 꺼지면
+ * 「왜 AI 가 안 되지」가 되고 그 원인은 화면 어디에도 안 보인다.
+ */
+export async function readDisabledProviderIds(): Promise<AiProviderId[]> {
+  try {
+    return readDisabledProviders(await gateway().readMeta())
+  } catch (e) {
+    console.error('[ai/key-store] 안 쓰는 공급자 목록을 읽지 못했다', e instanceof Error ? e.message : e)
+    return []
+  }
 }
 
 export { pickUsable } from './key-store-core'

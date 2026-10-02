@@ -511,3 +511,18 @@ test('★ 설정 이름과 설명이 무엇을 정하는 값인지 말한다', (
   // 관문 모델 이름 꼴을 알려 준다 — 그것을 몰라서 403 이 났다
   assert.match(model!.help, /google\/gemini/, '이름 꼴 예시가 없다')
 })
+
+test('안 쓰기로 한 공급자에 「키를 넣으세요」라고 하지 않는다', () => {
+  const troubles = pickTroubles({
+    provider: 'openai',
+    model: 'gpt-5.5',
+    withKey: ['gemini'],
+    catalog: [{ provider: 'gemini', modelId: 'gemini-3-flash' }],
+    keyState: { openai: 'disabled' },
+  })
+  const kinds = troubles.map((t) => t.kind)
+  assert.ok(kinds.includes('provider_disabled'), kinds.join(','))
+  assert.ok(!kinds.includes('provider_has_no_key'), '키는 있다. 끈 것이다')
+  const disabled = troubles.find((t) => t.kind === 'provider_disabled')
+  assert.match(disabled?.how ?? '', /켜/)
+})

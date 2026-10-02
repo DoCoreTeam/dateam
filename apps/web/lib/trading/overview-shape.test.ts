@@ -176,3 +176,11 @@ test('★ 키 원문이 화면으로 가는 길이 없다', () => {
   assert.equal(/key|apiKey/i.test(iface.slice(0, iface.indexOf('}'))), false,
     '화면 형에 키 자리가 있다')
 })
+
+test('안 쓰기로 한 공급자면 AI 판단이 돈다고 말하지 않는다', () => {
+  // 안 걸러내면 keyReason 이 'disabled' 인데도 on:true 로 떨어져 화면이 거짓말한다
+  assert.deepEqual(
+    jevStatusOf({ model: 'some-model', keyReason: 'disabled', aiJudgedToday: 3 }),
+    { on: false, reason: 'provider_disabled', aiJudgedToday: 3 },
+  )
+})

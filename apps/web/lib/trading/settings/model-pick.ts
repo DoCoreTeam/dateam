@@ -78,6 +78,13 @@ export type ModelPickTroubleKind =
    * 말했다. 조치가 정반대다 — 「키를 넣으세요」는 이미 넣은 사람에게 할 말이 아니다.
    */
   | 'provider_key_not_for_this_env'
+  /**
+   * 키는 있는데 **안 쓰기로 해 뒀다** (관리자가 그 공급자를 끔).
+   *
+   * 「키가 없다」와 할 일이 정반대다 — 저쪽은 키를 넣어야 하고 이쪽은 스위치를 켜야 한다.
+   * 섞어 적으면 이미 있는 키를 또 넣으려 든다.
+   */
+  | 'provider_disabled'
   /** 그 모델은 다른 공급자 것이다 */
   | 'model_elsewhere'
   /** 고른 공급자의 목록에 그 이름이 없다 */
@@ -115,7 +122,7 @@ export interface ModelPickState {
    * 공급자마다 왜 쓸 수 있나 없나. 창구가 `resolveProviderKey` 에서 그대로 옮겨 준다.
    * **키 값이 아니라 사유 글자다.** 안 주면 예전처럼 있음·없음 둘로만 본다
    */
-  keyState?: Readonly<Record<string, 'pool' | 'meta' | 'no_key' | 'env_blocked'>>
+  keyState?: Readonly<Record<string, 'pool' | 'meta' | 'no_key' | 'env_blocked' | 'disabled'>>
   /** 「이 판에서는 운영 키를 안 씁니다」를 뭐라고 말하나. 문장은 한 곳에만 둔다 */
   envBlockedText?: string
   /**
@@ -141,18 +148,27 @@ export function pickTroubles(s: ModelPickState): ModelPickTrouble[] {
      * 둘 다 「못 부른다」지만 할 일이 정반대라, 같은 말로 뭉치면 이미 키를 넣은 사람이
      * 키를 또 넣는다 (실측 2026-09-28).
      */
-    const blocked = s.keyState?.[s.provider] === 'env_blocked'
-    out.push(blocked
-      ? {
-        kind: 'provider_key_not_for_this_env',
-        why: `${name(s.provider)} 키는 있지만 이 판에서는 쓰지 않습니다`,
-        how: s.envBlockedText ?? '이 판에서 쓸 키를 따로 등록하면 켜집니다',
-      }
-      : {
-        kind: 'provider_has_no_key',
-        why: `${name(s.provider)}에 키가 없어 판단을 못 부릅니다`,
-        how: `키가 있는 공급자: ${s.withKey.map(name).join(', ')}`,
+    const state = s.keyState?.[s.provider]
+    if (state === 'disabled') {
+      // 키는 멀쩡하다. 끈 것이다 — 「키를 넣으세요」는 할 말이 아니다
+      out.push({
+        kind: 'provider_disabled',
+        why: `${name(s.provider)} 공급자를 안 쓰기로 해 두었습니다`,
+        how: '관리자 설정에서 그 공급자를 다시 켜면 쓸 수 있습니다',
       })
+    } else {
+      out.push(state === 'env_blocked'
+        ? {
+          kind: 'provider_key_not_for_this_env',
+          why: `${name(s.provider)} 키는 있지만 이 판에서는 쓰지 않습니다`,
+          how: s.envBlockedText ?? '이 판에서 쓸 키를 따로 등록하면 켜집니다',
+        }
+        : {
+          kind: 'provider_has_no_key',
+          why: `${name(s.provider)}에 키가 없어 판단을 못 부릅니다`,
+          how: `키가 있는 공급자: ${s.withKey.map(name).join(', ')}`,
+        })
+    }
   }
 
   /**

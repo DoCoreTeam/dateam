@@ -29,7 +29,7 @@
  * `jobs/tick.ts` 는 모델 이름을 먼저 보고, 그 다음에 키를 찾는다.
  * 화면이 다른 순서로 말하면 실행 기록과 화면이 서로 다른 이유를 댄다.
  */
-export type JevOffReason = 'model_missing' | 'key_missing' | 'env_blocked'
+export type JevOffReason = 'model_missing' | 'key_missing' | 'env_blocked' | 'provider_disabled'
 
 /**
  * 제목. `env_blocked` 만 다른 말을 쓴다 — 나머지 둘은 정말로 꺼진 것이고,
@@ -55,6 +55,8 @@ export const JEV_OFF_REASON_LABEL: Record<JevOffReason, string> = {
   key_missing: '고른 곳의 AI 키가 등록되지 않았습니다',
   // 넣어 둔 키를 「없다」고 하지 않는다. 있는데 이 화면이 안 쓰는 것이다
   env_blocked: '등록해 두신 AI 키는 운영 설정에 있어 개발 화면에서는 쓰지 않습니다',
+  // 키도 있고 판도 맞다. 사람이 그 공급자를 끈 것이다
+  provider_disabled: '고른 곳의 AI 공급자를 안 쓰기로 해 두었습니다',
 }
 
 /** 무엇을 하면 켜지나. **되는 일만 적는다** — 없는 칸을 가리키지 않는다 */
@@ -62,6 +64,7 @@ export const JEV_OFF_REMEDY_LABEL: Record<JevOffReason, string> = {
   model_missing: '트레이딩 설정의 「AI 판단에 쓸 모델」에서 하나 고르면 켜집니다',
   key_missing: '시스템 설정의 AI 공급자 키에 그 곳의 키를 등록하면 켜집니다',
   env_blocked: '이 화면에서도 쓰려면 시스템 설정의 AI 공급자 키 목록에 그 곳의 키를 한 줄 등록하면 됩니다. 목록에 등록한 키는 화면을 가리지 않고 쓰입니다',
+  provider_disabled: '시스템 설정에서 그 공급자를 다시 켜거나, 트레이딩 설정에서 쓰는 곳을 바꾸면 켜집니다',
 }
 
 /** 꺼져 있는 동안 무슨 일이 벌어지나. 「아무 일도 없다」가 아니라 「표본이 안 쌓인다」이다 */

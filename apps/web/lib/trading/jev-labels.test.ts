@@ -101,3 +101,9 @@ test('★ 현황과 설정이 같은 사실에 같은 말을 한다', () => {
     assert.doesNotMatch(line, /없습니다$/, `있는 것을 없다고 끝맺는다: ${line}`)
   }
 })
+
+test('안 씀은 키 없음과 다른 말을 한다 — 할 일이 정반대다', () => {
+  assert.notEqual(JEV_OFF_REASON_LABEL.provider_disabled, JEV_OFF_REASON_LABEL.key_missing)
+  assert.doesNotMatch(JEV_OFF_REASON_LABEL.provider_disabled, /등록되지 않/, '있는 키를 없다고 하면 안 된다')
+  assert.match(JEV_OFF_REMEDY_LABEL.provider_disabled, /켜/, '다시 켜면 된다는 것을 말해야 한다')
+})

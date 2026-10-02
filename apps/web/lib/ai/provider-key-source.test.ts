@@ -106,3 +106,30 @@ test('★ 고른 결과에 키 값 말고 다른 비밀이 안 실린다 (S3)', 
   const c = chooseKey({ env: 'production', metaKey: 'vck_secret' })
   assert.deepEqual(Object.keys(c).sort(), ['apiKey', 'env', 'reason'])
 })
+
+/* ── 안 쓰기로 한 공급자 ────────────────────────────────────────
+   키가 살아 있어도 안 쓴다고 했으면 안 쓴다. 이 자리가 그 말을 안 들으면
+   채팅은 안 부르는데 카탈로그 훑기는 계속 찌르는, 화면이 설명 못 하는 상태가 된다. */
+
+test('★ 안 쓰기로 한 공급자에는 원문 키를 안 돌려준다 (S3)', () => {
+  for (const env of ['production', 'preview', 'development', 'test'] as const) {
+    const c = chooseKey({ env, poolKey: 'pool-key', metaKey: 'meta-key', disabled: true })
+    assert.equal(c.apiKey, null, `${env} 에서 안 쓰는 공급자의 키가 나갔다`)
+    assert.equal(c.reason, 'disabled')
+  }
+})
+
+test('★ 안 씀은 키 없음·판 막힘과 다른 말이다 — 할 일이 서로 다르다', () => {
+  const 안씀 = chooseKey({ env: 'production', metaKey: 'meta-key', disabled: true })
+  const 없음 = chooseKey({ env: 'production' })
+  const 판막힘 = chooseKey({ env: 'development', metaKey: 'meta-key' })
+  const lines = [messageFor(안씀), messageFor(없음), messageFor(판막힘)]
+  assert.equal(new Set(lines).size, 3, '셋이 같은 말을 하면 무엇을 해야 하는지 알 수 없다')
+  assert.match(messageFor(안씀) ?? '', /켜/, '다시 켜면 된다는 것을 말해야 한다')
+})
+
+test('★ 안 씀이 아니면 기존 동작 그대로', () => {
+  const c = chooseKey({ env: 'production', poolKey: 'pool-key', metaKey: 'meta-key', disabled: false })
+  assert.equal(c.apiKey, 'pool-key')
+  assert.equal(c.reason, 'pool')
+})

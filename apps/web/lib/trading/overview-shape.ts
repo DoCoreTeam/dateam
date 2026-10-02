@@ -456,7 +456,7 @@ export interface JevStatus {
  */
 export function jevStatusOf(input: {
   model: string
-  keyReason: 'pool' | 'meta' | 'no_key' | 'env_blocked'
+  keyReason: 'pool' | 'meta' | 'no_key' | 'env_blocked' | 'disabled'
   /** 오늘 쌓인 AI 판단 건수. 안 주면 0 으로 보되 **없다는 사실**이지 0 건이라는 주장은 아니다 */
   aiJudgedToday?: number
 }): JevStatus {
@@ -464,6 +464,8 @@ export function jevStatusOf(input: {
   if (input.model.trim() === '') return { on: false, reason: 'model_missing', aiJudgedToday }
   if (input.keyReason === 'no_key') return { on: false, reason: 'key_missing', aiJudgedToday }
   if (input.keyReason === 'env_blocked') return { on: false, reason: 'env_blocked', aiJudgedToday }
+  // 안 쓰기로 해 둔 공급자다. 여기서 안 걸러내면 화면이 「돌고 있다」고 말한다
+  if (input.keyReason === 'disabled') return { on: false, reason: 'provider_disabled', aiJudgedToday }
   return { on: true, reason: null, aiJudgedToday }
 }
 
