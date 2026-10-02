@@ -1,6 +1,6 @@
 # PLAN newAX: 공급사 외화 견적이 통화를 지닌 채 원가에 앉고 견적으로 돌아간다
 플랜 ID: P0102
-플랜 버전: v0.1.6
+플랜 버전: v0.1.10
 상태: 진행중
 지시: ins_0173
 목표 버전: v0.10.835
@@ -83,26 +83,28 @@
 의존: I03
 
 ### I05 견적서가 딜 원가를 가져온다
-상태: 대기
+상태: 진행중
 모드: 경량
-범위: apps/web/lib/crm/domain/cost-to-quote.ts (신규), apps/web/lib/crm/domain/cost-to-quote.test.ts (신규), apps/web/components/ui/crm/CostToQuoteModal.tsx (신규), apps/web/components/ui/crm/QuotePanel.tsx, apps/web/package.json
+범위: apps/web/lib/crm/domain/cost-to-quote.ts (신규), apps/web/lib/crm/domain/cost-to-quote.test.ts (신규), apps/web/components/ui/crm/CostToQuoteModal.tsx (신규), apps/web/components/ui/crm/QuotePanel.tsx, apps/web/lib/terms/quote.ts, apps/web/lib/ui/picker-standard.test.ts, apps/web/package.json
 감사 기준:
 - 보안: 원가는 cost.view 가 있어야 읽는다, 단추를 감추는 것으로 대신하지 않고 GET /api/crm/deals/:id/costs 가 그대로 403 을 내는 것을 확인한다
 - cost-to-quote 가 원가 행을 견적 줄로 옮긴다, 단위 시험이 quantity unit unitPriceMinor kind 가 그대로 가는 것과 통화가 다를 때 환산되는 것을 단정한다
 - 마진 기본값이 원가 그대로가 아니다, 단위 시험이 기본 모드에서 단가가 원가보다 큰 것을 단정한다
-- 통화 고르기가 창에 있고 원화를 고르면 환산 환율과 고시일이 견적 초안에 실린다
+- 통화 고르기가 창에 있고, 환산 환율과 고시일은 **고르는 그 자리에서** 보인다 (「1 USD = 1,346.40원 · 2026-09-14 매매기준율로 환산합니다」), 견적 초안의 고객용 칸(notesMd·remark)에는 안 싣는다 — 그 칸들은 견적서에 인쇄되어 원가가 외화 매입에서 왔다는 사실이 고객에게 간다
 - 새 시험 파일이 apps/web/package.json 의 test 스크립트에 등재되고 등재 후 총 시험 수가 늘어난다
 - 실브라우저에서 딜 상세의 견적 패널에 「딜 원가에서 가져오기」가 서고 눌러서 견적 줄이 들어가는 것까지 확인한다
 의존: I04
 
 ### I06 환율이 묵지 않는다
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/api/cron/fx-sync/route.ts (신규), apps/web/vercel.json, apps/web/lib/policy/api-auth-surface.test.ts
+범위: apps/web/lib/gpu/fx-sync.ts (신규), apps/web/app/api/cron/fx-sync/route.ts (신규), apps/web/app/api/pricing/gpu/fx/route.ts, apps/web/vercel.json, apps/web/lib/gpu/koreaexim.test.ts
 감사 기준:
 - 보안: 새 창구다, isMachineCall 을 지나고 machineAuthUnconfigured 면 503 을 낸다, 인증 없이 부르면 401 인 것을 확인한다
-- 보안: 서비스롤로 쓰는 자리이므로 import 'server-only' 와 기계 인증이 둘 다 있는지 확인한다
-- api-auth-surface 가 새 경로를 알고 통과한다
+- 보안: 서비스롤로 쓰는 자리이므로 fx-sync.ts 맨 위에 import 'server-only' 가 있고 크론 라우트가 기계 인증을 지나는지 둘 다 확인한다
+- 보안: api-auth-surface 는 손목록이 아니라 스캐너다, 새 라우트가 적지 않아도 통과하는지 보고 **게이트 호출을 지운 판으로 일부러 깨뜨려** 잡히는 것을 확인한다 (S6)
+- 받아 두는 일이 한 벌이다, 관리자 단추(POST /api/pricing/gpu/fx)와 크론이 같은 syncFxRates 를 부른다, 양쪽에 upsert 가 복붙돼 있지 않다
+- koreaexim SSOT 가드가 부르는 자리를 손으로 든 목록이 아니라 훑어서 찾는다, 한국수출입은행 주소로 가는 맨 fetch 가 SSOT 모듈 밖에 0 개인 것을 트리 전체에서 세고 일부러 깨뜨려 확인한다 (S6)
 - vercel.json crons 에 fx-sync 가 하루 한 번 들어간다
 - 창구를 직접 호출해 fx_rates_multi 의 최신 rate_date 가 오늘 또는 직전 영업일로 올라온다
 의존: 없음
@@ -114,12 +116,13 @@
 - v0.1.0 (2026-10-02) 최초 작성 (ins_0173)
 - v0.1.1 (2026-10-02) I01 감사 기준이 실제 칼럼 규약과 달랐다, crm_deal_cost 는 따옴표 캐멀케이스를 쓰고 통화 칸(currency)은 229 가 이미 만들어 두었다, source_currency 를 새로 만들면 통화가 두 칸이 된다 (audit:I01)
 - v0.1.2 (2026-10-02) spec 칸을 안 만든다, 규격은 crm_quote_line 에도 칸이 없고 descriptionMd 첫 줄 약속(quote-spec.ts)이 SSOT 다, 원가에만 칸을 만들면 규격이 두 자리에 살고 견적 줄로 옮길 때 어느 쪽을 믿을지 모른다 (audit:I01)
-- v0.1.2 (2026-10-02) spec 칸을 안 만든다, 규격은 crm_quote_line 에도 칸이 없고 descriptionMd 첫 줄 약속(quote-spec.ts)이 SSOT 다 (audit:I01)
 - v0.1.3 (2026-10-02) I02 범위에 domain/currency.ts 를 넣는다, 통화 코드가 ISO 세 글자인지 묻는 자리는 환산 SSOT 옆이 제자리다, 받은 견적서 길에만 두면 직접 입력 길이 같은 검사를 안 지난다 (audit:I02)
-- v0.1.3 (2026-10-02) I02 범위에 domain/currency.ts 추가, 통화 코드 ISO 검사를 환산 SSOT 옆에 둔다 (audit:I02)
 - v0.1.4 (2026-10-02) I04 범위에 통화 고르기 목록 SSOT 를 넣는다, ['KRW','USD','JPY','EUR'] 가 딜 성사 모달과 딜 폼 모달에 이미 두 벌 있어 원가 모달이 세 벌째가 된다, 목록을 domain/currency.ts 로 올리고 있던 두 벌도 그것을 쓰게 한다 (audit:I04)
-- v0.1.4 (2026-10-02) I04 범위에 통화 목록 SSOT(domain/currency.ts)와 이미 같은 배열을 든 딜 모달 둘을 넣는다 (audit:I04)
 - v0.1.5 (2026-10-02) I04 범위에 금액 표시 SSOT(deals/amount.ts)를 넣는다, maximumFractionDigits 만 줘서 USD 108000 센트가 「$1,080」으로, 108050 이 「$1,080.5」로 떴다, 돈을 그렇게 적는 곳은 없고 quote-xlsx 는 이미 #,##0.00 을 쓴다, 최소 자리수를 통화 자리수로 박아 화면과 엑셀이 같은 말을 하게 한다 (audit:I04)
-- v0.1.5 (2026-10-02) I04 범위에 금액 표시 SSOT(deals/amount.ts) 추가, USD 센트가 $1,080.5 로 뜨던 것을 두 자리로 박는다 (audit:I04)
 - v0.1.6 (2026-10-02) I04 범위에 picker-standard.test.ts 를 넣는다, 통화 칸이 드롭다운이라 「사유 없는 드롭다운」 수가 109 에서 110 으로 늘어 가드가 막았다, 통화는 그 가드 머리말이 적은 「고정 목록」의 예라 WHY_SELECT 에 사유를 적고 같은 배열을 쓰던 딜 모달 둘도 함께 적어 기준값을 107 로 내린다 (audit:I04)
-- v0.1.6 (2026-10-02) I04 범위에 picker-standard.test.ts 추가, 통화 드롭다운 사유 등재와 기준값 107 로 하향 (audit:I04)
+- v0.1.7 (2026-10-02) I05 의 환산 근거 자리를 고친다, 견적 초안(QuoteDraft)에는 환율을 담을 칸이 없고 notesMd 와 remark 는 견적서에 인쇄되는 고객용 칸이라 거기 적으면 「우리 값이 외화 매입에서 나왔다」가 고객에게 간다, 근거는 고르는 자리(창)에서 보이게 하고 외화 견적이면 서버가 이미 crm_quote 에 환율을 박는다, 범위에 lib/terms/quote.ts 를 넣는다 (audit:I05)
+- v0.1.8 (2026-10-02) I06 의 진범은 「크론이 없다」가 아니라 받아 두는 코드가 관리자 단추(POST /api/pricing/gpu/fx) 안에만 있는 것이다, 그 단추도 사람이 아니라 GpuPricingClient 가 「관리자가 그날 GPU 가격표를 처음 열면」 한 번 쏘는 것이어서 그 화면을 연 사람이 없는 동안 환율이 멈춘다 (실측 2026-10-02 fx_rates_multi 20종이 전부 2026-09-14, 18일 묵음), 크론만 새로 만들면 upsert 가 두 벌이 되므로 받아 두기를 lib/gpu/fx-sync.ts 로 모으고 단추와 크론이 그것을 부른다, 범위에 fx-sync.ts 와 pricing/gpu/fx/route.ts 를 넣고 api-auth-surface.test.ts 는 스캐너라 뺀다 (audit:I06, 옆 세션 기록)
+- v0.1.9 (2026-10-02) I05 범위에 picker-standard.test.ts 를 넣는다, 새 창의 통화 칸이 드롭다운이라 「사유 없는 드롭다운」 수가 107 에서 108 로 늘어 가드가 막았다, I04 에서 통화 셋을 등재한 그 자리에 넷째를 적는다 (audit:I05)
+- v0.1.10 (2026-10-02) I06 범위에 lib/gpu/koreaexim.test.ts 를 넣는다, 그 가드가 「이 서버를 부르는 곳」을 손목록(app/api/pricing/gpu/fx/route.ts)으로 들고 있어 받아 오는 일을 fx-sync.ts 로 옮기자 빨개졌다, 손목록은 새 호출 자리를 애초에 못 잡으므로(목록에 없으니까) 목록을 고치는 대신 트리를 훑어 맨 fetch 를 세는 쪽으로 바꾼다 (audit:I06)
+- v0.1.10 (2026-10-02) I06 범위에 koreaexim SSOT 가드 추가, 손목록을 스캐너로 바꾼다 (audit:I06)
+- v0.1.10 (2026-10-02) koreaexim SSOT 가드가 호출 자리를 손목록으로 들고 있어 SSOT 로 옮기자 빨개졌다, 목록을 고치지 않고 트리를 훑는 쪽으로 바꾼다 (audit:I06)
