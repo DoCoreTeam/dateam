@@ -8,7 +8,8 @@ import type { AiChatProviderId } from '@/types/database'
 import { readVercelConfig, VERCEL_META } from '@/lib/vercel/config'
 import { fetchProject, VercelApiError } from '@/lib/vercel/api'
 import { fetchKoraeximJson } from '@/lib/gpu/koreaexim'
-import { isAiProviderId, type AiProviderId } from '@/lib/ai/provider-catalog'
+import { isAiProviderId, AI_PROVIDER_IDS, getProviderSpec, type AiProviderId } from '@/lib/ai/provider-catalog'
+import { isProviderDisabled, withProviderDisabled } from '@/lib/ai/provider-disabled'
 import { META_PROVIDER_ORDER_KEY } from '@/lib/ai-chat/registry'
 import {
   validateProviderKey,
@@ -19,6 +20,7 @@ import {
   describeKeySaved,
   maskKey,
   describeConnection,
+  describeProviderDisabled,
   readProviderModel,
   type ConnectionProbe,
   describeConnectionFailed,
@@ -308,6 +310,37 @@ export async function deleteProviderKey(
   return { ok: true, message: warning ?? undefined }
 }
 
+/**
+ * 이 공급자를 쓸지 말지. **키는 안 건드린다.**
+ *
+ * 왜 따로 있나: 끄는 길이 「연결 해제」(키 삭제) 하나뿐이었다. 그런데 키 표에 든
+ * 그 한 벌이 유일한 사본이라, 지우면 되돌릴 때 공급자 콘솔에서 다시 받아 와야 한다.
+ * 「안 쓴다」와 「키를 버린다」는 다른 결정이다 (실측 2026-10-02 OpenAI 크레딧 소진).
+ */
+export async function setProviderEnabled(
+  provider: AiProviderId,
+  enabled: boolean,
+): Promise<{ ok: boolean; error?: string; message?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+  // 밖에서 온 값이다. 명세에 없는 id 는 여기서 끝낸다 (S4)
+  if (!AI_PROVIDER_IDS.includes(provider)) return { ok: false, error: '모르는 AI 공급자입니다' }
+
+  const meta = await getMetaValue(client)
+  const next = withProviderDisabled(meta, provider, !enabled)
+  const { error } = await setMetaValue(client, next)
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  const label = getProviderSpec(provider).label
+  return {
+    ok: true,
+    message: enabled
+      ? `${label} 공급자를 다시 켰습니다`
+      : `${label} 공급자를 안 쓰기로 했습니다. 키는 그대로 두었으니 언제든 다시 켤 수 있습니다`,
+  }
+}
+
 /* ── 키 여러 줄 ─────────────────────────────────────────────────
    위의 넷은 「키 하나」 시절의 창구다(META 한 칸). 아래 다섯은 표를 본다.
    META 칸은 **지우지 않고 첫 줄과 맞춘다** — 그 칸을 직접 읽는 자리가 아직 마흔이라,
@@ -498,6 +531,11 @@ export async function checkProviderConnection(
   if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
 
   const meta = await getMetaValue(client)
+  /*
+    안 쓰기로 한 공급자는 **찌르지 않는다.** 벤더에 호출을 보내는 자리라서,
+    안 쓰기로 해 놓고도 확인 단추 때문에 계속 불리면 그 결정이 지켜지지 않는 것이다.
+  */
+  if (isProviderDisabled(meta, provider)) return { ok: false, message: describeProviderDisabled(provider) }
   const apiKey = readProviderKey(provider, meta)
   if (!apiKey) return { ok: false, message: describeMissingKey(provider) }
 

@@ -183,6 +183,16 @@ export function describeConnectionFailed(id: AiProviderId, status?: number): str
   return `${spec.label} 연결에 실패했습니다`
 }
 
+/**
+ * 안 쓰기로 해 둔 공급자에 연결 확인을 눌렀을 때.
+ *
+ * 「키가 없다」와 가른다 — 키는 있고 스위치가 내려가 있을 뿐이다.
+ * 이름 뒤에 조사를 안 붙인다(라틴 이름은 받침을 셀 수 없다).
+ */
+export function describeProviderDisabled(id: AiProviderId): string {
+  return `${getProviderSpec(id).label} 공급자를 안 쓰기로 해 두었습니다. 확인하려면 먼저 다시 켜 주세요`
+}
+
 /** 키를 아직 넣지 않은 공급자에게 하는 말 */
 export function describeMissingKey(id: AiProviderId): string {
   return `저장된 ${getProviderSpec(id).label} 키가 없습니다`

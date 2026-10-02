@@ -12,6 +12,7 @@ import {
   describeKeySaved,
   describeConnectionOk,
   describeConnection,
+  describeProviderDisabled,
   describeConnectionFailed,
   describeMissingKey,
   readProviderKey,
@@ -373,5 +374,15 @@ test('비밀: 연결 확인 문장에 원문 키가 섞이지 않는다', () => 
     // 그 규칙을 지키는지는 부르는 자리(app/admin/settings/actions.ts)가 책임진다.
     // 여기서는 이 함수가 **스스로** 키를 끌어다 쓰지 않는다는 것만 센다.
     assert.ok(!lines[0].includes(key), `${id}: 아무것도 안 넘겼는데 키가 나왔다`)
+  }
+})
+
+test('안 씀 안내는 키 없음과 다른 말을 한다 — 할 일이 정반대다', () => {
+  for (const id of AI_PROVIDER_IDS) {
+    const off = describeProviderDisabled(id)
+    assert.notEqual(off, describeMissingKey(id), `${id}: 같은 말이면 있는 키를 또 넣는다`)
+    assert.doesNotMatch(off, /키가 없/, `${id}: 키는 있다`)
+    assert.match(off, /켜/, `${id}: 다시 켜면 된다는 것을 말해야 한다`)
+    assert.doesNotMatch(off, /은\(는\)|을\(를\)/, `${id}: 이름 뒤에 조사를 붙이지 않는다`)
   }
 })

@@ -12,6 +12,7 @@ import G2bSettings from './G2bSettings'
 import VercelSettings from './VercelSettings'
 import AiProviderOrder from './AiProviderOrder'
 import AiProviderCard from './AiProviderCard'
+import { isProviderDisabled } from '@/lib/ai/provider-disabled'
 import { AI_PROVIDERS } from '@/lib/ai/provider-catalog'
 import { readProviderKey, readProviderModel } from '@/lib/ai/provider-keys'
 import { listKeys, type KeyView } from '@/lib/ai/key-store'
@@ -180,6 +181,7 @@ export default async function AdminSettingsPage({
           key={spec.id}
           provider={spec.id}
           hasKey={Boolean(key)}
+          enabled={!isProviderDisabled(meta, spec.id)}
           maskedKey={key ? maskKey(key) : null}
           savedModel={readProviderModel(spec.id, meta)}
           // 전사 모델 칸은 그 키가 전사에도 쓰이는 공급자에게만 준다

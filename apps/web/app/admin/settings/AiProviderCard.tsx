@@ -18,6 +18,7 @@ import SettingsCard from '@/components/ui/settings/SettingsCard'
 import StatusPill from '@/components/ui/settings/StatusPill'
 import FieldNote from '@/components/ui/settings/FieldNote'
 import ModelSelectField from './ModelSelectField'
+import styles from './AiProviderCard.module.css'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
 import { getProviderSpec, type AiProviderId } from '@/lib/ai/provider-catalog'
 import {
@@ -31,6 +32,7 @@ import {
   moveProviderKeyRow,
   toggleProviderKeyRow,
   setProviderKeyPaid,
+  setProviderEnabled,
 } from './actions'
 import { ACTION, AI_KEY } from '@/lib/terms'
 import type { KeyView } from '@/lib/ai/key-store-core'
@@ -38,6 +40,11 @@ import type { KeyView } from '@/lib/ai/key-store-core'
 interface Props {
   provider: AiProviderId
   hasKey: boolean
+  /**
+   * 이 공급자를 쓰기로 해 뒀나. **키가 있는 것과 다른 질문이다** —
+   * 결제를 안 할 공급자를 끄려고 키를 버릴 이유는 없다
+   */
+  enabled?: boolean
   maskedKey: string | null
   savedModel: string | null
   /** 회의 녹음을 글로 옮기는 모델. 그 일에도 쓰이는 공급자에게만 온다 */
@@ -52,7 +59,8 @@ interface Props {
 }
 
 export default function AiProviderCard({
-  provider, hasKey: initialHasKey, maskedKey: initialMasked, savedModel, transcriptionModel,
+  provider, hasKey: initialHasKey, enabled: initialEnabled = true,
+  maskedKey: initialMasked, savedModel, transcriptionModel,
   keyRows: initialRows = [],
 }: Props) {
   const spec = getProviderSpec(provider)
@@ -70,6 +78,8 @@ export default function AiProviderCard({
   const [newLabel, setNewLabel] = useState('')
   const [newIsPaid, setNewIsPaid] = useState(false)
   const [rowPending, startRow] = useTransition()
+  const [enabled, setEnabled] = useState(initialEnabled)
+  const [enablePending, startEnable] = useTransition()
 
   /** 줄을 고치는 다섯 가지가 같은 모양이다 — 결과가 오면 목록을 통째로 갈아 끼운다 */
   function runRowAction(act: () => Promise<{ ok: boolean; error?: string; message?: string; keys?: KeyView[] }>) {
@@ -125,6 +135,18 @@ export default function AiProviderCard({
     })
   }
 
+  function handleToggleEnabled() {
+    setMsg(null)
+    setHealthMsg(null)
+    const next = !enabled
+    startEnable(async () => {
+      const r = await setProviderEnabled(provider, next)
+      if (!r.ok) { setMsg({ ok: false, text: r.error ?? '바꾸지 못했습니다' }); return }
+      setEnabled(next)
+      if (r.message) setMsg({ ok: true, text: r.message })
+    })
+  }
+
   function handleHealth() {
     setHealthMsg(null)
     startHealth(async () => {
@@ -145,6 +167,35 @@ export default function AiProviderCard({
         <StatusPill tone="info" title="해제하면 그 기능도 함께 멈춥니다">
           {spec.alsoUsedFor}
         </StatusPill>
+      )}
+
+      {/*
+        **쓸지 말지.** 키가 있는 것과 다른 질문이라 키 칸보다 위에 둔다 —
+        끈 상태로 키를 고치다가 「왜 안 되지」가 되는 것을 막는다.
+        끈다고 키를 안 지우므로, 아래 가림값은 그대로 보인다.
+      */}
+      {hasKey && (
+        <div className={styles.use} data-testid={`provider-use-${provider}`}>
+          <div>
+            <strong className={styles.useTitle}>
+              {enabled ? '이 공급자를 씁니다' : '이 공급자를 안 씁니다'}
+            </strong>
+            <FieldNote>
+              {enabled
+                ? 'AI 요청이 이 공급자로도 갑니다'
+                : '키는 그대로 두었습니다. 다시 켜면 그대로 쓸 수 있습니다'}
+            </FieldNote>
+          </div>
+          <NbButton
+            type="button"
+            variant={enabled ? 'ghost' : 'primary'}
+            onClick={handleToggleEnabled}
+            disabled={enablePending}
+            aria-pressed={!enabled}
+          >
+            {enablePending ? <AXDotLoader size={4} /> : enabled ? '안 쓰기' : '다시 쓰기'}
+          </NbButton>
+        </div>
       )}
 
       {/*
@@ -270,24 +321,36 @@ export default function AiProviderCard({
         </p>
       )}
 
-      <ModelSelectField
-        provider={provider}
-        hasKey={hasKey}
-        savedModel={savedModel}
-        onSave={(model) => saveProviderModel(provider, model)}
-      />
+      {/*
+        안 씀이면 **모델 고르기와 연결 확인을 안 그린다.** 눌러 봐야 거절만 돌아오고,
+        그 거절을 읽은 사람은 고장으로 읽는다. 대신 무엇을 하면 되는지 한 줄로 말한다.
+      */}
+      {hasKey && !enabled ? (
+        <FieldNote>
+          안 쓰는 동안에는 모델을 고르거나 연결을 확인하지 않습니다. 위에서 다시 쓰기를 누르면 됩니다
+        </FieldNote>
+      ) : (
+        <>
+          <ModelSelectField
+            provider={provider}
+            hasKey={hasKey}
+            savedModel={savedModel}
+            onSave={(model) => saveProviderModel(provider, model)}
+          />
 
-      {/* 전사 모델은 채팅 모델과 다른 값이다. 키가 하나라서 자리만 같이 둔다 */}
-      {transcriptionModel !== undefined && (
-        <TranscriptionModelField hasKey={hasKey} saved={transcriptionModel} />
+          {/* 전사 모델은 채팅 모델과 다른 값이다. 키가 하나라서 자리만 같이 둔다 */}
+          {transcriptionModel !== undefined && (
+            <TranscriptionModelField hasKey={hasKey} saved={transcriptionModel} />
+          )}
+
+          <IntegrationTest
+            onRun={handleHealth}
+            pending={healthPending}
+            result={healthMsg}
+            desc={`${spec.label} API 에 연결 가능한지 확인합니다`}
+          />
+        </>
       )}
-
-      <IntegrationTest
-        onRun={handleHealth}
-        pending={healthPending}
-        result={healthMsg}
-        desc={`${spec.label} API 에 연결 가능한지 확인합니다`}
-      />
     </SettingsCard>
   )
 }

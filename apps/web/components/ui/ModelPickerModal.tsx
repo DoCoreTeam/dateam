@@ -293,7 +293,8 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
                 <span style={{ display: 'block', color: 'var(--text-muted)' }}>{currentItem.availabilityReason}</span>
               )}
               <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
-                아래에서 쓸 수 있는 모델로 바꾸거나, 결제 상태를 확인한 뒤 모델 새로고침을 눌러 주세요
+                아래에서 쓸 수 있는 모델로 바꾸거나, 결제 상태를 확인한 뒤 모델 새로고침을 눌러 주세요.
+                이 공급자를 안 쓸 거면 관리자 설정에서 끌 수 있습니다
               </span>
             </div>
           )}
@@ -315,6 +316,13 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
               )}
               <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
                 사용 불가 {blockedForTab.unavailable}개 · 한도 도달 {blockedForTab.limited}개
+              </span>
+              {/*
+                고칠 수 없는 것을 고치라고만 하지 않는다 — 결제할 사람에게는 결제를,
+                안 쓸 사람에게는 끄는 길을 같이 말한다 (정책 U-N)
+              */}
+              <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
+                이 공급자를 안 쓸 거면 관리자 설정에서 끌 수 있습니다
               </span>
             </div>
           )}
