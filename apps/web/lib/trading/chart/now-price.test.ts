@@ -1,9 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  nowPriceLine, gapFromNow, NOW_PRICE_LABEL,
-  NOW_PRICE_FRESH_SECONDS, NOW_PRICE_STALE_SECONDS,
-} from './now-price.ts'
+import { nowPriceLine, gapFromNow, NOW_PRICE_LABEL } from './now-price.ts'
+import { livePriceAgeThresholds } from '../bars/live-price-core.ts'
+
+/* 문턱의 유일한 출처. 화면 기본 간격(1초)으로 잰다 */
+const THRESHOLD = livePriceAgeThresholds(1)
 
 const AT = '2026-09-30T04:27:40.000Z' // 오후 01:27:40 서울
 const now = (plusSeconds: number) => new Date(Date.parse(AT) + plusSeconds * 1000)
@@ -24,19 +25,29 @@ test('값이 있으면 값과 받은 시각을 초까지 말한다', () => {
 })
 
 test('갓 받은 값에는 나이를 안 붙인다', () => {
-  const line = nowPriceLine({ price: 1085.7, observedAt: AT }, now(NOW_PRICE_FRESH_SECONDS))
+  const line = nowPriceLine({ price: 1085.7, observedAt: AT }, now(THRESHOLD.fresh))
   assert.equal(line.age, null)
   assert.equal(line.stale, false)
 })
 
 test('오래되면 몇 초 전인지 붙고, 더 오래되면 멈춘 값이라고 말한다', () => {
-  const old = nowPriceLine({ price: 1085.7, observedAt: AT }, now(NOW_PRICE_FRESH_SECONDS + 1))
-  assert.equal(old.age, `${NOW_PRICE_FRESH_SECONDS + 1}초 전`)
+  const old = nowPriceLine({ price: 1085.7, observedAt: AT }, now(THRESHOLD.fresh + 1))
+  assert.equal(old.age, `${THRESHOLD.fresh + 1}초 전`)
   assert.equal(old.stale, false)
 
-  const stale = nowPriceLine({ price: 1085.7, observedAt: AT }, now(NOW_PRICE_STALE_SECONDS + 1))
+  const stale = nowPriceLine({ price: 1085.7, observedAt: AT }, now(THRESHOLD.stale + 1))
   assert.equal(stale.stale, true)
-  assert.equal(stale.age, `${NOW_PRICE_STALE_SECONDS + 1}초 전`)
+  assert.equal(stale.age, `${THRESHOLD.stale + 1}초 전`)
+})
+
+test('신선도 문턱은 현재가 설정 간격을 따른다', () => {
+  const fresh = nowPriceLine({ price: 1085.7, observedAt: AT }, now(6), 2)
+  assert.equal(fresh.age, null)
+  assert.equal(fresh.stale, false)
+  const aged = nowPriceLine({ price: 1085.7, observedAt: AT }, now(7), 2)
+  assert.equal(aged.age, '7초 전')
+  const stale = nowPriceLine({ price: 1085.7, observedAt: AT }, now(21), 2)
+  assert.equal(stale.stale, true)
 })
 
 test('시각이 깨졌어도 값은 버리지 않고 시각만 비운다', () => {

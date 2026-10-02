@@ -642,8 +642,8 @@ test('★ 시각은 시각으로 말한다 — 길이만 남은 자리가 없다
   assert.match(card, /ORDER_STEP_LABEL\.entryBy/, '진입 마감 자리가 없다')
   assert.match(card, /ORDER_STEP_LABEL\.hold/, '들고 있는 시간 자리가 없다')
   assert.match(card, /ORDER_STEP_LABEL\.sessionExit/, '당일 청산 자리가 없다')
-  assert.match(card, /seoulTimeText\(plan\.entryDeadlineAt\)/, '마감을 시각으로 안 그린다')
-  assert.match(card, /seoulTimeText\(plan\.sameDayExitAt\)/, '당일 청산을 시각으로 안 그린다')
+  assert.match(card, /seoulTimeSecText\(plan\.entryDeadlineAt\)/, '마감을 초 단위 시각으로 안 그린다')
+  assert.match(card, /seoulTimeSecText\(plan\.sameDayExitAt\)/, '당일 청산을 초 단위 시각으로 안 그린다')
 })
 
 
@@ -755,10 +755,9 @@ test('★ 마감을 못 세면 지어내지 않는다', () => {
 
 test('★ 마감이 지났으면 지났다고 말한다 — 지난 시각은 아직 된다고 읽힌다', () => {
   const now = new Date('2026-09-29T01:10:00.000Z')
-  assert.equal(deadlineLeftText('2026-09-29T01:08:00.000Z', now), '지났습니다')
-  assert.equal(deadlineLeftText('2026-09-29T01:13:00.000Z', now), '3분 남음')
-  // 1분이 안 남으면 「0분 남음」이 된다. 그것은 지금이 마지막이라는 뜻이라 따로 쓴다
-  assert.equal(deadlineLeftText('2026-09-29T01:10:30.000Z', now), '1분 안')
+  assert.equal(deadlineLeftText('2026-09-29T01:08:00.000Z', now), '2분 0초 지남')
+  assert.equal(deadlineLeftText('2026-09-29T01:13:00.000Z', now), '3분 0초 남음')
+  assert.equal(deadlineLeftText('2026-09-29T01:10:30.000Z', now), '0분 30초 남음')
   assert.equal(deadlineLeftText(null, now), '')
 })
 

@@ -18,7 +18,7 @@ import { fmtNum } from '../../ui/number-format.ts'
 import type { CallPlan } from './series.ts'
 import { gapFromNow } from './now-price.ts'
 import { formatIndexPrice, deadlineLeftText } from '../signal-labels.ts'
-import { seoulTimeText, UNKNOWN_TEXT } from '../position-labels.ts'
+import { seoulTimeSecText, seoulTimeText, UNKNOWN_TEXT } from '../position-labels.ts'
 
 /**
  * 방향마다 말이 다르다. **롱은 사서 팔고 숏은 팔아서 되산다** —
@@ -39,6 +39,7 @@ export const ORDER_STEP_LABEL = {
   entry: '얼마에',
   target: '벌면 여기서',
   stop: '틀리면 여기서',
+  entryCountdown: '진입 마감',
   entryBy: '언제까지 들어가나',
   hold: '얼마나 들고 있나',
   sessionExit: '늦어도 이때는',
@@ -57,14 +58,14 @@ export interface OrderCard {
   /** 「먼저 팝니다」 — 방향을 이름이 아니라 **할 일**로 */
   headline: string
   /**
-   * 이 계획이 아직 살아 있나. **지난 계획은 흐리게 그린다** —
-   * 지금 할 일과 같은 무게로 두면 읽는 사람이 그대로 주문한다
+   * 이 계획이 아직 살아 있나. **지난 계획은 점선 상태로 그린다** —
+   * 색이나 투명도로만 가르면 값을 못 읽거나 상태를 구분하지 못한다
    * (사용자 지적 2026-09-30 「디자인 정책좀 따르자 이게 뭐냐」)
    */
   past: boolean
   /** 들어갈 때 · 벌 때 · 틀릴 때, 이 순서다 */
   steps: readonly OrderStep[]
-  /** 시각 셋. 전부 시:분이고 길이가 아니다 */
+  /** 시각 셋. 진입 마감과 세션 청산은 초까지, 보유는 길이로 말한다 */
   times: readonly OrderStep[]
 }
 
@@ -89,7 +90,7 @@ export function buildOrderCard(input: {
   const multiplier = input.multiplier ?? null
   /*
     **지났나.** 들어갈 수 있는 시각이 지났거나 그날 청산 시각이 지났으면 지난 것이다.
-    지난 계획의 값은 지우지 않는다 — 무엇을 말했었는지는 남아야 한다. 무게만 낮춘다.
+    지난 계획의 값은 지우지 않는다 — 무엇을 말했었는지는 남아야 한다. 점선으로 상태를 드러낸다.
   */
   const past = isPast(plan.entryDeadlineAt, now) || isPast(plan.sameDayExitAt, now)
   const act = ORDER_ACTION[plan.direction]
@@ -118,7 +119,7 @@ export function buildOrderCard(input: {
   const times: OrderStep[] = [
     {
       name: ORDER_STEP_LABEL.entryBy,
-      text: plan.entryDeadlineAt ? `${seoulTimeText(plan.entryDeadlineAt)} 까지` : UNKNOWN_TEXT,
+      text: plan.entryDeadlineAt ? `${seoulTimeSecText(plan.entryDeadlineAt)} 까지` : UNKNOWN_TEXT,
       note: now ? deadlineLeftText(plan.entryDeadlineAt, now) || null : null,
     },
     {
@@ -137,7 +138,7 @@ export function buildOrderCard(input: {
     },
     {
       name: ORDER_STEP_LABEL.sessionExit,
-      text: plan.sameDayExitAt ? seoulTimeText(plan.sameDayExitAt) : UNKNOWN_TEXT,
+      text: plan.sameDayExitAt ? seoulTimeSecText(plan.sameDayExitAt) : UNKNOWN_TEXT,
       // 이미 지난 시각을 미래처럼 두지 않는다 (실측 「오후 03:20」이 오후 03:51 에 떠 있었다)
       note: isPast(plan.sameDayExitAt, now) ? '지났습니다' : '그날 안에 정리합니다',
     },

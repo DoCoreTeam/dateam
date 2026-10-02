@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  wonText, priceText, seoulTimeText, isRiskyUnknown, UNKNOWN_TEXT, UNKNOWN_PRICE_TEXT,
+  wonText, priceText, seoulTimeText, seoulTimeSecText, isRiskyUnknown, UNKNOWN_TEXT, UNKNOWN_PRICE_TEXT,
 } from './position-labels.ts'
 
 test('못 잰 손익은 0원이 아니라 못 쟀다고 쓴다 — 0원은 「오늘 본전」이라는 사실이다', () => {
@@ -48,4 +48,9 @@ test('시각을 못 읽으면 지어내지 않는다', () => {
 test('시각은 서울 기준으로 쓴다', () => {
   // UTC 00:30 은 서울 09:30, 장 시작 직후다
   assert.match(seoulTimeText('2026-09-26T00:30:00Z'), /09:30/)
+})
+
+test('움직이는 마감 시각은 초까지 쓴다', () => {
+  assert.match(seoulTimeSecText('2026-09-30T04:27:40.000Z'), /01:27:40/)
+  assert.equal(seoulTimeSecText('broken'), UNKNOWN_PRICE_TEXT)
 })

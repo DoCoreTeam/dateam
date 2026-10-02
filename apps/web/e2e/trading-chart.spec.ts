@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { liveWindowAt } from '../lib/trading/live-window'
 
 /**
  * 현황 차트 — **코드에 있는 것과 화면에 뜨는 것은 다르다**
@@ -29,6 +30,19 @@ async function chartReady(page: import('@playwright/test').Page): Promise<boolea
   if (await empty.count() > 0) return false
   await expect(chart.first()).toBeVisible({ timeout: 30_000 })
   return true
+}
+
+/**
+ * 묶기와 확대를 재려면 **봉이 여러 개 있어야 한다.**
+ *
+ * 실측 2026-10-02: 수집이 멈춰 확정 봉이 0개였고, 그려진 것은 현재가로 만든 형성 봉
+ * 하나뿐이었다. 그 상태에서 「5분봉이 1분봉보다 적다」를 재면 1 < 1 이 되어 빨개진다 —
+ * 배치가 틀린 것이 아니라 **잴 것이 없는 것**이다. 없는 것을 고장으로 적으면 진짜 고장이 묻힌다.
+ */
+const ENOUGH_BARS = 3
+
+async function barsDrawn(page: import('@playwright/test').Page): Promise<number> {
+  return page.locator('.recharts-bar-rectangle').count()
 }
 
 test.describe('현황 차트', () => {
@@ -83,8 +97,8 @@ test.describe('현황 차트', () => {
     await expect(tip).not.toContainText('band')
   })
 
-  test('지금 예측이 주문할 수 있는 말로 끝난다', async ({ page }) => {
-    const panel = page.locator('section', { has: page.getByRole('heading', { name: '지금 예측' }) }).first()
+  test('마지막 판단이 주문할 수 있는 말로 끝난다', async ({ page }) => {
+    const panel = page.locator('section.card', { has: page.getByText('지금 가격', { exact: true }) }).first()
     await expect(panel).toBeVisible()
 
     // 판단이 아예 없는 판에서는 계획도 없다. 그때는 왜 없는지를 말해야 한다
@@ -98,22 +112,103 @@ test.describe('현황 차트', () => {
       **신호가 0건이어도 숫자가 떠야 한다.** 전에는 이 네 줄이 신호일 때만 그려져서
       신호 0건인 판에서는 방향과 점수만 남았다 — 그것으로는 주문을 못 낸다.
     */
-    for (const label of ['진입 기준가', '손절가', '목표가']) {
+    for (const label of ['얼마에', '벌면 여기서', '틀리면 여기서']) {
       await expect(panel.getByText(label, { exact: true })).toBeVisible()
     }
     /*
       **들어갈 때와 나올 때가 시각이어야 한다** (사용자 지적 2026-09-29 「분 이렇게 표시 하지 말고」).
       「진입 유효 10분」은 언제부터 10분인지 읽는 사람이 판단 시각에 더해야 알 수 있었다.
     */
-    await expect(panel.getByText('진입 마감', { exact: true })).toBeVisible()
-    await expect(panel.getByText('나올 시각', { exact: true })).toBeVisible()
-    await expect(panel.getByText('당일 청산', { exact: true })).toBeVisible()
+    await expect(panel.getByText('언제까지 들어가나', { exact: true })).toBeVisible()
+    await expect(panel.getByText('얼마나 들고 있나', { exact: true })).toBeVisible()
+    await expect(panel.getByText('늦어도 이때는', { exact: true })).toBeVisible()
     // 시각이 실제로 시각 꼴로 떠야 한다 — 분만 남은 자리가 없어야 한다
     await expect(panel.getByText(/(오전|오후) \d{1,2}:\d{2}/).first()).toBeVisible()
 
     // 예고를 지시로 읽으면 사람이 그대로 주문한다 — 어디서 온 값인지가 같은 자리에 있어야 한다
     const source = panel.getByText(/신호에 적힌 값입니다|이 판단이 신호가 된다면 나갈 값입니다/)
     await expect(source.first()).toBeVisible()
+  })
+
+  test('진입·목표·손절은 세 카드이고 마감 초가 실제로 흐른다', async ({ page }) => {
+    const panel = page.locator('section.card', { has: page.getByText('지금 가격', { exact: true }) }).first()
+    if (await panel.getByText('아직 판단이 없습니다').count() > 0) {
+      test.skip(true, '판단이 0건이라 주문 카드를 못 본다')
+    }
+    if (await panel.getByText('관망이라 주문할 것이 없습니다').count() > 0) return
+
+    const labels = ['얼마에', '벌면 여기서', '틀리면 여기서']
+    const cards = labels.map((label) => panel.getByText(label, { exact: true }).locator('..'))
+    for (const card of cards) await expect(card).toBeVisible()
+
+    const timer = panel.getByText(/^진입 마감 \d+분 \d+초 (남음|지남)$/)
+    await expect(timer).toBeVisible()
+    const before = await timer.textContent()
+    await expect.poll(() => timer.textContent(), { timeout: 4_000 }).not.toBe(before)
+  })
+
+  test('장중에는 SSE 수신 시각이 새로워지고 형성 봉에 같은 값이 들어간다', async ({ page }) => {
+    test.skip(!liveWindowAt(new Date()).live, '장 밖에는 연결하지 않는 것이 정상이다')
+    const box = page.getByText('지금 가격', { exact: true }).locator('..')
+    const meta = box.locator('[class*=nowPriceMeta]')
+    await expect(meta).toBeVisible({ timeout: 15_000 })
+    const before = await meta.textContent()
+    await expect.poll(() => meta.textContent(), { timeout: 15_000 }).not.toBe(before)
+    await expect(box.getByText('실시간 가격 연결을 다시 시도하고 있습니다')).toHaveCount(0)
+
+    // 형성 중인 마지막 봉이 있으면 현재가를 종가로 쓴다. 없는 장 초반은 현재가 갱신만 위에서 증명한다.
+    const forming = page.locator('[class*=forming]')
+    if (await forming.count() > 0) await expect(forming.first()).toBeVisible()
+  })
+
+  test('실시간 연결이 깨지면 기존 가격을 지우지 않고 재시도를 말한다', async ({ page }) => {
+    test.skip(!liveWindowAt(new Date()).live, '장 밖에는 연결하지 않는 것이 정상이다')
+    await page.route('**/api/trading/price/stream', (route) => route.abort('failed'))
+    await page.reload()
+    const box = page.getByText('지금 가격', { exact: true }).locator('..')
+    await expect(box.getByText('실시간 가격 연결을 다시 시도하고 있습니다')).toBeVisible({ timeout: 10_000 })
+    await expect(box.locator('[class*=nowPriceValue], [class*=nowPriceMissing]')).toBeVisible()
+  })
+
+  test('390px에서 세 가격 카드가 한 열로 쌓이고 가로로 튀어나가지 않는다', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    const panel = page.locator('section.card', { has: page.getByText('지금 가격', { exact: true }) }).first()
+    /*
+      **판단이 없으면 주문 카드도 없다.** 실측 2026-10-02: 수집이 멈춰 그날 판단이 0건이라
+      이 단정이 「카드가 안 보인다」로 빨개졌다 — 재는 대상이 없는 것이지 배치가 틀린 것이 아니다.
+      없는 것을 고장으로 적으면 진짜 고장이 묻힌다.
+    */
+    if (await panel.getByText('아직 판단이 없습니다').count() > 0) {
+      test.skip(true, '판단이 0건이라 주문 카드를 못 본다')
+    }
+    if (await panel.getByText('관망이라 주문할 것이 없습니다').count() > 0) return
+    const grid = panel.locator('dl[class*=orderPrices]')
+    await expect(grid).toBeVisible()
+    const columns = await grid.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length)
+    expect(columns).toBe(1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  })
+
+  test('로그인하지 않으면 실시간 가격 창구가 401로 닫힌다', async ({ browser }) => {
+    // 프로젝트의 storageState 를 명시적으로 비운다. 안 비우면 「새 context」도 저장 세션을 물려받는다.
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'
+    const response = await context.request.get(`${baseURL}/api/trading/price/stream`)
+    expect(response.status()).toBe(401)
+    expect(await response.json()).toEqual({ error: '인증이 필요합니다' })
+    await context.close()
+  })
+
+  test('정상 실사용 경로에 브라우저 콘솔 오류가 없다', async ({ page }) => {
+    const errors: string[] = []
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text())
+    })
+    await page.reload()
+    await expect(page.getByRole('heading', { name: '현황' })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText('지금 가격', { exact: true })).toBeVisible()
+    await page.waitForTimeout(2_000)
+    expect(errors, `콘솔 오류:\n${errors.join('\n')}`).toEqual([])
   })
 
   test('구간 띠를 끌면 그림이 좁아지고, 도로 넓히면 돌아온다', async ({ page }) => {
@@ -194,9 +289,10 @@ test('차트가 세로 스크롤을 가둘 수 있는 css 를 안 건다', async
  */
 test('봉 단위를 바꾸면 그 단위로 다시 그린다', async ({ page }) => {
   test.skip(!(await chartReady(page)), '봉이 0건')
-  const bars = () => page.locator('.recharts-bar-rectangle').count()
+  const bars = () => barsDrawn(page)
   const at1m = await bars()
   expect(at1m, '1분봉이 0개다').toBeGreaterThan(0)
+  test.skip(at1m < ENOUGH_BARS, `확정 봉이 ${at1m}개라 묶기를 잴 수 없다`)
 
   for (const label of ['5분', '15분', '60분']) {
     await page.getByRole('button', { name: label, exact: true }).click()
@@ -210,8 +306,9 @@ test('봉 단위를 바꾸면 그 단위로 다시 그린다', async ({ page }) 
 test('휠을 굴리면 보는 봉 수가 바뀐다', async ({ page }) => {
   test.skip(!(await chartReady(page)), '봉이 0건')
   const box = await page.locator('.recharts-wrapper').first().boundingBox()
-  const bars = () => page.locator('.recharts-bar-rectangle').count()
+  const bars = () => barsDrawn(page)
   const before = await bars()
+  test.skip(before < ENOUGH_BARS, `확정 봉이 ${before}개라 확대를 잴 수 없다`)
   await page.mouse.move(box!.x + box!.width * 0.5, box!.y + box!.height * 0.5)
   for (let i = 0; i < 6; i += 1) { await page.mouse.wheel(0, -120); await page.waitForTimeout(80) }
   await page.waitForTimeout(500)

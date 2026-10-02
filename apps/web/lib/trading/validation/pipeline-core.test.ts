@@ -131,12 +131,17 @@ test('★ 검증 창구가 새 인증을 안 만든다 — 기존 기계 인증�
   assert.doesNotMatch(route, /requireAdminApi|getRequestUser/)
 })
 
-test('★ 트레이딩 창구가 둘뿐이다 — 검증 때문에 셋째가 생기지 않았다', () => {
+test('★ 검증이 창구를 더 열지 않았다 — 크론 둘과 화면이 읽는 하나뿐이다', () => {
   const api = join(HERE, '..', '..', '..', 'app', 'api', 'trading')
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)])
   const routes = walk(api).filter((f) => f.endsWith('route.ts'))
-  assert.equal(routes.length, 2, `창구가 ${routes.length}개다. 지킬 자리가 늘었다`)
+  /*
+    셋째는 **검증이 아니라 화면이** 연 자리다(`price/stream`, 2026-10-01).
+    읽기 전용이고 소유자 문을 지난다 — 늘어난 이유는 `jobs/watch.test.ts` 가 목록으로 쥔다.
+    검증이 또 하나를 열면 여기가 넷이 되어 빨개진다.
+  */
+  assert.equal(routes.length, 3, `창구가 ${routes.length}개다. 지킬 자리가 늘었다`)
 })
 
 /**

@@ -12,6 +12,7 @@
 import { fmtNum } from '../../ui/number-format.ts'
 import { seoulClockText } from '../position-labels.ts'
 import { formatIndexPrice } from '../signal-labels.ts'
+import { livePriceAgeThresholds } from '../bars/live-price-core.ts'
 
 /** 이 자리가 쓰는 말. 화면 파일 안에 두지 않는다 */
 export const NOW_PRICE_LABEL = {
@@ -20,15 +21,15 @@ export const NOW_PRICE_LABEL = {
   missing: '현재가를 못 받았습니다',
   /** 오래된 값을 지금 값으로 읽으면 그 오차만큼 잘못 주문한다 */
   stale: '멈춘 값일 수 있습니다',
+  connecting: '실시간 가격을 연결하고 있습니다',
+  retrying: '실시간 가격 연결을 다시 시도하고 있습니다',
 } as const
 
-/**
- * 이 초 안이면 나이를 안 적는다. 현재가는 체결마다 오므로 몇 초 차이는 정상이고,
- * 정상인 것에 숫자를 붙이면 사람이 그것을 고장으로 읽는다.
- */
-export const NOW_PRICE_FRESH_SECONDS = 60
-/** 이 초를 넘으면 멈춘 값이라고 말한다 */
-export const NOW_PRICE_STALE_SECONDS = 90
+/*
+  나이 문턱은 **받는 간격에서 나온다** — `livePriceAgeThresholds` 한 곳이 쥔다.
+  여기에 고정 상수를 두면 간격을 바꿔도 문턱이 안 따라와, 1초마다 받는 화면이
+  59초 묵은 값을 「갓 받았다」고 말한다.
+*/
 
 export interface NowPriceLine {
   /** 값 한 줄. 못 받았으면 null 이고 그때 `missing` 을 쓴다 */
@@ -53,6 +54,7 @@ export interface NowPriceLine {
 export function nowPriceLine(
   last: { price: number; observedAt: string } | null,
   now: Date | null,
+  pushSeconds = 1,
 ): NowPriceLine {
   const missing: NowPriceLine = {
     price: null, at: null, age: null, stale: false, missing: NOW_PRICE_LABEL.missing,
@@ -71,11 +73,12 @@ export function nowPriceLine(
     return { price: formatIndexPrice(last.price), at, age: null, stale: false, missing: null }
   }
   const ageSec = Math.max(0, Math.floor((now.getTime() - observed) / 1000))
+  const threshold = livePriceAgeThresholds(pushSeconds)
   return {
     price: formatIndexPrice(last.price),
     at,
-    age: ageSec > NOW_PRICE_FRESH_SECONDS ? `${ageSec}초 전` : null,
-    stale: ageSec > NOW_PRICE_STALE_SECONDS,
+    age: ageSec > threshold.fresh ? `${ageSec}초 전` : null,
+    stale: ageSec > threshold.stale,
     missing: null,
   }
 }

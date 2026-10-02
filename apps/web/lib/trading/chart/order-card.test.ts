@@ -90,13 +90,13 @@ test('들고 있는 시간은 길이와 시각 둘 다로 나온다', () => {
   assert.equal(hold?.note, '지금 들어가면 오후 01:45 쯤')
 })
 
-test('시각은 전부 시:분이고 길이로 안 적는다', () => {
+test('움직이는 시각은 초까지 쓰고 길이로 안 적는다', () => {
   const card = buildOrderCard({ plan: SHORT, nowPrice: 1085.70, now: NOW })
   const by = card.times.find((t) => t.name === ORDER_STEP_LABEL.entryBy)
-  assert.equal(by?.text, '오후 01:34 까지')
-  assert.equal(by?.note, '6분 남음')
+  assert.equal(by?.text, '오후 01:34:00 까지')
+  assert.equal(by?.note, '6분 20초 남음')
   const same = card.times.find((t) => t.name === ORDER_STEP_LABEL.sessionExit)
-  assert.equal(same?.text, '오후 03:20')
+  assert.equal(same?.text, '오후 03:20:00')
 })
 
 test('시계가 없으면(서버 렌더) 남은 시간과 나올 시각을 안 적는다', () => {
@@ -118,7 +118,7 @@ test('주문서 안에는 점수가 없다 — 점수는 근거이지 주문이 
 test('마감이 지났으면 지났다고 말한다 — 지난 시각을 그대로 두지 않는다', () => {
   const late = new Date('2026-09-30T04:40:00.000Z')
   const card = buildOrderCard({ plan: SHORT, nowPrice: 1085.70, now: late })
-  assert.equal(card.times.find((t) => t.name === ORDER_STEP_LABEL.entryBy)?.note, '지났습니다')
+  assert.equal(card.times.find((t) => t.name === ORDER_STEP_LABEL.entryBy)?.note, '6분 0초 지남')
 })
 
 test('돈은 화면에 뜬 가격으로 셈한다 — 보이는 값끼리 맞아떨어져야 한다', () => {
@@ -159,7 +159,7 @@ test('당일 청산 시각이 지났으면 지났다고 적는다', () => {
     plan: SHORT, nowPrice: 1085.7, now: new Date('2026-09-30T06:51:00.000Z'), multiplier: MULTIPLIER,
   })
   const same = late.times.find((t) => t.name === ORDER_STEP_LABEL.sessionExit)
-  assert.equal(same?.text, '오후 03:20')
+  assert.equal(same?.text, '오후 03:20:00')
   assert.equal(same?.note, '지났습니다')
   // 아직 안 지났으면 원래 말을 한다
   const live = buildOrderCard({ plan: SHORT, nowPrice: 1085.7, now: NOW, multiplier: MULTIPLIER })

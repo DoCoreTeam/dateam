@@ -29,15 +29,16 @@ import {
   CHART_TIMEFRAMES, DEFAULT_CHART_TIMEFRAME, type ChartTimeframe, type DisplayBar,
 } from '@/lib/trading/chart/forming'
 import { nowPriceLine, NOW_PRICE_LABEL } from '@/lib/trading/chart/now-price'
-import { buildOrderCard } from '@/lib/trading/chart/order-card'
+import { buildOrderCard, ORDER_STEP_LABEL } from '@/lib/trading/chart/order-card'
 import { entryWindowNow } from '@/lib/trading/chart/entry-window'
 import { liveWindowAt } from '@/lib/trading/live-window'
 import type { CallPlan } from '@/lib/trading/chart/series'
 import { LEANING_LABEL, JUDGE_LABEL } from '@/lib/trading/judgment-labels'
 import {
-  formatIndexPrice, PLAN_SOURCE_LABEL,
+  deadlineLeftText, formatIndexPrice, PLAN_SOURCE_LABEL,
 } from '@/lib/trading/signal-labels'
 import { UNKNOWN_TEXT, seoulTimeText } from '@/lib/trading/position-labels'
+import { useLivePrice } from './useLivePrice'
 import styles from './ChartPanel.module.css'
 
 interface Props {
@@ -48,6 +49,8 @@ interface Props {
   emitProgress: { step: number; total: number; reason: string } | null
   /** 마지막으로 받은 현재가. 형성 중인 봉이 이 값으로 모양을 바꾼다 */
   lastPrice: { price: number; observedAt: string } | null
+  /** 현재가 SSE 간격. 현재가 신선도 문턱도 같은 값을 쓴다 */
+  pricePushSeconds: number
   /**
    * 1계약 승수(원). **점을 돈으로 바꾸는 값이다**
    * (사용자 지시 2026-09-30 「몇 점 이게 필요한것도 아닌데」). 모르면 0 이고 그때는 점으로 쓴다
@@ -139,6 +142,7 @@ function OrderBlock({ plan, nowPrice, clock, multiplier }: {
   multiplier: number
 }) {
   const card = buildOrderCard({ plan, nowPrice, now: clock, multiplier })
+  const deadline = clock ? deadlineLeftText(plan.entryDeadlineAt, clock) : ''
   /**
    * **지금 들어가도 되나.** 규칙은 원래 화면에 있었다 — 「진입 한계가 1083.93 · 여기를
    * 넘으면 안 따라갑니다」. 다만 그 규칙을 사람이 지금 가격과 매번 손으로 견줘야 했다
@@ -147,13 +151,11 @@ function OrderBlock({ plan, nowPrice, clock, multiplier }: {
   const gate = entryWindowNow({ plan, nowPrice, now: clock })
   return (
     /*
-      **지난 계획은 흐리게.** 값은 지우지 않는다 — 무엇을 말했었는지는 남아야 한다.
-      다만 지금 할 일과 같은 무게로 두면 읽는 사람이 그대로 주문한다
+      **지난 계획은 점선으로.** 값은 지우지 않는다 — 무엇을 말했었는지는 남아야 한다.
+      색만으로 가르지 않고 상태를 모양으로도 보여 준다
       (사용자 지적 2026-09-30 「디자인 정책좀 따르자 이게 뭐냐」)
     */
     <div className={`${styles.plan} ${card.past ? styles.planPast : ''}`}>
-      {/* 기록인지 예고인지를 먼저 말한다 — 예고를 지시로 읽으면 사람이 그대로 주문한다 */}
-      <p className={styles.planSource}>{PLAN_SOURCE_LABEL[plan.from]}</p>
       {/*
         **판정이 값보다 먼저다.** 아래 여섯 줄은 「들어간다면 얼마에」이고,
         이 줄은 「지금 들어가도 되나」다 — 뒤 질문의 답이 아니오면 앞 값은 안 읽어도 된다
@@ -161,12 +163,18 @@ function OrderBlock({ plan, nowPrice, clock, multiplier }: {
       <p className={`${styles.verdict} ${styles[`verdict-${gate.verdict}`]}`}>
         <span className={styles.verdictText}>{gate.text}</span>
         {gate.note && <span className={styles.verdictNote}>{gate.note}</span>}
+        {deadline && <span className={styles.verdictTimer}>{`${ORDER_STEP_LABEL.entryCountdown} ${deadline}`}</span>}
       </p>
+      {/* 기록인지 예고인지를 말로 가른다 — 흐림으로 가르면 중요한 값까지 못 읽는다 */}
+      <p className={styles.planSource}>{PLAN_SOURCE_LABEL[plan.from]}</p>
       {/* 방향을 이름이 아니라 **할 일**로. 「숏」보다 「먼저 팝니다」가 주문에 가깝다 */}
       <strong className={styles.orderHeadline}>{card.headline}</strong>
-      <dl className={styles.order}>
-        {card.steps.map((s) => (
-          <div key={s.name} className={styles.orderStep}>
+      <dl className={styles.orderPrices}>
+        {card.steps.map((s, index) => (
+          <div
+            key={s.name}
+            className={`${styles.orderPrice} ${index === 0 ? styles.orderEntry : index === 1 ? styles.orderTarget : styles.orderStop}`}
+          >
             <dt className={styles.orderName}>{s.name}</dt>
             <dd className={styles.orderText}>
               {s.text}
@@ -179,7 +187,7 @@ function OrderBlock({ plan, nowPrice, clock, multiplier }: {
         **시각은 따로 묶는다.** 값과 시각을 한 표에 섞으면 「1082.75」와 「오후 01:34」가
         같은 무게로 읽히고, 그때 사람은 무엇이 가격이고 무엇이 시계인지 다시 세야 한다.
       */}
-      <dl className={styles.order}>
+      <dl className={styles.orderTimes}>
         {card.times.map((t) => (
           <div key={t.name} className={styles.orderStep}>
             <dt className={styles.orderName}>{t.name}</dt>
@@ -194,7 +202,9 @@ function OrderBlock({ plan, nowPrice, clock, multiplier }: {
   )
 }
 
-export default function ChartPanel({ chart, signals, emitProgress, lastPrice, multiplier, validMinutes }: Props) {
+export default function ChartPanel({
+  chart, signals, emitProgress, lastPrice, pricePushSeconds, multiplier, validMinutes,
+}: Props) {
   /**
    * **있는 것을 먼저 보여 준다.** 신호가 0건이어도 판단은 매분 쌓인다 —
    * 그것을 안 보고 「판단이 한 번도 안 돌았습니다」라고 하면 화면이 거짓말을 한다
@@ -214,6 +224,8 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice, mu
     const saved = Number(window.localStorage.getItem(TF_KEY))
     if (isChartTimeframe(saved)) setTf(saved)
   }, [])
+
+  const livePrice = useLivePrice(lastPrice)
   const pickTf = (next: ChartTimeframe): void => {
     setTf(next)
     try { window.localStorage.setItem(TF_KEY, String(next)) } catch { /* 저장 못 해도 화면은 돈다 */ }
@@ -241,20 +253,23 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice, mu
    * **지금 얼마인가.** 계획 값은 이 값과 견줘야 읽힌다
    * (사용자 지적 2026-09-30 「어떻게 이용해야 하는건지를 모르겠어」).
    */
-  const nowPrice = useMemo(() => nowPriceLine(lastPrice, clock), [lastPrice, clock])
+  const nowPrice = useMemo(
+    () => nowPriceLine(livePrice.price, clock, pricePushSeconds),
+    [livePrice.price, clock, pricePushSeconds],
+  )
   const displayBars = useMemo(() => {
     void tick
     const now = new Date()
     return buildDisplayBars({
       bars: chart.bars,
       minutes: tf,
-      lastPrice,
+      lastPrice: livePrice.price,
       now,
       // 한 단위가 지나도록 값이 안 오면 멈춘 것이다
       staleAfterSeconds: Math.max(60, tf * 60),
       live: liveWindowAt(now).live,
     })
-  }, [chart.bars, tf, lastPrice, tick])
+  }, [chart.bars, tf, livePrice.price, tick])
 
   const call = pickNowCall({ signals, calls: chart.calls })
   /**
@@ -339,6 +354,13 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice, mu
               </>
             )
             : <span className={styles.nowPriceMissing}>{nowPrice.missing}</span>}
+          {/* 첫 가격이 없어도 연결 실패를 숨기지 않는다 — 「값 없음」과 「다시 시도 중」은 다른 사실이다 */}
+          {livePrice.connection === 'connecting' && (
+            <span className={styles.nowPriceConnection}>{NOW_PRICE_LABEL.connecting}</span>
+          )}
+          {livePrice.connection === 'retrying' && (
+            <span className={styles.nowPriceStale}>{NOW_PRICE_LABEL.retrying}</span>
+          )}
         </div>
         {/*
           **이름을 사실대로 쓴다.** 판단은 매분 나지 않고 진입 조건이 걸린 분에만 난다 —
@@ -368,7 +390,7 @@ export default function ChartPanel({ chart, signals, emitProgress, lastPrice, mu
                 방향과 점수만으로는 주문을 못 낸다 (사용자 지적 2026-09-29).
               */}
               {plan
-                ? <OrderBlock plan={plan} nowPrice={lastPrice?.price ?? null} clock={clock} multiplier={multiplier} />
+                ? <OrderBlock plan={plan} nowPrice={livePrice.price?.price ?? null} clock={clock} multiplier={multiplier} />
                 : (
                   <p className={styles.planSource}>
                     {call.direction === 'hold'

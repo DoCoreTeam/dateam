@@ -132,6 +132,8 @@ async function issueToken(env: KisEnv): Promise<IssuedToken | IssueFail> {
   const response = await fetch(`${kisHost(env)}${KIS_TOKEN_PATH}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json; charset=utf-8' },
+    // SSE·크론 둘 다 토큰 서버 응답이 끊겨도 무한히 대기하지 않는다 (B4)
+    signal: AbortSignal.timeout(10_000),
     body: JSON.stringify({
       grant_type: 'client_credentials',
       appkey: credential.appKey,

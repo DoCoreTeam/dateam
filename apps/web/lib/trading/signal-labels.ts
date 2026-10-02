@@ -74,9 +74,10 @@ export function deadlineLeftText(deadlineIso: string | null, now: Date): string 
   if (!deadlineIso) return ''
   const left = Date.parse(deadlineIso) - now.getTime()
   if (!Number.isFinite(left)) return ''
-  if (left <= 0) return '지났습니다'
-  const minutes = Math.floor(left / 60_000)
-  // 1분이 안 남았으면 분으로 「0분」이 된다. 그것은 「지금이 마지막」이라는 뜻이라 따로 쓴다
-  if (minutes < 1) return '1분 안'
-  return `${minutes}분 남음`
+  const totalSeconds = left > 0
+    ? Math.ceil(left / 1_000)
+    : Math.floor(Math.abs(left) / 1_000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}분 ${seconds}초 ${left > 0 ? '남음' : '지남'}`
 }

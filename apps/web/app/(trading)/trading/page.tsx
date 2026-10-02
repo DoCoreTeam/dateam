@@ -62,7 +62,10 @@ export default async function TradingPage() {
 
   // 다시 읽는 간격도 설정이다. env 에 두면 값을 바꾸려고 배포를 기다려야 한다
   const rawRefresh = Number(values.overview_refresh_seconds)
-  const refreshSeconds = Number.isFinite(rawRefresh) && rawRefresh >= 5 ? rawRefresh : 10
+  const refreshSeconds = Number.isFinite(rawRefresh) && rawRefresh >= 5 ? rawRefresh : 30
+  // 현재가는 무거운 전체 새로고침과 갈라 1초 스트림으로 받는다
+  const rawPricePush = Number(values.price_push_seconds)
+  const pricePushSeconds = Number.isFinite(rawPricePush) && rawPricePush >= 1 ? rawPricePush : 1
 
   return (
     <>
@@ -97,6 +100,7 @@ export default async function TradingPage() {
           signals={overview.signals}
           emitProgress={overview.emitProgress}
           lastPrice={overview.lastPrice}
+          pricePushSeconds={pricePushSeconds}
           /* 점을 돈으로 바꾸는 값. 성적표가 이미 읽어 둔 것을 돌려 쓴다 — 두 곳이 다른 승수를 쓰면 같은 값이 두 금액이 된다 */
           multiplier={overview.accuracy.multiplier}
           /* 판단이 얼마나 쓸 만한가. 설정값이고 화면이 따로 정하면 규칙과 다른 마감을 본다 */

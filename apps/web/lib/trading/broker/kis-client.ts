@@ -36,6 +36,8 @@ export interface KisClientOptions {
   minIntervalMs: number
   /** 이어 조회를 몇 번까지 하나. 한 실행이 1분 안에 끝나야 한다(§14.3) */
   maxPages?: number
+  /** 한 번의 증권사 조회 상한. SSE·크론이 무한 대기하지 않게 한다 */
+  requestTimeoutMs?: number
 }
 
 async function call<T>(
@@ -44,6 +46,7 @@ async function call<T>(
   auth: KisAuth,
   key: KisQuotationKey,
   params: Record<string, string>,
+  requestTimeoutMs: number,
 ): Promise<KisResult<KisEnvelope<T>>> {
   return queue.run(async () => {
     let response: Response
@@ -52,6 +55,7 @@ async function call<T>(
         method: 'GET',
         headers: buildHeaders(auth, key),
         cache: 'no-store',
+        signal: AbortSignal.timeout(requestTimeoutMs),
       })
     } catch (error) {
       // 연결 자체가 안 된 것과 거절당한 것은 다른 사유다. 뭉뚱그리면 원인을 못 찾는다
@@ -126,6 +130,7 @@ export function createKisClient(options: KisClientOptions): KisClient {
   const queue = createRateQueue({ minIntervalMs: options.minIntervalMs })
   const { env, auth } = options
   const maxPages = options.maxPages ?? 8
+  const requestTimeoutMs = Math.min(60_000, Math.max(1_000, options.requestTimeoutMs ?? 20_000))
 
   return {
     async minuteBars({ contractCode, from, until }) {
@@ -140,7 +145,7 @@ export function createKisClient(options: KisClientOptions): KisClient {
           until: cursor,
           // 오늘 안에서만 물으면 과거 포함을 켤 이유가 없다 — 켜면 응답이 무거워진다
           includePast: from.getTime() < startOfSeoulDay(until).getTime(),
-        }))
+        }), requestTimeoutMs)
         if (!result.ok) return result
 
         const rows = (result.value.output2 ?? []) as RawMinuteBar[]
@@ -162,7 +167,9 @@ export function createKisClient(options: KisClientOptions): KisClient {
     },
 
     async price(contractCode) {
-      const result = await call<Record<string, string>>(queue, env, auth, 'price', symbolParams(contractCode))
+      const result = await call<Record<string, string>>(
+        queue, env, auth, 'price', symbolParams(contractCode), requestTimeoutMs,
+      )
       if (!result.ok) return result
       const output = result.value.output ?? result.value.output1
       if (!output) return { ok: false, reason: 'kis_empty_output', userMessage: '증권사 시세가 비어 있습니다' }
@@ -179,7 +186,7 @@ export function createKisClient(options: KisClientOptions): KisClient {
           BASS_DT: seoulYmd(from),
           CTX_AREA_FK: fk,
           CTX_AREA_NK: nk,
-        })
+        }, requestTimeoutMs)
         if (!result.ok) return result
         const output = (result.value.output ?? result.value.output1 ?? []) as Record<string, string>[]
         for (const row of output) {
@@ -206,7 +213,9 @@ export function createKisClient(options: KisClientOptions): KisClient {
     },
 
     async askingPrice(contractCode) {
-      const result = await call<Record<string, string>>(queue, env, auth, 'askingPrice', symbolParams(contractCode))
+      const result = await call<Record<string, string>>(
+        queue, env, auth, 'askingPrice', symbolParams(contractCode), requestTimeoutMs,
+      )
       if (!result.ok) return result
       const output = result.value.output1 ?? result.value.output
       if (!output) return { ok: false, reason: 'kis_empty_output', userMessage: '증권사 호가가 비어 있습니다' }

@@ -107,11 +107,21 @@ test('★ 새 창구를 안 연다 — cron/tick 하나가 다 한다', () => {
     }
   }
   walk(apiDir)
-  // 1-A 의 tick 과 1-B 의 validate 둘뿐이다. 감시가 창구를 하나 더 열지 않았다
+  /*
+    창구를 늘릴 때는 **왜**를 여기 적는다. 적을 자리가 없으면 안 늘린다.
+
+    · cron/tick (1-A) · cron/validate (1-B) — 기계가 부르는 자리. 사람 세션이 없다
+    · price/stream (2026-10-01) — **화면이 부르는 읽기 전용 자리.** 봉은 1분에 한 번
+      확정되는데 가격은 그보다 자주 와야 맨 오른쪽 봉이 움직인다. tick 에 얹을 수 없다 —
+      크론은 1분이 최소 주기이고 tick 은 이미 maxDuration 60 을 쓴다.
+      쓰기는 `saveLastPrice` 한 줄뿐이고 주문·판단에는 안 닿는다.
+      소유자 문을 지나고, KIS 호출은 `claimLivePriceSlot` 이 시간창마다 하나로 묶는다.
+  */
   const names = routes.map((r) => r.slice(r.indexOf('app/api/trading'))).sort()
   assert.deepEqual(names, [
     'app/api/trading/cron/tick/route.ts',
     'app/api/trading/cron/validate/route.ts',
+    'app/api/trading/price/stream/route.ts',
   ], `창구가 늘었다: ${names.join(', ')}`)
 })
 

@@ -35,6 +35,13 @@ export function seoulTimeText(iso: string): string {
   }).format(new Date(parsed))
 }
 
+/** 지금 줄어드는 마감·청산 시각만 초까지 쓴다. 이력 시각은 `seoulTimeText` 그대로다. */
+export function seoulTimeSecText(iso: string): string {
+  const parsed = Date.parse(iso)
+  if (!Number.isFinite(parsed)) return UNKNOWN_PRICE_TEXT
+  return seoulClockText(new Date(parsed))
+}
+
 /**
  * 지금 시각을 **초까지**. 화면이 1초마다 다시 그리는 자리에 쓴다.
  *

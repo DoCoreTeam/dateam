@@ -3,7 +3,9 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 const AUTH_STATE = path.join(__dirname, 'auth-state.json')
-const ORIGIN = 'http://localhost:3000'
+// 공유 :3000 대신 격리 서버를 보면 localStorage 원점도 그 포트여야 한다.
+// 쿠키는 포트를 공유하지만 localStorage 는 원점별이라 3000에만 심으면 격리 QA 모달이 클릭을 삼킨다.
+const ORIGIN = new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin
 
 /**
  * `(member)/layout.tsx`가 쓰는 것과 같은 규칙으로 이번 주 월요일(KST, ISO)을 구한다.
@@ -57,7 +59,7 @@ setup('로그인 세션 저장', async ({ page }) => {
     return
   }
 
-  await page.goto('http://localhost:3000')
+  await page.goto(ORIGIN)
 
   console.log('\n=== 브라우저에서 직접 로그인해주세요 ===')
   console.log('로그인 완료 시 세션이 자동 저장됩니다.\n')
