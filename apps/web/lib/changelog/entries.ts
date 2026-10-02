@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.863',
+    date: '2026-10-02',
+    title: '회의 원문의 「작성」·「녹음·전사」 탭이 가지런해졌어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🧩',
+        headline: '두 탭의 모양이 서로 어긋나던 것을 맞췄어요',
+        detail: '글자 수가 붙은 탭만 아이콘이 위로 올라가 높이와 정렬이 따로 놀았어요. 이제 아이콘은 왼쪽에 서고 이름과 분량이 그 옆에 나란히 보여요.',
+      },
+    ],
+  },
+  {
     version: '0.10.860',
     date: '2026-10-02',
     title: '묻는 창이 무엇이 사라지는지 알려줘요',

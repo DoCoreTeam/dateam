@@ -177,8 +177,17 @@ function SegmentedTabsInner({
           const inner = (
             <>
               {t.icon && <span className="seg-tab-icon">{t.icon}</span>}
-              {t.sub ? <span className="seg-tab-label">{t.label}</span> : t.label}
-              {t.sub && <span className="seg-tab-sub">{t.sub}</span>}
+              {/*
+                보조설명이 있어도 **아이콘은 왼쪽에 선다.** 탭 전체를 세로로 눕히면
+                아이콘이 글자 위로 올라가, 보조설명이 없는 옆 탭과 골격이 갈린다
+                (실측: 회의 원문의 「작성 27자」는 3줄, 「녹음·전사」는 1줄로 보였다).
+              */}
+              {t.sub ? (
+                <span className="seg-tab-text">
+                  <span className="seg-tab-label">{t.label}</span>
+                  <span className="seg-tab-sub">{t.sub}</span>
+                </span>
+              ) : t.label}
               {t.badge != null && t.badge > 0 && (
                 <span className="seg-tab-badge" title={t.badgeTitle} aria-label={t.badgeTitle}>
                   {t.badge > 99 ? '99+' : t.badge}
