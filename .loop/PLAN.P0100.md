@@ -97,7 +97,7 @@
 의존: I02
 
 ### I04 브라우저 기본 대화상자를 센다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ui/native-dialog.test.ts (신규), apps/web/scripts/.product-copy-baseline.json, apps/web/package.json
 감사 기준:
