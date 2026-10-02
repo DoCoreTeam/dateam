@@ -145,7 +145,7 @@
 의존: I06
 
 ### I09 관리 대상마다 무엇이 있고 무엇이 없는지 센다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/crud-coverage.test.ts (신규 또는 기존 확장), docs/policy/feature-coverage.md (신규)
 감사 기준:
