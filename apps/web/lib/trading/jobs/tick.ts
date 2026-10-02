@@ -27,7 +27,7 @@ import {
 import { loadDayConfig, freezeDayConfig, logicChangedToday } from './day-config.ts'
 
 import { syncContracts } from '../contracts/sync.ts'
-import { decideRoll } from '../contracts/roll.ts'
+import { decideRoll, DEFAULT_MIN_VOLUME } from '../contracts/roll.ts'
 import { getAccessToken } from '../broker/token.ts'
 import { loadAppCredential, loadAccountRef } from '../broker/credentials.ts'
 import { createKisClient } from '../broker/kis-client.ts'
@@ -243,11 +243,27 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
           frontCode: contractCode,
           openDays: openDays.ok ? openDays.value : [],
           daysBefore: num('rollover_days_before_last', 3),
-          volumeOf: async (code) => {
-            const r = await rollKis.price(code)
+          minVolume: num('rollover_min_volume', DEFAULT_MIN_VOLUME),
+          /*
+            **당일 누적(`acml_vol`)을 안 쓴다.** 이 자리가 도는 때는 거래일이 막 바뀐
+            자정이고, 그때 두 월물의 당일 누적은 둘 다 0 근처다 — 한 계약 차이로
+            월물이 바뀐다(실측 2026-10-02, 10월물 대신 11월물이 굳어 봉이 하루 0건).
+            그래서 마지막으로 **끝난** 거래일의 하루 거래량을 묻는다.
+          */
+          lastSessionVolumeOf: async (code) => {
+            const todayStart = new Date(`${today}T00:00:00+09:00`)
+            const r = await rollKis.dailyBars({
+              contractCode: code,
+              /*
+                **오늘만 물으면 끝난 날이 한 줄도 안 온다.** 연휴를 건너뛰어도
+                직전 거래일이 들어오도록 열흘을 집는다 — 일봉이라 응답이 열 줄 남짓이다
+              */
+              from: new Date(todayStart.getTime() - 10 * 24 * 60 * 60_000),
+              until: todayStart,
+            })
             if (!r.ok) return null
-            const raw = Number(r.value.acml_vol)
-            return Number.isFinite(raw) ? raw : null
+            const finished = r.value.bars.filter((b) => b.tradeDate < today)
+            return finished.length === 0 ? null : finished[finished.length - 1].volume
           },
         })
         if (roll.rolled) contractCode = roll.frontCode
