@@ -157,7 +157,7 @@
 의존: I07
 
 ### I10 볼 수 있어야 하는 것이 글자로만 남아 있는 자리를 센다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: docs/policy/feature-coverage.md, apps/web/lib/ui/detail-link.test.ts (신규)
 감사 기준:
