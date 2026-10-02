@@ -1976,6 +1976,19 @@
 .integration-test-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
 .integration-test-desc { margin: 0; font-size: var(--fs-xs); color: var(--text-faint); }
 
+/* 이 AI 공급자를 쓰나 안 쓰나 (admin/settings/AiProviderCard)
+   키가 있는 것과 다른 질문이라 키 칸 위에 따로 선다 */
+.ai-provider-use {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); flex-wrap: wrap;
+  margin-bottom: var(--space-3); padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light); border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+.ai-provider-use-title {
+  display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+}
+
 /* 키 설정 상태 (admin/settings/KeyStatus) — 카드마다 다르게 그리지 않는다 */
 .key-status { margin: 0 0 var(--space-4); }
 .key-status-empty {
