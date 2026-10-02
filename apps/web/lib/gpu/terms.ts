@@ -69,7 +69,7 @@ export const GPU_TERMS = {
   selected: '선택됨',
 
   // 안내 메시지(공통 톤)
-  confirmBulkDelete: (n: number) => `선택한 경쟁사 ${n}곳을 삭제할까요? (소프트 삭제 — 복구 가능)`,
+  confirmBulkDelete: (n: number) => `선택한 경쟁사 ${n}곳을 삭제할까요? 삭제해도 복구할 수 있습니다`,
   confirmBulkAssign: (n: number) => `선택한 경쟁사 ${n}곳을 공급사로 지정할까요? 회사 정보와 현재 시장가가 공급원가로 등록됩니다.`,
   syncDesc: '저장된 수집 출처로 경쟁사 가격을 다시 가져와 공급원가에 반영합니다. 값이 바뀐 항목은 검토 대기로 등록됩니다.',
   emptyList: '등록된 항목이 없습니다.',

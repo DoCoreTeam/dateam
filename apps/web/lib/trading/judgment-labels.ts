@@ -109,12 +109,12 @@ export interface JudgmentIssue {
 /** 증권사·관문 응답 번호를 사람 말로. 넷의 조치가 서로 다르다 */
 function httpIssue(status: number): JudgmentIssue {
   if (status === 403) {
-    return { text: 'AI 가 그 모델을 거절했습니다 — 이름이 맞는지, 그 계정에 권한이 있는지 보세요', tone: 'blocked', known: true }
+    return { text: 'AI 가 그 모델을 거절했습니다. 이름이 맞는지, 그 계정에 권한이 있는지 보세요', tone: 'blocked', known: true }
   }
-  if (status === 401) return { text: 'AI 키가 거절됐습니다 — 키를 다시 등록해 주세요', tone: 'blocked', known: true }
-  if (status === 429) return { text: 'AI 호출 한도에 걸렸습니다 — 잠시 뒤 다시 돕니다', tone: 'waiting', known: true }
-  if (status === 404) return { text: 'AI 가 모르는 모델 이름입니다 — 모델을 다시 골라 주세요', tone: 'blocked', known: true }
-  if (status >= 500) return { text: 'AI 쪽 서버 오류입니다 — 잠시 뒤 다시 돕니다', tone: 'waiting', known: true }
+  if (status === 401) return { text: 'AI 키가 거절됐습니다. 키를 다시 등록해 주세요', tone: 'blocked', known: true }
+  if (status === 429) return { text: 'AI 호출 한도에 걸렸습니다. 잠시 뒤 다시 돕니다', tone: 'waiting', known: true }
+  if (status === 404) return { text: 'AI 가 모르는 모델 이름입니다. 모델을 다시 선택해 주세요', tone: 'blocked', known: true }
+  if (status >= 500) return { text: 'AI 쪽 서버 오류입니다. 잠시 뒤 다시 돕니다', tone: 'waiting', known: true }
   return { text: `AI 호출이 실패했습니다 (${status})`, tone: 'blocked', known: true }
 }
 
@@ -129,7 +129,7 @@ export function judgmentIssue(abstainReason: string | null | undefined): Judgmen
   if (timeout) {
     const seconds = Math.round(Number(timeout[1]) / 1000)
     return {
-      text: `AI 가 ${seconds}초 안에 답을 안 줘서 건너뛰었습니다 — 설정의 판단 대기 시간을 늘리거나 더 빠른 모델을 고르세요`,
+      text: `AI 가 ${seconds}초 안에 답을 안 줘서 건너뛰었습니다. 설정의 판단 대기 시간을 늘리거나 더 빠른 모델을 고르세요`,
       tone: 'blocked',
       known: true,
     }
@@ -138,7 +138,7 @@ export function judgmentIssue(abstainReason: string | null | undefined): Judgmen
     return { text: '오늘 AI 호출 한도를 다 써서 안 불렀습니다', tone: 'waiting', known: true }
   }
   if (raw.startsWith('unreadable')) {
-    return { text: 'AI 답을 못 읽었습니다 — 다른 모델을 고르면 풀리는 경우가 많습니다', tone: 'blocked', known: true }
+    return { text: 'AI 답을 못 읽었습니다. 다른 모델을 선택하면 풀리는 경우가 많습니다', tone: 'blocked', known: true }
   }
   if (raw.startsWith('call_failed')) {
     return { text: 'AI 호출이 실패했습니다', tone: 'blocked', known: true }

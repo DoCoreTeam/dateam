@@ -45,6 +45,28 @@ const COMPONENTS = join(WEB, 'components')
  */
 const NAV = join(WEB, 'lib/nav')
 
+/**
+ * **기능별 문구 파일도 스캔 대상이다.**
+ *
+ * `lib/nav/menu.ts` 를 들인 것과 같은 이유다 — 화면이 **읽는** 말이 화면 밖에 살면
+ * 가드가 못 본다. 실측 2026-10-01: `lib/rfp/terms.ts`·`lib/trading/*-labels.ts` 처럼
+ * 화면이 통째로 읽어 가는 문구 파일이 **스무 개**인데 전부 규칙 밖이었고,
+ * 그 틈으로 「빼기」·「고른 것」 같은 말이 들어와 화면에 나갔다.
+ *
+ * 사용자 지적 2026-10-01: *"워딩과 키워드가 다 용어집을 따르지 않고 그냥 생각나는대로 만들어내네"*
+ *
+ * 파일 이름으로 고른다 — `terms`·`labels` 가 든 것. 디렉터리로 고르면 새 기능이 생길 때마다
+ * 여기를 고쳐야 하고, 고치는 것을 잊으면 그 기능만 조용히 규칙 밖에 남는다.
+ */
+const FEATURE_TERM_FILE = /(terms|labels)[^/]*\.tsx?$/
+
+function featureTermFiles(): string[] {
+  return walkFiles(join(WEB, 'lib'))
+    .filter((f) => FEATURE_TERM_FILE.test(f))
+    .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
+    .filter((f) => !SELF.some((x) => f.includes(x)))
+}
+
 /** 용어집 자신과 가드는 금지어를 **정의**하는 자리라 스캔 대상이 아니다 */
 const SELF = ['lib/terms/', 'lib/ui/glossary.test.ts', 'scripts/ui-phrases.mjs']
 
@@ -85,7 +107,7 @@ function userFacingText(src: string): string[] {
 }
 
 function scanFiles(): string[] {
-  return [...walkFiles(APP), ...walkFiles(COMPONENTS), ...walkFiles(NAV)]
+  return [...walkFiles(APP), ...walkFiles(COMPONENTS), ...walkFiles(NAV), ...featureTermFiles()]
     .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
     .filter((f) => !SELF.some((s) => f.includes(s)))
 }
@@ -261,4 +283,28 @@ test('금지어 표가 자기모순이 아니다', () => {
   for (const t of BANNED_TERMS) {
     assert.ok(t.why.trim().length > 0, `${t.bad}: 왜 금지하는지 적혀 있지 않습니다`)
   }
+})
+
+
+// ─────────────────────────────────────────────────────────────
+// ⑤ 스캔 범위 — 규칙 밖에 남는 화면이 없게
+// ─────────────────────────────────────────────────────────────
+
+test('기능별 문구 파일이 스캔 대상에 들어 있다', () => {
+  /*
+    대상이 0개가 되면 위 규칙들이 **전부 통과로 보인다** — 가장 위험한 실패다.
+    이 저장소는 이미 그 사고를 겪었다: 경로가 cwd 를 타서 walkFiles 가 아무것도 못 찾았고,
+    자동 하향이 그 0 을 그대로 저장해 baseline 을 통째로 비웠다(실측 2026-08-31).
+  */
+  const files = featureTermFiles()
+  assert.ok(files.length >= 15, `문구 파일이 ${files.length}개뿐이다 — 경로가 바뀌었는지 확인한다`)
+
+  // 실제로 스캔 목록에 들어갔나. 집계만 하고 안 쓰면 들인 것이 아니다
+  const scanned = new Set(scanFiles())
+  const missing = files.filter((f) => !scanned.has(f))
+  assert.deepEqual(missing, [], `문구 파일이 스캔 밖이다:\n  ${missing.join('\n  ')}`)
+
+  // 용어집 자신은 금지어를 정의하는 자리라 들어가면 안 된다
+  const self = [...scanned].filter((f) => f.includes('lib/terms/'))
+  assert.deepEqual(self, [], '용어집 자신이 스캔 대상에 들어갔다 — 금지어 정의가 위반으로 잡힌다')
 })
