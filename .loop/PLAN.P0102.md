@@ -1,0 +1,117 @@
+# PLAN newAX: 안 쓰기로 한 AI 공급자를 끌 수 있다
+플랜 ID: P0103
+플랜 버전: v0.1.3
+상태: 진행중
+지시: ins_0171
+목표 버전: v0.10.834
+작성: 2026-10-02
+시작 커밋: 58f7ad56
+
+## 목표
+- 공급자를 **키를 지우지 않고** 「안 씀」으로 둘 수 있음, 마음이 바뀌면 스위치 하나로 되돌림
+- 안 씀으로 둔 공급자는 폴백·모델 고르기·연결 테스트·카탈로그 훑기에서 **통째로** 빠짐
+- 막힌 공급자 안내가 두 번째 문을 같이 말함 — 결제할 거면 결제, 안 쓸 거면 끄기
+- OpenAI 를 실제로 안 씀으로 돌림 (사용자가 안 쓰기로 함, 2026-10-02)
+
+## 범위 밖
+- 공급자별 기능 배정(어느 기능에 어느 공급자를 쓸지) 바꾸기
+- ai_provider_keys 표의 줄 단위 켜고 끄기 (이미 있음, 이건 공급자 단위다)
+- OpenAI 키 삭제 (안 지움, 끄기만 함)
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 통과
+- 안 씀으로 둔 공급자가 모델 선택 창·폴백 후보·연결 테스트에 안 나옴 (실브라우저 확인)
+- 스위치를 되돌리면 그대로 돌아옴 (키가 살아 있음)
+- 새 설정값은 env 추가 없이 DB(META) 저장 + UI 관리
+
+## 참조
+- LOOP.md 6절(설정은 env 아닌 DB+UI), 7절 보안 기준, 9절 U-N·F-N
+- lib/ai-chat/registry.ts(getProviderConfig 가 첫 번째 관문), lib/ai/provider-key-source.ts(두 번째 관문)
+- 실측 2026-10-02: 공급자를 끄는 길이 「연결 해제」(키 삭제) 하나뿐이었음.
+  ai_chat_provider_order 에서 빼도 getProviderOrder 가 뒤에 도로 붙임
+
+## 항목
+
+### I01 공급자를 안 씀으로 두는 규칙
+상태: 통과
+모드: 경량
+범위: apps/web/lib/ai/provider-disabled.ts (신규), apps/web/lib/ai/provider-disabled.test.ts (신규), apps/web/lib/ai-chat/registry.ts, apps/web/package.json
+감사 기준:
+- 보안: 밖에서 온 공급자 id 를 화이트리스트(AI_PROVIDER_IDS)로 거르고 모르는 값은 버림 — 시험으로 확인 (S4)
+- `isProviderDisabled(meta, 'openai')` 가 META `ai_provider_disabled` 에 든 값만 참
+- `getProviderConfig(meta, id)` 가 안 씀인 공급자에 null 을 돌려줌 → `getAvailableProviders` 에서 빠짐
+- `getDefaultProvider` 가 안 씀인 공급자를 기본으로 고르지 않음
+- 저장값이 없거나 망가져 있으면 아무도 안 꺼짐 (기본은 전부 켬)
+- pnpm test provider-disabled, registry 통과
+의존: 없음
+
+### I02 키 고르는 자리도 같은 답을 함
+상태: 통과
+모드: 경량
+범위: apps/web/lib/ai/provider-key-source.ts, apps/web/lib/ai/provider-key-source.test.ts, apps/web/lib/ai/key-store.ts, apps/web/lib/trading/settings/model-pick.ts, apps/web/lib/trading/settings/model-pick.test.ts, apps/web/lib/trading/overview-shape.ts, apps/web/lib/trading/overview-shape.test.ts, apps/web/lib/trading/jev-labels.ts, apps/web/lib/trading/jev-labels.test.ts, apps/web/package.json
+감사 기준:
+- 보안: 안 씀인 공급자에는 원문 키를 안 돌려줌 (apiKey null) — 시험으로 확인 (S3)
+- `chooseKey` 가 disabled 일 때 `{ apiKey: null, reason: 'disabled' }` 를 돌려주고 `messageFor` 가 사람 말로 답함
+- 카탈로그 훑기(model-catalog-refresh)가 안 씀인 공급자를 안 찌름
+- 안 씀이 아니면 기존 동작 그대로 (pool → meta → 판 검사 순서 안 바뀜)
+- 사유 글자를 받아 쓰는 자리 셋이 안 씀을 「키 없음」이라 말하지 않음
+  (트레이딩 모델 고르기 provider_disabled · jev 상태 on:false · jev 안내 문구)
+- pnpm test provider-key-source, ai-key-source, model-catalog-refresh 통과
+의존: I01
+
+### I03 화면에서 끄고 켠다
+상태: 통과
+모드: 경량
+범위: apps/web/app/admin/settings/actions.ts, apps/web/app/admin/settings/AiProviderCard.tsx, apps/web/app/admin/settings/page.tsx, apps/web/app/admin/settings/AiProviderCard.module.css (신규), apps/web/components/ui/ModelPickerModal.tsx, apps/web/lib/ai/provider-keys.ts, apps/web/lib/ai/provider-keys.test.ts, apps/web/package.json
+감사 기준:
+- 보안: 새 서버 액션이 첫 줄에서 requireAdmin 을 지나고, 공급자 id 를 화이트리스트로 거름 (S2)
+- 카드에 「안 씀」 스위치가 있고, 끄면 그 카드의 연결 테스트·모델 변경이 비활성이며 왜 그런지 말함
+- 끈 뒤에도 가림값 키가 그대로 보임 (키를 안 지웠다는 것이 화면에서 보임)
+- 계정이 막힌 안내가 두 번째 문을 말함 — 결제 아니면 끄기
+- pnpm test provider-keys, ui 가드 통과
+의존: I01, I02
+
+### I04 OpenAI 를 끄고 실화면으로 확인한다
+상태: 통과
+모드: 경량
+범위: package.json, apps/web/package.json, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
+감사 기준:
+- 실브라우저에서 OpenAI 를 안 씀으로 끄고, 모델 선택 창·연결 테스트에서 빠지는 것을 눈으로 확인 (F-10)
+- 다시 켜면 돌아오는 것까지 확인 (되돌릴 수 있음)
+- AI 채팅이 안 씀 상태에서도 정상 응답 (젬민으로 감)
+- 버전 파일 다섯 (changelog 는 관리자 전용 변경이라 생략, 사유를 pass 기록에 남김)
+- pnpm test version-rule, policy-sync 통과
+의존: I01, I02, I03
+
+## 종합 감사
+- pnpm tsc --noEmit 통과 (0건)
+- pnpm lint 통과 (exit 0, 경고만 — 전부 기존 것)
+- pnpm test **8,879건 전부 통과 (실패 0)**
+- pnpm build 통과 (exit 0, 295쪽 전부 생성, NEXT_DIST_DIR=.next-settings)
+- 보안 재측정 (docs/policy/security-count.sql, 2026-10-02)
+  - rls_off_tables 0 · anon_write_tables 0 · public_using_true_policies 0
+  - unpinned_secdef_functions 0 · anon_readable_secdef_views 0 → 다섯 줄 전부 0
+- 전체 diff: 내 커밋 넷(f1411cb2 · b07b38ea · d88aa60e · 아래 완료 커밋)
+  신규 셋 — lib/ai/provider-disabled.ts(+시험) · app/admin/settings/AiProviderCard.module.css
+  수정 — registry · provider-key-source · key-store · provider-keys · settings/actions ·
+  AiProviderCard · settings/page · ModelPickerModal · 트레이딩 셋(model-pick · overview-shape · jev-labels)
+  범위 밖 변경 없음, 비밀 없음, 새 env 없음 (새 설정은 META `ai_provider_disabled`)
+- 실브라우저 (localhost:3100, 로그인 세션)
+  - 끄기 전 카드: 「이 공급자를 씁니다 / AI 요청이 이 공급자로도 갑니다」 + 안 쓰기 단추 ✅
+  - 「안 쓰기」 누름 → META `ai_provider_disabled = ["openai"]` 저장 확인(DB 직접 조회) ✅
+  - 끈 뒤 카드: 「이 공급자를 안 씁니다 / 키는 그대로 두었습니다」, 가림값 `sk-proj••••••••OGsA`
+    그대로 보이고, 모델 선택·연결 테스트가 사라지고 왜인지 한 줄로 말함 ✅
+  - AI 채팅 화면에 OpenAI·gpt 라는 말이 하나도 없음 ✅
+  - AI 채팅에 질문을 넣어 `gemini-3-flash-preview` 가 「서울」이라고 답함 — 끈 상태에서도 정상 ✅
+  - 「다시 쓰기」 → 씁니다로 돌아오고 모델 선택 칸도 복귀, 다시 「안 쓰기」로 되돌림 ✅
+  - 마지막 상태는 **끔** (사용자가 안 쓰기로 함)
+- 함정 둘을 기록에 남김
+  - globals.css 신규 화면 클래스는 ratchet 이 커밋을 막음 → 도메인 폴더 CSS Module 로 옮김
+  - 서버 액션 직후 바로 다시 읽으면 옛 값이 보임(DB 는 이미 바뀌어 있었음), 한 박자 뒤 재확인
+- 못 한 것: 없음 (배포는 사용자가 함 — push 금지 규칙)
+
+## 변경 이력
+- v0.1.0 (2026-10-02) 최초 작성 (ins_0171)
+- v0.1.1 (2026-10-02) 사유 글자 union 에 disabled 가 생기자 받아 쓰는 자리 셋(트레이딩 모델 고르기·jev 상태·jev 안내)이 tsc 로 드러남, I02 범위와 감사 기준에 추가 (audit:I02)
+- v0.1.2 (2026-10-02) 스위치 값을 카드에 넘기는 page.tsx 와 새 클래스 규칙을 담는 globals.css 가 I03 범위에 필요함(css-defined 가드가 클래스 정의를 요구) (audit:I03)
+- v0.1.3 (2026-10-02) 이번 변경은 관리자 설정 전용이라 사용자 체감 변경이 없음, entries.ts 를 I04 범위에서 빼고 버전 파일 다섯만 올림 (audit:I04)
