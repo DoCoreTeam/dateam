@@ -1,7 +1,7 @@
 'use client'
 
 import { confidencePercentView } from '@ax/ai-react'
-import { AI_LABELS } from '@/lib/terms'
+import { AI_LABELS, ACTION } from '@/lib/terms'
 import { useState, useRef, useEffect } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -15,6 +15,7 @@ import { fmtUSD, fmtMoneyFromOriginal, type CurrencyMode } from '@/lib/gpu/forma
 import { memoryTitle } from '@/lib/gpu/card-memory'
 import InlineError from '@/components/ui/InlineError'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface SupplierStats {
   id: string
@@ -105,6 +106,8 @@ function Field({ label, value, onChange, textarea, onBlur }: { label: string; va
 interface Suggestion { gpu_count?: number; price_basis?: string; unit_price_usd?: number; per_gpu_usd?: number; reason?: string; confidence?: number }
 
 function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClose: () => void; onChanged: () => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [f, setF] = useState({
     unit_price_usd: String(quote.unit_price_usd ?? ''),
     gpu_count: String(quote.gpu_count ?? 1),
@@ -136,7 +139,11 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
   }
 
   const del = async () => {
-    if (!confirm('이 견적을 삭제할까요?')) return
+    if (!await ask.confirm({
+      title: `견적을 ${ACTION.delete}할까요?`,
+      body: '이 공급사의 견적 한 건이 사라집니다. 공급사와 담당자는 그대로 남습니다.',
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
     setSaving(true); setErr(null)
     try {
       const res = await fetch(`/api/pricing/gpu/quotes/${quote.id}`, { method: 'DELETE' })
@@ -234,11 +241,14 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
           </div>
         </div>
       </div>
+      {dialog}
     </div>
   )
 }
 
 function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id: string; onClose: () => void; onChanged: () => void; onGoToPriceTable?: (modelName: string, productId: string) => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data, mutate } = useSWR<SupplierDetail>(`/api/pricing/gpu/suppliers/${id}`, fetcher)
   const [form, setForm] = useState<Record<string, string> | null>(null)
   const [saving, setSaving] = useState(false)
@@ -281,7 +291,11 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
   }
 
   const del = async () => {
-    if (!confirm(`'${s?.name}' 공급사를 삭제할까요?`)) return
+    if (!await ask.confirm({
+      title: `공급사를 ${ACTION.delete}할까요?`,
+      body: `'${s?.name}' 과 그 담당자·견적이 함께 사라집니다.`,
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
     setSaving(true); setErr(null)
     try {
       const res = await fetch(`/api/pricing/gpu/suppliers/${id}`, { method: 'DELETE' })
@@ -303,7 +317,11 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
     } finally { setContactSaving(false) }
   }
   const delContact = async (cid: string) => {
-    if (!confirm('담당자를 삭제할까요?')) return
+    if (!await ask.confirm({
+      title: `담당자를 ${ACTION.delete}할까요?`,
+      body: '이 담당자만 사라지고 공급사와 견적은 그대로 남습니다.',
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
     const res = await fetch(`/api/contacts/${cid}`, { method: 'DELETE' })
     if (res.ok) await mutate()
   }
@@ -540,6 +558,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
           onChanged={() => { mutate(); onChanged() }}
         />
       )}
+      {dialog}
     </div>
   )
 }
@@ -615,6 +634,8 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 }
 
 export default function SuppliersTab({ onGoToPriceTable, autoCreate = false, onAutoCreateConsumed }: { onGoToPriceTable?: (modelName: string, productId: string) => void; autoCreate?: boolean; onAutoCreateConsumed?: () => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data } = useSWR<{ suppliers: SupplierStats[] }>('/api/pricing/gpu/suppliers', fetcher)
   const { mutate } = useSWRConfig()
   const suppliers = data?.suppliers ?? []
@@ -642,13 +663,28 @@ export default function SuppliersTab({ onGoToPriceTable, autoCreate = false, onA
   const bulkDelete = async () => {
     const ids = Array.from(selected)
     if (ids.length === 0) return
-    if (!confirm(`선택한 공급사 ${ids.length}곳을 삭제할까요? (확정 견적이 연결된 공급사는 자동 제외)`)) return
+    if (!await ask.confirm({
+      title: `공급사 ${ids.length}곳을 ${ACTION.delete}할까요?`,
+      body: '확정 견적이 걸린 공급사는 지워지지 않고 남습니다. 끝나면 몇 곳이 남았는지 알려 드립니다.',
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
     setBusy(true)
     try {
       const res = await fetch('/api/pricing/gpu/suppliers/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', ids }) })
       const j = await res.json().catch(() => ({}))
-      if (!res.ok) { alert(j.error ?? '삭제 실패'); return }
-      if (j.blocked?.length > 0) alert(`${j.deleted}곳 삭제됨. 확정 견적 연결로 ${j.blocked.length}곳은 제외되었습니다.`)
+      if (!res.ok) {
+        // 원문은 진단용으로만 — 화면에 내부 구조를 싣지 않는다 (7절 S3)
+        console.error('[gpu/suppliers bulk delete]', res.status, j)
+        await ask.notice({ title: '공급사를 지우지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 아무것도 지워지지 않았습니다.' })
+        return
+      }
+      // 일부 성공 — 지운 것과 남은 것을 가른다 (U-6)
+      if (j.blocked?.length > 0) {
+        await ask.notice({
+          title: `${j.deleted}곳을 지웠습니다`,
+          body: `${j.blocked.length}곳은 확정 견적이 걸려 있어 그대로 남았습니다. 견적을 먼저 정리하면 지울 수 있습니다.`,
+        })
+      }
       setSelected(new Set()); refresh()
     } finally { setBusy(false) }
   }
@@ -722,6 +758,7 @@ export default function SuppliersTab({ onGoToPriceTable, autoCreate = false, onA
 
       {openId && <SupplierDetailModal id={openId} onClose={() => setOpenId(null)} onChanged={refresh} onGoToPriceTable={onGoToPriceTable} />}
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={refresh} />}
+      {dialog}
     </div>
   )
 }

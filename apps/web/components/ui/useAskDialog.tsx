@@ -14,7 +14,7 @@
 // **Promise 로 답을 준다.** 호출부가 `if (!await ask.confirm(...)) return` 처럼
 // 원래 쓰던 모양을 그대로 쓸 수 있어야 10곳을 안전하게 옮길 수 있다.
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import { ACTION } from '@/lib/terms'
@@ -77,11 +77,20 @@ export function useAskDialog(): { ask: AskApi; dialog: React.ReactNode } {
     r?.(answer)
   }, [])
 
-  const ask: AskApi = {
+  /**
+   * **`ask` 는 렌더마다 새로 만들지 않는다.**
+   *
+   * 호출부가 `useCallback`·`useEffect` 안에서 `ask` 를 쓰면 의존 목록에 넣어야 하는데,
+   * 매 렌더 새 객체이면 그 콜백이 매 렌더 다시 만들어진다. 그래서 호출부는 둘 중 하나를
+   * 고르게 된다 — 의존을 빼고 lint 경고를 안고 가거나, 넣고 churn 을 안고 가거나.
+   * 둘 다 틀렸다. `open` 이 이미 안정적이므로 **여기서 한 번만 묶으면** 그 선택 자체가 없어진다
+   * (실측 2026-10-02: GPU 검수 탭을 옮기다 이 경고가 났다).
+   */
+  const ask: AskApi = useMemo(() => ({
     text: (o) => open({ ...o, kind: 'text' }) as Promise<string | null>,
     confirm: (o) => open({ ...o, kind: 'confirm' }) as Promise<boolean>,
     notice: (o) => open({ ...o, kind: 'notice' }) as Promise<void>,
-  }
+  }), [open])
 
   const cancelAnswer = (kind: Kind): unknown =>
     kind === 'text' ? null : kind === 'confirm' ? false : undefined

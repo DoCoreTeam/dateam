@@ -9,6 +9,7 @@ import { GPU_TERMS as T } from '@/lib/gpu/terms'
 import { countryFlag } from '@/lib/gpu/country-flag'
 import { Plus, X, Search, Trash2, PackagePlus, Pencil, Link2, Globe, Sparkles, GitMerge } from 'lucide-react'
 import InlineError from '@/components/ui/InlineError'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface CompetitorRow {
   id: string
@@ -40,6 +41,8 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsumed }: { autoCreate?: boolean; onAutoCreateConsumed?: () => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data, error } = useSWR<{ competitors: CompetitorRow[]; merge_suggestions?: MergeSuggestion[] }>('/api/pricing/gpu/competitors', fetcher)
   const { mutate } = useSWRConfig()
   const list = data?.competitors ?? []
@@ -79,24 +82,49 @@ export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsume
   const bulk = async (action: 'delete' | 'promote') => {
     const ids = Array.from(selected)
     if (ids.length === 0) return
-    const ok = confirm(action === 'delete' ? T.confirmBulkDelete(ids.length) : T.confirmBulkAssign(ids.length))
+    const ok = await ask.confirm(action === 'delete'
+      ? {
+          title: `경쟁사 ${ids.length}곳을 ${T.remove}할까요?`,
+          body: '지워도 되돌릴 수 있습니다.',
+          confirmLabel: T.remove, danger: true,
+        }
+      : {
+          title: `경쟁사 ${ids.length}곳을 공급사로 지정할까요?`,
+          body: '회사 정보와 지금 시장가가 공급원가로 등록됩니다.',
+          confirmLabel: '지정',
+        })
     if (!ok) return
     setBusy(true)
     try {
       const res = await fetch('/api/pricing/gpu/competitors/bulk', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ids }),
       })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '처리 실패'); return }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        // 원문은 진단용으로만 — 화면에 내부 구조를 싣지 않는다 (7절 S3)
+        console.error('[gpu/competitors bulk]', action, res.status, j)
+        await ask.notice({ title: '처리하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 아무것도 바뀌지 않았습니다.' })
+        return
+      }
       setSelected(new Set()); refresh()
     } finally { setBusy(false) }
   }
 
   const removeOne = async (c: CompetitorRow) => {
-    if (!confirm(`'${c.name}' 경쟁사를 ${T.remove}할까요? (소프트 삭제: 복구 가능)`)) return
+    if (!await ask.confirm({
+      title: `경쟁사를 ${T.remove}할까요?`,
+      body: `'${c.name}' 이 목록에서 사라집니다. 지워도 되돌릴 수 있습니다.`,
+      confirmLabel: T.remove, danger: true,
+    })) return
     setBusy(true)
     try {
       const res = await fetch(`/api/pricing/gpu/competitors/${c.id}`, { method: 'DELETE' })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '삭제 실패'); return }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        console.error('[gpu/competitors delete]', c.id, res.status, j)
+        await ask.notice({ title: `${T.remove}하지 못했습니다`, body: '잠시 후 다시 시도해 주세요. 아직 지워지지 않았습니다.' })
+        return
+      }
       refresh()
     } finally { setBusy(false) }
   }
@@ -214,7 +242,12 @@ export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsume
                         setBusy(true)
                         try {
                           const res = await fetch(`/api/pricing/gpu/market/competitors/${c.id}/promote-supplier`, { method: 'POST' })
-                          if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '지정 실패'); return }
+                          if (!res.ok) {
+                            const j = await res.json().catch(() => ({}))
+                            console.error('[gpu/competitors promote-supplier]', c.id, res.status, j)
+                            await ask.notice({ title: '지정하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 바뀌지 않았습니다.' })
+                            return
+                          }
                           refresh()
                         } finally { setBusy(false) }
                       }}>
@@ -233,6 +266,7 @@ export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsume
       {showCreate && <CompetitorModal onClose={() => setShowCreate(false)} onSaved={() => { setShowCreate(false); refresh() }} />}
       {editRow && <CompetitorModal row={editRow} onClose={() => setEditRow(null)} onSaved={() => { setEditRow(null); refresh() }} />}
       {mergeTargets && <MergeModal members={mergeTargets} onClose={() => setMergeTargets(null)} onMerged={() => { setMergeTargets(null); setSelected(new Set()); refresh() }} />}
+      {dialog}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { confidencePercentView } from '@ax/ai-react'
-import { AI_LABELS } from '@/lib/terms'
+import { AI_LABELS, ACTION } from '@/lib/terms'
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
@@ -12,6 +12,7 @@ import { memoryTitle } from '@/lib/gpu/card-memory'
 import { modelVariantLabel } from '@/lib/gpu/canonical-model'
 import ModelCandidateQueue from './ModelCandidateQueue'
 import InlineError from '@/components/ui/InlineError'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface Spec {
   model_name: string
@@ -69,6 +70,8 @@ function fmt(v: unknown): string {
 
 // 통합 스펙 모달 — 구성별 인스턴스 스펙(가격표 등 표시값) + 칩 데이터시트를 한 화면·한 수정·한 저장·한 AI로 관리.
 function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => void; onSaved: () => void }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [editing, setEditing] = useState(!row.has_spec)
   const [chip, setChip] = useState<Record<string, string>>(() => {
     const f: Record<string, string> = {}
@@ -124,7 +127,12 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
   }
 
   const deleteSpec = async () => {
-    if (!confirm(`'${row.model_name}' 칩 데이터시트를 삭제(초기화)할까요?`)) return
+    if (!await ask.confirm({
+      title: '데이터시트를 비울까요?',
+      body: `'${row.model_name}' 의 칩 데이터시트가 비워집니다. 모델 자체는 남고 다시 채울 수 있습니다.`,
+      confirmLabel: ACTION.delete,
+      danger: true,
+    })) return
     const res = await fetch(`/api/pricing/gpu/specs?model_name=${encodeURIComponent(row.model_name)}`, { method: 'DELETE' })
     if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '삭제 실패'); return }
     onSaved(); onClose()
@@ -228,6 +236,8 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
           </div>
         </div>
       </div>
+      {/* 대화상자는 그려야 뜬다 — 안 그리면 물어도 안 나오고 그대로 멈춘다 */}
+      {dialog}
     </div>
   )
 }
@@ -360,6 +370,7 @@ function DeleteModelModal({ group, onClose, onDeleted }: { group: ModelGroup; on
 
 // 삭제된 모델 — 되돌리기(복구) 섹션. 접힘 상태 기본, 펼칠 때만 로드. 고정높이 스크롤(무한 팽창 방지).
 function DeletedModelsSection({ onRestored }: { onRestored: () => void }) {
+  const { ask, dialog } = useAskDialog()
   const [open, setOpen] = useState(false)
   const { data, mutate: mutateDeleted } = useSWR<{ models: ModelGroup[] }>(open ? '/api/pricing/gpu/specs?deleted=1' : null, fetcher)
   const deleted = data?.models ?? []
@@ -370,7 +381,13 @@ function DeletedModelsSection({ onRestored }: { onRestored: () => void }) {
     try {
       const productIds = g.variants.flatMap((v) => v.configs.map((c) => c.id))
       const res = await fetch('/api/pricing/gpu/models', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds }) })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '복구 실패'); return }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        // 원문은 진단용으로만 남긴다 — 화면에 내부 구조를 싣지 않는다 (7절 S3)
+        console.error('[gpu/models restore]', res.status, j)
+        await ask.notice({ title: '되돌리지 못했습니다', body: '잠시 후 다시 시도해 주세요. 계속 안 되면 관리자에게 알려 주세요.' })
+        return
+      }
       mutateDeleted(); onRestored()
     } finally { setBusy(null) }
   }
@@ -395,11 +412,14 @@ function DeletedModelsSection({ onRestored }: { onRestored: () => void }) {
           ))}
         </div>
       )}
+      {dialog}
     </div>
   )
 }
 
 export default function SpecsTab() {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const { data } = useSWR<{ models: ModelGroup[] }>('/api/pricing/gpu/specs', fetcher)
   const { mutate } = useSWRConfig()
   const groups = data?.models ?? []
@@ -434,9 +454,26 @@ export default function SpecsTab() {
   const allVariants = groups.flatMap((g) => g.variants)
   const missing = allVariants.filter((v) => !v.spec?.architecture).length
 
+  /**
+   * 중간에 멈춘 것은 **실패가 아니라 부분 성공**이다 — 채운 것은 이미 저장돼 있다.
+   * 두 자리(정상 종료 없이 끝남·예외)가 같은 말을 해야 해서 한 벌로 둔다 (U-6 일부 성공).
+   */
+  const tellStopped = async (done: number, total: number, noneHint: string) => {
+    await ask.notice({
+      title: done > 0 ? '중간에 멈췄습니다' : '채우지 못했습니다',
+      body: done > 0
+        ? `${done}/${total}개는 저장됐습니다. 「일괄 채우기」를 다시 누르면 남은 것부터 이어서 채웁니다.`
+        : noneHint,
+    })
+  }
+
   // 일괄 생성 — SSE 실시간 진행(어떤 모델/몇 번째). 각 모델은 즉시 DB 저장 → 중단돼도 처리분 보존.
   const bulkGenerate = async () => {
-    if (!confirm(`데이터시트 부족 모델 ${missing}개를 AI로 일괄 채울까요?`)) return
+    if (!await ask.confirm({
+      title: `${missing}개를 일괄 채울까요?`,
+      body: '데이터시트가 비어 있는 모델을 AI 가 차례로 채웁니다. 한 개씩 바로 저장되므로 중간에 멈춰도 그때까지 채운 것은 남습니다.',
+      confirmLabel: '채우기',
+    })) return
     setBulkGen(true); setBulkProg({ done: 0, total: missing, current: '', log: '' })
     let lastDone = 0; let lastTotal = missing; let completed = false
     try {
@@ -444,7 +481,11 @@ export default function SpecsTab() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ all: true, stream: true }),
       })
-      if (!res.ok || !res.body) { alert('AI 일괄 생성 시작 실패'); return }
+      if (!res.ok || !res.body) {
+        console.error('[gpu/specs/generate] 시작 실패', res.status)
+        await ask.notice({ title: '일괄 채우기를 시작하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 아무것도 바뀌지 않았습니다.' })
+        return
+      }
       const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''
       while (!completed) {
         const { done, value } = await reader.read(); if (done) break
@@ -456,17 +497,20 @@ export default function SpecsTab() {
           let d: Record<string, unknown> = {}; try { d = JSON.parse(dm) } catch { continue }
           if (ev === 'start') { lastTotal = Number(d.total) || missing; setBulkProg({ done: 0, total: lastTotal, current: '', log: '' }) }
           else if (ev === 'progress') { lastDone = Number(d.done) || lastDone; lastTotal = Number(d.total) || lastTotal; setBulkProg({ done: lastDone, total: lastTotal, current: String(d.model ?? ''), log: String(d.msg ?? '') }) }
-          else if (ev === 'complete') { completed = true; setBulkProg(null); refresh(); alert(`AI 생성 완료: ${d.generated}/${d.total}`) }
+          else if (ev === 'complete') {
+            completed = true; setBulkProg(null); refresh()
+            void ask.notice({ title: '일괄 채우기가 끝났습니다', body: `${d.generated}/${d.total}개를 채웠습니다.` })
+          }
         }
       }
       reader.cancel().catch(() => {})
       refresh()
       // 정상 complete 없이 끝남(중단/타임아웃) — 부분 성공 안내(처리분은 이미 저장됨)
-      if (!completed) alert(lastDone > 0 ? `생성 중단됨. ${lastDone}/${lastTotal}개는 저장되었습니다. 남은 모델은 다시 '일괄 채우기'를 눌러 이어서 생성하세요.` : 'AI 일괄 생성 실패 (생성된 항목 없음)')
+      if (!completed) await tellStopped(lastDone, lastTotal, '아무것도 채우지 못했습니다.')
     } catch {
       refresh()
       // 예외(연결 끊김 등) — 처리분은 저장됨. 부분 성공 안내.
-      alert(lastDone > 0 ? `생성 중단됨. ${lastDone}/${lastTotal}개는 저장되었습니다. 남은 모델은 다시 '일괄 채우기'를 눌러 이어서 생성하세요.` : 'AI 일괄 생성 실패: 네트워크를 확인하고 다시 시도하세요.')
+      await tellStopped(lastDone, lastTotal, '네트워크를 확인하고 다시 시도해 주세요.')
     } finally { setBulkGen(false); setBulkProg(null) }
   }
 
@@ -649,6 +693,8 @@ export default function SpecsTab() {
       {open && <SpecModal row={open} onClose={() => setOpen(null)} onSaved={refresh} />}
       {delOpen && <DeleteModelModal group={delOpen} onClose={() => setDelOpen(null)} onDeleted={() => { setDelOpen(null); refresh() }} />}
       {addOpen && <AddModelModal prefillName={addOpen.name} prefillCount={addOpen.count} onClose={() => setAddOpen(null)} onSaved={() => { setAddOpen(null); refresh() }} />}
+      {/* 대화상자는 그려야 뜬다 — 안 그리면 물어도 안 나오고 그대로 멈춘다 */}
+      {dialog}
     </div>
   )
 }

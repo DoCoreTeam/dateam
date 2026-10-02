@@ -1,6 +1,6 @@
 # PLAN newAX: 화면은 제품의 말을 하고, 기능은 끝까지 이어진다
 플랜 ID: P0100
-플랜 버전: v0.3.3
+플랜 버전: v0.3.4
 상태: 진행중
 지시: ins_0158
 목표 버전: v0.10.835
@@ -109,11 +109,12 @@
 의존: I02
 
 ### I05 대표 흐름 하나를 끝까지 옮긴다 — GPU 가격
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(member)/pricing/gpu/tabs/SpecsTab.tsx, apps/web/app/(member)/pricing/gpu/tabs/SuppliersTab.tsx, apps/web/app/(member)/pricing/gpu/tabs/ReviewTab.tsx, apps/web/app/(member)/pricing/gpu/tabs/CompetitorsTab.tsx, apps/web/scripts/.product-copy-baseline.json
+범위: apps/web/app/(member)/pricing/gpu/tabs/SpecsTab.tsx, apps/web/app/(member)/pricing/gpu/tabs/SuppliersTab.tsx, apps/web/app/(member)/pricing/gpu/tabs/ReviewTab.tsx, apps/web/app/(member)/pricing/gpu/tabs/CompetitorsTab.tsx, apps/web/scripts/.product-copy-baseline.json, apps/web/components/ui/useAskDialog.tsx
 감사 기준:
 - 네 탭의 `alert`·`confirm` 23건이 `useAskDialog` 로 옮겨지고 baseline 이 그만큼 내려감
+- 공용 부품 `useAskDialog` 의 `ask` 를 메모화 — 호출부가 `useCallback` 안에서 쓰면 의존에 넣어야 하는데 매 렌더 새 객체라 lint 경고와 churn 중 하나를 고르게 된다. 뿌리에서 묶으면 그 선택이 없어진다 (F-11 공용 부품에서 원인을 찾는다)
 - **확인창은 대상과 영향을 말함** — 「정말 진행하시겠습니까?」 꼴이 안 남음 (§7)
 - 서버 오류 원문을 그대로 띄우던 자리는 **사용자가 할 수 있는 조치**로 바꾸고 원문은 로그로 보냄
 - 실브라우저에서 이 네 탭의 확인·오류 흐름이 실제로 뜨고 닫히고, 취소하면 아무 일도 안 일어남을 확인
@@ -209,6 +210,7 @@
 ## 변경 이력
 - v0.1.0 (2026-10-01) 최초 작성 (ins_0158)
 - v0.1.1 (2026-10-01) I01 범위에 policy-sync.test.ts 추가 — B-N 과 같은 대조를 안 붙이면 새 절이 세 파일에서 갈라져도 아무것도 안 잡는다 (audit:I01)
+- v0.3.4 (2026-10-02) I05 범위에 components/ui/useAskDialog.tsx 추가 — ask 가 렌더마다 새 객체라 옮긴 화면이 lint 경고를 안게 됐다, 공용 부품에서 고침 (audit:I05)
 - v0.3.3 (2026-10-02) I03 범위에 pricing/catalog/page.tsx 추가 — 「준비 중」이 가격 미정을 가리던 자리를 함께 고침 (audit:I03)
 - v0.3.2 (2026-10-01) I02 범위에 jev-labels.ts 와 policy-sync.test.ts 추가 — 0 에서 잠그는 가드는 위반이 0 일 때만 커밋되므로 그 한 건을 I03 에서 앞으로 당김 (audit:I02)
 - v0.2.1 (2026-10-01) I01a 의 LOOP.md 자리를 부록에서 본문 9절로 올림 — 자가감사가 부르는 규정은 관례 자리에 두지 않는다 (audit:I01a)
@@ -216,6 +218,9 @@
 - v0.1.1 (2026-09-30) I01 범위에 policy-sync.test.ts 추가 — P-N 대조가 없으면 새 절이 갈라져도 안 잡힌다 (audit:I01)
 - v0.3.0 (2026-09-30) 사용자 개입(ins_0158 후속 지시) — 기능 완결성 F-N 계열과 전수 조사 항목 다섯 추가, 완료 판정을 실브라우저 실사용으로 옮김 (ins_0158)
 - v0.3.1 (2026-10-01) I01a 의 LOOP.md 자리를 부록에서 본문 9절로 올림 (audit:I01a)
+- v0.3.4 (2026-10-02) I05 범위에 components/ui/useAskDialog.tsx 추가 — ask 가 렌더마다 새 객체라 옮긴 화면이 lint 경고를 안게 됐다, 공용 부품에서 고침 (audit:I05)
 - v0.3.3 (2026-10-02) I03 범위에 pricing/catalog/page.tsx 추가 — 「준비 중」이 가격 미정을 가리던 자리를 함께 고침 (audit:I03)
 - v0.3.2 (2026-10-01) I02 에 개발 보고 문구 1건 수정 포함 — 0 에서 잠그는 가드는 위반이 남은 채 커밋 불가 (audit:I02)
+- v0.3.4 (2026-10-02) I05 범위에 components/ui/useAskDialog.tsx 추가 — ask 가 렌더마다 새 객체라 옮긴 화면이 lint 경고를 안게 됐다, 공용 부품에서 고침 (audit:I05)
 - v0.3.3 (2026-10-02) I03 범위에 pricing/catalog 추가 — 「준비 중」이 가격 미정을 가리고 있었다 (audit:I03)
+- v0.3.4 (2026-10-02) I05 범위에 useAskDialog 추가 — ask 메모화로 호출부 churn 과 lint 경고를 뿌리에서 없앰 (audit:I05)

@@ -8,6 +8,7 @@ import { PriceBreakdownPanel, BillingPanel, RecheckResultPanel, EvidenceLink, ty
 import NbModal from '@/components/ui/nb/NbModal'
 import { fmtUSD, fmtKRW } from '@/lib/gpu/format-price'
 import InlineError from '@/components/ui/InlineError'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 
 interface Supplier {
   id: string
@@ -346,6 +347,8 @@ interface HeldInfo {
 }
 
 function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwPerUsd, isAdmin, initialHeldInfo }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void; krwPerUsd: number | null; isAdmin: boolean; initialHeldInfo?: HeldInfo }) {
+  // 브라우저 기본 대화상자 대신 우리 모달 (정책 U-7)
+  const { ask, dialog } = useAskDialog()
   const [expanded, setExpanded] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [recheckResult, setRecheckResult] = useState<RecheckResult | null>(null)
@@ -431,22 +434,23 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
         }
         // 모델 미해소(product 매핑 불일치 등) → 기존 해소 모달(기존 모델 매핑 / 신규 등록)
         if (j.code === 'model_unresolved' && !productId) { setResolveMsg(j.error ?? '모델을 카탈로그에서 찾을 수 없습니다') ; return }
-        alert(j.error ?? '확정 실패')
+        console.error('[gpu/review confirm]', j)
+        await ask.notice({ title: '확정하지 못했습니다', body: '값을 다시 확인한 뒤 시도해 주세요. 아직 저장되지 않았습니다.' })
         return
       }
       setHeldInfo(null)
       // M5: 재고 연계 결과 — 부분커밋(가격 확정·재고 실패) 시 사용자에게 알림
       if (j.stock && j.stock.ok === false) {
-        alert(`확정됨. 다만 ${j.stock.msg}`)
+        await ask.notice({ title: '확정했습니다', body: String(j.stock.msg) })
       }
       setResolveMsg(null)
       onDone()
     } catch {
-      alert('확정 실패: 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
+      await ask.notice({ title: '확정하지 못했습니다', body: '서버에 닿지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요. 아직 저장되지 않았습니다.' })
     } finally {
       setConfirming(false)
     }
-  }, [item.id, checking, onDone, selectedSupplier, manualSupplierName, fieldEdits])
+  }, [item.id, checking, onDone, selectedSupplier, manualSupplierName, fieldEdits, ask])
 
   const handleReject = useCallback(async () => {
     setRejecting(true)
@@ -458,16 +462,17 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
-        alert(j.error ?? '반려 실패')
+        console.error('[gpu/review reject]', j)
+        await ask.notice({ title: '반려하지 못했습니다', body: '잠시 후 다시 시도해 주세요. 아직 저장되지 않았습니다.' })
         return
       }
       onDone()
     } catch {
-      alert('반려 실패: 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
+      await ask.notice({ title: '반려하지 못했습니다', body: '서버에 닿지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요. 아직 저장되지 않았습니다.' })
     } finally {
       setRejecting(false)
     }
-  }, [item.id, rejectReason, onDone])
+  }, [item.id, rejectReason, onDone, ask])
 
   const handleRecheck = useCallback(async () => {
     if (!feedback.trim()) { setRecheckErr('피드백을 입력해 주세요.'); return }
@@ -792,6 +797,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
           onClose={() => setResolveMsg(null)}
         />
       )}
+      {dialog}
     </div>
   )
 }
