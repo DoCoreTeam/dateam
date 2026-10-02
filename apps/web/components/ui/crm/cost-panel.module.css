@@ -72,9 +72,15 @@
 
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 
+/*
+  **네 칸의 폭을 비율로 정한다.** `1fr auto auto auto` 는 `auto` 두 칸이 내용만큼 늘어나
+  이름 칸을 min-content(가장 긴 낱말)까지 짓누른다 — 실측 1280 에서 「1× NVIDIA L40S PCIe」가
+  석 줄로 접히며 근거 글과 겹쳐 보였다. `minmax(0, …fr)` 은 0 까지 줄 수 있어
+  긴 쪽이 늘어도 줄이 밖으로 터지지 않는다.
+*/
 .item {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) 0;
@@ -82,7 +88,7 @@
   font-size: var(--fs-sm);
 }
 
-.itemName { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.itemName { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
 
 .stage {
   padding: 0 6px;
@@ -132,7 +138,8 @@
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   text-align: right;
-  overflow-wrap: anywhere;
+  /* 넓은 화면에서는 한 줄이다 — 접히면 「2026-09-14 매매기 / 준율」처럼 낱말이 쪼개진다 */
+  white-space: nowrap;
 }
 
 /* 환율이 없는 항목 — 0 으로 보이지 않게, 빠진 사실을 그 줄에서 말한다 */
@@ -141,7 +148,7 @@
   color: var(--warning);
   font-weight: 600;
   text-align: right;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 /* 합계에서 빠진 것이 있다는 말 — 합계 바로 아래 */
@@ -184,17 +191,14 @@
 /* 확정은 오른쪽 끝, 취소는 그 왼쪽 — §2-3-2 L-6 */
 .modalFoot { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
-/*
-  **부모 칸에 최대 폭을 준다.** 자식에 overflow-wrap 만 걸면 `auto` 칸이 내용만큼 늘어나
-  줄이 통째로 터진다(이 저장소가 여러 번 밟은 자리). 칸이 먼저 줄어들어야 글이 접힌다.
-*/
-.item > .basis { max-width: 40%; }
-.item > .amountCell { max-width: 45%; }
-
 @media screen and (max-width: 767px) {
   .summary { grid-template-columns: 1fr; }
   .row { grid-template-columns: 1fr; }
   .item { grid-template-columns: minmax(0, 1fr) auto auto; }
-  .basis { grid-column: 1 / -1; max-width: 100%; }
-  .item > .amountCell { max-width: 60%; }
+  .basis { grid-column: 1 / -1; }
+  /*
+    좁은 화면에서는 환산 줄을 접는다 — 한 줄로 두면 이름 칸이 사라진다.
+    `keep-all` 로 낱말 안에서는 안 쪼갠다(「매매기준율」이 둘로 갈리던 것).
+  */
+  .fxNote, .fxMissing { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
 }
