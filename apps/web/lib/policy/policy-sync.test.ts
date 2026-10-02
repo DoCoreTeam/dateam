@@ -381,6 +381,8 @@ test('★ U-N·F-N 이 가리키는 가드와 부품이 실재한다 — 없는 
   assert.match(u.get('U-1') ?? '', /product-copy\.test\.ts/, 'U-1 이 가드를 안 가리킨다')
   assert.match(u.get('U-7') ?? '', /useAskDialog/, 'U-7 이 대체 부품을 안 가리킨다')
   for (const path of [
+    'lib/ui/product-copy.test.ts',
+    'scripts/.product-copy-baseline.json',
     'components/ui/useAskDialog.tsx',
     'components/ui/ConfirmDeleteDialog.tsx',
     'lib/terms/index.ts',

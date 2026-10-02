@@ -33,10 +33,18 @@ export type JevOffReason = 'model_missing' | 'key_missing' | 'env_blocked'
 
 /**
  * 제목. `env_blocked` 만 다른 말을 쓴다 — 나머지 둘은 정말로 꺼진 것이고,
- * 이쪽은 **이 화면만 안 쓰는 것**이라 같은 제목을 달면 또 거짓말이 된다.
+ * 이쪽은 **개발 화면만 안 쓰는 것**이라 같은 제목을 달면 또 거짓말이 된다.
+ *
+ * **「이 화면에서는」으로 시작하지 않는다**(정책 U-1). 그 말로 여는 문장은 거의 언제나
+ * 구현 사정을 설명하는 말이고, 사용자는 자기가 어느 화면에 있는지 이미 안다.
+ * 말할 것은 **어디가 무엇을 안 쓰는지**뿐이다 — 어떻게 쓰게 하는지는 아래 사유 줄이 말한다.
+ *
+ * **「꺼져」라고도 하지 않는다.** 키는 멀쩡히 등록돼 있고 운영에서는 그대로 돈다 —
+ * 꺼졌다고 하면 사용자는 없는 고장을 찾으러 간다. 가드 `jev-labels.test.ts`
+ * 「제목이 「꺼짐」과 「이 화면만 안 씀」을 가른다」.
  */
 export const JEV_OFF_TITLE = 'AI 판단이 꺼져 있습니다'
-export const JEV_OFF_TITLE_ENV_BLOCKED = '이 화면에서는 AI 판단을 쓰지 않습니다'
+export const JEV_OFF_TITLE_ENV_BLOCKED = '개발 화면은 AI 판단을 쓰지 않습니다'
 
 export function jevOffTitle(reason: JevOffReason): string {
   return reason === 'env_blocked' ? JEV_OFF_TITLE_ENV_BLOCKED : JEV_OFF_TITLE
