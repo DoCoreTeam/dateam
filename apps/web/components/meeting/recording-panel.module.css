@@ -30,6 +30,20 @@
   @keyframes pulse { 50% { opacity: 0.25; } }
 }
 
+/* 멈춰 있으면 깜박임도 멈추고 색이 빠진다 — 점이 도는 한 사람은 받아적는 중이라고 읽는다 */
+.dot[data-paused] {
+  animation: none;
+  background: var(--text-faint);
+}
+
+/* 쉬는 길과 끝내는 길 — 끝내는 쪽이 오른쪽이다 */
+.liveActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .timer {
   font-size: var(--fs-2xl);
   font-variant-numeric: tabular-nums;

@@ -18,6 +18,8 @@ export type ActionKey =
   | 'save' | 'delete' | 'disconnect' | 'create' | 'edit' | 'change'
   | 'cancel' | 'close' | 'confirm' | 'apply' | 'restore' | 'retry' | 'clear' | 'open'
   | 'export'
+  | 'pause'
+  | 'resume'
   | 'hide'
   | 'unhide'
   | 'select'
@@ -66,6 +68,20 @@ export const ACTION: Record<ActionKey, string> = {
    * 「다운로드」는 받는 쪽 동작이라 무엇이 만들어지는지 안 밝힌다.
    */
   export: '내보내기',
+  /**
+   * **돌고 있는 것을 잠깐 세운다. 끝내는 것이 아니다** — 그래서 종료와 다르다.
+   *
+   * 회의는 중간에 쉰다. 쉴 때마다 녹음을 끝내면 한 회의가 파일 여러 벌로 쪼개지고,
+   * 사용자는 어느 것이 그 회의인지 끝내 모른다(사용자 지시 2026-10-02).
+   */
+  pause: '일시정지',
+  /**
+   * 세워 둔 것을 **그 자리에서** 다시 돌린다.
+   *
+   * 「다시 시작」을 쓰지 않는다 — 처음부터 새로 한다는 뜻으로 읽혀서,
+   * 받아적은 것이 날아가는 줄 알고 손이 멈춘다.
+   */
+  resume: '이어하기',
   /**
    * **목록에서 내린다. 데이터는 안 사라진다** — 그래서 삭제가 아니다.
    *

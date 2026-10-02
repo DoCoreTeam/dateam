@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.865',
+    date: '2026-10-02',
+    title: '회의 중에 녹음을 잠깐 멈출 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '⏸️',
+        headline: '「일시정지」와 「이어하기」가 생겼어요',
+        detail: '쉬는 동안에는 받아적지 않고 시간도 세지 않아요. 「이어하기」를 누르면 멈춘 자리에서 그대로 이어집니다. 끝내지 않았으니 회의 하나가 파일 여러 벌로 쪼개지지 않아요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🎙️',
+        headline: '다른 화면으로 옮겨도 멈추고 이어할 수 있어요',
+        detail: '화면 왼쪽 아래 녹음 막대에서도 바로 멈추고 이어할 수 있어요. 멈춰 있는 동안에는 빨간 점이 회색으로 바뀌어 지금 받아적지 않는다는 것을 알려 줍니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.863',
     date: '2026-10-02',
     title: '회의 원문의 「작성」·「녹음·전사」 탭이 가지런해졌어요',

@@ -31,6 +31,10 @@
   50%      { opacity: 0.3; }
 }
 
+/* 멈춰 있으면 깜박임도 멈춘다. 테두리에서도 붉은 기를 뺀다 — 색이 상태를 말한다 */
+.dot[data-paused] { animation: none; background: var(--text-faint); }
+.bar[data-paused] { border-color: var(--border-color); }
+
 .body { min-width: 0; flex: 1; }
 
 .title {
@@ -67,6 +71,7 @@
 .failed { color: var(--danger); font-weight: 700; }
 
 .go,
+.hold,
 .stop {
   flex: none;
   display: inline-flex;
@@ -87,6 +92,15 @@
   color: var(--text);
 }
 .go:hover { border-color: var(--brand); color: var(--brand); }
+
+/* 쉬는 길 — 끝내는 길(붉은색)과 무게가 달라야 잘못 누르지 않는다 */
+.hold {
+  border: var(--hairline) solid var(--border-color);
+  background: var(--surface-bg);
+  color: var(--text);
+}
+.hold:hover { border-color: var(--brand); color: var(--brand); }
+.hold:disabled { opacity: 0.6; cursor: default; }
 
 .stop {
   border: var(--border-w) solid var(--danger);

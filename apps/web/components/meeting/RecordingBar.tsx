@@ -14,10 +14,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Square, ArrowUpRight } from 'lucide-react'
+import { Square, ArrowUpRight, Pause, Play } from 'lucide-react'
 import LevelMeter from './LevelMeter'
 import { useRecordingSession } from '@/lib/meeting/recording-context'
 import { isLocalNoteId } from '@/lib/offline/local-meeting'
+import { ACTION } from '@/lib/terms'
 import styles from './recording-bar.module.css'
 
 function mmss(sec: number): string {
@@ -49,14 +50,16 @@ export default function RecordingBar() {
 
   const uploading = rec.parts.filter((p) => p.state === 'uploading').length
   const failed = rec.parts.filter((p) => p.state === 'failed').length
+  const paused = rec.state === 'paused'
 
   return (
-    <div className={styles.bar} role="status" aria-live="polite">
-      <span className={styles.dot} aria-hidden />
+    <div className={styles.bar} data-paused={paused ? '' : undefined} role="status" aria-live="polite">
+      {/* 멈춰 있으면 점도 멈춘다 — 깜박이는 점은 «지금 받아적는 중»이라는 뜻이다 */}
+      <span className={styles.dot} data-paused={paused ? '' : undefined} aria-hidden />
 
       <div className={styles.body}>
         <p className={styles.title}>
-          {rec.state === 'stopping' ? '마무리 중' : '녹음 중'} · {rec.target.title}
+          {rec.state === 'stopping' ? '마무리 중' : paused ? '멈춤' : '녹음 중'} · {rec.target.title}
         </p>
         <p className={styles.meta}>
           <span className={styles.timer}>{mmss(rec.elapsedSec)}</span>
@@ -75,6 +78,19 @@ export default function RecordingBar() {
         <Link className={styles.go} href={rec.target.href}>
           회의로 <ArrowUpRight size={14} aria-hidden />
         </Link>
+      )}
+
+      {/* 잠깐 쉬는 것과 끝내는 것은 다른 일이다 — 어느 화면에 있든 둘 다 손에 닿아야 한다 */}
+      {rec.canPause && (
+        <button
+          type="button"
+          className={styles.hold}
+          onClick={() => (paused ? rec.resume() : rec.pause())}
+          disabled={rec.state === 'stopping'}
+        >
+          {paused ? <Play size={14} aria-hidden /> : <Pause size={14} aria-hidden />}
+          {paused ? ACTION.resume : ACTION.pause}
+        </button>
       )}
 
       <button

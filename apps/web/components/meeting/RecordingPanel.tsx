@@ -15,8 +15,9 @@
 // 이제 레코더는 셸의 `RecordingProvider` 가 들고, 이 패널은 **그 상태를 보여 주고 시작/정지만** 시킨다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Mic, Square, Loader2 } from 'lucide-react'
+import { Mic, Square, Loader2, Pause, Play } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import { ACTION } from '@/lib/terms'
 import InlineError from '@/components/ui/InlineError'
 import EmptyState from '@/components/ui/EmptyState'
 import LevelMeter from './LevelMeter'
@@ -37,6 +38,11 @@ interface ServerProgress {
  */
 const AUTOSAVE_HINT = '10분마다 자동으로 저장돼요. 다른 화면으로 옮겨도 녹음은 계속됩니다.'
 const MIC_QUIET_HINT = '소리가 거의 안 잡히고 있어요. 마이크가 음소거돼 있지 않은지 확인해 주세요.'
+/**
+ * 멈춘 동안의 안내 — **무엇이 멈췄고 무엇이 남아 있는지**를 같이 말한다.
+ * 「일시정지됨」만 쓰면 지금까지 받아적은 것이 날아간 줄 알고 종료를 누른다.
+ */
+const PAUSED_HINT = `멈춰 있어요. 여기까지 받아적은 것은 그대로 있고, 「${ACTION.resume}」를 누르면 이어서 적습니다.`
 
 function mmss(sec: number): string {
   const m = Math.floor(sec / 60)
@@ -63,7 +69,10 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
   /** 이 회의가 지금 이 브라우저에서 녹음 중인가 */
   const mine = rec.target?.noteId === noteId
   const recording = mine && rec.state === 'recording'
+  const paused = mine && rec.state === 'paused'
   const stopping = mine && rec.state === 'stopping'
+  /** 녹음 묶음이 열려 있나 — 멈춰 있어도 열려 있는 것이다 */
+  const live = recording || paused || stopping
 
   const refresh = useCallback(async () => {
     try {
@@ -82,12 +91,12 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
   // 전사는 서버가 돌린다. 녹음이 끝난 뒤에도 잠깐 더 지켜본다 —
   // "끝났는데 화면이 그대로"가 이 흐름에서 가장 흔한 오해다.
   useEffect(() => {
-    if (recording || stopping || (progress && !progress.done && progress.total > 0)) {
+    if (live || (progress && !progress.done && progress.total > 0)) {
       const t = setInterval(() => { void refresh() }, 5000)
       return () => clearInterval(t)
     }
     return undefined
-  }, [recording, stopping, progress, refresh])
+  }, [live, progress, refresh])
 
   // 전사가 새로 끝나면 상위(전사 탭)에 알린다 — 안 알리면 목록이 빈 채로 남는다
   const transcribedCount = progress?.transcribed ?? 0
@@ -122,7 +131,7 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
         </p>
       )}
 
-      {!recording && !stopping ? (
+      {!live ? (
         <div className={styles.idle}>
           <NbButton
             onClick={() => void rec.start({
@@ -139,7 +148,8 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
       ) : (
         <div className={styles.live}>
           <div className={styles.timerRow}>
-            <span className={styles.dot} aria-hidden />
+            {/* 멈춰 있으면 점도 멈춘다 — 깜박이는 점은 «지금 받아적는 중»이라는 뜻이다 */}
+            <span className={styles.dot} data-paused={paused ? '' : undefined} aria-hidden />
             <strong className={styles.timer}>{mmss(rec.elapsedSec)}</strong>
             {/* 레벨 미터 — 마이크가 소리를 받고 있는지 보여 주는 유일한 수단.
                 값은 구독으로 받아 DOM 에 직접 쓴다(LevelMeter 주석) */}
@@ -160,13 +170,31 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
             *
             * 판정도 순간값이 아니다 — `mic-silence.ts` 가 «몇 초 연속»으로만 뒤집는다.
             */}
-          <p className={styles.micLine} data-quiet={rec.micQuiet ? '' : undefined} role="status">
-            {rec.micQuiet ? MIC_QUIET_HINT : AUTOSAVE_HINT}
+          <p className={styles.micLine} data-quiet={rec.micQuiet && !paused ? '' : undefined} role="status">
+            {paused ? PAUSED_HINT : rec.micQuiet ? MIC_QUIET_HINT : AUTOSAVE_HINT}
           </p>
 
-          <NbButton variant="danger" onClick={() => void rec.stop()} disabled={stopping}>
-            <Square size={16} /> {stopping ? '마무리 중…' : '종료하고 정리'}
-          </NbButton>
+          {/*
+            쉬는 길과 끝내는 길을 **갈라 둔다.** 예전엔 종료 하나뿐이라, 회의 중 잠깐 쉬려면
+            끝내고 다시 시작하는 수밖에 없었다 — 그러면 한 회의가 파일 두 벌로 쪼개진다
+            (사용자 지시 2026-10-02 「미팅 중에 잠시 쉴 수 있자나」).
+            끝내는 쪽이 오른쪽이다 — 되돌릴 수 없는 것이 바깥이다(§2-3-2 L-6).
+          */}
+          <div className={styles.liveActions}>
+            {rec.canPause && (
+              <NbButton
+                variant="secondary"
+                onClick={() => (paused ? rec.resume() : rec.pause())}
+                disabled={stopping}
+              >
+                {paused ? <Play size={16} /> : <Pause size={16} />}
+                {paused ? ACTION.resume : ACTION.pause}
+              </NbButton>
+            )}
+            <NbButton variant="danger" onClick={() => void rec.stop()} disabled={stopping}>
+              <Square size={16} /> {stopping ? '마무리 중…' : '종료하고 정리'}
+            </NbButton>
+          </div>
         </div>
       )}
 

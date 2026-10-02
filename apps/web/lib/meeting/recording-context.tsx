@@ -55,9 +55,15 @@ interface RecordingContextValue {
   parts: RecorderPartStatus[]
   error: string | null
   supported: boolean
+  /** 이 브라우저가 멈췄다 이어하기를 할 수 있나 — 못 하면 단추를 안 그린다 */
+  canPause: boolean
   /** 구간이 하나 올라갈 때마다 증가 — 화면이 이걸 보고 진행률을 다시 조회한다 */
   uploadTick: number
   start: (target: RecordingTarget) => Promise<void>
+  /** 회의 중 잠깐 쉰다 — 세션은 그대로 살아 있다 */
+  pause: () => void
+  /** 멈춘 자리에서 이어서 받아적는다 */
+  resume: () => void
   stop: () => Promise<void>
   clearError: () => void
 }
@@ -68,8 +74,9 @@ const RecordingContext = createContext<RecordingContextValue | null>(null)
 const IDLE: RecordingContextValue = {
   target: null, state: 'idle', elapsedSec: 0, parts: [], error: null,
   subscribeLevel: () => () => {}, micQuiet: false,
-  supported: false, uploadTick: 0,
-  start: async () => {}, stop: async () => {}, clearError: () => {},
+  supported: false, canPause: false, uploadTick: 0,
+  start: async () => {}, pause: () => {}, resume: () => {},
+  stop: async () => {}, clearError: () => {},
 }
 
 export function useRecordingSession(): RecordingContextValue {
@@ -79,7 +86,9 @@ export function useRecordingSession(): RecordingContextValue {
 /** 이 회의가 지금 녹음 중인가 */
 export function useIsRecording(noteId: string): boolean {
   const s = useRecordingSession()
-  return s.target?.noteId === noteId && (s.state === 'recording' || s.state === 'stopping')
+  // 멈춰 있어도 녹음 중이다 — 아니라고 하면 화면이 「시작」을 다시 내밀고 세션이 둘로 쪼개진다
+  return s.target?.noteId === noteId
+    && (s.state === 'recording' || s.state === 'paused' || s.state === 'stopping')
 }
 
 /** 다른 회의가 녹음을 잡고 있으면 그 회의를 돌려준다 — 화면이 "지금은 안 됩니다"를 말할 수 있게 */
@@ -147,7 +156,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(async (next: RecordingTarget) => {
     // 동시 녹음 금지 — 돌고 있으면 조용히 무시하지 않고 그대로 둔다(화면이 먼저 막는다)
-    if (targetRef.current && (rec.state === 'recording' || rec.state === 'stopping')) return
+    if (targetRef.current && (rec.state === 'recording' || rec.state === 'paused' || rec.state === 'stopping')) return
     targetRef.current = next
     setTarget(next)
     await rec.start()
@@ -173,7 +182,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
    * 그래서 유일하게 정직한 수단인 확인창을 띄운다. 조용히 잃는 것보다 낫다.
    */
   useEffect(() => {
-    const busy = rec.state === 'recording' || rec.state === 'stopping'
+    const busy = rec.state === 'recording' || rec.state === 'paused' || rec.state === 'stopping'
       || rec.parts.some((p) => p.state === 'uploading')
     if (!busy) return undefined
     const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
@@ -190,11 +199,17 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     parts: rec.parts,
     error: rec.error,
     supported: rec.supported,
+    canPause: rec.canPause,
     uploadTick,
     start,
+    pause: rec.pause,
+    resume: rec.resume,
     stop,
     clearError: () => {},
-  }), [target, rec.state, rec.elapsedSec, rec.subscribeLevel, rec.micQuiet, rec.parts, rec.error, rec.supported, uploadTick, start, stop])
+  }), [
+    target, rec.state, rec.elapsedSec, rec.subscribeLevel, rec.micQuiet, rec.parts,
+    rec.error, rec.supported, rec.canPause, rec.pause, rec.resume, uploadTick, start, stop,
+  ])
 
   return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>
 }

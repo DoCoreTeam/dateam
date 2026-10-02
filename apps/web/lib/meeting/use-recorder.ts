@@ -25,6 +25,10 @@ import {
   type MicSilenceState,
 } from './mic-silence.ts'
 import { PART_MS } from './recording-core.ts'
+import {
+  elapsedSecAt, partDurationSec, remainingMs,
+  type PauseClock,
+} from './recording-clock.ts'
 // ⚠️ recording.ts 를 가리키면 안 된다 — 그 파일은 드라이브 저장을 함께 갖고 있어,
 // 동적 import 라도 번들러가 googleapis 를 클라이언트로 끌고 들어와 앱 전체가 500 이 된다(v0.7.578 실측).
 
@@ -75,7 +79,18 @@ export interface UseRecorder {
   error: string | null
   /** 브라우저가 녹음을 지원하나 — 지원 안 하면 버튼을 그리지 않는다 */
   supported: boolean
+  /**
+   * 이 브라우저가 **멈췄다 이어하기**를 할 수 있나.
+   *
+   * 못 하는데 단추를 그리면, 눌러도 아무 일이 안 일어나는 자리를 하나 만드는 것이다
+   * (「고를 것이 없는데 고르라고 쓰지 않는다」). 없으면 종료만 보여 준다.
+   */
+  canPause: boolean
   start: () => Promise<void>
+  /** 회의 중 잠깐 쉰다 — 마이크는 열어 둔 채 **받아적기만** 멈춘다 */
+  pause: () => void
+  /** 멈춘 자리에서 이어서 받아적는다. 구간은 끊기지 않는다 */
+  resume: () => void
   stop: () => Promise<void>
 }
 
@@ -117,6 +132,7 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
   const [parts, setParts] = useState<RecorderPartStatus[]>([])
   const [error, setError] = useState<string | null>(null)
   const [supported, setSupported] = useState(true)
+  const [canPause, setCanPause] = useState(true)
 
   const streamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -133,8 +149,26 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
   /** 사용자가 종료를 눌렀나 — 회전과 종료를 구분해야 마지막 구간 뒤에 다시 시작하지 않는다 */
   const stoppingRef = useRef(false)
 
+  /**
+   * 멈춤 장부 — 경과·구간 길이·회전 시각이 **전부 이 값에서 나온다**(`recording-clock.ts`).
+   * 리액트 상태로 들면 1초 타이머 콜백이 낡은 값을 붙들어 시간이 뒤로 간다.
+   */
+  const clockRef = useRef<PauseClock>({ startedAtMs: 0, pausedTotalMs: 0, pausedAtMs: null })
+  /** 이 구간 안에서 멈춰 있던 시간(ms). 구간이 바뀔 때 0 으로 돌아간다 */
+  const partPausedMsRef = useRef(0)
+  /** 지금 구간을 끊을 시각(ms) */
+  const rotateDeadlineRef = useRef(0)
+  /** 멈출 때 적어 두는 «회전까지 남은 시간»(ms). 이어할 때 이만큼으로 다시 건다 */
+  const rotateRemainingMsRef = useRef(PART_MS)
+  /** 멈춰 있나 — rAF 루프가 매 프레임 본다(상태로 읽으면 낡은 값을 본다) */
+  const pausedRef = useRef(false)
+  /** 무음 준비 시간의 기준. 이어한 직후에는 다시 준비 시간을 준다 */
+  const silenceAnchorRef = useRef(0)
+
   useEffect(() => {
-    setSupported(typeof navigator !== 'undefined' && !!navigator.mediaDevices && pickMimeType() !== null)
+    const ok = typeof navigator !== 'undefined' && !!navigator.mediaDevices && pickMimeType() !== null
+    setSupported(ok)
+    setCanPause(ok && typeof MediaRecorder.prototype.pause === 'function')
   }, [])
 
   /**
@@ -163,6 +197,12 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     levelSubsRef.current.forEach((fn) => { try { fn(0) } catch { /* 구독자 하나가 죽어도 정리는 계속된다 */ } })
     silenceRef.current = IDLE_MIC_SILENCE
     setMicQuiet(false)
+    // 멈춤 장부도 비운다 — 안 비우면 다음 녹음이 지난 회의의 멈춤을 빼고 시작한다
+    clockRef.current = { startedAtMs: 0, pausedTotalMs: 0, pausedAtMs: null }
+    partPausedMsRef.current = 0
+    rotateDeadlineRef.current = 0
+    rotateRemainingMsRef.current = PART_MS
+    pausedRef.current = false
   }, [])
 
   /**
@@ -177,7 +217,8 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
    */
   useEffect(() => () => {
     const rec = recorderRef.current
-    if (rec && rec.state === 'recording') {
+    // 멈춰 있어도 닫아야 한다 — 그대로 두면 받아적은 만큼이 통째로 사라진다
+    if (rec && rec.state !== 'inactive') {
       stoppingRef.current = true
       try { rec.stop() } catch { /* 이미 죽은 레코더 */ }
       return
@@ -201,6 +242,18 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     }
   }, [onPart])
 
+  /**
+   * 구간을 끊을 시각을 건다. 멈췄다 이어하면 **남은 만큼**으로 다시 건다 —
+   * 멈춘 채로 10분이 지나 구간이 끊기면, 다음 구간이 혼자 돌기 시작한다.
+   */
+  const armRotate = useCallback((rec: MediaRecorder, ms: number) => {
+    if (rotateTimerRef.current) clearTimeout(rotateTimerRef.current)
+    rotateDeadlineRef.current = Date.now() + ms
+    rotateTimerRef.current = setTimeout(() => {
+      if (rec.state === 'recording') rec.stop()
+    }, ms)
+  }, [])
+
   /** 레코더 하나를 만들어 돌린다. 멈추면 그 조각을 올리고, 종료가 아니면 다음 구간을 연다 */
   const spawnRecorder = useCallback((mime: string, startedAt: number) => {
     const stream = streamRef.current
@@ -208,11 +261,14 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     const idx = partIdxRef.current
     const rec = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: AUDIO_BITS_PER_SECOND })
     const chunks: Blob[] = []
+    // 새 구간은 멈춤 0 에서 시작한다 — 앞 구간의 멈춤을 물려받으면 길이가 짧게 적힌다
+    partPausedMsRef.current = 0
 
     rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
     rec.onstop = () => {
       const blob = new Blob(chunks, { type: mime })
-      const durationSec = Math.round((Date.now() - startedAt) / 1000)
+      // 벽시계가 아니라 **받아적은 시간**이다 — 멈춘 만큼을 빼야 뒤 구간의 시각이 안 밀린다
+      const durationSec = partDurationSec(startedAt, partPausedMsRef.current, Date.now())
       if (blob.size > 0) void uploadPart(blob, idx, durationSec)
       if (!stoppingRef.current) {
         partIdxRef.current = idx + 1
@@ -226,10 +282,8 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     rec.start()
     recorderRef.current = rec
     // 10분이 되면 닫는다 — 이게 구간을 완결된 파일로 만드는 지점이다
-    rotateTimerRef.current = setTimeout(() => {
-      if (rec.state === 'recording') rec.stop()
-    }, PART_MS)
-  }, [uploadPart, cleanup])
+    armRotate(rec, PART_MS)
+  }, [uploadPart, cleanup, armRotate])
 
   const start = useCallback(async () => {
     setError(null)
@@ -238,6 +292,10 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     partIdxRef.current = 0
     setParts([])
     setElapsedSec(0)
+
+    clockRef.current = { startedAtMs: 0, pausedTotalMs: 0, pausedAtMs: null }
+    partPausedMsRef.current = 0
+    pausedRef.current = false
 
     const mime = pickMimeType()
     if (!mime) {
@@ -261,6 +319,8 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
 
     // 시작 시각은 오디오 그래프보다 **먼저** 잡는다 — 무음 판정의 준비 시간 기준이다
     const startedAt = Date.now()
+    clockRef.current = { startedAtMs: startedAt, pausedTotalMs: 0, pausedAtMs: null }
+    silenceAnchorRef.current = startedAt
     silenceRef.current = IDLE_MIC_SILENCE
     setMicQuiet(false)
 
@@ -276,6 +336,19 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
         source.connect(analyser)
         const buf = new Uint8Array(analyser.frequencyBinCount)
         const loop = () => {
+          /*
+            멈춰 있으면 **미터도 멈춘다.** 마이크 트랙은 살아 있으므로 그대로 두면
+            받아적지 않는데 막대만 춤춘다 — 화면이 거짓말을 하는 가장 흔한 모양이다.
+            무음 판정도 쉰다. 안 쉬면 4초 뒤에 「소리가 안 잡혀요」가 뜨는데, 그건 사실이 아니다.
+          */
+          if (pausedRef.current) {
+            if (lastLevelRef.current !== 0) {
+              lastLevelRef.current = 0
+              levelSubsRef.current.forEach((fn) => { try { fn(0) } catch { /* 하나가 죽어도 계속 */ } })
+            }
+            rafRef.current = requestAnimationFrame(loop)
+            return
+          }
           analyser.getByteTimeDomainData(buf)
           let sum = 0
           for (let i = 0; i < buf.length; i += 1) {
@@ -294,7 +367,8 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
           const nextSilence = nextMicSilence(silenceRef.current, {
             level: lvl,
             nowMs: Date.now(),
-            startedAtMs: startedAt,
+            // 이어한 직후에는 준비 시간을 다시 준다 — 기준이 처음 시작 시각이면 경고가 바로 뜬다
+            startedAtMs: silenceAnchorRef.current,
           })
           if (nextSilence.quiet !== silenceRef.current.quiet) setMicQuiet(nextSilence.quiet)
           silenceRef.current = nextSilence
@@ -305,10 +379,57 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
       }
     } catch { /* 레벨 미터가 없어도 녹음은 된다 */ }
 
-    tickRef.current = setInterval(() => setElapsedSec(Math.round((Date.now() - startedAt) / 1000)), 1000)
+    tickRef.current = setInterval(() => setElapsedSec(elapsedSecAt(clockRef.current, Date.now())), 1000)
     spawnRecorder(mime, Date.now())
     setState('recording')
   }, [spawnRecorder])
+
+  /**
+   * 잠깐 쉰다 — **구간을 끊지 않는다.**
+   *
+   * 구간을 끊으면 쉴 때마다 전사 파일이 하나씩 늘고, 그 토막이 「3구간 중 2구간」처럼
+   * 사용자에게 보인다. 쉰 것과 10분이 찬 것은 다른 일이므로 다르게 다룬다.
+   */
+  const pause = useCallback(() => {
+    const rec = recorderRef.current
+    if (!rec || rec.state !== 'recording') return
+    try { rec.pause() } catch { return }
+
+    // 회전 타이머를 멈추고 **남은 시간을 적어 둔다** — 멈춘 채로 구간이 끊기면 안 된다.
+    // 적어 두는 것은 «시각»이 아니라 «남은 길이»다. 시각으로 두면 멈춘 만큼 그대로 흘러
+    // 이어하는 순간 구간이 즉시 끊긴다.
+    if (rotateTimerRef.current) { clearTimeout(rotateTimerRef.current); rotateTimerRef.current = null }
+    rotateRemainingMsRef.current = remainingMs(rotateDeadlineRef.current, Date.now())
+
+    pausedRef.current = true
+    clockRef.current = { ...clockRef.current, pausedAtMs: Date.now() }
+    silenceRef.current = IDLE_MIC_SILENCE
+    setMicQuiet(false)
+    setState('paused')
+  }, [])
+
+  /** 멈춘 자리에서 이어서 받아적는다. 남은 회전 시간만큼 타이머를 다시 건다 */
+  const resume = useCallback(() => {
+    const rec = recorderRef.current
+    if (!rec || rec.state !== 'paused') return
+    try { rec.resume() } catch { return }
+
+    const now = Date.now()
+    const pausedFor = clockRef.current.pausedAtMs === null ? 0 : Math.max(0, now - clockRef.current.pausedAtMs)
+    clockRef.current = {
+      ...clockRef.current,
+      pausedTotalMs: clockRef.current.pausedTotalMs + pausedFor,
+      pausedAtMs: null,
+    }
+    partPausedMsRef.current += pausedFor
+    pausedRef.current = false
+    silenceAnchorRef.current = now
+    silenceRef.current = IDLE_MIC_SILENCE
+    setMicQuiet(false)
+    setElapsedSec(elapsedSecAt(clockRef.current, now))
+    armRotate(rec, rotateRemainingMsRef.current)
+    setState('recording')
+  }, [armRotate])
 
   const stop = useCallback(async () => {
     stoppingRef.current = true
@@ -318,5 +439,8 @@ export function useMeetingRecorder({ onPart }: UseRecorderOptions): UseRecorder 
     else { cleanup(); setState('idle') }
   }, [cleanup])
 
-  return { state, elapsedSec, subscribeLevel, micQuiet, parts, error, supported, start, stop }
+  return {
+    state, elapsedSec, subscribeLevel, micQuiet, parts, error,
+    supported, canPause, start, pause, resume, stop,
+  }
 }
