@@ -9,9 +9,8 @@ import { NextResponse } from 'next/server'
 import { isMachineCall, machineAuthUnconfigured } from '@/lib/crm/jobs/machine-auth'
 import { runValidation } from '@/lib/trading/validation/pipeline'
 import { loadTradingSettings } from '@/lib/trading/settings/store'
-import { pickFrontContract } from '@/lib/trading/contracts/front'
+import { loadTodayContract } from '@/lib/trading/contracts/today-contract'
 import { startJobRun, finishJobRun } from '@/lib/trading/jobs/claim'
-import { createAdminClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -66,15 +65,12 @@ async function validate(req: Request) {
 
       봉이 아무리 쌓여도 백테스트가 도는 날이 안 오므로, 화면의 관문 여덟 줄은
       영영 「아직 못 잼」이다 (사용자 개입 2026-09-30 「검증쪽은 뭐가 다 없대 이상하네」).
+
+      그 뒤로 답이 하나 더 늘었다 — 수집이 거래일마다 굳히는 값이다. 그래서 이 창구도
+      표를 직접 읽지 않고 `loadTodayContract` 에게 묻는다. 검증이 크론이 모으지 않은
+      월물을 뒤지면 「표본이 모자라다」로 보일 뿐 그 이유를 알 길이 없다(실측 2026-10-02).
     */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any
-    const { data: front } = await admin
-      .from('trading_contracts').select('code').eq('is_front', true).limit(1)
-    const pick = pickFrontContract({
-      override: String(values.front_contract_code_override ?? ''),
-      fromTable: ((front ?? [])[0]?.code as string | undefined) ?? null,
-    })
+    const pick = await loadTodayContract(String(values.front_contract_code_override ?? ''), now)
     if (!pick.code) {
       // 근월물을 모르면 무엇을 검증할지 모른다. 조용히 0건으로 끝내지 않는다
       await close('skipped', 'no_contract', pick.reason)

@@ -67,6 +67,7 @@ import { dateRange } from './calendar/date-range.ts'
 import { loadSessionWindow } from './calendar/seed.ts'
 import { sameDayExitAt } from './calendar/session.ts'
 import { loadTradingSettings } from './settings/store.ts'
+import { loadTodayContractHead } from './contracts/today-contract.ts'
 import type { ContractHead } from './overview-labels.ts'
 import { gateEmptyReason, type GateEmptyReason } from './gate/empty-reason.ts'
 import { whyNegativeLine, type ReplayRule } from './judge/accuracy-note.ts'
@@ -153,39 +154,26 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
   const admin = createAdminClient() as any
   const today = seoulToday(now)
 
+  // 청산 여유 분과 월물 덮어쓰기가 둘 다 설정이다. 화면이 따로 계산하면 만기일에 규칙과 화면이 갈린다
+  const { values } = await loadTradingSettings(today)
+  const exitMinutes = Number(values.session_close_exit_minutes)
+  const exitBefore = Number.isFinite(exitMinutes) ? exitMinutes : 15
+
   /*
     **기호만으로는 무슨 종목인지 못 말한다.** 머리글이 「A05610 근월물」이라고만 적고 있어
     읽는 사람이 무엇을 보는 화면인지 몰랐다 (사용자 개입 2026-09-30). 종목 뿌리와 만기월을
     같은 판에서 읽어 와야 화면이 「미니 코스피200 선물 2026년 10월물」이라고 부를 수 있다.
+
+    **고르는 규칙은 여기 없다.** 화면이 월물 표를 직접 읽던 동안 크론은 그날 굳힌 값을
+    모으고 있었고, 둘이 갈라진 날 화면은 크론이 쌓은 봉을 못 찾았다(실측 2026-10-02).
   */
-  const { data: front, error: contractError } = await admin
-    .from('trading_contracts')
-    .select('code, expiry_month, trading_instruments(root)')
-    .eq('is_front', true)
-    .limit(1)
-  if (contractError) throw new Error(`월물을 읽지 못했습니다: ${contractError.message}`)
-  const frontRow = (front ?? [])[0] as
-    | { code?: string; expiry_month?: string; trading_instruments?: { root?: string } | { root?: string }[] }
-    | undefined
-  const contractCode = (frontRow?.code as string | undefined) ?? null
-  // 조인 결과는 한 줄일 수도 배열일 수도 있다. 둘 다 받아 두지 않으면 모양 하나에 조용히 null 이 된다
-  const joined = Array.isArray(frontRow?.trading_instruments)
-    ? frontRow?.trading_instruments[0]
-    : frontRow?.trading_instruments
-  const contract: ContractHead | null = contractCode
-    ? {
-      code: contractCode,
-      root: joined?.root ?? null,
-      expiryMonth: frontRow?.expiry_month ?? null,
-    }
-    : null
+  const contract: ContractHead | null = await loadTodayContractHead(
+    String(values.front_contract_code_override ?? ''),
+    now,
+  )
+  const contractCode = contract?.code ?? null
 
   const days = dateRange(addKstDays(today, -(LOOKBACK_DAYS - 1)), today)
-
-  // 청산 여유 분은 설정이다. 화면이 따로 계산하면 만기일에 규칙과 화면이 갈린다
-  const { values } = await loadTradingSettings(today)
-  const exitMinutes = Number(values.session_close_exit_minutes)
-  const exitBefore = Number.isFinite(exitMinutes) ? exitMinutes : 15
 
   /**
    * 수집이 언제 시작됐나. **첫 크론 실행이 그 답이다** —

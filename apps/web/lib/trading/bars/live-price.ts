@@ -12,6 +12,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { recordSystemEvent } from '@/lib/system-log/record'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { loadTradingSettings } from '../settings/store.ts'
+import { loadTodayContractCode } from '../contracts/today-contract.ts'
 import { getAccessToken } from '../broker/token.ts'
 import { loadAppCredential } from '../broker/credentials.ts'
 import { createKisClient } from '../broker/kis-client.ts'
@@ -41,25 +42,19 @@ function numberSetting(values: Readonly<Record<string, unknown>>, key: string, f
   return Number.isFinite(value) ? value : fallback
 }
 
-/** 화면과 같은 `is_front` 월물을 고른다. 화면과 스트림이 다른 월물을 보면 안 된다. */
-async function loadFrontContractCode(): Promise<string | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any
-  const { data, error } = await admin
-    .from('trading_contracts')
-    .select('code')
-    .eq('is_front', true)
-    .limit(1)
-  if (error) throw new Error(`실시간 월물을 읽지 못했습니다: ${error.message}`)
-  const code = String((data ?? [])[0]?.code ?? '').trim()
-  return code === '' ? null : code
-}
-
 export async function loadLivePriceContext(now: Date): Promise<LivePriceContext | null> {
-  const [{ values }, contractCode] = await Promise.all([
-    loadTradingSettings(kstTodayKey(now)),
-    loadFrontContractCode(),
-  ])
+  /*
+    **월물은 `loadTodayContractCode` 하나에게만 묻는다.** 이 자리가 `is_front` 를 직접
+    읽던 동안 수집은 그날 굳힌 월물을 모으고 있었고, 둘이 갈라진 날 화면의 현재가와
+    쌓인 봉이 서로 다른 종목이 됐다(실측 2026-10-02).
+
+    설정을 먼저 읽는다 — 덮어쓰기 값이 그 규칙의 첫 줄이라 월물 조회와 나란히 못 보낸다.
+  */
+  const { values } = await loadTradingSettings(kstTodayKey(now))
+  const contractCode = await loadTodayContractCode(
+    String(values.front_contract_code_override ?? ''),
+    now,
+  )
   if (!contractCode) return null
   return {
     contractCode,
