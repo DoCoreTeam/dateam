@@ -214,10 +214,148 @@ export const QUOTE = {
   /** 직인 그림 — 설정 이름이자 인쇄본의 대체 텍스트 */
   seal: '직인',
 
+  // ── 요금 표시 ────────────────────────────────
+  /*
+    GPU 처럼 **시간으로 파는 것**은 같은 금액을 세 가지로 말할 수 있다 —
+    시간당 얼마, 한 달에 얼마, 그 기간 다 해서 얼마. 셋 다 맞는 말이고
+    고객이 어느 쪽으로 물을지는 그때 다르다. 그래서 **무엇을 함께 인쇄할지 고른다**.
+
+    **합계는 축을 바꿔도 안 바뀐다.** 기간요금이면 월 단가가 진짜 값이고
+    시간당은 그것을 나눈 표시값이다. 월 기준 시간이 730 이냐 720 이냐는
+    그 나눈 숫자만 바꾼다(사용자 지시 2026-10-04).
+  */
+  /** 무엇을 함께 인쇄할지 고르는 자리의 이름 */
+  rateDisplay: '금액 표시',
+  /** 한 달을 몇 시간으로 셀지 — 시간당을 함께 인쇄할 때만 쓰인다 */
+  hoursPerMonth: '월 기준 시간',
+  /** 기간 전체의 시간 */
+  totalHours: '총 시간',
+  /** 시간 단위 — 사용량 종류의 기본 단위와 같은 글자를 쓴다(lib/terms/cost.ts) */
+  hourUnit: 'h',
+
   // ── 상태·안내 ────────────────────────────────
   supplierMissing: '공급자 정보가 아직 없어요',
   noLines: '항목이 아직 없어요',
 } as const
+
+// ------------------------------------------------------------
+// 요금 표시 — 금액을 어느 축으로 보일지 (복수 선택)
+// ------------------------------------------------------------
+
+/**
+ * **나누어떨어지지 않을 때 붙이는 말.**
+ *
+ * 월 999,360원을 730 으로 나누면 1,368.98… 이라 1,369원으로 적게 되는데,
+ * 고객이 그 값에 1,460시간을 곱하면 1,998,740원이 되어 **합계보다 20원 많다.**
+ * 720 으로 나누면 딱 떨어져 이 말이 필요 없다 — 그래서 **사람이 정하지 않고
+ * 나누어떨어지는지로 화면이 판단한다.**
+ */
+export const APPROX_PREFIX = '약'
+
+/** 금액 칸에 함께 인쇄할 축. 셋 다 켜도 되고 하나만 켜도 된다 */
+export type RateAxisKey = 'total' | 'monthly' | 'hourly'
+
+export const RATE_AXIS_ORDER: readonly RateAxisKey[] = ['total', 'monthly', 'hourly']
+
+export const RATE_AXIS_LABEL: Record<RateAxisKey, string> = {
+  total: '기간 총액',
+  monthly: '월 금액',
+  hourly: '시간당 금액',
+}
+
+/** 품목 이름 아래 한 줄로 이어 붙는 것 */
+export type LineNoteKey = 'period' | 'totalHours' | 'hoursBasis' | 'wasAndDiscount'
+
+export const LINE_NOTE_ORDER: readonly LineNoteKey[] =
+  ['period', 'totalHours', 'hoursBasis', 'wasAndDiscount']
+
+export const LINE_NOTE_LABEL: Record<LineNoteKey, string> = {
+  period: '기간',
+  totalHours: '총 시간',
+  hoursBasis: '월 기준 시간',
+  wasAndDiscount: '정상가와 할인',
+}
+
+/** 합계 영역에 서는 환산 줄. 원화 환산과 같은 자리, 같은 꼴이다 */
+export type TotalConvKey = 'hourly' | 'monthly'
+
+export const TOTAL_CONV_ORDER: readonly TotalConvKey[] = ['monthly', 'hourly']
+
+export const TOTAL_CONV_LABEL: Record<TotalConvKey, string> = {
+  hourly: '시간당 환산',
+  monthly: '월 환산',
+}
+
+/**
+ * 월 기준 시간을 어디서 가져올지.
+ *
+ * `supply` 는 그 품목의 매입 견적이 쓰는 기준을 따라간다 — 다만 **매입이 없는 품목이 많다**
+ * (취급 88개 중 24개는 값이 하나도 없다). 그래서 기본은 `h730` 이고,
+ * 매입이 없으면 `supply` 는 못 쓰는 상태로 보인다.
+ */
+export type HoursBasisKey = 'h730' | 'h720' | 'supply' | 'custom'
+
+export const HOURS_BASIS_ORDER: readonly HoursBasisKey[] = ['h730', 'h720', 'supply', 'custom']
+
+export const HOURS_BASIS_LABEL: Record<HoursBasisKey, string> = {
+  h730: '730시간',
+  h720: '720시간',
+  supply: '매입에 맞춤',
+  custom: '직접',
+}
+
+export const HOURS_BASIS_HINT: Record<HoursBasisKey, string> = {
+  h730: '한 해를 열두 달로 나눈 값입니다. 다른 클라우드와 견줄 때 자가 같아집니다.',
+  h720: '한 달을 30일로 본 값입니다. 매입 분석이 이 기준을 씁니다.',
+  supply: '이 품목의 매입 견적이 쓰는 기준을 따라갑니다.',
+  custom: '그 달의 실제 날수처럼 직접 적고 싶을 때 씁니다.',
+}
+
+/** 매입이 없어 「매입에 맞춤」을 못 쓸 때 그 자리에 적는 말 */
+export const HOURS_BASIS_NO_SUPPLY = '이 품목은 매입 자료가 없어요'
+
+/** 월 기준 시간이 합계를 안 바꾼다는 사실을 선택 자리에서 말한다 */
+export const HOURS_BASIS_NOTE =
+  '합계 금액은 안 바뀝니다. 견적서에 시간당을 함께 인쇄할 때 그 숫자만 달라집니다.'
+
+/** 기간이 아직 비어 금액 축을 못 세울 때 */
+export const RATE_PERIOD_MISSING = '기간을 적으면 시간당과 월 금액을 함께 인쇄할 수 있어요'
+
+// ------------------------------------------------------------
+// 다른 안과 개정본 — 한 딜에서 갈라져 나온 견적들
+// ------------------------------------------------------------
+
+/*
+  **둘은 다른 일이다.** 개정본은 «같은 제안을 고친 것»(Rev.2) 이고
+  다른 안은 «조건이 달라 금액이 다른 제안»(2안) 이다. 저장 구조도 갈려 있다.
+
+  가르는 질문은 하나다 — **금액이 같은가.** 같으면 한 장에 여러 축으로 적고,
+  다르면 안을 나눈다. 한 장에 금액이 둘이면 고객은 어느 쪽을 낼지 모른다.
+*/
+
+/** 조건이 달라 금액이 다른 제안 */
+export const VARIANT = {
+  /** 만드는 단추 */
+  create: '다른 안 만들기',
+  /** 만드는 창의 제목 */
+  createTitle: '다른 안 만들기',
+  /** 이름 칸 */
+  nameLabel: '이 안의 이름',
+  /** 처음 들어가 있는 이름 */
+  nameDefault: '2안',
+  namePlaceholder: '예: 2안 · 대용량 구성',
+  /** 같은 제안의 다음 판 */
+  revision: '개정본 만들기',
+  /** 목록에서 개정 차수를 부르는 말 — 딜 화면이 이미 이 꼴을 쓴다 */
+  revisionBadge: (n: number) => `Rev.${n}`,
+} as const
+
+/** 어느 견적에서 갈라져 나왔는지 — 지금은 저장만 되고 읽는 곳이 없다 */
+export const variantFromLine = (quoteNo: string) => `${quoteNo} 에서 갈라짐`
+
+/** 복제가 무엇을 가져가는지 미리 말한다 */
+export const variantCopyNote = (quoteNo: string) =>
+  `${quoteNo} 의 항목·금액을 그대로 복사해 초안으로 만듭니다. 앞 견적은 그대로 남아요.`
 
 // ------------------------------------------------------------
 // 문장 — 자리마다 문형이 정해져 있다(용어집 §0-2)
