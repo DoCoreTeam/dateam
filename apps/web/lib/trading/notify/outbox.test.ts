@@ -123,7 +123,7 @@ test('★ 못 보낸 뒤에 **사유가 남는다** — 조용히 안 지나간�
 
 test('★ 상한을 채운 실패는 사람에게 다르게 말한다 — 「잠시 뒤 다시」는 거짓말이 된다', () => {
   const p = patchAfterFailure(row({ attempts: MAX_ATTEMPTS - 1 }), 'timeout', at(1))
-  assert.match(p.reason ?? '', /재시도 상한/)
+  assert.match(p.reason ?? '', /다시 시도 상한/)
   assert.match(p.userMessage ?? '', /직접 확인/)
   assert.equal(/잠시 뒤 다시/.test(p.userMessage ?? ''), false)
 })

@@ -331,7 +331,7 @@ export interface AiCapabilityDoc {
 }
 
 export const AI_CAPABILITY_DOCS: readonly AiCapabilityDoc[] = [
-  { key: 'extract', label: '추출', mustShow: '후보 목록입니다. 사람이 고르기 전에는 확정이 아닙니다.' },
+  { key: 'extract', label: '추출', mustShow: '후보 목록입니다. 사람이 선택하기 전에는 확정이 아닙니다.' },
   { key: 'summarize', label: '요약', mustShow: 'AI 가 만들었다는 고지입니다.' },
   { key: 'judge', label: '판정', mustShow: '근거입니다. 없으면 판정을 확인할 방법이 없습니다.' },
   { key: 'suggest', label: '추천', mustShow: '후보 목록입니다.' },
@@ -390,8 +390,8 @@ export interface AiChainStep {
 export const AI_CHAIN_ORDER: readonly AiChainStep[] = [
   {
     no: 1,
-    title: '사용자가 고른 것',
-    note: '카탈로그가 「지금 못 쓴다」고 말한 경우에만 뺍니다. 관리자가 고른 것을 능력 판정으로 먼저 지우지 않습니다.',
+    title: '사용자가 선택한 것',
+    note: '카탈로그가 「지금 못 쓴다」고 말한 경우에만 뺍니다. 관리자가 선택한 것을 능력 판정으로 먼저 지우지 않습니다.',
   },
   {
     no: 2,
@@ -441,7 +441,7 @@ export const AI_POLICY_NOTES: readonly AiIntroBlock[] = [
     lines: [
       '첨부를 읽어야 하는 일은 이미지를 못 보는 공급자로 넘어가지 않습니다. 넘어가 봐야 400 이 옵니다.',
       '도구를 써야 하는 일도 같습니다. 필요한 능력을 requires 로 넘기면 순서를 만들 때 걸러집니다.',
-      '사용자가 고른 것 하나는 관리자 선택을 존중해 남습니다. 그것까지 걸러야 하면 meetsRequirements 로 한 번 더 봅니다.',
+      '사용자가 선택한 것 하나는 관리자 선택을 존중해 남습니다. 그것까지 걸러야 하면 meetsRequirements 로 한 번 더 봅니다.',
     ],
   },
   {
@@ -700,7 +700,7 @@ const value = newAiValue({
   capability: 'extract',
   value: recoverJson(out.text),
   source: { providerId: 'gemini', modelId: model, at: new Date().toISOString() },
-  status: 'candidate',                       // 사람이 고르기 전이라 확정이 아닙니다
+  status: 'candidate',                       // 사람이 선택하기 전이라 확정이 아닙니다
   confidence: 0.82,
   evidence: [{ blockId: 'p3', start: 120, end: 168 }],
 })

@@ -319,8 +319,20 @@ test('★ 공급자 이름을 이 모듈이 정하지 않는다 — 표는 한 �
   assert.match(troubles[0].how, /GEMINI/)
 
   const src = readFileSync(join(HERE, 'model-pick.ts'), 'utf8')
-  assert.equal(/PROVIDER_LABELS|import /.test(src), false,
-    '순수 모듈이 표를 들여온다 — 이름이 두 곳에서 갈린다')
+  assert.equal(/PROVIDER_LABELS/.test(src), false,
+    '순수 모듈이 공급자 이름 표를 들여온다 — 이름이 두 곳에서 갈린다')
+
+  /*
+    **들일 수 있는 것은 용어집뿐이다.**
+
+    예전엔 `import ` 가 있기만 해도 걸렸다. 뜻은 「공급자 이름 표를 들이지 마라」인데
+    규칙은 「아무것도 들이지 마라」였고, 그래서 **화면에 뜨는 말을 용어집에서 가져오는
+    것까지 막았다**(실측 2026-10-04: 이 파일의 「모델 고르기」가 금지어였는데 고치려면
+    `ACTION` 을 들여야 했다). 말은 용어집에서 와야 하고, 공급자 이름은 부르는 쪽이 넘긴다.
+  */
+  const imports = [...src.matchAll(/^import .*?from '([^']+)'/gm)].map((m) => m[1])
+  assert.deepEqual(imports.filter((i) => !i.includes('/terms/')), [],
+    '순수 모듈이 용어집 밖의 것을 들여온다 — 이름이 두 곳에서 갈린다')
 })
 
 test('★ 화면이 이 판정을 실제로 그린다 — 창을 여닫는 것과 무관하게', () => {

@@ -1,6 +1,6 @@
 # PLAN newAX: 리포트가 기간을 말하고 활동을 센다
 플랜 ID: P0105
-플랜 버전: v0.1.8
+플랜 버전: v0.1.9
 상태: 진행중
 지시: iv_0179
 목표 버전: v0.10.867
@@ -160,9 +160,9 @@
 의존: I04, I05
 
 ### I07 용어 가드가 파일 이름이 아니라 화면 글을 본다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/ui/glossary.test.ts, apps/web/scripts/.glossary-baseline.json, apps/web/lib/crm/domain/report-axis.ts, apps/web/lib/crm/domain/metric-agg.ts
+범위: apps/web/lib/ui/glossary.test.ts, apps/web/scripts/.glossary-baseline.json, apps/web/lib/api-docs/ai-layer.ts, apps/web/lib/ci/analysis/signals.ts, apps/web/lib/ci/analysis/signal-sweep-state.test.ts, apps/web/lib/crm/domain/state-machines.ts, apps/web/lib/trading/notify/outbox-policy.ts, apps/web/lib/trading/notify/outbox.test.ts, apps/web/lib/trading/settings/model-pick.ts, apps/web/lib/trading/settings/model-pick.test.ts
 감사 기준:
 - 보안: 해당 없음, 가드와 라벨 파일만 고친다
 - 가드가 `(terms|labels)` 라는 **파일 이름**으로 고르는 것을 그만둔다, `lib` 아래에서 화면이 읽어 가는 한글 문구를 보고 고른다
@@ -210,6 +210,12 @@
   - 조건 목록을 `ACTIVITY_HUMAN_TYPES` 한 곳에 두고 지표와 목록이 같이 쓴다
   - 실브라우저가 잡은 것 셋: 창구가 활동 축 이름을 몰라 교차표가 빈 채로 떴고, 축 이름이 영문 키(`activityAuthor`)로 찍혔고, 칸 열쇠를 내가 지어 써서 표가 전부 「—」였다 — 셋 다 단위 시험은 초록이었다
   - 배선 가드(`metric-query.test.ts`)에 활동 엔진 호출과 **응답에 실리는지**를 더했다, 일부러 깨서 두 번 확인
+- v0.1.9 (2026-10-04) I07 범위를 넓힌 가드가 잡은 자리로 바꿈 (ins_0185)
+  - 왜: 범위를 넓히자 금지어가 아홉 자리에서 걸렸다. 「—」 236줄은 기준값으로 걸지만 금지어 아홉은 **고칠 수 있는 수**라 고쳤다
+  - 걸린 아홉 자리 중 **여섯을 고치고 셋은 규칙에서 뺐다**. 뺀 셋은 `lib/ai/gemini-call.ts` 의 `console.warn` 줄이고, 서버 로그는 사람이 터미널에서 읽는 말이라 화면 글이 아니다 (추출기에서 로그 줄을 걷어내는 것으로 뺐다, 파일을 빼면 그 파일의 화면 글까지 안 보인다)
+  - 고친 여섯: 재시도→다시 시도 셋(알림 사유·수집 상태·전사 실패 문장)·고르기/고른 것 셋(개발자센터 문서 둘·모델 선택 라벨)
+  - `domain/report-axis.ts`·`domain/metric-agg.ts` 는 고칠 것이 없었다, 넓힌 범위가 그 둘을 보는지는 가드 안에서 이름으로 짚어 단정했다
+  - 곁다리로 가드 자체의 결함 둘을 고쳤다: 금지어 규칙이 baseline 을 다시 쓰며 **다른 규칙의 기준값을 지워** 라벨맵 이름 겹침 기준이 죽어 있었고, 모델 선택 가드가 「아무것도 import 하지 마라」로 넓어 **용어집을 들이는 것까지 막고 있었다**
 - v0.1.5 (2026-10-04) I03 범위에 파이프라인 카드를 넣음 (ins_0185)
   - 왜: 세로 2,600px 목표를 BusinessPanel 만 고쳐서는 **구조적으로 못 맞춘다**. 실측 2026-10-04 1440폭 총 4,297px 중 BusinessPanel 은 995px 뿐이고 파이프라인 카드 셋이 **2,798px(65%)** 을 먹는다
   - 그 2,798px 의 대부분이 단계마다 「아직 모름」을 되풀이하는 줄이다 (카드마다 「어디서 오래 머무나」 190~222px + 「얼마나 들어올까」 190~272px)
@@ -222,3 +228,4 @@
 - v0.1.6 (2026-10-03) I04 범위에 PeriodPicker 부품을 넣음, 두 탭이 같은 칩 묶음을 따로 그리면 한쪽만 고쳐진다 (audit:I04)
 - v0.1.7 (2026-10-03) I05 범위에 활동 용어집·조회 서비스·타임라인·전체 필터 상수를 넣음, 종류 이름이 화면 안에 두 벌 있어 목록이 세 벌째가 될 자리였음 (audit:I05)
 - v0.1.8 (2026-10-03) I06 범위에 활동 창구·목록 화면·배선 가드를 넣음, 카드 398 과 목록 421 이 어긋나 사람이 남긴 것만 조건을 둘이 같이 쓰게 함 (audit:I06)
+- v0.1.9 (2026-10-03) I07 범위를 실제로 고친 자리로 바꿈, 금지어 아홉 자리를 고치고 가드 자체 결함 둘을 함께 고침 (audit:I07)

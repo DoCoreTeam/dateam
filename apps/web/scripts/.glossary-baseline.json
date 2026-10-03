@@ -45,5 +45,6 @@
   "components/ui/crm/IntakeModal.tsx::고르기": 1,
   "components/ui/crm/QuoteEditorModal.tsx::빼기": 1,
   "__labelMaps": 31,
-  "__nameClashes": 7
+  "__nameClashes": 7,
+  "__emDashWide": 226
 }

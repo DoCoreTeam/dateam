@@ -10,6 +10,7 @@
  * DB 의 CHECK(chk_won, chk_lost)가 마지막 그물이고, 여기가 첫 번째 그물이다.
  */
 
+import { ACTION } from '../../terms/action.ts'
 import { CrmError } from './errors.ts'
 
 // ------------------------------------------------------------
@@ -321,7 +322,7 @@ const REASON_MESSAGE: Record<NonNullable<TransitVerdict['reason']>, string> = {
   MISSING_WON_FIELDS: '성사로 바꾸려면 성사일과 금액이 필요합니다.',
   MISSING_LOST_REASON: '실주로 바꾸려면 사유가 필요합니다.',
   MISSING_REOPEN_REASON: '다시 열려면 사유가 필요합니다.',
-  RETRY_EXHAUSTED: '재시도 횟수를 모두 사용했습니다.',
+  RETRY_EXHAUSTED: `${ACTION.retry}할 수 있는 횟수를 모두 썼습니다.`,
   TERMINAL_STATE: '이미 종료된 항목은 상태를 바꿀 수 없습니다.',
   EXPIRED: '기한이 지난 제안입니다.',
   EMPTY_QUOTE: '항목이 없는 견적은 보낼 수 없습니다. 먼저 항목을 추가해 주세요.',

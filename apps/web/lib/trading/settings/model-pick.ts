@@ -12,10 +12,12 @@
  * (`components/ui/ModelPickerModal`)이 가려 말한다 — 연동 카드와 같은 말을 쓴다.
  * 여기 남는 것은 그 모달이 모르는 사실 하나뿐이다: **고를 공급자가 아예 없다.**
  */
+import { ACTION } from '../../terms/action.ts'
+
 export const NO_KEY_WHY = '아직 쓸 수 있는 AI 공급자가 없습니다'
 export const NO_KEY_HOW = '시스템 설정의 AI 공급자에서 키를 먼저 등록해 주세요'
 
-export const MODEL_PICK = '모델 고르기'
+export const MODEL_PICK = `모델 ${ACTION.select}`
 export const MODEL_LIST_FETCH = '모델 목록 받기'
 export const MODEL_LIST_FETCHING = '목록을 받는 중…'
 
@@ -207,8 +209,8 @@ export function pickTroubles(s: ModelPickState): ModelPickTrouble[] {
       why: `${name(s.provider)}의 모델 목록에 없는 이름입니다 (${s.model})`,
       how: s.slashModelIds && !s.model.includes('/')
         // 관문 이름은 `벤더/모델` 꼴이다. 그 꼴이 아니면 그것이 바로 이유다
-        ? `${name(s.provider)}는 관문이라 이름이 벤더/모델 꼴입니다 (예: google/gemini-2.5-flash). 모델 고르기에서 다시 골라 주세요`
-        : '모델 고르기에서 다시 골라 주세요',
+        ? `${name(s.provider)}는 관문이라 이름이 벤더/모델 꼴입니다 (예: google/gemini-2.5-flash). ${MODEL_PICK}에서 다시 골라 주세요`
+        : `${MODEL_PICK}에서 다시 골라 주세요`,
     })
   }
   return out

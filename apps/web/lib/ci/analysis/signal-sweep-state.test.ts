@@ -48,7 +48,7 @@ test('★ 두괄식 — 첫 줄만 읽어도 상태와 원인이 끝난다', () 
 
 test('재시도 예정도 원인을 첫 줄에 싣는다 — 「곧 됩니다」로 뭉개지 않는다', () => {
   const s: SignalSweepState = { ...base, outcome: 'retrying', reason: '한도 초과', blockedByQuota: true }
-  assert.equal(signalSweepHeadline(s), '수집 실패 · 재시도 예정 · AI 한도 초과')
+  assert.equal(signalSweepHeadline(s), '수집 실패 · 다시 시도 예정 · AI 한도 초과')
 })
 
 test('꺼져 있으면 «실패»가 아니라 «꺼짐»이라고 말한다', () => {

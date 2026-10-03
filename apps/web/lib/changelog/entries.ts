@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.896',
+    date: '2026-10-04',
+    title: '화면 말을 재는 자리를 넓혔어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '📏',
+        headline: '같은 뜻을 다른 말로 부르던 자리 여섯을 맞췄어요',
+        detail: '「재시도」는 「다시 시도」로, 「모델 고르기」는 「모델 선택」으로 맞췄습니다. 화면 말을 검사하는 장치가 파일 이름으로 대상을 고르고 있어서, 이름이 다른 파일에 든 말은 아무도 안 보고 있었어요. 이제 화면이 읽어 가는 말을 전부 봅니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.895',
     date: '2026-10-04',
     title: '리포트가 활동도 세요',

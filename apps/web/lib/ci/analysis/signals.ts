@@ -8,6 +8,7 @@
 // 이 파일은 DB도 AI도 모른다. **무엇을 후보로 볼 것인가**만 정한다 —
 // 그래야 판정을 실제 호출 없이 검증할 수 있다(순수 모듈 분리는 classify·patterns와 같은 이유).
 
+import { ACTION } from '../../terms/action.ts'
 import type { CiSignalKind } from '../types.ts'
 
 /** 후보가 갖춰야 할 최소치. 이것을 못 넘으면 만들지 않는다. */
@@ -277,7 +278,7 @@ export function signalStatusLabel(state: SignalSweepState): string {
     case 'off': return '자동 수집 꺼짐'
     case 'never': return '수집 전'
     case 'running': return '수집 중'
-    case 'retrying': return '수집 실패 · 재시도 예정'
+    case 'retrying': return `수집 실패 · ${ACTION.retry} 예정`
     case 'failed': return '수집 실패'
     case 'ok': return state.pending > 0 ? `확인 대기 ${state.pending}건` : '새 이슈 없음'
   }

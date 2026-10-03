@@ -16,6 +16,8 @@
  */
 
 /** 알림 종류. DB 검사 제약과 같은 목록이다 */
+import { ACTION } from '../../terms/action.ts'
+
 export const NOTIFY_KINDS = [
   'signal', 'exit', 'safety', 'daily_limit', 'session_close', 'protection_breached',
   /**
@@ -138,7 +140,7 @@ export function patchAfterFailure(row: OutboxRow, error: string, now: Date): Att
     attempts,
     sentAt: null,
     lastAttemptAt: now,
-    reason: `${error}${exhausted ? ' (재시도 상한)' : ''}`,
+    reason: `${error}${exhausted ? ` (${ACTION.retry} 상한)` : ''}`,
     userMessage: exhausted
       ? '알림을 다섯 번 보내려 했지만 모두 실패했습니다. 신호 화면에서 직접 확인해 주세요'
       : '알림을 보내지 못했습니다. 잠시 뒤 다시 시도합니다',
