@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.884',
+    version: '0.10.885',
     date: '2026-10-03',
     title: '파일로 넣은 것이 그 자리에서 보이고, 견적서 금액이 안 잘려요',
     items: [
