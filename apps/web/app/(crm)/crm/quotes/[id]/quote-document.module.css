@@ -250,7 +250,20 @@
   **규격보다 작지 않다.** 규격은 긴 사양이라 작게 두지만 비고는 「서버 새시」 한마디라
   작게 두면 안 읽힌다. 칸이 좁아 접히는 것은 괜찮다 — 잘리는 것이 아니다.
 */
-.remark { color: var(--text-muted); font-size: var(--fs-xs); word-break: keep-all; }
+/*
+  비고 — 「64코어」「Raid5」처럼 짧은 말이 오는 칸이다.
+
+  `keep-all` 은 한글 낱말이 글자 단위로 잘리는 것을 막는다(「스토리지」→「스토」/「리지」).
+  다만 그것만 두면 **띄어쓰기가 없는 긴 값이 칸 밖으로 나간다** —
+  실측 2026-10-03: 받은 견적서에서 온 「(0.83*0.95*1440*1500)」가 10% 칸을 넘어
+  오른쪽 끝에서 잘렸다. 넘칠 때만 접도록 `break-word` 를 함께 둔다.
+*/
+.remark {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
 
 .spec { color: var(--text-muted); font-size: var(--fs-xs); margin-top: 0.15rem; white-space: pre-line; }
 
@@ -662,7 +675,12 @@
   color: var(--text-muted);
   text-align: right;
 }
-.sectionSum td:last-child { color: var(--text); }
+/*
+  소계 금액만 진하다. **마지막 칸이 아니라 금액 칸**을 가리킨다 —
+  비고 열이 서면 마지막 칸은 비고라, `:last-child` 로는 빈 칸을 칠하고
+  정작 금액은 흐린 채로 남았다.
+*/
+.sectionSum .num { color: var(--text); }
 
 /* 개정·안 표시 — 번호 옆에 작게. 번호보다 커지면 무엇이 문서 번호인지 흐려진다 */
 .revTag {
