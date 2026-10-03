@@ -1280,6 +1280,12 @@ export async function duplicateQuote(
         supplierSnapshot: src.supplierSnapshot as object, logoAssetHash: src.logoAssetHash,
         sealAssetHash: src.sealAssetHash,
         recipientPersonId: src.recipientPersonId,
+        /*
+          **굳은 환율도 물려받는다.** 외화 견적은 만든 날 환율을 굳혀 두고 그 값으로
+          원화 환산을 인쇄한다(QuoteSheet 의 「원화 환산」 줄). 안 물려받으면 복제본에서
+          그 줄이 통째로 사라져, 같은 금액인데 한쪽만 원화가 안 보인다.
+        */
+        fxRate: src.fxRate, fxDate: src.fxDate, fxSource: src.fxSource,
         createdById: actorId,
         subtotalMinor: src.subtotalMinor, discountMinor: src.discountMinor,
         taxMinor: src.taxMinor, totalMinor: src.totalMinor,
@@ -1319,6 +1325,11 @@ export async function duplicateQuote(
           specialDiscountReason: l.specialDiscountReason,
           taxRate: l.taxRate, lineTotalMinor: l.lineTotalMinor, position: l.position,
           kind: l.kind, roleLabel: l.roleLabel, laborGradeId: l.laborGradeId,
+          /*
+            **비고도 따라간다.** 견적서 맨 오른쪽 열에 인쇄되는 값인데 빠져 있었다.
+            복제본을 열면 그 자리만 조용히 비어, 고친 적 없는 줄이 달라진다.
+          */
+          remark: l.remark,
           sectionId: l.sectionId ? (secMap.get(l.sectionId) ?? null) : null,
         },
       })
