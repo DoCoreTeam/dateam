@@ -163,6 +163,13 @@ export default function DealDetail({ dealId }: { dealId: string }) {
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [timelineKey, setTimelineKey] = useState(0)
+  /*
+    **견적 절이 옆 절에 쓴다.** 「파일로 가져오기」는 견적 절의 단추인데, 고른 도착지에
+    따라 원가에 줄을 넣고 원본 파일을 딜 첨부로 올린다. 그 둘은 각자 자기가 한 일만
+    알고 다시 읽으므로, 넣고 나서 화면이 비어 있었다 — 사람은 새로고침을 눌러야 했다
+    (사용자 지적 2026-10-03). 여기서 올려 두 절이 함께 다시 읽게 한다.
+  */
+  const [quoteWriteKey, setQuoteWriteKey] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -309,7 +316,12 @@ export default function DealDetail({ dealId }: { dealId: string }) {
               「볼 수 없습니다」를 띄우면 원가가 있다는 사실 자체가 샌다.
             */}
             <RecordPanel title={COST.section}>
-              <CostPanel dealId={dealId} currency={deal.currency ?? 'KRW'} onChanged={() => setTimelineKey((k) => k + 1)} />
+              <CostPanel
+                dealId={dealId}
+                currency={deal.currency ?? 'KRW'}
+                reloadKey={quoteWriteKey}
+                onChanged={() => setTimelineKey((k) => k + 1)}
+              />
             </RecordPanel>
 
             {/*
@@ -329,14 +341,18 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                 dealId={dealId}
                 dealName={deal.name}
                 dealCurrency={deal.currency}
-                onChanged={() => { setTimelineKey((k) => k + 1); void load() }}
+                onChanged={() => {
+                  setTimelineKey((k) => k + 1)
+                  void load()
+                  setQuoteWriteKey((k) => k + 1)
+                }}
               />
             </RecordPanel>
 
             {/* 딜을 여는 사람이 가장 자주 하는 질문 — "지난번에 뭐라고 했지?" */}
             {/* 계약서·발주서가 이 건과 함께 남는다 — 드라이브 링크는 폴더를 옮기면 끊긴다 */}
             <RecordPanel title={ATTACHMENT.section}>
-              <AttachmentPanel target="DEAL" targetId={dealId} defaultKind="CONTRACT" />
+              <AttachmentPanel target="DEAL" targetId={dealId} defaultKind="CONTRACT" reloadKey={quoteWriteKey} />
             </RecordPanel>
 
             <RecordPanel title="이 딜의 미팅">

@@ -80,6 +80,16 @@ interface Props {
   dealId: string
   currency: string
   onChanged?: () => void
+  /**
+   * 바깥에서 미는 「다시 읽어라」. 값이 바뀔 때마다 목록을 다시 읽는다.
+   *
+   * **옆 절이 이 절에 쓸 수 있기 때문이다.** 딜 화면의 「파일로 가져오기」는 견적 절에
+   * 서 있지만 원가와 첨부에 줄을 넣는다 — 그 절들은 자기가 쓴 것만 알아서, 넣고 나면
+   * 화면은 비어 있고 사람은 새로고침을 눌러야 했다
+   * (사용자 지적 2026-10-03: 「파일로 해서 데이터를 넣었는데 바로 확인이 안되고
+   * 새로고침을 눌러야 하는 버그 있어」).
+   */
+  reloadKey?: number
 }
 
 const EMPTY_DRAFT = {
@@ -92,7 +102,7 @@ const EMPTY_DRAFT = {
   currency: '',
 }
 
-export default function CostPanel({ dealId, currency, onChanged }: Props) {
+export default function CostPanel({ dealId, currency, onChanged, reloadKey }: Props) {
   const [view, setView] = useState<CostView | null>(null)
   const [grades, setGrades] = useState<Grade[]>([])
   const [loading, setLoading] = useState(true)
@@ -123,7 +133,7 @@ export default function CostPanel({ dealId, currency, onChanged }: Props) {
     }
   }, [dealId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, reloadKey])
 
   // 등급은 «공수» 를 고를 때만 필요하다 — 열 때 한 번 불러온다
   useEffect(() => {

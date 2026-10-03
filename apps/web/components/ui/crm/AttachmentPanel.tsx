@@ -44,9 +44,19 @@ interface Props {
    * 「원본 대조」 단추를 그리는데, 여기서만 바뀌면 그 단추는 새로고침 전까지 옛말을 한다.
    */
   onChanged?: () => void
+  /**
+   * 바깥에서 미는 「다시 읽어라」. 값이 바뀔 때마다 목록을 다시 읽는다.
+   *
+   * **옆 절이 이 절에 쓸 수 있기 때문이다.** 딜 화면의 「파일로 가져오기」는 견적 절에
+   * 서 있지만 원가와 첨부에 줄을 넣는다 — 그 절들은 자기가 쓴 것만 알아서, 넣고 나면
+   * 화면은 비어 있고 사람은 새로고침을 눌러야 했다
+   * (사용자 지적 2026-10-03: 「파일로 해서 데이터를 넣었는데 바로 확인이 안되고
+   * 새로고침을 눌러야 하는 버그 있어」).
+   */
+  reloadKey?: number
 }
 
-export default function AttachmentPanel({ target, targetId, defaultKind = 'OTHER', onChanged }: Props) {
+export default function AttachmentPanel({ target, targetId, defaultKind = 'OTHER', onChanged, reloadKey }: Props) {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -69,7 +79,7 @@ export default function AttachmentPanel({ target, targetId, defaultKind = 'OTHER
     }
   }, [target, targetId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, reloadKey])
 
   const upload = useCallback(async (file: File) => {
     /*
