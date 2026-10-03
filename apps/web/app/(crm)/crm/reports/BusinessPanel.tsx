@@ -9,7 +9,7 @@
 //   · **못 센 것을 밝힌다.** 종료일을 모르는 사업은 인식 매출에서 빠지는데,
 //     그 사실을 안 적으면 매출이 조용히 작아진 채로 보고된다.
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Sensitive from '@/components/crm/Sensitive'
 import EmptyState from '@/components/ui/EmptyState'
@@ -28,7 +28,22 @@ import {
 import { periodOfToday } from '@/lib/crm/domain/target'
 import { compareSums, type CompareKey } from '@/lib/crm/domain/period-compare'
 import ComparePicker from '@/components/ui/crm/ComparePicker'
-import { REPORT, COMPARE_LABEL, NO_COMPARE, compareNote, deltaText } from '@/lib/terms/report'
+import {
+  REPORT, COMPARE_LABEL, NO_COMPARE, compareNote, deltaText,
+  foldedNote, FOLD_SHOW, FOLD_HIDE, SAME_LENS_NOTE, COUNTER_MONTH, monthsLabel,
+  METRIC_MORE, METRIC_MORE_HINT, DATE_BASIS_LABEL, UNIT_LABEL,
+} from '@/lib/terms/report'
+import { ENTITY } from '@/lib/terms/entity'
+
+/**
+ * 표 머리 하나.
+ *
+ * 용어집에 **단수 이름**(「딜」·「회사」)은 있는데 「건수」는 없었다.
+ * 여기서 짓지 않고 용어집의 조수사로 만든다. 「건수」는 조수사 「건」에 「수」를 붙인 것이다.
+ * 담당자 머리는 쪼개는 기준 이름(`GROUP_LABEL.OWNER`)을 그대로 쓴다 — 저장소가 그 축을
+ * 「담당자」로 부르는데 표 머리에서만 「담당」으로 줄이면 같은 것이 두 이름을 갖는다.
+ */
+const COUNT_HEADER = `${UNIT_LABEL.count}수`
 import styles from './business-panel.module.css'
 
 interface CurrencySum { currency: string; totalMinor: string }
@@ -174,21 +189,21 @@ function groupColumns(groupBy: GroupKey): ColumnDef<GroupRow>[] {
     { key: 'label', header: GROUP_LABEL[groupBy], primary: true, cell: (g) => g.label },
     { key: 'bookings', header: METRIC.bookings, align: 'right', width: '15rem',
       cell: (g) => <Money sums={g.bookings} /> },
-    { key: 'recognized', header: '인식 매출', align: 'right', width: '15rem',
+    { key: 'recognized', header: METRIC_MORE.recognized, align: 'right', width: '15rem',
       cell: (g) => <Money sums={g.recognized} /> },
-    { key: 'count', header: '건수', align: 'right', width: '6rem',
-      cell: (g) => `${g.count}건` },
+    { key: 'count', header: COUNT_HEADER, align: 'right', width: '6rem',
+      cell: (g) => `${g.count}${UNIT_LABEL.count}` },
   ]
 }
 
 /** 상세 컬럼 — 합계만 있고 내역이 없으면 사람이 그 숫자를 확인할 방법이 없다 */
 const DEAL_COLUMNS: ColumnDef<DealRow>[] = [
-  { key: 'name', header: '딜', primary: true, cell: (d) => d.name },
-  { key: 'company', header: '회사', cell: (d) => d.companyName ?? '—' },
-  { key: 'owner', header: '담당', width: '7rem', cell: (d) => d.ownerName ?? '—' },
-  { key: 'wonAt', header: '따낸 날', width: '8rem', cell: (d) => d.wonAt ?? '—' },
+  { key: 'name', header: ENTITY.deal.label, primary: true, cell: (d) => d.name },
+  { key: 'company', header: ENTITY.company.label, cell: (d) => d.companyName ?? '—' },
+  { key: 'owner', header: GROUP_LABEL.OWNER, width: '7rem', cell: (d) => d.ownerName ?? '—' },
+  { key: 'wonAt', header: DATE_BASIS_LABEL.wonAt, width: '8rem', cell: (d) => d.wonAt ?? '—' },
   {
-    key: 'term', header: '사업 기간', cell: (d) => (
+    key: 'term', header: DATE_BASIS_LABEL.termSpread, cell: (d) => (
       <>
         {d.termLabel ?? '—'}
         {d.recognitionUnknown && <span className={styles.unknownTag}>기간 모름</span>}
@@ -214,6 +229,8 @@ function firstMinor(sums: CurrencySum[]): bigint {
 }
 
 export default function BusinessPanel({ here, data, period, compareKey, todayKey, onPeriodChange, onCompareChange, onGroupChange }: Props) {
+  const [showAllMonths, setShowAllMonths] = useState(false)
+
   const peak = useMemo(() => {
     let max = BigInt(0)
     for (const t of data.timeline) {
@@ -227,6 +244,29 @@ export default function BusinessPanel({ here, data, period, compareKey, todayKey
 
   const pct = (v: bigint) => (peak === BigInt(0) ? 0 : Number((v * BigInt(1000)) / peak) / 10)
   const hasAny = data.bookingsCount > 0 || data.recognized.length > 0
+
+  /*
+    **값 없는 달을 접는다.** 실측 2026-10-02: 열두 줄 중 열한 줄이 빈 틱이었고,
+    데이터 한 건이 화면 한 판을 다 썼다. 그냥 지우면 합이 안 맞아 보이므로
+    몇 개월을 접었는지 말하고 펼칠 길을 둔다.
+  */
+  const shownTimeline = useMemo(
+    () => (showAllMonths
+      ? data.timeline
+      : data.timeline.filter((t) => t.bookings.length > 0 || t.recognized.length > 0)),
+    [data.timeline, showAllMonths],
+  )
+  const folded = data.timeline.length - shownTimeline.length
+
+  /*
+    **세 관점이 같은 숫자면 그 사실을 말한다.** 카드 셋에 같은 금액이 서면 읽는 사람은
+    각자 다른 것을 센 줄 알고 세 번 읽는다(실측: 넷 중 셋이 24,260,000원이었다).
+  */
+  const sameLens = useMemo(() => {
+    const key = (sums: CurrencySum[]) => sums.map((x) => `${x.currency}:${x.totalMinor}`).sort().join('|')
+    const b = key(data.bookings)
+    return b.length > 0 && b === key(data.recognized) && b === key(data.cash)
+  }, [data.bookings, data.recognized, data.cash])
 
   /*
     견줄 대상 한 벌. **비교를 껐으면 `null`** 이라 카드가 그 줄을 아예 안 그린다.
@@ -322,7 +362,7 @@ export default function BusinessPanel({ here, data, period, compareKey, todayKey
           question={`${LENS_LABEL.REVENUE} · ${LENS_QUESTION.REVENUE}`}
           title={LENS_AMOUNT_LABEL.REVENUE}
           sums={data.recognized}
-          foot="사업 기간에 나눠 담은 몫"
+          foot={METRIC_MORE_HINT.recognized}
           hint={LENS_HINT.REVENUE}
           compare={cmp && { label: cmp.label, before: cmp.data?.recognized ?? null }}
         />
@@ -345,6 +385,8 @@ export default function BusinessPanel({ here, data, period, compareKey, todayKey
           compare={cmp && { label: cmp.label, before: cmp.data?.backlog ?? null }}
         />
       </div>
+
+      {sameLens && <p className={styles.caveat}>{SAME_LENS_NOTE}</p>}
 
       {/*
         **못 센 것을 밝힌다.** 이 줄이 없으면 인식 매출이 조용히 작아진 채로 보고된다 —
@@ -373,7 +415,7 @@ export default function BusinessPanel({ here, data, period, compareKey, todayKey
       {/* ── 시점: 달마다 얼마를 따냈고 얼마가 매출로 잡히나 ── */}
       <SectionSurface
         title="달마다"
-        meta={`${data.timeline.length}개월`}
+        meta={folded > 0 ? `${shownTimeline.length}/${monthsLabel(data.timeline.length)}` : monthsLabel(data.timeline.length)}
         action={
           <span className={styles.legend}>
             <span className={styles.legendSales} /> 수주
@@ -385,7 +427,7 @@ export default function BusinessPanel({ here, data, period, compareKey, todayKey
           <EmptyState title="이 기간에는 달마다 쌓인 숫자가 아직 없어요" />
         ) : (
           <ol className={styles.chart}>
-            {data.timeline.map((t) => (
+            {shownTimeline.map((t) => (
               <li key={t.key} className={styles.chartRow}>
                 <span className={styles.chartLabel}>{t.label}</span>
                 <span className={styles.chartBars}>
@@ -406,6 +448,14 @@ export default function BusinessPanel({ here, data, period, compareKey, todayKey
               </li>
             ))}
           </ol>
+        )}
+        {folded > 0 && (
+          <p className={styles.folded}>
+            {foldedNote(folded, COUNTER_MONTH)}
+            <button type="button" className={styles.foldBtn} onClick={() => setShowAllMonths((v) => !v)}>
+              {showAllMonths ? FOLD_HIDE : FOLD_SHOW}
+            </button>
+          </p>
         )}
       </SectionSurface>
 

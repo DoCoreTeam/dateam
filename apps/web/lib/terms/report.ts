@@ -341,6 +341,43 @@ export function deltaByUnit(unit: Exclude<UnitKey, 'money'>, now: number, before
   return `${sign}${size.toLocaleString('ko-KR')}${UNIT_LABEL[unit]}`
 }
 
+/**
+ * 달 수를 적는 말. **새로 짓지 않는다** — 원장이 이미 `monthsLabel` 로 쓰고 있다.
+ * 같은 「3개월」을 두 곳에서 따로 만들면 한쪽이 「3달」이 되는 날이 온다.
+ */
+export { monthsLabel } from './ledger.ts'
+
+/** 접은 줄을 셀 때 쓰는 조수사. 달은 「개월」이다 */
+export const COUNTER_MONTH = '개월'
+
+/**
+ * 접은 줄을 말하는 문형.
+ *
+ * **접는 것과 숨기는 것은 다르다.** 값 없는 달 열한 줄을 그대로 그리면 데이터 한 건이
+ * 화면 한 판을 다 쓰고(실측 2026-10-04: 열두 줄 중 열한 줄이 빈 틱이었다), 그냥 지우면
+ * 합이 안 맞아 보여 사람이 집계를 의심한다. 그래서 **접고, 몇 줄 접었는지 말한다.**
+ *
+ * 조수사를 받는다 — 달은 「개월」, 단계는 「곳」, 줄은 「건」이다(용어집 조수사 규약).
+ */
+export function foldedNote(n: number, counter: string): string {
+  return `값 없는 ${n}${counter} 접음`
+}
+
+/** 접은 것을 펼치고 다시 접는 단추 */
+export const FOLD_SHOW = '펼치기'
+export const FOLD_HIDE = '접기'
+
+/**
+ * 세 관점이 같은 금액일 때.
+ *
+ * 수주·인식 매출·현금이 **같은 숫자로 나란히 서면** 읽는 사람은 카드 셋이 각자 다른 것을
+ * 센 줄 알고 세 번 읽는다(실측 2026-10-02: 카드 넷 중 셋이 24,260,000원이었다).
+ * 같다는 것은 **단발 납품이고 현물이 없다**는 뜻이라, 그 사실을 한 줄로 말해 주면
+ * 숫자 셋을 각각 해석할 일이 없어진다.
+ */
+export const SAME_LENS_NOTE =
+  '세 관점의 금액이 같습니다. 이 기간에 따낸 것이 그 기간에 다 매출로 잡히고 현물이 없을 때 그렇습니다'
+
 /** 쪼개는 기준에서 값이 비어 있는 줄의 이름 — 숨기면 합이 안 맞는다 */
 export const DIMENSION_EMPTY = '없음'
 

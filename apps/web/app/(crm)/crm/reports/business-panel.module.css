@@ -243,7 +243,27 @@
 }
 
 @media (max-width: 767px) {
-  .cards { grid-template-columns: 1fr; }
+  /*
+    **넷을 한 줄씩 쌓지 않는다.** 실측 2026-10-04 390폭에서 이 묶음이 643px 였고,
+    그만큼 아래 내용이 화면 밖으로 밀렸다. 둘씩 세우면 두 줄이 된다.
+    `minmax(0, 1fr)` 이라 금액이 길어도 칸을 밀어내지 않고 칸 안에서 접힌다.
+  */
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+  /*
+    **금액은 한 줄이어야 한다.** 두 칸으로 세우면 칸이 173px 가 되고 `--fs-2xl` 로는
+    「24,260,000원」이 두 줄로 끊긴다 — 숫자가 줄 중간에서 끊기면 자릿수를 잘못 읽는다
+    (넘치지 않아도 접히는 것은 괜찮은 것이 아니다). 글자를 줄여 한 줄에 담는다.
+  */
+  .figureBig { font-size: var(--fs-lg); }
+  /*
+    기간 줄이 세 줄로 접히며 160px 를 먹었다. 한 줄로 두고 **그 줄만** 옆으로 굴린다.
+    페이지가 옆으로 굴러가는 것과 줄 하나가 굴러가는 것은 다르다 — 페이지 넘침은 0 이다.
+  */
+  /* 좁은 화면에서는 블록 사이를 좁힌다. 한 화면에 들어가는 줄 수가 그만큼 늘어난다 */
+  .wrap { gap: var(--space-3); }
+  .periodBar { flex-wrap: nowrap; overflow-x: auto; gap: var(--space-2); }
+  .periodTabs, .periodNav { flex: 0 0 auto; }
+  .periodRange { flex: 0 0 auto; }
   .chartRow { grid-template-columns: 70px 1fr; }
   .chartValue { grid-column: 2; text-align: left; }
 }
@@ -332,3 +352,26 @@
 .down { color: var(--nb-danger, #c0362c); font-weight: 700; font-variant-numeric: tabular-nums; }
 .flat { color: var(--text-muted); font-weight: 700; }
 .compareBase { color: var(--text-faint); }
+
+/* 접은 줄을 말하는 자리. 숨기는 것이 아니라 접는 것이므로 수와 펼칠 길을 같이 둔다 */
+.folded {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.foldBtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.foldBtn:hover { color: var(--text); }
+.foldBtn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

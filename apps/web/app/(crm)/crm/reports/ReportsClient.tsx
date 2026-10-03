@@ -10,7 +10,7 @@
 // 리포트의 숫자는 틀려도 화면이 안 깨진다. 그래서 **무엇을 세지 않았는지**를
 // 숫자 옆에 같이 써야 사람이 그 숫자를 믿을지 말지 정할 수 있다.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { hereNow } from '@/lib/crm/nav/back-link'
 import { navLabelOf } from '@/lib/crm/nav/groups'
@@ -22,10 +22,14 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import { formatAmount } from '../deals/amount'
 import BusinessPanel, { type BusinessReportJson } from './BusinessPanel'
 import {
-  parseReportPeriod, formatReportPeriod, type ReportPeriod, type GroupKey,
+  parseReportPeriod, formatReportPeriod, GROUP_LABEL, type ReportPeriod, type GroupKey,
 } from '@/lib/crm/domain/report-axis'
 import { parseCompareKey, type CompareKey } from '@/lib/crm/domain/period-compare'
 import { kstTodayKey } from '@/lib/datetime/kst'
+import { foldedNote, FOLD_SHOW, FOLD_HIDE, UNIT_LABEL } from '@/lib/terms/report'
+
+/** 단계를 셀 때 쓰는 조수사. 자리이므로 「곳」이다(용어집 조수사 규약) */
+const COUNTER_PLACE = UNIT_LABEL.place
 import styles from './reports.module.css'
 
 interface CurrencySum { currency: string; totalMinor: string }
@@ -107,6 +111,66 @@ function Money({ sums, count }: { sums: CurrencySum[]; count: number }) {
         </span>
       ))}
     </span>
+  )
+}
+
+/**
+ * 단계별 쪼갠 줄을 접는 상자.
+ *
+ * **답은 늘 보이고 쪼갠 줄만 접힌다.** 요약 문장과 예상 금액은 이 블록이 답해야 하는
+ * 것이라 접지 않는다. 단계마다 한 줄씩 붙는 내역은 그 답을 **확인하려 할 때** 필요한
+ * 것이라 접는다(실측 2026-10-04 390폭: 「얼마나 들어올까」 한 블록이 566px 였고
+ * 그중 대부분이 단계 내역이었다).
+ */
+function FoldedDetail({ children, count }: { children: ReactNode; count: number }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <p className={styles.folded}>
+        {`${GROUP_LABEL.STAGE} ${count}${COUNTER_PLACE}`}
+        <button type="button" className={styles.foldBtn} onClick={() => setOpen((v) => !v)}>
+          {open ? FOLD_HIDE : FOLD_SHOW}
+        </button>
+      </p>
+      {open && children}
+    </>
+  )
+}
+
+/**
+ * 단계 목록. **빈 단계를 접고 몇 곳을 접었는지 말한다.**
+ *
+ * 왜 접나: 아무도 서 있지 않은 단계를 「0건 —」로 그리면 단계가 많은 파이프라인에서
+ * 그 줄들이 화면을 다 먹는다. 왜 지우지 않나: 지우면 단계가 사라진 것처럼 보여
+ * 사람이 「우리 단계가 넷이었나」를 되짚는다. 접고, 수를 말하고, 펼칠 길을 둔다.
+ */
+function StageList({ stages }: { stages: PipelineReport['stages'] }) {
+  const [showAll, setShowAll] = useState(false)
+  const filled = stages.filter((s) => s.count > 0 || s.unpriced > 0)
+  const folded = stages.length - filled.length
+  const shown = showAll || folded === 0 ? stages : filled
+
+  return (
+    <>
+      <ul className={styles.stages}>
+        {shown.map((s) => (
+          <li key={s.stageId} className={styles.stage}>
+            <span className={styles.stageName}>{s.stageName}</span>
+            <span className={styles.stageCount}>{s.count}{UNIT_LABEL.count}</span>
+            <Money sums={s.byCurrency} count={s.count} />
+            {s.unpriced > 0 && <span className={styles.note}>금액 미정 {s.unpriced}{UNIT_LABEL.count}</span>}
+          </li>
+        ))}
+      </ul>
+      {folded > 0 && (
+        <p className={styles.folded}>
+          {foldedNote(folded, COUNTER_PLACE)}
+          <button type="button" className={styles.foldBtn} onClick={() => setShowAll((v) => !v)}>
+            {showAll ? FOLD_HIDE : FOLD_SHOW}
+          </button>
+        </p>
+      )}
+    </>
   )
 }
 
@@ -248,6 +312,12 @@ export default function ReportsClient() {
         <span className={styles.sectionHint}>아직 안 끝난 딜을 단계로 본다. 위의 금액과 다른 이야기다</span>
       </h2>
 
+      {/*
+        **카드를 나란히 놓는다.** 셋이 세로로 쌓이면 높이가 그대로 더해져
+        파이프라인 하나당 한 화면을 먹는다(실측 2026-10-04: 카드 셋이 2,054px).
+        좁은 화면에서는 한 줄로 떨어지므로 굽은 곳이 없다.
+      */}
+      <div className={styles.pipelineGrid}>
       {shown.map((p) => (
         <section key={p.pipelineId} className={`card ${styles.card}`}>
           <div className={styles.head}>
@@ -277,16 +347,13 @@ export default function ReportsClient() {
             </div>
           </div>
 
-          <ul className={styles.stages}>
-            {p.stages.map((s) => (
-              <li key={s.stageId} className={styles.stage}>
-                <span className={styles.stageName}>{s.stageName}</span>
-                <span className={styles.stageCount}>{s.count}건</span>
-                <Money sums={s.byCurrency} count={s.count} />
-                {s.unpriced > 0 && <span className={styles.note}>금액 미정 {s.unpriced}건</span>}
-              </li>
-            ))}
-          </ul>
+          {/*
+            **빈 단계를 접는다.** 아무도 서 있지 않은 단계를 「0건 —」로 그리면 단계가
+            많은 파이프라인에서 그 줄들이 화면을 다 먹는다(실측 2026-10-04: 카드 셋의
+            단계 목록이 220~289px 였고 대부분이 0건 줄이었다).
+            지우지 않고 접는다 — 접은 수를 말해야 합이 안 맞아 보이지 않는다.
+          */}
+          <StageList stages={p.stages} />
 
           {/*
             어디서 막히나.
@@ -300,8 +367,16 @@ export default function ReportsClient() {
               <div className={styles.velocity}>
                 <h3 className={styles.subTitle}>어디서 오래 머무나</h3>
                 <p className={styles.summary}>{v.summary}</p>
+                {/*
+                  **답이 없는 줄을 늘어놓지 않는다.** 단계마다 「아직 모름」을 적으면
+                  요약이 이미 말한 것을 단계 수만큼 되풀이한다. 세어 말하고 접는다.
+                */}
+                {v.stages.every((d) => d.insufficient && d.standing === 0) ? (
+                  <p className={styles.note}>{foldedNote(v.stages.length, COUNTER_PLACE)}</p>
+                ) : (
+                <FoldedDetail count={v.stages.filter((d) => !d.insufficient || d.standing > 0).length}>
                 <ul className={styles.durations}>
-                  {v.stages.map((d) => (
+                  {v.stages.filter((d) => !d.insufficient || d.standing > 0).map((d) => (
                     <li key={d.stageId} className={styles.duration}>
                       <span className={styles.stageName}>{d.stageName}</span>
                       {d.insufficient ? (
@@ -318,6 +393,8 @@ export default function ReportsClient() {
                     </li>
                   ))}
                 </ul>
+                </FoldedDetail>
+                )}
               </div>
             )
           })()}
@@ -349,8 +426,13 @@ export default function ReportsClient() {
                   </p>
                 )}
 
+                {/* 성사율을 한 단계도 모르면 요약이 이미 그 말을 했다. 단계 수만큼 되풀이하지 않는다 */}
+                {f.stages.every((d) => d.winRate === null) ? (
+                  <p className={styles.note}>{foldedNote(f.stages.length, COUNTER_PLACE)}</p>
+                ) : (
+                <FoldedDetail count={f.stages.filter((d) => d.winRate !== null).length}>
                 <ul className={styles.durations}>
-                  {f.stages.map((d) => (
+                  {f.stages.filter((d) => d.winRate !== null).map((d) => (
                     <li key={d.stageId} className={styles.duration}>
                       <span className={styles.stageName}>{d.stageName}</span>
                       {d.winRate === null ? (
@@ -374,11 +456,14 @@ export default function ReportsClient() {
                     </li>
                   ))}
                 </ul>
+                </FoldedDetail>
+                )}
               </div>
             )
           })()}
         </section>
       ))}
+      </div>
       {/* 접은 것을 숨기지 않는다 — 몇 개를 접었는지는 말한다 */}
       {!showEmpty && unused.length > 0 && (
         <button type="button" className={styles.showEmpty} onClick={() => setShowEmpty(true)}>

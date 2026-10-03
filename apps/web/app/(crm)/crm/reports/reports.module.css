@@ -33,7 +33,16 @@
 }
 
 @media (max-width: 767px) {
-  .totals { grid-template-columns: 1fr; }
+  /* 좁은 화면에서는 블록 사이와 카드 안쪽을 좁힌다 */
+  .wrap { gap: var(--space-3); }
+  .card { padding: var(--space-4); }
+  /*
+    셋을 한 줄씩 쌓으면 「성사 1건」 한 줄이 칸 하나를 다 쓴다 — 실측 2026-10-04
+    390폭에서 이 묶음이 카드마다 285~308px 였다. 진행 중만 금액을 들어 폭이 필요하고
+    성사·실패는 건수 한 줄이라 나란히 세운다.
+  */
+  .totals { grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .totals > .total:first-child { grid-column: 1 / -1; }
 }
 
 .total {
@@ -221,4 +230,49 @@
   font-size: var(--fs-xs);
   font-weight: 400;
   color: var(--text-muted);
+}
+
+/*
+  접은 줄을 말하는 자리.
+
+  **접은 것을 숨기지 않는다.** 빈 단계를 그냥 지우면 단계가 사라진 것처럼 보여
+  사람이 집계를 의심한다. 수를 말하고 펼칠 길을 같은 줄에 둔다.
+*/
+.folded {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.foldBtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.foldBtn:hover { color: var(--text); }
+.foldBtn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/*
+  파이프라인 카드 격자.
+
+  카드 셋을 세로로 쌓으면 높이가 그대로 더해진다 — 실측 2026-10-04 1440폭에서
+  카드 셋이 2,054px 로 화면의 62% 를 먹었고, 파이프라인이 늘면 그만큼 더 늘어난다.
+  나란히 놓으면 높이는 **가장 긴 카드 하나**가 된다.
+
+  `minmax(min(100%, 24rem), 1fr)` 은 좁은 화면에서 한 줄로 떨어지게 한다.
+  고정 폭으로 두면 390 폭에서 칸이 화면보다 넓어져 가로로 넘친다.
+*/
+.pipelineGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+  gap: var(--space-4);
+  align-items: start;
 }
