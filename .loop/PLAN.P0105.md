@@ -1,6 +1,6 @@
 # PLAN newAX: 리포트가 기간을 말하고 활동을 센다
 플랜 ID: P0105
-플랜 버전: v0.1.7
+플랜 버전: v0.1.8
 상태: 진행중
 지시: iv_0179
 목표 버전: v0.10.867
@@ -145,9 +145,9 @@
 의존: 없음
 
 ### I06 활동 지표가 리포트에 선다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/domain/metrics.ts, apps/web/lib/crm/domain/metrics.test.ts, apps/web/lib/crm/services/activity-metrics.ts (신규), apps/web/lib/crm/services/activity-metrics.test.ts (신규), apps/web/app/api/crm/metrics/route.ts, apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/lib/terms/report.ts, apps/web/package.json
+범위: apps/web/lib/crm/domain/metrics.ts, apps/web/lib/crm/services/activity-metrics.ts (신규), apps/web/lib/crm/services/activity-metrics.test.ts (신규), apps/web/lib/crm/services/metric-query.test.ts, apps/web/lib/crm/services/activity.ts, apps/web/lib/crm/services/activity-list.test.ts, apps/web/app/api/crm/metrics/route.ts, apps/web/app/api/crm/activities/route.ts, apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/app/(crm)/crm/activities/ActivitiesClient.tsx, apps/web/app/(crm)/crm/activities/activities.module.css, apps/web/lib/terms/report.ts, apps/web/lib/terms/activity.ts, apps/web/lib/terms/index.ts, apps/web/lib/ui/picker-standard.test.ts, apps/web/package.json
 감사 기준:
 - 보안: 창구를 고친다, 새 창구가 아니고 `withCrmApi('READONLY')` 를 그대로 지나는 것을 확인한다, 활동 조회가 워크스페이스로 걸러지는 것을 확인한다
 - 활동 지표가 하나 이상 선다, 활동 건수가 기간으로 걸리고 단위 시험이 `occurredAt` 기준인 것을 단정한다
@@ -205,6 +205,11 @@
   - 거르기의 「전체」가 세 화면에 흩어져 있어 `FILTER_ALL` 로 올리고 견적·미팅 두 화면도 그 상수를 쓰게 했다, 상수만 만들고 안 쓰면 네 번째 사본이다
   - 조회에 담당자·기간·전체 건수가 없어 `services/activity.ts` 를 고쳤다, 기간과 커서가 같은 칸(`occurredAt`)을 쓰므로 서로 덮지 않는지 단위 시험으로 잠갔다
   - 삭제 계약 가드가 「지우는 API 가 있으면 목록에서 지울 길이 있어야 한다」로 걸려 한 건 삭제를 넣었다, 확인창은 목록 표준 부품(`BulkDeleteConfirm`)을 쓴다
+- v0.1.8 (2026-10-04) I06 범위에 창구 둘·목록 화면·배선 가드를 넣음 (ins_0185)
+  - 왜: 카드 숫자와 그 카드에서 열린 목록 건수가 어긋났다 (접촉 398 대 목록 421). 「사람이 남긴 것만」 조건을 목록도 알아야 해서 활동 창구와 목록 화면까지 들어왔다
+  - 조건 목록을 `ACTIVITY_HUMAN_TYPES` 한 곳에 두고 지표와 목록이 같이 쓴다
+  - 실브라우저가 잡은 것 셋: 창구가 활동 축 이름을 몰라 교차표가 빈 채로 떴고, 축 이름이 영문 키(`activityAuthor`)로 찍혔고, 칸 열쇠를 내가 지어 써서 표가 전부 「—」였다 — 셋 다 단위 시험은 초록이었다
+  - 배선 가드(`metric-query.test.ts`)에 활동 엔진 호출과 **응답에 실리는지**를 더했다, 일부러 깨서 두 번 확인
 - v0.1.5 (2026-10-04) I03 범위에 파이프라인 카드를 넣음 (ins_0185)
   - 왜: 세로 2,600px 목표를 BusinessPanel 만 고쳐서는 **구조적으로 못 맞춘다**. 실측 2026-10-04 1440폭 총 4,297px 중 BusinessPanel 은 995px 뿐이고 파이프라인 카드 셋이 **2,798px(65%)** 을 먹는다
   - 그 2,798px 의 대부분이 단계마다 「아직 모름」을 되풀이하는 줄이다 (카드마다 「어디서 오래 머무나」 190~222px + 「얼마나 들어올까」 190~272px)
@@ -216,3 +221,4 @@
 - v0.1.5 (2026-10-03) I03 범위에 파이프라인 카드를 넣음, 실측 4297px 중 BusinessPanel 995px 이고 카드 셋이 2798px 을 먹어 범위대로는 목표를 못 맞춘다 (audit:I03)
 - v0.1.6 (2026-10-03) I04 범위에 PeriodPicker 부품을 넣음, 두 탭이 같은 칩 묶음을 따로 그리면 한쪽만 고쳐진다 (audit:I04)
 - v0.1.7 (2026-10-03) I05 범위에 활동 용어집·조회 서비스·타임라인·전체 필터 상수를 넣음, 종류 이름이 화면 안에 두 벌 있어 목록이 세 벌째가 될 자리였음 (audit:I05)
+- v0.1.8 (2026-10-03) I06 범위에 활동 창구·목록 화면·배선 가드를 넣음, 카드 398 과 목록 421 이 어긋나 사람이 남긴 것만 조건을 둘이 같이 쓰게 함 (audit:I06)

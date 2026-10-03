@@ -24,6 +24,7 @@ import {
   METRIC_MORE, METRIC_MORE_HINT,
   type DateBasisKey, type UnitKey,
 } from '../../terms/report.ts'
+import { ACTIVITY_METRIC, ACTIVITY_METRIC_HINT } from '../../terms/activity.ts'
 
 /** 어떤 딜을 세나 */
 export type MetricScope =
@@ -59,6 +60,15 @@ export interface MetricDecl {
   label: string
   hint: string
   unit: UnitKey
+  /**
+   * 무엇을 세는 지표인가. 안 적으면 딜이다.
+   *
+   * **딜과 활동은 다른 개체다.** 같은 집계 엔진에 억지로 넣으면 활동에 없는 칸
+   * (금액·단계·성사확률)이 전부 선언에 남아 「이 지표는 그 칸을 안 쓴다」는 사실을
+   * 코드가 말하지 못한다. 그래서 세는 대상을 적고, 엔진을 고르는 일은 창구가 한다
+   * (`services/activity-metrics.ts` 가 활동 쪽을 센다).
+   */
+  source?: 'deal' | 'activity'
   scope: MetricScope
   /** 금액을 더하면 그 칸 이름, 건수를 세면 null */
   amount: AmountField | null
@@ -67,6 +77,13 @@ export interface MetricDecl {
   dateBasis: DateBasisKey
   agg: 'sum' | 'count'
   filter?: MetricFilterKind
+  /**
+   * 활동 지표에서 **사람이 남긴 것만** 세나.
+   *
+   * 시스템이 남긴 기록(태스크 완료·연동)을 접촉으로 세면 사람이 한 일보다 큰 숫자가
+   * 되고, 그 숫자로 담당자를 견주면 틀린 평가가 된다.
+   */
+  humanOnly?: boolean
   /**
    * 이 숫자를 말하려면 표본이 몇 개 있어야 하나.
    *
@@ -168,7 +185,30 @@ export const METRICS: readonly MetricDecl[] = [
     unit: 'count', scope: 'OPEN', amount: null, weighted: false,
     dateBasis: 'stageEnteredAt', agg: 'count', filter: 'stalled',
   },
+  /*
+    활동 지표 둘. **딜을 안 센다.**
+
+    실측 2026-10-02: `crm_activity` 에 421건이 쌓여 있는데 리포트 지표 14개가 전부 딜
+    기준이라 「이번 달 누가 몇 번 접촉했나」를 물을 자리가 없었다. 금액·단계·성사확률
+    칸은 활동에 없으므로 `amount: null`·`weighted: false` 이고, 세는 날짜는 활동이
+    일어난 날이다.
+  */
+  {
+    key: 'activity_count', label: ACTIVITY_METRIC.all, hint: ACTIVITY_METRIC_HINT.all,
+    unit: 'count', source: 'activity', scope: 'ALL', amount: null, weighted: false,
+    dateBasis: 'occurredAt', agg: 'count',
+  },
+  {
+    key: 'contact_count', label: ACTIVITY_METRIC.contact, hint: ACTIVITY_METRIC_HINT.contact,
+    unit: 'count', source: 'activity', scope: 'ALL', amount: null, weighted: false,
+    dateBasis: 'occurredAt', agg: 'count', humanOnly: true,
+  },
 ]
+
+/** 활동으로 세는 지표인가. 창구가 어느 엔진을 돌릴지 이것으로 고른다 */
+export function isActivityMetric(key: string): boolean {
+  return METRICS.some((m) => m.key === key && m.source === 'activity')
+}
 
 /**
  * 파생 지표.

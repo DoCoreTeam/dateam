@@ -17,7 +17,10 @@ import { loadDealsForMetrics, runMetrics, dimensionFill, filterLabel } from '@/l
 import { loadTargets, saveTargets } from '@/lib/crm/services/target-store'
 import { loadCloses, saveCloses } from '@/lib/crm/services/close-store'
 import { findClose, isClosable, closeBlockedReason, moveClose, isLive, type CloseStateKey } from '@/lib/crm/domain/close'
-import { metricCatalog, isKnownMetric, metricOf } from '@/lib/crm/domain/metrics'
+import { metricCatalog, isKnownMetric, metricOf, isActivityMetric } from '@/lib/crm/domain/metrics'
+import {
+  loadActivitiesForMetrics, runActivityMetric, isActivityAxis, ACTIVITY_AXES,
+} from '@/lib/crm/services/activity-metrics'
 import { dimensionCatalog, isKnownDimension, DIMENSIONS } from '@/lib/crm/domain/dimensions'
 import { parsePeriodKey, periodOfToday, formatPeriodKey, periodLabel } from '@/lib/crm/domain/target'
 import { parseCompareKey, compareTarget } from '@/lib/crm/domain/period-compare'
@@ -31,14 +34,51 @@ const CARD_METRICS = [
   'overdue', 'stalled',
 ] as const
 
+/**
+ * 첫 화면에 서는 활동 지표 둘.
+ *
+ * 딜 카드와 **같은 왕복에 담는다.** 따로 부르면 화면이 두 시점을 나란히 놓게 된다.
+ */
+const ACTIVITY_CARDS = ['activity_count', 'contact_count'] as const
+
+/**
+ * 활동 교차표가 받는 축.
+ *
+ * 활동 축 둘과 시간 축만 받는다. 딜의 축(단계·사업 유형·회사)이 오면 **버린다** —
+ * 활동에 그 칸이 없으므로 쪼개는 척하고 한 줄로 몰아 주면 사람은 그 축이 뜻이 없다는
+ * 것을 모른 채 그 표를 읽는다.
+ */
+function activityAxisOrTime(axis: string | null): string | null {
+  if (!axis) return null
+  return isActivityAxis(axis) || isTimeAxis(axis) ? axis : null
+}
+
 /** 카드를 눌렀을 때 함께 주는 딜 목록의 상한 — 넘으면 잘렸다고 화면이 말한다 */
 const DEAL_LIST_LIMIT = 200
 
-/** 모르는 축 이름은 조용히 버린다 — 없는 축으로 500 을 주지 않는다 */
+/**
+ * 모르는 축 이름은 조용히 버린다 — 없는 축으로 500 을 주지 않는다.
+ *
+ * **활동 축도 아는 축이다.** 안 받으면 화면이 「남긴 사람」을 골랐는데 서버가 `null` 로
+ * 돌려주고, 쪼갠 표가 **빈 채로 그려진다**(실측 2026-10-04: 교차표가 한 줄도 없이 떴다).
+ * 축을 모르는 것과 그 축에 값이 없는 것은 다른 사실인데, 버리면 둘이 같아 보인다.
+ */
 function axisOrNull(raw: string | null): string | null {
   const v = raw?.trim()
   if (!v) return null
-  return isTimeAxis(v) || isKnownDimension(v) ? v : null
+  return isTimeAxis(v) || isKnownDimension(v) || isActivityAxis(v) ? v : null
+}
+
+/**
+ * 딜 교차표가 받는 축.
+ *
+ * 활동 축(종류·남긴 사람)이 오면 **버린다** — 딜에 그 칸이 없다. 그냥 넘기면 엔진이
+ * 모르는 축으로 보고 「없음」 한 줄로 몰아 주는데, 사람은 그것을 「딜에 그 값이 안
+ * 채워져 있다」로 읽는다. 활동 쪽 `activityAxisOrTime` 과 짝이다.
+ */
+function dealAxisOrTime(axis: string | null): string | null {
+  if (!axis) return null
+  return isTimeAxis(axis) || isKnownDimension(axis) ? axis : null
 }
 
 export async function GET(req: NextRequest) {
@@ -62,7 +102,16 @@ export async function GET(req: NextRequest) {
     })
 
     const db = getCrmDb(session.workspaceId)
-    const [loaded, targets, closes] = await Promise.all([loadDealsForMetrics(db), loadTargets(db), loadCloses(db)])
+    /*
+      활동도 함께 읽는다. **워크스페이스는 `db` 가 건다**(getCrmDb 의 질의 확장) —
+      활동 조회에 workspaceId 를 손으로 넘기는 자리가 없다.
+
+      딜과 같은 왕복에 담는 이유는 딜 지표가 그런 것과 같다: 두 번 부르면 화면이
+      두 시점을 나란히 놓게 되고, 「활동 50건인데 접촉 60건」 같은 줄을 설명할 수 없다.
+    */
+    const [loaded, activities, targets, closes] = await Promise.all([
+      loadDealsForMetrics(db), loadActivitiesForMetrics(db), loadTargets(db), loadCloses(db),
+    ])
 
     const base = { period, todayKey, filters }
     const cards = runMetrics(loaded, CARD_METRICS.map((m): QuerySpec => ({ ...base, metric: m })))
@@ -89,16 +138,43 @@ export async function GET(req: NextRequest) {
       그대로 주소에 들어간다 — 「올해 승률 보여줘」 한 마디에 화면이 통째로 죽는다.
       이 파일은 위에서 «주소를 손으로 고친 사람에게 500 을 주지 않는다»고 이미 정했다.
     */
+    /*
+      활동 카드는 **활동 엔진**이 센다. 딜 엔진에 넣으면 금액·단계 칸을 안 쓰는 지표가
+      딜 집합을 돌게 되고, 그 숫자는 늘 0 이 된다(없는 것을 0 으로 말하는 꼴이다).
+    */
+    const activityCards = ACTIVITY_CARDS.map((m) => runActivityMetric(activities, { metric: m, period }))
+
     const runnable = metric && metricOf(metric) ? metric : null
-    // 교차표는 고른 지표가 있을 때만 — 없으면 화면이 카드만 그린다
-    const matrix = runnable ? runMetrics(loaded, [{ ...base, metric: runnable, rows, cols }])[0] : null
+    /*
+      교차표는 고른 지표가 있을 때만 — 없으면 화면이 카드만 그린다.
+      고른 것이 활동 지표면 활동 엔진이, 딜 지표면 딜 엔진이 센다. **축도 갈린다** —
+      활동에는 단계도 사업 유형도 없으므로 딜의 축 이름이 오면 버린다(쪼개는 척하고
+      한 줄로 몰아 주면 사람은 그 축이 뜻이 없다는 것을 모른다).
+    */
+    const activityRun = runnable && isActivityMetric(runnable)
+    /*
+      **엔진이 실제로 쓴 축을 그대로 돌려준다.**
+
+      고른 축이 그 지표에 없으면 엔진이 버리는데, 화면에는 고른 그대로 남겨 두면
+      「남긴 사람으로 쪼갰다」고 적힌 빈 표가 선다. 쓴 축을 돌려주면 화면의 고르는 칸과
+      표가 같은 말을 한다.
+    */
+    const effRows = activityRun ? activityAxisOrTime(rows) : dealAxisOrTime(rows)
+    const effCols = activityRun ? activityAxisOrTime(cols) : dealAxisOrTime(cols)
+    const matrix = !runnable
+      ? null
+      : activityRun
+        ? runActivityMetric(activities, { metric: runnable, period, rows: effRows, cols: effCols })
+        : runMetrics(loaded, [{ ...base, metric: runnable, rows: effRows, cols: effCols }])[0]
     /*
       **그 숫자가 무엇인지도 같이 준다.**
       카드를 눌렀는데 쪼갠 합계만 돌려주면 「8건」에 「8건」으로 답하는 꼴이다.
       목록은 표와 **같은 코드**(`scanMetric`)가 고른 것이라 둘의 합이 어긋날 수 없다.
       상한은 화면이 한 번에 읽을 수 있는 만큼 — 잘렸으면 잘렸다고 말한다.
     */
-    const deals = runnable ? matchedDeals(loaded.deals, { ...base, metric: runnable }, DEAL_LIST_LIMIT) : null
+    const deals = runnable && !activityRun
+      ? matchedDeals(loaded.deals, { ...base, metric: runnable }, DEAL_LIST_LIMIT)
+      : null
 
     // 축이 지금 쓸 만한지 함께 준다 — 「없음 한 줄」을 데이터가 없는 것으로 읽지 않게
     const fill: Record<string, { filled: number; total: number }> = {}
@@ -109,10 +185,18 @@ export async function GET(req: NextRequest) {
       from: cards[0]?.from ?? null,
       to: cards[0]?.to ?? null,
       todayKey,
-      rows, cols, metric,
+      rows: effRows, cols: effCols, metric,
       // 조건은 id 로 실려 오지만 화면은 이름을 그린다 — 이름을 여기서 붙여 보낸다
       filters: filters.map((f) => ({ ...f, label: filterLabel(loaded, f.dimension, f.value) })),
-      cards, matrix, deals, targets,
+      cards: [...cards, ...activityCards],
+      matrix, deals, targets,
+      /*
+        활동 지표의 축 목록. 딜의 축과 **따로** 준다 — 한 목록에 섞으면 활동에 없는
+        축(단계·사업 유형)이 고르는 칸에 뜨고, 고르면 「없음」 한 줄이 나온다.
+      */
+      activityAxes: ACTIVITY_AXES,
+      activityMetrics: ACTIVITY_CARDS,
+      activityTruncated: activities.truncated,
       // 비교 — 견줄 기간이 없으면 **0 이 아니라 null** 이다
       compare: compareKey,
       comparePeriod: comparePeriod ? formatPeriodKey(comparePeriod) : null,

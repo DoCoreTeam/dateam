@@ -143,10 +143,36 @@ test('★ 라우트가 서비스를 실제로 부른다 — 만들고 안 꽂으
   }
   // 화면이 그리는 것마다 실제로 값이 채워지는지 — 빈 배열을 내려보내면 카드가 영영 빈다
   assert.match(body, /const cards = runMetrics\(/, '카드를 엔진으로 만들지 않는다')
-  assert.match(body, /matrix = runnable \? runMetrics\(/, '교차표를 엔진으로 만들지 않는다')
+  assert.match(body, /runMetrics\(loaded, \[\{ \.\.\.base, metric: runnable, rows: effRows, cols: effCols \}\]\)/,
+    '교차표를 딜 엔진으로 만들지 않는다')
+  /*
+    **고른 축을 엔진에 넘기는지 본다.** 선언만 하고 안 넘긴 전례가 이 저장소에 넷 있다.
+    축을 안 넘기면 교차표가 늘 「전체」 한 줄이 되는데, 화면은 쪼갰다고 적는다.
+  */
+  assert.match(body, /rows: effRows, cols: effCols/, '고른 축이 엔진에 안 간다')
+  assert.match(body, /rows: effRows, cols: effCols, metric/, '엔진이 쓴 축이 응답에 안 실린다')
   // 카드를 눌렀을 때 「그 숫자가 무엇인지」 — 목록을 안 꽂으면 다시 «8건에 8건으로» 답한다
-  assert.match(body, /deals = runnable \? matchedDeals\(/, '딜 목록을 엔진으로 만들지 않는다')
-  assert.match(body, /cards, matrix, deals,/, '딜 목록이 응답에 안 실린다 — 만들고 안 보내면 없는 기능이다')
+  assert.match(body, /matchedDeals\(/, '딜 목록을 엔진으로 만들지 않는다')
+  assert.match(body, /matrix, deals,/, '교차표와 딜 목록이 응답에 안 실린다 — 만들고 안 보내면 없는 기능이다')
+
+  /*
+    **활동 엔진도 같은 규칙으로 본다.**
+
+    활동 지표는 `services/activity-metrics.ts` 가 센다. 선언만 해 두고 창구가 안 부르면
+    카드에 늘 0 이 떠서, 「활동이 없다」와 「안 셌다」가 화면에서 같아 보인다.
+    이 저장소가 1-A 에서 겪은 사고가 정확히 그 모양이었다(만들고 안 꽂음 8자리).
+  */
+  for (const fn of ['loadActivitiesForMetrics', 'runActivityMetric']) {
+    assert.ok(body.includes(`${fn}(`), `라우트가 ${fn} 을 안 부른다`)
+  }
+  assert.match(body, /activityCards = ACTIVITY_CARDS\.map/, '활동 카드를 엔진으로 만들지 않는다')
+  /*
+    **값이 응답으로 가는지를 본다.** 이름만 찾으면 선언 줄(`const activityCards = …`)에
+    걸려 「만들고 안 넘김」이 통과한다 — 이 저장소가 네 번 겪은 그 결함이다.
+    그래서 응답 객체에 펼쳐 넣는 모양을 찾는다.
+  */
+  assert.match(body, /cards: \[\.\.\.cards, \.\.\.activityCards\]/, '활동 카드가 응답에 안 실린다')
+  assert.match(body, /activityAxes: ACTIVITY_AXES/, '활동 축이 응답에 안 실린다 — 화면이 쪼갤 기준을 모른다')
   assert.ok(!/cards: never\[\]|cards = \[\]/.test(body), '카드가 빈 배열로 나간다')
 })
 

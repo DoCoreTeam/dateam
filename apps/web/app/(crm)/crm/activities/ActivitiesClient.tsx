@@ -34,7 +34,7 @@ import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import {
   ACTION, ENTITY, FILTER_ALL, count, countOnly,
   ACTIVITY_TYPE_LABEL, ACTIVITY_TYPE_ORDER, ACTIVITY_NO_ANCHOR,
-  ACTIVITY_AUTHOR, ACTIVITY_TYPE_FIELD, ACTIVITY_MORE, ACTIVITY_MANUAL_TYPES,
+  ACTIVITY_AUTHOR, ACTIVITY_TYPE_FIELD, ACTIVITY_MORE, ACTIVITY_MANUAL_TYPES, ACTIVITY_HUMAN_ONLY,
   type ActivityTypeKey,
 } from '@/lib/terms'
 import { REPORT } from '@/lib/terms/report'
@@ -93,6 +93,8 @@ export default function ActivitiesClient() {
   const type = sp.get('type') ?? ''
   const createdById = sp.get('createdById') ?? ''
   const createdByName = sp.get('createdByName') ?? ''
+  /** 리포트의 「접촉 건수」에서 넘어온 조건. 그 카드가 센 것과 같은 것을 센다 */
+  const human = sp.get('human') === '1'
   const from = sp.get('from') ?? ''
   const to = sp.get('to') ?? ''
 
@@ -110,10 +112,11 @@ export default function ActivitiesClient() {
     const q = new URLSearchParams({ limit: String(PAGE), withTotal: '1' })
     if (type) q.set('types', type)
     if (createdById) q.set('createdById', createdById)
+    if (human) q.set('human', '1')
     if (from) q.set('from', from)
     if (to) q.set('to', to)
     return q.toString()
-  }, [type, createdById, from, to])
+  }, [type, createdById, human, from, to])
 
   useEffect(() => {
     let alive = true
@@ -260,11 +263,11 @@ export default function ActivitiesClient() {
           </div>
         </div>
 
-        {(type || createdById || from || to) && (
+        {(type || createdById || human || from || to) && (
           <div className={styles.field}>
             <NbButton
               variant="ghost"
-              onClick={() => set({ type: '', createdById: '', createdByName: '', from: '', to: '' })}
+              onClick={() => set({ type: '', createdById: '', createdByName: '', human: '', from: '', to: '' })}
             >
               {ACTION.clear}
             </NbButton>
@@ -276,6 +279,19 @@ export default function ActivitiesClient() {
         **몇 건 중 몇 건인지 말한다.** 상한에 걸린 것을 조용히 자르면 사람은 그것이
         전부라고 읽는다. 전체를 못 센 경우(`null`)에는 0 이라고 쓰지 않는다.
       */}
+      {/*
+        **걸려 있는 조건을 말한다.** 리포트에서 「접촉 건수」를 눌러 넘어오면 종류 칩은
+        「전체」가 눌려 있는데 숫자는 시스템을 뺀 수다. 안 적으면 그 차이를 설명할 수 없다.
+      */}
+      {human && !type && (
+        <p className={styles.condition}>
+          {ACTIVITY_HUMAN_ONLY}
+          <button type="button" className={styles.foldBtn} onClick={() => set({ human: '' })}>
+            {ACTION.clear}
+          </button>
+        </p>
+      )}
+
       <p className={styles.count}>
         {total === null
           ? count('activity', shown)

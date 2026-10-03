@@ -195,12 +195,17 @@ export function deltaText(ratio: number): string {
 }
 
 /**
- * 기준 날짜 다섯.
+ * 기준 날짜 여섯.
  *
- * 지표 선언이 이 중 하나를 고른다. 목록을 늘리려면 **딜에 그 날짜가 실제로 있어야**
- * 한다 — 없는 날짜를 기준으로 두면 그 지표는 언제나 빈 값이다.
+ * 지표 선언이 이 중 하나를 고른다. 목록을 늘리려면 **그 개체에 그 날짜가 실제로 있어야**
+ * 한다. 없는 날짜를 기준으로 두면 그 지표는 언제나 빈 값이다.
+ *
+ * 앞 다섯은 딜의 날짜고 `occurredAt` 은 활동의 날짜다. 한 표에 두는 이유: 화면은
+ * 「이 숫자를 어느 날짜로 잘랐나」를 **같은 자리에 같은 모양**으로 밝힌다(`basisLine`).
  */
-export type DateBasisKey = 'createdAt' | 'expectedCloseDate' | 'wonAt' | 'termSpread' | 'stageEnteredAt'
+export type DateBasisKey =
+  | 'createdAt' | 'expectedCloseDate' | 'wonAt' | 'termSpread' | 'stageEnteredAt'
+  | 'occurredAt'
 
 export const DATE_BASIS_LABEL: Record<DateBasisKey, string> = {
   createdAt: '만든 날',
@@ -208,6 +213,13 @@ export const DATE_BASIS_LABEL: Record<DateBasisKey, string> = {
   wonAt: '따낸 날',
   /** 시작~종료에 나눠 담는다 — 한 날짜가 아니라 기간이라 이름이 다르다 */
   termSpread: '사업 기간',
+  /**
+   * 활동이 **일어난** 날. 적은 날이 아니다.
+   *
+   * 지난주 통화를 오늘 적어도 지난주로 센다. 적은 날로 세면 「지난주 접촉 몇 건」이
+   * 적은 사람의 부지런함을 재는 숫자가 된다(활동 서비스가 정렬에 쓰는 규약과 같다).
+   */
+  occurredAt: '일어난 날',
   stageEnteredAt: '단계 진입일',
 }
 
@@ -218,6 +230,7 @@ export const DATE_BASIS_HINT: Record<DateBasisKey, string> = {
   wonAt: '계약한 날로 셉니다. 5년 계약이면 계약한 달에 5년치가 통째로 들어갑니다',
   termSpread: '사업 기간에 나눠 셉니다. 5년 계약 5억이면 해마다 1억입니다',
   stageEnteredAt: '단계에 들어온 날로 셉니다. 어디서 얼마나 머물렀는지를 봅니다',
+  occurredAt: '활동이 일어난 날로 셉니다. 지난주 통화를 오늘 적어도 지난주로 셉니다',
 }
 
 /**

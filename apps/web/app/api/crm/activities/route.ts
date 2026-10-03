@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
       dealId: sp.get('dealId'),
       types: sp.get('types'),
       createdById: sp.get('createdById'),
+      // 리포트의 「접촉 건수」에서 넘어온 조건. 그 카드가 센 것과 같은 것을 센다
+      human: sp.get('human') === '1',
       from: sp.get('from'),
       to: sp.get('to'),
       /*

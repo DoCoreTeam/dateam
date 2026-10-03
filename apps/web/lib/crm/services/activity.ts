@@ -18,6 +18,7 @@ import { CrmError } from '../domain/errors.ts'
 import { normalizeText, requireText } from '../domain/normalize.ts'
 import { clampLimit } from '../db/cursor.ts'
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
+import { ACTIVITY_HUMAN_TYPES } from '../../terms/activity.ts'
 
 export type ActivityType = 'EMAIL' | 'MEETING' | 'CALL' | 'NOTE' | 'SYSTEM'
 
@@ -58,6 +59,14 @@ export interface ListActivityInput {
   types?: string | null
   /** 누가 남겼나. 목록 화면의 담당자 거르기 */
   createdById?: string | null
+  /**
+   * **사람이 남긴 것만.** 리포트의 「접촉 건수」가 센 것과 같은 조건이다
+   * (`ACTIVITY_HUMAN_TYPES` 를 둘이 같이 쓴다).
+   *
+   * 종류를 따로 고르면(`types`) 그쪽이 이긴다 — 사람이 「통화만」을 골랐는데 이 조건이
+   * 덮어쓰면 고른 것과 보이는 것이 달라진다.
+   */
+  human?: boolean
   /** 이 날짜부터(KST 날짜, 이 날 포함) */
   from?: string | null
   /** 이 날짜까지(KST 날짜, 이 날 포함) */
@@ -99,6 +108,7 @@ export async function listActivities(db: CrmDb, input: ListActivityInput = {}): 
   if (input.createdById) where.createdById = input.createdById
   const types = parseTypes(input.types)
   if (types) where.type = { in: types }
+  else if (input.human) where.type = { in: [...ACTIVITY_HUMAN_TYPES] }
 
   /*
     **기간과 커서를 따로 들고 합친다.**

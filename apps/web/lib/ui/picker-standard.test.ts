@@ -89,8 +89,8 @@ const WHY_SELECT: Readonly<Record<string, string>> = {
   */
   'app/(crm)/crm/reports/MetricsClient.tsx#TIME_AXES':
     '시간 축 넷(월·분기·반기·연)이고 코드에 박혀 있다(metric-agg 의 TIME_AXIS_LABEL). 자라지 않는다',
-  'app/(crm)/crm/reports/MetricsClient.tsx#data.catalog.dimensions':
-    '쪼개는 기준 등재부가 코드로 정한다(domain/dimensions.ts). 열 개 안쪽이고 설정으로 늘어도 한 줄 목록을 넘지 않는다',
+  'app/(crm)/crm/reports/MetricsClient.tsx#axisOptions':
+    '쪼개는 기준 등재부가 코드로 정한다(domain/dimensions.ts · services/activity-metrics.ts). 열 개 안쪽이고 설정으로 늘어도 한 줄 목록을 넘지 않는다',
 
   /*
     목표 모달의 기간 종류. 지표 탭의 같은 목록은 칩으로 옮겼는데 여기는 안 옮긴 이유:

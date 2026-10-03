@@ -31,7 +31,7 @@ import { DEAL_STATUS_TONE } from '@/lib/crm/ui/deal-status'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import Sensitive from '@/components/crm/Sensitive'
 import { formatAmount } from '../deals/amount'
-import { ACTION, ENTITY, DEAL_STATUS_LABEL, failedTo } from '@/lib/terms'
+import { ACTION, ENTITY, DEAL_STATUS_LABEL, failedTo, count, ACTIVITY_GROUP_HINT, ACTIVITY_LIST_LINK } from '@/lib/terms'
 import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, METRIC_GROUP_LABEL, METRIC_GROUP_HINT, NO_COMPARE, compareNote, deltaText, deltaByUnit, type MetricGroupKey, type UnitKey, REPORT as R } from '@/lib/terms/report'
 import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, type Period, type TargetSpec, findTarget } from '@/lib/crm/domain/target'
 import { parseCompareKey, compareSums, deltaRatio, shiftPeriod, type CompareKey } from '@/lib/crm/domain/period-compare'
@@ -126,6 +126,11 @@ interface Payload {
   comparePeriod: string | null
   compareLabel: string | null
   compareCards: AggResult[] | null
+  /** 활동 지표의 축. 딜의 축과 따로 온다 — 활동에 단계도 사업 유형도 없다 */
+  activityAxes: { key: string; label: string }[]
+  activityMetrics: string[]
+  /** 활동이 상한에 걸렸나. 조용히 자르지 않는다 */
+  activityTruncated: boolean
 }
 
 // ------------------------------------------------------------
@@ -265,10 +270,16 @@ const MATRIX_QUERY: ListQuery = {
  * 카드를 한 줄로 늘어놓으면 진행 중인 딜과 이미 끝난 딜과 밀린 딜이 같은 무게로 읽힌다.
  * **이름은 여기서 짓지 않는다**(§0-2) — 용어집이 정한 말을 그대로 쓴다.
  */
-const GROUPS: { key: MetricGroupKey; metrics: string[]; risk?: boolean }[] = [
+const GROUPS: { key: MetricGroupKey | 'activity'; metrics: string[]; risk?: boolean }[] = [
   { key: 'open', metrics: ['open_pipeline', 'weighted', 'new_deals'] },
   { key: 'closed', metrics: ['bookings', 'won_count', 'lost_count'] },
   { key: 'risk', metrics: ['overdue', 'stalled'], risk: true },
+  /*
+    활동은 **딜 묶음 셋과 다른 것을 센다.** 진행 중·실적·주의는 딜의 상태인데
+    활동은 사람이 한 일이라 그 셋 중 어디에도 안 들어간다. 섞어 놓으면 같은 무게로
+    읽혀 「접촉 50건」이 「수주 50건」처럼 보인다.
+  */
+  { key: 'activity', metrics: ['activity_count', 'contact_count'] },
 ]
 
 /** 마감이 갈 수 있는 곳 — 갈 수 있는 것만 버튼으로 낸다 */
@@ -472,10 +483,41 @@ export default function MetricsClient() {
    */
   const dimLabel = (key: string | null, unpicked: string) => {
     if (!key) return unpicked
+    /*
+      **영문 키를 화면에 찍지 않는다.** 활동 축을 목록에서 빼먹었더니 교차표 머리에
+      「activityAuthor × 값 하나」가 떴다(실측 2026-10-04 실브라우저). 축 이름이 코드
+      식별자로 보이면 사람은 그 표가 무엇을 쪼갠 것인지 모른다.
+    */
     return TIME_AXES.find((t) => t.key === key)?.label
       ?? data.catalog.dimensions.find((d) => d.key === key)?.label
+      ?? (data.activityAxes ?? []).find((a) => a.key === key)?.label
       ?? key
   }
+
+  /*
+    **고른 지표에 있는 축만 보여 준다.**
+
+    활동에는 단계도 사업 유형도 없다. 딜의 축을 그대로 보여 주고 고르게 하면 쪼갠
+    표가 「없음」 한 줄로 나오는데, 사람은 그것을 「활동이 그 축에 안 채워져 있다」로
+    읽는다. 실제로는 그 축이 그 개체에 **없는** 것이고 둘은 다른 사실이다.
+  */
+  const activityMetric = Boolean(activeMetric && (data.activityMetrics ?? []).includes(activeMetric))
+  const axisOptions = activityMetric ? (data.activityAxes ?? []) : data.catalog.dimensions
+
+  /**
+   * 이 숫자를 만든 활동을 목록으로 보는 길.
+   *
+   * **집계 조건을 들고 간다**(정책 F-N). 숫자에서 목록으로 갈 때 조건을 안 들고 가면
+   * 「50건」을 눌러 열린 목록이 421건을 보여 주고, 그러면 그 두 숫자가 같은 것을 센
+   * 것인지 알 수 없다. 기간은 서버가 센 그 기간을 그대로 쓴다.
+   */
+  const activityListHref = (() => {
+    if (!activityMetric || !data.from) return null
+    const q = new URLSearchParams({ from: data.from, to: data.to ?? data.from })
+    // 접촉 건수는 시스템을 뺀 수다. 그 조건을 안 들고 가면 열린 목록이 더 큰 수를 보여 준다
+    if (activeMetric === 'contact_count') q.set('human', '1')
+    return `/crm/activities?${q}`
+  })()
 
   // 교차표 컬럼 — 열축이 없으면 값 한 칸이다
   const matrix = data.matrix
@@ -529,7 +571,7 @@ export default function MetricsClient() {
           <select id="mx-rows" className="input-field" value={data.rows ?? ''} onChange={(e) => set({ rows: e.target.value || null })}>
             <option value="">{AXIS_NONE.rows}</option>
             {TIME_AXES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-            {data.catalog.dimensions.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+            {axisOptions.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
           </select>
         </div>
 
@@ -538,7 +580,7 @@ export default function MetricsClient() {
           <select id="mx-cols" className="input-field" value={data.cols ?? ''} onChange={(e) => set({ cols: e.target.value || null })}>
             <option value="">{AXIS_NONE.cols}</option>
             {TIME_AXES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-            {data.catalog.dimensions.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+            {axisOptions.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
           </select>
         </div>
 
@@ -668,8 +710,10 @@ export default function MetricsClient() {
         return (
           <section key={g.key} className={s.group}>
             <h2 className={s.groupLabel}>
-              {METRIC_GROUP_LABEL[g.key]}
-              <span className={s.groupHint}>{METRIC_GROUP_HINT[g.key]}</span>
+              {g.key === 'activity' ? ENTITY.activity.label : METRIC_GROUP_LABEL[g.key]}
+              <span className={s.groupHint}>
+                {g.key === 'activity' ? ACTIVITY_GROUP_HINT : METRIC_GROUP_HINT[g.key]}
+              </span>
             </h2>
             <div className={s.groupGrid}>
               {items.map((c) => {
@@ -710,6 +754,10 @@ export default function MetricsClient() {
         {data.notes.truncated && (
           <span className={`${s.note} ${s.noteWarn}`}>딜이 많아 일부만 셌습니다. 기간을 좁혀 주세요</span>
         )}
+        {/* 활동도 상한이 있다. 조용히 자르면 그 숫자가 전부인 줄 알고 보고에 쓴다 */}
+        {data.activityTruncated && (
+          <span className={`${s.note} ${s.noteWarn}`}>활동이 많아 일부만 셌습니다. 기간을 좁혀 주세요</span>
+        )}
         {matrix?.notes.unknownProbability ? (
           <span className={`${s.note} ${s.noteWarn}`}>확률을 모르는 딜 {matrix.notes.unknownProbability}건은 가중 예상에서 뺐습니다</span>
         ) : null}
@@ -737,8 +785,16 @@ export default function MetricsClient() {
               <h2 className={`tape-title ${s.tableTitle}`} ref={tableHeadRef} tabIndex={-1}>{matrix.label}</h2>
               <span className={s.basis}>
                 {basisLine(matrix.dateBasis as 'wonAt')} · 합계 {cellText(matrix.total, matrix.unit)}
-                {deals && ` · 딜 ${deals.total.toLocaleString('ko-KR')}건`}
+                {deals && ` · ${count('deal', deals.total)}`}
               </span>
+              {/*
+                **숫자에서 목록으로 가는 길**(정책 F-N). 합계만 보여 주면 그 숫자를
+                만든 기록을 하나씩 짚어 볼 방법이 없다. 기간을 들고 가므로 열린 목록의
+                건수가 이 합계와 같다.
+              */}
+              {activityListHref && (
+                <a className={s.linkBtn} href={activityListHref}>{ACTIVITY_LIST_LINK}</a>
+              )}
             </div>
 
             {/*
@@ -755,7 +811,10 @@ export default function MetricsClient() {
                   columns={columns}
                   query={MATRIX_QUERY}
                   rowKey={(r) => r.key}
-                  empty={{ title: '이 기간에 해당하는 딜이 없어요', description: '기간이나 조건을 바꿔 보세요' }}
+                  empty={{
+                    title: activityMetric ? '이 기간에 남은 활동이 없어요' : '이 기간에 해당하는 딜이 없어요',
+                    description: '기간이나 조건을 바꿔 보세요',
+                  }}
                   onRowClick={data.rows ? (r) => set({ [`f.${data.rows}`]: r.key }) : undefined}
                 />
               </div>

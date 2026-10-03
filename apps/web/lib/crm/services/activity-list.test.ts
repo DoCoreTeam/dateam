@@ -10,6 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { listActivities } from './activity.ts'
+import { ACTIVITY_HUMAN_TYPES } from '../../terms/activity.ts'
 
 /** 질의를 받아 적는 가짜 DB. 돌려주는 값보다 **무엇을 물었나**가 중요하다 */
 function spyDb(rows: unknown[] = [], count = 0) {
@@ -91,4 +92,23 @@ test('기간을 안 주면 occurredAt 조건 자체가 없다', async () => {
   const { db, seen } = spyDb()
   await listActivities(anyDb(db), { types: 'NOTE' })
   assert.equal('occurredAt' in (seen.findMany[0].where as object), false)
+})
+
+test('★ 사람이 남긴 것만 — 리포트 카드와 같은 목록을 쓴다', async () => {
+  /*
+    리포트의 「접촉 건수」가 센 것과 같은 조건이어야 한다. 두 곳에 따로 적으면
+    카드는 398 인데 그 카드에서 열린 목록이 421 을 보여 준다(실측 2026-10-04).
+  */
+  const { db, seen } = spyDb()
+  await listActivities(anyDb(db), { human: true })
+  const where = seen.findMany[0].where as { type: { in: string[] } }
+  assert.deepEqual(where.type.in, [...ACTIVITY_HUMAN_TYPES])
+  assert.ok(!where.type.in.includes('SYSTEM'), '시스템이 섞이면 사람이 한 일보다 큰 수가 된다')
+})
+
+test('종류를 따로 고르면 그쪽이 이긴다 — 고른 것과 보이는 것이 같아야 한다', async () => {
+  const { db, seen } = spyDb()
+  await listActivities(anyDb(db), { human: true, types: 'CALL' })
+  const where = seen.findMany[0].where as { type: { in: string[] } }
+  assert.deepEqual(where.type.in, ['CALL'])
 })

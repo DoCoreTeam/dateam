@@ -32,6 +32,22 @@ export const ACTIVITY_TYPE_ORDER: readonly ActivityTypeKey[] = ['NOTE', 'CALL', 
 export const ACTIVITY_MANUAL_TYPES: readonly ActivityTypeKey[] = ['NOTE', 'CALL', 'MEETING']
 
 /**
+ * **사람이 한 접촉**으로 세는 종류. 시스템만 뺀다.
+ *
+ * 직접 남길 수 있는 종류(`ACTIVITY_MANUAL_TYPES`)와 **다르다** — 메일은 연동이 가져오지만
+ * 그 편지를 보낸 것은 사람이고, 접촉이 있었다는 사실은 그대로 참이다. 시스템이 남긴
+ * 것(태스크 완료·상태 변경)은 아무도 상대를 만나지 않은 기록이라 뺀다.
+ *
+ * **지표와 목록이 같은 이 목록을 쓴다.** 두 곳에 따로 적으면 리포트 카드가 398 인데
+ * 그 카드에서 열린 목록이 421 을 보여 주고, 사람은 어느 쪽을 믿어야 할지 모른다
+ * (실측 2026-10-04 실브라우저에서 그 어긋남을 잡았다).
+ */
+export const ACTIVITY_HUMAN_TYPES: readonly ActivityTypeKey[] = ['NOTE', 'CALL', 'MEETING', 'EMAIL']
+
+/** 그 조건이 걸려 있다고 목록이 말하는 줄 */
+export const ACTIVITY_HUMAN_ONLY = '사람이 남긴 것만'
+
+/**
  * 어디에 붙은 기록인지 말하는 자리.
  *
  * **「없음」이라고만 쓰지 않는다.** 활동은 회사·인물·딜 중 하나에 붙어야 만들어지므로
@@ -60,6 +76,43 @@ export const ACTIVITY_TYPE_FIELD = '종류'
  * 뒷말(「더 보기」)을 쓰게 맞춘다.
  */
 export const ACTIVITY_MORE = '더 보기'
+
+/**
+ * 활동으로 세는 지표 둘의 이름.
+ *
+ * **둘로 가르는 이유**: 「활동」에는 시스템이 남긴 사실이 섞여 있다(실측 2026-10-02:
+ * 421건 중 23건이 SYSTEM). 그것까지 세어 「이번 달 접촉 421건」이라고 말하면 사람이
+ * 한 일보다 많은 숫자가 되고, 그 숫자로 담당자를 견주면 틀린 평가가 된다.
+ *
+ * **여기서는 「접촉」을 쓴다.** 개체 이름으로는 안 쓰기로 한 말인데(위 `activity` 주석)
+ * 지표 이름으로는 맞다. 개체는 시스템 기록까지 포함해야 하고, 이 지표는 **사람이
+ * 손으로 남긴 것만** 세는 것이라 정확히 접촉이다.
+ */
+export const ACTIVITY_METRIC = {
+  all: '활동 건수',
+  contact: '접촉 건수',
+} as const
+
+export const ACTIVITY_METRIC_HINT = {
+  all: '시스템이 남긴 것까지 모두 셉니다. 기록이 얼마나 쌓이는지를 봅니다',
+  contact: '사람이 손으로 남긴 것만 셉니다(노트·통화·미팅·메일). 누가 몇 번 접촉했는지를 봅니다',
+} as const
+
+/**
+ * 숫자에서 목록으로 가는 길의 이름.
+ *
+ * 「자세히」라고 쓰지 않는다 — 어디로 가는지 안 밝히면 누르기 전에 무슨 일이 날지 모른다.
+ */
+export const ACTIVITY_LIST_LINK = '활동 목록으로 보기'
+
+/** 리포트 카드 묶음의 한 줄 설명. 딜 묶음 셋과 다른 것을 센다는 사실을 말한다 */
+export const ACTIVITY_GROUP_HINT = '사람이 남긴 기록 · 시스템이 남긴 사실'
+
+/** 활동을 쪼개는 두 축의 이름 */
+export const ACTIVITY_AXIS = {
+  type: '종류',
+  author: '남긴 사람',
+} as const
 
 /** 시스템이 남긴 기록임을 밝히는 줄. 사람이 쓴 말과 섞이지 않게 */
 export const ACTIVITY_SYSTEM_NOTE = '시스템이 남긴 기록입니다'

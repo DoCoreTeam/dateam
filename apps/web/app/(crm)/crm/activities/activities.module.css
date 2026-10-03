@@ -186,3 +186,28 @@
 }
 .del:hover { color: var(--nb-danger, #c0362c); border-color: var(--border-light); }
 .del:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+/* 걸려 있는 조건. 칩으로는 안 보이는 조건(사람이 남긴 것만)을 말하는 자리 */
+.condition {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.foldBtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.foldBtn:hover { color: var(--text); }
+.foldBtn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
