@@ -317,6 +317,30 @@ export const UNIT_LABEL: Record<UnitKey, string> = {
   days: '일',
 }
 
+/**
+ * 금액이 아닌 지표의 증감.
+ *
+ * **단위마다 맞는 말이 다르다.**
+ *   · 비율 지표는 **퍼센트포인트**다. 40% 가 50% 가 된 것을 「+25%」라고 적으면
+ *     비율의 비율이 되어 읽는 사람이 10 포인트 오른 것을 25 포인트로 읽는다
+ *   · 건수는 **절대수**다. 2건이 3건이 된 것을 「+50%」라고 적으면 작은 수에서
+ *     비율이 과장되어 「절반이 늘었다」로 읽힌다
+ *   · 배수는 그대로 배로 적는다
+ *
+ * 금액은 이 함수를 안 쓴다. 통화를 합칠 수 없어 `compareSums` 가 통화별로 가른 뒤
+ * `deltaText` 로 비율을 적는다 — 그래서 단위에서 `money` 를 뺀다.
+ */
+export function deltaByUnit(unit: Exclude<UnitKey, 'money'>, now: number, before: number | null): string {
+  if (before === null) return NO_COMPARE
+  const diff = now - before
+  if (diff === 0) return '변화 없음'
+  const sign = diff > 0 ? '+' : '-'
+  const size = Math.abs(diff)
+  if (unit === 'percent') return `${sign}${Number(size.toFixed(1))}%p`
+  if (unit === 'times') return `${sign}${Number(size.toFixed(1))}${UNIT_LABEL.times}`
+  return `${sign}${size.toLocaleString('ko-KR')}${UNIT_LABEL[unit]}`
+}
+
 /** 쪼개는 기준에서 값이 비어 있는 줄의 이름 — 숨기면 합이 안 맞는다 */
 export const DIMENSION_EMPTY = '없음'
 

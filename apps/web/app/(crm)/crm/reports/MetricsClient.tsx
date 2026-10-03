@@ -32,9 +32,11 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import Sensitive from '@/components/crm/Sensitive'
 import { formatAmount } from '../deals/amount'
 import { ACTION, ENTITY, DEAL_STATUS_LABEL, failedTo } from '@/lib/terms'
-import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, METRIC_GROUP_LABEL, METRIC_GROUP_HINT, type MetricGroupKey, REPORT as R } from '@/lib/terms/report'
+import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, METRIC_GROUP_LABEL, METRIC_GROUP_HINT, NO_COMPARE, compareNote, deltaText, deltaByUnit, type MetricGroupKey, type UnitKey, REPORT as R } from '@/lib/terms/report'
 import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, periodIndexLabel, periodUnitLabel, PERIOD_KIND_LABEL, type Period, type PeriodKind, type TargetSpec, INDEX_MAX, findTarget } from '@/lib/crm/domain/target'
 import { PERIOD_KIND_ORDER } from '@/lib/crm/domain/report-axis'
+import { parseCompareKey, compareSums, deltaRatio, type CompareKey } from '@/lib/crm/domain/period-compare'
+import ComparePicker from '@/components/ui/crm/ComparePicker'
 import { computeDerived } from '@/lib/crm/domain/derived'
 import { canMove, type CloseStateKey } from '@/lib/crm/domain/close'
 import { ALL_KEY, EMPTY_KEY, CELL_SEP, TIME_AXIS_LABEL } from '@/lib/crm/domain/metric-agg'
@@ -119,6 +121,11 @@ interface Payload {
     hiddenPipelines: number
     fill: Record<string, { filled: number; total: number }>
   }
+  /** 무엇과 견줬나. 견줄 기간이 없으면 라벨과 카드가 `null` 이다 */
+  compare: CompareKey
+  comparePeriod: string | null
+  compareLabel: string | null
+  compareCards: AggResult[] | null
 }
 
 // ------------------------------------------------------------
@@ -151,6 +158,76 @@ function primaryValue(cell: Cell | undefined, unit: string): string | null {
   return cell.byCurrency.KRW ?? Object.values(cell.byCurrency)[0] ?? '0'
 }
 
+
+/**
+ * 파생값의 증감 글자.
+ *
+ * **비율은 퍼센트포인트다.** 달성률 40% 가 50% 가 된 것을 「+25%」로 적으면 비율의
+ * 비율이 되어 10 포인트 오른 것을 25 포인트로 읽는다. 단위를 보고 말을 고르는 일은
+ * 용어집(`deltaByUnit`)이 하고, 여기서는 둘 중 하나가 없을 때를 가린다.
+ *
+ * 금액 파생(부족분·필요 신규)은 원화 한 통화라 비율로 적는다. 교차 통화가 섞이는
+ * 자리는 카드이고, 목표는 원화로만 세운다.
+ */
+function derivedDeltaText(
+  now: { unit: string; value: number | string | null } | null,
+  before: { unit: string; value: number | string | null } | null,
+  label: string | null,
+): string {
+  if (!label || !now || now.value === null || !before || before.value === null) return NO_COMPARE
+  if (now.unit === 'money') {
+    const ratio = deltaRatio(BigInt(String(now.value)), BigInt(String(before.value)))
+    return ratio === null ? compareNote('noBase', label) : `${deltaText(ratio)} · ${label}`
+  }
+  return `${deltaByUnit(now.unit as Exclude<UnitKey, 'money'>, Number(now.value), Number(before.value))} · ${label}`
+}
+
+/**
+ * 카드의 증감 한 줄.
+ *
+ * **말은 용어집이 든다.** 현황 탭도 같은 말을 쓴다 — 두 탭이 같은 비교를 다른 말로
+ * 적으면 같은 기준으로 본 숫자인지 알 수 없다. 자리만 다르다(이 카드가 더 작다).
+ *
+ * 금액은 통화를 합칠 수 없어 통화별로 가른 뒤 비율을 적고, 건수는 절대수로 적는다.
+ * 작은 수에서 비율을 적으면 2건이 3건이 된 것이 「+50%」가 되어 과장된다.
+ */
+function CardCompare({ unit, now, before, label }: {
+  unit: string
+  now: Cell | undefined
+  before: Cell | undefined
+  label: string | null
+}) {
+  // 견줄 기간 자체가 없다 (최근 12개월처럼 달력 기간이 아닌 경우는 지표 탭에 없지만,
+  // 서버가 비교를 안 줬을 때 「0% 변화」로 보이지 않게 같은 규약을 쓴다)
+  if (!label || !before) return <span className={s.cardCompare}>{NO_COMPARE}</span>
+
+  if (unit === 'money') {
+    const toSums = (c: Cell) => Object.entries(c.byCurrency)
+      .filter(([, v]) => v !== '0')
+      .map(([currency, totalMinor]) => ({ currency, totalMinor }))
+    const rows = compareSums(toSums(now ?? { count: 0, byCurrency: {} }), toSums(before))
+    if (rows.length === 0) return <span className={s.cardCompare}>{NO_COMPARE}</span>
+    return (
+      <span className={s.cardCompare}>
+        {rows.map((r) => (
+          <span key={r.currency} className={s.cardCompareItem}>
+            {r.state === 'ok'
+              ? `${deltaText(r.ratio!)} · ${label}`
+              : compareNote(r.state, label)}
+          </span>
+        ))}
+      </span>
+    )
+  }
+
+  return (
+    <span className={s.cardCompare}>
+      <span className={s.cardCompareItem}>
+        {`${deltaByUnit(unit as Exclude<UnitKey, 'money'>, now?.count ?? 0, before.count)} · ${label}`}
+      </span>
+    </span>
+  )
+}
 
 /** 파생값 한 칸 — 단위가 셋(원·배·%)이라 그리는 법이 다르다. 없으면 「—」가 아니라 이유를 말한다 */
 function derivedText(d: { unit: string; value: number | string | null; missing: string[] } | null): string {
@@ -229,7 +306,7 @@ export default function MetricsClient() {
   const queryString = useMemo(() => {
     const keep = new URLSearchParams()
     sp.forEach((v, k) => {
-      if (k === 'period' || k === 'metric' || k === 'rows' || k === 'cols' || k.startsWith('f.')) {
+      if (k === 'period' || k === 'metric' || k === 'rows' || k === 'cols' || k === 'compare' || k.startsWith('f.')) {
         if (v) keep.set(k, v)
       }
     })
@@ -297,6 +374,8 @@ export default function MetricsClient() {
   }, [router, pathname, sp])
 
   const period: Period = parsePeriodKey(sp.get('period'), periodOfToday('YEAR', data?.todayKey ?? '2026-01-01'))
+  /** 무엇과 견주나. 서버와 **같은 규칙**으로 읽으므로 모르는 값이 와도 둘이 안 갈린다 */
+  const compareKey = parseCompareKey(sp.get('compare'))
   const activeMetric = data?.metric ?? null
 
   /*
@@ -365,6 +444,28 @@ export default function MetricsClient() {
   const elapsed = derivedInput.elapsed
   const bookingsCard = data.cards.find((c) => c.metric === 'bookings')
 
+  /*
+    **견준 기간의 파생값도 같은 함수로 낸다.** 달성률·배수·페이스를 여기서 다시 계산하면
+    두 숫자가 다른 규칙으로 나온 것이 되고, 그러면 그 둘의 차이는 기간 차이가 아니라
+    셈 차이가 섞인 값이 된다.
+
+    목표는 기간마다 따로 있다. 견준 기간에 목표가 없으면 달성률이 `null` 이고,
+    화면은 「견줄 것 없음」이라고 쓴다 — 0% 로 그리면 「목표를 하나도 못 채웠다」로 읽힌다.
+  */
+  const comparePeriodValue = data.comparePeriod ? parsePeriodKey(data.comparePeriod, period) : null
+  const compareDerived = (key: string) => {
+    if (!data.compareCards || !comparePeriodValue) return null
+    const values: Record<string, string | null> = {}
+    for (const c of data.compareCards) values[c.metric] = primaryValue(c.total, c.unit)
+    const t = findTarget(data.targets, { period: comparePeriodValue, scope: { kind: 'ALL' }, metric: 'bookings' })
+    return computeDerived(key, {
+      values,
+      target: t?.value ?? null,
+      // 지난 기간은 이미 끝났으므로 경과율이 1 이다. 오늘로 재면 「아직 초반」이 된다
+      elapsed: elapsedOf(data.compareCards[0]?.from ?? null, data.compareCards[0]?.to ?? null, data.todayKey),
+    })
+  }
+
   /**
    * 축 이름. **안 고른 축을 「없음」이라 부르지 않는다** — 「없음」은 값이 비어 있는
    * 줄의 이름이라 뜻이 겹친다. 고르는 칸에 쓰인 말을 그대로 쓴다.
@@ -429,6 +530,15 @@ export default function MetricsClient() {
               <option key={y} value={y}>{y}년</option>
             ))}
           </select>
+        </div>
+
+        {/*
+          **비교는 기간 바로 옆에 둔다.** 카드에 뜬 증감이 무엇 대비인지 찾아 올라가야
+          하면 그 숫자를 못 믿는다. 현황 탭과 **같은 부품**이라 두 탭의 생김새가 갈리지 않는다.
+        */}
+        <div className={s.field}>
+          <span className="label">{REPORT.compare}</span>
+          <ComparePicker value={compareKey} onChange={(c) => set({ compare: c })} />
         </div>
 
         {INDEX_MAX[period.kind] > 1 && (
@@ -563,6 +673,9 @@ export default function MetricsClient() {
                   <dt className={s.heroStatLabel} title={d?.hint ?? ''}>{d?.label ?? h.key}</dt>
                   <dd className={s.heroStatValue}>
                     <Sensitive>{derivedText(d)}</Sensitive>
+                    {data.compare !== 'NONE' && (
+                      <span className={s.heroStatCompare}>{derivedDeltaText(d, compareDerived(h.key), data.compareLabel)}</span>
+                    )}
                   </dd>
                 </div>
               )
@@ -605,8 +718,16 @@ export default function MetricsClient() {
                     <span className={s.cardValue}><Sensitive>{cellText(c.total, c.unit)}</Sensitive></span>
                     <span className={s.cardSub}>
                       {basisLine(c.dateBasis as 'wonAt')}
-                      {c.unit === 'money' && ` · ${c.notes.matched.toLocaleString('ko-KR')}건`}
+                      {c.unit === 'money' && ` · ${c.notes.matched.toLocaleString('ko-KR')}${UNIT_LABEL.count}`}
                     </span>
+                    {data.compare !== 'NONE' && (
+                      <CardCompare
+                        unit={c.unit}
+                        now={c.total}
+                        before={data.compareCards?.find((x) => x.metric === c.metric)?.total}
+                        label={data.compareLabel}
+                      />
+                    )}
                   </button>
                 )
               })}

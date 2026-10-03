@@ -19,7 +19,8 @@ import { loadCloses, saveCloses } from '@/lib/crm/services/close-store'
 import { findClose, isClosable, closeBlockedReason, moveClose, isLive, type CloseStateKey } from '@/lib/crm/domain/close'
 import { metricCatalog, isKnownMetric, metricOf } from '@/lib/crm/domain/metrics'
 import { dimensionCatalog, isKnownDimension, DIMENSIONS } from '@/lib/crm/domain/dimensions'
-import { parsePeriodKey, periodOfToday, formatPeriodKey } from '@/lib/crm/domain/target'
+import { parsePeriodKey, periodOfToday, formatPeriodKey, periodLabel } from '@/lib/crm/domain/target'
+import { parseCompareKey, compareTarget } from '@/lib/crm/domain/period-compare'
 import { isTimeAxis, matchedDeals, type QuerySpec } from '@/lib/crm/domain/metric-agg'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
@@ -65,6 +66,20 @@ export async function GET(req: NextRequest) {
 
     const base = { period, todayKey, filters }
     const cards = runMetrics(loaded, CARD_METRICS.map((m): QuerySpec => ({ ...base, metric: m })))
+
+    /*
+      **견줄 기간도 같은 딜 묶음으로 센다.** `loadDealsForMetrics` 를 한 번만 부르고
+      같은 배열 위에서 두 기간을 돌린다. 두 번 읽으면 두 숫자가 다른 시점의 것이 되고,
+      그 사이에 딜 하나가 성사되면 비교가 조용히 틀린다(현황 탭도 같은 규약이다).
+
+      카드만 견준다. 교차표와 딜 목록은 「그 숫자가 무엇인지」를 보여 주는 자리이고,
+      두 기간을 한 표에 섞으면 어느 기간의 딜인지 알 수 없게 된다.
+    */
+    const compareKey = parseCompareKey(sp.get('compare'))
+    const comparePeriod = compareTarget(period, compareKey)
+    const compareCards = comparePeriod
+      ? runMetrics(loaded, CARD_METRICS.map((m): QuerySpec => ({ period: comparePeriod, todayKey, filters, metric: m })))
+      : null
     /*
       **딜을 세어 낼 수 있는 지표만 표로 만든다.**
 
@@ -98,6 +113,11 @@ export async function GET(req: NextRequest) {
       // 조건은 id 로 실려 오지만 화면은 이름을 그린다 — 이름을 여기서 붙여 보낸다
       filters: filters.map((f) => ({ ...f, label: filterLabel(loaded, f.dimension, f.value) })),
       cards, matrix, deals, targets,
+      // 비교 — 견줄 기간이 없으면 **0 이 아니라 null** 이다
+      compare: compareKey,
+      comparePeriod: comparePeriod ? formatPeriodKey(comparePeriod) : null,
+      compareLabel: comparePeriod ? periodLabel(comparePeriod) : null,
+      compareCards,
       // 마감 — 이 기간이 닫혔나. 닫혔으면 화면은 박아 둔 숫자를 함께 보여 준다
       close: (() => {
         const key = formatPeriodKey(period)

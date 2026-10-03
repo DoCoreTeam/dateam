@@ -26,7 +26,8 @@ import {
   type ReportPeriod, type GroupKey,
 } from '@/lib/crm/domain/report-axis'
 import { periodOfToday } from '@/lib/crm/domain/target'
-import { compareSums, COMPARE_ORDER, type CompareKey } from '@/lib/crm/domain/period-compare'
+import { compareSums, type CompareKey } from '@/lib/crm/domain/period-compare'
+import ComparePicker from '@/components/ui/crm/ComparePicker'
 import { REPORT, COMPARE_LABEL, NO_COMPARE, compareNote, deltaText } from '@/lib/terms/report'
 import styles from './business-panel.module.css'
 
@@ -300,18 +301,7 @@ export default function BusinessPanel({ here, data, period, compareKey, todayKey
           무엇과 견주는지는 기간을 고르는 자리에서 같이 정해야 한다. 멀리 두면 카드에 뜬
           증감이 무엇 대비인지 찾아 올라가야 한다.
         */}
-        <div className={styles.compareBar} role="group" aria-label={REPORT.compare}>
-          {COMPARE_ORDER.map((c) => (
-            <button
-              key={c} type="button"
-              className={`${styles.compareTab}${c === compareKey ? ` ${styles.compareTabOn}` : ''}`}
-              onClick={() => onCompareChange(c)}
-              aria-pressed={c === compareKey}
-            >
-              {COMPARE_LABEL[c]}
-            </button>
-          ))}
-        </div>
+        <ComparePicker value={compareKey} onChange={onCompareChange} />
 
         <span className={styles.periodRange}>{data.period.from} ~ {data.period.to}</span>
       </div>

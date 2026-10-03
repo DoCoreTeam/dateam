@@ -526,3 +526,34 @@
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }
+
+/*
+  카드의 증감 줄.
+
+  카드 안의 네 번째 줄이다(이름·값·기준·증감). 값보다 작고 기준보다 진하게 둬서
+  읽는 순서가 「무엇 · 얼마 · 어느 날짜로 · 지난번보다」가 되게 한다.
+*/
+.cardCompare {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-align: left;
+  min-width: 0;
+}
+.cardCompareItem {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* 주역 통계의 증감. 값 아래 한 줄로 붙어 숫자와 같은 칸에 산다 */
+.heroStatCompare {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}

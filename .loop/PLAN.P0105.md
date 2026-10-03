@@ -1,6 +1,6 @@
 # PLAN newAX: 리포트가 기간을 말하고 활동을 센다
 플랜 ID: P0105
-플랜 버전: v0.1.3
+플랜 버전: v0.1.4
 상태: 진행중
 지시: iv_0179
 목표 버전: v0.10.867
@@ -83,12 +83,14 @@
 의존: I01
 
 ### I02a 지표 탭이 같은 방식으로 견준다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/api/crm/metrics/route.ts, apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/app/(crm)/crm/reports/metrics.module.css
+범위: apps/web/components/ui/crm/ComparePicker.tsx (신규), apps/web/components/ui/crm/compare-picker.module.css (신규), apps/web/app/api/crm/metrics/route.ts, apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/app/(crm)/crm/reports/metrics.module.css, apps/web/app/(crm)/crm/reports/BusinessPanel.tsx, apps/web/app/(crm)/crm/reports/business-panel.module.css, apps/web/lib/terms/report.ts
 감사 기준:
 - 보안: 창구를 고친다, 새 창구가 아니고 `withCrmApi('READONLY')` 를 그대로 지나는 것을 확인한다, 모르는 비교 값이 기본값으로 가는 것을 확인한다
-- 카드 여덟에 증감이 붙는다, 현황 탭과 **같은 말과 같은 모양**을 쓴다 (`period-compare` 와 용어집을 그대로 쓴다)
+- 비교 고르는 칸이 **한 부품**이다, 현황 탭과 지표 탭이 같은 파일을 쓰고 두 벌을 만들지 않는다
+- 카드 여덟에 증감이 붙는다, 현황 탭과 **같은 말**을 쓴다 (`period-compare` 와 용어집을 그대로 쓴다)
+- 셈 단위마다 맞는 말을 쓴다, 건수는 절대수(+3건)로 적고 비율로 부풀리지 않는다
 - 비교를 켜도 딜을 한 번만 읽는다, `loadDealsForMetrics` 를 한 번 부르고 같은 묶음으로 두 기간을 돌린다
 - 비율 지표(승률·달성률)에는 증감을 **퍼센트포인트**로 적는다, 비율의 비율을 적지 않는다
 - 비교 방식이 주소에 남아 새로고침해도 같은 화면이다
@@ -185,6 +187,11 @@
   - I02 는 현황 탭, I02a 는 지표 탭. 지표 탭은 `runMetrics` 가 이미 기간을 받으므로 서비스를 안 고친다
   - I02 범위에 `services/business-report.ts` 를 넣었다. 비교를 켜도 DB 를 두 번 읽지 않으려면 집계 고리를 함수로 빼서 같은 딜 묶음에 두 번 돌려야 한다
   - 비교 어휘로 「전기」를 쓰지 않기로 했다. 한자를 안 쓰는 저장소라 「전기」가 전기요금 쪽으로도 읽힌다, 화면이 이미 쓰는 「이전 기간」을 쓴다
+- v0.1.4 (2026-10-04) I02a 범위에 비교 고르는 부품을 넣음 (ins_0185)
+  - 왜: 「현황 탭과 같은 모양」을 지키려면 지표 탭에 같은 칩 묶음을 또 그려야 한다. 두 벌이 되면 한쪽만 고쳐지고, 그것이 이 플랜이 I01 에서 고친 바로 그 사고다
+  - `components/ui/crm/ComparePicker.tsx` 한 부품으로 빼고 두 탭이 그것을 쓴다, 현황 탭은 이미 통과한 항목이지만 같은 커밋에서 그 인라인 칩을 부품 호출로 바꾼다
+  - 증감 글자는 용어집이 들고(`deltaText`·`deltaByUnit`·`compareNote`) 그리는 자리는 카드 크기가 달라 따로 둔다, 말은 같고 자리만 다르다
 - v0.1.1 (2026-10-03) I01 범위에 기간 어휘 SSOT 를 넣음, 같은 기간을 target 은 2026 3분기 report-axis 는 2026년 3분기로 적어 구현이 어휘를 하나 더 만들고 있었음 (ins_0185)
 - v0.1.2 (2026-10-03) 용어 가드가 파일 이름으로 대상을 골라 domain 의 화면 글을 못 보는 것을 I07 로 추가, 실측 lib 전체 236줄 (audit:I01)
 - v0.1.3 (2026-10-03) I02 를 현황 탭(I02)과 지표 탭(I02a)으로 나눔, 창구 둘과 화면 둘을 한 항목에 두면 한 번의 자가감사로 판정 불가 (audit:I02)
+- v0.1.4 (2026-10-03) I02a 범위에 ComparePicker 부품을 넣음, 두 탭이 같은 칩 묶음을 따로 그리면 한쪽만 고쳐진다 (audit:I02a)

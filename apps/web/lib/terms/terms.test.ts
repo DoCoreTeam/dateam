@@ -14,6 +14,7 @@ import {
 import { AI_KEY } from './ai-key.ts'
 import { ENTITY, SURFACE_LABEL, count, countOnly, type EntityKey } from './entity.ts'
 import { fillFoundLine, fillFoundQuotesLine } from './quote.ts'
+import { deltaByUnit, deltaText, compareNote, NO_COMPARE } from './report.ts'
 import { emptyTitle, failedTo, confirmDelete, notEnough } from './sentence.ts'
 import { roundingUnitName, roundingUnitLabel, roundingNote } from './quote.ts'
 import { ROUNDING_UNITS } from '../crm/domain/quote-math.ts'
@@ -401,3 +402,59 @@ const STATE_NOT_PROGRESS = new Set([
   '쓰는 중', // 포털 서비스를 지금 쓰고 있다는 상태. 반대말이 「아직 안 씀」이라 진행이 아니다
   '처리 중', // 판단 기록의 상태. 기록됨·기권·실패와 나란히 선 값이라 진행 표시가 아니다
 ])
+
+// ------------------------------------------------------------
+// 비교 — 단위마다 맞는 말
+// ------------------------------------------------------------
+
+test('★ 비율 지표의 증감은 퍼센트포인트다 — 비율의 비율을 적지 않는다', () => {
+  /*
+    달성률 40% 가 50% 가 된 것을 「+25%」로 적으면 읽는 사람이 **10 포인트** 오른 것을
+    25 포인트로 읽는다. 보고서에 그대로 옮겨 적히면 되돌릴 수 없는 거짓이 된다.
+  */
+  assert.equal(deltaByUnit('percent', 50, 40), '+10%p')
+  assert.equal(deltaByUnit('percent', 40, 50), '-10%p')
+  assert.equal(deltaByUnit('percent', 40.5, 40), '+0.5%p')
+})
+
+test('★ 건수의 증감은 절대수다 — 작은 수에서 비율은 과장된다', () => {
+  // 2건이 3건이 된 것을 「+50%」로 적으면 「절반이 늘었다」로 읽힌다
+  assert.equal(deltaByUnit('count', 3, 2), '+1건')
+  assert.equal(deltaByUnit('count', 2, 5), '-3건')
+  assert.equal(deltaByUnit('count', 1200, 200), '+1,000건')
+  assert.equal(deltaByUnit('place', 4, 1), '+3곳')
+  assert.equal(deltaByUnit('days', 30, 45), '-15일')
+})
+
+test('배수는 배로 적는다', () => {
+  assert.equal(deltaByUnit('times', 3.4, 3), '+0.4배')
+})
+
+test('견줄 것이 없으면 「0」이 아니라 「견줄 것 없음」이다', () => {
+  assert.equal(deltaByUnit('count', 3, null), NO_COMPARE)
+  assert.equal(deltaByUnit('percent', 50, null), NO_COMPARE)
+})
+
+test('같으면 변화 없음이고, 이것은 「견줄 것 없음」과 다른 사실이다', () => {
+  assert.equal(deltaByUnit('count', 3, 3), '변화 없음')
+  assert.notEqual(deltaByUnit('count', 3, 3), NO_COMPARE)
+})
+
+test('반올림해서 0 이 되는 변화를 「0%」로 적지 않는다', () => {
+  // 「0%」는 「그대로다」로 읽히는데 실제로는 움직인 것이다
+  assert.equal(deltaText(0.0001), '거의 그대로')
+  assert.equal(deltaText(0), '변화 없음')
+  assert.equal(deltaText(0.5), '+50%')
+  assert.equal(deltaText(-0.5), '-50%')
+  assert.equal(deltaText(0.034), '+3.4%')
+})
+
+test('견준 결과의 네 상태가 서로 다른 말을 쓴다', () => {
+  const words = new Set([
+    compareNote('noPeriod', '이전 기간'),
+    compareNote('noBase', '이전 기간'),
+    compareNote('gone', '이전 기간'),
+  ])
+  assert.equal(words.size, 3, '처음 생긴 매출과 사라진 매출이 같은 말로 보이면 할 일이 정반대인데 안 갈린다')
+  assert.equal(compareNote('ok', '이전 기간'), '', '견줬으면 숫자가 말한다')
+})
