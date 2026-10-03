@@ -6,43 +6,6 @@
 }
 
 /* ── 마감(기간) ─────────────────────────────── */
-.periodBar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.periodTabs {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--surface-muted);
-  border: var(--border-w) solid var(--border-color);
-  border-radius: var(--radius-lg);
-}
-
-.periodTab {
-  min-height: 34px;
-  padding: 0 var(--space-3);
-  border: none;
-  border-radius: calc(var(--radius) - 1px);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--duration-fast, 150ms) ease, color var(--duration-fast, 150ms) ease;
-}
-.periodTab:hover { color: var(--text); }
-.periodTab:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-
-.periodTabOn {
-  background: var(--card-bg, #fff);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
-}
-
 .periodRange {
   font-size: var(--fs-xs);
   color: var(--text-faint);
@@ -255,14 +218,9 @@
     (넘치지 않아도 접히는 것은 괜찮은 것이 아니다). 글자를 줄여 한 줄에 담는다.
   */
   .figureBig { font-size: var(--fs-lg); }
-  /*
-    기간 줄이 세 줄로 접히며 160px 를 먹었다. 한 줄로 두고 **그 줄만** 옆으로 굴린다.
-    페이지가 옆으로 굴러가는 것과 줄 하나가 굴러가는 것은 다르다 — 페이지 넘침은 0 이다.
-  */
   /* 좁은 화면에서는 블록 사이를 좁힌다. 한 화면에 들어가는 줄 수가 그만큼 늘어난다 */
   .wrap { gap: var(--space-3); }
-  .periodBar { flex-wrap: nowrap; overflow-x: auto; gap: var(--space-2); }
-  .periodTabs, .periodNav { flex: 0 0 auto; }
+  /* 기간 줄을 한 줄로 두고 그 줄만 굴리는 규칙은 부품(period-picker.module.css)이 든다 */
   .periodRange { flex: 0 0 auto; }
   .chartRow { grid-template-columns: 70px 1fr; }
   .chartValue { grid-column: 2; text-align: left; }
@@ -285,73 +243,6 @@
   /* 카드 모드에서는 폭 지정이 뜻을 잃는다 */
   .colMoney, .colCount, .colName, .colDate { width: auto; }
 }
-
-/*
-  기간 이동: 종류 칩 옆에 선다.
-
-  **종류와 이동을 다른 생김새로 둔다.** 둘을 같은 칩으로 두면 「분기」와 「이전」이
-  같은 무게로 보여, 종류를 고르는 것인지 때를 옮기는 것인지 눈으로 안 갈린다.
-*/
-.periodNav {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.periodStep {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: var(--border-w) solid var(--border-color);
-  border-radius: var(--radius);
-  background: var(--card-bg, #fff);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color var(--duration-fast, 150ms) ease, border-color var(--duration-fast, 150ms) ease;
-}
-.periodStep:hover { color: var(--text); border-color: var(--text-faint); }
-.periodStep:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-
-/* 지금 보고 있는 때. 폭이 글자 수에 따라 출렁이지 않게 최소 폭을 준다 */
-.periodNow {
-  min-width: 7.5em;
-  text-align: center;
-  font-size: var(--fs-sm);
-  font-weight: 700;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-/* 카드 안의 견준 줄. 통화마다 한 줄이라 목록으로 둔다 */
-.compare {
-  margin: var(--space-1) 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
-.compare li {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  /* 긴 통화 묶음에서 줄이 터지지 않게. 부모가 nowrap 이면 자식만으론 안 풀린다 */
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-/*
-  **늘고 줄은 것을 색으로만 말하지 않는다.** 글자가 「+50%」·「-50%」로 부호를 들고 있어
-  색을 못 보는 사람도 읽을 수 있다. 색은 그 위에 얹는 두 번째 단서다.
-*/
-.up { color: var(--success, #0a7f4f); font-weight: 700; font-variant-numeric: tabular-nums; }
-.down { color: var(--nb-danger, #c0362c); font-weight: 700; font-variant-numeric: tabular-nums; }
-.flat { color: var(--text-muted); font-weight: 700; }
-.compareBase { color: var(--text-faint); }
 
 /* 접은 줄을 말하는 자리. 숨기는 것이 아니라 접는 것이므로 수와 펼칠 길을 같이 둔다 */
 .folded {

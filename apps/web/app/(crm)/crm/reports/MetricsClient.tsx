@@ -33,10 +33,10 @@ import Sensitive from '@/components/crm/Sensitive'
 import { formatAmount } from '../deals/amount'
 import { ACTION, ENTITY, DEAL_STATUS_LABEL, failedTo } from '@/lib/terms'
 import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, METRIC_GROUP_LABEL, METRIC_GROUP_HINT, NO_COMPARE, compareNote, deltaText, deltaByUnit, type MetricGroupKey, type UnitKey, REPORT as R } from '@/lib/terms/report'
-import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, periodIndexLabel, periodUnitLabel, PERIOD_KIND_LABEL, type Period, type PeriodKind, type TargetSpec, INDEX_MAX, findTarget } from '@/lib/crm/domain/target'
-import { PERIOD_KIND_ORDER } from '@/lib/crm/domain/report-axis'
-import { parseCompareKey, compareSums, deltaRatio, type CompareKey } from '@/lib/crm/domain/period-compare'
+import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, type Period, type TargetSpec, findTarget } from '@/lib/crm/domain/target'
+import { parseCompareKey, compareSums, deltaRatio, shiftPeriod, type CompareKey } from '@/lib/crm/domain/period-compare'
 import ComparePicker from '@/components/ui/crm/ComparePicker'
+import PeriodPicker from '@/components/ui/crm/PeriodPicker'
 import { computeDerived } from '@/lib/crm/domain/derived'
 import { canMove, type CloseStateKey } from '@/lib/crm/domain/close'
 import { ALL_KEY, EMPTY_KEY, CELL_SEP, TIME_AXIS_LABEL } from '@/lib/crm/domain/metric-agg'
@@ -506,54 +506,23 @@ export default function MetricsClient() {
 
       {/* 조건 줄 — 고르는 것만 있다 */}
       <div className={s.bar}>
-        <div className={s.field}>
-          <label className="label" htmlFor="mx-kind">기간</label>
-          <select
-            id="mx-kind" className="input-field" value={period.kind}
-            onChange={(e) => {
-              const kind = e.target.value as PeriodKind
-              const max = INDEX_MAX[kind]
-              set({ period: formatPeriodKey({ kind, year: period.year, ...(max > 1 ? { index: Math.min(period.index ?? 1, max) } : {}) }) })
-            }}
-          >
-            {PERIOD_KIND_ORDER.map((k) => <option key={k} value={k}>{PERIOD_KIND_LABEL[k]}</option>)}
-          </select>
-        </div>
-
-        <div className={s.field}>
-          <label className="label" htmlFor="mx-year">연도</label>
-          <select
-            id="mx-year" className="input-field" value={period.year}
-            onChange={(e) => set({ period: formatPeriodKey({ ...period, year: Number(e.target.value) }) })}
-          >
-            {Array.from({ length: 5 }, (_, i) => period.year - 2 + i).map((y) => (
-              <option key={y} value={y}>{y}년</option>
-            ))}
-          </select>
-        </div>
-
         {/*
-          **비교는 기간 바로 옆에 둔다.** 카드에 뜬 증감이 무엇 대비인지 찾아 올라가야
-          하면 그 숫자를 못 믿는다. 현황 탭과 **같은 부품**이라 두 탭의 생김새가 갈리지 않는다.
-        */}
-        <div className={s.field}>
-          <span className="label">{REPORT.compare}</span>
-          <ComparePicker value={compareKey} onChange={(c) => set({ compare: c })} />
-        </div>
+          **기간은 현황 탭과 같은 부품으로 고른다.** 예전엔 여기만 브라우저 기본
+          드롭다운 셋(종류·연도·칸)이었고, 같은 화면 위쪽 탭은 칩이었다
+          (실측 2026-10-02: 같은 줄에 기본 `<select>` 가 넷). 같은 질문을 두 모양으로
+          물으면 쓰는 사람이 두 탭을 다른 제품으로 배운다.
 
-        {INDEX_MAX[period.kind] > 1 && (
-          <div className={s.field}>
-            <label className="label" htmlFor="mx-index">{periodUnitLabel(period.kind)}</label>
-            <select
-              id="mx-index" className="input-field" value={period.index ?? 1}
-              onChange={(e) => set({ period: formatPeriodKey({ ...period, index: Number(e.target.value) }) })}
-            >
-              {Array.from({ length: INDEX_MAX[period.kind] }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>{periodIndexLabel(period.kind, n)}</option>
-              ))}
-            </select>
-          </div>
-        )}
+          연도 칸이 없어진 자리는 앞뒤 단추가 맡는다. 한 칸 옮기는 셈이 해를 넘어가므로
+          2026년 1분기에서 왼쪽을 누르면 2025년 4분기다. 종류 칩을 누르면 오늘이 든
+          기간으로 돌아온다.
+        */}
+        <PeriodPicker
+          activeKind={period.kind}
+          label={periodLabel(period)}
+          onKind={(k) => set({ period: formatPeriodKey(periodOfToday(k, data.todayKey)) })}
+          onStep={(step) => set({ period: formatPeriodKey(shiftPeriod(period, step)) })}
+          trailing={<ComparePicker value={compareKey} onChange={(c) => set({ compare: c })} />}
+        />
 
         <div className={s.field}>
           <label className="label" htmlFor="mx-rows">행 · {REPORT.dimension}</label>

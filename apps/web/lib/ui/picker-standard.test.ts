@@ -40,9 +40,14 @@ const WEB = join(import.meta.dirname, '..', '..')
  * 지금 남아 있는 「사유 없는 드롭다운」 자리 수. **늘면 실패한다.**
  * 줄이면 이 숫자를 그만큼 내린다 — 내리지 않으면 되돌아가도 안 걸린다.
  */
-const BASELINE = 107
+const BASELINE = 103
 
-/** 접근권한 화면은 이 판에서 옮겼다. 여기만 0 으로 건다 */
+/**
+ * 옮긴 화면. **여기만 0 으로 건다** — 옮긴 자리가 되돌아가는 것은 기준값으로 못 막는다.
+ *
+ * 리포트 지표 탭은 v0.10.893 에서 옮겼다. 거기 남은 두 자리(행축·열축)는 값이 자라는
+ * 목록이라 드롭다운이 맞고, 아래 `WHY_SELECT` 에 사유를 적었다.
+ */
 const CONVERTED = ['app/admin/access/AccessClient.tsx']
 
 /**
@@ -75,6 +80,25 @@ const WHY_SELECT: Readonly<Record<string, string>> = {
     '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
   'components/ui/crm/CostToQuoteModal.tsx#CURRENCY_CHOICES':
     '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
+
+  /*
+    리포트 지표 탭의 축 둘. **기간 고르기는 칩으로 옮겼지만 축은 드롭다운으로 남긴다** —
+    쪼개는 기준은 설정에서 늘어나는 목록이고(사업 유형·단계·회사…) 칩으로 늘어놓으면
+    조건 줄이 화면 밖으로 넘친다. 자라는 목록이지만 **고르는 값이 코드가 아는 등재부**
+    (`lib/crm/domain/dimensions.ts`)라 검색이 필요할 만큼 길어지지 않는다.
+  */
+  'app/(crm)/crm/reports/MetricsClient.tsx#TIME_AXES':
+    '시간 축 넷(월·분기·반기·연)이고 코드에 박혀 있다(metric-agg 의 TIME_AXIS_LABEL). 자라지 않는다',
+  'app/(crm)/crm/reports/MetricsClient.tsx#data.catalog.dimensions':
+    '쪼개는 기준 등재부가 코드로 정한다(domain/dimensions.ts). 열 개 안쪽이고 설정으로 늘어도 한 줄 목록을 넘지 않는다',
+
+  /*
+    목표 모달의 기간 종류. 지표 탭의 같은 목록은 칩으로 옮겼는데 여기는 안 옮긴 이유:
+    모달은 **값을 적는 양식**이고 그 안의 칸들은 서로 같은 생김새여야 한다. 한 칸만
+    칩으로 바꾸면 양식 안에서 생김새가 둘이 된다. 리포트 조건 줄과는 다른 자리다.
+  */
+  'app/(crm)/crm/reports/TargetModal.tsx#PERIOD_KIND_ORDER':
+    '기간 종류 넷이고 코드에 박혀 있다(PERIOD_KIND_ORDER). 자라지 않는다',
 }
 
 function tsxFiles(dir: string, out: string[] = []): string[] {

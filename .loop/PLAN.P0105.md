@@ -1,6 +1,6 @@
 # PLAN newAX: 리포트가 기간을 말하고 활동을 센다
 플랜 ID: P0105
-플랜 버전: v0.1.5
+플랜 버전: v0.1.6
 상태: 진행중
 지시: iv_0179
 목표 버전: v0.10.867
@@ -114,12 +114,14 @@
 의존: I01
 
 ### I04 조건 줄이 앱의 선택 UI 를 쓴다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/app/(crm)/crm/reports/metrics.module.css, apps/web/lib/ui/picker-standard.test.ts, apps/web/lib/terms/report.ts
+범위: apps/web/components/ui/crm/PeriodPicker.tsx (신규), apps/web/components/ui/crm/period-picker.module.css (신규), apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/app/(crm)/crm/reports/metrics.module.css, apps/web/app/(crm)/crm/reports/BusinessPanel.tsx, apps/web/app/(crm)/crm/reports/business-panel.module.css, apps/web/lib/ui/picker-standard.test.ts, apps/web/lib/terms/report.ts
 감사 기준:
 - 보안: 해당 없음, 읽기 화면이고 주소 값은 서버가 이미 모르는 값을 버린다
-- 기간·연도 고르기가 현황 탭과 같은 생김새다, 같은 화면 안에서 선택 UI 가 두 가지가 아니다
+- 기간 고르기가 **한 부품**이다, 두 탭이 같은 파일을 쓰고 두 벌을 만들지 않는다
+- 같은 질문을 두 모양으로 묻지 않는다, 기간은 두 탭 다 칩과 앞뒤 단추로 고른다
+- 쪼개는 기준(축) 고르기는 드롭다운으로 남는다, 값이 자라는 목록이라 칩으로 늘어놓으면 줄이 터진다, 가드의 `WHY_SELECT` 에 그 사유를 적는다
 - 반기·분기 칸이 맨숫자 `1` `2` 가 아니다, 「상반기」 「1분기」처럼 읽히는 말을 쓰고 그 말은 `lib/terms/report.ts` 에서 온다
 - `picker-standard.test.ts` 의 `BASELINE` 이 107 보다 **작아진다**, 줄인 만큼 내리고 올리지 않는다
 - 가드를 일부러 깨 본다, `BASELINE` 을 새 값보다 1 작게 두면 실패하는 것을 확인하고 pass --notes 에 적는다
@@ -193,6 +195,10 @@
   - 왜: 「현황 탭과 같은 모양」을 지키려면 지표 탭에 같은 칩 묶음을 또 그려야 한다. 두 벌이 되면 한쪽만 고쳐지고, 그것이 이 플랜이 I01 에서 고친 바로 그 사고다
   - `components/ui/crm/ComparePicker.tsx` 한 부품으로 빼고 두 탭이 그것을 쓴다, 현황 탭은 이미 통과한 항목이지만 같은 커밋에서 그 인라인 칩을 부품 호출로 바꾼다
   - 증감 글자는 용어집이 들고(`deltaText`·`deltaByUnit`·`compareNote`) 그리는 자리는 카드 크기가 달라 따로 둔다, 말은 같고 자리만 다르다
+- v0.1.6 (2026-10-04) I04 범위에 기간 고르는 부품을 넣음 (ins_0185)
+  - 왜: 「현황 탭과 같은 생김새」를 지키는 길이 둘이다, 지표 탭에 같은 칩을 또 그리거나 한 부품을 둘이 쓰거나. 또 그리면 ComparePicker 를 뺄 때와 같은 사고가 다시 생긴다
+  - 지표 탭의 기간 드롭다운 셋(종류·연도·칸)이 칩과 앞뒤 단추로 바뀐다, 앞뒤 단추가 해를 넘어가므로 연도 칸이 하는 일을 대신한다
+  - 먼 과거로 갈 때 여러 번 눌러야 하는 것은 받아들인다, 기간이 주소에 실려 링크로 바로 가고 종류 칩을 누르면 오늘이 든 기간으로 돌아온다
 - v0.1.5 (2026-10-04) I03 범위에 파이프라인 카드를 넣음 (ins_0185)
   - 왜: 세로 2,600px 목표를 BusinessPanel 만 고쳐서는 **구조적으로 못 맞춘다**. 실측 2026-10-04 1440폭 총 4,297px 중 BusinessPanel 은 995px 뿐이고 파이프라인 카드 셋이 **2,798px(65%)** 을 먹는다
   - 그 2,798px 의 대부분이 단계마다 「아직 모름」을 되풀이하는 줄이다 (카드마다 「어디서 오래 머무나」 190~222px + 「얼마나 들어올까」 190~272px)
@@ -202,3 +208,4 @@
 - v0.1.3 (2026-10-03) I02 를 현황 탭(I02)과 지표 탭(I02a)으로 나눔, 창구 둘과 화면 둘을 한 항목에 두면 한 번의 자가감사로 판정 불가 (audit:I02)
 - v0.1.4 (2026-10-03) I02a 범위에 ComparePicker 부품을 넣음, 두 탭이 같은 칩 묶음을 따로 그리면 한쪽만 고쳐진다 (audit:I02a)
 - v0.1.5 (2026-10-03) I03 범위에 파이프라인 카드를 넣음, 실측 4297px 중 BusinessPanel 995px 이고 카드 셋이 2798px 을 먹어 범위대로는 목표를 못 맞춘다 (audit:I03)
+- v0.1.6 (2026-10-03) I04 범위에 PeriodPicker 부품을 넣음, 두 탭이 같은 칩 묶음을 따로 그리면 한쪽만 고쳐진다 (audit:I04)

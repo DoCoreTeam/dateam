@@ -10,7 +10,6 @@
 //     그 사실을 안 적으면 매출이 조용히 작아진 채로 보고된다.
 
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Sensitive from '@/components/crm/Sensitive'
 import EmptyState from '@/components/ui/EmptyState'
 import SectionSurface from '@/components/ui/SectionSurface'
@@ -21,13 +20,14 @@ import { formatAmount } from '../deals/amount'
 import {
   LENS_LABEL, LENS_QUESTION, LENS_AMOUNT_LABEL, LENS_HINT, METRIC, METRIC_HINT,
   GROUP_LABEL, GROUP_ORDER,
-  PERIOD_KIND_ORDER, ROLLING_12M_LABEL, PERIOD_KIND_LABEL,
+  ROLLING_12M_LABEL,
   reportPeriodLabel, shiftReportPeriod,
   type ReportPeriod, type GroupKey,
 } from '@/lib/crm/domain/report-axis'
 import { periodOfToday } from '@/lib/crm/domain/target'
 import { compareSums, type CompareKey } from '@/lib/crm/domain/period-compare'
 import ComparePicker from '@/components/ui/crm/ComparePicker'
+import PeriodPicker from '@/components/ui/crm/PeriodPicker'
 import {
   REPORT, COMPARE_LABEL, NO_COMPARE, compareNote, deltaText,
   foldedNote, FOLD_SHOW, FOLD_HIDE, SAME_LENS_NOTE, COUNTER_MONTH, monthsLabel,
@@ -287,64 +287,32 @@ export default function BusinessPanel({ here, data, period, compareKey, todayKey
         **지난 분기를 볼 길이 아예 없었다**(실측 2026-10-02). 왼쪽은 종류,
         오른쪽은 그 종류 안에서 앞뒤로 가는 길이다.
       */}
-      <div className={styles.periodBar}>
-        <div className={styles.periodTabs} role="group" aria-label={REPORT.period}>
-          {PERIOD_KIND_ORDER.map((k) => {
-            const on = !period.rolling && period.period.kind === k
-            return (
-              <button
-                key={k} type="button"
-                className={`${styles.periodTab}${on ? ` ${styles.periodTabOn}` : ''}`}
-                /* 종류를 바꾸면 **오늘이 든 그 기간**으로 간다. 2026년을 보다 분기로 바꾸면 이번 분기다 */
-                onClick={() => onPeriodChange({ rolling: false, period: periodOfToday(k, todayKey) })}
-                aria-pressed={on}
-              >
-                {PERIOD_KIND_LABEL[k]}
-              </button>
-            )
-          })}
-          <button
-            type="button"
-            className={`${styles.periodTab}${period.rolling ? ` ${styles.periodTabOn}` : ''}`}
-            onClick={() => onPeriodChange({ rolling: true })}
-            aria-pressed={period.rolling}
-          >
-            {ROLLING_12M_LABEL}
-          </button>
-        </div>
+      {/*
+        **종류와 때를 가른다.** 예전에는 「이번 달·이번 분기·올해」가 칩 하나씩이라
+        종류를 고르는 것과 어느 때를 보는 것이 한 줄에 섞여 있었고, 그래서
+        **지난 분기를 볼 길이 아예 없었다**(실측 2026-10-02).
 
-        {/* 굴러가는 12개월은 앞뒤가 없다. 그 기간의 「이전」은 뜻이 없으므로 단추를 안 그린다 */}
-        {!period.rolling && (
-          <div className={styles.periodNav}>
-            <button
-              type="button" className={styles.periodStep}
-              onClick={() => onPeriodChange(shiftReportPeriod(period, -1))}
-              aria-label={REPORT.periodPrev}
-              title={REPORT.periodPrev}
-            >
-              <ChevronLeft size={16} aria-hidden />
-            </button>
-            <span className={styles.periodNow}>{reportPeriodLabel(period)}</span>
-            <button
-              type="button" className={styles.periodStep}
-              onClick={() => onPeriodChange(shiftReportPeriod(period, 1))}
-              aria-label={REPORT.periodNext}
-              title={REPORT.periodNext}
-            >
-              <ChevronRight size={16} aria-hidden />
-            </button>
-          </div>
-        )}
-
-        {/*
-          **견줄 대상을 기간 옆에 둔다.** 「3억」이라는 숫자는 견줄 것이 있어야 뜻이 생기고,
-          무엇과 견주는지는 기간을 고르는 자리에서 같이 정해야 한다. 멀리 두면 카드에 뜬
-          증감이 무엇 대비인지 찾아 올라가야 한다.
-        */}
-        <ComparePicker value={compareKey} onChange={onCompareChange} />
-
-        <span className={styles.periodRange}>{data.period.from} ~ {data.period.to}</span>
-      </div>
+        **부품은 지표 탭과 같은 것**이다. 같은 질문을 두 모양으로 물으면 쓰는 사람이
+        두 탭을 다른 제품으로 배운다.
+      */}
+      <PeriodPicker
+        activeKind={period.rolling ? null : period.period.kind}
+        label={period.rolling ? null : reportPeriodLabel(period)}
+        /* 종류를 바꾸면 **오늘이 든 그 기간**으로 간다. 2026년을 보다 분기로 바꾸면 이번 분기다 */
+        onKind={(k) => onPeriodChange({ rolling: false, period: periodOfToday(k, todayKey) })}
+        onStep={(step) => onPeriodChange(shiftReportPeriod(period, step))}
+        extra={{
+          label: ROLLING_12M_LABEL,
+          active: period.rolling,
+          onPick: () => onPeriodChange({ rolling: true }),
+        }}
+        trailing={
+          <>
+            <ComparePicker value={compareKey} onChange={onCompareChange} />
+            <span className={styles.periodRange}>{data.period.from} ~ {data.period.to}</span>
+          </>
+        }
+      />
 
       {/* ── 금액: 세 관점 + 잔고. 각 숫자 위에 «무엇을 묻는가»를 적는다 ── */}
       <div className={styles.cards}>

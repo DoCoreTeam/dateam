@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.893',
+    date: '2026-10-04',
+    title: '두 탭이 같은 방식으로 기간을 골라요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🎛️',
+        headline: '지표 탭의 기간 고르기가 현황 탭과 같아졌어요',
+        detail: '지표 탭만 브라우저 기본 드롭다운 세 개(종류·연도·칸)로 기간을 골랐고, 같은 화면 위쪽은 칩이었어요. 이제 두 탭이 같은 칩과 같은 앞뒤 화살표를 씁니다. 화살표가 해를 넘어가므로 2026년 1분기에서 왼쪽을 누르면 2025년 4분기로 갑니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.892',
     date: '2026-10-04',
     title: '리포트가 한 화면에 들어와요',
