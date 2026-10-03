@@ -156,14 +156,50 @@ const NOT_CALLED_ON_PURPOSE: Record<string, string> = {
   'FID_HOUR_1M': 'kis-request 가 쓴다',
 }
 
-function walk(dir: string): string[] {
-  let out: string[] = []
+/**
+ * 트리를 훑는다 — **`node_modules` 와 점으로 시작하는 디렉터리는 안 들어간다.**
+ *
+ * 지금 훑는 뿌리가 `lib`·`app`·`lib/trading` 셋이라 그 안에 `node_modules` 가 없어
+ * 거르지 않아도 터지지 않았다. 뿌리가 하나 늘면 그 자리에서 터진다 —
+ * 그때 「가드가 느리다」로 읽히고, 느린 가드는 안 돌리게 된다.
+ */
+function walkOnce(dir: string): string[] {
+  const out: string[] = []
   for (const name of readdirSync(dir)) {
+    if (name === 'node_modules' || name.startsWith('.')) continue
     const full = join(dir, name)
-    if (statSync(full).isDirectory()) { out = out.concat(walk(full)); continue }
+    if (statSync(full).isDirectory()) { out.push(...walkOnce(full)); continue }
     if (full.endsWith('.ts') || full.endsWith('.tsx')) out.push(full)
   }
   return out
+}
+
+/**
+ * 같은 뿌리를 두 번 훑지 않는다.
+ *
+ * 실측 2026-10-03: 이 파일 하나가 `pnpm test` 39분 중 **38분**을 먹었다
+ * (나머지 727파일 합이 1분). `walk` 를 단정마다 다시 돌고, 그보다 더 나쁘게
+ * `usedAnywhere` 가 **이름마다 소비자 전체를 다시 읽었다** — 이름 200개 × 파일 1,000개면
+ * 읽기만 20만 번이다. 전체 시험이 40분이면 종합 감사에서 그 값을 내는 쪽이 망설이고,
+ * 망설이면 안 돌리고, 안 돌리면 가드가 있어도 없는 것과 같다.
+ */
+const WALKED = new Map<string, string[]>()
+function walk(dir: string): string[] {
+  const hit = WALKED.get(dir)
+  if (hit) return hit
+  const out = walkOnce(dir)
+  WALKED.set(dir, out)
+  return out
+}
+
+/** 파일 내용. 같은 파일을 두 번 읽지 않는다 */
+const RAW = new Map<string, string>()
+function read(file: string): string {
+  const hit = RAW.get(file)
+  if (hit !== undefined) return hit
+  const src = readFileSync(file, 'utf8')
+  RAW.set(file, src)
+  return src
 }
 
 /** 값으로 내보낸 이름들. 형만 내보낸 것은 부르는 것이 아니라 적는 것이라 안 센다 */
@@ -190,6 +226,54 @@ function stripImports(src: string): string {
     .replace(/^\s*export\s+(?:type\s+)?\{[\s\S]*?\}\s+from\s+['"][^'"]+['"];?\s*$/gm, ' ')
 }
 
+/** `import` 줄을 지운 내용. 같은 파일을 두 번 지우지 않는다 */
+const STRIPPED = new Map<string, string>()
+function stripped(file: string): string {
+  const hit = STRIPPED.get(file)
+  if (hit !== undefined) return hit
+  const src = stripImports(read(file))
+  STRIPPED.set(file, src)
+  return src
+}
+
+/**
+ * 파일마다 나오는 낱말 묶음.
+ *
+ * `\bname\b` 가 맞는다는 것은 **낱말 글자(`\w`)가 끊기지 않고 이어진 토막** 하나가
+ * 그 이름과 같다는 뜻이다. 그래서 `/\w+/g` 로 토막을 전부 모아 두면
+ * 정규식을 파일마다 다시 돌리지 않고 집합 조회 한 번으로 같은 답이 나온다.
+ */
+const IDENTS = new Map<string, Set<string>>()
+function identsOf(file: string): Set<string> {
+  const hit = IDENTS.get(file)
+  if (hit) return hit
+  const set = new Set(stripped(file).match(/\w+/g) ?? [])
+  IDENTS.set(file, set)
+  return set
+}
+
+/**
+ * 부르는 쪽. 트레이딩 밖에도 있으므로(화면·라우트) `lib` 과 `app` 을 다 훑는다.
+ *
+ * **시험 파일은 소비처가 아니다.** 2026-09-26 의 구멍이 정확히 그 모양이었다 —
+ * `aggregateBars` 는 단정 15개로 검증돼 있어 「쓰이고 있다」처럼 보였지만,
+ * 부르는 것은 시험뿐이고 운영 경로에는 없었다. 시험을 소비처로 세면 이 가드는
+ * 자기가 잡아야 할 것을 정확히 놓친다.
+ */
+const CONSUMER_FILES: readonly string[] = [...walk(join(WEB, 'lib')), ...walk(join(WEB, 'app'))]
+  .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
+
+/**
+ * 그 낱말을 든 소비자 파일이 몇 개인가.
+ *
+ * 이름 하나를 물을 때마다 1,000개 파일을 다시 훑지 않으려고 **세어 두고** 묻는다.
+ * 자기 파일을 빼는 일은 「전체 개수 − 자기 파일에 있나」로 끝난다.
+ */
+const IDENT_FILES = new Map<string, number>()
+for (const file of CONSUMER_FILES) {
+  for (const word of identsOf(file)) IDENT_FILES.set(word, (IDENT_FILES.get(word) ?? 0) + 1)
+}
+
 /**
  * 이 이름을 **부르거나 읽는** 자리가 운영 코드 어딘가에 있나.
  *
@@ -197,41 +281,28 @@ function stripImports(src: string): string {
  * 정상이고, 그것을 「안 불린다」로 세면 쪼갤수록 가드가 시끄러워져 결국 무시당한다.
  * 다만 **선언 줄 자체는 빼고** 센다 — 안 그러면 모든 이름이 자기 선언으로 통과한다.
  */
-function usedAnywhere(name: string, ownFile: string, files: readonly string[]): boolean {
+function usedAnywhere(name: string, ownFile: string): boolean {
+  const inOwn = identsOf(ownFile).has(name) ? 1 : 0
+  // 자기 말고 다른 파일이 한 개라도 그 낱말을 들면 쓰이는 것이다
+  if ((IDENT_FILES.get(name) ?? 0) - inOwn > 0) return true
+  if (!inOwn) return false
+
+  // 자기 파일은 선언 줄을 뺀 나머지에서 찾는다
   const word = new RegExp(`\\b${name}\\b`)
   const declaration = new RegExp(`^export\\s+(?:async\\s+)?(?:function|const|class)\\s+${name}\\b`)
-  for (const file of files) {
-    const src = stripImports(readFileSync(file, 'utf8'))
-    if (file !== ownFile) {
-      if (word.test(src)) return true
-      continue
-    }
-    // 자기 파일은 선언 줄을 뺀 나머지에서 찾는다
-    const rest = src.split('\n').filter((line) => !declaration.test(line)).join('\n')
-    if (word.test(rest)) return true
-  }
-  return false
+  const rest = stripped(ownFile).split('\n').filter((line) => !declaration.test(line)).join('\n')
+  return word.test(rest)
 }
 
 test('★ lib/trading 에 만들어만 놓고 아무도 안 부르는 자리가 없다', () => {
   const tradingFiles = walk(TRADING)
-  // 부르는 쪽은 트레이딩 밖에도 있다(화면·라우트). 앱 전체를 훑는다
-  /**
-   * **시험 파일은 소비처가 아니다.**
-   *
-   * 이번 구멍이 정확히 그 모양이었다 — `aggregateBars` 는 단정 15개로 검증돼 있었고
-   * 그래서 「쓰이고 있다」처럼 보였지만, 부르는 것은 시험뿐이고 운영 경로에는 없었다.
-   * 시험을 소비처로 세면 이 가드는 자기가 잡아야 할 것을 정확히 놓친다.
-   */
-  const consumers = [...walk(join(WEB, 'lib')), ...walk(join(WEB, 'app'))]
-    .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
 
   const orphans: string[] = []
   for (const file of tradingFiles) {
     if (file.endsWith('.test.ts')) continue
-    const src = readFileSync(file, 'utf8')
+    const src = read(file)
     for (const name of valueExports(src)) {
-      if (usedAnywhere(name, file, consumers)) continue
+      if (usedAnywhere(name, file)) continue
       if (NOT_CALLED_ON_PURPOSE[name]) continue
       orphans.push(`${relative(WEB, file)} 의 ${name}`)
     }
@@ -249,14 +320,14 @@ test('★ lib/trading 에 만들어만 놓고 아무도 안 부르는 자리가 
 test('규칙이 실제로 도는 대상이 있다 — 0개면 위 단정은 언제나 초록이다', () => {
   const files = walk(TRADING).filter((f) => !f.endsWith('.test.ts'))
   assert.ok(files.length >= 20, `검사 대상이 ${files.length}개뿐이다. 경로가 바뀌었는지 확인한다`)
-  const exported = files.flatMap((f) => valueExports(readFileSync(f, 'utf8')))
+  const exported = files.flatMap((f) => valueExports(read(f)))
   assert.ok(exported.length >= 50, `값 export 가 ${exported.length}개뿐이다 — 정규식이 안 맞는지 확인한다`)
 })
 
 test('면제 목록에 죽은 줄이 없다 — 지운 이름이 사유만 남기지 않게', () => {
   const declared = new Set(
     walk(TRADING).filter((f) => !f.endsWith('.test.ts'))
-      .flatMap((f) => valueExports(readFileSync(f, 'utf8'))),
+      .flatMap((f) => valueExports(read(f))),
   )
   const stale = Object.keys(NOT_CALLED_ON_PURPOSE).filter((n) => !declared.has(n))
   assert.deepEqual(stale, [], `없는 이름이 면제 목록에 남아 있다: ${stale.join(', ')}`)
@@ -282,7 +353,7 @@ test('면제 목록에 죽은 줄이 없다 — 지운 이름이 사유만 남�
 function clientInterfaces(files: readonly string[]): { iface: string; file: string }[] {
   const out: { iface: string; file: string }[] = []
   for (const file of files) {
-    const src = stripComments(readFileSync(file, 'utf8'))
+    const src = stripComments(read(file))
     for (const m of src.matchAll(/^export function create\w+\([^)]*\):\s*(\w+)\s*\{/gm)) {
       out.push({ iface: m[1], file })
     }
@@ -312,8 +383,6 @@ const METHOD_NOT_CALLED_ON_PURPOSE: Record<string, string> = {
 
 test('★ 공장이 돌려주는 창구의 메서드가 전부 불린다 — 이름만 보면 안 보인다', () => {
   const tradingFiles = walk(TRADING).filter((f) => !f.endsWith('.test.ts'))
-  const consumers = [...walk(join(WEB, 'lib')), ...walk(join(WEB, 'app'))]
-    .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.test.tsx'))
 
   const clients = clientInterfaces(tradingFiles)
   assert.ok(clients.length >= 3,
@@ -322,7 +391,7 @@ test('★ 공장이 돌려주는 창구의 메서드가 전부 불린다 — 이
   const orphans: string[] = []
   let checked = 0
   for (const { iface, file } of clients) {
-    const methods = interfaceMethods(readFileSync(file, 'utf8'), iface)
+    const methods = interfaceMethods(read(file), iface)
     for (const method of methods) {
       checked += 1
       if (METHOD_NOT_CALLED_ON_PURPOSE[`${iface}.${method}`]) continue
@@ -331,7 +400,7 @@ test('★ 공장이 돌려주는 창구의 메서드가 전부 불린다 — 이
        * 부르는 자리만 `account.fills(` 로 걸린다. 이름만 찾으면 구현이 자기를 통과시킨다.
        */
       const call = new RegExp(`\\.${method}\\s*\\(`)
-      const called = consumers.some((f) => call.test(stripImports(readFileSync(f, 'utf8'))))
+      const called = CONSUMER_FILES.some((f) => call.test(stripped(f)))
       if (!called) orphans.push(`${relative(WEB, file)} 의 ${iface}.${method}`)
     }
   }
@@ -419,7 +488,7 @@ const LITERAL_ON_PURPOSE: Record<string, string> = {
 }
 
 test('★ 감시·주문·시장 재기·신호 발행에 고정값을 안 넘긴다 — 부르는 꼴은 완벽한데 값이 없던 자리', () => {
-  const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
+  const tick = read(join(TRADING, 'jobs', 'tick.ts'))
 
   const found: string[] = []
   let scanned = 0
@@ -440,7 +509,7 @@ test('★ 감시·주문·시장 재기·신호 발행에 고정값을 안 넘�
 })
 
 test('면제 목록 둘에 죽은 줄이 없다', () => {
-  const tick = readFileSync(join(TRADING, 'jobs', 'tick.ts'), 'utf8')
+  const tick = read(join(TRADING, 'jobs', 'tick.ts'))
   const live = new Set<string>()
   for (const callee of CALLS_THAT_MUST_CARRY_VALUES) {
     const argument = callArgument(tick, callee)
@@ -455,7 +524,7 @@ test('면제 목록 둘에 죽은 줄이 없다', () => {
   const tradingFiles = walk(TRADING).filter((f) => !f.endsWith('.test.ts'))
   const declared = new Set<string>()
   for (const { iface, file } of clientInterfaces(tradingFiles)) {
-    for (const m of interfaceMethods(readFileSync(file, 'utf8'), iface)) declared.add(`${iface}.${m}`)
+    for (const m of interfaceMethods(read(file), iface)) declared.add(`${iface}.${m}`)
   }
   assert.deepEqual(
     Object.keys(METHOD_NOT_CALLED_ON_PURPOSE).filter((k) => !declared.has(k)), [],
@@ -477,14 +546,14 @@ test('면제 목록 둘에 죽은 줄이 없다', () => {
  * 이름을 찾는 가드는 **읽는 자리**를 못 본다.
  */
 test('★ 등록부에 없는 설정 키를 읽지 않는다 — 설정처럼 보이는 상수가 된다', () => {
-  const registry = readFileSync(join(TRADING, 'settings', 'registry.ts'), 'utf8')
+  const registry = read(join(TRADING, 'settings', 'registry.ts'))
   const known = new Set([...registry.matchAll(/key:\s*'([a-z0-9_]+)'/g)].map((m) => m[1]))
   assert.ok(known.size > 50, `등록부에서 키를 ${known.size}개밖에 못 읽었다 — 정규식을 확인한다`)
 
   const offenders: string[] = []
   let scanned = 0
   for (const file of walk(TRADING).filter((f) => !f.endsWith('.test.ts'))) {
-    const src = stripImports(readFileSync(file, 'utf8'))
+    const src = stripped(file)
     for (const m of src.matchAll(/\b(?:num|str|bool)\(\s*'([a-z0-9_]+)'/g)) {
       scanned += 1
       if (!known.has(m[1])) offenders.push(`${relative(WEB, file)} 의 ${m[1]}`)
