@@ -375,3 +375,70 @@ test('\u2605 비고 열은 쓰는 견적에만 선다 — 빈 열이 품목 이�
   assert.match(src, /const cols = \(showDiscount \? 7 : 6\) \+ \(showRemark \? 1 : 0\)/,
     'colSpan 이 비고 열을 안 센다 — 묶음 머리와 소계가 한 칸 밀린다')
 })
+
+/* ── ⑨ 합계는 금액 열에 선다, 표의 마지막 열이 아니다 ───────── */
+
+/*
+  사용자 지적(2026-10-03, 「금액부분 짤림」): 비고가 있는 견적서에서
+  「합계 금액 2,198,592원」이 「2,198,」에서 끊겼고 공급가액은 「원」을 잃었다.
+
+  금액 열은 25% 그대로였다 — 금액이 거기 없었을 뿐이다. 합계 줄은 모두
+  「빈 칸 + 라벨 + 금액」 세 덩어리로 끝나는데, 비고 열이 서면 표의 마지막 칸이
+  비고(10%)라 그 셋의 마지막이 비고 칸에 앉는다. 열 수(cols)는 이미 비고를 세고
+  있었으므로 colSpan 합은 맞았고, 그래서 아무 가드도 안 걸렸다.
+
+  열 폭을 늘려 막는 방식이 내용 길이에 다시 깨지듯, 「cols 만 맞으면 된다」도
+  열이 하나 더 설 때 다시 깨진다. 그래서 **줄 끝에 빈 칸이 붙는지**를 센다.
+
+  엑셀은 이 일을 안 겪었다 — 금액 열을 G 로 못 박고 비고를 그 뒤에 세웠다
+  (quote-xlsx.ts 의 AMOUNT_COL_INDEX). 화면만 틀렸다.
+*/
+
+test('★ 합계 줄 끝에 비고 열만큼의 빈 칸이 있다 — 없으면 금액이 10% 칸으로 밀려 잘린다', () => {
+  assert.match(SHEET, /const tailSpan = showRemark \? 1 : 0/,
+    '비고 열만큼의 꼬리 칸을 안 센다')
+  assert.match(SHEET, /const padSpan = cols - labelSpan - 1 - tailSpan/,
+    '앞 빈 칸이 꼬리 칸을 안 빼서 colSpan 합이 열 수를 넘는다')
+  assert.match(SHEET, /const tailCell = showRemark \? <td \/> : null/,
+    '꼬리 칸을 그리는 자리가 없다')
+})
+
+test('★ 모든 합계 줄이 그 빈 칸을 실제로 붙인다 — 선언만 하고 안 쓰면 그대로 잘린다', () => {
+  const foot = SHEET.slice(SHEET.indexOf('<tfoot>'), SHEET.indexOf('</tfoot>'))
+  assert.ok(foot.length > 0, 'tfoot 을 못 찾았다')
+  /*
+    **줄마다 센다.** 한 줄만 고쳐 놓고 나머지를 두면 합계는 제자리인데
+    부가세만 잘리는, 더 알아채기 어려운 모습이 된다.
+  */
+  const rows = foot.split('</tr>').filter((r) => r.includes('styles.num'))
+  assert.ok(rows.length >= 4, `합계 줄을 ${rows.length}개만 찾았다 — 세는 방법이 틀렸다`)
+  for (const row of rows) {
+    assert.ok(row.includes('{tailCell}'),
+      `금액이 든 합계 줄 하나가 꼬리 칸을 안 붙였다: ${row.replace(/\s+/g, ' ').trim().slice(0, 90)}`)
+  }
+})
+
+test('★ 묶음 소계도 금액 열에 선다 — 진하게 칠하는 자리도 금액 칸이다', () => {
+  assert.match(SHEET, /<td colSpan=\{cols - 1 - tailSpan\}>\{g\.section\.name\} \{QUOTE\.subtotal\}<\/td>/,
+    '소계 라벨이 꼬리 칸을 안 빼서 금액이 비고 칸으로 밀린다')
+  assert.match(
+    SHEET,
+    /<td className=\{styles\.num\}>\{money\(g\.section\.subtotalMinor\)\}<\/td>\s*\{tailCell\}/,
+    '소계 금액 뒤에 꼬리 칸이 없다',
+  )
+  assert.match(DOC, /\.sectionSum \.num \{ color: var\(--text\); \}/,
+    '소계 금액 색이 :last-child 로 돌아갔다 — 비고 열이 서면 빈 칸을 칠하고 금액은 흐리게 남는다')
+})
+
+test('★ 비고 칸은 띄어쓰기 없는 긴 값도 칸 안에서 접는다', () => {
+  /*
+    받은 견적서의 비고에 「(0.83*0.95*1440*1500)」 같은 셈식이 그대로 실려 온다.
+    낱말이 아니라 한 덩어리라 `keep-all` 만으로는 칸을 넘어가 오른쪽 끝에서 잘렸다.
+  */
+  const remark = DOC.match(/\.remark \{[^}]*\}/)
+  assert.ok(remark, '.remark 규칙을 못 찾았다')
+  assert.match(remark[0], /word-break: keep-all/,
+    '한글 낱말이 글자 단위로 쪼개진다(「스토리지」→「스토」/「리지」)')
+  assert.match(remark[0], /overflow-wrap: break-word/,
+    '띄어쓰기 없는 긴 값이 칸 밖으로 나가 잘린다')
+})
