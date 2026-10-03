@@ -17,6 +17,8 @@
 // **같은 표**를 읽어야 한다. 두 곳에 적으면 하나를 고칠 때 다른 하나가 남아
 // "사이드바에선 「거래처」인데 화면에선 「회사」"가 된다(§2-3-3 N-4).
 
+import { ENTITY } from '../../terms/entity.ts'
+
 export interface CrmGroupTab {
   href: string
   label: string
@@ -75,6 +77,15 @@ export const CRM_NAV_GROUPS: readonly CrmNavGroup[] = [
     href: '/crm/meetings',
     tabs: [
       { href: '/crm/meetings', label: '미팅' },
+      /*
+        활동을 미팅 뒤에 둔다. 맨 앞에 두면 묶음을 눌렀을 때 가는 곳이 바뀌고
+        (가드: 묶음의 대표 경로는 첫 탭이다) 「기록」을 눌러 미팅으로 가던 손이 헛돈다.
+
+        실측 2026-10-02: 활동 421건이 쌓여 있는데 목록으로 보는 자리가 없었다.
+        딜·회사·인물 상세 안쪽의 타임라인이 유일한 길이라 「이번 달 누가 몇 번
+        접촉했나」를 물을 자리가 아예 없었다.
+      */
+      { href: '/crm/activities', label: ENTITY.activity.label },
       { href: '/crm/tasks', label: '할 일' },
       { href: '/crm/audit', label: '변경 이력' },
     ],

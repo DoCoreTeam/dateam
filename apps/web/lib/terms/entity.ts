@@ -31,7 +31,7 @@ export interface EntityMeta {
 }
 
 export type EntityKey =
-  | 'company' | 'person' | 'deal' | 'quote' | 'cost' | 'product' | 'meeting' | 'note'
+  | 'company' | 'person' | 'deal' | 'quote' | 'cost' | 'product' | 'meeting' | 'note' | 'activity'
   | 'task' | 'event' | 'pipeline' | 'stage'
   | 'channel' | 'content'
   | 'dailyLog' | 'weeklyReport' | 'setting'
@@ -59,6 +59,12 @@ export const ENTITY: Record<EntityKey, EntityMeta> = {
   meeting: { label: '미팅', id: 'meeting', counter: '건', surface: 'crm' },
   /** 개인 소유 **원본**. 미팅은 여기서 발행받는다 */
   note: { label: '회의노트', id: 'note', counter: '건', surface: 'member' },
+  /**
+   * 일어난 일의 기록 하나. **「타임라인」이 아니다** — 타임라인은 그것들을 시간순으로
+   * 그리는 **자리**의 이름이고, 세는 대상은 활동이다. 「접촉」도 쓰지 않는다,
+   * 시스템이 남긴 것까지 포함하는 말이 필요하다
+   */
+  activity: { label: '활동', id: 'activity', counter: '건', surface: 'crm' },
   /** `업무` 금지 — 「업무」는 `(member)` 표면 이름이라 충돌한다 */
   task: { label: '할 일', id: 'task', counter: '건', surface: 'crm' },
   event: { label: '일정', id: 'event', counter: '건', surface: 'member' },

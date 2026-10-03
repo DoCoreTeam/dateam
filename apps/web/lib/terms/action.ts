@@ -24,6 +24,14 @@ export type ActionKey =
   | 'unhide'
   | 'select'
 
+/**
+ * 거르기에서 「조건을 안 걸었다」를 말하는 말.
+ *
+ * 세 화면이 각자 `{ value: '', label: '전체' }` 를 적고 있었다(견적·미팅·메모).
+ * 같은 뜻의 칸이 화면마다 다른 말이 되면 사용자는 그것이 같은 기능인지 모른다.
+ */
+export const FILTER_ALL = '전체'
+
 export const ACTION: Record<ActionKey, string> = {
   /** 폼·모달의 확정 버튼. **언제나 「저장」**이다(§2-5 (4)) — 카드별 변형 금지 */
   save: '저장',

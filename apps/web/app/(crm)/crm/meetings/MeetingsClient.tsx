@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation'
 import { Mic, Plus, NotebookPen } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
-import { ACTION, progress } from '@/lib/terms'
+import { ACTION, progress, FILTER_ALL } from '@/lib/terms'
 import NbModal from '@/components/ui/nb/NbModal'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
@@ -173,7 +173,7 @@ const STATUS_FILTER = {
   key: 'status',
   label: '상태',
   options: [
-    { value: '', label: '전체' },
+    { value: '', label: FILTER_ALL },
     ...MEETING_STATUS_ORDER.map((s) => ({ value: s, label: MEETING_STATUS_META[s].label })),
   ],
 }

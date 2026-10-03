@@ -56,6 +56,21 @@ export interface ListActivityInput {
   dealId?: string | null
   /** 타입 필터(명세 §6.2) — 쉼표로 여러 개 */
   types?: string | null
+  /** 누가 남겼나. 목록 화면의 담당자 거르기 */
+  createdById?: string | null
+  /** 이 날짜부터(KST 날짜, 이 날 포함) */
+  from?: string | null
+  /** 이 날짜까지(KST 날짜, 이 날 포함) */
+  to?: string | null
+  /**
+   * 조건에 걸린 **전체 건수**도 함께 센다.
+   *
+   * 왜 고르게 하나: 타임라인은 「더 보기」로 이어 읽는 자리라 전체 수를 몰라도 된다.
+   * 목록 화면은 **몇 건 중 몇 건을 보고 있는지** 말해야 한다 — 상한에 걸린 것을
+   * 조용히 자르면 사람은 그것이 전부라고 읽고 보고서에 쓴다. 셈이 한 번 더 들어가므로
+   * 필요한 자리만 켠다.
+   */
+  withTotal?: boolean
 }
 
 function parseTypes(v: string | null | undefined): ActivityType[] | null {
@@ -70,6 +85,8 @@ export interface ActivityPage {
   items: ActivityRow[]
   /** 다음 페이지의 기준 시각 — 없으면 끝이다 */
   nextBefore: string | null
+  /** 조건에 걸린 전체 건수. `withTotal` 을 켜지 않으면 `null` 이다 — **0 이 아니다** */
+  total?: number | null
 }
 
 export async function listActivities(db: CrmDb, input: ListActivityInput = {}): Promise<ActivityPage> {
@@ -79,15 +96,46 @@ export async function listActivities(db: CrmDb, input: ListActivityInput = {}): 
   if (input.companyId) where.companyId = input.companyId
   if (input.personId) where.personId = input.personId
   if (input.dealId) where.dealId = input.dealId
+  if (input.createdById) where.createdById = input.createdById
   const types = parseTypes(input.types)
   if (types) where.type = { in: types }
+
+  /*
+    **기간과 커서를 따로 들고 합친다.**
+
+    `occurredAt` 조건을 두 번 쓰면 뒤에 쓴 것이 앞의 것을 덮어 「9월만 보기」에 커서가
+    안 먹거나 그 반대가 된다. 그리고 전체 건수는 **기간만**으로 세야 한다 — 커서까지
+    넣고 세면 「더 보기」를 누를 때마다 전체 수가 줄어 「421건 중 50건」이
+    「371건 중 50건」이 된다.
+  */
+  const range: { gte?: Date; lt?: Date } = {}
+  if (input.from) {
+    const from = new Date(`${input.from}T00:00:00+09:00`)
+    if (Number.isNaN(from.getTime())) {
+      throw new CrmError('VALIDATION_FAILED', '시작 날짜가 올바르지 않습니다.', { field: 'from' })
+    }
+    range.gte = from
+  }
+  if (input.to) {
+    // 그 날을 포함한다 — 다음 날 0시 직전까지. KST 로 자른다(집계 엔진과 같은 규약)
+    const to = new Date(`${input.to}T00:00:00+09:00`)
+    if (Number.isNaN(to.getTime())) {
+      throw new CrmError('VALIDATION_FAILED', '끝 날짜가 올바르지 않습니다.', { field: 'to' })
+    }
+    to.setUTCDate(to.getUTCDate() + 1)
+    range.lt = to
+  }
+
+  const at: { gte?: Date; lt?: Date } = { ...range }
   if (input.before) {
-    const at = new Date(input.before)
-    if (Number.isNaN(at.getTime())) {
+    const cursor = new Date(input.before)
+    if (Number.isNaN(cursor.getTime())) {
       throw new CrmError('VALIDATION_FAILED', '기준 시각이 올바르지 않습니다.', { field: 'before' })
     }
-    where.occurredAt = { lt: at }
+    // 커서와 끝 날짜가 같이 오면 **더 이른 쪽**이 이긴다. 덮어쓰면 다음 쪽이 기간을 넘는다
+    at.lt = range.lt && range.lt < cursor ? range.lt : cursor
   }
+  if (Object.keys(at).length > 0) where.occurredAt = at
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await (db as any).crmActivity.findMany({
@@ -99,7 +147,18 @@ export async function listActivities(db: CrmDb, input: ListActivityInput = {}): 
   const hasMore = rows.length > limit
   const items = hasMore ? rows.slice(0, limit) : rows
   const last = items[items.length - 1]
-  return { items, nextBefore: hasMore && last ? last.occurredAt.toISOString() : null }
+
+  // 전체 건수는 **커서를 뺀 기간 조건**으로 센다
+  let total: number | null = null
+  if (input.withTotal) {
+    const countWhere = { ...where }
+    if (Object.keys(range).length > 0) countWhere.occurredAt = range
+    else delete countWhere.occurredAt
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    total = await (db as any).crmActivity.count({ where: countWhere }) as number
+  }
+
+  return { items, nextBefore: hasMore && last ? last.occurredAt.toISOString() : null, total }
 }
 
 export interface ActivityInput {

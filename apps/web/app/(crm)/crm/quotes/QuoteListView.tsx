@@ -23,7 +23,7 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import { kstDateKey } from '@/lib/datetime/kst'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE_STATUS_META, QUOTE_STATUS_ORDER, quoteStatusMeta } from '@/lib/crm/ui/quote-status'
-import { ENTITY } from '@/lib/terms'
+import { ENTITY, FILTER_ALL } from '@/lib/terms'
 import { QUOTE } from '@/lib/terms/quote'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { useRowSelection } from '@/hooks/useRowSelection'
@@ -132,7 +132,7 @@ const STATUS_FILTER = {
   key: 'status',
   label: '상태',
   options: [
-    { value: '', label: '전체' },
+    { value: '', label: FILTER_ALL },
     ...QUOTE_STATUS_ORDER.map((s) => ({ value: s, label: QUOTE_STATUS_META[s].label })),
   ],
 }

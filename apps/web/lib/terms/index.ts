@@ -6,7 +6,7 @@
  */
 
 export {
-  ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL,
+  ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, FILTER_ALL,
   createLabel, progress,
   settingFieldState, SETTING_SAVE_LABEL, settingSaveDisabled,
   settingUnknownValue, settingUnknownOptionLabel, SETTING_RECOMMENDED,
@@ -17,6 +17,13 @@ export {
   ENTITY, SURFACE_LABEL, SERVICE_LABEL, TRADING_NAV_LABEL, count, countOnly,
   type EntityKey, type EntityMeta, type Counter, type ServiceKey, type SurfaceKey,
 } from './entity.ts'
+
+export {
+  ACTIVITY_TYPE_LABEL, ACTIVITY_TYPE_ORDER, ACTIVITY_MANUAL_TYPES,
+  ACTIVITY_NO_ANCHOR, ACTIVITY_SYSTEM_NOTE,
+  ACTIVITY_AUTHOR, ACTIVITY_TYPE_FIELD, ACTIVITY_MORE,
+  type ActivityTypeKey,
+} from './activity.ts'
 
 export {
   emptyTitle, failedTo, confirmDelete, confirmDeleteParts, notEnough,

@@ -16,7 +16,10 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './timeline.module.css'
-import { ACTION } from '@/lib/terms'
+import {
+  ACTION, FILTER_ALL,
+  ACTIVITY_TYPE_LABEL, ACTIVITY_TYPE_ORDER, ACTIVITY_MANUAL_TYPES, type ActivityTypeKey,
+} from '@/lib/terms'
 
 export interface ActivityItem {
   id: string
@@ -34,16 +37,23 @@ export interface TimelineScope {
   dealId?: string
 }
 
-const TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
-  NOTE: { label: '노트', icon: <StickyNote size={14} /> },
-  CALL: { label: '통화', icon: <Phone size={14} /> },
-  MEETING: { label: '미팅', icon: <Users size={14} /> },
-  EMAIL: { label: '메일', icon: <Mail size={14} /> },
-  SYSTEM: { label: '시스템', icon: <Settings2 size={14} /> },
+/**
+ * 종류마다 그림 하나. **이름은 용어집이 든다**(`ACTIVITY_TYPE_LABEL`).
+ *
+ * 예전엔 이 파일이 이름과 그림을 같이 들고 있었고, 고르는 목록에 같은 이름이 한 벌 더
+ * 있었다. 활동 목록 화면이 생기면서 세 벌이 될 자리라 이름만 용어집으로 올렸다.
+ * 그림은 화면의 것이라 여기 남는다.
+ */
+const TYPE_ICON: Record<string, React.ReactNode> = {
+  NOTE: <StickyNote size={14} />,
+  CALL: <Phone size={14} />,
+  MEETING: <Users size={14} />,
+  EMAIL: <Mail size={14} />,
+  SYSTEM: <Settings2 size={14} />,
 }
 
 /** 사람이 남길 수 있는 종류 — 서비스의 MANUAL_TYPES 와 같은 목록이다 */
-const MANUAL_VALUES: ReadonlySet<string> = new Set(['NOTE', 'CALL', 'MEETING'])
+const MANUAL_VALUES: ReadonlySet<string> = new Set(ACTIVITY_MANUAL_TYPES)
 
 /**
  * AI 가 읽을 수 있는 종류.
@@ -53,17 +63,12 @@ const MANUAL_VALUES: ReadonlySet<string> = new Set(['NOTE', 'CALL', 'MEETING'])
  */
 const READABLE: ReadonlySet<string> = new Set(['NOTE', 'CALL', 'MEETING', 'EMAIL'])
 
-const MANUAL: { value: string; label: string }[] = [
-  { value: 'NOTE', label: '노트' },
-  { value: 'CALL', label: '통화' },
-  { value: 'MEETING', label: '미팅' },
-]
+const MANUAL: { value: string; label: string }[] =
+  ACTIVITY_MANUAL_TYPES.map((v) => ({ value: v, label: ACTIVITY_TYPE_LABEL[v] }))
 
 const FILTERS: { value: string; label: string }[] = [
-  { value: '', label: '전체' },
-  ...MANUAL,
-  { value: 'EMAIL', label: '메일' },
-  { value: 'SYSTEM', label: '시스템' },
+  { value: '', label: FILTER_ALL },
+  ...ACTIVITY_TYPE_ORDER.map((v) => ({ value: v, label: ACTIVITY_TYPE_LABEL[v] })),
 ]
 
 function scopeQuery(scope: TimelineScope): string {
@@ -233,11 +238,12 @@ export default function Timeline({ scope }: { scope: TimelineScope }) {
       ) : (
         <ol className={styles.list}>
           {items.map((a) => {
-            const meta = TYPE_META[a.type] ?? { label: a.type, icon: null }
+            const label = ACTIVITY_TYPE_LABEL[a.type as ActivityTypeKey] ?? a.type
+            const icon = TYPE_ICON[a.type] ?? null
             return (
               <li key={a.id} className={styles.item}>
                 <div className={styles.itemHead}>
-                  <span className={styles.type}>{meta.icon}{meta.label}</span>
+                  <span className={styles.type}>{icon}{label}</span>
                   <time className={styles.at}>{formatKstDateTimeShort(a.occurredAt)}</time>
                   {READABLE.has(a.type) && !readResult[a.id] && (
                     <button

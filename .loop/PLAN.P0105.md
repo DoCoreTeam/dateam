@@ -1,6 +1,6 @@
 # PLAN newAX: 리포트가 기간을 말하고 활동을 센다
 플랜 ID: P0105
-플랜 버전: v0.1.6
+플랜 버전: v0.1.7
 상태: 진행중
 지시: iv_0179
 목표 버전: v0.10.867
@@ -130,9 +130,9 @@
 의존: 없음
 
 ### I05 활동을 목록으로 본다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/(crm)/crm/activities/page.tsx (신규), apps/web/app/(crm)/crm/activities/ActivitiesClient.tsx (신규), apps/web/app/api/crm/activities/route.ts, apps/web/lib/crm/nav/groups.ts, apps/web/lib/crm/nav/groups.test.ts, apps/web/lib/terms/entity.ts, apps/web/lib/policy/api-auth-surface.test.ts
+범위: apps/web/app/(crm)/crm/activities/page.tsx (신규), apps/web/app/(crm)/crm/activities/ActivitiesClient.tsx (신규), apps/web/app/(crm)/crm/activities/activities.module.css (신규), apps/web/lib/terms/activity.ts (신규), apps/web/lib/crm/services/activity-list.test.ts (신규), apps/web/app/api/crm/activities/route.ts, apps/web/lib/crm/services/activity.ts, apps/web/lib/crm/nav/groups.ts, apps/web/lib/terms/entity.ts, apps/web/lib/terms/action.ts, apps/web/lib/terms/index.ts, apps/web/components/ui/crm/Timeline.tsx, apps/web/app/(crm)/crm/quotes/QuoteListView.tsx, apps/web/app/(crm)/crm/meetings/MeetingsClient.tsx, apps/web/package.json
 감사 기준:
 - 보안: 기존 창구에 목록 조회를 더한다, `withCrmApi('READONLY')` 를 그대로 지나는 것과 워크스페이스 밖 활동이 안 섞이는 것을 확인한다, 남의 워크스페이스 id 를 주소에 넣어 불러 0건이 오는 것을 실제로 확인한다
 - 보안: `api-auth-surface.test.ts` 가 이 경로를 알고 통과한다, 열어 둔 목록에 새로 들어가지 않는다
@@ -199,6 +199,12 @@
   - 왜: 「현황 탭과 같은 생김새」를 지키는 길이 둘이다, 지표 탭에 같은 칩을 또 그리거나 한 부품을 둘이 쓰거나. 또 그리면 ComparePicker 를 뺄 때와 같은 사고가 다시 생긴다
   - 지표 탭의 기간 드롭다운 셋(종류·연도·칸)이 칩과 앞뒤 단추로 바뀐다, 앞뒤 단추가 해를 넘어가므로 연도 칸이 하는 일을 대신한다
   - 먼 과거로 갈 때 여러 번 눌러야 하는 것은 받아들인다, 기간이 주소에 실려 링크로 바로 가고 종류 칩을 누르면 오늘이 든 기간으로 돌아온다
+- v0.1.7 (2026-10-04) I05 범위에 활동 용어집과 서비스·타임라인을 넣음 (ins_0185)
+  - 왜: 활동 종류 이름이 `components/ui/crm/Timeline.tsx` 안에 **두 벌** 있었다(그리는 표·고르는 목록). 목록 화면이 그것을 또 적으면 세 벌이 된다
+  - `lib/terms/activity.ts` 를 만들어 종류·순서·수동 종류·빈 대상 문형을 그리로 올리고 타임라인이 그것을 쓰게 바꿨다
+  - 거르기의 「전체」가 세 화면에 흩어져 있어 `FILTER_ALL` 로 올리고 견적·미팅 두 화면도 그 상수를 쓰게 했다, 상수만 만들고 안 쓰면 네 번째 사본이다
+  - 조회에 담당자·기간·전체 건수가 없어 `services/activity.ts` 를 고쳤다, 기간과 커서가 같은 칸(`occurredAt`)을 쓰므로 서로 덮지 않는지 단위 시험으로 잠갔다
+  - 삭제 계약 가드가 「지우는 API 가 있으면 목록에서 지울 길이 있어야 한다」로 걸려 한 건 삭제를 넣었다, 확인창은 목록 표준 부품(`BulkDeleteConfirm`)을 쓴다
 - v0.1.5 (2026-10-04) I03 범위에 파이프라인 카드를 넣음 (ins_0185)
   - 왜: 세로 2,600px 목표를 BusinessPanel 만 고쳐서는 **구조적으로 못 맞춘다**. 실측 2026-10-04 1440폭 총 4,297px 중 BusinessPanel 은 995px 뿐이고 파이프라인 카드 셋이 **2,798px(65%)** 을 먹는다
   - 그 2,798px 의 대부분이 단계마다 「아직 모름」을 되풀이하는 줄이다 (카드마다 「어디서 오래 머무나」 190~222px + 「얼마나 들어올까」 190~272px)
@@ -209,3 +215,4 @@
 - v0.1.4 (2026-10-03) I02a 범위에 ComparePicker 부품을 넣음, 두 탭이 같은 칩 묶음을 따로 그리면 한쪽만 고쳐진다 (audit:I02a)
 - v0.1.5 (2026-10-03) I03 범위에 파이프라인 카드를 넣음, 실측 4297px 중 BusinessPanel 995px 이고 카드 셋이 2798px 을 먹어 범위대로는 목표를 못 맞춘다 (audit:I03)
 - v0.1.6 (2026-10-03) I04 범위에 PeriodPicker 부품을 넣음, 두 탭이 같은 칩 묶음을 따로 그리면 한쪽만 고쳐진다 (audit:I04)
+- v0.1.7 (2026-10-03) I05 범위에 활동 용어집·조회 서비스·타임라인·전체 필터 상수를 넣음, 종류 이름이 화면 안에 두 벌 있어 목록이 세 벌째가 될 자리였음 (audit:I05)

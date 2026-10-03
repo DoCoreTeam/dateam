@@ -1,0 +1,188 @@
+/*
+  활동 목록.
+
+  타임라인(상세 안쪽)과 **다른 자리**다. 타임라인은 대상 하나의 시간순이고 여기는
+  여러 대상을 한자리에서 거르는 자리라, 줄마다 **어디에 붙은 기록인지**를 말해야 한다.
+*/
+
+.filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* 종류 칩. 기간·비교 칩과 같은 생김새를 쓴다(같은 화면 묶음의 같은 질문) */
+.types {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-muted);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.type {
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: calc(var(--radius) - 1px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-fast, 150ms) ease, color var(--duration-fast, 150ms) ease;
+}
+.type:hover { color: var(--text); }
+.type:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.typeOn {
+  background: var(--card-bg, #fff);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.dates {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 몇 건 중 몇 건을 보고 있나. **상한에 걸린 것을 조용히 자르지 않는다** */
+.count {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--card-bg, #fff);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.at {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.body {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+  /* 긴 노트가 목록을 밀어내지 않게 세 줄까지만. 전문은 붙은 대상에서 읽는다 */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.anchors {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+}
+
+.anchor {
+  color: var(--brand);
+  text-decoration: none;
+}
+.anchor:hover { text-decoration: underline; }
+
+.noAnchor { color: var(--text-faint); }
+
+.more {
+  margin-top: var(--space-3);
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .filters { gap: var(--space-2); }
+  .types { overflow-x: auto; }
+  .item { grid-template-columns: minmax(0, 1fr); }
+  .at { text-align: left; }
+}
+
+/* 시각과 지우는 단추. 줄 오른쪽 끝에 모은다 — 단추가 줄마다 다른 자리에 있으면 못 찾는다 */
+.rowRight {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.del:hover { color: var(--nb-danger, #c0362c); border-color: var(--border-light); }
+.del:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
