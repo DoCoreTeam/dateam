@@ -14,11 +14,12 @@
  * **이 파일은 순수하다** — DB 도 Prisma 도 모른다. 화면(클라이언트)과 서비스(서버)가
  * 같은 목록을 봐야 하기 때문이다(`business-type.ts` 가 같은 이유로 분리돼 있다).
  *
- * **말은 여기서 짓지 않는다.** 이름은 `METRIC`(report-axis) 과 `METRIC_MORE`(terms/report)
+ * **말은 여기서 짓지 않는다.** 이름은 `METRIC`(metric-labels) 과 `METRIC_MORE`(terms/report)
  * 에서 온다 — 같은 것을 두 이름으로 부르면 한쪽만 고쳐진다.
  */
 
-import { METRIC, METRIC_HINT } from './report-axis.ts'
+// 잎사귀 모듈에서 바로 가져온다. report-axis 를 거치면 고리가 닫혀 빌드가 죽는다
+import { METRIC, METRIC_HINT } from './metric-labels.ts'
 import {
   METRIC_MORE, METRIC_MORE_HINT,
   type DateBasisKey, type UnitKey,

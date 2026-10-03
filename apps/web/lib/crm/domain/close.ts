@@ -18,6 +18,7 @@
 
 import type { CloseStateKey } from '../../terms/report.ts'
 import { periodRange, periodLabel, type Period } from './target.ts'
+import { eunNeun } from '../../ui/josa.ts'
 
 export type { CloseStateKey }
 
@@ -53,7 +54,8 @@ export function isClosable(period: Period, todayKey: string): boolean {
 export function closeBlockedReason(period: Period, todayKey: string): string | null {
   if (isClosable(period, todayKey)) return null
   const { to } = periodRange(period)
-  return `${periodLabel(period)}은 ${to} 에 끝납니다. 끝나야 마감할 수 있어요`
+  const name = periodLabel(period)
+  return `${name}${eunNeun(name)} ${to} 에 끝납니다. 끝나야 마감할 수 있어요`
 }
 
 export interface CloseRecord {

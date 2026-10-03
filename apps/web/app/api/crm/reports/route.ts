@@ -13,7 +13,7 @@ import { buildPipelineReport } from '@/lib/crm/services/report'
 import { buildVelocity } from '@/lib/crm/services/velocity'
 import { buildForecasts } from '@/lib/crm/services/forecast'
 import { buildBusinessReport } from '@/lib/crm/services/business-report'
-import { periodRange, type PeriodKey, type GroupKey, PERIOD_ORDER, GROUP_ORDER } from '@/lib/crm/domain/report-axis'
+import { parseReportPeriod, formatReportPeriod, reportPeriodRange, type GroupKey, GROUP_ORDER } from '@/lib/crm/domain/report-axis'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
 export async function GET(req: NextRequest) {
@@ -21,14 +21,19 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams
     const pipelineId = sp.get('pipelineId')?.trim() || undefined
 
-    // 모르는 값은 기본값으로 되돌린다 — 주소를 손으로 고친 사람에게 500 을 주지 않는다
-    const rawPeriod = sp.get('period') as PeriodKey | null
-    const period = rawPeriod && PERIOD_ORDER.includes(rawPeriod) ? rawPeriod : 'THIS_YEAR'
+    // 「오늘」은 KST 로 정한다. UTC 로 재면 한국 자정~아침 9시에 어제 달이 나온다
+    const todayKey = kstTodayKey()
+
+    /*
+      모르는 값은 기본값으로 되돌린다. 주소를 손으로 고친 사람에게 500 을 주지 않는다.
+      `parseReportPeriod` 가 연·반기·분기·월과 「최근 12개월」을 다 읽고,
+      옛 주소(`THIS_QUARTER` 따위)도 같은 기간으로 되읽는다. 보낸 링크가 안 깨진다.
+    */
+    const period = parseReportPeriod(sp.get('period'), todayKey)
     const rawGroup = sp.get('groupBy') as GroupKey | null
     const groupBy = rawGroup && GROUP_ORDER.includes(rawGroup) ? rawGroup : 'BUSINESS_TYPE'
 
-    // 「오늘」은 KST 로 정한다 — UTC 로 재면 한국 자정~아침 9시에 어제 달이 나온다
-    const range = periodRange(period, kstTodayKey())
+    const range = reportPeriodRange(period, todayKey)
 
     const db = getCrmDb(session.workspaceId)
     // 한 번에 준다 — 두 번 부르면 화면이 두 시점을 섞어 보여 준다
@@ -38,6 +43,6 @@ export async function GET(req: NextRequest) {
       buildForecasts(db, pipelineId),
       buildBusinessReport(db, { period: range, groupBy, pipelineId }),
     ])
-    return { items, velocity, forecast, business, period, groupBy }
+    return { items, velocity, forecast, business, period: formatReportPeriod(period), groupBy }
   })
 }

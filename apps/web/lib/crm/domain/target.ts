@@ -16,6 +16,8 @@
 
 import { canHaveTarget, metricOf } from './metrics.ts'
 import { isKnownDimension } from './dimensions.ts'
+import { PERIOD_KIND_LABEL, periodText, periodIndexLabel, periodUnitLabel } from '../../terms/report.ts'
+import { eunNeun } from '../../ui/josa.ts'
 import type { UnitKey } from '../../terms/report.ts'
 
 // ------------------------------------------------------------
@@ -25,12 +27,15 @@ import type { UnitKey } from '../../terms/report.ts'
 /** 기간의 종류 넷. 늘리려면 `periodRange` 가 그 경계를 낼 수 있어야 한다 */
 export type PeriodKind = 'YEAR' | 'HALF' | 'QUARTER' | 'MONTH'
 
-export const PERIOD_KIND_LABEL: Record<PeriodKind, string> = {
-  YEAR: '연간',
-  HALF: '반기',
-  QUARTER: '분기',
-  MONTH: '월',
-}
+/**
+ * 종류의 이름은 **용어집이 든다**(`lib/terms/report.ts`). 여기서 다시 적지 않는다.
+ *
+ * `satisfies` 가 두 쪽을 묶는다. 종류를 하나 더하면 용어집에 이름이 없어서
+ * 형 검사가 그 자리에서 막는다. 이름 없는 종류가 화면에 `undefined` 로 뜨지 않는다.
+ */
+export { PERIOD_KIND_LABEL, periodIndexLabel, periodUnitLabel }
+const _kindLabelCovers = PERIOD_KIND_LABEL satisfies Record<PeriodKind, string>
+void _kindLabelCovers
 
 /** 한 기간을 가리키는 값. `index` 는 반기 1~2 · 분기 1~4 · 월 1~12 */
 export interface Period {
@@ -46,11 +51,14 @@ export const INDEX_MAX: Record<PeriodKind, number> = { YEAR: 0, HALF: 2, QUARTER
 export const YEAR_MIN = 2000
 export const YEAR_MAX = 2100
 
+/**
+ * 사람이 읽는 기간 이름. **글자는 용어집이 정한다**: 여기서 모양을 만들지 않는다.
+ *
+ * 예전에는 이 함수가 「2026 3분기」를, 리포트 현황 탭이 「2026년 3분기」를 냈다.
+ * 같은 기간을 두 글자로 적는 동안 두 탭은 같은 숫자를 다른 기간의 것처럼 보여줬다.
+ */
 export function periodLabel(p: Period): string {
-  if (p.kind === 'YEAR') return `${p.year}년`
-  if (p.kind === 'HALF') return `${p.year} ${p.index === 1 ? '상반기' : '하반기'}`
-  if (p.kind === 'QUARTER') return `${p.year} ${p.index}분기`
-  return `${p.year}년 ${p.index}월`
+  return periodText(p.kind, p.year, p.index)
 }
 
 /**
@@ -172,7 +180,8 @@ export function validatePeriod(raw: unknown): Period {
   const index = Number(r.index)
   const max = INDEX_MAX[kind]
   if (!Number.isInteger(index) || index < 1 || index > max) {
-    throw new TargetError(`${PERIOD_KIND_LABEL[kind]}는 1~${max} 중에서 골라 주세요.`, 'period.index')
+    const unit = periodUnitLabel(kind)
+    throw new TargetError(`${unit}${eunNeun(unit)} 1~${max} 중에서 골라 주세요.`, 'period.index')
   }
   return { kind, year, index }
 }

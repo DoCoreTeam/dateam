@@ -1,7 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { recognitionSchedule } from './business-report.ts'
-import { periodRange } from '../domain/report-axis.ts'
 
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`)
 
@@ -64,21 +63,7 @@ test('금액이 0이면 배분도 없고 «모름»도 아니다', () => {
   assert.equal(unknown, false, '0원짜리를 «기간 모름»으로 세면 경고가 부풀어 오른다')
 })
 
-test('기간 축 — 분기는 달력 분기다', () => {
-  assert.deepEqual(periodRange('THIS_QUARTER', '2026-08-28'),
-    { from: '2026-07-01', to: '2026-09-30', label: '2026년 3분기' })
-  assert.deepEqual(periodRange('THIS_QUARTER', '2026-01-15'),
-    { from: '2026-01-01', to: '2026-03-31', label: '2026년 1분기' })
-})
-
-test('기간 축 — 이번 달은 말일까지, 윤년도 맞는다', () => {
-  assert.deepEqual(periodRange('THIS_MONTH', '2026-02-10'),
-    { from: '2026-02-01', to: '2026-02-28', label: '이번 달' })
-  assert.deepEqual(periodRange('THIS_MONTH', '2028-02-10'),
-    { from: '2028-02-01', to: '2028-02-29', label: '이번 달' })
-})
-
-test('기간 축 — 최근 12개월은 해를 넘어간다', () => {
-  assert.deepEqual(periodRange('LAST_12M', '2026-08-28'),
-    { from: '2025-09-01', to: '2026-08-31', label: '최근 12개월' })
-})
+/*
+  기간 축 시험 셋은 `domain/report-axis.test.ts` 로 옮겼다. 이 파일은 집계 서비스를
+  보는 자리이고, 기간 경계는 축 모듈의 일이다. 옮기면서 반기와 지난 기간이 더해졌다.
+*/

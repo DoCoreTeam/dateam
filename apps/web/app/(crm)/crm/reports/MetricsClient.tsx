@@ -33,7 +33,8 @@ import Sensitive from '@/components/crm/Sensitive'
 import { formatAmount } from '../deals/amount'
 import { ACTION, ENTITY, DEAL_STATUS_LABEL, failedTo } from '@/lib/terms'
 import { REPORT, UNIT_LABEL, NO_TARGET, NO_TARGET_ACTION, basisLine, dimensionThin, DIMENSION_EMPTY, CLOSE_STATE_LABEL, CLOSE_STATE_HINT, METRIC_GROUP_LABEL, METRIC_GROUP_HINT, type MetricGroupKey, REPORT as R } from '@/lib/terms/report'
-import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, type Period, type PeriodKind, type TargetSpec, INDEX_MAX, findTarget } from '@/lib/crm/domain/target'
+import { periodLabel, parsePeriodKey, formatPeriodKey, periodOfToday, periodIndexLabel, periodUnitLabel, PERIOD_KIND_LABEL, type Period, type PeriodKind, type TargetSpec, INDEX_MAX, findTarget } from '@/lib/crm/domain/target'
+import { PERIOD_KIND_ORDER } from '@/lib/crm/domain/report-axis'
 import { computeDerived } from '@/lib/crm/domain/derived'
 import { canMove, type CloseStateKey } from '@/lib/crm/domain/close'
 import { ALL_KEY, EMPTY_KEY, CELL_SEP, TIME_AXIS_LABEL } from '@/lib/crm/domain/metric-agg'
@@ -203,13 +204,6 @@ const HERO_STATS = [
 
 /** 축을 안 골랐을 때의 이름 — 고르는 칸과 표 머리가 **같은 말**을 써야 한다 */
 const AXIS_NONE = { rows: '합계만', cols: '값 하나' } as const
-
-const PERIOD_KINDS: { kind: PeriodKind; label: string }[] = [
-  { kind: 'YEAR', label: '연간' },
-  { kind: 'HALF', label: '반기' },
-  { kind: 'QUARTER', label: '분기' },
-  { kind: 'MONTH', label: '월간' },
-]
 
 /**
  * 시간 축은 쪼개는 기준 목록에 없다 — 축에는 설 수 있으므로 여기서 더한다.
@@ -421,7 +415,7 @@ export default function MetricsClient() {
               set({ period: formatPeriodKey({ kind, year: period.year, ...(max > 1 ? { index: Math.min(period.index ?? 1, max) } : {}) }) })
             }}
           >
-            {PERIOD_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}
+            {PERIOD_KIND_ORDER.map((k) => <option key={k} value={k}>{PERIOD_KIND_LABEL[k]}</option>)}
           </select>
         </div>
 
@@ -439,13 +433,13 @@ export default function MetricsClient() {
 
         {INDEX_MAX[period.kind] > 1 && (
           <div className={s.field}>
-            <label className="label" htmlFor="mx-index">{period.kind === 'MONTH' ? '월' : period.kind === 'QUARTER' ? '분기' : '반기'}</label>
+            <label className="label" htmlFor="mx-index">{periodUnitLabel(period.kind)}</label>
             <select
               id="mx-index" className="input-field" value={period.index ?? 1}
               onChange={(e) => set({ period: formatPeriodKey({ ...period, index: Number(e.target.value) }) })}
             >
               {Array.from({ length: INDEX_MAX[period.kind] }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>{n}</option>
+                <option key={n} value={n}>{periodIndexLabel(period.kind, n)}</option>
               ))}
             </select>
           </div>

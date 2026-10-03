@@ -20,6 +20,7 @@ import { metricOf, type MetricDecl } from './metrics.ts'
 import { dimensionOf, companyKindLabel } from './dimensions.ts'
 import { kindFromDomain } from './company-kind.ts'
 import { periodRange, type Period } from './target.ts'
+import { periodText, periodIndexLabel } from '../../terms/report.ts'
 import type { DateBasisKey, UnitKey } from '../../terms/report.ts'
 
 export interface AggRef { id: string; name: string }
@@ -230,20 +231,30 @@ export function bucketOf(d: AggDeal, dimensionKey: string): AggAxisItem {
   }
 }
 
-/** 시간 축의 칸 */
+/**
+ * 시간 축의 칸.
+ *
+ * **글자는 용어집이 든다**(`lib/terms/report.ts`). 예전에는 이 함수가 「2026 4분기」를,
+ * 같은 화면 위쪽 기간 줄이 「2026년 4분기」를 적었다. 교차표 머리와 그 표가 보고 있는
+ * 기간이 다른 글자면 읽는 쪽은 둘이 같은 기간인지 알 수 없다(실측 2026-10-03).
+ *
+ * 월 칸만 연도를 안 붙인다. 지표 탭의 기간은 언제나 한 해 안이라 「9월」이 두 번 설 수
+ * 없고, 열두 칸 머리에 연도를 넣으면 표가 가로로 넘친다. 종류가 늘어 해를 걸치게 되면
+ * 그때 `periodText` 로 바꾼다.
+ */
 export function timeBucketOf(dateKey: string, grain: TimeGrain): AggAxisItem {
   const y = dateKey.slice(0, 4)
   const m = Number(dateKey.slice(5, 7))
-  if (grain === 'YEAR') return { key: y, label: `${y}년` }
+  if (grain === 'YEAR') return { key: y, label: periodText('YEAR', Number(y)) }
   if (grain === 'HALF') {
     const h = m <= 6 ? 1 : 2
-    return { key: `${y}H${h}`, label: `${y} ${h === 1 ? '상' : '하'}반기` }
+    return { key: `${y}H${h}`, label: periodText('HALF', Number(y), h) }
   }
   if (grain === 'QUARTER') {
     const q = Math.ceil(m / 3)
-    return { key: `${y}Q${q}`, label: `${y} ${q}분기` }
+    return { key: `${y}Q${q}`, label: periodText('QUARTER', Number(y), q) }
   }
-  return { key: dateKey.slice(0, 7), label: `${m}월` }
+  return { key: dateKey.slice(0, 7), label: periodIndexLabel('MONTH', m) }
 }
 
 /** 조건에 걸리나 — 축 값이 같은지만 본다 */

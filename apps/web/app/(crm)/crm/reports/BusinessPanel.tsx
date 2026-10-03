@@ -10,6 +10,7 @@
 //     그 사실을 안 적으면 매출이 조용히 작아진 채로 보고된다.
 
 import { useMemo } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Sensitive from '@/components/crm/Sensitive'
 import EmptyState from '@/components/ui/EmptyState'
 import SectionSurface from '@/components/ui/SectionSurface'
@@ -19,9 +20,13 @@ import type { ListQuery } from '@/lib/ui/list-query'
 import { formatAmount } from '../deals/amount'
 import {
   LENS_LABEL, LENS_QUESTION, LENS_AMOUNT_LABEL, LENS_HINT, METRIC, METRIC_HINT,
-  PERIOD_LABEL, PERIOD_ORDER, GROUP_LABEL, GROUP_ORDER,
-  type PeriodKey, type GroupKey,
+  GROUP_LABEL, GROUP_ORDER,
+  PERIOD_KIND_ORDER, ROLLING_12M_LABEL, PERIOD_KIND_LABEL,
+  reportPeriodLabel, shiftReportPeriod,
+  type ReportPeriod, type GroupKey,
 } from '@/lib/crm/domain/report-axis'
+import { periodOfToday } from '@/lib/crm/domain/target'
+import { REPORT } from '@/lib/terms/report'
 import styles from './business-panel.module.css'
 
 interface CurrencySum { currency: string; totalMinor: string }
@@ -60,8 +65,10 @@ interface Props {
   /** 여기서 딜 상세로 나갈 때 실어 보낼 «돌아올 곳». 리포트는 기간·묶음이 주소에 있어 부모가 만든다 */
   here: HereTarget
   data: BusinessReportJson
-  period: PeriodKey
-  onPeriodChange: (p: PeriodKey) => void
+  period: ReportPeriod
+  /** 오늘(KST). 종류를 바꿀 때 «오늘이 든 그 기간»으로 간다. 이 파일은 시계를 안 읽는다 */
+  todayKey: string
+  onPeriodChange: (p: ReportPeriod) => void
   onGroupChange: (g: GroupKey) => void
 }
 
@@ -155,7 +162,7 @@ function firstMinor(sums: CurrencySum[]): bigint {
   return sums[0] ? BigInt(sums[0].totalMinor) : BigInt(0)
 }
 
-export default function BusinessPanel({ here, data, period, onPeriodChange, onGroupChange }: Props) {
+export default function BusinessPanel({ here, data, period, todayKey, onPeriodChange, onGroupChange }: Props) {
   const peak = useMemo(() => {
     let max = BigInt(0)
     for (const t of data.timeline) {
@@ -172,20 +179,63 @@ export default function BusinessPanel({ here, data, period, onPeriodChange, onGr
 
   return (
     <div className={styles.wrap}>
-      {/* ── 마감: 어느 기간을 보고 있나. 무엇을 보든 이 답이 먼저 있어야 한다 ── */}
+      {/*
+        ── 마감: 어느 기간을 보고 있나. 무엇을 보든 이 답이 먼저 있어야 한다 ──
+
+        **종류와 이동을 가른다.** 예전에는 「이번 달·이번 분기·올해」가 칩 하나씩이라
+        종류를 고르는 것과 어느 때를 보는 것이 한 줄에 섞여 있었고, 그래서
+        **지난 분기를 볼 길이 아예 없었다**(실측 2026-10-02). 왼쪽은 종류,
+        오른쪽은 그 종류 안에서 앞뒤로 가는 길이다.
+      */}
       <div className={styles.periodBar}>
-        <div className={styles.periodTabs} role="group" aria-label="기간">
-          {PERIOD_ORDER.map((p) => (
-            <button
-              key={p} type="button"
-              className={`${styles.periodTab}${p === period ? ` ${styles.periodTabOn}` : ''}`}
-              onClick={() => onPeriodChange(p)}
-              aria-pressed={p === period}
-            >
-              {PERIOD_LABEL[p]}
-            </button>
-          ))}
+        <div className={styles.periodTabs} role="group" aria-label={REPORT.period}>
+          {PERIOD_KIND_ORDER.map((k) => {
+            const on = !period.rolling && period.period.kind === k
+            return (
+              <button
+                key={k} type="button"
+                className={`${styles.periodTab}${on ? ` ${styles.periodTabOn}` : ''}`}
+                /* 종류를 바꾸면 **오늘이 든 그 기간**으로 간다. 2026년을 보다 분기로 바꾸면 이번 분기다 */
+                onClick={() => onPeriodChange({ rolling: false, period: periodOfToday(k, todayKey) })}
+                aria-pressed={on}
+              >
+                {PERIOD_KIND_LABEL[k]}
+              </button>
+            )
+          })}
+          <button
+            type="button"
+            className={`${styles.periodTab}${period.rolling ? ` ${styles.periodTabOn}` : ''}`}
+            onClick={() => onPeriodChange({ rolling: true })}
+            aria-pressed={period.rolling}
+          >
+            {ROLLING_12M_LABEL}
+          </button>
         </div>
+
+        {/* 굴러가는 12개월은 앞뒤가 없다. 그 기간의 「이전」은 뜻이 없으므로 단추를 안 그린다 */}
+        {!period.rolling && (
+          <div className={styles.periodNav}>
+            <button
+              type="button" className={styles.periodStep}
+              onClick={() => onPeriodChange(shiftReportPeriod(period, -1))}
+              aria-label={REPORT.periodPrev}
+              title={REPORT.periodPrev}
+            >
+              <ChevronLeft size={16} aria-hidden />
+            </button>
+            <span className={styles.periodNow}>{reportPeriodLabel(period)}</span>
+            <button
+              type="button" className={styles.periodStep}
+              onClick={() => onPeriodChange(shiftReportPeriod(period, 1))}
+              aria-label={REPORT.periodNext}
+              title={REPORT.periodNext}
+            >
+              <ChevronRight size={16} aria-hidden />
+            </button>
+          </div>
+        )}
+
         <span className={styles.periodRange}>{data.period.from} ~ {data.period.to}</span>
       </div>
 

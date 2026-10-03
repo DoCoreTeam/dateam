@@ -146,8 +146,9 @@ test('기관 종류 축은 도메인이 판정한다 — AI 를 안 부른다', 
 })
 
 test('시간 칸 이름이 사람이 부르는 말이다', () => {
-  assert.deepEqual(timeBucketOf('2026-10-05', 'QUARTER'), { key: '2026Q4', label: '2026 4분기' })
-  assert.deepEqual(timeBucketOf('2026-10-05', 'HALF'), { key: '2026H2', label: '2026 하반기' })
+  // 글자는 용어집이 든다. 표 머리와 그 표가 보고 있는 기간이 같은 말을 해야 한다
+  assert.deepEqual(timeBucketOf('2026-10-05', 'QUARTER'), { key: '2026Q4', label: '2026년 4분기' })
+  assert.deepEqual(timeBucketOf('2026-10-05', 'HALF'), { key: '2026H2', label: '2026년 하반기' })
   assert.deepEqual(timeBucketOf('2026-03-05', 'MONTH'), { key: '2026-03', label: '3월' })
   assert.deepEqual(timeBucketOf('2026-03-05', 'YEAR'), { key: '2026', label: '2026년' })
 })

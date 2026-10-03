@@ -29,8 +29,9 @@ const ok = (over: Partial<Record<string, unknown>> = {}) => ({
 // ── 기간 ────────────────────────────────────────────────
 test('기간 이름이 사람이 부르는 말이다', () => {
   assert.equal(periodLabel({ kind: 'YEAR', year: 2026 }), '2026년')
-  assert.equal(periodLabel({ kind: 'HALF', year: 2026, index: 2 }), '2026 하반기')
-  assert.equal(periodLabel({ kind: 'QUARTER', year: 2026, index: 4 }), '2026 4분기')
+  // 「2026 하반기」였다. 리포트 현황 탭이 「2026년 하반기」를 쓰고 있어 한쪽으로 모았다
+  assert.equal(periodLabel({ kind: 'HALF', year: 2026, index: 2 }), '2026년 하반기')
+  assert.equal(periodLabel({ kind: 'QUARTER', year: 2026, index: 4 }), '2026년 4분기')
   assert.equal(periodLabel({ kind: 'MONTH', year: 2026, index: 9 }), '2026년 9월')
 })
 

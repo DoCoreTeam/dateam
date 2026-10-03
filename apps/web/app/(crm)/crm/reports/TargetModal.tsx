@@ -20,17 +20,12 @@ import { UNIT_LABEL, REPORT, NO_TARGET } from '@/lib/terms/report'
 import {
   type Period, type TargetSpec, type PeriodKind,
   periodLabel, formatPeriodKey, INDEX_MAX, YEAR_MIN, YEAR_MAX,
+  PERIOD_KIND_LABEL, periodIndexLabel, periodUnitLabel,
   validateTarget, targetKey, shouldOfferNextYear, nextYearOf,
 } from '@/lib/crm/domain/target'
 import { targetableMetrics, metricOf } from '@/lib/crm/domain/metrics'
+import { PERIOD_KIND_ORDER } from '@/lib/terms/report'
 import s from './metrics.module.css'
-
-const KINDS: { kind: PeriodKind; label: string }[] = [
-  { kind: 'YEAR', label: '연간' },
-  { kind: 'HALF', label: '반기' },
-  { kind: 'QUARTER', label: '분기' },
-  { kind: 'MONTH', label: '월간' },
-]
 
 interface Props {
   /** 지금 보고 있는 기간 — 열자마자 그 기간이 골라져 있어야 한다 */
@@ -172,7 +167,7 @@ export default function TargetModal({ period, metric, targets, todayKey, onClose
               id="tg-kind" className="input-field" value={kind}
               onChange={(e) => setKind(e.target.value as PeriodKind)}
             >
-              {KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}
+              {PERIOD_KIND_ORDER.map((k) => <option key={k} value={k}>{PERIOD_KIND_LABEL[k]}</option>)}
             </select>
           </div>
 
@@ -191,14 +186,14 @@ export default function TargetModal({ period, metric, targets, todayKey, onClose
           {max > 1 && (
             <div className={s.field}>
               <label className="label" htmlFor="tg-index">
-                {kind === 'HALF' ? '반기' : kind === 'QUARTER' ? '분기' : '월'}
+                {periodUnitLabel(kind)}
               </label>
               <select
                 id="tg-index" className="input-field" value={Math.min(index, max)}
                 onChange={(e) => setIndex(Number(e.target.value))}
               >
                 {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>{n}{kind === 'MONTH' ? '월' : kind === 'QUARTER' ? '분기' : '반기'}</option>
+                  <option key={n} value={n}>{periodIndexLabel(kind, n)}</option>
                 ))}
               </select>
             </div>

@@ -10,8 +10,8 @@
 // 리포트의 숫자는 틀려도 화면이 안 깨진다. 그래서 **무엇을 세지 않았는지**를
 // 숫자 옆에 같이 써야 사람이 그 숫자를 믿을지 말지 정할 수 있다.
 
-import { useCallback, useEffect, useState } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { hereNow } from '@/lib/crm/nav/back-link'
 import { navLabelOf } from '@/lib/crm/nav/groups'
 import Sensitive, { useMaskAmount } from '@/components/crm/Sensitive'
@@ -21,7 +21,10 @@ import ErrorState from '@/components/ui/ErrorState'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import { formatAmount } from '../deals/amount'
 import BusinessPanel, { type BusinessReportJson } from './BusinessPanel'
-import type { PeriodKey, GroupKey } from '@/lib/crm/domain/report-axis'
+import {
+  parseReportPeriod, formatReportPeriod, type ReportPeriod, type GroupKey,
+} from '@/lib/crm/domain/report-axis'
+import { kstTodayKey } from '@/lib/datetime/kst'
 import styles from './reports.module.css'
 
 interface CurrencySum { currency: string; totalMinor: string }
@@ -112,7 +115,10 @@ export default function ReportsClient() {
     기간·묶음이 주소에 있으므로 쿼리째 싣는다 — 돌아왔을 때 보던 기간이 그대로여야
     「그 숫자를 만든 딜」을 하나씩 짚어 볼 수 있다.
   */
-  const here = hereNow(usePathname(), useSearchParams(), navLabelOf('/crm/reports'))
+  const router = useRouter()
+  const pathname = usePathname()
+  const sp = useSearchParams()
+  const here = hereNow(pathname, sp, navLabelOf('/crm/reports'))
   /**
    * 문장 안에 섞인 금액(`예상 3억`)은 컴포넌트로 감쌀 수 없다 — 값을 먼저 가린다.
    * `Sensitive` 와 같은 표시를 쓰므로 화면에서 두 방식이 달라 보이지 않는다.
@@ -127,8 +133,32 @@ export default function ReportsClient() {
    * 「3분기 · 담당자별」을 보다가 링크를 보냈는데 받는 쪽이 다른 화면을 보면
    * 두 사람이 같은 숫자를 놓고 다른 이야기를 하게 된다.
    */
-  const [period, setPeriod] = useState<PeriodKey>('THIS_YEAR')
-  const [groupBy, setGroupBy] = useState<GroupKey>('BUSINESS_TYPE')
+  const todayKey = kstTodayKey()
+
+  /*
+    **주소가 진실이다.** 예전에는 이 주석만 그렇게 적혀 있고 값은 `useState` 에 있었다.
+    기간을 바꾸고 새로고침하면 올해로 돌아갔고, 링크를 보내면 받는 쪽은 내가 본 기간을
+    못 봤다. 주석이 사실이 아닌 채로 남아 있던 자리다(실측 2026-10-02).
+  */
+  const period = useMemo(
+    () => parseReportPeriod(sp.get('period'), todayKey),
+    [sp, todayKey],
+  )
+  const groupBy = (sp.get('groupBy') as GroupKey | null) ?? 'BUSINESS_TYPE'
+  const periodKey = formatReportPeriod(period)
+
+  /** 고른 것만 주소에 바꿔 넣는다. 탭(`tab`)처럼 남이 쓰는 값은 건드리지 않는다 */
+  const setParam = useCallback((patch: Record<string, string>) => {
+    const next = new URLSearchParams(sp.toString())
+    for (const [k, v] of Object.entries(patch)) next.set(k, v)
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false })
+  }, [router, pathname, sp])
+
+  const setPeriod = useCallback(
+    (p: ReportPeriod) => setParam({ period: formatReportPeriod(p) }),
+    [setParam],
+  )
+  const setGroupBy = useCallback((g: GroupKey) => setParam({ groupBy: g }), [setParam])
   /**
    * 안 쓰는 파이프라인을 펼쳐 볼지.
    *
@@ -144,7 +174,7 @@ export default function ReportsClient() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/crm/reports?period=${period}&groupBy=${groupBy}`)
+      const res = await fetch(`/api/crm/reports?period=${encodeURIComponent(periodKey)}&groupBy=${groupBy}`)
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '리포트를 불러오지 못했습니다.'); return }
       setItems(body.items ?? [])
@@ -156,7 +186,7 @@ export default function ReportsClient() {
     } finally {
       setLoading(false)
     }
-  }, [period, groupBy])
+  }, [periodKey, groupBy])
 
   useEffect(() => { void load() }, [load])
 
@@ -201,6 +231,7 @@ export default function ReportsClient() {
           here={here}
           data={business}
           period={period}
+          todayKey={todayKey}
           onPeriodChange={setPeriod}
           onGroupChange={setGroupBy}
         />
