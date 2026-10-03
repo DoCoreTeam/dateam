@@ -68,7 +68,21 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
   }
   /** 합계 라벨은 **금액 바로 앞 두 칸**에 걸친다 — 한 칸이면 「합계 금액」이 두 줄로 깨진다 */
   const labelSpan = 2
-  const padSpan = cols - labelSpan - 1
+  /*
+    **합계는 금액 열에 선다, 표의 마지막 열이 아니다.**
+
+    비고 열이 서면 표의 마지막 칸은 비고(10%)다. 합계 줄 끝에 빈 칸을 하나 붙여 두지
+    않으면 공급가액·부가세·합계가 그 10% 칸으로 밀려 잘린다 —
+    실측 2026-10-03: 「합계 금액 2,198,592원」이 「2,198,」에서 끊겼고,
+    공급가액은 「원」 한 글자를 잃었다. 금액 열 폭(25%)은 멀쩡했는데 금액이 거기 없었다.
+
+    엑셀은 이 일을 안 겪는다 — 금액 열을 G 로 못 박고 비고는 그 뒤에 세웠다
+    (quote-xlsx.ts 의 AMOUNT_COL_INDEX). 화면도 같은 규칙을 따른다.
+  */
+  const tailSpan = showRemark ? 1 : 0
+  const padSpan = cols - labelSpan - 1 - tailSpan
+  /** 합계 줄 끝의 빈 칸 — 비고 열이 설 때만 선다 */
+  const tailCell = showRemark ? <td /> : null
 
   /**
    * 묶음별로 항목을 나눈다.
@@ -386,8 +400,9 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                   {g.lines.map((l) => renderLine(l))}
                   {g.section && g.lines.length > 0 && (
                     <tr className={styles.sectionSum}>
-                      <td colSpan={cols - 1}>{g.section.name} {QUOTE.subtotal}</td>
+                      <td colSpan={cols - 1 - tailSpan}>{g.section.name} {QUOTE.subtotal}</td>
                       <td className={styles.num}>{money(g.section.subtotalMinor)}</td>
+                      {tailCell}
                     </tr>
                   )}
                 </Fragment>
@@ -404,6 +419,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                 <td colSpan={padSpan} />
                 <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.subtotal}</td>
                 <td className={styles.num}>{money(doc.totals.subtotalMinor)}</td>
+                {tailCell}
               </tr>
               {showDiscount && (
                 <tr>
@@ -412,12 +428,14 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                   <td className={styles.num}>
                     {doc.totals.discountMinor !== '0' && '− '}{money(doc.totals.discountMinor)}
                   </td>
+                  {tailCell}
                 </tr>
               )}
               <tr>
                 <td colSpan={padSpan} />
                 <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.tax}</td>
                 <td className={styles.num}>{money(doc.totals.taxMinor)}</td>
+                {tailCell}
               </tr>
               {/*
                 **절사는 세금 뒤, 합계 바로 앞이다.** 고객이 마지막으로 보는 숫자를
@@ -432,6 +450,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                     <td colSpan={padSpan} />
                     <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.netTotal}</td>
                     <td className={styles.num}>{money(doc.totals.netTotalMinor)}</td>
+                    {tailCell}
                   </tr>
                   <tr>
                     <td colSpan={padSpan} />
@@ -442,6 +461,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                         ? `＋ ${money(doc.totals.roundingMinor.slice(1))}`
                         : `− ${money(doc.totals.roundingMinor)}`}
                     </td>
+                    {tailCell}
                   </tr>
                 </>
               )}
@@ -462,18 +482,21 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                   <td className={styles.num}>
                     {Number(doc.totals.totalKrwMinor).toLocaleString('ko-KR')}원
                   </td>
+                  {tailCell}
                 </tr>
               )}
               <tr className={styles.grand}>
                 <td colSpan={padSpan} />
                 <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.total}</td>
                 <td className={styles.num}>{money(doc.totals.totalMinor)}</td>
+                {tailCell}
               </tr>
               {/* 한글 금액은 위조 방지가 목적이라 총액 바로 아래 붙는다 */}
               {doc.totals.totalInWords && (
                 <tr className={styles.inWords}>
-                  <td colSpan={cols - 4} />
+                  <td colSpan={cols - 4 - tailSpan} />
                   <td className={styles.num} colSpan={4}>{doc.totals.totalInWords}</td>
+                  {tailCell}
                 </tr>
               )}
             </tfoot>
