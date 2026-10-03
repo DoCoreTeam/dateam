@@ -14,6 +14,7 @@ import { buildVelocity } from '@/lib/crm/services/velocity'
 import { buildForecasts } from '@/lib/crm/services/forecast'
 import { buildBusinessReport } from '@/lib/crm/services/business-report'
 import { parseReportPeriod, formatReportPeriod, reportPeriodRange, type GroupKey, GROUP_ORDER } from '@/lib/crm/domain/report-axis'
+import { parseCompareKey, compareTarget } from '@/lib/crm/domain/period-compare'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
 export async function GET(req: NextRequest) {
@@ -35,14 +36,25 @@ export async function GET(req: NextRequest) {
 
     const range = reportPeriodRange(period, todayKey)
 
+    /*
+      견줄 기간. **굴러가는 12개월은 견줄 자리가 없다** — 달력 기간이 아니라서
+      「그 앞」이 뜻을 갖지 않는다. 그럴 때는 0 을 보내지 않고 비교 자체를 안 한다.
+      화면이 「견줄 것 없음」이라고 쓰는 것과 「0% 변화」라고 쓰는 것은 다른 말이다.
+    */
+    const compareKey = parseCompareKey(sp.get('compare'))
+    const compareTargetPeriod = period.rolling ? null : compareTarget(period.period, compareKey)
+    const compare = compareTargetPeriod
+      ? reportPeriodRange({ rolling: false, period: compareTargetPeriod }, todayKey)
+      : null
+
     const db = getCrmDb(session.workspaceId)
     // 한 번에 준다 — 두 번 부르면 화면이 두 시점을 섞어 보여 준다
     const [items, velocity, forecast, business] = await Promise.all([
       buildPipelineReport(db, pipelineId),
       buildVelocity(db, pipelineId),
       buildForecasts(db, pipelineId),
-      buildBusinessReport(db, { period: range, groupBy, pipelineId }),
+      buildBusinessReport(db, { period: range, groupBy, pipelineId, compare }),
     ])
-    return { items, velocity, forecast, business, period: formatReportPeriod(period), groupBy }
+    return { items, velocity, forecast, business, period: formatReportPeriod(period), groupBy, compare: compareKey }
   })
 }

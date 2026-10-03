@@ -85,6 +85,9 @@ export interface BusinessReport {
   groups: GroupRow[]
   /** ── 상세 ─────────────────────────────── */
   deals: ReportDealRow[]
+  /** ── 비교 ─────────────────────────────── */
+  /** 견준 기간. 비교를 안 하면 `null` 이다 — **0 으로 채우지 않는다** */
+  comparison: BusinessComparison | null
 }
 
 // ------------------------------------------------------------
@@ -211,6 +214,119 @@ export interface BusinessReportInput {
   period: PeriodRange
   groupBy: GroupKey
   pipelineId?: string
+  /**
+   * 견줄 기간. 없으면 비교를 안 한다.
+   *
+   * 기간을 여기서 고르지 않는다 — 「이전 기간」인지 「전년 동기」인지는
+   * `domain/period-compare` 가 정하고, 이 파일은 받은 두 날짜 사이를 센다.
+   */
+  compare?: PeriodRange | null
+}
+
+/** 견준 기간의 금액. 상세와 달마다는 없다 — 비교는 카드에만 선다 */
+export interface BusinessComparison {
+  period: PeriodRange
+  bookings: CurrencySum[]
+  bookingsCount: number
+  recognized: CurrencySum[]
+  cash: CurrencySum[]
+  backlog: CurrencySum[]
+}
+
+/** `tally` 가 딜 하나를 센 결과. 달마다·대상별·상세를 쌓는 쪽이 이것을 받는다 */
+interface DealTally {
+  currency: string
+  bookedMinor: bigint
+  /** 따낸 날이 이 기간 안인가 */
+  inPeriodBooking: boolean
+  /** 이 기간에 매출로 잡히는 몫 */
+  recInPeriod: bigint
+  /** 달마다 나눠 담은 몫 전체. 기간 밖 달도 들어 있다 */
+  byMonth: Map<string, bigint>
+  /** 기간을 몰라 배분하지 못했나 */
+  unknown: boolean
+}
+
+interface Tally {
+  bookings: Map<string, bigint>
+  recognized: Map<string, bigint>
+  cash: Map<string, bigint>
+  backlog: Map<string, bigint>
+  unknownAmount: Map<string, bigint>
+  bookingsCount: number
+  unknownCount: number
+}
+
+/**
+ * 한 기간의 금액을 센다. **이 셈은 한 벌만 있다.**
+ *
+ * 왜 함수로 뺐나: 기간 비교가 생기면서 같은 셈을 두 기간에 돌려야 했다. 복사하면
+ * 한쪽만 고쳐지고, 그때부터 「이번 분기 수주」와 「이전 기간 수주」가 다른 규칙으로
+ * 센 숫자가 된다. 비교란 **같은 자로 두 번 재는 것**이고, 자가 둘이면 비교가 아니다.
+ *
+ * 통화를 합치지 않는다. 원과 달러를 더한 숫자는 아무 뜻이 없다.
+ */
+function tally(
+  raw: RawDeal[],
+  range: { from: string; to: string },
+  onDeal?: (d: RawDeal, info: DealTally) => void,
+): Tally {
+  const monthSet = new Set(monthsBetween(range.from.slice(0, 7), range.to.slice(0, 7)))
+  const out: Tally = {
+    bookings: new Map(), recognized: new Map(), cash: new Map(),
+    backlog: new Map(), unknownAmount: new Map(),
+    bookingsCount: 0, unknownCount: 0,
+  }
+
+  for (const d of raw) {
+    const picked = pickBooked(d)
+    if (picked.from === 'none') continue
+    const bookedMinor = picked.minor
+    const currency = (d.currency ?? 'KRW').toUpperCase()
+    const wonKey = dateKey(d.wonAt)
+    const inPeriodBooking = wonKey !== null && wonKey >= range.from && wonKey <= range.to
+
+    // ── 수주: 따낸 날이 이 기간 안이면 **계약 총액을 통째로**
+    if (inPeriodBooking) {
+      add(out.bookings, currency, bookedMinor)
+      out.bookingsCount += 1
+    }
+
+    // ── 인식 매출: 기간에 나눠 담은 몫 중 이 기간에 걸린 것만
+    const sched = recognitionSchedule({
+      bookedMinor, startDate: d.startDate, endDate: d.endDate,
+      endDateUnknown: d.endDateUnknown, wonAt: d.wonAt,
+    })
+    let recInPeriod = BigInt(0)
+    for (const [mk, amt] of Array.from(sched.byMonth.entries())) {
+      if (monthSet.has(mk)) recInPeriod += amt
+      // 수주잔고 = 기간 끝까지 **아직 인식되지 않은** 몫
+      if (mk > range.to.slice(0, 7)) add(out.backlog, currency, amt)
+    }
+    if (recInPeriod !== BigInt(0)) add(out.recognized, currency, recInPeriod)
+
+    if (sched.unknown) {
+      out.unknownCount += 1
+      add(out.unknownAmount, currency, bookedMinor)
+      // 배분을 못 한 것은 **전부 잔고**다. 따냈지만 아직 매출로 안 잡혔다
+      add(out.backlog, currency, bookedMinor)
+    }
+
+    /**
+     * 현금 = 인식 매출 − 현물 몫.
+     * 현물은 장비·인력처럼 **물건으로 받은 것**이라 통장에 찍히지 않는다.
+     * 계약 총액에서 현물이 차지하는 비율만큼 인식분에서도 뺀다.
+     */
+    const inKind = d.inKindTotalMinor ?? BigInt(0)
+    const cashInPeriod = inKind > BigInt(0) && bookedMinor > BigInt(0)
+      ? recInPeriod - (recInPeriod * inKind) / bookedMinor
+      : recInPeriod
+    if (cashInPeriod !== BigInt(0)) add(out.cash, currency, cashInPeriod)
+
+    onDeal?.(d, { currency, bookedMinor, inPeriodBooking, recInPeriod, byMonth: sched.byMonth, unknown: sched.unknown })
+  }
+
+  return out
 }
 
 export async function buildBusinessReport(
@@ -264,97 +380,76 @@ export async function buildBusinessReport(
   const months = monthsBetween(period.from.slice(0, 7), period.to.slice(0, 7))
   const monthSet = new Set(months)
 
-  const bookings = new Map<string, bigint>()
-  const recognized = new Map<string, bigint>()
-  const cash = new Map<string, bigint>()
-  const backlog = new Map<string, bigint>()
-  const unknownAmount = new Map<string, bigint>()
   const timelineAcc = new Map<string, { b: Map<string, bigint>; r: Map<string, bigint> }>()
   for (const m of months) timelineAcc.set(m, { b: new Map(), r: new Map() })
   const groupAcc = new Map<string, { label: string; count: number; b: Map<string, bigint>; r: Map<string, bigint> }>()
-
-  let bookingsCount = 0
-  let unknownCount = 0
   const deals: ReportDealRow[] = []
 
-  for (const d of raw) {
-    const picked = pickBooked(d)
-    if (picked.from === 'none') continue
-    const bookedMinor = picked.minor
-    const currency = (d.currency ?? 'KRW').toUpperCase()
-    const wonKey = dateKey(d.wonAt)
-    const inPeriodBooking = wonKey !== null && wonKey >= period.from && wonKey <= period.to
-
-    // ── 수주: 따낸 날이 이 기간 안이면 **계약 총액을 통째로**
-    if (inPeriodBooking) {
-      add(bookings, currency, bookedMinor)
-      bookingsCount += 1
-      const tp = timelineAcc.get(monthKey(d.wonAt as Date))
+  /*
+    **딜 하나를 돌 때 금액과 상세를 같이 만든다.** 금액 셈은 `tally` 가 한 벌만 들고,
+    달마다·대상별·상세는 여기서 그 결과를 받아 쌓는다. 비교 기간은 같은 `tally` 를
+    같은 딜 묶음에 한 번 더 돌리는 것뿐이라 DB 를 다시 읽지 않는다.
+  */
+  const main = tally(raw, period, (d, info) => {
+    const { currency, bookedMinor, inPeriodBooking, recInPeriod, byMonth, unknown } = info
+    if (inPeriodBooking && d.wonAt) {
+      const tp = timelineAcc.get(monthKey(d.wonAt))
       if (tp) add(tp.b, currency, bookedMinor)
     }
+    for (const [mk, amt] of Array.from(byMonth.entries())) {
+      if (!monthSet.has(mk)) continue
+      const tp = timelineAcc.get(mk)
+      if (tp) add(tp.r, currency, amt)
+    }
 
-    // ── 인식 매출: 기간에 나눠 담은 몫 중 이 기간에 걸린 것만
-    const sched = recognitionSchedule({
-      bookedMinor, startDate: d.startDate, endDate: d.endDate,
-      endDateUnknown: d.endDateUnknown, wonAt: d.wonAt,
+    if (!inPeriodBooking && recInPeriod === BigInt(0)) return
+
+    const g = groupOf(d, groupBy, {
+      pipelines: pipelineNames, stages: stageNames, members: memberNames,
+      businessTypes: businessTypeNames,
     })
-    let recInPeriod = BigInt(0)
-    for (const [mk, amt] of Array.from(sched.byMonth.entries())) {
-      if (monthSet.has(mk)) {
-        recInPeriod += amt
-        const tp = timelineAcc.get(mk)
-        if (tp) add(tp.r, currency, amt)
-      }
-      // 수주잔고 = 기간 끝까지 **아직 인식되지 않은** 몫
-      if (mk > period.to.slice(0, 7)) add(backlog, currency, amt)
-    }
-    if (recInPeriod !== BigInt(0)) add(recognized, currency, recInPeriod)
+    const cur = groupAcc.get(g.key) ?? { label: g.label, count: 0, b: new Map(), r: new Map() }
+    cur.count += 1
+    if (inPeriodBooking) add(cur.b, currency, bookedMinor)
+    if (recInPeriod !== BigInt(0)) add(cur.r, currency, recInPeriod)
+    groupAcc.set(g.key, cur)
 
-    if (sched.unknown) {
-      unknownCount += 1
-      add(unknownAmount, currency, bookedMinor)
-      // 배분을 못 한 것은 **전부 잔고**다 — 따냈지만 아직 매출로 안 잡혔다
-      add(backlog, currency, bookedMinor)
-    }
+    deals.push({
+      id: d.id,
+      name: d.name,
+      companyName: d.company?.name ?? null,
+      ownerName: d.ownerId ? memberNames.get(d.ownerId) ?? null : null,
+      businessType: dealBusinessTypeKey(d),
+      wonAt: dateKey(d.wonAt),
+      currency,
+      bookedMinor: bookedMinor.toString(),
+      recognizedMinor: recInPeriod.toString(),
+      recognitionUnknown: unknown,
+      termLabel: termLabelOf(d),
+    })
+  })
 
-    /**
-     * 현금 = 인식 매출 − 현물 몫.
-     * 현물은 장비·인력처럼 **물건으로 받은 것**이라 통장에 찍히지 않는다.
-     * 계약 총액에서 현물이 차지하는 비율만큼 인식분에서도 뺀다.
-     */
-    const inKind = d.inKindTotalMinor ?? BigInt(0)
-    const cashInPeriod = inKind > BigInt(0) && bookedMinor > BigInt(0)
-      ? recInPeriod - (recInPeriod * inKind) / bookedMinor
-      : recInPeriod
-    if (cashInPeriod !== BigInt(0)) add(cash, currency, cashInPeriod)
+  const { bookings, recognized, cash, backlog, unknownAmount } = main
+  const bookingsCount = main.bookingsCount
+  const unknownCount = main.unknownCount
 
-    // ── 대상별
-    if (inPeriodBooking || recInPeriod !== BigInt(0)) {
-      const g = groupOf(d, groupBy, {
-        pipelines: pipelineNames, stages: stageNames, members: memberNames,
-        businessTypes: businessTypeNames,
-      })
-      const cur = groupAcc.get(g.key) ?? { label: g.label, count: 0, b: new Map(), r: new Map() }
-      cur.count += 1
-      if (inPeriodBooking) add(cur.b, currency, bookedMinor)
-      if (recInPeriod !== BigInt(0)) add(cur.r, currency, recInPeriod)
-      groupAcc.set(g.key, cur)
-
-      deals.push({
-        id: d.id,
-        name: d.name,
-        companyName: d.company?.name ?? null,
-        ownerName: d.ownerId ? memberNames.get(d.ownerId) ?? null : null,
-        businessType: dealBusinessTypeKey(d),
-        wonAt: wonKey,
-        currency,
-        bookedMinor: bookedMinor.toString(),
-        recognizedMinor: recInPeriod.toString(),
-        recognitionUnknown: sched.unknown,
-        termLabel: termLabelOf(d),
-      })
-    }
-  }
+  /*
+    **견줄 기간은 같은 딜 묶음 위에서 센다.** 창구를 두 번 부르거나 DB 를 두 번 읽으면
+    두 숫자가 다른 시점의 것이 되고, 그 사이에 딜이 하나 성사되면 비교가 조용히 틀린다.
+  */
+  const comparison = input.compare
+    ? (() => {
+        const c = tally(raw, input.compare!)
+        return {
+          period: input.compare!,
+          bookings: toSums(c.bookings),
+          bookingsCount: c.bookingsCount,
+          recognized: toSums(c.recognized),
+          cash: toSums(c.cash),
+          backlog: toSums(c.backlog),
+        }
+      })()
+    : null
 
   return {
     period,
@@ -389,6 +484,7 @@ export async function buildBusinessReport(
       }),
     // 최근에 따낸 것이 먼저
     deals: deals.sort((a, b) => (b.wonAt ?? '').localeCompare(a.wonAt ?? '')),
+    comparison,
   }
 }
 

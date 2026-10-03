@@ -24,6 +24,7 @@ import BusinessPanel, { type BusinessReportJson } from './BusinessPanel'
 import {
   parseReportPeriod, formatReportPeriod, type ReportPeriod, type GroupKey,
 } from '@/lib/crm/domain/report-axis'
+import { parseCompareKey, type CompareKey } from '@/lib/crm/domain/period-compare'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import styles from './reports.module.css'
 
@@ -146,6 +147,8 @@ export default function ReportsClient() {
   )
   const groupBy = (sp.get('groupBy') as GroupKey | null) ?? 'BUSINESS_TYPE'
   const periodKey = formatReportPeriod(period)
+  /** 무엇과 견주나. 모르는 값은 서버와 **같은 규칙**으로 기본값이 된다 */
+  const compareKey = parseCompareKey(sp.get('compare'))
 
   /** 고른 것만 주소에 바꿔 넣는다. 탭(`tab`)처럼 남이 쓰는 값은 건드리지 않는다 */
   const setParam = useCallback((patch: Record<string, string>) => {
@@ -159,6 +162,7 @@ export default function ReportsClient() {
     [setParam],
   )
   const setGroupBy = useCallback((g: GroupKey) => setParam({ groupBy: g }), [setParam])
+  const setCompare = useCallback((c: CompareKey) => setParam({ compare: c }), [setParam])
   /**
    * 안 쓰는 파이프라인을 펼쳐 볼지.
    *
@@ -174,7 +178,7 @@ export default function ReportsClient() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/crm/reports?period=${encodeURIComponent(periodKey)}&groupBy=${groupBy}`)
+      const res = await fetch(`/api/crm/reports?period=${encodeURIComponent(periodKey)}&groupBy=${groupBy}&compare=${compareKey}`)
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '리포트를 불러오지 못했습니다.'); return }
       setItems(body.items ?? [])
@@ -186,7 +190,7 @@ export default function ReportsClient() {
     } finally {
       setLoading(false)
     }
-  }, [periodKey, groupBy])
+  }, [periodKey, groupBy, compareKey])
 
   useEffect(() => { void load() }, [load])
 
@@ -231,8 +235,10 @@ export default function ReportsClient() {
           here={here}
           data={business}
           period={period}
+          compareKey={compareKey}
           todayKey={todayKey}
           onPeriodChange={setPeriod}
+          onCompareChange={setCompare}
           onGroupChange={setGroupBy}
         />
       )}

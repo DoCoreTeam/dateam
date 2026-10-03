@@ -26,7 +26,8 @@ import {
   type ReportPeriod, type GroupKey,
 } from '@/lib/crm/domain/report-axis'
 import { periodOfToday } from '@/lib/crm/domain/target'
-import { REPORT } from '@/lib/terms/report'
+import { compareSums, COMPARE_ORDER, type CompareKey } from '@/lib/crm/domain/period-compare'
+import { REPORT, COMPARE_LABEL, NO_COMPARE, compareNote, deltaText } from '@/lib/terms/report'
 import styles from './business-panel.module.css'
 
 interface CurrencySum { currency: string; totalMinor: string }
@@ -37,6 +38,12 @@ interface DealRow {
   businessType: string | null; wonAt: string | null; currency: string
   bookedMinor: string; recognizedMinor: string; recognitionUnknown: boolean; termLabel: string | null
 }
+/** 견준 기간의 금액. 비교를 끄거나 견줄 자리가 없으면 서버가 `null` 을 준다 */
+interface BusinessComparisonJson {
+  period: { from: string; to: string; label: string }
+  bookings: CurrencySum[]; bookingsCount: number
+  recognized: CurrencySum[]; cash: CurrencySum[]; backlog: CurrencySum[]
+}
 export interface BusinessReportJson {
   period: { from: string; to: string; label: string }
   bookings: CurrencySum[]; bookingsCount: number
@@ -46,6 +53,7 @@ export interface BusinessReportJson {
   groupBy: GroupKey
   groups: GroupRow[]
   deals: DealRow[]
+  comparison: BusinessComparisonJson | null
 }
 
 /**
@@ -66,9 +74,12 @@ interface Props {
   here: HereTarget
   data: BusinessReportJson
   period: ReportPeriod
+  /** 무엇과 견주나. 주소에서 왔고 주소로 돌아간다 */
+  compareKey: CompareKey
   /** 오늘(KST). 종류를 바꿀 때 «오늘이 든 그 기간»으로 간다. 이 파일은 시계를 안 읽는다 */
   todayKey: string
   onPeriodChange: (p: ReportPeriod) => void
+  onCompareChange: (c: CompareKey) => void
   onGroupChange: (g: GroupKey) => void
 }
 
@@ -100,9 +111,11 @@ function Money({ sums, size }: { sums: CurrencySum[]; size?: 'big' | 'inline' })
  * 정작 봐야 할 숫자 넷이 화면 한 판을 다 쓰고, 그 아래 내용은 스크롤 밖으로 밀린다.
  * 뜻을 없애는 것이 아니라 **필요할 때 꺼내 보게** 두는 것이다.
  */
-function MetricCard({ tone, question, title, sums, foot, hint }: {
+function MetricCard({ tone, question, title, sums, foot, hint, compare }: {
   tone: string; question: string; title: string
   sums: CurrencySum[]; foot: string; hint: string
+  /** 견준 결과. 비교를 끄면 안 그린다 */
+  compare?: { label: string; before: CurrencySum[] | null } | null
 }) {
   return (
     <article className={`${styles.card} ${tone}`}>
@@ -112,8 +125,45 @@ function MetricCard({ tone, question, title, sums, foot, hint }: {
         <button type="button" className={styles.hintBtn} title={hint} aria-label={`${title} 설명: ${hint}`}>?</button>
       </h3>
       <Money sums={sums} size="big" />
+      {compare && <CompareLine label={compare.label} now={sums} before={compare.before} />}
       <p className={styles.cardFoot}>{foot}</p>
     </article>
+  )
+}
+
+/**
+ * 견준 줄. **통화마다 한 줄이고 합계 줄이 없다.**
+ *
+ * 견줄 것이 없을 때 「0%」라고 쓰지 않는다. 0 은 「견줘 봤더니 같다」로 읽히는데
+ * 안 센 것과 세어 보니 같은 것은 다른 사실이다. 그래서 상태마다 다른 말을 쓴다.
+ */
+function CompareLine({ label, now, before }: { label: string; now: CurrencySum[]; before: CurrencySum[] | null }) {
+  const rows = compareSums(now, before)
+  if (rows.length === 0) return <p className={styles.compare}>{NO_COMPARE}</p>
+
+  return (
+    <ul className={styles.compare}>
+      {rows.map((r) => {
+        const base = r.beforeMinor ?? '0'
+        const amount = formatAmount(base, r.currency) ?? `${base} ${r.currency}`
+        return (
+          <li key={r.currency}>
+            {r.state === 'ok' ? (
+              <>
+                <span className={r.ratio! > 0 ? styles.up : r.ratio! < 0 ? styles.down : styles.flat}>
+                  {deltaText(r.ratio!)}
+                </span>
+                <span className={styles.compareBase}>
+                  {label} <Sensitive>{amount}</Sensitive>
+                </span>
+              </>
+            ) : (
+              <span className={styles.compareBase}>{compareNote(r.state, label)}</span>
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
@@ -162,7 +212,7 @@ function firstMinor(sums: CurrencySum[]): bigint {
   return sums[0] ? BigInt(sums[0].totalMinor) : BigInt(0)
 }
 
-export default function BusinessPanel({ here, data, period, todayKey, onPeriodChange, onGroupChange }: Props) {
+export default function BusinessPanel({ here, data, period, compareKey, todayKey, onPeriodChange, onCompareChange, onGroupChange }: Props) {
   const peak = useMemo(() => {
     let max = BigInt(0)
     for (const t of data.timeline) {
@@ -176,6 +226,15 @@ export default function BusinessPanel({ here, data, period, todayKey, onPeriodCh
 
   const pct = (v: bigint) => (peak === BigInt(0) ? 0 : Number((v * BigInt(1000)) / peak) / 10)
   const hasAny = data.bookingsCount > 0 || data.recognized.length > 0
+
+  /*
+    견줄 대상 한 벌. **비교를 껐으면 `null`** 이라 카드가 그 줄을 아예 안 그린다.
+    서버가 `comparison` 을 안 줬는데 비교가 켜져 있으면(굴러가는 12개월처럼 견줄
+    달력 기간이 없는 경우) 라벨만 들고 가서 「견줄 것 없음」이라고 쓴다.
+  */
+  const cmp = compareKey === 'NONE'
+    ? null
+    : { label: data.comparison?.period.label ?? COMPARE_LABEL[compareKey], data: data.comparison }
 
   return (
     <div className={styles.wrap}>
@@ -236,6 +295,24 @@ export default function BusinessPanel({ here, data, period, todayKey, onPeriodCh
           </div>
         )}
 
+        {/*
+          **견줄 대상을 기간 옆에 둔다.** 「3억」이라는 숫자는 견줄 것이 있어야 뜻이 생기고,
+          무엇과 견주는지는 기간을 고르는 자리에서 같이 정해야 한다. 멀리 두면 카드에 뜬
+          증감이 무엇 대비인지 찾아 올라가야 한다.
+        */}
+        <div className={styles.compareBar} role="group" aria-label={REPORT.compare}>
+          {COMPARE_ORDER.map((c) => (
+            <button
+              key={c} type="button"
+              className={`${styles.compareTab}${c === compareKey ? ` ${styles.compareTabOn}` : ''}`}
+              onClick={() => onCompareChange(c)}
+              aria-pressed={c === compareKey}
+            >
+              {COMPARE_LABEL[c]}
+            </button>
+          ))}
+        </div>
+
         <span className={styles.periodRange}>{data.period.from} ~ {data.period.to}</span>
       </div>
 
@@ -248,6 +325,7 @@ export default function BusinessPanel({ here, data, period, todayKey, onPeriodCh
           sums={data.bookings}
           foot={`${data.period.label}에 ${data.bookingsCount}건 따냄`}
           hint={LENS_HINT.SALES}
+          compare={cmp && { label: cmp.label, before: cmp.data?.bookings ?? null }}
         />
         <MetricCard
           tone={styles.cardRevenue}
@@ -256,6 +334,7 @@ export default function BusinessPanel({ here, data, period, todayKey, onPeriodCh
           sums={data.recognized}
           foot="사업 기간에 나눠 담은 몫"
           hint={LENS_HINT.REVENUE}
+          compare={cmp && { label: cmp.label, before: cmp.data?.recognized ?? null }}
         />
         <MetricCard
           tone={styles.cardCash}
@@ -264,6 +343,7 @@ export default function BusinessPanel({ here, data, period, todayKey, onPeriodCh
           sums={data.cash}
           foot="인식 매출에서 현물 몫을 뺀 값"
           hint={LENS_HINT.CASH}
+          compare={cmp && { label: cmp.label, before: cmp.data?.cash ?? null }}
         />
         <MetricCard
           tone={styles.cardBacklog}
@@ -272,6 +352,7 @@ export default function BusinessPanel({ here, data, period, todayKey, onPeriodCh
           sums={data.backlog}
           foot={`${data.period.to} 기준`}
           hint={METRIC_HINT.backlog}
+          compare={cmp && { label: cmp.label, before: cmp.data?.backlog ?? null }}
         />
       </div>
 

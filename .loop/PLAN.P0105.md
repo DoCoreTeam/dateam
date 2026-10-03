@@ -1,6 +1,6 @@
 # PLAN newAX: 리포트가 기간을 말하고 활동을 센다
 플랜 ID: P0105
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: iv_0179
 목표 버전: v0.10.867
@@ -65,18 +65,35 @@
 - 화면 문구는 `lib/terms/report.ts` 를 지난다, pnpm test glossary 와 product-copy 통과
 의존: 없음
 
-### I02 기간을 견준다
-상태: 대기
+### I02 현황 탭이 기간을 견준다
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/domain/period-compare.ts (신규), apps/web/lib/crm/domain/period-compare.test.ts (신규), apps/web/app/api/crm/reports/route.ts, apps/web/app/api/crm/metrics/route.ts, apps/web/app/(crm)/crm/reports/BusinessPanel.tsx, apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/lib/terms/report.ts, apps/web/package.json
+범위: apps/web/lib/crm/domain/period-compare.ts (신규), apps/web/lib/crm/domain/period-compare.test.ts (신규), apps/web/lib/crm/domain/report-axis.ts, apps/web/lib/crm/services/business-report.ts, apps/web/lib/crm/services/business-report.test.ts, apps/web/app/api/crm/reports/route.ts, apps/web/app/(crm)/crm/reports/BusinessPanel.tsx, apps/web/app/(crm)/crm/reports/business-panel.module.css, apps/web/lib/terms/report.ts, apps/web/package.json
 감사 기준:
-- 보안: 창구 둘을 고친다, 새 창구가 아니고 둘 다 `withCrmApi('READONLY')` 를 그대로 지나는 것을 확인한다, 비교 기간을 주소로 받되 모르는 값은 기본값으로 되돌리고 500 을 내지 않는 것을 확인한다
-- `period-compare` 가 전기와 전년 동기를 돌려준다, 단위 시험이 2026년 1분기의 전기는 2025년 4분기이고 전년 동기는 2025년 1분기인 것을 단정한다
-- 비교 기간에 값이 없으면 **0 이 아니라 null** 을 돌려준다, 단위 시험이 단정한다
+- 보안: `app/api/crm/reports/route.ts` 를 고친다, 새 창구가 아니고 `withCrmApi('READONLY')` 를 그대로 지나는 것을 확인한다, 비교 방식을 주소로 받되 모르는 값은 기본값으로 되돌리고 500 을 내지 않는 것을 확인한다
+- `period-compare` 가 이전 기간과 전년 동기를 돌려준다, 단위 시험이 2026년 1분기의 이전 기간은 2025년 4분기이고 전년 동기는 2025년 1분기인 것을 단정한다
+- 한 칸 옮기는 셈이 **한 곳에만 있다**, `report-axis` 의 `shiftReportPeriod` 가 같은 함수를 부르고 단위 시험이 그것을 단정한다
+- 비교 기간에 값이 없으면 **0 이 아니라 null** 을 돌려준다, 단위 시험이 단정한다, 0 에서 늘어난 것과 견줄 기간이 없는 것을 **다른 상태**로 가른다
 - 카드에 증감이 붙는다, 견줄 것이 없으면 「견줄 것 없음」이라고 쓰고 「0%」라고 쓰지 않는다
 - 통화를 합치지 않는다, 비교도 통화별로 한다, 단위 시험이 섞인 통화에서 합계를 안 내는 것을 단정한다
+- 비교를 켜도 DB 를 두 번 읽지 않는다, 같은 딜 묶음 위에서 두 기간을 센다
+- 비교 어휘가 `lib/terms/report.ts` 에서 온다, 「전기」라고 쓰지 않는다 (한자를 안 쓰는 저장소라 전기요금 쪽으로도 읽힌다, 화면이 이미 쓰는 「이전 기간」을 쓴다)
 - 새 시험 파일이 `apps/web/package.json` 의 test 스크립트에 등재되고 등재 후 총 시험 수가 늘어난다
+- 실브라우저에서 비교를 켜 증감이 그려지고, 견줄 것 없는 기간에서 「견줄 것 없음」이 뜨는 것까지 확인한다
 의존: I01
+
+### I02a 지표 탭이 같은 방식으로 견준다
+상태: 대기
+모드: 경량
+범위: apps/web/app/api/crm/metrics/route.ts, apps/web/app/(crm)/crm/reports/MetricsClient.tsx, apps/web/app/(crm)/crm/reports/metrics.module.css
+감사 기준:
+- 보안: 창구를 고친다, 새 창구가 아니고 `withCrmApi('READONLY')` 를 그대로 지나는 것을 확인한다, 모르는 비교 값이 기본값으로 가는 것을 확인한다
+- 카드 여덟에 증감이 붙는다, 현황 탭과 **같은 말과 같은 모양**을 쓴다 (`period-compare` 와 용어집을 그대로 쓴다)
+- 비교를 켜도 딜을 한 번만 읽는다, `loadDealsForMetrics` 를 한 번 부르고 같은 묶음으로 두 기간을 돌린다
+- 비율 지표(승률·달성률)에는 증감을 **퍼센트포인트**로 적는다, 비율의 비율을 적지 않는다
+- 비교 방식이 주소에 남아 새로고침해도 같은 화면이다
+- 실브라우저에서 두 탭을 나란히 열어 같은 기간·같은 비교에서 같은 말이 뜨는 것을 확인한다
+의존: I02
 
 ### I03 한 건짜리 데이터가 화면을 다 안 먹는다
 상태: 대기
@@ -163,5 +180,11 @@
   - 왜: 「—」 가드와 금지어 가드가 `(terms|labels)` 라는 **파일 이름**으로 대상을 고른다. 그래서 화면 글이 든 `domain/report-axis.ts` 를 못 봤고, LENS_HINT 두 줄이 「—」를 달고 화면에 떠 있었다. 내가 새로 만든 `metric-labels.ts` 가 걸린 것은 이름에 labels 가 들어갔기 때문이고 그건 운이다
   - 실측 2026-10-03: 범위를 `lib` 전체로 넓히면 「—」 위반 236줄. 그중 상당수가 AI 프롬프트(`lib/ai-chat/grouping/*`)와 `console.warn` 로그라 화면 글과 갈라야 한다
   - 이번 항목에서는 손대는 파일 안의 두 줄만 고쳤다 (report-axis.ts LENS_HINT)
+- v0.1.3 (2026-10-04) I02 를 둘로 나눔 (ins_0185)
+  - 왜: 창구 둘·화면 둘·서비스 하나·도메인 하나·용어집을 한 항목에 넣으면 한 번의 자가감사로 판정할 수 없다 (LOOP.md 2절 5 분할 트리거)
+  - I02 는 현황 탭, I02a 는 지표 탭. 지표 탭은 `runMetrics` 가 이미 기간을 받으므로 서비스를 안 고친다
+  - I02 범위에 `services/business-report.ts` 를 넣었다. 비교를 켜도 DB 를 두 번 읽지 않으려면 집계 고리를 함수로 빼서 같은 딜 묶음에 두 번 돌려야 한다
+  - 비교 어휘로 「전기」를 쓰지 않기로 했다. 한자를 안 쓰는 저장소라 「전기」가 전기요금 쪽으로도 읽힌다, 화면이 이미 쓰는 「이전 기간」을 쓴다
 - v0.1.1 (2026-10-03) I01 범위에 기간 어휘 SSOT 를 넣음, 같은 기간을 target 은 2026 3분기 report-axis 는 2026년 3분기로 적어 구현이 어휘를 하나 더 만들고 있었음 (ins_0185)
 - v0.1.2 (2026-10-03) 용어 가드가 파일 이름으로 대상을 골라 domain 의 화면 글을 못 보는 것을 I07 로 추가, 실측 lib 전체 236줄 (audit:I01)
+- v0.1.3 (2026-10-03) I02 를 현황 탭(I02)과 지표 탭(I02a)으로 나눔, 창구 둘과 화면 둘을 한 항목에 두면 한 번의 자가감사로 판정 불가 (audit:I02)

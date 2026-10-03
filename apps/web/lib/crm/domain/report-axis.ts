@@ -69,6 +69,7 @@ import {
   type PeriodKind,
 } from './target.ts'
 import { ROLLING_12M_LABEL, PERIOD_KIND_ORDER } from '../../terms/report.ts'
+import { shiftPeriod } from './period-compare.ts'
 
 export { PERIOD_KIND_LABEL, PERIOD_KIND_ORDER, periodIndexLabel, INDEX_MAX, ROLLING_12M_LABEL, type Period, type PeriodKind }
 
@@ -173,19 +174,15 @@ export function reportPeriodRange(p: ReportPeriod, todayKey: string): PeriodRang
  * 없었다. 현황 탭은 「이번 달·이번 분기·올해」만 알아서 **지난 분기를 볼 길이 아예 없었다**
  * (실측 2026-10-02). 분기 보고에서 가장 먼저 묻는 것이 지난 분기인데 답할 자리가 없었다.
  *
+ * **셈은 `period-compare` 가 한다.** 이 자리에 같은 셈이 한 벌 있었는데, 비교 기능이
+ * 같은 셈을 쓰게 되면서 두 벌이 됐다. 한쪽만 고쳐지면 「이전 기간」 단추와
+ * 「이전 기간 비교」가 서로 다른 기간을 가리킨다.
+ *
  * 굴러가는 12개월은 움직이지 않는다. 그 기간의 「앞」은 뜻이 없다.
  */
 export function shiftReportPeriod(p: ReportPeriod, step: number): ReportPeriod {
   if (p.rolling) return p
-  const { kind, year, index } = p.period
-  if (kind === 'YEAR') return { rolling: false, period: { kind, year: year + step } }
-  const max = INDEX_MAX[kind]
-  // 0-based 로 옮기고 되돌린다. 1-based 로 더하면 경계에서 한 칸씩 어긋난다
-  const flat = (year * max) + (index! - 1) + step
-  return {
-    rolling: false,
-    period: { kind, year: Math.floor(flat / max), index: (flat % max) + 1 },
-  }
+  return { rolling: false, period: shiftPeriod(p.period, step) }
 }
 
 // ------------------------------------------------------------

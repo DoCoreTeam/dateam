@@ -52,6 +52,8 @@ export const REPORT = {
    */
   periodPrev: '이전 기간',
   periodNext: '다음 기간',
+  /** 견줄 대상을 고르는 묶음의 이름 */
+  compare: '비교',
 } as const
 
 // ------------------------------------------------------------
@@ -137,6 +139,59 @@ export function periodText(kind: PeriodKindKey, year: number, index?: number): s
   const head = `${year}년`
   if (kind === 'YEAR' || index === undefined) return head
   return `${head} ${periodIndexLabel(kind, index)}`
+}
+
+// ------------------------------------------------------------
+// 비교 — 무엇과 견주나
+// ------------------------------------------------------------
+
+/**
+ * 견주는 방식의 이름.
+ *
+ * **「전기」라고 쓰지 않는다.** 회계에서 쓰는 말이지만 이 저장소는 한자를 안 쓰므로
+ * 그 두 글자가 전기요금 쪽으로도 읽힌다. 화면이 이미 「이전 기간」을 쓰고 있어
+ * (`REPORT.periodPrev`) 같은 말을 쓴다. 한 화면에서 같은 기간을 두 이름으로
+ * 부르면 둘이 같은 것인지 읽는 사람이 알 수 없다.
+ *
+ * 「전년 동기」는 그대로 쓴다. 업무 문서가 쓰는 말이고 다르게 읽힐 자리가 없다.
+ */
+export const COMPARE_LABEL = {
+  PREV: '이전 기간',
+  YOY: '전년 동기',
+  NONE: '비교 없음',
+} as const
+
+export type CompareLabelKey = keyof typeof COMPARE_LABEL
+
+/** 견줄 것이 없을 때. **「0%」라고 쓰지 않는다** — 0 은 「견줘 봤더니 같다」로 읽힌다 */
+export const NO_COMPARE = '견줄 것 없음'
+
+/**
+ * 견준 결과를 한 줄로.
+ *
+ * 「없다」를 네 가지로 가른다. 한 말로 합치면 **처음 생긴 매출**과 **사라진 매출**이
+ * 같은 말로 보이고, 둘은 영업이 해야 할 일이 정반대인 사실이다.
+ */
+export function compareNote(state: 'ok' | 'noPeriod' | 'noBase' | 'gone', compareLabel: string): string {
+  if (state === 'noPeriod') return NO_COMPARE
+  if (state === 'noBase') return `${compareLabel}에는 없었어요`
+  if (state === 'gone') return `${compareLabel}에는 있었는데 이번에는 없어요`
+  return ''
+}
+
+/**
+ * 늘거나 줄어든 비율을 사람이 읽는 말로.
+ *
+ * 반올림해서 0 이 되는 변화를 「0%」로 적지 않는다. 그 글자는 「그대로다」로 읽히는데
+ * 실제로는 조금 움직인 것이라, 다음 달에 같은 자리가 또 「0%」면 아무도 안 본다.
+ */
+export function deltaText(ratio: number): string {
+  if (ratio === 0) return '변화 없음'
+  const pct = ratio * 100
+  const digits = Math.abs(pct) < 10 ? 1 : 0
+  const shown = Number(pct.toFixed(digits))
+  if (shown === 0) return '거의 그대로'
+  return `${shown > 0 ? '+' : ''}${shown}%`
 }
 
 /**
