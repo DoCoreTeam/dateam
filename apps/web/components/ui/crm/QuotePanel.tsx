@@ -348,23 +348,29 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
                       </NbButton>
                     )}
                     {/*
-                      **고칠 수 없는 견적에만 나온다.** 초안은 그냥 고치면 되므로
-                      여기에 두면 「수정」과 헷갈린다 — 둘 다 있으면 사람은 더 어려워한다.
+                      **초안에서도 나온다.**
+
+                      앞서는 「고칠 수 없는 견적에만」 두었다 — 초안은 그냥 고치면 되니
+                      「수정」과 헷갈린다고 봤다. 그 판단이 틀렸다. **다른 안은 고치는 일이
+                      아니라 남겨 두는 일이다.** 조건이 달라 금액이 다른 제안을 나란히 내는
+                      것이고, 그 필요는 초안을 쓰는 중에 가장 자주 생긴다 — 1안을 적다가
+                      「GPU 넉 대짜리도 같이 드려 보자」가 되는 자리가 거기다
+                      (사용자 지시 2026-10-04: 「각각 견적을 따로 만들어도 되고」).
+
+                      초안에서 이 단추가 없으면 영업은 견적을 처음부터 다시 쓰고, 그렇게
+                      만든 둘 사이엔 아무 연결도 없어 나중에 「이게 그 건의 몇 번째지?」를
+                      아무도 답할 수 없다 — 이 기능이 생긴 이유 그대로다.
                     */}
-                    {q.status !== 'DRAFT' && (
-                      <>
-                        <NbButton variant="ghost" onClick={() => void duplicate(q, 'revision', null)} disabled={busy}>
-                          <Copy size={14} /> 개정본 만들기
-                        </NbButton>
-                        <NbButton
-                          variant="ghost"
-                          onClick={() => { setVariantOf(q); setVariantLabel('2안') }}
-                          disabled={busy}
-                        >
-                          다른 안 만들기
-                        </NbButton>
-                      </>
-                    )}
+                    <NbButton variant="ghost" onClick={() => void duplicate(q, 'revision', null)} disabled={busy}>
+                      <Copy size={14} /> 개정본 만들기
+                    </NbButton>
+                    <NbButton
+                      variant="ghost"
+                      onClick={() => { setVariantOf(q); setVariantLabel('2안') }}
+                      disabled={busy}
+                    >
+                      다른 안 만들기
+                    </NbButton>
                     {(q.status === 'ACCEPTED' || q.status === 'REJECTED') && (
                       <NbButton variant="ghost" onClick={() => void openEdit(q)} disabled={busy}>
                         <FileText size={14} /> 내용 보기
