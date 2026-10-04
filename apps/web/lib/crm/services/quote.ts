@@ -171,6 +171,8 @@ const LINE_SELECT = {
   unitPriceMinor: true, discountPercent: true, taxRate: true, lineTotalMinor: true, position: true,
   specialDiscountPercent: true, specialDiscountReason: true, sectionId: true,
   kind: true, roleLabel: true, laborGradeId: true,
+  // 비율 줄이 가리키는 줄과 비율 — 복제가 옛 id 를 새 id 로 바꿔 이어 준다
+  ratioOfLineId: true, ratioPct: true,
   // 비고 — 여기 없으면 타입은 맞는데 값이 안 와서 표 열만 서고 칸이 빈다
   remark: true,
   // 공급 기간 — 여기서 개월과 총 시간을 센다. 안 읽으면 축이 설 근거가 화면에 안 닿는다
@@ -1466,9 +1468,16 @@ export async function duplicateQuote(
       secMap.set(srcSections[i].id, sec.id)
     }
 
+    /*
+      **비율 줄은 같은 견적의 다른 줄을 가리킨다**(「장비가의 10%」). 옛 id 를 그대로 베끼면
+      복제본의 줄이 **원본 견적의 줄**을 가리켜, 원본을 고치면 복제본 금액이 따라 움직인다.
+      묶음과 똑같이 옛 id → 새 id 표를 만들고 두 번째 바퀴에서 이어 준다.
+    */
+    const lineMap = new Map<string, string>()
     for (const l of srcLines) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (tx as any).crmQuoteLine.create({
+      const madeLine = await (tx as any).crmQuoteLine.create({
+        select: { id: true },
         data: {
           quoteId: made.id,
           productId: l.productId, name: l.name, descriptionMd: l.descriptionMd,
@@ -1488,8 +1497,20 @@ export async function duplicateQuote(
             복제본에서는 금액 축이 **설 근거를 잃는다** — 축을 켜 두어도 아무것도 안 그려진다.
           */
           startDate: l.startDate, endDate: l.endDate,
+          // 비율 자체는 그대로, 가리키는 줄은 아래 두 번째 바퀴에서 잇는다
+          ratioPct: l.ratioPct,
           sectionId: l.sectionId ? (secMap.get(l.sectionId) ?? null) : null,
         },
+      })
+      lineMap.set(l.id, madeLine.id)
+    }
+
+    for (const l of srcLines) {
+      if (!l.ratioOfLineId) continue
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (tx as any).crmQuoteLine.update({
+        where: { id: lineMap.get(l.id) },
+        data: { ratioOfLineId: lineMap.get(l.ratioOfLineId) ?? null },
       })
     }
     await recalcSectionSubtotals(tx, made.id)

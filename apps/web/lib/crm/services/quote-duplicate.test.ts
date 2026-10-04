@@ -114,3 +114,101 @@ test('★ 새로 매기는 것은 원본에서 베끼지 않는다', () => {
   // 어디서 갈라졌는지 남긴다
   assert.match(body, /sourceQuoteId:\s*src\.id\b/, '뿌리를 안 남긴다 — 어느 견적의 안인지 잃는다')
 })
+
+/*
+  ── 빠뜨린 칸이 또 생기는 것을 막는다 ──────────────────────────────────────────
+
+  위의 목록은 **사람이 적은 것**이라, 새 칼럼을 더하면서 목록에 안 적으면 아무도 안 본다.
+  실제로 두 번 그랬다 — 비고·환율(P0109 I02)과 금액 표시·공급 기간(P0110 I01).
+  둘 다 「칼럼을 더했고 화면도 붙였는데 복제만 몰랐다」였고, 복제본을 연 사람은
+  **고친 적 없는 자리가 비어 있는 것**을 봤다.
+
+  그래서 여기서는 목록이 아니라 **스키마를 센다.** 표의 칸 하나하나가 셋 중 하나여야 한다
+  — 복제가 들고 가거나, 새로 매기거나, 「안 따라간다」고 사유와 함께 적혀 있거나.
+  어느 쪽도 아니면 그 칸 이름을 대며 떨어진다.
+*/
+const SCHEMA = readFileSync(new URL('../../../prisma/schema.prisma', import.meta.url), 'utf-8')
+
+/** 모델의 **값 칸**만 — 관계는 복제가 따로 잇는다(묶음·비율 줄) */
+function scalarFields(model: string): string[] {
+  const i = SCHEMA.indexOf(`model ${model} {`)
+  assert.ok(i > 0, `${model} 을 스키마에서 못 찾았다`)
+  const j = SCHEMA.indexOf('\n}', i)
+  return SCHEMA.slice(i, j).split('\n').slice(1)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('//') && !l.startsWith('@@'))
+    .map((l) => l.split(/\s+/))
+    .filter((p) => p.length >= 2 && /^(String|Int|BigInt|Boolean|DateTime|Decimal|Float|Json)(\[\])?\??$/.test(p[1]))
+    .map((p) => p[0])
+}
+
+/**
+ * **일부러 안 따라가는 칸.** 사유 없이 여기 적지 않는다 —
+ * 이 목록이 길어지는 것이 곧 「복제가 점점 다른 문서를 만든다」는 뜻이다.
+ */
+const QUOTE_NOT_CARRIED: Record<string, string> = {
+  id: '새로 매긴다',
+  workspaceId: '트랜잭션이 넣는다',
+  version: '낙관적 잠금 — 새 행은 처음부터 센다',
+  status: '새 안은 초안에서 시작한다',
+  createdAt: '저장소가 매긴다',
+  updatedAt: '저장소가 매긴다',
+  deletedAt: '새 행은 안 지워진 상태다',
+  approvedAt: '승인은 금액이 달라질 문서라 다시 받는다',
+  approvedById: '같은 이유',
+  sentAt: '보낸 적 없는 새 문서다',
+  decidedAt: '같은 이유',
+  // 원본 문서 자취 — **일부러 안 옮긴다.** 이 안은 사람이 앞 견적에서 갈라 만든 것이지
+  // 파일을 읽어 만든 것이 아니다. 원본과의 끈은 sourceQuoteId 가 들고 있고 목록이 그걸 보인다
+  fromFileAt: '파일에서 읽어 만든 것이 아니다 — 끈은 sourceQuoteId 가 들고 있다',
+  sourceFileName: '같은 이유',
+  sourcePageStart: '같은 이유',
+  sourcePageEnd: '같은 이유',
+  sourceSnapshotId: '같은 이유',
+}
+
+const LINE_NOT_CARRIED: Record<string, string> = {
+  id: '새로 매긴다',
+  quoteId: '새 견적을 가리킨다',
+  createdAt: '저장소가 매긴다',
+  updatedAt: '저장소가 매긴다',
+  // ratioOfLineId 는 **값이 아니라 가리키는 줄**이라 두 번째 바퀴에서 새 id 로 잇는다
+  ratioOfLineId: '같은 견적의 다른 줄을 가리켜 옛 id 를 베끼면 원본을 가리킨다 — 아래에서 따로 잇는다',
+}
+
+for (const [model, exempt, prefix] of [
+  ['CrmQuote', QUOTE_NOT_CARRIED, 'src'],
+  ['CrmQuoteLine', LINE_NOT_CARRIED, 'l'],
+] as const) {
+  test(`★ ${model} 의 모든 칸이 복제에서 셋 중 하나다 — 들고 가거나 새로 매기거나 사유가 적혀 있거나`, () => {
+    const body = duplicateBody()
+    const 빠진것: string[] = []
+    for (const f of scalarFields(model)) {
+      if (f in exempt) continue
+      // `f: 값` 도 되고 `f,`(줄임꼴) 도 된다 — 둘 다 그 칸을 넣고 있다는 뜻이다
+      const 실림 = new RegExp(`\\b${f}\\s*[:,]`).test(body)
+      if (!실림) 빠진것.push(f)
+    }
+    assert.deepEqual(빠진것, [],
+      `복제가 이 칸들을 안 다룬다: ${빠진것.join(', ')}. ` +
+      '들고 가도록 고치거나, 안 따라가는 이유를 이 파일의 목록에 적어라 — ' +
+      '적어 두지 않으면 다음 사람이 복제본에서 빈 자리를 보고 원인을 못 찾는다')
+  })
+}
+
+test('★ 비율 줄은 새 견적 안의 줄을 가리킨다 — 옛 id 를 베끼면 원본을 고칠 때 복제본이 따라 움직인다', () => {
+  const body = duplicateBody()
+  assert.match(body, /lineMap\.set\(/, '옛 줄 id → 새 줄 id 표를 안 만든다')
+  assert.match(body, /ratioOfLineId:\s*lineMap\.get\(/,
+    '비율 줄이 가리키는 줄을 새 id 로 안 바꾼다 — 복제본이 원본 견적의 줄을 가리킨다')
+  assert.ok(!/ratioOfLineId:\s*l\.ratioOfLineId\b/.test(body),
+    '옛 id 를 그대로 베꼈다')
+})
+
+test('★ 안 따라가는 칸 목록에 사유 없는 줄이 없다', () => {
+  for (const [model, exempt] of [['CrmQuote', QUOTE_NOT_CARRIED], ['CrmQuoteLine', LINE_NOT_CARRIED]] as const) {
+    for (const [field, why] of Object.entries(exempt)) {
+      assert.ok(why.trim().length >= 4, `${model}.${field} 에 사유가 없다 — 「나중에」로 미룬 칸이 여기 숨는다`)
+    }
+  }
+})
