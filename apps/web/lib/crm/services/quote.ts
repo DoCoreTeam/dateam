@@ -491,6 +491,14 @@ export interface QuoteListRow extends QuoteRow {
   companyName: string | null
   /** 받는 분 — 직책이 있으면 함께(「전경선 연구교수」) */
   recipientName: string | null
+  /**
+   * 갈라져 나온 **앞 견적의 번호.** 원본이 지워졌거나 뿌리면 null.
+   *
+   * `sourceQuoteId` 만으로는 화면이 아무것도 못 보여 준다 — 사람에게 cuid 는 글자 더미다.
+   * 그렇다고 화면이 목록 안에서 찾게 두면 **앞 견적이 다른 쪽에 있을 때 조용히 빈칸**이 된다.
+   * 그래서 여기서 한 번에 읽어 번호로 바꿔 준다(행마다 읽으면 N+1 이다).
+   */
+  sourceQuoteNo: string | null
 }
 
 /**
@@ -607,11 +615,23 @@ export async function listQuotes(
     recipientPerson: { name: string; title: string | null } | null
   })[], number | undefined]
 
+  /*
+    앞 견적의 번호를 **한 번에** 읽는다. 지워진 원본은 sourceQuoteId 가 SetNull 이라
+    여기 안 걸리고, 못 찾은 것은 null 로 남아 화면이 그 줄을 안 그린다.
+  */
+  const sourceIds = [...new Set(rows.map((r) => r.sourceQuoteId).filter((v): v is string => Boolean(v)))]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sources: { id: string; quoteNo: string }[] = sourceIds.length === 0 ? [] : await (db as any).crmQuote.findMany({
+    where: { id: { in: sourceIds } }, select: { id: true, quoteNo: true },
+  })
+  const sourceNo = new Map(sources.map((s) => [s.id, s.quoteNo]))
+
   const items = rows.map((r) => {
     const { deal, recipientPerson, ...rest } = r
     return {
       ...rest,
       expired: markExpired(r, now),
+      sourceQuoteNo: r.sourceQuoteId ? sourceNo.get(r.sourceQuoteId) ?? null : null,
       dealName: deal?.name ?? '(딜 없음)',
       companyName: deal?.company?.name ?? null,
       // 직책이 있으면 함께 — 「전경선 연구교수」가 「전경선」보다 누구인지 분명하다

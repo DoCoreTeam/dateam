@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
         dealName: row.dealName,
         companyName: row.companyName,
         recipientName: row.recipientName,
+        // 어느 견적에서 갈라졌는지 — id 가 아니라 **번호**로 간다, 사람이 읽는 것은 번호다
+        sourceQuoteNo: row.sourceQuoteNo,
       })),
     }
   })

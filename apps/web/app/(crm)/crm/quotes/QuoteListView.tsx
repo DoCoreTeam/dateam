@@ -24,7 +24,7 @@ import { kstDateKey } from '@/lib/datetime/kst'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE_STATUS_META, QUOTE_STATUS_ORDER, quoteStatusMeta } from '@/lib/crm/ui/quote-status'
 import { ENTITY, FILTER_ALL } from '@/lib/terms'
-import { QUOTE } from '@/lib/terms/quote'
+import { QUOTE, variantFromLine } from '@/lib/terms/quote'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import { useCrmBulk } from '@/components/ui/crm/useCrmBulk'
@@ -49,6 +49,12 @@ export interface QuoteItem {
   companyName: string | null
   /** 받는 분 — 직책이 있으면 함께 */
   recipientName: string | null
+  /** 개정 차수. 1 이면 첫 판이라 안 적는다 */
+  revision?: number
+  /** 다른 안의 이름(「2안」). 없으면 뿌리이거나 개정본이다 */
+  variantLabel?: string | null
+  /** 어느 견적에서 갈라졌나 — **번호**다, id 는 사람이 못 읽는다 */
+  sourceQuoteNo?: string | null
   updatedAt: string
 }
 
@@ -63,7 +69,31 @@ const COLUMNS: ColumnDef<QuoteItem>[] = [
     cell: (r) => (
       <>
         <span>{r.quoteNo}</span>
+        {/*
+          **한 딜에서 갈라져 나온 견적들이 목록에서 구분돼야 한다.**
+
+          개정본은 같은 제안의 다음 판이고 다른 안은 조건이 달라 금액이 다른 제안이다.
+          둘 다 제목이 비슷해서, 표시가 없으면 목록에서 **똑같아 보이는 줄 셋**이 된다 —
+          어느 것을 열어야 하는지 알 수 없다. 지금까지 저장만 되고 읽는 코드가 0곳이었다.
+        */}
+        {(r.revision ?? 1) > 1 && (
+          <span style={{ marginLeft: 'var(--space-2)' }}>
+            <NbBadge status="note">Rev.{r.revision}</NbBadge>
+          </span>
+        )}
+        {r.variantLabel && (
+          <span style={{ marginLeft: 'var(--space-2)' }}>
+            <NbBadge status="note">{r.variantLabel}</NbBadge>
+          </span>
+        )}
         <span style={{ ...FAINT, marginLeft: 'var(--space-2)' }}>{r.title}</span>
+        {/*
+          뿌리는 **다음 줄에** 흐리게 — 번호 옆에 붙이면 자기 번호와 헷갈린다.
+          원본이 지워지면 서버가 null 을 주고 이 줄은 아예 안 생긴다.
+        */}
+        {r.sourceQuoteNo && (
+          <div style={FAINT}>{variantFromLine(r.sourceQuoteNo)}</div>
+        )}
       </>
     ),
   },
