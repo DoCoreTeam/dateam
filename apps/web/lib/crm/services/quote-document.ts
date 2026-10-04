@@ -179,6 +179,11 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       expired: quote.expired,
       revision: quote.revision,
       variantLabel: quote.variantLabel,
+      // 금액 표시 — 안 넘기면 고른 축이 문서에 안 닿아 늘 지금과 같은 한 줄만 나온다
+      rateAxisKeys: quote.rateAxisKeys,
+      lineNoteKeys: quote.lineNoteKeys,
+      totalConvKeys: quote.totalConvKeys,
+      rateHoursPerMonth: quote.rateHoursPerMonth,
     },
     // 항목은 **필요한 것만** 옮긴다. 통째로 넘기면 나중에 원가 칼럼이 생겼을 때
     // 아무도 모르게 문서로 흘러 들어간다
@@ -196,6 +201,9 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       lineTotalMinor: l.lineTotalMinor,
       // 비고는 그 줄이 이 견적에서 무슨 구실인가다 — 여기서 빠지면 표 열만 서고 값이 빈다
       remark: l.remark,
+      // 공급 기간 — 여기서 개월과 총 시간을 센다. 빠지면 축을 세울 근거가 없다
+      startDate: l.startDate,
+      endDate: l.endDate,
     })),
     sections: (quote.sections ?? []).map((sec) => ({
       id: sec.id, name: sec.name, subtotalMinor: sec.subtotalMinor,

@@ -17,11 +17,19 @@
  * 지우는 것이 아니라 **담을 수 없게** 만드는 것이 유일하게 새지 않는 방법이다.
  */
 
-import { QUOTE, hangulAmount, SUPPLIER_ORDER, SUPPLIER_LABEL, type SupplierField } from '../../terms/quote.ts'
+import {
+  QUOTE, hangulAmount, SUPPLIER_ORDER, SUPPLIER_LABEL, type SupplierField,
+  RATE_AXIS_ORDER, LINE_NOTE_ORDER, TOTAL_CONV_ORDER,
+  type RateAxisKey, type LineNoteKey, type TotalConvKey,
+} from '../../terms/quote.ts'
 import { checkI2, checkI5, type Violation } from './invariants.ts'
 import { computeLine } from './quote-math.ts'
 import { convertMinor } from './currency.ts'
 import { splitSpec } from './quote-spec.ts'
+import {
+  computePeriod, hourlyFromMonthly, monthlyFromTotal, hourlyFromTotal,
+  DEFAULT_HOURS_PER_MONTH,
+} from './quote-rate.ts'
 
 // ------------------------------------------------------------
 // 문서의 모양
@@ -148,9 +156,52 @@ export interface DocumentLine {
    * 우리 양식에 원래 있던 열인데 담을 칸이 없어 읽어도 버려졌다(사용자 지적 2026-09-21).
    */
   remark: string | null
+  /**
+   * 금액 축 — **선택한 것만** 채워진다. null 이면 지금까지와 같은 한 줄짜리 금액 칸이다.
+   *
+   * 같은 금액을 시간당·월·기간 총액 세 가지로 말할 수 있고, 고객이 어느 쪽으로 물을지는
+   * 그때 다르다. 셋 다 적어도 되고 하나만 적어도 된다.
+   */
+  rate: DocumentLineRate | null
+}
+
+/** 합계 영역의 환산값 */
+export interface DocumentTotalConv {
+  /** 한 달치(minor). 개월을 모르면 null */
+  monthlyMinor: string | null
+  months: number | null
+  /** 시간당(minor) */
+  hourlyMinor: string | null
+  hourlyExact: boolean
+  totalHours: number | null
+  hoursPerMonth: number
+}
+
+/** 한 품목의 환산값. 기간이 없으면 아무것도 못 센다 */
+export interface DocumentLineRate {
+  /** 공급 기간. 하나라도 비면 null */
+  start: string | null
+  end: string | null
+  /** 딱 떨어지는 개월. 어중간하면 null 이고 그때는 개월을 말하지 않는다 */
+  months: number | null
+  days: number | null
+  totalHours: number | null
+  /** 한 달치 금액(minor). 개월을 모르면 null */
+  monthlyMinor: string | null
+  /** 시간당 금액(minor) */
+  hourlyMinor: string | null
+  /** 시간당이 나누어떨어졌나. false 면 화면이 「약」을 붙인다 */
+  hourlyExact: boolean
+  /** 이 환산에 쓴 월 기준 시간 */
+  hoursPerMonth: number
 }
 
 export interface DocumentTotals {
+  /**
+   * 합계 영역에 서는 환산 줄 — 원화 환산과 같은 자리, 같은 꼴이다.
+   * 선택이 없으면 null 이고 그 줄은 아예 안 생긴다.
+   */
+  conv: DocumentTotalConv | null
   subtotalMinor: string
   discountMinor: string
   /**
@@ -210,6 +261,14 @@ export interface QuoteDocument {
      * (`services/quote-import-config.ts`).
      */
     printComponents: 'expand' | 'collapse'
+    /** 금액 칸에 함께 인쇄할 축 — 비어 있으면 합계 하나만 */
+    rateAxisKeys: RateAxisKey[]
+    /** 품목 이름 아래 한 줄로 이어 붙는 것 */
+    lineNoteKeys: LineNoteKey[]
+    /** 합계 영역에 서는 환산 줄 */
+    totalConvKeys: TotalConvKey[]
+    /** 한 달을 몇 시간으로 셌나. 환산 근거로 인쇄된다 */
+    hoursPerMonth: number
   }
   lines: DocumentLine[]
   totals: DocumentTotals
@@ -246,6 +305,12 @@ export interface BuildQuoteDocumentInput {
     revision?: number | null
     /** 다른 안의 이름 */
     variantLabel?: string | null
+    /** 금액 표시 선택. 안 주면 빈 목록 — 지금까지와 같은 문서가 나온다 */
+    rateAxisKeys?: readonly string[] | null
+    lineNoteKeys?: readonly string[] | null
+    totalConvKeys?: readonly string[] | null
+    /** 월 기준 시간. 안 주면 730 */
+    rateHoursPerMonth?: number | null
     /**
      * 구성 줄을 종이에 낼까. 안 주면 «편다» — 원본에 있던 것을 기본으로 숨기지 않는다
      */
@@ -267,6 +332,9 @@ export interface BuildQuoteDocumentInput {
     /** 어느 묶음인지 */
     sectionId?: string | null
     lineTotalMinor: bigint | string
+    /** 공급 기간 — 여기서 개월과 총 시간을 센다 */
+    startDate?: Date | string | null
+    endDate?: Date | string | null
   }[]
   /** 묶음. 없으면 견적서는 한 표로 그려진다 */
   sections?: readonly {
@@ -394,10 +462,88 @@ function fxOf(
   }
 }
 
+/** 저장된 키 목록을 **용어집 순서로** 추린다 — 보낸 차례가 달라도 같은 문서가 나온다 */
+function pickKeys<K extends string>(got: readonly string[] | null | undefined, order: readonly K[]): K[] {
+  if (!Array.isArray(got)) return []
+  return order.filter((k) => got.includes(k))
+}
+
+/**
+ * 한 품목의 환산값. **기간이 없으면 null** — 셀 근거가 없다.
+ *
+ * 무엇이 진짜 값인지는 여기서 정하지 않는다. 월 금액은 «기간 총액 ÷ 개월»로,
+ * 시간당은 «기간 총액 ÷ 총 시간»으로 되짚는다 — 저장된 합계에서 나오므로
+ * 어느 쪽을 적어도 합계와 어긋나지 않는다(반올림 여부만 따로 말한다).
+ */
+function lineRate(
+  l: { startDate?: Date | string | null; endDate?: Date | string | null; lineTotalMinor: bigint | string },
+  hoursPerMonth: number,
+  wanted: boolean,
+): DocumentLineRate | null {
+  if (!wanted) return null
+  const p = computePeriod(l.startDate, l.endDate, hoursPerMonth)
+  if (!p) return null
+  const total = Number(s(l.lineTotalMinor))
+  const monthly = monthlyFromTotal(total, p.months)
+  const hourly = hourlyFromTotal(total, p.totalHours)
+  return {
+    start: p.start,
+    end: p.end,
+    months: p.months,
+    days: p.days,
+    totalHours: p.totalHours,
+    monthlyMinor: monthly ? String(monthly.minor) : null,
+    hourlyMinor: hourly ? String(hourly.minor) : null,
+    hourlyExact: hourly ? hourly.exact : false,
+    hoursPerMonth,
+  }
+}
+
+/**
+ * 합계 영역의 환산. **모든 품목이 같은 기간일 때만** 센다.
+ *
+ * 기간이 섞인 견적에서 「시간당 얼마」를 한 줄로 적으면 그 숫자는 아무 품목의 것도 아니다 —
+ * 고객이 어느 줄에 곱해도 안 맞는다. 그럴 때는 줄을 아예 안 그린다.
+ */
+function totalConv(
+  lines: BuildQuoteDocumentInput['lines'],
+  wanted: readonly TotalConvKey[],
+  hoursPerMonth: number,
+): DocumentTotalConv | null {
+  if (wanted.length === 0 || lines.length === 0) return null
+  const periods = lines.map((l) => computePeriod(l.startDate, l.endDate, hoursPerMonth))
+  const first = periods[0]
+  if (!first) return null
+  if (periods.some((p) => !p || p.start !== first.start || p.end !== first.end)) return null
+
+  // 품목 금액의 합 — 할인이 반영된 값이다(lineTotalMinor)
+  const total = lines.reduce((acc, l) => acc + BigInt(s(l.lineTotalMinor)), BigInt(0))
+  const n = Number(total)
+  const monthly = monthlyFromTotal(n, first.months)
+  const hourly = hourlyFromTotal(n, first.totalHours)
+  return {
+    monthlyMinor: monthly ? String(monthly.minor) : null,
+    months: first.months,
+    hourlyMinor: hourly ? String(hourly.minor) : null,
+    hourlyExact: hourly ? hourly.exact : false,
+    totalHours: first.totalHours,
+    hoursPerMonth,
+  }
+}
+
 export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocument {
   const currency = (input.quote.currency ?? 'KRW').toUpperCase()
   const validUntil = dateKey(input.quote.validUntil)
   const issuedOn = dateKey(input.quote.issuedOn) ?? dateKey(input.quote.createdAt)
+
+  /*
+    **금액 표시 선택.** 아무것도 안 고르면 빈 목록이고, 그러면 지금까지와 똑같은 문서가 나온다 —
+    새 칸이 생겼다고 옛 견적서의 모양이 바뀌면 안 된다.
+  */
+  const axisKeys = pickKeys<RateAxisKey>(input.quote.rateAxisKeys, RATE_AXIS_ORDER)
+  const noteKeys = pickKeys<LineNoteKey>(input.quote.lineNoteKeys, LINE_NOTE_ORDER)
+  const convKeys = pickKeys<TotalConvKey>(input.quote.totalConvKeys, TOTAL_CONV_ORDER)
+  const hoursPerMonth = input.quote.rateHoursPerMonth ?? DEFAULT_HOURS_PER_MONTH
 
   return {
     documentTitle: QUOTE.documentTitle,
@@ -428,6 +574,10 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       variantLabel: text(input.quote.variantLabel) || '',
       // 안 주면 편다 — 원본에 있던 것을 우리가 기본으로 숨기면 그게 이번에 고친 결함이다
       printComponents: input.quote.printComponents === 'collapse' ? 'collapse' : 'expand',
+      rateAxisKeys: axisKeys,
+      lineNoteKeys: noteKeys,
+      totalConvKeys: convKeys,
+      hoursPerMonth,
       issuedOn,
       validUntil,
       currency,
@@ -465,8 +615,10 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       ...discountOf(l),
       amountMinor: s(l.lineTotalMinor),
       remark: text(l.remark) || null,
+      rate: lineRate(l, hoursPerMonth, axisKeys.length > 0 || noteKeys.length > 0),
     })),
     totals: {
+      conv: totalConv(input.lines, convKeys, hoursPerMonth),
       subtotalMinor: s(input.quote.subtotalMinor),
       /*
         **할인은 저장된 값 그대로다.** 예전엔 절사가 할인에 섞여 저장돼서 여기서 되뺐는데,

@@ -500,3 +500,107 @@ test('★ 비고 열은 한 줄이라도 있을 때만 선다', () => {
   }))
   assert.equal(hasRemark(some), true, '한 줄이 적었는데 열이 안 선다')
 })
+
+// ------------------------------------------------------------
+// 금액 표시 — 선택한 것만 실린다
+// ------------------------------------------------------------
+
+/*
+  **아무것도 안 고르면 지금까지와 같은 문서다.** 새 칸이 생겼다고 옛 견적서의 모양이
+  바뀌면 안 된다 — 위 49개 시험이 전부 선택 없이 도는 것이 그 증거다.
+
+  `input()` 은 quote 를 통째로 바꾸므로(얕은 병합) 여기서는 필수 칸을 함께 넘기는 지역 헬퍼를 쓴다.
+*/
+const RATE_QUOTE = {
+  quoteNo: 'Q-2026-0009', title: 'GPU 임대', currency: 'KRW',
+  validUntil: '2026-12-31', createdAt: '2026-10-01T00:00:00.000Z',
+  subtotalMinor: BigInt(1998720), discountMinor: BigInt(0),
+  taxMinor: BigInt(199872), totalMinor: BigInt(2198592), notesMd: null,
+}
+const rateDoc = (
+  quoteOver: Record<string, unknown>,
+  lines: BuildQuoteDocumentInput['lines'],
+) => buildQuoteDocument(input({ quote: { ...RATE_QUOTE, ...quoteOver }, lines }))
+
+test('★ 선택이 없으면 환산이 안 실린다', () => {
+  const doc = rateDoc({}, [{ name: 'GPU', quantity: 2, unitPriceMinor: 999360n, lineTotalMinor: 1998720n,
+    startDate: '2026-10-07', endDate: '2026-12-06' }])
+  assert.equal(doc.lines[0].rate, null, '안 골랐는데 환산이 실렸다')
+  assert.equal(doc.totals.conv, null)
+  assert.deepEqual(doc.meta.rateAxisKeys, [])
+})
+
+test('★ 축을 고르면 품목에 기간과 환산이 실린다', () => {
+  const doc = rateDoc(
+    { rateAxisKeys: ['total', 'monthly', 'hourly'], rateHoursPerMonth: 730 },
+    [{ name: 'GPU', quantity: 2, unitPriceMinor: 999360n, lineTotalMinor: 1998720n,
+      startDate: '2026-10-07', endDate: '2026-12-06' }],
+  )
+  const r = doc.lines[0].rate
+  assert.ok(r, '축을 골랐는데 환산이 안 실렸다')
+  assert.equal(r.start, '2026-10-07')
+  assert.equal(r.end, '2026-12-06')
+  assert.equal(r.months, 2)
+  assert.equal(r.totalHours, 1460, '730 기준 2개월')
+  assert.equal(r.monthlyMinor, '999360')
+  assert.equal(r.hourlyMinor, '1369')
+  assert.equal(r.hourlyExact, false, '730 으로는 안 떨어져 「약」이 붙어야 한다')
+  assert.equal(r.hoursPerMonth, 730)
+})
+
+test('★ 720 으로 고르면 딱 떨어진다', () => {
+  const doc = rateDoc(
+    { rateAxisKeys: ['hourly'], rateHoursPerMonth: 720 },
+    [{ name: 'GPU', quantity: 2, unitPriceMinor: 999360n, lineTotalMinor: 1998720n,
+      startDate: '2026-10-07', endDate: '2026-12-06' }],
+  )
+  const r = doc.lines[0].rate
+  assert.equal(r.totalHours, 1440)
+  assert.equal(r.hourlyMinor, '1388')
+  assert.equal(r.hourlyExact, true, '720 은 딱 떨어져 「약」이 필요 없다')
+})
+
+test('★ 기간이 없으면 축을 골라도 환산이 안 선다', () => {
+  const doc = rateDoc({ rateAxisKeys: ['monthly'] },
+    [{ name: 'GPU', quantity: 1, unitPriceMinor: 1000n, lineTotalMinor: 1000n }])
+  assert.equal(doc.lines[0].rate, null, '셀 근거가 없는데 환산이 실렸다')
+})
+
+test('★ 모르는 키는 버리고 용어집 순서로 선다', () => {
+  const doc = rateDoc({ rateAxisKeys: ['hourly', 'nope', 'total'] },
+    [{ name: 'GPU', quantity: 1, unitPriceMinor: 1000n, lineTotalMinor: 1000n }])
+  assert.deepEqual(doc.meta.rateAxisKeys, ['total', 'hourly'], '보낸 차례가 아니라 용어집 차례여야 한다')
+})
+
+test('★ 합계 환산은 모든 품목이 같은 기간일 때만 선다', () => {
+  const same = rateDoc(
+    { totalConvKeys: ['monthly', 'hourly'], rateHoursPerMonth: 720 },
+    [
+      { name: 'GPU', quantity: 1, unitPriceMinor: 1000000n, lineTotalMinor: 1000000n,
+        startDate: '2026-10-07', endDate: '2026-12-06' },
+      { name: '스토리지', quantity: 1, unitPriceMinor: 998720n, lineTotalMinor: 998720n,
+        startDate: '2026-10-07', endDate: '2026-12-06' },
+    ],
+  )
+  assert.ok(same.totals.conv, '같은 기간인데 환산 줄이 안 섰다')
+  assert.equal(same.totals.conv.monthlyMinor, '999360', '두 줄 합 1,998,720 ÷ 2개월')
+  assert.equal(same.totals.conv.hourlyMinor, '1388')
+
+  const mixed = rateDoc({ totalConvKeys: ['hourly'] },
+    [
+      { name: 'GPU', quantity: 1, unitPriceMinor: 1000n, lineTotalMinor: 1000n,
+        startDate: '2026-10-07', endDate: '2026-12-06' },
+      { name: '스토리지', quantity: 1, unitPriceMinor: 1000n, lineTotalMinor: 1000n,
+        startDate: '2026-10-07', endDate: '2027-10-06' },
+    ],
+  )
+  assert.equal(mixed.totals.conv, null, '기간이 섞였는데 한 줄로 적었다 — 어느 줄에 곱해도 안 맞는다')
+})
+
+test('★ 품목 아래 메모만 골라도 기간이 실린다', () => {
+  const doc = rateDoc({ lineNoteKeys: ['period', 'totalHours'] },
+    [{ name: 'GPU', quantity: 1, unitPriceMinor: 1000n, lineTotalMinor: 1000n,
+      startDate: '2026-10-07', endDate: '2026-12-06' }])
+  assert.ok(doc.lines[0].rate, '메모를 골랐는데 기간이 안 실렸다')
+  assert.deepEqual(doc.meta.lineNoteKeys, ['period', 'totalHours'])
+})
