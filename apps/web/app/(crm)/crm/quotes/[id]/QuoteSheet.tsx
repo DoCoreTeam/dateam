@@ -11,10 +11,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '@/lib/terms/quote'
 import {
-  RATE_AXIS_ORDER, RATE_AXIS_LABEL, LINE_NOTE_ORDER, LINE_NOTE_LABEL, APPROX_PREFIX,
-  TOTAL_CONV_ORDER, TOTAL_CONV_LABEL,
-} from '@/lib/terms/quote'
-import { LINE_KIND_UNIT } from '@/lib/terms/cost'
+  axisTexts, lineNoteText, convTexts, lineSumMinor,
+} from '@/lib/crm/domain/quote-rate-text'
 import { hasDiscount, hasRemark } from '@/lib/crm/domain/quote-document'
 import type { QuoteDocument, DocumentLine, DocumentSection } from '@/lib/crm/domain/quote-document'
 import styles from './quote-document.module.css'
@@ -55,113 +53,20 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
   const showRemark = hasRemark(doc)
 
   /*
-    ── 금액 축과 품목 아래 줄 ────────────────────────────────────────────────
+    ── 금액 축과 환산 줄 ─────────────────────────────────────────────────────
 
     같은 금액을 시간당·월·기간 총액 셋으로 말할 수 있고 고객이 어느 쪽으로 물을지는
     그때 다르다. **고른 것만 선다** — 아무것도 안 고르면 지금까지와 똑같은 한 줄이다.
 
-    셈은 여기서 안 한다. 문서가 이미 되짚어 둔 값(`rate`)을 **읽어서 적을 뿐**이라
-    화면·인쇄·엑셀 셋이 같은 숫자를 낸다.
+    **글을 여기서 안 짓는다.** 셋이 같은 문서를 읽어도 각자 글을 지으면 서서히 다른
+    문서가 된다(엑셀이 그 셋째다). 짓는 일은 `domain/quote-rate-text` 한 곳이고,
+    화면은 거기서 받은 글을 어디에 놓을지만 정한다.
   */
-  const axes = RATE_AXIS_ORDER.filter((k) => doc.meta.rateAxisKeys.includes(k))
-  const notes = LINE_NOTE_ORDER.filter((k) => doc.meta.lineNoteKeys.includes(k))
-  const hours = (n: number) => `${n.toLocaleString('ko-KR')}${QUOTE.hourUnit}`
+  const axisOf = (l: DocumentLine) => axisTexts(l, doc.meta.rateAxisKeys, money)
+  const noteOf = (l: DocumentLine) => lineNoteText(l, doc.meta.lineNoteKeys, money)
+  const convRows = () =>
+    convTexts(doc.totals.conv, doc.meta.totalConvKeys, lineSumMinor(doc.totals), money)
 
-  /**
-   * 되짚은 값에 「약」을 붙일지. **곱해서 합계로 안 돌아오면 붙인다.**
-   *
-   * 월 999,360원을 730 으로 나누면 1,368.98… 이라 1,369원으로 적게 되는데, 고객이
-   * 그 값에 1,460시간을 곱하면 합계보다 20원 많다. 그 20원을 설명할 길이 「약」뿐이다.
-   */
-  const approx = (minor: string | null, times: number | null, totalMinor: string): string | null => {
-    if (minor == null || times == null) return null
-    const exact = BigInt(minor) * BigInt(times) === BigInt(totalMinor)
-    return `${exact ? '' : `${APPROX_PREFIX} `}${money(minor)}`
-  }
-
-  /**
-   * 품목 이름 아래 한 줄. 근거(기간·총 시간·월 기준 시간)를 금액과 **같은 줄에 안 섞는다** —
-   * 금액 칸은 숫자가 세로로 맞아야 크기를 눈으로 비교할 수 있다.
-   */
-  const noteLine = (l: DocumentLine): string => {
-    const r = l.rate
-    const parts: string[] = []
-    for (const k of notes) {
-      if (k === 'period' && r?.start && r.end) parts.push(`${LINE_NOTE_LABEL.period} ${r.start} ~ ${r.end}`)
-      if (k === 'totalHours' && r?.totalHours) parts.push(`${LINE_NOTE_LABEL.totalHours} ${hours(r.totalHours)}`)
-      if (k === 'hoursBasis' && r) parts.push(`${LINE_NOTE_LABEL.hoursBasis} ${hours(r.hoursPerMonth)}`)
-      if (k === 'wasAndDiscount' && l.isSpecialDiscount && l.baseAmountMinor !== l.amountMinor) {
-        parts.push(`${QUOTE.lineWasAmount} ${money(l.baseAmountMinor)} · ${l.discountPercent}%`)
-      }
-    }
-    return parts.join(' · ')
-  }
-
-
-  /**
-   * 합계 영역에 설 환산 줄. **고른 것이 없거나 기간이 섞이면 빈 목록** — 그때는 줄이 안 생긴다.
-   *
-   * 나누어지는 금액은 품목 금액의 합(할인 반영·세금 제외)이다. 문서가 그것을 나눠 두었고
-   * 여기서는 그 값에 「약」을 붙일지만 되센다 — 곱해서 그 합으로 안 돌아오면 붙인다.
-   */
-  const convRows = () => {
-    const c = doc.totals.conv
-    if (!c) return []
-    const lineSum = (BigInt(doc.totals.subtotalMinor) - BigInt(doc.totals.discountMinor)).toString()
-    const rows: { key: string; label: string; basis: string[]; amount: string }[] = []
-    for (const k of TOTAL_CONV_ORDER) {
-      if (!doc.meta.totalConvKeys.includes(k)) continue
-      if (k === 'monthly' && c.monthlyMinor && c.months) {
-        const a = approx(c.monthlyMinor, c.months, lineSum)
-        if (a) rows.push({
-          key: k, label: TOTAL_CONV_LABEL.monthly, amount: a,
-          basis: [`${c.months}${LINE_KIND_UNIT.PERIOD}`],
-        })
-      }
-      if (k === 'hourly' && c.hourlyMinor && c.totalHours) {
-        rows.push({
-          key: k, label: TOTAL_CONV_LABEL.hourly,
-          amount: `${c.hourlyExact ? '' : `${APPROX_PREFIX} `}${money(c.hourlyMinor)}`,
-          /* 근거 둘은 **따로 떨어진 사실**이라 칸이 좁으면 둘 사이에서 접힌다 */
-          basis: [
-            `${LINE_NOTE_LABEL.hoursBasis} ${hours(c.hoursPerMonth)}`,
-            `${QUOTE.totalHours} ${hours(c.totalHours)}`,
-          ],
-        })
-      }
-    }
-    return rows
-  }
-  /** 금액 칸에 덧붙는 축 줄. 고른 것이 없거나 기간이 없으면 아무것도 안 그린다 */
-  const axisLines = (l: DocumentLine) => {
-    const r = l.rate
-    if (axes.length === 0 || !r) return null
-    const rows: { label: string; body: string }[] = []
-    for (const k of axes) {
-      if (k === 'total') {
-        rows.push({ label: RATE_AXIS_LABEL.total, body: money(l.amountMinor) })
-      }
-      if (k === 'monthly' && r.monthlyMinor && r.months) {
-        const m = approx(r.monthlyMinor, r.months, l.amountMinor)
-        if (m) rows.push({ label: RATE_AXIS_LABEL.monthly, body: `${m} × ${r.months}${LINE_KIND_UNIT.PERIOD}` })
-      }
-      if (k === 'hourly' && r.hourlyMinor && r.totalHours) {
-        const h = `${r.hourlyExact ? '' : `${APPROX_PREFIX} `}${money(r.hourlyMinor)}`
-        rows.push({ label: RATE_AXIS_LABEL.hourly, body: `${h} × ${hours(r.totalHours)}` })
-      }
-    }
-    if (rows.length === 0) return null
-    return (
-      <div className={styles.axes}>
-        {rows.map((x) => (
-          <div key={x.label} className={styles.axisRow}>
-            <span className={styles.axisLabel}>{x.label}</span>
-            <span className={styles.axisBody}>{x.body}</span>
-          </div>
-        ))}
-      </div>
-    )
-  }
   /** 열 수. 할인 칸이 빠지면 표가 여섯 열이고, 아래 모든 colSpan 이 이 값에서 나온다 */
   const cols = (showDiscount ? 7 : 6) + (showRemark ? 1 : 0)
 
@@ -247,7 +152,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                         그 사이에 셈 이야기를 끼우면 사양이 둘로 쪼개져 읽힌다(실측 2026-10-04:
                         「GPU RAM 48GB」와 「Instance vCPUs 12」 사이에 기간 줄이 끼었다).
                       */}
-                      {noteLine(l) !== '' && <div className={styles.rateNote}>{noteLine(l)}</div>}
+                      {noteOf(l) !== '' && <div className={styles.rateNote}>{noteOf(l)}</div>}
                     </td>
                     <td className={styles.center}>{l.unit ?? ''}</td>
                     <td className={styles.num}>{Number(l.quantity).toLocaleString('ko-KR')}</td>
@@ -309,7 +214,16 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                           <span className={styles.nowAmount}>{money(l.amountMinor)}</span>
                         </span>
                       ) : money(l.amountMinor)}
-                      {axisLines(l)}
+                      {axisOf(l).length > 0 && (
+                        <div className={styles.axes}>
+                          {axisOf(l).map((x) => (
+                            <div key={x.key} className={styles.axisRow}>
+                              <span className={styles.axisLabel}>{x.label}</span>
+                              <span className={styles.axisBody}>{x.body}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     {/*
                       **비고는 그 줄이 이 견적에서 무슨 구실인가**다 — 「서버 새시」「64코어」

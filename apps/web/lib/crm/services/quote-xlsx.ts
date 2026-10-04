@@ -18,6 +18,9 @@ import { exportFileName, type QuoteDocument } from '../domain/quote-document.ts'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '../../terms/quote.ts'
 import { hasDiscount, hasRemark } from '../domain/quote-document.ts'
 import { minorDigits, currencyAffix } from '../../../app/(crm)/crm/deals/amount.ts'
+import {
+  axisTexts, lineNoteText, convTexts, lineSumMinor,
+} from '../domain/quote-rate-text.ts'
 
 /** 항목 표의 열 — 화면(§견적서)과 **같은 순서**다. 다르면 같은 문서가 아니다 */
 const COLUMNS = [
@@ -96,6 +99,19 @@ function money(minor: string, currency: string): number | string {
   const n = Number(minor) / 10 ** digits
   // 2^53 을 넘으면 숫자로 쓰면 값이 조용히 틀어진다 — 그럴 땐 문자열로 둔다
   return Number.isSafeInteger(Number(minor)) && Number.isFinite(n) ? n : minor
+}
+
+/**
+ * 축·환산 줄에 **글로** 적는 금액.
+ *
+ * 금액 열의 셀 값은 숫자로 둔다(받은 사람이 더할 수 있어야 한다). 반면 축과 환산은
+ * 「999,360원 × 2개월」처럼 **설명 한 문장**이라 통화까지 붙은 글이어야 뜻이 산다.
+ */
+function moneyText(minor: string, currency: string): string {
+  const { prefix, suffix } = currencyAffix(currency)
+  const n = Number(minor) / 10 ** minorDigits(currency)
+  const body = Number.isFinite(n) ? n.toLocaleString('ko-KR') : minor
+  return `${prefix}${body}${suffix}`
 }
 
 /**
@@ -571,7 +587,19 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     */
     const specLines = [line.spec, ...(printComponents === 'collapse' ? [] : line.components)]
       .filter((v): v is string => Boolean(v))
-    const name = specLines.length > 0 ? `${line.name}\n${specLines.join('\n')}` : line.name
+    /*
+      **축과 근거도 함께 간다.** 화면에서는 축이 금액 칸 아래에 붙지만 엑셀의 금액 칸은
+      수식이라(받은 사람이 수량을 고치면 다시 계산돼야 한다) 글을 같이 못 둔다.
+      그래서 품목 칸으로 내린다 — **자리는 달라도 값은 같다**, 그게 셋이 한 문서인 조건이다.
+    */
+    const note = lineNoteText(line, doc.meta.lineNoteKeys, (m) => moneyText(m, cur))
+    const axes = axisTexts(line, doc.meta.rateAxisKeys, (m) => moneyText(m, cur))
+    const underName = [
+      ...specLines,
+      ...(note ? [note] : []),
+      ...axes.map((a) => `${a.label} ${a.body}`),
+    ]
+    const name = underName.length > 0 ? `${line.name}\n${underName.join('\n')}` : line.name
     const values: (string | number | { formula: string })[] = [
       line.no,
       name,
@@ -616,7 +644,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       열두 줄이 칸 밖으로 잘렸다 — 셀에는 있는데 눈에는 안 보이는 상태다.
       `wrapHeight` 가 줄바꿈까지 세므로 그 값을 그대로 쓴다.
     */
-    ws.getRow(r).height = Math.max(specLines.length > 0 ? 34 : 22, wrapHeight(name, COLUMNS[1].width, 16))
+    ws.getRow(r).height = Math.max(underName.length > 0 ? 34 : 22, wrapHeight(name, COLUMNS[1].width, 16))
     r += 1
     }
 
@@ -715,7 +743,15 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       : netTotalF)
     : null
 
-  const totals: [string, string, boolean, string | null][] = [
+  /*
+    한 줄은 [라벨, 값, 합계인가, 수식].
+    **값이 이미 글인 줄이 있다** — 환산 줄은 「약 1,369원」처럼 「약」이 붙을 수 있어
+    숫자로 둘 수 없다. 그 줄만 `asText` 로 표시해 숫자 변환을 건너뛴다.
+  */
+  type TotalRow = [string, string, boolean, string | null] & { asText?: boolean }
+  const asText = (row: [string, string, boolean, string | null]): TotalRow =>
+    Object.assign(row as TotalRow, { asText: true })
+  const totals: TotalRow[] = [
     [QUOTE.subtotal, doc.totals.subtotalMinor, false, subtotalF],
     // 안 준 할인을 「0원」으로 적어 보내지 않는다 — 받는 쪽은 그것을 «일부러 안 줬다»로 읽는다
     ...(showDiscount
@@ -732,9 +768,18 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
         [QUOTE.rounding, doc.totals.roundingMinor, false, null],
       ] as [string, string, boolean, string | null][]
       : []),
+    /*
+      **환산 줄은 합계 바로 위.** 화면과 같은 자리·같은 값이다. 근거(개월·월 기준 시간·
+      총 시간)는 라벨 아래 줄로 붙인다 — 화면이 작은 글씨로 두는 그 줄이다.
+      값은 수식으로 안 둔다: 되짚은 숫자라 받은 사람이 수량을 고치면 근거부터 달라진다.
+    */
+    ...convTexts(doc.totals.conv, doc.meta.totalConvKeys, lineSumMinor(doc.totals),
+      (m) => moneyText(m, cur))
+      .map((c) => asText([`${c.label}\n${c.basis.join(' · ')}`, c.amount, false, null])),
     [QUOTE.total, doc.totals.totalMinor, true, grandF],
   ]
-  for (const [label, value, grand, formula] of totals) {
+  for (const row of totals) {
+    const [label, value, grand, formula] = row
     /*
       **라벨은 D:F 세 칸에 걸친다.** 화면에서도 합계 라벨이 오른쪽 세 열을 가로질러
       금액 바로 앞에 붙는다 — 두 칸이면 「합계 금액」이 좁아 보이고 금액과의 간격이 벌어진다
@@ -745,10 +790,13 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     l.value = label
     l.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }
     l.font = { size: grand ? 13 : 10, bold: grand, color: { argb: grand ? 'FF111827' : MUTED } }
+    // 근거가 붙은 라벨은 두 줄이다 — 접히게 두지 않으면 둘째 줄이 칸 밖에서 사라진다
+    if (row.asText) l.alignment = { ...l.alignment, wrapText: true }
 
     const v = ws.getCell(`${LAST_COL}${r}`)
-    v.value = formula ? { formula } : money(value, cur)
-    v.numFmt = fmt
+    v.value = formula ? { formula } : (row.asText ? value : money(value, cur))
+    // 글로 적은 줄에 숫자 서식을 걸면 「약 1,369원」이 통화 서식과 겹쳐 두 번 적힌다
+    if (!row.asText) v.numFmt = fmt
     v.alignment = { horizontal: 'right', vertical: 'middle' }
     v.font = { size: grand ? 14 : 10, bold: grand }
     if (grand) {
@@ -757,7 +805,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       for (const col of ['D', 'E', 'F', LAST_COL]) ws.getCell(`${col}${r}`).border = { top }
       ws.getRow(r).height = 24
     } else {
-      ws.getRow(r).height = 18
+      ws.getRow(r).height = row.asText ? 30 : 18
     }
     r += 1
   }

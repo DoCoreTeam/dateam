@@ -504,3 +504,68 @@ test('★ 아무도 안 적으면 비고 열이 안 선다 — 빈 열이 표를
   const text = await textOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
   assert.ok(!text.includes(QUOTE.lineRemark), '아무도 안 적었는데 비고 제목이 있다')
 })
+
+/*
+  ── 금액 축과 환산 줄 ────────────────────────────────────────────────────────
+
+  화면·인쇄·엑셀 셋이 같은 `QuoteDocument` 를 읽지만 **글을 각자 지으면 서서히 다른
+  문서가 된다.** 그래서 글 짓는 일은 `domain/quote-rate-text` 한 곳이고, 여기서는
+  그 글이 파일에 실제로 실렸는지를 본다 — 「화면에 있는 것이 파일에도 있나」.
+*/
+function rateDoc(over: Partial<BuildQuoteDocumentInput['quote']> = {}) {
+  return doc({
+    quote: {
+      quoteNo: 'Q-2026-0101', title: 'GPU 시간제 견적', currency: 'KRW',
+      validUntil: '2026-11-02', createdAt: '2026-10-03T00:00:00.000Z',
+      subtotalMinor: BigInt(1998720), discountMinor: BigInt(0),
+      taxMinor: BigInt(199872), totalMinor: BigInt(2198592),
+      notesMd: null,
+      rateAxisKeys: ['total', 'monthly', 'hourly'],
+      lineNoteKeys: ['period', 'totalHours', 'hoursBasis'],
+      totalConvKeys: ['monthly', 'hourly'],
+      ...over,
+    },
+    lines: [{
+      name: 'NVIDIA L40S PCIe', descriptionMd: null, unit: 'Hours', quantity: '1440',
+      unitPriceMinor: BigInt(1388), discountPercent: '0', lineTotalMinor: BigInt(1998720),
+      startDate: '2026-10-07', endDate: '2026-12-06',
+    }],
+  })
+}
+
+test('★ 화면에 선 금액 축이 파일에도 같은 값으로 있다', async () => {
+  const t = await textOf((await quoteDocumentToXlsx({ document: rateDoc() })).buffer)
+
+  // 2026-10-07 ~ 2026-12-06 = 딱 2개월, 730 기준 1,460시간
+  assert.ok(t.includes('기간 총액 1,998,720원'), '기간 총액 줄이 없다')
+  assert.ok(t.includes('월 금액 999,360원 × 2개월'), `월 금액 곱셈식이 없다\n${t}`)
+  // 1,998,720 ÷ 1,460 = 1,368.98… → 안 떨어지므로 「약」이 붙는다
+  assert.ok(t.includes('시간당 금액 약 1,369원 × 1,460h'), '시간당 곱셈식이나 「약」이 없다')
+  // 월 금액은 곱해서 합계로 **돌아오므로** 「약」이 붙으면 안 된다
+  assert.ok(!t.includes('약 999,360원'), '딱 떨어지는 월 금액에 「약」이 붙었다')
+})
+
+test('★ 화면에 선 근거가 파일에도 있다 — 기간·총 시간·월 기준 시간', async () => {
+  const t = await textOf((await quoteDocumentToXlsx({ document: rateDoc() })).buffer)
+  assert.ok(t.includes('기간 2026-10-07 ~ 2026-12-06'), '기간 근거가 없다')
+  assert.ok(t.includes('총 시간 1,460h'), '총 시간 근거가 없다')
+  assert.ok(t.includes('월 기준 시간 730h'), '월 기준 시간 근거가 없다')
+})
+
+test('★ 합계 환산 줄이 파일에도 같은 값으로 있다 — 근거까지', async () => {
+  const t = await textOf((await quoteDocumentToXlsx({ document: rateDoc() })).buffer)
+  assert.ok(t.includes('월 환산\n2개월'), `월 환산 줄과 근거가 없다\n${t}`)
+  assert.ok(t.includes('시간당 환산\n월 기준 시간 730h · 총 시간 1,460h'), '시간당 환산 근거가 없다')
+  assert.ok(t.includes('약 1,369원'), '시간당 환산 값이 없다')
+})
+
+test('★ 아무것도 안 고르면 축도 환산 줄도 파일에 없다 — 지금까지와 같은 문서다', async () => {
+  const t = await textOf((await quoteDocumentToXlsx({
+    document: rateDoc({ rateAxisKeys: [], lineNoteKeys: [], totalConvKeys: [] }),
+  })).buffer)
+  for (const s of ['기간 총액', '월 금액', '시간당 금액', '월 환산', '시간당 환산', '총 시간', '× 2개월']) {
+    assert.ok(!t.includes(s), `안 골랐는데 「${s}」가 파일에 있다`)
+  }
+  // 금액 자체는 그대로다 — 축을 안 골랐다고 견적이 바뀌면 안 된다
+  assert.ok(t.includes(QUOTE.total), '합계 줄이 사라졌다')
+})
