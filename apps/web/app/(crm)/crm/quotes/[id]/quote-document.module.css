@@ -268,6 +268,53 @@
 .spec { color: var(--text-muted); font-size: var(--fs-xs); margin-top: 0.15rem; white-space: pre-line; }
 
 /*
+  ── 금액 축과 그 근거 ──────────────────────────────────────────────────────
+
+  **합계는 그대로 두고 그 위에 관계를 적는다.** 금액 칸의 큰 숫자는 늘 기간 총액이고
+  (표가 세로로 더하는 값이라 바뀌면 안 된다), 고른 축은 그 아래 작은 줄로 붙어
+  「어떻게 그 숫자가 됐는지」를 말한다 — 월 999,360원 × 2개월.
+
+  **줄 안에서 끊기지 않게 한다.** 「× 2개월」만 다음 줄로 넘어가면 곱셈이 아무것도
+  가리키지 못한다(할인 화살표가 같은 이유로 같은 규칙을 쓴다 — .priceFlow).
+*/
+.axes {
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: var(--hairline) solid var(--border-light);
+  display: grid;
+  gap: 0.15rem;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/*
+  **두 칸이 아니라 한 줄의 글이다.** 좌우로 밀어 두면(flex justify) 긴 줄에서
+  이름과 식이 양 끝에 떨어져 앉아 한 줄이 두 칸처럼 보인다. 오른쪽 정렬한 글로 두면
+  접히더라도 이어지는 말로 읽힌다 — 25% 폭은 실측으로 정한 값이라 못 넓힌다.
+*/
+.axisRow { text-align: right; }
+
+/* 이름은 숫자보다 한 단 연하다 — 칸의 주인공은 숫자다 */
+.axisLabel { color: var(--text-subtle, var(--text-muted)); margin-right: 0.3rem; }
+
+/* 식은 통째로 붙어 다닌다 — 「× 2개월」만 다음 줄로 가면 곱셈이 아무것도 안 가리킨다 */
+.axisBody { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/*
+  근거 줄은 **품목 이름 아래**다. 규격과 같은 자리·같은 크기이되 위에 선을 안 둔다 —
+  규격은 물건을 말하고 이것은 셈을 말해 성격이 달라도, 둘 다 이름에 딸린 설명이다.
+*/
+.rateNote {
+  /* 사양 묶음 다음에 오므로 한 칸 띄워 «여기부터 다른 이야기»를 만든다 */
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/*
   구성 — 항목 아래 목록으로.
 
   **화면에는 늘 나온다.** 종이에서만 설정을 따른다(`data-print`) — 구성이 길면
