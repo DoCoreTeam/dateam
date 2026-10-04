@@ -84,6 +84,14 @@ export {
   FILL_TOTAL_OURS, FILL_TOTAL_DOCUMENT, type FillRiskKey,
   ROUNDING_MODES, roundingUnitName, roundingUnitLabel, roundingNote,
   type SupplierField, type RoundingModeKey,
+  APPROX_PREFIX, RATE_GROUP_TITLE,
+  RATE_AXIS_ORDER, RATE_AXIS_LABEL, type RateAxisKey,
+  LINE_NOTE_ORDER, LINE_NOTE_LABEL, type LineNoteKey,
+  TOTAL_CONV_ORDER, TOTAL_CONV_LABEL, type TotalConvKey,
+  HOURS_BASIS_ORDER, HOURS_BASIS_LABEL, HOURS_BASIS_HINT, type HoursBasisKey,
+  HOURS_BASIS_NO_SUPPLY, HOURS_BASIS_NOTE, RATE_PERIOD_MISSING,
+  PERIOD_START_LABEL, PERIOD_END_LABEL,
+  VARIANT, variantFromLine, variantCopyNote,
 } from './quote.ts'
 
 export {

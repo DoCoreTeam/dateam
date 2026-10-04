@@ -13,9 +13,38 @@
  */
 
 import { LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
+import { computePeriod } from '@/lib/crm/domain/quote-rate'
 import { todayPlus } from '@/components/ui/DateField'
 // 규격·구성을 붙이고 가르는 규칙은 화면 밖에 둔다 — 부품 파일은 node --test 가 못 읽는다
 export { joinSpec, splitSpec } from '@/lib/crm/domain/quote-spec'
+
+/**
+ * **시간으로 파는 종류.** 사용량은 시간당이 진짜 값이고 기간요금은 월 단가가
+ * 진짜 값이라, 둘 다 기간에서 나머지 축을 세울 수 있다. 수량·공수·라이선스·비율
+ * 줄에는 기간 칸도 금액 표시 자리도 서지 않는다 — 쓰지도 않을 것을 매번 지나쳐야 한다.
+ */
+const RATE_KINDS: readonly string[] = ['USAGE', 'PERIOD']
+
+export function sellsByTime(kind: string | null | undefined): boolean {
+  return RATE_KINDS.includes(kind ?? 'QUANTITY')
+}
+
+/**
+ * 모든 시간 품목이 **같은 기간**일 때만 그 기간을 돌려준다.
+ *
+ * 기간이 섞이면 「시간당 얼마」가 어느 줄의 것도 아니게 된다. 문서 조립도 같은
+ * 규칙을 쓴다(`lib/crm/domain/quote-document.ts`) — 두 곳이 다르게 세면
+ * 화면에서 본 숫자와 인쇄된 숫자가 갈린다.
+ */
+export function sharedRatePeriod(
+  lines: readonly QuoteLineDraft[],
+): { start: string; end: string } | null {
+  const timed = lines.filter((l) => sellsByTime(l.kind))
+  const first = timed[0]
+  if (!first?.startDate || !first.endDate) return null
+  if (timed.some((l) => l.startDate !== first.startDate || l.endDate !== first.endDate)) return null
+  return computePeriod(first.startDate, first.endDate) ? { start: first.startDate, end: first.endDate } : null
+}
 
 export interface QuoteLineDraft {
   id?: string | null
@@ -43,6 +72,13 @@ export interface QuoteLineDraft {
   roleLabel?: string
   quantity: string
   unit: string
+  /**
+   * 공급 기간(YYYY-MM-DD). **견적 유효기간과 다르다** — 유효기간은 「언제까지 이 값이
+   * 유효한가」이고 이것은 「언제부터 언제까지 공급하는가」다. 여기서 개월과 총 시간을 센다.
+   * 하나만 적어도 된다 — 끝이 협의 중인 견적이 실제로 있다.
+   */
+  startDate?: string
+  endDate?: string
   unitPriceMinor: string
   discountPercent: string
   /** 특별 할인율(%) — **빈 문자열이면 «없음»** 이다. '0' 은 「0% 할인」이라 뜻이 다르다 */
@@ -88,6 +124,15 @@ export interface QuoteDraft {
   roundingUnit: number
   /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
   roundingMode: string
+  /**
+   * 금액 표시 — 무엇을 함께 인쇄할지. **합계는 이 선택으로 안 바뀐다.**
+   * 비어 있으면 지금까지와 같은 견적서가 나온다.
+   */
+  rateAxisKeys: string[]
+  lineNoteKeys: string[]
+  totalConvKeys: string[]
+  /** 월 기준 시간. 빈 문자열이면 설정 기본값(730) */
+  rateHoursPerMonth: string
   lines: QuoteLineDraft[]
 }
 
@@ -119,6 +164,9 @@ export function toLinePayload(l: QuoteLineDraft): Record<string, unknown> {
     kind: l.kind ?? 'QUANTITY',
     roleLabel: (l.roleLabel ?? '').trim() || null,
     sectionIndex: typeof l.sectionIndex === 'number' ? l.sectionIndex : null,
+    // 빈 칸은 «기간 없음» — 하나만 적어도 된다
+    startDate: l.startDate?.trim() || null,
+    endDate: l.endDate?.trim() || null,
   }
 }
 
@@ -143,6 +191,11 @@ export function newQuoteDraft(dealName: string, currency: string | null, validDa
     // 새 견적은 절사 안 함 — 협상 결과이지 기본값이 아니다
     roundingUnit: 0,
     roundingMode: 'DOWN',
+    // 새 견적은 금액 표시를 안 쓴다 — 켜는 것은 사람이 정할 일이다
+    rateAxisKeys: [],
+    lineNoteKeys: [],
+    totalConvKeys: [],
+    rateHoursPerMonth: '',
     lines: [emptyLine()],
   }
 }
@@ -170,6 +223,11 @@ export function quoteToDraft(body: any): QuoteDraft {
     sections: (body.sections ?? []).map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })),
     roundingUnit: Number(body.roundingUnit ?? 0),
     roundingMode: body.roundingMode ?? 'DOWN',
+    // 안 들고 오면 고른 축이 저장하는 순간 사라진다 — 이 파일이 생긴 이유와 같은 사고다
+    rateAxisKeys: body.rateAxisKeys ?? [],
+    lineNoteKeys: body.lineNoteKeys ?? [],
+    totalConvKeys: body.totalConvKeys ?? [],
+    rateHoursPerMonth: body.rateHoursPerMonth == null ? '' : String(body.rateHoursPerMonth),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     lines: (body.lines ?? []).map((l: any) => ({
       id: l.id,
@@ -182,6 +240,8 @@ export function quoteToDraft(body: any): QuoteDraft {
       remark: l.remark ?? '',
       quantity: String(l.quantity),
       unit: l.unit ?? '',
+      startDate: l.startDate ? String(l.startDate).slice(0, 10) : '',
+      endDate: l.endDate ? String(l.endDate).slice(0, 10) : '',
       unitPriceMinor: String(l.unitPriceMinor),
       discountPercent: String(l.discountPercent),
       // null 이면 «없음» 이므로 빈 문자열이다 — String(null) 이 '\uc5c6\uc74c' 이 아니라 'null' 이 되면 안 된다

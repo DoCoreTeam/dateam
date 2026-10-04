@@ -252,6 +252,13 @@ export const QUOTE = {
  */
 export const APPROX_PREFIX = '약'
 
+/** 선택 묶음 셋의 제목 — **어디에 인쇄되는지**를 말한다. 그걸 안 말하면 고르는 사람이 결과를 모른다 */
+export const RATE_GROUP_TITLE = {
+  axis: '금액 칸에 함께 인쇄',
+  lineNote: '품목 아래에 함께 인쇄',
+  totalConv: '합계 영역에 함께 인쇄',
+} as const
+
 /** 금액 칸에 함께 인쇄할 축. 셋 다 켜도 되고 하나만 켜도 된다 */
 export type RateAxisKey = 'total' | 'monthly' | 'hourly'
 
@@ -317,6 +324,15 @@ export const HOURS_BASIS_NO_SUPPLY = '이 품목은 매입 자료가 없어요'
 /** 월 기준 시간이 합계를 안 바꾼다는 사실을 선택 자리에서 말한다 */
 export const HOURS_BASIS_NOTE =
   '합계 금액은 안 바뀝니다. 견적서에 시간당을 함께 인쇄할 때 그 숫자만 달라집니다.'
+
+/*
+  **공급 기간 칸의 두 라벨.** 「기간」 한 낱말로는 시작 칸과 끝 칸을 가를 수 없고,
+  끝 칸에 유효기간 말을 붙이면 **다른 뜻이 된다** — 유효기간은 「언제까지 이 값이
+  유효한가」이고 이것은 「언제까지 공급하는가」다. 두 달 빌려 주는 견적의
+  유효기간이 두 달이 되어 버린다.
+*/
+export const PERIOD_START_LABEL = '공급 시작'
+export const PERIOD_END_LABEL = '공급 종료'
 
 /** 기간이 아직 비어 금액 축을 못 세울 때 */
 export const RATE_PERIOD_MISSING = '기간을 적으면 시간당과 월 금액을 함께 인쇄할 수 있어요'

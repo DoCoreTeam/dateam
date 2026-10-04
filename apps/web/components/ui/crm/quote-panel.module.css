@@ -248,6 +248,8 @@
   .colRole ~ .colName { grid-column: span 4; }
   .colRole ~ .colSpec { grid-column: span 3; }
 
+  /* 공급 기간 — 시간으로 파는 줄에만 선다. 둘이 나란히 서야 「언제부터 언제까지」로 읽힌다 */
+  .colPeriod  { grid-column: span 3; }
   .colQty     { grid-column: span 2; }
   .colUnit    { grid-column: span 1; }
   .colPrice   { grid-column: span 2; }
@@ -433,6 +435,92 @@
   font-size: var(--fs-xs);
   color: var(--text-muted);
   text-align: right;
+}
+
+/*
+  금액 표시 — 무엇을 함께 인쇄할지 고르는 자리.
+
+  절사 바로 아래, 합계 바로 위에 선다. 「얼마인가」를 묻는 덩어리 안이라
+  고른 결과가 그 자리에서 바로 보인다.
+*/
+.rateBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  margin-bottom: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.rateGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/* 묶음 제목 — **어디에 인쇄되는지**를 말한다. 그걸 안 말하면 고르는 사람이 결과를 모른다 */
+.rateLegend {
+  padding: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.rateCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.rateCheck input { cursor: pointer; }
+
+/*
+  월 기준 시간 — 선택지마다 **그 선택의 결과**가 아래 줄에 붙는다.
+  고르는 동안 숫자가 보여야 730 과 720 의 차이를 안다.
+*/
+.rateRadio {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.rateRadioOn {
+  border-color: var(--accent);
+  background: var(--surface-subtle);
+}
+
+.rateRadio:has(input:disabled) { cursor: default; opacity: 0.6; }
+
+.rateRadioBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--fs-sm);
+}
+
+/* 결과값·사유 — 고르기 전에 무엇이 달라지는지 말한다 */
+.rateRadioNote {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rateNote {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
 }
 
 /* 묶음 목록 — 항목 표 위에 선다. 이름만 고치는 자리라 한 줄이면 충분하다 */

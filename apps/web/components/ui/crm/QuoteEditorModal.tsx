@@ -41,6 +41,7 @@ import {
   approvalNeeded,
 } from '@/lib/terms'
 import QuoteLineSpecFields from '@/components/ui/crm/QuoteLineSpecFields'
+import QuoteLinePeriodFields from '@/components/ui/crm/QuoteLinePeriodFields'
 
 import styles from './quote-panel.module.css'
 
@@ -50,7 +51,7 @@ import styles from './quote-panel.module.css'
 export type { QuoteLineDraft, QuoteDraft } from './quote-draft-shape'
 export { newQuoteDraft, quoteToDraft } from './quote-draft-shape'
 import {
-  emptyLine, toLinePayload,
+  emptyLine, toLinePayload, sellsByTime, sharedRatePeriod,
   type QuoteLineDraft, type QuoteDraft, type ProductJson,
 } from './quote-draft-shape'
 
@@ -131,6 +132,10 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
   // 보낸 견적의 항목은 서버가 거절한다 — 화면에서도 미리 잠가 둔다.
   // 잠그지 않으면 사용자는 다 고친 뒤 저장에서야 "안 됩니다"를 듣는다.
   const linesLocked = Boolean(draft.status && draft.status !== 'DRAFT')
+
+  // 금액 표시 자리는 시간으로 파는 줄이 하나라도 있을 때만 선다 (규칙은 모양 파일에)
+  const rateApplies = draft.lines.some((l) => sellsByTime(l.kind))
+  const sharedPeriod = sharedRatePeriod(draft.lines)
 
   const setLine = (i: number, patch: Partial<QuoteLineDraft>) => {
     setDraft((d) => ({
@@ -233,6 +238,15 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           roundingUnit: draft.roundingUnit,
           roundingMode: draft.roundingMode,
           sections: draft.sections.map((x) => ({ id: x.id ?? null, name: x.name })),
+          /*
+            금액 표시도 함께 보낸다. **안 실으면 화면에서 고른 축이 저장하는 순간 사라진다** —
+            이 파일의 초안 모양(quote-draft-shape)이 생긴 이유와 같은 사고다.
+            넷이 한 벌이라 함께 간다(하나만 보내면 나머지가 앞 판으로 남는다).
+          */
+          rateAxisKeys: draft.rateAxisKeys,
+          lineNoteKeys: draft.lineNoteKeys,
+          totalConvKeys: draft.totalConvKeys,
+          rateHoursPerMonth: draft.rateHoursPerMonth || null,
         }),
         ...(linesLocked ? {} : { lines }),
         ...(isEdit ? { version: draft.version } : {}),
@@ -577,6 +591,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     placeholder="개월"
                   />
                 </div>
+                {/*
+                  **공급 기간 — 시간으로 파는 줄에만 선다.**
+                  장비 납품 줄에 기간 칸이 서면 쓰지도 않을 것을 매번 지나쳐야 한다.
+                  여기서 적은 날짜로 개월과 총 시간을 세어 시간당·월 금액을 낸다.
+                */}
+                {sellsByTime(line.kind) && (
+                  <QuoteLinePeriodFields
+                    index={i}
+                    startDate={line.startDate ?? ''}
+                    endDate={line.endDate ?? ''}
+                    disabled={linesLocked}
+                    onChange={(patch) => setLine(i, patch)}
+                  />
+                )}
                 <div className={`${styles.field} ${styles.colPrice}`}>
                   <label className="label" htmlFor={`ln-price-${i}`}>{LINE_KIND_PRICE_LABEL[line.kind ?? 'QUANTITY']}</label>
                   <input
@@ -679,6 +707,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             ...(patch.unit !== undefined ? { roundingUnit: patch.unit } : {}),
             ...(patch.mode !== undefined ? { roundingMode: patch.mode } : {}),
           }))}
+          /*
+            **시간으로 파는 줄이 하나도 없으면 금액 표시 자리를 안 준다.**
+            장비 납품 견적에 「시간당 얼마」를 묻는 칸이 서면 쓰지도 않을 것을 매번 지나쳐야 한다.
+          */
+          rate={rateApplies ? {
+            rateAxisKeys: draft.rateAxisKeys,
+            lineNoteKeys: draft.lineNoteKeys,
+            totalConvKeys: draft.totalConvKeys,
+            rateHoursPerMonth: draft.rateHoursPerMonth,
+          } : undefined}
+          onRateChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+          ratePeriod={sharedPeriod}
+          /* 매입과 견적을 잇는 일은 이 플랜 범위 밖이다 — 지금은 늘 「매입 자료 없음」으로 선다 */
+          supplyHoursPerMonth={null}
         />
 
         {approval && (
