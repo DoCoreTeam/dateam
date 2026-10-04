@@ -12,6 +12,7 @@ import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '@/lib/terms/quote'
 import {
   RATE_AXIS_ORDER, RATE_AXIS_LABEL, LINE_NOTE_ORDER, LINE_NOTE_LABEL, APPROX_PREFIX,
+  TOTAL_CONV_ORDER, TOTAL_CONV_LABEL,
 } from '@/lib/terms/quote'
 import { LINE_KIND_UNIT } from '@/lib/terms/cost'
 import { hasDiscount, hasRemark } from '@/lib/crm/domain/quote-document'
@@ -96,6 +97,41 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
     return parts.join(' · ')
   }
 
+
+  /**
+   * 합계 영역에 설 환산 줄. **고른 것이 없거나 기간이 섞이면 빈 목록** — 그때는 줄이 안 생긴다.
+   *
+   * 나누어지는 금액은 품목 금액의 합(할인 반영·세금 제외)이다. 문서가 그것을 나눠 두었고
+   * 여기서는 그 값에 「약」을 붙일지만 되센다 — 곱해서 그 합으로 안 돌아오면 붙인다.
+   */
+  const convRows = () => {
+    const c = doc.totals.conv
+    if (!c) return []
+    const lineSum = (BigInt(doc.totals.subtotalMinor) - BigInt(doc.totals.discountMinor)).toString()
+    const rows: { key: string; label: string; basis: string[]; amount: string }[] = []
+    for (const k of TOTAL_CONV_ORDER) {
+      if (!doc.meta.totalConvKeys.includes(k)) continue
+      if (k === 'monthly' && c.monthlyMinor && c.months) {
+        const a = approx(c.monthlyMinor, c.months, lineSum)
+        if (a) rows.push({
+          key: k, label: TOTAL_CONV_LABEL.monthly, amount: a,
+          basis: [`${c.months}${LINE_KIND_UNIT.PERIOD}`],
+        })
+      }
+      if (k === 'hourly' && c.hourlyMinor && c.totalHours) {
+        rows.push({
+          key: k, label: TOTAL_CONV_LABEL.hourly,
+          amount: `${c.hourlyExact ? '' : `${APPROX_PREFIX} `}${money(c.hourlyMinor)}`,
+          /* 근거 둘은 **따로 떨어진 사실**이라 칸이 좁으면 둘 사이에서 접힌다 */
+          basis: [
+            `${LINE_NOTE_LABEL.hoursBasis} ${hours(c.hoursPerMonth)}`,
+            `${QUOTE.totalHours} ${hours(c.totalHours)}`,
+          ],
+        })
+      }
+    }
+    return rows
+  }
   /** 금액 칸에 덧붙는 축 줄. 고른 것이 없거나 기간이 없으면 아무것도 안 그린다 */
   const axisLines = (l: DocumentLine) => {
     const r = l.rate
@@ -570,6 +606,40 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                   {tailCell}
                 </tr>
               )}
+              {/*
+                **환산 줄은 합계 바로 위에 선다 — 원화 환산과 같은 자리, 같은 꼴이다.**
+
+                「그래서 한 달에 얼마인가」는 원화 환산과 같은 종류의 물음이다. 받은 사람이
+                바로 되짚어 보는 숫자이고, 되짚을 근거(월 기준 시간·총 시간)를 안 밝히면
+                그 숫자를 믿을 수 없다 — 그래서 라벨 아래 작은 글씨로 근거를 함께 적는다.
+
+                **고른 것이 없으면 줄이 아예 안 생긴다.** 문서가 conv 를 null 로 준다.
+              */}
+              {convRows().map((r) => (
+                <tr key={r.key}>
+                  <td colSpan={padSpan} />
+                  <td className={styles.totalLabel} colSpan={labelSpan}>
+                    {r.label}
+                    {/*
+                      원화 환산의 근거 줄과 같은 꼴이되 **접힐 수 있다** — 환율 한 문장은
+                      통째로 붙어 다녀야 하지만(.fxNote 는 nowrap), 이쪽 근거는 둘이라
+                      그 사이에서 접히는 편이 칸 밖으로 23px 삐져나가는 것보다 낫다(실측).
+                    */}
+                    <span className={styles.convNote}>
+                      {/*
+                        가름표는 **진짜 빈칸과 함께** 글로 둔다. CSS ::before 로 붙이면
+                        앞뒤가 nowrap 인 두 조각 사이에 끊을 자리가 없어져 통째로 한 줄이
+                        되고, 390 에서 칸 밖으로 60px 삐져나갔다(실측 2026-10-04).
+                      */}
+                      {r.basis.map((b, i) => (
+                        <Fragment key={b}>{i > 0 ? ' · ' : ''}<span className={styles.convPart}>{b}</span></Fragment>
+                      ))}
+                    </span>
+                  </td>
+                  <td className={styles.num}>{r.amount}</td>
+                  {tailCell}
+                </tr>
+              ))}
               <tr className={styles.grand}>
                 <td colSpan={padSpan} />
                 <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.total}</td>
