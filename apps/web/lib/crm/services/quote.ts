@@ -41,7 +41,10 @@ import {
 } from '../domain/quote-math.ts'
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
 import { LINE_KIND_ORDER, type QuoteLineKind } from '../../terms/cost.ts'
-import { roundingUnitName } from '../../terms/quote.ts'
+import {
+  roundingUnitName,
+  RATE_AXIS_ORDER, LINE_NOTE_ORDER, TOTAL_CONV_ORDER,
+} from '../../terms/quote.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
 import { readQuoteNoPattern, readQuoteSupplier, readQuoteImages } from './setting.ts'
 import { freezeAsset } from './quote-asset.ts'
@@ -74,6 +77,9 @@ export interface QuoteLineRow {
   position: number
   /** 비고 — 그 줄이 이 견적에서 무슨 구실인가(「서버 새시」「64코어」「Raid5」) */
   remark: string | null
+  /** 공급 기간 — 여기서 개월과 총 시간을 센다 */
+  startDate: Date | null
+  endDate: Date | null
 }
 
 /** 견적 안의 묶음 하나(읽기) */
@@ -98,6 +104,11 @@ export interface QuoteRow {
   fxRate: string | null
   fxDate: Date | null
   fxSource: string | null
+  /** 금액 표시 — 무엇을 함께 인쇄할지. 합계는 이 선택으로 안 바뀐다 */
+  rateHoursPerMonth: number | null
+  rateAxisKeys: string[]
+  lineNoteKeys: string[]
+  totalConvKeys: string[]
   /** 어디서 복제됐나 */
   sourceQuoteId: string | null
   /** 개정 차수. 1 이면 첫 판 */
@@ -162,6 +173,8 @@ const LINE_SELECT = {
   kind: true, roleLabel: true, laborGradeId: true,
   // 비고 — 여기 없으면 타입은 맞는데 값이 안 와서 표 열만 서고 칸이 빈다
   remark: true,
+  // 공급 기간 — 여기서 개월과 총 시간을 센다. 안 읽으면 축이 설 근거가 화면에 안 닿는다
+  startDate: true, endDate: true,
 } as const
 
 const SELECT = {
@@ -170,6 +183,8 @@ const SELECT = {
   roundingUnit: true, roundingMode: true, roundingMinor: true,
   sourceQuoteId: true, revision: true, variantLabel: true,
   fxRate: true, fxDate: true, fxSource: true,
+  // 금액 표시 — 안 읽으면 고른 축이 문서에 안 닿아 늘 지금과 같은 한 줄만 나온다
+  rateHoursPerMonth: true, rateAxisKeys: true, lineNoteKeys: true, totalConvKeys: true,
   approvalRequired: true, approvedById: true, approvedAt: true, notesMd: true,
   // createdById 는 **담당자(영업대표)**를 정하는 데 쓴다 — ownerId 가 비면 만든 사람이 담당이다
   termIds: true, termsSnapshot: true, ownerId: true, createdById: true, recipientPersonId: true,
@@ -222,6 +237,9 @@ export interface QuoteLineData {
   taxRate?: number | string | null
   /** 비고 — 그 줄이 이 견적에서 무슨 구실인가(「서버 새시」「64코어」「Raid5」) */
   remark?: string | null
+  /** 공급 시작일·종료일(YYYY-MM-DD). 하나만 적어도 된다 — 끝이 협의 중인 견적이 있다 */
+  startDate?: string | null
+  endDate?: string | null
 }
 
 /**
@@ -239,6 +257,8 @@ const LINE_KEYS = new Set([
   'kind', 'roleLabel', 'laborGradeId',
   // 여기 없으면 적어도 조용히 버려진다 — 화이트리스트가 모르는 이름을 지우기 때문이다
   'remark',
+  // 공급 기간 — 견적 유효기간과 다르다
+  'startDate', 'endDate',
 ])
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
@@ -247,6 +267,8 @@ const QUOTE_KEYS = new Set([
   'sourceFileName', 'sourcePageStart', 'sourcePageEnd', 'sourceSnapshotId',
   // 수정 경로가 함께 보내는 것들
   'version', 'status',
+  // 금액 표시 — 무엇을 함께 인쇄할지. 합계는 이 선택으로 안 바뀐다
+  'rateHoursPerMonth', 'rateAxisKeys', 'lineNoteKeys', 'totalConvKeys',
 ])
 
 /** 모르는 이름이 섞여 있으면 **거절한다** — 조용히 버리면 보낸 쪽은 반영된 줄 안다 */
@@ -295,6 +317,71 @@ function toQuantity(v: number | string | null | undefined): number {
 }
 
 /** 항목 하나를 DB 에 넣을 모양으로. 합계는 여기서 **서버가** 계산한다 */
+/**
+ * 날짜 문자열 하나 — 빈 값은 null, **못 읽는 값은 거절한다.**
+ *
+ * 조용히 null 로 눕히면 기간을 적었는데 안 적힌 견적이 생기고, 그 견적은
+ * 시간당·월 금액을 못 세운 채 합계만 찍힌다. 보낸 쪽은 반영된 줄 안다.
+ */
+export function toDateOrNull(v: string | null | undefined, field: string): Date | null {
+  if (v === undefined || v === null || v === '') return null
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) {
+    throw new CrmError('VALIDATION_FAILED', `날짜를 읽지 못했습니다: ${v}`, { field })
+  }
+  return d
+}
+
+/** 월 기준 시간의 바깥 울 — DB CHECK 와 같은 값이다(마이그 303) */
+const RATE_HOURS_MIN = 1
+const RATE_HOURS_MAX = 8784
+
+/**
+ * 금액 표시 선택을 추린다.
+ *
+ * **모르는 키는 버리고 범위 밖 시간은 거절한다.** 버리는 것과 거절하는 것이 다른 이유:
+ * 키는 화면이 보내는 목록이라 판이 갈리면 새 키가 섞일 수 있고 그때 저장이 통째로 막히면
+ * 견적을 못 쓴다. 시간은 **금액을 나누는 수**라 틀리면 견적서에 틀린 단가가 찍힌다.
+ */
+export function toRateDisplay(input: {
+  rateHoursPerMonth?: number | string | null
+  rateAxisKeys?: string[] | null
+  lineNoteKeys?: string[] | null
+  totalConvKeys?: string[] | null
+}): {
+  rateHoursPerMonth: number | null
+  rateAxisKeys: string[]
+  lineNoteKeys: string[]
+  totalConvKeys: string[]
+} {
+  const pick = (got: string[] | null | undefined, allowed: readonly string[]): string[] => {
+    if (!Array.isArray(got)) return []
+    // 순서는 용어집이 정한다 — 화면이 보낸 순서대로 두면 같은 선택이 견적마다 다르게 인쇄된다
+    return allowed.filter((k) => got.includes(k))
+  }
+
+  const raw = input.rateHoursPerMonth
+  let hours: number | null = null
+  if (raw !== undefined && raw !== null && raw !== '') {
+    const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/[^\d]/g, ''))
+    if (!Number.isInteger(n) || n < RATE_HOURS_MIN || n > RATE_HOURS_MAX) {
+      throw new CrmError(
+        'VALIDATION_FAILED',
+        `월 기준 시간은 ${RATE_HOURS_MIN}부터 ${RATE_HOURS_MAX}까지 넣을 수 있습니다.`,
+        { field: 'rateHoursPerMonth' },
+      )
+    }
+    hours = n
+  }
+
+  return {
+    rateHoursPerMonth: hours,
+    rateAxisKeys: pick(input.rateAxisKeys, RATE_AXIS_ORDER),
+    lineNoteKeys: pick(input.lineNoteKeys, LINE_NOTE_ORDER),
+    totalConvKeys: pick(input.totalConvKeys, TOTAL_CONV_ORDER),
+  }
+}
+
 function toLineData(line: QuoteLineData, position: number): Record<string, unknown> {
   rejectUnknownKeys(line, LINE_KEYS, `${position + 1}번째 항목`)
   const name = requireText(line.name)
@@ -349,6 +436,9 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
     specialDiscountReason: normalizeText(line.specialDiscountReason),
     // 비고는 표 한 칸에 서는 한마디다 — 여러 줄이 아니므로 normalizeText 로 한 줄로 만든다
     remark: normalizeText(line.remark),
+    // 공급 기간. 하나만 적어도 된다 — 끝이 협의 중인 견적이 실제로 있다
+    startDate: toDateOrNull(line.startDate, 'startDate'),
+    endDate: toDateOrNull(line.endDate, 'endDate'),
     taxRate,
     lineTotalMinor: amounts.lineTotalMinor,
     position,
@@ -627,6 +717,14 @@ export interface CreateQuoteInput {
   sourcePageEnd?: number | null
   /** 그 쪽을 오려 둔 첨부 id. 조각을 나중에 붙이면 수정 경로로 채운다 */
   sourceSnapshotId?: string | null
+  /**
+   * 금액 표시 — 무엇을 함께 인쇄할지. **합계는 이 선택으로 안 바뀐다.**
+   * 기간요금이면 월 단가가 진짜 값이고 시간당은 그것을 나눈 표시값이다.
+   */
+  rateHoursPerMonth?: number | string | null
+  rateAxisKeys?: string[] | null
+  lineNoteKeys?: string[] | null
+  totalConvKeys?: string[] | null
 }
 
 /**
@@ -689,6 +787,8 @@ export async function createQuote(
 
     const lines = (input.lines ?? []).map((l, i) => toLineData(l, i))
     const rounding = toRounding(input)
+    // 금액 표시 선택 — 아래 두 경로(첫 시도·번호가 겹쳐 다시 하는 길)가 같은 값을 쓴다
+    const rateDisplay = toRateDisplay(input)
     /*
       **환율은 만드는 시점에 박는다.** 나중에 조회하며 환산하면 매일 금액이 달라진다.
       못 찾으면 null 로 둔다 — 1.0 으로 눕히면 달러 견적이 원화로 1/1400 이 된다.
@@ -753,6 +853,7 @@ export async function createQuote(
           title,
           currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
+          ...rateDisplay,
           notesMd: normalizeMultiline(input.notesMd),
           // 고른 조건. 순서를 그대로 저장한다 — 그 순서가 인쇄 순서다
           termIds,
@@ -787,6 +888,7 @@ export async function createQuote(
         data: {
           dealId: input.dealId, quoteNo, title, currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
+          ...rateDisplay,
           notesMd: normalizeMultiline(input.notesMd), ownerId: input.ownerId || null,
           recipientPersonId: input.recipientPersonId || null,
           termIds,
@@ -898,6 +1000,15 @@ export interface UpdateQuoteInput {
   termIds?: string[]
   version: number
   /**
+   * 금액 표시 — 무엇을 함께 인쇄할지. **합계는 이 선택으로 안 바뀐다.**
+   * 넷 중 하나라도 오면 넷을 함께 다시 쓴다 — 셋만 바꾸면 남은 하나가 앞 판으로 남아
+   * 화면이 보여 준 조합과 인쇄되는 조합이 갈린다.
+   */
+  rateHoursPerMonth?: number | string | null
+  rateAxisKeys?: string[] | null
+  lineNoteKeys?: string[] | null
+  totalConvKeys?: string[] | null
+  /**
    * 원본 조각(첨부 id). **만들 때가 아니라 여기로 온다** — 견적이 생긴 뒤에야
    * 그 견적에 첨부를 올릴 수 있기 때문이다. 빈 값은 떼는 뜻이다(조각이 틀렸을 때
    * 떼고 파일 전체로 물러설 수 있어야 한다).
@@ -988,6 +1099,16 @@ export async function updateQuote(
     }
     if (input.validUntil !== undefined) {
       data.validUntil = input.validUntil ? new Date(input.validUntil) : null
+    }
+    /*
+      **금액 표시는 넷이 한 벌이다.** 하나만 와도 넷을 다시 쓴다 — 축만 바꾸고 기준 시간을
+      안 보내면 앞 판의 시간이 남아, 화면이 보여 준 환산값과 인쇄되는 값이 갈린다.
+    */
+    if (
+      input.rateHoursPerMonth !== undefined || input.rateAxisKeys !== undefined
+      || input.lineNoteKeys !== undefined || input.totalConvKeys !== undefined
+    ) {
+      Object.assign(data, toRateDisplay(input))
     }
     /*
       **특기사항도 여러 줄이다.** 화면은 textarea 이고 인쇄는 pre-wrap 인데 저장만 한 줄로
