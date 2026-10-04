@@ -1433,6 +1433,18 @@ export async function duplicateQuote(
         roundingUnit: src.roundingUnit, roundingMode: src.roundingMode,
         roundingMinor: src.roundingMinor,
         approvalRequired: src.approvalRequired,
+        /*
+          **금액 표시 선택도 물려받는다.**
+
+          안 물려받으면 안을 만든 사람이 축·근거·환산과 월 기준 시간을 처음부터 다시 고른다 —
+          그런데 「다른 안」은 조건만 다르고 **같은 제안**이라, 같은 축으로 보여야 둘을 견준다.
+          한쪽은 시간당이 적혀 있고 다른 쪽은 안 적혀 있으면 고객이 둘을 못 비교한다.
+
+          실측 2026-10-04: 축 셋·근거 넷·환산 둘을 켠 견적에서 다른 안을 만들자
+          새 견적의 세 칸이 전부 빈 목록이었다. 비고·환율이 안 따라가던 것과 같은 자리다.
+        */
+        rateAxisKeys: src.rateAxisKeys, lineNoteKeys: src.lineNoteKeys,
+        totalConvKeys: src.totalConvKeys, rateHoursPerMonth: src.rateHoursPerMonth,
         // 승인은 **따라오지 않는다** — 금액이 달라질 문서이므로 다시 받아야 한다
         sourceQuoteId: src.id,
         revision: mode === 'revision' ? src.revision + 1 : src.revision,
@@ -1471,6 +1483,11 @@ export async function duplicateQuote(
             복제본을 열면 그 자리만 조용히 비어, 고친 적 없는 줄이 달라진다.
           */
           remark: l.remark,
+          /*
+            **공급 기간도 따라간다.** 기간이 없으면 개월과 총 시간을 셀 수 없어
+            복제본에서는 금액 축이 **설 근거를 잃는다** — 축을 켜 두어도 아무것도 안 그려진다.
+          */
+          startDate: l.startDate, endDate: l.endDate,
           sectionId: l.sectionId ? (secMap.get(l.sectionId) ?? null) : null,
         },
       })
