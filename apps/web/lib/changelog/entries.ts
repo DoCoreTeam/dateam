@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.917',
+    date: '2026-10-04',
+    title: '다른 안을 만들면 설정이 따라가요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🧬',
+        headline: '다른 안·개정본에 금액 표시와 공급 기간이 그대로 따라가요',
+        detail: '시간당·월·기간 축을 켜고 공급 기간까지 적어 둔 견적에서 다른 안을 만들면, 새 견적이 그 설정을 하나도 들고 가지 않아 처음부터 다시 골라야 했어요. 이제 그대로 따라갑니다. 같은 제안의 다른 안이니 같은 축으로 보여야 둘을 견줄 수 있어요.',
+      },
+    ],
+  },
+  {
     version: '0.10.913',
     date: '2026-10-04',
     title: 'GPU 견적이 시간당·월·기간으로 보여요',
