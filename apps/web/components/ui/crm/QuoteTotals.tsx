@@ -290,7 +290,7 @@ export default function QuoteTotals({
             const on = basis === k
             const noSupply = k === 'supply' && supplyHoursPerMonth == null
             /*
-              **「직접」은 고르기 전까지 숫자를 안 보인다.** 적힌 수는 지금 고른 선택지의
+              **「직접」은 선택하기 전까지 숫자를 안 보인다.** 적힌 수는 지금 고른 선택지의
               것이라, 730 을 고른 채로 「직접」 옆에 그 환산값을 적으면 **고르지도 않은
               선택지가 결과를 약속한다**(실측: 720 을 고르자 「직접」 옆에도 720 값이 섰다).
             */

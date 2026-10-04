@@ -510,7 +510,7 @@
   font-size: var(--fs-sm);
 }
 
-/* 결과값·사유 — 고르기 전에 무엇이 달라지는지 말한다 */
+/* 결과값·사유 — 선택하기 전에 무엇이 달라지는지 말한다 */
 .rateRadioNote {
   font-size: var(--fs-xs);
   color: var(--text-muted);
