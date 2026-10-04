@@ -886,6 +886,24 @@ model CrmQuote {
   fxDate   DateTime? @db.Date
   fxSource String?
 
+  /// ── 금액 표시 ───────────────────────────────────────────────
+  /// **같은 금액을 세 가지로 말할 수 있다** — 시간당 얼마, 한 달에 얼마, 그 기간 다 해서 얼마.
+  /// 셋 다 맞는 말이고 고객이 어느 쪽으로 물을지는 그때 다르다. 그래서 무엇을 함께 인쇄할지 고른다.
+  ///
+  /// **합계는 축을 바꿔도 안 바뀐다.** 기간요금이면 월 단가가 진짜 값이고 시간당은 그것을 나눈
+  /// 표시값이다 — rateHoursPerMonth 가 730 이냐 720 이냐는 그 나눈 숫자만 바꾼다.
+  ///
+  /// 성격별로 세 칸에 나눈다. 한 칸에 접두어로 섞으면 읽을 때마다 가르는 코드가 필요하고,
+  /// 그 가르기가 틀리면 조용히 엉뚱한 자리에 선다.
+  /// 월 기준 시간. 비면 설정 기본값(730). DB CHECK 가 1~8784 밖을 막는다
+  rateHoursPerMonth Int?
+  /// 금액 칸에 함께 인쇄할 축 — total·monthly·hourly (lib/terms/quote.ts RateAxisKey)
+  rateAxisKeys      String[] @default([])
+  /// 품목 이름 아래 한 줄로 이어 붙는 것 — period·totalHours·hoursBasis·wasAndDiscount
+  lineNoteKeys      String[] @default([])
+  /// 합계 영역에 서는 환산 줄 — monthly·hourly. 원화 환산과 같은 자리
+  totalConvKeys     String[] @default([])
+
   /// ── 개정본과 다른 안 ────────────────────────────────────────
   /// **두 가지는 뜻이 다르다.** 개정은 앞 판을 대체하고(Rev.2), 다른 안은 나란히 산다(1안/2안).
   /// 하나로 합치면 「2안의 Rev.3」을 표현할 수 없다.
@@ -1014,6 +1032,15 @@ model CrmQuoteLine {
   /// 우리 양식에 원래 있던 열인데 담을 칸이 없어 읽어도 버려졌다(실측 2026-09-21).
   /// 규격과 다르다 — 규격은 물건이 무엇인가이고, 비고는 이 견적에서 그 줄이 무슨 구실인가다.
   remark          String?
+
+  /// ── 공급 기간 ───────────────────────────────────────────────
+  /// **견적 유효기간(crm_quote.validUntil)과 다르다.** 유효기간은 「언제까지 이 값이 유효한가」이고
+  /// 이것은 「언제부터 언제까지 공급하는가」다. 여기서 개월과 총 시간을 세어 시간당·월 금액을 낸다.
+  /// 딜에 이미 기간이 있어(CrmDeal.startDate·endDate) 견적을 만들 때 가져온다.
+  /// 둘 중 하나만 적는 것도 된다 — 시작만 알고 끝은 협의 중인 견적이 실제로 있다.
+  /// DB CHECK 가 끝이 시작보다 앞서는 것을 막는다
+  startDate       DateTime?
+  endDate         DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
