@@ -442,3 +442,88 @@ test('★ 비고 칸은 띄어쓰기 없는 긴 값도 칸 안에서 접는다',
   assert.match(remark[0], /overflow-wrap: break-word/,
     '띄어쓰기 없는 긴 값이 칸 밖으로 나가 잘린다')
 })
+
+// ── 금액 표시 선택이 되돌려지는 것을 막는다 ──────────────────────────────────
+//
+// 이 묶음은 **P0109 에서 실제로 난 사고 넷**을 그대로 잠근다.
+// 셋은 구현 중에 잡혔고 하나는 앞 판의 교훈이다. 넷 다 「화면은 멀쩡한데
+// 고른 것이 어딘가에서 조용히 사라지는」 종류라, 눈으로는 안 보인다.
+
+const DRAFT_SHAPE = read('components/ui/crm/quote-draft-shape.ts')
+const XLSX = read('lib/crm/services/quote-xlsx.ts')
+
+test('★ 편집 모달이 표시 선택 넷을 저장 몸통에 싣는다 — 안 실으면 고른 것이 저장하는 순간 사라진다', () => {
+  // 끝 표시를 **이 저장에만 있는 글자**로 잡는다 — 「await fetch」는 이 파일에 여럿이다
+  const body = MODAL.slice(MODAL.indexOf('const payload = {'), MODAL.indexOf('const res = await fetch(isEdit'))
+  assert.ok(body.length > 100, '저장 몸통을 못 찾았다 — 가드가 엉뚱한 자리를 보고 있다')
+  for (const key of ['rateAxisKeys', 'lineNoteKeys', 'totalConvKeys', 'rateHoursPerMonth']) {
+    assert.match(body, new RegExp(`${key}:`),
+      `저장 몸통에 ${key} 가 없다. 화면에서 고른 것이 저장하는 순간 사라진다`)
+  }
+})
+
+test('★ 초안이 표시 선택 넷을 되읽는다 — 안 읽으면 다시 열 때마다 빈 상태로 돌아간다', () => {
+  const back = DRAFT_SHAPE.slice(DRAFT_SHAPE.indexOf('export function quoteToDraft'))
+  assert.ok(back.length > 100, 'quoteToDraft 를 못 찾았다')
+  for (const key of ['rateAxisKeys', 'lineNoteKeys', 'totalConvKeys', 'rateHoursPerMonth']) {
+    assert.match(back, new RegExp(`${key}:`), `quoteToDraft 가 ${key} 를 안 읽는다`)
+  }
+  // 품목 기간도 같다 — 안 읽으면 기간이 사라져 금액 축이 설 근거가 없어진다
+  for (const key of ['startDate', 'endDate']) {
+    assert.match(back, new RegExp(`${key}:`), `quoteToDraft 가 품목 ${key} 를 안 읽는다`)
+  }
+})
+
+test('★ 화면과 엑셀이 글을 각자 짓지 않는다 — 둘 다 quote-rate-text 를 읽는다', () => {
+  /*
+    셋이 같은 `QuoteDocument` 를 읽어도 **글을 각자 지으면 서서히 다른 문서가 된다.**
+    「약」을 붙이는 규칙이 한쪽에만 고쳐지면 화면과 파일이 다른 숫자를 말하고,
+    그건 고객이 둘을 나란히 놓는 순간 들킨다.
+  */
+  for (const [name, code] of [['견적서 화면', SHEET], ['엑셀', XLSX]] as const) {
+    // 경로를 **닫는 따옴표까지** 본다 — 부분 일치면 quote-rate-text2 도 통과한다(실측)
+    // 도메인은 상대 경로 + .ts 로 읽고(node --test 가 별칭을 모른다) 화면은 별칭으로 읽는다
+    assert.match(code, /quote-rate-text(\.ts)?['"]/, `${name} 이 글 짓는 곳을 안 읽는다`)
+    assert.match(code, /axisTexts|convTexts/, `${name} 이 축·환산 글을 자기가 짓고 있다`)
+  }
+  // 「약」을 붙일지는 **한 곳에서만** 정한다 — 두 곳에 있으면 한쪽만 고쳐진다
+  for (const [name, code] of [['견적서 화면', SHEET], ['엑셀', XLSX]] as const) {
+    assert.ok(!/APPROX_PREFIX/.test(code), `${name} 이 「약」 규칙을 따로 들고 있다`)
+  }
+})
+
+test('★ 「직접」은 값으로만 판정하지 않는다 — 값으로 보면 누른 순간 730 으로 되읽힌다', () => {
+  /*
+    실측(2026-10-04): 「직접」을 누르면 월 기준 시간이 빈 문자열이 되는데, 빈 값은
+    **기본값(730)** 이라 바로 730 으로 되읽혔다. 라디오가 제자리로 튀고 적을 칸이
+    영영 안 열렸다. 그래서 「눌렀다」는 사실을 화면이 따로 들고 있어야 한다.
+  */
+  // **선언과 쓰는 자리를 둘 다 본다.** 이름만 찾으면 `setCustomOn` 한 줄만 남아도 통과한다(실측)
+  assert.match(TOTALS, /const \[customOn, setCustomOn\] = useState/,
+    '「직접」을 누른 사실을 들고 있는 자리가 없다 — 값으로만 보면 누른 순간 730 으로 되읽힌다')
+  assert.match(TOTALS, /customOn\s*\?/, '들고는 있는데 판정에 안 쓴다')
+  assert.match(TOTALS, /basis === 'custom'/, '적는 칸이 basis 가 아니라 값으로 열린다')
+})
+
+test('★ 미리보기는 견적서가 나눌 그 금액을 나눈다 — 계를 나누면 인쇄된 숫자와 갈린다', () => {
+  /*
+    실측(2026-10-04): 미리보기가 계(세금 포함)를 나눠 시간당 1,506원을 보였는데
+    견적서는 품목 금액의 합을 나눠 1,369원을 인쇄했다. 고르는 사람이 본 숫자와
+    고객이 받는 숫자가 다르면 그 미리보기는 거짓말이다.
+  */
+  assert.match(TOTALS, /subtotalMinor\s*-\s*totals\.discountMinor/,
+    '미리보기가 품목 금액의 합이 아닌 것을 나눈다')
+  assert.ok(!/netTotalMinor/.test(TOTALS.slice(TOTALS.indexOf('hourlyAt'), TOTALS.indexOf('const toggle'))),
+    '미리보기가 계(세금 포함)를 나눈다 — 견적서는 품목 합을 나눈다')
+})
+
+test('★ 금액 칸의 축 줄은 식이 통째로 붙어 다닌다 — 「× 2개월」만 넘어가면 곱셈이 아무것도 안 가리킨다', () => {
+  const body = DOC.match(/\.axisBody \{[^}]*\}/)
+  assert.ok(body, '.axisBody 규칙을 못 찾았다')
+  assert.match(body[0], /white-space: nowrap/, '곱셈식이 줄 안에서 끊긴다')
+  // 근거 줄은 반대다 — 사실 둘이라 그 사이에서 접혀야 칸을 안 넘는다(390 에서 60px 넘쳤다)
+  const note = DOC.match(/\.convNote \{[^}]*\}/)
+  assert.ok(note, '.convNote 규칙을 못 찾았다')
+  assert.ok(!/white-space: nowrap/.test(note[0]),
+    '환산 근거가 nowrap 이라 좁은 칸에서 밖으로 삐져나간다')
+})
