@@ -51,6 +51,11 @@ export interface QuoteTotalsProps {
    */
   rateHours?: number | null
   /**
+   * **한 줄이라도 환산이 그려지나.** 안내는 이 값으로 갈린다 — 합계 환산이 서느냐와
+   * 다른 질문이라, 한 신호로 쓰면 되는 것을 안 된다고 말하게 된다.
+   */
+  rateAnyHours?: boolean
+  /**
    * 매입 견적이 쓰는 월 기준 시간. 없으면 「매입에 맞춤」이 못 쓰는 상태로 선다.
    * **지금은 늘 null 이다** — 매입과 견적을 잇는 일은 이 플랜 범위 밖이고,
    * 실측에서 취급 상품 88개 중 24개는 매입 자료가 아예 없다.
@@ -97,7 +102,8 @@ function hoursFor(
 
 export default function QuoteTotals({
   totals, currency, roundingUnit, roundingMode, locked, onRoundingChange,
-  rate, onRateChange, ratePeriod, rateHours = null, supplyHoursPerMonth = null,
+  rate, onRateChange, ratePeriod, rateHours = null, rateAnyHours = false,
+  supplyHoursPerMonth = null,
 }: QuoteTotalsProps) {
   /*
     **「직접」은 값으로 알 수 없다.** 누르면 칸이 비는데 빈 값은 기본값(730)이라
@@ -273,7 +279,7 @@ export default function QuoteTotals({
         */}
         {!ratePeriod && (
           <p className={styles.rateNote}>
-            {rateHours ? RATE_PERIOD_MISSING : RATE_HOURS_MISSING}
+            {rateAnyHours ? RATE_PERIOD_MISSING : RATE_HOURS_MISSING}
           </p>
         )}
 

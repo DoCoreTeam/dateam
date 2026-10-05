@@ -54,6 +54,21 @@ export function sharedRatePeriod(
  * 두 곳이 다르게 세면 고르는 사람이 본 숫자와 고객이 받는 숫자가 갈린다.
  * 기간이 있으면 기간이 세므로 여기서는 null 이다.
  */
+/**
+ * **한 줄이라도 환산이 그려지나.** 안내 문구는 이 값으로 갈린다.
+ *
+ * 합계 환산과 다른 질문이다. 합계는 「모든 줄이 같은 축일 때만」 설 수 있지만(그래서
+ * `sharedRateHours` 는 하나라도 어긋나면 null 이다), 금액 칸과 품목 아래 줄은 **줄마다 따로**
+ * 선다. 둘을 한 신호로 쓰면, 「식」 한 줄이 섞였다는 이유로 모달이 「시간당과 월 금액을
+ * 못 쓴다」고 말하면서 **견적서에는 그 값이 그대로 인쇄된다** — 실측 2026-10-05.
+ */
+export function anyRateHours(lines: readonly QuoteLineDraft[]): boolean {
+  return lines.some((l) => sellsByTime(l.kind) && (
+    computePeriod(l.startDate, l.endDate) != null
+    || hoursFromQuantity(l.unit, l.quantity) != null
+  ))
+}
+
 export function sharedRateHours(lines: readonly QuoteLineDraft[]): number | null {
   if (sharedRatePeriod(lines)) return null
   const timed = lines.filter((l) => sellsByTime(l.kind))

@@ -51,7 +51,7 @@ import styles from './quote-panel.module.css'
 export type { QuoteLineDraft, QuoteDraft } from './quote-draft-shape'
 export { newQuoteDraft, quoteToDraft } from './quote-draft-shape'
 import {
-  emptyLine, toLinePayload, sellsByTime, sharedRatePeriod, sharedRateHours,
+  emptyLine, toLinePayload, sellsByTime, sharedRatePeriod, sharedRateHours, anyRateHours,
   type QuoteLineDraft, type QuoteDraft, type ProductJson,
 } from './quote-draft-shape'
 
@@ -138,6 +138,8 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
   const sharedPeriod = sharedRatePeriod(draft.lines)
   // 기간을 안 적었어도 수량이 시간이면 환산이 선다 — 미리보기와 안내가 그 사실을 본다
   const sharedHours = sharedRateHours(draft.lines)
+  // 안내는 「한 줄이라도 되나」를 본다 — 합계 환산이 서느냐와 다른 질문이다
+  const anyHours = anyRateHours(draft.lines)
 
   const setLine = (i: number, patch: Partial<QuoteLineDraft>) => {
     setDraft((d) => ({
@@ -722,6 +724,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           onRateChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
           ratePeriod={sharedPeriod}
           rateHours={sharedHours}
+          rateAnyHours={anyHours}
           /* 매입과 견적을 잇는 일은 이 플랜 범위 밖이다 — 지금은 늘 「매입 자료 없음」으로 선다 */
           supplyHoursPerMonth={null}
         />

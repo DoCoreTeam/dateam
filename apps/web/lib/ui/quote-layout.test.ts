@@ -540,7 +540,7 @@ test('★ 금액 칸의 축 줄은 식이 통째로 붙어 다닌다 — 「× 2
 */
 
 test('★ 안내는 못 그리는 것만 말한다 — 수량이 시간이면 시간당을 못 쓴다고 하지 않는다', () => {
-  assert.match(TOTALS, /rateHours \? RATE_PERIOD_MISSING : RATE_HOURS_MISSING/,
+  assert.match(TOTALS, /rateAnyHours \? RATE_PERIOD_MISSING : RATE_HOURS_MISSING/,
     '안내가 기간 유무 하나로만 갈린다 — 수량이 시간인 경우를 안 가른다')
   assert.ok(TOTALS.includes('RATE_HOURS_MISSING,') || /RATE_HOURS_MISSING[,\s}]/.test(TOTALS),
     '새 안내 문구를 용어집에서 안 가져온다')
@@ -608,4 +608,24 @@ test('★ 그 두 문장도 용어집에 있다', () => {
   const TERMS = read('lib/terms/quote.ts')
   assert.match(TERMS, /export const HOURS_BASIS_NOTE_HOURS/, '수량이 셀 때의 안내가 용어집에 없다')
   assert.match(TERMS, /export const HOURS_BASIS_NO_MONTHS/, '개월이 안 맞는다는 말이 용어집에 없다')
+})
+
+test('★ 한 줄이라도 환산이 되면 못 한다고 말하지 않는다', () => {
+  /*
+    실측 2026-10-05: 「식」 한 줄과 「Hours 1,440」 한 줄이 섞인 견적에서 견적서에는
+    시간당 금액이 인쇄되는데, 모달은 「기간을 적거나 수량을 시간 단위로 적어야
+    시간당과 월 금액을 인쇄할 수 있어요」라고 적었다. **되는 것을 안 된다고 말했다.**
+
+    원인은 한 신호를 두 질문에 쓴 것이다 — 합계 환산은 모든 줄이 같은 축일 때만 서고,
+    금액 칸 줄은 줄마다 따로 선다.
+  */
+  const SHAPE = read('components/ui/crm/quote-draft-shape.ts')
+  assert.match(SHAPE, /export function anyRateHours/, '「한 줄이라도 되나」를 세는 자리가 없다')
+  assert.match(SHAPE, /lines\.some\(/, '모든 줄이 맞아야 한다는 규칙을 그대로 쓴다')
+  assert.match(TOTALS, /rateAnyHours \? RATE_PERIOD_MISSING : RATE_HOURS_MISSING/,
+    '안내가 아직 합계 환산용 신호로 갈린다')
+  assert.match(MODAL, /anyRateHours\(draft\.lines\)/, '세는 함수를 안 부른다')
+  assert.match(MODAL, /rateAnyHours=\{anyHours\}/, '세어 놓고 합계 부품에 안 넘긴다')
+  // 미리보기는 여전히 공통 시간을 본다 — 줄마다 다르면 한 숫자를 적을 수 없다
+  assert.match(TOTALS, /: rateHours\b/, '미리보기까지 「한 줄이라도」로 바꿔 버렸다')
 })
