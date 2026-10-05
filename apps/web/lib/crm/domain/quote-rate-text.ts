@@ -53,22 +53,28 @@ export interface AxisText {
 }
 
 /**
- * 고른 금액 축을 글로. **고른 것이 없거나 기간이 없으면 빈 목록**이다.
+ * 고른 금액 축을 글로. **고른 것이 없으면 빈 목록**이다.
  *
  * 기간 총액은 금액 칸의 큰 숫자 그 자체라 곱셈식이 없다 — 대신 이름을 달아
- * 「고른 것이 그려졌다」가 눈에 보이게 한다.
+ * 「고른 것이 그려졌다」가 눈에 보이게 한다. 환산이 없어도 이 줄은 선다.
  */
 export function axisTexts(
   line: DocumentLine, wanted: readonly string[], money: MoneyText,
 ): AxisText[] {
   const r = line.rate
-  if (!r || wanted.length === 0) return []
+  if (wanted.length === 0) return []
   const out: AxisText[] = []
   for (const k of RATE_AXIS_ORDER) {
     if (!wanted.includes(k)) continue
+    /*
+      **기간 총액은 근거를 요구하지 않는다.** 그 값은 금액 칸의 큰 숫자 그 자체라
+      환산도 기간도 필요 없다. 전에는 `rate` 가 없으면 셋이 함께 떨어져, 날짜를 안 적은
+      품목에서는 **고른 적도 없는 환산 때문에 고른 기간 총액까지 사라졌다.**
+    */
     if (k === 'total') {
       out.push({ key: k, label: RATE_AXIS_LABEL.total, body: money(line.amountMinor) })
     }
+    if (!r) continue
     if (k === 'monthly' && r.monthlyMinor && r.months) {
       const m = approxText(r.monthlyMinor, r.months, line.amountMinor, money)
       if (m) out.push({ key: k, label: RATE_AXIS_LABEL.monthly, body: `${m} × ${r.months}${LINE_KIND_UNIT.PERIOD}` })
