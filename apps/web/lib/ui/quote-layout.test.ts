@@ -571,3 +571,15 @@ test('★ 모달이 그 값을 실제로 세어서 넘긴다 — 선언만 하�
   assert.match(SHAPE, /hoursFromQuantity\(l\.unit, l\.quantity\)/,
     '수량을 시간으로 읽는 규칙이 문서 조립과 다른 자리에서 다시 쓰였다')
 })
+
+test('★ 견적서 화면은 환산 유무로 축을 접지 않는다 — 글 짓는 자리 한 곳만 본다', () => {
+  /*
+    화면·인쇄·엑셀 셋이 `domain/quote-rate-text` 에서 글을 받는다. 화면이 거기에 더해
+    제 나름의 조건(`l.rate` 가 있나)을 하나 더 걸면, 기간 총액처럼 **환산이 필요 없는
+    줄까지** 화면에서만 사라져 파일과 다른 문서가 된다.
+  */
+  assert.ok(!/\bl\.rate\b/.test(SHEET),
+    '화면이 환산 유무를 직접 보고 축을 접는다 — 판단은 글 짓는 자리 한 곳에만 있어야 한다')
+  assert.match(SHEET, /axisTexts\(l, doc\.meta\.rateAxisKeys/, '화면이 축 글을 안 받아 온다')
+  assert.match(SHEET, /lineNoteText\(l, doc\.meta\.lineNoteKeys/, '화면이 근거 글을 안 받아 온다')
+})

@@ -569,3 +569,42 @@ test('★ 아무것도 안 고르면 축도 환산 줄도 파일에 없다 — �
   // 금액 자체는 그대로다 — 축을 안 골랐다고 견적이 바뀌면 안 된다
   assert.ok(t.includes(QUOTE.total), '합계 줄이 사라졌다')
 })
+
+/*
+  ── 기간을 안 적은 시간 품목 ───────────────────────────────────────────────
+
+  실측 2026-10-05: 견적 DA-2026-1003-01 은 축 셋과 근거 셋을 다 골라 둔 채
+  품목 날짜가 비어 있었고, 그래서 화면에도 파일에도 **한 줄도 안 실렸다.**
+  수량 칸이 「1,440 Hours」라 셀 것은 다 있었다.
+*/
+
+test('★ 날짜를 안 적어도 수량이 시간이면 파일에 축이 실린다', async () => {
+  const t = await textOf((await quoteDocumentToXlsx({
+    document: doc({
+      quote: {
+        quoteNo: 'Q-2026-0101', title: 'GPU 시간제 견적', currency: 'KRW',
+        validUntil: '2026-11-02', createdAt: '2026-10-03T00:00:00.000Z',
+        subtotalMinor: BigInt(1998720), discountMinor: BigInt(0),
+        taxMinor: BigInt(199872), totalMinor: BigInt(2198592), notesMd: null,
+        rateAxisKeys: ['total', 'monthly', 'hourly'],
+        lineNoteKeys: ['period', 'totalHours', 'hoursBasis'],
+        totalConvKeys: ['monthly', 'hourly'],
+        rateHoursPerMonth: 720,
+      },
+      lines: [{
+        name: 'NVIDIA L40S PCIe', descriptionMd: null, unit: 'Hours', quantity: '1440',
+        unitPriceMinor: BigInt(1388), discountPercent: '0', lineTotalMinor: BigInt(1998720),
+      }],
+    }),
+  })).buffer)
+
+  assert.ok(t.includes('기간 총액 1,998,720원'), `기간 총액 줄이 없다\n${t}`)
+  assert.ok(t.includes('월 금액 999,360원 × 2개월'), '월 금액 곱셈식이 없다')
+  assert.ok(t.includes('시간당 금액 1,388원 × 1,440h'), '시간당 곱셈식이 없다')
+  assert.ok(!t.includes('약 1,388원'), '딱 떨어지는데 「약」이 붙었다')
+  assert.ok(t.includes('총 시간 1,440h'), '총 시간 근거가 없다')
+  assert.ok(t.includes('월 기준 시간 720h'), '월 기준 시간 근거가 없다')
+  assert.ok(t.includes('시간당 환산'), '합계 환산 줄이 없다')
+  // 날짜를 모르므로 기간 근거는 지어내지 않는다
+  assert.ok(!/기간 \d{4}-\d{2}-\d{2}/.test(t), '안 적은 날짜를 파일에 적었다')
+})
