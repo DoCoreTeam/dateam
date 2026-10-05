@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import {
   computePeriod, hourlyFromMonthly, monthlyFromHourly, monthlyFromTotal, hourlyFromTotal,
   toDateKey, DEFAULT_HOURS_PER_MONTH,
+  hoursFromQuantity, monthsFromHours, rateFromHours,
 } from './quote-rate.ts'
 
 /* ── 기간 ────────────────────────────────────── */
@@ -134,4 +135,70 @@ test('★ 날짜 키는 열 글자다', () => {
   assert.equal(toDateKey(null), null)
   assert.equal(toDateKey(''), null)
   assert.equal(toDateKey(new Date('nope')), null)
+})
+
+/* ── 수량에서 오는 시간 축 ────────────────────── */
+
+test('★ 단위가 시간이면 수량이 곧 총 시간이다', () => {
+  for (const u of ['Hours', 'hours', 'h', 'H', ' hr ', 'HRS', 'hour', '시간']) {
+    assert.equal(hoursFromQuantity(u, 1440), 1440, `${u} 를 시간으로 안 읽었다`)
+  }
+  // Prisma 가 주는 Decimal 은 문자열로 온다
+  assert.equal(hoursFromQuantity('Hours', '1440.000'), 1440)
+})
+
+test('★ 시간이 아닌 단위는 세지 않는다 — 한 식이 시간당이 되면 안 된다', () => {
+  for (const u of ['식', 'User', 'M/M', '개월', 'EA', '', null, undefined]) {
+    assert.equal(hoursFromQuantity(u, 1440), null, `${u} 를 시간으로 읽었다`)
+  }
+})
+
+test('★ 수량이 없거나 음수면 시간이 아니다', () => {
+  assert.equal(hoursFromQuantity('Hours', 0), null)
+  assert.equal(hoursFromQuantity('Hours', -5), null)
+  assert.equal(hoursFromQuantity('Hours', null), null)
+  assert.equal(hoursFromQuantity('Hours', 'abc'), null)
+})
+
+test('★ 총 시간이 월 기준으로 딱 나뉘면 개월이 선다', () => {
+  assert.equal(monthsFromHours(1440, 720), 2)
+  assert.equal(monthsFromHours(1460, 730), 2)
+  // 어중간하면 개월을 말하지 않는다
+  assert.equal(monthsFromHours(1000, 720), null)
+  assert.equal(monthsFromHours(1440, 730), null)
+  assert.equal(monthsFromHours(0, 720), null)
+  assert.equal(monthsFromHours(1440, 0), null)
+})
+
+test('★ 1,440시간 1,998,720원은 720 기준으로 2개월 999,360원 시간당 1,388원이다', () => {
+  const r = rateFromHours(1_998_720, 1440, 720)
+  assert.ok(r)
+  assert.equal(r.totalHours, 1440)
+  assert.equal(r.months, 2)
+  assert.equal(r.monthlyMinor, 999_360)
+  assert.equal(r.hourlyMinor, 1388)
+  assert.equal(r.hourlyExact, true, '1,388 × 1,440 = 1,998,720 이라 「약」이 붙으면 안 된다')
+})
+
+test('★ 개월이 안 떨어지면 월 금액을 말하지 않는다 — 시간당은 그대로 센다', () => {
+  const r = rateFromHours(1_998_720, 1000, 720)
+  assert.ok(r)
+  assert.equal(r.months, null)
+  assert.equal(r.monthlyMinor, null)
+  assert.equal(r.hourlyMinor, 1999, '1,998,720 ÷ 1,000 = 1,998.72 → 1,999')
+  assert.equal(r.hourlyExact, false, '안 떨어졌으면 「약」이 붙어야 한다')
+})
+
+test('★ 개월을 아는 쪽은 그 값을 넘긴다 — 기간에서 온 축이 시간으로 덮이지 않는다', () => {
+  // 2개월 1,440시간인데 기준이 730 이면 시간에서는 개월이 안 떨어진다.
+  // 기간이 센 2개월을 넘기면 월 금액이 선다.
+  const r = rateFromHours(1_998_720, 1440, 730, 2)
+  assert.ok(r)
+  assert.equal(r.months, 2)
+  assert.equal(r.monthlyMinor, 999_360)
+})
+
+test('★ 시간이 없으면 축이 아예 안 선다', () => {
+  assert.equal(rateFromHours(1_998_720, 0, 720), null)
+  assert.equal(rateFromHours(1_998_720, -1, 720), null)
 })

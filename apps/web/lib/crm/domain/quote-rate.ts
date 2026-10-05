@@ -129,3 +129,80 @@ export function hourlyFromTotal(totalMinor: number, totalHours: number): Convert
   if (!totalHours || totalHours <= 0) return null
   return divide(totalMinor, totalHours)
 }
+
+/* ── 수량에서 오는 시간 축 ───────────────────────────────────────────────────
+ *
+ * **시간 축의 근거는 둘이다.** 기간을 적었으면 기간이 세고, 안 적었으면 수량이 센다.
+ *
+ * GPU 임대 견적은 「1,440 Hours × 1,388원」처럼 **수량 칸에 시간이 그대로 적힌다.**
+ * 그 줄에 시작일·종료일을 안 적었다고 총 시간을 모르는 것이 아닌데, 기간만 보던 때는
+ * 고객이 체크한 시간당·월 금액이 통째로 사라졌다(실측 2026-10-05: 견적 DA-2026-1003-01
+ * 은 고른 축 셋과 근거 셋이 다 저장돼 있었는데 품목 날짜가 비어 한 줄도 안 그려졌다).
+ *
+ * 날짜는 **언제**를 말하고 수량은 **얼마나**를 말한다. 환산이 필요한 것은 뒤쪽이다.
+ */
+
+/** 수량 칸이 시간을 담고 있다고 볼 단위들. 대소문자와 앞뒤 빈칸은 안 가린다 */
+const HOUR_UNITS: readonly string[] = ['h', 'hr', 'hrs', 'hour', 'hours', '시간']
+
+/**
+ * 수량이 곧 총 시간인가. **단위가 시간을 가리킬 때만** 그 수량을 돌려준다.
+ *
+ * 「식」이나 「User」를 시간으로 읽으면 1,388원짜리 라이선스 한 식이 시간당 1,388원이 된다 —
+ * 아무 근거도 없는 숫자를 고객에게 적어 보내는 것이라 단위를 모르면 아예 세지 않는다.
+ */
+export function hoursFromQuantity(
+  unit: string | null | undefined,
+  quantity: number | string | null | undefined,
+): number | null {
+  const u = (unit ?? '').trim().toLowerCase()
+  if (!HOUR_UNITS.includes(u)) return null
+  const n = Number(quantity)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return n
+}
+
+/** 총 시간이 월 기준 시간으로 **딱 나뉘면** 그 개월. 안 떨어지면 null 이고 개월을 말하지 않는다 */
+export function monthsFromHours(totalHours: number, hoursPerMonth: number): number | null {
+  if (!Number.isFinite(totalHours) || totalHours <= 0) return null
+  if (!Number.isFinite(hoursPerMonth) || hoursPerMonth <= 0) return null
+  const m = totalHours / hoursPerMonth
+  return Number.isInteger(m) && m > 0 ? m : null
+}
+
+/** 시간 축 하나에서 되짚은 금액 셋 */
+export interface HoursRate {
+  totalHours: number
+  /** 딱 떨어지는 개월. 어중간하면 null */
+  months: number | null
+  /** 한 달치(minor). 개월을 모르면 null */
+  monthlyMinor: number | null
+  /** 시간당(minor) */
+  hourlyMinor: number | null
+  /** 시간당이 나누어떨어졌나 */
+  hourlyExact: boolean
+}
+
+/**
+ * 시간 축에서 금액 셋을 되짚는다. **셈은 늘 저장된 합계에서 내려온다** —
+ * 어느 쪽을 적어도 합계와 어긋나지 않고, 반올림 여부만 따로 말한다.
+ *
+ * 개월을 아는 쪽(기간)은 그 값을 넘기고, 모르는 쪽(수량)은 시간에서 센다.
+ */
+export function rateFromHours(
+  totalMinor: number,
+  totalHours: number,
+  hoursPerMonth: number,
+  months: number | null = monthsFromHours(totalHours, hoursPerMonth),
+): HoursRate | null {
+  if (!Number.isFinite(totalHours) || totalHours <= 0) return null
+  const monthly = monthlyFromTotal(totalMinor, months)
+  const hourly = hourlyFromTotal(totalMinor, totalHours)
+  return {
+    totalHours,
+    months,
+    monthlyMinor: monthly ? monthly.minor : null,
+    hourlyMinor: hourly ? hourly.minor : null,
+    hourlyExact: hourly ? hourly.exact : false,
+  }
+}
