@@ -17,12 +17,14 @@ import {
   RATE_AXIS_ORDER, RATE_AXIS_LABEL, LINE_NOTE_ORDER, LINE_NOTE_LABEL,
   TOTAL_CONV_ORDER, TOTAL_CONV_LABEL,
   HOURS_BASIS_ORDER, HOURS_BASIS_LABEL, HOURS_BASIS_HINT, HOURS_BASIS_NO_SUPPLY,
-  HOURS_BASIS_NOTE, RATE_PERIOD_MISSING, RATE_HOURS_MISSING, APPROX_PREFIX, RATE_GROUP_TITLE,
+  HOURS_BASIS_NOTE, HOURS_BASIS_NOTE_HOURS, HOURS_BASIS_NO_MONTHS,
+  RATE_PERIOD_MISSING, RATE_HOURS_MISSING, APPROX_PREFIX, RATE_GROUP_TITLE,
   type HoursBasisKey,
 } from '@/lib/terms'
 import {
-  computePeriod, hourlyFromTotal, DEFAULT_HOURS_PER_MONTH,
+  computePeriod, hourlyFromTotal, monthsFromHours, DEFAULT_HOURS_PER_MONTH,
 } from '@/lib/crm/domain/quote-rate'
+import { LINE_KIND_UNIT } from '@/lib/terms/cost'
 import styles from './quote-panel.module.css'
 
 export interface QuoteTotalsProps {
@@ -137,6 +139,22 @@ export default function QuoteTotals({
     if (!h) return null
     const money = formatAmount(String(h.minor), currency)
     return h.exact ? money : `${APPROX_PREFIX} ${money}`
+  }
+
+  /*
+    **선택지 옆에 붙는 결과는 무엇이 달라지느냐를 따른다.**
+
+    기간이 시간을 세면 기준에 따라 총 시간이 달라지므로 바뀌는 것은 시간당이다.
+    수량이 세면(「1,440 Hours」) 총 시간이 고정이라 시간당도 안 움직이고, 바뀌는 것은
+    그 시간을 **몇 달로 보느냐**다 — 1,440시간은 720 기준이면 2개월이고 730 기준이면
+    개월이 안 떨어져 월 금액을 못 적는다. 실측 2026-10-05: 그때 두 선택지 옆에
+    1,388원이 나란히 서서 **고르는 사람이 무엇을 고르는지 알 수 없었다.**
+  */
+  const resultAt = (hours: number): string | null => {
+    if (ratePeriod) return hourlyAt(hours)
+    if (!rateHours) return null
+    const m = monthsFromHours(rateHours, hours)
+    return m == null ? HOURS_BASIS_NO_MONTHS : `${m}${LINE_KIND_UNIT.PERIOD}`
   }
 
   const toggle = (list: string[], key: string): string[] =>
@@ -318,7 +336,7 @@ export default function QuoteTotals({
             */
             const hours = k === 'custom' && basis !== 'custom'
               ? null : hoursFor(k, rate, supplyHoursPerMonth)
-            const money = hours != null ? hourlyAt(hours) : null
+            const result = hours != null ? resultAt(hours) : null
             return (
               <label key={k} className={`${styles.rateRadio}${on ? ` ${styles.rateRadioOn}` : ''}`}>
                 <input
@@ -340,7 +358,7 @@ export default function QuoteTotals({
                   <span>{HOURS_BASIS_LABEL[k]}</span>
                   {/* 못 쓰는 선택지는 **왜 못 쓰는지**를 그 자리에 적는다 */}
                   <span className={styles.rateRadioNote}>
-                    {noSupply ? HOURS_BASIS_NO_SUPPLY : (money ?? HOURS_BASIS_HINT[k])}
+                    {noSupply ? HOURS_BASIS_NO_SUPPLY : (result ?? HOURS_BASIS_HINT[k])}
                   </span>
                 </span>
               </label>
@@ -360,7 +378,9 @@ export default function QuoteTotals({
           />
         )}
 
-        <p className={styles.rateNote}>{HOURS_BASIS_NOTE}</p>
+        <p className={styles.rateNote}>
+          {ratePeriod ? HOURS_BASIS_NOTE : rateHours ? HOURS_BASIS_NOTE_HOURS : HOURS_BASIS_NOTE}
+        </p>
       </div>
     )}
     <div className={styles.grandRow}>

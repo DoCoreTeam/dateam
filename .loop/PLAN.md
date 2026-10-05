@@ -107,7 +107,7 @@
 의존: I04, I05
 
 ### I07 월 기준 시간 선택지가 실제로 바뀌는 것을 보여 준다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/terms/quote.ts, apps/web/lib/terms/index.ts, apps/web/components/ui/crm/QuoteTotals.tsx, apps/web/lib/ui/quote-layout.test.ts
 감사 기준:

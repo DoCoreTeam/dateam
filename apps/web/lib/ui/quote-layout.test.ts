@@ -583,3 +583,29 @@ test('★ 견적서 화면은 환산 유무로 축을 접지 않는다 — 글 �
   assert.match(SHEET, /axisTexts\(l, doc\.meta\.rateAxisKeys/, '화면이 축 글을 안 받아 온다')
   assert.match(SHEET, /lineNoteText\(l, doc\.meta\.lineNoteKeys/, '화면이 근거 글을 안 받아 온다')
 })
+
+test('★ 월 기준 시간 선택지는 실제로 달라지는 것을 보여 준다', () => {
+  /*
+    수량이 센 시간은 기준이 730 이든 720 이든 안 움직인다. 그래서 시간당 환산값을
+    그대로 붙이면 두 선택지 옆에 **같은 숫자**가 서고, 고르는 사람은 무엇을 고르는지
+    알 수 없다(실측 2026-10-05: 둘 다 1,388원). 그때 갈리는 것은 개월이다.
+  */
+  assert.match(TOTALS, /const resultAt = \(hours: number\)/,
+    '선택지 옆 결과를 고르는 자리가 없다 — 시간당 하나만 붙인다')
+  assert.match(TOTALS, /if \(ratePeriod\) return hourlyAt\(hours\)/,
+    '기간이 셀 때도 시간당을 안 보여 준다')
+  assert.match(TOTALS, /monthsFromHours\(rateHours, hours\)/,
+    '수량이 셀 때 개월을 안 센다')
+  assert.match(TOTALS, /HOURS_BASIS_NO_MONTHS/,
+    '개월이 안 떨어질 때 왜 못 적는지 안 말한다')
+  assert.ok(!/\{HOURS_BASIS_HINT\[k\]\}/.test(TOTALS) || /result \?\? HOURS_BASIS_HINT\[k\]/.test(TOTALS),
+    '결과가 있어도 설명만 보여 준다')
+  assert.match(TOTALS, /ratePeriod \? HOURS_BASIS_NOTE : rateHours \? HOURS_BASIS_NOTE_HOURS/,
+    '아래 안내가 경우에 상관없이 「시간당 숫자만 달라진다」고 말한다')
+})
+
+test('★ 그 두 문장도 용어집에 있다', () => {
+  const TERMS = read('lib/terms/quote.ts')
+  assert.match(TERMS, /export const HOURS_BASIS_NOTE_HOURS/, '수량이 셀 때의 안내가 용어집에 없다')
+  assert.match(TERMS, /export const HOURS_BASIS_NO_MONTHS/, '개월이 안 맞는다는 말이 용어집에 없다')
+})
