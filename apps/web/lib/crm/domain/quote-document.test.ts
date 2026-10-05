@@ -560,9 +560,9 @@ test('★ 720 으로 고르면 딱 떨어진다', () => {
   assert.equal(r.hourlyExact, true, '720 은 딱 떨어져 「약」이 필요 없다')
 })
 
-test('★ 기간이 없으면 축을 골라도 환산이 안 선다', () => {
+test('★ 기간도 없고 수량이 시간도 아니면 축을 골라도 환산이 안 선다', () => {
   const doc = rateDoc({ rateAxisKeys: ['monthly'] },
-    [{ name: 'GPU', quantity: 1, unitPriceMinor: 1000n, lineTotalMinor: 1000n }])
+    [{ name: 'GPU', quantity: 1, unit: '식', unitPriceMinor: 1000n, lineTotalMinor: 1000n }])
   assert.equal(doc.lines[0].rate, null, '셀 근거가 없는데 환산이 실렸다')
 })
 
@@ -603,4 +603,87 @@ test('★ 품목 아래 메모만 골라도 기간이 실린다', () => {
       startDate: '2026-10-07', endDate: '2026-12-06' }])
   assert.ok(doc.lines[0].rate, '메모를 골랐는데 기간이 안 실렸다')
   assert.deepEqual(doc.meta.lineNoteKeys, ['period', 'totalHours'])
+})
+
+/*
+  ── 기간을 안 적은 시간 품목 ───────────────────────────────────────────────
+
+  GPU 임대 견적은 수량 칸에 시간이 그대로 적힌다(「1,440 Hours × 1,388원」).
+  기간만 보던 때는 그 줄에 날짜가 없으면 **고른 축이 통째로 사라졌다** —
+  실측 2026-10-05, 견적 DA-2026-1003-01 은 고른 축 셋이 다 저장돼 있었는데
+  품목 날짜가 비어 견적서에 한 줄도 안 그려졌다.
+*/
+
+const HOURS_LINE = {
+  name: '1× NVIDIA L40S PCIe', unit: 'Hours', quantity: '1440.000',
+  unitPriceMinor: 1388n, lineTotalMinor: 1998720n,
+}
+
+test('★ 날짜를 안 적어도 수량이 시간이면 축이 선다', () => {
+  const doc = rateDoc(
+    { rateAxisKeys: ['total', 'monthly', 'hourly'], rateHoursPerMonth: 720 },
+    [HOURS_LINE],
+  )
+  const r = doc.lines[0].rate
+  assert.ok(r, '수량이 1,440 Hours 인데 환산이 안 실렸다')
+  assert.equal(r.start, null, '안 적은 날짜를 지어내면 안 된다')
+  assert.equal(r.end, null)
+  assert.equal(r.days, null)
+  assert.equal(r.totalHours, 1440, '수량이 곧 총 시간이다')
+  assert.equal(r.months, 2, '1,440 ÷ 720 = 2개월')
+  assert.equal(r.monthlyMinor, '999360')
+  assert.equal(r.hourlyMinor, '1388')
+  assert.equal(r.hourlyExact, true, '1,388 × 1,440 = 1,998,720 이라 「약」이 붙으면 안 된다')
+  assert.equal(r.hoursPerMonth, 720)
+})
+
+test('★ 날짜 없는 시간 품목도 합계 환산 줄을 세운다', () => {
+  const doc = rateDoc(
+    { totalConvKeys: ['monthly', 'hourly'], rateHoursPerMonth: 720 },
+    [HOURS_LINE],
+  )
+  assert.ok(doc.totals.conv, '합계 환산이 안 섰다')
+  assert.equal(doc.totals.conv.totalHours, 1440)
+  assert.equal(doc.totals.conv.months, 2)
+  assert.equal(doc.totals.conv.monthlyMinor, '999360')
+  assert.equal(doc.totals.conv.hourlyMinor, '1388')
+})
+
+test('★ 총 시간이 섞이면 합계 환산을 한 줄로 적지 않는다', () => {
+  const doc = rateDoc(
+    { totalConvKeys: ['hourly'], rateHoursPerMonth: 720 },
+    [HOURS_LINE, { ...HOURS_LINE, name: '스토리지', quantity: '720' }],
+  )
+  assert.equal(doc.totals.conv, null, '시간이 다른데 한 줄로 적었다 — 어느 줄에 곱해도 안 맞는다')
+})
+
+test('★ 월 기준 시간으로 안 나뉘면 개월을 말하지 않는다 — 시간당은 그대로 센다', () => {
+  const doc = rateDoc(
+    { rateAxisKeys: ['monthly', 'hourly'], rateHoursPerMonth: 730 },
+    [HOURS_LINE],
+  )
+  const r = doc.lines[0].rate
+  assert.ok(r)
+  assert.equal(r.months, null, '1,440 ÷ 730 은 안 떨어진다')
+  assert.equal(r.monthlyMinor, null)
+  assert.equal(r.hourlyMinor, '1388', '총 시간은 수량 그대로라 시간당은 변하지 않는다')
+})
+
+test('★ 기간을 적었으면 기간이 축을 센다 — 수량이 시간이어도 덮지 않는다', () => {
+  // 수량은 1,440 인데 2026-10-07 ~ 2026-12-06 은 730 기준 1,460시간이다
+  const doc = rateDoc(
+    { rateAxisKeys: ['hourly'], rateHoursPerMonth: 730 },
+    [{ ...HOURS_LINE, startDate: '2026-10-07', endDate: '2026-12-06' }],
+  )
+  const r = doc.lines[0].rate
+  assert.ok(r)
+  assert.equal(r.totalHours, 1460, '기간이 있으면 기간이 센다')
+  assert.equal(r.start, '2026-10-07')
+  assert.equal(r.months, 2)
+})
+
+test('★ 축도 메모도 안 골랐으면 수량이 시간이어도 환산이 안 실린다', () => {
+  const doc = rateDoc({}, [HOURS_LINE])
+  assert.equal(doc.lines[0].rate, null, '안 골랐는데 환산이 실렸다')
+  assert.equal(doc.totals.conv, null)
 })

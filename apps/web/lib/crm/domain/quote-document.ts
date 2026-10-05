@@ -27,7 +27,7 @@ import { computeLine } from './quote-math.ts'
 import { convertMinor } from './currency.ts'
 import { splitSpec } from './quote-spec.ts'
 import {
-  computePeriod, hourlyFromMonthly, monthlyFromTotal, hourlyFromTotal,
+  computePeriod, hourlyFromMonthly, hoursFromQuantity, rateFromHours,
   DEFAULT_HOURS_PER_MONTH,
 } from './quote-rate.ts'
 
@@ -177,9 +177,15 @@ export interface DocumentTotalConv {
   hoursPerMonth: number
 }
 
-/** 한 품목의 환산값. 기간이 없으면 아무것도 못 센다 */
+/**
+ * 한 품목의 환산값. 시간 축이 없으면 아무것도 못 센다.
+ *
+ * 축은 **기간이 먼저, 없으면 수량**이다 — 「1,440 Hours」처럼 수량 칸이 시간이면
+ * 날짜를 안 적었어도 총 시간을 아는 것이다. 그때는 start·end 가 null 이고
+ * 기간 근거 줄은 안 그려진다(모르는 것을 지어내지 않는다).
+ */
 export interface DocumentLineRate {
-  /** 공급 기간. 하나라도 비면 null */
+  /** 공급 기간. 안 적었거나 하나라도 비면 null */
   start: string | null
   end: string | null
   /** 딱 떨어지는 개월. 어중간하면 null 이고 그때는 개월을 말하지 않는다 */
@@ -468,33 +474,71 @@ function pickKeys<K extends string>(got: readonly string[] | null | undefined, o
   return order.filter((k) => got.includes(k))
 }
 
+/** 한 품목의 시간 축 — 어디서 왔는지까지 들고 다닌다 */
+type HoursAxis = {
+  start: string | null
+  end: string | null
+  days: number | null
+  totalHours: number
+  /** 기간이 센 개월. 기간이 없으면 undefined 이고 그때는 시간이 센다 */
+  months?: number | null
+}
+
 /**
- * 한 품목의 환산값. **기간이 없으면 null** — 셀 근거가 없다.
+ * 이 품목의 시간 축을 어디서 셀지. **기간이 먼저, 없으면 수량이다.**
+ *
+ * 기간을 적었으면 날짜가 개월까지 말해 주므로 그쪽이 센다. 안 적었어도
+ * 「1,440 Hours」처럼 수량 칸이 시간이면 총 시간을 아는 것이다 — 날짜는 **언제**를
+ * 말하고 수량은 **얼마나**를 말하는데, 환산에 필요한 것은 뒤쪽이다.
+ *
+ * 둘 다 없으면 null 이고, 그때는 환산을 지어내지 않는다.
+ */
+function hoursAxis(
+  l: RateLine,
+  hoursPerMonth: number,
+): HoursAxis | null {
+  const p = computePeriod(l.startDate, l.endDate, hoursPerMonth)
+  if (p) return { start: p.start, end: p.end, days: p.days, totalHours: p.totalHours, months: p.months }
+  const h = hoursFromQuantity(l.unit, l.quantity)
+  if (h == null) return null
+  return { start: null, end: null, days: null, totalHours: h }
+}
+
+/** 환산에 필요한 품목의 칸들 */
+type RateLine = {
+  unit?: string | null
+  quantity: string | number
+  startDate?: Date | string | null
+  endDate?: Date | string | null
+  lineTotalMinor: bigint | string
+}
+
+/**
+ * 한 품목의 환산값. **시간 축이 없으면 null** — 셀 근거가 없다.
  *
  * 무엇이 진짜 값인지는 여기서 정하지 않는다. 월 금액은 «기간 총액 ÷ 개월»로,
  * 시간당은 «기간 총액 ÷ 총 시간»으로 되짚는다 — 저장된 합계에서 나오므로
  * 어느 쪽을 적어도 합계와 어긋나지 않는다(반올림 여부만 따로 말한다).
  */
 function lineRate(
-  l: { startDate?: Date | string | null; endDate?: Date | string | null; lineTotalMinor: bigint | string },
+  l: RateLine,
   hoursPerMonth: number,
   wanted: boolean,
 ): DocumentLineRate | null {
   if (!wanted) return null
-  const p = computePeriod(l.startDate, l.endDate, hoursPerMonth)
-  if (!p) return null
-  const total = Number(s(l.lineTotalMinor))
-  const monthly = monthlyFromTotal(total, p.months)
-  const hourly = hourlyFromTotal(total, p.totalHours)
+  const a = hoursAxis(l, hoursPerMonth)
+  if (!a) return null
+  const r = rateFromHours(Number(s(l.lineTotalMinor)), a.totalHours, hoursPerMonth, a.months)
+  if (!r) return null
   return {
-    start: p.start,
-    end: p.end,
-    months: p.months,
-    days: p.days,
-    totalHours: p.totalHours,
-    monthlyMinor: monthly ? String(monthly.minor) : null,
-    hourlyMinor: hourly ? String(hourly.minor) : null,
-    hourlyExact: hourly ? hourly.exact : false,
+    start: a.start,
+    end: a.end,
+    months: r.months,
+    days: a.days,
+    totalHours: r.totalHours,
+    monthlyMinor: r.monthlyMinor == null ? null : String(r.monthlyMinor),
+    hourlyMinor: r.hourlyMinor == null ? null : String(r.hourlyMinor),
+    hourlyExact: r.hourlyExact,
     hoursPerMonth,
   }
 }
@@ -511,22 +555,22 @@ function totalConv(
   hoursPerMonth: number,
 ): DocumentTotalConv | null {
   if (wanted.length === 0 || lines.length === 0) return null
-  const periods = lines.map((l) => computePeriod(l.startDate, l.endDate, hoursPerMonth))
-  const first = periods[0]
+  const axes = lines.map((l) => hoursAxis(l, hoursPerMonth))
+  const first = axes[0]
   if (!first) return null
-  if (periods.some((p) => !p || p.start !== first.start || p.end !== first.end)) return null
+  if (axes.some((a) => !a || a.start !== first.start || a.end !== first.end
+    || a.totalHours !== first.totalHours)) return null
 
   // 품목 금액의 합 — 할인이 반영된 값이다(lineTotalMinor)
   const total = lines.reduce((acc, l) => acc + BigInt(s(l.lineTotalMinor)), BigInt(0))
-  const n = Number(total)
-  const monthly = monthlyFromTotal(n, first.months)
-  const hourly = hourlyFromTotal(n, first.totalHours)
+  const r = rateFromHours(Number(total), first.totalHours, hoursPerMonth, first.months)
+  if (!r) return null
   return {
-    monthlyMinor: monthly ? String(monthly.minor) : null,
-    months: first.months,
-    hourlyMinor: hourly ? String(hourly.minor) : null,
-    hourlyExact: hourly ? hourly.exact : false,
-    totalHours: first.totalHours,
+    monthlyMinor: r.monthlyMinor == null ? null : String(r.monthlyMinor),
+    months: r.months,
+    hourlyMinor: r.hourlyMinor == null ? null : String(r.hourlyMinor),
+    hourlyExact: r.hourlyExact,
+    totalHours: r.totalHours,
     hoursPerMonth,
   }
 }
