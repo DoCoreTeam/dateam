@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.928',
+    date: '2026-10-05',
+    title: '섞인 견적에서 안내가 사실을 말해요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🗣️',
+        headline: '시간 품목과 아닌 품목이 섞여도 「못 쓴다」고 하지 않아요',
+        detail: '「식」으로 파는 줄이 하나 섞이면 수정 화면이 「시간당과 월 금액을 인쇄할 수 없다」고 적었는데, 정작 견적서에는 시간 품목의 시간당 금액이 그대로 인쇄되고 있었어요. 이제 한 줄이라도 인쇄되면 그 사실에 맞게 말합니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.925',
     date: '2026-10-05',
     title: '기간을 안 적어도 시간당·월 금액이 인쇄돼요',
