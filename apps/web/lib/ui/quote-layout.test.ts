@@ -527,3 +527,47 @@ test('★ 금액 칸의 축 줄은 식이 통째로 붙어 다닌다 — 「× 2
   assert.ok(!/white-space: nowrap/.test(note[0]),
     '환산 근거가 nowrap 이라 좁은 칸에서 밖으로 삐져나간다')
 })
+
+/*
+  ── 기간을 안 적은 시간 품목 ───────────────────────────────────────────────
+
+  실측 2026-10-05: 견적 DA-2026-1003-01 은 금액 축 셋과 근거 셋을 다 고른 채
+  저장돼 있었는데 품목에 날짜가 없어 견적서에 **한 줄도 안 그려졌다.** 수량 칸은
+  「1,440 Hours」였고 단가는 1,388원이라 셀 것은 다 있었다.
+
+  고친 뒤에는 그 줄들이 인쇄되므로, 모달이 아직도 「기간을 적어야 시간당과 월 금액을
+  쓸 수 있다」고 말하면 **되는 것을 안 된다고 읽게 만든다.**
+*/
+
+test('★ 안내는 못 그리는 것만 말한다 — 수량이 시간이면 시간당을 못 쓴다고 하지 않는다', () => {
+  assert.match(TOTALS, /rateHours \? RATE_PERIOD_MISSING : RATE_HOURS_MISSING/,
+    '안내가 기간 유무 하나로만 갈린다 — 수량이 시간인 경우를 안 가른다')
+  assert.ok(TOTALS.includes('RATE_HOURS_MISSING,') || /RATE_HOURS_MISSING[,\s}]/.test(TOTALS),
+    '새 안내 문구를 용어집에서 안 가져온다')
+})
+
+test('★ 안내 문구는 용어집에 있다 — 화면에 한글을 직접 안 적는다', () => {
+  const TERMS = read('lib/terms/quote.ts')
+  assert.match(TERMS, /export const RATE_HOURS_MISSING/, '용어집에 문구가 없다')
+  // 기간만 비었을 때의 말이 아직도 시간당·월 금액을 못 쓴다고 하면 거짓말이다
+  const line = TERMS.split('\n').find((l) => l.startsWith('export const RATE_PERIOD_MISSING')) ?? ''
+  assert.ok(!line.includes('시간당'),
+    '기간만 비었을 때 안내가 아직도 시간당을 못 쓴다고 말한다')
+})
+
+test('★ 미리보기도 수량이 센 시간을 본다 — 고를 때 빈칸이면 고른 결과를 모른다', () => {
+  const slice = TOTALS.slice(TOTALS.indexOf('const hourlyAt'), TOTALS.indexOf('const toggle'))
+  assert.match(slice, /: rateHours\b/,
+    '미리보기가 기간만 본다 — 날짜 없는 시간 품목에서는 아무 숫자도 안 보인다')
+  assert.ok(!/if \(!ratePeriod\) return null/.test(slice),
+    '기간이 없다는 이유로 미리보기를 접는다')
+})
+
+test('★ 모달이 그 값을 실제로 세어서 넘긴다 — 선언만 하고 안 넘기면 아무 일도 안 난다', () => {
+  assert.match(MODAL, /sharedRateHours\(draft\.lines\)/, '총 시간을 세는 자리가 없다')
+  assert.match(MODAL, /rateHours=\{sharedHours\}/, '세어 놓고 합계 부품에 안 넘긴다')
+  const SHAPE = read('components/ui/crm/quote-draft-shape.ts')
+  assert.match(SHAPE, /export function sharedRateHours/, '세는 함수가 없다')
+  assert.match(SHAPE, /hoursFromQuantity\(l\.unit, l\.quantity\)/,
+    '수량을 시간으로 읽는 규칙이 문서 조립과 다른 자리에서 다시 쓰였다')
+})

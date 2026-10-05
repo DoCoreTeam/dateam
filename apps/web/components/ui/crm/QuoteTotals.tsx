@@ -17,7 +17,7 @@ import {
   RATE_AXIS_ORDER, RATE_AXIS_LABEL, LINE_NOTE_ORDER, LINE_NOTE_LABEL,
   TOTAL_CONV_ORDER, TOTAL_CONV_LABEL,
   HOURS_BASIS_ORDER, HOURS_BASIS_LABEL, HOURS_BASIS_HINT, HOURS_BASIS_NO_SUPPLY,
-  HOURS_BASIS_NOTE, RATE_PERIOD_MISSING, APPROX_PREFIX, RATE_GROUP_TITLE,
+  HOURS_BASIS_NOTE, RATE_PERIOD_MISSING, RATE_HOURS_MISSING, APPROX_PREFIX, RATE_GROUP_TITLE,
   type HoursBasisKey,
 } from '@/lib/terms'
 import {
@@ -41,6 +41,13 @@ export interface QuoteTotalsProps {
   onRateChange?: (patch: Partial<QuoteRateChoice>) => void
   /** 모든 품목이 같은 기간일 때 그 기간. 선택지 옆 미리보기 숫자를 여기서 만든다 */
   ratePeriod?: { start: string; end: string } | null
+  /**
+   * 기간이 없을 때 **수량이 말하는 총 시간**(「1,440 Hours」). 기간이 있으면 null 이다.
+   *
+   * 이 값이 있으면 날짜를 안 적어도 견적서가 시간당과 월 금액을 인쇄한다 —
+   * 그래서 미리보기도 안내 문구도 이 값을 보고 갈라진다.
+   */
+  rateHours?: number | null
   /**
    * 매입 견적이 쓰는 월 기준 시간. 없으면 「매입에 맞춤」이 못 쓰는 상태로 선다.
    * **지금은 늘 null 이다** — 매입과 견적을 잇는 일은 이 플랜 범위 밖이고,
@@ -88,7 +95,7 @@ function hoursFor(
 
 export default function QuoteTotals({
   totals, currency, roundingUnit, roundingMode, locked, onRoundingChange,
-  rate, onRateChange, ratePeriod, supplyHoursPerMonth = null,
+  rate, onRateChange, ratePeriod, rateHours = null, supplyHoursPerMonth = null,
 }: QuoteTotalsProps) {
   /*
     **「직접」은 값으로 알 수 없다.** 누르면 칸이 비는데 빈 값은 기본값(730)이라
@@ -109,9 +116,16 @@ export default function QuoteTotals({
     이 숫자만 달라지기 때문이다.
   */
   const hourlyAt = (hours: number): string | null => {
-    if (!ratePeriod) return null
-    const p = computePeriod(ratePeriod.start, ratePeriod.end, hours)
-    if (!p) return null
+    /*
+      **총 시간의 근거는 둘이다** — 기간을 적었으면 기간이, 안 적었으면 수량이 센다.
+      전에는 기간만 봐서, 날짜 없는 시간 품목에서는 고를 때 아무 숫자도 안 보였다.
+      수량이 센 시간은 기준을 730 으로 하든 720 으로 하든 안 움직인다(그때 갈리는 것은
+      개월이고, 그 사실은 아래 안내 문구가 말한다).
+    */
+    const totalHours = ratePeriod
+      ? computePeriod(ratePeriod.start, ratePeriod.end, hours)?.totalHours ?? null
+      : rateHours
+    if (!totalHours) return null
     /*
       **견적서가 나눌 그 금액을 똑같이 나눈다.** 문서 조립은 품목 금액의 합
       (할인 반영·세금 제외)을 나눈다(`quote-document.ts` totalConv). 여기서
@@ -119,7 +133,7 @@ export default function QuoteTotals({
       실측 1,506원 대 1,369원.
     */
     const lineSum = Number((totals.subtotalMinor - totals.discountMinor).toString())
-    const h = hourlyFromTotal(lineSum, p.totalHours)
+    const h = hourlyFromTotal(lineSum, totalHours)
     if (!h) return null
     const money = formatAmount(String(h.minor), currency)
     return h.exact ? money : `${APPROX_PREFIX} ${money}`
@@ -235,7 +249,15 @@ export default function QuoteTotals({
     {rate && onRateChange && (
       <div className={styles.rateBlock}>
         <span className="label">{QUOTE.rateDisplay}</span>
-        {!ratePeriod && <p className={styles.rateNote}>{RATE_PERIOD_MISSING}</p>}
+        {/*
+          **못 그리는 것만 말한다.** 수량이 시간이면 날짜가 없어도 시간당과 월 금액이
+          인쇄되므로, 그때 「못 쓴다」고 적으면 되는 것을 안 된다고 읽게 만든다.
+        */}
+        {!ratePeriod && (
+          <p className={styles.rateNote}>
+            {rateHours ? RATE_PERIOD_MISSING : RATE_HOURS_MISSING}
+          </p>
+        )}
 
         <fieldset className={styles.rateGroup} disabled={locked}>
           <legend className={styles.rateLegend}>{RATE_GROUP_TITLE.axis}</legend>
