@@ -17,7 +17,7 @@ import {
   RATE_AXIS_ORDER, RATE_AXIS_LABEL, LINE_NOTE_ORDER, LINE_NOTE_LABEL,
   TOTAL_CONV_ORDER, TOTAL_CONV_LABEL,
   HOURS_BASIS_ORDER, HOURS_BASIS_LABEL, HOURS_BASIS_HINT, HOURS_BASIS_NO_SUPPLY,
-  HOURS_BASIS_NOTE, HOURS_BASIS_NOTE_HOURS, HOURS_BASIS_NO_MONTHS,
+  HOURS_BASIS_NOTE, HOURS_BASIS_NOTE_HOURS, HOURS_BASIS_NO_MONTHS, HOURS_BASIS_PER_LINE,
   RATE_PERIOD_MISSING, RATE_HOURS_MISSING, APPROX_PREFIX, RATE_GROUP_TITLE,
   type HoursBasisKey,
 } from '@/lib/terms'
@@ -158,9 +158,15 @@ export default function QuoteTotals({
   */
   const resultAt = (hours: number): string | null => {
     if (ratePeriod) return hourlyAt(hours)
-    if (!rateHours) return null
-    const m = monthsFromHours(rateHours, hours)
-    return m == null ? HOURS_BASIS_NO_MONTHS : `${m}${LINE_KIND_UNIT.PERIOD}`
+    if (rateHours) {
+      const m = monthsFromHours(rateHours, hours)
+      return m == null ? HOURS_BASIS_NO_MONTHS : `${m}${LINE_KIND_UNIT.PERIOD}`
+    }
+    /*
+      **줄마다 근거가 다르면 한 숫자를 적을 수 없다.** 그래도 빈칸으로 두면 안 된다 —
+      고르는 사람은 이 선택이 아무것도 안 바꾼다고 읽지만 실제로는 줄마다 바꾼다.
+    */
+    return rateAnyHours ? HOURS_BASIS_PER_LINE : null
   }
 
   const toggle = (list: string[], key: string): string[] =>

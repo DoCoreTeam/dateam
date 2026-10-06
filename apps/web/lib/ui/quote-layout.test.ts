@@ -629,3 +629,18 @@ test('★ 한 줄이라도 환산이 되면 못 한다고 말하지 않는다', 
   // 미리보기는 여전히 공통 시간을 본다 — 줄마다 다르면 한 숫자를 적을 수 없다
   assert.match(TOTALS, /: rateHours\b/, '미리보기까지 「한 줄이라도」로 바꿔 버렸다')
 })
+
+test('★ 줄마다 근거가 다르면 빈칸으로 넘기지 않는다', () => {
+  /*
+    실측 2026-10-05: 「식」과 「Hours 1,440」이 섞인 견적에서 730시간·720시간 옆이
+    둘 다 빈칸이었다. 빈칸은 「이 선택이 아무것도 안 바꾼다」로 읽히는데,
+    실제로는 줄마다 바꾼다 — 못 적는 이유를 그 자리에 적는다.
+  */
+  assert.match(TOTALS, /return rateAnyHours \? HOURS_BASIS_PER_LINE : null/,
+    '근거가 섞였을 때 아무 말도 안 하고 넘어간다')
+  // 셋이 다른 말을 한다 — 기간이 셀 때·수량이 셀 때·줄마다 다를 때
+  assert.match(TOTALS, /if \(ratePeriod\) return hourlyAt\(hours\)/, '기간이 셀 때 시간당을 안 보여 준다')
+  assert.match(TOTALS, /monthsFromHours\(rateHours, hours\)/, '수량이 셀 때 개월을 안 센다')
+  const TERMS = read('lib/terms/quote.ts')
+  assert.match(TERMS, /export const HOURS_BASIS_PER_LINE/, '그 말이 용어집에 없다')
+})
