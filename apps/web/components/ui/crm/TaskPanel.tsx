@@ -11,12 +11,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { initialDueDate, initialStartDate, toStartIso, toDueIso } from '@/lib/crm/ui/task-due'
-import { Plus, Check, RotateCcw } from 'lucide-react'
+import { Plus, Check, RotateCcw, Pencil, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
 import { kstDateKey, kstTodayKey } from '@/lib/datetime/kst'
+import { ACTION, ENTITY, confirmDeleteParts, failedTo } from '@/lib/terms'
+import { useAskDialog } from '@/components/ui/useAskDialog'
+import TaskEditModal from './TaskEditModal'
 import type { TimelineScope } from './Timeline'
 import styles from './task-panel.module.css'
 import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
@@ -25,6 +28,8 @@ export interface TaskItem {
   id: string
   title: string
   status: string
+  /** 시작하는 날. 서버는 처음부터 줬는데 이 패널이 안 받아 「언제부터」를 못 그렸다 */
+  startAt: string | null
   dueAt: string | null
   completedAt: string | null
 }
@@ -72,6 +77,15 @@ export default function TaskPanel({ scope, onChanged }: Props) {
   /* 시작일 — 목록 화면과 같은 규칙(v0.7.696 · 사용자 지시 「할일도 시작과 종료일이」) */
   const [start, setStart] = useState(() => initialStartDate(null))
   const [saving, setSaving] = useState(false)
+  /**
+   * 고치는 중인 할 일 — 목록 화면과 **같은 부품**을 연다(§2-5).
+   *
+   * 여기만 따로 짜면 두 화면이 다른 칸을 고치게 되고, 한쪽을 고칠 때 다른 쪽이 남는다.
+   */
+  const [editing, setEditing] = useState<TaskItem | null>(null)
+  /** 지우는 중인 할 일 하나 — 단추를 두 번 누르는 동안 줄이 안 흔들리게 id 로 잡는다 */
+  const [busy, setBusy] = useState<string | null>(null)
+  const { ask, dialog } = useAskDialog()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -165,6 +179,38 @@ export default function TaskPanel({ scope, onChanged }: Props) {
     }
   }
 
+  /**
+   * 지우는 길이 없었다.
+   *
+   * `DELETE /api/crm/tasks/:id` 는 목록 화면이 이미 부르고 있는데 **이 패널만 안 불렀다** —
+   * 딜 상세에서 잘못 적은 할 일을 보고도 지우려면 목록 화면까지 가야 했다(§2-5 (3)).
+   * 확인은 목록과 같은 문장으로 받는다 — 같은 일이 화면마다 다르게 물으면 사용자는 둘을 다른 일로 읽는다.
+   */
+  async function remove(t: TaskItem) {
+    const c = confirmDeleteParts('task', 1, { stays: '딜과 미팅 기록' })
+    if (!await ask.confirm({
+      title: c.title, body: c.body,
+      confirmLabel: ACTION.delete, danger: true,
+    })) return
+    setBusy(t.id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/crm/tasks/${t.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setError(body?.error?.message ?? failedTo(ENTITY.task.label, ACTION.delete))
+        return
+      }
+      void load()
+      onChanged?.()
+      emitAttentionChanged()
+    } catch {
+      setError(failedTo(ENTITY.task.label, ACTION.delete))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const today = kstTodayKey()
 
   return (
@@ -212,6 +258,7 @@ export default function TaskPanel({ scope, onChanged }: Props) {
         <ul className={styles.list}>
           {items.map((t) => {
             const done = t.status === 'DONE'
+            const startKey = t.startAt ? kstDateKey(t.startAt) : null
             const dueKey = t.dueAt ? kstDateKey(t.dueAt) : null
             // 기한이 지난 것은 눈에 띄어야 한다 — 목록에 섞이면 지났는지 세어 봐야 안다
             const overdue = Boolean(dueKey && !done && dueKey < today)
@@ -220,18 +267,51 @@ export default function TaskPanel({ scope, onChanged }: Props) {
                 <button
                   type="button"
                   className={`${styles.check}${done ? ` ${styles.checkOn}` : ''}`}
-                  aria-label={done ? `${t.title} 되돌리기` : `${t.title} 완료`}
+                  aria-label={done ? `${t.title} ${ACTION.restore}` : `${t.title} 완료`}
                   onClick={() => void setStatus(t.id, done ? 'TODO' : 'DONE')}
                 >
                   {done ? <RotateCcw size={12} /> : <Check size={12} />}
                 </button>
                 <span className={`${styles.title}${done ? ` ${styles.titleDone}` : ''}`}>
                   {t.title}
-                  {dueKey && (
+                  {/*
+                    **언제부터 언제까지를 함께 적는다.** 마감만 보이면 「오늘 시작해야 하는 것」과
+                    「다음 주에 시작할 것」이 같은 줄로 보인다 — 목록 화면은 이미 둘을 나눠 보여 준다.
+                  */}
+                  {(startKey || dueKey) && (
                     <span className={`${styles.due}${overdue ? ` ${styles.dueOver}` : ''}`}>
-                      {overdue ? `${dueKey} 지남` : dueKey}
+                      {startKey && `${startKey} 시작`}
+                      {startKey && dueKey && ' · '}
+                      {dueKey && (overdue ? `${dueKey} 지남` : `${dueKey}까지`)}
                     </span>
                   )}
+                </span>
+                {/*
+                  **고치기와 지우기.** 이 패널은 추가와 완료만 할 수 있었다 —
+                  적어 놓고 날짜가 밀리면 지울 수도 고칠 수도 없어서, 끝내지도 않은 것을
+                  완료로 눌러 치우는 수밖에 없었다(그러면 타임라인에 거짓 활동이 남는다).
+                */}
+                <span className={styles.rowActions}>
+                  <button
+                    type="button"
+                    className={styles.rowBtn}
+                    onClick={() => setEditing(t)}
+                    disabled={busy === t.id}
+                    aria-label={`${t.title} ${ACTION.edit}`}
+                    title={ACTION.edit}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.rowRemove}
+                    onClick={() => void remove(t)}
+                    disabled={busy === t.id}
+                    aria-label={`${t.title} ${ACTION.delete}`}
+                    title={ACTION.delete}
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </span>
               </li>
             )
@@ -242,6 +322,22 @@ export default function TaskPanel({ scope, onChanged }: Props) {
       <button type="button" className={styles.toggle} onClick={() => setShowDone((v) => !v)}>
         {showDone ? '열린 것만 보기' : '끝난 것도 보기'}
       </button>
+
+      {/* 목록 화면과 **같은 모달**이다 — 고치는 칸이 두 화면에서 갈리지 않는다 */}
+      {editing && (
+        <TaskEditModal
+          task={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null)
+            void load()
+            onChanged?.()
+            emitAttentionChanged()
+          }}
+        />
+      )}
+
+      {dialog}
     </div>
   )
 }
