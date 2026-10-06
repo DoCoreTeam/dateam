@@ -198,3 +198,35 @@ test('견적서가 수량 칸에 「17 × 2개월」을 적고 합계가 원본�
     expect(res.ok(), `치우기 실패 ${res.status()}`).toBeTruthy()
   }
 })
+
+test('기간이 수량 칸에 있는 옛 줄에 안내가 선다. 금액은 안 바뀐다', async ({ page }) => {
+  test.setTimeout(180_000)
+  await page.setViewportSize({ width: 1280, height: 1000 })
+  await openDeal(page)
+  const modal = await openNewQuote(page)
+
+  // 「유지보수 12개월」처럼 기간이 수량 칸을 차지한 옛 모양을 그대로 재현한다
+  await modal.locator('#ln-qty-0').fill('12')
+  await modal.locator('#ln-unit-0').fill('개월')
+  await modal.locator('#ln-price-0').fill('1000000')
+
+  const hint = modal.locator('p[class*="axisHint"]').first()
+  await expect(hint, '옛 줄에 안내가 안 선다').toBeVisible({ timeout: 10_000 })
+  const text = await hint.innerText()
+  expect(text).toContain('기간이 수량 칸에 있어요')
+  // 「틀렸다」고 말하지 않는다. 그 줄의 금액은 맞다
+  expect(text).not.toContain('틀렸')
+
+  // 금액은 한 축 그대로다
+  const body = (await modal.innerText()).replace(/\s+/g, ' ')
+  expect(body, '안내가 금액을 바꿨다').toContain('12,000,000')
+
+  // 기간 칸을 채우면 안내가 사라진다. 고치는 길이 바로 옆에 있다
+  await modal.locator('#ln-qty-0').fill('1')
+  await modal.locator('#ln-unit-0').fill('식')
+  await modal.locator('#ln-dur-0').fill('12')
+  await modal.locator('#ln-durunit-0').selectOption('MONTH')
+  await expect(hint).toBeHidden({ timeout: 10_000 })
+
+  await page.screenshot({ path: shot('04-legacy-hint'), fullPage: false })
+})

@@ -825,3 +825,12 @@ test('★ 사람이 고친 기간은 딜 기간으로 안 덮인다 — 새 초�
   assert.ok(!/dealDuration|durationFromDealPeriod/.test(toDraft),
     '저장된 견적을 여는 길이 딜 기간을 본다 — 고친 값이 되돌아간다')
 })
+
+test('★ 기간이 수량 칸에 있는 옛 줄에 안내가 선다 — 「틀렸다」고는 안 한다', () => {
+  assert.match(QTYFIELDS, /periodIsInQuantity\(unit, durationValue\)/, '옛 줄을 안 가린다')
+  assert.match(QTYFIELDS, /DURATION\.inQuantityHint/, '안내 문구를 용어집에서 안 가져온다')
+  // 경고색을 안 쓴다 — 금액이 맞는 줄을 빨갛게 칠하면 사람이 멀쩡한 줄을 고친다
+  const m = PANEL.match(/\.axisHint \{[^}]*\}/)
+  assert.ok(m, '.axisHint 스타일이 없다')
+  assert.ok(!/danger|error|warn/i.test(m[0]), '경고색을 썼다 — 그 줄의 금액은 맞다')
+})

@@ -1167,3 +1167,16 @@
   font-size: var(--fs-sm);
   color: var(--text);
 }
+
+/*
+  기간이 수량 칸에 있는 옛 줄에 서는 말.
+
+  **경고색을 안 쓴다.** 그 줄의 금액은 맞고 고칠 것이 없다 — 빨갛게 칠하면
+  사람이 멀쩡한 줄을 고치려 들고, 고치면 금액이 바뀐다.
+*/
+.axisHint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-muted);
+}

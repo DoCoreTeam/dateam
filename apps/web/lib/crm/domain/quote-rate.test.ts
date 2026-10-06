@@ -12,6 +12,7 @@ import {
   hoursFromQuantity, monthsFromHours, rateFromHours,
   durationHours, durationFactor,
   durationFromDealPeriod,
+  periodIsInQuantity,
 } from './quote-rate.ts'
 
 /* ── 기간 ────────────────────────────────────── */
@@ -279,4 +280,38 @@ test('★ 딜에 기간이 없으면 null 이다 — 1 로 눕히면 사람이 �
   assert.equal(durationFromDealPeriod('2026-10-07', null), null, '끝이 협의 중인 딜이 실제로 있다')
   assert.equal(durationFromDealPeriod(null, '2026-12-06'), null)
   assert.equal(durationFromDealPeriod('2026-12-06', '2026-10-07'), null, '거꾸로면 안 센다')
+})
+
+/* ── 기간이 수량 칸에 있는 옛 줄 ───────────────────────────────────────────
+   실측 2026-10-06: 단위가 「개월」인 9줄과 「Hours」인 3줄이 기간에 수량 칸을 내주고 있다.
+   그 줄들은 대수를 적을 자리가 없지만 **금액은 맞다** — 한 축으로 셈이 끝난 줄이다.
+   ──────────────────────────────────────────────────────────────────────── */
+
+test('★ 단위가 기간 말인데 기간 칸이 비면 그 줄이다', () => {
+  assert.equal(periodIsInQuantity('개월', ''), true)
+  assert.equal(periodIsInQuantity('Hours', null), true)
+  assert.equal(periodIsInQuantity('시간', undefined), true)
+  assert.equal(periodIsInQuantity('월', ''), true)
+  assert.equal(periodIsInQuantity('year', ''), true)
+})
+
+test('★ 기간 칸을 이미 적은 줄은 아니다 — 두 축으로 서 있다', () => {
+  assert.equal(periodIsInQuantity('개월', '2'), false)
+  assert.equal(periodIsInQuantity('Hours', '1460'), false)
+})
+
+test('★ 셀 수 있는 단위에는 안 뜬다 — 「17 대」는 멀쩡한 줄이다', () => {
+  assert.equal(periodIsInQuantity('대', ''), false)
+  assert.equal(periodIsInQuantity('식', ''), false)
+  assert.equal(periodIsInQuantity('개', ''), false)
+  assert.equal(periodIsInQuantity('M/M', ''), false)
+  assert.equal(periodIsInQuantity('User', ''), false)
+  assert.equal(periodIsInQuantity('', ''), false, '단위를 못 읽은 줄에 짐작을 더하지 않는다')
+  assert.equal(periodIsInQuantity(null, null), false)
+})
+
+test('★ 안내는 금액을 안 바꾼다 — 옛 12줄의 합계가 그대로다', () => {
+  // 유지보수 12개월 × 1,000,000원. 기간 칸이 비어 있으므로 배수는 1 이다
+  const f = durationFactor(null, null, 'MONTH', 730)
+  assert.equal(f, null, '안내가 떠도 기간 배수는 안 생긴다')
 })

@@ -197,6 +197,33 @@ export function durationFactor(
 }
 
 /**
+ * **기간이 수량 칸에 들어 있는 줄인가.**
+ *
+ * 곱하는 축이 하나뿐이던 때는 기간을 적으려면 수량 칸을 내줘야 했다. 그래서 단위가
+ * 「개월」·「Hours」인 줄이 생겼고(실측 2026-10-06: 164줄 중 12줄), 그 줄들은
+ * **대수를 적을 자리가 없다** — 1대라고 말하고 있지만 정말 1대인지 적을 자리가 없었던 것인지
+ * 문서가 구분해 주지 않는다.
+ *
+ * **그 줄의 금액은 맞다.** 한 축으로 셈이 끝난 줄이라 고칠 것이 없고, 그래서 화면은
+ * 「틀렸다」고 하지 않는다. 기간 칸이 비어 있다는 사실만 말한다.
+ *
+ * 기간 칸을 이미 적은 줄은 아니다 — 그 줄은 두 축으로 서 있다.
+ */
+export function periodIsInQuantity(
+  unit: string | null | undefined,
+  durationValue: string | number | null | undefined,
+): boolean {
+  if (durationValue !== null && durationValue !== undefined && String(durationValue).trim() !== '') return false
+  const u = (unit ?? '').trim().toLowerCase()
+  if (!u) return false
+  if (HOUR_UNITS.includes(u)) return true
+  return PERIOD_UNITS.includes(u)
+}
+
+/** 수량 칸이 기간을 담고 있다고 볼 **기간 단위** 말들. 시간 말은 HOUR_UNITS 가 따로 센다 */
+const PERIOD_UNITS: readonly string[] = ['개월', '월', '달', 'month', 'months', 'mo', '년', '연', 'year', 'years', '일', 'day', 'days']
+
+/**
  * 딜의 시작일·종료일에서 **새 품목의 기본 기간**을 낸다.
  *
  * **왜 기본값을 넣나**: 딜에 이미 「2026-10-07 ~ 2026-12-06」이 적혀 있는데 견적을 만들 때

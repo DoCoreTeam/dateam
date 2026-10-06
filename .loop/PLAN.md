@@ -191,7 +191,7 @@
 의존: I06
 
 ### I15 기간이 수량 칸에 있는 옛 줄을 화면이 말한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/QuoteEditorModal.tsx, apps/web/lib/crm/domain/quote-rate.ts, apps/web/lib/terms/quote.ts, apps/web/lib/ui/quote-layout.test.ts
 감사 기준:
