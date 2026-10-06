@@ -11,6 +11,7 @@ import {
   toDateKey, DEFAULT_HOURS_PER_MONTH,
   hoursFromQuantity, monthsFromHours, rateFromHours,
   durationHours, durationFactor,
+  durationFromDealPeriod,
 } from './quote-rate.ts'
 
 /* ── 기간 ────────────────────────────────────── */
@@ -263,4 +264,19 @@ test('★ 기간을 안 적었으면 null 이다 — 1 을 돌려주면 화면�
   assert.equal(durationFactor(2, null, 'MONTH'), null, '단위만 없어도 안 센다 — 둘은 한 벌이다')
   assert.equal(durationFactor(null, 'MONTH', 'MONTH'), null)
   assert.equal(durationFactor(0, 'MONTH', 'MONTH'), null)
+})
+
+test('★ 딜 기간이 새 품목의 기본 기간이 된다 — 딱 떨어지면 개월, 아니면 일', () => {
+  // 10/7 ~ 12/6 은 딱 2개월(시작일과 종료일을 둘 다 센다)
+  assert.deepEqual(durationFromDealPeriod('2026-10-07', '2026-12-06'), { value: '2', unit: 'MONTH' })
+  // 45일처럼 어중간하면 개월을 말하지 않는다 — 1.5개월은 시간 환산이 안 떨어져 「약」이 늘 붙는다
+  assert.deepEqual(durationFromDealPeriod('2026-10-01', '2026-11-14'), { value: '45', unit: 'DAY' })
+  assert.deepEqual(durationFromDealPeriod('2026-01-01', '2026-12-31'), { value: '12', unit: 'MONTH' })
+})
+
+test('★ 딜에 기간이 없으면 null 이다 — 1 로 눕히면 사람이 안 적은 「한 달」이 금액에 들어간다', () => {
+  assert.equal(durationFromDealPeriod(null, null), null)
+  assert.equal(durationFromDealPeriod('2026-10-07', null), null, '끝이 협의 중인 딜이 실제로 있다')
+  assert.equal(durationFromDealPeriod(null, '2026-12-06'), null)
+  assert.equal(durationFromDealPeriod('2026-12-06', '2026-10-07'), null, '거꾸로면 안 센다')
 })

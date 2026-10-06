@@ -341,6 +341,13 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                 dealId={dealId}
                 dealName={deal.name}
                 dealCurrency={deal.currency}
+                /*
+                  딜이 아는 기간을 넘긴다 — 새 품목의 기간 칸에 미리 들어간다.
+                  안 넘기면 사람이 딜에 적어 둔 기간을 견적에서 다시 쳐야 하고,
+                  다시 쳐야 하는 칸은 안 채워져 금액이 한 달치가 된다.
+                */
+                dealStartDate={deal.startDate ?? null}
+                dealEndDate={deal.endDate ?? null}
                 onChanged={() => {
                   setTimelineKey((k) => k + 1)
                   void load()

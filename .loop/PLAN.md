@@ -181,7 +181,7 @@
 의존: I10, I12
 
 ### I14 딜의 기간이 기본값으로 들어온다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/quote-draft-shape.ts, apps/web/components/ui/crm/QuotePanel.tsx, apps/web/lib/crm/domain/quote-rate.test.ts
 감사 기준:

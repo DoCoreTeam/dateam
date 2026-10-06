@@ -224,16 +224,33 @@ export function toLinePayload(l: QuoteLineDraft): Record<string, unknown> {
   }
 }
 
-export function emptyLine(): QuoteLineDraft {
+export function emptyLine(duration?: LineDuration | null): QuoteLineDraft {
   return {
     productId: null, name: '', descriptionMd: '', remark: '', kind: 'QUANTITY',
     quantity: '1', unit: LINE_KIND_UNIT.QUANTITY, unitPriceMinor: '', discountPercent: '0', taxRate: '10',
-    // 기간은 **빈칸으로 태어난다** — 1 을 넣으면 안 적은 줄에도 「× 1개월」이 인쇄된다
-    durationValue: '', durationUnit: '',
+    /*
+      기간은 **딜이 알면 그 값으로, 모르면 빈칸으로** 태어난다.
+      1 을 박아 두면 딜 기간을 모르는 견적에도 「× 1개월」이 인쇄된다.
+    */
+    durationValue: duration?.value ?? '', durationUnit: duration?.unit ?? '',
   }
 }
 
-export function newQuoteDraft(dealName: string, currency: string | null, validDays = 30): QuoteDraft {
+/** 새 품목이 들고 태어날 기간 — 딜의 시작일·종료일에서 센다 */
+export interface LineDuration { value: string; unit: string }
+
+export function newQuoteDraft(
+  dealName: string,
+  currency: string | null,
+  validDays = 30,
+  /**
+   * 딜이 아는 기간 — 새 품목의 기간 칸에 미리 들어간다.
+   *
+   * **사람이 고친 값을 덮지 않는다.** 이 함수는 «새 초안»을 만들 때만 불리고,
+   * 이미 만든 줄에는 손대지 않는다. 그래서 고쳐 둔 기간이 뒤에서 되돌아오지 않는다.
+   */
+  dealDuration?: LineDuration | null,
+): QuoteDraft {
   return {
     title: `${dealName} 견적`,
     currency: (currency ?? 'KRW').toUpperCase(),
@@ -252,7 +269,7 @@ export function newQuoteDraft(dealName: string, currency: string | null, validDa
     lineNoteKeys: [],
     totalConvKeys: [],
     rateHoursPerMonth: '',
-    lines: [emptyLine()],
+    lines: [emptyLine(dealDuration)],
   }
 }
 

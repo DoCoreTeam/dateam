@@ -29,6 +29,8 @@ import {
 } from '@/lib/terms'
 import NbModal from '@/components/ui/nb/NbModal'
 import QuoteEditorModal, { newQuoteDraft, quoteToDraft, type QuoteDraft } from './QuoteEditorModal'
+import { durationFromDealPeriod } from '@/lib/crm/domain/quote-rate'
+import type { LineDuration } from './quote-draft-shape'
 import QuoteFromFileModal, { type AppendTarget } from './QuoteFromFileModal'
 import CostToQuoteModal, { type CostToQuotePick } from './CostToQuoteModal'
 import styles from './quote-panel.module.css'
@@ -75,11 +77,23 @@ interface Props {
   dealId: string
   dealName: string
   dealCurrency: string | null
+  /**
+   * 딜의 공급 기간 — **새 품목의 기간 칸에 미리 들어간다.**
+   *
+   * 딜에 이미 적혀 있는데 견적을 만들 때 사람이 다시 치게 하면, 다시 쳐야 하는 칸은
+   * 안 채워지고 금액이 한 달치가 된다(실측 2026-10-06: 날짜 칸을 164줄 중 0줄이 썼다).
+   */
+  dealStartDate?: string | null
+  dealEndDate?: string | null
   /** 견적이 딜 금액을 바꿀 수 있다 — 바뀌면 상세를 다시 읽는다 */
   onChanged?: () => void
 }
 
-export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }: Props) {
+export default function QuotePanel({
+  dealId, dealName, dealCurrency, dealStartDate, dealEndDate, onChanged,
+}: Props) {
+  /** 딜이 아는 기간. 딱 떨어지면 개월, 아니면 일. 둘 중 하나라도 없으면 null */
+  const dealDuration = durationFromDealPeriod(dealStartDate, dealEndDate)
   /*
     **여기서 견적 문서로 나갈 때 «돌아올 곳»을 실어 보낸다.**
 
@@ -255,7 +269,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
             description="무엇을 얼마에 제안했는지 적어 두면, 딜 금액의 근거가 남습니다."
             action={{
               label: createLabel(ENTITY.quote.label),
-              onClick: () => setEditing(newQuoteDraft(dealName, dealCurrency, validDays)),
+              onClick: () => setEditing(newQuoteDraft(dealName, dealCurrency, validDays, dealDuration)),
             }}
             /*
               **빈 상태에서 특히 필요하다.** 견적이 하나도 없는 딜에서 받은 견적서를
@@ -400,7 +414,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
 
           {!trash && (
             <div className={styles.listFoot}>
-              <NbButton variant="ghost" onClick={() => setEditing(newQuoteDraft(dealName, dealCurrency, validDays))}>
+              <NbButton variant="ghost" onClick={() => setEditing(newQuoteDraft(dealName, dealCurrency, validDays, dealDuration))}>
                 <Plus size={16} /> {createLabel(ENTITY.quote.label)}
               </NbButton>
               <NbButton variant="ghost" onClick={() => setImporting(true)}>
@@ -455,7 +469,7 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
           onClose={() => setCosting(false)}
           onPicked={(pick) => {
             setCosting(false)
-            setEditing(draftFromCost(pick, dealName, validDays))
+            setEditing(draftFromCost(pick, dealName, validDays, dealDuration))
             /*
               환산 근거와 마진을 **옮긴 직후 한 줄로** 전한다. 편집기 안에서는 단가만 보이고
               「왜 이 값인가」는 안 보이므로, 그 말을 여기서 남긴다 —
@@ -525,8 +539,10 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
  * 새 견적의 기본값(제목·유효기간·절사)은 `newQuoteDraft` 한 곳이 정한다 —
  * 여기서 다시 적으면 그쪽을 고치는 날 이 길만 옛 기본값으로 남는다.
  */
-function draftFromCost(pick: CostToQuotePick, dealName: string, validDays: number): QuoteDraft {
-  const base = newQuoteDraft(dealName, pick.currency, validDays)
+function draftFromCost(
+  pick: CostToQuotePick, dealName: string, validDays: number, dealDuration?: LineDuration | null,
+): QuoteDraft {
+  const base = newQuoteDraft(dealName, pick.currency, validDays, dealDuration)
   return { ...base, currency: pick.currency, lines: pick.lines }
 }
 

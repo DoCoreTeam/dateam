@@ -800,3 +800,28 @@ test('★ 조회가 기간을 문서까지 **넘긴다** — 서버 합계는 �
   assert.match(svc, /priceBasis:\s*LINE_KIND_PRICE_BASIS/,
     '단가 기준 단위를 안 넘긴다 — 시간당 단가 줄의 배수가 1,460 이 아니라 2 가 된다')
 })
+
+test('★ 딜 기간이 새 견적까지 닿는다 — 안 넘기면 사람이 딜에 적은 것을 또 친다', () => {
+  const panel = read('components/ui/crm/QuotePanel.tsx')
+  const detail = read('app/(crm)/crm/deals/[id]/DealDetail.tsx')
+  assert.match(detail, /dealStartDate=\{deal\.startDate/, '딜 화면이 시작일을 안 넘긴다')
+  assert.match(detail, /dealEndDate=\{deal\.endDate/, '딜 화면이 종료일을 안 넘긴다')
+  assert.match(panel, /durationFromDealPeriod\(dealStartDate, dealEndDate\)/, '견적 패널이 기간을 안 센다')
+  // 새 초안을 만드는 **세 자리** 모두에 들어간다 — 하나만 빠져도 그 길로 만든 견적은 빈칸이다
+  const calls = panel.match(/newQuoteDraft\([^)]*\)/g) ?? []
+  assert.ok(calls.length >= 2, `newQuoteDraft 호출을 ${calls.length}곳 찾았다`)
+  for (const c of calls) {
+    assert.ok(/dealDuration/.test(c), `딜 기간을 안 넘기는 자리가 있다: ${c}`)
+  }
+})
+
+test('★ 사람이 고친 기간은 딜 기간으로 안 덮인다 — 새 초안을 만들 때만 들어간다', () => {
+  const shape = read('components/ui/crm/quote-draft-shape.ts')
+  /*
+    딜 기간은 `emptyLine` 과 `newQuoteDraft` 에만 닿는다. `quoteToDraft`(저장된 견적을 여는 길)가
+    딜 기간을 보면, 사람이 고쳐 둔 기간이 모달을 열 때마다 딜 값으로 되돌아간다.
+  */
+  const toDraft = shape.slice(shape.indexOf('export function quoteToDraft'))
+  assert.ok(!/dealDuration|durationFromDealPeriod/.test(toDraft),
+    '저장된 견적을 여는 길이 딜 기간을 본다 — 고친 값이 되돌아간다')
+})

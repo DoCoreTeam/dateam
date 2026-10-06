@@ -196,6 +196,29 @@ export function durationFactor(
   return hours / hpm
 }
 
+/**
+ * 딜의 시작일·종료일에서 **새 품목의 기본 기간**을 낸다.
+ *
+ * **왜 기본값을 넣나**: 딜에 이미 「2026-10-07 ~ 2026-12-06」이 적혀 있는데 견적을 만들 때
+ * 사람이 「2개월」을 다시 친다. 다시 쳐야 하는 칸은 안 채워지고, 그러면 금액이 한 달치가 된다
+ * (실측 2026-10-06: 공급 기간 날짜 칸을 164줄 중 0줄이 썼다 — 금액을 안 바꾸는 칸이라서).
+ *
+ * **딱 떨어지면 개월, 아니면 일이다.** 45일짜리를 1.5개월이라고 적으면 시간 환산이
+ * 안 떨어져 「약」이 늘 붙고, 고객이 곱해 본 값이 합계와 어긋난다.
+ *
+ * 둘 중 하나라도 없으면 **null** 이다. 1 로 눕히면 사람이 안 적은 「한 달」이 금액에 들어간다.
+ */
+export function durationFromDealPeriod(
+  startAt: Date | string | null | undefined,
+  endAt: Date | string | null | undefined,
+): { value: string; unit: 'MONTH' | 'DAY' } | null {
+  const p = computePeriod(startAt, endAt)
+  if (!p) return null
+  if (p.months != null && p.months > 0) return { value: String(p.months), unit: 'MONTH' }
+  if (p.days > 0) return { value: String(p.days), unit: 'DAY' }
+  return null
+}
+
 /* ── 수량에서 오는 시간 축 ───────────────────────────────────────────────────
  *
  * **시간 축의 근거는 둘이다.** 기간을 적었으면 기간이 세고, 안 적었으면 수량이 센다.
