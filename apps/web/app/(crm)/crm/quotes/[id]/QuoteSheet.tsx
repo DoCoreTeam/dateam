@@ -11,7 +11,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL, TABLE_SCROLL_HINT } from '@/lib/terms/quote'
 import {
-  axisTexts, lineNoteText, convTexts, lineSumMinor,
+  axisTexts, lineNoteText, convTexts, lineSumMinor, durationText,
 } from '@/lib/crm/domain/quote-rate-text'
 import { hasDiscount, hasRemark } from '@/lib/crm/domain/quote-document'
 import { quoteColumnWidths, hasLongRemark, pct } from '@/lib/ui/quote-columns'
@@ -172,7 +172,19 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                       {noteOf(l) !== '' && <div className={styles.rateNote}>{noteOf(l)}</div>}
                     </td>
                     <td className={styles.center}>{l.unit ?? ''}</td>
-                    <td className={styles.num}>{Number(l.quantity).toLocaleString('ko-KR')}</td>
+                    {/*
+                      **수량 칸이 두 축을 든다.** 「17」 아래 「× 2개월」이 선다.
+
+                      **열을 더하지 않는다** — 열을 하나 늘리면 이미 나간 견적서 전부의
+                      폭이 바뀌고, 기간을 안 적은 견적서에 빈 열이 생긴다.
+                      기간이 없는 줄은 예전과 글자 하나 다르지 않다.
+                    */}
+                    <td className={styles.num}>
+                      {Number(l.quantity).toLocaleString('ko-KR')}
+                      {durationText(l.duration) !== '' && (
+                        <span className={styles.lineDuration}>{durationText(l.duration)}</span>
+                      )}
+                    </td>
                     <td className={styles.num}>{money(l.unitPriceMinor)}</td>
                     {/*
                       **특별가는 그 사실이 보여야 값이 있다.** 「80%」만 적으면 무엇에서

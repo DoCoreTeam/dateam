@@ -19,7 +19,7 @@ import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '../../terms/quote.ts'
 import { hasDiscount, hasRemark } from '../domain/quote-document.ts'
 import { minorDigits, currencyAffix } from '../../../app/(crm)/crm/deals/amount.ts'
 import {
-  axisTexts, lineNoteText, convTexts, lineSumMinor,
+  axisTexts, lineNoteText, convTexts, lineSumMinor, durationText,
 } from '../domain/quote-rate-text.ts'
 
 /** 항목 표의 열 — 화면(§견적서)과 **같은 순서**다. 다르면 같은 문서가 아니다 */
@@ -594,8 +594,15 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     */
     const note = lineNoteText(line, doc.meta.lineNoteKeys, (m) => moneyText(m, cur))
     const axes = axisTexts(line, doc.meta.rateAxisKeys, (m) => moneyText(m, cur))
+    /*
+      **기간은 수량 칸 밖으로 낸다.** 엑셀의 수량 칸은 수식이 가리키는 **수**라
+      「17 × 2개월」 같은 글을 넣으면 금액 수식이 통째로 죽는다. 그래서 품목 칸 글로 내린다 —
+      화면은 수량 아래, 엑셀은 품목 아래. **자리는 달라도 값은 같다**(같은 함수가 짓는다).
+    */
+    const dur = durationText(line.duration)
     const underName = [
       ...specLines,
+      ...(dur ? [`${QUOTE.lineQuantity} ${Number(line.quantity).toLocaleString('ko-KR')}${line.unit ?? ''} ${dur}`] : []),
       ...(note ? [note] : []),
       ...axes.map((a) => `${a.label} ${a.body}`),
     ]
@@ -618,7 +625,13 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
         (사용자 지시: 「수식으로 구성되었으면 한다」).
         할인은 퍼센트 문자열이라 셀에서 못 쓴다 — 배율을 우리가 계산해 곱한다.
       */
-      { formula: `ROUND(D${r}*E${r}*${discountFactor(line.discountPercent)},0)` },
+      /*
+        **기간도 수식에 들어간다.** 「17대 × 2개월」의 2 는 금액을 두 배로 만드는 수인데,
+        수식이 수량과 단가만 곱하면 받은 파일만 금액이 절반이 된다 — 화면과 종이는 맞는데
+        엑셀만 틀린 것이 가장 나쁘다(어느 쪽이 맞는지 받는 사람이 판정할 수 없다).
+        적은 수가 아니라 **실제로 걸린 배수**를 쓴다 — 시간당 단가에 「2개월」은 1,460 이다.
+      */
+      { formula: `ROUND(D${r}*E${r}${line.duration ? `*${line.duration.factor}` : ''}*${discountFactor(line.discountPercent)},0)` },
       // ↑ 배율은 **실효 할인율**로 낸다 — 기본과 특별이 겹친 결과가 이미 그 값이다
       // 비고 — 그 줄이 이 견적에서 무슨 구실인가(「서버 새시」「64코어」「Raid5」)
       line.remark ?? '',

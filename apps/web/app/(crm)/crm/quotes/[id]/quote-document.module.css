@@ -817,3 +817,18 @@
 .attachments {
   margin-top: var(--space-6, 24px);
 }
+
+/*
+  수량 칸의 **두 번째 축** — 「17」 아래 「× 2개월」.
+
+  **열을 더하지 않는다.** 열을 하나 늘리면 이미 나간 견적서 전부의 폭이 바뀌고,
+  기간을 안 적은 견적서에는 빈 열이 생긴다. 수량 칸 안에서 줄을 바꾼다.
+
+  작고 흐리게 — 큰 숫자는 수량이고 이것은 그 수량이 얼마 동안인가다.
+*/
+.lineDuration {
+  display: block;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}

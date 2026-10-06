@@ -788,7 +788,8 @@ test('★ 수량 칸 아래 「× 2개월」이 설 근거가 문서에 실린�
     durationValue: '2', durationUnit: 'MONTH',
     unitPriceMinor: BigInt(936000), lineTotalMinor: BigInt(31824000),
   }])
-  assert.deepEqual(doc.lines[0].duration, { value: '2', unit: 'MONTH' })
+  // factor 는 **실제로 걸린 배수**다 — 엑셀의 금액 수식이 이 수를 쓴다
+  assert.deepEqual(doc.lines[0].duration, { value: '2', unit: 'MONTH', factor: 2 })
   assert.equal(doc.lines[0].quantity, '17', '수량은 대수 그대로다')
   assert.equal(doc.lines[0].unit, '대')
 })
@@ -827,4 +828,22 @@ test('★ 「정상가」도 기간을 센다 — 안 세면 깎아 줬는데 �
   assert.equal(l.baseAmountMinor, '28641600')
   assert.ok(Number(l.baseAmountMinor) > Number(l.amountMinor),
     '정상가가 실제 금액보다 커야 한다 — 작으면 할인이 거꾸로 인쇄된다')
+})
+
+test('★ 기간 배수는 단가의 기준 단위를 따른다 — 엑셀 수식이 이 수를 곱한다', () => {
+  // 시간당 단가(사용량) 줄에 「2개월」을 적으면 배수는 2 가 아니라 1,460 이다
+  const usage = rateOn([{
+    name: 'GPU 사용', unit: '대', quantity: '1', kind: 'USAGE', priceBasis: 'HOUR',
+    durationValue: '2', durationUnit: 'MONTH',
+    unitPriceMinor: BigInt(1388), lineTotalMinor: BigInt(2026480),
+  }])
+  assert.equal(usage.lines[0].duration?.factor, 1460)
+
+  // 기준이 없는 종류는 적은 수 그대로
+  const qty = rateOn([{
+    name: 'RTX5090 서버', unit: '대', quantity: '17',
+    durationValue: '2', durationUnit: 'MONTH',
+    unitPriceMinor: BigInt(936000), lineTotalMinor: BigInt(31824000),
+  }])
+  assert.equal(qty.lines[0].duration?.factor, 2)
 })

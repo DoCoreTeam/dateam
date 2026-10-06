@@ -769,3 +769,34 @@ test('★ 산식이 기간을 안 적은 줄에 「× 1」을 끼우지 않는�
   // 단가를 아직 안 적은 줄에는 「= 0원」이 서면 안 된다
   assert.equal(lineFormulaText({ ...base, unitPriceMinor: '', durationValue: '', durationUnit: '' }, '0', money), '')
 })
+
+test('★ 견적서 수량 칸이 기간을 들고 열은 안 늘어난다 — 열을 늘리면 옛 견적서 폭이 바뀐다', () => {
+  // 수량 칸 안에서 줄을 바꾼다. 새 <col> 이나 새 <th> 를 만들지 않는다
+  assert.match(SHEET, /durationText\(l\.duration\)/, '견적서가 기간을 안 그린다')
+  assert.match(SHEET, /styles\.lineDuration/, '기간 줄 스타일을 안 쓴다')
+  assert.match(DOC, /\.lineDuration \{/, '기간 줄 스타일이 없다')
+  // 「× 2개월」이 숫자 사이에서 끊기면 안 된다
+  const m = DOC.match(/\.lineDuration \{[^}]*\}/)
+  assert.ok(m && /white-space: nowrap/.test(m[0]), '「× 2개월」이 두 줄로 끊긴다')
+  // 화면·엑셀이 **같은 함수**에서 글을 받는다 — 각자 지으면 서서히 갈린다
+  assert.match(SHEET, /durationText/, '견적서가 글 짓는 함수를 안 쓴다')
+  assert.match(XLSX, /durationText/, '엑셀이 글 짓는 함수를 안 쓴다')
+})
+
+test('★ 조회가 기간을 문서까지 **넘긴다** — 서버 합계는 맞는데 종이에만 안 찍힌 자리다', () => {
+  /*
+    실측 2026-10-06: 창구로 만든 견적의 서버 합계는 35,006,400원으로 맞았는데
+    견적서에는 「17 대」만 찍히고 「× 2개월」이 없었다. 저장도 셈도 멀쩡했고
+    **문서를 조립하며 줄을 옮기는 자리**(quote-document 서비스)가 두 칸을 안 실었다.
+
+    그 파일은 「항목은 필요한 것만 옮긴다」는 화이트리스트라, 칸이 늘면 **반드시** 여기도
+    늘어야 한다. 소스에서 이름만 찾으면 주석에 적힌 글자에 속으므로 **무엇이 가는지**를 본다.
+  */
+  const svc = read('lib/crm/services/quote-document.ts')
+  for (const key of ['durationValue', 'durationUnit']) {
+    assert.ok(new RegExp(`${key}:\\s*l\\.${key}`).test(svc),
+      `문서 조립이 ${key} 를 안 넘긴다 — 저장은 되는데 견적서·엑셀에 안 찍힌다`)
+  }
+  assert.match(svc, /priceBasis:\s*LINE_KIND_PRICE_BASIS/,
+    '단가 기준 단위를 안 넘긴다 — 시간당 단가 줄의 배수가 1,460 이 아니라 2 가 된다')
+})

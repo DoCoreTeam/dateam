@@ -21,6 +21,7 @@ import {
   type QuoteDocument,
 } from '../domain/quote-document.ts'
 import { SUPPLIER_LABEL } from '../../terms/quote.ts'
+import { LINE_KIND_PRICE_BASIS, type QuoteLineKind } from '../../terms/cost.ts'
 import { kstDateKey } from '../../datetime/kst.ts'
 
 export interface QuoteDocumentResult {
@@ -204,6 +205,15 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       // 공급 기간 — 여기서 개월과 총 시간을 센다. 빠지면 축을 세울 근거가 없다
       startDate: l.startDate,
       endDate: l.endDate,
+      /*
+        **「얼마 동안」은 금액을 바꾸는 값이다.** 여기서 빠지면 서버가 센 합계는 두 달치인데
+        견적서는 「17 대」만 적고 「× 2개월」을 안 그린다 — 받는 사람이 금액을 검산할 수 없다
+        (실측 2026-10-06: 서버 합계 35,006,400 이 맞는데 종이에 기간이 안 찍혔다).
+        단가의 기준 단위도 함께 간다 — 시간당 단가에 「2개월」은 배수가 1,460 이다.
+      */
+      durationValue: l.durationValue,
+      durationUnit: l.durationUnit,
+      priceBasis: LINE_KIND_PRICE_BASIS[(l.kind ?? 'QUANTITY') as QuoteLineKind],
     })),
     sections: (quote.sections ?? []).map((sec) => ({
       id: sec.id, name: sec.name, subtotalMinor: sec.subtotalMinor,

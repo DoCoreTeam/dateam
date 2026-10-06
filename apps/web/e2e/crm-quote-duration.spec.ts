@@ -141,3 +141,60 @@ for (const width of [1280, 390]) {
     await page.screenshot({ path: shot(`02-${width}`), fullPage: false })
   })
 }
+
+test('견적서가 수량 칸에 「17 × 2개월」을 적고 합계가 원본과 같다', async ({ page }) => {
+  test.setTimeout(240_000)
+  await page.setViewportSize({ width: 1280, height: 1000 })
+
+  /*
+    **서버 창구로 만든다.** 품목 고르기 모달은 카탈로그를 찾아오는 동안 열려 있고,
+    이 시험이 보려는 것은 거기가 아니라 **만들어진 견적서가 두 축을 어떻게 적는가**다.
+    창구를 그대로 쓰므로 화이트리스트·검증·금액 계산은 사람이 저장할 때와 같은 길을 지난다.
+  */
+  await page.goto('/crm/deals', { waitUntil: 'domcontentloaded' })
+  const firstDeal = page.locator('a[href^="/crm/deals/"]').first()
+  await expect(firstDeal).toBeVisible({ timeout: 60_000 })
+  const dealId = (await firstDeal.getAttribute('href'))!.split('/').pop()!
+
+  const made = await page.request.post('/api/crm/quotes', {
+    data: {
+      dealId,
+      title: '[P0117 확인용] GPU 임대 견적',
+      lines: [{
+        name: 'RTX5090 서버', kind: 'QUANTITY',
+        quantity: '17', unit: '대',
+        durationValue: '2', durationUnit: 'MONTH',
+        unitPriceMinor: '936000', discountPercent: '0', taxRate: '10',
+      }],
+    },
+  })
+  expect(made.ok(), `만들기 실패 ${made.status()} ${await made.text()}`).toBeTruthy()
+  const quote = await made.json()
+  const id: string = quote.id ?? quote.item?.id
+  expect(id, `견적 id 를 못 받았다: ${JSON.stringify(quote).slice(0, 300)}`).toBeTruthy()
+
+  try {
+    // 서버가 센 금액이 두 축을 곱한 값이어야 한다 — 화면을 열기 전에 먼저 본다
+    const totals = quote.totalMinor ?? quote.item?.totalMinor
+    expect(String(totals), '서버 합계가 기간을 안 셌다').toBe('35006400')
+
+    await page.goto(`/crm/quotes/${id}`, { waitUntil: 'domcontentloaded' })
+    await closeUpdateNote(page)
+    await expect(page.locator('table').first()).toBeVisible({ timeout: 30_000 })
+
+    const body = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
+    expect(body, '수량이 대수가 아니다').toContain('17')
+    expect(body, '기간이 수량 칸에 안 섰다').toContain('× 2개월')
+    expect(body, '공급가액이 두 축을 안 셌다').toContain('31,824,000')
+    expect(body, '합계가 틀리다').toContain('35,006,400')
+
+    await page.screenshot({ path: shot('03-sheet'), fullPage: true })
+  } finally {
+    /*
+      **치운다.** 만든 것은 id 로 영구삭제한다 — 제목으로 지우면 남의 것을 지운다.
+      finally 에 두는 이유: 단정이 깨져도 시험 찌꺼기는 남으면 안 된다.
+    */
+    const res = await page.request.delete(`/api/crm/quotes/${id}?mode=purge`)
+    expect(res.ok(), `치우기 실패 ${res.status()}`).toBeTruthy()
+  }
+})

@@ -632,3 +632,73 @@ test('★ 날짜를 안 적어도 수량이 시간이면 파일에 축이 실린
   // 날짜를 모르므로 기간 근거는 지어내지 않는다
   assert.ok(!/기간 \d{4}-\d{2}-\d{2}/.test(t), '안 적은 날짜를 파일에 적었다')
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 — 받은 파일만 금액이 절반이 되면 안 된다
+
+   엑셀의 금액 칸은 **살아 있는 수식**이다(받은 사람이 수량을 고치면 다시 계산된다).
+   그 수식이 수량과 단가만 곱하면 「17대 × 2개월」짜리 줄이 파일에서만 15,912,000원이 되고,
+   화면·종이와 엑셀이 다른 금액을 말한다 — 어느 쪽이 맞는지 받는 사람이 판정할 수 없다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+function durationDoc() {
+  return doc({
+    quote: {
+      quoteNo: 'Q-2026-0117', title: 'GPU 임대 견적', currency: 'KRW',
+      validUntil: '2026-11-05', createdAt: '2026-10-06T00:00:00.000Z',
+      subtotalMinor: BigInt(31824000), discountMinor: BigInt(0),
+      taxMinor: BigInt(3182400), totalMinor: BigInt(35006400), notesMd: null,
+    },
+    lines: [{
+      name: 'RTX5090 서버', descriptionMd: null, unit: '대', quantity: '17',
+      durationValue: '2', durationUnit: 'MONTH',
+      unitPriceMinor: BigInt(936000), discountPercent: '0', lineTotalMinor: BigInt(31824000),
+    }],
+  })
+}
+
+test('★ 금액 수식이 기간을 곱한다 — 안 곱하면 받은 파일만 절반이다', async () => {
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load((await quoteDocumentToXlsx({ document: durationDoc() })).buffer as unknown as ArrayBuffer)
+  const ws = wb.worksheets[0]
+
+  let formula: string | null = null
+  ws.eachRow((row) => {
+    row.eachCell({ includeEmpty: false }, (c) => {
+      const v = c.value as { formula?: string } | null
+      if (v && typeof v === 'object' && 'formula' in v && /^ROUND\(D\d+\*E\d+/.test(v.formula ?? '')) {
+        formula = v.formula ?? null
+      }
+    })
+  })
+  assert.ok(formula, '품목 금액 수식을 못 찾았다')
+  assert.match(formula!, /\*2\*/, `기간 배수 2 가 수식에 없다: ${formula}`)
+
+  // 수식이 실제로 31,824,000 을 낸다 — 17 × 936,000 × 2
+  assert.equal(17 * 936_000 * 2, 31_824_000)
+})
+
+test('★ 파일도 「17대 × 2개월」이라고 적는다 — 화면과 같은 함수가 짓는다', async () => {
+  const t = await textOf((await quoteDocumentToXlsx({ document: durationDoc() })).buffer)
+  assert.ok(t.includes('× 2개월'), `기간을 안 적었다\n${t}`)
+  assert.ok(t.includes('17대'), '대수를 안 적었다')
+})
+
+test('★ 기간을 안 적은 줄의 수식은 전과 똑같다 — 새 칸이 생겼다고 옛 견적서가 바뀌면 안 된다', async () => {
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load((await quoteDocumentToXlsx({ document: doc() })).buffer as unknown as ArrayBuffer)
+  const ws = wb.worksheets[0]
+  const formulas: string[] = []
+  ws.eachRow((row) => {
+    row.eachCell({ includeEmpty: false }, (c) => {
+      const v = c.value as { formula?: string } | null
+      if (v && typeof v === 'object' && 'formula' in v && /^ROUND\(D\d+\*E\d+/.test(v.formula ?? '')) {
+        formulas.push(v.formula!)
+      }
+    })
+  })
+  assert.ok(formulas.length >= 2, '품목 수식을 못 찾았다')
+  for (const f of formulas) {
+    assert.match(f, /^ROUND\(D\d+\*E\d+\*[\d.]+,0\)$/, `기간 없는 줄에 군더더기가 붙었다: ${f}`)
+  }
+})

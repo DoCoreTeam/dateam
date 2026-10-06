@@ -29,7 +29,7 @@ import { convertMinor } from './currency.ts'
 import { splitSpec } from './quote-spec.ts'
 import {
   computePeriod, hourlyFromMonthly, hoursFromQuantity, rateFromHours,
-  durationHours, monthsFromHours, DEFAULT_HOURS_PER_MONTH,
+  durationHours, durationFactor, monthsFromHours, DEFAULT_HOURS_PER_MONTH,
 } from './quote-rate.ts'
 
 // ------------------------------------------------------------
@@ -153,7 +153,18 @@ export interface DocumentLine {
    * 수량과 나란한 두 번째 축이다. 견적서 표에 **열을 더하지 않는다** —
    * 열을 더하면 이미 나간 견적서 전부의 폭이 바뀐다.
    */
-  duration: { value: string; unit: DurationUnit } | null
+  duration: {
+    value: string
+    unit: DurationUnit
+    /**
+     * 단가에 **실제로 몇 배**가 걸렸나.
+     *
+     * 적은 수와 다를 수 있다 — 시간당 단가에 「2개월」을 적으면 1,460 이다.
+     * 엑셀의 금액 칸은 **살아 있는 수식**이라(받은 사람이 수량을 고치면 다시 계산된다)
+     * 이 수가 수식에 들어가야 한다. 안 넣으면 받은 파일만 금액이 절반이 된다.
+     */
+    factor: number
+  } | null
   unitPriceMinor: string
   /**
    * **실제로 적용된 할인율(%).**
@@ -443,12 +454,15 @@ function dateKey(v: Date | string | null | undefined): string | null {
 function durationOf(l: {
   durationValue?: string | number | null
   durationUnit?: string | null
-}): DocumentLine['duration'] {
+  priceBasis?: 'HOUR' | 'MONTH' | null
+}, hoursPerMonth: number): DocumentLine['duration'] {
   const v = Number(l.durationValue)
   const u = l.durationUnit
   if (!Number.isFinite(v) || v <= 0) return null
   if (!u || !(u in DURATION_UNIT_LABEL)) return null
-  return { value: String(v), unit: u as DurationUnit }
+  const factor = durationFactor(v, u, l.priceBasis ?? null, hoursPerMonth)
+  if (factor == null) return null
+  return { value: String(v), unit: u as DurationUnit, factor }
 }
 
 /**
@@ -737,7 +751,7 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       components: splitSpec(l.descriptionMd).components,
       unit: text(l.unit) || null,
       quantity: s(l.quantity),
-      duration: durationOf(l),
+      duration: durationOf(l, hoursPerMonth),
       unitPriceMinor: s(l.unitPriceMinor),
       ...discountOf({ ...l, hoursPerMonth }),
       amountMinor: s(l.lineTotalMinor),

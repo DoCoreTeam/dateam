@@ -118,7 +118,7 @@
 의존: I06
 
 ### I08 견적서와 엑셀이 두 축을 같은 말로 적는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/QuoteSheet.tsx, apps/web/lib/crm/services/quote-xlsx.ts, apps/web/lib/crm/services/quote-xlsx.test.ts, apps/web/lib/terms/quote.ts
 감사 기준:
