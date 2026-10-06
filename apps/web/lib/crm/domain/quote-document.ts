@@ -21,6 +21,7 @@ import {
   QUOTE, hangulAmount, SUPPLIER_ORDER, SUPPLIER_LABEL, type SupplierField,
   RATE_AXIS_ORDER, LINE_NOTE_ORDER, TOTAL_CONV_ORDER,
   type RateAxisKey, type LineNoteKey, type TotalConvKey,
+  DURATION_UNIT_LABEL, type DurationUnit,
 } from '../../terms/quote.ts'
 import { checkI2, checkI5, type Violation } from './invariants.ts'
 import { computeLine } from './quote-math.ts'
@@ -28,7 +29,7 @@ import { convertMinor } from './currency.ts'
 import { splitSpec } from './quote-spec.ts'
 import {
   computePeriod, hourlyFromMonthly, hoursFromQuantity, rateFromHours,
-  DEFAULT_HOURS_PER_MONTH,
+  durationHours, monthsFromHours, DEFAULT_HOURS_PER_MONTH,
 } from './quote-rate.ts'
 
 // ------------------------------------------------------------
@@ -146,6 +147,13 @@ export interface DocumentLine {
   components: string[]
   unit: string | null
   quantity: string
+  /**
+   * 「얼마 동안」 — 수량 칸 아래 「× 2개월」로 선다. **안 적었으면 null** 이다.
+   *
+   * 수량과 나란한 두 번째 축이다. 견적서 표에 **열을 더하지 않는다** —
+   * 열을 더하면 이미 나간 견적서 전부의 폭이 바뀐다.
+   */
+  duration: { value: string; unit: DurationUnit } | null
   unitPriceMinor: string
   /**
    * **실제로 적용된 할인율(%).**
@@ -355,6 +363,11 @@ export interface BuildQuoteDocumentInput {
     /** 어느 묶음인지 */
     sectionId?: string | null
     lineTotalMinor: bigint | string
+    /** 「얼마 동안」 — 수량과 함께 단가에 곱해지고, 시간 축의 첫 근거가 된다 */
+    durationValue?: string | number | null
+    durationUnit?: string | null
+    /** 단가의 기준 단위 — 종류가 정한다(`LINE_KIND_PRICE_BASIS`). 부르는 쪽이 넘긴다 */
+    priceBasis?: 'HOUR' | 'MONTH' | null
     /** 공급 기간 — 여기서 개월과 총 시간을 센다 */
     startDate?: Date | string | null
     endDate?: Date | string | null
@@ -423,6 +436,22 @@ function dateKey(v: Date | string | null | undefined): string | null {
  * 준비가 안 된 문서를 보낸 것처럼 보인다.
  */
 /**
+ * 그 줄의 「얼마 동안」. **둘 다 있어야 선다** — 반쪽이면 안 적은 것으로 본다.
+ *
+ * 모르는 단위는 null 이다. 지어내서 「× 2WEEK」 같은 글자를 문서에 인쇄하지 않는다.
+ */
+function durationOf(l: {
+  durationValue?: string | number | null
+  durationUnit?: string | null
+}): DocumentLine['duration'] {
+  const v = Number(l.durationValue)
+  const u = l.durationUnit
+  if (!Number.isFinite(v) || v <= 0) return null
+  if (!u || !(u in DURATION_UNIT_LABEL)) return null
+  return { value: String(v), unit: u as DurationUnit }
+}
+
+/**
  * 그 줄의 할인을 **금액과 같은 근거로** 계산한다.
  *
  * `computeLine` 을 다시 부르는 이유: 「어느 할인이 적용됐나」를 판정하는 규칙은
@@ -434,12 +463,24 @@ function discountOf(l: {
   unitPriceMinor: bigint | string
   discountPercent?: string | number
   specialDiscountPercent?: string | number | null
+  /*
+    **기간도 넘긴다.** 안 넘기면 「정상가」가 한 달치로 나와, 2개월짜리 줄에서
+    「정상가 15,912,000원 → 31,824,000원」처럼 **깎아 줬는데 더 비싸진** 꼴이 인쇄된다.
+  */
+  durationValue?: string | number | null
+  durationUnit?: string | null
+  priceBasis?: 'HOUR' | 'MONTH' | null
+  hoursPerMonth?: number | null
 }): Pick<DocumentLine, 'discountPercent' | 'isSpecialDiscount' | 'baseDiscountPercent' | 'specialDiscountPercent' | 'baseAmountMinor'> {
   const a = computeLine({
     quantity: l.quantity,
     unitPriceMinor: l.unitPriceMinor,
     discountPercent: l.discountPercent ?? 0,
     specialDiscountPercent: l.specialDiscountPercent ?? null,
+    durationValue: l.durationValue ?? null,
+    durationUnit: l.durationUnit ?? null,
+    priceBasis: l.priceBasis ?? null,
+    hoursPerMonth: l.hoursPerMonth ?? undefined,
   })
   return {
     discountPercent: String(a.appliedDiscountPct),
@@ -502,18 +543,36 @@ type HoursAxis = {
 }
 
 /**
- * 이 품목의 시간 축을 어디서 셀지. **기간이 먼저, 없으면 수량이다.**
+ * 이 품목의 시간 축을 어디서 셀지. **기간 칸이 먼저, 그 다음 날짜, 없으면 수량이다.**
  *
- * 기간을 적었으면 날짜가 개월까지 말해 주므로 그쪽이 센다. 안 적었어도
- * 「1,440 Hours」처럼 수량 칸이 시간이면 총 시간을 아는 것이다 — 날짜는 **언제**를
- * 말하고 수량은 **얼마나**를 말하는데, 환산에 필요한 것은 뒤쪽이다.
+ * 근거가 셋인데 예전에는 둘만 봤다. 기간 칸(「2개월」)은 **금액을 바꾸는 값**이라
+ * 가장 믿을 만한 근거이고, 날짜는 「언제」를 말하므로 그 다음이다. 날짜도 없으면
+ * 「1,440 Hours」처럼 수량 칸이 시간인지 본다.
  *
- * 둘 다 없으면 null 이고, 그때는 환산을 지어내지 않는다.
+ * 실측 2026-10-06: 품목 164줄 중 날짜를 적은 줄이 **0줄**이었다. 날짜만 보던 때는
+ * 고객이 고른 시간당·월 금액이 통째로 사라졌다.
+ *
+ * 셋 다 없으면 null 이고, 그때는 환산을 지어내지 않는다.
  */
 function hoursAxis(
   l: RateLine,
   hoursPerMonth: number,
 ): HoursAxis | null {
+  const d = durationHours(l.durationValue, l.durationUnit, hoursPerMonth)
+  if (d != null) {
+    /*
+      기간 칸이 이긴다. 날짜가 함께 있으면 **언제인지**는 날짜에서 가져오되
+      **얼마나**는 기간 칸이 센다 — 둘이 어긋나면 사람이 마지막에 고친 쪽이 기간 칸이다.
+    */
+    const p = computePeriod(l.startDate, l.endDate, hoursPerMonth)
+    return {
+      start: p?.start ?? null,
+      end: p?.end ?? null,
+      days: l.durationUnit === 'DAY' ? Number(l.durationValue) : (p?.days ?? null),
+      totalHours: d,
+      months: monthsFromHours(d, hoursPerMonth),
+    }
+  }
   const p = computePeriod(l.startDate, l.endDate, hoursPerMonth)
   if (p) return { start: p.start, end: p.end, days: p.days, totalHours: p.totalHours, months: p.months }
   const h = hoursFromQuantity(l.unit, l.quantity)
@@ -525,6 +584,9 @@ function hoursAxis(
 type RateLine = {
   unit?: string | null
   quantity: string | number
+  /** 「얼마 동안」 — 시간 축의 첫 근거다 */
+  durationValue?: string | number | null
+  durationUnit?: string | null
   startDate?: Date | string | null
   endDate?: Date | string | null
   lineTotalMinor: bigint | string
@@ -675,8 +737,9 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       components: splitSpec(l.descriptionMd).components,
       unit: text(l.unit) || null,
       quantity: s(l.quantity),
+      duration: durationOf(l),
       unitPriceMinor: s(l.unitPriceMinor),
-      ...discountOf(l),
+      ...discountOf({ ...l, hoursPerMonth }),
       amountMinor: s(l.lineTotalMinor),
       remark: text(l.remark) || null,
       rate: lineRate(l, hoursPerMonth, axisKeys.length > 0 || noteKeys.length > 0),

@@ -724,3 +724,107 @@ test('★ 축도 메모도 안 골랐으면 수량이 시간이어도 환산이 
   assert.equal(doc.lines[0].rate, null, '안 골랐는데 환산이 실렸다')
   assert.equal(doc.totals.conv, null)
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 축 — 시간의 근거가 셋이 되고, 기간 칸이 그중 첫째다
+
+   실측 2026-10-06: 품목 164줄 가운데 공급 기간 **날짜를 적은 줄이 0줄**이었다.
+   날짜 칸은 금액을 안 바꾸기 때문이다. 기간 칸은 금액을 바꾸므로 사람이 채우고,
+   그래서 환산의 첫 근거가 된다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/** 기간 축을 보려면 금액 표시를 켜야 한다 — 안 켜면 rate 가 null 이고 그게 기본값이다 */
+function rateOn(lines: BuildQuoteDocumentInput['lines'], hoursPerMonth = 730) {
+  return buildQuoteDocument(input({
+    quote: { ...input().quote, rateAxisKeys: ['total', 'monthly', 'hourly'], rateHoursPerMonth: hoursPerMonth },
+    lines,
+  }))
+}
+
+test('★ 기간 칸이 날짜와 수량을 이긴다 — 셋 다 있으면 기간 칸이 센다', () => {
+  const doc = rateOn([{
+    name: 'RTX5090 서버', unit: 'Hours', quantity: '1440',
+    durationValue: '2', durationUnit: 'MONTH',
+    startDate: '2026-01-01', endDate: '2026-01-31',   // 한 달짜리 날짜
+    unitPriceMinor: BigInt(936000), lineTotalMinor: BigInt(31824000),
+  }])
+  // 기간 칸(2개월 × 730 = 1,460h)이 이긴다. 날짜(31일 = 744h)도 수량(1,440h)도 아니다
+  assert.equal(doc.lines[0].rate?.totalHours, 1460)
+  assert.equal(doc.lines[0].rate?.months, 2)
+})
+
+test('★ 기간 칸만 있고 날짜가 없어도 축이 선다 — 날짜 0줄이 여기서 막혔었다', () => {
+  const doc = rateOn([{
+    name: 'RTX5090 서버', unit: '대', quantity: '17',
+    durationValue: '2', durationUnit: 'MONTH',
+    unitPriceMinor: BigInt(936000), lineTotalMinor: BigInt(31824000),
+  }])
+  const r = doc.lines[0].rate
+  assert.ok(r, '기간 칸만으로 축이 서야 한다')
+  assert.equal(r.totalHours, 1460)
+  assert.equal(r.months, 2)
+  assert.equal(r.monthlyMinor, '15912000', '31,824,000 ÷ 2개월')
+  assert.equal(r.start, null, '날짜를 안 적었으면 지어내지 않는다')
+})
+
+test('★ 기간을 안 적은 줄은 전과 똑같다 — 날짜가 세고, 없으면 수량이 센다', () => {
+  const byDate = rateOn([{
+    name: '운영', unit: '식', quantity: '1',
+    startDate: '2026-01-01', endDate: '2026-02-28',
+    unitPriceMinor: BigInt(1000000), lineTotalMinor: BigInt(2000000),
+  }])
+  assert.equal(byDate.lines[0].rate?.months, 2, '날짜가 2개월을 센다')
+
+  const byQty = rateOn([{
+    name: 'GPU 사용', unit: 'Hours', quantity: '1440',
+    unitPriceMinor: BigInt(1388), lineTotalMinor: BigInt(1998720),
+  }], 720)
+  assert.equal(byQty.lines[0].rate?.totalHours, 1440, '수량 칸이 센다')
+})
+
+test('★ 수량 칸 아래 「× 2개월」이 설 근거가 문서에 실린다 — 열은 안 늘어난다', () => {
+  const doc = rateOn([{
+    name: 'RTX5090 서버', unit: '대', quantity: '17',
+    durationValue: '2', durationUnit: 'MONTH',
+    unitPriceMinor: BigInt(936000), lineTotalMinor: BigInt(31824000),
+  }])
+  assert.deepEqual(doc.lines[0].duration, { value: '2', unit: 'MONTH' })
+  assert.equal(doc.lines[0].quantity, '17', '수량은 대수 그대로다')
+  assert.equal(doc.lines[0].unit, '대')
+})
+
+test('★ 반쪽짜리 기간은 안 그린다 — 「2」만 있으면 2개월인지 2시간인지 모른다', () => {
+  for (const half of [
+    { durationValue: '2', durationUnit: null },
+    { durationValue: null, durationUnit: 'MONTH' },
+    { durationValue: '0', durationUnit: 'MONTH' },
+    { durationValue: '2', durationUnit: 'WEEK' },
+  ]) {
+    const doc = rateOn([{
+      name: 'x', unit: '대', quantity: '17', ...half,
+      unitPriceMinor: BigInt(936000), lineTotalMinor: BigInt(15912000),
+    }])
+    assert.equal(doc.lines[0].duration, null, `${JSON.stringify(half)} 에서 반쪽이 그려졌다`)
+  }
+})
+
+test('★ 「정상가」도 기간을 센다 — 안 세면 깎아 줬는데 더 비싸진 꼴이 인쇄된다', () => {
+  /*
+    할인을 다시 계산하는 자리(discountOf)가 기간을 안 넘기면 baseAmountMinor 가
+    한 달치로 나온다. 그러면 2개월짜리 줄에 「정상가 15,912,000원 → 31,824,000원」이
+    인쇄되고, 고객은 할인을 받고 금액이 두 배가 된 문서를 받는다.
+  */
+  const doc = rateOn([{
+    name: 'RTX5090 서버', unit: '대', quantity: '17',
+    durationValue: '2', durationUnit: 'MONTH',
+    unitPriceMinor: BigInt(936000), discountPercent: '10',
+    specialDiscountPercent: '5',
+    lineTotalMinor: BigInt(27209520),
+  }])
+  const l = doc.lines[0]
+  assert.equal(l.isSpecialDiscount, true)
+  // 기본 10% 만 적용했다면 31,824,000 × 0.9 = 28,641,600
+  assert.equal(l.baseAmountMinor, '28641600')
+  assert.ok(Number(l.baseAmountMinor) > Number(l.amountMinor),
+    '정상가가 실제 금액보다 커야 한다 — 작으면 할인이 거꾸로 인쇄된다')
+})

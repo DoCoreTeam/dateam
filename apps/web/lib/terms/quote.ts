@@ -240,6 +240,10 @@ export const QUOTE = {
   totalHours: '총 시간',
   /** 시간 단위 — 사용량 종류의 기본 단위와 같은 글자를 쓴다(lib/terms/cost.ts) */
   hourUnit: 'h',
+  /** 수량과 기간 사이에 서는 곱셈 기호 — 「17 대 × 2개월」 */
+  durationTimesSign: '×',
+  /** 시간당 금액이 몇 대 묶음의 값인지 — 「(17대 기준)」 */
+  hourlyBasisSuffix: '기준',
 
   // ── 상태·안내 ────────────────────────────────
   supplierMissing: '공급자 정보가 아직 없어요',

@@ -6,7 +6,10 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { axisTexts, lineNoteText, convTexts, approxText, hoursText } from './quote-rate-text.ts'
+import {
+  axisTexts, lineNoteText, convTexts, approxText, hoursText,
+  durationText, hourlyBasisText,
+} from './quote-rate-text.ts'
 import type { DocumentLine, DocumentLineRate } from './quote-document.ts'
 
 const money = (m: string) => `${Number(m).toLocaleString('ko-KR')}원`
@@ -131,4 +134,46 @@ test('★ 「약」은 곱해서 합계로 안 돌아올 때만 붙는다', () =
   assert.equal(approxText('1369', 1460, '1998720', money), '약 1,369원')
   assert.equal(approxText(null, 2, '1998720', money), null)
   assert.equal(approxText('999360', null, '1998720', money), null)
+})
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 축 — 「× 2개월」과 「17대 기준」
+
+   실측 2026-10-06: 17대를 2개월 쓰는 견적에서 2개월이 사라져 금액이 절반이 됐다.
+   돌아온 뒤에는 **그 두 축이 문서에 보여야** 고객이 금액을 따라갈 수 있다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+test('★ 기간은 곱셈 기호를 달고 선다 — 「2개월」만 적으면 수량의 설명으로 읽힌다', () => {
+  assert.equal(durationText({ value: '2', unit: 'MONTH' }), '× 2개월')
+  assert.equal(durationText({ value: '30', unit: 'DAY' }), '× 30일')
+  assert.equal(durationText({ value: '1460', unit: 'HOUR' }), '× 1,460시간')
+  assert.equal(durationText({ value: '1', unit: 'YEAR' }), '× 1년')
+})
+
+test('★ 안 적었거나 모르는 단위면 그 자리를 안 그린다 — 지어내서 인쇄하지 않는다', () => {
+  assert.equal(durationText(null), '')
+  assert.equal(durationText(undefined), '')
+  assert.equal(durationText({ value: '2', unit: 'WEEK' }), '')
+})
+
+test('★ 시간당 금액은 몇 대 기준인지를 이름에 적는다 — 한 대당으로 읽으면 열일곱 배 틀린다', () => {
+  assert.equal(hourlyBasisText(17, '대'), ' (17대 기준)')
+  assert.equal(hourlyBasisText('17', '대'), ' (17대 기준)')
+  assert.equal(hourlyBasisText(2, null), ' (2 기준)')
+})
+
+test('★ 수량 칸이 곧 시간인 줄에는 안 붙는다 — 「1,440Hours 기준」은 뜻이 없다', () => {
+  /*
+    「1,440 Hours」짜리 줄의 시간당은 금액 ÷ 1,440h 이고 그 1,440 이 바로 수량이다.
+    수량이 금액에 한 번 더 곱해지지 않으므로 기준을 말할 것이 없다.
+  */
+  assert.equal(hourlyBasisText(1440, 'Hours'), '')
+  assert.equal(hourlyBasisText(48, '시간'), '')
+  assert.equal(hourlyBasisText(100, 'h'), '')
+})
+
+test('★ 한 대짜리 줄에는 안 붙는다 — 「1대 기준」은 없는 구별을 있는 것처럼 보이게 한다', () => {
+  assert.equal(hourlyBasisText(1, '대'), '')
+  assert.equal(hourlyBasisText(0, '대'), '')
+  assert.equal(hourlyBasisText('이상한 값', '대'), '')
 })
