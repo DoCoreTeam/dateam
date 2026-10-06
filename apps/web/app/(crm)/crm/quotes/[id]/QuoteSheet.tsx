@@ -6,10 +6,10 @@
 // 본문을 두 벌로 두면 한쪽만 고치는 날이 오고, 그날부터 **화면과 파일이 다른 문서**가 된다.
 // 엑셀(`quote-xlsx.ts`)도 같은 `QuoteDocument` 를 읽는다 — 셋이 한 데이터에서 나온다.
 
-import { Fragment } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
-import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL } from '@/lib/terms/quote'
+import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL, TABLE_SCROLL_HINT } from '@/lib/terms/quote'
 import {
   axisTexts, lineNoteText, convTexts, lineSumMinor,
 } from '@/lib/crm/domain/quote-rate-text'
@@ -52,6 +52,27 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
     그만큼 품목 이름이 좁아져 두 줄로 부서진다(할인 열이 같은 이유로 같은 규칙을 쓴다).
   */
   const showRemark = hasRemark(doc)
+
+  /*
+    **옆으로 밀 수 있다는 것을 말한다 — 실제로 넘칠 때만.**
+
+    좁은 화면에서 표는 가로로 넘어가는데 macOS·iOS 는 스크롤 막대를 숨겨 둔다.
+    그래서 금액 열이 첫 화면 밖에 있으면 거기 뭔가 더 있다는 사실 자체가 안 보인다.
+    안 넘치는데 밀어 보라고 하면 없는 것을 찾게 만들므로 **재서 정한다.**
+
+    종이(미리보기·인쇄·PDF)에는 안 건다 — 우리 사정이 고객 문서에 찍히면 안 된다.
+  */
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [overflows, setOverflows] = useState(false)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || surface !== 'screen') return
+    const measure = () => setOverflows(el.scrollWidth - el.clientWidth > 1)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [surface, showDiscount, showRemark])
 
   /*
     ── 금액 축과 환산 줄 ─────────────────────────────────────────────────────
@@ -361,7 +382,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
       {doc.lines.length === 0 ? (
         <EmptyState title={QUOTE.noLines} />
       ) : (
-        <div className={styles.tableWrap}>
+        <div className={styles.tableWrap} ref={wrapRef}>
           <table className={styles.table}>
             {/* 열 폭을 여기서 정한다 — 내용이 정하게 두면 행마다 열이 흔들린다 */}
             {/*
@@ -571,6 +592,10 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
             </tfoot>
           </table>
         </div>
+      )}
+      {/* 밀 수 있다는 말은 **표 바로 아래**에 — 멀리 두면 무엇에 대한 말인지 모른다 */}
+      {overflows && surface === 'screen' && (
+        <p className={styles.tableHint}>{TABLE_SCROLL_HINT}</p>
       )}
 
       {doc.terms.length > 0 && (

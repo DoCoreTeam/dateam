@@ -628,3 +628,39 @@ test('★ 줄마다 근거가 다르면 빈칸으로 넘기지 않는다', () =>
   const TERMS = read('lib/terms/quote.ts')
   assert.match(TERMS, /export const HOURS_BASIS_PER_LINE/, '그 말이 용어집에 없다')
 })
+
+/* ── 옆으로 밀 수 있다는 것이 보이나 (v0.10.93x) ───────── */
+
+test('★ 표가 실제로 넘칠 때만 밀어 보라고 한다', () => {
+  /*
+    실측 2026-10-05: 390px 에서 금액 칸이 x=403 에서 시작해 첫 화면 밖이었다.
+    표는 가로로 넘어가는데(min-width 34rem) macOS·iOS 가 스크롤 막대를 숨겨서
+    **거기 뭔가 더 있다는 사실 자체가 안 보였다.**
+
+    안 넘치는데 밀어 보라고 하면 없는 것을 찾게 만든다 — 그래서 **재서 정한다.**
+  */
+  assert.match(SHEET, /el\.scrollWidth - el\.clientWidth > 1/,
+    '넘치는지 안 재고 폭이나 기기로 짐작한다')
+  assert.match(SHEET, /new ResizeObserver\(measure\)/,
+    '한 번만 재고 만다 — 창을 줄이면 안내가 안 따라온다')
+  assert.match(SHEET, /\{overflows && surface === 'screen' && \(/,
+    '종이에도 안내가 실린다 — 우리 사정이 고객 문서에 찍힌다')
+  assert.match(SHEET, /\{TABLE_SCROLL_HINT\}/, '문구를 용어집에서 안 가져온다')
+  const TERMS = read('lib/terms/quote.ts')
+  assert.match(TERMS, /export const TABLE_SCROLL_HINT/, '그 말이 용어집에 없다')
+})
+
+test('★ 인쇄에도 그 안내는 안 나간다 — 종이는 밀 수 없다', () => {
+  assert.match(DOC, /@media print \{ \.tableHint \{ display: none; \} \}/,
+    '인쇄에서 안내를 안 지운다')
+})
+
+test('★ 태블릿 폭에서도 표가 눌리지 않고 넘어간다', () => {
+  /*
+    문턱이 767px 이었을 때 **768px 에서만** 일곱 열이 426px 안에 눌려, 품목 이름이
+    두 줄로 부서지고 비고 안쪽이 40px 이 되어 「providin/g」처럼 낱말이 끊겼다
+    (실측 2026-10-05). 눌러서 맞추느니 넘겨서 읽는 편이 낫다.
+  */
+  assert.match(DOC, /@media screen and \(max-width: 1023px\) \{\s*\.table \{ min-width: 34rem; \}/,
+    '표 최소 폭이 태블릿까지 안 걸린다')
+})
