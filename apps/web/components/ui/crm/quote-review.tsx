@@ -25,6 +25,7 @@ import { LINE_KIND_ORDER, LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms
 import { useState } from 'react'
 import {
   FILL_NO_PRICE, FILL_SOURCE_LABEL, FILL_RISK_TEXT, fillComponentsFold, fillSourcePage,
+  fillDurationFound, fillDurationApply,
   FILL_TOTAL_MATCH, FILL_TOTAL_NO_REFERENCE, fillTotalMismatch,
   FILL_TOTAL_OURS, FILL_TOTAL_DOCUMENT, fillFoundLine,
   fillQuoteName, fillPickTitle, countOnly, QUOTE,
@@ -47,6 +48,9 @@ export interface DocLineJson {
   kind: string | null
   quantity: number | null
   unit: string | null
+  /** 「얼마 동안」 — 수량과 곱해지는 다른 축. 옛 응답에는 없으므로 없을 수 있다 */
+  durationValue?: number | null
+  durationUnit?: string | null
   unitPriceMinor: number | null
   discountPercent: number | null
   specialDiscountPercent: number | null
@@ -66,6 +70,13 @@ export interface DocQuoteJson {
   customerName: string | null
   supplierName: string | null
   lines: DocLineJson[]
+  /**
+   * 문서 **전체**의 공급 기간 — 표 밖 「약정 기간 2개월」이 그것이다.
+   * **줄에 자동으로 안 내린다.** 그 기간이 모든 줄에 걸리는지는 문서가 말해 주지 않으므로
+   * 화면이 제안으로 띄우고 사람이 고른다.
+   */
+  durationValue?: number | null
+  durationUnit?: string | null
   taxPercent: number | null
   sourceTotalMinor: number | null
   sourceTotalIncludesTax: boolean
@@ -78,6 +89,10 @@ export interface DocQuoteJson {
 
 /** 파일에서 읽은 것을 사람이 보는 동안 들고 있는 값 */
 export interface FileReview {
+  /** 문서 전체에 적힌 공급 기간. 표 밖 「약정 기간 2개월」이 그것이다. 없으면 null */
+  docDuration?: { value: string; unit: string } | null
+  /** 그 기간을 넣을 수 있는 줄 수(기간이 빈 줄). 0 이면 제안을 안 띄운다 */
+  durationSuggest?: number
   /** 건이 여럿일 때 어느 건인지 — 응답 배열의 자리 */
   index: number
   label: string | null
@@ -133,7 +148,18 @@ export function toFormLine(l: DocLineJson, taxPercent: number | null): QuoteLine
     remark: l.remark ?? '',
     kind: k,
     quantity: l.quantity === null ? '1' : String(l.quantity),
-    unit: l.unit ?? LINE_KIND_UNIT[k],
+    /*
+      **못 읽은 단위는 빈 칸으로 둔다.**
+
+      종류의 기본값으로 메우면 「못 읽음」과 「개월」이 같은 모양이 되고, 사람은 화면에
+      적힌 단위를 **읽어 온 값**으로 믿는다. 실측 2026-10-06: 원본의 「수량 17 대」가
+      기간요금 종류로 읽히며 단위 칸에 「개월」이 박혀, 열일곱 대가 열일곱 달이 됐다.
+      빈 칸이면 사람이 그 자리를 보고 채운다 — 단가를 빈 칸으로 두는 것과 같은 이유다.
+    */
+    unit: l.unit ?? '',
+    // 「얼마 동안」 — 읽었으면 그대로 폼에 닿는다. 못 읽었으면 둘 다 빈 칸이다
+    durationValue: l.durationValue === null || l.durationValue === undefined ? '' : String(l.durationValue),
+    durationUnit: l.durationUnit ?? '',
     // **못 읽은 단가는 빈 칸으로 둔다.** '0' 으로 채우면 0원짜리 줄이 조용히 들어간다
     unitPriceMinor: l.unitPriceMinor === null ? '' : String(l.unitPriceMinor),
     discountPercent: l.discountPercent === null ? '0' : String(l.discountPercent),
@@ -160,6 +186,21 @@ export function buildReview(
   const components = usable.map((l) => (l.components ?? []).filter(Boolean))
   const remarks = usable.map((l) => (l.remark ?? '').trim() || null)
   const groups = usable.map((l) => (l.groupLabel ?? '').trim() || null)
+
+  /*
+    **문서 전체의 기간은 제안이지 적용이 아니다.**
+
+    표 밖의 「약정 기간 2개월」이 **모든 줄에 걸리는지는 문서가 말해 주지 않는다** —
+    설치비 한 줄만 일시불인 견적이 흔하다. 자동으로 내리면 그 한 줄의 금액이 두 배가 되고,
+    사람은 자기가 안 적은 수가 어디서 왔는지 모른 채 고객에게 보낸다.
+    그래서 **줄에 기간이 없는 것들만** 세어 두고, 넣을지는 사람이 누른다.
+  */
+  const docDuration = quote.durationValue && quote.durationUnit
+    ? { value: String(quote.durationValue), unit: quote.durationUnit }
+    : null
+  const durationSuggest = docDuration
+    ? lines.reduce((n, l) => (l.durationValue ? n : n + 1), 0)
+    : 0
 
   const inputs: LineCheckInput[] = lines.map((l, i) => ({
     name: l.name,
@@ -194,6 +235,25 @@ export function buildReview(
       documentIncludesTax: Boolean(quote.sourceTotalIncludesTax),
     }),
     currency: (quote.currency ?? fallbackCurrency ?? 'KRW').toUpperCase(),
+    docDuration,
+    durationSuggest,
+  }
+}
+
+/**
+ * 문서 전체 기간을 **기간이 빈 줄에만** 내린다. 사람이 눌렀을 때만 불린다.
+ *
+ * 이미 적힌 줄은 안 건드린다 — 그 줄의 기간은 표에서 읽은 것이라 더 정확하다.
+ */
+export function applyDocDuration(review: FileReview): FileReview {
+  if (!review.docDuration) return review
+  const { value, unit } = review.docDuration
+  return {
+    ...review,
+    lines: review.lines.map((l) => (l.durationValue
+      ? l
+      : { ...l, durationValue: value, durationUnit: unit })),
+    durationSuggest: 0,
   }
 }
 
@@ -321,12 +381,29 @@ function ComponentsFold({ lines }: { lines: string[] }) {
  * 체크한 것만 들어간다(§5-3 추출/제안형 — 자동 등록 금지).
  * 줄마다 원문 조각을 옆에 둬서, 사람이 숫자를 원문과 견줄 수 있게 한다.
  */
-export function QuoteReviewList({ review, onToggle }: {
+export function QuoteReviewList({ review, onToggle, onApplyDuration }: {
   review: FileReview
   onToggle: (index: number) => void
+  /** 문서 전체 기간을 기간이 빈 줄에 넣는다. 안 주면 제안을 안 띄운다 */
+  onApplyDuration?: () => void
 }) {
   return (
     <>
+      {/*
+        **문서 전체의 기간은 제안이다.**
+
+        표 밖의 「약정 기간 2개월」이 모든 줄에 걸리는지는 문서가 말해 주지 않는다 —
+        설치비 한 줄만 일시불인 견적이 흔하다. 자동으로 내리면 그 줄의 금액이 두 배가 되고
+        사람은 자기가 안 적은 수가 어디서 왔는지 모른다. 그래서 **누르는 자리**로 둔다.
+      */}
+      {onApplyDuration && review.docDuration && (review.durationSuggest ?? 0) > 0 && (
+        <div className={styles.durationSuggest}>
+          <span>{fillDurationFound(review.docDuration.value, review.docDuration.unit)}</span>
+          <button type="button" className="btn-ghost nb-btn" onClick={onApplyDuration}>
+            {fillDurationApply(review.durationSuggest ?? 0)}
+          </button>
+        </div>
+      )}
       {/*
         **합계 대조** — 이 기능의 안전장치다.
 

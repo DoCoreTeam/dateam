@@ -94,6 +94,7 @@ export {
   RATE_PERIOD_MISSING, RATE_HOURS_MISSING,
   PERIOD_START_LABEL, PERIOD_END_LABEL,
   DURATION, DURATION_UNIT_ORDER, DURATION_UNIT_LABEL, type DurationUnit,
+  fillDurationFound, fillDurationApply,
   VARIANT, variantFromLine, variantCopyNote,
 } from './quote.ts'
 

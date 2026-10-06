@@ -327,6 +327,22 @@ export const DURATION = {
   formulaLabel: '이 줄의 셈',
 } as const
 
+/**
+ * 파일에서 **문서 전체의 기간**을 읽었을 때 쓰는 말.
+ *
+ * 「약정 기간 2개월」은 표 밖 머리글에 한 번만 적히는데, 그것이 모든 줄에 걸리는지는
+ * 문서가 말해 주지 않는다. 그래서 **읽었다는 사실만 말하고 넣는 것은 사람이 누른다.**
+ */
+export function fillDurationFound(value: string, unit: string): string {
+  const label = DURATION_UNIT_LABEL[unit as DurationUnit] ?? unit
+  return `이 문서에 공급 기간 ${Number(value).toLocaleString('ko-KR')}${label}이 적혀 있어요`
+}
+
+/** 누르는 자리 — 몇 줄에 들어가는지를 **숫자로** 말한다. 안 말하면 무엇이 바뀔지 모른다 */
+export function fillDurationApply(count: number): string {
+  return `기간이 빈 ${count}개 항목에 넣기`
+}
+
 /** 품목 이름 아래 한 줄로 이어 붙는 것 */
 export type LineNoteKey = 'period' | 'totalHours' | 'hoursBasis' | 'wasAndDiscount'
 

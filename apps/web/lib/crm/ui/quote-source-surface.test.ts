@@ -569,3 +569,54 @@ test('★ 원본 대조가 견적서를 그대로 받는다 — 두 벌로 그�
   const src = read(join(WEB, 'components/ui/crm/QuoteOriginalCompare.tsx'))
   assert.match(src, /\{sheet\}/, '견적서를 통째로 안 받고 따로 그린다')
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   「얼마 동안」 — 읽은 값이 폼까지 닿는가, 그리고 안 읽은 것을 지어내지 않는가
+
+   실측 2026-10-06: 원본의 「수량 17 대」가 기간요금 종류로 읽히며 단위 칸에 「개월」이
+   박혔다. 단위를 못 읽었을 때 **종류의 기본값으로 메우는 코드** 때문이었고,
+   그래서 열일곱 대가 열일곱 달이 되어 2개월이 통째로 사라졌다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+const REVIEW_TEXT = read(REVIEW_SRC)
+const FILL_TEXT = read(join(WEB, 'components/ui/crm/QuoteFillPanel.tsx'))
+const MODAL_TEXT = read(FROM_FILE_MODAL)
+
+test('★ 못 읽은 단위를 종류 기본값으로 메우지 않는다 — 「대」가 「개월」이 된 그 자리다', () => {
+  for (const [name, src] of [['검수 목록', REVIEW_TEXT], ['파일로 채우기', FILL_TEXT]] as const) {
+    assert.ok(!/unit:\s*l\.unit\s*\?\?\s*LINE_KIND_UNIT/.test(src),
+      `${name} 이 단위를 종류 기본값으로 메운다 — 못 읽은 것과 「개월」이 같은 모양이 된다`)
+    assert.ok(/unit:\s*l\.unit\s*\?\?\s*''/.test(src),
+      `${name} 이 단위를 빈 칸으로 안 둔다`)
+  }
+})
+
+test('★ 읽은 기간이 폼 칸까지 닿는다 — 값이 가는지로 본다', () => {
+  for (const [name, src] of [['검수 목록', REVIEW_TEXT], ['파일로 채우기', FILL_TEXT]] as const) {
+    assert.ok(/durationValue:\s*l\.durationValue/.test(src), `${name} 이 기간 값을 안 옮긴다`)
+    assert.ok(/durationUnit:\s*l\.durationUnit\s*\?\?\s*''/.test(src), `${name} 이 기간 단위를 안 옮긴다`)
+  }
+})
+
+test('★ 문서 전체 기간은 제안이지 적용이 아니다 — 설치비 한 줄만 일시불인 견적이 흔하다', () => {
+  // 제안을 세는 자리: **기간이 빈 줄만** 센다
+  assert.match(REVIEW_TEXT, /durationSuggest\s*=\s*docDuration[\s\S]{0,200}l\.durationValue \? n : n \+ 1/,
+    '제안 수를 기간이 빈 줄로 안 센다')
+  // 내리는 자리: 이미 적힌 줄은 안 건드린다
+  assert.match(REVIEW_TEXT, /l\.durationValue\s*\n?\s*\?\s*l\s*\n?\s*:\s*\{ \.\.\.l, durationValue: value/,
+    '이미 기간이 적힌 줄을 덮어쓴다 — 표에서 읽은 값이 더 정확하다')
+  // buildReview 안에서 줄에 내리지 않는다(자동 적용 금지)
+  const build = REVIEW_TEXT.slice(REVIEW_TEXT.indexOf('export function buildReview'),
+    REVIEW_TEXT.indexOf('export function applyDocDuration'))
+  assert.ok(!/lines\s*=\s*[\s\S]{0,200}docDuration/.test(build),
+    '읽자마자 줄에 기간을 내린다 — 사람이 안 고른 수가 금액을 바꾼다')
+})
+
+test('★ 제안이 화면에 서고 몇 줄에 들어가는지 숫자로 말한다', () => {
+  assert.match(REVIEW_TEXT, /onApplyDuration/, '누르는 자리가 없다')
+  assert.match(REVIEW_TEXT, /fillDurationApply\(review\.durationSuggest/, '몇 줄인지 안 말한다')
+  for (const [name, src] of [['파일로 채우기', FILL_TEXT], ['파일 모달', MODAL_TEXT]] as const) {
+    assert.match(src, /onApplyDuration=/, `${name} 이 제안 단추를 안 넘긴다`)
+    assert.match(src, /applyDocDuration/, `${name} 이 내리는 함수를 안 쓴다`)
+  }
+})

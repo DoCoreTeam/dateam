@@ -32,7 +32,7 @@ import {
 import { readResponse, describeFetchFailure } from '@/lib/crm/api/read-error'
 import {
   buildReviews, toggleChecked, pickedLines, appendLines,
-  QuoteReviewList, QuotePickList, ReviewHead,
+  QuoteReviewList, QuotePickList, ReviewHead, applyDocDuration,
   type DocLineJson, type DocQuoteJson, type FileReview,
 } from './quote-review'
 import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
@@ -93,7 +93,18 @@ function saidLine(l: DocLineJson): QuoteLineDraft {
     remark: l.remark ?? '',
     kind: k,
     quantity: l.quantity === null ? '1' : String(l.quantity),
-    unit: l.unit ?? LINE_KIND_UNIT[k],
+    /*
+      **못 읽은 단위는 빈 칸으로 둔다.**
+
+      종류의 기본값으로 메우면 「못 읽음」과 「개월」이 같은 모양이 되고, 사람은 화면에
+      적힌 단위를 **읽어 온 값**으로 믿는다. 실측 2026-10-06: 원본의 「수량 17 대」가
+      기간요금 종류로 읽히며 단위 칸에 「개월」이 박혀, 열일곱 대가 열일곱 달이 됐다.
+      빈 칸이면 사람이 그 자리를 보고 채운다 — 단가를 빈 칸으로 두는 것과 같은 이유다.
+    */
+    unit: l.unit ?? '',
+    // 「얼마 동안」 — 읽었으면 그대로 폼에 닿는다. 못 읽었으면 둘 다 빈 칸이다
+    durationValue: l.durationValue === null || l.durationValue === undefined ? '' : String(l.durationValue),
+    durationUnit: l.durationUnit ?? '',
     // **못 읽은 단가는 빈 칸으로 둔다.** '0' 으로 채우면 0원짜리 줄이 조용히 들어간다
     unitPriceMinor: l.unitPriceMinor === null ? '' : String(l.unitPriceMinor),
     discountPercent: l.discountPercent === null ? '0' : String(l.discountPercent),
@@ -350,6 +361,11 @@ export default function QuoteFillPanel({
     (r, j) => (j === pickedIndex ? toggleChecked(r, i) : r),
   ))
 
+  /** 문서 전체 기간을 **기간이 빈 줄에만** 내린다. 사람이 누를 때만 돈다 */
+  const applyDuration = () => setReviews((rs) => rs.map(
+    (r, j) => (j === pickedIndex ? applyDocDuration(r) : r),
+  ))
+
   const pickedCount = review ? review.checked.filter(Boolean).length : 0
 
   return (
@@ -449,7 +465,7 @@ export default function QuoteFillPanel({
           )}
           {docInfo.truncated && <p className={styles.sayUnclear}>{FILL_TRUNCATED}</p>}
 
-          <QuoteReviewList review={review} onToggle={toggle} />
+          <QuoteReviewList review={review} onToggle={toggle} onApplyDuration={applyDuration} />
 
           <div className={styles.sayFoot}>
             {/* 고른 것을 되돌릴 수 있어야 한다 — 골라 보기 전에는 어느 건인지 알 수 없다 */}

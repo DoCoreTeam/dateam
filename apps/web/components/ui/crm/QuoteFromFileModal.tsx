@@ -54,7 +54,7 @@ import {
 import { applyPrice, type PricePlan } from '@/lib/crm/domain/quote-margin'
 import { readResponse, describeFetchFailure } from '@/lib/crm/api/read-error'
 import {
-  buildReviews, toggleChecked, pickedIndexes, pickedLines, pickedSections, QuoteReviewList,
+  buildReviews, toggleChecked, applyDocDuration, pickedIndexes, pickedLines, pickedSections, QuoteReviewList,
   type DocQuoteJson, type FileReview,
 } from './quote-review'
 import { quoteToDraft, toLinePayload, type QuoteLineDraft } from './quote-draft-shape'
@@ -293,6 +293,10 @@ export default function QuoteFromFileModal({
 
   const toggle = (qi: number, li: number) =>
     setReviews((rs) => rs.map((r, j) => (j === qi ? toggleChecked(r, li) : r)))
+
+  /** 문서 전체 기간을 **기간이 빈 줄에만** 내린다. 사람이 누를 때만 돈다 */
+  const applyDuration = (qi: number) =>
+    setReviews((rs) => rs.map((r, j) => (j === qi ? applyDocDuration(r) : r)))
 
   /** 금액을 그 건의 통화로 — 「원」을 계산 안에서 적으면 달러 견적서가 원화로 읽힌다 */
   const moneyOf = (r: FileReview) => (v: bigint) =>
@@ -889,7 +893,13 @@ export default function QuoteFromFileModal({
                       </div>
                     )}
 
-                    {open && <QuoteReviewList review={r} onToggle={(li) => toggle(i, li)} />}
+                    {open && (
+                      <QuoteReviewList
+                        review={r}
+                        onToggle={(li) => toggle(i, li)}
+                        onApplyDuration={() => applyDuration(i)}
+                      />
+                    )}
                   </li>
                 )
               })}

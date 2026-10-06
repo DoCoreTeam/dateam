@@ -140,7 +140,7 @@
 의존: I02
 
 ### I10 읽은 값이 폼에 그대로 닿는다 — 단위 폴백을 끊는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/quote-review.tsx, apps/web/components/ui/crm/QuoteFillPanel.tsx, apps/web/lib/crm/ui/quote-source-surface.test.ts
 감사 기준:
