@@ -102,6 +102,8 @@ export interface CalendarEventInput {
   end_at?: string | null
   all_day?: boolean
   description?: string | null
+  /** 어디서 하나 — 적을 칸이 없으면 사람은 제목 끝에 괄호로 붙인다(마이그 304) */
+  location?: string | null
   link_kind?: 'daily' | 'weekly' | 'memo' | 'meeting' | null
   link_id?: string | null
   source?: 'user' | 'ai' | 'rule'
@@ -112,6 +114,17 @@ interface Result {
   ok: boolean
   id?: string
   error?: string
+}
+
+/**
+ * 빈 칸은 빈 문자열이 아니라 **없음**으로 저장한다.
+ *
+ * 공백만 남은 값을 그대로 넣으면 화면은 「장소가 있다」고 판단해 빈 줄을 그린다 —
+ * 라벨만 있고 값이 없는 줄은 사용자에게 고장으로 읽힌다.
+ */
+const emptyToNull = (v: string | null | undefined): string | null => {
+  const t = (v ?? '').trim()
+  return t.length > 0 ? t : null
 }
 
 /** 일정 생성 — 작성 시점 소속 부서 자동 동결(계층 가시성용) */
@@ -134,7 +147,8 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Re
         user_id: user.id,
         department_id: dept?.department_id ?? null,
         title: input.title.trim(),
-        description: input.description ?? null,
+        description: emptyToNull(input.description),
+        location: emptyToNull(input.location),
         start_at: input.start_at,
         end_at: input.end_at ?? null,
         all_day: input.all_day ?? false,

@@ -1,0 +1,909 @@
+<title>GPU 견적 금액 표시</title>
+<style>
+  :root {
+    --ink: #16202e; --ink-2: #39465a; --mute: #5a6675; --mute-2: #8b95a3;
+    --paper: #fcfcfd; --surface: #ffffff; --surface-2: #f4f6f8;
+    --rule: #e3e6ea; --rule-2: #cfd5dd;
+    --ok: #0f6b63; --ok-bg: #e8f3f1; --bad: #a8422f; --bad-bg: #fbeeea;
+    --ai: #4a4fa8; --ai-bg: #ecedf8; --accent: #0f6b63;
+    --fs-body: 1rem; --fs-sm: 0.875rem; --fs-xs: 0.78rem; --measure: 68ch;
+    --num: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+            "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #e8ecf1; --ink-2: #c3ccd8; --mute: #9aa5b4; --mute-2: #6f7b8a;
+      --paper: #11161d; --surface: #171d26; --surface-2: #1d242f;
+      --rule: #2a323d; --rule-2: #3a4450;
+      --ok: #5fcbbe; --ok-bg: #16302e; --bad: #e08871; --bad-bg: #32201b;
+      --ai: #a9adf0; --ai-bg: #22243f; --accent: #5fcbbe;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink: #e8ecf1; --ink-2: #c3ccd8; --mute: #9aa5b4; --mute-2: #6f7b8a;
+    --paper: #11161d; --surface: #171d26; --surface-2: #1d242f;
+    --rule: #2a323d; --rule-2: #3a4450;
+    --ok: #5fcbbe; --ok-bg: #16302e; --bad: #e08871; --bad-bg: #32201b;
+    --ai: #a9adf0; --ai-bg: #22243f; --accent: #5fcbbe;
+  }
+
+  * { box-sizing: border-box; }
+
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: var(--fs-body); line-height: 1.72; -webkit-font-smoothing: antialiased; }
+
+  .wrap { max-width: 56rem; margin: 0 auto; padding: 4rem 1.5rem 6rem; display: flex; flex-direction: column; gap: 3.5rem; }
+
+  .verdict { display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2.5rem; border-bottom: 2px solid var(--ink); }
+  .eyebrow { font-size: var(--fs-xs); letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute-2); font-weight: 600; }
+  h1 { margin: 0; font-size: clamp(1.7rem, 1.1rem + 2.4vw, 2.7rem); line-height: 1.26; letter-spacing: -0.022em; font-weight: 700; text-wrap: balance; }
+  .verdict-cond { margin: 0; max-width: var(--measure); color: var(--ink-2); font-size: 1.05rem; }
+  .verdict-cond strong { color: var(--ink); font-weight: 650; }
+
+  .cond-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.6rem; counter-reset: cond; }
+  .cond-list li { display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.75rem; align-items: baseline; font-size: var(--fs-sm); color: var(--ink-2); }
+  .cond-list li::before { counter-increment: cond; content: counter(cond); font-family: var(--num); font-size: var(--fs-xs); color: var(--accent); font-weight: 700; }
+
+  section { display: flex; flex-direction: column; gap: 1.5rem; }
+  h2 { margin: 0; font-size: 1.38rem; letter-spacing: -0.014em; font-weight: 680; display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
+  h2 .tag { font-family: var(--num); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; color: var(--mute-2); border: 1px solid var(--rule-2); border-radius: 2px; padding: 0.1rem 0.4rem; line-height: 1.5; }
+  h3 { margin: 0; font-size: 1.02rem; font-weight: 650; letter-spacing: -0.008em; }
+
+  p { margin: 0; max-width: var(--measure); }
+  .lede { color: var(--ink-2); }
+
+  code, .n { font-family: var(--num); font-size: 0.88em; font-variant-numeric: tabular-nums; }
+  code { background: var(--surface-2); border: 1px solid var(--rule); border-radius: 2px; padding: 0.08em 0.34em; color: var(--ink-2); word-break: break-all; }
+  .src { font-family: var(--num); font-size: 0.72rem; color: var(--mute-2); word-break: break-all; }
+
+  .tablewrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); min-width: 30rem; }
+  table.data th, table.data td { text-align: left; padding: 0.58rem 0.8rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.data thead th { font-size: var(--fs-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--mute-2); font-weight: 650; border-bottom: 1.5px solid var(--rule-2); white-space: nowrap; }
+  table.data td.num, table.data th.num { text-align: right; font-family: var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.data tr:last-child td { border-bottom: none; }
+  .hit { color: var(--bad); font-weight: 650; }
+  .good { color: var(--ok); font-weight: 650; }
+  .was { color: var(--mute-2); text-decoration: line-through; }
+
+  .mock { background: var(--surface); border: 1px solid var(--rule-2); border-radius: 3px; overflow: hidden; }
+  .mock-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 0.65rem 1rem; background: var(--surface-2); border-bottom: 1px solid var(--rule-2); font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 650; color: var(--mute); }
+  .mock-head .flag { text-transform: none; letter-spacing: 0; font-weight: 600; }
+  .mock-head .flag.ok { color: var(--ok); }
+  .mock-head .flag.ai { color: var(--ai); }
+  .mock-body { padding: 1.1rem 1rem; overflow-x: auto; }
+  .mock-note { font-size: var(--fs-xs); color: var(--mute); padding: 0.6rem 1rem; border-top: 1px dotted var(--rule-2); background: var(--paper); }
+
+  .fieldrow { display: flex; flex-direction: column; gap: 0.45rem; }
+  .fieldrow + .fieldrow { margin-top: 1.1rem; }
+  .flabel { font-size: var(--fs-xs); font-weight: 650; color: var(--mute); letter-spacing: 0.04em; }
+
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule-2); border-radius: 3px; overflow: hidden; background: var(--surface-2); align-self: flex-start; max-width: 100%; }
+  .seg button { font: inherit; font-size: var(--fs-sm); background: none; border: none; border-right: 1px solid var(--rule-2); padding: 0.45rem 0.85rem; color: var(--mute); cursor: default; display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; line-height: 1.4; }
+  .seg button:last-child { border-right: none; }
+  .seg button.on { background: var(--ok-bg); color: var(--ok); font-weight: 650; box-shadow: inset 0 -2px 0 var(--ok); }
+  .seg button.off { color: var(--mute-2); opacity: 0.55; }
+  .seg .res { font-family: var(--num); font-size: 0.72rem; font-variant-numeric: tabular-nums; color: var(--mute-2); font-weight: 400; }
+  .seg button.on .res { color: var(--ok); opacity: 0.9; }
+
+  .numbox { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.35rem 0.6rem; background: var(--surface); font-family: var(--num); font-size: var(--fs-sm); align-self: flex-start; }
+  .numbox .cursor { display: inline-block; width: 1px; height: 1em; background: var(--ink); vertical-align: -0.1em; }
+
+  .fnote { font-size: var(--fs-xs); color: var(--mute); }
+
+  .checkrow { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; }
+  .chk { display: inline-flex; align-items: baseline; gap: 0.4rem; font-size: var(--fs-sm); color: var(--ink-2); }
+  .chk .box { display: inline-block; width: 0.95rem; height: 0.95rem; flex: none; border: 1.5px solid var(--rule-2); border-radius: 2px; position: relative; top: 0.15rem; }
+  .chk.on .box { background: var(--ok); border-color: var(--ok); }
+  .chk.on .box::after { content: ""; position: absolute; left: 0.28rem; top: 0.08rem; width: 0.22rem; height: 0.46rem; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .chk.on { color: var(--ink); font-weight: 600; }
+
+  /* 곱셈식(「월 999,360원 × 2개월」)이 끊기지 않는 최소 폭. 40rem 에서는 142px 칸에 160px 이 들어와 깨졌다(실측 390px).
+     끊기면 관계가 안 보이므로 줄바꿈 대신 폭으로 푼다. 폰에서는 가로로 밀어 본다. */
+  table.sheet { width: 100%; min-width: 44rem; border-collapse: collapse; font-size: var(--fs-xs); table-layout: fixed; }
+  table.sheet th { font-weight: 650; color: var(--mute); text-align: center; padding: 0.4rem 0.3rem; border-bottom: 1.2px solid var(--ink-2); white-space: nowrap; }
+  table.sheet td { padding: 0.55rem 0.35rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.sheet td.c { text-align: center; }
+  table.sheet td.r { text-align: right; font-family: var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.sheet tfoot td { border-bottom: none; padding-top: 0.5rem; }
+  table.sheet tfoot tr.grand td { border-top: 1.2px solid var(--ink-2); font-weight: 680; font-size: 1.05em; }
+
+  .itemname { font-weight: 600; color: var(--ink); }
+  .itemspec { color: var(--mute); font-size: 0.92em; margin-top: 0.2rem; line-height: 1.5; }
+  .itemextra { margin-top: 0.3rem; font-family: var(--num); font-size: 0.92em; color: var(--ok); background: var(--ok-bg); display: inline-block; padding: 0.08rem 0.4rem; border-radius: 2px; line-height: 1.6; }
+  .amount-main { font-size: 1.1em; font-weight: 650; color: var(--ink); }
+  .amount-sub { font-size: 0.92em; color: var(--mute); margin-top: 0.15rem; font-family: var(--num); font-variant-numeric: tabular-nums; line-height: 1.55; }
+  .totlabel { text-align: right; color: var(--mute); }
+  .totnote { display: block; font-size: 0.86em; color: var(--mute-2); font-family: var(--num); font-weight: 400; }
+
+  .variants { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+  @media (max-width: 44rem) { .variants { grid-template-columns: 1fr; } }
+  .vcard { border: 1px solid var(--rule-2); border-radius: 3px; padding: 0.85rem 0.9rem; display: flex; flex-direction: column; gap: 0.4rem; background: var(--paper); }
+  .vcard.pick { border-color: var(--ok); border-width: 1.5px; background: var(--ok-bg); }
+  .vtop { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
+  .vlabel { font-size: var(--fs-sm); font-weight: 680; }
+  .vcard.pick .vlabel { color: var(--ok); }
+  .vno { font-family: var(--num); font-size: 0.68rem; color: var(--mute-2); }
+  .vterm { font-family: var(--num); font-size: var(--fs-xs); color: var(--mute); }
+  .vamt { font-family: var(--num); font-size: 1.02rem; font-weight: 680; font-variant-numeric: tabular-nums; }
+  .vunit { font-family: var(--num); font-size: var(--fs-xs); color: var(--mute); }
+  .vtag { font-size: 0.64rem; font-family: var(--num); padding: 0.05rem 0.3rem; border-radius: 2px; border: 1px solid var(--rule-2); color: var(--mute-2); white-space: nowrap; }
+  .vtag.on { border-color: var(--ok); color: var(--ok); }
+
+  .ai-card { border: 1px solid var(--ai); border-left: 3px solid var(--ai); border-radius: 3px; background: var(--ai-bg); padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.55rem; }
+  .ai-card + .ai-card { margin-top: 0.7rem; }
+  .ai-top { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+  .ai-badge { font-family: var(--num); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; color: var(--ai); border: 1px solid var(--ai); border-radius: 2px; padding: 0.08rem 0.35rem; white-space: nowrap; }
+  .ai-title { font-size: var(--fs-sm); font-weight: 650; color: var(--ink); }
+  .ai-why { font-size: var(--fs-xs); color: var(--ink-2); }
+  .ai-why b { color: var(--ink); }
+  .ai-notice { font-size: 0.7rem; color: var(--ai); opacity: 0.85; font-weight: 600; }
+  .ai-diff { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.7rem; font-size: var(--fs-xs); background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; padding: 0.5rem 0.7rem; }
+  .ai-diff dt { color: var(--mute-2); white-space: nowrap; }
+  .ai-diff dd { margin: 0; font-family: var(--num); color: var(--ink-2); }
+  .ai-diff dd.now { color: var(--ok); font-weight: 650; }
+  .ai-acts { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+  .btn { font-size: var(--fs-xs); padding: 0.3rem 0.7rem; border-radius: 3px; border: 1px solid var(--rule-2); background: var(--surface); color: var(--ink-2); white-space: nowrap; }
+  .btn.pri { background: var(--ai); border-color: var(--ai); color: #fff; font-weight: 650; }
+
+  .listrow { display: grid; grid-template-columns: 9rem 1fr auto auto; gap: 0.75rem; align-items: baseline; padding: 0.55rem 0.3rem; border-bottom: 1px solid var(--rule); font-size: var(--fs-xs); }
+  .listrow.head { color: var(--mute-2); font-weight: 650; border-bottom: 1.2px solid var(--rule-2); text-transform: uppercase; letter-spacing: 0.06em; }
+  .listrow .lno { font-family: var(--num); }
+  .listrow .lamt { font-family: var(--num); font-variant-numeric: tabular-nums; text-align: right; }
+  .newtag { font-size: 0.64rem; font-family: var(--num); padding: 0.05rem 0.3rem; border-radius: 2px; border: 1px solid var(--ok); color: var(--ok); background: var(--ok-bg); white-space: nowrap; margin-left: 0.3rem; }
+  @media (max-width: 40rem) { .listrow { grid-template-columns: 1fr auto; } .listrow .ldeal { display: none; } }
+
+  .steps { display: flex; flex-direction: column; gap: 1rem; }
+  .step { display: grid; grid-template-columns: 2.4rem 1fr; gap: 1rem; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 3px; padding: 1.1rem 1.3rem; }
+  .step-n { font-family: var(--num); font-size: 1.1rem; font-weight: 700; color: var(--accent); line-height: 1.45; }
+  .step-body { display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; }
+  .step-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.55rem; }
+  .pill { font-size: 0.66rem; font-family: var(--num); letter-spacing: 0.05em; padding: 0.1rem 0.4rem; border-radius: 2px; border: 1px solid var(--rule-2); color: var(--mute); white-space: nowrap; }
+  .pill.mig { border-color: var(--ok); color: var(--ok); background: var(--ok-bg); }
+  .pill.aip { border-color: var(--ai); color: var(--ai); background: var(--ai-bg); }
+  .pill.fix { border-color: var(--bad); color: var(--bad); background: var(--bad-bg); }
+  .why { font-size: var(--fs-xs); color: var(--mute); border-top: 1px dotted var(--rule-2); padding-top: 0.5rem; }
+  .why b { color: var(--ink-2); font-weight: 650; }
+  .files { font-size: 0.72rem; color: var(--mute-2); font-family: var(--num); word-break: break-all; }
+
+  .miss { display: flex; flex-direction: column; gap: 0.85rem; }
+  .miss-item { display: grid; grid-template-columns: auto 1fr; gap: 0.9rem; align-items: start; border: 1px solid var(--rule); border-radius: 3px; padding: 0.95rem 1.15rem; background: var(--surface); }
+  .miss-mark { font-family: var(--num); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.18rem 0.42rem; border-radius: 2px; white-space: nowrap; background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+  .miss-mark.warn { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
+  .miss-mark.aim { background: var(--ai-bg); color: var(--ai); border-color: var(--ai); }
+  .miss-body { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+  .miss-body p { font-size: var(--fs-sm); color: var(--ink-2); }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 1.4rem; font-size: var(--fs-xs); color: var(--mute-2); display: flex; flex-direction: column; gap: 0.35rem; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .wrap > * { animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+    .wrap > *:nth-child(2) { animation-delay: 0.05s; }
+    .wrap > *:nth-child(3) { animation-delay: 0.1s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(0.6rem); } to { opacity: 1; transform: none; } }
+  }
+</style>
+
+<div class="wrap">
+
+  <!-- ══ 판정 ══════════════════════════════ -->
+  <header class="verdict">
+    <div class="eyebrow">기획 보고 · 2026-10-04 · 영업 CRM 견적 · 4판</div>
+    <h1>금액이 시간당·월·기간 세 축으로 다 보이고, 하나만 보이게도 셋 다 보이게도 선택할 수 있다</h1>
+    <p class="verdict-cond">
+      품목 줄의 금액 칸과 합계 영역 두 자리에서 <strong>시간당·월·기간 총액</strong>을 각각 켜고 끌 수 있다.
+      셋 다 켜도 되고 하나만 켜도 된다. 월 기준 시간은 <strong>730 기본</strong>에
+      720·매입에 맞춤·직접 입력을 더해 선택한다. 조건은 셋이다.
+    </p>
+    <ol class="cond-list">
+      <li><span>표시 선택을 <strong>목록으로</strong> 저장한다. 칸을 하나씩 늘리면 축이 늘 때마다 또 늘려야 한다</span></li>
+      <li><span>시간당 환산에 <strong>「약」</strong>을 붙인다. 730으로 나누면 딱 안 떨어져 고객이 곱하면 20원이 어긋난다</span></li>
+      <li><span>새로 쓰는 말 다섯을 <strong>용어집에 먼저</strong> 넣는다. 이번 판에서 제가 어긴 자리를 아래에 적었다</span></li>
+    </ol>
+  </header>
+
+  <!-- ══ 정책 점검 ══════════════════════════ -->
+  <section>
+    <h2><span class="tag">정책</span>지난 판에서 제가 어긴 말들</h2>
+    <p class="lede">
+      말씀대로 용어집을 다시 봤습니다. <b>제가 지어 쓴 말이 여럿 있었습니다.</b>
+      금지어 목록에 「고르기」가 있고, 사용자 지적 기록까지 남아 있습니다
+      (2026-10-01 「워딩과 키워드가 다 용어집을 따르지 않고 그냥 생각나는대로 만들어내네」).
+      <span class="src">lib/terms/action.ts:222 BANNED_TERMS</span>
+    </p>
+
+    <div class="tablewrap">
+      <table class="data">
+        <thead>
+          <tr><th>지난 판에 쓴 말</th><th>표준</th><th>근거</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="was">고르기 · 고르는 자리</td><td class="good">선택</td><td>금지어 목록에 올라 있다. 화면 여덟 곳이 이미 「선택」을 쓴다</td></tr>
+          <tr><td class="was">받기 · 넷 다 받기</td><td class="good">반영</td><td>AI 제안을 실제 값으로 옮기는 표준 동사</td></tr>
+          <tr><td class="was">안 할래요 · 그대로</td><td class="good">그대로 두기</td><td>AI 결과를 물리는 표준 동사</td></tr>
+          <tr><td class="was">정가</td><td class="good">정상가</td><td>특별가를 줬을 때 견적서가 말하는 원래 금액</td></tr>
+          <tr><td class="was">켜기 · 끄기</td><td class="good">보이기 · 숨기기</td><td>GPU 가격표와 CRM 업종이 이미 쓴다</td></tr>
+          <tr><td class="was">요금 방식</td><td class="good">종류</td><td>항목 종류 여섯이 이미 있다. 새 축을 만들 필요가 없었다</td></tr>
+          <tr><td class="was">시간 (단위)</td><td class="good">h</td><td>사용량 종류의 기본 단위</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>이번 판에서 지킨 것</h3>
+    <div class="tablewrap">
+      <table class="data">
+        <thead><tr><th>규칙</th><th>어떻게 지켰나</th><th>가드</th></tr></thead>
+        <tbody>
+          <tr><td>금지어 13개</td><td>「고르기」가 제목에 있어 「금액 표시」로 바꿨습니다</td><td class="good">자동 (기준값 방식)</td></tr>
+          <tr><td>조수사 넷</td><td>견적은 건, 품목은 개, 회사는 곳, 사람은 명</td><td class="good">자동</td></tr>
+          <tr><td>전각 대시 금지</td><td>0곳. 값 없음을 뜻하는 한 글자만 예외인데 그것도 안 썼습니다</td><td class="good">자동 (즉시 차단)</td></tr>
+          <tr><td>한자 금지</td><td>0자</td><td class="hit">사람이 확인 (가드 없음)</td></tr>
+          <tr><td>이모지 금지</td><td>0자</td><td class="hit">사람이 확인 (가드 없음)</td></tr>
+          <tr><td>화면이 한글을 직접 안 적음</td><td>새 말 다섯을 용어집에 먼저 넣고 시작합니다</td><td class="good">자동 (라벨 표 금지)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lede" style="font-size:var(--fs-sm);color:var(--mute)">
+      한자와 이모지는 <b>자동 가드가 없습니다.</b> 문서 정책에만 있어 사람이 봐야 걸립니다.
+      금지어 가드도 즉시 차단이 아니라 「지금보다 늘면 차단」이라 <b>이미 있는 위반은 남아 있습니다</b>
+    </p>
+
+    <h3>새로 넣어야 할 말 다섯</h3>
+    <p class="lede">
+      용어집에 없는 말은 <b>먼저 용어집에 넣고</b> 화면이 그것을 가져다 씁니다.
+      화면이 한글을 직접 적지 않는 것이 이 저장소의 규칙입니다.
+    </p>
+    <div class="tablewrap">
+      <table class="data">
+        <thead><tr><th>새 말</th><th>뜻</th><th>왜 필요한가</th></tr></thead>
+        <tbody>
+          <tr><td><b>월 기준 시간</b></td><td>한 달을 몇 시간으로 셀지</td><td>730·720이 갈리는 자리에 이름이 없었다</td></tr>
+          <tr><td><b>시간당 환산</b></td><td>월 금액을 시간으로 나눈 값</td><td>「원화 환산」과 같은 자리, 같은 꼴</td></tr>
+          <tr><td><b>총 시간</b></td><td>기간 전체의 시간</td><td>1,460시간을 부르는 말</td></tr>
+          <tr><td><b>약</b></td><td>나누어떨어지지 않을 때 붙이는 말</td><td>고객이 곱해 보면 20원이 어긋난다</td></tr>
+          <tr><td><b>다른 안</b></td><td>조건이 달라 금액이 다른 제안</td><td>이미 단추에 쓰고 있으나 용어집에는 없다</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ 반올림 ════════════════════════════ -->
+  <section>
+    <h2><span class="tag">주의</span>730으로 나누면 딱 안 떨어집니다</h2>
+    <p class="lede">
+      기본을 730으로 하자고 하셨습니다. 그대로 하겠습니다. 다만 <b>고객이 검산하면 어긋나는 자리</b>가 생깁니다.
+    </p>
+    <div class="tablewrap">
+      <table class="data">
+        <thead>
+          <tr><th>월 기준 시간</th><th class="num">시간당 환산</th><th class="num">총 시간</th><th class="num">곱하면</th><th class="num">실제 합계와 차이</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>730</b> (기본)</td><td class="num">약 1,369원</td><td class="num">1,460</td>
+            <td class="num">1,998,740원</td><td class="num hit">+20원</td>
+          </tr>
+          <tr>
+            <td>720</td><td class="num">1,388원</td><td class="num">1,440</td>
+            <td class="num">1,998,720원</td><td class="num good">0원</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lede">
+      월 단가 999,360원은 720으로는 나누어떨어지고 730으로는 안 떨어집니다.
+      <b>합계는 둘 다 1,998,720원으로 같습니다.</b> 어긋나는 것은 고객이 시간당을 곱해 봤을 때뿐입니다.
+      그래서 <b>나누어떨어지지 않으면 「약」을 붙이고</b>, 떨어지면 그냥 적습니다.
+      이것은 월 단가가 어떤 수냐에 따라 매번 달라지므로 <b>사람이 정하는 게 아니라 화면이 판단</b>합니다.
+    </p>
+  </section>
+
+  <!-- ══ 화면 1 ════════════════════════════ -->
+  <section>
+    <h2><span class="tag">화면 1</span>견적 수정 · 표시 선택</h2>
+    <p class="lede">
+      합계 영역에서 절사를 선택하는 자리 바로 아래입니다. 종류가 <b>사용량</b>이나 <b>기간요금</b>일 때만 섭니다
+    </p>
+
+    <div class="mock">
+      <div class="mock-head">
+        <span>표시 선택</span>
+        <span class="flag ok">금액 축은 복수 선택 · 하나만도 가능</span>
+      </div>
+      <div class="mock-body">
+        <div class="fieldrow">
+          <span class="flabel">종류</span>
+          <div class="seg">
+            <button>수량</button>
+            <button>공수</button>
+            <button class="on">기간요금<span class="res">월 단가 × 개월</span></button>
+            <button>사용량<span class="res">시간당 단가 × h</span></button>
+            <button>라이선스</button>
+            <button>비율</button>
+          </div>
+          <span class="fnote">단가 칸이 <b>월 단가</b>, 수량 칸이 <b>개월</b>이 됩니다</span>
+        </div>
+
+        <div class="fieldrow">
+          <span class="flabel">금액 칸에 함께 인쇄</span>
+          <div class="checkrow">
+            <span class="chk on"><span class="box"></span>기간 총액</span>
+            <span class="chk on"><span class="box"></span>월 금액</span>
+            <span class="chk on"><span class="box"></span>시간당 금액</span>
+          </div>
+          <span class="fnote">셋 다 보여도 되고 하나만 보여도 됩니다. 아무것도 선택하지 않으면 합계 하나만 인쇄됩니다</span>
+        </div>
+
+        <div class="fieldrow">
+          <span class="flabel">품목 아래에 함께 인쇄</span>
+          <div class="checkrow">
+            <span class="chk on"><span class="box"></span>기간</span>
+            <span class="chk on"><span class="box"></span>총 시간</span>
+            <span class="chk"><span class="box"></span>월 기준 시간</span>
+            <span class="chk"><span class="box"></span>정상가와 할인</span>
+          </div>
+        </div>
+
+        <div class="fieldrow">
+          <span class="flabel">합계 영역에 함께 인쇄</span>
+          <div class="checkrow">
+            <span class="chk on"><span class="box"></span>시간당 환산</span>
+            <span class="chk"><span class="box"></span>월 환산</span>
+          </div>
+          <span class="fnote">원화 환산이 서는 자리와 같은 줄에 섭니다</span>
+        </div>
+
+        <div class="fieldrow">
+          <span class="flabel">월 기준 시간</span>
+          <div class="seg">
+            <button class="on">730<span class="res">약 1,369원/h</span></button>
+            <button>720<span class="res">1,388원/h</span></button>
+            <button class="off">매입에 맞춤<span class="res">이 품목은 매입 없음</span></button>
+            <button>직접</button>
+          </div>
+          <span class="fnote">합계 <b class="n">1,998,720원</b>은 어느 것을 선택해도 안 바뀝니다. 시간당 환산 숫자만 달라집니다</span>
+        </div>
+      </div>
+      <div class="mock-note">
+        선택지 옆 숫자는 <b>그 선택을 했을 때 실제로 인쇄될 값</b>입니다.
+        절사를 선택하는 칸이 이미 이렇게 되어 있습니다(「백만원 단위 · 303,000,000원」)
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 화면 2 ════════════════════════════ -->
+  <section>
+    <h2><span class="tag">화면 2</span>견적서 · 금액 축 조합</h2>
+    <p class="lede">
+      같은 품목, 같은 합계 <b class="n">1,998,720원</b>. 무엇을 함께 인쇄할지만 다릅니다
+    </p>
+
+    <div class="mock">
+      <div class="mock-head"><span>셋 다</span><span class="flag ok">전방위 · 고객이 어느 각도로 물어도 답이 있다</span></div>
+      <div class="mock-body">
+        <table class="sheet">
+          <colgroup><col style="width:7%"><col style="width:36%"><col style="width:8%"><col style="width:9%"><col style="width:16%"><col style="width:24%"></colgroup>
+          <thead><tr><th>번호</th><th>품목</th><th>단위</th><th>수량</th><th>월 단가</th><th>금액</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="c">1</td>
+              <td>
+                <div class="itemname">1× NVIDIA L40S PCIe</div>
+                <div class="itemspec">GPU RAM 48 GB · vCPU 12 · RAM 80 GB · 스토리지 200 GB</div>
+                <div class="itemextra">2026-10-07 ~ 2026-12-06 · 1,460h</div>
+              </td>
+              <td class="c">개월</td>
+              <td class="r">2</td>
+              <td class="r">999,360원</td>
+              <td class="r">
+                <div class="amount-main">1,998,720원</div>
+                <div class="amount-sub">월 999,360원 × 2개월<br>시간당 약 1,369원 × 1,460h</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mock-note">
+        <b>곱셈식으로 적습니다.</b> 「월 999,360원」만 적으면 그것이 합계인지 월액인지 헷갈립니다.
+        「× 2개월」이 붙어야 관계가 보입니다. 특별가를 화살표로 잇는 자리가 이미 같은 이유로 그렇게 되어 있습니다
+      </div>
+    </div>
+
+    <div class="mock">
+      <div class="mock-head"><span>시간당만</span><span class="flag">사용량 계약 · 시간 단가로 협상할 때</span></div>
+      <div class="mock-body">
+        <table class="sheet">
+          <colgroup><col style="width:7%"><col style="width:36%"><col style="width:8%"><col style="width:9%"><col style="width:16%"><col style="width:24%"></colgroup>
+          <thead><tr><th>번호</th><th>품목</th><th>단위</th><th>수량</th><th>시간당 단가</th><th>금액</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="c">1</td>
+              <td>
+                <div class="itemname">1× NVIDIA L40S PCIe</div>
+                <div class="itemspec">GPU RAM 48 GB · vCPU 12 · RAM 80 GB · 스토리지 200 GB</div>
+                <div class="itemextra">2026-10-07 ~ 2026-12-06</div>
+              </td>
+              <td class="c">h</td>
+              <td class="r">1,440</td>
+              <td class="r">1,388원</td>
+              <td class="r"><div class="amount-main">1,998,720원</div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mock-note">
+        종류를 <b>사용량</b>으로 두면 수량이 시간이 되고 단가가 시간당이 됩니다.
+        이때는 시간당이 진짜 값이라 <b>720 기준으로 1,440h</b>이 되고 「약」이 붙지 않습니다
+      </div>
+    </div>
+
+    <div class="mock">
+      <div class="mock-head"><span>월만</span><span class="flag">가장 단출 · 매달 청구하는 계약</span></div>
+      <div class="mock-body">
+        <table class="sheet">
+          <colgroup><col style="width:7%"><col style="width:36%"><col style="width:8%"><col style="width:9%"><col style="width:16%"><col style="width:24%"></colgroup>
+          <thead><tr><th>번호</th><th>품목</th><th>단위</th><th>수량</th><th>월 단가</th><th>금액</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="c">1</td>
+              <td>
+                <div class="itemname">1× NVIDIA L40S PCIe</div>
+                <div class="itemspec">GPU RAM 48 GB · vCPU 12 · RAM 80 GB · 스토리지 200 GB</div>
+                <div class="itemextra">2026-10-07 ~ 2026-12-06</div>
+              </td>
+              <td class="c">개월</td>
+              <td class="r">2</td>
+              <td class="r">999,360원</td>
+              <td class="r"><div class="amount-main">1,998,720원</div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="mock">
+      <div class="mock-head"><span>월 + 시간당</span><span class="flag">둘만 · 기간 총액은 합계에서 읽는다</span></div>
+      <div class="mock-body">
+        <table class="sheet">
+          <colgroup><col style="width:7%"><col style="width:36%"><col style="width:8%"><col style="width:9%"><col style="width:16%"><col style="width:24%"></colgroup>
+          <thead><tr><th>번호</th><th>품목</th><th>단위</th><th>수량</th><th>월 단가</th><th>금액</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="c">1</td>
+              <td>
+                <div class="itemname">1× NVIDIA L40S PCIe</div>
+                <div class="itemspec">GPU RAM 48 GB · vCPU 12 · RAM 80 GB · 스토리지 200 GB</div>
+                <div class="itemextra">2026-10-07 ~ 2026-12-06 · 1,460h · 월 730h 기준</div>
+              </td>
+              <td class="c">개월</td>
+              <td class="r">2</td>
+              <td class="r">999,360원</td>
+              <td class="r">
+                <div class="amount-main">1,998,720원</div>
+                <div class="amount-sub">시간당 약 1,369원 × 1,460h</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 화면 3 ════════════════════════════ -->
+  <section>
+    <h2><span class="tag">화면 3</span>견적서 합계 · 환산 줄</h2>
+    <p class="lede">
+      외화 견적의 <b>원화 환산</b>이 이미 합계 바로 위에 섭니다. 시간당 환산도 같은 자리, 같은 꼴입니다.
+      라벨 아래에 작은 글씨로 <b>근거</b>를 답니다
+    </p>
+
+    <div class="mock">
+      <div class="mock-head"><span>합계 영역</span><span class="flag ok">환산 줄이 합계 위에 선다</span></div>
+      <div class="mock-body">
+        <table class="sheet">
+          <colgroup><col style="width:36%"><col style="width:28%"><col style="width:36%"></colgroup>
+          <tfoot>
+            <tr><td></td><td class="totlabel">공급가액</td><td class="r">1,998,720원</td></tr>
+            <tr><td></td><td class="totlabel">부가세</td><td class="r">199,872원</td></tr>
+            <tr>
+              <td></td>
+              <td class="totlabel">
+                월 환산
+                <span class="totnote">2개월</span>
+              </td>
+              <td class="r">999,360원</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td class="totlabel">
+                시간당 환산
+                <span class="totnote">월 730h 기준 · 총 1,460h</span>
+              </td>
+              <td class="r">약 1,369원</td>
+            </tr>
+            <tr class="grand"><td></td><td class="totlabel">합계 금액</td><td class="r">2,198,592원</td></tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="mock-note">
+        <b>근거를 안 적으면 그 숫자를 믿을 수 없습니다.</b> 원화 환산이 환율과 매매기준율 날짜를 적는 것과 같은 이유입니다.
+        시간당 환산은 <b>월 기준 시간과 총 시간</b>이 근거입니다
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 화면 4 ════════════════════════════ -->
+  <section>
+    <h2><span class="tag">화면 4</span>딜 · 다른 안 나란히</h2>
+    <p class="lede">
+      금액이 다르면 한 장에 담지 않고 안을 나눕니다. <b>복제 기능은 이미 있고</b> 실제로 쓰이고 있습니다
+      (복제된 견적 1건 · 개정판 1건). 지금은 목록에 만든 시각 순으로 흩어져 서로 남남으로 보입니다
+    </p>
+
+    <div class="mock">
+      <div class="mock-head"><span>다른 안 나란히</span><span class="flag ok">같은 딜 · 같은 품목 · 기간만 다름</span></div>
+      <div class="mock-body">
+        <div class="variants">
+          <div class="vcard">
+            <div class="vtop"><span class="vlabel">2개월</span><span class="vtag">1안</span></div>
+            <div class="vno">DA-20261004-01</div>
+            <div class="vterm">2026-10-07 ~ 12-06</div>
+            <div class="vamt">1,998,720원</div>
+            <div class="vunit">월 999,360원</div>
+          </div>
+          <div class="vcard pick">
+            <div class="vtop"><span class="vlabel">6개월</span><span class="vtag on">2안</span></div>
+            <div class="vno">DA-20261004-02</div>
+            <div class="vterm">2026-10-07 ~ 2027-04-06</div>
+            <div class="vamt">5,616,000원</div>
+            <div class="vunit">월 936,000원</div>
+          </div>
+          <div class="vcard">
+            <div class="vtop"><span class="vlabel">12개월</span><span class="vtag">3안</span></div>
+            <div class="vno">DA-20261004-03</div>
+            <div class="vterm">2026-10-07 ~ 2027-10-06</div>
+            <div class="vamt">8,017,920원</div>
+            <div class="vunit">월 668,160원</div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-note">
+        6개월·12개월 월 단가는 <b>사람이 넣은 값입니다.</b> 자동으로 내려가지 않습니다.
+        약정 기간별 가격표가 있지만 등록된 상품이 T4·V100 둘뿐입니다
+      </div>
+    </div>
+
+    <div class="mock">
+      <div class="mock-head"><span>다른 안 만들기</span><span class="flag">이미 있는 창 · 문구도 이미 정해져 있다</span></div>
+      <div class="mock-body">
+        <div class="fieldrow">
+          <span class="flabel">이 안의 이름</span>
+          <div class="numbox" style="min-width:14rem">2안<span class="cursor"></span></div>
+          <span class="fnote">예: 2안 · 대용량 구성</span>
+        </div>
+        <p class="fnote" style="margin-top:0.9rem">
+          DA-20261004-01 의 항목·금액을 그대로 복사해 초안으로 만듭니다. 앞 견적은 그대로 남아요.
+        </p>
+        <div class="ai-acts" style="margin-top:0.9rem">
+          <span class="btn">취소</span>
+          <span class="btn pri" style="background:var(--ok);border-color:var(--ok)">만들기</span>
+        </div>
+      </div>
+      <div class="mock-note">
+        이 창은 <b>지금도 있습니다.</b> 다만 보낸 견적에서만 열립니다.
+        초안에서도 열리게 하는 것이 5단계입니다. 그리고 여기서 복사될 때
+        <b>품목 비고와 환율이 빠집니다</b> 그것이 2단계입니다
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 화면 5 ════════════════════════════ -->
+  <section>
+    <h2><span class="tag">화면 5</span>견적 목록 · 안 이름</h2>
+    <p class="lede">
+      지금 목록에는 안 이름이 <b>안 보입니다.</b> 제목 꼬리로만 샙니다.
+      어느 것이 2안인지, 어느 것에서 갈라져 나왔는지 알 수 없습니다
+    </p>
+
+    <div class="mock">
+      <div class="mock-head"><span>지금</span><span class="flag">안 이름도 뿌리도 안 보인다</span></div>
+      <div class="mock-body">
+        <div class="listrow head"><span>견적</span><span class="ldeal">회사</span><span>상태</span><span class="lamt">금액</span></div>
+        <div class="listrow"><span class="lno">DA-20261004-03<br><span style="color:var(--mute-2)">GPU 임대</span></span><span class="ldeal">데이터얼라이언스</span><span>초안</span><span class="lamt">8,017,920원</span></div>
+        <div class="listrow"><span class="lno">DA-20261004-02<br><span style="color:var(--mute-2)">GPU 임대</span></span><span class="ldeal">데이터얼라이언스</span><span>초안</span><span class="lamt">5,616,000원</span></div>
+        <div class="listrow"><span class="lno">DA-20261004-01<br><span style="color:var(--mute-2)">GPU 임대</span></span><span class="ldeal">데이터얼라이언스</span><span>보냄</span><span class="lamt">1,998,720원</span></div>
+      </div>
+      <div class="mock-note">
+        실제 열은 <b>견적 · 회사 · 받는 분 · 딜 · 상태 · 금액 · 유효기간</b> 일곱입니다.
+        여기서는 좁혀 그렸습니다. 견적번호 아래 흐린 글씨가 제목입니다
+      </div>
+    </div>
+
+    <div class="mock">
+      <div class="mock-head"><span>바꾸면</span><span class="flag ok">안 이름이 서고 뿌리가 보인다</span></div>
+      <div class="mock-body">
+        <div class="listrow head"><span>견적</span><span class="ldeal">회사</span><span>상태</span><span class="lamt">금액</span></div>
+        <div class="listrow"><span class="lno">DA-20261004-03<br><span style="color:var(--mute-2)">GPU 임대</span><span class="newtag">3안 · 12개월</span></span><span class="ldeal">데이터얼라이언스</span><span>초안</span><span class="lamt">8,017,920원</span></div>
+        <div class="listrow"><span class="lno">DA-20261004-02<br><span style="color:var(--mute-2)">GPU 임대</span><span class="newtag">2안 · 6개월</span></span><span class="ldeal">데이터얼라이언스</span><span>초안</span><span class="lamt">5,616,000원</span></div>
+        <div class="listrow"><span class="lno">DA-20261004-01<br><span style="color:var(--mute-2)">GPU 임대</span><span class="newtag">1안</span></span><span class="ldeal">데이터얼라이언스</span><span>보냄</span><span class="lamt">1,998,720원</span></div>
+      </div>
+      <div class="mock-note">
+        안 이름은 <b>저장은 되고 있는데</b> 목록이 안 읽습니다. 어느 견적에서 갈라졌는지도
+        칸에 적혀 있는데 <b>읽는 코드가 0곳</b>입니다. 새로 저장할 것 없이 읽어서 보이기만 하면 됩니다.
+        개정 차수는 딜 화면에서 이미 <code>Rev.2</code> 배지로 뜨므로 같은 꼴을 씁니다
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 화면 6 ════════════════════════════ -->
+  <section>
+    <h2><span class="tag">화면 6</span>설정 · 기본값</h2>
+    <p class="lede">
+      새 견적을 열었을 때 처음부터 선택돼 있을 값입니다. 견적마다 바꿀 수 있습니다.
+      설정 화면의 「견적서 파일 읽기」 카드와 같은 꼴입니다
+    </p>
+
+    <div class="mock">
+      <div class="mock-head"><span>설정 · 견적 · 견적서 공급자 정보</span><span class="flag ok">견적 유효기간이 있는 그 카드</span></div>
+      <div class="mock-body">
+        <div class="fieldrow">
+          <span class="flabel">견적 유효기간</span>
+          <div class="numbox">30</div>
+          <span class="fnote">새 견적을 만들 때 기본으로 잡히는 기간입니다. 견적마다 바꿀 수 있습니다</span>
+        </div>
+        <div class="fieldrow">
+          <span class="flabel">월 기준 시간</span>
+          <div class="numbox" style="min-width:12rem;justify-content:space-between">730시간 (한 달 = 365일 ÷ 12) <span style="color:var(--mute-2)">▾</span></div>
+          <span class="fnote">
+            한 달을 몇 시간으로 셀지입니다. 합계 금액은 안 바뀌고,
+            견적서에 시간당을 함께 인쇄할 때 그 숫자가 달라집니다
+          </span>
+          <span class="fnote" style="color:var(--mute-2)">
+            선택지: 730시간 · 720시간 (한 달 = 30일) · 매입에 맞춤 · 견적마다 직접
+          </span>
+        </div>
+        <div class="fieldrow">
+          <span class="flabel">GPU 항목 기본 종류</span>
+          <div class="numbox" style="min-width:12rem;justify-content:space-between">기간요금 (월 단가 × 개월) <span style="color:var(--mute-2)">▾</span></div>
+          <span class="fnote">GPU 품목을 넣을 때 처음 잡히는 종류입니다. 항목마다 바꿀 수 있습니다</span>
+        </div>
+      </div>
+      <div class="mock-note">
+        이 카드가 이미 <b>견적 유효기간</b>과 <b>견적번호 형식</b>을 담고 있어 기본값이 모이는 자리입니다.
+        고르는 칸은 이 화면의 기존 방식대로 <b>목록 상자</b>이고, 아래에 무엇이 달라지는지 한 줄을 답니다
+        (「구성이 길면 견적서가 한 장을 넘습니다」처럼)
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 화면 7 ════════════════════════════ -->
+  <section>
+    <h2><span class="tag">화면 7</span>어시스턴트</h2>
+    <p class="lede">
+      견적 수정 화면 오른쪽에 섭니다. <b>반영을 누를 때까지 숫자는 그대로입니다.</b>
+      AI가 만든 것은 AI가 만들었다고 적습니다. 이 고지는 끌 수 없습니다
+    </p>
+
+    <div class="mock">
+      <div class="mock-head"><span>견적 어시스턴트</span><span class="flag ai">제안 3건</span></div>
+      <div class="mock-body">
+
+        <div class="ai-card">
+          <div class="ai-notice">AI가 만든 결과입니다</div>
+          <div class="ai-top">
+            <span class="ai-badge">비고</span>
+            <span class="ai-title">비고에 세 가지가 섞여 있습니다</span>
+          </div>
+          <p class="ai-why">할인 사유와 기간과 계산식입니다. <b>각자의 칸으로 나누면</b> 비고가 비고로 돌아갑니다</p>
+          <dl class="ai-diff">
+            <dt>기간</dt><dd class="now">2026-10-07 ~ 2026-12-06</dd>
+            <dt>특별 할인</dt><dd class="now">25.1%</dd>
+            <dt>할인 사유</dt><dd class="now">2개월 임대 특별 할인</dd>
+          </dl>
+          <div class="ai-acts">
+            <span class="btn pri">반영</span>
+            <span class="btn">선택 반영</span>
+            <span class="btn">그대로 두기</span>
+            <span class="btn">근거 보기</span>
+          </div>
+        </div>
+
+        <div class="ai-card">
+          <div class="ai-notice">AI가 만든 결과입니다</div>
+          <div class="ai-top">
+            <span class="ai-badge">기준</span>
+            <span class="ai-title">이 품목은 매입 자료가 없습니다</span>
+          </div>
+          <p class="ai-why">
+            <b>직접 적으신 값을 그대로 씁니다.</b> 월 기준 시간은 설정 기본값인 730을 쓰고 있습니다.
+            매입 견적이 들어오면 그때 알려 드리겠습니다
+          </p>
+          <div class="ai-acts">
+            <span class="btn">매입 견적 열기</span>
+            <span class="btn">확인</span>
+          </div>
+        </div>
+
+        <div class="ai-card">
+          <div class="ai-notice">AI가 만든 결과입니다</div>
+          <div class="ai-top">
+            <span class="ai-badge">다른 안</span>
+            <span class="ai-title">기간을 늘린 안을 만들어 볼까요</span>
+          </div>
+          <p class="ai-why">
+            지금은 2개월입니다. 6개월이나 12개월 안을 함께 보내면 고객이 고를 수 있습니다.
+            <b>월 단가는 직접 넣으셔야 합니다</b> 이 품목에는 약정 기간별 가격이 없습니다
+          </p>
+          <div class="ai-acts">
+            <span class="btn pri">6개월 안 만들기</span>
+            <span class="btn">12개월 안 만들기</span>
+            <span class="btn">그대로 두기</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="mock-note">
+        단추 이름은 전부 용어집에서 가져옵니다
+        (<code>반영</code> · <code>그대로 두기</code> · <code>근거 보기</code> · <code>확인</code>).
+        현재값 옆 제안값을 그리는 부품도 이미 있고 <b>호출처가 0건</b>입니다
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 계획 ══════════════════════════════ -->
+  <section>
+    <h2><span class="tag">계획</span>여섯 단계</h2>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <div class="step-head"><h3>새 말 다섯을 용어집에 넣는다</h3><span class="pill">용어</span></div>
+          <p class="lede" style="font-size:var(--fs-sm)">월 기준 시간 · 시간당 환산 · 총 시간 · 약 · 다른 안</p>
+          <p class="why"><b>왜 먼저인가:</b> 화면이 한글을 직접 적지 못하게 되어 있다. 말이 없으면 화면을 못 만든다</p>
+          <p class="files">lib/terms/quote.ts · lib/terms/cost.ts</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <div class="step-head"><h3>복제가 비고와 환율을 잃는 것을 고친다</h3><span class="pill fix">버그</span></div>
+          <p class="lede" style="font-size:var(--fs-sm)">복제 함수가 품목 비고와 견적 환율을 안 옮긴다. 둘 다 견적서에 인쇄되는 값이다</p>
+          <p class="why"><b>왜 지금인가:</b> 다른 안을 권하기 전에 고쳐야 한다. 지금 상태로 복제가 늘면 비고가 사라진 견적이 늘어난다</p>
+          <p class="files">lib/crm/services/quote.ts:1275-1294 · :1313-1323</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <div class="step-head"><h3>표시 선택과 기간을 저장한다</h3><span class="pill mig">마이그레이션</span></div>
+          <p class="lede" style="font-size:var(--fs-sm)">금액 축 셋과 품목 아래 넷과 합계 둘을 <b>목록으로</b>, 월 기준 시간을 값으로, 기간을 품목에</p>
+          <p class="why"><b>목록으로 두는 이유:</b> 칸을 하나씩 늘리면 축이 늘 때마다 또 늘려야 한다. 견적 조건이 이미 순서 있는 목록으로 저장된다</p>
+          <p class="files">supabase/migrations/ 신규 · prisma/schema.prisma · lib/crm/services/quote.ts:243</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body">
+          <div class="step-head"><h3>선택 자리와 견적서를 만든다</h3><span class="pill">화면</span></div>
+          <p class="lede" style="font-size:var(--fs-sm)">화면 1·2·3·6이다. 선택지마다 인쇄될 값을 붙이고, 나누어떨어지지 않으면 「약」을 붙인다</p>
+          <p class="why"><b>엑셀도 함께:</b> 견적서 표를 엑셀이 따로 그리고 있어 한쪽만 고치면 갈린다</p>
+          <p class="files">QuoteTotals.tsx · QuoteSheet.tsx · lib/crm/services/quote-xlsx.ts · lib/ui/quote-layout.test.ts</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-body">
+          <div class="step-head"><h3>다른 안을 초안에서도 만들고 나란히 본다</h3><span class="pill">화면</span><span class="pill fix">잠금 해제</span></div>
+          <p class="lede" style="font-size:var(--fs-sm)">화면 4·5다. 초안에서도 안을 만들 수 있게 하고, 목록과 딜 화면에 안 이름과 뿌리를 보인다</p>
+          <p class="why"><b>계보는 이미 저장되고 있다.</b> 읽는 코드가 0곳일 뿐이다</p>
+          <p class="files">QuotePanel.tsx:354 · QuoteListView.tsx:36-54 · quote.ts:1290</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">6</div>
+        <div class="step-body">
+          <div class="step-head"><h3>어시스턴트를 붙인다</h3><span class="pill aip">AI</span></div>
+          <p class="lede" style="font-size:var(--fs-sm)">화면 7이다. 잠든 제안 부품 여섯을 깨워 쓰고, CRM 화면에 어시스턴트 자리를 낸다</p>
+          <p class="why"><b>상태 잠금도 푼다:</b> 지금은 초안이 아니면 AI가 통째로 사라진다. 고치는 것은 막더라도 읽고 말해 주는 것까지 막을 이유는 없다</p>
+          <p class="files">packages/ai-react/src/ · components/rfp/AssistantDock.tsx 패턴 · app/(crm)/layout.tsx</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ 놓치는 것 ══════════════════════════ -->
+  <section>
+    <h2><span class="tag">놓치는 것</span>말씀 안 하셨지만 걸리는 것들</h2>
+    <div class="miss">
+
+      <div class="miss-item">
+        <span class="miss-mark warn">검산</span>
+        <div class="miss-body">
+          <h3>금액 축을 셋 다 인쇄하면 고객이 곱해 봅니다</h3>
+          <p>
+            시간당을 적는 순간 <b>검산당합니다.</b> 730으로 나누면 20원이 어긋나므로 「약」이 꼭 필요합니다.
+            그래도 묻는 고객이 있을 수 있어, <b>월 기준 시간을 함께 인쇄</b>하는 선택지를 뒀습니다.
+            근거가 보이면 되묻지 않습니다
+          </p>
+        </div>
+      </div>
+
+      <div class="miss-item">
+        <span class="miss-mark warn">주의</span>
+        <div class="miss-body">
+          <h3>종류를 바꾸면 수량이 뜻을 바꿉니다</h3>
+          <p>
+            기간요금에서 사용량으로 바꾸면 수량 2가 수량 1,440이 되어야 합니다.
+            <b>사람이 다시 치게 두면 2개월짜리 견적이 2시간짜리가 됩니다.</b>
+            종류를 바꿀 때 수량을 자동으로 환산하고, <b>바뀐 값을 화면에 보여 준 뒤</b> 저장하겠습니다
+          </p>
+        </div>
+      </div>
+
+      <div class="miss-item">
+        <span class="miss-mark warn">주의</span>
+        <div class="miss-body">
+          <h3>안이 늘면 같은 건이 여러 번 세어질 수 있습니다</h3>
+          <p>
+            복제는 딜 금액을 안 건드립니다. 다만 보고서나 집계가 견적을 합산하는 자리가 있으면
+            <b>1안·2안·3안이 세 건으로 세어집니다.</b> 그 자리를 찾아 「안 중 하나만 센다」는 규칙을 넣겠습니다
+          </p>
+        </div>
+      </div>
+
+      <div class="miss-item">
+        <span class="miss-mark warn">데이터</span>
+        <div class="miss-body">
+          <h3>자동으로 가져올 값이 생각보다 적습니다</h3>
+          <p>
+            취급 중인 GPU 88개 중 <b>값이 하나도 없는 것이 24개</b>입니다.
+            약정 기간별 가격은 T4·V100 둘뿐이고, 그 L40S 품목은 <b>매입도 0건</b>입니다.
+            그래서 직접 입력이 기본 경로이고 자동은 보조입니다. 가격표를 채우는 일은 따로 필요합니다
+          </p>
+        </div>
+      </div>
+
+      <div class="miss-item">
+        <span class="miss-mark">이미 있음</span>
+        <div class="miss-body">
+          <h3>묶음을 쓰면 축을 갈라 쓸 수 있습니다</h3>
+          <p>
+            GPU는 시간당으로, 스토리지는 월로 파는 경우가 생깁니다.
+            묶음(섹션)이 이미 있고 묶음마다 소계가 나옵니다. 다만 <b>쓴 견적이 0건</b>이라
+            이번 범위에는 넣지 않았습니다. 필요해지면 묶음마다 종류를 두는 쪽으로 넓히겠습니다
+          </p>
+        </div>
+      </div>
+
+      <div class="miss-item">
+        <span class="miss-mark warn">모바일</span>
+        <div class="miss-body">
+          <h3>금액 칸에 세 줄이 들어가면 폰에서 가장 먼저 깨집니다</h3>
+          <p>
+            이 보고서의 미리보기를 <b>390px에서 실제로 재어 보니 그대로 났습니다.</b>
+            「월 999,360원 × 2개월」이 142px 칸에 160px로 들어와 끊겼습니다.
+            접히면 곱셈식이 갈라져 관계가 안 보이므로 <b>줄바꿈 대신 표 최소폭을 올려</b> 고쳤습니다.
+            제품 화면에서도 같은 일이 날 자리라 <b>그때도 실브라우저로 재겠습니다</b>
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <div>근거는 운영 데이터베이스 직접 조회와 코드 실측. 조회는 읽기 전용이었고 아무것도 바꾸지 않았다</div>
+    <div>결정하실 것은 없습니다. 월 중심 · 730 기본 · 복수 선택 · 매입에 맞춤 유지로 하겠습니다</div>
+    <div>승인하시면 플랜을 세우고 1단계부터 진행합니다. 그 전까지 코드는 건드리지 않습니다</div>
+  </footer>
+
+</div>

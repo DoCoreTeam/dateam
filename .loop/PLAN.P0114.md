@@ -43,7 +43,7 @@
 의존: 없음
 
 ### I02 서버가 장소를 주고받는다
-상태: 대기
+상태: 진행중
 모드: 경량
 범위: apps/web/app/(member)/calendar/actions.ts, apps/web/app/api/calendar/events/route.ts
 감사 기준:

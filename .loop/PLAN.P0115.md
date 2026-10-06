@@ -1,0 +1,121 @@
+# PLAN newAX: 할 일을 고칠 수 있다
+플랜 ID: P0115
+플랜 버전: v0.1.2
+상태: 진행중
+지시: ins_0198
+목표 버전: v0.10.955
+작성: 2026-10-06
+시작 커밋: a70fed08
+
+## 목표
+- 이미 만든 할 일의 시작일과 마감일을 화면에서 고칠 수 있다
+- 제목도 같은 자리에서 고칠 수 있다 (만들 때 적게 해 놓고 고칠 길이 없던 칸을 전부 연다)
+- 할 일을 다루는 두 화면(목록, 레코드 상세 패널)이 같은 부품으로 같은 일을 한다
+- 「만들 때 고르게 한 칸은 만든 뒤에도 고칠 수 있어야 한다」를 가드가 센다
+
+## 범위 밖
+- 할 일 상세 화면 신설 (할 일의 맥락은 붙어 있는 딜·회사·인물에 있고, 행을 누르면 그리로 가는 현재 동작이 의도임)
+- 담당자(assigneeId) 칸 신설 (지금 어느 화면도 담당자를 정하지 않아 고칠 것이 없다)
+- 서버 변경 (PATCH 는 title·startAt·dueAt 를 이미 받는다, 화면이 안 불렀을 뿐)
+- 부서 업무(dept-tasks)와 캘린더 일정 (다른 자원이고 옆 세션이 보고 있다)
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm test, pnpm build 통과
+- 할 일 목록에서 한 건의 시작일·마감일·제목을 고치고 새로고침해도 값이 남는다
+- 레코드 상세(딜·회사·인물)의 할 일 패널에서도 같은 일을 할 수 있다
+- 새 가드를 일부러 깨 실패를 확인하고 되돌린다
+- 사용자 노출 문자열은 lib/terms 를 거치거나 기존 화면 어법을 따른다
+
+## 참조
+- LOOP.md 9절 F-N (UI 부터 저장 결과까지 잇는다, 단추를 감추는 것으로 권한 검증을 대신하지 않는다)
+- 정책 §2-5 (3) 서버액션이 이미 있는데 UI 가 안 부르는 상태를 방치하지 않는다
+- 선례 lib/ui/crm-delete-standard.test.ts (같은 부류를 삭제 쪽에서 이미 한 번 잡았다)
+- 실측 2026-10-06 운영 /crm/tasks
+  · 행에 있는 단추는 둘뿐 — 딜 잇기(Link2)와 삭제(Trash2)
+  · PATCH 로 보내는 것은 status 와 dealId 둘뿐 (TasksClient.tsx:183, 244)
+  · 시작·마감은 추가 줄에서만 고를 수 있고 만든 뒤에는 고칠 길이 없다
+  · TaskPanel 은 고치기도 삭제도 없다 (추가와 완료 토글뿐)
+- 서버는 이미 받는다: lib/crm/services/task.ts normalizeInput 이 startAt·dueAt·title 을 처리
+
+## 항목
+
+### I01 할 일 고치기 모달 부품을 만든다
+상태: 통과
+모드: 경량
+범위: apps/web/components/ui/crm/TaskEditModal.tsx (신규), apps/web/components/ui/crm/task-edit-modal.module.css (신규)
+감사 기준:
+- 제목·시작일·마감일 세 칸을 한 모달에서 고치고 PATCH /api/crm/tasks/:id 로 title·startAt·dueAt 를 함께 보낸다
+- 날짜는 DateField 와 task-due.ts 의 toStartIso·toDueIso 를 쓴다 (추가 줄과 같은 SSOT, 손으로 만든 ISO 금지)
+- 비운 날짜는 null 로 보내 지워진다 (toStartIso('') 가 null 이므로 「마감 없음」을 고를 수 있다)
+- 시작이 마감보다 늦으면 막지 않고 InlineError 한 줄로 알린다 (추가 줄과 같은 규칙)
+- 모달은 NbModal 을 쓴다 (components/ui/nb/NbModal.tsx, §2-2 SSOT)
+- pnpm tsc --noEmit 통과
+보안: 해당 없음 (기존 PATCH 창구를 부를 뿐, 새 창구도 새 표도 없고 권한 판정이 안 바뀐다)
+의존: 없음
+
+### I02 할 일 목록에서 고칠 수 있게 한다
+상태: 통과
+모드: 경량
+범위: apps/web/app/(crm)/crm/tasks/TasksClient.tsx, apps/web/app/(crm)/crm/tasks/tasks.module.css
+감사 기준:
+- 행 동작에 ACTION.edit(「수정」)가 생기고 누르면 I01 모달이 그 할 일의 지금 값으로 열린다
+- 저장하면 목록이 다시 읽혀 바뀐 시작·마감이 그 자리에서 보인다
+- 행 클릭 전파를 막는다 (단추를 눌렀는데 딜로 넘어가지 않는다)
+- 휴지통 보기에서는 수정을 안 보인다 (지운 것을 고치는 것은 뜻이 없다)
+- pnpm tsc --noEmit, pnpm lint 통과
+보안: 해당 없음 (새 창구 없음, 읽고 쓰는 자원이 그대로)
+의존: I01
+
+### I03 레코드 상세의 할 일 패널도 같은 일을 한다
+상태: 통과
+모드: 경량
+범위: apps/web/components/ui/crm/TaskPanel.tsx, apps/web/components/ui/crm/task-panel.module.css
+감사 기준:
+- 줄마다 수정과 삭제가 생기고 수정은 I01 모달을 그대로 쓴다 (부품 두 벌 금지)
+- 삭제는 useAskDialog 확인창을 거친다 (브라우저 기본 대화상자 금지, lib/ui/dialog-standard.test.ts)
+- 고치거나 지우면 목록을 다시 읽고 emitAttentionChanged 로 배지도 같은 숫자를 센다 (화면 글자는 전부 lib/terms 상수)
+- 시작일이 줄에 보인다 (지금은 마감만 보여 「언제부터」를 알 수 없다)
+- pnpm tsc --noEmit, pnpm test lib/ui/dialog-standard.test.ts 통과
+보안: 해당 없음 (기존 창구를 부를 뿐)
+의존: I01
+
+### I04 만들 때 고른 칸은 고칠 수 있어야 한다는 가드를 둔다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/ui/crm-update-standard.test.ts (신규), apps/web/package.json
+감사 기준:
+- CRM 화면이 POST 로 보내는 칸 이름을 모아, 같은 자원에 PATCH 로 못 보내는 칸이 있으면 실패한다
+- 서버가 주인인 칸(status, completedAt)과 만들 때만 뜻이 있는 칸(sourceMeetingId)은 규칙 밖임을 사유와 함께 적는다
+- 대상이 0개가 되면 실패한다 (경로가 바뀌어 규칙이 조용히 꺼지는 것을 막는다)
+- apps/web/package.json 의 test 스크립트에 등재하고 등재 전후 총 시험 수가 실제로 늘어난 것을 확인한다
+- 가드를 일부러 깨 (TasksClient 의 PATCH 에서 dueAt 를 빼고) 실패를 확인하고 되돌린다
+보안: 해당 없음 (정적 검사 파일)
+의존: I02, I03
+
+### I05 실브라우저로 고치는 것을 확인한다
+상태: 통과
+모드: 경량
+범위: apps/web/components/ui/crm/TaskEditModal.tsx, apps/web/e2e/_crud-task-edit.spec.ts (신규)
+감사 기준:
+- 모달의 세 칸이 각자 이름을 갖는다 (label htmlFor + id), DateField 를 label 로 감싸면 「오늘」 단추까지 같은 이름이 된다
+- 확인은 스펙 파일로 남긴다 (손으로 한 번 누른 것은 다음 판에 안 남는다)
+- 격리 빌드 판에서 /crm/tasks 를 열어 한 건의 마감을 바꾸고 저장한 뒤 새로고침해 값이 남는 것을 본다
+- 제목과 시작일도 같은 방법으로 한 번씩 확인한다
+- 딜 상세의 할 일 패널에서 수정과 삭제를 각각 눌러 결과를 본다
+- 못 돌린 것이 있으면 못 돌렸다고 적는다 (LOOP.md 9절 F-10)
+보안: 해당 없음 (확인만)
+의존: I02, I03
+
+### I06 업데이트 내역에 적는다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/changelog/entries.ts
+감사 기준:
+- 이번 버전 블록이 맨 위에 서고 사용자가 겪는 변화로 적힌다 (구현 보고 어투 금지, LOOP.md 9절 U-N)
+- pnpm test lib/policy/version-rule.test.ts 통과
+보안: 해당 없음 (문구만)
+의존: I05
+
+## 변경 이력
+- v0.1.1 (2026-10-06) 화면 단추 이름을 「고치기」에서 용어집 상수 ACTION.edit(수정)로 바로잡음, 지어낸 말을 쓰지 않는다 (audit:I01)
+- v0.1.2 (2026-10-06) I05 범위를 확인만에서 모달 접근성 이름 고침과 확인 스펙 신설로 넓힘, 실브라우저에서 칸을 이름으로 못 집은 것이 곧 스크린리더가 못 읽는다는 뜻이라 확인 도구 문제가 아니라 화면 결함 (audit:I05)

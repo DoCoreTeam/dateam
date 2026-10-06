@@ -5,4 +5,8 @@
 
 @LOOP.md
 
+
+## 버전
+v0.10.819
+
 중량 규정(기존 CEO 체계)은 .claude/heavy/CEO.md 에 있고 LOOP.md 5절 조건에서만 읽음

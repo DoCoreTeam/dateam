@@ -129,3 +129,21 @@ test('행이 열리는 목록의 액션 칸은 클릭 전파를 멈춘다 — �
   assert.deepEqual(offenders, [],
     `행이 열리는 목록의 액션 칸에 stopPropagation이 없다:\n  ${offenders.join('\n  ')}`)
 })
+
+/* ── 단추 이름은 낱말 한가운데서 안 쪼개진다 ───────────────────────────────── */
+
+/*
+  실측 2026-10-06, 390px 견적서 머리 단추 줄: 「수정」이 「수 / 정」으로 갈라져
+  단추 높이가 44px 에서 64px 이 됐다. 한글은 기본값이 아무 데서나 접히는 것이라
+  두 글자짜리 이름도 좁아지면 쪼개진다 — **읽히지 않는 글자가 단추에 남는다.**
+
+  `nowrap` 이 아니라 `keep-all` 인 이유: 「원본 올리기」처럼 빈칸이 있는 이름은
+  접혀야 할 때 접혀야 한다. nowrap 으로 막으면 긴 이름이 단추 밖으로 삐져나간다.
+*/
+test('★ 단추는 낱말 한가운데서 안 접힌다 — keep-all 이지 nowrap 이 아니다', () => {
+  const css = read('app/globals.css')
+  const rule = css.match(/\.btn-primary,\s*\n\s*\.btn-ghost \{ word-break: keep-all; \}/)
+  assert.ok(rule, '단추에 낱말 보존 규칙이 없다 — 「수정」이 「수 / 정」으로 갈라진다')
+  assert.ok(!/\.btn-primary,\s*\n\s*\.btn-ghost \{ white-space: nowrap; \}/.test(css),
+    'nowrap 으로 막았다 — 빈칸 있는 긴 이름이 단추 밖으로 삐져나간다')
+})

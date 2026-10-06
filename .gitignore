@@ -35,6 +35,7 @@ pnpm-lock.yaml
 
 # TypeScript 빌드 캐시
 apps/web/tsconfig.tsbuildinfo
+apps/web/scripts/tsconfig.tsbuildinfo
 
 # npm lock (pnpm 프로젝트)
 package-lock.json

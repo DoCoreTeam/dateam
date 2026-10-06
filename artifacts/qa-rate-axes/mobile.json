@@ -1,0 +1,287 @@
+[
+ {
+  "width": 1280,
+  "viewportW": 1280,
+  "tableW": 728,
+  "tableRight": 1114,
+  "rowH": 215,
+  "amountCell": {
+   "x": 859,
+   "right": 1041,
+   "w": 182
+  },
+  "amountText": "1,998,720원 | 기간 총액1,998,720원 | 월 금액999,360원 × 2개월 | 시간당 금액1,388원 × 1,440h",
+  "chain": [
+   {
+    "tag": "DIV",
+    "cls": "quote-document_tableWrap__dg1fl",
+    "ox": "auto",
+    "cw": 728,
+    "sw": 728
+   },
+   {
+    "tag": "ARTICLE",
+    "cls": "card quote-document_sheet__EFk6c",
+    "ox": "visible",
+    "cw": 792,
+    "sw": 792
+   },
+   {
+    "tag": "DIV",
+    "cls": "page-inner",
+    "ox": "visible",
+    "cw": 996,
+    "sw": 996
+   },
+   {
+    "tag": "MAIN",
+    "cls": "page-inner",
+    "ox": "auto",
+    "cw": 1060,
+    "sw": 1060
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-content",
+    "ox": "visible",
+    "cw": 1060,
+    "sw": 1060
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-shell",
+    "ox": "hidden",
+    "cw": 1280,
+    "sw": 1280
+   }
+  ]
+ },
+ {
+  "width": 768,
+  "viewportW": 768,
+  "tableW": 426,
+  "tableRight": 687,
+  "rowH": 539,
+  "amountCell": {
+   "x": 538,
+   "right": 644,
+   "w": 107
+  },
+  "amountText": "1,998,720원 | 기간 총액1,998,720원 | 월 금액999,360원 × 2개월 | 시간당 금액1,388원 × 1,440h",
+  "chain": [
+   {
+    "tag": "DIV",
+    "cls": "quote-document_tableWrap__dg1fl",
+    "ox": "auto",
+    "cw": 426,
+    "sw": 444
+   },
+   {
+    "tag": "ARTICLE",
+    "cls": "card quote-document_sheet__EFk6c",
+    "ox": "visible",
+    "cw": 490,
+    "sw": 490
+   },
+   {
+    "tag": "DIV",
+    "cls": "page-inner",
+    "ox": "visible",
+    "cw": 540,
+    "sw": 540
+   },
+   {
+    "tag": "MAIN",
+    "cls": "page-inner",
+    "ox": "auto",
+    "cw": 588,
+    "sw": 588
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-content",
+    "ox": "visible",
+    "cw": 588,
+    "sw": 588
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-shell",
+    "ox": "hidden",
+    "cw": 768,
+    "sw": 768
+   }
+  ]
+ },
+ {
+  "width": 430,
+  "viewportW": 430,
+  "tableW": 544,
+  "tableRight": 593,
+  "rowH": 341,
+  "amountCell": {
+   "x": 403,
+   "right": 539,
+   "w": 136
+  },
+  "amountText": "1,998,720원 | 기간 총액1,998,720원 | 월 금액999,360원 × 2개월 | 시간당 금액1,388원 × 1,440h",
+  "chain": [
+   {
+    "tag": "DIV",
+    "cls": "quote-document_tableWrap__dg1fl",
+    "ox": "auto",
+    "cw": 332,
+    "sw": 544
+   },
+   {
+    "tag": "ARTICLE",
+    "cls": "card quote-document_sheet__EFk6c",
+    "ox": "visible",
+    "cw": 364,
+    "sw": 364
+   },
+   {
+    "tag": "DIV",
+    "cls": "page-inner",
+    "ox": "visible",
+    "cw": 398,
+    "sw": 398
+   },
+   {
+    "tag": "MAIN",
+    "cls": "page-inner",
+    "ox": "auto",
+    "cw": 430,
+    "sw": 430
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-content",
+    "ox": "visible",
+    "cw": 430,
+    "sw": 430
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-shell",
+    "ox": "visible",
+    "cw": 430,
+    "sw": 430
+   }
+  ]
+ },
+ {
+  "width": 390,
+  "viewportW": 390,
+  "tableW": 544,
+  "tableRight": 593,
+  "rowH": 341,
+  "amountCell": {
+   "x": 403,
+   "right": 539,
+   "w": 136
+  },
+  "amountText": "1,998,720원 | 기간 총액1,998,720원 | 월 금액999,360원 × 2개월 | 시간당 금액1,388원 × 1,440h",
+  "chain": [
+   {
+    "tag": "DIV",
+    "cls": "quote-document_tableWrap__dg1fl",
+    "ox": "auto",
+    "cw": 292,
+    "sw": 544
+   },
+   {
+    "tag": "ARTICLE",
+    "cls": "card quote-document_sheet__EFk6c",
+    "ox": "visible",
+    "cw": 324,
+    "sw": 324
+   },
+   {
+    "tag": "DIV",
+    "cls": "page-inner",
+    "ox": "visible",
+    "cw": 358,
+    "sw": 358
+   },
+   {
+    "tag": "MAIN",
+    "cls": "page-inner",
+    "ox": "auto",
+    "cw": 390,
+    "sw": 390
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-content",
+    "ox": "visible",
+    "cw": 390,
+    "sw": 390
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-shell",
+    "ox": "visible",
+    "cw": 390,
+    "sw": 390
+   }
+  ]
+ },
+ {
+  "width": 320,
+  "viewportW": 320,
+  "tableW": 544,
+  "tableRight": 593,
+  "rowH": 341,
+  "amountCell": {
+   "x": 403,
+   "right": 539,
+   "w": 136
+  },
+  "amountText": "1,998,720원 | 기간 총액1,998,720원 | 월 금액999,360원 × 2개월 | 시간당 금액1,388원 × 1,440h",
+  "chain": [
+   {
+    "tag": "DIV",
+    "cls": "quote-document_tableWrap__dg1fl",
+    "ox": "auto",
+    "cw": 222,
+    "sw": 544
+   },
+   {
+    "tag": "ARTICLE",
+    "cls": "card quote-document_sheet__EFk6c",
+    "ox": "visible",
+    "cw": 254,
+    "sw": 254
+   },
+   {
+    "tag": "DIV",
+    "cls": "page-inner",
+    "ox": "visible",
+    "cw": 288,
+    "sw": 288
+   },
+   {
+    "tag": "MAIN",
+    "cls": "page-inner",
+    "ox": "auto",
+    "cw": 320,
+    "sw": 320
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-content",
+    "ox": "visible",
+    "cw": 320,
+    "sw": 320
+   },
+   {
+    "tag": "DIV",
+    "cls": "app-shell",
+    "ox": "visible",
+    "cw": 320,
+    "sw": 320
+   }
+  ]
+ }
+]
