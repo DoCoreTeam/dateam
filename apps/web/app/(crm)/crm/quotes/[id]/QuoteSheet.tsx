@@ -14,6 +14,7 @@ import {
   axisTexts, lineNoteText, convTexts, lineSumMinor,
 } from '@/lib/crm/domain/quote-rate-text'
 import { hasDiscount, hasRemark } from '@/lib/crm/domain/quote-document'
+import { quoteColumnWidths, hasLongRemark, pct } from '@/lib/ui/quote-columns'
 import type { QuoteDocument, DocumentLine, DocumentSection } from '@/lib/crm/domain/quote-document'
 import styles from './quote-document.module.css'
 
@@ -72,19 +73,14 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
 
   /*
     **열 폭은 비율이고 합은 늘 100 이다.** 모자라거나 남으면 브라우저가 제 마음대로
-    나눠 화면과 종이의 배치가 달라진다. 그래서 비고 열이 설 때 그 폭을 어디서
-    떼어 올지 여기 한 곳에서 정한다.
+    나눠 화면과 종이의 배치가 달라진다.
 
-    금액(25%)과 할인(16%)은 **실측으로 정한 값이라 건드리지 않는다** — 금액을 줄였을 때
-    「330,000,000원」의 「원」이 잘렸고, 할인을 줄였을 때 「30% → 100%」가 접혔다.
-    그래서 품목 이름에서 크게 떼고 단위·수량에서 1%씩 보탠다.
+    셈은 `lib/ui/quote-columns` 가 한다 — 경우가 여덟이라(할인 × 비고 × 긴 비고)
+    여기서 삼항 연산자로 엮어 두면 합이 맞는지 **사람이 암산해야 하고**, 그러다 틀리면
+    틀린 줄도 모른다. 꺼내 두면 시험이 여덟 경우를 다 센다.
   */
-  const colWidths = {
-    name: showRemark ? (showDiscount ? '18%' : '34%') : showDiscount ? '26%' : '42%',
-    unit: showRemark ? '6%' : '7%',
-    quantity: showRemark ? '5%' : '6%',
-    remark: '10%',
-  }
+  const longRemark = showRemark && hasLongRemark(doc.lines)
+  const colWidths = quoteColumnWidths({ showDiscount, showRemark, longRemark })
   /** 합계 라벨은 **금액 바로 앞 두 칸**에 걸친다 — 한 칸이면 「합계 금액」이 두 줄로 깨진다 */
   const labelSpan = 2
   /*
@@ -374,16 +370,20 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
               미리보기(종이 폭)에서 드러났다. 비율이면 화면·종이 어디서든 같은 배치다.
             */}
             <colgroup>
-              <col style={{ width: '5%' }} />
+              <col style={{ width: pct(colWidths.no) }} />
               {/*
                 **비율 합은 늘 100 이다.** 할인 칸(16%)이 빠진 폭을 그냥 버리면 브라우저가
                 남는 폭을 제 마음대로 나눠 화면과 종이의 배치가 달라진다. 품목 이름이
                 가져간다 — 두 줄로 부서지던 칸이 그 자리다.
               */}
-              <col style={{ width: colWidths.name }} />
-              <col style={{ width: colWidths.unit }} />
-              <col style={{ width: colWidths.quantity }} />
-              <col style={{ width: '15%' }} />
+              <col style={{ width: pct(colWidths.name) }} />
+              <col style={{ width: pct(colWidths.unit) }} />
+              <col style={{ width: pct(colWidths.quantity) }} />
+              {/*
+                단가는 「1,388원」 정도라 15% 가 늘 남는다. 비고가 길면 여기서 3 을 떼어
+                비고에 준다 — 영문 한 문장이 10% 칸에서 낱말 가운데서 끊겼다(실측 2026-10-05).
+              */}
+              <col style={{ width: pct(colWidths.unitPrice) }} />
               {/*
                 할인 칸은 **두 비율과 화살표가 한 줄에 서야** 한다. 8% 였을 때
                 「30% →」 다음 줄로 「100%」가 접혀 화살표가 아무것도 가리키지 못했다
@@ -394,15 +394,15 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                 「30% → 100%」에 87px 이 필요해 14px 이 모자라 접혔다.
                 16% 면 96px 이라 한 줄에 선다.
               */}
-              {showDiscount && <col style={{ width: '16%' }} />}
+              {showDiscount && <col style={{ width: pct(colWidths.discount) }} />}
               {/*
                 합계(굵고 큰 글씨)가 들어갈 칸이라 항목 금액보다 넉넉해야 한다.
                 21% 였을 때 「330,000,000원」의 **「원」이 잘렸다**(사용자 지적) —
                 굵은 큰 글씨는 같은 자릿수라도 폭을 더 먹는다.
               */}
-              <col style={{ width: '25%' }} />
-              {/* 비고는 「64코어」「레이드컨트롤러」 정도라 넓을 필요가 없다 */}
-              {showRemark && <col style={{ width: colWidths.remark }} />}
+              <col style={{ width: pct(colWidths.amount) }} />
+              {/* 비고는 「64코어」 정도면 10%, 문장이 들어오면 15% 로 넓어진다 */}
+              {showRemark && <col style={{ width: pct(colWidths.remark) }} />}
             </colgroup>
             <thead>
               <tr>

@@ -325,45 +325,29 @@ test('★ 가져오기 창의 머리말이 건수를 말한다 — 화면이 조
   경우가 둘에서 넷으로 늘었으므로, 넷 다 세어 본다.
 */
 
-/** 화면 부품이 쓰는 것과 **같은 셈**이다 — 아래 가드가 둘이 갈리지 않았는지 대조한다 */
-function widthsOf(showRemark: boolean, showDiscount: boolean): number[] {
-  const name = showRemark ? (showDiscount ? 18 : 34) : showDiscount ? 26 : 42
-  return [
-    5,
-    name,
-    showRemark ? 6 : 7,
-    showRemark ? 5 : 6,
-    15,
-    ...(showDiscount ? [16] : []),
-    25,
-    ...(showRemark ? [10] : []),
-  ]
-}
+/*
+  **셈은 옆으로 옮겼다**(`lib/ui/quote-columns.ts`). 경우가 여덟으로 늘면서(할인 × 비고 ×
+  긴 비고) 가드가 같은 식을 베껴 들고 있으면 둘이 갈린다 — 베낀 쪽이 틀려도 통과한다.
+  합이 100 인지는 `quote-columns.test.ts` 가 여덟 경우를 다 세고, 여기서는
+  **화면이 그 셈을 실제로 부르는지**만 본다.
+*/
 
-test('\u2605 열 폭 비율 합이 네 경우 모두 100 이다', () => {
-  for (const remark of [false, true]) {
-    for (const discount of [false, true]) {
-      const sum = widthsOf(remark, discount).reduce((a, b) => a + b, 0)
-      assert.equal(sum, 100, `비고=${remark} 할인=${discount} 에서 합이 ${sum}`)
-    }
-  }
-})
-
-test('\u2605 금액과 할인 폭은 실측값이라 비고가 서도 안 줄어든다', () => {
-  // 금액을 줄였을 때 「330,000,000원」의 「원」이 잘렸고, 할인을 줄였을 때 「30% → 100%」가 접혔다
-  for (const remark of [false, true]) {
-    assert.ok(widthsOf(remark, true).includes(25), '금액 폭 25 가 아니다')
-    assert.ok(widthsOf(remark, true).includes(16), '할인 폭 16 이 아니다')
-  }
-})
-
-test('\u2605 화면 부품이 이 셈을 그대로 쓴다 — 여기만 맞고 화면이 다르면 소용없다', () => {
+test('\u2605 화면 부품이 폭을 제 손으로 안 정한다 — 셈은 한 곳에서만 난다', () => {
   const src = read('app/(crm)/crm/quotes/[id]/QuoteSheet.tsx')
-  assert.match(src, /name: showRemark \? \(showDiscount \? '18%' : '34%'\) : showDiscount \? '26%' : '42%'/,
-    '품목 폭 셈이 가드와 다르다')
-  assert.match(src, /unit: showRemark \? '6%' : '7%'/, '단위 폭 셈이 가드와 다르다')
-  assert.match(src, /quantity: showRemark \? '5%' : '6%'/, '수량 폭 셈이 가드와 다르다')
-  assert.match(src, /remark: '10%'/, '비고 폭 셈이 가드와 다르다')
+  assert.match(src, /quoteColumnWidths\(\{ showDiscount, showRemark, longRemark \}\)/,
+    '화면이 폭 셈을 안 부른다')
+  assert.match(src, /const longRemark = showRemark && hasLongRemark\(doc\.lines\)/,
+    '긴 비고를 안 센다 — 영문 한 문장이 10% 칸에서 낱말 가운데서 끊긴다')
+  /*
+    **colgroup 안에 고정 퍼센트가 남아 있으면** 셈을 옮긴 뜻이 없다. 한 칸만 손으로
+    적혀 있어도 합이 100 에서 어긋나고, 그 어긋남은 가드가 아니라 종이에서 드러난다.
+  */
+  const colgroup = src.slice(src.indexOf('<colgroup>'), src.indexOf('</colgroup>'))
+  assert.ok(!/width: '\d+%'/.test(colgroup),
+    `colgroup 에 손으로 적은 폭이 남아 있다\n${colgroup.match(/width: '\d+%'/g)?.join(' ')}`)
+  for (const k of ['no', 'name', 'unit', 'quantity', 'unitPrice', 'discount', 'amount', 'remark']) {
+    assert.ok(colgroup.includes(`pct(colWidths.${k})`), `${k} 열이 셈을 안 쓴다`)
+  }
 })
 
 test('\u2605 비고 열은 쓰는 견적에만 선다 — 빈 열이 품목 이름을 좁힌다', () => {
