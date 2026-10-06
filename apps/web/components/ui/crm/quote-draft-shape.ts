@@ -17,6 +17,8 @@ import { computePeriod, hoursFromQuantity } from '@/lib/crm/domain/quote-rate'
 import { todayPlus } from '@/components/ui/DateField'
 // 규격·구성을 붙이고 가르는 규칙은 화면 밖에 둔다 — 부품 파일은 node --test 가 못 읽는다
 export { joinSpec, splitSpec } from '@/lib/crm/domain/quote-spec'
+// 산식도 같은 이유로 밖에 있다. 글 짓는 일은 quote-rate-text 한 곳이다
+export { lineFormulaText } from '@/lib/crm/domain/quote-rate-text'
 
 /**
  * **시간으로 파는 종류.** 사용량은 시간당이 진짜 값이고 기간요금은 월 단가가
@@ -106,6 +108,18 @@ export interface QuoteLineDraft {
   quantity: string
   unit: string
   /**
+   * **「얼마 동안」** — 수량과 함께 단가에 곱해진다(「17대 × 2개월」).
+   *
+   * 빈 문자열이면 «안 적음»이고 배수는 1 이다. 「1」을 기본값으로 박으면
+   * 안 적은 줄에도 「× 1개월」이 인쇄된다.
+   *
+   * 날짜 칸과 다르다 — 날짜는 「언제」이고 이것은 「얼마나」다. 실측 2026-10-06:
+   * 품목 164줄 가운데 날짜를 적은 줄이 0줄이었다(금액을 안 바꾸는 칸이라서).
+   */
+  durationValue?: string
+  /** HOUR·DAY·MONTH·YEAR. 빈 문자열이면 «안 적음» — 값과 한 벌이다 */
+  durationUnit?: string
+  /**
    * 공급 기간(YYYY-MM-DD). **견적 유효기간과 다르다** — 유효기간은 「언제까지 이 값이
    * 유효한가」이고 이것은 「언제부터 언제까지 공급하는가」다. 여기서 개월과 총 시간을 센다.
    * 하나만 적어도 된다 — 끝이 협의 중인 견적이 실제로 있다.
@@ -189,6 +203,13 @@ export function toLinePayload(l: QuoteLineDraft): Record<string, unknown> {
     remark: l.remark.trim() || null,
     quantity: l.quantity || '1',
     unit: l.unit.trim() || null,
+    /*
+      **기간은 둘이 한 벌이다.** 한쪽만 채운 채 보내면 서버가 사람이 읽을 말로 거절한다 —
+      여기서 조용히 한쪽을 지우면 사람은 적은 것이 사라진 줄 모른다.
+      둘 다 비면 둘 다 null 이고, 그것이 「기간 없음」이다.
+    */
+    durationValue: (l.durationValue ?? '').trim() || null,
+    durationUnit: (l.durationUnit ?? '').trim() || null,
     unitPriceMinor: l.unitPriceMinor || '0',
     discountPercent: l.discountPercent || '0',
     // 빈 칸은 «특별 할인 없음» — 0 으로 바꾸면 「0% 특별할인」이 되어 뜻이 달라진다
@@ -207,6 +228,8 @@ export function emptyLine(): QuoteLineDraft {
   return {
     productId: null, name: '', descriptionMd: '', remark: '', kind: 'QUANTITY',
     quantity: '1', unit: LINE_KIND_UNIT.QUANTITY, unitPriceMinor: '', discountPercent: '0', taxRate: '10',
+    // 기간은 **빈칸으로 태어난다** — 1 을 넣으면 안 적은 줄에도 「× 1개월」이 인쇄된다
+    durationValue: '', durationUnit: '',
   }
 }
 
@@ -273,6 +296,13 @@ export function quoteToDraft(body: any): QuoteDraft {
       remark: l.remark ?? '',
       quantity: String(l.quantity),
       unit: l.unit ?? '',
+      /*
+        **기간도 폼으로 돌려받는다.** 안 받으면 저장된 「2개월」이 편집 모달에서 빈칸으로
+        보이고, 사람이 아무것도 안 고친 채 저장만 눌러도 그 줄의 금액이 절반이 된다.
+        null 은 «안 적음»이라 빈 문자열이다 — String(null) 이 'null' 이 되면 안 된다.
+      */
+      durationValue: l.durationValue === null || l.durationValue === undefined ? '' : String(l.durationValue),
+      durationUnit: l.durationUnit ?? '',
       startDate: l.startDate ? String(l.startDate).slice(0, 10) : '',
       endDate: l.endDate ? String(l.endDate).slice(0, 10) : '',
       unitPriceMinor: String(l.unitPriceMinor),

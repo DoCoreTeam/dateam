@@ -27,7 +27,7 @@ import {
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
   LINE_KIND_LABEL, LINE_KIND_ORDER, LINE_KIND_QUANTITY_LABEL,
-  LINE_KIND_PRICE_LABEL, LINE_KIND_UNIT, LINE_KIND_HINT,
+  LINE_KIND_PRICE_LABEL, LINE_KIND_UNIT, LINE_KIND_HINT, LINE_KIND_PRICE_BASIS,
   type QuoteLineKind,
 } from '@/lib/terms/cost'
 import {
@@ -42,6 +42,8 @@ import {
 } from '@/lib/terms'
 import QuoteLineSpecFields from '@/components/ui/crm/QuoteLineSpecFields'
 import QuoteLinePeriodFields from '@/components/ui/crm/QuoteLinePeriodFields'
+import QuoteLineQuantityFields from '@/components/ui/crm/QuoteLineQuantityFields'
+import QuoteLineFormula from '@/components/ui/crm/QuoteLineFormula'
 
 import styles from './quote-panel.module.css'
 
@@ -52,6 +54,7 @@ export type { QuoteLineDraft, QuoteDraft } from './quote-draft-shape'
 export { newQuoteDraft, quoteToDraft } from './quote-draft-shape'
 import {
   emptyLine, toLinePayload, sellsByTime, sharedRatePeriod, sharedRateHours, anyRateHours,
+  lineFormulaText,
   type QuoteLineDraft, type QuoteDraft, type ProductJson,
 } from './quote-draft-shape'
 
@@ -210,8 +213,13 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
       discountPercent: l.discountPercent || 0,
       specialDiscountPercent: l.specialDiscountPercent?.trim() ? l.specialDiscountPercent : null,
       taxRate: l.taxRate || 0,
+      // 합계도 같은 축으로 센다 — 줄 밑 숫자를 더한 값과 합계가 갈리면 둘 다 못 믿는다
+      durationValue: l.durationValue || null,
+      durationUnit: l.durationUnit || null,
+      priceBasis: LINE_KIND_PRICE_BASIS[l.kind ?? 'QUANTITY'],
+      hoursPerMonth: draft.rateHoursPerMonth ? Number(draft.rateHoursPerMonth) : undefined,
     })), { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode }),
-    [draft.lines, draft.roundingUnit, draft.roundingMode],
+    [draft.lines, draft.roundingUnit, draft.roundingMode, draft.rateHoursPerMonth],
   )
   const approval = needsApproval(totals)
 
@@ -473,6 +481,11 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
               discountPercent: line.discountPercent || 0,
               specialDiscountPercent: line.specialDiscountPercent?.trim() ? line.specialDiscountPercent : null,
               taxRate: line.taxRate || 0,
+              // 기간을 안 넘기면 화면은 한 달치를, 서버는 두 달치를 센다 — 저장 한 번에 갈린다
+              durationValue: line.durationValue || null,
+              durationUnit: line.durationUnit || null,
+              priceBasis: LINE_KIND_PRICE_BASIS[line.kind ?? 'QUANTITY'],
+              hoursPerMonth: draft.rateHoursPerMonth ? Number(draft.rateHoursPerMonth) : undefined,
             })
             return (
               <>
@@ -573,28 +586,17 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     onRemark={(v) => setLine(i, { remark: v })}
                   />
                 </div>
-                <div className={`${styles.field} ${styles.colQty}`}>
-                  <label className="label" htmlFor={`ln-qty-${i}`}>{LINE_KIND_QUANTITY_LABEL[line.kind ?? 'QUANTITY']}</label>
-                  <input
-                    id={`ln-qty-${i}`}
-                    className="input-field"
-                    inputMode="decimal"
-                    value={line.quantity}
-                    disabled={linesLocked}
-                    onChange={(e) => setLine(i, { quantity: e.target.value })}
-                  />
-                </div>
-                <div className={`${styles.field} ${styles.colUnit}`}>
-                  <label className="label" htmlFor={`ln-unit-${i}`}>{QUOTE.lineUnit}</label>
-                  <input
-                    id={`ln-unit-${i}`}
-                    className="input-field"
-                    value={line.unit}
-                    disabled={linesLocked}
-                    onChange={(e) => setLine(i, { unit: e.target.value })}
-                    placeholder="개월"
-                  />
-                </div>
+                {/* 「얼마를 얼마 동안」은 한 질문이라 넷이 한 칸에 선다 — 갈라 두면 기간만 다음 줄로 떨어진다 */}
+                <QuoteLineQuantityFields
+                  index={i}
+                  kind={line.kind ?? 'QUANTITY'}
+                  quantity={line.quantity}
+                  unit={line.unit}
+                  durationValue={line.durationValue ?? ''}
+                  durationUnit={line.durationUnit ?? ''}
+                  disabled={linesLocked}
+                  onChange={(patch) => setLine(i, patch)}
+                />
                 {/*
                   **공급 기간 — 시간으로 파는 줄에만 선다.**
                   장비 납품 줄에 기간 칸이 서면 쓰지도 않을 것을 매번 지나쳐야 한다.
@@ -695,6 +697,12 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     </button>
                   )}
                 </div>
+                {/* 산식은 **저장 전에** 보여야 쓸모가 있다 — 두 축이 곱해졌는지 그 자리에서 본다 */}
+                <QuoteLineFormula text={lineFormulaText(
+                  line,
+                  amounts.lineTotalMinor.toString(),
+                  (m) => formatAmount(m, draft.currency) ?? m,
+                )} />
               </>
             )
           }}

@@ -250,10 +250,16 @@
 
   /* 공급 기간 — 시간으로 파는 줄에만 선다. 둘이 나란히 서야 「언제부터 언제까지」로 읽힌다 */
   .colPeriod  { grid-column: span 3; }
-  .colQty     { grid-column: span 2; }
-  .colUnit    { grid-column: span 1; }
+  /*
+    **「얼마를 얼마 동안」 묶음이 넷을 든다**(수량·단위·기간·기간단위).
+    예전 수량(2) + 단위(1) 자리에 4칸을 쓰고, 그 한 칸을 할인에서 빌린다 —
+    할인은 0~100 사이의 수라 한 칸으로 충분하다.
+
+      행2  얼마를얼마동안(4)  단가(2)  할인(1)  특별할인(2)  부가세(1)  합계(2) = 12
+  */
+  .colAmount  { grid-column: span 4; }
   .colPrice   { grid-column: span 2; }
-  .colDisc    { grid-column: span 2; }
+  .colDisc    { grid-column: span 1; }
   .colSpecial { grid-column: span 2; }
   .colTax     { grid-column: span 1; }
   .colTotal   { grid-column: span 2; }
@@ -1065,4 +1071,78 @@
   margin-top: var(--space-1);
   color: var(--text-muted);
   font-size: var(--fs-2xs);
+}
+
+/*
+  ── 「얼마를 얼마 동안」 묶음 ────────────────────────────────────────────────
+
+  수량·단위·기간·기간단위 넷은 **한 질문**이다. 각자 격자 칸으로 두면 12칼럼이
+  14가 되어 줄이 깨지고, 좁은 폭에서 기간만 혼자 다음 줄로 떨어져 「17대」와
+  「2개월」이 서로 다른 줄에서 읽힌다.
+
+  안쪽은 자기 격자를 쓴다 — 수량 칸이 단위 칸보다 넓어야 「1,440」이 안 잘린다.
+*/
+.axisRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto minmax(0, 1.1fr) minmax(0, 1.2fr);
+  align-items: end;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.axisQty,
+.axisUnit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* **없으면 밖으로 흘러 옆 칸을 덮는다** — grid 아이템의 기본 최소 폭은 내용 폭이다 */
+  min-width: 0;
+}
+
+/* 곱셈 기호는 입력칸 높이에 맞춰 가라앉는다 — 라벨 줄에 뜨면 두 칸을 안 잇는 것처럼 보인다 */
+.axisTimes {
+  padding-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  user-select: none;
+}
+
+/* 좁으면 두 줄로 — 수량·단위가 윗줄, 기간·기간단위가 아랫줄. 곱셈 기호는 그때 숨는다 */
+@media (max-width: 520px) {
+  .axisRow { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .axisTimes { display: none; }
+}
+
+/*
+  ── 줄 밑 산식 ──────────────────────────────────────────────────────────────
+
+  「936,000원 × 17대 × 2개월 = 31,824,000원」. 치는 즉시 따라 움직여서,
+  저장하기 전에 두 축이 제대로 곱해졌는지 눈으로 본다.
+*/
+.lineFormula {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding-top: var(--space-1);
+  border-top: var(--border-w) dashed var(--border-light);
+  font-size: var(--fs-sm);
+  min-width: 0;
+}
+
+.lineFormulaLabel {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+/* 산식은 길어지면 **접힌다** — nowrap 으로 두면 390 에서 칸 밖으로 나간다 */
+.lineFormulaBody {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }

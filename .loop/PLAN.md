@@ -1,6 +1,6 @@
 # PLAN newAX: 견적 품목이 대수와 기간 두 축으로 선다
 플랜 ID: P0117
-플랜 버전: v0.1.5
+플랜 버전: v0.1.7
 상태: 진행중
 지시: ins_0203
 목표 버전: v0.10.953
@@ -96,12 +96,13 @@
 의존: I02
 
 ### I06 편집 모달에서 기간을 적는다
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/components/ui/crm/QuoteLineDurationFields.tsx (신규), apps/web/components/ui/crm/QuoteEditorModal.tsx, apps/web/components/ui/crm/quote-draft-shape.ts, apps/web/components/ui/crm/quote-panel.module.css
+범위: apps/web/components/ui/crm/QuoteLineQuantityFields.tsx (신규 — 수량·단위·기간·기간단위를 한 묶음으로 든다), apps/web/components/ui/crm/QuoteEditorModal.tsx, apps/web/components/ui/crm/quote-draft-shape.ts, apps/web/components/ui/crm/quote-panel.module.css
 감사 기준:
 - 기간 칸 둘이 **종류를 안 가리고 늘 선다** — sellsByTime 으로 가리지 않는다는 단정 (날짜 칸은 가려서 164줄 중 0줄이 썼다)
 - 수량 17 · 단위 대 · 기간 2 · 개월 · 단가 936,000 을 적으면 줄 밑 산식이 「936,000원 × 17대 × 2개월 = 31,824,000원」을 적는다
+- 수량·단위·기간·기간단위 넷이 **한 칸 안에** 선다 — 「얼마를 얼마 동안」은 한 질문이라 갈라 놓으면 좁은 폭에서 따로 접힌다
 - 화면 문구는 전부 lib/terms 상수에서 온다 (한글 문자열 직접 금지 가드 통과)
 - toLinePayload 가 durationValue·durationUnit 을 싣는다 — 값이 가는지를 보는 단정
 의존: I05
@@ -226,8 +227,10 @@
 ## 변경 이력
 - v0.1.0 (2026-10-06) 최초 작성 (ins_0203)
 - v0.1.1 (2026-10-06) I03 을 I02 로 합침 — 기간 배수가 단위 환산에 기대어 둘을 가르면 한 항목을 한 번에 감사할 수 없다 (audit:I02)
+- v0.1.4 (2026-10-06) I06 의 새 부품 이름을 QuoteLineQuantityFields 로 — 기간만 따로 두면 12칼럼이 14가 되어 줄이 깨진다. 수량·단위·기간을 한 묶음으로 들면 4칸이고, 그것이 「어우르게 표시」라는 지시에도 맞다 (audit:I06)
 - v0.1.3 (2026-10-06) I04 의 의존을 I03(취소) 에서 I02 로 옮김 — 합친 항목을 가리킨 채 두면 뒤 항목이 영영 못 뜬다 (audit:I04)
 - v0.1.2 (2026-10-06) I02 범위에 duplicateQuote 와 terms/quote.ts 를 더하고 I13 을 좁힘 — 복제 가드가 이미 스키마를 세고 있어 I01 직후 빨개졌다. 가드를 다음 항목까지 빨갛게 두면 그 사이 커밋이 전부 빨간 판이 된다 (audit:I02)
 - v0.1.2 (2026-10-06) I03(기간 시간 환산)을 I02 로 합침 — 기간 배수를 내려면 단위 환산이 같은 자리에 있어야 해서 가르면 한 번에 감사가 안 된다 (audit:I02)
 - v0.1.3 (2026-10-06) I02 범위에 duplicateQuote 추가, I13 을 나머지 세 길로 좁힘 — 복제 가드가 이미 스키마를 세고 있어 칼럼 추가 직후 빨개졌다(not ok 3392) (audit:I02)
 - v0.1.5 (2026-10-06) I04 의존을 취소된 I03 에서 I02 로 옮김 (audit:I04)
+- v0.1.7 (2026-10-06) I06 새 부품을 QuoteLineQuantityFields 로 — 수량·단위·기간을 한 묶음으로 들어야 12칼럼이 안 깨지고 「어우르게 표시」 지시에도 맞다 (audit:I06)

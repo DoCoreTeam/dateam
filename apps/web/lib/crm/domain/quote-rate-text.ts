@@ -83,6 +83,44 @@ export function hourlyBasisText(quantity: string | number, unit: string | null |
   return ` (${q.toLocaleString('ko-KR')}${u} ${QUOTE.hourlyBasisSuffix})`
 }
 
+/**
+ * **편집 화면이 줄 밑에 적는 산식.**
+ *
+ * 「936,000원 × 17대 × 2개월 = 31,824,000원」. 치는 즉시 따라 움직여서,
+ * 사람이 **저장하기 전에** 두 축이 제대로 곱해졌는지 눈으로 본다.
+ *
+ * **인쇄되는 축 문구(`axisTexts`)와 다른 글이다.** 저쪽은 「고객이 검산할 수 있게」가
+ * 기준이라 금액 하나를 세 축으로 되짚고, 여기는 「지금 적은 것이 금액에 닿았나」가
+ * 기준이라 **입력 칸을 그 순서대로** 늘어놓는다. 그래도 같은 파일에 둔다 —
+ * 「약」을 붙이는 규칙이나 곱셈 기호가 갈리면 같은 견적이 두 모양으로 읽힌다.
+ *
+ * 기간을 안 적었으면 그 조각을 뺀다. 「× 1」을 끼워 넣으면 안 적은 것이 적은 것처럼 보인다.
+ */
+export function lineFormulaText(
+  line: {
+    quantity: string
+    unit: string
+    durationValue?: string
+    durationUnit?: string
+    unitPriceMinor: string
+  },
+  lineTotalMinor: string,
+  money: MoneyText,
+): string {
+  const qty = Number(line.quantity)
+  if (!Number.isFinite(qty) || qty <= 0) return ''
+  // 단가를 아직 안 적은 줄에 「= 0원」이 서면 안 된다 — 0원짜리 줄처럼 읽힌다
+  if (!line.unitPriceMinor) return ''
+
+  const parts = [money(line.unitPriceMinor), `${qty.toLocaleString('ko-KR')}${line.unit.trim()}`]
+  const dv = Number(line.durationValue)
+  const du = line.durationUnit as keyof typeof DURATION_UNIT_LABEL
+  if (Number.isFinite(dv) && dv > 0 && du && du in DURATION_UNIT_LABEL) {
+    parts.push(`${dv.toLocaleString('ko-KR')}${DURATION_UNIT_LABEL[du]}`)
+  }
+  return `${parts.join(` ${QUOTE.durationTimesSign} `)} = ${money(lineTotalMinor)}`
+}
+
 /** 금액 칸에 덧붙는 축 한 줄 */
 export interface AxisText {
   key: string

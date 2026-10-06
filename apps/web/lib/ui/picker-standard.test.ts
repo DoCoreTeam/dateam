@@ -78,6 +78,14 @@ const WHY_SELECT: Readonly<Record<string, string>> = {
     '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
   'components/ui/crm/CostPanel.tsx#CURRENCY_CHOICES':
     '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
+  /*
+    기간 단위는 **넷뿐이고 코드에 박혀 있다**(`lib/terms/quote.ts` 의 DURATION_UNIT_ORDER).
+    「주」를 안 넣은 것도 코드가 정한 일이다 — 월 환산이 안 떨어져 「약」이 늘 붙기 때문이고,
+    그래서 이 목록은 사람이 늘릴 수 있는 종류가 아니다.
+  */
+  'components/ui/crm/QuoteLineQuantityFields.tsx#DURATION_UNIT_ORDER':
+    '기간 단위 넷이고 코드에 박혀 있다(DURATION_UNIT_ORDER). 자라지 않는다',
+
   'components/ui/crm/CostToQuoteModal.tsx#CURRENCY_CHOICES':
     '통화 넷이고 코드에 박혀 있다(CURRENCY_CHOICES). 자라지 않는다',
 

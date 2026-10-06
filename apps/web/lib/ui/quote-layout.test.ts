@@ -107,7 +107,11 @@ test('★ 두 행 모두 정확히 12칸이다 — 하나라도 어긋나면 그
     return Number(m[1])
   }
   const first = span('colOrder') + span('colKind') + span('colName') + span('colSpec')
-  const second = span('colQty') + span('colUnit') + span('colPrice')
+  /*
+    수량·단위·기간·기간단위 넷은 **한 칸**이다(`colAmount`). 갈라 두면 좁은 폭에서
+    기간만 혼자 다음 줄로 떨어져 「17대」와 「2개월」이 서로 다른 줄에서 읽힌다.
+  */
+  const second = span('colAmount') + span('colPrice')
     + span('colDisc') + span('colSpecial') + span('colTax') + span('colTotal')
   assert.equal(first, 12, `첫 행이 ${first}칸이다`)
   assert.equal(second, 12, `둘째 행이 ${second}칸이다`)
@@ -682,4 +686,86 @@ test('★ 다시 불러오는 동안 화면이 그렇다고 말한다', () => {
     '빈 화면과 바뀌는 중인 화면을 같은 것으로 그린다')
   assert.match(DOC, /@media print \{ \.reloadNote \{ display: none; \} \}/,
     '인쇄에 우리 사정이 찍힌다')
+})
+
+/* ── ⑨ 「얼마를 얼마 동안」 — 두 축이 한 칸에 서고 금액까지 닿는가 ──────────
+
+   실측 2026-10-06: 공급 기간 날짜 칸을 「시간으로 파는 종류」에만 세워 두었더니
+   품목 164줄 가운데 그 칸을 쓴 줄이 **0줄**이었다. 숨긴 칸은 안 쓰인다.
+   그리고 「17대를 2개월 빌려 준다」는 **수량** 종류의 줄이라, 종류로 가리면
+   이번 사고(2개월이 사라져 금액이 절반)가 그대로 되풀이된다.
+   ──────────────────────────────────────────────────────────────────────── */
+
+const QTYFIELDS = read('components/ui/crm/QuoteLineQuantityFields.tsx')
+
+// 산식은 순수 함수라 **실제로 불러서** 본다 — 소스를 훑는 가드는 「= 0원」 같은 결과를 못 본다
+import { lineFormulaText } from '../crm/domain/quote-rate-text.ts'
+
+test('★ 기간 칸은 종류를 안 가리고 늘 선다 — 숨긴 칸은 164줄 중 0줄이 썼다', () => {
+  // 모달이 묶음 부품을 **조건 없이** 그린다. sellsByTime 뒤에 숨기면 수량 종류에서 사라진다
+  const m = MODAL.match(/<QuoteLineQuantityFields[\s\S]{0,600}?\/>/)
+  assert.ok(m, '묶음 부품을 안 그린다')
+  const before = MODAL.slice(Math.max(0, MODAL.indexOf(m[0]) - 200), MODAL.indexOf(m[0]))
+  assert.ok(!/sellsByTime\([^)]*\)\s*&&\s*\(?\s*$/.test(before),
+    '기간 칸이 종류 뒤에 숨었다 — 「17대를 2개월」은 수량 종류의 줄이다')
+  // 부품 자체도 종류로 안 가린다
+  assert.ok(!/sellsByTime/.test(QTYFIELDS), '부품 안에서 종류로 가린다')
+})
+
+test('★ 넷이 한 칸에 선다 — 갈라 두면 좁은 폭에서 기간만 다음 줄로 떨어진다', () => {
+  for (const id of ['ln-qty-', 'ln-unit-', 'ln-dur-', 'ln-durunit-']) {
+    assert.ok(QTYFIELDS.includes(id), `${id} 칸이 묶음 안에 없다`)
+  }
+  assert.match(PANEL, /\.axisRow \{/, '묶음 안쪽 격자가 없다')
+  const m = PANEL.match(/\.axisRow \{[^}]*\}/)
+  assert.ok(m && /min-width: 0/.test(m[0]), '칸보다 넓어질 때 줄어들 수 없다 — 옆 칸을 덮는다')
+})
+
+test('★ 기간 단위는 「없음」이 먼저다 — 안 적어도 되는 칸이다', () => {
+  const sel = QTYFIELDS.slice(QTYFIELDS.indexOf('ln-durunit-'))
+  const firstOption = sel.indexOf('<option')
+  const none = sel.indexOf('DURATION.none')
+  const list = sel.indexOf('DURATION_UNIT_ORDER')
+  assert.ok(none > 0 && none < list,
+    '빈 선택지가 목록보다 뒤에 있다 — 기본값이 「개월」이 되면 안 적은 줄에도 「× 1개월」이 인쇄된다')
+  assert.ok(firstOption > 0)
+})
+
+test('★ 화면이 적은 기간이 금액까지 닿는다 — 저장 payload 와 미리보기 둘 다', () => {
+  for (const key of ['durationValue', 'durationUnit']) {
+    assert.ok(new RegExp(`${key}:\\s*\\(l\\.${key} \\?\\? ''\\)\\.trim\\(\\)`).test(SHAPE),
+      `toLinePayload 가 ${key} 를 안 싣는다 — 적은 기간이 조용히 버려진다`)
+    assert.ok(new RegExp(`${key}:\\s*line\\.${key}`).test(MODAL),
+      `줄 미리보기 computeLine 이 ${key} 를 안 받는다 — 화면과 서버가 다른 금액을 낸다`)
+    assert.ok(new RegExp(`${key}:\\s*l\\.${key}`).test(MODAL),
+      `합계 computeTotals 가 ${key} 를 안 받는다 — 줄 합과 합계가 갈린다`)
+  }
+  assert.match(MODAL, /priceBasis:\s*LINE_KIND_PRICE_BASIS/,
+    '단가 기준 단위를 안 넘긴다 — 시간당 단가 줄에 「2개월」이 1,460 이 아니라 2 가 된다')
+})
+
+test('★ 산식은 치는 즉시 그 줄 밑에 선다 — 저장 뒤에야 알면 이미 나간 뒤일 수 있다', () => {
+  assert.match(MODAL, /<QuoteLineFormula text=\{lineFormulaText\(/, '산식을 안 그린다')
+  assert.match(PANEL, /\.lineFormula \{/, '산식 줄 스타일이 없다')
+  const m = PANEL.match(/\.lineFormulaBody \{[^}]*\}/)
+  assert.ok(m && /overflow-wrap: anywhere/.test(m[0]),
+    '산식이 안 접힌다 — 390 에서 칸 밖으로 나간다')
+})
+
+test('★ 산식이 기간을 안 적은 줄에 「× 1」을 끼우지 않는다 — 안 적은 것이 적은 것처럼 보인다', () => {
+  const money = (m: string) => `${Number(m).toLocaleString('ko-KR')}원`
+  const base = { quantity: '17', unit: '대', unitPriceMinor: '936000' }
+
+  assert.equal(
+    lineFormulaText({ ...base, durationValue: '2', durationUnit: 'MONTH' }, '31824000', money),
+    '936,000원 × 17대 × 2개월 = 31,824,000원')
+  assert.equal(
+    lineFormulaText({ ...base, durationValue: '', durationUnit: '' }, '15912000', money),
+    '936,000원 × 17대 = 15,912,000원')
+  // 반쪽이면 그 조각을 안 붙인다 — 2 가 2개월인지 2시간인지 모른다
+  assert.equal(
+    lineFormulaText({ ...base, durationValue: '2', durationUnit: '' }, '15912000', money),
+    '936,000원 × 17대 = 15,912,000원')
+  // 단가를 아직 안 적은 줄에는 「= 0원」이 서면 안 된다
+  assert.equal(lineFormulaText({ ...base, unitPriceMinor: '', durationValue: '', durationUnit: '' }, '0', money), '')
 })
