@@ -26,6 +26,7 @@ import {
   LINE_KIND_QUANTITY_LABEL, LINE_KIND_PRICE_LABEL,
   type CostCategory, type CostStage, type CostInputMode, type QuoteLineKind,
 } from '../../terms/cost.ts'
+import { DURATION_UNIT_ORDER, type DurationUnit } from '../../terms/quote.ts'
 import { toMinor } from '../domain/money.ts'
 import { isCurrencyCode } from '../domain/currency.ts'
 import { eulReul, eunNeun, withJosa } from '../../ui/josa.ts'
@@ -36,6 +37,8 @@ const SELECT = {
   name: true, descriptionMd: true, amountMinor: true, currency: true,
   fxRate: true, fxDate: true, fxSource: true,
   kind: true, quantity: true, unit: true, unitPriceMinor: true, remark: true,
+  // 「얼마 동안」 — 매출이 2개월인데 원가가 한 달치면 마진율이 두 배로 거짓이 된다
+  durationValue: true, durationUnit: true,
   laborGradeId: true, effortMm: true, ratioPct: true, ratioBase: true, basisNote: true,
   createdAt: true, updatedAt: true,
 } as const
@@ -58,6 +61,9 @@ export interface DealCostRow {
   kind: QuoteLineKind
   quantity: unknown
   unit: string | null
+  /** 「얼마 동안」 — 견적 줄과 **같은 이름 같은 뜻**이다. 이름이 다르면 옮길 때 매핑이 또 생긴다 */
+  durationValue: unknown
+  durationUnit: string | null
   unitPriceMinor: bigint | null
   remark: string | null
   laborGradeId: string | null
@@ -65,6 +71,22 @@ export interface DealCostRow {
   ratioPct: unknown
   ratioBase: string | null
   basisNote: string | null
+}
+
+/**
+ * 원가 줄의 「얼마 동안」을 받는다. **값과 단위는 한 벌이다.**
+ *
+ * 견적 줄과 **같은 규칙**이다 — 둘 중 하나만 오면 안 쓰고, 모르는 단위는 안 받는다.
+ * 여기서 조용히 한쪽을 메우면 원가가 매출과 다른 기간으로 서고, 마진율이 거짓이 된다.
+ */
+function toCostDuration(input: { durationValue?: string | number | null; durationUnit?: string | null }):
+  { durationValue: string | null; durationUnit: string | null } {
+  const v = input.durationValue
+  const u = (input.durationUnit ?? '').trim()
+  const n = v === null || v === undefined || v === '' ? NaN : Number(String(v).replace(/,/g, ''))
+  if (!Number.isFinite(n) || n <= 0) return { durationValue: null, durationUnit: null }
+  if (!DURATION_UNIT_ORDER.includes(u as DurationUnit)) return { durationValue: null, durationUnit: null }
+  return { durationValue: String(n), durationUnit: u }
 }
 
 export interface DealCostInput {
@@ -79,6 +101,9 @@ export interface DealCostInput {
   kind?: string | null
   quantity?: string | number | null
   unit?: string | null
+  /** 「얼마 동안」. 값과 단위는 한 벌이라 하나만 오면 둘 다 안 쓴다 */
+  durationValue?: string | number | null
+  durationUnit?: string | null
   unitPriceMinor?: string | number | null
   remark?: string | null
   laborGradeId?: string | null
@@ -328,6 +353,7 @@ async function insertCost(
       kind,
       quantity: decimalOrNull(input.quantity, 'quantity', LINE_KIND_QUANTITY_LABEL[kind]),
       unit: (input.unit ?? '').trim() || null,
+      ...toCostDuration(input),
       unitPriceMinor: minorOrNull(input.unitPriceMinor, 'unitPriceMinor', LINE_KIND_PRICE_LABEL[kind]),
       remark: (input.remark ?? '').trim() || null,
       laborGradeId: input.laborGradeId || null,
@@ -396,6 +422,8 @@ export async function updateDealCost(
         kind: input.kind !== undefined ? kind : undefined,
         quantity: input.quantity !== undefined ? decimalOrNull(input.quantity, 'quantity', LINE_KIND_QUANTITY_LABEL[kind]) : undefined,
         unit: input.unit !== undefined ? ((input.unit ?? '').trim() || null) : undefined,
+        ...(input.durationValue !== undefined || input.durationUnit !== undefined
+          ? toCostDuration(input) : {}),
         unitPriceMinor: input.unitPriceMinor !== undefined
           ? minorOrNull(input.unitPriceMinor, 'unitPriceMinor', LINE_KIND_PRICE_LABEL[kind])
           : undefined,
@@ -448,6 +476,9 @@ export function toCostJson(r: DealCostRow): Record<string, unknown> {
     fxRate: r.fxRate === null || r.fxRate === undefined ? null : String(r.fxRate),
     fxDate: r.fxDate ? r.fxDate.toISOString().slice(0, 10) : null,
     quantity: r.quantity === null || r.quantity === undefined ? null : String(r.quantity),
+    // 기간도 돌려준다 — 안 주면 화면이 원가 줄의 「× 2개월」을 못 그리고 다시 칠 수도 없다
+    durationValue: r.durationValue === null || r.durationValue === undefined ? null : String(r.durationValue),
+    durationUnit: r.durationUnit ?? null,
     unitPriceMinor: r.unitPriceMinor === null ? null : r.unitPriceMinor.toString(),
   }
 }

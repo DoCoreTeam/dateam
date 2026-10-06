@@ -16,6 +16,7 @@ import {
   costToQuoteLines, prefillMarginPct, FALLBACK_MARGIN_PCT,
   type CostSource,
 } from './cost-to-quote.ts'
+import { computeLine } from './quote-math.ts'
 
 const read = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf-8')
 const MODAL = read('components/ui/crm/CostToQuoteModal.tsx')
@@ -172,4 +173,58 @@ test('★ 원가 읽기 게이트는 창구에 있다 — 화면이 역할을 �
   for (const bad of [/role === /, /'ADMIN'/, /isAdmin/]) {
     assert.ok(!bad.test(MODAL), `창이 역할을 직접 본다: ${bad}`)
   }
+})
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 — 원가와 매출이 같은 기간이어야 마진이 참이다
+
+   crm_deal_cost 는 견적 줄과 **칸 이름을 일부러 맞춰 둔** 표다. 견적만 두 축이 되면
+   17대 × 2개월짜리 매출에 한 달치 원가가 붙어 마진율이 두 배로 거짓이 된다 —
+   외화 견적이 센트값을 원화로 앉혀 마진율 94.6% 를 찍었던 것과 같은 모양이다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+test('★ 원가의 기간이 견적 줄로 그대로 따라간다 — 떨어뜨리면 마진이 거꾸로 선다', () => {
+  const { lines } = costToQuoteLines([{
+    id: 'c1', name: 'RTX5090 임대', currency: 'KRW',
+    amountMinor: '31824000', quantity: '17', unit: '대',
+    durationValue: '2', durationUnit: 'MONTH',
+    unitPriceMinor: '936000', kind: 'QUANTITY',
+  }], { currency: 'KRW', marginPercent: '' })
+  assert.equal(lines.length, 1)
+  assert.equal(lines[0].durationValue, '2')
+  assert.equal(lines[0].durationUnit, 'MONTH')
+  // 단가는 **한 대 한 달**의 값이라 안 건드린다 — 기간을 곱해 두면 두 번 곱해진다
+  assert.equal(lines[0].unitPriceMinor, '936000')
+  assert.equal(lines[0].quantity, '17')
+})
+
+test('★ 기간이 없는 원가 줄은 전과 같다 — 빈 문자열이지 「1개월」이 아니다', () => {
+  const { lines } = costToQuoteLines([{
+    id: 'c2', name: '설치비', currency: 'KRW',
+    amountMinor: '500000', quantity: '1', unit: '식', unitPriceMinor: '500000', kind: 'QUANTITY',
+  }], { currency: 'KRW', marginPercent: '' })
+  assert.equal(lines[0].durationValue, '')
+  assert.equal(lines[0].durationUnit, '')
+})
+
+test('★ 옮긴 견적 줄의 금액이 원가 총액과 같다 — 마진율이 두 배로 거짓이 되지 않는다', () => {
+  const { lines } = costToQuoteLines([{
+    id: 'c3', name: 'RTX5090 임대', currency: 'KRW',
+    amountMinor: '31824000', quantity: '17', unit: '대',
+    durationValue: '2', durationUnit: 'MONTH',
+    unitPriceMinor: '936000', kind: 'QUANTITY',
+  }], { currency: 'KRW', marginPercent: '' })
+
+  /*
+    마진 0% 로 옮겼으니 **견적 줄의 금액이 원가 총액과 같아야** 한다.
+    기간이 떨어지면 15,912,000 이 되어 마진율이 50% 로 보인다 — 아무것도 안 벌었는데.
+  */
+  const a = computeLine({
+    quantity: lines[0].quantity,
+    unitPriceMinor: lines[0].unitPriceMinor,
+    durationValue: lines[0].durationValue,
+    durationUnit: lines[0].durationUnit,
+    taxRate: 0,
+  })
+  assert.equal(a.lineTotalMinor, BigInt(31_824_000))
 })

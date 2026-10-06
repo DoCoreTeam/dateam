@@ -23,6 +23,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
+import { durationText } from '@/lib/crm/domain/quote-rate-text'
 import { ACTION, QUOTE } from '@/lib/terms'
 import { COST, COST_CATEGORY_LABEL, type CostCategory } from '@/lib/terms/cost'
 import { CURRENCY_CHOICES } from '@/lib/crm/domain/currency'
@@ -223,7 +224,14 @@ export default function CostToQuoteModal({ dealId, dealCurrency, onClose, onPick
 function lineBasis(it: CostJson): string {
   if (it.quantity && it.unitPriceMinor) {
     const unit = it.unit ? ` ${it.unit}` : ''
-    return `${it.quantity}${unit} × ${formatAmount(it.unitPriceMinor, it.currency || 'KRW') ?? ''}`
+    /*
+      **기간도 함께 적는다.** 「17대 × 936,000원」만 보여 주면 사람은 그 줄이 한 달치인 줄 알고
+      옮기는데, 금액은 두 달치다. 옮기기 전에 무엇을 옮기는지가 보여야 한다.
+    */
+    const dur = durationText(it.durationValue && it.durationUnit
+      ? { value: it.durationValue, unit: it.durationUnit } : null)
+    const head = `${it.quantity}${unit} × ${formatAmount(it.unitPriceMinor, it.currency || 'KRW') ?? ''}`
+    return dur ? `${head} ${dur}` : head
   }
   return it.basisNote ?? ''
 }

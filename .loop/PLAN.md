@@ -161,7 +161,7 @@
 의존: I02, I09
 
 ### I12 원가에도 같은 두 축이 선다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/cost.ts, apps/web/lib/crm/domain/cost-to-quote.ts, apps/web/lib/crm/domain/cost-to-quote.test.ts, apps/web/components/ui/crm/CostToQuoteModal.tsx
 감사 기준:

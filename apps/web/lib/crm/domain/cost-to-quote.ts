@@ -36,6 +36,9 @@ export interface CostSource {
   remark?: string | null
   kind?: string | null
   quantity?: string | null
+  /** 「얼마 동안」 — 견적 줄과 같은 이름이다. 떨어뜨리면 마진이 거꾸로 선다 */
+  durationValue?: string | null
+  durationUnit?: string | null
   unit?: string | null
   unitPriceMinor?: string | null
   amountMinor: string
@@ -51,6 +54,8 @@ export interface QuoteLineFromCost {
   remark: string
   kind: QuoteLineKind
   quantity: string
+  durationValue: string
+  durationUnit: string
   unit: string
   unitPriceMinor: string
   discountPercent: string
@@ -169,6 +174,13 @@ export function costToQuoteLines(
       kind: kindOf(row.kind),
       quantity,
       unit: row.unit ?? '',
+      /*
+        **기간도 그대로 옮긴다.** 원가 줄이 「17대 × 2개월」이면 견적 줄도 2개월이어야
+        같은 것을 파는 것이다. 여기서 떨어뜨리면 매출은 한 달치인데 원가는 두 달치가 되어
+        마진이 거꾸로 선다. 단가는 **한 대 한 달**의 값이라 안 건드린다.
+      */
+      durationValue: row.durationValue ?? '',
+      durationUnit: row.durationUnit ?? '',
       unitPriceMinor: (percent === null ? converted : sellFromCost(converted, percent)).toString(),
       discountPercent: '0',
       taxRate,
