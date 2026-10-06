@@ -21,6 +21,8 @@ apps/web/out/
 # Test artifacts
 test-results/
 apps/web/test-results/
+# 점검하며 뱉은 덤프. 한 번 실려 19개가 저장소에 남았다(v0.10.942)
+artifacts/
 
 # Playwright auth session (contains tokens — never commit)
 apps/web/e2e/auth-state.json

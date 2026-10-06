@@ -52,7 +52,6 @@
     // Next 가 빌드할 때 이 줄을 자기 판 이름으로 다시 적는다(NEXT_DIST_DIR 을 쓰면
     // .next-xxx 아래 types 줄이 하나 더 붙는다). 안 쓰는 판 이름은 지운다 —
     // 지워도 next-env.d.ts 의 reference 가 지금 판을 끌어온다
-    ".next-qa/types/**/*.ts",
     ".next/types/**/*.ts",
     "app/**/*.ts",
     "app/**/*.tsx",
@@ -68,8 +67,7 @@
     "prisma/**/*.ts",
     "tests/**/*.ts",
     "tests/**/*.tsx",
-    "types/**/*.ts",
-    ".next-crudb/types/**/*.ts"
+    "types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
