@@ -951,6 +951,12 @@ export const FILL_RISK_TEXT = {
   no_name: '품목 이름이 비었어요',
   amount_mismatch: '문서에 적힌 금액과 달라요',
   no_source: '원문을 못 찾아 대조하지 못했어요',
+  /*
+    **무엇이 빠졌는지를 말한다.** 「금액이 달라요」만 적으면 사람은 수량이나 단가를
+    의심해 **맞는 값을 고친다**(실측 2026-10-06: 그렇게 고치면 단가를 아무도 설명 못 한다).
+    문서 금액이 우리 금액의 깔끔한 정수 배일 때만 이 말을 쓴다.
+  */
+  duration_missing: '기간을 못 읽은 것 같아요. 문서 금액이 우리 계산의 배수예요',
 } as const
 
 export type FillRiskKey = keyof typeof FILL_RISK_TEXT

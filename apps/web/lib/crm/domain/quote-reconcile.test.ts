@@ -287,3 +287,93 @@ test('★ 건 하나면 곧장 검수, 둘 이상이면 고르기가 먼저', ()
   assert.match(PANEL, /reviews\.length > 1 && \(/,
     '고른 뒤 되돌아갈 길이 없다 — 골라 보기 전에는 어느 건인지 알 수 없다')
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 — 대조가 거꾸로 서면 사람이 맞는 값을 고친다
+
+   실측 2026-10-06: 「17대 × 936,000원 × 2개월」을 담을 칸이 없어, 제대로 읽어도
+   문서 금액(31,800,000)과 우리 계산(15,912,000)이 안 맞았다. 그때 사람이 할 수 있는 일은
+   수량을 34 로 조작하는 것뿐이고, 그러면 단가 936,000원을 아무도 설명할 수 없게 된다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+test('★ 줄 대조가 기간을 곱한 금액으로 선다 — 남는 차이는 할인 하나로 좁혀진다', () => {
+  const r = checkLine({
+    name: 'RTX5090 서버',
+    quantity: '17', unitPriceMinor: '936000',
+    durationValue: '2', durationUnit: 'MONTH',
+    discountPercent: '0', taxRate: '10',
+    // 원본의 할인가 15,900,000 × 2개월
+    documentAmountMinor: 31_800_000,
+    sourceText: '17 ₩936,000 ₩15,912,000',
+  })
+  assert.equal(r.ourAmountMinor, BigInt(31_824_000))
+  assert.equal(r.diffMinor, BigInt(24_000), '남는 차이는 안 읽은 할인뿐이다')
+})
+
+test('★ 기간을 못 읽어 배수만큼 모자라면 그렇다고 말한다 — 「금액이 달라요」로는 고칠 자리를 모른다', () => {
+  const r = checkLine({
+    name: 'RTX5090 서버',
+    quantity: '17', unitPriceMinor: '936000',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 31_824_000,   // 문서는 두 달치
+    sourceText: '17 ₩936,000',
+  })
+  assert.ok(r.reasons.includes('duration_missing'), `사유: ${r.reasons.join(',')}`)
+  assert.ok(!r.reasons.includes('amount_mismatch'), '두 사유를 함께 말하면 어느 쪽을 고칠지 모른다')
+})
+
+test('★ 기간을 이미 적은 줄에는 그 말을 안 쓴다 — 그 줄이 틀렸다면 다른 이유다', () => {
+  const r = checkLine({
+    name: 'x', quantity: '17', unitPriceMinor: '936000',
+    durationValue: '2', durationUnit: 'MONTH',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 63_648_000,   // 우리 계산의 두 배
+    sourceText: 'x',
+  })
+  assert.ok(r.reasons.includes('amount_mismatch'))
+  assert.ok(!r.reasons.includes('duration_missing'))
+})
+
+test('★ 소수 배는 기간이 아니다 — 할인·단가 이야기를 기간이라고 하면 엉뚱한 자리를 고친다', () => {
+  const r = checkLine({
+    name: 'x', quantity: '10', unitPriceMinor: '1000',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 15_000,   // 1.5 배
+    sourceText: 'x',
+  })
+  assert.ok(r.reasons.includes('amount_mismatch'))
+  assert.ok(!r.reasons.includes('duration_missing'))
+})
+
+test('★ 기간이 없는 기존 줄의 대조는 전과 같다', () => {
+  const r = checkLine({
+    name: 'H100', quantity: '8', unitPriceMinor: '45000000',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 360_000_000,
+    sourceText: 'H100 8대',
+  })
+  assert.equal(r.ourAmountMinor, BigInt(360_000_000))
+  assert.deepEqual(r.reasons, [])
+  assert.equal(r.safe, true)
+})
+
+test('★ 합계 대조도 기간을 센다 — 한 줄만 두 달이어도 합계가 맞는다', () => {
+  const t = checkTotal({
+    lines: [
+      {
+        name: 'RTX5090 서버', quantity: '17', unitPriceMinor: '936000',
+        durationValue: '2', durationUnit: 'MONTH',
+        discountPercent: '0', taxRate: '10',
+        documentAmountMinor: 31_824_000, sourceText: 'a',
+      },
+      {
+        name: '설치비', quantity: '1', unitPriceMinor: '500000',
+        discountPercent: '0', taxRate: '10',
+        documentAmountMinor: 500_000, sourceText: 'b',
+      },
+    ],
+    documentTotalMinor: 32_324_000,
+    documentIncludesTax: false,
+  })
+  assert.equal(t.verdict, 'match', `우리 ${t.ourTotalMinor} / 문서 ${t.documentTotalMinor}`)
+})

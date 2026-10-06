@@ -620,3 +620,13 @@ test('★ 제안이 화면에 서고 몇 줄에 들어가는지 숫자로 말한
     assert.match(src, /applyDocDuration/, `${name} 이 내리는 함수를 안 쓴다`)
   }
 })
+
+test('★ 대조도 기간을 받는다 — 안 받으면 맞게 읽은 줄이 틀렸다고 뜬다', () => {
+  const build = REVIEW_TEXT.slice(REVIEW_TEXT.indexOf('const inputs: LineCheckInput[]'))
+  for (const key of ['durationValue', 'durationUnit']) {
+    assert.ok(new RegExp(`${key}:\\s*l\\.${key}`).test(build.slice(0, 900)),
+      `대조 입력에 ${key} 를 안 넘긴다 — 「17대 × 2개월」이 문서와 안 맞는다고 뜬다`)
+  }
+  assert.match(build.slice(0, 900), /priceBasis:\s*LINE_KIND_PRICE_BASIS/,
+    '단가 기준 단위를 안 넘긴다 — 시간당 단가 줄의 배수가 틀린다')
+})

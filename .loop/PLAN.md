@@ -151,7 +151,7 @@
 의존: I09, I06
 
 ### I11 대조가 기간을 포함해 센다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/domain/quote-reconcile.ts, apps/web/lib/crm/domain/quote-reconcile.test.ts
 감사 기준:

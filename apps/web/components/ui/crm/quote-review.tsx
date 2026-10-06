@@ -21,7 +21,7 @@ import {
   type LineCheck, type LineCheckInput, type TotalCheck,
 } from '@/lib/crm/domain/quote-reconcile'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
-import { LINE_KIND_ORDER, LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
+import { LINE_KIND_ORDER, LINE_KIND_UNIT, LINE_KIND_PRICE_BASIS, type QuoteLineKind } from '@/lib/terms/cost'
 import { useState } from 'react'
 import {
   FILL_NO_PRICE, FILL_SOURCE_LABEL, FILL_RISK_TEXT, fillComponentsFold, fillSourcePage,
@@ -205,6 +205,13 @@ export function buildReview(
   const inputs: LineCheckInput[] = lines.map((l, i) => ({
     name: l.name,
     quantity: l.quantity,
+    /*
+      **기간도 대조에 넘긴다.** 안 넘기면 「17대 × 2개월」을 제대로 읽은 줄이
+      문서 금액과 안 맞는다고 떠서, 사람이 **맞게 읽은 값을 고친다.**
+    */
+    durationValue: l.durationValue ?? null,
+    durationUnit: l.durationUnit ?? null,
+    priceBasis: LINE_KIND_PRICE_BASIS[l.kind ?? 'QUANTITY'],
     unitPriceMinor: l.unitPriceMinor,
     discountPercent: l.discountPercent,
     specialDiscountPercent: l.specialDiscountPercent,

@@ -49,10 +49,24 @@ export type LineRiskReason =
   | 'amount_mismatch'
   /** 원문 조각이 없어 사람이 대조할 근거가 없다 */
   | 'no_source'
+  /**
+   * 문서 금액이 **우리 금액의 정수 배**다. 기간을 못 읽었을 때 나는 모양이다.
+   *
+   * 「금액이 안 맞는다」만 말하면 사람은 수량이나 단가를 의심하고 거기를 고친다 —
+   * 그러면 맞는 값이 틀린 값으로 바뀌고 단가를 아무도 설명할 수 없게 된다.
+   * **무엇이 빠졌는지**를 말해야 고칠 자리를 안다.
+   */
+  | 'duration_missing'
 
 export interface LineCheckInput {
   name: string
   quantity: string
+  /** 「얼마 동안」 — 수량과 곱해지는 다른 축. 없으면 배수 1 이고 예전 셈 그대로다 */
+  durationValue?: string | null
+  durationUnit?: string | null
+  /** 단가의 기준 단위 — 종류가 정한다. 시간당 단가에 「2개월」이면 배수가 1,460 이다 */
+  priceBasis?: 'HOUR' | 'MONTH' | null
+  hoursPerMonth?: number | null
   unitPriceMinor: string
   discountPercent: string
   specialDiscountPercent?: string
@@ -91,8 +105,18 @@ export function checkLine(input: LineCheckInput): LineCheck {
 
   let diff: bigint | null = null
   if (input.documentAmountMinor !== null) {
-    diff = ours - toMinor(input.documentAmountMinor)
-    if (abs(diff) > LINE_TOLERANCE_MINOR) reasons.push('amount_mismatch')
+    const doc = toMinor(input.documentAmountMinor)
+    diff = ours - doc
+    if (abs(diff) > LINE_TOLERANCE_MINOR) {
+      /*
+        **빠진 것이 기간인지 먼저 묻는다.**
+
+        기간을 안 적은 줄에서 문서 금액이 우리 금액의 **깔끔한 정수 배**면,
+        그 배수가 바로 못 읽은 기간이다(실측 2026-10-06: 문서 31,800,000 ÷ 우리 15,912,000 ≈ 2).
+        그냥 「금액이 안 맞는다」고만 하면 사람은 수량·단가를 의심해 **맞는 값을 고친다.**
+      */
+      reasons.push(missingDuration(input, ours, doc) ? 'duration_missing' : 'amount_mismatch')
+    }
   }
 
   return { ourAmountMinor: ours, diffMinor: diff, reasons, safe: reasons.length === 0 }
@@ -178,7 +202,31 @@ function toMathLine(l: LineCheckInput): QuoteLineInput {
     discountPercent: l.discountPercent || 0,
     specialDiscountPercent: l.specialDiscountPercent?.trim() ? l.specialDiscountPercent : null,
     taxRate: l.taxRate || 0,
+    /*
+      **기간도 센다.** 안 세면 대조가 거꾸로 선다 — 「17대 × 2개월」을 제대로 읽은 줄이
+      문서 금액과 안 맞는다고 뜨고, 사람은 맞게 읽은 값을 의심해 수량을 34 로 고친다.
+      그러면 단가 936,000원을 아무도 설명할 수 없게 된다.
+    */
+    durationValue: l.durationValue ?? null,
+    durationUnit: l.durationUnit ?? null,
+    priceBasis: l.priceBasis ?? null,
+    hoursPerMonth: l.hoursPerMonth ?? undefined,
   }
+}
+
+/**
+ * 안 맞는 까닭이 **기간을 못 읽은 것**인가.
+ *
+ * 기간을 이미 적은 줄은 아니다 — 그 줄이 틀렸다면 다른 이유다.
+ * 우리 금액이 0 이면 나눌 수 없고, 배수가 2 이상의 정수에 가까울 때만 그렇다고 본다
+ * (1 배는 그냥 맞는 것이고, 소수 배는 기간이 아니라 할인·단가 이야기다).
+ */
+function missingDuration(input: LineCheckInput, ours: bigint, doc: bigint): boolean {
+  if (input.durationValue) return false
+  if (ours <= BigInt(0) || doc <= ours) return false
+  const times = Number(doc) / Number(ours)
+  if (!Number.isFinite(times) || times < 2) return false
+  return Math.abs(times - Math.round(times)) < 0.01
 }
 
 function abs(v: bigint): bigint {
