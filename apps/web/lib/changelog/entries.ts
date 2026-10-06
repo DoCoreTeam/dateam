@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.10.952',
+    date: '2026-10-06',
+    title: '견적서가 받는 분을 제대로 불러요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🙇',
+        headline: '받는 분 담당자 이름에 「님」이 붙어요',
+        detail: '회사 이름 뒤에는 「귀중」이 붙는데 담당자만 맨이름으로 나가고 있었어요. 이제 「강명구 부장님」처럼 적힙니다. 화면·인쇄·엑셀이 모두 같은 이름을 써요. 우리 쪽 담당자에는 붙지 않습니다.',
+      },
+    ],
+  },
+  {
     version: '0.10.947',
     date: '2026-10-06',
     title: '견적서가 좁은 화면에서도 읽혀요',
