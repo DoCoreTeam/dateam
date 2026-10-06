@@ -100,8 +100,25 @@ export interface DocumentOwner {
 export interface DocumentCustomer {
   /** 회사명. 없으면 딜 이름으로 대신한다 — 「귀중」 앞이 비면 문서가 아니다 */
   companyName: string
-  /** 수신 담당자 */
+  /** 수신 담당자. 경칭까지 붙은 채로 온다(`withContactHonorific`) */
   personName: string | null
+}
+
+/**
+ * 수신 담당자 이름에 경칭을 붙인다.
+ *
+ * **여기 한 자리에서 붙인다.** 그리는 쪽마다 붙이면 한 군데를 빠뜨렸을 때
+ * 같은 사람이 화면에서는 「부장님」, 엑셀에서는 「부장」으로 불린다.
+ *
+ * **받는 쪽에만 붙는다.** 공급자 담당(`DocumentOwner`)은 우리 사람이라 그대로 둔다.
+ *
+ * 이미 「님」으로 끝나면 그대로 둔다 — 사람이 손으로 적어 둔 이름을 두 번 높이지 않는다.
+ */
+export function withContactHonorific(name: string): string {
+  if (!name) return name
+  return name.endsWith(QUOTE.customerContactHonorific)
+    ? name
+    : `${name}${QUOTE.customerContactHonorific}`
 }
 
 /** 견적서에 인쇄되는 묶음 하나 */
@@ -609,7 +626,10 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
     customer: {
       // 회사가 없는 딜도 있다(개인·기관). 그럴 때 「귀중」 앞을 비우면 문서가 아니다
       companyName: text(input.customer.companyName) || text(input.customer.fallbackName),
-      personName: text(input.customer.personName) || null,
+      // 경칭은 저장된 값이 아니라 문서가 붙인다 — 「귀중」과 같은 자리의 예의다
+      personName: text(input.customer.personName)
+        ? withContactHonorific(text(input.customer.personName))
+        : null,
     },
     meta: {
       quoteNo: input.quote.quoteNo,

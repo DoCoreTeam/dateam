@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildQuoteDocument, verifyDocument, missingSupplierFields,
-  exportFileName, hasDiscount, hasRemark,
+  exportFileName, hasDiscount, hasRemark, withContactHonorific,
   type BuildQuoteDocumentInput,
 } from './quote-document.ts'
 import { hangulAmount, QUOTE } from '../../terms/quote.ts'
@@ -97,6 +97,43 @@ test('항목에 번호가 1부터 붙는다', () => {
 test('회사가 없는 딜이면 딜 이름이 「귀중」 앞에 선다 — 빈 칸은 문서가 아니다', () => {
   const doc = buildQuoteDocument(input({ customer: { companyName: null, fallbackName: '한국전자 국책과제' } }))
   assert.equal(doc.customer.companyName, '한국전자 국책과제')
+})
+
+test('수신 담당자에 경칭이 붙는다 — 회사엔 「귀중」을 붙이면서 사람만 맨이름이면 예의가 반만 선다', () => {
+  const doc = buildQuoteDocument(input({
+    customer: { companyName: '한신공영', personName: '강명구 부장', fallbackName: '딜 이름' },
+  }))
+  assert.equal(doc.customer.personName, `강명구 부장${QUOTE.customerContactHonorific}`)
+})
+
+test('이미 경칭으로 끝나면 두 번 안 붙는다', () => {
+  const doc = buildQuoteDocument(input({
+    customer: { companyName: '한신공영', personName: '강명구 부장님', fallbackName: '딜 이름' },
+  }))
+  assert.equal(doc.customer.personName, '강명구 부장님')
+})
+
+test('담당자가 비면 null 그대로 — 경칭만 남은 줄을 인쇄하지 않는다', () => {
+  for (const personName of [null, '', '   ']) {
+    const doc = buildQuoteDocument(input({
+      customer: { companyName: '한신공영', personName, fallbackName: '딜 이름' },
+    }))
+    assert.equal(doc.customer.personName, null)
+  }
+})
+
+test('공급자 담당에는 경칭이 안 붙는다 — 제 이름에 님을 붙인 문서를 보내지 않는다', () => {
+  const doc = buildQuoteDocument(input({
+    owner: { name: '김도현', title: '본부장', email: 'a@b.c', phone: '010-0000-0000' },
+  }))
+  assert.equal(doc.owner.name, '김도현')
+  assert.equal(doc.owner.title, '본부장')
+})
+
+test('경칭 붙이기는 순수 변환이다 — 그리는 쪽이 다시 붙이지 않게 여기서만 센다', () => {
+  assert.equal(withContactHonorific('강명구 부장'), '강명구 부장님')
+  assert.equal(withContactHonorific('강명구 부장님'), '강명구 부장님')
+  assert.equal(withContactHonorific(''), '')
 })
 
 test('업태·종목을 여러 줄로 등록해도 견적서엔 첫 줄만 — 다섯 줄이면 공급자 칸이 문서 절반을 먹는다', () => {
