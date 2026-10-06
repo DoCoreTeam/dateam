@@ -57,6 +57,25 @@ export const LINE_KIND_UNIT: Record<QuoteLineKind, string> = {
   RATIO: '%',
 }
 
+/**
+ * 종류가 정하는 **단가의 기준 단위**.
+ *
+ * 기간을 곱할 때 쓴다 — 시간당 단가(USAGE)에 「2개월」을 적으면 배수는 2 가 아니라
+ * 1,460(2 × 730) 이고, 월 단가(PERIOD)에 「2개월」이면 2 다.
+ *
+ * **null 인 종류는 환산하지 않고 적은 수를 그대로 곱한다.** 「17대 × 2개월」의 단가
+ * 936,000원은 「한 대를 한 달」의 값이고, 그것이 원본 문서가 실제로 하는 말이다.
+ * 없는 기준을 지어내 환산하면 사람이 적지 않은 숫자가 금액에 들어간다.
+ */
+export const LINE_KIND_PRICE_BASIS: Record<QuoteLineKind, 'HOUR' | 'MONTH' | null> = {
+  USAGE: 'HOUR',
+  QUANTITY: null,
+  EFFORT: null,
+  LICENSE: null,
+  PERIOD: 'MONTH',
+  RATIO: null,
+}
+
 /** 무엇을 넣는 종류인지 한 줄 설명 — 고르는 순간 보인다 */
 export const LINE_KIND_HINT: Record<QuoteLineKind, string> = {
   USAGE: 'GPU 시간처럼 쓴 만큼 청구하는 항목',

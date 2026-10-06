@@ -278,6 +278,51 @@ export const RATE_AXIS_LABEL: Record<RateAxisKey, string> = {
   hourly: '시간당 금액',
 }
 
+// ------------------------------------------------------------
+// 기간 — 「얼마 동안」 축
+// ------------------------------------------------------------
+
+/**
+ * 기간 단위 넷.
+ *
+ * **왜 「주」가 없나**: 한 주를 월로 환산하면 4.345… 라 안 떨어지고, 그러면 시간당·월 금액에
+ * 「약」이 늘 붙는다. 넷이면 지금 저장소에 있는 모양(개월 9줄·Hours 3줄)을 전부 덮는다.
+ *
+ * 저장은 영문 키로 한다 — 「2개월」·「2 month」·「월」이 섞여 들어오면 환산하는 쪽이
+ * 그때마다 다르게 읽는다. DB CHECK 도 이 넷만 받는다(마이그 305).
+ */
+export type DurationUnit = 'HOUR' | 'DAY' | 'MONTH' | 'YEAR'
+
+/** 고르는 자리의 순서 — 흔한 것부터 */
+export const DURATION_UNIT_ORDER: readonly DurationUnit[] = ['MONTH', 'DAY', 'HOUR', 'YEAR']
+
+/** 고객 문서에 그대로 인쇄된다 — 「× 2개월」 */
+export const DURATION_UNIT_LABEL: Record<DurationUnit, string> = {
+  HOUR: '시간',
+  DAY: '일',
+  MONTH: '개월',
+  YEAR: '년',
+}
+
+/** 기간 칸의 이름과 안내 */
+export const DURATION = {
+  /** 수량 옆에 서는 칸 */
+  label: '기간',
+  unitLabel: '기간 단위',
+  /** 안 적어도 되는 칸이라는 것을 말한다 — 빈칸이 「없음」이고 1 이 아니다 */
+  none: '없음',
+  placeholder: '예: 2',
+  /**
+   * 수량 칸이 기간을 담고 있는 옛 줄에 서는 말.
+   *
+   * **못 하는 것만 말한다.** 그 줄의 금액은 맞으므로 「틀렸다」고 하지 않는다 —
+   * 기간이 수량 칸에 있어서 대수를 적을 자리가 없다는 사실만 적는다.
+   */
+  inQuantityHint: '기간이 수량 칸에 있어요. 대수를 따로 적으려면 수량을 대수로 바꾸고 여기에 기간을 적어 주세요',
+  /** 산식 미리보기 앞에 서는 말 */
+  formulaLabel: '이 줄의 셈',
+} as const
+
 /** 품목 이름 아래 한 줄로 이어 붙는 것 */
 export type LineNoteKey = 'period' | 'totalHours' | 'hoursBasis' | 'wasAndDiscount'
 

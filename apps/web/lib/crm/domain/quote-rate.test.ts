@@ -10,6 +10,7 @@ import {
   computePeriod, hourlyFromMonthly, monthlyFromHourly, monthlyFromTotal, hourlyFromTotal,
   toDateKey, DEFAULT_HOURS_PER_MONTH,
   hoursFromQuantity, monthsFromHours, rateFromHours,
+  durationHours, durationFactor,
 } from './quote-rate.ts'
 
 /* ── 기간 ────────────────────────────────────── */
@@ -201,4 +202,65 @@ test('★ 개월을 아는 쪽은 그 값을 넘긴다 — 기간에서 온 축�
 test('★ 시간이 없으면 축이 아예 안 선다', () => {
   assert.equal(rateFromHours(1_998_720, 0, 720), null)
   assert.equal(rateFromHours(1_998_720, -1, 720), null)
+})
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 칸 — 「얼마 동안」 축
+
+   실측 2026-10-06: 품목 164줄 가운데 공급 기간 날짜를 적은 줄이 **0줄**이었다.
+   그 칸은 금액을 안 바꾸기 때문이다. 기간 칸은 금액을 바꾸므로 반드시 검산을 받는다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+test('★ 기간을 시간으로 편다 — 네 단위가 각자 제 수로 펴진다', () => {
+  assert.equal(durationHours(2, 'MONTH', 730), 1460, '2개월 × 730')
+  assert.equal(durationHours(30, 'DAY'), 720, '30일 × 24')
+  assert.equal(durationHours(1, 'YEAR', 730), 8760, '1년 = 12 × 730')
+  assert.equal(durationHours(48, 'HOUR'), 48, '시간은 그대로')
+  // 월 기준 시간이 바뀌면 개월과 년만 따라 움직인다 — 일과 시간은 달력이라 안 바뀐다
+  assert.equal(durationHours(2, 'MONTH', 720), 1440)
+  assert.equal(durationHours(30, 'DAY', 720), 720)
+})
+
+test('★ 총 시간은 달력 시간이다 — 수량을 곱하지 않는다', () => {
+  /*
+    17대를 2개월 쓰면 **장비-시간**은 17 × 1,460 = 24,820h 이지만
+    여기서 세는 것은 **달력 시간** 1,460h 다. 열일곱 배 차이라 어느 쪽인지 숨기면 안 되고,
+    시간당 금액을 적는 쪽이 「17대 기준」이라고 이름에 적는다.
+  */
+  assert.equal(durationHours(2, 'MONTH', 730), 1460)
+  assert.notEqual(durationHours(2, 'MONTH', 730), 24_820)
+})
+
+test('★ 못 세면 null 이다 — 0 이나 1 로 눕히지 않는다', () => {
+  assert.equal(durationHours(0, 'MONTH'), null, '0 은 「기간 없음」이 아니라 틀린 값이다')
+  assert.equal(durationHours(-1, 'MONTH'), null)
+  assert.equal(durationHours(2, 'WEEK'), null, '모르는 단위는 지어내지 않는다')
+  assert.equal(durationHours(2, null), null)
+  assert.equal(durationHours(null, 'MONTH'), null)
+  assert.equal(durationHours('이상한 값', 'MONTH'), null)
+})
+
+test('★ 기준 단위가 있는 종류만 환산한다 — 시간당 단가에 2개월은 1,460 배다', () => {
+  assert.equal(durationFactor(2, 'MONTH', 'HOUR', 730), 1460, '시간당 단가 × 2개월')
+  assert.equal(durationFactor(2, 'MONTH', 'MONTH', 730), 2, '월 단가 × 2개월')
+  assert.equal(durationFactor(1460, 'HOUR', 'MONTH', 730), 2, '월 단가에 1,460시간을 적으면 2개월')
+  assert.equal(durationFactor(48, 'HOUR', 'HOUR', 730), 48)
+})
+
+test('★ 기준이 없는 종류는 적은 수를 그대로 곱한다 — 없는 기준을 지어내지 않는다', () => {
+  /*
+    「17대 × 936,000원 × 2개월」의 단가는 **한 대를 한 달** 쓰는 값이고,
+    그것이 원본 문서가 실제로 하는 말이다(실측 2026-10-06, 견적 DA-2026-1006-03).
+    여기서 기준을 지어내 환산하면 사람이 적지 않은 숫자가 금액에 들어간다.
+  */
+  assert.equal(durationFactor(2, 'MONTH', null), 2)
+  assert.equal(durationFactor(2, 'DAY', null), 2)
+  assert.equal(durationFactor(2, 'YEAR', null), 2)
+})
+
+test('★ 기간을 안 적었으면 null 이다 — 1 을 돌려주면 화면이 「× 1개월」을 적는다', () => {
+  assert.equal(durationFactor(null, null, null), null)
+  assert.equal(durationFactor(2, null, 'MONTH'), null, '단위만 없어도 안 센다 — 둘은 한 벌이다')
+  assert.equal(durationFactor(null, 'MONTH', 'MONTH'), null)
+  assert.equal(durationFactor(0, 'MONTH', 'MONTH'), null)
 })

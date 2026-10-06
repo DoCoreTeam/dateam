@@ -320,3 +320,98 @@ test('★ 「단위 버림」은 그 단위의 배수로 맞추는 것이다 —
   assert.equal(roundAmount(net, { unit: 1_000_000, mode: 'DOWN' }), BigInt(303_000_000))
   assert.equal(roundAmount(net, { unit: 10_000_000, mode: 'DOWN' }), BigInt(300_000_000))
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 축 — 수량과 나란한 두 번째 곱
+
+   실측 2026-10-06, 견적 DA-2026-1006-03: 원본이 「17대 × 936,000원/월 × 2개월」로 적은 것을
+   담을 칸이 없어 2개월이 통째로 사라졌다. 34,980,000원이 17,503,200원으로 저장됐고
+   차액은 17,476,800원이다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+test('★ 기간을 안 적으면 배수가 1 이다 — 지금 있는 164줄의 금액이 안 바뀐다', () => {
+  const before = computeLine({ quantity: 17, unitPriceMinor: 936_000, taxRate: 10 })
+  assert.equal(before.grossMinor, BigInt(15_912_000))
+  assert.equal(before.lineTotalMinor, BigInt(15_912_000))
+  assert.equal(before.durationFactor, null, '안 적었으면 null 이다 — 1 이면 화면이 「× 1개월」을 적는다')
+})
+
+test('★ 17대 × 936,000원 × 2개월 = 31,824,000원', () => {
+  const a = computeLine({
+    quantity: 17, unitPriceMinor: 936_000, taxRate: 10,
+    durationValue: 2, durationUnit: 'MONTH', priceBasis: null,
+  })
+  assert.equal(a.grossMinor, BigInt(31_824_000))
+  assert.equal(a.lineTotalMinor, BigInt(31_824_000))
+  assert.equal(a.durationFactor, 2)
+  // 사라졌던 그 금액이 돌아온다
+  assert.equal(a.grossMinor - BigInt(15_912_000), BigInt(15_912_000))
+})
+
+test('★ 시간당 단가에 기간을 적으면 환산해서 곱한다', () => {
+  // 1,388원/h × 1대 × 2개월(1,460h)
+  const a = computeLine({
+    quantity: 1, unitPriceMinor: 1_388, taxRate: 10,
+    durationValue: 2, durationUnit: 'MONTH', priceBasis: 'HOUR', hoursPerMonth: 730,
+  })
+  assert.equal(a.durationFactor, 1460)
+  assert.equal(a.grossMinor, BigInt(1_388 * 1460))
+})
+
+test('★ 할인은 기간 곱 뒤에 걸린다 — 수량과 같은 자리다', () => {
+  const a = computeLine({
+    quantity: 17, unitPriceMinor: 936_000, discountPercent: 10, taxRate: 10,
+    durationValue: 2, durationUnit: 'MONTH',
+  })
+  assert.equal(a.grossMinor, BigInt(31_824_000))
+  assert.equal(a.lineTotalMinor, BigInt(31_824_000 * 0.9))
+  assert.equal(a.taxMinor, BigInt(Math.round(31_824_000 * 0.9 * 0.1)))
+})
+
+test('★ 반올림은 한 번만 한다 — 수량과 기간을 먼저 곱해 한 번에 단가에 건다', () => {
+  /*
+    두 번 나눠 곱하면(단가×수량 을 반올림하고 거기에 기간을 곱하면) 줄마다 1원씩 어긋나고,
+    그 1원이 항목 수만큼 쌓여 합계 대조가 이유 없이 실패한다.
+  */
+  const a = computeLine({
+    quantity: 3, unitPriceMinor: 1, taxRate: 0,
+    durationValue: 0.5, durationUnit: 'MONTH', priceBasis: null,
+  })
+  // 1 × 3 × 0.5 = 1.5 → 한 번에 반올림하면 2. 두 번 곱하면 3 × 1 = 3, 3 × 0.5 = 1.5 → 2 (같지만)
+  assert.equal(a.durationFactor, 0.5)
+  assert.equal(a.grossMinor, BigInt(2))
+  // 두 번 반올림이 갈리는 자리: 단가 3, 수량 0.5, 기간 0.5 → 0.75 → 1. 나눠 곱하면 2 → 1
+  const b = computeLine({
+    quantity: 0.5, unitPriceMinor: 3, taxRate: 0,
+    durationValue: 0.5, durationUnit: 'MONTH', priceBasis: null,
+  })
+  assert.equal(b.grossMinor, BigInt(1), '3 × 0.25 = 0.75 를 한 번에 반올림하면 1')
+})
+
+test('★ 기간 값이 0·음수·엉뚱한 값이면 안 곱한다 — 금액이 0 이나 음수가 되지 않는다', () => {
+  for (const bad of [0, -1, Number.NaN, '이상한 값', null, undefined]) {
+    const a = computeLine({
+      quantity: 17, unitPriceMinor: 936_000, taxRate: 10,
+      durationValue: bad as never, durationUnit: 'MONTH',
+    })
+    assert.equal(a.grossMinor, BigInt(15_912_000), `기간 ${String(bad)} 에서 금액이 흔들렸다`)
+    assert.equal(a.durationFactor, null)
+  }
+  // 단위가 모르는 값이어도 같다 — 지어내서 곱하지 않는다
+  const u = computeLine({
+    quantity: 17, unitPriceMinor: 936_000, taxRate: 10,
+    durationValue: 2, durationUnit: 'WEEK', priceBasis: 'MONTH',
+  })
+  assert.equal(u.grossMinor, BigInt(15_912_000))
+  assert.equal(u.durationFactor, null)
+})
+
+test('★ 합계도 기간을 센다 — 줄 합을 더한 값과 총액이 안 갈린다', () => {
+  const t = computeTotals([
+    { quantity: 17, unitPriceMinor: 936_000, taxRate: 10, durationValue: 2, durationUnit: 'MONTH' },
+    { quantity: 1, unitPriceMinor: 500_000, taxRate: 10 },
+  ])
+  assert.equal(t.subtotalMinor, BigInt(31_824_000 + 500_000))
+  assert.equal(t.taxMinor, BigInt(3_182_400 + 50_000))
+  assert.equal(t.netTotalMinor, BigInt(31_824_000 + 500_000 + 3_182_400 + 50_000))
+})

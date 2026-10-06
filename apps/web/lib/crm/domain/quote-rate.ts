@@ -18,6 +18,9 @@
 /** 하루는 스물네 시간 — 기간을 시간으로 펼 때 쓴다 */
 const HOURS_PER_DAY = 24
 
+/** 한 해는 열두 달 — 기간 단위 「년」을 펼 때 쓴다 */
+const MONTHS_PER_YEAR = 12
+
 /** 설정이 비었을 때 쓰는 월 기준 시간. 한 해를 열두 달로 나눈 값 */
 export const DEFAULT_HOURS_PER_MONTH = 730
 
@@ -128,6 +131,69 @@ export function monthlyFromTotal(totalMinor: number, months: number | null): Con
 export function hourlyFromTotal(totalMinor: number, totalHours: number): ConvertedRate | null {
   if (!totalHours || totalHours <= 0) return null
   return divide(totalMinor, totalHours)
+}
+
+/* ── 기간 칸에서 오는 시간 축 ───────────────────────────────────────────────
+ *
+ * **기간은 「얼마나」이고 날짜는 「언제」다.** 사람은 「2개월」은 아는데
+ * 「10/7~12/6」은 모를 때가 많다. 그래서 기간 칸이 따로 있고, 날짜가 있으면 거기서 센다.
+ *
+ * 실측 2026-10-06: 품목 164줄 가운데 날짜를 적은 줄이 **0줄**이었다 —
+ * 날짜 칸은 금액을 안 바꾸기 때문이다. 금액을 안 바꾸는 칸은 아무도 채우지 않는다.
+ */
+
+/**
+ * 기간을 시간으로 편다.
+ *
+ * **달력 시간이다.** 17대를 2개월 쓰면 장비-시간은 24,820h 이지만 여기서 세는 것은
+ * 1,460h 다 — 수량을 곱하지 않는다. 열일곱 배 차이라 어느 쪽인지 숨기면 안 되고,
+ * 시간당 금액을 적는 쪽이 「17대 기준」이라고 이름에 적는다.
+ */
+export function durationHours(
+  value: number | string | null | undefined,
+  unit: string | null | undefined,
+  hoursPerMonth: number = DEFAULT_HOURS_PER_MONTH,
+): number | null {
+  const v = Number(value)
+  if (!Number.isFinite(v) || v <= 0) return null
+  const hpm = Number.isFinite(hoursPerMonth) && hoursPerMonth > 0 ? hoursPerMonth : DEFAULT_HOURS_PER_MONTH
+  switch (unit) {
+    case 'HOUR': return v
+    case 'DAY': return v * HOURS_PER_DAY
+    case 'MONTH': return v * hpm
+    case 'YEAR': return v * MONTHS_PER_YEAR * hpm
+    default: return null
+  }
+}
+
+/**
+ * 기간이 단가에 몇 배로 걸리나.
+ *
+ * **기준 단위가 있는 종류만 환산한다.** 시간당 단가에 「2개월」을 적으면 1,460 이고,
+ * 월 단가에 「2개월」이면 2 다. 기준이 없는 종류(수량·공수·라이선스)는 **적은 수 그대로**
+ * 곱한다 — 「17대 × 936,000원 × 2개월」의 단가는 「한 대를 한 달」의 값이고,
+ * 없는 기준을 지어내 환산하면 사람이 적지 않은 숫자가 금액에 들어간다.
+ *
+ * 못 세면 null 이다. 1 을 돌려주지 않는다 — 부르는 쪽이 「기간 없음」과 「못 셈」을
+ * 구분할 수 있어야 안내 문구가 거짓말을 안 한다.
+ */
+export function durationFactor(
+  value: number | string | null | undefined,
+  unit: string | null | undefined,
+  priceBasis: 'HOUR' | 'MONTH' | null,
+  hoursPerMonth: number = DEFAULT_HOURS_PER_MONTH,
+): number | null {
+  const v = Number(value)
+  if (!Number.isFinite(v) || v <= 0) return null
+  if (!unit) return null
+  if (priceBasis === null) return v
+
+  const hours = durationHours(v, unit, hoursPerMonth)
+  if (hours == null) return null
+  if (priceBasis === 'HOUR') return hours
+
+  const hpm = Number.isFinite(hoursPerMonth) && hoursPerMonth > 0 ? hoursPerMonth : DEFAULT_HOURS_PER_MONTH
+  return hours / hpm
 }
 
 /* ── 수량에서 오는 시간 축 ───────────────────────────────────────────────────

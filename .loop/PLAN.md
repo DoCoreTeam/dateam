@@ -1,6 +1,6 @@
 # PLAN newAX: 견적 품목이 대수와 기간 두 축으로 선다
 플랜 ID: P0117
-플랜 버전: v0.1.0
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0203
 목표 버전: v0.10.953
@@ -47,32 +47,36 @@
 - pnpm tsc --noEmit 통과 (schema.prisma 생성 타입이 새 칸을 안다)
 의존: 없음
 
-### I02 셈에 기간 축을 더한다 — computeLine
-상태: 대기
+### I02 셈에 기간 축을 더한다 — 단위·환산·computeLine
+상태: 통과
 모드: 경량
-범위: apps/web/lib/crm/domain/quote-math.ts, apps/web/lib/crm/domain/quote-math.test.ts
+범위: apps/web/lib/terms/cost.ts, apps/web/lib/terms/quote.ts, apps/web/lib/crm/domain/quote-rate.ts, apps/web/lib/crm/domain/quote-math.ts, apps/web/lib/crm/domain/quote-math.test.ts, apps/web/lib/crm/domain/quote-rate.test.ts, apps/web/lib/crm/services/quote.ts (duplicateQuote 만)
 감사 기준:
 - 기간이 없으면 배수가 1 이다: 기존 단정이 한 개도 안 깨지고 pnpm test 의 quote-math 가 통과한다
-- 936,000 × 수량 17 × 기간 2 = 31,824,000 이 나오는 단정이 있다
+- 936,000 × 수량 17 × 기간 2개월 = 31,824,000 이 나오는 단정이 있다
+- 단가의 기준 단위가 있는 종류는 환산해서 곱한다 — 시간당 단가에 2개월을 적으면 배수가 1,460 이고, 월 단가에 2개월이면 2 다. 기준 단위가 없는 종류(수량 등)는 적은 수 그대로 곱한다
+- 2개월 × 730 = 1,460h, 30일 × 24 = 720h, 1년 = 12 × 730h, 48시간 = 48h 가 나오는 단정 넷
+- 총 시간은 **달력 시간**이다 — 수량 17 을 곱하지 않는다는 단정 (17대 2개월이 24,820h 가 아니라 1,460h)
 - 할인이 기간 곱 **뒤**에 걸린다 (수량과 같은 자리) — 기간 2, 기본 할인 10% 일 때 결과가 (단가×수량×2)×0.9 임을 단정으로 확인
 - 기간 값이 0·음수·NaN 이면 1 로 본다 (금액이 0 이 되거나 음수가 되지 않는다)
+- 기간 단위 네 가지 라벨이 lib/terms 에 있고 코드가 한글 문자열을 직접 안 쓴다
+- 반올림은 한 번만 한다 — 수량과 기간을 먼저 곱해 한 번에 단가에 건다는 단정 (두 번 곱하면 줄마다 1원씩 어긋난다)
+- 복제가 새 칸 둘을 들고 간다 — I01 이 칼럼을 더한 순간 스키마를 세는 복제 가드가 바로 빨개졌다(실측: not ok 3392). 같은 항목 안에서 초록으로 되돌린다
+- pnpm test 전체가 초록이다 (실패 0)
 의존: I01
 
 ### I03 기간을 시간으로 환산한다
-상태: 대기
+상태: 취소 (I02 로 합침 — 기간 배수를 내려면 단위 환산이 같은 자리에 있어야 한다. 시간당 단가에 2개월을 적으면 배수가 1,460 이라, 환산을 뒤 항목으로 미루면 I02 가 한 번에 감사 불가능해진다)
 모드: 경량
-범위: apps/web/lib/crm/domain/quote-rate.ts, apps/web/lib/crm/domain/quote-rate.test.ts, apps/web/lib/terms/quote.ts
+범위: (I02 로 이관)
 감사 기준:
-- 2개월 × 730 = 1,460h, 30일 × 24 = 720h, 1년 = 12 × 730h, 48시간 = 48h 가 나오는 단정 넷
-- 총 시간은 **달력 시간**이다 — 수량 17 을 곱하지 않는다는 단정 (17대 2개월이 24,820h 가 아니라 1,460h)
-- 기간 단위 네 가지 라벨이 lib/terms 에 있고 코드가 한글 문자열을 직접 안 쓴다
-- pnpm test 의 quote-rate 통과
+- (I02 의 감사 기준으로 옮김)
 의존: I02
 
 ### I04 문서가 기간 축을 첫 근거로 본다
 상태: 대기
 모드: 경량
-범위: apps/web/lib/crm/domain/quote-document.ts, apps/web/lib/crm/domain/quote-rate-text.ts, apps/web/lib/crm/domain/quote-rate-text.test.ts
+범위: apps/web/lib/crm/domain/quote-document.ts, apps/web/lib/crm/domain/quote-rate-text.ts, apps/web/lib/crm/domain/quote-rate-text.test.ts, apps/web/lib/crm/domain/quote-document.test.ts
 감사 기준:
 - 총 시간의 근거 순서가 기간 칸 → 날짜 → 수량 단위다. 셋 다 있을 때 기간 칸이 이긴다는 단정
 - 기간 칸만 있고 날짜가 없는 줄에서 시간당·월 금액 축이 선다는 단정 (날짜 0줄 실측이 이 자리에서 막혔었다)
@@ -165,15 +169,15 @@
 - 17대 2개월 매출에 2개월 원가가 붙어 마진율이 한 달치로 거짓이 되지 않는다는 단정
 의존: I05
 
-### I13 베끼는 길이 새 칸을 떨어뜨리지 않는다
+### I13 베끼는 길 나머지 셋이 새 칸을 떨어뜨리지 않는다
 상태: 대기
 모드: 경량
-범위: apps/web/lib/crm/services/quote.ts, apps/web/lib/crm/services/quote-duplicate.test.ts
+범위: apps/web/lib/crm/services/quote-contract.test.ts, apps/web/lib/crm/domain/cost-to-quote.test.ts, apps/web/lib/crm/ui/quote-source-surface.test.ts
 감사 기준:
-- 복제·개정이 durationValue·durationUnit 을 들고 간다 — 값이 가는지를 보는 단정
-- 가드가 **사람이 적은 목록이 아니라 스키마를 세어** 확인한다. schema.prisma 의 CrmQuoteLine 칸 목록에서 일부러 안 들고 가는 것을 뺀 나머지가 전부 복제 본문에 있는지 본다
-- 그 가드를 일부러 깨뜨려(한 칸을 빼고) 실패하는 것을 확인하고 근거를 pass 노트에 적는다
-의존: I05
+- 전제가 틀렸음을 기록한다: 복제 가드는 **이미 스키마를 세고 있었고** I01 직후 새 칸 둘을 바로 잡아냈다(not ok 3392). 그래서 복제 쪽은 I02 에서 닫혔고, 이 항목은 **가드가 없던 나머지 셋**을 본다
+- 원가→견적(cost-to-quote)·읽은 값→폼(quote-review)·저장 왕복(quote-contract) 세 길이 새 칸 둘을 들고 가는지 **값이 가는지로** 본다
+- 셋 중 하나를 일부러 빼고 그 가드가 빨개지는 것을 확인해 pass 노트에 적는다
+의존: I10, I12
 
 ### I14 딜의 기간이 기본값으로 들어온다
 상태: 대기
@@ -221,3 +225,7 @@
 
 ## 변경 이력
 - v0.1.0 (2026-10-06) 최초 작성 (ins_0203)
+- v0.1.1 (2026-10-06) I03 을 I02 로 합침 — 기간 배수가 단위 환산에 기대어 둘을 가르면 한 항목을 한 번에 감사할 수 없다 (audit:I02)
+- v0.1.2 (2026-10-06) I02 범위에 duplicateQuote 와 terms/quote.ts 를 더하고 I13 을 좁힘 — 복제 가드가 이미 스키마를 세고 있어 I01 직후 빨개졌다. 가드를 다음 항목까지 빨갛게 두면 그 사이 커밋이 전부 빨간 판이 된다 (audit:I02)
+- v0.1.2 (2026-10-06) I03(기간 시간 환산)을 I02 로 합침 — 기간 배수를 내려면 단위 환산이 같은 자리에 있어야 해서 가르면 한 번에 감사가 안 된다 (audit:I02)
+- v0.1.3 (2026-10-06) I02 범위에 duplicateQuote 추가, I13 을 나머지 세 길로 좁힘 — 복제 가드가 이미 스키마를 세고 있어 칼럼 추가 직후 빨개졌다(not ok 3392) (audit:I02)

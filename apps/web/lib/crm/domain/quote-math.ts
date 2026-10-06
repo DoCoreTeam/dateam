@@ -12,6 +12,7 @@
  */
 
 import { toMinor, mulQty, pctOfMinor } from './money.ts'
+import { durationFactor, DEFAULT_HOURS_PER_MONTH } from './quote-rate.ts'
 
 /** 소수를 다루는 값은 문자열·숫자로 섞여 들어온다(Prisma Decimal). 한 곳에서 받는다 */
 export type Numeric = number | string
@@ -20,6 +21,24 @@ export type Numeric = number | string
 export interface QuoteLineInput {
   quantity: Numeric
   unitPriceMinor: bigint | number | string
+  /**
+   * ── 얼마 동안 ──
+   *
+   * **수량과 나란한 두 번째 축이다.** 비면 배수가 1 이고 그것이 예전의 셈 그대로다.
+   *
+   * 실측 2026-10-06: 축이 하나뿐이라 「17대 × 936,000원/월 × 2개월」을 담을 수 없었고,
+   * 2개월이 통째로 사라져 34,980,000원짜리 견적이 17,503,200원으로 저장됐다.
+   */
+  durationValue?: Numeric | null
+  /** HOUR·DAY·MONTH·YEAR. 값과 한 벌이라 하나만 있으면 안 센다 */
+  durationUnit?: string | null
+  /**
+   * 단가의 기준 단위 — 종류가 정한다(`LINE_KIND_PRICE_BASIS`).
+   * 시간당 단가에 「2개월」이면 배수가 1,460 이고, 기준이 없으면 적은 수 그대로다.
+   */
+  priceBasis?: 'HOUR' | 'MONTH' | null
+  /** 시간 환산에 쓰는 월 기준 시간. 견적이 들고 있는 값이고 비면 730 */
+  hoursPerMonth?: number | null
   /** 기본(통상) 할인율(%) 0~100 — 등급·정책에서 오는, 늘 들어가는 그 할인 */
   discountPercent?: Numeric
   /**
@@ -39,8 +58,13 @@ export interface QuoteLineInput {
 }
 
 export interface QuoteLineAmounts {
-  /** 할인 전 금액 = 수량 × 단가 */
+  /** 할인 전 금액 = 단가 × 수량 × 기간 */
   grossMinor: bigint
+  /**
+   * 기간이 몇 배로 걸렸나. **기간을 안 적었으면 null** 이다 — 1 이 아니다.
+   * 화면이 「× 2개월」을 적을지 말지를 이 값으로 정한다(1 을 돌려주면 안 적은 줄에도 적힌다).
+   */
+  durationFactor: number | null
   /** 할인액 */
   discountMinor: bigint
   /**
@@ -140,14 +164,27 @@ function pct(v: Numeric | undefined | null): number {
 /**
  * 한 줄의 금액.
  *
- * 순서가 중요하다: **수량을 먼저 곱하고, 그 다음에 할인**한다.
+ * 순서가 중요하다: **수량과 기간을 먼저 곱하고, 그 다음에 할인**한다.
  * 반대로 하면(단가에 할인 → 수량 곱) 반올림 오차가 수량만큼 증폭된다.
  */
 export function computeLine(line: QuoteLineInput): QuoteLineAmounts {
   const qty = Math.max(0, num(line.quantity, 0))
   const unit = toMinor(line.unitPriceMinor)
 
-  const gross = mulQty(unit, qty)
+  /*
+    **기간은 수량과 같은 자리에서 곱한다.**
+
+    수량과 기간을 **먼저 곱해 한 번에** 단가에 건다. 두 번 나눠 곱하면
+    (단가×수량 을 반올림하고 거기에 기간을 곱하면) 줄마다 1원씩 어긋나고,
+    그 1원이 항목 수만큼 쌓여 합계 대조가 이유 없이 실패한다.
+  */
+  const factor = durationFactor(
+    line.durationValue,
+    line.durationUnit,
+    line.priceBasis ?? null,
+    line.hoursPerMonth ?? DEFAULT_HOURS_PER_MONTH,
+  )
+  const gross = mulQty(unit, qty * (factor ?? 1))
 
   /*
     **두 할인이 겹친다.** 기본을 먼저 적용하고, 특별은 그 남은 금액에 건다.
@@ -170,6 +207,7 @@ export function computeLine(line: QuoteLineInput): QuoteLineAmounts {
 
   return {
     grossMinor: gross,
+    durationFactor: factor,
     discountMinor: discount,
     lineTotalMinor: lineTotal,
     taxMinor: tax,

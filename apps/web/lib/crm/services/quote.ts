@@ -1497,6 +1497,11 @@ export async function duplicateQuote(
             복제본에서는 금액 축이 **설 근거를 잃는다** — 축을 켜 두어도 아무것도 안 그려진다.
           */
           startDate: l.startDate, endDate: l.endDate,
+          /*
+            **기간 두 칸도 따라간다.** 이것은 금액을 바꾸는 값이라 빠지면 복제본의 합계가
+            원본의 절반이 된다 — 「다른 안」은 조건만 다르고 같은 제안인데 금액이 달라진다.
+          */
+          durationValue: l.durationValue, durationUnit: l.durationUnit,
           // 비율 자체는 그대로, 가리키는 줄은 아래 두 번째 바퀴에서 잇는다
           ratioPct: l.ratioPct,
           sectionId: l.sectionId ? (secMap.get(l.sectionId) ?? null) : null,
