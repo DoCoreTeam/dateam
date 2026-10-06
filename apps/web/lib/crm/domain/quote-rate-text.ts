@@ -53,28 +53,33 @@ export interface AxisText {
 }
 
 /**
- * 고른 금액 축을 글로. **고른 것이 없으면 빈 목록**이다.
+ * 고른 금액 축을 글로. **고른 것이 없거나 시간 축이 없는 줄이면 빈 목록**이다.
  *
  * 기간 총액은 금액 칸의 큰 숫자 그 자체라 곱셈식이 없다 — 대신 이름을 달아
- * 「고른 것이 그려졌다」가 눈에 보이게 한다. 환산이 없어도 이 줄은 선다.
+ * 「고른 것이 그려졌다」가 눈에 보이게 한다.
  */
 export function axisTexts(
   line: DocumentLine, wanted: readonly string[], money: MoneyText,
 ): AxisText[] {
   const r = line.rate
-  if (wanted.length === 0) return []
+  /*
+    **시간 축이 없는 줄에는 아무 축도 안 붙는다.**
+
+    「기간 총액」은 근거를 세지 않아도 적을 수 있는 값이지만, **기간이 없는 줄에 붙으면
+    이름이 거짓말이 된다** — 「식 1개 500,000원」 아래 「기간 총액 500,000원」이 서면
+    그 줄에 없는 기간을 있는 것처럼 말하고, 같은 숫자를 두 번 적는 군더더기까지 된다
+    (실측 2026-10-05, 「식」과 「Hours」가 섞인 견적).
+
+    날짜를 안 적은 시간 품목은 **수량이 축을 세우므로**(quote-document 의 hoursAxis)
+    여기서 걸리지 않는다 — 어제 고친 것이 이 규칙에 안 걸린다.
+  */
+  if (!r || wanted.length === 0) return []
   const out: AxisText[] = []
   for (const k of RATE_AXIS_ORDER) {
     if (!wanted.includes(k)) continue
-    /*
-      **기간 총액은 근거를 요구하지 않는다.** 그 값은 금액 칸의 큰 숫자 그 자체라
-      환산도 기간도 필요 없다. 전에는 `rate` 가 없으면 셋이 함께 떨어져, 날짜를 안 적은
-      품목에서는 **고른 적도 없는 환산 때문에 고른 기간 총액까지 사라졌다.**
-    */
     if (k === 'total') {
       out.push({ key: k, label: RATE_AXIS_LABEL.total, body: money(line.amountMinor) })
     }
-    if (!r) continue
     if (k === 'monthly' && r.monthlyMinor && r.months) {
       const m = approxText(r.monthlyMinor, r.months, line.amountMinor, money)
       if (m) out.push({ key: k, label: RATE_AXIS_LABEL.monthly, body: `${m} × ${r.months}${LINE_KIND_UNIT.PERIOD}` })

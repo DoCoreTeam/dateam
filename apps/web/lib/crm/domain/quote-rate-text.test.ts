@@ -30,16 +30,22 @@ function line(over: Partial<DocumentLine> = {}): DocumentLine {
 
 /* ── 기간 총액 ───────────────────────────────── */
 
-test('★ 환산이 없어도 기간 총액은 선다 — 그 값은 금액 칸의 숫자 그 자체다', () => {
-  const out = axisTexts(line({ rate: null }), ['total'], money)
-  assert.equal(out.length, 1, '고른 기간 총액이 사라졌다')
-  assert.equal(out[0].key, 'total')
-  assert.equal(out[0].body, '1,998,720원')
+test('★ 시간 축이 없는 줄에는 기간 총액도 안 붙는다 — 없는 기간을 이름으로 말하지 않는다', () => {
+  /*
+    「식 1개 500,000원」 아래 「기간 총액 500,000원」이 서면 그 줄에 없는 기간을
+    있는 것처럼 말하고, 같은 숫자를 두 번 적는 군더더기까지 된다
+    (실측 2026-10-05, 「식」과 「Hours」가 섞인 견적).
+  */
+  assert.deepEqual(axisTexts(line({ rate: null }), ['total'], money), [])
+  assert.deepEqual(axisTexts(line({ rate: null }), ['total', 'monthly', 'hourly'], money), [])
 })
 
-test('★ 환산이 없으면 월 금액과 시간당은 안 적는다 — 모르는 것을 지어내지 않는다', () => {
-  const out = axisTexts(line({ rate: null }), ['total', 'monthly', 'hourly'], money)
-  assert.deepEqual(out.map((a) => a.key), ['total'])
+test('★ 날짜가 없어도 수량이 센 축이 있으면 기간 총액이 선다 — 어제 고친 것이 안 깨진다', () => {
+  // RATE 는 start·end 가 null 이고 totalHours 만 1,440 인 축이다
+  const out = axisTexts(line(), ['total'], money)
+  assert.equal(out.length, 1, '수량이 센 줄에서 기간 총액이 사라졌다')
+  assert.equal(out[0].key, 'total')
+  assert.equal(out[0].body, '1,998,720원')
 })
 
 test('★ 아무것도 안 고르면 빈 목록이다 — 지금까지와 같은 금액 칸이다', () => {
