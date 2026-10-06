@@ -85,6 +85,29 @@
 :global(.row-actions) .remove { margin-left: 0; }
 
 /*
+  **안 지우는 작업의 단추.** 모양은 삭제와 같되 손을 올렸을 때 빨개지지 않는다.
+  예전엔 「딜 잇기」도 `.remove` 를 써서, 잇는 단추에 손을 올리면 삭제 색이 떴다 —
+  색이 하는 말과 단추가 하는 일이 달랐다.
+*/
+.rowBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.rowBtn:hover:not(:disabled),
+.rowBtn:focus-visible { background: var(--surface-muted); color: var(--brand); }
+.rowBtn:disabled { opacity: 0.5; cursor: default; }
+
+/*
   제목과 «무엇에 딸린 것인지»가 한 덩어리다.
   옆으로 늘어놓으면 좁은 화면에서 이름이 먼저 잘린다 — 그럼 다시 「어느 건이지」가 된다.
 */

@@ -16,7 +16,7 @@ import { navLabelOf } from '@/lib/crm/nav/groups'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckSquare, Square, Trash2, Link2 } from 'lucide-react'
+import { CheckSquare, Square, Trash2, Link2, Pencil } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -38,6 +38,7 @@ import styles from './tasks.module.css'
 import { emitAttentionChanged } from '@/lib/crm/ui/attention-signal'
 import { initialDueDate, initialStartDate, toStartIso, toDueIso, startsAfterDue } from '@/lib/crm/ui/task-due'
 import RecordPickerField, { RecordPickerModal, type RecordOption } from '@/components/ui/RecordPicker'
+import TaskEditModal from '@/components/ui/crm/TaskEditModal'
 import { searchDeals, searchHintFromTitle } from '@/lib/crm/ui/record-search'
 
 interface Task {
@@ -138,6 +139,15 @@ export default function TasksClient() {
   const [newDeal, setNewDeal] = useState<RecordOption | null>(null)
   /** 이미 있는 할 일에 딜을 잇거나 바꾸는 중 — 그 할 일 하나만 잡는다 */
   const [linking, setLinking] = useState<Task | null>(null)
+  /**
+   * 고치는 중인 할 일.
+   *
+   * **왜 생겼나**(사용자 지적 2026-10-06): *"할일도 일정 수정할 수 있어야지"*.
+   * 만들 때는 시작·마감을 고르게 해 놓고 만든 뒤에는 고칠 길이 없었다 —
+   * 마감을 하루 미루려면 지우고 다시 만드는 수밖에 없었고, 그러면 딜 연결이 함께 사라진다.
+   * 서버는 처음부터 받고 있었다(§2-5 (3) 「서버에는 있는데 화면이 안 부른다」).
+   */
+  const [editing, setEditing] = useState<Task | null>(null)
 
   const scope = (query.filters?.scope ?? 'open') as 'open' | 'all'
   const q = query.q ?? ''
@@ -389,7 +399,23 @@ export default function TasksClient() {
       noLabel: true,
       align: 'right',
       cell: (t) => (
-        <RowActions inline={2} subject={t.title}>
+        <RowActions inline={3} subject={t.title}>
+        {/*
+          **고치기가 맨 앞이다.** 가장 자주 하는 일이고, 삭제 옆에 두면 손이 헷갈린다.
+          휴지통에서는 안 보인다 — 지운 것을 고치는 것은 뜻이 없고, 고쳐도 목록에 안 돌아온다.
+        */}
+        {!trash && (
+          <button
+            type="button"
+            className={styles.rowBtn}
+            onClick={(e) => { e.stopPropagation(); setEditing(t) }}
+            disabled={busy === t.id}
+            aria-label={`${t.title} ${ACTION.edit}`}
+            title={ACTION.edit}
+          >
+            <Pencil size={15} />
+          </button>
+        )}
         {/*
           **딜을 이 자리에서 잇는다.** 예전엔 붙일 길이 아예 없어서, 여기서 손으로 적은
           할 일은 영원히 «어느 건인지 모르는 할 일»로 남았다.
@@ -397,7 +423,7 @@ export default function TasksClient() {
         */}
         <button
           type="button"
-          className={styles.remove}
+          className={styles.rowBtn}
           onClick={(e) => { e.stopPropagation(); setLinking(t) }}
           disabled={busy === t.id}
           aria-label={t.dealId ? `${t.title} 딜 바꾸기` : `${t.title} 딜 잇기`}
@@ -418,8 +444,9 @@ export default function TasksClient() {
         </RowActions>
       ),
     },
+    // 휴지통 보기가 바뀌면 작업 칸도 다시 그려야 한다 — 안 그러면 지운 것에 수정이 남는다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [busy])
+  ], [busy, trash])
 
   /** 휴지통이면 마지막에 되살리기 칸 — 회사·인물·딜·견적·미팅과 같은 부품이다 */
   const shownColumns = useMemo(
@@ -534,6 +561,23 @@ export default function TasksClient() {
           onPick={(opt) => void linkDeal(linking, opt)}
           onClear={() => void linkDeal(linking, null)}
           onClose={() => setLinking(null)}
+        />
+      )}
+
+      {/*
+        **고치기.** 저장이 끝나면 목록을 다시 읽는다 — 화면이 안 바뀌면 사용자는
+        저장이 안 된 줄 알고 한 번 더 누른다. 마감이 바뀌면 지난 것 수가 달라지므로
+        사이드바 배지·알림 벨에도 같은 사실을 알린다.
+      */}
+      {editing && (
+        <TaskEditModal
+          task={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null)
+            void load(false, null)
+            emitAttentionChanged()
+          }}
         />
       )}
 
