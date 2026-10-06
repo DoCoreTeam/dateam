@@ -287,7 +287,11 @@ test('실제 원본 모양을 올리면 AI 가 17대와 2개월을 갈라 읽는
     그때도 화면이 왜 안 됐는지는 말해야 한다. 조용한 것이 가장 나쁘다.
   */
   const read = /읽었어요|찾았어요/.test(body)
-  const said = read || /안 돼|실패|한도|오류|못/.test(body)
+  /*
+    못 읽었을 때 화면이 **왜**를 말하는지. 실측으로 본 말들을 넓게 받는다 —
+    「AI 응답이 시간 안에 오지 않았습니다」처럼 「실패」라는 글자가 없는 문장이 흔하다.
+  */
+  const said = read || /안 돼|안 왔|오지 않|실패|한도|오류|못 |다시 시도/.test(body)
   expect(said, `읽기가 끝났는데 화면이 아무 말도 안 한다:\n${body.slice(0, 600)}`).toBe(true)
 
   if (!read) {
@@ -296,8 +300,28 @@ test('실제 원본 모양을 올리면 AI 가 17대와 2개월을 갈라 읽는
     return
   }
 
-  // 읽었으면 두 축이 갈려 있어야 한다
-  await modal.getByRole('button', { name: /체크한 항목 넣기/ }).click()
+  /*
+    **「약정 기간」은 표 밖에 있다.** 그래서 모델이 그것을 **건의 기간**으로 읽는 것이 맞고,
+    우리는 그 기간을 줄에 **자동으로 안 내린다** — 설치비 한 줄만 일시불인 견적이 흔해서다.
+    사람이 누르는 자리가 있고, 여기서 그 길을 그대로 밟는다.
+  */
+  const suggest = modal.getByRole('button', { name: /기간이 빈 \d+개 항목에 넣기/ })
+  const suggested = await suggest.count() > 0
+  if (suggested) {
+    console.log('문서 기간 제안:', await suggest.innerText())
+    await suggest.click()
+  }
+
+  /*
+    **체크부터 한다.** 위험 신호가 붙은 줄은 꺼진 채로 뜨고(켜는 행동이 「내가 봤다」는 뜻이다),
+    이 문서는 줄 금액을 기간 전으로 적어 그 신호가 반드시 붙는다 — 안 켜면 넣기 단추가 안 선다.
+  */
+  const pick = modal.locator('input[type="checkbox"]').first()
+  if (!(await pick.isChecked())) await pick.check()
+
+  const apply = modal.getByRole('button', { name: /체크한 항목 넣기/ })
+  await expect(apply).toBeEnabled({ timeout: 10_000 })
+  await apply.click()
 
   const qty = await modal.locator('#ln-qty-0').inputValue()
   const unit = await modal.locator('#ln-unit-0').inputValue()
@@ -309,7 +333,12 @@ test('실제 원본 모양을 올리면 AI 가 17대와 2개월을 갈라 읽는
   expect(qty, '수량이 대수가 아니다').toBe('17')
   expect(unit, `단위가 「${unit}」다 — 기간 말이 수량 단위 자리에 들어갔다`).not.toMatch(/개월|월|시간|Hours/i)
   expect(price, '단가를 못 읽었다').toBe('936000')
-  expect(`${dur}${durUnit}`, '기간을 못 읽었다').toBe('2MONTH')
+  /*
+    기간은 **줄에서 읽었거나 · 건에서 읽어 사람이 내렸거나** 둘 중 하나로 와야 한다.
+    둘 다 아니면 「약정 기간 2개월」이 어디에서도 안 잡힌 것이고, 그건 이번 판이 고치려던 바로 그 결함이다.
+  */
+  expect(`${dur}${durUnit}`,
+    `기간이 안 들어왔다 (문서 기간 제안 ${suggested ? '있었음' : '없었음'})`).toBe('2MONTH')
 
   await page.screenshot({ path: shot('06-applied'), fullPage: true })
 })
