@@ -40,10 +40,11 @@ import {
   type QuoteLineInput,
 } from '../domain/quote-math.ts'
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
-import { LINE_KIND_ORDER, type QuoteLineKind } from '../../terms/cost.ts'
+import { LINE_KIND_ORDER, LINE_KIND_PRICE_BASIS, type QuoteLineKind } from '../../terms/cost.ts'
 import {
   roundingUnitName,
   RATE_AXIS_ORDER, LINE_NOTE_ORDER, TOTAL_CONV_ORDER,
+  DURATION_UNIT_ORDER, type DurationUnit,
 } from '../../terms/quote.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
 import { readQuoteNoPattern, readQuoteSupplier, readQuoteImages } from './setting.ts'
@@ -77,6 +78,9 @@ export interface QuoteLineRow {
   position: number
   /** 비고 — 그 줄이 이 견적에서 무슨 구실인가(「서버 새시」「64코어」「Raid5」) */
   remark: string | null
+  /** 「얼마 동안」 — 수량과 함께 단가에 곱해진다. 둘은 한 벌이라 하나만 오면 둘 다 null */
+  durationValue: string | null
+  durationUnit: string | null
   /** 공급 기간 — 여기서 개월과 총 시간을 센다 */
   startDate: Date | null
   endDate: Date | null
@@ -177,6 +181,8 @@ const LINE_SELECT = {
   remark: true,
   // 공급 기간 — 여기서 개월과 총 시간을 센다. 안 읽으면 축이 설 근거가 화면에 안 닿는다
   startDate: true, endDate: true,
+  // 「얼마 동안」 — **금액을 바꾸는 값**이다. 안 읽으면 화면이 기간 없는 금액을 다시 계산한다
+  durationValue: true, durationUnit: true,
 } as const
 
 const SELECT = {
@@ -242,6 +248,9 @@ export interface QuoteLineData {
   /** 공급 시작일·종료일(YYYY-MM-DD). 하나만 적어도 된다 — 끝이 협의 중인 견적이 있다 */
   startDate?: string | null
   endDate?: string | null
+  /** 「얼마 동안」. 값과 단위는 **한 벌**이라 하나만 오면 거절한다 */
+  durationValue?: number | string | null
+  durationUnit?: string | null
 }
 
 /**
@@ -261,6 +270,8 @@ const LINE_KEYS = new Set([
   'remark',
   // 공급 기간 — 견적 유효기간과 다르다
   'startDate', 'endDate',
+  // 「얼마 동안」 — 여기 없으면 화면이 적은 기간이 **조용히 버려지고** 금액이 절반이 된다
+  'durationValue', 'durationUnit',
 ])
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
@@ -384,7 +395,48 @@ export function toRateDisplay(input: {
   }
 }
 
-function toLineData(line: QuoteLineData, position: number): Record<string, unknown> {
+/**
+ * 「얼마 동안」을 받는다. **값과 단위는 한 벌이다.**
+ *
+ * 하나만 오면 거절한다 — 값만 저장되면 2 가 2개월인지 2시간인지 알 수 없고,
+ * 단위만 저장되면 곱할 것이 없다. 반쪽을 받아 두면 읽는 쪽이 저마다 다른
+ * 기본값으로 메우고, 그때부터 같은 줄이 화면마다 다른 금액을 말한다.
+ * DB CHECK 도 같은 것을 막지만(마이그 305), 거기까지 가면 사람은
+ * 「저장에 실패했습니다」만 보고 무엇을 고쳐야 하는지 모른다.
+ */
+function toDuration(line: QuoteLineData, position: number): { value: string | null; unit: string | null } {
+  const rawV = line.durationValue
+  const rawU = line.durationUnit
+  const hasV = rawV !== undefined && rawV !== null && String(rawV).trim() !== ''
+  const hasU = rawU !== undefined && rawU !== null && String(rawU).trim() !== ''
+  if (!hasV && !hasU) return { value: null, unit: null }
+  const where = `${position + 1}번째 항목`
+  if (hasV !== hasU) {
+    throw new CrmError('VALIDATION_FAILED',
+      `${where}의 기간은 숫자와 단위를 함께 넣어 주세요.`,
+      { field: hasV ? 'durationUnit' : 'durationValue' })
+  }
+  const unit = String(rawU).trim()
+  if (!DURATION_UNIT_ORDER.includes(unit as DurationUnit)) {
+    throw new CrmError('VALIDATION_FAILED',
+      `${where}의 기간 단위를 알 수 없습니다: ${unit}`,
+      { field: 'durationUnit' })
+  }
+  const n = Number(String(rawV).replace(/,/g, '').trim())
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new CrmError('VALIDATION_FAILED',
+      `${where}의 기간은 0보다 큰 수여야 합니다.`,
+      { field: 'durationValue' })
+  }
+  return { value: String(n), unit }
+}
+
+function toLineData(
+  line: QuoteLineData,
+  position: number,
+  /** 시간 환산에 쓰는 월 기준 시간 — 시간당 단가 줄에 「2개월」을 적으면 여기서 1,460 이 나온다 */
+  hoursPerMonth?: number | null,
+): Record<string, unknown> {
   rejectUnknownKeys(line, LINE_KEYS, `${position + 1}번째 항목`)
   const name = requireText(line.name)
   if (!name) {
@@ -406,14 +458,12 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
     ? toRate(sdRaw, 'specialDiscountPercent', 0)
     : null
 
-  const amounts = computeLine({
-    quantity, unitPriceMinor, discountPercent, specialDiscountPercent, taxRate,
-  })
-
   /*
     **줄의 종류.** 「수량 × 단가」가 뜻하는 것을 정한다 — 「M/M」인지 「대」인지 「개월」인지.
     모르는 값이 오면 거절한다: 조용히 QUANTITY 로 눕히면 M/M 줄이 「수량」으로 저장되고,
     그때부터 화면 라벨이 실제와 다른 말을 한다.
+
+    **금액보다 먼저 푼다** — 종류가 단가의 기준 단위를 정하고, 그 기준이 기간 배수를 정한다.
   */
   const kind = line.kind === undefined || line.kind === null || line.kind === ''
     ? 'QUANTITY'
@@ -421,6 +471,16 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
   if (!LINE_KIND_ORDER.includes(kind as QuoteLineKind)) {
     throw new CrmError('VALIDATION_FAILED', `모르는 항목 종류입니다: ${kind}`, { field: 'kind' })
   }
+
+  const duration = toDuration(line, position)
+
+  const amounts = computeLine({
+    quantity, unitPriceMinor, discountPercent, specialDiscountPercent, taxRate,
+    durationValue: duration.value,
+    durationUnit: duration.unit,
+    priceBasis: LINE_KIND_PRICE_BASIS[kind as QuoteLineKind],
+    hoursPerMonth: hoursPerMonth ?? undefined,
+  })
 
   return {
     productId: line.productId || null,
@@ -438,6 +498,9 @@ function toLineData(line: QuoteLineData, position: number): Record<string, unkno
     specialDiscountReason: normalizeText(line.specialDiscountReason),
     // 비고는 표 한 칸에 서는 한마디다 — 여러 줄이 아니므로 normalizeText 로 한 줄로 만든다
     remark: normalizeText(line.remark),
+    // 「얼마 동안」 — 금액을 바꾸는 값이라 여기 없으면 저장된 합계가 화면과 갈린다
+    durationValue: duration.value,
+    durationUnit: duration.unit,
     // 공급 기간. 하나만 적어도 된다 — 끝이 협의 중인 견적이 실제로 있다
     startDate: toDateOrNull(line.startDate, 'startDate'),
     endDate: toDateOrNull(line.endDate, 'endDate'),
@@ -807,10 +870,13 @@ export async function createQuote(
     const currency = (normalizeText(input.currency) ?? deal.currency ?? 'KRW').toUpperCase()
     const title = requireText(input.title) ?? `${deal.name} 견적`
 
-    const lines = (input.lines ?? []).map((l, i) => toLineData(l, i))
-    const rounding = toRounding(input)
-    // 금액 표시 선택 — 아래 두 경로(첫 시도·번호가 겹쳐 다시 하는 길)가 같은 값을 쓴다
+    /*
+      **금액 표시를 먼저 푼다.** 거기 있는 월 기준 시간이 기간 배수에 쓰인다 —
+      시간당 단가 줄에 「2개월」을 적으면 730 이냐 720 이냐가 1,460 이냐 1,440 이냐를 가른다.
+    */
     const rateDisplay = toRateDisplay(input)
+    const lines = (input.lines ?? []).map((l, i) => toLineData(l, i, rateDisplay.rateHoursPerMonth))
+    const rounding = toRounding(input)
     /*
       **환율은 만드는 시점에 박는다.** 나중에 조회하며 환산하면 매일 금액이 달라진다.
       못 찾으면 null 로 둔다 — 1.0 으로 눕히면 달러 견적이 원화로 1/1400 이 된다.
@@ -1156,7 +1222,16 @@ export async function updateQuote(
     if (input.ownerId !== undefined) data.ownerId = input.ownerId || null
 
     // 한 번만 계산한다 — 두 번 계산하면 그 사이 규칙이 갈릴 자리가 생긴다
-    const nextLines = editingLines ? (input.lines ?? []).map((l, i) => toLineData(l, i)) : null
+    /*
+      월 기준 시간은 **이번 저장이 보낸 값이 먼저**이고, 안 보냈으면 저장된 값이다.
+      앞 판의 시간으로 기간을 환산하면 화면이 보여 준 금액과 저장되는 금액이 갈린다.
+    */
+    const hoursForLines = input.rateHoursPerMonth !== undefined
+      ? toRateDisplay(input).rateHoursPerMonth
+      : before.rateHoursPerMonth
+    const nextLines = editingLines
+      ? (input.lines ?? []).map((l, i) => toLineData(l, i, hoursForLines))
+      : null
     const nextIds = editingLines ? (input.lines ?? []).map((l) => l.id ?? null) : null
 
     if (editingLines || editingRounding) {

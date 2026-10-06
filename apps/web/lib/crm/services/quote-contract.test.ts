@@ -153,3 +153,54 @@ test('★ 쪽 번호는 1 이상 정수만 통과한다 — 0 이 저장되면 �
   assert.equal(pageNoOrNull('2쪽'), 2)
   assert.equal(pageNoOrNull(2.7), 2)
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   「얼마 동안」 — 금액을 바꾸는 값이 세 자리를 다 지나는가
+
+   실측 2026-10-06: 견적 DA-2026-1006-03 에서 원본의 「2개월」이 사라져 금액이 절반이 됐다.
+   그 값이 다시 사라지는 길은 셋이다 — 화이트리스트가 모르거나, 저장이 안 넘기거나,
+   조회가 안 읽거나. 셋 중 하나만 비어도 사람은 적었는데 반영이 안 된 것을 본다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+test('★ 기간 두 칸이 화이트리스트·저장·조회 셋을 다 지난다 — 하나만 비어도 조용히 버려진다', () => {
+  for (const key of ['durationValue', 'durationUnit']) {
+    // ① 받는 자리 — 없으면 rejectUnknownKeys 가 정상 요청을 거절한다
+    assert.ok(new RegExp(`LINE_KEYS[\\s\\S]{0,800}'${key}'`).test(SRC),
+      `${key} 가 LINE_KEYS 에 없다 — 화면이 보내면 거절당한다`)
+    // ② 저장하는 자리 — 선언만 있고 값이 안 가는 판을 잡으려고 **무엇이 가는지**까지 본다
+    assert.ok(new RegExp(`${key}:\\s*duration\\.`).test(SRC),
+      `${key} 를 저장에 안 넘긴다 — 받기만 하고 버린다`)
+    // ③ 읽는 자리
+    assert.ok(new RegExp(`LINE_SELECT[\\s\\S]{0,1200}${key}:\\s*true`).test(SRC)
+      || new RegExp(`${key}: true`).test(SRC),
+      `${key} 를 조회에서 안 읽는다 — 저장돼도 화면에 안 닿는다`)
+  }
+})
+
+test('★ 금액 계산이 기간을 받는다 — 안 넘기면 저장된 합계가 화면과 갈린다', () => {
+  const body = SRC.slice(SRC.indexOf('function toLineData'), SRC.indexOf('// ----', SRC.indexOf('function toLineData')))
+  assert.ok(/computeLine\(\{[\s\S]{0,400}durationValue:\s*duration\.value/.test(body),
+    'computeLine 에 기간 값을 안 넘긴다')
+  assert.ok(/computeLine\(\{[\s\S]{0,400}priceBasis:\s*LINE_KIND_PRICE_BASIS/.test(body),
+    '단가의 기준 단위를 안 넘긴다 — 시간당 단가 줄에 「2개월」을 적으면 2 배가 된다(1,460 이어야 한다)')
+  assert.ok(/computeLine\(\{[\s\S]{0,400}hoursPerMonth:/.test(body),
+    '월 기준 시간을 안 넘긴다 — 730 과 720 이 1,460 과 1,440 을 가른다')
+})
+
+test('★ 값과 단위는 한 벌이라 반쪽을 거절한다 — 2 가 2개월인지 2시간인지 모른다', () => {
+  const body = SRC.slice(SRC.indexOf('function toDuration'), SRC.indexOf('function toLineData'))
+  assert.ok(/hasV\s*!==\s*hasU/.test(body), '하나만 왔을 때를 안 가른다')
+  assert.ok(/DURATION_UNIT_ORDER\.includes/.test(body),
+    '모르는 단위를 안 막는다 — DB CHECK 까지 가면 사람은 「저장 실패」만 보고 원인을 모른다')
+  assert.ok(/n <= 0/.test(body), '0 과 음수를 안 막는다')
+  // 사람이 읽을 메시지여야 한다 — 「VALIDATION_FAILED」만 던지면 무엇을 고칠지 모른다
+  assert.ok(/기간은 숫자와 단위를 함께/.test(body), '반쪽일 때 무엇을 고칠지 안 말한다')
+  assert.ok(/기간 단위를 알 수 없습니다/.test(body), '모르는 단위일 때 무엇을 고칠지 안 말한다')
+})
+
+test('★ 월 기준 시간은 이번 저장이 보낸 값이 먼저다 — 앞 판 시간으로 환산하면 화면과 갈린다', () => {
+  assert.ok(/input\.rateHoursPerMonth !== undefined[\s\S]{0,200}before\.rateHoursPerMonth/.test(SRC),
+    '고칠 때 월 기준 시간을 보낸 값 → 저장된 값 순으로 안 고른다')
+  assert.ok(/toLineData\(l, i, rateDisplay\.rateHoursPerMonth\)/.test(SRC),
+    '만들 때 월 기준 시간을 안 넘긴다')
+})

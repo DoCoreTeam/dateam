@@ -85,7 +85,7 @@
 의존: I02
 
 ### I05 서버가 기간 두 칸을 받고 저장하고 돌려준다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: apps/web/lib/crm/services/quote.ts, apps/web/lib/crm/services/quote-contract.test.ts
 감사 기준:
