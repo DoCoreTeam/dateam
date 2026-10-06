@@ -1,0 +1,37 @@
+/* 할 일 수정 모달 — 부품 전용 스타일 */
+
+.form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/*
+  시작과 마감은 **한 줄에 나란히** 둔다 — 「언제부터 언제까지」가 한눈에 읽혀야
+  둘의 관계를 보고 고친다. 좁은 화면에서는 두 줄로 내려 보낸다.
+*/
+.dates {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+@media (max-width: 480px) {
+  .dates { grid-template-columns: minmax(0, 1fr); }
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
