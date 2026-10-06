@@ -171,7 +171,7 @@
 의존: I05
 
 ### I13 베끼는 길 나머지 셋이 새 칸을 떨어뜨리지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/quote-contract.test.ts, apps/web/lib/crm/domain/cost-to-quote.test.ts, apps/web/lib/crm/ui/quote-source-surface.test.ts
 감사 기준:
