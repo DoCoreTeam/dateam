@@ -213,7 +213,7 @@
 의존: I11
 
 ### I17 업데이트 내역에 적는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/changelog/entries.ts
 감사 기준:
