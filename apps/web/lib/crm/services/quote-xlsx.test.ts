@@ -78,6 +78,29 @@ test('진짜 xlsx 파일이다 — zip 서명으로 시작한다', async () => {
   assert.equal(out.filename, '[주식회사 데이터얼라이언스]한국지능정보사회진흥원_Q-2026-0014_견적서.xlsx')
 })
 
+test('담당자 칸은 받는 쪽에만 경칭이 붙는다 — 파일만 빠뜨리면 같은 사람이 문서마다 달리 불린다', async () => {
+  const d = doc({
+    owner: { name: '김도현', title: '본부장', email: 'michaelkim@data-alliance.com', phone: '010-0000-0000' },
+  })
+  // 모델이 붙였는지부터 못 박는다 — 포함 검사만 두면 경칭이 빠져도 통과한다
+  assert.equal(d.customer.personName, `이준희 팀장${QUOTE.customerContactHonorific}`)
+
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: d })).buffer)
+  const values: string[] = []
+  ws.eachRow((row) => row.eachCell({ includeEmpty: false }, (c) => values.push(String(c.value ?? ''))))
+
+  // 엑셀이 다시 가공하지 않고 모델 값을 통째로 싣는다
+  assert.ok(values.includes(d.customer.personName ?? ''), '담당자 이름이 통째로 든 칸이 없다')
+
+  // 공급자 담당은 우리 사람이다 — 제 이름에 경칭을 붙인 파일을 보내지 않는다
+  const ours = `${d.owner.name} ${d.owner.title}`
+  assert.ok(values.some((v) => v.startsWith(ours)), '공급자 담당 줄이 아예 없다')
+  assert.ok(
+    !values.some((v) => v.includes(`${ours}${QUOTE.customerContactHonorific}`)),
+    '공급자 담당에 경칭이 붙었다',
+  )
+})
+
 test('화면에 있는 것이 파일에도 있다 — 담당자까지', async () => {
   const text = await textOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
   for (const must of [
@@ -85,8 +108,9 @@ test('화면에 있는 것이 파일에도 있다 — 담당자까지', async ()
     // 유효기간은 **날짜 값 + 수식**(`=G2+N`)이라 글자로는 안 나온다 — 아래 별도 테스트가 본다
     '견 적 서', 'Q-2026-0014',
     '한국지능정보사회진흥원 귀중',
-    // 인쇄본에는 나오는데 엑셀에만 빠졌던 값 — 빠지면 같은 문서가 아니다
-    '이준희 팀장',
+    // 인쇄본에는 나오는데 엑셀에만 빠졌던 값 — 빠지면 같은 문서가 아니다.
+    // **경칭까지** 본다. 「이준희 팀장」만 보면 경칭이 빠진 파일도 통과한다
+    `이준희 팀장${QUOTE.customerContactHonorific}`,
     // 무엇에 대한 견적인지. 화면에 있는데 파일에 없으면 같은 문서가 아니다.
     // **말은 상수에서 가져온다** — 여기 글자를 박아 두면 용어를 고칠 때 가드가 막는다
     // (실제로 「건명」→「사업명」으로 바꿀 때 이 줄이 실패했다).

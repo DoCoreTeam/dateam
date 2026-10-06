@@ -41,7 +41,7 @@
 의존: 없음
 
 ### I02 화면과 엑셀이 같은 이름을 적는지 본다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/quote-xlsx.test.ts
 감사 기준:
