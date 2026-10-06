@@ -108,6 +108,31 @@ const pageNo = z.preprocess((v) => {
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.floor(n) : null
 }, z.number().int().min(1).nullable())
 
+/**
+ * 기간 단위 — 넷 중 하나이거나 null.
+ *
+ * 모델은 「개월」·「months」·「월」처럼 원문 말을 그대로 적으려 하므로 흔한 표기를 받아 준다.
+ * **모르는 말은 null 이다** — 지어내서 넣으면 그 줄의 금액이 거짓이 되고,
+ * DB CHECK 가 거절해 문서 전체 읽기가 실패한다.
+ */
+const DURATION_WORD: Readonly<Record<string, 'HOUR' | 'DAY' | 'MONTH' | 'YEAR'>> = {
+  hour: 'HOUR', hours: 'HOUR', h: 'HOUR', hr: 'HOUR', hrs: 'HOUR', 시간: 'HOUR',
+  day: 'DAY', days: 'DAY', d: 'DAY', 일: 'DAY', 일간: 'DAY',
+  month: 'MONTH', months: 'MONTH', mo: 'MONTH', 개월: 'MONTH', 월: 'MONTH', 달: 'MONTH',
+  year: 'YEAR', years: 'YEAR', y: 'YEAR', yr: 'YEAR', 년: 'YEAR', 연: 'YEAR',
+}
+
+const durationUnit = z.preprocess((v) => {
+  if (typeof v !== 'string') return null
+  const raw = v.trim()
+  if (!raw) return null
+  const upper = raw.toUpperCase()
+  if (upper === 'HOUR' || upper === 'DAY' || upper === 'MONTH' || upper === 'YEAR') return upper
+  // 「2개월」처럼 수가 붙어 와도 말만 떼어 읽는다 — 모델이 원문을 그대로 옮기는 일이 흔하다
+  const word = raw.replace(/[\d,.\s]/g, '').toLowerCase()
+  return DURATION_WORD[word] ?? null
+}, z.enum(['HOUR', 'DAY', 'MONTH', 'YEAR']).nullable())
+
 /** 항목 목록도 같은 이유로 자른다 */
 function linesField(limits: DocLimits) {
   return z.preprocess(
@@ -139,6 +164,18 @@ export function quoteFromDocLineSchema(limits: DocLimits) {
     kind,
     quantity: ratio,
     unit: softString,
+    /**
+     * **「얼마 동안」 — 수량과 다른 축이다.**
+     *
+     * 실측 2026-10-06: 원본이 「수량 17 / 단가 936,000 / 약정 기간 2개월」로 적은 것을
+     * 담을 칸이 없어 2개월이 통째로 사라졌고, 34,980,000원짜리 견적이 17,503,200원이 됐다.
+     *
+     * **못 읽었으면 null 이다.** 1 로 눕히면 「한 달짜리」라고 단정하는 것이고,
+     * 그 단정은 금액을 안 바꾸므로 아무도 못 알아챈다.
+     */
+    durationValue: ratio,
+    /** HOUR·DAY·MONTH·YEAR 넷. 모르면 null — 모르는 단위를 지어내면 그 줄의 금액이 거짓이 된다 */
+    durationUnit: durationUnit,
     /** 단가. **못 읽었으면 null 이다** — 0 으로 눕히면 0원짜리 줄이 조용히 들어간다 */
     unitPriceMinor: amount,
     discountPercent: ratio,
@@ -209,6 +246,15 @@ export function quoteFromDocQuoteSchema(limits: DocLimits) {
     supplierName: softString,
     /** 문서에 적힌 견적일. 확인용이고 폼에 안 넣는다 — 새 견적의 날짜는 오늘이다 */
     issuedOn: softString,
+    /**
+     * 문서 **전체**의 공급 기간 — 「약정 기간 2개월」·「계약기간 12개월」처럼
+     * 표 밖 머리글에 한 번만 적히는 그것.
+     *
+     * **줄에 자동으로 내리지 않는다.** 표 밖의 기간이 모든 줄에 걸리는지는 문서가 말해 주지
+     * 않는다(설치비 한 줄만 일시불인 견적이 흔하다). 화면이 **제안**으로 띄우고 사람이 고른다.
+     */
+    durationValue: ratio,
+    durationUnit: durationUnit,
     lines: linesField(limits),
     /**
      * 그 건 맨 아래의 **합계**. 우리 합계와 대조하는 유일한 근거다.

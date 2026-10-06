@@ -19,8 +19,9 @@ import { pageMarkLine } from '../../services/quote-source-text.ts'
 /** 모델이 실제로 받는 글 */
 const BUILT = QUOTE_FROM_DOC_V1.build('원문자리')
 
-test('판이 v1.2.0 으로 올랐다 — 지시를 바꿨는데 판이 그대로면 무엇이 도는지 알 수 없다', () => {
-  assert.equal(QUOTE_FROM_DOC_V1.version, 'quote_from_doc@v1.2.0')
+test('판이 v1.3.0 으로 올랐다 — 지시를 바꿨는데 판이 그대로면 무엇이 도는지 알 수 없다', () => {
+  // v1.3.0 에서 「얼마 동안」을 읽는 법 넷을 더했다(2026-10-06)
+  assert.equal(QUOTE_FROM_DOC_V1.version, 'quote_from_doc@v1.3.0')
 })
 
 test('원문이 지시 안에 실린다 — 안 실리면 모델은 빈 문서를 읽는다', () => {
@@ -99,4 +100,37 @@ test('합계 행을 항목으로 넣지 말라는 규칙은 그대로다 — 넣
 test('값을 지어내지 말라는 규칙은 그대로다', () => {
   assert.match(BUILT, /지어내지 마라/)
   assert.match(BUILT, /0 을 넣지 마라/)
+})
+
+/* ── 「얼마 동안」을 읽는 법 네 줄 ───────────────────────────────────────────
+   실측 2026-10-06: 원본의 「약정 기간 2개월」이 어디에도 안 들어가고, 표 아래 합계 행의
+   「금액 / 2개월」이 구성 줄이 되어 규격 맨 밑에 「금액 2개월」로 남았다.
+   ──────────────────────────────────────────────────────────────────────── */
+
+test('★ 수량 칸을 기간으로 적지 말라고 말한다 — 「수량 17」은 열일곱 대다', () => {
+  assert.match(BUILT, /수량 칸의 숫자를 기간으로 적지 마라/)
+  assert.match(BUILT, /열일곱 대이지 열일곱 달이 아니다/)
+})
+
+test('★ 기간 칸이 수량과 다른 축이라고 말한다', () => {
+  assert.match(BUILT, /durationValue \/ durationUnit/)
+  assert.match(BUILT, /곱해지는 다른 축/)
+  assert.match(BUILT, /HOUR·DAY·MONTH·YEAR/)
+})
+
+test('★ 표 밖의 「약정 기간」이 건의 기간이라고 말한다 — 유효기간과 다르다', () => {
+  for (const word of ['약정 기간', '계약기간', '이용기간', '임대기간']) {
+    assert.ok(BUILT.includes(word), `${word} 를 안 가리킨다`)
+  }
+  assert.match(BUILT, /견적 유효기간과 다르다/)
+})
+
+test('★ 표 아래 합계 행을 항목·구성 줄로 만들지 말라고 말한다', () => {
+  assert.match(BUILT, /표 아래 합계 행은 항목도 구성 줄도 아니다/)
+  assert.match(BUILT, /금액 2개월/, '실제로 난 사고를 예로 안 든다')
+})
+
+test('★ 단위를 못 읽으면 null 이라고 말한다 — 종류 기본값으로 메우면 「대」가 「개월」이 된다', () => {
+  assert.match(BUILT, /단위를 못 읽었으면 \*\*null\*\* 이다\. 종류의 기본값으로 메우지 마라/)
+  assert.match(BUILT, /종류의 기본값으로 메우지 마라/)
 })

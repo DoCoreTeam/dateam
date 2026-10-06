@@ -129,7 +129,7 @@
 의존: I04, I06
 
 ### I09 파일에서 기간을 읽는다 — 스키마와 지시
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/ai/schemas/quote-from-doc.ts, apps/web/lib/crm/ai/schemas/quote-from-doc.test.ts, apps/web/lib/crm/ai/prompts/quote-from-doc.v1.ts, apps/web/lib/crm/ai/prompts/quote-from-doc-prompt.test.ts
 감사 기준:

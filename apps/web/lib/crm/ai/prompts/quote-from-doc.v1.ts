@@ -32,7 +32,7 @@
 import type { AiPrompt } from '../runner.ts'
 
 export const QUOTE_FROM_DOC_V1: AiPrompt = {
-  version: 'quote_from_doc@v1.2.0',
+  version: 'quote_from_doc@v1.3.0',
   build: (input: string) => `당신은 **이미 만들어진 견적서**를 우리 양식으로 옮기는 도구다.
 원문은 PDF·엑셀·워드·한글·이미지에서 뽑은 글이고, 표는 행마다 「A | B | C」로 펴져 있다.
 
@@ -62,6 +62,10 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
 - 「소계」·「공급가액」·「부가세」·「합계」·「계」·「총액」 행은 **항목이 아니다.** lines 에 넣지 마라.
   이 행들의 숫자는 sourceTotalMinor 로 간다.
 - 표 머리글(「품목」「수량」「단가」「금액」)도 항목이 아니다.
+- **표 아래 합계 행은 항목도 구성 줄도 아니다.** 「금액」·「총 금액」·「합계」·「소계」로
+  시작하는 행과 그 옆에 붙은 기간 표기(「2개월」)는 sourceTotalMinor 와 건의 기간으로 간다.
+  항목으로 만들면 0원짜리 줄이 생기고, 구성 줄로 만들면 규격 맨 밑에 「금액 2개월」이 남는다
+  (실측 2026-10-06: 바로 그 일이 났다).
 
 **품목 칸이 비고 설명만 이어지는 행은 버리지 마라 — 바로 위 항목의 «구성»이다.**
 - 그 행들을 위 항목의 components 에 **한 줄씩 그대로** 넣는다. 요약하지 말고 옮겨라.
@@ -102,6 +106,12 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
   **규격(spec)과 섞지 마라** — spec 은 물건이 무엇인가이고, remark 는 이 견적에서
   그 줄이 무슨 구실인가다. 비고 열의 말을 spec 에 옮겨 적지도, 지어내지도 마라
 - quantity 수량, unit 단위(대·식·개월·M/M …)
+  **수량 칸의 숫자를 기간으로 적지 마라.** 「수량 17」은 열일곱 대이지 열일곱 달이 아니다
+  단위를 못 읽었으면 **null** 이다. 종류의 기본값으로 메우지 마라
+- durationValue / durationUnit **그 줄이 얼마 동안인가.** 수량과 **곱해지는 다른 축**이다
+  「17대를 2개월」이면 quantity 17 · unit "대" · durationValue 2 · durationUnit "MONTH" 다
+  단위는 HOUR·DAY·MONTH·YEAR 넷뿐이고, 모르면 **둘 다 null** 이다(지어내지 마라)
+  표 안에 기간 열이 따로 있으면 거기서 읽고, 없으면 그 줄의 규격·비고에 적힌 기간을 본다
 - unitPriceMinor **단가**. 문서에 단가 칸이 없고 금액만 있으면 null 이다(나누지 마라)
 - amountMinor 문서에 적힌 **그 줄의 금액**. 없으면 null
 - discountPercent 문서에 **할인율이 적혀 있을 때만**. 금액 차이로 역산하지 마라 — 안 적혀 있으면 null
@@ -125,6 +135,10 @@ export const QUOTE_FROM_DOC_V1: AiPrompt = {
 - issuedOn 견적일. 원문 표기 그대로(예: "2026-03-14"). 없으면 null
 - sourceTotalMinor 그 건에 적힌 **합계**. 「합계」·「총액」·「Total」 행의 숫자다. 없으면 null
 - sourceTotalIncludesTax 그 합계가 부가세를 포함하면 true. 「공급가액」만 있으면 false
+- durationValue / durationUnit **문서 전체의 공급 기간.** 표 밖 머리글의
+  「약정 기간」·「계약기간」·「이용기간」·「임대기간」이 그것이다. 「결제일로 부터 2개월」이면
+  durationValue 2 · durationUnit "MONTH". 없으면 둘 다 null 이다. **견적 유효기간과 다르다**
+  (유효기간은 「언제까지 이 값이 유효한가」이고 이것은 「얼마나 공급하는가」다)
 - taxPercent 문서에 적힌 부가세율(%). 안 적혀 있으면 null
 - currency 원이면 "KRW", 달러면 "USD"(그때 금액은 **센트**다)
 - pageStart / pageEnd 그 건이 **시작하는 쪽과 끝나는 쪽**. 한 쪽에 다 들어가면 둘이 같다.

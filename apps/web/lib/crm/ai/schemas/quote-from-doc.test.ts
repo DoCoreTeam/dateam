@@ -357,3 +357,63 @@ test('★ 원본이 묶어 부르는 말을 그대로 받는다 — 펴서 받�
   })
   assert.equal(r.lines[0].groupLabel, '하드웨어')
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   「얼마 동안」 — 수량 칸과 다른 축
+
+   실측 2026-10-06, 원본 20260929_dataalliance_gcube_톡키.pdf:
+   「수량 17 / 단가 936,000 / 약정 기간 결제일로 부터 2개월」을 담을 칸이 없어
+   2개월이 통째로 사라졌고, 34,980,000원짜리 견적이 17,503,200원으로 저장됐다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+test('★ 이번 원본과 같은 모양이 통과한다 — 17대 × 2개월', () => {
+  const r = QuoteFromDocOutputSchema.parse({
+    ...base,
+    durationValue: 2, durationUnit: '개월',
+    lines: [{
+      ...line, name: 'RTX5090 서버', quantity: 17, unit: '대',
+      unitPriceMinor: 936_000, amountMinor: 15_912_000,
+      durationValue: 2, durationUnit: 'MONTH',
+    }],
+  })
+  assert.equal(r.lines[0].quantity, 17)
+  assert.equal(r.lines[0].unit, '대')
+  assert.equal(r.lines[0].durationValue, 2)
+  assert.equal(r.lines[0].durationUnit, 'MONTH')
+  // 건 수준 기간도 받는다 — 표 밖 「약정 기간 2개월」이 그 자리다
+  assert.equal(r.durationValue, 2)
+  assert.equal(r.durationUnit, 'MONTH')
+})
+
+test('★ 모델이 원문 말을 그대로 적어도 읽는다 — 「개월」·「months」·「2개월」', () => {
+  const unitOf = (v: unknown) =>
+    QuoteFromDocOutputSchema.parse({ ...base, lines: [{ ...line, durationValue: 2, durationUnit: v }] })
+      .lines[0].durationUnit
+  assert.equal(unitOf('개월'), 'MONTH')
+  assert.equal(unitOf('months'), 'MONTH')
+  assert.equal(unitOf('Month'), 'MONTH')
+  assert.equal(unitOf('2개월'), 'MONTH', '수가 붙어 와도 말만 떼어 읽는다')
+  assert.equal(unitOf('시간'), 'HOUR')
+  assert.equal(unitOf('Hours'), 'HOUR')
+  assert.equal(unitOf('일'), 'DAY')
+  assert.equal(unitOf('년'), 'YEAR')
+})
+
+test('★ 모르는 단위는 null 이다 — 지어내면 그 줄의 금액이 거짓이 된다', () => {
+  const unitOf = (v: unknown) =>
+    QuoteFromDocOutputSchema.parse({ ...base, lines: [{ ...line, durationValue: 2, durationUnit: v }] })
+      .lines[0].durationUnit
+  assert.equal(unitOf('주'), null, '주는 월 환산이 안 떨어져 안 받는다')
+  assert.equal(unitOf('WEEK'), null)
+  assert.equal(unitOf(''), null)
+  assert.equal(unitOf(null), null)
+  assert.equal(unitOf(42), null)
+})
+
+test('★ 못 읽은 기간은 null 이다 — 1 로 눕히면 「한 달짜리」라고 단정하는 것이다', () => {
+  const r = QuoteFromDocOutputSchema.parse({ ...base, lines: [{ ...line }] })
+  assert.equal(r.lines[0].durationValue, null)
+  assert.equal(r.lines[0].durationUnit, null)
+  assert.equal(r.durationValue, null)
+  assert.equal(r.durationUnit, null)
+})
