@@ -33,7 +33,7 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.10.967',
+    version: '0.10.969',
     date: '2026-10-06',
     title: '「17대를 2개월」처럼 대수와 기간을 함께 적을 수 있어요',
     items: [
