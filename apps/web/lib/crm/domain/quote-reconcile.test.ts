@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs'
 import {
   checkLine, checkTotal, initialChecked, LINE_TOLERANCE_MINOR,
   type LineCheckInput,
+  summarizeCheck,
 } from './quote-reconcile.ts'
 
 function line(over: Partial<LineCheckInput> = {}): LineCheckInput {
@@ -376,4 +377,43 @@ test('★ 합계 대조도 기간을 센다 — 한 줄만 두 달이어도 합�
     documentIncludesTax: false,
   })
   assert.equal(t.verdict, 'match', `우리 ${t.ourTotalMinor} / 문서 ${t.documentTotalMinor}`)
+})
+
+/* ── 대조 결과를 남기는 모양 ──────────────────────────────────────────────
+   「파일로 읽은 견적이 손 안 대고 맞는 비율」을 세려면 **사람이 손대기 전의** 결과가
+   한 줄로 남아야 한다. 서버가 다시 세면 「고친 뒤의 결과」가 되어 그 질문을 못 묻는다.
+   ──────────────────────────────────────────────────────────────────────── */
+
+test('★ 대조 결과가 세는 숫자 다섯으로 줄어든다 — 품목도 금액도 고객도 안 담는다', () => {
+  const clean = checkLine({
+    name: 'H100', quantity: '8', unitPriceMinor: '45000000',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 360_000_000, sourceText: 'H100 8대',
+  })
+  const missing = checkLine({
+    name: 'RTX5090', quantity: '17', unitPriceMinor: '936000',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 31_824_000, sourceText: '17',
+  })
+  const total = checkTotal({
+    lines: [], documentTotalMinor: 100, documentIncludesTax: false,
+  })
+
+  const s = summarizeCheck([clean, missing], total)
+  assert.equal(s.linesRead, 2)
+  assert.equal(s.linesClean, 1, '위험 신호가 없던 줄만 센다')
+  assert.equal(s.durationMissing, 1, '기간을 못 읽은 것 같다고 짚은 줄을 따로 센다')
+  assert.equal(s.totalVerdict, 'mismatch')
+  assert.equal(typeof s.totalDiffMinor, 'string', 'BigInt 는 JSON 으로 못 보낸다')
+
+  // 지표 표가 견적서의 사본이 되면 안 된다 — 담긴 칸이 다섯뿐이다
+  assert.deepEqual(Object.keys(s).sort(),
+    ['durationMissing', 'linesClean', 'linesRead', 'totalDiffMinor', 'totalVerdict'])
+})
+
+test('★ 대조할 합계가 없으면 차액은 null 이다 — 0 으로 적으면 「맞았다」로 읽힌다', () => {
+  const t = checkTotal({ lines: [], documentTotalMinor: null, documentIncludesTax: false })
+  const s = summarizeCheck([], t)
+  assert.equal(s.totalVerdict, 'no_reference')
+  assert.equal(s.totalDiffMinor, null)
 })

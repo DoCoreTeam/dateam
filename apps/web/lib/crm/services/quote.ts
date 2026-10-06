@@ -282,6 +282,8 @@ const QUOTE_KEYS = new Set([
   'version', 'status',
   // 금액 표시 — 무엇을 함께 인쇄할지. 합계는 이 선택으로 안 바뀐다
   'rateHoursPerMonth', 'rateAxisKeys', 'lineNoteKeys', 'totalConvKeys',
+  // 파일로 읽었을 때의 대조 결과 — 지표로만 쓰고 견적의 어떤 값도 안 바꾼다
+  'importCheck',
 ])
 
 /** 모르는 이름이 섞여 있으면 **거절한다** — 조용히 버리면 보낸 쪽은 반영된 줄 안다 */
@@ -768,6 +770,25 @@ async function nextQuoteNo(tx: any, pattern: string, todayKey: string): Promise<
 // 생성 · 수정
 // ------------------------------------------------------------
 
+/**
+ * 파일로 읽은 견적의 대조 결과 — **세는 숫자만** 담는다.
+ *
+ * 품목 이름도 금액도 고객도 안 담는다. 지표 표가 견적서의 사본이 되면
+ * 그 표를 지킬 이유가 하나 더 늘어난다.
+ */
+export interface QuoteImportCheckInput {
+  linesRead?: number | string | null
+  /** 그중 아무 위험 신호도 없던 줄 수 */
+  linesClean?: number | string | null
+  /** match · mismatch · no_reference */
+  totalVerdict?: string | null
+  totalDiffMinor?: number | string | null
+  /** 기간을 못 읽은 것 같다고 짚은 줄 수 */
+  durationMissing?: number | string | null
+}
+
+const TOTAL_VERDICTS = new Set(['match', 'mismatch', 'no_reference'])
+
 export interface CreateQuoteInput {
   /** 고른 거래 조건. 순서가 곧 인쇄 순서다 */
   termIds?: string[]
@@ -794,6 +815,14 @@ export interface CreateQuoteInput {
    * 그러면 읽은 그대로인 견적이 사람이 쓴 것과 구분되지 않는다.
    */
   sourceFileName?: string | null
+  /**
+   * 파일로 읽었을 때의 **대조 결과.** 지표로만 남고 견적의 어떤 값도 안 바꾼다.
+   *
+   * **왜 보내게 하나**: 대조는 화면이 사람과 함께 한 일이라(체크를 풀고 고쳐 가며)
+   * 서버가 다시 셀 수 없다. 서버가 세면 「사람이 손댄 뒤의 결과」가 되어
+   * 「손 안 대고 맞았나」를 못 묻는다.
+   */
+  importCheck?: QuoteImportCheckInput | null
   /**
    * 원본의 몇 쪽에서 읽었나. **못 읽었으면 안 보낸다** — 0 이나 1 로 눕히면
    * 대조 화면이 엉뚱한 쪽을 가리킨다. DB 도 1 이상만 받는다(마이그 273).
@@ -1015,8 +1044,61 @@ export async function createQuote(
       actorType: 'HUMAN', actorId, action: 'quote.created',
       targetType: 'quote', targetId: created.id, afterJson: serialize(created),
     })
+
+    /*
+      **대조 결과를 남긴다.** 파일에서 온 견적일 때만, 한 줄.
+
+      이것이 없으면 「파일로 읽은 견적이 손 안 대고 맞는 비율」을 셀 수 없고,
+      읽기를 고쳐도 좋아졌는지 답할 수 없다(실측 2026-10-06: 그날의 사고도
+      사람이 눈으로 찾은 것이지 지표가 알려 준 것이 아니다).
+
+      **같은 트랜잭션 안에서 쓴다.** 밖에서 쓰면 견적은 만들어졌는데 기록만 빠지는 날이
+      생기고, 그러면 비율의 분모가 조용히 줄어 지표가 좋아 보인다.
+    */
+    const check = toImportCheck(input.importCheck)
+    if (check && sourceFileName) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (tx as any).quoteImportCheck.create({
+        data: {
+          workspaceId, quoteId: created.id, actorId: actorId ?? null,
+          sourceFile: sourceFileName, ...check,
+        },
+      })
+    }
     return created as QuoteRow
   })
+}
+
+/**
+ * 대조 결과를 받는다. **모양이 틀리면 안 남긴다** — 틀린 지표는 없는 지표보다 나쁘다.
+ *
+ * 숫자가 아니거나 음수면 그 칸만 0 으로 본다. 판정이 셋 밖이면 통째로 버린다 —
+ * 모르는 판정을 저장하면 「match 비율」을 셀 때 분모와 분자가 다른 것을 세게 된다.
+ */
+function toImportCheck(raw: QuoteImportCheckInput | null | undefined): {
+  linesRead: number; linesClean: number; totalVerdict: string
+  totalDiffMinor: bigint | null; durationMissing: number
+} | null {
+  if (!raw || typeof raw !== 'object') return null
+  const verdict = (raw.totalVerdict ?? 'no_reference').trim()
+  if (!TOTAL_VERDICTS.has(verdict)) return null
+  const count = (v: number | string | null | undefined): number => {
+    const n = Math.trunc(Number(v ?? 0))
+    return Number.isFinite(n) && n > 0 ? n : 0
+  }
+  const diffRaw = raw.totalDiffMinor
+  let diff: bigint | null = null
+  if (diffRaw !== null && diffRaw !== undefined && String(diffRaw).trim() !== '') {
+    const n = Number(diffRaw)
+    if (Number.isFinite(n)) diff = BigInt(Math.trunc(n))
+  }
+  return {
+    linesRead: count(raw.linesRead),
+    linesClean: count(raw.linesClean),
+    totalVerdict: verdict,
+    totalDiffMinor: diff,
+    durationMissing: count(raw.durationMissing),
+  }
 }
 
 /**

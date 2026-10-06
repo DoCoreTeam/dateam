@@ -215,6 +215,31 @@ function toMathLine(l: LineCheckInput): QuoteLineInput {
 }
 
 /**
+ * 한 건의 대조 결과를 **세는 숫자 다섯**으로 줄인다.
+ *
+ * 지표 표에 남길 모양이다(마이그 306). 품목 이름도 금액도 고객도 안 담는다 —
+ * 지표 표가 견적서의 사본이 되면 그 표를 지킬 이유가 하나 더 늘어난다.
+ *
+ * **사람이 손대기 전의 결과를 센다.** 서버가 다시 세면 「고친 뒤의 결과」가 되어
+ * 「손 안 대고 맞았나」를 못 묻는다.
+ */
+export function summarizeCheck(checks: readonly LineCheck[], total: TotalCheck): {
+  linesRead: number
+  linesClean: number
+  totalVerdict: TotalVerdict
+  totalDiffMinor: string | null
+  durationMissing: number
+} {
+  return {
+    linesRead: checks.length,
+    linesClean: checks.filter((c) => c.safe).length,
+    totalVerdict: total.verdict,
+    totalDiffMinor: total.diffMinor === null ? null : total.diffMinor.toString(),
+    durationMissing: checks.filter((c) => c.reasons.includes('duration_missing')).length,
+  }
+}
+
+/**
  * 안 맞는 까닭이 **기간을 못 읽은 것**인가.
  *
  * 기간을 이미 적은 줄은 아니다 — 그 줄이 틀렸다면 다른 이유다.

@@ -204,3 +204,26 @@ test('★ 월 기준 시간은 이번 저장이 보낸 값이 먼저다 — 앞 
   assert.ok(/toLineData\(l, i, rateDisplay\.rateHoursPerMonth\)/.test(SRC),
     '만들 때 월 기준 시간을 안 넘긴다')
 })
+
+test('★ 대조 결과가 견적과 **같은 트랜잭션**에서 남는다 — 밖에서 쓰면 분모가 조용히 준다', () => {
+  assert.ok(SRC.includes("'importCheck'"), 'importCheck 가 화이트리스트에 없다 — 보내면 거절당한다')
+  assert.match(SRC, /quoteImportCheck\.create/, '대조 결과를 안 남긴다')
+  // 만드는 트랜잭션 안이어야 한다 — 견적은 만들어졌는데 기록만 빠지는 날이 생기면 지표가 좋아 보인다
+  const create = SRC.slice(SRC.indexOf('export async function createQuote'))
+  const body = create.slice(0, create.indexOf('\n}\n'))
+  assert.match(body, /quoteImportCheck\.create/, '만들기 트랜잭션 밖에서 쓴다')
+  // 파일에서 온 견적일 때만 — 손으로 만든 견적이 분모에 들어가면 비율이 거짓이 된다
+  assert.match(body, /check && sourceFileName/, '손으로 만든 견적까지 분모에 넣는다')
+})
+
+test('★ 모르는 판정은 통째로 버린다 — 틀린 지표는 없는 지표보다 나쁘다', () => {
+  assert.match(SRC, /TOTAL_VERDICTS\.has\(verdict\)/, '판정을 안 거른다')
+  assert.match(SRC, /if \(!TOTAL_VERDICTS\.has\(verdict\)\) return null/,
+    '모르는 판정을 버리지 않고 저장한다 — 비율의 분모와 분자가 다른 것을 세게 된다')
+})
+
+test('★ 화면이 대조 결과를 실어 보낸다 — 서버가 다시 세면 「고친 뒤」가 된다', () => {
+  const modal = readFileSync(new URL('../../../components/ui/crm/QuoteFromFileModal.tsx', import.meta.url), 'utf8')
+  assert.match(modal, /importCheck:\s*summarizeCheck\(review\.checks, review\.total\)/,
+    '파일 모달이 대조 결과를 안 보낸다')
+})

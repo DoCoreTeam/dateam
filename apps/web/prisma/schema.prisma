@@ -992,6 +992,37 @@ model CrmQuote {
   @@map("crm_quote")
 }
 
+/// 파일로 읽은 견적의 **대조 결과 한 줄**(마이그 306).
+///
+/// 대조 장치는 전부터 있었지만 **결과가 아무 데도 안 남았다** — 화면에서 한 번 보이고 사라진다.
+/// 그래서 「파일로 읽은 견적이 손 안 대고 맞는 비율」을 셀 수 없었고,
+/// 읽기를 고쳐도 좋아졌는지 답할 수 없었다(실측 2026-10-06).
+///
+/// **더해지기만 한다.** 고치기·지우기 정책이 없어 안 맞은 건을 지워 비율을 올릴 수 없다 —
+/// 고칠 수 있는 지표는 아무 말도 안 한다.
+model QuoteImportCheck {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id")
+  /// 어느 견적이 됐나. 견적이 지워져도 기록은 남는다 — 지표는 과거의 사실이다
+  quoteId     String?  @map("quote_id")
+  /// 누가 넣었나. 서비스 연결에는 auth.uid() 가 없어 앱이 적는다
+  actorId     String?  @map("actor_id")
+  sourceFile  String?  @map("source_file")
+  /// 읽은 줄 수와 그중 **아무 위험 신호도 없던** 줄 수
+  linesRead   Int      @default(0) @map("lines_read")
+  linesClean  Int      @default(0) @map("lines_clean")
+  /// 합계 대조 판정 — match · mismatch · no_reference
+  totalVerdict String  @default("no_reference") @map("total_verdict")
+  /// 우리 − 문서. 대조할 합계가 없었으면 null
+  totalDiffMinor BigInt? @map("total_diff_minor")
+  /// 기간을 못 읽은 것 같다고 짚은 줄 수
+  durationMissing Int   @default(0) @map("duration_missing")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("quote_import_check")
+}
+
 model CrmQuoteLine {
   id      String @id @default(cuid())
   quoteId String

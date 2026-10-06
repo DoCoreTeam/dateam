@@ -202,7 +202,7 @@
 의존: I06
 
 ### I16 대조 결과를 원장에 남긴다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/306_quote_import_check_log.sql (신규), apps/web/prisma/schema.prisma, apps/web/lib/crm/services/quote.ts
 감사 기준:

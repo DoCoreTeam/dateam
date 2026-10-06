@@ -58,6 +58,7 @@ import {
   type DocQuoteJson, type FileReview,
 } from './quote-review'
 import { quoteToDraft, toLinePayload, type QuoteLineDraft } from './quote-draft-shape'
+import { summarizeCheck } from '@/lib/crm/domain/quote-reconcile'
 import { planSnapshot, renderPdfPage, snapshotFileName } from '@/lib/crm/ui/quote-snapshot'
 import styles from './quote-panel.module.css'
 import WaitProgress from '../WaitProgress'
@@ -350,6 +351,14 @@ export default function QuoteFromFileModal({
         */
         sourcePageStart: review.pageStart,
         sourcePageEnd: review.pageEnd,
+        /*
+          **대조 결과를 함께 남긴다.** 지표로만 쓰고 견적의 어떤 값도 안 바꾼다.
+
+          이것이 없으면 「파일로 읽은 견적이 손 안 대고 맞는 비율」을 셀 수 없고,
+          읽기를 고쳐도 좋아졌는지 답할 수 없다. 서버가 다시 세지 않는 이유는
+          대조가 **사람과 함께 한 일**이라서다 — 서버가 세면 「고친 뒤의 결과」가 된다.
+        */
+        importCheck: summarizeCheck(review.checks, review.total),
       }),
     })
     const got = await readResponse(res, failedTo(ENTITY.quote.label, '만들지'))
