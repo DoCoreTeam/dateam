@@ -109,32 +109,40 @@ export default function TaskEditModal({ task, onClose, onSaved }: Props) {
     >
       <FormErrorBanner message={error} />
 
+      {/*
+        **칸마다 자기 이름을 붙인다**(`htmlFor` + `id`).
+
+        처음엔 `<label>` 로 통째로 감쌌는데, `DateField` 는 입력칸과 「오늘」 단추 **둘**을
+        담고 있어서 그 이름이 둘을 함께 가리켰다 — 스크린리더에는 「시작」이라는 이름의
+        물건이 두 개가 되고, 실브라우저 확인에서도 날짜 칸을 이름으로 집지 못했다.
+      */}
       <div className={styles.form}>
-        <label className={styles.field}>
-          <span className={styles.label}>{ENTITY.task.label}</span>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="task-edit-title">{ENTITY.task.label}</label>
           <input
+            id="task-edit-title"
             className="input-field"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => { if (isEnterKey(e)) void save() }}
             autoFocus
           />
-        </label>
+        </div>
 
         <div className={styles.dates}>
-          <label className={styles.field}>
-            <span className={styles.label}>시작</span>
-            <DateField value={start} onValueChange={setStart} />
-          </label>
-          <label className={styles.field}>
-            <span className={styles.label}>마감</span>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="task-edit-start">시작</label>
+            <DateField id="task-edit-start" value={start} onValueChange={setStart} />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="task-edit-due">마감</label>
             {/*
               시작 뒤로 잠그지 않는다. 마감을 먼저 당기고 시작을 뒤에 고치는 순서가 실제로 있고,
               `min` 으로 막으면 그 순서를 밟는 사람은 달력에서 날을 아예 못 고른다.
               대신 아래 한 줄로 알린다 — 추가 줄과 같은 규칙이다.
             */}
-            <DateField value={due} onValueChange={setDue} />
-          </label>
+            <DateField id="task-edit-due" value={due} onValueChange={setDue} />
+          </div>
         </div>
 
         {startsAfterDue(start, due) && (
