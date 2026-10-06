@@ -957,6 +957,12 @@ export const FILL_RISK_TEXT = {
     문서 금액이 우리 금액의 깔끔한 정수 배일 때만 이 말을 쓴다.
   */
   duration_missing: '기간을 못 읽은 것 같아요. 문서 금액이 우리 계산의 배수예요',
+  /*
+    **틀린 것이 아니라고 말한다.** 원본은 줄의 공급가액을 한 달치로 적고 「2개월」을
+    표 아래 행에 적는 일이 흔하다(실측 2026-10-06). 그 줄을 「다르다」고 하면
+    사람은 맞게 읽은 기간을 지워 숫자를 맞추고, 그 순간 금액이 절반이 된다.
+  */
+  doc_amount_before_duration: '문서는 기간을 곱하기 전 금액을 적었어요. 기간을 넣어 계산했어요',
 } as const
 
 export type FillRiskKey = keyof typeof FILL_RISK_TEXT

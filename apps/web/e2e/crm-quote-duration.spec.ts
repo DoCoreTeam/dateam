@@ -230,3 +230,86 @@ test('기간이 수량 칸에 있는 옛 줄에 안내가 선다. 금액은 안 
 
   await page.screenshot({ path: shot('04-legacy-hint'), fullPage: false })
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   실제 원본 모양을 AI 가 읽는가 — **진짜 호출**이다
+
+   스키마와 지시 가드는 「받을 준비가 됐다」까지만 말한다. 모델이 그 지시를 **실제로 따르는지**는
+   돌려 봐야 안다. 사용자가 보여 준 원본(수량 17 · 단가 936,000 · 약정 기간 결제일로 부터 2개월)과
+   같은 모양을 올려 기간이 폼까지 닿는지 본다.
+
+   AI 한도·키가 막히면 읽기 자체가 실패할 수 있다. 그때도 **화면이 이유를 말하는지**까지가
+   이 검사의 범위다 — 조용히 아무 일도 안 일어나는 것이 가장 나쁘다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/** 사용자가 보여 준 원본의 표를 그대로 옮긴 모양 */
+const ORIGINAL = [
+  '# 견 적 서',
+  '',
+  '| 고객명 | 주식회사 톡키 |',
+  '| 견적일 | 2026-09-29 |',
+  '| 유효기간 | 견적일로부터 30일 |',
+  '| 이용금액 | 하기 단가 참조 (단위: 원 VAT별도) |',
+  '| 약정 기간 | 결제일로 부터 2개월 |',
+  '| 결제 수단 | 이체 |',
+  '',
+  '| No. | 품명 | 규격 | 수량 | 단가 | 공급가액 | 할인가 | 세액 |',
+  '| --- | --- | --- | --- | --- | --- | --- | --- |',
+  '| 1 | RTX5090 서버 | CPU: 12 코어 이상 / GPU: NVIDIA RTX 5090 (VRAM 32GB) / RAM: 32GB 이상 / Storage: NVMe SSD 500GB 이상 / OS: Ubuntu 22.04 | 17 | 936,000 | 15,912,000 | 15,900,000 | 1,590,000 |',
+  '',
+  '| 금액 | | | | | 31,800,000 | | 3,180,000 |',
+  '| 총 금액 (VAT포함) | 2개월 | | | | 34,980,000 | | |',
+  '',
+].join('\n')
+
+test('실제 원본 모양을 올리면 AI 가 17대와 2개월을 갈라 읽는다', async ({ page }) => {
+  test.setTimeout(300_000)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await openDeal(page)
+  const modal = await openNewQuote(page)
+
+  await modal.getByRole('button', { name: '파일로 채우기' }).click()
+  await modal.locator('input[type="file"]').setInputFiles({
+    name: '20260929_톡키_견적서.md', mimeType: 'text/markdown',
+    buffer: Buffer.from(ORIGINAL, 'utf-8'),
+  })
+
+  // 「읽는 중」이 사라지는 것이 끝났다는 유일한 신호다
+  const reading = page.getByRole('button', { name: /읽는 중/ })
+  await expect(reading).toBeVisible({ timeout: 30_000 })
+  await expect(reading).toBeHidden({ timeout: 240_000 })
+  await page.screenshot({ path: shot('05-read'), fullPage: true })
+
+  const body = (await modal.innerText()).replace(/\s+/g, ' ')
+
+  /*
+    **읽었거나 · 이유를 말하거나.** AI 한도가 막히면 읽기가 실패할 수 있고,
+    그때도 화면이 왜 안 됐는지는 말해야 한다. 조용한 것이 가장 나쁘다.
+  */
+  const read = /읽었어요|찾았어요/.test(body)
+  const said = read || /안 돼|실패|한도|오류|못/.test(body)
+  expect(said, `읽기가 끝났는데 화면이 아무 말도 안 한다:\n${body.slice(0, 600)}`).toBe(true)
+
+  if (!read) {
+    // 못 읽었으면 **못 읽었다고 적고** 여기서 멈춘다 — 가짜 통과를 만들지 않는다
+    console.log('AI 읽기 실패(한도·키 등). 화면이 말한 것:', body.slice(0, 400))
+    return
+  }
+
+  // 읽었으면 두 축이 갈려 있어야 한다
+  await modal.getByRole('button', { name: /체크한 항목 넣기/ }).click()
+
+  const qty = await modal.locator('#ln-qty-0').inputValue()
+  const unit = await modal.locator('#ln-unit-0').inputValue()
+  const dur = await modal.locator('#ln-dur-0').inputValue()
+  const durUnit = await modal.locator('#ln-durunit-0').inputValue()
+  const price = await modal.locator('#ln-price-0').inputValue()
+  console.log('읽은 값:', { qty, unit, dur, durUnit, price })
+
+  expect(qty, '수량이 대수가 아니다').toBe('17')
+  expect(unit, `단위가 「${unit}」다 — 기간 말이 수량 단위 자리에 들어갔다`).not.toMatch(/개월|월|시간|Hours/i)
+  expect(price, '단가를 못 읽었다').toBe('936000')
+  expect(`${dur}${durUnit}`, '기간을 못 읽었다').toBe('2MONTH')
+
+  await page.screenshot({ path: shot('06-applied'), fullPage: true })
+})

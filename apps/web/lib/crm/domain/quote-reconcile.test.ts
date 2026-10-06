@@ -417,3 +417,58 @@ test('★ 대조할 합계가 없으면 차액은 null 이다 — 0 으로 적�
   assert.equal(s.totalVerdict, 'no_reference')
   assert.equal(s.totalDiffMinor, null)
 })
+
+/* ── 문서가 기간을 표 아래 행에 적은 모양 ─────────────────────────────────
+   실측 2026-10-06(실파일): 원본은 줄의 공급가액을 **한 달치** 15,912,000 으로 적고
+   「2개월」을 표 아래 행에 적는다. 우리 줄은 두 축을 곱해 31,824,000 이라
+   그냥 대조하면 **제대로 읽은 줄이** 「문서와 다르다」로 뜬다.
+   그러면 사람은 맞게 읽은 기간을 지워 숫자를 맞추고, 그 순간 금액이 절반이 된다.
+   ──────────────────────────────────────────────────────────────────────── */
+
+test('★ 문서가 기간 전 금액을 적었으면 그렇다고 말한다 — 틀렸다고 하지 않는다', () => {
+  const r = checkLine({
+    name: 'RTX5090 서버', quantity: '17', unitPriceMinor: '936000',
+    durationValue: '2', durationUnit: 'MONTH',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 15_912_000,   // 문서 줄은 한 달치
+    sourceText: '17 ₩936,000 ₩15,912,000',
+  })
+  assert.equal(r.ourAmountMinor, BigInt(31_824_000))
+  assert.ok(r.reasons.includes('doc_amount_before_duration'), `사유: ${r.reasons.join(',')}`)
+  assert.ok(!r.reasons.includes('amount_mismatch'), '틀렸다고 말하면 사람이 맞는 기간을 지운다')
+  assert.ok(!r.reasons.includes('duration_missing'))
+})
+
+test('★ 배수가 안 맞으면 진짜 오류다 — 안전망에 뚫는 구멍은 좁아야 한다', () => {
+  const r = checkLine({
+    name: 'x', quantity: '17', unitPriceMinor: '936000',
+    durationValue: '2', durationUnit: 'MONTH',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 10_000_000,   // × 2 를 해도 우리 금액과 안 맞는다
+    sourceText: 'x',
+  })
+  assert.ok(r.reasons.includes('amount_mismatch'))
+  assert.ok(!r.reasons.includes('doc_amount_before_duration'))
+})
+
+test('★ 기간이 없는 줄에는 그 말을 안 쓴다', () => {
+  const r = checkLine({
+    name: 'x', quantity: '17', unitPriceMinor: '936000',
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 31_824_000, sourceText: 'x',
+  })
+  assert.ok(!r.reasons.includes('doc_amount_before_duration'))
+  assert.ok(r.reasons.includes('duration_missing'), '이쪽은 못 읽은 것이다')
+})
+
+test('★ 시간당 단가 줄도 같은 배수로 본다 — 2개월이면 1,460 배다', () => {
+  const r = checkLine({
+    name: 'GPU 사용', quantity: '1', unitPriceMinor: '1388',
+    durationValue: '2', durationUnit: 'MONTH', priceBasis: 'HOUR', hoursPerMonth: 730,
+    discountPercent: '0', taxRate: '10',
+    documentAmountMinor: 1_388,   // 문서는 시간당 단가만 적었다
+    sourceText: 'x',
+  })
+  assert.equal(r.ourAmountMinor, BigInt(1_388 * 1460))
+  assert.ok(r.reasons.includes('doc_amount_before_duration'))
+})

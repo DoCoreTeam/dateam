@@ -26,9 +26,10 @@
  */
 
 import { computeLine, computeTotals, type QuoteLineInput } from './quote-math.ts'
+import { durationFactor } from './quote-rate.ts'
 // 금액을 정수로 바꾸는 규칙은 한 곳이다 — 여기서 또 반올림하면 대조하는 쪽과
 // 저장되는 쪽이 다른 규칙으로 금액을 만든다(money-ssot 가드)
-import { toMinor } from './money.ts'
+import { toMinor, mulQty } from './money.ts'
 
 /**
  * 몇 원까지 같은 것으로 볼까.
@@ -49,6 +50,17 @@ export type LineRiskReason =
   | 'amount_mismatch'
   /** 원문 조각이 없어 사람이 대조할 근거가 없다 */
   | 'no_source'
+  /**
+   * **문서가 줄 금액을 기간 전으로 적었다.** 틀린 것이 아니다.
+   *
+   * 실측 2026-10-06(실파일): 원본은 줄의 공급가액을 한 달치 15,912,000 으로 적고
+   * 「2개월」을 표 **아래 행**에 적는다. 우리 줄은 두 축을 곱해 31,824,000 이라
+   * 그냥 대조하면 제대로 읽은 줄이 「문서와 다르다」로 뜬다 —
+   * 그러면 사람은 맞게 읽은 기간을 지워 숫자를 맞추고, 그 순간 금액이 절반이 된다.
+   *
+   * 우리 금액이 문서 금액 × 기간배수와 **딱 맞을 때만** 이 말을 쓴다.
+   */
+  | 'doc_amount_before_duration'
   /**
    * 문서 금액이 **우리 금액의 정수 배**다. 기간을 못 읽었을 때 나는 모양이다.
    *
@@ -109,13 +121,16 @@ export function checkLine(input: LineCheckInput): LineCheck {
     diff = ours - doc
     if (abs(diff) > LINE_TOLERANCE_MINOR) {
       /*
-        **빠진 것이 기간인지 먼저 묻는다.**
+        **안 맞는 까닭을 세 갈래로 가른다.** 「금액이 다르다」 하나로 뭉치면
+        사람은 어디를 고칠지 몰라 **맞는 값부터 의심한다.**
 
-        기간을 안 적은 줄에서 문서 금액이 우리 금액의 **깔끔한 정수 배**면,
-        그 배수가 바로 못 읽은 기간이다(실측 2026-10-06: 문서 31,800,000 ÷ 우리 15,912,000 ≈ 2).
-        그냥 「금액이 안 맞는다」고만 하면 사람은 수량·단가를 의심해 **맞는 값을 고친다.**
+        ① 문서가 줄 금액을 **기간 전**으로 적었다 — 틀린 것이 아니다(실파일에서 나온 모양)
+        ② 기간을 **못 읽었다** — 문서 금액이 우리 금액의 깔끔한 정수 배다
+        ③ 그 밖 — 수량·단가·할인 중 하나를 잘못 읽었다
       */
-      reasons.push(missingDuration(input, ours, doc) ? 'duration_missing' : 'amount_mismatch')
+      if (docAmountBeforeDuration(input, ours, doc)) reasons.push('doc_amount_before_duration')
+      else if (missingDuration(input, ours, doc)) reasons.push('duration_missing')
+      else reasons.push('amount_mismatch')
     }
   }
 
@@ -237,6 +252,29 @@ export function summarizeCheck(checks: readonly LineCheck[], total: TotalCheck):
     totalDiffMinor: total.diffMinor === null ? null : total.diffMinor.toString(),
     durationMissing: checks.filter((c) => c.reasons.includes('duration_missing')).length,
   }
+}
+
+/**
+ * 문서가 그 줄의 금액을 **기간 전**으로 적었나.
+ *
+ * 우리 금액 = 문서 금액 × 기간배수일 때만 그렇다고 본다. 배수가 안 맞으면 진짜 오류이고,
+ * 여기서 봐주면 **잘못 읽은 줄이 조용히 통과한다** — 안전망에 뚫는 구멍은 좁아야 한다.
+ */
+function docAmountBeforeDuration(input: LineCheckInput, ours: bigint, doc: bigint): boolean {
+  if (!input.durationValue) return false
+  if (doc <= BigInt(0)) return false
+  const factor = durationFactor(
+    input.durationValue, input.durationUnit, input.priceBasis ?? null,
+    input.hoursPerMonth ?? undefined,
+  )
+  if (factor == null || factor <= 1) return false
+  /*
+    문서 금액에 배수를 곱한 값이 우리 금액과 같은가. 반올림 한 자리는 봐준다.
+    **곱셈은 money 의 mulQty 를 쓴다** — 여기서 직접 반올림하면 대조하는 쪽과
+    저장되는 쪽이 다른 규칙으로 금액을 만든다(money-ssot 가드).
+  */
+  const expected = mulQty(doc, factor)
+  return abs(ours - expected) <= LINE_TOLERANCE_MINOR
 }
 
 /**
