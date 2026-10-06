@@ -348,6 +348,20 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
       )}
       </div>
 
+      {/*
+        **저장한 것이 화면에 오기까지 그렇다고 말한다.**
+
+        저장을 누르면 모달은 바로 닫히는데 문서는 서버에서 다시 받아 온다 —
+        실측 2026-10-05 로 2~3초였고 그동안 **옛 화면이 아무 말 없이 그대로** 있었다.
+        사람은 그것을 「저장이 안 됐다」로 읽고 다시 누른다.
+
+        `loading && !data` 는 위에서 로더로 갈라 둔다 — 빈 화면과 「바뀌는 중인 화면」은
+        다른 상태다.
+      */}
+      {loading && (
+        <p className={styles.reloadNote} role="status">{progress(ACTION.apply)}</p>
+      )}
+
       <QuoteSheet doc={doc} logo={data.images.logo} seal={data.images.seal} />
 
       {/*

@@ -40,6 +40,8 @@ const MODAL = read('components/ui/crm/QuoteEditorModal.tsx')
 */
 const FILL = read('components/ui/crm/QuoteFillPanel.tsx')
 const TOTALS = read('components/ui/crm/QuoteTotals.tsx')
+/** 견적서 상세 — 불러오기와 내보내기를 맡는 바깥 화면 */
+const VIEW = read('app/(crm)/crm/quotes/[id]/QuoteDocumentView.tsx')
 /** 딜 화면의 「파일로 가져오기」 — 건마다 도착지를 고르는 창 */
 const IMPORT = read('components/ui/crm/QuoteFromFileModal.tsx')
 const DEAL_PANEL = read('components/ui/crm/QuotePanel.tsx')
@@ -663,4 +665,21 @@ test('★ 태블릿 폭에서도 표가 눌리지 않고 넘어간다', () => {
   */
   assert.match(DOC, /@media screen and \(max-width: 1023px\) \{\s*\.table \{ min-width: 34rem; \}/,
     '표 최소 폭이 태블릿까지 안 걸린다')
+})
+
+/* ── 저장한 것이 화면에 오기까지 (v0.10.93x) ───────── */
+
+test('★ 다시 불러오는 동안 화면이 그렇다고 말한다', () => {
+  /*
+    실측 2026-10-05: 저장을 누르면 모달은 바로 닫히는데 문서는 서버에서 다시 받아 온다.
+    +1초·+2초엔 옛 화면 그대로였고 +3초에 바뀌었다. 그 사이 아무 표시가 없어
+    사람은 「저장이 안 됐다」로 읽고 다시 누른다.
+  */
+  assert.match(VIEW, /\{loading && \(\s*\n\s*<p className=\{styles\.reloadNote\} role="status">\{progress\(ACTION\.apply\)\}<\/p>/,
+    '다시 불러오는 동안 아무 말도 안 한다')
+  // 처음 들어올 때는 로더다 — 빈 화면과 「바뀌는 중인 화면」을 안 섞는다
+  assert.match(VIEW, /if \(loading && !data\) return <div className="page-inner"><AXDotLoader \/><\/div>/,
+    '빈 화면과 바뀌는 중인 화면을 같은 것으로 그린다')
+  assert.match(DOC, /@media print \{ \.reloadNote \{ display: none; \} \}/,
+    '인쇄에 우리 사정이 찍힌다')
 })
