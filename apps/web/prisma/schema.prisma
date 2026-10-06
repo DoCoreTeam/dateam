@@ -1033,6 +1033,18 @@ model CrmQuoteLine {
   /// 규격과 다르다 — 규격은 물건이 무엇인가이고, 비고는 이 견적에서 그 줄이 무슨 구실인가다.
   remark          String?
 
+  /// ── 얼마 동안 ───────────────────────────────────────────────
+  /// **수량과 함께 단가에 곱해진다** — 「17대 × 936,000원/월 × 2개월」의 뒤쪽 축이다.
+  /// 예전에는 곱하는 축이 수량 하나뿐이라 둘 중 하나를 반드시 버려야 했고,
+  /// 그래서 단위가 「개월」인 줄은 대수를 적을 자리가 없었다(실측 2026-10-06: 9줄).
+  ///
+  /// 날짜(startDate·endDate)와 다르다 — 날짜는 「언제」이고 이것은 「얼마나」다.
+  /// **NULL 이면 배수가 1 이고** 그것이 지금까지의 셈이다. 둘은 한 벌이라 DB CHECK 가
+  /// 반쪽짜리 저장을 막는다(마이그 305)
+  durationValue Decimal? @db.Decimal(12, 3)
+  /// MONTH·DAY·HOUR·YEAR 넷. 「주」는 월 환산이 안 떨어져 「약」이 늘 붙으므로 두지 않는다
+  durationUnit  String?
+
   /// ── 공급 기간 ───────────────────────────────────────────────
   /// **견적 유효기간(crm_quote.validUntil)과 다르다.** 유효기간은 「언제까지 이 값이 유효한가」이고
   /// 이것은 「언제부터 언제까지 공급하는가」다. 여기서 개월과 총 시간을 세어 시간당·월 금액을 낸다.
@@ -1323,6 +1335,10 @@ model CrmDealCost {
   kind           CrmQuoteLineKind @default(QUANTITY)
   quantity       Decimal? @db.Decimal(12, 3)
   unit           String?
+  /// 얼마 동안인가 — 견적 줄의 같은 이름 칸과 같은 뜻이다.
+  /// 매출이 2개월인데 원가가 한 달치면 마진율이 두 배로 거짓이 된다(마이그 305)
+  durationValue  Decimal? @db.Decimal(12, 3)
+  durationUnit   String?
   unitPriceMinor BigInt?
   /// 비고. 규격은 descriptionMd 의 첫 줄이고 그 아래가 구성이다(quote-spec.ts 의 약속)
   remark         String?
