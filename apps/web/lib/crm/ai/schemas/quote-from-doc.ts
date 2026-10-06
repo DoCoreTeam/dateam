@@ -51,7 +51,7 @@
 
 import { z } from 'zod'
 import {
-  softString, amount, ratio, kind,
+  softString, amount, ratio, kind, durationUnit,
   componentsField, MAX_DOC_COMPONENT_LINES, MAX_COMPONENT_TEXT,
 } from './quote-draft.ts'
 
@@ -107,31 +107,6 @@ const pageNo = z.preprocess((v) => {
   const n = typeof v === 'string' ? Number(v.replace(/[^\d]/g, '')) : v
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.floor(n) : null
 }, z.number().int().min(1).nullable())
-
-/**
- * 기간 단위 — 넷 중 하나이거나 null.
- *
- * 모델은 「개월」·「months」·「월」처럼 원문 말을 그대로 적으려 하므로 흔한 표기를 받아 준다.
- * **모르는 말은 null 이다** — 지어내서 넣으면 그 줄의 금액이 거짓이 되고,
- * DB CHECK 가 거절해 문서 전체 읽기가 실패한다.
- */
-const DURATION_WORD: Readonly<Record<string, 'HOUR' | 'DAY' | 'MONTH' | 'YEAR'>> = {
-  hour: 'HOUR', hours: 'HOUR', h: 'HOUR', hr: 'HOUR', hrs: 'HOUR', 시간: 'HOUR',
-  day: 'DAY', days: 'DAY', d: 'DAY', 일: 'DAY', 일간: 'DAY',
-  month: 'MONTH', months: 'MONTH', mo: 'MONTH', 개월: 'MONTH', 월: 'MONTH', 달: 'MONTH',
-  year: 'YEAR', years: 'YEAR', y: 'YEAR', yr: 'YEAR', 년: 'YEAR', 연: 'YEAR',
-}
-
-const durationUnit = z.preprocess((v) => {
-  if (typeof v !== 'string') return null
-  const raw = v.trim()
-  if (!raw) return null
-  const upper = raw.toUpperCase()
-  if (upper === 'HOUR' || upper === 'DAY' || upper === 'MONTH' || upper === 'YEAR') return upper
-  // 「2개월」처럼 수가 붙어 와도 말만 떼어 읽는다 — 모델이 원문을 그대로 옮기는 일이 흔하다
-  const word = raw.replace(/[\d,.\s]/g, '').toLowerCase()
-  return DURATION_WORD[word] ?? null
-}, z.enum(['HOUR', 'DAY', 'MONTH', 'YEAR']).nullable())
 
 /** 항목 목록도 같은 이유로 자른다 */
 function linesField(limits: DocLimits) {

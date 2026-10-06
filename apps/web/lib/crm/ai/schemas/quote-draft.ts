@@ -48,6 +48,35 @@ export const ratio = z.preprocess((v) => {
   return typeof n === 'number' && Number.isFinite(n) ? n : null
 }, z.number().min(0).nullable())
 
+/**
+ * 기간 단위 — 넷 중 하나이거나 null.
+ *
+ * 모델은 「개월」·「months」·「월」처럼 원문 말을 그대로 적으려 하므로 흔한 표기를 받아 준다.
+ * **모르는 말은 null 이다** — 지어내서 넣으면 그 줄의 금액이 거짓이 되고,
+ * DB CHECK 가 거절해 문서 전체 읽기가 실패한다.
+ */
+const DURATION_WORD: Readonly<Record<string, 'HOUR' | 'DAY' | 'MONTH' | 'YEAR'>> = {
+  hour: 'HOUR', hours: 'HOUR', h: 'HOUR', hr: 'HOUR', hrs: 'HOUR', 시간: 'HOUR',
+  day: 'DAY', days: 'DAY', d: 'DAY', 일: 'DAY', 일간: 'DAY',
+  month: 'MONTH', months: 'MONTH', mo: 'MONTH', 개월: 'MONTH', 월: 'MONTH', 달: 'MONTH',
+  year: 'YEAR', years: 'YEAR', y: 'YEAR', yr: 'YEAR', 년: 'YEAR', 연: 'YEAR',
+}
+
+/**
+ * **말 길과 파일 길이 같은 코드를 쓴다.** 두 벌로 적으면 한쪽만 고쳐져
+ * 같은 말(「3개월」)이 두 길에서 다르게 읽힌다.
+ */
+export const durationUnit = z.preprocess((v) => {
+  if (typeof v !== 'string') return null
+  const raw = v.trim()
+  if (!raw) return null
+  const upper = raw.toUpperCase()
+  if (upper === 'HOUR' || upper === 'DAY' || upper === 'MONTH' || upper === 'YEAR') return upper
+  // 「2개월」처럼 수가 붙어 와도 말만 떼어 읽는다 — 모델이 원문을 그대로 옮기는 일이 흔하다
+  const word = raw.replace(/[\d,.\s]/g, '').toLowerCase()
+  return DURATION_WORD[word] ?? null
+}, z.enum(['HOUR', 'DAY', 'MONTH', 'YEAR']).nullable())
+
 /** 줄의 종류 — 모르는 값이 오면 «수량»으로 눕히지 않고 거절한다(라벨이 실제와 달라진다) */
 export const kind = z.enum(['QUANTITY', 'EFFORT', 'PERIOD', 'FIXED', 'RATIO', 'DISCOUNT']).nullable()
 
@@ -108,6 +137,19 @@ export const QuoteDraftOutputSchema = z.object({
     kind,
     quantity: ratio,
     unit: softString,
+    /**
+     * **「얼마 동안」 — 수량과 다른 축이다.**
+     *
+     * 「H100 2대를 3개월」이면 quantity 2 · unit "대" · durationValue 3 · durationUnit "MONTH" 다.
+     * 담을 칸이 없던 때는 둘 중 하나가 반드시 버려졌고, 그래서 34,980,000원짜리 견적이
+     * 17,503,200원으로 저장되는 일이 났다(실측 2026-10-06, 파일 길에서).
+     *
+     * **못 읽었으면 null 이다.** 1 로 눕히면 「한 달짜리」라고 단정하는 것이고,
+     * 그 단정은 금액을 안 바꾸므로 아무도 못 알아챈다.
+     */
+    durationValue: ratio,
+    /** HOUR·DAY·MONTH·YEAR 넷. 모르면 null — 모르는 단위를 지어내면 그 줄의 금액이 거짓이 된다 */
+    durationUnit,
     /** 단가(minor 단위 정수) */
     unitPriceMinor: amount,
     /** 기본 할인율(%) */

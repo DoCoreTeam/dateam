@@ -1,0 +1,71 @@
+# PLAN newAX: 말과 원가로 들어오는 길에도 기간이 산다
+플랜 ID: P0119
+플랜 버전: v0.1.0
+상태: 진행중
+지시: ins_0205
+목표 버전: v0.10.972
+작성: 2026-10-06
+시작 커밋: 0f51e223
+
+## 목표
+- 「말로 채우기」로 「H100 2대를 3개월」을 적어도 3개월이 안 사라진다
+- 파일에서 원가로 넣을 때도 기간이 따라가 매출과 원가가 같은 기간으로 선다
+- 실제 원본 파일을 올려 AI 가 기간을 읽는 것까지 실브라우저로 확인한다
+
+## 범위 밖
+- 기존 164줄 백필 — P0117 과 같은 이유로 안 건드린다
+- 품목 카탈로그(CrmProduct)에 기간 추가 — 카탈로그 품목은 「무엇을 파는가」이고 기간은 그 거래의 조건이다
+- 원가 수기 입력 폼에 기간 칸 추가 — 그 폼은 금액·공수·비율 셋만 받는 자리라 수량·단위 칸 자체가 없다
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm lint, pnpm test, pnpm build 통과
+- 말로 채우기 지시와 스키마가 기간을 받고, 못 읽으면 null 이다
+- 파일 → 원가 경로가 기간 두 칸을 들고 간다
+- 실제 원본 파일로 읽기를 돌려 기간이 화면에 닿는 것을 보거나, 못 돌렸으면 못 돌렸다고 적는다
+- 사용자 노출 문자열은 전부 lib/terms 상수 사용
+
+## 참조
+- LOOP.md 7절 보안 기준, 9절 F-N 기능 완결성(F-10 실브라우저)
+- .loop/archive/P0117-*.md (이번 축을 세운 플랜)
+- lib/crm/ai/schemas/quote-from-doc.ts (파일 길의 기간 스키마 — 말 길이 따라야 할 모양)
+
+## 항목
+
+### I01 말로 채우기도 기간을 읽는다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/crm/ai/schemas/quote-draft.ts, apps/web/lib/crm/ai/prompts/quote-draft.v1.ts, apps/web/lib/crm/ai/schemas/quote-from-doc.ts, apps/web/lib/crm/ai/prompts/quote-draft-prompt.test.ts (신규)
+감사 기준:
+- 「H100 2대를 3개월」 같은 모양이 수량 2·단위 대·기간 3 MONTH 로 통과한다는 단정
+- 못 읽으면 둘 다 null 이다 (0 이나 1 로 눕히지 않는다)
+- 단위 말 읽기(개월·months·3개월)는 파일 길과 **같은 코드**를 쓴다 — 두 벌로 적으면 한쪽만 고쳐져 같은 말이 두 길에서 다르게 읽힌다
+- 지시에 「수량 칸의 숫자를 기간으로 적지 마라」와 「모르면 null」이 들어 있다
+- 판 번호를 올린다 — 지시를 바꿨는데 판이 그대로면 무엇이 도는지 알 수 없다
+의존: 없음
+
+### I02 파일에서 원가로 갈 때 기간이 따라간다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/crm/domain/quote-cost-intake.ts, apps/web/lib/crm/domain/quote-cost-intake.test.ts, apps/web/lib/crm/services/cost-copy-paths.test.ts, apps/web/components/ui/crm/QuoteFromFileModal.tsx
+감사 기준:
+- toCostPayloads 가 durationValue·durationUnit 을 들고 간다 — 값이 가는지로 보는 단정
+- 그 길을 **스키마를 세는 가드**가 본다. P0117 에서 만든 cost-copy-paths 가드가 이 자리를 안 보고 있었다(실측) — 세는 자리를 늘린다
+- 가드를 일부러 깨 실패를 확인하고 근거를 pass 노트에 적는다
+- 17대 2개월짜리 원가가 2개월치로 들어가 마진율이 두 배로 거짓이 되지 않는다는 단정
+의존: 없음
+
+### I03 실제 원본 파일로 읽기를 돌린다
+상태: 대기
+모드: 경량
+범위: apps/web/e2e/crm-quote-duration.spec.ts
+감사 기준:
+- 사용자가 보여 준 원본과 같은 모양(수량 17 · 단가 936,000 · 약정 기간 2개월)의 파일을 올려 읽기를 돌린다
+- 읽은 결과가 검수 목록에 수량 17 · 단위 대 · 기간 2개월로 뜨거나, AI 한도·키 때문에 못 돌렸으면 **못 돌렸다고 적는다**
+- 돌아간 경우 만든 것은 id 로 영구삭제해 저장소에 찌꺼기를 안 남긴다
+의존: I01, I02
+
+## 종합 감사
+- (전 항목 통과 후 기록)
+
+## 변경 이력
+- v0.1.0 (2026-10-06) 최초 작성 (ins_0205)

@@ -14,7 +14,7 @@
 import type { AiPrompt } from '../runner.ts'
 
 export const QUOTE_DRAFT_V1: AiPrompt = {
-  version: 'quote_draft@v1.2.0',
+  version: 'quote_draft@v1.3.0',
   build: (input: string) => `당신은 영업 담당자의 말을 견적 항목으로 옮기는 도구다.
 「H100 2대 3개월, 20% 할인」처럼 말하거나, 메일 문단을 통째로 붙여넣는다.
 
@@ -32,6 +32,11 @@ export const QUOTE_DRAFT_V1: AiPrompt = {
   · PERIOD  기간 × 월단가 (구독·유지보수)  · FIXED  일식 (묶어서 얼마)
   · RATIO   다른 줄의 몇 % (관리비 등)     · DISCOUNT 할인 줄
   모르겠으면 null 을 준다 — QUANTITY 로 눕히지 마라.
+- **「얼마 동안」은 수량과 다른 축이다.** 「H100 2대를 3개월」이면
+  quantity 2 · unit "대" · durationValue 3 · durationUnit "MONTH" 다.
+  **수량 칸의 숫자를 기간으로 적지 마라.** 「2대」는 두 대이지 두 달이 아니다.
+  단위는 HOUR·DAY·MONTH·YEAR 넷뿐이고, 기간을 안 말했으면 **둘 다 null** 이다(지어내지 마라).
+  「6개월 약정」·「1년 계약」·「두 달 빌려」처럼 말한 것만 적는다.
 - 할인은 둘을 구분한다: 늘 들어가는 것은 discountPercent, 「이번 건만」·「특별히」라고
   말한 것은 specialDiscountPercent 다.
 - **한 항목 밑에 구성이 여러 줄 딸려 오면 버리지 마라.** 표를 통째로 붙여넣으면
