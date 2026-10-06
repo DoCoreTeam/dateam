@@ -108,7 +108,7 @@
 의존: I05
 
 ### I07 좁은 폭에서 칸 둘이 늘어도 안 접힌다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ui/quote-layout.test.ts, apps/web/components/ui/crm/quote-panel.module.css
 감사 기준:
