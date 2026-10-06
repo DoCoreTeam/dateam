@@ -24,7 +24,7 @@ import {
 import {
   computePeriod, hourlyFromTotal, monthsFromHours, DEFAULT_HOURS_PER_MONTH,
 } from '@/lib/crm/domain/quote-rate'
-import { LINE_KIND_UNIT } from '@/lib/terms/cost'
+import { DURATION_UNIT_LABEL } from '@/lib/terms'
 import styles from './quote-panel.module.css'
 
 export interface QuoteTotalsProps {
@@ -160,7 +160,8 @@ export default function QuoteTotals({
     if (ratePeriod) return hourlyAt(hours)
     if (rateHours) {
       const m = monthsFromHours(rateHours, hours)
-      return m == null ? HOURS_BASIS_NO_MONTHS : `${m}${LINE_KIND_UNIT.PERIOD}`
+      // 「개월」은 기간 단위 표의 말이다 — 종류의 기본 단위를 빌리면 그 뜻이 바뀔 때 같이 틀어진다
+      return m == null ? HOURS_BASIS_NO_MONTHS : `${m}${DURATION_UNIT_LABEL.MONTH}`
     }
     /*
       **줄마다 근거가 다르면 한 숫자를 적을 수 없다.** 그래도 빈칸으로 두면 안 된다 —

@@ -27,13 +27,26 @@ export const LINE_KIND_LABEL: Record<QuoteLineKind, string> = {
 export const LINE_KIND_ORDER: readonly QuoteLineKind[] =
   ['QUANTITY', 'EFFORT', 'PERIOD', 'USAGE', 'LICENSE', 'RATIO']
 
-/** 종류마다 「수량」 칸이 뜻하는 것이 다르다 — 라벨이 같으면 사람이 잘못 넣는다 */
+/**
+ * 종류마다 「수량」 칸이 뜻하는 것이 다르다 — 라벨이 같으면 사람이 잘못 넣는다.
+ *
+ * **기간요금의 수량은 「개월」이 아니다**(2026-10-06). 곱하는 축이 하나뿐이던 때는
+ * 기간을 적으려면 수량 칸을 내줘야 했고 그래서 그 라벨이 「개월」이었다.
+ * 이제 기간은 **자기 칸**이 있다 — 그 줄의 수량은 다시 「몇 개」를 뜻한다.
+ *
+ * 그대로 두면 라벨이 거짓말을 한다: 실브라우저에서 17대짜리 줄이 기간요금으로 읽히자
+ * 화면이 **「개월 17」**이라고 적었다. 값은 17대인데 라벨이 열일곱 달이라고 말한 것이다.
+ */
 export const LINE_KIND_QUANTITY_LABEL: Record<QuoteLineKind, string> = {
+  /*
+    사용량은 그대로 「사용량」이다. 「1,440 Hours」처럼 **수량 칸이 곧 시간**인 줄이
+    아직 살아 있고(실측 3줄), 그 줄에서는 수량이 정말 사용량이다.
+  */
   USAGE: '사용량',
   QUANTITY: '수량',
   EFFORT: 'M/M',
   LICENSE: '사용자 수',
-  PERIOD: '개월',
+  PERIOD: '수량',
   RATIO: '—',
 }
 
@@ -47,13 +60,22 @@ export const LINE_KIND_PRICE_LABEL: Record<QuoteLineKind, string> = {
   RATIO: '—',
 }
 
-/** 기본 단위 — 사람이 매번 치지 않게 */
+/**
+ * 기본 단위 — 사람이 매번 치지 않게.
+ *
+ * **기간요금의 기본 단위도 「개월」이 아니다**(2026-10-06). 개월은 이제 기간 칸이 말하고,
+ * 이 칸은 「몇 개를」을 말한다. 「식」으로 두는 이유: 기간으로 파는 것은 보통
+ * 묶음 하나(유지보수 한 식 · 운영 한 식)를 그 기간만큼 파는 모양이다.
+ *
+ * 사용량의 h 는 **그대로 둔다** — 수량 칸이 곧 시간인 줄이 아직 살아 있고,
+ * 그 줄에서 h 를 빼면 총 시간을 셀 근거가 사라진다(`hoursFromQuantity`).
+ */
 export const LINE_KIND_UNIT: Record<QuoteLineKind, string> = {
   USAGE: 'h',
   QUANTITY: '식',
   EFFORT: 'M/M',
   LICENSE: 'User',
-  PERIOD: '개월',
+  PERIOD: '식',
   RATIO: '%',
 }
 
@@ -82,7 +104,7 @@ export const LINE_KIND_HINT: Record<QuoteLineKind, string> = {
   QUANTITY: '개수 × 단가. 장비·라이선스 매입처럼 셀 수 있는 것',
   EFFORT: '역할과 등급을 정하고 공수(M/M)를 곱합니다. SI·개발 인력',
   LICENSE: '사용자 수 × 단가. 기간이 붙으면 기간요금과 함께 씁니다',
-  PERIOD: '월 단가 × 개월. 운영·유지보수처럼 기간으로 파는 것',
+  PERIOD: '월 단가 × 기간. 운영·유지보수처럼 기간으로 파는 것. 개월은 기간 칸에 적습니다',
   RATIO: '다른 항목의 몇 %. 관리비·기술지원료처럼 붙는 것',
 }
 

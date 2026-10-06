@@ -442,6 +442,9 @@ test('★ 비고 칸은 띄어쓰기 없는 긴 값도 칸 안에서 접는다',
 const DRAFT_SHAPE = read('components/ui/crm/quote-draft-shape.ts')
 const XLSX = read('lib/crm/services/quote-xlsx.ts')
 
+// 종류별 라벨은 값이라 **실제로 읽어** 본다 — 소스를 훑는 가드는 주석의 같은 글자에 속는다
+import { LINE_KIND_QUANTITY_LABEL, LINE_KIND_UNIT } from '../terms/cost.ts'
+
 test('★ 편집 모달이 표시 선택 넷을 저장 몸통에 싣는다 — 안 실으면 고른 것이 저장하는 순간 사라진다', () => {
   // 끝 표시를 **이 저장에만 있는 글자**로 잡는다 — 「await fetch」는 이 파일에 여럿이다
   const body = MODAL.slice(MODAL.indexOf('const payload = {'), MODAL.indexOf('const res = await fetch(isEdit'))
@@ -833,4 +836,36 @@ test('★ 기간이 수량 칸에 있는 옛 줄에 안내가 선다 — 「틀�
   const m = PANEL.match(/\.axisHint \{[^}]*\}/)
   assert.ok(m, '.axisHint 스타일이 없다')
   assert.ok(!/danger|error|warn/i.test(m[0]), '경고색을 썼다 — 그 줄의 금액은 맞다')
+})
+
+test('★ 기간요금 줄의 수량 라벨이 「개월」이 아니다 — 값이 17대인데 라벨이 열일곱 달이라고 말했다', () => {
+  /*
+    실측 2026-10-06(실브라우저): 17대짜리 줄이 기간요금으로 읽히자 화면이 「개월 17」이라고 적었다.
+    곱하는 축이 하나뿐이던 때는 기간을 적으려면 수량 칸을 내줘야 했고 그래서 그 라벨이 「개월」이었다.
+    이제 기간은 자기 칸이 있으므로 그 줄의 수량은 다시 「몇 개」를 뜻한다.
+  */
+  assert.notEqual(LINE_KIND_QUANTITY_LABEL.PERIOD, '개월',
+    '기간요금의 수량 라벨이 아직 「개월」이다 — 라벨이 값과 다른 말을 한다')
+  assert.notEqual(LINE_KIND_UNIT.PERIOD, '개월',
+    '기간요금의 기본 단위가 아직 「개월」이다 — 기간 칸을 비워 둔 줄이 「17 개월」로 저장된다')
+
+  // 사용량의 h 는 **그대로여야 한다** — 수량 칸이 곧 시간인 줄이 살아 있다
+  assert.equal(LINE_KIND_UNIT.USAGE, 'h',
+    '사용량의 기본 단위를 바꾸면 「1,440 Hours」 줄이 총 시간을 셀 근거를 잃는다')
+})
+
+test('★ 「개월」이라는 말은 기간 단위 표에서 온다 — 종류의 기본 단위를 빌리지 않는다', () => {
+  /*
+    **주석을 벗기고 본다.** 이 저장소는 「왜 그랬는지」를 주석에 길게 남기므로
+    지운 이름이 설명 안에 그대로 남는다 — 안 벗기면 **설명을 잘 적을수록 가드가 빨개진다.**
+    CSS 쪽에서 쓰는 strip 과 같은 생각이고, 거기서는 반대 방향으로 속았다(설명이 통과시켰다).
+  */
+  const stripTs = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  const text = stripTs(read('lib/crm/domain/quote-rate-text.ts'))
+  const totals = stripTs(read('components/ui/crm/QuoteTotals.tsx'))
+  for (const [name, src] of [['환산 글', text], ['합계 환산', totals]] as const) {
+    assert.ok(!/LINE_KIND_UNIT\.PERIOD/.test(src),
+      `${name} 이 종류의 기본 단위를 「개월」로 빌려 쓴다 — 그 칸의 뜻이 바뀌면 같이 틀어진다`)
+    assert.match(src, /DURATION_UNIT_LABEL\.MONTH/, `${name} 이 기간 단위 표를 안 쓴다`)
+  }
 })

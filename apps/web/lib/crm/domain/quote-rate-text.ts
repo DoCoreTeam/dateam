@@ -20,7 +20,11 @@ import {
   TOTAL_CONV_ORDER, TOTAL_CONV_LABEL, APPROX_PREFIX, QUOTE,
   DURATION_UNIT_LABEL,
 } from '../../terms/quote.ts'
-import { LINE_KIND_UNIT } from '../../terms/cost.ts'
+/*
+  **「개월」이라는 말은 기간 단위 표에서 온다.** 예전에는 기간요금 종류의 기본 단위를
+  빌려 썼는데(`LINE_KIND_UNIT.PERIOD`), 그 칸은 이제 「몇 개를」을 말한다 —
+  빌린 말이 뜻을 바꾸자 환산 글이 「999,360원 × 2식」이 됐다(2026-10-06).
+*/
 import { hoursFromQuantity } from './quote-rate.ts'
 import type { DocumentLine, DocumentTotalConv } from './quote-document.ts'
 
@@ -159,7 +163,7 @@ export function axisTexts(
     }
     if (k === 'monthly' && r.monthlyMinor && r.months) {
       const m = approxText(r.monthlyMinor, r.months, line.amountMinor, money)
-      if (m) out.push({ key: k, label: RATE_AXIS_LABEL.monthly, body: `${m} × ${r.months}${LINE_KIND_UNIT.PERIOD}` })
+      if (m) out.push({ key: k, label: RATE_AXIS_LABEL.monthly, body: `${m} × ${r.months}${DURATION_UNIT_LABEL.MONTH}` })
     }
     if (k === 'hourly' && r.hourlyMinor && r.totalHours) {
       const h = `${r.hourlyExact ? '' : `${APPROX_PREFIX} `}${money(r.hourlyMinor)}`
@@ -224,7 +228,7 @@ export function convTexts(
       const a = approxText(conv.monthlyMinor, conv.months, lineSumMinor, money)
       if (a) out.push({
         key: k, label: TOTAL_CONV_LABEL.monthly, amount: a,
-        basis: [`${conv.months}${LINE_KIND_UNIT.PERIOD}`],
+        basis: [`${conv.months}${DURATION_UNIT_LABEL.MONTH}`],
       })
     }
     if (k === 'hourly' && conv.hourlyMinor && conv.totalHours) {
