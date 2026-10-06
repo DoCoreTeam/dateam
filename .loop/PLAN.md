@@ -44,7 +44,7 @@
 의존: 없음
 
 ### I02 파일에서 원가로 갈 때 기간이 따라간다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/domain/quote-cost-intake.ts, apps/web/lib/crm/domain/quote-cost-intake.test.ts, apps/web/lib/crm/services/cost-copy-paths.test.ts, apps/web/components/ui/crm/QuoteFromFileModal.tsx
 감사 기준:

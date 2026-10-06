@@ -544,6 +544,9 @@ export default function QuoteFromFileModal({
               kind: r.lines[i].kind,
               quantity: r.lines[i].quantity,
               unit: r.lines[i].unit,
+              // 「얼마 동안」 — 안 넘기면 원가가 한 달치로 보이고 마진율이 두 배로 거짓이 된다
+              durationValue: r.lines[i].durationValue,
+              durationUnit: r.lines[i].durationUnit,
               unitPriceMinor: r.lines[i].unitPriceMinor,
               remark: r.lines[i].remark,
               sourceText: r.sources[i],

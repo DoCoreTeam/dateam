@@ -40,6 +40,15 @@ export interface IntakeLine {
   quantity?: string | null
   /** 단위(대·EA·M/M·개월) */
   unit?: string | null
+  /**
+   * **「얼마 동안」 — 수량과 곱해지는 다른 축.**
+   *
+   * 여기서 떨어뜨리면 매출은 두 달치인데 원가는 한 달치가 되어 **마진율이 두 배로 거짓**이 된다.
+   * 금액 자체(`amountMinor`)는 두 달치 그대로 오므로 합계는 맞는데, 「몇 대에 얼마였나」를
+   * 다시 열어 볼 때 기간이 없어 그 금액을 설명할 수 없다.
+   */
+  durationValue?: string | null
+  durationUnit?: string | null
   /** 단가. `currency` 기준 minor 문자열 */
   unitPriceMinor?: string | null
   /** 비고 — 견적서 표 맨 오른쪽 열 */
@@ -69,6 +78,9 @@ export interface CostPayload {
   kind: QuoteLineKind | null
   quantity: string | null
   unit: string | null
+  /** 「얼마 동안」 — 견적 줄·원가 줄과 **같은 이름**이다. 이름이 다르면 옮길 때 매핑이 또 생긴다 */
+  durationValue: string | null
+  durationUnit: string | null
   unitPriceMinor: string | null
   descriptionMd: string | null
   remark: string | null
@@ -190,6 +202,13 @@ export function toCostPayloads(
       kind: normalizeKind(l.kind),
       quantity: keepOrNull(l.quantity),
       unit: keepOrNull(l.unit),
+      /*
+        **기간도 넘긴다.** 수량과 단위만 넘기면 원가 줄이 「17대 × 936,000원」으로 보이는데
+        금액은 두 달치라, 그 줄을 다시 읽는 사람이 단가를 설명할 수 없다.
+        그리고 원가를 견적으로 되옮길 때 기간이 없어 **매출만 두 달치**가 된다.
+      */
+      durationValue: keepOrNull(l.durationValue),
+      durationUnit: keepOrNull(l.durationUnit),
       unitPriceMinor: keepOrNull(l.unitPriceMinor),
       descriptionMd: (l.descriptionMd ?? '').trim() || null,
       remark: keepOrNull(l.remark),

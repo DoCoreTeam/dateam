@@ -422,3 +422,36 @@ test('★ 가져오기 창이 통화와 줄 칸을 넘긴다 — 받아 놓고 �
     assert.ok(src.includes(f), `${f} 를 안 넘긴다`)
   }
 })
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 — 파일에서 원가로 들어올 때
+
+   금액(amountMinor)만 맞으면 합계는 맞으므로 **화면에서 아무 일도 안 일어난다.**
+   그래서 기간이 빠져도 모르고, 「몇 대에 얼마였나」를 다시 열어 볼 때야 빈 것을 안다.
+   그 상태로 원가를 견적으로 되옮기면 매출만 두 달치가 되어 마진이 거꾸로 선다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+test('★ 파일에서 읽은 기간이 원가 줄로 그대로 간다', () => {
+  const [p] = toCostPayloads([{
+    name: 'RTX5090 임대', amountMinor: '31824000', currency: 'KRW',
+    kind: 'QUANTITY', quantity: '17', unit: '대',
+    durationValue: '2', durationUnit: 'MONTH',
+    unitPriceMinor: '936000', sourceText: '17 ₩936,000',
+  }], { category: 'MATERIAL', stage: 'ESTIMATE', fileName: 'x.pdf' })
+
+  assert.equal(p.durationValue, '2')
+  assert.equal(p.durationUnit, 'MONTH')
+  assert.equal(p.quantity, '17')
+  assert.equal(p.unit, '대')
+  // 금액은 두 달치 그대로다 — 기간을 곱하지 않는다(문서가 이미 곱한 값을 적었다)
+  assert.equal(p.amountMinor, '31824000')
+})
+
+test('★ 기간을 못 읽은 줄은 null 이다 — 0 이나 1 로 눕히지 않는다', () => {
+  const [p] = toCostPayloads([{
+    name: '설치비', amountMinor: '500000', currency: 'KRW',
+    kind: 'QUANTITY', quantity: '1', unit: '식', unitPriceMinor: '500000', sourceText: 'x',
+  }], { category: 'MATERIAL', stage: 'ESTIMATE', fileName: 'x.pdf' })
+  assert.equal(p.durationValue, null)
+  assert.equal(p.durationUnit, null)
+})
