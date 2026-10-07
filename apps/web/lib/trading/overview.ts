@@ -121,6 +121,33 @@ export type {
 export { isDayComplete, missingCount, isSignalActionable } from './overview-shape.ts'
 
 /** 오늘부터 거슬러 며칠을 보나. 1-A 완료 기준이 5거래일이라 주말을 감안해 넉넉히 */
+/**
+ * 오늘 이 월물에 붙은 거래량 합(계약). **못 읽으면 null**
+ *
+ * 0 으로 돌려주면 「한 계약도 안 붙었다」가 되고, 그것은 못 읽은 것과 다른 사실이다 —
+ * 화면이 둘을 같은 말로 적으면 조회가 막힌 날이 「거래가 없는 날」로 읽힌다.
+ */
+async function todayVolumeOf(contractCode: string, now: Date): Promise<number | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const dayStart = new Date(`${seoulToday(now)}T00:00:00+09:00`)
+  const { data, error } = await admin
+    .from('trading_bars')
+    .select('volume')
+    .eq('contract_code', contractCode)
+    .eq('tf', '1m')
+    .gte('bar_start_at', dayStart.toISOString())
+    /*
+      하루는 1분봉이 아무리 많아도 1,440 개다. 상한을 적어 두지 않으면 조회 쪽 기본 상한에
+      걸려 **조용히 덜 센다** — 덜 센 거래량은 틀린 숫자이고, 틀린 숫자는 없는 것보다 나쁘다
+    */
+    .limit(1500)
+  if (error) return null
+  const rows = (data ?? []) as { volume?: number }[]
+  if (rows.length === 0) return null
+  return rows.reduce((sum, row) => sum + (Number(row.volume) || 0), 0)
+}
+
 const LOOKBACK_DAYS = 10
 
 function seoulToday(now: Date): string {
@@ -167,11 +194,24 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
     **고르는 규칙은 여기 없다.** 화면이 월물 표를 직접 읽던 동안 크론은 그날 굳힌 값을
     모으고 있었고, 둘이 갈라진 날 화면은 크론이 쌓은 봉을 못 찾았다(실측 2026-10-02).
   */
-  const contract: ContractHead | null = await loadTodayContractHead(
+  const head = await loadTodayContractHead(
     String(values.front_contract_code_override ?? ''),
     now,
   )
-  const contractCode = contract?.code ?? null
+  const contractCode = head?.code ?? null
+
+  /*
+    **머리글이 이 월물이 얼마나 거래되는지를 함께 말한다** (실측 2026-10-07).
+    화면이 11월물을 그리는 동안 거래는 10월물에 있었고 그 차이가 22배였는데,
+    화면에는 월물 이름만 떠 있어 사용자가 자기 증권사 화면과 견주고서야 알았다.
+  */
+  const contract: ContractHead | null = head === null ? null : {
+    code: head.code,
+    root: head.root,
+    expiryMonth: head.expiryMonth,
+    todayVolume: await todayVolumeOf(head.code, now),
+    exchangeFrontCode: head.exchangeFrontCode,
+  }
 
   const days = dateRange(addKstDays(today, -(LOOKBACK_DAYS - 1)), today)
 

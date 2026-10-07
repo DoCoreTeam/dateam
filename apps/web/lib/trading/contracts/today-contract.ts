@@ -28,6 +28,12 @@ export interface TodayContractHead {
   /** 만기월 `YYYY-MM`. 표에 그 코드가 없으면 null */
   expiryMonth: string | null
   source: FrontPick['source']
+  /**
+   * 월물 표가 근월물로 표시한 코드. 우리가 보는 것과 다를 수 있다 —
+   * 교체 기한이 거래가 아직 안 넘어온 월물을 먼저 집는 날이 그렇다(실측 2026-10-07).
+   * 못 읽었으면 null
+   */
+  exchangeFrontCode: string | null
 }
 
 /** 월물 표의 근월물 한 줄. `is_front` 를 읽는 자리는 이 파일 안뿐이다 */
@@ -116,5 +122,10 @@ export async function loadTodayContractHead(
     root: joined?.root ?? null,
     expiryMonth: row?.expiry_month ?? null,
     source: pick.source,
+    /*
+      **보는 월물과 표가 말하는 근월물을 함께 돌려준다.** 화면이 둘을 견주려면 둘이 필요하고,
+      `is_front` 를 읽는 자리는 이 파일 안뿐이라는 규율도 지켜야 한다
+    */
+    exchangeFrontCode: await frontCodeFromTable(),
   }
 }
