@@ -10,6 +10,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { loadTradingSettings } from '../settings/store.ts'
+import { numberDefault } from '../settings/registry.ts'
 import { loadBarsAsOf } from '../bars/store.ts'
 import { planWalkForward, checkOrder } from '../backtest/windows.ts'
 import { runBacktest, type BacktestParams } from '../backtest/run.ts'
@@ -480,7 +481,7 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
       minLockboxTrades: num('gate_min_lockbox_trades', 100),
       minProfitFactor: num('gate_min_profit_factor', 1.25),
       maxDrawdownLimitMultiple: num('gate_max_drawdown_multiple', 8),
-      dailyLossLimitKrw: num('daily_loss_limit_krw', 0),
+      dailyLossLimitKrw: num('daily_loss_limit_krw', numberDefault('daily_loss_limit_krw')),
       minJudgeImprovementR: num('gate_min_judge_improvement_r', 0.05),
     },
     validateTradeCount: validateTrades.length,
@@ -493,7 +494,8 @@ export async function runValidation(input: ValidationInput): Promise<ValidationR
     riskPerTradeKrw: typicalRisk.riskPerTradeKrw,
     calibration: calibrationVerdict,
     judgeComparison: comparison,
-    riskArithmeticOk: num('daily_loss_limit_krw', 0) >= typicalRisk.riskPerTradeKrw,
+    riskArithmeticOk: num('daily_loss_limit_krw', numberDefault('daily_loss_limit_krw'))
+      >= typicalRisk.riskPerTradeKrw,
   })
   progress.done += 1
   progress.currentLabel = null

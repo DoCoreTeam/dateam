@@ -220,7 +220,7 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     key: 'rollover_days_before_last',
     group: 'instrument',
     label: '월물 교체 기한',
-    help: '거래량이 안 넘어와도 만기 이만큼 전에는 다음 월물로 바꿉니다. 교체는 거래량이 정하고 이 값은 만기를 피하는 마지막 보루입니다',
+    help: '교체는 거래량이 정합니다. 안 넘어와도 만기 이만큼 전에는 바꿉니다',
     type: 'number',
     /*
       **3 이면 거래가 안 넘어온 월물로 이틀을 보낸다.** 실측 2026-10-07: 10-05 자정에

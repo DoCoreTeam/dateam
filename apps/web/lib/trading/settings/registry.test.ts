@@ -24,6 +24,7 @@ import {
 import { AI_PROVIDERS, openAiCompatibleBaseUrl, type AiProviderId } from '../../ai/provider-catalog.ts'
 import { pickEffective } from './pick-effective.ts'
 import { TRADING_GROUP_LABEL } from './labels.ts'
+import { stripComments } from '../../ui/component-scan.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const TRADING_DIR = join(HERE, '..')
@@ -484,13 +485,65 @@ test('★ 월물 교체 기한 기본값이 1 거래일이다 — 3 이면 거�
   assert.equal(numberDefault('rollover_days_before_last'), 1)
 })
 
-test('기한은 거래량이 정하는 교체의 마지막 보루라고 말한다 — 화면이 「이것이 규칙」으로 읽히지 않게', () => {
+test('기한이 교체를 정하는 것이 아니라고 말한다 — 화면이 「이것이 규칙」으로 읽히지 않게', () => {
   const help = tradingSetting('rollover_days_before_last')?.help ?? ''
-  assert.match(help, /거래량/, '무엇이 교체를 정하는지 안 말한다')
-  assert.match(help, /보루|마지막/, '이 값이 예외라는 것을 안 말한다')
+  assert.match(help, /거래량이 정/, '무엇이 교체를 정하는지 안 말한다')
+  assert.match(help, /만기/, '이 값이 언제 쓰이는지 안 말한다')
 })
 
 test('숫자가 아닌 설정의 기본값을 물으면 던진다 — 조용한 0 이 한도나 기한이 되지 않게', () => {
   assert.throws(() => numberDefault('kis_env'))
   assert.throws(() => numberDefault('없는_키'))
+})
+
+/**
+ * **코드에 적힌 기본값이 레지스트리와 다르면 화면이 거짓말한다.**
+ *
+ * 설정을 읽는 자리는 대개 `num('key', 숫자)` 꼴로 못 읽었을 때 쓸 값을 함께 적는다.
+ * 그 숫자가 레지스트리와 다르면, 저장된 값이 없는 환경에서 **화면이 말하는 값과
+ * 판단이 쓰는 값이 갈린다.** 위의 「같은 이름의 상수」 가드는 `const KEY = 1` 만 보고
+ * 이 꼴은 못 봤다.
+ *
+ * 실측 2026-10-07에 셋이 걸렸다 — `daily_loss_limit_krw` 는 레지스트리 500,000 인데 코드가 0,
+ * `daily_target_krw` 는 300,000 인데 0, `rollover_days_before_last` 는 1 인데 3.
+ * 손실 한도가 0 으로 도는 것과 50만원으로 도는 것은 완전히 다른 시스템이다.
+ *
+ * **값이 같은 자리는 안 잡는다.** 지금 54곳이 레지스트리와 같은 숫자를 또 적고 있고,
+ * 그것은 군더더기이지 거짓말은 아니다. 이 가드가 막는 것은 **갈리는 것**이다.
+ */
+test('★ 코드가 적은 숫자 기본값이 레지스트리와 안 갈린다', () => {
+  const numberDefaults = new Map<string, number>()
+  for (const setting of TRADING_SETTINGS) {
+    if (typeof setting.defaultValue === 'number') numberDefaults.set(setting.key, setting.defaultValue)
+  }
+  assert.ok(numberDefaults.size > 50, `숫자 설정을 ${numberDefaults.size}개밖에 못 읽었다`)
+
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry)
+      if (statSync(full).isDirectory()) { walk(full); continue }
+      if (!entry.endsWith('.ts') || entry.endsWith('.test.ts')) continue
+      // 값을 선언하는 자리는 레지스트리 하나뿐이다. 거기 적힌 숫자는 정의이지 사본이 아니다
+      if (full === join(HERE, 'registry.ts')) continue
+      files.push(full)
+    }
+  }
+  walk(TRADING_DIR)
+
+  const offenders: string[] = []
+  for (const file of files) {
+    // **주석을 먼저 걷는다.** 설명 글에 적은 옛 숫자까지 세면 코드를 고쳐도 가드가 안 풀린다
+    const src = stripComments(readFileSync(file, 'utf8'))
+    for (const m of src.matchAll(/\(\s*'([a-z_0-9]+)'\s*,\s*(-?[\d_]+(?:\.\d+)?)\s*\)/g)) {
+      const expected = numberDefaults.get(m[1])
+      if (expected === undefined) continue
+      const written = Number(m[2].replace(/_/g, ''))
+      if (written !== expected) {
+        offenders.push(`${file.slice(TRADING_DIR.length + 1)}: ${m[1]} 코드=${written} 레지스트리=${expected}`)
+      }
+    }
+  }
+  assert.deepEqual(offenders, [],
+    `레지스트리와 다른 기본값을 적은 자리가 있다. numberDefault('키') 로 읽는다:\n${offenders.join('\n')}`)
 })

@@ -597,7 +597,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
          * 평가를 섞으면 들고 있는 것이 오르내릴 때마다 새 신호가 멈췄다 풀렸다 한다.
          */
         unrealizedKrw: null,
-        dailyTargetKrw: num('daily_target_krw', 0),
+        dailyTargetKrw: num('daily_target_krw', numberDefault('daily_target_krw')),
         /**
          * 직전 실행들이 실패 중이었나 (§10 복구 대조).
          *
@@ -942,7 +942,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
       openPositionRiskKrw: folded.open
         ? (plan
           ? Math.abs(folded.open.avgPrice - plan.stopPrice) * instrument.multiplier * folded.open.quantity
-          : num('daily_loss_limit_krw', 0))
+          : num('daily_loss_limit_krw', numberDefault('daily_loss_limit_krw')))
         : 0,
       frontLastTradingDay, previousFrontCode,
     })
@@ -1177,7 +1177,7 @@ async function emitOrExplain(ctx: any): Promise<string> {
         minEnterNowProb: num('signal_min_enter_now_prob', 0.55),
         openingBlockMinutes: num('signal_opening_block_minutes', 5),
         closingBlockMinutes: num('signal_closing_block_minutes', 30),
-        dailyTargetKrw: num('daily_target_krw', 0),
+        dailyTargetKrw: num('daily_target_krw', numberDefault('daily_target_krw')),
         cooldownAfterLosses: num('signal_cooldown_after_losses', 2),
         cooldownMinutes: num('signal_cooldown_minutes', 60),
         maxSignalsPerDay: num('signal_max_per_day', 6),
@@ -1199,7 +1199,7 @@ async function emitOrExplain(ctx: any): Promise<string> {
          * 그 손실과 겹쳐 한도를 넘는다.
          */
         remainingLossBudgetKrw: Math.max(0, remainingLossBudget({
-          dailyLossLimitKrw: num('daily_loss_limit_krw', 0),
+          dailyLossLimitKrw: num('daily_loss_limit_krw', numberDefault('daily_loss_limit_krw')),
           realizedLossKrw: Math.max(0, -ctx.realizedToday),
           openPositionRiskKrw: ctx.openPositionRiskKrw ?? 0,
         })),

@@ -17,6 +17,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { evaluateGate } from '../gate/criteria.ts'
+import { numberDefault } from '../settings/registry.ts'
 import { pickPendingEntry, seoulDaysOf, PLACED_STATUSES, BLOCKING_FALLBACK } from './pending-core.ts'
 import type { ArmContext, ArmEnv } from './arming-policy.ts'
 
@@ -116,7 +117,15 @@ export async function loadGateVerdict(
   const sumBy = (kind: string) => rows
     .filter((r) => r.window_kind === kind)
     .reduce((acc, r) => acc + Number(r.trade_count ?? 0), 0)
-  const num = (key: string, fallback: number) => Number(values[key]) || fallback
+  /*
+    **`||` 는 0 을 「없음」으로 읽는다.** 일일 손실 한도는 `min: 0` 이라 관리자가 0 을 넣을 수 있고,
+    그 0 이 조용히 기본값으로 바뀌면 화면이 말하는 한도와 관문이 쓰는 한도가 갈린다.
+    숫자인지만 본다 — 못 읽은 것과 0 은 다른 사실이다
+  */
+  const num = (key: string, fallback: number) => {
+    const value = Number(values[key])
+    return Number.isFinite(value) ? value : fallback
+  }
 
   const verdict = evaluateGate({
     thresholds: {
@@ -124,7 +133,7 @@ export async function loadGateVerdict(
       minLockboxTrades: num('gate_min_lockbox_trades', 100),
       minProfitFactor: num('gate_min_profit_factor', 1.25),
       maxDrawdownLimitMultiple: num('gate_max_drawdown_multiple', 8),
-      dailyLossLimitKrw: num('daily_loss_limit_krw', 0),
+      dailyLossLimitKrw: num('daily_loss_limit_krw', numberDefault('daily_loss_limit_krw')),
       minJudgeImprovementR: num('gate_min_judge_improvement_r', 0.05),
     },
     validateTradeCount: sumBy('validate'),
@@ -162,7 +171,10 @@ export interface ArmContextInput {
  * 자동 주문이 열린다 — 그때가 가장 열면 안 되는 때다.
  */
 export async function loadArmContext(input: ArmContextInput): Promise<ArmContext> {
-  const num = (key: string, fallback: number) => Number(input.values[key]) || fallback
+  const num = (key: string, fallback: number) => {
+    const value = Number(input.values[key])
+    return Number.isFinite(value) ? value : fallback
+  }
   const [gate, paperDays, gateFails] = await Promise.all([
     loadGateVerdict(input.values).catch(() => BLOCKING_FALLBACK.gate),
     paperAutoDays().catch(() => BLOCKING_FALLBACK.paperAutoDays),
@@ -179,7 +191,7 @@ export async function loadArmContext(input: ArmContextInput): Promise<ArmContext
     reconciliationRequired: input.reconciliationRequired,
     gateFailCount: gateFails,
     riskPerTradeKrw: num('risk_per_trade_krw', 0),
-    dailyLossLimitKrw: num('daily_loss_limit_krw', 0),
+    dailyLossLimitKrw: num('daily_loss_limit_krw', numberDefault('daily_loss_limit_krw')),
     /**
      * 모의 실적의 순손익 하한. **아직 재는 코드가 없다** — 모의 자동 주문이 0일이라
      * 잴 표본 자체가 없기 때문이고, `null` 이면 A7 이 실계좌 무장을 막는다.
