@@ -32,6 +32,20 @@ export interface LiveWindow {
   reason: ClosedReason | null
   /** 다음에 열리는 때 (서울 벽시계 `HH:MM`). 읽는 중이면 null */
   nextOpenAt: string | null
+  /**
+   * 단일가 구간인가 (08:30~08:45, 15:35~15:45).
+   *
+   * **「안 읽는다」와 「안 잰다」는 다른 말이다.** 단일가에도 화면은 계속 다시 읽는다 —
+   * 그 구간에 체결이 붙으면 봉이 오기 때문이다. 다만 **안 와도 정상**이라 나이를 안 잰다.
+   *
+   * 실측 2026-10-07 15:44: 접속매매가 15:35 에 끝나 마지막 봉이 15:34 였는데,
+   * 화면이 「589초째 안 들어옵니다」를 빨갛게 적고 있었다. 장이 끝난 자리를 고장으로 적으면
+   * 사람은 그 빨간색을 안 믿게 되고, 정작 진짜로 안 오는 날 그 줄도 같이 흘려보낸다.
+   *
+   * 달력을 안 보므로 만기일(접속매매 15:20 종료)은 못 가른다. 그날 15:35~15:45 도
+   * 단일가로 치는데, 그 구간은 어차피 봉이 안 오는 시간이라 **덜 경고하는 쪽**이 맞다.
+   */
+  auction: boolean
 }
 
 function seoulDateKey(at: Date): string {
@@ -68,19 +82,33 @@ export function liveWindowAt(at: Date): LiveWindow {
   const inRegular = minutes >= toMinutes(REGULAR_TIMES.openAuctionStart)
     && minutes < toMinutes(REGULAR_TIMES.closeAuctionEnd)
 
+  /*
+    단일가 둘. 야간장에는 없다 — 밤에 이 판정을 켜면 봉이 진짜로 안 오는 밤이 조용해진다
+  */
+  const inOpenAuction = minutes >= toMinutes(REGULAR_TIMES.openAuctionStart)
+    && minutes < toMinutes(REGULAR_TIMES.continuousStart)
+  const inCloseAuction = minutes >= toMinutes(REGULAR_TIMES.continuousEnd)
+    && minutes < toMinutes(REGULAR_TIMES.closeAuctionEnd)
+
   if (weekend) {
     /*
       토요일 새벽은 금요일 밤에 시작한 야간장이 이어지는 중이다 —
       요일만 보고 자르면 살아 있는 장에서 화면이 멈춘다.
     */
-    if (inNight && minutes < nightEnd) return { live: true, reason: null, nextOpenAt: null }
-    return { live: false, reason: 'weekend', nextOpenAt: REGULAR_TIMES.openAuctionStart }
+    if (inNight && minutes < nightEnd) {
+      return { live: true, reason: null, nextOpenAt: null, auction: false }
+    }
+    return {
+      live: false, reason: 'weekend', nextOpenAt: REGULAR_TIMES.openAuctionStart, auction: false,
+    }
   }
-  if (inRegular || inNight) return { live: true, reason: null, nextOpenAt: null }
+  if (inRegular || inNight) {
+    return { live: true, reason: null, nextOpenAt: null, auction: inOpenAuction || inCloseAuction }
+  }
   // 정규장이 끝났고 야간장은 아직인 저녁, 또는 새벽에 야간장이 끝난 뒤
   return minutes >= toMinutes(REGULAR_TIMES.closeAuctionEnd)
-    ? { live: false, reason: 'after_close', nextOpenAt: NIGHT_TIMES.start }
-    : { live: false, reason: 'before_open', nextOpenAt: REGULAR_TIMES.openAuctionStart }
+    ? { live: false, reason: 'after_close', nextOpenAt: NIGHT_TIMES.start, auction: false }
+    : { live: false, reason: 'before_open', nextOpenAt: REGULAR_TIMES.openAuctionStart, auction: false }
 }
 
 /** 멈춘 자리에 적을 말. 화면이 고르지 않는다 */
@@ -143,11 +171,18 @@ export function barFreshness(input: {
   availableAt: string | null
   now: Date
   live: boolean
+  /**
+   * 단일가 구간인가 (`liveWindowAt().auction`). 그 구간에는 **안 잰다** —
+   * 접속매매가 끝나 봉이 안 오는 것이 정상인 시간이다 (실측 2026-10-07 15:44).
+   *
+   * 기본값을 안 둔다. 안 주고 부르는 자리가 있으면 그 자리는 여전히 거짓 경고를 낸다
+   */
+  auction: boolean
   /** 화면이 다시 읽는 간격(초). 문턱이 이 값을 타고 올라간다 */
   refreshSeconds: number
 }): BarFreshness {
-  const { availableAt, now, live } = input
-  if (!live || !availableAt) return { ageSeconds: null, late: false }
+  const { availableAt, now, live, auction } = input
+  if (!live || auction || !availableAt) return { ageSeconds: null, late: false }
   const at = Date.parse(availableAt)
   if (!Number.isFinite(at)) return { ageSeconds: null, late: false }
   const ageSeconds = Math.max(0, Math.floor((now.getTime() - at) / 1000))

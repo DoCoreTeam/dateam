@@ -125,6 +125,7 @@ test('도착 시각으로 재면 정상 범위가 0에서 60초다', () => {
       availableAt: arrived,
       now: new Date(Date.parse(arrived) + plusSec * 1000),
       live: true,
+      auction: false,
       refreshSeconds: 30,
     })
   assert.deepEqual(at(0), { ageSeconds: 0, late: false })
@@ -141,7 +142,9 @@ test('봉 시작 시각으로 재던 옛 셈법은 정상일 때도 60초를 넘
   const oldWay = Math.floor((now.getTime() - started) / 1000)
   assert.equal(oldWay, 133, '옛 셈법이 133초를 냈다')
   // 같은 순간을 도착 시각(01:23:04)으로 재면 69초다 — 아직 늦은 것이 아니다
-  const f = barFreshness({ availableAt: '2026-09-30T04:23:04.000Z', now, live: true, refreshSeconds: 30 })
+  const f = barFreshness({
+    availableAt: '2026-09-30T04:23:04.000Z', now, live: true, auction: false, refreshSeconds: 30,
+  })
   assert.equal(f.ageSeconds, 69)
   assert.equal(f.late, false)
 })
@@ -149,9 +152,9 @@ test('봉 시작 시각으로 재던 옛 셈법은 정상일 때도 60초를 넘
 test('장이 닫혀 있거나 값이 없으면 안 잰다 — 모르는 것을 고장이라 하지 않는다', () => {
   const now = new Date('2026-09-30T04:27:40.000Z')
   for (const input of [
-    { availableAt: '2026-09-30T04:27:04.000Z', now, live: false, refreshSeconds: 30 },
-    { availableAt: null, now, live: true, refreshSeconds: 30 },
-    { availableAt: 'broken', now, live: true, refreshSeconds: 30 },
+    { availableAt: '2026-09-30T04:27:04.000Z', now, live: false, auction: false, refreshSeconds: 30 },
+    { availableAt: null, now, live: true, auction: false, refreshSeconds: 30 },
+    { availableAt: 'broken', now, live: true, auction: false, refreshSeconds: 30 },
   ]) {
     const f = barFreshness(input)
     assert.equal(f.ageSeconds, null, JSON.stringify(input))
@@ -176,7 +179,60 @@ test('문턱이 다시 읽는 간격을 탄다 — 정상인 상태가 고장으
     availableAt: arrived,
     now: new Date(Date.parse(arrived) + 86_000),
     live: true,
+    auction: false,
     refreshSeconds: 30,
   })
   assert.equal(at86.late, false, '정상인 86초를 늦었다고 말한다')
+})
+
+
+/* ── 단일가 구간 (실측 2026-10-07 15:44) ── */
+
+/** 서울 벽시계로 평일 그 시각 */
+const weekdayAt = (hhmm: string) => new Date(`2026-10-07T${hhmm}:00+09:00`)
+
+test('★ 단일가 구간을 가린다 — 접속매매 전후로 봉이 안 오는 것은 정상이다', () => {
+  // 개장 전 단일가 08:30~08:45, 장 마감 단일가 15:35~15:45
+  assert.equal(liveWindowAt(weekdayAt('08:35')).auction, true)
+  assert.equal(liveWindowAt(weekdayAt('15:40')).auction, true)
+  // 접속매매 중과 야간장은 단일가가 아니다
+  assert.equal(liveWindowAt(weekdayAt('08:45')).auction, false)
+  assert.equal(liveWindowAt(weekdayAt('10:00')).auction, false)
+  assert.equal(liveWindowAt(weekdayAt('15:34')).auction, false)
+  assert.equal(liveWindowAt(weekdayAt('20:00')).auction, false)
+})
+
+test('★ 단일가에도 화면은 계속 다시 읽는다 — 「안 읽는다」와 「안 잰다」는 다른 말이다', () => {
+  assert.equal(liveWindowAt(weekdayAt('08:35')).live, true)
+  assert.equal(liveWindowAt(weekdayAt('15:40')).live, true)
+})
+
+/**
+ * 실측 2026-10-07 15:44. 접속매매는 15:35 에 끝났고 마지막 봉은 15:34 였는데
+ * 화면이 「마지막 1분봉 오후 03:34 · 589초째 안 들어옵니다」를 빨갛게 적고 있었다.
+ */
+test('★ 단일가에는 봉 나이를 안 잰다 — 장이 끝난 자리를 고장으로 적으면 빨간색이 닳는다', () => {
+  const arrived = '2026-10-07T06:34:04.000Z' // 15:34 봉이 15:34:04 에 도착
+  const f = barFreshness({
+    availableAt: arrived,
+    now: weekdayAt('15:44'),
+    live: true,
+    auction: true,
+    refreshSeconds: 30,
+  })
+  assert.equal(f.ageSeconds, null, '단일가인데 나이를 센다')
+  assert.equal(f.late, false, '단일가인데 늦었다고 말한다')
+})
+
+test('접속매매 중에는 지금처럼 잰다 — 가리는 범위가 장중으로 번지지 않게', () => {
+  const arrived = '2026-10-07T01:00:04.000Z' // 10:00 봉
+  const f = barFreshness({
+    availableAt: arrived,
+    now: new Date(Date.parse(arrived) + 600_000),
+    live: true,
+    auction: false,
+    refreshSeconds: 30,
+  })
+  assert.equal(f.ageSeconds, 600)
+  assert.equal(f.late, true, '장중에 10분 늦었는데 안 늦었다고 한다')
 })

@@ -123,6 +123,8 @@ export default function LiveRefresh({ everySeconds, lastBarAt, lastBarAvailableA
         availableAt: lastBarAvailableAt,
         now,
         live: w.live,
+        // 단일가에는 안 잰다. 봉이 안 오는 것이 정상인 구간을 빨갛게 적으면 그 색이 닳는다
+        auction: w.auction,
         // 문턱이 이 간격을 탄다 — 간격이 길면 정상 나이도 그만큼 길다
         refreshSeconds: everySeconds,
       })
