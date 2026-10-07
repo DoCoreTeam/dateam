@@ -199,21 +199,52 @@ export interface RolloverInput {
 
 export type RolloverDecision =
   | { roll: false; reason: 'front_still_heavier' }
-  | { roll: true; reason: 'next_volume_exceeded' | 'deadline_reached' }
+  | {
+      roll: true
+      reason: 'next_volume_exceeded' | 'deadline_reached' | 'deadline_reached_while_thin'
+    }
+
+/**
+ * 기한으로 갈아탈 때 차월물이 「아직 얇다」고 볼 선.
+ *
+ * 근월물의 절반도 안 되면 거래가 아직 안 넘어온 것이다. 실측 2026-10-02 의 10월물 대 11월물은
+ * 121,719 대 913 으로 0.0075 였고, 그 상태에서 기한만으로 갈아탄 뒤 이틀 동안
+ * 하루 거래량 5,000 짜리 월물로 판단했다. 절반은 「넘어가는 중」과 「아직 안 왔다」를 가르는 선이다.
+ */
+export const THIN_NEXT_RATIO = 0.5
 
 /**
  * 차근월물로 갈아탈 때인가.
  *
- * 두 갈래다. 거래량이 먼저 넘으면 그날 갈아타고, 안 넘어도 **기한이 오면 갈아탄다** —
+ * 두 갈래다. **거래량이 먼저다.** 차월물이 근월물을 넘었으면 거래가 그리로 옮겨 간 것이고,
+ * 그날 갈아타는 것이 원래 규칙이 뜻하던 바다(roll.ts 머리글). 안 넘었어도 기한이 오면 갈아탄다 —
  * 기한이 없으면 만기일 당일까지 유동성이 마른 월물로 판단하게 된다.
- * 기한 쪽을 먼저 보는 이유: 거래량이 뒤집히지 않는 날이 실제로 있고, 그날도 기한은 온다.
+ *
+ * ## 왜 순서를 바꿨나 (실측 2026-10-07)
+ *
+ * 전에는 기한을 먼저 봤다. 그래서 거래량 비교는 **기한이 안 걸린 날에만** 돌았고,
+ * 기한이 걸린 날에는 한 번도 안 읽혔다. 설정이 3 거래일이라 10-05 자정에
+ * 「10-08 까지 3 거래일」로 걸렸고, 10월물 121,719 대 11월물 913 — 133배 차이를 안 보고 갈아탔다.
+ * 이틀 동안 화면과 판단이 거래량 22분의 1 짜리 월물을 봤다(그날 11월물 5,036 대 10월물 112,701).
+ *
+ * ## 왜 기한 쪽 사유를 둘로 가르나
+ *
+ * 기한으로 갈아타는 것 자체는 막을 수 없다. 만기가 오는 것은 거래량과 상관없기 때문이다.
+ * 막을 수 없으면 **보이게 한다** — 차월물이 아직 얇은 채로 갈아탄 날은 사유가 다르게 적히고,
+ * 그 줄 하나로 「이 월물이 왜 이렇게 한가한가」에 답할 수 있다.
  */
 export function shouldRollover(input: RolloverInput): RolloverDecision {
-  if (input.tradingDaysUntilLast <= input.daysBefore) {
-    return { roll: true, reason: 'deadline_reached' }
-  }
   if (input.nextVolume > input.frontVolume) {
     return { roll: true, reason: 'next_volume_exceeded' }
+  }
+  if (input.tradingDaysUntilLast <= input.daysBefore) {
+    /*
+      거래량이 0 대 0 인 날은 비율을 못 잰다. 그런 날을 「얇다」로 적으면 사실이 아닌 말이
+      기록에 남는다 — 재는 쪽이 없으면 기한 하나만 말한다
+    */
+    const thin = input.frontVolume > 0
+      && input.nextVolume < input.frontVolume * THIN_NEXT_RATIO
+    return { roll: true, reason: thin ? 'deadline_reached_while_thin' : 'deadline_reached' }
   }
   return { roll: false, reason: 'front_still_heavier' }
 }

@@ -140,7 +140,41 @@ test('차근월물 거래량이 근월물을 넘으면 그날 갈아탄다', () 
 })
 
 test('★ 거래량이 안 뒤집혀도 기한이 오면 갈아탄다 — 없으면 만기일까지 마른 월물로 판단한다', () => {
-  const decision = shouldRollover({ frontVolume: 1000, nextVolume: 1, tradingDaysUntilLast: 3, daysBefore: 3 })
+  const decision = shouldRollover({ frontVolume: 1000, nextVolume: 600, tradingDaysUntilLast: 3, daysBefore: 3 })
+  assert.deepEqual(decision, { roll: true, reason: 'deadline_reached' })
+})
+
+/**
+ * 전에는 기한을 먼저 봐서 **거래량 비교가 기한 걸린 날에 한 번도 안 읽혔다.**
+ * 이 단정이 그 순서를 잠근다 — 거래량이 넘었으면 그것이 진짜 이유이고,
+ * 사유가 `deadline_reached` 로 적히면 「왜 갈아탔나」의 답이 틀린 채로 기록에 남는다.
+ */
+test('★ 거래량 역전과 기한이 둘 다 걸리면 거래량이 사유다 — 기한이 거래량을 덮지 않는다', () => {
+  const decision = shouldRollover({ frontVolume: 100, nextVolume: 101, tradingDaysUntilLast: 1, daysBefore: 3 })
+  assert.deepEqual(decision, { roll: true, reason: 'next_volume_exceeded' })
+})
+
+/**
+ * 실측 2026-10-07 재현. 10-05 자정의 입력이 그대로 이것이었다(10-02 하루 거래량).
+ * 막을 수 없는 교체지만 **얇은 채로 갈아탄 날**이라는 사실이 사유에 남아야
+ * 「이 월물이 왜 이렇게 한가한가」에 기록으로 답할 수 있다.
+ */
+test('★ 기한으로 갈아타는데 차월물이 아직 근월물의 절반도 안 되면 사유가 갈린다', () => {
+  const decision = shouldRollover({
+    frontVolume: 121_719, nextVolume: 913, tradingDaysUntilLast: 3, daysBefore: 3,
+  })
+  assert.deepEqual(decision, { roll: true, reason: 'deadline_reached_while_thin' })
+})
+
+test('절반을 넘긴 차월물은 얇다고 안 적는다 — 넘어가는 중과 아직 안 왔다는 다른 사실이다', () => {
+  const decision = shouldRollover({
+    frontVolume: 100_000, nextVolume: 50_000, tradingDaysUntilLast: 1, daysBefore: 1,
+  })
+  assert.deepEqual(decision, { roll: true, reason: 'deadline_reached' })
+})
+
+test('둘 다 0 이면 얇다고 안 적는다 — 못 잰 것을 사실처럼 적지 않는다', () => {
+  const decision = shouldRollover({ frontVolume: 0, nextVolume: 0, tradingDaysUntilLast: 0, daysBefore: 1 })
   assert.deepEqual(decision, { roll: true, reason: 'deadline_reached' })
 })
 

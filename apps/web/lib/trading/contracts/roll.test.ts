@@ -43,10 +43,24 @@ test('★ 기한이 오면 거래량과 무관하게 갈아탄다 — 거래량�
   // 10-08 이 최종거래일. 10-05(월)이면 남은 개장일은 06·07·08 사흘
   const r = await decideRoll({
     ...base, today: '2026-10-05',
-    lastSessionVolumeOf: async (c) => (c === '101W10' ? 900_000 : 1_000),
+    lastSessionVolumeOf: async (c) => (c === '101W10' ? 900_000 : 500_000),
   })
   assert.equal(r.rolled, true)
   assert.equal(r.reason, 'deadline_reached')
+})
+
+/**
+ * 실측 2026-10-05 가 이 모양이었다. 근월물 121,719 대 차월물 913 인데 기한에 걸려 갈아탔고,
+ * 이틀 동안 거래량 22분의 1 짜리 월물을 화면과 판단이 봤다(10-07 실측 112,701 대 5,036).
+ * 갈아타는 것 자체는 만기 때문에 못 막는다. 못 막으면 **사유로 남긴다.**
+ */
+test('★ 기한으로 갈아타는데 차월물이 아직 얇으면 그 사실이 사유에 남는다', async () => {
+  const r = await decideRoll({
+    ...base, today: '2026-10-05',
+    lastSessionVolumeOf: async (c) => (c === '101W10' ? 121_719 : 913),
+  })
+  assert.equal(r.rolled, true)
+  assert.equal(r.reason, 'deadline_reached_while_thin')
 })
 
 test('★ 거래량을 못 읽으면 안 갈아탄다 — 근거 없이 월물을 바꾸면 지표가 안 이어진다', async () => {

@@ -62,7 +62,16 @@ export const DEFAULT_MIN_VOLUME = 1_000
 
 export type RollResult =
   | { rolled: false; reason: 'no_next' | 'unknown_volume' | 'unknown_days' | 'front_still_heavier'; frontCode: string }
-  | { rolled: true; reason: 'next_volume_exceeded' | 'deadline_reached'; frontCode: string; fromCode: string }
+  | {
+      rolled: true
+      /**
+       * `deadline_reached_while_thin` 은 기한이 와서 갈아탔는데 차월물이 아직 근월물의
+       * 절반도 안 되는 날이다. 막을 수 없는 교체지만 그 월물이 왜 한가한지는 이 줄이 답한다
+       */
+      reason: 'next_volume_exceeded' | 'deadline_reached' | 'deadline_reached_while_thin'
+      frontCode: string
+      fromCode: string
+    }
 
 /**
  * 오늘 갈아탈까.
