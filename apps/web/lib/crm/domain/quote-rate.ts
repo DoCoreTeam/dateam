@@ -322,3 +322,113 @@ export function rateFromHours(
     hourlyExact: hourly ? hourly.exact : false,
   }
 }
+
+/* ── 금액 표시 안내가 쓰는 신호 셋 ─────────────────────────────────────────
+ *
+ * **편집 화면과 문서 조립이 같은 말을 해야 한다.** 화면이 「시간당을 못 쓴다」고 하는데
+ * 견적서에 그 값이 인쇄되면 사람은 둘 다 못 믿는다(실측 2026-10-05).
+ * 그래서 규칙을 도메인에 두고 화면이 가져다 쓴다.
+ */
+
+/** 신호를 세는 데 필요한 줄의 칸들 */
+export interface RateSignalLine {
+  kind?: string | null
+  unit?: string
+  quantity?: string
+  durationValue?: string
+  durationUnit?: string
+  startDate?: string
+  endDate?: string
+}
+
+/** 시간으로 파는 종류. 기간 칸을 적은 줄은 종류와 **상관없이** 시간 축이 선다 */
+const RATE_KINDS: readonly string[] = ['USAGE', 'PERIOD']
+
+function sellsByTimeKind(kind: string | null | undefined): boolean {
+  return RATE_KINDS.includes(kind ?? 'QUANTITY')
+}
+
+/**
+ * 모든 시간 품목이 **같은 기간**일 때만 그 기간을 돌려준다.
+ *
+ * 기간이 섞이면 「시간당 얼마」가 어느 줄의 것도 아니게 된다. 문서 조립도 같은
+ * 규칙을 쓴다(`lib/crm/domain/quote-document.ts`) — 두 곳이 다르게 세면
+ * 화면에서 본 숫자와 인쇄된 숫자가 갈린다.
+ */
+export function sharedRatePeriod(
+  lines: readonly RateSignalLine[],
+): { start: string; end: string } | null {
+  const timed = lines.filter((l) => sellsByTimeKind(l.kind))
+  const first = timed[0]
+  if (!first?.startDate || !first.endDate) return null
+  if (timed.some((l) => l.startDate !== first.startDate || l.endDate !== first.endDate)) return null
+  return computePeriod(first.startDate, first.endDate) ? { start: first.startDate, end: first.endDate } : null
+}
+
+/**
+ * 기간을 안 적었을 때 쓸 **공통 총 시간.** 모든 시간 품목의 수량이 시간이고
+ * 그 수가 같을 때만 선다.
+ *
+ * 문서 조립도 같은 규칙을 쓴다(`lib/crm/domain/quote-document.ts` 의 hoursAxis) —
+ * 두 곳이 다르게 세면 고르는 사람이 본 숫자와 고객이 받는 숫자가 갈린다.
+ * 기간이 있으면 기간이 세므로 여기서는 null 이다.
+ */
+/**
+ * **한 줄이라도 환산이 그려지나.** 안내 문구는 이 값으로 갈린다.
+ *
+ * 합계 환산과 다른 질문이다. 합계는 「모든 줄이 같은 축일 때만」 설 수 있지만(그래서
+ * `sharedRateHours` 는 하나라도 어긋나면 null 이다), 금액 칸과 품목 아래 줄은 **줄마다 따로**
+ * 선다. 둘을 한 신호로 쓰면, 「식」 한 줄이 섞였다는 이유로 모달이 「시간당과 월 금액을
+ * 못 쓴다」고 말하면서 **견적서에는 그 값이 그대로 인쇄된다** — 실측 2026-10-05.
+ */
+/**
+ * **금액 표시 자리를 아예 그릴까.**
+ *
+ * 「축이 설 수 있나」(`anyRateHours`)와 다른 질문이다. 기간요금 줄을 만들고 아직
+ * 아무것도 안 적은 사람에게는 **그 자리가 보여야** 무엇을 적으면 되는지 안다 —
+ * 축이 안 선다고 자리를 통째로 숨기면 그 기능이 있는 줄도 모른다.
+ *
+ * 장비 납품 줄만 있는 견적에는 안 그린다. 쓰지도 않을 것을 매번 지나쳐야 한다.
+ */
+export function rateSectionApplies(lines: readonly RateSignalLine[]): boolean {
+  return lines.some((l) => sellsByTimeKind(l.kind)) || anyRateHours(lines)
+}
+
+export function anyRateHours(lines: readonly RateSignalLine[]): boolean {
+  return lines.some(lineRateHours)
+}
+
+/**
+ * 그 줄에 시간 축이 서나. **근거는 셋이고 기간 칸이 첫째다.**
+ *
+ * 실측 2026-10-06(실브라우저): 기간 2개월을 적었는데도 모달이 「기간을 적거나 수량을
+ * 시간 단위로 적어야 시간당과 월 금액을 인쇄할 수 있어요」라고 말했다 —
+ * 안내가 근거 셋 가운데 **둘만** 봤기 때문이다. 사실이 아닌 안내는
+ * **할 수 있는 것을 못 한다고 읽게** 만든다.
+ *
+ * **종류를 안 가린다.** 「17대를 2개월」은 수량 종류의 줄이고 그 줄에도 시간 축이 있다 —
+ * `sellsByTime` 으로 거르면 그 줄이 통째로 안 보인다. 문서 조립도 종류를 안 가린다
+ * (`quote-document` 의 hoursAxis).
+ */
+function lineRateHours(l: RateSignalLine): boolean {
+  if (durationHours(l.durationValue, l.durationUnit) != null) return true
+  if (!sellsByTimeKind(l.kind)) return false
+  return computePeriod(l.startDate, l.endDate) != null
+    || hoursFromQuantity(l.unit, l.quantity) != null
+}
+
+export function sharedRateHours(lines: readonly RateSignalLine[]): number | null {
+  if (sharedRatePeriod(lines)) return null
+  /*
+    **시간 축이 서는 줄만 센다.** 기간 칸을 적은 줄이 섞이면 그 줄도 포함이다 —
+    예전에는 `sellsByTime` 으로만 걸러 「17대를 2개월」짜리 수량 줄이 통째로 빠졌고,
+    그래서 합계 환산이 설 수 있는 견적에서도 안 섰다.
+  */
+  const timed = lines.filter(lineRateHours)
+  if (timed.length === 0) return null
+  const hours = timed.map((l) => durationHours(l.durationValue, l.durationUnit)
+    ?? hoursFromQuantity(l.unit, l.quantity))
+  const first = hours[0]
+  if (first == null) return null
+  return hours.every((h) => h === first) ? first : null
+}

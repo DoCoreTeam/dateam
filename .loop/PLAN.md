@@ -87,7 +87,7 @@
 의존: 없음
 
 ### I05 금액 표시 안내가 기간 칸을 본다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/quote-draft-shape.ts, apps/web/lib/ui/quote-layout.test.ts
 감사 기준:

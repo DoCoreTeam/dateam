@@ -342,3 +342,52 @@ test('실제 원본 모양을 올리면 AI 가 17대와 2개월을 갈라 읽는
 
   await page.screenshot({ path: shot('06-applied'), fullPage: true })
 })
+
+test('수량 줄에 기간을 적으면 금액 표시를 고를 수 있다. 「기간을 적어야」가 안 뜬다', async ({ page }) => {
+  test.setTimeout(180_000)
+  await page.setViewportSize({ width: 1280, height: 1000 })
+  await openDeal(page)
+  const modal = await openNewQuote(page)
+
+  await modal.locator('#ln-qty-0').fill('17')
+  await modal.locator('#ln-unit-0').fill('대')
+  await modal.locator('#ln-price-0').fill('936000')
+
+  /*
+    **수량 종류 줄 + 기간.** 이것이 「17대를 2개월」의 모양이고, 예전에는 금액 표시 절이
+    종류로만 갈려 이 견적에서는 그 자리가 **통째로 안 떴다** — 고를 수 있는 것을 고를 자리가 없었다.
+  */
+  const rateTitle = modal.getByText('금액 표시', { exact: true })
+  await expect(rateTitle, '기간도 없는데 금액 표시 자리가 떴다').toBeHidden()
+
+  await modal.locator('#ln-dur-0').fill('2')
+  await modal.locator('#ln-durunit-0').selectOption('MONTH')
+
+  await expect(rateTitle, '기간을 적었는데 금액 표시 자리가 안 뜬다').toBeVisible({ timeout: 10_000 })
+  // 그리고 「기간을 적어야」는 **거짓이 됐으므로** 안 뜬다
+  await expect(modal.getByText(/기간을 적거나 수량을 시간 단위로/),
+    '기간을 적었는데 「기간을 적어야」가 뜬다. 되는 것을 안 된다고 말한다').toBeHidden()
+  await expect(modal.getByText('시간당 금액', { exact: true }).first()).toBeVisible()
+
+  await page.screenshot({ path: shot('07-rate-hint'), fullPage: false })
+})
+
+test('기간요금 줄에 아무것도 안 적으면 무엇을 적으면 되는지 말한다', async ({ page }) => {
+  test.setTimeout(180_000)
+  await page.setViewportSize({ width: 1280, height: 1000 })
+  await openDeal(page)
+  const modal = await openNewQuote(page)
+
+  // 종류를 기간요금으로 바꾸면 **자리는 보여야** 한다. 축이 안 선다고 숨기면 기능이 있는 줄도 모른다
+  await modal.locator('#ln-kind-0').selectOption('PERIOD')
+  await expect(modal.getByText('금액 표시', { exact: true })).toBeVisible({ timeout: 10_000 })
+  await expect(modal.getByText(/기간을 적거나 수량을 시간 단위로/),
+    '안내가 없어 무엇을 적어야 할지 모른다').toBeVisible()
+
+  // 적으면 사라진다
+  await modal.locator('#ln-dur-0').fill('12')
+  await modal.locator('#ln-durunit-0').selectOption('MONTH')
+  await expect(modal.getByText(/기간을 적거나 수량을 시간 단위로/)).toBeHidden({ timeout: 10_000 })
+
+  await page.screenshot({ path: shot('08-period-hint'), fullPage: false })
+})

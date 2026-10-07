@@ -444,6 +444,8 @@ const XLSX = read('lib/crm/services/quote-xlsx.ts')
 
 // 종류별 라벨은 값이라 **실제로 읽어** 본다 — 소스를 훑는 가드는 주석의 같은 글자에 속는다
 import { LINE_KIND_QUANTITY_LABEL, LINE_KIND_UNIT } from '../terms/cost.ts'
+import { anyRateHours, sharedRateHours, rateSectionApplies, type RateSignalLine } from '../crm/domain/quote-rate.ts'
+import { RATE_PERIOD_MISSING } from '../terms/quote.ts'
 
 test('★ 편집 모달이 표시 선택 넷을 저장 몸통에 싣는다 — 안 실으면 고른 것이 저장하는 순간 사라진다', () => {
   // 끝 표시를 **이 저장에만 있는 글자**로 잡는다 — 「await fetch」는 이 파일에 여럿이다
@@ -559,9 +561,16 @@ test('★ 미리보기도 수량이 센 시간을 본다 — 고를 때 빈칸�
 test('★ 모달이 그 값을 실제로 세어서 넘긴다 — 선언만 하고 안 넘기면 아무 일도 안 난다', () => {
   assert.match(MODAL, /sharedRateHours\(draft\.lines\)/, '총 시간을 세는 자리가 없다')
   assert.match(MODAL, /rateHours=\{sharedHours\}/, '세어 놓고 합계 부품에 안 넘긴다')
+  /*
+    **세는 규칙은 도메인에 산다.** 화면 파일은 `@/` 별칭을 써서 실행기가 못 읽고,
+    그러면 그 규칙을 실제로 불러 검산할 수 없다 — 또 문서 조립이 쓰는 규칙과
+    같은 말이어야 하므로 둘이 한자리에 있는 것이 맞다.
+  */
+  const RATE = read('lib/crm/domain/quote-rate.ts')
+  assert.match(RATE, /export function sharedRateHours/, '세는 함수가 없다')
   const SHAPE = read('components/ui/crm/quote-draft-shape.ts')
-  assert.match(SHAPE, /export function sharedRateHours/, '세는 함수가 없다')
-  assert.match(SHAPE, /hoursFromQuantity\(l\.unit, l\.quantity\)/,
+  assert.match(SHAPE, /sharedRateHours/, '화면이 그 함수를 안 가져다 쓴다')
+  assert.match(RATE, /hoursFromQuantity\(l\.unit, l\.quantity\)/,
     '수량을 시간으로 읽는 규칙이 문서 조립과 다른 자리에서 다시 쓰였다')
 })
 
@@ -612,9 +621,9 @@ test('★ 한 줄이라도 환산이 되면 못 한다고 말하지 않는다', 
     원인은 한 신호를 두 질문에 쓴 것이다 — 합계 환산은 모든 줄이 같은 축일 때만 서고,
     금액 칸 줄은 줄마다 따로 선다.
   */
-  const SHAPE = read('components/ui/crm/quote-draft-shape.ts')
-  assert.match(SHAPE, /export function anyRateHours/, '「한 줄이라도 되나」를 세는 자리가 없다')
-  assert.match(SHAPE, /lines\.some\(/, '모든 줄이 맞아야 한다는 규칙을 그대로 쓴다')
+  const RATE = read('lib/crm/domain/quote-rate.ts')
+  assert.match(RATE, /export function anyRateHours/, '「한 줄이라도 되나」를 세는 자리가 없다')
+  assert.match(RATE, /lines\.some\(/, '모든 줄이 맞아야 한다는 규칙을 그대로 쓴다')
   assert.match(TOTALS, /rateAnyHours \? RATE_PERIOD_MISSING : RATE_HOURS_MISSING/,
     '안내가 아직 합계 환산용 신호로 갈린다')
   assert.match(MODAL, /anyRateHours\(draft\.lines\)/, '세는 함수를 안 부른다')
@@ -868,4 +877,76 @@ test('★ 「개월」이라는 말은 기간 단위 표에서 온다 — 종류
       `${name} 이 종류의 기본 단위를 「개월」로 빌려 쓴다 — 그 칸의 뜻이 바뀌면 같이 틀어진다`)
     assert.match(src, /DURATION_UNIT_LABEL\.MONTH/, `${name} 이 기간 단위 표를 안 쓴다`)
   }
+})
+
+/* ── 금액 표시 안내가 근거 셋을 다 보는가 ─────────────────────────────────
+   실측 2026-10-06(실브라우저): 기간 2개월을 적었는데도 모달이 「기간을 적거나 수량을
+   시간 단위로 적어야 시간당과 월 금액을 인쇄할 수 있어요」라고 말했다.
+   **사실이 아닌 안내는 할 수 있는 것을 못 한다고 읽게 만든다.**
+   ──────────────────────────────────────────────────────────────────────── */
+
+const L = (over: Partial<RateSignalLine> = {}): RateSignalLine => ({
+  kind: 'QUANTITY', quantity: '1', unit: '식', durationValue: '', durationUnit: '', ...over,
+})
+
+test('★ 기간만 적어도 축이 선다 — 안내가 「기간을 적어야」라고 말하면 안 된다', () => {
+  assert.equal(anyRateHours([L({ durationValue: '2', durationUnit: 'MONTH' })]), true)
+  // 종류를 안 가린다. 「17대를 2개월」은 수량 종류의 줄이다
+  assert.equal(anyRateHours([L({ kind: 'QUANTITY', quantity: '17', unit: '대', durationValue: '2', durationUnit: 'MONTH' })]), true)
+})
+
+test('★ 기간도 날짜도 시간 수량도 없으면 안 선다 — 안내가 사실이다', () => {
+  assert.equal(anyRateHours([L()]), false)
+  assert.equal(anyRateHours([L({ durationValue: '2', durationUnit: '' })]), false, '반쪽은 안 센다')
+  assert.equal(anyRateHours([L({ durationValue: '', durationUnit: 'MONTH' })]), false)
+})
+
+test('★ 옛 근거 둘도 그대로 선다 — 날짜와 시간 수량', () => {
+  assert.equal(anyRateHours([L({ kind: 'PERIOD', startDate: '2026-10-07', endDate: '2026-12-06' })]), true)
+  assert.equal(anyRateHours([L({ kind: 'USAGE', quantity: '1440', unit: 'Hours' })]), true)
+})
+
+test('★ 합계 환산도 기간 칸을 본다 — 모든 시간 줄이 같은 기간이면 선다', () => {
+  const two = [
+    L({ quantity: '17', unit: '대', durationValue: '2', durationUnit: 'MONTH' }),
+    L({ quantity: '1', unit: '식', durationValue: '2', durationUnit: 'MONTH' }),
+  ]
+  assert.equal(sharedRateHours(two), 1460, '2개월 × 730 = 1,460h')
+
+  // 기간이 섞이면 합계 환산은 안 선다 — 어느 줄에 곱해도 안 맞는 값을 적을 수 없다
+  const mixed = [
+    L({ durationValue: '2', durationUnit: 'MONTH' }),
+    L({ durationValue: '3', durationUnit: 'MONTH' }),
+  ]
+  assert.equal(sharedRateHours(mixed), null)
+})
+
+test('★ 「자리를 그릴까」와 「축이 서나」는 다른 질문이다', () => {
+  /*
+    기간요금 줄을 만들고 아직 아무것도 안 적은 사람에게는 **자리가 보여야** 무엇을 적으면
+    되는지 안다. 축이 안 선다고 자리를 숨기면 그 기능이 있는 줄도 모른다.
+    반대로 장비 납품 줄만 있는 견적에는 안 그린다 — 쓰지도 않을 것을 매번 지나쳐야 한다.
+  */
+  const period = [L({ kind: 'PERIOD' })]
+  assert.equal(anyRateHours(period), false, '아무것도 안 적었으니 축은 안 선다')
+  assert.equal(rateSectionApplies(period), true, '그래도 자리는 보여야 한다')
+
+  const plain = [L({ kind: 'QUANTITY' })]
+  assert.equal(rateSectionApplies(plain), false, '장비 납품 줄만 있으면 안 그린다')
+
+  // 「17대를 2개월」은 수량 종류인데도 자리가 선다 — 종류로만 가리면 이 견적이 통째로 빠진다
+  const both = [L({ kind: 'QUANTITY', quantity: '17', unit: '대', durationValue: '2', durationUnit: 'MONTH' })]
+  assert.equal(rateSectionApplies(both), true)
+  assert.equal(anyRateHours(both), true)
+})
+
+test('★ 안내가 가리키는 칸을 그 칸의 이름으로 말한다 — 「기간」은 이제 두 뜻이다', () => {
+  /*
+    실측 2026-10-06: 기간 칸에 2개월을 막 적은 화면에 「기간을 적으면…」이 떠 있었다.
+    그 안내가 가리키는 것은 **공급 시작일·종료일**인데, 같은 화면에 「기간」이라는 칸이
+    따로 있어 사람은 방금 채운 칸을 다시 본다.
+  */
+  assert.ok(!/^기간을 적으면/.test(RATE_PERIOD_MISSING),
+    '안내가 「기간」으로 시작한다 — 품목의 기간 칸과 같은 말이라 어느 칸인지 모른다')
+  assert.match(RATE_PERIOD_MISSING, /시작일|종료일/, '가리키는 칸을 이름으로 안 말한다')
 })

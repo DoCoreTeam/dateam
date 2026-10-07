@@ -13,12 +13,17 @@
  */
 
 import { LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
-import { computePeriod, hoursFromQuantity } from '@/lib/crm/domain/quote-rate'
+import { computePeriod } from '@/lib/crm/domain/quote-rate'
 import { todayPlus } from '@/components/ui/DateField'
 // 규격·구성을 붙이고 가르는 규칙은 화면 밖에 둔다 — 부품 파일은 node --test 가 못 읽는다
 export { joinSpec, splitSpec } from '@/lib/crm/domain/quote-spec'
 // 산식도 같은 이유로 밖에 있다. 글 짓는 일은 quote-rate-text 한 곳이다
 export { lineFormulaText } from '@/lib/crm/domain/quote-rate-text'
+/*
+  **금액 표시 신호 셋도 밖에 있다.** 「이 줄에 시간 축이 서나」는 문서 조립이 쓰는 규칙과
+  같은 말이어야 하고(`quote-document` 의 hoursAxis), 여기 두면 실행기가 못 읽어 검산이 안 된다.
+*/
+export { sharedRatePeriod, anyRateHours, sharedRateHours, rateSectionApplies } from '@/lib/crm/domain/quote-rate'
 
 /**
  * **시간으로 파는 종류.** 사용량은 시간당이 진짜 값이고 기간요금은 월 단가가
@@ -29,56 +34,6 @@ const RATE_KINDS: readonly string[] = ['USAGE', 'PERIOD']
 
 export function sellsByTime(kind: string | null | undefined): boolean {
   return RATE_KINDS.includes(kind ?? 'QUANTITY')
-}
-
-/**
- * 모든 시간 품목이 **같은 기간**일 때만 그 기간을 돌려준다.
- *
- * 기간이 섞이면 「시간당 얼마」가 어느 줄의 것도 아니게 된다. 문서 조립도 같은
- * 규칙을 쓴다(`lib/crm/domain/quote-document.ts`) — 두 곳이 다르게 세면
- * 화면에서 본 숫자와 인쇄된 숫자가 갈린다.
- */
-export function sharedRatePeriod(
-  lines: readonly QuoteLineDraft[],
-): { start: string; end: string } | null {
-  const timed = lines.filter((l) => sellsByTime(l.kind))
-  const first = timed[0]
-  if (!first?.startDate || !first.endDate) return null
-  if (timed.some((l) => l.startDate !== first.startDate || l.endDate !== first.endDate)) return null
-  return computePeriod(first.startDate, first.endDate) ? { start: first.startDate, end: first.endDate } : null
-}
-
-/**
- * 기간을 안 적었을 때 쓸 **공통 총 시간.** 모든 시간 품목의 수량이 시간이고
- * 그 수가 같을 때만 선다.
- *
- * 문서 조립도 같은 규칙을 쓴다(`lib/crm/domain/quote-document.ts` 의 hoursAxis) —
- * 두 곳이 다르게 세면 고르는 사람이 본 숫자와 고객이 받는 숫자가 갈린다.
- * 기간이 있으면 기간이 세므로 여기서는 null 이다.
- */
-/**
- * **한 줄이라도 환산이 그려지나.** 안내 문구는 이 값으로 갈린다.
- *
- * 합계 환산과 다른 질문이다. 합계는 「모든 줄이 같은 축일 때만」 설 수 있지만(그래서
- * `sharedRateHours` 는 하나라도 어긋나면 null 이다), 금액 칸과 품목 아래 줄은 **줄마다 따로**
- * 선다. 둘을 한 신호로 쓰면, 「식」 한 줄이 섞였다는 이유로 모달이 「시간당과 월 금액을
- * 못 쓴다」고 말하면서 **견적서에는 그 값이 그대로 인쇄된다** — 실측 2026-10-05.
- */
-export function anyRateHours(lines: readonly QuoteLineDraft[]): boolean {
-  return lines.some((l) => sellsByTime(l.kind) && (
-    computePeriod(l.startDate, l.endDate) != null
-    || hoursFromQuantity(l.unit, l.quantity) != null
-  ))
-}
-
-export function sharedRateHours(lines: readonly QuoteLineDraft[]): number | null {
-  if (sharedRatePeriod(lines)) return null
-  const timed = lines.filter((l) => sellsByTime(l.kind))
-  if (timed.length === 0) return null
-  const hours = timed.map((l) => hoursFromQuantity(l.unit, l.quantity))
-  const first = hours[0]
-  if (first == null) return null
-  return hours.every((h) => h === first) ? first : null
 }
 
 export interface QuoteLineDraft {
