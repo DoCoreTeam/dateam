@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.10.985",
+  "version": "0.10.986",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
