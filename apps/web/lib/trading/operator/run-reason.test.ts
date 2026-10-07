@@ -323,3 +323,52 @@ test('★ 조회 이름이 없던 옛 사유도 그대로 읽힌다 — 쌓인 �
   assert.match(said, /계좌번호가 없습니다/)
   assert.match(readRunReason('http_503').lines[0].text, /503/)
 })
+
+// ── 월물 교체 ───────────────────────────────────────────
+
+/**
+ * 10-05 자정에 10월물에서 11월물로 갈아탔다. 그 사실은 기록에 안 남았고(I02 가 고쳤다),
+ * 남았어도 화면은 `contract_roll=...` 를 그대로 찍었을 것이다.
+ * 사람이 읽는 자리에서 **어디서 어디로 갔는지**가 나와야 「왜 차트가 어제와 안 이어지나」에 답한다
+ */
+test('★ 월물을 갈아탄 줄이 어디서 어디로 갔는지를 말한다', () => {
+  const said = readRunReason('market_closed=before_open|contract_roll=next_volume_exceeded:A05610->A05611').lines
+  const roll = said.find((l) => l.text.includes('A05611'))
+  assert.ok(roll, `교체 줄을 못 읽는다: ${JSON.stringify(said)}`)
+  assert.match(roll.text, /A05610/, '어디서 왔는지 안 말한다')
+  assert.match(roll.text, /거래량/, '왜 갈아탔는지 안 말한다')
+  assert.equal(/contract_roll|next_volume_exceeded/.test(roll.text), false, `기계 글자가 샜다: ${roll.text}`)
+})
+
+test('★ 얇은 채로 갈아탄 날은 다른 색으로 말한다 — 기다리면 풀리지만 알고는 있어야 한다', () => {
+  const said = readRunReason('contract_roll=deadline_reached_while_thin:A05610->A05611').lines[0]
+  assert.match(said.text, /최종거래일/, '왜 갈아탔는지 안 말한다')
+  assert.match(said.text, /절반/, '차월물이 아직 얇다는 사실을 안 말한다')
+  // 만기가 지나면 풀린다. 사람이 손대야 하는 것으로 적으면 blocked 색이 닳는다
+  assert.equal(said.tone, 'waiting')
+})
+
+test('기한으로 갈아탔지만 얇지 않은 날은 조용하다 — 평범한 교체를 경고로 적지 않는다', () => {
+  const said = readRunReason('contract_roll=deadline_reached:A05610->A05611').lines[0]
+  assert.equal(said.tone, 'ok')
+  assert.equal(/절반/.test(said.text), false, '얇지 않은데 얇다고 적는다')
+})
+
+test('★ 안 갈아탄 사유도 사람 말이 된다 — 「왜 그대로인가」도 답이 있어야 한다', () => {
+  assert.match(readRunReason('contract_roll_no=front_still_heavier').lines[0].text, /근월물이 아직 무거워/)
+  assert.match(readRunReason('contract_roll_no=weekend').lines[0].text, /주말/)
+  assert.equal(readRunReason('contract_roll_no=unknown_volume').lines[0].tone, 'waiting')
+  assert.equal(readRunReason('contract_roll_no=no_next').lines[0].tone, 'blocked')
+})
+
+/**
+ * 신호 쪽 `roll=` 은 「만기 이월 중이라 신호를 안 냈다」는 전혀 다른 말이다.
+ * 둘이 같은 규칙에 걸리면 월물을 갈아탄 줄이 신호 이야기로 읽힌다
+ */
+test('★ 신호 쪽 roll= 과 교체 쪽 contract_roll= 이 다른 말로 읽힌다', () => {
+  const signal = readRunReason('roll=rolled_today').lines[0].text
+  const contract = readRunReason('contract_roll=deadline_reached:A05610->A05611').lines[0].text
+  assert.match(signal, /신호/, `신호 쪽 말이 바뀌었다: ${signal}`)
+  assert.notEqual(signal, contract)
+  assert.equal(/신호/.test(contract), false, `교체 줄이 신호 이야기로 읽힌다: ${contract}`)
+})

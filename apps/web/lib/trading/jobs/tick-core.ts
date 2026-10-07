@@ -191,3 +191,32 @@ export function shouldAskForBars(input: {
   if (input.isNight) return input.hasNightQuote
   return input.phase === 'open' || input.phase === 'auction'
 }
+
+/**
+ * 안 물은 실행의 사유 한 줄 — **굳힌 사유를 여기서 버리지 않는다**
+ *
+ * ## 무엇이 고장이었나 (실측 2026-10-07)
+ *
+ * 그날 쓸 월물은 **자정에 굳는다.** 자정은 늘 장 밖이고, 장 밖 실행은 이 자리에서
+ * 일찍 돌아선다. 그 반환이 `syncReason` 을 안 실어서, 월물을 갈아탄 사실과 그 사유가
+ * `trading_job_runs` 에 **한 글자도 안 남았다.**
+ *
+ * 그래서 10-05 자정에 10월물(10-02 거래량 121,719)을 두고 11월물(913)로 갈아탄 일을
+ * 기록으로 되짚을 수 없었다. 남은 것은 `market_closed=before_open` 한 줄뿐이었고,
+ * 「왜 11월물을 보고 있나」는 코드를 읽어야만 답이 나왔다.
+ *
+ * 사유를 안 남기면 그 결정은 없었던 일이 된다. 되짚을 수 없는 결정은 고칠 수도 없다.
+ */
+export function closedRunReason(input: {
+  /** 왜 안 물었나. `market_closed=before_open` 또는 야간 창구 없음 */
+  why: string
+  /** 그날 월물을 어떻게 정했나. 굳은 날은 `day_config_frozen` */
+  syncReason: string
+  /** 그 판이 함께 남기는 표식들. 빈 것은 버린다 */
+  notes: readonly string[]
+}): string {
+  return [input.why, input.syncReason, ...input.notes]
+    .map((part) => part.trim())
+    .filter((part) => part !== '')
+    .join('|')
+}

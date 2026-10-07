@@ -42,7 +42,8 @@ import { createServerJevJudge } from '../judge/jev.ts'
 import { JEV_PROMPT_VERSION } from '../judge/jev-prompt.ts'
 import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import {
-  runJudges, scheduledMinuteOf, marketPhaseOf, shouldAskForBars, RUN_BUDGET_MS, type TickOutcome,
+  runJudges, scheduledMinuteOf, marketPhaseOf, shouldAskForBars, closedRunReason,
+  RUN_BUDGET_MS, type TickOutcome,
 } from './tick-core.ts'
 import { runWatch } from './watch.ts'
 import type { GateHit } from '../gate/safety.ts'
@@ -214,7 +215,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
      */
     // 주말에는 안 묻는다. 교체는 거래일 결정이고, 물으면 KIS 호출만 셋 는다
     if (isWeekendInSeoul(today)) {
-      rollNote = 'roll_no=weekend'
+      rollNote = 'contract_roll_no=weekend'
     } else {
       const rollEnv = str('kis_env', 'real') as 'real' | 'paper'
       const rollToken = await getAccessToken({
@@ -225,7 +226,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
       const rollCredential = rollToken.ok ? await loadAppCredential(rollEnv) : null
       if (!rollToken.ok || !rollCredential) {
         // 못 물었다고 그날 수집까지 죽이지 않는다. 안 갈아탄 사유만 남긴다
-        rollNote = `roll_no=no_auth:${rollToken.ok ? 'no_credential' : rollToken.reason}`
+        rollNote = `contract_roll_no=no_auth:${rollToken.ok ? 'no_credential' : rollToken.reason}`
       } else {
         const rollKis = createKisClient({
           env: rollEnv,
@@ -267,9 +268,14 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
           },
         })
         if (roll.rolled) contractCode = roll.frontCode
+        /*
+          **표식 이름이 겹치면 화면이 다른 말을 한다.** 신호 쪽에 이미 `roll=` 이 있고
+          그것은 「만기 이월 중이라 신호를 안 냈다」는 뜻이다. 교체 판정을 같은 이름으로 적으면
+          운영 화면이 월물을 갈아탄 줄을 그 말로 읽는다 — 사실과 다른 말이 기록에서 나온다
+        */
         rollNote = roll.rolled
-          ? `roll=${roll.reason}:${roll.fromCode}->${roll.frontCode}`
-          : `roll_no=${roll.reason}`
+          ? `contract_roll=${roll.reason}:${roll.fromCode}->${roll.frontCode}`
+          : `contract_roll_no=${roll.reason}`
       }
     }
 
@@ -334,7 +340,11 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
   }
 
   if (!window) {
-    return { ok: true, reason: `${session.reason}|${syncReason}`, userMessage: null }
+    return {
+      ok: true,
+      reason: closedRunReason({ why: session.reason, syncReason, notes: [] }),
+      userMessage: null,
+    }
   }
 
   const env = str('kis_env', 'real') as 'real' | 'paper'
@@ -662,7 +672,15 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     const why = isNight && !nightQuote ? NO_NIGHT_QUOTE_REASON : `market_closed=${phase}`
     return {
       ok: true,
-      reason: `${why}|${fillNote}|${positionNote}|${brokerMark}|${measurementNote(gate, market)}|${watchNote}`,
+      /*
+        **`syncReason` 을 여기서 버리면 월물 교체가 기록에 안 남는다.** 그날 월물은 자정에
+        굳고 자정은 늘 장 밖이라, 교체 사유를 싣는 실행이 바로 이 반환을 탄다 (실측 2026-10-07)
+      */
+      reason: closedRunReason({
+        why,
+        syncReason,
+        notes: [fillNote, positionNote, brokerMark, measurementNote(gate, market), watchNote],
+      }),
       userMessage: isNight && !nightQuote ? NO_NIGHT_QUOTE_MESSAGE : null,
     }
   }

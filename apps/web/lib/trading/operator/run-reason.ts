@@ -137,6 +137,45 @@ const RULES: Rule[] = [
   { re: /^threw:([\s\S]+)$/, say: (m) => line(`실행 도중 오류가 났습니다: ${m[1]}`, 'blocked') },
   { re: /^day_config_frozen$/, say: () => line('오늘 굳혀 둔 설정 그대로 돌았습니다', 'ok') },
   { re: /^logic_changed:(.+)$/, say: () => line('전략 판이 바뀌어 오늘 설정을 다시 굳혔습니다', 'ok') },
+
+  /*
+    ── 월물 교체 ───────────────────────────────────────
+
+    **`roll=` 과 다른 표식이다.** 저 아래 `roll=` 은 신호 쪽 말이고 「만기 이월 중이라
+    신호를 안 냈다」는 뜻이다. 교체 판정은 `contract_roll` 로 적는다 — 한 이름에 두 뜻을 담으면
+    화면이 월물을 갈아탄 줄을 신호 이야기로 읽는다.
+
+    사유에 **갈아탄 쪽과 갈아탈 쪽을 둘 다** 적는다. 코드 하나만 적으면 「어디서 어디로」가
+    안 보이고, 그 둘이 곧 「왜 차트가 어제와 안 이어지나」의 답이다.
+  */
+  {
+    re: /^contract_roll=next_volume_exceeded:(.+)->(.+)$/,
+    say: (m) => line(`차월물 거래량이 근월물을 넘어 ${m[1]} 에서 ${m[2]} 로 갈아탔습니다`, 'ok'),
+  },
+  {
+    re: /^contract_roll=deadline_reached_while_thin:(.+)->(.+)$/,
+    /*
+      **이 줄만 색이 다르다.** 갈아타는 것 자체는 만기 때문에 못 막지만, 거래가 아직 안 넘어온
+      월물로 하루를 보내는 것은 사람이 알아야 하는 사실이다 (실측 2026-10-07: 그날 거래량이
+      10월물 112,701 대 11월물 5,036 이었다). 기한이 지나면 풀리므로 blocked 가 아니라 waiting 이다
+    */
+    say: (m) => line(
+      `최종거래일이 가까워 ${m[1]} 에서 ${m[2]} 로 갈아탔습니다. ${m[2]} 는 아직 거래가 ${m[1]} 의 절반도 안 됩니다`,
+      'waiting',
+    ),
+  },
+  {
+    re: /^contract_roll=deadline_reached:(.+)->(.+)$/,
+    say: (m) => line(`최종거래일이 가까워 ${m[1]} 에서 ${m[2]} 로 갈아탔습니다`, 'ok'),
+  },
+  { re: /^contract_roll=(.+)$/, say: () => line('오늘 볼 월물을 갈아탔습니다', 'ok') },
+  { re: /^contract_roll_no=weekend$/, say: () => line('주말이라 월물 교체를 안 물었습니다', 'ok') },
+  { re: /^contract_roll_no=front_still_heavier$/, say: () => line('근월물이 아직 무거워 월물을 그대로 둡니다', 'ok') },
+  { re: /^contract_roll_no=unknown_volume$/, say: () => line('거래량을 못 읽어 월물을 안 바꿨습니다', 'waiting') },
+  { re: /^contract_roll_no=unknown_days$/, say: () => line('남은 거래일을 못 세어 월물을 안 바꿨습니다', 'waiting') },
+  { re: /^contract_roll_no=no_next$/, say: () => line('월물 표에 차월물이 없어 안 바꿨습니다', 'blocked') },
+  { re: /^contract_roll_no=no_auth:(.+)$/, say: () => line('증권사 인증이 안 돼 월물 교체를 못 물었습니다', 'blocked') },
+  { re: /^contract_roll_no=(.+)$/, say: () => line('오늘은 월물을 안 바꿨습니다', 'ok') },
   { re: /^night_collected$/, say: () => line('야간장이라 봉만 모으고 판단은 안 했습니다', 'ok') },
   { re: /^not_continuous_trading$/, say: () => line('접속매매 시간이 아니라 판단을 안 했습니다', 'ok') },
 

@@ -12,12 +12,13 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  runJudges, scheduledMinuteOf, marketPhaseOf, shouldAskForBars,
+  runJudges, scheduledMinuteOf, marketPhaseOf, shouldAskForBars, closedRunReason,
   RUN_BUDGET_MS, type TickPorts, type MarketPhase,
 } from './tick-core.ts'
 import {
   hasNightQuotation, NO_NIGHT_QUOTE_REASON, NO_NIGHT_QUOTE_MESSAGE,
 } from '../bars/night-quote.ts'
+import { stripComments } from '../../ui/component-scan.ts'
 
 const HERE_TICK = dirname(fileURLToPath(import.meta.url))
 import type { Judge, JudgeName, JudgeInput, JudgeResult } from '../judge/types.ts'
@@ -304,4 +305,67 @@ test('★ 주말·휴장일의 지금 동작은 안 바뀐다 — 창이 없으�
   const decide = tick.indexOf('shouldAskForBars({')
   assert.ok(noWindow > 0 && noWindow < decide,
     '창이 없는 날 판정이 뒤로 밀렸다 — no_session 이 안 나온다')
+})
+
+
+// ── 안 물은 실행의 사유 ──────────────────────────────────
+
+/**
+ * 실측 2026-10-05 자정이 이 모양이었다. 남은 것은 `market_closed=before_open` 뿐이었고,
+ * 그 판이 10월물에서 11월물로 갈아탔다는 사실은 기록에 **한 글자도 없었다.**
+ */
+test('★ 장 밖 실행도 그날 월물을 어떻게 정했는지를 싣는다 — 굳히는 판이 늘 장 밖이다', () => {
+  const reason = closedRunReason({
+    why: 'market_closed=before_open',
+    syncReason: 'synced,contract_roll=deadline_reached_while_thin:A05610->A05611',
+    notes: ['position=flat,closed=0', 'broker=failed'],
+  })
+  assert.ok(reason.startsWith('market_closed=before_open|'), reason)
+  assert.ok(reason.includes('contract_roll=deadline_reached_while_thin:A05610->A05611'), reason)
+})
+
+test('굳은 날의 사유도 그대로 남는다 — 「어떻게 정했나」의 답이 날마다 있어야 한다', () => {
+  const reason = closedRunReason({ why: 'market_closed=after_close', syncReason: 'day_config_frozen', notes: [] })
+  assert.equal(reason, 'market_closed=after_close|day_config_frozen')
+})
+
+test('빈 표식은 버린다 — 빈 칸이 끼면 사유를 쪼갠 쪽이 빈 토막을 받는다', () => {
+  const reason = closedRunReason({ why: 'no_night_quote:minuteChart', syncReason: '', notes: ['', 'broker=failed', ''] })
+  assert.equal(reason, 'no_night_quote:minuteChart|broker=failed')
+})
+
+/**
+ * 사유 앞 토막은 `run-reason` 이 정규식으로 읽는다. 앞에 뭔가 더 붙으면 그 줄을 못 알아보고
+ * 화면이 「장이 아직 안 열렸습니다」 대신 모르는 표식을 접어 둔다
+ */
+test('안 물은 사유가 맨 앞을 지킨다 — run-reason 이 그 자리를 보고 읽는다', () => {
+  const reason = closedRunReason({ why: 'market_closed=auction', syncReason: 'day_config_frozen', notes: ['x=1'] })
+  assert.equal(reason.split('|')[0], 'market_closed=auction')
+})
+
+/**
+ * **부르는 자리를 센다.** 이 함수가 아무리 맞게 돌아도 크론이 안 부르면 기록은 그대로 빈다 —
+ * 10-05 자정에 실제로 그랬다. 그래서 단정이 「값이 거기까지 가나」를 본다
+ */
+test('★ 크론의 장 밖 반환이 둘 다 이 함수를 지나고 syncReason 을 넘긴다', () => {
+  const tick = readFileSync(join(HERE_TICK, 'tick.ts'), 'utf8')
+  const calls = tick.match(/closedRunReason\(\{/g) ?? []
+  assert.equal(calls.length, 2, `장 밖 반환은 둘인데 ${calls.length}곳만 이 함수를 지난다`)
+  // 인자에 syncReason 이 실제로 들어가는지 — 선언만 하고 안 넘기면 기록은 예전 그대로다
+  const passed = tick.match(/closedRunReason\(\{[\s\S]{0,400}?syncReason[,:\s]/g) ?? []
+  assert.equal(passed.length, 2, `syncReason 을 넘기는 자리가 ${passed.length}곳뿐이다`)
+  /*
+    신호 쪽에도 `roll=` 이 있고 그것은 「만기 이월 중이라 신호를 안 냈다」는 뜻이다.
+    교체 판정이 그 이름을 쓰면 운영 화면이 월물을 갈아탄 줄을 신호 이야기로 읽는다.
+    그래서 `rollNote` 에 넣는 값이 전부 `contract_roll` 로 시작하는지를 센다
+  */
+  assert.ok(tick.includes('contract_roll='), '갈아탄 사유를 안 적는다')
+  assert.ok(tick.includes('contract_roll_no='), '안 갈아탄 사유를 안 적는다')
+  /*
+    교체 표식을 짧은 이름으로 적은 자리가 하나라도 남으면 그 줄이 신호 규칙에 잡힌다.
+    **주석을 먼저 걷어낸다** — 이 파일의 설명 글에도 `roll=` 이 나오고,
+    주석을 세는 가드는 코드를 고쳐도 계속 빨갛거나 계속 초록이다
+  */
+  const code = stripComments(tick)
+  assert.ok(!/[`'"]roll(_no)?=/.test(code), '교체 사유를 신호 쪽 roll= 과 같은 이름으로 적는 자리가 남았다')
 })
