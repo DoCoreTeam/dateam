@@ -17,6 +17,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/server'
 import { currentDeployEnv, type DeployEnv } from '@/lib/ai/deploy-env'
 import { loadTradingSettings, seedTradingSettings } from '../settings/store.ts'
+import { numberDefault } from '../settings/registry.ts'
 import { ensureSessionWindow, ensureNightWindow } from '../calendar/seed.ts'
 import {
   hasNightQuotation, NO_NIGHT_QUOTE_REASON, NO_NIGHT_QUOTE_MESSAGE,
@@ -243,7 +244,8 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
           contracts: sync.contracts,
           frontCode: contractCode,
           openDays: openDays.ok ? openDays.value : [],
-          daysBefore: num('rollover_days_before_last', 3),
+          // 기본값을 여기 또 적지 않는다. 레지스트리를 내려도 이 숫자가 안 따라오면 그 자리만 옛 규칙이다
+          daysBefore: num('rollover_days_before_last', numberDefault('rollover_days_before_last')),
           minVolume: num('rollover_min_volume', DEFAULT_MIN_VOLUME),
           /*
             **당일 누적(`acml_vol`)을 안 쓴다.** 이 자리가 도는 때는 거래일이 막 바뀐

@@ -19,6 +19,7 @@ import {
   validateSetting,
   validateSettingSet,
   JUDGE_PROVIDERS,
+  numberDefault,
 } from './registry.ts'
 import { AI_PROVIDERS, openAiCompatibleBaseUrl, type AiProviderId } from '../../ai/provider-catalog.ts'
 import { pickEffective } from './pick-effective.ts'
@@ -469,4 +470,27 @@ test('★ 다시 읽는 중임을 말하고 마지막으로 읽은 때를 적는
   assert.match(src, /role="status"/, '화면 읽기 도구가 이 줄이 바뀐 것을 모른다')
   // 시각은 화면이 잰다 — 서버가 적어 보내면 그것은 「서버가 그린 때」다
   assert.match(src, /seoulTimeText\(/, '시각을 우리 표기로 안 적는다')
+})
+
+
+// ── 월물 교체 기한 ───────────────────────────────────────
+
+/**
+ * 실측 2026-10-07. 기본값이 3 이면 「최종거래일까지 3 거래일」에 걸려
+ * 거래가 아직 안 넘어온 월물로 이틀을 보낸다 — 그날 거래량이 10월물 112,701 대 11월물 5,036 이었다.
+ * 미니 코스피200 은 월물이 매달 있어 거래가 만기 직전에야 넘어온다.
+ */
+test('★ 월물 교체 기한 기본값이 1 거래일이다 — 3 이면 거래가 안 넘어온 월물로 이틀을 보낸다', () => {
+  assert.equal(numberDefault('rollover_days_before_last'), 1)
+})
+
+test('기한은 거래량이 정하는 교체의 마지막 보루라고 말한다 — 화면이 「이것이 규칙」으로 읽히지 않게', () => {
+  const help = tradingSetting('rollover_days_before_last')?.help ?? ''
+  assert.match(help, /거래량/, '무엇이 교체를 정하는지 안 말한다')
+  assert.match(help, /보루|마지막/, '이 값이 예외라는 것을 안 말한다')
+})
+
+test('숫자가 아닌 설정의 기본값을 물으면 던진다 — 조용한 0 이 한도나 기한이 되지 않게', () => {
+  assert.throws(() => numberDefault('kis_env'))
+  assert.throws(() => numberDefault('없는_키'))
 })

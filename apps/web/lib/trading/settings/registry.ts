@@ -220,14 +220,20 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     key: 'rollover_days_before_last',
     group: 'instrument',
     label: '월물 교체 기한',
-    help: '만기 이만큼 전에는 다음 월물로 바꿉니다',
+    help: '거래량이 안 넘어와도 만기 이만큼 전에는 다음 월물로 바꿉니다. 교체는 거래량이 정하고 이 값은 만기를 피하는 마지막 보루입니다',
     type: 'number',
-    defaultValue: 3,
+    /*
+      **3 이면 거래가 안 넘어온 월물로 이틀을 보낸다.** 실측 2026-10-07: 10-05 자정에
+      「10-08 까지 3 거래일」로 걸려 10월물(10-02 거래량 121,719)을 두고 11월물(913)로 갈아탔다.
+      이틀 뒤 그날 거래량은 10월물 112,701 대 11월물 5,036 이었다 — 22배 차이다.
+      미니 코스피200 은 월물이 매달 있어 거래가 만기 직전에야 넘어온다. 그래서 보루는 하루다
+    */
+    defaultValue: 1,
     unit: '거래일',
     min: 1,
     max: 10,
     usedFrom: '1-A',
-    source: '명세 §6.3',
+    source: '명세 §6.3, 실측 2026-10-07 거래량 112,701 대 5,036',
   },
   {
     key: 'collect_night_session',
@@ -1440,6 +1446,23 @@ export function tradingSetting(key: string): TradingSetting | null {
 }
 
 /** 저장된 판이 하나도 없을 때의 값 전부. 첫 실행이 이 값으로 선다 */
+/**
+ * 숫자 설정의 초기값 하나. **같은 숫자를 레지스트리 밖에 또 적지 않으려고 있다.**
+ *
+ * 실측 2026-10-07: `tick.ts` 가 `num('rollover_days_before_last', 3)` 으로 3 을 또 적고 있었다.
+ * 레지스트리를 1 로 내려도 저장된 값이 없는 환경은 여전히 3 으로 돌았을 것이고,
+ * **설정 화면은 1 이라고 말했을 것이다** — 이 파일 머리글이 막으려는 바로 그 사고다.
+ *
+ * 숫자 설정이 아닌 키를 물으면 던진다. 조용히 0 을 돌려주면 그 0 이 한도나 기한이 된다
+ */
+export function numberDefault(key: string): number {
+  const found = tradingSetting(key)
+  if (!found || typeof found.defaultValue !== 'number') {
+    throw new Error(`숫자 설정이 아닙니다: ${key}`)
+  }
+  return found.defaultValue
+}
+
 export function defaultSettings(): Record<string, TradingSettingValue> {
   return Object.fromEntries(TRADING_SETTINGS.map((s) => [s.key, s.defaultValue]))
 }
