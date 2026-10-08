@@ -18,7 +18,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -392,4 +392,101 @@ test('★ U-N·F-N 이 가리키는 가드와 부품이 실재한다 — 없는 
     assert.ok(existsSync(join(ROOT, 'apps/web', path)), `U-N 이 없는 파일을 가리킨다: ${path}`)
   }
   assert.ok(existsSync(join(ROOT, 'scripts/ui-phrases.mjs')), 'U-6 이 가리키는 판정 SSOT 가 없다')
+})
+
+// ------------------------------------------------------------
+// 푸시 규칙 — 글·훅·도구가 같은 말을 한다 (실측 2026-09 Vercel Pro Usage)
+// ------------------------------------------------------------
+
+/*
+  **왜 가드가 필요한가**: 푸시 한 번이 Vercel 빌드 한 번이다. 2026-09 실측으로 빌드가
+  인프라 요금의 92.1퍼센트(354시간 74.34달러)를 먹었고, 그달 커밋은 1,003건인데
+  푸시는 111회였다. 9월 9일은 커밋 119건에 푸시 3회라 요금이 거의 0이었고,
+  9월 20일은 커밋 118건에 푸시 18회라 그달 최고점이었다 — 요금의 분모는 커밋이 아니라 푸시다.
+
+  그래서 「모아서 민다」를 규칙으로 세웠는데, 규칙을 글로만 두면 안 지켜진다.
+  버전 규칙이 열일곱 판 동안 안 지켜졌고(LOOP.md 부록), 완료 보고 규칙도 같은 구멍이었다.
+  그래서 넷을 함께 잠근다 — 규정(LOOP.md 부록 + 정책 3파일) · 잠금(.githooks/pre-push) ·
+  도구(scripts/loop.mjs 출력). 하나만 고치면 나머지가 옛 기준으로 남고, 그때 이 가드가 깨진다.
+*/
+const PUSH_HEADING = '## 푸시 규칙 (필수, 푸시 한 번이 빌드 한 번이다)'
+/** 규칙 넷의 핵심 문장. 글·훅·도구가 **같은 낱말**을 써야 세 자리가 한 규칙으로 읽힌다. */
+const PUSH_RULE_NO_ITEM_PUSH = '항목 커밋은 푸시하지 않는다'
+const PUSH_RULE_ONE_PER_PLAN = '플랜 하나가 푸시 하나다'
+const PUSH_ESCAPE = 'LOOP_PUSH_NOW'
+
+function pushSection(text: string): string | null {
+  const start = text.indexOf(PUSH_HEADING)
+  if (start < 0) return null
+  const rest = text.slice(start + PUSH_HEADING.length)
+  const end = rest.search(/\n## /)
+  return (PUSH_HEADING + (end < 0 ? rest : rest.slice(0, end))).trim()
+}
+
+test('★ 푸시 규칙이 매 세션 읽는 LOOP.md 에 있다', () => {
+  const loop = read('LOOP.md')
+  assert.match(loop, /^### 푸시 규칙$/m,
+    'LOOP.md 부록에 푸시 규칙 절이 없다 — 중량 문서에만 있으면 LOOP 만 읽는 세션은 못 본다')
+
+  const start = loop.indexOf('### 푸시 규칙')
+  const rest = loop.slice(start + '### 푸시 규칙'.length)
+  const end = rest.search(/\n#{2,3} /)
+  const body = end < 0 ? rest : rest.slice(0, end)
+
+  for (const s of [PUSH_RULE_NO_ITEM_PUSH, PUSH_RULE_ONE_PER_PLAN, PUSH_ESCAPE]) {
+    assert.ok(body.includes(s), `푸시 규칙에 「${s}」가 없다 — 규칙 넷 중 하나가 빠졌다`)
+  }
+  // 규칙만 있고 왜가 없으면 다음 사람이 "빌드 좀 더 돈다고 뭐 어때"로 되돌린다
+  assert.ok(body.includes('74.34달러') && body.includes('111회'),
+    '푸시 규칙에 2026-09 실측 근거(74.34달러 / 푸시 111회)가 없다 — 왜가 빠지면 규칙은 되돌려진다')
+})
+
+test('★ 푸시 규칙이 정책 3파일에 같은 문장으로 있다', () => {
+  const missing = POLICY_FILES.filter(({ file }) => pushSection(read(file)) === null).map((f) => f.file)
+  assert.deepEqual(missing, [],
+    `푸시 규칙 절이 없는 파일이 있다 — 그 도구는 항목마다 밀어서 빌드를 태운다:\n  ${missing.join('\n  ')}`)
+
+  const base = pushSection(read(POLICY_FILES[0].file))
+  const diverged = POLICY_FILES.slice(1)
+    .filter(({ file }) => pushSection(read(file)) !== base)
+    .map((f) => f.file)
+  assert.deepEqual(diverged, [],
+    `푸시 규칙이 파일마다 다르게 적혀 있다: ${POLICY_FILES[0].file} ↔ ${diverged.join(', ')}`)
+})
+
+test('★ 훅이 푸시를 실제로 막는다 — 글로만 두면 안 지켜진다', () => {
+  const rel = '.githooks/pre-push'
+  assert.ok(existsSync(join(ROOT, rel)),
+    `${rel} 가 없다 — 규칙이 글에만 있으면 세션이 바뀔 때마다 다시 민다`)
+
+  // 실행 비트가 없으면 git 은 훅을 **조용히 건너뛴다**. 있는데 안 도는 것이 가장 나쁘다.
+  assert.ok((statSync(join(ROOT, rel)).mode & 0o111) !== 0,
+    `${rel} 에 실행 권한이 없다 — git 이 훅을 조용히 건너뛴다 (chmod +x)`)
+
+  const hook = read(rel)
+  assert.ok(hook.includes(PUSH_ESCAPE),
+    `${rel} 에 ${PUSH_ESCAPE} 탈출구가 없다 — 운영이 멈춘 것을 되살릴 길이 막힌다`)
+  assert.match(hook, /완료\*\|중단\*/,
+    `${rel} 가 플랜 상태를 안 본다 — 무엇을 막고 무엇을 통과시키는지가 조건에 없다`)
+  /*
+    .loop/PLAN*.md 를 통째로 훑으면 끝내지 않고 둔 옛 플랜에 걸려 푸시가 영영 막힌다
+    (실측 2026-10-08: P0001·P0030·P0052·P0114 넷이 「진행중」인 채로 남아 있었다).
+
+    **주석은 빼고 본다.** 첫 판은 훑는 패턴을 파일 전체에서 찾았는데, 훅이 바로 그
+    「PLAN*.md 를 훑으면 안 된다」를 주석으로 적어 둔 탓에 가드가 멀쩡한 훅을 잡았다.
+    가드는 적힌 말이 아니라 **도는 코드**를 봐야 한다.
+  */
+  const code = hook.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n')
+  assert.ok(!/PLAN\*\.md|PLAN\.\*\.md/.test(code),
+    `${rel} 가 .loop/PLAN*.md 전부를 훑는다 — 옛 플랜이 진행중으로 남아 있으면 푸시가 영영 막힌다`)
+})
+
+test('★ 도구가 푸시 시점을 찍는다 — 규칙과 같은 문장으로', () => {
+  const cli = read('scripts/loop.mjs')
+  assert.ok(cli.includes(PUSH_RULE_NO_ITEM_PUSH),
+    `loop pass 가 「${PUSH_RULE_NO_ITEM_PUSH}」를 안 찍는다 — 항목마다 밀게 된다`)
+  assert.ok(cli.includes(PUSH_RULE_ONE_PER_PLAN),
+    `loop final 이 「${PUSH_RULE_ONE_PER_PLAN}」를 안 찍는다 — 언제 밀어야 하는지 아무도 안 말한다`)
+  assert.ok(cli.includes('unpushedCount'),
+    'loop CLI 가 미푸시 커밋 수를 안 센다 — 모으고 있다는 사실이 안 보이면 불안해서 민다')
 })

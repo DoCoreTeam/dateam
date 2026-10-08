@@ -70,7 +70,7 @@
 의존: I01
 
 ### I04 가드가 네 자리를 대조한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/policy-sync.test.ts
 감사 기준:
