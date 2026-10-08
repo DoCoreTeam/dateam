@@ -1,0 +1,86 @@
+# PLAN newAX: 푸시를 플랜 단위로 모아 빌드 비용을 줄인다
+플랜 ID: P0122
+플랜 버전: v0.1.0
+상태: 진행중
+지시: ins_0210
+목표 버전: v0.10.990
+작성: 2026-10-08
+시작 커밋: 1b4e545f
+
+## 목표
+- 항목 커밋마다 푸시하던 흐름을 플랜 완료 때 한 번으로 바꿈
+- 그 규칙이 문서 말고 훅에서 막히므로 세션이 바뀌어도 지켜짐
+- 9월 실측 기준 푸시 111회에 Build CPU Minutes 354시간 74.34달러, 이 규칙이면 플랜 수(월 15~20회)만큼으로 줄어 월 60달러대가 빠짐
+
+## 범위 밖
+- vercel.json 의 ignoreCommand 신설, 잘못 걸리면 운영이 옛 판에 멈추는 v0.10.651 사고를 다시 만듦
+- 크론 주기 조정, 9월 함수 비용 전부가 5.51달러라 비중 6.8퍼센트
+- next.config.js 의 webpack 캐시 재검토, Vercel 빌드 로그 실측이 먼저 있어야 함
+- Vercel 빌드 머신 사양 변경, 저장소 밖 대시보드 설정이라 코드로 못 함
+- 이미 푸시된 과거 커밋 정리
+
+## 완료 정의
+- pnpm tsc --noEmit, pnpm --filter web test, pnpm --filter web build 통과
+- 푸시 규칙이 규정(LOOP.md 부록 + 정책 3파일), 잠금(.githooks/pre-push), 도구(loop.mjs 출력), 가드(policy-sync.test.ts) 네 자리에 모두 있음
+- 활성 플랜이 있는 상태에서 git push 가 실제로 거절됨
+- 사용자 노출 문자열 없음, i18n 해당 없음
+- 설정값 추가 없음, env 해당 없음
+
+## 참조
+- LOOP.md 부록 「버전 규칙」, 같은 자리에 「푸시 규칙」을 나란히 둠
+- LOOP.md 7절 보안 기준 「보안은 네 자리에 박는다」 방식을 그대로 따름
+- apps/web/lib/policy/policy-sync.test.ts 가 정책 3파일 동일성을 이미 검사함
+- 실측 근거: Vercel Pro Usage 2026-09 Build CPU Minutes 354시간 74.34달러, 인프라 합계 80.70달러 중 92.1퍼센트
+
+## 항목
+
+### I01 푸시 규칙을 규정 네 파일에 적는다
+상태: 통과
+모드: 경량
+범위: LOOP.md, .claude/heavy/CEO.md, AGENTS.md, GEMINI.md
+감사 기준:
+- grep -c "^### 푸시 규칙$" LOOP.md 가 1
+- .claude/heavy/CEO.md, AGENTS.md, GEMINI.md 셋 다 「푸시 규칙」 절을 가지고, 세 파일에서 그 절 본문이 글자까지 같음을 diff 로 확인
+- 규칙 본문이 넷을 말함: 항목 커밋은 푸시하지 않음, 푸시는 loop final 통과 뒤 한 번, 긴급 푸시는 LOOP_PUSH_NOW=1 과 사유, 플랜 밖 단독 커밋은 그 자리에서 푸시
+- 비용 근거 숫자(354시간, 74.34달러, 푸시 111회)가 규칙 옆에 적혀 왜 그러는지가 남음
+의존: 없음
+
+### I02 활성 플랜 중 푸시를 훅이 막는다
+상태: 대기
+모드: 경량
+범위: .githooks/pre-push (신규)
+감사 기준:
+- test -x .githooks/pre-push 가 통과
+- 활성 플랜(.loop/PLAN.md 상태가 완료·중단이 아님)이 있는 상태에서 git push --dry-run 이 종료코드 1 로 거절되고, 거절 메시지에 미푸시 커밋 수와 LOOP_PUSH_NOW 탈출구가 적힘
+- LOOP_PUSH_NOW=1 git push --dry-run 이 통과
+- .loop/PLAN.md 상태를 완료로 바꾸면 통과, 되돌리면 다시 거절
+- .loop/PLAN*.md 중 하나라도 활성이면 막음 (옆 플랜 파일 LOOP_PLAN_FILE 사용 세션 대응)
+- 일부러 깨 보기: 판정 조건을 반대로 바꾼 판으로 실행해 막혀야 할 때 통과하는 것을 확인하고 되돌림
+의존: I01
+
+### I03 도구가 푸시 시점을 말한다
+상태: 대기
+모드: 경량
+범위: scripts/loop.mjs
+감사 기준:
+- loop pass 출력에 푸시하지 말라는 줄이 있고, 미푸시 커밋 수를 함께 찍음
+- loop final --result pass 출력에 이제 푸시하라는 줄과 실행할 명령이 있음
+- node scripts/loop.mjs --help 또는 기존 명령이 깨지지 않음 (loop resume 정상 출력)
+- 출력 문장이 I01 에서 정한 규칙 문장과 같은 말을 씀
+의존: I01
+
+### I04 가드가 네 자리를 대조한다
+상태: 대기
+모드: 경량
+범위: apps/web/lib/policy/policy-sync.test.ts
+감사 기준:
+- 새 단정 넷: LOOP.md 에 푸시 규칙 절이 있음, 정책 3파일 본문이 같음, .githooks/pre-push 가 실재하고 실행 가능, scripts/loop.mjs 가 푸시 안내 문장을 찍음
+- pnpm --filter web test 에서 policy-sync.test.ts 가 실제로 돌고 통과 (등재 여부를 total 테스트 수 증가로 확인)
+- 일부러 깨 보기: LOOP.md 푸시 규칙 절을 지우면 네 단정 중 최소 하나가 실패, 되돌리면 통과
+의존: I02, I03
+
+## 종합 감사
+- (전 항목 통과 후 기록)
+
+## 변경 이력
+- v0.1.0 (2026-10-08) 최초 작성 (ins_0210)
