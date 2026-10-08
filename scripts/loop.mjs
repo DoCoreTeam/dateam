@@ -68,6 +68,21 @@ function sh(cmd, opts = {}) {
 }
 function gitAvailable() { try { sh('git rev-parse --is-inside-work-tree'); return true; } catch { return false; } }
 /**
+ * 아직 안 민 커밋 수.
+ *
+ * 푸시 한 번이 Vercel 빌드 한 번이고, 2026-09 실측으로 빌드가 인프라 요금의 92.1퍼센트
+ * (354시간 74.34달러)였다. 그래서 항목마다 밀지 않고 모은다(LOOP.md 부록 「푸시 규칙」).
+ * 그런데 모으고 있다는 사실이 안 보이면 「밀어야 하나」 싶어서 민다 — 몇 개가 쌓였는지
+ * 매번 보여 주면 「잊은 것이 아니라 모으는 중」이 눈에 남는다.
+ */
+function unpushedCount() {
+  if (!gitAvailable()) return null;
+  for (const range of ['@{u}..HEAD', 'origin/main..HEAD']) {
+    try { return Number(sh(`git rev-list --count ${range}`)); } catch { /* 업스트림이 없으면 다음 범위 */ }
+  }
+  return null;
+}
+/**
  * 경로를 받으면 그 경로만 커밋한다.
  *
  * 예전에는 무조건 git add -A 였다. 작업 트리를 여러 세션이 나눠 쓰는 저장소에서 그것은
@@ -805,6 +820,8 @@ cmds.pass = (a) => {
   const k = passesThisSession(); const every = num('checkpoint_every');
   out(`[loop-kit] ${id} 통과 (${c.통과}/${p2.items.length})${commitNote}, 이번 컨텍스트 통과 ${k}개`);
   out(nx ? `[loop-kit] 다음 항목 ${nx.id} ${nx.title}` : '[loop-kit] 대기 항목 없음, 종합 감사 단계 (final)');
+  const ahead = unpushedCount();
+  out(`[loop-kit] 항목 커밋은 푸시하지 않는다${ahead === null ? '' : ` (미푸시 ${ahead}개)`}, 푸시는 final 뒤 한 번 (LOOP.md 부록 푸시 규칙)`);
   if (k >= every && nx) out(`[loop-kit] 체크포인트: 플랜 ${p2.header.version} 저장됨, 여기서 /clear 후 재개 권장 (checkpoint_every=${every})`);
 };
 
@@ -902,6 +919,8 @@ cmds.final = (a) => {
     규칙을 글로만 두면 안 지켜진다 — 오늘 실제로 그랬다. 판정 문장을 여기서 찍어
     에이전트가 그 줄을 그대로 옮기게 한다. 숫자도 함께 준다(항목 n/n).
   */
+  const ahead = unpushedCount();
+  out(`[loop-kit] 이제 푸시한다, git push${ahead === null ? '' : ` (미푸시 ${ahead}개)`}. 플랜 하나가 푸시 하나다 (LOOP.md 부록 푸시 규칙)`);
   out(`[loop-kit] 보고 첫 줄: 완벽히 끝냈습니다 — ${p.header.title} (항목 ${p.items.length}/${p.items.length}, ${target})`);
 };
 
