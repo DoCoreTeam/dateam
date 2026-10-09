@@ -257,6 +257,28 @@ test('★ 도구가 판정 문장을 찍는다 — 글로만 두면 안 지켜�
     'loop hold·final fail 이 미완 판정을 안 찍는다')
 })
 
+test('★ 도구가 완료 판정 전에 미커밋 변경을 센다', () => {
+  /*
+    판정 기준에는 「내 미커밋 변경이 없고」가 있었는데 도구는 그것을 **한 번도 세지 않았다.**
+    완료 커밋은 버전 파일과 플랜 파일과 entries.ts 만 싣는다 — 그 밖에 남은 변경은
+    아무 커밋에도 안 실린 일이다. 그런데 도구가 완료 판정을 찍어 주면 보고는 그 줄을
+    그대로 옮기고, 끝났다고 적힌 일이 트리에만 남는다.
+
+    문장만 보는 단정으로는 이 검사가 지워져도 초록이다. 그래서 **세는 코드**를 본다.
+  */
+  const cli = read('scripts/loop.mjs')
+  const start = cli.indexOf('cmds.final')
+  assert.ok(start > 0, 'loop.mjs 에 final 명령이 없다')
+  const body = cli.slice(start)
+
+  assert.match(body, /const leftover = changedFiles\(\)/,
+    'loop final 이 미커밋 변경을 세지 않는다 — 판정 기준의 「내 미커밋 변경이 없고」가 도구에 없다')
+  assert.ok(
+    body.indexOf('leftover.length') < body.indexOf(`보고 첫 줄: ${VERDICT_DONE}`),
+    'loop final 이 미커밋을 센 뒤가 아니라 완료 판정을 먼저 찍는다 — 순서가 뒤바뀌면 검사가 무의미하다',
+  )
+})
+
 // ------------------------------------------------------------
 // B-N 배포·대기 규칙 (실측 2026-09-20)
 // ------------------------------------------------------------

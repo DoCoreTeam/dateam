@@ -947,6 +947,29 @@ cmds.final = (a) => {
   */
   const ahead = unpushedCount();
   out(`[loop-kit] 이제 푸시한다, git push${ahead === null ? '' : ` (미푸시 ${ahead}개)`}. 플랜 하나가 푸시 하나다 (LOOP.md 부록 푸시 규칙)`);
+
+  /*
+    **미커밋 변경이 남았으면 판정을 안 찍는다** (LOOP.md 8절 판정 기준 「내 미커밋 변경이 없고」).
+
+    왜 도구가 세나: 그 기준은 글에만 있었고 여기서 한 번도 세지 않았다. 완료 커밋은
+    버전 파일과 플랜 파일과 entries.ts 만 싣는다 — 그 밖에 남은 변경은 **아무 커밋에도
+    안 실린 일**이다. 그런데 이 자리가 「완벽히 끝냈습니다」를 찍어 주면 보고는 그 줄을
+    그대로 옮긴다. 끝났다고 적힌 일이 트리에만 있는 상태가 된다.
+
+    막지는 않는다. 이 저장소는 세션이 여럿이라 남의 미커밋 파일이 섞여 있을 수 있고
+    (실측: pass 가 --files 없이 돌아 남의 파일 19개를 쓸어 담았다), 거기서 final 을
+    통째로 세우면 끝낸 플랜을 닫을 길이 막힌다. 그래서 **판정만 보류하고 무엇이 남았는지
+    보인다** — 치우고 다시 부르거나, 남의 것이면 그 사실을 보고에 적게 한다.
+  */
+  const leftover = changedFiles();
+  if (leftover.length) {
+    out(`[loop-kit] 미커밋 변경 ${leftover.length}개가 남아 판정을 보류한다 (LOOP.md 8절 「내 미커밋 변경이 없고」)`);
+    for (const f of leftover) out(`[loop-kit]   ${f}`);
+    out('[loop-kit] 내 것이면 항목 커밋으로 넣고 final 을 다시 부른다, 남의 세션 것이면 그 사실을 보고에 적는다');
+    out(`[loop-kit] 보고 첫 줄: 아직 안 끝났습니다 — ${p.header.title} (항목 ${p.items.length}/${p.items.length}, ${target}, 미커밋 ${leftover.length}개)`);
+    return;
+  }
+
   out(`[loop-kit] 보고 첫 줄: 완벽히 끝냈습니다 — ${p.header.title} (항목 ${p.items.length}/${p.items.length}, ${target})`);
 };
 
