@@ -630,3 +630,18 @@ test('★ 대조도 기간을 받는다 — 안 받으면 맞게 읽은 줄이 �
   assert.match(build.slice(0, 900), /priceBasis:\s*LINE_KIND_PRICE_BASIS/,
     '단가 기준 단위를 안 넘긴다 — 시간당 단가 줄의 배수가 틀린다')
 })
+
+test('★ 검수 목록이 「몇 대를 얼마 동안」을 보인다 — 넣기 전에 결정하는 자리다', () => {
+  /*
+    실측 2026-10-09: 검수 줄이 「17대 · 31,824,000원」이라, 사람은 두 배짜리 금액을 보면서도
+    그게 한 달치인지 두 달치인지 모른 채 체크를 켰다. 여기가 결정하는 자리다.
+  */
+  assert.match(REVIEW_TEXT, /\{l\.quantity\}\{l\.unit\}\{durationOf\(l\)\}/,
+    '검수 줄이 기간을 안 그린다')
+  // 글은 한 곳에서 짓는다 — 화면마다 지으면 「약」이나 곱셈 기호 규칙이 갈린다
+  assert.match(REVIEW_TEXT, /durationText\(\{ value: l\.durationValue, unit: l\.durationUnit \}\)/,
+    '글 짓는 함수를 안 쓰고 직접 조립한다')
+  // 기간이 없으면 빈 문자열이라 전과 글자 하나 같다
+  assert.match(REVIEW_TEXT, /if \(!l\.durationValue \|\| !l\.durationUnit\) return ''/,
+    '기간이 없는 줄에도 뭔가를 붙인다')
+})

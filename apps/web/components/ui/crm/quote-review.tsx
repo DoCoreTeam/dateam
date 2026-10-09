@@ -22,6 +22,7 @@ import {
 } from '@/lib/crm/domain/quote-reconcile'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { LINE_KIND_ORDER, LINE_KIND_UNIT, LINE_KIND_PRICE_BASIS, type QuoteLineKind } from '@/lib/terms/cost'
+import { durationText } from '@/lib/crm/domain/quote-rate-text'
 import { useState } from 'react'
 import {
   FILL_NO_PRICE, FILL_SOURCE_LABEL, FILL_RISK_TEXT, fillComponentsFold, fillSourcePage,
@@ -340,6 +341,18 @@ export function totalWordOf(review: FileReview): string {
   return fillTotalMismatch(text, short)
 }
 
+/**
+ * 검수 줄의 「× 2개월」 조각. **없으면 빈 문자열**이라 기간이 없는 줄은 전과 글자 하나 같다.
+ *
+ * 글은 `quote-rate-text` 한 곳에서 짓는다 — 화면마다 지으면 「약」이나 곱셈 기호 규칙이
+ * 한쪽에만 고쳐져 같은 견적이 두 모양으로 읽힌다.
+ */
+function durationOf(l: QuoteLineDraft): string {
+  if (!l.durationValue || !l.durationUnit) return ''
+  const text = durationText({ value: l.durationValue, unit: l.durationUnit })
+  return text ? ` ${text}` : ''
+}
+
 /** 읽은 건 하나의 제목 줄 — 파일 이름과 항목 수, 그리고 원본 몇 쪽이었나 */
 export function ReviewHead({ review, fileName }: { review: FileReview; fileName: string }) {
   const page = fillSourcePage(review.pageStart, review.pageEnd)
@@ -445,7 +458,13 @@ export function QuoteReviewList({ review, onToggle, onApplyDuration }: {
               <span className={styles.reviewName}>{l.name}</span>
             </label>
             <span className={styles.reviewNums}>
-              {l.quantity}{l.unit} · {l.unitPriceMinor === ''
+              {/*
+                **「몇 대를 얼마 동안」이 넣기 전에 보여야 한다.** 여기가 사람이 체크를
+                켜고 끄며 결정하는 자리다 — 기간을 안 보이면 두 배짜리 금액을 보면서도
+                그게 한 달치인지 두 달치인지 모른 채 넣는다.
+                글은 quote-rate-text 한 곳에서 짓는다(화면마다 지으면 서서히 갈린다).
+              */}
+              {l.quantity}{l.unit}{durationOf(l)} · {l.unitPriceMinor === ''
                 ? <em className={styles.reviewMissing}>{FILL_NO_PRICE}</em>
                 : formatAmount(review.checks[i].ourAmountMinor.toString(), review.currency)}
             </span>

@@ -41,7 +41,7 @@
 의존: 없음
 
 ### I02 검수 목록이 「몇 대를 얼마 동안」을 보인다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/components/ui/crm/quote-review.tsx, apps/web/lib/crm/ui/quote-source-surface.test.ts
 감사 기준:
