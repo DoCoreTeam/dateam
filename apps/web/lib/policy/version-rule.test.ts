@@ -161,13 +161,37 @@ test('동시 플랜은 minor 가 아니라 patch 를 나눠 가진다', () => {
     '동시 플랜 규칙이 patch 분배로 적혀 있지 않다 — 세션마다 minor 를 통째로 집어가던 원인')
 })
 
+/** 「0.11.3」을 견줄 수 있는 수 하나로 — 자리마다 넉넉히 띄워 자릿수가 섞이지 않게 */
+function versionKey(major: string, minor: string, patch: string): number {
+  return Number(major) * 1_000_000 + Number(minor) * 1_000 + Number(patch)
+}
+
 test('돌고 있는 플랜들의 목표 버전이 서로 minor 를 따로 쓰지 않는다', () => {
+  const now = rootVersion().match(/^(\d+)\.(\d+)\.(\d+)/)
+  assert.ok(now, '루트 package.json 의 버전을 못 읽었다')
+  const nowKey = versionKey(now![1], now![2], now![3])
+
   const plans = readdirSync(join(ROOT, '.loop'))
     .filter((f) => /^PLAN(\..+)?\.md$/.test(f) && f !== 'PLAN.template.md')
   const targets = plans
     .map((f) => ({ f, m: readFileSync(join(ROOT, '.loop', f), 'utf8').match(/^목표 버전:\s*v?(\d+)\.(\d+)\.(\d+)/m) }))
     .filter((x) => x.m)
-    .map((x) => ({ f: x.f, minor: `${x.m![1]}.${x.m![2]}`, full: `${x.m![1]}.${x.m![2]}.${x.m![3]}` }))
+    .map((x) => ({
+      f: x.f,
+      minor: `${x.m![1]}.${x.m![2]}`,
+      full: `${x.m![1]}.${x.m![2]}.${x.m![3]}`,
+      key: versionKey(x.m![1], x.m![2], x.m![3]),
+    }))
+    /*
+      **이미 지나간 목표는 안 센다.** 그 플랜은 버전을 다투고 있지 않다 —
+      끝났거나 버려진 것이고, 어느 쪽이든 다음 판이 쓸 번호를 집고 있지 않다.
+
+      안 거르면 **minor 가 오르는 날 모든 새 플랜이 막힌다**: 버전이 0.11 로 넘어가자
+      `.loop/` 에 남아 있던 옛 파일 넷(목표 0.10.3 · 0.10.189 · 0.10.399 · 0.10.945)이
+      새 플랜의 0.11.x 와 갈려 커밋이 안 됐다(실측 2026-10-09).
+      남의 플랜 파일을 지워서 푸는 것은 **그 세션의 재개 근거를 없애는 것**이라 안 한다.
+    */
+    .filter((t) => t.key > nowKey)
 
   const minors = new Set(targets.map((t) => t.minor))
   assert.ok(minors.size <= 1,
@@ -238,4 +262,28 @@ test('loop final 이 낡은 플랜 목표값으로 커밋하지 않는다', () =
     'loop.mjs 의 final 이 플랜 목표값을 그대로 완료 버전으로 쓴다')
   assert.match(loop, /const target = `v\$\{nextPatchVersion\(\)\}`/,
     'loop.mjs 의 final 이 다음 패치를 계산하지 않는다')
+})
+
+test('★ 아직 안 지난 목표 둘이 서로 다른 minor 를 잡으면 여전히 떨어진다', () => {
+  /*
+    「지나간 목표는 안 센다」로 거른 뒤에도 **이 가드가 사는 이유**가 남아 있어야 한다.
+    거르기가 너무 넓으면 두 세션이 각자 minor 를 집어가는 그 사고를 다시 못 잡는다.
+
+    실제 파일을 만들지 않고 **같은 판정을 손으로 돌려** 본다 — `.loop/` 에 가짜 플랜을
+    떨어뜨리면 다른 세션의 resume 이 그것을 본다(남의 작업에 손대지 않는다).
+  */
+  const now = versionKey('0', '11', '3')
+  const rows = [
+    { f: 'A', minor: '0.11', key: versionKey('0', '11', '4') },   // 앞선 목표
+    { f: 'B', minor: '0.12', key: versionKey('0', '12', '0') },   // 앞선 목표, 다른 minor
+    { f: 'C', minor: '0.10', key: versionKey('0', '10', '3') },   // 지나간 목표 — 안 센다
+  ]
+  const live = rows.filter((r) => r.key > now)
+  assert.equal(live.length, 2, '지나간 목표를 안 걸러 냈다')
+  assert.equal(new Set(live.map((r) => r.minor)).size, 2,
+    '앞선 목표 둘이 다른 minor 인데 하나로 셌다 — 이러면 세션마다 minor 를 집어가는 것을 못 잡는다')
+
+  // 지나간 것만 남으면 셀 것이 없다(막지 않는다)
+  const onlyPast = rows.filter((r) => r.key > versionKey('0', '99', '0'))
+  assert.equal(onlyPast.length, 0)
 })
