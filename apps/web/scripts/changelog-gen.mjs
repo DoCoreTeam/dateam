@@ -17,7 +17,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join } from 'node:path'
 
 /** lib/ai/gemini-model.ts 의 DEFAULT_GEMINI_MODEL 과 같은 값 — 실호출로 JSON 모드를 확인한 모델 */
@@ -103,10 +103,20 @@ function readExistingVersions() {
   return { src, versions: new Set(versions), latest }
 }
 
-// git log에서 `vX.Y.Z: 메시지 claude` 커밋을 버전별로 수집(누락 구간만).
-function collectMissingCommits(lastVersion, currentVersion) {
-  const SEP = '\x1f' // unit separator — 커밋 메시지에 등장 불가
-  const raw = git(['log', '--no-merges', '--date=short', `--pretty=format:%ad${SEP}%s`])
+/** git log 한 줄 안에서 날짜와 제목을 가르는 글자 — 커밋 메시지에 등장 불가 */
+export const LOG_SEP = '\x1f'
+
+/**
+ * git log에서 `vX.Y.Z: 메시지` 커밋을 **버전별로** 수집(누락 구간만).
+ *
+ * 한 판 번호에 커밋이 여럿이면 하나도 버리지 않고 한 묶음에 모은다. 플랜 하나가
+ * 판 하나를 쓰는 셈법(LOOP.md 부록 「버전 규칙」)이 이 동작 위에 선다.
+ *
+ * rawLog 를 주면 git 을 부르지 않는다 — 시험이 이력을 만들어 먹일 수 있게 한 자리다.
+ */
+export function collectMissingCommits(lastVersion, currentVersion, rawLog) {
+  const SEP = LOG_SEP
+  const raw = rawLog ?? git(['log', '--no-merges', '--date=short', `--pretty=format:%ad${SEP}%s`])
   const byVersion = new Map() // version -> { date, messages:Set }
   for (const line of raw.split('\n')) {
     const [date, subject = ''] = line.split(SEP)
@@ -259,7 +269,14 @@ async function main() {
   console.log(`[changelog] entries.ts에 ${clean.length}개 블록 추가 완료.`)
 }
 
-main().catch((err) => {
-  console.error('[changelog] 실패:', err.message)
-  process.exit(1)
-})
+// 직접 실행일 때만 돈다. 가드가 이 모듈을 import 할 수 있어야 하고,
+// import 만으로 Gemini 를 부르거나 entries.ts 를 쓰면 안 된다.
+const invokedDirectly = process.argv[1]
+  && import.meta.url === pathToFileURL(process.argv[1]).href
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error('[changelog] 실패:', err.message)
+    process.exit(1)
+  })
+}
