@@ -48,7 +48,7 @@
 의존: 없음
 
 ### I02 규정 네 파일이 플랜 하나가 판 하나라고 말한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: LOOP.md, AGENTS.md, GEMINI.md, .claude/heavy/CEO.md
 감사 기준:
