@@ -481,6 +481,78 @@ test('★ 훅이 푸시를 실제로 막는다 — 글로만 두면 안 지켜�
     `${rel} 가 .loop/PLAN*.md 전부를 훑는다 — 옛 플랜이 진행중으로 남아 있으면 푸시가 영영 막힌다`)
 })
 
+/*
+  판 번호 규칙 — 플랜 하나가 판 하나다 (사용자 지시 2026-10-09 ins_0215)
+
+  **왜 가드가 필요한가**: 항목마다 패치를 올리면 커밋 수가 그대로 판 수가 된다.
+  실측 2026-10-09 로 30일 998 커밋에 7일 134 커밋이었고, 그 가운데 80건은 버전 파일을
+  뺀 실제 코드가 2개 이하였다. 그래서 patch 999 상한을 달마다 넘겼고 그날
+  v0.10.999 에서 v0.11.0 으로 넘어갔다 — 그 넘김이 새 플랜을 전부 막은 전례가 있다.
+
+  규칙이 글 한 곳에만 있으면 안 지켜진다. 푸시 규칙과 버전 규칙이 그랬다.
+  그래서 네 자리가 같은 말을 하는지 본다 — 규정(LOOP.md 부록 + 정책 3파일),
+  훅(.githooks/commit-msg), 도구(scripts/loop.mjs), 가드(version-rule + changelog-grouping).
+*/
+const PLAN_NUMBER_HEADING = '## 판 번호 규칙 (필수, 플랜 하나가 판 하나다)'
+/** 두 핵심 문장. 규정 네 파일이 **같은 낱말**을 써야 한 규칙으로 읽힌다. */
+const PN_RULE_ONE_PER_PLAN = '플랜 하나가 판 하나다'
+const PN_RULE_NO_ITEM_BUMP = '항목 커밋은 패치를 올리지 않는다'
+
+function planNumberSection(text: string): string | null {
+  const start = text.indexOf(PLAN_NUMBER_HEADING)
+  if (start < 0) return null
+  const rest = text.slice(start + PLAN_NUMBER_HEADING.length)
+  const end = rest.search(/\n## /)
+  return (PLAN_NUMBER_HEADING + (end < 0 ? rest : rest.slice(0, end))).trim()
+}
+
+test('★ 판 번호 규칙이 매 세션 읽는 LOOP.md 에 있다', () => {
+  const loop = read('LOOP.md')
+  assert.match(loop, /^### 버전 규칙$/m,
+    'LOOP.md 부록에 버전 규칙 절이 없다 — 중량 문서에만 있으면 LOOP 만 읽는 세션은 못 본다')
+
+  const start = loop.indexOf('### 버전 규칙')
+  const rest = loop.slice(start + '### 버전 규칙'.length)
+  const end = rest.search(/\n#{2,3} /)
+  const body = end < 0 ? rest : rest.slice(0, end)
+
+  for (const sentence of [PN_RULE_ONE_PER_PLAN, PN_RULE_NO_ITEM_BUMP]) {
+    assert.ok(body.includes(sentence),
+      `LOOP.md 부록 버전 규칙에 「${sentence}」가 없다 — 그 세션은 항목마다 패치를 올린다`)
+  }
+  // 규칙만 있고 왜가 없으면 다음 사람이 "항목마다 올리는 게 깔끔하지"로 되돌린다
+  assert.ok(body.includes('v0.10.999') && body.includes('998'),
+    'LOOP.md 버전 규칙에 2026-10-09 실측 근거(998 커밋 / v0.10.999 넘김)가 없다 — 왜가 빠지면 규칙은 되돌려진다')
+})
+
+test('★ 판 번호 규칙이 정책 3파일에 같은 문장으로 있다', () => {
+  const missing = POLICY_FILES.filter(({ file }) => planNumberSection(read(file)) === null).map((f) => f.file)
+  assert.deepEqual(missing, [],
+    `판 번호 규칙 절이 없는 파일이 있다 — 그 도구는 항목마다 패치를 올려 판 번호를 태운다:\n  ${missing.join('\n  ')}`)
+
+  const base = planNumberSection(read(POLICY_FILES[0].file))
+  const diverged = POLICY_FILES.slice(1)
+    .filter(({ file }) => planNumberSection(read(file)) !== base)
+    .map((f) => f.file)
+  assert.deepEqual(diverged, [],
+    `판 번호 규칙이 파일마다 다르게 적혀 있다: ${POLICY_FILES[0].file} ↔ ${diverged.join(', ')}`)
+})
+
+test('★ 옛 셈법 문장이 규정 네 파일에 남아 있지 않다', () => {
+  /*
+    바꾼 뒤 옛 문장이 남으면 같은 파일이 반대되는 답 둘을 갖는다. LOOP.md 본문이
+    「기능 추가는 minor」라 적고 부록이 「patch 1 을 더한 값」이라 적던 그 모양이다.
+  */
+  const STALE = ['항목 커밋도 한 판이다', '항목마다 패치를 하나 올린', '그때 다시 계산한 다음 패치']
+  const found: string[] = []
+  for (const file of ['LOOP.md', ...POLICY_FILES.map((f) => f.file)]) {
+    const text = read(file)
+    for (const stale of STALE) if (text.includes(stale)) found.push(`${file}: ${stale}`)
+  }
+  assert.deepEqual(found, [],
+    `옛 셈법 문장이 남아 있다 — 읽는 세션이 그쪽을 따른다:\n  ${found.join('\n  ')}`)
+})
+
 test('★ 도구가 푸시 시점을 찍는다 — 규칙과 같은 문장으로', () => {
   const cli = read('scripts/loop.mjs')
   assert.ok(cli.includes(PUSH_RULE_NO_ITEM_PUSH),

@@ -107,15 +107,50 @@ test('entries.ts 는 최신이 맨 위인 내림차순이다', () => {
   assert.deepEqual(wrong, [], `entries.ts 순서가 어긋남: ${wrong.join(', ')}`)
 })
 
-test('기준선 이후 완료형 커밋이 같은 버전을 두 번 쓰지 않는다', () => {
+/* ── 한 판 번호는 한 플랜의 것인가 ──────────────────────────
+   플랜 하나가 판 하나를 쓰므로(LOOP.md 부록 「버전 규칙」) 한 번호에 항목 커밋 여럿과
+   완료 커밋 하나가 **잇달아** 달린다. 그러니 「두 번 쓰지 마라」가 아니라
+   **「떨어진 자리에서 다시 쓰지 마라」**가 규칙이다.
+
+   같은 번호가 이력의 두 자리에 떨어져 나타나면 그것은 **플랜 둘이 한 번호를 나눠 쓴 것**이다.
+   그 모양이 2026-09-10 사고였다 — 완료형 커밋 17건이 전부 v0.8.0 이라
+   레이더·첨부 전량 읽기·원문 문서 보기·리포트 화면·Groq 모델이 한 건도 발행되지 않았다.
+   실패한 것이 아니라 아무 신호도 안 난 것이라 화면에서는 정상과 구분되지 않았다.
+
+   같은 번호가 **잇달아** 있는 것은 멀쩡하다. 발행기가 번호별로 모아 메시지를 다 들고
+   묶음 하나를 만든다 (실측 2026-10-09: 커밋 3개 → 묶음 1개, 메시지 3개,
+   가드 lib/policy/changelog-grouping.test.ts). */
+
+test('기준선 이후 한 판 번호가 이력의 두 자리에 떨어져 나타나지 않는다', () => {
   const r = releaseVersionsSinceBaseline()
   if ('skipped' in r) { console.log(`[version-rule] 커밋 검사 건너뜀: ${r.skipped}`); return }
-  const seen = new Map<string, number>()
-  for (const v of r.versions) seen.set(v, (seen.get(v) || 0) + 1)
-  const reused = [...seen.entries()].filter(([, n]) => n > 1).map(([v, n]) => `v${v} ${n}회`)
+
+  // 잇달아 같은 번호는 한 덩이로 접는다. 접은 뒤에도 두 번 나오면 떨어져 있는 것이다
+  const runs = r.versions.filter((v, i) => v !== r.versions[i - 1])
+  const split = [...new Set(runs.filter((v, i) => runs.indexOf(v) !== i))]
+
   assert.deepEqual(
-    reused, [],
-    `버전을 재사용한 커밋이 있다 (${reused.join(', ')}). 앞 버전을 복사하면 그 커밋은 사용자에게 영원히 안 보인다. LOOP.md 부록 버전 규칙 참조`,
+    split, [],
+    `한 판 번호가 떨어진 자리에서 다시 쓰였다 (${split.map((v) => `v${v}`).join(', ')}). `
+    + '플랜 둘이 한 번호를 나눠 쓰면 뒤의 것이 사용자에게 영원히 안 보인다. '
+    + 'LOOP.md 부록 「버전 규칙」 참조',
+  )
+})
+
+test('가장 최근 판 커밋의 번호가 루트 package.json 에 반영되어 있다', () => {
+  const r = releaseVersionsSinceBaseline()
+  if ('skipped' in r) { console.log(`[version-rule] 커밋 검사 건너뜀: ${r.skipped}`); return }
+  if (r.versions.length === 0) return // 기준선 뒤에 판 커밋이 없으면 볼 것이 없다
+
+  /*
+    번호를 썼는데 코드가 그 번호를 안 들고 있으면 발행기가 그 판을 **못 본다**.
+    changelog-gen.mjs 는 package.json 버전보다 높은 커밋을 전부 건너뛰기 때문이다.
+    그래서 번호를 같이 쓰는 것 자체가 아니라 **번호가 코드에 앉았는지**를 본다.
+  */
+  assert.equal(
+    r.versions[0], rootVersion(),
+    `가장 최근 판 커밋은 v${r.versions[0]} 인데 루트 package.json 은 ${rootVersion()} 이다. `
+    + '버전 파일이 그 번호를 들고 있어야 발행기가 그 판을 본다 (loop pass 가 첫 항목에서 맞춘다)',
   )
 })
 
