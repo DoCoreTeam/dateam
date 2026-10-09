@@ -4,6 +4,7 @@
 상태: 초안
 지시: {{instruction}}
 목표 버전: {{target}}
+푸시: {{push}}
 작성: {{date}}
 
 ## 목표

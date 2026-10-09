@@ -254,6 +254,16 @@ function addEvent(kind, detail, sessionId) {
  * apps/web/lib/policy/policy-sync.test.ts 가 앞 다섯의 일치를 본다
  * 여기서 하나라도 빠뜨리면 그 가드가 바로 빨강이 된다
  */
+/**
+ * 푸시 타이밍. 플랜 헤더 「푸시:」 한 칸에 적고 훅과 출력이 그 값을 읽는다.
+ *
+ * 왜 플랜 단위인가: 「지금 안 밀면 사용자가 계속 막히나」는 플랜을 세울 때 한 번 답할 수 있는
+ * 질문이고, 항목마다 다시 묻게 하면 매번 「일단 밀자」로 기운다. 기본을 모음으로 두는 것은
+ * 2026-09 실측에서 빌드가 인프라 요금의 92.1퍼센트였기 때문이고, 즉시를 남겨 두는 것은
+ * 고친 것이 안 가면 사용자가 막힌 채로 있기 때문이다 (LOOP.md 부록 「푸시 규칙」).
+ */
+const PUSH_MODES = ['즉시', '모음'];
+const PUSH_DEFAULT = '모음';
 const PKG_VERSION_FILES = ['package.json', 'apps/web/package.json'];
 const DOC_VERSION_FILES = ['.claude/heavy/CEO.md', 'AGENTS.md', 'GEMINI.md'];
 
@@ -332,6 +342,7 @@ const DEFAULT_TEMPLATE = `# PLAN {{project}}: {{title}}
 상태: 초안
 지시: {{instruction}}
 목표 버전: {{target}}
+푸시: {{push}}
 작성: {{date}}
 
 ## 목표
@@ -380,6 +391,7 @@ function parsePlan(text) {
     status: hget('상태'),
     instruction: hget('지시'),
     target: hget('목표 버전'),
+    push: hget('푸시'),
   };
   const items = [];
   const re = /^### (I\d+[a-z]*)\s+(.*)$/gm;
@@ -518,7 +530,7 @@ function resumeText() {
   if (!p) return `[loop-kit ${KIT_VERSION}] 프로젝트 ${name}, 활성 플랜 없음 (.loop/PLAN.md 부재), 새 지시는 plan new 로 시작`;
   const c = counts(p);
   const lines = [];
-  lines.push(`[loop-kit ${KIT_VERSION}] 프로젝트 ${name}, 플랜 ${p.header.id} ${p.header.version} "${p.header.title}", 상태 ${p.header.status}, 목표 ${p.header.target}`);
+  lines.push(`[loop-kit ${KIT_VERSION}] 프로젝트 ${name}, 플랜 ${p.header.id} ${p.header.version} "${p.header.title}", 상태 ${p.header.status}, 목표 ${p.header.target}, 푸시 ${p.header.push || '없음(모음으로 봄)'}`);
   lines.push(`[loop-kit] 항목 통과 ${c.통과} / 진행중 ${c.진행중} / 대기 ${c.대기} / 보류 ${c.보류} / 취소 ${c.취소}, 전체 ${p.items.length}`);
   const cur = currentItem();
   const nx = nextItem(p);
@@ -639,6 +651,11 @@ cmds.hook = (a) => {
 cmds.plan = (a) => {
   const sub = a._[0];
   if (sub === 'new') {
+    // 값 검증은 **보관보다 먼저** 한다. 실측 2026-10-09: 첫 판은 archivePlan 뒤에 검증해서
+    // --push 오타 하나에 --force 가 걸리자 멀쩡한 플랜이 먼저 보관되고 그 다음에 죽었다.
+    // 안 주면 모음이다. 「급하면 그때 즉시로 적는다」가 아니라 「급한 것은 세울 때 안다」가 규칙이다.
+    const pushMode = a.push == null ? PUSH_DEFAULT : String(a.push);
+    if (!PUSH_MODES.includes(pushMode)) die(`--push 는 ${PUSH_MODES.join(' 또는 ')} (받은 값 ${pushMode}), 판정은 「지금 안 밀면 사용자가 계속 막히나」`);
     const cur = readPlan(false);
     if (planActive(cur) && !a.force) die(`활성 플랜 ${cur.header.id} ${cur.header.version} 존재, 완료 후 진행하거나 --force 로 보관 후 생성`);
     if (cur) { const dest = archivePlan(cur); addEvent('archive', dest); out(`[loop-kit] 기존 플랜 보관 ${dest}`); }
@@ -649,6 +666,7 @@ cmds.plan = (a) => {
       project: getSetting('project_name'), title: a.title || '(제목)', plan_id: planId,
       instruction: a.instruction || '(지시 ID)', target: a.target || '(목표 버전)', date: today(),
       cmd_typecheck: getSetting('cmd_typecheck'), cmd_test: getSetting('cmd_test'), cmd_build: getSetting('cmd_build'),
+      push: pushMode,
     };
     writePlan(tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? `{{${k}}}`));
     if (a.instruction) run('UPDATE instructions SET plan_id = ? WHERE id = ?', planId, a.instruction);
@@ -663,6 +681,7 @@ cmds.plan = (a) => {
     const problems = [];
     if (!p.items.length) problems.push('항목 없음');
     if (!/^v\d+\.\d+\.\d+$/.test(p.header.target || '')) problems.push('목표 버전 형식 오류 (v0.0.0)');
+    if (!PUSH_MODES.includes(p.header.push || '')) problems.push(`푸시 줄 없음 또는 값 오류 (받은 값 ${p.header.push || '없음'}), 헤더에 「푸시: ${PUSH_MODES.join('」 또는 「푸시: ')}」 한 줄을 적는다 (LOOP.md 부록 푸시 규칙)`);
     if (/\(제목\)|\(지시 ID\)|\(목표 버전\)|\(항목 제목\)/.test(p.text)) problems.push('템플릿 자리표시자 잔존');
     const seen = new Set();
     for (const it of p.items) {
