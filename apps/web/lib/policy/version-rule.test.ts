@@ -248,11 +248,20 @@ test('커밋 메시지 훅이 있고 버전 검사를 부른다', () => {
   assert.match(hook, /check-commit-version\.mjs/, 'commit-msg 훅이 버전 검사를 안 부른다')
 })
 
-test('버전 검사기가 세 경우를 전부 막는다', () => {
+test('버전 검사기가 네 경우를 전부 막는다', () => {
   const src = readFileSync(join(ROOT, 'scripts', 'check-commit-version.mjs'), 'utf8')
   assert.match(src, /항목 ID 꼬리/, '항목 꼬리 검사가 없다')
-  assert.match(src, /이미 쓴 번호/, '번호 재사용 검사가 없다')
+  assert.match(src, /지나간 번호입니다/, '지나간 번호 되살리기 검사가 없다')
   assert.match(src, /뒤로 가지 않습니다/, '뒤로 가기 검사가 없다')
+  /*
+    같은 판을 이어 쓸 때 버전 파일이 그 번호를 들고 있는지 보는 자리.
+    2026-09-10 사고가 여기였다 — 완료형 커밋 17건이 전부 v0.8.0 인데 package.json 이
+    한 번도 안 움직여 그 판들이 **한 건도 발행되지 않았다.** 번호를 같이 쓴 것이 아니라
+    그 번호가 코드에 반영되지 않은 것이 범인이었다.
+  */
+  assert.match(src, /루트 package\.json 은/, '판을 이을 때 버전 파일 일치 검사가 없다')
+  assert.match(src, /const latest = recent\[0\]/,
+    '연속 판정(바로 앞 판 번호와 비교)이 없다 — 같은 판 이어 쓰기와 지나간 번호 되살리기를 못 가른다')
 })
 
 test('loop final 이 낡은 플랜 목표값으로 커밋하지 않는다', () => {
