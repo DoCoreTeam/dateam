@@ -161,11 +161,18 @@ export default function QuoteFillPanel({
     onClose()
   }
 
-  /** 지금 폼에 있는 항목 — 「총액 3억에 맞춰서」가 가리키는 대상 */
+  /**
+   * 지금 폼에 있는 항목 — 「총액 3억에 맞춰서」가 가리키는 대상.
+   *
+   * **기간도 함께 간다.** 칸을 골라 옮기면서 기간을 떨어뜨리면 총액 맞추기가
+   * **반값을 현재값으로 보고** 단가를 두 배로 민다 — 실측 2026-10-09:
+   * 17대 × 2개월 짜리 줄에서 목표 3억을 맞췄더니 저장될 공급가가 **6억**이었다.
+   */
   const currentLines = () => draft.lines
     .filter((l) => l.name.trim())
     .map((l) => ({
       name: l.name, quantity: l.quantity, unit: l.unit,
+      durationValue: l.durationValue, durationUnit: l.durationUnit,
       unitPriceMinor: l.unitPriceMinor,
       discountPercent: l.discountPercent, taxRate: l.taxRate,
     }))
@@ -239,6 +246,8 @@ export default function QuoteFillPanel({
         const r = scaleLinesToTarget(
           lines.map((l) => ({
             kind: l.kind, quantity: l.quantity, unitPriceMinor: l.unitPriceMinor,
+            // 기간을 안 넘기면 반값이 현재값이 되어 단가가 두 배로 밀린다(실측 2026-10-09)
+            durationValue: l.durationValue, durationUnit: l.durationUnit,
             discountPercent: l.discountPercent, specialDiscountPercent: l.specialDiscountPercent,
             taxRate: l.taxRate,
           })),

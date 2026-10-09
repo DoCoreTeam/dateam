@@ -10,6 +10,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { scaleLinesToTarget, describeScale } from './quote-target.ts'
 import { computeTotals, type QuoteLineInput } from './quote-math.ts'
+import { readFileSync } from 'node:fs'
 
 const NO_ROUND = { unit: 0 as const, mode: 'DOWN' as const }
 
@@ -134,4 +135,60 @@ test('절사가 없으면 이유를 덧붙이지 않는다 — 없는 원인을 
 test('못 맞췄으면 아무 말도 하지 않는다 — 안 한 일을 했다고 하지 않는다', () => {
   const r = scaleLinesToTarget(REAL, { totalMinor: null, includesTax: true }, NO_ROUND)
   assert.equal(describeScale({ totalMinor: null, includesTax: true }, r), null)
+})
+
+/* ──────────────────────────────────────────────────────────────────────────
+   기간 — 떨어뜨리면 단가가 두 배로 밀린다
+
+   총액 맞추기 자체는 기간을 센다(computeTotals 를 쓰므로). 문제는 **넘기는 쪽**이다.
+   화면이 줄을 칸 몇 개만 골라 옮기면서 기간을 빠뜨리면, 이 함수는 **반값을 현재값으로 보고**
+   단가를 두 배로 민다. 그 단가가 진짜 줄(기간이 있는)에 되돌아가면 합계가 목표의 두 배다.
+
+   실측 2026-10-09: 17대 × 2개월 × 936,000 에서 목표 3억 → 저장될 공급가 **6억 6원**.
+   ────────────────────────────────────────────────────────────────────────── */
+
+const DUR_LINE = {
+  quantity: '17', unitPriceMinor: '936000', discountPercent: '0', taxRate: '10',
+  durationValue: '2', durationUnit: 'MONTH',
+}
+const DUR_INTENT = { totalMinor: 300_000_000, includesTax: false }
+const DUR_ROUND = { unit: 0, mode: 'DOWN' as const }
+
+/** 맞춘 단가를 **진짜 줄**에 되돌려 놓았을 때의 공급가 — 사람이 실제로 저장하는 값이다 */
+function savedNet(scaledUnit: string): bigint {
+  const t = computeTotals([{ ...DUR_LINE, unitPriceMinor: scaledUnit }], DUR_ROUND)
+  return t.totalMinor - t.taxMinor
+}
+
+test('★ 기간을 넘기면 목표에 닿는다 — 안 넘기면 두 배가 된다', () => {
+  const kept = scaleLinesToTarget([DUR_LINE], DUR_INTENT, DUR_ROUND)
+  const net = savedNet(String(kept.lines[0].unitPriceMinor))
+  // 정수 단가로는 딱 떨어지지 않을 수 있다. 목표의 0.01% 안이면 닿은 것으로 본다
+  const off = net > BigInt(300_000_000) ? net - BigInt(300_000_000) : BigInt(300_000_000) - net
+  assert.ok(off < BigInt(30_000), `목표 3억인데 ${net} 이다`)
+
+  // 기간을 떨어뜨린 판 — 이것이 고치기 전의 모양이다
+  const dropped = scaleLinesToTarget([{
+    quantity: DUR_LINE.quantity, unitPriceMinor: DUR_LINE.unitPriceMinor,
+    discountPercent: DUR_LINE.discountPercent, taxRate: DUR_LINE.taxRate,
+  }], DUR_INTENT, DUR_ROUND)
+  const bad = savedNet(String(dropped.lines[0].unitPriceMinor))
+  assert.ok(bad > BigInt(500_000_000),
+    `기간을 떨어뜨렸는데 두 배가 안 됐다(${bad}) — 이 단정이 지키려는 것이 사라졌다`)
+})
+
+test('★ 기간이 없는 줄의 결과는 전과 같다', () => {
+  const plain = { quantity: '17', unitPriceMinor: '936000', discountPercent: '0', taxRate: '10' }
+  const r = scaleLinesToTarget([plain], DUR_INTENT, DUR_ROUND)
+  const t = computeTotals([{ ...plain, unitPriceMinor: String(r.lines[0].unitPriceMinor) }], DUR_ROUND)
+  const net = t.totalMinor - t.taxMinor
+  const off = net > BigInt(300_000_000) ? net - BigInt(300_000_000) : BigInt(300_000_000) - net
+  assert.ok(off < BigInt(30_000), `목표 3억인데 ${net} 이다`)
+})
+
+test('★ 화면이 줄을 옮길 때 기간 두 칸을 싣는다 — 선언만 하고 안 넘기면 금액이 두 배가 된다', () => {
+  const panel = readFileSync(new URL('../../../components/ui/crm/QuoteFillPanel.tsx', import.meta.url), 'utf8')
+  const spots = panel.match(/durationValue: l\.durationValue, durationUnit: l\.durationUnit/g) ?? []
+  assert.ok(spots.length >= 2,
+    `총액 맞추기로 가는 두 자리(currentLines·scale) 중 ${spots.length}곳만 기간을 싣는다`)
 })
