@@ -288,6 +288,65 @@ function nextPatchVersion() {
   return pat >= 999 ? `${maj}.${min + 1}.0` : `${maj}.${min}.${pat + 1}`;
 }
 
+/** 가장 최근 판 커밋의 번호. 같은 판을 잇는지 보는 기준이다 */
+function latestCommitVersion() {
+  try {
+    const log = sh('git log --format=%s -40', true) || '';
+    for (const line of log.split('\n')) {
+      const m = line.match(/^v(\d+\.\d+\.\d+)[:-]/);
+      if (m) return m[1];
+    }
+  } catch { /* 로그를 못 읽으면 모른다 */ }
+  return null;
+}
+
+/**
+ * 이 플랜이 쓸 판 번호. **플랜 하나가 판 하나다** (LOOP.md 부록 「버전 규칙」).
+ *
+ * 플랜 헤더의 목표 버전이 그 플랜의 몫이고, 항목 커밋과 완료 커밋이 그 번호를 함께 쓴다.
+ * 그런데 헤더 값이 못 쓰는 번호일 수 있다 — 그 사이 다른 세션이 그 번호를 집어갔거나
+ * 플랜을 세울 때 잡은 값이 지나가 버린 경우다(실측 사고 2026-09-14). 그때는 조용히
+ * 쓰지 않고 **다음 빈 패치로 헤더를 고치고** 그 사실을 찍는다.
+ *
+ * 쓸 수 있는 번호는 둘 중 하나다.
+ *   1) 지금까지 쓴 가장 높은 번호보다 높다 (이 플랜의 첫 항목)
+ *   2) 가장 최근 판 커밋의 번호와 같고 버전 파일도 그 번호를 들고 있다 (같은 판을 이음)
+ */
+function planVersion(p) {
+  const want = String(p.header.target || '').replace(/^v/, '');
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+  const latest = latestCommitVersion();
+  const highest = latest && cmpSemver(latest, pkg) > 0 ? latest : pkg;
+
+  const fresh = /^\d+\.\d+\.\d+$/.test(want) && cmpSemver(want, highest) > 0;
+  const continuing = want === latest && want === pkg;
+  if (fresh || continuing) return want;
+
+  const reclaimed = nextPatchVersion();
+  setPlanTarget(p, `v${reclaimed}`);
+  out(`[loop-kit] 목표 버전 v${want || '없음'} 을 쓸 수 없어 v${reclaimed} 로 고쳤다 (이미 쓰였거나 현재 v${highest} 보다 낮다), 플랜 하나가 판 하나다`);
+  return reclaimed;
+}
+
+/**
+ * 플랜 헤더의 목표 버전 한 줄을 고친다. 그 줄이 그 세션의 몫을 밝히는 자리다.
+ *
+ * **디스크에서 다시 읽는다.** 넘겨받은 p.text 는 읽은 시점의 사본이라, 그 사이
+ * setItemStatus 가 쓴 변경(항목 상태 통과)을 들고 있지 않다. 사본을 되쓰면 그 변경이
+ * 조용히 지워진다 — 실측으로 pass 가 「(0/1)」을 찍고 항목이 대기로 남았다.
+ * 여기는 줄 하나를 정규식으로 바꾸는 일이라 글자 위치에 기대지 않으므로 다시 읽어도 된다.
+ */
+function setPlanTarget(p, target) {
+  const text = readPlanText() ?? p.text;
+  const itemsStart = text.indexOf('\n## 항목');
+  const head = itemsStart >= 0 ? text.slice(0, itemsStart) : text;
+  const rest = itemsStart >= 0 ? text.slice(itemsStart) : '';
+  const next = head.replace(/^목표 버전:.*$/m, `목표 버전: ${target}`) + rest;
+  writePlan(next);
+  p.text = next;
+  p.header.target = target;
+}
+
 /** 버전 파일 다섯을 한 번에 맞춘다. 앞 버전을 그대로 두면 그 커밋은 사용자에게 안 보인다 */
 function applyVersionFiles(version) {
   for (const rel of PKG_VERSION_FILES) bumpPkgVersion(path.join(ROOT, rel), version);
@@ -313,7 +372,9 @@ function bumpDocVersion(file, next) {
     const raw = fs.readFileSync(file, 'utf8');
     const m = raw.match(/^## 버전\n+v(\d+\.\d+\.\d+)\s*$/m);
     if (!m) return 'no-line';
-    if (cmpSemver(next, m[1]) <= 0) return 'behind';
+    const d = cmpSemver(next, m[1]);
+    if (d === 0) return 'same';   // 첫 항목이 이미 맞춰 둔 정상 상태
+    if (d < 0) return 'behind';   // 뒤로 가려는 것, 이쪽만 알린다
     const text = raw.replace(m[0], m[0].replace('v' + m[1], 'v' + next));
     fs.writeFileSync(file, text);
     if (!fs.readFileSync(file, 'utf8').includes('v' + next)) return 'skipped';
@@ -326,7 +387,9 @@ function bumpPkgVersion(file, next) {
   try {
     const raw = fs.readFileSync(file, 'utf8');
     const j = JSON.parse(raw);
-    if (cmpSemver(next, j.version || '0.0.0') <= 0) return 'behind';
+    const d = cmpSemver(next, j.version || '0.0.0');
+    if (d === 0) return 'same';   // 첫 항목이 이미 맞춰 둔 정상 상태
+    if (d < 0) return 'behind';   // 뒤로 가려는 것, 이쪽만 알린다
     j.version = next;
     const text = JSON.stringify(j, null, 2) + '\n';
     fs.writeFileSync(file, text);
@@ -821,9 +884,12 @@ cmds.pass = (a) => {
   if (flag('auto_commit') && !a['no-commit']) {
     setItemStatus(p, id, '통과');
     // --files 는 기록용이 아니라 커밋 범위다. 안 주면 옛 동작(트리 전체)으로 떨어지고 그 사실을 알린다
-    // 항목마다 패치를 하나 올린다. -Ixx 꼬리를 붙이면 그 커밋은 발행기가 건너뛰어
-    // 사용자에게 영영 안 보인다 (사용자 지시 2026-09-14).
-    const itemVersion = nextPatchVersion();
+    //
+    // **항목 커밋은 패치를 올리지 않는다.** 플랜 하나가 판 하나이므로 이 플랜의 모든 항목이
+    // 헤더의 판 번호를 함께 쓴다 (LOOP.md 부록 「버전 규칙」). 버전 파일은 첫 항목에서
+    // 한 번 맞춰지고 그 뒤 항목에서는 applyVersionFiles 가 behind 를 반환해 아무것도 안 쓴다.
+    // -Ixx 꼬리는 그대로 금지, 발행기가 그 커밋을 건너뛴다 (사용자 지시 2026-09-14).
+    const itemVersion = planVersion(p);
     applyVersionFiles(itemVersion);
     const versionPaths = [...PKG_VERSION_FILES, ...DOC_VERSION_FILES].filter(knownToGit);
     const r = gitCommit(`v${itemVersion}: ${it.title}`, a.files ? [...files, ...versionPaths] : null);
@@ -901,21 +967,19 @@ cmds.final = (a) => {
   setPlanStatus(p, '완료');
   snapshot('final', 'pass');
   /**
-   * 완료 버전은 **플랜 목표값이 아니라 지금 쓸 수 있는 다음 패치**다.
+   * 완료 버전은 **이 플랜의 판 번호**다. 항목 커밋들이 쓴 그 번호를 완료 커밋도 쓴다 —
+   * 플랜 하나가 판 하나이므로(LOOP.md 부록 「버전 규칙」) 여기서 번호를 또 올리지 않는다.
    *
-   * 실측 사고(2026-09-14): 플랜을 세울 때 잡은 목표 v0.10.2 를 그대로 썼는데, 그 사이
-   * 항목 커밋들이 0.10.3 까지 올려 둔 상태였다. 완료 커밋이 v0.10.2 로 나가 같은 번호가
-   * 두 번 생기고 버전이 뒤로 갔다. 가드가 잡았지만 그건 커밋된 뒤였다 —
-   * 애초에 만들 수 없게 한다.
+   * 그래도 planVersion 을 지난다. 실측 사고(2026-09-14): 플랜을 세울 때 잡은 목표 v0.10.2 를
+   * 그대로 썼는데 그 사이 버전이 0.10.3 까지 올라가 있어 완료 커밋이 뒤로 갔다.
+   * planVersion 이 그런 번호를 거부하고 다음 빈 패치로 헤더를 고치므로 애초에 만들 수 없다.
    */
-  const planned = p.header.target;
-  const target = `v${nextPatchVersion()}`;
-  if (planned && planned !== target) {
-    out(`[loop-kit] 완료 버전 ${planned} 대신 ${target} 사용 (그 사이 버전이 올라갔다)`);
-  }
+  const target = `v${planVersion(p)}`;
   if (flag('bump_package_version') && /^v\d+\.\d+\.\d+$/.test(target)) {
     for (const rel of PKG_VERSION_FILES) {
       const r = bumpPkgVersion(path.join(ROOT, rel), target.slice(1));
+      // 'same' 은 첫 항목이 이미 맞춰 둔 정상 상태라 아무 말도 하지 않는다.
+      // 'behind' 는 뒤로 가려는 것이라 알린다 — planVersion 이 거르지만 여기서도 말한다
       if (r === 'behind') out(`[loop-kit] ${rel} 버전 유지 (목표 ${target} 가 현재보다 낮음)`);
     }
     for (const rel of DOC_VERSION_FILES) {

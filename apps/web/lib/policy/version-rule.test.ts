@@ -260,10 +260,17 @@ test('기준선 이후 커밋 제목에 -Ixx 꼬리가 없다', () => {
     `항목 ID 꼬리가 붙은 커밋이 있다(발행기가 건너뛴다): ${offenders.join(' / ')}. vX.Y.Z: 제목 으로 적고 패치를 올릴 것`)
 })
 
-test('loop.mjs 가 항목 커밋에 패치 버전을 붙인다', () => {
+test('loop.mjs 의 항목 커밋이 플랜 판 번호를 쓰고 패치를 올리지 않는다', () => {
   const loop = readFileSync(join(ROOT, 'scripts', 'loop.mjs'), 'utf8')
-  assert.match(loop, /nextPatchVersion\(\)/, 'loop.mjs 에 다음 패치 계산이 없다')
-  assert.match(loop, /applyVersionFiles\(/, 'loop.mjs 가 버전 파일을 안 올린다')
+
+  // 플랜 하나가 판 하나다 — 항목마다 패치를 올리면 커밋 수가 그대로 판 수가 된다
+  assert.match(loop, /const itemVersion = planVersion\(p\)/,
+    'loop pass 가 플랜 판 번호를 쓰지 않는다 — 항목마다 패치를 올리면 999 상한을 달마다 넘긴다')
+  assert.ok(!/const itemVersion = nextPatchVersion\(\)/.test(loop),
+    'loop pass 가 아직 항목마다 다음 패치를 계산한다')
+
+  // 번호를 쓰기만 하고 버전 파일에 안 앉히면 발행기가 그 판을 못 본다 (2026-09-10)
+  assert.match(loop, /applyVersionFiles\(/, 'loop.mjs 가 버전 파일을 안 맞춘다')
   assert.ok(!/\$\{p\.header\.target\}-\$\{id\}/.test(loop),
     'loop.mjs 가 아직 목표버전-항목ID 형식으로 커밋 메시지를 만든다')
 })
@@ -299,13 +306,23 @@ test('버전 검사기가 네 경우를 전부 막는다', () => {
     '연속 판정(바로 앞 판 번호와 비교)이 없다 — 같은 판 이어 쓰기와 지나간 번호 되살리기를 못 가른다')
 })
 
-test('loop final 이 낡은 플랜 목표값으로 커밋하지 않는다', () => {
+test('loop final 이 플랜 판 번호를 쓰되 뒤로 가지 못한다', () => {
   const loop = readFileSync(join(ROOT, 'scripts', 'loop.mjs'), 'utf8')
-  // 완료 버전을 header.target 에서 바로 받으면 그 사이 오른 버전을 못 본다
+
+  /*
+    완료 커밋은 항목 커밋들이 쓴 그 번호를 쓴다. 그래도 **planVersion 을 지나야** 한다 —
+    header.target 을 날로 받으면 그 사이 다른 세션이 올려 둔 버전을 못 보고 뒤로 간다
+    (실측 사고 2026-09-14: 낡은 목표 v0.10.2 로 나가 같은 번호가 두 번 생겼다).
+  */
   assert.ok(!/const target = p\.header\.target;/.test(loop),
-    'loop.mjs 의 final 이 플랜 목표값을 그대로 완료 버전으로 쓴다')
-  assert.match(loop, /const target = `v\$\{nextPatchVersion\(\)\}`/,
-    'loop.mjs 의 final 이 다음 패치를 계산하지 않는다')
+    'loop.mjs 의 final 이 플랜 목표값을 검사 없이 완료 버전으로 쓴다')
+  assert.match(loop, /const target = `v\$\{planVersion\(p\)\}`/,
+    'loop.mjs 의 final 이 planVersion 을 지나지 않는다 — 지나간 목표를 그대로 쓰면 버전이 뒤로 간다')
+
+  // planVersion 이 못 쓰는 번호를 만나면 조용히 쓰지 않고 헤더를 고치고 알린다
+  assert.match(loop, /function planVersion\(p\)/, 'loop.mjs 에 판 번호 결정 자리가 없다')
+  assert.match(loop, /setPlanTarget\(p, `v\$\{reclaimed\}`\)/,
+    'planVersion 이 못 쓰는 목표를 만나도 헤더를 고치지 않는다 — 다음 세션이 같은 번호를 또 집는다')
 })
 
 test('★ 아직 안 지난 목표 둘이 서로 다른 minor 를 잡으면 여전히 떨어진다', () => {
