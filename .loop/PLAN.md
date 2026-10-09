@@ -102,7 +102,71 @@
 의존: I03, I04
 
 ## 종합 감사
-- (전 항목 통과 후 기록)
+
+검사 넷, 실행 명령과 결과
+
+- pnpm typecheck exit 0, error TS 0건
+- pnpm lint exit 0, 오류 0건 (기존 react-hooks 경고 22줄만, 이 플랜과 무관)
+- pnpm test exit 0, 9,280/9,280 통과, not ok 0건
+- NEXT_DIST_DIR=.next-p0130 pnpm build exit 0
+- 빌드가 apps/web/tsconfig.json 과 next-env.d.ts 를 고쳤고 git checkout 으로 원복, .next-p0130 삭제
+
+보안 재측정, 7절 「기계가 세는 것」 다섯 줄 (psql + docs/policy/security-count.sql)
+
+| 줄 | 값 |
+|---|---|
+| rls_off_tables | 0 |
+| anon_write_tables | 0 |
+| public_using_true_policies | 0 |
+| unpinned_secdef_functions | 0 |
+| anon_readable_secdef_views | 0 |
+
+- DATABASE_URL 에 pgbouncer 파라미터가 있어 psql 이 거부했고 그 파라미터를 뺀 주소로 돌렸음
+- 이 플랜의 범위에 7절 닿는 자리가 하나도 없음(마이그레이션, app/api, middleware.ts, lib/supabase, lib/auth, lib/security, next.config.js, 업로드 모두 미해당)
+
+전체 diff, git diff 5a070bc2..HEAD --stat
+
+- 13 파일 690 추가 56 삭제, 범위 밖 파일 없음
+- 비밀 0건 (추가된 줄만 정밀 검사), 하드코딩 설정값 0건
+- 미커밋 변경 0건
+
+완료 정의 대조
+
+- 검사 넷 통과: 위에 실행 결과 적음
+- 같은 판 번호 커밋 여럿이 업데이트 내역 한 블록이 되는 것: changelog-grouping.test.ts 단정 4개로 고정, 훅 켠 클론에서 커밋 셋이 묶음 1개로 모이는 것을 실측
+- 셈법이 네 자리에서 같은 말을 함: 규정(LOOP.md 부록 + 정책 3파일 46줄 동일), 훅(check-commit-version.mjs), 도구(loop.mjs planVersion), 가드(version-rule + policy-sync + changelog-grouping)
+- 미커밋 변경이 있으면 final 이 판정을 안 찍음: 두 갈래 실측, policy-sync 단정으로 고정
+- 사용자 노출 문자열 없음, i18n 해당 없음
+- 설정값 추가 없음, env 추가 없음
+
+항목 대 결과
+
+- I01 v0.11.7 changelog-gen.mjs + changelog-grouping.test.ts + package.json
+- I02 v0.11.8 LOOP.md + AGENTS.md + GEMINI.md + CEO.md
+- I03 v0.11.9 check-commit-version.mjs + version-rule.test.ts
+- I04 v0.11.10 version-rule.test.ts + policy-sync.test.ts
+- I05 v0.11.11 loop.mjs + policy-sync.test.ts
+- I06 v0.11.12 loop.mjs + version-rule.test.ts
+- 범위에 적힌 11개 파일 전부 실제로 바뀜
+
+S6, 가드를 일부러 깨 확인한 것 일곱
+
+- 훅의 이어 쓰기 허용 갈래 제거 시 차단됨, 원복 md5 동일
+- 훅의 버전 파일 일치 문구 제거 시 가드 떨어짐, 원복 md5 동일
+- 비연속 이력(v0.11.10 뒤 v0.11.9)에서 연속성 단정 떨어짐
+- 같은 번호 셋을 잇달아 쓴 이력에서 17/17 통과, 느슨하게 고친 쪽이 약해지지 않음
+- 정책 한 파일만 문구 변경 시 「파일마다 다르게 적혀 있다」로 떨어짐
+- LOOP.md 에 옛 문장 심을 시 「옛 셈법 문장이 남아 있다」로 떨어짐
+- loop final 의 미커밋 셈 제거 시 가드 떨어짐, 원복 md5 동일
+- pass 의 planVersion 을 nextPatchVersion 으로 되돌릴 시 단정 둘 떨어짐, 원복 md5 동일
+
+발견 사항
+
+- cmd_typecheck 설정이 pnpm tsc --noEmit 이라 tsc 도움말만 찍고 실제 검사를 한 번도 안 하고 있었음, pnpm typecheck 로 교정
+- 훅이 적은 사유(같은 번호면 나중 것이 안 보인다)가 발행기 실제 동작과 달랐음, 실측으로 확인하고 사유를 고쳐 적음
+- final 이 archivePlan 에서 PLAN.md 를 지운 뒤 커밋하므로 활성 플랜 읽기로는 완료 커밋을 통과시킬 수 없었음, 연속성 기준으로 간 이유
+- 회귀 하나를 만들고 고쳤음: setPlanTarget 이 낡은 p.text 를 되써 항목 통과 상태를 덮었고 디스크에서 다시 읽게 고침
+- 범위 밖 발견: apps/web 에 .next-* 빌드판 10개가 남아 있음, 다른 세션 것이라 손대지 않음
 
 ## 변경 이력
 - v0.1.0 (2026-10-09) 최초 작성 (ins_0215)
