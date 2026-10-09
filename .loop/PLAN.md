@@ -59,7 +59,7 @@
 의존: I01
 
 ### I03 훅과 도구가 그 줄을 읽어 움직인다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: .githooks/pre-push, scripts/loop.mjs
 감사 기준:

@@ -840,7 +840,14 @@ cmds.pass = (a) => {
   out(`[loop-kit] ${id} 통과 (${c.통과}/${p2.items.length})${commitNote}, 이번 컨텍스트 통과 ${k}개`);
   out(nx ? `[loop-kit] 다음 항목 ${nx.id} ${nx.title}` : '[loop-kit] 대기 항목 없음, 종합 감사 단계 (final)');
   const ahead = unpushedCount();
-  out(`[loop-kit] 항목 커밋은 푸시하지 않는다${ahead === null ? '' : ` (미푸시 ${ahead}개)`}, 푸시는 final 뒤 한 번 (LOOP.md 부록 푸시 규칙)`);
+  const aheadNote = ahead === null ? '' : ` (미푸시 ${ahead}개)`;
+  /*
+    **즉시와 모음은 서로 다른 말을 해야 한다.** 둘 다 「모으는 중」이라고 하면 운영 결함을
+    고쳐 놓고도 안 민다. 판정은 플랜 헤더가 들고 있으므로 여기서는 그 값대로 말만 바꾼다
+    (LOOP.md 부록 「푸시 규칙」).
+  */
+  if (p2.header.push === '즉시') out(`[loop-kit] 지금 민다, git push${aheadNote}. 이 플랜은 푸시: 즉시다 (운영에 닿는 수정은 모으지 않는다)`);
+  else out(`[loop-kit] 모음 플랜의 항목 커밋은 푸시하지 않는다${aheadNote}, 푸시는 final 뒤 한 번 (LOOP.md 부록 푸시 규칙)`);
   if (k >= every && nx) out(`[loop-kit] 체크포인트: 플랜 ${p2.header.version} 저장됨, 여기서 /clear 후 재개 권장 (checkpoint_every=${every})`);
 };
 

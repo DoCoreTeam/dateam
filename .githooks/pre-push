@@ -1,44 +1,63 @@
 #!/bin/sh
-# 푸시 규칙 — 활성 플랜 중에는 푸시를 막는다 (LOOP.md 부록 「푸시 규칙」)
+# 푸시 타이밍 — 무엇을 고쳤는지로 가른다 (LOOP.md 부록 「푸시 규칙」)
 #
-# 왜 여기인가: 푸시 한 번이 Vercel 빌드 한 번이고, 2026-09 실측으로 빌드가 인프라
-# 요금의 92.1퍼센트(354시간 74.34달러)였다. 그달 커밋은 1,003건인데 푸시는 111회,
-# 푸시 1회당 0.67달러다. 커밋을 쌓아 한 번에 밀면 빌드는 한 번이므로 모으는 쪽이
-# 언제나 싸다. 그런데 「모아서 밀어라」를 글로만 두면 안 지켜진다 — 버전 규칙이
-# 열일곱 판 동안 안 지켜진 것과 같은 구멍이라, 밀리는 자리에서 막는다.
+# 판정 한 줄: 지금 안 밀면 사용자가 계속 막히나
+#   예면 「푸시: 즉시」라 여기서 통과시킨다. 고친 것이 안 가면 사용자는 막힌 채로 있고,
+#   요금 0.67달러를 아끼려고 반나절을 막아 두는 것은 바꿀 값이 아니다.
+#   아니오면 「푸시: 모음」이라 막는다. 2026-09 실측으로 빌드가 인프라 요금의
+#   92.1퍼센트(354시간 74.34달러)였고, 그달 커밋 1,003건에 푸시는 111회였다.
+#   빌드는 푸시에 담긴 마지막 커밋 하나만 굽는다 — 모으면 한 번이고 나눠 밀면 그 수만큼이다.
 #
+# 판정은 플랜을 세울 때 한 번 하고 헤더 「푸시:」 한 칸에 적는다. 여기서는 그 줄을 읽기만 한다.
 # 활성화: git config core.hooksPath .githooks (클론마다 한 번)
 
 if [ -n "$LOOP_PUSH_NOW" ]; then
-  echo "[push-gate] LOOP_PUSH_NOW 로 통과. 무엇을 왜 밀었는지 보고에 적는다 (LOOP.md 부록 푸시 규칙 3)"
+  echo "[push-gate] LOOP_PUSH_NOW 로 통과. 무엇을 왜 밀었는지 보고에 적는다 (모음 플랜 도중 운영 결함을 고쳤을 때의 정상 경로)"
   exit 0
 fi
 
 # 훅이 보는 플랜은 둘뿐이다 — 기본 플랜과 이 셸이 가리키는 옆 플랜.
 # .loop/PLAN*.md 를 전부 훑으면 안 된다: 끝내지 않고 둔 옛 플랜이 「진행중」으로
-# 남아 있어(실측 2026-10-08 P0001·P0030·P0052·P0114 넷) 푸시가 영영 막힌다.
-plan_status() {
+# 남아 있어(실측 2026-10-08 P0001, P0030, P0052, P0114 넷) 푸시가 영영 막힌다.
+plan_field() {
   [ -f "$1" ] || return 1
-  grep -m1 '^상태:' "$1" 2>/dev/null | sed 's/^상태:[[:space:]]*//'
+  grep -m1 "^$2:" "$1" 2>/dev/null | sed "s/^$2:[[:space:]]*//"
 }
 
-active=""
+held=""
 for f in ".loop/PLAN.md" ${LOOP_PLAN_FILE:+".loop/$LOOP_PLAN_FILE"}; do
-  st=$(plan_status "$f") || continue
+  st=$(plan_field "$f" "상태") || continue
   case "$st" in
     완료*|중단*|'') continue ;;
   esac
-  id=$(grep -m1 '^플랜 ID:' "$f" 2>/dev/null | sed 's/^플랜 ID:[[:space:]]*//')
-  active="$active $f($id $st)"
+
+  id=$(plan_field "$f" "플랜 ID")
+  mode=$(plan_field "$f" "푸시")
+
+  # 즉시는 「지금 안 밀면 사용자가 계속 막힌다」는 뜻이다. 그 판정이 섰으면 여기서 비킨다.
+  if [ "$mode" = "즉시" ]; then
+    echo "[push-gate] $f ($id) 가 「푸시: 즉시」라 통과. 운영에 닿는 수정은 모으지 않는다"
+    exit 0
+  fi
+
+  # 푸시 줄이 없는 옛 플랜은 모음으로 본다 — 모르는 것을 통과시키면 가드가 아니다
+  case "$mode" in
+    모음) note="모음" ;;
+    '')   note="푸시 줄 없음, 모음으로 봄" ;;
+    *)    note="알 수 없는 값 $mode, 모음으로 봄" ;;
+  esac
+  held="$held $f($id $st, $note)"
 done
 
-[ -z "$active" ] && exit 0
+[ -z "$held" ] && exit 0
 
 ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || git rev-list --count origin/main..HEAD 2>/dev/null || echo "?")
 
-echo "[push-gate] 활성 플랜이 있어 푸시를 막았다:$active"
-echo "[push-gate] 지금 밀면 빌드가 한 번 더 돈다. 미푸시 커밋 ${ahead}개는 플랜이 끝날 때 한 번에 나간다."
+echo "[push-gate] 모음 플랜이 활성이라 푸시를 막았다:$held"
+echo "[push-gate] 미푸시 커밋 ${ahead}개는 플랜이 끝날 때 한 번에 나간다. 지금 밀면 빌드가 한 번 더 돈다"
 echo "[push-gate] 순서: 전 항목 통과 -> loop final --result pass -> git push"
-echo "[push-gate] 운영이 멈춘 것을 되살리는 긴급 푸시라면: LOOP_PUSH_NOW=1 git push (사유를 보고에 적는다)"
+echo "[push-gate] 판정이 틀렸다면, 즉 지금 안 밀면 사용자가 계속 막힌다면 둘 중 하나:"
+echo "[push-gate]   이 수정만 급하다: LOOP_PUSH_NOW=1 git push (사유를 보고에 적는다)"
+echo "[push-gate]   플랜 전체가 급하다: 헤더의 「푸시: 모음」을 「푸시: 즉시」로 고치고 loop plan revise"
 echo "[push-gate] 근거: LOOP.md 부록 「푸시 규칙」, 2026-09 빌드 354시간 74.34달러로 인프라의 92.1퍼센트"
 exit 1
