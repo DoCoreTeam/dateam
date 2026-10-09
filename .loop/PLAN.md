@@ -71,7 +71,7 @@
 의존: I02
 
 ### I04 가드가 새 규칙을 대조한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/policy/policy-sync.test.ts
 감사 기준:

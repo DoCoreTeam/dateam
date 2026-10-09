@@ -490,3 +490,81 @@ test('★ 도구가 푸시 시점을 찍는다 — 규칙과 같은 문장으로
   assert.ok(cli.includes('unpushedCount'),
     'loop CLI 가 미푸시 커밋 수를 안 센다 — 모으고 있다는 사실이 안 보이면 불안해서 민다')
 })
+
+/*
+  **푸시 타이밍** — 모으기만 하면 고친 것이 안 간다 (사용자 지시 2026-10-09 ins_0213).
+
+  앞 판(v0.10.994)은 「플랜 완료 때 한 번」만 두어 운영 결함을 고쳐 놓고도 못 미는 규칙이 됐다.
+  실제 운영 방식은 그 반대였다 — 오류가 있으니 고치는 대로 밀어 왔던 것이고, 그게 맞다.
+  그래서 판정 한 줄(지금 안 밀면 사용자가 계속 막히나)로 즉시와 모음을 가르고,
+  그 답을 플랜 헤더 「푸시:」 한 칸에 적어 훅과 도구가 읽게 했다.
+
+  아래 넷은 **그 한 칸이 네 자리에서 같은 뜻으로 읽히는지**를 본다. 규칙만 고치고 템플릿을
+  안 고치면 칸이 안 생기고, 훅만 고치고 CLI 를 안 고치면 막지는 않는데 밀라고도 안 한다.
+*/
+const PUSH_VERDICT = '지금 안 밀면 사용자가 계속 막히나'
+const PUSH_HEADER_NOW = '푸시: 즉시'
+const PUSH_HEADER_HOLD = '푸시: 모음'
+
+test('★ 푸시 타이밍 판정이 네 파일에 있고 무엇이 즉시인지 분류한다', () => {
+  const loop = read('LOOP.md')
+  const s = loop.indexOf('### 푸시 규칙')
+  assert.ok(s >= 0, 'LOOP.md 부록에 푸시 규칙 절이 없다')
+  const rest = loop.slice(s)
+  const loopBody = rest.slice(0, rest.search(/\n#{2,3} /))
+
+  for (const [where, body] of [['LOOP.md', loopBody], ...POLICY_FILES.map(({ file }) => [file, pushSection(read(file)) ?? ''] as const)]) {
+    assert.ok(body.includes(PUSH_VERDICT),
+      `${where} 에 판정 한 줄 「${PUSH_VERDICT}」이 없다 — 가르는 기준이 없으면 매번 "일단 밀자"가 된다`)
+    for (const v of [PUSH_HEADER_NOW, PUSH_HEADER_HOLD]) {
+      assert.ok(body.includes(v), `${where} 에 헤더 값 「${v}」가 안 적혀 있다`)
+    }
+  }
+  // 판정 줄만 있고 분류가 없으면 무엇이 "막히는 것"인지에서 또 갈린다
+  const rows = (loopBody.match(/^\| (운영|기능|문서)/gm) ?? []).length
+  assert.ok(rows >= 4, `무엇을 고쳤을 때 즉시인지 분류한 표가 ${rows}줄뿐이다 — 네 줄 이상이어야 판정이 선다`)
+})
+
+test('★ 플랜 템플릿 두 벌에 푸시 칸이 있다 — 한 벌만 고치면 칸이 안 생긴다', () => {
+  /*
+    템플릿은 **두 벌**이다: `.loop/PLAN.template.md` 파일과 `scripts/loop.mjs` 안의
+    DEFAULT_TEMPLATE. 파일이 없는 클론은 뒤엣것으로 떨어지므로, 한 벌만 고치면
+    그 클론의 플랜에는 푸시 칸이 영영 안 생기고 훅은 전부 모음으로 읽는다.
+  */
+  for (const rel of ['.loop/PLAN.template.md', 'scripts/loop.mjs']) {
+    assert.ok(read(rel).includes('푸시: {{push}}'),
+      `${rel} 템플릿에 푸시 칸이 없다 — 이 벌로 만든 플랜은 타이밍을 못 적는다`)
+  }
+  const cli = read('scripts/loop.mjs')
+  assert.match(cli, /const PUSH_MODES = \['즉시', '모음'\]/,
+    'loop CLI 가 푸시 값 두 가지를 정의하지 않는다 — 아무 값이나 들어오면 훅이 모음으로 읽는다')
+  assert.match(cli, /const PUSH_DEFAULT = '모음'/,
+    '기본값이 모음이 아니다 — 안 적으면 매번 밀게 되고 빌드 요금이 돌아온다')
+  assert.ok(cli.includes('푸시 줄 없음 또는 값 오류'),
+    'loop plan check 가 푸시 줄을 요구하지 않는다 — 칸이 비어도 플랜이 통과한다')
+})
+
+test('★ 훅이 두 값을 모두 보고 갈린다', () => {
+  const hook = read('.githooks/pre-push')
+  const code = hook.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n')
+  assert.match(code, /"\$mode" = "즉시"/,
+    '.githooks/pre-push 가 즉시를 안 본다 — 운영 결함을 고쳐도 못 민다')
+  assert.ok(code.includes('모음'),
+    '.githooks/pre-push 가 모음을 안 본다 — 모을 이유가 코드에 없다')
+  // 모르는 값을 통과시키면 가드가 아니다. 옛 플랜에는 이 칸이 아예 없다.
+  assert.ok(code.includes('푸시 줄 없음, 모음으로 봄'),
+    '.githooks/pre-push 가 푸시 줄 없는 옛 플랜을 어느 쪽으로 보는지 안 정했다')
+  // 막기만 하고 푸는 법을 안 알려 주면 사람은 훅을 끈다
+  assert.ok(hook.includes('LOOP_PUSH_NOW') && hook.includes('푸시: 즉시'),
+    '.githooks/pre-push 거절 메시지에 푸는 두 길(LOOP_PUSH_NOW / 헤더를 즉시로)이 없다')
+})
+
+test('★ 도구가 즉시와 모음에 다른 말을 한다', () => {
+  const cli = read('scripts/loop.mjs')
+  assert.ok(cli.includes('지금 민다, git push'),
+    'loop pass 가 즉시 플랜에서 밀라고 말하지 않는다 — 막지도 않고 알리지도 않으면 안 민다')
+  assert.match(cli, /header\.push === '즉시'/,
+    'loop CLI 가 플랜 헤더의 푸시 값으로 갈리지 않는다 — 두 경우에 같은 말을 하게 된다')
+  assert.ok(cli.includes("푸시 ${p.header.push || '없음(모음으로 봄)'}"),
+    'loop resume 가 이 플랜의 푸시 타이밍을 안 보여 준다 — 재개한 세션이 모르고 민다')
+})
