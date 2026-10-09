@@ -51,7 +51,7 @@
 의존: 없음
 
 ### I03 실브라우저로 둘을 확인한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/e2e/crm-quote-duration.spec.ts
 감사 기준:

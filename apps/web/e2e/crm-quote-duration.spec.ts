@@ -15,6 +15,9 @@ import * as fs from 'fs'
 
 const SHOTS = path.join(__dirname, '..', '..', '..', 'artifacts', 'quote-duration')
 
+/** 말로 채우기의 보내기 단추 이름 — 화면과 같은 말을 쓴다(용어집) */
+const QUOTE_FILL_FROM_SPEECH = '항목으로 옮기기'
+
 function shot(name: string): string {
   fs.mkdirSync(SHOTS, { recursive: true })
   return path.join(SHOTS, `${name}.png`)
@@ -313,6 +316,14 @@ test('실제 원본 모양을 올리면 AI 가 17대와 2개월을 갈라 읽는
   }
 
   /*
+    **검수 목록이 「몇 대를 얼마 동안」을 보여야 한다.** 여기가 체크를 켜고 끄며 결정하는
+    자리인데, 기간이 안 보이면 두 배짜리 금액을 보면서도 한 달치인지 두 달치인지 모른다.
+  */
+  const reviewRow = (await modal.locator('[class*="reviewNums"]').first().innerText()).replace(/\s+/g, ' ')
+  console.log('검수 줄:', reviewRow)
+  expect(reviewRow, `검수 줄에 기간이 안 보인다: ${reviewRow}`).toMatch(/× 2개월/)
+
+  /*
     **체크부터 한다.** 위험 신호가 붙은 줄은 꺼진 채로 뜨고(켜는 행동이 「내가 봤다」는 뜻이다),
     이 문서는 줄 금액을 기간 전으로 적어 그 신호가 반드시 붙는다 — 안 켜면 넣기 단추가 안 선다.
   */
@@ -390,4 +401,58 @@ test('기간요금 줄에 아무것도 안 적으면 무엇을 적으면 되는�
   await expect(modal.getByText(/기간을 적거나 수량을 시간 단위로/)).toBeHidden({ timeout: 10_000 })
 
   await page.screenshot({ path: shot('08-period-hint'), fullPage: false })
+})
+
+test('기간이 있는 줄에서 총액을 맞추면 그 목표가 저장될 금액이다', async ({ page }) => {
+  test.setTimeout(240_000)
+  await page.setViewportSize({ width: 1280, height: 1000 })
+  await openDeal(page)
+  const modal = await openNewQuote(page)
+
+  await modal.locator('#ln-qty-0').fill('17')
+  await modal.locator('#ln-unit-0').fill('대')
+  await modal.locator('#ln-dur-0').fill('2')
+  await modal.locator('#ln-durunit-0').selectOption('MONTH')
+  await modal.locator('#ln-price-0').fill('936000')
+
+  // 지금 공급가는 31,824,000원
+  await expect(modal.getByText('31,824,000원').first()).toBeVisible({ timeout: 10_000 })
+
+  /*
+    **「총액 3억에 맞춰 줘」.** 기간을 안 넘기면 총액 맞추기가 반값(15,912,000)을 현재값으로
+    보고 단가를 두 배로 밀어, 저장될 공급가가 **6억**이 된다(실측 2026-10-09).
+  */
+  await modal.getByRole('button', { name: '말로 채우기' }).click()
+
+  /*
+    **말 패널이 실제로 열렸는지부터 본다.** 앞 판은 파일 패널이 열렸는데도
+    조기 반환이 그것을 가려 **가짜 통과**가 났다(실측 2026-10-09).
+    기다릴 것을 이름으로 적고, 안 열리면 그 자리에서 떨어지게 둔다.
+  */
+  const say = modal.getByPlaceholder(/H100 SXM 2대 대당 5천만원/)
+  await expect(say, '말로 채우기 패널이 안 열렸다').toBeVisible({ timeout: 15_000 })
+  await say.fill('총액 3억에 맞춰 주세요. 부가세는 별도입니다.')
+  const send = modal.getByRole('button', { name: QUOTE_FILL_FROM_SPEECH })
+  await expect(send).toBeEnabled({ timeout: 10_000 })
+  await send.click()
+
+  // 읽기가 끝날 때까지
+  await expect(modal.getByRole('button', { name: /읽는 중/ })).toBeHidden({ timeout: 240_000 })
+
+  const body = (await modal.innerText()).replace(/\s+/g, ' ')
+  if (!/3억|300,000,000|299,9|29[0-9],[0-9]{3},[0-9]{3}/.test(body)) {
+    // **못 돌았으면 그 사실을 단정으로 남긴다** — 조용히 통과시키면 가짜 초록이 된다
+    const said = /안 돼|안 왔|오지 않|실패|한도|오류|다시 시도/.test(body)
+    expect(said, `총액 맞추기가 안 돌았는데 화면이 이유도 안 말한다:\n${body.slice(0, 500)}`).toBe(true)
+    console.log('총액 맞추기가 안 돌았다(AI 한도 등). 화면이 말한 것:', body.slice(0, 300))
+    return
+  }
+
+  // 공급가가 3억 언저리여야 한다. 6억이면 기간을 떨어뜨린 것이다
+  const nums = [...body.matchAll(/([0-9]{3},[0-9]{3},[0-9]{3})원/g)].map((m) => Number(m[1].replace(/,/g, '')))
+  console.log('화면에 뜬 억대 금액:', nums)
+  expect(nums.some((n) => n > 550_000_000),
+    `6억대 금액이 떴다 — 기간을 떨어뜨리고 맞췄다: ${nums.join(', ')}`).toBe(false)
+
+  await page.screenshot({ path: shot('09-target'), fullPage: false })
 })
