@@ -15,7 +15,7 @@
  * 자동 저장으로 하지 않는 이유: 회사·딜은 잘못 고르면 남의 딜에 회의가 붙는다.
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
 import DateField from '@/components/ui/DateField'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
@@ -23,6 +23,7 @@ import { searchCompanies, searchDeals } from '@/lib/crm/ui/record-search'
 import { RecordPanel } from '@/components/ui/crm/RecordLayout'
 import { kstParts } from '@/lib/datetime/kst'
 import { adoptUntouched, sameSnapshot } from '@/lib/forms/resync'
+import { registerPendingSave, type FlushOutcome } from '@/lib/meeting/pending-save'
 import styles from './meeting-facts.module.css'
 
 export interface MeetingFactsValue {
@@ -127,7 +128,7 @@ export default function MeetingFacts({ meetingId, value, canEditTitle = true, on
 
 
 
-  async function save() {
+  async function save(): Promise<FlushOutcome> {
     setSaving(true)
     setSaveError(null)
     try {
@@ -146,23 +147,41 @@ export default function MeetingFacts({ meetingId, value, canEditTitle = true, on
       const body = await res.json()
       if (!res.ok) {
         setSaveError(body?.error?.message ?? '저장하지 못했습니다.')
-        return
+        return 'failed'
       }
       onSaved()
+      return 'saved'
     } catch {
       setSaveError('저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      return 'failed'
     } finally {
       setSaving(false)
     }
   }
 
+  /**
+   * 고친 것이 있는 동안 **「미팅 끝내기」가 먼저 저장하게** 자기를 올려 둔다(`lib/meeting/pending-save`).
+   *
+   * 실측 2026-10-15: 제목·딜·장소를 고쳐 두고 저장 대신 「미팅 끝내기」를 눌렀다.
+   * 끝내기는 메모만 밀어 넣고 이 카드는 몰라서, 고친 값이 서버에 한 번도 안 갔다.
+   * 사용자는 저장했다고 알았고 목록 제목은 「10/15 미팅」 그대로였다.
+   * 최신 값을 쓰도록 ref 로 부른다 — 등록 때의 save 는 그때의 칸 값을 들고 있다.
+   */
+  const saveRef = useRef(save)
+  saveRef.current = save
+  useEffect(() => {
+    if (!dirty) return
+    return registerPendingSave(`meeting-facts:${meetingId}`, () => saveRef.current())
+  }, [dirty, meetingId])
+
   return (
     <RecordPanel title="이 미팅은">
       <div className={styles.fields}>
         <div>
-          <label className="label" htmlFor="mf-title">무슨 미팅이었나요</label>
+          <label className="label" htmlFor="mf-title">제목</label>
           <input
             id="mf-title" className="input-field" value={title}
+            placeholder="무슨 미팅이었나요"
             readOnly={!canEditTitle}
             aria-describedby={canEditTitle ? undefined : 'mf-title-why'}
             onChange={(e) => setTitle(e.target.value)}

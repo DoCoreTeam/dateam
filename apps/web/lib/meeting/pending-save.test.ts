@@ -118,3 +118,25 @@ describe('배선 — 등록하는 쪽과 부르는 쪽이 모두 있다', () => 
     assert.doesNotMatch(mod, /from 'react'/, '순수 모듈이 리액트를 끌어왔다')
   })
 })
+
+describe('「이 미팅은」 카드도 끝내기 전에 저장된다', () => {
+  /**
+   * 실측 2026-10-15: 제목·딜·장소를 고쳐 두고 저장 대신 「미팅 끝내기」를 눌렀다.
+   * 끝내기는 메모만 밀어 넣어 고친 값이 서버에 한 번도 안 갔다(감사 기록 PATCH 0건).
+   */
+  const facts = read('app/(crm)/crm/meetings/[id]/MeetingFacts.tsx')
+
+  it('★ 고친 것이 있는 동안 저장 대기에 자기를 올린다', () => {
+    assert.match(facts, /registerPendingSave\(\s*`meeting-facts:\$\{meetingId\}`/,
+      '카드가 등록하지 않는다 — 끝내기가 고친 제목을 모른 채 지나간다')
+    assert.match(facts, /if \(!dirty\) return\s*\n\s*return registerPendingSave/,
+      '고친 것이 없어도 등록한다 — 끝낼 때마다 헛된 PATCH 가 나간다')
+  })
+
+  it('★ 등록한 함수가 실제 저장을 부르고 결과를 돌려준다', () => {
+    assert.match(facts, /\(\) => saveRef\.current\(\)/, '등록 함수가 저장을 안 부른다')
+    assert.match(facts, /saveRef\.current = save/, '옛 칸 값으로 저장한다')
+    assert.match(facts, /return 'failed'/, '실패를 결과로 안 돌려준다 — 끝내기가 실패를 못 알린다')
+    assert.match(facts, /return 'saved'/, '성공을 결과로 안 돌려준다')
+  })
+})
