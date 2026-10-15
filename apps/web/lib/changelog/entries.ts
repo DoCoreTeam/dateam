@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.13',
+    date: '2026-10-15',
+    title: '미팅 제목을 고쳐 두고 끝내도 그대로 남아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📝',
+        headline: '「미팅 끝내기」가 고쳐 둔 제목·딜·장소를 먼저 저장해요',
+        detail: '미팅 상세에서 제목이나 딜을 고쳐 두고 저장 대신 「미팅 끝내기」를 누르면 고친 내용이 사라졌어요. 이제 끝내기가 정리를 시작하기 전에 그 내용부터 저장합니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🏷️',
+        headline: '미팅 상세의 제목 칸에 「제목」이라고 적혀 있어요',
+        detail: '「무슨 미팅이었나요」라는 질문만 있어서 제목 칸인지 알기 어려웠어요. 칸 이름을 「제목」으로 바꿨습니다.',
+      },
+    ],
+  },
+  {
     version: '0.11.3',
     date: '2026-10-09',
     title: '「총액 3억에 맞춰 줘」가 기간까지 세고 맞춰요',
