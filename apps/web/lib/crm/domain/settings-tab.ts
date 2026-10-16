@@ -9,17 +9,18 @@
  * 이웃한 `setting-group.ts` 와 같은 자리다 — 말과 순서는 화면이 정하지 않는다.
  */
 
-export type CrmSettingsTabKey = 'pipeline' | 'quote' | 'ai' | 'data'
+export type CrmSettingsTabKey = 'pipeline' | 'quote' | 'contract' | 'ai' | 'data'
 
 export const CRM_SETTINGS_TAB: Record<CrmSettingsTabKey, { label: string }> = {
   pipeline: { label: '영업 단계' },
   quote: { label: '견적' },
+  contract: { label: '계약' },
   ai: { label: 'AI·자동화' },
   data: { label: '연동·데이터' },
 }
 
-/** 탭이 서는 순서 — 딜을 만들고 견적을 내고 그다음이 자동화와 데이터다 */
-export const CRM_SETTINGS_TAB_ORDER: readonly CrmSettingsTabKey[] = ['pipeline', 'quote', 'ai', 'data']
+/** 탭이 서는 순서 — 딜을 만들고 견적을 내고 계약을 맺고 그다음이 자동화와 데이터다 */
+export const CRM_SETTINGS_TAB_ORDER: readonly CrmSettingsTabKey[] = ['pipeline', 'quote', 'contract', 'ai', 'data']
 
 export interface CrmSettingsCardSpec {
   /** 카드 한 장의 이름. 부품 하나가 카드 둘을 그리면 여기서 둘로 갈린다 */
@@ -34,7 +35,7 @@ export interface CrmSettingsCardSpec {
 }
 
 /**
- * 카드 열네 장을 부품 열둘이 그린다 (`SettingsCard` 하나가 세 장을 그린다).
+ * 카드 열다섯 장을 부품 열셋이 그린다 (`SettingsCard` 하나가 세 장을 그린다).
  * 하나가 늘면 여기 한 줄을 더한다 — 안 더하면 `settings-tab.test.ts` 가
  * 화면과 이 목록의 수가 다르다고 말한다.
  */
@@ -44,6 +45,7 @@ export const CRM_SETTINGS_CARDS: readonly CrmSettingsCardSpec[] = [
   { id: 'SettingsCard.quote', component: 'SettingsCard', tab: 'quote', title: '견적서 공급자 정보', keywords: ['공급자', '사업자', '직인', '로고', '견적서 번호'] },
   { id: 'QuoteTermsCard', component: 'QuoteTermsCard', tab: 'quote', title: '거래 조건', keywords: ['견적', '납기', '결제', '유효기간'] },
   { id: 'SettingsCard.quoteImport', component: 'SettingsCard', tab: 'quote', title: '견적서 파일 읽기', keywords: ['파일로 가져오기', '구성', '상한', '원본 조각', '대조'] },
+  { id: 'ContractTemplatesCard', component: 'ContractTemplatesCard', tab: 'contract', title: '계약서 템플릿', keywords: ['계약', '조항', '칸', '발행'] },
   { id: 'BudgetCard', component: 'BudgetCard', tab: 'ai', title: 'AI 예산', keywords: ['한도', '비용', '토큰'] },
   { id: 'SettingsCard.ai', component: 'SettingsCard', tab: 'ai', title: 'AI·연동 설정', keywords: ['AI 키', '모델', '연동'] },
   { id: 'AutoApplyCard', component: 'AutoApplyCard', tab: 'ai', title: 'AI 자동 반영', keywords: ['신뢰도', '자동', '제안'] },

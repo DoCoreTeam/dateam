@@ -57,6 +57,8 @@ const CONVERTED = ['app/admin/access/AccessClient.tsx']
  * 여기 적는 것은 **앞으로도 드롭다운일 자리**다.
  */
 const WHY_SELECT: Readonly<Record<string, string>> = {
+  'components/ui/crm/contract/ClauseEditor.tsx#CONTRACT_FIELDS':
+    '계약서 칸 목록은 코드가 정한다(lib/crm/domain/contract-fields.ts). 모르는 칸은 저장이 거절되므로 사람이 늘리는 목록이 아니다',
   'app/admin/access/AccessClient.tsx#ACCESS_SUBJECT_ORDER':
     '사람이냐 조직이냐 둘뿐이고 코드에 박혀 있다. 자라지 않는다',
   'app/admin/access/AccessClient.tsx#ACCESS_EFFECT_ORDER':

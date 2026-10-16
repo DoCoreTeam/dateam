@@ -24,6 +24,11 @@ interface TiptapEditorProps {
   minHeight?: number
   /** 표 편집 활성화(목록 심층분석 등 표 보존이 필요한 화면). 기본 off — 주간보고/회의노트 무영향. */
   enableTable?: boolean
+  /**
+   * 커서 자리에 글을 넣어 달라는 요청. `seq` 가 바뀔 때마다 한 번 넣는다.
+   * 계약서 템플릿의 「칸 넣기」가 쓴다(P0132). 안 주면 아무 일도 없다 — 다른 화면 무영향.
+   */
+  insertRequest?: { text: string; seq: number } | null
 }
 
 const TabIndent = Extension.create({
@@ -105,6 +110,7 @@ export default function TiptapEditor({
   placeholder = '내용을 입력하세요',
   minHeight = 120,
   enableTable = false,
+  insertRequest = null,
 }: TiptapEditorProps) {
   const [colorOpen, setColorOpen] = useState(false)
   const [highlightOpen, setHighlightOpen] = useState(false)
@@ -150,6 +156,11 @@ export default function TiptapEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
+
+  useEffect(() => {
+    if (editor && insertRequest) editor.chain().focus().insertContent(insertRequest.text).run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertRequest?.seq])
 
   // 드롭다운 외부 클릭 닫기
   useEffect(() => {

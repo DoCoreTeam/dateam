@@ -73,3 +73,51 @@ export const CONTRACT_FIELD_LABEL: Record<string, string> = {
   'contract.start': '계약.시작일',
   'contract.end': '계약.끝일',
 }
+
+/** 계약서 서버 메시지 — 화면이 그대로 보여 준다 */
+export const CONTRACT_MSG = {
+  templateNameRequired: '템플릿 이름을 입력해 주세요.',
+  templateNotFound: '템플릿을 찾을 수 없습니다.',
+  templateConflict: '다른 사람이 이 템플릿을 먼저 고쳤습니다. 새로고침 후 다시 시도해 주세요.',
+  templateNoClauses: '조항이 하나도 없어 발행할 수 없습니다.',
+  templateNotPublished: '아직 발행하지 않은 템플릿입니다. 설정의 계약 탭에서 발행한 뒤 쓸 수 있습니다.',
+  unknownFields: (names: string): string => `모르는 칸이 있습니다: ${names}. 「칸 넣기」에서 골라 넣어 주세요.`,
+  badClauses: (why: string): string => `조항을 저장하지 못했습니다. ${why}`,
+} as const
+
+/** 템플릿 화면 말 */
+export const CONTRACT_TEMPLATE = {
+  cardTitle: '계약서 템플릿',
+  cardDesc: '계약서를 만들 때 쓰는 조항 묶음입니다. 사업 유형마다 기본 템플릿을 하나 정하면 그 유형의 딜에서 먼저 골라집니다.',
+  editTitle: '템플릿 고치기',
+  loadFailed: '계약서 템플릿을 불러오지 못했습니다.',
+  saveFailed: '템플릿을 저장하지 못했습니다.',
+  publishFailed: '템플릿을 발행하지 못했습니다.',
+  deleteFailed: '템플릿을 삭제하지 못했습니다.',
+  deleteTitle: (name: string): string => `「${name}」 템플릿을 삭제할까요?`,
+  deleteBody: '휴지통으로 옮깁니다. 이 템플릿으로 이미 만든 계약서는 그때 버전을 그대로 갖고 있어 바뀌지 않습니다.',
+  create: '새 템플릿',
+  name: '템플릿 이름',
+  namePlaceholder: '예: GPU 임대 계약서',
+  businessType: '사업 유형',
+  allTypes: '모든 사업 유형',
+  isDefault: '이 사업 유형의 기본 템플릿',
+  defaultBadge: '기본',
+  inUse: (n: number): string => `사용 중 · 버전 ${n}`,
+  neverPublished: '발행 전',
+  hasDraft: '발행 안 한 고침 있음',
+  insertField: '칸 넣기',
+  pickField: '넣을 칸 고르기',
+  addClause: '조항 넣기',
+  clauseTitle: '조항 제목',
+  clauseTitlePlaceholder: '예: 제1조 (목적)',
+  removeClause: '조항 빼기',
+  moveUp: '위로',
+  moveDown: '아래로',
+  saveDraft: '저장',
+  publish: (n: number): string => `버전 ${n} 발행`,
+  publishWhy: '발행해야 계약서 만들기에 쓰입니다. 이미 만든 계약서는 바뀌지 않습니다.',
+  empty: '계약서 템플릿이 아직 없어요',
+  emptyNext: '조항을 쓰고 칸을 넣어 첫 템플릿을 만들어 주세요.',
+  fieldHelp: '칸은 계약서를 만들 때 견적과 계약 정보로 채워집니다. 모르는 칸 이름은 저장되지 않습니다.',
+} as const
