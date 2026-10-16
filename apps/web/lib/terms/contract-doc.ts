@@ -38,3 +38,38 @@ export const CONTRACT_DOC = {
   edit: '고치기',
   aiEdit: 'AI로 고치기',
 } as const
+
+/** 빈 칸 자리에 찍히는 말 — 빈 자리가 안 보이면 대표자 이름 빠진 계약서가 그대로 나간다 */
+export const EMPTY_FIELD = '(미입력)'
+
+/**
+ * 템플릿에 적는 칸 이름 — {{고객.상호}} 의 그 이름.
+ * 칸의 뜻과 출처는 `lib/crm/domain/contract-fields.ts` 의 `CONTRACT_FIELDS` 가 정한다.
+ */
+export const CONTRACT_FIELD_LABEL: Record<string, string> = {
+  'supplier.name': '공급자.상호',
+  'supplier.ceo': '공급자.대표자',
+  'supplier.bizNo': '공급자.사업자번호',
+  'supplier.address': '공급자.주소',
+  'customer.name': '고객.상호',
+  'customer.contact': '고객.담당자',
+  'customer.ceo': '고객.대표자',
+  'customer.bizNo': '고객.사업자번호',
+  'customer.address': '고객.주소',
+  'quote.no': '견적.번호',
+  'quote.title': '견적.사업명',
+  'quote.issuedOn': '견적.작성일',
+  'quote.supply': '견적.공급가액',
+  'quote.tax': '견적.부가세',
+  'quote.total': '견적.합계',
+  'quote.totalInWords': '견적.합계 한글',
+  'quote.start': '견적.공급 시작일',
+  'quote.end': '견적.공급 끝일',
+  'quote.lines': '견적.품목표',
+  'quote.terms': '견적.거래 조건',
+  'owner.name': '담당.이름',
+  'contract.no': '계약.번호',
+  'contract.date': '계약.계약일',
+  'contract.start': '계약.시작일',
+  'contract.end': '계약.끝일',
+}
