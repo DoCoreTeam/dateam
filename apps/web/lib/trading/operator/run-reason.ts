@@ -136,7 +136,7 @@ const RULES: Rule[] = [
   { re: /^already_running$/, say: () => line('앞 실행이 아직 도는 중이라 건너뛰었습니다', 'waiting') },
   { re: /^threw:([\s\S]+)$/, say: (m) => line(`실행 도중 오류가 났습니다: ${m[1]}`, 'blocked') },
   { re: /^day_config_frozen$/, say: () => line('오늘 굳혀 둔 설정 그대로 돌았습니다', 'ok') },
-  { re: /^logic_changed:(.+)$/, say: () => line('전략 판이 바뀌어 오늘 설정을 다시 굳혔습니다', 'ok') },
+  { re: /^logic_changed:(.+)$/, say: () => line('전략 버전이 바뀌어 오늘 설정을 다시 굳혔습니다', 'ok') },
 
   /*
     ── 월물 교체 ───────────────────────────────────────

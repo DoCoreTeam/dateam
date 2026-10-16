@@ -106,8 +106,8 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
   {
     key: 'calibration_version',
     group: 'basic',
-    label: '보정 모델 판',
-    help: '어느 판의 보정 모델을 쓸지 정합니다. 비우면 판을 안 가립니다',
+    label: '보정 모델 버전',
+    help: '어느 버전의 보정 모델을 쓸지 정합니다. 비우면 버전을 안 가립니다',
     type: 'string',
     defaultValue: '',
     usedFrom: '1-C',
@@ -116,8 +116,8 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
   {
     key: 'ev_model_version',
     group: 'basic',
-    label: '기대 수익 모델 판',
-    help: '어느 판의 기대 수익표를 쓸지 정합니다. 비우면 최신 판을 씁니다',
+    label: '기대 수익 모델 버전',
+    help: '어느 버전의 기대 수익표를 쓸지 정합니다. 비우면 최신 버전을 씁니다',
     type: 'string',
     defaultValue: '',
     usedFrom: '1-C',
@@ -173,7 +173,7 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
   {
     key: 'decision_spec_version',
     group: 'basic',
-    label: '판단 규칙 판',
+    label: '판단 규칙 버전',
     help: '판단마다 함께 적는 규칙 번호입니다. 규칙을 바꾸면 올립니다',
     type: 'string',
     defaultValue: 'v1',

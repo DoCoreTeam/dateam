@@ -224,7 +224,7 @@ export function RecordPickerModal({ noun, selectedId, search, onCreate, onPick, 
     >
       <div className={styles.card} onClick={(e) => e.stopPropagation()}>
         <div className={styles.head}>
-          <strong className="tape-title">{noun} 고르기</strong>
+          <strong className="tape-title">{noun} 선택</strong>
           <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">
             <X size={18} />
           </button>

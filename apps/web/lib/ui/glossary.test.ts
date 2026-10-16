@@ -129,6 +129,16 @@ function userFacingText(src: string): string[] {
   const jsx = />([^<>{}\n]*[가-힣][^<>{}\n]*)</g
   while ((m = jsx.exec(s)) !== null) out.push(m[1])
 
+  /*
+    **식이 낀 JSX 텍스트도 본다** — `>리비전 {revision}<` 처럼 글 옆에 식이 붙으면 위 정규식은
+    `{` 에서 끊겨 한 글자도 안 센다(실측 2026-10-16, 일부러 넣은 금지어가 초록으로 지나갔다).
+    식 앞 조각(`>글 {`)과 식 뒤 조각(`} 글<`)을 따로 센다.
+  */
+  const jsxBeforeExpr = />([^<>{}\n]*[가-힣][^<>{}\n]*)\{/g
+  while ((m = jsxBeforeExpr.exec(s)) !== null) out.push(m[1])
+  const jsxAfterExpr = /\}([^<>{}\n'"`]*[가-힣][^<>{}\n'"`]*)</g
+  while ((m = jsxAfterExpr.exec(s)) !== null) out.push(m[1])
+
   return out
 }
 

@@ -38,7 +38,7 @@ export const MODEL_BY_DAILY_QUOTA: readonly { model: string; why: string }[] = [
   },
   {
     model: 'gemini-3.7-flash',
-    why: '같은 flash 계열의 다음 판, 기본 모델이 404·503 일 때 받는다',
+    why: '같은 flash 계열의 다음 버전, 기본 모델이 404·503 일 때 받는다',
   },
   {
     model: 'gemini-flash-latest',

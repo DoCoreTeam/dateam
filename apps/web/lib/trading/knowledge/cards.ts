@@ -79,7 +79,7 @@ async function latestRevision(topic: string): Promise<number | null> {
     .eq('topic', topic)
     .order('revision', { ascending: false })
     .limit(1)
-  if (error) throw new Error(`카드 판을 읽지 못했습니다: ${error.message}`)
+  if (error) throw new Error(`카드 버전을 읽지 못했습니다: ${error.message}`)
   const row = (data ?? [])[0] as { revision: number } | undefined
   return row ? row.revision : null
 }

@@ -24,7 +24,7 @@ export default function RegroupBar({ revision, regrouping, onRegroup }: Props) {
     <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span className="tape-title">다시 묶기</span>
-        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>리비전 {revision}</span>
+        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>버전 {revision}</span>
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>

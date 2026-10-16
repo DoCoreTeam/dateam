@@ -600,7 +600,7 @@ export default function MetricsClient() {
         <span className={s.closeState}>{R.close} · {CLOSE_STATE_LABEL[data.close.state]}</span>
         <span className={s.closeHint}>
           {data.close.blockedReason ?? CLOSE_STATE_HINT[data.close.state]}
-          {data.close.revision > 0 && ` · 수정본 ${data.close.revision}판`}
+          {data.close.revision > 0 && ` · ${data.close.revision}번째 수정본`}
         </span>
         {CLOSE_NEXT.filter((n) => canMove(data.close.state, n)).map((n) => (
           <NbButton

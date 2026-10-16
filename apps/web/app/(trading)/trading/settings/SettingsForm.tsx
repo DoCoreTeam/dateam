@@ -58,7 +58,7 @@ export default function SettingsForm({ row }: { row: SettingRow }) {
       const res = await saveTradingSettingValue(row.key, draft)
       setOk(res.ok)
       // 성공도 말한다 — 아무 말이 없으면 눌렸는지 아닌지를 사용자가 못 가린다
-      setMessage(res.ok ? `판 ${res.version}으로 저장했습니다. 다음 거래일부터 적용됩니다` : res.userMessage)
+      setMessage(res.ok ? `버전 ${res.version}으로 저장했습니다. 다음 거래일부터 적용됩니다` : res.userMessage)
     })
   }
 

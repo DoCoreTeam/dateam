@@ -139,7 +139,7 @@ export default function QueueProgressPanel({ isOpen, onClose, workspaceId }: Pro
                     <p className={s.stageNote}>{st.note}</p>
                     {st.running > 0 && <p className="field-note">{st.running}건 처리 중</p>}
                     {st.failed > 0 && (
-                      <p className="field-note">{st.failed}건 재시도 대기 중</p>
+                      <p className="field-note">{st.failed}건 다시 시도 대기 중</p>
                     )}
                   </li>
                 )

@@ -870,7 +870,7 @@ async function loadKnowledge(now: Date): Promise<KnowledgeRow[]> {
     for (const c of await cardsAsOf(now, 20)) {
       rows.push({
         kind: 'card', id: c.id, title: c.title,
-        detail: `${c.topic} · 판 ${c.revision} · 근거 ${c.sources.length}건`,
+        detail: `${c.topic} · 버전 ${c.revision} · 근거 ${c.sources.length}건`,
         availableAt: c.availableAt.toISOString(), needsDecision: false,
       })
     }

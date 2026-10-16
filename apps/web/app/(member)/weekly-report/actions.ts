@@ -241,7 +241,7 @@ export async function restoreWeeklyReportSnapshot(
     await logFailure(readErr, 'weekly-report-restore', user.id)
     return { ok: false, error: '복원 이력 조회 중 오류가 발생했습니다' }
   }
-  if (!snap) return { ok: false, error: '복원할 이력을 찾을 수 없습니다' }
+  if (!snap) return { ok: false, error: '되돌릴 기록을 찾을 수 없습니다' }
 
   const rows = Array.isArray(snap.rows_json) ? snap.rows_json : []
 

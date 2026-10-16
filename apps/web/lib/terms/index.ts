@@ -107,6 +107,8 @@ export {
   CONTRACT_LEGACY, CONTRACT_HELD, CONTRACT_AHEAD, contractNote,
 } from './contract.ts'
 
+export { DOC, CONTRACT_DOC, versionLabel } from './contract-doc.ts'
+
 export {
   AI_LABELS, NOT_AI, LOW_CONFIDENCE_HINT,
 } from './ai.ts'

@@ -247,4 +247,14 @@ export const BANNED_TERMS: { readonly bad: string; readonly good: string; readon
   { bad: '빼기', good: ACTION.hide, why: '숨기기를 GPU 가격표·CRM 업종이 이미 쓴다' },
   { bad: '고르기', good: ACTION.select, why: '선택을 화면 여덟 곳이 이미 쓴다' },
   { bad: '고른 것', good: ACTION.select, why: '같은 뜻에 두 말을 두지 않는다' },
+  /*
+    2026-10-16 사용자 지적: *"판이라는 표현이 맞는지 전체 시스템에 키워드나 워딩좀 제발"*
+    버전 뜻의 「판」은 한 글자라 금지어로 못 건다(판단·판매가 걸린다). 그래서 실제로 화면에
+    나가 있던 꼴을 건다. 「모델 판」 「규칙 판」은 「모델 판단」 「규칙 판단」에 걸려 못 건다. 문서의 말 전체는 `contract-doc.ts` 와 용어집 §0-2 「문서 말」에 있다.
+  */
+  { bad: '리비전', good: '버전', why: 'AI 분석 한 곳만 쓰던 말. 문서 기록은 버전이다' },
+  { bad: '히스토리', good: '이력', why: '이력을 72곳이 쓴다' },
+  { bad: '개발 판', good: '개발 환경', why: '실행 환경을 부르는 말이다. 판은 문서 버전과 섞인다' },
+  { bad: '이 판으로', good: '이 버전으로', why: '버전 뜻의 판. 계약 판(AI 규칙)과 글자가 겹친다' },
+  { bad: '이 판에서', good: '이 환경에서', why: '실행 환경 뜻의 판' },
 ]

@@ -51,7 +51,7 @@ export async function persistIr(db: IrDbClient, input: PersistIrInput): Promise<
   // 같은 판이 있으면 지운다 — 섹션·블록은 on delete cascade 로 함께 사라진다
   const { error: delError } = await db
     .from('rfp_document_ir').delete().eq('file_id', fileId).eq('version', version)
-  if (delError) throw new Error(`앞 판을 지우지 못했다: ${describe(delError)}`)
+  if (delError) throw new Error(`앞 버전을 지우지 못했다: ${describe(delError)}`)
 
   const { data: irRow, error: irError } = await db
     .from('rfp_document_ir')

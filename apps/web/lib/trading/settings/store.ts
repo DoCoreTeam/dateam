@@ -88,7 +88,7 @@ export async function loadAllSettingVersions(): Promise<EffectiveRow[]> {
   const { data, error } = await admin
     .from('trading_settings')
     .select('key, value, version, effective_trade_date')
-  if (error) throw new Error(`설정 판을 읽지 못했습니다: ${error.message}`)
+  if (error) throw new Error(`설정 버전을 읽지 못했습니다: ${error.message}`)
   return (data ?? []) as EffectiveRow[]
 }
 

@@ -40,7 +40,7 @@ test('★ 조치가 할 수 있는 일을 말한다 — 없는 칸을 가리키�
     `ai_provider_keys` 에는 판(env) 칼럼이 없다. 「이 판에서 쓸 키를 등록」은
     화면에 그런 칸이 없어 시키는 대로 해도 안 된다.
   */
-  assert.doesNotMatch(remedy, /이 판에서 쓸 키|판에서 쓸 AI 키/,
+  assert.doesNotMatch(remedy, /이 (판|환경)에서 쓸 키|(판|환경)에서 쓸 AI 키/,
     `등록할 칸이 없는 일을 시킨다: ${remedy}`)
   // 되는 일: 목록에 한 줄 넣으면 chooseKey 가 판을 안 보고 먼저 쓴다
   assert.match(remedy, /목록/, '실제로 되는 조치(키 목록 등록)를 안 말한다')

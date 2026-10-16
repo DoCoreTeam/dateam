@@ -105,7 +105,7 @@ export default async function TradingSettingsPage() {
       <PageHeader
         title={TRADING_NAV_LABEL.settings}
         icon={<Settings size={22} />}
-        description={`지금 쓰는 값 ${TRADING_SETTINGS.length}개입니다. 고치면 다음 거래일부터 적용됩니다. 판 ${version}`}
+        description={`지금 쓰는 값 ${TRADING_SETTINGS.length}개입니다. 고치면 다음 거래일부터 적용됩니다. 버전 ${version}`}
       />
 
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>

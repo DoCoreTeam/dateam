@@ -162,8 +162,8 @@ export function pickTroubles(s: ModelPickState): ModelPickTrouble[] {
       out.push(state === 'env_blocked'
         ? {
           kind: 'provider_key_not_for_this_env',
-          why: `${name(s.provider)} 키는 있지만 이 판에서는 쓰지 않습니다`,
-          how: s.envBlockedText ?? '이 판에서 쓸 키를 따로 등록하면 켜집니다',
+          why: `${name(s.provider)} 키는 있지만 이 환경에서는 쓰지 않습니다`,
+          how: s.envBlockedText ?? '이 환경에서 쓸 키를 따로 등록하면 켜집니다',
         }
         : {
           kind: 'provider_has_no_key',

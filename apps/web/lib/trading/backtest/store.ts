@@ -72,7 +72,7 @@ export async function saveBacktestRun(input: SaveRunInput): Promise<{ runId: str
   if (runError) {
     // 유일 키에 걸렸으면 같은 구간·같은 판·같은 틱을 이미 돌린 것이다. 두 번 돌릴 이유가 없다
     if (runError.code === '23505' || /duplicate key/i.test(runError.message)) {
-      throw new Error('같은 구간을 같은 판으로 이미 돌렸습니다. 결과를 그대로 보세요')
+      throw new Error('같은 구간을 같은 버전으로 이미 돌렸습니다. 결과를 그대로 보세요')
     }
     throw new Error(`백테스트 결과를 저장하지 못했습니다: ${runError.message}`)
   }

@@ -293,8 +293,8 @@ function HistoryTab() {
   const toggle = (id: string) => setOpen((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
   const rollback = async (id: string) => {
     if (!await ask.confirm({
-      title: '이 판으로 되돌릴까요?',
-      body: '지금 쓰이는 판이 이 판으로 바뀝니다. 지금 판도 이력에 남아 다시 되돌릴 수 있습니다.',
+      title: '이 버전으로 되돌릴까요?',
+      body: '지금 쓰이는 버전이 이 버전으로 바뀝니다. 지금 버전도 버전 기록에 남아 다시 되돌릴 수 있습니다.',
       confirmLabel: '되돌리기',
     })) return
     const r = await fetch('/api/admin/ai-prompts/rollback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision_id: id }) })

@@ -210,7 +210,7 @@ export default function QueueDriver({ workspaceId, initialRemaining = 0 }: Queue
         type="button"
         className={`status-pill status-pill-info ${styles.chip}`}
         onClick={() => { setManualStarted(true); void tick() }}
-        title="개발 판에서는 수집이 저절로 돌지 않습니다"
+        title="개발 환경에서는 수집이 저절로 돌지 않습니다"
       >
         수집 시작
       </button>
