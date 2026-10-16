@@ -98,6 +98,8 @@ export const SOFT_DELETE_MODELS: ReadonlySet<string> = new Set([
   'CrmProduct', 'CrmQuote',
   // 첨부도 휴지통을 갖는다 — 계약서·매입 견적서를 실수로 지우면 되돌릴 길이 없다.
   'CrmAttachment',
+  // 계약서·템플릿도 휴지통을 갖는다. 버전 표는 지우지 않는 표라 여기 없다 (마이그 308 트리거)
+  'CrmContract', 'CrmContractTemplate',
 ])
 
 /**

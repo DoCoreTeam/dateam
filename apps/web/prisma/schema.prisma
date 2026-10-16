@@ -247,6 +247,8 @@ model CrmWorkspace {
   products    CrmProduct[]
   quotes      CrmQuote[]
   quoteSections CrmQuoteSection[]
+  contractTemplates CrmContractTemplate[]
+  contracts   CrmContract[]
 
   @@map("crm_workspace")
 }
@@ -454,6 +456,7 @@ model CrmDeal {
   history   CrmStageHistory[]
   activity  CrmActivity[]
   quotes    CrmQuote[]
+  contracts CrmContract[]
   funding   CrmFundingSource[]
   inKind    CrmInKind[]
   amountLog CrmDealAmountHistory[]
@@ -985,6 +988,7 @@ model CrmQuote {
   /// 어디서 복제됐나. 출처가 지워져도 이 견적은 남는다 — 문서는 스스로 완결이다
   source    CrmQuote?  @relation("QuoteRevision", fields: [sourceQuoteId], references: [id], onDelete: SetNull)
   derived   CrmQuote[] @relation("QuoteRevision")
+  contracts CrmContract[]
 
   @@unique([workspaceId, quoteNo])
   @@index([workspaceId, dealId, createdAt])
@@ -1467,4 +1471,148 @@ model CrmQuoteAsset {
   createdAt DateTime @default(now())
 
   @@map("crm_quote_asset")
+}
+
+// ============================================================
+// 계약서 (P0132, 마이그 308)
+//
+// 견적서의 짝이다. 견적은 우리가 보내는 것이고 계약은 양측이 날인하는 것이다.
+// **버전 두 표는 한 번 쓰면 안 바뀐다** — DB 트리거가 UPDATE 를 거절하고,
+// DELETE 는 부모(계약서·템플릿)가 함께 지워질 때만 받는다.
+// ============================================================
+
+enum CrmContractStatus {
+  DRAFT
+  CONCLUDED
+  TERMINATED
+  CANCELLED
+}
+
+/// 계약서 템플릿. 본문은 발행할 때 버전으로 굳는다
+model CrmContractTemplate {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  name            String
+  /// 이 사업 유형에서 기본으로 고르는 템플릿. null 이면 모든 유형
+  businessTypeKey String?
+  isDefault       Boolean   @default(false)
+  position        Int       @default(0)
+  /// 발행 전 고치는 중인 본문(조항 배열). 계약서 만들기는 이것을 안 읽는다
+  draftBody       Json?
+  /// 지금 계약서 만들기가 쓰는 버전. 발행한 적 없으면 null
+  currentVersionNo Int?
+  version         Int       @default(0)
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  workspace CrmWorkspace                 @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  versions  CrmContractTemplateVersion[]
+
+  @@index([workspaceId, position])
+  @@map("crm_contract_template")
+}
+
+/// 발행한 템플릿 본문. 고치지 않는다 — 고치면 다음 버전이다
+model CrmContractTemplateVersion {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  templateId         String
+  versionNo          Int
+  /// 조항 배열 [{id,title,html}]
+  body               Json
+  /// 파일로 만들었으면 그 파일 이름과 보관한 원본 첨부
+  sourceFileName     String?
+  sourceAttachmentId String?
+  createdById        String?
+  createdAt          DateTime @default(now())
+
+  template CrmContractTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, versionNo])
+  @@index([workspaceId])
+  @@map("crm_contract_template_version")
+}
+
+/// 계약서 한 건. 내용은 버전에 있고 이 행은 지금 상태와 가리키는 곳만 든다
+model CrmContract {
+  id                 String            @id @default(cuid())
+  workspaceId        String
+  dealId             String
+  /// 이 계약서를 채운 견적. 견적이 지워져도 계약서는 남는다 (스냅샷이 버전에 있다)
+  quoteId            String?
+  contractNo         String
+  title              String
+  status             CrmContractStatus @default(DRAFT)
+  templateId         String?
+  /// 변경 계약서면 원 계약
+  parentContractId   String?
+  /// 지금 보이는 버전 번호
+  currentVersionNo   Int               @default(1)
+  /// 보냄 체크 — 그때의 버전 번호를 함께 남긴다
+  sentAt             DateTime?
+  sentVersionNo      Int?
+  concludedAt        DateTime?
+  concludedVersionNo Int?
+  /// 체결 때 올린 서명본 첨부
+  signedAttachmentId String?
+  terminatedAt       DateTime?
+  /// 목록에 보이는 값. 원본은 체결 버전의 스냅샷이다
+  totalMinor         BigInt?
+  currency           String?           @db.Char(3)
+  effectiveFrom      DateTime?         @db.Date
+  effectiveTo        DateTime?         @db.Date
+  version            Int               @default(0)
+  createdById        String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+
+  workspace CrmWorkspace         @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  deal      CrmDeal              @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  quote     CrmQuote?            @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  parent    CrmContract?         @relation("ContractAmendment", fields: [parentContractId], references: [id], onDelete: SetNull)
+  amendments CrmContract[]       @relation("ContractAmendment")
+  versions  CrmContractVersion[]
+
+  @@unique([workspaceId, contractNo])
+  @@index([workspaceId, dealId, createdAt])
+  @@index([workspaceId, status])
+  @@map("crm_contract")
+}
+
+/// 계약서 버전. 한 번 쓰면 안 바뀐다 — 고치면 다음 버전이다
+model CrmContractVersion {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  contractId         String
+  versionNo          Int
+  /// GENERATED 자동 작성 · EDITED 손으로 · AI_EDIT AI 지시 · REFILLED 견적으로 다시 채움
+  kind               String
+  /// 칸을 채운 조항 배열 [{id,title,html,origin}]
+  body               Json
+  /// 칸 값과 그 출처 {key:{value,source:'auto'|'manual'}}
+  fieldValues        Json
+  /// 계약서를 만들 때의 견적 문서 결과 통째 (견적서 출력과 같은 재료)
+  quoteSnapshot      Json?
+  supplierSnapshot   Json?
+  customerSnapshot   Json?
+  /// 서명란 설정을 그때 값으로 굳힌 것
+  signatureSnapshot  Json?
+  templateVersionNo  Int?
+  sourceQuoteId      String?
+  sourceQuoteVersion Int?
+  /// 본문과 칸 값의 sha256 — 종이 아래에 찍힌다
+  contentHash        String
+  /// 무엇을 왜 바꿨나. AI 지시면 그 문장
+  note               String?
+  createdById        String?
+  createdAt          DateTime @default(now())
+
+  contract CrmContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, versionNo])
+  @@index([workspaceId])
+  @@map("crm_contract_version")
 }
