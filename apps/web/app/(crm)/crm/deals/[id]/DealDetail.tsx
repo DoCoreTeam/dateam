@@ -28,6 +28,8 @@ import QuotePanel from '@/components/ui/crm/QuotePanel'
 import DealContacts from './DealContacts'
 import CostPanel from '@/components/ui/crm/CostPanel'
 import AttachmentPanel from '@/components/ui/crm/AttachmentPanel'
+import DealDocumentsCard from '@/components/ui/crm/DealDocumentsCard'
+import { CONTRACT_DOC } from '@/lib/terms/contract-doc'
 import { ATTACHMENT } from '@/lib/terms/attachment'
 import { COST } from '@/lib/terms/cost'
 import LedgerPanel from './LedgerPanel'
@@ -354,6 +356,11 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                   setQuoteWriteKey((k) => k + 1)
                 }}
               />
+            </RecordPanel>
+
+            {/* 견적 다음 자리 — 보냄 또는 수락 견적이 계약서가 되고, 체결이 딜 금액을 정한다 */}
+            <RecordPanel title={CONTRACT_DOC.list}>
+              <DealDocumentsCard dealId={dealId} dealName={deal.name} reloadKey={quoteWriteKey} />
             </RecordPanel>
 
             {/* 딜을 여는 사람이 가장 자주 하는 질문 — "지난번에 뭐라고 했지?" */}

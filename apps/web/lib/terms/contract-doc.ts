@@ -358,3 +358,16 @@ export const CONTRACT_SCREEN = {
   compareNeedsTwo: '버전이 둘 이상이어야 비교할 수 있습니다.',
   diffKind: { added: '새로 들어감', removed: '빠짐', changed: '고침', moved: '자리 옮김' } as Record<'added' | 'removed' | 'changed' | 'moved', string>,
 } as const
+
+/** 딜 화면의 계약서 카드 (P0132 I13) */
+export const DEAL_CONTRACTS = {
+  empty: '이 딜의 계약서가 아직 없습니다',
+  emptyNext: '보냈거나 수락된 견적에서 「계약서 만들기」를 누르면 템플릿으로 채워 만듭니다.',
+  denied: '계약서를 볼 권한이 없습니다. 필요하면 관리자에게 요청해 주세요.',
+} as const
+
+/** 견적에서 계약서 만들 때 템플릿 고르기 (P0132 I13) */
+export const CONTRACT_CREATE = {
+  pickTitle: '어느 템플릿으로 만들까요',
+  pickHint: '고른 템플릿의 조항에 이 견적 값을 채워 첫 버전을 만듭니다.',
+} as const

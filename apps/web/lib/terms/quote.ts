@@ -1259,3 +1259,16 @@ export const QUOTE_IMPORT_SETTING_KEY = {
 export const SUPPLIER_ORDER: readonly SupplierField[] = [
   'name', 'bizNo', 'ceo', 'address', 'bizType', 'bizItem',
 ]
+
+/**
+ * 견적 보냄 체크 — 딜 화면 견적 카드 (P0132 I13)
+ *
+ * 보냄은 상태를 바꾸는 단추가 아니라 「고객에게 냈다」를 남기는 체크다. 그래서 칠하지 않고,
+ * 되돌릴 수 없으니(보낸 견적은 금액을 못 고친다) 확인을 받는다.
+ */
+export const QUOTE_SEND = {
+  check: '보냄',
+  confirmTitle: (quoteNo: string): string => `${quoteNo} 견적을 보냄으로 표시할까요?`,
+  confirmBody: '고객에게 낸 것으로 남깁니다. 보낸 견적은 금액을 고칠 수 없고, 바꾸려면 개정본을 만듭니다.',
+  confirm: '보냄으로 표시',
+} as const

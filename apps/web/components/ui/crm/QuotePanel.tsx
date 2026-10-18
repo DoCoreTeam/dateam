@@ -10,7 +10,8 @@
 // canTransitQuote 가 판정하므로, 여기서 버튼을 감추는 것은 안전장치가 아니라 안내다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Copy, FileText, Plus, Pencil, Trash2, RotateCcw, Upload, Calculator } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Copy, FileText, FileSignature, Plus, Pencil, Trash2, RotateCcw, Upload, Calculator } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
@@ -24,6 +25,7 @@ import {
   ACTION,
   ENTITY,
   createLabel,
+  failedTo,
   progress,
   QUOTE,
 } from '@/lib/terms'
@@ -33,6 +35,12 @@ import { durationFromDealPeriod } from '@/lib/crm/domain/quote-rate'
 import type { LineDuration } from './quote-draft-shape'
 import QuoteFromFileModal, { type AppendTarget } from './QuoteFromFileModal'
 import CostToQuoteModal, { type CostToQuotePick } from './CostToQuoteModal'
+import { useAskDialog } from '@/components/ui/useAskDialog'
+import { QUOTE_SEND } from '@/lib/terms/quote'
+import { CONTRACT_CREATE, CONTRACT_DOC, CONTRACT_MSG, CONTRACT_TEMPLATE } from '@/lib/terms/contract-doc'
+
+/** 계약서 만들기에서 고를 템플릿 — 목록 창구가 주는 것 중 쓰는 칸만 */
+interface TemplateChoice { id: string; name: string; isDefault: boolean; currentVersionNo: number | null }
 import styles from './quote-panel.module.css'
 
 interface QuoteLine {
@@ -105,6 +113,8 @@ export default function QuotePanel({
     사용자가 어디로 돌아가는지 «누르기 전에» 안다.
   */
   const here = { path: `/crm/deals/${dealId}`, label: dealName }
+  const router = useRouter()
+  const { ask, dialog } = useAskDialog()
   const [items, setItems] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -126,6 +136,8 @@ export default function QuotePanel({
    * 사람이 단가를 보고 저장한다. 바로 저장하면 「원가 그대로 나간 견적」이 조용히 생긴다.
    */
   const [costing, setCosting] = useState(false)
+  /** 템플릿이 둘 이상일 때 고르는 창 */
+  const [contractFor, setContractFor] = useState<{ quote: Quote; templates: TemplateChoice[] } | null>(null)
   /**
    * 휴지통은 별도 화면이 아니라 **보기 전환**이다(trash.tsx 와 같은 약속).
    * 지운 것을 찾으러 다른 메뉴로 가게 하면 사람은 지우기를 무서워한다.
@@ -182,6 +194,66 @@ export default function QuotePanel({
     } finally {
       setBusyId(null)
     }
+  }
+
+  /**
+   * 보냄 체크 — 요청은 예전 「보냄으로 표시」 단추와 한 글자도 같다(act 를 그대로 부른다).
+   * 보낸 견적은 금액을 못 고치니 되돌릴 수 없는 일이라 확인을 받는다.
+   */
+  const markSent = async (quote: Quote) => {
+    const yes = await ask.confirm({
+      title: QUOTE_SEND.confirmTitle(quote.quoteNo),
+      body: QUOTE_SEND.confirmBody,
+      confirmLabel: QUOTE_SEND.confirm,
+    })
+    if (yes) await act(quote, '/status', { to: 'SENT' })
+  }
+
+  /** 보냄 또는 수락 견적으로 계약서를 만들고 그 화면으로 간다 — 돌아올 곳은 이 딜 */
+  const postContract = async (quote: Quote, templateId: string) => {
+    setBusyId(quote.id)
+    setActionError(null)
+    try {
+      const res = await fetch('/api/crm/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quoteId: quote.id, templateId }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setActionError(body?.error?.message ?? failedTo(CONTRACT_DOC.entity, '만들지')); return }
+      setContractFor(null)
+      router.push(linkWithBack(`/crm/contracts/${body.contract.id}`, here))
+    } catch {
+      setActionError(failedTo(CONTRACT_DOC.entity, '만들지'))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  /**
+   * 템플릿을 정한다. 발행한 것이 하나면 묻지 않고, 둘 이상이면 고르게 한다(기본 템플릿이 맨 앞).
+   * 서버의 기본 고르기에만 맡기면 기본으로 정하지 않은 템플릿밖에 없을 때 「템플릿이 없다」고 거짓말한다.
+   */
+  const createContract = async (quote: Quote) => {
+    setBusyId(quote.id)
+    setActionError(null)
+    let published: TemplateChoice[] = []
+    try {
+      const res = await fetch('/api/crm/contract-templates', { cache: 'no-store' })
+      const body = await res.json()
+      if (!res.ok) { setActionError(body?.error?.message ?? failedTo(CONTRACT_TEMPLATE.cardTitle, '불러오지')); return }
+      published = ((body.items ?? []) as TemplateChoice[])
+        .filter((t) => t.currentVersionNo)
+        .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+    } catch {
+      setActionError(failedTo(CONTRACT_TEMPLATE.cardTitle, '불러오지'))
+      return
+    } finally {
+      setBusyId(null)
+    }
+    if (published.length === 0) { setActionError(CONTRACT_MSG.noTemplate); return }
+    if (published.length === 1) { await postContract(quote, published[0].id); return }
+    setContractFor({ quote, templates: published })
   }
 
   /**
@@ -336,14 +408,15 @@ export default function QuotePanel({
                             할인 승인
                           </NbButton>
                         )}
-                        <NbButton onClick={() => void act(q, '/status', { to: 'SENT' })} disabled={busy}>
-                          {busy ? '처리 중…' : '보냄으로 표시'}
-                        </NbButton>
+                        <label className={styles.rateCheck}>
+                          <input type="checkbox" checked={false} disabled={busy} onChange={() => void markSent(q)} />
+                          {QUOTE_SEND.check}
+                        </label>
                       </>
                     )}
                     {q.status === 'SENT' && (
                       <>
-                        <NbButton onClick={() => void act(q, '/status', { to: 'ACCEPTED' })} disabled={busy}>
+                        <NbButton variant="ghost" onClick={() => void act(q, '/status', { to: 'ACCEPTED' })} disabled={busy}>
                           수락됨
                         </NbButton>
                         <NbButton variant="ghost" onClick={() => void act(q, '/status', { to: 'REJECTED' })} disabled={busy}>
@@ -395,7 +468,13 @@ export default function QuotePanel({
                       모달은 우리가 숫자를 맞추는 자리이고 이쪽은 나가는 문서다.
                       경로가 없어서 영업이 화면을 캡처해 보내고 있었다.
                     */}
-                    <NbButton variant="ghost" href={linkWithBack(`/crm/quotes/${q.id}`, here)}>
+                    {(q.status === 'SENT' || q.status === 'ACCEPTED') && !q.expired && (
+                      <NbButton variant="ghost" onClick={() => void createContract(q)} disabled={busy}>
+                        <FileSignature size={14} /> {busy ? progress(CONTRACT_DOC.create) : CONTRACT_DOC.create}
+                      </NbButton>
+                    )}
+                    {/* 카드에서 칠한 단추는 이것 하나 — 나가는 문서를 보는 것이 이 카드의 주된 일이다 */}
+                    <NbButton href={linkWithBack(`/crm/quotes/${q.id}`, here)}>
                       <FileText size={14} /> {QUOTE.documentTitle}
                     </NbButton>
                     {/* 지우기는 초안에만 — 보낸 견적은 있었던 일의 기록이라 목록에서 치우지 않는다 */}
@@ -529,6 +608,28 @@ export default function QuotePanel({
           </div>
         </NbModal>
       )}
+      {contractFor && (
+        <NbModal title={CONTRACT_CREATE.pickTitle} onClose={() => setContractFor(null)} disableClose={Boolean(busyId)}>
+          <p className={styles.variantHint}>{CONTRACT_CREATE.pickHint}</p>
+          {actionError && <p className={styles.meta} role="alert">{actionError}</p>}
+          <ul className={styles.pickList}>
+            {contractFor.templates.map((t) => (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  className={styles.pickItem}
+                  disabled={Boolean(busyId)}
+                  onClick={() => void postContract(contractFor.quote, t.id)}
+                >
+                  <span className={styles.pickName}>{t.name}</span>
+                  {t.isDefault && <NbBadge status="note">{CONTRACT_TEMPLATE.defaultBadge}</NbBadge>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </NbModal>
+      )}
+      {dialog}
     </div>
   )
 }
