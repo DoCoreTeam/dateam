@@ -33,6 +33,26 @@ export const MAX_CONTRACT_SOURCE_CHARS = 40_000
 export const MIN_SUGGESTION_CHARS = 2
 
 const CLAUSE_HEAD = /^\s*제\s*\d+\s*조(?:\s*의\s*\d+)?/
+/** 「제N조」 와 그 뒤 괄호 제목 — 한 줄에 본문까지 붙어 오면 여기까지만 제목이다 */
+const CLAUSE_TITLE = /^\s*(제\s*\d+\s*조(?:\s*의\s*\d+)?)\s*([(（【\[][^)）】\]]{1,40}[)）】\]])?\s*(.*)$/
+/** 문장으로 끝났나 — 괄호 제목이 없는 줄에서 뒤를 본문으로 내릴지 정한다 */
+const SENTENCE_END = /[.。]$|다$/
+
+/**
+ * 조항 머리 줄을 제목과 본문 첫 문장으로 가른다.
+ * 실측 2026-10-19: 「제2조 (대금 지급) 을은 15일 안에 지급한다.」 한 줄이 통째로 제목이 되어
+ * 본문이 비었고, AI로 고치기가 본문에서 그 글을 못 찾아 늘 거절했다.
+ * 괄호 제목이 없으면 문장으로 끝날 때만 가른다 — 「제3조 기간」 은 제목 그대로다.
+ */
+function splitHead(line: string): { title: string; rest: string } {
+  const m = CLAUSE_TITLE.exec(line)
+  if (!m) return { title: line, rest: '' }
+  const [, , paren, rest] = m
+  if (!rest) return { title: line, rest: '' }
+  if (!paren && !SENTENCE_END.test(rest)) return { title: line, rest: '' }
+  // 제목은 원문 글자를 그대로 자른다 — 다시 이어 붙이면 「제1조(목적)」 의 띄어쓰기가 바뀐다
+  return { title: line.slice(0, line.length - rest.length).trim(), rest }
+}
 const PAGE_MARK = /^---\s*\d+쪽\s*---$/
 
 // ------------------------------------------------------------
@@ -52,7 +72,8 @@ export function splitClauses(text: string): Clause[] {
   for (const line of lines) {
     if (CLAUSE_HEAD.test(line)) {
       if (cur.title || cur.body.length > 0) groups.push(cur)
-      cur = { title: line, body: [] }
+      const { title, rest } = splitHead(line)
+      cur = { title, body: rest ? [rest] : [] }
     } else {
       cur.body.push(line)
     }

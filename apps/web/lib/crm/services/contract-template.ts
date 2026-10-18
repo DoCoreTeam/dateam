@@ -216,3 +216,20 @@ export async function deleteContractTemplate(workspaceId: string, actorId: strin
     })
   })
 }
+
+/**
+ * 영구 삭제 (P0132 I16) — 템플릿과 발행 버전을 지운다(버전은 FK CASCADE).
+ * 이 템플릿으로 이미 만든 계약서는 그때 버전의 조항을 들고 있어 바뀌지 않는다.
+ * 원본 첨부는 부르는 쪽이 이 뒤에 지운다 — 행이 먼저 사라지고 파일이 남는 쪽이 그 반대보다 낫다.
+ */
+export async function purgeContractTemplate(workspaceId: string, actorId: string | null, id: string): Promise<void> {
+  await withCrmTx(workspaceId, async (tx) => {
+    // 휴지통에 있는 것도 지울 수 있어야 한다 — 지운 행 걸러내기를 이 조회만 넘는다
+    const n = await t(tx).deleteMany({ where: { id, deletedAt: { not: undefined } } })
+    if (n.count === 0) throw new CrmError('NOT_FOUND', CONTRACT_MSG.templateNotFound)
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'contract_template.purged',
+      targetType: 'contract_template', targetId: id,
+    })
+  })
+}

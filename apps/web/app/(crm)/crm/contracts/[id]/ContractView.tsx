@@ -108,10 +108,19 @@ export default function ContractView({ contractId, abilities }: { contractId: st
     setNotice({ tone: 'error', text: out.message })
   }, [reload])
 
-  const done = useCallback((text: string) => {
-    setNotice({ tone: 'ok', text })
+  /**
+   * 한 일이 끝나면 최신 판을 다 읽은 뒤에 끝났다고 말한다. **읽는 동안 단추를 잠근다** —
+   * 실측 2026-10-19: AI 반영 직후 「보냄으로 표시」를 누르면 옛 판 번호가 나가 「다른 사람이 먼저 고쳤다」가 났다.
+   */
+  const done = useCallback(async (text: string) => {
     setModal(null)
-    void reload()
+    setBusy('reload')
+    try {
+      await reload()
+    } finally {
+      setBusy(null)
+    }
+    setNotice({ tone: 'ok', text })
   }, [reload])
 
   const run = useCallback(async <T,>(key: string, call: () => Promise<Outcome<T>>): Promise<T | null> => {
@@ -169,7 +178,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
     })
     if (!yes) return
     const out = await run('send', () => contractApi.act(contract.id, fail('보냄으로 표시하지'), { action: 'send', version: contract.version }))
-    if (out) done(DOC_HEADER.sentVersion(kstDateKey(new Date().toISOString()), contract.currentVersionNo))
+    if (out) void done(DOC_HEADER.sentVersion(kstDateKey(new Date().toISOString()), contract.currentVersionNo))
   }
 
   async function close(action: 'terminate' | 'cancel') {
@@ -183,7 +192,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
     if (!yes) return
     const label = t ? CONTRACT_SCREEN.terminate : CONTRACT_SCREEN.cancel
     const out = await run(action, () => contractApi.act(contract.id, fail(`${label}하지`), { action, version: contract.version }))
-    if (out) done(CONTRACT_STATUS_LABEL[out.status] ?? label)
+    if (out) void done(CONTRACT_STATUS_LABEL[out.status] ?? label)
   }
 
   async function amend() {
@@ -201,7 +210,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
   async function refill() {
     const out = await run('refill', () => contractApi.refill(contract.id, fail('다시 채우지'), contract.version))
     if (!out) return
-    done(out.created ? CONTRACT_SCREEN.refillDone(out.versionNo) : CONTRACT_SCREEN.refillNone)
+    void done(out.created ? CONTRACT_SCREEN.refillDone(out.versionNo) : CONTRACT_SCREEN.refillNone)
   }
 
   const label = (key: string) => CONTRACT_FIELD_LABEL[key] ?? key
@@ -355,7 +364,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
           contract={contract}
           current={current}
           onClose={() => setModal(null)}
-          onSaved={(r) => done(r.created ? CONTRACT_SCREEN.saved(r.versionNo) : CONTRACT_SCREEN.noChange)}
+          onSaved={(r) => void done(r.created ? CONTRACT_SCREEN.saved(r.versionNo) : CONTRACT_SCREEN.noChange)}
           onFailed={(o) => { setModal(null); failed(o) }}
         />
       )}
@@ -363,7 +372,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
         <ContractAiEditModal
           contract={contract}
           onClose={() => setModal(null)}
-          onSaved={(r) => done(r.created ? CONTRACT_SCREEN.saved(r.versionNo) : CONTRACT_SCREEN.noChange)}
+          onSaved={(r) => void done(r.created ? CONTRACT_SCREEN.saved(r.versionNo) : CONTRACT_SCREEN.noChange)}
           onFailed={(o) => { setModal(null); failed(o) }}
         />
       )}
@@ -371,7 +380,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
         <ContractConcludeModal
           contract={contract}
           onClose={() => setModal(null)}
-          onDone={(row) => done(CONTRACT_STATUS_LABEL[row.status] ?? CONTRACT_SCREEN.conclude)}
+          onDone={(row) => void done(CONTRACT_STATUS_LABEL[row.status] ?? CONTRACT_SCREEN.conclude)}
           onFailed={(o) => { setModal(null); failed(o) }}
         />
       )}

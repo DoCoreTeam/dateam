@@ -57,6 +57,30 @@ test('조항 표시가 없으면 한 덩어리로 둔다', () => {
   assert.equal(c[0].html, '<p>첫 줄</p><p>둘째 줄</p><p>셋째 줄</p>')
 })
 
+test('★ 한 줄 조항은 「제N조 (제목)」만 제목이 되고 나머지 문장은 본문이 된다', () => {
+  // 실측 2026-10-19: 한 줄이 통째로 제목이 되어 본문이 비었고, AI로 고치기가 늘 「본문에 그 글이 없다」로 거절됐다
+  const c = splitClauses('제1조 (목적) 갑과 을은 GPU 서버 임대에 합의한다.\n제2조 (대금 지급) 을은 15일 안에 지급한다.')
+  assert.deepEqual(c.map((x) => x.title), ['제1조 (목적)', '제2조 (대금 지급)'])
+  assert.deepEqual(c.map((x) => x.html), ['<p>갑과 을은 GPU 서버 임대에 합의한다.</p>', '<p>을은 15일 안에 지급한다.</p>'])
+})
+
+test('괄호 제목이 없으면 문장으로 끝날 때만 본문으로 내린다 — 「제3조 기간」 같은 제목은 그대로', () => {
+  const c = splitClauses('제3조 기간\n계약 기간은 1년이다.\n제4조 해지는 30일 전에 알린다.')
+  assert.deepEqual(c.map((x) => x.title), ['제3조 기간', '제4조'])
+  assert.equal(c[0].html, '<p>계약 기간은 1년이다.</p>')
+  assert.equal(c[1].html, '<p>해지는 30일 전에 알린다.</p>')
+})
+
+test('제목은 원문 글자 그대로다 — 띄어쓰기를 고치지 않는다', () => {
+  assert.equal(splitClauses('제6조(통지) 통지는 서면으로 한다.')[0].title, '제6조(통지)')
+})
+
+test('제목 줄 뒤에 본문 줄이 이어지면 둘 다 본문에 남는다', () => {
+  const c = splitClauses('제5조 (비밀) 서로의 비밀을 지킨다.\n위반하면 손해를 배상한다.')
+  assert.equal(c[0].title, '제5조 (비밀)')
+  assert.equal(c[0].html, '<p>서로의 비밀을 지킨다.</p><p>위반하면 손해를 배상한다.</p>')
+})
+
 test('원문의 꺾쇠는 태그가 되지 않는다', () => {
   const c = splitClauses(SOURCE)
   assert.ok(c[2].html.includes('&lt;서명&gt;'))
