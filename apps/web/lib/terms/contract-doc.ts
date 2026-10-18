@@ -99,6 +99,28 @@ export const CONTRACT_MSG = {
   badVersionNo: '버전 번호가 올바르지 않습니다.',
 } as const
 
+/** AI 로 고치기 말 (P0132 I09) */
+export const CONTRACT_AI = {
+  instructionRequired: '무엇을 고칠지 적어 주세요.',
+  instructionTooLong: '지시가 너무 깁니다. 1,000자 안으로 줄여 주세요.',
+  noPieces: '반영할 조각을 하나 이상 골라 주세요.',
+  tooManyPieces: '한 번에 반영할 수 있는 조각 수를 넘었습니다.',
+  badPiece: '반영할 조각의 모양이 올바르지 않습니다.',
+  pieceStale: (n: number): string => `${n}번째 조각이 지금 본문과 맞지 않습니다. 다시 제안받아 주세요.`,
+  numeric: '숫자나 날짜가 바뀝니다',
+} as const
+
+/** 조각을 버린 까닭 — 제안 목록에 이 말로 보인다 */
+export const CONTRACT_AI_REJECT: Record<string, string> = {
+  no_clause: '없는 조항을 가리킵니다',
+  not_found: '지금 본문에 그 글이 없습니다',
+  ambiguous: '같은 글이 여러 곳에 있어 어디인지 모릅니다',
+  multiline: '여러 줄에 걸쳐 있습니다',
+  broken_field: '칸 자리를 반만 건드립니다',
+  unknown_field: '없는 칸 이름을 씁니다',
+  same: '바뀌는 것이 없습니다',
+}
+
 /** 버전이 생긴 까닭 — 버전 기록에 이 말로 보인다 */
 export const CONTRACT_VERSION_KIND: Record<string, string> = {
   GENERATED: '견적으로 만듦',
