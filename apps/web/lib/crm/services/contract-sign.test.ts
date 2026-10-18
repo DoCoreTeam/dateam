@@ -85,7 +85,9 @@ test('★ 체결한 계약서는 버전을 더 쓰지 않는다', () => {
 test('★ 변경 계약서는 체결한 계약에서만, 원 계약을 가리키고 새 번호를 받는다', () => {
   assert.equal(canAmend('CONCLUDED'), true)
   for (const s of ['DRAFT', 'TERMINATED', 'CANCELLED']) assert.equal(canAmend(s), false)
-  const fn = CONTRACT.slice(CONTRACT.indexOf('export async function createAmendment'))
+  const from = CONTRACT.indexOf('export async function createAmendment')
+  const fn = CONTRACT.slice(from, CONTRACT.indexOf('\nasync function', from + 1))
+  assert.ok(fn.length > 200, '함수 몸통을 못 잘랐습니다')
   assert.ok(fn.includes('parentContractId: parent.id'))
   assert.ok(fn.includes('nextContractNo(tx, pattern'), '번호는 새로 받는다')
   assert.ok(fn.includes('autoValuesFrom(cur.quoteSnapshot, contractNo)'), '자동 칸이 새 번호로 다시 만들어진다')

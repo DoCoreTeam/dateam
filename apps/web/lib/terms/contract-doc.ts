@@ -151,6 +151,20 @@ export const CONTRACT_REFILL = {
   note: (fromVersion: number, toVersion: number): string => `견적 버전 ${fromVersion} 에서 ${toVersion} 으로 다시 채움`,
 } as const
 
+/** 계약서 종이와 내보내기 말 (P0132 I12) */
+export const CONTRACT_PAPER = {
+  name: '상호',
+  address: '주소',
+  ceo: '대표',
+  dateBlank: '년      월      일',
+  mark: { seal: '(인)', sign: '(서명)', either: '(서명 또는 인)' } as Record<'seal' | 'sign' | 'either', string>,
+  footer: (contractNo: string, versionNo: number): string => `계약서 번호 ${contractNo} · 버전 ${versionNo}`,
+  fileWord: '계약서',
+  fileVersion: (n: number): string => `버전${n}`,
+  badFormat: '내려받을 형식을 알 수 없습니다. PDF 나 Word 파일 중에서 골라 주세요.',
+  renderFailed: 'PDF 를 만들지 못했습니다. 잠시 후 다시 시도하거나 Word 파일로 내려받아 주세요.',
+} as const
+
 /** 버전이 생긴 까닭 — 버전 기록에 이 말로 보인다 */
 export const CONTRACT_VERSION_KIND: Record<string, string> = {
   GENERATED: '견적으로 만듦',
