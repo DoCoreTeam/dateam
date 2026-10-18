@@ -143,6 +143,14 @@ export const CONTRACT_SIGN = {
   amendNote: (contractNo: string): string => `원 계약 ${contractNo} 에서 만듦`,
 } as const
 
+/** 견적 변경 알림과 다시 채우기 말 (P0132 I11) */
+export const CONTRACT_REFILL = {
+  quoteGone: '이 계약서를 만든 견적을 찾을 수 없습니다. 지워졌거나 볼 수 없는 견적입니다.',
+  quoteNotContractable: '견적이 지금 작성 중이거나 거절 상태라 그 값으로 다시 채울 수 없습니다.',
+  noSource: '견적 없이 만든 계약서라 다시 채울 견적이 없습니다.',
+  note: (fromVersion: number, toVersion: number): string => `견적 버전 ${fromVersion} 에서 ${toVersion} 으로 다시 채움`,
+} as const
+
 /** 버전이 생긴 까닭 — 버전 기록에 이 말로 보인다 */
 export const CONTRACT_VERSION_KIND: Record<string, string> = {
   GENERATED: '견적으로 만듦',

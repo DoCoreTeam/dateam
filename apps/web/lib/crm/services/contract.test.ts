@@ -13,7 +13,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
-  assertContractableQuote, checkManualFields, nextFieldValues, renderClauses, planSave, manualOf,
+  assertContractableQuote, checkManualFields, nextFieldValues, renderClauses, planSave, manualOf, planRefill,
 } from './contract.ts'
 import { autoValuesFrom, mergeFieldValues, fieldToken, type FieldValues } from '../domain/contract-fields.ts'
 import { contentHash, type Clause } from '../domain/contract-body.ts'
@@ -137,7 +137,7 @@ test('★ 만든 뒤 견적을 고쳐도 고치기는 버전의 스냅샷으로 
   const plan = planSave(CONTRACT, cur, 3, { body: null, patch: { 'customer.ceo': '이대표' } })
   assert.equal(plan.action === 'version' && plan.fieldValues['quote.total'].value, '19,250,000원')
   // 서비스가 고치기 안에서 견적을 다시 읽지 않는다
-  const save = SERVICE.slice(SERVICE.indexOf('export async function saveContractVersion'))
+  const save = SERVICE.slice(SERVICE.indexOf('export async function saveContractVersion'), SERVICE.indexOf('export async function createAmendment'))
   assert.ok(!/getQuote(Document)?\(/.test(save), '고치기가 견적을 다시 읽는다 — 스냅샷이 몰래 바뀐다')
   assert.match(save, /quoteSnapshot: cur\.quoteSnapshot/, '다음 버전이 앞 버전의 스냅샷을 잇지 않는다')
 })
@@ -198,4 +198,56 @@ test('만들기는 워크스페이스 가드가 걸린 연결로 견적을 읽�
 test('fieldValues 견본 모양', () => {
   const fv: FieldValues = version1().fieldValues
   assert.equal(fv['contract.no'].value, 'CT-20261018-01')
+})
+
+/* ── 견적 변경 알림과 다시 채우기 (I11) ─────────────── */
+
+const DOC2 = {
+  ...DOC,
+  customer: { companyName: '주식회사 한빛 시스템', personName: '박담당님' },
+  totals: { ...DOC.totals, totalMinor: '22000000' },
+  terms: ['납품 후 30일 안 지급'],
+} as unknown as QuoteDocument
+
+test('★ 견적이 바뀌면 바뀐 칸 목록을 낸다 — 블록 칸(거래 조건)까지', () => {
+  const plan = planRefill(version1(), DOC2, CONTRACT.contractNo)
+  // 품목표는 합계 줄을 싣기에 합계가 바뀌면 같이 바뀐다
+  assert.deepEqual([...plan.changed].sort(), ['customer.name', 'quote.lines', 'quote.terms', 'quote.total'])
+  assert.deepEqual(planRefill(version1(), DOC, CONTRACT.contractNo).changed, [], '안 바뀐 견적은 바뀐 칸 0')
+})
+
+test('★ 다시 채우기는 자동 칸만 바꾸고 사람이 고친 칸은 남긴다', () => {
+  const cur = version1({ 'customer.name': '한빛(사람이 고침)', 'customer.ceo': '이대표' })
+  const plan = planRefill(cur, DOC2, CONTRACT.contractNo)
+  assert.equal(plan.fieldValues['customer.name'].value, '한빛(사람이 고침)')
+  assert.equal(plan.fieldValues['customer.name'].source, 'manual')
+  assert.equal(plan.fieldValues['customer.ceo'].value, '이대표')
+  assert.equal(plan.fieldValues['quote.total'].source, 'auto')
+  assert.notEqual(plan.fieldValues['quote.total'].value, cur.fieldValues['quote.total'].value)
+  assert.ok(!plan.changed.includes('customer.name'), '사람이 고친 칸을 바뀐다고 하지 않는다')
+  assert.deepEqual(plan.kept, ['customer.name'], '견적 값이 바뀐 사람 칸은 남는다고 알린다')
+})
+
+test('★ 다시 채우기는 새 버전으로만 반영한다 — 지금 버전은 안 고친다', () => {
+  const fn = SERVICE.slice(SERVICE.indexOf('export async function refillContractFromQuote'))
+  assert.match(fn, /versionNo = cur\.versionNo \+ 1/)
+  assert.match(fn, /kind: 'REFILLED'/)
+  assert.match(fn, /cv\(tx\)\.create\(/)
+  assert.ok(!/cv\(tx\)\.(update|updateMany|upsert|delete)/.test(fn), '버전 표를 고치는 자리가 있다')
+  assert.match(fn, /where: \{ id, version \}/, 'version 이 어긋나면 CONFLICT')
+  assert.match(fn, /plan\.changed\.length === 0/, '바뀐 칸이 없으면 버전을 안 만든다')
+  assert.match(fn, /canContractFromQuote\(quote\.status\)/, '작성 중으로 돌아간 견적으로는 안 채운다')
+})
+
+test('다시 채우기는 기존 PATCH 창구 안의 동작이다 — 새 창구 없음', () => {
+  const route = read('app/api/crm/contracts/[id]/route.ts')
+  assert.match(route, /refill === true/)
+  assert.match(route, /refillContractFromQuote\(db, session\.workspaceId/)
+  assert.match(route, /withCrmApi\('MEMBER'/)
+})
+
+test('본문 조항은 다시 채우기에서 안 바뀐다', () => {
+  const cur = version1()
+  const plan = planRefill(cur, DOC2, CONTRACT.contractNo)
+  assert.equal(plan.hash, contentHash(cur.body, plan.fieldValues))
 })

@@ -226,3 +226,11 @@ export function changedAutoFields(prev: FieldValues, nextAuto: Record<string, st
     .filter(([key, fv]) => fv.source === 'auto' && key in nextAuto && nextAuto[key] !== fv.value)
     .map(([key]) => key)
 }
+
+/** 블록 칸(품목표 거래 조건)은 칸 값에 없어 그린 글로 견준다 */
+export function changedBlockFields(prevDoc: QuoteDocument | null, nextDoc: QuoteDocument): string[] {
+  return CONTRACT_FIELDS
+    .filter((f) => f.kind === 'block')
+    .filter((f) => (prevDoc ? renderBlock(f.key, prevDoc) : '') !== renderBlock(f.key, nextDoc))
+    .map((f) => f.key)
+}

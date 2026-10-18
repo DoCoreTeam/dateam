@@ -20,7 +20,8 @@ import { CrmError } from '../domain/errors.ts'
 import { normalizeText } from '../domain/normalize.ts'
 import { contentHash, diffClauses, diffFields, type Clause, type ClauseDiff } from '../domain/contract-body.ts'
 import {
-  CONTRACT_FIELDS, autoValuesFrom, mergeFieldValues, fillHtml, fieldByKey, type FieldValues,
+  CONTRACT_FIELDS, autoValuesFrom, mergeFieldValues, fillHtml, fieldByKey, changedAutoFields, changedBlockFields,
+  type FieldValues,
 } from '../domain/contract-fields.ts'
 import { canAmend, canContractFromQuote, canWriteVersion, type ContractVersionKind } from '../domain/contract-status.ts'
 import { DEFAULT_CONTRACT_NO_PATTERN, renderQuoteNo, seqOf, seqPrefix, validateQuoteNoPattern } from '../domain/quote-number.ts'
@@ -30,7 +31,7 @@ import { getQuoteDocument } from './quote-document.ts'
 import { checkClauses, defaultTemplateFor, readPublishedTemplate } from './contract-template.ts'
 import { resolveSetting, settingDef } from './setting.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
-import { CONTRACT_DOC, CONTRACT_MSG, CONTRACT_SIGN } from '../../terms/contract-doc.ts'
+import { CONTRACT_DOC, CONTRACT_MSG, CONTRACT_REFILL, CONTRACT_SIGN } from '../../terms/contract-doc.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const c = (db: unknown): any => (db as any).crmContract
@@ -223,11 +224,14 @@ export async function getContractVersion(db: CrmDb, contractId: string, versionN
   return v
 }
 
-/** 계약서와 지금 버전, 그리고 칸을 채운 종이 본문 */
-export async function getContract(db: CrmDb, id: string): Promise<{ contract: ContractRow; current: ContractVersionRow; rendered: Clause[] }> {
+/** 계약서와 지금 버전, 칸을 채운 종이 본문, 그리고 만든 뒤 견적이 바뀌었는지 */
+export async function getContract(db: CrmDb, id: string): Promise<{
+  contract: ContractRow; current: ContractVersionRow; rendered: Clause[]; quoteChange: QuoteChange
+}> {
   const contract = await findContract(db, id)
   const current = await getContractVersion(db, id, contract.currentVersionNo)
-  return { contract, current, rendered: renderClauses(current.body, current.fieldValues, current.quoteSnapshot) }
+  const quoteChange = await readQuoteChange(db, contract, current)
+  return { contract, current, rendered: renderClauses(current.body, current.fieldValues, current.quoteSnapshot), quoteChange }
 }
 
 export async function listContractVersions(db: CrmDb, contractId: string): Promise<Omit<ContractVersionRow, 'body' | 'fieldValues' | 'quoteSnapshot' | 'signatureSnapshot'>[]> {
@@ -509,4 +513,135 @@ export async function createAmendment(
     if (isUniqueViolation(e)) throw new CrmError('CONFLICT', CONTRACT_MSG.numberTaken)
     throw e
   }
+}
+
+// ------------------------------------------------------------
+// 견적 변경 알림과 다시 채우기 (I11)
+// ------------------------------------------------------------
+
+/**
+ * 계약서를 만든 뒤 견적이 바뀌었나.
+ *
+ * - `same`: 버전에 든 견적 버전과 지금 견적 버전이 같다
+ * - `changed`: 바뀌었다. `changed` 는 다시 채우면 바뀌는 자동 칸, `kept` 는 견적 값이 바뀌었지만
+ *   사람이 고친 칸이라 다시 채워도 남는 칸
+ * - `gone`: 견적을 찾을 수 없다 (지웠거나 볼 수 없다)
+ * - `none`: 견적 없이 만든 계약서
+ */
+export interface QuoteChange {
+  state: 'same' | 'changed' | 'gone' | 'none'
+  sourceQuoteVersion: number | null
+  quoteVersion: number | null
+  changed: string[]
+  kept: string[]
+}
+
+export interface RefillPlan {
+  changed: string[]
+  kept: string[]
+  fieldValues: FieldValues
+  hash: string
+}
+
+/**
+ * 다시 채우기 판정 — DB 없이 정한다.
+ *
+ * **자동 칸만 바꾼다.** 사람이 넣은 칸은 그 값 그대로 남는다(mergeFieldValues 가 사람 값을 이긴다).
+ * 본문 조항은 안 건드린다. 품목표와 거래 조건 같은 블록 칸은 칸 값이 아니라 견적 스냅샷에서
+ * 그리므로 그린 글로 견준다.
+ */
+export function planRefill(
+  cur: Pick<ContractVersionRow, 'body' | 'fieldValues' | 'quoteSnapshot'>, nextDoc: QuoteDocument, contractNo: string,
+): RefillPlan {
+  const prevAuto = cur.quoteSnapshot ? autoValuesFrom(cur.quoteSnapshot, contractNo) : {}
+  const nextAuto = autoValuesFrom(nextDoc, contractNo)
+  const changed = [...changedAutoFields(cur.fieldValues, nextAuto), ...changedBlockFields(cur.quoteSnapshot, nextDoc)]
+  const kept = Object.entries(cur.fieldValues)
+    .filter(([key, fv]) => fv.source === 'manual' && key in nextAuto && (prevAuto[key] ?? '') !== nextAuto[key])
+    .map(([key]) => key)
+  const fieldValues = mergeFieldValues(nextAuto, manualOf(cur.fieldValues))
+  return { changed, kept, fieldValues, hash: contentHash(cur.body, fieldValues) }
+}
+
+const NO_CHANGE = (state: QuoteChange['state'], from: number | null, to: number | null): QuoteChange =>
+  ({ state, sourceQuoteVersion: from, quoteVersion: to, changed: [], kept: [] })
+
+async function readSourceQuote(db: CrmDb, quoteId: string): Promise<{ status: string; version: number } | null> {
+  try {
+    const q = await getQuote(db, quoteId)
+    return { status: q.status, version: q.version }
+  } catch (e) {
+    if (e instanceof CrmError && e.code === 'NOT_FOUND') return null
+    throw e
+  }
+}
+
+/** 견적 버전이 같으면 견적 문서를 다시 만들지 않는다 — 계약서를 열 때마다 드는 값이다 */
+async function readQuoteChange(db: CrmDb, contract: ContractRow, cur: ContractVersionRow): Promise<QuoteChange> {
+  const quoteId = cur.sourceQuoteId ?? contract.quoteId
+  if (!quoteId) return NO_CHANGE('none', null, null)
+  const quote = await readSourceQuote(db, quoteId)
+  if (!quote) return NO_CHANGE('gone', cur.sourceQuoteVersion, null)
+  if (quote.version === cur.sourceQuoteVersion) return NO_CHANGE('same', cur.sourceQuoteVersion, quote.version)
+  const { document } = await getQuoteDocument(db, quoteId)
+  const plan = planRefill(cur, document, contract.contractNo)
+  return { state: 'changed', sourceQuoteVersion: cur.sourceQuoteVersion, quoteVersion: quote.version, changed: plan.changed, kept: plan.kept }
+}
+
+/**
+ * 지금 견적 값으로 자동 칸을 다시 채워 **다음 버전**으로 남긴다. 지금 버전은 그대로다.
+ *
+ * - 작성 중일 때만, `version` 이 맞을 때만
+ * - 견적이 보냄 또는 수락이어야 한다. 작성 중으로 돌아간 견적은 아직 합의한 값이 아니다
+ * - 바뀌는 칸이 없으면 버전을 만들지 않는다
+ */
+export async function refillContractFromQuote(
+  db: CrmDb, workspaceId: string, actorId: string | null, id: string, version: number,
+): Promise<{ contract: ContractRow; versionNo: number; created: boolean; changed: string[]; kept: string[] }> {
+  const contract = await findContract(db, id)
+  if (!canWriteVersion(contract.status)) throw new CrmError('INVALID_TRANSITION', CONTRACT_MSG.notWritable)
+  if (contract.version !== version) throw new CrmError('CONFLICT', CONTRACT_MSG.conflict)
+  const cur = await getContractVersion(db, id, contract.currentVersionNo)
+  const quoteId = cur.sourceQuoteId ?? contract.quoteId
+  if (!quoteId) throw new CrmError('VALIDATION_FAILED', CONTRACT_REFILL.noSource)
+  const quote = await readSourceQuote(db, quoteId)
+  if (!quote) throw new CrmError('NOT_FOUND', CONTRACT_REFILL.quoteGone)
+  if (!canContractFromQuote(quote.status)) throw new CrmError('INVALID_TRANSITION', CONTRACT_REFILL.quoteNotContractable)
+
+  const { document: doc } = await getQuoteDocument(db, quoteId)
+  const plan = planRefill(cur, doc, contract.contractNo)
+  if (plan.changed.length === 0) return { contract, versionNo: cur.versionNo, created: false, changed: [], kept: plan.kept }
+
+  return withCrmTx(workspaceId, async (tx) => {
+    const versionNo = cur.versionNo + 1
+    const note = CONTRACT_REFILL.note(cur.sourceQuoteVersion ?? 0, quote.version)
+    await cv(tx).create({
+      data: {
+        workspaceId, contractId: id, versionNo, kind: 'REFILLED' satisfies ContractVersionKind,
+        body: cur.body, fieldValues: plan.fieldValues,
+        quoteSnapshot: doc, supplierSnapshot: doc.supplier,
+        customerSnapshot: { ...doc.customer, ...pickCustomer(plan.fieldValues) },
+        signatureSnapshot: cur.signatureSnapshot ?? undefined,
+        templateVersionNo: cur.templateVersionNo,
+        sourceQuoteId: quoteId, sourceQuoteVersion: quote.version,
+        contentHash: plan.hash, note, createdById: actorId,
+      },
+    })
+    const n = await c(tx).updateMany({
+      where: { id, version },
+      data: {
+        currentVersionNo: versionNo,
+        totalMinor: BigInt(doc.totals.totalMinor), currency: doc.meta.currency,
+        effectiveFrom: dateOrNull(plan.fieldValues['contract.start']?.value),
+        effectiveTo: dateOrNull(plan.fieldValues['contract.end']?.value),
+        version: { increment: 1 },
+      },
+    })
+    if (n.count === 0) throw new CrmError('CONFLICT', CONTRACT_MSG.conflict)
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'contract.refilled', targetType: 'contract', targetId: id,
+      afterJson: { versionNo, quoteId, fromQuoteVersion: cur.sourceQuoteVersion, toQuoteVersion: quote.version, changed: plan.changed, kept: plan.kept },
+    })
+    return { contract: await findContract(tx, id), versionNo, created: true, changed: plan.changed, kept: plan.kept }
+  })
 }
