@@ -9,7 +9,7 @@
 // **계산은 여기서 하지 않는다.** 받은 값을 그릴 뿐이다.
 // 화면이 보여 주는 숫자와 저장되는 숫자는 `quote-math` 한 함수에서 나온다.
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ROUNDING_UNITS, roundAmount, type RoundingMode, type computeTotals } from '@/lib/crm/domain/quote-math'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
@@ -25,7 +25,25 @@ import {
   computePeriod, hourlyFromTotal, monthsFromHours, DEFAULT_HOURS_PER_MONTH,
 } from '@/lib/crm/domain/quote-rate'
 import { DURATION_UNIT_LABEL } from '@/lib/terms'
+import { QUOTE_FOLD } from '@/lib/terms/quote'
 import styles from './quote-panel.module.css'
+
+/**
+ * 접는 묶음 — 값이 있으면 펼쳐 연다. 접혀 있어도 「값 있음」을 붙여 사라진 것과 구분한다.
+ * 처음 펼침만 값이 정하고 그 뒤는 사람이 정한다(고치는 중에 저절로 접히면 하던 일을 잃는다).
+ */
+export function QuoteFold({ title, filled, children }: { title: string; filled: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(filled)
+  return (
+    <details className={styles.fold} open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className={styles.foldSummary}>
+        {title}
+        {!open && filled && <span className={styles.foldFilled}>{QUOTE_FOLD.filled}</span>}
+      </summary>
+      <div className={styles.foldBody}>{children}</div>
+    </details>
+  )
+}
 
 export interface QuoteTotalsProps {
   totals: ReturnType<typeof computeTotals>
@@ -211,11 +229,12 @@ export default function QuoteTotals({
       부가세가 다시 얹혀 고객이 받는 숫자가 또 안 떨어진다
       (실측 v0.7.696: 백만원 버림인데 합계가 303,600,000원이었다).
     */}
+    <QuoteFold title={QUOTE.rounding} filled={roundingUnit !== 0}>
     <div className={styles.roundingRow}>
-      <label className="label" htmlFor="q-round-unit">{QUOTE.rounding}</label>
       <select
         id="q-round-unit"
         className="input-field"
+        aria-label={QUOTE.rounding}
         value={String(roundingUnit)}
         disabled={locked}
         onChange={(e) => onRoundingChange({ unit: Number(e.target.value) })}
@@ -271,6 +290,7 @@ export default function QuoteTotals({
         {roundingNote(roundingUnit, roundingMode as RoundingModeKey)}
       </p>
     )}
+    </QuoteFold>
     {/*
       **금액 표시 — 종류가 사용량·기간요금일 때만 선다.**
 
@@ -278,8 +298,11 @@ export default function QuoteTotals({
       부르는 쪽이 그 판단을 해서 rate 를 주거나 안 준다.
     */}
     {rate && onRateChange && (
+      <QuoteFold
+        title={QUOTE.rateDisplay}
+        filled={rate.rateAxisKeys.length + rate.lineNoteKeys.length + rate.totalConvKeys.length > 0}
+      >
       <div className={styles.rateBlock}>
-        <span className="label">{QUOTE.rateDisplay}</span>
         {/*
           **못 그리는 것만 말한다.** 수량이 시간이면 날짜가 없어도 시간당과 월 금액이
           인쇄되므로, 그때 「못 쓴다」고 적으면 되는 것을 안 된다고 읽게 만든다.
@@ -395,6 +418,7 @@ export default function QuoteTotals({
           {ratePeriod ? HOURS_BASIS_NOTE : rateHours ? HOURS_BASIS_NOTE_HOURS : HOURS_BASIS_NOTE}
         </p>
       </div>
+      </QuoteFold>
     )}
     <div className={styles.grandRow}>
       <span>{QUOTE.total}</span><span>{formatAmount(totals.totalMinor.toString(), currency)}</span>

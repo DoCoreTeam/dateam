@@ -1272,3 +1272,8 @@ export const QUOTE_SEND = {
   confirmBody: '고객에게 낸 것으로 남깁니다. 보낸 견적은 금액을 고칠 수 없고, 바꾸려면 개정본을 만듭니다.',
   confirm: '보냄으로 표시',
 } as const
+
+/** 견적 편집 창의 접는 묶음 — 값이 있으면 펼쳐 열고, 접혀 있어도 값이 있다고 말한다 (P0132 I14) */
+export const QUOTE_FOLD = {
+  filled: '값 있음',
+} as const

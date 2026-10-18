@@ -423,7 +423,7 @@
 /* 절사 지시 — 합계 줄 안에서 고른다. 협상 결과를 그 자리에 적는 자리다 */
 .roundingRow {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) 0;
@@ -1180,3 +1180,36 @@
   line-height: 1.5;
   color: var(--text-muted);
 }
+
+/*
+  편집 창의 접는 묶음 (P0132 I14) — 인쇄 옵션, 절사, 거래 조건, 특기사항.
+  자주 안 만지는 칸이 늘 펴져 있으면 항목과 금액이 화면 밖으로 밀린다.
+  값이 있으면 펼쳐 열고, 접혀 있어도 「값 있음」을 붙여 사라진 것과 구분한다.
+*/
+.fold {
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.foldSummary {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--duration-fast, 150ms) ease;
+}
+.foldSummary::-webkit-details-marker { display: none; }
+.foldSummary::before {
+  content: '';
+  width: 0.4em; height: 0.4em;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--duration-fast, 150ms) ease;
+}
+.fold[open] > .foldSummary::before { transform: rotate(45deg); }
+.foldSummary:hover { background: var(--surface-bg); }
+.foldSummary:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.foldFilled { font-size: var(--fs-xs); font-weight: 400; color: var(--brand); }
+.foldBody { display: grid; gap: var(--space-2); padding: 0 var(--space-3) var(--space-3); min-width: 0; }

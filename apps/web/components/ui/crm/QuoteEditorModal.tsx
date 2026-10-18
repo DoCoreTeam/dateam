@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import ReorderList from '@/components/ui/ReorderList'
 import QuoteFillPanel, { QuoteFillButtons, type QuoteFillMode } from './QuoteFillPanel'
-import QuoteTotals from './QuoteTotals'
+import QuoteTotals, { QuoteFold } from './QuoteTotals'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -749,8 +749,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           조건이 하나도 등록돼 있지 않으면 자리를 만들지 않는다 — 빈 목록은 안내가 아니다.
         */}
         {terms.length > 0 && (
-          <div className={styles.field}>
-            <span className="label">{QUOTE.terms}</span>
+          <QuoteFold title={QUOTE.terms} filled={draft.termIds.length > 0}>
             <ul className={styles.termList}>
               {terms.map((t) => {
                 const on = draft.termIds.includes(t.id)
@@ -775,20 +774,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                 )
               })}
             </ul>
-          </div>
+          </QuoteFold>
         )}
 
-        <div className={styles.field}>
-          <label className="label" htmlFor="quote-notes">{QUOTE.customerNote}</label>
+        <QuoteFold title={QUOTE.customerNote} filled={draft.notesMd.trim() !== ''}>
           <textarea
             id="quote-notes"
             className="input-field"
+            aria-label={QUOTE.customerNote}
             rows={3}
             value={draft.notesMd}
             onChange={(e) => setDraft((d) => ({ ...d, notesMd: e.target.value }))}
             placeholder="견적서에 그대로 인쇄됩니다. 납기·설치 범위처럼 고객이 알아야 할 것을 적어 주세요."
           />
-        </div>
+        </QuoteFold>
       </div>
     </NbModal>
   )

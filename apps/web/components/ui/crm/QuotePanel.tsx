@@ -458,11 +458,7 @@ export default function QuotePanel({
                     >
                       다른 안 만들기
                     </NbButton>
-                    {(q.status === 'ACCEPTED' || q.status === 'REJECTED') && (
-                      <NbButton variant="ghost" onClick={() => void openEdit(q)} disabled={busy}>
-                        <FileText size={14} /> 내용 보기
-                      </NbButton>
-                    )}
+                    {/* 끝난 견적(수락·거절)은 편집 창을 열지 않는다 — 아래 「견적서」가 그 내용을 보는 자리다 */}
                     {/*
                       고객이 받는 문서. 편집 모달과 **다른 것**이다 —
                       모달은 우리가 숫자를 맞추는 자리이고 이쪽은 나가는 문서다.
