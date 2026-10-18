@@ -6,7 +6,7 @@
 // 발행해야 다음 버전으로 굳고 그때부터 쓰인다. 이미 만든 계약서는 그때 버전을 들고 있어 안 바뀐다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { FileUp, Pencil, Plus, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbModal from '@/components/ui/nb/NbModal'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -16,11 +16,12 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import SettingsCard from '@/components/ui/settings/SettingsCard'
 import { useAskDialog } from '@/components/ui/useAskDialog'
 import ClauseEditor, { type EditableClause } from '@/components/ui/crm/contract/ClauseEditor'
+import ContractTemplateFromFile, { resultLines, type FromFileResult } from './ContractTemplateFromFile'
 import { useCanEdit } from '@/lib/crm/ui/can-edit'
 import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
 import { selectableBusinessTypes } from '@/lib/crm/domain/business-type'
 import { ACTION, progress } from '@/lib/terms'
-import { CONTRACT_TEMPLATE } from '@/lib/terms/contract-doc'
+import { CONTRACT_FROM_FILE, CONTRACT_TEMPLATE } from '@/lib/terms/contract-doc'
 import styles from '@/components/ui/crm/contract/contract.module.css'
 
 interface TemplateRow {
@@ -59,6 +60,9 @@ export default function ContractTemplatesCard() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [fromFile, setFromFile] = useState(false)
+  /** 파일로 만든 직후 편집 창 위에 남기는 결과 — 넣은 칸, 버린 제안, 못 읽은 것 */
+  const [notice, setNotice] = useState<string[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -78,11 +82,13 @@ export default function ContractTemplatesCard() {
 
   const openNew = () => {
     setFormError(null)
+    setNotice([])
     setDraft({ ...EMPTY, clauses: [{ id: 'c1', title: '', html: '<p></p>' }] })
   }
 
   const openEdit = (t: TemplateRow) => {
     setFormError(null)
+    setNotice([])
     setDraft({
       id: t.id, name: t.name, businessTypeKey: t.businessTypeKey ?? '', isDefault: t.isDefault,
       clauses: t.draftBody ?? [], version: t.version, currentVersionNo: t.currentVersionNo,
@@ -152,10 +158,21 @@ export default function ContractTemplatesCard() {
     await load()
   }
 
+  /** 파일로 만든 템플릿은 작성 중으로 저장돼 있다 — 바로 편집 창을 열어 확인하고 발행하게 한다 */
+  const onCreatedFromFile = (r: FromFileResult) => {
+    setFromFile(false)
+    openEdit(r.template as TemplateRow)
+    setNotice([CONTRACT_FROM_FILE.sourceFile(r.sourceFileName), ...resultLines(r)])
+    void load()
+  }
+
   if (loading && items.length === 0) return <AXDotLoader />
 
   const header = canEdit ? (
-    <NbButton variant="ghost" onClick={openNew}><Plus size={14} /> {CONTRACT_TEMPLATE.create}</NbButton>
+    <span className={styles.itemActions}>
+      <NbButton variant="ghost" onClick={() => setFromFile(true)}><FileUp size={14} /> {CONTRACT_FROM_FILE.open}</NbButton>
+      <NbButton variant="ghost" onClick={openNew}><Plus size={14} /> {CONTRACT_TEMPLATE.create}</NbButton>
+    </span>
   ) : null
 
   return (
@@ -213,6 +230,12 @@ export default function ContractTemplatesCard() {
         >
           <div className={styles.form}>
             <FormErrorBanner message={formError} />
+            {notice.length > 0 && (
+              <div role="status">
+                <strong>{CONTRACT_FROM_FILE.doneTitle}</strong>
+                {notice.map((line) => <p key={line} className={styles.desc}>{line}</p>)}
+              </div>
+            )}
             <div className={styles.row}>
               <div className={styles.field}>
                 <label className="label" htmlFor="ct-name">{CONTRACT_TEMPLATE.name}</label>
@@ -239,6 +262,7 @@ export default function ContractTemplatesCard() {
         </NbModal>
       )}
 
+      {fromFile && <ContractTemplateFromFile onClose={() => setFromFile(false)} onCreated={onCreatedFromFile} />}
       {dialog}
     </SettingsCard>
   )

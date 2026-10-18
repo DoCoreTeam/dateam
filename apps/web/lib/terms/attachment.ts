@@ -4,7 +4,8 @@
  * 화면에 한글을 직접 적지 않는다. 여기서 가져다 쓴다.
  */
 
-export type AttachmentTarget = 'DEAL' | 'COMPANY' | 'PERSON' | 'MEETING' | 'QUOTE' | 'DEAL_COST' | 'IN_KIND'
+/** CONTRACT_TEMPLATE 은 템플릿 창구(관리자)만 쓴다 — 일반 첨부 창구의 대상 목록에는 없다 */
+export type AttachmentTarget = 'DEAL' | 'COMPANY' | 'PERSON' | 'MEETING' | 'QUOTE' | 'DEAL_COST' | 'IN_KIND' | 'CONTRACT_TEMPLATE'
 export type AttachmentKind = 'BUSINESS_CARD' | 'SUPPLY_QUOTE' | 'CONTRACT' | 'IN_KIND_EVIDENCE' | 'OTHER'
 
 export const ATTACHMENT_KIND_LABEL: Record<AttachmentKind, string> = {

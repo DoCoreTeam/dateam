@@ -202,6 +202,7 @@ enum CrmAttachmentTarget {
   QUOTE
   DEAL_COST
   IN_KIND
+  CONTRACT_TEMPLATE // 계약서 파일로 만든 템플릿의 원본 (관리자 창구만)
 }
 
 enum CrmAttachmentKind {

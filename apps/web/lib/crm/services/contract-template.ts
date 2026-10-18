@@ -160,6 +160,17 @@ export async function updateContractTemplate(
   })
 }
 
+/** 템플릿에 남긴 원본 파일 가운데 가장 최근 것. 없으면 null 두 칸 */
+async function latestSource(tx: unknown, templateId: string): Promise<{ sourceFileName: string | null; sourceAttachmentId: string | null }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const row = await (tx as any).crmAttachment.findFirst({
+    where: { targetType: 'CONTRACT_TEMPLATE', targetId: templateId },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, fileName: true },
+  })
+  return { sourceFileName: row?.fileName ?? null, sourceAttachmentId: row?.id ?? null }
+}
+
 /** 작성 중 본문을 다음 버전으로 굳힌다 */
 export async function publishContractTemplate(
   workspaceId: string, actorId: string | null, id: string, version: number,
@@ -172,10 +183,15 @@ export async function publishContractTemplate(
     const body = checkClauses(cur.draftBody ?? [])
     if (body.length === 0) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.templateNoClauses)
     const versionNo = (cur.currentVersionNo ?? 0) + 1
+    /*
+      파일로 만든 템플릿이면 **원본 첨부를 버전에 적는다.** 부르는 쪽이 넘기지 않아도 서버가 찾는다 —
+      발행 단추는 첨부 id 를 모르고, 알게 하면 화면이 고른 id 를 믿게 된다. 가장 최근에 올린 원본이 그 글의 출처다.
+    */
+    const src = source ?? await latestSource(tx, id)
     await tv(tx).create({
       data: {
         workspaceId, templateId: id, versionNo, body,
-        sourceFileName: source?.sourceFileName ?? null, sourceAttachmentId: source?.sourceAttachmentId ?? null,
+        sourceFileName: src.sourceFileName ?? null, sourceAttachmentId: src.sourceAttachmentId ?? null,
         createdById: actorId,
       },
     })

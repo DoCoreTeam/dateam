@@ -121,3 +121,34 @@ export const CONTRACT_TEMPLATE = {
   emptyNext: '조항을 쓰고 칸을 넣어 첫 템플릿을 만들어 주세요.',
   fieldHelp: '칸은 계약서를 만들 때 견적과 계약 정보로 채워집니다. 모르는 칸 이름은 저장되지 않습니다.',
 } as const
+
+/** 계약서 파일로 템플릿 만들기 (I07) */
+export const CONTRACT_FROM_FILE = {
+  open: '파일로 만들기',
+  title: '계약서 파일로 템플릿 만들기',
+  intro: '쓰고 있는 계약서 파일을 올리면 조항을 나누고, 계약마다 바뀌는 글자를 칸으로 바꿔 둡니다. 원문 글은 고치지 않습니다.',
+  accept: 'PDF, 워드, 한글, 텍스트 파일 (20MB 이내)',
+  pick: '파일 고르기',
+  start: '읽기',
+  attachFailed: '템플릿은 만들었지만 원본 파일을 남기지 못했습니다.',
+  defaultName: '새 계약서 템플릿',
+  imageNotSupported: '그림 파일은 아직 읽지 못합니다. PDF 나 워드로 올려 주세요.',
+  parseFailed: '파일을 읽지 못했어요. 다른 형식으로 저장한 뒤 다시 올려 주세요.',
+  noText: '파일에서 글자를 찾지 못했어요. 스캔한 계약서라면 글자가 든 PDF 나 워드로 올려 주세요.',
+  aiFailed: 'AI 가 칸 자리를 찾지 못했습니다.',
+  reject: {
+    too_large: '파일이 너무 큽니다. 20MB 이내로 올려 주세요.',
+    unsupported_kind: '이 형식은 읽을 수 없어요. PDF, 워드, 한글 파일로 올려 주세요.',
+    bundle_not_allowed: '압축 파일은 받지 않습니다. 계약서 파일 하나를 올려 주세요.',
+    kind_mismatch: '파일 이름과 내용의 형식이 다릅니다. 원래 형식으로 저장한 뒤 올려 주세요.',
+    empty: '빈 파일입니다.',
+  },
+  doneTitle: '템플릿을 만들었습니다',
+  doneFields: (n: number): string => `칸 ${n}곳을 넣었습니다. 발행 전에 확인해 주세요.`,
+  doneNoFields: '칸은 넣지 않았습니다. 「칸 넣기」로 직접 넣을 수 있습니다.',
+  aiSkipped: (why: string): string => `글만 들였습니다. ${why}`,
+  truncated: '계약서가 길어 뒷부분은 읽지 못했습니다. 빠진 조항은 직접 넣어 주세요.',
+  rejectedCount: (n: number): string => `원문과 맞지 않거나 없는 칸 이름을 짚은 제안 ${n}건은 넣지 않았습니다.`,
+  sourceFile: (name: string): string => `원본 파일: ${name}`,
+  failed: '파일로 템플릿을 만들지 못했습니다.',
+} as const
