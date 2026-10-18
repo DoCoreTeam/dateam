@@ -35,12 +35,22 @@ export const QUOTE_NO_TOKENS = [
  */
 export const DEFAULT_QUOTE_NO_PATTERN = 'DA-{YYYYMMDD}-{SEQ:2}'
 
+/** 계약서 번호 기본 형식 — 견적번호와 같은 토큰을 쓴다 (P0132) */
+export const DEFAULT_CONTRACT_NO_PATTERN = 'CT-{YYYYMMDD}-{SEQ:2}'
+
 /** 골라 쓰기 좋은 몇 가지. 자유 입력을 막지는 않는다 */
 export const QUOTE_NO_PRESETS: readonly { label: string; pattern: string }[] = [
   { label: 'DA-20260828-01', pattern: 'DA-{YYYYMMDD}-{SEQ:2}' },
   { label: 'DA-2026-0828-01', pattern: 'DA-{YYYY}-{MMDD}-{SEQ:2}' },
   { label: 'Q-2026-0001', pattern: 'Q-{YYYY}-{SEQ}' },
   { label: '견적-26-001', pattern: '견적-{YY}-{SEQ:3}' },
+]
+
+/** 계약서 번호 형식 고르기 — 견적과 같은 토큰, 머리글자만 다르다 */
+export const CONTRACT_NO_PRESETS: readonly { label: string; pattern: string }[] = [
+  { label: 'CT-20260828-01', pattern: 'CT-{YYYYMMDD}-{SEQ:2}' },
+  { label: 'CT-2026-0001', pattern: 'CT-{YYYY}-{SEQ}' },
+  { label: '계약-26-001', pattern: '계약-{YY}-{SEQ:3}' },
 ]
 
 /**

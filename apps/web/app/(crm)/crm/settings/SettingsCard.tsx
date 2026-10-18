@@ -19,6 +19,7 @@ import {
 } from '@/lib/crm/domain/setting-group'
 import { unknownChoiceValue } from '@/lib/crm/domain/setting-value'
 import QuoteNoField from './QuoteNoField'
+import { CONTRACT_NO_PRESETS } from '@/lib/crm/domain/quote-number'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import styles from './settings.module.css'
 import SharedSettingsCard from '@/components/ui/settings/SettingsCard'
@@ -240,6 +241,7 @@ export default function SettingsCard({ group }: { group?: SettingGroupKey } = {}
                     onChange={(next) => setDrafts((d) => ({ ...d, [s.key]: next }))}
                     disabled={!canEdit}
                     todayKey={todayKey}
+                    presets={s.key === 'contract.numberFormat' ? CONTRACT_NO_PRESETS : undefined}
                   />
                 ) : s.kind === 'multiline' ? (
                   /*

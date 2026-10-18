@@ -70,6 +70,9 @@ const CLASSES = [
   [/\/api\/ping$|\/api\/health/, '살아 있는지 보는 자리'],
   [/^\/api\/public\//, '바깥에 내준 공개 API (우리 화면이 부르는 자리가 아니다)'],
   [/^\/api\/docs|\/openapi/, 'API 문서가 읽는 자리'],
+  // P0132 I08 이 창구를 먼저 세우고 화면은 I12(계약서 화면)와 I13(딜 카드)이 꽂는다.
+  // I13 감사 기준이 이 줄을 지우고도 설명 안 붙는 수가 그대로인지 본다 — 「나중에」를 남겨 두지 않게
+  [/^\/api\/crm\/contracts(\/|$)/, '계약서 창구, 화면은 P0132 I12 I13 에서 꽂힘'],
 ]
 const cls = new Map(); const residual = []
 for (const [u, f] of never) {

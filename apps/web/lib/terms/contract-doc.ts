@@ -83,7 +83,29 @@ export const CONTRACT_MSG = {
   templateNotPublished: '아직 발행하지 않은 템플릿입니다. 설정의 계약 탭에서 발행한 뒤 쓸 수 있습니다.',
   unknownFields: (names: string): string => `모르는 칸이 있습니다: ${names}. 「칸 넣기」에서 골라 넣어 주세요.`,
   badClauses: (why: string): string => `조항을 저장하지 못했습니다. ${why}`,
+  notFound: '계약서를 찾을 수 없습니다.',
+  versionNotFound: '그 버전을 찾을 수 없습니다.',
+  conflict: '다른 사람이 이 계약서를 먼저 고쳤습니다. 새로고침 후 다시 시도해 주세요.',
+  quoteNotContractable: '보냈거나 수락된 견적으로만 계약서를 만들 수 있습니다. 작성 중 견적은 아직 고객과 합의한 값이 아닙니다.',
+  quoteExpired: '유효기간이 지난 견적입니다. 개정본을 보낸 뒤 그 견적으로 만들어 주세요.',
+  noTemplate: '쓸 수 있는 계약서 템플릿이 없습니다. 설정의 계약 탭에서 템플릿을 발행해 주세요.',
+  notWritable: '체결했거나 끝난 계약서는 고칠 수 없습니다. 바꾸려면 변경 계약서를 만들어 주세요.',
+  noClauses: '조항이 하나도 없는 계약서는 저장할 수 없습니다.',
+  badField: (key: string): string => `계약서에 넣을 수 없는 칸입니다: ${key}`,
+  fieldTooLong: (label: string): string => `「${label}」 값이 너무 깁니다.`,
+  titleRequired: '계약서 제목을 입력해 주세요.',
+  numberTaken: '같은 계약서 번호가 방금 쓰였습니다. 다시 시도해 주세요.',
+  dealRequired: '어느 딜의 계약서인지 알려 주세요.',
+  badVersionNo: '버전 번호가 올바르지 않습니다.',
 } as const
+
+/** 버전이 생긴 까닭 — 버전 기록에 이 말로 보인다 */
+export const CONTRACT_VERSION_KIND: Record<string, string> = {
+  GENERATED: '견적으로 만듦',
+  EDITED: '손으로 고침',
+  AI_EDIT: 'AI 지시로 고침',
+  REFILLED: '견적으로 다시 채움',
+}
 
 /** 템플릿 화면 말 */
 export const CONTRACT_TEMPLATE = {

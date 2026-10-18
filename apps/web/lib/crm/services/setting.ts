@@ -30,7 +30,7 @@ import {
 } from '../../terms/quote.ts'
 import { QUOTE_IMPORT_FALLBACK, QUOTE_IMPORT_CEILING } from './quote-import-config.ts'
 import type { SettingGroupKey } from '../domain/setting-group.ts'
-import { DEFAULT_QUOTE_NO_PATTERN, validateQuoteNoPattern } from '../domain/quote-number.ts'
+import { DEFAULT_QUOTE_NO_PATTERN, DEFAULT_CONTRACT_NO_PATTERN, validateQuoteNoPattern } from '../domain/quote-number.ts'
 import { AI_PROVIDER_IDS } from '../../ai/provider-catalog.ts'
 
 export type SettingScope = 'GLOBAL' | 'WORKSPACE'
@@ -236,6 +236,47 @@ export const SETTING_DEFS: readonly SettingDef[] = [
     choices: () => [
       { value: 'expand', label: '펴서 인쇄', hint: '구성 줄이 항목 아래 그대로 인쇄됩니다. 원본과 같은 자세함입니다.' },
       { value: 'collapse', label: '접어서 인쇄', hint: '구성은 화면에서만 보이고 인쇄본에는 안 실립니다. 견적서가 짧아집니다.' },
+    ],
+  },
+
+  // ── 계약서 서명란과 번호 ────────────────────────────────────
+  //
+  // **계약은 상호다.** 견적서에는 우리 직인을 찍지만 계약서는 양측이 종이에 직접 날인한다.
+  // 그래서 계약서에는 직인 그림이 없고, 갑과 을의 날인 칸이 비어 있다
+  // (사용자 지시 2026-10-16). 전자서명은 아직 범위 밖이라 방식 선택지를 두지 않는다 —
+  // 고를 것이 하나뿐인 선택지는 고르는 것이 아니다.
+  {
+    key: 'contract.numberFormat', label: '계약서 번호 형식', kind: 'quoteNo', group: 'contract',
+    fallback: DEFAULT_CONTRACT_NO_PATTERN,
+    description: '계약서를 만들 때 붙는 번호입니다. 견적번호와 같은 토큰을 씁니다.',
+  },
+  {
+    key: 'contract.sign.partyA', label: '우리 쪽 표기', kind: 'text', group: 'contract',
+    fallback: '갑',
+    description: '계약서 본문과 서명란에서 우리 회사를 부르는 말입니다. 보통 「갑」입니다.',
+  },
+  {
+    key: 'contract.sign.partyB', label: '고객 쪽 표기', kind: 'text', group: 'contract',
+    fallback: '을',
+    description: '계약서 본문과 서명란에서 고객을 부르는 말입니다. 보통 「을」입니다.',
+  },
+  {
+    key: 'contract.sign.mark', label: '날인 칸 표시', kind: 'choice', group: 'contract',
+    fallback: 'seal',
+    description: '서명란 이름 옆에 무엇을 찍는 자리인지 적습니다.',
+    choices: () => [
+      { value: 'seal', label: '(인)', hint: '도장을 찍는 자리입니다. 법인 계약에서 가장 흔합니다.' },
+      { value: 'sign', label: '(서명)', hint: '손으로 서명하는 자리입니다.' },
+      { value: 'either', label: '(서명 또는 인)', hint: '서명과 날인 중 하나를 고르게 둡니다.' },
+    ],
+  },
+  {
+    key: 'contract.sign.showCeo', label: '서명란 대표자 이름', kind: 'choice', group: 'contract',
+    fallback: 'print',
+    description: '서명란에 양측 대표자 이름을 미리 인쇄할지입니다.',
+    choices: () => [
+      { value: 'print', label: '인쇄한다', hint: '공급자 정보의 대표자와 계약서에 넣은 고객 대표자가 인쇄됩니다.' },
+      { value: 'blank', label: '비워 둔다', hint: '날인하는 사람이 직접 적습니다.' },
     ],
   },
 ] as const

@@ -23,9 +23,11 @@ interface Props {
   todayKey: string
   /** 바꿀 수 없는 사람에게는 잠근다. 값과 미리보기는 그대로 보인다 */
   disabled?: boolean
+  /** 골라 쓰는 형식. 안 주면 견적번호 형식 (계약서 번호는 CONTRACT_NO_PRESETS) */
+  presets?: readonly { label: string; pattern: string }[]
 }
 
-export default function QuoteNoField({ id, value, onChange, todayKey, disabled }: Props) {
+export default function QuoteNoField({ id, value, onChange, todayKey, disabled, presets = QUOTE_NO_PRESETS }: Props) {
   const error = value.trim() ? validateQuoteNoPattern(value) : null
   const preview = error ? [] : previewQuoteNo(value, todayKey)
   const scope = seqScopeOf(value)
@@ -38,7 +40,7 @@ export default function QuoteNoField({ id, value, onChange, todayKey, disabled }
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        placeholder="DA-{YYYY}-{MMDD}-{SEQ:2}"
+        placeholder={presets === QUOTE_NO_PRESETS ? 'DA-{YYYY}-{MMDD}-{SEQ:2}' : presets[0]?.pattern}
         aria-invalid={error ? true : undefined}
         aria-describedby={`${id}-preview`}
       />
@@ -56,7 +58,7 @@ export default function QuoteNoField({ id, value, onChange, todayKey, disabled }
       </p>
 
       <div className={styles.presets}>
-        {QUOTE_NO_PRESETS.map((p) => (
+        {presets.map((p) => (
           <button
             key={p.pattern}
             type="button"

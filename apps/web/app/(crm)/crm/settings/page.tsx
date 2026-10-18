@@ -59,6 +59,7 @@ export default async function CrmSettingsPage() {
     'SettingsCard.quote': <SettingsCard group="quote" />,
     QuoteTermsCard: <QuoteTermsCard />,
     'SettingsCard.quoteImport': <SettingsCard group="quoteImport" />,
+    'SettingsCard.contract': <SettingsCard group="contract" />,
     ContractTemplatesCard: <ContractTemplatesCard />,
     BudgetCard: <BudgetCard />,
     'SettingsCard.ai': <SettingsCard group="ai" />,

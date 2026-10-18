@@ -6,7 +6,7 @@
  * 화면이 알아야 한다. 의존성 없는 이 파일이 둘의 접점이다.
  */
 
-export type SettingGroupKey = 'ai' | 'quote' | 'quoteImport'
+export type SettingGroupKey = 'ai' | 'quote' | 'quoteImport' | 'contract'
 
 export const SETTING_GROUP: Record<SettingGroupKey, { label: string; description: string }> = {
   ai: {
@@ -26,7 +26,16 @@ export const SETTING_GROUP: Record<SettingGroupKey, { label: string; description
     label: '견적서 파일 읽기',
     description: '견적서 파일을 올려 견적을 만들 때 얼마나 읽고 무엇을 남길지입니다.',
   },
+  /*
+    **계약은 상호다.** 견적은 우리가 보내지만 계약서는 양측이 각자 날인한다.
+    그래서 계약서에는 우리 직인 그림을 찍지 않고 갑과 을의 날인 칸을 비워 둔다
+    (사용자 지시 2026-10-16 「직인은 오프라인에서 찍어야 하거든 … 계약은 상호기 때문이야」).
+  */
+  contract: {
+    label: '계약서 서명란과 번호',
+    description: '계약서 맨 아래 양측 날인 칸과 계약서 번호입니다. 날인은 양측이 종이에 직접 찍습니다.',
+  },
 }
 
 /** 카드가 서는 순서 — 화면이 정하지 않는다 */
-export const SETTING_GROUP_ORDER: readonly SettingGroupKey[] = ['quote', 'quoteImport', 'ai']
+export const SETTING_GROUP_ORDER: readonly SettingGroupKey[] = ['quote', 'quoteImport', 'contract', 'ai']
