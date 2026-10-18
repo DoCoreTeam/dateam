@@ -18,6 +18,7 @@
 // "사이드바에선 「거래처」인데 화면에선 「회사」"가 된다(§2-3-3 N-4).
 
 import { ENTITY } from '../../terms/entity.ts'
+import { CONTRACT_DOC } from '../../terms/contract-doc.ts'
 
 export interface CrmGroupTab {
   href: string
@@ -57,6 +58,8 @@ export const CRM_NAV_GROUPS: readonly CrmNavGroup[] = [
     tabs: [
       { href: '/crm/deals', label: '딜' },
       { href: '/crm/quotes', label: '견적' },
+      // 계약서는 견적의 다음 문서다 — 딜 안에서 만들고 여기서 모아 본다 (P0132 I15)
+      { href: '/crm/contracts', label: CONTRACT_DOC.list },
       // 품목은 견적의 **재료**다. 설정으로 내리면 견적 쓰다가 오타를 발견해도
       // 고치러 갈 길이 안 보인다 — 실제로 고칠 화면 자체가 없었다(사용자 지적)
       { href: '/crm/products', label: '품목' },

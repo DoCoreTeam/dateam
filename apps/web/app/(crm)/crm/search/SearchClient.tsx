@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Building2, Users, Handshake, Mic } from 'lucide-react'
+import { Search, Building2, Users, Handshake, Mic, FileText, FileSignature } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -29,9 +29,11 @@ const ICON: Record<SearchKind, React.ReactNode> = {
   person: <Users size={14} />,
   deal: <Handshake size={14} />,
   meeting: <Mic size={14} />,
+  quote: <FileText size={14} />,
+  contract: <FileSignature size={14} />,
 }
 
-const ORDER: SearchKind[] = ['company', 'person', 'deal', 'meeting']
+const ORDER: SearchKind[] = ['company', 'person', 'deal', 'quote', 'contract', 'meeting']
 
 export default function SearchClient({ initialQuery }: { initialQuery: string }) {
   const router = useRouter()

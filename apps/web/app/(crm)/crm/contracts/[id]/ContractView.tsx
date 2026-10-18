@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { FileText, Lock, Pencil, RefreshCw, Send, Sparkles, Stamp, Ban, FilePlus2, XCircle } from 'lucide-react'
+import { FileText, Lock, Pencil, RefreshCw, Send, Sparkles, Stamp, Ban, FilePlus2, XCircle, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
@@ -25,9 +25,9 @@ import { backTarget } from '@/lib/crm/nav/back-link'
 import { kstDateKey } from '@/lib/datetime/kst'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { canAmend, canSend, canTransition, canWriteVersion, type ContractStatus } from '@/lib/crm/domain/contract-status'
-import { ENTITY, failedTo, progress } from '@/lib/terms'
+import { ACTION, ENTITY, failedTo, progress } from '@/lib/terms'
 import {
-  CONTRACT_DOC, CONTRACT_FIELD_LABEL, CONTRACT_MSG, CONTRACT_REFILL, CONTRACT_SCREEN, CONTRACT_STATUS_LABEL, DOC_HEADER,
+  CONTRACT_DELETE, CONTRACT_DOC, CONTRACT_FIELD_LABEL, CONTRACT_MSG, CONTRACT_REFILL, CONTRACT_SCREEN, CONTRACT_STATUS_LABEL, DOC_HEADER,
 } from '@/lib/terms/contract-doc'
 import { contractApi, type ContractDetail, type Outcome } from './contract-api'
 import ContractPaperFrame, { screenPaperHtml } from './ContractPaperFrame'
@@ -36,6 +36,7 @@ import ContractPreview from './ContractPreview'
 import ContractEditModal from './ContractEditModal'
 import ContractAiEditModal from './ContractAiEditModal'
 import ContractConcludeModal from './ContractConcludeModal'
+import DeleteRecordModal from '../../DeleteRecordModal'
 import styles from './contract-view.module.css'
 
 /** 화면이 그릴 수 있는 동작 — 서버 역할 판정을 페이지가 미리 읽어 넘긴다 */
@@ -73,6 +74,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
   const [modal, setModal] = useState<ModalKind>(null)
   /** 미리보기로 연 버전 번호 */
   const [preview, setPreview] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const { ask, dialog } = useAskDialog()
 
   const loadFail = failedTo(CONTRACT_DOC.entity, '불러오지')
@@ -212,6 +214,15 @@ export default function ContractView({ contractId, abilities }: { contractId: st
         status={{ label: CONTRACT_STATUS_LABEL[status] ?? status, tone: STATUS_TONE[status] ?? 'note' }}
         sent={{ date: contract.sentAt ? kstDateKey(contract.sentAt) : null, versionNo: contract.sentVersionNo }}
         extra={<span className={styles.headNo}>{contract.contractNo} · {DOC_HEADER.current(contract.currentVersionNo)}</span>}
+        /*
+          문서 자체를 다루는 자리(§2-3-2) — 견적서와 같다. 체결했거나 해지한 계약서는 기록이라
+          지우는 단추를 안 그리고, 서버도 같은 규칙으로 거절한다(services/contract.ts deleteContract).
+        */
+        actions={status === 'DRAFT' || status === 'CANCELLED' ? (
+          <NbButton variant="ghost" onClick={() => setDeleting(true)}>
+            <Trash2 size={16} /> {ACTION.delete}
+          </NbButton>
+        ) : undefined}
       />
 
       {/*
@@ -362,6 +373,16 @@ export default function ContractView({ contractId, abilities }: { contractId: st
           onClose={() => setModal(null)}
           onDone={(row) => done(CONTRACT_STATUS_LABEL[row.status] ?? CONTRACT_SCREEN.conclude)}
           onFailed={(o) => { setModal(null); failed(o) }}
+        />
+      )}
+      {deleting && (
+        <DeleteRecordModal
+          entity={CONTRACT_DOC.entity}
+          name={contract.contractNo}
+          endpoint={`/api/crm/contracts/${contract.id}`}
+          redirectTo={`/crm/deals/${contract.dealId}`}
+          impact={{ removed: [...CONTRACT_DELETE.removed], kept: [...CONTRACT_DELETE.kept] }}
+          onClose={() => setDeleting(false)}
         />
       )}
       {dialog}

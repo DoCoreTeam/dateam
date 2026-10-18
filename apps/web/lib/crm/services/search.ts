@@ -8,13 +8,13 @@
 // CRM 안에 있으면 CRM 을 찾아야 한다.
 //
 // **한 번에 한 종류만 찾지 않는다.** "삼성"이 회사인지 딜인지 인물인지는
-// 찾는 사람도 모른다 — 그래서 세 가지를 함께 보여 주고 종류를 밝힌다.
+// 찾는 사람도 모른다 — 그래서 여러 종류를 함께 보여 주고 종류를 밝힌다.
 
 import type { CrmDb } from '../db/client.ts'
 import { normalizeText } from '../domain/normalize.ts'
 import { sanitizeSearchQuery } from '../../ai-chat/search.ts'
 
-export type SearchKind = 'company' | 'person' | 'deal' | 'meeting'
+export type SearchKind = 'company' | 'person' | 'deal' | 'meeting' | 'quote' | 'contract'
 
 export interface SearchHit {
   kind: SearchKind
@@ -37,7 +37,7 @@ export interface SearchResult {
 /** 종류마다 이만큼씩 — 한 종류가 화면을 다 먹지 않게 */
 const PER_KIND = 8
 
-const EMPTY_COUNTS: Record<SearchKind, number> = { company: 0, person: 0, deal: 0, meeting: 0 }
+const EMPTY_COUNTS: Record<SearchKind, number> = { company: 0, person: 0, deal: 0, meeting: 0, quote: 0, contract: 0 }
 
 export async function searchCrm(db: CrmDb, rawQuery: string): Promise<SearchResult> {
   const q = normalizeText(rawQuery) ?? ''
@@ -58,7 +58,7 @@ export async function searchCrm(db: CrmDb, rawQuery: string): Promise<SearchResu
 
   const like = { contains: safe, mode: 'insensitive' as const }
 
-  const [companies, people, deals, meetings] = await Promise.all([
+  const [companies, people, deals, meetings, quotes, contracts] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db as any).crmCompany.findMany({
       where: { OR: [{ name: like }, { domain: like }] },
@@ -83,16 +83,32 @@ export async function searchCrm(db: CrmDb, rawQuery: string): Promise<SearchResu
       select: { id: true, title: true, startedAt: true },
       take: PER_KIND + 1, orderBy: { startedAt: 'desc' },
     }),
+    // 견적과 계약서는 번호로 찾는 일이 많다 — 고객이 메일에 번호만 적어 보낸다 (P0132 I15)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).crmQuote.findMany({
+      where: { OR: [{ quoteNo: like }, { title: like }] },
+      select: { id: true, quoteNo: true, title: true, deal: { select: { name: true } } },
+      take: PER_KIND + 1, orderBy: { updatedAt: 'desc' },
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).crmContract.findMany({
+      where: { OR: [{ contractNo: like }, { title: like }] },
+      select: { id: true, contractNo: true, title: true, deal: { select: { name: true } } },
+      take: PER_KIND + 1, orderBy: { updatedAt: 'desc' },
+    }),
   ]) as [
     { id: string; name: string; domain: string | null; industry: string | null }[],
     { id: string; name: string; email: string | null; title: string | null }[],
     { id: string; name: string; status: string }[],
     { id: string; title: string; startedAt: Date }[],
+    { id: string; quoteNo: string; title: string; deal: { name: string } | null }[],
+    { id: string; contractNo: string; title: string; deal: { name: string } | null }[],
   ]
 
   const truncated =
     companies.length > PER_KIND || people.length > PER_KIND ||
-    deals.length > PER_KIND || meetings.length > PER_KIND
+    deals.length > PER_KIND || meetings.length > PER_KIND ||
+    quotes.length > PER_KIND || contracts.length > PER_KIND
 
   const hits: SearchHit[] = [
     ...companies.slice(0, PER_KIND).map((c) => ({
@@ -113,6 +129,14 @@ export async function searchCrm(db: CrmDb, rawQuery: string): Promise<SearchResu
       kind: 'meeting' as const, id: m.id, title: m.title,
       sub: null, href: `/crm/meetings/${m.id}`,
     })),
+    ...quotes.slice(0, PER_KIND).map((x) => ({
+      kind: 'quote' as const, id: x.id, title: `${x.quoteNo} ${x.title}`.trim(),
+      sub: x.deal?.name ?? null, href: `/crm/quotes/${x.id}`,
+    })),
+    ...contracts.slice(0, PER_KIND).map((x) => ({
+      kind: 'contract' as const, id: x.id, title: `${x.contractNo} ${x.title}`.trim(),
+      sub: x.deal?.name ?? null, href: `/crm/contracts/${x.id}`,
+    })),
   ]
 
   return {
@@ -123,11 +147,13 @@ export async function searchCrm(db: CrmDb, rawQuery: string): Promise<SearchResu
       person: Math.min(people.length, PER_KIND),
       deal: Math.min(deals.length, PER_KIND),
       meeting: Math.min(meetings.length, PER_KIND),
+      quote: Math.min(quotes.length, PER_KIND),
+      contract: Math.min(contracts.length, PER_KIND),
     },
     truncated,
   }
 }
 
 export const KIND_LABEL: Record<SearchKind, string> = {
-  company: '회사', person: '인물', deal: '딜', meeting: '미팅',
+  company: '회사', person: '인물', deal: '딜', meeting: '미팅', quote: '견적', contract: '계약서',
 }

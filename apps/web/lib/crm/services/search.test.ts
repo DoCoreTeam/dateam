@@ -48,11 +48,20 @@ test('끝난 딜은 끝났다고 밝힌다 — 성사된 딜을 진행 중으로
   assert.ok(SRC.includes("'성사됨'"), '성사를 밝히지 않는다')
 })
 
-test('네 종류에 사람이 읽는 이름이 있다', () => {
+test('종류마다 사람이 읽는 이름이 있다', () => {
   assert.equal(KIND_LABEL.company, '회사')
   assert.equal(KIND_LABEL.person, '인물')
   assert.equal(KIND_LABEL.deal, '딜')
   assert.equal(KIND_LABEL.meeting, '미팅')
+  assert.equal(KIND_LABEL.quote, '견적')
+  assert.equal(KIND_LABEL.contract, '계약서')
+})
+
+test('견적과 계약서를 번호와 제목으로 찾는다 (P0132 I15)', () => {
+  assert.ok(SRC.includes('crmQuote.findMany'), '견적을 안 찾는다')
+  assert.ok(SRC.includes('{ quoteNo: like }'), '견적 번호로 안 찾는다')
+  assert.ok(SRC.includes('crmContract.findMany'), '계약서를 안 찾는다')
+  assert.ok(SRC.includes('{ contractNo: like }'), '계약서 번호로 안 찾는다')
 })
 
 test('★ CRM 안에서는 CRM 을 찾는다 — 검색이 사용자를 지금 보던 곳 밖으로 데려가면 안 된다', () => {

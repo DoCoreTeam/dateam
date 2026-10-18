@@ -99,6 +99,8 @@ export const CONTRACT_MSG = {
   numberTaken: '같은 계약서 번호가 방금 쓰였습니다. 다시 시도해 주세요.',
   dealRequired: '어느 딜의 계약서인지 알려 주세요.',
   badVersionNo: '버전 번호가 올바르지 않습니다.',
+  notDeletable: '체결했거나 해지한 계약서는 삭제할 수 없습니다. 있었던 계약의 기록입니다.',
+  notInTrash: '휴지통에서 계약서를 찾을 수 없습니다.',
 } as const
 
 /** AI 로 고치기 말 (P0132 I09) */
@@ -275,6 +277,9 @@ export const CONTRACT_AUDIT_LABEL: Record<string, string> = {
   'contract.conclude': '계약서를 체결했어요',
   'contract.terminate': '계약을 해지했어요',
   'contract.cancel': '계약서를 취소했어요',
+  'contract.deleted': '계약서를 휴지통으로 보냈어요',
+  'contract.purged': '계약서를 영구 삭제했어요',
+  'contract.restored': '계약서를 되살렸어요',
 }
 
 /** 계약서 화면 말 (P0132 I12a) */
@@ -370,4 +375,28 @@ export const DEAL_CONTRACTS = {
 export const CONTRACT_CREATE = {
   pickTitle: '어느 템플릿으로 만들까요',
   pickHint: '고른 템플릿의 조항에 이 견적 값을 채워 첫 버전을 만듭니다.',
+} as const
+
+/** 계약서 목록 화면 (P0132 I15) */
+export const CONTRACT_LIST = {
+  description: '딜에서 만든 계약서를 한곳에서 봅니다. 만들고 고치는 건 딜과 계약서 화면에서 합니다.',
+  search: '계약서 번호·제목·딜로 검색',
+  colContract: '계약서',
+  colStatus: '상태',
+  colSent: '보냄',
+  colVersion: '버전',
+  colAmount: '금액',
+  emptyFiltered: '조건에 맞는 계약서가 없어요',
+  emptyFilteredNext: '검색어나 상태를 바꿔 보세요.',
+  empty: '아직 만든 계약서가 없어요',
+  emptyNext: '계약서는 딜 안에서 만듭니다. 보냈거나 수락된 견적에서 「계약서 만들기」를 누르세요.',
+  goDeals: '딜 보러 가기',
+  unit: '건',
+  unknownName: '번호를 알 수 없는 계약서',
+} as const
+
+/** 계약서 지우기 창이 말하는 영향 (P0132 I15) */
+export const CONTRACT_DELETE = {
+  removed: ['이 계약서의 버전 기록'],
+  kept: ['딜과 견적', '이미 내보낸 파일'],
 } as const

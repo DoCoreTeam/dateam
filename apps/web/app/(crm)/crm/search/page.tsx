@@ -16,7 +16,7 @@ export default async function CrmSearchPage({
         eyebrow="영업 CRM"
         title="찾기"
         icon={<Search size={20} />}
-        description="회사·인물·딜·미팅을 한 번에 찾습니다."
+        description="회사·인물·딜·견적·계약서·미팅을 한 번에 찾습니다."
       />
       <SearchClient initialQuery={q ?? ''} />
     </>

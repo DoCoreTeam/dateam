@@ -16,6 +16,7 @@
 import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
+import { assertUpdated, BUMP_VERSION } from '../db/optimistic.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText } from '../domain/normalize.ts'
 import { contentHash, diffClauses, diffFields, type Clause, type ClauseDiff } from '../domain/contract-body.ts'
@@ -643,5 +644,98 @@ export async function refillContractFromQuote(
       afterJson: { versionNo, quoteId, fromQuoteVersion: cur.sourceQuoteVersion, toQuoteVersion: quote.version, changed: plan.changed, kept: plan.kept },
     })
     return { contract: await findContract(tx, id), versionNo, created: true, changed: plan.changed, kept: plan.kept }
+  })
+}
+
+// ------------------------------------------------------------
+// 전체 목록, 지우기, 되살리기 (P0132 I15)
+// ------------------------------------------------------------
+
+/** 한 번에 읽는 상한 — 화면이 「더 보기」로 잇는다 */
+const LIST_MAX = 100
+
+export interface ContractListItem extends ContractRow {
+  dealName: string
+  companyName: string | null
+}
+
+export interface ContractListInput {
+  q?: string | null
+  status?: string | null
+  trash?: boolean
+  limit?: number
+  cursor?: string | null
+}
+
+/** 워크스페이스의 계약서 — 번호, 제목, 딜 이름으로 찾는다. 휴지통 보기는 지운 것만 */
+export async function listContracts(
+  db: CrmDb, input: ContractListInput,
+): Promise<{ items: ContractListItem[]; nextCursor: string | null }> {
+  const take = Math.min(Math.max(Number(input.limit) || 20, 1), LIST_MAX)
+  const q = normalizeText(input.q ?? '') ?? ''
+  const like = { contains: q, mode: 'insensitive' as const }
+  const where: Record<string, unknown> = {
+    ...(input.trash ? { deletedAt: { not: null } } : {}),
+    ...(input.status ? { status: input.status } : {}),
+    ...(q ? { OR: [{ contractNo: like }, { title: like }, { deal: { name: like } }] } : {}),
+  }
+  const rows = await c(db).findMany({
+    where,
+    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+    take: take + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+    select: { ...SELECT, deal: { select: { name: true, company: { select: { name: true } } } } },
+  })
+  const page = rows.slice(0, take)
+  return {
+    items: page.map((r: { deal?: { name: string; company?: { name: string } | null } | null }) => ({
+      ...toRow(r),
+      dealName: r.deal?.name ?? '',
+      companyName: r.deal?.company?.name ?? null,
+    })),
+    nextCursor: rows.length > take ? page[page.length - 1].id : null,
+  }
+}
+
+/**
+ * 휴지통으로 보낸다. **체결했거나 해지한 계약서는 못 지운다** — 있었던 일의 기록이고
+ * 딜 금액의 근거다. 그것을 치우려면 해지하거나 변경 계약서를 만든다.
+ */
+export async function deleteContract(
+  workspaceId: string, actorId: string | null, id: string, mode: 'trash' | 'purge' = 'trash',
+): Promise<void> {
+  await withCrmTx(workspaceId, async (tx) => {
+    // 영구 삭제는 휴지통에 있는 것도 지울 수 있어야 한다 — 지운 행 걸러내기를 이 조회만 넘는다
+    const before = await c(tx).findFirst({
+      where: mode === 'purge' ? { id, deletedAt: { not: undefined } } : { id }, select: SELECT,
+    })
+    if (!before) throw new CrmError('NOT_FOUND', CONTRACT_MSG.notFound)
+    if (before.status === 'CONCLUDED' || before.status === 'TERMINATED') {
+      throw new CrmError('INVALID_TRANSITION', CONTRACT_MSG.notDeletable)
+    }
+    if (mode === 'trash') {
+      const res = await c(tx).updateMany({ where: { id }, data: { deletedAt: new Date(), ...BUMP_VERSION } })
+      assertUpdated(res.count, { exists: true, version: before.version }, CONTRACT_DOC.entity)
+    } else {
+      // 버전은 FK CASCADE 로 함께 사라지고, 이 계약서를 원 계약으로 가리키던 변경 계약서는 연결만 끊긴다
+      await c(tx).deleteMany({ where: { id, deletedAt: { not: undefined } } })
+    }
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: mode === 'trash' ? 'contract.deleted' : 'contract.purged',
+      targetType: 'contract', targetId: id, beforeJson: { contractNo: before.contractNo, status: before.status },
+    })
+  })
+}
+
+export async function restoreContract(workspaceId: string, actorId: string | null, id: string): Promise<ContractRow> {
+  return withCrmTx(workspaceId, async (tx) => {
+    const res = await c(tx).updateMany({ where: { id, deletedAt: { not: null } }, data: { deletedAt: null, ...BUMP_VERSION } })
+    if (res.count === 0) throw new CrmError('NOT_FOUND', CONTRACT_MSG.notInTrash)
+    const after = await c(tx).findFirst({ where: { id }, select: SELECT })
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'contract.restored',
+      targetType: 'contract', targetId: id, afterJson: { contractNo: after.contractNo, status: after.status },
+    })
+    return toRow(after)
   })
 }
