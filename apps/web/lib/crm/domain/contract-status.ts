@@ -41,4 +41,42 @@ export function canContractFromQuote(quoteStatus: string): boolean {
 }
 
 /** 버전이 생긴 까닭. 버전 기록에 이 말로 남는다 */
-export type ContractVersionKind = 'GENERATED' | 'EDITED' | 'AI_EDIT' | 'REFILLED'
+export type ContractVersionKind = 'GENERATED' | 'EDITED' | 'AI_EDIT' | 'REFILLED' | 'AMENDED'
+
+/**
+ * 상태 창구가 받는 동작과 누가 할 수 있나 (P0132 I10).
+ *
+ * **체결과 해지는 관리자만.** 회사가 무엇에 묶였는지를 정하는 일이라 화면에서 단추를 감추는 것으로
+ * 갈음하지 않고 서버가 거절한다(F-N 「단추를 감추는 것으로 권한 검증을 대신하지 않음」).
+ * 보냄과 취소(작성 중 계약서를 접기)는 구성원이 한다.
+ */
+export type ContractAction = 'send' | 'conclude' | 'terminate' | 'cancel'
+
+export const CONTRACT_ACTION_ROLE: Record<ContractAction, 'MEMBER' | 'ADMIN'> = {
+  send: 'MEMBER',
+  conclude: 'ADMIN',
+  terminate: 'ADMIN',
+  cancel: 'MEMBER',
+}
+
+/** 동작이 가는 상태. 보냄은 상태를 안 바꾼다 */
+export const CONTRACT_ACTION_TO: Record<ContractAction, ContractStatus | null> = {
+  send: null,
+  conclude: 'CONCLUDED',
+  terminate: 'TERMINATED',
+  cancel: 'CANCELLED',
+}
+
+export function isContractAction(v: unknown): v is ContractAction {
+  return typeof v === 'string' && v in CONTRACT_ACTION_ROLE
+}
+
+/** 보냄은 작성 중에만 — 체결한 글을 다시 보낼 일은 없다 */
+export function canSend(status: string): boolean {
+  return status === 'DRAFT'
+}
+
+/** 변경 계약서는 체결한 계약에서만 만든다 */
+export function canAmend(status: string): boolean {
+  return status === 'CONCLUDED'
+}

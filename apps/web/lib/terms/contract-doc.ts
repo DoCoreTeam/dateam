@@ -121,12 +121,35 @@ export const CONTRACT_AI_REJECT: Record<string, string> = {
   same: '바뀌는 것이 없습니다',
 }
 
+/** 계약서 상태 이름 — 체결한 글은 굳고, 해지와 취소는 끝난 상태다 */
+export const CONTRACT_STATUS_LABEL: Record<string, string> = {
+  DRAFT: '작성 중',
+  CONCLUDED: '체결',
+  TERMINATED: '해지',
+  CANCELLED: '취소',
+}
+
+/** 보냄 체결 해지 변경 계약서 말 (P0132 I10) */
+export const CONTRACT_SIGN = {
+  badAction: '할 수 없는 동작입니다.',
+  adminOnly: '체결과 해지는 관리자만 할 수 있습니다.',
+  sendOnlyDraft: '작성 중인 계약서만 보냄으로 표시할 수 있습니다.',
+  badTransition: (from: string, to: string): string => `${from} 계약서는 ${to}(으)로 바꿀 수 없습니다.`,
+  signedNotFound: '서명본 파일을 찾을 수 없습니다. 이 딜에 계약서 종류로 올린 파일만 고를 수 있습니다.',
+  currencyMismatch: (deal: string, contract: string): string => `딜 통화(${deal})와 계약서 통화(${contract})가 달라 딜 금액에 넣을 수 없습니다.`,
+  amountReason: (contractNo: string): string => `계약서 체결 ${contractNo}`,
+  amendOnlyConcluded: '체결한 계약서에서만 변경 계약서를 만들 수 있습니다.',
+  amendTitle: (title: string): string => `${title} 변경`,
+  amendNote: (contractNo: string): string => `원 계약 ${contractNo} 에서 만듦`,
+} as const
+
 /** 버전이 생긴 까닭 — 버전 기록에 이 말로 보인다 */
 export const CONTRACT_VERSION_KIND: Record<string, string> = {
   GENERATED: '견적으로 만듦',
   EDITED: '손으로 고침',
   AI_EDIT: 'AI 지시로 고침',
   REFILLED: '견적으로 다시 채움',
+  AMENDED: '변경 계약서로 만듦',
 }
 
 /** 템플릿 화면 말 */

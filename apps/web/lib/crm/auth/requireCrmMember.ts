@@ -19,7 +19,10 @@ import { getRequestProfile } from '@/lib/auth/request-profile'
 import { getCrmDb } from '@/lib/crm/db/client'
 import { resolveCrmWorkspaceId } from '@/lib/crm/workspace'
 
-export type CrmRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'READONLY'
+import type { CrmRole } from './role.ts'
+
+export type { CrmRole }
+export { hasCrmRole } from './role.ts'
 
 export interface CrmSession {
   /** 호스트 사용자 id (profiles.id) */
@@ -38,13 +41,7 @@ export type CrmAccess =
   | { ok: true; session: CrmSession }
   | { ok: false; reason: CrmDenyReason }
 
-/** 역할 서열 — 높을수록 많이 할 수 있다 */
-const RANK: Record<CrmRole, number> = { READONLY: 0, MEMBER: 1, ADMIN: 2, OWNER: 3 }
 
-/** required 이상의 권한을 가졌는가 (명세 5장: READONLY < MEMBER < ADMIN) */
-export function hasCrmRole(role: CrmRole, required: CrmRole): boolean {
-  return RANK[role] >= RANK[required]
-}
 
 /**
  * 지금 요청이 CRM 에 들어올 수 있는지 판정한다.

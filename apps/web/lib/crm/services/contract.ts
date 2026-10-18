@@ -22,7 +22,7 @@ import { contentHash, diffClauses, diffFields, type Clause, type ClauseDiff } fr
 import {
   CONTRACT_FIELDS, autoValuesFrom, mergeFieldValues, fillHtml, fieldByKey, type FieldValues,
 } from '../domain/contract-fields.ts'
-import { canContractFromQuote, canWriteVersion, type ContractVersionKind } from '../domain/contract-status.ts'
+import { canAmend, canContractFromQuote, canWriteVersion, type ContractVersionKind } from '../domain/contract-status.ts'
 import { DEFAULT_CONTRACT_NO_PATTERN, renderQuoteNo, seqOf, seqPrefix, validateQuoteNoPattern } from '../domain/quote-number.ts'
 import type { QuoteDocument } from '../domain/quote-document.ts'
 import { getQuote } from './quote.ts'
@@ -30,7 +30,7 @@ import { getQuoteDocument } from './quote-document.ts'
 import { checkClauses, defaultTemplateFor, readPublishedTemplate } from './contract-template.ts'
 import { resolveSetting, settingDef } from './setting.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
-import { CONTRACT_DOC, CONTRACT_MSG } from '../../terms/contract-doc.ts'
+import { CONTRACT_DOC, CONTRACT_MSG, CONTRACT_SIGN } from '../../terms/contract-doc.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const c = (db: unknown): any => (db as any).crmContract
@@ -162,6 +162,7 @@ export interface ContractRow {
   title: string
   status: string
   templateId: string | null
+  parentContractId: string | null
   currentVersionNo: number
   sentAt: Date | null
   sentVersionNo: number | null
@@ -174,7 +175,7 @@ export interface ContractRow {
 }
 
 const SELECT = {
-  id: true, dealId: true, quoteId: true, contractNo: true, title: true, status: true, templateId: true,
+  id: true, dealId: true, quoteId: true, contractNo: true, title: true, status: true, templateId: true, parentContractId: true,
   currentVersionNo: true, sentAt: true, sentVersionNo: true, concludedAt: true, totalMinor: true, currency: true,
   version: true, createdAt: true, updatedAt: true,
 } as const
@@ -209,7 +210,7 @@ export async function listDealContracts(db: CrmDb, dealId: string): Promise<Cont
   return rows.map(toRow)
 }
 
-async function findContract(db: unknown, id: string): Promise<ContractRow> {
+export async function findContract(db: unknown, id: string): Promise<ContractRow> {
   const row = await c(db).findFirst({ where: { id }, select: SELECT })
   if (!row) throw new CrmError('NOT_FOUND', CONTRACT_MSG.notFound)
   return toRow(row)
@@ -444,4 +445,68 @@ export async function saveContractVersion(
     })
     return { contract: await findContract(tx, id), versionNo, created: versionNo !== cur.versionNo }
   })
+}
+
+// ------------------------------------------------------------
+// 변경 계약서 — 체결한 계약을 바꾸는 유일한 길 (I10)
+// ------------------------------------------------------------
+
+/**
+ * 체결한 계약서에서 변경 계약서를 만든다. 원 계약은 그대로 체결 상태로 남고,
+ * 새 계약서가 `parentContractId` 로 원 계약을 가리킨다.
+ *
+ * 본문과 사람이 넣은 칸은 원 계약의 지금 버전을 잇는다. 계약서 번호는 새로 받고,
+ * 자동 칸은 원 계약이 든 견적 스냅샷과 새 번호로 다시 만든다 — 옛 번호가 새 계약서에 찍히지 않게.
+ */
+export async function createAmendment(
+  db: CrmDb, workspaceId: string, actorId: string | null, id: string,
+): Promise<{ contract: ContractRow; versionNo: number }> {
+  const pattern = await readContractNoPattern(db)
+  try {
+    return await withCrmTx(workspaceId, async (tx) => {
+      const parent = await findContract(tx, id)
+      if (!canAmend(parent.status)) throw new CrmError('INVALID_TRANSITION', CONTRACT_SIGN.amendOnlyConcluded)
+      const cur: ContractVersionRow | null = await cv(tx).findFirst({
+        where: { contractId: id, versionNo: parent.currentVersionNo }, select: VERSION_SELECT,
+      })
+      if (!cur) throw new CrmError('NOT_FOUND', CONTRACT_MSG.versionNotFound)
+      const contractNo = await nextContractNo(tx, pattern, kstTodayKey())
+      const auto = cur.quoteSnapshot ? autoValuesFrom(cur.quoteSnapshot, contractNo) : { 'contract.no': contractNo }
+      const fieldValues = mergeFieldValues(auto, manualOf(cur.fieldValues))
+      const created = await c(tx).create({
+        data: {
+          workspaceId, dealId: parent.dealId, quoteId: parent.quoteId, contractNo,
+          title: CONTRACT_SIGN.amendTitle(parent.title).slice(0, MAX_TITLE),
+          templateId: parent.templateId, parentContractId: parent.id, currentVersionNo: 1,
+          totalMinor: parent.totalMinor === null ? null : BigInt(parent.totalMinor), currency: parent.currency,
+          effectiveFrom: dateOrNull(fieldValues['contract.start']?.value),
+          effectiveTo: dateOrNull(fieldValues['contract.end']?.value),
+          createdById: actorId,
+        },
+        select: SELECT,
+      })
+      await cv(tx).create({
+        data: {
+          workspaceId, contractId: created.id, versionNo: 1, kind: 'AMENDED' satisfies ContractVersionKind,
+          body: cur.body, fieldValues,
+          quoteSnapshot: cur.quoteSnapshot ?? undefined,
+          supplierSnapshot: cur.quoteSnapshot?.supplier ?? undefined,
+          customerSnapshot: cur.quoteSnapshot ? { ...cur.quoteSnapshot.customer, ...pickCustomer(fieldValues) } : undefined,
+          signatureSnapshot: cur.signatureSnapshot ?? undefined,
+          templateVersionNo: cur.templateVersionNo,
+          sourceQuoteId: cur.sourceQuoteId, sourceQuoteVersion: cur.sourceQuoteVersion,
+          contentHash: contentHash(cur.body, fieldValues),
+          note: CONTRACT_SIGN.amendNote(parent.contractNo), createdById: actorId,
+        },
+      })
+      await writeAudit(tx, {
+        actorType: 'HUMAN', actorId, action: 'contract.amended', targetType: 'contract', targetId: created.id,
+        afterJson: { contractNo, parentContractId: parent.id, parentContractNo: parent.contractNo, fromVersionNo: cur.versionNo },
+      })
+      return { contract: toRow(created), versionNo: 1 }
+    })
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new CrmError('CONFLICT', CONTRACT_MSG.numberTaken)
+    throw e
+  }
 }
