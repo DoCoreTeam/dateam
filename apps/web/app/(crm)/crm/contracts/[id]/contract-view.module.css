@@ -1,0 +1,54 @@
+/* 계약서 화면 (P0132 I12a) — 견적서 화면과 같은 뼈대: 문서가 넓게, 기록이 옆에 */
+
+.toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+.headNo { color: var(--text-muted); font-size: var(--fs-sm); }
+.link { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
+
+.note { margin: 0 0 var(--space-3); color: var(--text-muted); font-size: var(--fs-sm); }
+.ok, .danger {
+  margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius); font-size: var(--fs-sm); overflow-wrap: anywhere;
+}
+.ok { background: var(--success-bg); border: var(--border-w) solid var(--success-border); }
+.danger { background: var(--danger-bg); border: var(--border-w) solid var(--danger-border); }
+
+.refill {
+  display: grid; gap: var(--space-2); margin-bottom: var(--space-3); padding: var(--space-3);
+  border: var(--border-w) solid var(--warning); border-radius: var(--radius);
+}
+.refillTitle { margin: 0; font-size: var(--fs-md); }
+.refillBody { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.fieldChips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.chip {
+  padding: 2px var(--space-2); border-radius: var(--radius);
+  border: var(--border-w) solid var(--border-light); font-size: var(--fs-xs);
+}
+
+/* 넓으면 문서와 옆 칸, 좁으면 한 줄로 — 칸에 minmax(0,…) 를 줘야 긴 낱말이 칸을 밀지 않는다 */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px); gap: var(--space-4); align-items: start; }
+.main, .side { min-width: 0; display: grid; gap: var(--space-3); }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.paper, .paperTall {
+  width: 100%; border: var(--border-w) solid var(--border-light); border-radius: var(--radius); background: #fff;
+}
+.paper { height: 70vh; min-height: 420px; }
+.paperTall { height: 72vh; }
+
+/* 버전 기록과 비교 */
+.versions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.version { display: grid; gap: var(--space-1); padding-bottom: var(--space-2); border-bottom: var(--border-w) solid var(--border-light); min-width: 0; }
+.versionHead { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; justify-content: space-between; }
+.versionNo { font-weight: 700; }
+.versionMeta { font-size: var(--fs-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.compareBar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end; margin-top: var(--space-2); }
+.compareBar label { display: grid; gap: var(--space-1); font-size: var(--fs-xs); color: var(--text-muted); }
+.diffs { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-2); font-size: var(--fs-sm); }
+.diff { min-width: 0; overflow-wrap: anywhere; }
+.del { background: var(--danger-bg); text-decoration: line-through; }
+.ins { background: var(--success-bg); }
+
+.previewFoot { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; align-items: center; }

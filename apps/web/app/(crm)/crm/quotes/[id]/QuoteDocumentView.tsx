@@ -12,7 +12,10 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Printer, Download, Pencil, FileText, FileDown, Image as ImageIcon, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
-import PageHeader from '@/components/ui/PageHeader'
+import DocHeader from '@/components/ui/crm/doc/DocHeader'
+import DocHistoryPanel from '@/components/ui/crm/doc/DocHistoryPanel'
+import { quoteStatusMeta } from '@/lib/crm/ui/quote-status'
+import { kstDateKey } from '@/lib/datetime/kst'
 import DeleteRecordModal from '../../DeleteRecordModal'
 import { backTarget, linkWithBack } from '@/lib/crm/nav/back-link'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -65,6 +68,12 @@ interface DocumentResponse {
   } | null
 }
 
+/** 머리줄이 읽는 견적 한 줄 — 문서 응답은 «인쇄용»이라 상태와 보낸 날을 안 담는다 */
+interface QuoteHeadRow {
+  status: string
+  sentAt: string | null
+}
+
 export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
   /*
     돌아갈 곳은 **주소가 정한다**. 고정으로 적으면 딜에서 회사로 들어온 사람이
@@ -73,6 +82,9 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
   const backParams = useSearchParams()
   const back = backTarget(backParams, { href: '/crm/quotes', label: ENTITY.quote.label })
   const [data, setData] = useState<DocumentResponse | null>(null)
+  const [head, setHead] = useState<QuoteHeadRow | null>(null)
+  /** 고치면 변경 이력도 다시 읽는다 — 방금 한 일이 이력에 없으면 저장이 안 된 줄 안다 */
+  const [historySeq, setHistorySeq] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // 내려받기 실패는 **이 화면 안에서** 말한다. 페이지를 떠나 보내면 JSON 이 화면을 덮는다
@@ -188,10 +200,19 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/crm/quotes/${quoteId}/document`)
-      const body = await res.json()
+      /*
+        문서와 견적 줄을 **함께** 읽는다. 머리줄의 상태와 보냄은 견적 줄에만 있다 —
+        나눠 읽으면 문서는 떴는데 머리줄이 비어 있는 순간이 생긴다.
+      */
+      const [res, rowRes] = await Promise.all([
+        fetch(`/api/crm/quotes/${quoteId}/document`),
+        fetch(`/api/crm/quotes/${quoteId}`),
+      ])
+      const [body, row] = await Promise.all([res.json(), rowRes.json()])
       if (!res.ok) { setError(readApiError(body, failedTo(QUOTE.documentTitle, '불러오지'))); return }
+      if (!rowRes.ok) { setError(readApiError(row, failedTo(QUOTE.documentTitle, '불러오지'))); return }
       setData(body as DocumentResponse)
+      setHead({ status: String(row.status ?? ''), sentAt: typeof row.sentAt === 'string' ? row.sentAt : null })
     } catch {
       // 서버가 응답조차 못 한 것 — 「잠시 후 다시」와는 다른 상황이다
       setError(describeFetchFailure(QUOTE.documentTitle))
@@ -224,6 +245,7 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
   const money = (minor: string) => formatAmount(minor, cur) ?? '0'
   const filled = SUPPLIER_ORDER.filter((f) => doc.supplier[f] !== '')
   const blocked = data.violations.length > 0
+  const statusMeta = quoteStatusMeta({ status: head?.status ?? '', expired: doc.meta.expired })
 
   return (
     <div className="page-inner">
@@ -238,9 +260,11 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           우리 내부 사정이라 문서를 보는 자리에 설명할 말이 아니다 —
           그건 파일을 내보내는 순간에 필요한 말이라 그 버튼으로 옮겼다.
         */}
-        <PageHeader
+        <DocHeader
           title={doc.meta.quoteNo}
           back={back}
+          status={{ label: statusMeta.label, tone: statusMeta.status }}
+          sent={{ date: head?.sentAt ? kstDateKey(head.sentAt) : null }}
           /*
             **이 문서 자체를 다루는 자리**다(§2-3-2 · 제목 우측).
             목록에서만 지울 수 있으면 「상세에 가도 없다」가 된다 — 회사·인물·딜·미팅과 같은 자리에 둔다.
@@ -418,6 +442,10 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
         </RecordPanel>
       </div>
 
+      <div className={styles.attachments}>
+        <DocHistoryPanel targetType="quote" targetId={quoteId} reloadKey={historySeq} />
+      </div>
+
       {deleting && (
         <DeleteRecordModal
           entity="견적"
@@ -438,7 +466,7 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
           dealId={draftDealId}
           initial={draft}
           onClose={() => setDraft(null)}
-          onSaved={() => { setDraft(null); void load() }}
+          onSaved={() => { setDraft(null); setHistorySeq((n) => n + 1); void load() }}
         />
       )}
     </div>

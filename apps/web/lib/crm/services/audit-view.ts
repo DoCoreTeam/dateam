@@ -11,6 +11,8 @@
 
 import type { CrmDb } from '../db/client.ts'
 import { CRITERION_LABEL, type CriterionKey } from '../domain/entry-criteria.ts'
+import { CONTRACT_ACTION_TO, isContractAction } from '../domain/contract-status.ts'
+import { CONTRACT_AUDIT_LABEL, CONTRACT_STATUS_LABEL, CONTRACT_VERSION_KIND, versionLabel } from '../../terms/contract-doc.ts'
 
 export interface AuditRow {
   id: string
@@ -97,6 +99,8 @@ const ACTION_LABEL: Record<string, string> = {
   'record.merge_undone': '합친 것을 되돌렸어요',
   'integration.connected': '외부 계정을 연결했어요',
   'integration.disconnected': '연결을 해제했어요',
+  // 계약서 동작은 계약서 말과 한 파일에 둔다 — 문서 화면의 변경 이력이 이 문장을 읽는다
+  ...CONTRACT_AUDIT_LABEL,
 }
 
 const ACTOR_LABEL: Record<string, string> = {
@@ -112,11 +116,12 @@ const FIELD_LABEL: Record<string, string> = {
   name: '이름', title: '제목', email: '이메일', phone: '전화',
   domain: '도메인', industry: '산업', region: '지역', memo: '메모',
   criteria: '진입 조건', stageName: '단계 이름', dueAt: '마감',
+  versionNo: '버전', kind: '버전 까닭', note: '메모',
 }
 
 const TARGET_LABEL: Record<string, string> = {
   company: '회사', person: '인물', deal: '딜', task: '할 일',
-  meeting: '미팅', suggestion: '제안', setting: '설정', stage: '단계', quote: '견적',
+  meeting: '미팅', suggestion: '제안', setting: '설정', stage: '단계', quote: '견적', contract: '계약서',
   integration: '연동', person_field: '인물 항목', company_field: '회사 항목',
 }
 
@@ -157,12 +162,34 @@ function short(v: unknown): string {
 /** 지운 기록은 필드를 다 늘어놓아도 읽히지 않는다 — 무엇이었는지만 남긴다 */
 const NAME_ONLY = new Set(['record.trashed', 'record.purged', 'record.restored'])
 
+/**
+ * 계약서 기록은 모양이 정해져 있다 — 앞에는 상태 하나, 뒤에는 버전 번호와 메모.
+ *
+ * 일반 diff 로 접으면 「상태: 작성 중 → (없음)」처럼 **뒤에 안 적힌 상태를 지운 것으로** 읽힌다.
+ * 동작이 가는 상태는 규칙(CONTRACT_ACTION_TO)이 알고 있으므로 그것으로 채운다.
+ */
+function contractChanges(action: string, before: unknown, after: unknown): { field: string; from: string; to: string }[] {
+  const b = (before && typeof before === 'object' ? before : {}) as Record<string, unknown>
+  const a = (after && typeof after === 'object' ? after : {}) as Record<string, unknown>
+  const verb = action.slice('contract.'.length)
+  const out: { field: string; from: string; to: string }[] = []
+  const to = isContractAction(verb) ? CONTRACT_ACTION_TO[verb] : null
+  if (to && typeof b.status === 'string') {
+    out.push({ field: FIELD_LABEL.status, from: CONTRACT_STATUS_LABEL[b.status] ?? b.status, to: CONTRACT_STATUS_LABEL[to] })
+  }
+  if (typeof a.versionNo === 'number') out.push({ field: FIELD_LABEL.versionNo, from: '', to: versionLabel(a.versionNo) })
+  if (typeof a.kind === 'string') out.push({ field: FIELD_LABEL.kind, from: '', to: CONTRACT_VERSION_KIND[a.kind] ?? a.kind })
+  if (typeof a.note === 'string' && a.note !== '') out.push({ field: FIELD_LABEL.note, from: '', to: short(a.note) })
+  return out
+}
+
 function diff(
   before: unknown,
   after: unknown,
   action?: string,
   stageName?: Map<string, string>,
 ): { field: string; from: string; to: string }[] {
+  if (action?.startsWith('contract.')) return contractChanges(action, before, after)
   if (action && NAME_ONLY.has(action)) {
     const b = (before && typeof before === 'object' ? before : {}) as Record<string, unknown>
     const name = b.name ?? b.title

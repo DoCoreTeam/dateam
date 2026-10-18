@@ -1,3 +1,5 @@
+import { withJosa, eulReul, euroRo } from '../ui/josa.ts'
+
 /**
  * 문서의 말 — 견적서와 계약서가 같은 말을 쓴다 (용어집 §0-2 「문서 말」)
  *
@@ -148,7 +150,7 @@ export const CONTRACT_REFILL = {
   quoteGone: '이 계약서를 만든 견적을 찾을 수 없습니다. 지워졌거나 볼 수 없는 견적입니다.',
   quoteNotContractable: '견적이 지금 작성 중이거나 거절 상태라 그 값으로 다시 채울 수 없습니다.',
   noSource: '견적 없이 만든 계약서라 다시 채울 견적이 없습니다.',
-  note: (fromVersion: number, toVersion: number): string => `견적 버전 ${fromVersion} 에서 ${toVersion} 으로 다시 채움`,
+  note: (fromVersion: number, toVersion: number): string => `견적 버전 ${fromVersion}에서 ${withJosa(String(toVersion), euroRo)} 다시 채움`,
 } as const
 
 /** 계약서 종이와 내보내기 말 (P0132 I12) */
@@ -240,4 +242,119 @@ export const CONTRACT_FROM_FILE = {
   rejectedCount: (n: number): string => `원문과 맞지 않거나 없는 칸 이름을 짚은 제안 ${n}건은 넣지 않았습니다.`,
   sourceFile: (name: string): string => `원본 파일: ${name}`,
   failed: '파일로 템플릿을 만들지 못했습니다.',
+} as const
+
+/**
+ * 문서 머리줄 말 — 견적서와 계약서가 같은 자리에 같은 말을 쓴다 (P0132 I12a)
+ *
+ * 보냄은 상태가 아니라 체크다(DOC.sent). 머리줄은 상태 옆에 그 체크를 따로 세운다 —
+ * 「작성 중인데 이미 보냄」이 계약서에서는 정상이라 둘을 한 배지로 합치면 하나가 안 보인다.
+ */
+export const DOC_HEADER = {
+  notSent: '아직 안 보냄',
+  sentVersion: (date: string, versionNo: number): string => `보냄 ${date} · ${versionLabel(versionNo)}`,
+  current: (versionNo: number): string => `지금 ${versionLabel(versionNo)}`,
+} as const
+
+/** 변경 이력 패널 — 감사 기록을 읽기만 한다. 메뉴의 「변경 이력」과 같은 이름 */
+export const DOC_HISTORY = {
+  title: '변경 이력',
+  empty: '아직 남은 기록이 없습니다',
+  emptyNext: '고치거나 보내면 누가 언제 했는지 여기에 남습니다.',
+  denied: '변경 이력을 볼 권한이 없습니다. 필요하면 관리자에게 요청해 주세요.',
+  more: '더 보기',
+} as const
+
+/** 감사 기록의 계약서 동작 — 변경 이력에 이 문장으로 보인다 */
+export const CONTRACT_AUDIT_LABEL: Record<string, string> = {
+  'contract.created': '계약서를 만들었어요',
+  'contract.version_saved': '계약서 새 버전을 남겼어요',
+  'contract.refilled': '견적 값으로 계약서를 다시 채웠어요',
+  'contract.amended': '변경 계약서를 만들었어요',
+  'contract.send': '계약서를 보냄으로 표시했어요',
+  'contract.conclude': '계약서를 체결했어요',
+  'contract.terminate': '계약을 해지했어요',
+  'contract.cancel': '계약서를 취소했어요',
+}
+
+/** 계약서 화면 말 (P0132 I12a) */
+export const CONTRACT_SCREEN = {
+  denied: '이 계약서를 볼 권한이 없습니다. 필요하면 관리자에게 요청해 주세요.',
+  noClauses: '조항이 없는 계약서입니다',
+  noClausesNext: '고치기에서 조항을 넣어 주세요.',
+  conflictReloaded: '다른 사람이 먼저 고쳐 최신 내용을 다시 불러왔습니다. 확인한 뒤 다시 해 주세요.',
+  parent: '원 계약서',
+  paperTitle: (contractNo: string, versionNo: number): string => `${contractNo} ${versionLabel(versionNo)}`,
+
+  preview: '미리보기 · 내보내기',
+  exportPdf: 'PDF로 저장',
+  exportDocx: 'Word로 저장',
+  previewDenied: '이 계약서를 파일로 내보낼 권한이 없어 미리보기를 열 수 없습니다. 필요하면 관리자에게 요청해 주세요.',
+
+  refill: '다시 채우기',
+  refillTitle: '이 계약서를 만든 뒤 견적이 바뀌었습니다',
+  refillBody: (from: number, to: number): string => `계약서는 견적 버전 ${from} 값으로 채웠고 견적은 지금 버전 ${to}입니다. 다시 채우면 아래 칸이 지금 견적 값으로 바뀌고 다음 버전이 됩니다.`,
+  refillKept: '손으로 고친 칸이라 다시 채워도 남습니다',
+  refillNone: '견적이 바뀌었지만 계약서에 들어간 값은 같습니다.',
+  refillDone: (n: number): string => `견적 값으로 다시 채워 ${withJosa(versionLabel(n), eulReul)} 남겼습니다.`,
+
+  send: '보냄으로 표시',
+  sendTitle: (contractNo: string): string => `${contractNo} 계약서를 보냄으로 표시할까요?`,
+  sendBody: (n: number): string => `지금 ${withJosa(versionLabel(n), eulReul)} 고객에게 낸 것으로 남깁니다. 보낸 뒤에도 작성 중이면 고칠 수 있고, 고치면 다음 버전이 됩니다.`,
+  conclude: '체결',
+  concludeTitle: (contractNo: string): string => `${contractNo} 계약서를 체결할까요?`,
+  concludeBody: (n: number): string => `${withJosa(versionLabel(n), euroRo)} 체결합니다. 체결하면 글이 굳어 더 고칠 수 없고, 이 버전의 공급가가 딜의 계약 금액이 됩니다.`,
+  pickSigned: '서명본',
+  signedNone: '이 딜에 계약서 종류로 올린 파일이 아직 없습니다. 아래에서 서명본을 올린 뒤 골라 주세요.',
+  signedRequired: '체결하려면 서명본을 골라 주세요.',
+  signedLoadFailed: '서명본 목록을 불러오지 못했습니다.',
+  terminate: '해지',
+  terminateTitle: (contractNo: string): string => `${contractNo} 계약을 해지할까요?`,
+  terminateBody: '해지하면 이 계약은 끝난 상태가 되고 되돌릴 수 없습니다. 딜 금액은 바뀌지 않습니다.',
+  cancel: '계약서 취소',
+  cancelTitle: (contractNo: string): string => `${contractNo} 계약서를 취소할까요?`,
+  cancelBody: '작성 중인 이 계약서를 접습니다. 취소한 계약서는 고칠 수도 되살릴 수도 없습니다.',
+  amend: '변경 계약서 만들기',
+  amendTitle: (contractNo: string): string => `${contractNo} 에서 변경 계약서를 만들까요?`,
+  amendBody: '이 계약은 체결 상태로 남고, 지금 버전의 조항과 손으로 넣은 칸을 이은 새 계약서를 새 번호로 만듭니다.',
+  adminOnlyHint: '체결과 해지는 관리자가 합니다.',
+
+  editTitle: '계약서 고치기',
+  titleLabel: '계약서 제목',
+  fieldsSection: '칸 값',
+  clausesSection: '조항',
+  fieldAuto: '견적 값',
+  fieldManual: '손으로 넣음',
+  fieldHint: '비우면 견적 값으로 돌아갑니다. 견적에서 오지 않는 칸은 비어 있으면 (미입력)으로 찍힙니다.',
+  noteLabel: '고친 까닭',
+  notePlaceholder: '예: 고객 요청으로 지급 기한 조정',
+  noChange: '바뀐 것이 없어 새 버전을 만들지 않았습니다.',
+  saved: (n: number): string => `${withJosa(versionLabel(n), eulReul)} 남겼습니다.`,
+
+  aiTitle: 'AI로 고치기',
+  aiInstruction: '무엇을 고칠까요',
+  aiPlaceholder: '예: 대금 지급 기한을 30일로 바꿔 주세요',
+  aiPropose: '제안 받기',
+  aiProposeHint: 'AI 가 고칠 조각을 제안합니다. 고른 조각만 다음 버전으로 남고, 고르기 전에는 아무것도 저장되지 않습니다.',
+  aiClause: (n: number): string => `조항 ${n}`,
+  aiBefore: '지금',
+  aiAfter: '바뀜',
+  aiRejected: '반영할 수 없음',
+  aiPick: (n: number): string => `이 조각 반영 (${n})`,
+  aiApply: (n: number): string => `고른 ${n}개 반영`,
+  aiNoUsable: '반영할 수 있는 조각이 없습니다. 지시를 바꿔 다시 제안받아 주세요.',
+
+  versionsEmpty: '버전 기록이 없습니다',
+  versionCurrent: '지금 버전',
+  versionSent: '보낸 버전',
+  versionConcluded: '체결한 버전',
+  viewVersion: '이 버전 보기',
+  compareA: '앞 버전',
+  compareB: '뒤 버전',
+  compareRun: '비교',
+  compareSame: '두 버전의 조항과 칸 값이 같습니다.',
+  compareClauses: '조항 차이',
+  compareFields: '칸 값 차이',
+  compareNeedsTwo: '버전이 둘 이상이어야 비교할 수 있습니다.',
+  diffKind: { added: '새로 들어감', removed: '빠짐', changed: '고침', moved: '자리 옮김' } as Record<'added' | 'removed' | 'changed' | 'moved', string>,
 } as const

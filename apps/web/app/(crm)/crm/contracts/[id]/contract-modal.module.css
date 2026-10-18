@@ -1,0 +1,50 @@
+/* 계약서 고치기, AI로 고치기, 체결 창 (P0132 I12a) */
+
+.body { display: grid; gap: var(--space-4); }
+.section { display: grid; gap: var(--space-2); min-width: 0; }
+.sectionTitle { margin: 0; font-size: var(--fs-md); color: var(--text); }
+.hint { margin: 0; color: var(--text-muted); font-size: var(--fs-sm); }
+
+/* 칸 값 — 넓으면 두 줄, 좁으면 한 줄 */
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.field { display: grid; gap: var(--space-1); min-width: 0; }
+.fieldHead { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+.src { font-size: var(--fs-xs); color: var(--text-faint); }
+.srcManual { color: var(--warning); }
+
+.foot { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; align-items: center; }
+
+/* AI 조각 — 지금 글과 바뀔 글을 나란히 */
+.pieces { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.piece {
+  display: grid; gap: var(--space-2); padding: var(--space-3);
+  border: var(--border-w) solid var(--border-light); border-radius: var(--radius);
+  transition: border-color var(--duration-fast, 150ms) ease, opacity var(--duration-fast, 150ms) ease;
+}
+.piecePicked { border-color: var(--brand); }
+.pieceRejected { opacity: 0.72; }
+.pieceHead { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; justify-content: space-between; }
+.pick { display: inline-flex; gap: var(--space-2); align-items: center; font-size: var(--fs-sm); }
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.side { display: grid; gap: var(--space-1); min-width: 0; }
+.sideLabel { font-size: var(--fs-xs); color: var(--text-muted); }
+.before, .after {
+  margin: 0; padding: var(--space-2); border-radius: var(--radius);
+  font-size: var(--fs-sm); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.before { background: var(--danger-bg); border: var(--border-w) solid var(--danger-border); }
+.after { background: var(--success-bg); border: var(--border-w) solid var(--success-border); }
+.why { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+.tagWarn { font-size: var(--fs-xs); color: var(--warning); }
+.tagBad { font-size: var(--fs-xs); color: var(--danger); }
+
+/* 서명본 고르기 */
+.signedList { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.signedItem { display: flex; gap: var(--space-2); align-items: center; min-width: 0; font-size: var(--fs-sm); }
+.signedName { overflow-wrap: anywhere; min-width: 0; }
+.upload { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.fileInput { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+@media (max-width: 640px) {
+  .fields, .compare { grid-template-columns: minmax(0, 1fr); }
+}
