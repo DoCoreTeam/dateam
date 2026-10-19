@@ -42,6 +42,7 @@ import {
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
 import { priceQuote } from './quote-pricing.ts'
 import { syncDealQuoted } from './deal-quoted.ts'
+import { assertBaselineForSend, autoRegisterLines } from './quote-pricebook-hooks.ts'
 import {
   LINE_PRICING_KEYS, QUOTE_PRICING_KEYS, linePricingData, quotePricingData, sectionPricingData,
   type LinePricingInput, type QuotePricingInput,
@@ -1090,6 +1091,8 @@ export async function createQuote(
       await (tx as any).crmQuoteLine.create({ data: { ...l, quoteId: created.id } })
     }
     await recalcSectionSubtotals(tx, created.id)
+    // 처음 쓴 항목은 품목이 된다 — 다음 견적에서 다시 치지 않게(이름과 규격이 둘 다 같아야 하나)
+    await autoRegisterLines(tx, workspaceId, actorId, created.id, currency)
     // 딜의 견적 금액은 대표 견적의 1회분이다(I8) — 만들고 고치고 지울 때마다 맞춘다
     await syncDealQuoted(tx, input.dealId, actorId)
 
@@ -1418,6 +1421,7 @@ export async function updateQuote(
         })).map((x: { id: string }) => x.id)
       await syncLines(tx, id, withSectionIds(nextLines, sectionIds), nextIds)
       await recalcSectionSubtotals(tx, id)
+      await autoRegisterLines(tx, workspaceId, actorId, id, before.currency)
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1885,6 +1889,8 @@ export async function transitQuote(
       approvedAt: before.approvedAt,
       validUntil: before.validUntil,
     })
+    // 기준 대조 — 단가를 어느 길로도 못 찾은 줄(실사 후 견적)이 있으면 보내지 않는다
+    if (input.to === 'SENT') await assertBaselineForSend(tx, id)
 
     const now = new Date()
     const data: Record<string, unknown> = { status: input.to, ...BUMP_VERSION }

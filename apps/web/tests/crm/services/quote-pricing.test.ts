@@ -8,7 +8,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { loadEnv } from '../integrity/_helpers.ts'
 import { getCrmDb } from '../../../lib/crm/db/client.ts'
-import { createQuote, updateQuote, getQuote, duplicateQuote, deleteQuote } from '../../../lib/crm/services/quote.ts'
+import { createQuote, updateQuote, getQuote, duplicateQuote, deleteQuote, transitQuote } from '../../../lib/crm/services/quote.ts'
+import { CrmError } from '../../../lib/crm/domain/errors.ts'
 import { buildSolutionQuote } from '../../../lib/crm/domain/pricebook/solution-engine.ts'
 import { GCUBE_EDGE } from '../../../lib/crm/domain/pricebook/gcube-edge.ts'
 import { computeTotals } from '../../../lib/crm/domain/quote-math.ts'
@@ -19,7 +20,7 @@ const db = getCrmDb(WS)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const raw = db as any
 const RUN = `q${Date.now().toString(36)}`
-const MADE = { company: '', pipeline: '', deal: '', quotes: [] as string[] }
+const MADE = { company: '', pipeline: '', deal: '', quotes: [] as string[], products: [] as string[] }
 
 test.before(async () => {
   await raw.crmWorkspace.upsert({ where: { id: WS }, create: { id: WS, name: 'test pricebook' }, update: {} })
@@ -31,6 +32,12 @@ test.before(async () => {
 })
 
 test.after(async () => {
+  // 이 시험의 견적 줄이 자동 등록한 품목도 id 로 지운다(시험 워크스페이스 안)
+  if (MADE.quotes.length) {
+    const linked = await raw.crmQuoteLine.findMany({ where: { quoteId: { in: MADE.quotes }, productId: { not: null } }, select: { productId: true } })
+    MADE.products.push(...linked.map((l: { productId: string }) => l.productId))
+  }
+  if (MADE.products.length) await raw.crmProduct.deleteMany({ where: { id: { in: [...new Set(MADE.products)] }, autoRegistered: true } })
   if (MADE.quotes.length) await raw.crmAuditLog.deleteMany({ where: { targetId: { in: MADE.quotes } } })
   if (MADE.deal) await raw.crmDeal.deleteMany({ where: { id: MADE.deal } })
   if (MADE.pipeline) {
@@ -82,6 +89,8 @@ test('견적을 지우면 딜의 견적 금액이 다음 대표 견적으로, �
     await deleteQuote(WS, null, q.id, 'trash')
     assert.equal((await raw.crmDeal.findFirst({ where: { id: d.id }, select: { quotedNetMinor: true } })).quotedNetMinor, null)
   } finally {
+    const linked = await raw.crmQuoteLine.findMany({ where: { quote: { dealId: d.id }, productId: { not: null } }, select: { productId: true } })
+    MADE.products.push(...linked.map((l: { productId: string }) => l.productId))
     await raw.crmDeal.deleteMany({ where: { id: d.id } })
   }
 })
@@ -123,4 +132,39 @@ test('★ 개정본은 가격 기준 칸과 묶음 절사를 들고 가고 항�
     assert.ok(src, `${l.name} 이 앞 항목을 가리키지 않는다`)
     assert.equal(String(l.listPriceMinor), String(src!.listPriceMinor))
   }
+})
+
+test('★ 처음 쓴 항목은 품목이 된다 — 이름과 규격이 둘 다 같아야 하나로 본다', async () => {
+  const name = `GIGABYTE ${RUN}`
+  const a = await createQuote(WS, null, { dealId: MADE.deal, title: `reg1 ${RUN}`, lines: [
+    { name, descriptionMd: '서버 새시 4U', quantity: 1, unitPriceMinor: '17600000', taxRate: 10 },
+    { name: '기타', quantity: 1, unitPriceMinor: '1000', taxRate: 10 },
+  ] })
+  MADE.quotes.push(a.id)
+  const made = await raw.crmProduct.findMany({ where: { name }, select: { id: true, spec: true, autoRegistered: true, unitPriceMinor: true } })
+  MADE.products.push(...made.map((m: { id: string }) => m.id))
+  assert.equal(made.length, 1)
+  assert.equal(made[0].autoRegistered, true)
+  assert.equal(made[0].spec, '서버 새시 4U')
+  const qa = await getQuote(db, a.id)
+  assert.equal(qa.lines!.find((l) => l.name === name)!.productId, made[0].id, '그 줄이 품목에 이어진다')
+  assert.equal(qa.lines!.find((l) => l.name === '기타')!.productId, null, '이름이 넓은 줄은 안 올린다')
+  const b = await createQuote(WS, null, { dealId: MADE.deal, title: `reg2 ${RUN}`, lines: [
+    { name, descriptionMd: '서버 새시 4U', quantity: 2, unitPriceMinor: '17000000', taxRate: 10 },
+    { name, descriptionMd: '서버 새시 2U', quantity: 1, unitPriceMinor: '6050000', taxRate: 10 },
+  ] })
+  MADE.quotes.push(b.id)
+  const after = await raw.crmProduct.findMany({ where: { name }, select: { id: true } })
+  MADE.products.push(...after.map((m: { id: string }) => m.id).filter((id: string) => !MADE.products.includes(id)))
+  assert.equal(after.length, 2, '같은 이름 같은 규격은 하나, 규격이 다르면 따로')
+})
+
+test('★ 실사 후 견적 줄이 남은 견적은 보낼 수 없다 — 기준 대조가 막는다', async () => {
+  const q = await createQuote(WS, null, { dealId: MADE.deal, title: `survey ${RUN}`, lines: [
+    { name: 'STD 기본 금액', quantity: 1, unitPriceMinor: '15000000', listPriceMinor: '15000000', priceSource: 'LIST', taxRate: 10 },
+    { name: '저장소 네트워크 보안 구성', quantity: 1, unitPriceMinor: '0', listPriceMinor: null, priceSource: 'LIST', taxRate: 10 },
+  ] })
+  MADE.quotes.push(q.id)
+  const e = await transitQuote(WS, null, q.id, { version: q.version, to: 'SENT' }).then(() => null, (x) => x)
+  assert.ok(e instanceof CrmError && /실사 후 견적/.test(e.message), String(e))
 })

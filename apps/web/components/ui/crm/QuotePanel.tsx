@@ -28,7 +28,7 @@ import {
   createLabel,
   failedTo,
   progress,
-  QUOTE,
+  QUOTE, PRICEBOOK,
 } from '@/lib/terms'
 import NbModal from '@/components/ui/nb/NbModal'
 import QuoteEditorModal, { newQuoteDraft, quoteToDraft, type QuoteDraft } from './QuoteEditorModal'
@@ -202,9 +202,22 @@ export default function QuotePanel({
    * 보낸 견적은 금액을 못 고치니 되돌릴 수 없는 일이라 확인을 받는다.
    */
   const markSent = async (quote: Quote) => {
+    /*
+      **기준 대조를 먼저 펼친다**(가격 기준). 막을 것이 있으면 보내지 않고 사유를 말하고,
+      알릴 것이 있으면 확인창에 함께 싣는다 — 보고 보내면 된다. 보내기 창구도 같은 검사로 다시 막는다.
+    */
+    let warn = ''
+    try {
+      const res = await fetch(`/api/crm/quotes/${quote.id}/baseline`, { cache: 'no-store' })
+      const body = await res.json()
+      const items = (res.ok ? body.items ?? [] : []) as { level: string; message: string }[]
+      const block = items.filter((x) => x.level === 'block')
+      if (block.length) { setActionError(block.map((x) => x.message).join(' ')); return }
+      warn = items.filter((x) => x.level === 'warn').map((x) => x.message).join(' ')
+    } catch { /* 대조를 못 읽어도 보내기 창구가 막을 것은 막는다 */ }
     const yes = await ask.confirm({
       title: QUOTE_SEND.confirmTitle(quote.quoteNo),
-      body: QUOTE_SEND.confirmBody,
+      body: warn ? `${PRICEBOOK.baselineCheck}: ${warn} ${QUOTE_SEND.confirmBody}` : QUOTE_SEND.confirmBody,
       confirmLabel: QUOTE_SEND.confirm,
     })
     if (yes) await act(quote, '/status', { to: 'SENT' })
