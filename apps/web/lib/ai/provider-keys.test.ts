@@ -386,3 +386,14 @@ test('안 씀 안내는 키 없음과 다른 말을 한다 — 할 일이 정반
     assert.doesNotMatch(off, /은\(는\)|을\(를\)/, `${id}: 이름 뒤에 조사를 붙이지 않는다`)
   }
 })
+
+test('워크스페이스에 안 묶인 Claude 키는 「(400)」이 아니라 무엇을 해야 하는지 말한다', () => {
+  // 실측 2026-10-19: Anthropic 이 목록 받기와 호출 둘 다 400 으로 막았고 화면에는 「Claude 연결 실패 (400)」만 떴다
+  const detail = 'This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header with the ID of the workspace to use.'
+  const msg = describeConnectionFailed('claude', 400, detail)
+  assert.doesNotMatch(msg, /\(400\)/)
+  assert.match(msg, /워크스페이스/)
+  assert.doesNotMatch(msg, /anthropic-workspace-id|This API key/, '공급자 원문을 흘리지 않는다')
+  // 사유를 모르는 400 은 예전 문장 그대로
+  assert.equal(describeConnectionFailed('claude', 400, 'something else'), 'Claude 연결 실패 (400)')
+})

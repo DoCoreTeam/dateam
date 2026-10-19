@@ -34,6 +34,7 @@ import {
   type KeyView,
 } from '@/lib/ai/key-store'
 import { getProvider } from '@/lib/ai-chat/registry'
+import { getProviderErrorDetail } from '@/lib/ai-chat/probe-result'
 
 // 회의 녹음 전사 설정 — 키가 아니라 전사 갈래의 값이라 공급자 창구와 따로 둔다
 // (키 자체는 Groq 공급자 키를 그대로 쓴다)
@@ -520,7 +521,7 @@ export async function listProviderModels(
     return { ok: true, models: await getProvider(provider).listModels(apiKey) }
   } catch (e) {
     console.error('[settings] 모델 목록 조회 실패', provider, e)
-    return { ok: false, error: describeConnectionFailed(provider, statusOf(e)) }
+    return { ok: false, error: describeConnectionFailed(provider, statusOf(e), getProviderErrorDetail(e).detail) }
   }
 }
 
@@ -563,7 +564,7 @@ export async function checkProviderConnection(
     return describeConnection(provider, { modelCount: models.length, probe })
   } catch (e) {
     console.error('[settings] 연결 확인 실패', provider, e)
-    return { ok: false, message: describeConnectionFailed(provider, statusOf(e)) }
+    return { ok: false, message: describeConnectionFailed(provider, statusOf(e), getProviderErrorDetail(e).detail) }
   }
 }
 

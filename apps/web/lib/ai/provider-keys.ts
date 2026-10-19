@@ -175,8 +175,16 @@ export function describeConnection(id: AiProviderId, check: ConnectionCheck): { 
  * 연결 확인 실패 문장.
  * 공급자가 돌려준 원문을 그대로 흘리지 않는다 — 거기에 키 조각이 섞여 오는 경우가 있다.
  */
-export function describeConnectionFailed(id: AiProviderId, status?: number): string {
+export function describeConnectionFailed(id: AiProviderId, status?: number, detail?: string): string {
   const spec = getProviderSpec(id)
+  /*
+    실측 2026-10-19: 워크스페이스 밖에서 만든 Anthropic 키는 목록 받기부터 400 으로 막힌다.
+    화면에 「(400)」만 남으면 사용자는 키가 맞는데 왜 안 되는지 알 길이 없다.
+    원문은 흘리지 않고 판정에만 쓴다.
+  */
+  if (detail && /not scoped to a workspace/i.test(detail)) {
+    return `이 ${spec.label} 키는 워크스페이스에 속해 있지 않아 쓸 수 없습니다. 콘솔에서 워크스페이스를 고른 뒤 그 안에서 키를 새로 만들어 넣어 주세요`
+  }
   if (status === 401 || status === 403) return `${spec.label} 키가 올바르지 않습니다`
   if (status === 429) return `${spec.label} 사용량 한도에 걸렸습니다`
   if (status) return `${spec.label} 연결 실패 (${status})`
