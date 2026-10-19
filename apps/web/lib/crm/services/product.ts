@@ -15,6 +15,8 @@ import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText, requireText } from '../domain/normalize.ts'
+import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
+import { recordPrice } from './pricebook-history.ts'
 
 export interface ProductRow {
   id: string
@@ -26,11 +28,14 @@ export interface ProductRow {
   unit: string | null
   descriptionMd: string | null
   isActive: boolean
+  version: number
+  /** 같은 이름이 이미 있어 그것을 돌려줬는가 — 친 단가가 다르면 부르는 쪽이 그 사실을 안다 */
+  existed?: boolean
 }
 
 const SELECT = {
   id: true, name: true, sku: true, unitPriceMinor: true,
-  currency: true, taxRate: true, unit: true, descriptionMd: true, isActive: true,
+  currency: true, taxRate: true, unit: true, descriptionMd: true, isActive: true, version: true,
 } as const
 
 /**
@@ -103,7 +108,25 @@ export async function createProduct(
     const existing = await (tx as any).crmProduct.findFirst({
       where: { name, isActive: true }, select: SELECT,
     })
-    if (existing) return existing as ProductRow
+    if (existing) {
+      /*
+        **친 단가를 조용히 버리지 않는다.** 예전에는 이름이 같으면 있던 것을 그대로 돌려줘서
+        견적에서 친 17,600,000원이 사라졌다. 있던 품목의 정상가가 0원이면 친 값으로 채우고
+        이력을 남긴다. 둘 다 값이 있는데 다르면 있던 값을 지키고 existed 로 알린다
+        — 정상가 변경은 가격 기준 화면에서 관리자가 한다.
+      */
+      if (BigInt(existing.unitPriceMinor) === BigInt(0) && unitPriceMinor > BigInt(0)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const filled = await (tx as any).crmProduct.update({
+          where: { id: existing.id }, data: { unitPriceMinor, ...BUMP_VERSION }, select: SELECT,
+        })
+        await recordPrice(tx, workspaceId, actorId, {
+          targetType: 'ITEM', targetId: existing.id, field: 'listPrice', amountMinor: unitPriceMinor, sourceKind: 'QUOTE',
+        })
+        return { ...(filled as ProductRow), existed: true }
+      }
+      return { ...(existing as ProductRow), existed: true }
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const made = await (tx as any).crmProduct.create({
@@ -117,6 +140,9 @@ export async function createProduct(
         descriptionMd: input.descriptionMd?.trim() || null,
       },
       select: SELECT,
+    })
+    await recordPrice(tx, workspaceId, actorId, {
+      targetType: 'ITEM', targetId: made.id, field: 'listPrice', amountMinor: unitPriceMinor, sourceKind: 'QUOTE',
     })
 
     await writeAudit(tx, {
@@ -164,6 +190,8 @@ export interface UpdateProductInput {
   unit?: string | null
   descriptionMd?: string | null
   isActive?: boolean
+  /** 보낸 사람이 본 버전. 있으면 잠금을 건다 — 두 사람이 같이 고치면 뒤 사람이 거절된다 */
+  version?: number
 }
 
 /**
@@ -189,8 +217,13 @@ export async function updateProduct(
     if (!before) throw new CrmError('NOT_FOUND', '품목을 찾을 수 없습니다.')
 
     const data: Record<string, unknown> = {}
-    if (input.name !== undefined) {
-      const name = requireText(input.name)
+    /*
+      되살릴 때도 이름 중복을 본다. 예전에는 이름을 안 보낸 PATCH(다시 판매)가 검사를 건너뛰어
+      같은 이름의 품목 둘이 함께 팔리게 됐다.
+    */
+    const checkName = input.name !== undefined || (input.isActive === true && before.isActive === false)
+    if (checkName) {
+      const name = requireText(input.name ?? before.name)
       if (!name) throw new CrmError('VALIDATION_FAILED', '품목 이름을 입력해 주세요.', { field: 'name' })
       // 같은 이름이 두 벌이면 견적마다 다른 것을 고르게 된다 — 만들 때와 같은 규칙이다
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -216,7 +249,18 @@ export async function updateProduct(
     if (Object.keys(data).length === 0) return before as ProductRow
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const after = await (tx as any).crmProduct.update({ where: { id }, data, select: SELECT })
+    const res = await (tx as any).crmProduct.updateMany({
+      where: input.version === undefined ? { id } : lockWhere(id, input.version),
+      data: { ...data, ...BUMP_VERSION },
+    })
+    assertUpdated(res.count, { exists: true, version: before.version }, '품목')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const after = await (tx as any).crmProduct.findFirst({ where: { id }, select: SELECT })
+    if (data.unitPriceMinor !== undefined && BigInt(before.unitPriceMinor) !== BigInt(String(data.unitPriceMinor))) {
+      await recordPrice(tx, workspaceId, actorId, {
+        targetType: 'ITEM', targetId: id, field: 'listPrice', amountMinor: BigInt(String(data.unitPriceMinor)), sourceKind: 'HAND',
+      })
+    }
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: 'product.updated',
       targetType: 'product', targetId: id,
