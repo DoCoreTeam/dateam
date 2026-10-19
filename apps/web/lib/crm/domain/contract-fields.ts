@@ -49,6 +49,8 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
   { key: 'quote.supply', label: CONTRACT_FIELD_LABEL['quote.supply'], source: 'quote', kind: 'money', auto: true },
   { key: 'quote.tax', label: CONTRACT_FIELD_LABEL['quote.tax'], source: 'quote', kind: 'money', auto: true },
   { key: 'quote.total', label: CONTRACT_FIELD_LABEL['quote.total'], source: 'quote', kind: 'money', auto: true },
+  // 매년 금액(가격 기준) — 합계와 따로 선다. 유지보수 계약 조항이 이 값을 부른다
+  { key: 'quote.annual', label: CONTRACT_FIELD_LABEL['quote.annual'], source: 'quote', kind: 'money', auto: true },
   { key: 'quote.totalInWords', label: CONTRACT_FIELD_LABEL['quote.totalInWords'], source: 'quote', kind: 'text', auto: true },
   { key: 'quote.start', label: CONTRACT_FIELD_LABEL['quote.start'], source: 'quote', kind: 'date', auto: true },
   { key: 'quote.end', label: CONTRACT_FIELD_LABEL['quote.end'], source: 'quote', kind: 'date', auto: true },
@@ -136,6 +138,7 @@ export function autoValuesFrom(doc: QuoteDocument, contractNo: string): Record<s
     'quote.supply': money(doc.totals.netTotalMinor, cur),
     'quote.tax': money(doc.totals.taxMinor, cur),
     'quote.total': money(doc.totals.totalMinor, cur),
+    'quote.annual': doc.totals.annualMinor === '0' ? '' : money(doc.totals.annualMinor, cur),
     'quote.totalInWords': doc.totals.totalInWords,
     'quote.start': range.start,
     'quote.end': range.end,
@@ -181,10 +184,16 @@ function renderLinesTable(doc: QuoteDocument): string {
   const cur = doc.meta.currency
   const rows = doc.lines.map((l) => {
     const qty = l.duration ? `${l.quantity} × ${l.duration.value}` : l.quantity
-    return `<tr><td>${l.no}</td><td>${escapeHtml(l.name)}</td><td>${escapeHtml(qty)}${l.unit ? ` ${escapeHtml(l.unit)}` : ''}</td>`
-      + `<td>${escapeHtml(money(l.unitPriceMinor, cur))}</td><td>${escapeHtml(money(l.amountMinor, cur))}</td></tr>`
+    // 매년 줄과 「실사 후 견적(별도)」는 견적서 화면 엑셀과 같은 표시를 단다
+    const name = l.billing === 'ANNUAL' ? `${l.name} (${QUOTE.annualMark})` : l.name
+    const amount = l.amountLabel ?? money(l.amountMinor, cur)
+    return `<tr><td>${l.no}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(qty)}${l.unit ? ` ${escapeHtml(l.unit)}` : ''}</td>`
+      + `<td>${escapeHtml(money(l.unitPriceMinor, cur))}</td><td>${escapeHtml(amount)}</td></tr>`
   }).join('')
-  const total = `<tr><td colspan="4">${QUOTE.total}</td><td>${escapeHtml(money(doc.totals.totalMinor, cur))}</td></tr>`
+  const annual = doc.totals.annualMinor !== '0'
+    ? `<tr><td colspan="4">${QUOTE.annualTotal}</td><td>${escapeHtml(money(doc.totals.annualMinor, cur))}</td></tr>`
+    : ''
+  const total = `<tr><td colspan="4">${QUOTE.total}</td><td>${escapeHtml(money(doc.totals.totalMinor, cur))}</td></tr>${annual}`
   const head = [QUOTE.lineNo, QUOTE.lineName, QUOTE.lineQuantity, QUOTE.lineUnitPrice, QUOTE.lineAmount]
     .map((h) => `<th>${h}</th>`).join('')
   return `<table><thead><tr>${head}</tr></thead><tbody>${rows}${total}</tbody></table>`

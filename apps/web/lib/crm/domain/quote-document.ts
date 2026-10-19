@@ -193,6 +193,13 @@ export interface DocumentLine {
    */
   remark: string | null
   /**
+   * 청구 — 1회 또는 매년(가격 기준, 마이그 310). 매년 줄은 표에 서지만 합계에는 안 들어간다
+   * (유지보수를 합계에 더하면 초기 금액이 부풀어 보인다). 화면 엑셀 계약서가 같은 표시를 단다.
+   */
+  billing: 'ONCE' | 'ANNUAL'
+  /** 금액 칸에 숫자 대신 설 말 — 「실사 후 견적(별도)」. 보통은 null */
+  amountLabel: string | null
+  /**
    * 금액 축 — **선택한 것만** 채워진다. null 이면 지금까지와 같은 한 줄짜리 금액 칸이다.
    *
    * 같은 금액을 시간당·월·기간 총액 세 가지로 말할 수 있고, 고객이 어느 쪽으로 물을지는
@@ -267,6 +274,10 @@ export interface DocumentTotals {
   fxDate: string
   taxMinor: string
   totalMinor: string
+  /** 매년 금액(공급가액). '0' 이면 줄을 안 그린다. 합계(totalMinor)는 1회분이다 */
+  annualMinor: string
+  /** 묶음 절사 합 — 할인 줄에 합쳐 인쇄한다(공급가액 − 할인 + 부가세 = 계 가 눈으로 따라지게) */
+  sectionRoundingMinor: string
   /** 「금 일억이천만원정」. 원 단위가 아니면 빈 문자열 */
   totalInWords: string
 }
@@ -359,6 +370,9 @@ export interface BuildQuoteDocumentInput {
     printComponents?: 'expand' | 'collapse' | null
     /** 절사로 깎인 금액 — 저장된 값(서버가 계산한다) */
     roundingMinor?: bigint | string | null
+    /** 매년 금액과 묶음 절사 합(마이그 310). 지난 견적은 0 */
+    annualMinor?: bigint | string | null
+    sectionRoundingMinor?: bigint | string | null
   }
   lines: readonly {
     name: string
@@ -382,6 +396,11 @@ export interface BuildQuoteDocumentInput {
     /** 공급 기간 — 여기서 개월과 총 시간을 센다 */
     startDate?: Date | string | null
     endDate?: Date | string | null
+    /** 가격 기준(마이그 310) — 청구, 출처, 그날 정상가. 실사 후 견적 줄을 가르는 데 쓴다 */
+    billing?: string | null
+    priceSource?: string | null
+    listPriceMinor?: bigint | string | null
+    ratioPct?: string | number | null
   }[]
   /** 묶음. 없으면 견적서는 한 표로 그려진다 */
   sections?: readonly {
@@ -756,6 +775,11 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       ...discountOf({ ...l, hoursPerMonth }),
       amountMinor: s(l.lineTotalMinor),
       remark: text(l.remark) || null,
+      billing: l.billing === 'ANNUAL' ? 'ANNUAL' as const : 'ONCE' as const,
+      // 가격 기준에서 왔는데 금액이 없는 줄 — 0원으로 인쇄하면 「공짜」로 읽힌다
+      amountLabel: l.priceSource === 'LIST' && (l.listPriceMinor === null || l.listPriceMinor === undefined)
+        && (l.ratioPct === null || l.ratioPct === undefined) && BigInt(s(l.lineTotalMinor)) === BigInt(0)
+        && BigInt(s(l.unitPriceMinor)) === BigInt(0) ? QUOTE.surveySeparate : null,
       rate: lineRate(l, hoursPerMonth, axisKeys.length > 0 || noteKeys.length > 0),
     })),
     totals: {
@@ -766,7 +790,8 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
         이제 절사는 세금 뒤 **총액**에 걸리므로 할인과 아예 다른 축이다(quote-math).
         되빼면 오히려 할인이 절사액만큼 작아진다.
       */
-      discountMinor: s(input.quote.discountMinor),
+      // 묶음 절사는 할인 줄에 합친다 — 지난 견적은 0 이라 예전과 같다
+      discountMinor: s(BigInt(s(input.quote.discountMinor)) + BigInt(s(input.quote.sectionRoundingMinor ?? 0))),
       /*
         저장하지 않고 **여기서 만든다** — 파생값을 저장하면 두 값이 어긋날 수 있고,
         어긋나면 어느 쪽이 진짜인지 아무도 모른다.
@@ -774,8 +799,11 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       netTotalMinor: s(
         BigInt(s(input.quote.subtotalMinor))
         - BigInt(s(input.quote.discountMinor))
+        - BigInt(s(input.quote.sectionRoundingMinor ?? 0))
         + BigInt(s(input.quote.taxMinor)),
       ),
+      annualMinor: s(input.quote.annualMinor ?? 0),
+      sectionRoundingMinor: s(input.quote.sectionRoundingMinor ?? 0),
       roundingMinor: s(input.quote.roundingMinor ?? 0),
       ...fxOf(input.quote, currency),
       taxMinor: s(input.quote.taxMinor),
@@ -810,7 +838,10 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
  *   ② «소계 − 할인 + 세액» 과 저장된 총액이 다르다 → 고객이 받는 청구액이 틀린다
  */
 export function verifyDocument(doc: QuoteDocument): Violation[] {
-  const lineSum = doc.lines.reduce((a, l) => a + BigInt(l.amountMinor), BigInt(0))
+  // 매년 줄은 합계에 안 들어간다 — 1회 줄만 더한다(지난 견적은 전부 1회라 예전과 같다)
+  const lineSum = doc.lines.filter((l) => l.billing !== 'ANNUAL').reduce((a, l) => a + BigInt(l.amountMinor), BigInt(0))
+  // 할인 줄에 묶음 절사가 합쳐져 있다 — 줄 합과 견줄 때는 되더한다
+  const sectionRounding = BigInt(doc.totals.sectionRoundingMinor ?? '0')
 
   // 저장된 소계는 **할인 전** 금액이다(quote-math.computeTotals).
   // 항목의 amountMinor 는 **할인 후**이므로 비교 대상은 «소계 − 할인» 이다.
@@ -828,7 +859,7 @@ export function verifyDocument(doc: QuoteDocument): Violation[] {
   const proposed = net - discount
 
   return [
-    ...checkI2([{ id: '항목', subtotalMinor: lineSum }], proposed),
+    ...checkI2([{ id: '항목', subtotalMinor: lineSum }], proposed + sectionRounding),
     ...checkI5({
       netMinor: net, proposedNetMinor: proposed, taxMinor: tax,
       grossMinor: gross, roundingMinor: rounding,

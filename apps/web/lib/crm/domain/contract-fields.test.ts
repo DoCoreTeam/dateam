@@ -108,8 +108,10 @@ const COVERED: Record<string, string> = {
   'meta.quoteNo': 'quote.no', 'meta.title': 'quote.title', 'meta.issuedOn': 'quote.issuedOn',
   'totals.netTotalMinor': 'quote.supply', 'totals.taxMinor': 'quote.tax', 'totals.totalMinor': 'quote.total',
   'totals.totalInWords': 'quote.totalInWords', 'lines': 'quote.lines', 'terms': 'quote.terms',
+  'totals.annualMinor': 'quote.annual',
 }
 const EXEMPT: Record<string, string> = {
+  'totals.sectionRoundingMinor': '묶음 절사 합은 할인 줄에 합쳐 인쇄되고 계약서는 합계와 공급가액을 쓴다',
   'supplier.bizType': '업태는 사업자등록 서식의 칸이고 계약서 당사자 표시에 안 쓴다',
   'supplier.bizItem': '종목은 사업자등록 서식의 칸이고 계약서 당사자 표시에 안 쓴다',
   'supplier.terms': '설정의 옛 기본 조건 한 덩어리다. 계약서는 견적이 고른 조건(terms)을 쓴다',

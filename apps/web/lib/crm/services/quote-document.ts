@@ -185,6 +185,9 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       lineNoteKeys: quote.lineNoteKeys,
       totalConvKeys: quote.totalConvKeys,
       rateHoursPerMonth: quote.rateHoursPerMonth,
+      // 가격 기준 — 매년 금액은 합계 아래 따로, 묶음 절사는 할인 줄에(지난 견적은 둘 다 0)
+      annualMinor: (quote as unknown as { annualMinor?: bigint }).annualMinor ?? null,
+      sectionRoundingMinor: (quote as unknown as { sectionRoundingMinor?: bigint }).sectionRoundingMinor ?? null,
     },
     // 항목은 **필요한 것만** 옮긴다. 통째로 넘기면 나중에 원가 칼럼이 생겼을 때
     // 아무도 모르게 문서로 흘러 들어간다
@@ -213,6 +216,11 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       */
       durationValue: l.durationValue,
       durationUnit: l.durationUnit,
+      // 청구와 출처 — 매년 줄 표시와 「실사 후 견적(별도)」를 가른다. 원가와 자동으로 채운 값은 안 넘긴다
+      billing: l.billing ?? null,
+      priceSource: l.priceSource ?? null,
+      listPriceMinor: l.listPriceMinor ?? null,
+      ratioPct: (l as unknown as { ratioPct?: unknown }).ratioPct === null || (l as unknown as { ratioPct?: unknown }).ratioPct === undefined ? null : String((l as unknown as { ratioPct: unknown }).ratioPct),
       priceBasis: LINE_KIND_PRICE_BASIS[(l.kind ?? 'QUANTITY') as QuoteLineKind],
     })),
     sections: (quote.sections ?? []).map((sec) => ({

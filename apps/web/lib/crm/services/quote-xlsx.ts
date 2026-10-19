@@ -202,6 +202,13 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     머리글 글자는 지운다 — 숨긴 칸에 「할인」이 남아 있으면 되살린 사람이 빈 열을 본다.
   */
   const showDiscount = hasDiscount(doc)
+  /**
+   * 값으로만 쓸 문서인가 — 매년 줄, 묶음 절사, 「실사 후 견적(별도)」 줄이 있으면.
+   * 이런 견적은 줄 금액이 「수량 × 단가 × 할인」 한 식으로 안 떨어진다(비율 줄, 묶음 절사).
+   * 수식으로 두면 받은 파일만 금액이 틀린다 — 화면과 종이와 같은 값을 박는다. 지난 견적은 전부 수식 그대로다
+   */
+  const valueOnly = doc.lines.some((l) => l.billing === 'ANNUAL' || l.amountLabel !== null)
+    || doc.totals.sectionRoundingMinor !== '0'
   /** 비고 열은 쓰는 견적에만 — 화면과 같은 규칙이다 */
   const showRemark = hasRemark(doc)
   /** 공급자 값이 실제로 차지하는 폭. 할인 열을 숨기면 F 가 사라져 G 폭만 남는다 */
@@ -606,7 +613,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       ...(note ? [note] : []),
       ...axes.map((a) => `${a.label} ${a.body}`),
     ]
-    const name = underName.length > 0 ? `${line.name}\n${underName.join('\n')}` : line.name
+    const shown = line.billing === 'ANNUAL' ? `${line.name} (${QUOTE.annualMark})` : line.name
+    const name = underName.length > 0 ? `${shown}\n${underName.join('\n')}` : shown
     const values: (string | number | { formula: string })[] = [
       line.no,
       name,
@@ -631,7 +639,12 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
         엑셀만 틀린 것이 가장 나쁘다(어느 쪽이 맞는지 받는 사람이 판정할 수 없다).
         적은 수가 아니라 **실제로 걸린 배수**를 쓴다 — 시간당 단가에 「2개월」은 1,460 이다.
       */
-      { formula: `ROUND(D${r}*E${r}${line.duration ? `*${line.duration.factor}` : ''}*${discountFactor(line.discountPercent)},0)` },
+      // 가격 기준 견적(매년 줄, 묶음 절사, 별도 줄)은 값으로 둔다 — 비율 줄과 매년 줄은 수량 × 단가 수식으로 못 센다
+      line.amountLabel
+        ? line.amountLabel
+        : valueOnly
+          ? Number(line.amountMinor)
+          : { formula: `ROUND(D${r}*E${r}${line.duration ? `*${line.duration.factor}` : ''}*${discountFactor(line.discountPercent)},0)` },
       // ↑ 배율은 **실효 할인율**로 낸다 — 기본과 특별이 겹친 결과가 이미 그 값이다
       // 비고 — 그 줄이 이 견적에서 무슨 구실인가(「서버 새시」「64코어」「Raid5」)
       line.remark ?? '',
@@ -689,7 +702,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     할인은 항목별 비율이라 한 줄로 못 쓰고, 부가세는 세율 구분(과세·영세·면세)이
     항목마다 다를 수 있어 표에 없는 정보가 필요하다. 지어낸 수식보다 **맞는 값**이 낫다.
   */
-  const has = lineRows.length > 0
+  // 가격 기준 견적은 합계도 값이다 — 수식이 매년 줄까지 더하면 합계가 부푼다
+  const has = lineRows.length > 0 && !valueOnly
   /** 연속한 행끼리 묶어 `A2:A4` 꼴로 — 셀을 하나씩 나열하면 수식이 금세 길어진다 */
   const spans = (col: string): string[] => {
     const out: string[] = []
@@ -790,6 +804,10 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
       (m) => moneyText(m, cur))
       .map((c) => asText([`${c.label}\n${c.basis.join(' · ')}`, c.amount, false, null])),
     [QUOTE.total, doc.totals.totalMinor, true, grandF],
+    // 매년 금액은 합계 아래 따로 — 합계에 안 들어간다는 것을 이름이 말한다
+    ...(doc.totals.annualMinor !== '0'
+      ? [[QUOTE.annualTotal, doc.totals.annualMinor, false, null]] as [string, string, boolean, string | null][]
+      : []),
   ]
   for (const row of totals) {
     const [label, value, grand, formula] = row

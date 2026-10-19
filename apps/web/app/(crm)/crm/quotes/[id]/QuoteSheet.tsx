@@ -151,7 +151,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                       금액을 가운데로 두면 자릿수가 세로로 안 맞아 크기를 눈으로 비교할 수 없다.
                     */}
                     <td>
-                      <div className={styles.lineName}>{l.name}</div>
+                      <div className={styles.lineName}>{l.name}{l.billing === 'ANNUAL' && ` (${QUOTE.annualMark})`}</div>
                       {l.spec && <div className={styles.spec}>{l.spec}</div>}
                       {/*
                         **구성은 화면에 늘 나온다.** 종이에 낼지만 설정이 정한다 —
@@ -242,7 +242,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                           </span>
                           <span className={styles.nowAmount}>{money(l.amountMinor)}</span>
                         </span>
-                      ) : money(l.amountMinor)}
+                      ) : l.amountLabel ?? money(l.amountMinor)}
                       {axisOf(l).length > 0 && (
                         <div className={styles.axes}>
                           {axisOf(l).map((x) => (
@@ -593,6 +593,15 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                 <td className={styles.num}>{money(doc.totals.totalMinor)}</td>
                 {tailCell}
               </tr>
+              {/* 매년 금액은 합계 아래 따로 — 합계에 안 들어간다는 것을 이름이 말한다(엑셀 계약서와 같은 줄) */}
+              {doc.totals.annualMinor !== '0' && (
+                <tr>
+                  <td colSpan={padSpan} />
+                  <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.annualTotal}</td>
+                  <td className={styles.num}>{money(doc.totals.annualMinor)}</td>
+                  {tailCell}
+                </tr>
+              )}
               {/* 한글 금액은 위조 방지가 목적이라 총액 바로 아래 붙는다 */}
               {doc.totals.totalInWords && (
                 <tr className={styles.inWords}>

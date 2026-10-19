@@ -64,6 +64,7 @@ export const CONTRACT_FIELD_LABEL: Record<string, string> = {
   'quote.supply': '견적.공급가액',
   'quote.tax': '견적.부가세',
   'quote.total': '견적.합계',
+  'quote.annual': '견적.연유지보수',
   'quote.totalInWords': '견적.합계 한글',
   'quote.start': '견적.공급 시작일',
   'quote.end': '견적.공급 끝일',
