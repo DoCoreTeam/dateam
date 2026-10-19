@@ -13,6 +13,7 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { ACTION, ENTITY, createLabel, progress } from '@/lib/terms'
 import { QUOTE } from '@/lib/terms/quote'
 import styles from './product-edit.module.css'
+import ItemPriceHistory from './ItemPriceHistory'
 
 export interface ProductDraft {
   id: string | null
@@ -140,6 +141,8 @@ export default function ProductEditModal({ draft, onClose, onSaved }: Props) {
             placeholder="사내 관리 번호가 있으면"
           />
         </div>
+
+        {editing && draft.id && <ItemPriceHistory itemId={draft.id} />}
 
         {editing && (
           <p className={styles.note}>

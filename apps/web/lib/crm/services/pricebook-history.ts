@@ -73,3 +73,19 @@ export function valueAt(rows: readonly Pick<PriceHistoryRow, 'field' | 'amountMi
     .sort((a, b) => (b.effectiveFrom.getTime() - a.effectiveFrom.getTime()) || (b.createdAt.getTime() - a.createdAt.getTime()))
   return hits[0]?.amountMinor ?? null
 }
+
+/** 제품 하나의 품목 전부의 흐름 — 상세의 「변경 이력」 탭. 품목 이름을 붙여 돌려준다 */
+export async function listProductHistory(db: CrmDb, productId: string): Promise<(PriceHistoryRow & { itemName: string })[]> {
+  const items: { id: string; name: string }[] = await (db as Tx).crmProduct.findMany({
+    where: { priceProductId: productId }, select: { id: true, name: true },
+  })
+  if (items.length === 0) return []
+  const nameOf = new Map(items.map((i) => [i.id, i.name]))
+  const rows = await (db as Tx).crmPriceHistory.findMany({
+    where: { targetType: 'ITEM', targetId: { in: items.map((i) => i.id) } },
+    select: { id: true, targetId: true, field: true, amountMinor: true, effectiveFrom: true, sourceKind: true, sourceName: true, actorId: true, createdAt: true },
+    orderBy: [{ createdAt: 'desc' }],
+    take: 300,
+  })
+  return rows.map((r: PriceHistoryRow & { targetId: string }) => ({ ...r, itemName: nameOf.get(r.targetId) ?? '' }))
+}

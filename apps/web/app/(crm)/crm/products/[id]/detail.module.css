@@ -1,0 +1,30 @@
+.wrap { display: grid; gap: var(--space-4); }
+.head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.title { margin: 0; font-size: var(--fs-xl); }
+.form { display: grid; gap: var(--space-3); max-width: 720px; }
+.field { display: grid; gap: var(--space-1); min-width: 0; }
+.row { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+@media (min-width: 640px) { .row { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: flex-end; } }
+.foot { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.actions { display: flex; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; }
+.faint { color: var(--text-faint); }
+.small { color: var(--text-faint); font-size: var(--fs-xs); }
+.alert { color: var(--danger); margin: 0; }
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.table th, .table td { padding: var(--space-2); border-bottom: 1px solid var(--border-subtle); text-align: left; vertical-align: top; }
+.table td.num, .table th.num { text-align: right; white-space: nowrap; }
+.sectionRow td { background: var(--surface-muted); font-weight: 600; }
+.review td { background: var(--warning-bg); }
+.ruleList { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.ruleItem {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius);
+}
+.ruleOff { opacity: 0.7; border-style: dashed; }
+.totals { display: grid; gap: var(--space-1); max-width: 420px; margin-left: auto; }
+.totalLine { display: flex; justify-content: space-between; gap: var(--space-3); }
+.verdictOk { color: var(--success); }
+.verdictBad { color: var(--danger); }
+.gpuRow { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto auto; gap: var(--space-2); align-items: center; }
+.checks { display: flex; flex-wrap: wrap; gap: var(--space-3); }
