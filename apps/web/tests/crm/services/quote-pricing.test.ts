@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { loadEnv } from '../integrity/_helpers.ts'
 import { getCrmDb } from '../../../lib/crm/db/client.ts'
-import { createQuote, updateQuote, getQuote, duplicateQuote } from '../../../lib/crm/services/quote.ts'
+import { createQuote, updateQuote, getQuote, duplicateQuote, deleteQuote } from '../../../lib/crm/services/quote.ts'
 import { buildSolutionQuote } from '../../../lib/crm/domain/pricebook/solution-engine.ts'
 import { GCUBE_EDGE } from '../../../lib/crm/domain/pricebook/gcube-edge.ts'
 import { computeTotals } from '../../../lib/crm/domain/quote-math.ts'
@@ -65,6 +65,25 @@ test('★ 제품으로 채운 견적을 저장하면 1회 84,000,000(+부가세)
   assert.equal(maint.billing, 'ANNUAL')
   assert.equal(full.approvalRequired, false)
   assert.equal(full.lines!.find((l) => l.name === 'STD 기본 금액')!.priceSource, 'LIST')
+  // ★ 딜의 견적 금액 = 대표 견적의 1회분 공급가액. 매년분과 부가세는 안 섞인다(I8)
+  const deal = await raw.crmDeal.findFirst({ where: { id: MADE.deal }, select: { quotedNetMinor: true } })
+  assert.equal(String(deal.quotedNetMinor), '84000000')
+  const hist = await raw.crmDealAmountHistory.findFirst({ where: { dealId: MADE.deal, field: 'quoted' }, orderBy: { changedAt: 'desc' }, select: { toMinor: true, sourceQuoteId: true } })
+  assert.equal(String(hist.toMinor), '84000000')
+  assert.equal(hist.sourceQuoteId, q.id)
+})
+
+test('견적을 지우면 딜의 견적 금액이 다음 대표 견적으로, 없으면 비운다', async () => {
+  const d = await raw.crmDeal.create({ data: { workspaceId: WS, companyId: MADE.company, pipelineId: MADE.pipeline, stageId: (await raw.crmStage.findFirst({ where: { pipelineId: MADE.pipeline }, select: { id: true } })).id, name: `빈 딜 ${RUN}` }, select: { id: true } })
+  try {
+    const q = await createQuote(WS, null, { dealId: d.id, title: `one ${RUN}`, lines: [{ name: 'A', quantity: 1, unitPriceMinor: '1000000', taxRate: 10 }] })
+    MADE.quotes.push(q.id)
+    assert.equal(String((await raw.crmDeal.findFirst({ where: { id: d.id }, select: { quotedNetMinor: true } })).quotedNetMinor), '1000000')
+    await deleteQuote(WS, null, q.id, 'trash')
+    assert.equal((await raw.crmDeal.findFirst({ where: { id: d.id }, select: { quotedNetMinor: true } })).quotedNetMinor, null)
+  } finally {
+    await raw.crmDeal.deleteMany({ where: { id: d.id } })
+  }
 })
 
 test('★ 정상가보다 단가를 깎아 저장하면 정상가 대비로 승인이 걸린다', async () => {

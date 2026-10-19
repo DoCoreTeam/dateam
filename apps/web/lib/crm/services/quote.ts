@@ -41,6 +41,7 @@ import {
 } from '../domain/quote-math.ts'
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
 import { priceQuote } from './quote-pricing.ts'
+import { syncDealQuoted } from './deal-quoted.ts'
 import {
   LINE_PRICING_KEYS, QUOTE_PRICING_KEYS, linePricingData, quotePricingData, sectionPricingData,
   type LinePricingInput, type QuotePricingInput,
@@ -1089,6 +1090,8 @@ export async function createQuote(
       await (tx as any).crmQuoteLine.create({ data: { ...l, quoteId: created.id } })
     }
     await recalcSectionSubtotals(tx, created.id)
+    // 딜의 견적 금액은 대표 견적의 1회분이다(I8) — 만들고 고치고 지울 때마다 맞춘다
+    await syncDealQuoted(tx, input.dealId, actorId)
 
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: 'quote.created',
@@ -1419,6 +1422,7 @@ export async function updateQuote(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const after = await (tx as any).crmQuote.findFirst({ where: { id }, select: SELECT })
+    await syncDealQuoted(tx, before.dealId, actorId)
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: 'quote.updated', targetType: 'quote', targetId: id,
       beforeJson: serialize(before), afterJson: serialize(after),
@@ -1793,6 +1797,7 @@ export async function duplicateQuote(
       })
     }
     await recalcSectionSubtotals(tx, made.id)
+    await syncDealQuoted(tx, src.dealId, actorId)
 
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId,
@@ -1921,6 +1926,7 @@ export async function transitQuote(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const after = await (tx as any).crmQuote.findFirst({ where: { id }, select: SELECT })
+    await syncDealQuoted(tx, before.dealId, actorId)
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: `quote.${input.to.toLowerCase()}`,
       targetType: 'quote', targetId: id,
@@ -1961,6 +1967,7 @@ export async function deleteQuote(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (tx as any).crmQuote.deleteMany({ where: { id } })
     }
+    await syncDealQuoted(tx, before.dealId, actorId)
 
     await writeAudit(tx, {
       // 삭제는 도메인이 아니라 공통 action 으로 남는다 — 대상 종류는 targetType 이 말한다
@@ -1985,6 +1992,7 @@ export async function restoreQuote(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const after = await (tx as any).crmQuote.findFirst({ where: { id }, select: SELECT })
+    await syncDealQuoted(tx, after.dealId, actorId)
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: 'quote.restored',
       targetType: 'quote', targetId: id, afterJson: serialize(after),
