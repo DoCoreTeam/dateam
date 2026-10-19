@@ -100,6 +100,8 @@ export const SOFT_DELETE_MODELS: ReadonlySet<string> = new Set([
   'CrmAttachment',
   // 계약서·템플릿도 휴지통을 갖는다. 버전 표는 지우지 않는 표라 여기 없다 (마이그 308 트리거)
   'CrmContract', 'CrmContractTemplate',
+  // 제품도 휴지통을 갖는다. 규칙은 제품을 따라가고 가격 이력은 지우지 않는 표다 (마이그 310 트리거)
+  'CrmPriceProduct',
 ])
 
 /**

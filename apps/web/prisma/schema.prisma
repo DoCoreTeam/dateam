@@ -246,6 +246,7 @@ model CrmWorkspace {
   suggestions CrmAiSuggestion[]
   budgets     CrmAiBudget[]
   products    CrmProduct[]
+  priceProducts CrmPriceProduct[]
   quotes      CrmQuote[]
   quoteSections CrmQuoteSection[]
   contractTemplates CrmContractTemplate[]
@@ -855,11 +856,108 @@ model CrmProduct {
   updatedAt      DateTime @updatedAt
   deletedAt      DateTime?
 
-  workspace CrmWorkspace    @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  lines     CrmQuoteLine[]
+  /// ── 가격 기준 (마이그 310) ──────────────────────────────────
+  /// 어느 제품의 품목인가. 비면 제품에 안 묶인 품목
+  priceProductId String?
+  /// 묶음 이름 — 라이선스, 구축비, 유지보수
+  section        String?
+  /// FIXED(1식) · PER_UNIT(단위당) · RATIO(비율) · SURVEY(실사 후 견적)
+  basis          String   @default("FIXED")
+  /// ONCE(1회) · ANNUAL(매년)
+  billing        String   @default("ONCE")
+  ratioPct       Decimal? @db.Decimal(7, 4)
+  ratioOfSection String?
+  /// 할인 규칙이 걸리는가. 구축비와 크레딧은 아니다
+  discountable   Boolean  @default(true)
+  /// 다른 이름 — 「에이치백」을 사람이 받아들이면 여기 남아 다음부터 규칙이 읽는다
+  aliases        String[] @default([])
+  spec           String?
+  remark         String?
+  /// 파일로 읽어 검증에 걸린 가격. 자동 채움 기준으로 안 쓴다
+  needsReview    Boolean  @default(false)
+  /// 견적에서 처음 쓴 항목이 자동으로 품목이 된 것
+  autoRegistered Boolean  @default(false)
+  position       Int      @default(0)
+
+  workspace    CrmWorkspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  priceProduct CrmPriceProduct? @relation(fields: [priceProductId], references: [id], onDelete: SetNull)
+  lines        CrmQuoteLine[]
 
   @@index([workspaceId, isActive, name])
+  @@index([priceProductId, position])
   @@map("crm_product")
+}
+
+/// 제품 — 품목을 모은 단위(gcube edge). 규칙과 계산 예시가 여기 붙는다(마이그 310)
+model CrmPriceProduct {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  name               String
+  businessTypeKey    String    @default("SOLUTION")
+  descriptionMd      String?
+  /// [{name, roundingUnit}] — 묶음 순서와 묶음 절사
+  sections           Json      @default("[]")
+  tcoYears           Int       @default(5)
+  freeYears          Int       @default(1)
+  /// 가격표의 계산 예시 — 미리 계산이 이 금액을 내야 한다
+  examples           Json      @default("[]")
+  isActive           Boolean   @default(true)
+  needsReview        Boolean   @default(false)
+  sourceAttachmentId String?
+  sourceFileName     String?
+  version            Int       @default(0)
+  createdById        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  workspace CrmWorkspace   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  items     CrmProduct[]
+  rules     CrmPriceRule[]
+
+  @@index([workspaceId, isActive, name])
+  @@map("crm_price_product")
+}
+
+/// 규칙 — 일곱 종류로 닫는다(마이그 310 CHECK). 할인도 규칙의 한 종류
+model CrmPriceRule {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  productId      String
+  position       Int      @default(0)
+  kind           String
+  body           Json     @default("{}")
+  isEnabled      Boolean  @default(true)
+  disabledReason String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  product CrmPriceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, position])
+  @@map("crm_price_rule")
+}
+
+/// 가격 이력 — 더해지기만 한다. 고치기 지우기는 트리거가 막는다(마이그 310)
+model CrmPriceHistory {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  /// ITEM · LABOR_GRADE
+  targetType    String
+  targetId      String
+  /// listPrice · pricePerMm · costPerMm · publicRate · confirmed
+  field         String
+  amountMinor   BigInt?
+  currency      String   @default("KRW") @db.Char(3)
+  effectiveFrom DateTime @default(now()) @db.Date
+  /// HAND · FILE · SEED · QUOTE
+  sourceKind    String   @default("HAND")
+  sourceName    String?
+  actorId       String?
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId, targetType, targetId, effectiveFrom(sort: Desc), createdAt(sort: Desc)], map: "crm_price_history_target_idx")
+  @@map("crm_price_history")
 }
 
 model CrmQuote {
@@ -933,6 +1031,20 @@ model CrmQuote {
   approvedAt       DateTime?
 
   notesMd     String?
+
+  /// ── 가격 기준 (마이그 310) ──────────────────────────────────
+  /// 예산 — 맞추기는 단가가 아니라 할인 칸으로 맞춘다
+  budgetMinor          BigInt?
+  budgetIncludesTax    Boolean   @default(false)
+  /// 기준 날짜 — 1년 뒤에 열어도 가격 이력에서 그날 값을 읽는다
+  priceBasisDate       DateTime? @db.Date
+  /// 자동으로 채운 값 [{field, value, provenance}] — 견적서에는 안 실린다
+  autoFilled           Json      @default("[]")
+  /// 매년 금액(공급가액). totalMinor 는 1회분이다
+  annualMinor          BigInt    @default(0)
+  sectionRoundingMinor BigInt    @default(0)
+  /// 제품으로 채우기의 조건 — 「조건 고치기」가 다시 채운다
+  fillConditions       Json      @default("{}")
 
   /// ── 파일에서 온 견적 ────────────────────────────────────────
   /// **표시 전용이다. 어떤 게이트도 이 둘을 보지 않는다.**
@@ -1063,6 +1175,22 @@ model CrmQuoteLine {
   /// 비율 라인: 어느 라인의 몇 %인지
   ratioOfLineId   String?
   ratioPct        Decimal? @db.Decimal(7, 4)
+  /// 비율의 대상 묶음 이름(마이그 310). 줄보다 묶음이 먼저다
+  ratioOfSectionName String?
+
+  /// ── 가격 기준 (마이그 310) ──────────────────────────────────
+  /// **그날 정상가.** 승인과 기준 대조가 정상가 대비로 잰다
+  listPriceMinor  BigInt?
+  /// LIST · LABOR · GPU · COST_MARGIN · MANUAL. 비면 지난 견적(옛 계산 그대로)
+  priceSource     String?
+  /// 칸마다 어디서 왔나 {unitPrice:{source,note}, quantity:…, discount:…}
+  provenance      Json     @default("{}")
+  /// ONCE · ANNUAL. 비면 1회
+  billing         String?
+  /// 개정본과 다른 안: 앞 견적의 어느 항목에서 왔나
+  sourceLineId    String?
+  /// 사람이 고친 칸 — 다시 채우기가 덮지 않는다
+  lockedFields    String[] @default([])
 
   /// 비고 — 견적서 표 맨 오른쪽 열. 「서버 새시」「64코어」「Raid5」처럼 그 줄을 한마디로 짚는 말.
   /// 우리 양식에 원래 있던 열인데 담을 칸이 없어 읽어도 버려졌다(실측 2026-09-21).
@@ -1121,6 +1249,11 @@ model CrmQuoteSection {
   position    Int    @default(0)
   /// 서버가 계산해 저장한다(불변식 I1 이 이 값과 라인 합을 대조한다)
   subtotalMinor BigInt @default(0)
+  /// 묶음 절사 단위와 깎인 금액(마이그 310). 가격표의 「만원 미만 절사」
+  roundingUnit    Int     @default(0)
+  roundingMinor   BigInt  @default(0)
+  /// 이 묶음의 사업 유형 — 딜이 아니라 담긴 것이 정한다
+  businessTypeKey String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1322,6 +1455,10 @@ model CrmLaborGrade {
   costPerMmMinor  BigInt   @default(0)
   /// 고객에게 제시하는 단가. 없으면 원가에 마진을 얹는다
   pricePerMmMinor BigInt?
+  /// 공표 노임단가(마이그 310). 판매 단가가 없으면 이 값으로 채운다
+  publicRateMinor BigInt?
+  effectiveFrom   DateTime? @db.Date
+  version         Int      @default(0)
   currency        String   @default("KRW") @db.Char(3)
   position        Int      @default(0)
   isActive        Boolean  @default(true)
@@ -1424,6 +1561,8 @@ model CrmBusinessTypeOption {
   isBuiltin   Boolean @default(false)
   /// 새 딜에서 고를 수 있나. 꺼도 이미 그 유형인 딜은 그대로 보인다
   isActive    Boolean @default(true)
+  /// 원가와 마진율 기준의 기본 마진율(마이그 310). 비면 지난 견적들의 가운데 값
+  marginPct   Decimal? @db.Decimal(5, 2)
   createdById String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
