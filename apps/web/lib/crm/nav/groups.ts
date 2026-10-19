@@ -19,6 +19,7 @@
 
 import { ENTITY } from '../../terms/entity.ts'
 import { CONTRACT_DOC } from '../../terms/contract-doc.ts'
+import { PRICEBOOK } from '../../terms/pricebook.ts'
 
 export interface CrmGroupTab {
   href: string
@@ -62,7 +63,8 @@ export const CRM_NAV_GROUPS: readonly CrmNavGroup[] = [
       { href: '/crm/contracts', label: CONTRACT_DOC.list },
       // 품목은 견적의 **재료**다. 설정으로 내리면 견적 쓰다가 오타를 발견해도
       // 고치러 갈 길이 안 보인다 — 실제로 고칠 화면 자체가 없었다(사용자 지적)
-      { href: '/crm/products', label: '품목' },
+      // 가격 기준으로 넓어졌다 — 안에 제품 품목 인건비 등급 탭이 있다(P0135)
+      { href: '/crm/products', label: PRICEBOOK.title },
     ],
   },
   {

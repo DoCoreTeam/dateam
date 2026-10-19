@@ -16,8 +16,8 @@ import {
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const PAGE = join(WEB, 'app', '(crm)', 'crm', 'settings', 'page.tsx')
 
-test('카드 열여섯 장이 저마다 한 탭에 정확히 한 번씩 들어간다', () => {
-  assert.equal(CRM_SETTINGS_CARDS.length, 16, '카드 수가 달라졌다. 화면과 목록을 함께 고쳤나')
+test('카드 열일곱 장이 저마다 한 탭에 정확히 한 번씩 들어간다', () => {
+  assert.equal(CRM_SETTINGS_CARDS.length, 17, '카드 수가 달라졌다. 화면과 목록을 함께 고쳤나')
 
   const seen = new Map<string, number>()
   for (const c of CRM_SETTINGS_CARDS) seen.set(c.id, (seen.get(c.id) ?? 0) + 1)
@@ -48,7 +48,7 @@ test('화면이 그리는 카드 부품과 목록이 정확히 같다', () => {
   const imported = [...src.matchAll(/^import (\w+) from '\.\/(\w+)'$/gm)].map((m) => m[1])
   // 부품 하나가 카드 둘을 그릴 수 있다 — 세는 것은 부품 이름이다
   const listed = [...new Set(CRM_SETTINGS_CARDS.map((c) => c.component))]
-  assert.equal(listed.length, 13, '부품 수가 달라졌다. 화면과 목록을 함께 고쳤나')
+  assert.equal(listed.length, 14, '부품 수가 달라졌다. 화면과 목록을 함께 고쳤나')
 
   const onlyScreen = imported.filter((i) => !listed.includes(i))
   const onlyList = listed.filter((i) => !imported.includes(i))

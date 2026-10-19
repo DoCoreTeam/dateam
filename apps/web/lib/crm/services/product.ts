@@ -29,6 +29,11 @@ export interface ProductRow {
   descriptionMd: string | null
   isActive: boolean
   version: number
+  priceProductId?: string | null
+  section?: string | null
+  basis?: string
+  needsReview?: boolean
+  autoRegistered?: boolean
   /** 같은 이름이 이미 있어 그것을 돌려줬는가 — 친 단가가 다르면 부르는 쪽이 그 사실을 안다 */
   existed?: boolean
 }
@@ -36,6 +41,7 @@ export interface ProductRow {
 const SELECT = {
   id: true, name: true, sku: true, unitPriceMinor: true,
   currency: true, taxRate: true, unit: true, descriptionMd: true, isActive: true, version: true,
+  priceProductId: true, section: true, basis: true, needsReview: true, autoRegistered: true,
 } as const
 
 /**
@@ -51,12 +57,15 @@ export interface ListProductInput {
   q?: string | null
   /** 그만 파는 상품까지 볼 것인가 — 기본은 파는 것만 */
   includeInactive?: boolean
+  /** 견적에서 자동 등록되고 제품에 안 묶인 것만 — 「정리 전」 */
+  unsortedOnly?: boolean
 }
 
 export async function listProducts(db: CrmDb, input: ListProductInput = {}): Promise<ProductRow[]> {
   const q = normalizeText(input.q)
   const where: Record<string, unknown> = {}
   if (!input.includeInactive) where.isActive = true
+  if (input.unsortedOnly) { where.autoRegistered = true; where.priceProductId = null }
   if (q) {
     where.OR = [
       { name: { contains: q, mode: 'insensitive' } },

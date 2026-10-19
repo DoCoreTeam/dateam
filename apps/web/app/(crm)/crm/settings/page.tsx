@@ -5,6 +5,7 @@ import CrmGroupTabs from '@/components/crm/CrmGroupTabs'
 import BudgetCard from './BudgetCard'
 import SettingsCard from './SettingsCard'
 import QuoteTermsCard from './QuoteTermsCard'
+import PricebookCard from './PricebookCard'
 import ContractTemplatesCard from './ContractTemplatesCard'
 import PipelineCard from './PipelineCard'
 import BusinessTypeCard from './BusinessTypeCard'
@@ -64,6 +65,7 @@ export default async function CrmSettingsPage({
     BusinessTypeCard: <BusinessTypeCard />,
     'SettingsCard.quote': <SettingsCard group="quote" />,
     QuoteTermsCard: <QuoteTermsCard />,
+    PricebookCard: <PricebookCard />,
     'SettingsCard.quoteImport': <SettingsCard group="quoteImport" />,
     'SettingsCard.contract': <SettingsCard group="contract" />,
     ContractTemplatesCard: <ContractTemplatesCard />,

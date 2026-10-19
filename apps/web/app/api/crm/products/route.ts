@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     const rows = await listProducts(db, {
       q: sp.get('q'),
       includeInactive: sp.get('all') === '1',
+      unsortedOnly: sp.get('auto') === '1',
     })
     // BigInt 는 JSON 으로 못 나간다 — 여기서 문자열로 바꾸지 않으면 응답이 500 이 된다
     return { items: rows.map(toProductJson) }

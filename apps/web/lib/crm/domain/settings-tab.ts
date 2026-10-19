@@ -45,7 +45,7 @@ export interface CrmSettingsCardSpec {
 }
 
 /**
- * 카드 열여섯 장을 부품 열셋이 그린다 (`SettingsCard` 하나가 네 장을 그린다).
+ * 카드 열일곱 장을 부품 열넷이 그린다 (`SettingsCard` 하나가 네 장을 그린다).
  * 하나가 늘면 여기 한 줄을 더한다 — 안 더하면 `settings-tab.test.ts` 가
  * 화면과 이 목록의 수가 다르다고 말한다.
  */
@@ -54,6 +54,7 @@ export const CRM_SETTINGS_CARDS: readonly CrmSettingsCardSpec[] = [
   { id: 'BusinessTypeCard', component: 'BusinessTypeCard', tab: 'pipeline', title: '사업 유형', keywords: ['업종', '딜'] },
   { id: 'SettingsCard.quote', component: 'SettingsCard', tab: 'quote', title: '견적서 공급자 정보', keywords: ['공급자', '사업자', '직인', '로고', '견적서 번호'] },
   { id: 'QuoteTermsCard', component: 'QuoteTermsCard', tab: 'quote', title: '거래 조건', keywords: ['견적', '납기', '결제', '유효기간'] },
+  { id: 'PricebookCard', component: 'PricebookCard', tab: 'quote', title: '가격 기준', keywords: ['가격', '단가', '노임단가', '정상가', '품목', '제품', '인건비 등급'] },
   { id: 'SettingsCard.quoteImport', component: 'SettingsCard', tab: 'quote', title: '견적서 파일 읽기', keywords: ['파일로 가져오기', '구성', '상한', '원본 조각', '대조'] },
   { id: 'SettingsCard.contract', component: 'SettingsCard', tab: 'contract', title: '계약서 서명란과 번호', keywords: ['서명란', '날인', '갑', '을', '계약서 번호', '대표자'] },
   { id: 'ContractTemplatesCard', component: 'ContractTemplatesCard', tab: 'contract', title: '계약서 템플릿', keywords: ['계약', '조항', '칸', '발행'] },

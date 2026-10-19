@@ -21,7 +21,7 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
-import { ACTION, ENTITY, count, createLabel } from '@/lib/terms'
+import { ACTION, ENTITY, count, createLabel, PRICEBOOK, ITEM_BASIS_LABEL } from '@/lib/terms'
 import { QUOTE } from '@/lib/terms/quote'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import ProductEditModal, { type ProductDraft } from './ProductEditModal'
@@ -36,6 +36,10 @@ export interface ProductItem {
   unit: string | null
   descriptionMd: string | null
   isActive: boolean
+  version?: number
+  basis?: string
+  needsReview?: boolean
+  autoRegistered?: boolean
 }
 
 const FAINT = { color: 'var(--text-faint)' }
@@ -50,10 +54,20 @@ const ACTIVE_FILTER = {
   ],
 }
 
+/** 견적에서 자동 등록되고 제품에 안 묶인 품목만 — 가격 기준 > 제품 목록의 「정리 전」 줄이 여기로 온다 */
+const AUTO_FILTER = {
+  key: 'auto',
+  label: PRICEBOOK.autoRegistered,
+  options: [
+    { value: '', label: '전부' },
+    { value: '1', label: PRICEBOOK.unsorted },
+  ],
+}
+
 export default function ProductListView() {
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 50, sort: { key: 'name', dir: 'asc' }, mode: 'more',
-    filterKeys: ['archived'],
+    filterKeys: ['archived', 'auto'],
   })
   const [rows, setRows] = useState<ProductItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +77,7 @@ export default function ProductListView() {
 
   const q = query.q ?? ''
   const includeInactive = (query.filters?.archived ?? '') === '1'
+  const unsortedOnly = (query.filters?.auto ?? '') === '1'
 
   const load = useCallback(async () => {
     void queryKey
@@ -72,6 +87,7 @@ export default function ProductListView() {
       const sp = new URLSearchParams()
       if (q) sp.set('q', q)
       if (includeInactive) sp.set('all', '1')
+      if (unsortedOnly) sp.set('auto', '1')
       // 고치고 나서 다시 읽는 경로다 — 캐시를 받으면 방금 고친 이름이 그대로 옛것으로 보인다
       const res = await fetch(`/api/crm/products?${sp.toString()}`, { cache: 'no-store' })
       const body = await res.json()
@@ -82,7 +98,7 @@ export default function ProductListView() {
     } finally {
       setLoading(false)
     }
-  }, [queryKey, q, includeInactive])
+  }, [queryKey, q, includeInactive, unsortedOnly])
 
   useEffect(() => { void load() }, [load])
 
@@ -118,11 +134,18 @@ export default function ProductListView() {
               <NbBadge status="note">그만 판 것</NbBadge>
             </span>
           )}
+          {r.needsReview && (
+            <span style={{ marginLeft: 'var(--space-2)' }}><NbBadge status="note">{PRICEBOOK.needsReview}</NbBadge></span>
+          )}
+          {r.autoRegistered && (
+            <span style={{ marginLeft: 'var(--space-2)' }}><NbBadge status="planned">{PRICEBOOK.autoRegistered}</NbBadge></span>
+          )}
           {r.descriptionMd && <div style={{ ...FAINT, fontSize: 'var(--fs-xs)' }}>{r.descriptionMd}</div>}
         </>
       ),
     },
     { key: 'sku', header: 'SKU', hideOnCard: true, cell: (r) => r.sku ?? <span style={FAINT}>—</span> },
+    { key: 'basis', header: PRICEBOOK.basis, hideOnCard: true, cell: (r) => ITEM_BASIS_LABEL[(r.basis ?? 'FIXED') as keyof typeof ITEM_BASIS_LABEL] ?? r.basis },
     { key: 'unit', header: QUOTE.lineUnit, cell: (r) => r.unit ?? <span style={FAINT}>—</span> },
     {
       key: 'price',
@@ -165,7 +188,7 @@ export default function ProductListView() {
         onChange={set}
         searchPlaceholder="품목 이름·SKU 로 검색"
         views={['table', 'card']}
-        filters={[ACTIVE_FILTER]}
+        filters={[ACTIVE_FILTER, AUTO_FILTER]}
         actions={(
           <NbButton onClick={() => setEditing(emptyDraft())}>
             <Plus size={14} /> {createLabel(ENTITY.product.label)}
