@@ -70,3 +70,24 @@ test('★ AI 가 수량 규칙을 빠뜨려도 품목 이름으로 채워 예시
   assert.ok(d.notes.some((n) => n.includes('규칙') && n.includes('채웠어요')))
   assert.ok(d.rules.some((r) => r.rule.kind === 'WITH'), 'STD 와 STD 기본 구축을 잇는다')
 })
+
+test('★ AI 가 예시 금액을 계산기 쪽(할인 적용)에서 읽어도 예시 표가 같은 세 값을 적고 있으면 그 숫자로 맞춘다', () => {
+  const raw = `--- 1쪽 --- ${RAW}\n--- 3쪽 --- 견적 계산기 | 교육기관 10% | 초기 도입 금액 | 7,660 | 연 유지보수 | 999 | 누적 | 11,656`
+  const r = read()
+  r.examples = [{ ...r.examples[0], expectOnce: 7660, expectAnnual: 999, expectTco: 11656 }]
+  const d = buildImportDraft('product', r, raw)
+  assert.equal(d.exampleChecks[0].ok, true, d.exampleChecks[0].mismatches.join(', '))
+  assert.equal(d.examples[0].expectOnceMinor, BigInt(84_000_000))
+  assert.ok(d.notes.some((n) => n.includes('원문 예시 표의 숫자로')))
+  assert.equal(d.productNeedsReview, false)
+})
+
+test('예시 표에 엔진 값이 없으면 바로잡지 않고 어긋남을 그대로 보인다 — 엔진이 틀린 것을 숨기지 않는다', () => {
+  const raw = RAW.replace('초기 도입 8,400', '초기 도입 8,500')
+  const r = read()
+  r.examples = [{ ...r.examples[0], expectOnce: 8500 }]
+  const d = buildImportDraft('product', r, raw)
+  assert.equal(d.exampleChecks[0].ok, false)
+  assert.equal(d.productNeedsReview, true)
+  assert.ok(!d.notes.some((n) => n.includes('원문 예시 표의 숫자로')))
+})

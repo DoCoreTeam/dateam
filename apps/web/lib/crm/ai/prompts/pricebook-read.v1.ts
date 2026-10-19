@@ -19,7 +19,7 @@ const TARGET_HINT: Record<string, string> = {
 
 export function pricebookReadPrompt(target: 'product' | 'items' | 'labor'): AiPrompt {
   return {
-    version: 'pricebook_read@v1.1.0',
+    version: 'pricebook_read@v1.2.0',
     build: (input: string) => `당신은 가격표를 우리 가격 기준 양식으로 **옮기는** 도구다. 해석도 계산도 하지 않는다.
 ${TARGET_HINT[target]}
 
@@ -51,6 +51,7 @@ ${TARGET_HINT[target]}
 - 「STD 옵션은 GPU 분할, 사용자 포털 포함」처럼 적혀 있으면 그 옵션 품목 이름을 picked 에 넣는다
 - 연 유지보수 금액이 적혀 있으면 그 유지보수 품목(표준 등)을 picked 에 넣는다
 - nodes, 적힌 금액(expectOnce 초기 도입, expectAnnual 연 유지보수, expectTco 총비용)
+- 금액은 그 예시의 조건이 적힌 **같은 표**에서만 읽는다. 견적 계산기 시트의 현재 입력 결과, 시나리오 비교 표는 예시가 아니다
 
 ## 출력 (JSON 하나만)
 {"unit":…,"product":{"name":…,"businessType":"SOLUTION|GPU|SI|HARDWARE|MSP|PROJECT|CREDIT|OTHER"}|null,

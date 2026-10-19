@@ -118,6 +118,17 @@ export function checkExamples(p: PriceProduct): ExampleCheck[] {
   })
 }
 
+/**
+ * 예시 표가 엔진 값을 적고 있나 — AI 가 예시의 조건은 예시 표에서, 금액은 다른 표(계산기의 현재 입력)에서 읽는 일이 있다.
+ * 「예시」가 적힌 한 쪽에 엔진이 센 세 값(초기 도입, 연 유지보수, 총비용)이 함께 있으면 그 표의 숫자로 본다.
+ * 세 값이 한 쪽에 우연히 함께 있을 일은 드물다 — 하나라도 없으면 아니라고 본다.
+ */
+export function examplePageAgrees(check: Pick<ExampleCheck, 'onceMinor' | 'annualMinor' | 'tcoMinor'>, raw: string, unit: number | null = sourceUnitOf(raw)): boolean {
+  const pages = raw.split(/---\s*\d+쪽\s*---/)
+  return pages.some((page) => page.includes('예시')
+    && [check.onceMinor, check.annualMinor, check.tcoMinor].every((v) => v > BigInt(0) && amountInSource(v, page, unit)))
+}
+
 // ── 2 원문 대조, 3 단위 ────────────────────────────────────────────────────
 
 /** 원문 단위 — 「단위: 만원」, 「(단위: 천원)」 */

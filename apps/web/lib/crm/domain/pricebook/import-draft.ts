@@ -12,7 +12,7 @@
 import type { CompanyKind } from '../company-kind.ts'
 import { toMinor as moneyToMinor } from '../money.ts'
 import { ITEM_BASES, RULE_KINDS, type ItemBasis, type PriceExample, type PriceItem, type PriceProduct, type PriceRule, type ProductSection } from './types.ts'
-import { amountInSource, checkExamples, checkRules, diffItems, sourceUnitOf, unitProblems, type ExampleCheck, type ProductDiff } from './validate.ts'
+import { amountInSource, checkExamples, checkRules, diffItems, examplePageAgrees, sourceUnitOf, unitProblems, type ExampleCheck, type ProductDiff } from './validate.ts'
 
 export type ImportTarget = 'product' | 'items' | 'labor'
 
@@ -192,7 +192,7 @@ export function buildImportDraft(
   const rules = mapped.map((rule, i) => ({ rule, disabledReason: reasonOf.get(i) ?? null }))
 
   // 5 계산 예시 재현 — 꺼진 규칙은 빼고 센다
-  const examples: PriceExample[] = read.examples.flatMap((e) => {
+  const readExamples: PriceExample[] = read.examples.flatMap((e) => {
     const once = toMinor(e.expectOnce, mult)
     const annual = toMinor(e.expectAnnual, mult)
     if (once === null || annual === null) return []
@@ -207,9 +207,16 @@ export function buildImportDraft(
       expectTcoMinor: toMinor(e.expectTco, mult),
     }]
   })
-  const exampleChecks = target === 'product'
-    ? checkExamples({ ...engineProduct, rules: rules.filter((r) => !r.disabledReason).map((r) => r.rule), examples })
+  const checked = target === 'product'
+    ? checkExamples({ ...engineProduct, rules: rules.filter((r) => !r.disabledReason).map((r) => r.rule), examples: readExamples })
     : []
+  // AI 가 금액을 다른 표에서 읽었으면 예시 표의 숫자로 바로잡는다 — 원문이 그 세 값을 함께 적고 있을 때만
+  const fixedAt = new Set(checked.flatMap((c, i) => (!c.ok && rawText && examplePageAgrees(c, rawText, docUnit) ? [i] : [])))
+  for (const i of fixedAt) notes.push(`「${checked[i].label}」 예시 금액을 AI 가 다른 표에서 읽어 원문 예시 표의 숫자로 맞췄어요`)
+  const examples = readExamples.map((e, i) => (fixedAt.has(i)
+    ? { ...e, expectOnceMinor: checked[i].onceMinor, expectAnnualMinor: checked[i].annualMinor, expectTcoMinor: checked[i].tcoMinor }
+    : e))
+  const exampleChecks = checked.map((c, i) => (fixedAt.has(i) ? { ...c, ok: true, mismatches: [] } : c))
   if (exampleChecks.some((c) => !c.ok)) productNeedsReview = true
 
   const grades: DraftGrade[] = read.grades.map((g) => {
