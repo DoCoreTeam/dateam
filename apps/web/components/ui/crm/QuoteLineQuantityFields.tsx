@@ -113,7 +113,7 @@ export default function QuoteLineQuantityFields({
         **그 줄의 금액은 맞다** — 한 축으로 셈이 끝났으므로 「틀렸다」고 하지 않는다.
         기간이 수량 칸에 있어 대수를 적을 자리가 없다는 **사실만** 말한다.
       */}
-      {periodIsInQuantity(unit, durationValue) && (
+      {kind !== 'RATIO' && periodIsInQuantity(unit, durationValue) && (
         <p className={styles.axisHint}>{DURATION.inQuantityHint}</p>
       )}
     </div>

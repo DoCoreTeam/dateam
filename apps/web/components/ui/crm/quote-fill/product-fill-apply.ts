@@ -28,6 +28,7 @@ export interface EngineLineJson {
   ratioOfSectionKey: string | null
   remark: string | null
   provenance: Record<string, unknown>
+  discountable?: boolean
 }
 
 export interface AutoFilledJson {
@@ -74,7 +75,8 @@ export function applyProductFill(draft: QuoteDraft, input: ApplyInput): QuoteDra
       sectionIndex: l.sectionKey !== null ? (indexOf.get(l.sectionKey) ?? null) : null,
       listPriceMinor: l.listPriceMinor,
       priceSource: 'LIST',
-      provenance: l.provenance,
+      // 할인 대상인지도 출처와 함께 둔다 — 예산 맞추기가 구축비와 비율 줄을 건드리지 않게
+      provenance: { ...l.provenance, discountable: l.discountable !== false },
       billing: l.billing,
       ratioPct: isRatio ? String(l.ratioPct) : null,
       ratioOfSectionName: isRatio ? l.ratioOfSectionKey : null,

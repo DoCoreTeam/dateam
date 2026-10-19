@@ -92,3 +92,54 @@ test('제품으로 채우기: gcube edge STD H100 4장 → 묶음과 출처가 �
     await api(page, 'DELETE', `/api/crm/deals/${deal.id}?mode=purge`).catch((e) => console.log(`CLEANUP ${deal.id} ${e}`))
   }
 })
+
+test('예산 맞추기: 미리 계산보다 300만원 적은 예산이면 할인 칸으로 맞추고 단가와 구축비는 그대로 저장된다', async ({ page }) => {
+  test.setTimeout(240_000)
+  const tag = Date.now().toString(36)
+  await page.addInitScript(() => { try { localStorage.setItem('changelog_seen_version', '999.999.999') } catch { /* */ } })
+  await page.goto('/crm/deals', { waitUntil: 'domcontentloaded' })
+  const deal = await api<{ id: string }>(page, 'POST', '/api/crm/deals', { name: `F10 예산 맞추기 ${tag}`, companyId: COMPANY_ID, ...PIPELINE })
+  try {
+    const products = await api<{ items: { id: string; name: string }[] }>(page, 'GET', '/api/crm/pricebook/products?q=gcube')
+    const edge = products.items.find((p) => p.name === 'gcube edge')!
+    const detail = await api<{ items: { id: string; name: string }[] }>(page, 'GET', `/api/crm/pricebook/products/${edge.id}`)
+    const std = detail.items.find((i) => i.name.trim() === 'STD')
+    const preview = await api<{ result: { onceSupplyMinor: string } }>(page, 'POST', `/api/crm/pricebook/products/${edge.id}/preview`, {
+      conditions: { picked: std ? [std.id] : [], gpus: [{ model: 'H100 SXM', count: 4, timed: false }], nodes: null, training: null, companyKind: null, discount: 'none' },
+    })
+    const budget = BigInt(preview.result.onceSupplyMinor) - BigInt(3_000_000)
+
+    await page.goto(`/crm/deals/${deal.id}`, { waitUntil: 'domcontentloaded' })
+    await expect(async () => {
+      await page.getByRole('button', { name: '새 견적' }).first().click()
+      await expect(page.getByRole('button', { name: '제품으로 채우기' })).toBeVisible({ timeout: 3_000 })
+    }).toPass({ timeout: 90_000 })
+    await page.getByRole('button', { name: '제품으로 채우기' }).click()
+    await page.locator('#pf-product').selectOption({ label: 'gcube edge' })
+    if (std) await page.getByLabel('STD', { exact: true }).check()
+    await page.getByLabel('GPU 모델').first().fill('H100 SXM')
+    await page.getByLabel('장수').first().fill('4')
+    await page.getByRole('button', { name: '계산', exact: true }).click()
+    await page.getByRole('button', { name: '견적에 넣기' }).click()
+    await page.locator('#qb-budget').fill(String(budget))
+    await page.getByRole('button', { name: '예산에 맞추기' }).click()
+    await expect(page.getByRole('status').filter({ hasText: /단가는 그대로|적어요/ })).toBeVisible({ timeout: 10_000 })
+    await page.screenshot({ path: 'apps/web/e2e/.out/quote-budget-fit-1280.png', fullPage: false })
+    await page.getByRole('dialog').getByRole('button', { name: '저장', exact: true }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 30_000 })
+
+    const list = await api<{ items: { id: string }[] }>(page, 'GET', `/api/crm/quotes?dealId=${deal.id}`)
+    const q = await api<{ subtotalMinor: string; discountMinor: string; sectionRoundingMinor: string; budgetMinor: string | null; approvalRequired: boolean; lines: { name: string; unitPriceMinor: string; listPriceMinor: string | null; discountPercent: string }[] }>(page, 'GET', `/api/crm/quotes/${list.items[0].id}`)
+    const saved = BigInt(q.subtotalMinor) - BigInt(q.discountMinor) - BigInt(q.sectionRoundingMinor)
+    expect(saved <= budget, `저장 ${saved} 이 예산 ${budget} 을 넘는다`).toBe(true)
+    expect(budget - saved < BigInt(20_000), `저장 ${saved} 이 예산 ${budget} 보다 너무 적다`).toBe(true)
+    expect(q.budgetMinor).toBe(String(budget))
+    for (const l of q.lines) if (l.listPriceMinor !== null) expect(l.unitPriceMinor, `${l.name} 단가가 바뀌었다`).toBe(l.listPriceMinor)
+    const build = q.lines.find((l) => /구축/.test(l.name))
+    if (build) expect(Number(build.discountPercent)).toBe(0)
+    // eslint-disable-next-line no-console
+    console.log(`BUDGET budget=${budget} saved=${saved} approval=${q.approvalRequired}`)
+  } finally {
+    await api(page, 'DELETE', `/api/crm/deals/${deal.id}?mode=purge`).catch((e) => console.log(`CLEANUP ${deal.id} ${e}`))
+  }
+})

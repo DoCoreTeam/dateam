@@ -189,6 +189,9 @@ test('★ 기간이 없는 줄의 결과는 전과 같다', () => {
 test('★ 화면이 줄을 옮길 때 기간 두 칸을 싣는다 — 선언만 하고 안 넘기면 금액이 두 배가 된다', () => {
   const panel = readFileSync(new URL('../../../components/ui/crm/QuoteFillPanel.tsx', import.meta.url), 'utf8')
   const spots = panel.match(/durationValue: l\.durationValue, durationUnit: l\.durationUnit/g) ?? []
-  assert.ok(spots.length >= 2,
-    `총액 맞추기로 가는 두 자리(currentLines·scale) 중 ${spots.length}곳만 기간을 싣는다`)
+  assert.ok(spots.length >= 1, '말로 채우기가 AI 에 넘기는 currentLines 가 기간을 안 싣는다')
+  // 총액 맞추기는 예산 맞추기와 같은 함수로 옮겼다(P0135) — 그 함수가 기간을 싣는지 본다
+  const budget = readFileSync(new URL('../../../components/ui/crm/quote-fill/draft-budget.ts', import.meta.url), 'utf8')
+  assert.match(panel, /fitDraftToBudget\(/, '총액 맞추기가 예산 맞추기 함수를 안 지난다')
+  assert.match(budget, /durationValue: l\.durationValue \|\| null, *\n *durationUnit: l\.durationUnit \|\| null/, '총액 맞추기가 기간을 안 싣는다 — 단가가 두 배로 밀린다')
 })

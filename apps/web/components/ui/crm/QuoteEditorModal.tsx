@@ -47,6 +47,7 @@ import QuoteLineFormula from '@/components/ui/crm/QuoteLineFormula'
 import QuoteProductFill from './quote-fill/QuoteProductFill'
 import LineSource from './quote-fill/LineSource'
 import AutoFilledList from './quote-fill/AutoFilledList'
+import BudgetFit from './quote-fill/BudgetFit'
 import { useProductCatalog } from './quote-fill/use-product-catalog'
 import { priceDraft, lineAmountsOf, lockIfHuman } from './quote-fill/draft-pricing'
 
@@ -689,6 +690,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             {PRICEBOOK.annual} {formatAmount(priced.annualMinor.toString(), draft.currency)} · 1회 합계에 안 섞여요
           </p>
         )}
+        <BudgetFit dealId={dealId} draft={draft} onDraftChange={setDraft} approvalRequired={approval} disabled={Boolean(linesLocked)} />
         <AutoFilledList draft={draft} />
 
         {approval && (

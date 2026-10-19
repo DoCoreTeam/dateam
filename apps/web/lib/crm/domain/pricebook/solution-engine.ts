@@ -25,6 +25,8 @@ export interface EngineLine extends ComposeLine {
   remark: string | null
   /** 이 줄의 셈 — 「7,300,000 × 4장」 */
   formula: string
+  /** 할인 규칙과 예산 맞추기가 걸리는 줄인가 — 구축비, 비율, 기본 포함 0원 줄은 아니다 */
+  discountable: boolean
   /** 칸마다 어디서 왔나 */
   provenance: { unitPrice: Provenance; quantity: Provenance; discount: Provenance }
 }
@@ -277,6 +279,7 @@ export function buildSolutionQuote(product: PriceProduct, input: SolutionConditi
       ratioOfSectionKey: isRatio ? (it.ratioOfSection ?? null) : null,
       remark,
       formula,
+      discountable: it.discountable && !free && !isRatio,
       provenance: {
         unitPrice: free ? { source: 'RULE', note: remark } : priceProvenance(it),
         quantity: q.note ? { source: 'RULE', note: q.note } : selected.has(it.id) && c.picked.includes(it.id) ? { source: 'SAID' } : { source: 'RULE' },

@@ -8,7 +8,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   axisTexts, lineNoteText, convTexts, approxText, hoursText,
-  durationText, hourlyBasisText,
+  durationText, hourlyBasisText, lineFormulaText,
 } from './quote-rate-text.ts'
 import type { DocumentLine, DocumentLineRate } from './quote-document.ts'
 
@@ -176,4 +176,9 @@ test('★ 한 대짜리 줄에는 안 붙는다 — 「1대 기준」은 없는 
   assert.equal(hourlyBasisText(1, '대'), '')
   assert.equal(hourlyBasisText(0, '대'), '')
   assert.equal(hourlyBasisText('이상한 값', '대'), '')
+})
+
+test('비율 줄의 셈은 「대상 묶음 × 몇 %」 — 단가 0 이라 「0원 × 1연」이 서면 안 된다', () => {
+  const t = lineFormulaText({ quantity: '1', unit: '연', unitPriceMinor: '0', ratioPct: '15', ratioOfSectionName: '라이선스' }, '11100000', (m) => `${Number(m).toLocaleString('ko-KR')}원`)
+  assert.equal(t, '라이선스 × 15% = 11,100,000원')
 })

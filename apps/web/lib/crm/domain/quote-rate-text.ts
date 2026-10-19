@@ -107,10 +107,14 @@ export function lineFormulaText(
     durationValue?: string
     durationUnit?: string
     unitPriceMinor: string
+    /** 비율 줄이면 몇 % 와 대상 묶음 — 단가 칸은 0 이라 「0원 × 1」이 서면 안 된다 */
+    ratioPct?: string | null
+    ratioOfSectionName?: string | null
   },
   lineTotalMinor: string,
   money: MoneyText,
 ): string {
+  if (line.ratioPct) return `${line.ratioOfSectionName ?? ''} × ${Number(line.ratioPct)}% = ${money(lineTotalMinor)}`
   const qty = Number(line.quantity)
   if (!Number.isFinite(qty) || qty <= 0) return ''
   // 단가를 아직 안 적은 줄에 「= 0원」이 서면 안 된다 — 0원짜리 줄처럼 읽힌다

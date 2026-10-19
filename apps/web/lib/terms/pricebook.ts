@@ -188,3 +188,14 @@ export const IMPORT_SENTENCE = {
   readFailed: '파일을 읽지 못했어요',
   aiDown: 'AI가 지금 답하지 않아 파일을 못 읽었어요',
 } as const
+
+/** 예산 맞추기의 결과 한 줄 — 단가는 그대로 두고 할인 칸으로 맞춘 것을 말한다 */
+export const BUDGET_SENTENCE = {
+  fitted: (pct: number, achieved: string) => `할인 대상 줄에 할인 ${pct}% 를 넣어 ${achieved}원으로 맞췄어요. 단가는 그대로예요.`,
+  fittedGap: (pct: number, achieved: string, gap: string) => `할인 ${pct}% 로 ${achieved}원이에요. 예산보다 ${gap}원 적어요(할인율은 소수 둘째 자리까지라).`,
+  alreadyUnder: (gap: string) => `이미 예산 안이에요. 예산이 지금 금액보다 ${gap}원 남아요. 값을 올리지 않아요.`,
+  notEnough: (achieved: string, gap: string) => `할인 대상 줄을 다 깎아도 ${achieved}원이라 예산보다 ${gap}원 많아요.`,
+  noDiscountable: '할인할 수 있는 줄이 없어요. 구축비, 비율 줄, 사람이 잠근 할인은 맞추기에서 빠져요.',
+  approval: '할인 승인 기준을 넘어 보내기 전에 승인이 필요해요.',
+  dealBudget: (v: string) => `딜 예산 ${v}원`,
+} as const

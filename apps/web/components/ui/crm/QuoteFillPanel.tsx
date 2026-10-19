@@ -21,7 +21,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Sparkles, Upload, X, Package } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { PRICEBOOK } from '@/lib/terms/pricebook'
-import { scaleLinesToTarget, describeScale } from '@/lib/crm/domain/quote-target'
+import { fitDraftToBudget } from './quote-fill/draft-budget'
 import { LINE_KIND_ORDER, LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
 import {
   ACTION, progress, QUOTE,
@@ -239,30 +239,14 @@ export default function QuoteFillPanel({
 
       /**
        * **목표 총액은 우리가 맞춘다 — AI 가 아니라.**
-       * 계산은 `quote-target.ts`(SSOT · 가드 12개)가 하고 여기서는 결과만 얹는다.
-       * 단가만 갈아 끼운다 — 품목·규격·묶음은 사람이 정한 그대로 둔다.
+       * 예산 맞추기와 같은 엔진(fitDraftToBudget)이다. **단가는 그대로 두고 할인 칸으로** 맞춘다 —
+       * 예전처럼 단가를 깎으면 할인 칸이 0 이라 3억을 2억에 맞춰도 승인이 안 걸렸다(P0135).
+       * 예산이 지금 금액보다 크면 값을 올리지 않고 남는 금액을 말한다.
        */
       const scale = (lines: QuoteLineDraft[]) => {
         if (!intent) return { lines, note: null as string | null }
-        const r = scaleLinesToTarget(
-          lines.map((l) => ({
-            kind: l.kind, quantity: l.quantity, unitPriceMinor: l.unitPriceMinor,
-            // 기간을 안 넘기면 반값이 현재값이 되어 단가가 두 배로 밀린다(실측 2026-10-09)
-            durationValue: l.durationValue, durationUnit: l.durationUnit,
-            discountPercent: l.discountPercent, specialDiscountPercent: l.specialDiscountPercent,
-            taxRate: l.taxRate,
-          })),
-          intent,
-          { unit: roundingUnit as 0, mode: 'DOWN' },
-        )
-        const note = describeScale(intent, r, roundingUnit)
-        if (r.reason !== null) return { lines, note }
-        return {
-          lines: lines.map((l, i) => ({
-            ...l, unitPriceMinor: String(r.lines[i]?.unitPriceMinor ?? l.unitPriceMinor),
-          })),
-          note,
-        }
+        const out = fitDraftToBudget({ ...draft, roundingUnit, lines }, BigInt(Math.round(intent.totalMinor)), intent.includesTax)
+        return { lines: out.draft.lines, note: out.message }
       }
 
       /*
