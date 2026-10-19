@@ -90,6 +90,20 @@ interface Meeting {
 /** 어디에 붙는 제안인지 — 이게 없으면 "왜 금액이 여기 있지"가 된다 */
 const WHERE_IT_GOES: Record<string, string> = { deal: '딜', person: '인물', company: '회사', meeting: '이 미팅' }
 
+/** 이 미팅 화면 안의 칸을 가리키는 질문이면 그 칸 id, 아니면 null */
+function samePageAnchor(href: string, meetingId: string): string | null {
+  const [path, hash] = href.split('#')
+  return hash && path === `/crm/meetings/${meetingId}` ? hash : null
+}
+
+/** 그 칸으로 데려가 고르기 창을 연다 — 칸이 고르기 단추라 누르는 것이 곧 여는 것이다 */
+function openAnchoredField(id: string | null): void {
+  const el = id ? document.getElementById(id) : null
+  if (!el) return
+  el.scrollIntoView({ block: 'center' })
+  el.click()
+}
+
 export default function MeetingDetail({ meetingId }: { meetingId: string }) {
   /*
     돌아갈 곳은 **주소가 정한다**. 고정으로 적으면 딜에서 회사로 들어온 사람이
@@ -499,7 +513,14 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
               <ul className={styles.askList}>
                 {finishJob.questions.map((q) => (
                   <li key={q.key} className={styles.ask}>
-                    <Link href={q.href} className={styles.askLink}>{q.ask}</Link>
+                    {/* 이 화면에서 답하는 질문은 그 칸의 고르기 창을 바로 연다 — 같은 주소로 가면 아무 일도 안 일어난다 */}
+                    {samePageAnchor(q.href, meetingId)
+                      ? (
+                        <button type="button" className={styles.askLink} onClick={() => openAnchoredField(samePageAnchor(q.href, meetingId))}>
+                          {q.ask}
+                        </button>
+                      )
+                      : <Link href={q.href} className={styles.askLink}>{q.ask}</Link>}
                     <span className={styles.askWhy}>{q.why}</span>
                   </li>
                 ))}

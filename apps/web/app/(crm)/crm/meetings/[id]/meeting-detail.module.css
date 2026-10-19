@@ -219,6 +219,13 @@
 }
 
 .askLink {
+  /* 같은 화면의 칸을 여는 질문은 단추로 그린다 — 링크와 똑같이 보이게 단추 기본 모양을 지운다 */
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
   min-height: var(--control-h);
   display: flex;
   align-items: center;

@@ -40,6 +40,12 @@ export interface AskInput {
   dealId: string | null
 }
 
+/**
+ * 미팅 화면 안에서 답하는 질문의 앵커 — `MeetingFacts` 의 고르기 칸 id 와 같다.
+ * 예전엔 미팅 주소만 줘서 그 화면에서 누르면 같은 화면으로 가 **아무 반응이 없었다**(사용자 지적 2026-10-19).
+ */
+export const MEETING_PICKER_ANCHOR = { company: 'mf-company', deal: 'mf-deal' } as const
+
 /** 한 번에 던지는 질문 수 — 넘으면 사람이 목록 전체를 닫는다 */
 export const MAX_QUESTIONS = 6
 
@@ -59,7 +65,7 @@ export async function listOpenQuestions(db: CrmDb, input: AskInput): Promise<Ope
       key: 'meeting.company',
       ask: '어느 회사와 만난 건가요?',
       why: '회사를 정해야 이 기록이 그 거래처 이력에 남아요.',
-      href: meetingHref,
+      href: `${meetingHref}#${MEETING_PICKER_ANCHOR.company}`,
     })
     return out
   }
@@ -76,7 +82,7 @@ export async function listOpenQuestions(db: CrmDb, input: AskInput): Promise<Ope
       key: 'meeting.deal',
       ask: `${company.name} 의 어떤 건인가요?`,
       why: '딜을 정해야 금액·단계가 파이프라인에 반영돼요.',
-      href: meetingHref,
+      href: `${meetingHref}#${MEETING_PICKER_ANCHOR.deal}`,
     })
   }
 

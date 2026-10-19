@@ -58,13 +58,15 @@ test('★ 회사를 모르면 그것부터 묻고 거기서 멈춘다 — 나머
   const qs = await listOpenQuestions(fakeDb({}), { meetingId: 'm1', companyId: null, dealId: null })
   assert.equal(qs.length, 1)
   assert.equal(qs[0].key, 'meeting.company')
-  assert.match(qs[0].href, /\/crm\/meetings\/m1$/, '답할 화면으로 보내지 않는다')
+  // 미팅 주소만 주면 그 화면에서 눌러도 같은 화면이라 아무 반응이 없다(2026-10-19) — 고르기 칸을 가리킨다
+  assert.match(qs[0].href, /\/crm\/meetings\/m1#mf-company$/, '답할 칸으로 보내지 않는다')
 })
 
 test('예정에 없던 미팅 — 회사만 정해졌으면 어떤 건인지 묻는다 (시나리오 B)', async () => {
   const qs = await listOpenQuestions(
     fakeDb({ company: COMPANY }), { meetingId: 'm1', companyId: 'c1', dealId: null })
   assert.ok(qs.some((q) => q.key === 'meeting.deal'), '딜 귀속을 안 묻는다')
+  assert.match(qs.find((q) => q.key === 'meeting.deal')!.href, /\/crm\/meetings\/m1#mf-deal$/, '딜 고르기 칸으로 보내지 않는다')
   assert.ok(qs.every((q) => !q.key.startsWith('deal.')), '딜을 모르는데 딜 속을 묻는다')
 })
 
@@ -249,4 +251,12 @@ test('노트 단계가 결과에 실린다 — 무엇이 됐는지 화면이 말
   assert.match(FINISH, /FinishStepKey = [^\n]*'note'/, "단계 키에 'note' 가 없다")
   // 「올렸어요」와 「이미 확정이에요」는 둘 다 성공이지만 뜻이 다르다 — 구분해 말한다
   assert.match(FINISH, /이미 확정이에요/, '이미 확정인 경우를 구분해 말하지 않는다')
+})
+
+test('★ 되묻기 앵커가 미팅 화면의 고르기 칸 id 와 같고, 화면이 그 칸을 연다', () => {
+  const facts = readFileSync(new URL('../../../app/(crm)/crm/meetings/[id]/MeetingFacts.tsx', import.meta.url), 'utf8')
+  assert.match(facts, /id="mf-company"/, '회사 칸 id 가 바뀌어 질문이 갈 곳을 잃었다')
+  assert.match(facts, /id="mf-deal"/, '딜 칸 id 가 바뀌어 질문이 갈 곳을 잃었다')
+  const detail = readFileSync(new URL('../../../app/(crm)/crm/meetings/[id]/MeetingDetail.tsx', import.meta.url), 'utf8')
+  assert.match(detail, /openAnchoredField\(samePageAnchor\(q\.href, meetingId\)\)/, '같은 화면 질문을 링크로 그려 눌러도 반응이 없다')
 })
