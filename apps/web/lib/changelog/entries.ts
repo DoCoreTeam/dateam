@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.16',
+    date: '2026-10-19',
+    title: '막힌 안내에서 바로 고치러 가요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '➡️',
+        headline: '계약서 템플릿이 없다는 안내에 만들러 가는 단추가 생겼어요',
+        detail: '「계약서 템플릿 만들기」를 누르면 설정의 계약 탭이 바로 열려요. 설정을 찾아 들어가 탭을 고르지 않아도 됩니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🤝',
+        headline: '미팅 정리 뒤 「어느 회사와 만난 건가요?」를 누르면 회사 고르기 창이 열려요',
+        detail: '예전엔 눌러도 아무 반응이 없었어요. 「어떤 건인가요?」도 딜 고르기 창을 바로 엽니다.',
+      },
+    ],
+  },
+  {
     version: '0.11.14',
     date: '2026-10-19',
     title: '견적에서 계약서까지 딜 안에서 이어져요',
