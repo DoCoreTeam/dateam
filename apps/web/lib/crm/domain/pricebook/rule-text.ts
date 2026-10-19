@@ -38,5 +38,7 @@ export function describeRule(rule: PriceRule, nameOf: (id: string) => string | n
       const who = rule.companyKind === 'partner' ? '판매 경로가 파트너' : `기관 종류가 ${COMPANY_KIND_LABEL[rule.companyKind] ?? rule.companyKind}`
       return `${who}이면 할인 대상 품목에 ${rule.label} ${rule.pct}%${rule.confirmed ? '' : ' (제안값)'}`
     }
+    case 'SCALE_CAP':
+      return `${rule.section} 정가 소계가 ${VAR_TEXT[rule.varKey] ?? rule.varKey} × ${Number(rule.perUnitMinor).toLocaleString('ko-KR')}원을 넘으면 넘는 만큼 할인`
   }
 }

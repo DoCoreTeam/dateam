@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Upload } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbModal from '@/components/ui/nb/NbModal'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
@@ -22,12 +22,14 @@ import ItemsTab from './ItemsTab'
 import RulesTab from './RulesTab'
 import PreviewTab from './PreviewTab'
 import HistoryTab from './HistoryTab'
+import PricebookImportModal from '../PricebookImportModal'
 import styles from './detail.module.css'
 
 export default function ProductDetailView({ id }: { id: string }) {
   const [data, setData] = useState<DetailJson | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [busy, setBusy] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const router = useRouter()
@@ -75,9 +77,13 @@ export default function ProductDetailView({ id }: { id: string }) {
         </h2>
         <div className={styles.actions}>
           <Link href="/crm/products?tab=product">{PRICEBOOK.title}</Link>
+          <NbButton variant="ghost" onClick={() => setImporting(true)}><Upload size={14} /> {PRICEBOOK.importFile}</NbButton>
           <NbButton variant="danger-ghost" onClick={() => setDeleting(true)}><Trash2 size={14} /> {ACTION.delete}</NbButton>
         </div>
       </div>
+      {importing && (
+        <PricebookImportModal target="product" productId={id} onClose={() => setImporting(false)} onSaved={() => { setImporting(false); void load() }} />
+      )}
       {deleting && (
         <NbModal
           title={`「${data.product.name}」 제품을 삭제할까요?`}

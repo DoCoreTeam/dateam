@@ -150,6 +150,7 @@ export const RULE_KIND_LABEL: Record<RuleKind, string> = {
   CAP: '상한',
   ELIGIBLE: '고를 수 있는 조건',
   DISCOUNT: '할인',
+  SCALE_CAP: '규모 조정',
 }
 
 export const GPU_CLASS_LABEL: Record<GpuClass, string> = {

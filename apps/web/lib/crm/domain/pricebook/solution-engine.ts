@@ -285,6 +285,8 @@ export function buildSolutionQuote(product: PriceProduct, input: SolutionConditi
     })
   }
 
+  applyScaleCaps(product, lines, vars, autoFilled)
+
   const composed = composeQuote(lines, product.sections.map((s) => ({ key: s.name, roundingUnit: s.roundingUnit })))
   const once = supplyOf(composed.once)
   const annual = composed.annual.supplyMinor
@@ -303,4 +305,34 @@ export function buildSolutionQuote(product: PriceProduct, input: SolutionConditi
 /** 지정 시간 라이선스 품목 — gpu.timed 를 따라가는 품목 */
 function timedItemId(p: PriceProduct): string | null {
   return rulesOf(p, 'QTY_FROM').find((r) => r.varKey === 'gpu.timed')?.item ?? null
+}
+
+/**
+ * 규모 조정 — 그 묶음의 할인 대상 정가 소계가 「수 × 단위 금액」을 넘으면 넘는 만큼 할인한다.
+ *
+ * 할인율은 소수 둘째 자리로 **올려** 잡는다. 내려 잡으면 상한을 몇 원 넘고, 그 몇 원은 묶음 절사가 버린다.
+ * 기관 종류 할인과 겹치면 큰 쪽 하나만 쓴다 — 적용되는 할인율은 언제나 하나다(마이그 233 의 원칙).
+ * 수가 0 이면 걸지 않는다. 0 × 단위 금액은 「전부 할인」이 아니라 「셀 것이 없다」다.
+ */
+function applyScaleCaps(p: PriceProduct, lines: EngineLine[], vars: Record<VarKey, number>, autoFilled: AutoFilled[]): void {
+  const byId = new Map(p.items.map((i) => [i.id, i]))
+  for (const r of rulesOf(p, 'SCALE_CAP')) {
+    const count = vars[r.varKey]
+    if (!(count > 0) || !(r.perUnitMinor > 0)) continue
+    const target = lines.filter((l) => l.sectionKey === r.section && byId.get(l.itemId)?.discountable && !l.ratioPct && Number(l.unitPriceMinor) > 0)
+    const list = target.reduce((sum, l) => sum + Number(l.unitPriceMinor) * Number(l.quantity), 0)
+    const cap = count * r.perUnitMinor
+    if (list <= cap) continue
+    const pct = Math.ceil(((list - cap) / list) * 10_000) / 100
+    for (const l of target) {
+      if (Number(l.discountPercent ?? 0) >= pct) continue
+      l.discountPercent = pct
+      l.provenance = { ...l.provenance, discount: { source: 'RULE', note: `규모 조정 할인 ${pct}%` } }
+    }
+    autoFilled.push({
+      field: '규모 조정 할인',
+      value: `${pct}%`,
+      provenance: { source: 'RULE', note: `${r.section} 정가 소계 ${won(list)}원이 ${won(cap)}원(${count} × ${won(r.perUnitMinor)})을 넘음` },
+    })
+  }
 }

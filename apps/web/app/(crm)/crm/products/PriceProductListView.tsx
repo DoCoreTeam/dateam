@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Upload } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
@@ -21,6 +21,7 @@ import { ACTION, PRICEBOOK, BUSINESS_TYPE_LABEL, progress } from '@/lib/terms'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { kstDateKey } from '@/lib/datetime/kst'
 import PriceProductCreateModal from './PriceProductCreateModal'
+import PricebookImportModal from './PricebookImportModal'
 import styles from './pricebook.module.css'
 
 export interface PriceProductRow {
@@ -51,6 +52,7 @@ export default function PriceProductListView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [deleting, setDeleting] = useState<PriceProductRow | null>(null)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -137,7 +139,10 @@ export default function PriceProductListView() {
         views={['table', 'card']}
         filters={[TRASH_FILTER]}
         actions={(
-          <NbButton onClick={() => setCreating(true)}><Plus size={14} /> {PRICEBOOK.newProduct}</NbButton>
+          <>
+            <NbButton variant="ghost" onClick={() => setImporting(true)}><Upload size={14} /> {PRICEBOOK.importFile}</NbButton>
+            <NbButton onClick={() => setCreating(true)}><Plus size={14} /> {PRICEBOOK.newProduct}</NbButton>
+          </>
         )}
       />
       {(actionError || restoreError) && <p role="alert" className={styles.alert}>{actionError ?? restoreError}</p>}
@@ -161,6 +166,13 @@ export default function PriceProductListView() {
           <span>{PRICEBOOK.autoRegistered} <b>{unsorted}개</b> · {PRICEBOOK.noProduct} · {PRICEBOOK.unsorted}</span>
           <Link href="/crm/products?tab=item&auto=1">{PRICEBOOK.tabItem}</Link>
         </div>
+      )}
+      {importing && (
+        <PricebookImportModal
+          target="product"
+          onClose={() => setImporting(false)}
+          onSaved={(id) => { setImporting(false); if (id) router.push(`/crm/products/${id}`); else void load() }}
+        />
       )}
       {creating && (
         <PriceProductCreateModal

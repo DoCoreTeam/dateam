@@ -53,6 +53,9 @@ export type GpuClass = 'DC' | 'WS' | 'CONSUMER' | 'NPU'
  *   CAP       상한                 STD 는 GPU 합계 300장까지
  *   ELIGIBLE  고를 수 있는 조건    지정 시간은 워크스테이션과 데스크톱 GPU 만
  *   DISCOUNT  할인                 기관 종류가 학교면 할인 대상 품목에 10%
+ *   SCALE_CAP 규모 조정            라이선스 정가 소계가 GPU 수 × 728.3만원을 넘으면 넘는 만큼 할인
+ *
+ * 여덟째(SCALE_CAP)는 실제 가격표 v0.7.0 의 「규모 조정 할인」 때문에 코드로 더했다(P0135 I12).
  */
 export type PriceRule =
   | { kind: 'ONE_OF'; items: string[] }
@@ -62,9 +65,10 @@ export type PriceRule =
   | { kind: 'CAP'; item: string; varKey: VarKey; max: number }
   | { kind: 'ELIGIBLE'; item: string; classes: GpuClass[] }
   | { kind: 'DISCOUNT'; companyKind: CompanyKind | 'partner'; pct: number; confirmed: boolean; label: string }
+  | { kind: 'SCALE_CAP'; section: string; varKey: VarKey; perUnitMinor: number }
 
 export type RuleKind = PriceRule['kind']
-export const RULE_KINDS: readonly RuleKind[] = ['ONE_OF', 'WITH', 'INCLUDES', 'QTY_FROM', 'CAP', 'ELIGIBLE', 'DISCOUNT']
+export const RULE_KINDS: readonly RuleKind[] = ['ONE_OF', 'WITH', 'INCLUDES', 'QTY_FROM', 'CAP', 'ELIGIBLE', 'DISCOUNT', 'SCALE_CAP']
 
 export interface ProductSection {
   name: string

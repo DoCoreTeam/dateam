@@ -34,6 +34,8 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
   const [companyKind, setCompanyKind] = useState<CompanyKind | 'partner'>('school')
   const [label, setLabel] = useState('')
   const [includesVar, setIncludesVar] = useState(false)
+  const sections = [...new Set(items.map((i) => i.section ?? '기타'))]
+  const [section, setSection] = useState(sections[0] ?? '')
   const [error, setError] = useState<string | null>(null)
 
   const toggle = (id: string) => setList((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))
@@ -49,6 +51,8 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
       case 'QTY_FROM': return { kind, item, varKey, minusIncluded: minus }
       case 'CAP': return n > 0 ? { kind, item, varKey, max: n } : '상한을 넣으세요'
       case 'ELIGIBLE': return classes.length ? { kind, item, classes } : '구분을 하나 이상 고르세요'
+      case 'SCALE_CAP':
+        return n > 0 && section ? { kind, section, varKey, perUnitMinor: Math.round(n) } : '묶음과 단위 금액(원)을 넣으세요'
       case 'DISCOUNT':
         if (!(n >= 0 && n <= 100) || num === '') return '할인율을 0에서 100 사이로 넣으세요'
         return { kind, companyKind, pct: n, confirmed: false, label: label.trim() || (companyKind === 'partner' ? '파트너 공급' : COMPANY_KIND_LABEL[companyKind]) }
@@ -61,9 +65,9 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
     onAdd(r)
   }
 
-  const needsItem = kind !== 'ONE_OF' && kind !== 'DISCOUNT'
+  const needsItem = kind !== 'ONE_OF' && kind !== 'DISCOUNT' && kind !== 'SCALE_CAP'
   const needsList = KINDS_WITH_LIST.includes(kind) && !(kind === 'INCLUDES' && includesVar)
-  const needsVar = kind === 'QTY_FROM' || kind === 'CAP' || (kind === 'INCLUDES' && includesVar)
+  const needsVar = kind === 'QTY_FROM' || kind === 'CAP' || kind === 'SCALE_CAP' || (kind === 'INCLUDES' && includesVar)
 
   return (
     <NbModal
@@ -118,9 +122,17 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
             </select>
           </div>
         )}
-        {(kind === 'CAP' || (kind === 'INCLUDES' && includesVar) || kind === 'DISCOUNT') && (
+        {kind === 'SCALE_CAP' && (
           <div className={styles.field}>
-            <label className="label" htmlFor="ra-num">{kind === 'CAP' ? '상한' : kind === 'DISCOUNT' ? '할인율(%)' : '기본 포함 수'}</label>
+            <label className="label" htmlFor="ra-section">{PRICEBOOK.section}</label>
+            <select id="ra-section" className="input-field" value={section} onChange={(e) => setSection(e.target.value)}>
+              {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        )}
+        {(kind === 'CAP' || (kind === 'INCLUDES' && includesVar) || kind === 'DISCOUNT' || kind === 'SCALE_CAP') && (
+          <div className={styles.field}>
+            <label className="label" htmlFor="ra-num">{kind === 'CAP' ? '상한' : kind === 'DISCOUNT' ? '할인율(%)' : kind === 'SCALE_CAP' ? '단위 금액(원)' : '기본 포함 수'}</label>
             <input id="ra-num" className="input-field" inputMode="decimal" value={num} onChange={(e) => setNum(e.target.value)} />
           </div>
         )}

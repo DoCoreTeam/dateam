@@ -120,3 +120,22 @@ test('말한 할인율이 기관 종류 규칙보다 먼저다', () => {
   assert.equal(Number(l.discountPercent), 30)
   assert.equal(l.provenance.discount.source, 'SAID')
 })
+
+test('규모 조정: 라이선스 정가 소계가 GPU 수 × 단위 금액을 넘으면 넘는 만큼 할인한다', () => {
+  const p = { ...GCUBE_EDGE, rules: [...GCUBE_EDGE.rules, { kind: 'SCALE_CAP' as const, section: '라이선스', varKey: 'gpu.total' as const, perUnitMinor: 7_283_000 }] }
+  // H100 1장: 라이선스 정가 15,000,000 + 7,300,000 = 22,300,000 > 1 × 7,283,000
+  const r = buildSolutionQuote(p, { picked: ['edge-std', 'edge-maint-std'], gpus: [{ model: 'H100', count: 1, timed: false }], nodes: 20, training: null, companyKind: null, discount: 'none' })
+  const lic = r.composed.sections.find((s) => s.key === '라이선스')!
+  assert.ok(lic.totalMinor <= BigInt(7_283_000), String(lic.totalMinor))
+  assert.ok(lic.totalMinor >= BigInt(7_270_000), '올려 잡은 할인율 탓에 만원 넘게 깎이지는 않는다')
+  assert.ok(r.autoFilled.some((a) => a.field === '규모 조정 할인'))
+  // 예시(18장)는 상한 13,109.4만원 안이라 손대지 않는다
+  const ex = buildSolutionQuote(p, GCUBE_EDGE.examples![0].conditions)
+  assert.equal(ex.tcoMinor, BigInt(128_400_000))
+})
+
+test('규모 조정: GPU 가 0장이면 걸지 않는다 — 0 × 단위 금액은 전부 할인이 아니다', () => {
+  const p = { ...GCUBE_EDGE, rules: [...GCUBE_EDGE.rules, { kind: 'SCALE_CAP' as const, section: '라이선스', varKey: 'gpu.total' as const, perUnitMinor: 7_283_000 }] }
+  const r = buildSolutionQuote(p, { picked: ['edge-std'], gpus: [], nodes: 20, training: null, companyKind: null, discount: 'none' })
+  assert.equal(r.composed.sections.find((s) => s.key === '라이선스')!.totalMinor, BigInt(15_000_000))
+})

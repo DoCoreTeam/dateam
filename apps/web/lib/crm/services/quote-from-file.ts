@@ -222,14 +222,13 @@ export async function draftQuoteFromFile(
   input: QuoteFromFileInput,
   adapter?: AiAdapter,
 ): Promise<QuoteFromFileResult> {
-  const check = checkQuoteFile(input)
-  if (!check.ok) {
-    throw new CrmError('VALIDATION_FAILED', REJECT_MESSAGE[check.reason], {
-      field: 'file', reason: check.reason, detail: check.detail,
+  // 검사 1 은 DB 를 열기 전에 — 거절할 파일 때문에 설정을 읽지 않는다(readFileForAi 가 한 번 더 본다)
+  const early = checkQuoteFile(input)
+  if (!early.ok) {
+    throw new CrmError('VALIDATION_FAILED', REJECT_MESSAGE[early.reason], {
+      field: 'file', reason: early.reason, detail: early.detail,
     })
   }
-  const kind = check.kind
-
   /*
     **설정을 먼저 읽는다.** 얼마나 읽을지가 파서를 부르기 전에 정해져야 한다 —
     다 읽고 나서 자르면 그 시간은 이미 쓴 것이고, 모델에 넘긴 글자도 이미 넘긴 것이다.
@@ -238,43 +237,8 @@ export async function draftQuoteFromFile(
   const config = await readQuoteImportConfig(db)
   const limits = { maxLines: config.maxLines, maxComponentLines: config.maxComponentLines }
 
-  let route = initialQuoteFileRoute(kind)
-  let read: SourceTextResult = { text: '', truncated: false, tableCount: 0, pages: [] }
-
-  if (route === 'text') {
-    const parsed = await parseFile({
-      fileId: `quote-${Date.now()}`, fileName: input.fileName, bytes: input.bytes, fileRole: 'quote',
-    })
-    if (parsed.ok) read = irToSourceText(parsed.doc, { maxChars: config.maxChars })
-    // 스캔 PDF 는 파서가 «빈 문서를 성공으로» 준다. 그대로 두면 「항목 없음」이 뜬다.
-    // 파싱이 아예 실패한 PDF 도 같은 길로 보낸다 — 그림으로는 읽힐 수 있다
-    if (needsVisionFallback(kind, read.text)) {
-      route = 'vision'
-    } else if (!parsed.ok) {
-      /*
-        **왜 못 읽었는지를 함께 남긴다.** 사용자에게는 한 문장이면 되지만,
-        「parse_failed」 한 마디로는 고치는 쪽이 파서 문제인지 파일 문제인지 모른다.
-        이 값은 시스템 로그로 간다(withCrmApi 가 기록한다).
-      */
-      throw new CrmError('VALIDATION_FAILED',
-        '파일을 읽지 못했어요. 다른 형식으로 저장한 뒤 다시 올려 주세요.',
-        { field: 'file', reason: parsed.reason, detail: parsed.detail })
-    }
-  }
-
-  let attachments: AttachmentInput[] | undefined
-  if (route === 'vision') {
-    const one = toAttachment(input, kind)
-    if (!one) {
-      throw new CrmError('VALIDATION_FAILED',
-        '이 그림 형식은 읽을 수 없어요. PNG·JPG 로 저장한 뒤 다시 올려 주세요.', { field: 'file' })
-    }
-    attachments = [one]
-  } else if (read.text.trim().length === 0) {
-    throw new CrmError('VALIDATION_FAILED',
-      '파일에서 글자를 찾지 못했어요. 표가 그림으로 들어간 문서라면 그 쪽을 이미지로 저장해 올려 주세요.',
-      { field: 'file' })
-  }
+  const { kind, read, attachments } = await readFileForAi(input, { maxChars: config.maxChars })
+  const route: QuoteFileRoute = attachments ? 'vision' : 'text'
 
   // 어댑터 결정은 여기서 다시 구현하지 않는다 — 호스트 설정 한 곳에서 온다
   const chosen = adapter ?? await adapterFromSetting(db, { attachments, actorId })
@@ -352,6 +316,70 @@ export async function draftQuoteFromFile(
     runId,
     switchedNote,
   }
+}
+
+
+export interface FileForAi {
+  kind: DetectedKind
+  read: SourceTextResult
+  /** 그림째 읽을 때만 있다. 없으면 read.text 를 보낸다 */
+  attachments: AttachmentInput[] | undefined
+}
+
+/**
+ * 파일 → AI 에 넘길 글 또는 그림. 견적서 읽기와 가격표 읽기가 이 한 길을 쓴다(P0135).
+ *
+ * 검사 1(형식과 크기)도 여기서 한다 — 읽기 전에 거절해야 20MB 를 다 읽고 버리지 않는다.
+ * 스캔 PDF 는 파서가 빈 문서를 성공으로 주므로 그림 길로 돌린다.
+ */
+export async function readFileForAi(input: QuoteFromFileInput, opts: { maxChars: number }): Promise<FileForAi> {
+  const check = checkQuoteFile(input)
+  if (!check.ok) {
+    throw new CrmError('VALIDATION_FAILED', REJECT_MESSAGE[check.reason], {
+      field: 'file', reason: check.reason, detail: check.detail,
+    })
+  }
+  const kind = check.kind
+
+  let route = initialQuoteFileRoute(kind)
+  let read: SourceTextResult = { text: '', truncated: false, tableCount: 0, pages: [] }
+
+  if (route === 'text') {
+    const parsed = await parseFile({
+      fileId: `quote-${Date.now()}`, fileName: input.fileName, bytes: input.bytes, fileRole: 'quote',
+    })
+    if (parsed.ok) read = irToSourceText(parsed.doc, { maxChars: opts.maxChars })
+    // 스캔 PDF 는 파서가 «빈 문서를 성공으로» 준다. 그대로 두면 「항목 없음」이 뜬다.
+    // 파싱이 아예 실패한 PDF 도 같은 길로 보낸다 — 그림으로는 읽힐 수 있다
+    if (needsVisionFallback(kind, read.text)) {
+      route = 'vision'
+    } else if (!parsed.ok) {
+      /*
+        **왜 못 읽었는지를 함께 남긴다.** 사용자에게는 한 문장이면 되지만,
+        「parse_failed」 한 마디로는 고치는 쪽이 파서 문제인지 파일 문제인지 모른다.
+        이 값은 시스템 로그로 간다(withCrmApi 가 기록한다).
+      */
+      throw new CrmError('VALIDATION_FAILED',
+        '파일을 읽지 못했어요. 다른 형식으로 저장한 뒤 다시 올려 주세요.',
+        { field: 'file', reason: parsed.reason, detail: parsed.detail })
+    }
+  }
+
+  let attachments: AttachmentInput[] | undefined
+  if (route === 'vision') {
+    const one = toAttachment(input, kind)
+    if (!one) {
+      throw new CrmError('VALIDATION_FAILED',
+        '이 그림 형식은 읽을 수 없어요. PNG·JPG 로 저장한 뒤 다시 올려 주세요.', { field: 'file' })
+    }
+    attachments = [one]
+  } else if (read.text.trim().length === 0) {
+    throw new CrmError('VALIDATION_FAILED',
+      '파일에서 글자를 찾지 못했어요. 표가 그림으로 들어간 문서라면 그 쪽을 이미지로 저장해 올려 주세요.',
+      { field: 'file' })
+  }
+
+  return { kind, read, attachments }
 }
 
 /** 그림째 보낼 첨부로. 크기 상한은 첨부 규칙 한 곳에서 온다 */

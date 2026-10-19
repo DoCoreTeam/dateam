@@ -13,7 +13,7 @@
 // 페이지 이동이 없다. 그래서 ListPager 에 상한에 걸렸다는 사실만 알린다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, Archive, RotateCcw } from 'lucide-react'
+import { Pencil, Plus, Archive, RotateCcw, Upload } from 'lucide-react'
 import Sensitive from '@/components/crm/Sensitive'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
@@ -25,6 +25,7 @@ import { ACTION, ENTITY, count, createLabel, PRICEBOOK, ITEM_BASIS_LABEL } from 
 import { QUOTE } from '@/lib/terms/quote'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import ProductEditModal, { type ProductDraft } from './ProductEditModal'
+import PricebookImportModal from './PricebookImportModal'
 
 export interface ProductItem {
   id: string
@@ -74,6 +75,7 @@ export default function ProductListView() {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<ProductDraft | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const q = query.q ?? ''
   const includeInactive = (query.filters?.archived ?? '') === '1'
@@ -190,9 +192,12 @@ export default function ProductListView() {
         views={['table', 'card']}
         filters={[ACTIVE_FILTER, AUTO_FILTER]}
         actions={(
-          <NbButton onClick={() => setEditing(emptyDraft())}>
-            <Plus size={14} /> {createLabel(ENTITY.product.label)}
-          </NbButton>
+          <>
+            <NbButton variant="ghost" onClick={() => setImporting(true)}><Upload size={14} /> {PRICEBOOK.importFile}</NbButton>
+            <NbButton onClick={() => setEditing(emptyDraft())}>
+              <Plus size={14} /> {createLabel(ENTITY.product.label)}
+            </NbButton>
+          </>
         )}
       />
 
@@ -222,6 +227,10 @@ export default function ProductListView() {
         <p style={{ ...FAINT, fontSize: 'var(--fs-sm)' }}>
           {count('product', rows.length)}까지 보여 주고 있어요. 더 있으면 이름을 검색해 주세요.
         </p>
+      )}
+
+      {importing && (
+        <PricebookImportModal target="items" onClose={() => setImporting(false)} onSaved={() => { setImporting(false); void load() }} />
       )}
 
       {editing && (

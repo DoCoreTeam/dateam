@@ -18,3 +18,15 @@
   font-size: var(--fs-sm);
 }
 .alert { color: var(--danger); margin: 0; }
+.side { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+@media (min-width: 900px) { .side { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.source {
+  margin: 0; max-height: 420px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius);
+  font-size: var(--fs-xs); background: var(--surface-muted);
+}
+.tableWrap { overflow-x: auto; max-height: 420px; }
+.table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.table td { padding: var(--space-2); border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+.table td.num { text-align: right; white-space: nowrap; }
+.review td { background: var(--warning-bg); }

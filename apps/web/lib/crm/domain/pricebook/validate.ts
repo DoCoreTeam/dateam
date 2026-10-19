@@ -58,6 +58,11 @@ export function checkRules(p: PriceProduct): RuleProblem[] {
       case 'DISCOUNT':
         if (!(r.pct >= 0 && r.pct <= 100)) out.push({ index, message: '할인율은 0에서 100 사이여야 해요' })
         break
+      case 'SCALE_CAP':
+        if (!p.items.some((i) => i.section === r.section)) out.push({ index, message: `규모 조정이 가리키는 묶음이 없어요: ${r.section}` })
+        if (!VAR_KEYS.includes(r.varKey)) out.push({ index, message: '모르는 조건이에요' })
+        if (!(Number(r.perUnitMinor) > 0)) out.push({ index, message: '규모 조정 단위 금액은 양수여야 해요' })
+        break
     }
   })
 

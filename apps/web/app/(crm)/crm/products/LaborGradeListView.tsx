@@ -7,7 +7,7 @@
 // 지우지 않고 숨긴다. 쓴 견적이 이 등급을 가리킨다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, EyeOff, Eye } from 'lucide-react'
+import { Plus, EyeOff, Eye, Upload } from 'lucide-react'
 import Sensitive from '@/components/crm/Sensitive'
 import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
@@ -17,6 +17,7 @@ import { ACTION, PRICEBOOK } from '@/lib/terms'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import LaborGradeEditModal, { type GradeDraft } from './LaborGradeEditModal'
+import PricebookImportModal from './PricebookImportModal'
 import styles from './pricebook.module.css'
 
 export interface GradeRow {
@@ -47,6 +48,7 @@ export default function LaborGradeListView() {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<GradeDraft | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -110,6 +112,7 @@ export default function LaborGradeListView() {
   return (
     <>
       <div className={styles.actions} style={{ marginBottom: 'var(--space-3)' }}>
+        <NbButton variant="ghost" onClick={() => setImporting(true)}><Upload size={14} /> {PRICEBOOK.importFile}</NbButton>
         <NbButton onClick={() => setEditing(emptyDraft(rows.length))}><Plus size={14} /> {PRICEBOOK.newGrade}</NbButton>
       </div>
       {actionError && <p role="alert" className={styles.alert}>{actionError}</p>}
@@ -128,6 +131,9 @@ export default function LaborGradeListView() {
           action: { label: PRICEBOOK.newGrade, onClick: () => setEditing(emptyDraft(0)) },
         }}
       />
+      {importing && (
+        <PricebookImportModal target="labor" onClose={() => setImporting(false)} onSaved={() => { setImporting(false); void load() }} />
+      )}
       {editing && (
         <LaborGradeEditModal
           draft={editing}
