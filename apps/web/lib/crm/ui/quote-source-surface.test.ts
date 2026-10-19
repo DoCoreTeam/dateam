@@ -207,8 +207,14 @@ test('★ 붙인 것을 다시 가르면 원래대로다 — 두 규칙이 갈�
 test('★ 읽기 상한이 설정에서 온다 — 스키마에 박아 두면 설정을 바꿔도 안 바뀐다', () => {
   const src = read(FROM_FILE)
   assert.match(src, /readQuoteImportConfig\(db\)/, '설정을 안 읽는다')
-  assert.match(src, /irToSourceText\(parsed\.doc, \{ maxChars: config\.maxChars \}\)/,
-    '글자 수 상한이 설정을 안 따른다')
+  /*
+    파일 → 글은 가격표 읽기와 같이 쓰는 readFileForAi 로 뽑혔다(P0135 I12).
+    그래서 두 걸음을 다 본다 — 설정 값이 readFileForAi 에 들어가고, readFileForAi 가 그 값을 파서에 넘긴다.
+    한쪽만 보면 다른 쪽에 숫자를 박아도 통과한다.
+  */
+  assert.match(src, /const readOpts = \{ maxChars: config\.maxChars \}/, '글자 수 상한이 설정을 안 따른다')
+  assert.match(src, /readFileForAi\(input, readOpts\)/, '설정 값이 파일 읽기에 안 들어간다')
+  assert.match(src, /irToSourceText\(parsed\.doc, \{ maxChars: opts\.maxChars \}\)/, '파일 읽기가 받은 상한을 안 쓴다')
   assert.match(src, /parseQuoteFromDocDoc\(text, limits\)/,
     '항목·구성 상한이 설정을 안 따른다')
 })

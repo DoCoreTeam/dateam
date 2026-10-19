@@ -51,6 +51,13 @@ const QUOTE_CARRIED: Array<[field: string, from: string, why: string]> = [
   ['lineNoteKeys', 'src.lineNoteKeys', '품목 아래 어느 근거를 인쇄할지'],
   ['totalConvKeys', 'src.totalConvKeys', '합계 영역에 어느 환산 줄을 세울지'],
   ['rateHoursPerMonth', 'src.rateHoursPerMonth', '시간당 환산이 이 값으로 나뉜다'],
+  // 가격 기준(마이그 310) — 1회와 매년, 묶음 절사, 예산, 자동으로 채운 값
+  ['annualMinor', 'src.annualMinor', '견적서 합계 영역의 연 유지보수'],
+  ['sectionRoundingMinor', 'src.sectionRoundingMinor', '묶음 절사 합'],
+  ['budgetMinor', 'src.budgetMinor', '예산에 맞춘 견적의 목표'],
+  ['autoFilled', 'src.autoFilled', '자동으로 채운 값 목록'],
+  ['fillConditions', 'src.fillConditions', '조건 고치기가 다시 채운다'],
+  ['priceBasisDate', 'src.priceBasisDate', '1년 뒤에도 그날 값을 읽는 기준 날짜'],
 ]
 
 const LINE_CARRIED: Array<[field: string, from: string, why: string]> = [
@@ -66,6 +73,14 @@ const LINE_CARRIED: Array<[field: string, from: string, why: string]> = [
   */
   ['startDate', 'l.startDate', '여기서 개월과 총 시간을 센다'],
   ['endDate', 'l.endDate', '기간의 끝 — 하나만 비어도 축이 못 선다'],
+  // 가격 기준(마이그 310) — 그날 정상가가 빠지면 승인이 옛 길로 떨어진다
+  ['listPriceMinor', 'l.listPriceMinor', '정상가 대비 승인과 기준 대조의 근거'],
+  ['priceSource', 'l.priceSource', '어느 가격 기준에서 왔나'],
+  ['provenance', 'l.provenance', '칸마다 출처'],
+  ['billing', 'l.billing', '1회와 매년'],
+  ['ratioOfSectionName', 'l.ratioOfSectionName', '비율의 대상 묶음'],
+  ['lockedFields', 'l.lockedFields', '사람이 고친 칸은 다시 채우기가 덮지 않는다'],
+  ['sourceLineId', 'l.id', '앞 견적의 어느 항목에서 왔나'],
 ]
 
 test('★ 복제가 견적의 인쇄되는 값을 들고 간다', () => {

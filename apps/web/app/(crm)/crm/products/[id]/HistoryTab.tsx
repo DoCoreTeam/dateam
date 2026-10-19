@@ -6,7 +6,9 @@
 import { useEffect, useState } from 'react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
-import EmptyState from '@/components/ui/EmptyState'
+import ListSurface from '@/components/ui/list/ListSurface'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
 import Sensitive from '@/components/crm/Sensitive'
 import { PRICEBOOK } from '@/lib/terms'
 import { kstDateKey } from '@/lib/datetime/kst'
@@ -28,6 +30,7 @@ const SOURCE: Record<string, string> = { HAND: PRICEBOOK.historyByHand, SEED: '�
 
 export default function HistoryTab({ productId }: { productId: string }) {
   const [rows, setRows] = useState<Row[] | null>(null)
+  const { query, set } = useListQuery({ view: 'table', size: 100, sort: { key: 'createdAt', dir: 'desc' }, mode: 'more' })
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -48,35 +51,23 @@ export default function HistoryTab({ productId }: { productId: string }) {
 
   if (error) return <ErrorState message={error} />
   if (!rows) return <AXDotLoader />
-  if (rows.length === 0) return <EmptyState title={PRICEBOOK.historyEmpty} />
 
-  return (
-    <div className={styles.tableWrap}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>{PRICEBOOK.tabItem}</th>
-            <th className={styles.num}>{PRICEBOOK.listPrice}</th>
-            <th>{PRICEBOOK.gradeFrom}</th>
-            <th>{PRICEBOOK.historyWhere}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <td>{r.itemName}</td>
-              <td className={styles.num}>
-                {r.field === 'confirmed' ? PRICEBOOK.confirmed : r.amountMinor === null ? '—' : <Sensitive>{won(r.amountMinor)}</Sensitive>}
-              </td>
-              <td>{r.effectiveFrom.slice(0, 10)}</td>
-              <td>
-                {r.sourceKind === 'FILE' && r.sourceName ? PRICEBOOK.historyByFile(r.sourceName) : (SOURCE[r.sourceKind] ?? r.sourceKind)}
-                <span className={styles.small}> · {kstDateKey(r.createdAt)}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+  const columns: ColumnDef<Row>[] = [
+    { key: 'item', header: PRICEBOOK.tabItem, primary: true, cell: (r) => r.itemName },
+    {
+      key: 'amount', header: PRICEBOOK.listPrice, align: 'right',
+      cell: (r) => (r.field === 'confirmed' ? PRICEBOOK.confirmed : r.amountMinor === null ? '—' : <Sensitive>{won(r.amountMinor)}</Sensitive>),
+    },
+    { key: 'from', header: PRICEBOOK.gradeFrom, cell: (r) => r.effectiveFrom.slice(0, 10) },
+    {
+      key: 'where', header: PRICEBOOK.historyWhere,
+      cell: (r) => (
+        <>
+          {r.sourceKind === 'FILE' && r.sourceName ? PRICEBOOK.historyByFile(r.sourceName) : (SOURCE[r.sourceKind] ?? r.sourceKind)}
+          <span className={styles.small}> · {kstDateKey(r.createdAt)}</span>
+        </>
+      ),
+    },
+  ]
+  return <ListSurface rows={rows} columns={columns} query={query} onChange={set} rowKey={(r) => r.id} empty={{ title: PRICEBOOK.historyEmpty }} />
 }

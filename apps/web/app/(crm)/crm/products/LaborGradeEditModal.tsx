@@ -6,6 +6,7 @@ import { useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import DateField from '@/components/ui/DateField'
 import { ACTION, PRICEBOOK, progress } from '@/lib/terms'
 import styles from './pricebook.module.css'
 
@@ -42,17 +43,20 @@ export default function LaborGradeEditModal({ draft, canSeeCost, onClose, onSave
     setBusy(true)
     setError(null)
     try {
-      const body: Record<string, unknown> = {
+      // 만들기와 고치기가 같은 칸을 보낸다 — 고치기에만 빠진 칸이 생기지 않게(crm-update-standard)
+      const body = {
         name: form.name.trim(),
         roleLabel: form.roleLabel.trim() || null,
         pricePerMmMinor: form.pricePerMmMinor || null,
         publicRateMinor: form.publicRateMinor || null,
         effectiveFrom: form.effectiveFrom || null,
         position: Number(form.position) || 0,
+        version: draft.version,
+        // 원가는 볼 수 있는 사람만 보낸다 — 못 보는 사람이 0 으로 덮지 않게
+        ...(canSeeCost ? { costPerMmMinor: form.costPerMmMinor || '0' } : {}),
       }
-      if (canSeeCost) body.costPerMmMinor = form.costPerMmMinor || '0'
       const res = editing
-        ? await fetch(`/api/crm/labor-grades/${draft.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, version: draft.version }) })
+        ? await fetch(`/api/crm/labor-grades/${draft.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         : await fetch('/api/crm/labor-grades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const json = await res.json()
       if (!res.ok) { setError(json?.error?.message ?? '저장하지 못했습니다.'); return }
@@ -107,7 +111,7 @@ export default function LaborGradeEditModal({ draft, canSeeCost, onClose, onSave
           )}
           <div className={styles.field}>
             <label className="label" htmlFor="lg-from">{PRICEBOOK.gradeFrom}</label>
-            <input id="lg-from" type="date" className="input-field" value={form.effectiveFrom} onChange={(e) => set({ effectiveFrom: e.target.value })} />
+            <DateField id="lg-from" value={form.effectiveFrom} onValueChange={(v) => set({ effectiveFrom: v })} />
           </div>
         </div>
       </div>

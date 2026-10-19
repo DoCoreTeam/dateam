@@ -10,6 +10,7 @@
  */
 
 import type { CompanyKind } from '../company-kind.ts'
+import { toMinor as moneyToMinor } from '../money.ts'
 import { ITEM_BASES, RULE_KINDS, type ItemBasis, type PriceExample, type PriceItem, type PriceProduct, type PriceRule, type ProductSection } from './types.ts'
 import { amountInSource, checkExamples, checkRules, diffItems, sourceUnitOf, unitProblems, type ExampleCheck, type ProductDiff } from './validate.ts'
 
@@ -84,9 +85,10 @@ const UNIT_WON: Record<string, number> = { 원: 1, 천원: 1_000, 만원: 10_000
 const COMPANY_KINDS: readonly string[] = ['school', 'government', 'public', 'research', 'company', 'nonprofit', 'partner']
 const BUSINESS_TYPES: readonly string[] = ['GPU', 'SI', 'SOLUTION', 'HARDWARE', 'MSP', 'PROJECT', 'CREDIT', 'OTHER']
 
+/** 원문 숫자 × 단위 → 원. 변환은 money.ts 의 toMinor 하나만 쓴다(money-ssot.test.ts) */
 function toMinor(v: number | null, mult: number): bigint | null {
   if (v === null || !Number.isFinite(v) || v < 0) return null
-  return BigInt(Math.round(v * mult))
+  return moneyToMinor(v * mult)
 }
 
 const norm = (s: string) => s.replace(/\s+/g, '').toLowerCase()

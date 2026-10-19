@@ -237,7 +237,8 @@ export async function draftQuoteFromFile(
   const config = await readQuoteImportConfig(db)
   const limits = { maxLines: config.maxLines, maxComponentLines: config.maxComponentLines }
 
-  const { kind, read, attachments } = await readFileForAi(input, { maxChars: config.maxChars })
+  const readOpts = { maxChars: config.maxChars }
+  const { kind, read, attachments } = await readFileForAi(input, readOpts)
   const route: QuoteFileRoute = attachments ? 'vision' : 'text'
 
   // 어댑터 결정은 여기서 다시 구현하지 않는다 — 호스트 설정 한 곳에서 온다

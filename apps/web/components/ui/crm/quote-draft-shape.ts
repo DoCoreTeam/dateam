@@ -88,6 +88,18 @@ export interface QuoteLineDraft {
   /** 몇 번째 묶음인가. null 이면 묶이지 않은 항목 */
   sectionIndex?: number | null
   taxRate: string
+  /**
+   * ── 가격 기준(마이그 310) ──
+   * **들고 다니기만 해도 된다.** 편집 모달에서 안 고친 칸도 저장 때 그대로 돌아가야 한다 —
+   * 빠지면 정상가 대비 승인이 할인 칸 승인으로 떨어지고 비율 줄이 0원이 된다.
+   */
+  listPriceMinor?: string | null
+  priceSource?: string | null
+  provenance?: Record<string, unknown> | null
+  billing?: string | null
+  ratioPct?: string | null
+  ratioOfSectionName?: string | null
+  lockedFields?: string[]
 }
 
 /** `/api/crm/products` 가 주는 모양 (금액은 BigInt 라 문자열로 온다) */
@@ -121,7 +133,7 @@ export interface QuoteDraft {
    */
   termIds: string[]
   /** 묶음. 비어 있으면 묶음 없는 견적이다 */
-  sections: { id?: string | null; name: string }[]
+  sections: { id?: string | null; name: string; roundingUnit?: number; businessTypeKey?: string | null }[]
   /** 절사 단위(원). 0 = 안 함 */
   roundingUnit: number
   /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
@@ -136,6 +148,13 @@ export interface QuoteDraft {
   /** 월 기준 시간. 빈 문자열이면 설정 기본값(730) */
   rateHoursPerMonth: string
   lines: QuoteLineDraft[]
+  /** 예산(원) — 맞추기는 할인 칸으로 한다. 비면 없음 */
+  budgetMinor?: string | null
+  budgetIncludesTax?: boolean
+  /** 자동으로 채운 값 — 편집 화면에만 서고 견적서에는 안 실린다 */
+  autoFilled?: { field: string; value: string; provenance: { source: string; note?: string | null } }[]
+  /** 제품으로 채우기의 조건 — 조건 고치기가 다시 채운다 */
+  fillConditions?: Record<string, unknown> | null
 }
 
 /**
@@ -176,6 +195,14 @@ export function toLinePayload(l: QuoteLineDraft): Record<string, unknown> {
     // 빈 칸은 «기간 없음» — 하나만 적어도 된다
     startDate: l.startDate?.trim() || null,
     endDate: l.endDate?.trim() || null,
+    // 가격 기준 — 안 실으면 다시 저장할 때 옛 계산으로 떨어진다
+    listPriceMinor: l.listPriceMinor ?? null,
+    priceSource: l.priceSource ?? null,
+    provenance: l.provenance ?? null,
+    billing: l.billing ?? null,
+    ratioPct: l.ratioPct ?? null,
+    ratioOfSectionName: l.ratioOfSectionName ?? null,
+    lockedFields: l.lockedFields ?? [],
   }
 }
 
@@ -248,7 +275,13 @@ export function quoteToDraft(body: any): QuoteDraft {
     status: body.status,
     recipientPersonId: body.recipientPersonId ?? null,
     termIds: body.termIds ?? [],
-    sections: (body.sections ?? []).map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })),
+    sections: (body.sections ?? []).map((x: { id: string; name: string; roundingUnit?: number; businessTypeKey?: string | null }) => ({
+      id: x.id, name: x.name, roundingUnit: Number(x.roundingUnit ?? 0), businessTypeKey: x.businessTypeKey ?? null,
+    })),
+    budgetMinor: body.budgetMinor ?? null,
+    budgetIncludesTax: body.budgetIncludesTax === true,
+    autoFilled: Array.isArray(body.autoFilled) ? body.autoFilled : [],
+    fillConditions: body.fillConditions ?? null,
     roundingUnit: Number(body.roundingUnit ?? 0),
     roundingMode: body.roundingMode ?? 'DOWN',
     // 안 들고 오면 고른 축이 저장하는 순간 사라진다 — 이 파일이 생긴 이유와 같은 사고다
@@ -288,6 +321,13 @@ export function quoteToDraft(body: any): QuoteDraft {
         return idx >= 0 ? idx : null
       })(),
       taxRate: String(l.taxRate),
+      listPriceMinor: l.listPriceMinor ?? null,
+      priceSource: l.priceSource ?? null,
+      provenance: l.provenance && typeof l.provenance === 'object' && Object.keys(l.provenance).length ? l.provenance : null,
+      billing: l.billing ?? null,
+      ratioPct: l.ratioPct == null ? null : String(l.ratioPct),
+      ratioOfSectionName: l.ratioOfSectionName ?? null,
+      lockedFields: Array.isArray(l.lockedFields) ? l.lockedFields : [],
     })),
   }
 }

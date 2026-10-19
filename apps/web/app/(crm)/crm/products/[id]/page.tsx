@@ -12,7 +12,7 @@ export default async function PriceProductPage({ params }: Props) {
   const { id } = await params
   return (
     <>
-      <PageHeader eyebrow={SERVICE_LABEL.crm} title={PRICEBOOK.title} icon={<Package size={20} />} below={<CrmGroupTabs />} />
+      <PageHeader eyebrow={SERVICE_LABEL.crm} title={PRICEBOOK.title} icon={<Package size={20} />} back={{ href: '/crm/products?tab=product', label: PRICEBOOK.title }} below={<CrmGroupTabs />} />
       <ProductDetailView id={id} />
     </>
   )

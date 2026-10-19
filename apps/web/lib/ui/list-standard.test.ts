@@ -68,6 +68,12 @@ const DOCUMENT_SURFACES = new Set<string>([
   // 검색·정렬·쪽 넘김이 붙을 성질이 아니다 — 붙이면 읽는 사람이 「내 데이터인가」로 읽는다.
   // 같은 이유로 이 화면 옆의 app/develop/page.tsx 도 이미 표준 밖이다.
   'app/develop/AiLayerSection.tsx',
+  // 가격 기준 미리 계산의 **계산서**다(P0135). 견적서 종이와 같은 묶음 소계 절사 줄이 서는 문서이고,
+  // 정렬하면 묶음 순서가 깨져 「라이선스 소계」가 엉뚱한 줄 밑에 선다.
+  'app/(crm)/crm/products/[id]/PreviewTab.tsx',
+  // 가격표 파일로 가져오기의 **나란히 보기**(검증 7)다. 원본 옆에 읽은 그대로를 세워 대조하는 자리라
+  // 정렬하거나 쪽을 넘기면 원본과 줄이 어긋나 대조가 안 된다(QuoteOriginalCompare 와 같은 이유).
+  'app/(crm)/crm/products/PricebookImportModal.tsx',
 ])
 
 function rawTableFiles(): string[] {

@@ -46,6 +46,8 @@ export default function InfoTab({ data, onSaved }: Props) {
     }
   }
 
+  const setRounding = (i: number, unit: number) => setSections((ss) => ss.map((x, k) => (k === i ? { ...x, roundingUnit: unit } : x)))
+
   const move = (i: number, d: -1 | 1) => setSections((ss) => {
     const j = i + d
     if (j < 0 || j >= ss.length) return ss
@@ -87,7 +89,7 @@ export default function InfoTab({ data, onSaved }: Props) {
           <div key={s.name} className={styles.gpuRow}>
             <span>{s.name}</span>
             <select className="input-field" aria-label={`${s.name} ${PRICEBOOK.sectionRounding}`} value={s.roundingUnit}
-              onChange={(e) => setSections((ss) => ss.map((x, k) => (k === i ? { ...x, roundingUnit: Number(e.target.value) } : x)))}>
+              onChange={(e) => setRounding(i, Number(e.target.value))}>
               {ROUNDING_UNITS.map((u) => <option key={u} value={u}>{u === 0 ? '절사 안 함' : `${roundingUnitName(u)} 미만 절사`}</option>)}
             </select>
             <NbButton variant="ghost" onClick={() => move(i, -1)} disabled={i === 0} aria-label="위로">↑</NbButton>

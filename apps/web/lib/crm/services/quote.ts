@@ -40,6 +40,11 @@ import {
   type QuoteLineInput,
 } from '../domain/quote-math.ts'
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
+import { priceQuote } from './quote-pricing.ts'
+import {
+  LINE_PRICING_KEYS, QUOTE_PRICING_KEYS, linePricingData, quotePricingData, sectionPricingData,
+  type LinePricingInput, type QuotePricingInput,
+} from './quote-pricing-fields.ts'
 import { LINE_KIND_ORDER, LINE_KIND_PRICE_BASIS, type QuoteLineKind } from '../../terms/cost.ts'
 import {
   roundingUnitName,
@@ -84,6 +89,14 @@ export interface QuoteLineRow {
   /** 공급 기간 — 여기서 개월과 총 시간을 센다 */
   startDate: Date | null
   endDate: Date | null
+  /** ── 가격 기준(마이그 310). 비면 지난 견적이고 예전 계산 그대로다 ── */
+  listPriceMinor?: bigint | null
+  priceSource?: string | null
+  provenance?: unknown
+  billing?: string | null
+  ratioOfSectionName?: string | null
+  sourceLineId?: string | null
+  lockedFields?: string[]
 }
 
 /** 견적 안의 묶음 하나(읽기) */
@@ -92,6 +105,10 @@ export interface QuoteSectionRow {
   name: string
   position: number
   subtotalMinor: bigint
+  /** 묶음 절사(마이그 310) */
+  roundingUnit?: number
+  roundingMinor?: bigint
+  businessTypeKey?: string | null
 }
 
 export interface QuoteRow {
@@ -183,6 +200,9 @@ const LINE_SELECT = {
   startDate: true, endDate: true,
   // 「얼마 동안」 — **금액을 바꾸는 값**이다. 안 읽으면 화면이 기간 없는 금액을 다시 계산한다
   durationValue: true, durationUnit: true,
+  // 가격 기준 — 출처와 그날 정상가. 안 읽으면 다시 저장할 때 승인 판정이 옛 길로 떨어진다
+  listPriceMinor: true, priceSource: true, provenance: true, billing: true,
+  ratioOfSectionName: true, sourceLineId: true, lockedFields: true,
 } as const
 
 const SELECT = {
@@ -202,11 +222,15 @@ const SELECT = {
   fromFileAt: true, sourceFileName: true,
   sourcePageStart: true, sourcePageEnd: true, sourceSnapshotId: true,
   sentAt: true, decidedAt: true, version: true, createdAt: true, updatedAt: true,
+  // 가격 기준 — 1회와 매년, 묶음 절사, 예산, 자동으로 채운 값
+  annualMinor: true, sectionRoundingMinor: true, budgetMinor: true, budgetIncludesTax: true,
+  autoFilled: true, fillConditions: true, priceBasisDate: true,
 } as const
 
 /** 섹션을 함께 읽는 select — 상세·문서가 쓴다 */
 const SECTION_SELECT = {
   id: true, name: true, position: true, subtotalMinor: true,
+  roundingUnit: true, roundingMinor: true, businessTypeKey: true,
 } as const
 
 // ------------------------------------------------------------
@@ -218,9 +242,12 @@ export interface QuoteSectionData {
   /** 기존 묶음이면 id. 없으면 새로 만든다 */
   id?: string | null
   name: string
+  /** 묶음 절사 단위(원). 0 이면 안 함 */
+  roundingUnit?: number | string | null
+  businessTypeKey?: string | null
 }
 
-export interface QuoteLineData {
+export interface QuoteLineData extends LinePricingInput {
   /** 기존 항목이면 id. 없으면 새로 만든다 */
   id?: string | null
   /**
@@ -272,6 +299,8 @@ const LINE_KEYS = new Set([
   'startDate', 'endDate',
   // 「얼마 동안」 — 여기 없으면 화면이 적은 기간이 **조용히 버려지고** 금액이 절반이 된다
   'durationValue', 'durationUnit',
+  // 가격 기준(마이그 310) — 출처, 그날 정상가, 청구, 비율, 사람이 잠근 칸
+  ...LINE_PRICING_KEYS,
 ])
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
@@ -284,6 +313,8 @@ const QUOTE_KEYS = new Set([
   'rateHoursPerMonth', 'rateAxisKeys', 'lineNoteKeys', 'totalConvKeys',
   // 파일로 읽었을 때의 대조 결과 — 지표로만 쓰고 견적의 어떤 값도 안 바꾼다
   'importCheck',
+  // 가격 기준 — 예산, 자동으로 채운 값, 제품으로 채우기 조건
+  ...QUOTE_PRICING_KEYS,
 ])
 
 /** 모르는 이름이 섞여 있으면 **거절한다** — 조용히 버리면 보낸 쪽은 반영된 줄 안다 */
@@ -444,8 +475,10 @@ function toLineData(
   if (!name) {
     throw new CrmError('VALIDATION_FAILED', '항목 이름을 입력해 주세요.', { field: 'name' })
   }
-  const quantity = toQuantity(line.quantity)
-  const unitPriceMinor = toMinor(line.unitPriceMinor, 'unitPriceMinor')
+  const pricing = linePricingData(line)
+  // 비율 줄은 단가와 수량을 쓰지 않는다 — 금액은 대상 묶음의 몇 % 로 저장 직전에 정해진다
+  const quantity = pricing.isRatio ? 1 : toQuantity(line.quantity)
+  const unitPriceMinor = pricing.isRatio ? BigInt(0) : toMinor(line.unitPriceMinor, 'unitPriceMinor')
   const discountPercent = toRate(line.discountPercent, 'discountPercent', 0)
   const taxRate = toRate(line.taxRate, 'taxRate', 10)
 
@@ -467,9 +500,11 @@ function toLineData(
 
     **금액보다 먼저 푼다** — 종류가 단가의 기준 단위를 정하고, 그 기준이 기간 배수를 정한다.
   */
-  const kind = line.kind === undefined || line.kind === null || line.kind === ''
-    ? 'QUANTITY'
-    : line.kind
+  const kind = pricing.isRatio
+    ? 'RATIO'
+    : line.kind === undefined || line.kind === null || line.kind === ''
+      ? 'QUANTITY'
+      : line.kind
   if (!LINE_KIND_ORDER.includes(kind as QuoteLineKind)) {
     throw new CrmError('VALIDATION_FAILED', `모르는 항목 종류입니다: ${kind}`, { field: 'kind' })
   }
@@ -509,6 +544,7 @@ function toLineData(
     taxRate,
     lineTotalMinor: amounts.lineTotalMinor,
     position,
+    ...pricing.data,
     /*
       **인덱스는 여기서 id 로 바뀌지 않는다.** 섹션이 아직 안 만들어졌기 때문이다.
       저장 직전에 «인덱스 → id» 표로 바꾼다(withSectionIds).
@@ -789,7 +825,7 @@ export interface QuoteImportCheckInput {
 
 const TOTAL_VERDICTS = new Set(['match', 'mismatch', 'no_reference'])
 
-export interface CreateQuoteInput {
+export interface CreateQuoteInput extends QuotePricingInput {
   /** 고른 거래 조건. 순서가 곧 인쇄 순서다 */
   termIds?: string[]
   dealId: string
@@ -929,8 +965,20 @@ export async function createQuote(
       : {}
 
     const fx = needsFx(currency) ? await latestFxRate(currency) : null
-    const totals = computeTotals(lines as unknown as QuoteLineInput[], rounding)
     const threshold = await approvalThreshold(tx)
+    /*
+      **금액 판정은 한 곳(priceQuote)이다.** 새 칸이 없으면 예전 computeTotals 그대로이고,
+      있으면 묶음 절사 비율 1회와 매년을 센다. 비율 줄의 합계는 여기서 정해진다.
+    */
+    const totals = priceQuote(lines as never, sectionsForPricing(input.sections), rounding, threshold, rateDisplay.rateHoursPerMonth)
+    if (totals.lineTotals) totals.lineTotals.forEach((t, i) => { lines[i].lineTotalMinor = t })
+    const pricingData = {
+      ...quotePricingData(input),
+      annualMinor: totals.annualMinor,
+      sectionRoundingMinor: totals.sectionRoundingMinor,
+      // 기준 날짜 — 1년 뒤에 열어도 가격 이력에서 그날 값을 읽는다
+      priceBasisDate: new Date(`${kstTodayKey()}T00:00:00Z`),
+    }
 
     // 조건은 **만들 때 굳힌다.** 아래 두 경로(첫 시도·번호 충돌 재시도)가 같은 값을 쓴다 —
     // 한쪽에서만 굳히면 번호가 겹친 날의 견적만 조건이 빈 채로 남는다
@@ -987,11 +1035,12 @@ export async function createQuote(
           roundingUnit: rounding.unit,
           roundingMode: rounding.mode,
           roundingMinor: totals.roundingMinor,
-          approvalRequired: needsApproval(totals, threshold),
+          approvalRequired: totals.approvalRequired,
           fxRate: fx?.rate ?? null,
           fxDate: fx ? new Date(fx.date) : null,
           fxSource: fx?.source ?? null,
           ...fromFile,
+          ...pricingData,
         },
         select: SELECT,
       })
@@ -1018,11 +1067,12 @@ export async function createQuote(
           taxMinor: totals.taxMinor, totalMinor: totals.totalMinor,
           roundingUnit: rounding.unit, roundingMode: rounding.mode,
           roundingMinor: totals.roundingMinor,
-          approvalRequired: needsApproval(totals, threshold),
+          approvalRequired: totals.approvalRequired,
           fxRate: fx?.rate ?? null,
           fxDate: fx ? new Date(fx.date) : null,
           fxSource: fx?.source ?? null,
           ...fromFile,
+          ...pricingData,
         },
         select: SELECT,
       })
@@ -1166,7 +1216,7 @@ async function approvalThreshold(tx: any): Promise<number> {
   return DEFAULT_DISCOUNT_APPROVAL_PCT
 }
 
-export interface UpdateQuoteInput {
+export interface UpdateQuoteInput extends QuotePricingInput {
   termIds?: string[]
   version: number
   /**
@@ -1302,6 +1352,8 @@ export async function updateQuote(
     // 빈 문자열은 «고르지 않음»이다 — null 로 눕혀야 FK 가 받는다
     if (input.recipientPersonId !== undefined) data.recipientPersonId = input.recipientPersonId || null
     if (input.ownerId !== undefined) data.ownerId = input.ownerId || null
+    // 예산, 자동으로 채운 값, 조건 — 안 보낸 칸은 그대로 둔다
+    Object.assign(data, quotePricingData(input))
 
     // 한 번만 계산한다 — 두 번 계산하면 그 사이 규칙이 갈릴 자리가 생긴다
     /*
@@ -1322,16 +1374,14 @@ export async function updateQuote(
         저장된 값을 그대로 쓴다. 항목을 안 보냈으면 **저장된 항목을 읽어** 계산한다.
       */
       const rounding = toRounding(input, before)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const calcLines = nextLines ?? await (tx as any).crmQuoteLine.findMany({
-        where: { quoteId: id },
-        select: {
-          quantity: true, unitPriceMinor: true, discountPercent: true,
-          specialDiscountPercent: true, taxRate: true,
-        },
-      })
-      const totals = computeTotals(calcLines as unknown as QuoteLineInput[], rounding)
+      const calcLines = nextLines ?? await storedPricingLines(tx, id)
+      const calcSections = input.sections !== undefined ? sectionsForPricing(input.sections) : await storedPricingSections(tx, id)
       const threshold = await approvalThreshold(tx)
+      // 금액 판정은 한 곳 — 새 칸이 없으면 예전 computeTotals 그대로다
+      const totals = priceQuote(calcLines as never, calcSections, rounding, threshold, hoursForLines)
+      if (nextLines && totals.lineTotals) totals.lineTotals.forEach((t, i) => { nextLines[i].lineTotalMinor = t })
+      data.annualMinor = totals.annualMinor
+      data.sectionRoundingMinor = totals.sectionRoundingMinor
 
       data.subtotalMinor = totals.subtotalMinor
       data.discountMinor = totals.discountMinor
@@ -1341,7 +1391,7 @@ export async function updateQuote(
       data.roundingMode = rounding.mode
       data.roundingMinor = totals.roundingMinor
 
-      const required = needsApproval(totals, threshold)
+      const required = totals.approvalRequired
       data.approvalRequired = required
       // 금액이 바뀌면 앞선 승인은 무효다 — 승인받은 금액과 보낼 금액이 달라진다
       if (required && amountsChanged(before, totals)) {
@@ -1475,7 +1525,7 @@ async function syncSections(
       throw new CrmError('VALIDATION_FAILED',
         `${i + 1}번째 묶음의 이름을 입력해 주세요.`, { field: 'sections' })
     }
-    const data = { name, position: i }
+    const data = { name, position: i, ...sectionPricingData(sections[i]) }
     const id = sections[i].id
     if (id && existing.some((e) => e.id === id)) {
       await tx.crmQuoteSection.updateMany({ where: { id, quoteId }, data })
@@ -1505,14 +1555,63 @@ async function recalcSectionSubtotals(
     if (!r.sectionId) continue
     sum.set(r.sectionId, (sum.get(r.sectionId) ?? BigInt(0)) + r.lineTotalMinor)
   }
-  const sections: { id: string }[] = await tx.crmQuoteSection.findMany({
-    where: { quoteId }, select: { id: true },
+  const sections: { id: string; roundingUnit: number }[] = await tx.crmQuoteSection.findMany({
+    where: { quoteId }, select: { id: true, roundingUnit: true },
   })
   for (const sec of sections) {
+    const subtotal = sum.get(sec.id) ?? BigInt(0)
+    // 묶음 절사 — 소계(할인 뒤)에서 단위 미만을 버린 만큼. composeQuote 와 같은 셈이다
+    const unit = BigInt(Math.max(0, sec.roundingUnit ?? 0))
+    const roundingMinor = unit > BigInt(1) && subtotal > BigInt(0) ? subtotal % unit : BigInt(0)
     await tx.crmQuoteSection.updateMany({
-      where: { id: sec.id }, data: { subtotalMinor: sum.get(sec.id) ?? BigInt(0) },
+      where: { id: sec.id }, data: { subtotalMinor: subtotal, roundingMinor },
     })
   }
+}
+
+/** 금액 판정에 넘길 묶음 — 이름과 절사 단위만 */
+function sectionsForPricing(sections: readonly QuoteSectionData[] | undefined): { name: string; roundingUnit: number }[] {
+  return (sections ?? []).map((x) => ({ name: requireText(x.name) ?? '', roundingUnit: Math.trunc(Number(x.roundingUnit ?? 0)) || 0 }))
+}
+
+/** 저장된 묶음 — 항목만 안 고치고 절사만 바꾸는 저장이 쓴다 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function storedPricingSections(tx: any, quoteId: string): Promise<{ name: string; roundingUnit: number }[]> {
+  const rows: { name: string; roundingUnit: number }[] = await tx.crmQuoteSection.findMany({
+    where: { quoteId }, select: { name: true, roundingUnit: true }, orderBy: { position: 'asc' },
+  })
+  return rows.map((r) => ({ name: r.name, roundingUnit: r.roundingUnit ?? 0 }))
+}
+
+/**
+ * 저장된 줄 — 항목을 안 보낸 저장(절사만 바꿈)이 다시 셀 때.
+ * 옛 칸 다섯은 예전에 읽던 그대로다. 새 칸은 새 길을 탈지 정하는 데와 비율·묶음에 쓰인다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function storedPricingLines(tx: any, quoteId: string): Promise<Record<string, unknown>[]> {
+  const sections: { id: string }[] = await tx.crmQuoteSection.findMany({
+    where: { quoteId }, select: { id: true }, orderBy: { position: 'asc' },
+  })
+  const indexOf = new Map(sections.map((x, i) => [x.id, i]))
+  const rows: Record<string, unknown>[] = await tx.crmQuoteLine.findMany({
+    where: { quoteId },
+    orderBy: { position: 'asc' },
+    select: {
+      quantity: true, unitPriceMinor: true, discountPercent: true,
+      specialDiscountPercent: true, taxRate: true,
+      kind: true, sectionId: true, listPriceMinor: true, priceSource: true, billing: true,
+      ratioPct: true, ratioOfSectionName: true, durationValue: true, durationUnit: true,
+    },
+  })
+  return rows.map((r) => {
+    const fresh = r.priceSource || r.billing || r.ratioPct !== null || r.listPriceMinor !== null
+    // 지난 견적(새 칸이 빈 줄)은 예전에 읽던 다섯 칸만 넘긴다 — 셈이 한 원도 안 바뀐다
+    if (!fresh) {
+      const { quantity, unitPriceMinor, discountPercent, specialDiscountPercent, taxRate } = r
+      return { quantity, unitPriceMinor, discountPercent, specialDiscountPercent, taxRate }
+    }
+    return { ...r, sectionIndex: r.sectionId ? indexOf.get(String(r.sectionId)) ?? null : null }
+  })
 }
 
 /** 복제가 «무엇»인가 — 뜻이 다르므로 갈래를 받는다 */
@@ -1557,7 +1656,7 @@ export async function duplicateQuote(
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const srcSections = await (tx as any).crmQuoteSection.findMany({
-      where: { quoteId: id }, select: { id: true, name: true }, orderBy: { position: 'asc' },
+      where: { quoteId: id }, select: { id: true, name: true, roundingUnit: true, roundingMinor: true, businessTypeKey: true }, orderBy: { position: 'asc' },
     })
 
     const pattern = await readQuoteNoPattern(tx)
@@ -1604,6 +1703,10 @@ export async function duplicateQuote(
         */
         rateAxisKeys: src.rateAxisKeys, lineNoteKeys: src.lineNoteKeys,
         totalConvKeys: src.totalConvKeys, rateHoursPerMonth: src.rateHoursPerMonth,
+        // 가격 기준 — 1회와 매년, 묶음 절사, 예산, 자동으로 채운 값, 조건, 기준 날짜도 따라간다
+        annualMinor: src.annualMinor, sectionRoundingMinor: src.sectionRoundingMinor,
+        budgetMinor: src.budgetMinor, budgetIncludesTax: src.budgetIncludesTax,
+        autoFilled: src.autoFilled, fillConditions: src.fillConditions, priceBasisDate: src.priceBasisDate,
         // 승인은 **따라오지 않는다** — 금액이 달라질 문서이므로 다시 받아야 한다
         sourceQuoteId: src.id,
         revision: mode === 'revision' ? src.revision + 1 : src.revision,
@@ -1619,7 +1722,12 @@ export async function duplicateQuote(
     for (let i = 0; i < srcSections.length; i++) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sec = await (tx as any).crmQuoteSection.create({
-        data: { quoteId: made.id, workspaceId, name: srcSections[i].name, position: i },
+        data: {
+          quoteId: made.id, workspaceId, name: srcSections[i].name, position: i,
+          // 묶음 절사와 사업 유형 — 빠지면 복제본의 라이선스 소계가 만원 미만까지 붙는다
+          roundingUnit: srcSections[i].roundingUnit ?? 0, roundingMinor: srcSections[i].roundingMinor ?? BigInt(0),
+          businessTypeKey: srcSections[i].businessTypeKey ?? null,
+        },
         select: { id: true },
       })
       secMap.set(srcSections[i].id, sec.id)
@@ -1662,6 +1770,15 @@ export async function duplicateQuote(
           // 비율 자체는 그대로, 가리키는 줄은 아래 두 번째 바퀴에서 잇는다
           ratioPct: l.ratioPct,
           sectionId: l.sectionId ? (secMap.get(l.sectionId) ?? null) : null,
+          /*
+            **가격 기준도 따라간다**(마이그 310). 그날 정상가가 빠지면 복제본의 승인 판정이
+            옛 길(할인 칸)로 떨어져 깎은 단가가 승인을 비켜 간다. 출처가 빠지면 다시 채우기가 덮는다.
+          */
+          listPriceMinor: l.listPriceMinor ?? null, priceSource: l.priceSource ?? null,
+          provenance: l.provenance ?? {}, billing: l.billing ?? null,
+          ratioOfSectionName: l.ratioOfSectionName ?? null, lockedFields: l.lockedFields ?? [],
+          // 항목끼리 잇는다 — Rev.1 과 Rev.2 를 항목별로 나란히 보려면 앞 견적의 어느 항목에서 왔는지가 있어야 한다
+          sourceLineId: l.id,
         },
       })
       lineMap.set(l.id, madeLine.id)
@@ -1906,15 +2023,24 @@ export function toQuoteJson(row: QuoteRow): Record<string, unknown> {
     // 200 을 기대한 화면이 500 을 받고, 원인은 응답 본문에 안 나온다(실제로 그랬다)
     roundingMinor: row.roundingMinor.toString(),
     fxRate: row.fxRate === null ? null : String(row.fxRate),
-    sections: row.sections?.map((x) => ({ ...x, subtotalMinor: x.subtotalMinor.toString() })),
+    annualMinor: bigOrNull((row as QuoteRow & { annualMinor?: bigint }).annualMinor) ?? '0',
+    sectionRoundingMinor: bigOrNull((row as QuoteRow & { sectionRoundingMinor?: bigint }).sectionRoundingMinor) ?? '0',
+    budgetMinor: bigOrNull((row as QuoteRow & { budgetMinor?: bigint | null }).budgetMinor),
+    sections: row.sections?.map((x) => ({ ...x, subtotalMinor: x.subtotalMinor.toString(), roundingMinor: bigOrNull(x.roundingMinor) ?? '0' })),
     discountRate: Number(discountRateOf(row).toFixed(2)),
     lines: row.lines?.map((l) => ({
       ...l,
       unitPriceMinor: l.unitPriceMinor.toString(),
       lineTotalMinor: l.lineTotalMinor.toString(),
+      listPriceMinor: bigOrNull(l.listPriceMinor),
+      ratioPct: (l as { ratioPct?: unknown }).ratioPct == null ? null : String((l as { ratioPct?: unknown }).ratioPct),
       quantity: String(l.quantity),
       discountPercent: String(l.discountPercent),
       taxRate: String(l.taxRate),
     })),
   }
+}
+
+function bigOrNull(v: bigint | null | undefined): string | null {
+  return v === null || v === undefined ? null : v.toString()
 }

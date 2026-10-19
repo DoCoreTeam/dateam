@@ -57,6 +57,23 @@ const CONVERTED = ['app/admin/access/AccessClient.tsx']
  * 여기 적는 것은 **앞으로도 드롭다운일 자리**다.
  */
 const WHY_SELECT: Readonly<Record<string, string>> = {
+  // 가격 기준(P0135) — 코드가 정한 닫힌 목록이거나 한 제품 안에서 다 펼쳐진 목록이다
+  'app/(crm)/crm/products/PriceProductCreateModal.tsx#BUSINESS_TYPE_ORDER':
+    '기본 사업 유형 여덟은 코드가 정한다(lib/terms/ledger.ts). 자라는 목록이 아니다',
+  'app/(crm)/crm/products/[id]/InfoTab.tsx#BUSINESS_TYPE_ORDER':
+    '기본 사업 유형 여덟은 코드가 정한다(lib/terms/ledger.ts). 자라는 목록이 아니다',
+  'app/(crm)/crm/products/[id]/InfoTab.tsx#ROUNDING_UNITS':
+    '절사 단위 여섯은 DB CHECK 와 같은 목록이다(quote-math.ts ROUNDING_UNITS)',
+  'app/(crm)/crm/products/[id]/ItemEditModal.tsx#ITEM_BASES':
+    '가격 기준 넷(1식 단위당 비율 실사 후 견적)은 DB CHECK 와 같은 닫힌 목록이다',
+  'app/(crm)/crm/products/[id]/RuleAddModal.tsx#kinds':
+    '규칙 종류 여덟은 DB CHECK 로 닫혀 있다. 늘리려면 코드를 더한다(types.ts)',
+  'app/(crm)/crm/products/[id]/RuleAddModal.tsx#VAR_KEYS':
+    '조건 여섯은 엔진이 아는 수뿐이다(types.ts VAR_KEYS). 자라지 않는다',
+  'app/(crm)/crm/products/[id]/RuleAddModal.tsx#items':
+    '한 제품 안의 품목만 고른다. 바로 옆 품목 탭에 같은 목록이 다 펼쳐져 있고 검색할 기록이 아니다',
+  'app/(crm)/crm/products/[id]/RuleAddModal.tsx#sections':
+    '한 제품의 묶음 이름만 고른다. 서넛이고 그 제품 품목에서 나온다',
   'app/(crm)/crm/contracts/[id]/ContractVersions.tsx#state.items':
     '한 계약서의 버전 번호만 고른다. 바로 위에 같은 목록이 다 펼쳐져 있고 검색할 기록이 아니라 비교할 두 판을 고르는 자리다',
   'components/ui/crm/contract/ClauseEditor.tsx#CONTRACT_FIELDS':
