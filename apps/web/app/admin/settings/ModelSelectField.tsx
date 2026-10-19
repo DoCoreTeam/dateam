@@ -6,12 +6,16 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import ModelPickerModal from '@/components/ui/ModelPickerModal'
 import { listModelCatalog, refreshModelCatalog } from '@/app/(ai)/ai/actions'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
+import { AI_MODEL_FIELD } from '@/lib/terms'
 import type { AiChatProviderId } from '@/types/database'
 
 interface Props {
   provider: AiChatProviderId
   hasKey: boolean
+  /** 사람이 고른 모델. 고르지 않았으면 null — 기본값으로 채워 넘기지 않는다 */
   savedModel: string | null
+  /** 고르지 않았을 때 실제로 불리는 모델. 없으면 null */
+  defaultModel?: string | null
   /** 이 프로바이더의 메인 모델을 META에 저장하는 서버 액션 */
   onSave: (model: string) => Promise<{ ok: boolean; error?: string }>
 }
@@ -23,7 +27,7 @@ interface Props {
  * 그래서 어떤 모델이 무엇에 쓰는 것인지, 지금 쓸 수 있기는 한지 화면에서 알 수 없었다.
  * AI 채팅이 쓰는 모델 선택 모달과 **같은 부품**을 쓴다 — 능력·컨텍스트·출시일·가용성까지 한 화면에서 본다.
  */
-export default function ModelSelectField({ provider, hasKey, savedModel, onSave }: Props) {
+export default function ModelSelectField({ provider, hasKey, savedModel, defaultModel = null, onSave }: Props) {
   const [open, setOpen] = useState(false)
   const [currentModel, setCurrentModel] = useState<string | null>(savedModel)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
@@ -56,15 +60,21 @@ export default function ModelSelectField({ provider, hasKey, savedModel, onSave 
           className="btn-ghost"
         >
           {pending ? <AXDotLoader size={4} color="var(--text-faint)" /> : null}
-          {currentModel ? '모델 변경' : '모델 고르기'}
+          {currentModel ? AI_MODEL_FIELD.change : AI_MODEL_FIELD.choose}
         </button>
       </div>
 
       {currentModel ? (
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', margin: 0, fontFamily: 'monospace' }}>{currentModel}</p>
+      ) : hasKey && defaultModel ? (
+        /* 고르지 않았는데 기본값이 불린다 — 그 사실과 그 모델을 같이 말한다. 고른 것처럼 그리지 않는다 */
+        <div>
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>{AI_MODEL_FIELD.notChosenDefault}</p>
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0, fontFamily: 'monospace' }}>{defaultModel}</p>
+        </div>
       ) : (
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>
-          {hasKey ? '아직 고르지 않았어요. 눌러서 모델을 고르세요' : 'API 키를 먼저 저장해주세요'}
+          {hasKey ? AI_MODEL_FIELD.notChosen : AI_MODEL_FIELD.needKey}
         </p>
       )}
 

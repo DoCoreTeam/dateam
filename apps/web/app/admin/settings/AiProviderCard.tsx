@@ -47,6 +47,8 @@ interface Props {
   enabled?: boolean
   maskedKey: string | null
   savedModel: string | null
+  /** 고르지 않았을 때 불리는 모델. 명세의 기본값 */
+  defaultModel?: string | null
   /** 회의 녹음을 글로 옮기는 모델. 그 일에도 쓰이는 공급자에게만 온다 */
   transcriptionModel?: string | null
   /**
@@ -60,7 +62,7 @@ interface Props {
 
 export default function AiProviderCard({
   provider, hasKey: initialHasKey, enabled: initialEnabled = true,
-  maskedKey: initialMasked, savedModel, transcriptionModel,
+  maskedKey: initialMasked, savedModel, defaultModel, transcriptionModel,
   keyRows: initialRows = [],
 }: Props) {
   const spec = getProviderSpec(provider)
@@ -335,6 +337,7 @@ export default function AiProviderCard({
             provider={provider}
             hasKey={hasKey}
             savedModel={savedModel}
+            defaultModel={defaultModel}
             onSave={(model) => saveProviderModel(provider, model)}
           />
 

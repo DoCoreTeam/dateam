@@ -14,7 +14,7 @@ import AiProviderOrder from './AiProviderOrder'
 import AiProviderCard from './AiProviderCard'
 import { isProviderDisabled } from '@/lib/ai/provider-disabled'
 import { AI_PROVIDERS } from '@/lib/ai/provider-catalog'
-import { readProviderKey, readProviderModel } from '@/lib/ai/provider-keys'
+import { readProviderKey, readSavedProviderModel } from '@/lib/ai/provider-keys'
 import { listKeys, type KeyView } from '@/lib/ai/key-store'
 import { getProviderOrder } from '@/lib/ai-chat/registry'
 import { getAvailableProviders, META_DEFAULT_PROVIDER_KEY } from '@/lib/ai-chat/registry'
@@ -183,7 +183,8 @@ export default async function AdminSettingsPage({
           hasKey={Boolean(key)}
           enabled={!isProviderDisabled(meta, spec.id)}
           maskedKey={key ? maskKey(key) : null}
-          savedModel={readProviderModel(spec.id, meta)}
+          savedModel={readSavedProviderModel(spec.id, meta)}
+          defaultModel={spec.defaultModel}
           // 전사 모델 칸은 그 키가 전사에도 쓰이는 공급자에게만 준다
           transcriptionModel={spec.alsoUsedFor ? sttModel : undefined}
           keyRows={keyRowsByProvider[spec.id] ?? []}

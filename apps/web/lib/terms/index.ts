@@ -119,7 +119,7 @@ export {
 } from './connection.ts'
 
 export {
-  AI_KEY, AI_KEY_STATUS,
+  AI_KEY, AI_KEY_STATUS, AI_MODEL_FIELD,
   type AiKeyStatusKey,
 } from './ai-key.ts'
 

@@ -33,7 +33,6 @@
   "app/(member)/work/projects/[id]/page.tsx::영업기회": 1,
   "app/(member)/work/projects/page.tsx::삭제중": 1,
   "app/(trading)/trading/ChartPanel.tsx::고르기": 1,
-  "app/admin/settings/ModelSelectField.tsx::고르기": 1,
   "app/api/pricing/gpu/market/catalog/route.ts::재시도": 1,
   "app/api/pricing/gpu/market/import/route.ts::재시도": 1,
   "components/ci/DetailSheet.tsx::빼기": 1,
