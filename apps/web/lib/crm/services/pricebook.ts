@@ -222,6 +222,9 @@ export async function restorePriceProduct(workspaceId: string, actorId: string |
 
 // ── 품목 ──────────────────────────────────────────────────────────────────
 
+/** 쓸 품목 — id 가 없으면 새로 만든다 */
+export type ItemInput = Omit<PriceItem, 'id'> & { id?: string }
+
 export interface ItemWriteOptions {
   sourceKind: PriceSourceKind
   sourceName?: string | null
@@ -233,9 +236,9 @@ export interface ItemWriteOptions {
  */
 export async function writeItemTx(
   tx: Tx, workspaceId: string, actorId: string | null, productId: string | null,
-  item: PriceItem & { id?: string }, position: number, opts: ItemWriteOptions,
+  item: ItemInput, position: number, opts: ItemWriteOptions,
 ): Promise<string> {
-  const data: Record<string, unknown> = { ...itemToData(item, position), priceProductId: productId }
+  const data: Record<string, unknown> = { ...itemToData({ ...item, id: item.id ?? '' }, position), priceProductId: productId }
   const name = requireText(item.name)
   if (!name) throw new CrmError('VALIDATION_FAILED', '품목 이름을 입력해 주세요.', { field: 'name' })
   const existing = item.id
@@ -254,9 +257,9 @@ export async function writeItemTx(
 }
 
 export async function saveItem(
-  workspaceId: string, actorId: string | null, productId: string | null, item: PriceItem & { id?: string }, position: number,
+  workspaceId: string, actorId: string | null, productId: string | null, item: ItemInput, position: number,
 ): Promise<{ id: string }> {
-  const problems = checkItems({ id: '', name: '', businessTypeKey: '', sections: [], items: [item], rules: [], tcoYears: 5, freeYears: 1 })
+  const problems = checkItems({ id: '', name: '', businessTypeKey: '', sections: [], items: [{ ...item, id: item.id ?? '' }], rules: [], tcoYears: 5, freeYears: 1 })
     .filter((p) => !p.message.includes('묶음'))
   if (problems.length > 0) throw new CrmError('VALIDATION_FAILED', problems[0].message)
   return withCrmTx(workspaceId, async (tx: Tx) => {
