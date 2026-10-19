@@ -107,7 +107,8 @@ async function recordChanges(
     const a = after[col] as bigint | null
     const b = before ? (before[col] as bigint | null | undefined) ?? null : null
     if (before && String(a) === String(b)) continue
-    if (!before && a === null) continue
+    // 만들 때 비어 있던 칸은 이력이 아니다. 원가 0 은 「모름」이라 이력에 적지 않는다
+    if (!before && (a === null || (col === 'costPerMmMinor' && a === BigInt(0)))) continue
     await recordPrice(tx, workspaceId, actorId, {
       targetType: 'LABOR_GRADE', targetId: id, field, amountMinor: a, sourceKind: kind, sourceName,
       effectiveFrom: after.effectiveFrom ?? null,
