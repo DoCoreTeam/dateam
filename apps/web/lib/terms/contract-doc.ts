@@ -183,6 +183,8 @@ export const CONTRACT_TEMPLATE = {
   cardTitle: '계약서 템플릿',
   cardDesc: '계약서를 만들 때 쓰는 조항 묶음입니다. 사업 유형마다 기본 템플릿을 하나 정하면 그 유형의 딜에서 먼저 골라집니다.',
   editTitle: '템플릿 고치기',
+  /** 템플릿이 없어 막혔을 때 설정의 계약 탭으로 보내는 단추 */
+  goCreate: '계약서 템플릿 만들기',
   loadFailed: '계약서 템플릿을 불러오지 못했습니다.',
   saveFailed: '템플릿을 저장하지 못했습니다.',
   publishFailed: '템플릿을 발행하지 못했습니다.',

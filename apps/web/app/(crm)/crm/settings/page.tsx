@@ -20,12 +20,18 @@ import SettingsCards, { type SettingsCardEntry } from '@/components/ui/settings/
 import { CanEditProvider } from '@/lib/crm/ui/can-edit'
 import { canExport } from '@/lib/access/guard'
 import {
-  CRM_SETTINGS_CARDS, CRM_SETTINGS_TAB, CRM_SETTINGS_TAB_ORDER,
+  CRM_SETTINGS_CARDS, CRM_SETTINGS_TAB, CRM_SETTINGS_TAB_ORDER, parseCrmSettingsTab,
 } from '@/lib/crm/domain/settings-tab'
 
 export const metadata = { title: '설정 · 영업 CRM' }
 
-export default async function CrmSettingsPage() {
+export default async function CrmSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>
+}) {
+  /* 막힌 안내의 「고치러 가기」가 탭을 골라 연다 — 안 그러면 도착해서 또 찾아야 한다 */
+  const { tab } = await searchParams
   /*
     목록 읽기는 전원에게 열려 있고(READONLY) 바꾸기만 ADMIN 이다.
     화면에서만 숨기면 API 로 새어 나가므로 서버도 같은 판정을 갖는다 —
@@ -91,8 +97,11 @@ export default async function CrmSettingsPage() {
       */}
       <CanEditProvider value={ability}>
         <SettingsCards
+          /* 같은 화면에서 다른 탭 주소로 와도 그 탭이 열리게 — 탭 상태는 처음 그릴 때만 주소를 읽는다 */
+          key={tab ?? ''}
           groups={CRM_SETTINGS_TAB_ORDER.map((t) => ({ id: t, label: CRM_SETTINGS_TAB[t].label }))}
           cards={cards}
+          defaultTab={parseCrmSettingsTab(tab)}
         />
       </CanEditProvider>
     </>

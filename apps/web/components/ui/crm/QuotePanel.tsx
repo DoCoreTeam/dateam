@@ -20,6 +20,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import { kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { quoteStatusMeta } from '@/lib/crm/ui/quote-status'
 import { linkWithBack } from '@/lib/crm/nav/back-link'
+import { blockedActionLink } from '@/lib/crm/ui/blocked-action-link'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import {
   ACTION,
@@ -324,7 +325,14 @@ export default function QuotePanel({
 
   return (
     <div className={styles.wrap}>
-      {actionError && <ErrorState message={actionError} />}
+      {actionError && (
+        /* 막힌 안내면 고치러 갈 단추를 같이 단다 — 설정을 찾아 들어가게 두지 않는다 */
+        <ErrorState
+          message={actionError}
+          helpHref={blockedActionLink(actionError)?.href}
+          helpLabel={blockedActionLink(actionError)?.label}
+        />
+      )}
       {/* 무엇이 됐는지 말한다 — 목록만 바뀌면 사람은 몇 건이 들어왔는지 세야 한다 */}
       {importNote && <div className={styles.importNote}>{importNote}</div>}
 

@@ -22,6 +22,16 @@ export const CRM_SETTINGS_TAB: Record<CrmSettingsTabKey, { label: string }> = {
 /** 탭이 서는 순서 — 딜을 만들고 견적을 내고 계약을 맺고 그다음이 자동화와 데이터다 */
 export const CRM_SETTINGS_TAB_ORDER: readonly CrmSettingsTabKey[] = ['pipeline', 'quote', 'contract', 'ai', 'data']
 
+/** 주소의 ?tab= 값을 탭 이름으로 읽는다. 목록에 없는 값은 버린다 — 주소는 아무나 고칠 수 있다 */
+export function parseCrmSettingsTab(raw: string | undefined): CrmSettingsTabKey | undefined {
+  return CRM_SETTINGS_TAB_ORDER.find((t) => t === raw)
+}
+
+/** 그 탭이 열린 채로 설정 화면을 여는 주소 — 막힌 안내가 「고치러 가기」 단추로 쓴다 */
+export function crmSettingsHref(tab: CrmSettingsTabKey): string {
+  return `/crm/settings?tab=${tab}`
+}
+
 export interface CrmSettingsCardSpec {
   /** 카드 한 장의 이름. 부품 하나가 카드 둘을 그리면 여기서 둘로 갈린다 */
   id: string
