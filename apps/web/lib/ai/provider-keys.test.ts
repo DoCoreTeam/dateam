@@ -17,6 +17,7 @@ import {
   describeMissingKey,
   readProviderKey,
   readProviderModel,
+  readSavedProviderModel,
   describeKeyRemovalAt,
   metaAfterKeyChange,
   defaultKeyLabel,
@@ -396,4 +397,23 @@ test('워크스페이스에 안 묶인 Claude 키는 「(400)」이 아니라 �
   assert.doesNotMatch(msg, /anthropic-workspace-id|This API key/, '공급자 원문을 흘리지 않는다')
   // 사유를 모르는 400 은 예전 문장 그대로
   assert.equal(describeConnectionFailed('claude', 400, 'something else'), 'Claude 연결 실패 (400)')
+})
+
+test('해제: 키만 지우고 고른 모델은 남긴다', () => {
+  // 실측 2026-10-19: 키를 갈아 끼우려고 연결 해제를 눌렀다가 고른 모델이 사라졌고,
+  // 화면은 기본값을 고른 모델처럼 보여 줘 아무도 몰랐다
+  for (const id of AI_PROVIDER_IDS) {
+    const spec = getProviderSpec(id)
+    const { meta } = withoutProviderKey(id, { [spec.meta.apiKey]: sampleKey(id), [spec.meta.model]: '고른-모델' })
+    assert.equal(meta[spec.meta.apiKey], undefined, `${id}: 키 칸은 지운다`)
+    assert.equal(meta[spec.meta.model], '고른-모델', `${id}: 모델 칸은 남긴다`)
+  }
+})
+
+test('모델 읽기: 고른 값과 기본값을 가른다', () => {
+  assert.equal(readSavedProviderModel('claude', {}), null)
+  assert.equal(readSavedProviderModel('claude', { claude_model: '  ' }), null)
+  assert.equal(readSavedProviderModel('claude', { claude_model: 'claude-haiku-4-5' }), 'claude-haiku-4-5')
+  // 부르는 쪽은 여전히 기본값으로 이어 간다
+  assert.equal(readProviderModel('claude', {}), getProviderSpec('claude').defaultModel)
 })

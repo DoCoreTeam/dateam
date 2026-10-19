@@ -76,12 +76,15 @@ export interface KeyRemoval {
  * META 에서 키를 뺀다.
  * 지우기 전에 무엇이 함께 사라지는지 말한다 — Groq 키를 「AI 공급자」로만 알고 해제하면
  * 회의 녹음 전사가 조용히 멈춘다.
+ *
+ * **고른 모델은 남긴다.** 실측 2026-10-19: 키를 갈아 끼우려고 해제를 누르자 고른 모델이
+ * 같이 지워졌고, 화면은 기본값을 고른 모델처럼 그려 아무도 몰랐다. 모델은 키가 아니라
+ * 사람이 고른 것이라 키를 바꿔도 그대로여야 한다.
  */
 export function withoutProviderKey(id: AiProviderId, meta: Record<string, unknown>): KeyRemoval {
   const spec = getProviderSpec(id)
   const next = { ...meta }
   delete next[spec.meta.apiKey]
-  delete next[spec.meta.model]
   for (const companion of COMPANION_META_KEYS[id] ?? []) delete next[companion]
   return { meta: next, warning: describeKeyRemoval(id) }
 }
@@ -99,12 +102,18 @@ export function readProviderKey(id: AiProviderId, meta: Record<string, unknown>)
   return typeof v === 'string' && v.trim() ? v.trim() : null
 }
 
-/** 저장된 모델. 고르지 않았으면 명세의 기본값, 그것도 없으면 null */
+/**
+ * 사람이 고른 모델. 고르지 않았으면 null — 기본값으로 채우지 않는다.
+ * 화면은 이것을 써야 「고르지 않음」과 「골랐음」을 가를 수 있다.
+ */
+export function readSavedProviderModel(id: AiProviderId, meta: Record<string, unknown>): string | null {
+  const v = meta[getProviderSpec(id).meta.model]
+  return typeof v === 'string' && v.trim() ? v.trim() : null
+}
+
+/** 부를 모델. 고르지 않았으면 명세의 기본값, 그것도 없으면 null */
 export function readProviderModel(id: AiProviderId, meta: Record<string, unknown>): string | null {
-  const spec = getProviderSpec(id)
-  const v = meta[spec.meta.model]
-  if (typeof v === 'string' && v.trim()) return v.trim()
-  return spec.defaultModel
+  return readSavedProviderModel(id, meta) ?? getProviderSpec(id).defaultModel
 }
 
 /** 저장 성공 문장. 가림값만 담는다 */
