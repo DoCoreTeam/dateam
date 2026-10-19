@@ -32,6 +32,7 @@ export interface ProductRow {
   priceProductId?: string | null
   section?: string | null
   basis?: string
+  billing?: string
   needsReview?: boolean
   autoRegistered?: boolean
   /** 같은 이름이 이미 있어 그것을 돌려줬는가 — 친 단가가 다르면 부르는 쪽이 그 사실을 안다 */
@@ -41,7 +42,7 @@ export interface ProductRow {
 const SELECT = {
   id: true, name: true, sku: true, unitPriceMinor: true,
   currency: true, taxRate: true, unit: true, descriptionMd: true, isActive: true, version: true,
-  priceProductId: true, section: true, basis: true, needsReview: true, autoRegistered: true,
+  priceProductId: true, section: true, basis: true, billing: true, needsReview: true, autoRegistered: true,
 } as const
 
 /**

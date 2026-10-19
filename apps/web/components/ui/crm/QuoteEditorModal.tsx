@@ -10,7 +10,7 @@
 // 두 곳이 같은 함수를 쓰므로 눈에 보이는 값과 저장되는 값이 갈리지 않고,
 // 브라우저를 조작해도 총액은 바뀌지 않는다.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import ReorderList from '@/components/ui/ReorderList'
 import QuoteFillPanel, { QuoteFillButtons, type QuoteFillMode } from './QuoteFillPanel'
@@ -38,12 +38,17 @@ import {
   quoteEditTitle,
   QUOTE_LINES_LOCKED,
   sectionDefaultName,
-  approvalNeeded,
+  approvalNeeded, PRICEBOOK,
 } from '@/lib/terms'
 import QuoteLineSpecFields from '@/components/ui/crm/QuoteLineSpecFields'
 import QuoteLinePeriodFields from '@/components/ui/crm/QuoteLinePeriodFields'
 import QuoteLineQuantityFields from '@/components/ui/crm/QuoteLineQuantityFields'
 import QuoteLineFormula from '@/components/ui/crm/QuoteLineFormula'
+import QuoteProductFill from './quote-fill/QuoteProductFill'
+import LineSource from './quote-fill/LineSource'
+import AutoFilledList from './quote-fill/AutoFilledList'
+import { useProductCatalog } from './quote-fill/use-product-catalog'
+import { priceDraft, lineAmountsOf, lockIfHuman } from './quote-fill/draft-pricing'
 
 import styles from './quote-panel.module.css'
 
@@ -63,11 +68,6 @@ interface Props {
   initial: QuoteDraft
   onClose: () => void
   onSaved: () => void
-}
-
-/** 고르는 목록에 실리는 모양 — SKU 는 이름이 겹칠 때 구분해 주는 보조 정보다 */
-function toOption(p: ProductJson): RecordOption {
-  return { id: p.id, name: p.name, hint: p.sku || undefined }
 }
 
 
@@ -147,81 +147,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
   const setLine = (i: number, patch: Partial<QuoteLineDraft>) => {
     setDraft((d) => ({
       ...d,
-      lines: d.lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)),
+      lines: d.lines.map((l, idx) => (idx === i ? lockIfHuman(l, patch) : l)),
     }))
   }
 
-  /**
-   * 검색·생성으로 스쳐 간 품목의 원본을 들고 있는다.
-   * 고르는 부품은 id·이름·힌트만 나르므로, 단가·단위·세율은 여기서 꺼내야 한다.
-   */
-  const catalog = useRef<Map<string, ProductJson>>(new Map())
+  // 품목 고르기와 그 자리에서 만들기 — 고르면 그날 정상가와 출처가 붙는다
+  const { searchProducts, pickProduct, createProduct } = useProductCatalog(draft, setLine)
 
-  /**
-   * **신원이 고정돼야 한다.** 이 함수는 고르는 모달의 effect 의존성이라
-   * 렌더마다 새 함수를 주면 검색이 끝없이 다시 돈다.
-   */
-  const searchProducts = useCallback<RecordSearch>(async (query, signal) => {
-    const res = await fetch(`/api/crm/products?q=${encodeURIComponent(query)}`, { signal })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '품목을 불러오지 못했습니다.')
-    const items = (body.items ?? []) as ProductJson[]
-    items.forEach((p) => catalog.current.set(p.id, p))
-    return items.map(toOption)
-  }, [])
-
-  /** 고른 품목의 단가·단위·세율을 그 줄에 옮긴다 — 카탈로그를 만든 이유가 이것이다 */
-  const pickProduct = (i: number, opt: RecordOption | null) => {
-    if (!opt) { setLine(i, { productId: null }); return }
-    const p = catalog.current.get(opt.id)
-    const patch: Partial<QuoteLineDraft> = { productId: opt.id, name: opt.name }
-    // 단가 0 은 "아직 안 정했다"는 뜻이다 — 사람이 친 금액을 0 으로 덮으면 그게 손해다
-    if (p && p.unitPriceMinor !== '0') patch.unitPriceMinor = p.unitPriceMinor
-    if (p?.unit) patch.unit = p.unit
-    if (p?.taxRate) patch.taxRate = p.taxRate
-    setLine(i, patch)
-  }
-
-  /**
-   * 카탈로그에 없으면 그 자리에서 만든다.
-   * 설정 화면으로 보내면 쓰던 견적을 잃는다 — 그래서 지금 친 단가·단위·세율을 함께 실어 보낸다.
-   */
-  const createProduct = async (i: number, name: string): Promise<RecordOption | null> => {
-    const line = draft.lines[i]
-    const res = await fetch('/api/crm/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        currency: draft.currency,
-        unitPriceMinor: line?.unitPriceMinor || '0',
-        unit: line?.unit || null,
-        taxRate: line?.taxRate || '10',
-      }),
-    })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body?.error?.message ?? '품목을 만들지 못했습니다.')
-    const made = body as ProductJson
-    catalog.current.set(made.id, made)
-    return toOption(made)
-  }
-
-  const totals = useMemo(
-    () => computeTotals(draft.lines.map((l) => ({
-      quantity: l.quantity || 0,
-      unitPriceMinor: l.unitPriceMinor || 0,
-      discountPercent: l.discountPercent || 0,
-      specialDiscountPercent: l.specialDiscountPercent?.trim() ? l.specialDiscountPercent : null,
-      taxRate: l.taxRate || 0,
-      // 합계도 같은 축으로 센다 — 줄 밑 숫자를 더한 값과 합계가 갈리면 둘 다 못 믿는다
-      durationValue: l.durationValue || null,
-      durationUnit: l.durationUnit || null,
-      priceBasis: LINE_KIND_PRICE_BASIS[l.kind ?? 'QUANTITY'],
-      hoursPerMonth: draft.rateHoursPerMonth ? Number(draft.rateHoursPerMonth) : undefined,
-    })), { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode }),
-    [draft.lines, draft.roundingUnit, draft.roundingMode, draft.rateHoursPerMonth],
-  )
-  const approval = needsApproval(totals)
+  /*
+    **합계는 서버와 같은 함수(priceQuote)로 센다.** 새 칸(정상가, 매년, 비율, 묶음 절사)이 없으면
+    예전 computeTotals 그대로이고, 있으면 1회와 매년을 가른다. 화면과 저장이 갈리지 않는다.
+  */
+  const priced = useMemo(() => priceDraft(draft), [draft])
+  const totals = priced.totals
+  const approval = priced.approvalRequired
 
   const save = async () => {
     setError(null)
@@ -402,6 +341,9 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           검수를 거치는 이유는 하나다: 견적은 고객에게 나가는 문서라,
           AI 가 읽은 값이 사람 눈을 거치지 않고 들어가면 안 된다(§5-3).
         */}
+        {!linesLocked && fill === 'product' && (
+          <QuoteProductFill dealId={dealId} draft={draft} onDraftChange={setDraft} onClose={() => setFill(null)} />
+        )}
         {!linesLocked && (
           <QuoteFillPanel
             mode={fill}
@@ -480,7 +422,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           })}
         >
           {(line, i, controls) => {
-            const amounts = computeLine({
+            const amounts = lineAmountsOf(priced, i, {
               quantity: line.quantity || 0,
               unitPriceMinor: line.unitPriceMinor || 0,
               discountPercent: line.discountPercent || 0,
@@ -627,6 +569,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     onChange={(e) => setLine(i, { unitPriceMinor: e.target.value.replace(/[^\d]/g, '') })}
                     placeholder="0"
                   />
+                  <LineSource line={line} />
                 </div>
                 <div className={`${styles.field} ${styles.colDisc}`}>
                   <label className="label" htmlFor={`ln-disc-${i}`}>{QUOTE.lineDiscount} %</label>
@@ -741,6 +684,12 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           /* 매입과 견적을 잇는 일은 이 플랜 범위 밖이다 — 지금은 늘 「매입 자료 없음」으로 선다 */
           supplyHoursPerMonth={null}
         />
+        {priced.annualMinor > BigInt(0) && (
+          <p className={styles.approvalNote}>
+            {PRICEBOOK.annual} {formatAmount(priced.annualMinor.toString(), draft.currency)} · 1회 합계에 안 섞여요
+          </p>
+        )}
+        <AutoFilledList draft={draft} />
 
         {approval && (
           <div className={styles.approvalNote}>{approvalNeeded(DEFAULT_DISCOUNT_APPROVAL_PCT)}</div>

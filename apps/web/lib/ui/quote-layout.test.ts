@@ -34,6 +34,7 @@ const PANEL = strip(read('components/ui/crm/quote-panel.module.css'))
 const DOC = strip(read('app/(crm)/crm/quotes/[id]/quote-document.module.css'))
 const SHEET = read('app/(crm)/crm/quotes/[id]/QuoteSheet.tsx')
 const MODAL = read('components/ui/crm/QuoteEditorModal.tsx')
+const PRICING = read('components/ui/crm/quote-fill/draft-pricing.ts')
 /*
   채우기(말로·파일로)는 **옆 파일**에 있다(v0.10.x). 단추와 열리는 상자가 같은 상태를 보므로
   둘을 나누면 「어느 것이 열려 있나」를 두 곳이 알아야 하고, 그때부터 갈린다.
@@ -749,9 +750,11 @@ test('★ 화면이 적은 기간이 금액까지 닿는다 — 저장 payload �
       `toLinePayload 가 ${key} 를 안 싣는다 — 적은 기간이 조용히 버려진다`)
     assert.ok(new RegExp(`${key}:\\s*line\\.${key}`).test(MODAL),
       `줄 미리보기 computeLine 이 ${key} 를 안 받는다 — 화면과 서버가 다른 금액을 낸다`)
-    assert.ok(new RegExp(`${key}:\\s*l\\.${key}`).test(MODAL),
-      `합계 computeTotals 가 ${key} 를 안 받는다 — 줄 합과 합계가 갈린다`)
+    // 합계는 서버와 같은 priceQuote 로 센다(P0135) — 편집 초안을 그 함수에 넘기는 자리가 draft-pricing 이다
+    assert.ok(new RegExp(`${key}:\\s*l\\.${key}`).test(PRICING),
+      `합계 priceQuote 가 ${key} 를 안 받는다 — 줄 합과 합계가 갈린다`)
   }
+  assert.match(MODAL, /priceDraft\(draft\)/, '화면 합계가 서버와 같은 함수를 안 지난다')
   assert.match(MODAL, /priceBasis:\s*LINE_KIND_PRICE_BASIS/,
     '단가 기준 단위를 안 넘긴다 — 시간당 단가 줄에 「2개월」이 1,460 이 아니라 2 가 된다')
 })

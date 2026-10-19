@@ -72,6 +72,8 @@ const WHY_SELECT: Readonly<Record<string, string>> = {
     '조건 여섯은 엔진이 아는 수뿐이다(types.ts VAR_KEYS). 자라지 않는다',
   'app/(crm)/crm/products/[id]/RuleAddModal.tsx#items':
     '한 제품 안의 품목만 고른다. 바로 옆 품목 탭에 같은 목록이 다 펼쳐져 있고 검색할 기록이 아니다',
+  'components/ui/crm/quote-fill/QuoteProductFill.tsx#products':
+    '가격 기준 제품은 관리자가 만드는 몇 개뿐이다(gcube edge 같은 제품 단위). 품목이 아니라 제품을 고르는 자리라 자라는 기록이 아니다',
   'app/(crm)/crm/products/[id]/RuleAddModal.tsx#sections':
     '한 제품의 묶음 이름만 고른다. 서넛이고 그 제품 품목에서 나온다',
   'app/(crm)/crm/contracts/[id]/ContractVersions.tsx#state.items':

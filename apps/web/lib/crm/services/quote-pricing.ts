@@ -73,10 +73,12 @@ export function priceQuote(
 ): PricingResult {
   if (!usesNewPricing(lines, sections)) {
     /*
-      **옛 길은 예전과 똑같은 입력으로 부른다.** 여기에 단가 기준이나 월 기준 시간을 더 얹으면
-      지난 견적의 합계가 저장할 때마다 달라질 수 있다. 줄 합계는 toLineData 가 이미 낸 값을 쓴다.
+      옛 길도 **줄마다 단가 기준과 월 기준 시간을 넘긴다.** 예전 서버는 이것을 안 넘겨
+      시간당 단가 줄에 「2개월」을 적으면 줄 합계(1,460시간)와 견적 합계(2)가 갈렸다. 화면은 넘기고 있었다.
+      운영 데이터에 그런 줄이 0줄이라(실측 2026-10-20: 기간 적은 줄 1개, 단가 기준 없는 수량 줄) 바뀌는 견적이 없다.
+      단가 기준이 없는 종류(수량 공수 라이선스 비율)는 예전과 같은 셈이다.
     */
-    const t = computeTotals(lines as unknown as QuoteLineInput[], rounding)
+    const t = computeTotals(lines.map((l) => ({ ...l, priceBasis: basisOf(l.kind), hoursPerMonth })) as unknown as QuoteLineInput[], rounding)
     return {
       lineTotals: null,
       subtotalMinor: t.subtotalMinor,

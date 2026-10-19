@@ -18,8 +18,9 @@
 // 견적은 고객에게 나가는 문서이고, AI 가 단가를 하나 잘못 풀면 그 숫자가 그대로 제안가가 된다.
 
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, Upload, X } from 'lucide-react'
+import { Sparkles, Upload, X, Package } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import { PRICEBOOK } from '@/lib/terms/pricebook'
 import { scaleLinesToTarget, describeScale } from '@/lib/crm/domain/quote-target'
 import { LINE_KIND_ORDER, LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
 import {
@@ -42,7 +43,7 @@ import WaitProgress from '@/components/ui/WaitProgress'
 import { quoteWaitProgress } from '@/lib/crm/ui/quote-read-progress'
 
 /** 지금 어느 길을 열어 두었나. null 이면 닫혀 있다 */
-export type QuoteFillMode = 'speech' | 'file' | null
+export type QuoteFillMode = 'speech' | 'file' | 'product' | null
 
 /**
  * 파일 고르기가 받는 확장자.
@@ -536,6 +537,14 @@ export function QuoteFillButtons({ mode, onMode }: {
         onClick={() => onMode(mode === 'file' ? null : 'file')}
       >
         <Upload size={16} /> {QUOTE.fillByFile}
+      </NbButton>
+      {/* 가격 기준의 제품과 조건으로 — AI 를 안 부른다. 계산은 견적 저장과 같은 엔진이다 */}
+      <NbButton
+        variant="ghost"
+        aria-expanded={mode === 'product'}
+        onClick={() => onMode(mode === 'product' ? null : 'product')}
+      >
+        <Package size={16} /> {PRICEBOOK.fillByProduct}
       </NbButton>
     </>
   )

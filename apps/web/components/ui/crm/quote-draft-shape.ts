@@ -111,6 +111,9 @@ export interface ProductJson {
   currency: string
   taxRate: string
   unit: string | null
+  /** 가격 기준 — 확인 전 가격이면 출처가 「확인 전 가격」이 된다. 매년 청구 품목이면 줄도 매년 */
+  needsReview?: boolean
+  billing?: string
 }
 
 export interface QuoteDraft {
