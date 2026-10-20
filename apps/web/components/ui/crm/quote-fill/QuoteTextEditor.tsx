@@ -200,6 +200,8 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
         {aiDown && <span className={styles.textStatusWarn}>{TEXT_FILL.aiDown}</span>}
         {res && res.unread.length > 0 && <span>{TEXT_FILL.unread(res.unread.length)}</span>}
         {res && res.byAi.length > 0 && <span>{TEXT_FILL.byAi(res.byAi.length)}</span>}
+        {/* 고른 모델이 막혀 다른 것이 읽었으면 그 사실 — 조용히 바꾸지 않는다 */}
+        {res?.switchedNote && <span>{res.switchedNote}</span>}
         {active !== null && linked > 0 && <span>{TEXT_FILL.linked(linked)}</span>}
       </div>
       {res && res.unread.length > 0 && (

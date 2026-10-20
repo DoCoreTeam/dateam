@@ -70,6 +70,8 @@ export interface TextFillResponse extends TextFillResult {
   aliases: AliasCandidate[]
   aiCache: { key: string; output: TextReadOutput } | null
   runId: string | null
+  /** 고른 모델이 막혀 다른 것이 답했으면 그 사실 — 조용히 바꾸지 않는다 */
+  switchedNote: string | null
 }
 
 export function parseTextFillInput(body: unknown): TextFillInput {
@@ -132,7 +134,7 @@ export interface Loaded {
   gpuPrice: (model: string) => GpuPriceRef | null
 }
 
-export type CallAi = (input: ReturnType<typeof buildTextReadInput>) => Promise<{ output: TextReadOutput; runId: string | null }>
+export type CallAi = (input: ReturnType<typeof buildTextReadInput>) => Promise<{ output: TextReadOutput; runId: string | null; switchedNote?: string | null }>
 
 /** 몸통 — DB 와 AI 를 받아서 쓴다. 시험은 가짜 AI 로 호출 수를 센다 */
 export async function fillCore(loaded: Loaded, input: TextFillInput, callAi: CallAi): Promise<TextFillResponse> {
@@ -145,6 +147,7 @@ export async function fillCore(loaded: Loaded, input: TextFillInput, callAi: Cal
   let aiStatus: AiStatus = readInput.clauses.length === 0 ? 'NOT_NEEDED' : input.ai === 'off' ? 'OFF' : 'OK'
   let output: TextReadOutput | null = null
   let runId: string | null = null
+  let switchedNote: string | null = null
 
   if (aiStatus === 'OK') {
     const cached = input.aiCache?.key === key ? TextReadOutputSchema.safeParse(input.aiCache.output) : null
@@ -156,6 +159,7 @@ export async function fillCore(loaded: Loaded, input: TextFillInput, callAi: Cal
         const r = await callAi(readInput)
         output = r.output
         runId = r.runId
+        switchedNote = r.switchedNote ?? null
       } catch (e) {
         aiStatus = statusOf(e)
       }
@@ -174,7 +178,7 @@ export async function fillCore(loaded: Loaded, input: TextFillInput, callAi: Cal
     products, items, laborGrades: loaded.laborGrades, gpuPrice: loaded.gpuPrice, companyKind: input.companyKind as CompanyKind | null,
   }
   const result = runTextFill(ruleReadings, finalReadings, ctx, input.lines as ClientLine[], products)
-  return { ...result, aiStatus, byAi, aliases, aiCache: output ? { key, output } : null, runId }
+  return { ...result, aiStatus, byAi, aliases, aiCache: output ? { key, output } : null, runId, switchedNote }
 }
 
 export async function fillQuoteFromText(
@@ -199,7 +203,7 @@ export async function fillQuoteFromText(
       parse: parseTextRead,
       adapter: chosen,
     })
-    return { output: r.output, runId: r.runId }
+    return { output: r.output, runId: r.runId, switchedNote: r.switchedNote ?? null }
   }
   return fillCore({ catalog, products, items, laborGrades: toGradeRefs(grades), gpuPrice }, input, callAi)
 }

@@ -83,6 +83,7 @@ export interface TextFillJson {
   byAi: string[]
   aliases: { itemId: string; word: string }[]
   aiCache: { key: string; output: unknown } | null
+  switchedNote?: string | null
 }
 
 export const textKeyOf = (l: QuoteLineDraft): string | null => {

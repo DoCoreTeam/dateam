@@ -21,11 +21,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Sparkles, Upload, X, Package } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { PRICEBOOK } from '@/lib/terms/pricebook'
-import { fitDraftToBudget } from './quote-fill/draft-budget'
-import { LINE_KIND_ORDER, LINE_KIND_UNIT, type QuoteLineKind } from '@/lib/terms/cost'
 import {
   ACTION, progress, QUOTE,
-  FILL_SPEECH_HINT, FILL_SPEECH_PLACEHOLDER, FILL_FILE_HINT, FILL_FILE_KINDS,
+  FILL_FILE_HINT, FILL_FILE_KINDS,
   FILL_REVIEW_HINT, FILL_UNCLEAR_TITLE,
   FILL_NO_TABLE, FILL_TRUNCATED, FILL_READ_AS_IMAGE, FILL_NOTHING_FOUND,
   FILL_PICK_BACK, FILL_PICK_ONE_ONLY, FILL_READ_FAILED, FILL_FILE_LABEL,
@@ -34,16 +32,15 @@ import { readResponse, describeFetchFailure } from '@/lib/crm/api/read-error'
 import {
   buildReviews, toggleChecked, pickedLines, appendLines,
   QuoteReviewList, QuotePickList, ReviewHead, applyDocDuration,
-  type DocLineJson, type DocQuoteJson, type FileReview,
+  type DocQuoteJson, type FileReview,
 } from './quote-review'
-import type { QuoteDraft, QuoteLineDraft } from './quote-draft-shape'
-import { joinSpec } from '@/lib/crm/domain/quote-spec'
+import type { QuoteDraft } from './quote-draft-shape'
 import styles from './quote-panel.module.css'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { quoteWaitProgress } from '@/lib/crm/ui/quote-read-progress'
 
 /** 지금 어느 길을 열어 두었나. null 이면 닫혀 있다 */
-export type QuoteFillMode = 'speech' | 'file' | 'product' | null
+export type QuoteFillMode = 'file' | 'product' | null
 
 /**
  * 파일 고르기가 받는 확장자.
@@ -76,48 +73,9 @@ export interface QuoteFillPanelProps {
   onError: (message: string | null) => void
 }
 
-/**
- * 말로 채우기가 준 줄을 폼 모양으로.
- *
- * 파일 경로는 `quote-review` 의 `toFormLine` 을 쓴다 — 같은 일을 두 번 적지 않는다.
- * 말 경로만 여기 남은 이유는 부가세율이 문서에서 오지 않기 때문이다(늘 화면 기본값).
- */
-function saidLine(l: DocLineJson): QuoteLineDraft {
-  const k = (LINE_KIND_ORDER as readonly string[]).includes(l.kind ?? '')
-    ? l.kind as QuoteLineKind : 'QUANTITY'
-  return {
-    productId: null,
-    name: l.name ?? '',
-    // 구성은 규격 아래 줄로 붙는다 — 붙이는 규칙은 파일 경로와 같은 한 곳이다
-    descriptionMd: joinSpec(l.spec, l.components),
-    // 비고는 규격과 다른 칸이다 — 규격에 우겨 넣으면 견적서 맨 오른쪽 열이 빈 채로 나간다
-    remark: l.remark ?? '',
-    kind: k,
-    quantity: l.quantity === null ? '1' : String(l.quantity),
-    /*
-      **못 읽은 단위는 빈 칸으로 둔다.**
-
-      종류의 기본값으로 메우면 「못 읽음」과 「개월」이 같은 모양이 되고, 사람은 화면에
-      적힌 단위를 **읽어 온 값**으로 믿는다. 실측 2026-10-06: 원본의 「수량 17 대」가
-      기간요금 종류로 읽히며 단위 칸에 「개월」이 박혀, 열일곱 대가 열일곱 달이 됐다.
-      빈 칸이면 사람이 그 자리를 보고 채운다 — 단가를 빈 칸으로 두는 것과 같은 이유다.
-    */
-    unit: l.unit ?? '',
-    // 「얼마 동안」 — 읽었으면 그대로 폼에 닿는다. 못 읽었으면 둘 다 빈 칸이다
-    durationValue: l.durationValue === null || l.durationValue === undefined ? '' : String(l.durationValue),
-    durationUnit: l.durationUnit ?? '',
-    // **못 읽은 단가는 빈 칸으로 둔다.** '0' 으로 채우면 0원짜리 줄이 조용히 들어간다
-    unitPriceMinor: l.unitPriceMinor === null ? '' : String(l.unitPriceMinor),
-    discountPercent: l.discountPercent === null ? '0' : String(l.discountPercent),
-    specialDiscountPercent: l.specialDiscountPercent === null ? '' : String(l.specialDiscountPercent),
-    taxRate: '10',
-  }
-}
-
 export default function QuoteFillPanel({
   mode, draft, onDraftChange, onClose, onError,
 }: QuoteFillPanelProps) {
-  const [sayText, setSayText] = useState('')
   const [busy, setBusy] = useState(false)
   /*
     **기다리는 동안 무엇을 하는 중인지 말한다.** 두 창구 상한이 120초와 180초다.
@@ -125,7 +83,7 @@ export default function QuoteFillPanel({
     (사용자 지적 2026-09-20). 옆의 가져오기 창과 **같은 부품·같은 함수**를 쓴다 —
     같은 성격이 화면마다 다른 말을 하면 그게 또 다른 결함이다.
   */
-  const [waitPhase, setWaitPhase] = useState<'speech' | 'reading' | null>(null)
+  const [waitPhase, setWaitPhase] = useState<'reading' | null>(null)
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [readingFile, setReadingFile] = useState<{ name: string; size: number } | null>(null)
@@ -155,127 +113,10 @@ export default function QuoteFillPanel({
   const fileRef = useRef<HTMLInputElement>(null)
 
   const close = () => {
-    setSayText('')
     setReviews([])
     setPickedIndex(null)
     setDocInfo(null)
     onClose()
-  }
-
-  /**
-   * 지금 폼에 있는 항목 — 「총액 3억에 맞춰서」가 가리키는 대상.
-   *
-   * **기간도 함께 간다.** 칸을 골라 옮기면서 기간을 떨어뜨리면 총액 맞추기가
-   * **반값을 현재값으로 보고** 단가를 두 배로 민다 — 실측 2026-10-09:
-   * 17대 × 2개월 짜리 줄에서 목표 3억을 맞췄더니 저장될 공급가가 **6억**이었다.
-   */
-  const currentLines = () => draft.lines
-    .filter((l) => l.name.trim())
-    .map((l) => ({
-      name: l.name, quantity: l.quantity, unit: l.unit,
-      durationValue: l.durationValue, durationUnit: l.durationUnit,
-      unitPriceMinor: l.unitPriceMinor,
-      discountPercent: l.discountPercent, taxRate: l.taxRate,
-    }))
-
-  /* ── 말로 채우기 ─────────────────────────────── */
-
-  const applySaid = async () => {
-    if (!sayText.trim()) return
-    setBusy(true)
-    setWaitPhase('speech')
-    setStartedAt(Date.now())
-    onError(null)
-    setUnclear([])
-    setNote(null)
-    try {
-      const res = await fetch('/api/crm/quotes/draft', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: sayText.trim(), currentLines: currentLines() }),
-      })
-      /*
-        **본문이 JSON 이 아닐 수 있다**(504·413·로그인 화면). `res.json()` 을 그냥 부르면
-        그 줄에서 예외가 나 catch 로 떨어지고, 화면은 무엇이 문제였든 같은 한 마디를 한다.
-        상황을 문장으로 바꾸는 일은 `read-error` 한 곳이 한다 — 딜 화면도 같은 것을 쓴다.
-      */
-      const got = await readResponse(res, FILL_READ_FAILED)
-      if (!got.ok) { onError(got.message); return }
-      const body = (got.body ?? {}) as Record<string, unknown>
-      /*
-        **고른 모델이 막혀 다른 것이 답했으면 그 사실을 말한다.**
-        비용과 품질이 달라지는 일이라 모르고 지나가면 안 된다 — 같은 입력에 다른 답이
-        나온 이유를 사람이 설명할 수 있어야 한다.
-      */
-      const switched = typeof body.switchedNote === 'string' ? body.switchedNote : null
-      const d = (body.draft ?? body) as {
-        title: string | null
-        lines: DocLineJson[]
-        roundingUnit: number
-        targetTotalMinor: number | null
-        targetIncludesTax: boolean
-        taxPercent: number | null
-        unclear: string[]
-      }
-      const made = (d.lines ?? []).filter((l) => l.name).map(saidLine)
-
-      /*
-        새 항목이 없어도 **목표만으로 성립한다** — 「지금 이대로 3억에 맞춰 줘」가 그 경우다.
-      */
-      const hasTarget = typeof d.targetTotalMinor === 'number' && d.targetTotalMinor > 0
-      if (made.length === 0 && !hasTarget) {
-        onError('견적 항목을 찾지 못했어요. 품목과 수량이 들어가게 적어 주세요.')
-        return
-      }
-
-      /*
-        **계산을 업데이터 밖에서 한다**(v0.7.695 정정). 업데이터는 순수해야 하고
-        React 가 두 번 부를 수 있어, 그 안에서 바깥 변수에 대입하면 화면에 닿지 않는다 —
-        총액은 맞춰졌는데 「맞췄어요」가 안 떴다(실브라우저에서 잡힘).
-      */
-      const roundingUnit = d.roundingUnit || draft.roundingUnit
-      const intent = hasTarget
-        ? { totalMinor: d.targetTotalMinor as number, includesTax: Boolean(d.targetIncludesTax) }
-        : null
-
-      /**
-       * **목표 총액은 우리가 맞춘다 — AI 가 아니라.**
-       * 예산 맞추기와 같은 엔진(fitDraftToBudget)이다. **단가는 그대로 두고 할인 칸으로** 맞춘다 —
-       * 예전처럼 단가를 깎으면 할인 칸이 0 이라 3억을 2억에 맞춰도 승인이 안 걸렸다(P0135).
-       * 예산이 지금 금액보다 크면 값을 올리지 않고 남는 금액을 말한다.
-       */
-      const scale = (lines: QuoteLineDraft[]) => {
-        if (!intent) return { lines, note: null as string | null }
-        const out = fitDraftToBudget({ ...draft, roundingUnit, lines }, BigInt(Math.round(intent.totalMinor)), intent.includesTax)
-        return { lines: out.draft.lines, note: out.message }
-      }
-
-      /*
-        **폼은 최신 상태 위에 얹는다**(updater 로). 기다리는 동안 사용자가 칸을 고쳤을 수 있고,
-        그 손질을 AI 결과가 덮으면 사람은 자기가 방금 쓴 값이 사라진 것을 본다.
-
-        **알림 문구는 updater 밖에서 만든다**(v0.7.695 정정). updater 는 순수해야 하고
-        React 가 두 번 부를 수 있어, 그 안에서 바깥 변수에 대입하면 화면에 닿지 않는다 —
-        총액은 맞춰졌는데 「맞췄어요」가 안 떴다(실브라우저에서 잡힘).
-      */
-      onDraftChange((prev) => ({
-        ...prev,
-        // 제목은 **비어 있을 때만** 채운다 — 사람이 적은 제목을 AI 가 덮으면 안 된다
-        title: prev.title.trim() ? prev.title : (d.title ?? prev.title),
-        roundingUnit,
-        lines: scale(appendLines(prev, made)).lines,
-      }))
-      setNote([switched, scale(appendLines(draft, made)).note].filter(Boolean).join('\n') || null)
-      // **못 알아본 말은 버리지 않는다** — 사람이 직접 넣을 수 있게 그대로 보여 준다
-      setUnclear(d.unclear ?? [])
-      setSayText('')
-      onClose()
-    } catch {
-      onError(describeFetchFailure(FILL_FILE_LABEL))
-    } finally {
-      setBusy(false)
-      setWaitPhase(null)
-      setStartedAt(null)
-    }
   }
 
   /* ── 파일로 채우기 ───────────────────────────── */
@@ -374,30 +215,9 @@ export default function QuoteFillPanel({
           elapsedMs,
           fileName: readingFile?.name ?? '',
           fileBytes: readingFile?.size ?? 0,
-          saidChars: sayText.trim().length,
         })
         return <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />
       })()}
-
-      {mode === 'speech' && (
-        <div className={styles.sayBox}>
-          <p className={styles.sayHint}>{FILL_SPEECH_HINT}</p>
-          <textarea
-            className="input-field"
-            rows={3}
-            value={sayText}
-            autoFocus
-            placeholder={FILL_SPEECH_PLACEHOLDER}
-            onChange={(e) => setSayText(e.target.value)}
-          />
-          <div className={styles.sayFoot}>
-            <NbButton variant="ghost" onClick={close} disabled={busy}>{ACTION.cancel}</NbButton>
-            <NbButton onClick={() => void applySaid()} disabled={busy || !sayText.trim()}>
-              {busy ? progress('읽는') : QUOTE.fillFromSpeech}
-            </NbButton>
-          </div>
-        </div>
-      )}
 
       {mode === 'file' && !docInfo && (
         <div className={styles.sayBox}>
@@ -502,17 +322,23 @@ export default function QuoteFillPanel({
  * 패널과 한 파일에 둔 이유: 단추와 상자가 **같은 상태를 본다.**
  * 파일을 나누면 「어느 것이 열려 있나」를 두 곳이 알아야 하고, 그때부터 갈린다.
  */
+/** 늘 열린 말로 채우기 글 상자로 — 보이게 굴리고 글자 끝에 커서를 둔다 */
+function focusTextEditor(): void {
+  const el = document.getElementById('quote-text-fill') as HTMLTextAreaElement | null
+  if (!el) return
+  el.scrollIntoView({ block: 'center' })
+  el.focus()
+  el.setSelectionRange(el.value.length, el.value.length)
+}
+
 export function QuoteFillButtons({ mode, onMode }: {
   mode: QuoteFillMode
   onMode: (next: QuoteFillMode) => void
 }) {
   return (
     <>
-      <NbButton
-        variant="ghost"
-        aria-expanded={mode === 'speech'}
-        onClick={() => onMode(mode === 'speech' ? null : 'speech')}
-      >
+      {/* 말로 채우기는 표 위에 늘 열려 있다 — 단추는 그 글 상자로 데려간다 */}
+      <NbButton variant="ghost" onClick={focusTextEditor}>
         <Sparkles size={16} /> {QUOTE.fillBySpeech}
       </NbButton>
       <NbButton

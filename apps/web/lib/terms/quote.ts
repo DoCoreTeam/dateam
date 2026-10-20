@@ -197,8 +197,6 @@ export const QUOTE = {
   fillPick: '파일 고르기',
   /** 읽은 것을 폼에 넣는다. 「저장」이 아니다 — 저장은 그다음이다 */
   fillApply: '체크한 항목 넣기',
-  /** 말로 적은 것을 항목으로 */
-  fillFromSpeech: '항목으로 옮기기',
   /** 우리만 보는 메모 — 인쇄되지 않는다 */
   internalMemo: '내부 메모',
   preview: '미리보기',
@@ -514,13 +512,6 @@ export const variantCopyNote = (quoteNo: string) =>
   사람이 「AI 가 견적을 만들어 보냈다」고 오해하면 이 기능을 아예 안 쓴다.
   채우기는 **받아 적기**이고 저장은 사람이 누른다 — 그 사실을 화면이 말한다(§5-3).
 */
-
-/** 말로 채우기 안내 */
-export const FILL_SPEECH_HINT =
-  '항목을 말하듯 적어 주세요. 품목·수량·단가·할인을 알아봅니다. 저장은 하지 않아요.'
-
-export const FILL_SPEECH_PLACEHOLDER =
-  '예) H100 SXM 2대 대당 5천만원, 3개월 구독, 기본 20% 할인\n     PM 1명 3 M/M, 만원 단위로 잘라 주세요'
 
 /**
  * 말로 채우기 편집기 — 견적 옆에 늘 열려 있다. 쓰다가 멈추면 표가 고쳐진다.

@@ -212,14 +212,16 @@ test('★ 두 경로가 같은 상한을 쓴다 — 한 곳에서만 오면 갈�
   assert.equal(parsed.lines[0].components.length, draft.MAX_DOC_COMPONENT_LINES)
 })
 
-test('★ 붙여넣기 화면도 구성을 폼으로 나른다 — 받아 놓고 안 넘기면 저장에서 사라진다', async () => {
+// 붙이기만 하던 말로 채우기(QuoteFillPanel 의 saidLine)는 P0136 에서 늘 열린 편집기로 바뀌었다.
+// 읽은 것을 폼으로 나르는 자리는 이제 파일 검수(quote-review) 하나다
+test('★ 읽은 구성을 폼으로 나른다 — 받아 놓고 안 넘기면 저장에서 사라진다', async () => {
   const { readFileSync } = await import('node:fs')
   const { join, dirname } = await import('node:path')
   const { fileURLToPath } = await import('node:url')
   const web = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
-  const src = readFileSync(join(web, 'components/ui/crm/QuoteFillPanel.tsx'), 'utf8')
-  assert.match(src, /descriptionMd: joinSpec\(l\.spec, l\.components\)/,
-    '말로 채우기가 구성을 버린다')
+  const src = readFileSync(join(web, 'components/ui/crm/quote-review.tsx'), 'utf8')
+  assert.match(src, /joinSpec\(l\.spec, l\.components\)/,
+    '파일 검수가 구성을 버린다')
 })
 
 /* ── 줄바꿈이 저장까지 사는가 (v0.10.32x) ────────── */

@@ -507,7 +507,8 @@ test('★ 적은 비고가 저장까지 간다 — 화이트리스트가 모르�
 })
 
 test('★ 파일에서 읽은 비고가 초안으로 온다 — 읽어도 담을 자리가 없으면 버려진다', () => {
-  for (const f of ['components/ui/crm/quote-review.tsx', 'components/ui/crm/QuoteFillPanel.tsx']) {
+  // 말로 채우기의 옛 붙이기 길(QuoteFillPanel saidLine)은 P0136 에서 걷어 냈다 — 읽은 줄을 옮기는 자리는 검수 하나
+  for (const f of ['components/ui/crm/quote-review.tsx']) {
     const src = read(join(WEB, f))
     assert.match(src, /remark: l\.remark \?\? ''/, `${f} 가 읽은 비고를 안 옮긴다`)
   }
@@ -585,11 +586,12 @@ test('★ 원본 대조가 견적서를 그대로 받는다 — 두 벌로 그�
    ────────────────────────────────────────────────────────────────────────── */
 
 const REVIEW_TEXT = read(REVIEW_SRC)
+/** 파일로 채우기 — 패널에 남은 길은 이것 하나다(말로 채우기는 늘 열린 편집기로 옮겼다) */
 const FILL_TEXT = read(join(WEB, 'components/ui/crm/QuoteFillPanel.tsx'))
 const MODAL_TEXT = read(FROM_FILE_MODAL)
 
 test('★ 못 읽은 단위를 종류 기본값으로 메우지 않는다 — 「대」가 「개월」이 된 그 자리다', () => {
-  for (const [name, src] of [['검수 목록', REVIEW_TEXT], ['파일로 채우기', FILL_TEXT]] as const) {
+  for (const [name, src] of [['검수 목록', REVIEW_TEXT]] as const) {
     assert.ok(!/unit:\s*l\.unit\s*\?\?\s*LINE_KIND_UNIT/.test(src),
       `${name} 이 단위를 종류 기본값으로 메운다 — 못 읽은 것과 「개월」이 같은 모양이 된다`)
     assert.ok(/unit:\s*l\.unit\s*\?\?\s*''/.test(src),
@@ -598,7 +600,7 @@ test('★ 못 읽은 단위를 종류 기본값으로 메우지 않는다 — �
 })
 
 test('★ 읽은 기간이 폼 칸까지 닿는다 — 값이 가는지로 본다', () => {
-  for (const [name, src] of [['검수 목록', REVIEW_TEXT], ['파일로 채우기', FILL_TEXT]] as const) {
+  for (const [name, src] of [['검수 목록', REVIEW_TEXT]] as const) {
     assert.ok(/durationValue:\s*l\.durationValue/.test(src), `${name} 이 기간 값을 안 옮긴다`)
     assert.ok(/durationUnit:\s*l\.durationUnit\s*\?\?\s*''/.test(src), `${name} 이 기간 단위를 안 옮긴다`)
   }

@@ -109,3 +109,14 @@ test('AI 검토가 고친 수량도 되돌릴 수 있다', async () => {
   assert.equal(u.lines[0].quantity, '40')
   assert.deepEqual(u.lines[0].lockedFields, ['quantity'])
 })
+
+test('붙이기만 하던 옛 말로 채우기 길이 남지 않는다', async () => {
+  const { readFileSync, existsSync } = await import('node:fs')
+  const panel = readFileSync(new URL('../QuoteFillPanel.tsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(panel, /\/api\/crm\/quotes\/draft'/)
+  assert.doesNotMatch(panel, /mode === 'speech'/)
+  assert.match(panel, /getElementById\('quote-text-fill'\)/)
+  assert.equal(existsSync(new URL('../../../../app/api/crm/quotes/draft/route.ts', import.meta.url)), false)
+  // 파일로 채우기는 그대로
+  assert.match(panel, /\/api\/crm\/quotes\/draft-file/)
+})

@@ -252,7 +252,7 @@ test('★ CRM 도 갈아탄 사실을 말한다 — 조용히 바꾸면 같은 �
   assert.match(read(CRM_RUNNER), /formatFallbackNotice\(/)
   assert.match(read(CRM_RUNNER), /switchedNote/)
   // 창구 둘이 그 값을 실어 보내고 화면이 받는다
-  assert.match(read('lib/crm/services/quote-draft.ts'), /switchedNote/)
+  assert.match(read('lib/crm/services/quote-text-fill.ts'), /switchedNote/)
   assert.match(read('lib/crm/services/quote-from-file.ts'), /switchedNote/)
   assert.match(read(FILL_PANEL), /body\.switchedNote/)
 })
