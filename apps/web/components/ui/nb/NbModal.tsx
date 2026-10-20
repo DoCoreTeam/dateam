@@ -28,8 +28,7 @@ interface NbModalProps {
    * (사용자 지적 2026-08-28: 「모달이 위아래로 출렁거리는게 싫어서 전체 항목을 기준으로
    *  크기가 일정해서 안에 내용만 변경되는 것처럼 보이길 원해」).
    *
-   * 켜면 머리글과 바닥(버튼 줄)은 **붙박이**가 되고 본문만 스크롤된다 —
-   * 확정 버튼이 늘 같은 자리에 있다.
+   * 머리글과 바닥(버튼 줄)은 이 값과 상관없이 늘 **붙박이**이고 본문만 스크롤된다.
    */
   fixedHeight?: string
 }
@@ -60,13 +59,13 @@ export default function NbModal({
           boxShadow: 'var(--shadow-modal)',
           boxSizing: 'border-box',
           /*
-            고정 높이일 때는 카드가 세로 flex 가 되고 **본문만** 스크롤한다.
-            카드 전체를 스크롤하면 바닥의 확정 버튼이 화면 밖으로 밀려나
-            «저장이 어디 있지»가 된다.
+            카드는 늘 세로 flex 이고 **본문만** 스크롤한다, 머리글(닫기)과 바닥(저장)은 붙박이.
+            카드 전체를 스크롤하면 닫기와 확정 버튼이 화면 밖으로 밀려난다
+            (사용자 지적 2026-10-20 「닫기는 항상 보여야 하는거 아냐? 스크롤 해도」).
+            fixedHeight 는 높이만 고정한다.
           */
-          ...(fixedHeight
-            ? { height: fixedHeight, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
-            : { maxHeight: '90vh', overflowY: 'auto' }),
+          maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          ...(fixedHeight ? { height: fixedHeight } : {}),
         }}
       >
         {(title || !disableClose || headerExtra) && (
@@ -82,9 +81,7 @@ export default function NbModal({
             )}
           </div>
         )}
-        {fixedHeight
-          ? <div style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>{children}</div>
-          : children}
+        <div style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto' }}>{children}</div>
         {footer && (
           <div style={{
             display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)',
