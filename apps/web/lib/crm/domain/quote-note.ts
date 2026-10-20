@@ -40,13 +40,24 @@ export function noteToHtml(note: string | null | undefined): string {
     .join('')
 }
 
+/** 빈 문단. 편집기는 Enter 만 친 줄을 이렇게 쓴다 */
+const EMPTY_P = /<p>\s*(<br\s*\/?>)?\s*<\/p>/gi
+/** 걸러내기를 지나는 동안 빈 문단 자리를 지키는 보이지 않는 글자 */
+const BLANK_MARK = '\u2063'
+
 /** 글자만. 엑셀과 지문처럼 서식을 못 싣는 자리가 쓴다 */
 export function noteToPlain(note: string | null | undefined): string {
   const raw = (note ?? '').trim()
   if (!isNoteHtml(raw)) return raw
-  return htmlToPlain(raw)
+  /*
+    변환기는 목록 사이에도 빈 줄을 끼워서 빈 줄을 다 지워야 했다. 그러면 사람이 Enter 로 둔 빈 문단까지
+    사라진다 — 빈 문단만 표시를 달아 걸러내기를 지나게 하고, 지난 뒤 빈 줄로 되돌린다 (P0146)
+  */
+  return htmlToPlain(raw.replace(EMPTY_P, `<p>${BLANK_MARK}</p>`))
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
+    .map((line) => (line === BLANK_MARK ? '' : line))
     .join('\n')
+    .trim()
 }

@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.35',
+    date: '2026-10-20',
+    title: '특기사항 빈 줄이 그대로 남아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📏',
+        headline: '특기사항에 띄운 줄이 견적서에서도 띄워져요',
+        detail: '편집기에서 빈 줄을 넣어 간격을 두면 저장한 뒤 견적서 화면과 PDF, 그림, 엑셀에도 같은 간격으로 보여요. 전에는 빈 줄이 사라져 줄이 붙어 보였어요.',
+      },
+    ],
+  },
+  {
     version: '0.11.34',
     date: '2026-10-20',
     title: '견적서가 한결 정돈됐어요',

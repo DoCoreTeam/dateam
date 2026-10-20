@@ -498,7 +498,9 @@
   예전의 줄바꿈과 같은 높이로 읽힌다. 목록은 거래 조건 목록과 같은 들여쓰기다.
 */
 .note { font-size: var(--fs-sm); line-height: 1.6; margin: 0; color: var(--text); }
-.note p { margin: 0; }
+.note p { margin: 0; white-space: pre-wrap; }
+/* 편집기에서 Enter 로 둔 빈 줄은 빈 문단이다. 글자가 없으면 높이가 0 이라 저장한 간격이 접힌다 (P0146) */
+.note p:empty { min-height: 1lh; }
 .note p + p { margin-top: 0.15rem; }
 .note ul,
 .note ol { margin: var(--space-1) 0; padding-left: var(--space-5); }

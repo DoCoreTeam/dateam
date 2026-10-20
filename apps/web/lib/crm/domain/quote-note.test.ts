@@ -59,3 +59,16 @@ test('저장 세 자리와 문서 응답이 정리기를 지난다 — 하나라
   const docSvc = readFileSync(new URL('../services/quote-document.ts', import.meta.url), 'utf8')
   assert.match(docSvc, /customerNoteHtml: built\.customerNoteHtml \? sanitizeNoteHtml\(built\.customerNoteHtml\)/)
 })
+
+test('편집기에서 넣은 빈 줄이 엑셀 글자에도 한 줄로 남는다 — 사람이 둔 간격이다', () => {
+  assert.equal(noteToPlain('<p>가</p><p></p><p>나</p><p><br></p><p></p><p>다</p>'), '가\n\n나\n\n\n다')
+  assert.equal(noteToPlain('<p></p><p>가</p><p></p>'), '가', '앞뒤 빈 줄은 간격이 아니다')
+  // 목록 사이에 변환기가 끼우는 빈 줄은 간격이 아니다
+  assert.equal(noteToPlain('<ul><li><p>가</p></li><li><p>나</p></li></ul>'), '- 가\n- 나')
+})
+
+test('견적서 서식이 빈 문단에 한 줄 높이를 주고 공백을 접지 않는다 — 안 주면 저장한 간격이 종이에서 사라진다', () => {
+  const css = readFileSync(new URL('../../../app/(crm)/crm/quotes/[id]/quote-document.module.css', import.meta.url), 'utf8')
+  assert.match(css, /\.note p:empty\s*\{[^}]*min-height:\s*1lh/)
+  assert.match(css, /\.note p\s*\{[^}]*white-space:\s*pre-wrap/)
+})
