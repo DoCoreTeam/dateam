@@ -18,6 +18,8 @@ export interface BudgetFitOutcome {
   draft: QuoteDraft
   message: string
   changed: boolean
+  /** 승인 기준을 넘어 넣지 않은 할인율 — 사람이 「할인 n% 넣기」로 넣는다 */
+  neededPct: number | null
 }
 
 const won = (v: bigint) => Number(v).toLocaleString('ko-KR')
@@ -50,7 +52,7 @@ function toFitLine(l: QuoteLineDraft, i: number, hpm: number | null): FitLine {
   }
 }
 
-export function fitDraftToBudget(draft: QuoteDraft, budgetMinor: bigint, includesTax: boolean): BudgetFitOutcome {
+export function fitDraftToBudget(draft: QuoteDraft, budgetMinor: bigint, includesTax: boolean, opts: { allowOverCap?: boolean } = {}): BudgetFitOutcome {
   const hpm = draft.rateHoursPerMonth ? Number(draft.rateHoursPerMonth) : null
   const sectionKeyOf = (name: string | null | undefined) => {
     const i = draft.sections.findIndex((s) => s.name === name)
@@ -58,10 +60,10 @@ export function fitDraftToBudget(draft: QuoteDraft, budgetMinor: bigint, include
   }
   const lines = draft.lines.map((l, i) => ({ ...toFitLine(l, i, hpm), ratioOfSectionKey: l.ratioPct ? sectionKeyOf(l.ratioOfSectionName) : null }))
   const sections = draft.sections.map((s, i) => ({ key: String(i), roundingUnit: s.roundingUnit ?? 0 }))
-  const r = fitToBudget(lines, sections, { totalMinor: budgetMinor, includesTax }, { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode })
+  const r = fitToBudget(lines, sections, { totalMinor: budgetMinor, includesTax }, { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode }, { allowOverCap: opts.allowOverCap })
   const base = { ...draft, budgetMinor: budgetMinor.toString(), budgetIncludesTax: includesTax }
-  if (r.reason === 'ALREADY_UNDER') return { draft: base, message: BUDGET_SENTENCE.alreadyUnder(won(r.gapMinor)), changed: false }
-  if (r.reason === 'NO_DISCOUNTABLE') return { draft: base, message: BUDGET_SENTENCE.noDiscountable, changed: false }
+  if (r.reason === 'ALREADY_UNDER') return { draft: base, message: BUDGET_SENTENCE.alreadyUnder(won(r.gapMinor)), changed: false, neededPct: null }
+  if (r.reason === 'NO_DISCOUNTABLE') return { draft: base, message: BUDGET_SENTENCE.noDiscountable, changed: false, neededPct: null }
   const next = draft.lines.map((l, i) => {
     const fitted = r.lines[i]
     if (Number(fitted.discountPercent ?? 0) === Number(l.discountPercent || 0)) return l
@@ -72,9 +74,12 @@ export function fitDraftToBudget(draft: QuoteDraft, budgetMinor: bigint, include
     }
   })
   const message = r.reason === 'NOT_ENOUGH'
-    ? BUDGET_SENTENCE.notEnough(won(r.achievedMinor), won(-r.gapMinor))
-    : r.gapMinor === BigInt(0)
-      ? BUDGET_SENTENCE.fitted(r.discountPct ?? 0, won(r.achievedMinor))
-      : BUDGET_SENTENCE.fittedGap(r.discountPct ?? 0, won(r.achievedMinor), won(r.gapMinor))
-  return { draft: { ...base, lines: next }, message, changed: true }
+    ? BUDGET_SENTENCE.notEnough(r.discountPct ?? 0, won(r.achievedMinor), won(-r.gapMinor))
+    : r.reason === 'OVER_CAP'
+      ? BUDGET_SENTENCE.overCap(r.discountPct ?? 0, won(r.achievedMinor), won(-r.gapMinor), r.neededPct ?? 0)
+      : r.gapMinor === BigInt(0)
+        ? BUDGET_SENTENCE.fitted(r.discountPct ?? 0, won(r.achievedMinor))
+        : BUDGET_SENTENCE.fittedGap(r.discountPct ?? 0, won(r.achievedMinor), won(r.gapMinor))
+  const changed = next.some((l, i) => l !== draft.lines[i])
+  return { draft: { ...base, lines: next }, message, changed, neededPct: r.reason === 'OVER_CAP' ? (r.neededPct ?? null) : null }
 }

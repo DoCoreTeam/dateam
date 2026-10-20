@@ -40,9 +40,14 @@ test('예산이 이미 넘지 않으면 값을 올리지 않고 남는 금액을
   assert.match(out.message, /6,000,000원 남아요/)
 })
 
-test('손으로 친 줄만 있으면 그 줄들에 할인을 넣는다 — 예전처럼 단가를 깎지 않는다', () => {
+test('손으로 친 줄만 있으면 그 줄들에 할인을 넣는다 — 예전처럼 단가를 깎지 않는다, 승인 기준을 넘으면 사람이 넣는다', () => {
   const d = { ...blank, lines: [{ ...blank.lines[0], name: '서버', unitPriceMinor: '300000000', taxRate: '0' }] }
-  const out = fitDraftToBudget(d, BigInt(200_000_000), false)
-  assert.equal(out.draft.lines[0].unitPriceMinor, '300000000')
-  assert.ok(Number(out.draft.lines[0].discountPercent) > 33)
+  const auto = fitDraftToBudget(d, BigInt(200_000_000), false)
+  assert.equal(auto.draft.lines[0].unitPriceMinor, '300000000')
+  assert.equal(Number(auto.draft.lines[0].discountPercent), 15)
+  assert.equal(auto.neededPct, 33.34)
+  assert.match(auto.message, /33\.34% 가 필요해요/)
+  const forced = fitDraftToBudget(d, BigInt(200_000_000), false, { allowOverCap: true })
+  assert.ok(Number(forced.draft.lines[0].discountPercent) > 33)
+  assert.equal(forced.neededPct, null)
 })

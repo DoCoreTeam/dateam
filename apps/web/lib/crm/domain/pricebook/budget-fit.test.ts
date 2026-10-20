@@ -44,10 +44,40 @@ test('예산이 이미 넘지 않으면 손대지 않는다', () => {
   assert.equal(r.gapMinor, M(600))
 })
 
-test('할인할 수 있는 줄만으로 모자라면 할 수 있는 만큼 하고 남은 차이를 적는다', () => {
+test('할인할 수 있는 줄만으로 모자라면 100% 를 넣지 않고 상한까지만 넣고 남은 차이를 적는다', () => {
   const r = fitToBudget(exampleLines(), SECTIONS, { totalMinor: M(500), includesTax: false })
   assert.equal(r.reason, 'NOT_ENOUGH')
+  assert.equal(r.discountPct, 15)
+  assert.ok(r.lines.every((l) => Number(l.discountPercent ?? 0) <= 15))
   assert.ok(r.gapMinor < BigInt(0))
+})
+
+test('★ 실측 2026-10-20: 정상가 4억 표를 2천만원에 맞추라 해도 96% 같은 할인을 넣지 않는다 — 승인 기준 15% 에서 멈추고 필요 할인율을 말한다', () => {
+  const lines: FitLine[] = [
+    { key: 'a', quantity: 1, unitPriceMinor: 280_000_000, taxRate: 10, discountable: true },
+    { key: 'b', quantity: 1, unitPriceMinor: 120_000_000, taxRate: 10, discountable: true },
+  ]
+  const r = fitToBudget(lines, [], { totalMinor: M(2000), includesTax: false })
+  assert.equal(r.reason, 'OVER_CAP')
+  assert.equal(r.discountPct, 15)
+  assert.equal(r.neededPct, 95)
+  assert.ok(r.lines.every((l) => Number(l.discountPercent) === 15))
+  assert.equal(r.achievedMinor, M(34000))
+})
+
+test('사람이 「그래도 넣기」를 누르면 필요한 할인율을 그대로 넣는다', () => {
+  const lines: FitLine[] = [{ key: 'a', quantity: 1, unitPriceMinor: 400_000_000, taxRate: 10, discountable: true }]
+  const r = fitToBudget(lines, [], { totalMinor: M(2000), includesTax: false }, {}, { allowOverCap: true })
+  assert.equal(r.reason, 'FITTED')
+  assert.equal(r.discountPct, 95)
+  assert.equal(r.achievedMinor, M(2000))
+})
+
+test('상한은 바꿀 수 있다 — 30% 까지 허용하면 20% 필요한 표는 맞춘다', () => {
+  const lines: FitLine[] = [{ key: 'a', quantity: 1, unitPriceMinor: 100_000_000, taxRate: 10, discountable: true }]
+  const r = fitToBudget(lines, [], { totalMinor: M(8000), includesTax: false }, {}, { maxPct: 30 })
+  assert.equal(r.reason, 'FITTED')
+  assert.equal(r.discountPct, 20)
 })
 
 test('사람이 잠근 줄은 예산 맞추기가 덮지 않는다', () => {
