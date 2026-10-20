@@ -436,7 +436,6 @@ test('★ U-N·F-N 이 가리키는 가드와 부품이 실재한다 — 없는 
 const PUSH_HEADING = '## 푸시 규칙 (필수, 푸시 한 번이 빌드 한 번이다)'
 /** 규칙 넷의 핵심 문장. 글·훅·도구가 **같은 낱말**을 써야 세 자리가 한 규칙으로 읽힌다. */
 const PUSH_RULE_NO_ITEM_PUSH = '항목 커밋은 푸시하지 않는다'
-const PUSH_RULE_ONE_PER_PLAN = '플랜 하나가 푸시 하나다'
 /** 모음은 끝나도 안 민다 (사용자 지시 2026-10-20 ins_0288, 그날 푸시 12회) */
 const PUSH_RULE_NO_DIRECT = '모음 플랜은 완료해도 밀지 않는다'
 const PUSH_ESCAPE = 'LOOP_PUSH_NOW'
@@ -459,12 +458,16 @@ test('★ 푸시 규칙이 매 세션 읽는 LOOP.md 에 있다', () => {
   const end = rest.search(/\n#{2,3} /)
   const body = end < 0 ? rest : rest.slice(0, end)
 
-  for (const s of [PUSH_RULE_NO_ITEM_PUSH, PUSH_RULE_ONE_PER_PLAN, PUSH_ESCAPE]) {
+  for (const s of [PUSH_RULE_NO_ITEM_PUSH, PUSH_RULE_NO_DIRECT, PUSH_ESCAPE]) {
     assert.ok(body.includes(s), `푸시 규칙에 「${s}」가 없다 — 규칙 넷 중 하나가 빠졌다`)
   }
   // 규칙만 있고 왜가 없으면 다음 사람이 "빌드 좀 더 돈다고 뭐 어때"로 되돌린다
   assert.ok(body.includes('74.34달러') && body.includes('111회'),
     '푸시 규칙에 2026-09 실측 근거(74.34달러 / 푸시 111회)가 없다 — 왜가 빠지면 규칙은 되돌려진다')
+  // 옛 문장이 남으면 같은 절이 반대되는 답 둘을 갖는다. 그 문장대로 완료마다 밀어 하루 12회였다
+  for (const stale of ['플랜 하나가 푸시 하나다', '그 자리에서 민다', '플랜 완료 때 한 번']) {
+    assert.ok(!body.includes(stale), `푸시 규칙에 옛 문장 「${stale}」가 남아 있다 — 읽는 세션이 완료마다 민다`)
+  }
 })
 
 test('★ 푸시 규칙이 정책 3파일에 같은 문장으로 있다', () => {
