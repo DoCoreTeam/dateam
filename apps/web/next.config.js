@@ -108,6 +108,18 @@ const nextConfig = {
    */
   experimental: { webpackMemoryOptimizations: true },
 
+  /**
+   * 타입 검사와 린트는 **빌드 스크립트가 먼저 따로** 돌린다(package.json build). 여기서 끄는 것은
+   * 「안 한다」가 아니라 「Next 가 같은 프로세스에서 한 번 더 하지 않는다」이다.
+   *
+   * 실측 2026-10-20: Next 가 webpack 컴파일 메모리를 쥔 채 같은 자리에서 타입 검사와 린트를 돌려
+   * 프로세스 묶음 최대 메모리가 8,649 MB 였다. Vercel 빌드 머신(8 GB)이 v0.11.19 를 그 단계에서
+   * 45분 동안 붙잡다 잘랐고(BUILD_EXCEEDED_MAXIMUM_TIME), v0.11.20 은 OOM 으로 SIGKILL 했다.
+   * 로컬 빌드는 둘 다 통과했다. 나눠 돌리면 앞 단계가 끝나 메모리를 놓은 뒤 다음이 돈다.
+   */
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
+
   webpack: (config, { dev }) => {
     if (!dev) config.cache = false
     return config

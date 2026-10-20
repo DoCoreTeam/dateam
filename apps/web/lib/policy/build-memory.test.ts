@@ -81,3 +81,18 @@ test('★ 앱이 쓰는 META 키 이름과 확인기가 쓰는 이름이 같다'
     assert.ok(SCRIPT.includes(key), `확인기가 ${key} 를 안 쓴다`)
   }
 })
+
+/* ── 타입 검사와 린트는 빌드 앞에서 따로 (실측 2026-10-20) ──────────── */
+
+/**
+ * Vercel 이 v0.11.19 를 「Linting and checking validity of types」에서 45분 붙잡다 잘랐고
+ * v0.11.20 은 같은 단계에서 OOM 으로 SIGKILL 했다. 컴파일 뒤 메모리를 쥔 메인 프로세스 옆에서
+ * 타입 검사 일꾼(단독 2,317 MB)과 린트가 겹치던 자리다. 검사를 끄는 것이 아니라 **앞으로 뺀다.**
+ * 둘 중 한쪽만 남으면 검사가 통째로 빠지거나(설정만) 두 번 돈다(스크립트만).
+ */
+test('★ 빌드 스크립트가 타입 검사와 린트를 먼저 따로 돌리고, Next 는 다시 안 한다', () => {
+  assert.equal(PKG.scripts.build, 'tsc --noEmit -p tsconfig.json && next lint && next build')
+  assert.match(CONFIG, /typescript:\s*\{\s*ignoreBuildErrors:\s*true\s*\}/)
+  assert.match(CONFIG, /eslint:\s*\{\s*ignoreDuringBuilds:\s*true\s*\}/)
+  assert.match(CONFIG, /8,649 MB/, '왜 나눴는지 잰 값이 없다')
+})
