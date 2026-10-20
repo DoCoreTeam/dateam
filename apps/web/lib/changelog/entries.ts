@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.32',
+    date: '2026-10-20',
+    title: '견적의 판과 안 표시가 바로잡혔어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🏷️',
+        headline: '새로 만든 대안이 Rev.2 로 보이지 않아요',
+        detail: '대안은 새 문서라 첫 판으로 시작해요. 견적서에도 Rev 표시가 붙지 않고, 안 이름은 제목에 덧붙이지 않고 표시 하나로만 보여요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📌',
+        headline: '견적 카드 윗줄이 한눈에 읽혀요',
+        detail: '번호 바로 옆에 판과 안 표시가 붙고 상태만 오른쪽 끝에 서요. 대안 이름도 이미 있는 안 수를 세어 다음 번호로 채워 드려요.',
+      },
+    ],
+  },
+  {
     version: '0.11.30',
     date: '2026-10-20',
     title: '견적 만들기가 글대로 새로 세워요',
