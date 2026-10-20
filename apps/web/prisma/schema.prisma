@@ -1045,6 +1045,8 @@ model CrmQuote {
   sectionRoundingMinor BigInt    @default(0)
   /// 제품으로 채우기의 조건 — 「조건 고치기」가 다시 채운다
   fillConditions       Json      @default("{}")
+  /// 말로 채우기에 쓴 글 — 견적과 함께 남는다. 표는 이 글에서 나왔다(마이그 312)
+  fillText             String?
 
   /// ── 파일에서 온 견적 ────────────────────────────────────────
   /// **표시 전용이다. 어떤 게이트도 이 둘을 보지 않는다.**
