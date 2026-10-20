@@ -700,7 +700,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           </p>
         )}
         <BudgetFit dealId={dealId} draft={draft} onDraftChange={setDraft} approvalRequired={approval} disabled={Boolean(linesLocked)} />
-        <AutoFilledList draft={draft} />
+        <AutoFilledList draft={draft} onDraftChange={setDraft} disabled={Boolean(linesLocked)} />
 
         {approval && (
           <div className={styles.approvalNote}>{approvalNeeded(DEFAULT_DISCOUNT_APPROVAL_PCT)}</div>

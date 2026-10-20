@@ -41,3 +41,11 @@
 .chipLink:hover { border-color: var(--text-faint); color: var(--text); }
 .chipLink:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
 .chipActive { color: var(--info); border-color: var(--info); }
+.fixedRow { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.undo {
+  border: 1px solid var(--border-subtle); border-radius: var(--radius); background: transparent;
+  color: var(--text); font-size: var(--fs-xs); padding: 0 var(--space-2); cursor: pointer;
+}
+.undo:hover { border-color: var(--text-faint); }
+.undo:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
+.undo:disabled { opacity: 0.5; cursor: not-allowed; }

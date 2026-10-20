@@ -52,6 +52,19 @@ export interface FixJson {
 
 export interface Noted { field: string; value: string; provenance: { source: string; note?: string | null } }
 
+/** 되돌리기에 쓰는 값 — 자동으로 고친 값 한 줄이 들고 다닌다 */
+export interface UndoJson {
+  key: string
+  before: Partial<QuoteLineDraft>
+  /** 되돌리면 이 칸들이 「사람이 고침」으로 잠긴다 — 다음 정리가 같은 것을 다시 고치지 않게 */
+  lock: string[]
+  /** 지운 줄이면 그 줄과 자리 */
+  removed?: { line: QuoteLineDraft; index: number }
+}
+
+/** 자동으로 채운 값과 고친 값이 한 목록에 선다. 고친 값만 undo 를 가진다 */
+export type FilledEntry = Noted & { undo?: UndoJson }
+
 export interface TextFillJson {
   quote: {
     sections: { name: string; roundingUnit: number }[]
@@ -194,8 +207,19 @@ export function applyTextFill(draft: QuoteDraft, res: TextFillJson, text: string
     sections = s.sections
     rows.push({ key: o.line.textKey, line: fromText(o.line, s.index) })
   }
+  const fixed: FilledEntry[] = []
   for (const f of res.fixes) {
-    if (f.removed) { rows = rows.filter((r) => r.key !== String(f.removed?.line.key ?? '')); }
+    const removedKey = f.removed ? String(f.removed.line.key ?? '') : null
+    const at = removedKey ? rows.findIndex((r) => r.key === removedKey) : -1
+    const target = rows.find((r) => r.key === f.key)
+    const before = target ? pick(target.line, Object.keys(fixPatch(f.after))) : {}
+    fixed.push({
+      field: target?.line.name ?? String(f.removed?.line.name ?? ''),
+      value: '',
+      provenance: { source: 'RULE', note: f.note },
+      undo: { key: f.key, before, lock: lockNames(Object.keys(f.after)), removed: at >= 0 ? { line: rows[at].line, index: at } : undefined },
+    })
+    if (at >= 0) rows = rows.filter((_, k) => k !== at)
     rows = rows.map((r) => (r.key === f.key ? { ...r, line: { ...r.line, ...fixPatch(f.after) } } : r))
   }
   // 빈 견적의 빈 줄 하나는 지운다 — 글에서 나온 줄 앞에 이름 없는 줄이 남지 않게
@@ -205,7 +229,7 @@ export function applyTextFill(draft: QuoteDraft, res: TextFillJson, text: string
     const q = res.quote.sections.find((x) => x.name === s.name)
     return q && !s.id && !s.roundingUnit ? { ...s, roundingUnit: q.roundingUnit } : s
   })
-  const textNotes = [...res.quote.autoFilled, ...res.quote.autoFixed]
+  const textNotes: FilledEntry[] = [...res.quote.autoFilled, ...res.quote.autoFixed, ...fixed]
   const aliases = mergeAliases(draft.learnedAliases ?? [], res.aliases)
   const changed = res.ops.length + res.fixes.length
   return {
@@ -227,4 +251,58 @@ export function applyTextFill(draft: QuoteDraft, res: TextFillJson, text: string
 function mergeAliases(a: readonly { itemId: string; word: string }[], b: readonly { itemId: string; word: string }[]) {
   const seen = new Set(a.map((x) => `${x.itemId}|${x.word}`))
   return [...a, ...b.filter((x) => !seen.has(`${x.itemId}|${x.word}`))]
+}
+
+function pick(line: QuoteLineDraft, keys: readonly string[]): Partial<QuoteLineDraft> {
+  return Object.fromEntries(keys.map((k) => [k, (line as unknown as Record<string, unknown>)[k]])) as Partial<QuoteLineDraft>
+}
+
+/** 고친 칸 이름 → 잠금 이름. 잠글 수 없는 칸(종류, 기간)은 수량 잠금이 같이 막는다 */
+function lockNames(fields: readonly string[]): string[] {
+  const out = new Set<string>()
+  for (const f of fields) {
+    if (f === 'unitPriceMinor') out.add('unitPrice')
+    else if (f === 'name' || f === 'itemId') out.add('name')
+    else if (f === 'discountPercent') out.add('discount')
+    else out.add('quantity')
+  }
+  return [...out]
+}
+
+/**
+ * 되돌리기 — 자동으로 고친 값 한 줄을 고치기 전으로. 그 칸은 「사람이 고침」으로 잠긴다.
+ * 지운 줄이면 원래 자리에 다시 넣고 잠근다(다음 정리가 또 지우지 않게).
+ */
+export function undoTextFix(draft: QuoteDraft, entryIndex: number): QuoteDraft {
+  const list = (draft.autoFilled ?? []) as FilledEntry[]
+  const entry = list[entryIndex]
+  if (!entry?.undo) return draft
+  const u = entry.undo
+  const withLock = (l: QuoteLineDraft) => ({ ...l, lockedFields: [...new Set([...(l.lockedFields ?? []), ...u.lock])] })
+  let lines = draft.lines.map((l, i) => (lineKey(l, i) === u.key ? withLock({ ...l, ...u.before }) : l))
+  if (u.removed) {
+    const at = Math.min(u.removed.index, lines.length)
+    lines = [...lines.slice(0, at), withLock(u.removed.line), ...lines.slice(at)]
+  }
+  return { ...draft, lines, autoFilled: list.filter((_, k) => k !== entryIndex) }
+}
+
+export interface ReviewJson {
+  aiStatus: TextFillJson['aiStatus']
+  fixes: { key: string; field: 'quantity' | 'name'; value: string; note: string }[]
+  notices: { kind: string; note: string }[]
+}
+
+/** AI 검토가 고친 수량과 이름을 얹는다 — 되돌리기를 같이 단다 */
+export function applyReviewFixes(draft: QuoteDraft, res: ReviewJson): QuoteDraft {
+  let lines = draft.lines
+  const entries: FilledEntry[] = []
+  for (const f of res.fixes) {
+    const i = lines.findIndex((l, k) => lineKey(l, k) === f.key)
+    if (i < 0 || (lines[i].lockedFields ?? []).includes(f.field)) continue
+    const before = { [f.field]: lines[i][f.field] } as Partial<QuoteLineDraft>
+    entries.push({ field: lines[i].name, value: f.value, provenance: { source: 'AI_REVIEW', note: f.note }, undo: { key: f.key, before, lock: [f.field] } })
+    lines = lines.map((l, k) => (k === i ? { ...l, [f.field]: f.value } : l))
+  }
+  return entries.length === 0 ? draft : { ...draft, lines, autoFilled: [...(draft.autoFilled ?? []), ...entries] }
 }

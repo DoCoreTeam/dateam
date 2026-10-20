@@ -140,6 +140,7 @@ export const PROVENANCE_LABEL: Record<ProvenanceSource, string> = {
   DEAL_BUDGET: '딜 예산',
   DEFAULT: '기본값',
   UNVERIFIED: '확인 전 가격',
+  AI_REVIEW: 'AI 검토',
 }
 
 export const RULE_KIND_LABEL: Record<RuleKind, string> = {

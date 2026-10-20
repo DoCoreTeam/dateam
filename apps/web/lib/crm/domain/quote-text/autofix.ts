@@ -164,7 +164,7 @@ function capExceeded(lines: FixLine[], products: readonly PriceProduct[], fixes:
 function ratioOrphans(lines: FixLine[], fixes: Fix[]): void {
   for (let i = lines.length - 1; i >= 0; i -= 1) {
     const l = lines[i]
-    if (!l.ratioPct || !l.ratioOfSectionName) continue
+    if (!l.ratioPct || !l.ratioOfSectionName || locked(l, 'name')) continue
     const alive = lines.some((x) => x !== l && !x.ratioPct && x.section === l.ratioOfSectionName)
     if (alive) continue
     fixes.push({ code: 'RATIO_ORPHAN', key: l.key, note: `「${l.name}」의 대상 묶음 「${l.ratioOfSectionName}」이 없어 그 줄을 뺌`, before: {}, after: {}, removed: { line: l, index: i } })

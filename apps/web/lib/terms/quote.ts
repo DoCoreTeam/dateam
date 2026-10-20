@@ -529,19 +529,18 @@ export const FILL_SPEECH_PLACEHOLDER =
 export const TEXT_FILL = {
   placeholder: '예) 숙명여대 교수 연구용\n크레딧 2.8억\nEDGE 표준형, H100 4장\nSSO 정산 연동 고급 2MM',
   reorganize: '다시 정리',
-  working: '표를 고치는 중',
   changed: (n: number) => `표를 고쳤어요 (${n}곳)`,
   unchanged: '표와 글이 같아요',
   aiDown: 'AI가 지금 답하지 않아 표를 못 고쳤어요',
-  aiOff: 'AI 없이 규칙으로만 읽었어요',
   failed: '글을 읽지 못했어요. 다시 정리를 눌러 주세요.',
   unread: (n: number) => `못 읽은 줄 ${n}개`,
-  byAi: 'AI가 읽음',
+  byAi: (n: number) => `AI가 읽은 줄 ${n}개`,
   fromLine: (line: number) => `글 ${line + 1}째 줄`,
   linked: (n: number) => `이 줄에서 나온 항목 ${n}개`,
   differs: (name: string) => `${name}: 사람이 고친 값이 글과 달라요`,
   aiReview: 'AI로 한 번 더 보기',
-  saved: '글은 견적과 함께 저장돼요',
+  reviewClean: 'AI 검토: 글과 표가 맞아요',
+  reviewFound: (fixed: number, notices: number) => `AI 검토: 고친 곳 ${fixed}곳, 확인할 것 ${notices}개`,
 } as const
 
 /** 파일로 채우기 안내 */

@@ -138,6 +138,7 @@ export type ProvenanceSource =
   | 'DEAL_BUDGET'  // 딜 예산
   | 'DEFAULT'      // 기본값
   | 'UNVERIFIED'   // 확인 전 가격
+  | 'AI_REVIEW'    // AI 검토가 고침 (사람이 「AI로 한 번 더 보기」를 눌렀을 때)
 
 export interface Provenance {
   source: ProvenanceSource

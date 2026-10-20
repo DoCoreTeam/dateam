@@ -80,3 +80,32 @@ test('편집기는 멈춘 뒤에만 부른다 — 3초', async () => {
   assert.match(src, /export const PAUSE_MS = 3_000/)
   assert.match(src, /if \(!force && now === lastSent\.current\) return/)
 })
+
+test('자동으로 고친 값은 되돌리기가 붙고, 되돌린 칸은 잠겨 다시 안 고친다', async () => {
+  const { undoTextFix } = await import('./text-fill-apply.ts')
+  const hand: QuoteDraft = { ...EMPTY, lines: [{ ...EMPTY.lines[0], name: 'A100 이용', quantity: '1440', unit: 'Hours', unitPriceMinor: '3000' }] }
+  const text = '크레딧 1억'
+  const fixedDraft = applyTextFill(hand, serve(hand, text), text).draft
+  const a100 = fixedDraft.lines.find((l) => l.name === 'A100 이용')!
+  assert.deepEqual([a100.quantity, a100.durationValue, a100.durationUnit], ['1', '1440', 'HOUR'])
+  const k = (fixedDraft.autoFilled ?? []).findIndex((x) => (x as { undo?: unknown }).undo)
+  assert.ok(k >= 0)
+  const undone = undoTextFix(fixedDraft, k)
+  const back = undone.lines.find((l) => l.name === 'A100 이용')!
+  assert.deepEqual([back.quantity, back.unit], ['1440', 'Hours'])
+  assert.ok(back.lockedFields?.includes('quantity'))
+  const again = applyTextFill(undone, serve(undone, text), text)
+  assert.equal(again.draft.lines.find((l) => l.name === 'A100 이용')!.quantity, '1440')
+})
+
+test('AI 검토가 고친 수량도 되돌릴 수 있다', async () => {
+  const { applyReviewFixes, undoTextFix, lineKey } = await import('./text-fill-apply.ts')
+  const d: QuoteDraft = { ...EMPTY, lines: [{ ...EMPTY.lines[0], name: 'H100', quantity: '40', unitPriceMinor: '1' }] }
+  const key = lineKey(d.lines[0], 0)
+  const r = applyReviewFixes(d, { aiStatus: 'OK', fixes: [{ key, field: 'quantity', value: '4', note: '글은 4장' }], notices: [] })
+  assert.equal(r.lines[0].quantity, '4')
+  assert.equal(r.autoFilled?.[0].provenance.source, 'AI_REVIEW')
+  const u = undoTextFix(r, 0)
+  assert.equal(u.lines[0].quantity, '40')
+  assert.deepEqual(u.lines[0].lockedFields, ['quantity'])
+})
