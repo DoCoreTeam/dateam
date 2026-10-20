@@ -54,6 +54,7 @@ export const GCUBE_EDGE: PriceProduct = {
     { kind: 'CAP', item: 'edge-std', varKey: 'gpu.total', max: 300 },
     { kind: 'CAP', item: 'edge-ent', varKey: 'gpu.total', max: 1200 },
     { kind: 'ELIGIBLE', item: 'edge-gpu-timed', classes: ['WS', 'CONSUMER', 'NPU'] },
+    { kind: 'UPGRADE', item: 'edge-ent-switch', from: 'edge-std', to: 'edge-ent' },
     { kind: 'DISCOUNT', companyKind: 'school', pct: 10, confirmed: false, label: '교육기관' },
     { kind: 'DISCOUNT', companyKind: 'public', pct: 0, confirmed: false, label: '공공기관' },
     { kind: 'DISCOUNT', companyKind: 'partner', pct: 20, confirmed: false, label: '파트너 공급' },

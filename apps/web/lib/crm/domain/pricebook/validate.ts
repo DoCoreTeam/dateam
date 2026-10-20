@@ -58,6 +58,10 @@ export function checkRules(p: PriceProduct): RuleProblem[] {
       case 'DISCOUNT':
         if (!(r.pct >= 0 && r.pct <= 100)) out.push({ index, message: '할인율은 0에서 100 사이여야 해요' })
         break
+      case 'UPGRADE':
+        ;[r.item, r.from, r.to].forEach((i) => { if (!ids.has(i)) missing(index, i) })
+        if (r.from === r.to) out.push({ index, message: '전환은 다른 품목으로 바꿀 때만 걸어요' })
+        break
       case 'SCALE_CAP':
         if (!p.items.some((i) => i.section === r.section)) out.push({ index, message: `규모 조정이 가리키는 묶음이 없어요: ${r.section}` })
         if (!VAR_KEYS.includes(r.varKey)) out.push({ index, message: '모르는 조건이에요' })

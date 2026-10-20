@@ -54,8 +54,10 @@ export type GpuClass = 'DC' | 'WS' | 'CONSUMER' | 'NPU'
  *   ELIGIBLE  고를 수 있는 조건    지정 시간은 워크스테이션과 데스크톱 GPU 만
  *   DISCOUNT  할인                 기관 종류가 학교면 할인 대상 품목에 10%
  *   SCALE_CAP 규모 조정            라이선스 정가 소계가 GPU 수 × 728.3만원을 넘으면 넘는 만큼 할인
+ *   UPGRADE   전환                 STD 를 산 고객이 ENT 를 고르면 ENT 전환 구축
  *
  * 여덟째(SCALE_CAP)는 실제 가격표 v0.7.0 의 「규모 조정 할인」 때문에 코드로 더했다(P0135 I12).
+ * 아홉째(UPGRADE)는 「ENT 전환 구축」이 고객의 지난 계약을 알아야 해서 더했다(P0137). 이미 산 품목은 조건의 owned 로 온다.
  */
 export type PriceRule =
   | { kind: 'ONE_OF'; items: string[] }
@@ -66,9 +68,10 @@ export type PriceRule =
   | { kind: 'ELIGIBLE'; item: string; classes: GpuClass[] }
   | { kind: 'DISCOUNT'; companyKind: CompanyKind | 'partner'; pct: number; confirmed: boolean; label: string }
   | { kind: 'SCALE_CAP'; section: string; varKey: VarKey; perUnitMinor: number }
+  | { kind: 'UPGRADE'; item: string; from: string; to: string }
 
 export type RuleKind = PriceRule['kind']
-export const RULE_KINDS: readonly RuleKind[] = ['ONE_OF', 'WITH', 'INCLUDES', 'QTY_FROM', 'CAP', 'ELIGIBLE', 'DISCOUNT', 'SCALE_CAP']
+export const RULE_KINDS: readonly RuleKind[] = ['ONE_OF', 'WITH', 'INCLUDES', 'QTY_FROM', 'CAP', 'ELIGIBLE', 'DISCOUNT', 'SCALE_CAP', 'UPGRADE']
 
 export interface ProductSection {
   name: string
@@ -118,6 +121,10 @@ export interface SolutionConditions {
   companyKind: CompanyKind | null
   /** 할인: auto 면 기관 종류 규칙, none 이면 없음, 숫자면 말한 할인율 */
   discount: 'auto' | 'none' | number
+  /** 이 고객이 지난 계약에서 이미 산 품목 — 전환 규칙이 본다. 비면 「모름」이 아니라 「산 것 없음」 */
+  owned?: string[]
+  /** 이미 산 품목의 근거 한 줄 — 「2025-03-14 체결 계약 숙명여대 gcube 도입」 */
+  ownedNote?: string | null
 }
 
 /**
@@ -152,7 +159,7 @@ export interface Violation {
   level: ViolationLevel
   code:
     | 'ONE_OF' | 'CAP' | 'ELIGIBLE' | 'SURVEY' | 'NO_PRICE' | 'UNKNOWN_ITEM'
-    | 'UNVERIFIED' | 'NO_EDITION' | 'LOCKED_DIFFERS'
+    | 'UNVERIFIED' | 'NO_EDITION' | 'LOCKED_DIFFERS' | 'UPGRADE_NOT_OWNED'
   itemId?: string | null
   message: string
 }

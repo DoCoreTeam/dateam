@@ -139,3 +139,30 @@ test('규모 조정: GPU 가 0장이면 걸지 않는다 — 0 × 단위 금액�
   const r = buildSolutionQuote(p, { picked: ['edge-std'], gpus: [], nodes: 20, training: null, companyKind: null, discount: 'none' })
   assert.equal(r.composed.sections.find((s) => s.key === '라이선스')!.totalMinor, BigInt(15_000_000))
 })
+
+/* ── 전환(UPGRADE, P0137) — ENT 전환 구축은 지난 계약을 안다 ────────── */
+
+const ENT_COND = { picked: ['edge-ent'], gpus: [{ model: 'H100', count: 4, timed: false }], nodes: null, training: null, companyKind: null, discount: 'none' as const }
+
+test('STD 를 산 고객이 ENT 를 고르면 전환 구축이 품목 규칙으로 들어간다', () => {
+  const r = buildSolutionQuote(GCUBE_EDGE, { ...ENT_COND, owned: ['edge-std'], ownedNote: '2025-03-14 체결 계약' })
+  const sw = r.lines.find((l) => l.itemId === 'edge-ent-switch')
+  assert.ok(sw, '전환 구축 줄이 없다')
+  assert.equal(sw.unitPriceMinor, BigInt(12_000_000))
+  assert.equal(sw.provenance.quantity.source, 'RULE')
+  assert.match(sw.provenance.quantity.note ?? '', /지난 계약에서 STD 기본 금액을 샀음 \(2025-03-14 체결 계약\)/)
+  assert.ok(r.autoFilled.some((a) => a.field === 'ENT 전환 구축'))
+  assert.ok(!r.violations.some((v) => v.code === 'UPGRADE_NOT_OWNED'))
+})
+
+test('안 산 고객이면 전환 구축이 안 들어가고, 손으로 넣으면 짚어 준다', () => {
+  const none = buildSolutionQuote(GCUBE_EDGE, { ...ENT_COND, owned: [] })
+  assert.ok(!none.lines.some((l) => l.itemId === 'edge-ent-switch'))
+  const forced = buildSolutionQuote(GCUBE_EDGE, { ...ENT_COND, picked: ['edge-ent', 'edge-ent-switch'], owned: [] })
+  assert.ok(forced.violations.some((v) => v.code === 'UPGRADE_NOT_OWNED' && v.level === 'warn'))
+})
+
+test('STD 고객이라도 STD 를 다시 고르면 전환 구축은 없다', () => {
+  const r = buildSolutionQuote(GCUBE_EDGE, { ...ENT_COND, picked: ['edge-std'], owned: ['edge-std'] })
+  assert.ok(!r.lines.some((l) => l.itemId === 'edge-ent-switch'))
+})

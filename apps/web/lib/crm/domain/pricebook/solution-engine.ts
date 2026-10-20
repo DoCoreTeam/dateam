@@ -122,6 +122,15 @@ function resolveConditions(
     })
   }
 
+  // 전환: 이미 산 품목(from)이 있는 고객이 바꿀 품목(to)을 고르면 전환 품목이 들어간다
+  const owned = new Set(c.owned ?? [])
+  const closure = withClosure(p, picked)
+  for (const r of rulesOf(p, 'UPGRADE')) {
+    if (!closure.has(r.to) || !owned.has(r.from) || picked.includes(r.item)) continue
+    picked.push(r.item)
+    autoFilled.push({ field: byId.get(r.item)?.name ?? r.item, value: '1식', provenance: { source: 'RULE', note: upgradeNote(p, r, c.ownedNote) } })
+  }
+
   let nodes = c.nodes
   if (nodes === null) {
     const included = includedQty(p, picked, 'nodes')
@@ -231,6 +240,15 @@ export function buildSolutionQuote(product: PriceProduct, input: SolutionConditi
     }
   }
 
+  for (const r of rulesOf(product, 'UPGRADE')) {
+    if (selected.has(r.item) && !(c.owned ?? []).includes(r.from)) {
+      violations.push({
+        level: 'warn', code: 'UPGRADE_NOT_OWNED', itemId: r.item,
+        message: `${byId.get(r.item)?.name ?? r.item}은 ${byId.get(r.from)?.name ?? r.from}을 산 고객만 받아요. 지난 계약에서 찾지 못했어요`,
+      })
+    }
+  }
+
   // 기본 포함: 고른 품목이 포함하는 품목은 0원으로 선다
   const includedBy = new Map<string, string>()
   for (const r of rulesOf(product, 'INCLUDES')) {
@@ -289,6 +307,11 @@ export function buildSolutionQuote(product: PriceProduct, input: SolutionConditi
   }
 
   applyScaleCaps(product, lines, vars, autoFilled)
+  // 전환으로 들어간 줄은 출처가 「품목 규칙」이다 — 사람이 고른 것처럼 「말한 값」으로 서면 안 된다
+  for (const r of rulesOf(product, 'UPGRADE')) {
+    const l = lines.find((x) => x.itemId === r.item)
+    if (l && !input.picked.includes(r.item)) l.provenance = { ...l.provenance, quantity: { source: 'RULE', note: upgradeNote(product, r, c.ownedNote) } }
+  }
 
   const composed = composeQuote(lines, product.sections.map((s) => ({ key: s.name, roundingUnit: s.roundingUnit })))
   const once = supplyOf(composed.once)
@@ -303,6 +326,11 @@ export function buildSolutionQuote(product: PriceProduct, input: SolutionConditi
     violations,
     resolved: c,
   }
+}
+
+function upgradeNote(p: PriceProduct, r: Extract<PriceRule, { kind: 'UPGRADE' }>, ownedNote: string | null | undefined): string {
+  const from = p.items.find((i) => i.id === r.from)?.name ?? r.from
+  return `지난 계약에서 ${from}을 샀음${ownedNote ? ` (${ownedNote})` : ''}`
 }
 
 /** 지정 시간 라이선스 품목 — gpu.timed 를 따라가는 품목 */

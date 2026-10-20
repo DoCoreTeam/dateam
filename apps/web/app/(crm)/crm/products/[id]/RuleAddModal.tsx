@@ -1,6 +1,6 @@
 'use client'
 
-// 규칙 하나 더하기 — 종류마다 고를 칸이 다르다. 종류는 일곱으로 닫혀 있다.
+// 규칙 하나 더하기 — 종류마다 고를 칸이 다르다. 종류는 아홉으로 닫혀 있다.
 
 import { useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
@@ -26,6 +26,9 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
   const kinds = discountOnly ? (['DISCOUNT'] as RuleKind[]) : RULE_KINDS.filter((k) => k !== 'DISCOUNT')
   const [kind, setKind] = useState<RuleKind>(kinds[0])
   const [item, setItem] = useState(items[0]?.id ?? '')
+  // 전환: 이미 산 품목(from) → 바꿀 품목(to)
+  const [from, setFrom] = useState(items[0]?.id ?? '')
+  const [to, setTo] = useState(items[1]?.id ?? items[0]?.id ?? '')
   const [list, setList] = useState<string[]>([])
   const [varKey, setVarKey] = useState<VarKey>('gpu.total')
   const [num, setNum] = useState('')
@@ -51,6 +54,8 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
       case 'QTY_FROM': return { kind, item, varKey, minusIncluded: minus }
       case 'CAP': return n > 0 ? { kind, item, varKey, max: n } : '상한을 넣으세요'
       case 'ELIGIBLE': return classes.length ? { kind, item, classes } : '구분을 하나 이상 고르세요'
+      case 'UPGRADE':
+        return from && to && from !== to && item ? { kind, item, from, to } : '이미 산 품목과 바꿀 품목을 서로 다르게 고르세요'
       case 'SCALE_CAP':
         return n > 0 && section ? { kind, section, varKey, perUnitMinor: Math.round(n) } : '묶음과 단위 금액(원)을 넣으세요'
       case 'DISCOUNT':
@@ -98,7 +103,7 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
         )}
         {needsItem && (
           <div className={styles.field}>
-            <label className="label" htmlFor="ra-item">{PRICEBOOK.tabItem}</label>
+            <label className="label" htmlFor="ra-item">{kind === 'UPGRADE' ? PRICEBOOK.upgradeItem : PRICEBOOK.tabItem}</label>
             <select id="ra-item" className="input-field" value={item} onChange={(e) => setItem(e.target.value)}>
               {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
             </select>
@@ -121,6 +126,22 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
               {VAR_KEYS.map((v) => <option key={v} value={v}>{VAR_LABEL[v]}</option>)}
             </select>
           </div>
+        )}
+        {kind === 'UPGRADE' && (
+          <>
+            <div className={styles.field}>
+              <label className="label" htmlFor="ra-from">{PRICEBOOK.upgradeFrom}</label>
+              <select id="ra-from" className="input-field" value={from} onChange={(e) => setFrom(e.target.value)}>
+                {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label className="label" htmlFor="ra-to">{PRICEBOOK.upgradeTo}</label>
+              <select id="ra-to" className="input-field" value={to} onChange={(e) => setTo(e.target.value)}>
+                {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+              </select>
+            </div>
+          </>
         )}
         {kind === 'SCALE_CAP' && (
           <div className={styles.field}>

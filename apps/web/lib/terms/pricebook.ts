@@ -102,6 +102,13 @@ export const PRICEBOOK = {
   annual: '매년',
   lockedByHuman: '사람이 고침',
   conditionDiffers: '조건과 다름',
+  // 전환 규칙(P0137) — 이미 산 품목에서 바꿀 품목으로
+  upgradeFrom: '이미 산 품목',
+  upgradeTo: '바꿀 품목',
+  upgradeItem: '들어갈 품목',
+  ownedFrom: (name: string) => `기존 ${name} 고객`,
+  ownedEvidence: (note: string) => `지난 계약: ${note}`,
+  ownedNone: '지난 계약에서 찾지 못함',
 } as const
 
 export const ITEM_BASIS_LABEL: Record<ItemBasis, string> = {
@@ -152,6 +159,7 @@ export const RULE_KIND_LABEL: Record<RuleKind, string> = {
   ELIGIBLE: '고를 수 있는 조건',
   DISCOUNT: '할인',
   SCALE_CAP: '규모 조정',
+  UPGRADE: '전환',
 }
 
 export const GPU_CLASS_LABEL: Record<GpuClass, string> = {
