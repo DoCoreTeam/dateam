@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.39',
+    date: '2026-10-21',
+    title: 'PDF 계약서에서도 주민등록번호를 지워요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🛡️',
+        headline: 'PDF로 올린 계약서의 주민등록번호도 빠짐없이 지워요',
+        detail: 'PDF에서는 주민등록번호 가운데 줄표가 빠진 채 읽혀 지우지 못할 때가 있었어요. 이제 줄표가 없어도 지우고 생년월일 칸으로 바꿔요. 乙 같은 한자가 모양만 같은 다른 글자로 들어오던 것도 원래 글자로 바로잡아요.',
+      },
+    ],
+  },
+  {
     version: '0.11.38',
     date: '2026-10-21',
     title: '계약서에 전화번호와 수행범위를 넣을 수 있어요',
