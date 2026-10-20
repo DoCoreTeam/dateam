@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.34',
+    date: '2026-10-20',
+    title: '견적서가 한결 정돈됐어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🧮',
+        headline: '합계 계산이 한 줄 식으로 보여요',
+        detail: '공급가액, 할인, 부가세, 계, 절사가 세로로 쌓이지 않고 한 줄 식으로 이어져요. 크게 보이는 숫자는 합계 금액 하나예요. 묶음 소계 이름도 짧아졌어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '✍️',
+        headline: '특기사항을 견적서 화면에서 바로 고쳐요',
+        detail: '특기사항 옆 수정을 누르면 그 자리에서 굵게, 목록 같은 서식을 넣어 고칠 수 있어요. 견적 수정 창도 같은 편집기를 쓰고, 미리보기와 PDF 에도 그대로 실려요.',
+      },
+    ],
+  },
+  {
     version: '0.11.32',
     date: '2026-10-20',
     title: '견적의 판과 안 표시가 바로잡혔어요',
