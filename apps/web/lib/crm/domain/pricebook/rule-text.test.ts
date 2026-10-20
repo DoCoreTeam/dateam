@@ -22,3 +22,16 @@ test('대표 문장', () => {
 test('없는 품목을 가리키면 그 사실을 문장에 적는다', () => {
   assert.match(describeRule({ kind: 'WITH', item: 'ghost', with: [] }, nameOf), /없는 품목\(ghost\)/)
 })
+
+test('전환 규칙을 한 줄로 말하고, 모양이 틀리면 짚는다', async () => {
+  const { checkRules } = await import('./validate.ts')
+  const { GCUBE_EDGE } = await import('./gcube-edge.ts')
+  const nameOf = (id: string) => GCUBE_EDGE.items.find((i) => i.id === id)?.name ?? null
+  assert.equal(describeRule({ kind: 'UPGRADE', item: 'edge-ent-switch', from: 'edge-std', to: 'edge-ent' }, nameOf),
+    'STD 기본 금액을 산 고객이 ENT 기본 금액을 고르면 ENT 전환 구축이 들어간다')
+  assert.deepEqual(checkRules(GCUBE_EDGE), [])
+  const bad = { ...GCUBE_EDGE, rules: [{ kind: 'UPGRADE' as const, item: 'edge-ent-switch', from: 'edge-std', to: 'edge-std' }] }
+  assert.ok(checkRules(bad).some((p) => /다른 품목/.test(p.message)))
+  const sql = (await import('node:fs')).readFileSync(new URL('../../../../../../supabase/migrations/313_crm_price_rule_upgrade.sql', import.meta.url), 'utf8')
+  assert.match(sql, /'SCALE_CAP', 'UPGRADE'\)/)
+})
