@@ -90,3 +90,23 @@ test('「크레딧」은 「추가 크레딧」이 아니라 「gcube 크레딧�
   assert.deepEqual(readText('크레딧 2.8억', cat)[0].itemIds, ['g'])
   assert.deepEqual(readText('추가 크레딧 1억', cat)[0].itemIds, ['a', 'g'])
 })
+
+// 실측 2026-10-20 — 「목적」 한 줄이 낱말 「GPU」 하나로 품목 「GPU」 1개(5,280만원)가 됐고 AI 는 안 불렸다
+test('「목적:」처럼 사정을 적은 줄은 품목을 고르지 않고 AI 에게 넘긴다', () => {
+  const withGpu: Catalog = { ...CATALOG, items: [...CATALOG.items, { id: 'gpu', name: 'GPU', aliases: [] }] }
+  const r = readText('- 목적: 교내 12개의 독립적인 GPU 워크스테이션(RTX PRO 5000)을 묶어 클라우드처럼 서비스할 수 있는 솔루션 도입\n- 예산: 2000만원 (변동 가능)', withGpu)
+  assert.equal(r[0].unread, true)
+  assert.deepEqual(r[0].itemIds, [])
+  assert.deepEqual(r[0].gpus, [])
+  assert.deepEqual(r[0].counts, [])
+  assert.equal(r[1].budgetMinor, BigInt(20_000_000))
+  assert.equal(r[1].unread, false)
+  // 사정 줄 안의 학교 말은 그대로 읽는다 — 표 줄이 아니라 기관 종류다
+  assert.equal(readText('배경: 대학 연구실', CATALOG)[0].companyKind, 'school')
+})
+
+test('「RTX PRO 5000」은 GPU 모델이고 「12개의」는 수량이다', () => {
+  assert.deepEqual(readText('RTX PRO 5000 4장', CATALOG)[0].gpus, [{ model: 'RTX PRO 5000', count: 4 }])
+  assert.deepEqual(readText('12개의 장비', CATALOG)[0].counts, [{ value: 12, unit: '개' }])
+  assert.deepEqual(readText('3개월', CATALOG)[0].counts, [])
+})

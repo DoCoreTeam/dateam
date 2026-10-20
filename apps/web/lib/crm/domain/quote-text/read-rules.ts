@@ -145,8 +145,8 @@ export function splitClauses(text: string): Clause[] {
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s\-_/()·.,]/g, '')
 
-/** GPU 모델 — 「H100」 「H100 SXM5」 「A6000」 「RTX 5090」 「6000 Ada」 「L40S」 「B200」 */
-const GPU_RE = /((?:rtx\s*(?:pro\s*)?)?(?:[ahblvt]\d{2,4}[a-z]?(?:\s*(?:sxm\d?|pcie|nvl))?|\d{4}\s*(?:ada|ti)|rtx\s*\d{4}(?:\s*ti)?))(?:\s*(?:gpu|그래픽\s*카드))?(?:\s*(?:x|×|\*)?\s*(\d+)\s*(?:장|개|ea|대|카드))?/gi
+/** GPU 모델 — 「H100」 「H100 SXM5」 「A6000」 「RTX 5090」 「RTX PRO 5000」 「6000 Ada」 「L40S」 「B200」 */
+const GPU_RE = /((?:rtx\s*(?:pro\s*)?)?(?:[ahblvt]\d{2,4}[a-z]?(?:\s*(?:sxm\d?|pcie|nvl))?|\d{4}\s*(?:ada|ti)|rtx\s*pro\s*\d{4}|rtx\s*\d{4}(?:\s*ti)?))(?:\s*(?:gpu|그래픽\s*카드))?(?:\s*(?:x|×|\*)?\s*(\d+)\s*(?:장|개|ea|대|카드))?/gi
 
 function readGpus(text: string): { gpus: GpuMention[]; spans: string[] } {
   const gpus: GpuMention[] = []
@@ -170,8 +170,14 @@ const YEAR_RE = /(\d+)\s*년(?!도|차)/
 const HOUR_RE = /(\d[\d,]*)\s*(?:시간|hours?|hrs?)\b|(\d[\d,]*)\s*시간/i
 const NODE_RE = /노드\D{0,6}?(\d+)\s*대|(\d+)\s*대\s*(?:의\s*)?노드/
 const TRAINING_RE = /교육\D{0,4}?(\d+)\s*회|(\d+)\s*회\s*교육/
-const COUNT_RE = /(\d+)\s*(장|대|개|식|회|명|ea)(?![a-z가-힣])/gi
+// 「12개의 장비」의 「의」는 수량 뒤에 붙는 말이다. 「3개월」은 수량이 아니다
+const COUNT_RE = /(\d+)\s*(장|대|개|식|회|명|ea)(?!(?!의)[a-z가-힣])/gi
 const DISCOUNT_RE = /(\d+(?:\.\d+)?)\s*%\s*(?:할인|dc)|할인\D{0,4}?(\d+(?:\.\d+)?)\s*%/i
+/**
+ * 사정을 적은 줄 — 「목적: 교내 GPU 워크스테이션 12대를 묶어 ...」. 표에 넣을 것이 아니라 무엇이 필요한지다.
+ * 그 안의 낱말(「GPU」)로 품목을 고르면 엉뚱한 줄 하나가 서고 나머지 뜻은 버려진다(실측 2026-10-20).
+ */
+const CONTEXT_RE = /^(?:목적|목표|배경|개요|현황|상황|요구\s*사항|요청\s*사항|요건)\s*[:：]/
 const BUDGET_RE = /예산\s*(?:은|이|은요)?\s*/
 const VAT_IN_RE = /부가세\s*(?:포함|넣어|포함해)|vat\s*포함/i
 const VAT_EX_RE = /부가세\s*(?:별도|빼고|제외)|vat\s*별도/i
@@ -352,8 +358,26 @@ function isRead(r: Reading): boolean {
     || r.priorEdition !== null
 }
 
+/**
+ * 사정 줄은 품목, GPU, 수량을 고르지 않고 AI 에게 넘긴다. 예산, 부가세, 할인, 기관 종류처럼 표 줄이 아닌 것만 남긴다.
+ * 줄 첫 조각이 「목적:」이면 그 줄의 뒤 조각도 같은 사정이다.
+ */
+function asContext(r: Reading): Reading {
+  return {
+    ...r,
+    amountMinor: null, counts: [], manMonths: null, grade: null, months: null, hours: null, gpus: [], nodes: null, training: null,
+    productId: null, itemIds: [], edition: null, priorEdition: null, maintenance: null, install: false,
+    rest: r.text, unread: true,
+  }
+}
+
 export function readText(text: string, catalog: Catalog): Reading[] {
-  return splitClauses(text).map((c) => readClause(c, catalog))
+  const clauses = splitClauses(text)
+  const contextLines = new Set(clauses.filter((c) => c.part === 0 && CONTEXT_RE.test(c.text)).map((c) => c.line))
+  return clauses.map((c) => {
+    const r = readClause(c, catalog)
+    return contextLines.has(c.line) ? asContext(r) : r
+  })
 }
 
 /** 규칙으로 끝난 줄의 비율 — 지표로 남긴다. 줄이 없으면 1 */
