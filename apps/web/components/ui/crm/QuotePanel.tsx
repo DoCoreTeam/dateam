@@ -19,6 +19,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { quoteStatusMeta } from '@/lib/crm/ui/quote-status'
+import { nextVariantLabel } from '@/lib/crm/domain/quote-duplicate-identity'
 import { linkWithBack } from '@/lib/crm/nav/back-link'
 import { blockedActionLink } from '@/lib/crm/ui/blocked-action-link'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
@@ -396,7 +397,9 @@ export default function QuotePanel({
                     {/* 여러 판이 나란히 서므로 목록에서 바로 구분돼야 한다 */}
                     {(q.revision ?? 1) > 1 && <NbBadge status="note">Rev.{q.revision}</NbBadge>}
                     {q.variantLabel && <NbBadge status="note">{q.variantLabel}</NbBadge>}
-                    <NbBadge status={meta.status}>{meta.label}</NbBadge>
+                    <span className={styles.itemStatus}>
+                      <NbBadge status={meta.status}>{meta.label}</NbBadge>
+                    </span>
                   </div>
                   <div className={styles.itemTitle}>{q.title}</div>
                   <div className={styles.amount}>{formatAmount(q.totalMinor, q.currency)}</div>
@@ -474,7 +477,7 @@ export default function QuotePanel({
                     </NbButton>
                     <NbButton
                       variant="ghost"
-                      onClick={() => { setVariantOf(q); setVariantLabel('2안') }}
+                      onClick={() => { setVariantOf(q); setVariantLabel(nextVariantLabel(items)) }}
                       disabled={busy}
                     >
                       {VARIANT.create}

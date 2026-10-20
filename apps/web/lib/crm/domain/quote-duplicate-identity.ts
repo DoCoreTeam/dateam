@@ -46,3 +46,11 @@ export function duplicateIdentity(
     variantLabel: label ?? FALLBACK_VARIANT_LABEL,
   }
 }
+
+/**
+ * 다른 안 만들기 창의 기본 이름. 안 이름 없는 원본이 1안이므로 이미 있는 안 수에 2 를 더한다.
+ * 늘 「2안」을 넣으면 안이 이미 둘인 딜에서 2안이 둘 생긴다.
+ */
+export function nextVariantLabel(existing: ReadonlyArray<{ variantLabel?: string | null }>): string {
+  return `${existing.filter((q) => q.variantLabel).length + 2}안`
+}

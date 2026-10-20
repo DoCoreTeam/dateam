@@ -27,11 +27,17 @@
   border-radius: var(--radius);
 }
 
+/* 번호와 판·안 뱃지는 붙여 읽고 상태만 오른쪽 끝에 선다.
+   space-between 이면 뱃지 수에 따라 셋이 폭 전체로 흩어져 무엇이 무엇에 붙는지 안 보였다 */
 .itemTop {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
+}
+
+.itemStatus {
+  margin-left: auto;
 }
 
 .quoteNo {

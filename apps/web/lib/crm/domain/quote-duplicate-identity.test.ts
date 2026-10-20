@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { duplicateIdentity, baseQuoteTitle } from './quote-duplicate-identity.ts'
+import { duplicateIdentity, baseQuoteTitle, nextVariantLabel } from './quote-duplicate-identity.ts'
 
 const BASE = '숙명여대 교수 연구용 gcube 도입 견적'
 
@@ -28,4 +28,9 @@ test('개정은 판 번호를 올리고 제목과 안 이름을 그대로 둔다
 test('제목이 안 이름 꼬리로 끝나지 않으면 건드리지 않는다', () => {
   assert.equal(baseQuoteTitle('견적 (gcube edge) 수정본', 'gcube edge'), '견적 (gcube edge) 수정본')
   assert.equal(baseQuoteTitle(BASE, null), BASE)
+})
+
+test('기본 안 이름은 이미 있는 안 수로 센다', () => {
+  assert.equal(nextVariantLabel([{ variantLabel: null }]), '2안')
+  assert.equal(nextVariantLabel([{ variantLabel: null }, { variantLabel: 'gcube edge' }]), '3안')
 })
