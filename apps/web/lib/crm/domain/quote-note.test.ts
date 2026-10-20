@@ -43,6 +43,8 @@ test('저장값: 빈 편집기는 비운 것이다, 옛 글자는 지금처럼 �
   assert.equal(normalizeNoteInput('<p>  </p><p><br></p>'), null)
   assert.equal(normalizeNoteInput('  가  \n\n 나 '), '가\n나')
   assert.equal(normalizeNoteInput('<p>가</p><script>x</script>'), '<p>가</p>')
+  // 편집기가 끝에 다는 빈 문단은 떼고, 가운데 빈 줄은 둔다
+  assert.equal(normalizeNoteInput('<p>가</p><p></p><p>나</p><p></p><p><br></p>'), '<p>가</p><p></p><p>나</p>')
 })
 
 test('저장값: 너무 긴 HTML 은 거절한다', () => {

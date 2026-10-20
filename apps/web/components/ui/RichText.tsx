@@ -4,7 +4,8 @@
 import type { CSSProperties } from 'react'
 
 // 표 태그 추가(목록 심층분석 리치에디터 구조 보존, v0.7.378~). 속성은 여전히 전량 제거 → XSS 방어 유지.
-const ALLOWED_TAGS = /^(p|ul|ol|li|strong|em|br|span|b|i|table|thead|tbody|tr|td|th|h[1-6])$/i
+// 밑줄·취소선·인용·구분선(견적 특기사항 편집기 막대가 내미는 것, P0145). 속성은 그대로 전량 제거.
+const ALLOWED_TAGS = /^(p|ul|ol|li|strong|em|br|span|b|i|u|s|blockquote|hr|table|thead|tbody|tr|td|th|h[1-6])$/i
 
 // 빈 리치텍스트로 간주하는 Tiptap 산출 패턴들(placeholder 렌더 대상)
 const EMPTY_HTML = new Set(['', '<p></p>', '<p><br></p>', '<p><br/></p>', '<p><br /></p>'])

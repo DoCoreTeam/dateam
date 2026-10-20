@@ -29,6 +29,12 @@ interface TiptapEditorProps {
    * 계약서 템플릿의 「칸 넣기」가 쓴다(P0132). 안 주면 아무 일도 없다 — 다른 화면 무영향.
    */
   insertRequest?: { text: string; seq: number } | null
+  /**
+   * 고객에게 나가는 문서용 도구만 내민다(P0145, 견적 특기사항).
+   * 색·형광·제목·정렬·링크·코드는 숨긴다 — 문서 서식은 견적서가 정하고, 정리기가 그 서식을 지우므로
+   * 막대에 두면 «넣었는데 저장하니 사라졌다»가 된다. 안 주면 지금 그대로다.
+   */
+  documentTools?: boolean
 }
 
 const TabIndent = Extension.create({
@@ -111,6 +117,7 @@ export default function TiptapEditor({
   minHeight = 120,
   enableTable = false,
   insertRequest = null,
+  documentTools = false,
 }: TiptapEditorProps) {
   const [colorOpen, setColorOpen] = useState(false)
   const [highlightOpen, setHighlightOpen] = useState(false)
@@ -222,6 +229,8 @@ export default function TiptapEditor({
 
         {DIVIDER}
 
+        {!documentTools && (
+          <>
         {/* 텍스트 색상 */}
         <div ref={colorRef} style={{ position: 'relative' }}>
           <button
@@ -325,6 +334,9 @@ export default function TiptapEditor({
 
         {DIVIDER}
 
+          </>
+        )}
+
         {/* 목록 */}
         <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} style={editor.isActive('bulletList') ? BTN_ACTIVE : BTN} title="글머리 기호">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="4" r="1.25"/><rect x="6" y="3.25" width="8" height="1.5" rx="0.75"/><circle cx="3" cy="8" r="1.25"/><rect x="6" y="7.25" width="8" height="1.5" rx="0.75"/><circle cx="3" cy="12" r="1.25"/><rect x="6" y="11.25" width="8" height="1.5" rx="0.75"/></svg>
@@ -343,6 +355,8 @@ export default function TiptapEditor({
 
         {DIVIDER}
 
+        {!documentTools && (
+          <>
         {/* 링크 */}
         <div ref={linkRef} style={{ position: 'relative' }}>
           <button
@@ -380,13 +394,17 @@ export default function TiptapEditor({
             </div>
           )}
         </div>
+          </>
+        )}
 
         <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} style={editor.isActive('blockquote') ? BTN_ACTIVE : BTN} title="인용">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M3 4h4v5H5c0 1.5.7 2.5 2 3v1c-2.5-.8-4-2.8-4-5V4zm6 0h4v5h-2c0 1.5.7 2.5 2 3v1c-2.5-.8-4-2.8-4-5V4z" opacity="0.7"/></svg>
         </button>
+        {!documentTools && (
         <button type="button" onClick={() => editor.chain().focus().toggleCodeBlock().run()} style={editor.isActive('codeBlock') ? BTN_ACTIVE : BTN} title="코드 블록">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5,4 1,8 5,12"/><polyline points="11,4 15,8 11,12"/><line x1="9" y1="3" x2="7" y2="13"/></svg>
         </button>
+        )}
         <button type="button" onClick={() => editor.chain().focus().setHorizontalRule().run()} style={BTN} title="구분선">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="7.25" width="14" height="1.5" rx="0.75"/></svg>
         </button>

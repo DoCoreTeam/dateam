@@ -504,10 +504,8 @@
 .note ol { margin: var(--space-1) 0; padding-left: var(--space-5); }
 .note li { margin-bottom: 0.1rem; }
 .note li p { margin: 0; }
-.note h3,
-.note h4 { font-size: var(--fs-sm); font-weight: 700; margin: var(--space-3) 0 var(--space-1); }
-.note h3:first-child,
-.note h4:first-child { margin-top: 0; }
+.note :is(h1, h2, h3, h4) { font-size: var(--fs-sm); font-weight: 700; margin: var(--space-3) 0 var(--space-1); }
+.note :is(h1, h2, h3, h4):first-child { margin-top: 0; }
 .note strong { font-weight: 700; }
 .note blockquote {
   margin: var(--space-2) 0;

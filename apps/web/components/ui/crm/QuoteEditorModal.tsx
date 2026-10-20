@@ -11,6 +11,7 @@
 // 브라우저를 조작해도 총액은 바뀌지 않는다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Plus, X } from 'lucide-react'
 import ReorderList from '@/components/ui/ReorderList'
 import QuoteFillPanel, { QuoteFillButtons, type QuoteFillMode } from './QuoteFillPanel'
@@ -54,6 +55,10 @@ import { useProductCatalog } from './quote-fill/use-product-catalog'
 import { priceDraft, lineAmountsOf, lockIfHuman } from './quote-fill/draft-pricing'
 
 import styles from './quote-panel.module.css'
+import { noteToHtml, noteToPlain } from '@/lib/crm/domain/quote-note'
+
+// 특기사항 편집기 — 견적서 화면의 바로 고치기와 같은 부품, 같은 도구다(P0145)
+const TiptapEditor = dynamic(() => import('@/components/ui/TiptapEditor'), { ssr: false })
 
 // 폼의 «모양»은 옆 파일에 있다. 여기서는 동작만 다룬다.
 // 재수출하는 이유: 견적서 보기·딜 상세가 이미 이 경로로 import 하고 있다 —
@@ -748,15 +753,17 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           </QuoteFold>
         )}
 
-        <QuoteFold title={QUOTE.customerNote} filled={draft.notesMd.trim() !== ''}>
-          <textarea
-            id="quote-notes"
-            className="input-field"
-            aria-label={QUOTE.customerNote}
-            rows={3}
-            value={draft.notesMd}
-            onChange={(e) => setDraft((d) => ({ ...d, notesMd: e.target.value }))}
-            placeholder="견적서에 그대로 인쇄됩니다. 납기·설치 범위처럼 고객이 알아야 할 것을 적어 주세요."
+        <QuoteFold title={QUOTE.customerNote} filled={noteToPlain(draft.notesMd) !== ''}>
+          {/*
+            옛 글자 특기사항은 줄마다 문단으로 열린다 — 그대로 넘기면 편집기가 한 문단으로 뭉친다.
+            손대지 않고 저장하면 글자 그대로 남고, 고치면 그때부터 서식 글이 된다.
+          */}
+          <TiptapEditor
+            value={noteToHtml(draft.notesMd)}
+            onChange={(html) => setDraft((d) => ({ ...d, notesMd: html }))}
+            placeholder={QUOTE.customerNotePlaceholder}
+            minHeight={120}
+            documentTools
           />
         </QuoteFold>
       </div>

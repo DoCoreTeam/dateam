@@ -10,6 +10,7 @@
 // 이 파일은 남은 기록을 사람이 읽을 문장으로 바꾼다. 판정은 하지 않는다.
 
 import type { CrmDb } from '../db/client.ts'
+import { isNoteHtml, noteToPlain } from '../domain/quote-note.ts'
 import { CRITERION_LABEL, type CriterionKey } from '../domain/entry-criteria.ts'
 import { CONTRACT_ACTION_TO, isContractAction } from '../domain/contract-status.ts'
 import { CONTRACT_AUDIT_LABEL, CONTRACT_STATUS_LABEL, CONTRACT_VERSION_KIND, versionLabel } from '../../terms/contract-doc.ts'
@@ -117,6 +118,7 @@ const FIELD_LABEL: Record<string, string> = {
   domain: '도메인', industry: '산업', region: '지역', memo: '메모',
   criteria: '진입 조건', stageName: '단계 이름', dueAt: '마감',
   versionNo: '버전', kind: '버전 까닭', note: '메모',
+  notesMd: '특기사항',
 }
 
 const TARGET_LABEL: Record<string, string> = {
@@ -147,7 +149,11 @@ function criteriaText(v: unknown): string | null {
 /** 값 하나를 화면에 담길 길이로 — 원문을 통째로 뿌리면 표가 읽히지 않는다 */
 function short(v: unknown): string {
   if (v === null || v === undefined) return '(없음)'
-  if (typeof v === 'string') return v.length > 60 ? v.slice(0, 60) + '…' : v
+  if (typeof v === 'string') {
+    // 서식 글(견적 특기사항)은 글자로 — 태그가 이력에 그대로 찍히면 무엇을 고쳤는지 안 읽힌다(P0145)
+    const t = isNoteHtml(v) ? noteToPlain(v).replace(/\n/g, ' ') : v
+    return t.length > 60 ? t.slice(0, 60) + '…' : t
+  }
   if (typeof v === 'number' || typeof v === 'boolean') return String(v)
   const s = JSON.stringify(v)
   return s.length > 60 ? s.slice(0, 60) + '…' : s

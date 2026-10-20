@@ -6,7 +6,7 @@
 // 본문을 두 벌로 두면 한쪽만 고치는 날이 오고, 그날부터 **화면과 파일이 다른 문서**가 된다.
 // 엑셀(`quote-xlsx.ts`)도 같은 `QuoteDocument` 를 읽는다 — 셋이 한 데이터에서 나온다.
 
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
 import RichText from '@/components/ui/RichText'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
@@ -35,9 +35,15 @@ interface Props {
    * 둘 다 카드를 두면 **테두리가 겹치고 여백이 두 겹**이 된다(미리보기에서 보였다).
    */
   surface?: 'screen' | 'paper'
+  /**
+   * 특기사항 자리를 화면이 대신 그린다(바로 고치기, P0145). 주면 특기사항이 비어도 절이 선다 —
+   * 비어 있을 때 적을 자리가 있어야 하기 때문이다. 종이(미리보기·인쇄)는 안 준다.
+   * 제목 줄도 슬롯이 그린다 — 고치기 단추가 제목 옆에 서야 글을 덮지 않는다.
+   */
+  noteSlot?: (html: string | null, classes: { title: string; body: string }) => ReactNode
 }
 
-export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Props) {
+export default function QuoteSheet({ doc, logo, seal, surface = 'screen', noteSlot }: Props) {
   const money = (minor: string) => formatAmount(minor, doc.meta.currency) ?? '0'
   // 공급자는 «비어 있지 않은 것만» 줄을 만든다 — 「—」 가 늘어선 문서를 보내지 않는다
   const filled = SUPPLIER_ORDER.filter((f) => doc.supplier[f] !== '')
@@ -633,7 +639,11 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
         **특기사항은 서식 글이다**(P0145). 서버가 이미 걸러 준 HTML 을 공용 부품이 한 번 더 걸러 그린다.
         옛 글자 특기사항은 서버가 줄마다 문단으로 바꿔 주므로 여기서 가르지 않는다.
       */}
-      {doc.customerNoteHtml && (
+      {noteSlot ? (
+        <section className={styles.terms}>
+          {noteSlot(doc.customerNoteHtml, { title: styles.termsTitle, body: styles.note })}
+        </section>
+      ) : doc.customerNoteHtml && (
         <section className={styles.terms}>
           <p className={styles.termsTitle}>{QUOTE.customerNote}</p>
           <RichText html={doc.customerNoteHtml} className={styles.note} />

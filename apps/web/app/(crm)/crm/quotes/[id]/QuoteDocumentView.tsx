@@ -47,6 +47,7 @@ import AttachmentPanel from '@/components/ui/crm/AttachmentPanel'
 import QuoteOriginalCompare from '@/components/ui/crm/QuoteOriginalCompare'
 import { ATTACHMENT } from '@/lib/terms/attachment'
 import QuoteSheet from './QuoteSheet'
+import QuoteNoteEditor from './QuoteNoteEditor'
 import { downloadPaperAsPng, downloadPaperAsPdf } from '@/lib/crm/api/paper-image'
 import { exportFileName, type QuoteDocument } from '@/lib/crm/domain/quote-document'
 import styles from './quote-document.module.css'
@@ -71,6 +72,8 @@ interface DocumentResponse {
 /** 머리줄이 읽는 견적 한 줄 — 문서 응답은 «인쇄용»이라 상태와 보낸 날을 안 담는다 */
 interface QuoteHeadRow {
   status: string
+  /** 특기사항을 바로 고칠 때 잠금으로 보낸다 */
+  version: number | null
   sentAt: string | null
 }
 
@@ -212,7 +215,11 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
       if (!res.ok) { setError(readApiError(body, failedTo(QUOTE.documentTitle, '불러오지'))); return }
       if (!rowRes.ok) { setError(readApiError(row, failedTo(QUOTE.documentTitle, '불러오지'))); return }
       setData(body as DocumentResponse)
-      setHead({ status: String(row.status ?? ''), sentAt: typeof row.sentAt === 'string' ? row.sentAt : null })
+      setHead({
+        status: String(row.status ?? ''),
+        version: typeof row.version === 'number' ? row.version : null,
+        sentAt: typeof row.sentAt === 'string' ? row.sentAt : null,
+      })
     } catch {
       // 서버가 응답조차 못 한 것 — 「잠시 후 다시」와는 다른 상황이다
       setError(describeFetchFailure(QUOTE.documentTitle))
@@ -386,7 +393,21 @@ export default function QuoteDocumentView({ quoteId }: { quoteId: string }) {
         <p className={styles.reloadNote} role="status">{progress(ACTION.apply)}</p>
       )}
 
-      <QuoteSheet doc={doc} logo={data.images.logo} seal={data.images.seal} />
+      <QuoteSheet
+        doc={doc}
+        logo={data.images.logo}
+        seal={data.images.seal}
+        noteSlot={(html, classes) => (
+          <QuoteNoteEditor
+            quoteId={quoteId}
+            version={head?.version ?? null}
+            html={html}
+            classes={classes}
+            /* 고친 것은 문서와 변경 이력 둘 다에 보여야 한다 — 이력에 없으면 저장이 안 된 줄 안다 */
+            onSaved={() => { void load(); setHistorySeq((n) => n + 1) }}
+          />
+        )}
+      />
 
       {/*
         ── 미리보기 ──────────────────────────────────────────

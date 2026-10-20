@@ -100,3 +100,8 @@ test('★ 메뉴가 실제로 그 수를 단다 — 세기만 하면 화면은 �
   assert.ok(layout.includes('countPendingSuggestions('), '레이아웃이 세지 않는다')
   assert.ok(layout.includes('badge: pendingInbox'), '메뉴에 뱃지를 달지 않는다')
 })
+
+test('★ 견적 특기사항은 이름과 글자로 남는다 — 「notesMd: <p><strong>…」은 무엇을 고쳤는지 안 읽힌다', () => {
+  assert.equal(FIELD_LABEL.notesMd, '특기사항')
+  assert.ok(SRC.includes('isNoteHtml(v) ? noteToPlain(v)'), '서식 글을 글자로 안 바꾼다')
+})

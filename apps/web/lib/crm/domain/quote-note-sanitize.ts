@@ -17,7 +17,11 @@ import { normalizeMultiline } from './normalize.ts'
 export const MAX_NOTE_HTML = 20_000
 
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
-  allowedTags: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'ul', 'ol', 'li', 'h3', 'h4', 'blockquote', 'hr'],
+  /*
+    제목은 막대에 없지만 「# 」 같은 입력 규칙으로 생긴다. 지우면 글자만 남고 굵기가 사라져
+    사람이 넣은 구분이 저장 뒤 없어진다 — 받아 두고 문서 서식이 같은 크기로 그린다.
+  */
+  allowedTags: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'hr'],
   allowedAttributes: {},
   allowedSchemes: [],
   disallowedTagsMode: 'discard',
@@ -25,7 +29,11 @@ const SANITIZE_OPTS: sanitizeHtml.IOptions = {
 
 /** 허용 목록으로 정리한다. 글자가 하나도 안 남으면 빈 문자열 */
 export function sanitizeNoteHtml(html: string): string {
-  const clean = sanitizeHtml(html ?? '', SANITIZE_OPTS).trim()
+  /*
+    편집기는 끝에 빈 문단을 하나 달고 끝난다(커서 자리). 그대로 두면 특기사항 아래에 빈 줄이
+    인쇄된다 — 끝에 붙은 빈 문단만 뗀다, 가운데 빈 줄은 사람이 일부러 둔 간격이다.
+  */
+  const clean = sanitizeHtml(html ?? '', SANITIZE_OPTS).trim().replace(/(<p>\s*(<br\s*\/?>)?\s*<\/p>\s*)+$/, '')
   return clean.replace(/<[^>]+>/g, '').trim() === '' ? '' : clean
 }
 

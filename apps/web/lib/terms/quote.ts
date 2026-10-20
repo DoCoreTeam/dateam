@@ -134,6 +134,10 @@ export const QUOTE = {
   deliveryTerms: '납품 조건',
   /** 고객이 보는 특기사항 */
   customerNote: '특기사항',
+  /** 특기사항 편집 자리 — 견적 수정 창과 견적서 화면이 같은 말을 쓴다 */
+  customerNotePlaceholder: '견적서에 그대로 인쇄됩니다. 납기·설치 범위처럼 고객이 알아야 할 것을 적어 주세요.',
+  customerNoteEmpty: '아직 적은 특기사항이 없어요.',
+  customerNoteEditLabel: '특기사항 수정',
 
   // ── 편집 화면 ────────────────────────────────
   title: '제목',
