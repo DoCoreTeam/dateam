@@ -58,6 +58,8 @@ const QUOTE_CARRIED: Array<[field: string, from: string, why: string]> = [
   ['autoFilled', 'src.autoFilled', '자동으로 채운 값 목록'],
   ['fillConditions', 'src.fillConditions', '조건 고치기가 다시 채운다'],
   ['priceBasisDate', 'src.priceBasisDate', '1년 뒤에도 그날 값을 읽는 기준 날짜'],
+  // 마이그 312
+  ['fillText', 'src.fillText', '말로 채우기에 쓴 글 — 다른 안도 같은 글에서 시작한다'],
 ]
 
 const LINE_CARRIED: Array<[field: string, from: string, why: string]> = [

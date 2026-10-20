@@ -158,6 +158,8 @@ export interface QuoteDraft {
   autoFilled?: { field: string; value: string; provenance: { source: string; note?: string | null } }[]
   /** 제품으로 채우기의 조건 — 조건 고치기가 다시 채운다 */
   fillConditions?: Record<string, unknown> | null
+  /** 말로 채우기에 쓴 글 — 견적과 함께 저장되고 다시 열면 그대로 있다 */
+  fillText?: string
 }
 
 /**
@@ -285,6 +287,7 @@ export function quoteToDraft(body: any): QuoteDraft {
     budgetIncludesTax: body.budgetIncludesTax === true,
     autoFilled: Array.isArray(body.autoFilled) ? body.autoFilled : [],
     fillConditions: body.fillConditions ?? null,
+    fillText: typeof body.fillText === 'string' ? body.fillText : '',
     roundingUnit: Number(body.roundingUnit ?? 0),
     roundingMode: body.roundingMode ?? 'DOWN',
     // 안 들고 오면 고른 축이 저장하는 순간 사라진다 — 이 파일이 생긴 이유와 같은 사고다

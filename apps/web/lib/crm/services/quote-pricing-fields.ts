@@ -15,7 +15,10 @@ export const LINE_PRICING_KEYS = [
   'listPriceMinor', 'priceSource', 'provenance', 'billing', 'ratioPct', 'ratioOfSectionName', 'lockedFields',
 ] as const
 
-export const QUOTE_PRICING_KEYS = ['budgetMinor', 'budgetIncludesTax', 'autoFilled', 'fillConditions'] as const
+export const QUOTE_PRICING_KEYS = ['budgetMinor', 'budgetIncludesTax', 'autoFilled', 'fillConditions', 'fillText'] as const
+
+/** 말로 채우기에 쓴 글의 상한 — 마이그 312 의 CHECK 와 같은 값 */
+export const MAX_FILL_TEXT = 8_000
 
 const PRICE_SOURCES = ['LIST', 'LABOR', 'GPU', 'COST_MARGIN', 'MANUAL']
 const LOCKABLE = ['unitPrice', 'quantity', 'discount', 'name']
@@ -83,6 +86,7 @@ export interface QuotePricingInput {
   budgetIncludesTax?: boolean | null
   autoFilled?: unknown
   fillConditions?: unknown
+  fillText?: string | null
 }
 
 /** 견적의 새 칸 — 안 보낸 칸은 결과에서 빠진다(고칠 때 덮지 않게) */
@@ -95,6 +99,11 @@ export function quotePricingData(input: QuotePricingInput): Record<string, unkno
   if (input.budgetIncludesTax !== undefined) out.budgetIncludesTax = input.budgetIncludesTax === true
   if (input.autoFilled !== undefined) out.autoFilled = Array.isArray(input.autoFilled) ? smallJson(input.autoFilled.slice(0, 50), 'autoFilled', []) : []
   if (input.fillConditions !== undefined) out.fillConditions = smallJson(input.fillConditions, 'fillConditions', {})
+  if (input.fillText !== undefined) {
+    const t = input.fillText === null ? '' : String(input.fillText)
+    if (t.length > MAX_FILL_TEXT) throw new CrmError('VALIDATION_FAILED', `글이 너무 깁니다. ${MAX_FILL_TEXT.toLocaleString('ko-KR')}자 이내로 줄여 주세요.`, { field: 'fillText' })
+    out.fillText = t.trim() === '' ? null : t
+  }
   return out
 }
 
@@ -112,7 +121,7 @@ export function sectionPricingData(s: { roundingUnit?: number | string | null; b
  * 자동으로 채운 값, 조건, 출처는 우리 쪽 작업 기록이고 예산은 협상 정보다.
  */
 export const QUOTE_PUBLIC_HIDDEN = [
-  'annualMinor', 'sectionRoundingMinor', 'budgetMinor', 'budgetIncludesTax', 'autoFilled', 'fillConditions', 'priceBasisDate',
+  'annualMinor', 'sectionRoundingMinor', 'budgetMinor', 'budgetIncludesTax', 'autoFilled', 'fillConditions', 'priceBasisDate', 'fillText',
 ] as const
 
 export function withoutPricingFields<T extends Record<string, unknown>>(row: T): Omit<T, (typeof QUOTE_PUBLIC_HIDDEN)[number]> {

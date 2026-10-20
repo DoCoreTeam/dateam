@@ -227,6 +227,8 @@ const SELECT = {
   // 가격 기준 — 1회와 매년, 묶음 절사, 예산, 자동으로 채운 값
   annualMinor: true, sectionRoundingMinor: true, budgetMinor: true, budgetIncludesTax: true,
   autoFilled: true, fillConditions: true, priceBasisDate: true,
+  // 말로 채우기에 쓴 글 — 다시 열면 그대로 있다
+  fillText: true,
 } as const
 
 /** 섹션을 함께 읽는 select — 상세·문서가 쓴다 */
@@ -1715,6 +1717,8 @@ export async function duplicateQuote(
         annualMinor: src.annualMinor, sectionRoundingMinor: src.sectionRoundingMinor,
         budgetMinor: src.budgetMinor, budgetIncludesTax: src.budgetIncludesTax,
         autoFilled: src.autoFilled, fillConditions: src.fillConditions, priceBasisDate: src.priceBasisDate,
+        // 쓴 글도 따라간다 — 다른 안은 같은 글에서 조건만 바꿔 쓴다
+        fillText: src.fillText,
         // 승인은 **따라오지 않는다** — 금액이 달라질 문서이므로 다시 받아야 한다
         sourceQuoteId: src.id,
         revision: mode === 'revision' ? src.revision + 1 : src.revision,

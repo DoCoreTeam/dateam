@@ -195,6 +195,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           budgetIncludesTax: draft.budgetIncludesTax ?? false,
           autoFilled: draft.autoFilled ?? [],
           fillConditions: draft.fillConditions ?? {},
+          fillText: draft.fillText ?? '',
           /*
             금액 표시도 함께 보낸다. **안 실으면 화면에서 고른 축이 저장하는 순간 사라진다** —
             이 파일의 초안 모양(quote-draft-shape)이 생긴 이유와 같은 사고다.
