@@ -359,13 +359,24 @@ function isRead(r: Reading): boolean {
 }
 
 /**
- * 사정 줄은 품목, GPU, 수량을 고르지 않고 AI 에게 넘긴다. 예산, 부가세, 할인, 기관 종류처럼 표 줄이 아닌 것만 남긴다.
+ * 사정 줄에서도 GPU 모델은 남긴다. 「RTX PRO 5000」 같은 모델명은 낱말 「GPU」와 달리 뜻이 하나다.
+ * 장수가 모델 뒤에 없으면 줄 안의 수가 장 대 개 하나뿐일 때만 그 수를 쓴다 — 「12개의 ... 워크스테이션(RTX PRO 5000)」.
+ * AI 에게 맡겨 두면 같은 글에서 4번 중 1번 GPU 를 빠뜨렸다(실측 2026-10-20). 규칙이 읽은 GPU 는 AI 가 덮지 않는다.
+ */
+function contextGpus(r: Reading): Reading['gpus'] {
+  if (r.gpus.length !== 1 || r.gpus[0].count !== null) return r.gpus
+  const n = countsOf(r.text).filter((c) => c.unit === '장' || c.unit === '대' || c.unit === '개')
+  return n.length === 1 ? [{ ...r.gpus[0], count: n[0].value }] : r.gpus
+}
+
+/**
+ * 사정 줄은 품목, 수량을 고르지 않고 AI 에게 넘긴다(GPU 모델은 위에서 남긴다). 예산, 부가세, 할인, 기관 종류처럼 표 줄이 아닌 것만 남긴다.
  * 줄 첫 조각이 「목적:」이면 그 줄의 뒤 조각도 같은 사정이다.
  */
 function asContext(r: Reading): Reading {
   return {
     ...r,
-    amountMinor: null, counts: [], manMonths: null, grade: null, months: null, hours: null, gpus: [], nodes: null, training: null,
+    amountMinor: null, counts: [], manMonths: null, grade: null, months: null, hours: null, gpus: contextGpus(r), nodes: null, training: null,
     productId: null, itemIds: [], edition: null, priorEdition: null, maintenance: null, install: false,
     rest: r.text, unread: true,
   }
