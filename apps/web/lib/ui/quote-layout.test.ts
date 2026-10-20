@@ -442,7 +442,11 @@ test('★ 모든 합계 줄이 그 빈 칸을 실제로 붙인다 — 선언만 
 })
 
 test('★ 묶음 소계도 금액 열에 선다 — 진하게 칠하는 자리도 금액 칸이다', () => {
-  assert.match(SHEET, /<td colSpan=\{cols - 1 - tailSpan\}>\{g\.section\.name\} \{QUOTE\.subtotal\}<\/td>/,
+  /*
+    라벨은 「소계」 하나다(P0145) — 묶음 이름은 바로 위 머리줄에 있어 되풀이하면
+    소계 줄이 머리줄보다 길어졌다(사용자 화면 2026-10-20).
+  */
+  assert.match(SHEET, /<td colSpan=\{cols - 1 - tailSpan\}>\{QUOTE\.sectionSubtotal\}<\/td>/,
     '소계 라벨이 꼬리 칸을 안 빼서 금액이 비고 칸으로 밀린다')
   assert.match(
     SHEET,
@@ -984,4 +988,36 @@ test('★ 안내가 가리키는 칸을 그 칸의 이름으로 말한다 — �
   assert.ok(!/^기간을 적으면/.test(RATE_PERIOD_MISSING),
     '안내가 「기간」으로 시작한다 — 품목의 기간 칸과 같은 말이라 어느 칸인지 모른다')
   assert.match(RATE_PERIOD_MISSING, /시작일|종료일/, '가리키는 칸을 이름으로 안 말한다')
+})
+
+/* ── ⑩ 셈은 한 줄 식이고 크게 서는 것은 합계 하나다 (P0145) ───────── */
+
+/*
+  사용자 지적(2026-10-20): 「공급가액 할인 부가세 계 절사 이것 중에 안 바뀌는 것은 꼭 세로로 안 해도」.
+  다섯 줄이 금액 열에 쌓여 합계 금액이 가장 늦게 읽혔다. 식은 금액 열까지를 한 칸으로 쓰고
+  비고 열 자리에는 꼬리 칸을 둔다(⑨와 같은 규칙).
+*/
+test('★ 셈은 한 줄 식이다 — 공급가액·부가세 줄이 금액 열에 따로 서지 않는다', () => {
+  const foot = SHEET.slice(SHEET.indexOf('<tfoot>'), SHEET.indexOf('</tfoot>'))
+  // 금액 열에서 끝난다 — 비고 칸까지 뻗으면 식의 끝과 합계 금액의 끝이 어긋난다
+  const calcRow = foot.slice(foot.indexOf('<tr className={styles.calcRow}>'))
+  assert.match(calcRow, /^<tr className=\{styles\.calcRow\}>\s*<td colSpan=\{cols - tailSpan\}>/, '식이 금액 열에서 안 끝난다')
+  assert.match(calcRow.slice(0, calcRow.indexOf('</tr>')), /\{tailCell\}\s*$/, '식 줄 끝에 꼬리 칸이 없다')
+  for (const k of ['subtotal', 'tax', 'netTotal', 'rounding']) {
+    assert.ok(!new RegExp(`colSpan=\\{labelSpan\\}>\\{QUOTE\\.${k}\\}`).test(foot), `${k} 가 다시 세로 줄로 섰다`)
+    assert.ok(foot.includes(`{QUOTE.${k}}`), `식에 ${k} 칸이 없다`)
+  }
+  assert.match(foot, /colSpan=\{labelSpan\}>\{QUOTE\.total\}<\/td>/, '합계 금액 줄이 사라졌다')
+})
+
+test('★ 절사가 없으면 계와 절사가 식에서 빠진다 — 합계와 같은 숫자가 두 번 선다', () => {
+  const foot = SHEET.slice(SHEET.indexOf('<tfoot>'), SHEET.indexOf('</tfoot>'))
+  const gate = foot.indexOf("{doc.totals.roundingMinor !== '0' && (")
+  assert.ok(gate > 0, '절사 조건이 없다')
+  assert.ok(foot.indexOf('{QUOTE.netTotal}') > gate && foot.indexOf('{QUOTE.rounding}') > gate, '계나 절사가 조건 앞에 있다')
+})
+
+test('★ 한글 금액은 문서에 한 번만 선다 — 위 띠에 숫자와 함께 있다', () => {
+  assert.equal(SHEET.split('doc.totals.totalInWords').length - 1, 1, '한글 금액이 두 자리에 그려진다')
+  assert.match(SHEET, /<span className=\{styles\.amountWords\}>\{doc\.totals\.totalInWords\}<\/span>/)
 })

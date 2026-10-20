@@ -8,6 +8,7 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react'
 import EmptyState from '@/components/ui/EmptyState'
+import RichText from '@/components/ui/RichText'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE, SUPPLIER_ORDER, SUPPLIER_LABEL, TABLE_SCROLL_HINT } from '@/lib/terms/quote'
 import {
@@ -468,7 +469,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                   {g.lines.map((l) => renderLine(l))}
                   {g.section && g.lines.length > 0 && (
                     <tr className={styles.sectionSum}>
-                      <td colSpan={cols - 1 - tailSpan}>{g.section.name} {QUOTE.subtotal}</td>
+                      <td colSpan={cols - 1 - tailSpan}>{QUOTE.sectionSubtotal}</td>
                       <td className={styles.num}>{money(g.section.subtotalMinor)}</td>
                       {tailCell}
                     </tr>
@@ -482,57 +483,65 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
               금액이 위아래로 안 맞는다(앞 판이 그랬다).
             */}
             <tfoot>
-              {/* 라벨은 **두 칸에 걸친다** — 한 칸(할인 열)이면 「합계 금액」이 두 줄로 깨진다 */}
-              <tr className={styles.firstTotal}>
-                <td colSpan={padSpan} />
-                <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.subtotal}</td>
-                <td className={styles.num}>{money(doc.totals.subtotalMinor)}</td>
-                {tailCell}
-              </tr>
-              {showDiscount && (
-                <tr>
-                  <td colSpan={padSpan} />
-                  <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.discount}</td>
-                  <td className={styles.num}>
-                    {doc.totals.discountMinor !== '0' && '− '}{money(doc.totals.discountMinor)}
-                  </td>
-                  {tailCell}
-                </tr>
-              )}
-              <tr>
-                <td colSpan={padSpan} />
-                <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.tax}</td>
-                <td className={styles.num}>{money(doc.totals.taxMinor)}</td>
-                {tailCell}
-              </tr>
               {/*
-                **절사는 세금 뒤, 합계 바로 앞이다.** 고객이 마지막으로 보는 숫자를
-                떨어뜨리는 조정이라 그 자리에 있어야 「계 − 절사 = 합계」로 읽힌다.
-                앞에 두면 부가세가 다시 얹혀 합계가 또 안 떨어진다(실측 303,600,000원).
+                **셈은 한 줄 식으로 선다**(사용자 지적 2026-10-20: 「안 바뀌는 것은 꼭 세로로 안 해도」).
+                공급가액부터 절사까지 다섯 줄이 금액 열에 세로로 쌓이면 합계 금액이 그 아래로 밀려
+                가장 중요한 숫자가 가장 늦게 읽혔다. 식은 「− 할인 + 부가세 = 계 − 절사」로 읽히고,
+                크게 서는 것은 합계 금액 하나다.
 
-                절사가 없으면 「계」도 함께 인쇄하지 않는다 — 합계와 같은 숫자가 두 줄이 된다.
+                **없는 칸은 식에서도 빠진다.** 할인이 없으면 할인 칸이, 절사가 없으면 계와 절사가 없다 —
+                「할인 0원」은 «일부러 안 줬다»로 읽힌다(사용자 지적 2026-09-20).
+                식은 **금액 열에서 끝난다** — 비고 열까지 뻗으면 식의 끝과 합계 금액의 끝이 어긋나
+                셈이 합계로 흘러 내려가지 않는다(실측 2026-10-20, 109px 어긋남).
               */}
-              {doc.totals.roundingMinor !== '0' && (
-                <>
-                  <tr>
-                    <td colSpan={padSpan} />
-                    <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.netTotal}</td>
-                    <td className={styles.num}>{money(doc.totals.netTotalMinor)}</td>
-                    {tailCell}
-                  </tr>
-                  <tr>
-                    <td colSpan={padSpan} />
-                    <td className={styles.totalLabel} colSpan={labelSpan}>{QUOTE.rounding}</td>
-                    <td className={styles.num}>
-                      {/* 올림은 더한 것이라 절사액이 음수다 — 부호를 값에서 읽는다 */}
-                      {doc.totals.roundingMinor.startsWith('-')
-                        ? `＋ ${money(doc.totals.roundingMinor.slice(1))}`
-                        : `− ${money(doc.totals.roundingMinor)}`}
-                    </td>
-                    {tailCell}
-                  </tr>
-                </>
-              )}
+              <tr className={styles.calcRow}>
+                <td colSpan={cols - tailSpan}>
+                  <div className={styles.calc}>
+                    <span className={styles.calcItem}>
+                      <span className={styles.calcLabel}>{QUOTE.subtotal}</span>
+                      <span className={styles.calcValue}>{money(doc.totals.subtotalMinor)}</span>
+                    </span>
+                    {showDiscount && doc.totals.discountMinor !== '0' && (
+                      <>
+                        <span className={styles.calcOp} aria-hidden>−</span>
+                        <span className={styles.calcItem}>
+                          <span className={styles.calcLabel}>{QUOTE.discount}</span>
+                          <span className={styles.calcValue}>{money(doc.totals.discountMinor)}</span>
+                        </span>
+                      </>
+                    )}
+                    <span className={styles.calcOp} aria-hidden>+</span>
+                    <span className={styles.calcItem}>
+                      <span className={styles.calcLabel}>{QUOTE.tax}</span>
+                      <span className={styles.calcValue}>{money(doc.totals.taxMinor)}</span>
+                    </span>
+                    {/*
+                      **절사는 세금 뒤, 합계 바로 앞이다.** 「계 − 절사 = 합계」로 읽혀야 한다.
+                      절사가 없으면 계도 안 선다 — 합계와 같은 숫자가 두 번 나온다.
+                      올림은 더한 것이라 절사액이 음수다, 부호를 값에서 읽는다.
+                    */}
+                    {doc.totals.roundingMinor !== '0' && (
+                      <>
+                        <span className={styles.calcOp} aria-hidden>=</span>
+                        <span className={styles.calcItem}>
+                          <span className={styles.calcLabel}>{QUOTE.netTotal}</span>
+                          <span className={styles.calcValue}>{money(doc.totals.netTotalMinor)}</span>
+                        </span>
+                        <span className={styles.calcOp} aria-hidden>
+                          {doc.totals.roundingMinor.startsWith('-') ? '+' : '−'}
+                        </span>
+                        <span className={styles.calcItem}>
+                          <span className={styles.calcLabel}>{QUOTE.rounding}</span>
+                          <span className={styles.calcValue}>
+                            {money(doc.totals.roundingMinor.replace(/^-/, ''))}
+                          </span>
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </td>
+                {tailCell}
+              </tr>
               {/*
                 **원화 환산은 총액 바로 위에 선다.** 외화 견적을 받은 사람이 제일 먼저
                 하는 계산이 그것이고, 환율을 밝히지 않으면 그 숫자를 믿을 수 없다.
@@ -602,14 +611,6 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
                   {tailCell}
                 </tr>
               )}
-              {/* 한글 금액은 위조 방지가 목적이라 총액 바로 아래 붙는다 */}
-              {doc.totals.totalInWords && (
-                <tr className={styles.inWords}>
-                  <td colSpan={cols - 4 - tailSpan} />
-                  <td className={styles.num} colSpan={4}>{doc.totals.totalInWords}</td>
-                  {tailCell}
-                </tr>
-              )}
             </tfoot>
           </table>
         </div>
@@ -628,10 +629,14 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen' }: Prop
         </section>
       )}
 
-      {doc.customerNote && (
+      {/*
+        **특기사항은 서식 글이다**(P0145). 서버가 이미 걸러 준 HTML 을 공용 부품이 한 번 더 걸러 그린다.
+        옛 글자 특기사항은 서버가 줄마다 문단으로 바꿔 주므로 여기서 가르지 않는다.
+      */}
+      {doc.customerNoteHtml && (
         <section className={styles.terms}>
           <p className={styles.termsTitle}>{QUOTE.customerNote}</p>
-          <p className={styles.note}>{doc.customerNote}</p>
+          <RichText html={doc.customerNoteHtml} className={styles.note} />
         </section>
       )}
     </article>

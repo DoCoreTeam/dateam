@@ -41,8 +41,9 @@ test('★ 견적서: 할인 열과 할인 줄이 조건 뒤에 있다', () => {
   assert.ok(/\{showDiscount && <col /.test(live), '할인 열 폭이 조건 뒤에 없다')
   assert.ok(/\{showDiscount && \(\s*\n\s*<th /.test(live), '할인 머리글이 조건 뒤에 없다')
   assert.ok(/\{showDiscount && \(\s*\n\s*<td className=\{styles\.num\}>/.test(live), '항목의 할인 칸이 조건 뒤에 없다')
-  // 합계의 할인 줄
-  assert.ok(/\{showDiscount && \(\s*\n\s*<tr>/.test(live), '합계의 할인 줄이 조건 뒤에 없다')
+  // 합계 식의 할인 칸 — 식이 한 줄이 된 뒤에도(P0145) 할인이 없으면 식에서 빠진다
+  assert.ok(/\{showDiscount && doc\.totals\.discountMinor !== '0' && \(\s*\n\s*<>\s*\n\s*<span className=\{styles\.calcOp\}/.test(live),
+    '합계 식의 할인 칸이 조건 뒤에 없다')
   /*
     **colSpan 은 전부 열 수에서 나온다.** 하나라도 숫자를 박아 두면 할인 칸이 빠진 날
     그 줄만 한 칸 밀려 표가 어긋난다 — 화면에서는 티가 안 나고 종이에서 드러난다.
