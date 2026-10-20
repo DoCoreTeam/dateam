@@ -24,6 +24,7 @@ import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText, normalizeMultiline, requireText, pageNoOrNull } from '../domain/normalize.ts'
+import { normalizeNoteInput } from '../domain/quote-note-sanitize.ts'
 import { latestFxRate, needsFx } from './fx.ts'
 import { assertTransit, type QuoteStatus } from '../domain/state-machines.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
@@ -1029,7 +1030,7 @@ export async function createQuote(
           currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
           ...rateDisplay,
-          notesMd: normalizeMultiline(input.notesMd),
+          notesMd: normalizeNoteInput(input.notesMd),
           // 고른 조건. 순서를 그대로 저장한다 — 그 순서가 인쇄 순서다
           termIds,
           termsSnapshot,
@@ -1065,7 +1066,7 @@ export async function createQuote(
           dealId: input.dealId, quoteNo, title, currency,
           validUntil: input.validUntil ? new Date(input.validUntil) : null,
           ...rateDisplay,
-          notesMd: normalizeMultiline(input.notesMd), ownerId: input.ownerId || null,
+          notesMd: normalizeNoteInput(input.notesMd), ownerId: input.ownerId || null,
           recipientPersonId: input.recipientPersonId || null,
           termIds,
           termsSnapshot,
@@ -1351,7 +1352,7 @@ export async function updateQuote(
       **특기사항도 여러 줄이다.** 화면은 textarea 이고 인쇄는 pre-wrap 인데 저장만 한 줄로
       눕히고 있었다 — 사람이 줄을 나눠 적어도 고객이 받는 문서에서는 한 덩어리였다.
     */
-    if (input.notesMd !== undefined) data.notesMd = normalizeMultiline(input.notesMd)
+    if (input.notesMd !== undefined) data.notesMd = normalizeNoteInput(input.notesMd)
     /*
       **조건은 받을 때마다 다시 굳힌다.**
       사용자가 고른 것은 반영하고, 그 사이 설정이 바뀐 것은 반영하지 않는다 —

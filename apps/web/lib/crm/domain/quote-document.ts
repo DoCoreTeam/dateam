@@ -27,6 +27,7 @@ import { checkI2, checkI5, type Violation } from './invariants.ts'
 import { computeLine } from './quote-math.ts'
 import { convertMinor } from './currency.ts'
 import { splitSpec } from './quote-spec.ts'
+import { noteToHtml, noteToPlain } from './quote-note.ts'
 import {
   computePeriod, hourlyFromMonthly, hoursFromQuantity, rateFromHours,
   durationHours, durationFactor, monthsFromHours, DEFAULT_HOURS_PER_MONTH,
@@ -327,8 +328,13 @@ export interface QuoteDocument {
   totals: DocumentTotals
   /** 고객이 읽는 조건. 비어 있으면 그 줄을 안 그린다 */
   terms: string[]
-  /** 고객이 읽는 특기사항 */
+  /** 고객이 읽는 특기사항, 글자만 (엑셀) */
   customerNote: string | null
+  /**
+   * 같은 특기사항의 그릴 HTML. 옛 글자는 줄마다 문단이 된다.
+   * **문서 응답이 서버 정리기를 한 번 더 지나게 한다** — 여기는 화면도 읽는 순수 모듈이다
+   */
+  customerNoteHtml: string | null
 }
 
 // ------------------------------------------------------------
@@ -814,7 +820,8 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
     terms: (input.selectedTerms && input.selectedTerms.length > 0)
       ? input.selectedTerms.map((t) => t.trim()).filter((t) => t !== '')
       : text(input.supplier.terms).split('\n').map((t) => t.trim()).filter((t) => t !== ''),
-    customerNote: text(input.quote.notesMd) || null,
+    customerNote: noteToPlain(text(input.quote.notesMd)) || null,
+    customerNoteHtml: noteToHtml(text(input.quote.notesMd)) || null,
   }
 }
 

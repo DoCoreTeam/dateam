@@ -11,6 +11,7 @@
 
 import type { CrmDb } from '../db/client.ts'
 import { CrmError } from '../domain/errors.ts'
+import { sanitizeNoteHtml } from '../domain/quote-note-sanitize.ts'
 import { getQuote } from './quote.ts'
 import { readQuoteSupplier, readQuoteImages } from './setting.ts'
 import { readQuoteImportConfig } from './quote-import-config.ts'
@@ -161,7 +162,7 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   */
   const importConfig = await readQuoteImportConfig(db)
 
-  const document = buildQuoteDocument({
+  const built = buildQuoteDocument({
     quote: {
       quoteNo: quote.quoteNo,
       title: quote.title,
@@ -246,6 +247,14 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       : undefined,
     todayKey: kstDateKey(new Date().toISOString()),
   })
+  /*
+    **특기사항 HTML 은 내주기 직전에 한 번 더 거른다.** 저장 때 이미 걸렀지만 DB 를 손으로 고친 값은
+    그 문을 안 지난다. 화면은 이 값을 그대로 그린다(보안 S4).
+  */
+  const document = {
+    ...built,
+    customerNoteHtml: built.customerNoteHtml ? sanitizeNoteHtml(built.customerNoteHtml) || null : null,
+  }
 
   return {
     document,

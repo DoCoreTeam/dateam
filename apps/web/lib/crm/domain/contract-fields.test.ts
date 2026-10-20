@@ -138,6 +138,7 @@ const EXEMPT: Record<string, string> = {
   'documentTitle': '「견적서」라는 문서 이름이다',
   'sections': '묶음은 견적서 인쇄 구성이다',
   'customerNote': '견적 특기사항은 견적서에만 인쇄된다. 계약 특약은 템플릿 조항이 맡는다',
+  'customerNoteHtml': '같은 특기사항의 그릴 HTML 이다. 계약서는 특기사항을 안 싣는다(customerNote 와 같은 사유)',
 }
 
 const SRC = readFileSync(join(import.meta.dirname, 'quote-document.ts'), 'utf8')
