@@ -35,6 +35,7 @@ for f in ".loop/PLAN.md" ${LOOP_PLAN_FILE:+".loop/$LOOP_PLAN_FILE"}; do
   mode=$(plan_field "$f" "푸시")
 
   # 즉시는 「지금 안 밀면 사용자가 계속 막힌다」는 뜻이다. 그 판정이 섰으면 여기서 비킨다.
+  # 쌓여 있던 모음 커밋도 이 푸시에 같이 실려 나간다, 빌드는 한 번이다
   if [ "$mode" = "즉시" ]; then
     echo "[push-gate] $f ($id) 가 「푸시: 즉시」라 통과. 운영에 닿는 수정은 모으지 않는다"
     exit 0
@@ -49,15 +50,16 @@ for f in ".loop/PLAN.md" ${LOOP_PLAN_FILE:+".loop/$LOOP_PLAN_FILE"}; do
   held="$held $f($id $st, $note)"
 done
 
-[ -z "$held" ] && exit 0
+# 활성 플랜이 없어도 막는다. 예전에는 여기서 통과시켰고, 그래서 모음 플랜도
+# final 직후에는 언제나 밀렸다 — 실측 2026-10-20 하루 푸시 12회 (사용자 지시 ins_0288)
+[ -z "$held" ] && held=" 활성 플랜 없음 또는 끝난 플랜"
 
 ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || git rev-list --count origin/main..HEAD 2>/dev/null || echo "?")
 
-echo "[push-gate] 모음 플랜이 활성이라 푸시를 막았다:$held"
-echo "[push-gate] 미푸시 커밋 ${ahead}개는 플랜이 끝날 때 한 번에 나간다. 지금 밀면 빌드가 한 번 더 돈다"
-echo "[push-gate] 순서: 전 항목 통과 -> loop final --result pass -> git push"
-echo "[push-gate] 판정이 틀렸다면, 즉 지금 안 밀면 사용자가 계속 막힌다면 둘 중 하나:"
-echo "[push-gate]   이 수정만 급하다: LOOP_PUSH_NOW=1 git push (사유를 보고에 적는다)"
-echo "[push-gate]   플랜 전체가 급하다: 헤더의 「푸시: 모음」을 「푸시: 즉시」로 고치고 loop plan revise"
+echo "[push-gate] 모음 플랜은 완료해도 밀지 않는다, 푸시를 막았다:$held"
+echo "[push-gate] 미푸시 커밋 ${ahead}개는 다음 운영 결함 수정이나 사용자가 밀라고 할 때 한 번에 나간다"
+echo "[push-gate] 지금 밀어야 한다면 둘 중 하나:"
+echo "[push-gate]   운영 결함 수정이거나 사용자가 밀라고 했다: LOOP_PUSH_NOW=1 git push (사유를 보고에 적는다)"
+echo "[push-gate]   플랜 전체가 운영 결함 수정이다: 헤더의 「푸시: 모음」을 「푸시: 즉시」로 고치고 loop plan revise"
 echo "[push-gate] 근거: LOOP.md 부록 「푸시 규칙」, 2026-09 빌드 354시간 74.34달러로 인프라의 92.1퍼센트"
 exit 1

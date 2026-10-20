@@ -913,7 +913,7 @@ cmds.pass = (a) => {
     (LOOP.md 부록 「푸시 규칙」).
   */
   if (p2.header.push === '즉시') out(`[loop-kit] 지금 민다, git push${aheadNote}. 이 플랜은 푸시: 즉시다 (운영에 닿는 수정은 모으지 않는다)`);
-  else out(`[loop-kit] 모음 플랜의 항목 커밋은 푸시하지 않는다${aheadNote}, 푸시는 final 뒤 한 번 (LOOP.md 부록 푸시 규칙)`);
+  else out(`[loop-kit] 모음 플랜의 항목 커밋은 푸시하지 않는다${aheadNote}, 모음 플랜은 완료해도 밀지 않는다 (LOOP.md 부록 푸시 규칙)`);
   if (k >= every && nx) out(`[loop-kit] 체크포인트: 플랜 ${p2.header.version} 저장됨, 여기서 /clear 후 재개 권장 (checkpoint_every=${every})`);
 };
 
@@ -1010,7 +1010,14 @@ cmds.final = (a) => {
     에이전트가 그 줄을 그대로 옮기게 한다. 숫자도 함께 준다(항목 n/n).
   */
   const ahead = unpushedCount();
-  out(`[loop-kit] 이제 푸시한다, git push${ahead === null ? '' : ` (미푸시 ${ahead}개)`}. 플랜 하나가 푸시 하나다 (LOOP.md 부록 푸시 규칙)`);
+  const aheadNote = ahead === null ? '' : ` (미푸시 ${ahead}개)`;
+  /*
+    **모음은 끝나도 안 민다** (사용자 지시 2026-10-20 ins_0288).
+    예전에는 여기서 끝날 때마다 밀라고 찍었고 플랜이 지시 하나마다 서니 하루 푸시가 12회였다.
+    쌓인 커밋은 다음 운영 결함 수정(즉시)에 같이 실리거나 사용자가 밀라고 할 때 나간다.
+  */
+  if (p.header.push === '즉시') out(`[loop-kit] 지금 민다, git push${aheadNote}. 이 플랜은 푸시: 즉시다 (운영에 닿는 수정은 모으지 않는다)`);
+  else out(`[loop-kit] 모음 플랜은 완료해도 밀지 않는다${aheadNote}. 다음 운영 결함 수정이나 사용자가 밀라고 할 때 한 번에 나간다 (LOOP.md 부록 푸시 규칙)`);
 
   /*
     **미커밋 변경이 남았으면 판정을 안 찍는다** (LOOP.md 8절 판정 기준 「내 미커밋 변경이 없고」).

@@ -18,7 +18,9 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, existsSync, statSync } from 'node:fs'
+import { readFileSync, existsSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -435,6 +437,8 @@ const PUSH_HEADING = '## 푸시 규칙 (필수, 푸시 한 번이 빌드 한 번
 /** 규칙 넷의 핵심 문장. 글·훅·도구가 **같은 낱말**을 써야 세 자리가 한 규칙으로 읽힌다. */
 const PUSH_RULE_NO_ITEM_PUSH = '항목 커밋은 푸시하지 않는다'
 const PUSH_RULE_ONE_PER_PLAN = '플랜 하나가 푸시 하나다'
+/** 모음은 끝나도 안 민다 (사용자 지시 2026-10-20 ins_0288, 그날 푸시 12회) */
+const PUSH_RULE_NO_DIRECT = '모음 플랜은 완료해도 밀지 않는다'
 const PUSH_ESCAPE = 'LOOP_PUSH_NOW'
 
 function pushSection(text: string): string | null {
@@ -579,8 +583,10 @@ test('★ 도구가 푸시 시점을 찍는다 — 규칙과 같은 문장으로
   const cli = read('scripts/loop.mjs')
   assert.ok(cli.includes(PUSH_RULE_NO_ITEM_PUSH),
     `loop pass 가 「${PUSH_RULE_NO_ITEM_PUSH}」를 안 찍는다 — 항목마다 밀게 된다`)
-  assert.ok(cli.includes(PUSH_RULE_ONE_PER_PLAN),
-    `loop final 이 「${PUSH_RULE_ONE_PER_PLAN}」를 안 찍는다 — 언제 밀어야 하는지 아무도 안 말한다`)
+  assert.ok(cli.includes(PUSH_RULE_NO_DIRECT),
+    `loop final 이 「${PUSH_RULE_NO_DIRECT}」를 안 찍는다 — 끝날 때마다 밀게 된다`)
+  assert.ok(!cli.includes('이제 푸시한다'),
+    'loop final 이 아직 「이제 푸시한다」를 찍는다 — 플랜이 지시마다 서니 하루 푸시가 12회였다 (2026-10-20)')
   assert.ok(cli.includes('unpushedCount'),
     'loop CLI 가 미푸시 커밋 수를 안 센다 — 모으고 있다는 사실이 안 보이면 불안해서 민다')
 })
@@ -661,4 +667,31 @@ test('★ 도구가 즉시와 모음에 다른 말을 한다', () => {
     'loop CLI 가 플랜 헤더의 푸시 값으로 갈리지 않는다 — 두 경우에 같은 말을 하게 된다')
   assert.ok(cli.includes("푸시 ${p.header.push || '없음(모음으로 봄)'}"),
     'loop resume 가 이 플랜의 푸시 타이밍을 안 보여 준다 — 재개한 세션이 모르고 민다')
+})
+
+test('★ 훅을 실제로 돌린다 — 플랜 없음과 모음은 막고 즉시와 탈출구는 통과', () => {
+  /*
+    글자만 보는 단정은 분기 순서가 틀려도 초록이다. 예전 훅은 활성 플랜이 없으면
+    통과시켜서 모음 플랜도 final 직후엔 늘 밀렸다 (실측 2026-10-20 하루 12회).
+    그래서 빈 디렉터리에서 훅을 직접 돌려 종료 코드를 본다.
+  */
+  const hook = join(ROOT, '.githooks/pre-push')
+  const dir = mkdtempSync(join(tmpdir(), 'push-gate-'))
+  const run = (env: Record<string, string> = {}) =>
+    spawnSync('sh', [hook], { cwd: dir, env: { PATH: process.env.PATH ?? '', ...env }, encoding: 'utf8' }).status
+  const plan = (push: string, status = '진행중') =>
+    writeFileSync(join(dir, '.loop/PLAN.md'), `플랜 ID: P9999\n상태: ${status}\n푸시: ${push}\n`)
+  try {
+    assert.equal(run(), 1, '활성 플랜이 없는데 훅이 통과시켰다 — 모음 플랜이 끝나자마자 밀린다')
+    assert.equal(run({ LOOP_PUSH_NOW: '1' }), 0, 'LOOP_PUSH_NOW 로도 못 민다 — 운영 결함을 고쳐도 안 나간다')
+    mkdirSync(join(dir, '.loop'))
+    plan('모음')
+    assert.equal(run(), 1, '진행중 모음 플랜인데 통과시켰다')
+    plan('즉시', '완료 (2026-10-20)')
+    assert.equal(run(), 1, '끝난 즉시 플랜을 아직 즉시로 읽는다 — 그 뒤 구현이 다 밀린다')
+    plan('즉시')
+    assert.equal(run(), 0, '진행중 즉시 플랜인데 막았다 — 운영 결함 수정이 못 나간다')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
