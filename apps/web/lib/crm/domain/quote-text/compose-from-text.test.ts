@@ -103,3 +103,21 @@ test('글 줄을 지우면 그 줄에서 나온 항목만 지운다, 표에 직�
   assert.equal(removed.length, 1)
   assert.match((removed[0] as { textKey: string }).textKey, /^item:credit/)
 })
+
+test('「기존 STD 고객」을 쓰고 ENT 를 고르면 전환 구축이 들어간다 — 글에서 읽음', () => {
+  const r = readText('숙명여대 기존 STD 고객\nEDGE ENT, H100 8장', TEST_CATALOG)
+  assert.equal(r[0].priorEdition, 'STD')
+  assert.equal(r[0].edition, null, '이미 쓰는 에디션을 지금 고르는 에디션으로 읽으면 안 된다')
+  const q = composeFromText(r, CTX)
+  assert.ok(q.lines.some((l) => l.itemId === 'edge-ent-switch'))
+  assert.ok(q.autoFilled.some((a) => /글: 「기존 STD 고객」/.test(a.provenance.note ?? '')))
+})
+
+test('지난 계약에서 STD 를 샀으면 글에 안 써도 들어가고 근거가 계약이다', () => {
+  const ctx = { ...CTX, owned: { itemIds: ['edge-std'], evidence: { 'edge-std': '2025-03-14 체결 gcube 도입' } } }
+  const q = composeFromText(readText('EDGE ENT, H100 8장', TEST_CATALOG), ctx)
+  assert.ok(q.lines.some((l) => l.itemId === 'edge-ent-switch'))
+  assert.ok(q.autoFilled.some((a) => /2025-03-14 체결 gcube 도입/.test(a.provenance.note ?? '')))
+  const none = composeFromText(readText('EDGE ENT, H100 8장', TEST_CATALOG), CTX)
+  assert.ok(!none.lines.some((l) => l.itemId === 'edge-ent-switch'))
+})

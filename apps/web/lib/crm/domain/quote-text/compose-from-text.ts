@@ -34,6 +34,8 @@ export interface ComposeContext {
   gpuPrice: (model: string) => GpuPriceRef | null
   /** 딜 회사에서 읽은 기관 종류 — 글에 없을 때만 쓴다 */
   companyKind: CompanyKind | null
+  /** 이 회사가 지난 계약에서 이미 산 품목과 근거 — 전환 품목이 본다 */
+  owned?: { itemIds: readonly string[]; evidence: Readonly<Record<string, string>> }
 }
 
 export type TextLineKind = 'QUANTITY' | 'EFFORT' | 'PERIOD' | 'RATIO'
@@ -126,7 +128,7 @@ function first<T>(rs: readonly Reading[], pick: (r: Reading) => T | null): T | n
 /** 이 조각이 제품 조건에 들어가나 — 제품, 에디션, 노드, 교육, 유지보수, 기간 없는 GPU */
 function feedsProduct(r: Reading): boolean {
   return r.productId !== null || r.edition !== null || r.nodes !== null || r.training !== null
-    || r.maintenance !== null || (r.gpus.length > 0 && r.months === null && r.hours === null)
+    || r.maintenance !== null || r.priorEdition !== null || (r.gpus.length > 0 && r.months === null && r.hours === null)
 }
 
 function editionItemId(p: PriceProduct, edition: 'STD' | 'ENT'): string | null {
@@ -164,7 +166,14 @@ function productPart(rs: readonly Reading[], ctx: ComposeContext, companyKind: C
     maintenance ? maintenanceItemId(product, maintenance) : null,
     ...mine.flatMap((r) => r.itemIds.filter((id) => itemIds.has(id))),
   ].filter((id): id is string => id !== null)
+  // 이미 산 품목: 지난 계약 + 글의 「기존 STD 고객」
+  const prior = first(mine, (r) => r.priorEdition)
+  const priorItem = prior ? editionItemId(product, prior) : null
+  const owned = [...new Set([...(ctx.owned?.itemIds ?? []), ...(priorItem ? [priorItem] : [])])]
+  const ownedNote = owned.map((id) => ctx.owned?.evidence[id]).find(Boolean) ?? (priorItem ? `글: 「기존 ${prior} 고객」` : null)
   const conditions: SolutionConditions = {
+    owned,
+    ownedNote,
     picked: [...new Set(picked)],
     gpus: mine.flatMap((r) => (r.months === null && r.hours === null ? r.gpus : []))
       .filter((g) => g.count !== null)

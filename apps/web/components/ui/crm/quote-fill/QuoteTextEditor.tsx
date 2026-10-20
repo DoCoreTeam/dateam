@@ -116,7 +116,7 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
       const res = await fetch('/api/crm/quotes/text-fill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: now, lines: toClientLines(draftRef.current), companyKind, ai: 'auto', aiCache: aiCache.current }),
+        body: JSON.stringify({ text: now, lines: toClientLines(draftRef.current), companyKind, dealId, ai: 'auto', aiCache: aiCache.current }),
       })
       const r = await readResponse(res, TEXT_FILL.failed)
       if (mine !== seq.current) return
@@ -130,7 +130,7 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
     } catch {
       if (mine === seq.current) setStatus({ kind: 'failed', message: TEXT_FILL.failed })
     }
-  }, [companyKind, onDraftChange])
+  }, [companyKind, dealId, onDraftChange])
 
   // 멈추면 정리 — 글이 바뀔 때마다 시계를 다시 건다
   useEffect(() => {

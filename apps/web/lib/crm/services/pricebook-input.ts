@@ -93,5 +93,8 @@ export function parseConditions(v: unknown): SolutionConditions | null {
   const kind = COMPANY_KINDS.includes(c.companyKind as CompanyKind) ? (c.companyKind as CompanyKind) : null
   const d = c.discount
   const discount: SolutionConditions['discount'] = typeof d === 'number' && d >= 0 && d <= 100 ? d : d === 'none' ? 'none' : 'auto'
-  return { picked, gpus, nodes: intOrNull(c.nodes), training: intOrNull(c.training), companyKind: kind, discount }
+  // 이미 산 품목 — 화면이 지난 계약에서 읽어 미리 켠 체크를 사람이 확인해 보낸다
+  const owned = Array.isArray(c.owned) ? c.owned.filter((x): x is string => typeof x === 'string').slice(0, 50) : undefined
+  const ownedNote = typeof c.ownedNote === 'string' && c.ownedNote.trim() ? c.ownedNote.trim().slice(0, 200) : null
+  return { picked, gpus, nodes: intOrNull(c.nodes), training: intOrNull(c.training), companyKind: kind, discount, ...(owned ? { owned, ownedNote } : {}) }
 }

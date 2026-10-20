@@ -41,3 +41,10 @@ test('jsonSafe: 깊은 bigint 와 날짜를 문자열로', () => {
   const v = jsonSafe({ a: BigInt(1), b: [{ c: BigInt(2) }], d: new Date('2026-01-01T00:00:00Z') }) as Record<string, unknown>
   assert.equal(JSON.stringify(v), '{"a":"1","b":[{"c":"2"}],"d":"2026-01-01T00:00:00.000Z"}')
 })
+
+test('조건이 이미 산 품목과 근거를 받는다 — 화면이 미리 켠 체크', () => {
+  const c = parseConditions({ picked: ['edge-ent'], owned: ['edge-std', 3], ownedNote: ' 2025-03-14 체결 ' })
+  assert.deepEqual(c?.owned, ['edge-std'])
+  assert.equal(c?.ownedNote, '2025-03-14 체결')
+  assert.equal(parseConditions({ picked: [] })?.owned, undefined)
+})

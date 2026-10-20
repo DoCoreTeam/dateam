@@ -67,6 +67,8 @@ export interface Reading extends Clause {
   /** 맞춘 품목 id — 제품 품목이든 따로 있는 품목이든 */
   itemIds: string[]
   edition: 'STD' | 'ENT' | null
+  /** 「기존 STD 고객」 — 이미 쓰고 있는 에디션. 전환 품목이 본다 */
+  priorEdition: 'STD' | 'ENT' | null
   maintenance: 'STD' | 'EXT' | null
   discountPct: number | null
   vat: 'INCLUDED' | 'EXCLUDED' | null
@@ -177,6 +179,16 @@ const INSTALL_RE = /설치|세팅|셋업|구축\s*(?:은|도)?\s*(?:우리가|�
 const SCHOOL_RE = /대학|여대|대학교|교수|학교|연구실|캠퍼스|교육청/
 const PUBLIC_RE = /공공|공단|공사(?!비)|진흥원|재단/
 const GOV_RE = /정부|부처|시청|구청|도청|군청|청(?=\s|$)/
+/** 「기존 STD 고객」 「STD 쓰던」 「STD 사용 중」 — 지금 고르는 에디션이 아니라 이미 쓰는 에디션이다 */
+const PRIOR_RE = /(?:기존|쓰던|쓰고\s*있는|사용\s*중인?)\s*(std|ent|표준형|엔터프라이즈)|(std|ent|표준형|엔터프라이즈)\s*(?:쓰던|쓰는|사용\s*중|기존\s*고객|고객)/i
+
+function priorOf(text: string): { edition: 'STD' | 'ENT' | null; span: string | null } {
+  const m = PRIOR_RE.exec(text)
+  if (!m) return { edition: null, span: null }
+  const w = (m[1] ?? m[2]).toLowerCase()
+  return { edition: w === 'ent' || w === '엔터프라이즈' ? 'ENT' : 'STD', span: m[0] }
+}
+
 const EDITION_WORDS: Record<'STD' | 'ENT', RegExp> = {
   STD: /\bstd\b|표준형|스탠다드|standard/i,
   ENT: /\bent\b|엔터프라이즈|enterprise/i,
@@ -289,6 +301,8 @@ export function readClause(c: Clause, catalog: Catalog): Reading {
   const hourM = text.match(HOUR_RE)
   const discM = text.match(DISCOUNT_RE)
   const { gpus, spans: gpuSpans } = readGpus(text)
+  const prior = priorOf(text)
+  if (prior.span) spans.push(prior.span)
   spans.push(...gpuSpans)
 
   const months = monthM ? take(monthM, num(monthM[1])) : yearM && !amount ? take(yearM, (num(yearM[1]) ?? 0) * 12) : null
@@ -312,7 +326,8 @@ export function readClause(c: Clause, catalog: Catalog): Reading {
     training: take(trainM, firstNum(trainM)),
     productId,
     itemIds: [...new Set(itemIds)],
-    edition: editionOf(text),
+    edition: editionOf(prior.span ? text.replace(prior.span, ' ') : text),
+    priorEdition: prior.edition,
     maintenance: maintenanceOf(text),
     discountPct: take(discM, firstNum(discM)),
     vat: VAT_IN_RE.test(text) ? 'INCLUDED' : VAT_EX_RE.test(text) ? 'EXCLUDED' : null,
@@ -334,6 +349,7 @@ function isRead(r: Reading): boolean {
     || r.months !== null || r.hours !== null || r.gpus.length > 0 || r.nodes !== null || r.training !== null
     || r.productId !== null || r.itemIds.length > 0 || r.edition !== null || r.maintenance !== null
     || r.discountPct !== null || r.vat !== null || r.budgetMinor !== null || r.companyKind !== null || r.install
+    || r.priorEdition !== null
 }
 
 export function readText(text: string, catalog: Catalog): Reading[] {

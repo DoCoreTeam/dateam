@@ -30,6 +30,7 @@ import type { PriceProduct } from '../domain/pricebook/types.ts'
 import { listPriceProducts, loadEngineProduct } from './pricebook.ts'
 import { listLaborGrades, toGradeRefs } from './labor-grade.ts'
 import { adapterFromSetting } from './quick-create.ts'
+import { loadOwnedItemsForDeal, type OwnedItems } from './owned-items.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Tx = any
@@ -53,6 +54,8 @@ export const TextFillInputSchema = z.object({
   text: z.string().max(MAX_TEXT_LENGTH),
   lines: z.array(ClientLineSchema).max(MAX_LINES).default([]),
   companyKind: z.enum(COMPANY_KINDS).nullable().default(null),
+  /** 이 견적의 딜 — 회사가 지난 계약에서 산 품목을 찾는다(전환 품목) */
+  dealId: nullableStr(60).default(null),
   /** auto: 못 읽은 조각이 있으면 AI, off: 규칙만 */
   ai: z.enum(['auto', 'off']).default('auto'),
   /** fill: 글을 표로, review: 사람이 「AI로 한 번 더 보기」를 눌렀을 때만 */
@@ -132,6 +135,7 @@ export interface Loaded {
   items: StandaloneItem[]
   laborGrades: ComposeContext['laborGrades']
   gpuPrice: (model: string) => GpuPriceRef | null
+  owned?: OwnedItems
 }
 
 export type CallAi = (input: ReturnType<typeof buildTextReadInput>) => Promise<{ output: TextReadOutput; runId: string | null; switchedNote?: string | null }>
@@ -176,6 +180,7 @@ export async function fillCore(loaded: Loaded, input: TextFillInput, callAi: Cal
 
   const ctx: ComposeContext = {
     products, items, laborGrades: loaded.laborGrades, gpuPrice: loaded.gpuPrice, companyKind: input.companyKind as CompanyKind | null,
+    owned: loaded.owned,
   }
   const result = runTextFill(ruleReadings, finalReadings, ctx, input.lines as ClientLine[], products)
   return { ...result, aiStatus, byAi, aliases, aiCache: output ? { key, output } : null, runId, switchedNote }
@@ -188,10 +193,11 @@ export async function fillQuoteFromText(
   deps: TextFillDeps = {},
 ): Promise<TextFillResponse> {
   const db = getCrmDb(workspaceId)
-  const [{ catalog, products, items }, grades, gpuPrice] = await Promise.all([
+  const [{ catalog, products, items }, grades, gpuPrice, owned] = await Promise.all([
     loadCatalog(db),
     listLaborGrades(db),
     deps.gpuPrice ? deps.gpuPrice(db) : Promise.resolve(() => null),
+    loadOwnedItemsForDeal(db, input.dealId),
   ])
   const callAi: CallAi = async (readInput) => {
     const chosen = deps.adapter ?? await adapterFromSetting(db, { actorId })
@@ -205,7 +211,7 @@ export async function fillQuoteFromText(
     })
     return { output: r.output, runId: r.runId, switchedNote: r.switchedNote ?? null }
   }
-  return fillCore({ catalog, products, items, laborGrades: toGradeRefs(grades), gpuPrice }, input, callAi)
+  return fillCore({ catalog, products, items, laborGrades: toGradeRefs(grades), gpuPrice, owned }, input, callAi)
 }
 
 // ── AI 검토 — 사람이 누를 때만 ──────────────────────────────────────────────

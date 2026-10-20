@@ -26,6 +26,8 @@ interface Props {
 interface ProductRow { id: string; name: string }
 interface ItemRow { id: string; name: string; section: string | null; basis: string; isActive: boolean }
 interface GpuDraft { model: string; count: string; timed: boolean }
+/** 전환 규칙 — 이미 산 품목(from)이 있어야 들어가는 품목(item) */
+interface UpgradeRule { item: string; from: string; to: string }
 interface Preview {
   result: {
     lines: EngineLineJson[]
@@ -49,6 +51,10 @@ export default function QuoteProductFill({ dealId, draft, onDraftChange, onClose
   const [gpus, setGpus] = useState<GpuDraft[]>([{ model: '', count: '', timed: false }])
   const [nodes, setNodes] = useState('')
   const [kind, setKind] = useState<CompanyKind | ''>('')
+  const [upgrades, setUpgrades] = useState<UpgradeRule[]>([])
+  // 이미 산 품목 — 지난 계약에서 읽어 미리 켜 두고, 사람이 끄거나 켤 수 있다
+  const [owned, setOwned] = useState<string[]>([])
+  const [ownedEvidence, setOwnedEvidence] = useState<Record<string, string>>({})
   const [out, setOut] = useState<Preview | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,6 +76,11 @@ export default function QuoteProductFill({ dealId, draft, onDraftChange, onClose
           if (guess) setKind(guess.kind)
         }
       } catch { /* 기관 종류를 못 읽어도 채우기는 된다 */ }
+      try {
+        const res = await fetch(`/api/crm/deals/${dealId}/owned-items`, { cache: 'no-store' })
+        const body = await res.json()
+        if (res.ok) { setOwned(body.itemIds ?? []); setOwnedEvidence(body.evidence ?? {}) }
+      } catch { /* 지난 계약을 못 읽어도 사람이 체크하면 된다 */ }
     })()
   }, [dealId]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -82,6 +93,8 @@ export default function QuoteProductFill({ dealId, draft, onDraftChange, onClose
         if (!res.ok) { setError(body?.error?.message ?? '제품을 불러오지 못했어요.'); return }
         setItems((body.items ?? []).filter((i: ItemRow) => i.isActive))
         setSections(Array.isArray(body.product?.sections) ? body.product.sections : [])
+        setUpgrades((body.rules ?? []).filter((r: { kind: string; isEnabled?: boolean }) => r.kind === 'UPGRADE' && r.isEnabled !== false)
+          .map((r: { body: UpgradeRule }) => r.body))
       } catch { setError('제품을 불러오지 못했어요.') }
     })()
   }, [productId])
@@ -93,7 +106,9 @@ export default function QuoteProductFill({ dealId, draft, onDraftChange, onClose
     training: null,
     companyKind: kind || null,
     discount: kind ? 'auto' : 'none',
-  }), [picked, gpus, nodes, kind])
+    owned,
+    ownedNote: owned.map((id) => ownedEvidence[id]).find(Boolean) ?? null,
+  }), [picked, gpus, nodes, kind, owned, ownedEvidence])
 
   const run = async () => {
     if (!productId) { setError('제품을 고르세요.'); return }
@@ -154,6 +169,18 @@ export default function QuoteProductFill({ dealId, draft, onDraftChange, onClose
                 <NbButton variant="ghost" aria-label={ACTION.delete} onClick={() => setGpus((gs) => gs.filter((_, j) => j !== k))}><Trash2 size={14} /></NbButton>
               </div>
             ))}
+            {/* 전환 품목은 지난 계약이 정한다 — 찾았으면 근거와 함께 켜 두고, 사람이 고칠 수 있다 */}
+            {upgrades.map((u) => {
+              const fromName = items.find((i) => i.id === u.from)?.name ?? u.from
+              const on = owned.includes(u.from)
+              return (
+                <label key={u.item} className={styles.ownedRow}>
+                  <input type="checkbox" checked={on} onChange={() => setOwned((o) => (on ? o.filter((x) => x !== u.from) : [...o, u.from]))} />
+                  {PRICEBOOK.ownedFrom(fromName)}
+                  <span className={styles.small}>{ownedEvidence[u.from] ? PRICEBOOK.ownedEvidence(ownedEvidence[u.from]) : PRICEBOOK.ownedNone}</span>
+                </label>
+              )
+            })}
             <div className={styles.inline}>
               <NbButton variant="ghost" onClick={() => setGpus((gs) => [...gs, { model: '', count: '', timed: false }])}><Plus size={14} /> GPU</NbButton>
               <input className="input-field" aria-label="노드 수" inputMode="numeric" placeholder="노드 수(비우면 기본 포함)" value={nodes} onChange={(e) => setNodes(e.target.value.replace(/\D/g, ''))} />
