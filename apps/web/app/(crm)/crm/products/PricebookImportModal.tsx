@@ -5,11 +5,12 @@
 // 올리기 → 읽기(AI 가 적힌 그대로 옮기고 규칙이 검증 2~6) → 나란히 보기(검증 7) → 저장(한 트랜잭션).
 // 걸린 줄도 채운 채로 저장한다. 그 줄만 색이 다르고 「확인 전」으로 남아 견적의 자동 채움 기준에서 빠진다.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import WaitProgress from '@/components/ui/WaitProgress'
+import FileDropZone from '@/components/ui/FileDropZone'
 import { ACTION, PRICEBOOK, IMPORT_CHECK_LABEL, RULE_KIND_LABEL, progress } from '@/lib/terms'
 import { waitProgress } from '@/lib/ui/wait-progress'
 import styles from './pricebook.module.css'
@@ -40,9 +41,10 @@ interface Props {
 
 const won = (v: string | null) => (v === null ? PRICEBOOK.survey : `${Number(v).toLocaleString('ko-KR')}원`)
 const TICK_MS = 1_000
+const ACCEPT = ['.xlsx', '.xls', '.csv', '.pdf', '.docx', '.hwp', '.hwpx', '.png', '.jpg', '.jpeg'] as const
 
 export default function PricebookImportModal({ target, productId = null, onClose, onSaved }: Props) {
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState<'read' | 'save' | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -56,7 +58,6 @@ export default function PricebookImportModal({ target, productId = null, onClose
   }, [busy])
 
   const read = async () => {
-    const file = fileRef.current?.files?.[0]
     if (!file) { setError('가격표 파일을 골라 주세요.'); return }
     setBusy('read')
     setElapsed(0)
@@ -119,10 +120,7 @@ export default function PricebookImportModal({ target, productId = null, onClose
       <div className={styles.form}>
         <FormErrorBanner message={error} />
         {!out && (
-          <div className={styles.field}>
-            <label className="label" htmlFor="pb-file">엑셀, PDF, 워드, 한글, 이미지</label>
-            <input id="pb-file" ref={fileRef} type="file" className="input-field" accept=".xlsx,.xls,.csv,.pdf,.docx,.hwp,.hwpx,.png,.jpg,.jpeg" />
-          </div>
+          <FileDropZone file={file} onChange={(f) => { setFile(f); setError(null) }} accept={ACCEPT} kindsLabel={PRICEBOOK.importAccepts} disabled={busy !== null} />
         )}
         {busy === 'read' && <WaitProgress message={w.message} elapsedLabel={w.elapsedLabel} reassure={w.reassure} />}
         {d && out && (

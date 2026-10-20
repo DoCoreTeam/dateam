@@ -109,6 +109,7 @@ export const PRICEBOOK = {
   ownedFrom: (name: string) => `기존 ${name} 고객`,
   ownedEvidence: (note: string) => `지난 계약: ${note}`,
   ownedNone: '지난 계약에서 찾지 못함',
+  importAccepts: '엑셀, PDF, 워드, 한글, 이미지',
 } as const
 
 export const ITEM_BASIS_LABEL: Record<ItemBasis, string> = {

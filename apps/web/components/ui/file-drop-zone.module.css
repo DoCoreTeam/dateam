@@ -1,0 +1,26 @@
+/* 파일 놓는 자리 — 점선 면, 끌고 있으면 색이 바뀐다 */
+
+.zone {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-6) var(--space-4);
+  border: var(--border-w) dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-bg);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--duration-fast, 150ms), background var(--duration-fast, 150ms);
+}
+.zone:hover { border-color: var(--brand); }
+.zone:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.over { border-color: var(--brand); border-style: solid; background: var(--info-bg); }
+.filled { border-style: solid; background: var(--card-bg, #fff); }
+.disabled { cursor: not-allowed; opacity: 0.6; }
+
+.icon { color: var(--text-faint); }
+.over .icon, .filled .icon { color: var(--brand); }
+.prompt { font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
+.name { font-size: var(--fs-sm); font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.hint { font-size: var(--fs-xs); color: var(--text-faint); }
+.rejected { margin: var(--space-2) 0 0; font-size: var(--fs-xs); color: var(--danger); }

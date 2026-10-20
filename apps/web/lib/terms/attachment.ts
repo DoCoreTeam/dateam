@@ -53,3 +53,12 @@ export const ATTACHMENT_MIME_OK: readonly string[] = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]
+
+/** 파일 놓는 자리(FileDropZone) — 끌어 놓기와 눌러 고르기가 한 자리다 */
+export const FILE_DROP = {
+  prompt: '파일을 여기에 끌어다 놓거나 눌러서 고르세요',
+  over: '여기에 놓으세요',
+  replace: '다른 파일로 바꾸기',
+  accepts: (kinds: string) => `받는 파일: ${kinds}`,
+  rejected: (name: string, kinds: string) => `「${name}」은 받지 않는 형식이에요. ${kinds} 파일을 놓아 주세요.`,
+} as const
