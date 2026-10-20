@@ -131,6 +131,31 @@ export interface ProductInput {
   tcoYears?: number | null
   freeYears?: number | null
   isActive?: boolean
+  /** 묶음 이름 바꾸기 — 그 묶음의 품목, 비율의 대상 묶음, 규모 조정 규칙이 같이 바뀐다 */
+  sectionRenames?: SectionRename[] | null
+}
+
+export interface SectionRename { from: string; to: string }
+
+/** 이름 바꾸기 입력을 거른다 (순수 함수). 같은 이름, 빈 이름, 겹치는 새 이름은 버리거나 거절 */
+export function cleanRenames(v: unknown): SectionRename[] {
+  if (!Array.isArray(v)) return []
+  const out: SectionRename[] = []
+  for (const x of v.slice(0, 50)) {
+    const from = String((x as SectionRename)?.from ?? '').trim().slice(0, 100)
+    const to = String((x as SectionRename)?.to ?? '').trim().slice(0, 100)
+    if (!from || !to || from === to) continue
+    if (out.some((r) => r.to === to)) throw new CrmError('VALIDATION_FAILED', `묶음 이름 「${to}」이 겹쳐요.`, { field: 'sections' })
+    out.push({ from, to })
+  }
+  return out
+}
+
+/** 이름을 바꾼 뒤에도 모든 품목의 묶음이 묶음 목록에 있나 — 품목이 남은 묶음은 못 지운다 (순수 함수) */
+export function orphanSections(itemSections: readonly (string | null)[], sectionNames: readonly string[], renames: readonly SectionRename[]): string[] {
+  const after = (s: string) => renames.find((r) => r.from === s)?.to ?? s
+  const names = new Set(sectionNames)
+  return [...new Set(itemSections.filter((s): s is string => Boolean(s)).map(after).filter((s) => !names.has(s)))]
 }
 
 function sectionsData(v: ProductSection[] | null | undefined): ProductSection[] | undefined {
@@ -192,6 +217,20 @@ export async function updatePriceProduct(
     if (input.descriptionMd !== undefined) data.descriptionMd = input.descriptionMd?.trim() || null
     const sections = sectionsData(input.sections)
     if (sections) data.sections = sections
+    const renames = cleanRenames(input.sectionRenames)
+    if (sections) {
+      const items: { section: string | null }[] = await tx.crmProduct.findMany({ where: { priceProductId: id, isActive: true }, select: { section: true } })
+      const orphan = orphanSections(items.map((i) => i.section), sections.map((s) => s.name), renames)
+      if (orphan.length > 0) throw new CrmError('VALIDATION_FAILED', `품목이 남은 묶음은 지울 수 없어요: ${orphan.join(', ')}. 품목을 다른 묶음으로 옮긴 뒤 지우세요.`, { field: 'sections' })
+    }
+    for (const r of renames) {
+      await tx.crmProduct.updateMany({ where: { priceProductId: id, section: r.from }, data: { section: r.to } })
+      await tx.crmProduct.updateMany({ where: { priceProductId: id, ratioOfSection: r.from }, data: { ratioOfSection: r.to } })
+      const rules: { id: string; body: Record<string, unknown> }[] = await tx.crmPriceRule.findMany({ where: { productId: id, kind: 'SCALE_CAP' }, select: { id: true, body: true } })
+      for (const rule of rules.filter((x) => x.body?.section === r.from)) {
+        await tx.crmPriceRule.update({ where: { id: rule.id }, data: { body: { ...rule.body, section: r.to } } })
+      }
+    }
     if (input.tcoYears !== undefined) data.tcoYears = clampYears(input.tcoYears, before.tcoYears)
     if (input.freeYears !== undefined) data.freeYears = clampYears(input.freeYears, before.freeYears, 0)
     if (input.isActive !== undefined) data.isActive = input.isActive
@@ -282,12 +321,17 @@ export async function confirmItem(workspaceId: string, actorId: string | null, i
 
 // ── 규칙 ──────────────────────────────────────────────────────────────────
 
+/** 사람이 끈 규칙의 사유 — 모양이 틀려 꺼진 것과 갈라 보인다 */
+export const HUMAN_OFF = '사람이 끔'
+
 /**
  * 규칙을 통째로 바꾼다. 모양이 틀린 규칙은 끈 채로 저장하고 사유를 남긴다.
  * 바로 삭제지만 감사 기록에 앞뒤가 남는다.
  */
 export async function replaceRules(
   workspaceId: string, actorId: string | null, productId: string, version: number, rules: readonly PriceRule[],
+  /** 사람이 켜고 끈 것 — 같은 자리의 규칙. 비면 전부 켬 */
+  enabled: readonly boolean[] = [],
 ): Promise<{ disabled: number }> {
   return withCrmTx(workspaceId, async (tx: Tx) => {
     const p = await tx.crmPriceProduct.findFirst({ where: { id: productId }, select: PRODUCT_SELECT })
@@ -305,8 +349,9 @@ export async function replaceRules(
     for (let i = 0; i < rules.length; i++) {
       const row = ruleToRow(rules[i], i)
       const reason = reasonOf.get(i) ?? null
+      const off = enabled[i] === false
       await tx.crmPriceRule.create({
-        data: { workspaceId, productId, ...row, isEnabled: reason === null, disabledReason: reason },
+        data: { workspaceId, productId, ...row, isEnabled: reason === null && !off, disabledReason: reason ?? (off ? HUMAN_OFF : null) },
       })
     }
     await writeAudit(tx, { actorType: 'HUMAN', actorId, action: 'price_rule.replaced', targetType: 'price_product', targetId: productId, beforeJson: before, afterJson: rules })

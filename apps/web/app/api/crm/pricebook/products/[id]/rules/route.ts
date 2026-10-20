@@ -10,6 +10,8 @@ type Ctx = { params: Promise<{ id: string }> }
 export async function PUT(req: NextRequest, { params }: Ctx) {
   return withCrmApi('ADMIN', async ({ session }) => {
     const body = await readJson(req)
-    return replaceRules(session.workspaceId, session.memberId, (await params).id, requireVersion(body), parseRules(body.rules))
+    // 켬과 끔 — 규칙과 같은 자리. 불이 아닌 값은 켬으로 본다
+    const enabled = Array.isArray(body.enabled) ? body.enabled.map((x: unknown) => x !== false) : []
+    return replaceRules(session.workspaceId, session.memberId, (await params).id, requireVersion(body), parseRules(body.rules), enabled)
   })
 }
