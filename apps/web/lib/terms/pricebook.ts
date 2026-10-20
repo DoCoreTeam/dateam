@@ -39,6 +39,13 @@ export const PRICEBOOK = {
   dragHint: '손잡이를 끌어 순서를 바꾸고, 다른 묶음 칸에 놓으면 그 묶음으로 옮겨요',
   bulkDone: (n: number) => `${n}개를 바꿨어요`,
   searching: '찾는 동안에는 순서를 바꿀 수 없어요',
+  // 규칙과 할인 탭(P0138)
+  ruleTurnOn: '켜기',
+  ruleTurnOff: '끄기',
+  confirmProposal: '제안값 확정',
+  ruleDeleteTitle: '이 규칙을 지울까요?',
+  ruleOffReason: (reason: string) => `꺼 둠: ${reason}`,
+  rulesDisabled: (n: number) => `규칙 ${n}개는 모양이 맞지 않아 끈 채로 저장했어요. 사유를 보고 고치세요.`,
   stopSale: '판매 중지',
   resumeSale: '다시 판매',
   unsorted: '정리 전',

@@ -17,28 +17,32 @@ interface Props {
   discountOnly: boolean
   onClose: () => void
   onAdd: (rule: PriceRule) => void
+  /** 고치기 — 있으면 그 값으로 채워 열린다 */
+  initial?: PriceRule | null
 }
 
 const CLASSES: GpuClass[] = ['DC', 'WS', 'CONSUMER', 'NPU']
 const KINDS_WITH_LIST: RuleKind[] = ['ONE_OF', 'WITH', 'INCLUDES']
 
-export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Props) {
+export default function RuleAddModal({ items, discountOnly, onClose, onAdd, initial = null }: Props) {
   const kinds = discountOnly ? (['DISCOUNT'] as RuleKind[]) : RULE_KINDS.filter((k) => k !== 'DISCOUNT')
-  const [kind, setKind] = useState<RuleKind>(kinds[0])
-  const [item, setItem] = useState(items[0]?.id ?? '')
+  // 고칠 때는 그 규칙의 값으로 채운다. 종류마다 칸이 달라 느슨하게 꺼낸다
+  const init = (initial ?? {}) as Record<string, unknown>
+  const [kind, setKind] = useState<RuleKind>(initial?.kind ?? kinds[0])
+  const [item, setItem] = useState(typeof init.item === 'string' ? init.item : items[0]?.id ?? '')
   // 전환: 이미 산 품목(from) → 바꿀 품목(to)
-  const [from, setFrom] = useState(items[0]?.id ?? '')
-  const [to, setTo] = useState(items[1]?.id ?? items[0]?.id ?? '')
-  const [list, setList] = useState<string[]>([])
-  const [varKey, setVarKey] = useState<VarKey>('gpu.total')
-  const [num, setNum] = useState('')
-  const [minus, setMinus] = useState(false)
-  const [classes, setClasses] = useState<GpuClass[]>(['WS', 'CONSUMER', 'NPU'])
-  const [companyKind, setCompanyKind] = useState<CompanyKind | 'partner'>('school')
-  const [label, setLabel] = useState('')
-  const [includesVar, setIncludesVar] = useState(false)
+  const [from, setFrom] = useState(typeof init.from === 'string' ? init.from : items[0]?.id ?? '')
+  const [to, setTo] = useState(typeof init.to === 'string' ? init.to : items[1]?.id ?? items[0]?.id ?? '')
+  const [list, setList] = useState<string[]>(Array.isArray(init.items) ? init.items as string[] : Array.isArray(init.with) ? init.with as string[] : [])
+  const [varKey, setVarKey] = useState<VarKey>((init.varKey as VarKey) ?? 'gpu.total')
+  const [num, setNum] = useState(String(init.max ?? init.qty ?? init.pct ?? init.perUnitMinor ?? ''))
+  const [minus, setMinus] = useState(init.minusIncluded === true)
+  const [classes, setClasses] = useState<GpuClass[]>(Array.isArray(init.classes) ? init.classes as GpuClass[] : ['WS', 'CONSUMER', 'NPU'])
+  const [companyKind, setCompanyKind] = useState<CompanyKind | 'partner'>((init.companyKind as CompanyKind | 'partner') ?? 'school')
+  const [label, setLabel] = useState(typeof init.label === 'string' ? init.label : '')
+  const [includesVar, setIncludesVar] = useState(Boolean(init.varKey) && initial?.kind === 'INCLUDES')
   const sections = [...new Set(items.map((i) => i.section ?? '기타'))]
-  const [section, setSection] = useState(sections[0] ?? '')
+  const [section, setSection] = useState(typeof init.section === 'string' ? init.section : sections[0] ?? '')
   const [error, setError] = useState<string | null>(null)
 
   const toggle = (id: string) => setList((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))
@@ -60,7 +64,7 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
         return n > 0 && section ? { kind, section, varKey, perUnitMinor: Math.round(n) } : '묶음과 단위 금액(원)을 넣으세요'
       case 'DISCOUNT':
         if (!(n >= 0 && n <= 100) || num === '') return '할인율을 0에서 100 사이로 넣으세요'
-        return { kind, companyKind, pct: n, confirmed: false, label: label.trim() || (companyKind === 'partner' ? '파트너 공급' : COMPANY_KIND_LABEL[companyKind]) }
+        return { kind, companyKind, pct: n, confirmed: init.confirmed === true, label: label.trim() || (companyKind === 'partner' ? '파트너 공급' : COMPANY_KIND_LABEL[companyKind]) }
     }
   }
 
@@ -76,7 +80,7 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd }: Pr
 
   return (
     <NbModal
-      title={discountOnly ? `${PRICEBOOK.detailDiscounts} 추가` : `${PRICEBOOK.detailRules} 추가`}
+      title={`${discountOnly ? PRICEBOOK.detailDiscounts : PRICEBOOK.detailRules} ${initial ? ACTION.edit : '추가'}`}
       onClose={onClose}
       maxWidth={600}
       footer={(
