@@ -578,8 +578,6 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     onChange={(e) => setLine(i, { unitPriceMinor: e.target.value.replace(/[^\d]/g, '') })}
                     placeholder="0"
                   />
-                  <LineSource line={line} />
-                  <LineTextLink line={line} />
                 </div>
                 <div className={`${styles.field} ${styles.colDisc}`}>
                   <label className="label" htmlFor={`ln-disc-${i}`}>{QUOTE.lineDiscount} %</label>
@@ -655,12 +653,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     </button>
                   )}
                 </div>
-                {/* 산식은 **저장 전에** 보여야 쓸모가 있다 — 두 축이 곱해졌는지 그 자리에서 본다 */}
-                <QuoteLineFormula text={lineFormulaText(
-                  line,
-                  amounts.lineTotalMinor.toString(),
-                  (m) => formatAmount(m, draft.currency) ?? m,
-                )} />
+                {/*
+                  산식은 **저장 전에** 보여야 쓸모가 있다 — 두 축이 곱해졌는지 그 자리에서 본다.
+                  단가의 출처(가격 기준, 글 몇째 줄)도 이 줄에 선다. 단가 칸 밑에 두면 그 칸만 길어져
+                  둘째 행 입력칸이 어긋나고, 칸 폭으로 늘어난 표식이 빈 입력칸처럼 보였다(실측 2026-10-20).
+                */}
+                <div className={styles.lineFoot}>
+                  <QuoteLineFormula text={lineFormulaText(
+                    line,
+                    amounts.lineTotalMinor.toString(),
+                    (m) => formatAmount(m, draft.currency) ?? m,
+                  )} />
+                  <LineSource line={line} />
+                  <LineTextLink line={line} />
+                </div>
               </>
             )
           }}

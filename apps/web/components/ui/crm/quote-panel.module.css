@@ -226,6 +226,11 @@
     도움말이 길어지면 또 어긋난다. **기준선을 라벨 위쪽으로 옮긴다.**
   */
   .colSection, .colKind, .colRole, .colName, .colSpec { align-self: start; }
+  /*
+    격자 칸의 기본 최소 폭은 내용 폭이다. 품목 이름이 길면 칸이 줄지 않고 규격 칸 위로 넘쳤다
+    (실측 2026-10-20 「GPU 워크스테이션·데스크톱·NPU 상시」). 줄여야 고르기 칸이 말줄임을 한다.
+  */
+  .colSection, .colKind, .colRole, .colName, .colSpec { min-width: 0; }
 
 
   /* 묶음이 있으면 앞 행이 넷이 된다 — 품목·규격이 한 칸씩 내준다 */
@@ -236,17 +241,26 @@
     합이 11이 되면서 **금액과 삭제 버튼이 다음 줄로 밀렸다**(v0.7.695 실측).
     첫 행에만 두면 둘째 행 배분(12칸)을 하나도 건드리지 않는다.
   */
-  .colOrder { grid-column: span 2; align-self: end; }
+  /* 손잡이는 카드 위쪽에 — 바닥에 두면 규격 칸이 길 때 카드 한가운데 떠 있다(실측 2026-10-20) */
+  .colOrder { grid-column: span 2; align-self: start; padding-top: var(--space-5); }
   .colSection { grid-column: span 2; }
   .colKind    { grid-column: span 2; }
   .colName    { grid-column: span 4; }
   .colSpec    { grid-column: span 4; }
-  .colSection ~ .colName { grid-column: span 4; }
-  .colSection ~ .colSpec { grid-column: span 4; }
-  /* 역할이 끼면 앞 행이 좁아진다 — 역할은 품목에서 한 칸, 규격에서 두 칸을 빌린다 */
-  .colRole    { grid-column: span 3; }
-  .colRole ~ .colName { grid-column: span 4; }
+  /*
+    묶음이 있으면 앞 행이 다섯이 된다 — 품목과 규격이 한 칸씩 내준다.
+    예전엔 주석만 그렇게 말하고 값은 4 그대로라 14칸이 됐다. 규격이 둘째 행으로 밀리고
+    둘째 행 끝의 특별 할인, 부가세, 금액이 셋째 행으로 떨어졌다(실측 2026-10-20 사용자 화면).
+  */
+  .colSection ~ .colName { grid-column: span 3; }
+  .colSection ~ .colSpec { grid-column: span 3; }
+  /* 역할도 같은 방식 — 역할 두 칸을 품목과 규격이 한 칸씩 낸다 */
+  .colRole    { grid-column: span 2; }
+  .colRole ~ .colName { grid-column: span 3; }
   .colRole ~ .colSpec { grid-column: span 3; }
+  /* 묶음과 역할이 다 있으면 품목과 규격이 두 칸씩 */
+  .colSection ~ .colRole ~ .colName { grid-column: span 2; }
+  .colSection ~ .colRole ~ .colSpec { grid-column: span 2; }
 
   /* 공급 기간 — 시간으로 파는 줄에만 선다. 둘이 나란히 서야 「언제부터 언제까지」로 읽힌다 */
   .colPeriod  { grid-column: span 3; }
@@ -1120,6 +1134,20 @@
   「936,000원 × 17대 × 2개월 = 31,824,000원」. 치는 즉시 따라 움직여서,
   저장하기 전에 두 축이 제대로 곱해졌는지 눈으로 본다.
 */
+/* 줄 밑 한 줄 — 산식과 단가의 출처 표식. 셋 다 없으면 줄째 숨는다 */
+.lineFoot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  padding-top: var(--space-1);
+  border-top: var(--border-w) dashed var(--border-light);
+  min-width: 0;
+}
+.lineFoot:empty { display: none; }
+.lineFoot > .lineFormula { flex: 1 1 auto; padding-top: 0; border-top: 0; }
+
 .lineFormula {
   grid-column: 1 / -1;
   display: flex;

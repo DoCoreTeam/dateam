@@ -118,6 +118,38 @@ test('★ 두 행 모두 정확히 12칸이다 — 하나라도 어긋나면 그
   assert.equal(second, 12, `둘째 행이 ${second}칸이다`)
 })
 
+/*
+  위 시험은 묶음도 역할도 없는 줄만 셌다. 묶음이 있는 견적(거의 전부)은 첫 행이 14칸이었고
+  규격이 둘째 행으로, 금액이 셋째 행으로 떨어졌는데 초록이었다(실측 2026-10-20).
+  첫 행에 설 수 있는 조합을 다 센다. 형제 선택자는 더 긴 것이 이긴다(명시도).
+*/
+test('★ 묶음, 역할이 끼어도 첫 행은 12칸이다', () => {
+  const spanOf = (sel: string): number => {
+    const esc = sel.replace(/\./g, '\\.').replace(/ ~ /g, '\\s*~\\s*')
+    const m = PANEL.match(new RegExp(`(?:^|\\n)\\s*${esc}\\s*\\{[^}]*grid-column: span (\\d+)`))
+    return m ? Number(m[1]) : NaN
+  }
+  const pick = (cls: string, before: string[]): number => {
+    // 앞선 형제 조합 중 가장 긴 규칙이 이긴다
+    for (let n = before.length; n >= 0; n--) {
+      const v = spanOf([...before.slice(0, n).map((b) => `.${b}`), `.${cls}`].join(' ~ '))
+      if (!Number.isNaN(v)) return v
+    }
+    throw new Error(`${cls} 의 span 을 못 찾았다`)
+  }
+  const variants: string[][] = [
+    ['colOrder', 'colKind', 'colName', 'colSpec'],
+    ['colOrder', 'colSection', 'colKind', 'colName', 'colSpec'],
+    ['colOrder', 'colKind', 'colRole', 'colName', 'colSpec'],
+    ['colOrder', 'colSection', 'colKind', 'colRole', 'colName', 'colSpec'],
+  ]
+  for (const row of variants) {
+    const preceding = (i: number) => row.slice(0, i).filter((c) => c === 'colSection' || c === 'colRole')
+    const sum = row.reduce((n, c, i) => n + pick(c, preceding(i)), 0)
+    assert.equal(sum, 12, `${row.join(' + ')} 가 ${sum}칸이다`)
+  }
+})
+
 /* ── ⑤ 항목 줄 머리의 단추 배치 ──────────────────── */
 
 /*
