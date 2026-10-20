@@ -110,6 +110,9 @@ export function lineFormulaText(
     /** 비율 줄이면 몇 % 와 대상 묶음 — 단가 칸은 0 이라 「0원 × 1」이 서면 안 된다 */
     ratioPct?: string | null
     ratioOfSectionName?: string | null
+    /** 할인을 빼고 적으면 곱셈이 금액과 안 맞아 보인다(실측 2026-10-20, × 12장 = 6,492,000원) */
+    discountPercent?: string
+    specialDiscountPercent?: string | null
   },
   lineTotalMinor: string,
   money: MoneyText,
@@ -126,7 +129,13 @@ export function lineFormulaText(
   if (Number.isFinite(dv) && dv > 0 && du && du in DURATION_UNIT_LABEL) {
     parts.push(`${dv.toLocaleString('ko-KR')}${DURATION_UNIT_LABEL[du]}`)
   }
-  return `${parts.join(` ${QUOTE.durationTimesSign} `)} = ${money(lineTotalMinor)}`
+  // 금액에 걸리는 순서대로 — 기본 할인 다음 남은 금액에 특별 할인(quote-math)
+  const cuts = [
+    [Number(line.discountPercent), QUOTE.formulaDiscount],
+    [Number(line.specialDiscountPercent), QUOTE.formulaSpecialDiscount],
+  ] as const
+  const off = cuts.filter(([p]) => Number.isFinite(p) && p > 0).map(([p, text]) => ` ${text(p)}`).join('')
+  return `${parts.join(` ${QUOTE.durationTimesSign} `)}${off} = ${money(lineTotalMinor)}`
 }
 
 /** 금액 칸에 덧붙는 축 한 줄 */

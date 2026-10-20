@@ -182,3 +182,12 @@ test('비율 줄의 셈은 「대상 묶음 × 몇 %」 — 단가 0 이라 「0
   const t = lineFormulaText({ quantity: '1', unit: '연', unitPriceMinor: '0', ratioPct: '15', ratioOfSectionName: '라이선스' }, '11100000', (m) => `${Number(m).toLocaleString('ko-KR')}원`)
   assert.equal(t, '라이선스 × 15% = 11,100,000원')
 })
+
+// 실측 2026-10-20 — 예산에 맞춰 할인 72.95% 가 들어간 줄이 「2,000,000원 × 12장 = 6,492,000원」으로 적혀 곱셈이 틀려 보였다
+test('할인이 있으면 셈에 적는다 — 기본 할인 다음 특별 할인, 금액에 걸리는 순서대로', () => {
+  const won = (m: string) => `${Number(m).toLocaleString('ko-KR')}원`
+  const base = { quantity: '12', unit: '장', unitPriceMinor: '2000000' }
+  assert.equal(lineFormulaText({ ...base, discountPercent: '72.95' }, '6492000', won), '2,000,000원 × 12장 − 할인 72.95% = 6,492,000원')
+  assert.equal(lineFormulaText({ ...base, discountPercent: '10', specialDiscountPercent: '5' }, '20520000', won), '2,000,000원 × 12장 − 할인 10% − 특별 할인 5% = 20,520,000원')
+  assert.equal(lineFormulaText({ ...base, discountPercent: '0', specialDiscountPercent: '' }, '24000000', won), '2,000,000원 × 12장 = 24,000,000원')
+})

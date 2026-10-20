@@ -245,6 +245,9 @@ export const QUOTE = {
   hourUnit: 'h',
   /** 수량과 기간 사이에 서는 곱셈 기호 — 「17 대 × 2개월」 */
   durationTimesSign: '×',
+  /** 셈 글에서 할인을 빼는 조각 — 「− 할인 10%」 「− 특별 할인 5%」 */
+  formulaDiscount: (pct: number) => `− 할인 ${pct}%`,
+  formulaSpecialDiscount: (pct: number) => `− 특별 할인 ${pct}%`,
   /** 시간당 금액이 몇 대 묶음의 값인지 — 「(17대 기준)」 */
   hourlyBasisSuffix: '기준',
 
