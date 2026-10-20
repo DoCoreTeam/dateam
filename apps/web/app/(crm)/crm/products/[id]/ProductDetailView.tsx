@@ -5,7 +5,6 @@
 // 한 번 읽어 탭이 나눠 쓴다. 고치면 다시 읽는다 — 버전 잠금이 있어 옛 값으로 다시 저장하면 거절된다.
 
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Trash2, Upload } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -76,7 +75,6 @@ export default function ProductDetailView({ id }: { id: string }) {
           {!data.product.isActive && <NbBadge status="note">{PRICEBOOK.stopped}</NbBadge>}
         </h2>
         <div className={styles.actions}>
-          <Link href="/crm/products?tab=product">{PRICEBOOK.title}</Link>
           <NbButton variant="ghost" onClick={() => setImporting(true)}><Upload size={14} /> {PRICEBOOK.importFile}</NbButton>
           <NbButton variant="danger-ghost" onClick={() => setDeleting(true)}><Trash2 size={14} /> {ACTION.delete}</NbButton>
         </div>

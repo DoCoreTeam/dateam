@@ -110,6 +110,28 @@ export const PRICEBOOK = {
   ownedEvidence: (note: string) => `지난 계약: ${note}`,
   ownedNone: '지난 계약에서 찾지 못함',
   importAccepts: '엑셀, PDF, 워드, 한글, 이미지',
+  // 기본 정보 탭(P0137 I01b) — 칸마다 이름과 단위, 그 값이 견적에 어떻게 쓰이는지
+  infoProduct: '제품',
+  infoCost: '총비용 계산',
+  infoCostMeta: '미리 계산과 견적의 총비용에 쓰여요',
+  tcoYears: '총비용 기간',
+  freeYears: '유지보수 무상 기간',
+  yearUnit: '년',
+  tcoExplain: (years: number, free: number) => {
+    const paid = Math.max(0, years - free)
+    if (free <= 0) return `${years}년 총비용 = 한 번 내는 금액 + 매년 내는 금액 × ${years}년`
+    return `${years}년 총비용 = 한 번 내는 금액 + 매년 내는 금액 × ${paid}년 (첫 ${Math.min(free, years)}년 무상)`
+  },
+  sectionsMeta: '견적서에 이 순서로 묶여 나와요',
+  sectionsHint: '손잡이를 끌거나 위 아래 단추로 순서를 바꿔요',
+  roundingNone: '절사 안 함',
+  roundingUnder: (unit: string) => `${unit} 미만 절사`,
+  saleStatus: '판매 상태',
+  onSaleHint: '견적의 제품으로 채우기에서 고를 수 있어요',
+  offSaleHint: '견적에서 고를 수 없어요. 지난 견적은 그대로예요',
+  unsaved: '저장하지 않은 변경이 있어요',
+  noChanges: '바뀐 것 없음',
+  discardChanges: '되돌리기',
 } as const
 
 export const ITEM_BASIS_LABEL: Record<ItemBasis, string> = {
