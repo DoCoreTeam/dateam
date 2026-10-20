@@ -47,6 +47,8 @@ import QuoteLineFormula from '@/components/ui/crm/QuoteLineFormula'
 import QuoteProductFill from './quote-fill/QuoteProductFill'
 import LineSource from './quote-fill/LineSource'
 import AutoFilledList from './quote-fill/AutoFilledList'
+import QuoteTextEditor from './quote-fill/QuoteTextEditor'
+import LineTextLink from './quote-fill/LineTextLink'
 import BudgetFit from './quote-fill/BudgetFit'
 import { useProductCatalog } from './quote-fill/use-product-catalog'
 import { priceDraft, lineAmountsOf, lockIfHuman } from './quote-fill/draft-pricing'
@@ -196,6 +198,8 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           autoFilled: draft.autoFilled ?? [],
           fillConditions: draft.fillConditions ?? {},
           fillText: draft.fillText ?? '',
+          // AI 가 읽고 사람이 받아들인 낱말 — 저장되면 품목 별칭이 된다
+          learnedAliases: draft.learnedAliases ?? [],
           /*
             금액 표시도 함께 보낸다. **안 실으면 화면에서 고른 축이 저장하는 순간 사라진다** —
             이 파일의 초안 모양(quote-draft-shape)이 생긴 이유와 같은 사고다.
@@ -355,6 +359,9 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
             onError={setError}
           />
         )}
+
+        {/* 말로 채우기 — 표 위에 늘 열려 있다. 멈추면 표가 고쳐지고 글은 견적과 함께 저장된다 */}
+        {!linesLocked && <QuoteTextEditor dealId={dealId} draft={draft} onDraftChange={setDraft} />}
 
         {draft.sections.length > 0 && (
           <ul className={styles.sectionList}>
@@ -572,6 +579,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
                     placeholder="0"
                   />
                   <LineSource line={line} />
+                  <LineTextLink line={line} />
                 </div>
                 <div className={`${styles.field} ${styles.colDisc}`}>
                   <label className="label" htmlFor={`ln-disc-${i}`}>{QUOTE.lineDiscount} %</label>

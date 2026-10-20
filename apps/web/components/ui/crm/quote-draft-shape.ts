@@ -160,6 +160,8 @@ export interface QuoteDraft {
   fillConditions?: Record<string, unknown> | null
   /** 말로 채우기에 쓴 글 — 견적과 함께 저장되고 다시 열면 그대로 있다 */
   fillText?: string
+  /** 글로 채우기에서 AI 가 읽은 낱말 — 저장하면 품목 별칭이 된다. 견적 칸이 아니다 */
+  learnedAliases?: { itemId: string; word: string }[]
 }
 
 /**

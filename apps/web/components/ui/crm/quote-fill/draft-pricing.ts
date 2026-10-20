@@ -79,8 +79,15 @@ export function lineAmountsOf(p: PricedDraft, i: number, input: QuoteLineInput):
 export function lockIfHuman(line: QuoteLineDraft, patch: Partial<QuoteLineDraft>): QuoteLineDraft {
   const next = { ...line, ...patch }
   const manualPrice = patch.unitPriceMinor !== undefined && patch.provenance === undefined && line.priceSource
-  if (!manualPrice) return next
+  // 글에서 나온 줄은 수량과 할인도 잠근다 — 글을 다시 정리해도 사람이 고친 수가 남게
+  const fromText = typeof (line.provenance as { textKey?: unknown } | null)?.textKey === 'string'
+  const manualQty = fromText && patch.quantity !== undefined && patch.provenance === undefined
+  const manualDisc = fromText && patch.discountPercent !== undefined && patch.provenance === undefined
+  if (!manualPrice && !manualQty && !manualDisc) return next
   const locked = new Set(line.lockedFields ?? [])
+  if (manualQty) locked.add('quantity')
+  if (manualDisc) locked.add('discount')
+  if (!manualPrice) return { ...next, lockedFields: [...locked] }
   locked.add('unitPrice')
   const prov = { ...(line.provenance ?? {}), unitPrice: { source: 'HUMAN', note: null } }
   return { ...next, lockedFields: [...locked], provenance: prov }
