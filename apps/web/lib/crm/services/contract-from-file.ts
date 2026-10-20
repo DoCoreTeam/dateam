@@ -287,16 +287,26 @@ function replaceMatches(html: string, re: RegExp, token: string): { html: string
   return { html: out, count }
 }
 
-export function scrubResidue(source: Clause[], known: KnownSupplier | null): ResidueResult {
-  let filled = 0
+/**
+ * 주민등록번호를 지운다 — **AI 에 보내기 전에.**
+ * 실측 2026-10-21: 지우기를 AI 뒤에 두자 AI 가 앞자리 「800101」 만 생년월일 칸으로 짚어
+ * 뒷자리 「– 1234567」 이 남았고, 온전한 13자리를 찾는 패턴은 그것을 못 봤다. AI 가 못 보게 먼저 지운다.
+ */
+export function scrubRrn(source: Clause[]): { clauses: Clause[]; scrubbed: number } {
   let scrubbed = 0
+  const clauses = source.map((c) => {
+    const rrn = replaceMatches(c.html, RRN, tokenOf('customer.birth'))
+    if (rrn.count === 0) return c
+    scrubbed += rrn.count
+    return { ...c, html: replaceMatches(rrn.html, RRN_LABEL, CONTRACT_FROM_FILE.birthLabel).html }
+  })
+  return { clauses, scrubbed }
+}
+
+export function scrubResidue(source: Clause[], known: KnownSupplier | null): Omit<ResidueResult, 'scrubbed'> {
+  let filled = 0
   let clauses = source.map((c) => {
     let html = c.html
-    const rrn = replaceMatches(html, RRN, tokenOf('customer.birth'))
-    if (rrn.count > 0) {
-      scrubbed += rrn.count
-      html = replaceMatches(rrn.html, RRN_LABEL, CONTRACT_FROM_FILE.birthLabel).html
-    }
     for (const p of known ? supplierPatterns(known) : []) {
       const r = replaceMatches(html, p.re, tokenOf(p.key))
       html = r.html
@@ -321,7 +331,7 @@ export function scrubResidue(source: Clause[], known: KnownSupplier | null): Res
       for (const m of text.matchAll(re)) leftover.push({ clause: i + 1, text: m[0].trim(), kind })
     }
   })
-  return { clauses, filled, scrubbed, leftover }
+  return { clauses, filled, leftover }
 }
 
 // ------------------------------------------------------------
@@ -429,14 +439,14 @@ export async function buildDraft(
   read: { fileName: string; text: string; truncated: boolean; kind?: DetectedKind }, suggest: Suggest,
   known: KnownSupplier | null = null,
 ): Promise<ContractFileDraft> {
-  const base = splitClauses(read.text)
+  const { clauses: base, scrubbed } = scrubRrn(splitClauses(read.text))
   const name = nameFromFile(read.fileName)
   const sourceMime = read.kind ? sourceMimeOf(read.kind, read.fileName) : null
   try {
     const { suggestions, runId } = await suggest(base)
     const done = applySuggestions(base, suggestions)
     const residue = scrubResidue(done.clauses, known)
-    return { name, ...done, ...residue, ai: { status: 'ok' }, truncated: read.truncated, runId, sourceMime }
+    return { name, ...done, ...residue, scrubbed, ai: { status: 'ok' }, truncated: read.truncated, runId, sourceMime }
   } catch (e) {
     /*
       **글은 이미 읽었다.** AI 가 못 했다고 파일 올리기 전체를 실패로 돌리면
@@ -446,7 +456,7 @@ export async function buildDraft(
     const message = e instanceof CrmError ? e.message : CONTRACT_FROM_FILE.aiFailed
     // AI 가 못 해도 주민등록번호 지우기와 우리 회사 값 바꾸기는 한다 — 코드가 아는 일이다
     return {
-      name, ...scrubResidue(base, known), applied: [], rejected: [],
+      name, ...scrubResidue(base, known), scrubbed, applied: [], rejected: [],
       ai: { status: 'failed', message }, truncated: read.truncated, runId: null, sourceMime,
     }
   }

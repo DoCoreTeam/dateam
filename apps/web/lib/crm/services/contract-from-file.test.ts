@@ -285,6 +285,17 @@ test('★ 주민등록번호는 한 자리도 남지 않고 생년월일 칸이 
   assert.equal(d.scrubbed, 1)
 })
 
+test('★ 주민등록번호는 AI 에 보내기 전에 지운다 — 앞자리만 칸으로 짚혀 뒷자리가 남던 것(실측)', async () => {
+  let seen = ''
+  const d = await buildDraft({ fileName: 'x.pdf', text: FILLED, truncated: false }, async (clauses) => {
+    seen = clauses.map((c) => c.html).join('')
+    // 실측과 같은 답 — 앞자리만 생년월일이라고 짚는다
+    return { suggestions: [S(clauses.length, '800101', '고객.생년월일')], runId: 'r' }
+  }, KNOWN)
+  assert.doesNotMatch(seen, /800101|1234567/, 'AI 가 주민등록번호를 봤다')
+  assert.doesNotMatch(d.clauses.map((c) => plain(c.html)).join('\n'), /1234567|800101/)
+})
+
 test('★ 우리 회사 상호 대표자는 AI 없이 칸이 된다 — (주) 변형과 글자 사이 띄어쓰기까지', () => {
   const r = scrubResidue(splitClauses(FILLED), KNOWN)
   const all = r.clauses.map((c) => plain(c.html)).join('\n')

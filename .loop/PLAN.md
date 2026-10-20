@@ -1,6 +1,6 @@
 # PLAN newAX: 계약서 전화번호 칸과 채울 자리, 파일로 만든 템플릿의 값 빼기
 플랜 ID: P0148
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0301
 목표 버전: v0.11.38
@@ -53,7 +53,7 @@
 의존: I01
 
 ### I03 파일로 만들기가 당사자 금액 날인부를 칸으로 빼고 날인부를 떼기
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/contract-from-file.ts, apps/web/lib/crm/services/contract-from-file.test.ts, apps/web/lib/crm/ai/prompts/contract-template-from-doc.v1.ts, apps/web/lib/terms/contract-doc.ts, apps/web/app/(crm)/crm/settings/ContractTemplateFromFile.tsx, apps/web/app/api/crm/contract-templates/from-file/route.ts
 감사 기준:
@@ -63,6 +63,15 @@
 - 우리 회사 설정값(상호 대표자 사업자번호 주소 전화번호)은 AI 없이 글자 사이 띄어쓰기와 (주) 주식회사 변형까지 칸으로 바뀌는 단정 통과
 - 남은 전화번호 사업자번호 금액 날짜를 세어 결과 화면에 「남은 값 n곳」으로 알리는 단정 통과, 라우트는 인증 장치를 그대로 부름
 의존: I02
+
+### I03a 주민등록번호를 AI 에 보내기 전에 지우기
+상태: 통과
+모드: 경량
+범위: apps/web/lib/crm/services/contract-from-file.ts, apps/web/lib/crm/services/contract-from-file.test.ts
+감사 기준:
+- 보안: AI 가 받는 조항에 주민등록번호 숫자가 없는 단정 통과 (실측 AI 가 앞자리만 짚어 뒷자리가 남던 것)
+- 실브라우저 가짜 계약서 올리기에서 초안 본문에 주민등록번호 숫자 0자리, 「생년월일 : {{고객.생년월일}}」
+의존: I03
 
 ### I04 실브라우저 확인
 상태: 대기
@@ -81,3 +90,4 @@
 ## 변경 이력
 - v0.1.0 (2026-10-20) 최초 작성 (ins_0301)
 - v0.1.1 (2026-10-20) I03 범위에 결과 숫자를 싣는 라우트 추가, 우리 회사 설정값 기준 칸 바꾸기 기준 추가, 실브라우저 확인을 I04 로 분리 (사용자 추가 지적 금액 날인부 회사명) (iv_0285)
+- v0.1.2 (2026-10-20) I04 실브라우저에서 AI 가 주민등록번호 앞자리만 생년월일로 짚어 뒷자리가 남는 것을 잡음, 지우기를 AI 앞으로 옮기는 I03a 삽입 (audit:I04)
