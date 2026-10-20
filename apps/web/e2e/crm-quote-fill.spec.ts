@@ -186,7 +186,7 @@ test('파일 한 장에 든 견적 두 건이 건마다 도착지를 갖고 두 
   const dealId = await openDeal(page)
   const before = await quoteIds(page, dealId)
 
-  await page.getByRole('button', { name: '파일로 가져오기' }).first().click()
+  await page.getByRole('button', { name: '파일 가져오기' }).first().click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByText(/그 안에 든 건마다 어디로 보낼지/)).toBeVisible()
 
@@ -250,7 +250,7 @@ test('20MB 를 넘는 파일은 그 상황을 말한다 — 「읽지 못했습�
   test.setTimeout(180_000)
   await openDeal(page)
 
-  await page.getByRole('button', { name: '파일로 가져오기' }).first().click()
+  await page.getByRole('button', { name: '파일 가져오기' }).first().click()
   const dialog = page.getByRole('dialog')
 
   /*
@@ -309,7 +309,7 @@ function draftFileReply(tableCount: number) {
 async function openImportWith(page: import('@playwright/test').Page, tableCount: number) {
   await page.route('**/api/crm/quotes/draft-file', (route) => route.fulfill(draftFileReply(tableCount)))
   await openDeal(page)
-  await page.getByRole('button', { name: '파일로 가져오기' }).first().click()
+  await page.getByRole('button', { name: '파일 가져오기' }).first().click()
   const dialog = page.getByRole('dialog')
   await dialog.locator('input[type="file"]').setInputFiles({
     name: '견적서.md', mimeType: 'text/markdown',

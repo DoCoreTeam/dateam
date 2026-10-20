@@ -63,7 +63,7 @@ test('두 건짜리 PDF 를 올리면 견적마다 자기 쪽 조각을 갖고, 
     await page.waitForLoadState('networkidle')
     await closeUpdateNote(page)
 
-    await page.getByRole('button', { name: '파일로 가져오기' }).first().click()
+    await page.getByRole('button', { name: '파일 가져오기' }).first().click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
     await dialog.locator('input[type="file"]').setInputFiles(FIXTURE)

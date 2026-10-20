@@ -28,7 +28,7 @@ import {
   createLabel,
   failedTo,
   progress,
-  QUOTE, PRICEBOOK,
+  QUOTE, PRICEBOOK, QUOTE_CARD, VARIANT,
 } from '@/lib/terms'
 import NbModal from '@/components/ui/nb/NbModal'
 import QuoteEditorModal, { newQuoteDraft, quoteToDraft, type QuoteDraft } from './QuoteEditorModal'
@@ -438,21 +438,21 @@ export default function QuotePanel({
                     {q.status === 'SENT' && (
                       <>
                         <NbButton variant="ghost" onClick={() => void act(q, '/status', { to: 'ACCEPTED' })} disabled={busy}>
-                          수락됨
+                          {QUOTE_CARD.accept}
                         </NbButton>
                         <NbButton variant="ghost" onClick={() => void act(q, '/status', { to: 'REJECTED' })} disabled={busy}>
-                          거절됨
+                          {QUOTE_CARD.reject}
                         </NbButton>
                         {q.expired && (
                           <NbButton variant="ghost" onClick={() => void act(q, '/status', { to: 'EXPIRED' })} disabled={busy}>
-                            기한 지남으로 정리
+                            {QUOTE_CARD.expire}
                           </NbButton>
                         )}
                       </>
                     )}
                     {q.status === 'EXPIRED' && (
                       <NbButton variant="ghost" onClick={() => void act(q, '/status', { to: 'DRAFT' })} disabled={busy}>
-                        초안으로 되돌려 고치기
+                        {QUOTE_CARD.reopen}
                       </NbButton>
                     )}
                     {/*
@@ -470,14 +470,14 @@ export default function QuotePanel({
                       아무도 답할 수 없다 — 이 기능이 생긴 이유 그대로다.
                     */}
                     <NbButton variant="ghost" onClick={() => void duplicate(q, 'revision', null)} disabled={busy}>
-                      <Copy size={14} /> 개정본 만들기
+                      <Copy size={14} /> {VARIANT.revision}
                     </NbButton>
                     <NbButton
                       variant="ghost"
                       onClick={() => { setVariantOf(q); setVariantLabel('2안') }}
                       disabled={busy}
                     >
-                      다른 안 만들기
+                      {VARIANT.create}
                     </NbButton>
                     {/* 끝난 견적(수락·거절)은 편집 창을 열지 않는다 — 아래 「견적서」가 그 내용을 보는 자리다 */}
                     {/*
@@ -530,7 +530,7 @@ export default function QuotePanel({
 
       {/* 지운 것을 찾으러 다른 메뉴로 보내지 않는다 — 같은 자리에서 보기만 바꾼다 */}
       <button type="button" className={styles.trashToggle} onClick={() => setTrash((t) => !t)}>
-        {trash ? '견적으로 돌아가기' : '삭제한 견적 보기'}
+        {trash ? QUOTE_CARD.backToList : QUOTE_CARD.trash}
       </button>
 
       {/*
@@ -591,7 +591,7 @@ export default function QuotePanel({
       */}
       {variantOf && (
         <NbModal
-          title="다른 안 만들기"
+          title={VARIANT.createTitle}
           onClose={() => setVariantOf(null)}
           maxWidth={420}
           footer={

@@ -16,7 +16,7 @@ test('가격표를 올리면 원본과 읽은 결과가 나란히 서고 계산 
   await page.addInitScript(() => { try { localStorage.setItem('changelog_seen_version', '999.999.999') } catch { /* */ } })
   await page.goto('/crm/products', { waitUntil: 'domcontentloaded' })
   await expect(async () => {
-    await page.getByRole('button', { name: '파일로 가져오기' }).first().click()
+    await page.getByRole('button', { name: '파일 가져오기' }).first().click()
     await expect(page.locator('#pb-file')).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 60_000 })
   await page.locator('#pb-file').setInputFiles({ name: basename(SHEET), mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: readFileSync(SHEET) })

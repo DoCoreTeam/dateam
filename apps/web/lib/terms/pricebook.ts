@@ -18,7 +18,7 @@ export const PRICEBOOK = {
   newProduct: '새 제품',
   newItem: '새 품목',
   newGrade: '새 등급',
-  importFile: '파일로 가져오기',
+  importFile: '파일 가져오기',
   searchProduct: '제품 이름으로 찾기',
   searchItem: '품목 이름으로 찾기',
   productName: '제품 이름',

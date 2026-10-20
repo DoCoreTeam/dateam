@@ -174,13 +174,13 @@ export const QUOTE = {
    * 편집 모달의 「파일로 채우기」와 말이 다른 이유: 저쪽은 보고 있는 견적의 **칸을 채우고**
    * 이쪽은 파일에 든 건마다 **어디로 보낼지 고른다**. 같은 말을 쓰면 결과가 다른데 같아 보인다.
    */
-  importByFile: '파일로 가져오기',
+  importByFile: '파일 가져오기',
   /**
    * 딜에 쌓아 둔 원가를 견적 줄로 옮긴다 — **파일을 읽는 것이 아니라 이미 읽어 둔 것을 쓴다.**
    * 「파일로 가져오기」와 말이 다른 이유: 저쪽은 파일에서 읽고 이쪽은 **딜 원가에서** 가져온다.
    * 같은 말을 쓰면 어느 것을 누를지 사람이 매번 생각해야 한다.
    */
-  fromDealCost: '딜 원가에서 가져오기',
+  fromDealCost: '원가 가져오기',
   /** 그 창의 제목 — 무엇을 어디로 옮기는지 한 줄로 */
   fromDealCostTitle: '딜 원가로 견적 만들기',
   /** 옮길 것을 고르는 칸의 이름 */
@@ -475,19 +475,33 @@ export const RATE_HOURS_MISSING =
   다르면 안을 나눈다. 한 장에 금액이 둘이면 고객은 어느 쪽을 낼지 모른다.
 */
 
+/**
+ * 견적 카드의 단추 — 동사 하나로 짧게(사용자 지적 2026-10-20 「버튼에 용어들이 너무 시스템 스럽지가 않아」).
+ * 문장형(「초안으로 되돌려 고치기」)은 무엇을 하는지는 길게 말하지만 단추 줄에서 읽히지 않는다.
+ * 무슨 일이 일어나는지는 누른 뒤의 확인창과 상태가 말한다.
+ */
+export const QUOTE_CARD = {
+  accept: '수락',
+  reject: '거절',
+  expire: '만료 처리',
+  reopen: '수정',
+  trash: '휴지통',
+  backToList: '목록으로',
+} as const
+
 /** 조건이 달라 금액이 다른 제안 */
 export const VARIANT = {
   /** 만드는 단추 */
-  create: '다른 안 만들기',
+  create: '대안',
   /** 만드는 창의 제목 */
-  createTitle: '다른 안 만들기',
+  createTitle: '대안 만들기',
   /** 이름 칸 */
   nameLabel: '이 안의 이름',
   /** 처음 들어가 있는 이름 */
   nameDefault: '2안',
   namePlaceholder: '예: 2안 · 대용량 구성',
   /** 같은 제안의 다음 판 */
-  revision: '개정본 만들기',
+  revision: '개정',
   /** 목록에서 개정 차수를 부르는 말 — 딜 화면이 이미 이 꼴을 쓴다 */
   revisionBadge: (n: number) => `Rev.${n}`,
 } as const
@@ -519,7 +533,7 @@ export const variantCopyNote = (quoteNo: string) =>
  */
 export const TEXT_FILL = {
   placeholder: '예) 숙명여대 교수 연구용\n크레딧 2.8억\nEDGE 표준형, H100 4장\nSSO 정산 연동 고급 2MM',
-  reorganize: '다시 정리',
+  reorganize: '다시 읽기',
   changed: (n: number) => `표를 고쳤어요 (${n}곳)`,
   unchanged: '표와 글이 같아요',
   aiDown: 'AI가 지금 답하지 않아 표를 못 고쳤어요',
@@ -529,7 +543,7 @@ export const TEXT_FILL = {
   fromLine: (line: number) => `글 ${line + 1}째 줄`,
   linked: (n: number) => `이 줄에서 나온 항목 ${n}개`,
   differs: (name: string) => `${name}: 사람이 고친 값이 글과 달라요`,
-  aiReview: 'AI로 한 번 더 보기',
+  aiReview: 'AI 검토',
   reviewClean: 'AI 검토: 글과 표가 맞아요',
   reviewFound: (fixed: number, notices: number) => `AI 검토: 고친 곳 ${fixed}곳, 확인할 것 ${notices}개`,
 } as const
