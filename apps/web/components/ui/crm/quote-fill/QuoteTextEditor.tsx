@@ -3,7 +3,8 @@
 // 말로 채우기 — 견적 표 위에 늘 열려 있는 글 상자.
 //
 // 쓰다가 3초 멈추면 표가 고쳐진다. 줄을 더하고, 고치고, 지운다. 글은 견적과 함께 저장된다.
-// 「견적 만들기」를 누르면 바로 읽고, 글에 예산이 있으면 합계를 그 예산에 맞춘다(멈춤 읽기는 안 맞춘다).
+// 「견적 만들기」를 누르면 지금 표를 비우고 글대로 새로 세운 뒤, 글에 예산이 있으면 합계를 그 예산에 맞춘다.
+// 바로 옆 「되돌리기」가 이전 표를 통째로 돌려놓는다. 멈춤 읽기는 새로 세우지도 맞추지도 않는다.
 // 규칙이 먼저 읽고 못 읽은 줄만 AI 에게 간다(서버 `quote-text-fill`). 계산은 서버의 엔진이 한다.
 // 사람이 표에서 고친 칸은 덮지 않는다.
 //
@@ -14,11 +15,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { quoteWaitProgress } from '@/lib/crm/ui/quote-read-progress'
-import { QUOTE, TEXT_FILL, progress } from '@/lib/terms'
+import { BUDGET_SENTENCE, QUOTE, TEXT_FILL, progress } from '@/lib/terms'
 import { kindFromDomain, type CompanyKind } from '@/lib/crm/domain/company-kind'
 import { readResponse } from '@/lib/crm/api/read-error'
 import type { QuoteDraft } from '../quote-draft-shape'
-import { applyReviewFixes, applyTextFill, fromLinesOf, generateFromText, toClientLines, type ReviewJson, type TextFillJson } from './text-fill-apply'
+import { applyReviewFixes, applyTextFill, blankForRebuild, fromLinesOf, generateFromText, toClientLines, type ReviewJson, type TextFillJson } from './text-fill-apply'
+import { fitDraftToBudget } from './draft-budget'
 import { textLink, useTextLink } from './text-link-store'
 import styles from './quote-fill.module.css'
 
@@ -28,7 +30,7 @@ export const PAUSE_MS = 3_000
 type Status =
   | { kind: 'idle' }
   | { kind: 'working' }
-  | { kind: 'done'; changed: number; res: TextFillJson; budgetMessage: string | null }
+  | { kind: 'done'; changed: number; res: TextFillJson; budgetMessage: string | null; neededPct: number | null; rebuilt: boolean | null }
   | { kind: 'failed'; message: string }
 
 interface Props {
@@ -85,6 +87,8 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
   const aiCache = useRef<TextFillJson['aiCache']>(null)
   const seq = useRef(0)
   const { reveal, active } = useTextLink()
+  // 「견적 만들기」 직전의 표 — 되돌리기가 통째로 돌려놓는다
+  const [before, setBefore] = useState<QuoteDraft | null>(null)
   const [review, setReview] = useState<{ busy: boolean; res: ReviewJson | null; error: string | null }>({ busy: false, res: null, error: null })
 
   // 「AI로 한 번 더 보기」 — 사람이 누를 때만. 글과 표가 어긋난 곳을 찾아 수량과 이름만 고친다
@@ -117,7 +121,8 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
       const res = await fetch('/api/crm/quotes/text-fill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: now, lines: toClientLines(draftRef.current), companyKind, dealId, ai: 'auto', aiCache: aiCache.current }),
+        // 견적 만들기는 빈 판에서 새로 세운다 — 지금 표를 보내면 서버가 그 위에 덧댄다
+        body: JSON.stringify({ text: now, lines: toClientLines(generate ? blankForRebuild(draftRef.current) : draftRef.current), companyKind, dealId, ai: 'auto', aiCache: aiCache.current }),
       })
       const r = await readResponse(res, TEXT_FILL.failed)
       if (mine !== seq.current) return
@@ -125,9 +130,11 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
       const body = r.body as TextFillJson
       if (body.aiCache) aiCache.current = body.aiCache
       // 응답이 온 그때의 초안에 얹는다 — 기다리는 동안 사람이 고친 칸도 그대로 간다
-      const applied = generate ? generateFromText(draftRef.current, body, now) : { ...applyTextFill(draftRef.current, body, now), budgetMessage: null }
+      const prev = draftRef.current
+      const applied = generate ? generateFromText(prev, body, now) : { ...applyTextFill(prev, body, now), budgetMessage: null, neededPct: null, rebuilt: null }
+      if (applied.rebuilt) setBefore(prev)
       onDraftChange(() => applied.draft)
-      setStatus({ kind: 'done', changed: applied.changed, res: body, budgetMessage: applied.budgetMessage })
+      setStatus({ kind: 'done', changed: applied.changed, res: body, budgetMessage: applied.budgetMessage, neededPct: applied.neededPct, rebuilt: applied.rebuilt })
     } catch {
       if (mine === seq.current) setStatus({ kind: 'failed', message: TEXT_FILL.failed })
     }
@@ -155,6 +162,23 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
   const onCaret = () => {
     const el = area.current
     if (el) textLink.setActive(lineAt(el.value, el.selectionStart))
+  }
+
+  const undo = () => {
+    if (!before) return
+    // 글은 지금 것을 둔다 — 되돌리는 것은 표다
+    onDraftChange((cur) => ({ ...before, fillText: cur.fillText }))
+    setBefore(null)
+    setStatus({ kind: 'idle' })
+  }
+
+  // 사람이 「할인 n% 넣기」를 눌렀을 때만 승인 기준을 넘는다
+  const applyNeeded = () => {
+    const d = draftRef.current
+    if (!d.budgetMinor || !/^\d+$/.test(d.budgetMinor)) return
+    const out = fitDraftToBudget(d, BigInt(d.budgetMinor), d.budgetIncludesTax ?? false, { allowOverCap: true })
+    onDraftChange(() => out.draft)
+    setStatus((s) => (s.kind === 'done' ? { ...s, budgetMessage: `${out.message} ${BUDGET_SENTENCE.approval}`, neededPct: null } : s))
   }
 
   const linked = active === null ? 0 : draft.lines.filter((l) => fromLinesOf(l).includes(active)).length
@@ -205,7 +229,21 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
         {res?.switchedNote && <span>{res.switchedNote}</span>}
         {active !== null && linked > 0 && <span>{TEXT_FILL.linked(linked)}</span>}
       </div>
-      {status.kind === 'done' && status.budgetMessage && <p className={styles.small} role="status">{status.budgetMessage}</p>}
+      {status.kind === 'done' && status.rebuilt === false && <p className={styles.small} role="status">{TEXT_FILL.nothingToBuild}</p>}
+      {before && (
+        <div className={styles.inline}>
+          <span className={styles.small}>{TEXT_FILL.rebuilt(before.lines.filter((l) => l.name.trim() !== '').length)}</span>
+          <NbButton variant="ghost" onClick={undo} disabled={disabled}>{TEXT_FILL.undoRebuild}</NbButton>
+        </div>
+      )}
+      {status.kind === 'done' && status.budgetMessage && (
+        <div className={styles.inline}>
+          <p className={styles.small} role="status">{status.budgetMessage}</p>
+          {status.neededPct !== null && (
+            <NbButton variant="ghost" onClick={applyNeeded} disabled={disabled}>{BUDGET_SENTENCE.applyNeeded(status.neededPct)}</NbButton>
+          )}
+        </div>
+      )}
       {res && res.unread.length > 0 && (
         <ul className={styles.unreadList}>
           {res.unread.map((u) => <li key={`${u.line}.${u.part}`}>{TEXT_FILL.fromLine(u.line)}: {u.text}</li>)}

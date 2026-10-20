@@ -253,19 +253,37 @@ export function applyTextFill(draft: QuoteDraft, res: TextFillJson, text: string
 export interface Generated extends Applied {
   /** 예산에 맞춘 결과 한 줄 — 글에 예산이 없으면 null */
   budgetMessage: string | null
+  /** 승인 기준을 넘어 넣지 않은 할인율 — 사람이 「할인 n% 넣기」로 넣는다 */
+  neededPct: number | null
+  /** 표를 새로 세웠나 — 글에서 품목을 하나도 못 읽으면 지금 표를 그대로 둔다 */
+  rebuilt: boolean
 }
 
 /**
- * 「견적 만들기」 — 글로 표를 세우고, 글에 예산이 있으면 그 예산에 맞춘다.
- * 맞추는 일은 「예산에 맞추기」 단추와 같은 함수(할인 칸으로만, 단가와 수량은 그대로)다.
- * 3초 멈춤 자동 읽기는 맞추지 않는다 — 쓰는 도중에 할인이 바뀌면 안 된다.
+ * 「견적 만들기」가 서버에 보낼 빈 판 — 지금 표의 줄과 묶음을 비운다.
+ * 글이 말하는 견적을 새로 세우는 단추라 지금 표에 덧대지 않는다(실측 2026-10-20: 저장된 크레딧 2.8억 줄이
+ * 남은 채 글의 줄이 더해지고, 그 합계를 예산 2천만원에 맞추느라 모든 줄에 96.81% 가 들어갔다).
+ * 되돌리기는 화면이 이전 초안을 통째로 들고 있다가 돌려놓는다.
+ */
+export function blankForRebuild(draft: QuoteDraft): QuoteDraft {
+  return { ...draft, lines: [], sections: [] }
+}
+
+/**
+ * 「견적 만들기」 — 글로 표를 새로 세우고, 글에 예산이 있으면 그 예산에 맞춘다.
+ * `res` 는 `blankForRebuild` 로 보낸 응답이어야 한다.
+ * 맞추는 일은 「예산에 맞추기」 단추와 같은 함수(할인 칸으로만, 단가와 수량은 그대로, 승인 기준까지만)다.
+ * 3초 멈춤 자동 읽기는 새로 세우지도 맞추지도 않는다 — 쓰는 도중에 표가 갈아엎히면 안 된다.
  */
 export function generateFromText(draft: QuoteDraft, res: TextFillJson, text: string): Generated {
-  const applied = applyTextFill(draft, res, text)
+  const applied = applyTextFill(blankForRebuild(draft), res, text)
+  if (!applied.draft.lines.some((l) => l.name.trim() !== '')) {
+    return { draft: { ...draft, fillText: text }, changed: 0, budgetMessage: null, neededPct: null, rebuilt: false }
+  }
   const budget = applied.draft.budgetMinor
-  if (!budget || !/^\d+$/.test(budget)) return { ...applied, budgetMessage: null }
+  if (!budget || !/^\d+$/.test(budget)) return { ...applied, budgetMessage: null, neededPct: null, rebuilt: true }
   const fit = fitDraftToBudget(applied.draft, BigInt(budget), applied.draft.budgetIncludesTax ?? false)
-  return { changed: applied.changed + (fit.changed ? 1 : 0), draft: fit.draft, budgetMessage: fit.message }
+  return { changed: applied.changed + (fit.changed ? 1 : 0), draft: fit.draft, budgetMessage: fit.message, neededPct: fit.neededPct, rebuilt: true }
 }
 
 function mergeAliases(a: readonly { itemId: string; word: string }[], b: readonly { itemId: string; word: string }[]) {

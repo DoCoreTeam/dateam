@@ -4,6 +4,7 @@
 //
 // 딜에 예산이 적혀 있으면 그 값을 채워 두고 「딜 예산」이라고 말한다. 맞추기는 단추 한 번이다 —
 // 다른 칸은 자동으로 채우지만 할인은 회사가 주는 돈이라 예산만 보고 몰래 넣지 않는다.
+// 승인 기준을 넘는 할인이 필요하면 거기서 멈추고 「할인 n% 넣기」를 사람이 누른다.
 
 import { useEffect, useState } from 'react'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -27,6 +28,7 @@ export default function BudgetFit({ dealId, draft, onDraftChange, approvalRequir
   const [withTax, setWithTax] = useState(draft.budgetIncludesTax ?? false)
   const [fromDeal, setFromDeal] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [neededPct, setNeededPct] = useState<number | null>(null)
 
   // 글로 읽은 예산이 오면 칸이 그 값을 따른다 — 처음 값만 들고 있으면 칸과 글이 다른 예산을 말한다
   useEffect(() => {
@@ -49,11 +51,12 @@ export default function BudgetFit({ dealId, draft, onDraftChange, approvalRequir
     return () => { alive = false }
   }, [dealId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fit = () => {
+  const fit = (allowOverCap = false) => {
     if (!budget) return
-    const out = fitDraftToBudget(draft, BigInt(budget), withTax)
+    const out = fitDraftToBudget(draft, BigInt(budget), withTax, { allowOverCap })
     onDraftChange(() => out.draft)
     setMessage(out.message)
+    setNeededPct(out.neededPct)
   }
 
   return (
@@ -63,7 +66,8 @@ export default function BudgetFit({ dealId, draft, onDraftChange, approvalRequir
         onChange={(e) => { setBudget(digits(e.target.value)); setFromDeal(false) }} placeholder="원" />
       <label className={styles.small}><input type="checkbox" checked={withTax} disabled={disabled} onChange={(e) => setWithTax(e.target.checked)} /> {PRICEBOOK.budgetIncludesTax}</label>
       {fromDeal && budget && <span className={styles.chip}>{BUDGET_SENTENCE.dealBudget(Number(budget).toLocaleString('ko-KR'))}</span>}
-      <NbButton variant="ghost" onClick={fit} disabled={disabled || !budget}>{PRICEBOOK.fitBudget}</NbButton>
+      <NbButton variant="ghost" onClick={() => fit()} disabled={disabled || !budget}>{PRICEBOOK.fitBudget}</NbButton>
+      {neededPct !== null && <NbButton variant="ghost" onClick={() => fit(true)} disabled={disabled}>{BUDGET_SENTENCE.applyNeeded(neededPct)}</NbButton>}
       {message && <p className={styles.small} role="status">{message}{approvalRequired ? ` ${BUDGET_SENTENCE.approval}` : ''}</p>}
     </div>
   )

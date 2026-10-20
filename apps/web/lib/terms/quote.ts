@@ -549,6 +549,9 @@ export const TEXT_FILL = {
   aiReview: 'AI 검토',
   reviewClean: 'AI 검토: 글과 표가 맞아요',
   reviewFound: (fixed: number, notices: number) => `AI 검토: 고친 곳 ${fixed}곳, 확인할 것 ${notices}개`,
+  rebuilt: (before: number) => `글대로 표를 새로 세웠어요. 이전 표 ${before}줄은 되돌리기로 돌아와요.`,
+  undoRebuild: '되돌리기',
+  nothingToBuild: '글에서 품목을 못 읽어 지금 표를 그대로 두었어요.',
 } as const
 
 /** 파일로 채우기 안내 */

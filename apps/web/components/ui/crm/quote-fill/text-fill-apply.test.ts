@@ -4,7 +4,7 @@ import { GCUBE_EDGE } from '../../../../lib/crm/domain/pricebook/gcube-edge.ts'
 import { readText } from '../../../../lib/crm/domain/quote-text/read-rules.ts'
 import { runTextFill, type ClientLine } from '../../../../lib/crm/domain/quote-text/text-fill.ts'
 import { SOOKMYUNG_LINES, TEST_CATALOG } from '../../../../lib/crm/domain/quote-text/fixtures.ts'
-import { applyTextFill, generateFromText, toClientLines, type TextFillJson } from './text-fill-apply.ts'
+import { applyTextFill, blankForRebuild, generateFromText, toClientLines, type TextFillJson } from './text-fill-apply.ts'
 import type { QuoteDraft } from '../quote-draft-shape'
 
 const CTX = {
@@ -124,15 +124,50 @@ test('붙이기만 하던 옛 말로 채우기 길이 남지 않는다', async (
 // 실측 2026-10-20 — 글에 「예산: 2000만원」이 있었는데 합계는 그대로였다. 읽은 예산이 초안에만 들어가고 맞추기는 따로 눌러야 했다
 test('「견적 만들기」는 글로 표를 세우고 글에 예산이 있으면 그 예산에 맞춘다', () => {
   const text = `${SOOKMYUNG_LINES}\n예산 2억`
-  const out = generateFromText(EMPTY, serve(EMPTY, text), text)
+  const out = generateFromText(EMPTY, serve(blankForRebuild(EMPTY), text), text)
   assert.ok(out.changed > 0)
+  assert.equal(out.rebuilt, true)
   assert.equal(out.draft.budgetMinor, '200000000')
   assert.ok(out.budgetMessage, '맞춤 문장이 없음')
   assert.ok(out.draft.lines.some((l) => Number(l.discountPercent) > 0), '할인 칸에 아무것도 안 들어감')
 })
 
 test('글에 예산이 없으면 맞추지 않는다', () => {
-  const out = generateFromText(EMPTY, serve(EMPTY, SOOKMYUNG_LINES), SOOKMYUNG_LINES)
+  const out = generateFromText(EMPTY, serve(blankForRebuild(EMPTY), SOOKMYUNG_LINES), SOOKMYUNG_LINES)
   assert.equal(out.budgetMessage, null)
   assert.deepEqual(out.draft, applyTextFill(EMPTY, serve(EMPTY, SOOKMYUNG_LINES), SOOKMYUNG_LINES).draft)
+})
+
+// 실측 2026-10-20 숙명여대 — 저장된 줄 셋(크레딧 2.8억 등) 위에 글의 줄이 더해졌다
+const OLD: QuoteDraft = {
+  ...EMPTY,
+  sections: [{ id: 'sec1', name: '옛 묶음', roundingUnit: 0, businessTypeKey: null }],
+  lines: [
+    { ...EMPTY.lines[0], id: 'old1', name: '옛 크레딧', unitPriceMinor: '280000000', sectionIndex: 0 },
+    { ...EMPTY.lines[0], id: 'old2', name: '옛 EDGE', unitPriceMinor: '100000000', discountPercent: '30' },
+  ],
+}
+
+test('★ 「견적 만들기」는 지금 표에 덧대지 않고 글대로 새로 세운다 — 옛 줄과 옛 묶음이 남지 않는다', () => {
+  const out = generateFromText(OLD, serve(blankForRebuild(OLD), SOOKMYUNG_LINES), SOOKMYUNG_LINES)
+  assert.equal(out.rebuilt, true)
+  assert.equal(out.draft.lines.filter((l) => /^옛/.test(l.name)).length, 0)
+  assert.equal(out.draft.lines.filter((l) => l.id).length, 0)
+  assert.ok(!out.draft.sections.some((s) => s.name === '옛 묶음'))
+  assert.ok(out.draft.lines.length > 0)
+  assert.equal(OLD.lines.length, 2, '이전 초안을 건드리지 않는다 — 되돌리기가 그것을 쓴다')
+})
+
+test('★ 새로 세운 표를 예산에 맞출 때 승인 기준을 넘는 할인은 넣지 않고 필요한 할인율을 돌려준다', () => {
+  const text = `${SOOKMYUNG_LINES}\n예산 2000만원`
+  const out = generateFromText(OLD, serve(blankForRebuild(OLD), text), text)
+  assert.ok(out.draft.lines.every((l) => Number(l.discountPercent) <= 15), out.draft.lines.map((l) => l.discountPercent).join(','))
+  assert.match(out.budgetMessage ?? '', /필요|못 닿아요/)
+})
+
+test('글에서 품목을 하나도 못 읽으면 지금 표를 그대로 둔다', () => {
+  const text = '예산 2000만원'
+  const out = generateFromText(OLD, serve(blankForRebuild(OLD), text), text)
+  assert.equal(out.rebuilt, false)
+  assert.deepEqual(out.draft.lines, OLD.lines)
 })
