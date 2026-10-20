@@ -23,6 +23,7 @@ import OwnerPicker from '@/components/crm/OwnerPicker'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import Timeline from '@/components/ui/crm/Timeline'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import QuotePanel from '@/components/ui/crm/QuotePanel'
 import DealContacts from './DealContacts'
@@ -39,7 +40,7 @@ import {
   BUSINESS_TYPE_LABEL_TEXT, TERM_TYPE_LABEL, TERM_TYPE_LABEL_TEXT,
   type TermTypeKey,
 
-  EXPECTED_CLOSE_LABEL, END_DATE_UNKNOWN_LABEL,
+  EXPECTED_CLOSE_LABEL, END_DATE_UNKNOWN_LABEL, DEAL_TAB,
 } from '@/lib/terms'
 import { useBusinessTypes } from '@/lib/crm/ui/use-business-types'
 import { dealBusinessTypeKey } from '@/lib/crm/domain/business-type'
@@ -240,170 +241,201 @@ export default function DealDetail({ dealId }: { dealId: string }) {
 
       <RecordLayout
         info={
-          <>
-            <RecordPanel title="속성">
-              <RecordFieldList>
-                <RecordField label="상태"><NbBadge status={meta.status}>{meta.label}</NbBadge></RecordField>
-                <RecordField label="회사">
-                  {company
-                    // 여기서 나갔다는 것을 실어 준다 — 회사 화면의 「뒤로」가 이 딜로 돌아온다
-                    ? <Link href={linkWithBack(`/crm/companies/${company.id}`, here)}>{company.name}</Link>
-                    : null}
-                </RecordField>
-                <RecordField label="파이프라인">{pipelineName}</RecordField>
-                <RecordField label="현재 단계">{stageName.get(deal.stageId) ?? null}</RecordField>
-                {/*
-                  「금액」은 여기서 말하지 않는다 — 바로 아래 장부가 수주 매출·현물 제외로
-                  더 정확히 답한다. 두 곳에서 말하면 언젠가 서로를 반박한다
-                  (실브라우저: 속성 「금액 —」과 장부 「20억」이 같은 화면에 떴다).
-                */}
-                <RecordField label={BUSINESS_TYPE_LABEL_TEXT}>
-                  {/* 이름은 설정의 표가 정한다 — 「기타」밖에 없던 목록을 우리가 정한다(마이그 242) */}
-                  {bizLabelOf(dealBusinessTypeKey(deal))}
-                </RecordField>
-                <RecordField label={TERM_TYPE_LABEL_TEXT}>
-                  {deal.termType ? termText(deal) : null}
-                </RecordField>
-                {/* 마감일·성사일은 **날짜**다 — 시각을 붙이면 "9시까지"로 읽힌다(실브라우저에서 잡음) */}
-                <RecordField label={EXPECTED_CLOSE_LABEL}>
-                  {deal.expectedCloseDate ? kstDateKey(deal.expectedCloseDate) : null}
-                </RecordField>
-                {deal.status === 'WON' && (
-                  <RecordField label="성사일">
-                    {deal.wonAt ? kstDateKey(deal.wonAt) : null}
-                  </RecordField>
-                )}
-                {deal.status === 'LOST' && (
-                  <RecordField label="실주 사유">{deal.lostReason}</RecordField>
-                )}
-                {/*
-                  담당자와 작성자는 **성격이 다르다.** 담당자는 지금 누가 맡나(바뀐다),
-                  작성자는 누가 등록했나(안 바뀐다). 그래서 작성자 옆에는 누르는 자리가 없다.
+          /*
+            **탭으로 나눈다**(사용자 지적 2026-10-20 「딜에 타임라인이 제일 아래에 있어서 업데이트가 불편해」).
+            한 장에 열 개 절을 쌓으면 가장 자주 쓰는 타임라인이 맨 아래로 밀린다.
+            고른 탭은 주소(?tab=)에 남아 새로 고쳐도, 링크로 보내도 같은 자리가 열린다.
+            숨긴 탭은 그리지 않는다 — 옮겨 가면 그 탭이 새로 읽는다(견적을 고치고 타임라인으로 가면 새 기록이 보인다).
+          */
+          <SegmentedTabs
+            ariaLabel={DEAL_TAB.aria}
+            param="tab"
+            tabs={[
+              { id: 'overview', label: DEAL_TAB.overview, content: (
+                <>
+                    <RecordPanel title="속성">
+                      <RecordFieldList>
+                        <RecordField label="상태"><NbBadge status={meta.status}>{meta.label}</NbBadge></RecordField>
+                        <RecordField label="회사">
+                          {company
+                            // 여기서 나갔다는 것을 실어 준다 — 회사 화면의 「뒤로」가 이 딜로 돌아온다
+                            ? <Link href={linkWithBack(`/crm/companies/${company.id}`, here)}>{company.name}</Link>
+                            : null}
+                        </RecordField>
+                        <RecordField label="파이프라인">{pipelineName}</RecordField>
+                        <RecordField label="현재 단계">{stageName.get(deal.stageId) ?? null}</RecordField>
+                        {/*
+                          「금액」은 여기서 말하지 않는다 — 바로 아래 장부가 수주 매출·현물 제외로
+                          더 정확히 답한다. 두 곳에서 말하면 언젠가 서로를 반박한다
+                          (실브라우저: 속성 「금액 —」과 장부 「20억」이 같은 화면에 떴다).
+                        */}
+                        <RecordField label={BUSINESS_TYPE_LABEL_TEXT}>
+                          {/* 이름은 설정의 표가 정한다 — 「기타」밖에 없던 목록을 우리가 정한다(마이그 242) */}
+                          {bizLabelOf(dealBusinessTypeKey(deal))}
+                        </RecordField>
+                        <RecordField label={TERM_TYPE_LABEL_TEXT}>
+                          {deal.termType ? termText(deal) : null}
+                        </RecordField>
+                        {/* 마감일·성사일은 **날짜**다 — 시각을 붙이면 "9시까지"로 읽힌다(실브라우저에서 잡음) */}
+                        <RecordField label={EXPECTED_CLOSE_LABEL}>
+                          {deal.expectedCloseDate ? kstDateKey(deal.expectedCloseDate) : null}
+                        </RecordField>
+                        {deal.status === 'WON' && (
+                          <RecordField label="성사일">
+                            {deal.wonAt ? kstDateKey(deal.wonAt) : null}
+                          </RecordField>
+                        )}
+                        {deal.status === 'LOST' && (
+                          <RecordField label="실주 사유">{deal.lostReason}</RecordField>
+                        )}
+                        {/*
+                          담당자와 작성자는 **성격이 다르다.** 담당자는 지금 누가 맡나(바뀐다),
+                          작성자는 누가 등록했나(안 바뀐다). 그래서 작성자 옆에는 누르는 자리가 없다.
 
-                  그 구분을 여기 적어 두고도 **담당자 옆에도 누르는 자리가 없었다**
-                  (실측 2026-09-29: 창구는 열려 있는데 부르는 화면이 0곳). 수정 모달에도
-                  담당자 칸이 없어서, 화면에서 담당자를 바꿀 길이 아예 없었다.
-                */}
-                <RecordField label="담당자">
-                  <OwnerPicker
-                    entity="deal"
-                    id={dealId}
-                    version={deal.version}
-                    owner={deal.owner ?? null}
-                    acting={deal.ownerActing}
-                    actingVia={deal.ownerActingVia}
-                    onChanged={() => { void load() }}
-                  />
-                </RecordField>
-                <RecordField label="작성자">
-                  <PersonField p={deal.creator} emptyLabel="기록 없음" />
-                </RecordField>
-                <RecordField label="최근 변경">{formatKstDateTimeShort(deal.updatedAt)}</RecordField>
-              </RecordFieldList>
-            </RecordPanel>
+                          그 구분을 여기 적어 두고도 **담당자 옆에도 누르는 자리가 없었다**
+                          (실측 2026-09-29: 창구는 열려 있는데 부르는 화면이 0곳). 수정 모달에도
+                          담당자 칸이 없어서, 화면에서 담당자를 바꿀 길이 아예 없었다.
+                        */}
+                        <RecordField label="담당자">
+                          <OwnerPicker
+                            entity="deal"
+                            id={dealId}
+                            version={deal.version}
+                            owner={deal.owner ?? null}
+                            acting={deal.ownerActing}
+                            actingVia={deal.ownerActingVia}
+                            onChanged={() => { void load() }}
+                          />
+                        </RecordField>
+                        <RecordField label="작성자">
+                          <PersonField p={deal.creator} emptyLabel="기록 없음" />
+                        </RecordField>
+                        <RecordField label="최근 변경">{formatKstDateTimeShort(deal.updatedAt)}</RecordField>
+                      </RecordFieldList>
+                    </RecordPanel>
+                    {/*
+                      매출 인식 장부 — 「금액」 한 칸이 답하지 못하던 것들.
+                      수주 매출·현물 제외·부가세·재원이 여기 모인다.
+                      기본은 숫자 둘만 보이고 나머지는 접혀 있다(사용자 지시).
+                    */}
+                    <RecordPanel title="매출 인식 장부">
+                      <LedgerPanel dealId={dealId} />
+                    </RecordPanel>
 
-            {/*
-              매출 인식 장부 — 「금액」 한 칸이 답하지 못하던 것들.
-              수주 매출·현물 제외·부가세·재원이 여기 모인다.
-              기본은 숫자 둘만 보이고 나머지는 접혀 있다(사용자 지시).
-            */}
-            <RecordPanel title="매출 인식 장부">
-              <LedgerPanel dealId={dealId} />
-            </RecordPanel>
+                    {/*
+                      원가·마진 — **장부 바로 다음**이다.
+                      「얼마에 팔았나」 옆에 「얼마가 들었나」가 있어야 «남는 장사인가»를 한 자리에서 본다.
+                      권한이 없으면 이 패널은 **아예 안 그려진다**(CostPanel 이 403 에 null 을 준다) —
+                      「볼 수 없습니다」를 띄우면 원가가 있다는 사실 자체가 샌다.
+                    */}
+                    <RecordPanel title={COST.section}>
+                      <CostPanel
+                        dealId={dealId}
+                        currency={deal.currency ?? 'KRW'}
+                        reloadKey={quoteWriteKey}
+                        onChanged={() => setTimelineKey((k) => k + 1)}
+                      />
+                    </RecordPanel>
+                </>
+              ) },
+              { id: 'timeline', label: DEAL_TAB.timeline, content: (
+                <>
+                    <RecordPanel title="타임라인">
+                      <Timeline key={timelineKey} scope={{ dealId }} />
+                    </RecordPanel>
+                </>
+              ) },
+              { id: 'quote', label: DEAL_TAB.quote, content: (
+                <>
+                    {/*
+                      견적 — 딜 금액이 어디서 나왔는지에 대한 답.
+                      수락된 견적의 총액은 딜 금액으로 옮겨지므로, 바뀌면 상세를 다시 읽는다.
+                    */}
+                    <RecordPanel title="견적">
+                      <QuotePanel
+                        dealId={dealId}
+                        dealName={deal.name}
+                        dealCurrency={deal.currency}
+                        /*
+                          딜이 아는 기간을 넘긴다 — 새 품목의 기간 칸에 미리 들어간다.
+                          안 넘기면 사람이 딜에 적어 둔 기간을 견적에서 다시 쳐야 하고,
+                          다시 쳐야 하는 칸은 안 채워져 금액이 한 달치가 된다.
+                        */
+                        dealStartDate={deal.startDate ?? null}
+                        dealEndDate={deal.endDate ?? null}
+                        onChanged={() => {
+                          setTimelineKey((k) => k + 1)
+                          void load()
+                          setQuoteWriteKey((k) => k + 1)
+                        }}
+                      />
+                    </RecordPanel>
+                </>
+              ) },
+              { id: 'contract', label: DEAL_TAB.contract, content: (
+                <>
+                    {/* 견적 다음 자리 — 보냄 또는 수락 견적이 계약서가 되고, 체결이 딜 금액을 정한다 */}
+                    <RecordPanel title={CONTRACT_DOC.list}>
+                      <DealDocumentsCard dealId={dealId} dealName={deal.name} reloadKey={quoteWriteKey} />
+                    </RecordPanel>
 
-            {/*
-              원가·마진 — **장부 바로 다음**이다.
-              「얼마에 팔았나」 옆에 「얼마가 들었나」가 있어야 «남는 장사인가»를 한 자리에서 본다.
-              권한이 없으면 이 패널은 **아예 안 그려진다**(CostPanel 이 403 에 null 을 준다) —
-              「볼 수 없습니다」를 띄우면 원가가 있다는 사실 자체가 샌다.
-            */}
-            <RecordPanel title={COST.section}>
-              <CostPanel
-                dealId={dealId}
-                currency={deal.currency ?? 'KRW'}
-                reloadKey={quoteWriteKey}
-                onChanged={() => setTimelineKey((k) => k + 1)}
-              />
-            </RecordPanel>
-
-            {/*
-              이 딜의 사람들 — 회사 인물 전체가 아니다.
-              예전엔 회사의 인물을 전부 뿌려서 "누구를 설득해야 하나"에 답을 못 했다.
-            */}
-            <RecordPanel title="이 딜의 사람들">
-              <DealContacts dealId={dealId} companyId={deal?.companyId ?? null} here={here} />
-            </RecordPanel>
-
-            {/*
-              견적 — 딜 금액이 어디서 나왔는지에 대한 답.
-              수락된 견적의 총액은 딜 금액으로 옮겨지므로, 바뀌면 상세를 다시 읽는다.
-            */}
-            <RecordPanel title="견적">
-              <QuotePanel
-                dealId={dealId}
-                dealName={deal.name}
-                dealCurrency={deal.currency}
-                /*
-                  딜이 아는 기간을 넘긴다 — 새 품목의 기간 칸에 미리 들어간다.
-                  안 넘기면 사람이 딜에 적어 둔 기간을 견적에서 다시 쳐야 하고,
-                  다시 쳐야 하는 칸은 안 채워져 금액이 한 달치가 된다.
-                */
-                dealStartDate={deal.startDate ?? null}
-                dealEndDate={deal.endDate ?? null}
-                onChanged={() => {
-                  setTimelineKey((k) => k + 1)
-                  void load()
-                  setQuoteWriteKey((k) => k + 1)
-                }}
-              />
-            </RecordPanel>
-
-            {/* 견적 다음 자리 — 보냄 또는 수락 견적이 계약서가 되고, 체결이 딜 금액을 정한다 */}
-            <RecordPanel title={CONTRACT_DOC.list}>
-              <DealDocumentsCard dealId={dealId} dealName={deal.name} reloadKey={quoteWriteKey} />
-            </RecordPanel>
-
-            {/* 딜을 여는 사람이 가장 자주 하는 질문 — "지난번에 뭐라고 했지?" */}
-            {/* 계약서·발주서가 이 건과 함께 남는다 — 드라이브 링크는 폴더를 옮기면 끊긴다 */}
-            <RecordPanel title={ATTACHMENT.section}>
-              <AttachmentPanel target="DEAL" targetId={dealId} defaultKind="CONTRACT" reloadKey={quoteWriteKey} />
-            </RecordPanel>
-
-            <RecordPanel title="이 딜의 미팅">
-              <MeetingPanel scope={{ dealId }} here={here} />
-            </RecordPanel>
-
-            <RecordPanel title="단계 이동 이력">
-            {history.length === 0 ? (
-              <EmptyState
-                title="이동 기록이 아직 없어요"
-                description="보드에서 단계를 옮기면 여기에 경로가 쌓입니다."
-              />
-            ) : (
-              <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-3)' }}>
-                {history.map((h) => (
-                  <li key={h.id} style={{
-                    display: 'grid', gap: 2, paddingLeft: 'var(--space-3)',
-                    borderLeft: 'var(--border-w-2) solid var(--border-light)',
-                  }}>
-                    <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 600 }}>
-                      {h.fromStageId
-                        ? `${stageName.get(h.fromStageId) ?? '이전 단계'} → ${stageName.get(h.toStageId ?? '') ?? '다음 단계'}`
-                        : `${stageName.get(h.toStageId ?? '') ?? '첫 단계'}에서 시작`}
-                    </div>
-                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
-                      {formatKstDateTimeShort(h.movedAt)} · {formatDuration(h.durationSec)}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-            </RecordPanel>
-
-            <RecordPanel title="타임라인">
-              <Timeline key={timelineKey} scope={{ dealId }} />
-            </RecordPanel>
-          </>
+                    {/* 딜을 여는 사람이 가장 자주 하는 질문 — "지난번에 뭐라고 했지?" */}
+                    {/* 계약서·발주서가 이 건과 함께 남는다 — 드라이브 링크는 폴더를 옮기면 끊긴다 */}
+                    <RecordPanel title={ATTACHMENT.section}>
+                      <AttachmentPanel target="DEAL" targetId={dealId} defaultKind="CONTRACT" reloadKey={quoteWriteKey} />
+                    </RecordPanel>
+                </>
+              ) },
+              { id: 'meeting', label: DEAL_TAB.meeting, content: (
+                <>
+                    <RecordPanel title="이 딜의 미팅">
+                      <MeetingPanel scope={{ dealId }} here={here} />
+                    </RecordPanel>
+                </>
+              ) },
+              { id: 'people', label: DEAL_TAB.people, content: (
+                <>
+                    {/*
+                      이 딜의 사람들 — 회사 인물 전체가 아니다.
+                      예전엔 회사의 인물을 전부 뿌려서 "누구를 설득해야 하나"에 답을 못 했다.
+                    */}
+                    <RecordPanel title="이 딜의 사람들">
+                      <DealContacts dealId={dealId} companyId={deal?.companyId ?? null} here={here} />
+                    </RecordPanel>
+                </>
+              ) },
+              { id: 'history', label: DEAL_TAB.history, content: (
+                <>
+                    <RecordPanel title="단계 이동 이력">
+                    {history.length === 0 ? (
+                      <EmptyState
+                        title="이동 기록이 아직 없어요"
+                        description="보드에서 단계를 옮기면 여기에 경로가 쌓입니다."
+                      />
+                    ) : (
+                      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-3)' }}>
+                        {history.map((h) => (
+                          <li key={h.id} style={{
+                            display: 'grid', gap: 2, paddingLeft: 'var(--space-3)',
+                            borderLeft: 'var(--border-w-2) solid var(--border-light)',
+                          }}>
+                            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 600 }}>
+                              {h.fromStageId
+                                ? `${stageName.get(h.fromStageId) ?? '이전 단계'} → ${stageName.get(h.toStageId ?? '') ?? '다음 단계'}`
+                                : `${stageName.get(h.toStageId ?? '') ?? '첫 단계'}에서 시작`}
+                            </div>
+                            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>
+                              {formatKstDateTimeShort(h.movedAt)} · {formatDuration(h.durationSec)}
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    </RecordPanel>
+                </>
+              ) },
+            ]}
+          />
         }
         actions={
           <RecordPanel title="다음 할 일">

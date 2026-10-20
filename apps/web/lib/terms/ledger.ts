@@ -244,6 +244,18 @@ export const TERM_TYPE_LABEL_TEXT = '사업 기간'
  */
 export const EXPECTED_CLOSE_LABEL = '수주 예상일'
 
+/** 딜 화면의 탭 — 가장 자주 쓰는 타임라인이 맨 아래로 밀리지 않게 절을 탭으로 나눈다 */
+export const DEAL_TAB = {
+  aria: '딜 화면 탭',
+  overview: '개요',
+  timeline: '타임라인',
+  quote: '견적',
+  contract: '계약',
+  meeting: '미팅',
+  people: '사람',
+  history: '단계 이력',
+} as const
+
 /** 종료일을 알 수 없는 사업 — 크레딧은 소진될 때까지가 기간이라 날짜를 못 적는다 */
 export const END_DATE_UNKNOWN_LABEL = '종료일 미정'
 export const END_DATE_UNKNOWN_HINT = '크레딧 소진 시까지처럼 끝나는 날을 정할 수 없는 사업'
