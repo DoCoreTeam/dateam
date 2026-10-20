@@ -84,3 +84,9 @@ test('글이 길어도 상한까지만 읽는다', () => {
   const long = '크레딧 1억\n'.repeat(5_000)
   assert.ok(readText(long, CATALOG).length <= 120)
 })
+
+test('「크레딧」은 「추가 크레딧」이 아니라 「gcube 크레딧」 — 뜻 있는 말은 안 뺀다', () => {
+  const cat = { products: [], items: [{ id: 'g', name: 'gcube 크레딧', aliases: [] }, { id: 'a', name: '추가 크레딧', aliases: [] }] }
+  assert.deepEqual(readText('크레딧 2.8억', cat)[0].itemIds, ['g'])
+  assert.deepEqual(readText('추가 크레딧 1억', cat)[0].itemIds, ['a', 'g'])
+})

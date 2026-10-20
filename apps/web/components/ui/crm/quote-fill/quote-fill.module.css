@@ -31,7 +31,7 @@
 .textEditor { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
 .textHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .textArea {
-  width: 100%; min-height: 8.5rem; resize: vertical;
+  width: 100%; min-height: 10.5rem; resize: vertical;
   font-family: inherit; line-height: 1.6; white-space: pre-wrap;
 }
 .textStatus { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--fs-sm); color: var(--text-faint); min-height: 1.5rem; }

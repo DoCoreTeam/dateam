@@ -185,8 +185,12 @@ const MAINT_WORDS: Record<'STD' | 'EXT', RegExp> = {
   STD: /유지보수\s*(?:는|은)?\s*(?:표준|기본)|표준\s*유지보수/,
   EXT: /유지보수\s*(?:는|은)?\s*(?:확장|프리미엄)|확장\s*유지보수/,
 }
-/** 품목 이름 맞추기에서 뺄 넓은 말 — 「옵션 GPU 분할」은 「GPU 분할」로 맞춘다 */
-const GENERIC_PREFIX = /^(옵션|추가|기본)\s*/
+/**
+ * 품목 이름 맞추기에서 뺄 넓은 말 — 「옵션 GPU 분할」은 「GPU 분할」로, 「gcube 크레딧」은 「크레딧」으로.
+ * 「추가」는 빼지 않는다 — 「추가 크레딧」과 「gcube 크레딧」이 둘 다 「크레딧」이 되면 엉뚱한 품목을 고른다(실측 2026-10-20).
+ */
+// 상표어는 소문자 낱말만(gcube). 「H100 서버」의 모델명, 「STD 기본 구축」의 에디션은 뜻이 있어 안 뺀다
+const GENERIC_PREFIX = /^(옵션|기본|[a-z]+)\s+/
 
 function num(v: string | undefined): number | null {
   if (v === undefined) return null
@@ -207,7 +211,12 @@ function namesOf(e: CatalogEntry): string[] {
 /** 품목 맞추기 — 이름(넓은 말을 뺀 것 포함)이나 별칭이 글에 들어 있으면 */
 function matchItems(text: string, entries: readonly CatalogEntry[]): string[] {
   const t = norm(text)
-  return entries.filter((e) => namesOf(e).some((n) => t.includes(n))).map((e) => e.id)
+  // 더 길게 맞은 품목이 먼저 — 「추가 크레딧 1억」은 「크레딧」보다 「추가 크레딧」이다
+  return entries
+    .map((e) => ({ id: e.id, len: Math.max(0, ...namesOf(e).filter((n) => t.includes(n)).map((n) => n.length)) }))
+    .filter((x) => x.len > 0)
+    .sort((a, b) => b.len - a.len)
+    .map((x) => x.id)
 }
 
 /** 제품 맞추기 — 전체 이름이나 마지막 낱말(「gcube edge」의 edge). 첫 낱말은 회사 이름이라 크레딧과 겹친다 */
