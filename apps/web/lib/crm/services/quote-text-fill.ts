@@ -15,6 +15,8 @@ import { getCrmDb, type CrmDb } from '../db/client.ts'
 import { CrmError } from '../domain/errors.ts'
 import { runAi, type AiAdapter } from '../ai/runner.ts'
 import { QUOTE_TEXT_READ_V1 } from '../ai/prompts/quote-text-read.v1.ts'
+import { QUOTE_TEXT_REVIEW_V1 } from '../ai/prompts/quote-text-review.v1.ts'
+import { parseReview, reviewToFixes, type ReviewFix, type ReviewNotice, type ReviewOutput, type TextReviewInput } from '../ai/schemas/quote-text-review.ts'
 import {
   applyAiReadings, buildTextReadInput, parseTextRead, TextReadOutputSchema,
   type AliasCandidate, type TextReadOutput,
@@ -53,6 +55,8 @@ export const TextFillInputSchema = z.object({
   companyKind: z.enum(COMPANY_KINDS).nullable().default(null),
   /** auto: 못 읽은 조각이 있으면 AI, off: 규칙만 */
   ai: z.enum(['auto', 'off']).default('auto'),
+  /** fill: 글을 표로, review: 사람이 「AI로 한 번 더 보기」를 눌렀을 때만 */
+  mode: z.enum(['fill', 'review']).default('fill'),
   aiCache: z.object({ key: z.string().max(80), output: z.unknown() }).nullable().default(null),
 })
 export type TextFillInput = z.infer<typeof TextFillInputSchema>
@@ -198,4 +202,49 @@ export async function fillQuoteFromText(
     return { output: r.output, runId: r.runId }
   }
   return fillCore({ catalog, products, items, laborGrades: toGradeRefs(grades), gpuPrice }, input, callAi)
+}
+
+// ── AI 검토 — 사람이 누를 때만 ──────────────────────────────────────────────
+
+export interface TextReviewResponse {
+  aiStatus: AiStatus
+  fixes: ReviewFix[]
+  notices: ReviewNotice[]
+  runId: string | null
+}
+
+export type CallReview = (input: TextReviewInput) => Promise<{ output: ReviewOutput; runId: string | null }>
+
+/** 금액은 싣지 않는다 — 이름, 수량, 단위, 묶음만 */
+export function buildReviewInput(input: TextFillInput): TextReviewInput {
+  return {
+    text: input.text,
+    lines: input.lines.map((l) => ({ key: l.key, name: l.name, quantity: l.quantity, unit: l.unit, section: l.section })),
+  }
+}
+
+export async function reviewCore(input: TextFillInput, callAi: CallReview): Promise<TextReviewResponse> {
+  if (input.text.trim() === '' || input.lines.length === 0) return { aiStatus: 'NOT_NEEDED', fixes: [], notices: [], runId: null }
+  try {
+    const r = await callAi(buildReviewInput(input))
+    return { aiStatus: 'OK', ...reviewToFixes(r.output, input.lines), runId: r.runId }
+  } catch (e) {
+    return { aiStatus: statusOf(e), fixes: [], notices: [], runId: null }
+  }
+}
+
+export async function reviewQuoteText(workspaceId: string, actorId: string | null, input: TextFillInput, deps: Pick<TextFillDeps, 'adapter'> = {}): Promise<TextReviewResponse> {
+  const db = getCrmDb(workspaceId)
+  return reviewCore(input, async (reviewInput) => {
+    const chosen = deps.adapter ?? await adapterFromSetting(db, { actorId })
+    const r = await runAi<ReviewOutput>({
+      actorId, db, workspaceId, kind: 'QUICK_CREATE',
+      prompt: QUOTE_TEXT_REVIEW_V1,
+      input: JSON.stringify(reviewInput),
+      inputRef: { lines: reviewInput.lines.length, chars: input.text.length },
+      parse: parseReview,
+      adapter: chosen,
+    })
+    return { output: r.output, runId: r.runId }
+  })
 }
