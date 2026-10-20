@@ -12,6 +12,7 @@ import { ACTION, PRICEBOOK, PROVENANCE_LABEL, progress } from '@/lib/terms'
 import { COMPANY_KIND_LABEL, type CompanyKind } from '@/lib/crm/domain/company-kind'
 import type { DetailJson } from './detail-shape'
 import { won } from './detail-shape'
+import TcoSettings from './TcoSettings'
 import styles from './detail.module.css'
 
 interface GpuDraft { model: string; count: string; timed: boolean }
@@ -156,6 +157,7 @@ export default function PreviewTab({ data, onSaved }: Props) {
             <div className={styles.totalLine}><span>{PRICEBOOK.previewAnnual}</span><b><Sensitive>{won(out.result.annualSupplyMinor)}</Sensitive></b></div>
             <div className={styles.totalLine}><span>{PRICEBOOK.previewTco(data.product.tcoYears)}</span><b><Sensitive>{won(out.result.tcoMinor)}</Sensitive></b></div>
           </div>
+          <TcoSettings data={data} onSaved={onSaved} />
           {out.result.autoFilled.length > 0 && (
             <div>
               <b>{PRICEBOOK.autoFilled} {out.result.autoFilled.length}개</b>

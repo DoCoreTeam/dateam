@@ -47,7 +47,7 @@
 }
 .sectionList { margin-top: var(--space-2); gap: var(--space-2); }
 .sectionRow {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 12rem);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 12rem) auto;
   align-items: center; gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border: var(--border-w) solid var(--border-subtle); border-radius: var(--radius);
@@ -56,9 +56,14 @@
 .sectionCtrl { display: inline-flex; align-items: center; gap: var(--space-1); }
 .sectionName { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 639px) {
-  .sectionRow { grid-template-columns: auto minmax(0, 1fr); }
+  .sectionRow { grid-template-columns: auto minmax(0, 1fr) auto; }
   .sectionRow select { grid-column: 1 / -1; }
 }
+.sectionAdd { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.sectionAdd :global(.input-field) { flex: 1 1 12rem; min-width: 0; max-width: 24rem; }
+.tcoSettings { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2) var(--space-3); max-width: 720px; margin-left: auto; }
+.tcoSettings .unitInput :global(.input-field) { width: 4rem; }
+.tcoSettings > p { flex-basis: 100%; text-align: right; margin: 0; }
 .saleRow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
 .saleRow p { margin: 0; }
 .saveBar {

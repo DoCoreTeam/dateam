@@ -39,6 +39,14 @@ export const PRICEBOOK = {
   dragHint: '손잡이를 끌어 순서를 바꾸고, 다른 묶음 칸에 놓으면 그 묶음으로 옮겨요',
   bulkDone: (n: number) => `${n}개를 바꿨어요`,
   searching: '찾는 동안에는 순서를 바꿀 수 없어요',
+  // 묶음 관리(P0138)
+  sectionNew: '새 묶음 이름',
+  sectionAdd: '묶음 추가',
+  sectionRename: (name: string) => `${name} 묶음 이름`,
+  sectionInUse: (n: number) => `품목 ${n}개가 남아 있어 지울 수 없어요. 품목을 다른 묶음으로 옮긴 뒤 지우세요`,
+  sectionNameClash: '묶음 이름이 비었거나 겹쳐요',
+  // 총비용 계산(미리 계산 탭으로 옮김)
+  tcoNotInQuote: '미리 계산에만 쓰이고 견적에는 안 쓰여요',
   // 규칙과 할인 탭(P0138)
   ruleTurnOn: '켜기',
   ruleTurnOff: '끄기',
@@ -129,8 +137,6 @@ export const PRICEBOOK = {
   importAccepts: '엑셀, PDF, 워드, 한글, 이미지',
   // 기본 정보 탭(P0137 I01b) — 칸마다 이름과 단위, 그 값이 견적에 어떻게 쓰이는지
   infoProduct: '제품',
-  infoCost: '총비용 계산',
-  infoCostMeta: '미리 계산과 견적의 총비용에 쓰여요',
   tcoYears: '총비용 기간',
   freeYears: '유지보수 무상 기간',
   yearUnit: '년',
