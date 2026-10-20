@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.24',
+    date: '2026-10-20',
+    title: '말로 채우기에 「견적 만들기」 단추가 생겼어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📝',
+        headline: '글을 쓰고 「견적 만들기」를 누르면 예산에 맞춘 견적이 서요',
+        detail: '글에 「예산 2000만원」처럼 적으면 표를 세운 뒤 할인 칸으로 합계를 그 예산에 맞춰요. 단가는 그대로이고, 할인이 크면 승인이 필요하다고 알려 드려요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🔎',
+        headline: '「목적」처럼 사정을 적은 줄이 엉뚱한 품목 하나로 들어가지 않아요',
+        detail: '문장 속 「GPU」 한 낱말만 보고 GPU 품목 1개를 넣던 것을 고쳤어요. 이제 그런 줄은 AI가 읽고 맞는 제품으로 옮겨요.',
+      },
+    ],
+  },
+  {
     version: '0.11.22',
     date: '2026-10-20',
     title: '딜 화면이 탭으로 나뉘고 단추 말이 짧아졌어요',
