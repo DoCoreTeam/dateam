@@ -588,6 +588,8 @@ test('★ 도구가 푸시 시점을 찍는다 — 규칙과 같은 문장으로
     `loop pass 가 「${PUSH_RULE_NO_ITEM_PUSH}」를 안 찍는다 — 항목마다 밀게 된다`)
   assert.ok(cli.includes(PUSH_RULE_NO_DIRECT),
     `loop final 이 「${PUSH_RULE_NO_DIRECT}」를 안 찍는다 — 끝날 때마다 밀게 된다`)
+  assert.ok(cli.includes('지금 민다, LOOP_PUSH_NOW=1 git push'),
+    'loop final 이 즉시 플랜에 그냥 git push 를 말한다 — 완료된 플랜은 훅이 막아서 그대로 치면 실패한다 (2026-10-20 P0143)')
   assert.ok(!cli.includes('이제 푸시한다'),
     'loop final 이 아직 「이제 푸시한다」를 찍는다 — 플랜이 지시마다 서니 하루 푸시가 12회였다 (2026-10-20)')
   assert.ok(cli.includes('unpushedCount'),
