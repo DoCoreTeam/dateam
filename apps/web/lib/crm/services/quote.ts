@@ -43,6 +43,7 @@ import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
 import { priceQuote } from './quote-pricing.ts'
 import { syncDealQuoted } from './deal-quoted.ts'
 import { assertBaselineForSend, autoRegisterLines } from './quote-pricebook-hooks.ts'
+import { learnAliases } from './quote-alias-learn.ts'
 import {
   LINE_PRICING_KEYS, QUOTE_PRICING_KEYS, linePricingData, quotePricingData, sectionPricingData,
   type LinePricingInput, type QuotePricingInput,
@@ -319,6 +320,8 @@ const QUOTE_KEYS = new Set([
   'importCheck',
   // 가격 기준 — 예산, 자동으로 채운 값, 제품으로 채우기 조건
   ...QUOTE_PRICING_KEYS,
+  // 받아들인 AI 읽기 — 칼럼이 아니라 품목 별칭으로 간다(quote-alias-learn)
+  'learnedAliases',
 ])
 
 /** 모르는 이름이 섞여 있으면 **거절한다** — 조용히 버리면 보낸 쪽은 반영된 줄 안다 */
@@ -830,6 +833,8 @@ export interface QuoteImportCheckInput {
 const TOTAL_VERDICTS = new Set(['match', 'mismatch', 'no_reference'])
 
 export interface CreateQuoteInput extends QuotePricingInput {
+  /** 글로 채우기에서 AI 가 읽고 사람이 받아들인 낱말 — 품목 별칭이 된다 */
+  learnedAliases?: unknown
   /** 고른 거래 조건. 순서가 곧 인쇄 순서다 */
   termIds?: string[]
   dealId: string
@@ -1095,6 +1100,8 @@ export async function createQuote(
     await recalcSectionSubtotals(tx, created.id)
     // 처음 쓴 항목은 품목이 된다 — 다음 견적에서 다시 치지 않게(이름과 규격이 둘 다 같아야 하나)
     await autoRegisterLines(tx, workspaceId, actorId, created.id, currency)
+    // AI 가 읽은 낱말은 별칭으로 — 다음부터는 규칙이 읽는다
+    await learnAliases(tx, input.learnedAliases)
     // 딜의 견적 금액은 대표 견적의 1회분이다(I8) — 만들고 고치고 지울 때마다 맞춘다
     await syncDealQuoted(tx, input.dealId, actorId)
 
@@ -1225,6 +1232,7 @@ async function approvalThreshold(tx: any): Promise<number> {
 }
 
 export interface UpdateQuoteInput extends QuotePricingInput {
+  learnedAliases?: unknown
   termIds?: string[]
   version: number
   /**
@@ -1425,6 +1433,7 @@ export async function updateQuote(
       await recalcSectionSubtotals(tx, id)
       await autoRegisterLines(tx, workspaceId, actorId, id, before.currency)
     }
+    await learnAliases(tx, input.learnedAliases)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const after = await (tx as any).crmQuote.findFirst({ where: { id }, select: SELECT })
