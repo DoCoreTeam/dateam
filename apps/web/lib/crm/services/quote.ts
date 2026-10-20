@@ -40,6 +40,7 @@ import {
   type QuoteLineInput,
 } from '../domain/quote-math.ts'
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
+import { duplicateIdentity, type DuplicateMode } from '../domain/quote-duplicate-identity.ts'
 import { priceQuote } from './quote-pricing.ts'
 import { syncDealQuoted } from './deal-quoted.ts'
 import { assertBaselineForSend, autoRegisterLines } from './quote-pricebook-hooks.ts'
@@ -1634,7 +1635,7 @@ async function storedPricingLines(tx: any, quoteId: string): Promise<Record<stri
 }
 
 /** 복제가 «무엇»인가 — 뜻이 다르므로 갈래를 받는다 */
-export type DuplicateMode = 'revision' | 'variant'
+export type { DuplicateMode }
 
 export interface DuplicateQuoteInput {
   mode: DuplicateMode
@@ -1682,10 +1683,12 @@ export async function duplicateQuote(
     const todayKey = kstTodayKey()
     const quoteNo = await nextQuoteNo(tx, pattern, todayKey)
 
-    const title = mode === 'revision'
-      ? src.title
-      // 다른 안은 제목에서 구분된다 — 목록에서 둘이 나란히 서기 때문이다
-      : `${src.title} (${normalizeText(input.variantLabel) ?? '다른 안'})`
+    // 다른 안은 판 번호 1 에서 시작하고 안 이름은 뱃지로만 말한다 (quote-duplicate-identity)
+    const identity = duplicateIdentity(
+      { title: src.title, revision: src.revision, variantLabel: src.variantLabel },
+      mode, normalizeText(input.variantLabel),
+    )
+    const title = identity.title
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const made = await (tx as any).crmQuote.create({
@@ -1730,10 +1733,8 @@ export async function duplicateQuote(
         fillText: src.fillText,
         // 승인은 **따라오지 않는다** — 금액이 달라질 문서이므로 다시 받아야 한다
         sourceQuoteId: src.id,
-        revision: mode === 'revision' ? src.revision + 1 : src.revision,
-        variantLabel: mode === 'variant'
-          ? (normalizeText(input.variantLabel) ?? '다른 안')
-          : src.variantLabel,
+        revision: identity.revision,
+        variantLabel: identity.variantLabel,
       },
       select: SELECT,
     })
