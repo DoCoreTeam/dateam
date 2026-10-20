@@ -1,6 +1,6 @@
 # PLAN newAX: 계약서 전화번호 칸과 채울 자리, 파일로 만든 템플릿의 값 빼기
 플랜 ID: P0148
-플랜 버전: v0.1.0
+플랜 버전: v0.1.1
 상태: 진행중
 지시: ins_0301
 목표 버전: v0.11.38
@@ -42,29 +42,42 @@
 의존: 없음
 
 ### I02 사람이 채우는 긴 글 칸 (계약.수행범위)
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/domain/contract-fields.ts, apps/web/lib/terms/contract-doc.ts, apps/web/lib/crm/services/contract.ts, apps/web/app/(crm)/crm/contracts/[id]/ContractEditModal.tsx, apps/web/lib/crm/domain/contract-fields.test.ts
 감사 기준:
 - 보안: 사람이 넣은 여러 줄 값은 escape 후 문단으로 조립됨을 시험으로 확인 (<script> 가 글로 남음)
 - 문단 하나를 차지한 {{계약.수행범위}} 가 줄마다 문단으로, 글 속 칸은 줄바꿈으로 채워지는 단정 통과
 - 비어 있으면 (미입력) 이 찍히는 단정 통과
-- 계약서 고치기 창에서 수행범위가 여러 줄 입력칸으로 보임 (실브라우저)
+- 계약서 고치기 창은 longtext 칸을 여러 줄 입력칸(textarea)으로 그림 (코드 확인, 실브라우저는 I04)
 의존: I01
 
 ### I03 파일로 만들기가 당사자 금액 날인부를 칸으로 빼고 날인부를 떼기
 상태: 대기
 모드: 경량
-범위: apps/web/lib/crm/services/contract-from-file.ts, apps/web/lib/crm/services/contract-from-file.test.ts, apps/web/lib/crm/ai/prompts/contract-template-from-doc.v1.ts, apps/web/lib/terms/contract-doc.ts, apps/web/app/(crm)/crm/settings/ContractTemplateFromFile.tsx
+범위: apps/web/lib/crm/services/contract-from-file.ts, apps/web/lib/crm/services/contract-from-file.test.ts, apps/web/lib/crm/ai/prompts/contract-template-from-doc.v1.ts, apps/web/lib/terms/contract-doc.ts, apps/web/app/(crm)/crm/settings/ContractTemplateFromFile.tsx, apps/web/app/api/crm/contract-templates/from-file/route.ts
 감사 기준:
 - 보안: 원문의 주민등록번호가 템플릿 본문에 한 자리도 남지 않는 단정 통과, 파일과 AI 응답은 기존 검사(형식 판정 zod 원문 대조)를 그대로 지남
 - 마지막 조항 뒤 「이상과 같이 ... 서명」 줄부터는 따로 한 덩어리(날인)로 갈리는 단정 통과
 - 「금 사백칠십오만원」 같은 한글 금액이 {{견적.합계 한글}} 로 바뀌는 단정 통과 (AI 제안 없이도)
-- 남은 전화번호 사업자번호 금액 날짜를 세어 결과 화면에 「남은 값 n곳」으로 알리는 단정 통과
+- 우리 회사 설정값(상호 대표자 사업자번호 주소 전화번호)은 AI 없이 글자 사이 띄어쓰기와 (주) 주식회사 변형까지 칸으로 바뀌는 단정 통과
+- 남은 전화번호 사업자번호 금액 날짜를 세어 결과 화면에 「남은 값 n곳」으로 알리는 단정 통과, 라우트는 인증 장치를 그대로 부름
 의존: I02
+
+### I04 실브라우저 확인
+상태: 대기
+모드: 경량
+범위: 없음 (확인만, 고칠 것이 나오면 항목 삽입)
+감사 기준:
+- 보안: 해당 없음 확인, 코드 변경 없음을 git status 로 확인
+- 템플릿 편집 칸 넣기 목록에 공급자.전화번호 고객.전화번호 담당.전화번호 고객.생년월일 계약.수행범위가 보임
+- 설정 화면에 공급자 대표 전화번호 입력칸이 보임
+- 계약서 고치기 창에 수행범위 여러 줄 입력칸과 전화번호 칸이 보임
+의존: I03
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
 
 ## 변경 이력
 - v0.1.0 (2026-10-20) 최초 작성 (ins_0301)
+- v0.1.1 (2026-10-20) I03 범위에 결과 숫자를 싣는 라우트 추가, 우리 회사 설정값 기준 칸 바꾸기 기준 추가, 실브라우저 확인을 I04 로 분리 (사용자 추가 지적 금액 날인부 회사명) (iv_0285)

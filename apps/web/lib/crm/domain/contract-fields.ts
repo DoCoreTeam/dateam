@@ -21,7 +21,8 @@ import { QUOTE } from '../../terms/quote.ts'
 import { CONTRACT_FIELD_LABEL, EMPTY_FIELD } from '../../terms/contract-doc.ts'
 
 export type ContractFieldSource = 'supplier' | 'customer' | 'quote' | 'contract'
-export type ContractFieldKind = 'text' | 'money' | 'date' | 'block'
+/** longtext — 사람이 계약마다 여러 줄로 채우는 내용(수행범위). 줄마다 문단이 된다 */
+export type ContractFieldKind = 'text' | 'money' | 'date' | 'block' | 'longtext'
 
 export interface ContractFieldDef {
   key: string
@@ -46,6 +47,8 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
   { key: 'customer.address', label: CONTRACT_FIELD_LABEL['customer.address'], source: 'customer', kind: 'text', auto: false },
   // 견적의 수신 담당자 번호가 기본값이다 — 개인과의 계약이면 그 사람 번호, 아니면 고쳐 넣는다
   { key: 'customer.phone', label: CONTRACT_FIELD_LABEL['customer.phone'], source: 'customer', kind: 'text', auto: true },
+  // 개인과의 계약 당사자 표시. 주민등록번호는 저장하지 않고 이 칸을 쓴다(개인정보보호법 처리 제한)
+  { key: 'customer.birth', label: CONTRACT_FIELD_LABEL['customer.birth'], source: 'customer', kind: 'text', auto: false },
   { key: 'quote.no', label: CONTRACT_FIELD_LABEL['quote.no'], source: 'quote', kind: 'text', auto: true },
   { key: 'quote.title', label: CONTRACT_FIELD_LABEL['quote.title'], source: 'quote', kind: 'text', auto: true },
   { key: 'quote.issuedOn', label: CONTRACT_FIELD_LABEL['quote.issuedOn'], source: 'quote', kind: 'date', auto: true },
@@ -65,6 +68,8 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
   { key: 'contract.date', label: CONTRACT_FIELD_LABEL['contract.date'], source: 'contract', kind: 'date', auto: false },
   { key: 'contract.start', label: CONTRACT_FIELD_LABEL['contract.start'], source: 'contract', kind: 'date', auto: false },
   { key: 'contract.end', label: CONTRACT_FIELD_LABEL['contract.end'], source: 'contract', kind: 'date', auto: false },
+  // 계약마다 내용이 다른 조항 자리 — 템플릿은 칸만 두고 계약서 고치기에서 여러 줄로 채운다
+  { key: 'contract.scope', label: CONTRACT_FIELD_LABEL['contract.scope'], source: 'contract', kind: 'longtext', auto: false },
 ]
 
 const BY_LABEL = new Map(CONTRACT_FIELDS.map((f) => [f.label, f]))
@@ -226,6 +231,7 @@ export function fillHtml(html: string, values: FieldValues, doc: QuoteDocument |
   if (unknown.length > 0) throw new UnknownFieldError(unknown)
   const blockFilled = html.replace(/<p>\s*\{\{\s*([^{}]+?)\s*\}\}\s*<\/p>/g, (whole, label: string) => {
     const def = BY_LABEL.get(label)
+    if (def?.kind === 'longtext') return longParagraphs(values[def.key]?.value ?? '')
     if (!def || def.kind !== 'block') return whole
     return doc ? renderBlock(def.key, doc) : `<p>${EMPTY_FIELD}</p>`
   })
@@ -233,8 +239,21 @@ export function fillHtml(html: string, values: FieldValues, doc: QuoteDocument |
     const def = BY_LABEL.get(label)!
     if (def.kind === 'block') return doc ? renderBlock(def.key, doc) : EMPTY_FIELD
     const v = values[def.key]?.value ?? ''
-    return v === '' ? `<span class="field-empty">${EMPTY_FIELD}</span>` : escapeHtml(v)
+    if (v === '') return EMPTY_SPAN
+    // 글 속에 든 여러 줄 칸은 문단을 못 쪼개니 줄바꿈으로 잇는다
+    return def.kind === 'longtext' ? splitLines(v).map(escapeHtml).join('<br>') : escapeHtml(v)
   })
+}
+
+const EMPTY_SPAN = `<span class="field-empty">${EMPTY_FIELD}</span>`
+
+const splitLines = (v: string): string[] => v.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '')
+
+/** 문단 하나를 차지한 여러 줄 칸 — 줄마다 문단, 비면 「(미입력)」 문단 */
+function longParagraphs(v: string): string {
+  const lines = splitLines(v)
+  if (lines.length === 0) return `<p>${EMPTY_SPAN}</p>`
+  return lines.map((l) => `<p>${escapeHtml(l)}</p>`).join('')
 }
 
 /** 지금 견적으로 다시 만든 자동 값과 버전에 든 값을 견줘 바뀐 칸을 낸다 (I11) */

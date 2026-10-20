@@ -58,6 +58,20 @@ test('전화번호 칸 셋이 공급자 설정, 수신 담당자, 견적 담당�
   assert.deepEqual(merged['customer.phone'], { value: '010-9999-0000', source: 'manual' })
 })
 
+test('★ 여러 줄 칸(수행범위)은 줄마다 문단이 되고 escape 된다 (보안 S4)', () => {
+  const scope = label('contract.scope')
+  const values = mergeFieldValues({}, { 'contract.scope': '1. 클라우드 구성 컨설팅\n\n2. <script>x</script> 협의 미팅' })
+  const own = fillHtml(`<p>① 乙는 다음 업무를 수행한다.</p><p>${fieldToken(scope)}</p>`, values, DOC)
+  assert.equal(own, '<p>① 乙는 다음 업무를 수행한다.</p><p>1. 클라우드 구성 컨설팅</p><p>2. &lt;script&gt;x&lt;/script&gt; 협의 미팅</p>')
+  const inline = fillHtml(`<p>업무: ${fieldToken(scope)}</p>`, values, DOC)
+  assert.equal(inline, '<p>업무: 1. 클라우드 구성 컨설팅<br>2. &lt;script&gt;x&lt;/script&gt; 협의 미팅</p>')
+})
+
+test('여러 줄 칸이 비면 「(미입력)」 문단이 선다', () => {
+  const out = fillHtml(`<p>${fieldToken(label('contract.scope'))}</p>`, mergeFieldValues({}, {}), DOC)
+  assert.equal(out, `<p><span class="field-empty">${EMPTY_FIELD}</span></p>`)
+})
+
 test('★ 모르는 칸은 이름을 대며 멈춘다 — 오타가 빈칸으로 인쇄되지 않는다', () => {
   const html = `<p>${fieldToken('고객.상효')} 와 ${fieldToken(label('customer.name'))}</p>`
   assert.deepEqual(scanTokens(html).unknown, ['고객.상효'])

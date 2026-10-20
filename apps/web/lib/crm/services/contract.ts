@@ -41,6 +41,8 @@ const cv = (db: unknown): any => (db as any).crmContractVersion
 
 /** 사람이 넣는 칸 값 하나의 길이 상한 */
 const MAX_FIELD_VALUE = 500
+/** 여러 줄 칸(수행범위) — 업무 목록 스무 줄 남짓 */
+const MAX_LONG_FIELD_VALUE = 4000
 const MAX_TITLE = 200
 const MAX_NOTE = 1000
 
@@ -108,7 +110,7 @@ export function checkManualFields(input: unknown): Record<string, string> {
     const def = fieldByKey(key)
     if (!def || def.kind === 'block' || key === 'contract.no') throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.badField(key), { field: key })
     const value = typeof raw === 'string' ? raw.trim() : ''
-    if (value.length > MAX_FIELD_VALUE) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.fieldTooLong(def.label), { field: key })
+    if (value.length > (def.kind === 'longtext' ? MAX_LONG_FIELD_VALUE : MAX_FIELD_VALUE)) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.fieldTooLong(def.label), { field: key })
     out[key] = value
   }
   return out

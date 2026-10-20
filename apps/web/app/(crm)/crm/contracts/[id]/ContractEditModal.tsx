@@ -101,9 +101,9 @@ export default function ContractEditModal({ contract, current, onClose, onSaved,
                       {isManual ? CONTRACT_SCREEN.fieldManual : CONTRACT_SCREEN.fieldAuto}
                     </span>
                   </div>
-                  {f.kind === 'block' ? (
+                  {f.kind === 'block' || f.kind === 'longtext' ? (
                     <textarea
-                      id={id} className="input-field" rows={3} value={manual[f.key] ?? ''}
+                      id={id} className="input-field" rows={f.kind === 'longtext' ? 5 : 3} value={manual[f.key] ?? ''}
                       placeholder={auto?.source === 'auto' ? auto.value : ''}
                       onChange={(e) => setManual((m) => ({ ...m, [f.key]: e.target.value }))}
                     />

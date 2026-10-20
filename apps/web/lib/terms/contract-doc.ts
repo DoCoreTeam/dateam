@@ -60,6 +60,7 @@ export const CONTRACT_FIELD_LABEL: Record<string, string> = {
   'customer.bizNo': '고객.사업자번호',
   'customer.address': '고객.주소',
   'customer.phone': '고객.전화번호',
+  'customer.birth': '고객.생년월일',
   'quote.no': '견적.번호',
   'quote.title': '견적.사업명',
   'quote.issuedOn': '견적.작성일',
@@ -78,6 +79,7 @@ export const CONTRACT_FIELD_LABEL: Record<string, string> = {
   'contract.date': '계약.계약일',
   'contract.start': '계약.시작일',
   'contract.end': '계약.끝일',
+  'contract.scope': '계약.수행범위',
 }
 
 /** 계약서 서버 메시지 — 화면이 그대로 보여 준다 */
