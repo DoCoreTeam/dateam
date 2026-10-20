@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs'
 
 import {
   splitClauses, applySuggestions, replaceInText, restore, parseSuggestions, buildDraft, nameFromFile, sourceMimeOf,
-  type Suggestion,
+  scrubResidue, type Suggestion, type KnownSupplier,
 } from './contract-from-file.ts'
 import { CrmError } from '../domain/errors.ts'
 import { CONTRACT_FROM_FILE } from '../../terms/contract-doc.ts'
@@ -236,4 +236,96 @@ test('형식을 모르면 원본을 안 올리고 그렇다고 말한다 — 실
   assert.equal(d.sourceMime, 'text/plain')
   assert.match(ROUTE, /if \(!mime\) \{\s*console\.error/)
   assert.match(ROUTE, /if \(error\) \{\s*console\.error/)
+})
+
+/* ── 채워진 계약서에서 남의 값 빼기 (P0148 I03) ─────── */
+
+// 2026-10-21 실측 화면과 같은 모양 — 이름 번호는 지어낸 것이다. PDF 처럼 글자 사이가 벌어져 온다
+const FILLED = [
+  '용역 계약서',
+  '에이엑스(주)(이하 甲)와 김철수(이하 乙)는 다음과 같이 용역 계약을 체결한다.',
+  '제6조 [보수]',
+  '① 乙의 보수는 금 사백칠십오만원(4,750,000원) 으로 한다.',
+  '제17조 [준거법 및 관할]',
+  '이 계약은 대한민국 민법을 그 준거법으로 한다.',
+  '계약 당 사 자 들 은 이상과 같 이 계약을 체결하고 이를 증 명하기 위하여 계약서 2부를 작성하여 각각 서명 또는',
+  '기명 날 인한 후 각 1부 씩 보관한다.',
+  '2026년 1월 2일',
+  '甲 에이엑스(주) 대표이사 홍 길 동 (서명 또는 인)',
+  '乙 김 철 수 (서명 또는 인)',
+  '(주 민 등록번호 : 800101 – 1234567 )',
+  '연락처 010-1234-5678',
+].join('\n')
+
+const KNOWN: KnownSupplier = { name: '주식회사 에이엑스', ceo: '홍길동', bizNo: '123-45-67890', address: '', phone: '' }
+
+test('★ 날인부는 마지막 조항에서 떨어져 따로 한 덩어리가 된다', () => {
+  const c = splitClauses(FILLED)
+  const last = c[c.length - 1]
+  const law = c[c.length - 2]
+  assert.equal(law.title, '제17조 [준거법 및 관할]')
+  assert.equal(plain(law.html), '이 계약은 대한민국 민법을 그 준거법으로 한다.')
+  assert.equal(last.title, '')
+  assert.match(plain(last.html), /^계약 당 사 자 들 은 이상과 같 이/)
+  assert.match(plain(last.html), /乙 김 철 수/)
+})
+
+test('본문 중간의 「기명날인」 은 끊지 않는다 — 마지막 조항만 본다', () => {
+  const c = splitClauses('제1조 (통지)\n통지는 서면에 기명날인하여 한다.\n제2조 (기간)\n1년으로 한다.')
+  assert.equal(c.length, 2)
+  assert.match(plain(c[0].html), /기명날인/)
+})
+
+test('★ 주민등록번호는 한 자리도 남지 않고 생년월일 칸이 된다 — AI 가 실패해도', async () => {
+  const d = await buildDraft({ fileName: 'x.pdf', text: FILLED, truncated: false }, async () => { throw new Error('down') }, KNOWN)
+  const all = d.clauses.map((c) => plain(c.html)).join('\n')
+  assert.doesNotMatch(all, /1234567|800101/)
+  assert.doesNotMatch(all, /주 *민 *등 *록/)
+  assert.match(all, /생년월일 : \{\{고객\.생년월일\}\}/)
+  assert.equal(d.scrubbed, 1)
+})
+
+test('★ 우리 회사 상호 대표자는 AI 없이 칸이 된다 — (주) 변형과 글자 사이 띄어쓰기까지', () => {
+  const r = scrubResidue(splitClauses(FILLED), KNOWN)
+  const all = r.clauses.map((c) => plain(c.html)).join('\n')
+  assert.doesNotMatch(all, /에이엑스|홍 *길 *동/)
+  assert.match(all, /甲 \{\{공급자\.상호\}\} 대표이사 \{\{공급자\.대표자\}\} \(서명 또는 인\)/)
+  assert.match(all, /^\{\{공급자\.상호\}\}\(이하 甲\)/m)
+})
+
+test('★ 한글 금액이 하나뿐이면 합계 한글 칸이 된다', () => {
+  const r = scrubResidue(splitClauses(FILLED), null)
+  const pay = r.clauses.find((c) => c.title.startsWith('제6조'))!
+  assert.equal(plain(pay.html), '① 乙의 보수는 {{견적.합계 한글}}(4,750,000원) 으로 한다.')
+})
+
+test('한글 금액이 둘 이상이면 어느 것이 합계인지 몰라 바꾸지 않고 남은 값으로 센다', () => {
+  const r = scrubResidue(splitClauses('제1조\n계약금 금 일백만원\n잔금 금 이백만원'), null)
+  assert.match(plain(r.clauses[0].html), /금 일백만원/)
+  assert.equal(r.leftover.filter((l) => l.kind === 'money').length, 2)
+})
+
+test('★ 칸이 못 된 번호 금액 날짜는 남은 값으로 센다', () => {
+  const r = scrubResidue(splitClauses(FILLED), KNOWN)
+  const texts = r.leftover.map((l) => `${l.kind}:${l.text}`)
+  assert.ok(texts.includes('phone:010-1234-5678'), texts.join(' | '))
+  assert.ok(texts.includes('money:4,750,000원'), texts.join(' | '))
+  assert.ok(texts.includes('date:2026년 1월 2일'), texts.join(' | '))
+  // 칸으로 바꾼 값은 다시 세지 않는다
+  assert.ok(!texts.some((t) => t.includes('사백칠십오만')))
+})
+
+test('AI 가 칸으로 바꾼 값은 남은 값에서 빠진다', async () => {
+  const sign = splitClauses(FILLED).length
+  const d = await buildDraft({ fileName: 'x.pdf', text: FILLED, truncated: false }, async () => ({
+    suggestions: [S(sign, '2026년 1월 2일', '계약.계약일'), S(2, '4,750,000원', '견적.합계')], runId: 'r',
+  }), KNOWN)
+  assert.ok(!d.leftover.some((l) => l.kind === 'date' || l.kind === 'money'), JSON.stringify(d.leftover))
+})
+
+test('★ 창구는 남은 값과 지운 수를 화면에 싣는다 — 수가 없으면 사람이 다시 훑어야 한다', () => {
+  assert.match(ROUTE, /scrubbed: draft\.scrubbed/)
+  assert.match(ROUTE, /leftoverCount: draft\.leftover\.length/)
+  assert.match(ROUTE, /withCrmApi\('ADMIN'/)
+  assert.match(SERVICE, /const known = await readQuoteSupplier\(db\)/)
 })

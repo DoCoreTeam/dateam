@@ -19,6 +19,7 @@ import { parseFile } from '../../rfp/parse/index.ts'
 import { runAi, type AiAdapter } from '../ai/runner.ts'
 import { CONTRACT_TEMPLATE_FROM_DOC_V1 } from '../ai/prompts/contract-template-from-doc.v1.ts'
 import { adapterFromSetting } from './quick-create.ts'
+import { readQuoteSupplier } from './setting.ts'
 import { checkQuoteFile } from './quote-from-file.ts'
 import { irToSourceText } from './quote-source-text.ts'
 import { CONTRACT_FIELDS, escapeHtml, fieldToken } from '../domain/contract-fields.ts'
@@ -79,6 +80,7 @@ export function splitClauses(text: string): Clause[] {
     }
   }
   if (cur.title || cur.body.length > 0) groups.push(cur)
+  splitSignature(groups)
 
   const capped = groups.length > MAX_CLAUSES
     ? [...groups.slice(0, MAX_CLAUSES - 1), {
@@ -93,6 +95,24 @@ export function splitClauses(text: string): Clause[] {
     html: g.body.length > 0 ? g.body.map((p) => `<p>${escapeHtml(p)}</p>`).join('') : '<p></p>',
     origin: 'template' as const,
   }))
+}
+
+/** 날인부 첫 줄 — 띄어쓰기를 걷어 내고 본다(PDF 는 「이상과 같 이」 처럼 글자 사이가 벌어져 온다) */
+const SIGN_START = /이상과같이|위와같이|증명하기위하여|기명날인|서명또는날인|서명날인/
+
+/**
+ * 날인부를 마지막 조항에서 뗀다.
+ * 실측 2026-10-21: 「계약 당사자들은 이상과 같이 … 서명 또는 기명 날인」 부터 甲 乙 줄까지가
+ * 제17조(준거법 및 관할) 본문에 붙어 들어왔다. 날인부는 조항이 아니라 계약서 끝의 당사자 표시다.
+ * 마지막 「제N조」 안에서만 찾는다 — 본문 중간의 「서면으로 기명날인하여」 를 끊지 않게.
+ */
+function splitSignature(groups: { title: string; body: string[] }[]): void {
+  const last = groups[groups.length - 1]
+  if (!last || !CLAUSE_HEAD.test(last.title)) return
+  const at = last.body.findIndex((l) => SIGN_START.test(l.replace(/\s+/g, '')))
+  if (at < 0) return
+  groups.push({ title: '', body: last.body.slice(at) })
+  last.body = last.body.slice(0, at)
 }
 
 // ------------------------------------------------------------
@@ -187,6 +207,124 @@ export function restore(html: string, swaps: { token: string; escaped: string }[
 }
 
 // ------------------------------------------------------------
+// 남은 값 — AI 를 믿지 않고 코드가 한 번 더 본다
+// ------------------------------------------------------------
+
+/**
+ * 사용자는 **채워진 계약서**를 올린다(「내가 빈걸 넣진 않을거란 말이야」 2026-10-21).
+ * 그러니 템플릿에 남은 상호 이름 번호 금액은 전부 다음 계약서에 그대로 인쇄될 남의 값이다.
+ * AI 는 확신이 없으면 건너뛰게 되어 있어(프롬프트) 빠뜨린 것이 남는다 — 실측에서 甲 乙 줄과
+ * 한글 금액이 그대로 남았다. 그래서 코드가 아는 것은 코드가 바꾸고, 모르는 것은 세어 말한다.
+ *
+ * - 주민등록번호: 지운다. 저장하지 않는 값이라 칸이 없다 — 생년월일 칸으로 바꾸고 그 앞 이름표도 바꾼다
+ * - 우리 회사 값: 설정에 있으니 AI 없이 찾는다. PDF 의 글자 사이 띄어쓰기와 (주) 주식회사 변형까지
+ * - 한글 금액: 문서에 하나뿐이면 합계 한글 칸이다. 둘 이상이면 어느 것이 합계인지 몰라 남은 값으로 센다
+ * - 그 밖의 번호 금액 날짜: 바꾸지 않고 「남은 값」으로 화면에 알린다
+ */
+
+export interface KnownSupplier { name: string; ceo: string; bizNo: string; address: string; phone: string }
+
+export type LeftoverKind = 'phone' | 'bizNo' | 'money' | 'date'
+
+export interface ResidueResult {
+  clauses: Clause[]
+  /** 코드가 칸으로 바꾼 곳 수(우리 회사 값, 한글 금액) */
+  filled: number
+  /** 지운 주민등록번호 수 */
+  scrubbed: number
+  leftover: { clause: number; text: string; kind: LeftoverKind }[]
+}
+
+const RRN = /\d{6} *[-–—] *[1-4]\d{6}/g
+const RRN_LABEL = /주 *민 *등 *록 *번 *호/g
+const HANGUL_AMOUNT = /금 *[일이삼사오육칠팔구십백천만억조][일이삼사오육칠팔구십백천만억조 ]*원 *정?/g
+const LEFTOVER: [LeftoverKind, RegExp][] = [
+  ['phone', /0\d{1,2} *[-.)] *\d{3,4} *[-.] *\d{4}/g],
+  ['bizNo', /\d{3} *- *\d{2} *- *\d{5}/g],
+  ['money', /\d{1,3}(?:,\d{3})+ *원|\d+ *만 *원|금 *[일이삼사오육칠팔구십백천만억조][일이삼사오육칠팔구십백천만억조 ]*원 *정?/g],
+  ['date', /\d{4} *[년.\-/] *\d{1,2} *[월.\-/] *\d{1,2} *일?/g],
+]
+
+const tokenOf = (key: string): string => fieldToken(CONTRACT_FIELDS.find((f) => f.key === key)!.label)
+const escapeRe = (t: string): string => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** 글자마다 사이 띄어쓰기를 허락한다 — 「이 광 범」 도 「이광범」 이다 */
+const spaced = (t: string): string => [...t.replace(/\s+/g, '')].map(escapeRe).join(' *')
+/** 숫자만 보고 사이의 띄어쓰기 줄표를 허락한다 */
+const digitsOnly = (t: string): string => [...t.replace(/\D/g, '')].join('[ -]*')
+
+const plainOf = (html: string): string =>
+  unescapeHtml(html.replace(/<\/p><p>/g, '\n').replace(/<[^>]+>/g, '').replace(/\{\{[^{}]*\}\}/g, '\n'))
+
+/** 상호의 「주식회사」 「(주)」 를 떼고 앞뒤 어느 쪽에 붙어 와도 잡는다 */
+function companyPattern(name: string): string | null {
+  const core = name.replace(/주식회사|\(주\)|㈜/g, '').trim()
+  if (core.replace(/\s+/g, '').length < MIN_SUGGESTION_CHARS) return null
+  const corp = '(?:주식회사|\\( *주 *\\)|㈜)'
+  return `(?:${corp} *)?${spaced(core)}(?: *${corp})?`
+}
+
+function supplierPatterns(k: KnownSupplier): { re: RegExp; key: string }[] {
+  const out: { re: string | null; key: string }[] = [
+    { re: k.address.trim().length >= 6 ? spaced(k.address) : null, key: 'supplier.address' },
+    { re: companyPattern(k.name), key: 'supplier.name' },
+    { re: k.bizNo.replace(/\D/g, '').length === 10 ? digitsOnly(k.bizNo) : null, key: 'supplier.bizNo' },
+    { re: k.phone.replace(/\D/g, '').length >= 8 ? digitsOnly(k.phone) : null, key: 'supplier.phone' },
+    { re: k.ceo.replace(/\s+/g, '').length >= MIN_SUGGESTION_CHARS ? spaced(k.ceo) : null, key: 'supplier.ceo' },
+  ]
+  return out.filter((p): p is { re: string; key: string } => p.re !== null).map((p) => ({ re: new RegExp(p.re, 'g'), key: p.key }))
+}
+
+/** 글에서 정규식이 잡은 글자를 그대로 칸으로 바꾼다. 바꾼 곳 수를 낸다 */
+function replaceMatches(html: string, re: RegExp, token: string): { html: string; count: number } {
+  let out = html
+  let count = 0
+  const hits = [...new Set([...plainOf(html).matchAll(re)].map((m) => m[0].trim()))].sort((a, b) => b.length - a.length)
+  for (const hit of hits) {
+    const r = replaceInText(out, hit, token)
+    out = r.html
+    count += r.count
+  }
+  return { html: out, count }
+}
+
+export function scrubResidue(source: Clause[], known: KnownSupplier | null): ResidueResult {
+  let filled = 0
+  let scrubbed = 0
+  let clauses = source.map((c) => {
+    let html = c.html
+    const rrn = replaceMatches(html, RRN, tokenOf('customer.birth'))
+    if (rrn.count > 0) {
+      scrubbed += rrn.count
+      html = replaceMatches(rrn.html, RRN_LABEL, CONTRACT_FROM_FILE.birthLabel).html
+    }
+    for (const p of known ? supplierPatterns(known) : []) {
+      const r = replaceMatches(html, p.re, tokenOf(p.key))
+      html = r.html
+      filled += r.count
+    }
+    return { ...c, html }
+  })
+
+  const amounts = new Set(clauses.flatMap((c) => [...plainOf(c.html).matchAll(HANGUL_AMOUNT)].map((m) => m[0].replace(/\s+/g, ''))))
+  if (amounts.size === 1) {
+    clauses = clauses.map((c) => {
+      const r = replaceMatches(c.html, HANGUL_AMOUNT, tokenOf('quote.totalInWords'))
+      filled += r.count
+      return { ...c, html: r.html }
+    })
+  }
+
+  const leftover: ResidueResult['leftover'] = []
+  clauses.forEach((c, i) => {
+    const text = plainOf(c.html)
+    for (const [kind, re] of LEFTOVER) {
+      for (const m of text.matchAll(re)) leftover.push({ clause: i + 1, text: m[0].trim(), kind })
+    }
+  })
+  return { clauses, filled, scrubbed, leftover }
+}
+
+// ------------------------------------------------------------
 // 파일 읽기와 AI
 // ------------------------------------------------------------
 
@@ -203,6 +341,10 @@ export interface ContractFileDraft {
   clauses: Clause[]
   applied: ApplyResult['applied']
   rejected: ApplyResult['rejected']
+  /** 코드가 칸으로 바꾼 곳 수, 지운 주민등록번호 수, 칸으로 못 바꾸고 남은 값 */
+  filled: number
+  scrubbed: number
+  leftover: ResidueResult['leftover']
   ai: AiOutcome
   truncated: boolean
   runId: string | null
@@ -285,6 +427,7 @@ export type Suggest = (clauses: Clause[]) => Promise<{ suggestions: Suggestion[]
  */
 export async function buildDraft(
   read: { fileName: string; text: string; truncated: boolean; kind?: DetectedKind }, suggest: Suggest,
+  known: KnownSupplier | null = null,
 ): Promise<ContractFileDraft> {
   const base = splitClauses(read.text)
   const name = nameFromFile(read.fileName)
@@ -292,7 +435,8 @@ export async function buildDraft(
   try {
     const { suggestions, runId } = await suggest(base)
     const done = applySuggestions(base, suggestions)
-    return { name, ...done, ai: { status: 'ok' }, truncated: read.truncated, runId, sourceMime }
+    const residue = scrubResidue(done.clauses, known)
+    return { name, ...done, ...residue, ai: { status: 'ok' }, truncated: read.truncated, runId, sourceMime }
   } catch (e) {
     /*
       **글은 이미 읽었다.** AI 가 못 했다고 파일 올리기 전체를 실패로 돌리면
@@ -300,8 +444,9 @@ export async function buildDraft(
       예산이 막혔거나 키가 없으면 러너가 사람에게 할 말(CrmError)을 이미 만들어 둔다.
     */
     const message = e instanceof CrmError ? e.message : CONTRACT_FROM_FILE.aiFailed
+    // AI 가 못 해도 주민등록번호 지우기와 우리 회사 값 바꾸기는 한다 — 코드가 아는 일이다
     return {
-      name, clauses: base, applied: [], rejected: [],
+      name, ...scrubResidue(base, known), applied: [], rejected: [],
       ai: { status: 'failed', message }, truncated: read.truncated, runId: null, sourceMime,
     }
   }
@@ -315,6 +460,7 @@ export async function draftTemplateFromFile(
   db: CrmDb, workspaceId: string, actorId: string | null, input: ContractFileInput, adapter?: AiAdapter,
 ): Promise<ContractFileDraft> {
   const { text, truncated, kind } = await readContractText(input)
+  const known = await readQuoteSupplier(db)
   return buildDraft({ fileName: input.fileName, text, truncated, kind }, async (base) => {
     const chosen = adapter ?? await adapterFromSetting(db, { actorId })
     const { output, runId } = await runAi<SuggestionDoc>({
@@ -326,5 +472,5 @@ export async function draftTemplateFromFile(
       adapter: chosen,
     })
     return { suggestions: output.suggestions, runId }
-  })
+  }, known)
 }

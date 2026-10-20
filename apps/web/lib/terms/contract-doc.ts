@@ -250,6 +250,12 @@ export const CONTRACT_FROM_FILE = {
   aiSkipped: (why: string): string => `글만 들였습니다. ${why}`,
   truncated: '계약서가 길어 뒷부분은 읽지 못했습니다. 빠진 조항은 직접 넣어 주세요.',
   rejectedCount: (n: number): string => `원문과 맞지 않거나 없는 칸 이름을 짚은 제안 ${n}건은 넣지 않았습니다.`,
+  /** 주민등록번호를 지운 자리의 이름표 — 그 뒤 칸이 생년월일이다 */
+  birthLabel: '생년월일',
+  scrubbed: (n: number): string => `주민등록번호 ${n}곳을 지우고 생년월일 칸으로 바꿨습니다. 주민등록번호는 저장하지 않습니다.`,
+  leftover: (n: number, examples: string): string => `칸으로 못 바꾼 값 ${n}곳이 남았습니다: ${examples}. 「칸 넣기」로 바꿔 주세요.`,
+  leftoverAt: (where: string, text: string): string => `${where} 「${text}」`,
+  untitledClause: (n: number): string => `${n}번째 덩어리`,
   sourceFile: (name: string): string => `원본 파일: ${name}`,
   failed: '파일로 템플릿을 만들지 못했습니다.',
 } as const

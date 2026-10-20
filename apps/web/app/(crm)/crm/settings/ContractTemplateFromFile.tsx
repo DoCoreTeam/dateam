@@ -20,11 +20,19 @@ export interface FromFileResult {
   template: { id: string; name: string; version: number; currentVersionNo: number | null; businessTypeKey: string | null; isDefault: boolean; draftBody: unknown }
   applied: number
   rejected: number
+  /** 지운 주민등록번호 수 */
+  scrubbed: number
+  /** 칸으로 못 바꾸고 남은 값 — 수와 앞쪽 몇 개 */
+  leftoverCount: number
+  leftover: { where: string; text: string }[]
   ai: { status: 'ok' } | { status: 'failed'; message: string }
   truncated: boolean
   attached: boolean
   sourceFileName: string
 }
+
+/** 결과 줄에 늘어놓을 남은 값 보기 수 — 나머지는 수로만 말한다 */
+const LEFTOVER_EXAMPLES = 3
 
 interface Props {
   onClose: () => void
@@ -36,6 +44,11 @@ export function resultLines(r: FromFileResult): string[] {
   const lines: string[] = []
   if (r.ai.status === 'failed') lines.push(CONTRACT_FROM_FILE.aiSkipped(r.ai.message))
   else lines.push(r.applied > 0 ? CONTRACT_FROM_FILE.doneFields(r.applied) : CONTRACT_FROM_FILE.doneNoFields)
+  if (r.scrubbed > 0) lines.push(CONTRACT_FROM_FILE.scrubbed(r.scrubbed))
+  if (r.leftoverCount > 0) {
+    const examples = r.leftover.slice(0, LEFTOVER_EXAMPLES).map((l) => CONTRACT_FROM_FILE.leftoverAt(l.where, l.text)).join(', ')
+    lines.push(CONTRACT_FROM_FILE.leftover(r.leftoverCount, examples))
+  }
   if (r.rejected > 0) lines.push(CONTRACT_FROM_FILE.rejectedCount(r.rejected))
   if (r.truncated) lines.push(CONTRACT_FROM_FILE.truncated)
   if (!r.attached) lines.push(CONTRACT_FROM_FILE.attachFailed)

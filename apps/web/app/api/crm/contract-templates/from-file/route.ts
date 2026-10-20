@@ -17,6 +17,9 @@ import { CONTRACT_FROM_FILE } from '@/lib/terms/contract-doc'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 180
 
+/** 화면에 돌려줄 남은 값 상한 — 수만 세고 보기는 몇 개면 된다 */
+const LEFTOVER_SHOWN = 20
+
 /**
  * 원본을 비공개 버킷에 올리고 첨부로 적는다. 형식은 브라우저 주장이 아니라 판정한 종류에서 온다 —
  * 모르는 종류면 남기지 않는다. 실패는 로그에 남기고 화면에는 attached=false 로 말한다.
@@ -76,8 +79,14 @@ export async function POST(req: NextRequest) {
 
     return {
       template,
-      applied: draft.applied.length,
+      applied: draft.applied.length + draft.filled,
       rejected: draft.rejected.length,
+      scrubbed: draft.scrubbed,
+      leftoverCount: draft.leftover.length,
+      leftover: draft.leftover.slice(0, LEFTOVER_SHOWN).map((l) => ({
+        where: draft.clauses[l.clause - 1]?.title || CONTRACT_FROM_FILE.untitledClause(l.clause),
+        text: l.text,
+      })),
       ai: draft.ai,
       truncated: draft.truncated,
       attached,
