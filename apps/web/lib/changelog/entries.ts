@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.22',
+    date: '2026-10-20',
+    title: '딜 화면이 탭으로 나뉘고 단추 말이 짧아졌어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🗂️',
+        headline: '딜 화면을 탭으로 나눴어요',
+        detail: '개요, 타임라인, 견적, 계약, 미팅, 사람, 단계 이력을 탭으로 옮겼어요. 타임라인을 아래까지 내리지 않고 한 번에 열어 바로 기록할 수 있고, 고른 탭은 주소에 남아요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🔁',
+        headline: 'ENT 전환 구축을 지난 계약으로 알아서 넣어요',
+        detail: '같은 회사가 체결한 계약에서 STD 를 산 기록이 있으면 ENT 견적에 「ENT 전환 구축」이 근거와 함께 들어가요. 제품으로 채우기에서 「기존 STD 고객」을 직접 켜고 끌 수도 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔤',
+        headline: '견적 단추 말을 짧게 바꿨어요',
+        detail: '「초안으로 되돌려 고치기」는 「수정」, 「개정본 만들기」는 「개정」, 「다른 안 만들기」는 「대안」처럼 단추 말을 짧게 맞췄어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📥',
+        headline: '가격표 파일을 끌어 놓아도 가져와져요',
+        detail: '가격 기준의 파일 가져오기 창에 파일을 끌어 놓으면 바로 골라져요. 제품 상세의 기본 정보 탭도 보기 쉽게 다시 짰어요.',
+      },
+    ],
+  },
+  {
     version: '0.11.20',
     date: '2026-10-20',
     title: '견적 옆에 생각나는 대로 적으면 표가 채워져요',
