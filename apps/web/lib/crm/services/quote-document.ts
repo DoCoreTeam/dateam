@@ -144,8 +144,8 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (db as any).crmPerson.findFirst({
           where: { id: recipientId },
-          select: { name: true, title: true },
-        }) as Promise<{ name: string; title: string | null } | null>
+          select: { name: true, title: true, phone: true },
+        }) as Promise<{ name: string; title: string | null; phone: string | null } | null>
       : Promise.resolve(null),
   ])
 
@@ -231,6 +231,7 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
       companyName: deal.company?.name ?? null,
       // 직책이 있으면 「김도현 교수」처럼 함께 적는다 — 문서에서 사람을 지목하는 자리다
       personName: recipient ? [recipient.name, recipient.title].filter(Boolean).join(' ') : null,
+      personPhone: recipient?.phone ?? null,
       fallbackName: deal.name,
     },
     supplier,

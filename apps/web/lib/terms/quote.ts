@@ -41,6 +41,7 @@ export const QUOTE = {
   supplierBizNo: '사업자등록번호',
   supplierCeo: '대표자',
   supplierAddress: '주소',
+  supplierPhone: '대표 전화번호',
   supplierBizType: '업태',
   supplierBizItem: '종목',
   /**
@@ -1222,7 +1223,7 @@ export function hangulAmount(minor: bigint | string | number, currency: string):
 // ------------------------------------------------------------
 
 export type SupplierField =
-  | 'name' | 'bizNo' | 'ceo' | 'address' | 'bizType' | 'bizItem' | 'terms'
+  | 'name' | 'bizNo' | 'ceo' | 'address' | 'phone' | 'bizType' | 'bizItem' | 'terms'
 
 /** 설정 키(`quote.supplier.*`) → 문서에 찍히는 라벨 */
 export const SUPPLIER_LABEL: Record<SupplierField, string> = {
@@ -1230,6 +1231,7 @@ export const SUPPLIER_LABEL: Record<SupplierField, string> = {
   bizNo: QUOTE.supplierBizNo,
   ceo: QUOTE.supplierCeo,
   address: QUOTE.supplierAddress,
+  phone: QUOTE.supplierPhone,
   bizType: QUOTE.supplierBizType,
   bizItem: QUOTE.supplierBizItem,
   terms: QUOTE.terms,
@@ -1249,6 +1251,7 @@ export const SUPPLIER_SETTING_KEY: Record<SupplierField, string> = {
   bizNo: 'quote.supplier.bizNo',
   ceo: 'quote.supplier.ceo',
   address: 'quote.supplier.address',
+  phone: 'quote.supplier.phone',
   bizType: 'quote.supplier.bizType',
   bizItem: 'quote.supplier.bizItem',
   terms: 'quote.supplier.terms',

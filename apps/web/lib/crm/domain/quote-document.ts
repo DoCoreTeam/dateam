@@ -43,6 +43,8 @@ export interface DocumentSupplier {
   bizNo: string
   ceo: string
   address: string
+  /** 대표 번호 — 견적서에는 안 찍는다(연락처는 만든 사람). 계약서 당사자 칸이 쓴다 */
+  phone: string
   bizType: string
   bizItem: string
   /** 기본 거래 조건 — 견적마다 안 적어도 되도록 */
@@ -104,6 +106,8 @@ export interface DocumentCustomer {
   companyName: string
   /** 수신 담당자. 경칭까지 붙은 채로 온다(`withContactHonorific`) */
   personName: string | null
+  /** 수신 담당자 전화번호. 견적서에는 안 찍고 계약서 칸이 쓴다 — 개인과의 계약이면 그 사람 번호다 */
+  phone: string
 }
 
 /**
@@ -417,6 +421,7 @@ export interface BuildQuoteDocumentInput {
   customer: {
     companyName: string | null
     personName?: string | null
+    personPhone?: string | null
     /** 회사가 없을 때 대신 쓸 이름(딜 이름) */
     fallbackName: string
   }
@@ -714,6 +719,7 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       bizNo: text(input.supplier.bizNo),
       ceo: text(input.supplier.ceo),
       address: text(input.supplier.address),
+      phone: text(input.supplier.phone),
       bizType: primaryLine(input.supplier.bizType),
       bizItem: primaryLine(input.supplier.bizItem),
       terms: text(input.supplier.terms),
@@ -731,6 +737,7 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       personName: text(input.customer.personName)
         ? withContactHonorific(text(input.customer.personName))
         : null,
+      phone: text(input.customer.personPhone),
     },
     meta: {
       quoteNo: input.quote.quoteNo,

@@ -15,9 +15,9 @@ const label = (key: string): string => CONTRACT_FIELD_LABEL[key]
 const DOC = {
   documentTitle: '견적서',
   sections: [],
-  supplier: { name: '주식회사 에이엑스', bizNo: '123-45-67890', ceo: '홍길동', address: '서울', bizType: '', bizItem: '', terms: '' },
-  owner: { name: '김영업', title: '', email: '', phone: '' },
-  customer: { companyName: '주식회사 <한빛>', personName: '박담당님' },
+  supplier: { name: '주식회사 에이엑스', bizNo: '123-45-67890', ceo: '홍길동', address: '서울', phone: '02-000-0000', bizType: '', bizItem: '', terms: '' },
+  owner: { name: '김영업', title: '', email: '', phone: '010-0000-1111' },
+  customer: { companyName: '주식회사 <한빛>', personName: '박담당님', phone: '010-0000-2222' },
   meta: {
     quoteNo: 'DA-20261016-01', title: 'GPU 증설', issuedOn: '2026-10-16', validUntil: null, currency: 'KRW',
     expired: false, revision: '', variantLabel: '', printComponents: 'expand',
@@ -46,6 +46,16 @@ test('견적 값이 견적서와 같은 표기로 채워진다 — 금액 쉼표
   assert.equal(v['quote.start'], '2026-11-01')
   assert.equal(v['quote.end'], '2027-04-30')
   assert.equal(v['contract.no'], 'CT-1')
+})
+
+test('전화번호 칸 셋이 공급자 설정, 수신 담당자, 견적 담당에서 채워진다', () => {
+  const v = autoValuesFrom(DOC, 'CT-1')
+  assert.equal(v['supplier.phone'], '02-000-0000')
+  assert.equal(v['customer.phone'], '010-0000-2222')
+  assert.equal(v['owner.phone'], '010-0000-1111')
+  // 사람이 고친 번호가 이긴다 — 개인과의 계약에서 다른 번호를 넣는 자리
+  const merged = mergeFieldValues(v, { 'customer.phone': '010-9999-0000' })
+  assert.deepEqual(merged['customer.phone'], { value: '010-9999-0000', source: 'manual' })
 })
 
 test('★ 모르는 칸은 이름을 대며 멈춘다 — 오타가 빈칸으로 인쇄되지 않는다', () => {
@@ -105,6 +115,7 @@ const COVERED: Record<string, string> = {
   'supplier.name': 'supplier.name', 'supplier.ceo': 'supplier.ceo', 'supplier.bizNo': 'supplier.bizNo',
   'supplier.address': 'supplier.address', 'customer.companyName': 'customer.name',
   'customer.personName': 'customer.contact', 'owner.name': 'owner.name',
+  'supplier.phone': 'supplier.phone', 'customer.phone': 'customer.phone', 'owner.phone': 'owner.phone',
   'meta.quoteNo': 'quote.no', 'meta.title': 'quote.title', 'meta.issuedOn': 'quote.issuedOn',
   'totals.netTotalMinor': 'quote.supply', 'totals.taxMinor': 'quote.tax', 'totals.totalMinor': 'quote.total',
   'totals.totalInWords': 'quote.totalInWords', 'lines': 'quote.lines', 'terms': 'quote.terms',
@@ -117,7 +128,6 @@ const EXEMPT: Record<string, string> = {
   'supplier.terms': '설정의 옛 기본 조건 한 덩어리다. 계약서는 견적이 고른 조건(terms)을 쓴다',
   'owner.title': '우리 담당 직함은 견적서 담당란 표시용이다. 계약서 서명란은 대표자가 선다',
   'owner.email': '담당 연락처는 견적서 머리말용이다. 계약서 당사자는 회사다',
-  'owner.phone': '담당 연락처는 견적서 머리말용이다. 계약서 당사자는 회사다',
   'meta.validUntil': '견적 유효기간은 견적에만 뜻이 있다. 계약서에는 계약 기간이 따로 선다',
   'meta.currency': '통화는 금액 칸 표기에 이미 들어간다(formatAmount)',
   'meta.expired': '화면 판정용 표시다. 문서 글이 아니다',

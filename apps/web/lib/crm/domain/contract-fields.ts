@@ -38,11 +38,14 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
   { key: 'supplier.ceo', label: CONTRACT_FIELD_LABEL['supplier.ceo'], source: 'supplier', kind: 'text', auto: true },
   { key: 'supplier.bizNo', label: CONTRACT_FIELD_LABEL['supplier.bizNo'], source: 'supplier', kind: 'text', auto: true },
   { key: 'supplier.address', label: CONTRACT_FIELD_LABEL['supplier.address'], source: 'supplier', kind: 'text', auto: true },
+  { key: 'supplier.phone', label: CONTRACT_FIELD_LABEL['supplier.phone'], source: 'supplier', kind: 'text', auto: true },
   { key: 'customer.name', label: CONTRACT_FIELD_LABEL['customer.name'], source: 'customer', kind: 'text', auto: true },
   { key: 'customer.contact', label: CONTRACT_FIELD_LABEL['customer.contact'], source: 'customer', kind: 'text', auto: true },
   { key: 'customer.ceo', label: CONTRACT_FIELD_LABEL['customer.ceo'], source: 'customer', kind: 'text', auto: false },
   { key: 'customer.bizNo', label: CONTRACT_FIELD_LABEL['customer.bizNo'], source: 'customer', kind: 'text', auto: false },
   { key: 'customer.address', label: CONTRACT_FIELD_LABEL['customer.address'], source: 'customer', kind: 'text', auto: false },
+  // 견적의 수신 담당자 번호가 기본값이다 — 개인과의 계약이면 그 사람 번호, 아니면 고쳐 넣는다
+  { key: 'customer.phone', label: CONTRACT_FIELD_LABEL['customer.phone'], source: 'customer', kind: 'text', auto: true },
   { key: 'quote.no', label: CONTRACT_FIELD_LABEL['quote.no'], source: 'quote', kind: 'text', auto: true },
   { key: 'quote.title', label: CONTRACT_FIELD_LABEL['quote.title'], source: 'quote', kind: 'text', auto: true },
   { key: 'quote.issuedOn', label: CONTRACT_FIELD_LABEL['quote.issuedOn'], source: 'quote', kind: 'date', auto: true },
@@ -57,6 +60,7 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
   { key: 'quote.lines', label: CONTRACT_FIELD_LABEL['quote.lines'], source: 'quote', kind: 'block', auto: true },
   { key: 'quote.terms', label: CONTRACT_FIELD_LABEL['quote.terms'], source: 'quote', kind: 'block', auto: true },
   { key: 'owner.name', label: CONTRACT_FIELD_LABEL['owner.name'], source: 'quote', kind: 'text', auto: true },
+  { key: 'owner.phone', label: CONTRACT_FIELD_LABEL['owner.phone'], source: 'quote', kind: 'text', auto: true },
   { key: 'contract.no', label: CONTRACT_FIELD_LABEL['contract.no'], source: 'contract', kind: 'text', auto: true },
   { key: 'contract.date', label: CONTRACT_FIELD_LABEL['contract.date'], source: 'contract', kind: 'date', auto: false },
   { key: 'contract.start', label: CONTRACT_FIELD_LABEL['contract.start'], source: 'contract', kind: 'date', auto: false },
@@ -130,8 +134,10 @@ export function autoValuesFrom(doc: QuoteDocument, contractNo: string): Record<s
     'supplier.ceo': doc.supplier.ceo,
     'supplier.bizNo': doc.supplier.bizNo,
     'supplier.address': doc.supplier.address,
+    'supplier.phone': doc.supplier.phone ?? '',
     'customer.name': doc.customer.companyName,
     'customer.contact': doc.customer.personName ?? '',
+    'customer.phone': doc.customer.phone ?? '',
     'quote.no': doc.meta.quoteNo,
     'quote.title': doc.meta.title,
     'quote.issuedOn': doc.meta.issuedOn ?? '',
@@ -143,6 +149,8 @@ export function autoValuesFrom(doc: QuoteDocument, contractNo: string): Record<s
     'quote.start': range.start,
     'quote.end': range.end,
     'owner.name': doc.owner.name,
+    // 이 칸이 생기기 전에 굳힌 견적 스냅숏에는 없다 — 없으면 빈 값이다(「바뀐 칸」으로 잡히지 않게)
+    'owner.phone': doc.owner.phone ?? '',
     'contract.no': contractNo,
   }
 }

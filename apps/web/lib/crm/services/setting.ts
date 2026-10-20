@@ -143,6 +143,11 @@ export const SETTING_DEFS: readonly SettingDef[] = [
     fallback: '', description: '사업자등록증에 적힌 사업장 주소입니다. 견적서 「공급자」 칸에 그대로 인쇄됩니다.',
   },
   {
+    // 견적서에는 안 찍는다 — 견적서 연락처는 만든 사람이다(QUOTE.supplierContact). 계약서 당사자 표시가 쓴다
+    key: 'quote.supplier.phone', label: '대표 전화번호', kind: 'text', group: 'quote',
+    fallback: '', description: '회사 대표 번호입니다. 계약서 {{공급자.전화번호}} 칸에 들어갑니다. 견적서에는 만든 사람 번호가 찍힙니다.',
+  },
+  {
     key: 'quote.supplier.bizType', label: '업태', kind: 'multiline', group: 'quote',
     fallback: '',
     description: '사업자등록증에 적힌 대로 한 줄에 하나씩. 종목과 **줄 순서가 짝**입니다. 견적서에는 첫 줄만 인쇄됩니다. 예: 서비스 / 도소매 / 소매',
@@ -298,7 +303,7 @@ export const PLANNED_SETTINGS = [
 
 /** 공급자 설정 키의 뒷부분. 문서 쪽 `SupplierField` 와 **같은 이름**이라 대조가 된다 */
 const SUPPLIER_FIELDS: readonly SupplierField[] = [
-  'name', 'bizNo', 'ceo', 'address', 'bizType', 'bizItem', 'terms',
+  'name', 'bizNo', 'ceo', 'address', 'phone', 'bizType', 'bizItem', 'terms',
 ]
 
 const DEF_BY_KEY = new Map(SETTING_DEFS.map((d) => [d.key, d]))
