@@ -3,6 +3,7 @@
 // 말로 채우기 — 견적 표 위에 늘 열려 있는 글 상자.
 //
 // 쓰다가 3초 멈추면 표가 고쳐진다. 줄을 더하고, 고치고, 지운다. 글은 견적과 함께 저장된다.
+// 「견적 만들기」를 누르면 바로 읽고, 글에 예산이 있으면 합계를 그 예산에 맞춘다(멈춤 읽기는 안 맞춘다).
 // 규칙이 먼저 읽고 못 읽은 줄만 AI 에게 간다(서버 `quote-text-fill`). 계산은 서버의 엔진이 한다.
 // 사람이 표에서 고친 칸은 덮지 않는다.
 //
@@ -17,7 +18,7 @@ import { QUOTE, TEXT_FILL, progress } from '@/lib/terms'
 import { kindFromDomain, type CompanyKind } from '@/lib/crm/domain/company-kind'
 import { readResponse } from '@/lib/crm/api/read-error'
 import type { QuoteDraft } from '../quote-draft-shape'
-import { applyReviewFixes, applyTextFill, fromLinesOf, toClientLines, type ReviewJson, type TextFillJson } from './text-fill-apply'
+import { applyReviewFixes, applyTextFill, fromLinesOf, generateFromText, toClientLines, type ReviewJson, type TextFillJson } from './text-fill-apply'
 import { textLink, useTextLink } from './text-link-store'
 import styles from './quote-fill.module.css'
 
@@ -27,7 +28,7 @@ export const PAUSE_MS = 3_000
 type Status =
   | { kind: 'idle' }
   | { kind: 'working' }
-  | { kind: 'done'; changed: number; res: TextFillJson }
+  | { kind: 'done'; changed: number; res: TextFillJson; budgetMessage: string | null }
   | { kind: 'failed'; message: string }
 
 interface Props {
@@ -106,7 +107,7 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
     }
   }
 
-  const run = useCallback(async (force: boolean) => {
+  const run = useCallback(async (force: boolean, generate = false) => {
     const now = draftRef.current.fillText ?? ''
     if (!force && now === lastSent.current) return
     lastSent.current = now
@@ -124,9 +125,9 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
       const body = r.body as TextFillJson
       if (body.aiCache) aiCache.current = body.aiCache
       // 응답이 온 그때의 초안에 얹는다 — 기다리는 동안 사람이 고친 칸도 그대로 간다
-      const applied = applyTextFill(draftRef.current, body, now)
+      const applied = generate ? generateFromText(draftRef.current, body, now) : { ...applyTextFill(draftRef.current, body, now), budgetMessage: null }
       onDraftChange(() => applied.draft)
-      setStatus({ kind: 'done', changed: applied.changed, res: body })
+      setStatus({ kind: 'done', changed: applied.changed, res: body, budgetMessage: applied.budgetMessage })
     } catch {
       if (mine === seq.current) setStatus({ kind: 'failed', message: TEXT_FILL.failed })
     }
@@ -170,8 +171,8 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
           <NbButton variant="ghost" onClick={() => void runReview()} disabled={disabled || review.busy || text.trim() === '' || draft.lines.every((l) => !l.name.trim())}>
             {review.busy ? progress(TEXT_FILL.aiReview) : TEXT_FILL.aiReview}
           </NbButton>
-          <NbButton variant="ghost" onClick={() => void run(true)} disabled={disabled || status.kind === 'working' || text.trim() === ''}>
-            {status.kind === 'working' ? progress(TEXT_FILL.reorganize) : TEXT_FILL.reorganize}
+          <NbButton onClick={() => void run(true, true)} disabled={disabled || status.kind === 'working' || text.trim() === ''}>
+            {status.kind === 'working' ? progress(TEXT_FILL.generate) : TEXT_FILL.generate}
           </NbButton>
         </div>
       </div>
@@ -204,6 +205,7 @@ export default function QuoteTextEditor({ dealId, draft, onDraftChange, disabled
         {res?.switchedNote && <span>{res.switchedNote}</span>}
         {active !== null && linked > 0 && <span>{TEXT_FILL.linked(linked)}</span>}
       </div>
+      {status.kind === 'done' && status.budgetMessage && <p className={styles.small} role="status">{status.budgetMessage}</p>}
       {res && res.unread.length > 0 && (
         <ul className={styles.unreadList}>
           {res.unread.map((u) => <li key={`${u.line}.${u.part}`}>{TEXT_FILL.fromLine(u.line)}: {u.text}</li>)}

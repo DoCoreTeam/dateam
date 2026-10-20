@@ -28,6 +28,14 @@ export default function BudgetFit({ dealId, draft, onDraftChange, approvalRequir
   const [fromDeal, setFromDeal] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
+  // 글로 읽은 예산이 오면 칸이 그 값을 따른다 — 처음 값만 들고 있으면 칸과 글이 다른 예산을 말한다
+  useEffect(() => {
+    if (!draft.budgetMinor) return
+    setBudget(draft.budgetMinor)
+    setWithTax(draft.budgetIncludesTax ?? false)
+    setFromDeal(false)
+  }, [draft.budgetMinor, draft.budgetIncludesTax])
+
   useEffect(() => {
     if (draft.budgetMinor) return
     let alive = true

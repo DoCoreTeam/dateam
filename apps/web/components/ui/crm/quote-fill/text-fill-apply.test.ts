@@ -4,7 +4,7 @@ import { GCUBE_EDGE } from '../../../../lib/crm/domain/pricebook/gcube-edge.ts'
 import { readText } from '../../../../lib/crm/domain/quote-text/read-rules.ts'
 import { runTextFill, type ClientLine } from '../../../../lib/crm/domain/quote-text/text-fill.ts'
 import { SOOKMYUNG_LINES, TEST_CATALOG } from '../../../../lib/crm/domain/quote-text/fixtures.ts'
-import { applyTextFill, toClientLines, type TextFillJson } from './text-fill-apply.ts'
+import { applyTextFill, generateFromText, toClientLines, type TextFillJson } from './text-fill-apply.ts'
 import type { QuoteDraft } from '../quote-draft-shape'
 
 const CTX = {
@@ -119,4 +119,20 @@ test('붙이기만 하던 옛 말로 채우기 길이 남지 않는다', async (
   assert.equal(existsSync(new URL('../../../../app/api/crm/quotes/draft/route.ts', import.meta.url)), false)
   // 파일로 채우기는 그대로
   assert.match(panel, /\/api\/crm\/quotes\/draft-file/)
+})
+
+// 실측 2026-10-20 — 글에 「예산: 2000만원」이 있었는데 합계는 그대로였다. 읽은 예산이 초안에만 들어가고 맞추기는 따로 눌러야 했다
+test('「견적 만들기」는 글로 표를 세우고 글에 예산이 있으면 그 예산에 맞춘다', () => {
+  const text = `${SOOKMYUNG_LINES}\n예산 2억`
+  const out = generateFromText(EMPTY, serve(EMPTY, text), text)
+  assert.ok(out.changed > 0)
+  assert.equal(out.draft.budgetMinor, '200000000')
+  assert.ok(out.budgetMessage, '맞춤 문장이 없음')
+  assert.ok(out.draft.lines.some((l) => Number(l.discountPercent) > 0), '할인 칸에 아무것도 안 들어감')
+})
+
+test('글에 예산이 없으면 맞추지 않는다', () => {
+  const out = generateFromText(EMPTY, serve(EMPTY, SOOKMYUNG_LINES), SOOKMYUNG_LINES)
+  assert.equal(out.budgetMessage, null)
+  assert.deepEqual(out.draft, applyTextFill(EMPTY, serve(EMPTY, SOOKMYUNG_LINES), SOOKMYUNG_LINES).draft)
 })

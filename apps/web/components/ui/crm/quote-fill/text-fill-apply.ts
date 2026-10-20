@@ -9,6 +9,7 @@
  */
 
 import type { QuoteDraft, QuoteLineDraft } from '../quote-draft-shape'
+import { fitDraftToBudget } from './draft-budget.ts'
 import type { QuoteLineKind } from '@/lib/terms/cost'
 
 /** 서버가 주는 줄 — 금액은 문자열 정수 */
@@ -247,6 +248,24 @@ export function applyTextFill(draft: QuoteDraft, res: TextFillJson, text: string
       learnedAliases: aliases,
     },
   }
+}
+
+export interface Generated extends Applied {
+  /** 예산에 맞춘 결과 한 줄 — 글에 예산이 없으면 null */
+  budgetMessage: string | null
+}
+
+/**
+ * 「견적 만들기」 — 글로 표를 세우고, 글에 예산이 있으면 그 예산에 맞춘다.
+ * 맞추는 일은 「예산에 맞추기」 단추와 같은 함수(할인 칸으로만, 단가와 수량은 그대로)다.
+ * 3초 멈춤 자동 읽기는 맞추지 않는다 — 쓰는 도중에 할인이 바뀌면 안 된다.
+ */
+export function generateFromText(draft: QuoteDraft, res: TextFillJson, text: string): Generated {
+  const applied = applyTextFill(draft, res, text)
+  const budget = applied.draft.budgetMinor
+  if (!budget || !/^\d+$/.test(budget)) return { ...applied, budgetMessage: null }
+  const fit = fitDraftToBudget(applied.draft, BigInt(budget), applied.draft.budgetIncludesTax ?? false)
+  return { changed: applied.changed + (fit.changed ? 1 : 0), draft: fit.draft, budgetMessage: fit.message }
 }
 
 function mergeAliases(a: readonly { itemId: string; word: string }[], b: readonly { itemId: string; word: string }[]) {
