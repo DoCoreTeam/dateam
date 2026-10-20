@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.36',
+    date: '2026-10-20',
+    title: '견적서 품목 칸이 넓어졌어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '📐',
+        headline: '품목 이름이 덜 접히고 숫자는 칸 안에 들어가요',
+        detail: '단가, 할인, 금액 칸이 그 견적에 든 숫자만큼만 자리를 잡고 남는 자리는 품목 이름에 줘요. 할인 칸 빈 자리가 줄었고, 단가가 칸 밖으로 넘치던 것도 고쳤어요. 휴대폰에서는 견적서 표를 옆으로 밀어 보면 돼요.',
+      },
+    ],
+  },
+  {
     version: '0.11.35',
     date: '2026-10-20',
     title: '특기사항 빈 줄이 그대로 남아요',

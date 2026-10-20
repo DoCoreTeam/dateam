@@ -43,6 +43,16 @@ interface Props {
   noteSlot?: (html: string | null, classes: { title: string; body: string }) => ReactNode
 }
 
+/** 할인 칸 한 줄 글자. 칸이 그리는 것과 같은 글자여야 폭 셈이 맞는다 */
+function discountText(l: DocumentLine): string {
+  if (l.isSpecialDiscount) {
+    return l.baseDiscountPercent !== '0'
+      ? `${l.baseDiscountPercent}% → ${l.specialDiscountPercent}%`
+      : `${l.specialDiscountPercent}%`
+  }
+  return l.discountPercent === '0' ? '' : `${l.discountPercent}%`
+}
+
 export default function QuoteSheet({ doc, logo, seal, surface = 'screen', noteSlot }: Props) {
   const money = (minor: string) => formatAmount(minor, doc.meta.currency) ?? '0'
   // 공급자는 «비어 있지 않은 것만» 줄을 만든다 — 「—」 가 늘어선 문서를 보내지 않는다
@@ -108,7 +118,23 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen', noteSl
     틀린 줄도 모른다. 꺼내 두면 시험이 여덟 경우를 다 센다.
   */
   const longRemark = showRemark && hasLongRemark(doc.lines)
-  const colWidths = quoteColumnWidths({ showDiscount, showRemark, longRemark })
+  /*
+    숫자 칸은 **이 견적에 든 글자**로 폭을 센다(P0147). 고정값이면 「70%」 하나 든 할인 칸이
+    「30% → 100%」 몫의 폭을 먹어 품목 이름이 석 줄로 접혔다. 아래 칸 글자와 같은 식으로 짓는다
+  */
+  const columnContent = {
+    unitPrice: doc.lines.map((l) => money(l.unitPriceMinor)),
+    discount: doc.lines.map((l) => discountText(l)),
+    discountTag: doc.lines.some((l) => l.isSpecialDiscount) ? [QUOTE.lineSpecialDiscount] : [],
+    amount: [
+      ...doc.lines.flatMap((l) => [l.amountLabel ?? money(l.amountMinor), money(l.baseAmountMinor)]),
+      ...doc.sections.map((sec) => money(sec.subtotalMinor)),
+      money(doc.totals.annualMinor),
+      doc.totals.totalKrwMinor ? `${Number(doc.totals.totalKrwMinor).toLocaleString('ko-KR')}원` : '',
+    ],
+    grand: [money(doc.totals.totalMinor)],
+  }
+  const colWidths = quoteColumnWidths({ showDiscount, showRemark, longRemark, content: columnContent })
   /** 합계 라벨은 **금액 바로 앞 두 칸**에 걸친다 — 한 칸이면 「합계 금액」이 두 줄로 깨진다 */
   const labelSpan = 2
   /*
@@ -225,7 +251,7 @@ export default function QuoteSheet({ doc, logo, seal, surface = 'screen', noteSl
                             <div className={styles.specialTag}>{QUOTE.lineSpecialDiscount}</div>
                           </>
                         ) : (
-                          l.discountPercent === '0' ? '' : `${l.discountPercent}%`
+                          discountText(l)
                         )}
                       </td>
                     )}

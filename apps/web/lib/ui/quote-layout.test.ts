@@ -373,7 +373,7 @@ test('★ 가져오기 창의 머리말이 건수를 말한다 — 화면이 조
 
 test('\u2605 화면 부품이 폭을 제 손으로 안 정한다 — 셈은 한 곳에서만 난다', () => {
   const src = read('app/(crm)/crm/quotes/[id]/QuoteSheet.tsx')
-  assert.match(src, /quoteColumnWidths\(\{ showDiscount, showRemark, longRemark \}\)/,
+  assert.match(src, /quoteColumnWidths\(\{ showDiscount, showRemark, longRemark, content: columnContent \}\)/,
     '화면이 폭 셈을 안 부른다')
   assert.match(src, /const longRemark = showRemark && hasLongRemark\(doc\.lines\)/,
     '긴 비고를 안 센다 — 영문 한 문장이 10% 칸에서 낱말 가운데서 끊긴다')
@@ -689,7 +689,7 @@ test('★ 줄마다 근거가 다르면 빈칸으로 넘기지 않는다', () =>
 test('★ 표가 실제로 넘칠 때만 밀어 보라고 한다', () => {
   /*
     실측 2026-10-05: 390px 에서 금액 칸이 x=403 에서 시작해 첫 화면 밖이었다.
-    표는 가로로 넘어가는데(min-width 34rem) macOS·iOS 가 스크롤 막대를 숨겨서
+    표는 가로로 넘어가는데(min-width 45.5rem) macOS·iOS 가 스크롤 막대를 숨겨서
     **거기 뭔가 더 있다는 사실 자체가 안 보였다.**
 
     안 넘치는데 밀어 보라고 하면 없는 것을 찾게 만든다 — 그래서 **재서 정한다.**
@@ -716,7 +716,8 @@ test('★ 태블릿 폭에서도 표가 눌리지 않고 넘어간다', () => {
     두 줄로 부서지고 비고 안쪽이 40px 이 되어 「providin/g」처럼 낱말이 끊겼다
     (실측 2026-10-05). 눌러서 맞추느니 넘겨서 읽는 편이 낫다.
   */
-  assert.match(DOC, /@media screen and \(max-width: 1023px\) \{\s*\.table \{ min-width: 34rem; \}/,
+  // 폭 값은 quote-columns.test.ts 가 셈의 기준 폭(BASIS_PX)과 대조한다, 여기서는 문턱만 본다
+  assert.match(DOC, /@media screen and \(max-width: 1023px\) \{\s*\.table \{ min-width: [\d.]+rem; \}/,
     '표 최소 폭이 태블릿까지 안 걸린다')
 })
 
