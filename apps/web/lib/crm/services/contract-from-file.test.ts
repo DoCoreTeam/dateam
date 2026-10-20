@@ -340,3 +340,27 @@ test('★ 창구는 남은 값과 지운 수를 화면에 싣는다 — 수가 �
   assert.match(ROUTE, /withCrmApi\('ADMIN'/)
   assert.match(SERVICE, /const known = await readQuoteSupplier\(db\)/)
 })
+
+/* ── PDF 에서 뽑은 글 (P0149) ─────────────────────── */
+
+// 실측 2026-10-21: PDF 추출이 줄표를 버리고 乙 을 강희 부수 칸 글자로 냈다
+const FROM_PDF = '제1조 [목적]\n용역을 정한다.\n제2조 [관할]\n민법을 따른다.\n이상과 같이 서명 또는 날인한다.\n\u2F04 김 철 수 (서명 또는 인)\n(주 민 등록번호 : 800101 1234567 )'
+
+test('★ 줄표가 빠진 주민등록번호도 지우고 이름표가 생년월일이 된다', async () => {
+  const d = await buildDraft({ fileName: 'x.pdf', text: FROM_PDF, truncated: false }, async () => { throw new Error('down') }, null)
+  const all = d.clauses.map((c) => plain(c.html)).join('\n')
+  assert.doesNotMatch(all, /800101|1234567/)
+  assert.match(all, /\(생년월일 : \{\{고객\.생년월일\}\} \)/)
+  assert.equal(d.scrubbed, 1)
+})
+
+test('긴 숫자 덩어리 속 13자리는 주민등록번호로 안 잡는다', async () => {
+  const d = await buildDraft({ fileName: 'x.pdf', text: '제1조\n계좌 12345678012345678 로 보낸다.', truncated: false }, async () => { throw new Error('down') }, null)
+  assert.equal(d.scrubbed, 0)
+  assert.match(plain(d.clauses[0].html), /12345678012345678/)
+})
+
+test('강희 부수 칸 글자는 원래 한자로, 원문자는 그대로', () => {
+  const c = splitClauses('제1조\n\u2F04 은 ① 항을 따른다.')
+  assert.equal(plain(c[0].html), '乙 은 ① 항을 따른다.')
+})

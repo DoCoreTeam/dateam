@@ -66,8 +66,15 @@ const PAGE_MARK = /^---\s*\d+쪽\s*---$/
  * 다음과 같이 계약한다」 같은 전문이 사라진다. 조항 표시가 하나도 없으면 문단마다 나누지 않고
  * 한 덩어리로 둔다 — 어디서 끊을지 모르면서 끊으면 사람이 다시 붙여야 한다.
  */
+/**
+ * PDF 글꼴이 한자 대신 강희 부수 칸(U+2F00~)의 글자를 내놓는다 — 「乙」 이 모양만 같은 「⼄」 로 온다(실측).
+ * 그 칸만 NFKC 로 되돌린다. 글 전체에 NFKC 를 걸면 원문자 「①」 이 「1」 이 된다
+ */
+const KANGXI = /[\u2F00-\u2FDF]/g
+const normalizeGlyphs = (t: string): string => t.replace(KANGXI, (ch) => ch.normalize('NFKC'))
+
 export function splitClauses(text: string): Clause[] {
-  const lines = text.split('\n').map((l) => l.trim()).filter((l) => l && !PAGE_MARK.test(l))
+  const lines = normalizeGlyphs(text).split('\n').map((l) => l.trim()).filter((l) => l && !PAGE_MARK.test(l))
   const groups: { title: string; body: string[] }[] = []
   let cur: { title: string; body: string[] } = { title: '', body: [] }
   for (const line of lines) {
@@ -235,7 +242,9 @@ export interface ResidueResult {
   leftover: { clause: number; text: string; kind: LeftoverKind }[]
 }
 
-const RRN = /\d{6} *[-–—] *[1-4]\d{6}/g
+// 줄표는 없어도 된다 — PDF 에서 글자를 뽑으면 「–」 가 사라져 「800101 1234567」 로 온다(실측 2026-10-21).
+// 앞뒤에 숫자가 더 붙은 긴 덩어리(계좌 따위)의 일부는 잡지 않는다
+const RRN = /(?<!\d)\d{6} *[-–—]? *[1-4]\d{6}(?!\d)/g
 const RRN_LABEL = /주 *민 *등 *록 *번 *호/g
 const HANGUL_AMOUNT = /금 *[일이삼사오육칠팔구십백천만억조][일이삼사오육칠팔구십백천만억조 ]*원 *정?/g
 const LEFTOVER: [LeftoverKind, RegExp][] = [
