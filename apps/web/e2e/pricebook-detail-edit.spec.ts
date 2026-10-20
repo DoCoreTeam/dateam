@@ -181,3 +181,14 @@ test('390px: 품목 판이 넘치지 않는다', async ({ page }) => {
   expect(Math.max(...rightEdges)).toBeLessThanOrEqual(390)
   await page.screenshot({ path: shot('5-items-390'), fullPage: false })
 })
+
+test('기본 정보: 묶음을 더하고 빈 묶음은 지울 수 있다, 품목이 남은 묶음은 지우기가 막혀 있다(저장 안 함)', async ({ page }) => {
+  await open(page, 'info')
+  await expect(page.getByRole('button', { name: '구축비 (1회) 삭제' })).toBeDisabled()
+  await page.getByRole('textbox', { name: '새 묶음 이름' }).fill('시험 묶음')
+  await page.getByRole('button', { name: /묶음 추가/ }).click()
+  await expect(page.getByRole('textbox', { name: '시험 묶음 묶음 이름' })).toBeVisible()
+  await expect(page.getByText('저장하지 않은 바뀐 것이 있어요').or(page.getByRole('status'))).toBeVisible()
+  await page.getByRole('button', { name: '시험 묶음 삭제' }).click()
+  await expect(page.getByRole('textbox', { name: '시험 묶음 묶음 이름' })).toHaveCount(0)
+})
