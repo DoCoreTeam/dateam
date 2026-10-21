@@ -24,6 +24,11 @@ export interface DigestFact {
    * 옛 정리본에는 이 값이 없다 — 그래서 optional 이다(M-4 추가 전용).
    */
   because?: string
+  /**
+   * 사람이 그 자리에서 고친 줄인가(`digest-edit.ts`). 화면이 「사람」 표시를 단다.
+   * 사용자 지시(2026-10-21): 한 글자 오타에 AI 를 다시 돌리는 것은 손해다.
+   */
+  edited?: true
 }
 
 export interface DigestAgendaItem {
@@ -200,6 +205,7 @@ export function parseStoredDigest(bundle: unknown, decisionsPlain: string): Dige
         origin: isFactOrigin(fr.origin) ? fr.origin : ('both' as FactOrigin),
         segmentIds: asArray(fr.segmentIds).map(str).filter(Boolean),
         ...(str(fr.because) ? { because: str(fr.because) } : {}),
+        ...(fr.edited === true ? { edited: true as const } : {}),
       }
     }).filter((f): f is DigestFact => f !== null)
     if (facts.length === 0) continue
@@ -216,6 +222,7 @@ export function parseStoredDigest(bundle: unknown, decisionsPlain: string): Dige
         text,
         origin: isFactOrigin(dr.origin) ? dr.origin : ('both' as FactOrigin),
         segmentIds: asArray(dr.segmentIds).map(str).filter(Boolean),
+        ...(dr.edited === true ? { edited: true as const } : {}),
       }
     })
     .filter((d): d is DigestFact => d !== null)
