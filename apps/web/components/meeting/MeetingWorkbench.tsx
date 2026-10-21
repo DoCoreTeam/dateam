@@ -141,6 +141,8 @@ export default function MeetingWorkbench({
   const [segCount, setSegCount] = useState<number | null>(null)
   /** 근거를 펼쳤나. `null` 은 아직 노트를 못 읽어 정할 수 없는 상태다 */
   const [evidenceOpen, setEvidenceOpen] = useState<boolean | null>(null)
+  /** 회의 기록의 「수정」이 편집기에 보내는 고치기 요청. 받으면 0 으로 돌린다 */
+  const [editRequest, setEditRequest] = useState(0)
   /** 정리의 근거를 누르면 전사 탭으로 옮겨 그 줄을 비춘다 */
   const [highlight, setHighlight] = useState<string[]>([])
 
@@ -189,6 +191,7 @@ export default function MeetingWorkbench({
    */
   const openMemo = useCallback(() => {
     setEvidenceOpen(true)
+    setEditRequest((n) => n + 1)
     const url = new URL(window.location.href)
     url.searchParams.set('wb', 'memo')
     router.replace(`${url.pathname}${url.search}`, { scroll: false })
@@ -361,6 +364,8 @@ export default function MeetingWorkbench({
                       userId={note.viewerId}
                       onStateChange={onSaveState}
                       onLengthChange={setMemoChars}
+                      editRequest={editRequest}
+                      onEditHandled={() => setEditRequest(0)}
                     />
                   ),
                 },
