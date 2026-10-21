@@ -672,6 +672,19 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
               title={m.title}
               href={`/crm/meetings/${meetingId}`}
               onDigested={() => { void resync() }}
+              /*
+                묻기에서 정리본을 고쳤으면 CRM 칸은 옛 정리로 뽑힌 채다. 어시스턴트가 칸을 직접 고치지 않고
+                기존 5축 추출(인박스 한 관문)을 다시 부르는 단추만 둔다 — 결과 말은 패널 안에서도 보이게 같이 싣는다
+              */
+              askApplyFollowUp={(
+                <>
+                  <NbButton variant="secondary" onClick={() => void extract()} disabled={busy === 'extract'}>
+                    {busy === 'extract' ? 'AI가 읽는 중…' : 'CRM 칸 다시 찾기(AI)'}
+                  </NbButton>
+                  {notice && <p className={styles.hint} role="status">{notice}</p>}
+                  {error && <p className={styles.hint} role="alert">{error}</p>}
+                </>
+              )}
             />
           ) : (
             <RecordPanel

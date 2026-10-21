@@ -95,7 +95,7 @@ test('회의 화면이 옆 패널을 실제로 그리고 여는 단추가 있다
   assert.match(src, /<MeetingSidePanel tabs=\{\{\s*records: <OtherRecords noteId=\{noteId\}/)
   assert.match(src, /openSide\('records'\)/)
   // 묻기 탭도 같은 패널에 그리고, 여는 단추와 근거로 가는 길이 붙어 있다
-  assert.match(src, /ask: <AskPanel noteId=\{noteId\}[^>]*onEvidence=\{onAskEvidence\}/)
+  assert.match(src, /ask: \(?\s*<AskPanel\s+noteId=\{noteId\}[^>]*onEvidence=\{onAskEvidence\}/)
   assert.match(src, /openSide\('ask'\)/)
 })
 

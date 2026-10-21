@@ -70,6 +70,8 @@ interface Props {
   showVisibility?: boolean
   /** 정리가 끝났을 때 — CRM 은 요약 스냅샷을 다시 가져온다 */
   onDigested?: () => void
+  /** 묻기에서 고른 줄을 정리본에 반영한 뒤 이어서 할 일 — CRM 은 CRM 칸 다시 찾기 */
+  askApplyFollowUp?: ReactNode
 }
 
 /**
@@ -129,7 +131,7 @@ function saveLabel(state: SaveState, at: number | null): string {
 }
 
 export default function MeetingWorkbench({
-  noteId, title, href, onBodySaved, onDigested, showVisibility = true,
+  noteId, title, href, onBodySaved, onDigested, askApplyFollowUp, showVisibility = true,
 }: Props) {
   const router = useRouter()
   const openSide = useSidePanelNav()
@@ -164,6 +166,8 @@ export default function MeetingWorkbench({
   const [highlight, setHighlight] = useState<string[]>([])
   /** 옆 패널에서 묻고 받은 것 — 패널을 닫아도 남게 여기서 쥔다 */
   const [askTurns, setAskTurns] = useState<AskTurn[]>([])
+  /** 묻기에서 반영하면 올린다 — 정리 패널이 새 차례를 다시 읽는다 */
+  const [digestReloadKey, setDigestReloadKey] = useState(0)
 
   const onSaveState = useCallback((s: SaveState, at: number | null) => {
     setSaveState(s)
@@ -350,6 +354,7 @@ export default function MeetingWorkbench({
         onEvidence={onEvidence}
         onEditMemo={openMemo}
         onDigested={() => { onDigested?.() }}
+        reloadKey={digestReloadKey}
       />
 
       {/*
@@ -437,7 +442,17 @@ export default function MeetingWorkbench({
 
       <MeetingSidePanel tabs={{
         records: <OtherRecords noteId={noteId} onPickLine={canEdit ? pickLine : undefined} />,
-        ask: <AskPanel noteId={noteId} turns={askTurns} setTurns={setAskTurns} onEvidence={onAskEvidence} />,
+        ask: (
+          <AskPanel
+            noteId={noteId}
+            turns={askTurns}
+            setTurns={setAskTurns}
+            onEvidence={onAskEvidence}
+            canApply={canEdit}
+            onApplied={() => { setDigestReloadKey((n) => n + 1); onDigested?.() }}
+            applyFollowUp={askApplyFollowUp}
+          />
+        ),
       }} />
     </section>
   )

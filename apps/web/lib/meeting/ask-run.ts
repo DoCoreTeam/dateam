@@ -51,7 +51,8 @@ export async function runMeetingAsk(input: {
 
   const memo = (note.body_plain as string | null)?.trim() || htmlToPlain(note.body_html as string | null)
   const segments = await listTranscriptSegments(supabase, noteId)
-  const digest = (await listMeetingDigests(supabase, noteId))[0]?.digest ?? null
+  const latest = (await listMeetingDigests(supabase, noteId))[0] ?? null
+  const digest = latest?.digest ?? null
   if (!memo.trim() && segments.length === 0) {
     throw new AskError('empty', '물어볼 기록이 아직 없어요. 메모를 쓰거나 녹음을 해 주세요.')
   }
@@ -87,5 +88,7 @@ export async function runMeetingAsk(input: {
     memo,
     digest,
     partial,
+    // 옛 경로에서 메운 정리는 seq 0 이고 정리본 「수정」도 그 판을 기준으로 받는다
+    digestSeq: latest?.seq ?? null,
   })
 }

@@ -48,6 +48,8 @@ export interface AskAnswer {
   suggestions: AskSuggestion[]
   /** 전사가 길어 앞부분만 보냈다 */
   partial: boolean
+  /** 제안이 기준으로 삼은 정리 판. 반영(PUT)이 이 판을 기준으로 보내야 그사이 바뀐 정리를 덮지 않는다 */
+  digestSeq: number | null
 }
 
 export function parseAskQuestion(raw: unknown): { ok: true; question: string } | { ok: false; reason: string } {
@@ -171,18 +173,43 @@ export function parseAskAnswer(raw: unknown, ctx: {
   memo: string
   digest: DigestResult | null
   partial: boolean
+  digestSeq?: number | null
 }): AskAnswer {
+  const digestSeq = ctx.digest ? ctx.digestSeq ?? null : null
   const o = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
   const segmentIds = keepKnownIds(o.segmentIds, ctx.knownIds)
   const memoQuotes = keepRealQuotes(o.memoQuotes, ctx.memo)
   const answer = str(o.answer)
   const found = o.found !== false && answer.length > 0 && (segmentIds.length > 0 || memoQuotes.length > 0)
   if (!found) {
-    return { answer: ASK_NOT_FOUND, found: false, segmentIds: [], memoQuotes: [], suggestions: [], partial: ctx.partial }
+    return { answer: ASK_NOT_FOUND, found: false, segmentIds: [], memoQuotes: [], suggestions: [], partial: ctx.partial, digestSeq }
   }
   return {
     answer, found, segmentIds, memoQuotes,
-    suggestions: keepValidSuggestions(o.edits, ctx.digest),
+    // 기준 판을 모르면 반영할 수 없으니 제안도 안 올린다 — 고를 수 없는 것을 고르라고 하지 않는다
+    suggestions: digestSeq === null ? [] : keepValidSuggestions(o.edits, ctx.digest),
     partial: ctx.partial,
+    digestSeq,
   }
+}
+
+/** 제안이 가리키는 자리 — 정리본 「수정」 칸의 이름과 같은 말을 쓴다(DigestEditor) */
+export function suggestionPlace(p: DigestEditPath): string {
+  switch (p.kind) {
+    case 'outcome': return '이 회의는'
+    case 'nextStep': return '다음에 할 일'
+    case 'agendaTitle': return `안건 ${p.agenda + 1} 제목`
+    case 'fact': return `안건 ${p.agenda + 1}의 ${p.fact + 1}번째 줄`
+    case 'decision': return `결정사항 ${p.index + 1}`
+  }
+}
+
+/** 고른 제안만 정리본 「수정」 창구(PUT digest)의 본문으로 */
+export function askApplyBody(
+  answer: Pick<AskAnswer, 'suggestions' | 'digestSeq'>,
+  picked: ReadonlySet<number>,
+): { baseSeq: number; edits: DigestEdit[] } | null {
+  if (answer.digestSeq === null) return null
+  const edits = answer.suggestions.filter((_, i) => picked.has(i)).map((s) => s.edit)
+  return edits.length ? { baseSeq: answer.digestSeq, edits } : null
 }

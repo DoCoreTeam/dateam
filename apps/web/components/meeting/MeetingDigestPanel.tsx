@@ -55,6 +55,8 @@ interface Props {
   onEditMemo?: () => void
   /** 정리가 끝나면 알린다 — 헤더 배지가 "정리 8/24 15:02"로 바뀐다 */
   onDigested?: (at: string) => void
+  /** 바깥(묻기 반영)에서 정리를 새로 쌓았을 때 올린다 — 다시 읽는다 */
+  reloadKey?: number
   /**
    * 도는 동안 «무엇을 읽는 중인지» 말하기 위한 것 — 상위가 이미 세어 둔 값이다.
    * 여기서 다시 세면 탭 라벨(「218자」·「406줄」)과 어긋나 사용자가 둘 중 뭘 믿을지 모른다.
@@ -79,7 +81,7 @@ function countEdited(d: DigestResult): number {
 }
 
 export default function MeetingDigestPanel({
-  noteId, canEdit, onEvidence, onEditMemo, onDigested, memoChars = 0, segmentCount = 0,
+  noteId, canEdit, onEvidence, onEditMemo, onDigested, memoChars = 0, segmentCount = 0, reloadKey = 0,
 }: Props) {
   const [versions, setVersions] = useState<Version[] | null>(null)
   const [showing, setShowing] = useState<number | null>(null)
@@ -104,7 +106,9 @@ export default function MeetingDigestPanel({
     }
   }, [noteId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, reloadKey])
+  /* 새 차례가 쌓이면 보던 옛 판에서 최신으로 돌아온다 — 반영한 것이 안 보이면 반영 안 된 것으로 읽힌다 */
+  useEffect(() => { if (reloadKey > 0) setShowing(null) }, [reloadKey])
 
   /**
    * 경과 시간을 1초마다 갱신한다 — **도는 동안만.**

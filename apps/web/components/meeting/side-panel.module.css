@@ -158,3 +158,15 @@
 .askForm { display: flex; flex-direction: column; gap: var(--space-2); border-top: var(--hairline) solid var(--border-color); padding-top: var(--space-3); }
 .askForm textarea { resize: vertical; }
 .askActions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+
+/* 고칠 줄 제안 — 바뀌기 전은 빨강 취소선, 바뀔 글은 초록 */
+.suggestBox { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: var(--hairline) solid var(--border-color); border-radius: var(--radius); }
+.suggestList { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.suggest { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-2); border-radius: var(--radius); cursor: pointer; }
+.suggest:hover { background: var(--surface-muted); }
+.suggest[data-checked] { background: var(--brand-soft); }
+.suggest input { margin-top: 3px; flex: none; }
+.suggest input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.suggestBody { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.diffOld { color: var(--danger); text-decoration: line-through; }
+.diffNew { color: var(--success); text-decoration: none; }

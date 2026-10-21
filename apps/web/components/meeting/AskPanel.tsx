@@ -12,16 +12,22 @@
  * - 답이 섰다: 답 + 근거 단추
  * - 근거를 못 찾았다: 「찾지 못했어요」, 서버가 지어낸 답을 버린 결과다
  * - 막혔다(키 없음 한도 연결): 막힌 이유, 빈 답으로 그리지 않는다
+ *
+ * 고칠 줄 제안은 사람이 **고른 것만** 정리본에 반영한다. 길은 정리본 「수정」과 같은 PUT 하나라
+ * 다음 차례 정리로 쌓이고 「고침」 표시가 붙는다. 주인이 아니면 단추 대신 이유를 말한다.
  */
 
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import { Send, Quote, FileText } from 'lucide-react'
+import { useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { Send, Quote, FileText, Check } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import InlineError from '@/components/ui/InlineError'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { waitProgress } from '@/lib/ui/wait-progress'
 import { WAIT } from '@/lib/terms/wait'
-import { ASK_MAX_QUESTION_CHARS, type AskAnswer } from '@/lib/meeting/ask'
+import { ACTION, progress } from '@/lib/terms'
+import {
+  ASK_MAX_QUESTION_CHARS, askApplyBody, suggestionPlace, type AskAnswer, type AskSuggestion,
+} from '@/lib/meeting/ask'
 import styles from './side-panel.module.css'
 
 export interface AskTurn {
@@ -31,6 +37,8 @@ export interface AskTurn {
   /** 도는 중이면 둘 다 없다 */
   answer?: AskAnswer
   error?: { message: string; reason: string | null }
+  /** 고른 제안을 정리본에 반영했다 — 몇 줄이 바뀌었나 */
+  applied?: number
 }
 
 interface Props {
@@ -39,11 +47,19 @@ interface Props {
   setTurns: Dispatch<SetStateAction<AskTurn[]>>
   /** 근거 줄을 누르면 원문 전사 그 줄로 */
   onEvidence: (ids: string[]) => void
+  /** 정리본을 고칠 수 있나(주인) — 아니면 반영 단추 대신 이유 */
+  canApply: boolean
+  /** 반영이 끝났을 때 — 정리 패널이 새 차례를 다시 읽는다 */
+  onApplied: () => void
+  /** 반영 뒤에 이어서 할 일. CRM 미팅은 CRM 칸 다시 찾기 */
+  applyFollowUp?: ReactNode
 }
 
 const ASK_FAILED = '답을 받지 못했어요. 연결을 확인하고 다시 물어봐 주세요.'
+const ASK_APPLY_FAILED = '정리본에 반영하지 못했어요. 연결을 확인하고 다시 눌러 주세요.'
+const ASK_APPLY_OWNER_ONLY = '정리본은 이 회의를 쓴 사람만 고칠 수 있어 반영 단추가 없어요.'
 
-export default function AskPanel({ noteId, turns, setTurns, onEvidence }: Props) {
+export default function AskPanel({ noteId, turns, setTurns, onEvidence, canApply, onApplied, applyFollowUp }: Props) {
   const [q, setQ] = useState('')
   const running = turns.some((t) => !t.answer && !t.error)
 
@@ -84,6 +100,19 @@ export default function AskPanel({ noteId, turns, setTurns, onEvidence }: Props)
             <li key={t.id} className={styles.turn}>
               <p className={styles.turnQ}>{t.question}</p>
               <TurnBody turn={t} onEvidence={onEvidence} onRetry={() => void ask(t.question)} />
+              {t.answer && t.answer.suggestions.length > 0 && (
+                <Suggestions
+                  noteId={noteId}
+                  answer={t.answer}
+                  applied={t.applied}
+                  canApply={canApply}
+                  followUp={applyFollowUp}
+                  onApplied={(changed) => {
+                    setTurns((ts) => ts.map((x) => (x.id === t.id ? { ...x, applied: changed } : x)))
+                    onApplied()
+                  }}
+                />
+              )}
             </li>
           ))}
         </ol>
@@ -159,4 +188,97 @@ function Waiting({ startedAt }: { startedAt: number }) {
   }, [])
   const view = waitProgress(now - startedAt, WAIT.meetingAsk)
   return <WaitProgress message={view.message} elapsedLabel={view.elapsedLabel} reassure={view.reassure} />
+}
+
+/**
+ * 고칠 줄 제안 — 바뀌기 전 줄은 빨강, 바뀔 글은 초록. 고른 것만 반영한다.
+ * 기본은 아무것도 안 고른 상태다: AI 가 낸 것을 사람이 안 보고 반영하는 길을 만들지 않는다.
+ */
+function Suggestions({ noteId, answer, applied, canApply, followUp, onApplied }: {
+  noteId: string
+  answer: AskAnswer
+  applied?: number
+  canApply: boolean
+  followUp?: ReactNode
+  onApplied: (changed: number) => void
+}) {
+  const [picked, setPicked] = useState<ReadonlySet<number>>(() => new Set())
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const toggle = (i: number) => setPicked((p) => {
+    const next = new Set(p)
+    if (next.has(i)) next.delete(i)
+    else next.add(i)
+    return next
+  })
+
+  async function apply() {
+    const body = askApplyBody(answer, picked)
+    if (!body || saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/meeting-notes/${noteId}/digest`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const out = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(out?.error ?? ASK_APPLY_FAILED); return }
+      onApplied(Number(out.changed ?? 0))
+    } catch {
+      setError(ASK_APPLY_FAILED)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={styles.suggestBox}>
+      <p className={styles.groupLabel}>정리본에서 고칠 줄 {answer.suggestions.length}개</p>
+      <ul className={styles.suggestList}>
+        {answer.suggestions.map((sg, i) => (
+          <li key={i}>
+            <SuggestionRow sg={sg} checked={picked.has(i)} disabled={!canApply || applied !== undefined} onToggle={() => toggle(i)} />
+          </li>
+        ))}
+      </ul>
+      {error && <InlineError spaced onDismiss={() => setError(null)}>{error}</InlineError>}
+      {applied !== undefined ? (
+        <>
+          <p className={styles.picked} role="status">
+            <Check size={12} aria-hidden /> {applied > 0 ? `${applied}줄을 정리본에 반영했어요. 정리 위에 「고침」으로 쌓였어요.` : '바뀐 곳이 없어 그대로 두었어요.'}
+          </p>
+          {applied > 0 && followUp}
+        </>
+      ) : canApply ? (
+        <NbButton onClick={() => void apply()} disabled={saving || picked.size === 0}>
+          {saving ? progress(ACTION.apply) : `고른 ${picked.size}줄 ${ACTION.apply}`}
+        </NbButton>
+      ) : (
+        <p className={styles.hint}>{ASK_APPLY_OWNER_ONLY}</p>
+      )}
+    </div>
+  )
+}
+
+function SuggestionRow({ sg, checked, disabled, onToggle }: {
+  sg: AskSuggestion
+  checked: boolean
+  disabled: boolean
+  onToggle: () => void
+}) {
+  const place = suggestionPlace(sg.edit.path)
+  return (
+    <label className={styles.suggest} data-checked={checked || undefined}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={onToggle} aria-label={`${place} 고치기 선택`} />
+      <span className={styles.suggestBody}>
+        <span className={styles.recordMeta}>{place}</span>
+        <del className={styles.diffOld}>{sg.before}</del>
+        {sg.after.trim()
+          ? <ins className={styles.diffNew}>{sg.after}</ins>
+          : <span className={styles.diffNew}>이 줄을 지워요</span>}
+      </span>
+    </label>
+  )
 }
