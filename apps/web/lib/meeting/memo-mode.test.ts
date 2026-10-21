@@ -42,3 +42,23 @@ test('빈 본문 판정은 태그를 뺀 글자로 한다 — Tiptap 은 빈 글
   assert.equal(plainTextLength(real), 22)
   assert.equal(shouldStartWriting({ hasBody: plainTextLength(real) > 0, hasDraft: false }), false)
 })
+
+// 사용자 지적(2026-10-21): 원문 「수정」을 누르면 백지, 회의 기록 「수정」은 눌러도 반응이 없었다.
+// 둘 다 화면 배선이라 소스로 잠근다 — 값이 실제로 넘어가는 자리를 본다.
+test('「수정」은 지금 글을 편집기에 밀어 넣는다 — 처음 열린 순간의 글이 아니라', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync('components/meeting/MeetingMemoEditor.tsx', 'utf8')
+  const start = src.slice(src.indexOf('function startWriting()'), src.indexOf('setWriting(true)', src.indexOf('function startWriting()')))
+  assert.match(start, /setPushedHtml\(latest\.current\)/)
+})
+
+test('회의 기록의 「수정」이 편집기에 고치기 요청을 넘기고 편집기가 받는다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const wb = readFileSync('components/meeting/MeetingWorkbench.tsx', 'utf8')
+  const open = wb.slice(wb.indexOf('const openMemo'), wb.indexOf('}, [router])', wb.indexOf('const openMemo')))
+  assert.match(open, /setEditRequest\(\(n\) => n \+ 1\)/)
+  assert.match(wb, /editRequest=\{editRequest\}/)
+  const ed = readFileSync('components/meeting/MeetingMemoEditor.tsx', 'utf8')
+  assert.match(ed, /if \(editRequest <= 0 \|\| !canEdit\) return\s+startWriting\(\)/)
+  assert.match(ed, /scrollIntoView/)
+})

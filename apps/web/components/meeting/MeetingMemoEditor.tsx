@@ -62,11 +62,19 @@ interface Props {
   onStateChange?: (state: SaveState, savedAt: number | null) => void
   /** 글자 수 배지용 */
   onLengthChange?: (chars: number) => void
+  /**
+   * 바깥(회의 기록의 「수정」)에서 온 고치기 요청. 0 보다 크면 쓰기로 들어가 편집기를 화면 안으로 끌어온다.
+   * 예전엔 원문을 펼치기만 해서, 그 상자가 화면 아래에 있으면 눌러도 아무 일이 없는 것처럼 보였다(사용자 지적 2026-10-21).
+   */
+  editRequest?: number
+  /** 요청을 받았다고 알린다 — 탭을 오가며 다시 그려질 때 또 쓰기로 들어가지 않게 */
+  onEditHandled?: () => void
 }
 
 export default function MeetingMemoEditor({
-  noteId, initialHtml, canEdit, userId, onStateChange, onLengthChange,
+  noteId, initialHtml, canEdit, userId, onStateChange, onLengthChange, editRequest = 0, onEditHandled,
 }: Props) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const [html, setHtml] = useState(initialHtml)
   /**
    * 에디터에 **밀어 넣는** 값. 내가 친 글을 되먹이지 않는다.
@@ -185,8 +193,24 @@ export default function MeetingMemoEditor({
   /** 「수정」 — 여기서부터가 고치는 구간이다. 되돌릴 기준을 이 순간에 박아 둔다 */
   function startWriting() {
     snapshot.current = latest.current
+    /*
+      편집기는 읽기와 쓰기 사이에서 새로 그려지고, 그때 받는 값이 `pushedHtml` 이다.
+      이 값은 처음 열린 순간의 글이라, **이 화면에서 쓰고 저장한 글**은 여기에 없었다.
+      빈 회의에 적고 저장한 뒤 「수정」을 누르면 편집기가 백지로 열렸다(사용자 지적 2026-10-21).
+    */
+    setPushedHtml(latest.current)
     setWriting(true)
   }
+
+  useEffect(() => {
+    if (editRequest <= 0 || !canEdit) return
+    startWriting()
+    onEditHandled?.()
+    // 지우지 않는다 — 받았다고 알리면 번호가 0 으로 바뀌어 이 효과가 다시 돌고, 그때 지우면 스크롤이 사라진다
+    window.setTimeout(() => rootRef.current?.scrollIntoView({ block: 'start' }), 120)
+    // startWriting 은 렌더마다 새로 만들어지지만 요청 번호가 바뀔 때만 들어간다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editRequest, canEdit])
 
   /**
    * 「저장」 — 기다리던 5초를 앞당겨 지금 밀어 넣고 읽기로 돌아간다.
@@ -270,7 +294,7 @@ export default function MeetingMemoEditor({
    */
   if (!writing) {
     return (
-      <div>
+      <div ref={rootRef}>
         <div className={styles.modeRow}>
           <NbButton variant="secondary" onClick={startWriting}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -284,7 +308,7 @@ export default function MeetingMemoEditor({
   }
 
   return (
-    <div>
+    <div ref={rootRef}>
       {/*
         고치는 구간을 **끝내는 두 가지 길**. 확정은 오른쪽 끝, 취소는 그 왼쪽(§2-3-2 L-6).
         예전엔 「닫기」 하나였다 — 자동저장이니 닫아도 글은 남는다는 뜻이었지만,
