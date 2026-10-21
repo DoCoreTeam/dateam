@@ -1,0 +1,100 @@
+# PLAN newAX: 미팅 정리 결과 확인 닫기와 답한 질문 사라짐
+플랜 ID: P0150
+플랜 버전: v0.2.1
+상태: 진행중
+지시: ins_0306
+목표 버전: v0.11.40
+푸시: 즉시
+작성: 2026-10-21
+시작 커밋: d7dc7dd3
+
+## 목표
+- 미팅 화면에서 회사나 딜을 고르면 그 질문이 결과 상자에서 바로 사라짐
+- 「미팅을 정리했어요」 결과 상자에 확인 단추가 생기고 누르면 닫혀 다시 들어와도 안 뜸
+- 원문 「수정」을 누르면 지금 저장된 글이 편집기에 그대로 뜸
+- 회의 기록의 「수정」을 누르면 원문 편집기로 내려가 바로 고칠 수 있음
+- AI 가 도는 단추는 이름에 (AI) 가 붙고, AI가 찾은 것 칸은 없는 단추를 가리키지 않음
+
+## 범위 밖
+- 미팅 기록 AI 어시스턴트(iv_0288), 전수조사 기획 보고로 따로 냄
+- 확인 기록의 기기 간 공유 (브라우저 저장소로 기기마다)
+- AI 정리본 줄을 직접 고치는 기능, 어시스턴트 반영 경로와 같은 자리라 기획 보고에 함께 냄
+
+## 완료 정의
+- pnpm typecheck, pnpm test, pnpm build 통과
+- 사용자 노출 문자열은 전부 i18n 키 사용
+- 설정값은 env 추가 없이 DB 저장 + UI 관리 (해당 시)
+
+## 참조
+- apps/web/lib/crm/services/ask-suggest.ts (질문은 읽을 때 계산, 다시 읽으면 답한 것은 사라짐)
+
+## 항목
+
+### I01 답한 질문 사라짐과 결과 상자 확인 닫기
+상태: 통과
+모드: 경량
+범위: apps/web/app/(crm)/crm/meetings/[id]/MeetingDetail.tsx, apps/web/app/(crm)/crm/meetings/[id]/meeting-detail.module.css, apps/web/lib/crm/ui/finish-seen.ts (신규), apps/web/lib/crm/ui/finish-seen.test.ts (신규), apps/web/package.json
+감사 기준:
+- 보안: 새 저장은 브라우저 저장소의 잡 id 한 줄뿐, 새 창구 없음, 밖에서 온 값은 jobId 문자열만이고 키 조립에만 씀
+- pnpm test 의 finish-seen.test.ts 통과, 화면이 저장 후 loadFinish 를 부르고 확인 단추가 markFinishSeen 을 부르는 단정 포함
+- 실브라우저: 회사 없는 끝낸 미팅에서 회사를 고르고 저장하면 「어느 회사와 만난 건가요」가 새로고침 없이 사라짐
+- 실브라우저: 확인을 누르면 결과 상자가 닫히고 새로고침해도 안 뜸
+의존: 없음
+
+### I02 원문 편집기가 빈칸으로 열리던 것
+상태: 통과
+모드: 경량
+범위: apps/web/components/meeting/MeetingMemoEditor.tsx, apps/web/lib/meeting/memo-mode.test.ts
+감사 기준:
+- 보안: 해당 없음, 새 저장 창구 데이터 없음, 기존 PATCH 그대로
+- 「수정」 을 누를 때 편집기에 밀어 넣는 값이 지금 글(latest)임을 가드가 단정
+- 실브라우저: 빈 원문에 글을 쓰고 저장한 뒤 「수정」 을 누르면 그 글이 편집기에 보임 (PATCH 는 가짜 응답으로 막음)
+의존: 없음
+
+### I03 회의 기록 「수정」 이 화면에 아무 변화가 없던 것
+상태: 통과
+모드: 경량
+범위: apps/web/components/meeting/MeetingWorkbench.tsx, apps/web/components/meeting/MeetingMemoEditor.tsx, apps/web/lib/meeting/memo-mode.test.ts
+감사 기준:
+- 보안: 해당 없음, 화면 이동과 모드 전환뿐
+- 실브라우저: 회의 기록의 「수정」 을 누르면 원문 편집기가 화면 안으로 들어오고 쓰기 모드(저장 취소 단추)가 열림
+- 가드: openMemo 가 편집 요청을 넘기고 편집기가 그것을 받아 쓰기 모드로 들어감을 단정
+의존: I02
+
+### I04 AI 가 도는 단추 이름에 (AI)
+상태: 통과
+모드: 경량
+범위: apps/web/lib/terms/digest.ts, apps/web/lib/crm/ui/finish-progress.ts, apps/web/lib/crm/ui/finish-progress.test.ts
+감사 기준:
+- 보안: 해당 없음, 문구만
+- pnpm test 의 finish-progress.test.ts 통과, 끝낸 미팅의 머리 단추가 「다시 정리하기(AI)」
+- 회의 기록 단추가 「다시 정리(AI)」, 처음은 「정리하기(AI)」
+의존: 없음
+
+### I05 AI가 찾은 것 칸이 없는 단추를 가리키던 것
+상태: 통과
+모드: 경량
+범위: apps/web/app/(crm)/crm/meetings/[id]/MeetingDetail.tsx, apps/web/lib/crm/ui/meeting-status.ts, apps/web/lib/crm/ui/meeting-status.test.ts
+감사 기준:
+- 보안: 해당 없음, 문구 판정만
+- 가드: 작업대가 있는 미팅의 빈 안내가 「AI로 정리하기」 를 말하지 않고 실제 단추 이름(finishButtonLabel)을 씀, 끝낸 미팅은 「아직 정리하지 않았어요」 가 아니라 못 찾았다고 말함
+- 실브라우저: 끝낸 미팅의 AI가 찾은 것 칸 문구 확인
+의존: I04
+
+### I06 원본 수정 안내가 구현 설명이던 것
+상태: 통과
+모드: 경량
+범위: apps/web/app/(crm)/crm/meetings/[id]/MeetingDetail.tsx, apps/web/lib/crm/ui/meeting-status.ts, apps/web/lib/crm/ui/meeting-status.test.ts
+감사 기준:
+- 보안: 해당 없음, 문구만, 반영 창구는 기존 resync 그대로
+- 가드: 안내 줄에 「따라잡」「그대로 둡니다」 없음, 단추는 「반영하기」, 반영 뒤 알림이 없는 「AI로 정리하기」 를 부르지 않음
+- 실브라우저: 원본이 바뀐 미팅에서 새 안내 줄과 단추 확인
+의존: 없음
+
+## 종합 감사
+- (전 항목 통과 후 기록)
+
+## 변경 이력
+- v0.1.0 (2026-10-21) 최초 작성 (ins_0306)
+- v0.2.0 (2026-10-21) 사용자 지적 넷 추가: 원문 편집기 빈칸, 수정 무반응, 단추 이름 (AI), AI가 찾은 것 빈 안내 (iv_0289)
+- v0.2.1 (2026-10-21) 원본 수정 안내 문구 항목 추가 (iv_0293)
