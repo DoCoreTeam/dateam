@@ -97,6 +97,8 @@ export const AI_LANES: readonly AiLane[] = [
     why: '회의노트 요약과 추출, 받은 userId 를 호출기까지 내려보낸다' },
   { file: 'lib/meeting/digest-run.ts', kind: 'human', surfaces: ['meeting_digest', 'meeting_digest_condense'],
     why: '회의 정리, 받은 userId 를 호출기까지 내려보낸다' },
+  { file: 'lib/meeting/ask-run.ts', kind: 'human', surfaces: ['meeting/ask'],
+    why: '회의 옆 패널에서 사람이 묻는다, 창구가 auth.user.id 를 그대로 넘긴다' },
   { file: 'lib/daily-prompt-governance.ts', kind: 'human', surfaces: ['daily-prompt-synth'],
     why: '프롬프트 개선은 사람의 일일업무 결과에서 출발한다, 라우트가 쥔 user.id 를 내려보낸다' },
   { file: 'lib/ai-chat/providers/gemini.ts', kind: 'human', surfaces: ['ai-chat'],
