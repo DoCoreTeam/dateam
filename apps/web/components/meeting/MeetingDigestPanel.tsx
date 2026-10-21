@@ -127,7 +127,7 @@ export default function MeetingDigestPanel({
     if (edited > 0) {
       const ok = await ask.confirm({
         title: '고친 줄이 새 정리에는 안 남아요',
-        body: `사람이 고친 줄 ${edited}개는 AI가 원문을 다시 읽어 만드는 새 정리에 들어가지 않아요. 고친 판은 「이전 정리」에 남아 언제든 돌아갈 수 있어요.`,
+        body: `사람이 고친 줄 ${edited}개는 AI가 원문을 다시 읽어 만드는 새 정리에 들어가지 않아요. 고친 것은 「이전 정리」에 남아 언제든 돌아갈 수 있어요.`,
         confirmLabel: DIGEST_RERUN_LABEL,
       })
       if (!ok) return

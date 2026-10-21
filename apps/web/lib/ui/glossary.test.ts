@@ -403,3 +403,15 @@ test('화면 글이 든 lib 파일이 스캔 대상에 들어 있다', () => {
     assert.doesNotMatch(why, /나중에|추후|TODO|예정/, `${re} 의 사유가 「나중에」다`)
   }
 })
+
+/*
+  업데이트 내역은 위 훑기에서 빠진다(지난 발표 기록). 그래도 「업데이트 내역」 화면에 그대로 뜨므로
+  버전 뜻의 「판」만은 여기서 따로 본다 — 사용자 지시 2026-10-21 「몇판 이런 단어는 안 보이게」.
+*/
+test('업데이트 내역에도 버전 뜻의 「판」이 없다', () => {
+  const src = stripComments(read(join(WEB, 'lib/changelog/entries.ts')))
+  const forms = BANNED_TERMS.map((t) => t.bad).filter((b) => b.includes('판'))
+  assert.ok(forms.length >= 6)
+  const hits = forms.filter((b) => src.includes(b))
+  assert.deepEqual(hits, [])
+})

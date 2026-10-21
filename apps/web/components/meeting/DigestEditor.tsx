@@ -70,7 +70,7 @@ export default function DigestEditor({ noteId, baseSeq, digest, onSaved, onCance
 
   return (
     <div className={styles.editor}>
-      <p className={styles.editHint}>고칠 곳을 눌러 바로 고치세요. 줄을 비우면 그 줄이 빠지고, 고친 것은 새 판으로 남아 이전 정리로 돌아갈 수 있어요.</p>
+      <p className={styles.editHint}>고칠 곳을 눌러 바로 고치세요. 줄을 비우면 그 줄이 빠지고, 고친 것은 「이전 정리」에 남아 언제든 돌아갈 수 있어요.</p>
       {error && <InlineError spaced onDismiss={() => setError(null)}>{error}</InlineError>}
 
       {(digest.outcome || digest.nextStep) && (
