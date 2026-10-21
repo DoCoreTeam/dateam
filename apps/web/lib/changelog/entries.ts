@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.41',
+    date: '2026-10-21',
+    title: 'AI 정리를 그 자리에서 직접 고쳐요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '✏️',
+        headline: '회의 기록의 오타를 바로 고칠 수 있어요',
+        detail: '회의 기록에서 「수정」을 누르고 고칠 곳을 눌러 바로 고치면 돼요. AI를 다시 돌리지 않아요. 고친 줄에는 「사람」 표시가 붙고, 고친 것은 새 판으로 남아 「이전 정리」에서 언제든 돌아갈 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🛟',
+        headline: '고친 뒤 다시 정리하기 전에 먼저 알려 드려요',
+        detail: '직접 고친 줄이 있는 상태에서 「다시 정리(AI)」를 누르면, 새 정리에는 고친 줄이 안 남는다는 것을 먼저 묻습니다.',
+      },
+    ],
+  },
+  {
     version: '0.11.40',
     date: '2026-10-21',
     title: '미팅 화면에서 고치기가 바로 돼요',
