@@ -116,7 +116,8 @@ export function summaryLines(summary: string | null): string[] {
   return (summary ?? '')
     .split('\n')
     .map((l) => l.replace(/^[-•]\s*/, '').trim())
-    .filter((l) => l && !/^\[.*\]$/.test(l))
+    // 절 제목은 내용이 아니다 — [제목] 꼴과 마크다운 ## 꼴 둘 다 붙일 줄에서 뺀다
+    .filter((l) => l && !/^\[.*\]$/.test(l) && !/^#{1,6}\s/.test(l))
 }
 
 /**

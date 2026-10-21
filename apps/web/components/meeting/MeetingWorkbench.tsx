@@ -25,7 +25,7 @@
  * 가운데가 같아야 "같은 플랫폼을 공유"가 성립한다.
  */
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { NotebookPen, Mic, ChevronRight, Check, Loader2, CircleAlert, PanelRight } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
@@ -147,6 +147,14 @@ export default function MeetingWorkbench({
   const [evidenceOpen, setEvidenceOpen] = useState<boolean | null>(null)
   /** 회의 기록의 「수정」이 편집기에 보내는 고치기 요청. 받으면 0 으로 돌린다 */
   const [editRequest, setEditRequest] = useState(0)
+  /** 옆 패널에서 고른 줄 — 메모 끝에 붙인다 */
+  const [appendRequest, setAppendRequest] = useState<{ id: number; text: string } | null>(null)
+  /**
+   * 지금 메모 글. 편집기는 탭을 오가거나 원문을 접었다 펴면 다시 그려지고 그때 받는 값만 읽는다.
+   * 처음 불러온 값을 주면 이 화면에서 쓴 글이 사라진 채 열리고, 거기에 줄을 붙이면 그 글로 저장된다.
+   */
+  const memoHtml = useRef<string | null>(null)
+  const onMemoHtml = useCallback((html: string) => { memoHtml.current = html }, [])
   /** 정리의 근거를 누르면 전사 탭으로 옮겨 그 줄을 비춘다 */
   const [highlight, setHighlight] = useState<string[]>([])
 
@@ -196,6 +204,15 @@ export default function MeetingWorkbench({
   const openMemo = useCallback(() => {
     setEvidenceOpen(true)
     setEditRequest((n) => n + 1)
+    const url = new URL(window.location.href)
+    url.searchParams.set('wb', 'memo')
+    router.replace(`${url.pathname}${url.search}`, { scroll: false })
+  }, [router])
+
+  /** 「메모에 붙이기」 — 원문을 펴고 작성 탭으로 가서 그 끝에 붙인다(「수정」과 같은 길) */
+  const pickLine = useCallback((text: string) => {
+    setEvidenceOpen(true)
+    setAppendRequest((r) => ({ id: (r?.id ?? 0) + 1, text }))
     const url = new URL(window.location.href)
     url.searchParams.set('wb', 'memo')
     router.replace(`${url.pathname}${url.search}`, { scroll: false })
@@ -367,13 +384,16 @@ export default function MeetingWorkbench({
                   content: (
                     <MeetingMemoEditor
                       noteId={noteId}
-                      initialHtml={note.bodyHtml}
+                      initialHtml={memoHtml.current ?? note.bodyHtml}
                       canEdit={canEdit}
                       userId={note.viewerId}
                       onStateChange={onSaveState}
                       onLengthChange={setMemoChars}
                       editRequest={editRequest}
                       onEditHandled={() => setEditRequest(0)}
+                      appendRequest={appendRequest}
+                      onAppendHandled={() => setAppendRequest((r) => (r ? { ...r, text: '' } : r))}
+                      onHtmlChange={onMemoHtml}
                     />
                   ),
                 },
@@ -398,7 +418,7 @@ export default function MeetingWorkbench({
         )}
       </details>
 
-      <MeetingSidePanel tabs={{ records: <OtherRecords noteId={noteId} /> }} />
+      <MeetingSidePanel tabs={{ records: <OtherRecords noteId={noteId} onPickLine={canEdit ? pickLine : undefined} /> }} />
     </section>
   )
 }

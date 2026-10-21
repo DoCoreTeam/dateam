@@ -45,6 +45,7 @@ import InlineError from '@/components/ui/InlineError'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import { useDraftPersist } from '@/lib/forms/useDraftPersist'
 import { registerPendingSave, type FlushOutcome } from '@/lib/meeting/pending-save'
+import { appendParagraph } from '@/lib/meeting/side-panel'
 import styles from './workbench.module.css'
 
 /** 자동저장 간격. 회의 중 타이핑을 끊지 않으면서, 잃어도 5초어치인 값 */
@@ -69,10 +70,19 @@ interface Props {
   editRequest?: number
   /** 요청을 받았다고 알린다 — 탭을 오가며 다시 그려질 때 또 쓰기로 들어가지 않게 */
   onEditHandled?: () => void
+  /**
+   * 옆 패널의 「메모에 붙이기」. id 가 바뀔 때마다 지금 메모 끝에 text 한 줄을 붙이고 쓰기로 들어간다.
+   * 붙인 줄은 손으로 친 글과 같은 길(자동저장)로 저장된다.
+   */
+  appendRequest?: { id: number; text: string } | null
+  onAppendHandled?: () => void
+  /** 지금 글을 알린다 — 편집기가 다시 그려질 때 처음 값이 아니라 이 값으로 열리게(바깥이 쥔다) */
+  onHtmlChange?: (html: string) => void
 }
 
 export default function MeetingMemoEditor({
   noteId, initialHtml, canEdit, userId, onStateChange, onLengthChange, editRequest = 0, onEditHandled,
+  appendRequest = null, onAppendHandled, onHtmlChange,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [html, setHtml] = useState(initialHtml)
@@ -121,6 +131,7 @@ export default function MeetingMemoEditor({
 
   useEffect(() => { onStateChange?.(state, savedAt) }, [state, savedAt, onStateChange])
   useEffect(() => { onLengthChange?.(plainTextLength(html)) }, [html, onLengthChange])
+  useEffect(() => { onHtmlChange?.(html) }, [html, onHtmlChange])
 
   /**
    * 임시저장된 글이 있으면 읽기 모드로 가두지 않는다.
@@ -211,6 +222,24 @@ export default function MeetingMemoEditor({
     // startWriting 은 렌더마다 새로 만들어지지만 요청 번호가 바뀔 때만 들어간다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editRequest, canEdit])
+
+  /**
+   * 붙인 요청 번호. 편집기가 새로 그려지는 순간 효과가 두 번 돌면(개발 모드의 이중 실행) 받았다는 알림이
+   * 아직 안 닿아 같은 줄이 두 번 붙었다(실측 2026-10-22). 번호로 한 번만 받는다.
+   */
+  const appendedId = useRef(0)
+  useEffect(() => {
+    if (!appendRequest?.text.trim() || !canEdit) return
+    if (appendRequest.id <= appendedId.current) return
+    appendedId.current = appendRequest.id
+    if (!writing) startWriting()
+    const next = appendParagraph(latest.current, appendRequest.text)
+    setPushedHtml(next)
+    onChange(next)
+    onAppendHandled?.()
+    // 요청 번호가 바뀔 때만 붙인다 — 같은 줄이 두 번 들어가면 안 된다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appendRequest?.id, canEdit])
 
   /**
    * 「저장」 — 기다리던 5초를 앞당겨 지금 밀어 넣고 읽기로 돌아간다.

@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, ExternalLink, Plus, Search } from 'lucide-react'
+import { ArrowLeft, Check, ExternalLink, Plus, Search } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import InlineError from '@/components/ui/InlineError'
 import EmptyState from '@/components/ui/EmptyState'
@@ -156,7 +156,7 @@ function OpenedRecord({ record, onBack, onPickLine }: {
   onBack: () => void
   onPickLine?: (text: string) => void
 }) {
-  const lines = record.noteId ? [] : summaryLines(record.summary)
+  const lines = summaryLines(record.summary)
   const href = record.key.startsWith('crm:') ? `/crm/meetings/${record.key.slice(4)}` : `/meeting-notes/${record.noteId}`
   return (
     <div className={styles.records}>
@@ -171,24 +171,48 @@ function OpenedRecord({ record, onBack, onPickLine }: {
       </div>
       <h3 className={styles.openedTitle}>{record.title}</h3>
       <p className={styles.recordMeta}>{formatKstDateTimeShort(record.at)}{record.companyName ? ` · ${record.companyName}` : ''}</p>
+      {record.noteId && <MeetingDigestPanel noteId={record.noteId} canEdit={false} />}
       {record.noteId ? (
-        <MeetingDigestPanel noteId={record.noteId} canEdit={false} />
+        onPickLine && lines.length > 0 && (
+          <details className={styles.pickBox}>
+            <summary>메모에 붙일 줄 선택</summary>
+            <PickLines lines={lines} onPickLine={onPickLine} />
+          </details>
+        )
       ) : lines.length === 0 ? (
         <EmptyState title="정리된 내용이 없어요" />
       ) : (
-        <ul className={styles.lineList}>
-          {lines.map((l, i) => (
-            <li key={i} className={styles.line}>
-              <span>{l}</span>
-              {onPickLine && (
-                <button type="button" className={styles.pick} onClick={() => onPickLine(l)} aria-label={`메모에 붙이기: ${l}`}>
-                  <Plus size={12} aria-hidden /> 메모에
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <PickLines lines={lines} onPickLine={onPickLine} />
       )}
     </div>
+  )
+}
+
+/**
+ * 요약 줄 목록 — 고칠 수 있는 사람에게만 줄마다 「메모에」 단추가 붙는다.
+ * 누른 줄은 「붙였어요」로 바뀐다. 좁은 화면에서는 패널이 메모를 덮어, 붙었는지 여기서만 보인다.
+ */
+function PickLines({ lines, onPickLine }: { lines: string[]; onPickLine?: (text: string) => void }) {
+  const [done, setDone] = useState<ReadonlySet<number>>(() => new Set())
+  return (
+    <ul className={styles.lineList}>
+      {lines.map((l, i) => (
+        <li key={i} className={styles.line}>
+          <span>{l}</span>
+          {onPickLine && (done.has(i) ? (
+            <span className={styles.picked} role="status"><Check size={12} aria-hidden /> 붙였어요</span>
+          ) : (
+            <button
+              type="button"
+              className={styles.pick}
+              onClick={() => { onPickLine(l); setDone((d) => new Set(d).add(i)) }}
+              aria-label={`메모에 붙이기: ${l}`}
+            >
+              <Plus size={12} aria-hidden /> 메모에
+            </button>
+          ))}
+        </li>
+      ))}
+    </ul>
   )
 }

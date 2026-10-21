@@ -109,3 +109,35 @@ test('목록을 못 불러오면 「기록이 없어요」를 같이 그리지 �
   assert.match(src, /\{error \? \([\s\S]*?ACTION\.retry[\s\S]*?\) : rows === null \?/)
   assert.doesNotMatch(src, /\{error && <InlineError/)
 })
+
+test('회의 모드면 다른 회사 기록과 회사 모르는 회의노트가 목록에서 빠진다', () => {
+  const rows = orderOtherRecords({
+    notes: [note('n1', '2026-10-21T09:00:00Z')],
+    crmMeetings: [crm('a1', '2026-10-01T00:00:00Z', 'A'), crm('b1', '2026-10-20T00:00:00Z', 'B')],
+    currentNoteId: 'cur', companyId: 'A', meetingMode: true,
+  })
+  assert.deepEqual(rows.map((r) => r.key), ['crm:a1'])
+})
+
+test('메모에 붙이기: 회의 화면이 고칠 수 있을 때만 넘기고, 편집기는 최신 글 끝에 붙인다', () => {
+  const wb = readFileSync(new URL('../../components/meeting/MeetingWorkbench.tsx', import.meta.url), 'utf8')
+  assert.match(wb, /<OtherRecords noteId=\{noteId\} onPickLine=\{canEdit \? pickLine : undefined\} \/>/)
+  // 다시 그려질 때 처음 불러온 값이 아니라 이 화면에서 쓴 글로 열린다 — 옛 글에 붙여 저장하면 쓴 글이 사라진다
+  assert.match(wb, /initialHtml=\{memoHtml\.current \?\? note\.bodyHtml\}/)
+  const ed = readFileSync(new URL('../../components/meeting/MeetingMemoEditor.tsx', import.meta.url), 'utf8')
+  assert.match(ed, /appendParagraph\(latest\.current, appendRequest\.text\)/)
+  const rec = readFileSync(new URL('../../components/meeting/OtherRecords.tsx', import.meta.url), 'utf8')
+  // 회의노트 기록에도 붙일 줄이 있다 — 정리본만 띄우면 목록 대부분에서 붙이기가 없다
+  assert.match(rec, /메모에 붙일 줄 선택/)
+})
+
+test('같은 붙이기 요청은 한 번만 받는다 — 다시 그려질 때 같은 줄이 두 번 붙지 않게', () => {
+  const ed = readFileSync(new URL('../../components/meeting/MeetingMemoEditor.tsx', import.meta.url), 'utf8')
+  const body = ed.slice(ed.indexOf('const appendedId = useRef(0)'), ed.indexOf('appendParagraph(latest.current'))
+  assert.match(body, /if \(appendRequest\.id <= appendedId\.current\) return/)
+  assert.match(body, /appendedId\.current = appendRequest\.id/)
+})
+
+test('마크다운 제목 줄(## 결정사항)은 붙일 줄에서 빠진다', () => {
+  assert.deepEqual(summaryLines('## 결정사항\n- 예산 13억 확정\n### 할 일\n자료 받기'), ['예산 13억 확정', '자료 받기'])
+})
