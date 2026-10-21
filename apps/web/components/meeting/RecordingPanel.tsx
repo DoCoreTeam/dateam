@@ -126,8 +126,9 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
       {/* 동시 녹음은 1건이다 — 조용히 안 눌리게 두지 않고 무엇이 잡고 있는지 말한다 */}
       {busyWithOther && (
         <p className={styles.warn}>
-          다른 회의(&ldquo;{busyWithOther.title}&rdquo;)를 녹음하는 중이라 여기서는 시작할 수 없어요.
-          그 회의를 끝낸 뒤 다시 눌러 주세요.
+          {busyWithOther.elsewhere
+            ? <>다른 탭에서 &ldquo;{busyWithOther.title}&rdquo;를 녹음하는 중이라 여기서는 시작할 수 없어요. 그 탭에서 끝낸 뒤 눌러 주세요.</>
+            : <>다른 회의(&ldquo;{busyWithOther.title}&rdquo;)를 녹음하는 중이라 여기서는 시작할 수 없어요. 그 회의를 끝낸 뒤 다시 눌러 주세요.</>}
         </p>
       )}
 

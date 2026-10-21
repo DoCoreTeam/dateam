@@ -12,12 +12,14 @@
  * 모바일에서는 가로로 펴고 Dock 높이(`--dock-safe-area`)만큼 띄운다.
  */
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Square, ArrowUpRight, Pause, Play } from 'lucide-react'
 import LevelMeter from './LevelMeter'
 import { useRecordingSession } from '@/lib/meeting/recording-context'
 import { isLocalNoteId } from '@/lib/offline/local-meeting'
+import { remoteElapsedSec, type RemoteRecording } from '@/lib/meeting/recording-tabs'
 import { ACTION } from '@/lib/terms'
 import styles from './recording-bar.module.css'
 
@@ -31,6 +33,8 @@ export default function RecordingBar() {
   const rec = useRecordingSession()
   const pathname = usePathname()
 
+  // 다른 탭에서 녹음 중이면 그것을 알린다 — 새 탭을 연 사람이 녹음이 끊긴 줄 알고 또 시작하지 않게
+  if (rec.remote && (!rec.target || rec.state === 'idle' || rec.state === 'error')) return <RemoteBar remote={rec.remote} />
   if (!rec.target) return null
   if (rec.state === 'idle' || rec.state === 'error') return null
 
@@ -101,6 +105,33 @@ export default function RecordingBar() {
       >
         <Square size={14} aria-hidden /> 종료
       </button>
+    </div>
+  )
+}
+
+/**
+ * 다른 탭의 녹음. 이 탭에서는 멈추거나 끝낼 수 없다 — 녹음은 시작한 탭이 들고 있다.
+ * 그래서 단추 대신 어디서 다루는지 말한다.
+ */
+function RemoteBar({ remote }: { remote: RemoteRecording }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1_000)
+    return () => clearInterval(t)
+  }, [])
+  const paused = remote.state === 'paused'
+  return (
+    <div className={styles.bar} data-paused={paused ? '' : undefined} role="status" aria-live="polite">
+      <span className={styles.dot} data-paused={paused ? '' : undefined} aria-hidden />
+      <div className={styles.body}>
+        <p className={styles.title}>
+          다른 탭에서 {remote.state === 'stopping' ? '마무리 중' : paused ? '멈춤' : '녹음 중'} · {remote.title}
+        </p>
+        <p className={styles.meta}>
+          <span className={styles.timer}>{mmss(remoteElapsedSec(remote, now))}</span>
+          <span>멈추거나 끝내기는 녹음을 시작한 탭에서 할 수 있어요</span>
+        </p>
+      </div>
     </div>
   )
 }

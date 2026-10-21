@@ -27,6 +27,10 @@ import {
   type RecorderState,
 } from './use-recorder.ts'
 import * as blobStore from '../offline/blob-store.ts'
+import {
+  HEARTBEAT_MS, activeRemote, applyTabMessage, newTabId, openRecordingChannel, parseTabMessage,
+  type RemoteRecording, type RecordingTabMessage,
+} from './recording-tabs.ts'
 import { uploadOnePart } from '../offline/sync-parts.ts'
 
 /** 지금 녹음이 붙어 있는 회의 — 화면이 바뀌어도 이건 안 바뀐다 */
@@ -59,6 +63,8 @@ interface RecordingContextValue {
   canPause: boolean
   /** 구간이 하나 올라갈 때마다 증가 — 화면이 이걸 보고 진행률을 다시 조회한다 */
   uploadTick: number
+  /** 다른 탭에서 돌고 있는 녹음(`recording-tabs.ts`). 있으면 이 탭에서는 시작하지 않는다 */
+  remote: RemoteRecording | null
   start: (target: RecordingTarget) => Promise<void>
   /** 회의 중 잠깐 쉰다 — 세션은 그대로 살아 있다 */
   pause: () => void
@@ -74,7 +80,7 @@ const RecordingContext = createContext<RecordingContextValue | null>(null)
 const IDLE: RecordingContextValue = {
   target: null, state: 'idle', elapsedSec: 0, parts: [], error: null,
   subscribeLevel: () => () => {}, micQuiet: false,
-  supported: false, canPause: false, uploadTick: 0,
+  supported: false, canPause: false, uploadTick: 0, remote: null,
   start: async () => {}, pause: () => {}, resume: () => {},
   stop: async () => {}, clearError: () => {},
 }
@@ -91,9 +97,13 @@ export function useIsRecording(noteId: string): boolean {
     && (s.state === 'recording' || s.state === 'paused' || s.state === 'stopping')
 }
 
-/** 다른 회의가 녹음을 잡고 있으면 그 회의를 돌려준다 — 화면이 "지금은 안 됩니다"를 말할 수 있게 */
-export function useBusyWithOther(noteId: string): RecordingTarget | null {
+/** 녹음을 잡고 있는 다른 곳. `elsewhere` 면 다른 탭이다 — 같은 회의라도 다른 탭이면 여기서 못 시작한다 */
+export type BusyTarget = RecordingTarget & { elsewhere?: true }
+
+/** 다른 회의(또는 다른 탭)가 녹음을 잡고 있으면 그것을 돌려준다 — 화면이 "지금은 안 됩니다"를 말할 수 있게 */
+export function useBusyWithOther(noteId: string): BusyTarget | null {
   const s = useRecordingSession()
+  if (s.remote) return { noteId: s.remote.noteId, title: s.remote.title, href: s.remote.href, elsewhere: true }
   if (!s.target || s.target.noteId === noteId) return null
   if (s.state === 'idle' || s.state === 'error') return null
   return s.target
@@ -154,13 +164,85 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
 
   const rec = useMeetingRecorder({ onPart: uploadPart })
 
+  /*
+    ── 다른 탭과 녹음 상태를 나눈다(`recording-tabs.ts`) ──
+    새 탭에서 녹음을 하나 더 시작하던 구멍을 막는다. 소리는 나누지 않고 이름·경과·상태만.
+  */
+  const tabId = useRef<string>('')
+  if (!tabId.current) tabId.current = newTabId()
+  const channelRef = useRef<BroadcastChannel | null>(null)
+  const [remoteTable, setRemoteTable] = useState<Map<string, RemoteRecording>>(() => new Map())
+  const [now, setNow] = useState(() => Date.now())
+  const localBusy = rec.state === 'recording' || rec.state === 'paused' || rec.state === 'stopping'
+  /** 채널 콜백이 늘 최신 값을 보게 — 상태를 의존에 넣으면 소식마다 채널을 다시 연다 */
+  const liveRef = useRef<(() => RecordingTabMessage | null)>(() => null)
+  liveRef.current = () => {
+    const t = targetRef.current
+    if (!t || !localBusy) return null
+    return {
+      type: 'live', tabId: tabId.current, noteId: t.noteId, title: t.title, href: t.href,
+      state: rec.state as RemoteRecording['state'], elapsedSec: rec.elapsedSec, at: Date.now(),
+    }
+  }
+
+  useEffect(() => {
+    const ch = openRecordingChannel()
+    if (!ch) return undefined
+    channelRef.current = ch
+    ch.onmessage = (e: MessageEvent) => {
+      const msg = parseTabMessage(e.data)
+      if (!msg || msg.tabId === tabId.current) return
+      if (msg.type === 'ask') {
+        const live = liveRef.current()
+        if (live) ch.postMessage(live)
+        return
+      }
+      setRemoteTable((prev) => applyTabMessage(prev, msg, tabId.current))
+      setNow(Date.now())
+    }
+    ch.postMessage({ type: 'ask', tabId: tabId.current })
+    const onHide = () => { if (liveRef.current()) ch.postMessage({ type: 'gone', tabId: tabId.current }) }
+    window.addEventListener('pagehide', onHide)
+    return () => {
+      window.removeEventListener('pagehide', onHide)
+      onHide()
+      ch.close()
+      channelRef.current = null
+    }
+  }, [])
+
+  /* 녹음하는 동안 「아직 녹음 중」을 알리고, 끝나면 「끝났다」를 알린다 */
+  useEffect(() => {
+    const ch = channelRef.current
+    if (!ch) return undefined
+    if (!localBusy) {
+      ch.postMessage({ type: 'gone', tabId: tabId.current })
+      return undefined
+    }
+    const send = () => { const live = liveRef.current(); if (live) ch.postMessage(live) }
+    send()
+    const t = setInterval(send, HEARTBEAT_MS)
+    return () => clearInterval(t)
+  }, [localBusy, rec.state, target])
+
+  /* 소식이 끊긴 탭을 걸러 내려면 시계가 흘러야 한다 — 다른 탭 소식이 있을 때만 돈다 */
+  useEffect(() => {
+    if (remoteTable.size === 0) return undefined
+    const t = setInterval(() => setNow(Date.now()), HEARTBEAT_MS)
+    return () => clearInterval(t)
+  }, [remoteTable.size])
+
+  const remote = localBusy ? null : activeRemote(remoteTable, now)
+
   const start = useCallback(async (next: RecordingTarget) => {
+    // 다른 탭이 녹음 중이면 여기서는 시작하지 않는다 — 화면이 먼저 막고 이유를 말한다
+    if (remote) return
     // 동시 녹음 금지 — 돌고 있으면 조용히 무시하지 않고 그대로 둔다(화면이 먼저 막는다)
     if (targetRef.current && (rec.state === 'recording' || rec.state === 'paused' || rec.state === 'stopping')) return
     targetRef.current = next
     setTarget(next)
     await rec.start()
-  }, [rec])
+  }, [rec, remote])
 
   const stop = useCallback(async () => {
     await rec.stop()
@@ -201,6 +283,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     supported: rec.supported,
     canPause: rec.canPause,
     uploadTick,
+    remote,
     start,
     pause: rec.pause,
     resume: rec.resume,
@@ -208,7 +291,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     clearError: () => {},
   }), [
     target, rec.state, rec.elapsedSec, rec.subscribeLevel, rec.micQuiet, rec.parts,
-    rec.error, rec.supported, rec.canPause, rec.pause, rec.resume, uploadTick, start, stop,
+    rec.error, rec.supported, rec.canPause, rec.pause, rec.resume, uploadTick, remote, start, stop,
   ])
 
   return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>
