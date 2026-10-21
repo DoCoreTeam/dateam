@@ -46,6 +46,8 @@ export const WAIT = {
   settingPropose: '적어 주신 말에서 바꿀 설정을 찾고 있어요',
   /** 말로 설정 바꾸기 — 찾은 값 저장 */
   settingApply: '찾은 값을 설정에 올리고 있어요',
+  /** 이 회의에 묻기 */
+  meetingAsk: '회의 기록을 읽고 답과 근거를 찾고 있어요',
 } as const
 
 export type WaitKey = keyof typeof WAIT

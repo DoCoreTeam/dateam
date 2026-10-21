@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { NotebookPen, Mic, ChevronRight, Check, Loader2, CircleAlert, PanelRight } from 'lucide-react'
+import { NotebookPen, Mic, ChevronRight, Check, Loader2, CircleAlert, PanelRight, MessageCircleQuestion } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
@@ -37,6 +37,8 @@ import MeetingDigestPanel from './MeetingDigestPanel'
 import NoteVisibilitySwitch from './NoteVisibilitySwitch'
 import MeetingSidePanel, { SIDE_TAB_LABEL, useSidePanelNav } from './MeetingSidePanel'
 import OtherRecords from './OtherRecords'
+import AskPanel, { type AskTurn } from './AskPanel'
+import { PEEK_PARAM, SIDE_PARAM } from '@/lib/meeting/side-panel'
 import NbButton from '@/components/ui/nb/NbButton'
 import RecordingPanel from './RecordingPanel'
 import { formatKstTime } from '@/lib/datetime/kst'
@@ -107,6 +109,9 @@ interface NoteState {
   viewerId: string
 }
 
+/** 패널이 본문을 비켜 세우는 폭 — side-panel.module.css 의 @media 와 같은 값이어야 한다 */
+const SIDE_BESIDE_QUERY = '(min-width: 1100px)'
+
 const SAVE_ICON: Record<SaveState, ReactNode> = {
   clean: null,
   dirty: null,
@@ -157,6 +162,8 @@ export default function MeetingWorkbench({
   const onMemoHtml = useCallback((html: string) => { memoHtml.current = html }, [])
   /** 정리의 근거를 누르면 전사 탭으로 옮겨 그 줄을 비춘다 */
   const [highlight, setHighlight] = useState<string[]>([])
+  /** 옆 패널에서 묻고 받은 것 — 패널을 닫아도 남게 여기서 쥔다 */
+  const [askTurns, setAskTurns] = useState<AskTurn[]>([])
 
   const onSaveState = useCallback((s: SaveState, at: number | null) => {
     setSaveState(s)
@@ -176,11 +183,13 @@ export default function MeetingWorkbench({
    * 탭 상태는 URL 이 쥔다(§2-6 "URL이 진실") — 로컬 state 로 옮기면 새로고침에서
    * 원래 탭으로 돌아가 근거가 사라진다.
    */
-  const onEvidence = useCallback((ids: string[]) => {
+  const onEvidence = useCallback((ids: string[], closeSide = false) => {
     setHighlight(ids)
     setEvidenceOpen(true)
     const url = new URL(window.location.href)
     url.searchParams.set('wb', 'transcript')
+    // 패널이 화면을 덮는 폭이면 닫아야 그 줄이 보인다 — 같은 주소 바꿈에 실어야 둘이 서로 덮어쓰지 않는다
+    if (closeSide) { url.searchParams.delete(SIDE_PARAM); url.searchParams.delete(PEEK_PARAM) }
     /**
      * `history.pushState` + `popstate` 로는 탭이 안 넘어간다 — 주소만 바뀌고 화면은 그대로다
      * (실측 v0.7.593). Next 의 `useSearchParams` 는 자체 라우터 상태를 보므로
@@ -208,6 +217,11 @@ export default function MeetingWorkbench({
     url.searchParams.set('wb', 'memo')
     router.replace(`${url.pathname}${url.search}`, { scroll: false })
   }, [router])
+
+  /** 묻기의 근거 — 넓은 화면은 패널 옆에 전사가 보이고, 좁은 화면은 패널을 닫는다 */
+  const onAskEvidence = useCallback((ids: string[]) => {
+    onEvidence(ids, !window.matchMedia(SIDE_BESIDE_QUERY).matches)
+  }, [onEvidence])
 
   /** 「메모에 붙이기」 — 원문을 펴고 작성 탭으로 가서 그 끝에 붙인다(「수정」과 같은 길) */
   const pickLine = useCallback((text: string) => {
@@ -294,6 +308,9 @@ export default function MeetingWorkbench({
           {/* 회의를 띄워 둔 채 다른 기록을 본다 — 새 탭을 열 일이 없게(사용자 지적 2026-10-21) */}
           <NbButton variant="ghost" onClick={() => openSide('records')}>
             <PanelRight size={15} aria-hidden /> {SIDE_TAB_LABEL.records}
+          </NbButton>
+          <NbButton variant="ghost" onClick={() => openSide('ask')}>
+            <MessageCircleQuestion size={15} aria-hidden /> {SIDE_TAB_LABEL.ask}
           </NbButton>
           {canEdit && showVisibility && <NoteVisibilitySwitch noteId={noteId} initial={note.visibility} />}
           {label && (
@@ -418,7 +435,10 @@ export default function MeetingWorkbench({
         )}
       </details>
 
-      <MeetingSidePanel tabs={{ records: <OtherRecords noteId={noteId} onPickLine={canEdit ? pickLine : undefined} /> }} />
+      <MeetingSidePanel tabs={{
+        records: <OtherRecords noteId={noteId} onPickLine={canEdit ? pickLine : undefined} />,
+        ask: <AskPanel noteId={noteId} turns={askTurns} setTurns={setAskTurns} onEvidence={onAskEvidence} />,
+      }} />
     </section>
   )
 }

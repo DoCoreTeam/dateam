@@ -92,8 +92,11 @@ test('메모에 붙이는 줄은 마크업으로 읽히지 않고, 빈 메모는
 
 test('회의 화면이 옆 패널을 실제로 그리고 여는 단추가 있다', () => {
   const src = readFileSync(new URL('../../components/meeting/MeetingWorkbench.tsx', import.meta.url), 'utf8')
-  assert.match(src, /<MeetingSidePanel tabs=\{\{ records: <OtherRecords noteId=\{noteId\}/)
+  assert.match(src, /<MeetingSidePanel tabs=\{\{\s*records: <OtherRecords noteId=\{noteId\}/)
   assert.match(src, /openSide\('records'\)/)
+  // 묻기 탭도 같은 패널에 그리고, 여는 단추와 근거로 가는 길이 붙어 있다
+  assert.match(src, /ask: <AskPanel noteId=\{noteId\}[^>]*onEvidence=\{onAskEvidence\}/)
+  assert.match(src, /openSide\('ask'\)/)
 })
 
 test('패널은 모달이 아니다: 열려 있어도 본문이 비켜 서서 메모 칸이 가려지지 않는다', () => {

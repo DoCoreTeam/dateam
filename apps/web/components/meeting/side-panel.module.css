@@ -124,3 +124,37 @@
 
 /* 붙인 줄 — 단추 자리에 그대로 남아 무엇을 붙였는지 보인다 */
 .picked { flex: none; display: inline-flex; align-items: center; gap: 2px; min-height: 22px; padding: 0 var(--space-2); font-size: var(--fs-xs); color: var(--success); }
+
+/* ── 이 회의에 묻기 ───────────────────────────────────── */
+.turns { display: flex; flex-direction: column; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.turn { display: flex; flex-direction: column; gap: var(--space-2); }
+/* 물은 말은 오른쪽 말풍선 — 답과 한눈에 갈린다 */
+.turnQ {
+  align-self: flex-end;
+  max-width: 85%;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--brand-soft);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.answer { display: flex; flex-direction: column; gap: var(--space-2); }
+.answerText { margin: 0; font-size: var(--fs-sm); line-height: 1.6; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 못 찾은 것은 답이 아니다 — 답과 다른 모양으로 */
+.notFound { margin: 0; padding: var(--space-2) var(--space-3); border: var(--hairline) dashed var(--border-color); border-radius: var(--radius); font-size: var(--fs-sm); color: var(--text-muted); }
+.evidence { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.memoQuote {
+  flex-basis: 100%;
+  margin: 0;
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--border-color);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.askForm { display: flex; flex-direction: column; gap: var(--space-2); border-top: var(--hairline) solid var(--border-color); padding-top: var(--space-3); }
+.askForm textarea { resize: vertical; }
+.askActions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
