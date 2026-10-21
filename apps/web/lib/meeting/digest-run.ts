@@ -29,6 +29,7 @@ import {
   type DigestResult, type DigestSources,
 } from './digest.ts'
 import { digestCallBudget } from './digest-budget.ts'
+import { applyDigestEdits, type DigestEdit } from './digest-edit.ts'
 
 export interface DigestRunResult {
   digest: DigestResult
@@ -314,6 +315,54 @@ async function persist(
   if (upErr) throw new Error(`요약을 저장하지 못했습니다: ${upErr.message}`)
 
   return seq
+}
+
+/** 사람이 고친 판을 남길 때 model 칸에 적는 값 — 화면과 이력이 「사람」으로 읽는다 */
+export const PERSON_EDIT_MODEL = 'person'
+
+export type SaveEditOutcome =
+  | { ok: true; seq: number; changed: number }
+  | { ok: false; status: 400 | 404 | 409; reason: string }
+
+/**
+ * 사람이 고친 정리본을 **새 판으로** 남긴다. AI 를 부르지 않는다.
+ *
+ * 사용자 지시(2026-10-21): *"한글자만 고치면 되는데 AI를 쓰는게 오히려 손해잖아"*.
+ *
+ * - 주인만 고친다 — 정리(POST)와 같은 조건(`user_id`)으로 노트를 찾고, 못 찾으면 404 로 끝낸다
+ * - 화면이 본 판(`baseSeq`)이 지금 최신이 아니면 409. 그사이 다시 정리가 돌았으면
+ *   옛 판 위에 고친 것을 얹어 새 정리를 덮어쓰게 된다
+ * - 무엇을 읽었는지(sources)는 기준 판의 것을 그대로 둔다 — 고친 것은 읽은 재료가 아니다
+ */
+export async function saveEditedDigest(
+  noteId: string,
+  userId: string,
+  baseSeq: number,
+  edits: DigestEdit[],
+): Promise<SaveEditOutcome> {
+  const db = admin()
+  const { data: note } = await db
+    .from('meeting_notes')
+    .select('id')
+    .eq('id', noteId).eq('user_id', userId).is('deleted_at', null)
+    .maybeSingle()
+  if (!note) return { ok: false, status: 404, reason: '회의노트를 찾을 수 없습니다.' }
+
+  const latest = (await listMeetingDigests(db, noteId))[0]
+  if (!latest) return { ok: false, status: 404, reason: '고칠 정리가 없어요.' }
+  if (latest.seq !== baseSeq) {
+    return { ok: false, status: 409, reason: '그사이 정리가 새로 만들어졌어요. 새로 불러온 뒤 다시 고쳐 주세요.' }
+  }
+
+  const out = applyDigestEdits(latest.digest, edits)
+  if (!out.ok) return { ok: false, status: 400, reason: out.reason }
+  if (out.changed === 0) return { ok: true, seq: latest.seq, changed: 0 }
+
+  const seq = await persist(
+    db, noteId, out.digest, latest.sources as DigestSources, PERSON_EDIT_MODEL,
+    digestToPlainSummary(out.digest.agenda), digestDecisionsToPlain(out.digest.decisions),
+  )
+  return { ok: true, seq, changed: out.changed }
 }
 
 export interface DigestVersion {
