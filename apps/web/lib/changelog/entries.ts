@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.40',
+    date: '2026-10-21',
+    title: '미팅 화면에서 고치기가 바로 돼요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '✏️',
+        headline: '원문 「수정」을 누르면 쓴 글이 그대로 떠요',
+        detail: '미팅 화면에서 원문을 쓰고 저장한 뒤 「수정」을 누르면 편집기가 빈칸으로 열리던 것을 고쳤어요. 회의 기록의 「수정」을 누르면 원문 편집기로 바로 내려가 고칠 수 있어요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '✅',
+        headline: '「미팅을 정리했어요」는 확인하면 닫혀요',
+        detail: '결과 상자에 확인 단추가 생겼어요. 한 번 닫으면 다시 들어와도 안 떠요. 회사나 딜을 고르고 저장하면 그 질문도 바로 사라져요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🤖',
+        headline: 'AI가 도는 단추에는 (AI)가 붙어요',
+        detail: '「다시 정리(AI)」처럼 누르면 AI가 내용을 새로 쓰는 단추를 이름으로 알 수 있어요. AI가 찾은 것이 없을 때는 아직 안 한 것인지 해 보고 못 찾은 것인지 나눠 말해요.',
+      },
+    ],
+  },
+  {
     version: '0.11.39',
     date: '2026-10-21',
     title: 'PDF 계약서에서도 주민등록번호를 지워요',
