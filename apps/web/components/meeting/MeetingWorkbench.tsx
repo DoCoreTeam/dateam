@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { NotebookPen, Mic, ChevronRight, Check, Loader2, CircleAlert } from 'lucide-react'
+import { NotebookPen, Mic, ChevronRight, Check, Loader2, CircleAlert, PanelRight } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelCard } from '@/components/ui/LoadingSkeleton'
@@ -35,6 +35,9 @@ import MeetingMemoEditor, { type SaveState } from './MeetingMemoEditor'
 import MeetingTranscriptView from './MeetingTranscriptView'
 import MeetingDigestPanel from './MeetingDigestPanel'
 import NoteVisibilitySwitch from './NoteVisibilitySwitch'
+import MeetingSidePanel, { SIDE_TAB_LABEL, useSidePanelNav } from './MeetingSidePanel'
+import OtherRecords from './OtherRecords'
+import NbButton from '@/components/ui/nb/NbButton'
 import RecordingPanel from './RecordingPanel'
 import { formatKstTime } from '@/lib/datetime/kst'
 import {
@@ -124,6 +127,7 @@ export default function MeetingWorkbench({
   noteId, title, href, onBodySaved, onDigested, showVisibility = true,
 }: Props) {
   const router = useRouter()
+  const openSide = useSidePanelNav()
   const [note, setNote] = useState<NoteState | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -270,6 +274,10 @@ export default function MeetingWorkbench({
       <div className={styles.headRow}>
         <h2 className="tape-title" style={{ margin: 0 }}>회의 기록</h2>
         <div className={styles.headRight}>
+          {/* 회의를 띄워 둔 채 다른 기록을 본다 — 새 탭을 열 일이 없게(사용자 지적 2026-10-21) */}
+          <NbButton variant="ghost" onClick={() => openSide('records')}>
+            <PanelRight size={15} aria-hidden /> {SIDE_TAB_LABEL.records}
+          </NbButton>
           {canEdit && showVisibility && <NoteVisibilitySwitch noteId={noteId} initial={note.visibility} />}
           {label && (
             <span className={styles.saveState} data-state={saveState} role="status">
@@ -389,6 +397,8 @@ export default function MeetingWorkbench({
           </div>
         )}
       </details>
+
+      <MeetingSidePanel tabs={{ records: <OtherRecords noteId={noteId} /> }} />
     </section>
   )
 }

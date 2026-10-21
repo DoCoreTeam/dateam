@@ -1,0 +1,117 @@
+/* 회의 옆 패널 — 오른쪽에 붙어 서는 비모달 패널. 왼쪽 회의 화면은 계속 쓸 수 있다 */
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100vw);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-left: var(--hairline) solid var(--border-color);
+  background: var(--surface-bg);
+  box-shadow: var(--shadow-lg);
+}
+
+/*
+  넓은 화면에서는 패널 폭만큼 본문을 비켜 세운다 — 덮으면 오른쪽 메모 칸이 가려져
+  「회의를 띄워 둔 채」가 성립하지 않는다. 좁은 화면은 패널이 화면을 다 쓰고 닫으면 돌아온다
+*/
+@media (min-width: 1100px) {
+  :global(main.page-inner):has(.panel) { padding-right: calc(min(440px, 100vw) + var(--space-4)); }
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--hairline) solid var(--border-color);
+}
+
+.close:focus-visible, .recordRow:focus-visible, .back:focus-visible, .pick:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.close:hover { background: var(--surface-muted); color: var(--text); }
+
+.panelBody { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-4); }
+
+/* ── 다른 기록 ───────────────────────────────────────── */
+.records { display: flex; flex-direction: column; gap: var(--space-3); }
+.search { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); }
+.search input { flex: 1; min-width: 0; }
+.hint { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }
+.groupLabel { margin: var(--space-2) 0 var(--space-1); font-size: var(--fs-2xs); font-weight: 700; color: var(--text-muted); }
+.recordList { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.recordRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.recordRow:hover { background: var(--surface-muted); }
+.recordTitle { font-size: var(--fs-sm); font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.recordMeta { margin: 0; font-size: var(--fs-2xs); color: var(--text-muted); }
+
+.openedHead { display: flex; justify-content: space-between; gap: var(--space-2); }
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-decoration: none;
+  cursor: pointer;
+}
+.back:hover { background: var(--brand-soft); }
+.openedTitle { margin: 0; font-size: var(--fs-md); font-weight: 800; color: var(--text); overflow-wrap: anywhere; }
+
+.lineList { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.line { display: flex; gap: var(--space-2); align-items: baseline; justify-content: space-between; font-size: var(--fs-sm); color: var(--text); }
+.pick {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-2);
+  min-height: 22px;
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+}
+.pick:hover { border-color: var(--brand); color: var(--brand); }
