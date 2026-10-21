@@ -193,3 +193,34 @@
   display: block; margin-top: 2px;
   font-size: var(--fs-xs); color: var(--text-faint); font-style: normal;
 }
+
+/* ── 사람이 고친 줄과 그 자리 고치기 ───────────────────── */
+/* 「사람」은 출처 배지와 같은 모양이고 색만 브랜드 — AI 출처(작성·녹음)와 섞이지 않게 */
+.edited { color: var(--brand); background: var(--brand-soft); }
+.editor { display: flex; flex-direction: column; gap: var(--space-4); }
+.editHint { margin: 0; font-size: var(--fs-xs); color: var(--text-muted); }
+/* 평소에는 글처럼 보이고 누른 자리만 칸이 된다 — 33줄이 전부 상자로 바뀌면 고칠 곳을 찾기 어렵다.
+   공용 .input-field 를 달되(디자인 가드) .editor 아래에서 한 단계 높게 덮는다 */
+.editor .editField {
+  display: block;
+  width: 100%;
+  field-sizing: content;
+  min-height: 1.6em;
+  resize: none;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border: var(--hairline) dashed transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  transition: border-color var(--duration-fast, 150ms), background var(--duration-fast, 150ms);
+}
+.editor .editField:hover { border-color: var(--border-color); }
+.editor .editField:focus { outline: none; border-style: solid; border-color: var(--brand); background: var(--surface-bg); }
+.editor .editFieldStrong { font-weight: 800; }
+/* 고친 칸은 저장 전에도 표시가 남는다 — 무엇을 바꿨는지 한눈에 */
+.editor .editFieldChanged { border-color: var(--brand); background: var(--brand-soft); }
+.editActions { display: flex; justify-content: flex-end; gap: var(--space-2); }

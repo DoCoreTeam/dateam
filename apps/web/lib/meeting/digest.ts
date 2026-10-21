@@ -53,6 +53,8 @@ export interface DigestResult {
   agenda: DigestAgendaItem[]
   decisions: DigestFact[]
   conflicts: DigestConflict[]
+  /** 사람이 고친 머리 줄(결론·다음 할 일). 사실 줄은 저마다 `edited` 를 든다 */
+  headEdited?: Array<'outcome' | 'nextStep'>
 }
 
 export const EMPTY_DIGEST: DigestResult = { outcome: '', nextStep: '', agenda: [], decisions: [], conflicts: [] }
@@ -244,7 +246,11 @@ export function parseStoredDigest(bundle: unknown, decisionsPlain: string): Dige
   }
 
   /* 옛 정리본에는 이 둘이 없다. 빈 문자열이면 화면이 그 줄을 아예 안 그린다 — 지어내지 않는다 */
-  return { outcome: str(o.outcome), nextStep: str(o.nextStep), agenda, decisions, conflicts }
+  const headEdited = asArray(o.headEdited).filter((k): k is 'outcome' | 'nextStep' => k === 'outcome' || k === 'nextStep')
+  return {
+    outcome: str(o.outcome), nextStep: str(o.nextStep), agenda, decisions, conflicts,
+    ...(headEdited.length > 0 ? { headEdited } : {}),
+  }
 }
 
 /* ── 평문 사본 ────────────────────────────────────────── */

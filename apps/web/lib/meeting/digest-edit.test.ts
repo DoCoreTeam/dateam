@@ -109,3 +109,21 @@ test('저장 창구는 로그인과 주인을 확인하고 고침 목록만 받�
   assert.match(save, /applyDigestEdits\(latest\.digest, edits\)/)
   assert.doesNotMatch(save, /callGeminiJson|summarizeMeeting/)
 })
+
+test('회의 기록의 「수정」은 정리본을 그 자리에서 고치고, 고친 줄에 「사람」을 단다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const panel = readFileSync('components/meeting/MeetingDigestPanel.tsx', 'utf8')
+  const btn = panel.slice(panel.indexOf('const editButton'), panel.indexOf('const runButton'))
+  assert.match(btn, /setEditing\(true\)/)
+  assert.doesNotMatch(btn, /onEditMemo/)
+  assert.match(panel, /<DigestEditor/)
+  assert.match(panel, /f\.edited && <EditedBadge \/>/)
+  assert.match(panel, /d\.edited && <EditedBadge \/>/)
+  // 고친 줄이 있으면 다시 정리 전에 묻는다
+  const run = panel.slice(panel.indexOf('async function run()'), panel.indexOf("setRunning(true)"))
+  assert.match(run, /countEdited\(/)
+  assert.match(run, /ask\.confirm\(/)
+  const ed = readFileSync('components/meeting/DigestEditor.tsx', 'utf8')
+  assert.match(ed, /method: 'PUT'/)
+  assert.match(ed, /JSON\.stringify\(\{ baseSeq, edits: \[\.\.\.drafts\.values\(\)\] \}\)/)
+})

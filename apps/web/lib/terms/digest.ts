@@ -21,6 +21,9 @@
  *     누르면 AI 가 돌아 내용이 새로 쓰인다는 것을 누르기 전에 알아야 한다. 이름은 그대로 「정리」다
  */
 
+/** 사람이 그 자리에서 고친 줄의 표시 */
+export const DIGEST_EDITED_LABEL = '사람'
+
 /** AI 가 도는 단추의 꼬리. 단추마다 따로 적지 않는다 */
 export const AI_RUN_SUFFIX = '(AI)'
 

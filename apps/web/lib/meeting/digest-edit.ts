@@ -13,6 +13,9 @@
 
 import type { DigestAgendaItem, DigestFact, DigestResult } from './digest.ts'
 
+/** 사람이 고친 판의 model 칸 값 — 화면과 이력이 「사람이 고침」으로 읽는다 */
+export const PERSON_EDIT_MODEL = 'person'
+
 /** 한 칸에 받는 글자 상한. 정리본 한 줄은 길어야 수백 자다 */
 export const MAX_EDIT_CHARS = 1_000
 /** 한 번에 받는 고침 수 상한 */
@@ -115,16 +118,22 @@ export function applyDigestEdits(base: DigestResult, edits: DigestEdit[]): EditO
     .map((d, i) => count(d, editFact(d, byKey.get(`d:${i}`))))
     .filter((d): d is DigestFact => d !== null)
 
+  const headEdited = new Set(base.headEdited ?? [])
   const line = (key: 'outcome' | 'nextStep'): string => {
     const next = byKey.get(key)
     if (next === undefined) return base[key]
     const text = next.trim()
-    if (text !== base[key]) changed += 1
+    if (text !== base[key]) { changed += 1; headEdited.add(key) }
     return text
   }
 
   // 세기가 끝난 뒤에 changed 를 읽는다 — 객체 안에서 함께 부르면 이 둘이 세어지기 전에 읽힌다
   const outcome = line('outcome')
   const nextStep = line('nextStep')
-  return { ok: true, changed, digest: { outcome, nextStep, agenda, decisions, conflicts: base.conflicts } }
+  const heads = [...headEdited]
+  return {
+    ok: true,
+    changed,
+    digest: { outcome, nextStep, agenda, decisions, conflicts: base.conflicts, ...(heads.length > 0 ? { headEdited: heads } : {}) },
+  }
 }

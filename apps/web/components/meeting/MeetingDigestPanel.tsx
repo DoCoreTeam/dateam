@@ -21,9 +21,12 @@ import { FACT_ORIGIN_LABEL, type FactOrigin } from '@/lib/meeting/digest-prompt'
 import { digestProgress } from '@/lib/meeting/digest-progress'
 import {
   progress, ACTION,
-  DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_RERUN_LABEL, digestMaterialLine, digestStaleLine, MEMO_LABEL,
+  DIGEST_LABEL, DIGEST_RUN_LABEL, DIGEST_RERUN_LABEL, DIGEST_EDITED_LABEL, digestMaterialLine, digestStaleLine, MEMO_LABEL,
 } from '@/lib/terms'
 import MeetingExportModal from '@/app/(member)/meeting-notes/MeetingExportModal'
+import DigestEditor from './DigestEditor'
+import { useAskDialog } from '@/components/ui/useAskDialog'
+import { PERSON_EDIT_MODEL } from '@/lib/meeting/digest-edit'
 import { hasMixedOrigins } from '@/lib/meeting/digest'
 import { digestSlot } from '@/lib/meeting/digest-slot'
 import type { DigestResult, DigestSources } from '@/lib/meeting/digest'
@@ -44,10 +47,10 @@ interface Props {
   /** 근거를 누르면 전사 탭의 그 대목으로 — 상위가 탭 전환과 하이라이트를 맡는다 */
   onEvidence?: (segmentIds: string[]) => void
   /**
-   * 「수정」을 누르면 원문을 펼치고 작성 탭으로 간다.
+   * 작성(원문)을 고치러 간다 — 작성과 녹음이 다르게 말한 곳에서 작성 쪽을 바로잡을 때.
    *
-   * **여기서 글을 고치지 않는다** — 편집기는 원문 상자 안 하나뿐이고(§2-3-6 P-4),
-   * 이 버튼은 그리로 **안내만** 한다. 두 번째 쓰기 경로를 만들면 결국 다른 곳에 쓴다.
+   * 정리본 자체의 「수정」은 이 패널 안에서 한다(`DigestEditor`, 사용자 지시 2026-10-21:
+   * 한 글자 오타에 원문을 고치고 AI 를 다시 돌리는 것은 손해다). 원문은 원문 상자에서만 고친다.
    */
   onEditMemo?: () => void
   /** 정리가 끝나면 알린다 — 헤더 배지가 "정리 8/24 15:02"로 바뀐다 */
@@ -64,6 +67,17 @@ function OriginBadge({ origin }: { origin: FactOrigin }) {
   return <span className={`${styles.origin} ${styles[origin]}`}>{FACT_ORIGIN_LABEL[origin]}</span>
 }
 
+/** 사람이 고친 줄 — 출처 배지와 달리 늘 그린다. 섞였을 때만 알려 주는 정보가 아니다 */
+function EditedBadge() {
+  return <span className={`${styles.origin} ${styles.edited}`}>{DIGEST_EDITED_LABEL}</span>
+}
+
+/** 사람이 고친 줄이 있나 — 다시 정리(AI) 전에 사라진다고 알리는 근거 */
+function countEdited(d: DigestResult): number {
+  return d.agenda.reduce((n, a) => n + a.facts.filter((f) => f.edited).length, 0)
+    + d.decisions.filter((f) => f.edited).length + (d.headEdited?.length ?? 0)
+}
+
 export default function MeetingDigestPanel({
   noteId, canEdit, onEvidence, onEditMemo, onDigested, memoChars = 0, segmentCount = 0,
 }: Props) {
@@ -76,6 +90,9 @@ export default function MeetingDigestPanel({
   const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  /** 정리본을 그 자리에서 고치는 중인가 */
+  const [editing, setEditing] = useState(false)
+  const { ask, dialog } = useAskDialog()
 
   const load = useCallback(async () => {
     try {
@@ -101,6 +118,20 @@ export default function MeetingDigestPanel({
   }, [startedAt])
 
   async function run() {
+    /*
+      사람이 고친 줄은 다시 정리하면 새 판에 안 남는다(AI 는 원문을 다시 읽는다).
+      말없이 지우지 않는다 — 고친 판은 이력에 남아 돌아갈 수 있다는 것까지 함께 말한다.
+    */
+    const newest = versions?.[0]
+    const edited = newest ? countEdited(newest.digest) : 0
+    if (edited > 0) {
+      const ok = await ask.confirm({
+        title: '고친 줄이 새 정리에는 안 남아요',
+        body: `사람이 고친 줄 ${edited}개는 AI가 원문을 다시 읽어 만드는 새 정리에 들어가지 않아요. 고친 판은 「이전 정리」에 남아 언제든 돌아갈 수 있어요.`,
+        confirmLabel: DIGEST_RERUN_LABEL,
+      })
+      if (!ok) return
+    }
     setRunning(true); setError(null); setNotice(null)
     setStartedAt(Date.now()); setElapsedMs(0)
     try {
@@ -152,8 +183,9 @@ export default function MeetingDigestPanel({
     접힌 동안 화면에 「수정」이 한 개도 없었다 — 실측으로 사용자가 못 찾았다
     (*"수정은 어떻게 하니?"*). 내보내기·다시 정리와 같은 줄에 세운다.
   */
-  const editButton = canEdit && onEditMemo ? (
-    <NbButton variant="ghost" onClick={onEditMemo}>
+  // 고치는 것은 가장 최근 판뿐이다 — 옛 판을 고치면 그 뒤의 정리를 덮어쓴다(서버도 409 로 막는다)
+  const editButton = canEdit && latest && current && current.seq === latest.seq && !running ? (
+    <NbButton variant="ghost" onClick={() => setEditing(true)}>
       <Pencil size={15} /> {ACTION.edit}
     </NbButton>
   ) : null
@@ -247,7 +279,9 @@ export default function MeetingDigestPanel({
         <>
           <div className={styles.head}>
             <div className={styles.meta}>
-              <span className={styles.stamp}>{formatKstDateTimeShort(current!.createdAt)} 정리</span>
+              <span className={styles.stamp}>
+                {formatKstDateTimeShort(current!.createdAt)} {current!.model === PERSON_EDIT_MODEL ? '고침' : '정리'}
+              </span>
               {current!.sources && (
                 <span className={styles.sources}>
                   {/* 무엇을 읽었나 — 말은 용어집이 정한다(§0-2). 배지·근거 줄과 같은 말을 써야 한다 */}
@@ -256,8 +290,24 @@ export default function MeetingDigestPanel({
                 </span>
               )}
             </div>
-            <span className={styles.headActions}>{editButton}{exportButton}{runButton}</span>
+            {!editing && <span className={styles.headActions}>{editButton}{exportButton}{runButton}</span>}
           </div>
+
+          {editing ? (
+            <DigestEditor
+              noteId={noteId}
+              baseSeq={current!.seq}
+              digest={current!.digest}
+              onCancel={() => setEditing(false)}
+              onSaved={(_seq, changed) => {
+                setEditing(false)
+                setShowing(null)
+                setNotice(changed > 0 ? null : '바뀐 곳이 없어 그대로 두었어요.')
+                if (changed > 0) onDigested?.(new Date().toISOString())
+                void load()
+              }}
+            />
+          ) : (<>
 
           {/*
             이 회의는 무엇이었나 — **맨 위 한 줄.**
@@ -268,10 +318,13 @@ export default function MeetingDigestPanel({
           {current!.digest.outcome && (
             <section className={styles.outcome} aria-labelledby="mw-outcome-h">
               <h3 id="mw-outcome-h" className={styles.outcomeHead}>이 회의는</h3>
-              <p className={styles.outcomeText}>{current!.digest.outcome}</p>
+              <p className={styles.outcomeText}>
+                {current!.digest.headEdited?.includes('outcome') && <EditedBadge />} {current!.digest.outcome}
+              </p>
               {current!.digest.nextStep && (
                 <p className={styles.outcomeNext}>
-                  <ArrowRight size={13} aria-hidden /> {current!.digest.nextStep}
+                  <ArrowRight size={13} aria-hidden />
+                  {current!.digest.headEdited?.includes('nextStep') && <EditedBadge />} {current!.digest.nextStep}
                 </p>
               )}
             </section>
@@ -294,6 +347,12 @@ export default function MeetingDigestPanel({
                           그 대목 보기
                         </button>
                       )}
+                      {/* 작성이 틀렸으면 작성을 고친다 — 원문은 원문 상자에서만 고친다 */}
+                      {canEdit && onEditMemo && (
+                        <button type="button" className={styles.evidence} onClick={onEditMemo}>
+                          {MEMO_LABEL} 고치기
+                        </button>
+                      )}
                     </p>
                   </li>
                 ))}
@@ -308,6 +367,7 @@ export default function MeetingDigestPanel({
                 {a.facts.map((f, j) => (
                   <li key={j} className={styles.fact}>
                     {showOrigin && <OriginBadge origin={f.origin} />}
+                    {f.edited && <EditedBadge />}
                     <span className={styles.factText}>
                       {f.text}
                       {/* 다른 안건 때문에 이렇게 된 것이면 그 까닭을 잇는다 — 안건을 건너뛰는 연결이 값어치다 */}
@@ -331,6 +391,7 @@ export default function MeetingDigestPanel({
                 {current!.digest.decisions.map((d, i) => (
                   <li key={i} className={styles.fact}>
                     {showOrigin && <OriginBadge origin={d.origin} />}
+                    {d.edited && <EditedBadge />}
                     <span className={styles.factText}>{d.text}</span>
                   </li>
                 ))}
@@ -349,14 +410,16 @@ export default function MeetingDigestPanel({
                   className={`${styles.historyItem}${current!.seq === v.seq ? ` ${styles.historyOn}` : ''}`}
                   onClick={() => setShowing(v.seq)}
                 >
-                  {v.seq}차 · {formatKstDateTimeShort(v.createdAt)}
+                  {v.seq}차{v.model === PERSON_EDIT_MODEL ? ' · 고침' : ''} · {formatKstDateTimeShort(v.createdAt)}
                 </button>
               ))}
             </div>
           )}
+          </>)}
         </>
       )}
 
+      {dialog}
       {exporting && (
         <MeetingExportModal meetingNoteId={noteId} view="digest" onClose={() => setExporting(false)} />
       )}

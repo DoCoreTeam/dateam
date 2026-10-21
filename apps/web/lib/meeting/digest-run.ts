@@ -29,7 +29,7 @@ import {
   type DigestResult, type DigestSources,
 } from './digest.ts'
 import { digestCallBudget } from './digest-budget.ts'
-import { applyDigestEdits, type DigestEdit } from './digest-edit.ts'
+import { applyDigestEdits, PERSON_EDIT_MODEL, type DigestEdit } from './digest-edit.ts'
 
 export interface DigestRunResult {
   digest: DigestResult
@@ -302,6 +302,7 @@ async function persist(
     agenda_json: {
       outcome: digest.outcome, nextStep: digest.nextStep,
       agenda: digest.agenda, conflicts: digest.conflicts, decisions: digest.decisions,
+      ...(digest.headEdited ? { headEdited: digest.headEdited } : {}),
     },
     decisions: decisionsPlain || null,
     sources,
@@ -316,9 +317,6 @@ async function persist(
 
   return seq
 }
-
-/** 사람이 고친 판을 남길 때 model 칸에 적는 값 — 화면과 이력이 「사람」으로 읽는다 */
-export const PERSON_EDIT_MODEL = 'person'
 
 export type SaveEditOutcome =
   | { ok: true; seq: number; changed: number }
