@@ -154,11 +154,20 @@
   background: var(--success-bg);
 }
 
+/* 머리말과 확인 단추 한 줄 — 확인하면 상자가 닫힌다 */
+.finishTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
 .finishHead {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 0 var(--space-3);
+  margin: 0;
   font-size: var(--fs-md);
   font-weight: 700;
   color: var(--success);

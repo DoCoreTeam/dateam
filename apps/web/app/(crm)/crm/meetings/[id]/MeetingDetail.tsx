@@ -36,6 +36,7 @@ import { useRecordingSession, useIsRecording } from '@/lib/meeting/recording-con
 import { finishButtonLabel, finishProgress, finishProgressLine, type FinishPhase } from '@/lib/crm/ui/finish-progress'
 import { flushPendingSaves, hasPendingSaves } from '@/lib/meeting/pending-save'
 import { meetingFinishView } from '@/lib/crm/ui/meeting-status'
+import { browserStore, isFinishSeen, markFinishSeen } from '@/lib/crm/ui/finish-seen'
 import type { FinishStep, OpenQuestion } from '@/lib/crm/services/meeting-finish'
 import type { FinishStage } from '@/lib/crm/jobs/finish-queue'
 
@@ -129,6 +130,8 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
    * (실측 2026-09-14). 이제 진행과 결과가 표에 있어 나갔다 와도 같은 답이 나온다.
    */
   const [finishJob, setFinishJob] = useState<FinishState | null>(null)
+  /** 결과 상자를 확인으로 닫은 잡 id — 닫은 것은 다시 들어와도 안 뜬다(`lib/crm/ui/finish-seen`) */
+  const [seenJobId, setSeenJobId] = useState<string | null>(null)
   /** 삭제 확인창을 여는 중인가 — 되돌릴 수 없는 쪽(영구)도 있어 곧장 실행하지 않는다(R-5) */
   const [deleting, setDeleting] = useState(false)
   /**
@@ -480,7 +483,8 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
         * 끝내기 결과. **된 것과 안 된 것을 함께 말한다** — 한 단계가 넘어져도 나머지는 갔다는
         * 사실을 사용자가 알아야 다음 행동을 정할 수 있다. 「완료」만 띄우면 실패가 묻힌다.
         */}
-      {finishJob && !finishJob.running && finishJob.steps.length > 0 && (
+      {finishJob && !finishJob.running && finishJob.steps.length > 0
+        && seenJobId !== finishJob.jobId && !isFinishSeen(finishJob.jobId, browserStore()) && (
         <section className={styles.finish} aria-live="polite">
           {/*
             **된 것만 세어 「정리했어요」라고 말하지 않는다.**
@@ -488,11 +492,19 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
             (설계대로다 — 한 단계가 넘어져도 나머지는 간다). 그때 성공과 같은 머리말을 달면
             9/14 의 「조용히 사라짐」이 모양만 바꿔 되살아난다.
           */}
-          <h3 className={styles.finishHead} data-status={finishJob.failedSteps.length > 0 ? 'failed' : 'done'}>
-            {finishJob.failedSteps.length > 0
-              ? <><HelpCircle size={16} aria-hidden /> 일부는 하지 못했어요</>
-              : <><CheckCircle2 size={16} aria-hidden /> 미팅을 정리했어요</>}
-          </h3>
+          <div className={styles.finishTop}>
+            <h3 className={styles.finishHead} data-status={finishJob.failedSteps.length > 0 ? 'failed' : 'done'}>
+              {finishJob.failedSteps.length > 0
+                ? <><HelpCircle size={16} aria-hidden /> 일부는 하지 못했어요</>
+                : <><CheckCircle2 size={16} aria-hidden /> 미팅을 정리했어요</>}
+            </h3>
+            <NbButton
+              variant="ghost"
+              onClick={() => { markFinishSeen(finishJob.jobId, browserStore()); setSeenJobId(finishJob.jobId) }}
+            >
+              {ACTION.confirm}
+            </NbButton>
+          </div>
           <ul className={styles.stepList}>
             {finishJob.steps.map((st) => (
               <li key={st.key} className={styles.step} data-status={st.status}>
@@ -600,7 +612,7 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
                 dealId: m.dealId,
                 dealName: m.dealName,
               }}
-              onSaved={() => { void load() }}
+              onSaved={() => { void load(); void loadFinish() }}
             />
 
             <RecordPanel title="붙은 것">
