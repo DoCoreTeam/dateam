@@ -48,7 +48,7 @@ describe('끝내기 진행 문구 — 단계를 덮지 않는다', () => {
     assert.equal(finishButtonLabel('stopping', false), '녹음 멈추는 중…')
     assert.equal(finishButtonLabel('working', false), '정리하는 중…')
     assert.equal(finishButtonLabel(null, false), '미팅 끝내기')
-    assert.equal(finishButtonLabel(null, true), '다시 정리하기')
+    assert.equal(finishButtonLabel(null, true), '다시 정리하기(AI)')
   })
 
   it('진행 줄에 「· null」 같은 것이 나가지 않는다', () => {

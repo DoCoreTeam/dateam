@@ -23,6 +23,7 @@
  */
 
 import { digestProgress, formatElapsed } from '../../meeting/digest-progress.ts'
+import { AI_RUN_SUFFIX } from '../../terms/digest.ts'
 
 /**
  * 끝내기가 지나가는 단계.
@@ -85,7 +86,7 @@ export function finishButtonLabel(phase: FinishPhase | null, hasEnded: boolean):
   if (phase === 'saving') return '저장하는 중…'
   if (phase === 'stopping') return '녹음 멈추는 중…'
   if (phase === 'working') return '정리하는 중…'
-  return hasEnded ? '다시 정리하기' : '미팅 끝내기'
+  return hasEnded ? `다시 정리하기${AI_RUN_SUFFIX}` : '미팅 끝내기'
 }
 
 /**
