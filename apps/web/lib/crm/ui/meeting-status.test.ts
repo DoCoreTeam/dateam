@@ -61,3 +61,31 @@ test('모르는 조합에서도 화면이 비지 않는다', () => {
   const meta = meetingStatusMeta({ summaryMd: null, recordingStatuses: ['???'] })
   assert.ok(meta.label.length > 0)
 })
+
+test('AI가 찾은 것 빈 안내 — 화면에 있는 단추 이름을 부르고, 끝낸 미팅은 못 찾았다고 말한다', async () => {
+  const { foundEmptyView } = await import('./meeting-status.ts')
+  const ended = foundEmptyView({ readable: true, ended: true, runLabel: '다시 정리하기(AI)' })
+  assert.equal(ended.title, '확실한 것을 못 찾았어요')
+  assert.match(ended.description, /\[다시 정리하기\(AI\)\]/)
+  const fresh = foundEmptyView({ readable: true, ended: false, runLabel: '미팅 끝내기' })
+  assert.equal(fresh.title, '아직 정리하지 않았어요')
+  assert.match(fresh.description, /\[미팅 끝내기\]/)
+  assert.equal(foundEmptyView({ readable: false, ended: true, runLabel: 'x' }).title, '읽을 회의 내용이 없어요')
+
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync('app/(crm)/crm/meetings/[id]/MeetingDetail.tsx', 'utf8')
+  assert.match(src, /foundEmptyView\(\{/)
+  assert.doesNotMatch(src, /'아직 정리하지 않았어요'/)
+})
+
+test('원본이 바뀐 안내는 구현을 설명하지 않는다', async () => {
+  const { staleNoteLine, STALE_NOTE_ACTION } = await import('./meeting-status.ts')
+  const line = staleNoteLine('10/21 19:46')
+  assert.match(line, /10\/21 19:46/)
+  assert.doesNotMatch(line, /따라잡|그대로 둡니다/)
+  assert.equal(STALE_NOTE_ACTION, '반영하기')
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync('app/(crm)/crm/meetings/[id]/MeetingDetail.tsx', 'utf8')
+  assert.doesNotMatch(src, /따라잡습니다|"AI로 정리하기"를 다시/)
+  assert.match(src, /staleNoteLine\(/)
+})

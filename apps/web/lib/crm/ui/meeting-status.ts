@@ -86,3 +86,47 @@ export function meetingFinishView(
   if (!endedAt) return null
   return { label: '끝남', status: 'done', title: `${formatWhen(endedAt)}에 끝냈어요` }
 }
+
+export interface FoundEmptyInput {
+  /** 읽을 회의 내용(전사 또는 작성)이 있나 */
+  readable: boolean
+  /** 미팅 끝내기를 한 번이라도 했나 — 했으면 AI 가 이미 읽었다 */
+  ended: boolean
+  /** 화면에 실제로 있는, AI 를 다시 돌리는 단추 이름 */
+  runLabel: string
+}
+
+/**
+ * 「AI가 찾은 것」 칸이 비었을 때의 말.
+ *
+ * 사용자 지적(2026-10-21): *"AI로 정리하기란 버튼은 존재하지도 않는데"*.
+ * 작업대가 붙은 미팅에는 그 단추가 없는데 안내가 그 이름을 불렀고,
+ * 끝내기로 이미 읽고 **못 찾은** 미팅에도 「아직 정리하지 않았어요」라고 했다.
+ * 안 한 것과 해 보고 없던 것은 다음 행동이 다르다.
+ */
+export function foundEmptyView(input: FoundEmptyInput): { title: string; description: string } {
+  if (!input.readable) {
+    return { title: '읽을 회의 내용이 없어요', description: '회의 내용을 붙여넣거나 「작성」 탭에 적으면 AI가 읽습니다.' }
+  }
+  if (input.ended) {
+    return {
+      title: '확실한 것을 못 찾았어요',
+      description: `참석자·금액·다음 단계를 확실히 읽지 못해 인박스로 보낸 것이 없어요. 원문을 고친 뒤 위의 [${input.runLabel}]를 눌러 보세요.`,
+    }
+  }
+  return {
+    title: '아직 정리하지 않았어요',
+    description: `위의 [${input.runLabel}]를 누르면 누가 나왔고 무엇이 걸림돌인지 뽑아 인박스로 보냅니다.`,
+  }
+}
+
+/** 원본 회의 기록이 이 미팅 요약보다 나중에 바뀌었을 때 누르는 단추 */
+export const STALE_NOTE_ACTION = '반영하기'
+
+/**
+ * 그 안내 한 줄. 예전 문구는 「요약·참석자·회의 내용만 따라잡습니다. 제목은 그대로 둡니다」였다 —
+ * 무엇을 하는지(구현)를 말하고 왜 눌러야 하는지는 말하지 않았다(사용자 지적 2026-10-21).
+ */
+export function staleNoteLine(when: string): string {
+  return `${when}에 회의 기록을 고쳤는데 이 미팅 요약에는 아직 안 들어갔어요.`
+}

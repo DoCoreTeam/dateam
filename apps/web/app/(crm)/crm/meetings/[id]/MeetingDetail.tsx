@@ -14,7 +14,7 @@ import { confidenceView } from '@ax/ai-react'
 import { AI_LABELS } from '@/lib/terms'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ACTION, ENTITY } from '@/lib/terms'
+import { ACTION, ENTITY, progress } from '@/lib/terms'
 import { Mic, CheckCircle2, HelpCircle, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
@@ -35,7 +35,7 @@ import { axisMeta } from '@/lib/crm/ui/suggestion-axis'
 import { useRecordingSession, useIsRecording } from '@/lib/meeting/recording-context'
 import { finishButtonLabel, finishProgress, finishProgressLine, type FinishPhase } from '@/lib/crm/ui/finish-progress'
 import { flushPendingSaves, hasPendingSaves } from '@/lib/meeting/pending-save'
-import { meetingFinishView } from '@/lib/crm/ui/meeting-status'
+import { foundEmptyView, meetingFinishView, staleNoteLine, STALE_NOTE_ACTION } from '@/lib/crm/ui/meeting-status'
 import { browserStore, isFinishSeen, markFinishSeen } from '@/lib/crm/ui/finish-seen'
 import type { FinishStep, OpenQuestion } from '@/lib/crm/services/meeting-finish'
 import type { FinishStage } from '@/lib/crm/jobs/finish-queue'
@@ -288,9 +288,9 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '원본을 다시 가져오지 못했습니다.'); return }
       setNotice(
-        `원본에서 다시 가져왔어요.${body.segmentCount ? ` 회의 내용 ${body.segmentCount}줄.` : ''}` +
+        `고친 회의 기록을 반영했어요.${body.segmentCount ? ` 회의 내용 ${body.segmentCount}줄.` : ''}` +
         (body.expiredSuggestions > 0
-          ? ` 옛 제안 ${body.expiredSuggestions}건은 거뒀습니다. 지금은 "AI로 정리하기"를 다시 눌러 주세요.`
+          ? ` 옛 제안 ${body.expiredSuggestions}건은 거뒀습니다. 위의 [${finishButtonLabel(null, Boolean(m?.endedAt))}]를 눌러 다시 찾아 주세요.`
           : ''),
       )
       await load()
@@ -548,10 +548,10 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
       {/* 원본이 그 뒤 수정됐다 — 조용히 어긋나게 두지 않는다 */}
       {m.note?.isStale && (
         <p className={styles.notice}>
-          원본 회의노트가 {formatKstDateTimeShort(m.note.updatedAt ?? '')}에 수정됐어요.{' '}
-          요약·참석자·회의 내용만 따라잡습니다. 제목은 그대로 둡니다.{' '}
+          {/* 구현 설명을 화면에 두지 않는다. 무슨 일인지와 누를 것만(사용자 지적 2026-10-21) */}
+          {staleNoteLine(formatKstDateTimeShort(m.note.updatedAt ?? ''))}{' '}
           <NbButton onClick={() => void resync()} disabled={busy === 'resync'}>
-            {busy === 'resync' ? '가져오는 중…' : '다시 가져오기'}
+            {busy === 'resync' ? progress(STALE_NOTE_ACTION) : STALE_NOTE_ACTION}
           </NbButton>
         </p>
       )}
@@ -729,12 +729,12 @@ export default function MeetingDetail({ meetingId }: { meetingId: string }) {
           <RecordPanel title="AI가 찾은 것">
             {m.suggestions.length === 0 ? (
               <EmptyState
-                title={readable ? '아직 정리하지 않았어요' : '읽을 회의 내용이 없어요'}
-                description={readable
-                  ? (transcribed
-                      ? '"AI로 정리하기"를 누르면 누가 나왔고 무엇이 걸림돌인지 뽑아 인박스로 보냅니다.'
-                      : '원본 회의노트에 적어 둔 내용을 읽습니다. "AI로 정리하기"를 눌러 주세요.')
-                  : '회의 내용을 붙여넣거나 「작성」 탭에 적으면 AI가 읽습니다.'}
+                {...foundEmptyView({
+                  readable,
+                  ended: Boolean(m.endedAt),
+                  // 작업대가 있으면 머리의 끝내기 단추가 AI 를 돌린다. 없을 때만 회의 내용 칸의 단추가 있다
+                  runLabel: m.note?.exists && m.note.canOpen ? finishButtonLabel(null, Boolean(m.endedAt)) : 'AI로 정리하기',
+                })}
               />
             ) : (
               <ul className={styles.found}>
