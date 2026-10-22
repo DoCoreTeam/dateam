@@ -6,9 +6,6 @@ import { cookies } from 'next/headers'
 import { SESSION_ONLY_COOKIE, wantsPersistentLogin } from '@/lib/auth/session-persistence'
 import { throttleLoginAttempt, logLoginFailure } from '@/lib/auth/login-attempts'
 
-// PW초기화된 계정의 센티넬 비밀번호 — admin/users/actions.ts와 동일해야 함
-const RESET_SENTINEL = 'AX_RESET_REQUIRED_2024!'
-
 // 로그인 폼 상태(useActionState) — 에러를 URL(?error=)이 아닌 컴포넌트 상태로 전달.
 // URL에 싣지 않으므로 새로고침/북마크/뒤로가기 시 에러가 재출현하지 않는다(1회성).
 export interface SignInState {
@@ -26,6 +23,17 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
 
   if (!email) {
     return { error: '이메일을 입력해주세요' }
+  }
+
+  /**
+   * 빈 비밀번호는 인증 서버에 보내지 않는다.
+   *
+   * 예전에는 빈칸이면 코드에 적힌 공용 초기화 비밀번호로 대신 로그인했다.
+   * 초기화 상태 계정은 전부 그 비밀번호였으므로 이메일만 알면 들어올 수 있었다(감사 2026-10-23).
+   * 이제 초기화는 사람마다 다른 임시 비밀번호를 관리자에게 보여 준다(lib/auth/temp-password).
+   */
+  if (!password) {
+    return { error: '비밀번호를 입력해주세요', email, remember }
   }
 
   /**
@@ -51,20 +59,12 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   // 인증 쿠키를 쓰기 전에 고른 값을 넘긴다 — 같은 요청 안이라 선호 쿠키를 다시 읽지 않는다
   const supabase = await createClient({ sessionOnly: !remember })
 
-  // 비밀번호 빈칸 → 센티넬로 시도 (PW초기화된 계정인지 확인)
-  const tryPassword = password || RESET_SENTINEL
-
-  const { error } = await supabase.auth.signInWithPassword({ email, password: tryPassword })
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    await logLoginFailure(email, password ? 'bad_credentials' : 'password_required')
-    // 빈 비밀번호로 시도(센티넬) 실패 = 비밀번호가 설정된 계정이거나 이메일 오류.
-    // 다음 행동(비밀번호 입력)을 앞세워 안내. 비밀번호를 넣고도 실패하면 자격증명 오류로 안내.
-    const msg = password
-      ? '이메일 또는 비밀번호가 올바르지 않습니다'
-      : '비밀번호가 필요한 계정입니다. 비밀번호를 입력해 주세요'
+    await logLoginFailure(email, 'bad_credentials')
     // 실패 시 이메일을 되돌려 prefill — 사용자는 비밀번호만 다시 입력
-    return { error: msg, email, remember }
+    return { error: '이메일 또는 비밀번호가 올바르지 않습니다', email, remember }
   }
 
   /**

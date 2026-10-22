@@ -108,7 +108,8 @@ export default function LoginForm({ brandName, logoUrl }: LoginFormProps) {
             name="password"
             type="password"
             autoComplete="current-password"
-            placeholder="비밀번호 (초기화된 경우 빈칸으로 로그인)"
+            placeholder="비밀번호"
+            required
           />
         </div>
 

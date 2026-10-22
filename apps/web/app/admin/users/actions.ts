@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { validateEmployment, toDateOrNull, isResigned } from '@/lib/members/employment'
 import { logAdminAction, ADMIN_ACTION_LABEL } from '@/lib/auth/admin-audit'
+import { generateTempPassword } from '@/lib/auth/temp-password'
 
 const BAN_DURATION_PERMANENT = '876000h' // ~100년
 
@@ -93,21 +94,23 @@ export async function deleteUser(userId: string): Promise<{ success?: boolean; e
   return { success: true }
 }
 
-// login/actions.ts의 RESET_SENTINEL과 반드시 동일해야 함
-const RESET_SENTINEL = 'AX_RESET_REQUIRED_2024!'
-
 export async function resetUserPassword(
   userId: string,
   _userEmail: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; tempPassword: string } | { ok: false; error: string }> {
   const ctx = await requireAdmin()
   if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
 
   const adminClient = createAdminClient()
 
-  // 센티넬 비밀번호로 설정 → 사용자는 비밀번호 빈칸으로 로그인 가능
+  /**
+   * 사람마다 새 임시 비밀번호를 뽑아 관리자에게 **한 번만** 돌려준다.
+   * 예전에는 모두에게 같은 공용 비밀번호를 넣고 빈칸 로그인을 열어 두어,
+   * 이메일만 알면 초기화 상태 계정에 들어갈 수 있었다(감사 2026-10-23).
+   */
+  const tempPassword = generateTempPassword()
   const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
-    password: RESET_SENTINEL,
+    password: tempPassword,
   })
   if (authError) return { ok: false, error: authError.message }
 
@@ -125,7 +128,7 @@ export async function resetUserPassword(
   })
 
   revalidatePath('/admin/users')
-  return { ok: true }
+  return { ok: true, tempPassword }
 }
 
 /**
@@ -184,7 +187,7 @@ export async function resetUserOnboarding(
   return { ok: true }
 }
 
-export async function inviteUser(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+export async function inviteUser(formData: FormData): Promise<{ success?: boolean; tempPassword?: string; error?: string }> {
   // 관리자 확인이 빠져 있었다. 이 함수는 계정을 **만든다** — 확인 없이 부를 수 있으면 안 된다.
   const ctx = await requireAdmin()
   if (!ctx) return { error: '관리자 권한이 필요합니다' }
@@ -196,9 +199,11 @@ export async function inviteUser(formData: FormData): Promise<{ success?: boolea
 
   const adminClient = createAdminClient()
 
+  // 첫 로그인용 임시 비밀번호 — 관리자 화면에 한 번만 보이고 첫 로그인 뒤 바꾸게 한다
+  const tempPassword = generateTempPassword()
   const { data, error: createError } = await adminClient.auth.admin.createUser({
     email,
-    password: RESET_SENTINEL,
+    password: tempPassword,
     email_confirm: true,
     user_metadata: { name },
   })
@@ -227,7 +232,7 @@ export async function inviteUser(formData: FormData): Promise<{ success?: boolea
   })
 
   revalidatePath('/admin/users')
-  return { success: true }
+  return { success: true, tempPassword }
 }
 
 // ─────────────────────────────────────────────

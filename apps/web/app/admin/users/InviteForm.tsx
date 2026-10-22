@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { UserPlus } from 'lucide-react'
 import { inviteUser } from './actions'
 import { withSubmitGuard } from '@/lib/forms/submit-guard'
+import TempPasswordReveal from './TempPasswordReveal'
 
 export default function InviteForm() {
   const [pending, setPending] = useState(false)
-  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [result, setResult] = useState<{ ok: boolean; msg: string; tempPassword?: string } | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -19,7 +20,7 @@ export default function InviteForm() {
     await withSubmitGuard(async () => {
       const res = await inviteUser(formData)
       if (res.success) {
-        setResult({ ok: true, msg: '구성원 계정이 생성되었습니다. 첫 로그인 시 비밀번호를 설정해야 합니다.' })
+        setResult({ ok: true, msg: '구성원 계정을 만들었습니다. 아래 임시 비밀번호를 본인에게 전달해 주세요', tempPassword: res.tempPassword })
         form.reset()
       } else {
         setResult({ ok: false, msg: res.error ?? '오류가 발생했습니다' })
@@ -43,6 +44,11 @@ export default function InviteForm() {
           color: result.ok ? 'var(--success)' : 'var(--danger)',
         }}>
           {result.msg}
+          {result.tempPassword && (
+            <div style={{ marginTop: 'var(--space-2)' }}>
+              <TempPasswordReveal password={result.tempPassword} />
+            </div>
+          )}
         </div>
       )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
@@ -60,7 +66,7 @@ export default function InviteForm() {
         </button>
       </div>
       <p style={{ marginTop: '0.625rem', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
-        계정 생성 후 구성원은 비밀번호 빈칸으로 첫 로그인하여 새 비밀번호를 설정합니다.
+        계정을 만들면 임시 비밀번호가 한 번 보입니다. 첫 로그인 뒤 새 비밀번호로 바꾸게 됩니다
       </p>
     </form>
   )
