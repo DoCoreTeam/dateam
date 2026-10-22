@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { SESSION_ONLY_COOKIE, applySessionPersistence, isSessionOnly } from '@/lib/auth/session-persistence'
 
 type CookieItem = { name: string; value: string; options?: Record<string, unknown> }
 
@@ -159,6 +160,8 @@ export async function middleware(request: NextRequest) {
   request.headers.set('x-pathname', pathname)
 
   let supabaseResponse = NextResponse.next({ request })
+  // 토큰을 여기서 갱신하면 쿠키를 새로 쓴다 — 「유지 안 함」이면 수명을 빼고 쓴다
+  const sessionOnly = isSessionOnly(request.cookies.get(SESSION_ONLY_COOKIE)?.value)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -174,7 +177,7 @@ export async function middleware(request: NextRequest) {
           )
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }: CookieItem) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, applySessionPersistence(options, sessionOnly))
           )
         },
       },

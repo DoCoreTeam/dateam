@@ -5,6 +5,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
 import type { Database } from '@/types/database'
+import { SESSION_ONLY_COOKIE, applySessionPersistence, isSessionOnly } from '@/lib/auth/session-persistence'
 
 type CookieItem = { name: string; value: string; options?: Record<string, unknown> }
 
@@ -17,8 +18,13 @@ export function createAdminClient() {
   )
 }
 
-export async function createClient() {
+/**
+ * @param opts.sessionOnly 로그인하는 그 요청에서만 넘긴다 — 선호 쿠키를 막 쓴 요청이라
+ *   쿠키 저장소가 아직 옛 값을 줄 수 있다. 그 밖에서는 선호 쿠키를 읽는다(lib/auth/session-persistence).
+ */
+export async function createClient(opts?: { sessionOnly?: boolean }) {
   const cookieStore = await cookies()
+  const sessionOnly = () => opts?.sessionOnly ?? isSessionOnly(cookieStore.get(SESSION_ONLY_COOKIE)?.value)
 
   const client = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,7 +37,11 @@ export async function createClient() {
         setAll(cookiesToSet: CookieItem[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }: CookieItem) =>
-              cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])
+              cookieStore.set(
+                name,
+                value,
+                applySessionPersistence(options, sessionOnly()) as Parameters<typeof cookieStore.set>[2],
+              )
             )
           } catch {
             // Server Component에서 쿠키 쓰기는 무시 가능
