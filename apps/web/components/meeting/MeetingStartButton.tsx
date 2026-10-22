@@ -77,7 +77,7 @@ export default function MeetingStartButton({ target, variant = 'primary' }: Prop
 
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)' }}>
-      <NbButton variant={variant} onClick={() => void begin()} disabled={busy} style={{ minHeight: 44 }}>
+      <NbButton variant={variant} onClick={() => void begin()} disabled={busy} style={{ minHeight: 44, whiteSpace: 'nowrap' }}>
         <Mic size={16} aria-hidden />
         {busy ? progress('여는') : RECORD_START_LABEL}
       </NbButton>

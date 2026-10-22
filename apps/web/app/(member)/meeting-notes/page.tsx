@@ -71,16 +71,16 @@ export default async function MeetingNotesPage({ searchParams }: { searchParams:
         title="회의노트"
         description="회의 기록을 정리하고 AI로 요약·업무 추출까지 한 번에"
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {/* 지난 회의에 적어 둔 이름을 영업 CRM 인물로 잇는 자리 — 안 만들면 옛 이름은 영영 글자로 남는다 */}
             <Link href="/meeting-notes/attendees" className="btn-ghost"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44 }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44, whiteSpace: 'nowrap' }}>
               <Users size={16} /> 지난 회의에서 사람 찾기
             </Link>
             {/* 녹음은 기록 상세의 작업대에 있다, 여기서 기록을 먼저 만들고 그 녹음 자리로 간다 */}
             <MeetingStartButton target="notes" />
             <Link href="/meeting-notes/new" className="btn-ghost"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44 }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44, whiteSpace: 'nowrap' }}>
               <Plus size={16} /> 새 회의노트
             </Link>
           </div>

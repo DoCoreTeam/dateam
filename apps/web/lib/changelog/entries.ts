@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.46',
+    date: '2026-10-22',
+    title: '회의를 녹음부터 바로 시작해요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🎙️',
+        headline: '홈에서 「녹음 시작」 한 번이면 회의가 시작돼요',
+        detail: '홈 화면 위쪽 「녹음 시작」을 누르면 기록이 바로 만들어지고 녹음 자리가 열려요. 영업 CRM 을 쓰는 분은 CRM 미팅으로, 아니면 회의노트로 가요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '📝',
+        headline: '회의노트에서도 저장 전에 바로 녹음해요',
+        detail: '예전에는 회의노트를 먼저 저장해야 녹음 단추가 보였어요. 이제 회의노트 목록과 새 회의노트 화면의 「녹음 시작」으로 바로 녹음할 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🧭',
+        headline: 'CRM 을 쓰면 회의노트 메뉴가 CRM 미팅으로 가요',
+        detail: '영업 CRM 을 쓰는 분은 왼쪽 메뉴 「회의노트」를 누르면 CRM 의 기록 > 미팅으로 가요. 아직 CRM 에 안 올린 회의노트도 그 목록에 함께 보여요.',
+      },
+    ],
+  },
+  {
     version: '0.11.42',
     date: '2026-10-22',
     title: '회의를 띄워 둔 채 다른 기록을 보고 AI에게 물어요',
