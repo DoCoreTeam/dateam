@@ -58,6 +58,19 @@ export const CHANGELOG: ChangelogNote[
     ],
   },
   {
+    version: '0.11.45',
+    date: '2026-10-22',
+    title: '로그인 상태 유지를 고를 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🔐',
+        headline: '로그인 화면에 「로그인 상태 유지」가 생겼어요',
+        detail: '켜 두면 브라우저를 닫았다 열어도 로그인 화면 없이 바로 들어가요. 여럿이 쓰는 PC 에서는 끄고 로그인하면 브라우저를 닫을 때 로그아웃돼요. 처음에는 켜져 있어요.',
+      },
+    ],
+  },
+  {
     version: '0.11.42',
     date: '2026-10-22',
     title: '회의를 띄워 둔 채 다른 기록을 보고 AI에게 물어요',
