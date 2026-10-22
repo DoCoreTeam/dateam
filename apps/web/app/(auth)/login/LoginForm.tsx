@@ -128,8 +128,11 @@ export default function LoginForm({ brandName, logoUrl }: LoginFormProps) {
             />
             {LOGIN_KEEP.label}
           </label>
-          <p id="remember-hint" style={{ margin: '0.25rem 0 0 1.5rem', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
-            {LOGIN_KEEP.hint}
+          {/* 문장마다 한 줄, 단어 중간에서 끊지 않는다(keep-all) */}
+          <p id="remember-hint" style={{ margin: '0.25rem 0 0 1.5rem', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', wordBreak: 'keep-all' }}>
+            {LOGIN_KEEP.hint.map((line) => (
+              <span key={line} style={{ display: 'block' }}>{line}</span>
+            ))}
           </p>
         </div>
 
