@@ -1,5 +1,8 @@
 import { Suspense } from 'react'
 import { canOpen } from '@/lib/access/guard'
+import { hasCrmMeetingAccess } from '@/lib/crm/auth/meeting-entry.server'
+import type { MeetingEntry } from '@/lib/crm/auth/meeting-entry'
+import MeetingStartButton from '@/components/meeting/MeetingStartButton'
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { getCalendarDayLogs } from '../daily/actions'
@@ -63,9 +66,15 @@ export default async function HomePage() {
    * 사이드바에서는 사라지는데 여기는 손목록이라 그대로 남아, 누르면 막힌다.
    * 판정은 메뉴·라우트와 같은 함수다(`lib/access/guard`).
    */
-  const [kpiOpen, routineOpen, opsOpen, weeklyOpen] = await Promise.all([
+  const [kpiOpen, routineOpen, opsOpen, weeklyOpen, notesOpen, hasCrmMeeting] = await Promise.all([
     canOpen('/kpi'), canOpen('/routine'), canOpen('/operations'), canOpen('/weekly-report'),
+    canOpen('/meeting-notes'), hasCrmMeetingAccess(),
   ])
+  /**
+   * 회의는 홈에서 바로 시작한다(사용자 지시 2026-10-22).
+   * CRM 권한이 있으면 CRM 미팅으로, 없으면 회의노트로 간다. 둘 다 못 열면 단추를 안 그린다.
+   */
+  const meetingTarget: MeetingEntry | null = hasCrmMeeting ? 'crm' : notesOpen ? 'notes' : null
   const openTiles = [
     ...(kpiOpen ? ['/kpi'] : []),
     ...(routineOpen ? ['/routine'] : []),
@@ -113,9 +122,9 @@ export default async function HomePage() {
                 {now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
               </span>
             }
-            actions={showAxTiles && openTiles.length > 0 ? (
+            actions={meetingTarget || (showAxTiles && openTiles.length > 0) ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                {[
+                {showAxTiles && [
                   { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: 'var(--brand-soft)' },
                   { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: 'var(--info)', bg: 'var(--info-bg)' },
                   { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: 'var(--success)', bg: 'var(--success-bg)' },
@@ -143,6 +152,7 @@ export default async function HomePage() {
                     {item.label}
                   </Link>
                 ))}
+                {meetingTarget && <MeetingStartButton target={meetingTarget} />}
               </div>
             ) : undefined}
           />

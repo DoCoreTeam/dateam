@@ -22,6 +22,8 @@ import { Home, Briefcase, Inbox, CalendarDays, NotebookPen, DollarSign, Tag, Net
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
 import { SIDEBAR_TOP_LINKS, SIDEBAR_GROUP_LINKS, type MenuLink } from '@/lib/nav/menu'
+import { hasCrmMeetingAccess } from '@/lib/crm/auth/meeting-entry.server'
+import { meetingEntryHref, MEETING_NOTES_HREF } from '@/lib/crm/auth/meeting-entry'
 import { openSurfaces, deniedSurfaceName } from '@/lib/access/guard'
 import AccessDenied from '@/components/ui/AccessDenied'
 import { badgeTitle } from '@/lib/terms'
@@ -91,7 +93,7 @@ export default async function MemberLayout({ children }: { children: React.React
 
   // 이 레이아웃은 **화면을 전환할 때마다** 다시 돈다. 하나라도 Promise.all 밖에 있으면
   // 그만큼 원격 왕복이 직렬로 붙는다(myWeekCount가 그랬다 — v0.7.458 실측에서 발견).
-  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme, orgScope, myWeekResult, employmentResult] = await Promise.all([
+  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme, orgScope, myWeekResult, employmentResult, hasCrmMeeting] = await Promise.all([
     getBranding(),
     adminClient
       .from('profiles')
@@ -122,6 +124,7 @@ export default async function MemberLayout({ children }: { children: React.React
       .select('user_id, resigned_on')
       .eq('user_id', user.id)
       .maybeSingle() as unknown as Promise<{ data: { user_id: string; resigned_on: string | null } | null }>,
+    hasCrmMeetingAccess(),
   ])
   const profile = profileResult.data
   // api_user는 내부 화면에 들어올 수 없다 — 예전엔 미들웨어가 role을 따로 조회해 막았지만,
@@ -180,8 +183,20 @@ export default async function MemberLayout({ children }: { children: React.React
     ...NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href)),
   ])
 
+  /**
+   * CRM 권한이 있으면 회의노트 메뉴는 CRM 기록 > 미팅으로 간다(사용자 지시 2026-10-22).
+   * 주소만 바꾼다. 막기는 각 레이아웃이 계속 하고 /meeting-notes 주소도 그대로 열린다.
+   */
+  const meetingHref = meetingEntryHref(hasCrmMeeting)
+  const routeMeeting = (item: NavItem): NavItem =>
+    item.href === MEETING_NOTES_HREF && meetingHref !== MEETING_NOTES_HREF
+      // 옛 링크로 /meeting-notes 에 와도 같은 메뉴가 켜진 채로 보이게 match 에 남긴다
+      ? { ...item, href: meetingHref, match: [...(item.match ?? []), MEETING_NOTES_HREF] }
+      : item
+
   const navItemsWithBadge = NAV_ITEMS
     .filter((item) => open.has(item.href))
+    .map(routeMeeting)
     .map((item) => {
       /*
         배지에는 **무엇을 세는지**를 함께 붙인다(§0-2 · `lib/terms/badge.ts`).
@@ -205,7 +220,7 @@ export default async function MemberLayout({ children }: { children: React.React
       <AppShell
         items={navItemsWithBadge}
         groups={NAV_GROUPS
-          .map((g) => ({ ...g, items: g.items.filter((i) => open.has(i.href)) }))
+          .map((g) => ({ ...g, items: g.items.filter((i) => open.has(i.href)).map(routeMeeting) }))
           .filter((g) => g.items.length > 0)}
         branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
         session={{
