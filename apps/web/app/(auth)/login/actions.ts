@@ -2,6 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
+import { SESSION_ONLY_COOKIE, wantsPersistentLogin } from '@/lib/auth/session-persistence'
 import { throttleLoginAttempt, logLoginFailure } from '@/lib/auth/login-attempts'
 
 // PW초기화된 계정의 센티넬 비밀번호 — admin/users/actions.ts와 동일해야 함
@@ -13,11 +15,14 @@ export interface SignInState {
   error?: string
   /** 실패 시 이메일 prefill 용 */
   email?: string
+  /** 실패 시 「로그인 상태 유지」 선택을 되살린다 */
+  remember?: boolean
 }
 
 export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
   const email = (formData.get('email') as string)?.trim()
   const password = (formData.get('password') as string) ?? ''
+  const remember = wantsPersistentLogin(formData.get('remember'))
 
   if (!email) {
     return { error: '이메일을 입력해주세요' }
@@ -39,10 +44,12 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
     return {
       error: `로그인 시도가 너무 잦습니다. ${Math.ceil(gate.retryAfterSeconds / 60)}분 후 다시 시도해 주세요`,
       email,
+      remember,
     }
   }
 
-  const supabase = await createClient()
+  // 인증 쿠키를 쓰기 전에 고른 값을 넘긴다 — 같은 요청 안이라 선호 쿠키를 다시 읽지 않는다
+  const supabase = await createClient({ sessionOnly: !remember })
 
   // 비밀번호 빈칸 → 센티넬로 시도 (PW초기화된 계정인지 확인)
   const tryPassword = password || RESET_SENTINEL
@@ -57,7 +64,18 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
       ? '이메일 또는 비밀번호가 올바르지 않습니다'
       : '비밀번호가 필요한 계정입니다. 비밀번호를 입력해 주세요'
     // 실패 시 이메일을 되돌려 prefill — 사용자는 비밀번호만 다시 입력
-    return { error: msg, email }
+    return { error: msg, email, remember }
+  }
+
+  /**
+   * 선호 쿠키는 성공한 뒤에만 쓴다. 「유지 안 함」이면 이 쿠키도 세션 쿠키라
+   * 브라우저를 닫으면 인증 쿠키와 같이 사라진다. 유지면 지운다(없음이 기본값인 유지).
+   */
+  const cookieStore = await cookies()
+  if (remember) {
+    cookieStore.delete(SESSION_ONLY_COOKIE)
+  } else {
+    cookieStore.set(SESSION_ONLY_COOKIE, '1', { path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
   }
 
   /**

@@ -5,6 +5,7 @@ import { useFormStatus } from 'react-dom'
 import { useActionState } from 'react'
 import { signIn, type SignInState } from './actions'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
+import { LOGIN_KEEP } from '@/lib/terms'
 
 const INITIAL: SignInState = {}
 
@@ -109,6 +110,27 @@ export default function LoginForm({ brandName, logoUrl }: LoginFormProps) {
             autoComplete="current-password"
             placeholder="비밀번호 (초기화된 경우 빈칸으로 로그인)"
           />
+        </div>
+
+        {/* 로그인 상태 유지(자동 로그인) — 기본 켬, 실패 뒤에도 고른 값을 되살린다 */}
+        <div>
+          <label
+            htmlFor="remember"
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)', color: 'var(--text)', cursor: 'pointer' }}
+          >
+            <input
+              id="remember"
+              name="remember"
+              type="checkbox"
+              defaultChecked={state.remember ?? true}
+              aria-describedby="remember-hint"
+              style={{ width: '1rem', height: '1rem', accentColor: 'var(--brand)', cursor: 'pointer' }}
+            />
+            {LOGIN_KEEP.label}
+          </label>
+          <p id="remember-hint" style={{ margin: '0.25rem 0 0 1.5rem', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+            {LOGIN_KEEP.hint}
+          </p>
         </div>
 
         <SubmitButton />

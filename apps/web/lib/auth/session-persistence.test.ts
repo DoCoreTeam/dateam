@@ -77,3 +77,23 @@ test('브라우저 클라이언트가 쿠키 쓰기를 기본 구현에 맡기�
     '기본 구현은 갱신 때마다 400일로 쓴다',
   )
 })
+
+test('로그인 폼이 선택 칸을 기본 켬으로 보내고 액션이 그 값을 쿠키 쓰기 전에 넘긴다', () => {
+  const form = read('app/(auth)/login/LoginForm.tsx')
+  assert.match(form, /name="remember"/, '칸이 없으면 늘 유지 안 함으로 읽힌다')
+  assert.match(form, /defaultChecked=\{state\.remember \?\? true\}/, '기본값이 꺼지면 지금 유지되던 사람이 브라우저를 닫을 때마다 로그아웃된다')
+
+  const action = read('app/(auth)/login/actions.ts')
+  assert.match(action, /wantsPersistentLogin\(formData\.get\('remember'\)\)/)
+  assert.match(
+    action,
+    /createClient\(\{ sessionOnly: !remember \}\)[\s\S]*signInWithPassword/,
+    '로그인 때 쓰는 인증 쿠키가 고른 수명을 따라야 한다',
+  )
+  assert.match(action, /cookieStore\.set\(SESSION_ONLY_COOKIE, '1'/)
+  assert.match(action, /cookieStore\.delete\(SESSION_ONLY_COOKIE\)/)
+})
+
+test('로그아웃이 선호 쿠키를 지운다', () => {
+  assert.match(read('components/ui/SidebarProfile.tsx'), /\$\{SESSION_ONLY_COOKIE\}=; Max-Age=0/)
+})
