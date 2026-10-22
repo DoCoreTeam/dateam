@@ -152,3 +152,4 @@ export {
   RULE_KIND_LABEL, GPU_CLASS_LABEL, VAR_LABEL, IMPORT_CHECK_LABEL, IMPORT_SENTENCE, BUDGET_SENTENCE,
 } from './pricebook.ts'
 
+export { LOGIN_KEEP } from './auth.ts'
