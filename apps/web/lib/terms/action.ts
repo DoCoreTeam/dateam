@@ -206,6 +206,13 @@ export function createLabel(entityLabel: string): string {
 export const MEETING_CAPTURE_LABEL = '미팅 기록'
 
 /**
+ * 회의를 녹음부터 시작하는 단추, 홈·회의노트·CRM 첫 화면이 같은 말을 쓴다.
+ *
+ * 「새 회의노트」는 쓰는 화면을 여는 말이라 녹음이 거기 있는 줄 모른다(사용자 지적 2026-10-22).
+ */
+export const RECORD_START_LABEL = '녹음 시작'
+
+/**
  * 쓰지 않는 말 → 대신 쓸 말.
  *
  * 가드(`lib/ui/glossary.test.ts`)가 이 표를 읽어 화면 코드를 스캔한다.

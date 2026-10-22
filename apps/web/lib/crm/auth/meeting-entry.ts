@@ -1,5 +1,5 @@
 /**
- * 회의를 어디서 적는가 — CRM 권한이 있으면 CRM 미팅, 없으면 회의노트
+ * 회의를 어디서 적는가, CRM 권한이 있으면 CRM 미팅, 없으면 회의노트
  *
  * 사용자 지시(2026-10-22): *"CRM 권한이 없으면 회의노트, CRM 권한이 있으면 CRM에 있는 기록 메뉴"*.
  * 홈 단추와 사이드바가 같은 답을 내야 하므로 판정은 이 한 곳에 둔다.
@@ -15,9 +15,9 @@ export const MEETING_NOTES_HREF = '/meeting-notes'
 export type MeetingEntry = 'crm' | 'notes'
 
 export interface MeetingEntryGates {
-  /** 표면 권한 — CRM 레이아웃의 첫 문 `canOpen('/crm')` */
+  /** 표면 권한, CRM 레이아웃의 첫 문 `canOpen('/crm')` */
   canOpenCrm: boolean
-  /** CRM 멤버 — CRM 레이아웃의 둘째 문 `resolveCrmAccess().ok` */
+  /** CRM 멤버, CRM 레이아웃의 둘째 문 `resolveCrmAccess().ok` */
   isCrmMember: boolean
 }
 

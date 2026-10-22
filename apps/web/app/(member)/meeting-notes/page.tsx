@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { NotebookPen, Plus, Users } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
+import MeetingStartButton from '@/components/meeting/MeetingStartButton'
 import { listMeetingNotes, getMeetingDepartments } from './actions'
 import MeetingViewTabs from './MeetingViewTabs'
 import MeetingDateView from './MeetingDateView'
@@ -76,7 +77,9 @@ export default async function MeetingNotesPage({ searchParams }: { searchParams:
               style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44 }}>
               <Users size={16} /> 지난 회의에서 사람 찾기
             </Link>
-            <Link href="/meeting-notes/new" className="btn-primary"
+            {/* 녹음은 기록 상세의 작업대에 있다, 여기서 기록을 먼저 만들고 그 녹음 자리로 간다 */}
+            <MeetingStartButton target="notes" />
+            <Link href="/meeting-notes/new" className="btn-ghost"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', minHeight: 44 }}>
               <Plus size={16} /> 새 회의노트
             </Link>

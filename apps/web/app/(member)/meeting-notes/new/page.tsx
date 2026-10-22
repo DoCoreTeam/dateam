@@ -1,12 +1,17 @@
 import PageHeader from '@/components/ui/PageHeader'
 import MeetingEditor from '../MeetingEditor'
+import MeetingStartButton from '@/components/meeting/MeetingStartButton'
 
 export const dynamic = 'force-dynamic'
 
 export default function NewMeetingNotePage() {
   return (
     <div>
-      <PageHeader title="새 회의노트" description="회의 내용을 기록하면 저장 후 AI 정제·업무 추출을 진행할 수 있습니다" />
+      <PageHeader
+        title="새 회의노트"
+        description="회의 내용을 기록하면 저장 후 AI 정제·업무 추출을 진행할 수 있습니다"
+        actions={<MeetingStartButton target="notes" />}
+      />
       <MeetingEditor
         mode="create"
         initial={{ title: '', meeting_at: null, department_id: null, tags: [], body: '' }}

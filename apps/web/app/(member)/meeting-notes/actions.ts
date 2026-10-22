@@ -12,6 +12,7 @@ import type { OrgPickerNode } from '@/lib/org/picker-types'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { NOTE_VISIBILITY, isNoteVisibility, type NoteVisibility } from '@/lib/meeting/note-visibility'
 import { kstTodayKey } from '@/lib/datetime/kst'
+import { nowKstWall } from '@/lib/crm/ui/start-meeting'
 import { createCalendarEvent } from '@/app/(member)/calendar/actions'
 import { sanitizeSearchQuery, toStartAt } from '@/lib/meeting/parse-helpers'
 import type { DailyLog } from '@/types/database'
@@ -142,6 +143,25 @@ export async function createMeetingNote(
     console.error('[createMeetingNote]', e)
     return { ok: false, error: e instanceof Error ? e.message : '저장 실패' }
   }
+}
+
+/**
+ * 녹음부터 시작한다, 제목·시각을 안 묻고 기록을 먼저 만든다.
+ *
+ * 녹음 자리는 기록 상세의 작업대에 있어 예전엔 **먼저 저장해야** 녹음 단추가 보였다
+ * (사용자 지적 2026-10-22: 「회의노트에는 녹음 기능이 빠졌어」). CRM 은 같은 일을
+ * `startMeeting` 으로 하고 있었다. 여기는 그 회의노트 판이다.
+ *
+ * 밖에서 받는 값이 없다. 제목과 시각은 서버가 지금 KST 로 정하고, 넣는 일은 `createMeetingNote` 가 한다.
+ */
+export async function startMeetingNote(): Promise<ActionResult<{ id: string }>> {
+  const { date, time } = nowKstWall()
+  const [, m, d] = date.split('-')
+  return createMeetingNote({
+    title: `${Number(m)}/${Number(d)} 회의`,
+    meeting_at: `${date}T${time}:00+09:00`,
+    status: 'draft',
+  })
 }
 
 // ============================================================
