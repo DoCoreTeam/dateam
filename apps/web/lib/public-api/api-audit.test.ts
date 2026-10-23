@@ -217,3 +217,15 @@ test('감사 면제 목록이 실제 처리기를 가리킨다', () => {
     assert.ok(reason.length > 10, `${key} 의 이유가 너무 짧다`)
   }
 })
+
+test('★ 변경 이력 API 탭은 조회 실패를 빈 목록으로 숨기지 않고, 오류 원문을 응답에 싣지 않는다 (P0162 I05)', () => {
+  const src = read('app', 'api', 'crm', 'audit', 'route.ts')
+  const fn = src.slice(src.indexOf('async function listApiAudit'))
+  const at = fn.indexOf('const { data, error } = await q')
+  assert.ok(at > 0, 'api_write_audit 조회 자리를 못 찾았다')
+  const branch = fn.slice(fn.indexOf('if (error)', at), fn.indexOf('const rows =', at))
+  assert.ok(branch.length > 0, '오류 갈래가 없다')
+  assert.doesNotMatch(branch, /items: \[\]/, '실패를 빈 목록으로 돌려준다')
+  assert.match(branch, /throw new CrmError\('INTERNAL'\)/)
+  assert.doesNotMatch(branch, /error\.message|error\.details|error\.hint|CrmError\('INTERNAL', /, '오류 원문을 응답에 싣는다')
+})

@@ -8,6 +8,7 @@
 import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { listAudit } from '@/lib/crm/services/audit-view'
+import { CrmError } from '@/lib/crm/domain/errors'
 import { createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { API_AUDIT_COLUMNS, auditScope, clampLimit, toAuditEntry, type ApiAuditRow } from '@/lib/public-api/api-audit'
 
@@ -41,8 +42,11 @@ async function listApiAudit(p: URLSearchParams) {
   const cursor = p.get('cursor')
   if (cursor && !Number.isNaN(new Date(cursor).getTime())) q = q.lt('created_at', cursor)
   const { data, error } = await q
-  // 마이그레이션 318 전 DB 는 표가 없다, 고장이 아니라 기록이 없는 것으로 답한다
-  if (error) return { items: [], nextCursor: null }
+  // 조회 실패를 빈 목록으로 숨기지 않는다, 원문은 서버 기록에만 남기고 화면에는 INTERNAL 로 답한다 (P0162 I05)
+  if (error) {
+    console.error('[crm/audit] api_write_audit', error.code)
+    throw new CrmError('INTERNAL')
+  }
   const rows = (data ?? []) as ApiAuditRow[]
   return { items: rows.map(toAuditEntry), nextCursor: rows.length === limit ? rows[rows.length - 1].created_at : null }
 }
