@@ -32,6 +32,7 @@ import { pickBooked } from '../domain/booked-amount.ts'
 import { monthSpan } from '../domain/allocation.ts'
 import { TERM_TYPE_ORDER } from '../../terms/ledger.ts'
 import { isBuiltinBusinessTypeKey } from '../domain/business-type.ts'
+import { assertStageBelongs, resolveDealStart } from './deal-start.ts'
 import {
   parseCriteria, evaluateCriteria, blockingMessage,
   type CriteriaVerdict,
@@ -101,8 +102,10 @@ function withBooked<T extends {
 
 export interface DealInput {
   companyId: string
-  pipelineId: string
-  stageId: string
+  /** 비우면 워크스페이스 기본 파이프라인(단계를 주면 그 단계의 파이프라인) — resolveDealStart */
+  pipelineId?: string | null
+  /** 비우면 그 파이프라인의 첫 열린 단계 */
+  stageId?: string | null
   name: string
   amountMinor?: string | number | null
   currency?: string | null
@@ -354,16 +357,6 @@ export async function getDeal(db: CrmDb, id: string): Promise<DealRow> {
   return row as DealRow
 }
 
-/** 스테이지가 그 파이프라인 소속인지 (DI-05). DB 복합 FK 가 최종 방어선이지만, 먼저 사람 말로 알려 준다 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertStageBelongs(tx: any, pipelineId: string, stageId: string): Promise<void> {
-  const stage = await tx.crmStage.findFirst({ where: { id: stageId }, select: { pipelineId: true } })
-  if (!stage) throw new CrmError('VALIDATION_FAILED', '단계를 찾을 수 없습니다.', { field: 'stageId' })
-  if (stage.pipelineId !== pipelineId) {
-    throw new CrmError('VALIDATION_FAILED',
-      '그 단계는 선택한 파이프라인에 속하지 않습니다.', { field: 'stageId' })
-  }
-}
 
 /**
  * 사업 유형은 **표에 있는 것만** 받는다(마이그 242).
@@ -396,17 +389,17 @@ export async function createDeal(
   if (data.ownerId == null) data.ownerId = actorId
 
   return withCrmTx(workspaceId, async (tx) => {
-    await assertStageBelongs(tx, input.pipelineId, input.stageId)
+    const start = await resolveDealStart(tx, input)
     await assertBusinessTypeKey(tx, data.businessTypeKey)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const created = await (tx as any).crmDeal.create({ data, select: SELECT })
+    const created = await (tx as any).crmDeal.create({ data: { ...data, ...start }, select: SELECT })
 
     // 첫 진입도 이동이다 — 이 기록이 없으면 "언제 이 단계에 들어왔나"를 알 수 없다
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (tx as any).crmStageHistory.create({
       data: toStageHistoryData({
-        dealId: created.id, fromStageId: null, toStageId: input.stageId,
+        dealId: created.id, fromStageId: null, toStageId: start.stageId,
         movedById: actorId, movedAt: new Date(), prevMovedAt: null,
       }),
     })

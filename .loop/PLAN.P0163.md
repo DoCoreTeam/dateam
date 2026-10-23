@@ -1,6 +1,6 @@
 # PLAN newAX: CLI 실측에서 나온 CRM 창구 결함 넷 고침
 플랜 ID: P0163
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0339
 목표 버전: v0.11.68
@@ -45,9 +45,9 @@
 의존: 없음
 
 ### I02 파이프라인 없이 만든 딜이 기본 파이프라인 첫 단계로 감
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/api/crm/deals/route.ts, apps/web/lib/crm/services/deal.ts, apps/web/lib/crm/services/deal-default-pipeline.test.ts (신규), apps/web/package.json
+범위: apps/web/lib/crm/services/deal.ts, apps/web/lib/crm/services/deal-start.ts (신규), apps/web/lib/crm/domain/pipeline.ts, apps/web/lib/crm/services/deal-default-pipeline.test.ts (신규), apps/web/package.json
 감사 기준:
 - 보안: 기본 파이프라인은 호출자 워크스페이스 안에서만 고르고 다른 워크스페이스 파이프라인 id 는 그대로 400, 입력 검증 스키마 유지
 - pipelineId 와 stageId 를 다 빼면 기본 파이프라인 첫 단계, stageId 만 주면 그 단계의 파이프라인, 맞지 않는 조합은 400 을 시험이 단정
@@ -101,3 +101,4 @@
 ## 변경 이력
 - v0.1.0 (2026-10-23) 최초 작성 (ins_0339)
 - v0.1.1 (2026-10-23) I04 근거 확인 결과 활동은 의도된 불변(activity.ts 머리 주석), 화면 항목 I05 취소, 시험 기록 정리는 I06 실측으로 옮김 (audit:I01)
+- v0.1.2 (2026-10-23) I02 범위를 실제 파일로 고침, 라우트는 본문을 그대로 넘겨 손대지 않고 해석기를 deal-start.ts 로 뺌(node --test 가 server-only 를 못 읽음) (audit:I02)

@@ -111,6 +111,20 @@ export function defaultPipelineId<T extends PipelineLike>(
   return usable.find((p) => p.isDefault)?.id ?? usable[0]?.id ?? rows[0]?.id ?? null
 }
 
+/**
+ * 새 딜이 시작할 단계 — 그 파이프라인의 열린 단계 중 순서가 가장 앞선 것.
+ *
+ * 성사·실패 칸으로 시작하게 두지 않는다. 만들자마자 성사면 금액·성사일 없는 WON 이 생긴다(DI-06).
+ * 딜 만들기 창(DealFormModal)과 서버의 기본값(createDeal)이 같은 답을 내야 한다.
+ */
+export function startStageId(
+  stages: readonly { id: string; kind: string; position: number }[],
+): string | null {
+  const open = stages.filter((s) => s.kind === 'OPEN')
+  if (open.length === 0) return null
+  return open.reduce((a, b) => (b.position < a.position ? b : a)).id
+}
+
 /* ────────────────────────────────────────────────────────────────
    단계 구성이 같은 파이프라인 찾기
    ──────────────────────────────────────────────────────────────── */
