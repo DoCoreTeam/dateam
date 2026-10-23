@@ -180,7 +180,7 @@ export async function dispatchPublicApi(request: NextRequest): Promise<Response>
     const { data, error } = await admin.from('api_approval_requests').insert({
       key_id: ctx.keyId, user_id: ctx.userId, action_name: op.name, required_scope: decision.requiredScope,
       method: op.kind === 'action' ? 'ACTION' : op.method, path,
-      payload: { params, search: url.search, body: bodyText }, agent: auditBase.agent, request_id: requestId,
+      payload: { params, search: url.search, body: bodyText, ip: auditBase.ip }, agent: auditBase.agent, request_id: requestId,
     }).select('id, expires_at').single()
     if (error || !data) {
       console.error('[dispatch] approval insert', error?.code)
@@ -196,11 +196,19 @@ export async function dispatchPublicApi(request: NextRequest): Promise<Response>
   const idemKey = write ? request.headers.get('idempotency-key')?.trim() ?? '' : ''
   const hash = requestHash(request.method, path, bodyText)
   if (idemKey) {
-    if (idemKey.length > IDEMPOTENCY_KEY_MAX) return json({ success: false, error: 'invalid_idempotency_key' }, 400, request, base)
+    if (idemKey.length > IDEMPOTENCY_KEY_MAX) {
+      await audit({ ...auditBase, status: 400 })
+      return json({ success: false, error: 'invalid_idempotency_key' }, 400, request, base)
+    }
     const { data: prev } = await admin.from('api_idempotency').select('request_hash, status, response')
       .eq('key_id', ctx.keyId).eq('idem_key', idemKey).maybeSingle()
     if (prev) {
-      if (prev.request_hash !== hash) return json({ success: false, error: 'idempotency_key_reused' }, 409, request, base)
+      // 거절과 재생도 쓰기 시도라 감사에 남긴다 (P0162 I02)
+      if (prev.request_hash !== hash) {
+        await audit({ ...auditBase, status: 409 })
+        return json({ success: false, error: 'idempotency_key_reused' }, 409, request, base)
+      }
+      await audit({ ...auditBase, status: prev.status })
       return json(prev.response, prev.status, request, { ...base, 'Idempotent-Replay': 'true' })
     }
   }
@@ -245,7 +253,7 @@ export async function decideApproval(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
   const { data: row } = await admin.from('api_approval_requests')
-    .select('id, key_id, user_id, action_name, required_scope, method, payload, status, expires_at, request_id')
+    .select('id, key_id, user_id, action_name, required_scope, method, payload, status, expires_at, request_id, agent')
     .eq('id', id).maybeSingle()
   if (!row) return { ok: false, code: 'not_found' }
   if (!mayDecideApproval({ viaKey, deciderId: decider.userId, ownerId: row.user_id, deciderRole: decider.role })) {
@@ -272,7 +280,7 @@ export async function decideApproval(
   const { data: owner } = await admin.from('profiles').select('role').eq('id', row.user_id).maybeSingle()
   const { data: key } = await admin.from('api_keys').select('scopes').eq('id', row.key_id).maybeSingle()
   const scopes = [...new Set([...(key?.scopes ?? ['read']), row.required_scope])]
-  const payload = (row.payload ?? {}) as { params?: Record<string, string>; search?: string; body?: string }
+  const payload = (row.payload ?? {}) as { params?: Record<string, string>; search?: string; body?: string; ip?: string | null }
   const search = (() => { const s = new URLSearchParams(payload.search ?? ''); s.delete('dryRun'); const q = s.toString(); return q ? `?${q}` : '' })()
   const res = await runAsKeyOwner(
     { userId: row.user_id, role: owner?.role ?? 'member', keyId: row.key_id, scopes },
@@ -283,8 +291,9 @@ export async function decideApproval(
   const failed = res.status >= 500
   await admin.from('api_approval_requests')
     .update({ status: failed ? 'FAILED' : 'APPROVED', result: { status: res.status, body: body ?? null } }).eq('id', id)
+  // 실행 감사에는 요청 때의 에이전트와 ip 를 싣는다, 결정한 사람의 것이 아니다 (P0162 I02)
   await admin.from('api_write_audit').insert({
-    key_id: row.key_id, user_id: row.user_id, request_id: row.request_id, action_name: op.name,
+    key_id: row.key_id, user_id: row.user_id, request_id: row.request_id, agent: row.agent ?? null, ip: payload.ip ?? null, action_name: op.name,
     method: op.kind === 'action' ? 'ACTION' : op.method, path: op.mount, status: res.status, approval_id: id,
   })
   return { ok: true, status: failed ? 'FAILED' : 'APPROVED', resultStatus: res.status }

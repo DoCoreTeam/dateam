@@ -149,3 +149,40 @@ test('★ 사람 전용 동작은 키 범위와 무관하게 범위 판정 앞�
   assert.match(block, /code: 'human_only' \}, 403,/)
   assert.match(block, /return json\(/)
 })
+
+test('★ 멱등 갈래의 400 409 재생도 응답 전에 감사를 남긴다 (P0162 I02)', () => {
+  const idem = SRC.slice(pos(/if \(idemKey\) \{/), pos(/const search = \(\(\) =>/))
+  const before = (code: RegExp, status: RegExp) => {
+    const at = idem.search(code)
+    assert.ok(at > 0, `${code} 갈래가 없다`)
+    const head = idem.slice(0, at)
+    const last = head.lastIndexOf('await audit(')
+    assert.ok(last >= 0, `${code} 앞에 감사가 없다`)
+    assert.match(head.slice(last), status, `${code} 앞 감사의 상태가 다르다`)
+    assert.doesNotMatch(head.slice(last + 1), /return json\(/, `${code} 앞 감사와 응답 사이에 다른 응답이 있다`)
+  }
+  before(/return json\(\{ success: false, error: 'invalid_idempotency_key' \}/, /status: 400/)
+  before(/return json\(\{ success: false, error: 'idempotency_key_reused' \}/, /status: 409/)
+  before(/return json\(prev\.response, prev\.status/, /status: prev\.status/)
+})
+
+test('★ 승인 실행 감사에 요청 때의 에이전트와 ip 가 실린다, 요청 payload 에 ip 저장 (P0162 I02)', () => {
+  const req = SRC.slice(pos(/from\('api_approval_requests'\)\.insert/), pos(/status: 'PENDING', approvalId: data\.id/))
+  assert.match(req, /payload: \{[^}]*ip: auditBase\.ip[^}]*\}/)
+  const fn = SRC.slice(pos(/export async function decideApproval/))
+  assert.match(fn, /\.select\('[^']*\bagent\b[^']*'\)/, '승인 요청을 읽을 때 agent 를 안 집는다')
+  const ins = fn.slice(fn.indexOf("from('api_write_audit').insert"))
+  const row = ins.slice(0, ins.indexOf('})'))
+  assert.match(row, /agent: row\.agent/)
+  assert.match(row, /ip: payload\.ip/)
+})
+
+test('★ 보안: 감사 줄에는 키 값과 몸통이 안 실린다 (P0162 I02)', () => {
+  const rows = [
+    SRC.slice(pos(/async function audit\(/), pos(/function forwardHeaders/)),
+    (() => { const fn = SRC.slice(pos(/export async function decideApproval/)); const i = fn.indexOf("from('api_write_audit').insert"); return fn.slice(i, fn.indexOf('})', i)) })(),
+  ]
+  for (const r of rows) {
+    assert.doesNotMatch(r, /bodyText|payload\.body|\bbody:|x-api-key|apiKey|key_hash|rawKey/, '감사 줄에 몸통이나 키 값이 실린다')
+  }
+})
