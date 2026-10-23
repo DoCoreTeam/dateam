@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticatePublicApi, optionsResponse, requireAdminKey, requireMemberKey } from '@/lib/publicApiAuth'
 import { responseHeaders } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
+import { withWriteAudit } from '@/lib/public-api/write-audit'
 
 export async function OPTIONS(request: NextRequest) {
   return optionsResponse(request)
@@ -81,42 +82,44 @@ export async function GET(request: NextRequest) {
 const COLORS = ['#7c3aed','#10b981','#f59e0b','#ef4444','#7c3aed','#3b82f6','#ec4899','#14b8a6','#f97316','#84cc16']
 
 export async function POST(request: NextRequest) {
-  const auth = await authenticatePublicApi(request, { scope: 'write' })
-  if ('error' in auth) return auth.error
-  // 내부 창구가 requireAdminApi 인 쓰기다, 키도 같은 선을 지킨다
-  const denied = requireAdminKey(auth.ctx, request)
-  if (denied) return denied
+  return withWriteAudit('public.suppliers.post', async () => {
+    const auth = await authenticatePublicApi(request, { scope: 'write' })
+    if ('error' in auth) return auth.error
+    // 내부 창구가 requireAdminApi 인 쓰기다, 키도 같은 선을 지킨다
+    const denied = requireAdminKey(auth.ctx, request)
+    if (denied) return denied
 
-  try {
-    const body = await request.json()
-    const { name, location, contact } = body
-    if (!name?.trim()) {
+    try {
+      const body = await request.json()
+      const { name, location, contact } = body
+      if (!name?.trim()) {
+        return NextResponse.json(
+          { success: false, error: 'name is required' },
+          { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
+        )
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = createAdminClient() as any
+      const color = COLORS[Math.floor(Math.random() * COLORS.length)]
+      const { data, error } = await admin
+        .from('suppliers')
+        .insert({ name: name.trim(), location: location?.trim() || null, contact: contact?.trim() || null, color })
+        .select()
+        .single()
+
+      if (error) throw error
+
       return NextResponse.json(
-        { success: false, error: 'name is required' },
-        { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
+        { success: true, data },
+        { status: 201, headers: responseHeaders({ ctx: auth.ctx, request }) }
+      )
+    } catch (err) {
+      console.error('[public/v1/suppliers POST]', err)
+      return NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
       )
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)]
-    const { data, error } = await admin
-      .from('suppliers')
-      .insert({ name: name.trim(), location: location?.trim() || null, contact: contact?.trim() || null, color })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return NextResponse.json(
-      { success: true, data },
-      { status: 201, headers: responseHeaders({ ctx: auth.ctx, request }) }
-    )
-  } catch (err) {
-    console.error('[public/v1/suppliers POST]', err)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
-    )
-  }
+  })(request, undefined)
 }
