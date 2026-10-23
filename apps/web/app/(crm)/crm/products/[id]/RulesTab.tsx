@@ -71,6 +71,17 @@ export default function RulesTab({ data, mode, onSaved }: Props) {
     })
     if (ok) void save(all.filter((_, i) => i !== index))
   }
+  const pending = shown.filter((x) => x.rule.kind === 'DISCOUNT' && !x.rule.confirmed)
+  /** 제안값을 한 번에 확정 — 할인율은 그대로 두고 확정 표시만 바꾼다 */
+  const confirmAll = async () => {
+    const ok = await ask.confirm({
+      title: PRICEBOOK.confirmAllProposals(pending.length),
+      body: pending.map((x) => (x.rule.kind === 'DISCOUNT' ? `${x.rule.label} ${x.rule.pct}%` : '')).join(', '),
+      confirmLabel: PRICEBOOK.confirmProposal,
+    })
+    if (!ok) return
+    void save(all.map((x) => (x.rule.kind === 'DISCOUNT' && !x.rule.confirmed && isMine(x.rule) ? { ...x, rule: { ...x.rule, confirmed: true } } : x)))
+  }
   const duplicate = (index: number) => void save([...all.slice(0, index + 1), { ...all[index], key: `${all[index].key}-copy` }, ...all.slice(index + 1)])
 
   /** 끌어 놓은 순서 — 이 탭의 줄만 바뀌고 다른 탭(규칙과 할인)의 줄은 제자리 */
@@ -83,6 +94,11 @@ export default function RulesTab({ data, mode, onSaved }: Props) {
   return (
     <div className={styles.wrap}>
       <div className={styles.actions}>
+        {mode === 'discounts' && pending.length > 0 && (
+          <NbButton variant="ghost" disabled={busy} onClick={() => void confirmAll()}>
+            <BadgeCheck size={14} /> {PRICEBOOK.confirmAllProposals(pending.length)}
+          </NbButton>
+        )}
         <NbButton onClick={() => setEditing({ index: null, rule: null })} disabled={busy}>
           <Plus size={14} /> {mode === 'discounts' ? `${PRICEBOOK.detailDiscounts} 추가` : `${PRICEBOOK.detailRules} 추가`}
         </NbButton>

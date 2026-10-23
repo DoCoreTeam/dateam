@@ -30,6 +30,7 @@ export interface PriceProductRow {
   businessTypeKey: string
   itemCount: number
   ruleCount: number
+  unconfirmedDiscountCount: number
   updatedAt: string
   isActive: boolean
   needsReview: boolean
@@ -107,6 +108,7 @@ export default function PriceProductListView() {
           <>
             <b>{r.name}</b>
             {r.needsReview && <span style={{ marginLeft: 'var(--space-2)' }}><NbBadge status="note">{PRICEBOOK.needsReview}</NbBadge></span>}
+            {r.unconfirmedDiscountCount > 0 && <span style={{ marginLeft: 'var(--space-2)' }}><NbBadge status="note">{PRICEBOOK.unconfirmedCount(r.unconfirmedDiscountCount)}</NbBadge></span>}
           </>
         ),
       },
