@@ -19,6 +19,7 @@ import ReorderList from '@/components/ui/ReorderList'
 import { ACTION, PRICEBOOK, BUSINESS_TYPE_LABEL, BUSINESS_TYPE_ORDER, progress } from '@/lib/terms'
 import { roundingUnitName } from '@/lib/terms/quote'
 import { ROUNDING_UNITS } from '@/lib/crm/domain/quote-math'
+import { SUPPLY_ROUNDING_UNITS } from '@/lib/crm/domain/quote-compose'
 import type { DetailJson, SectionJson } from './detail-shape'
 import styles from './detail.module.css'
 
@@ -27,7 +28,11 @@ interface Props { data: DetailJson; onSaved: () => void }
 /** 묶음 한 줄 — 원래 이름을 들고 있어야 이름 바꾸기를 서버가 품목과 규칙까지 따라 고친다 */
 interface SectionRow extends SectionJson { key: string; orig: string | null }
 
-interface FormState { name: string; type: string; desc: string; sections: SectionRow[] }
+type StackMode = DetailJson['product']['discountStackMode']
+
+const STACK_MODES: readonly StackMode[] = ['MAX', 'MULTIPLY', 'ADD']
+
+interface FormState { name: string; type: string; desc: string; sections: SectionRow[]; stackMode: StackMode; supplyRounding: number }
 
 function initialForm(data: DetailJson): FormState {
   const p = data.product
@@ -36,6 +41,8 @@ function initialForm(data: DetailJson): FormState {
     name: p.name,
     type: p.businessTypeKey,
     desc: p.descriptionMd ?? '',
+    stackMode: p.discountStackMode ?? 'MAX',
+    supplyRounding: p.supplyRoundingUnit ?? 0,
     sections: [
       ...p.sections,
       ...itemSections.filter((s) => !p.sections.some((x) => x.name === s)).map((name) => ({ name, roundingUnit: 0 })),
@@ -77,7 +84,7 @@ export default function InfoTab({ data, onSaved }: Props) {
   const nameClash = names.some((n, i) => n === '' || names.indexOf(n) !== i)
 
   const save = () => void patch({
-    name: form.name, businessTypeKey: form.type, descriptionMd: form.desc,
+    name: form.name, businessTypeKey: form.type, descriptionMd: form.desc, discountStackMode: form.stackMode, supplyRoundingUnit: form.supplyRounding,
     sections: form.sections.map((x) => ({ name: x.name.trim(), roundingUnit: x.roundingUnit })),
     sectionRenames: form.sections.filter((x) => x.orig && x.orig !== x.name.trim()).map((x) => ({ from: x.orig, to: x.name.trim() })),
   }, 'save')
@@ -170,6 +177,27 @@ export default function InfoTab({ data, onSaved }: Props) {
           <NbButton variant="ghost" onClick={addSection} disabled={!newSection.trim()}><Plus size={14} /> {PRICEBOOK.sectionAdd}</NbButton>
         </div>
         {nameClash && <p className={styles.alert} role="alert">{PRICEBOOK.sectionNameClash}</p>}
+      </SectionSurface>
+
+      <SectionSurface title={PRICEBOOK.discountCalc}>
+        <div className={styles.infoGrid}>
+          <div className={styles.field}>
+            <label className="label" htmlFor="pi-stack">{PRICEBOOK.stackMode}</label>
+            <select id="pi-stack" className="input-field" value={form.stackMode} onChange={(e) => set('stackMode', e.target.value as StackMode)}>
+              {STACK_MODES.map((m) => <option key={m} value={m}>{PRICEBOOK.stackModeLabel[m]}</option>)}
+            </select>
+          </div>
+          <div className={styles.field}>
+            <label className="label" htmlFor="pi-supply-round">{PRICEBOOK.supplyRounding}</label>
+            <select id="pi-supply-round" className="input-field" value={form.supplyRounding} onChange={(e) => set('supplyRounding', Number(e.target.value))}>
+              {SUPPLY_ROUNDING_UNITS.map((u) => (
+                <option key={u} value={u}>{u === 0 ? PRICEBOOK.roundingNone : PRICEBOOK.roundingUnder(roundingUnitName(u) ?? u.toLocaleString('ko-KR'))}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <p className={styles.small}>{PRICEBOOK.stackModeHint}</p>
+        <p className={styles.small}>{PRICEBOOK.supplyRoundingHint}</p>
       </SectionSurface>
 
       <SectionSurface

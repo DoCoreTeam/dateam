@@ -70,3 +70,36 @@ test('올림 절사는 승인 판정을 바꾸지 않는다', () => {
   const lines = [{ quantity: 1, unitPriceMinor: 47_000_000n, discountPercent: 10, taxRate: 10 }]
   assert.equal(priceQuote(lines, [], { unit: 10_000_000, mode: 'UP' }, 15, null).approvalRequired, false)
 })
+
+test('★ 공급가 절사: 제품으로 채운 견적을 저장해도 미리 계산과 같은 금액이다', () => {
+  const product = { ...GCUBE_EDGE, supplyRoundingUnit: 10_000 }
+  const cond = { ...GCUBE_EDGE.examples![0].conditions, companyKind: 'school' as const, discount: 'auto' as const }
+  const s = buildSolutionQuote(product, cond)
+  const names = GCUBE_EDGE.sections.map((x) => x.name)
+  const lines = s.lines.map((l) => ({
+    quantity: l.quantity, unitPriceMinor: l.unitPriceMinor, discountPercent: l.discountPercent, taxRate: l.taxRate,
+    sectionIndex: names.indexOf(String(l.sectionKey)), listPriceMinor: l.listPriceMinor, priceSource: 'LIST',
+    billing: l.billing, ratioPct: l.ratioPct, ratioOfSectionName: l.ratioOfSectionKey, kind: l.ratioPct ? 'RATIO' : 'QUANTITY',
+  }))
+  const r = priceQuote(lines, GCUBE_EDGE.sections, { supplyUnit: 10_000 }, 15, null)
+  const supply = r.subtotalMinor - r.discountMinor - r.sectionRoundingMinor
+  assert.equal(supply, s.onceSupplyMinor)
+  assert.equal(supply % 10_000n, 0n)
+})
+
+test('★ 공급가 절사도 할인 승인에 들어간다 — 정상가 대비 14.79% 가 절사로 16.67% 가 되면 승인', () => {
+  const line = { quantity: 1, unitPriceMinor: 40_900_000n, listPriceMinor: 48_000_000n, priceSource: 'LIST', taxRate: 10 }
+  assert.equal(priceQuote([line], [], {}, 15, null).approvalRequired, false)
+  const r = priceQuote([line], [], { supplyUnit: 1_000_000 }, 15, null)
+  assert.equal(r.sectionRoundingMinor, 900_000n)
+  assert.equal(r.approvalRequired, true)
+})
+
+test('공급가 절사만 켜도 새 길이다 — 옛 길은 그 칸을 모른다', () => {
+  const line = { quantity: 1, unitPriceMinor: 1_234_567n, taxRate: 10 }
+  assert.equal(usesNewPricing([line], [], 10_000), true)
+  assert.equal(usesNewPricing([line], [], 0), false)
+  const r = priceQuote([line], [], { supplyUnit: 10_000 }, 15, null)
+  assert.equal(r.composed, true)
+  assert.equal(r.subtotalMinor - r.discountMinor - r.sectionRoundingMinor, 1_230_000n)
+})

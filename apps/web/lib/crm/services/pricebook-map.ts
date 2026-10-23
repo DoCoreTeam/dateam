@@ -7,9 +7,9 @@
  */
 
 import type {
-  ItemBasis, PriceExample, PriceItem, PriceProduct, PriceRule, ProductSection, RuleKind,
+  DiscountStackMode, ItemBasis, PriceExample, PriceItem, PriceProduct, PriceRule, ProductSection, RuleKind,
 } from '../domain/pricebook/types.ts'
-import { ITEM_BASES, RULE_KINDS } from '../domain/pricebook/types.ts'
+import { DISCOUNT_STACK_MODES, ITEM_BASES, RULE_KINDS } from '../domain/pricebook/types.ts'
 import type { Billing } from '../domain/quote-compose.ts'
 
 export interface ProductDbRow {
@@ -24,6 +24,13 @@ export interface ProductDbRow {
   isActive?: boolean
   needsReview?: boolean
   version?: number
+  discountStackMode?: string | null
+  supplyRoundingUnit?: number | null
+}
+
+/** DB 값 → 겹침 방식. 모르는 값이나 빈 값은 MAX (지금 동작) */
+export function stackModeOf(v: unknown): DiscountStackMode {
+  return DISCOUNT_STACK_MODES.includes(v as DiscountStackMode) ? (v as DiscountStackMode) : 'MAX'
 }
 
 export interface ItemDbRow {
@@ -168,6 +175,8 @@ export function toEngineProduct(p: ProductDbRow, items: readonly ItemDbRow[], ru
     tcoYears: p.tcoYears,
     freeYears: p.freeYears,
     examples: examplesOf(p.examples),
+    discountStackMode: stackModeOf(p.discountStackMode),
+    supplyRoundingUnit: Math.max(0, Math.trunc(Number(p.supplyRoundingUnit ?? 0))) || 0,
   }
 }
 

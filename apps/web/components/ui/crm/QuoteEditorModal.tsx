@@ -196,6 +196,7 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         ...(linesLocked ? {} : {
           roundingUnit: draft.roundingUnit,
           roundingMode: draft.roundingMode,
+          supplyRoundingUnit: draft.supplyRoundingUnit ?? 0,
           sections: draft.sections.map((x) => ({ id: x.id ?? null, name: x.name, roundingUnit: x.roundingUnit ?? 0, businessTypeKey: x.businessTypeKey ?? null })),
           // 가격 기준 — 예산과 자동으로 채운 값, 조건. 안 실으면 다시 저장할 때 사라진다
           budgetMinor: draft.budgetMinor ?? null,

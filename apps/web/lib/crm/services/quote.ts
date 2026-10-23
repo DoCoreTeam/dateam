@@ -43,6 +43,7 @@ import {
 import { renderQuoteNo, seqPrefix, seqOf } from '../domain/quote-number.ts'
 import { duplicateIdentity, type DuplicateMode } from '../domain/quote-duplicate-identity.ts'
 import { priceQuote } from './quote-pricing.ts'
+import { isSupplyRoundingUnit } from '../domain/quote-compose.ts'
 import { syncDealQuoted } from './deal-quoted.ts'
 import { assertBaselineForSend, autoRegisterLines } from './quote-pricebook-hooks.ts'
 import { learnAliases } from './quote-alias-learn.ts'
@@ -315,7 +316,7 @@ const LINE_KEYS = new Set([
 ])
 const QUOTE_KEYS = new Set([
   'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines', 'termIds',
-  'recipientPersonId', 'roundingUnit', 'roundingMode', 'sections',
+  'recipientPersonId', 'roundingUnit', 'roundingMode', 'supplyRoundingUnit', 'sections',
   // 파일에서 만들 때만 온다. 시각은 서버가 찍는다 — 보낸 쪽이 정하게 두면 「수정 전」을 위조할 수 있다
   'sourceFileName', 'sourcePageStart', 'sourcePageEnd', 'sourceSnapshotId',
   // 수정 경로가 함께 보내는 것들
@@ -855,6 +856,8 @@ export interface CreateQuoteInput extends QuotePricingInput {
   roundingUnit?: number | string | null
   /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
   roundingMode?: string | null
+  /** 할인 후 공급가 절사 단위(원). 제품으로 채우면 제품의 값이 온다. 0 = 안 함 */
+  supplyRoundingUnit?: number | string | null
   /** 묶음. 안 주면 묶음 없는 견적이다(지금 있는 견적 전부가 그렇다) */
   sections?: QuoteSectionData[]
   lines?: QuoteLineData[]
@@ -1049,6 +1052,7 @@ export async function createQuote(
           totalMinor: totals.totalMinor,
           roundingUnit: rounding.unit,
           roundingMode: rounding.mode,
+          supplyRoundingUnit: rounding.supplyUnit,
           roundingMinor: totals.roundingMinor,
           approvalRequired: totals.approvalRequired,
           fxRate: fx?.rate ?? null,
@@ -1080,7 +1084,7 @@ export async function createQuote(
           createdById: actorId,
           subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor,
           taxMinor: totals.taxMinor, totalMinor: totals.totalMinor,
-          roundingUnit: rounding.unit, roundingMode: rounding.mode,
+          roundingUnit: rounding.unit, roundingMode: rounding.mode, supplyRoundingUnit: rounding.supplyUnit,
           roundingMinor: totals.roundingMinor,
           approvalRequired: totals.approvalRequired,
           fxRate: fx?.rate ?? null,
@@ -1183,9 +1187,9 @@ function toImportCheck(raw: QuoteImportCheckInput | null | undefined): {
  * 「저장하지 못했습니다」로 뭉개져 나가고 사용자는 왜인지 모른다.
  */
 function toRounding(
-  input: { roundingUnit?: number | string | null; roundingMode?: string | null },
-  before?: { roundingUnit?: number | null; roundingMode?: string | null } | null,
-): { unit: RoundingUnit; mode: RoundingMode } {
+  input: { roundingUnit?: number | string | null; roundingMode?: string | null; supplyRoundingUnit?: number | string | null },
+  before?: { roundingUnit?: number | null; roundingMode?: string | null; supplyRoundingUnit?: number | null } | null,
+): { unit: RoundingUnit; mode: RoundingMode; supplyUnit: number } {
   const rawUnit = input.roundingUnit === undefined
     ? (before?.roundingUnit ?? 0)
     : Number(input.roundingUnit ?? 0)
@@ -1207,7 +1211,13 @@ function toRounding(
     throw new CrmError('VALIDATION_FAILED',
       '절사 방식은 버림·반올림·올림 중에서 고를 수 있어요.', { field: 'roundingMode' })
   }
-  return { unit, mode }
+  const rawSupply = input.supplyRoundingUnit === undefined
+    ? (before?.supplyRoundingUnit ?? 0)
+    : Number(input.supplyRoundingUnit ?? 0)
+  if (!isSupplyRoundingUnit(rawSupply)) {
+    throw new CrmError('VALIDATION_FAILED', '공급가 절사 단위를 다시 골라 주세요.', { field: 'supplyRoundingUnit' })
+  }
+  return { unit, mode, supplyUnit: Number(rawSupply) }
 }
 
 function isUniqueViolation(e: unknown): boolean {
@@ -1264,6 +1274,8 @@ export interface UpdateQuoteInput extends QuotePricingInput {
   /** 절사 단위(원). **안 주면 저장된 것을 그대로 둔다** — 0 으로 눕히지 않는다 */
   roundingUnit?: number | string | null
   roundingMode?: string | null
+  /** 공급가 절사도 안 주면 저장된 것 그대로 */
+  supplyRoundingUnit?: number | string | null
   /** 묶음 전체. 항목과 함께 준다 — 항목이 인덱스로 묶음을 가리키기 때문이다 */
   sections?: QuoteSectionData[]
   /**
@@ -1296,7 +1308,7 @@ export async function updateQuote(
       안 건드린 채 온다. 항목을 고칠 때만 다시 계산하면 그 요청은 저장은 되는데
       금액이 그대로라 «저장이 안 된 것»으로 보인다.
     */
-    const editingRounding = input.roundingUnit !== undefined || input.roundingMode !== undefined
+    const editingRounding = input.roundingUnit !== undefined || input.roundingMode !== undefined || input.supplyRoundingUnit !== undefined
     if ((editingLines || editingRounding) && before.status !== 'DRAFT') {
       throw new CrmError('VALIDATION_FAILED',
         '이미 보낸 견적의 금액은 고칠 수 없습니다. 새 견적을 만들어 주세요.',
@@ -1411,6 +1423,7 @@ export async function updateQuote(
       data.totalMinor = totals.totalMinor
       data.roundingUnit = rounding.unit
       data.roundingMode = rounding.mode
+      data.supplyRoundingUnit = rounding.supplyUnit
       data.roundingMinor = totals.roundingMinor
 
       const required = totals.approvalRequired

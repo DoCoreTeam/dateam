@@ -41,6 +41,8 @@ export interface ApplyInput {
   productId: string
   productName: string
   sections: { name: string; roundingUnit: number }[]
+  /** 제품의 할인 후 공급가 절사 단위 — 견적이 받아 저장해 다시 계산해도 같은 금액이 된다 */
+  supplyRoundingUnit?: number
   lines: EngineLineJson[]
   autoFilled: AutoFilledJson[]
   conditions: Record<string, unknown>
@@ -88,6 +90,7 @@ export function applyProductFill(draft: QuoteDraft, input: ApplyInput): QuoteDra
     ...base,
     sections,
     lines: [...base.lines, ...lines],
+    supplyRoundingUnit: input.supplyRoundingUnit ?? base.supplyRoundingUnit ?? 0,
     autoFilled: input.autoFilled,
     fillConditions: { productId: input.productId, productName: input.productName, conditions: input.conditions },
   }

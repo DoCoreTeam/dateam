@@ -6,7 +6,10 @@
  * 새 칸이 하나도 없으면 이 함수는 `computeTotals` 와 같은 숫자를 낸다(시험이 잠근다).
  *
  * 계산 순서는 이 파일 한 곳에만 있다.
- *   수량 × 단가 → 항목 할인 → 묶음 소계 → 묶음 절사 → 비율 항목 → 공급가액 → 부가세 → 합계 절사
+ *   수량 × 단가 → 항목 할인 → 묶음 소계 → 묶음 절사 → 비율 항목 → 공급가액 → 공급가 절사 → 부가세 → 합계 절사
+ *
+ * 공급가 절사(P0157)는 가격표의 「할인 적용 후 만원 미만 절사」다. 1회분 공급가액에만 걸고, 깎인 금액은
+ * 묶음 절사 합(sectionRoundingMinor)에 함께 넣는다. 그래야 할인 승인, 딜 금액, 견적서가 따로 배우지 않고 같이 센다.
  *
  * 화면과 서버가 따로 계산하던 때 미리보기 1,506원, 견적서 1,369원이 나왔다. 그래서 순서를 한 곳에 둔다.
  */
@@ -36,6 +39,18 @@ export interface ComposeSection {
   roundingUnit?: number | null
 }
 
+/** 공급가 절사 단위 — DB CHECK(마이그 317)와 같은 목록. 0 은 안 함 */
+export const SUPPLY_ROUNDING_UNITS = [0, 1000, 10000, 100000, 1000000] as const
+
+export function isSupplyRoundingUnit(v: unknown): v is typeof SUPPLY_ROUNDING_UNITS[number] {
+  return (SUPPLY_ROUNDING_UNITS as readonly number[]).includes(Number(v)) && v !== null && v !== ''
+}
+
+/** 합계 절사와 공급가 절사. supplyUnit 은 0 이면 안 함, 버림만 쓴다 */
+export interface ComposeRounding extends RoundingInput {
+  supplyUnit?: number | null
+}
+
 export interface ComposedLine {
   key: string
   amounts: QuoteLineAmounts
@@ -56,8 +71,10 @@ export interface ComposedSection {
 export interface ComposedTotals {
   subtotalMinor: bigint
   discountMinor: bigint
-  /** 묶음 절사로 깎인 합 */
+  /** 묶음 절사로 깎인 합. 공급가 절사도 여기에 들어 있다 */
   sectionRoundingMinor: bigint
+  /** 그 가운데 공급가 절사로 깎인 몫 (화면이 따로 적는 근거) */
+  supplyRoundingMinor: bigint
   taxMinor: bigint
   netTotalMinor: bigint
   totalMinor: bigint
@@ -136,7 +153,7 @@ function sectionRounding(subtotal: bigint, unit: number | null | undefined): big
 export function composeQuote(
   lines: readonly ComposeLine[],
   sections: readonly ComposeSection[] = [],
-  rounding: RoundingInput = {},
+  rounding: ComposeRounding = {},
 ): ComposedQuote {
   const unitOf = new Map(sections.map((s) => [s.key, s.roundingUnit ?? 0]))
   const amounts = new Map<string, QuoteLineAmounts>()
@@ -217,7 +234,7 @@ export function composeQuote(
     return { subtotal, discount, tax, secRound }
   }
 
-  const o = sum('ONCE')
+  const o = supplyRounded(sum('ONCE'), lines.filter((l) => billingOf(l) === 'ONCE'), rounding.supplyUnit)
   const net = o.subtotal - o.discount - o.secRound + o.tax
   const rounded = roundAmount(net, rounding)
   const a = sum('ANNUAL')
@@ -234,6 +251,7 @@ export function composeQuote(
       subtotalMinor: o.subtotal,
       discountMinor: o.discount,
       sectionRoundingMinor: o.secRound,
+      supplyRoundingMinor: o.supRound,
       taxMinor: o.tax,
       netTotalMinor: net,
       totalMinor: rounded,
@@ -241,6 +259,22 @@ export function composeQuote(
     },
     annual: { supplyMinor: annualSupply, taxMinor: a.tax, totalMinor: annualSupply + a.tax },
   }
+}
+
+interface BillingSum { subtotal: bigint; discount: bigint; tax: bigint; secRound: bigint }
+
+/**
+ * 공급가 절사 — 할인과 묶음 절사 뒤 공급가액을 단위 아래로 버리고, 부가세는 절사 뒤 금액에서 다시 센다.
+ * 줄의 세율이 하나면 「절사 뒤 공급가 × 세율」, 섞였으면 줄 세금 합에서 깎인 몫의 세금만 뺀다(첫 줄 세율).
+ * 35,912,345원에 만원 절사면 35,910,000원, 깎인 2,345원은 공급가 절사이고 부가세는 3,591,000원이다.
+ */
+function supplyRounded(s: BillingSum, onceLines: readonly ComposeLine[], unit: number | null | undefined): BillingSum & { supRound: bigint } {
+  const supply = s.subtotal - s.discount - s.secRound
+  const supRound = sectionRounding(supply, unit)
+  if (supRound === ZERO) return { ...s, supRound }
+  const rates = [...new Set(onceLines.map((l) => Number(l.taxRate ?? 0)))]
+  const tax = rates.length === 1 ? pctOfMinor(supply - supRound, rates[0]) : s.tax - pctOfMinor(supRound, rates[0] ?? 0)
+  return { ...s, secRound: s.secRound + supRound, tax, supRound }
 }
 
 /**

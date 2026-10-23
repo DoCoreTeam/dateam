@@ -12,7 +12,7 @@
 import { composeQuote, totalCostOverYears, supplyOf, type ComposeLine, type ComposedQuote } from '../quote-compose.ts'
 import { inferTier } from '../../../gpu/tier-dict.ts'
 import type {
-  GpuClass, GpuPick, PriceItem, PriceProduct, PriceRule, Provenance,
+  DiscountStackMode, GpuClass, GpuPick, PriceItem, PriceProduct, PriceRule, Provenance,
   SolutionConditions, VarKey, Violation,
 } from './types.ts'
 
@@ -313,7 +313,11 @@ export function buildSolutionQuote(product: PriceProduct, input: SolutionConditi
     if (l && !input.picked.includes(r.item)) l.provenance = { ...l.provenance, quantity: { source: 'RULE', note: upgradeNote(product, r, c.ownedNote) } }
   }
 
-  const composed = composeQuote(lines, product.sections.map((s) => ({ key: s.name, roundingUnit: s.roundingUnit })))
+  const composed = composeQuote(
+    lines,
+    product.sections.map((s) => ({ key: s.name, roundingUnit: s.roundingUnit })),
+    { supplyUnit: product.supplyRoundingUnit ?? 0 },
+  )
   const once = supplyOf(composed.once)
   const annual = composed.annual.supplyMinor
   return {
@@ -338,11 +342,24 @@ function timedItemId(p: PriceProduct): string | null {
   return rulesOf(p, 'QTY_FROM').find((r) => r.varKey === 'gpu.timed')?.item ?? null
 }
 
+const STACK_NOTE: Record<DiscountStackMode, string> = { MAX: '큰 것 하나로', MULTIPLY: '곱해서', ADD: '더해서' }
+
+/**
+ * 두 할인율을 겹친다 (순수 함수). 결과는 소수 둘째 자리, 100 을 넘지 않는다.
+ * 10% 와 20% → MAX 20 · MULTIPLY 28 · ADD 30
+ */
+export function stackDiscounts(mode: DiscountStackMode, a: number, b: number): number {
+  if (!(a > 0)) return b
+  if (!(b > 0)) return a
+  const raw = mode === 'ADD' ? a + b : mode === 'MULTIPLY' ? 100 - ((100 - a) * (100 - b)) / 100 : Math.max(a, b)
+  return Math.min(100, Math.round(raw * 100) / 100)
+}
+
 /**
  * 규모 조정 — 그 묶음의 할인 대상 정가 소계가 「수 × 단위 금액」을 넘으면 넘는 만큼 할인한다.
  *
  * 할인율은 소수 둘째 자리로 **올려** 잡는다. 내려 잡으면 상한을 몇 원 넘고, 그 몇 원은 묶음 절사가 버린다.
- * 기관 종류 할인과 겹치면 큰 쪽 하나만 쓴다 — 적용되는 할인율은 언제나 하나다(마이그 233 의 원칙).
+ * 기관 종류 할인과 겹치면 제품의 겹침 방식(stackDiscounts)을 따른다. 기본은 큰 쪽 하나다(마이그 233 의 원칙).
  * 수가 0 이면 걸지 않는다. 0 × 단위 금액은 「전부 할인」이 아니라 「셀 것이 없다」다.
  */
 function applyScaleCaps(p: PriceProduct, lines: EngineLine[], vars: Record<VarKey, number>, autoFilled: AutoFilled[]): void {
@@ -355,10 +372,14 @@ function applyScaleCaps(p: PriceProduct, lines: EngineLine[], vars: Record<VarKe
     const cap = count * r.perUnitMinor
     if (list <= cap) continue
     const pct = Math.ceil(((list - cap) / list) * 10_000) / 100
+    const mode = p.discountStackMode ?? 'MAX'
     for (const l of target) {
-      if (Number(l.discountPercent ?? 0) >= pct) continue
-      l.discountPercent = pct
-      l.provenance = { ...l.provenance, discount: { source: 'RULE', note: `규모 조정 할인 ${pct}%` } }
+      const before = Number(l.discountPercent ?? 0)
+      const next = stackDiscounts(mode, before, pct)
+      if (next <= before) continue
+      l.discountPercent = next
+      const note = next === pct ? `규모 조정 할인 ${pct}%` : `기관 할인 ${before}% 와 규모 조정 할인 ${pct}% 를 ${STACK_NOTE[mode]} ${next}%`
+      l.provenance = { ...l.provenance, discount: { source: 'RULE', note } }
     }
     autoFilled.push({
       field: '규모 조정 할인',

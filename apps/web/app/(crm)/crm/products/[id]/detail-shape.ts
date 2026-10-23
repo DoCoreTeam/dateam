@@ -44,6 +44,11 @@ export interface ProductJson {
   sourceFileName: string | null
   version: number
   updatedAt: string
+  /** 가격 기준 버전 (마이그 317) */
+  revision: number
+  effectiveFrom: string | null
+  discountStackMode: 'MAX' | 'MULTIPLY' | 'ADD'
+  supplyRoundingUnit: number
 }
 
 export interface DetailJson {

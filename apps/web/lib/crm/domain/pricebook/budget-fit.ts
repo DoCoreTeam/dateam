@@ -14,8 +14,8 @@
  *     (실측 2026-10-20: 상한이 없어 정상가 6억대 표를 2천만원에 맞추며 모든 줄에 96.81% 를 넣었다)
  */
 
-import { composeQuote, supplyOf, type ComposeLine, type ComposeSection } from '../quote-compose.ts'
-import { DEFAULT_DISCOUNT_APPROVAL_PCT, type RoundingInput } from '../quote-math.ts'
+import { composeQuote, supplyOf, type ComposeLine, type ComposeRounding, type ComposeSection } from '../quote-compose.ts'
+import { DEFAULT_DISCOUNT_APPROVAL_PCT } from '../quote-math.ts'
 import { toMinor } from '../money.ts'
 
 export interface FitLine extends ComposeLine {
@@ -48,7 +48,7 @@ export interface FitOptions {
 
 const BP_MAX = 10_000
 
-function measure(lines: readonly FitLine[], sections: readonly ComposeSection[], rounding: RoundingInput, includesTax: boolean): bigint {
+function measure(lines: readonly FitLine[], sections: readonly ComposeSection[], rounding: ComposeRounding, includesTax: boolean): bigint {
   const q = composeQuote(lines, sections, rounding)
   if (includesTax) return q.once.totalMinor
   return supplyOf(q.once)
@@ -73,7 +73,7 @@ export function fitToBudget(
   lines: readonly FitLine[],
   sections: readonly ComposeSection[],
   budget: { totalMinor: bigint | number | string; includesTax: boolean },
-  rounding: RoundingInput = {},
+  rounding: ComposeRounding = {},
   opts: FitOptions = {},
 ): FitResult {
   const target = toMinor(budget.totalMinor)

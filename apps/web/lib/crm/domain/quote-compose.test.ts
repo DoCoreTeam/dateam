@@ -74,3 +74,40 @@ test('대상이 없는 비율 항목은 던진다 — 조용히 0원으로 두�
 test('5년 총비용은 초기 + 매년 × (5 − 무상 1년)', () => {
   assert.equal(totalCostOverYears(BigInt(84_000_000), BigInt(11_100_000), 5, 1), BigInt(128_400_000))
 })
+
+test('공급가 절사: 할인 후 공급가 35,912,345원에 만원 절사면 35,910,000원, 깎인 2,345원은 공급가 절사, 부가세는 그 뒤에 센다', () => {
+  const lines: ComposeLine[] = [
+    { key: 'a', quantity: 1, unitPriceMinor: 39_902_606, discountPercent: 10, taxRate: 10 },
+  ]
+  const plain = composeQuote(lines)
+  assert.equal(plain.once.subtotalMinor - plain.once.discountMinor, BigInt(35_912_345))
+  const q = composeQuote(lines, [], { supplyUnit: 10_000 })
+  assert.equal(q.once.supplyRoundingMinor, BigInt(2_345))
+  assert.equal(q.once.sectionRoundingMinor, BigInt(2_345), '공급가 절사는 묶음 절사 합에 함께 들어 승인과 딜 금액이 같이 센다')
+  assert.equal(q.once.subtotalMinor - q.once.discountMinor - q.once.sectionRoundingMinor, BigInt(35_910_000))
+  assert.equal(q.once.taxMinor, BigInt(3_591_000))
+  assert.equal(q.once.totalMinor, BigInt(39_501_000))
+})
+
+test('공급가 절사: 단위가 0 이면 지금과 같은 숫자, 매년분에는 걸지 않는다', () => {
+  const lines: ComposeLine[] = [
+    { key: 'a', quantity: 1, unitPriceMinor: 12_345_678, taxRate: 10 },
+    { key: 'm', quantity: 1, unitPriceMinor: 1_234_567, taxRate: 10, billing: 'ANNUAL' },
+  ]
+  const base = composeQuote(lines)
+  const zero = composeQuote(lines, [], { supplyUnit: 0 })
+  assert.deepEqual(zero.once, { ...base.once, supplyRoundingMinor: BigInt(0) })
+  const q = composeQuote(lines, [], { supplyUnit: 10_000 })
+  assert.equal(q.once.supplyRoundingMinor, BigInt(5_678))
+  assert.equal(q.annual.supplyMinor, BigInt(1_234_567))
+})
+
+test('공급가 절사: 세율이 섞이면 줄 세금 합에서 깎인 몫의 세금만 뺀다', () => {
+  const lines: ComposeLine[] = [
+    { key: 'a', quantity: 1, unitPriceMinor: 1_005_000, taxRate: 10 },
+    { key: 'b', quantity: 1, unitPriceMinor: 500_000, taxRate: 0 },
+  ]
+  const q = composeQuote(lines, [], { supplyUnit: 10_000 })
+  assert.equal(q.once.supplyRoundingMinor, BigInt(5_000))
+  assert.equal(q.once.taxMinor, BigInt(100_500 - 500))
+})

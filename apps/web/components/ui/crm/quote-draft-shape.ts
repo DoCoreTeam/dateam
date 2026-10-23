@@ -141,6 +141,8 @@ export interface QuoteDraft {
   roundingUnit: number
   /** DOWN(버림) · NEAREST(반올림) · UP(올림) */
   roundingMode: string
+  /** 할인 후 공급가 절사 단위(원). 제품으로 채우면 제품의 값, 0 = 안 함 */
+  supplyRoundingUnit: number
   /**
    * 금액 표시 — 무엇을 함께 인쇄할지. **합계는 이 선택으로 안 바뀐다.**
    * 비어 있으면 지금까지와 같은 견적서가 나온다.
@@ -253,6 +255,7 @@ export function newQuoteDraft(
     // 새 견적은 절사 안 함 — 협상 결과이지 기본값이 아니다
     roundingUnit: 0,
     roundingMode: 'DOWN',
+    supplyRoundingUnit: 0,
     // 새 견적은 금액 표시를 안 쓴다 — 켜는 것은 사람이 정할 일이다
     rateAxisKeys: [],
     lineNoteKeys: [],
@@ -292,6 +295,8 @@ export function quoteToDraft(body: any): QuoteDraft {
     fillText: typeof body.fillText === 'string' ? body.fillText : '',
     roundingUnit: Number(body.roundingUnit ?? 0),
     roundingMode: body.roundingMode ?? 'DOWN',
+    // 안 들고 오면 다시 저장할 때 공급가 절사가 풀린다
+    supplyRoundingUnit: Number(body.supplyRoundingUnit ?? 0),
     // 안 들고 오면 고른 축이 저장하는 순간 사라진다 — 이 파일이 생긴 이유와 같은 사고다
     rateAxisKeys: body.rateAxisKeys ?? [],
     lineNoteKeys: body.lineNoteKeys ?? [],

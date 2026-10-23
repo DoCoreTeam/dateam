@@ -60,7 +60,7 @@ export function fitDraftToBudget(draft: QuoteDraft, budgetMinor: bigint, include
   }
   const lines = draft.lines.map((l, i) => ({ ...toFitLine(l, i, hpm), ratioOfSectionKey: l.ratioPct ? sectionKeyOf(l.ratioOfSectionName) : null }))
   const sections = draft.sections.map((s, i) => ({ key: String(i), roundingUnit: s.roundingUnit ?? 0 }))
-  const r = fitToBudget(lines, sections, { totalMinor: budgetMinor, includesTax }, { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode }, { allowOverCap: opts.allowOverCap })
+  const r = fitToBudget(lines, sections, { totalMinor: budgetMinor, includesTax }, { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode, supplyUnit: draft.supplyRoundingUnit ?? 0 }, { allowOverCap: opts.allowOverCap })
   const base = { ...draft, budgetMinor: budgetMinor.toString(), budgetIncludesTax: includesTax }
   if (r.reason === 'ALREADY_UNDER') return { draft: base, message: BUDGET_SENTENCE.alreadyUnder(won(r.gapMinor)), changed: false, neededPct: null }
   if (r.reason === 'NO_DISCOUNTABLE') return { draft: base, message: BUDGET_SENTENCE.noDiscountable, changed: false, neededPct: null }

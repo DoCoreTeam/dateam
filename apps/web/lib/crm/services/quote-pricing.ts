@@ -10,8 +10,8 @@
  *   · 할인 승인은 정상가 대비로 잰다 — 단가를 깎든 할인을 넣든 예산을 맞추든 다 걸린다
  */
 
-import { computeTotals, needsApproval, roundingSupplyPart, type QuoteLineInput, type RoundingInput } from '../domain/quote-math.ts'
-import { composeQuote, type ComposeLine } from '../domain/quote-compose.ts'
+import { computeTotals, needsApproval, roundingSupplyPart, type QuoteLineInput } from '../domain/quote-math.ts'
+import { composeQuote, type ComposeLine, type ComposeRounding } from '../domain/quote-compose.ts'
 import { needsApprovalVsList } from '../domain/pricebook/list-approval.ts'
 import { LINE_KIND_PRICE_BASIS, type QuoteLineKind } from '../../terms/cost.ts'
 
@@ -55,8 +55,8 @@ export interface PricingResult {
 
 const has = (v: unknown) => v !== null && v !== undefined && String(v).trim() !== ''
 
-export function usesNewPricing(lines: readonly PricingLine[], sections: readonly PricingSection[]): boolean {
-  return lines.some((l) => has(l.priceSource) || l.billing === 'ANNUAL' || has(l.ratioPct) || has(l.listPriceMinor))
+export function usesNewPricing(lines: readonly PricingLine[], sections: readonly PricingSection[], supplyUnit: number | null = 0): boolean {
+  return Number(supplyUnit ?? 0) > 1 || lines.some((l) => has(l.priceSource) || l.billing === 'ANNUAL' || has(l.ratioPct) || has(l.listPriceMinor))
     || sections.some((s) => Number(s.roundingUnit ?? 0) > 1)
 }
 
@@ -67,11 +67,11 @@ function basisOf(kind: string | null | undefined): 'HOUR' | 'MONTH' | null {
 export function priceQuote(
   lines: readonly PricingLine[],
   sections: readonly PricingSection[],
-  rounding: RoundingInput,
+  rounding: ComposeRounding,
   thresholdPct: number,
   hoursPerMonth: number | null,
 ): PricingResult {
-  if (!usesNewPricing(lines, sections)) {
+  if (!usesNewPricing(lines, sections, rounding.supplyUnit ?? 0)) {
     /*
       옛 길도 **줄마다 단가 기준과 월 기준 시간을 넘긴다.** 예전 서버는 이것을 안 넘겨
       시간당 단가 줄에 「2개월」을 적으면 줄 합계(1,460시간)와 견적 합계(2)가 갈렸다. 화면은 넘기고 있었다.

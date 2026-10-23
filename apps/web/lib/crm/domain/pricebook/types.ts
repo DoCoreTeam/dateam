@@ -89,6 +89,13 @@ export interface PriceExample {
   expectTcoMinor?: bigint | null
 }
 
+/**
+ * 기관 할인과 규모 조정 할인이 한 줄에 겹칠 때 (마이그 317)
+ * MAX 큰 것 하나 (기본, 마이그 233 의 「적용되는 할인율은 하나」) · MULTIPLY 곱해서 · ADD 더해서
+ */
+export type DiscountStackMode = 'MAX' | 'MULTIPLY' | 'ADD'
+export const DISCOUNT_STACK_MODES: readonly DiscountStackMode[] = ['MAX', 'MULTIPLY', 'ADD']
+
 export interface PriceProduct {
   id: string
   name: string
@@ -100,6 +107,10 @@ export interface PriceProduct {
   tcoYears: number
   freeYears: number
   examples?: PriceExample[]
+  /** 비면 MAX */
+  discountStackMode?: DiscountStackMode
+  /** 할인 후 1회분 공급가 절사 단위(원). 비거나 0 이면 안 함. 가격표의 「할인 적용 후 만원 미만 절사」면 10000 */
+  supplyRoundingUnit?: number
 }
 
 export interface GpuPick {

@@ -51,6 +51,13 @@ export const PRICEBOOK = {
   ruleTurnOn: '켜기',
   ruleTurnOff: '끄기',
   confirmProposal: '제안값 확정',
+  // 할인 계산 (P0157)
+  discountCalc: '할인 계산',
+  stackMode: '할인이 겹칠 때',
+  stackModeLabel: { MAX: '큰 것 하나만', MULTIPLY: '곱해서 (10%, 20% → 28%)', ADD: '더해서 (10%, 20% → 30%)' } as Record<'MAX' | 'MULTIPLY' | 'ADD', string>,
+  supplyRounding: '할인 후 공급가 절사',
+  supplyRoundingHint: '할인과 묶음 절사를 다 뺀 1회분 공급가를 이 단위 아래로 버려요. 부가세는 버린 뒤 금액에서 세요. 깎인 금액은 할인 승인에 함께 들어가요',
+  stackModeHint: '기관 할인과 규모 조정 할인이 같은 품목에 걸릴 때 어떻게 합칠지 정해요. 미리 계산과 이 제품으로 채운 견적에 쓰여요',
   confirmAllProposals: (n: number) => `제안값 ${n}개 모두 확정`,
   unconfirmedCount: (n: number) => `미확정 ${n}개`,
   ruleDeleteTitle: '이 규칙을 지울까요?',

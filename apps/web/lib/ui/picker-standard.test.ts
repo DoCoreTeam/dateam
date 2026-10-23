@@ -64,6 +64,10 @@ const WHY_SELECT: Readonly<Record<string, string>> = {
     '기본 사업 유형 여덟은 코드가 정한다(lib/terms/ledger.ts). 자라는 목록이 아니다',
   'app/(crm)/crm/products/[id]/InfoTab.tsx#ROUNDING_UNITS':
     '절사 단위 여섯은 DB CHECK 와 같은 목록이다(quote-math.ts ROUNDING_UNITS)',
+  'app/(crm)/crm/products/[id]/InfoTab.tsx#STACK_MODES':
+    '할인 겹침 방식 셋(큰 것 하나 곱해서 더해서)은 DB CHECK 와 같은 닫힌 목록이다(마이그 317)',
+  'app/(crm)/crm/products/[id]/InfoTab.tsx#SUPPLY_ROUNDING_UNITS':
+    '공급가 절사 단위 다섯은 DB CHECK 와 같은 목록이다(quote-compose.ts SUPPLY_ROUNDING_UNITS, 마이그 317)',
   'app/(crm)/crm/products/[id]/ItemEditModal.tsx#ITEM_BASES':
     '가격 기준 넷(1식 단위당 비율 실사 후 견적)은 DB CHECK 와 같은 닫힌 목록이다',
   'app/(crm)/crm/products/[id]/RuleAddModal.tsx#kinds':

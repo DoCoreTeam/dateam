@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildSolutionQuote, gpuClassOf, varsOf } from './solution-engine.ts'
+import { buildSolutionQuote, gpuClassOf, stackDiscounts, varsOf } from './solution-engine.ts'
 import { GCUBE_EDGE } from './gcube-edge.ts'
 import type { SolutionConditions } from './types.ts'
 
@@ -138,6 +138,31 @@ test('규모 조정: GPU 가 0장이면 걸지 않는다 — 0 × 단위 금액�
   const p = { ...GCUBE_EDGE, rules: [...GCUBE_EDGE.rules, { kind: 'SCALE_CAP' as const, section: '라이선스', varKey: 'gpu.total' as const, perUnitMinor: 7_283_000 }] }
   const r = buildSolutionQuote(p, { picked: ['edge-std'], gpus: [], nodes: 20, training: null, companyKind: null, discount: 'none' })
   assert.equal(r.composed.sections.find((s) => s.key === '라이선스')!.totalMinor, BigInt(15_000_000))
+})
+
+test('할인 겹침: 기관 할인 10% 와 규모 조정 20% → 큰 것 하나 20, 곱해서 28, 더해서 30', () => {
+  assert.equal(stackDiscounts('MAX', 10, 20), 20)
+  assert.equal(stackDiscounts('MULTIPLY', 10, 20), 28)
+  assert.equal(stackDiscounts('ADD', 10, 20), 30)
+  assert.equal(stackDiscounts('ADD', 60, 50), 100, '100 을 넘지 않는다')
+  assert.equal(stackDiscounts('MULTIPLY', 0, 20), 20, '한쪽이 없으면 다른 쪽 그대로')
+})
+
+test('할인 겹침: 제품의 방식에 따라 라이선스 줄의 할인율이 달라지고, 비면 큰 것 하나다', () => {
+  const scale = { kind: 'SCALE_CAP' as const, section: '라이선스', varKey: 'gpu.total' as const, perUnitMinor: 7_283_000 }
+  const cond = { picked: ['edge-std', 'edge-maint-std'], gpus: [{ model: 'H100', count: 1, timed: false }], nodes: 20, training: null, companyKind: 'school' as const, discount: 'auto' as const }
+  const run = (mode?: 'MAX' | 'MULTIPLY' | 'ADD') => {
+    const r = buildSolutionQuote({ ...GCUBE_EDGE, discountStackMode: mode, rules: [...GCUBE_EDGE.rules, scale] }, cond)
+    const pct = Number(r.autoFilled.find((a) => a.field === '규모 조정 할인')!.value.replace('%', ''))
+    const line = r.lines.find((l) => l.itemId === 'edge-std')!
+    return { pct, got: Number(line.discountPercent) }
+  }
+  const base = run()
+  assert.ok(base.pct > 10, String(base.pct))
+  assert.equal(base.got, base.pct)
+  assert.equal(run('MAX').got, base.pct)
+  assert.equal(run('MULTIPLY').got, stackDiscounts('MULTIPLY', 10, base.pct))
+  assert.equal(run('ADD').got, stackDiscounts('ADD', 10, base.pct))
 })
 
 /* ── 전환(UPGRADE, P0137) — ENT 전환 구축은 지난 계약을 안다 ────────── */

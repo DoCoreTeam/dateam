@@ -17,8 +17,10 @@ import { writeAudit } from '../db/audit.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText, requireText } from '../domain/normalize.ts'
-import type { PriceItem, PriceProduct, PriceRule, ProductSection, SolutionConditions } from '../domain/pricebook/types.ts'
+import type { DiscountStackMode, PriceItem, PriceProduct, PriceRule, ProductSection, SolutionConditions } from '../domain/pricebook/types.ts'
+import { DISCOUNT_STACK_MODES } from '../domain/pricebook/types.ts'
 import { buildSolutionQuote, type SolutionResult } from '../domain/pricebook/solution-engine.ts'
+import { isSupplyRoundingUnit } from '../domain/quote-compose.ts'
 import { checkExamples, checkItems, checkRules, type ExampleCheck } from '../domain/pricebook/validate.ts'
 import {
   toEngineProduct, itemToData, ruleToRow, examplesToJson, sectionsOf,
@@ -33,6 +35,7 @@ const PRODUCT_SELECT = {
   id: true, name: true, businessTypeKey: true, descriptionMd: true, sections: true,
   tcoYears: true, freeYears: true, examples: true, isActive: true, needsReview: true,
   sourceFileName: true, sourceAttachmentId: true, version: true, updatedAt: true, deletedAt: true,
+  revision: true, effectiveFrom: true, discountStackMode: true, supplyRoundingUnit: true,
 } as const
 
 export const ITEM_SELECT = {
@@ -52,6 +55,8 @@ export interface ProductListRow {
   businessTypeKey: string
   itemCount: number
   ruleCount: number
+  /** 켜진 할인 가운데 할인율이 아직 제안값인 것의 수 — 목록의 「미확정 n개」 */
+  unconfirmedDiscountCount: number
   updatedAt: Date
   isActive: boolean
   needsReview: boolean
@@ -75,11 +80,27 @@ export async function listPriceProducts(db: CrmDb, input: ListPriceProductsInput
     orderBy: [{ name: 'asc' }],
     take: LIST_LIMIT,
   })
+  const unconfirmed = await countUnconfirmedDiscounts(db, rows.map((r: Tx) => r.id as string))
   return rows.map((r: Tx) => ({
     id: r.id, name: r.name, businessTypeKey: r.businessTypeKey,
-    itemCount: r._count.items, ruleCount: r._count.rules,
+    itemCount: r._count.items, ruleCount: r._count.rules, unconfirmedDiscountCount: unconfirmed.get(r.id) ?? 0,
     updatedAt: r.updatedAt, isActive: r.isActive, needsReview: r.needsReview, deletedAt: r.deletedAt ?? null,
   }))
+}
+
+/** 제품마다 켜진 할인 중 confirmed 가 true 가 아닌 것의 수 */
+async function countUnconfirmedDiscounts(db: CrmDb, productIds: string[]): Promise<Map<string, number>> {
+  if (productIds.length === 0) return new Map()
+  const rules = await (db as Tx).crmPriceRule.findMany({
+    where: { productId: { in: productIds }, kind: 'DISCOUNT', isEnabled: true },
+    select: { productId: true, body: true },
+  })
+  const counts = new Map<string, number>()
+  for (const r of rules as { productId: string; body: { confirmed?: unknown } | null }[]) {
+    if (r.body?.confirmed === true) continue
+    counts.set(r.productId, (counts.get(r.productId) ?? 0) + 1)
+  }
+  return counts
 }
 
 /** 제품에 안 묶인 품목 가운데 견적에서 자동 등록된 것의 수 — 목록의 「정리 전」 줄 */
@@ -131,6 +152,10 @@ export interface ProductInput {
   tcoYears?: number | null
   freeYears?: number | null
   isActive?: boolean
+  /** 할인 겹침 방식 MAX MULTIPLY ADD, 모르는 값은 거절 */
+  discountStackMode?: string | null
+  /** 할인 후 공급가 절사 단위, ROUNDING_UNITS 가운데 하나 */
+  supplyRoundingUnit?: number | null
   /** 묶음 이름 바꾸기 — 그 묶음의 품목, 비율의 대상 묶음, 규모 조정 규칙이 같이 바뀐다 */
   sectionRenames?: SectionRename[] | null
 }
@@ -234,6 +259,15 @@ export async function updatePriceProduct(
     if (input.tcoYears !== undefined) data.tcoYears = clampYears(input.tcoYears, before.tcoYears)
     if (input.freeYears !== undefined) data.freeYears = clampYears(input.freeYears, before.freeYears, 0)
     if (input.isActive !== undefined) data.isActive = input.isActive
+    if (input.discountStackMode !== undefined && input.discountStackMode !== null) {
+      if (!DISCOUNT_STACK_MODES.includes(input.discountStackMode as DiscountStackMode)) throw new CrmError('VALIDATION_FAILED', '할인 겹침 방식을 다시 골라 주세요.', { field: 'discountStackMode' })
+      data.discountStackMode = input.discountStackMode
+    }
+    if (input.supplyRoundingUnit !== undefined && input.supplyRoundingUnit !== null) {
+      const unit = Number(input.supplyRoundingUnit)
+      if (!isSupplyRoundingUnit(unit)) throw new CrmError('VALIDATION_FAILED', '공급가 절사 단위를 다시 골라 주세요.', { field: 'supplyRoundingUnit' })
+      data.supplyRoundingUnit = unit
+    }
     const res = await tx.crmPriceProduct.updateMany({ where: lockWhere(id, version), data: { ...data, ...BUMP_VERSION } })
     assertUpdated(res.count, { exists: true, version: before.version }, '제품')
     await writeAudit(tx, { actorType: 'HUMAN', actorId, action: 'price_product.updated', targetType: 'price_product', targetId: id, beforeJson: { name: before.name }, afterJson: data })

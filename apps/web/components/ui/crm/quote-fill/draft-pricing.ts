@@ -43,7 +43,7 @@ export function priceDraft(draft: QuoteDraft): PricedDraft {
   const hpm = draft.rateHoursPerMonth ? Number(draft.rateHoursPerMonth) : null
   let r: PricingResult
   try {
-    r = priceQuote(lines, sections, { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode }, DEFAULT_DISCOUNT_APPROVAL_PCT, hpm)
+    r = priceQuote(lines, sections, { unit: draft.roundingUnit, mode: draft.roundingMode as RoundingMode, supplyUnit: draft.supplyRoundingUnit ?? 0 }, DEFAULT_DISCOUNT_APPROVAL_PCT, hpm)
   } catch {
     // 비율 대상 묶음이 아직 없을 때(편집 중) — 0 으로 두고 저장 때 서버가 사람이 읽을 말로 막는다
     r = { lineTotals: null, subtotalMinor: BigInt(0), discountMinor: BigInt(0), taxMinor: BigInt(0), totalMinor: BigInt(0), roundingMinor: BigInt(0), sectionRoundingMinor: BigInt(0), annualMinor: BigInt(0), approvalRequired: false, composed: true }
