@@ -168,3 +168,30 @@ test('259 가 뒤늦게 켠 표가 규칙에 잡힌다 (규칙이 도는지 확�
     )
   }
 })
+
+/**
+ * profiles 의 권한 칸은 본인이 못 바꾼다
+ *
+ * **왜**: profiles_update 정책(001)은 «본인 행이면 고칠 수 있다» 하나뿐이고 칸을 가리지 않는다.
+ *   로그인한 사람은 누구나 자기 role 을 admin 으로 바꿀 수 있었다(감사 2026-10-23).
+ *   is_admin() 과 role = 'admin' 을 보는 정책 전부가 이 칸을 믿으므로 한 줄로 전권이 된다.
+ *   정책은 칸을 못 가리므로 트리거가 막는다. 그 트리거가 사라지거나 칸이 빠지면 여기서 실패한다.
+ */
+const PROFILE_PRIVILEGED_COLUMNS = ['role', 'deleted_at', 'must_change_password', 'rank', 'position']
+
+test('★ profiles 권한 칸을 막는 트리거가 있고 권한 칸을 다 본다', () => {
+  const all = readMigrations()
+  const guard = all.filter((m) => /CREATE TRIGGER\s+trg_profiles_privilege_guard\s+BEFORE INSERT OR UPDATE ON public\.profiles/i.test(m.sql))
+  assert.equal(guard.length, 1, 'profiles 권한 칸 트리거가 마이그레이션에 없다')
+  const sql = guard[0].sql
+  for (const col of PROFILE_PRIVILEGED_COLUMNS) {
+    assert.match(sql, new RegExp(`NEW\\.${col} IS DISTINCT FROM OLD\\.${col}`), `트리거가 ${col} 변경을 안 본다`)
+  }
+  assert.match(sql, /NEW\.role IS DISTINCT FROM 'member'/, '새 행을 member 가 아닌 역할로 만드는 길이 열려 있다')
+  assert.match(sql, /public\.is_admin\(\)/, '관리자 통과 판정이 없다 (관리자의 역할 변경이 막힌다)')
+
+  // 트리거를 지우는 마이그레이션이 뒤에 오면 잠금이 풀린다
+  const guardIdx = all.indexOf(guard[0])
+  const dropped = all.slice(guardIdx + 1).filter((m) => /DROP TRIGGER[^;]*trg_profiles_privilege_guard/i.test(m.sql))
+  assert.deepEqual(dropped.map((m) => m.name), [], '뒤 마이그레이션이 profiles 권한 칸 트리거를 지운다')
+})
