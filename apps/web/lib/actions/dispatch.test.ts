@@ -69,6 +69,8 @@ test('서버 액션 인자: 배열은 펼치고 객체는 매개변수 순서로
   assert.deepEqual(actionArgs(['input'], { name: 'x' }), [{ name: 'x' }])
   assert.deepEqual(actionArgs(['input'], { input: { name: 'x' } }), [{ name: 'x' }])
   assert.deepEqual(actionArgs(['a'], undefined), [])
+  assert.deepEqual(actionArgs(['a', 'b'], { args: [1, 2] }), [1, 2], 'CLI 의 이름 없는 값')
+  assert.deepEqual(actionArgs(['args'], { args: [1] }), [[1]])
 })
 
 test('멱등 지문은 메서드 경로 몸통이 같아야 같다, dryRun 판정과 접두사 떼기', () => {

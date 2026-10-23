@@ -171,9 +171,9 @@
 의존: I09
 
 ### I13 웹=CLI 시험과 teamda.exe
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/actions/parity.test.ts (신규), packages/teamda-cli/test/ (신규), apps/web/package.json
+범위: apps/web/lib/actions/parity.test.ts (신규), packages/teamda-cli/test/ (신규), apps/web/package.json, apps/web/lib/actions/dispatch-core.ts apps/web/lib/actions/dispatch.test.ts (CLI 의 이름 없는 값 args 를 관문이 받게)
 감사 기준:
 - 대응표 모든 줄에서 CLI 명령이 웹과 같은 처리 함수를 가리킴 (시험), CRM 흐름 8명령 실DB 시험은 시험 DB 가 있을 때만, 없으면 확인 못 함
 - bun build --compile --target=bun-windows-x64 로 teamda.exe 산출, help --json 한글 정상

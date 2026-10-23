@@ -92,7 +92,7 @@ export function isWrite(scope: Scope): boolean {
 
 /**
  * 서버 액션 인자
- * 몸통이 배열이면 그대로 펼치고, 객체면 정의의 매개변수 이름 순서로 꺼낸다
+ * 몸통이 배열이면 그대로 펼치고, args 배열만 있으면 그것을, 객체면 정의의 매개변수 이름 순서로 꺼낸다
  * 매개변수가 하나인데 그 이름이 몸통에 없으면 몸통 전체를 그 하나로 넘긴다 (input 객체를 받는 액션)
  */
 export function actionArgs(params: readonly string[], body: unknown): unknown[] {
@@ -100,6 +100,8 @@ export function actionArgs(params: readonly string[], body: unknown): unknown[] 
   if (body === null || body === undefined) return []
   if (typeof body !== 'object') return [body]
   const obj = body as Record<string, unknown>
+  // teamda CLI 는 이름 없이 준 값을 args 배열로 보낸다 (teamda studio chat auto-title c1)
+  if (Array.isArray(obj.args) && !params.some((p) => p in obj)) return obj.args
   if (params.length === 1 && !(params[0] in obj)) return [obj]
   return params.map((p) => obj[p])
 }
