@@ -12,6 +12,7 @@ import { useListQuery } from '@/lib/ui/use-list-query'
 import Sensitive from '@/components/crm/Sensitive'
 import { PRICEBOOK } from '@/lib/terms'
 import { kstDateKey } from '@/lib/datetime/kst'
+import { readableFileName } from '@/lib/crm/domain/pricebook/source-label'
 import { won } from './detail-shape'
 import styles from './detail.module.css'
 
@@ -27,6 +28,11 @@ interface Row {
 }
 
 const SOURCE: Record<string, string> = { HAND: PRICEBOOK.historyByHand, SEED: '처음 채움', QUOTE: '견적에서' }
+
+function fileLabel(name: string | null): string {
+  const readable = readableFileName(name)
+  return readable ? PRICEBOOK.historyByFile(readable) : PRICEBOOK.historyByImport
+}
 
 export default function HistoryTab({ productId }: { productId: string }) {
   const [rows, setRows] = useState<Row[] | null>(null)
@@ -63,7 +69,7 @@ export default function HistoryTab({ productId }: { productId: string }) {
       key: 'where', header: PRICEBOOK.historyWhere,
       cell: (r) => (
         <>
-          {r.sourceKind === 'FILE' && r.sourceName ? PRICEBOOK.historyByFile(r.sourceName) : (SOURCE[r.sourceKind] ?? r.sourceKind)}
+          {r.sourceKind === 'FILE' ? fileLabel(r.sourceName) : (SOURCE[r.sourceKind] ?? r.sourceKind)}
           <span className={styles.small}> · {kstDateKey(r.createdAt)}</span>
         </>
       ),

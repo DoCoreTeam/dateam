@@ -51,6 +51,8 @@ export const PRICEBOOK = {
   ruleTurnOn: '켜기',
   ruleTurnOff: '끄기',
   confirmProposal: '제안값 확정',
+  confirmAllProposals: (n: number) => `제안값 ${n}개 모두 확정`,
+  unconfirmedCount: (n: number) => `미확정 ${n}개`,
   ruleDeleteTitle: '이 규칙을 지울까요?',
   ruleOffReason: (reason: string) => `꺼 둠: ${reason}`,
   rulesDisabled: (n: number) => `규칙 ${n}개는 모양이 맞지 않아 끈 채로 저장했어요. 사유를 보고 고치세요.`,
@@ -107,6 +109,7 @@ export const PRICEBOOK = {
   historyWhere: '어디서',
   historyByHand: '손으로 수정',
   historyByFile: (name: string) => `파일 ${name}`,
+  historyByImport: '파일 가져오기',
   historyEmpty: '아직 바뀐 적이 없어요',
   rulePreview: '저장될 규칙',
   // 다시 올릴 때 새 파일에 없는 기존 규칙(REQ-003)
