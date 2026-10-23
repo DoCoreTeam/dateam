@@ -44,10 +44,42 @@ function bucketFor(surface: string, identifier: string): string {
   return `${surface}:${digest}`
 }
 
+export type PublicHit =
+  | { ok: true; hits: number; windowStartMs: number | null }
+  | { ok: false }
+
+/**
+ * 바구니 하나에 1건을 세고 결과만 돌려준다. 실패는 ok:false 로, 통과 여부는 부르는 쪽이 정한다.
+ * identifier 는 원본 그대로 받아 해시한 바구니 이름으로만 저장한다.
+ */
+export async function recordPublicHit(
+  surface: string,
+  identifier: string,
+  windowSeconds: number,
+): Promise<PublicHit> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data, error } = await admin.rpc('record_public_hit', {
+    p_bucket: bucketFor(surface, identifier),
+    p_window_seconds: windowSeconds,
+  })
+  if (error) {
+    console.error('[recordPublicHit]', surface, error)
+    return { ok: false }
+  }
+  const row = Array.isArray(data) ? data[0] : data
+  return {
+    ok: true,
+    hits: row?.out_hits ?? 0,
+    windowStartMs: row?.out_window_start ? new Date(row.out_window_start).getTime() : null,
+  }
+}
+
 /**
  * 호출 1건을 기록하고 한도를 넘었는지 판정한다.
  *
  * 기록이 실패하면 **통과시킨다** — 계측이 사용자의 일을 막으면 안 된다(223 과 같은 규칙).
+ * 로그인은 반대로 닫힌다, lib/auth/login-gate 가 recordPublicHit 을 직접 쓴다.
  */
 export async function throttlePublicRequest(
   surface: string,
@@ -57,23 +89,13 @@ export async function throttlePublicRequest(
   const limit = options?.limit ?? DEFAULT_LIMIT
   const windowSeconds = options?.windowSeconds ?? DEFAULT_WINDOW_SECONDS
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any
-  const { data, error } = await admin.rpc('record_public_hit', {
-    p_bucket: bucketFor(surface, clientIp(request)),
-    p_window_seconds: windowSeconds,
-  })
+  const hit = await recordPublicHit(surface, clientIp(request), windowSeconds)
+  if (!hit.ok) return { allowed: true, hits: 0, limit }
 
-  if (error) {
-    console.error('[throttlePublicRequest]', surface, error)
-    return { allowed: true, hits: 0, limit }
-  }
-
-  const row = Array.isArray(data) ? data[0] : data
-  const hits: number = row?.out_hits ?? 0
+  const hits = hit.hits
   if (hits <= limit) return { allowed: true, hits, limit }
 
-  const startedAt = row?.out_window_start ? new Date(row.out_window_start).getTime() : Date.now()
+  const startedAt = hit.windowStartMs ?? Date.now()
   const retryAfterSeconds = Math.max(1, Math.ceil((startedAt + windowSeconds * 1000 - Date.now()) / 1000))
   return { allowed: false, hits, limit, retryAfterSeconds }
 }

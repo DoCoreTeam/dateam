@@ -1,7 +1,8 @@
 import 'server-only'
 import { headers } from 'next/headers'
 import { recordSystemEvent } from '@/lib/system-log/record'
-import { throttlePublicRequest, clientIp } from '@/lib/public-rate-limit'
+import { recordPublicHit, clientIp } from '@/lib/public-rate-limit'
+import { gateLogin, type LoginGate } from './login-gate.ts'
 import { maskEmail } from './mask-email.ts'
 
 export { maskEmail }
@@ -13,8 +14,9 @@ export { maskEmail }
  * **0행**이었다. 비밀번호를 몇 번 찔러 봤는지 우리는 알 수 없었고, 그래서
  * 「그런 일이 있었나」조차 답할 수 없었다.
  *
- * **왜 이메일이 아니라 보낸 곳 기준인가**: 이메일로 세면 남의 계정을 골라 일부러
- * 틀려서 **그 사람을 잠글 수 있다.** 보낸 곳으로 세면 찔러 보는 쪽만 막힌다.
+ * **왜 두 바구니인가**: 보낸 곳 기준(10분 10회)만 있으면 주소를 바꿔 가며 한 계정을 찌를 수 있다.
+ * 그래서 이메일 기준(1시간 20회)을 더한다. 이메일로 세면 남이 일부러 틀려서 그 계정을 잠글 수 있으므로
+ * 한도를 넉넉히 두고 창을 한 시간으로 끊는다. 판정은 lib/auth/login-gate.
  *
  * **왜 새 표를 안 만드나**: 한도는 익명 창구용으로 만들어 둔 `public_request_throttle` 을
  * 바구니 이름만 바꿔 그대로 쓴다. 기록은 **시스템 로그**에 남긴다 —
@@ -22,13 +24,7 @@ export { maskEmail }
  * 로그인 실패는 사람의 활동이 아니라 **운영 사건**이고, 시스템 로그에는 보는 화면이 이미 있다.
  */
 
-/** 같은 곳에서 이 창 동안 받을 횟수 */
-const LOGIN_WINDOW_SECONDS = 600
-const LOGIN_MAX_ATTEMPTS = 10
-
-export type LoginGate =
-  | { allowed: true }
-  | { allowed: false; retryAfterSeconds: number }
+export type { LoginGate }
 
 /** 요청 헤더에서 Request 를 만든다 — 서버 액션에는 Request 객체가 없다. */
 async function requestLike(): Promise<Request> {
@@ -36,15 +32,14 @@ async function requestLike(): Promise<Request> {
   return new Request('http://internal/login', { headers: h })
 }
 
-/** 시도 1회를 세고 한도를 넘었는지 본다. 세기가 실패하면 통과시킨다. */
-export async function throttleLoginAttempt(): Promise<LoginGate> {
-  const verdict = await throttlePublicRequest('login', await requestLike(), {
-    limit: LOGIN_MAX_ATTEMPTS,
-    windowSeconds: LOGIN_WINDOW_SECONDS,
-  })
-  return verdict.allowed
-    ? { allowed: true }
-    : { allowed: false, retryAfterSeconds: verdict.retryAfterSeconds }
+/** 시도 1회를 보낸 곳과 이메일 두 바구니에 세고 판정한다. 세기가 실패하면 거절한다. */
+export async function throttleLoginAttempt(email: string): Promise<LoginGate> {
+  const origin = clientIp(await requestLike())
+  return gateLogin(
+    (key, identifier, windowSeconds) => recordPublicHit(`login-${key}`, identifier, windowSeconds),
+    origin,
+    email,
+  )
 }
 
 /**
@@ -57,7 +52,7 @@ export async function throttleLoginAttempt(): Promise<LoginGate> {
  */
 export async function logLoginFailure(
   email: string,
-  reason: 'bad_credentials' | 'password_required' | 'rate_limited',
+  reason: 'bad_credentials' | 'password_required' | 'rate_limited' | 'unavailable',
 ): Promise<void> {
   try {
     const h = await headers()
@@ -65,8 +60,8 @@ export async function logLoginFailure(
       source: 'client',
       route: '/login',
       feature: 'auth.login',
-      // 사용자가 지금 못 들어가고 있다 — 한도에 걸린 경우만 그렇다
-      blocksUser: reason === 'rate_limited',
+      // 사용자가 지금 못 들어가고 있다, 한도에 걸렸거나 한도를 못 재서 거절한 경우
+      blocksUser: reason === 'rate_limited' || reason === 'unavailable',
       error: `로그인 실패(${reason}): ${maskEmail(email)}`,
       hint: reason,
       context: {

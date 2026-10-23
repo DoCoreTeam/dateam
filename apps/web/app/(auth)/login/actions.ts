@@ -37,26 +37,29 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   }
 
   /**
-   * 같은 곳에서 너무 자주 틀리면 잠시 막는다.
+   * 너무 자주 틀리면 잠시 막는다.
    *
    * 왜 필요한가: Supabase 가 로그인 기록을 남기는 표는 **0행**이었다(실측 2026-09-20).
    * 즉 비밀번호를 몇 번 찔러 봤는지 우리는 알 방법이 없었다.
    * 한도는 이미 있는 부품(public_request_throttle)을 그대로 쓴다 — 새 표를 만들지 않는다.
    *
-   * 이메일이 아니라 **보낸 곳** 기준이다. 이메일 기준이면 남의 계정을 골라
-   * 일부러 틀려서 그 사람을 잠글 수 있다.
+   * 보낸 곳 기준과 이메일 기준 두 바구니로 센다(lib/auth/login-gate).
+   * 한도를 못 재면 거절한다, 열어 두면 DB 를 흔드는 것만으로 대입 방어가 꺼진다.
    */
-  const gate = await throttleLoginAttempt()
+  const gate = await throttleLoginAttempt(email)
   if (!gate.allowed) {
-    await logLoginFailure(email, 'rate_limited')
+    await logLoginFailure(email, gate.reason)
+    const minutes = Math.ceil(gate.retryAfterSeconds / 60)
     return {
-      error: `로그인 시도가 너무 잦습니다. ${Math.ceil(gate.retryAfterSeconds / 60)}분 후 다시 시도해 주세요`,
+      error: gate.reason === 'unavailable'
+        ? `지금 로그인을 확인할 수 없습니다. ${minutes}분 후 다시 시도해 주세요`
+        : `로그인 시도가 너무 잦습니다. ${minutes}분 후 다시 시도해 주세요`,
       email,
       remember,
     }
   }
 
-  // 인증 쿠키를 쓰기 전에 고른 값을 넘긴다 — 같은 요청 안이라 선호 쿠키를 다시 읽지 않는다
+  // 인증 쿠키를 쓰기 전에 고른 값을 넘긴다, 같은 요청 안이라 선호 쿠키를 다시 읽지 않는다
   const supabase = await createClient({ sessionOnly: !remember })
 
   const { error } = await supabase.auth.signInWithPassword({ email, password })
