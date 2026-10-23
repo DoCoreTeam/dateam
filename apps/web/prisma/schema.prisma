@@ -906,6 +906,14 @@ model CrmPriceProduct {
   sourceAttachmentId String?
   sourceFileName     String?
   version            Int       @default(0)
+  /// 가격 기준 버전(마이그 317) — 새 가격표를 같은 제품에 올릴 때마다 1 오른다. version 은 낙관적 잠금이라 다르다
+  revision           Int       @default(1)
+  /// 이 버전의 적용일
+  effectiveFrom      DateTime? @db.Date
+  /// 기관 할인과 규모 조정 할인이 겹칠 때: MAX 큰 것 하나 · MULTIPLY 곱해서 · ADD 더해서
+  discountStackMode  String    @default("MAX")
+  /// 할인 후 공급가 합계 절사 단위(원). 0 이면 안 함
+  supplyRoundingUnit Int       @default(0)
   createdById        String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -1024,6 +1032,8 @@ model CrmQuote {
   roundingMode  String @default("DOWN")
   /// 절사로 깎인 금액 — 서버가 계산해 저장한다(화면이 다시 계산하지 않는다)
   roundingMinor BigInt @default(0)
+  /// 할인 후 공급가 합계 절사 단위(마이그 317) — 제품에서 받아 저장해 다시 계산해도 같은 금액
+  supplyRoundingUnit Int @default(0)
 
   /// 할인 승인 — 임계를 넘은 견적은 승인 전까지 보낼 수 없다
   approvalRequired Boolean   @default(false)
@@ -1185,6 +1195,9 @@ model CrmQuoteLine {
   listPriceMinor  BigInt?
   /// LIST · LABOR · GPU · COST_MARGIN · MANUAL. 비면 지난 견적(옛 계산 그대로)
   priceSource     String?
+  /// 어느 가격 기준(제품)과 그 버전에서 왔나(마이그 317). 기준이 바뀌면 보내기 전 점검이 짚는다
+  priceProductId       String?
+  priceProductRevision Int?
   /// 칸마다 어디서 왔나 {unitPrice:{source,note}, quantity:…, discount:…}
   provenance      Json     @default("{}")
   /// ONCE · ANNUAL. 비면 1회
