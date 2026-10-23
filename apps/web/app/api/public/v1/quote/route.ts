@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { authenticatePublicApi, optionsResponse, requireMemberKey } from '@/lib/publicApiAuth'
 import { responseHeaders } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getGpuCatalog } from '@/lib/gpu/pricing'
@@ -23,6 +23,9 @@ export async function OPTIONS(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
+  // 내부 창구가 requireMemberApi 인 자료다, 외부용 api_user 키는 막는다
+  const denied = requireMemberKey(auth.ctx, request)
+  if (denied) return denied
 
   try {
     const body = await request.json()

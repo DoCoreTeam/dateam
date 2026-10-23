@@ -201,6 +201,20 @@ export function requireAdminKey(ctx: ApiKeyContext, request?: NextRequest): Next
 }
 
 /**
+ * 내부 임직원 키 게이트, `lib/auth/requireMemberApi` 의 키 버전.
+ *
+ * 가격 원가 공급사 재고는 내부 화면이 requireMemberApi 로 지키는 자료다.
+ * 외부용 api_user 키는 여기서 막는다. 예전에는 키만 있으면 역할을 안 보고 서비스롤로 읽어 주었다(감사 2026-10-23).
+ */
+export function requireMemberKey(ctx: ApiKeyContext, request?: NextRequest): NextResponse | null {
+  if (ctx.role === 'admin' || ctx.role === 'member') return null
+  return NextResponse.json(
+    { success: false, error: '이 자료는 임직원 키로만 볼 수 있습니다.' },
+    { status: 403, headers: { ...corsHeaders(request), ...rateLimitHeaders(ctx) } },
+  )
+}
+
+/**
  * 구 CRM 레코드를 수정·삭제할 수 있는가.
  *
  * 근거는 우리가 지어낸 규칙이 아니라 **DB 의 RLS 정책**이다(실측):

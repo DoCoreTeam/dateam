@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { authenticatePublicApi, optionsResponse, requireAdminKey, requireMemberKey } from '@/lib/publicApiAuth'
 import { responseHeaders } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 
@@ -10,6 +10,9 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
+  // 내부 창구가 requireMemberApi 인 자료다, 외부용 api_user 키는 막는다
+  const denied = requireMemberKey(auth.ctx, request)
+  if (denied) return denied
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,6 +47,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
+  // 내부 창구가 requireAdminApi 인 쓰기다, 키도 같은 선을 지킨다
+  const denied = requireAdminKey(auth.ctx, request)
+  if (denied) return denied
 
   try {
     let body: {
