@@ -47,6 +47,8 @@ for (const root of ['app', 'components', 'lib']) {
   for (const p of walk(join(WEB, root))) {
     const rel = relative(WEB, p)
     if (rel.includes(`${sep}api${sep}`)) continue
+    // 공개 API 관문 생성물은 모든 창구 경로를 만들 때부터 적어 둔다, 세면 전부 「화면에 적힘」이 돼 조사가 0 으로 무너진다
+    if (rel.startsWith(`lib${sep}actions${sep}`)) continue
     if (!/\.(tsx|ts)$/.test(rel) || /\.test\.tsx?$/.test(rel)) continue
     blob += readFileSync(p, 'utf8') + '\n'
   }

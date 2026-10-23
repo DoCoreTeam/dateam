@@ -164,6 +164,7 @@ function genTable(rows) {
   const lines = [
     '// 생성물, 손대지 말 것 (scripts/cli/gen.mjs)',
     '// 관문이 공개 경로를 정의와 처리 함수로 바꾸는 표, 처리 함수는 화면이 쓰는 그 모듈에서 꺼낸다',
+    '// 요약 글은 싣지 않는다: 소스 주석에서 온 개발자 글이라 화면 문구 가드(용어집)를 지나지 않았다, 설명은 openapi.json 이 맡는다',
     "import type { Scope } from '../types.ts'",
     '',
     'export interface MountedOp {',
@@ -180,7 +181,6 @@ function genTable(rows) {
     '  /** 모듈에서 꺼낼 이름, 라우트는 메서드 서버 액션은 함수 이름 */',
     '  exported: string',
     '  module: number',
-    '  summary: string',
     '}',
     '',
     '// eslint-disable-next-line @typescript-eslint/no-explicit-any',
@@ -189,7 +189,7 @@ function genTable(rows) {
     ']',
     '',
     'export const MOUNTED: MountedOp[] = [',
-    ...mounted.map((m) => '  ' + JSON.stringify(m) + ','),
+    ...mounted.map(({ summary: _summary, ...m }) => '  ' + JSON.stringify(m) + ','),
     ']',
     '',
   ]
