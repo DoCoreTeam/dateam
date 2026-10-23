@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { hashApiKey } from '@/lib/apiKey'
+import { decideKeyAccess, scopeForMethod, type Scope } from '@/lib/public-api/scopes'
 
 /** 키 소유자의 호스트 역할 — profiles.role 을 그대로 물려받는다 */
 export type ApiKeyRole = 'admin' | 'member' | 'api_user'
@@ -42,6 +43,13 @@ export interface ApiKeyContext {
   keyName: string
   rateLimitPerMinute: number
   usage: ApiKeyUsage
+  /** 실제로 쓸 수 있는 범위 = 계정 권한 ∩ 키 범위 */
+  scopes: Scope[]
+}
+
+export interface PublicApiAuthOptions {
+  /** 이 창구에 필요한 범위, 안 주면 메서드로 정함 (GET read, 그 밖 write) */
+  scope?: Scope
 }
 
 export type PublicApiAuth = { ctx: ApiKeyContext } | { error: NextResponse }
@@ -105,10 +113,13 @@ function fail(
  * 이 요청이 공개 API 를 쓸 수 있는지 판정하고, 호출 1건을 기록한다.
  *
  * 판정 순서가 곧 방어선이다:
- *   1) 키 형식 → 2) 키 존재 → 3) 폐기 여부 → 4) **소유자 계정 상태** → 5) 한도
+ *   1) 키 형식 → 2) 키 존재 → 3) 폐기 여부 → 4) **소유자 계정 상태** → 5) 만료와 범위 → 6) 한도
  * 4를 빼면 퇴사해 계정이 지워진 사람의 키가 영원히 산다(예전에 그랬다).
  */
-export async function authenticatePublicApi(request: NextRequest): Promise<PublicApiAuth> {
+export async function authenticatePublicApi(
+  request: NextRequest,
+  options: PublicApiAuthOptions = {},
+): Promise<PublicApiAuth> {
   const authHeader = request.headers.get('x-api-key') ?? request.headers.get('authorization')
   const rawKey = authHeader
     ? (authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader).trim()
@@ -121,11 +132,8 @@ export async function authenticatePublicApi(request: NextRequest): Promise<Publi
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
 
-  const { data: key, error } = await admin
-    .from('api_keys')
-    .select('id, user_id, name, revoked_at, rate_limit_per_minute')
-    .eq('key_hash', hashApiKey(rawKey))
-    .maybeSingle()
+  const key = await findKey(admin, hashApiKey(rawKey))
+  const error = key === undefined
 
   if (error || !key) {
     return fail(401, '유효하지 않은 API 키입니다.', request)
@@ -143,6 +151,27 @@ export async function authenticatePublicApi(request: NextRequest): Promise<Publi
 
   if (!profile || profile.deleted_at) {
     return fail(403, '이 키를 발급한 계정을 사용할 수 없습니다. 관리자에게 문의해 주세요.', request)
+  }
+
+  // 만료와 범위, 실제 권한 = 계정 권한 ∩ 키 범위 (마이그 318)
+  const required = options.scope ?? scopeForMethod(request.method)
+  const access = decideKeyAccess({
+    role: profile.role ?? 'member',
+    scopes: key.scopes,
+    expiresAt: key.expires_at,
+    required,
+    now: new Date(),
+  })
+  if (!access.ok) {
+    if (access.code === 'expired') {
+      return fail(403, '만료된 API 키입니다. 새 키를 발급받아 주세요.', request)
+    }
+    return {
+      error: NextResponse.json(
+        { success: false, error: `이 작업에는 ${required} 범위가 필요합니다.`, requiredScope: required },
+        { status: 403, headers: corsHeaders(request) },
+      ),
+    }
   }
 
   const rateLimitPerMinute = key.rate_limit_per_minute ?? DEFAULT_RATE_LIMIT
@@ -171,6 +200,7 @@ export async function authenticatePublicApi(request: NextRequest): Promise<Publi
     keyName: key.name ?? '',
     rateLimitPerMinute,
     usage,
+    scopes: access.scopes,
   }
 
   if (usage.thisMinute > rateLimitPerMinute) {
@@ -184,6 +214,23 @@ export async function authenticatePublicApi(request: NextRequest): Promise<Publi
   }
 
   return { ctx }
+}
+
+/**
+ * 키 한 줄을 찾는다, 못 찾으면 null 이고 조회 자체가 실패하면 undefined
+ *
+ * 범위 칼럼(마이그 318)이 아직 없는 DB 에서는 옛 칼럼만 다시 읽는다
+ * 그때 범위는 비어 read 만 된다(마이그레이션이 기존 키에 주는 값과 같다), 문을 여는 쪽으로 넘어지지 않는다
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function findKey(admin: any, keyHash: string): Promise<Record<string, any> | null | undefined> {
+  const base = 'id, user_id, name, revoked_at, rate_limit_per_minute'
+  const first = await admin.from('api_keys').select(`${base}, scopes, expires_at`).eq('key_hash', keyHash).maybeSingle()
+  if (!first.error) return first.data ?? null
+  if (first.error.code !== '42703') return undefined
+  console.error('[publicApiAuth] api_keys 범위 칼럼 없음, 마이그레이션 318 미적용')
+  const legacy = await admin.from('api_keys').select(base).eq('key_hash', keyHash).maybeSingle()
+  return legacy.error ? undefined : legacy.data ?? null
 }
 
 /**

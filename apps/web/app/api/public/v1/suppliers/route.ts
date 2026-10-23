@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 const COLORS = ['#7c3aed','#10b981','#f59e0b','#ef4444','#7c3aed','#3b82f6','#ec4899','#14b8a6','#f97316','#84cc16']
 
 export async function POST(request: NextRequest) {
-  const auth = await authenticatePublicApi(request)
+  const auth = await authenticatePublicApi(request, { scope: 'write' })
   if ('error' in auth) return auth.error
   // 내부 창구가 requireAdminApi 인 쓰기다, 키도 같은 선을 지킨다
   const denied = requireAdminKey(auth.ctx, request)

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = await authenticatePublicApi(request)
+  const auth = await authenticatePublicApi(request, { scope: 'admin' })
   if ('error' in auth) return auth.error
   // 내부 창구가 requireAdminApi 인 쓰기다, 키도 같은 선을 지킨다
   const denied = requireAdminKey(auth.ctx, request)
