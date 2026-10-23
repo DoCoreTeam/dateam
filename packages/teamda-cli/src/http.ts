@@ -116,12 +116,51 @@ async function readBody(res: Response): Promise<unknown> {
   }
 }
 
-export async function request(ctx: Context, input: RequestInput): Promise<unknown> {
-  let res: Response
+/** 429: wait Retry-After and try again this many times before exit 6. */
+export const RATE_LIMIT_RETRIES = 3
+/** 5xx: try again this many times before exit 8. */
+export const SERVER_RETRIES = 1
+/** Wait when Retry-After is missing or unreadable, and the 5xx backoff. */
+export const DEFAULT_RETRY_WAIT_MS = 1_000
+/** Longest single wait, so a huge Retry-After cannot hang the CLI. */
+export const MAX_RETRY_WAIT_MS = 60_000
+
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+/** Retry-After as delta seconds or an HTTP-date, clamped to [0, MAX_RETRY_WAIT_MS]. */
+export function retryAfterMs(header: string | null, now = Date.now()): number {
+  const v = header?.trim() ?? ''
+  if (v === '') return DEFAULT_RETRY_WAIT_MS
+  let ms: number
+  if (/^[+-]?\d+(\.\d+)?$/.test(v)) {
+    if (v.startsWith('-')) return DEFAULT_RETRY_WAIT_MS
+    ms = Number(v) * 1000
+  } else {
+    const at = Date.parse(v)
+    if (!Number.isFinite(at)) return DEFAULT_RETRY_WAIT_MS
+    ms = at - now
+  }
+  return Math.min(Math.max(0, Math.round(ms)), MAX_RETRY_WAIT_MS)
+}
+
+/** How long to wait before trying again, or null when this response is final. */
+function retryWait(res: Response, attempt: { rate: number; server: number }): number | null {
+  if (res.status === 429 && attempt.rate < RATE_LIMIT_RETRIES) {
+    attempt.rate++
+    return retryAfterMs(res.headers.get('retry-after'))
+  }
+  if (res.status >= 500 && res.status < 600 && attempt.server < SERVER_RETRIES) {
+    attempt.server++
+    return DEFAULT_RETRY_WAIT_MS
+  }
+  return null
+}
+
+async function send(ctx: Context, input: RequestInput, headers: Record<string, string>): Promise<Response> {
   try {
-    res = await ctx.fetch(input.url, {
+    return await ctx.fetch(input.url, {
       method: input.method,
-      headers: buildHeaders(input),
+      headers,
       body: input.body === undefined ? undefined : JSON.stringify(input.body),
       signal: AbortSignal.timeout(timeoutMs(ctx)),
     })
@@ -132,7 +171,30 @@ export async function request(ctx: Context, input: RequestInput): Promise<unknow
       message: timedOut ? `no response within ${timeoutMs(ctx)} ms` : `cannot reach ${new URL(input.url).origin}`,
     })
   }
-  const body = await readBody(res)
-  if (res.status >= 200 && res.status < 300 && res.status !== 202) return body
-  throw errorFromResponse(res.status, res.statusText, body)
+}
+
+/**
+ * One logical call. 429 is retried up to RATE_LIMIT_RETRIES times after Retry-After,
+ * 5xx up to SERVER_RETRIES times after DEFAULT_RETRY_WAIT_MS. Every attempt sends the same
+ * headers and body, so a write keeps one Idempotency-Key (generated when not given).
+ * Network failures and timeouts are not retried.
+ */
+export async function request(ctx: Context, input: RequestInput): Promise<unknown> {
+  const idempotencyKey = input.idempotencyKey
+    ?? (WRITE_METHODS.has(input.method.toUpperCase()) ? crypto.randomUUID() : undefined)
+  const headers = buildHeaders({ ...input, idempotencyKey })
+  const sleep = ctx.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)))
+  const attempt = { rate: 0, server: 0 }
+  for (;;) {
+    const res = await send(ctx, input, headers)
+    const wait = retryWait(res, attempt)
+    if (wait !== null) {
+      await res.body?.cancel()
+      await sleep(wait)
+      continue
+    }
+    const body = await readBody(res)
+    if (res.status >= 200 && res.status < 300 && res.status !== 202) return body
+    throw errorFromResponse(res.status, res.statusText, body)
+  }
 }

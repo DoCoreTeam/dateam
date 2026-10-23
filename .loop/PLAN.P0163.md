@@ -1,6 +1,6 @@
 # PLAN newAX: CLI 실측에서 나온 CRM 창구 결함 넷 고침
 플랜 ID: P0163
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0339
 목표 버전: v0.11.68
@@ -56,7 +56,7 @@
 의존: 없음
 
 ### I03 teamda 종료 코드를 지시서 표에 맞춤
-상태: 대기
+상태: 통과
 모드: 경량
 범위: packages/teamda-cli/src/exit.ts, packages/teamda-cli/src/http.ts, packages/teamda-cli/src/main.ts, packages/teamda-cli/README.md, packages/teamda-cli/test/
 감사 기준:
@@ -64,6 +64,26 @@
 - README 종료 코드 표가 exit.ts 와 같음
 - packages/teamda-cli/package.json 은 안 바뀜
 의존: 없음
+
+### I03a teamda 가 429 와 5xx 를 지시서대로 다시 시도함
+상태: 통과
+모드: 경량
+범위: packages/teamda-cli/src/http.ts, packages/teamda-cli/src/context.ts, packages/teamda-cli/README.md, packages/teamda-cli/test/
+감사 기준:
+- 429 는 Retry-After 만큼 기다려 3번 다시 시도한 뒤 종료 6, 5xx 는 1번 다시 시도한 뒤 종료 8, 다시 시도한 쓰기는 같은 Idempotency-Key 를 씀을 가짜 서버 시험이 단정
+- Retry-After 상한을 두어 서버가 큰 값을 보내도 무한정 기다리지 않음
+- cd packages/teamda-cli && bun test 통과, 재시도를 끄면 시험 실패 (S6)
+의존: I03
+
+### I03b teamda 쓰기 뒤 저장값이 다르면 종료 9
+상태: 대기
+모드: 경량
+범위: packages/teamda-cli/src/run.ts, packages/teamda-cli/src/mismatch.ts (신규), packages/teamda-cli/README.md, packages/teamda-cli/test/
+감사 기준:
+- 쓰기 응답의 저장된 값과 보낸 값이 다른 칸이 있으면 표준오류에 mismatch 배열(field sent saved)과 종료 9, 같으면 종료 0 을 시험이 단정
+- 서버가 정규화하는 값(앞뒤 공백, 날짜 표기, 숫자 문자열)을 다르다고 하지 않음을 시험이 단정
+- cd packages/teamda-cli && bun test 통과, 비교를 끄면 시험 실패 (S6)
+의존: I03a
 
 ### I04 노트 고치기 결정 기록 (의도된 불변)
 상태: 대기
@@ -93,7 +113,7 @@
 - 남아 있던 「F10 P0158 검증」 할 일 세 건이 고친 purge 창구 또는 id 로 지워져 0건
 - 시험 키 폐기, 「F10 P0163 검증」 기록 id 로 삭제, 시험 계정 정리
 - 발견.md 네 줄이 해결로 바뀜
-의존: I01, I02, I03, I04
+의존: I01, I02, I03, I03a, I03b, I04
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
@@ -102,3 +122,4 @@
 - v0.1.0 (2026-10-23) 최초 작성 (ins_0339)
 - v0.1.1 (2026-10-23) I04 근거 확인 결과 활동은 의도된 불변(activity.ts 머리 주석), 화면 항목 I05 취소, 시험 기록 정리는 I06 실측으로 옮김 (audit:I01)
 - v0.1.2 (2026-10-23) I02 범위를 실제 파일로 고침, 라우트는 본문을 그대로 넘겨 손대지 않고 해석기를 deal-start.ts 로 뺌(node --test 가 server-only 를 못 읽음) (audit:I02)
+- v0.1.3 (2026-10-23) I03 에서 지시서 5-3 의 재시도(429 세 번 5xx 한 번)와 저장값 비교(종료 9)가 구현되지 않은 것을 발견해 I03a I03b 추가 (audit:I03)

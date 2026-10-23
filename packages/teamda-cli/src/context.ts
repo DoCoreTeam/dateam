@@ -14,6 +14,8 @@ export interface Context {
   readStdin: () => Promise<string>
   fetch: typeof fetch
   platform: string
+  /** Wait between retries. Tests pass a recorder so nothing actually waits. */
+  sleep?: (ms: number) => Promise<void>
 }
 
 export function defaultContext(): Context {
@@ -24,6 +26,7 @@ export function defaultContext(): Context {
     readStdin: async () => await new Response(Bun.stdin.stream()).text(),
     fetch: globalThis.fetch,
     platform: process.platform,
+    sleep: (ms) => new Promise((done) => setTimeout(done, ms)),
   }
 }
 

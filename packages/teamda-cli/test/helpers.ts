@@ -11,6 +11,8 @@ export interface Captured {
   ctx: Context
   out: string[]
   err: string[]
+  /** Every retry wait the CLI asked for, in ms. Nothing actually waits. */
+  sleeps: number[]
 }
 
 export function tempDir(): string {
@@ -20,6 +22,7 @@ export function tempDir(): string {
 export function makeCtx(env: Env, stdin = ''): Captured {
   const out: string[] = []
   const err: string[] = []
+  const sleeps: number[] = []
   const ctx: Context = {
     env: { TEAMDA_CREDENTIAL_BACKEND: 'memory', ...env },
     out: (t) => { out.push(t) },
@@ -27,20 +30,22 @@ export function makeCtx(env: Env, stdin = ''): Captured {
     readStdin: async () => stdin,
     fetch: globalThis.fetch,
     platform: process.platform,
+    sleep: async (ms) => { sleeps.push(ms) },
   }
-  return { ctx, out, err }
+  return { ctx, out, err, sleeps }
 }
 
 export interface RunResult {
   code: number
   stdout: string
   stderr: string
+  sleeps: number[]
 }
 
 export async function runCli(argv: string[], env: Env, stdin = ''): Promise<RunResult> {
   const c = makeCtx(env, stdin)
   const code = await run(argv, c.ctx)
-  return { code, stdout: c.out.join(''), stderr: c.err.join('') }
+  return { code, stdout: c.out.join(''), stderr: c.err.join(''), sleeps: c.sleeps }
 }
 
 /** A small spec the tests control, written as the synced spec in the given config dir. */

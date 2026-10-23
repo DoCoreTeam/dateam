@@ -51,7 +51,12 @@ teamda crm quote export q_123 --format pdf --out quote.pdf
 | 8 | server error (5xx) |
 | 9 | saved value mismatch (reserved, no command checks it yet) |
 
-No call is retried yet; 429 and 5xx exit on the first response.
+Retries:
+
+- 429: waits `Retry-After` (seconds or HTTP-date; 1 s when missing or unreadable) and tries again up to 3 times, then exits 6. One wait is capped at 60 s, so a huge `Retry-After` cannot hang the CLI
+- 5xx: waits 1 s and tries again once, then exits 8
+- Every attempt sends the same body and the same `Idempotency-Key`. A write (POST PUT PATCH DELETE) without `--idempotency-key` gets a generated one, so the server can recognize a retried write
+- Nothing else is retried: 202, other 4xx, network failures and timeouts exit on the first result
 
 The table is exported as `EXIT`:
 
@@ -59,7 +64,7 @@ The table is exported as `EXIT`:
 import { EXIT, buildCommandTree } from '@ax/teamda-cli'
 ```
 
-Headers sent on every call: `X-API-Key`, `X-Agent: teamda/<version>`, `X-Request-Id` (random uuid), `Idempotency-Key` when given.
+Headers sent on every call: `X-API-Key`, `X-Agent: teamda/<version>`, `X-Request-Id` (random uuid, kept across retries), `Idempotency-Key` when given, or generated for a write.
 
 ## Keys
 
