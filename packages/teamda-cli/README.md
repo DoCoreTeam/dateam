@@ -5,7 +5,7 @@ spec; none is written by hand. Runs under bun, no runtime dependencies.
 
 ## Commands
 
-- Spec commands: `teamda <x-cli words...> [--param value] [--json body|@file] [--dry-run] [--idempotency-key k]`
+- Spec commands: `teamda <x-cli words...> [--param value] [--json body|@file] [--dry-run] [--idempotency-key k] [--out file]`
 - `teamda help` lists commands as text, `teamda help --json` as one JSON object (`cli method path scope summary` per command), `teamda help crm` filters by prefix
 - `teamda sync` downloads `/api/public/v1/openapi.json` and caches it only when its sha256 changed
 - `teamda api <METHOD> <path> [--json body]` is the raw escape hatch; a path not starting with `/api/` is relative to `/api/public/v1`
@@ -22,17 +22,20 @@ spec; none is written by hand. Runs under bun, no runtime dependencies.
 - Server actions (`POST /api/public/v1/actions/<name>`) take named flags (`x-args`) or leftover positionals as the `args` array
 - Flag values are strings; a value starting with `{` or `[` is parsed as JSON; use `--json` when a number or boolean matters
 - `--dry-run` adds `dryRun=1`; `--idempotency-key` becomes the `Idempotency-Key` header
+- `--out <path>` is never sent; when the response is a file (PDF, image) its bytes are written there unchanged
 
 ```sh
 teamda crm quote get q_123
 teamda crm quote approve q_123 --idempotency-key 7f1c
 teamda crm company create --json @company.json --dry-run
 teamda api GET crm/quotes --limit 5
+teamda crm quote export q_123 --format pdf --out quote.pdf
 ```
 
 ## Output contract
 
 - Success: exactly one JSON value on stdout (the response body as the server sent it), exit 0
+- File response: the bytes go to `--out <path>` and stdout gets `{"file","bytes","contentType"}`; without `--out` it is a usage error (`out_required`, exit 2)
 - Failure: one envelope on stderr, `{"error":{"code","message","status","requiredScope","approvalId"}}`, fields present only when known
 
 | Exit | Meaning |

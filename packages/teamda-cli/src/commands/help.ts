@@ -43,7 +43,7 @@ export function helpText(h: HelpJson): string {
   const lines: string[] = [
     `teamda ${h.version}  (spec: ${h.specSource}${h.specHash ? ` ${h.specHash}` : ''})`,
     '',
-    'usage: teamda <words...> [--param value] [--json body|@file] [--dry-run] [--idempotency-key k]',
+    'usage: teamda <words...> [--param value] [--json body|@file] [--dry-run] [--idempotency-key k] [--out file]',
     '',
     'built-in:',
     ...h.builtins.map((b) => `  ${b.cli.padEnd(22)} ${b.summary}`),

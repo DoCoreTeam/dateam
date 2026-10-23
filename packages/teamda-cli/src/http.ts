@@ -2,6 +2,7 @@
  * One HTTP call and the mapping of its result onto the output contract.
  *
  * Success: the response body is returned and printed to stdout as one JSON value.
+ * A file response (PDF, image) comes back as bytes; run.ts writes it to --out and prints a summary.
  * Anything else: a CliError carrying the error envelope and exit code.
  */
 import type { Context } from './context.ts'
@@ -84,7 +85,28 @@ export function errorFromResponse(status: number, statusText: string, body: unkn
   })
 }
 
+/** A successful response that is a file (PDF, image, ...), kept as bytes so nothing is re-encoded. */
+export interface FileBody {
+  kind: 'file'
+  bytes: Uint8Array
+  contentType: string
+}
+
+export function isFileBody(v: unknown): v is FileBody {
+  return isObj(v) && v.kind === 'file' && v.bytes instanceof Uint8Array
+}
+
+/** JSON and text stay text; anything else that succeeds is a file. Errors are always read as text. */
+function isFileType(contentType: string): boolean {
+  const ct = contentType.split(';')[0].trim().toLowerCase()
+  return ct !== '' && !ct.startsWith('text/') && !ct.endsWith('json') && !ct.endsWith('+json')
+}
+
 async function readBody(res: Response): Promise<unknown> {
+  const contentType = res.headers.get('content-type') ?? ''
+  if (res.status >= 200 && res.status < 300 && isFileType(contentType)) {
+    return { kind: 'file', bytes: new Uint8Array(await res.arrayBuffer()), contentType: contentType.split(';')[0].trim() } satisfies FileBody
+  }
   const text = await res.text()
   if (!text) return null
   try {
