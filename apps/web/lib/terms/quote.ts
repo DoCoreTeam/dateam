@@ -1336,4 +1336,5 @@ export const QUOTE_EXPORT = {
   pageOutOfRange: (count: number) => `이 견적서는 ${count}쪽입니다. 그 안의 쪽 번호를 적어 주세요.`,
   mismatch: '금액이 서로 맞지 않아 내보낼 수 없습니다.',
   untrustedOrigin: '이 주소에서는 견적서를 파일로 만들 수 없습니다. 서비스 주소로 다시 시도해 주세요.',
+  keyOwnerSecondFactor: '2단계 인증을 켠 계정의 API 키로는 견적서를 파일로 만들 수 없습니다. 화면에서 내려받아 주세요.',
 } as const

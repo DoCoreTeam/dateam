@@ -164,3 +164,22 @@ test('★ 보안: 읽기 권한(withCrmApi READONLY)과 내보내기 판정을 �
   // 판정은 문서를 읽기 전에 선다
   assert.ok(src.indexOf('canExport(') < src.indexOf('getQuoteDocument('), '문서를 읽은 뒤에 판정한다')
 })
+
+// P0159: 공개 API 관문으로 부르면 쿠키가 없다, 관문이 연 키 주인 문맥이면 그 사람 세션을 심는다
+test('★ 창구는 exportCookiesFor 를 거친 쿠키만 굽기에 넘긴다, 요청 쿠키를 직접 넘기지 않는다', () => {
+  const code = codeOnly(read(ROUTE))
+  assert.match(code, /const acting = currentActing\(\)/)
+  assert.match(code, /exportCookiesFor\(\{\s*requestCookies: req\.cookies\.getAll\(\)[^}]*\}\)\),\s*acting,/)
+  assert.match(code, /cookies: auth\.cookies,/)
+  // 굽기에 넘기는 cookies 는 auth 하나뿐이다, 요청 쿠키나 다른 값이 그 자리에 오면 문맥 안에서 남의 쿠키가 실린다
+  assert.equal([...code.matchAll(/\bcookies:\s*([^\n,]+)/g)].map((m) => m[1].trim()).join('|'), 'auth.cookies')
+})
+
+test('★ 2단계 장치가 있는 키 주인은 굽기 전에 읽을 수 있는 말로 거절한다', () => {
+  const code = codeOnly(read(ROUTE))
+  assert.match(code, /if \(!auth\.ok\) throw new CrmError\('FORBIDDEN', QUOTE_EXPORT\.keyOwnerSecondFactor\)/)
+  assert.ok(code.indexOf('if (!auth.ok)') < code.indexOf('await exportQuote('), '브라우저를 띄우기 전에 막는다')
+  assert.match(code, /verifiedFactors: acting \? await verifiedFactorCount\(\) : 0/)
+})
+
+// 창구가 문맥을 열지 않는 것은 lib/actions/acting-as.test.ts 의 관문 밖 단정이 app 전체를 훑어 본다
