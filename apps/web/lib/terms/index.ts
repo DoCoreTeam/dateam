@@ -153,3 +153,8 @@ export {
 } from './pricebook.ts'
 
 export { LOGIN_KEEP } from './auth.ts'
+
+export {
+  API_KEY_SCOPE, API_KEY_APPROVAL_HINT, API_KEY_FIELD, API_KEY_EXPIRY_OPTIONS,
+  API_KEY_DEFAULT_EXPIRY_DAYS, API_KEY_ONCE, API_KEY_ERROR,
+} from './api-key.ts'

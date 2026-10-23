@@ -1,9 +1,9 @@
 # PLAN newAX: teamda 의 모든 기능을 CLI 로
 플랜 ID: P0158
-플랜 버전: v0.1.1
+플랜 버전: v0.1.4
 상태: 진행중
 지시: ins_0318
-목표 버전: v0.11.55
+목표 버전: v0.11.61
 푸시: 모음
 작성: 2026-10-23
 시작 커밋: ff2160d2
@@ -56,7 +56,7 @@
 의존: I01
 
 ### I03 키 범위 만료일 승인요청 멱등 감사 표 마이그레이션
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/318_api_key_scopes.sql (신규)
 감사 기준:
@@ -66,10 +66,21 @@
 - 보안: rls-baseline.test.ts 통과, 정책 대상 authenticated 또는 서비스롤 전용
 의존: 없음
 
+### I03a I02 생성물이 가드 셋을 깨는 것 고침
+상태: 통과
+모드: 경량
+범위: scripts/cli/gen.mjs, apps/web/lib/actions/generated/, apps/web/scripts/route-census.mjs
+감사 기준:
+- route-census.test.ts 통과, 창구 인구조사가 생성된 관문 표를 「화면에 적힘」으로 세지 않음 (사유 주석)
+- glossary.test.ts 통과, 관문 표 table.ts 에 소스 주석에서 온 요약 글이 안 실림 (금지어 0, 「—」 기준선 그대로)
+- node scripts/cli-parity-check.mjs 종료 코드 0
+- 보안: 해당 없음, 생성기와 읽기 전용 조사 스크립트
+의존: I02
+
 ### I04 키 인증에 범위와 만료, 기존 공개 쓰기의 범위
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/publicApiAuth.ts, apps/web/lib/public-api/scopes.ts (신규), apps/web/lib/public-api/scopes.test.ts (신규), apps/web/app/api/public/v1/settings/route.ts, apps/web/app/api/public/v1/suppliers/route.ts
+범위: apps/web/lib/publicApiAuth.ts, apps/web/lib/public-api/scopes.ts (신규), apps/web/lib/public-api/scopes.test.ts (신규), apps/web/app/api/public/v1/settings/route.ts, apps/web/app/api/public/v1/suppliers/route.ts, apps/web/app/api/public/v1/quote/route.ts, apps/web/package.json
 감사 기준:
 - 만료된 키 403, read 키로 PATCH settings 403 + requiredScope admin, POST suppliers pool-stock 은 write (시험)
 - 실제 권한 = 계정 권한 ∩ 키 범위 (시험)
@@ -77,9 +88,9 @@
 의존: I03
 
 ### I05 키 만들기 화면에 범위 만료일 쓰는 곳
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/api/user/api-keys/route.ts, apps/web/app/(member)/api-keys/page.tsx, apps/web/app/admin/api-keys/page.tsx, apps/web/lib/terms/ (키 화면 말)
+범위: apps/web/app/api/user/api-keys/route.ts, apps/web/app/(member)/api-keys/page.tsx, apps/web/app/admin/api/ApiKeysPanel.tsx (관리자 키 목록 실제 자리, admin/api-keys/page.tsx 는 그리로 넘기기만 함), apps/web/lib/terms/api-key.ts (신규), apps/web/lib/terms/index.ts, apps/web/lib/public-api/key-create.ts (신규), apps/web/lib/public-api/key-create.test.ts (신규), apps/web/package.json
 감사 기준:
 - 만들기에 범위 체크(기본 read), 만료일(기본 90일), 쓰는 곳 이름, 목록에 범위와 만료일 (실브라우저 또는 확인 못 함 기록)
 - zod 로 범위 값 검증, 모르는 범위 400
@@ -184,3 +195,6 @@
 ## 변경 이력
 - v0.1.0 (2026-10-23) 최초 작성 (ins_0318)
 - v0.1.1 (2026-10-23) I02 범위를 실제 파일로 맞춤, 이름 규칙은 생성기 쪽 naming.mjs, 형식과 openapi 조립과 생성물 추가 (audit:I02)
+- v0.1.2 (2026-10-23) I02 생성물(table.ts 요약 글, 경로 문자열)이 route-census 와 glossary 가드 셋을 깨 I03a 삽입 (audit:I02)
+- v0.1.3 (2026-10-23) I04 범위에 quote 라우트(POST 이지만 read 계산)와 시험 등재용 package.json 추가 (audit:I04)
+- v0.1.4 (2026-10-23) I05 범위를 실제 파일로, 관리자 키 목록은 admin/api/ApiKeysPanel.tsx, 검증 모듈과 시험 추가 (audit:I05)

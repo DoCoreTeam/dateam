@@ -12,6 +12,8 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults, type ListQuery } from '@/lib/ui/list-query'
 import RevokeKeyButton from '../api-keys/RevokeKeyButton'
+import { parseScopes } from '@/lib/public-api/scopes'
+import { API_KEY_FIELD, API_KEY_SCOPE } from '@/lib/terms'
 
 export interface ApiKeyRow {
   id: string
@@ -23,6 +25,10 @@ export interface ApiKeyRow {
   revoked_at: string | null
   request_count: number
   rate_limit_per_minute: number
+  /** 마이그레이션 318 전 DB 에는 없다 */
+  scopes?: string[] | null
+  expires_at?: string | null
+  purpose?: string | null
 }
 
 interface Props {
@@ -84,6 +90,25 @@ export default function ApiKeysPanel({ activeKeys, revokedKeys, nameMap, emailMa
     {
       key: 'key_prefix', header: '마스킹 키', hideOnCard: true,
       cell: (k) => <code style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{maskKey(k.key_prefix)}</code>,
+    },
+    {
+      key: 'scopes', header: API_KEY_FIELD.scopes,
+      cell: (k) => {
+        const scopes = parseScopes(k.scopes)
+        return (
+          <code title={scopes.map((s) => API_KEY_SCOPE[s]).join(', ')} style={{ fontSize: 'var(--fs-xs)' }}>
+            {scopes.join(' ')}
+          </code>
+        )
+      },
+    },
+    {
+      key: 'expires_at', header: API_KEY_FIELD.expiresAt, hideOnCard: true,
+      cell: (k) => {
+        if (!k.expires_at) return <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{API_KEY_FIELD.noExpiry}</span>
+        if (new Date(k.expires_at).getTime() <= Date.now()) return <span className="badge" data-status="blocker">{API_KEY_FIELD.expired}</span>
+        return <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{fmt(k.expires_at)}</span>
+      },
     },
     {
       key: 'request_count', header: '요청 수', sortable: 'request_count', align: 'right',

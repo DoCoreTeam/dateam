@@ -15,6 +15,11 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { useAskDialog } from '@/components/ui/useAskDialog'
+import { SCOPES, type Scope } from '@/lib/actions/types'
+import {
+  API_KEY_SCOPE, API_KEY_APPROVAL_HINT, API_KEY_FIELD, API_KEY_EXPIRY_OPTIONS,
+  API_KEY_DEFAULT_EXPIRY_DAYS, API_KEY_ONCE, API_KEY_ERROR,
+} from '@/lib/terms'
 
 interface ApiKey {
   id: string
@@ -25,6 +30,9 @@ interface ApiKey {
   last_used_at: string | null
   request_count: number
   rate_limit_per_minute: number
+  scopes: Scope[]
+  expires_at: string | null
+  purpose: string | null
 }
 
 interface NewKeyResult {
@@ -32,6 +40,8 @@ interface NewKeyResult {
   name: string
   key: string
   note: string
+  scopes: Scope[]
+  expires_at: string | null
 }
 
 const LIST_DEFAULTS: ListDefaults = {
@@ -68,6 +78,9 @@ export default function ApiKeysPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
+  const [newPurpose, setNewPurpose] = useState('')
+  const [newScopes, setNewScopes] = useState<Scope[]>(['read'])
+  const [expiresInDays, setExpiresInDays] = useState(API_KEY_DEFAULT_EXPIRY_DAYS)
   const [createError, setCreateError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -118,7 +131,12 @@ export default function ApiKeysPage() {
       const res = await fetch('/api/user/api-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newKeyName.trim() }),
+        body: JSON.stringify({
+          name: newKeyName.trim(),
+          purpose: newPurpose.trim() || undefined,
+          scopes: newScopes,
+          expiresInDays,
+        }),
       })
       if (isAuthRedirect(res)) {
         setCreateError('세션이 만료되었습니다. 다시 로그인한 뒤 시도해주세요.')
@@ -128,16 +146,29 @@ export default function ApiKeysPage() {
       if (data?.success) {
         setNewKeyResult(data.data)
         setShowCreate(false)
-        setNewKeyName('')
+        resetForm()
         fetchKeys()
       } else {
-        setCreateError(data?.error ?? `키 생성에 실패했습니다 (HTTP ${res.status}).`)
+        setCreateError(API_KEY_ERROR[data?.error as string] ?? API_KEY_ERROR.create_failed)
       }
     } catch {
       setCreateError('네트워크 오류로 키 생성에 실패했습니다. 잠시 후 다시 시도해주세요.')
     } finally {
       setCreating(false)
     }
+  }
+
+  function resetForm() {
+    setNewKeyName('')
+    setNewPurpose('')
+    setNewScopes(['read'])
+    setExpiresInDays(API_KEY_DEFAULT_EXPIRY_DAYS)
+    setCreateError(null)
+  }
+
+  function toggleScope(scope: Scope) {
+    setNewScopes((cur) => cur.includes(scope) ? cur.filter((s) => s !== scope) : [...cur, scope])
+    if (createError) setCreateError(null)
   }
 
   async function revokeKey(id: string) {
@@ -220,6 +251,25 @@ export default function ApiKeysPage() {
         </span>
       ),
     },
+    {
+      key: 'scopes', header: API_KEY_FIELD.scopes,
+      cell: (k) => (
+        <span title={k.scopes.map((s) => API_KEY_SCOPE[s]).join(', ')} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 'var(--fs-xs)' }}>
+          {k.scopes.join(' ')}
+        </span>
+      ),
+    },
+    {
+      key: 'expires_at', header: API_KEY_FIELD.expiresAt,
+      cell: (k) => {
+        if (!k.expires_at) return API_KEY_FIELD.noExpiry
+        const expired = new Date(k.expires_at).getTime() <= Date.now()
+        return expired
+          ? <span className="badge" data-status="blocker">{API_KEY_FIELD.expired}</span>
+          : fmtDate(k.expires_at)
+      },
+    },
+    { key: 'purpose', header: API_KEY_FIELD.purpose, hideOnCard: true, cell: (k) => k.purpose ?? '—' },
     { key: 'created_at', header: '생성일', sortable: 'created_at', cell: (k) => fmtDate(k.created_at) },
     { key: 'last_used_at', header: '마지막 사용', sortable: 'last_used_at', cell: (k) => fmtDate(k.last_used_at) },
     {
@@ -281,7 +331,7 @@ export default function ApiKeysPage() {
             <strong style={{ color: 'var(--success)' }}>API 키가 생성됐습니다. 지금 복사하세요</strong>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', margin: '0 0 var(--space-3)' }}>
-            이 키는 API Keys 페이지에서 다시 복사할 수 있습니다.
+            {API_KEY_ONCE}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', background: 'var(--color-surface)', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-light)' }}>
             <code style={{ flex: 1, fontSize: 'var(--fs-sm)', color: 'var(--text)', wordBreak: 'break-all', fontFamily: 'ui-monospace, monospace' }}>{newKeyResult.key}</code>
@@ -314,8 +364,42 @@ export default function ApiKeysPage() {
             <button type="button" className="btn-primary" onClick={createKey} disabled={creating}>
               {creating ? '생성 중...' : '생성'}
             </button>
-            <button type="button" className="btn-ghost" onClick={() => { setShowCreate(false); setNewKeyName(''); setCreateError(null) }}>취소</button>
+            <button type="button" className="btn-ghost" onClick={() => { setShowCreate(false); resetForm() }}>취소</button>
           </div>
+          <label htmlFor="apiKeyPurpose" className="label" style={{ marginTop: 'var(--space-3)' }}>{API_KEY_FIELD.purpose}</label>
+          <input
+            id="apiKeyPurpose"
+            type="text"
+            className="input-field"
+            maxLength={200}
+            placeholder={API_KEY_FIELD.purposePlaceholder}
+            value={newPurpose}
+            onChange={(e) => setNewPurpose(e.target.value)}
+          />
+          <fieldset style={{ border: 0, padding: 0, margin: 'var(--space-3) 0 0' }}>
+            <legend className="label">{API_KEY_FIELD.scopes}</legend>
+            <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+              {SCOPES.map((scope) => (
+                <label key={scope} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={newScopes.includes(scope)} onChange={() => toggleScope(scope)} />
+                  <code style={{ fontSize: 'var(--fs-xs)' }}>{scope}</code>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{API_KEY_SCOPE[scope]}</span>
+                </label>
+              ))}
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', margin: 'var(--space-1) 0 0' }}>{API_KEY_APPROVAL_HINT}</p>
+          </fieldset>
+          <fieldset style={{ border: 0, padding: 0, margin: 'var(--space-3) 0 0' }}>
+            <legend className="label">{API_KEY_FIELD.expiresIn}</legend>
+            <div role="radiogroup" style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+              {API_KEY_EXPIRY_OPTIONS.map((o) => (
+                <label key={o.days} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44, cursor: 'pointer' }}>
+                  <input type="radio" name="apiKeyExpiry" checked={expiresInDays === o.days} onChange={() => setExpiresInDays(o.days)} />
+                  {o.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           {createError && (
             <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', marginTop: 'var(--space-2)', color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
               <AlertTriangle size={14} /> {createError}
