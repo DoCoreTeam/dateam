@@ -53,11 +53,17 @@ function headerSummaries(src) {
 function routeOps(file) {
   const src = fs.readFileSync(file, 'utf8')
   const sums = headerSummaries(src)
+  const userAuth = /getUser|getRequestUser|requireAdmin|requireMember|withCrmApi|resolveCrmAccess|requireCiMember|createClient\(|withPublicCrm|withPublicCi|authenticatePublicApi/.test(src)
+  const machineAuth = /CRON_SECRET|WORKER_TOKEN|isMachineCall|machineAuth/.test(src)
   const ops = []
   for (const method of METHODS) {
     const re = new RegExp(`export\\s+(?:async\\s+function\\s+${method}\\b|const\\s+${method}\\b|\\{[^}]*\\b${method}\\b[^}]*\\})`)
     if (!re.test(src)) continue
     const p = routePath(file)
+    // 이 메서드 몸통만 (다음 export 전까지), 관리자 전용인지 본다
+    const at = src.search(new RegExp(`export\\s+(?:async\\s+function|const)\\s+${method}\\b`))
+    const body = at >= 0 ? src.slice(at, at + 1 + (src.slice(at + 1).search(/\nexport\s/) + 1 || src.length)) : src
+    const adminOnly = /requireAdmin(Api)?\(|withCrmApi\(\s*'(ADMIN|OWNER)'/.test(body) && !/requireMember/.test(body)
     ops.push({
       key: `${method} ${p}`,
       kind: 'route',
@@ -66,6 +72,8 @@ function routeOps(file) {
       file: path.relative(ROOT, file),
       summary: sums[method] ?? '',
       params: [...p.matchAll(/\{(\w+)\*?\}/g)].map((m) => m[1]),
+      machineOnly: machineAuth && !userAuth,
+      adminOnly,
     })
   }
   return ops

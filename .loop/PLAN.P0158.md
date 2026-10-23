@@ -1,6 +1,6 @@
 # PLAN newAX: teamda 의 모든 기능을 CLI 로
 플랜 ID: P0158
-플랜 버전: v0.1.0
+플랜 버전: v0.1.1
 상태: 진행중
 지시: ins_0318
 목표 버전: v0.11.55
@@ -45,9 +45,9 @@
 의존: 없음
 
 ### I02 기능 정의 표와 대응표 생성, cli-parity-check 첫 판
-상태: 대기
+상태: 진행중
 모드: 경량
-범위: apps/web/lib/actions/defs/ (신규), apps/web/lib/actions/naming.ts (신규), scripts/cli/gen.mjs (신규), scripts/cli-parity-check.mjs (신규), docs/cli/02-기능대응표.md (신규 생성물)
+범위: apps/web/lib/actions/defs/ (신규), apps/web/lib/actions/types.ts (신규), apps/web/lib/actions/openapi.ts (신규), apps/web/lib/actions/generated/ (신규 생성물), scripts/cli/naming.mjs (신규), scripts/cli/extract-operations.mjs, scripts/cli/gen.mjs (신규), scripts/cli-parity-check.mjs (신규), docs/cli/02-기능대응표.md (신규 생성물)
 감사 기준:
 - 추출된 동작마다 정의 한 줄(이름 범위 CLI 명령)이 있고 없으면 cli-parity-check 가 종료 코드 1
 - 대응표에 8개 영역 동작이 다 있음, 검사 출력이 「전체 n / CLI 0」 꼴로 나옴
@@ -183,3 +183,4 @@
 
 ## 변경 이력
 - v0.1.0 (2026-10-23) 최초 작성 (ins_0318)
+- v0.1.1 (2026-10-23) I02 범위를 실제 파일로 맞춤, 이름 규칙은 생성기 쪽 naming.mjs, 형식과 openapi 조립과 생성물 추가 (audit:I02)
