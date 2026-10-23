@@ -43,7 +43,7 @@ export function helpText(h: HelpJson): string {
   const lines: string[] = [
     `teamda ${h.version}  (spec: ${h.specSource}${h.specHash ? ` ${h.specHash}` : ''})`,
     '',
-    'usage: teamda <words...> [--param value] [--json body|@file] [--dry-run] [--idempotency-key k] [--out file]',
+    'usage: teamda <words...> [--param value] [--json body|@file] [--dry-run] [--no-verify] [--idempotency-key k] [--out file]',
     '',
     'built-in:',
     ...h.builtins.map((b) => `  ${b.cli.padEnd(22)} ${b.summary}`),
@@ -56,6 +56,6 @@ export function helpText(h: HelpJson): string {
     if (top !== group) { lines.push('', `[${top}]`); group = top }
     lines.push(`  ${c.cli.padEnd(44)} ${c.method.padEnd(6)} ${c.scope.padEnd(7)} ${c.summary}`)
   }
-  lines.push('', 'exit codes: 0 ok, 1 unknown or network, 2 input (400 422), 3 auth (401 403), 4 not found, 5 conflict (409), 6 rate limit (429), 7 approval (202), 8 server (5xx), 9 saved value mismatch')
+  lines.push('', 'exit codes: 0 ok, 1 unknown or network, 2 input (400 422), 3 auth (401 403), 4 not found, 5 conflict (409), 6 rate limit (429), 7 approval (202), 8 server (5xx), 9 saved value differs from what was sent (--no-verify skips the check)')
   return `${lines.join('\n')}\n`
 }

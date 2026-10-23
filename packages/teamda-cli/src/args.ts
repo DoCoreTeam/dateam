@@ -10,7 +10,7 @@ export interface ParsedArgs {
 }
 
 /** Flags that never take a value. */
-const BOOLEAN_FLAGS = new Set(['dry-run', 'help', 'stdin'])
+const BOOLEAN_FLAGS = new Set(['dry-run', 'help', 'stdin', 'no-verify'])
 
 /**
  * A secret on argv is readable by every user on the machine (ps, shell history, CI logs).

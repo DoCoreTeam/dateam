@@ -5,7 +5,7 @@ spec; none is written by hand. Runs under bun, no runtime dependencies.
 
 ## Commands
 
-- Spec commands: `teamda <x-cli words...> [--param value] [--json body|@file] [--dry-run] [--idempotency-key k] [--out file]`
+- Spec commands: `teamda <x-cli words...> [--param value] [--json body|@file] [--dry-run] [--no-verify] [--idempotency-key k] [--out file]`
 - `teamda help` lists commands as text, `teamda help --json` as one JSON object (`cli method path scope summary` per command), `teamda help crm` filters by prefix
 - `teamda sync` downloads `/api/public/v1/openapi.json` and caches it only when its sha256 changed
 - `teamda api <METHOD> <path> [--json body]` is the raw escape hatch; a path not starting with `/api/` is relative to `/api/public/v1`
@@ -22,6 +22,7 @@ spec; none is written by hand. Runs under bun, no runtime dependencies.
 - Server actions (`POST /api/public/v1/actions/<name>`) take named flags (`x-args`) or leftover positionals as the `args` array
 - Flag values are strings; a value starting with `{` or `[` is parsed as JSON; use `--json` when a number or boolean matters
 - `--dry-run` adds `dryRun=1`; `--idempotency-key` becomes the `Idempotency-Key` header
+- `--no-verify` skips the saved value check below
 - `--out <path>` is never sent; when the response is a file (PDF, image) its bytes are written there unchanged
 
 ```sh
@@ -49,7 +50,16 @@ teamda crm quote export q_123 --format pdf --out quote.pdf
 | 6 | rate limited (429) |
 | 7 | approval required (202, `approvalId` in the envelope) |
 | 8 | server error (5xx) |
-| 9 | saved value mismatch (reserved, no command checks it yet) |
+| 9 | saved value mismatch: the write succeeded but the stored record differs from the body (see below) |
+
+Saved value check (exit 9):
+
+- After a route write (POST PUT PATCH) that returns 2xx other than 202, the record in the response (`data`, or the single object inside it such as `data.item`) is compared with the body that was sent
+- On a difference stdout still gets the response as usual, stderr gets `{"error":{"code":"mismatch","message","mismatch":[{"field","sent","saved"}]}}`, exit 9
+- Only top-level keys present in both the body and the record are compared; a key the server does not echo is skipped
+- Never compared: `dryRun`, `expectVersion` and other version keys (the server bumps the version), `args`, `createdAt` `updatedAt`
+- Server normalization is not a mismatch: strings are trimmed, `null` and `""` are equal, `"100"` equals `100`, `"true"` equals `true`, `"2026-10-23"` equals `"2026-10-23T00:00:00.000Z"` (a date-only value matches a datetime on that day in any time zone), two datetimes compare as instants, arrays and objects compare item by item with the same rules
+- Skipped: `--dry-run`, `--no-verify`, server actions (their result is not the record), DELETE, `teamda api`, file responses, and responses where the record cannot be found
 
 Retries:
 

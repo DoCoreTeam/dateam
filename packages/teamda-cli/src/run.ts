@@ -4,6 +4,8 @@
  * Output contract: on success exactly one JSON value on stdout (plain `help` prints text);
  * a file response is written to `--out <path>` and the JSON value describes it;
  * on failure one error envelope `{"error":{...}}` on stderr and a non-zero exit code.
+ * A write whose saved record differs from the body prints the response on stdout as usual,
+ * then the envelope with code `mismatch` and `mismatch: [{field, sent, saved}]` on stderr, exit 9.
  */
 import type { Context } from './context.ts'
 import { redact } from './context.ts'
@@ -67,8 +69,15 @@ async function dispatch(ctx: Context, argv: string[], keyRef: { key: string | nu
     const under = commandsUnder(tree, parsed.positionals).slice(0, MAX_CANDIDATES).map((c) => c.cli)
     throw usage('unknown_command', `unknown command: ${parsed.positionals.join(' ')}`, under.length ? { candidates: under } : {})
   }
-  emitJson(ctx, deliver(await invoke(ctx, hit.command, tree.serverPath, parsed, hit.rest, await needKey()), out), keyRef.key)
-  return EXIT.OK
+  const { response, mismatches } = await invoke(ctx, hit.command, tree.serverPath, parsed, hit.rest, await needKey())
+  emitJson(ctx, deliver(response, out), keyRef.key)
+  if (mismatches.length === 0) return EXIT.OK
+  // the write happened and stdout already holds the response; stderr says what differs
+  return emitError(ctx, new CliError(EXIT.MISMATCH, {
+    code: 'mismatch',
+    message: `saved value differs from the sent value: ${mismatches.map((m) => m.field).join(', ')}`,
+    mismatch: mismatches,
+  }), keyRef.key)
 }
 
 export async function run(argv: string[], ctx: Context): Promise<ExitCode> {

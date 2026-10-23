@@ -1,6 +1,6 @@
 # PLAN newAX: CLI 실측에서 나온 CRM 창구 결함 넷 고침
 플랜 ID: P0163
-플랜 버전: v0.1.3
+플랜 버전: v0.1.4
 상태: 진행중
 지시: ins_0339
 목표 버전: v0.11.68
@@ -76,9 +76,9 @@
 의존: I03
 
 ### I03b teamda 쓰기 뒤 저장값이 다르면 종료 9
-상태: 대기
+상태: 통과
 모드: 경량
-범위: packages/teamda-cli/src/run.ts, packages/teamda-cli/src/mismatch.ts (신규), packages/teamda-cli/README.md, packages/teamda-cli/test/
+범위: packages/teamda-cli/src/run.ts, packages/teamda-cli/src/mismatch.ts (신규), packages/teamda-cli/src/commands/invoke.ts, packages/teamda-cli/src/args.ts, packages/teamda-cli/src/commands/help.ts, packages/teamda-cli/src/exit.ts, packages/teamda-cli/README.md, packages/teamda-cli/test/
 감사 기준:
 - 쓰기 응답의 저장된 값과 보낸 값이 다른 칸이 있으면 표준오류에 mismatch 배열(field sent saved)과 종료 9, 같으면 종료 0 을 시험이 단정
 - 서버가 정규화하는 값(앞뒤 공백, 날짜 표기, 숫자 문자열)을 다르다고 하지 않음을 시험이 단정
@@ -123,3 +123,4 @@
 - v0.1.1 (2026-10-23) I04 근거 확인 결과 활동은 의도된 불변(activity.ts 머리 주석), 화면 항목 I05 취소, 시험 기록 정리는 I06 실측으로 옮김 (audit:I01)
 - v0.1.2 (2026-10-23) I02 범위를 실제 파일로 고침, 라우트는 본문을 그대로 넘겨 손대지 않고 해석기를 deal-start.ts 로 뺌(node --test 가 server-only 를 못 읽음) (audit:I02)
 - v0.1.3 (2026-10-23) I03 에서 지시서 5-3 의 재시도(429 세 번 5xx 한 번)와 저장값 비교(종료 9)가 구현되지 않은 것을 발견해 I03a I03b 추가 (audit:I03)
+- v0.1.4 (2026-10-23) I03a I03b 범위를 실제로 고친 파일로 맞춤(context.ts invoke.ts args.ts help.ts exit.ts) (audit:I03b)

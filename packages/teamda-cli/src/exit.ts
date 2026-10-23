@@ -18,7 +18,7 @@ export const EXIT = {
   APPROVAL_REQUIRED: 7,
   /** HTTP 5xx */
   SERVER: 8,
-  /** Saved value differs from what was sent. Reserved: no command checks this yet */
+  /** A write succeeded but the saved record differs from what was sent (mismatch.ts) */
   MISMATCH: 9,
 } as const
 
@@ -31,6 +31,8 @@ export interface ErrorBody {
   requiredScope?: string
   approvalId?: string
   candidates?: string[]
+  /** exit 9 only: each field whose saved value differs */
+  mismatch?: { field: string; sent: unknown; saved: unknown }[]
 }
 
 /** Thrown inside the CLI; main turns it into stderr JSON plus an exit code. */
