@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.67',
+    date: '2026-10-23',
+    title: '승인 요청은 사람이 화면에서만 결정해요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔒',
+        headline: 'API 키가 자기 승인 요청을 스스로 통과시키지 못해요',
+        detail: '지우기나 보내기처럼 승인이 필요한 일은 키 주인이나 관리자가 승인 화면에서 눌러야 실행돼요. 키로 승인 결정을 부르면 바로 거절해요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🧾',
+        headline: 'API 로 한 쓰기가 빠짐없이 기록돼요',
+        detail: '예전 API 창구와 다시 보낸 요청, 거절된 요청도 변경 이력의 API 탭에 키와 에이전트와 함께 남아요. 기록을 못 불러오면 빈 목록 대신 다시 시도할 수 있는 안내가 떠요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '⏳',
+        headline: '키 만료일과 남은 호출 수를 알려 줘요',
+        detail: 'teamda auth status 처럼 키 정보를 물으면 만료일과 이번 1분 동안 남은 호출 수가 함께 나와요.',
+      },
+    ],
+  },
+  {
     version: '0.11.62',
     date: '2026-10-23',
     title: 'teamda CLI 로 견적서를 PDF 와 이미지로 받아요',
