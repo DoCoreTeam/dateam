@@ -113,7 +113,7 @@ export default function LoginForm({ brandName, logoUrl }: LoginFormProps) {
           />
         </div>
 
-        {/* 로그인 상태 유지(자동 로그인) — 기본 켬, 실패 뒤에도 고른 값을 되살린다 */}
+        {/* 로그인 상태 유지(자동 로그인), 기본 켬, 실패 뒤에도 고른 값을 되살린다 */}
         <div>
           <label
             htmlFor="remember"

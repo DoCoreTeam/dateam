@@ -98,7 +98,7 @@ test('관리자 2단계 필수가 켜지면 실제로 강제된다', () => {
 
 test('로그인 실패를 세고 남긴다', () => {
   const src = read('app/(auth)/login/actions.ts')
-  assert.match(src, /await throttleLoginAttempt\(\)/, '시도를 안 세면 몇 번 찔렸는지 모른다')
+  assert.match(src, /await throttleLoginAttempt\(email\)/, '시도를 안 세면 몇 번 찔렸는지 모른다')
   assert.match(src, /await logLoginFailure\(/, '실패를 안 남기면 그런 일이 있었는지도 모른다')
 
   // 문자열을 jsonb 칼럼에 넣으면 죽는다(실측)
@@ -112,10 +112,11 @@ test('로그인 실패를 세고 남긴다', () => {
   // 그래서 시스템 로그에 남긴다 — 조용히 0건이 되던 것을 실측으로 잡았다.
   assert.match(lib, /recordSystemEvent\(/, '로그인 실패는 시스템 로그에 남긴다')
   assert.ok(!/from\('activity_log'\)/.test(lib), 'activity_log 는 NOT NULL 때문에 조용히 실패한다')
-  // 이메일 기준으로 세면 남의 계정을 골라 잠글 수 있다
+  // 보낸 곳만 세면 주소를 바꿔 가며 한 계정을 찌를 수 있다, 두 바구니를 판정기가 함께 본다
+  // 한도를 못 재면 닫히는지는 login-gate.test.ts 가 값으로 본다
   assert.ok(
-    !/limit:[^}]*email/i.test(lib) && /throttlePublicRequest\('login'/.test(lib),
-    '한도는 보낸 곳 기준이어야 한다 — 이메일 기준이면 남을 잠글 수 있다',
+    /gateLogin\(/.test(lib) && /recordPublicHit\(/.test(lib) && !/throttlePublicRequest\(/.test(lib),
+    '로그인 한도는 login-gate 판정을 지난다, 실패에 열리는 throttlePublicRequest 를 쓰지 않는다',
   )
   assert.match(lib, /maskEmail/, '기록이 계정 목록이 되면 안 된다')
 })

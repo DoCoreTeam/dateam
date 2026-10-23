@@ -21,7 +21,7 @@ export function parseListCursor(raw: string | null | undefined): ListCursor | nu
   return { time, id }
 }
 
-/** `.or()` 에 넣을 조건 — 검증을 지난 값만 들어온다 */
+/** `.or()` 에 넣을 조건, 검증을 지난 값만 들어온다 */
 export function cursorFilter({ time, id }: ListCursor): string {
   return `created_at.lt.${time},and(created_at.eq.${time},id.lt.${id})`
 }

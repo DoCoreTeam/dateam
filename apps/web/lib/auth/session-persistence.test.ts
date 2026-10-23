@@ -34,7 +34,7 @@ test('유지면 옵션을 그대로 둔다', () => {
   assert.deepEqual(applySessionPersistence(SSR_SET, false), SSR_SET)
 })
 
-test('지우기(maxAge 0)는 유지 안 함이어도 그대로 둔다 — 빼면 지운 쿠키가 되살아난다', () => {
+test('지우기(maxAge 0)는 유지 안 함이어도 그대로 둔다, 빼면 지운 쿠키가 되살아난다', () => {
   const remove = { ...SSR_SET, maxAge: 0 }
   assert.deepEqual(applySessionPersistence(remove, true), remove)
 })

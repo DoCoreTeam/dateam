@@ -128,7 +128,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
     const supabase = createClient()
     await supabase.auth.signOut()
     clearPersistedSwrCache() // 공유 PC 데이터 잔류 차단
-    // 「로그인 상태 유지」 선택도 지운다 — 다음 로그인이 다시 고른다
+    // 「로그인 상태 유지」 선택도 지운다, 다음 로그인이 다시 고른다
     document.cookie = `${SESSION_ONLY_COOKIE}=; Max-Age=0; path=/`
     router.push('/login')
     router.refresh()

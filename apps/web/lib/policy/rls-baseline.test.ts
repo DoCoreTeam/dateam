@@ -208,7 +208,7 @@ test('★ profiles 권한 칸을 막는 트리거가 있고 권한 칸을 다 �
  * 회수하지 않아도 되는 것은 아래 목록에 이유와 함께 적는다.
  */
 const DEFINER_NO_REVOKE_OK: Record<string, string> = {
-  // 트리거 함수 — 직접 부르면 Postgres 가 「트리거로만 부를 수 있다」며 거절한다
+  // 트리거 함수, 직접 부르면 Postgres 가 「트리거로만 부를 수 있다」며 거절한다
   fn_audit: '트리거 함수',
   ci_settings_audit: '트리거 함수',
   handle_new_user: '트리거 함수',
@@ -216,7 +216,7 @@ const DEFINER_NO_REVOKE_OK: Record<string, string> = {
   fn_org_closure_after_update: '트리거 함수',
   fn_org_closure_before_update: '트리거 함수',
   rfp_enroll_new_profile: '트리거 함수',
-  // 정책 판정용 — auth.uid() 로 「호출한 사람 자신」에 대해서만 참 거짓을 답한다, 남의 정보를 주지 않는다
+  // 정책 판정용, auth.uid() 로 「호출한 사람 자신」에 대해서만 참 거짓을 답한다, 남의 정보를 주지 않는다
   ci_can_admin: '호출자 자신의 권한 판정',
   ci_can_write: '호출자 자신의 권한 판정',
   ci_is_app_admin: '호출자 자신의 권한 판정',
@@ -251,7 +251,7 @@ test('★ SECURITY DEFINER 함수는 실행 권한을 회수하거나 회수하�
     Array.from(corpus.matchAll(/revoke\s+(?:all|execute)[^;]*?on\s+function\s+(?:public\.)?([a-z0-9_]+)/gi), (r) => r[1].toLowerCase()),
   )
   const defined = new Set(all.flatMap((m) => definerFunctions(m.sql)))
-  assert.ok(defined.size >= 30, `SECURITY DEFINER 함수를 ${defined.size}개만 찾았다 — 찾는 규칙이 망가졌다`)
+  assert.ok(defined.size >= 30, `SECURITY DEFINER 함수를 ${defined.size}개만 찾았다, 찾는 규칙이 망가졌다`)
 
   const open = [...defined].filter((n) => !revoked.has(n) && !(n in DEFINER_NO_REVOKE_OK)).sort()
   assert.deepEqual(

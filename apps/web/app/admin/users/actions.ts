@@ -199,7 +199,7 @@ export async function inviteUser(formData: FormData): Promise<{ success?: boolea
 
   const adminClient = createAdminClient()
 
-  // 첫 로그인용 임시 비밀번호 — 관리자 화면에 한 번만 보이고 첫 로그인 뒤 바꾸게 한다
+  // 첫 로그인용 임시 비밀번호, 관리자 화면에 한 번만 보이고 첫 로그인 뒤 바꾸게 한다
   const tempPassword = generateTempPassword()
   const { data, error: createError } = await adminClient.auth.admin.createUser({
     email,

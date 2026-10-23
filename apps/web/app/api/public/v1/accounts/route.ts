@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { parseListCursor, cursorFilter } from '@/lib/public-api/cursor'
 
 const LIMIT = 20
-/** 만들 때 받는 칸 — accounts/[id] PATCH 와 같은 목록. id user_id created_at deleted_at 은 받지 않는다 */
+/** 만들 때 받는 칸, accounts/[id] PATCH 와 같은 목록. id user_id created_at deleted_at 은 받지 않는다 */
 const ALLOWED_FIELDS = [
   'name', 'industry', 'segment', 'size', 'region', 'website', 'phone', 'address',
   'description', 'fit_score', 'fit_reason', 'tags', 'source', 'account_type',
@@ -20,7 +20,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
-  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다 — 화면보다 API 가 더 할 수 있으면 안 된다
+  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다, 화면보다 API 가 더 할 수 있으면 안 된다
   const denied = requireAdminKey(auth.ctx, request)
   if (denied) return denied
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
-  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다 — 화면보다 API 가 더 할 수 있으면 안 된다
+  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다, 화면보다 API 가 더 할 수 있으면 안 된다
   const denied = requireAdminKey(auth.ctx, request)
   if (denied) return denied
 
