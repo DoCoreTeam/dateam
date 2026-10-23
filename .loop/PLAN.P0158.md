@@ -129,7 +129,7 @@
 의존: I07
 
 ### I09 teamda CLI 본체
-상태: 대기
+상태: 통과
 모드: 경량
 범위: packages/teamda-cli/ (신규)
 감사 기준:

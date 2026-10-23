@@ -1,0 +1,41 @@
+{
+  "name": "@ax/teamda-cli",
+  "version": "0.1.0",
+  "description": "teamda command line client, builds its command tree from the public OpenAPI spec and calls the API with a scoped key",
+  "keywords": [
+    "cli",
+    "openapi",
+    "agent",
+    "bun"
+  ],
+  "license": "SEE LICENSE IN ../LICENSE",
+  "author": "DOCORE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DoCoreTeam/dateam.git"
+  },
+  "type": "module",
+  "bin": {
+    "teamda": "./src/main.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!test"
+  ],
+  "engines": {
+    "bun": ">=1.1"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "scripts": {
+    "embed-spec": "bun scripts/embed-spec.ts",
+    "test": "bun test",
+    "build": "bun scripts/embed-spec.ts && bun build src/main.ts --compile --outfile dist/teamda",
+    "build:win": "bun scripts/embed-spec.ts && bun build src/main.ts --compile --target=bun-windows-x64 --outfile dist/teamda.exe"
+  }
+}
