@@ -62,3 +62,64 @@ export function toAuditEntry(r: ApiAuditRow): ApiAuditEntry {
     createdAt: r.created_at,
   }
 }
+
+/*
+ * 쓰기 기록에 싣는 값 꺼내기 (P0162 I03)
+ * 관문(dispatch.ts)과 예전 공개 쓰기 창구(write-audit.ts)가 같은 함수를 쓴다
+ */
+
+const AGENT_MAX = 200
+
+/** 부른 쪽 이름, x-agent 가 먼저고 없으면 user-agent */
+export function agentOf(headers: Headers): string | null {
+  return (headers.get('x-agent') ?? headers.get('user-agent') ?? '').slice(0, AGENT_MAX) || null
+}
+
+/** 부른 곳 주소, x-forwarded-for 의 첫 값이 먼저고 없으면 x-real-ip */
+export function ipOf(headers: Headers): string | null {
+  return headers.get('x-forwarded-for')?.split(',')[0]?.trim() || headers.get('x-real-ip') || null
+}
+
+export interface WriteIdentity {
+  keyId: string
+  userId: string
+}
+
+// 요청 객체를 열쇠로 쓰는 WeakMap 이라 요청이 끝나면 같이 사라지고 다른 요청에서 안 보인다
+const identities = new WeakMap<object, WriteIdentity>()
+
+/** 키와 계정을 확인한 뒤에만 부른다, 키 값과 해시는 받지 않는다 */
+export function rememberIdentity(request: object, identity: WriteIdentity): void {
+  identities.set(request, { keyId: identity.keyId, userId: identity.userId })
+}
+
+export function identityOf(request: object): WriteIdentity | null {
+  return identities.get(request) ?? null
+}
+
+export interface WriteAuditInput {
+  identity: WriteIdentity
+  name: string
+  method: string
+  url: string
+  headers: Headers
+  status: number
+  requestId: string
+}
+
+/** api_write_audit 한 줄, 본문과 키 값은 싣지 않는다 */
+export function writeAuditRow(input: WriteAuditInput) {
+  return {
+    key_id: input.identity.keyId,
+    user_id: input.identity.userId,
+    agent: agentOf(input.headers),
+    ip: ipOf(input.headers),
+    request_id: input.requestId,
+    action_name: input.name,
+    method: input.method,
+    path: new URL(input.url).pathname,
+    status: input.status,
+    dry_run: false,
+    approval_id: null,
+  }
+}

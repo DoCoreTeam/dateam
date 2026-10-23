@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { hashApiKey } from '@/lib/apiKey'
+import { rememberIdentity } from '@/lib/public-api/api-audit'
 import { decideKeyAccess, effectiveScopes, isExpired, parseScopes, scopeForMethod, type Scope } from '@/lib/public-api/scopes'
 
 /** 키 소유자의 호스트 역할 — profiles.role 을 그대로 물려받는다 */
@@ -158,6 +159,10 @@ export async function authenticatePublicApi(
   if (!profile || profile.deleted_at) {
     return fail(403, '이 키를 발급한 계정을 사용할 수 없습니다. 관리자에게 문의해 주세요.', request)
   }
+
+  // 키와 계정을 확인한 뒤 요청별 신원을 남긴다 (쓰기 기록용, 키 값은 안 남김)
+  // 만료 범위 한도로 거절되는 것도 그 키의 쓰기 시도라 기록되게 이 자리에 둔다
+  rememberIdentity(request, { keyId: key.id, userId: key.user_id })
 
   // 만료와 범위, 실제 권한 = 계정 권한 ∩ 키 범위 (마이그 318)
   const required = options.scope ?? scopeForMethod(request.method)

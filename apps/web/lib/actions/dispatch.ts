@@ -11,6 +11,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, actingSessions } from '@/lib/supabase/server'
 import { authenticatePublicApi, corsHeaders, optionsResponse, rateLimitHeaders, type ApiKeyContext } from '@/lib/publicApiAuth'
+import { agentOf, ipOf } from '@/lib/public-api/api-audit'
 import { currentActing, issueActingGrant, runActing } from './acting-session'
 import { MODULES, MOUNTED, type MountedOp } from './generated/table'
 import {
@@ -42,14 +43,6 @@ interface AuditRow {
 
 function json(body: unknown, status: number, request: NextRequest, extra: Record<string, string> = {}): NextResponse {
   return NextResponse.json(body, { status, headers: { ...corsHeaders(request), ...extra } })
-}
-
-function agentOf(request: NextRequest): string | null {
-  return (request.headers.get('x-agent') ?? request.headers.get('user-agent') ?? '').slice(0, 200) || null
-}
-
-function ipOf(request: NextRequest): string | null {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || null
 }
 
 async function audit(row: AuditRow): Promise<void> {
@@ -147,7 +140,7 @@ export async function dispatchPublicApi(request: NextRequest): Promise<Response>
 
   const write = isWrite(op.scope)
   const bodyText = request.method === 'GET' || request.method === 'HEAD' ? '' : await request.text()
-  const auditBase = { ctx, op, path, requestId, agent: agentOf(request), ip: ipOf(request) }
+  const auditBase = { ctx, op, path, requestId, agent: agentOf(request.headers), ip: ipOf(request.headers) }
   if (isHumanOnly(op.name)) {
     await audit({ ...auditBase, status: 403 })
     return json({ success: false, error: '이 작업은 사람이 화면에서 합니다.', code: 'human_only' }, 403, request, base)
