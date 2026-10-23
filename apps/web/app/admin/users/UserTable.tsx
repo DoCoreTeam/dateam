@@ -21,7 +21,8 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { employmentMap, isResignScheduled, type EmploymentRow } from '@/lib/members/employment'
-import { EMPLOYMENT_FIELD, RESIGNED_TAB, ENTITY } from '@/lib/terms'
+import { EMPLOYMENT_FIELD, RESIGNED_TAB, ENTITY, ADMIN_SUMMARY } from '@/lib/terms'
+import { summarizeAdmins } from '@/lib/auth/test-account-guard'
 import type { Profile } from '@/types/database'
 
 interface RankItem {
@@ -77,6 +78,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
 
   const empMap = useMemo(() => employmentMap(employment), [employment])
   const isResignedList = mode === 'resigned'
+  const admins = useMemo(() => summarizeAdmins(profiles, (id) => emailMap[id]), [profiles, emailMap])
 
   const filtered = useMemo(() => {
     const q = query.q.trim().toLowerCase()
@@ -206,6 +208,24 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
 
   return (
     <>
+      {!isResignedList && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+          <button
+            type="button"
+            className="badge-btn"
+            title={ADMIN_SUMMARY.showAdmins}
+            aria-pressed={query.filters.role === 'admin'}
+            onClick={() => set({ filters: { role: query.filters.role === 'admin' ? '' : 'admin' } })}
+          >
+            <span className="badge badge-indigo">{ADMIN_SUMMARY.count(admins.adminCount)}</span>
+          </button>
+          {admins.suspiciousAdminIds.length > 0 && (
+            <span role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
+              {ADMIN_SUMMARY.suspicious(admins.suspiciousAdminIds.length)}
+            </span>
+          )}
+        </div>
+      )}
       <ListToolbar
         query={query}
         onChange={set}

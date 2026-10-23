@@ -2,6 +2,13 @@
 // 계정 생성은 SQL 직삽 금지·admin.createUser만 (토큰 NULL→로그인500 사고 방지).
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'node:fs'
+// 실행: node --experimental-strip-types scripts/create-test-account.mjs --confirm-production
+// .env.local 은 운영 DB 를 가리킨다. 확인 없이는 안 돌고, 관리자 권한은 주지 않는다(REQ-001)
+import { testAccountRunError } from '../lib/auth/test-account-guard.ts'
+
+const ROLE = 'member'
+const stop = testAccountRunError(process.argv.slice(2), ROLE)
+if (stop) { console.error(stop); process.exit(1) }
 
 const env = readFileSync(new URL('../.env.local', import.meta.url), 'utf8')
 const get = (k) => (env.match(new RegExp(`^${k}=(.*)$`, 'm')) || [])[1]?.trim().replace(/^["']|["']$/g, '')
@@ -39,7 +46,7 @@ const uid = user.id
 
 // 3) profiles upsert (member, 로그인 직후 변경강제 없음)
 const { error: pErr } = await admin.from('profiles').upsert(
-  { id: uid, name: NAME, role: 'member', must_change_password: false }, { onConflict: 'id' }
+  { id: uid, name: NAME, role: ROLE, must_change_password: false }, { onConflict: 'id' }
 )
 if (pErr) { console.error('profiles upsert 실패', pErr.message); process.exit(1) }
 
@@ -59,6 +66,6 @@ if (!personNodeId) {
 }
 
 console.log(JSON.stringify({
-  ok: true, email: EMAIL, name: NAME, password: PASSWORD, role: 'member',
+  ok: true, email: EMAIL, name: NAME, password: PASSWORD, role: ROLE,
   user_id: uid, ax_node: { id: axNode.id, name: axNode.name }, person_node_id: personNodeId,
 }, null, 2))

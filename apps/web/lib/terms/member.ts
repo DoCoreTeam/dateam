@@ -63,6 +63,13 @@ export function confirmUndoResign(name: string): string {
  *
  * 탭과 거르개를 함께 두지 않는다 — 같은 뜻의 조작이 둘이면 사용자는 어느 쪽이 이겼는지 모른다.
  */
+/** 구성원 화면 머리 — 관리자 수와 시험으로 보이는 관리자(REQ-001) */
+export const ADMIN_SUMMARY = {
+  count: (n: number) => `관리자 ${n}명`,
+  showAdmins: '관리자만 보기',
+  suspicious: (n: number) => `시험 계정으로 보이는 관리자 ${n}명이 있어요. 역할을 member 로 바꾸거나 퇴사 처리하세요.`,
+} as const
+
 export const RESIGNED_TAB = {
   label: '퇴사자',
   /** 퇴사일이 잡혔지만 아직 안 온 사람 — 재직 목록에 있으면서 곧 나간다 */

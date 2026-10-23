@@ -125,7 +125,7 @@ export {
 
 export {
   EMPLOYMENT_STATUS, EMPLOYMENT_FIELD, EMPLOYMENT_ACTION, EMPLOYMENT_UNKNOWN,
-  RESIGNED_TAB, confirmResign, confirmUndoResign,
+  RESIGNED_TAB, ADMIN_SUMMARY, confirmResign, confirmUndoResign,
   type EmploymentStatus, type EmploymentStatusMeta,
 } from './member.ts'
 
