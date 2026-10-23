@@ -207,6 +207,8 @@ const LINE_SELECT = {
   durationValue: true, durationUnit: true,
   // 가격 기준 — 출처와 그날 정상가. 안 읽으면 다시 저장할 때 승인 판정이 옛 길로 떨어진다
   listPriceMinor: true, priceSource: true, provenance: true, billing: true,
+  // 어느 가격 기준 버전에서 왔나(마이그 317) — 안 읽으면 복제와 기준 대조가 버전을 잃는다
+  priceProductId: true, priceProductRevision: true,
   ratioOfSectionName: true, sourceLineId: true, lockedFields: true,
 } as const
 
@@ -214,6 +216,8 @@ const SELECT = {
   id: true, dealId: true, quoteNo: true, title: true, status: true, currency: true,
   validUntil: true, subtotalMinor: true, discountMinor: true, taxMinor: true, totalMinor: true,
   roundingUnit: true, roundingMode: true, roundingMinor: true,
+  // 할인 후 공급가 합계 절사(마이그 317) — 안 읽으면 다시 저장할 때 절사가 사라진다
+  supplyRoundingUnit: true,
   sourceQuoteId: true, revision: true, variantLabel: true,
   fxRate: true, fxDate: true, fxSource: true,
   // 금액 표시 — 안 읽으면 고른 축이 문서에 안 닿아 늘 지금과 같은 한 줄만 나온다
@@ -1713,6 +1717,7 @@ export async function duplicateQuote(
         taxMinor: src.taxMinor, totalMinor: src.totalMinor,
         roundingUnit: src.roundingUnit, roundingMode: src.roundingMode,
         roundingMinor: src.roundingMinor,
+        supplyRoundingUnit: (src as { supplyRoundingUnit?: number }).supplyRoundingUnit ?? 0,
         approvalRequired: src.approvalRequired,
         /*
           **금액 표시 선택도 물려받는다.**
@@ -1798,6 +1803,8 @@ export async function duplicateQuote(
             옛 길(할인 칸)로 떨어져 깎은 단가가 승인을 비켜 간다. 출처가 빠지면 다시 채우기가 덮는다.
           */
           listPriceMinor: l.listPriceMinor ?? null, priceSource: l.priceSource ?? null,
+          priceProductId: (l as { priceProductId?: string | null }).priceProductId ?? null,
+          priceProductRevision: (l as { priceProductRevision?: number | null }).priceProductRevision ?? null,
           provenance: l.provenance ?? {}, billing: l.billing ?? null,
           ratioOfSectionName: l.ratioOfSectionName ?? null, lockedFields: l.lockedFields ?? [],
           // 항목끼리 잇는다 — Rev.1 과 Rev.2 를 항목별로 나란히 보려면 앞 견적의 어느 항목에서 왔는지가 있어야 한다
