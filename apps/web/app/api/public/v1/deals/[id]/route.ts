@@ -4,6 +4,7 @@ import { ok, notFound, serverError } from '@/lib/public-api/respond'
 import { guardOwnedRow } from '@/lib/public-api/owned-row'
 import { createAdminClient } from '@/lib/supabase/server'
 import { probabilityForStage } from '@/lib/crm'
+import { withWriteAudit } from '@/lib/public-api/write-audit'
 
 interface Ctx { params: Promise<{ id: string }> }
 
@@ -39,52 +40,56 @@ export async function GET(request: NextRequest, { params }: Ctx) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Ctx) {
-  const auth = await authenticatePublicApi(request)
-  if ('error' in auth) return auth.error
-  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다, 화면보다 API 가 더 할 수 있으면 안 된다
-  const denied = requireAdminKey(auth.ctx, request)
-  if (denied) return denied
-
-  try {
-    const { id } = await params
-    const raw = await request.json()
-    const body: Record<string, unknown> = Object.fromEntries(ALLOWED_FIELDS.filter(k => k in raw).map(k => [k, raw[k]]))
-    if (typeof body.stage === 'string') body.probability = probabilityForStage(body.stage)
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any
-    // RLS 의 deals_update_own·deals_delete_own 과 같은 판정 — 서비스 롤이라 앱이 다시 본다
-    const denied = await guardOwnedRow(admin, 'deals', id, auth.ctx, request)
+  return withWriteAudit('public.deals.id.patch', async () => {
+    const auth = await authenticatePublicApi(request)
+    if ('error' in auth) return auth.error
+    // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다, 화면보다 API 가 더 할 수 있으면 안 된다
+    const denied = requireAdminKey(auth.ctx, request)
     if (denied) return denied
 
-    const { data, error } = await admin.from('deals').update(body).eq('id', id).select().maybeSingle()
-    if (error) throw error
-    if (!data) return notFound({ ctx: auth.ctx, request })
-    return ok(data, { ctx: auth.ctx, request })
-  } catch (err) {
-    return serverError('deals/:id PATCH', err, { ctx: auth.ctx, request })
-  }
+    try {
+      const { id } = await params
+      const raw = await request.json()
+      const body: Record<string, unknown> = Object.fromEntries(ALLOWED_FIELDS.filter(k => k in raw).map(k => [k, raw[k]]))
+      if (typeof body.stage === 'string') body.probability = probabilityForStage(body.stage)
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = createAdminClient() as any
+      // RLS 의 deals_update_own·deals_delete_own 과 같은 판정 — 서비스 롤이라 앱이 다시 본다
+      const denied = await guardOwnedRow(admin, 'deals', id, auth.ctx, request)
+      if (denied) return denied
+
+      const { data, error } = await admin.from('deals').update(body).eq('id', id).select().maybeSingle()
+      if (error) throw error
+      if (!data) return notFound({ ctx: auth.ctx, request })
+      return ok(data, { ctx: auth.ctx, request })
+    } catch (err) {
+      return serverError('deals/:id PATCH', err, { ctx: auth.ctx, request })
+    }
+  })(request, undefined)
 }
 
 export async function DELETE(request: NextRequest, { params }: Ctx) {
-  const auth = await authenticatePublicApi(request)
-  if ('error' in auth) return auth.error
-  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다, 화면보다 API 가 더 할 수 있으면 안 된다
-  const denied = requireAdminKey(auth.ctx, request)
-  if (denied) return denied
-
-  try {
-    const { id } = await params
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any
-    // RLS 의 deals_update_own·deals_delete_own 과 같은 판정 — 서비스 롤이라 앱이 다시 본다
-    const denied = await guardOwnedRow(admin, 'deals', id, auth.ctx, request)
+  return withWriteAudit('public.deals.id.delete', async () => {
+    const auth = await authenticatePublicApi(request)
+    if ('error' in auth) return auth.error
+    // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다, 화면보다 API 가 더 할 수 있으면 안 된다
+    const denied = requireAdminKey(auth.ctx, request)
     if (denied) return denied
 
-    const { error } = await admin.from('deals').delete().eq('id', id)
-    if (error) throw error
-    return ok(null, { ctx: auth.ctx, request })
-  } catch (err) {
-    return serverError('deals/:id DELETE', err, { ctx: auth.ctx, request })
-  }
+    try {
+      const { id } = await params
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = createAdminClient() as any
+      // RLS 의 deals_update_own·deals_delete_own 과 같은 판정 — 서비스 롤이라 앱이 다시 본다
+      const denied = await guardOwnedRow(admin, 'deals', id, auth.ctx, request)
+      if (denied) return denied
+
+      const { error } = await admin.from('deals').delete().eq('id', id)
+      if (error) throw error
+      return ok(null, { ctx: auth.ctx, request })
+    } catch (err) {
+      return serverError('deals/:id DELETE', err, { ctx: auth.ctx, request })
+    }
+  })(request, undefined)
 }

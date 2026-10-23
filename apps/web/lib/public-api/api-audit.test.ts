@@ -3,8 +3,8 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   auditScope, clampLimit, toAuditEntry, API_AUDIT_MAX,
@@ -131,4 +131,89 @@ test('★ 감사 장치는 서버 전용이고 응답 상태와 함께 넣되 �
   assert.match(src, /from\('api_write_audit'\)\.insert\(row\)/)
   assert.match(src, /const identity = identityOf\(request\)\s*if \(!identity\) return/)
   assert.doesNotMatch(src, /\bbody\b|\.text\(\)|\.json\(\)|x-api-key|authorization/i)
+})
+
+/*
+ * 공개 쓰기 창구는 빠짐없이 기록된다 (P0162 I03b)
+ * app/api/public/v1 아래 모든 route.ts 의 쓰기 메서드는 둘 중 하나여야 한다
+ *   관문(lib/actions/dispatch.ts 의 dispatchPublicApi)을 그대로 내보내거나
+ *   몸통이 withWriteAudit 을 지나고 그 안에서 authenticatePublicApi 를 부른다
+ */
+const V1 = join(WEB, 'app', 'api', 'public', 'v1')
+const WRITE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'] as const
+const AUDIT_EXEMPT: Record<string, string> = {
+  'quote/route.ts POST': '견적 계산만 한다, 저장하는 것이 없고 읽기 범위로 부른다',
+}
+/** 지금 센 쓰기 처리기 수, 걷기가 비면 통과하지 못하게 */
+const MIN_WRITE_HANDLERS = 30
+const MIN_AUDITED = 12
+
+function v1Routes(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const p = join(dir, name)
+    if (statSync(p).isDirectory()) return v1Routes(p)
+    return name === 'route.ts' ? [p] : []
+  })
+}
+
+function stripComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+}
+
+type Verdict = 'gateway' | 'audited' | 'exempt' | 'missing'
+
+function judge(src: string, method: string, key: string): Verdict | null {
+  if (key in AUDIT_EXEMPT) return 'exempt'
+  const fromGateway = /from\s*['"]@\/lib\/actions\/dispatch['"]/.test(src)
+  const reexport = src.match(new RegExp(`export\\s*\\{[^}]*\\b${method}\\b[^}]*\\}\\s*from\\s*['"]([^'"]+)['"]`))
+  if (reexport) return /lib\/actions\/dispatch|\[\.\.\.path\]\/route/.test(reexport[1]) ? 'gateway' : 'missing'
+  const asConst = src.match(new RegExp(`export\\s+const\\s+${method}\\s*=\\s*(\\w+)`))
+  if (asConst) {
+    if (asConst[1] === 'dispatchPublicApi' && fromGateway) return 'gateway'
+    if (asConst[1] === 'enter' && /const enter = \(request: NextRequest\) => dispatchPublicApi\(request\)/.test(src) && fromGateway) return 'gateway'
+    return 'missing'
+  }
+  const at = src.search(new RegExp(`export\\s+async\\s+function\\s+${method}\\b`))
+  if (at < 0) return null
+  const rest = src.slice(at + 1)
+  const next = rest.search(/\nexport\s/)
+  const body = src.slice(at, next < 0 ? src.length : at + 1 + next)
+  const wrapAt = body.search(/return withWriteAudit\('public\.[\w.-]+', async \(\) => \{/)
+  const authAt = body.indexOf('authenticatePublicApi(')
+  return wrapAt >= 0 && authAt > wrapAt && /\}\)\(request, undefined\)\s*\}\s*$/.test(body.trimEnd() + '\n') ? 'audited' : 'missing'
+}
+
+test('★ 공개 쓰기 창구는 관문을 내보내거나 withWriteAudit 을 지난다', () => {
+  const files = v1Routes(V1)
+  assert.ok(files.length >= 20, `공개 v1 창구를 ${files.length}개만 찾았다`)
+  const counts: Record<Verdict, number> = { gateway: 0, audited: 0, exempt: 0, missing: 0 }
+  const missing: string[] = []
+  const names: string[] = []
+  for (const file of files) {
+    const src = stripComments(readFileSync(file, 'utf8'))
+    const rel = relative(V1, file)
+    for (const method of WRITE_METHODS) {
+      const key = `${rel} ${method}`
+      const v = judge(src, method, key)
+      if (!v) continue
+      counts[v]++
+      if (v === 'missing') missing.push(key)
+    }
+    names.push(...[...src.matchAll(/withWriteAudit\('([^']+)'/g)].map((m) => m[1]))
+  }
+  assert.deepEqual(missing, [], `기록 없이 쓰는 공개 창구 ${missing.length}개`)
+  const total = counts.gateway + counts.audited + counts.exempt
+  assert.ok(total >= MIN_WRITE_HANDLERS, `쓰기 처리기를 ${total}개만 찾았다, 걷기가 헛돈다`)
+  assert.ok(counts.audited >= MIN_AUDITED, `withWriteAudit 을 지나는 처리기가 ${counts.audited}개뿐이다`)
+  assert.equal(new Set(names).size, names.length, `감사 이름이 겹친다: ${names.join(' ')}`)
+})
+
+test('감사 면제 목록이 실제 처리기를 가리킨다', () => {
+  for (const [key, reason] of Object.entries(AUDIT_EXEMPT)) {
+    const [rel, method] = key.split(' ')
+    const src = readFileSync(join(V1, rel), 'utf8')
+    assert.match(src, new RegExp(`export async function ${method}\\(`), key)
+    assert.doesNotMatch(src, /\.insert\(|\.update\(|\.upsert\(|\.delete\(/, `${key} 가 저장한다, 면제가 아니다`)
+    assert.ok(reason.length > 10, `${key} 의 이유가 너무 짧다`)
+  }
 })

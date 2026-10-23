@@ -3,6 +3,7 @@ import { authenticatePublicApi, optionsResponse, requireAdminKey } from '@/lib/p
 import { ok, okList, fail, serverError } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 import { parseListCursor, cursorFilter } from '@/lib/public-api/cursor'
+import { withWriteAudit } from '@/lib/public-api/write-audit'
 
 const LIMIT = 20
 /** 만들 때 받는 칸, accounts/[id] PATCH 와 같은 목록. id user_id created_at deleted_at 은 받지 않는다 */
@@ -81,30 +82,32 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await authenticatePublicApi(request)
-  if ('error' in auth) return auth.error
-  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다, 화면보다 API 가 더 할 수 있으면 안 된다
-  const denied = requireAdminKey(auth.ctx, request)
-  if (denied) return denied
+  return withWriteAudit('public.accounts.post', async () => {
+    const auth = await authenticatePublicApi(request)
+    if ('error' in auth) return auth.error
+    // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다, 화면보다 API 가 더 할 수 있으면 안 된다
+    const denied = requireAdminKey(auth.ctx, request)
+    if (denied) return denied
 
-  try {
-    const raw = await request.json()
-    const body: Record<string, unknown> = Object.fromEntries(ALLOWED_FIELDS.filter((k) => k in raw).map((k) => [k, raw[k]]))
-    if (typeof body.name !== 'string' || !body.name.trim()) {
-      return fail(400, 'name is required', { ctx: auth.ctx, request })
+    try {
+      const raw = await request.json()
+      const body: Record<string, unknown> = Object.fromEntries(ALLOWED_FIELDS.filter((k) => k in raw).map((k) => [k, raw[k]]))
+      if (typeof body.name !== 'string' || !body.name.trim()) {
+        return fail(400, 'name is required', { ctx: auth.ctx, request })
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const admin = createAdminClient() as any
+      const { data, error } = await admin
+        .from('accounts')
+        .insert(Object.assign({}, body, { user_id: auth.ctx.userId }))
+        .select()
+        .single()
+
+      if (error) throw error
+      return ok(data, { ctx: auth.ctx, request, status: 201 })
+    } catch (err) {
+      return serverError('accounts POST', err, { ctx: auth.ctx, request })
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any
-    const { data, error } = await admin
-      .from('accounts')
-      .insert(Object.assign({}, body, { user_id: auth.ctx.userId }))
-      .select()
-      .single()
-
-    if (error) throw error
-    return ok(data, { ctx: auth.ctx, request, status: 201 })
-  } catch (err) {
-    return serverError('accounts POST', err, { ctx: auth.ctx, request })
-  }
+  })(request, undefined)
 }
