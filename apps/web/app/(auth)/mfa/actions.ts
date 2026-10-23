@@ -17,7 +17,7 @@ export async function verifyChallenge(code: string): Promise<ChallengeResult> {
   const clean = code.replace(/\D/g, '')
   if (clean.length !== 6) return { ok: false, error: '여섯 자리 숫자를 입력해 주세요' }
 
-  const supabase = await createClient()
+  const supabase = await createClient({ allowPendingMfa: true })
   const { data: factors } = await supabase.auth.mfa.listFactors()
   const factor = (factors?.all ?? []).find((f) => f.status === 'verified')
   // 장치가 없으면 확인할 것이 없다. 화면이 알아서 안으로 들여보낸다.
@@ -38,7 +38,7 @@ export async function verifyChallenge(code: string): Promise<ChallengeResult> {
 
 /** 코드를 못 넣는 상황 — 세션을 끊는다. 이동은 화면이 한다. */
 export async function cancelChallenge(): Promise<ChallengeResult> {
-  const supabase = await createClient()
+  const supabase = await createClient({ allowPendingMfa: true })
   const { error } = await supabase.auth.signOut()
   if (error) return { ok: false, error: '로그아웃하지 못했습니다' }
   return { ok: true }

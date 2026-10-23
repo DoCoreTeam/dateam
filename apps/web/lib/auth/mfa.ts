@@ -40,7 +40,8 @@ export type MfaState = {
 
 /** 지금 로그인한 사람의 2단계 인증 상태. */
 export async function getMfaState(): Promise<MfaState> {
-  const supabase = await createClient()
+  // 코드를 넣기 전에도 읽어야 한다, listFactors 는 안에서 getUser 를 부른다
+  const supabase = await createClient({ allowPendingMfa: true })
 
   const [{ data: factors }, { data: aal }] = await Promise.all([
     supabase.auth.mfa.listFactors(),

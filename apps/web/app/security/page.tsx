@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { ShieldCheck } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
-import { getRequestUser, createAdminClient } from '@/lib/supabase/server'
+import { getRequestUserBeforeSecondFactor, createAdminClient } from '@/lib/supabase/server'
 import { getMfaState, isMfaRequiredForAdmin } from '@/lib/auth/mfa'
 import MfaPanel from './MfaPanel'
 
@@ -14,7 +14,7 @@ import MfaPanel from './MfaPanel'
 export const dynamic = 'force-dynamic'
 
 export default async function SecurityPage() {
-  const user = await getRequestUser()
+  const user = await getRequestUserBeforeSecondFactor()
   if (!user) redirect('/login')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

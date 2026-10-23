@@ -19,7 +19,7 @@ export type VerifyResult = { ok: true } | { ok: false; error: string }
 
 /** 새 장치를 만들고 QR 을 돌려준다. 아직 로그인에 필요하지 않다. */
 export async function startEnroll(): Promise<EnrollResult> {
-  const supabase = await createClient()
+  const supabase = await createClient({ allowPendingMfa: true })
 
   // 등록하다 만 것이 쌓이면 목록이 지저분해지고 사람이 어느 것을 찍었는지 모른다.
   const { data: factors } = await supabase.auth.mfa.listFactors()
@@ -40,7 +40,7 @@ export async function startEnroll(): Promise<EnrollResult> {
 
 /** 앱이 내놓은 여섯 자리로 확인한다. 통과하면 이 세션도 곧바로 2단계가 된다. */
 export async function confirmEnroll(factorId: string, code: string): Promise<VerifyResult> {
-  const supabase = await createClient()
+  const supabase = await createClient({ allowPendingMfa: true })
   const clean = code.replace(/\D/g, '')
   if (clean.length !== 6) return { ok: false, error: '여섯 자리 숫자를 입력해 주세요' }
 
@@ -65,7 +65,7 @@ export async function confirmEnroll(factorId: string, code: string): Promise<Ver
  * 남의 장치를 떼고 들어갈 수 있다.
  */
 export async function removeFactor(factorId: string): Promise<VerifyResult> {
-  const supabase = await createClient()
+  const supabase = await createClient({ allowPendingMfa: true })
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
   const { data: factors } = await supabase.auth.mfa.listFactors()
   const target = (factors?.all ?? []).find((f) => f.id === factorId)

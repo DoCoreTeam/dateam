@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation'
 import { getMfaState, needsChallenge } from '@/lib/auth/mfa'
-import { getRequestUser } from '@/lib/supabase/server'
+import { getRequestUserBeforeSecondFactor } from '@/lib/supabase/server'
 import PageHeader from '@/components/ui/PageHeader'
 import MfaChallengeForm from './MfaChallengeForm'
 
 export const dynamic = 'force-dynamic'
 
 export default async function MfaPage() {
-  const user = await getRequestUser()
+  const user = await getRequestUserBeforeSecondFactor()
   if (!user) redirect('/login')
 
   // 이미 통과했거나 애초에 필요 없는 사람이 이 화면에 머물지 않게 한다.

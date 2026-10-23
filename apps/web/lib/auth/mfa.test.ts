@@ -9,10 +9,10 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { needsChallenge } from './mfa-level.ts'
+import { needsChallenge, aalFromAccessToken, blocksBeforeSecondFactor } from './mfa-level.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (rel: string) => readFileSync(join(WEB, rel), 'utf8')
@@ -77,4 +77,60 @@ test('스스로 뗄 때는 2단계를 지난 세션이어야 한다', () => {
     /currentLevel !== 'aal2'/,
     '비밀번호만 아는 사람이 남의 장치를 떼고 들어갈 수 있으면 2단계가 없는 것과 같다',
   )
+})
+
+/** 시험용 토큰, 서명 자리는 비워 둔다 (판정 함수는 서명을 안 본다) */
+const tokenWith = (payload: object) =>
+  `x.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.`
+
+test('API 판정: 장치 없음 aal1 통과, 장치 있음 aal1 거절, 장치 있음 aal2 통과', () => {
+  assert.equal(blocksBeforeSecondFactor({ tokenAal: 'aal1', verifiedFactors: 0 }), false)
+  assert.equal(blocksBeforeSecondFactor({ tokenAal: 'aal1', verifiedFactors: 1 }), true)
+  assert.equal(blocksBeforeSecondFactor({ tokenAal: 'aal2', verifiedFactors: 1 }), false)
+})
+
+test('토큰의 단계를 읽고 못 읽으면 모른다고 답한다', () => {
+  assert.equal(aalFromAccessToken(tokenWith({ aal: 'aal1' })), 'aal1')
+  assert.equal(aalFromAccessToken(tokenWith({ aal: 'aal2', sub: '가' })), 'aal2')
+  assert.equal(aalFromAccessToken(tokenWith({ aal: 'aal9' })), null)
+  assert.equal(aalFromAccessToken('깨진토큰'), null)
+  assert.equal(aalFromAccessToken(undefined), null)
+})
+
+test('서버 클라이언트가 기본으로 2단계 전 사용자를 지운다 (/api 와 서버 액션)', () => {
+  const src = read('lib/supabase/server.ts')
+  assert.match(
+    src,
+    /if \(!opts\?\.allowPendingMfa\) gateUntilSecondFactor\(client\)/,
+    '/api 는 미들웨어를 안 탄다, 여기서 안 막으면 비밀번호만으로 창구를 부른다',
+  )
+  const gate = src.slice(src.indexOf('function gateUntilSecondFactor'))
+  assert.match(gate, /auth\.getUser = async/, '권한 판정이 출발하는 getUser 의 답을 바꿔야 한다')
+  assert.match(gate, /blocksBeforeSecondFactor\(/, '판정은 시험이 잠근 함수로 한다')
+  assert.match(gate, /data: \{ user: null \}/, '막을 때는 사용자 없음으로 답해야 창구가 401 을 낸다')
+})
+
+test('2단계 전 사용자를 받는 자리는 코드 넣기와 장치 다루기뿐이다', () => {
+  const ALLOWED = new Set([
+    'lib/supabase/server.ts',
+    'lib/auth/mfa.ts',
+    'app/(auth)/mfa/actions.ts',
+    'app/(auth)/mfa/page.tsx',
+    'app/security/actions.ts',
+    'app/security/page.tsx',
+  ])
+  const found: string[] = []
+  const walk = (dir: string) => {
+    for (const e of readdirSync(join(WEB, dir), { withFileTypes: true })) {
+      if (e.name === 'node_modules' || e.name.startsWith('.')) continue
+      const rel = `${dir}/${e.name}`
+      if (e.isDirectory()) walk(rel)
+      else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)) {
+        if (/allowPendingMfa|getRequestUserBeforeSecondFactor/.test(read(rel))) found.push(rel)
+      }
+    }
+  }
+  for (const root of ['app', 'lib', 'components']) walk(root)
+  const extra = found.filter((f) => !ALLOWED.has(f))
+  assert.deepEqual(extra, [], `이 파일들이 2단계를 건너뛴 사용자를 받는다: ${extra.join(', ')}`)
 })

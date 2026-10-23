@@ -1,11 +1,12 @@
 // 서비스롤 키를 다루는 모듈이다 — 클라이언트 번들에 끌려 들어가면 빌드가 멈추게 한다
 import 'server-only'
 import { createServerClient } from '@supabase/ssr'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { AuthError, createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
 import type { Database } from '@/types/database'
 import { SESSION_ONLY_COOKIE, applySessionPersistence, isSessionOnly } from '@/lib/auth/session-persistence'
+import { aalFromAccessToken, blocksBeforeSecondFactor } from '@/lib/auth/mfa-level'
 
 type CookieItem = { name: string; value: string; options?: Record<string, unknown> }
 
@@ -19,10 +20,12 @@ export function createAdminClient() {
 }
 
 /**
- * @param opts.sessionOnly 로그인하는 그 요청에서만 넘긴다 — 선호 쿠키를 막 쓴 요청이라
+ * @param opts.sessionOnly 로그인하는 그 요청에서만 넘긴다, 선호 쿠키를 막 쓴 요청이라
  *   쿠키 저장소가 아직 옛 값을 줄 수 있다. 그 밖에서는 선호 쿠키를 읽는다(lib/auth/session-persistence).
+ * @param opts.allowPendingMfa 코드를 넣는 자리(/mfa)와 장치를 다루는 자리(/security)만 넘긴다.
+ *   그 밖에서는 2단계를 안 지난 사람을 getUser 가 「로그인 안 함」으로 답한다.
  */
-export async function createClient(opts?: { sessionOnly?: boolean }) {
+export async function createClient(opts?: { sessionOnly?: boolean; allowPendingMfa?: boolean }) {
   const cookieStore = await cookies()
   const sessionOnly = () => opts?.sessionOnly ?? isSessionOnly(cookieStore.get(SESSION_ONLY_COOKIE)?.value)
 
@@ -55,7 +58,33 @@ export async function createClient(opts?: { sessionOnly?: boolean }) {
   // getSession()으로 세션을 명시 로드해두면 이후 DB 쿼리에 Authorization 헤더가 포함됨
   await client.auth.getSession()
 
+  if (!opts?.allowPendingMfa) gateUntilSecondFactor(client)
   return client
+}
+
+type ServerClient = ReturnType<typeof createServerClient<Database>>
+
+/**
+ * 2단계 인증을 등록한 사람은 코드까지 넣어야 서버가 사용자로 본다
+ *
+ * 왜 여기인가: 화면은 미들웨어가 /mfa 로 보내지만 /api 는 미들웨어를 안 탄다.
+ *   창구 67곳이 각자 `auth.getUser()` 를 부르고 서버 액션도 같은 길을 쓴다.
+ *   하나하나 고치면 하나를 빠뜨리므로 모두가 지나는 이 클라이언트에서 답을 바꾼다.
+ * 왜 getUser 만인가: 권한 판정은 전부 getUser 의 답에서 출발한다. 사용자가 없으면 401 이 된다.
+ *   표 조회는 여전히 그 사람 토큰으로 나가지만, 사용자 확인 없이 쓰는 창구는 S2 가드가 막는다.
+ */
+function gateUntilSecondFactor(client: ServerClient) {
+  const auth = client.auth
+  const verifiedGetUser = auth.getUser.bind(auth)
+  auth.getUser = async (jwt?: string) => {
+    const res = await verifiedGetUser(jwt)
+    const user = res.data.user
+    if (!user) return res
+    const token = jwt ?? (await auth.getSession()).data.session?.access_token
+    const verifiedFactors = (user.factors ?? []).filter((f) => f.status === 'verified').length
+    if (!blocksBeforeSecondFactor({ tokenAal: aalFromAccessToken(token), verifiedFactors })) return res
+    return { data: { user: null }, error: new AuthError('second factor required', 401, 'mfa_required') }
+  }
 }
 
 /**
@@ -72,6 +101,13 @@ export async function createClient(opts?: { sessionOnly?: boolean }) {
  */
 export const getRequestUser = cache(async () => {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+})
+
+/** 코드를 넣기 전의 사용자. /mfa 와 /security 화면만 쓴다 (그 밖에서 쓰면 2단계를 건너뛴다) */
+export const getRequestUserBeforeSecondFactor = cache(async () => {
+  const supabase = await createClient({ allowPendingMfa: true })
   const { data: { user } } = await supabase.auth.getUser()
   return user
 })
