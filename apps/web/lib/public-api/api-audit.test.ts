@@ -3,13 +3,15 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   auditScope, clampLimit, toAuditEntry, API_AUDIT_MAX,
   agentOf, ipOf, rememberIdentity, identityOf, writeAuditRow,
 } from './api-audit.ts'
+
+import { stripComments, walkFiles } from '../ui/component-scan.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (...p: string[]) => readFileSync(join(WEB, ...p), 'utf8')
@@ -148,16 +150,9 @@ const AUDIT_EXEMPT: Record<string, string> = {
 const MIN_WRITE_HANDLERS = 30
 const MIN_AUDITED = 12
 
+// 훑기와 주석 지우기는 lib/ui/component-scan.ts 한 벌을 쓴다 (node_modules 와 점 디렉터리를 거름)
 function v1Routes(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const p = join(dir, name)
-    if (statSync(p).isDirectory()) return v1Routes(p)
-    return name === 'route.ts' ? [p] : []
-  })
-}
-
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  return walkFiles(dir, ['.ts']).filter((p) => p.endsWith('/route.ts'))
 }
 
 type Verdict = 'gateway' | 'audited' | 'exempt' | 'missing'
