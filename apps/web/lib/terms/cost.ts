@@ -259,6 +259,8 @@ export const COST = {
   totalCost: '원가 합계',
   grossProfit: '매출총이익',
   marginPct: '마진율',
+  /** 원가 줄이 하나도 없을 때 — 0원으로 세지 않는다(REQ-002) */
+  costMissing: '원가 미입력',
   addCost: '원가 항목 추가',
   emptyTitle: '원가가 아직 없어요',
   emptyHint: '원가를 적으면 이 딜이 남는 장사인지 바로 보입니다. 견적이 없어도 됩니다.',

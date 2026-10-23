@@ -270,7 +270,7 @@ export async function listDealCosts(db: CrmDb, dealId: string): Promise<DealCost
   return {
     items: withComputed,
     totals,
-    margin: computeMargin(revenue, totals.totalMinor),
+    margin: computeMargin(revenue, totals.totalMinor, rows.length),
     revenueMinor: revenue.toString(),
     currency: baseCurrency,
   }
@@ -513,6 +513,7 @@ export function toTotalsJson(v: DealCostView): Record<string, unknown> {
     margin: {
       grossProfitMinor: v.margin.grossProfitMinor.toString(),
       marginPct: v.margin.marginPct,
+      costMissing: v.margin.costMissing,
     },
   }
 }

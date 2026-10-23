@@ -73,7 +73,7 @@ interface CostView {
     /** 환율이 없어 합계에서 빠진 항목 */
     skipped: { id: string | null; amountMinor: string; currency: string }[]
   }
-  margin: { grossProfitMinor: string; marginPct: number | null }
+  margin: { grossProfitMinor: string; marginPct: number | null; costMissing?: boolean }
 }
 
 interface Props {
@@ -242,7 +242,11 @@ export default function CostPanel({ dealId, currency, onChanged, reloadKey }: Pr
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>{COST.grossProfit}</span>
-          <b className={styles.metricValue}><Sensitive>{money(view.margin.grossProfitMinor)}</Sensitive></b>
+          <b className={styles.metricValue}>
+            {view.margin.costMissing
+              ? <span className={styles.unknown}>{COST.costMissing}</span>
+              : <Sensitive>{money(view.margin.grossProfitMinor)}</Sensitive>}
+          </b>
         </div>
         <div className={styles.metric}>
           <span className={styles.metricLabel}>{COST.marginPct}</span>
@@ -251,7 +255,9 @@ export default function CostPanel({ dealId, currency, onChanged, reloadKey }: Pr
             사실은 «아직 모른다»다(computeMargin 이 null 을 준다).
           */}
           <b className={`${styles.metricValue} ${marginTone(view.margin.marginPct)}`}>
-            {view.margin.marginPct === null
+            {view.margin.costMissing
+              ? <span className={styles.unknown}>{COST.costMissing}</span>
+              : view.margin.marginPct === null
               ? <span className={styles.unknown}>아직 모름</span>
               : <Sensitive>{`${view.margin.marginPct}%`}</Sensitive>}
           </b>

@@ -217,3 +217,15 @@ test('기본 기준 통화는 원이다 — 안 넘긴 호출부가 조용히 �
   const t = computeCostTotals([A({ amountMinor: BigInt(100000) })], BigInt(0))
   assert.equal(t.currency, 'KRW')
 })
+
+test('★ 원가 줄이 하나도 없으면 마진율 100% 가 아니라 «원가 미입력» (REQ-002)', () => {
+  const m = computeMargin(BigInt(35_900_000), BigInt(0), 0)
+  assert.equal(m.costMissing, true)
+  assert.equal(m.marginPct, null)
+})
+
+test('원가 줄이 있으면 0원이어도 계산한다 — 넣은 값은 믿는다', () => {
+  const m = computeMargin(BigInt(1000), BigInt(0), 1)
+  assert.equal(m.costMissing, false)
+  assert.equal(m.marginPct, 100)
+})

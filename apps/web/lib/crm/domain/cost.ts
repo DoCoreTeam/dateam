@@ -198,14 +198,20 @@ export interface Margin {
    * 매출이 0이면 null. 0으로 나누느니 «모른다»고 말한다.
    */
   marginPct: number | null
+  /**
+   * 원가를 한 줄도 안 넣었다. 그때 원가 0원으로 세면 마진 100% 가 나와 남는 장사로 읽힌다(REQ-002,
+   * 실측 2026-10-23 숙명여대 딜: 원가 0원 · 매출총이익 35,900,000원 · 마진율 100%). 마진율은 null 로 둔다
+   */
+  costMissing: boolean
 }
 
-export function computeMargin(revenueMinor: bigint, costMinor: bigint): Margin {
+export function computeMargin(revenueMinor: bigint, costMinor: bigint, costRowCount: number | null = null): Margin {
   const profit = revenueMinor - costMinor
-  const marginPct = revenueMinor === BigInt(0)
+  const costMissing = costRowCount === 0
+  const marginPct = revenueMinor === BigInt(0) || costMissing
     ? null
     : Number((profit * BigInt(10000)) / revenueMinor) / 100
-  return { revenueMinor, costMinor, grossProfitMinor: profit, marginPct }
+  return { revenueMinor, costMinor, grossProfitMinor: profit, marginPct, costMissing }
 }
 
 /**
