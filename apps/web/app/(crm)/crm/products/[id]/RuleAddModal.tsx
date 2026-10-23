@@ -9,6 +9,8 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { ACTION, PRICEBOOK, RULE_KIND_LABEL, VAR_LABEL, GPU_CLASS_LABEL } from '@/lib/terms'
 import { COMPANY_KIND_LABEL, type CompanyKind } from '@/lib/crm/domain/company-kind'
 import { RULE_KINDS, VAR_KEYS, type GpuClass, type PriceRule, type RuleKind, type VarKey } from '@/lib/crm/domain/pricebook/types'
+import { initialClasses, toggleClass } from '@/lib/crm/domain/pricebook/rule-form'
+import { describeRule } from '@/lib/crm/domain/pricebook/rule-text'
 import type { ItemJson } from './detail-shape'
 import styles from './detail.module.css'
 
@@ -37,7 +39,7 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd, init
   const [varKey, setVarKey] = useState<VarKey>((init.varKey as VarKey) ?? 'gpu.total')
   const [num, setNum] = useState(String(init.max ?? init.qty ?? init.pct ?? init.perUnitMinor ?? ''))
   const [minus, setMinus] = useState(init.minusIncluded === true)
-  const [classes, setClasses] = useState<GpuClass[]>(Array.isArray(init.classes) ? init.classes as GpuClass[] : ['WS', 'CONSUMER', 'NPU'])
+  const [classes, setClasses] = useState<GpuClass[]>(() => initialClasses(init.classes))
   const [companyKind, setCompanyKind] = useState<CompanyKind | 'partner'>((init.companyKind as CompanyKind | 'partner') ?? 'school')
   const [label, setLabel] = useState(typeof init.label === 'string' ? init.label : '')
   const [includesVar, setIncludesVar] = useState(Boolean(init.varKey) && initial?.kind === 'INCLUDES')
@@ -73,6 +75,11 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd, init
     if (typeof r === 'string') { setError(r); return }
     onAdd(r)
   }
+
+  // 저장될 규칙을 문장으로 먼저 보여 준다, 고른 값과 저장 값이 갈리면 사람이 저장 전에 본다
+  const draft = build()
+  const nameOf = (id: string) => items.find((i) => i.id === id)?.name ?? null
+  const preview = typeof draft === 'string' ? null : describeRule(draft, nameOf)
 
   const needsItem = kind !== 'ONE_OF' && kind !== 'DISCOUNT' && kind !== 'SCALE_CAP'
   const needsList = KINDS_WITH_LIST.includes(kind) && !(kind === 'INCLUDES' && includesVar)
@@ -169,7 +176,7 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd, init
         {kind === 'ELIGIBLE' && (
           <div className={styles.checks}>
             {CLASSES.map((c) => (
-              <label key={c}><input type="checkbox" checked={classes.includes(c)} onChange={() => setClasses((cs) => (cs.includes(c) ? cs.filter((x) => x !== c) : [...cs, c]))} /> {GPU_CLASS_LABEL[c]}</label>
+              <label key={c}><input type="checkbox" checked={classes.includes(c)} onChange={() => setClasses((cs) => toggleClass(cs, c))} /> {GPU_CLASS_LABEL[c]}</label>
             ))}
           </div>
         )}
@@ -188,6 +195,7 @@ export default function RuleAddModal({ items, discountOnly, onClose, onAdd, init
             </div>
           </div>
         )}
+        {preview && <p className={styles.small}>{PRICEBOOK.rulePreview}: {preview}</p>}
       </div>
     </NbModal>
   )

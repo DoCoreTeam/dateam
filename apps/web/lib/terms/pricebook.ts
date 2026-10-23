@@ -108,6 +108,14 @@ export const PRICEBOOK = {
   historyByHand: '손으로 수정',
   historyByFile: (name: string) => `파일 ${name}`,
   historyEmpty: '아직 바뀐 적이 없어요',
+  rulePreview: '저장될 규칙',
+  // 다시 올릴 때 새 파일에 없는 기존 규칙(REQ-003)
+  missingRulesTitle: (n: number) => `새 파일에 없는 기존 규칙 ${n}개`,
+  missingRulesHint: '체크한 규칙은 이어받아요. 체크를 풀면 저장할 때 지워요.',
+  carryRule: '이어받기',
+  dropRulesConfirmTitle: (n: number) => `기존 규칙 ${n}개를 지울까요?`,
+  dropRulesConfirmBody: '지운 규칙은 변경 이력에 남고, 그 규칙이 걸던 견적 계산이 바뀌어요.',
+  dropRulesConfirm: '지우고 저장',
   // 견적 쪽
   fillByProduct: '제품으로 채우기',
   conditions: '조건',
