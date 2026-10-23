@@ -1,3 +1,4 @@
+import { dispatchPublicApi } from '@/lib/actions/dispatch'
 import type { NextRequest } from 'next/server'
 import { optionsResponse } from '@/lib/publicApiAuth'
 import { withPublicCiList } from '@/lib/public-api/ci-bridge'
@@ -17,3 +18,6 @@ export async function GET(request: NextRequest) {
     return { items, meta: { total: items.length } }
   })
 }
+
+// 정의 표의 쓰기는 공개 API 관문으로 (P0158 I07)
+export const POST = dispatchPublicApi

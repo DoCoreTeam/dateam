@@ -1,6 +1,6 @@
 # PLAN newAX: teamda 의 모든 기능을 CLI 로
 플랜 ID: P0158
-플랜 버전: v0.1.4
+플랜 버전: v0.1.5
 상태: 진행중
 지시: ins_0318
 목표 버전: v0.11.61
@@ -108,9 +108,9 @@
 의존: I04
 
 ### I07 공개 API 관문, 정의에서 자동 등록
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/api/public/v1/[...path]/route.ts (신규), apps/web/lib/actions/dispatch.ts (신규), apps/web/lib/actions/generated/ (신규 생성물), apps/web/lib/actions/dispatch.test.ts (신규), 겹치는 공개 라우트의 빠진 메서드 재수출
+범위: apps/web/app/api/public/v1/[...path]/route.ts (신규), apps/web/lib/actions/dispatch.ts (신규), apps/web/lib/actions/dispatch-core.ts (신규, DB 와 Next 를 모르는 판정), apps/web/lib/actions/dispatch.test.ts (신규), apps/web/lib/publicApiAuth.ts (범위 판정을 관문에 넘기는 선택지), apps/web/lib/policy/api-auth-surface.test.ts apps/web/lib/auth/api-route-auth.test.ts (관문 표식), apps/web/package.json, 겹치는 공개 라우트의 빠진 메서드 재수출 apps/web/app/api/public/v1/ci/channels/route.ts, apps/web/app/api/public/v1/crm/{tasks,quotes,deals,people,meetings,companies}/route.ts, apps/web/app/api/public/v1/crm/{companies,deals,people}/[id]/route.ts
 감사 기준:
 - 정의 하나가 /api/public/v1/<내부 경로> 와 서버 액션 /api/public/v1/actions/<이름> 으로 불림 (시험)
 - 범위 없는 키로 approve send delete admin 동작 → 202 승인 요청, 범위 밖 read write → 403 requiredScope (시험)
@@ -197,4 +197,6 @@
 - v0.1.1 (2026-10-23) I02 범위를 실제 파일로 맞춤, 이름 규칙은 생성기 쪽 naming.mjs, 형식과 openapi 조립과 생성물 추가 (audit:I02)
 - v0.1.2 (2026-10-23) I02 생성물(table.ts 요약 글, 경로 문자열)이 route-census 와 glossary 가드 셋을 깨 I03a 삽입 (audit:I02)
 - v0.1.3 (2026-10-23) I04 범위에 quote 라우트(POST 이지만 read 계산)와 시험 등재용 package.json 추가 (audit:I04)
+- v0.1.5 (2026-10-23) I07 범위를 실제 파일로, 판정은 dispatch-core.ts 로 갈라 시험이 그대로 부름, 승인 범위 판정을 관문이 하도록 publicApiAuth 선택지, 겹치는 공개 라우트 10개 (audit:I07)
 - v0.1.4 (2026-10-23) I05 범위를 실제 파일로, 관리자 키 목록은 admin/api/ApiKeysPanel.tsx, 검증 모듈과 시험 추가 (audit:I05)
+- v0.1.5 (2026-10-23) I07 범위를 실제 파일로, 판정 모듈 분리, publicApiAuth 선택지, 겹치는 공개 라우트 10개 (audit:I07)

@@ -20,7 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { hashApiKey } from '@/lib/apiKey'
-import { decideKeyAccess, scopeForMethod, type Scope } from '@/lib/public-api/scopes'
+import { decideKeyAccess, effectiveScopes, isExpired, parseScopes, scopeForMethod, type Scope } from '@/lib/public-api/scopes'
 
 /** 키 소유자의 호스트 역할 — profiles.role 을 그대로 물려받는다 */
 export type ApiKeyRole = 'admin' | 'member' | 'api_user'
@@ -50,6 +50,12 @@ export interface ApiKeyContext {
 export interface PublicApiAuthOptions {
   /** 이 창구에 필요한 범위, 안 주면 메서드로 정함 (GET read, 그 밖 write) */
   scope?: Scope
+  /**
+   * 범위 판정을 부른 쪽이 한다 (공개 API 관문만, P0158 I07)
+   * 만료는 여기서 그대로 막고, ctx.scopes 에 실제 범위를 실어 보낸다
+   * 관문은 범위 밖 위험 동작을 403 대신 승인 요청(202)으로 바꿔야 해서 여기서 끊으면 안 된다
+   */
+  deferScope?: boolean
 }
 
 export type PublicApiAuth = { ctx: ApiKeyContext } | { error: NextResponse }
@@ -155,7 +161,11 @@ export async function authenticatePublicApi(
 
   // 만료와 범위, 실제 권한 = 계정 권한 ∩ 키 범위 (마이그 318)
   const required = options.scope ?? scopeForMethod(request.method)
-  const access = decideKeyAccess({
+  const access = options.deferScope
+    ? (isExpired(key.expires_at, new Date())
+      ? ({ ok: false, status: 403, code: 'expired' } as const)
+      : ({ ok: true, scopes: effectiveScopes(profile.role ?? 'member', parseScopes(key.scopes)) } as const))
+    : decideKeyAccess({
     role: profile.role ?? 'member',
     scopes: key.scopes,
     expiresAt: key.expires_at,

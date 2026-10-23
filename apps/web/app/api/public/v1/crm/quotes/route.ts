@@ -1,3 +1,4 @@
+import { dispatchPublicApi } from '@/lib/actions/dispatch'
 import type { NextRequest } from 'next/server'
 import { optionsResponse } from '@/lib/publicApiAuth'
 import { withPublicCrmApi, readPublicListQuery } from '@/lib/public-api/crm-bridge'
@@ -17,3 +18,6 @@ export async function GET(request: NextRequest) {
     return { ...page, items: page.items.map((r) => withoutPricingFields(r as unknown as Record<string, unknown>)) }
   })
 }
+
+// 정의 표의 쓰기는 공개 API 관문으로 (P0158 I07)
+export const POST = dispatchPublicApi

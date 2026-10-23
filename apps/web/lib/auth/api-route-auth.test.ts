@@ -24,7 +24,7 @@ import { join } from 'node:path'
  * 안에서 resolveCrmAccess 로 로그인·api_user·삭제계정·CRM 멤버십을 판정하고
  * 실패하면 401/403 을 낸다(lib/crm/api/handler.ts).
  */
-const AUTH_HELPER = /\b(require[A-Za-z]*Api|requireCiMember[A-Za-z]*|authenticatePublicApi|verifyApiKey|withCrmApi|withPublicCrmApi|withPublicCiApi|withPublicCiList)\s*\(/
+const AUTH_HELPER = /\b(require[A-Za-z]*Api|requireCiMember[A-Za-z]*|authenticatePublicApi|verifyApiKey|withCrmApi|withPublicCrmApi|withPublicCiApi|withPublicCiList|dispatchPublicApi)\s*\(/
 /**
  * 라우트 안에서 직접 세션을 확인하는 경우.
  *

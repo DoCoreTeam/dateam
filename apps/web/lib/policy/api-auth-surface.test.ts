@@ -43,6 +43,8 @@ const AUTH_MARKERS = [
   // (lib/public-api/crm-bridge.ts:43 · lib/public-api/ci-bridge.ts:49, 실측 2026-09-29).
   // 호출 자리를 보게 고치면서 `public/v1/**` 11개가 여기 없어서 열린 것으로 잡혔다
   'withPublicCrmApi', 'withPublicCiApi', 'withPublicCiList',
+  // 공개 API 관문 (lib/actions/dispatch.ts), 몸통 첫 줄이 authenticatePublicApi 다 (P0158 I07)
+  'dispatchPublicApi',
   // 기계(크론·워커)
   'CRON_SECRET', 'WORKER_TOKEN', 'machineAuth', 'assertMachine',
 ]
