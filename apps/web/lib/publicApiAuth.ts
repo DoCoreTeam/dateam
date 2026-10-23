@@ -44,6 +44,8 @@ export interface ApiKeyContext {
   keyName: string
   rateLimitPerMinute: number
   usage: ApiKeyUsage
+  /** 키 만료 시각(ISO), 없으면 null */
+  expiresAt: string | null
   /** 실제로 쓸 수 있는 범위 = 계정 권한 ∩ 키 범위 */
   scopes: Scope[]
 }
@@ -93,11 +95,16 @@ export function optionsResponse(request?: NextRequest): NextResponse {
   return new NextResponse(null, { status: 204, headers: corsHeaders(request) })
 }
 
+/** 이번 분에 남은 호출 수, 한도 헤더와 GET me 가 같은 셈을 쓴다 (P0162 I04) */
+export function remainingThisMinute(ctx: ApiKeyContext): number {
+  return Math.max(0, ctx.rateLimitPerMinute - ctx.usage.thisMinute)
+}
+
 /** 매 응답에 실리는 한도 상태 — 문서가 약속한 헤더를 실제로 보낸다 */
 export function rateLimitHeaders(ctx: ApiKeyContext): Record<string, string> {
   return {
     'X-RateLimit-Limit': String(ctx.rateLimitPerMinute),
-    'X-RateLimit-Remaining': String(Math.max(0, ctx.rateLimitPerMinute - ctx.usage.thisMinute)),
+    'X-RateLimit-Remaining': String(remainingThisMinute(ctx)),
     'X-RateLimit-Reset': String(Math.floor(ctx.usage.resetAt.getTime() / 1000)),
   }
 }
@@ -215,6 +222,7 @@ export async function authenticatePublicApi(
     keyName: key.name ?? '',
     rateLimitPerMinute,
     usage,
+    expiresAt: (key.expires_at as string | null | undefined) ?? null,
     scopes: access.scopes,
   }
 

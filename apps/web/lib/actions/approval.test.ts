@@ -124,3 +124,17 @@ test('★ decideApproval 이 키 소유자 문맥이면 아무것도 읽고 쓰�
   const firstTouch = Math.min(...[fn.indexOf('createAdminClient('), fn.indexOf('.from(')].filter((i) => i >= 0))
   assert.ok(guard < firstTouch, '키 문맥 확인이 DB 를 건드린 뒤에 있다')
 })
+
+test('★ GET me 가 만료일과 이번 분 남은 한도를 알려 준다, 키 값과 해시는 안 싣는다 (P0162 I04)', () => {
+  const me = read('app', 'api', 'public', 'v1', 'me', 'route.ts')
+  const body = me.slice(me.indexOf('return ok({'), me.indexOf('}, { ctx, request })'))
+  assert.match(body, /expiresAt: ctx\.expiresAt/)
+  assert.match(body, /remainingThisMinute: remainingThisMinute\(ctx\)/)
+  assert.doesNotMatch(body, /key_hash|keyHash|key_prefix|apiKey|rawKey|hash/, 'me 응답에 키 값이나 해시가 실린다')
+  const auth = read('lib', 'publicApiAuth.ts')
+  // 한도 헤더와 me 가 같은 셈을 쓴다, 셈이 두 벌이면 둘이 다른 수를 말한다
+  assert.match(auth, /'X-RateLimit-Remaining': String\(remainingThisMinute\(ctx\)\)/)
+  assert.match(auth, /export function remainingThisMinute\(ctx: ApiKeyContext\): number \{\n  return Math\.max\(0, ctx\.rateLimitPerMinute - ctx\.usage\.thisMinute\)/)
+  const ctxAt = auth.indexOf('const ctx: ApiKeyContext = {')
+  assert.match(auth.slice(ctxAt, auth.indexOf('}', ctxAt)), /expiresAt: \(key\.expires_at/)
+})

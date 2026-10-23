@@ -1,6 +1,6 @@
 // GET /api/public/v1/me — 이 키가 누구로 무엇을 할 수 있는지 (P0158 I08), teamda auth status 가 읽는다
 import type { NextRequest } from 'next/server'
-import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { authenticatePublicApi, optionsResponse, remainingThisMinute } from '@/lib/publicApiAuth'
 import { ok } from '@/lib/public-api/respond'
 
 export async function OPTIONS(request: NextRequest) {
@@ -19,5 +19,8 @@ export async function GET(request: NextRequest) {
     keyName: ctx.keyName,
     scopes: ctx.scopes,
     rateLimitPerMinute: ctx.rateLimitPerMinute,
+    // 만료일과 이번 분 남은 한도, 키 값과 해시는 싣지 않는다 (P0162 I04)
+    expiresAt: ctx.expiresAt,
+    remainingThisMinute: remainingThisMinute(ctx),
   }, { ctx, request })
 }
