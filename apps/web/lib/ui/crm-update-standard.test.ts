@@ -202,6 +202,27 @@ function collect(): Map<string, { create: Set<string>; patch: Set<string> }> {
   return out
 }
 
+/**
+ * 고치기 창구를 일부러 두지 않는 자원. 칸 단위 EXEMPT 와 달리 자원 전체가 규칙 밖이다.
+ * PATCH 창구가 없으면 위 규칙은 그 자원을 아예 안 센다. 그래서 「일부러 없음」과 「빠뜨림」이
+ * 화면에서 똑같이 보인다(2026-10-23 CLI 실측에서 노트 고치기가 없다는 지적이 왔다).
+ * 사유를 여기 적고, 창구가 생기면 아래 시험이 실패해 사유를 다시 보게 한다.
+ */
+const IMMUTABLE: Record<string, string> = {
+  activities: '활동은 일어난 일의 기록이다. 일어난 일은 바뀌지 않고, 사람이 남긴 노트의 오타는 휴지통으로 지운 뒤 일어난 시각을 그대로 두고 다시 쓴다(lib/crm/services/activity.ts 머리 주석)',
+}
+
+test('고치기를 일부러 안 두는 자원은 정말 고치기 창구가 없다', () => {
+  for (const [entity, reason] of Object.entries(IMMUTABLE)) {
+    assert.ok(reason.length > 0, `${entity} 사유가 비었다`)
+    const route = join(WEB, 'app/api/crm', entity, '[id]', 'route.ts')
+    assert.ok(existsSync(route), `${entity} 창구가 없어졌다, IMMUTABLE 에서 지운다`)
+    const src = stripComments(readFileSync(route, 'utf8'))
+    assert.ok(!/export\s+(async\s+)?function\s+(PATCH|PUT)\b|export\s+const\s+(PATCH|PUT)\b/.test(src),
+      `${entity} 에 고치기 창구가 생겼다, IMMUTABLE 의 사유를 다시 보고 지우거나 고친다`)
+  }
+})
+
 test('만들 때 고른 칸은 만든 뒤에도 고칠 수 있어야 한다', () => {
   const found = collect()
   const bad: string[] = []
