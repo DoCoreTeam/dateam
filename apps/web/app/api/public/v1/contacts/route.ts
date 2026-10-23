@@ -1,7 +1,8 @@
 import type { NextRequest } from 'next/server'
-import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { authenticatePublicApi, optionsResponse, requireAdminKey } from '@/lib/publicApiAuth'
 import { ok, okList, fail, serverError } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
+import { parseListCursor, cursorFilter } from '@/lib/public-api/cursor'
 
 const LIMIT = 20
 const SORT_ALLOW = new Set(['created_at', 'name', 'title', 'department'])
@@ -14,6 +15,9 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
+  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다 — 화면보다 API 가 더 할 수 있으면 안 된다
+  const denied = requireAdminKey(auth.ctx, request)
+  if (denied) return denied
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,10 +42,8 @@ export async function GET(request: NextRequest) {
     if (hasFilters) {
       query = query.limit(CAP + 1)
     } else {
-      const [cursorTime, cursorId] = cursorRaw ? cursorRaw.split('__') : [null, null]
-      if (cursorTime && cursorId) {
-        query = query.or(`created_at.lt.${cursorTime},and(created_at.eq.${cursorTime},id.lt.${cursorId})`)
-      }
+      const cursor = parseListCursor(cursorRaw)
+      if (cursor) query = query.or(cursorFilter(cursor))
       query = query.limit(LIMIT + 1)
     }
 
@@ -70,6 +72,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
+  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다 — 화면보다 API 가 더 할 수 있으면 안 된다
+  const denied = requireAdminKey(auth.ctx, request)
+  if (denied) return denied
 
   try {
     const raw = await request.json() as Record<string, unknown>
@@ -80,7 +85,7 @@ export async function POST(request: NextRequest) {
     const body = Object.fromEntries(ALLOWED_FIELDS.filter(k => k in raw).map(k => [k, raw[k]]))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any
-    const { data, error } = await admin.from('contacts').insert({ ...body, user_id: auth.ctx.userId }).select().single()
+    const { data, error } = await admin.from('contacts').insert(Object.assign({}, body, { user_id: auth.ctx.userId })).select().single()
     if (error) throw error
     return ok(data, { ctx: auth.ctx, request, status: 201 })
   } catch (err) {

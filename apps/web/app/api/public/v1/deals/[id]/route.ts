@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server'
-import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
+import { authenticatePublicApi, optionsResponse, requireAdminKey } from '@/lib/publicApiAuth'
 import { ok, notFound, serverError } from '@/lib/public-api/respond'
 import { guardOwnedRow } from '@/lib/public-api/owned-row'
 import { createAdminClient } from '@/lib/supabase/server'
@@ -21,6 +21,9 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest, { params }: Ctx) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
+  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다 — 화면보다 API 가 더 할 수 있으면 안 된다
+  const denied = requireAdminKey(auth.ctx, request)
+  if (denied) return denied
 
   try {
     const { id } = await params
@@ -38,6 +41,9 @@ export async function GET(request: NextRequest, { params }: Ctx) {
 export async function PATCH(request: NextRequest, { params }: Ctx) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
+  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다 — 화면보다 API 가 더 할 수 있으면 안 된다
+  const denied = requireAdminKey(auth.ctx, request)
+  if (denied) return denied
 
   try {
     const { id } = await params
@@ -63,6 +69,9 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
 export async function DELETE(request: NextRequest, { params }: Ctx) {
   const auth = await authenticatePublicApi(request)
   if ('error' in auth) return auth.error
+  // 내부 창구(/api/accounts 등)가 requireAdminApi 이므로 키도 같은 선을 지킨다 — 화면보다 API 가 더 할 수 있으면 안 된다
+  const denied = requireAdminKey(auth.ctx, request)
+  if (denied) return denied
 
   try {
     const { id } = await params
