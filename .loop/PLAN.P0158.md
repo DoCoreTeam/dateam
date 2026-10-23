@@ -1,6 +1,6 @@
 # PLAN newAX: teamda 의 모든 기능을 CLI 로
 플랜 ID: P0158
-플랜 버전: v0.1.7
+플랜 버전: v0.1.8
 상태: 진행중
 지시: ins_0318
 목표 버전: v0.11.61
@@ -150,9 +150,9 @@
 의존: I07
 
 ### I11 변경 이력 API 탭과 키별 최근 요청
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/api/crm/audit/route.ts, 변경 이력 화면 탭, apps/web/app/api/user/api-keys/[id]/requests/route.ts (신규), apps/web/lib/terms/
+범위: apps/web/app/api/crm/audit/route.ts, apps/web/app/(crm)/crm/audit/AuditClient.tsx (변경 이력 화면 탭), apps/web/app/api/user/api-keys/[id]/requests/route.ts (신규), apps/web/app/(member)/api-keys/page.tsx, apps/web/app/(member)/api-keys/KeyRequests.tsx (신규), apps/web/lib/public-api/api-audit.ts (신규), apps/web/lib/public-api/api-audit.test.ts (신규), apps/web/lib/terms/api-key.ts, apps/web/lib/terms/index.ts, apps/web/lib/actions/defs/admin.ts, apps/web/lib/actions/generated/, docs/cli/02-기능대응표.md, packages/teamda-cli/src/generated/spec.json, apps/web/package.json
 감사 기준:
 - 변경 이력에 사람 AI API(에이전트) 탭, API 행은 api_write_audit 에서 (시험)
 - 키 관리 화면에 키별 최근 요청 100건
@@ -197,6 +197,7 @@
 - v0.1.1 (2026-10-23) I02 범위를 실제 파일로 맞춤, 이름 규칙은 생성기 쪽 naming.mjs, 형식과 openapi 조립과 생성물 추가 (audit:I02)
 - v0.1.2 (2026-10-23) I02 생성물(table.ts 요약 글, 경로 문자열)이 route-census 와 glossary 가드 셋을 깨 I03a 삽입 (audit:I02)
 - v0.1.3 (2026-10-23) I04 범위에 quote 라우트(POST 이지만 read 계산)와 시험 등재용 package.json 추가 (audit:I04)
+- v0.1.8 (2026-10-23) I11 범위를 실제 파일로 (audit:I11)
 - v0.1.7 (2026-10-23) I10 범위를 실제 파일로, 모듈은 lib/quote-export, 미리보기를 머리 없는 브라우저로 여는 방식이라 render-document 와 page-fit 포함 (audit:I10)
 - v0.1.6 (2026-10-23) I08 범위를 실제 파일로, 승인 화면은 셸 아래 (member) 로, I07 의 재수출이 cli-parity 를 깨던 것을 추출기에서 고침 (audit:I08)
 - v0.1.5 (2026-10-23) I07 범위를 실제 파일로, 판정은 dispatch-core.ts 로 갈라 시험이 그대로 부름, 승인 범위 판정을 관문이 하도록 publicApiAuth 선택지, 겹치는 공개 라우트 10개 (audit:I07)
@@ -204,3 +205,4 @@
 - v0.1.5 (2026-10-23) I07 범위를 실제 파일로, 판정 모듈 분리, publicApiAuth 선택지, 겹치는 공개 라우트 10개 (audit:I07)
 - v0.1.6 (2026-10-23) I08 범위를 실제 파일로, 승인 화면 (member), 추출기 재수출 제외 (audit:I08)
 - v0.1.7 (2026-10-23) I10 범위를 실제 파일로 (audit:I10)
+- v0.1.8 (2026-10-23) I11 범위를 실제 파일로 (audit:I11)

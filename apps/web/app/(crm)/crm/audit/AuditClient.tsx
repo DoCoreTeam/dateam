@@ -12,7 +12,7 @@
 // "AI 가 뭘 했는지"가 가장 자주 묻는 질문이기 때문이다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { History, Bot, User } from 'lucide-react'
+import { History, Bot, User, Terminal } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -22,6 +22,7 @@ import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { TARGET_LABEL } from '@/lib/crm/services/audit-view'
 import styles from './audit.module.css'
+import { API_AUDIT } from '@/lib/terms'
 
 interface Change { field: string; from: string; to: string }
 interface Entry {
@@ -40,6 +41,7 @@ const WHO = [
   { id: 'all', label: '전부' },
   { id: 'HUMAN', label: '사람이 한 것' },
   { id: 'AI', label: 'AI가 한 것' },
+  { id: 'API', label: API_AUDIT.tab },
 ] as const
 
 /** 어디로 가면 그 대상을 볼 수 있나 — 없는 대상은 링크를 만들지 않는다 */
@@ -104,8 +106,8 @@ export default function AuditClient() {
           {items.map((e) => (
             <li key={e.id} className={styles.item}>
               <div className={styles.head}>
-                <span className={e.actorType === 'AI' ? styles.ai : styles.human}>
-                  {e.actorType === 'AI' ? <Bot size={13} aria-hidden /> : <User size={13} aria-hidden />}
+                <span className={e.actorType === 'AI' || e.actorType === 'API' ? styles.ai : styles.human}>
+                  {e.actorType === 'AI' ? <Bot size={13} aria-hidden /> : e.actorType === 'API' ? <Terminal size={13} aria-hidden /> : <User size={13} aria-hidden />}
                   {e.actorName}
                 </span>
                 <span className={styles.summary}>{e.summary}</span>

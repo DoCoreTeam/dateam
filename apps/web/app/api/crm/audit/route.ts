@@ -8,10 +8,14 @@
 import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { listAudit } from '@/lib/crm/services/audit-view'
+import { createAdminClient, getRequestUser } from '@/lib/supabase/server'
+import { API_AUDIT_COLUMNS, auditScope, clampLimit, toAuditEntry, type ApiAuditRow } from '@/lib/public-api/api-audit'
 
 export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ db }) => {
     const p = req.nextUrl.searchParams
+    // API(에이전트) 탭: 관문이 남긴 쓰기 기록, 본인 키만 관리자는 전부 (P0158 I11)
+    if (p.get('actorType') === 'API') return listApiAudit(p)
     return listAudit(db, {
       limit: Number(p.get('limit') ?? 50) || 50,
       cursor: p.get('cursor'),
@@ -21,4 +25,24 @@ export async function GET(req: NextRequest) {
       domain: p.get('domain'),
     })
   })
+}
+
+async function listApiAudit(p: URLSearchParams) {
+  const user = await getRequestUser()
+  if (!user) return { items: [], nextCursor: null }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
+  const scope = auditScope({ userId: user.id, role: profile?.role })
+  const limit = clampLimit(p.get('limit'))
+  let q = admin.from('api_write_audit').select(API_AUDIT_COLUMNS).like('action_name', 'crm.%')
+    .order('created_at', { ascending: false }).limit(limit)
+  if (scope) q = q.eq('user_id', scope.userId)
+  const cursor = p.get('cursor')
+  if (cursor && !Number.isNaN(new Date(cursor).getTime())) q = q.lt('created_at', cursor)
+  const { data, error } = await q
+  // 마이그레이션 318 전 DB 는 표가 없다, 고장이 아니라 기록이 없는 것으로 답한다
+  if (error) return { items: [], nextCursor: null }
+  const rows = (data ?? []) as ApiAuditRow[]
+  return { items: rows.map(toAuditEntry), nextCursor: rows.length === limit ? rows[rows.length - 1].created_at : null }
 }

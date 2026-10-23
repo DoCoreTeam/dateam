@@ -15,10 +15,11 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { useAskDialog } from '@/components/ui/useAskDialog'
+import KeyRequests from './KeyRequests'
 import { SCOPES, type Scope } from '@/lib/actions/types'
 import {
   API_KEY_SCOPE, API_KEY_APPROVAL_HINT, API_KEY_FIELD, API_KEY_EXPIRY_OPTIONS,
-  API_KEY_DEFAULT_EXPIRY_DAYS, API_KEY_ONCE, API_KEY_ERROR,
+  API_KEY_DEFAULT_EXPIRY_DAYS, API_KEY_ONCE, API_KEY_ERROR, API_AUDIT,
 } from '@/lib/terms'
 
 interface ApiKey {
@@ -87,6 +88,7 @@ export default function ApiKeysPage() {
   const [newKeyResult, setNewKeyResult] = useState<NewKeyResult | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [revokeConfirm, setRevokeConfirm] = useState<string | null>(null)
+  const [requestsOf, setRequestsOf] = useState<ApiKey | null>(null)
 
   const fetchKeys = useCallback(async () => {
     setLoading(true)
@@ -281,6 +283,12 @@ export default function ApiKeysPage() {
       cell: (k) => `${k.rate_limit_per_minute} req/min`,
     },
     {
+      key: 'requests', header: API_AUDIT.requests, hideOnCard: true,
+      cell: (k) => (
+        <button type="button" className="btn-ghost" onClick={(e) => { e.stopPropagation(); setRequestsOf(k) }}>{API_AUDIT.requests}</button>
+      ),
+    },
+    {
       key: 'actions', header: '관리',
       cell: (k) => k.status !== 'active' ? <span style={{ color: 'var(--text-faint)' }}>—</span> : (
         <span style={{ display: 'inline-flex', gap: 'var(--space-1)' }} onClick={(e) => e.stopPropagation()}>
@@ -407,6 +415,8 @@ export default function ApiKeysPage() {
           )}
         </div>
       )}
+
+      {requestsOf && <KeyRequests keyId={requestsOf.id} keyName={requestsOf.name} onClose={() => setRequestsOf(null)} />}
 
       <ListToolbar
         query={query}

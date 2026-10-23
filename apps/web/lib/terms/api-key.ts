@@ -102,3 +102,18 @@ export const API_CLI_DOC = {
   path: '경로',
   total: '전체',
 } as const
+
+/** API(에이전트) 쓰기 기록 (P0158 I11), 변경 이력 탭과 키별 최근 요청 */
+export const API_AUDIT = {
+  tab: 'API(에이전트)가 한 것',
+  requests: '요청 기록',
+  requestsTitle: '최근 쓰기 요청',
+  requestsHint: '이 키로 보낸 쓰기 요청 최근 100건입니다. 조회 요청은 횟수만 셉니다',
+  empty: '아직 이 키로 보낸 쓰기 요청이 없습니다',
+  failed: '요청 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요',
+  close: '닫기',
+  at: '시각',
+  action: '동작',
+  status: '결과',
+  agent: '보낸 곳',
+} as const

@@ -21,6 +21,7 @@ export const ADMIN_DEFS: ActionDef[] = [
   { op: "GET /api/settings/branding", name: "admin.settings.branding", scope: "admin", cli: "admin settings branding" },
   { op: "GET /api/ui-preferences", name: "admin.ui-preference.list", scope: "read", cli: "admin ui-preference list" },
   { op: "GET /api/user/api-keys", name: "admin.user.api-keys", scope: "read", cli: "admin user api-keys" },
+  { op: "GET /api/user/api-keys/{id}/requests", name: "admin.user.api-keys-requests", scope: "read", cli: "admin user api-keys-requests", summary: "키 하나의 최근 쓰기 요청 100건" },
   { op: "action app/admin/ai-usage/actions.ts#saveAiBudget", name: "admin.ai-usage.save-ai-budget", scope: "admin", cli: "admin ai-usage save-ai-budget" },
   { op: "action app/admin/api-access/actions.ts#approveRequest", name: "admin.api-access.approve-request", scope: "admin", cli: "admin api-access approve-request" },
   { op: "action app/admin/api-access/actions.ts#rejectRequest", name: "admin.api-access.reject-request", scope: "admin", cli: "admin api-access reject-request" },

@@ -38050,6 +38050,55 @@
     }
    }
   },
+  "/user/api-keys/{id}/requests": {
+   "get": {
+    "operationId": "admin.user.api-keys-requests",
+    "summary": "키 하나의 최근 쓰기 요청 100건",
+    "tags": [
+     "admin"
+    ],
+    "x-cli": "admin user api-keys-requests",
+    "x-scope": "read",
+    "x-kind": "route",
+    "x-internal": "/api/user/api-keys/{id}/requests",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "키 없음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "버전 충돌"
+     },
+     "429": {
+      "description": "한도 초과"
+     }
+    }
+   }
+  },
   "/weekly-report/draft": {
    "get": {
     "operationId": "work.weekly-report.draft",
@@ -47931,5 +47980,5 @@
    }
   }
  },
- "x-spec-hash": "686f871361453f2f"
+ "x-spec-hash": "6b0c7da1279d6292"
 }
