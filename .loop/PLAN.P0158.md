@@ -45,7 +45,7 @@
 의존: 없음
 
 ### I02 기능 정의 표와 대응표 생성, cli-parity-check 첫 판
-상태: 진행중
+상태: 통과
 모드: 경량
 범위: apps/web/lib/actions/defs/ (신규), apps/web/lib/actions/types.ts (신규), apps/web/lib/actions/openapi.ts (신규), apps/web/lib/actions/generated/ (신규 생성물), scripts/cli/naming.mjs (신규), scripts/cli/extract-operations.mjs, scripts/cli/gen.mjs (신규), scripts/cli-parity-check.mjs (신규), docs/cli/02-기능대응표.md (신규 생성물)
 감사 기준:
