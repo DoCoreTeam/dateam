@@ -36,6 +36,6 @@
     "embed-spec": "bun scripts/embed-spec.ts",
     "test": "bun test",
     "build": "bun scripts/embed-spec.ts && bun build src/main.ts --compile --outfile dist/teamda",
-    "build:win": "bun scripts/embed-spec.ts && bun build src/main.ts --compile --target=bun-windows-x64 --outfile dist/teamda.exe"
+    "build:win": "bun scripts/embed-spec.ts && bun build src/main.ts --compile --target=bun-windows-x64-baseline --outfile dist/teamda.exe"
   }
 }
