@@ -1,0 +1,40 @@
+# PLAN newAX: CRM 창구의 알 수 없는 서버 실패를 입력 오류와 가른다
+플랜 ID: P0161
+플랜 버전: v0.1.0
+상태: 진행중
+지시: ins_0339
+목표 버전: v0.11.66
+푸시: 모음
+작성: 2026-10-23
+시작 커밋: 2ed456ac
+
+## 목표
+- CRM 창구에서 예상 못 한 서버 실패(머리 없는 브라우저 시간 초과 등)가 code INTERNAL, 상태 500 으로 나가 입력 오류(VALIDATION_FAILED 400)와 구별된다
+
+## 범위 밖
+- 화면별 오류 문구 손질, 시간 초과 자체를 줄이는 일
+
+## 완료 정의
+- pnpm typecheck, pnpm test, pnpm build 통과
+- 사용자 노출 문구는 기존 문장 그대로(「요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.」)
+
+## 참조
+- docs/cli/발견.md 「굽다가 시간이 다 되면 오류 코드가 VALIDATION_FAILED 로 나감」(P0159 실측)
+
+## 항목
+
+### I01 INTERNAL 오류 코드와 창구의 알 수 없는 실패
+상태: 통과
+모드: 경량
+범위: apps/web/lib/crm/domain/errors.ts, apps/web/lib/crm/api/handler.ts, apps/web/lib/crm/domain/errors.test.ts (신규), apps/web/package.json, docs/cli/발견.md
+감사 기준:
+- INTERNAL 이 코드 목록에 있고 상태 500, 기본 문장은 내부 구조를 안 싣는다 (시험)
+- withCrmApi 의 알 수 없는 실패 경로가 INTERNAL 을 쓰고 VALIDATION_FAILED 를 안 쓴다 (시험, 되돌리면 실패함을 깨 봄)
+- 보안: 오류 메시지에 원문 예외(msg)가 안 실림 (시험이 handler 의 응답 줄을 확인)
+의존: 없음
+
+## 종합 감사
+- (전 항목 통과 후 기록)
+
+## 변경 이력
+- v0.1.0 (2026-10-23) 최초 작성 (ins_0339)

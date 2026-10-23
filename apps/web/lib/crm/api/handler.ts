@@ -102,9 +102,9 @@ export async function withCrmApi<T>(
       feature: 'crm-api',
       context: { handledAs: 'unhandled' },
     })
-    // 코드가 없는 실패도 사용자에게는 읽히는 말이어야 한다
-    const err = new CrmError('VALIDATION_FAILED', '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.')
-    return NextResponse.json(err.toResponseBody(), { status: 500 })
+    // 코드가 없는 실패도 사용자에게는 읽히는 말이어야 한다. 입력 오류가 아니므로 INTERNAL 로 가른다
+    const err = new CrmError('INTERNAL')
+    return NextResponse.json(err.toResponseBody(), { status: err.status })
   }
 }
 

@@ -31,6 +31,11 @@ export const CRM_ERROR_CODES = [
   // 아래는 7장 표에 없지만 앱 계층 방어(명세 2.2)가 필요로 한다.
   // 워크스페이스 가드가 불일치를 잡았다는 것은 호출부 버그이지 사용자 입력 문제가 아니다.
   'WORKSPACE_MISMATCH',
+  /**
+   * 예상 못 한 서버 실패. 예전엔 이 자리가 없어 VALIDATION_FAILED 를 빌려 썼고,
+   * 시간 초과로 죽은 내보내기가 「입력값 오류」로 읽혔다(P0159 실측). 다시 시도할 일이지 고칠 입력이 아니다.
+   */
+  'INTERNAL',
 ] as const
 
 export type CrmErrorCode = (typeof CRM_ERROR_CODES)[number]
@@ -50,6 +55,7 @@ export const CRM_ERROR_HTTP: Record<CrmErrorCode, number> = {
   // 프로바이더 한도도 429 다 — 우리 예산과 원인은 다르지만 "지금은 안 되고 나중엔 된다"가 같다
   PROVIDER_QUOTA: 429,
   WORKSPACE_MISMATCH: 500,
+  INTERNAL: 500,
 }
 
 /** 코드 → 사용자 노출 기본 문장. 호출부가 더 구체적인 문장을 주면 그것을 쓴다. */
@@ -68,6 +74,7 @@ const DEFAULT_MESSAGE: Record<CrmErrorCode, string> = {
   // 호출부(runner)가 프로바이더가 준 사유로 더 구체적인 문장을 넘긴다 — 이건 그마저 없을 때의 말
   PROVIDER_QUOTA: 'AI 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 다른 모델을 선택하세요.',
   WORKSPACE_MISMATCH: '요청을 처리할 수 없습니다.',
+  INTERNAL: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
 }
 
 export class CrmError extends Error {
