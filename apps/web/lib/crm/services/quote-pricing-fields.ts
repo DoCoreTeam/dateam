@@ -13,6 +13,8 @@ import { ROUNDING_UNITS } from '../domain/quote-math.ts'
 
 export const LINE_PRICING_KEYS = [
   'listPriceMinor', 'priceSource', 'provenance', 'billing', 'ratioPct', 'ratioOfSectionName', 'lockedFields',
+  // 가격 기준 버전(마이그 317) — 제품으로 채운 줄이 어느 기준 버전에서 왔나. 보내기 전 점검이 지금 버전과 대조한다
+  'priceProductId', 'priceProductRevision',
 ] as const
 
 export const QUOTE_PRICING_KEYS = ['budgetMinor', 'budgetIncludesTax', 'autoFilled', 'fillConditions', 'fillText'] as const
@@ -32,6 +34,18 @@ export interface LinePricingInput {
   ratioPct?: string | number | null
   ratioOfSectionName?: string | null
   lockedFields?: unknown
+  priceProductId?: string | null
+  priceProductRevision?: number | string | null
+}
+
+const MAX_ID_CHARS = 64
+
+/** 기준 제품과 버전은 둘이 같이 있을 때만 싣는다. 하나만 오면 둘 다 비운다 */
+function baselineRef(line: LinePricingInput): { priceProductId: string | null; priceProductRevision: number | null } {
+  const id = typeof line.priceProductId === 'string' ? line.priceProductId.trim() : ''
+  const rev = Math.trunc(Number(line.priceProductRevision))
+  if (!id || id.length > MAX_ID_CHARS || !Number.isFinite(rev) || rev < 1) return { priceProductId: null, priceProductRevision: null }
+  return { priceProductId: id, priceProductRevision: rev }
 }
 
 function minorOrNull(v: unknown, field: string): bigint | null {
@@ -77,6 +91,7 @@ export function linePricingData(line: LinePricingInput): { data: Record<string, 
       ratioPct,
       ratioOfSectionName: isRatio && line.ratioOfSectionName ? String(line.ratioOfSectionName).trim().slice(0, 100) : null,
       lockedFields: locked,
+      ...baselineRef(line),
     },
   }
 }

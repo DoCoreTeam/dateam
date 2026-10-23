@@ -100,6 +100,9 @@ export interface QuoteLineDraft {
   ratioPct?: string | null
   ratioOfSectionName?: string | null
   lockedFields?: string[]
+  /** 제품으로 채운 줄의 가격 기준 제품과 그때 버전 */
+  priceProductId?: string | null
+  priceProductRevision?: number | null
 }
 
 /** `/api/crm/products` 가 주는 모양 (금액은 BigInt 라 문자열로 온다) */
@@ -212,6 +215,8 @@ export function toLinePayload(l: QuoteLineDraft): Record<string, unknown> {
     ratioPct: l.ratioPct ?? null,
     ratioOfSectionName: l.ratioOfSectionName ?? null,
     lockedFields: l.lockedFields ?? [],
+    priceProductId: l.priceProductId ?? null,
+    priceProductRevision: l.priceProductRevision ?? null,
   }
 }
 
@@ -341,6 +346,8 @@ export function quoteToDraft(body: any): QuoteDraft {
       ratioPct: l.ratioPct == null ? null : String(l.ratioPct),
       ratioOfSectionName: l.ratioOfSectionName ?? null,
       lockedFields: Array.isArray(l.lockedFields) ? l.lockedFields : [],
+      priceProductId: l.priceProductId ?? null,
+      priceProductRevision: l.priceProductRevision ?? null,
     })),
   }
 }

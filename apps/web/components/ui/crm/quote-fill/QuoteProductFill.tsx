@@ -48,6 +48,7 @@ export default function QuoteProductFill({ dealId, draft, onDraftChange, onClose
   const [items, setItems] = useState<ItemRow[]>([])
   const [sections, setSections] = useState<{ name: string; roundingUnit: number }[]>([])
   const [supplyRoundingUnit, setSupplyRoundingUnit] = useState(0)
+  const [revision, setRevision] = useState<number | null>(null)
   const [picked, setPicked] = useState<string[]>(Array.isArray(prior?.conditions?.picked) ? prior!.conditions!.picked as string[] : [])
   const [gpus, setGpus] = useState<GpuDraft[]>([{ model: '', count: '', timed: false }])
   const [nodes, setNodes] = useState('')
@@ -95,6 +96,7 @@ export default function QuoteProductFill({ dealId, draft, onDraftChange, onClose
         setItems((body.items ?? []).filter((i: ItemRow) => i.isActive))
         setSections(Array.isArray(body.product?.sections) ? body.product.sections : [])
         setSupplyRoundingUnit(Number(body.product?.supplyRoundingUnit ?? 0))
+        setRevision(Number(body.product?.revision) || null)
         setUpgrades((body.rules ?? []).filter((r: { kind: string; isEnabled?: boolean }) => r.kind === 'UPGRADE' && r.isEnabled !== false)
           .map((r: { body: UpgradeRule }) => r.body))
       } catch { setError('제품을 불러오지 못했어요.') }
@@ -134,7 +136,7 @@ export default function QuoteProductFill({ dealId, draft, onDraftChange, onClose
     if (!out) return
     const name = products.find((p) => p.id === productId)?.name ?? ''
     onDraftChange((prev) => applyProductFill(prev, {
-      productId, productName: name, sections, supplyRoundingUnit, lines: out.result.lines, autoFilled: out.result.autoFilled, conditions: conditions(),
+      productId, productName: name, sections, supplyRoundingUnit, revision, lines: out.result.lines, autoFilled: out.result.autoFilled, conditions: conditions(),
     }))
     onClose()
   }

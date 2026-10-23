@@ -21,7 +21,13 @@ export interface BaselineLine {
   ratioPct?: string | number | null
   productId?: string | null
   provenance?: unknown
+  /** 제품으로 채운 줄의 가격 기준 제품과 그때 버전 */
+  priceProductId?: string | null
+  priceProductRevision?: number | null
 }
+
+/** 지금 가격 기준 제품의 버전과 이름 (제품 id → 값) */
+export interface CurrentRevision { revision: number; name: string }
 
 export interface BaselineFinding {
   level: BaselineLevel
@@ -49,8 +55,13 @@ function isIncludedFree(p: unknown): boolean {
 /**
  * currentListPrice: 지금 가격 기준의 정상가(품목 id → 원). 견적을 만든 뒤 바뀌었는지 보는 데 쓴다. 비면 그 검사는 건너뛴다.
  */
-export function baselineCheck(lines: readonly BaselineLine[], currentListPrice: ReadonlyMap<string, bigint> = new Map()): BaselineFinding[] {
+export function baselineCheck(
+  lines: readonly BaselineLine[],
+  currentListPrice: ReadonlyMap<string, bigint> = new Map(),
+  currentRevision: ReadonlyMap<string, CurrentRevision> = new Map(),
+): BaselineFinding[] {
   const out: BaselineFinding[] = []
+  const toldRevision = new Set<string>()
   // 금액은 늘 「원」으로 끝나 받침이 있다 — 조사는 과, 으로
   const fmt = (v: bigint) => `${Number(v).toLocaleString('ko-KR')}원`
   lines.forEach((l, index) => {
@@ -77,6 +88,12 @@ export function baselineCheck(lines: readonly BaselineLine[], currentListPrice: 
     const now = l.productId ? currentListPrice.get(l.productId) : undefined
     if (list !== null && now !== undefined && now !== list) {
       out.push({ level: 'warn', index, message: `${l.name} 정상가가 ${fmt(list)}에서 ${fmt(now)}으로 바뀌었어요. 이 견적은 바뀌기 전 값이에요.` })
+    }
+    // 가격 기준 버전 — 제품마다 한 번만 말한다. 줄마다 말하면 같은 말이 수십 줄 선다
+    const ref = l.priceProductId ? currentRevision.get(l.priceProductId) : undefined
+    if (l.priceProductId && ref && l.priceProductRevision && ref.revision !== l.priceProductRevision && !toldRevision.has(l.priceProductId)) {
+      toldRevision.add(l.priceProductId)
+      out.push({ level: 'warn', index, message: `가격 기준이 바뀌었어요. ${ref.name} (채운 버전 ${l.priceProductRevision}, 지금 버전 ${ref.revision}). 제품으로 다시 채울지 보세요.` })
     }
   })
   return out

@@ -23,14 +23,18 @@ export async function baselineFindings(tx: Tx, quoteId: string): Promise<Baselin
   const lines = await tx.crmQuoteLine.findMany({
     where: { quoteId },
     orderBy: { position: 'asc' },
-    select: { name: true, unitPriceMinor: true, listPriceMinor: true, priceSource: true, ratioPct: true, productId: true, provenance: true },
+    select: { name: true, unitPriceMinor: true, listPriceMinor: true, priceSource: true, ratioPct: true, productId: true, provenance: true, priceProductId: true, priceProductRevision: true },
   })
   const ids = [...new Set(lines.map((l: { productId: string | null }) => l.productId).filter(Boolean))] as string[]
   const products: { id: string; unitPriceMinor: bigint }[] = ids.length
     ? await tx.crmProduct.findMany({ where: { id: { in: ids } }, select: { id: true, unitPriceMinor: true } })
     : []
   const now = new Map(products.map((p) => [p.id, BigInt(p.unitPriceMinor)]))
-  return baselineCheck(lines, now)
+  const refIds = [...new Set(lines.map((l: { priceProductId: string | null }) => l.priceProductId).filter(Boolean))] as string[]
+  const refs: { id: string; name: string; revision: number }[] = refIds.length
+    ? await tx.crmPriceProduct.findMany({ where: { id: { in: refIds } }, select: { id: true, name: true, revision: true } })
+    : []
+  return baselineCheck(lines, now, new Map(refs.map((r) => [r.id, { revision: r.revision, name: r.name }])))
 }
 
 /** 보내기 전 — 막는 것이 하나라도 있으면 던진다. 알림은 화면이 보여 준다 */

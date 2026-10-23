@@ -43,6 +43,8 @@ export interface ApplyInput {
   sections: { name: string; roundingUnit: number }[]
   /** 제품의 할인 후 공급가 절사 단위 — 견적이 받아 저장해 다시 계산해도 같은 금액이 된다 */
   supplyRoundingUnit?: number
+  /** 채운 그때 제품의 가격 기준 버전 — 줄마다 남아 기준이 바뀌면 보내기 전에 알린다 */
+  revision?: number | null
   lines: EngineLineJson[]
   autoFilled: AutoFilledJson[]
   conditions: Record<string, unknown>
@@ -83,6 +85,8 @@ export function applyProductFill(draft: QuoteDraft, input: ApplyInput): QuoteDra
       ratioPct: isRatio ? String(l.ratioPct) : null,
       ratioOfSectionName: isRatio ? l.ratioOfSectionKey : null,
       lockedFields: [],
+      priceProductId: input.revision ? input.productId : null,
+      priceProductRevision: input.revision ?? null,
     }
   })
 
