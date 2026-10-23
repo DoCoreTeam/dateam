@@ -60,6 +60,7 @@ export const CRM_DEFS: ActionDef[] = [
   { op: "GET /api/crm/quotes/{id}", name: "crm.quote.get", scope: "read", cli: "crm quote get" },
   { op: "GET /api/crm/quotes/{id}/baseline", name: "crm.quote.baseline", scope: "read", cli: "crm quote baseline" },
   { op: "GET /api/crm/quotes/{id}/document", name: "crm.quote.document", scope: "read", cli: "crm quote document" },
+  { op: "GET /api/crm/quotes/{id}/export", name: "crm.quote.export", scope: "read", cli: "crm quote export", summary: "견적서를 화면 미리보기 그대로 PDF 나 PNG 로" },
   { op: "GET /api/crm/reports", name: "crm.report.list", scope: "read", cli: "crm report list" },
   { op: "GET /api/crm/search", name: "crm.search.list", scope: "read", cli: "crm search list" },
   { op: "GET /api/crm/settings", name: "crm.settings.list", scope: "read", cli: "crm settings list" },

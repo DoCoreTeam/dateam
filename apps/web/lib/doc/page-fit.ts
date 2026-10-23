@@ -108,3 +108,25 @@ export function pdfPageSize(imageHeightMm: number): { widthMm: number; heightMm:
   }
   return { widthMm: A4_W_MM, heightMm: imageHeightMm, a4: false }
 }
+
+/**
+ * 그려진 종이를 A4 쪽 단위로 자를 자리 (서버 내보내기 png 의 page n).
+ *
+ * 쪽 높이는 **종이 폭에서 비율로** 센다. 배율(zoom)과 화면 밀도가 바뀌어도 폭과 높이가 같이
+ * 움직여서 297/210 비율은 그대로다. 반올림 한 픽셀은 봐준다, 안 봐주면 빈 둘째 쪽이 생긴다.
+ */
+export function pageSlices(paperHeightPx: number, paperWidthPx: number): { count: number; pageHeightPx: number } {
+  const pageHeightPx = paperWidthPx * (A4_H_MM / A4_W_MM)
+  if (!(paperHeightPx > 0) || !(pageHeightPx > 0)) return { count: 1, pageHeightPx }
+  return { count: Math.max(1, Math.ceil((paperHeightPx - 1) / pageHeightPx)), pageHeightPx }
+}
+
+/** n 쪽(1부터)의 세로 자리. 범위 밖이면 null */
+export function pageClipY(
+  paperHeightPx: number, paperWidthPx: number, page: number,
+): { y: number; height: number } | null {
+  const { count, pageHeightPx } = pageSlices(paperHeightPx, paperWidthPx)
+  if (!Number.isInteger(page) || page < 1 || page > count) return null
+  const y = (page - 1) * pageHeightPx
+  return { y, height: Math.min(pageHeightPx, paperHeightPx - y) }
+}

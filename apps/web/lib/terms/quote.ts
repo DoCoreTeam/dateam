@@ -1328,3 +1328,12 @@ export const QUOTE_SEND = {
 export const QUOTE_FOLD = {
   filled: '값 있음',
 } as const
+
+/** 견적서 서버 내보내기 창구가 사람에게 하는 말 (P0158 I10) */
+export const QUOTE_EXPORT = {
+  badFormat: '내려받을 형식을 알 수 없습니다. PDF 나 이미지 중에서 골라 주세요.',
+  badPage: '쪽 번호가 올바르지 않습니다. 1 이상의 정수로 적어 주세요.',
+  pageOutOfRange: (count: number) => `이 견적서는 ${count}쪽입니다. 그 안의 쪽 번호를 적어 주세요.`,
+  mismatch: '금액이 서로 맞지 않아 내보낼 수 없습니다.',
+  untrustedOrigin: '이 주소에서는 견적서를 파일로 만들 수 없습니다. 서비스 주소로 다시 시도해 주세요.',
+} as const

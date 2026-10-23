@@ -1,6 +1,6 @@
 # PLAN newAX: teamda 의 모든 기능을 CLI 로
 플랜 ID: P0158
-플랜 버전: v0.1.6
+플랜 버전: v0.1.7
 상태: 진행중
 지시: ins_0318
 목표 버전: v0.11.61
@@ -140,9 +140,9 @@
 의존: I08
 
 ### I10 견적서 서버 내보내기
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/app/api/crm/quotes/[id]/export/route.ts (신규), apps/web/lib/crm/export/quote-export.ts (신규)
+범위: apps/web/app/api/crm/quotes/[id]/export/route.ts (신규), apps/web/lib/quote-export/quote-export.ts (신규, lib/crm 밖), apps/web/lib/quote-export/quote-export.test.ts (신규), apps/web/lib/export/render-document.ts (화면을 여는 방식 추가), apps/web/lib/doc/page-fit.ts (쪽 자르기), apps/web/lib/terms/quote.ts, apps/web/lib/actions/defs/crm.ts, apps/web/lib/actions/generated/, docs/cli/02-기능대응표.md, docs/cli/발견.md, packages/teamda-cli/src/generated/spec.json, apps/web/package.json
 감사 기준:
 - format pdf png page n, 화면 미리보기와 같은 그리기 데이터, 원가 마진 딜 노트 없음 (시험)
 - REQ-047 라벨 겹침과 합계 줄 잘림 없음 (쪽 이미지로 확인 또는 확인 못 함)
@@ -197,8 +197,10 @@
 - v0.1.1 (2026-10-23) I02 범위를 실제 파일로 맞춤, 이름 규칙은 생성기 쪽 naming.mjs, 형식과 openapi 조립과 생성물 추가 (audit:I02)
 - v0.1.2 (2026-10-23) I02 생성물(table.ts 요약 글, 경로 문자열)이 route-census 와 glossary 가드 셋을 깨 I03a 삽입 (audit:I02)
 - v0.1.3 (2026-10-23) I04 범위에 quote 라우트(POST 이지만 read 계산)와 시험 등재용 package.json 추가 (audit:I04)
+- v0.1.7 (2026-10-23) I10 범위를 실제 파일로, 모듈은 lib/quote-export, 미리보기를 머리 없는 브라우저로 여는 방식이라 render-document 와 page-fit 포함 (audit:I10)
 - v0.1.6 (2026-10-23) I08 범위를 실제 파일로, 승인 화면은 셸 아래 (member) 로, I07 의 재수출이 cli-parity 를 깨던 것을 추출기에서 고침 (audit:I08)
 - v0.1.5 (2026-10-23) I07 범위를 실제 파일로, 판정은 dispatch-core.ts 로 갈라 시험이 그대로 부름, 승인 범위 판정을 관문이 하도록 publicApiAuth 선택지, 겹치는 공개 라우트 10개 (audit:I07)
 - v0.1.4 (2026-10-23) I05 범위를 실제 파일로, 관리자 키 목록은 admin/api/ApiKeysPanel.tsx, 검증 모듈과 시험 추가 (audit:I05)
 - v0.1.5 (2026-10-23) I07 범위를 실제 파일로, 판정 모듈 분리, publicApiAuth 선택지, 겹치는 공개 라우트 10개 (audit:I07)
 - v0.1.6 (2026-10-23) I08 범위를 실제 파일로, 승인 화면 (member), 추출기 재수출 제외 (audit:I08)
+- v0.1.7 (2026-10-23) I10 범위를 실제 파일로 (audit:I10)
