@@ -98,7 +98,7 @@
 의존: I04
 
 ### I06 키 소유자로 내부 처리 함수 부르기
-상태: 대기
+상태: 통과
 모드: 중량
 범위: apps/web/lib/actions/acting-as.ts (신규), apps/web/lib/actions/acting-session.ts (신규), apps/web/lib/supabase/server.ts, apps/web/lib/actions/acting-as.test.ts (신규)
 감사 기준:

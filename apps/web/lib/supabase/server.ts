@@ -7,6 +7,8 @@ import { cache } from 'react'
 import type { Database } from '@/types/database'
 import { SESSION_ONLY_COOKIE, applySessionPersistence, isSessionOnly } from '@/lib/auth/session-persistence'
 import { aalFromAccessToken, blocksBeforeSecondFactor } from '@/lib/auth/mfa-level'
+import { currentActing, type ActingContext } from '@/lib/actions/acting-session'
+import { createSessionMinter } from '@/lib/actions/acting-as'
 
 type CookieItem = { name: string; value: string; options?: Record<string, unknown> }
 
@@ -26,6 +28,10 @@ export function createAdminClient() {
  *   그 밖에서는 2단계를 안 지난 사람을 getUser 가 「로그인 안 함」으로 답한다.
  */
 export async function createClient(opts?: { sessionOnly?: boolean; allowPendingMfa?: boolean }) {
+  // 공개 API 관문 안이면 쿠키 대신 키 소유자 세션 (P0158 I06), 관문 밖에서는 아래 그대로
+  const acting = currentActing()
+  if (acting) return actingClient(acting)
+
   const cookieStore = await cookies()
   const sessionOnly = () => opts?.sessionOnly ?? isSessionOnly(cookieStore.get(SESSION_ONLY_COOKIE)?.value)
 
@@ -110,4 +116,56 @@ export const getRequestUserBeforeSecondFactor = cache(async () => {
   const supabase = await createClient({ allowPendingMfa: true })
   const { data: { user } } = await supabase.auth.getUser()
   return user
+})
+
+/**
+ * 키 소유자로 처리 중일 때의 클라이언트 (P0158 I06)
+ *
+ * 쿠키를 안 읽는다, 그 사람의 토큰을 Authorization 에 실어 RLS 가 그 사람으로 판정한다
+ * 2단계 관문은 걸지 않는다, 키를 확인한 관문이 이미 사람 확인을 대신했다 (키는 내 화면에서 그 사람이 만든 것)
+ */
+function actingClient(acting: ActingContext): ServerClient {
+  const token = acting.session.accessToken
+  const client = createSupabaseClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    },
+  )
+  const auth = client.auth
+  const getUser = auth.getUser.bind(auth)
+  auth.getUser = (jwt?: string) => getUser(jwt ?? token)
+  return client as unknown as ServerClient
+}
+
+/** 키 소유자 세션 공장, 사용자별 메모리 캐시 (acting-as.ts) */
+export const actingSessions = createSessionMinter({
+  async emailOf(userId) {
+    const { data, error } = await createAdminClient().auth.admin.getUserById(userId)
+    return error ? null : data.user?.email ?? null
+  },
+  async generateLink(email) {
+    const { data, error } = await createAdminClient().auth.admin.generateLink({ type: 'magiclink', email })
+    return { tokenHash: data?.properties?.hashed_token ?? null, error: error ? error.code ?? 'link_error' : null }
+  },
+  async verifyOtp(tokenHash) {
+    const anon = createSupabaseClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } },
+    )
+    const { data, error } = await anon.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' })
+    const session = data?.session
+    if (error || !session) return { session: null, error: error ? error.code ?? 'verify_error' : 'no_session' }
+    return {
+      session: {
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+        expiresAt: session.expires_at ?? Math.floor(Date.now() / 1000) + session.expires_in,
+      },
+      error: null,
+    }
+  },
 })
