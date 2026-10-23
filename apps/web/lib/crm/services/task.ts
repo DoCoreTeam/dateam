@@ -274,6 +274,15 @@ export async function updateTask(
   })
 }
 
+/**
+ * 삭제 대상 조건.
+ * 영구 삭제는 휴지통에 있는 행만 노린다. 조건을 안 주면 워크스페이스 가드가 deletedAt: null 을 붙여
+ * 휴지통의 할 일을 못 찾고 NOT_FOUND 가 났다. 살아 있는 할 일은 영구 삭제로 바로 지우지 못한다.
+ */
+export function taskDeleteWhere(id: string, mode: DeleteMode): Record<string, unknown> {
+  return mode === 'purge' ? { id, deletedAt: { not: null } } : { id }
+}
+
 export async function deleteTask(
   workspaceId: string,
   actorId: string | null,
@@ -284,12 +293,12 @@ export async function deleteTask(
 
   await withCrmTx(workspaceId, async (tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const before = await (tx as any).crmTask.findFirst({ where: { id }, select: SELECT })
+    const before = await (tx as any).crmTask.findFirst({ where: taskDeleteWhere(id, plan.mode), select: SELECT })
     if (!before) throw new CrmError('NOT_FOUND', '할 일을 찾을 수 없습니다.')
 
     if (plan.mode === 'purge') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (tx as any).crmTask.deleteMany({ where: { id } })
+      await (tx as any).crmTask.deleteMany({ where: taskDeleteWhere(id, plan.mode) })
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (tx as any).crmTask.updateMany({ where: { id }, data: { deletedAt: new Date() } })
