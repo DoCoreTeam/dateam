@@ -34,7 +34,7 @@ import {
   type CursorInput, type CursorPage,
 } from '../db/cursor.ts'
 import {
-  computeLine, computeTotals, needsApproval, discountRateOf,
+  computeLine, computeTotals, needsApproval, discountRateOf, effectiveDiscountRateOf,
   ROUNDING_UNITS, type RoundingMode, type RoundingUnit,
   isExpired,
   DEFAULT_DISCOUNT_APPROVAL_PCT,
@@ -2057,6 +2057,9 @@ export function toQuoteJson(row: QuoteRow): Record<string, unknown> {
     budgetMinor: bigOrNull((row as QuoteRow & { budgetMinor?: bigint | null }).budgetMinor),
     sections: row.sections?.map((x) => ({ ...x, subtotalMinor: x.subtotalMinor.toString(), roundingMinor: bigOrNull(x.roundingMinor) ?? '0' })),
     discountRate: Number(discountRateOf(row).toFixed(2)),
+    effectiveDiscountRate: Number(effectiveDiscountRateOf({
+      ...row, sectionRoundingMinor: (row as QuoteRow & { sectionRoundingMinor?: bigint | null }).sectionRoundingMinor ?? null,
+    }).toFixed(2)),
     lines: row.lines?.map((l) => ({
       ...l,
       unitPriceMinor: l.unitPriceMinor.toString(),

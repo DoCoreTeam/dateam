@@ -10,7 +10,7 @@
  *   · 할인 승인은 정상가 대비로 잰다 — 단가를 깎든 할인을 넣든 예산을 맞추든 다 걸린다
  */
 
-import { computeTotals, needsApproval, type QuoteLineInput, type RoundingInput } from '../domain/quote-math.ts'
+import { computeTotals, needsApproval, roundingSupplyPart, type QuoteLineInput, type RoundingInput } from '../domain/quote-math.ts'
 import { composeQuote, type ComposeLine } from '../domain/quote-compose.ts'
 import { needsApprovalVsList } from '../domain/pricebook/list-approval.ts'
 import { LINE_KIND_PRICE_BASIS, type QuoteLineKind } from '../../terms/cost.ts'
@@ -88,7 +88,11 @@ export function priceQuote(
       roundingMinor: t.roundingMinor,
       sectionRoundingMinor: BigInt(0),
       annualMinor: BigInt(0),
-      approvalRequired: needsApproval(t, thresholdPct),
+      // 총액 절사도 깎아 준 금액이다 — 안 세면 절사로 승인을 건너뛴다(REQ-022)
+      approvalRequired: needsApproval({
+        subtotalMinor: t.subtotalMinor,
+        discountMinor: t.discountMinor + roundingSupplyPart(t.roundingMinor, t.subtotalMinor - t.discountMinor, t.taxMinor),
+      }, thresholdPct),
       composed: false,
     }
   }
@@ -129,7 +133,12 @@ export function priceQuote(
     roundingMinor: q.once.roundingMinor,
     sectionRoundingMinor: q.once.sectionRoundingMinor,
     annualMinor: q.annual.supplyMinor,
-    approvalRequired: needsApprovalVsList(onceLines, thresholdPct, q.once.sectionRoundingMinor),
+    approvalRequired: needsApprovalVsList(
+      onceLines, thresholdPct,
+      q.once.sectionRoundingMinor + roundingSupplyPart(
+        q.once.roundingMinor, q.once.subtotalMinor - q.once.discountMinor - q.once.sectionRoundingMinor, q.once.taxMinor,
+      ),
+    ),
     composed: true,
   }
 }

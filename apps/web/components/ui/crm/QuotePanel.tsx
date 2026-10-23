@@ -23,6 +23,7 @@ import { nextVariantLabel } from '@/lib/crm/domain/quote-duplicate-identity'
 import { linkWithBack } from '@/lib/crm/nav/back-link'
 import { blockedActionLink } from '@/lib/crm/ui/blocked-action-link'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
+import { showsRoundingDiscount } from '@/lib/crm/domain/quote-math'
 import {
   ACTION,
   ENTITY,
@@ -70,6 +71,7 @@ interface Quote {
   taxMinor: string
   totalMinor: string
   discountRate: number
+  effectiveDiscountRate?: number
   approvalRequired: boolean
   approvedAt: string | null
   sentAt: string | null
@@ -405,6 +407,7 @@ export default function QuotePanel({
                   <div className={styles.amount}>{formatAmount(q.totalMinor, q.currency)}</div>
                   <div className={styles.meta}>
                     {q.discountRate > 0 && `할인 ${q.discountRate}% · `}
+                    {showsRoundingDiscount(q) && `${QUOTE.discountWithRounding(Math.round(q.effectiveDiscountRate ?? 0))} · `}
                     {q.validUntil ? `${kstDateKey(q.validUntil)}까지` : '기한 없음'}
                     {q.sentAt && ` · ${formatKstDateTimeShort(q.sentAt)} 보냄`}
                   </div>

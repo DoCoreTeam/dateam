@@ -415,3 +415,27 @@ test('★ 합계도 기간을 센다 — 줄 합을 더한 값과 총액이 안 
   assert.equal(t.taxMinor, BigInt(3_182_400 + 50_000))
   assert.equal(t.netTotalMinor, BigInt(31_824_000 + 500_000 + 3_182_400 + 50_000))
 })
+
+test('★ 총액 절사도 할인으로 센다 — 숙명여대 1안 숫자(REQ-022)', async () => {
+  const { roundingSupplyPart, effectiveDiscountRateOf } = await import('./quote-math.ts')
+  // 공급가 47,000,000 · 할인 11,100,000(23.62%) · 부가세 3,590,000 · 계 39,490,000 · 절사 9,490,000 → 합계 30,000,000
+  const t = { subtotalMinor: 47_000_000n, discountMinor: 11_100_000n, taxMinor: 3_590_000n, roundingMinor: 9_490_000n }
+  assert.equal(roundingSupplyPart(t.roundingMinor, 35_900_000n, t.taxMinor), 8_627_272n, '부가세 몫을 뺀 공급가 몫')
+  const rate = effectiveDiscountRateOf(t)
+  assert.ok(rate > 41.9 && rate < 42.1, `절사 포함 약 42% (받은 값 ${rate})`)
+})
+
+test('올림 절사와 절사 없음은 할인율을 바꾸지 않는다', async () => {
+  const { roundingSupplyPart, effectiveDiscountRateOf } = await import('./quote-math.ts')
+  assert.equal(roundingSupplyPart(-5_000n, 1_000_000n, 100_000n), 0n)
+  const base = { subtotalMinor: 1_000_000n, discountMinor: 100_000n, taxMinor: 90_000n }
+  assert.equal(effectiveDiscountRateOf({ ...base, roundingMinor: 0n }), 10)
+  assert.equal(effectiveDiscountRateOf({ ...base, roundingMinor: -10_000n }), 10)
+})
+
+test('절사 포함 할인율은 0.5%p 이상 다를 때만 따로 보인다', async () => {
+  const { showsRoundingDiscount } = await import('./quote-math.ts')
+  assert.equal(showsRoundingDiscount({ discountRate: 23.62, effectiveDiscountRate: 41.97 }), true)
+  assert.equal(showsRoundingDiscount({ discountRate: 10, effectiveDiscountRate: 10.2 }), false)
+  assert.equal(showsRoundingDiscount({ discountRate: 10 }), false)
+})

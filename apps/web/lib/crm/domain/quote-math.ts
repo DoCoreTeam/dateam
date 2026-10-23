@@ -279,6 +279,35 @@ export function discountRateOf(totals: Pick<QuoteTotals, 'subtotalMinor' | 'disc
 }
 
 /**
+ * 총액 절사 가운데 공급가 몫 — 절사를 할인으로 셀 때 쓴다(REQ-022).
+ *
+ * 실측 2026-10-23: 숙명여대 1안은 할인 23.62% 로 승인됐는데 총액 절사 9,490,000원이 따로 빠져
+ * 정가 대비 실제 할인은 약 42% 였다. 승인 판정이 절사를 안 셌기 때문이다.
+ * 절사는 부가세까지 얹은 총액에 걸리므로 그대로 더하면 공급가 기준 할인율이 부풀려진다 → 공급가:세금 비율로 나눈다.
+ * 올림(음수)은 깎아 준 것이 아니므로 0 이다.
+ */
+export function roundingSupplyPart(roundingMinor: bigint, netSupplyMinor: bigint, taxMinor: bigint): bigint {
+  if (roundingMinor <= BigInt(0) || netSupplyMinor <= BigInt(0)) return BigInt(0)
+  const gross = netSupplyMinor + (taxMinor > BigInt(0) ? taxMinor : BigInt(0))
+  return (roundingMinor * netSupplyMinor) / gross
+}
+
+/** 절사까지 할인으로 센 실제 할인율(%) — 견적 카드가 「절사 포함」으로 보여 준다 */
+export function effectiveDiscountRateOf(t: {
+  subtotalMinor: bigint; discountMinor: bigint; taxMinor: bigint; roundingMinor: bigint; sectionRoundingMinor?: bigint | null
+}): number {
+  const section = t.sectionRoundingMinor ?? BigInt(0)
+  const net = t.subtotalMinor - t.discountMinor - section
+  const extra = section + roundingSupplyPart(t.roundingMinor, net, t.taxMinor)
+  return discountRateOf({ subtotalMinor: t.subtotalMinor, discountMinor: t.discountMinor + extra })
+}
+
+/** 절사 포함 할인율을 따로 보여 줄 만큼 다른가 — 반올림 차이(0.5%p 미만)로는 붙이지 않는다 */
+export function showsRoundingDiscount(q: { discountRate: number; effectiveDiscountRate?: number | null }): boolean {
+  return typeof q.effectiveDiscountRate === 'number' && q.effectiveDiscountRate - q.discountRate >= 0.5
+}
+
+/**
  * 할인 승인 임계 — 이 비율을 넘으면 승인 없이는 **보낼 수 없다**.
  *
  * 왜 15%인가: 근거 있는 숫자가 아니라 **바꿀 수 있게 만든 기본값**이다.

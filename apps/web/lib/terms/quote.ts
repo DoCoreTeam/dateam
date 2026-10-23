@@ -117,6 +117,8 @@ export const QUOTE = {
   /** 절사 — 「끝자리 정리」가 아니라 회계에서 쓰는 말 그대로 */
   rounding: '절사',
   discount: '할인',
+  /** 절사까지 할인으로 센 실제 할인율 — 할인율과 다를 때만 붙인다(REQ-022) */
+  discountWithRounding: (rate: number) => `절사 포함 ${rate}%`,
   tax: '부가세',
   /**
    * 절사 **직전** 금액 = 공급가액 − 할인 + 부가세.

@@ -45,3 +45,28 @@ test('묶음 절사 하나만 켜도 새 길이다', () => {
   assert.equal(usesNewPricing([{ quantity: 1, unitPriceMinor: 1n }], [{ name: 'a', roundingUnit: 10_000 }]), true)
   assert.equal(usesNewPricing([{ quantity: 1, unitPriceMinor: 1n }], [{ name: 'a', roundingUnit: 0 }]), false)
 })
+
+test('★ 옛 길: 할인 10% 라도 총액 절사로 깎은 몫이 크면 승인에 걸린다(REQ-022)', () => {
+  const lines = [{ quantity: 1, unitPriceMinor: 47_000_000n, discountPercent: 10, taxRate: 10 }]
+  const noRound = priceQuote(lines, [], {}, 15, null)
+  assert.equal(noRound.approvalRequired, false, '절사가 없으면 10% 라 통과')
+  // 계 46,530,000 → 천만원 단위 버림 40,000,000, 절사 6,530,000
+  const r = priceQuote(lines, [], { unit: 10_000_000, mode: 'DOWN' }, 15, null)
+  assert.equal(r.roundingMinor, 6_530_000n)
+  assert.equal(r.approvalRequired, true)
+})
+
+test('★ 새 길(정상가 대비)도 총액 절사를 센다', () => {
+  // 정상가 47,000,000 에서 40,000,000 으로 깎음 = 14.89%, 임계 15% 바로 아래
+  const line = { quantity: 1, unitPriceMinor: 40_000_000n, listPriceMinor: 47_000_000n, priceSource: 'LIST', taxRate: 10 }
+  assert.equal(priceQuote([line], [], {}, 15, null).approvalRequired, false)
+  const r = priceQuote([line], [], { unit: 10_000_000, mode: 'DOWN' }, 15, null)
+  assert.equal(r.composed, true)
+  assert.ok(r.roundingMinor > 0n)
+  assert.equal(r.approvalRequired, true)
+})
+
+test('올림 절사는 승인 판정을 바꾸지 않는다', () => {
+  const lines = [{ quantity: 1, unitPriceMinor: 47_000_000n, discountPercent: 10, taxRate: 10 }]
+  assert.equal(priceQuote(lines, [], { unit: 10_000_000, mode: 'UP' }, 15, null).approvalRequired, false)
+})

@@ -24,6 +24,7 @@ import { kstDateKey } from '@/lib/datetime/kst'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import { QUOTE_STATUS_META, QUOTE_STATUS_ORDER, quoteStatusMeta } from '@/lib/crm/ui/quote-status'
 import { ENTITY, FILTER_ALL } from '@/lib/terms'
+import { showsRoundingDiscount } from '@/lib/crm/domain/quote-math'
 import { QUOTE, variantFromLine } from '@/lib/terms/quote'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { useRowSelection } from '@/hooks/useRowSelection'
@@ -42,6 +43,7 @@ export interface QuoteItem {
   validUntil: string | null
   totalMinor: string
   discountRate: number
+  effectiveDiscountRate?: number
   approvalRequired: boolean
   approvedAt: string | null
   expired?: boolean
@@ -145,6 +147,9 @@ const COLUMNS: ColumnDef<QuoteItem>[] = [
         <Sensitive>{formatAmount(r.totalMinor, r.currency)}</Sensitive>
         {r.discountRate > 0 && (
           <span style={{ ...FAINT, marginLeft: 'var(--space-2)' }}>할인 {r.discountRate}%</span>
+        )}
+        {showsRoundingDiscount(r) && (
+          <span style={{ ...FAINT, marginLeft: 'var(--space-2)' }}>{QUOTE.discountWithRounding(Math.round(r.effectiveDiscountRate ?? 0))}</span>
         )}
       </>
     ),
