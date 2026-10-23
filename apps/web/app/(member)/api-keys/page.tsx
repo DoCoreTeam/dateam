@@ -20,7 +20,6 @@ interface ApiKey {
   id: string
   name: string
   masked_key: string
-  raw_key?: string
   status: 'active' | 'revoked'
   created_at: string
   last_used_at: string | null
@@ -218,24 +217,6 @@ export default function ApiKeysPage() {
       cell: (k) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <code style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{k.masked_key}</code>
-          {k.status === 'active' && (
-            <button
-              type="button"
-              className="btn-ghost"
-              title={k.raw_key ? 'API 키 복사' : '원문 없음. 새 키 생성 필요'}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (k.raw_key) copyText(k.raw_key, `${k.id}-copy`)
-                else void ask.notice({
-                  title: '이 키는 다시 볼 수 없습니다',
-                  body: '예전에 만든 키는 원문을 보관하지 않습니다. 이 키를 폐기하고 새 키를 만들면 그때 원문을 한 번 보여 드립니다.',
-                })
-              }}
-              style={{ display: 'inline-flex', alignItems: 'center', opacity: k.raw_key ? 1 : 0.5 }}
-            >
-              {copiedId === `${k.id}-copy` ? <Check size={12} /> : <Copy size={12} />}
-            </button>
-          )}
         </span>
       ),
     },
