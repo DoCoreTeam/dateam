@@ -195,3 +195,72 @@ test('★ profiles 권한 칸을 막는 트리거가 있고 권한 칸을 다 �
   const dropped = all.slice(guardIdx + 1).filter((m) => /DROP TRIGGER[^;]*trg_profiles_privilege_guard/i.test(m.sql))
   assert.deepEqual(dropped.map((m) => m.name), [], '뒤 마이그레이션이 profiles 권한 칸 트리거를 지운다')
 })
+
+/**
+ * SECURITY DEFINER 함수는 실행 권한을 회수한다
+ *
+ * **왜**: 함수를 만들면 Postgres 는 PUBLIC 에 실행 권한을 준다. SECURITY DEFINER 는 RLS 를 건너뛰므로
+ *   익명 키로 /rest/v1/rpc 를 부르면 표를 직접 만진다. RFP 작업 함수 다섯, 회의 작업 함수 둘,
+ *   스키마 지도 함수가 그렇게 열려 있었다(감사 2026-10-23, 마이그 315 가 닫음).
+ *   보안 기계 셈은 search_path 만 보므로 이 구멍을 세지 못했다.
+ *
+ * 규칙: 마이그레이션 코퍼스 어딘가에 그 함수 이름의 REVOKE ... ON FUNCTION 이 있어야 한다.
+ * 회수하지 않아도 되는 것은 아래 목록에 이유와 함께 적는다.
+ */
+const DEFINER_NO_REVOKE_OK: Record<string, string> = {
+  // 트리거 함수 — 직접 부르면 Postgres 가 「트리거로만 부를 수 있다」며 거절한다
+  fn_audit: '트리거 함수',
+  ci_settings_audit: '트리거 함수',
+  handle_new_user: '트리거 함수',
+  fn_org_closure_after_insert: '트리거 함수',
+  fn_org_closure_after_update: '트리거 함수',
+  fn_org_closure_before_update: '트리거 함수',
+  rfp_enroll_new_profile: '트리거 함수',
+  // 정책 판정용 — auth.uid() 로 「호출한 사람 자신」에 대해서만 참 거짓을 답한다, 남의 정보를 주지 않는다
+  ci_can_admin: '호출자 자신의 권한 판정',
+  ci_can_write: '호출자 자신의 권한 판정',
+  ci_is_app_admin: '호출자 자신의 권한 판정',
+  ci_is_member: '호출자 자신의 권한 판정',
+  ci_role: '호출자 자신의 권한 판정',
+  rfp_can_write: '호출자 자신의 권한 판정',
+  rfp_is_admin: '호출자 자신의 권한 판정',
+  rfp_my_orgs: '호출자 자신의 조직 목록',
+}
+
+/** CREATE FUNCTION 한 문장의 머리(인자 뒤 본문 앞)와 꼬리(본문 뒤 ; 까지)를 모아 속성을 본다 */
+function definerFunctions(sql: string): string[] {
+  const names: string[] = []
+  const head = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?"?([a-z0-9_]+)"?\s*\(/gi
+  let m: RegExpExecArray | null
+  while ((m = head.exec(sql))) {
+    const rest = sql.slice(m.index)
+    const tag = rest.match(/\$[a-z_]*\$/i)
+    if (!tag || tag.index === undefined) continue
+    const before = rest.slice(0, tag.index)
+    const closeAt = rest.indexOf(tag[0], tag.index + tag[0].length)
+    const after = closeAt < 0 ? '' : rest.slice(closeAt + tag[0].length, rest.indexOf(';', closeAt) + 1)
+    if (/security\s+definer/i.test(before + after)) names.push(m[1].toLowerCase())
+  }
+  return names
+}
+
+test('★ SECURITY DEFINER 함수는 실행 권한을 회수하거나 회수하지 않는 이유가 적혀 있다', () => {
+  const all = readMigrations()
+  const corpus = all.map((m) => m.sql).join('\n')
+  const revoked = new Set(
+    Array.from(corpus.matchAll(/revoke\s+(?:all|execute)[^;]*?on\s+function\s+(?:public\.)?([a-z0-9_]+)/gi), (r) => r[1].toLowerCase()),
+  )
+  const defined = new Set(all.flatMap((m) => definerFunctions(m.sql)))
+  assert.ok(defined.size >= 30, `SECURITY DEFINER 함수를 ${defined.size}개만 찾았다 — 찾는 규칙이 망가졌다`)
+
+  const open = [...defined].filter((n) => !revoked.has(n) && !(n in DEFINER_NO_REVOKE_OK)).sort()
+  assert.deepEqual(
+    open,
+    [],
+    `실행 권한을 회수하지 않은 SECURITY DEFINER 함수 ${open.length}개\n` +
+      `REVOKE ALL ON FUNCTION <이름>(<인자>) FROM PUBLIC, anon, authenticated; 뒤에 부를 역할에만 GRANT 한다`,
+  )
+
+  const stale = Object.keys(DEFINER_NO_REVOKE_OK).filter((n) => !defined.has(n))
+  assert.deepEqual(stale, [], '예외 목록에 더는 없는 함수가 남아 있다')
+})
