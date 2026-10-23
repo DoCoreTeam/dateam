@@ -4,12 +4,16 @@
  * 손으로 쓴 스펙은 코드와 갈린다. 그게 개발자센터가 73일 멈춰 있던 이유다.
  * 여기서는 registry 가 유일한 입력이므로, 엔드포인트를 등재하면 스펙도 같이 늘어난다.
  *
+ * 정의 표 생성물(lib/actions/generated/openapi.json)을 합쳐 CLI 명령(x-cli)과 범위(x-scope)를 싣는다
+ *
  * 키를 요구한다 — 이 API 는 사내 자동화용이고 스펙도 사내 문서다.
  */
 import type { NextRequest } from 'next/server'
 import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
 import { ok } from '@/lib/public-api/respond'
 import { ENDPOINTS, API_GROUPS, type ApiEndpoint } from '@/lib/api-docs/registry'
+import { mergeSpecs } from '@/lib/actions/openapi'
+import generated from '@/lib/actions/generated/openapi.json'
 
 export async function OPTIONS(request: NextRequest) {
   return optionsResponse(request)
@@ -27,7 +31,8 @@ export async function GET(request: NextRequest) {
     item[e.method.toLowerCase()] = operation(e)
   }
 
-  return ok({
+  // 정의 표의 모든 동작이 x-cli x-scope 와 함께 실린다 (P0158 I08), teamda sync 가 이것을 받는다
+  return ok(mergeSpecs({
     openapi: '3.1.0',
     info: {
       title: '사내 자동화 API',
@@ -45,7 +50,7 @@ export async function GET(request: NextRequest) {
     },
     security: [{ apiKey: [] }],
     paths,
-  }, { ctx: auth.ctx, request })
+  }, generated), { ctx: auth.ctx, request })
 }
 
 /** `/crm/companies/{id}` → ['id'] */

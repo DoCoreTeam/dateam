@@ -122,3 +122,29 @@ export function buildOpenApi(mounted: OpenApiMounted[], existing: OpenApiExistin
   doc['x-spec-hash'] = specHash(sig)
   return doc
 }
+
+const CLI_FIELDS = ['x-cli', 'x-scope', 'x-kind', 'x-name'] as const
+
+/**
+ * 손으로 쓴 공개 API 문서(registry)와 정의 표 생성물을 합친다 (P0158 I08)
+ * 이미 문서가 있는 경로는 그 설명과 응답 모양을 그대로 두고 x-cli x-scope 만 붙인다
+ * 문서가 없는 정의는 생성물의 동작을 그대로 싣는다, info 의 x-spec-hash 는 합친 경로의 해시
+ */
+export function mergeSpecs(registry: Json, generated: Json): Json {
+  const paths: Json = {}
+  for (const [p, item] of Object.entries(registry.paths ?? {})) paths[p] = { ...(item as Json) }
+  for (const [p, item] of Object.entries(generated.paths ?? {})) {
+    const target = (paths[p] ??= {})
+    for (const [method, op] of Object.entries(item as Json)) {
+      const gen = op as Json
+      if (target[method]) {
+        const extra: Json = {}
+        for (const f of CLI_FIELDS) if (gen[f] !== undefined) extra[f] = gen[f]
+        target[method] = { ...target[method], ...extra }
+      } else {
+        target[method] = gen
+      }
+    }
+  }
+  return { ...registry, info: { ...registry.info, 'x-spec-hash': specHash(JSON.stringify(paths)) }, paths }
+}

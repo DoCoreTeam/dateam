@@ -219,3 +219,64 @@ export async function dispatchPublicApi(request: NextRequest): Promise<Response>
   for (const [k, v] of Object.entries({ ...corsHeaders(request), ...base })) headers.set(k, v)
   return new Response(res.body, { status: res.status, headers })
 }
+
+export type ApprovalOutcome =
+  | { ok: true; status: 'APPROVED' | 'REJECTED' | 'FAILED'; resultStatus?: number }
+  | { ok: false; code: 'not_found' | 'forbidden' | 'not_pending' | 'expired' | 'not_mounted' }
+
+/**
+ * 승인 요청 결정 (P0158 I08)
+ * 결정은 키 소유자 본인 또는 관리자만, 만료된 요청은 EXPIRED 로 바꾸고 실행하지 않는다
+ * 먼저 PENDING 인 줄만 상태를 바꿔 집고(둘이 동시에 눌러도 한 번만 실행), 그다음 같은 처리 함수를 키 소유자 문맥에서 부른다
+ */
+export async function decideApproval(
+  id: string,
+  decider: { userId: string; role: string },
+  decision: 'approve' | 'reject',
+  origin: string,
+): Promise<ApprovalOutcome> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const { data: row } = await admin.from('api_approval_requests')
+    .select('id, key_id, user_id, action_name, required_scope, method, payload, status, expires_at, request_id')
+    .eq('id', id).maybeSingle()
+  if (!row) return { ok: false, code: 'not_found' }
+  if (row.user_id !== decider.userId && decider.role !== 'admin') return { ok: false, code: 'forbidden' }
+  if (row.status !== 'PENDING') return { ok: false, code: 'not_pending' }
+  const now = new Date().toISOString()
+  if (new Date(row.expires_at).getTime() <= Date.now()) {
+    await admin.from('api_approval_requests').update({ status: 'EXPIRED' }).eq('id', id).eq('status', 'PENDING')
+    return { ok: false, code: 'expired' }
+  }
+  const next = decision === 'approve' ? 'APPROVED' : 'REJECTED'
+  const { data: claimed } = await admin.from('api_approval_requests')
+    .update({ status: next, decided_by: decider.userId, decided_at: now })
+    .eq('id', id).eq('status', 'PENDING').gt('expires_at', now).select('id').maybeSingle()
+  if (!claimed) return { ok: false, code: 'not_pending' }
+  if (next === 'REJECTED') return { ok: true, status: 'REJECTED' }
+
+  const op = findMounted(row.action_name)
+  if (!op) {
+    await admin.from('api_approval_requests').update({ status: 'FAILED', result: { error: 'not_mounted' } }).eq('id', id)
+    return { ok: false, code: 'not_mounted' }
+  }
+  const { data: owner } = await admin.from('profiles').select('role').eq('id', row.user_id).maybeSingle()
+  const { data: key } = await admin.from('api_keys').select('scopes').eq('id', row.key_id).maybeSingle()
+  const scopes = [...new Set([...(key?.scopes ?? ['read']), row.required_scope])]
+  const payload = (row.payload ?? {}) as { params?: Record<string, string>; search?: string; body?: string }
+  const search = (() => { const s = new URLSearchParams(payload.search ?? ''); s.delete('dryRun'); const q = s.toString(); return q ? `?${q}` : '' })()
+  const res = await runAsKeyOwner(
+    { userId: row.user_id, role: owner?.role ?? 'member', keyId: row.key_id, scopes },
+    row.request_id ?? crypto.randomUUID(), op, payload.params ?? {},
+    { method: op.method, origin, search, headers: new Headers({ 'content-type': 'application/json' }), bodyText: payload.body ?? '' },
+  )
+  const body = await readJson(res)
+  const failed = res.status >= 500
+  await admin.from('api_approval_requests')
+    .update({ status: failed ? 'FAILED' : 'APPROVED', result: { status: res.status, body: body ?? null } }).eq('id', id)
+  await admin.from('api_write_audit').insert({
+    key_id: row.key_id, user_id: row.user_id, request_id: row.request_id, action_name: op.name,
+    method: op.kind === 'action' ? 'ACTION' : op.method, path: op.mount, status: res.status, approval_id: id,
+  })
+  return { ok: true, status: failed ? 'FAILED' : 'APPROVED', resultStatus: res.status }
+}

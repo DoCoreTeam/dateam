@@ -50,3 +50,55 @@ export const API_KEY_ERROR: Record<string, string> = {
   scope_not_allowed: '내 계정 권한으로 고를 수 없는 범위가 있습니다',
   create_failed: '키를 만들지 못했습니다. 잠시 후 다시 시도해 주세요',
 }
+
+/** 승인 요청 화면 (P0158 I08), 키가 범위 밖 위험 동작을 부르면 여기서 사람이 결정한다 */
+export const API_APPROVAL = {
+  title: '승인 요청',
+  description: 'API 키가 범위 밖의 동작을 요청했습니다. 내용을 보고 실행할지 정하세요',
+  action: '동작',
+  requiredScope: '필요한 범위',
+  path: '경로',
+  payload: '보낸 값',
+  requestedAt: '요청 시각',
+  expiresAt: '만료 시각',
+  status: '상태',
+  approve: '승인하고 실행',
+  reject: '거절',
+  confirmTitle: '이 동작을 실행할까요',
+  confirmBody: '승인하면 키 주인의 권한으로 지금 바로 실행됩니다. 되돌릴 수 없는 동작일 수 있습니다',
+  notFound: '승인 요청을 찾을 수 없거나 볼 권한이 없습니다',
+  resultStatus: '실행 결과 코드',
+  back: 'API 키',
+} as const
+
+export const API_APPROVAL_STATUS: Record<string, string> = {
+  PENDING: '기다리는 중',
+  APPROVED: '승인됨',
+  REJECTED: '거절됨',
+  EXPIRED: '만료됨',
+  FAILED: '실행 실패',
+}
+
+export const API_APPROVAL_ERROR: Record<string, string> = {
+  not_found: '승인 요청을 찾을 수 없습니다',
+  forbidden: '키 주인이나 관리자만 결정할 수 있습니다',
+  not_pending: '이미 결정된 요청입니다',
+  expired: '만료된 요청이라 실행하지 않았습니다',
+  not_mounted: '이 동작은 더 이상 API 로 부를 수 없습니다',
+  invalid: '요청이 올바르지 않습니다',
+  unauthorized: '다시 로그인해 주세요',
+}
+
+/** 개발자센터의 CLI 명령 절 (P0158 I08), 목록은 정의 표 생성물에서 온다 */
+export const API_CLI_DOC = {
+  nav: 'CLI 명령',
+  title: 'teamda CLI 명령',
+  description: '웹에서 하는 동작마다 같은 이름의 CLI 명령이 있습니다. teamda sync 로 서버의 최신 목록을 받습니다',
+  loading: '명령 목록을 불러오는 중',
+  failed: '명령 목록을 불러오지 못했습니다. 새로고침해 주세요',
+  search: '명령 검색',
+  command: '명령',
+  scope: '범위',
+  path: '경로',
+  total: '전체',
+} as const

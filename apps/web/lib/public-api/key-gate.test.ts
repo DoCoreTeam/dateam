@@ -21,6 +21,7 @@ const GATES = [/requireAdminKey\(auth\.ctx, request\)/, /requireMemberKey\(auth\
 /** 역할을 안 봐도 되는 처리기 — 이유를 적는다 */
 const OPEN_TO_ANY_KEY: Record<string, string> = {
   'openapi.json/route.ts GET': 'API 명세 문서, 자료가 없다',
+  'me/route.ts GET': '키 주인 자기 자신의 역할과 범위만 돌려준다, DB 를 따로 안 읽는다 (P0158 I08)',
 }
 
 function routes(dir: string): string[] {

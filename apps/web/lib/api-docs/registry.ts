@@ -259,6 +259,14 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
     id: 'ref.openapi', group: 'ref', method: 'GET', path: '/openapi.json', status: 'stable',
     title: 'OpenAPI 스펙', desc: '이 표에서 생성한 OpenAPI 3.1 스펙. 클라이언트 생성기에 그대로 넣을 수 있습니다.',
   },
+  {
+    id: 'ref.me', group: 'ref', method: 'GET', path: '/me', status: 'stable',
+    title: '내 키 정보', desc: '이 키의 주인, 역할, 실제로 쓸 수 있는 범위를 돌려줍니다. 범위와 상관없이 부를 수 있습니다.',
+  },
+  {
+    id: 'ref.approval', group: 'ref', method: 'GET', path: '/approvals/{id}', status: 'stable',
+    title: '승인 요청 상태', desc: '범위 밖 동작이 202 로 돌려준 승인 요청의 상태와 실행 결과. 키 주인의 요청만 보입니다.',
+  },
 
   /* ── 이관 중(구 CRM) ──────────────────────────────────────────────────── */
   ...legacyCrm('accounts', '거래처', '회사', 'crm.companies.list', '/crm/companies'),

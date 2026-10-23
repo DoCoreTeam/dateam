@@ -59,6 +59,8 @@ function routeOps(file) {
   for (const method of METHODS) {
     const re = new RegExp(`export\\s+(?:async\\s+function\\s+${method}\\b|const\\s+${method}\\b|\\{[^}]*\\b${method}\\b[^}]*\\})`)
     if (!re.test(src)) continue
+    // 공개 API 관문을 그대로 내보내는 메서드는 새 동작이 아니다, 정의 표의 줄을 싣는 입구다 (P0158 I07)
+    if (src.includes('dispatchPublicApi') && new RegExp(`export\\s+const\\s+${method}\\s*=\\s*(dispatchPublicApi|enter)\\b`).test(src)) continue
     const p = routePath(file)
     // 이 메서드 몸통만 (다음 export 전까지), 관리자 전용인지 본다
     const at = src.search(new RegExp(`export\\s+(?:async\\s+function|const)\\s+${method}\\b`))

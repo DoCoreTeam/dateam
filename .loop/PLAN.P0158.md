@@ -1,6 +1,6 @@
 # PLAN newAX: teamda 의 모든 기능을 CLI 로
 플랜 ID: P0158
-플랜 버전: v0.1.5
+플랜 버전: v0.1.6
 상태: 진행중
 지시: ins_0318
 목표 버전: v0.11.61
@@ -119,9 +119,9 @@
 의존: I02, I06
 
 ### I08 openapi.json 과 개발자센터가 정의를 읽음, GET me, 승인 요청 화면
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/app/api/public/v1/openapi.json/route.ts, apps/web/app/api/public/v1/me/route.ts (신규), apps/web/app/api/public/v1/approvals/[id]/route.ts (신규), apps/web/app/approvals/[id]/ (신규), apps/web/app/develop/page.tsx
+범위: apps/web/app/api/public/v1/openapi.json/route.ts, apps/web/app/api/public/v1/me/route.ts (신규), apps/web/app/api/public/v1/approvals/[id]/route.ts (신규), apps/web/app/(member)/approvals/[id]/ (신규, 셸과 게이트 아래), apps/web/app/develop/page.tsx, apps/web/app/develop/CliSection.tsx (신규), apps/web/lib/actions/openapi.ts, apps/web/lib/actions/dispatch.ts (승인 실행), apps/web/lib/actions/approval.test.ts (신규), apps/web/lib/actions/defs/meta.ts, apps/web/lib/actions/generated/, docs/cli/02-기능대응표.md, scripts/cli/extract-operations.mjs (I07 관문 재수출이 parity 를 깨던 것), apps/web/lib/terms/api-key.ts, apps/web/lib/terms/index.ts, apps/web/lib/api-docs/registry.ts, apps/web/lib/access/surfaces.ts, apps/web/lib/public-api/key-gate.test.ts, apps/web/package.json
 감사 기준:
 - openapi.json 에 정의 전부가 x-cli 와 x-scope 와 함께 실림, 기존 경로 응답 모양 그대로 (시험)
 - /approvals/{id} 에서 키 소유자가 승인하면 같은 처리 함수가 실행되고 상태가 APPROVED 로 (시험 또는 확인 못 함)
@@ -197,6 +197,8 @@
 - v0.1.1 (2026-10-23) I02 범위를 실제 파일로 맞춤, 이름 규칙은 생성기 쪽 naming.mjs, 형식과 openapi 조립과 생성물 추가 (audit:I02)
 - v0.1.2 (2026-10-23) I02 생성물(table.ts 요약 글, 경로 문자열)이 route-census 와 glossary 가드 셋을 깨 I03a 삽입 (audit:I02)
 - v0.1.3 (2026-10-23) I04 범위에 quote 라우트(POST 이지만 read 계산)와 시험 등재용 package.json 추가 (audit:I04)
+- v0.1.6 (2026-10-23) I08 범위를 실제 파일로, 승인 화면은 셸 아래 (member) 로, I07 의 재수출이 cli-parity 를 깨던 것을 추출기에서 고침 (audit:I08)
 - v0.1.5 (2026-10-23) I07 범위를 실제 파일로, 판정은 dispatch-core.ts 로 갈라 시험이 그대로 부름, 승인 범위 판정을 관문이 하도록 publicApiAuth 선택지, 겹치는 공개 라우트 10개 (audit:I07)
 - v0.1.4 (2026-10-23) I05 범위를 실제 파일로, 관리자 키 목록은 admin/api/ApiKeysPanel.tsx, 검증 모듈과 시험 추가 (audit:I05)
 - v0.1.5 (2026-10-23) I07 범위를 실제 파일로, 판정 모듈 분리, publicApiAuth 선택지, 겹치는 공개 라우트 10개 (audit:I07)
+- v0.1.6 (2026-10-23) I08 범위를 실제 파일로, 승인 화면 (member), 추출기 재수출 제외 (audit:I08)
