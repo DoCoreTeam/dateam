@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.62',
+    date: '2026-10-23',
+    title: 'teamda CLI 로 견적서를 PDF 와 이미지로 받아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📄',
+        headline: 'API 키로도 견적서 파일이 만들어져요',
+        detail: 'teamda crm quote export 나 API 키로 견적서 내보내기를 부르면 화면 미리보기와 같은 PDF 와 이미지가 나와요. 2단계 인증을 켠 계정의 키는 기다리지 않고 화면에서 내려받으라고 바로 알려 줘요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '💾',
+        headline: 'CLI 가 파일을 그대로 저장해요',
+        detail: '파일로 오는 응답은 --out 에 적은 경로에 그대로 저장되고, 화면에는 저장한 위치와 크기만 보여 줘요.',
+      },
+    ],
+  },
+  {
     version: '0.11.61',
     date: '2026-10-23',
     title: '웹에서 하는 일을 teamda CLI 로도 할 수 있어요',
