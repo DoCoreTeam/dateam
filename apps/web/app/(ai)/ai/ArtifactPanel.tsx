@@ -14,6 +14,9 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { extForLanguage, type ArtifactBlock } from '@/lib/ai-chat/artifacts'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import HtmlSandbox from './HtmlSandbox'
+import { SafeMarkdownImage } from './MarkdownMessage'
+
+const MD_COMPONENTS = { img: SafeMarkdownImage }
 
 export interface ArtifactVersionEntry {
   messageId: string
@@ -41,7 +44,7 @@ function CodeView({ language, content }: { language: string; content: string }) 
   const md = `${fence}${language}\n${content}\n${fence}`
   return (
     <div className="artifact-codeview ai-chat-md">
-      <ReactMarkdown rehypePlugins={[rehypeHighlight]}>{md}</ReactMarkdown>
+      <ReactMarkdown rehypePlugins={[rehypeHighlight]} components={MD_COMPONENTS}>{md}</ReactMarkdown>
     </div>
   )
 }
@@ -156,7 +159,7 @@ export default function ArtifactPanel({ versions, versionIndex, onClose, onVersi
           ) : block.type === 'markdown' ? (
             <div className="artifact-scroll">
               <div className="ai-chat-md artifact-md-preview">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={MD_COMPONENTS}>
                   {block.content}
                 </ReactMarkdown>
               </div>

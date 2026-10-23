@@ -38,19 +38,55 @@ function isPrivateIPv4(ip: string): boolean {
   if (a === 172 && b >= 16 && b <= 31) return true // 172.16.0.0/12
   if (a === 192 && b === 168) return true // 192.168.0.0/16
   if (a === 100 && b >= 64 && b <= 127) return true // CGNAT 100.64/10
+  if (a === 192 && b === 0 && (p[2] === 0 || p[2] === 2)) return true // 192.0.0/24 IETF, 192.0.2/24 문서용
+  if (a === 198 && (b === 18 || b === 19)) return true // 198.18/15 벤치마크
   if (a >= 224) return true // 멀티캐스트/예약
   return false
 }
 
-/** 사설/예약 IPv6 대역인가 */
+/** IPv6 를 16비트 여덟 칸으로 편다, 못 펴면 null */
+function expandIPv6(ip: string): number[] | null {
+  let x = ip.toLowerCase().split('%')[0]
+  // 끝이 a.b.c.d 면 두 칸으로 바꾼다
+  const v4 = x.match(/(\d+\.\d+\.\d+\.\d+)$/)
+  if (v4) {
+    const p = v4[1].split('.').map(Number)
+    if (p.some((n) => Number.isNaN(n) || n > 255)) return null
+    x = x.slice(0, -v4[1].length) + `${((p[0] << 8) | p[1]).toString(16)}:${((p[2] << 8) | p[3]).toString(16)}`
+  }
+  const halves = x.split('::')
+  if (halves.length > 2) return null
+  const head = halves[0] ? halves[0].split(':') : []
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : []
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0
+  if (fill < 0) return null
+  const groups = [...head, ...Array(fill).fill('0'), ...tail]
+  if (groups.length !== 8) return null
+  const nums = groups.map((g) => (/^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN))
+  return nums.some(Number.isNaN) ? null : nums
+}
+
+function v4FromGroups(hi: number, lo: number): string {
+  return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`
+}
+
+/** 사설/예약 IPv6 대역인가, 안에 IPv4 를 품은 표기는 그 IPv4 로 다시 본다 */
 function isPrivateIPv6(ip: string): boolean {
-  const x = ip.toLowerCase()
-  if (x === '::1' || x === '::') return true // loopback/unspecified
-  if (x.startsWith('fe80')) return true // link-local
-  if (x.startsWith('fc') || x.startsWith('fd')) return true // unique local fc00::/7
-  // IPv4-mapped ::ffff:a.b.c.d → 내부 IPv4 검사
-  const m = x.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)
-  if (m) return isPrivateIPv4(m[1])
+  const g = expandIPv6(ip)
+  if (!g) return true // 파싱 실패 = 차단
+  const zeroUntil = (n: number) => g.slice(0, n).every((v) => v === 0)
+  if (zeroUntil(6)) return isPrivateIPv4(v4FromGroups(g[6], g[7])) // ::, ::1, ::a.b.c.d 는 0.x 와 품은 IPv4
+  if (zeroUntil(5) && g[5] === 0xffff) return isPrivateIPv4(v4FromGroups(g[6], g[7])) // ::ffff:a.b.c.d
+  if (zeroUntil(4) && g[4] === 0xffff && g[5] === 0) return isPrivateIPv4(v4FromGroups(g[6], g[7])) // ::ffff:0:a.b.c.d
+  if (g[0] === 0x64 && g[1] === 0xff9b) return isPrivateIPv4(v4FromGroups(g[6], g[7])) // NAT64 64:ff9b::/96 과 /48
+  if (g[0] === 0x2002) return isPrivateIPv4(v4FromGroups(g[1], g[2])) // 6to4
+  if (g[0] === 0x2001 && g[1] === 0) return true // Teredo
+  if (g[0] === 0x2001 && g[1] === 0xdb8) return true // 문서용
+  if (g[0] === 0x100 && g[1] === 0 && g[2] === 0 && g[3] === 0) return true // 버림 100::/64
+  if ((g[0] & 0xffc0) === 0xfe80) return true // link-local fe80::/10
+  if ((g[0] & 0xffc0) === 0xfec0) return true // site-local fec0::/10
+  if ((g[0] & 0xfe00) === 0xfc00) return true // unique local fc00::/7
+  if ((g[0] & 0xff00) === 0xff00) return true // 멀티캐스트
   return false
 }
 
@@ -72,7 +108,8 @@ export async function assertSafeUrl(rawUrl: string): Promise<URL> {
   if (u.protocol !== 'http:' && u.protocol !== 'https:') {
     throw new SsrfBlockedError(`허용되지 않은 스킴: ${u.protocol}`)
   }
-  const host = u.hostname
+  // URL 은 IPv6 를 [::1] 로 감싸 준다, 벗겨야 IP 로 읽힌다
+  const host = u.hostname.replace(/^\[|\]$/g, '')
   // 호스트가 직접 IP인 경우
   if (net.isIP(host)) {
     if (isBlockedIp(host)) throw new SsrfBlockedError(`사설/예약 IP 차단: ${host}`)
@@ -92,18 +129,36 @@ export async function assertSafeUrl(rawUrl: string): Promise<URL> {
   return u
 }
 
+export interface SafeFetchInit {
+  headers?: Record<string, string>
+  timeoutMs?: number
+  /** 본문 상한(기본 2MB), 넘으면 ok:false 와 too_large */
+  maxBytes?: number
+  /** 스트리밍 중 넘치면 실패 대신 잘라서 돌려줌 (텍스트 수집용) */
+  truncateOverflow?: boolean
+}
+
+export interface SafeFetchBytesResult {
+  ok: boolean
+  status: number
+  bytes: Buffer
+  contentType: string | null
+  blockedReason?: string
+}
+
+const EMPTY = Buffer.alloc(0)
+
 /**
- * SSRF 안전 fetch + 본문 텍스트(상한 적용). 리다이렉트는 수동 추적하며 홉마다 재검증한다.
- * 반환: { ok, status, text } — 실패/비ok 시 ok:false, text:''.
+ * SSRF 안전 fetch + 본문 바이트(상한 적용). 리다이렉트는 수동 추적하며 홉마다 재검증한다.
  * 차단(SsrfBlockedError)은 throw 하지 않고 ok:false 로 흡수(호출부 단순화). blockedReason에 사유.
  */
-export async function safeFetchText(
-  rawUrl: string,
-  init?: { headers?: Record<string, string>; timeoutMs?: number },
-): Promise<{ ok: boolean; status: number; text: string; blockedReason?: string }> {
+export async function safeFetchBytes(rawUrl: string, init?: SafeFetchInit): Promise<SafeFetchBytesResult> {
   const timeoutMs = init?.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  const maxBytes = init?.maxBytes ?? MAX_BYTES
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const fail = (status: number, blockedReason?: string): SafeFetchBytesResult =>
+    ({ ok: false, status, bytes: EMPTY, contentType: null, blockedReason })
   let current = rawUrl
   try {
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -117,46 +172,61 @@ export async function safeFetchText(
       // 수동 리다이렉트 처리
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get('location')
-        if (!loc) return { ok: false, status: res.status, text: '' }
+        if (!loc) return fail(res.status)
         current = new URL(loc, safe).toString()
         continue
       }
-      if (!res.ok) return { ok: false, status: res.status, text: '' }
+      if (!res.ok) return fail(res.status)
 
       // 크기 상한 — Content-Length 선검사
       const cl = Number(res.headers.get('content-length') ?? '0')
-      if (cl > MAX_BYTES) return { ok: false, status: 413, text: '', blockedReason: 'too_large' }
+      if (cl > maxBytes) return fail(413, 'too_large')
 
-      // 스트리밍 누적 상한
-      const reader = res.body?.getReader()
-      if (!reader) {
-        const t = await res.text()
-        return { ok: true, status: res.status, text: t.slice(0, MAX_BYTES) }
-      }
-      const chunks: Uint8Array[] = []
-      let total = 0
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (value) {
-          total += value.byteLength
-          if (total > MAX_BYTES) {
-            try { await reader.cancel() } catch { /* noop */ }
-            break
-          }
-          chunks.push(value)
-        }
-      }
-      const text = Buffer.concat(chunks.map((c) => Buffer.from(c))).toString('utf8')
-      return { ok: true, status: res.status, text }
+      const bytes = await readCapped(res, maxBytes, init?.truncateOverflow ?? false)
+      if (!bytes) return fail(413, 'too_large')
+      return { ok: true, status: res.status, bytes, contentType: res.headers.get('content-type') }
     }
-    return { ok: false, status: 508, text: '', blockedReason: 'too_many_redirects' }
+    return fail(508, 'too_many_redirects')
   } catch (e) {
-    if (e instanceof SsrfBlockedError) {
-      return { ok: false, status: 0, text: '', blockedReason: e.message }
-    }
-    return { ok: false, status: 0, text: '' }
+    if (e instanceof SsrfBlockedError) return fail(0, e.message)
+    return fail(0)
   } finally {
     clearTimeout(timer)
   }
+}
+
+/** 스트리밍 누적 상한, 넘으면 null 또는 잘라서 */
+async function readCapped(res: Response, maxBytes: number, truncate: boolean): Promise<Buffer | null> {
+  const reader = res.body?.getReader()
+  if (!reader) {
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.byteLength <= maxBytes) return buf
+    return truncate ? buf.subarray(0, maxBytes) : null
+  }
+  const chunks: Buffer[] = []
+  let total = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value) continue
+    total += value.byteLength
+    if (total > maxBytes) {
+      try { await reader.cancel() } catch { /* noop */ }
+      return truncate ? Buffer.concat(chunks) : null
+    }
+    chunks.push(Buffer.from(value))
+  }
+  return Buffer.concat(chunks)
+}
+
+/**
+ * SSRF 안전 fetch + 본문 텍스트(상한 적용).
+ * 반환: { ok, status, text } — 실패/비ok 시 ok:false, text:''.
+ */
+export async function safeFetchText(
+  rawUrl: string,
+  init?: { headers?: Record<string, string>; timeoutMs?: number },
+): Promise<{ ok: boolean; status: number; text: string; blockedReason?: string }> {
+  const r = await safeFetchBytes(rawUrl, { ...init, truncateOverflow: true })
+  return { ok: r.ok, status: r.status, text: r.ok ? r.bytes.toString('utf8') : '', blockedReason: r.blockedReason }
 }

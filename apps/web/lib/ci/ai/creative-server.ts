@@ -9,6 +9,7 @@ import { guardedGeminiParts, GeminiCallError, type GeminiPart } from '@/lib/ai/g
 import {
   buildCreativePrompt, parseCreative, creativeFromRules, type CreativeAnalysis,
 } from './creative.ts'
+import { safeFetchBytes } from '@/lib/security/safe-fetch'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -16,21 +17,12 @@ const IMAGE_TIMEOUT_MS = 10_000
 const MAX_IMAGE_BYTES = 4_000_000
 
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mime: string } | null> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), IMAGE_TIMEOUT_MS)
-  try {
-    const res = await fetch(url, { signal: controller.signal })
-    if (!res.ok) return null
-    const buf = await res.arrayBuffer()
-    if (buf.byteLength > MAX_IMAGE_BYTES) return null
-    return {
-      data: Buffer.from(buf).toString('base64'),
-      mime: res.headers.get('content-type')?.split(';')[0] ?? 'image/jpeg',
-    }
-  } catch {
-    return null
-  } finally {
-    clearTimeout(timer)
+  // 썸네일 주소는 수집한 바깥 값이다, 사설망과 메타데이터 주소로 못 가게 safe-fetch 를 지난다
+  const res = await safeFetchBytes(url, { timeoutMs: IMAGE_TIMEOUT_MS, maxBytes: MAX_IMAGE_BYTES })
+  if (!res.ok) return null
+  return {
+    data: res.bytes.toString('base64'),
+    mime: res.contentType?.split(';')[0] ?? 'image/jpeg',
   }
 }
 

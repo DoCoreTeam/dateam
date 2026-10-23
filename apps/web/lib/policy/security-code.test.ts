@@ -99,8 +99,6 @@ const VARIABLE_URL_FETCH = new Set<string>([
   'lib/ci/connectors/weather.ts',
   'lib/ci/connectors/youtube.ts',
   'lib/ci/production/video-analyze.ts',
-  'lib/ci/ai/creative-server.ts',
-  'lib/ci/media/understand-server.ts',
   'lib/crm/api/paper-image.ts',
   'lib/crm/api/download.ts',
   'lib/ai-chat/providers/gemini.ts',
