@@ -33,6 +33,37 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.61',
+    date: '2026-10-23',
+    title: '웹에서 하는 일을 teamda CLI 로도 할 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '⌨️',
+        headline: 'teamda CLI 가 생겼어요',
+        detail: '웹에서 누르는 동작마다 같은 이름의 CLI 명령이 있어요. 개발자센터의 「CLI 명령」에서 전체 목록을 보고, teamda sync 로 최신 명령을 받아요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🔑',
+        headline: 'API 키에 범위와 만료일을 정해요',
+        detail: '키를 만들 때 조회, 만들기와 수정, 승인, 발송, 삭제, 관리자 설정 중 필요한 것만 고르고 만료일을 정해요. 고르지 않은 승인 발송 삭제는 바로 실행되지 않고 내 승인을 기다려요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '✅',
+        headline: '키가 보낸 요청을 승인하고 기록을 봐요',
+        detail: '승인 요청 화면에서 내용을 보고 실행할지 정해요. 키 관리 화면의 「요청 기록」과 영업 CRM 변경 이력의 「API(에이전트)가 한 것」 탭에서 키로 한 일을 확인해요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '📄',
+        headline: '견적서를 미리보기 그대로 PDF 와 이미지로 받아요',
+        detail: '서버가 화면 미리보기와 같은 모양으로 견적서를 구워 줘요. 원가와 마진은 들어가지 않아요.',
+      },
+    ],
+  },
+  {
     version: '0.11.54',
     date: '2026-10-23',
     title: '견적 할인율과 마진이 실제 숫자대로 보여요',
