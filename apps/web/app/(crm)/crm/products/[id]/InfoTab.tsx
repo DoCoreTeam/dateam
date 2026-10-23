@@ -104,7 +104,10 @@ export default function InfoTab({ data, onSaved }: Props) {
     <div className={styles.info}>
       <FormErrorBanner message={error} />
 
-      <SectionSurface title={PRICEBOOK.infoProduct}>
+      <SectionSurface
+        title={PRICEBOOK.infoProduct}
+        meta={`${PRICEBOOK.revisionLabel(p.revision ?? 1)}${p.effectiveFrom ? ` · ${PRICEBOOK.effectiveFrom} ${p.effectiveFrom.slice(0, 10)}` : ''}`}
+      >
         <div className={styles.infoGrid}>
           <div className={`${styles.field} ${styles.wide}`}>
             <label className="label" htmlFor="pi-name">{PRICEBOOK.productName}</label>

@@ -301,6 +301,8 @@ export type ItemInput = Omit<PriceItem, 'id'> & { id?: string }
 export interface ItemWriteOptions {
   sourceKind: PriceSourceKind
   sourceName?: string | null
+  /** 가격 이력의 적용일. 비면 오늘 */
+  effectiveFrom?: Date | null
 }
 
 /**

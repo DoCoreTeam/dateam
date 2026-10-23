@@ -27,6 +27,8 @@ import { createLaborGradeTx, updateLaborGradeTx } from './labor-grade.ts'
 import { findMissingRules, splitCarryover, type ExistingRule } from '../domain/pricebook/rule-carryover.ts'
 import { describeRule } from '../domain/pricebook/rule-text.ts'
 import type { PriceRule } from '../domain/pricebook/types.ts'
+import { nextRevision, parseEffectiveDay } from '../domain/pricebook/revision.ts'
+import { kstTodayKey } from '../../datetime/kst.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Tx = any
@@ -156,6 +158,8 @@ export interface SavePriceImportInput {
   productId?: string | null
   /** 새 파일에 없는 기존 규칙 가운데 버리기로 고른 것. 나머지는 이어받는다 */
   dropRuleIds?: string[]
+  /** 새 가격의 적용일 YYYY-MM-DD. 비면 오늘(KST) */
+  effectiveFrom?: string | null
 }
 
 export interface SavePriceImportResult {
@@ -168,6 +172,8 @@ export interface SavePriceImportResult {
   grades: number
   /** 새 파일에 없어 이어받은 기존 규칙 수 */
   keptRules: number
+  /** 저장 뒤 제품의 가격 기준 버전. 제품이 아니면 null */
+  revision?: number | null
 }
 
 export async function savePriceImport(
@@ -178,16 +184,23 @@ export async function savePriceImport(
   return withCrmTx(workspaceId, async (tx: Tx) => {
     if (draft.target === 'labor') return saveGrades(tx, workspaceId, actorId, draft, fileName)
     if (draft.target === 'items') return saveLooseItems(tx, workspaceId, actorId, draft, fileName, input.productId ?? null)
-    return saveProduct(tx, workspaceId, actorId, draft, fileName, input.productId ?? null, input.dropRuleIds ?? [])
+    const day = input.effectiveFrom ? parseEffectiveDay(input.effectiveFrom) : parseEffectiveDay(kstTodayKey())
+    if (!day) throw new CrmError('VALIDATION_FAILED', '적용일을 다시 골라 주세요.', { field: 'effectiveFrom' })
+    return saveProduct(tx, workspaceId, actorId, draft, fileName, input.productId ?? null, input.dropRuleIds ?? [], day)
   })
 }
 
 async function saveProduct(
   tx: Tx, workspaceId: string, actorId: string | null, draft: ImportDraft, fileName: string, productId: string | null, dropRuleIds: string[],
+  effectiveFrom: Date,
 ): Promise<SavePriceImportResult> {
   const name = draft.product?.name ?? '이름 없는 제품'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let product: any = await findPriceProduct(tx, productId, name)
+  // 고른 제품을 이 워크스페이스에서 못 찾으면 새로 만들지 않는다 — 「새 버전으로」를 골랐는데 딴 제품이 생기면 안 된다
+  if (!product && productId) throw new CrmError('NOT_FOUND', '고른 제품을 찾을 수 없어요. 목록을 새로 고친 뒤 다시 골라 주세요.')
+  const before = product ? await tx.crmPriceProduct.findFirst({ where: { id: product.id }, select: { revision: true } }) : null
+  const revision = nextRevision(before)
   if (!product) {
     product = await tx.crmPriceProduct.create({
       data: { workspaceId, name, businessTypeKey: draft.product?.businessTypeKey ?? 'SOLUTION', createdById: actorId },
@@ -202,7 +215,7 @@ async function saveProduct(
   for (let i = 0; i < draft.items.length; i++) {
     const it = draft.items[i]
     const match = byName.get(norm(it.name)) as { id: string } | undefined
-    const realId = await writeItemTx(tx, workspaceId, actorId, pid, { ...it, id: match?.id, needsReview: it.needsReview }, i, { sourceKind: 'FILE', sourceName: fileName })
+    const realId = await writeItemTx(tx, workspaceId, actorId, pid, { ...it, id: match?.id, needsReview: it.needsReview }, i, { sourceKind: 'FILE', sourceName: fileName, effectiveFrom })
     if (match) {
       updated++
       await tx.crmProduct.update({ where: { id: realId }, data: { isActive: true } })
@@ -216,10 +229,10 @@ async function saveProduct(
 
   const remap = (v: unknown): unknown => (typeof v === 'string' ? idMap.get(v) ?? v : Array.isArray(v) ? v.map(remap) : v)
   // 새 파일에 없는 기존 규칙은 서버가 다시 센다 — 화면이 보낸 목록을 믿지 않는다. 버린다고 고른 것만 빠진다(REQ-003)
-  const before = await rulesOf(tx, pid)
-  const missing = findMissingRules(before.rules, before.nameOf, draft.rules.map((r) => r.rule), draftNameOf(draft))
+  const prior = await rulesOf(tx, pid)
+  const missing = findMissingRules(prior.rules, prior.nameOf, draft.rules.map((r) => r.rule), draftNameOf(draft))
   const { kept: carried, dropped } = splitCarryover(missing, dropRuleIds)
-  const keptRows = carried.map((k) => before.rules.find((r) => r.id === k.id)!)
+  const keptRows = carried.map((k) => prior.rules.find((r) => r.id === k.id)!)
   await tx.crmPriceRule.deleteMany({ where: { productId: pid } })
   let rulesOff = 0
   for (let i = 0; i < draft.rules.length; i++) {
@@ -242,18 +255,20 @@ async function saveProduct(
       examples: examplesToJson(examples),
       needsReview: draft.productNeedsReview,
       sourceFileName: fileName,
+      revision,
+      effectiveFrom,
       ...BUMP_VERSION,
     },
   })
   await writeAudit(tx, {
     actorType: 'HUMAN', actorId, action: 'price_product.imported', targetType: 'price_product', targetId: pid,
     afterJson: {
-      fileName, created, updated, stopped: gone.length, rulesOff,
-      keptRules: carried.map((k) => describeRule(k.rule, before.nameOf)),
-      droppedRules: dropped.map((d) => describeRule(d.rule, before.nameOf)),
+      fileName, created, updated, stopped: gone.length, rulesOff, revision, effectiveFrom: effectiveFrom.toISOString().slice(0, 10),
+      keptRules: carried.map((k) => describeRule(k.rule, prior.nameOf)),
+      droppedRules: dropped.map((d) => describeRule(d.rule, prior.nameOf)),
     },
   })
-  return { productId: pid, created, updated, stopped: gone.length, needsReview: draft.items.filter((i) => i.needsReview).length, rulesOff, grades: 0, keptRules: carried.length }
+  return { productId: pid, created, updated, stopped: gone.length, needsReview: draft.items.filter((i) => i.needsReview).length, rulesOff, grades: 0, keptRules: carried.length, revision }
 }
 
 async function saveLooseItems(

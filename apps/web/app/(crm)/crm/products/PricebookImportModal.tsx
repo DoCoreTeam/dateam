@@ -5,13 +5,16 @@
 // 올리기 → 읽기(AI 가 적힌 그대로 옮기고 규칙이 검증 2~6) → 나란히 보기(검증 7) → 저장(한 트랜잭션).
 // 걸린 줄도 채운 채로 저장한다. 그 줄만 색이 다르고 「확인 전」으로 남아 견적의 자동 채움 기준에서 빠진다.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { useAskDialog } from '@/components/ui/useAskDialog'
 import FileDropZone from '@/components/ui/FileDropZone'
+import DateField from '@/components/ui/DateField'
+import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
+import { kstTodayKey } from '@/lib/datetime/kst'
 import { ACTION, PRICEBOOK, IMPORT_CHECK_LABEL, RULE_KIND_LABEL, progress } from '@/lib/terms'
 import { waitProgress } from '@/lib/ui/wait-progress'
 import styles from './pricebook.module.css'
@@ -26,7 +29,7 @@ interface DraftJson {
   rules: { rule: { kind: string }; disabledReason: string | null }[]
   exampleChecks: { label: string; ok: boolean; mismatches: string[] }[]
   grades: { name: string; publicRateMinor: string | null; pricePerMmMinor: string | null; problems: string[] }[]
-  diff: { changed: unknown[]; added: string[]; removed: string[] } | null
+  diff: { changed: { name: string; fromMinor: string | null; toMinor: string | null }[]; added: string[]; removed: string[] } | null
   /** 새 파일에 없는 기존 규칙 — 기본 이어받기 */
   missingRules?: { id: string; text: string }[]
   productNeedsReview: boolean
@@ -46,6 +49,8 @@ const won = (v: string | null) => (v === null ? PRICEBOOK.survey : `${Number(v).
 const TICK_MS = 1_000
 const ACCEPT = ['.xlsx', '.xls', '.csv', '.pdf', '.docx', '.hwp', '.hwpx', '.png', '.jpg', '.jpeg'] as const
 
+type Dest = 'new' | 'revision'
+
 export default function PricebookImportModal({ target, productId = null, onClose, onSaved }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState<'read' | 'save' | null>(null)
@@ -53,6 +58,18 @@ export default function PricebookImportModal({ target, productId = null, onClose
   const [error, setError] = useState<string | null>(null)
   const [out, setOut] = useState<ReadJson | null>(null)
   const [dropIds, setDropIds] = useState<string[]>([])
+  // 목록에서 가져올 때만 저장할 곳을 고른다. 제품 상세에서 열면 그 제품의 새 버전이다
+  const choosesDest = target === 'product' && !productId
+  const [dest, setDest] = useState<Dest>('new')
+  const [picked, setPicked] = useState<RecordOption | null>(null)
+  const [effectiveFrom, setEffectiveFrom] = useState(kstTodayKey())
+  const targetId = productId ?? (choosesDest && dest === 'revision' ? picked?.id ?? null : null)
+  const searchProducts: RecordSearch = useCallback(async (q, signal) => {
+    const res = await fetch(`/api/crm/pricebook/products?q=${encodeURIComponent(q)}`, { cache: 'no-store', signal })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? '제품을 불러오지 못했어요.')
+    return (body.items ?? []).map((p: { id: string; name: string; itemCount: number }) => ({ id: p.id, name: p.name, hint: `${PRICEBOOK.itemCount} ${p.itemCount}` }))
+  }, [])
   const { ask, dialog } = useAskDialog()
 
   useEffect(() => {
@@ -64,6 +81,7 @@ export default function PricebookImportModal({ target, productId = null, onClose
 
   const read = async () => {
     if (!file) { setError('가격표 파일을 골라 주세요.'); return }
+    if (choosesDest && dest === 'revision' && !picked) { setError(PRICEBOOK.importPickFirst); return }
     setBusy('read')
     setElapsed(0)
     setError(null)
@@ -71,7 +89,7 @@ export default function PricebookImportModal({ target, productId = null, onClose
       const form = new FormData()
       form.set('file', file)
       form.set('target', target)
-      if (productId) form.set('productId', productId)
+      if (targetId) form.set('productId', targetId)
       const res = await fetch('/api/crm/pricebook/import', { method: 'POST', body: form })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '파일을 읽지 못했어요.'); return }
@@ -98,7 +116,7 @@ export default function PricebookImportModal({ target, productId = null, onClose
     try {
       const res = await fetch('/api/crm/pricebook/import/save', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draft: out.draft, sourceText: out.sourceText, fileName: out.fileName, productId, dropRuleIds: dropIds }),
+        body: JSON.stringify({ draft: out.draft, sourceText: out.sourceText, fileName: out.fileName, productId: targetId, dropRuleIds: dropIds, effectiveFrom: effectiveFrom || null }),
       })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '저장하지 못했어요.'); return }
@@ -133,6 +151,28 @@ export default function PricebookImportModal({ target, productId = null, onClose
     >
       <div className={styles.form}>
         <FormErrorBanner message={error} />
+        {!out && choosesDest && (
+          <fieldset className={styles.carry} disabled={busy !== null}>
+            <legend><b>{PRICEBOOK.importDest}</b></legend>
+            {(['new', 'revision'] as const).map((v) => (
+              <label key={v} className={styles.carryRow}>
+                <input type="radio" name="import-dest" value={v} checked={dest === v} onChange={() => { setDest(v); setError(null) }} />
+                <span>{v === 'new' ? PRICEBOOK.importAsNew : PRICEBOOK.importAsRevision}</span>
+              </label>
+            ))}
+            {dest === 'revision' && (
+              <RecordPickerField
+                id="import-product"
+                noun={PRICEBOOK.importPickProduct}
+                value={picked?.id ?? ''}
+                valueName={picked?.name}
+                onChange={(next) => { setPicked(next); setError(null) }}
+                search={searchProducts}
+                placeholder={PRICEBOOK.importPickFirst}
+              />
+            )}
+          </fieldset>
+        )}
         {!out && (
           <FileDropZone file={file} onChange={(f) => { setFile(f); setError(null) }} accept={ACCEPT} kindsLabel={PRICEBOOK.importAccepts} disabled={busy !== null} />
         )}
@@ -150,6 +190,29 @@ export default function PricebookImportModal({ target, productId = null, onClose
               <p key={k} className={styles.small}>{IMPORT_CHECK_LABEL.example}: {c.ok ? PRICEBOOK.previewMatches : `${PRICEBOOK.previewDiffers} (${c.mismatches.join(', ')})`}</p>
             ))}
             {d.diff && <p className={styles.small}>{IMPORT_CHECK_LABEL.diff}: 바뀐 정상가 {d.diff.changed.length} · 새 품목 {d.diff.added.length} · 없어진 품목 {d.diff.removed.length}(판매 중지로 둠)</p>}
+            {d.diff && d.diff.changed.length > 0 && (
+              <div className={styles.tableWrap}>
+                <table className={styles.table} aria-label={PRICEBOOK.priceChanges}>
+                  <thead>
+                    <tr><th scope="col">{PRICEBOOK.priceChanges}</th><th scope="col" className={styles.num}>{PRICEBOOK.priceBefore}</th><th scope="col" className={styles.num}>{PRICEBOOK.priceAfter}</th></tr>
+                  </thead>
+                  <tbody>
+                    {d.diff.changed.map((c) => (
+                      <tr key={c.name}><td>{c.name}</td><td className={styles.num}>{won(c.fromMinor)}</td><td className={styles.num}><b>{won(c.toMinor)}</b></td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {d.diff && d.diff.added.length > 0 && <p className={styles.small}>{PRICEBOOK.itemsAdded(d.diff.added.length)}: {d.diff.added.join(', ')}</p>}
+            {d.diff && d.diff.removed.length > 0 && <p className={styles.small}>{PRICEBOOK.itemsRemoved(d.diff.removed.length)}: {d.diff.removed.join(', ')}</p>}
+            {d.target === 'product' && (
+              <div className={styles.carry}>
+                <label className="label" htmlFor="import-effective">{PRICEBOOK.effectiveFrom}</label>
+                <DateField id="import-effective" className="input-field" value={effectiveFrom} onValueChange={setEffectiveFrom} />
+                <p className={styles.small}>{PRICEBOOK.effectiveFromHint}</p>
+              </div>
+            )}
             {d.notes.map((n, k) => <p key={k} className={styles.small}>{n}</p>)}
             {(d.missingRules?.length ?? 0) > 0 && (
               <fieldset className={styles.carry}>
