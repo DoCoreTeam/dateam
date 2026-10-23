@@ -86,7 +86,7 @@
 의존: I03a
 
 ### I04 노트 고치기 결정 기록 (의도된 불변)
-상태: 대기
+상태: 통과
 모드: 경량
 범위: docs/cli/발견.md, apps/web/lib/ui/crm-update-standard.test.ts
 감사 기준:
@@ -105,7 +105,7 @@
 의존: I04
 
 ### I06 실측과 발견 문서 해결 표시
-상태: 대기
+상태: 통과
 모드: 경량
 범위: docs/cli/발견.md, apps/web/lib/changelog/entries.ts
 감사 기준:
