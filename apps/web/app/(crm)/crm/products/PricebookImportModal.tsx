@@ -10,6 +10,7 @@ import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import WaitProgress from '@/components/ui/WaitProgress'
+import { useAskDialog } from '@/components/ui/useAskDialog'
 import FileDropZone from '@/components/ui/FileDropZone'
 import { ACTION, PRICEBOOK, IMPORT_CHECK_LABEL, RULE_KIND_LABEL, progress } from '@/lib/terms'
 import { waitProgress } from '@/lib/ui/wait-progress'
@@ -26,6 +27,8 @@ interface DraftJson {
   exampleChecks: { label: string; ok: boolean; mismatches: string[] }[]
   grades: { name: string; publicRateMinor: string | null; pricePerMmMinor: string | null; problems: string[] }[]
   diff: { changed: unknown[]; added: string[]; removed: string[] } | null
+  /** 새 파일에 없는 기존 규칙 — 기본 이어받기 */
+  missingRules?: { id: string; text: string }[]
   productNeedsReview: boolean
   notes: string[]
   sourceChecked: boolean
@@ -49,6 +52,8 @@ export default function PricebookImportModal({ target, productId = null, onClose
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [out, setOut] = useState<ReadJson | null>(null)
+  const [dropIds, setDropIds] = useState<string[]>([])
+  const { ask, dialog } = useAskDialog()
 
   useEffect(() => {
     if (busy !== 'read') return
@@ -80,12 +85,20 @@ export default function PricebookImportModal({ target, productId = null, onClose
 
   const save = async () => {
     if (!out) return
+    if (dropIds.length > 0) {
+      const yes = await ask.confirm({
+        title: PRICEBOOK.dropRulesConfirmTitle(dropIds.length),
+        body: PRICEBOOK.dropRulesConfirmBody,
+        confirmLabel: PRICEBOOK.dropRulesConfirm,
+      })
+      if (!yes) return
+    }
     setBusy('save')
     setError(null)
     try {
       const res = await fetch('/api/crm/pricebook/import/save', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draft: out.draft, sourceText: out.sourceText, fileName: out.fileName, productId }),
+        body: JSON.stringify({ draft: out.draft, sourceText: out.sourceText, fileName: out.fileName, productId, dropRuleIds: dropIds }),
       })
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '저장하지 못했어요.'); return }
@@ -102,6 +115,7 @@ export default function PricebookImportModal({ target, productId = null, onClose
   const w = waitProgress(elapsed, '가격표를 옮기고 원문과 대조하고 있어요')
 
   return (
+    <>
     <NbModal
       title={PRICEBOOK.importFile}
       onClose={onClose}
@@ -137,6 +151,23 @@ export default function PricebookImportModal({ target, productId = null, onClose
             ))}
             {d.diff && <p className={styles.small}>{IMPORT_CHECK_LABEL.diff}: 바뀐 정상가 {d.diff.changed.length} · 새 품목 {d.diff.added.length} · 없어진 품목 {d.diff.removed.length}(판매 중지로 둠)</p>}
             {d.notes.map((n, k) => <p key={k} className={styles.small}>{n}</p>)}
+            {(d.missingRules?.length ?? 0) > 0 && (
+              <fieldset className={styles.carry}>
+                <legend><b>{PRICEBOOK.missingRulesTitle(d.missingRules!.length)}</b></legend>
+                <p className={styles.small}>{PRICEBOOK.missingRulesHint}</p>
+                {d.missingRules!.map((r) => (
+                  <label key={r.id} className={styles.carryRow}>
+                    <input
+                      type="checkbox"
+                      aria-label={`${PRICEBOOK.carryRule}: ${r.text}`}
+                      checked={!dropIds.includes(r.id)}
+                      onChange={() => setDropIds((ids) => (ids.includes(r.id) ? ids.filter((x) => x !== r.id) : [...ids, r.id]))}
+                    />
+                    <span>{r.text}</span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
             <div className={styles.side}>
               {out.sourceText && <pre className={styles.source} aria-label={IMPORT_CHECK_LABEL.side}>{out.sourceText}</pre>}
               <div className={styles.tableWrap}>
@@ -171,5 +202,7 @@ export default function PricebookImportModal({ target, productId = null, onClose
         )}
       </div>
     </NbModal>
+    {dialog}
+    </>
   )
 }

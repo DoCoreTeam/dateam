@@ -24,6 +24,9 @@ import { readFileForAi, type QuoteFromFileInput } from './quote-from-file.ts'
 import { writeItemTx, ITEM_SELECT } from './pricebook.ts'
 import { examplesToJson } from './pricebook-map.ts'
 import { createLaborGradeTx, updateLaborGradeTx } from './labor-grade.ts'
+import { findMissingRules, splitCarryover, type ExistingRule } from '../domain/pricebook/rule-carryover.ts'
+import { describeRule } from '../domain/pricebook/rule-text.ts'
+import type { PriceRule } from '../domain/pricebook/types.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Tx = any
@@ -38,7 +41,8 @@ export interface ReadPriceSheetInput extends QuoteFromFileInput {
 }
 
 export interface ReadPriceSheetResult {
-  draft: ImportDraft
+  /** missingRules: 새 파일에 없는 기존 규칙. 저장 때 서버가 다시 세므로 화면 표시용이다 */
+  draft: ImportDraft & { missingRules: { id: string; text: string }[] }
   /** 원문 글 — 나란히 보기(7)와 저장 때 원문 대조(2)를 다시 도는 데 쓴다. 그림째 읽었으면 빈 글 */
   sourceText: string
   fileName: string
@@ -63,15 +67,44 @@ export async function readPriceSheet(
     adapter: chosen,
   })
   const existing = await existingFor(db, input.target, input.productId ?? null, output.product?.name ?? null)
-  const draft = buildImportDraft(input.target, output, route === 'text' ? read.text : '', existing)
+  const built = buildImportDraft(input.target, output, route === 'text' ? read.text : '', existing)
+  const draft = { ...built, missingRules: await missingRulesFor(db, input.target, input.productId ?? null, built) }
   return { draft, sourceText: route === 'text' ? read.text : '', fileName: input.fileName, route }
+}
+
+async function findPriceProduct(db: Tx, productId: string | null, name: string | null): Promise<{ id: string } | null> {
+  if (productId) return db.crmPriceProduct.findFirst({ where: { id: productId }, select: { id: true } })
+  return name ? db.crmPriceProduct.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }, select: { id: true } }) : null
+}
+
+/** 그 제품의 지금 규칙과, 규칙이 가리키는 품목 이름표(판매 중지 품목 포함) */
+async function rulesOf(db: Tx, pid: string): Promise<{ rules: (ExistingRule & { isEnabled: boolean; disabledReason: string | null })[]; nameOf: (id: string) => string | null }> {
+  const rows = await db.crmPriceRule.findMany({ where: { productId: pid }, orderBy: { position: 'asc' }, select: { id: true, kind: true, body: true, isEnabled: true, disabledReason: true } })
+  const items = await db.crmProduct.findMany({ where: { priceProductId: pid }, select: { id: true, name: true } })
+  const names = new Map(items.map((i: { id: string; name: string }) => [i.id, i.name]))
+  return {
+    rules: rows.map((r: { id: string; kind: string; body: unknown; isEnabled: boolean; disabledReason: string | null }) => ({
+      id: r.id, rule: { ...(r.body as object), kind: r.kind } as PriceRule, isEnabled: r.isEnabled, disabledReason: r.disabledReason,
+    })),
+    nameOf: (id: string) => (names.get(id) as string | undefined) ?? null,
+  }
+}
+
+const draftNameOf = (draft: Pick<ImportDraft, 'items'>) => (id: string) => draft.items.find((i) => i.id === id)?.name ?? null
+
+/** 새 파일에 없는 기존 규칙 — 확인 화면이 「이어받기/버리기」로 보여 준다(REQ-003) */
+async function missingRulesFor(db: Tx, target: ImportTarget, productId: string | null, draft: ImportDraft): Promise<{ id: string; text: string }[]> {
+  if (target !== 'product') return []
+  const p = await findPriceProduct(db, productId, draft.product?.name ?? null)
+  if (!p) return []
+  const { rules, nameOf } = await rulesOf(db, p.id)
+  return findMissingRules(rules, nameOf, draft.rules.map((r) => r.rule), draftNameOf(draft))
+    .map((m) => ({ id: m.id, text: describeRule(m.rule, nameOf) }))
 }
 
 async function existingFor(db: ReturnType<typeof getCrmDb>, target: ImportTarget, productId: string | null, name: string | null) {
   if (target !== 'product') return []
-  const p = productId
-    ? await (db as Tx).crmPriceProduct.findFirst({ where: { id: productId }, select: { id: true } })
-    : name ? await (db as Tx).crmPriceProduct.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }, select: { id: true } }) : null
+  const p = await findPriceProduct(db, productId, name)
   if (!p) return []
   const items = await (db as Tx).crmProduct.findMany({ where: { priceProductId: p.id, isActive: true }, select: { id: true, name: true, unitPriceMinor: true } })
   return items.map((i: { id: string; name: string; unitPriceMinor: bigint }) => ({ id: i.id, name: i.name, listPriceMinor: BigInt(i.unitPriceMinor) }))
@@ -121,6 +154,8 @@ export interface SavePriceImportInput {
   sourceText: string
   fileName: string
   productId?: string | null
+  /** 새 파일에 없는 기존 규칙 가운데 버리기로 고른 것. 나머지는 이어받는다 */
+  dropRuleIds?: string[]
 }
 
 export interface SavePriceImportResult {
@@ -131,6 +166,8 @@ export interface SavePriceImportResult {
   needsReview: number
   rulesOff: number
   grades: number
+  /** 새 파일에 없어 이어받은 기존 규칙 수 */
+  keptRules: number
 }
 
 export async function savePriceImport(
@@ -141,17 +178,16 @@ export async function savePriceImport(
   return withCrmTx(workspaceId, async (tx: Tx) => {
     if (draft.target === 'labor') return saveGrades(tx, workspaceId, actorId, draft, fileName)
     if (draft.target === 'items') return saveLooseItems(tx, workspaceId, actorId, draft, fileName, input.productId ?? null)
-    return saveProduct(tx, workspaceId, actorId, draft, fileName, input.productId ?? null)
+    return saveProduct(tx, workspaceId, actorId, draft, fileName, input.productId ?? null, input.dropRuleIds ?? [])
   })
 }
 
 async function saveProduct(
-  tx: Tx, workspaceId: string, actorId: string | null, draft: ImportDraft, fileName: string, productId: string | null,
+  tx: Tx, workspaceId: string, actorId: string | null, draft: ImportDraft, fileName: string, productId: string | null, dropRuleIds: string[],
 ): Promise<SavePriceImportResult> {
   const name = draft.product?.name ?? '이름 없는 제품'
-  let product = productId
-    ? await tx.crmPriceProduct.findFirst({ where: { id: productId }, select: { id: true } })
-    : await tx.crmPriceProduct.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }, select: { id: true } })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let product: any = await findPriceProduct(tx, productId, name)
   if (!product) {
     product = await tx.crmPriceProduct.create({
       data: { workspaceId, name, businessTypeKey: draft.product?.businessTypeKey ?? 'SOLUTION', createdById: actorId },
@@ -179,6 +215,11 @@ async function saveProduct(
   for (const g of gone) await tx.crmProduct.update({ where: { id: g.id }, data: { isActive: false, ...BUMP_VERSION } })
 
   const remap = (v: unknown): unknown => (typeof v === 'string' ? idMap.get(v) ?? v : Array.isArray(v) ? v.map(remap) : v)
+  // 새 파일에 없는 기존 규칙은 서버가 다시 센다 — 화면이 보낸 목록을 믿지 않는다. 버린다고 고른 것만 빠진다(REQ-003)
+  const before = await rulesOf(tx, pid)
+  const missing = findMissingRules(before.rules, before.nameOf, draft.rules.map((r) => r.rule), draftNameOf(draft))
+  const { kept: carried, dropped } = splitCarryover(missing, dropRuleIds)
+  const keptRows = carried.map((k) => before.rules.find((r) => r.id === k.id)!)
   await tx.crmPriceRule.deleteMany({ where: { productId: pid } })
   let rulesOff = 0
   for (let i = 0; i < draft.rules.length; i++) {
@@ -187,6 +228,11 @@ async function saveProduct(
     const mapped = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, k === 'item' || k === 'items' || k === 'with' ? remap(v) : v]))
     if (disabledReason) rulesOff++
     await tx.crmPriceRule.create({ data: { workspaceId, productId: pid, kind, body: mapped, position: i, isEnabled: !disabledReason, disabledReason } })
+  }
+  // 이어받은 규칙은 새 규칙 뒤에 원래 순서대로. 가리키는 품목은 지우지 않으므로(판매 중지) id 가 그대로 산다
+  for (let j = 0; j < keptRows.length; j++) {
+    const { kind, ...body } = keptRows[j].rule
+    await tx.crmPriceRule.create({ data: { workspaceId, productId: pid, kind, body, position: draft.rules.length + j, isEnabled: keptRows[j].isEnabled, disabledReason: keptRows[j].disabledReason } })
   }
   const examples = draft.examples.map((e) => ({ ...e, conditions: { ...e.conditions, picked: e.conditions.picked.map((p) => idMap.get(p) ?? p) } }))
   await tx.crmPriceProduct.update({
@@ -201,9 +247,13 @@ async function saveProduct(
   })
   await writeAudit(tx, {
     actorType: 'HUMAN', actorId, action: 'price_product.imported', targetType: 'price_product', targetId: pid,
-    afterJson: { fileName, created, updated, stopped: gone.length, rulesOff },
+    afterJson: {
+      fileName, created, updated, stopped: gone.length, rulesOff,
+      keptRules: carried.map((k) => describeRule(k.rule, before.nameOf)),
+      droppedRules: dropped.map((d) => describeRule(d.rule, before.nameOf)),
+    },
   })
-  return { productId: pid, created, updated, stopped: gone.length, needsReview: draft.items.filter((i) => i.needsReview).length, rulesOff, grades: 0 }
+  return { productId: pid, created, updated, stopped: gone.length, needsReview: draft.items.filter((i) => i.needsReview).length, rulesOff, grades: 0, keptRules: carried.length }
 }
 
 async function saveLooseItems(
@@ -219,7 +269,7 @@ async function saveLooseItems(
     if (match) updated++; else created++
   }
   await writeAudit(tx, { actorType: 'HUMAN', actorId, action: 'product.imported', targetType: 'product', targetId: productId ?? 'loose', afterJson: { fileName, created, updated } })
-  return { productId, created, updated, stopped: 0, needsReview: draft.items.filter((i) => i.needsReview).length, rulesOff: 0, grades: 0 }
+  return { productId, created, updated, stopped: 0, needsReview: draft.items.filter((i) => i.needsReview).length, rulesOff: 0, grades: 0, keptRules: 0 }
 }
 
 async function saveGrades(tx: Tx, workspaceId: string, actorId: string | null, draft: ImportDraft, fileName: string): Promise<SavePriceImportResult> {
@@ -238,5 +288,5 @@ async function saveGrades(tx: Tx, workspaceId: string, actorId: string | null, d
     if (id) { await updateLaborGradeTx(tx, workspaceId, actorId, id, null, input, 'FILE', fileName); updated++ }
     else { await createLaborGradeTx(tx, workspaceId, actorId, { ...input, position: existing.length + i }, 'FILE', fileName); created++ }
   }
-  return { productId: null, created, updated, stopped: 0, needsReview: draft.grades.filter((g) => g.problems.length > 0).length, rulesOff: 0, grades: draft.grades.length }
+  return { productId: null, created, updated, stopped: 0, needsReview: draft.grades.filter((g) => g.problems.length > 0).length, rulesOff: 0, grades: draft.grades.length, keptRules: 0 }
 }

@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
       sourceText: typeof body.sourceText === 'string' ? body.sourceText.slice(0, 30_000) : '',
       fileName: typeof body.fileName === 'string' ? body.fileName : '',
       productId: typeof body.productId === 'string' && body.productId ? body.productId : null,
+      // 이 제품의 빠진 규칙 가운데서만 고른다(서비스가 다시 거른다) — 남의 규칙 id 는 아무것도 못 지운다
+      dropRuleIds: Array.isArray(body.dropRuleIds) ? body.dropRuleIds.filter((x: unknown): x is string => typeof x === 'string').slice(0, 200) : [],
     })
   })
 }
