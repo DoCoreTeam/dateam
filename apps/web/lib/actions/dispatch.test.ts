@@ -11,7 +11,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  actionArgs, decideAccess, internalPath, isDryRun, matchMount, publicPathOf, requestHash, WRITE_LIMIT_PER_MINUTE,
+  actionArgs, decideAccess, internalPath, isDryRun, isHumanOnly, matchMount, publicPathOf, requestHash, WRITE_LIMIT_PER_MINUTE,
 } from './dispatch-core.ts'
 import { MOUNTED } from './generated/table.ts'
 
@@ -132,4 +132,20 @@ test('★ 관문 입구가 있고, 겹치는 공개 라우트가 빠진 메서�
     const s = readFileSync(join(WEB, 'app', 'api', 'public', 'v1', dir, 'route.ts'), 'utf8')
     for (const m of methods) assert.match(s, new RegExp(`export const ${m} = dispatchPublicApi`), `${dir} ${m}`)
   }
+})
+
+test('★ 사람 전용 동작은 키 범위와 무관하게 범위 판정 앞에서 403 human_only 로 막고 감사를 남긴다 (P0162 I01)', () => {
+  const approve = MOUNTED.find((o) => o.name === 'meta.approval.decide')
+  assert.ok(approve, '승인 결정 줄이 표에 없다')
+  assert.equal(isHumanOnly(approve.name), true)
+  assert.equal(decideAccess(approve.scope, ['read', 'write', 'approve', 'admin'], 'admin').kind, 'run', '이 시험의 전제가 바뀌었다')
+  const main = SRC.slice(pos(/export async function dispatchPublicApi/))
+  const gate = main.search(/if \(isHumanOnly\(op\.name\)\) \{/)
+  const access = main.search(/decideAccess\(op\.scope, ctx\.scopes, ctx\.role\)/)
+  assert.ok(gate >= 0, '사람 전용 막는 줄이 없다')
+  assert.ok(gate < access, '사람 전용 확인이 범위 판정 뒤에 있다')
+  const block = main.slice(gate, main.indexOf('\n  }', gate))
+  assert.match(block, /await audit\(\{ \.\.\.auditBase, status: 403 \}\)/)
+  assert.match(block, /code: 'human_only' \}, 403,/)
+  assert.match(block, /return json\(/)
 })

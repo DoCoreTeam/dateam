@@ -86,6 +86,26 @@ export function decideAccess(opScope: Scope, keyScopes: readonly Scope[], role: 
   return { kind: 'forbidden', requiredScope: opScope }
 }
 
+/**
+ * 키로는 못 부르는 동작, 사람이 화면에서만 한다 (P0162 I01)
+ * 승인 결정을 키로 열면 approve 범위 키가 자기 승인 요청을 스스로 통과시켜
+ * delete send admin 을 사람 없이 실행한다 (실측 2026-10-23, 지우기가 실행됨)
+ */
+export const HUMAN_ONLY_ACTIONS: ReadonlySet<string> = new Set(['meta.approval.decide'])
+
+export function isHumanOnly(name: string): boolean {
+  return HUMAN_ONLY_ACTIONS.has(name)
+}
+
+/**
+ * 승인 요청을 결정할 수 있는가
+ * 키 문맥(관문이 연 키 소유자 세션) 안이면 누구든 안 되고, 사람 세션이면 키 주인 본인이나 관리자만
+ */
+export function mayDecideApproval(input: { viaKey: boolean; deciderId: string; ownerId: string; deciderRole: string }): boolean {
+  if (input.viaKey) return false
+  return input.deciderId === input.ownerId || input.deciderRole === 'admin'
+}
+
 export function isWrite(scope: Scope): boolean {
   return scope !== 'read'
 }

@@ -9,6 +9,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mergeSpecs } from './openapi.ts'
 import { MOUNTED } from './generated/table.ts'
+import { HUMAN_ONLY_ACTIONS, isHumanOnly, mayDecideApproval } from './dispatch-core.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (...p: string[]) => readFileSync(join(WEB, ...p), 'utf8')
@@ -62,7 +63,7 @@ test('★ 승인: 키 주인이나 관리자만, 만료면 실행 안 함, PENDI
   const fn = src.slice(src.indexOf('export async function decideApproval('))
   const at = (re: RegExp) => { const i = fn.search(re); assert.ok(i >= 0, String(re)); return i }
   const order = [
-    at(/row\.user_id !== decider\.userId && decider\.role !== 'admin'\) return \{ ok: false, code: 'forbidden' \}/),
+    at(/if \(!mayDecideApproval\(\{ viaKey, deciderId: decider\.userId, ownerId: row\.user_id, deciderRole: decider\.role \}\)\) \{\s*return \{ ok: false, code: 'forbidden' \}/),
     at(/update\(\{ status: 'EXPIRED' \}\)/),
     at(/\.eq\('id', id\)\.eq\('status', 'PENDING'\)\.gt\('expires_at', now\)/),
     at(/await runAsKeyOwner\(/),
@@ -92,4 +93,34 @@ test('개발자센터가 CLI 명령을 정의 생성물에서 그린다', () => 
   assert.match(page, /activeSection === 'cli' && <CliSection \/>/)
   const sec = read('app', 'develop', 'CliSection.tsx')
   assert.match(sec, /import\('@\/lib\/actions\/generated\/openapi\.json'\)/)
+})
+
+test('★ 승인 결정 판정: 키 문맥이면 주인도 관리자도 안 되고, 사람 세션이면 주인이나 관리자만 (P0162 I01)', () => {
+  const base = { deciderId: 'u1', ownerId: 'u1', deciderRole: 'member' }
+  assert.equal(mayDecideApproval({ ...base, viaKey: true }), false, '키가 자기 요청을 스스로 통과시킨다')
+  assert.equal(mayDecideApproval({ ...base, viaKey: true, deciderRole: 'admin' }), false, '관리자 키가 승인을 통과시킨다')
+  assert.equal(mayDecideApproval({ viaKey: true, deciderId: 'a1', ownerId: 'u1', deciderRole: 'admin' }), false)
+  assert.equal(mayDecideApproval({ ...base, viaKey: false }), true)
+  assert.equal(mayDecideApproval({ viaKey: false, deciderId: 'a1', ownerId: 'u1', deciderRole: 'admin' }), true)
+  assert.equal(mayDecideApproval({ viaKey: false, deciderId: 'u2', ownerId: 'u1', deciderRole: 'member' }), false)
+})
+
+test('★ 승인 결정 동작은 사람 전용 목록에 있고, 그 이름이 정의 표에 실제로 있다', () => {
+  assert.ok(HUMAN_ONLY_ACTIONS.has('meta.approval.decide'))
+  assert.equal(isHumanOnly('meta.approval.decide'), true)
+  assert.equal(isHumanOnly('crm.deal.create'), false)
+  const names = new Set(MOUNTED.map((o) => o.name))
+  for (const n of HUMAN_ONLY_ACTIONS) assert.ok(names.has(n), `${n} 이 정의 표에 없다, 이름이 갈려 막는 줄이 안 걸린다`)
+})
+
+test('★ decideApproval 이 키 소유자 문맥이면 아무것도 읽고 쓰기 전에 forbidden 을 돌려준다', () => {
+  const src = read('lib', 'actions', 'dispatch.ts')
+  assert.match(src, /import \{[^}]*\bcurrentActing\b[^}]*\} from '\.\/acting-session'/)
+  const start = src.indexOf('export async function decideApproval(')
+  assert.ok(start >= 0)
+  const fn = src.slice(start)
+  const guard = fn.search(/const viaKey = currentActing\(\) !== undefined\s*\n\s*if \(viaKey\) return \{ ok: false, code: 'forbidden' \}/)
+  assert.ok(guard >= 0, '키 문맥 확인이 없다')
+  const firstTouch = Math.min(...[fn.indexOf('createAdminClient('), fn.indexOf('.from(')].filter((i) => i >= 0))
+  assert.ok(guard < firstTouch, '키 문맥 확인이 DB 를 건드린 뒤에 있다')
 })

@@ -11,11 +11,11 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, actingSessions } from '@/lib/supabase/server'
 import { authenticatePublicApi, corsHeaders, optionsResponse, rateLimitHeaders, type ApiKeyContext } from '@/lib/publicApiAuth'
-import { issueActingGrant, runActing } from './acting-session'
+import { currentActing, issueActingGrant, runActing } from './acting-session'
 import { MODULES, MOUNTED, type MountedOp } from './generated/table'
 import {
   IDEMPOTENCY_KEY_MAX, WRITE_LIMIT_PER_MINUTE, actionArgs, decideAccess, internalPath, isDryRun, isWrite,
-  matchMount, publicPathOf, requestHash,
+  isHumanOnly, matchMount, mayDecideApproval, publicPathOf, requestHash,
 } from './dispatch-core'
 
 const DROP_HEADERS = new Set(['x-api-key', 'authorization', 'cookie', 'content-length', 'idempotency-key', 'x-dry-run'])
@@ -148,6 +148,10 @@ export async function dispatchPublicApi(request: NextRequest): Promise<Response>
   const write = isWrite(op.scope)
   const bodyText = request.method === 'GET' || request.method === 'HEAD' ? '' : await request.text()
   const auditBase = { ctx, op, path, requestId, agent: agentOf(request), ip: ipOf(request) }
+  if (isHumanOnly(op.name)) {
+    await audit({ ...auditBase, status: 403 })
+    return json({ success: false, error: '이 작업은 사람이 화면에서 합니다.', code: 'human_only' }, 403, request, base)
+  }
   const decision = decideAccess(op.scope, ctx.scopes, ctx.role)
 
   if (decision.kind === 'forbidden') {
@@ -235,13 +239,18 @@ export async function decideApproval(
   decision: 'approve' | 'reject',
   origin: string,
 ): Promise<ApprovalOutcome> {
+  // 키 소유자 문맥 안(관문을 거친 호출)이면 읽기 전에 끊는다, 키가 자기 요청을 스스로 통과시키지 못하게
+  const viaKey = currentActing() !== undefined
+  if (viaKey) return { ok: false, code: 'forbidden' }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
   const { data: row } = await admin.from('api_approval_requests')
     .select('id, key_id, user_id, action_name, required_scope, method, payload, status, expires_at, request_id')
     .eq('id', id).maybeSingle()
   if (!row) return { ok: false, code: 'not_found' }
-  if (row.user_id !== decider.userId && decider.role !== 'admin') return { ok: false, code: 'forbidden' }
+  if (!mayDecideApproval({ viaKey, deciderId: decider.userId, ownerId: row.user_id, deciderRole: decider.role })) {
+    return { ok: false, code: 'forbidden' }
+  }
   if (row.status !== 'PENDING') return { ok: false, code: 'not_pending' }
   const now = new Date().toISOString()
   if (new Date(row.expires_at).getTime() <= Date.now()) {
