@@ -56,6 +56,6 @@ export function helpText(h: HelpJson): string {
     if (top !== group) { lines.push('', `[${top}]`); group = top }
     lines.push(`  ${c.cli.padEnd(44)} ${c.method.padEnd(6)} ${c.scope.padEnd(7)} ${c.summary}`)
   }
-  lines.push('', 'exit codes: 0 ok, 2 usage, 3 auth, 4 forbidden, 5 not found, 6 approval, 7 rate limit, 8 server, 9 network')
+  lines.push('', 'exit codes: 0 ok, 1 unknown or network, 2 input (400 422), 3 auth (401 403), 4 not found, 5 conflict (409), 6 rate limit (429), 7 approval (202), 8 server (5xx), 9 saved value mismatch')
   return `${lines.join('\n')}\n`
 }

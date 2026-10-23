@@ -78,6 +78,6 @@ export async function run(argv: string[], ctx: Context): Promise<ExitCode> {
   } catch (e) {
     if (e instanceof CliError) return emitError(ctx, e, keyRef.key)
     const message = e instanceof Error ? e.message : String(e)
-    return emitError(ctx, new CliError(EXIT.SERVER, { code: 'internal_error', message }), keyRef.key)
+    return emitError(ctx, new CliError(EXIT.UNKNOWN, { code: 'internal_error', message }), keyRef.key)
   }
 }

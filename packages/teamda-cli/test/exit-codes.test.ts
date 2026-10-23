@@ -15,6 +15,9 @@ const BODIES: Record<number, unknown> = {
   403: { success: false, error: { code: 'scope_missing', message: 'needs approve', requiredScope: 'approve' } },
   404: { success: false, error: 'missing' },
   409: { success: false, error: 'version conflict' },
+  422: { success: false, error: 'unprocessable' },
+  405: { success: false, error: 'method' },
+  503: { success: false, error: 'down' },
   429: { success: false, error: 'slow down' },
   500: { success: false, error: 'boom' },
 }
@@ -33,13 +36,16 @@ afterAll(() => server.stop())
 const env = () => ({ TEAMDA_CONFIG_DIR: dir, TEAMDA_BASE_URL: server.base, TEAMDA_API_KEY: KEY })
 
 const CASES: [number, number, string][] = [
-  [400, EXIT.SERVER, 'bad_request'],
-  [401, EXIT.AUTH, 'unauthorized'],
-  [403, EXIT.FORBIDDEN, 'scope_missing'],
-  [404, EXIT.NOT_FOUND, 'not_found'],
-  [409, EXIT.SERVER, 'conflict'],
-  [429, EXIT.RATE_LIMITED, 'rate_limited'],
-  [500, EXIT.SERVER, 'server_error'],
+  [400, 2, 'bad_request'],
+  [401, 3, 'unauthorized'],
+  [403, 3, 'scope_missing'],
+  [404, 4, 'not_found'],
+  [409, 5, 'conflict'],
+  [422, 2, 'unprocessable'],
+  [429, 6, 'rate_limited'],
+  [500, 8, 'server_error'],
+  [503, 8, 'server_error'],
+  [405, 2, 'http_405'],
 ]
 
 test('200: exit 0 and exactly one JSON value on stdout', async () => {
@@ -50,9 +56,9 @@ test('200: exit 0 and exactly one JSON value on stdout', async () => {
   expect(JSON.parse(r.stdout)).toEqual(BODIES[200] as object)
 })
 
-test('202: exit 6 with the approval id in the error envelope', async () => {
+test('202: exit 7 with the approval id in the error envelope', async () => {
   const r = await runCli(['t', 'item', 'get', '202'], env())
-  expect(r.code).toBe(EXIT.APPROVAL_REQUIRED)
+  expect(r.code).toBe(7)
   expect(r.stdout).toBe('')
   const e = JSON.parse(r.stderr).error
   expect(e).toMatchObject({ code: 'approval_required', status: 202, approvalId: 'apr_42', requiredScope: 'approve' })
@@ -71,20 +77,20 @@ for (const [status, exit, code] of CASES) {
   })
 }
 
-test('network failure: exit 9', async () => {
+test('network failure: exit 1', async () => {
   const gone = fakeServer(() => new Response('x'))
   const base = gone.base
   gone.stop()
   const r = await runCli(['t', 'item', 'get', '200'], { ...env(), TEAMDA_BASE_URL: base })
-  expect(r.code).toBe(EXIT.NETWORK)
+  expect(r.code).toBe(1)
   expect(JSON.parse(r.stderr).error.code).toBe('network_error')
 })
 
-test('timeout: exit 9', async () => {
+test('timeout: exit 1', async () => {
   const slow = fakeServer(async () => { await Bun.sleep(500); return Response.json({}) })
   const r = await runCli(['t', 'item', 'get', '200'], { ...env(), TEAMDA_BASE_URL: slow.base, TEAMDA_TIMEOUT_MS: '50' })
   slow.stop()
-  expect(r.code).toBe(EXIT.NETWORK)
+  expect(r.code).toBe(1)
   expect(JSON.parse(r.stderr).error.code).toBe('timeout')
 })
 
@@ -97,8 +103,15 @@ test('no key: exit 3 before any request', async () => {
 })
 
 test('usage errors: unknown command and missing path param exit 2', async () => {
-  expect((await runCli(['t', 'nope', 'x'], env())).code).toBe(EXIT.USAGE)
-  expect((await runCli(['t', 'item', 'get'], env())).code).toBe(EXIT.USAGE)
+  expect((await runCli(['t', 'nope', 'x'], env())).code).toBe(2)
+  expect((await runCli(['t', 'item', 'get'], env())).code).toBe(2)
+})
+
+test('exit table matches directive ins_0318 5-3', () => {
+  expect(EXIT).toEqual({
+    OK: 0, UNKNOWN: 1, USAGE: 2, AUTH: 3, NOT_FOUND: 4, CONFLICT: 5,
+    RATE_LIMITED: 6, APPROVAL_REQUIRED: 7, SERVER: 8, MISMATCH: 9,
+  })
 })
 
 test('headers, dry-run, idempotency key, and body', async () => {

@@ -4,14 +4,22 @@
 
 export const EXIT = {
   OK: 0,
+  /** Unexpected client-side failure, and network failure or timeout (no HTTP status to map) */
+  UNKNOWN: 1,
+  /** Usage error or a missing value, HTTP 400 and 422, and any other 4xx without its own row */
   USAGE: 2,
+  /** HTTP 401 and 403, or no key */
   AUTH: 3,
-  FORBIDDEN: 4,
-  NOT_FOUND: 5,
-  APPROVAL_REQUIRED: 6,
-  RATE_LIMITED: 7,
+  NOT_FOUND: 4,
+  /** HTTP 409, version conflict */
+  CONFLICT: 5,
+  RATE_LIMITED: 6,
+  /** HTTP 202, an approval request was created */
+  APPROVAL_REQUIRED: 7,
+  /** HTTP 5xx */
   SERVER: 8,
-  NETWORK: 9,
+  /** Saved value differs from what was sent. Reserved: no command checks this yet */
+  MISMATCH: 9,
 } as const
 
 export type ExitCode = (typeof EXIT)[keyof typeof EXIT]
@@ -44,11 +52,13 @@ export function usage(code: string, message: string, extra: Partial<ErrorBody> =
 export function exitForStatus(status: number): ExitCode {
   if (status === 202) return EXIT.APPROVAL_REQUIRED
   if (status >= 200 && status < 300) return EXIT.OK
-  if (status === 401) return EXIT.AUTH
-  if (status === 403) return EXIT.FORBIDDEN
+  if (status === 401 || status === 403) return EXIT.AUTH
   if (status === 404) return EXIT.NOT_FOUND
+  if (status === 409) return EXIT.CONFLICT
   if (status === 429) return EXIT.RATE_LIMITED
-  return EXIT.SERVER
+  if (status >= 500) return EXIT.SERVER
+  if (status >= 400) return EXIT.USAGE
+  return EXIT.UNKNOWN
 }
 
 const DEFAULT_CODE: Record<number, string> = {

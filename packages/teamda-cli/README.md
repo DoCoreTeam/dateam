@@ -41,14 +41,17 @@ teamda crm quote export q_123 --format pdf --out quote.pdf
 | Exit | Meaning |
 |---|---|
 | 0 | ok |
-| 2 | usage: unknown command, missing param, secret on argv |
-| 3 | auth: no key or 401 |
-| 4 | forbidden or scope (403) |
-| 5 | not found (404) |
-| 6 | approval required (202, `approvalId` in the envelope) |
-| 7 | rate limited (429) |
-| 8 | server error (5xx) or other 4xx (400 409 422) |
-| 9 | network failure or timeout |
+| 1 | unknown: unexpected client failure, network failure or timeout (no HTTP status) |
+| 2 | input: unknown command, missing value, secret on argv, HTTP 400 or 422, other 4xx (405 410 413 ...) |
+| 3 | auth or scope: no key, 401, 403 |
+| 4 | not found (404) |
+| 5 | version conflict (409) |
+| 6 | rate limited (429) |
+| 7 | approval required (202, `approvalId` in the envelope) |
+| 8 | server error (5xx) |
+| 9 | saved value mismatch (reserved, no command checks it yet) |
+
+No call is retried yet; 429 and 5xx exit on the first response.
 
 The table is exported as `EXIT`:
 

@@ -127,7 +127,7 @@ export async function request(ctx: Context, input: RequestInput): Promise<unknow
     })
   } catch (e) {
     const timedOut = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')
-    throw new CliError(EXIT.NETWORK, {
+    throw new CliError(EXIT.UNKNOWN, {
       code: timedOut ? 'timeout' : 'network_error',
       message: timedOut ? `no response within ${timeoutMs(ctx)} ms` : `cannot reach ${new URL(input.url).origin}`,
     })
