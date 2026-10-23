@@ -1,0 +1,44 @@
+name: cli-parity
+# 모든 기능은 CLI 로도 된다, 하나라도 실패하면 병합하지 않는다 (CLAUDE.md 맨 위 필수 규칙)
+# 예외 목록 파일을 두지 않는다
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  cli-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 하위 호환 검사가 기준 커밋의 생성 스펙을 읽는다
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.x'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - name: 의존성 설치
+        # 이 저장소는 pnpm-lock.yaml 을 추적하지 않는다 (design-guard.yml 의 사유와 같음)
+        run: pnpm install --no-frozen-lockfile
+      - name: 1 정의와 대응표 (대응 안 된 줄 0, 시험 안 된 줄 0, 생성물 최신)
+        run: node --experimental-strip-types scripts/cli-parity-check.mjs
+      - name: 2 CLI 내장 스펙이 생성물과 같음
+        working-directory: packages/teamda-cli
+        run: |
+          bun scripts/embed-spec.ts
+          git diff --exit-code -- src/generated/spec.json
+      - name: 3 웹=CLI 시험
+        run: |
+          cd apps/web && node --experimental-strip-types --test lib/actions/parity.test.ts lib/actions/dispatch.test.ts lib/actions/approval.test.ts
+          cd ../../packages/teamda-cli && bun test
+      - name: 4 공개 API 하위 호환
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD~1' }}
+        run: node scripts/cli/compat-check.mjs

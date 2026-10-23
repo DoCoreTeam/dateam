@@ -160,9 +160,9 @@
 의존: I07
 
 ### I12 기본 지침 PR 템플릿 CI cli-parity
-상태: 대기
+상태: 통과
 모드: 경량
-범위: CLAUDE.md, AGENTS.md, GEMINI.md, CONTRIBUTING.md (신규), .github/copilot-instructions.md (신규), .cursorrules (신규), .github/pull_request_template.md (신규), .github/workflows/cli-parity.yml (신규)
+범위: CLAUDE.md, AGENTS.md, GEMINI.md, CONTRIBUTING.md (신규), .github/copilot-instructions.md (신규), .cursorrules (신규), .github/pull_request_template.md (신규), .github/workflows/cli-parity.yml (신규), scripts/cli/compat-check.mjs (신규, 하위 호환)
 감사 기준:
 - 지침 파일 맨 위에 필수 문단이 글자 그대로 (grep)
 - cli-parity 작업이 parity check, 생성물 최신, 웹=CLI 시험, 하위 호환을 돌림
