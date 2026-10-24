@@ -30,7 +30,7 @@
  * 상대 경로 + .ts 확장자로 적는다 — 가드가 node --test 로 이 파일을 직접 읽는다.
  */
 import { MAX_CHAIN_CANDIDATES, MAX_PER_PROVIDER } from '../ai-chat/model-chain.ts'
-import { GEMINI, CLAUDE, OPENAI, GROQ, GROK } from '@ax/ai-providers'
+import { AI_PROVIDERS as REGISTERED_PROVIDERS } from '../ai/provider-catalog.ts'
 import { canTransition, type AiValueStatus } from '@ax/ai-core'
 
 /** 왼쪽 목록의 항목 */
@@ -366,7 +366,12 @@ export interface AiProviderDoc {
   keyIssueUrl: string
 }
 
-export const AI_PROVIDERS: readonly AiProviderDoc[] = [GEMINI, CLAUDE, OPENAI, GROQ, GROK].map((v) => ({
+/*
+ * 행은 `lib/ai/provider-catalog.ts` 의 등록 목록에서 그대로 온다. 공급자를 고르는 목록을
+ * 여기 따로 두면 등록처에 공급자가 늘어도 이 표만 모른다(Jev 가 그렇게 빠져 있었다).
+ * 칸 값은 그 명세가 `@ax/ai-providers` 에서 받아 둔 벤더 사실이다.
+ */
+export const AI_PROVIDERS: readonly AiProviderDoc[] = REGISTERED_PROVIDERS.map((v) => ({
   id: v.id,
   keyPrefix: v.keyPrefixes.join(' '),
   vision: v.capabilities.vision,
@@ -426,7 +431,7 @@ export const AI_FAILURE_RULES: readonly AiFailureRule[] = [
   {
     scope: 'provider',
     when: '그 공급자의 키를 다 써 봤다고 부르는 쪽이 판단한 경우',
-    then: '그 공급자의 남은 모델을 전부 뺍니다. pruneChain 은 key 도 이와 같게 다룹니다 — 거기까지 왔다는 것이 곧 키가 다 말랐다는 뜻입니다.',
+    then: '그 공급자의 남은 모델을 전부 뺍니다. pruneChain 은 key 도 이와 같게 다룹니다. 거기까지 왔다는 것이 곧 키가 다 말랐다는 뜻입니다.',
   },
   {
     scope: 'transient',

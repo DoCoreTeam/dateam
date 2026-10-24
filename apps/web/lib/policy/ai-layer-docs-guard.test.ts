@@ -22,7 +22,7 @@ import {
 } from '../api-docs/ai-layer.ts'
 import * as AI_DOC from '../api-docs/ai-layer.ts'
 import { AI_CAPABILITIES, canTransition, type AiValueStatus } from '@ax/ai-core'
-import { GEMINI, CLAUDE, OPENAI, GROQ, GROK } from '@ax/ai-providers'
+import { AI_PROVIDERS as REGISTERED_PROVIDERS } from '../ai/provider-catalog.ts'
 import { MAX_CHAIN_CANDIDATES, MAX_PER_PROVIDER } from '../ai-chat/model-chain.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -188,9 +188,28 @@ test('★ 시그니처를 적은 이름이 수출 목록에도 있다', () => {
   assert.deepEqual(stray, [], stray.join('\n'))
 })
 
+test('★ 공급자 표의 행이 등록처의 공급자와 같다', () => {
+  // 표가 공급자를 손으로 골라 들면 등록처에 하나가 늘어도 표만 모른다(Jev 가 빠져 있었다)
+  const ids = AI_PROVIDERS.map((v) => v.id)
+  assert.deepEqual(ids, REGISTERED_PROVIDERS.map((v) => v.id), '공급자 표의 행이 provider-catalog 와 다르다')
+  assert.equal(ids.length, 6, `공급자 표가 ${ids.length}행이다`)
+  assert.ok(ids.includes('jev'), '공급자 표에 jev 가 없다')
+})
+
+test('★ 화면에 나가는 값에 전각 대시가 없다', () => {
+  const found: string[] = []
+  const walk = (v: unknown, path: string): void => {
+    if (typeof v === 'string') { if (v.includes('\u2014')) found.push(`${path}: ${v}`); return }
+    if (Array.isArray(v)) { v.forEach((x, i) => walk(x, `${path}[${i}]`)); return }
+    if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`)
+  }
+  for (const [name, value] of Object.entries(AI_DOC)) walk(value, name)
+  assert.deepEqual(found, [], found.join('\n'))
+})
+
 test('★ 공급자 표가 벤더 명세와 같다', () => {
   // 손으로 옮겨 적으면 능력 한 칸이 바뀔 때 화면이 옛 답을 계속 보여 준다
-  const real = [GEMINI, CLAUDE, OPENAI, GROQ, GROK].map((v) => ({
+  const real = REGISTERED_PROVIDERS.map((v) => ({
     id: v.id,
     keyPrefix: v.keyPrefixes.join(' '),
     vision: v.capabilities.vision,
