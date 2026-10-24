@@ -1,9 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { authenticatePublicApi, optionsResponse, requireMemberKey } from '@/lib/publicApiAuth'
-import { responseHeaders } from '@/lib/public-api/respond'
+import { fail, ok, serverError } from '@/lib/public-api/respond'
+import { readJsonBody, INVALID_JSON_MESSAGE } from '@/lib/public-api/read-json'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getGpuCatalog } from '@/lib/gpu/pricing'
 import { z } from 'zod'
+
+const PRODUCT_MISSING_MESSAGE = '제품을 찾을 수 없습니다.'
+
+/** zod 원문 대신 어느 칸이 틀렸는지만 알려 준다 (예: items.0.quantity) */
+function invalidInputMessage(issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey> }>): string {
+  const field = issues[0]?.path.map(String).join('.')
+  return field ? `입력값을 확인해 주세요: ${field}` : '입력값을 확인해 주세요.'
+}
 
 const quoteSchema = z.object({
   items: z.array(
@@ -29,13 +38,11 @@ export async function POST(request: NextRequest) {
   if (denied) return denied
 
   try {
-    const body = await request.json()
-    const parsed = quoteSchema.safeParse(body)
+    const read = await readJsonBody(request)
+    if (!read.ok) return fail(400, INVALID_JSON_MESSAGE, { ctx: auth.ctx, request })
+    const parsed = quoteSchema.safeParse(read.body)
     if (!parsed.success) {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: parsed.error.flatten() },
-        { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
-      )
+      return fail(400, invalidInputMessage(parsed.error.issues), { ctx: auth.ctx, request })
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,7 +64,7 @@ export async function POST(request: NextRequest) {
     let subtotalUsd = 0
     const lineItems = items.map((item) => {
       const product = productMap.get(item.product_id)
-      if (!product) return { ...item, error: 'Product not found' }
+      if (!product) return { ...item, error: PRODUCT_MISSING_MESSAGE }
 
       const hasCustom = item.custom_margin_pct != null
       const margin = item.custom_margin_pct ?? defaultMargin
@@ -93,30 +100,23 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const response = {
-      success: true,
-      data: {
-        items: lineItems,
-        summary: {
-          subtotal_usd: Math.round(subtotalUsd * 100) / 100,
-          subtotal_krw: Math.round(subtotalUsd * usdKrw),
-          currency,
-          ...(currency === 'KRW'
-            ? { total: Math.round(subtotalUsd * usdKrw) }
-            : { total: Math.round(subtotalUsd * 100) / 100 }),
-          fx_usd_krw: usdKrw,
-          fx_rate_date: fxRes.data?.rate_date,
-          quoted_at: new Date().toISOString(),
-        },
+    const data = {
+      items: lineItems,
+      summary: {
+        subtotal_usd: Math.round(subtotalUsd * 100) / 100,
+        subtotal_krw: Math.round(subtotalUsd * usdKrw),
+        currency,
+        ...(currency === 'KRW'
+          ? { total: Math.round(subtotalUsd * usdKrw) }
+          : { total: Math.round(subtotalUsd * 100) / 100 }),
+        fx_usd_krw: usdKrw,
+        fx_rate_date: fxRes.data?.rate_date,
+        quoted_at: new Date().toISOString(),
       },
     }
 
-    return NextResponse.json(response, { headers: responseHeaders({ ctx: auth.ctx, request }) })
+    return ok(data, { ctx: auth.ctx, request })
   } catch (err) {
-    console.error('[public/v1/quote POST]', err)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
-    )
+    return serverError('quote POST', err, { ctx: auth.ctx, request })
   }
 }

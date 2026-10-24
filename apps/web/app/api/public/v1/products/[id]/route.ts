@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { authenticatePublicApi, optionsResponse, requireMemberKey } from '@/lib/publicApiAuth'
-import { responseHeaders } from '@/lib/public-api/respond'
+import { notFound, ok, serverError } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getGpuCatalog } from '@/lib/gpu/pricing'
 
@@ -31,10 +31,7 @@ export async function GET(
     const p = catalog.products.find((x) => x.id === id)
 
     if (!p) {
-      return NextResponse.json(
-        { success: false, error: 'Product not found' },
-        { status: 404, headers: responseHeaders({ ctx: auth.ctx, request }) }
-      )
+      return notFound({ ctx: auth.ctx, request })
     }
 
     const usdKrw = catalog.usd_krw
@@ -61,32 +58,25 @@ export async function GET(
             valid_until: p.own_valid_until ?? null,
           }
 
-    return NextResponse.json(
+    return ok(
       {
-        success: true,
-        data: {
-          id: p.id,
-          model_name: p.model_name,
-          tier: p.tier,
-          memory: p.memory,
-          gpu_count: p.gpu_count,
-          vcpu: p.vcpu,
-          ram_gb: p.ram_gb,
-          storage_gb: p.storage_gb,
-          series: p.series,
-          available: priceKrw != null,
-          fx_usd_krw: usdKrw,
-          fx_rate_date: fxRes.data?.rate_date,
-          ...pricing,
-        },
+        id: p.id,
+        model_name: p.model_name,
+        tier: p.tier,
+        memory: p.memory,
+        gpu_count: p.gpu_count,
+        vcpu: p.vcpu,
+        ram_gb: p.ram_gb,
+        storage_gb: p.storage_gb,
+        series: p.series,
+        available: priceKrw != null,
+        fx_usd_krw: usdKrw,
+        fx_rate_date: fxRes.data?.rate_date,
+        ...pricing,
       },
-      { headers: responseHeaders({ ctx: auth.ctx, request }) }
+      { ctx: auth.ctx, request },
     )
   } catch (err) {
-    console.error('[public/v1/products/[id] GET]', err)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
-    )
+    return serverError('products/[id] GET', err, { ctx: auth.ctx, request })
   }
 }

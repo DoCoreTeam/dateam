@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticatePublicApi, optionsResponse, requireMemberKey } from '@/lib/publicApiAuth'
-import { responseHeaders } from '@/lib/public-api/respond'
+import { responseHeaders, serverError } from '@/lib/public-api/respond'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getGpuCatalog } from '@/lib/gpu/pricing'
 
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // 커서를 싣지 않는다: 제품 카탈로그는 수십 줄 고정 목록이라 한 번에 다 준다, total 이 전체 수다
     return NextResponse.json(
       {
         success: true,
@@ -57,10 +58,6 @@ export async function GET(request: NextRequest) {
       { headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   } catch (err) {
-    console.error('[public/v1/products GET]', err)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
-    )
+    return serverError('products GET', err, { ctx: auth.ctx, request })
   }
 }
