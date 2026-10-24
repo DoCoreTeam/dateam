@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ERROR_RESPONSES, mergeSpecs, paramSchema, standardResponses } from './openapi.ts'
+import { ERROR_RESPONSES, FILE_RESPONSES, mergeSpecs, paramSchema, standardResponses } from './openapi.ts'
 import { ENDPOINTS } from '../api-docs/registry.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -77,4 +77,21 @@ test('합친 스펙의 operationId 는 겹치지 않는다 (옛 경로 등재 �
   assert.equal(merged.paths['/pricing/gpu/fx'].get.operationId, 'gpu.fx.list')
   assert.equal(merged.paths['/fx'].get.operationId, 'gpu.fx.list.alias')
   assert.equal(registry.paths['/fx'].get.operationId, 'gpu.fx.list')
+})
+
+test('견적서 내려받기의 200 은 JSON 이 아니라 PDF PNG 이진 파일로 선언된다', () => {
+  const spec = JSON.parse(readFileSync(join(WEB, 'lib/actions/generated/openapi.json'), 'utf8'))
+  const ok200 = spec.paths['/crm/quotes/{id}/export'].get.responses['200']
+  assert.deepEqual(Object.keys(ok200.content ?? {}).sort(), ['application/pdf', 'image/png'])
+  for (const c of Object.values(ok200.content) as { schema: unknown }[]) {
+    assert.deepEqual(c.schema, { type: 'string', format: 'binary' })
+  }
+  assert.ok(!('application/json' in ok200.content))
+  assert.ok(FILE_RESPONSES['crm.quote.export'])
+  // 손으로 쓴 문서가 같은 경로를 JSON 꼴로 두어도 합친 스펙은 이진 선언을 싣는다
+  const registry = { openapi: '3.1.0', info: {}, paths: { '/crm/quotes/{id}/export': { get: { operationId: 'crm.quotes.export', responses: { 200: { description: 'x' }, 404: { description: '없음' } } } } } }
+  const merged = mergeSpecs(registry, spec) as { paths: Record<string, Record<string, { responses: Record<string, { content?: Record<string, unknown> }> }>> }
+  const op = merged.paths['/crm/quotes/{id}/export'].get
+  assert.deepEqual(Object.keys(op.responses['200'].content ?? {}).sort(), ['application/pdf', 'image/png'])
+  assert.ok(op.responses['404'])
 })

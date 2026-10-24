@@ -68,6 +68,26 @@ export function standardResponses(opts: { method: string; approval?: boolean; su
   return out
 }
 
+/**
+ * JSON 봉투 대신 파일 본문을 돌려주는 동작, 기능 이름 하나에 Content-Type 목록 하나
+ * 여기 오른 동작은 200 응답이 application/json 이 아니라 이진 파일로 선언된다
+ */
+export const FILE_RESPONSES: Record<string, readonly string[]> = {
+  'crm.quote.export': ['application/pdf', 'image/png'],
+}
+
+/** 파일 본문 200 응답 선언 */
+export function fileResponse(types: readonly string[]): Json {
+  return {
+    description: '성공, JSON 봉투 대신 파일 본문 (오류일 때만 공통 봉투)',
+    content: Object.fromEntries(types.map((t) => [t, { schema: { type: 'string', format: 'binary' } }])),
+  }
+}
+
+/** 200 응답이 파일 본문인가 */
+const isFileResponse = (r: Json): boolean =>
+  !!r?.content && Object.keys(r.content).length > 0 && !('application/json' in r.content)
+
 /** 문서 표의 형 이름을 JSON 스키마로, 숫자 칸(limit 등)이 문자열로 선언되지 않게 */
 export function paramSchema(type: string | undefined): Json {
   switch ((type ?? 'string').toLowerCase()) {
@@ -100,6 +120,8 @@ function mountedOperation(m: OpenApiMounted): Json {
     ],
     responses: standardResponses({ method: m.method, approval: true, success: '성공, data 는 화면이 받는 값과 같음' }),
   }
+  const fileTypes = FILE_RESPONSES[m.name]
+  if (fileTypes) op.responses = { ...op.responses, 200: fileResponse(fileTypes) }
   if (m.kind === 'action') {
     op['x-args'] = m.params
     op.requestBody = {
@@ -172,6 +194,8 @@ export function mergeSpecs(registry: Json, generated: Json): Json {
       if (target[method]) {
         const extra: Json = {}
         for (const f of CLI_FIELDS) if (gen[f] !== undefined) extra[f] = gen[f]
+        // 파일 본문 동작은 손으로 쓴 문서가 200 을 JSON 처럼 두어도 생성물의 이진 선언이 이긴다
+        if (isFileResponse(gen.responses?.['200'])) extra.responses = { ...target[method].responses, 200: gen.responses['200'] }
         target[method] = { ...target[method], ...extra }
       } else {
         target[method] = gen
