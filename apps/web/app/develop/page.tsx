@@ -23,6 +23,7 @@ import { SERVICE_LABEL, API_CLI_DOC } from '@/lib/terms'
 import DemoSection from './DemoSection'
 import AiLayerSection from './AiLayerSection'
 import CliSection from './CliSection'
+import KeyScopeSection from './KeyScopeSection'
 import { AI_DOC_NAV, AI_LAYER_NAV_LABEL, type AiDocKey } from '@/lib/api-docs/ai-layer'
 import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
@@ -214,6 +215,7 @@ function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id:
       <P>
         키를 발급한 계정이 비활성화되면 그 키도 즉시 막힙니다. 퇴사자의 키가 계속 살아 있는 것을 막습니다.
       </P>
+      <KeyScopeSection onCopy={onCopy} copiedId={copiedId} />
 
       <H2>응답 형식</H2>
       <P>성공·실패 모두 같은 봉투를 씁니다. 목록은 <Code>meta</Code>에 커서와 총 건수가 들어갑니다.</P>

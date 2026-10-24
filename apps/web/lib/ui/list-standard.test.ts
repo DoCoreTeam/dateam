@@ -68,6 +68,9 @@ const DOCUMENT_SURFACES = new Set<string>([
   // 검색·정렬·쪽 넘김이 붙을 성질이 아니다 — 붙이면 읽는 사람이 「내 데이터인가」로 읽는다.
   // 같은 이유로 이 화면 옆의 app/develop/page.tsx 도 이미 표준 밖이다.
   'app/develop/AiLayerSection.tsx',
+  // 개발자센터 인증 절의 키 범위, 만료, GET /me 필드 **참조표**다(P0164). 줄이 Scope 와 만료 선택지에서
+  // 파생돼 개수가 고정이고, 검색·정렬·쪽 넘김을 붙이면 「내 키 목록인가」로 읽힌다(AiLayerSection 과 같은 이유).
+  'app/develop/KeyScopeSection.tsx',
   // 가격 기준 미리 계산의 **계산서**다(P0135). 견적서 종이와 같은 묶음 소계 절사 줄이 서는 문서이고,
   // 정렬하면 묶음 순서가 깨져 「라이선스 소계」가 엉뚱한 줄 밑에 선다.
   'app/(crm)/crm/products/[id]/PreviewTab.tsx',
