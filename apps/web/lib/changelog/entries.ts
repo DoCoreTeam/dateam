@@ -7,6 +7,7 @@
 // │ 제외 ❌  어드민 전용 · 백엔드/DB/인프라 · 리팩터/테스트/CI · 버전범프 · 내부검증문구  │
 // │ 톤      귀엽고 친절한 비즈니스 언어. "~했어요/~돼요". 개발 용어·내부 표현 금지.     │
 // │ 판정    "로그인한 일반 사용자가 화면에서 직접 체감하나?" 예=포함(친절어), 아니오=제외 │
+// │ 개발자  API·CLI·teamda·개발자센터 항목은 developer: true, 그 말만 나오면 false (api-changes.test) │
 // └──────────────────────────────────────────────────────────────────┘
 
 import type { ChangeType } from './types'
@@ -20,6 +21,8 @@ export interface ChangelogNoteItem {
   headline: string
   /** 1~2문장 비즈니스 친화 설명(무엇이 되고 왜 좋은지) */
   detail: string
+  /** 개발자센터 「API 변경 내역」에 싣는가. API, CLI, teamda, 개발자센터 이야기면 true, 그 말이 나오지만 개발자용이 아니면 false */
+  developer?: boolean
 }
 
 export interface ChangelogNote {
@@ -46,12 +49,14 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'fix',
         emoji: '🧭',
+        developer: true,
         headline: '파이프라인을 안 골라도 딜이 기본 파이프라인 첫 단계로 만들어져요',
         detail: 'API 와 teamda 로 딜을 만들 때 파이프라인을 빼면 화면의 딜 만들기와 같은 기본 파이프라인과 첫 단계로 들어가요. 서로 맞지 않는 파이프라인과 단계를 주면 예전처럼 알려 드려요.',
       },
       {
         kind: 'improve',
         emoji: '🔢',
+        developer: true,
         headline: 'teamda 종료 코드가 안내한 표와 같아졌어요',
         detail: '입력 오류는 2, 버전 충돌은 5, 서버 오류는 8 처럼 숫자만 보고 다음 행동을 고를 수 있어요. 한도에 걸리면 기다렸다 세 번까지, 서버 오류는 한 번 다시 시도하고, 저장된 값이 보낸 값과 다르면 9 로 알려 드려요.',
       },
@@ -65,18 +70,21 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'fix',
         emoji: '🔒',
+        developer: true,
         headline: 'API 키가 자기 승인 요청을 스스로 통과시키지 못해요',
         detail: '지우기나 보내기처럼 승인이 필요한 일은 키 주인이나 관리자가 승인 화면에서 눌러야 실행돼요. 키로 승인 결정을 부르면 바로 거절해요.',
       },
       {
         kind: 'improve',
         emoji: '🧾',
+        developer: true,
         headline: 'API 로 한 쓰기가 빠짐없이 기록돼요',
         detail: '예전 API 창구와 다시 보낸 요청, 거절된 요청도 변경 이력의 API 탭에 키와 에이전트와 함께 남아요. 기록을 못 불러오면 빈 목록 대신 다시 시도할 수 있는 안내가 떠요.',
       },
       {
         kind: 'improve',
         emoji: '⏳',
+        developer: true,
         headline: '키 만료일과 남은 호출 수를 알려 줘요',
         detail: 'teamda auth status 처럼 키 정보를 물으면 만료일과 이번 1분 동안 남은 호출 수가 함께 나와요.',
       },
@@ -90,12 +98,14 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'fix',
         emoji: '📄',
+        developer: true,
         headline: 'API 키로도 견적서 파일이 만들어져요',
         detail: 'teamda crm quote export 나 API 키로 견적서 내보내기를 부르면 화면 미리보기와 같은 PDF 와 이미지가 나와요. 2단계 인증을 켠 계정의 키는 기다리지 않고 화면에서 내려받으라고 바로 알려 줘요.',
       },
       {
         kind: 'fix',
         emoji: '💾',
+        developer: true,
         headline: 'CLI 가 파일을 그대로 저장해요',
         detail: '파일로 오는 응답은 --out 에 적은 경로에 그대로 저장되고, 화면에는 저장한 위치와 크기만 보여 줘요.',
       },
@@ -109,18 +119,21 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'feature',
         emoji: '⌨️',
+        developer: true,
         headline: 'teamda CLI 가 생겼어요',
         detail: '웹에서 누르는 동작마다 같은 이름의 CLI 명령이 있어요. 개발자센터의 「CLI 명령」에서 전체 목록을 보고, teamda sync 로 최신 명령을 받아요.',
       },
       {
         kind: 'feature',
         emoji: '🔑',
+        developer: true,
         headline: 'API 키에 범위와 만료일을 정해요',
         detail: '키를 만들 때 조회, 만들기와 수정, 승인, 발송, 삭제, 관리자 설정 중 필요한 것만 고르고 만료일을 정해요. 고르지 않은 승인 발송 삭제는 바로 실행되지 않고 내 승인을 기다려요.',
       },
       {
         kind: 'feature',
         emoji: '✅',
+        developer: true,
         headline: '키가 보낸 요청을 승인하고 기록을 봐요',
         detail: '승인 요청 화면에서 내용을 보고 실행할지 정해요. 키 관리 화면의 「요청 기록」과 영업 CRM 변경 이력의 「API(에이전트)가 한 것」 탭에서 키로 한 일을 확인해요.',
       },
@@ -3139,6 +3152,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'fix',
         emoji: '\uD83D\uDEA7',
+        developer: true,
         headline: '관리자만 할 수 있어야 하는 일에 확인을 넣었어요',
         detail: '구성원 초대와 API 사용 승인은 계정을 만드는 일인데 로그인만 되어 있으면 부를 수 있었습니다. 이제 관리자인지 확인합니다.',
       },
@@ -3246,6 +3260,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'improve',
         emoji: '\uD83D\uDCE8',
+        developer: true,
         headline: 'API 사용 신청 창구에 한도를 뒀어요',
         detail: '로그인 없이 쓰는 신청 폼이라 같은 곳에서 무한정 보낼 수 있었어요. 이제 한 시간에 다섯 번까지 받습니다. 그리고 이미 신청하셨거나 이미 승인된 이메일이어도 처음과 똑같이 답해요. 예전에는 「이미 승인된 계정입니다」라고 알려 줘서, 이메일 목록을 들고 와 누가 우리 고객인지 하나씩 확인할 수 있었습니다.',
       },
@@ -3417,6 +3432,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'feature',
         emoji: '\uD83D\uDCD8',
+        developer: true,
         headline: '개발자센터에 「AI 공통층」 안내가 생겼어요',
         detail: '우리 서비스들이 AI 를 쓸 때 공통으로 지키는 것을 한자리에 모았어요. 무엇인지, 새 서비스에 붙이는 순서, 패키지 넷이 각각 무엇을 하는지, AI 결과가 반드시 함께 들고 와야 하는 일곱 가지를 읽을 수 있습니다. 붙여 넣을 코드는 복사 단추로 바로 가져가세요.',
       },
@@ -5692,6 +5708,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'improve',
         emoji: '\u{1F5E3}\uFE0F',
+        developer: true,
         headline: '개발자센터에서 코드 언어를 맨 위에서 한 번만 고르면 됩니다',
         detail:
           '예제 코드가 24개라 파이썬을 쓰시는 분은 파이썬을 24번 고르셔야 했어요. 이제 화면 맨 위에서 한 번 고르면 아래 예제가 전부 따라오고, 페이지네이션\u00B7다시 시도 예시까지 같은 언어로 바뀝니다. 고른 언어는 기억되고 주소에도 담겨서, 링크를 보내면 받는 분도 같은 언어로 보게 돼요.',
@@ -5706,6 +5723,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'fix',
         emoji: '\u{1F511}',
+        developer: true,
         headline: '개발자센터에서 키를 잘못 붙여넣으면 무엇이 틀렸는지 알려드려요',
         detail:
           '예전에는 형식이 다른 키를 넣으면 알 수 없는 오류 문구가 그대로 떴어요. 이제 «ax_live_ 로 시작하는 키를 붙여넣어 주세요»처럼 무엇을 고치면 되는지 먼저 말씀드립니다.',
@@ -5861,6 +5879,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'feature',
         emoji: '🔑',
+        developer: true,
         headline: '개발자센터가 로그인 뒤로 들어왔습니다',
         detail:
           '이제 사내 계정으로 로그인해야 개발자 문서를 볼 수 있습니다. ' +
@@ -5870,6 +5889,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'feature',
         emoji: '🧩',
+        developer: true,
         headline: '영업 CRM과 콘텐츠 인텔리전스를 API로 열었습니다',
         detail:
           '회사·인물·딜·미팅·견적·할 일, 그리고 채널·게시물을 스크립트로 읽을 수 있습니다. ' +
@@ -5878,6 +5898,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'fix',
         emoji: '📊',
+        developer: true,
         headline: 'API 키의 요청 수가 처음으로 맞는 숫자가 됩니다',
         detail:
           '「내 키 관리」의 요청 수가 몇 번을 부르든 1에서 멈춰 있었습니다. ' +
@@ -8086,7 +8107,7 @@ export const CHANGELOG: ChangelogNote[
       { kind: 'feature', emoji: '✂️', headline: '영상을 고르면 어디를 손볼지 알려드려요', detail: '왼쪽 메뉴 "편집점"에서 영상을 고르면 잘라낼 무음, 훅으로 쓸 지점, 컷을 넣을 자리를 타임코드로 찍어드려요. 잘 된 콘텐츠에서 뽑아낸 방식을 근거로 판단합니다.' },
       { kind: 'feature', emoji: '🔒', headline: '영상은 올리지 않아요 — 내 컴퓨터에서 분석해요', detail: '영상 파일은 서버로 전송되지 않고 브라우저 안에서만 분석됩니다. 업로드를 기다릴 필요도 없고, 원본이 어디에도 남지 않아요.' },
       { kind: 'feature', emoji: '📋', headline: '편집 지시서와 마커 파일로 내보내요', detail: '편집점을 복사해 편집툴 옆에 두거나, 마커 CSV로 내려받아 편집 프로그램에 그대로 가져갈 수 있어요. 타임코드를 눌러 그 지점을 바로 확인할 수도 있습니다.' },
-      { kind: 'fix', emoji: '📊', headline: '채널의 몇 개를 보고 판단했는지 밝혀요', detail: '영상 543개인 채널을 최근 15개만 보고 "평소"를 계산하고 있었어요. 이제 채널 화면에 "543개 중 3%"처럼 실제로 확인한 범위를 표시하고, API 키가 있으면 전체를 가져옵니다.' },
+      { kind: 'fix', emoji: '📊', developer: false, headline: '채널의 몇 개를 보고 판단했는지 밝혀요', detail: '영상 543개인 채널을 최근 15개만 보고 "평소"를 계산하고 있었어요. 이제 채널 화면에 "543개 중 3%"처럼 실제로 확인한 범위를 표시하고, API 키가 있으면 전체를 가져옵니다.' },
       { kind: 'improve', emoji: '🖼️', headline: '수집함 목록에도 썸네일이 보여요', detail: '제목만 보고 무엇인지 떠올릴 필요 없이, 목록에서 바로 알아볼 수 있어요.' },
     ],
   },
@@ -8151,7 +8172,7 @@ export const CHANGELOG: ChangelogNote[
   {
     version: '0.7.426', date: '2026-08-11', title: '콘텐츠 인텔리전스가 문을 열었어요',
     items: [
-      { kind: 'feature', emoji: '📡', headline: '콘텐츠 트렌드를 모아 보는 새 공간이 생겼어요', detail: '오른쪽 위 "전체 메뉴"나 왼쪽 아래 프로필에서 "콘텐츠 인텔리전스"로 들어가면, 유튜브·틱톡·인스타 같은 곳의 콘텐츠를 모아 성과를 비교해 볼 수 있는 별도 공간이 열려요. 개발자센터처럼 사내 업무와는 따로 도는 공간이에요.' },
+      { kind: 'feature', emoji: '📡', developer: false, headline: '콘텐츠 트렌드를 모아 보는 새 공간이 생겼어요', detail: '오른쪽 위 "전체 메뉴"나 왼쪽 아래 프로필에서 "콘텐츠 인텔리전스"로 들어가면, 유튜브·틱톡·인스타 같은 곳의 콘텐츠를 모아 성과를 비교해 볼 수 있는 별도 공간이 열려요. 개발자센터처럼 사내 업무와는 따로 도는 공간이에요.' },
       { kind: 'feature', emoji: '🔗', headline: '링크만 붙여넣으면 알아서 정리해요', detail: '영상 주소를 그대로 붙여넣으면 제목과 지표를 자동으로 모아 수집함에 쌓아요. 지원하지 않는 주소는 이유를 알려드리니 무엇이 잘못됐는지 바로 알 수 있어요.' },
       { kind: 'improve', emoji: '🤍', headline: '모르는 숫자는 지어내지 않아요', detail: '비교할 자료가 아직 부족하면 그럴듯한 수치를 만들어 보여주는 대신 "데이터 부족"이라고 솔직하게 알려드려요. 일부만 모인 항목도 무엇이 빠졌는지 함께 표시돼요.' },
     ],
@@ -8294,6 +8315,7 @@ export const CHANGELOG: ChangelogNote[
       {
         kind: 'improve',
         emoji: '🔍',
+        developer: false,
         headline: 'OpenAI·Claude·Gemini 모델을 전부 점검해요',
         detail: '모델 목록을 새로고침할 때 현재 API 키에서 사용할 수 있는지 확인해, 선택 후 실패하는 일을 줄여드려요.',
       },
