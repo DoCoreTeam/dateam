@@ -36,6 +36,41 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.88',
+    date: '2026-10-25',
+    title: '개발자센터 예시를 복사해 바로 부를 수 있어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📋',
+        developer: true,
+        headline: 'API 예시가 본문과 실제 경로 모양을 담아요',
+        detail: '만들기와 고치기 예시에 보낼 본문이 들어가고, 경로의 :id 자리는 <id> 로 바뀌었어요. 예시를 그대로 복사해 값만 바꾸면 돼요. 복사가 안 되면 복사됨 대신 안내가 떠요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🚀',
+        developer: true,
+        headline: '시작하기가 내 키로 되는 호출부터 보여 줘요',
+        detail: '키를 만든 뒤 GET /me 로 내 키를 확인하고, 계정 권한에 맞는 첫 목록을 부르는 순서로 바뀌었어요. CRM 만 쓰는 계정도 첫 호출에서 막히지 않아요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔎',
+        developer: true,
+        headline: 'teamda 명령 800여 개를 낱말로 찾고 펼쳐 봐요',
+        detail: 'crm companies 처럼 검색하면 회사 명령과 경로가 나오고, 명령마다 범위와 매개변수와 예시를 펼쳐 볼 수 있어요. 휴대폰에서도 목록이 짧게 접혀요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🤖',
+        developer: true,
+        headline: '에이전트용 안내와 API 변경 내역이 생겼어요',
+        detail: '스펙 주소, 승인 요청 흐름, 권장 확인 간격을 한곳에서 보고, API 와 CLI 에 생긴 변화도 따로 모아 볼 수 있어요. 보던 절은 주소에 남아 새로고침하거나 공유해도 그대로 열려요.',
+      },
+    ],
+  },
+  {
     version: '0.11.68',
     date: '2026-10-23',
     title: '휴지통의 할 일 영구 삭제와 파이프라인 없는 딜 만들기가 돼요',
