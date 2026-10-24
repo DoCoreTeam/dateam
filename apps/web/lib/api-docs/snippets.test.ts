@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { LANGUAGES, type RequestSpec } from './snippets.ts'
+import { LANGUAGES, placeholderPath, type RequestSpec } from './snippets.ts'
+import { ENDPOINTS, requestSpecOf } from './registry.ts'
 
 const BASE = 'https://api.example.com/api/public/v1'
 
@@ -144,4 +145,77 @@ test('javascript: 맨 위 await 없이 CommonJS 스크립트로 파싱된다', a
   for (const src of [js.generate(GET_SPEC, BASE), js.generate(POST_SPEC, BASE), js.retry(BASE), js.paginate(BASE)]) {
     assert.doesNotThrow(() => new Script(src), src.slice(0, 120))
   }
+})
+
+/* 등록부의 모든 창구로 만든 예시 (P0168): 본문이 실리고 경로 변수가 자리표시로 바뀐다 */
+
+const ALL = ENDPOINTS.map((e) => ({ e, spec: requestSpecOf(e) }))
+
+/** 본문에 든 키 이름과 글자 값 전부, 중첩된 줄 안까지 */
+function leaves(v: unknown, out: string[] = []): string[] {
+  if (Array.isArray(v)) v.forEach((x) => leaves(x, out))
+  else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) { out.push(k); leaves(x, out) }
+  else if (typeof v === 'string' || typeof v === 'number') out.push(String(v))
+  return out
+}
+
+test('★ 본문을 받는 창구(POST, PATCH)는 예시 본문을 싣는다', () => {
+  const writes = ALL.filter(({ e }) => e.method === 'POST' || e.method === 'PATCH')
+  assert.ok(writes.length >= 20, `POST PATCH 창구를 너무 적게 찾았다(${writes.length})`)
+  const missing = writes.filter(({ spec }) => !spec.body || Object.keys(spec.body).length === 0).map(({ e }) => e.id)
+  assert.deepEqual(missing, [], '본문 없는 예시는 붙여 넣으면 400 이다')
+})
+
+test('★ 7개 언어 모두 POST PATCH 예시에 본문의 키와 값을 빠짐없이 싣는다', () => {
+  let checked = 0
+  const lost: string[] = []
+  for (const { e, spec } of ALL) {
+    if (spec.body === undefined) continue
+    const want = leaves(spec.body)
+    assert.ok(want.length > 0, `${e.id} 본문이 비었다`)
+    for (const l of LANGUAGES) {
+      checked++
+      const out = l.generate(spec, BASE)
+      for (const w of want) if (!out.includes(w)) lost.push(`${e.id} ${l.id}: ${w}`)
+    }
+  }
+  assert.ok(checked >= 20 * LANGUAGES.length, `대조한 예시가 너무 적다(${checked})`)
+  assert.deepEqual(lost, [], '예시 본문에서 빠진 칸:\n  ' + lost.join('\n  '))
+})
+
+test('★ 어떤 예시에도 :id 나 {id} 꼴 경로 변수가 남지 않는다, <id> 로 바뀐다', () => {
+  let withParam = 0
+  const left: string[] = []
+  for (const { e, spec } of ALL) {
+    const hasParam = /\{\w+\}/.test(spec.path)
+    if (hasParam) withParam++
+    for (const l of LANGUAGES) {
+      const out = l.generate(spec, BASE)
+      const urlish = out.split('\n').filter((line) => line.includes(BASE)).join('\n')
+      if (/\/:\w+|\{\w+\}/.test(urlish)) left.push(`${e.id} ${l.id}`)
+      if (hasParam && !/\/<\w+>/.test(urlish)) left.push(`${e.id} ${l.id}: 자리표시 없음`)
+    }
+  }
+  assert.ok(withParam >= 10, `경로 변수가 있는 창구를 너무 적게 찾았다(${withParam})`)
+  assert.deepEqual(left, [], '붙여 넣으면 404 인 주소:\n  ' + left.join('\n  '))
+  assert.equal(placeholderPath('/crm/companies/:id'), '/crm/companies/<id>')
+  assert.equal(placeholderPath('/crm/quotes/{id}/export'), '/crm/quotes/<id>/export')
+})
+
+test('curl: 주소를 따옴표로 감싸고, 본문의 작은따옴표를 셸에서 깨지지 않게 넣는다', () => {
+  const out = gen('curl', { method: 'POST', path: '/crm/companies/{id}', query: { a: '1', b: '2' }, body: { name: "O'Neil" } })
+  assert.match(out, /curl -X POST "https:\/\/api\.example\.com\/api\/public\/v1\/crm\/companies\/<id>\?a=1&b=2"/)
+  assert.ok(out.includes(`-d '{"name":"O'\\''Neil"}'`), out)
+})
+
+test('java csharp: 본문의 역슬래시를 먼저 이스케이프한다', () => {
+  const spec: RequestSpec = { method: 'POST', path: '/x', body: { memo: 'a\\b' } }
+  // JSON 은 a\\b, 문자열 리터럴 안에서는 a\\\\b 여야 서버가 a\b 를 받는다
+  assert.ok(gen('java', spec).includes('\\"memo\\":\\"a\\\\\\\\b\\"'), gen('java', spec))
+  assert.ok(gen('csharp', spec).includes('\\"memo\\":\\"a\\\\\\\\b\\"'), gen('csharp', spec))
+})
+
+test('쿼리 자리표시(<workspace_id>)는 인코딩하지 않고 그대로 보인다', () => {
+  const out = gen('python', { method: 'POST', path: '/ci/channels', query: { workspaceId: '<workspace_id>' }, body: { input: '@x' } })
+  assert.ok(out.includes('/ci/channels?workspaceId=<workspace_id>'), out)
 })

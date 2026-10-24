@@ -33,13 +33,38 @@ export interface LanguageDef {
 
 const ENV_HINT = 'YOUR_API_KEY'
 
+/**
+ * 경로 변수(`{id}`, `:id`)를 `<id>` 자리표시로 바꾼다
+ * (P0168) 예시 주소에 `/products/:id` 가 그대로 실려 붙여 넣으면 404 였다.
+ * `<id>` 는 그대로 보내면 서버가 거절하는 꼴이라, 바꿔 넣어야 한다는 것이 눈에 보인다
+ */
+export function placeholderPath(path: string): string {
+  return path.replace(/\{(\w+)\}|:(\w+)/g, (_m, a: string | undefined, b: string | undefined) => `<${a ?? b}>`)
+}
+
+/** 쿼리 값의 자리표시(<workspace_id>)는 인코딩하지 않고 그대로 보인다 */
+function encodeQueryValue(v: string): string {
+  return /^<\w+>$/.test(v) ? v : encodeURIComponent(v)
+}
+
 function fullUrl(baseUrl: string, spec: RequestSpec): string {
   const qs = spec.query
     ? Object.entries(spec.query)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeQueryValue(v)}`)
         .join('&')
     : ''
-  return qs ? `${baseUrl}${spec.path}?${qs}` : `${baseUrl}${spec.path}`
+  const path = placeholderPath(spec.path)
+  return qs ? `${baseUrl}${path}?${qs}` : `${baseUrl}${path}`
+}
+
+/** 셸의 작은따옴표 문자열 안에 넣을 수 있게 */
+function shellQuoted(s: string): string {
+  return `'${s.replace(/'/g, `'\\''`)}'`
+}
+
+/** Java C# 의 큰따옴표 문자열 리터럴 안에 넣을 수 있게, 역슬래시를 먼저 */
+function cStringBody(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
 function jsonBody(body: unknown, indent = 2): string {
@@ -51,11 +76,12 @@ function toCurl(spec: RequestSpec, baseUrl: string): string {
   const url = fullUrl(baseUrl, spec)
   const lines: string[] = []
   const methodFlag = spec.method === 'GET' ? '' : `-X ${spec.method} `
-  lines.push(`curl ${methodFlag}${url} \\`)
+  // 주소를 따옴표로 감싼다, & 와 <id> 가 셸에서 다른 뜻이 된다
+  lines.push(`curl ${methodFlag}"${url}" \\`)
   lines.push(`  -H "X-API-Key: $AX_API_KEY"${spec.body ? ' \\' : ''}`)
   if (spec.body) {
     lines.push('  -H "Content-Type: application/json" \\')
-    lines.push(`  -d '${jsonBody(spec.body, 0)}'`)
+    lines.push(`  -d ${shellQuoted(jsonBody(spec.body, 0))}`)
   }
   return lines.join('\n')
 }
@@ -173,7 +199,7 @@ function toPHP(spec: RequestSpec, baseUrl: string): string {
     `curl_setopt($ch, CURLOPT_CUSTOMREQUEST, '${spec.method}');`,
     `curl_setopt($ch, CURLOPT_HTTPHEADER, [${headers.join(', ')}]);`,
   ]
-  if (hasBody) lines.push(`curl_setopt($ch, CURLOPT_POSTFIELDS, '${jsonBody(spec.body, 0)}');`)
+  if (hasBody) lines.push(`curl_setopt($ch, CURLOPT_POSTFIELDS, '${jsonBody(spec.body, 0).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}');`)
   lines.push(`$response = curl_exec($ch);`)
   lines.push(`curl_close($ch);`)
   lines.push(`$data = json_decode($response, true)['data'];`)
@@ -185,7 +211,7 @@ function toJava(spec: RequestSpec, baseUrl: string): string {
   const url = fullUrl(baseUrl, spec)
   const hasBody = spec.body !== undefined
   const bodyPublisher = hasBody
-    ? `HttpRequest.BodyPublishers.ofString("${jsonBody(spec.body, 0).replace(/"/g, '\\"')}")`
+    ? `HttpRequest.BodyPublishers.ofString("${cStringBody(jsonBody(spec.body, 0))}")`
     : `HttpRequest.BodyPublishers.noBody()`
   const lines = [
     `import java.net.URI;`,
@@ -217,7 +243,7 @@ function toCSharp(spec: RequestSpec, baseUrl: string): string {
   ]
   if (hasBody) {
     lines.push(`request.Content = new StringContent(`)
-    lines.push(`    "${jsonBody(spec.body, 0).replace(/"/g, '\\"')}",`)
+    lines.push(`    "${cStringBody(jsonBody(spec.body, 0))}",`)
     lines.push(`    System.Text.Encoding.UTF8, "application/json");`)
   }
   lines.push(`var res = await client.SendAsync(request);`)

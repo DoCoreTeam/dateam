@@ -383,3 +383,59 @@ test('★ 커서를 읽는 목록만 커서를 적는다 (GPU 목록은 고정 �
   assert.match(contents, /readCiListCursor\(/)
   assert.ok((byId('ci.contents.list').query ?? []).some((q) => q.name === 'cursor'), '게시물 목록이 cursor 를 읽는데 문서에 없다')
 })
+
+/* ── P0168: 코드 예시 본문의 키가 라우트가 실제로 읽는 칸 안에 있다 ───────────────────── */
+
+/** 본문 키 전부, 줄 목록(items[]) 안의 칸까지 */
+function exampleKeys(v: unknown, out: string[] = []): string[] {
+  if (Array.isArray(v)) v.forEach((x) => exampleKeys(x, out))
+  else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) { out.push(k); exampleKeys(x, out) }
+  return out
+}
+
+/** 구 CRM 라우트는 zod 대신 ALLOWED_FIELDS 목록으로 거른다, 그 목록 밖의 칸은 버려진다 */
+function allowedFieldsOf(whole: string): string[] {
+  const list = /const ALLOWED_FIELDS = \[([\s\S]*?)\]/.exec(whole)?.[1] ?? ''
+  return [...list.matchAll(/'(\w+)'/g)].map((m) => m[1])
+}
+
+test('★ 코드 예시 본문의 키가 라우트가 읽는 칸(zod 스키마, ALLOWED_FIELDS, 서비스 입력) 안에 있다', () => {
+  const checked: string[] = []
+  const ghost: string[] = []
+  for (const e of ENDPOINTS) {
+    if (!e.bodyExample) continue
+    const h = handlerOf(e.path, e.method)
+    assert.ok(h, `${e.id} 의 처리기를 못 찾았다, 예시 본문을 대조할 수 없다`)
+    const keys = new Set([...bodyKeysOf(h), ...allowedFieldsOf(h.whole)])
+    assert.ok(keys.size > 0, `${h.file} ${e.method} 에서 읽는 본문 칸을 못 찾았다`)
+    checked.push(e.id)
+    for (const k of exampleKeys(e.bodyExample)) if (!keys.has(k)) ghost.push(`${e.id}: ${k}`)
+    // 문서 표가 있으면 예시도 그 표 안의 이름만 쓴다(줄 안의 칸은 items 설명이 맡는다)
+    if (e.body?.length) {
+      const doc = new Set(e.body.map((b) => b.name))
+      for (const k of Object.keys(e.bodyExample)) if (!doc.has(k)) ghost.push(`${e.id}: ${k} (문서 표에 없음)`)
+    }
+  }
+  assert.ok(checked.length >= 20, `예시 본문을 대조한 창구가 너무 적다(${checked.length})`)
+  assert.deepEqual(ghost, [], '예시 본문에 라우트가 안 읽는 칸이 있다, 붙여 넣어도 버려진다:\n  ' + ghost.join('\n  '))
+})
+
+test('★ 만들기(POST) 예시는 문서의 필수 본문 칸을 전부 싣는다', () => {
+  const lacking: string[] = []
+  let checked = 0
+  for (const e of ENDPOINTS) {
+    if (e.method !== 'POST' || !e.body?.length) continue
+    checked++
+    for (const b of e.body) if (b.required && !(b.name in (e.bodyExample ?? {}))) lacking.push(`${e.id}: ${b.name}`)
+  }
+  assert.ok(checked >= 10, `대조한 만들기 창구가 너무 적다(${checked})`)
+  assert.deepEqual(lacking, [], '필수 칸이 빠진 예시는 400 이다:\n  ' + lacking.join('\n  '))
+})
+
+test('★ 필수 쿼리가 있는 창구는 예시 쿼리에 그 이름을 싣는다', () => {
+  const lacking: string[] = []
+  for (const e of ENDPOINTS) {
+    for (const q of e.query ?? []) if (q.required && !(q.name in (e.queryExample ?? {}))) lacking.push(`${e.id}: ${q.name}`)
+  }
+  assert.deepEqual(lacking, [], '필수 쿼리가 빠진 예시는 400 이다:\n  ' + lacking.join('\n  '))
+})

@@ -34,7 +34,7 @@ import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
 import CodeBlock from './CodeBlock'
 import {
-  API_GROUPS, endpointsOf, REQUIRES_LABEL, CATALOG_NOTE,
+  API_GROUPS, endpointsOf, REQUIRES_LABEL, CATALOG_NOTE, requestSpecOf,
   type ApiGroupKey, type ApiEndpoint, type ApiParam,
 } from '@/lib/api-docs/registry'
 
@@ -160,7 +160,7 @@ function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
       <CodeTabs
         id={e.id}
         baseUrl={baseUrl}
-        spec={{ method: e.method, path: e.path.replace(/\{(\w+)\}/g, ':$1') }}
+        spec={requestSpecOf(e)}
         onCopy={onCopy}
         copiedId={copiedId}
       />

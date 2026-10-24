@@ -20,7 +20,7 @@
  * 새 엔드포인트를 만들면 **여기 등재하기 전까지 `pnpm test` 가 통과하지 않는다.**
  */
 
-import type { HttpMethod } from './snippets.ts'
+import type { HttpMethod, RequestSpec } from './snippets.ts'
 import { SERVICE_LABEL, API_CLI_DOC, API_APPROVAL_STATUS } from '../terms/index.ts'
 import { SUPPLY_ROUNDING_UNITS } from '../crm/domain/quote-compose.ts'
 import { CRM_ERROR_HTTP } from '../crm/domain/errors.ts'
@@ -112,6 +112,15 @@ export interface ApiEndpoint {
   deprecatedNote?: string
   query?: ApiParam[]
   body?: ApiParam[]
+  /**
+   * 코드 예시에 싣는 본문. 본문을 받는 창구(POST, PATCH)는 반드시 적는다
+   * (P0168) 예시가 메서드와 경로만 실어 POST 를 그대로 붙여 넣으면 400 이었다.
+   * 키는 라우트가 실제로 읽는 칸 안에 있어야 한다(registry.test.ts 가 대조), 값은 지어낸 것만 쓰고
+   * 앞선 응답에서 얻어야 하는 id 는 <company_id> 꼴 자리표시로 둔다
+   */
+  bodyExample?: Record<string, unknown>
+  /** 코드 예시에 싣는 쿼리. 필수 쿼리가 있는 창구만 적는다 */
+  queryExample?: Record<string, string>
   /** 응답 예시(JSON 문자열). 없으면 공통 봉투만 보여 준다 */
   sample?: string
   response?: ApiResponseDoc
@@ -156,12 +165,15 @@ const DELETE_MODE_QUERY: ApiParam = {
 }
 
 /** 회사 인물 딜은 고치기와 지우기의 모양이 같다 */
-function crmEditAndDelete(path: string, idBase: string, word: string, body: ApiParam[]): ApiEndpoint[] {
+function crmEditAndDelete(
+  path: string, idBase: string, word: string, body: ApiParam[], bodyExample: Record<string, unknown>,
+): ApiEndpoint[] {
   return [
     gateway({
       id: `${idBase}.update`, group: 'crm', method: 'PATCH', path, scope: 'write',
       requires: 'crm-member', title: `${word} 수정`, desc: '보낸 칸만 고칩니다. 소유자는 여기서 바꾸지 않습니다.',
       body: [VERSION_BODY, ...body],
+      bodyExample: { version: 3, ...bodyExample },
     }),
     gateway({
       id: `${idBase}.delete`, group: 'crm', method: 'DELETE', path, scope: 'delete',
@@ -231,6 +243,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
         desc: '{ product_id, quantity, custom_margin_pct } 목록, 1줄 이상 50줄 이하. product_id 는 구성 id(uuid), quantity 는 1 이상 10000 이하 정수, custom_margin_pct 는 그 줄에만 적용할 마진(%)으로 0 이상 200 이하이고 없으면 기본 판매가입니다' },
       { name: 'currency', type: '"USD" | "KRW"', desc: '견적 통화. 기본 USD' },
     ],
+    bodyExample: { items: [{ product_id: '<product_id>', quantity: 4, custom_margin_pct: 15 }], currency: 'KRW' },
   },
   {
     id: 'gpu.inventory.list', group: 'gpu', method: 'GET', path: '/inventory', status: 'stable',
@@ -255,6 +268,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       { name: 'location', type: 'string', desc: '위치' },
       { name: 'contact', type: 'string', desc: '연락처' },
     ],
+    bodyExample: { name: '예시 공급사', location: '경기 성남', contact: 'sales@example.com' },
   },
   {
     id: 'gpu.market.list', group: 'gpu', method: 'GET', path: '/market', status: 'stable',
@@ -268,6 +282,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
     id: 'gpu.settings.update', group: 'gpu', method: 'PATCH', path: '/settings', status: 'stable',
     requires: 'admin', title: '가격 설정 변경', desc: '기본 마진을 바꿉니다. 바꾼 사람은 감사 기록에 남습니다.',
     body: [{ name: 'margin_pct', type: 'number', required: true, desc: '기본 마진(%)' }],
+    bodyExample: { margin_pct: 18 },
   },
   {
     id: 'gpu.poolStock.list', group: 'gpu', method: 'GET', path: '/pool-stock', status: 'stable',
@@ -282,6 +297,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       { name: 'sell_price_krw', type: 'number', desc: '함께 바꿀 판매가(원). 없으면 판매가는 그대로입니다' },
       { name: 'note', type: 'string', desc: '메모' },
     ],
+    bodyExample: { product_id: '<product_id>', pool_qty: 12, sell_price_krw: 4200000, note: '11월 입고분' },
   },
 
   /* ── 영업 CRM (신규) ───────────────────────────────────────────────────── */
@@ -353,6 +369,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       file: 'JSON 봉투 대신 파일 본문이 옵니다. Content-Type 은 application/pdf 또는 image/png 이고, '
         + '파일 이름은 Content-Disposition 에 견적 번호로 실립니다. 오류일 때만 공통 봉투로 옵니다.',
     },
+    queryExample: { format: 'pdf' },
   },
   {
     id: 'crm.tasks.list', group: 'crm', method: 'GET', path: '/crm/tasks', status: 'stable',
@@ -364,20 +381,25 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
     id: 'crm.companies.create', group: 'crm', method: 'POST', path: '/crm/companies', scope: 'write',
     requires: 'crm-member', title: '새 회사', desc: '회사를 만듭니다. 키 주인이 소유자가 됩니다.',
     body: COMPANY_BODY,
+    bodyExample: { name: '예시테크', domain: 'example.com', industry: '제조', region: '서울' },
   }),
-  ...crmEditAndDelete('/crm/companies/{id}', 'crm.companies', '회사', optional(COMPANY_BODY)),
+  ...crmEditAndDelete('/crm/companies/{id}', 'crm.companies', '회사', optional(COMPANY_BODY), { industry: '반도체' }),
   gateway({
     id: 'crm.people.create', group: 'crm', method: 'POST', path: '/crm/people', scope: 'write',
     requires: 'crm-member', title: '새 인물', desc: '인물을 만듭니다.',
     body: PERSON_BODY,
+    bodyExample: { name: '홍길동', companyId: '<company_id>', email: 'gildong@example.com', title: '구매팀장' },
   }),
-  ...crmEditAndDelete('/crm/people/{id}', 'crm.people', '인물', optional(PERSON_BODY)),
+  ...crmEditAndDelete('/crm/people/{id}', 'crm.people', '인물', optional(PERSON_BODY), { title: '구매이사' }),
   gateway({
     id: 'crm.deals.create', group: 'crm', method: 'POST', path: '/crm/deals', scope: 'write',
     requires: 'crm-member', title: '새 딜', desc: '딜을 만듭니다.',
     body: DEAL_BODY,
+    bodyExample: {
+      companyId: '<company_id>', name: 'H100 8대 도입', amountMinor: 250000000, currency: 'KRW', expectedCloseDate: '2026-12-31',
+    },
   }),
-  ...crmEditAndDelete('/crm/deals/{id}', 'crm.deals', '딜', optional(DEAL_BODY)),
+  ...crmEditAndDelete('/crm/deals/{id}', 'crm.deals', '딜', optional(DEAL_BODY), { expectedCloseDate: '2027-01-15' }),
   gateway({
     id: 'crm.meetings.create', group: 'crm', method: 'POST', path: '/crm/meetings', scope: 'write',
     requires: 'crm-member', title: '새 미팅', desc: '미팅 기록을 만듭니다. 제목과 시작 시각이 없으면 400 입니다.',
@@ -390,6 +412,10 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       { name: 'location', type: 'string', desc: '장소' },
       { name: 'withNote', type: 'boolean', desc: 'true 면 회의노트도 함께 만듭니다' },
     ],
+    bodyExample: {
+      title: '도입 일정 협의', startedAt: '2026-11-03T10:00:00+09:00', endedAt: '2026-11-03T11:00:00+09:00',
+      companyId: '<company_id>', location: '고객사 회의실', withNote: true,
+    },
   }),
   gateway({
     id: 'crm.quotes.create', group: 'crm', method: 'POST', path: '/crm/quotes', scope: 'write',
@@ -402,6 +428,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       { name: 'notesMd', type: 'string', desc: '비고(마크다운)' },
       { name: 'lines', type: 'object[]', desc: '품목 줄. 칸은 견적 상세 응답의 줄과 같습니다' },
     ],
+    bodyExample: { dealId: '<deal_id>', title: 'H100 8대 견적', currency: 'KRW', validUntil: '2026-11-30', notesMd: '납기는 발주 후 4주입니다' },
   }),
   gateway({
     id: 'crm.tasks.create', group: 'crm', method: 'POST', path: '/crm/tasks', scope: 'write',
@@ -414,6 +441,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       { name: 'personId', type: 'string', desc: '인물 id' },
       { name: 'dealId', type: 'string', desc: '딜 id' },
     ],
+    bodyExample: { title: '견적서 보내기', dueAt: '2026-11-05T18:00:00+09:00', dealId: '<deal_id>' },
   }),
 
   /* ── 콘텐츠 인텔리전스 ─────────────────────────────────────────────────── */
@@ -437,6 +465,8 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       { name: 'topicId', type: 'string', desc: '묶을 주제 id' },
       { name: 'monitor', type: 'boolean', desc: '바로 모니터링할지. 기본 true' },
     ],
+    queryExample: { workspaceId: '<workspace_id>' },
+    bodyExample: { input: '@example_channel', monitor: true },
   }),
   {
     id: 'ci.contents.list', group: 'ci', method: 'GET', path: '/ci/contents', status: 'stable',
@@ -492,9 +522,18 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   },
 
   /* ── 이관 중(구 CRM) ──────────────────────────────────────────────────── */
-  ...legacyCrm('accounts', '거래처', '회사', 'crm.companies.list', '/crm/companies'),
-  ...legacyCrm('contacts', '담당자', '인물', 'crm.people.list', '/crm/people'),
-  ...legacyCrm('deals', '영업기회', '딜', 'crm.deals.list', '/crm/deals'),
+  ...legacyCrm('accounts', '거래처', '회사', 'crm.companies.list', '/crm/companies', {
+    create: { name: '예시테크', industry: '제조', region: '서울', website: 'https://example.com' },
+    update: { region: '경기' },
+  }),
+  ...legacyCrm('contacts', '담당자', '인물', 'crm.people.list', '/crm/people', {
+    create: { name: '홍길동', account_id: '<account_id>', title: '구매팀장', email: 'gildong@example.com' },
+    update: { title: '구매이사' },
+  }),
+  ...legacyCrm('deals', '영업기회', '딜', 'crm.deals.list', '/crm/deals', {
+    create: { title: 'H100 8대 도입', account_id: '<account_id>', value: 250000000 },
+    update: { next_action: '견적서 보내기', next_action_date: '2026-11-05' },
+  }),
 ]
 
 /**
@@ -505,6 +544,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
  */
 function legacyCrm(
   table: string, oldWord: string, newWord: string, newId: string, newPath: string,
+  examples: { create: Record<string, unknown>; update: Record<string, unknown> },
 ): ApiEndpoint[] {
   const note = `구 화면(/${table})의 표입니다. 새 코드는 「${newWord}」(${newPath})를 쓰세요 — 「${oldWord}」는 폐기된 말입니다.`
   return [
@@ -517,11 +557,13 @@ function legacyCrm(
         { name: 'dir', type: '"asc" | "desc"', desc: '정렬 방향' },
       ] },
     { id: `legacy.${table}.create`, group: 'legacy', method: 'POST', path: `/${table}`, status: 'deprecated',
-      requires: 'admin', deprecatedNote: note, title: `${oldWord} 생성`, desc: '만든 사람이 소유자가 됩니다.' },
+      requires: 'admin', deprecatedNote: note, title: `${oldWord} 생성`, desc: '만든 사람이 소유자가 됩니다.',
+      bodyExample: examples.create },
     { id: `legacy.${table}.get`, group: 'legacy', method: 'GET', path: `/${table}/{id}`, status: 'deprecated',
       requires: 'admin', deprecatedNote: note, title: `${oldWord} 상세`, desc: '단건 조회.' },
     { id: `legacy.${table}.update`, group: 'legacy', method: 'PATCH', path: `/${table}/{id}`, status: 'deprecated',
-      requires: 'admin', deprecatedNote: note, title: `${oldWord} 수정`, desc: '단건 수정.' },
+      requires: 'admin', deprecatedNote: note, title: `${oldWord} 수정`, desc: '단건 수정.',
+      bodyExample: examples.update },
     { id: `legacy.${table}.delete`, group: 'legacy', method: 'DELETE', path: `/${table}/{id}`, status: 'deprecated',
       requires: 'admin', deprecatedNote: note, title: `${oldWord} 삭제`, desc: '단건 삭제. 되돌릴 수 없습니다.' },
   ]
@@ -530,6 +572,19 @@ function legacyCrm(
 /** 화면이 묶음별로 그릴 때 쓴다 — 순서는 ENDPOINTS 선언 순서 그대로다 */
 export function endpointsOf(group: ApiGroupKey): ApiEndpoint[] {
   return ENDPOINTS.filter((e) => e.group === group)
+}
+
+/**
+ * 코드 예시가 받는 요청 명세. 화면과 snippets.test.ts 가 같은 함수를 지난다
+ * 경로 변수는 그대로 넘기고 자리표시(<id>)로 바꾸는 일은 snippets.ts 가 한 곳에서 한다
+ */
+export function requestSpecOf(e: ApiEndpoint): RequestSpec {
+  return {
+    method: e.method,
+    path: e.path,
+    ...(e.queryExample ? { query: e.queryExample } : {}),
+    ...(e.bodyExample ? { body: e.bodyExample } : {}),
+  }
 }
 
 /** `/crm/companies/{id}` → `/crm/companies/:id` (라우트 파일 경로 대조용) */
