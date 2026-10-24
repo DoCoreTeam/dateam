@@ -97,7 +97,7 @@ export interface ApiEndpoint {
   title: string
   desc: string
   /**
-   * 필요한 권한 — 없으면 살아 있는 키면 된다.
+   * 필요한 권한, 없으면 살아 있는 키면 된다.
    * 라우트가 부르는 인증 함수와 같아야 한다(registry.test.ts 가 대조): requireAdminKey 는 admin,
    * requireMemberKey 는 member(api_user 키 거절), withPublicCrmApi 는 crm-member, withPublicCiList 는 ci-member
    */
