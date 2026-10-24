@@ -111,3 +111,16 @@ pnpm build:win    # dist/teamda.exe for Windows x64
 ```
 
 Run them inside `packages/teamda-cli`. `dist/` is ignored by git.
+
+## Release
+
+```sh
+pnpm release:dry  # build windows-x64 darwin-arm64 darwin-x64 linux-x64, pack, print sha256, upload nothing
+pnpm release      # same, then upload to the private bucket cli-release and replace latest.json last
+```
+
+- The version is `version` in this package.json; files go to `v<version>/teamda-<target>.zip|tar.gz`
+- An existing file of the same version is refused; `bun --env-file=../../apps/web/.env.local scripts/publish.ts --force` replaces it
+- Upload reads `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from the environment and never prints the key
+- People download through the developer center CLI section or `teamda release`, both call `GET /api/cli/release` and get 600 second signed links
+- The binaries are not code signed; Windows SmartScreen and macOS Gatekeeper warn on first run
