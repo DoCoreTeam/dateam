@@ -95,8 +95,12 @@ export interface ApiEndpoint {
   path: string
   title: string
   desc: string
-  /** 필요한 권한 — 없으면 살아 있는 키면 된다 */
-  requires?: 'admin' | 'crm-member' | 'ci-member'
+  /**
+   * 필요한 권한 — 없으면 살아 있는 키면 된다.
+   * 라우트가 부르는 인증 함수와 같아야 한다(registry.test.ts 가 대조): requireAdminKey 는 admin,
+   * requireMemberKey 는 member(api_user 키 거절), withPublicCrmApi 는 crm-member, withPublicCiList 는 ci-member
+   */
+  requires?: 'admin' | 'member' | 'crm-member' | 'ci-member'
   status: 'stable' | 'deprecated'
   /** 왜 이관 중인지 — deprecated 면 반드시 적는다 */
   deprecatedNote?: string
@@ -121,74 +125,81 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   {
     id: 'gpu.products.list', group: 'gpu', method: 'GET', path: '/products', status: 'stable',
     demo: { emoji: '📦' },
-    title: 'GPU 목록', desc: '취급 중인 GPU 구성과 우리 판매가. 내부 가격표와 같은 계산(getGpuCatalog)을 씁니다.',
-    query: [{ name: 'cursor', type: 'string', desc: '이어 보기 커서' }],
+    requires: 'member',
+    title: 'GPU 목록', desc: '취급 중인 GPU 구성과 우리 판매가. 내부 가격표와 같은 계산(getGpuCatalog)을 씁니다. 고정된 목록이라 커서 없이 한 번에 전부 주고, meta.total 이 전체 수입니다.',
     sample: `{
   "success": true,
   "data": [
     { "id": "…", "model_name": "H100 SXM", "memory": "80GB", "gpu_count": 8,
       "price_per_unit_krw": 4200000, "price_per_unit_usd": 2800.0, "available": true }
   ],
-  "meta": { "total": 88, "nextCursor": null, "hasMore": false }
+  "meta": { "total": 88, "currency": "USD", "fx_usd_krw": 1380.5 }
 }`,
   },
   {
     id: 'gpu.products.get', group: 'gpu', method: 'GET', path: '/products/{id}', status: 'stable',
-    title: 'GPU 상세', desc: '구성 하나의 스펙·가격·공급 상태.',
+    requires: 'member', title: 'GPU 상세', desc: '구성 하나의 스펙·가격·공급 상태.',
   },
   {
     id: 'gpu.quote.create', group: 'gpu', method: 'POST', path: '/quote', status: 'stable',
     demo: { emoji: '🧮', needs: 'gpu-product-id', body: { items: [{ quantity: 4 }], currency: 'KRW' } },
-    title: '견적 계산', desc: '구성과 수량으로 견적을 계산합니다. 마진·통화를 지정할 수 있습니다.',
+    requires: 'member',
+    title: '견적 계산', desc: '구성과 수량으로 견적을 계산합니다. 아무것도 저장하지 않습니다. 줄마다 마진을 따로 지정할 수 있습니다.',
     body: [
-      { name: 'items', type: 'array', required: true, desc: '{ product_id, quantity } 목록' },
-      { name: 'currency', type: '"KRW" | "USD"', desc: '견적 통화. 기본 KRW' },
-      { name: 'margin_pct', type: 'number', desc: '이 견적에만 적용할 마진(%)' },
+      { name: 'items', type: 'array', required: true,
+        desc: '{ product_id, quantity, custom_margin_pct } 목록, 1줄 이상 50줄 이하. product_id 는 구성 id(uuid), quantity 는 1 이상 10000 이하 정수, custom_margin_pct 는 그 줄에만 적용할 마진(%)으로 0 이상 200 이하이고 없으면 기본 판매가입니다' },
+      { name: 'currency', type: '"USD" | "KRW"', desc: '견적 통화. 기본 USD' },
     ],
   },
   {
     id: 'gpu.inventory.list', group: 'gpu', method: 'GET', path: '/inventory', status: 'stable',
     demo: { emoji: '🏭' },
-    title: '재고', desc: 'Tier 별 재고 수량.',
+    requires: 'member', title: '재고', desc: 'Tier 별 재고 수량.',
   },
   {
     id: 'gpu.fx.list', group: 'gpu', method: 'GET', path: '/fx', status: 'stable',
     demo: { emoji: '💱' },
-    title: '환율', desc: 'USD/KRW 환율 이력(최근 7일). 가격 계산에 쓰인 값과 같습니다.',
+    requires: 'member', title: '환율', desc: 'USD/KRW 환율 이력(최근 7일). 가격 계산에 쓰인 값과 같습니다.',
   },
   {
     id: 'gpu.suppliers.list', group: 'gpu', method: 'GET', path: '/suppliers', status: 'stable',
     demo: { emoji: '🏢' },
-    title: '공급사 목록', desc: '등록된 공급사.',
+    requires: 'member', title: '공급사 목록', desc: '등록된 공급사.',
   },
   {
     id: 'gpu.suppliers.create', group: 'gpu', method: 'POST', path: '/suppliers', status: 'stable',
-    title: '공급사 등록', desc: '새 공급사를 등록합니다.',
-    body: [{ name: 'name', type: 'string', required: true, desc: '공급사 이름' }],
+    requires: 'admin', title: '공급사 등록', desc: '새 공급사를 등록합니다.',
+    body: [
+      { name: 'name', type: 'string', required: true, desc: '공급사 이름' },
+      { name: 'location', type: 'string', desc: '위치' },
+      { name: 'contact', type: 'string', desc: '연락처' },
+    ],
   },
   {
     id: 'gpu.market.list', group: 'gpu', method: 'GET', path: '/market', status: 'stable',
-    title: '경쟁사 시세', desc: '수집된 경쟁사 가격 관측치.',
+    requires: 'member', title: '경쟁사 시세', desc: '수집된 경쟁사 가격 관측치.',
   },
   {
     id: 'gpu.settings.get', group: 'gpu', method: 'GET', path: '/settings', status: 'stable',
-    title: '가격 설정 조회', desc: '기본 마진과 가격 전략 설정.',
+    requires: 'member', title: '가격 설정 조회', desc: '기본 마진과 가격 전략 설정.',
   },
   {
     id: 'gpu.settings.update', group: 'gpu', method: 'PATCH', path: '/settings', status: 'stable',
-    title: '가격 설정 변경', desc: '기본 마진을 바꿉니다. 바꾼 사람은 감사 기록에 남습니다.',
+    requires: 'admin', title: '가격 설정 변경', desc: '기본 마진을 바꿉니다. 바꾼 사람은 감사 기록에 남습니다.',
     body: [{ name: 'margin_pct', type: 'number', required: true, desc: '기본 마진(%)' }],
   },
   {
     id: 'gpu.poolStock.list', group: 'gpu', method: 'GET', path: '/pool-stock', status: 'stable',
-    title: '풀 재고 조회', desc: 'Tier 3 풀 재고 수량.',
+    requires: 'member', title: '풀 재고 조회', desc: 'Tier 3 풀 재고 수량.',
   },
   {
     id: 'gpu.poolStock.update', group: 'gpu', method: 'POST', path: '/pool-stock', status: 'stable',
-    title: '풀 재고 갱신', desc: '풀 재고 수량을 갱신합니다.',
+    requires: 'admin', title: '풀 재고 갱신', desc: '풀 재고 수량을 갱신합니다. 바꾼 사람은 감사 기록에 남습니다.',
     body: [
       { name: 'product_id', type: 'string', required: true, desc: '대상 구성 id' },
-      { name: 'quantity', type: 'number', required: true, desc: '수량' },
+      { name: 'pool_qty', type: 'number', required: true, desc: '풀 재고 수량. 정수로 반올림하고 0 보다 작으면 0 으로 저장합니다' },
+      { name: 'sell_price_krw', type: 'number', desc: '함께 바꿀 판매가(원). 없으면 판매가는 그대로입니다' },
+      { name: 'note', type: 'string', desc: '메모' },
     ],
   },
 
@@ -276,7 +287,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
     requires: 'ci-member', title: '채널 목록', desc: '모니터링 중인 채널.',
     query: [
       { name: 'workspace', type: 'string', desc: '워크스페이스 id. 속한 곳이 하나면 생략할 수 있습니다' },
-      { name: 'ownership', type: '"mine" | "market"', desc: '내 채널만 / 시장만' },
+      { name: 'ownership', type: '"owned" | "tracked"', desc: 'owned 는 우리 채널만, tracked 는 추적하는 다른 채널만. 없으면 둘 다' },
     ],
   },
   {
@@ -288,13 +299,14 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       { name: 'topicId', type: 'string', desc: '주제로 좁히기' },
       { name: 'windowDays', type: 'number', desc: '최근 N일' },
       { name: 'limit', type: 'number', desc: '개수. 기본 20, 최대 100' },
+      { name: 'cursor', type: 'string', desc: '이어 보기 커서. 응답 meta.nextCursor(<first_seen_at>__<uuid> 꼴)를 그대로 넣습니다. 형식이 틀리면 400 이고, 두 번째 쪽부터는 meta.total 을 싣지 않습니다' },
     ],
   },
 
   /* ── 참고 ─────────────────────────────────────────────────────────────── */
   {
     id: 'ref.openapi', group: 'ref', method: 'GET', path: '/openapi.json', status: 'stable',
-    title: 'OpenAPI 스펙', desc: '이 표에서 생성한 OpenAPI 3.1 스펙. 클라이언트 생성기에 그대로 넣을 수 있습니다.',
+    title: 'OpenAPI 스펙', desc: '이 표에서 생성한 OpenAPI 3.1 스펙. 봉투 없이 OpenAPI 문서 그대로(최상위 openapi) 돌려줍니다. 이 주소도 키가 있어야 하므로, 키를 실어 받아 파일로 저장한 뒤 클라이언트 생성기에 넣습니다.',
   },
   {
     id: 'ref.me', group: 'ref', method: 'GET', path: '/me', status: 'stable',
@@ -314,7 +326,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   },
   {
     id: 'ref.approval', group: 'ref', method: 'GET', path: '/approvals/{id}', status: 'stable',
-    title: '승인 요청 상태', desc: '범위 밖 동작이 202 로 돌려준 승인 요청의 상태와 실행 결과. 키 주인의 요청만 보입니다.',
+    requires: 'member', title: '승인 요청 상태', desc: '범위 밖 동작이 202 로 돌려준 승인 요청의 상태와 실행 결과. 키 주인의 요청만 보입니다.',
     response: {
       fields: [
         { name: 'id', type: 'string', desc: '승인 요청 id. 202 응답에 실린 값입니다' },
@@ -340,18 +352,16 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
 /**
  * 구 CRM 3리소스는 모양이 같다 — 손으로 15줄씩 세 번 적으면 하나만 고치게 된다.
  *
- * 수정·삭제는 **본인이 만든 것이거나 관리자**만 할 수 있다. 이건 우리가 정한 규칙이 아니라
- * DB 의 RLS(`*_update_own`·`*_delete_own`)를 앱이 그대로 다시 지키는 것이다 —
- * 공개 API 는 서비스 롤로 돌아 RLS 를 우회하기 때문이다.
+ * 조회까지 전부 관리자 키만 부를 수 있다, 라우트가 모든 처리기에서 requireAdminKey 를 부른다
+ * (내부 창구가 requireAdminApi 라서 키도 같은 선을 지킨다)
  */
 function legacyCrm(
   table: string, oldWord: string, newWord: string, newId: string, newPath: string,
 ): ApiEndpoint[] {
   const note = `구 화면(/${table})의 표입니다. 새 코드는 「${newWord}」(${newPath})를 쓰세요 — 「${oldWord}」는 폐기된 말입니다.`
-  const owner = '본인이 만든 항목이거나 관리자만 할 수 있습니다.'
   return [
     { id: `legacy.${table}.list`, group: 'legacy', method: 'GET', path: `/${table}`, status: 'deprecated',
-      deprecatedNote: note, title: `${oldWord} 목록`, desc: `조회는 로그인한 전원이 할 수 있습니다. → ${newId}`,
+      requires: 'admin', deprecatedNote: note, title: `${oldWord} 목록`, desc: `목록 조회. → ${newId}`,
       query: [
         { name: 'search', type: 'string', desc: '이름 검색' },
         { name: 'cursor', type: 'string', desc: '이어 보기 커서' },
@@ -359,13 +369,13 @@ function legacyCrm(
         { name: 'dir', type: '"asc" | "desc"', desc: '정렬 방향' },
       ] },
     { id: `legacy.${table}.create`, group: 'legacy', method: 'POST', path: `/${table}`, status: 'deprecated',
-      deprecatedNote: note, title: `${oldWord} 생성`, desc: '만든 사람이 소유자가 됩니다.' },
+      requires: 'admin', deprecatedNote: note, title: `${oldWord} 생성`, desc: '만든 사람이 소유자가 됩니다.' },
     { id: `legacy.${table}.get`, group: 'legacy', method: 'GET', path: `/${table}/{id}`, status: 'deprecated',
-      deprecatedNote: note, title: `${oldWord} 상세`, desc: '단건 조회.' },
+      requires: 'admin', deprecatedNote: note, title: `${oldWord} 상세`, desc: '단건 조회.' },
     { id: `legacy.${table}.update`, group: 'legacy', method: 'PATCH', path: `/${table}/{id}`, status: 'deprecated',
-      deprecatedNote: note, title: `${oldWord} 수정`, desc: owner },
+      requires: 'admin', deprecatedNote: note, title: `${oldWord} 수정`, desc: '단건 수정.' },
     { id: `legacy.${table}.delete`, group: 'legacy', method: 'DELETE', path: `/${table}/{id}`, status: 'deprecated',
-      deprecatedNote: note, title: `${oldWord} 삭제`, desc: `${owner} 되돌릴 수 없습니다.` },
+      requires: 'admin', deprecatedNote: note, title: `${oldWord} 삭제`, desc: '단건 삭제. 되돌릴 수 없습니다.' },
   ]
 }
 
@@ -408,6 +418,7 @@ export const CATALOG_NOTE = {
  */
 export const REQUIRES_LABEL: Record<NonNullable<ApiEndpoint['requires']>, string> = {
   admin: '관리자 키만 부를 수 있습니다',
+  member: '임직원 키(역할 admin 또는 member)만 부를 수 있습니다. api_user 키는 403 으로 거절됩니다',
   'crm-member': `키를 발급한 계정이 ${SERVICE_LABEL.crm} 멤버여야 합니다`,
   'ci-member': `키를 발급한 계정이 ${SERVICE_LABEL.ci} 워크스페이스 멤버여야 합니다`,
 }

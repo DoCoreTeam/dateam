@@ -159,3 +159,103 @@ test('★ 견적 목록이 공개로 내는 supplyRoundingUnit 을 문서도 적
     && !(QUOTE_PUBLIC_HIDDEN as readonly string[]).includes('supplyRoundingUnit')
   assert.equal(fieldNames('crm.quotes.list').includes('supplyRoundingUnit'), exposed)
 })
+
+/* ── P0164 I04a: 문서의 본문 필드와 권한이 라우트가 실제로 읽고 부르는 것과 같다 ───────── */
+
+/** 주석을 뺀 소스, 주석에 적힌 이름(requireAdminApi 등)은 실행되지 않는다 */
+const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/.*$/gm, '')
+
+/** `/crm/companies/{id}` → `app/api/public/v1/crm/companies/[id]/route.ts` */
+const routeFileOf = (path: string) => `${ROOT}${path.replace(/\{(\w+)\}/g, '[$1]')}/route.ts`
+
+/** 그 메서드의 처리기 몸통. 따로 된 처리기가 없으면(관문이 정의 표로 여는 것) null */
+function handlerOf(path: string, method: string): { file: string; whole: string; body: string } | null {
+  const file = routeFileOf(path)
+  let raw: string
+  try { raw = readFileSync(file, 'utf8') } catch { return null }
+  const whole = stripComments(raw)
+  const start = whole.search(new RegExp(`export async function ${method}\\(`))
+  if (start < 0) return null
+  const next = whole.indexOf('\nexport ', start + 1)
+  return { file, whole, body: whole.slice(start, next < 0 ? undefined : next) }
+}
+
+/** 처리기가 부르는 인증 함수 → 등록부 requires 값. 관리자 게이트가 가장 좁으므로 먼저 본다 */
+function requiresOf(body: string): string | undefined {
+  if (/\brequireAdminKey\(/.test(body)) return 'admin'
+  if (/\bwithPublicCrmApi\(/.test(body)) return 'crm-member'
+  if (/\bwithPublicCi(List|Api)\(/.test(body)) return 'ci-member'
+  if (/\brequireMemberKey\(/.test(body)) return 'member'
+  return undefined
+}
+
+test('★ 보안: 등록부의 권한 설명이 라우트 처리기가 부르는 인증 함수와 같다', () => {
+  const checked: string[] = []
+  const wrong: string[] = []
+  for (const e of ENDPOINTS) {
+    const h = handlerOf(e.path, e.method)
+    if (!h) continue
+    checked.push(e.id)
+    const actual = requiresOf(h.body)
+    if (actual !== e.requires) wrong.push(`${e.id}: 문서 ${e.requires ?? '(없음)'} / 코드 ${actual ?? '(없음)'}`)
+  }
+  assert.ok(checked.length >= 30, `처리기를 찾은 엔드포인트가 너무 적다(${checked.length}), 경로 대조가 깨졌다`)
+  assert.deepEqual(wrong, [], '권한 설명이 코드와 다르다. 문서가 더 느슨하면 사용자가 403 을 맞고, 더 좁으면 쓸 수 있는 것을 못 쓴다:\n  ' + wrong.join('\n  '))
+})
+
+/** 라우트가 읽는 본문 칸: zod 스키마의 키와 body.X 접근 */
+function bodyKeysOf(h: { whole: string; body: string }): Set<string> {
+  const zod = [...h.whole.matchAll(/(\w+):\s*z\./g)].map((m) => m[1])
+  const direct = [...h.body.matchAll(/\bbody\.(\w+)/g)].map((m) => m[1])
+  return new Set([...zod, ...direct])
+}
+
+test('★ 문서의 본문 필드 이름이 라우트가 실제로 읽는 칸 안에 있다', () => {
+  const checked: string[] = []
+  const ghost: string[] = []
+  for (const e of ENDPOINTS) {
+    if (!e.body?.length) continue
+    const h = handlerOf(e.path, e.method)
+    if (!h) continue
+    const keys = bodyKeysOf(h)
+    assert.ok(keys.size > 0, `${h.file} ${e.method} 에서 읽는 본문 칸을 못 찾았다`)
+    checked.push(e.id)
+    for (const b of e.body) if (!keys.has(b.name)) ghost.push(`${e.id}: ${b.name} (코드: ${[...keys].join(', ')})`)
+  }
+  assert.ok(checked.length >= 4, `대조한 엔드포인트가 너무 적다(${checked.length})`)
+  assert.deepEqual(ghost, [], '문서에 적힌 본문 필드를 라우트가 안 읽는다, 보내도 버려진다:\n  ' + ghost.join('\n  '))
+})
+
+test('★ 견적 계산은 줄의 칸과 통화 기본값을 zod 스키마와 같게 적는다', () => {
+  const src = stripComments(readFileSync(`${ROOT}/quote/route.ts`, 'utf8'))
+  const inner = /items:\s*z\.array\(\s*z\.object\(\{([\s\S]*?)\}\)/.exec(src)?.[1] ?? ''
+  const itemKeys = [...inner.matchAll(/(\w+):\s*z\./g)].map((m) => m[1])
+  assert.ok(itemKeys.length > 0, 'items 스키마를 못 찾았다')
+  const e = byId('gpu.quote.create')
+  const items = e.body!.find((b) => b.name === 'items')!
+  // 설명 첫머리의 { ... } 가 줄 모양이다, 문장 뒤쪽에서 이름을 언급한 것은 세지 않는다
+  const shape = (/^\{([^}]*)\}/.exec(items.desc)?.[1] ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  assert.deepEqual(shape.sort(), [...itemKeys].sort(), 'items 설명의 { ... } 가 스키마의 줄 칸과 다르다')
+  const def = /currency:\s*z\.enum\([^)]*\)\.default\('(\w+)'\)/.exec(src)?.[1]
+  assert.ok(def, 'currency 기본값을 못 찾았다')
+  assert.ok(e.body!.find((b) => b.name === 'currency')!.desc.includes(`기본 ${def}`), `currency 기본값은 ${def} 다`)
+})
+
+test('★ 채널 목록의 ownership 값이 도메인 타입과 같다', () => {
+  const types = readFileSync('lib/ci/types.ts', 'utf8')
+  const values = [...(/type CiChannelOwnership = ([^\n]*)/.exec(types)?.[1] ?? '').matchAll(/'(\w+)'/g)].map((m) => m[1])
+  assert.ok(values.length > 0)
+  const ownership = byId('ci.channels.list').query!.find((q) => q.name === 'ownership')!
+  assert.deepEqual([...ownership.type.matchAll(/"(\w+)"/g)].map((m) => m[1]).sort(), values.sort())
+})
+
+test('★ 커서를 읽는 목록만 커서를 적는다 (GPU 목록은 고정 목록, 게시물 목록은 커서)', () => {
+  const products = stripComments(readFileSync(`${ROOT}/products/route.ts`, 'utf8'))
+  const p = byId('gpu.products.list')
+  const productsHasCursor = /cursor/i.test(products)
+  assert.equal((p.query ?? []).some((q) => q.name === 'cursor'), productsHasCursor)
+  assert.equal((p.sample ?? '').includes('nextCursor'), productsHasCursor)
+  const contents = stripComments(readFileSync(`${ROOT}/ci/contents/route.ts`, 'utf8'))
+  assert.match(contents, /readCiListCursor\(/)
+  assert.ok((byId('ci.contents.list').query ?? []).some((q) => q.name === 'cursor'), '게시물 목록이 cursor 를 읽는데 문서에 없다')
+})
