@@ -34601,7 +34601,21 @@
     ],
     "responses": {
      "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
+      "description": "성공, JSON 봉투 대신 파일 본문 (오류일 때만 공통 봉투)",
+      "content": {
+       "application/pdf": {
+        "schema": {
+         "type": "string",
+         "format": "binary"
+        }
+       },
+       "image/png": {
+        "schema": {
+         "type": "string",
+         "format": "binary"
+        }
+       }
+      }
      },
      "202": {
       "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
