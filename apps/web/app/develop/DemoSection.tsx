@@ -10,6 +10,10 @@ import {
   API_GROUPS, DEMO_ENDPOINTS, REQUIRES_LABEL,
   type ApiDemo, type ApiEndpoint,
 } from '@/lib/api-docs/registry'
+import {
+  COPY_FEEDBACK_MS, DEMO, blockedDemoOutcome, demoStatusBadge, describeDemoFailure, interpretDemoResponse,
+  type DemoOutcome,
+} from '@/lib/terms/dev-demo'
 
 function useOrigin(fallback = '') {
   const [origin, setOrigin] = useState(fallback)
@@ -84,27 +88,27 @@ function ProductsResult({ data }: { data: { data?: Product[]; meta?: { total?: n
   const meta = data?.meta
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>GPU 제품 목록</span>
-        <div style={{ display: 'flex', gap: 12 }}>
-          {meta?.total && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>총 {meta.total}개</span>}
-          {meta?.fx_usd_krw && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>환율 {meta.fx_usd_krw.toLocaleString()}원/USD</span>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          {meta?.total != null && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>총 {meta.total}개</span>}
+          {meta?.fx_usd_krw != null && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>환율 {meta.fx_usd_krw.toLocaleString()}원/USD</span>}
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {items.slice(0, 10).map((p, i) => (
-          <div key={p.id ?? i} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 120px 120px 70px', gap: 12, alignItems: 'center', padding: '12px 16px', background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 8, fontSize: 13 }}>
-            <div>
-              <span style={{ fontWeight: 600, color: 'var(--text)' }}>{p.model_name ?? '—'}</span>
+          <div key={p.id ?? i} style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', alignItems: 'center', padding: '12px 16px', background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 8, fontSize: 13 }}>
+            <div style={{ flex: '1 1 160px', ...TEXT_WRAP }}>
+              <span style={{ fontWeight: 600, color: 'var(--text)' }}>{p.model_name ?? DEMO.empty}</span>
               {p.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: 'var(--surface-muted)', borderRadius: 4, color: 'var(--text-muted)' }}>{p.memory}</span>}
-              {p.tier && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--brand)' }}>Tier {p.tier}</span>}
+              {p.tier != null && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--brand)' }}>Tier {p.tier}</span>}
             </div>
-            <div style={{ color: 'var(--text-muted)' }}>{p.gpu_count ? `×${p.gpu_count}` : '—'}</div>
-            <div style={{ color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
-              {p.price_per_unit_usd != null ? `$${p.price_per_unit_usd.toLocaleString()}` : '—'}
+            {p.gpu_count != null && p.gpu_count > 0 && <div style={{ color: 'var(--text-muted)' }}>{`×${p.gpu_count}`}</div>}
+            <div style={{ color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600, ...TEXT_WRAP }}>
+              {p.price_per_unit_usd != null ? `$${p.price_per_unit_usd.toLocaleString()}` : DEMO.empty}
             </div>
-            <div style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>
-              {p.price_per_unit_krw != null ? `₩${p.price_per_unit_krw.toLocaleString()}` : '—'}
+            <div style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12, ...TEXT_WRAP }}>
+              {p.price_per_unit_krw != null ? `₩${p.price_per_unit_krw.toLocaleString()}` : DEMO.empty}
             </div>
             <div>
               <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: p.available ? 'var(--success-bg)' : 'var(--danger-bg)', color: p.available ? 'var(--success)' : 'var(--danger)' }}>
@@ -131,7 +135,7 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>견적서</span>
         {summary?.quoted_at && (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
@@ -155,18 +159,18 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
           <tbody>
             {items.map((item, i) => (
               <tr key={i} style={{ borderTop: 'var(--hairline) solid var(--border-light)' }}>
-                <td className="card-header" style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 500 }}>{item.model_name ?? '—'}</td>
+                <td className="card-header" style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 500, ...TEXT_WRAP }}>{item.model_name ?? DEMO.empty}</td>
                 <td data-label="수량" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>{item.quantity ?? 0}</td>
                 <td data-label="단가" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                   {isKRW && item.unit_price_krw != null ? `₩${item.unit_price_krw.toLocaleString()}` :
-                   item.unit_price_usd != null ? `$${item.unit_price_usd.toLocaleString()}` : '—'}
+                   item.unit_price_usd != null ? `$${item.unit_price_usd.toLocaleString()}` : DEMO.empty}
                 </td>
                 <td data-label="마진" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--warning)' }}>
-                  {item.margin_pct != null ? `${item.margin_pct}%` : '—'}
+                  {item.margin_pct != null ? `${item.margin_pct}%` : DEMO.empty}
                 </td>
                 <td data-label="소계" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
                   {isKRW && item.total_krw != null ? `₩${item.total_krw.toLocaleString()}` :
-                   item.total_usd != null ? `$${item.total_usd.toLocaleString()}` : '—'}
+                   item.total_usd != null ? `$${item.total_usd.toLocaleString()}` : DEMO.empty}
                 </td>
                 <td data-label="가용" style={{ padding: '12px 16px', textAlign: 'center' }}>
                   <span style={{ fontSize: 'var(--fs-2xs)', padding: '2px 7px', borderRadius: 100, background: item.available ? 'var(--success-bg)' : 'var(--danger-bg)', color: item.available ? 'var(--success)' : 'var(--danger)' }}>
@@ -181,14 +185,16 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
 
       {summary && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, padding: '16px 24px', minWidth: 260 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>
-              <span>환율 적용</span>
-              <span style={{ fontFamily: 'monospace' }}>1 USD = ₩{summary.fx_usd_krw?.toLocaleString() ?? '—'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: 'var(--hairline) solid var(--border-light)' }}>
+          <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, padding: '16px 24px', width: 'min(260px, 100%)', maxWidth: '100%', boxSizing: 'border-box' }}>
+            {summary.fx_usd_krw != null && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                <span>환율 적용</span>
+                <span style={{ fontFamily: 'monospace', ...TEXT_WRAP }}>1 USD = ₩{summary.fx_usd_krw.toLocaleString()}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', paddingTop: 10, borderTop: 'var(--hairline) solid var(--border-light)' }}>
               <span style={{ fontWeight: 700, color: 'var(--text)' }}>최종 합계</span>
-              <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: 18, fontFamily: 'monospace' }}>
+              <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: 18, fontFamily: 'monospace', ...TEXT_WRAP }}>
                 {isKRW ? `₩${(summary.total ?? 0).toLocaleString()}` : `$${(summary.subtotal_usd ?? 0).toLocaleString()}`}
               </span>
             </div>
@@ -205,7 +211,7 @@ function InventoryResult({ data }: { data: { data?: InventoryItem[]; meta?: { as
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>재고 현황</span>
         {data?.meta?.as_of && (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
@@ -218,9 +224,9 @@ function InventoryResult({ data }: { data: { data?: InventoryItem[]; meta?: { as
           const pct = Math.round(((item.available_qty ?? 0) / maxQty) * 100)
           return (
             <div key={item.product_id ?? i} style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 8, padding: '12px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13 }}>{item.model_name ?? '—'}</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={TEXT_WRAP}>
+                  <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13 }}>{item.model_name ?? DEMO.empty}</span>
                   {item.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: 'var(--surface-muted)', borderRadius: 4, color: 'var(--text-muted)' }}>{item.memory}</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -264,18 +270,18 @@ function FxResult({ data }: { data: { data?: FxRate[]; meta?: { total?: number }
               const diff = prev?.usd_krw != null && r.usd_krw != null ? r.usd_krw - prev.usd_krw : null
               return (
                 <tr key={r.rate_date ?? i} style={{ borderTop: 'var(--hairline) solid var(--border-light)' }}>
-                  <td className="card-header" style={{ padding: '12px 16px', color: 'var(--text)', fontFamily: 'monospace' }}>{r.rate_date ?? '—'}</td>
+                  <td className="card-header" style={{ padding: '12px 16px', color: 'var(--text)', fontFamily: 'monospace' }}>{r.rate_date ?? DEMO.empty}</td>
                   <td data-label="1 USD = KRW" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
-                    {r.usd_krw != null ? r.usd_krw.toLocaleString('ko-KR', { minimumFractionDigits: 1 }) : '—'}
+                    {r.usd_krw != null ? r.usd_krw.toLocaleString('ko-KR', { minimumFractionDigits: 1 }) : DEMO.empty}
                   </td>
                   <td data-label="변동" style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', fontSize: 'var(--fs-xs)' }}>
                     {diff != null ? (
                       <span style={{ color: diff > 0 ? 'var(--danger)' : diff < 0 ? 'var(--success)' : 'var(--text-muted)' }}>
                         {diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1)}
                       </span>
-                    ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    ) : <span style={{ color: 'var(--text-muted)' }}>{DEMO.empty}</span>}
                   </td>
-                  <td data-label="출처" style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{r.source ?? '—'}</td>
+                  <td data-label="출처" style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', ...TEXT_WRAP }}>{r.source ?? DEMO.empty}</td>
                 </tr>
               )
             })}
@@ -294,12 +300,12 @@ function SuppliersResult({ data }: { data: { data?: Supplier[] } }) {
         <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>공급사 목록</span>
         <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>총 {items.length}개</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(240px, 100%), 1fr))', gap: 10 }}>
         {items.map((s, i) => (
-          <div key={s.id ?? i} style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, padding: '16px 18px' }}>
-            <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14, marginBottom: 4 }}>{s.name ?? '—'}</div>
-            {s.location && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>📍 {s.location}</div>}
-            {s.contact && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>✉️ {s.contact}</div>}
+          <div key={s.id ?? i} style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, padding: '16px 18px', ...TEXT_WRAP }}>
+            <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14, marginBottom: 4 }}>{s.name ?? DEMO.empty}</div>
+            {s.location && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{s.location}</div>}
+            {s.contact && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{s.contact}</div>}
             <div style={{ display: 'flex', gap: 10, fontSize: 12 }}>
               {s.active_quotes != null && (
                 <span style={{ padding: '2px 8px', background: 'var(--brand-soft)', color: 'var(--brand)', borderRadius: 100 }}>
@@ -316,7 +322,7 @@ function SuppliersResult({ data }: { data: { data?: Supplier[] } }) {
 
 function GenericTableResult({ data, title }: { data: { data?: Record<string, unknown>[] }; title: string }) {
   const items = Array.isArray(data?.data) ? data.data : []
-  if (!items.length) return <EmptyState title="결과가 0건입니다" description="다른 데모를 실행하거나 API 키를 확인해 주세요." />
+  if (!items.length) return <EmptyState title={DEMO.emptyResult} description={DEMO.emptyResultHint} />
   const keys = Object.keys(items[0]).slice(0, 7)
   return (
     <div>
@@ -339,7 +345,7 @@ function GenericTableResult({ data, title }: { data: { data?: Record<string, unk
                   // 첫 칸이 카드 제목, 나머지는 모바일에서 키를 레이블로 단다(가로 스크롤 대체)
                   <td key={k} className={ki === 0 ? 'card-header' : undefined} data-label={ki === 0 ? undefined : k}
                     style={{ padding: '8px 12px', color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {String(row[k] ?? '—')}
+                    {String(row[k] ?? DEMO.empty)}
                   </td>
                 ))}
               </tr>
@@ -352,21 +358,18 @@ function GenericTableResult({ data, title }: { data: { data?: Record<string, unk
 }
 
 /**
- * 결과 렌더러 — **분기는 엔드포인트 id 로 한다.**
+ * 결과 렌더러, **분기는 엔드포인트 id 로 한다.**
  *
  * 예전엔 화면에 뜬 한글 라벨의 부분문자열로 골랐다. 라벨을 한 글자만 다듬어도
  * 조용히 raw JSON 으로 떨어지는데 화면은 아무 말도 하지 않는다.
  * id 는 registry 의 안정 식별자라 문구를 바꿔도 안 깨진다.
  */
-function renderDemoResult(e: ApiEndpoint, parsed: Record<string, unknown>) {
-  if (!parsed.success) {
-    return (
-      <ErrorState
-        message={String(parsed.error ?? '요청을 처리하지 못했습니다.')}
-        helpHref="/api-keys"
-        helpLabel="API 키 확인"
-      />
-    )
+function renderDemoResult(e: ApiEndpoint, outcome: DemoOutcome) {
+  const parsed = outcome.body
+  if (outcome.failure || !parsed || parsed.success !== true) {
+    const message = outcome.failure?.message
+      ?? (typeof parsed?.error === 'string' && parsed.error ? parsed.error : DEMO.failedDefault)
+    return <ErrorState message={message} helpHref="/api-keys" helpLabel={DEMO.keyHelp} />
   }
 
   switch (e.id) {
@@ -381,7 +384,7 @@ function renderDemoResult(e: ApiEndpoint, parsed: Record<string, unknown>) {
     case 'gpu.suppliers.list':
       return <SuppliersResult data={parsed as Parameters<typeof SuppliersResult>[0]['data']} />
     default:
-      // 목록은 전부 같은 봉투를 쓴다 — 표 하나로 그리고 제목은 registry 에서 온다
+      // 목록은 전부 같은 봉투를 쓴다, 표 하나로 그리고 제목은 registry 에서 온다
       return <GenericTableResult data={parsed as Parameters<typeof GenericTableResult>[0]['data']} title={e.title} />
   }
 }
@@ -392,32 +395,45 @@ function renderDemoResult(e: ApiEndpoint, parsed: Record<string, unknown>) {
 const METHOD_STATUS: Record<string, StatusKey> = { GET: 'done', POST: 'planned', PATCH: 'note', PUT: 'note', DELETE: 'blocker' }
 
 /**
- * 앞선 응답에서 값을 꺼내 와야 하는 요청 — registry 가 **이름으로** 가리킨 것을 여기서 푼다.
+ * 앞선 응답에서 값을 꺼내 와야 하는 요청, registry 가 **이름으로** 가리킨 것을 여기서 푼다.
  * 표는 순수 데이터라야 한다(서버의 openapi 라우트도 그 파일을 읽는다). 함수는 화면 몫이다.
  */
 async function resolveNeeds(
   need: NonNullable<ApiDemo['needs']>,
   base: string,
   apiKey: string,
-): Promise<Record<string, unknown>> {
+): Promise<{ extra: Record<string, unknown> } | { outcome: DemoOutcome }> {
   if (need === 'gpu-product-id') {
     const res = await fetch(`${base}/products`, { headers: { 'X-API-Key': apiKey } })
-    const json = (await res.json()) as { data?: { id?: string; available?: boolean }[] }
-    const rows = json.data ?? []
+    // 앞 단계가 실패하면 본문을 뒤지기 전에 그 상태를 그대로 보인다 (틀린 키가 「GPU 구성 없음」으로 둔갑하지 않게)
+    const first = await readOutcome(res)
+    if (first.failure) return { outcome: first }
+    const rows = Array.isArray(first.body?.data) ? (first.body.data as { id?: string; available?: boolean }[]) : []
     const pick = rows.find((r) => r.available) ?? rows[0]
-    if (!pick?.id) throw new Error('견적을 낼 GPU 구성을 찾지 못했습니다. 먼저 「GPU 목록」을 실행해 보세요.')
-    return { product_id: pick.id }
+    if (!pick?.id) return { outcome: blockedDemoOutcome(DEMO.noProduct) }
+    return { extra: { product_id: pick.id } }
   }
-  return {}
+  return { extra: {} }
 }
 
+/** 응답을 글로 읽고 판정한다. JSON 이 아니어도 던지지 않는다 */
+async function readOutcome(res: Response): Promise<DemoOutcome> {
+  const text = await res.text().catch(() => '')
+  return interpretDemoResponse(res.status, text, res.headers.get('Retry-After'))
+}
+
+/** 좁은 화면에서 긴 값이 카드를 밀어내지 않게 */
+const TEXT_WRAP = { overflowWrap: 'anywhere', minWidth: 0 } as const
+
+type CopyState = 'idle' | 'copied' | 'failed'
+
 /**
- * 헤더에 실을 수 있는 키인가 — **부르기 전에 본다.**
+ * 헤더에 실을 수 있는 키인가, **부르기 전에 본다.**
  *
  * 실측 v0.7.622: 한글이 섞인 키를 넣고 누르면 브라우저가
  * 「Failed to read the 'headers' property from 'RequestInit': String contains
  * non ISO-8859-1 code point」를 던지고, 그 원문이 그대로 화면에 나갔다.
- * 사용자가 고칠 수 있는 말이 아니다 — 무엇이 잘못됐는지 우리가 말해야 한다.
+ * 사용자가 고칠 수 있는 말이 아니다, 무엇이 잘못됐는지 우리가 말해야 한다.
  */
 function keyProblem(key: string): string | null {
   if (!/^[\x21-\x7E]+$/.test(key)) return '키에 쓸 수 없는 문자가 있습니다. 발급받은 키를 그대로 붙여넣어 주세요.'
@@ -435,7 +451,8 @@ function fillBody(body: Record<string, unknown>, extra: Record<string, unknown>)
 
 export default function DemoSection() {
   const [apiKey, setApiKey] = useState('')
-  const [result, setResult] = useState<Record<string, unknown> | null>(null)
+  const [result, setResult] = useState<DemoOutcome | null>(null)
+  const [copyState, setCopyState] = useState<CopyState>('idle')
   const [loading, setLoading] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [showRaw, setShowRaw] = useState(false)
@@ -443,24 +460,45 @@ export default function DemoSection() {
 
   const active = DEMO_ENDPOINTS.find((e) => e.id === activeId) ?? null
 
+  useEffect(() => {
+    if (copyState !== 'copied') return
+    const t = setTimeout(() => setCopyState('idle'), COPY_FEEDBACK_MS)
+    return () => clearTimeout(t)
+  }, [copyState])
+
+  const rawText = result
+    ? (result.body ? JSON.stringify(result.body, null, 2) : result.text || (result.failure?.message ?? ''))
+    : ''
+
+  const copyResult = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(rawText)
+      setCopyState('copied')
+    } catch {
+      setCopyState('failed')
+    }
+  }, [rawText])
+
   const run = useCallback(async (e: ApiEndpoint) => {
     const demo = e.demo
     if (!demo) return
     if (!apiKey.trim()) {
       setActiveId(e.id)
-      setResult({ success: false, error: 'API 키를 입력해 주세요. 「내 키 관리」에서 발급할 수 있습니다.' })
+      setResult(blockedDemoOutcome(DEMO.keyMissing)); setCopyState('idle')
       return
     }
     const problem = keyProblem(apiKey.trim())
     if (problem) {
       setActiveId(e.id)
-      setResult({ success: false, error: problem })
+      setResult(blockedDemoOutcome(problem)); setCopyState('idle')
       return
     }
-    setLoading(true); setActiveId(e.id); setResult(null); setShowRaw(false)
+    setLoading(true); setActiveId(e.id); setResult(null); setShowRaw(false); setCopyState('idle')
     const base = `${origin}/api/public/v1`
     try {
-      const extra = demo.needs ? await resolveNeeds(demo.needs, base, apiKey) : {}
+      const needed = demo.needs ? await resolveNeeds(demo.needs, base, apiKey) : { extra: {} }
+      if ('outcome' in needed) { setResult(needed.outcome); return }
+      const { extra } = needed
       const qs = demo.query ? `?${new URLSearchParams(demo.query).toString()}` : ''
       const res = await fetch(`${base}${e.path}${qs}`, {
         method: e.method,
@@ -470,15 +508,17 @@ export default function DemoSection() {
         },
         body: demo.body ? JSON.stringify(fillBody(demo.body, extra)) : undefined,
       })
-      setResult(await res.json())
-    } catch (err) {
-      setResult({ success: false, error: err instanceof Error ? err.message : String(err) })
+      setResult(await readOutcome(res))
+    } catch {
+      // fetch 자체가 실패: 서버에 닿지 않았다. 브라우저 원문은 사용자가 고칠 수 있는 말이 아니다
+      const failure = describeDemoFailure(0, false)
+      setResult({ status: null, body: null, text: '', failure })
     } finally {
       setLoading(false)
     }
   }, [apiKey, origin])
 
-  /** 버튼은 registry 에서 나온다 — 화면이 목록을 따로 들지 않는다 */
+  /** 버튼은 registry 에서 나온다, 화면이 목록을 따로 들지 않는다 */
   const groups = API_GROUPS.filter((g) => DEMO_ENDPOINTS.some((e) => e.group === g.key))
 
   return (
@@ -500,7 +540,7 @@ export default function DemoSection() {
             placeholder="ax_live_..."
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
-            style={{ flex: 1, fontFamily: 'monospace' }}
+            style={{ flex: 1, minWidth: 0, fontFamily: 'monospace' }}
           />
           <a href="/api-keys" className="btn-ghost" style={{ whiteSpace: 'nowrap' }}>키 발급</a>
         </div>
@@ -509,13 +549,13 @@ export default function DemoSection() {
         </p>
       </div>
 
-      {/* 데모 버튼 — 묶음은 registry 의 API_GROUPS 를 그대로 따른다 */}
+      {/* 데모 버튼, 묶음은 registry 의 API_GROUPS 를 그대로 따른다 */}
       {groups.map((g) => (
         <div key={g.key} style={{ marginBottom: 'var(--space-6)' }}>
           <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>
             {g.label}
           </div>
-          {/* 고정 4열 금지(반응형 정책) — 공용 그리드 클래스가 모바일에서 2열로 접는다 */}
+          {/* 고정 4열 금지(반응형 정책), 공용 그리드 클래스가 모바일에서 2열로 접는다 */}
           <div className="responsive-grid-cols-4">
             {DEMO_ENDPOINTS.filter((e) => e.group === g.key).map((e) => {
               const isActive = activeId === e.id
@@ -531,15 +571,17 @@ export default function DemoSection() {
                     padding: 'var(--space-4)',
                     background: isActive ? 'var(--brand-soft)' : undefined,
                     color: 'var(--text)', cursor: loading && isActive ? 'wait' : 'pointer',
-                    textAlign: 'left',
+                    textAlign: 'left', minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere',
                   }}
                 >
-                  <div style={{ fontSize: 'var(--fs-xl)', marginBottom: 'var(--space-2)' }}>{loading && isActive ? '⏳' : e.demo?.emoji}</div>
+                  {loading && isActive && (
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)', marginBottom: 'var(--space-1)' }}>{DEMO.running}</div>
+                  )}
                   <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-1)' }}>{e.title}</div>
                   <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{e.desc}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-1)', minWidth: 0 }}>
                     <NbBadge status={METHOD_STATUS[e.method]}>{e.method}</NbBadge>
-                    <code style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>{e.path}</code>
+                    <code style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', ...TEXT_WRAP }}>{e.path}</code>
                   </div>
                 </button>
               )
@@ -549,35 +591,41 @@ export default function DemoSection() {
       ))}
 
       {/* 결과 */}
-      {result !== null && (
-        <div className="card card-flush" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '12px 20px', background: 'var(--surface-muted)', borderBottom: 'var(--hairline) solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: result.success ? 'var(--success)' : 'var(--danger)', display: 'inline-block' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{active?.title ?? ''}</span>
-              {result.success === true && <span style={{ fontSize: 11, color: 'var(--success)', background: 'var(--success-bg)', padding: '2px 7px', borderRadius: 100 }}>200 OK</span>}
-              {!result.success && <span style={{ fontSize: 11, color: 'var(--danger)', background: 'var(--danger-bg)', padding: '2px 7px', borderRadius: 100 }}>오류</span>}
+      {result !== null && (() => {
+        const isOk = !result.failure && result.body?.success === true
+        const badge = result.failure?.badge ?? (result.status != null ? demoStatusBadge(result.status) : DEMO.notSent)
+        return (
+          <div className="card card-flush demo-result" style={{ overflow: 'hidden', minWidth: 0, maxWidth: '100%' }}>
+            <div style={{ padding: '12px 20px', background: 'var(--surface-muted)', borderBottom: 'var(--hairline) solid var(--border-light)', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: isOk ? 'var(--success)' : 'var(--danger)', display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', ...TEXT_WRAP }}>{active?.title ?? ''}</span>
+                <span data-testid="demo-status" style={{ fontSize: 11, color: isOk ? 'var(--success)' : 'var(--danger)', background: isOk ? 'var(--success-bg)' : 'var(--danger-bg)', padding: '2px 7px', borderRadius: 100 }}>{badge}</span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                <button type="button" className="btn-ghost" onClick={() => setShowRaw(v => !v)}>
+                  {showRaw ? DEMO.showUi : DEMO.showRaw}
+                </button>
+                <button type="button" className="btn-ghost" onClick={copyResult} disabled={!rawText}>
+                  {copyState === 'copied' ? DEMO.copied : DEMO.copy}
+                </button>
+              </div>
+              {copyState === 'failed' && (
+                <p role="alert" style={{ flexBasis: '100%', margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>{DEMO.copyFailed}</p>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className="btn-ghost" onClick={() => setShowRaw(v => !v)}>
-                {showRaw ? 'UI 보기' : 'JSON 보기'}
-              </button>
-              <button type="button" className="btn-ghost" onClick={() => { try { navigator.clipboard.writeText(JSON.stringify(result, null, 2)) } catch {} }}>
-                복사
-              </button>
+            <div style={{ padding: '20px 24px', maxHeight: 560, overflowY: 'auto', minWidth: 0 }}>
+              {showRaw ? (
+                <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.7, color: 'var(--text)', overflowX: 'auto', maxWidth: '100%' }}>
+                  {rawText || DEMO.empty}
+                </pre>
+              ) : (
+                active && renderDemoResult(active, result)
+              )}
             </div>
           </div>
-          <div style={{ padding: '20px 24px', maxHeight: 560, overflowY: 'auto' }}>
-            {showRaw ? (
-              <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.7, color: 'var(--text)', overflowX: 'auto' }}>
-                {JSON.stringify(result, null, 2)}
-              </pre>
-            ) : (
-              active && renderDemoResult(active, result)
-            )}
-          </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
