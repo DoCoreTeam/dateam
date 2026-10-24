@@ -8,11 +8,11 @@
  *
  * 키를 요구한다 — 이 API 는 사내 자동화용이고 스펙도 사내 문서다.
  */
-import type { NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { authenticatePublicApi, optionsResponse } from '@/lib/publicApiAuth'
-import { ok } from '@/lib/public-api/respond'
+import { responseHeaders } from '@/lib/public-api/respond'
 import { ENDPOINTS, API_GROUPS, type ApiEndpoint } from '@/lib/api-docs/registry'
-import { mergeSpecs } from '@/lib/actions/openapi'
+import { mergeSpecs, paramSchema, standardResponses } from '@/lib/actions/openapi'
 import generated from '@/lib/actions/generated/openapi.json'
 
 export async function OPTIONS(request: NextRequest) {
@@ -32,7 +32,9 @@ export async function GET(request: NextRequest) {
   }
 
   // 정의 표의 모든 동작이 x-cli x-scope 와 함께 실린다 (P0158 I08), teamda sync 가 이것을 받는다
-  return ok(mergeSpecs({
+  // 봉투 없이 문서 그대로 준다 (P0165 I04): 코드 생성 도구는 최상위 openapi 키를 읽는다
+  // 헤더(CORS, 한도)는 다른 공개 응답과 같은 responseHeaders 로 싣는다
+  const spec = mergeSpecs({
     openapi: '3.1.0',
     info: {
       title: '사내 자동화 API',
@@ -50,7 +52,8 @@ export async function GET(request: NextRequest) {
     },
     security: [{ apiKey: [] }],
     paths,
-  }, generated), { ctx: auth.ctx, request })
+  }, generated)
+  return NextResponse.json(spec, { headers: responseHeaders({ ctx: auth.ctx, request }) })
 }
 
 /** `/crm/companies/{id}` → ['id'] */
@@ -71,7 +74,7 @@ function operation(e: ApiEndpoint): Record<string, unknown> {
     })),
     ...(e.query ?? []).map((p) => ({
       name: p.name, in: 'query', required: !!p.required,
-      description: p.desc, schema: { type: 'string' },
+      description: p.desc, schema: paramSchema(p.type),
     })),
   ]
 
@@ -101,11 +104,6 @@ function operation(e: ApiEndpoint): Record<string, unknown> {
           },
         }
       : {}),
-    responses: {
-      200: { description: '성공' },
-      401: { description: 'API 키가 없거나 유효하지 않음' },
-      403: { description: '권한 없음' },
-      429: { description: '분당 요청 한도 초과: Retry-After 헤더를 확인하세요' },
-    },
+    responses: standardResponses({ method: e.method }),
   }
 }

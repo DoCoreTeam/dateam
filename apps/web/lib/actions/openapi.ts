@@ -42,6 +42,43 @@ export function specHash(text: string): string {
   return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0')
 }
 
+/** 오류 응답 선언, 모든 동작이 같은 말로 싣는다 (P0165 I04) */
+export const ERROR_RESPONSES = {
+  400: { description: '입력 오류' },
+  401: { description: 'API 키가 없거나 유효하지 않음' },
+  403: { description: '범위 또는 권한 부족' },
+  404: { description: '없음' },
+  409: { description: '충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀' },
+  429: { description: '분당 요청 한도 초과: Retry-After 헤더를 확인하세요' },
+} as const
+
+/**
+ * 동작 하나의 응답 선언
+ * POST 는 201(만들어짐), 승인 흐름이 있는 동작은 202(승인 요청 만들어짐), 읽기는 409 를 싣지 않는다
+ */
+export function standardResponses(opts: { method: string; approval?: boolean; success?: string }): Json {
+  const method = opts.method.toUpperCase()
+  const out: Json = { 200: { description: opts.success ?? '성공' } }
+  if (method === 'POST') out[201] = { description: '만들어짐' }
+  if (opts.approval) out[202] = { description: '이 키에 범위가 없어 승인 요청이 만들어짐' }
+  for (const [code, r] of Object.entries(ERROR_RESPONSES)) {
+    if (code === '409' && method === 'GET') continue
+    out[code] = { ...r }
+  }
+  return out
+}
+
+/** 문서 표의 형 이름을 JSON 스키마로, 숫자 칸(limit 등)이 문자열로 선언되지 않게 */
+export function paramSchema(type: string | undefined): Json {
+  switch ((type ?? 'string').toLowerCase()) {
+    case 'number': return { type: 'number' }
+    case 'integer': return { type: 'integer' }
+    case 'boolean': return { type: 'boolean' }
+    case 'array': return { type: 'array', items: { type: 'string' } }
+    default: return { type: 'string' }
+  }
+}
+
 const pathParams = (mount: string): string[] => [...mount.matchAll(/\{(\w+)\*?\}/g)].map((m) => m[1])
 
 /** {path*} 꼴은 OpenAPI 에 맞게 {path} 로 */
@@ -61,12 +98,7 @@ function mountedOperation(m: OpenApiMounted): Json {
       ...params,
       ...(m.method === 'GET' ? [] : [{ name: 'dryRun', in: 'query', required: false, schema: { type: 'string', enum: ['1'] } }]),
     ],
-    responses: {
-      200: { description: '성공, data 는 화면이 받는 값과 같음' },
-      202: { description: '이 키에 범위가 없어 승인 요청이 만들어짐' },
-      400: { description: '입력 오류' }, 401: { description: '키 없음' }, 403: { description: '범위 또는 권한 부족' },
-      404: { description: '없음' }, 409: { description: '버전 충돌' }, 429: { description: '한도 초과' },
-    },
+    responses: standardResponses({ method: m.method, approval: true, success: '성공, data 는 화면이 받는 값과 같음' }),
   }
   if (m.kind === 'action') {
     op['x-args'] = m.params
@@ -106,7 +138,7 @@ export function buildOpenApi(mounted: OpenApiMounted[], existing: OpenApiExistin
     doc.paths[p] ??= {}
     const lower = e.method.toLowerCase()
     doc.paths[p][lower] = {
-      ...(doc.paths[p][lower] ?? { operationId: e.name, summary: e.name, responses: { 200: { description: '성공' } } }),
+      ...(doc.paths[p][lower] ?? { operationId: e.name, summary: e.name, responses: standardResponses({ method: e.method }) }),
       'x-cli': e.cli,
       'x-scope': e.scope,
       'x-kind': 'public',
@@ -146,5 +178,27 @@ export function mergeSpecs(registry: Json, generated: Json): Json {
       }
     }
   }
+  dedupeOperationIds(paths, generated)
   return { ...registry, info: { ...registry.info, 'x-spec-hash': specHash(JSON.stringify(paths)) }, paths }
+}
+
+/**
+ * 같은 operationId 가 두 경로에 있으면 코드 생성 도구가 멈춘다
+ * 정의 표 쪽 이름을 지키고, 옛 경로에 남은 등재 쪽 동작에 .alias 를 붙인다
+ */
+function dedupeOperationIds(paths: Json, generated: Json): void {
+  const owner = new Map<string, string>()
+  for (const [p, item] of Object.entries(generated.paths ?? {})) {
+    for (const op of Object.values(item as Json)) {
+      const id = (op as Json).operationId
+      if (typeof id === 'string') owner.set(id, p)
+    }
+  }
+  for (const [p, item] of Object.entries(paths)) {
+    for (const [method, op] of Object.entries(item as Json)) {
+      const id = (op as Json).operationId
+      if (typeof id !== 'string' || !owner.has(id) || owner.get(id) === p) continue
+      ;(item as Json)[method] = { ...(op as Json), operationId: `${id}.alias` }
+    }
+  }
 }

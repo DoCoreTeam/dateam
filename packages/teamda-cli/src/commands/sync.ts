@@ -25,6 +25,7 @@ export interface SyncResult {
   file: string
 }
 
+/** The server serves the bare document (top-level openapi); older servers wrapped it in { success, data } */
 function unwrap(body: unknown): OpenApiSpec | null {
   if (typeof body !== 'object' || body === null) return null
   const b = body as { paths?: unknown; data?: { paths?: unknown } }

@@ -6,11 +6,12 @@ import { TEST_SPEC, fakeServer, runCli, tempDir, type FakeServer } from './helpe
 
 const KEY = 'ax_live_synckey_0123456789abcdef'
 let served: unknown = TEST_SPEC
+let wrapped = true
 let server: FakeServer
 
 beforeAll(() => {
   server = fakeServer((_req, url) => {
-    if (url.pathname === '/api/public/v1/openapi.json') return Response.json({ success: true, data: served })
+    if (url.pathname === '/api/public/v1/openapi.json') return Response.json(wrapped ? { success: true, data: served } : served)
     return Response.json({ success: false, error: 'missing' }, { status: 404 })
   })
 })
@@ -59,6 +60,28 @@ test('a spec with no x-cli operations is refused and the cache is left as it was
   expect(r.code).toBe(EXIT.SERVER)
   expect(JSON.parse(r.stderr).error.code).toBe('spec_invalid')
   expect(readFileSync(join(dir, 'spec.json'), 'utf8')).toBe(before)
+})
+
+test('sync accepts the bare OpenAPI document and the old envelope with the same hash', async () => {
+  served = TEST_SPEC
+  wrapped = false
+  try {
+    const bareDir = tempDir()
+    const bare = await runCli(['sync'], { TEAMDA_CONFIG_DIR: bareDir, TEAMDA_BASE_URL: server.base, TEAMDA_API_KEY: KEY })
+    expect(bare.code).toBe(0)
+    const a = JSON.parse(bare.stdout)
+    expect(a.updated).toBe(true)
+    expect(a.operations).toBe(4)
+    expect(JSON.parse(readFileSync(join(bareDir, 'spec.json'), 'utf8')).paths).toEqual(TEST_SPEC.paths)
+
+    wrapped = true
+    const env = { TEAMDA_CONFIG_DIR: bareDir, TEAMDA_BASE_URL: server.base, TEAMDA_API_KEY: KEY }
+    const again = JSON.parse((await runCli(['sync'], env)).stdout)
+    expect(again.updated).toBe(false)
+    expect(again.sha256).toBe(a.sha256)
+  } finally {
+    wrapped = true
+  }
 })
 
 test('sync without a key exits 3 and writes nothing', async () => {
