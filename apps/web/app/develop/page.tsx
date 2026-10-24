@@ -27,6 +27,9 @@ import AiLayerSection from './AiLayerSection'
 import CliSection from './CliSection'
 import KeyScopeSection from './KeyScopeSection'
 import GatewaySection from './GatewaySection'
+import AgentGuideSection from './AgentGuideSection'
+import ApiChangesSection from './ApiChangesSection'
+import { AGENT_DOC, API_CHANGES_DOC } from '@/lib/api-docs/agent-doc'
 import CliGuideSection from './CliGuideSection'
 import { GATEWAY_DOC } from '@/lib/api-docs/gateway-doc'
 import { ERRORS_DOC, HTTP_ERROR_ROWS } from '@/lib/api-docs/errors-doc'
@@ -50,7 +53,7 @@ const ENDPOINT_GROUPS = ['gpu', 'crm', 'ci', 'legacy'] as const
 type EndpointGroup = typeof ENDPOINT_GROUPS[number]
 
 /** 왼쪽 목록의 항목, registry 묶음 넷 + 참고 셋 + 화면 전용(시작, 게이트웨이, CLI, 데모, 오류) + AI 공통층 */
-type Section = 'start' | EndpointGroup | RefSectionId | 'demo' | 'errors' | 'cli' | 'gateway' | AiDocKey
+type Section = 'start' | EndpointGroup | RefSectionId | 'demo' | 'errors' | 'cli' | 'gateway' | 'agent' | 'changes' | AiDocKey
 
 function useOrigin(fallback = 'https://your-domain.com') {
   const [origin, setOrigin] = useState(fallback)
@@ -365,7 +368,7 @@ const NAV: { label: string; items: { id: Section; l: string }[] }[] = [
   { label: DEVCENTER_NAV.endpointGroup, items: ENDPOINT_GROUPS.map((k) => ({ id: k as Section, l: groupLabel(k) })) },
   // 묶음 이름과 항목은 ai-layer.ts 에서 온다, 화면이 목록을 짓지 않는다
   { label: AI_LAYER_NAV_LABEL, items: AI_DOC_NAV.map((n) => ({ id: n.key as Section, l: n.label })) },
-  { label: DEVCENTER_NAV.refGroup, items: [...REF_SECTION_IDS.map((id) => ({ id: id as Section, l: DEVCENTER_REF_LABEL[id] })), { id: 'errors', l: DEVCENTER_NAV.errors }] },
+  { label: DEVCENTER_NAV.refGroup, items: [...REF_SECTION_IDS.map((id) => ({ id: id as Section, l: DEVCENTER_REF_LABEL[id] })), { id: 'errors', l: DEVCENTER_NAV.errors }, { id: 'agent', l: AGENT_DOC.nav }, { id: 'changes', l: API_CHANGES_DOC.nav }] },
   { label: DEVCENTER_NAV.toolsGroup, items: [{ id: 'cli', l: API_CLI_DOC.nav }, { id: 'demo', l: DEVCENTER_NAV.demo }] },
 ]
 
@@ -549,6 +552,8 @@ export default function DevelopPage() {
           {activeSection === 'cli' && <CliGuideSection origin={origin} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'cli' && <CliSection />}
           {activeSection === 'errors' && <ErrorsSection onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'agent' && <AgentGuideSection origin={origin} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'changes' && <ApiChangesSection />}
           {isAiDoc(activeSection) && (
             <AiLayerSection section={activeSection} onCopy={copy} copiedId={copiedId} />
           )}
