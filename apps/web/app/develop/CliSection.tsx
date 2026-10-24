@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { API_CLI_DOC, API_KEY_SCOPE } from '@/lib/terms'
 import type { Scope } from '@/lib/actions/types'
+import CliDownload from './CliDownload'
 
 interface CliRow {
   cli: string
@@ -47,6 +48,7 @@ export default function CliSection() {
     <section aria-labelledby="cli-title">
       <h2 id="cli-title" style={{ fontSize: 'var(--fs-xl)', margin: '0 0 var(--space-2)' }}>{API_CLI_DOC.title}</h2>
       <p style={{ color: 'var(--text-muted)', margin: '0 0 var(--space-4)' }}>{API_CLI_DOC.description}</p>
+      <CliDownload />
       {failed && <p role="alert">{API_CLI_DOC.failed}</p>}
       {!failed && !rows && <p role="status">{API_CLI_DOC.loading}</p>}
       {rows && (

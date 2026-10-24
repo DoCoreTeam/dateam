@@ -101,6 +101,30 @@ export const API_CLI_DOC = {
   scope: '범위',
   path: '경로',
   total: '전체',
+  /** 실행 파일 받기 (P0167 I04), teamda release 와 같은 창구 */
+  download: {
+    title: 'teamda 받기',
+    description: '압축을 풀면 실행 파일 하나입니다. 같은 목록을 teamda release 로도 받습니다',
+    loading: '받을 수 있는 버전을 확인하는 중',
+    loginRequired: '로그인하면 받을 수 있습니다',
+    login: '로그인',
+    empty: '아직 올린 버전이 없습니다',
+    failed: '받을 수 있는 버전을 확인하지 못했습니다',
+    retry: '다시 시도',
+    version: '버전',
+    publishedAt: '올린 시각',
+    size: '크기',
+    checksum: 'SHA-256',
+    get: '받기',
+    yours: '이 기기',
+    unsigned: '서명하지 않은 실행 파일이라 처음 실행할 때 Windows 와 macOS 가 경고합니다. Windows 는 추가 정보에서 실행, macOS 는 xattr -d com.apple.quarantine teamda 후 실행합니다',
+    target: {
+      'windows-x64': 'Windows x64',
+      'darwin-arm64': 'macOS Apple 실리콘',
+      'darwin-x64': 'macOS Intel',
+      'linux-x64': 'Linux x64',
+    },
+  },
 } as const
 
 /** API(에이전트) 쓰기 기록 (P0158 I11), 변경 이력 탭과 키별 최근 요청 */
