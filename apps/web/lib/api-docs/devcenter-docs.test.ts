@@ -322,3 +322,94 @@ test('오류 코드 절은 화면에 걸리고 설명에 내부 구조를 싣지
     assert.ok(!t.includes('\u2014'), t)
   }
 })
+
+/* ── 시작하기 절의 빠른 시작과 응답 문장 (P0168) ─────────────────────────────── */
+
+test('빠른 시작의 첫 요청은 GET /me 이고 둘째는 계정 권한으로 고른 목록이다', async () => {
+  const { STABLE_ENDPOINTS, REQUIRES_LABEL } = await import('./registry.ts')
+  const page = read('app/develop/page.tsx')
+  const start = page.slice(page.indexOf('function StartSection'), page.indexOf('/* ── 오류'))
+  const tabs = [...start.matchAll(/<CodeTabs id="([^"]+)"[^>]*spec=\{requestSpecOf\((\w+(?:\[0\])?)\)\}/g)]
+  assert.deepEqual(tabs.map((m) => m[1]), ['quickstart-me', 'quickstart-list'], '시작하기 절의 코드 예시는 둘이고 순서는 /me, 목록')
+  assert.equal(tabs[0][2], 'QUICK_ME')
+  assert.equal(tabs[1][2], 'QUICK_LISTS[0]')
+  // 상수가 가리키는 줄을 같은 식으로 다시 뽑아 본다
+  assert.match(page, /const QUICK_ME = STABLE_ENDPOINTS\.find\(\(e\) => e\.id === 'ref\.me'\)!/)
+  const me = STABLE_ENDPOINTS.find((e) => e.id === 'ref.me')!
+  assert.equal(me.path, '/me')
+  assert.equal(me.requires, undefined, '/me 는 권한 없이 부를 수 있어야 첫 요청이 된다')
+  const order = /const QUICK_LIST_REQUIRES = \[([^\]]+)\] as const/.exec(page)?.[1] ?? ''
+  const requires = [...order.matchAll(/'([a-z-]+)'/g)].map((m) => m[1])
+  assert.deepEqual(requires, ['crm-member', 'ci-member', 'member'])
+  const lists = requires.map((r) =>
+    STABLE_ENDPOINTS.find((e) => e.method === 'GET' && e.requires === r && !e.path.includes('{')))
+  for (const [i, e] of lists.entries()) {
+    assert.ok(e, `${requires[i]} 권한으로 읽는 목록이 registry 에 있어야 한다`)
+    assert.ok(e.requires && REQUIRES_LABEL[e.requires], e.id)
+  }
+  // 예시 목록은 GPU(임직원 키) 목록이 아니다, CRM 만 쓰는 계정이 첫 줄부터 403 을 받던 자리
+  assert.equal(lists[0]!.path, '/crm/companies')
+  assert.notEqual(lists[0]!.requires, 'member')
+  assert.doesNotMatch(start, /path: '\/products'/)
+})
+
+test('시작하기 절에 범위와 모순되는 「별도의 권한 체계」 문장이 없다', () => {
+  const page = read('app/develop/page.tsx')
+  assert.ok(!page.includes('별도의 권한 체계'))
+  assert.match(page, /\{AUTH_DOC\.inheritBody\}/, '상속 안내는 범위를 말하는 인증 절 문장을 쓴다')
+  assert.match(AUTH_DOC.inheritBody, /범위/)
+})
+
+test('한도 헤더 문장은 인증 코드와 같다, 키 확인에서 거절되면 헤더가 없고 그 뒤 403 에는 있다', async () => {
+  const { DEVCENTER_START, DEVCENTER_DEFAULT_RATE_LIMIT } = await import('../terms/devcenter.ts')
+  const auth = read('lib/publicApiAuth.ts')
+  assert.equal(Number(/const DEFAULT_RATE_LIMIT = (\d+)/.exec(auth)?.[1]), DEVCENTER_DEFAULT_RATE_LIMIT)
+  // 인증 함수 안의 지역 fail 은 CORS 와 넘긴 extra 만 싣는다, 한도 헤더를 스스로 붙이지 않는다
+  const localFail = /function fail\([\s\S]*?\n\}/.exec(auth)?.[0] ?? ''
+  assert.match(localFail, /headers: \{ \.\.\.corsHeaders\(request\), \.\.\.\(extra \?\? \{\}\) \}/)
+  assert.doesNotMatch(localFail, /rateLimitHeaders/)
+  // 401 과 키 확인 403 은 한도를 세기(record_api_key_hit) 전에 extra 없이 돌아간다
+  const body = auth.slice(auth.indexOf('export async function authenticatePublicApi'))
+  const hitAt = body.indexOf("rpc('record_api_key_hit'")
+  assert.ok(hitAt > 0)
+  const beforeHit = body.slice(0, hitAt)
+  const early = [...beforeHit.matchAll(/return fail\((\d{3}), '[^']*', request(, [^)]*)?\)/g)]
+  assert.deepEqual([...new Set(early.map((m) => m[1]))].sort(), ['401', '403'])
+  for (const m of early) assert.equal(m[2], undefined, `키 확인 ${m[1]} 에 extra 헤더가 붙었다`)
+  // 범위 403 도 corsHeaders 만 싣는다
+  assert.match(beforeHit, /requiredScope: required \},\s*\{ status: 403, headers: corsHeaders\(request\) \}/)
+  // 키 확인 뒤의 권한 403 (requireMemberKey) 은 한도 헤더를 싣는다
+  const member = /export function requireMemberKey[\s\S]*?\n\}/.exec(auth)?.[0] ?? ''
+  assert.match(member, /status: 403, headers: \{ \.\.\.corsHeaders\(request\), \.\.\.rateLimitHeaders\(ctx\) \}/)
+  const t = DEVCENTER_START.rateNoHeaderBody
+  assert.match(t, /401/)
+  assert.match(t, /403/)
+  assert.match(t, /한도 헤더가 없고/)
+  assert.match(t, /한도 헤더가 실립니다/)
+  // 예전 문장 「모든 응답에 남은 횟수」는 401 403 에서 틀렸다
+  assert.ok(!read('app/develop/page.tsx').includes('모든 응답에 남은 횟수'))
+})
+
+test('최상위 nextCursor total 문장은 okList 의 동작과 같고 GPU 목록은 meta 에만 싣는다', async () => {
+  const { DEVCENTER_START } = await import('../terms/devcenter.ts')
+  const respond = read('lib/public-api/respond.ts')
+  const okList = /export function okList[\s\S]*?\n\}/.exec(respond)?.[0] ?? ''
+  const lifted = [...okList.matchAll(/if \(meta\.(\w+) !== undefined\) body\.(\w+) = meta\.(\w+)/g)]
+  for (const m of lifted) assert.ok(m[1] === m[2] && m[2] === m[3], m[0])
+  const fields = lifted.map((m) => m[1])
+  assert.deepEqual(fields.slice().sort(), ['capped', 'hasMore', 'nextCursor', 'total'])
+  const t = DEVCENTER_START.topLevelBody
+  for (const f of fields) assert.ok(t.includes(f), `문장에 ${f} 가 없다`)
+  // okList 를 지나는 곳은 CRM 다리, CI 다리, 구 CRM 셋이다, 문장이 그 셋을 말한다
+  assert.match(read('lib/public-api/crm-bridge.ts'), /return okList\(/)
+  assert.match(read('lib/public-api/ci-bridge.ts'), /okList\(/)
+  for (const legacy of ['accounts', 'contacts', 'deals']) {
+    assert.match(read(`app/api/public/v1/${legacy}/route.ts`), /okList\(/, legacy)
+  }
+  // GPU 목록은 봉투를 손으로 만들고 okList 를 안 지난다, 문장도 meta 에만 싣는다고 말한다
+  for (const gpu of ['products', 'fx', 'suppliers', 'inventory', 'pool-stock']) {
+    assert.doesNotMatch(read(`app/api/public/v1/${gpu}/route.ts`), /okList/, gpu)
+  }
+  assert.match(t, /GPU 가격 목록은 meta 에만/)
+  assert.ok(!read('app/develop/page.tsx').includes('예전 최상위 필드는 당분간'))
+})

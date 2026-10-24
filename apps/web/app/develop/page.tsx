@@ -19,7 +19,8 @@ import { createClient } from '@/lib/supabase/client'
 import PageHeader from '@/components/ui/PageHeader'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
-import { SERVICE_LABEL, API_CLI_DOC } from '@/lib/terms'
+import { SERVICE_LABEL, API_CLI_DOC, DEVCENTER_START } from '@/lib/terms'
+import { AUTH_DOC, AUTH_ME_SAMPLE } from '@/lib/api-docs/auth-doc'
 import DemoSection from './DemoSection'
 import AiLayerSection from './AiLayerSection'
 import CliSection from './CliSection'
@@ -34,7 +35,7 @@ import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
 import CodeBlock from './CodeBlock'
 import {
-  API_GROUPS, endpointsOf, REQUIRES_LABEL, CATALOG_NOTE, requestSpecOf,
+  API_GROUPS, endpointsOf, REQUIRES_LABEL, CATALOG_NOTE, requestSpecOf, STABLE_ENDPOINTS,
   type ApiGroupKey, type ApiEndpoint, type ApiParam,
 } from '@/lib/api-docs/registry'
 
@@ -198,37 +199,78 @@ function GroupSection({ group, baseUrl, onCopy, copiedId, onNavigate }: {
 
 /* ── 시작하기 ──────────────────────────────────────────────────────────────── */
 
+/**
+ * 빠른 시작의 둘째 단계, 권한과 상관없이 부를 수 있는 GET /me (registry 의 줄 그대로)
+ * 예전 첫 요청은 GET /products 라서 GPU 권한이 없는 계정은 첫 줄부터 403 이었다 (P0168)
+ */
+const QUICK_ME = STABLE_ENDPOINTS.find((e) => e.id === 'ref.me')!
+
+/**
+ * 셋째 단계, 계정 권한마다 처음 부를 목록. 손으로 적지 않고 registry 에서 뽑는다
+ * 권한(requires)별로 경로 변수 없는 첫 GET 목록, 첫 줄이 코드 예시가 된다
+ */
+const QUICK_LIST_REQUIRES = ['crm-member', 'ci-member', 'member'] as const
+const QUICK_LISTS = QUICK_LIST_REQUIRES.map((requires) =>
+  STABLE_ENDPOINTS.find((e) => e.method === 'GET' && e.requires === requires && !e.path.includes('{'))!,
+)
+
+function QuickListTable() {
+  const h = DEVCENTER_START.step3Head
+  const cell = { color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' } as const
+  return (
+    <div style={{ marginBottom: 'var(--space-5)' }}>
+      <table className="table-base table-card">
+        <thead><tr><th>{h.path}</th><th>{h.title}</th><th>{h.requires}</th></tr></thead>
+        <tbody>
+          {QUICK_LISTS.map((e) => (
+            <tr key={e.id}>
+              <td className="card-header"><code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>GET {e.path}</code></td>
+              <td data-label={h.title} style={cell}>{e.title}</td>
+              <td data-label={h.requires} style={cell}>{e.requires ? REQUIRES_LABEL[e.requires] : ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id: string) => void; copiedId: string | null; brandName: string }) {
   const origin = useOrigin()
   const base = `${origin}/api/public/v1`
   const lang = useApiLanguage()
+  const t = DEVCENTER_START
   return (
     <div>
       <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {brandName ? `${brandName} 사내 자동화 API` : '사내 자동화 API'}
+        {brandName ? `${brandName} ${t.eyebrow}` : t.eyebrow}
       </div>
-      <PageHeader
-        title="개발자 문서"
-        description="사내 시스템을 스크립트로 다루기 위한 API입니다. 사내 계정으로 발급한 키를 씁니다."
-      />
+      <PageHeader title={t.title} description={t.description} />
 
-      <Callout type="info" title="이 API는 사내용입니다">
-        키는 <strong style={{ color: 'var(--text)' }}>그 키를 만든 계정의 권한을 그대로 상속</strong>합니다.
-        화면에서 볼 수 있는 것을 API로도 볼 수 있고, 화면에서 못 하는 것은 API로도 못 합니다.
-        별도의 권한 체계가 없으므로 계정 권한만 관리하면 됩니다.
-      </Callout>
+      <Callout type="info" title={t.inheritTitle}>{AUTH_DOC.inheritBody}</Callout>
 
-      <H2>Base URL</H2>
+      <H2>{t.baseUrlTitle}</H2>
       <CodeBlock id="baseurl" code={base} onCopy={onCopy} copiedId={copiedId} />
 
-      <H2>빠른 시작 (30초)</H2>
-      <P>
-        발급받은 키를 <Code>AX_API_KEY</Code> 환경변수에 넣고, 쓰는 언어 탭을 골라 그대로 복사하면 첫 요청이 완성됩니다.
-        키는 <strong style={{ color: 'var(--text)' }}>서버에서만</strong> 씁니다. 브라우저에 두면 사용자에게 노출됩니다.
-      </P>
-      <CodeTabs id="quickstart" baseUrl={base} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
+      <H2>{t.quickTitle}</H2>
+      <P>{t.quickIntro}</P>
 
-      <H2>인증</H2>
+      <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)', margin: 'var(--space-6) 0 var(--space-3)' }}>{t.step1Title}</h3>
+      <P>{t.step1Body}</P>
+      <p style={{ marginBottom: 'var(--space-5)' }}><a href="/api-keys" className="btn-ghost">{t.step1Link}</a></p>
+
+      <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)', margin: 'var(--space-6) 0 var(--space-3)' }}>{t.step2Title}</h3>
+      <P>{t.step2Body}</P>
+      <CodeTabs id="quickstart-me" baseUrl={base} spec={requestSpecOf(QUICK_ME)} onCopy={onCopy} copiedId={copiedId} />
+      <CodeBlock id="quickstart-me-res" lang="json" code={AUTH_ME_SAMPLE} onCopy={onCopy} copiedId={copiedId} />
+
+      <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)', margin: 'var(--space-6) 0 var(--space-3)' }}>{t.step3Title}</h3>
+      <P>{t.step3Body}</P>
+      <QuickListTable />
+      <CodeTabs id="quickstart-list" baseUrl={base} spec={requestSpecOf(QUICK_LISTS[0])} onCopy={onCopy} copiedId={copiedId} />
+      <P>{t.step3Forbidden}</P>
+
+      <H2>{t.authTitle}</H2>
       <P>
         모든 요청에 <Code>X-API-Key</Code> 헤더가 필요합니다. <Code>Authorization: Bearer &lt;키&gt;</Code> 도 같게 동작합니다.
         키는 HMAC-SHA256으로 해시해 저장하며, <strong style={{ color: 'var(--text)' }}>내 키 관리</strong>에서 발급·폐기합니다.
@@ -238,8 +280,8 @@ function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id:
       </P>
       <KeyScopeSection onCopy={onCopy} copiedId={copiedId} />
 
-      <H2>응답 형식</H2>
-      <P>성공·실패 모두 같은 봉투를 씁니다. 목록은 <Code>meta</Code>에 커서와 총 건수가 들어갑니다.</P>
+      <H2>{t.envelopeTitle}</H2>
+      <P>{t.envelopeBody}</P>
       <CodeBlock id="resp-format" lang="json" onCopy={onCopy} copiedId={copiedId} code={`// 성공
 {
   "success": true,
@@ -252,26 +294,20 @@ function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id:
   "success": false,
   "error": "분당 요청 한도(60회)를 넘었습니다. 12초 후 다시 시도해 주세요."
 }`} />
-      <Callout type="info" title="예전 최상위 필드는 당분간 함께 나갑니다">
-        구 CRM 목록(<Code>/accounts</Code>·<Code>/contacts</Code>·<Code>/deals</Code>)은 예전에
-        <Code>nextCursor</Code>·<Code>hasMore</Code>를 최상위에 뒀습니다. 쓰던 스크립트가 깨지지 않게
-        지금은 <Code>meta</Code>와 <strong style={{ color: 'var(--text)' }}>둘 다</strong> 내보냅니다.
-        새 코드는 <Code>meta</Code>를 읽으세요.
-      </Callout>
+      <Callout type="info" title={t.topLevelTitle}>{t.topLevelBody}</Callout>
 
-      <H2>페이지네이션</H2>
+      <H2>{t.paginationTitle}</H2>
       <P>목록은 커서 방식입니다. 응답의 <Code>meta.nextCursor</Code>를 다음 요청의 <Code>cursor</Code>에 그대로 넣습니다.</P>
       {/* 예시도 고른 언어를 따른다 — 언어를 물어 놓고 다른 언어를 보여 주면 물어본 뜻이 없다 */}
       <CodeBlock id="pagination" lang={lang.hl} onCopy={onCopy} copiedId={copiedId} code={lang.paginate(base)} />
 
-      <H2>요청 한도</H2>
-      <P>
-        키마다 분당 한도가 있습니다(기본 60회, 키별로 조정 가능). 모든 응답에 남은 횟수가 실립니다.
-      </P>
+      <H2>{t.rateTitle}</H2>
+      <P>{t.rateBody}</P>
       <CodeBlock id="ratelimit" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`X-RateLimit-Limit: 60
 X-RateLimit-Remaining: 41
 X-RateLimit-Reset: 1756281600   # 이 분 창이 끝나는 시각(Unix)`} />
-      <Callout type="warn" title="한도를 넘으면">
+      <Callout type="info" title={t.rateNoHeaderTitle}>{t.rateNoHeaderBody}</Callout>
+      <Callout type="warn" title={t.rateOverTitle}>
         HTTP 429와 <Code>Retry-After</Code>(초)를 돌려줍니다. 그 시간만큼 기다린 뒤 다시 부르세요.
         많은 데이터를 받을 때는 <Code>limit</Code>을 키우고 커서로 이어 받는 편이 다시 시도하는 것보다 빠릅니다.
       </Callout>
