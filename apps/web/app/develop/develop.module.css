@@ -72,3 +72,23 @@
 .nowrap {
   white-space: nowrap;
 }
+
+/* 게이트웨이 표의 코드 칸 (P0169)
+   낱말 중간에서 끊지 않는다, 1280 에서 2칸 390 에서 5칸이 여러 줄로 갈라졌다
+   칸보다 긴 코드는 페이지가 아니라 그 코드만 가로로 민다, 카드의 flex 칸 안에서 줄어들 수 있게 min-width 0 */
+.cellCode {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  vertical-align: top;
+  white-space: nowrap;
+  color: var(--brand);
+  font-size: var(--fs-xs);
+}
+
+/* 코드 아래 설명을 한 덩어리로 묶는다, 모바일 카드에서 코드와 설명이 옆으로 나란히 서지 않게 */
+.cellStack {
+  min-width: 0;
+  max-width: 100%;
+}

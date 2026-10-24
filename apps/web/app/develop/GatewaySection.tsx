@@ -4,10 +4,12 @@
  * 참고의 게이트웨이와 승인 요청 절 (P0164 I02)
  *
  * 문구와 표는 전부 lib/api-docs/gateway-doc.ts 에서 온다, 이 파일은 조판만 한다
- * 표는 모바일에서 카드로 바뀌는 공용 스타일(.table-card)을 쓴다, 가로 스크롤 금지
+ * 표는 모바일에서 카드로 바뀌는 공용 스타일(.table-card)을 쓴다, 페이지 가로 스크롤 금지
+ * 코드 칸은 낱말 중간에서 끊지 않는다, 칸보다 길면 그 코드만 칸 안에서 가로로 민다 (P0169)
  */
 
 import CodeBlock from './CodeBlock'
+import styles from './develop.module.css'
 import {
   GATEWAY_DOC, GATEWAY_PREFIX, GATEWAY_EXAMPLES, GATEWAY_KIND_LABEL, GATEWAY_ACTION_BODY_SAMPLE, GATEWAY_STEPS,
   APPROVAL_202_SAMPLE, HUMAN_ONLY_SAMPLE, APPROVAL_STATUS_ROWS, DRY_RUN_SAMPLE, GATEWAY_HEADERS, GATEWAY_DIRECTION,
@@ -19,7 +21,6 @@ interface Props {
 }
 
 const CELL = { color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' } as const
-const CODE = { color: 'var(--brand)', fontSize: 'var(--fs-xs)', overflowWrap: 'anywhere' } as const
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, color: 'var(--text)', margin: '0 0 var(--space-3)', letterSpacing: '-0.01em' }}>{children}</h2>
@@ -49,11 +50,13 @@ function ExampleTable() {
               <td className="card-header">{GATEWAY_KIND_LABEL[e.kind]}</td>
               <td data-label={h.method} style={CELL}>{e.method}</td>
               <td data-label={h.path} style={CELL}>
-                <code style={CODE}>{GATEWAY_PREFIX}{e.mount}</code>
-                <div>{e.note}</div>
+                <div className={styles.cellStack}>
+                  <code className={styles.cellCode}>{GATEWAY_PREFIX}{e.mount}</code>
+                  <div>{e.note}</div>
+                </div>
               </td>
-              <td data-label={h.scope} style={CELL}><code style={{ ...CODE, whiteSpace: 'nowrap' }}>{e.scope}</code></td>
-              <td data-label={h.cli} style={CELL}><code style={CODE}>teamda {e.cli}</code></td>
+              <td data-label={h.scope} style={CELL}><code className={styles.cellCode}>{e.scope}</code></td>
+              <td data-label={h.cli} style={CELL}><code className={styles.cellCode}>teamda {e.cli}</code></td>
             </tr>
           ))}
         </tbody>
@@ -71,7 +74,7 @@ function StatusTable() {
         <tbody>
           {APPROVAL_STATUS_ROWS.map((r) => (
             <tr key={r.status}>
-              <td className="card-header"><code style={CODE}>{r.status}</code></td>
+              <td className="card-header"><code className={styles.cellCode}>{r.status}</code></td>
               <td data-label={h.label} style={CELL}>{r.label}</td>
               <td data-label={h.desc} style={CELL}>{r.desc}</td>
             </tr>
@@ -91,7 +94,7 @@ function HeaderTable() {
         <tbody>
           {GATEWAY_HEADERS.map((r) => (
             <tr key={r.name}>
-              <td className="card-header"><code style={CODE}>{r.name}</code></td>
+              <td className="card-header"><code className={styles.cellCode}>{r.name}</code></td>
               <td data-label={h.direction} style={CELL}>{GATEWAY_DIRECTION[r.direction]}</td>
               <td data-label={h.desc} style={CELL}>{r.desc}</td>
             </tr>
