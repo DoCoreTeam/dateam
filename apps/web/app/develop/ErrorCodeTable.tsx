@@ -9,6 +9,7 @@
  */
 
 import CodeBlock from './CodeBlock'
+import styles from './develop.module.css'
 import { ERRORS_DOC, GATEWAY_ERROR_ROWS, CRM_ERROR_ROWS, CRM_ERROR_SAMPLE } from '@/lib/api-docs/errors-doc'
 
 interface Props {
@@ -44,7 +45,7 @@ function GatewayErrors({ onCopy, copiedId }: Props) {
             {GATEWAY_ERROR_ROWS.map((r) => (
               <tr key={r.id}>
                 <td className="card-header"><code style={{ color: 'var(--brand)' }}>{r.status}</code></td>
-                <td data-label={h.mark} style={CELL}><code style={CODE}>{r.mark}</code></td>
+                <td data-label={h.mark} style={CELL}><code className={styles.nowrap} style={CODE}>{r.mark}</code></td>
                 <td data-label={h.when} style={CELL}>{r.when}</td>
                 <td data-label={h.fix} style={CELL}>{r.fix}</td>
               </tr>
@@ -75,7 +76,7 @@ function CrmErrors({ onCopy, copiedId }: Props) {
           <tbody>
             {CRM_ERROR_ROWS.map((r) => (
               <tr key={r.code}>
-                <td className="card-header"><code style={CODE}>{r.code}</code></td>
+                <td className="card-header"><code className={styles.nowrap} style={CODE}>{r.code}</code></td>
                 <td data-label={h.status} style={CELL}>{r.status}</td>
                 <td data-label={h.meaning} style={CELL}>{r.meaning}</td>
               </tr>

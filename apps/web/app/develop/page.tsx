@@ -126,7 +126,7 @@ function ParamTable({ params, title }: { params: ApiParam[]; title: string }) {
             {params.map((p) => (
               <tr key={p.name}>
                 <td className="card-header">
-                  <code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{p.name}</code>
+                  <code className={styles.nowrap} style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{p.name}</code>
                   {p.required && <span style={{ marginLeft: 'var(--space-2)', fontSize: 'var(--fs-2xs)', color: 'var(--danger)', fontWeight: 700, background: 'var(--danger-bg)', padding: '1px 5px' }}>{DEVCENTER_ENDPOINT.required}</span>}
                 </td>
                 <td data-label={h.type} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{p.type}</td>
@@ -340,7 +340,7 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
           <tbody>
             {HTTP_ERROR_ROWS.map((e) => (
               <tr key={e.code}>
-                <td className="card-header"><code style={{ color: 'var(--brand)' }}>{e.code}</code></td>
+                <td className="card-header"><code className={styles.nowrap} style={{ color: 'var(--brand)' }}>{e.code}</code></td>
                 <td data-label={eh.name} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.name}</td>
                 <td data-label={eh.cause} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.cause}</td>
                 <td data-label={eh.fix} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.fix}</td>

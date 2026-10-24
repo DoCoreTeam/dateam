@@ -67,3 +67,8 @@
   justify-content: space-between;
   padding: var(--space-2) 0;
 }
+
+/* 표 첫 칸의 코드 이름과 명령은 낱말 중간에서 끊지 않는다, 1280 에서 idempotency_key_reused 가 두 줄로 갈라졌다 (P0168 I09) */
+.nowrap {
+  white-space: nowrap;
+}

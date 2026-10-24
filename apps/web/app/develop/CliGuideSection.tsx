@@ -9,6 +9,7 @@
  */
 
 import CodeBlock from './CodeBlock'
+import styles from './develop.module.css'
 import {
   CLI_DOC, CLI_EXIT_ROWS, CLI_COMMAND_ROWS, CLI_BUILD_SAMPLE, CLI_LOGIN_SAMPLE, CLI_SECRET_REFUSED_SAMPLE,
   CLI_USE_SAMPLE, CLI_ERROR_SAMPLE, cliConfigSample,
@@ -48,7 +49,7 @@ function CommandTable() {
         <tbody>
           {CLI_COMMAND_ROWS.map((r) => (
             <tr key={r.cmd}>
-              <td className="card-header"><code style={CODE}>{r.cmd}</code></td>
+              <td className="card-header"><code className={styles.nowrap} style={CODE}>{r.cmd}</code></td>
               <td data-label={h.desc} style={CELL}>{r.desc}</td>
             </tr>
           ))}
