@@ -595,7 +595,7 @@ export default function DemoSection() {
         const isOk = !result.failure && result.body?.success === true
         const badge = result.failure?.badge ?? (result.status != null ? demoStatusBadge(result.status) : DEMO.notSent)
         return (
-          <div className="card card-flush demo-result" style={{ overflow: 'hidden', minWidth: 0, maxWidth: '100%' }}>
+          <div className="card card-flush" data-demo-result="" style={{ overflow: 'hidden', minWidth: 0, maxWidth: '100%' }}>
             <div style={{ padding: '12px 20px', background: 'var(--surface-muted)', borderBottom: 'var(--hairline) solid var(--border-light)', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, minWidth: 0 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: isOk ? 'var(--success)' : 'var(--danger)', display: 'inline-block', flexShrink: 0 }} />
