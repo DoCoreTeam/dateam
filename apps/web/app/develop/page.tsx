@@ -27,6 +27,8 @@ import KeyScopeSection from './KeyScopeSection'
 import GatewaySection from './GatewaySection'
 import CliGuideSection from './CliGuideSection'
 import { GATEWAY_DOC } from '@/lib/api-docs/gateway-doc'
+import { ERRORS_DOC, HTTP_ERROR_ROWS } from '@/lib/api-docs/errors-doc'
+import ErrorCodeTable from './ErrorCodeTable'
 import { AI_DOC_NAV, AI_LAYER_NAV_LABEL, type AiDocKey } from '@/lib/api-docs/ai-layer'
 import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
@@ -279,37 +281,31 @@ X-RateLimit-Reset: 1756281600   # 이 분 창이 끝나는 시각(Unix)`} />
 
 /* ── 오류 ──────────────────────────────────────────────────────────────────── */
 
-const ERRORS: { code: number; name: string; cause: string; fix: string }[] = [
-  { code: 400, name: 'Bad Request', cause: '필수 파라미터 누락·형식 오류', fix: '응답의 error 문장이 무엇이 잘못됐는지 알려 줍니다.' },
-  { code: 401, name: 'Unauthorized', cause: 'X-API-Key 없음 또는 형식 오류', fix: '헤더 이름과 키 앞자리(ax_live_)를 확인하세요.' },
-  { code: 403, name: 'Forbidden', cause: '폐기된 키 · 비활성 계정 · 권한 부족', fix: '키를 발급한 계정의 권한을 확인하세요. 남의 레코드는 관리자만 고칠 수 있습니다.' },
-  { code: 404, name: 'Not Found', cause: '없는 id', fix: '목록 API로 id를 다시 확인하세요.' },
-  { code: 429, name: 'Too Many Requests', cause: '분당 한도 초과', fix: 'Retry-After 초만큼 기다린 뒤 다시 시도하세요.' },
-  { code: 500, name: 'Server Error', cause: '서버 처리 실패', fix: '잠시 후 다시 시도하고, 계속되면 관리자에게 알려 주세요.' },
-]
-
 function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) => void; copiedId: string | null }) {
   const origin = useOrigin()
   const lang = useApiLanguage()
+  const eh = ERRORS_DOC.httpHead
   return (
     <div>
-      <PageHeader title="오류 코드" description="실패도 성공과 같은 봉투로 옵니다. error 문장은 사람이 읽을 수 있는 말입니다." />
+      <PageHeader title={ERRORS_DOC.title} description={ERRORS_DOC.description} />
       <div style={{ marginBottom: 'var(--space-6)' }}>
         <table className="table-base table-card">
-          <thead><tr><th>코드</th><th>이름</th><th>원인</th><th>대응</th></tr></thead>
+          <thead><tr><th>{eh.code}</th><th>{eh.name}</th><th>{eh.cause}</th><th>{eh.fix}</th></tr></thead>
           <tbody>
-            {ERRORS.map((e) => (
+            {HTTP_ERROR_ROWS.map((e) => (
               <tr key={e.code}>
                 <td className="card-header"><code style={{ color: 'var(--brand)' }}>{e.code}</code></td>
-                <td data-label="이름" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.name}</td>
-                <td data-label="원인" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.cause}</td>
-                <td data-label="대응" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.fix}</td>
+                <td data-label={eh.name} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.name}</td>
+                <td data-label={eh.cause} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.cause}</td>
+                <td data-label={eh.fix} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{e.fix}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <H2>다시 시도 예시</H2>
+      {/* 게이트웨이 응답(202, 403, 409, 400)과 CRM 오류 코드, 줄은 errors-doc.ts 에서 온다 */}
+      <ErrorCodeTable onCopy={onCopy} copiedId={copiedId} />
+      <H2>{ERRORS_DOC.retryTitle}</H2>
       {/* 이 예시도 고른 언어를 따른다(lib/api-docs/snippets.ts 가 만든다) */}
       <CodeBlock id="retry" lang={lang.hl} onCopy={onCopy} copiedId={copiedId} code={lang.retry(`${origin}/api/public/v1`)} />
     </div>

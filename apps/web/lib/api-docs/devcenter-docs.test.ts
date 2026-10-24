@@ -30,6 +30,11 @@ import {
 } from './cli-doc.ts'
 import { EXIT, exitForStatus } from '../../../../packages/teamda-cli/src/exit.ts'
 import { SECRET_FLAGS } from '../../../../packages/teamda-cli/src/args.ts'
+import { CRM_ERROR_CODES, CRM_ERROR_HTTP } from '../crm/domain/errors.ts'
+import {
+  GATEWAY_ERROR_ROWS, CRM_ERROR_ROWS, CRM_ERROR_MEANING, CRM_ERROR_SAMPLE, IDEM_REUSED_ERROR, IDEM_INVALID_ERROR,
+  IDEM_REUSED_SAMPLE, IDEM_INVALID_SAMPLE, HTTP_ERROR_ROWS, ERRORS_DOC,
+} from './errors-doc.ts'
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (rel: string): string => readFileSync(join(WEB, rel), 'utf8')
@@ -256,4 +261,64 @@ test('base-url 예시는 화면의 origin 을 쓰고 출력 약속은 run.ts 와
   const page = read('app/develop/page.tsx')
   assert.match(page, /<CliGuideSection origin=\{origin\} onCopy=\{copy\} copiedId=\{copiedId\} \/>/)
   assert.match(page, /activeSection === 'cli' && <CliSection \/>/, '명령 검색 목록은 그대로')
+})
+
+/* ── 오류 코드 절의 게이트웨이 응답과 CRM 오류 (P0164 I05) ─────────────────── */
+
+test('CRM 오류 표는 CRM_ERROR_CODES 와 CRM_ERROR_HTTP 에서 오고 뜻은 코드마다 하나씩, 양쪽 모두', () => {
+  assert.deepEqual(CRM_ERROR_ROWS.map((r) => r.code), [...CRM_ERROR_CODES])
+  for (const r of CRM_ERROR_ROWS) assert.equal(r.status, CRM_ERROR_HTTP[r.code], r.code)
+  assert.deepEqual(Object.keys(CRM_ERROR_MEANING).sort(), [...CRM_ERROR_CODES].sort(), '뜻 표의 키')
+  assert.deepEqual(Object.keys(CRM_ERROR_HTTP).sort(), [...CRM_ERROR_CODES].sort(), '상태 표의 키')
+  for (const r of CRM_ERROR_ROWS) assert.ok(r.meaning.length > 0, r.code)
+  assert.equal(CRM_ERROR_ROWS.find((r) => r.code === 'INTERNAL')?.status, 500)
+  // 화면은 줄을 손으로 적지 않고 CRM_ERROR_ROWS 를 돈다
+  assert.ok(read('app/develop/ErrorCodeTable.tsx').includes('CRM_ERROR_ROWS.map('))
+})
+
+test('CRM 실패 몸통 예시는 CrmError.toResponseBody 의 모양과 기본 문장 그대로다', () => {
+  const src = read('lib/crm/domain/errors.ts')
+  assert.ok(src.includes('return { error: { code: this.code, message: this.message, details: this.details } }'))
+  const body = JSON.parse(CRM_ERROR_SAMPLE.replace(/^\/\/.*\n/, '')) as { error: { code: string; message: string } }
+  assert.deepEqual(Object.keys(body.error), ['code', 'message', 'details'])
+  const code = body.error.code as keyof typeof CRM_ERROR_HTTP
+  assert.ok(src.includes(`${code}: '${body.error.message}'`), '기본 문장')
+  assert.equal(Number(/HTTP (\d+)/.exec(CRM_ERROR_SAMPLE)?.[1]), CRM_ERROR_HTTP[code])
+})
+
+test('게이트웨이 응답 줄은 202 와 403 셋과 409 와 400 이고 몸통은 게이트웨이와 인증 코드가 보내는 것이다', () => {
+  assert.deepEqual(GATEWAY_ERROR_ROWS.map((r) => r.status), [202, 403, 403, 403, 409, 400])
+  for (const r of GATEWAY_ERROR_ROWS) {
+    assert.equal(Number(/^\/\/ HTTP (\d+)/.exec(r.sample)?.[1]), r.status, r.id)
+    const mark = r.mark.replace(/^code: /, '')
+    if (r.id !== 'expired') assert.ok(r.sample.includes(`"${mark}"`), r.id)
+  }
+  // 앞 넷은 인증 절과 게이트웨이 절의 예시를 그대로 쓴다
+  assert.equal(GATEWAY_ERROR_ROWS[0].sample, APPROVAL_202_SAMPLE)
+  assert.equal(GATEWAY_ERROR_ROWS[1].sample, AUTH_SCOPE_403_SAMPLE)
+  assert.equal(GATEWAY_ERROR_ROWS[2].sample, HUMAN_ONLY_SAMPLE)
+  assert.ok(GATEWAY_ERROR_ROWS[3].sample.includes(AUTH_EXPIRED_MESSAGE))
+  assert.ok(!GATEWAY_ERROR_ROWS[3].sample.includes('requiredScope'), '만료 키는 범위를 알려 주지 않는다')
+  const dispatch = read('lib/actions/dispatch.ts')
+  assert.ok(dispatch.includes(`{ success: false, error: '${IDEM_REUSED_ERROR}' }, 409`))
+  assert.ok(dispatch.includes(`{ success: false, error: '${IDEM_INVALID_ERROR}' }, 400`))
+  assert.ok(dispatch.includes('idemKey.length > IDEMPOTENCY_KEY_MAX'))
+  assert.deepEqual(Object.keys(unComment(IDEM_REUSED_SAMPLE)), ['success', 'error'])
+  assert.deepEqual(Object.keys(unComment(IDEM_INVALID_SAMPLE)), ['success', 'error'])
+})
+
+test('오류 코드 절은 화면에 걸리고 설명에 내부 구조를 싣지 않는다', () => {
+  const page = read('app/develop/page.tsx')
+  assert.match(page, /<ErrorCodeTable onCopy=\{onCopy\} copiedId=\{copiedId\} \/>/)
+  assert.ok(!/const ERRORS\b/.test(page), '공통 표는 errors-doc.ts 로 옮겼다')
+  const texts = [
+    ...Object.values(ERRORS_DOC).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))),
+    ...GATEWAY_ERROR_ROWS.flatMap((r) => [r.when, r.fix]),
+    ...CRM_ERROR_ROWS.map((r) => r.meaning),
+    ...HTTP_ERROR_ROWS.flatMap((r) => [r.cause, r.fix]),
+  ]
+  for (const t of texts) {
+    assert.ok(!/\.tsx?\b|lib\/|node_modules|stack|at [A-Za-z]+ \(/.test(t), t)
+    assert.ok(!t.includes('\u2014'), t)
+  }
 })
