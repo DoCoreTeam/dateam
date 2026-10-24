@@ -50,7 +50,10 @@ test('★ 정의 표의 모든 줄이 생성 스펙에 x-cli 와 x-scope 와 함
 test('openapi.json 창구가 생성물을 합쳐 내고, me 와 승인 조회가 범위와 무관하게 키를 확인한다', () => {
   const spec = read('app', 'api', 'public', 'v1', 'openapi.json', 'route.ts')
   assert.match(spec, /import generated from '@\/lib\/actions\/generated\/openapi\.json'/)
-  assert.match(spec, /return ok\(mergeSpecs\(\{/)
+  // 봉투 없이 문서 자체를 준다, 코드 생성 도구가 최상위 openapi 를 읽는다 (P0166 I04)
+  assert.match(spec, /const spec = mergeSpecs\(\{/)
+  assert.match(spec, /NextResponse\.json\(spec,/)
+  assert.doesNotMatch(spec, /\bok\(mergeSpecs/)
   const me = read('app', 'api', 'public', 'v1', 'me', 'route.ts')
   assert.match(me, /authenticatePublicApi\(request, \{ deferScope: true \}\)/)
   assert.doesNotMatch(me, /key_hash|rawKey/)
