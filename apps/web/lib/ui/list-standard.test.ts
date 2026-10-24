@@ -71,6 +71,9 @@ const DOCUMENT_SURFACES = new Set<string>([
   // 개발자센터 인증 절의 키 범위, 만료, GET /me 필드 **참조표**다(P0164). 줄이 Scope 와 만료 선택지에서
   // 파생돼 개수가 고정이고, 검색·정렬·쪽 넘김을 붙이면 「내 키 목록인가」로 읽힌다(AiLayerSection 과 같은 이유).
   'app/develop/KeyScopeSection.tsx',
+  // 개발자센터 게이트웨이 절의 경로 예시, 승인 요청 상태, 헤더 **참조표**다(P0164 I02). 줄이 정의 표 예시와
+  // API_APPROVAL_STATUS 에서 와 개수가 고정이고, 목록 도구를 붙이면 데이터 목록으로 읽힌다(KeyScopeSection 과 같은 이유).
+  'app/develop/GatewaySection.tsx',
   // 가격 기준 미리 계산의 **계산서**다(P0135). 견적서 종이와 같은 묶음 소계 절사 줄이 서는 문서이고,
   // 정렬하면 묶음 순서가 깨져 「라이선스 소계」가 엉뚱한 줄 밑에 선다.
   'app/(crm)/crm/products/[id]/PreviewTab.tsx',

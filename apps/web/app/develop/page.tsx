@@ -24,6 +24,8 @@ import DemoSection from './DemoSection'
 import AiLayerSection from './AiLayerSection'
 import CliSection from './CliSection'
 import KeyScopeSection from './KeyScopeSection'
+import GatewaySection from './GatewaySection'
+import { GATEWAY_DOC } from '@/lib/api-docs/gateway-doc'
 import { AI_DOC_NAV, AI_LAYER_NAV_LABEL, type AiDocKey } from '@/lib/api-docs/ai-layer'
 import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
@@ -34,7 +36,7 @@ import {
 } from '@/lib/api-docs/registry'
 
 /** 왼쪽 목록의 항목 — registry 묶음 + 화면 전용 둘(데모·오류) + AI 공통층 넷 */
-type Section = ApiGroupKey | 'demo' | 'errors' | 'cli' | AiDocKey
+type Section = ApiGroupKey | 'demo' | 'errors' | 'cli' | 'gateway' | AiDocKey
 
 function useOrigin(fallback = 'https://your-domain.com') {
   const [origin, setOrigin] = useState(fallback)
@@ -303,7 +305,7 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
 const groupLabel = (k: ApiGroupKey) => API_GROUPS.find((g) => g.key === k)!.label
 
 const NAV: { label: string; items: { id: Section; l: string }[] }[] = [
-  { label: '시작하기', items: [{ id: 'start', l: '개요 · 인증 · 한도' }] },
+  { label: '시작하기', items: [{ id: 'start', l: '개요 · 인증 · 한도' }, { id: 'gateway', l: GATEWAY_DOC.nav }] },
   { label: '엔드포인트', items: (['gpu', 'crm', 'ci', 'legacy'] as const).map((k) => ({ id: k as Section, l: groupLabel(k) })) },
   // 묶음 이름과 항목은 ai-layer.ts 에서 온다 — 화면이 목록을 짓지 않는다
   { label: AI_LAYER_NAV_LABEL, items: AI_DOC_NAV.map((n) => ({ id: n.key as Section, l: n.label })) },
@@ -341,7 +343,7 @@ export default function DevelopPage() {
   }
 
   const isGroup = (s: Section): s is ApiGroupKey =>
-    s !== 'demo' && s !== 'errors' && s !== 'start' && s !== 'cli' && !isAiDoc(s)
+    s !== 'demo' && s !== 'errors' && s !== 'start' && s !== 'cli' && s !== 'gateway' && !isAiDoc(s)
 
   return (
     <ApiLangProvider>
@@ -390,6 +392,7 @@ export default function DevelopPage() {
           {!isAiDoc(activeSection) && <ApiLangPicker />}
           {activeSection === 'start' && <StartSection onCopy={copy} copiedId={copiedId} brandName={brandName} />}
           {activeSection === 'demo' && <DemoSection />}
+          {activeSection === 'gateway' && <GatewaySection onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'cli' && <CliSection />}
           {activeSection === 'errors' && <ErrorsSection onCopy={copy} copiedId={copiedId} />}
           {isAiDoc(activeSection) && (
