@@ -46,3 +46,26 @@ export const DEVCENTER_START = {
     '키가 없거나 틀린 401, 그리고 키가 폐기되거나 만료되거나 범위가 모자라거나 발급한 계정을 쓸 수 없는 403 처럼 키 확인에서 거절된 응답에는 한도 헤더가 없고, 그 요청은 한도에 세지 않습니다. 키 확인을 통과한 뒤 계정 권한이 없어 받은 403 에는 한도 헤더가 실립니다.',
   rateOverTitle: '한도를 넘으면',
 } as const
+
+/**
+ * 왼쪽 목록의 말 (P0168)
+ * 참고 묶음은 예전 OpenAPI 한 절에 GET /me, 승인 요청, 스펙이 같이 있던 것을 셋으로 나눈 것이다
+ * 도구 묶음은 키로 직접 부르는 길 둘(CLI, 직접 실행)이다
+ */
+export const DEVCENTER_NAV = {
+  refGroup: '참고',
+  toolsGroup: '도구',
+  me: '내 키',
+  approval: '승인',
+  spec: '스펙',
+  errors: '오류 코드',
+  demo: '직접 실행',
+  toc: '목차',
+} as const
+
+/** 참고 세 절의 이름, 키는 app/develop/develop-nav.ts 의 REF_SECTION_ENDPOINT 와 같다 */
+export const DEVCENTER_REF_LABEL = {
+  'ref-me': DEVCENTER_NAV.me,
+  'ref-approval': DEVCENTER_NAV.approval,
+  'ref-spec': DEVCENTER_NAV.spec,
+} as const

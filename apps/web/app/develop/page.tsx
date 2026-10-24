@@ -14,12 +14,13 @@
  * 이 화면은 v0.7.617부터 **로그인이 필요하다** — 공개 API 가 사내 자동화용으로 확정됐다.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import PageHeader from '@/components/ui/PageHeader'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { SERVICE_LABEL, API_CLI_DOC, DEVCENTER_START } from '@/lib/terms'
+import { DEVCENTER_NAV, DEVCENTER_REF_LABEL } from '@/lib/terms/devcenter'
 import { AUTH_DOC, AUTH_ME_SAMPLE } from '@/lib/api-docs/auth-doc'
 import DemoSection from './DemoSection'
 import AiLayerSection from './AiLayerSection'
@@ -35,12 +36,21 @@ import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
 import CodeBlock from './CodeBlock'
 import {
-  API_GROUPS, endpointsOf, REQUIRES_LABEL, CATALOG_NOTE, requestSpecOf, STABLE_ENDPOINTS,
+  API_GROUPS, endpointsOf, REQUIRES_LABEL, CATALOG_NOTE, requestSpecOf, STABLE_ENDPOINTS, ENDPOINTS,
   type ApiGroupKey, type ApiEndpoint, type ApiParam,
 } from '@/lib/api-docs/registry'
+import {
+  DEFAULT_SECTION, REF_SECTION_ENDPOINT, REF_SECTION_IDS, parseSection, buildHref, resolveSection, hasCode,
+  type RefSectionId,
+} from './develop-nav'
+import styles from './develop.module.css'
 
-/** 왼쪽 목록의 항목 — registry 묶음 + 화면 전용 둘(데모·오류) + AI 공통층 넷 */
-type Section = ApiGroupKey | 'demo' | 'errors' | 'cli' | 'gateway' | AiDocKey
+/** 엔드포인트 묶음 넷, 참고 묶음은 내 키, 승인, 스펙 세 절로 나뉘어 따로 그린다 (develop-nav.ts) */
+const ENDPOINT_GROUPS = ['gpu', 'crm', 'ci', 'legacy'] as const
+type EndpointGroup = typeof ENDPOINT_GROUPS[number]
+
+/** 왼쪽 목록의 항목, registry 묶음 넷 + 참고 셋 + 화면 전용(시작, 게이트웨이, CLI, 데모, 오류) + AI 공통층 */
+type Section = 'start' | EndpointGroup | RefSectionId | 'demo' | 'errors' | 'cli' | 'gateway' | AiDocKey
 
 function useOrigin(fallback = 'https://your-domain.com') {
   const [origin, setOrigin] = useState(fallback)
@@ -128,7 +138,7 @@ function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
   e: ApiEndpoint; baseUrl: string; onCopy: (t: string, id: string) => void; copiedId: string | null
 }) {
   return (
-    <section id={e.id} style={{ marginBottom: 'var(--space-10)' }}>
+    <section id={e.id} style={{ marginBottom: 'var(--space-10)', scrollMarginTop: 72 }}>
       <div className="card" style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: 'var(--space-4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
           <NbBadge status={METHOD_STATUS[e.method]}>{e.method}</NbBadge>
@@ -173,7 +183,7 @@ function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
 
 function GroupSection({ group, baseUrl, onCopy, copiedId, onNavigate }: {
   group: ApiGroupKey; baseUrl: string; onCopy: (t: string, id: string) => void; copiedId: string | null
-  onNavigate: (s: Section) => void
+  onNavigate: (s: string) => void
 }) {
   const meta = API_GROUPS.find((g) => g.key === group)!
   const list = endpointsOf(group)
@@ -193,6 +203,19 @@ function GroupSection({ group, baseUrl, onCopy, copiedId, onNavigate }: {
       {list.map((e) => (
         <EndpointDoc key={e.id} e={e} baseUrl={baseUrl} onCopy={onCopy} copiedId={copiedId} />
       ))}
+    </div>
+  )
+}
+
+/** 참고 묶음의 한 절, registry 의 엔드포인트 한 건을 그 이름으로 그린다 */
+function RefSection({ section, baseUrl, onCopy, copiedId }: {
+  section: RefSectionId; baseUrl: string; onCopy: (t: string, id: string) => void; copiedId: string | null
+}) {
+  const e = ENDPOINTS.find((x) => x.id === REF_SECTION_ENDPOINT[section])!
+  return (
+    <div>
+      <PageHeader title={DEVCENTER_REF_LABEL[section]} description={e.title} />
+      <EndpointDoc e={e} baseUrl={baseUrl} onCopy={onCopy} copiedId={copiedId} />
     </div>
   )
 }
@@ -355,17 +378,35 @@ const groupLabel = (k: ApiGroupKey) => API_GROUPS.find((g) => g.key === k)!.labe
 
 const NAV: { label: string; items: { id: Section; l: string }[] }[] = [
   { label: '시작하기', items: [{ id: 'start', l: '개요 · 인증 · 한도' }, { id: 'gateway', l: GATEWAY_DOC.nav }] },
-  { label: '엔드포인트', items: (['gpu', 'crm', 'ci', 'legacy'] as const).map((k) => ({ id: k as Section, l: groupLabel(k) })) },
+  { label: '엔드포인트', items: ENDPOINT_GROUPS.map((k) => ({ id: k as Section, l: groupLabel(k) })) },
   // 묶음 이름과 항목은 ai-layer.ts 에서 온다 — 화면이 목록을 짓지 않는다
   { label: AI_LAYER_NAV_LABEL, items: AI_DOC_NAV.map((n) => ({ id: n.key as Section, l: n.label })) },
-  { label: '참고', items: [{ id: 'ref', l: 'OpenAPI' }, { id: 'cli', l: API_CLI_DOC.nav }, { id: 'demo', l: '직접 실행' }, { id: 'errors', l: '오류 코드' }] },
+  { label: DEVCENTER_NAV.refGroup, items: [...REF_SECTION_IDS.map((id) => ({ id: id as Section, l: DEVCENTER_REF_LABEL[id] })), { id: 'errors', l: DEVCENTER_NAV.errors }] },
+  { label: DEVCENTER_NAV.toolsGroup, items: [{ id: 'cli', l: API_CLI_DOC.nav }, { id: 'demo', l: DEVCENTER_NAV.demo }] },
 ]
+
+const NAV_IDS: readonly string[] = NAV.flatMap((g) => g.items.map((i) => i.id))
+const navLabelOf = (s: Section) => NAV.flatMap((g) => g.items).find((i) => i.id === s)?.l ?? ''
+
+/** 엔드포인트 id(본문의 <section id>) → 그 엔드포인트가 있는 절, #앵커 링크가 절을 연다 */
+const REF_SECTION_OF: Record<string, RefSectionId> = Object.fromEntries(
+  REF_SECTION_IDS.map((id) => [REF_SECTION_ENDPOINT[id], id]),
+)
+const ANCHOR_TO_SECTION: Record<string, string> = Object.fromEntries(
+  ENDPOINTS.flatMap((e): [string, string][] => {
+    if (e.group === 'ref') return REF_SECTION_OF[e.id] ? [[e.id, REF_SECTION_OF[e.id]]] : []
+    return (ENDPOINT_GROUPS as readonly string[]).includes(e.group) ? [[e.id, e.group]] : []
+  }),
+)
 
 const AI_DOC_KEYS = new Set<string>(AI_DOC_NAV.map((n) => n.key))
 const isAiDoc = (s: Section): s is AiDocKey => AI_DOC_KEYS.has(s)
 
 export default function DevelopPage() {
-  const [activeSection, setActiveSection] = useState<Section>('start')
+  // 첫 렌더는 기본 절, 주소(?section=, #앵커)는 마운트 뒤에 읽는다 (서버 렌더와 같아야 한다)
+  const [activeSection, setActiveSection] = useState<Section>(DEFAULT_SECTION as Section)
+  const [anchor, setAnchor] = useState<string | null>(null)
+  const [tocOpen, setTocOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [brandName, setBrandName] = useState('')
   const origin = useOrigin()
@@ -381,6 +422,35 @@ export default function DevelopPage() {
       })
   }, [])
 
+  // 주소 > 기본값. 뒤로가기도 같은 해석을 지난다
+  useEffect(() => {
+    const apply = () => {
+      const r = parseSection(window.location.search, window.location.hash, NAV_IDS, ANCHOR_TO_SECTION)
+      setActiveSection(r.section as Section)
+      setAnchor(r.anchor)
+    }
+    apply()
+    window.addEventListener('popstate', apply)
+    return () => window.removeEventListener('popstate', apply)
+  }, [])
+
+  // 앵커로 들어오면 그 절을 그린 뒤 그 엔드포인트로 내려간다
+  useEffect(() => {
+    if (!anchor) return
+    document.getElementById(anchor)?.scrollIntoView({ block: 'start' })
+  }, [anchor, activeSection])
+
+  /** 절을 고르면 주소에 남긴다, pushState 라 뒤로가기가 앞 절로 돌아간다 */
+  const navigate = useCallback((raw: string) => {
+    const next = resolveSection(raw, NAV_IDS) as Section | null
+    if (!next) return
+    setActiveSection(next)
+    setAnchor(null)
+    setTocOpen(false)
+    const href = buildHref(window.location.search, next)
+    window.history.pushState(null, '', `${window.location.pathname}${href}`)
+  }, [])
+
   function copy(text: string, id: string) {
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
@@ -391,8 +461,8 @@ export default function DevelopPage() {
     }
   }
 
-  const isGroup = (s: Section): s is ApiGroupKey =>
-    s !== 'demo' && s !== 'errors' && s !== 'start' && s !== 'cli' && s !== 'gateway' && !isAiDoc(s)
+  const isGroup = (s: Section): s is EndpointGroup => (ENDPOINT_GROUPS as readonly string[]).includes(s)
+  const isRef = (s: Section): s is RefSectionId => (REF_SECTION_IDS as readonly string[]).includes(s)
 
   return (
     <ApiLangProvider>
@@ -415,13 +485,24 @@ export default function DevelopPage() {
 
       {/* 좁은 화면에서는 사이드바가 위로 접힌다(고정 2열 금지 — 반응형 정책) */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'var(--space-10) var(--space-8)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-8)', alignItems: 'flex-start' }}>
-        <aside style={{ flex: '1 1 200px', maxWidth: 240 }}>
-          <nav style={{ position: 'sticky', top: 76 }}>
+        <aside className={styles.aside}>
+          {/* 좁은 화면에서만 보이는 목차 단추, 목록을 접어 본문이 첫 화면에 오게 한다 */}
+          <button
+            type="button"
+            className={styles.tocToggle}
+            aria-expanded={tocOpen}
+            aria-controls="develop-nav"
+            onClick={() => setTocOpen((v) => !v)}
+          >
+            <span>{DEVCENTER_NAV.toc}</span>
+            <span className={styles.tocCurrent}>{navLabelOf(activeSection)}</span>
+          </button>
+          <nav id="develop-nav" className={styles.nav} data-open={tocOpen ? 'true' : 'false'}>
             {NAV.map(({ label, items }) => (
               <div key={label} style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 12px' }}>{label}</div>
                 {items.map(({ id, l }) => (
-                  <SidebarItem key={id} active={activeSection === id} onClick={() => setActiveSection(id)}>
+                  <SidebarItem key={id} active={activeSection === id} onClick={() => navigate(id)}>
                     {/* 개수는 손으로 적지 않는다 — registry 에 등재된 수가 그대로 나온다 */}
                     {isGroup(id) ? `${l} (${endpointsOf(id).length})` : l}
                   </SidebarItem>
@@ -435,10 +516,11 @@ export default function DevelopPage() {
           {/*
             언어를 여기서 한 번 고르면 이 화면의 모든 코드 예시가 따라온다.
 
-            AI 공통층 항목에서는 숨긴다 — 그 쪽 예제는 우리 타입스크립트 코드라
-            언어를 바꿀 것이 없다. 아무것도 안 바꾸는 선택기는 고를 수 있게 만든 것이 아니다.
+            언어를 따르는 예시가 있는 절에서만 그린다(develop-nav.ts SECTIONS_WITH_CODE).
+            AI 공통층, CLI, 직접 실행, 게이트웨이에는 바꿀 언어가 없다.
+            아무것도 안 바꾸는 선택기는 고를 수 있게 만든 것이 아니다.
           */}
-          {!isAiDoc(activeSection) && <ApiLangPicker />}
+          {hasCode(activeSection) && <ApiLangPicker />}
           {activeSection === 'start' && <StartSection onCopy={copy} copiedId={copiedId} brandName={brandName} />}
           {activeSection === 'demo' && <DemoSection />}
           {activeSection === 'gateway' && <GatewaySection onCopy={copy} copiedId={copiedId} />}
@@ -449,7 +531,10 @@ export default function DevelopPage() {
             <AiLayerSection section={activeSection} onCopy={copy} copiedId={copiedId} />
           )}
           {isGroup(activeSection) && (
-            <GroupSection group={activeSection} baseUrl={base} onCopy={copy} copiedId={copiedId} onNavigate={setActiveSection} />
+            <GroupSection group={activeSection} baseUrl={base} onCopy={copy} copiedId={copiedId} onNavigate={navigate} />
+          )}
+          {isRef(activeSection) && (
+            <RefSection section={activeSection} baseUrl={base} onCopy={copy} copiedId={copiedId} />
           )}
         </main>
       </div>

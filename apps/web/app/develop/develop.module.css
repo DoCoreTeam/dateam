@@ -1,0 +1,61 @@
+/* 개발자센터 왼쪽 목록 (P0168)
+   넓은 화면은 예전과 같은 왼쪽 목록이고, 좁은 화면에서는 「목차」 단추 뒤로 접어 본문이 첫 화면에 보이게 한다
+   접힘은 JS 폭 판정이 아니라 미디어 쿼리가 정한다, 서버 렌더와 첫 렌더가 같아야 하이드레이션이 안 깨진다 */
+.aside {
+  flex: 1 1 200px;
+  max-width: 240px;
+}
+
+.nav {
+  position: sticky;
+  top: 76px;
+}
+
+.tocToggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .aside {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .nav {
+    position: static;
+  }
+
+  .nav[data-open='false'] {
+    display: none;
+  }
+
+  .tocToggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 44px;
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-3);
+    background: var(--color-surface);
+    border: var(--hairline) solid var(--border-light);
+    color: var(--text);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .tocToggle:focus-visible {
+    outline: var(--border-w-2) solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .tocCurrent {
+    color: var(--brand);
+    font-weight: 400;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
