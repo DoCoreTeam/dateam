@@ -45,6 +45,48 @@ export const DEVCENTER_START = {
   rateNoHeaderBody:
     '키가 없거나 틀린 401, 그리고 키가 폐기되거나 만료되거나 범위가 모자라거나 발급한 계정을 쓸 수 없는 403 처럼 키 확인에서 거절된 응답에는 한도 헤더가 없고, 그 요청은 한도에 세지 않습니다. 키 확인을 통과한 뒤 계정 권한이 없어 받은 403 에는 한도 헤더가 실립니다.',
   rateOverTitle: '한도를 넘으면',
+  // 아래 문장의 `…` 는 화면이 코드 글꼴로 그린다 (app/develop/page.tsx 의 WithCode)
+  authBody:
+    '모든 요청에 `X-API-Key` 헤더가 필요합니다. `Authorization: Bearer <키>` 도 같게 동작합니다. 키는 HMAC-SHA256으로 해시해 저장하며, 「내 키 관리」에서 발급하고 폐기합니다.',
+  authDeactivatedBody: '키를 발급한 계정이 비활성화되면 그 키도 즉시 막힙니다. 퇴사자의 키가 계속 살아 있는 것을 막습니다.',
+  envelopeSample: `// 성공
+{
+  "success": true,
+  "data": [ … ],
+  "meta": { "total": 373, "nextCursor": "…", "hasMore": true }
+}
+
+// 실패, 사람이 읽을 수 있는 말로 옵니다
+{
+  "success": false,
+  "error": "분당 요청 한도(${DEVCENTER_DEFAULT_RATE_LIMIT}회)를 넘었습니다. 12초 후 다시 시도해 주세요."
+}`,
+  paginationBody: '목록은 커서 방식입니다. 응답의 `meta.nextCursor`를 다음 요청의 `cursor`에 그대로 넣습니다.',
+  rateHeaderSample: `X-RateLimit-Limit: ${DEVCENTER_DEFAULT_RATE_LIMIT}
+X-RateLimit-Remaining: 41
+X-RateLimit-Reset: 1756281600   # 이 분 창이 끝나는 시각(Unix)`,
+  rateOverBody:
+    'HTTP 429와 `Retry-After`(초)를 돌려줍니다. 그 시간만큼 기다린 뒤 다시 부르세요. 많은 데이터를 받을 때는 `limit`을 키우고 커서로 이어 받는 편이 다시 시도하는 것보다 빠릅니다.',
+} as const
+
+/** 엔드포인트 한 건을 그리는 자리의 말 (P0168) */
+export const DEVCENTER_ENDPOINT = {
+  paramHead: { field: '필드', type: '타입', desc: '설명' },
+  required: '필수',
+  deprecatedBadge: '이관 중',
+  deprecatedTitle: '이 엔드포인트는 이관 중입니다',
+  queryTitle: '쿼리 파라미터',
+  bodyTitle: '요청 본문',
+  fileTitle: '파일 응답',
+  responseFieldsTitle: '응답 data 필드',
+} as const
+
+/**
+ * 복사 단추의 결과 (P0168)
+ * 예전에는 클립보드 쓰기가 거절돼도 「복사됨」을 띄웠다, 이제 성공했을 때만 띄우고 실패는 이 문장으로 말한다
+ */
+export const DEVCENTER_COPY = {
+  failed: '복사하지 못했습니다. 코드를 직접 골라 복사해 주세요.',
 } as const
 
 /**
@@ -61,6 +103,9 @@ export const DEVCENTER_NAV = {
   errors: '오류 코드',
   demo: '직접 실행',
   toc: '목차',
+  startGroup: '시작하기',
+  startItem: '개요, 인증, 한도',
+  endpointGroup: '엔드포인트',
 } as const
 
 /** 참고 세 절의 이름, 키는 app/develop/develop-nav.ts 의 REF_SECTION_ENDPOINT 와 같다 */

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       title: '사내 자동화 API',
       version: '1',
       description:
-        '이 스펙은 lib/api-docs/registry.ts 에서 생성됩니다. 손으로 고치지 마세요. 다음 배포에 덮입니다.',
+        '지금 배포된 사내 자동화 API 의 엔드포인트 전체입니다. 모든 요청에 X-API-Key 헤더(또는 Authorization: Bearer <키>)가 필요하고, 키는 「내 키 관리」에서 발급합니다. 배포가 바뀌면 이 스펙도 함께 바뀌므로 코드 생성 전에 다시 받아 쓰세요.',
     },
     servers: [{ url: base }],
     tags: API_GROUPS.filter((g) => g.key !== 'start' && g.key !== 'ref')

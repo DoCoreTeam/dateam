@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 개발자센터 — **문서를 코드에서 뽑는다**
+ * 개발자센터, **문서를 코드에서 뽑는다**
  *
  * 예전 판은 940줄짜리 손으로 쓴 JSX 였다. 엔드포인트를 추가해도 문서는 저절로 늘지 않고,
  * 문서를 고쳐도 코드는 변하지 않았다. 그래서 v0.7.117(2026-06-15) 이후 664커밋 동안
@@ -11,16 +11,16 @@
  * 이제 엔드포인트 목록·설명·파라미터·예시는 전부 `lib/api-docs/registry.ts` 에서 온다.
  * 라우트를 만들고 등재를 잊으면 `lib/api-docs/registry.test.ts` 가 커밋을 막는다.
  *
- * 이 화면은 v0.7.617부터 **로그인이 필요하다** — 공개 API 가 사내 자동화용으로 확정됐다.
+ * 이 화면은 v0.7.617부터 **로그인이 필요하다**, 공개 API 가 사내 자동화용으로 확정됐다.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import PageHeader from '@/components/ui/PageHeader'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { SERVICE_LABEL, API_CLI_DOC, DEVCENTER_START } from '@/lib/terms'
-import { DEVCENTER_NAV, DEVCENTER_REF_LABEL } from '@/lib/terms/devcenter'
+import { DEVCENTER_NAV, DEVCENTER_REF_LABEL, DEVCENTER_ENDPOINT, DEVCENTER_COPY } from '@/lib/terms/devcenter'
 import { AUTH_DOC, AUTH_ME_SAMPLE } from '@/lib/api-docs/auth-doc'
 import DemoSection from './DemoSection'
 import AiLayerSection from './AiLayerSection'
@@ -92,6 +92,10 @@ function P({ children }: { children: React.ReactNode }) {
 function Code({ children }: { children: React.ReactNode }) {
   return <code style={{ color: 'var(--brand)', background: 'var(--surface-muted)', padding: '1px 6px' }}>{children}</code>
 }
+/** 문장 안의 `…` 를 코드 글꼴로 그린다, 문장은 lib/terms/devcenter.ts 에 있다 */
+function WithCode({ text }: { text: string }) {
+  return <>{text.split('`').map((part, i) => (i % 2 ? <Code key={i}>{part}</Code> : part))}</>
+}
 function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 'tip'; title: string; children: React.ReactNode }) {
   const cfg = {
     info: { border: 'var(--info-border)', bg: 'var(--info-bg)', color: 'var(--info)', icon: '💡' },
@@ -107,22 +111,23 @@ function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 
 }
 
 function ParamTable({ params, title }: { params: ApiParam[]; title: string }) {
+  const h = DEVCENTER_ENDPOINT.paramHead
   return (
     <>
       <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 'var(--space-2)', fontSize: 'var(--fs-base)' }}>{title}</div>
       <div style={{ marginBottom: 'var(--space-5)' }}>
-        {/* 모바일에서 카드로 변환되는 공용 표 스타일(.table-card) — 가로 스크롤 금지 */}
+        {/* 모바일에서 카드로 변환되는 공용 표 스타일(.table-card), 가로 스크롤 금지 */}
         <table className="table-base table-card">
-          <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+          <thead><tr><th>{h.field}</th><th>{h.type}</th><th>{h.desc}</th></tr></thead>
           <tbody>
             {params.map((p) => (
               <tr key={p.name}>
                 <td className="card-header">
                   <code style={{ color: 'var(--brand)', fontSize: 'var(--fs-xs)' }}>{p.name}</code>
-                  {p.required && <span style={{ marginLeft: 'var(--space-2)', fontSize: 'var(--fs-2xs)', color: 'var(--danger)', fontWeight: 700, background: 'var(--danger-bg)', padding: '1px 5px' }}>필수</span>}
+                  {p.required && <span style={{ marginLeft: 'var(--space-2)', fontSize: 'var(--fs-2xs)', color: 'var(--danger)', fontWeight: 700, background: 'var(--danger-bg)', padding: '1px 5px' }}>{DEVCENTER_ENDPOINT.required}</span>}
                 </td>
-                <td data-label="타입" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{p.type}</td>
-                <td data-label="설명" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{p.desc}</td>
+                <td data-label={h.type} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{p.type}</td>
+                <td data-label={h.desc} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{p.desc}</td>
               </tr>
             ))}
           </tbody>
@@ -132,7 +137,7 @@ function ParamTable({ params, title }: { params: ApiParam[]; title: string }) {
   )
 }
 
-/* ── 엔드포인트 한 건 — registry 가 유일한 입력 ────────────────────────────── */
+/* ── 엔드포인트 한 건, registry 가 유일한 입력 ────────────────────────────── */
 
 function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
   e: ApiEndpoint; baseUrl: string; onCopy: (t: string, id: string) => void; copiedId: string | null
@@ -145,7 +150,7 @@ function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
           <code style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', background: 'var(--surface-muted)', padding: 'var(--space-1) var(--space-3)', minWidth: 0, overflowWrap: 'anywhere' }}>
             /api/public/v1{e.path}
           </code>
-          {e.status === 'deprecated' && <NbBadge status="blocker">이관 중</NbBadge>}
+          {e.status === 'deprecated' && <NbBadge status="blocker">{DEVCENTER_ENDPOINT.deprecatedBadge}</NbBadge>}
         </div>
         <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 'var(--space-1)', fontSize: 'var(--fs-base)' }}>{e.title}</div>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', margin: 0 }}>{e.desc}</p>
@@ -157,13 +162,13 @@ function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
       </div>
 
       {e.deprecatedNote && (
-        <Callout type="warn" title="이 엔드포인트는 이관 중입니다">{e.deprecatedNote}</Callout>
+        <Callout type="warn" title={DEVCENTER_ENDPOINT.deprecatedTitle}>{e.deprecatedNote}</Callout>
       )}
 
-      {e.query?.length ? <ParamTable params={[...e.query]} title="쿼리 파라미터" /> : null}
-      {e.body?.length ? <ParamTable params={[...e.body]} title="요청 본문" /> : null}
-      {e.response?.file && <Callout title="파일 응답">{e.response.file}</Callout>}
-      {e.response?.fields?.length ? <ParamTable params={[...e.response.fields]} title="응답 data 필드" /> : null}
+      {e.query?.length ? <ParamTable params={[...e.query]} title={DEVCENTER_ENDPOINT.queryTitle} /> : null}
+      {e.body?.length ? <ParamTable params={[...e.body]} title={DEVCENTER_ENDPOINT.bodyTitle} /> : null}
+      {e.response?.file && <Callout title={DEVCENTER_ENDPOINT.fileTitle}>{e.response.file}</Callout>}
+      {e.response?.fields?.length ? <ParamTable params={[...e.response.fields]} title={DEVCENTER_ENDPOINT.responseFieldsTitle} /> : null}
       {e.response?.note && (
         <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', margin: 'calc(-1 * var(--space-3)) 0 var(--space-5)' }}>{e.response.note}</p>
       )}
@@ -294,46 +299,25 @@ function StartSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id:
       <P>{t.step3Forbidden}</P>
 
       <H2>{t.authTitle}</H2>
-      <P>
-        모든 요청에 <Code>X-API-Key</Code> 헤더가 필요합니다. <Code>Authorization: Bearer &lt;키&gt;</Code> 도 같게 동작합니다.
-        키는 HMAC-SHA256으로 해시해 저장하며, <strong style={{ color: 'var(--text)' }}>내 키 관리</strong>에서 발급·폐기합니다.
-      </P>
-      <P>
-        키를 발급한 계정이 비활성화되면 그 키도 즉시 막힙니다. 퇴사자의 키가 계속 살아 있는 것을 막습니다.
-      </P>
+      <P><WithCode text={t.authBody} /></P>
+      <P>{t.authDeactivatedBody}</P>
       <KeyScopeSection onCopy={onCopy} copiedId={copiedId} />
 
       <H2>{t.envelopeTitle}</H2>
       <P>{t.envelopeBody}</P>
-      <CodeBlock id="resp-format" lang="json" onCopy={onCopy} copiedId={copiedId} code={`// 성공
-{
-  "success": true,
-  "data": [ … ],
-  "meta": { "total": 373, "nextCursor": "…", "hasMore": true }
-}
-
-// 실패, 사람이 읽을 수 있는 말로 옵니다
-{
-  "success": false,
-  "error": "분당 요청 한도(60회)를 넘었습니다. 12초 후 다시 시도해 주세요."
-}`} />
+      <CodeBlock id="resp-format" lang="json" onCopy={onCopy} copiedId={copiedId} code={t.envelopeSample} />
       <Callout type="info" title={t.topLevelTitle}>{t.topLevelBody}</Callout>
 
       <H2>{t.paginationTitle}</H2>
-      <P>목록은 커서 방식입니다. 응답의 <Code>meta.nextCursor</Code>를 다음 요청의 <Code>cursor</Code>에 그대로 넣습니다.</P>
-      {/* 예시도 고른 언어를 따른다 — 언어를 물어 놓고 다른 언어를 보여 주면 물어본 뜻이 없다 */}
+      <P><WithCode text={t.paginationBody} /></P>
+      {/* 예시도 고른 언어를 따른다, 언어를 물어 놓고 다른 언어를 보여 주면 물어본 뜻이 없다 */}
       <CodeBlock id="pagination" lang={lang.hl} onCopy={onCopy} copiedId={copiedId} code={lang.paginate(base)} />
 
       <H2>{t.rateTitle}</H2>
       <P>{t.rateBody}</P>
-      <CodeBlock id="ratelimit" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 41
-X-RateLimit-Reset: 1756281600   # 이 분 창이 끝나는 시각(Unix)`} />
+      <CodeBlock id="ratelimit" lang="bash" onCopy={onCopy} copiedId={copiedId} code={t.rateHeaderSample} />
       <Callout type="info" title={t.rateNoHeaderTitle}>{t.rateNoHeaderBody}</Callout>
-      <Callout type="warn" title={t.rateOverTitle}>
-        HTTP 429와 <Code>Retry-After</Code>(초)를 돌려줍니다. 그 시간만큼 기다린 뒤 다시 부르세요.
-        많은 데이터를 받을 때는 <Code>limit</Code>을 키우고 커서로 이어 받는 편이 다시 시도하는 것보다 빠릅니다.
-      </Callout>
+      <Callout type="warn" title={t.rateOverTitle}><WithCode text={t.rateOverBody} /></Callout>
     </div>
   )
 }
@@ -373,13 +357,13 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
 
 /* ── 화면 ──────────────────────────────────────────────────────────────────── */
 
-/** 왼쪽 목록 — 묶음 이름은 registry 에서 온다. 화면이 서비스 이름을 짓지 않는다(§0-2) */
+/** 왼쪽 목록, 묶음 이름은 registry 에서 온다. 화면이 서비스 이름을 짓지 않는다(§0-2) */
 const groupLabel = (k: ApiGroupKey) => API_GROUPS.find((g) => g.key === k)!.label
 
 const NAV: { label: string; items: { id: Section; l: string }[] }[] = [
-  { label: '시작하기', items: [{ id: 'start', l: '개요 · 인증 · 한도' }, { id: 'gateway', l: GATEWAY_DOC.nav }] },
-  { label: '엔드포인트', items: ENDPOINT_GROUPS.map((k) => ({ id: k as Section, l: groupLabel(k) })) },
-  // 묶음 이름과 항목은 ai-layer.ts 에서 온다 — 화면이 목록을 짓지 않는다
+  { label: DEVCENTER_NAV.startGroup, items: [{ id: 'start', l: DEVCENTER_NAV.startItem }, { id: 'gateway', l: GATEWAY_DOC.nav }] },
+  { label: DEVCENTER_NAV.endpointGroup, items: ENDPOINT_GROUPS.map((k) => ({ id: k as Section, l: groupLabel(k) })) },
+  // 묶음 이름과 항목은 ai-layer.ts 에서 온다, 화면이 목록을 짓지 않는다
   { label: AI_LAYER_NAV_LABEL, items: AI_DOC_NAV.map((n) => ({ id: n.key as Section, l: n.label })) },
   { label: DEVCENTER_NAV.refGroup, items: [...REF_SECTION_IDS.map((id) => ({ id: id as Section, l: DEVCENTER_REF_LABEL[id] })), { id: 'errors', l: DEVCENTER_NAV.errors }] },
   { label: DEVCENTER_NAV.toolsGroup, items: [{ id: 'cli', l: API_CLI_DOC.nav }, { id: 'demo', l: DEVCENTER_NAV.demo }] },
@@ -399,6 +383,42 @@ const ANCHOR_TO_SECTION: Record<string, string> = Object.fromEntries(
   }),
 )
 
+/** 복사 결과를 보여 주는 시간, 실패 문장은 읽을 시간을 더 준다 */
+const COPIED_MS = 2000
+const COPY_FAILED_MS = 6000
+
+const COPY_FAILED_STYLE: React.CSSProperties = {
+  position: 'fixed', left: '50%', bottom: 'var(--space-6)', transform: 'translateX(-50%)',
+  maxWidth: 'calc(100vw - 32px)', padding: 'var(--space-3) var(--space-4)', zIndex: 'var(--z-toast)',
+  background: 'var(--danger-bg)', border: 'var(--border-w-2) solid var(--danger-border)', color: 'var(--danger)',
+  fontSize: 'var(--fs-sm)', fontWeight: 600,
+}
+
+/**
+ * 클립보드에 쓰고 결과를 돌려준다. writeText 는 약속을 돌려주므로 기다려야 거절(권한, 비보안 문맥)을 안다
+ * 거절되면 옛 방식(execCommand)으로 한 번 더 해 보고, 그것도 안 되면 false
+ */
+async function writeClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    // 아래 옛 방식으로 넘어간다
+  }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.cssText = 'position:fixed;opacity:0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}
+
 const AI_DOC_KEYS = new Set<string>(AI_DOC_NAV.map((n) => n.key))
 const isAiDoc = (s: Section): s is AiDocKey => AI_DOC_KEYS.has(s)
 
@@ -408,6 +428,8 @@ export default function DevelopPage() {
   const [anchor, setAnchor] = useState<string | null>(null)
   const [tocOpen, setTocOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [copyFailed, setCopyFailed] = useState(false)
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [brandName, setBrandName] = useState('')
   const origin = useOrigin()
   const base = `${origin}/api/public/v1`
@@ -451,15 +473,15 @@ export default function DevelopPage() {
     window.history.pushState(null, '', `${window.location.pathname}${href}`)
   }, [])
 
-  function copy(text: string, id: string) {
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
-    try { navigator.clipboard.writeText(text) } catch {
-      const ta = document.createElement('textarea')
-      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
-    }
-  }
+  /** 「복사됨」은 클립보드에 실제로 들어갔을 때만 띄운다, 실패는 화면 아래 알림 줄이 말한다 */
+  const copy = useCallback(async (text: string, id: string) => {
+    const ok = await writeClipboard(text)
+    if (copyTimer.current) clearTimeout(copyTimer.current)
+    setCopiedId(ok ? id : null)
+    setCopyFailed(!ok)
+    copyTimer.current = setTimeout(() => { setCopiedId(null); setCopyFailed(false) }, ok ? COPIED_MS : COPY_FAILED_MS)
+  }, [])
+  useEffect(() => () => { if (copyTimer.current) clearTimeout(copyTimer.current) }, [])
 
   const isGroup = (s: Section): s is EndpointGroup => (ENDPOINT_GROUPS as readonly string[]).includes(s)
   const isRef = (s: Section): s is RefSectionId => (REF_SECTION_IDS as readonly string[]).includes(s)
@@ -478,12 +500,12 @@ export default function DevelopPage() {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {/* 로그인 뒤 화면이므로 나갈 길을 항상 둔다(§2-3-3 N-2) */}
             <a href="/home" className="btn-ghost">← {SERVICE_LABEL.member}</a>
-            <a href="/api-keys" className="btn-primary">내 키 관리</a>
+            <a href="/api-keys" className="btn-primary">{DEVCENTER_START.step1Link}</a>
           </div>
         </div>
       </header>
 
-      {/* 좁은 화면에서는 사이드바가 위로 접힌다(고정 2열 금지 — 반응형 정책) */}
+      {/* 좁은 화면에서는 사이드바가 위로 접힌다(고정 2열 금지, 반응형 정책) */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'var(--space-10) var(--space-8)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-8)', alignItems: 'flex-start' }}>
         <aside className={styles.aside}>
           {/* 좁은 화면에서만 보이는 목차 단추, 목록을 접어 본문이 첫 화면에 오게 한다 */}
@@ -503,7 +525,7 @@ export default function DevelopPage() {
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 12px' }}>{label}</div>
                 {items.map(({ id, l }) => (
                   <SidebarItem key={id} active={activeSection === id} onClick={() => navigate(id)}>
-                    {/* 개수는 손으로 적지 않는다 — registry 에 등재된 수가 그대로 나온다 */}
+                    {/* 개수는 손으로 적지 않는다, registry 에 등재된 수가 그대로 나온다 */}
                     {isGroup(id) ? `${l} (${endpointsOf(id).length})` : l}
                   </SidebarItem>
                 ))}
@@ -537,6 +559,10 @@ export default function DevelopPage() {
             <RefSection section={activeSection} baseUrl={base} onCopy={copy} copiedId={copiedId} />
           )}
         </main>
+      </div>
+      {/* 복사 실패 알림, 읽기 도구가 바로 읽도록 자리는 늘 두고 글만 바꾼다 */}
+      <div role="status" aria-live="polite" style={copyFailed ? COPY_FAILED_STYLE : undefined}>
+        {copyFailed ? DEVCENTER_COPY.failed : ''}
       </div>
     </div>
     </ApiLangProvider>

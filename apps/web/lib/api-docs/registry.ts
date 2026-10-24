@@ -219,7 +219,7 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
     id: 'gpu.products.list', group: 'gpu', method: 'GET', path: '/products', status: 'stable',
     demo: { emoji: '📦' },
     requires: 'member',
-    title: 'GPU 목록', desc: '취급 중인 GPU 구성과 우리 판매가. 내부 가격표와 같은 계산(getGpuCatalog)을 씁니다. 고정된 목록이라 커서 없이 한 번에 전부 주고, meta.total 이 전체 수입니다.',
+    title: 'GPU 목록', desc: '취급 중인 GPU 구성과 우리 판매가. 내부 가격표 화면과 같은 계산으로 낸 값입니다. 고정된 목록이라 커서 없이 한 번에 전부 주고, meta.total 이 전체 수입니다.',
     sample: `{
   "success": true,
   "data": [
@@ -546,7 +546,7 @@ function legacyCrm(
   table: string, oldWord: string, newWord: string, newId: string, newPath: string,
   examples: { create: Record<string, unknown>; update: Record<string, unknown> },
 ): ApiEndpoint[] {
-  const note = `구 화면(/${table})의 표입니다. 새 코드는 「${newWord}」(${newPath})를 쓰세요 — 「${oldWord}」는 폐기된 말입니다.`
+  const note = `구 화면(/${table})의 표입니다. 새 코드는 「${newWord}」 API(${newPath})를 쓰세요. 「${oldWord}」는 폐기된 말입니다.`
   return [
     { id: `legacy.${table}.list`, group: 'legacy', method: 'GET', path: `/${table}`, status: 'deprecated',
       requires: 'admin', deprecatedNote: note, title: `${oldWord} 목록`, desc: `목록 조회. → ${newId}`,

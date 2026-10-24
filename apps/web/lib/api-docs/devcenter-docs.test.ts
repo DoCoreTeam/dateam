@@ -413,3 +413,73 @@ test('최상위 nextCursor total 문장은 okList 의 동작과 같고 GPU 목�
   assert.match(t, /GPU 가격 목록은 meta 에만/)
   assert.ok(!read('app/develop/page.tsx').includes('예전 최상위 필드는 당분간'))
 })
+
+/* ── 화면에 닿는 문구 (P0168) ─────────────────────────────────────────────── */
+
+/** registry 가 내보내는 값 가운데 문자열을 경로와 함께 모두 모은다 (함수는 건너뜀) */
+async function registryStrings(): Promise<{ path: string; key: string; value: string }[]> {
+  const reg = (await import('./registry.ts')) as Record<string, unknown>
+  const out: { path: string; key: string; value: string }[] = []
+  const seen = new Set<unknown>()
+  const walk = (v: unknown, path: string, key: string): void => {
+    if (typeof v === 'string') { out.push({ path, key, value: v }); return }
+    if (!v || typeof v !== 'object' || seen.has(v)) return
+    seen.add(v)
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) walk(x, `${path}.${k}`, k)
+  }
+  for (const [k, v] of Object.entries(reg)) if (typeof v !== 'function') walk(v, k, k)
+  return out
+}
+
+test('registry 의 화면 문구에 「—」가 없다', async () => {
+  const dashes = (await registryStrings()).filter((s) => s.value.includes('—'))
+  assert.ok((await registryStrings()).length > 500, '훑은 문자열이 너무 적다, 걷기가 망가졌다')
+  assert.deepEqual(dashes.map((s) => `${s.path}: ${s.value.slice(0, 60)}`), [])
+})
+
+test('registry 의 화면 문구에 구현 이름(함수, 파일 경로)이 없다, 사용자가 쓰는 API 칸 이름만 허용', async () => {
+  const strings = await registryStrings()
+  // 허용 목록은 손으로 적지 않는다: 요청과 응답 칸 이름, 예시 본문과 응답 예시의 키가 곧 사용자가 쓰는 말이다
+  const allowed = new Set<string>()
+  for (const s of strings) {
+    if (s.key === 'name') allowed.add(s.value)
+    if (s.key === 'sample') for (const m of s.value.matchAll(/"([A-Za-z_]\w*)"\s*:/g)) allowed.add(m[1])
+  }
+  const { ENDPOINTS } = await import('./registry.ts')
+  const keysOf = (o: unknown): void => {
+    if (!o || typeof o !== 'object') return
+    for (const [k, v] of Object.entries(o as Record<string, unknown>)) { allowed.add(k); keysOf(v) }
+  }
+  for (const e of ENDPOINTS) { keysOf(e.bodyExample); keysOf(e.queryExample) }
+  assert.ok(allowed.has('nextCursor') && allowed.has('rateLimitPerMinute'), '허용 목록 파생이 망가졌다')
+
+  const SKIP_KEYS = new Set(['id', 'name', 'path', 'sample', 'method', 'group', 'requires', 'scope', 'status', 'type', 'section', 'key'])
+  const impl: string[] = []
+  for (const s of strings) {
+    if (SKIP_KEYS.has(s.key)) continue
+    for (const m of s.value.matchAll(/\b[a-z]+[A-Z][A-Za-z]*\b/g)) if (!allowed.has(m[0])) impl.push(`${s.path}: ${m[0]}`)
+    for (const m of s.value.matchAll(/\b[\w/.-]+\.tsx?\b/g)) impl.push(`${s.path}: ${m[0]}`)
+  }
+  assert.deepEqual(impl, [])
+})
+
+test('개발자센터 화면 파일에 한글 문자열을 직접 적지 않는다, 말은 lib/terms/devcenter.ts 에서 온다', () => {
+  const code = read('app/develop/page.tsx')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|\s)\/\/.*$/gm, '$1')
+  const lines = code.split('\n').filter((l) => /[가-힣]/.test(l)).map((l) => l.trim().slice(0, 80))
+  assert.deepEqual(lines, [])
+})
+
+test('복사 단추는 클립보드 쓰기가 끝난 뒤에만 「복사됨」을 띄우고 실패는 알림 줄로 말한다', async () => {
+  const { DEVCENTER_COPY } = await import('../terms/devcenter.ts')
+  const page = read('app/develop/page.tsx')
+  assert.match(page, /await navigator\.clipboard\.writeText\(text\)/, 'writeText 의 약속을 기다려야 거절을 안다')
+  const copy = page.slice(page.indexOf('const copy = useCallback'), page.indexOf('}, [])', page.indexOf('const copy = useCallback')))
+  assert.ok(copy.indexOf('await writeClipboard') >= 0 && copy.indexOf('await writeClipboard') < copy.indexOf('setCopiedId('), '쓰기 전에 「복사됨」을 켜면 실패해도 복사됨이 뜬다')
+  assert.match(copy, /setCopiedId\(ok \? id : null\)/)
+  assert.match(page, /role="status" aria-live="polite"/)
+  assert.match(page, /\{copyFailed \? DEVCENTER_COPY\.failed : ''\}/)
+  assert.ok(DEVCENTER_COPY.failed.length > 0)
+  assert.doesNotMatch(page, /\balert\(/, '브라우저 기본 대화상자를 쓰지 않는다')
+})
