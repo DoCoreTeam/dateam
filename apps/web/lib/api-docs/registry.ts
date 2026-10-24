@@ -24,6 +24,7 @@ import type { HttpMethod } from './snippets.ts'
 import { SERVICE_LABEL, API_CLI_DOC, API_APPROVAL_STATUS } from '../terms/index.ts'
 import { SUPPLY_ROUNDING_UNITS } from '../crm/domain/quote-compose.ts'
 import { CRM_ERROR_HTTP } from '../crm/domain/errors.ts'
+import { APPROVAL_SCOPES, type Scope } from '../actions/types.ts'
 
 /** 화면 왼쪽 묶음 — 사용자가 "무엇을 하려는가"로 나눈다 */
 export type ApiGroupKey = 'start' | 'gpu' | 'crm' | 'ci' | 'legacy' | 'ref'
@@ -101,6 +102,11 @@ export interface ApiEndpoint {
    * requireMemberKey 는 member(api_user 키 거절), withPublicCrmApi 는 crm-member, withPublicCiList 는 ci-member
    */
   requires?: 'admin' | 'member' | 'crm-member' | 'ci-member'
+  /**
+   * 관문(dispatchPublicApi)이 정의 표로 여는 창구가 키에 요구하는 범위.
+   * registry.test.ts 가 정의 표(lib/actions/generated/table.ts)의 scope 와 대조한다
+   */
+  scope?: Scope
   status: 'stable' | 'deprecated'
   /** 왜 이관 중인지 — deprecated 면 반드시 적는다 */
   deprecatedNote?: string
@@ -119,6 +125,81 @@ const CURSOR_QUERY: readonly ApiParam[] = [
   { name: 'cursor', type: 'string', desc: '이어 보기 커서. 응답 meta.nextCursor 를 그대로 넣습니다' },
   { name: 'q', type: 'string', desc: '이름·제목 검색어' },
 ]
+
+/**
+ * 관문으로 들어가는 쓰기 창구의 범위 안내. 범위가 승인 대상이면 202 승인 요청, 아니면 403 이다
+ * (dispatch-core.ts decideAccess 와 같은 갈림, APPROVAL_SCOPES 를 그대로 읽는다)
+ */
+export function scopeNote(scope: Scope): string {
+  const missing = APPROVAL_SCOPES.includes(scope)
+    ? `없으면 키 주인 계정에 그 권한이 있을 때 202 로 승인 요청이 만들어집니다`
+    : `없으면 403 입니다`
+  return `키에 ${scope} 범위가 있어야 바로 실행되고, ${missing}. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.`
+}
+
+type GatewayEntry = Omit<ApiEndpoint, 'status' | 'scope'> & { scope: Scope }
+
+/** 관문이 여는 쓰기 창구, 설명 끝에 범위 안내를 붙인다 */
+function gateway(e: GatewayEntry): ApiEndpoint {
+  return { ...e, status: 'stable', desc: `${e.desc} ${scopeNote(e.scope)}` }
+}
+
+/** 고치기 창구가 공통으로 받는 칸 */
+const VERSION_BODY: ApiParam = {
+  name: 'version', type: 'number', required: true,
+  desc: `상세 응답의 version 을 그대로 넣습니다. 그 사이 누가 먼저 고쳤으면 ${CRM_ERROR_HTTP.CONFLICT} 입니다`,
+}
+
+/** 지우기 창구가 공통으로 받는 쿼리 */
+const DELETE_MODE_QUERY: ApiParam = {
+  name: 'mode', type: '"purge"', desc: '비우면 휴지통으로 옮기고, purge 면 영구 삭제합니다. 영구 삭제는 되돌릴 수 없습니다',
+}
+
+/** 회사 인물 딜은 고치기와 지우기의 모양이 같다 */
+function crmEditAndDelete(path: string, idBase: string, word: string, body: ApiParam[]): ApiEndpoint[] {
+  return [
+    gateway({
+      id: `${idBase}.update`, group: 'crm', method: 'PATCH', path, scope: 'write',
+      requires: 'crm-member', title: `${word} 수정`, desc: '보낸 칸만 고칩니다. 소유자는 여기서 바꾸지 않습니다.',
+      body: [VERSION_BODY, ...body],
+    }),
+    gateway({
+      id: `${idBase}.delete`, group: 'crm', method: 'DELETE', path, scope: 'delete',
+      requires: 'crm-member', title: `${word} 삭제`, desc: '기본은 휴지통으로 옮겨 화면에서 되돌릴 수 있습니다.',
+      query: [DELETE_MODE_QUERY],
+    }),
+  ]
+}
+
+const COMPANY_BODY: ApiParam[] = [
+  { name: 'name', type: 'string', required: true, desc: '회사 이름' },
+  { name: 'domain', type: 'string', desc: '웹사이트 도메인' },
+  { name: 'industry', type: 'string', desc: '업종' },
+  { name: 'region', type: 'string', desc: '지역' },
+  { name: 'descriptionMd', type: 'string', desc: '소개(마크다운)' },
+]
+
+const PERSON_BODY: ApiParam[] = [
+  { name: 'name', type: 'string', required: true, desc: '인물 이름' },
+  { name: 'companyId', type: 'string', desc: '속한 회사 id' },
+  { name: 'email', type: 'string', desc: '이메일' },
+  { name: 'phone', type: 'string', desc: '전화번호' },
+  { name: 'title', type: 'string', desc: '직함' },
+  { name: 'memo', type: 'string', desc: '메모' },
+]
+
+const DEAL_BODY: ApiParam[] = [
+  { name: 'companyId', type: 'string', required: true, desc: '딜이 붙는 회사 id' },
+  { name: 'name', type: 'string', required: true, desc: '딜 이름' },
+  { name: 'pipelineId', type: 'string', desc: '비우면 워크스페이스 기본 파이프라인입니다' },
+  { name: 'stageId', type: 'string', desc: '비우면 그 파이프라인의 첫 단계입니다' },
+  { name: 'amountMinor', type: 'string | number', desc: '금액. 통화의 가장 작은 단위로 적습니다(원화는 원)' },
+  { name: 'currency', type: 'string', desc: '통화 코드' },
+  { name: 'expectedCloseDate', type: 'string', desc: '예상 마감일(YYYY-MM-DD)' },
+]
+
+/** 고치기는 만들기의 칸을 그대로 받되 필수가 아니다 */
+const optional = (body: ApiParam[]): ApiParam[] => body.map(({ required: _required, ...rest }) => rest)
 
 export const ENDPOINTS: readonly ApiEndpoint[] = [
   /* ── GPU 가격 ─────────────────────────────────────────────────────────── */
@@ -279,6 +360,61 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
     requires: 'crm-member', title: '할 일 목록', desc: '딜·회사에 붙은 할 일.',
     query: [...CURSOR_QUERY],
   },
+  gateway({
+    id: 'crm.companies.create', group: 'crm', method: 'POST', path: '/crm/companies', scope: 'write',
+    requires: 'crm-member', title: '새 회사', desc: '회사를 만듭니다. 키 주인이 소유자가 됩니다.',
+    body: COMPANY_BODY,
+  }),
+  ...crmEditAndDelete('/crm/companies/{id}', 'crm.companies', '회사', optional(COMPANY_BODY)),
+  gateway({
+    id: 'crm.people.create', group: 'crm', method: 'POST', path: '/crm/people', scope: 'write',
+    requires: 'crm-member', title: '새 인물', desc: '인물을 만듭니다.',
+    body: PERSON_BODY,
+  }),
+  ...crmEditAndDelete('/crm/people/{id}', 'crm.people', '인물', optional(PERSON_BODY)),
+  gateway({
+    id: 'crm.deals.create', group: 'crm', method: 'POST', path: '/crm/deals', scope: 'write',
+    requires: 'crm-member', title: '새 딜', desc: '딜을 만듭니다.',
+    body: DEAL_BODY,
+  }),
+  ...crmEditAndDelete('/crm/deals/{id}', 'crm.deals', '딜', optional(DEAL_BODY)),
+  gateway({
+    id: 'crm.meetings.create', group: 'crm', method: 'POST', path: '/crm/meetings', scope: 'write',
+    requires: 'crm-member', title: '새 미팅', desc: '미팅 기록을 만듭니다. 제목과 시작 시각이 없으면 400 입니다.',
+    body: [
+      { name: 'title', type: 'string', required: true, desc: '미팅 제목' },
+      { name: 'startedAt', type: 'string', required: true, desc: '시작 시각(ISO 8601)' },
+      { name: 'endedAt', type: 'string', desc: '끝난 시각(ISO 8601)' },
+      { name: 'companyId', type: 'string', desc: '회사 id' },
+      { name: 'dealId', type: 'string', desc: '딜 id' },
+      { name: 'location', type: 'string', desc: '장소' },
+      { name: 'withNote', type: 'boolean', desc: 'true 면 회의노트도 함께 만듭니다' },
+    ],
+  }),
+  gateway({
+    id: 'crm.quotes.create', group: 'crm', method: 'POST', path: '/crm/quotes', scope: 'write',
+    requires: 'crm-member', title: '새 견적', desc: '딜에 붙는 견적을 만듭니다. 품목 줄을 함께 보낼 수 있습니다.',
+    body: [
+      { name: 'dealId', type: 'string', required: true, desc: '견적이 붙는 딜 id' },
+      { name: 'title', type: 'string', desc: '견적 제목' },
+      { name: 'currency', type: 'string', desc: '통화 코드' },
+      { name: 'validUntil', type: 'string', desc: '유효 기한(YYYY-MM-DD)' },
+      { name: 'notesMd', type: 'string', desc: '비고(마크다운)' },
+      { name: 'lines', type: 'object[]', desc: '품목 줄. 칸은 견적 상세 응답의 줄과 같습니다' },
+    ],
+  }),
+  gateway({
+    id: 'crm.tasks.create', group: 'crm', method: 'POST', path: '/crm/tasks', scope: 'write',
+    requires: 'crm-member', title: '새 할 일', desc: '할 일을 만듭니다.',
+    body: [
+      { name: 'title', type: 'string', required: true, desc: '할 일 제목' },
+      { name: 'dueAt', type: 'string', desc: '기한(ISO 8601)' },
+      { name: 'assigneeId', type: 'string', desc: '맡은 사람 id' },
+      { name: 'companyId', type: 'string', desc: '회사 id' },
+      { name: 'personId', type: 'string', desc: '인물 id' },
+      { name: 'dealId', type: 'string', desc: '딜 id' },
+    ],
+  }),
 
   /* ── 콘텐츠 인텔리전스 ─────────────────────────────────────────────────── */
   {
@@ -290,6 +426,18 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
       { name: 'ownership', type: '"owned" | "tracked"', desc: 'owned 는 우리 채널만, tracked 는 추적하는 다른 채널만. 없으면 둘 다' },
     ],
   },
+  gateway({
+    id: 'ci.channels.create', group: 'ci', method: 'POST', path: '/ci/channels', scope: 'write',
+    requires: 'ci-member', title: '새 채널', desc: '채널 주소나 핸들로 채널을 더합니다. 요금제 한도를 넘으면 거절됩니다.',
+    query: [
+      { name: 'workspaceId', type: 'string', required: true, desc: '워크스페이스 id. 목록의 workspace 와 이름이 다르고, 비우면 400 입니다' },
+    ],
+    body: [
+      { name: 'input', type: 'string', required: true, desc: '채널 주소 또는 핸들' },
+      { name: 'topicId', type: 'string', desc: '묶을 주제 id' },
+      { name: 'monitor', type: 'boolean', desc: '바로 모니터링할지. 기본 true' },
+    ],
+  }),
   {
     id: 'ci.contents.list', group: 'ci', method: 'GET', path: '/ci/contents', status: 'stable',
     demo: { emoji: '🎬', query: { limit: '5' } },
