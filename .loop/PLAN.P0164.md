@@ -1,0 +1,146 @@
+# PLAN newAX: 개발자센터가 CLI 와 키 범위 승인 요청 관문을 설명한다
+플랜 ID: P0164
+플랜 버전: v0.1.3
+상태: 진행중
+지시: ins_0348
+목표 버전: v0.11.85
+푸시: 모음
+작성: 2026-10-24
+시작 커밋: 58ffa509
+
+## 목표
+- 개발자센터가 키 범위와 만료, 게이트웨이 경로, 승인 요청, Idempotency-Key, 쓰기 한도, 감사 기록, teamda CLI 설치와 종료 코드, 견적 내보내기를 설명한다
+- 상수와 표가 바뀌면 개발자센터 문구가 같이 바뀌거나 가드가 빨개진다 (손으로 옮겨 적은 값 0)
+
+## 범위 밖
+- 액션 802개를 손으로 나열하는 것 (CLI 명령 목록과 OpenAPI 가 전체 목록)
+- 게이트웨이와 CLI 의 동작 변경 (문서만 바꿈)
+- 할인 쌓기 방식, 기준 리비전 경고는 공개 응답에 없음, 화면 기능이라 해당 없음 (I04 에서 확인 기록)
+
+## 완료 정의
+- pnpm typecheck, pnpm lint, pnpm test, pnpm build 통과
+- 새 화면 문구는 그 화면의 나머지 절과 같은 말투이고 말은 lib/terms 에서 가져옴
+- 새 가드는 일부러 깨 실패를 확인함 (S6)
+- 실브라우저 1280 과 390 에서 새 절이 그려지고 가로 넘침 0, 복사 단추와 명령 검색이 동작
+
+## 참조
+- LOOP.md 9절 U-N F-N
+- apps/web/lib/api-docs/ai-layer.ts 와 lib/policy/ai-layer-docs-guard.test.ts (파생 방식의 선례)
+- apps/web/lib/actions/dispatch-core.ts, lib/actions/types.ts, lib/terms/api-key.ts, lib/crm/domain/errors.ts, packages/teamda-cli/src/exit.ts
+
+## 항목
+
+### I01 인증 절이 키 범위와 만료와 실효 권한을 설명한다
+상태: 통과
+모드: 경량
+범위: apps/web/app/develop/page.tsx, apps/web/app/develop/KeyScopeSection.tsx (신규), apps/web/lib/api-docs/auth-doc.ts (신규), apps/web/lib/api-docs/devcenter-docs.test.ts (신규), apps/web/package.json
+감사 기준:
+- 보안: 문서 화면만 바뀌고 새 창구와 저장이 없음, git diff 에 app/api 와 middleware.ts 변경 0
+- 범위 여섯 줄이 Scope 와 API_KEY_SCOPE 에서, 만료 선택지가 API_KEY_EXPIRY_OPTIONS 와 API_KEY_DEFAULT_EXPIRY_DAYS 에서 파생됨, devcenter-docs.test.ts 가 이를 단정하고 값을 바꿔 깨면 실패
+- 실효 권한(계정 권한과 키 범위의 교집합), 403 requiredScope, 만료 키 403, /api-keys 에서 한 번만 보이는 키, GET /me 의 expiresAt 과 remainingThisMinute 이 화면에 있음
+- pnpm test 총 시험 수가 늘고 lib/ui/test-registry.test.ts 통과
+의존: 없음
+
+### I02 게이트웨이와 승인 요청 절이 생긴다
+상태: 통과
+모드: 경량
+범위: apps/web/app/develop/page.tsx, apps/web/app/develop/GatewaySection.tsx (신규), apps/web/lib/api-docs/gateway-doc.ts (신규), apps/web/lib/api-docs/devcenter-docs.test.ts
+감사 기준:
+- 보안: 문서 화면만 바뀌고 새 창구와 저장이 없음, git diff 에 app/api 와 middleware.ts 변경 0
+- 경로 접두는 PUBLIC_PREFIX, 쓰기 한도는 WRITE_LIMIT_PER_MINUTE, 키 길이는 IDEMPOTENCY_KEY_MAX, 사람만 하는 액션은 HUMAN_ONLY_ACTIONS 에서 가져옴, 승인 만료 24시간은 마이그레이션 318 의 기본값과 가드가 대조, 하나를 바꿔 깨면 실패
+- 202 와 approvalId, /approvals/{id} 웹 승인, human_only 403, 만료 미실행, Idempotency-Key 재사용 409 와 400, dryRun 과 x-dry-run, X-Request-Id 와 X-Agent, api_write_audit 와 CRM 변경 이력 API 탭과 /api-keys 최근 요청이 화면에 있음
+- 액션 경로 예시는 lib/actions/generated/table.ts 의 실제 항목에서 뽑음
+의존: I01
+
+### I03 CLI 절이 설치와 설정과 종료 코드를 설명한다
+상태: 통과
+모드: 경량
+범위: apps/web/app/develop/CliGuideSection.tsx (신규), apps/web/app/develop/page.tsx, apps/web/lib/api-docs/cli-doc.ts (신규), apps/web/lib/api-docs/devcenter-docs.test.ts, apps/web/lib/ui/list-standard.test.ts
+감사 기준:
+- 보안: 문서 화면만 바뀜, 키를 명령줄 인자로 넣는 예시 0 (--key-file 만), 가드가 단정
+- 종료 코드 표가 packages/teamda-cli/src/exit.ts 의 EXIT 와 이름과 숫자가 같음, 가져오거나 대조 시험이 다르면 실패, 일부러 깨 확인
+- 설치(pnpm build, build:win, 비 AVX x64 와 ARM), teamda config set base-url 에 화면 자신의 origin, login --key-file, help sync api, 출력 약속이 화면에 있고 명령 검색은 그대로 동작
+의존: I02
+
+### I04 엔드포인트 등록부가 견적 내보내기와 새 필드를 싣는다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/api-docs/registry.ts, apps/web/lib/api-docs/registry.test.ts, apps/web/app/develop/page.tsx
+감사 기준:
+- 보안: 문서만 바뀜, 견적 내보내기 설명에 2단계 인증 키 소유자 거절이 있음
+- GET /crm/quotes/{id}/export (format pdf png, page n, read 범위, 파일 응답) 가 등록부에 있고 registry.test.ts 통과
+- /me 와 approvals 항목이 expiresAt, remainingThisMinute, 승인 상태 필드를 설명함
+- 견적 응답의 supplyRoundingUnit 노출 여부를 코드로 확인해 노출이면 견적 항목에 설명, 할인 쌓기와 기준 리비전은 해당 없음 기록
+- 전체 목록은 CLI 명령 목록과 OpenAPI 로 잇는 안내가 있음
+의존: I03
+
+### I04a 등록부가 실제 라우트와 다른 필드와 권한 설명을 고친다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/api-docs/registry.ts, apps/web/lib/api-docs/registry.test.ts, apps/web/app/develop/page.tsx, apps/web/lib/terms/api-key.ts
+감사 기준:
+- 보안: 권한 설명이 라우트의 인증 함수와 같음 (requireAdminKey 는 관리자, requireMemberKey 는 api_user 차단), 문서만 바뀌고 app/api 변경 0
+- POST /pool-stock 은 pool_qty, GET /ci/channels ownership 은 owned 와 tracked, POST /quote 는 items[].custom_margin_pct 와 currency 기본 USD, 레거시 CRM 조회도 관리자 키, POST /suppliers PATCH /settings POST /pool-stock 에 관리자 requires, GPU 라우트에 member requires 가 있음
+- registry.test.ts 가 문서의 본문 필드 이름이 라우트 zod 키 안에 있는지 파생 가능한 곳에서 단정하고, 필드 이름을 하나 바꿔 깨면 실패
+- registry.test.ts 가 라우트 파일의 requireAdminKey requireMemberKey 와 문서 requires 가 맞는지 단정
+의존: I04
+
+### I04b 등록부 가드가 export const 로 연 쓰기 창구도 센다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/api-docs/registry.test.ts, apps/web/lib/api-docs/registry.ts
+감사 기준:
+- 보안: 문서 없는 쓰기 창구가 가드를 지나가지 않음, export const POST = dispatchPublicApi 꼴 13곳이 셈에 들어감
+- 그 13곳이 등록부에 실리거나 액션 표와 CLI 목록으로 잇는 사유와 함께 명시되어 registry.test.ts 통과
+- 하나를 등록부에서 빼 깨면 실패함을 확인 (S6)
+- P0165 가 바꾼 /products /ci/contents 커서와 openapi.json 응답 모양을 그 커밋을 읽고 등록부 문구에 맞춤
+의존: I04a
+
+### I05 오류 코드 절이 승인 요청과 범위와 멱등 키와 CRM 오류를 설명한다
+상태: 통과
+모드: 경량
+범위: apps/web/app/develop/page.tsx, apps/web/app/develop/ErrorCodeTable.tsx (신규), apps/web/lib/api-docs/errors-doc.ts (신규), apps/web/lib/api-docs/devcenter-docs.test.ts
+감사 기준:
+- 보안: 문서만 바뀜, 오류 설명에 내부 구조(표 이름 제외한 스택 경로 등) 없음
+- 202, 403 requiredScope human_only 만료 키, 409 멱등 충돌, 400 잘못된 멱등 키가 화면에 있음
+- CRM 오류는 CRM_ERROR_CODES 와 CRM_ERROR_HTTP 에서 파생, 코드를 하나 더하면 가드가 실패하거나 화면에 저절로 생김, 일부러 깨 확인
+의존: I04b
+
+### I06 실브라우저 F-10 과 화면 결함 고침
+상태: 통과
+모드: 경량
+범위: apps/web/app/develop/ (결함 발견 시만)
+감사 기준:
+- 보안: 시험 계정은 member 역할, 확인 뒤 접근 차단과 deleted_at 으로 정리
+- 자체 dev 서버에서 새 절 넷이 그려지고 복사 단추가 복사됨
+- 1280 과 390 에서 document 가로 넘침 0, 명령 검색이 결과를 줄임
+- pnpm test 전체 통과
+의존: I05
+
+### I07 옆 플랜 결함 수정 뒤 전체 시험 재측정
+상태: 통과
+모드: 경량
+범위: 없음 (재측정만, apps/web/package.json 시험 목록 확인)
+감사 기준:
+- 보안: 해당 없음, 코드 변경 없음
+- P0167 이 packages/teamda-cli/scripts/publish.ts 의 apps/web import 를 걷어낸 뒤 pnpm test 실패 0
+- loop final --result pass
+의존: I06
+
+## 종합 감사
+- 2026-10-25 1차
+- pnpm typecheck 통과 (종료 0)
+- pnpm lint 통과 (종료 0, 경고는 기존 파일)
+- pnpm test 9965 중 9964 통과, 1 실패: lib/policy/ai-package-boundary.test.ts 「패키지가 저장소를 import 하지 않는다」, 원인은 P0167 커밋 31e5a150 의 packages/teamda-cli/scripts/publish.ts 가 apps/web/lib/cli-release/manifest.ts 를 import 한 것, 이 플랜 파일 아님
+- next build 통과 (NEXT_DIST_DIR=.next-p0164, 끝나고 지움, tsconfig next-env 차이 0)
+- 보안 다섯 줄: rls_off_tables 0, anon_write_tables 0, public_using_true_policies 0, unpinned_secdef_functions 0, anon_readable_secdef_views 0
+- 전체 diff 검토: 이 플랜 커밋은 app/develop lib/api-docs list-standard.test.ts 만 바꿈, app/api middleware 변경 0, 비밀 0, 전각 대시 주석 하나 발견해 84558380 으로 고침, 한자 0
+- 항목 대 결과: I01 에서 I06 까지 범위 파일 전부 존재하고 커밋됨
+- 실브라우저 F-10: 1280 과 390 에서 새 절 전부 그려지고 가로 넘침 0, 복사와 명령 검색 동작
+- 판정: 완료 정의의 pnpm test 통과 한 줄이 옆 플랜 결함으로 미충족, 보완 항목 I07 을 보류로 둠
+
+## 변경 이력
+- v0.1.0 (2026-10-24) 최초 작성 (ins_0348)
+- v0.1.1 (2026-10-24) 조정자 감사가 찾은 등록부 오류(필드 이름, 권한, export const 쓰기 창구 13곳)를 I04a I04b 로 삽입
+- v0.1.2 (2026-10-24) I03 범위를 CliSection.tsx api-key.ts 에서 새 CliGuideSection.tsx 로 옮김, 두 파일은 P0167 I04(실행 파일 받기) 범위라 겹치지 않게 (audit:I03)
+- v0.1.3 (2026-10-24) 종합 감사의 전체 시험 1 실패(P0167 ai-package-boundary)를 기다리는 재측정 항목 I07 추가 (audit:I06)
