@@ -52,7 +52,7 @@ function ExampleTable() {
                 <code style={CODE}>{GATEWAY_PREFIX}{e.mount}</code>
                 <div>{e.note}</div>
               </td>
-              <td data-label={h.scope} style={CELL}><code style={CODE}>{e.scope}</code></td>
+              <td data-label={h.scope} style={CELL}><code style={{ ...CODE, whiteSpace: 'nowrap' }}>{e.scope}</code></td>
               <td data-label={h.cli} style={CELL}><code style={CODE}>teamda {e.cli}</code></td>
             </tr>
           ))}

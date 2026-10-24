@@ -131,7 +131,7 @@ function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
       <div className="card" style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: 'var(--space-4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
           <NbBadge status={METHOD_STATUS[e.method]}>{e.method}</NbBadge>
-          <code style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', background: 'var(--surface-muted)', padding: 'var(--space-1) var(--space-3)' }}>
+          <code style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', background: 'var(--surface-muted)', padding: 'var(--space-1) var(--space-3)', minWidth: 0, overflowWrap: 'anywhere' }}>
             /api/public/v1{e.path}
           </code>
           {e.status === 'deprecated' && <NbBadge status="blocker">이관 중</NbBadge>}
