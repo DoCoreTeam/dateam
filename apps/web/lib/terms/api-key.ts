@@ -117,7 +117,16 @@ export const API_CLI_DOC = {
     checksum: 'SHA-256',
     get: '받기',
     yours: '이 기기',
-    unsigned: '서명하지 않은 실행 파일이라 처음 실행할 때 Windows 와 macOS 가 경고합니다. Windows 는 추가 정보에서 실행, macOS 는 xattr -d com.apple.quarantine teamda 후 실행합니다',
+    unsigned: '받기 단추로 받은 파일은 서명하지 않은 실행 파일이라 처음 실행할 때 막힙니다. Windows 는 추가 정보에서 실행, macOS 는 xattr -d com.apple.quarantine teamda 후 실행합니다. 위 명령으로 받으면 이 단계가 없습니다',
+    install: {
+      title: '터미널로 받기',
+      hint: '이 명령으로 받으면 처음 실행할 때 막히지 않습니다. 명령 속 주소는 10분 동안만 쓸 수 있습니다',
+      targetLabel: '운영체제',
+      copy: '명령 복사',
+      copied: '복사했습니다',
+      copyFailed: '복사하지 못했습니다. 명령을 직접 선택해 복사하세요',
+      shell: { sh: '터미널', powershell: 'PowerShell' },
+    },
     target: {
       'windows-x64': 'Windows x64',
       'darwin-arm64': 'macOS Apple 실리콘',
