@@ -15,6 +15,22 @@ import { listCiWorkspaces, type CiWorkspaceRef } from '@/lib/ci/workspace'
 import { ciRoleAtLeast, type CiMemberRole } from '@/lib/ci/types'
 import { authenticatePublicApi, type ApiKeyContext } from '@/lib/publicApiAuth'
 import { fail, serverError, okList, responseHeaders, type ListMeta } from './respond.ts'
+import { parseListCursor, INVALID_CURSOR_MESSAGE, type ListCursor } from './cursor.ts'
+
+/** 요청 값이 틀렸을 때 던진다, withPublicCiApi 가 400 으로 바꾼다 (500 으로 새지 않게) */
+export class PublicCiInputError extends Error {}
+
+/**
+ * `?cursor=` 를 읽는다. 없으면 null, 우리가 준 꼴이 아니면 400
+ * 조용히 첫 쪽으로 돌리면 호출자는 같은 쪽을 끝없이 받는다
+ */
+export function readCiListCursor(request: NextRequest): ListCursor | null {
+  const raw = request.nextUrl.searchParams.get('cursor')
+  if (!raw) return null
+  const cursor = parseListCursor(raw)
+  if (!cursor) throw new PublicCiInputError(INVALID_CURSOR_MESSAGE)
+  return cursor
+}
 
 export interface PublicCiContext {
   workspace: CiWorkspaceRef
@@ -83,6 +99,7 @@ export async function withPublicCiApi<T>(
     if (respond) return respond(data, ctx)
     return NextResponse.json({ success: true, data }, { headers: responseHeaders({ ctx: key, request }) })
   } catch (e) {
+    if (e instanceof PublicCiInputError) return fail(400, e.message, { ctx: key, request })
     return serverError('ci', e, { ctx: key, request })
   }
 }

@@ -7,6 +7,7 @@ import { formatOutlier, formatPercentile } from '../format/metrics.ts'
 import { getCreativeMap } from './creative.ts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import type { CiContentListItem } from '../contracts.ts'
+import { cursorFilter, pageByCursor, type ListCursor } from '@/lib/public-api/cursor'
 import type { CiComparability, CiConfidence, CiContentFormat, CiIngestStatus, CiPlatform } from '../types.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -94,6 +95,12 @@ export interface ContentListParams {
   sort?: 'outlier' | 'recent' | 'velocity'
   limit: number
   cursor?: string | null
+  /**
+   * 공개 API 용 커서 넘김. 주면 정렬을 (발견 시각 내림, id 내림) 으로 고정하고
+   * after 다음 줄부터 limit 개를 준다, 돌려주는 cursor 는 `<first_seen_at>__<id>` 꼴이다
+   * 쪽 번호(offset)는 그 사이 새 줄이 들어오면 앞 쪽 줄이 다음 쪽에 다시 나온다
+   */
+  keyset?: { after: ListCursor | null }
   /** "왜 터졌나"를 함께 붙일지. 떡상 목록처럼 그게 본론인 화면에서만 켠다. */
   withCreative?: boolean
   /**
@@ -210,14 +217,16 @@ export async function listContents(p: ContentListParams): Promise<ContentListRes
     }
   }
 
-  // 정렬. 배수순은 파생 테이블 기준이라 조인 정렬을 쓴다.
-  if (p.sort === 'outlier') {
+  // 정렬. 배수순은 파생 테이블 기준이라 조인 정렬을 쓴다. 커서 넘김은 발견 시각 순만 맞물린다.
+  if (p.sort === 'outlier' && !p.keyset) {
     q = q.order('outlier_index', { ascending: false, foreignTable: 'ci_content_derived', nullsFirst: false })
-  } else if (p.sort === 'velocity') {
+  } else if (p.sort === 'velocity' && !p.keyset) {
     q = q.order('velocity_per_hour', { ascending: false, foreignTable: 'ci_content_derived', nullsFirst: false })
   } else {
     q = q.order('first_seen_at', { ascending: false })
   }
+
+  if (p.keyset) return listContentsByKeyset(q, p, p.keyset.after)
 
   const offset = p.cursor ? Number(p.cursor) : 0
   const start = Number.isFinite(offset) && offset > 0 ? offset : 0
@@ -253,5 +262,22 @@ export async function listContents(p: ContentListParams): Promise<ContentListRes
     total,
     cursor: nextOffset < total ? String(nextOffset) : null,
     population,
+  }
+}
+
+/** 발견 시각과 id 로 맞물리는 넘김, 같은 시각 줄이 여럿이어도 id 가 순서를 정한다 */
+async function listContentsByKeyset(q: any, p: ContentListParams, after: ListCursor | null): Promise<ContentListResult> {
+  let query = q.order('id', { ascending: false })
+  if (after) query = query.or(cursorFilter(after, 'first_seen_at'))
+  query = query.limit(p.limit + 1)
+
+  const { data, count, error } = await query
+  if (error) throw error
+  const page = pageByCursor((data ?? []) as Row[], p.limit, (r) => r.first_seen_at, (r) => r.id)
+  return {
+    items: page.items.map((r) => toListItem(r, 0)),
+    total: count ?? page.items.length,
+    cursor: page.nextCursor,
+    population: 0,
   }
 }
