@@ -8,32 +8,19 @@
  * Upload reads NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY from the
  * environment only and never prints the key. Bucket paths are always v<version>/<fileName>, and
  * latest.json goes last so the download page never points at a file that is not there yet.
- * The manifest is checked with the same parseManifest the web route uses before anything uploads.
+ * The manifest is checked against the shared contract in release-spec.ts before anything uploads;
+ * apps/web/lib/cli-release/manifest.test.ts proves that contract passes the web route's parseManifest.
  */
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  MANIFEST_PATH, RELEASE_BUCKET, parseManifest,
-  type ReleaseFile, type ReleaseManifest, type ReleaseTarget,
-} from '../../../apps/web/lib/cli-release/manifest.ts'
+  MANIFEST_PATH, RELEASE_BUCKET, TARGETS, checkManifest, releaseFileOf,
+  type ReleaseFile, type ReleaseManifest, type TargetSpec,
+} from './release-spec.ts'
 
 const PKG = join(import.meta.dir, '..')
 const OUT = join(PKG, 'dist', 'release')
-
-interface TargetSpec {
-  target: ReleaseTarget
-  bunTarget: string
-  binary: string
-  archive: 'zip' | 'tar.gz'
-}
-
-const TARGETS: readonly TargetSpec[] = [
-  { target: 'windows-x64', bunTarget: 'bun-windows-x64-baseline', binary: 'teamda.exe', archive: 'zip' },
-  { target: 'darwin-arm64', bunTarget: 'bun-darwin-arm64', binary: 'teamda', archive: 'tar.gz' },
-  { target: 'darwin-x64', bunTarget: 'bun-darwin-x64', binary: 'teamda', archive: 'tar.gz' },
-  { target: 'linux-x64', bunTarget: 'bun-linux-x64-baseline', binary: 'teamda', archive: 'tar.gz' },
-]
 
 function fail(code: string, message: string): never {
   console.error(JSON.stringify({ error: { code, message } }))
@@ -54,12 +41,12 @@ function buildOne(spec: TargetSpec, version: string): ReleaseFile {
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(dir, { recursive: true })
   run(['bun', 'build', 'src/main.ts', '--compile', `--target=${spec.bunTarget}`, '--outfile', join(dir, spec.binary)], PKG)
-  const fileName = `teamda-${spec.target}.${spec.archive}`
-  const archivePath = join(OUT, fileName)
+  const draft = releaseFileOf(spec, version, 0, '')
+  const archivePath = join(OUT, draft.fileName)
   rmSync(archivePath, { force: true })
   if (spec.archive === 'zip') run(['zip', '-q', '-j', archivePath, join(dir, spec.binary)], PKG)
   else run(['tar', '-czf', archivePath, '-C', dir, spec.binary], PKG)
-  return { target: spec.target, path: `v${version}/${fileName}`, fileName, size: statSync(archivePath).size, sha256: sha256Of(archivePath) }
+  return releaseFileOf(spec, version, statSync(archivePath).size, sha256Of(archivePath))
 }
 
 function readVersion(): string {
@@ -75,9 +62,10 @@ function buildManifest(version: string): ReleaseManifest {
     console.log(JSON.stringify({ built: f.fileName, size: f.size, sha256: f.sha256 }))
     return f
   })
-  const parsed = parseManifest({ version, publishedAt: new Date().toISOString(), files })
-  if (!parsed.ok) fail('manifest_invalid', parsed.reason)
-  return parsed.manifest
+  const manifest: ReleaseManifest = { version, publishedAt: new Date().toISOString(), files }
+  const problem = checkManifest(manifest)
+  if (problem) fail('manifest_invalid', problem)
+  return manifest
 }
 
 interface UploadEnv { baseUrl: string; key: string }

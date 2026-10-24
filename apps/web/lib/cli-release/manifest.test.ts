@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseManifest, isSafeReleasePath, SIGNED_URL_TTL_SECONDS } from './manifest.ts'
+import { parseManifest, isSafeReleasePath, SIGNED_URL_TTL_SECONDS, RELEASE_BUCKET, MANIFEST_PATH, RELEASE_TARGETS } from './manifest.ts'
+import * as spec from '../../../../packages/teamda-cli/scripts/release-spec.ts'
 
 const SHA = 'a'.repeat(64)
 const good = () => ({
@@ -54,4 +55,31 @@ test('필드가 빠지거나 틀리면 거절한다', () => {
   }
   assert.equal(parseManifest(null).ok, false)
   assert.equal(parseManifest([]).ok, false)
+})
+
+// 올리는 쪽 계약 (P0167 I04a)
+// packages/teamda-cli 는 저장소 코드를 import 할 수 없어(ai-package-boundary) 계약을 자기 안에 둔다
+// 둘이 갈라지면 올린 판을 창구가 거절해 받기가 통째로 죽는다, 그래서 여기서 값으로 대조한다
+
+test('★ 올리는 스크립트와 받기 창구가 같은 버킷과 목록 이름과 대상을 쓴다', () => {
+  assert.equal(spec.RELEASE_BUCKET, RELEASE_BUCKET)
+  assert.equal(spec.MANIFEST_PATH, MANIFEST_PATH)
+  assert.deepEqual(spec.TARGETS.map((t) => t.target), [...RELEASE_TARGETS])
+})
+
+test('★ 올리는 스크립트가 만드는 목록을 받기 창구가 그대로 통과시킨다', () => {
+  const version = '0.2.0'
+  const files = spec.TARGETS.map((t) => spec.releaseFileOf(t, version, 41_000_000, SHA))
+  const manifest = { version, publishedAt: '2026-10-25T00:00:00.000Z', files }
+  assert.equal(spec.checkManifest(manifest), null)
+  const r = parseManifest(manifest)
+  assert.equal(r.ok, true, r.ok ? '' : r.reason)
+})
+
+test('올리는 쪽 검사도 경로가 v버전/파일이름 이 아니면 거절한다', () => {
+  const version = '0.2.0'
+  const files = spec.TARGETS.map((t) => spec.releaseFileOf(t, version, 1, SHA))
+  const bad = { version, publishedAt: '2026-10-25T00:00:00.000Z', files: files.map((f, i) => (i === 0 ? { ...f, path: '../latest.json' } : f)) }
+  assert.notEqual(spec.checkManifest(bad), null)
+  assert.equal(parseManifest(bad).ok, false)
 })
