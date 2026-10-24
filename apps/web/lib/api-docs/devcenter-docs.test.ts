@@ -24,6 +24,13 @@ import {
   APPROVAL_202_SAMPLE, HUMAN_ONLY_SAMPLE, HUMAN_ONLY_MESSAGE, DRY_RUN_SAMPLE, APPROVAL_STATUS_ROWS,
 } from './gateway-doc.ts'
 
+import {
+  CLI_EXIT_ROWS, CLI_SECRET_FLAGS, CLI_RATE_LIMIT_RETRIES, CLI_SERVER_RETRIES, CLI_WINDOWS_TARGET, CLI_BUN_MIN, CLI_DOC,
+  CLI_COMMAND_ROWS, CLI_BUILD_SAMPLE, CLI_LOGIN_SAMPLE, CLI_SECRET_REFUSED_SAMPLE, CLI_USE_SAMPLE, CLI_ERROR_SAMPLE, cliConfigSample,
+} from './cli-doc.ts'
+import { EXIT, exitForStatus } from '../../../../packages/teamda-cli/src/exit.ts'
+import { SECRET_FLAGS } from '../../../../packages/teamda-cli/src/args.ts'
+
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (rel: string): string => readFileSync(join(WEB, rel), 'utf8')
 
@@ -155,4 +162,98 @@ test('게이트웨이 절이 말하는 헤더와 상태 코드는 게이트웨�
   }
   const page = read('app/develop/page.tsx')
   assert.match(page, /<GatewaySection onCopy=\{copy\} copiedId=\{copiedId\} \/>/)
+})
+
+/* ── CLI 절의 설치와 설정과 종료 코드 (P0164 I03) ─────────────────────────── */
+
+const CLI = '../../packages/teamda-cli'
+const cliText = (): string =>
+  [...Object.values(CLI_DOC).map((v) => (typeof v === 'string' ? v : '')), ...CLI_COMMAND_ROWS.flatMap((r) => [r.cmd, r.desc])].join('\n')
+const CLI_SAMPLES = (): string[] =>
+  [CLI_BUILD_SAMPLE, cliConfigSample('https://example.test'), CLI_LOGIN_SAMPLE, CLI_USE_SAMPLE, ...CLI_COMMAND_ROWS.map((r) => r.cmd)]
+
+test('종료 코드 표는 teamda-cli 의 EXIT 와 이름과 숫자가 같다, 양쪽 모두', () => {
+  assert.deepEqual(CLI_EXIT_ROWS.map((r) => [r.name, r.code]), Object.entries(EXIT))
+  for (const [name, code] of Object.entries(EXIT)) {
+    assert.equal(CLI_EXIT_ROWS.find((r) => r.name === name)?.code, code, name)
+  }
+  assert.equal(new Set(CLI_EXIT_ROWS.map((r) => r.code)).size, CLI_EXIT_ROWS.length)
+  // 뜻 칸이 말하는 HTTP 상태는 exitForStatus 가 실제로 그 코드로 바꾸는 상태다
+  for (const r of CLI_EXIT_ROWS) {
+    assert.ok(r.desc.length > 0, r.name)
+    const statuses = [...r.desc.matchAll(/\b([1-5])(\d\d|xx)\b/g)].map((m) => Number(`${m[1]}${m[2] === 'xx' ? '00' : m[2]}`))
+    for (const st of statuses) {
+      assert.equal(exitForStatus(st), r.code, `${r.name} 의 ${st}`)
+    }
+  }
+})
+
+test('키는 --key-file 로만 넘기고 거절하는 인자와 문구는 args.ts 와 같다', () => {
+  assert.deepEqual([...CLI_SECRET_FLAGS], [...SECRET_FLAGS])
+  for (const sample of CLI_SAMPLES()) {
+    for (const flag of SECRET_FLAGS) {
+      assert.ok(!new RegExp(`(^|\\s)--${flag}(=|\\s|$)`, 'm').test(sample), `예시가 --${flag} 로 키를 넘긴다: ${sample}`)
+    }
+  }
+  assert.ok(CLI_LOGIN_SAMPLE.includes('auth login --key-file '), '파일로 넘기는 예시')
+  assert.ok(CLI_LOGIN_SAMPLE.includes('--key-file -'), '표준 입력으로 넘기는 예시')
+  assert.ok(!/(sk|tk|key)_[A-Za-z0-9]{16,}/.test(CLI_SAMPLES().join('\n')), '예시에 키처럼 생긴 값이 없다')
+  const args = read(`${CLI}/src/args.ts`)
+  const body = JSON.parse(CLI_SECRET_REFUSED_SAMPLE.replace(/^\/\/.*\n/, '')) as { error: { code: string; message: string } }
+  assert.ok(args.includes(`usage('${body.error.code}', `), '거절 코드')
+  const tmpl = /usage\('secret_on_argv', `([^`]+)`\)/.exec(args)?.[1] ?? ''
+  assert.equal(body.error.message, tmpl.replace('${name}', 'token'))
+  assert.equal(EXIT.USAGE, 2)
+  assert.ok(CLI_DOC.loginRefused.includes(`종료 코드 ${EXIT.USAGE}(secret_on_argv)`))
+})
+
+test('빌드 명령과 Windows 대상과 다시 시도 횟수는 teamda-cli 의 값과 같다', () => {
+  const pkg = JSON.parse(read(`${CLI}/package.json`)) as { scripts: Record<string, string>; engines: { bun: string } }
+  assert.ok(pkg.scripts.build.includes('--compile') && !pkg.scripts.build.includes('--target'), 'build 는 빌드하는 기계용')
+  assert.equal(/--target=(\S+)/.exec(pkg.scripts['build:win'])?.[1], CLI_WINDOWS_TARGET, 'build:win 대상')
+  assert.equal(pkg.engines.bun, `>=${CLI_BUN_MIN}`)
+  for (const s of ['build', 'build:win']) assert.ok(CLI_BUILD_SAMPLE.includes(`pnpm ${s} `), s)
+  const http = read(`${CLI}/src/http.ts`)
+  assert.equal(Number(/export const RATE_LIMIT_RETRIES = (\d+)/.exec(http)?.[1]), CLI_RATE_LIMIT_RETRIES)
+  assert.equal(Number(/export const SERVER_RETRIES = (\d+)/.exec(http)?.[1]), CLI_SERVER_RETRIES)
+  const text = cliText()
+  for (const word of [CLI_WINDOWS_TARGET, 'AVX', 'ARM', `${CLI_RATE_LIMIT_RETRIES}번까지`, `${CLI_SERVER_RETRIES}번 다시`]) assert.ok(text.includes(word), word)
+})
+
+test('명령 예시는 run.ts 의 내장 명령이거나 OpenAPI 의 실제 명령이다', () => {
+  const run = read(`${CLI}/src/run.ts`)
+  const builtins = [...run.matchAll(/first === '([a-z]+)'/g)].map((m) => m[1])
+  for (const b of ['help', 'sync', 'auth', 'config', 'api']) assert.ok(builtins.includes(b), b)
+  const admin = read(`${CLI}/src/commands/admin.ts`)
+  assert.ok(admin.includes("name !== 'base-url'"), 'config set base-url')
+  for (const sub of ['login', 'status', 'logout']) assert.ok(admin.includes(`'auth ${sub}'`), sub)
+  const spec = JSON.parse(read('lib/actions/generated/openapi.json')) as { paths: Record<string, Record<string, { 'x-cli'?: string }>> }
+  const cliNames = new Set(Object.values(spec.paths).flatMap((item) => Object.values(item).map((op) => op['x-cli']).filter(Boolean)))
+  for (const line of CLI_USE_SAMPLE.split('\n')) {
+    const words = line.replace(/^teamda /, '').split(' ').filter((w) => !w.startsWith('-'))
+    if (builtins.includes(words[0])) continue
+    const hit = [3, 2].map((n) => words.slice(0, n).join(' ')).find((w) => cliNames.has(w))
+    assert.ok(hit, `OpenAPI 에 없는 명령: ${line}`)
+  }
+})
+
+test('base-url 예시는 화면의 origin 을 쓰고 출력 약속은 run.ts 와 exit.ts 와 같다', () => {
+  assert.equal(cliConfigSample('https://a.example').split('\n')[0], 'teamda config set base-url https://a.example')
+  const run = read(`${CLI}/src/run.ts`)
+  assert.ok(run.includes('ctx.err(`${redact(JSON.stringify({ error: body }), key)}\\n`)'), '실패는 표준 오류에 봉투')
+  assert.ok(run.includes('ctx.out(`${redact(JSON.stringify(value ?? null), key)}\\n`)'), '성공은 표준 출력에 JSON 하나')
+  const exitSrc = read(`${CLI}/src/exit.ts`)
+  const errorBody = /export interface ErrorBody \{([\s\S]*?)\n\}/.exec(exitSrc)?.[1] ?? ''
+  const fields = [...errorBody.matchAll(/^\s*([a-zA-Z]+)\??:/gm)].map((m) => m[1])
+  const env = JSON.parse(CLI_ERROR_SAMPLE.replace(/^\/\/.*\n/, '')) as { error: Record<string, unknown> }
+  for (const k of Object.keys(env.error)) assert.ok(fields.includes(k), k)
+  assert.equal(exitForStatus(Number(env.error.status)), Number(/종료 코드 (\d+)/.exec(CLI_ERROR_SAMPLE)?.[1]))
+  assert.ok(read(`${CLI}/src/file-out.ts`).includes('out_required'))
+  const text = cliText()
+  for (const word of ['표준 출력', '표준 오류', 'JSON 값 하나', 'out_required', 'TEAMDA_BASE_URL', 'TEAMDA_API_KEY', 'teamda help', 'teamda sync', 'teamda api']) {
+    assert.ok(text.includes(word), word)
+  }
+  const page = read('app/develop/page.tsx')
+  assert.match(page, /<CliGuideSection origin=\{origin\} onCopy=\{copy\} copiedId=\{copiedId\} \/>/)
+  assert.match(page, /activeSection === 'cli' && <CliSection \/>/, '명령 검색 목록은 그대로')
 })

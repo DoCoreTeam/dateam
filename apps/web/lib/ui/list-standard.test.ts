@@ -74,6 +74,9 @@ const DOCUMENT_SURFACES = new Set<string>([
   // 개발자센터 게이트웨이 절의 경로 예시, 승인 요청 상태, 헤더 **참조표**다(P0164 I02). 줄이 정의 표 예시와
   // API_APPROVAL_STATUS 에서 와 개수가 고정이고, 목록 도구를 붙이면 데이터 목록으로 읽힌다(KeyScopeSection 과 같은 이유).
   'app/develop/GatewaySection.tsx',
+  // 개발자센터 CLI 절의 기본 명령과 종료 코드 **참조표**다(P0164 I03). 종료 코드 줄은 teamda-cli 의 EXIT 와
+  // 같아야 해서 개수가 고정이고, 목록 도구를 붙이면 데이터 목록으로 읽힌다(GatewaySection 과 같은 이유).
+  'app/develop/CliGuideSection.tsx',
   // 가격 기준 미리 계산의 **계산서**다(P0135). 견적서 종이와 같은 묶음 소계 절사 줄이 서는 문서이고,
   // 정렬하면 묶음 순서가 깨져 「라이선스 소계」가 엉뚱한 줄 밑에 선다.
   'app/(crm)/crm/products/[id]/PreviewTab.tsx',

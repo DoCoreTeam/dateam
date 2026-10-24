@@ -25,6 +25,7 @@ import AiLayerSection from './AiLayerSection'
 import CliSection from './CliSection'
 import KeyScopeSection from './KeyScopeSection'
 import GatewaySection from './GatewaySection'
+import CliGuideSection from './CliGuideSection'
 import { GATEWAY_DOC } from '@/lib/api-docs/gateway-doc'
 import { AI_DOC_NAV, AI_LAYER_NAV_LABEL, type AiDocKey } from '@/lib/api-docs/ai-layer'
 import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
@@ -393,6 +394,7 @@ export default function DevelopPage() {
           {activeSection === 'start' && <StartSection onCopy={copy} copiedId={copiedId} brandName={brandName} />}
           {activeSection === 'demo' && <DemoSection />}
           {activeSection === 'gateway' && <GatewaySection onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'cli' && <CliGuideSection origin={origin} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'cli' && <CliSection />}
           {activeSection === 'errors' && <ErrorsSection onCopy={copy} copiedId={copiedId} />}
           {isAiDoc(activeSection) && (
