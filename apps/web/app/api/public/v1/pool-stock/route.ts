@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticatePublicApi, optionsResponse, requireAdminKey, requireMemberKey } from '@/lib/publicApiAuth'
-import { responseHeaders } from '@/lib/public-api/respond'
+import { fail, ok, responseHeaders, serverError } from '@/lib/public-api/respond'
+import { readJsonBody, INVALID_JSON_MESSAGE } from '@/lib/public-api/read-json'
 import { createAdminClient } from '@/lib/supabase/server'
 import { withWriteAudit } from '@/lib/public-api/write-audit'
 
@@ -37,11 +38,7 @@ export async function GET(request: NextRequest) {
       { headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   } catch (err) {
-    console.error('[public/v1/pool-stock GET]', err)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
-    )
+    return serverError('pool-stock GET', err, { ctx: auth.ctx, request })
   }
 }
 
@@ -54,35 +51,21 @@ export async function POST(request: NextRequest) {
     if (denied) return denied
 
     try {
-      let body: {
+      const read = await readJsonBody(request)
+      if (!read.ok) return fail(400, INVALID_JSON_MESSAGE, { ctx: auth.ctx, request })
+      const body = (read.body ?? {}) as {
         product_id?: unknown
         pool_qty?: unknown
         note?: unknown
         sell_price_krw?: unknown
-      }
-      try { body = await request.json() } catch {
-        return NextResponse.json(
-          { success: false, error: 'Invalid JSON body' },
-          { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
-        )
       }
 
       const productId = typeof body.product_id === 'string' ? body.product_id : null
       const poolQty = typeof body.pool_qty === 'number' ? Math.max(0, Math.round(body.pool_qty)) : null
       const sellPriceKrw = typeof body.sell_price_krw === 'number' ? body.sell_price_krw : null
 
-      if (!productId) {
-        return NextResponse.json(
-          { success: false, error: 'product_id is required' },
-          { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
-        )
-      }
-      if (poolQty === null) {
-        return NextResponse.json(
-          { success: false, error: 'pool_qty is required (number)' },
-          { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
-        )
-      }
+      if (!productId) return fail(400, '입력값을 확인해 주세요: product_id', { ctx: auth.ctx, request })
+      if (poolQty === null) return fail(400, '입력값을 확인해 주세요: pool_qty', { ctx: auth.ctx, request })
 
       const actor = `api:${auth.ctx.keyId}`
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -123,16 +106,9 @@ export async function POST(request: NextRequest) {
         detail: { pool_qty: poolQty, sell_price_krw: sellPriceKrw },
       })
 
-      return NextResponse.json(
-        { success: true, data: newStock },
-        { status: 201, headers: responseHeaders({ ctx: auth.ctx, request }) }
-      )
+      return ok(newStock, { ctx: auth.ctx, request, status: 201 })
     } catch (err) {
-      console.error('[public/v1/pool-stock POST]', err)
-      return NextResponse.json(
-        { success: false, error: 'Internal server error' },
-        { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
-      )
+      return serverError('pool-stock POST', err, { ctx: auth.ctx, request })
     }
   })(request, undefined)
 }

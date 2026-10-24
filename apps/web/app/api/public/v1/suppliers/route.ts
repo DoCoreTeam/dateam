@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticatePublicApi, optionsResponse, requireAdminKey, requireMemberKey } from '@/lib/publicApiAuth'
-import { responseHeaders } from '@/lib/public-api/respond'
+import { fail, ok, responseHeaders, serverError } from '@/lib/public-api/respond'
+import { readJsonBody, INVALID_JSON_MESSAGE } from '@/lib/public-api/read-json'
 import { createAdminClient } from '@/lib/supabase/server'
 import { withWriteAudit } from '@/lib/public-api/write-audit'
 
@@ -71,13 +72,11 @@ export async function GET(request: NextRequest) {
       { headers: responseHeaders({ ctx: auth.ctx, request }) }
     )
   } catch (err) {
-    console.error('[public/v1/suppliers GET]', err)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
-    )
+    return serverError('suppliers GET', err, { ctx: auth.ctx, request })
   }
 }
+
+const INVALID_INPUT_PREFIX = '입력값을 확인해 주세요'
 
 const COLORS = ['#7c3aed','#10b981','#f59e0b','#ef4444','#7c3aed','#3b82f6','#ec4899','#14b8a6','#f97316','#84cc16']
 
@@ -90,36 +89,28 @@ export async function POST(request: NextRequest) {
     if (denied) return denied
 
     try {
-      const body = await request.json()
-      const { name, location, contact } = body
-      if (!name?.trim()) {
-        return NextResponse.json(
-          { success: false, error: 'name is required' },
-          { status: 400, headers: responseHeaders({ ctx: auth.ctx, request }) }
-        )
-      }
+      const read = await readJsonBody(request)
+      if (!read.ok) return fail(400, INVALID_JSON_MESSAGE, { ctx: auth.ctx, request })
+      const body = (read.body ?? {}) as { name?: unknown; location?: unknown; contact?: unknown }
+      const name = typeof body.name === 'string' ? body.name.trim() : ''
+      if (!name) return fail(400, `${INVALID_INPUT_PREFIX}: name`, { ctx: auth.ctx, request })
+      const location = typeof body.location === 'string' ? body.location.trim() : ''
+      const contact = typeof body.contact === 'string' ? body.contact.trim() : ''
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const admin = createAdminClient() as any
       const color = COLORS[Math.floor(Math.random() * COLORS.length)]
       const { data, error } = await admin
         .from('suppliers')
-        .insert({ name: name.trim(), location: location?.trim() || null, contact: contact?.trim() || null, color })
+        .insert({ name, location: location || null, contact: contact || null, color })
         .select()
         .single()
 
       if (error) throw error
 
-      return NextResponse.json(
-        { success: true, data },
-        { status: 201, headers: responseHeaders({ ctx: auth.ctx, request }) }
-      )
+      return ok(data, { ctx: auth.ctx, request, status: 201 })
     } catch (err) {
-      console.error('[public/v1/suppliers POST]', err)
-      return NextResponse.json(
-        { success: false, error: 'Internal server error' },
-        { status: 500, headers: responseHeaders({ ctx: auth.ctx, request }) }
-      )
+      return serverError('suppliers POST', err, { ctx: auth.ctx, request })
     }
   })(request, undefined)
 }
