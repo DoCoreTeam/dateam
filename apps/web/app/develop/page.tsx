@@ -32,7 +32,7 @@ import { ApiLangPicker, ApiLangProvider, useApiLanguage } from './api-lang'
 import CodeTabs from './CodeTabs'
 import CodeBlock from './CodeBlock'
 import {
-  API_GROUPS, endpointsOf, REQUIRES_LABEL,
+  API_GROUPS, endpointsOf, REQUIRES_LABEL, CATALOG_NOTE,
   type ApiGroupKey, type ApiEndpoint, type ApiParam,
 } from '@/lib/api-docs/registry'
 
@@ -149,6 +149,11 @@ function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
 
       {e.query?.length ? <ParamTable params={[...e.query]} title="쿼리 파라미터" /> : null}
       {e.body?.length ? <ParamTable params={[...e.body]} title="요청 본문" /> : null}
+      {e.response?.file && <Callout title="파일 응답">{e.response.file}</Callout>}
+      {e.response?.fields?.length ? <ParamTable params={[...e.response.fields]} title="응답 data 필드" /> : null}
+      {e.response?.note && (
+        <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', margin: 'calc(-1 * var(--space-3)) 0 var(--space-5)' }}>{e.response.note}</p>
+      )}
 
       <CodeTabs
         id={e.id}
@@ -163,14 +168,25 @@ function EndpointDoc({ e, baseUrl, onCopy, copiedId }: {
   )
 }
 
-function GroupSection({ group, baseUrl, onCopy, copiedId }: {
+function GroupSection({ group, baseUrl, onCopy, copiedId, onNavigate }: {
   group: ApiGroupKey; baseUrl: string; onCopy: (t: string, id: string) => void; copiedId: string | null
+  onNavigate: (s: Section) => void
 }) {
   const meta = API_GROUPS.find((g) => g.key === group)!
   const list = endpointsOf(group)
   return (
     <div>
       <PageHeader title={meta.label} description={meta.desc} />
+      {CATALOG_NOTE.groups.includes(group) && (
+        <Callout title={CATALOG_NOTE.title}>
+          <p style={{ margin: '0 0 var(--space-3)' }}>{CATALOG_NOTE.body}</p>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            {[CATALOG_NOTE.cli, CATALOG_NOTE.ref].map((l) => (
+              <button key={l.section} type="button" className="btn-ghost" onClick={() => onNavigate(l.section)}>{l.label}</button>
+            ))}
+          </div>
+        </Callout>
+      )}
       {list.map((e) => (
         <EndpointDoc key={e.id} e={e} baseUrl={baseUrl} onCopy={onCopy} copiedId={copiedId} />
       ))}
@@ -401,7 +417,7 @@ export default function DevelopPage() {
             <AiLayerSection section={activeSection} onCopy={copy} copiedId={copiedId} />
           )}
           {isGroup(activeSection) && (
-            <GroupSection group={activeSection} baseUrl={base} onCopy={copy} copiedId={copiedId} />
+            <GroupSection group={activeSection} baseUrl={base} onCopy={copy} copiedId={copiedId} onNavigate={setActiveSection} />
           )}
         </main>
       </div>

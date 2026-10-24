@@ -21,7 +21,9 @@
  */
 
 import type { HttpMethod } from './snippets.ts'
-import { SERVICE_LABEL } from '../terms/index.ts'
+import { SERVICE_LABEL, API_CLI_DOC, API_APPROVAL_STATUS } from '../terms/index.ts'
+import { SUPPLY_ROUNDING_UNITS } from '../crm/domain/quote-compose.ts'
+import { CRM_ERROR_HTTP } from '../crm/domain/errors.ts'
 
 /** 화면 왼쪽 묶음 — 사용자가 "무엇을 하려는가"로 나눈다 */
 export type ApiGroupKey = 'start' | 'gpu' | 'crm' | 'ci' | 'legacy' | 'ref'
@@ -72,6 +74,18 @@ export interface ApiDemo {
   needs?: 'gpu-product-id'
 }
 
+/**
+ * 응답 설명. 공통 봉투(success, data, meta)는 화면이 따로 보여 주므로 여기에는 data 안의 칸만 적는다.
+ * 칸 이름은 registry.test.ts 가 라우트가 실제로 싣는 키와 대조한다, 손으로 적고 잊으면 막힌다
+ */
+export interface ApiResponseDoc {
+  /** JSON 봉투가 아니라 파일을 돌려주면 그 형식 설명 */
+  file?: string
+  fields?: ApiParam[]
+  /** 표 아래 한 줄. 표가 전체가 아니면 그렇다고 적는다 */
+  note?: string
+}
+
 export interface ApiEndpoint {
   /** 안정 식별자 — OpenAPI operationId 이자 화면 앵커 */
   id: string
@@ -90,6 +104,7 @@ export interface ApiEndpoint {
   body?: ApiParam[]
   /** 응답 예시(JSON 문자열). 없으면 공통 봉투만 보여 준다 */
   sample?: string
+  response?: ApiResponseDoc
   /** 「직접 실행」에 버튼으로 뜬다. 없으면 문서에만 나온다 */
   demo?: ApiDemo
 }
@@ -224,6 +239,28 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
     demo: { emoji: '🧾', query: { limit: '5' } },
     requires: 'crm-member', title: '견적 목록', desc: 'CRM 견적(딜에 붙는 문서). GPU 견적 계산과는 다릅니다.',
     query: [...CURSOR_QUERY],
+    response: {
+      fields: [
+        { name: 'supplyRoundingUnit', type: SUPPLY_ROUNDING_UNITS.join(' | '),
+          desc: '할인을 뺀 공급가 합계를 이 단위 아래에서 버립니다(원). 0 이면 버리지 않습니다' },
+      ],
+      note: '최근에 더해진 칸만 적었습니다. 나머지 칸은 화면의 견적 목록과 같습니다.',
+    },
+  },
+  {
+    id: 'crm.quotes.export', group: 'crm', method: 'GET', path: '/crm/quotes/{id}/export', status: 'stable',
+    requires: 'crm-member', title: '견적서 내려받기',
+    desc: '견적서를 화면 미리보기 그대로 PDF 나 PNG 파일로 돌려줍니다. read 범위면 부를 수 있고, '
+      + '키를 만든 계정에 CRM 내보내기 권한이 있어야 합니다. '
+      + `2단계 인증을 켠 계정의 키로는 만들 수 없어 ${CRM_ERROR_HTTP.FORBIDDEN} 을 돌려줍니다. 그때는 화면에서 내려받아 주세요.`,
+    query: [
+      { name: 'format', type: '"pdf" | "png"', required: true, desc: 'pdf 는 문서 전체, png 는 한 쪽을 이미지로 받습니다. 다른 값이면 400 입니다' },
+      { name: 'page', type: 'number', desc: 'png 로 받을 쪽 번호. 1부터 세고 비우면 1쪽입니다. pdf 에서는 쓰지 않습니다' },
+    ],
+    response: {
+      file: 'JSON 봉투 대신 파일 본문이 옵니다. Content-Type 은 application/pdf 또는 image/png 이고, '
+        + '파일 이름은 Content-Disposition 에 견적 번호로 실립니다. 오류일 때만 공통 봉투로 옵니다.',
+    },
   },
   {
     id: 'crm.tasks.list', group: 'crm', method: 'GET', path: '/crm/tasks', status: 'stable',
@@ -262,10 +299,36 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
   {
     id: 'ref.me', group: 'ref', method: 'GET', path: '/me', status: 'stable',
     title: '내 키 정보', desc: '이 키의 주인, 역할, 실제로 쓸 수 있는 범위를 돌려줍니다. 범위와 상관없이 부를 수 있습니다.',
+    response: {
+      fields: [
+        { name: 'userId', type: 'string', desc: '키를 만든 계정 id' },
+        { name: 'role', type: 'string', desc: '그 계정의 역할' },
+        { name: 'keyId', type: 'string', desc: '키 id. 키 값과 해시는 싣지 않습니다' },
+        { name: 'keyName', type: 'string', desc: '키를 만들 때 붙인 이름' },
+        { name: 'scopes', type: 'string[]', desc: '실제로 쓸 수 있는 범위. 계정 권한과 키 범위가 겹치는 것만 옵니다' },
+        { name: 'rateLimitPerMinute', type: 'number', desc: '분당 호출 한도' },
+        { name: 'expiresAt', type: 'string | null', desc: '키가 만료되는 시각(ISO 8601). null 이면 만료가 없는 키입니다' },
+        { name: 'remainingThisMinute', type: 'number', desc: '이번 분에 남은 호출 수. 이 요청까지 센 값입니다' },
+      ],
+    },
   },
   {
     id: 'ref.approval', group: 'ref', method: 'GET', path: '/approvals/{id}', status: 'stable',
     title: '승인 요청 상태', desc: '범위 밖 동작이 202 로 돌려준 승인 요청의 상태와 실행 결과. 키 주인의 요청만 보입니다.',
+    response: {
+      fields: [
+        { name: 'id', type: 'string', desc: '승인 요청 id. 202 응답에 실린 값입니다' },
+        { name: 'action', type: 'string', desc: '실행하려던 동작 이름' },
+        { name: 'requiredScope', type: 'string', desc: '그 동작에 필요한 범위' },
+        { name: 'status', type: Object.keys(API_APPROVAL_STATUS).map((k) => `"${k}"`).join(' | '),
+          desc: Object.entries(API_APPROVAL_STATUS).map(([k, v]) => `${k} ${v}`).join(', ')
+            + '. 기다리는 중에 만료 시각이 지나면 EXPIRED 로 옵니다' },
+        { name: 'result', type: 'object | null', desc: '승인 뒤 실행한 결과. 아직 실행하지 않았으면 null 입니다' },
+        { name: 'expiresAt', type: 'string', desc: '이 시각까지 승인하지 않으면 실행하지 않습니다' },
+        { name: 'createdAt', type: 'string', desc: '요청이 만들어진 시각' },
+        { name: 'decidedAt', type: 'string | null', desc: '승인하거나 거절한 시각. 아직이면 null 입니다' },
+      ],
+    },
   },
 
   /* ── 이관 중(구 CRM) ──────────────────────────────────────────────────── */
@@ -326,6 +389,18 @@ export const DEMO_ENDPOINTS = ENDPOINTS.filter((e) => e.demo && e.status === 'st
 
 /** 살아 있는 것만 — 이관 중인 것을 새로 쓰라고 권하지 않는다 */
 export const STABLE_ENDPOINTS = ENDPOINTS.filter((e) => e.status === 'stable')
+
+/**
+ * 이 표는 자주 쓰는 것만 싣는다. 나머지 동작은 정의 표(lib/actions/generated)에서 나온
+ * CLI 명령 목록과 OpenAPI 스펙에 전부 있다, 화면이 그 두 곳으로 잇는다
+ */
+export const CATALOG_NOTE = {
+  title: '여기 없는 동작',
+  body: '이 묶음에는 자주 쓰는 것만 적었습니다. 견적 상세, 파이프라인, 가격표처럼 나머지 동작은 CLI 명령 목록과 OpenAPI 스펙에 전부 있고, 같은 경로로 부를 수 있습니다.',
+  cli: { section: 'cli', label: API_CLI_DOC.nav },
+  ref: { section: 'ref', label: 'OpenAPI' },
+  groups: ['crm'] as readonly ApiGroupKey[],
+} as const
 
 /**
  * 「무엇이 있어야 부를 수 있는가」 — 화면이 이 문장을 직접 적지 않는다.
