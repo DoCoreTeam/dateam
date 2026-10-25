@@ -77,6 +77,7 @@ export const API_APPROVAL_STATUS: Record<string, string> = {
   REJECTED: '거절됨',
   EXPIRED: '만료됨',
   FAILED: '실행 실패',
+  CANCELLED: '취소됨',
 }
 
 export const API_APPROVAL_ERROR: Record<string, string> = {

@@ -122,6 +122,7 @@ const STATUS_DESC: Record<string, string> = {
   REJECTED: '거절되어 실행하지 않았습니다.',
   EXPIRED: `${APPROVAL_EXPIRY_HOURS}시간 안에 결정되지 않아 실행하지 않았습니다.`,
   FAILED: '승인했지만 실행이 서버 오류(5xx)로 끝났거나 그 동작을 더 이상 API 로 부를 수 없습니다.',
+  CANCELLED: '요청을 만든 키가 teamda approval cancel 로 거두어 실행하지 않았습니다.',
 }
 
 export interface ApprovalStatusRow { status: string; label: string; desc: string }

@@ -189,8 +189,11 @@ test('★ /me 응답 필드 표가 라우트가 싣는 키와 같다 (expiresAt,
 
 test('★ 승인 요청 응답 필드 표가 라우트가 싣는 키와 같고, 상태 값이 DB 제약과 같다', () => {
   assert.deepEqual(fieldNames('ref.approval'), okKeys('app/api/public/v1/approvals/[id]/route.ts'))
-  const sql = readFileSync('../../supabase/migrations/318_api_key_scopes.sql', 'utf8')
-  const check = /status in \(([^)]*)\)/.exec(sql)?.[1] ?? ''
+  // 상태 제약은 마지막으로 다시 건 마이그레이션이 정본이다 (318 이 만들고 320 이 CANCELLED 를 더했다)
+  const migrations = readdirSync('../../supabase/migrations').filter((f) => f.endsWith('.sql')).sort()
+  const owner = migrations.filter((f) => /api_approval_requests[\s\S]*status in \(/.test(readFileSync(`../../supabase/migrations/${f}`, 'utf8'))).pop() ?? '318_api_key_scopes.sql'
+  const sql = readFileSync(`../../supabase/migrations/${owner}`, 'utf8')
+  const check = [...sql.matchAll(/status in \(([^)]*)\)/g)].pop()?.[1] ?? ''
   const dbStatus = [...check.matchAll(/'(\w+)'/g)].map((m) => m[1]).sort()
   assert.deepEqual(Object.keys(API_APPROVAL_STATUS).sort(), dbStatus)
   const status = byId('ref.approval').response!.fields!.find((f) => f.name === 'status')!

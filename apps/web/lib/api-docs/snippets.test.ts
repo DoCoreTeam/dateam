@@ -160,7 +160,7 @@ function leaves(v: unknown, out: string[] = []): string[] {
 }
 
 test('★ 본문을 받는 창구(POST, PATCH)는 예시 본문을 싣는다', () => {
-  const writes = ALL.filter(({ e }) => e.method === 'POST' || e.method === 'PATCH')
+  const writes = ALL.filter(({ e }) => (e.method === 'POST' || e.method === 'PATCH') && !e.noBody)
   assert.ok(writes.length >= 20, `POST PATCH 창구를 너무 적게 찾았다(${writes.length})`)
   const missing = writes.filter(({ spec }) => !spec.body || Object.keys(spec.body).length === 0).map(({ e }) => e.id)
   assert.deepEqual(missing, [], '본문 없는 예시는 붙여 넣으면 400 이다')

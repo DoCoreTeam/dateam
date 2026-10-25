@@ -2075,6 +2075,51 @@
     "parameters": []
    }
   },
+  "/approvals/{id}/cancel": {
+   "post": {
+    "operationId": "meta.approval.cancel",
+    "summary": "meta.approval.cancel",
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "approval cancel",
+    "x-scope": "read",
+    "x-kind": "public",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ]
+   }
+  },
   "/quote": {
    "post": {
     "operationId": "gpu.quote.calc",
@@ -59460,5 +59505,5 @@
    }
   }
  },
- "x-spec-hash": "134039b8a85f10f6"
+ "x-spec-hash": "b2b7ac6762ebdd4c"
 }

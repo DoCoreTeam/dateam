@@ -138,14 +138,14 @@ export async function dispatchPublicApi(request: NextRequest): Promise<Response>
   if (!matched) return json({ success: false, error: 'not_found' }, 404, request, base)
   const { op, params } = matched
 
-  const write = isWrite(op.scope)
+  const write = isWrite(op.scope, request.method)
   const bodyText = request.method === 'GET' || request.method === 'HEAD' ? '' : await request.text()
   const auditBase = { ctx, op, path, requestId, agent: agentOf(request.headers), ip: ipOf(request.headers) }
   if (isHumanOnly(op.name)) {
     await audit({ ...auditBase, status: 403 })
     return json({ success: false, error: '이 작업은 사람이 화면에서 합니다.', code: 'human_only' }, 403, request, base)
   }
-  const decision = decideAccess(op.scope, ctx.scopes, ctx.role)
+  const decision = decideAccess(op.scope, ctx.scopes, ctx.role, request.method)
 
   if (decision.kind === 'forbidden') {
     if (write) await audit({ ...auditBase, status: 403 })

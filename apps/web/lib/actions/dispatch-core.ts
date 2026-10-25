@@ -74,15 +74,23 @@ export type AccessDecision =
   | { kind: 'approval'; requiredScope: Scope }
   | { kind: 'forbidden'; requiredScope: Scope }
 
+/** 읽기만 하는 메서드, 범위가 모자라면 승인 요청 없이 403 이다 */
+const READ_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD'])
+
+export function isReadMethod(method: string): boolean {
+  return READ_METHODS.has(method.toUpperCase())
+}
+
 /**
  * 키 범위로 이 동작을 어떻게 할지
  * 범위가 있으면 실행, 없는데 승인 범위(approve send delete admin)이고 계정이 그 범위를 가질 수 있으면 승인 요청,
  * 그 밖(read write 가 없거나 계정이 못 가지는 범위)은 403
+ * 읽기 메서드는 승인 요청을 만들지 않는다: 조회 13번에 승인 화면이 13건 쌓였다 (P0170 I08, 실측 2026-10-25)
  */
-export function decideAccess(opScope: Scope, keyScopes: readonly Scope[], role: string): AccessDecision {
+export function decideAccess(opScope: Scope, keyScopes: readonly Scope[], role: string, method = 'POST'): AccessDecision {
   if (keyScopes.includes(opScope)) return { kind: 'run' }
   const accountMay = effectiveScopes(role, [opScope]).length > 0
-  if (APPROVAL_SCOPES.includes(opScope) && accountMay) return { kind: 'approval', requiredScope: opScope }
+  if (APPROVAL_SCOPES.includes(opScope) && accountMay && !isReadMethod(method)) return { kind: 'approval', requiredScope: opScope }
   return { kind: 'forbidden', requiredScope: opScope }
 }
 
@@ -106,8 +114,9 @@ export function mayDecideApproval(input: { viaKey: boolean; deciderId: string; o
   return input.deciderId === input.ownerId || input.deciderRole === 'admin'
 }
 
-export function isWrite(scope: Scope): boolean {
-  return scope !== 'read'
+/** 쓰기 한도와 쓰기 감사에 드는 요청인가, 읽기 메서드는 범위가 무엇이든 쓰기가 아니다 */
+export function isWrite(scope: Scope, method = 'POST'): boolean {
+  return scope !== 'read' && !isReadMethod(method)
 }
 
 /**

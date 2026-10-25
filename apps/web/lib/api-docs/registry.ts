@@ -112,6 +112,8 @@ export interface ApiEndpoint {
   deprecatedNote?: string
   query?: ApiParam[]
   body?: ApiParam[]
+  /** 본문을 받지 않는 POST (경로만으로 끝나는 동작, 승인 요청 취소). 예시 본문 가드가 이 창구를 건너뛴다 */
+  noBody?: true
   /**
    * 코드 예시에 싣는 본문. 본문을 받는 창구(POST, PATCH)는 반드시 적는다
    * (P0168) 예시가 메서드와 경로만 실어 POST 를 그대로 붙여 넣으면 400 이었다.
@@ -517,6 +519,18 @@ export const ENDPOINTS: readonly ApiEndpoint[] = [
         { name: 'expiresAt', type: 'string', desc: '이 시각까지 승인하지 않으면 실행하지 않습니다' },
         { name: 'createdAt', type: 'string', desc: '요청이 만들어진 시각' },
         { name: 'decidedAt', type: 'string | null', desc: '승인하거나 거절한 시각. 아직이면 null 입니다' },
+      ],
+    },
+  },
+  {
+    id: 'ref.approval.cancel', group: 'ref', method: 'POST', path: '/approvals/{id}/cancel', status: 'stable',
+    requires: 'member', title: '승인 요청 취소', noBody: true,
+    desc: '이 키가 만든 승인 요청 가운데 기다리는 중인 것을 거둡니다. 다른 키의 요청과 없는 요청은 같은 404, 이미 결정되었거나 만료된 요청은 409 입니다.',
+    response: {
+      fields: [
+        { name: 'id', type: 'string', desc: '취소한 승인 요청 id' },
+        { name: 'status', type: '"CANCELLED"', desc: API_APPROVAL_STATUS.CANCELLED },
+        { name: 'decidedAt', type: 'string', desc: '취소한 시각' },
       ],
     },
   },

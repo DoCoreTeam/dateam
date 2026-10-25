@@ -11,7 +11,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  actionArgs, decideAccess, internalPath, isDryRun, isHumanOnly, matchMount, publicPathOf, requestHash, WRITE_LIMIT_PER_MINUTE,
+  actionArgs, decideAccess, internalPath, isDryRun, isHumanOnly, isWrite, matchMount, publicPathOf, requestHash, WRITE_LIMIT_PER_MINUTE,
 } from './dispatch-core.ts'
 import { MOUNTED } from './generated/table.ts'
 
@@ -63,6 +63,27 @@ test('★ 범위 판정: 있으면 실행, 승인 범위가 없으면 202 승인
   assert.deepEqual(decideAccess('delete', ['read', 'write'], 'api_user'), { kind: 'forbidden', requiredScope: 'delete' })
 })
 
+test('★ 범위 밖 조회는 승인 요청 없이 403, 쓰기 메서드의 승인 판정은 그대로 (P0170 I08)', () => {
+  for (const m of ['GET', 'HEAD', 'get']) {
+    assert.deepEqual(decideAccess('admin', ['read', 'write'], 'admin', m), { kind: 'forbidden', requiredScope: 'admin' }, m)
+    assert.deepEqual(decideAccess('send', ['read', 'write'], 'member', m), { kind: 'forbidden', requiredScope: 'send' }, m)
+  }
+  for (const m of ['POST', 'PATCH', 'PUT', 'DELETE']) {
+    assert.deepEqual(decideAccess('admin', ['read', 'write'], 'admin', m), { kind: 'approval', requiredScope: 'admin' }, m)
+    assert.deepEqual(decideAccess('delete', ['read', 'write'], 'member', m), { kind: 'approval', requiredScope: 'delete' }, m)
+  }
+  assert.deepEqual(decideAccess('admin', ['admin'], 'admin', 'GET'), { kind: 'run' }, '범위가 있으면 조회는 그대로 실행')
+  assert.equal(isWrite('admin', 'GET'), false, '조회는 쓰기 한도와 쓰기 감사에 들지 않는다')
+  assert.equal(isWrite('admin', 'POST'), true)
+  assert.equal(isWrite('read', 'POST'), false)
+})
+
+test('관문은 판정과 쓰기 여부에 요청 메서드를 넘긴다', () => {
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'dispatch.ts'), 'utf8')
+  assert.match(src, /decideAccess\(op\.scope, ctx\.scopes, ctx\.role, request\.method\)/)
+  assert.match(src, /isWrite\(op\.scope, request\.method\)/)
+})
+
 test('서버 액션 인자: 배열은 펼치고 객체는 매개변수 순서로, input 하나면 몸통 전체', () => {
   assert.deepEqual(actionArgs(['a', 'b'], [1, 2]), [1, 2])
   assert.deepEqual(actionArgs(['a', 'b'], { b: 2, a: 1 }), [1, 2])
@@ -91,7 +112,7 @@ function pos(re: RegExp): number {
 test('★ 관문 순서: 키 확인 → 범위 → 쓰기 한도 → dryRun → 승인 → 멱등 재생 → 실행 → 멱등 저장', () => {
   const order = [
     pos(/authenticatePublicApi\(request, \{ deferScope: true \}\)/),
-    pos(/decideAccess\(op\.scope, ctx\.scopes, ctx\.role\)/),
+    pos(/decideAccess\(op\.scope, ctx\.scopes, ctx\.role, request\.method\)/),
     pos(/rpc\('record_api_key_write_hit'/),
     pos(/isDryRun\(url, request\.headers\)/),
     pos(/from\('api_approval_requests'\)\.insert/),
@@ -141,7 +162,7 @@ test('★ 사람 전용 동작은 키 범위와 무관하게 범위 판정 앞�
   assert.equal(decideAccess(approve.scope, ['read', 'write', 'approve', 'admin'], 'admin').kind, 'run', '이 시험의 전제가 바뀌었다')
   const main = SRC.slice(pos(/export async function dispatchPublicApi/))
   const gate = main.search(/if \(isHumanOnly\(op\.name\)\) \{/)
-  const access = main.search(/decideAccess\(op\.scope, ctx\.scopes, ctx\.role\)/)
+  const access = main.search(/decideAccess\(op\.scope, ctx\.scopes, ctx\.role, request\.method\)/)
   assert.ok(gate >= 0, '사람 전용 막는 줄이 없다')
   assert.ok(gate < access, '사람 전용 확인이 범위 판정 뒤에 있다')
   const block = main.slice(gate, main.indexOf('\n  }', gate))
