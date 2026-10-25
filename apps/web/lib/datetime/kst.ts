@@ -44,6 +44,25 @@ export function kstDateOnlyToIso(date: string): string {
 }
 
 /**
+ * 마감 칸에 들어온 값을 저장할 시각으로 (P0170 I06)
+ * 날짜만(YYYY-MM-DD) 오면 그 날 KST 23:59, 웹 화면이 날짜를 고를 때 보내는 값과 같다
+ * 시각까지 온 값은 그대로 둔다, 시간대 없는 벽시계는 KST 로 본다
+ * 날짜만을 UTC 자정으로 두면 한국 오전 9시가 되어 마감 당일 아침에 지난 일로 보였다
+ */
+export function kstDeadlineIso(value: string): string {
+  const v = value.trim()
+  if (DATE_RE.test(v)) return `${v}T23:59:00${KST_OFFSET}`
+  return normalizeKstWallString(v)
+}
+
+/** 시작 칸에 들어온 값, 날짜만 오면 그 날 KST 00:00 */
+export function kstDayStartIso(value: string): string {
+  const v = value.trim()
+  if (DATE_RE.test(v)) return kstDateOnlyToIso(v)
+  return normalizeKstWallString(v)
+}
+
+/**
  * naive 벽시계 문자열('YYYY-MM-DDTHH:MM[:SS]')을 KST로 간주해 +09:00 ISO로 정규화.
  * 이미 시간대(Z/±hh:mm)가 있으면 그대로 둔다. (Gemini 추천 등 외부가 만든 naive 문자열 수문장)
  */

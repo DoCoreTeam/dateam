@@ -223,7 +223,8 @@ function fieldsOfType(checker, type) {
     const decl = p.valueDeclaration ?? p.declarations?.[0]
     const pt = decl ? checker.getTypeOfSymbolAtLocation(p, decl) : checker.getTypeOfSymbol(p)
     const optional = !!(p.flags & ts.SymbolFlags.Optional) || (pt.isUnion() && pt.types.some((x) => x.flags & ts.TypeFlags.Undefined))
-    return { name: p.getName(), ...schemaOf(checker, pt), required: !optional }
+    const doc = ts.displayPartsToString(p.getDocumentationComment(checker)).split('\n')[0].trim()
+    return { name: p.getName(), ...schemaOf(checker, pt), required: !optional, ...(doc ? { description: doc } : {}) }
   })
 }
 

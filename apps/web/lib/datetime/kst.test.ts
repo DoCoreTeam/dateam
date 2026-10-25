@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   KST_OFFSET,
+  kstDeadlineIso,
+  kstDayStartIso,
   kstWallToIso,
   kstDateOnlyToIso,
   normalizeKstWallString,
@@ -121,4 +123,27 @@ test('★ 경과 시간은 "아직도 나고 있나"에 답한다', () => {
   assert.equal(formatKstAgo('2026-08-24T07:00:00Z', now), '3시간 전')
   assert.equal(formatKstAgo('2026-08-22T10:00:00Z', now), '2일 전')
   assert.equal(formatKstAgo('2026-08-24T10:00:30Z', now), '방금', '미래 시각도 터지지 않는다')
+})
+
+// P0170 I06: 날짜만 준 마감이 웹과 같은 시각으로 (CLI 는 2026-10-30T00:00:00.000Z 로 저장해 한국 오전 9시였다)
+test('kstDeadlineIso: 날짜만이면 그 날 KST 23:59, 시각이 있으면 그대로', () => {
+  assert.equal(new Date(kstDeadlineIso('2026-10-30')).toISOString(), '2026-10-30T14:59:00.000Z')
+  assert.equal(new Date(kstDeadlineIso('2026-10-30T10:00:00+09:00')).toISOString(), '2026-10-30T01:00:00.000Z')
+  assert.equal(new Date(kstDeadlineIso('2026-10-30T14:59:00.000Z')).toISOString(), '2026-10-30T14:59:00.000Z')
+  assert.equal(new Date(kstDeadlineIso('2026-10-30T10:00')).toISOString(), '2026-10-30T01:00:00.000Z')
+})
+
+test('kstDayStartIso: 날짜만이면 그 날 KST 00:00', () => {
+  assert.equal(new Date(kstDayStartIso('2026-10-30')).toISOString(), '2026-10-29T15:00:00.000Z')
+})
+
+test('할 일 서비스와 견적 서비스가 날짜 칸을 이 규칙으로 맞춘다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const task = readFileSync(new URL('../crm/services/task.ts', import.meta.url), 'utf8')
+  assert.match(task, /new Date\(kstDeadlineIso\(input\.dueAt\)\)/)
+  assert.match(task, /new Date\(kstDayStartIso\(input\.startAt\)\)/)
+  const quote = readFileSync(new URL('../crm/services/quote.ts', import.meta.url), 'utf8')
+  assert.doesNotMatch(quote, /new Date\(input\.validUntil\)/)
+  const cal = readFileSync(new URL('../../app/(member)/calendar/actions.ts', import.meta.url), 'utf8')
+  assert.doesNotMatch(cal, /start_at: input\.start_at,\s*end_at/, '일정 시작을 그대로 저장하면 날짜만 준 값이 UTC 자정이 된다')
 })

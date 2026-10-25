@@ -2,7 +2,7 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { recordFeedbackSignal } from '@/lib/daily/feedback-signals'
-import { normalizeKstWallString } from '@/lib/datetime/kst'
+import { kstDayStartIso, kstDeadlineIso, normalizeKstWallString } from '@/lib/datetime/kst'
 import { DEFAULT_GEMINI_MODEL } from '@/lib/ai/gemini-model'
 import { guardedGeminiText, GeminiCallError } from '@/lib/ai/guarded-gemini'
 
@@ -98,7 +98,9 @@ ${candidates.map((c) => `- id=${c.id} kind=${c.kind}: ${c.text}`).join('\n')}`
 
 export interface CalendarEventInput {
   title: string
+  /** 시작, 날짜만(YYYY-MM-DD) 주면 그 날 KST 00:00, 시간대 없는 시각은 KST 로 본다 */
   start_at: string
+  /** 끝, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59, 시간대 없는 시각은 KST 로 본다 */
   end_at?: string | null
   all_day?: boolean
   description?: string | null
@@ -149,8 +151,9 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Re
         title: input.title.trim(),
         description: emptyToNull(input.description),
         location: emptyToNull(input.location),
-        start_at: input.start_at,
-        end_at: input.end_at ?? null,
+        // 날짜만이나 시간대 없는 값(CLI API)이 UTC 로 저장되지 않게 KST 로 맞춘다 (P0170 I06)
+        start_at: kstDayStartIso(input.start_at),
+        end_at: input.end_at ? kstDeadlineIso(input.end_at) : null,
         all_day: input.all_day ?? false,
         rrule: input.rrule ?? null,
         source: input.source ?? 'user',
@@ -212,8 +215,9 @@ export async function updateCalendarEvent(
       .update({
         title: input.title.trim(),
         description: input.description ?? null,
-        start_at: input.start_at,
-        end_at: input.end_at ?? null,
+        // 날짜만이나 시간대 없는 값(CLI API)이 UTC 로 저장되지 않게 KST 로 맞춘다 (P0170 I06)
+        start_at: kstDayStartIso(input.start_at),
+        end_at: input.end_at ? kstDeadlineIso(input.end_at) : null,
         all_day: input.all_day ?? false,
         rrule: input.rrule ?? null,
       })

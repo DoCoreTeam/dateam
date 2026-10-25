@@ -57,7 +57,7 @@ import {
   RATE_AXIS_ORDER, LINE_NOTE_ORDER, TOTAL_CONV_ORDER,
   DURATION_UNIT_ORDER, type DurationUnit,
 } from '../../terms/quote.ts'
-import { kstTodayKey } from '../../datetime/kst.ts'
+import { kstDeadlineIso, kstTodayKey } from '../../datetime/kst.ts'
 import { readQuoteNoPattern, readQuoteSupplier, readQuoteImages } from './setting.ts'
 import { freezeAsset } from './quote-asset.ts'
 
@@ -847,6 +847,7 @@ export interface CreateQuoteInput extends QuotePricingInput {
   dealId: string
   title?: string | null
   currency?: string | null
+  /** 유효기간, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59, 시각을 주면 그대로 */
   validUntil?: string | null
   notesMd?: string | null
   ownerId?: string | null
@@ -1035,7 +1036,7 @@ export async function createQuote(
           quoteNo,
           title,
           currency,
-          validUntil: input.validUntil ? new Date(input.validUntil) : null,
+          validUntil: input.validUntil ? new Date(kstDeadlineIso(input.validUntil)) : null,
           ...rateDisplay,
           notesMd: normalizeNoteInput(input.notesMd),
           // 고른 조건. 순서를 그대로 저장한다 — 그 순서가 인쇄 순서다
@@ -1072,7 +1073,7 @@ export async function createQuote(
       created = await (tx as any).crmQuote.create({
         data: {
           dealId: input.dealId, quoteNo, title, currency,
-          validUntil: input.validUntil ? new Date(input.validUntil) : null,
+          validUntil: input.validUntil ? new Date(kstDeadlineIso(input.validUntil)) : null,
           ...rateDisplay,
           notesMd: normalizeNoteInput(input.notesMd), ownerId: input.ownerId || null,
           recipientPersonId: input.recipientPersonId || null,
@@ -1267,6 +1268,7 @@ export interface UpdateQuoteInput extends QuotePricingInput {
    */
   sourceSnapshotId?: string | null
   title?: string | null
+  /** 유효기간, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59, 시각을 주면 그대로 */
   validUntil?: string | null
   notesMd?: string | null
   ownerId?: string | null
@@ -1352,7 +1354,7 @@ export async function updateQuote(
       data.title = title
     }
     if (input.validUntil !== undefined) {
-      data.validUntil = input.validUntil ? new Date(input.validUntil) : null
+      data.validUntil = input.validUntil ? new Date(kstDeadlineIso(input.validUntil)) : null
     }
     /*
       **금액 표시는 넷이 한 벌이다.** 하나만 와도 넷을 다시 쓴다 — 축만 바꾸고 기준 시간을

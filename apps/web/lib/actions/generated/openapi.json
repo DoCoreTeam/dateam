@@ -520,7 +520,8 @@
           "type": "string"
          },
          "version": {
-          "type": "number"
+          "type": "number",
+          "description": "화면이 들고 있던 버전. 어긋나면 409"
          }
         },
         "additionalProperties": false,
@@ -624,7 +625,8 @@
         "properties": {
          "amountMinor": {},
          "businessType": {
-          "type": "string"
+          "type": "string",
+          "description": "무엇을 파는 일인가 — 유형마다 원가 구조도 계약 형태도 다르다."
          },
          "companyId": {
           "type": "string"
@@ -636,7 +638,8 @@
           "type": "string"
          },
          "endDateUnknown": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "종료일을 정할 수 없는 사업(크레딧 소진 시까지 등)"
          },
          "expectedCloseDate": {
           "type": "string"
@@ -648,16 +651,19 @@
           "type": "string"
          },
          "pipelineId": {
-          "type": "string"
+          "type": "string",
+          "description": "비우면 워크스페이스 기본 파이프라인(단계를 주면 그 단계의 파이프라인) — resolveDealStart"
          },
          "stageId": {
-          "type": "string"
+          "type": "string",
+          "description": "비우면 그 파이프라인의 첫 열린 단계"
          },
          "startDate": {
           "type": "string"
          },
          "termType": {
-          "type": "string"
+          "type": "string",
+          "description": "사업 기간 — 장기를 고르면 연차 구분이 열린다"
          }
         },
         "additionalProperties": false,
@@ -843,7 +849,8 @@
         "properties": {
          "amountMinor": {},
          "businessType": {
-          "type": "string"
+          "type": "string",
+          "description": "무엇을 파는 일인가 — 유형마다 원가 구조도 계약 형태도 다르다."
          },
          "companyId": {
           "type": "string"
@@ -855,7 +862,8 @@
           "type": "string"
          },
          "endDateUnknown": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "종료일을 정할 수 없는 사업(크레딧 소진 시까지 등)"
          },
          "expectedCloseDate": {
           "type": "string"
@@ -864,16 +872,19 @@
           "type": "string"
          },
          "pipelineId": {
-          "type": "string"
+          "type": "string",
+          "description": "비우면 워크스페이스 기본 파이프라인(단계를 주면 그 단계의 파이프라인) — resolveDealStart"
          },
          "stageId": {
-          "type": "string"
+          "type": "string",
+          "description": "비우면 그 파이프라인의 첫 열린 단계"
          },
          "startDate": {
           "type": "string"
          },
          "termType": {
-          "type": "string"
+          "type": "string",
+          "description": "사업 기간 — 장기를 고르면 연차 구분이 열린다"
          },
          "version": {
           "type": "number"
@@ -1426,9 +1437,12 @@
           "type": "string"
          },
          "importCheck": {
-          "type": "object"
+          "type": "object",
+          "description": "파일로 읽었을 때의 **대조 결과.** 지표로만 남고 견적의 어떤 값도 안 바꾼다."
          },
-         "learnedAliases": {},
+         "learnedAliases": {
+          "description": "글로 채우기에서 AI 가 읽고 사람이 받아들인 낱말 — 품목 별칭이 된다"
+         },
          "lineNoteKeys": {
           "type": "array",
           "items": {
@@ -1453,38 +1467,51 @@
            "type": "string"
           }
          },
-         "rateHoursPerMonth": {},
+         "rateHoursPerMonth": {
+          "description": "금액 표시 — 무엇을 함께 인쇄할지. **합계는 이 선택으로 안 바뀐다.**"
+         },
          "recipientPersonId": {
-          "type": "string"
+          "type": "string",
+          "description": "공급받는 곳의 담당자. 안 고르면 null — 회사 앞으로만 나간다"
          },
          "roundingMode": {
-          "type": "string"
+          "type": "string",
+          "description": "DOWN(버림) · NEAREST(반올림) · UP(올림)"
          },
-         "roundingUnit": {},
+         "roundingUnit": {
+          "description": "절사 단위(원). 0 = 안 함"
+         },
          "sections": {
           "type": "array",
           "items": {
            "type": "object"
-          }
+          },
+          "description": "묶음. 안 주면 묶음 없는 견적이다(지금 있는 견적 전부가 그렇다)"
          },
          "sourceFileName": {
-          "type": "string"
+          "type": "string",
+          "description": "견적서 파일에서 만들었으면 그 파일 이름."
          },
          "sourcePageEnd": {
           "type": "number"
          },
          "sourcePageStart": {
-          "type": "number"
+          "type": "number",
+          "description": "원본의 몇 쪽에서 읽었나. **못 읽었으면 안 보낸다** — 0 이나 1 로 눕히면"
          },
          "sourceSnapshotId": {
-          "type": "string"
+          "type": "string",
+          "description": "그 쪽을 오려 둔 첨부 id. 조각을 나중에 붙이면 수정 경로로 채운다"
          },
-         "supplyRoundingUnit": {},
+         "supplyRoundingUnit": {
+          "description": "할인 후 공급가 절사 단위(원). 제품으로 채우면 제품의 값이 온다. 0 = 안 함"
+         },
          "termIds": {
           "type": "array",
           "items": {
            "type": "string"
-          }
+          },
+          "description": "고른 거래 조건. 순서가 곧 인쇄 순서다"
          },
          "title": {
           "type": "string"
@@ -1496,7 +1523,8 @@
           }
          },
          "validUntil": {
-          "type": "string"
+          "type": "string",
+          "description": "유효기간, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59, 시각을 주면 그대로"
          }
         },
         "additionalProperties": false,
@@ -1608,16 +1636,19 @@
           "type": "string"
          },
          "dueAt": {
-          "type": "string"
+          "type": "string",
+          "description": "마감, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59 (웹과 같음), 시각을 주면 그대로"
          },
          "personId": {
           "type": "string"
          },
          "sourceMeetingId": {
-          "type": "string"
+          "type": "string",
+          "description": "회의에서 나온 할 일이면 그 미팅 id — 출처이자 멱등 열쇠다(마이그 256)"
          },
          "startAt": {
-          "type": "string"
+          "type": "string",
+          "description": "시작, 날짜만(YYYY-MM-DD) 주면 그 날 KST 00:00, 시각을 주면 그대로"
          },
          "status": {
           "type": "string"
@@ -4134,34 +4165,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -4263,34 +4303,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -4673,7 +4722,8 @@
             "type": "string"
            },
            "model": {
-            "type": "string"
+            "type": "string",
+            "description": "세션 선택 모델(NULL/미지정 시 org 기본)."
            }
           },
           "required": [
@@ -4856,7 +4906,8 @@
           "type": "object",
           "properties": {
            "sessionId": {
-            "type": "string"
+            "type": "string",
+            "description": "파생 출처 세션(§FR-11-2 재열람·재가공 링크). 없으면 null(세션 무관 저장)."
            },
            "title": {
             "type": "string"
@@ -4868,7 +4919,8 @@
             "type": "string"
            },
            "revision": {
-            "type": "number"
+            "type": "number",
+            "description": "생략 시 같은 세션의 기존 문서 최대 revision+1을 자동 계산(§01-architecture \"문서 히스토리\")."
            }
           },
           "required": [
@@ -6296,23 +6348,28 @@
           "type": "object",
           "properties": {
            "q": {
-            "type": "string"
+            "type": "string",
+            "description": "제목/원문 검색(서버 sanitize, ilike)"
            },
            "sort": {
             "type": "string",
             "enum": [
              "updated",
              "created"
-            ]
+            ],
+            "description": "정렬 기준 — 화이트리스트. 기본 updated"
            },
            "filter": {
-            "type": "object"
+            "type": "object",
+            "description": "필터 — 화이트리스트만 허용, 그 외 값은 무시. deleted=true면 휴지통(소프트삭제된 세션)만 조회"
            },
            "cursor": {
-            "type": "string"
+            "type": "string",
+            "description": "커서(정렬 컬럼 값) — 다음 페이지 조회용"
            },
            "limit": {
-            "type": "number"
+            "type": "number",
+            "description": "페이지 크기(기본 30, 최대 100)"
            }
           }
          },
@@ -7375,10 +7432,12 @@
             "type": "string"
            },
            "start_at": {
-            "type": "string"
+            "type": "string",
+            "description": "시작, 날짜만(YYYY-MM-DD) 주면 그 날 KST 00:00, 시간대 없는 시각은 KST 로 본다"
            },
            "end_at": {
-            "type": "string"
+            "type": "string",
+            "description": "끝, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59, 시간대 없는 시각은 KST 로 본다"
            },
            "all_day": {
             "type": "boolean"
@@ -7387,7 +7446,8 @@
             "type": "string"
            },
            "location": {
-            "type": "string"
+            "type": "string",
+            "description": "어디서 하나 — 적을 칸이 없으면 사람은 제목 끝에 괄호로 붙인다(마이그 304)"
            },
            "link_kind": {
             "type": "string",
@@ -8004,10 +8064,12 @@
             "type": "string"
            },
            "start_at": {
-            "type": "string"
+            "type": "string",
+            "description": "시작, 날짜만(YYYY-MM-DD) 주면 그 날 KST 00:00, 시간대 없는 시각은 KST 로 본다"
            },
            "end_at": {
-            "type": "string"
+            "type": "string",
+            "description": "끝, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59, 시간대 없는 시각은 KST 로 본다"
            },
            "all_day": {
             "type": "boolean"
@@ -8016,7 +8078,8 @@
             "type": "string"
            },
            "location": {
-            "type": "string"
+            "type": "string",
+            "description": "어디서 하나 — 적을 칸이 없으면 사람은 제목 끝에 괄호로 붙인다(마이그 304)"
            },
            "rrule": {
             "type": "string"
@@ -12332,34 +12395,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -14494,34 +14566,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -16674,10 +16755,12 @@
             ]
            },
            "targetKrw": {
-            "type": "number"
+            "type": "number",
+            "description": "하루에 목표하는 수익(원)"
            },
            "lossLimitKrw": {
-            "type": "number"
+            "type": "number",
+            "description": "하루에 감당할 수 있는 손실(원)"
            }
           },
           "required": [
@@ -16853,10 +16936,12 @@
             ]
            },
            "targetKrw": {
-            "type": "number"
+            "type": "number",
+            "description": "하루에 목표하는 수익(원)"
            },
            "lossLimitKrw": {
-            "type": "number"
+            "type": "number",
+            "description": "하루에 감당할 수 있는 손실(원)"
            }
           },
           "required": [
@@ -17744,34 +17829,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -17873,34 +17967,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -18002,34 +18105,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -18131,34 +18243,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -18260,34 +18381,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -18389,34 +18519,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -18518,34 +18657,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -18647,34 +18795,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -18776,34 +18933,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -18905,34 +19071,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -19034,34 +19209,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -19163,34 +19347,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -19292,34 +19485,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -20372,34 +20574,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -20703,34 +20914,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -20917,34 +21137,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -21059,34 +21288,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -22727,34 +22965,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -22856,34 +23103,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -22985,34 +23241,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -23207,34 +23472,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -23431,34 +23705,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -23641,34 +23924,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -23770,34 +24062,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -24362,34 +24663,43 @@
           "type": "object",
           "properties": {
            "append": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`append()`** method of the FormData interface appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist."
            },
            "delete": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`delete()`** method of the FormData interface deletes a key and its value(s) from a `FormData` object."
            },
            "get": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`get()`** method of the FormData interface returns the first value associated with a given key from within a `FormData` object."
            },
            "getAll": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`getAll()`** method of the FormData interface returns all the values associated with a given key from within a `FormData` object."
            },
            "has": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`has()`** method of the FormData interface returns whether a `FormData` object contains a certain key."
            },
            "set": {
-            "type": "object"
+            "type": "object",
+            "description": "The **`set()`** method of the FormData interface sets a new value for an existing key inside a `FormData` object, or adds the key/value if it does not already exist."
            },
            "forEach": {
             "type": "object"
            },
            "entries": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns an array of key, value pairs for every entry in the list."
            },
            "keys": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of keys in the list."
            },
            "values": {
-            "type": "object"
+            "type": "object",
+            "description": "Returns a list of values in the list."
            },
            "__@iterator@131": {
             "type": "object"
@@ -26740,7 +27050,8 @@
           ]
          },
          "resweep": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "기간을 바꾸면 그 자리에서 다시 훑을 수 있게 한다"
          },
          "topicId": {
           "type": "string"
@@ -28346,7 +28657,8 @@
           "type": "string"
          },
          "sourceFileName": {
-          "type": "string"
+          "type": "string",
+          "description": "파일로 만든 경우"
          }
         },
         "additionalProperties": false
@@ -30377,7 +30689,8 @@
           "type": "string"
          },
          "discountStackMode": {
-          "type": "string"
+          "type": "string",
+          "description": "할인 겹침 방식 MAX MULTIPLY ADD, 모르는 값은 거절"
          },
          "freeYears": {
           "type": "number"
@@ -30392,7 +30705,8 @@
           "type": "array",
           "items": {
            "type": "object"
-          }
+          },
+          "description": "묶음 이름 바꾸기 — 그 묶음의 품목, 비율의 대상 묶음, 규모 조정 규칙이 같이 바뀐다"
          },
          "sections": {
           "type": "array",
@@ -30401,7 +30715,8 @@
           }
          },
          "supplyRoundingUnit": {
-          "type": "number"
+          "type": "number",
+          "description": "할인 후 공급가 절사 단위, ROUNDING_UNITS 가운데 하나"
          },
          "tcoYears": {
           "type": "number"
@@ -30560,7 +30875,8 @@
          },
          "unitPriceMinor": {},
          "version": {
-          "type": "number"
+          "type": "number",
+          "description": "보낸 사람이 본 버전. 있으면 잠금을 건다 — 두 사람이 같이 고치면 뒤 사람이 거절된다"
          }
         },
         "additionalProperties": false
@@ -30919,7 +31235,8 @@
           "type": "array",
           "items": {
            "type": "object"
-          }
+          },
+          "description": "항목 전체. 주면 통째로 맞춘다(있는 것은 고치고, 없어진 것은 지우고, 새 것은 만든다)."
          },
          "notesMd": {
           "type": "string"
@@ -30933,24 +31250,32 @@
            "type": "string"
           }
          },
-         "rateHoursPerMonth": {},
+         "rateHoursPerMonth": {
+          "description": "금액 표시 — 무엇을 함께 인쇄할지. **합계는 이 선택으로 안 바뀐다.**"
+         },
          "recipientPersonId": {
           "type": "string"
          },
          "roundingMode": {
           "type": "string"
          },
-         "roundingUnit": {},
+         "roundingUnit": {
+          "description": "절사 단위(원). **안 주면 저장된 것을 그대로 둔다** — 0 으로 눕히지 않는다"
+         },
          "sections": {
           "type": "array",
           "items": {
            "type": "object"
-          }
+          },
+          "description": "묶음 전체. 항목과 함께 준다 — 항목이 인덱스로 묶음을 가리키기 때문이다"
          },
          "sourceSnapshotId": {
-          "type": "string"
+          "type": "string",
+          "description": "원본 조각(첨부 id). **만들 때가 아니라 여기로 온다** — 견적이 생긴 뒤에야"
          },
-         "supplyRoundingUnit": {},
+         "supplyRoundingUnit": {
+          "description": "공급가 절사도 안 주면 저장된 것 그대로"
+         },
          "termIds": {
           "type": "array",
           "items": {
@@ -30967,7 +31292,8 @@
           }
          },
          "validUntil": {
-          "type": "string"
+          "type": "string",
+          "description": "유효기간, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59, 시각을 주면 그대로"
          },
          "version": {
           "type": "number"
@@ -31360,19 +31686,23 @@
           "type": "string"
          },
          "dueAt": {
-          "type": "string"
+          "type": "string",
+          "description": "마감, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59 (웹과 같음), 시각을 주면 그대로"
          },
          "personId": {
           "type": "string"
          },
          "sourceMeetingId": {
-          "type": "string"
+          "type": "string",
+          "description": "회의에서 나온 할 일이면 그 미팅 id — 출처이자 멱등 열쇠다(마이그 256)"
          },
          "startAt": {
-          "type": "string"
+          "type": "string",
+          "description": "시작, 날짜만(YYYY-MM-DD) 주면 그 날 KST 00:00, 시각을 주면 그대로"
          },
          "status": {
-          "type": "string"
+          "type": "string",
+          "description": "완료 시각은 서버가 찍는다 — 클라이언트가 보낸 값은 받지 않는다"
          },
          "title": {
           "type": "string"
@@ -36524,7 +36854,8 @@
           "type": "string"
          },
          "useAi": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "비우면 빈 기획안을 만든다(AI 없이 직접 쓰기)"
          }
         },
         "additionalProperties": false,
@@ -37184,7 +37515,8 @@
           "type": "array",
           "items": {
            "type": "string"
-          }
+          },
+          "description": "비우면 전부 읽음 처리"
          }
         },
         "additionalProperties": false
@@ -38418,7 +38750,8 @@
           "type": "string"
          },
          "occurredAt": {
-          "type": "string"
+          "type": "string",
+          "description": "언제 일어났나. 안 주면 지금 — 지난 일을 적을 때만 지정한다"
          },
          "personId": {
           "type": "string"
@@ -39453,7 +39786,8 @@
           "type": "string"
          },
          "sourceFileName": {
-          "type": "string"
+          "type": "string",
+          "description": "파일로 만든 경우"
          }
         },
         "additionalProperties": false
@@ -40253,7 +40587,8 @@
           "enum": [
            "NET",
            "GROSS"
-          ]
+          ],
+          "description": "원본이 공급가액인가 총액인가 — 이 한 칸이 방향을 기록하고 세 값은 계산된다"
          },
          "taxRatePct": {}
         },
@@ -42038,7 +42373,8 @@
           "type": "string"
          },
          "discountStackMode": {
-          "type": "string"
+          "type": "string",
+          "description": "할인 겹침 방식 MAX MULTIPLY ADD, 모르는 값은 거절"
          },
          "freeYears": {
           "type": "number"
@@ -42053,7 +42389,8 @@
           "type": "array",
           "items": {
            "type": "object"
-          }
+          },
+          "description": "묶음 이름 바꾸기 — 그 묶음의 품목, 비율의 대상 묶음, 규모 조정 규칙이 같이 바뀐다"
          },
          "sections": {
           "type": "array",
@@ -42062,7 +42399,8 @@
           }
          },
          "supplyRoundingUnit": {
-          "type": "number"
+          "type": "number",
+          "description": "할인 후 공급가 절사 단위, ROUNDING_UNITS 가운데 하나"
          },
          "tcoYears": {
           "type": "number"
@@ -50559,7 +50897,8 @@
         "type": "object",
         "properties": {
          "overrideUserSet": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "이미 사람이 손대 둔 게시물까지 덮을지."
          },
          "topicId": {
           "type": "string"
@@ -50829,7 +51168,8 @@
         "type": "object",
         "properties": {
          "dismiss": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "이 주제가 아니라고 확인만 하고 넘기는 경우"
          },
          "topicId": {
           "type": "string"
@@ -51372,16 +51712,20 @@
           "type": "array",
           "items": {
            "type": "string"
-          }
+          },
+          "description": "고른 게시물만 확정한다. 없거나 비면 묶음 전부 — **예전 호출은 그대로 동작한다**."
          },
          "groupKey": {
-          "type": "string"
+          "type": "string",
+          "description": "listReviewGroups 가 준 열쇠 그대로"
          },
          "rememberForChannel": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "이 답을 채널의 기본 주제로 굳힐지. 화면이 「다음부터 묻지 않기」로 보여준다"
          },
          "topicId": {
-          "type": "string"
+          "type": "string",
+          "description": "사람이 고른 주제 — 묶음의 확정 주제일 수도, 갈린 상대일 수도, 제3의 주제일 수도 있다"
          }
         },
         "additionalProperties": false,
@@ -52408,7 +52752,8 @@
           "type": "string"
          },
          "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "LOST·재오픈이면 필수"
          },
          "to": {
           "enum": [
@@ -52418,13 +52763,15 @@
           ]
          },
          "toStageId": {
-          "type": "string"
+          "type": "string",
+          "description": "함께 옮길 단계. 보드에서 성사·실주 칸에 놓으면 그 칸의 id 가 온다."
          },
          "version": {
           "type": "number"
          },
          "wonAt": {
-          "type": "string"
+          "type": "string",
+          "description": "WON 이면 필수"
          }
         },
         "additionalProperties": false,
@@ -54318,7 +54665,8 @@
         "type": "object",
         "properties": {
          "createDeal": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "딜까지 만들지 — 화면의 체크박스. 금액이 없으면 만들지 않는다"
          },
          "pipelineId": {
           "type": "string"
@@ -54491,7 +54839,8 @@
           ]
          },
          "variantLabel": {
-          "type": "string"
+          "type": "string",
+          "description": "다른 안일 때의 이름 — 「2안」·「대용량 구성」"
          }
         },
         "additionalProperties": false,
@@ -54999,12 +55348,16 @@
            "accept"
           ]
          },
-         "editedValue": {},
+         "editedValue": {
+          "description": "사람이 고친 값 — 있으면 이 값이 제안값을 이긴다(명세 3.3-3)"
+         },
          "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "거절 사유(부정확·중복·불필요) — 나중에 프롬프트를 고치는 재료다"
          },
          "version": {
-          "type": "number"
+          "type": "number",
+          "description": "대상 레코드의 version — 화면이 들고 있던 값"
          }
         },
         "additionalProperties": false,
@@ -59099,5 +59452,5 @@
    }
   }
  },
- "x-spec-hash": "3827ec38d6079df4"
+ "x-spec-hash": "099b7eae1c2c0af8"
 }

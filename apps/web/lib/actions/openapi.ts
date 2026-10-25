@@ -29,6 +29,8 @@ export interface InputField {
   items?: Json
   format?: string
   required?: boolean
+  /** 칸 설명, 처리 함수 입력 형의 문서 주석 첫 줄 */
+  description?: string
   /** 서버 액션의 객체 인자, 그 속 칸 */
   fields?: InputField[]
 }
@@ -136,6 +138,7 @@ export function fieldSchema(f: InputField): Json {
   if (f.enum) out.enum = f.enum
   if (f.items) out.items = f.items
   if (f.format) out.format = f.format
+  if (f.description) out.description = f.description
   if (f.fields?.length) {
     out.properties = Object.fromEntries(f.fields.map((x) => [x.name, fieldSchema(x)]))
     const req = f.fields.filter((x) => x.required).map((x) => x.name)

@@ -20,6 +20,7 @@ import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText, requireText } from '../domain/normalize.ts'
+import { kstDayStartIso, kstDeadlineIso } from '../../datetime/kst.ts'
 import {
   clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage,
   type CursorInput, type CursorPage,
@@ -70,7 +71,9 @@ const SELECT = {
 export interface TaskInput {
   title: string
   status?: string | null
+  /** 시작, 날짜만(YYYY-MM-DD) 주면 그 날 KST 00:00, 시각을 주면 그대로 */
   startAt?: string | null
+  /** 마감, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59 (웹과 같음), 시각을 주면 그대로 */
   dueAt?: string | null
   assigneeId?: string | null
   companyId?: string | null
@@ -102,8 +105,9 @@ function normalizeInput(input: Partial<TaskInput>, requireTitle: boolean): Recor
     시작·마감 둘 다 **KST 벽시계로 받아** UTC 로 적재한다(§datetime 정책).
     화면이 `YYYY-MM-DDT00:00:00+09:00` / `…T23:59:00+09:00` 형태로 앵커를 박아 보낸다.
   */
-  if (input.startAt !== undefined) out.startAt = input.startAt ? new Date(input.startAt) : null
-  if (input.dueAt !== undefined) out.dueAt = input.dueAt ? new Date(input.dueAt) : null
+  // 날짜만 온 값(CLI API)은 화면과 같은 규칙으로 맞춘다: 시작 00:00, 마감 23:59 KST (P0170 I06)
+  if (input.startAt !== undefined) out.startAt = input.startAt ? new Date(kstDayStartIso(input.startAt)) : null
+  if (input.dueAt !== undefined) out.dueAt = input.dueAt ? new Date(kstDeadlineIso(input.dueAt)) : null
   for (const k of ['assigneeId', 'companyId', 'personId', 'dealId', 'sourceMeetingId'] as const) {
     if (input[k] !== undefined) out[k] = normalizeText(input[k]) ?? null
   }
