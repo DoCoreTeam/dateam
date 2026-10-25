@@ -172,8 +172,7 @@
         },
         "additionalProperties": false,
         "required": [
-         "input",
-         "monitor"
+         "input"
         ]
        }
       }
@@ -2134,6 +2133,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "projectId",
      "text",
@@ -2159,7 +2159,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "projectId",
+         "text",
+         "source"
+        ]
        }
       }
      }
@@ -2219,6 +2224,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "conversationId"
     ],
@@ -2236,7 +2242,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "conversationId"
+        ]
        }
       }
      }
@@ -2296,6 +2305,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -2333,7 +2343,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -2393,6 +2406,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "name",
      "instructions"
@@ -2414,7 +2428,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "name"
+        ]
        }
       }
      }
@@ -2474,6 +2491,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "projectId",
      "source"
@@ -2495,7 +2513,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "projectId",
+         "source"
+        ]
        }
       }
      }
@@ -2555,6 +2577,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -2589,7 +2612,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -2649,6 +2675,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -2734,6 +2761,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "projectId"
     ],
@@ -2751,7 +2779,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "projectId"
+        ]
        }
       }
      }
@@ -2811,6 +2842,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -2883,6 +2915,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -2955,6 +2988,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "options"
@@ -2989,7 +3023,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider"
+        ]
        }
       }
      }
@@ -3049,6 +3086,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "title"
@@ -3070,7 +3108,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "title"
+        ]
        }
       }
      }
@@ -3130,6 +3172,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -3147,7 +3190,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -3207,6 +3253,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "q"
     ],
@@ -3224,7 +3271,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "q"
+        ]
        }
       }
      }
@@ -3284,6 +3334,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "conversationId",
      "projectId"
@@ -3305,7 +3356,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "conversationId",
+         "projectId"
+        ]
        }
       }
      }
@@ -3365,6 +3420,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "messageId",
      "feedback"
@@ -3390,7 +3446,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "messageId",
+         "feedback"
+        ]
        }
       }
      }
@@ -3450,6 +3510,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -3467,7 +3528,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -3527,6 +3591,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -3544,7 +3609,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -3604,6 +3672,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -3621,7 +3690,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -3681,6 +3753,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "conversationId",
      "on"
@@ -3702,7 +3775,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "conversationId",
+         "on"
+        ]
        }
       }
      }
@@ -3762,6 +3839,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "provider",
@@ -3795,7 +3873,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "provider",
+         "model"
+        ]
        }
       }
      }
@@ -3855,6 +3938,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "patch"
@@ -3884,7 +3968,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "patch"
+        ]
        }
       }
      }
@@ -3944,6 +4032,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "conversationId",
      "systemPrompt"
@@ -3965,7 +4054,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "conversationId",
+         "systemPrompt"
+        ]
        }
       }
      }
@@ -4025,6 +4118,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -4090,7 +4184,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -4150,6 +4247,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -4215,7 +4313,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -4275,6 +4376,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId",
      "itemIdx"
@@ -4296,7 +4398,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId",
+         "itemIdx"
+        ]
        }
       }
      }
@@ -4356,6 +4462,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId",
      "itemIdx",
@@ -4381,7 +4488,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId",
+         "itemIdx",
+         "userText"
+        ]
        }
       }
      }
@@ -4441,6 +4553,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId",
      "formatInstruction"
@@ -4462,7 +4575,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId"
+        ]
        }
       }
      }
@@ -4522,6 +4638,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -4568,7 +4685,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -4628,6 +4748,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "entries",
      "model",
@@ -4656,7 +4777,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "entries"
+        ]
        }
       }
      }
@@ -4716,6 +4840,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -4755,7 +4880,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -4815,6 +4943,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -4832,7 +4961,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -4892,6 +5024,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "ids"
     ],
@@ -4912,7 +5045,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "ids"
+        ]
        }
       }
      }
@@ -4972,6 +5108,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -4989,7 +5126,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -5049,6 +5189,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "params"
     ],
@@ -5147,6 +5288,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -5164,7 +5306,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -5224,6 +5369,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "ids"
     ],
@@ -5244,7 +5390,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "ids"
+        ]
        }
       }
      }
@@ -5304,6 +5453,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "input"
@@ -5333,7 +5483,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "input"
+        ]
        }
       }
      }
@@ -5393,6 +5547,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sourceText",
      "command",
@@ -5422,7 +5577,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sourceText",
+         "command"
+        ]
        }
       }
      }
@@ -5482,6 +5641,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId",
      "newCommand",
@@ -5507,7 +5667,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId",
+         "newCommand"
+        ]
        }
       }
      }
@@ -5567,6 +5731,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId"
     ],
@@ -5584,7 +5749,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId"
+        ]
        }
       }
      }
@@ -5644,6 +5812,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId",
      "control"
@@ -5670,7 +5839,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId",
+         "control"
+        ]
        }
       }
      }
@@ -5730,6 +5903,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -5772,7 +5946,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -5832,6 +6009,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId",
      "input"
@@ -5873,7 +6051,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId",
+         "input"
+        ]
        }
       }
      }
@@ -5933,6 +6115,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId"
     ],
@@ -5950,7 +6133,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId"
+        ]
        }
       }
      }
@@ -6010,6 +6196,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "ids"
     ],
@@ -6030,7 +6217,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "ids"
+        ]
        }
       }
      }
@@ -6090,6 +6280,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "params"
     ],
@@ -6188,6 +6379,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId",
      "title"
@@ -6209,7 +6401,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId",
+         "title"
+        ]
        }
       }
      }
@@ -6269,6 +6465,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId"
     ],
@@ -6286,7 +6483,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId"
+        ]
        }
       }
      }
@@ -6346,6 +6546,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "ids"
     ],
@@ -6366,7 +6567,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "ids"
+        ]
        }
       }
      }
@@ -6426,6 +6630,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sessionId"
     ],
@@ -6443,7 +6648,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sessionId"
+        ]
        }
       }
      }
@@ -6503,6 +6711,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -6553,7 +6762,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -6613,6 +6825,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -6652,7 +6865,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -6712,6 +6928,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -6729,7 +6946,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -6789,6 +7009,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "command"
     ],
@@ -6806,7 +7027,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "command"
+        ]
        }
       }
      }
@@ -6866,6 +7090,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -6938,6 +7163,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "patch"
@@ -6976,7 +7202,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "patch"
+        ]
        }
       }
      }
@@ -7036,6 +7266,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "decision"
@@ -7061,7 +7292,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "decision"
+        ]
        }
       }
      }
@@ -7121,6 +7356,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -7185,7 +7421,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -7245,6 +7484,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -7278,7 +7518,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -7338,6 +7581,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -7355,7 +7599,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -7415,6 +7662,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -7432,7 +7680,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -7492,6 +7743,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -7564,6 +7816,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logIds"
     ],
@@ -7584,7 +7837,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logIds"
+        ]
        }
       }
      }
@@ -7644,6 +7900,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId"
     ],
@@ -7661,7 +7918,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId"
+        ]
        }
       }
      }
@@ -7721,6 +7981,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "input"
@@ -7769,7 +8030,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "input"
+        ]
        }
       }
      }
@@ -7829,6 +8094,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "content",
      "entryType",
@@ -7861,7 +8127,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "content",
+         "entryType",
+         "logDate"
+        ]
        }
       }
      }
@@ -7921,6 +8192,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "items",
      "logDate",
@@ -7953,7 +8225,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "items",
+         "logDate"
+        ]
        }
       }
      }
@@ -8013,6 +8289,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "text",
      "logDate",
@@ -8042,7 +8319,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "text",
+         "logDate",
+         "originGroupId"
+        ]
        }
       }
      }
@@ -8102,6 +8384,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "fromLogId",
      "toLogId",
@@ -8141,7 +8424,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "fromLogId",
+         "toLogId",
+         "relationType"
+        ]
        }
       }
      }
@@ -8201,6 +8489,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId",
      "tagName",
@@ -8230,7 +8519,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId",
+         "tagName"
+        ]
        }
       }
      }
@@ -8290,6 +8583,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId",
      "content"
@@ -8311,7 +8605,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId",
+         "content"
+        ]
        }
       }
      }
@@ -8371,6 +8669,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logIds"
     ],
@@ -8391,7 +8690,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logIds"
+        ]
        }
       }
      }
@@ -8451,6 +8753,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -8468,7 +8771,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -8528,6 +8834,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "headLogId"
     ],
@@ -8545,7 +8852,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "headLogId"
+        ]
        }
       }
      }
@@ -8605,6 +8915,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "date"
     ],
@@ -8622,7 +8933,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "date"
+        ]
        }
       }
      }
@@ -8682,6 +8996,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "today"
     ],
@@ -8699,7 +9014,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "today"
+        ]
        }
       }
      }
@@ -8759,6 +9077,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "date"
     ],
@@ -8776,7 +9095,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "date"
+        ]
        }
       }
      }
@@ -8836,6 +9158,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "year",
      "month"
@@ -8857,7 +9180,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "year",
+         "month"
+        ]
        }
       }
      }
@@ -8917,6 +9244,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "originGroupId"
     ],
@@ -8934,7 +9262,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "originGroupId"
+        ]
        }
       }
      }
@@ -8994,6 +9325,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logIds"
     ],
@@ -9014,7 +9346,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logIds"
+        ]
        }
       }
      }
@@ -9074,6 +9409,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId"
     ],
@@ -9091,7 +9427,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId"
+        ]
        }
       }
      }
@@ -9151,6 +9490,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId"
     ],
@@ -9168,7 +9508,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId"
+        ]
        }
       }
      }
@@ -9228,6 +9571,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId"
     ],
@@ -9245,7 +9589,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId"
+        ]
        }
       }
      }
@@ -9305,6 +9652,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -9377,6 +9725,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "weekStart"
     ],
@@ -9394,7 +9743,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "weekStart"
+        ]
        }
       }
      }
@@ -9454,6 +9806,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -9471,7 +9824,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -9531,6 +9887,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sourceId",
      "targetId"
@@ -9552,7 +9909,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sourceId",
+         "targetId"
+        ]
        }
       }
      }
@@ -9612,6 +9973,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "ids",
      "today"
@@ -9636,7 +9998,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "ids",
+         "today"
+        ]
        }
       }
      }
@@ -9696,6 +10062,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "today"
@@ -9717,7 +10084,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "today"
+        ]
        }
       }
      }
@@ -9777,6 +10148,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "memoId",
      "newType",
@@ -9806,7 +10178,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "memoId",
+         "newType",
+         "targetDate"
+        ]
        }
       }
      }
@@ -9866,6 +10243,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -9883,7 +10261,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -9943,6 +10324,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -9960,7 +10342,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -10020,6 +10405,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId",
      "status"
@@ -10046,7 +10432,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId",
+         "status"
+        ]
        }
       }
      }
@@ -10106,6 +10496,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -10123,7 +10514,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -10183,6 +10577,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "content",
@@ -10219,7 +10614,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "content",
+         "entryType"
+        ]
        }
       }
      }
@@ -10279,6 +10679,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "entryType"
@@ -10307,7 +10708,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "entryType"
+        ]
        }
       }
      }
@@ -10367,6 +10772,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "headLogId",
      "text"
@@ -10388,7 +10794,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "headLogId",
+         "text"
+        ]
        }
       }
      }
@@ -10448,6 +10858,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId",
      "targetDate"
@@ -10469,7 +10880,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId",
+         "targetDate"
+        ]
        }
       }
      }
@@ -10529,6 +10944,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId",
      "content",
@@ -10554,7 +10970,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId",
+         "content"
+        ]
        }
       }
      }
@@ -10614,6 +11034,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "assigneeUserId"
@@ -10635,7 +11056,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "assigneeUserId"
+        ]
        }
       }
      }
@@ -10695,6 +11120,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -10767,6 +11193,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -10817,7 +11244,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -10877,6 +11307,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "inputs"
     ],
@@ -10897,7 +11328,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "inputs"
+        ]
        }
       }
      }
@@ -10957,6 +11391,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -10974,7 +11409,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -11034,6 +11472,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "tasks"
     ],
@@ -11054,7 +11493,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "tasks"
+        ]
        }
       }
      }
@@ -11114,6 +11556,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "logId"
     ],
@@ -11131,7 +11574,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "logId"
+        ]
        }
       }
      }
@@ -11191,6 +11637,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "departmentId"
     ],
@@ -11208,7 +11655,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "departmentId"
+        ]
        }
       }
      }
@@ -11268,6 +11718,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "opts"
     ],
@@ -11360,6 +11811,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "opts"
     ],
@@ -11392,7 +11844,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "opts"
+        ]
        }
       }
      }
@@ -11452,6 +11907,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sourceLogId",
      "input"
@@ -11496,7 +11952,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sourceLogId",
+         "input"
+        ]
        }
       }
      }
@@ -11556,6 +12016,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "patch"
@@ -11603,7 +12064,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "patch"
+        ]
        }
       }
      }
@@ -11663,6 +12128,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "patch"
@@ -11705,7 +12171,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "patch"
+        ]
        }
       }
      }
@@ -11765,6 +12235,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -11782,7 +12253,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -11842,6 +12316,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -11907,7 +12382,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -11967,6 +12445,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "data"
@@ -12012,7 +12491,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "data"
+        ]
        }
       }
      }
@@ -12072,6 +12555,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "meetingNoteId",
      "payload"
@@ -12107,7 +12591,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "meetingNoteId",
+         "payload"
+        ]
        }
       }
      }
@@ -12167,6 +12655,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -12233,7 +12722,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -12293,6 +12785,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -12310,7 +12803,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -12370,6 +12866,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -12442,6 +12939,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "meetingNoteId"
     ],
@@ -12459,7 +12957,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "meetingNoteId"
+        ]
        }
       }
      }
@@ -12519,6 +13020,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -12536,7 +13038,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -12596,6 +13101,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -12668,6 +13174,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -12740,6 +13247,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "params"
     ],
@@ -12781,7 +13289,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "params"
+        ]
        }
       }
      }
@@ -12841,6 +13352,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -12913,6 +13425,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "payload"
@@ -12942,7 +13455,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "payload"
+        ]
        }
       }
      }
@@ -13002,6 +13519,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -13074,6 +13592,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "meetingNoteId"
     ],
@@ -13091,7 +13610,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "meetingNoteId"
+        ]
        }
       }
      }
@@ -13151,6 +13673,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "patch"
@@ -13224,7 +13747,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "patch"
+        ]
        }
       }
      }
@@ -13284,6 +13811,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "chosenKeys"
     ],
@@ -13304,7 +13832,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "chosenKeys"
+        ]
        }
       }
      }
@@ -13364,6 +13895,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -13436,6 +13968,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "personId",
      "noteIds"
@@ -13460,7 +13993,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "personId",
+         "noteIds"
+        ]
        }
       }
      }
@@ -13520,6 +14057,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -13592,6 +14130,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "routineName",
      "checkDate",
@@ -13621,7 +14160,13 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "routineName",
+         "checkDate",
+         "weekStart",
+         "isCompleted"
+        ]
        }
       }
      }
@@ -13681,6 +14226,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "weekStart"
     ],
@@ -13698,7 +14244,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "weekStart"
+        ]
        }
       }
      }
@@ -13758,6 +14307,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "weekStart",
      "category",
@@ -13783,7 +14333,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "weekStart",
+         "category"
+        ]
        }
       }
      }
@@ -13843,6 +14397,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "snapshotId"
     ],
@@ -13860,7 +14415,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "snapshotId"
+        ]
        }
       }
      }
@@ -13920,6 +14478,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -13985,7 +14544,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -14045,6 +14607,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "deptId",
      "weekStart"
@@ -14066,7 +14629,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "deptId",
+         "weekStart"
+        ]
        }
       }
      }
@@ -14126,6 +14693,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "deptId",
      "weekStart",
@@ -14154,7 +14722,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "deptId",
+         "weekStart",
+         "rows"
+        ]
        }
       }
      }
@@ -14214,6 +14787,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "weekStart"
     ],
@@ -14231,7 +14805,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "weekStart"
+        ]
        }
       }
      }
@@ -14291,6 +14868,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "deptId",
      "weekStart",
@@ -14320,7 +14898,13 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "deptId",
+         "weekStart",
+         "body",
+         "confirm"
+        ]
        }
       }
      }
@@ -14380,6 +14964,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "name",
      "occursAtLocal"
@@ -14401,7 +14986,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "name",
+         "occursAtLocal"
+        ]
        }
       }
      }
@@ -14461,6 +15050,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "text"
     ],
@@ -14478,7 +15068,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "text"
+        ]
        }
       }
      }
@@ -14538,6 +15131,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "orderId",
      "brokerOrderNo"
@@ -14559,7 +15153,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "orderId",
+         "brokerOrderNo"
+        ]
        }
       }
      }
@@ -14619,6 +15217,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -14691,6 +15290,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "proposalId",
      "accept"
@@ -14712,7 +15312,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "proposalId",
+         "accept"
+        ]
        }
       }
      }
@@ -14772,6 +15376,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -14844,6 +15449,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "contractCode",
      "tf",
@@ -14869,7 +15475,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "contractCode",
+         "tf",
+         "text"
+        ]
        }
       }
      }
@@ -14929,6 +15540,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -15001,6 +15613,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -15046,7 +15659,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -15106,6 +15722,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -15135,7 +15752,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -15195,6 +15815,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -15267,6 +15888,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "signalId"
     ],
@@ -15284,7 +15906,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "signalId"
+        ]
        }
       }
      }
@@ -15344,6 +15969,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -15381,7 +16007,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -15441,6 +16070,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -15458,7 +16088,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -15518,6 +16151,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "next"
     ],
@@ -15535,7 +16169,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "next"
+        ]
        }
       }
      }
@@ -15595,6 +16232,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "next"
     ],
@@ -15612,7 +16250,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "next"
+        ]
        }
       }
      }
@@ -15672,6 +16313,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "next"
     ],
@@ -15689,7 +16331,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "next"
+        ]
        }
       }
      }
@@ -15749,6 +16394,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "signalId",
      "action",
@@ -15774,7 +16420,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "signalId",
+         "action"
+        ]
        }
       }
      }
@@ -15834,6 +16484,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "endpoint"
     ],
@@ -15851,7 +16502,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "endpoint"
+        ]
        }
       }
      }
@@ -15911,6 +16565,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "changes"
     ],
@@ -15931,7 +16586,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "changes"
+        ]
        }
       }
      }
@@ -15991,6 +16649,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "answers",
      "overrides"
@@ -16033,7 +16692,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "answers"
+        ]
        }
       }
      }
@@ -16093,6 +16755,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -16165,6 +16828,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "answers",
      "overrides"
@@ -16207,7 +16871,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "answers"
+        ]
        }
       }
      }
@@ -16267,6 +16934,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "ask"
     ],
@@ -16284,7 +16952,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "ask"
+        ]
        }
       }
      }
@@ -16344,6 +17015,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider"
     ],
@@ -16361,7 +17033,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider"
+        ]
        }
       }
      }
@@ -16421,6 +17096,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "providerKey",
      "modelKey",
@@ -16450,7 +17126,13 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "providerKey",
+         "modelKey",
+         "provider",
+         "model"
+        ]
        }
       }
      }
@@ -16510,6 +17192,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "env",
      "appKey",
@@ -16539,7 +17222,13 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "env",
+         "appKey",
+         "appSecret",
+         "accountNo"
+        ]
        }
       }
      }
@@ -16599,6 +17288,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "key",
      "raw"
@@ -16620,7 +17310,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "key",
+         "raw"
+        ]
        }
       }
      }
@@ -16680,6 +17374,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "input"
     ],
@@ -16717,7 +17412,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "input"
+        ]
        }
       }
      }
@@ -16777,6 +17475,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "requestId"
     ],
@@ -16794,7 +17493,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "requestId"
+        ]
        }
       }
      }
@@ -16854,6 +17556,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "requestId",
      "notes"
@@ -16875,7 +17578,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "requestId",
+         "notes"
+        ]
        }
       }
      }
@@ -16935,6 +17642,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "sectionKey",
      "data"
@@ -16956,7 +17664,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "sectionKey",
+         "data"
+        ]
        }
       }
      }
@@ -17016,6 +17728,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -17081,7 +17794,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -17141,6 +17857,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -17206,7 +17923,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -17266,6 +17986,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -17331,7 +18052,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -17391,6 +18115,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -17456,7 +18181,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -17516,6 +18244,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -17581,7 +18310,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -17641,6 +18373,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -17706,7 +18439,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -17766,6 +18502,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -17831,7 +18568,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -17891,6 +18631,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -17956,7 +18697,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -18016,6 +18760,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -18081,7 +18826,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -18141,6 +18889,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -18206,7 +18955,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -18266,6 +19018,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -18331,7 +19084,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -18391,6 +19147,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -18456,7 +19213,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -18516,6 +19276,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -18581,7 +19342,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -18641,6 +19405,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "data"
     ],
@@ -18686,7 +19451,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "data"
+        ]
        }
       }
      }
@@ -18746,6 +19514,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "name"
     ],
@@ -18763,7 +19532,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "name"
+        ]
        }
       }
      }
@@ -18823,6 +19595,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "name"
     ],
@@ -18840,7 +19613,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "name"
+        ]
        }
       }
      }
@@ -18900,6 +19676,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -18917,7 +19694,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -18977,6 +19757,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "targetId"
@@ -18998,7 +19779,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "targetId"
+        ]
        }
       }
      }
@@ -19058,6 +19843,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -19075,7 +19861,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -19135,6 +19924,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -19152,7 +19942,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -19212,6 +20005,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "nodeId",
      "newParentId"
@@ -19233,7 +20027,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "nodeId",
+         "newParentId"
+        ]
        }
       }
      }
@@ -19293,6 +20091,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -19310,7 +20109,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -19370,6 +20172,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "nodeId",
      "direction",
@@ -19402,7 +20205,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "nodeId",
+         "direction",
+         "siblingIds"
+        ]
        }
       }
      }
@@ -19462,6 +20270,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "nodeId",
      "userId"
@@ -19483,7 +20292,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "nodeId",
+         "userId"
+        ]
        }
       }
      }
@@ -19543,6 +20356,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -19608,7 +20422,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -19668,6 +20485,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "data"
@@ -19703,7 +20521,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "data"
+        ]
        }
       }
      }
@@ -19763,6 +20585,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId",
      "data"
@@ -19800,7 +20623,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId",
+         "data"
+        ]
        }
       }
      }
@@ -19860,6 +20687,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -19925,7 +20753,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -19985,6 +20816,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id"
     ],
@@ -20002,7 +20834,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id"
+        ]
        }
       }
      }
@@ -20062,6 +20897,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "id",
      "formData"
@@ -20131,7 +20967,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "id",
+         "formData"
+        ]
        }
       }
      }
@@ -20191,6 +21031,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "formData"
@@ -20268,7 +21109,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider",
+         "formData"
+        ]
        }
       }
      }
@@ -20328,6 +21173,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -20400,6 +21246,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -20472,6 +21319,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -20544,6 +21392,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -20616,6 +21465,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider"
     ],
@@ -20641,7 +21491,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider"
+        ]
        }
       }
      }
@@ -20701,6 +21554,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -20773,6 +21627,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -20845,6 +21700,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -20917,6 +21773,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -20989,6 +21846,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -21061,6 +21919,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider"
     ],
@@ -21086,7 +21945,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider"
+        ]
        }
       }
      }
@@ -21146,6 +22008,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "id"
@@ -21175,7 +22038,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider",
+         "id"
+        ]
        }
       }
      }
@@ -21235,6 +22102,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -21307,6 +22175,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -21379,6 +22248,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider"
     ],
@@ -21404,7 +22274,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider"
+        ]
        }
       }
      }
@@ -21464,6 +22337,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider"
     ],
@@ -21489,7 +22363,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider"
+        ]
        }
       }
      }
@@ -21549,6 +22426,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "id",
@@ -21586,7 +22464,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider",
+         "id",
+         "direction"
+        ]
        }
       }
      }
@@ -21646,6 +22529,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider"
     ],
@@ -21672,7 +22556,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider"
+        ]
        }
       }
      }
@@ -21732,6 +22619,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "order"
     ],
@@ -21760,7 +22648,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "order"
+        ]
        }
       }
      }
@@ -21820,6 +22711,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -21885,7 +22777,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -21945,6 +22840,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -22010,7 +22906,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -22070,6 +22969,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -22135,7 +23035,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -22195,6 +23098,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "next"
     ],
@@ -22212,7 +23116,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "next"
+        ]
        }
       }
      }
@@ -22272,6 +23179,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "formData"
@@ -22349,7 +23257,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider",
+         "formData"
+        ]
        }
       }
      }
@@ -22409,6 +23321,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "model"
@@ -22438,7 +23351,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider",
+         "model"
+        ]
        }
       }
      }
@@ -22498,6 +23415,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -22563,7 +23481,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -22623,6 +23544,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "model"
     ],
@@ -22640,7 +23562,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "model"
+        ]
        }
       }
      }
@@ -22700,6 +23625,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -22765,7 +23691,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -22825,6 +23754,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -22890,7 +23820,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -22950,6 +23883,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "enabled"
@@ -22979,7 +23913,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider",
+         "enabled"
+        ]
        }
       }
      }
@@ -23039,6 +23977,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "id",
@@ -23072,7 +24011,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider",
+         "id",
+         "paid"
+        ]
        }
       }
      }
@@ -23132,6 +24076,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "provider",
      "id",
@@ -23165,7 +24110,12 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "provider",
+         "id",
+         "active"
+        ]
        }
       }
      }
@@ -23225,6 +24175,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId",
      "newRole"
@@ -23250,7 +24201,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId",
+         "newRole"
+        ]
        }
       }
      }
@@ -23310,6 +24265,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId"
     ],
@@ -23327,7 +24283,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId"
+        ]
        }
       }
      }
@@ -23387,6 +24346,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "formData"
     ],
@@ -23452,7 +24412,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "formData"
+        ]
        }
       }
      }
@@ -23512,6 +24475,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId"
     ],
@@ -23529,7 +24493,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId"
+        ]
        }
       }
      }
@@ -23589,6 +24556,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId"
     ],
@@ -23606,7 +24574,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId"
+        ]
        }
       }
      }
@@ -23666,6 +24637,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId",
      "_userEmail"
@@ -23687,7 +24659,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId",
+         "_userEmail"
+        ]
        }
       }
      }
@@ -23747,6 +24723,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId",
      "input"
@@ -23776,7 +24753,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId"
+        ]
        }
       }
      }
@@ -23836,6 +24816,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId",
      "departmentNodeId"
@@ -23857,7 +24838,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId",
+         "departmentNodeId"
+        ]
        }
       }
      }
@@ -23917,6 +24902,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId"
     ],
@@ -23934,7 +24920,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId"
+        ]
        }
       }
      }
@@ -23994,6 +24983,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "userId",
      "input"
@@ -24029,7 +25019,11 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "userId",
+         "input"
+        ]
        }
       }
      }
@@ -24089,6 +25083,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -24161,6 +25156,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [],
     "requestBody": {
      "required": false,
@@ -24233,6 +25229,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "name"
     ],
@@ -24250,7 +25247,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "name"
+        ]
        }
       }
      }
@@ -24310,6 +25310,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "auditId"
     ],
@@ -24327,7 +25328,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "auditId"
+        ]
        }
       }
      }
@@ -24387,6 +25391,7 @@
       "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
      }
     },
+    "x-query-complete": true,
     "x-args": [
      "activityId"
     ],
@@ -24404,7 +25409,10 @@
          "args": {
           "type": "array"
          }
-        }
+        },
+        "required": [
+         "activityId"
+        ]
        }
       }
      }
@@ -24887,7 +25895,6 @@
         },
         "additionalProperties": false,
         "required": [
-         "kind",
          "sourceKind",
          "url"
         ]
@@ -26158,8 +27165,7 @@
         },
         "additionalProperties": false,
         "required": [
-         "briefId",
-         "timecodes"
+         "briefId"
         ]
        }
       }
@@ -35523,8 +36529,7 @@
         },
         "additionalProperties": false,
         "required": [
-         "ideaId",
-         "useAi"
+         "ideaId"
         ]
        }
       }
@@ -36056,8 +37061,6 @@
         },
         "additionalProperties": false,
         "required": [
-         "evidence",
-         "targetPlatforms",
          "title"
         ]
        }
@@ -49564,7 +50567,6 @@
         },
         "additionalProperties": false,
         "required": [
-         "overrideUserSet",
          "topicId"
         ]
        }
@@ -49835,7 +50837,6 @@
         },
         "additionalProperties": false,
         "required": [
-         "dismiss",
          "topicId"
         ]
        }
@@ -50006,7 +51007,6 @@
         },
         "additionalProperties": false,
         "required": [
-         "source",
          "urls"
         ]
        }
@@ -50199,13 +51199,8 @@
         },
         "additionalProperties": false,
         "required": [
-         "audioAnalyzed",
          "durationSec",
-         "framesSampled",
-         "linkUrl",
-         "loudPeaks",
-         "sceneChanges",
-         "silences"
+         "linkUrl"
         ]
        }
       }
@@ -50392,7 +51387,6 @@
         "additionalProperties": false,
         "required": [
          "groupKey",
-         "rememberForChannel",
          "topicId"
         ]
        }
@@ -58105,5 +59099,5 @@
    }
   }
  },
- "x-spec-hash": "256c7ab99610c4df"
+ "x-spec-hash": "3827ec38d6079df4"
 }

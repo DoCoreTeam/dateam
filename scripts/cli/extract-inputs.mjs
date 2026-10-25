@@ -237,10 +237,10 @@ function isBodyRead(checker, n) {
   return false
 }
 
-/** zod 스키마 값의 결과 형 (_output) */
+/** zod 스키마가 받는 형 (_input, 기본값 있는 칸은 비워도 되므로 _output 이 아니다) */
 function zodOutput(checker, schemaExpr) {
   const t = checker.getTypeAtLocation(schemaExpr)
-  const out = t.getProperty('_output')
+  const out = t.getProperty('_input') ?? t.getProperty('_output')
   return out ? checker.getTypeOfSymbolAtLocation(out, schemaExpr) : null
 }
 

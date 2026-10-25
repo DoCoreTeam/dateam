@@ -13,7 +13,7 @@ test('help --json prints one JSON object listing every command', async () => {
   expect(h.specSource).toBe('embedded')
   expect(h.commands.length).toBeGreaterThan(700)
   for (const c of h.commands) {
-    expect(Object.keys(c).sort()).toEqual(['cli', 'method', 'path', 'scope', 'summary'])
+    expect(Object.keys(c).sort()).toEqual(['body', 'cli', 'method', 'params', 'paramsClosed', 'path', 'scope', 'summary'])
     expect(typeof c.cli).toBe('string')
     expect(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).toContain(c.method)
   }

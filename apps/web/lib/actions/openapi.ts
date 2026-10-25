@@ -175,7 +175,8 @@ function mountedOperation(m: OpenApiMounted): Json {
     ],
     responses: standardResponses({ method: m.method, approval: true, success: '성공, data 는 화면이 받는 값과 같음' }),
   }
-  if (m.inputs && m.kind !== 'action') op['x-query-complete'] = m.inputs.queryComplete
+  // 서버 액션은 조회 조건을 읽지 않는다, 인자는 본문으로만 받는다
+  if (m.inputs) op['x-query-complete'] = m.kind === 'action' ? true : m.inputs.queryComplete
   const fileTypes = FILE_RESPONSES[m.name]
   if (fileTypes) op.responses = { ...op.responses, 200: fileResponse(fileTypes) }
   if (m.kind === 'action') {
@@ -194,6 +195,7 @@ function mountedOperation(m: OpenApiMounted): Json {
               }),
               ['args', { type: 'array' }],
             ]),
+            ...(m.inputs?.args?.some((a) => a.required) ? { required: m.inputs.args.filter((a) => a.required).map((a) => a.name) } : {}),
           },
         },
       },

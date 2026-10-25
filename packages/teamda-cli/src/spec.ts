@@ -10,11 +10,14 @@ import { createHash } from 'node:crypto'
 import embedded from './generated/spec.json'
 import type { Context } from './context.ts'
 import { configDir } from './config.ts'
+import { inputsOf, type CommandInputs } from './inputs.ts'
 
 export interface OpenApiParam {
   name: string
   in: 'path' | 'query' | 'header' | 'cookie'
   required?: boolean
+  schema?: unknown
+  description?: string
 }
 
 export interface OpenApiOperation {
@@ -24,6 +27,7 @@ export interface OpenApiOperation {
   'x-scope'?: string
   'x-kind'?: string
   'x-args'?: string[]
+  'x-query-complete'?: boolean
   parameters?: OpenApiParam[]
   requestBody?: { content?: Record<string, { schema?: { properties?: Record<string, unknown> } }> }
 }
@@ -50,6 +54,8 @@ export interface Command {
   hasBody: boolean
   /** server action positional argument names, in order */
   actionArgs: string[]
+  /** query and body inputs with their types, for help and the pre-send checks */
+  inputs: CommandInputs
 }
 
 export interface CommandTree {
@@ -88,6 +94,7 @@ function toCommand(path: string, method: string, op: OpenApiOperation): Command 
     bodyFields: fields,
     hasBody,
     actionArgs: op['x-args'] ?? [],
+    inputs: inputsOf(op, hasBody),
   }
 }
 

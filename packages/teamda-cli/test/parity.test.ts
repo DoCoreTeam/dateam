@@ -11,6 +11,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import embedded from '../src/generated/spec.json'
 import { buildCommandTree, type OpenApiSpec } from '../src/spec.ts'
+import type { InputSpec } from '../src/inputs.ts'
 import { buildRequest } from '../src/commands/invoke.ts'
 import { parseArgs } from '../src/args.ts'
 
@@ -31,6 +32,15 @@ function publicRouteHas(method: string, path: string): boolean {
   return new RegExp(`export\\s+(?:async\\s+function|const)\\s+${method}\\b`).test(readFileSync(file, 'utf8'))
 }
 
+function sampleOf(i: InputSpec): string {
+  if (i.enum) return String(i.enum[0])
+  if (i.type === 'integer' || i.type === 'number') return '1'
+  if (i.type === 'boolean') return 'true'
+  if (i.type === 'object') return '{}'
+  if (i.type === 'array') return '[]'
+  return 'x'
+}
+
 test('every command fills its path and lands on a gateway row or a public route', () => {
   const tree = buildCommandTree(spec)
   const mounted = mountedKeys()
@@ -39,7 +49,10 @@ test('every command fills its path and lands on a gateway row or a public route'
   for (const cmd of tree.commands) {
     const names = [...cmd.path.matchAll(/\{(\w+)\}/g)].map((m) => m[1])
     const values = names.map((_, i) => `v${i}`)
-    const req = buildRequest(cmd, parseArgs([]), values)
+    // required inputs filled with a value of their type, so the pre-send checks pass
+    const required = [...cmd.inputs.query, ...(cmd.inputs.body ?? [])].filter((i) => i.required)
+    const argv = required.flatMap((i) => [`--${i.name}`, sampleOf(i)])
+    const req = buildRequest(cmd, parseArgs(argv), values)
     let expected = cmd.path
     names.forEach((n, i) => { expected = expected.replace(`{${n}}`, values[i]) })
     if (req.method !== cmd.method || req.path !== expected) lost.push(`${cmd.cli}: ${req.method} ${req.path}`)

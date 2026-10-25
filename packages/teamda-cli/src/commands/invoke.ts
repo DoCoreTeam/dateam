@@ -16,6 +16,7 @@ import { usage, CliError, EXIT } from '../exit.ts'
 import { isFileBody, request } from '../http.ts'
 import type { Command } from '../spec.ts'
 import { compareSaved, savedRecord, type Mismatch } from '../mismatch.ts'
+import { checkQueryValue, coerce, missingInputs, unknownFlag } from '../inputs.ts'
 
 export interface BuiltRequest {
   method: string
@@ -62,24 +63,52 @@ export function buildRequest(cmd: Command, parsed: ParsedArgs, restWords: string
   if (dryRun) query.set('dryRun', '1')
 
   const sendsBody = cmd.hasBody && cmd.method !== 'GET'
+  const queryInput = (k: string) => cmd.inputs.query.find((i) => i.name === k)
   if (!sendsBody) {
     if (json !== undefined) throw usage('unexpected_body', `${cmd.cli} takes no body; pass flags as query parameters`)
     if (rest.length > 0) throw usage('unexpected_argument', `${cmd.cli}: unexpected argument "${rest[0]}"`)
-    for (const [k, v] of flags) query.set(k, v)
+    for (const [k, v] of flags) {
+      const input = queryInput(k)
+      if (!input && cmd.inputs.queryClosed) unknownFlag(cmd.cli, k, cmd.inputs.query.map((i) => i.name))
+      checkQueryValue(cmd.cli, input, v)
+      query.set(k, v)
+    }
+    const missing = cmd.inputs.query.filter((i) => i.required && !flags.has(i.name)).map((i) => i.name)
+    if (missing.length) missingInputs(cmd.cli, missing)
     return { method: cmd.method, path, query, idempotencyKey, dryRun, verify }
   }
 
   const body = initialBody(cmd, json)
+  const queryNames = new Set([...cmd.queryParams, ...cmd.inputs.query.map((i) => i.name)])
   for (const [k, v] of flags) {
-    if (cmd.bodyFields === null || cmd.bodyFields.includes(k)) { body[k] = flagValue(v); continue }
-    if (cmd.queryParams.includes(k)) { query.set(k, v); continue }
-    throw usage('unknown_flag', `${cmd.cli}: unknown flag --${k}`, { candidates: cmd.bodyFields.filter((f) => f !== 'args') })
+    const input = cmd.inputs.body?.find((i) => i.name === k)
+    if (input || (cmd.bodyFields === null && !queryNames.has(k)) || cmd.bodyFields?.includes(k)) {
+      body[k] = coerce(cmd.cli, input, v, flagValue)
+      continue
+    }
+    if (queryNames.has(k)) { checkQueryValue(cmd.cli, queryInput(k), v); query.set(k, v); continue }
+    unknownFlag(cmd.cli, k, [...(cmd.bodyFields ?? []).filter((f) => f !== 'args'), ...cmd.inputs.query.map((i) => i.name)])
   }
   if (rest.length > 0) {
     if (cmd.kind !== 'action') throw usage('unexpected_argument', `${cmd.cli}: unexpected argument "${rest[0]}"`)
     body.args = rest.map(flagValue)
   }
+  checkRequired(cmd, body, flags)
   return { method: cmd.method, path, query, body, idempotencyKey, dryRun, verify }
+}
+
+/** Required body fields and query parameters present, before anything is sent (also on --dry-run) */
+function checkRequired(cmd: Command, body: Json, flags: Map<string, string>): void {
+  const given = (name: string) => body[name] !== undefined
+  const positional = Array.isArray(body.args) ? body.args.length : 0
+  const missing = (cmd.inputs.body ?? []).filter((i) => {
+    if (!i.required || given(i.name)) return false
+    // a server action argument may come by position instead of by name
+    const at = cmd.actionArgs.indexOf(i.name)
+    return !(at >= 0 && at < positional)
+  }).map((i) => i.name)
+  missing.push(...cmd.inputs.query.filter((i) => i.required && !flags.has(i.name)).map((i) => i.name))
+  if (missing.length) missingInputs(cmd.cli, missing)
 }
 
 /** Base URL origin plus the spec's server path. An absolute server URL keeps only its path. */
