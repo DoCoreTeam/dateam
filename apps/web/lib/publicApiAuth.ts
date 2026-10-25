@@ -22,6 +22,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { hashApiKey } from '@/lib/apiKey'
 import { rememberIdentity } from '@/lib/public-api/api-audit'
 import { decideKeyAccess, effectiveScopes, isExpired, parseScopes, scopeForMethod, type Scope } from '@/lib/public-api/scopes'
+import { isDryRun, isReadMethod } from '@/lib/actions/dispatch-core'
 
 /** 키 소유자의 호스트 역할 — profiles.role 을 그대로 물려받는다 */
 export type ApiKeyRole = 'admin' | 'member' | 'api_user'
@@ -59,6 +60,16 @@ export interface PublicApiAuthOptions {
    * 관문은 범위 밖 위험 동작을 403 대신 승인 요청(202)으로 바꿔야 해서 여기서 끊으면 안 된다
    */
   deferScope?: boolean
+  /**
+   * 이 창구가 범위 다음에 요구하는 계정 역할 (requireAdminKey 는 admin, requireMemberKey 는 member)
+   * dry-run 은 실행 전에 끝나므로 여기서 역할까지 보고 판정한다. 안 주면 쓰기는 admin (공개 쓰기 창구 전부가 관리자 키만 받는다)
+   */
+  role?: 'admin' | 'member'
+}
+
+/** 계정 역할이 창구가 요구하는 역할을 채우는가 */
+function roleSatisfies(role: string, need: 'admin' | 'member'): boolean {
+  return need === 'admin' ? role === 'admin' : role === 'admin' || role === 'member'
 }
 
 export type PublicApiAuth = { ctx: ApiKeyContext } | { error: NextResponse }
@@ -184,10 +195,39 @@ export async function authenticatePublicApi(
     required,
     now: new Date(),
   })
-  if (!access.ok) {
-    if (access.code === 'expired') {
-      return fail(403, '만료된 API 키입니다. 새 키를 발급받아 주세요.', request)
+  if (!access.ok && access.code === 'expired') {
+    return fail(403, '만료된 API 키입니다. 새 키를 발급받아 주세요.', request)
+  }
+
+  /*
+    공개 라우트의 dry-run (P0170 I09)
+    관문을 거치는 동작은 관문이 dry-run 을 먼저 받지만, 제 route.ts 를 가진 공개 라우트 26개는 dryRun 을 몰랐다
+    그래서 범위가 있어도 몸통 검사까지 가서 400 이었다. 범위가 있으면 여기서 관문과 같은 모양으로 판정만 돌려준다
+    범위가 없으면 아래 403 이 그대로 나간다: 공개 라우트는 승인 요청을 만들지 않아 실제 실행도 403 이고,
+    관문도 범위 밖 금지(forbidden)는 dry-run 이어도 403 이다. 그래서 dry-run 과 실제 실행의 답이 같다
+  */
+  // dry-run 은 어떤 경우에도 여기서 끝난다, 라우트 몸통으로 넘기면 실제로 실행된다
+  if (!options.deferScope && !isReadMethod(request.method) && request.method !== 'OPTIONS' && isDryRun(request.nextUrl, request.headers)) {
+    if (!access.ok) {
+      return {
+        error: NextResponse.json(
+          { success: false, error: `이 작업에는 ${required} 범위가 필요합니다.`, requiredScope: required },
+          { status: 403, headers: corsHeaders(request) },
+        ),
+      }
     }
+    if (!roleSatisfies(profile.role ?? 'member', options.role ?? 'admin')) {
+      return fail(403, options.role === 'member' ? '이 자료는 임직원 키로만 볼 수 있습니다.' : '이 작업은 관리자 키로만 할 수 있습니다.', request)
+    }
+    return {
+      error: NextResponse.json(
+        { success: true, dryRun: true, scope: required, decision: 'run' },
+        { status: 200, headers: corsHeaders(request) },
+      ),
+    }
+  }
+
+  if (!access.ok) {
     return {
       error: NextResponse.json(
         { success: false, error: `이 작업에는 ${required} 범위가 필요합니다.`, requiredScope: required },

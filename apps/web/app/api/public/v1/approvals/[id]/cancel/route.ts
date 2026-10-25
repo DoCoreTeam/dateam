@@ -17,7 +17,7 @@ export async function OPTIONS(request: NextRequest) {
 export async function POST(request: NextRequest, { params }: Ctx) {
   return withWriteAudit('public.approvals.cancel', async () => {
     // 읽기 키도 승인 요청을 만들 수 있으므로 자기 요청을 거두는 데는 읽기 범위면 된다
-    const auth = await authenticatePublicApi(request, { scope: 'read' })
+    const auth = await authenticatePublicApi(request, { scope: 'read', role: 'member' })
     if ('error' in auth) return auth.error
     const denied = requireMemberKey(auth.ctx, request)
     if (denied) return denied

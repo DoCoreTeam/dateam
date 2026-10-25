@@ -117,12 +117,62 @@ async function scaffold(ops) {
   return drafts.length
 }
 
-/** 내부 경로 → 공개 경로, 기존 공개 API 와 같은 메서드 경로면 /web 아래로 */
+const PUBLIC_DIR = path.join(WEB, 'app/api/public/v1')
+
+/** 공개 라우트 파일 트리, 칸마다 { static, dynamic, catchAll, file } */
+function publicRouteTree(dir = PUBLIC_DIR) {
+  const node = { static: new Map(), dynamic: null, catchAll: null, file: null }
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, ent.name)
+    if (ent.isFile() && ent.name === 'route.ts') node.file = p
+    if (!ent.isDirectory()) continue
+    if (/^\[\.\.\..+\]$/.test(ent.name)) node.catchAll = { file: fs.existsSync(path.join(p, 'route.ts')) ? path.join(p, 'route.ts') : null }
+    else if (/^\[.+\]$/.test(ent.name)) node.dynamic = publicRouteTree(p)
+    else node.static.set(ent.name, publicRouteTree(p))
+  }
+  return node
+}
+
+/** Next 가 이 경로에 고르는 route.ts (정적 > 동적 > 모두 받기), 없으면 null */
+function nextPicks(node, segs) {
+  if (segs.length === 0) return node.file ?? node.catchAll?.file ?? null
+  const [head, ...rest] = segs
+  const order = [node.static.get(head), node.dynamic].filter(Boolean)
+  for (const child of order) {
+    const hit = nextPicks(child, rest)
+    if (hit) return hit
+  }
+  return node.catchAll?.file ?? null
+}
+
+/** 고른 파일이 이 메서드를 관문으로 넘기는가 (모두 받기 파일 자체이거나 dispatchPublicApi 를 내보냄) */
+function reachesGateway(file, method) {
+  if (file.includes('[...')) return true
+  const src = fs.readFileSync(file, 'utf8')
+  if (new RegExp(`export\\s+const\\s+${method}\\s*=\\s*(dispatchPublicApi|enter)\\b`).test(src)) return true
+  return new RegExp(`export\\s*\\{[^}]*\\b${method}\\b[^}]*\\}\\s*from\\s*['"][^'"]*(lib/actions/dispatch|\\[\\.\\.\\.path\\]/route)['"]`).test(src)
+}
+
+let ROUTE_TREE = null
+
+/**
+ * 공개 경로가 관문에 닿는가
+ * 같은 경로의 공개 route.ts 나 동적 칸([id])이 먼저 잡고 그 메서드를 관문으로 넘기지 않으면 관문에 못 닿는다
+ * 실측 2026-10-25: POST /crm/companies/enrich 를 crm/companies/[id]/route.ts 가 잡아 405 (P0170 I09)
+ */
+export function shadowedByPublicRoute(method, mount) {
+  ROUTE_TREE ??= publicRouteTree()
+  const picked = nextPicks(ROUTE_TREE, mount.split('/').filter(Boolean))
+  return !!picked && !reachesGateway(picked, method)
+}
+
+/** 내부 경로 → 공개 경로, 기존 공개 API 와 같은 메서드 경로이거나 공개 라우트에 가로채이면 /web 아래로 */
 export function mountOf(op, publicKeys) {
   if (op.kind === 'action') return { method: 'POST', path: `/actions/${op.defName.replace(/\./g, '/')}` }
   if (op.path.startsWith('/api/public/v1/')) return { method: op.method, path: op.path.replace('/api/public/v1', ''), existing: true }
   const p = op.path.replace(/^\/api/, '')
-  return publicKeys.has(`${op.method} ${p}`) ? { method: op.method, path: `/web${p}` } : { method: op.method, path: p }
+  const taken = publicKeys.has(`${op.method} ${p}`) || shadowedByPublicRoute(op.method, p)
+  return taken ? { method: op.method, path: `/web${p}` } : { method: op.method, path: p }
 }
 
 /** route.ts 파일 경로 → import 지정자 (@/app/api/crm/deals/[id]/route) */

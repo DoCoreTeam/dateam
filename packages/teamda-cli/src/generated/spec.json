@@ -39620,7 +39620,7 @@
     "x-query-complete": true
    }
   },
-  "/crm/companies/fill-domains": {
+  "/web/crm/companies/fill-domains": {
    "get": {
     "operationId": "crm.company.fill-domains",
     "summary": "domains — 규칙으로 몇 곳이 채워지나 (읽기)",
@@ -52303,7 +52303,7 @@
     }
    }
   },
-  "/crm/companies/enrich": {
+  "/web/crm/companies/enrich": {
    "post": {
     "operationId": "crm.company.enrich-add",
     "summary": "고른 회사 여러 곳을 웹에서 찾아 빈 칸을 채운다",
@@ -59505,5 +59505,5 @@
    }
   }
  },
- "x-spec-hash": "b2b7ac6762ebdd4c"
+ "x-spec-hash": "58e29320db655fa3"
 }

@@ -31,7 +31,7 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   // 견적 계산만 하고 아무것도 저장하지 않는다, 몸통이 커서 POST 일 뿐 읽기다
-  const auth = await authenticatePublicApi(request, { scope: 'read' })
+  const auth = await authenticatePublicApi(request, { scope: 'read', role: 'member' })
   if ('error' in auth) return auth.error
   // 내부 창구가 requireMemberApi 인 자료다, 외부용 api_user 키는 막는다
   const denied = requireMemberKey(auth.ctx, request)
