@@ -16,3 +16,10 @@ export function safeEq(input: string, maxLen = 100): string {
     .slice(0, maxLen)
     .trim()
 }
+
+/** uuid 칼럼에 넣을 값인가, 아니면 PostgREST 가 22P02 로 실패해 500 이 된다 (P0170 I05) */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function isUuid(input: unknown): input is string {
+  return typeof input === 'string' && UUID.test(input)
+}

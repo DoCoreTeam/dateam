@@ -10,6 +10,10 @@ export type ProjectVisibility = (typeof PROJECT_VISIBILITY)[number]
 const CURRENCY_ALLOW = new Set(['KRW', 'USD', 'EUR', 'JPY', 'CNY'])
 
 // GET 정렬 화이트리스트(SQL injection 방지 — 컬럼명 직접 보간 금지).
+// 참여자에 붙이는 프로필, project_members 에서 profiles 로 가는 외래키가 셋(user_id 둘 created_by 하나)이라
+// 이름 없이 profiles(...) 로 붙이면 PostgREST 가 PGRST201 로 고르지 못한다 (P0170 I05, 웹은 오류를 버려 0명으로 보였다)
+export const MEMBER_PROFILE = 'profiles!project_members_user_id_fkey(name,position)'
+
 export const PROJECT_SORT_ALLOW = new Set(['created_at', 'name', 'updated_at', 'start_date', 'year'])
 
 // GET list / 단건 조회 시 항상 함께 반환하는 컬럼(엔벨로프 일관).

@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabase/server'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { NOTE_VISIBILITY, isNoteVisibility } from '@/lib/meeting/note-visibility'
 import { deleteMeetingNote } from '@/app/(member)/meeting-notes/actions'
+import { isUuid } from '@/lib/postgrest-safe'
 
 export const runtime = 'nodejs'
 
@@ -30,6 +31,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
+  // 형식이 틀린 id 는 uuid 칼럼에서 22P02 로 실패해 500 이 됐다, 없는 것과 같은 404 로 답한다 (P0170 I05)
+  if (!isUuid(id)) return NextResponse.json({ error: '회의노트를 찾을 수 없습니다.' }, { status: 404 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.from('meeting_notes') as any)

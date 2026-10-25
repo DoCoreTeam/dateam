@@ -35,7 +35,7 @@ import {
 } from '@/lib/trading/settings/assistant'
 import { callKnowledge } from '@/lib/trading/knowledge/ai-call'
 import {
-  fillFrom, riskView, raisesLossLimit, filledNumber,
+  fillFrom, riskView, raisesLossLimit, filledNumber, isAnswers, ANSWERS_INVALID_MESSAGE,
   type Answers, type FilledValue, type RiskView, type StartOverrides,
 } from '@/lib/trading/settings/onboarding'
 import { ENV_BLOCKED_MESSAGE, type KeyChoice } from '@/lib/ai/provider-key-source'
@@ -411,6 +411,7 @@ export async function previewStart(
   answers: Answers, overrides?: StartOverrides,
 ): Promise<StartPreview> {
   if (!(await tradingAccess()).allowed) return { ok: false, userMessage: DENIED.userMessage }
+  if (!isAnswers(answers)) return { ok: false, userMessage: ANSWERS_INVALID_MESSAGE }
   const today = kstTodayKey()
   const { values } = await loadTradingSettings(today)
   const filled = fillFrom(answers, overrides)
@@ -468,6 +469,7 @@ export async function applyStart(
   answers: Answers, overrides?: StartOverrides,
 ): Promise<{ ok: boolean; saved: number; userMessage: string }> {
   if (!(await tradingAccess()).allowed) return { ok: false, saved: 0, userMessage: DENIED.userMessage! }
+  if (!isAnswers(answers)) return { ok: false, saved: 0, userMessage: ANSWERS_INVALID_MESSAGE }
   /**
    * 손댄 값도 **여기서 다시 만든다.** 화면이 보낸 줄을 그대로 저장하지 않는다 —
    * `fillFrom` 이 답이 만든 키에만 손댄 값을 얹고 등록부 규칙으로 걸러 내므로,

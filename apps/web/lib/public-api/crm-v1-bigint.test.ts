@@ -24,6 +24,7 @@ const READS = /\b(get|list)[A-Z]\w*/
 
 function routes(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
+    if (n === 'node_modules' || n.startsWith('.')) return []
     const p = join(dir, n)
     return statSync(p).isDirectory() ? routes(p) : n === 'route.ts' ? [p] : []
   })

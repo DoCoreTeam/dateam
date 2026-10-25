@@ -10,6 +10,7 @@ import ProjectMembersClient from './ProjectMembersClient'
 import ProjectCommandClient from './ProjectCommandClient'
 import ProjectOperationsClient from './ProjectOperationsClient'
 import { activeMembers } from '@/lib/members/resigned-server'
+import { MEMBER_PROFILE } from '@/lib/work/project-fields'
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -25,7 +26,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const [{ data: account }, { data: deal }, { data: members }, { data: links }, { data: items }, { data: aiProject }] = await Promise.all([
     project.account_id ? db.from('accounts').select('id,name').eq('id', project.account_id).maybeSingle() : { data: null },
     project.origin_deal_id ? db.from('deals').select('id,title,stage').eq('id', project.origin_deal_id).maybeSingle() : { data: null },
-    db.from('project_members').select('user_id,role,profiles(name,position)').eq('project_id', id).order('created_at'),
+    db.from('project_members').select(`user_id,role,${MEMBER_PROFILE}`).eq('project_id', id).order('created_at'),
     db.from('work_entity_links').select('log_id').eq('kind', 'project').eq('entity_id', id).limit(100),
     db.from('project_items').select('id,kind,title,status,due_date').eq('project_id', id).is('deleted_at', null).order('created_at'),
     db.from('ai_projects').select('id,name').eq('work_project_id', id).is('deleted_at', null).maybeSingle(),

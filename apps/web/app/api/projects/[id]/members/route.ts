@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
+import { MEMBER_PROFILE } from '@/lib/work/project-fields'
 
 interface Ctx { params: Promise<{ id: string }> }
 const ROLES = new Set(['manager', 'contributor', 'viewer', 'stakeholder'])
@@ -10,10 +11,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const auth = await requireMemberApi()
   if (auth.error) return auth.error
   const { id } = await params
+  if (!UUID_RE.test(id)) return NextResponse.json({ error: '프로젝트를 찾을 수 없습니다' }, { status: 404 })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = (await createClient()) as any
   const { data, error } = await db.from('project_members')
-    .select('user_id,role,created_at,profiles(name,position)').eq('project_id', id).order('created_at')
+    .select(`user_id,role,created_at,${MEMBER_PROFILE}`).eq('project_id', id).order('created_at')
   if (error) return NextResponse.json({ error: '참여자를 불러오지 못했습니다' }, { status: 500 })
   return NextResponse.json({ members: data ?? [] })
 }

@@ -34,6 +34,22 @@ export interface Answers {
   lossLimitKrw: number
 }
 
+/**
+ * 밖에서 온 답 셋이 맞는 꼴인가 (P0170 I05)
+ * CLI 는 인자를 빼고도 부를 수 있다, 꼴을 안 보면 answers.stance 에서 TypeError 가 나 500 이 됐다
+ */
+export function isAnswers(v: unknown): v is Answers {
+  if (typeof v !== 'object' || v === null) return false
+  const a = v as Record<string, unknown>
+  return (STANCES as readonly unknown[]).includes(a.stance)
+    && typeof a.targetKrw === 'number' && Number.isFinite(a.targetKrw)
+    && typeof a.lossLimitKrw === 'number' && Number.isFinite(a.lossLimitKrw)
+}
+
+/** 답 셋이 틀렸을 때 돌려줄 말, 무엇을 어떻게 넣는지 함께 */
+export const ANSWERS_INVALID_MESSAGE =
+  `답 셋이 필요합니다: stance(${STANCES.join(', ')}), targetKrw(원), lossLimitKrw(원)`
+
 export interface FilledValue {
   key: string
   label: string
