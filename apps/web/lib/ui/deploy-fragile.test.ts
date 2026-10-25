@@ -323,3 +323,38 @@ test('next.config 에 같은 키가 두 번 나오지 않는다 (뒤 것이 조�
   const dupes = keys.filter((k, i) => keys.indexOf(k) !== i)
   assert.deepEqual([...new Set(dupes)], [], `중복 키: ${[...new Set(dupes)].join(' · ')}`)
 })
+
+/**
+ * ②-c 공개 API 관문은 바이너리를 쓰는 처리 함수를 **제 함수 안에서** 부른다 (P0170 I03)
+ *
+ * CLI 와 API 키 호출은 /api/public/v1/[...path] 한 함수로 들어와 정의 표의 처리 함수를 그대로 부른다
+ * 그래서 처리 함수 라우트에 크로미움을 실어도 관문 함수에는 안 실린다
+ * 실측 2026-10-25: 웹 견적서는 브라우저 인쇄라 멀쩡했고 CLI 견적서 PDF PNG 만 500 이었다
+ */
+test('②-c 관문 함수에 처리 함수 라우트가 싣는 바이너리가 모두 실린다', () => {
+  const cfg = read('next.config.js')
+  const block = cfg.slice(cfg.indexOf('outputFileTracingIncludes'))
+  const entries = [...block.matchAll(/^\s*'([^']+)':\s*(\[[^\]]*\]|\w+)/gm)].map((m) => ({ route: m[1], value: m[2] }))
+  const gateway = entries.find((e) => e.route.replace(/\\\\/g, '') === '/api/public/v1/[...path]')
+  assert.ok(gateway, '관문 /api/public/v1/[...path] 가 outputFileTracingIncludes 에 없습니다 — CLI 로 부른 PDF 와 hwp 가 500 이 됩니다')
+  for (const bin of ['SERVERLESS_CHROMIUM', 'KOREAN_FONT', 'RHWP_WASM']) {
+    const used = entries.some((e) => e.route !== gateway.route && e.value.includes(bin))
+    if (used) assert.ok(gateway.value.includes(bin), `관문 함수에 ${bin} 이 없습니다, 처리 함수 라우트는 싣고 있습니다`)
+  }
+})
+
+/**
+ * ②-d outputFileTracingIncludes 의 키가 제 경로에 실제로 걸린다 (P0170 I03)
+ *
+ * Next 는 키를 picomatch 글롭으로 「/app/경로」에 대조한다
+ * '/api/public/v1/[...path]' 는 [...path] 를 글자 묶음으로 읽어 아무 경로에도 안 걸렸고, 빌드는 초록인 채 0개를 실었다
+ */
+test('②-d 배포본 포함 키마다 Next 가 쓰는 대조로 제 라우트에 걸린다', async () => {
+  const { default: picomatch } = await import('next/dist/compiled/picomatch/index.js')
+  const cfg = read('next.config.js')
+  const block = cfg.slice(cfg.indexOf('outputFileTracingIncludes'))
+  const keys = [...block.matchAll(/^\s*'([^']+)':\s*(\[[^\]]*\]|\w+)/gm)].map((m) => m[1].replace(/\\\\/g, '\\'))
+  assert.ok(keys.length > 0)
+  const miss = keys.filter((k) => !picomatch(k, { dot: true, contains: true })(`/app${k.replace(/\\/g, '')}`))
+  assert.deepEqual(miss, [], `제 라우트에 안 걸리는 키: ${miss.join(', ')}`)
+})

@@ -177,6 +177,11 @@ const nextConfig = {
     '/api/meeting-notes/[id]/export': [...SERVERLESS_CHROMIUM, ...KOREAN_FONT],
     '/api/admin/ai-chat/export-pdf': [...SERVERLESS_CHROMIUM, ...KOREAN_FONT],
     '/api/admin/ai-chat/analyze-export-pdf': [...SERVERLESS_CHROMIUM, ...KOREAN_FONT],
+    '/api/crm/quotes/[id]/export': [...SERVERLESS_CHROMIUM, ...KOREAN_FONT],
+    // 공개 API 관문, CLI 와 API 키 호출은 위 처리 함수를 이 함수 안에서 그대로 부른다
+    // 처리 함수의 줄만 있고 이 줄이 없으면 웹은 되고 CLI 만 500 이 된다 (P0170 I03, 견적서 내려받기 실측)
+    // 키는 picomatch 글롭이라 [...path] 를 글자 묶음으로 읽는다, 괄호를 \\ 로 막아야 이 경로에 걸린다 (실측 빌드에서 0개 실림)
+    '/api/public/v1/\\[...path\\]': [...SERVERLESS_CHROMIUM, ...KOREAN_FONT, ...RHWP_WASM],
     // 한글 문서를 읽는 경로 — RFP 첨부 인입과 프로필 초안
     '/api/rfp/cases/[id]/files': RHWP_WASM,
     '/api/rfp/profile/draft': RHWP_WASM,
