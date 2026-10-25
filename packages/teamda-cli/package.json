@@ -1,6 +1,6 @@
 {
   "name": "@ax/teamda-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "teamda command line client, builds its command tree from the public OpenAPI spec and calls the API with a scoped key",
   "keywords": [
     "cli",

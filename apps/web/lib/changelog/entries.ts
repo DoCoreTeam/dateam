@@ -36,6 +36,48 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.90',
+    date: '2026-10-26',
+    title: 'teamda 가 명령마다 넣을 값을 알려 주고 잘못 넣은 값을 미리 잡아요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🧾',
+        developer: true,
+        headline: 'teamda help 가 명령마다 조건과 본문 칸을 보여 줘요',
+        detail: 'teamda help crm attachment list 처럼 물으면 넣을 수 있는 값의 이름, 형, 필수 여부가 나와요. help --json 에도 같은 정보가 실려 에이전트가 400 메시지로 이름을 짐작하지 않아도 돼요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🛡️',
+        developer: true,
+        headline: '없는 옵션과 틀린 형은 보내기 전에 알려 드려요',
+        detail: '--version 21 은 숫자로 보내고, 숫자 자리에 abc 를 주거나 없는 옵션을 쓰면 비슷한 이름과 함께 바로 멈춰요. --dry-run 도 같은 검사를 해서 통과한 요청이 실행에서 입력 오류로 실패하지 않아요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '📄',
+        developer: true,
+        headline: 'teamda 로 견적서 PDF 와 PNG 를 받을 수 있어요',
+        detail: '키로 부른 견적서 내려받기와 v1 딜 견적 목록, 프로젝트 참여자, 없는 회의노트 조회가 서버 오류 대신 결과나 404 로 답해요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '⏰',
+        developer: true,
+        headline: '날짜만 준 마감은 그 날 23시 59분으로 저장돼요',
+        detail: '할 일 마감, 견적 유효기간, 일정 끝에 날짜만 넣으면 화면에서 고른 것과 같은 한국 시각으로 들어가요. 월별 일정 조회는 --include events 로 그 달 일정까지 함께 받아요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔐',
+        developer: true,
+        headline: '범위 밖 조회는 승인 요청을 만들지 않아요',
+        detail: '읽기만 하는 명령은 범위가 모자라면 바로 403 과 필요한 범위를 알려 줘요. 잘못 만든 승인 요청은 teamda approval cancel 로 거둘 수 있어요.',
+      },
+    ],
+  },
+  {
     version: '0.11.88',
     date: '2026-10-25',
     title: '개발자센터 예시를 복사해 바로 부를 수 있어요',
