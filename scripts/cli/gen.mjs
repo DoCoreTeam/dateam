@@ -15,6 +15,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { extractOperations } from './extract-operations.mjs'
+import { extractInputs } from './extract-inputs.mjs'
 import { draftRouteDef, draftActionDef, draftPublicDef } from './naming.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -148,6 +149,7 @@ export function mountedOf(rows) {
     name: r.def.name, scope: r.def.scope, cli: r.def.cli, kind: r.op.kind, method: r.mount.method,
     mount: r.mount.path, internal: r.op.path, params: r.op.params, exported: r.exported,
     module: idx.get(r.module), summary: r.def.summary || r.op.summary || '',
+    ...(r.inputs ? { inputs: r.inputs } : {}),
   }))
   return { modules, mounted }
 }
@@ -189,7 +191,7 @@ function genTable(rows) {
     ']',
     '',
     'export const MOUNTED: MountedOp[] = [',
-    ...mounted.map(({ summary: _summary, ...m }) => '  ' + JSON.stringify(m) + ','),
+    ...mounted.map(({ summary: _summary, inputs: _inputs, ...m }) => '  ' + JSON.stringify(m) + ','),
     ']',
     '',
   ]
@@ -253,6 +255,10 @@ export async function generate({ check = false, scaffoldFirst = false } = {}) {
   }
   const defs = await loadDefs()
   const rows = buildRows(ops, defs)
+  // 입력 형은 관문에 올라가는 동작만 읽는다 (타입 검사기가 무거워 전체를 돌리지 않음)
+  const live = rows.filter((r) => r.exposed && !r.mount.existing)
+  const inputs = extractInputs(live.map((r) => r.op))
+  for (const r of live) r.inputs = inputs[r.op.key]
   const { buildOpenApi } = await import(pathToFileURL(path.join(WEB, 'lib/actions/openapi.ts')).href)
   const files = {
     [path.join(GEN_DIR, 'table.ts')]: genTable(rows),

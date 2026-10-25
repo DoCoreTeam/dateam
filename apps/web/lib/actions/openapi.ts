@@ -17,6 +17,31 @@ export interface OpenApiMounted {
   internal: string
   params: string[]
   summary: string
+  /** scripts/cli/extract-inputs.mjs 가 처리 함수에서 읽은 입력, 없으면 모름 */
+  inputs?: OpenApiInputs
+}
+
+/** 입력 칸 하나, JSON 스키마 조각에 이름과 필수 여부를 더한 것 */
+export interface InputField {
+  name: string
+  type?: string
+  enum?: (string | number)[]
+  items?: Json
+  format?: string
+  required?: boolean
+  /** 서버 액션의 객체 인자, 그 속 칸 */
+  fields?: InputField[]
+}
+
+export interface OpenApiInputs {
+  query: InputField[]
+  /** 참이면 이 목록 밖의 조회 조건은 받지 않는다 */
+  queryComplete: boolean
+  body?: InputField[] | null
+  /** 참이면 이 목록 밖의 본문 칸은 받지 않는다 */
+  bodyComplete?: boolean
+  /** 서버 액션 인자, 순서대로 */
+  args?: InputField[]
 }
 
 export interface OpenApiExisting {
@@ -104,8 +129,38 @@ const pathParams = (mount: string): string[] => [...mount.matchAll(/\{(\w+)\*?\}
 /** {path*} 꼴은 OpenAPI 에 맞게 {path} 로 */
 const oaPath = (mount: string): string => mount.replace(/\{(\w+)\*\}/g, '{$1}')
 
+/** 입력 칸 → JSON 스키마, 객체 인자는 속 칸을 properties 로 */
+export function fieldSchema(f: InputField): Json {
+  const out: Json = {}
+  if (f.type) out.type = f.type
+  if (f.enum) out.enum = f.enum
+  if (f.items) out.items = f.items
+  if (f.format) out.format = f.format
+  if (f.fields?.length) {
+    out.properties = Object.fromEntries(f.fields.map((x) => [x.name, fieldSchema(x)]))
+    const req = f.fields.filter((x) => x.required).map((x) => x.name)
+    if (req.length) out.required = req
+  }
+  return out
+}
+
+/** 본문 스키마, 다 아는 칸이면 additionalProperties false 와 properties, 일부만 알면 x-known-properties 에 싣는다 */
+function bodySchema(fields: InputField[] | null | undefined, complete: boolean | undefined): Json {
+  if (!fields || fields.length === 0) return { type: 'object' }
+  const props = Object.fromEntries(fields.map((f) => [f.name, fieldSchema(f)]))
+  const required = fields.filter((f) => f.required).map((f) => f.name)
+  // 옛 CLI(v0.1.0)는 properties 가 있으면 그 밖의 이름을 막는다, 다 알 때만 properties 를 싣는다
+  if (!complete) return { type: 'object', 'x-known-properties': props, ...(required.length ? { 'x-required': required } : {}) }
+  return { type: 'object', properties: props, additionalProperties: false, ...(required.length ? { required } : {}) }
+}
+
 function mountedOperation(m: OpenApiMounted): Json {
-  const params = pathParams(m.mount).map((name) => ({ name, in: 'path', required: true, schema: { type: 'string' } }))
+  const params: Json[] = pathParams(m.mount).map((name) => ({ name, in: 'path', required: true, schema: { type: 'string' } }))
+  const taken = new Set(params.map((p) => p.name))
+  for (const q of m.inputs?.query ?? []) {
+    if (taken.has(q.name) || q.name === 'dryRun') continue
+    params.push({ name: q.name, in: 'query', required: !!q.required, schema: fieldSchema(q) })
+  }
   const op: Json = {
     operationId: m.name,
     summary: m.summary || m.name,
@@ -120,6 +175,7 @@ function mountedOperation(m: OpenApiMounted): Json {
     ],
     responses: standardResponses({ method: m.method, approval: true, success: '성공, data 는 화면이 받는 값과 같음' }),
   }
+  if (m.inputs && m.kind !== 'action') op['x-query-complete'] = m.inputs.queryComplete
   const fileTypes = FILE_RESPONSES[m.name]
   if (fileTypes) op.responses = { ...op.responses, 200: fileResponse(fileTypes) }
   if (m.kind === 'action') {
@@ -132,7 +188,10 @@ function mountedOperation(m: OpenApiMounted): Json {
             type: 'object',
             description: '서버 액션 인자, 이름으로 주거나 args 배열로 줌',
             properties: Object.fromEntries([
-              ...m.params.map((p) => [p, {}]),
+              ...m.params.map((p) => {
+                const f = m.inputs?.args?.find((a) => a.name === p)
+                return [p, f ? fieldSchema(f) : {}]
+              }),
               ['args', { type: 'array' }],
             ]),
           },
@@ -140,7 +199,7 @@ function mountedOperation(m: OpenApiMounted): Json {
       },
     }
   } else if (m.method !== 'GET' && m.method !== 'DELETE') {
-    op.requestBody = { required: false, content: { 'application/json': { schema: { type: 'object' } } } }
+    op.requestBody = { required: false, content: { 'application/json': { schema: bodySchema(m.inputs?.body, m.inputs?.bodyComplete) } } }
   }
   return op
 }
@@ -172,7 +231,7 @@ export function buildOpenApi(mounted: OpenApiMounted[], existing: OpenApiExistin
     doc.paths[p] ??= {}
     doc.paths[p][m.method.toLowerCase()] = mountedOperation(m)
   }
-  const sig = [...existing.map((e) => `${e.method} ${e.mount} ${e.cli} ${e.scope}`), ...mounted.map((m) => `${m.method} ${m.mount} ${m.cli} ${m.scope} ${m.params.join(',')}`)].join('\n')
+  const sig = [...existing.map((e) => `${e.method} ${e.mount} ${e.cli} ${e.scope}`), ...mounted.map((m) => `${m.method} ${m.mount} ${m.cli} ${m.scope} ${m.params.join(',')} ${m.inputs ? JSON.stringify(m.inputs) : ''}`)].join('\n')
   doc['x-spec-hash'] = specHash(sig)
   return doc
 }
