@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { DailyLogEntryType } from '@/types/database'
 import { applyCalendarScopeFilters, calendarRangeOr } from '@/lib/daily/calendar-scope'
+import { listCalendarEventsInRange } from '@/lib/calendar/events-range'
 
 interface DayLogSummary {
   date: string
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   const from = `${year}-${String(month).padStart(2, '0')}-01`
   const lastDay = new Date(year, month, 0).getDate()
-  const to = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
+  const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
   // 필터·범위 판정은 날짜 패널과 공유한다(lib/daily/calendar-scope) — 한쪽만 고쳐지면
   // 칸엔 보이는데 눌러도 안 나오는 그 사고가 된다.
@@ -131,6 +132,17 @@ export async function GET(req: NextRequest) {
   }
 
   const result = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
+  // 이 창구의 기본 답은 그 달 일일업무의 날짜별 요약이다(웹 달력 칸과 일일업무 화면이 이 모양을 쓴다)
+  // 웹 월간 달력은 일정을 events 로 따로 받는다, CLI 가 한 번에 받게 include=events 면 둘을 함께 준다 (P0170 I07)
+  if (req.nextUrl.searchParams.get('include') === 'events') {
+    try {
+      const events = await listCalendarEventsInRange(supabase, user.id, from, to)
+      return NextResponse.json({ days: result, events }, { headers: { 'Cache-Control': 'no-store' } })
+    } catch (e) {
+      console.error('[api/calendar/month] events', e)
+      return NextResponse.json({ error: '일정 조회 실패' }, { status: 500 })
+    }
+  }
   return NextResponse.json(result, {
     headers: { 'Cache-Control': 'no-store' },
   })

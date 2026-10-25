@@ -3,8 +3,8 @@
 import type { ActionDef } from '../types.ts'
 
 export const WORK_DEFS: ActionDef[] = [
-  { op: "GET /api/calendar/events", name: "work.calendar.events", scope: "read", cli: "work calendar events" },
-  { op: "GET /api/calendar/month", name: "work.calendar.month", scope: "read", cli: "work calendar month" },
+  { op: "GET /api/calendar/events", name: "work.calendar.events", scope: "read", cli: "work calendar events", summary: "기간(KST 날짜, 양끝 포함)의 일정, 반복은 펼친다" },
+  { op: "GET /api/calendar/month", name: "work.calendar.month", scope: "read", cli: "work calendar month", summary: "그 달 일일업무의 날짜별 요약, --include events 면 그 달 일정까지 { days, events } 로" },
   { op: "GET /api/cron/analyze-drain", name: "work.cron.analyze-drain", scope: "read", cli: "work cron analyze-drain", machine: "크론이 부르는 기계 창구, 사람이 누르는 동작 아님" },
   { op: "GET /api/cron/fx-sync", name: "work.cron.fx-sync", scope: "read", cli: "work cron fx-sync", machine: "크론 워커가 부르는 기계 창구, 사람이 누르는 동작 아님" },
   { op: "GET /api/cron/system-log-prune", name: "work.cron.system-log-prune", scope: "read", cli: "work cron system-log-prune", machine: "크론 워커가 부르는 기계 창구, 사람이 누르는 동작 아님" },

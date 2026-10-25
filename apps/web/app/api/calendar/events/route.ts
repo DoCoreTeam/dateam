@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { kstRangeToUtc } from '@/lib/datetime/kst'
-import { isOrphanDailyEvent } from '@/lib/calendar/orphan-event'
+import { isRealDate } from '@/lib/daily/calendar-scope'
+import { listCalendarEventsInRange } from '@/lib/calendar/events-range'
 
 // GET /api/calendar/events?start=YYYY-MM-DD&end=YYYY-MM-DD
-// 범위 내 일정 조회 (RLS: 본인 + 조직 계층). 반복(rrule) 전개는 P4.
+// 범위 내 일정 조회 (RLS: 본인 + 조직 계층), 반복은 펼친다. 계산은 lib/calendar/events-range 한 곳
 export async function GET(req: NextRequest) {
   const start = req.nextUrl.searchParams.get('start')
   const end = req.nextUrl.searchParams.get('end')
-  if (!start || !end || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+  // 꼴만 맞는 없는 날짜(2026-02-30)는 날짜 환산에서 RangeError 로 500 이 됐다, 400 으로 답한다
+  if (!start || !end || !isRealDate(start) || !isRealDate(end)) {
     return NextResponse.json({ error: 'start·end(YYYY-MM-DD) 필요' }, { status: 400 })
   }
 
@@ -16,76 +17,10 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증 필요' }, { status: 401 })
 
-  // KST 날짜 범위를 UTC 절대시각 경계로 환산(datetime SSOT). 'Z' 직접 앵커 금지 — 9시간 어긋남 방지.
-  const { fromIso, toIso } = kstRangeToUtc(start, end)
-  const fromMs = new Date(fromIso).getTime()
-  const toMs = new Date(toIso).getTime()
-
-  // 단발: 범위 내 시작 / 반복: 시작이 범위 끝 이전이면 후보 (전개는 아래)
-  // 하한(start)을 추가해 과거 전체 스캔 방지 — 단, 반복(rrule)은 시작이 범위 이전이어도
-  // 범위 내 occurrence를 만들 수 있어 하한에서 제외(rrule is not null로 보존).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.from('calendar_events') as any)
-    .select('id, title, description, start_at, end_at, all_day, source, link_kind, link_id, status, user_id, rrule')
-    .lte('start_at', toIso)
-    .or(`start_at.gte.${fromIso},rrule.not.is.null`)
-    .order('start_at', { ascending: true })
-    .limit(1000)
-
-  if (error) {
-    console.error('[api/calendar/events]', error)
+  try {
+    return NextResponse.json(await listCalendarEventsInRange(supabase, user.id, start, end))
+  } catch (e) {
+    console.error('[api/calendar/events]', e)
     return NextResponse.json({ error: '조회 실패' }, { status: 500 })
   }
-
-  // 고아 방지: 원본 일일업무가 삭제된 자동생성 일정(link_kind='daily')은 노출하지 않는다.
-  // 본인 소유 이벤트에만 적용(타인 링크 로그는 RLS로 못 읽어 오탐). daily_logs는 soft-delete 기준.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ownDailyLinkIds = Array.from(
-    new Set(
-      (data ?? [])
-        .filter((ev: any) => ev.user_id === user.id && ev.link_kind === 'daily' && ev.link_id)
-        .map((ev: any) => ev.link_id as string),
-    ),
-  )
-  const liveLogIds = new Set<string>()
-  if (ownDailyLinkIds.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: liveLogs } = await (supabase.from('daily_logs') as any)
-      .select('id')
-      .in('id', ownDailyLinkIds)
-      .is('deleted_at', null)
-    for (const r of liveLogs ?? []) liveLogIds.add(r.id as string)
-  }
-
-  // 반복 전개 (FREQ=DAILY / WEEKLY 단순 지원)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const out: any[] = []
-  for (const ev of data ?? []) {
-    if (isOrphanDailyEvent(ev, user.id, liveLogIds)) continue
-    /**
-     * 내 일정인가 — **화면이 「수정·삭제」를 그릴지 정하는 유일한 근거**다.
-     * 읽기는 조직 계층까지 열려 있고 쓰기는 본인만이다(RLS `cal_write`). 이 값이 없으면
-     * 화면은 남의 일정에도 수정을 띄우고, 사용자는 눌러 보고 나서야 못 한다는 것을 안다.
-     */
-    const isMine = ev.user_id === user.id
-    const baseMs = new Date(ev.start_at).getTime()
-    if (!ev.rrule) {
-      if (baseMs >= fromMs && baseMs <= toMs) out.push({ ...ev, base_id: ev.id, is_mine: isMine })
-      continue
-    }
-    const stepDays = /FREQ=WEEKLY/i.test(ev.rrule) ? 7 : 1
-    const stepMs = stepDays * 864e5
-    let occ = baseMs
-    let guard = 0
-    while (occ <= toMs && guard < 400) {
-      if (occ >= fromMs) {
-        const iso = new Date(occ).toISOString()
-        out.push({ ...ev, id: `${ev.id}:${iso.slice(0, 10)}`, base_id: ev.id, start_at: iso, is_mine: isMine })
-      }
-      occ += stepMs
-      guard++
-    }
-  }
-  out.sort((a, b) => (a.start_at < b.start_at ? -1 : 1))
-  return NextResponse.json(out)
 }

@@ -36429,7 +36429,7 @@
   "/calendar/events": {
    "get": {
     "operationId": "work.calendar.events",
-    "summary": "MM-DD&end=YYYY-MM-DD",
+    "summary": "기간(KST 날짜, 양끝 포함)의 일정, 반복은 펼친다",
     "tags": [
      "work"
     ],
@@ -36484,7 +36484,7 @@
   "/calendar/month": {
    "get": {
     "operationId": "work.calendar.month",
-    "summary": "work.calendar.month",
+    "summary": "그 달 일일업무의 날짜별 요약, --include events 면 그 달 일정까지 { days, events } 로",
     "tags": [
      "work"
     ],
@@ -36493,6 +36493,14 @@
     "x-kind": "route",
     "x-internal": "/api/calendar/month",
     "parameters": [
+     {
+      "name": "include",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
      {
       "name": "month",
       "in": "query",
@@ -59452,5 +59460,5 @@
    }
   }
  },
- "x-spec-hash": "099b7eae1c2c0af8"
+ "x-spec-hash": "134039b8a85f10f6"
 }
