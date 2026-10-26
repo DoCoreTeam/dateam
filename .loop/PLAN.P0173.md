@@ -1,0 +1,79 @@
+# PLAN newAX: teamda CLI 0.1.1 남은 실측 셋
+플랜 ID: P0173
+플랜 버전: v0.1.2
+상태: 진행중
+지시: ins_0396
+목표 버전: v0.11.93
+푸시: 모음
+작성: 2026-10-26
+시작 커밋: 079e9aac
+
+## 목표
+- teamda CLI 0.1.1 의 쓰기 명령 전부가 운영에서 dry-run 으로 405 와 5xx 없이 판정되고, 입력 검사가 멀쩡한 명령을 막지 않는다
+- Windows 에서 내려받은 teamda 0.1.2 가 실행되고 조회와 저장이 된다
+- CLI 로 받은 견적서 PDF 가 웹에서 받은 같은 견적서 PDF 와 내용이 같다
+
+## 범위 밖
+- 승인 발송 삭제 계열 권한 정책 변경 (지시서 「지킬 것」)
+
+## 완료 정의
+- 쓰기 명령 dry-run 전수 405 0건, 5xx 0건, 잘못 막힌 명령 0건
+- Windows VM 에서 teamda --version 0.1.2, 조회 1건 이상 성공
+- 웹 PDF 와 CLI PDF 의 쪽 수와 본문 글이 같음
+- pnpm typecheck, pnpm test, pnpm build 통과 (코드를 고쳤을 때)
+
+## 참조
+- docs/cli/teamda-CLI-전체시험-문제수정-프롬프트.md
+- .loop/archive 의 P0170
+
+## 항목
+
+### I01 쓰기 명령 전수 dry-run 과 read 범위 POST 훑기
+상태: 통과
+모드: 경량
+범위: packages/teamda-cli/src/, packages/teamda-cli/scripts/embed-spec.ts, packages/teamda-cli/test/inputs.test.ts, packages/teamda-cli/test/embedded-spec.test.ts (신규), apps/web/app/api/public/v1/openapi.json/route.ts, apps/web/lib/api-docs/public-spec.ts (신규), apps/web/lib/api-docs/public-spec.test.ts (신규), apps/web/lib/actions/generated/openapi.public.json (신규), scripts/cli/gen.mjs, apps/web/lib/actions/approval.test.ts, apps/web/lib/actions/openapi-shape.test.ts, apps/web/lib/api-docs/agent-doc.test.ts, apps/web/package.json
+감사 기준:
+- 운영에서 POST PUT PATCH DELETE 명령 전부를 --dry-run 으로 돌려 405 0건, 5xx 0건
+- 보안: dry-run 이 실제 쓰기로 새지 않음, 키가 만든 승인 요청 0건이고 dry-run 으로 만든 이름이 목록에 없음 (감사 로그는 설계상 dryRun 도 한 줄 남기므로 행 수 비교는 기준이 아님, gateway-doc.ts)
+- 보안: openapi.json 창구는 키 확인이 첫 줄 그대로(openapi-shape.test.ts), 명세 조립만 lib 로 옮김
+- CLI 내장 명세가 서버 명세와 같음(public-spec.test.ts), gpu quote 의 items 가 본문으로 감(embedded-spec.test.ts), 옛 명세로 되돌려 두 시험 실패 확인
+- schema 가 key 를 칸으로 선언한 명령은 --key 를 그 칸으로 받고, 내장 명령과 key 칸이 없는 명령은 계속 secret_on_argv, bun test 통과
+- read 범위 POST 명령 전부가 read 키로 200 또는 4xx 이고 승인 요청을 만들지 않음
+의존: 없음
+
+### I01a CLI 0.1.2 발행
+상태: 통과
+모드: 경량
+범위: packages/teamda-cli/package.json, apps/web/lib/changelog/entries.ts
+감사 기준:
+- 보안: 업로드는 서비스롤 키를 env 로만 읽는 기존 publish.ts, 키를 출력하지 않음
+- 개발자센터 내려받기 latest.json 의 version 0.1.2, 파일별 SHA-256 이 로컬 빌드 값과 같음
+- 내려받은 0.1.2 로 ci settings set --key x --scope user --dry-run 이 secret_on_argv 없이 dry-run 응답
+의존: I01
+
+### I02 Windows 에서 teamda 0.1.2 실행
+상태: 통과
+모드: 경량
+범위: 없음 (실측만, 결함 시 packages/teamda-cli/)
+감사 기준:
+- Parallels Windows VM 에서 개발자센터 내려받기 파일 SHA-256 이 안내값과 같음
+- teamda --version 0.1.2, crm deal list 성공, 한글 출력이 깨지지 않음
+의존: I01a
+
+### I03 웹 견적서 PDF 와 CLI 견적서 PDF 대조
+상태: 대기
+모드: 경량
+범위: 없음 (실측만, 결함 시 apps/web/lib/crm/)
+감사 기준:
+- 같은 견적을 웹 내려받기와 teamda crm quote export 로 받아 쪽 수와 pdftotext 본문이 같음
+의존: 없음
+
+## 종합 감사
+- (전 항목 통과 후 기록)
+
+## 변경 이력
+- v0.1.0 (2026-10-26) 최초 작성 (ins_0396)
+- v0.1.2 (2026-10-27) I01 범위에 명세 한 벌 파일 추가, CLI 내장 명세에 등재 표 본문이 빠져 gpu quote 등 넷이 칸을 주소로 보내던 결함 (audit:I01)
+- v0.1.1 (2026-10-27) I01 에서 key 칸 명령 4개가 --key 거부로 못 쓰이는 결함을 찾아 고침, 고친 CLI 를 주려고 I01a 0.1.2 발행 추가, I02 를 0.1.2 로, 감사 로그 행 수 기준은 dryRun 도 기록하는 설계와 어긋나 고침 (audit:I01)
+- v0.1.1 (2026-10-26) key 칸 명령 --key 오차단 수정과 0.1.2 발행 항목 추가, dry-run 감사 기준 정정 (audit:I01)
+- v0.1.2 (2026-10-26) CLI 내장 명세에 등재 표 본문이 빠진 결함 수정 범위 추가 (audit:I01)
