@@ -99,23 +99,32 @@ test('못 담는다는 말이 무엇을 하면 되는지까지 담는다', () =>
    부품이 맞아도 부르는 자리가 없으면 아무 일도 안 일어난다.
    이 저장소가 여러 번 겪은 실패라 여기서 값으로 센다. */
 
-const BOX = readFileSync(new URL('../../components/crm/MeetingIntakeBox.tsx', import.meta.url), 'utf8')
+/*
+  P0172: 입구가 녹음을 직접 켜지 않는다. 입구 전부가 훅(use-start-meeting)을 부르고
+  훅이 시작 한 길(start-flow)을 지난다. 그래서 이 사실들은 그 두 파일에서 센다.
+  입구가 직접 부르지 않는다는 쪽은 start-entry-wiring.test.ts 가 본다.
+*/
+const FLOW = readFileSync(new URL('./start-flow.ts', import.meta.url), 'utf8')
+const HOOK = readFileSync(new URL('./use-start-meeting.ts', import.meta.url), 'utf8')
 
-test('★ 첫 화면의 녹음 입구가 beginRecording 을 실제로 부른다', () => {
-  assert.match(BOX, /await beginRecording\(/, 'import 만 하고 안 부른다')
-  assert.ok(!/await startMeeting\(/.test(BOX), '예전 경로가 남아 있으면 오프라인 분기를 안 탄다')
+test('★ 녹음 입구가 beginRecording 을 실제로 부른다', () => {
+  const body = FLOW.slice(FLOW.indexOf('export async function runStartFlow'))
+  assert.match(body, /await begin\(meetingInput\(input\)\)/, 'import 만 하고 안 부른다')
+  assert.match(body, /deps\.begin \?\? beginRecording/, '녹음 입구의 기본 길이 beginRecording 이 아니다')
+  assert.ok(body.indexOf("input.entry !== 'record'") < body.indexOf('await begin('),
+    '녹음이 아닌 입구까지 기기 회의를 만든다')
 })
 
 test('★ 안 닿았을 때 화면을 옮기지 않는다 — 없는 주소로 가면 오프라인에서 화면이 죽는다', () => {
-  const body = BOX.slice(BOX.indexOf('const begin = useCallback'), BOX.indexOf('return ('))
+  const body = HOOK.slice(HOOK.indexOf('const start = useCallback'), HOOK.indexOf('return { start'))
   const push = body.indexOf('router.push')
-  const serverBranch = body.indexOf("out.kind === 'server'")
-  assert.ok(serverBranch >= 0 && push > serverBranch, '이동이 서버 분기 밖에 있다')
+  const navBranch = body.indexOf("out.kind === 'navigate'")
+  assert.ok(navBranch >= 0 && push > navBranch, '이동이 서버 분기 밖에 있다')
   assert.equal(body.split('router.push').length - 1, 1, '이동하는 자리가 둘 이상이다')
 })
 
 test('★ 안 닿았으면 그 자리에서 녹음을 켜고, 켰다고 말한다', () => {
-  const body = BOX.slice(BOX.indexOf('const begin = useCallback'), BOX.indexOf('return ('))
+  const body = HOOK.slice(HOOK.indexOf('const start = useCallback'), HOOK.indexOf('return { start'))
   assert.match(body, /rec\.start\(\{ noteId: out\.localId/, '로컬 회의로 녹음을 안 켠다')
-  assert.match(body, /setNotice\(/, '화면이 안 바뀌는데 아무 말도 안 한다')
+  assert.match(body, /setMessage\(\{ tone: 'note', text: START_MESSAGES\.offlineRecording \}\)/, '화면이 안 바뀌는데 아무 말도 안 한다')
 })

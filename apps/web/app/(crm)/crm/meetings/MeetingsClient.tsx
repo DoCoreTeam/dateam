@@ -14,7 +14,6 @@
 // 셋 다 서버로 내렸다 — 화면은 조건을 주소에 싣고 그리기만 한다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Mic, Plus, NotebookPen } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
@@ -35,7 +34,7 @@ import {
   TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
 } from '@/components/ui/crm/trash'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
-import { startMeeting, meetingHref } from '@/lib/crm/ui/start-meeting'
+import { useStartMeeting } from '@/lib/meeting/use-start-meeting'
 import notePick from './note-pick.module.css'
 import {
   MEETING_STATUS_META, MEETING_STATUS_ORDER, meetingStatusMeta,
@@ -179,7 +178,6 @@ const STATUS_FILTER = {
 }
 
 export default function MeetingsClient() {
-  const router = useRouter()
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'startedAt', dir: 'desc' }, mode: 'more',
     filterKeys: ['status', ...TRASH_FILTER_KEYS],
@@ -206,18 +204,9 @@ export default function MeetingsClient() {
   const status = query.filters?.status ?? ''
   const trash = isTrashView(query)
 
-  /** 미팅을 만들고 곧장 작업대로 — 중간에 묻는 화면이 없다 */
-  const begin = useCallback(async () => {
-    setStarting(true)
-    setStartError(null)
-    try {
-      const created = await startMeeting()
-      router.push(meetingHref(created.id))
-    } catch (e) {
-      setStartError(e instanceof Error ? e.message : '미팅을 만들지 못했습니다.')
-      setStarting(false)
-    }
-  }, [router])
+  /** 미팅을 만들고 곧장 작업대의 메모 편집기로, 중간에 묻는 화면이 없다(시작 한 길) */
+  const { start, busy: startBusy, message: startMessage } = useStartMeeting()
+  const begin = useCallback(() => start({ entry: 'write' }), [start])
 
   /** 이미 쓴 회의노트를 올린다 — 새로 만드는 게 아니라 발행이라 모달이 맞다 */
   const loadNotes = useCallback(async () => {
@@ -361,7 +350,7 @@ export default function MeetingsClient() {
 
   return (
     <>
-      <FormErrorBanner message={startError ?? restoreError} />
+      <FormErrorBanner message={startError ?? startMessage?.text ?? restoreError} />
 
       <ListToolbar
         query={query}
@@ -385,8 +374,8 @@ export default function MeetingsClient() {
               공개 범위는 그 행의 배지로 바꾼다. 버튼으로 «가져오는» 동작이 필요했던 이유는
               기록이 두 벌이었기 때문이지 사용자가 원해서가 아니었다.
             */}
-            <NbButton onClick={() => void begin()} disabled={starting}>
-              <Plus size={16} /> {starting ? '여는 중…' : '미팅 기록'}
+            <NbButton onClick={() => void begin()} disabled={starting || startBusy !== null}>
+              <Plus size={16} /> {startBusy ? progress('여는') : '미팅 기록'}
             </NbButton>
           </>
         )}

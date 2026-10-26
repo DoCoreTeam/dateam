@@ -5,28 +5,15 @@
 // 사용자 지시(2026-10-22): 회의노트에도 녹음, 홈에서 바로 시작,
 // CRM 권한이 있으면 CRM 미팅으로 간다. 어디로 갈지는 서버가 `hasCrmMeetingAccess` 로 정해 넘긴다.
 //
-// 두 길 모두 **기록을 먼저 만들고 그 작업대의 녹음 자리로 간다.** 제목·시각은 묻지 않는다.
-//   crm   → `beginRecording` (CRM 첫 화면 `MeetingIntakeBox` 와 같은 길, 연결이 없으면 기기에 녹음)
-//   notes → `startMeetingNote` (회의노트 기록, 연결이 없으면 시작하지 않았다고 말함)
+// 두 길 모두 회의 시작 한 길(`useStartMeeting`)을 지난다. 기록을 만들고 작업대를 메모 편집기로 열고 녹음을 켠다.
+// 제목과 시각은 묻지 않는다. 연결이 없으면 그 자리에서 기기에 녹음하고 그렇다고 말한다.
 
-import { useCallback, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
 import { Mic } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import { meetingHref } from '@/lib/crm/ui/start-meeting'
-import { beginRecording } from '@/lib/meeting/begin-recording'
-import { useRecordingSession } from '@/lib/meeting/recording-context'
-import { activeRecordingBlock, startBlockedMessage, startUnlessRecording } from '@/lib/meeting/start-guard'
-import { startMeetingNote } from '@/app/(member)/meeting-notes/actions'
+import { useStartMeeting } from '@/lib/meeting/use-start-meeting'
+import { startBlockedMessage } from '@/lib/meeting/start-guard'
 import { RECORD_START_LABEL, progress } from '@/lib/terms'
 import type { MeetingEntry } from '@/lib/crm/auth/meeting-entry'
-
-/** 녹음 탭을 열고 들어간다, 작업대의 기존 규약 */
-const RECORD_TAB = '?wb=transcript'
-
-const NOTES_FAILED = '회의노트를 만들지 못해 녹음을 시작하지 않았어요. 연결을 확인하고 다시 눌러 주세요.'
-const CRM_FAILED = '미팅을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.'
-const OFFLINE_RECORDING = '연결이 없어 이 기기에 녹음하고 있어요. 연결되면 자동으로 올라갑니다.'
 
 interface Props {
   target: MeetingEntry
@@ -34,59 +21,12 @@ interface Props {
 }
 
 export default function MeetingStartButton({ target, variant = 'primary' }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const rec = useRecordingSession()
-  const [busy, setBusy] = useState(false)
   /** 녹음이 하나라도 돌면 새 회의를 안 만든다. 다시 눌러 회의가 두 벌 생긴 실측(2026-10-26) */
-  const block = activeRecordingBlock(rec)
-  const [message, setMessage] = useState<{ tone: 'error' | 'note'; text: string } | null>(null)
-
-  const startNote = useCallback(async () => {
-    const out = await startMeetingNote().catch(() => null)
-    if (!out || !out.ok) {
-      setMessage({ tone: 'error', text: out && !out.ok ? out.error : NOTES_FAILED })
-      return false
-    }
-    router.push(`/meeting-notes/${out.id}${RECORD_TAB}`)
-    return true
-  }, [router])
-
-  const startCrm = useCallback(async () => {
-    const out = await beginRecording()
-    if (out.kind === 'server') {
-      router.push(`${meetingHref(out.id)}${RECORD_TAB}`)
-      return true
-    }
-    // 서버에 못 닿았다. 없는 주소로 옮기지 않고 그 자리에서 녹음을 켠다(MeetingIntakeBox 와 같다)
-    await rec.start({ noteId: out.localId, title: out.title, href: pathname || '/home' })
-    setMessage({ tone: 'note', text: OFFLINE_RECORDING })
-    return false
-  }, [router, rec, pathname])
-
-  const begin = useCallback(async () => {
-    if (busy) return
-    setBusy(true)
-    setMessage(null)
-    try {
-      const guarded = await startUnlessRecording(rec, () => (target === 'crm' ? startCrm() : startNote()))
-      if (guarded.blocked) {
-        setMessage({ tone: 'note', text: startBlockedMessage(guarded.blocked) })
-        setBusy(false)
-        return
-      }
-      const moved = guarded.result
-      // 화면을 옮겼으면 단추는 잠근 채로 둔다, 두 번 눌러 기록이 둘 생기지 않게
-      if (!moved) setBusy(false)
-    } catch (e) {
-      setMessage({ tone: 'error', text: e instanceof Error ? e.message : CRM_FAILED })
-      setBusy(false)
-    }
-  }, [busy, target, startCrm, startNote, rec])
+  const { start, busy, block, message } = useStartMeeting()
 
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)' }}>
-      <NbButton variant={variant} onClick={() => void begin()} disabled={busy || block !== null} style={{ minHeight: 44, whiteSpace: 'nowrap' }}>
+      <NbButton variant={variant} onClick={() => void start({ entry: 'record', target })} disabled={busy !== null || block !== null} style={{ minHeight: 44, whiteSpace: 'nowrap' }}>
         <Mic size={16} aria-hidden />
         {busy ? progress('여는') : RECORD_START_LABEL}
       </NbButton>

@@ -20,6 +20,7 @@ import {
 function code(file: string): string { return stripComments(read(file)) }
 
 const INTAKE = 'components/crm/MeetingIntakeBox.tsx'
+const START_FLOW = 'lib/meeting/start-flow.ts'
 const WORKBENCH = 'components/meeting/MeetingWorkbench.tsx'
 const TABS = 'components/ui/SegmentedTabs.tsx'
 const NOTE_API = 'app/api/meeting-notes/[id]/route.ts'
@@ -116,10 +117,15 @@ test('★ 목록 링크가 탭을 강제하지 않는다 — 이 한 줄이 「�
   )
 })
 
-test('녹음·붙여넣기 진입은 여전히 전사 탭을 지정한다 — 그때는 그것이 목적이다', () => {
-  const src = code(INTAKE)
-  assert.ok(src.includes("wb: 'transcript'"), '녹음/붙여넣기 진입은 전사 탭이 맞다')
-  assert.ok(src.includes("wb: 'memo'"), '직접 작성 진입은 작성 탭이 맞다')
+test('진입이 탭을 정한다, 붙여넣기는 전사 탭이고 녹음과 작성은 메모 편집기다', () => {
+  /*
+    P0172(사용자 지시 2026-10-26): 녹음 시작도 회의 시작과 똑같이 메모 편집기를 연다.
+    탭은 입구 파일이 아니라 시작 한 길(start-flow)이 정한다. 입구는 entry 만 넘긴다.
+  */
+  const flow = code(START_FLOW)
+  assert.ok(flow.includes("return entry === 'paste' ? 'transcript' : 'memo'"), '붙여넣기만 전사 탭, 나머지는 메모 편집기')
+  assert.ok(flow.includes('?wb=${workbenchTab(entry)}'), '정한 탭을 주소에 안 싣는다')
+  assert.ok(!/wb: '/.test(code(INTAKE)), `${INTAKE}: 탭을 입구에서 따로 정하면 시작 한 길과 갈린다`)
 })
 
 test('★ 작업대가 기본 탭을 SSOT 로 정한다 — 컴포넌트 안의 조건식은 실브라우저 말고 검증 수단이 없다(E-6)', () => {

@@ -19,6 +19,7 @@ function code(file: string): string { return stripComments(read(file)) }
 // 그 화면이 지키던 계약은 사라진 게 아니라 **자리를 옮겼다.** 여기서 새 자리를 겨냥한다.
 const LIST = 'app/(crm)/crm/meetings/MeetingsClient.tsx'
 const PANEL = 'components/ui/crm/MeetingPanel.tsx'
+const START_FLOW = 'lib/meeting/start-flow.ts'
 const NEW_ROUTE = 'app/(crm)/crm/meetings/new/page.tsx'
 const START_SSOT = 'lib/crm/ui/start-meeting.ts'
 const TRANSCRIPT_VIEW = 'components/meeting/MeetingTranscriptView.tsx'
@@ -47,15 +48,21 @@ test('★ 미팅을 시작하면 곧장 작업대다 — 중간에 묻는 화면
   // 화면이 이리저리 전환 되면 안되는거야". 목록 → 작업대, 전환은 한 번뿐이다.
   for (const f of [LIST, PANEL]) {
     const src = code(f)
-    assert.ok(src.includes('startMeeting('), `${f}: 미팅 시작은 SSOT 를 부른다`)
-    assert.ok(src.includes('meetingHref('), `${f}: 만든 뒤 작업대로 간다`)
+    // P0172: 입구는 시작 한 길(useStartMeeting → start-flow)을 부른다. 만들고 작업대로 가는 일은 그 길이 한다
+    assert.ok(src.includes('useStartMeeting()'), `${f}: 미팅 시작은 SSOT 를 부른다`)
+    assert.ok(/start\(\{ entry: /.test(src), `${f}: 시작 한 길로 실제로 들어간다`)
     assert.ok(
       !/['"`]\/crm\/meetings\/new/.test(src),
       `${f}: 폐지된 캡처 화면으로 다시 보내지 않는다`,
     )
   }
+  // 시작 한 길이 만들고 곧장 작업대로 간다
+  const flow = code(START_FLOW)
+  assert.ok(flow.includes('startMeeting'), '시작 한 길이 미팅 시작 SSOT 를 부른다')
+  assert.ok(flow.includes('meetingHref('), '만든 뒤 작업대로 간다')
   // SSOT 도 중간 화면을 모른다 — 여기서 새면 화면 둘이 다시 갈린다
   assert.ok(!code(START_SSOT).includes('/new'), 'start-meeting SSOT 는 /new 를 가리키지 않는다')
+  assert.ok(!flow.includes('/new'), '시작 한 길은 /new 를 가리키지 않는다')
 })
 
 test('★ 두 셸이 같은 작업대를 쓴다 — 가운데가 갈리면 "같은 플랫폼 공유"가 깨진다', () => {

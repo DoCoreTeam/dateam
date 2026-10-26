@@ -92,7 +92,8 @@ test('★ 미팅을 그 자리에서 시작한다 — CRM 메뉴를 찾아 들�
   assert.ok(meeting, '미팅 시작이 없다')
   assert.equal(meeting!.kind, 'meeting')
   assert.equal(meeting!.surface, 'crm')
-  assert.match(WORKBENCH, /startMeeting\(\{ dateKey: date \}\)/,
+  // P0172: 미팅은 시작 한 길(useStartMeeting)로 만든다, 날짜는 그 길에 그대로 넘긴다
+  assert.match(WORKBENCH, /start\(\{ entry: 'write', dateKey: date \}\)/,
     '누른 날짜를 안 넘긴다 — 지난 회의가 오늘 일어난 것으로 기록된다')
 })
 

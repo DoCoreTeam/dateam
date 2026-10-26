@@ -138,9 +138,15 @@ test('★ 한 번 누르면 곧장 작업대 — 제목·시각을 묻지 않는
     옛 경로가 되살아나면 실패시킨다. 첫 화면이 `startMeeting` 을 직접 부르면
     연결이 없을 때 **녹음이 아예 시작되지 않는다** — 그것이 2026-09-30 의 사고다.
   */
-  assert.match(BOX, /beginRecording\(\)/, '진입 SSOT 를 안 쓴다')
-  assert.ok(!/await startMeeting\(/.test(BOX),
-    '첫 화면이 옛 경로를 직접 부른다 — 연결이 없으면 녹음이 시작조차 안 된다')
+  /*
+    P0172: 진입 SSOT 가 한 겹 더 올라갔다. 입구는 훅(useStartMeeting)을 부르고
+    훅이 시작 한 길(start-flow)을 지나 녹음 입구만 beginRecording 으로 간다.
+    그 안쪽 사실은 begin-recording.test.ts 와 start-entry-wiring.test.ts 가 센다.
+  */
+  assert.match(BOX, /useStartMeeting\(\)/, '진입 SSOT 를 안 쓴다')
+  assert.match(BOX, /start\(\{ entry: k \}\)/, '누른 입구를 시작 한 길로 안 넘긴다')
+  assert.ok(!/(await )?(startMeeting|beginRecording)\(/.test(BOX),
+    '첫 화면이 만드는 함수를 직접 부른다, 연결이 없으면 녹음이 시작조차 안 된다')
   assert.ok(!/제목|시각을 입력/.test(BOX.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '')),
     '회의 중에 폼을 묻고 있다')
 })

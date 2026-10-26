@@ -17,16 +17,14 @@
 // 말은 용어집이 정한다(§0-2) — 「미팅 기록」은 `MEETING_CAPTURE_LABEL` 이다.
 // 만드는 행위가 아니라 **이미 일어나는 일을 받아적는 행위**라 「새 미팅」이 아니다.
 
-import { useCallback, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
 import { Mic, PenLine, ClipboardPaste, ArrowRight } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { meetingHref } from '@/lib/crm/ui/start-meeting'
-import { beginRecording } from '@/lib/meeting/begin-recording'
-import { useRecordingSession } from '@/lib/meeting/recording-context'
-import { activeRecordingBlock, startBlockedMessage, startUnlessRecording } from '@/lib/meeting/start-guard'
-import { MEETING_CAPTURE_LABEL, progress } from '@/lib/terms'
+import { useStartMeeting } from '@/lib/meeting/use-start-meeting'
+import { startBlockedMessage } from '@/lib/meeting/start-guard'
+import type { StartEntry } from '@/lib/meeting/start-flow'
+import { MEETING_CAPTURE_LABEL, RECORD_START_LABEL, progress } from '@/lib/terms'
 import { formatKstTime } from '@/lib/datetime/kst'
 import styles from './meeting-intake.module.css'
 
@@ -41,17 +39,15 @@ export interface TodayMeeting {
 }
 
 /**
- * 어느 탭으로 열 것인가.
- *
- * 셋 다 목적지는 **같은 작업대**다 — 회의 중 화면 전환을 0회로 두기 위해서다.
- * 다른 것은 처음 보이는 탭뿐이라 `?wb=` 하나로 갈린다(작업대의 기존 규약).
+ * 셋 다 목적지는 **같은 작업대**다, 회의 중 화면 전환을 0회로 두기 위해서다.
+ * 처음 보이는 탭과 녹음을 켤지는 시작 한 길(`lib/meeting/start-flow.ts`)이 정한다.
  */
-type Entry = 'record' | 'write' | 'paste'
+type Entry = StartEntry
 
-const ENTRY: Record<Entry, { label: string; icon: React.ReactNode; wb: string; primary?: boolean }> = {
-  record: { label: '녹음 시작', icon: <Mic size={15} />, wb: 'transcript', primary: true },
-  write: { label: '직접 작성', icon: <PenLine size={15} />, wb: 'memo' },
-  paste: { label: '붙여넣기', icon: <ClipboardPaste size={15} />, wb: 'transcript' },
+const ENTRY: Record<Entry, { label: string; icon: React.ReactNode; primary?: boolean }> = {
+  record: { label: RECORD_START_LABEL, icon: <Mic size={15} />, primary: true },
+  write: { label: '직접 작성', icon: <PenLine size={15} /> },
+  paste: { label: '붙여넣기', icon: <ClipboardPaste size={15} /> },
 }
 
 /** 지난 날짜에는 녹음이 아니라 작성으로 연다 — 이미 끝난 회의를 녹음할 수는 없다 */
@@ -63,62 +59,16 @@ interface Props {
 }
 
 export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const rec = useRecordingSession()
-  const [busy, setBusy] = useState<Entry | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  /** 화면이 안 바뀌는 경우가 생겼다 — 눌렀는데 아무 말도 없으면 안 된 줄 안다 */
-  const [notice, setNotice] = useState<string | null>(null)
-  /** 녹음이 하나라도 돌면 새 회의를 안 만든다. 다시 눌러 회의가 두 벌 생긴 실측(2026-10-26) */
-  const block = activeRecordingBlock(rec)
-
   /**
    * 한 번 누르면 곧장 작업대.
    *
-   * 제목·시각·회사·딜을 **안 묻는다** — 회의는 이미 시작됐고 사용자는 녹음 버튼을 찾고 있다.
-   * 비어 있는 것은 끝난 뒤에 AI 가 제안하거나 물어본다.
+   * 제목·시각·회사·딜을 **안 묻는다**, 회의는 이미 시작됐고 사용자는 녹음 버튼을 찾고 있다.
+   * 녹음 중 막기, 연결이 없을 때 기기 녹음, 실패 안내는 훅이 한 자리에서 한다.
    */
-  const begin = useCallback(async (entry: Entry) => {
-    if (busy) return
-    setBusy(entry)
-    setError(null)
-    setNotice(null)
-    try {
-      const guarded = await startUnlessRecording(rec, async () => await beginRecording())
-      if (guarded.blocked) {
-        setNotice(startBlockedMessage(guarded.blocked))
-        setBusy(null)
-        return
-      }
-      const out = guarded.result
-
-      if (out.kind === 'server') {
-        router.push(`${meetingHref(out.id)}?wb=${ENTRY[entry].wb}`)
-        return
-      }
-
-      /*
-        서버에 못 닿았다. **화면을 옮기지 않는다** — 그 주소는 아직 어디에도 없고,
-        없는 주소로 가면 오프라인에서 화면이 통째로 죽는다.
-        대신 녹음을 그 자리에서 켠다. 제공자가 셸에 있어 화면이 바뀌어도 안 끊긴다.
-      */
-      if (entry !== 'record') {
-        // 쓰는 화면은 서버가 그려 준다. 못 여는 것을 여는 척하지 않는다
-        setError('연결이 없어 작성 화면을 열 수 없어요. 지금은 녹음으로 남겨 주세요.')
-        setBusy(null)
-        return
-      }
-
-      await rec.start({ noteId: out.localId, title: out.title, href: pathname || '/crm/today' })
-      setNotice('연결이 없어 이 기기에 녹음하고 있어요. 연결되면 자동으로 올라갑니다.')
-      setBusy(null)
-    } catch (e) {
-      // 조용히 삼키지 않는다 — 눌렀는데 아무 일도 안 일어나는 화면이 가장 나쁘다
-      setError(e instanceof Error ? e.message : '미팅을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
-      setBusy(null)
-    }
-  }, [busy, router, rec, pathname])
+  const { start, busy, block, message } = useStartMeeting()
+  const error = message?.tone === 'error' ? message.text : null
+  /** 화면이 안 바뀌는 경우가 생겼다, 눌렀는데 아무 말도 없으면 안 된 줄 안다 */
+  const notice = message?.tone === 'note' ? message.text : null
 
   return (
     <section className={`card ${styles.box}`} aria-labelledby="meeting-intake-title">
@@ -134,7 +84,7 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
           <NbButton
             key={k}
             variant={ENTRY[k].primary ? 'primary' : 'ghost'}
-            onClick={() => void begin(k)}
+            onClick={() => void start({ entry: k })}
             disabled={busy !== null || block !== null}
           >
             {ENTRY[k].icon}
@@ -145,7 +95,7 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
 
       {/* 화면이 안 바뀌었을 때 무슨 일이 일어났는지 — 이 줄이 없으면 안 된 줄 안다 */}
       {notice && <p className="field-note">{notice}</p>}
-      {block && <p className="field-note" role="status">{startBlockedMessage(block)}</p>}
+      {block && !notice && <p className="field-note" role="status">{startBlockedMessage(block)}</p>}
 
       {/*
         오늘 잡혀 있는 미팅이 있으면 후보로 보여 준다.

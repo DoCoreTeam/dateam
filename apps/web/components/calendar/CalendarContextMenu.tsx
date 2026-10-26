@@ -12,14 +12,13 @@
  * 그 화면에서만 뜻이 있는 것(그 날 열기 · 일정 폼)은 `onAction` 으로 넘긴다.
  */
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   CalendarClock, CalendarPlus, CheckSquare, ExternalLink, Mic, NotebookPen,
   Pencil, Sparkles, Trash2,
 } from 'lucide-react'
 import ContextMenu, { type ContextMenuItem, type ContextMenuState } from '@/components/ui/ContextMenu'
-import { startMeeting, meetingHref } from '@/lib/crm/ui/start-meeting'
+import { useStartMeeting } from '@/lib/meeting/use-start-meeting'
 import type { CalMenuIcon, CalMenuItem, CalMenuRun } from '@/lib/calendar/day-menu'
 import { ACTION } from '@/lib/terms'
 
@@ -51,8 +50,9 @@ interface Props {
 
 export default function CalendarContextMenu({ state, items, title, onClose, onAction }: Props) {
   const router = useRouter()
-  /** 미팅은 만드는 데 시간이 걸린다 — 두 번 눌러 두 개가 생기지 않게 */
-  const [busy, setBusy] = useState(false)
+  /** 미팅은 시작 한 길이 만든다. 만드는 동안 두 번 눌러 두 개가 생기지 않게 훅이 잠근다 */
+  const { start, busy: startBusy } = useStartMeeting()
+  const busy = startBusy !== null
 
   if (!state) return null
 
@@ -61,16 +61,8 @@ export default function CalendarContextMenu({ state, items, title, onClose, onAc
     if (r.kind === 'link') { router.push(r.href); return }
     if (r.kind === 'meeting') {
       if (busy) return
-      setBusy(true)
-      try {
-        const { id } = await startMeeting({ dateKey: r.dateKey })
-        router.push(meetingHref(id))
-      } catch {
-        /* 실패는 화면이 말한다 — 여기서 삼키면 사용자는 눌렀는지도 모른다 */
-        onAction?.(r)
-      } finally {
-        setBusy(false)
-      }
+      // 제목·시각을 묻지 않고 그 날짜로 만들고 작업대의 메모 편집기로 간다
+      await start({ entry: 'write', dateKey: r.dateKey })
       return
     }
     onAction?.(r)

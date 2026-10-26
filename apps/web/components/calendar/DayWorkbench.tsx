@@ -19,7 +19,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarPlus, Mic, NotebookPen, CheckSquare, Sparkles } from 'lucide-react'
 import { dayActions, type DayAction } from '@/lib/calendar/day-actions'
-import { startMeeting, meetingHref } from '@/lib/crm/ui/start-meeting'
+import { useStartMeeting } from '@/lib/meeting/use-start-meeting'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import InlineError from '@/components/ui/InlineError'
 import styles from './day-workbench.module.css'
@@ -42,25 +42,18 @@ interface Props {
 export default function DayWorkbench({ date, onNewEvent }: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { start, message } = useStartMeeting()
 
   const actions = dayActions(date, kstTodayKey())
 
   async function run(a: DayAction) {
-    setError(null)
     if (a.kind === 'inline') { onNewEvent(); return }
     if (a.kind === 'link') { if (a.href) router.push(a.href); return }
 
-    // 미팅 — 제목·시각을 묻지 않고 만들고 곧장 작업대로 간다(start-meeting SSOT)
+    // 미팅, 제목·시각을 묻지 않고 그 날짜로 만들고 작업대의 메모 편집기로 간다(시작 한 길)
     setBusy(a.key)
-    try {
-      const { id } = await startMeeting({ dateKey: date })
-      router.push(meetingHref(id))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '미팅을 만들지 못했습니다.')
-    } finally {
-      setBusy(null)
-    }
+    await start({ entry: 'write', dateKey: date })
+    setBusy(null)
   }
 
   return (
@@ -83,7 +76,7 @@ export default function DayWorkbench({ date, onNewEvent }: Props) {
           </button>
         ))}
       </div>
-      <InlineError>{error}</InlineError>
+      <InlineError>{message?.text ?? null}</InlineError>
     </section>
   )
 }
