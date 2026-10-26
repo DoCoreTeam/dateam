@@ -1,5 +1,5 @@
 /**
- * 녹음 중에는 새 회의를 만들지 않는다 — 가드
+ * 녹음 중에는 새 회의를 만들지 않는다, 가드
  *
  * 실측 2026-10-26: 지역 녹음을 켠 뒤 시작 단추가 다시 열려 있었고, 16초 뒤 다시 누르자
  * 서버 회의가 하나 더 생기고 화면이 그리로 옮겨 갔다. 녹음기는 그대로 지역 id 로 녹음해
@@ -48,5 +48,5 @@ test('안내는 지금 녹음 중인 회의 이름을 말하고 전각 대시를
   const there = startBlockedMessage({ ...local, elsewhere: true })
   assert.ok(here.includes('10/26 미팅'))
   assert.ok(there.includes('다른 탭'))
-  assert.ok(!here.includes('—') && !there.includes('—'))
+  assert.ok(!here.includes('\u2014') && !there.includes('\u2014'))
 })

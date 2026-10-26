@@ -1,6 +1,6 @@
 # PLAN newAX: 녹음 중에 회의가 서버로 건너가도 뒤 구간이 고아가 되지 않는다
 플랜 ID: P0171
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0389
 목표 버전: v0.11.91
@@ -117,9 +117,20 @@
 - 보안: 운영 사이트와 사용자 기기를 건드리지 않음, 시험 계정 정리 확인
 의존: I06
 
+### I08 이번 플랜이 더한 줄의 전각 대시를 걷어 낸다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/offline/, apps/web/lib/meeting/part-destination.ts, apps/web/lib/meeting/part-destination.test.ts, apps/web/lib/meeting/start-guard.test.ts, apps/web/components/ui/OfflineBar.tsx
+감사 기준:
+- git diff 958c8612..HEAD 의 더한 줄에 전각 대시 0개
+- 플랜 시험 여섯 파일 92/92, tsc 0, eslint 0
+- 보안: 해당 없음, 주석과 시험 이름만 바뀜
+의존: I07
+
 ## 종합 감사
 - (전 항목 통과 후 기록)
 
 ## 변경 이력
 - v0.1.0 (2026-10-26) 최초 작성 (ins_0389)
 - v0.1.1 (2026-10-26) I05 가 beginRecording 을 함수 값으로 넘겨 소스 가드 둘이 깨짐, 전체 시험에서 발견해 I06a 삽입 (audit:I07)
+- v0.1.2 (2026-10-26) 종합 감사 diff 검토에서 더한 줄의 전각 대시 24개 발견, I08 추가 (audit:I07)

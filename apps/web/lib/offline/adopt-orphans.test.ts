@@ -1,5 +1,5 @@
 /**
- * 대기 회의 없이 남은 지역 구간을 서버 회의로 입양한다 — 가드
+ * 대기 회의 없이 남은 지역 구간을 서버 회의로 입양한다, 가드
  *
  * 실측 2026-10-26: 녹음 중에 회의가 건너가 대기 회의가 지워졌고, 그 뒤 쌓인 구간 6개가
  * `local_…` 밑에 주인 없이 남았다. 건네기는 대기 회의만 보므로 영영 안 올라갔다.
@@ -12,7 +12,7 @@ import { adoptOrphanParts, type AdoptDeps, type OrphanPart } from './adopt-orpha
 const LOCAL = 'local_3453c20e-8bae-4c10-bb9b-caa74fa5012a'
 const FIRST_SAVED = Date.parse('2026-10-26T01:57:41Z')
 
-/** 사용자 실측 모양 — 601초 다섯 개와 460초 하나 */
+/** 사용자 실측 모양, 601초 다섯 개와 460초 하나 */
 function userParts(noteId = LOCAL): OrphanPart[] {
   const durations = [601, 601, 601, 601, 601, 460]
   let at = FIRST_SAVED
@@ -112,7 +112,7 @@ test('서버 id 구간은 고아가 아니다, 끊겨 있으면 아무것도 안
   assert.equal(off.created.length, 0)
 })
 
-test('잠금 안에서 돈다 — 여러 탭이 동시에 입양하면 회의가 두 벌 된다', async () => {
+test('잠금 안에서 돈다, 여러 탭이 동시에 입양하면 회의가 두 벌 된다', async () => {
   let locked = 0
   const h = harness(userParts(), { withLock: async <T,>(fn: () => Promise<T>) => { locked += 1; return fn() } })
   await adoptOrphanParts(h.deps)

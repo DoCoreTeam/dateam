@@ -74,7 +74,7 @@ export default function OfflineBar() {
    */
   const rec = useRecordingSession()
   const activeNoteIdsRef = useRef<(string | null)[]>([])
-  /* 이 탭의 녹음(target) 과 다른 탭의 녹음(remote) 둘 다 — 다른 탭이 건넨 사고가 있었다 (2026-10-26) */
+  /* 이 탭의 녹음(target) 과 다른 탭의 녹음(remote) 둘 다, 다른 탭이 건넨 사고가 있었다 (2026-10-26) */
   useEffect(() => {
     activeNoteIdsRef.current = [rec.target?.noteId ?? null, rec.remote?.noteId ?? null]
   }, [rec.target, rec.remote])

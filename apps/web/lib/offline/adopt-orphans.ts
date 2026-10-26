@@ -5,7 +5,7 @@
  * 녹음기는 그 뒤에도 `local_…` 밑에 구간 6개를 쌓았고, 건네기(`reconcile`)는
  * 대기 회의만 보므로 그 구간들은 주인 없이 영영 안 올라갔다.
  *
- * 규율 —
+ * 규율
  *   대기 회의가 있는 지역 id 는 건네기 몫이라 손대지 않는다
  *   녹음 중(이 탭, 다른 탭, 녹음 임대) 인 지역 id 는 손대지 않는다
  *   건넨 짝이 있으면 회의를 만들지 않고 그 서버 id 로 옮긴다
@@ -63,7 +63,7 @@ export function withHandoverLock<T>(fn: () => Promise<T>): Promise<T> {
   return locks.request(HANDOVER_LOCK, () => fn()) as Promise<T>
 }
 
-/** 지역 id 별로 묶는다 — 손대면 안 되는 것은 뺀다 */
+/** 지역 id 별로 묶는다, 손대면 안 되는 것은 뺀다 */
 function groupOrphans(parts: OrphanPart[], untouchable: Set<string>): Map<string, OrphanPart[]> {
   const groups = new Map<string, OrphanPart[]>()
   for (const p of parts) {
@@ -73,7 +73,7 @@ function groupOrphans(parts: OrphanPart[], untouchable: Set<string>): Map<string
   return groups
 }
 
-/** 녹음을 켠 순간 — 구간마다 닫힌 시각에서 길이를 뺀 값 중 가장 이른 것 */
+/** 녹음을 켠 순간, 구간마다 닫힌 시각에서 길이를 뺀 값 중 가장 이른 것 */
 function startedAtOf(parts: OrphanPart[]): Date {
   return new Date(Math.min(...parts.map((p) => p.savedAt - p.durationSec * 1000)))
 }

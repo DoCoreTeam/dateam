@@ -138,7 +138,7 @@ test('망가진 내용이 들어 있어도 죽지 않는다 — 한 번 깨지�
   assert.equal(listPendingMeetings(T0, store).length, 1)
 })
 
-test('★ 건넨 짝은 대기 회의를 지운 뒤에도 남는다 — 녹음 중에 건너간 회의의 뒤 구간이 갈 곳을 안다 (2026-10-26 실측)', () => {
+test('★ 건넨 짝은 대기 회의를 지운 뒤에도 남는다, 녹음 중에 건너간 회의의 뒤 구간이 갈 곳을 안다 (2026-10-26 실측)', () => {
   const store = fakeStore()
   addPendingMeeting(meeting('local_a'), store)
   markPendingMeetingCreated('local_a', 'note_real', store)

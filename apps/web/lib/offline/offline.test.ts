@@ -353,7 +353,7 @@ test('★ 못 올라간 녹음은 몇 분인지로 말한다, 분은 올림이�
 test('올리기 단추와 입양 실패 문구는 사람 말이다, 전각 대시와 내부 오류를 싣지 않는다', () => {
   assert.equal(UPLOAD_NOW_LABEL, '올리기')
   for (const text of [UPLOAD_NOW_LABEL, ADOPT_FAILED_DETAIL, stuckRecordingLabel(3465)]) {
-    assert.ok(!text.includes('—'))
+    assert.ok(!text.includes('\u2014'))
     assert.ok(!/error|Error|404|null|undefined/.test(text))
   }
 })

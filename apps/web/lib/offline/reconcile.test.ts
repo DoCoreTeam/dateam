@@ -133,7 +133,7 @@ test('대기 회의가 없으면 서버를 안 부른다', async () => {
   assert.deepEqual(h.created, [])
 })
 
-test('★ 다른 탭이 녹음 중인 회의도 안 건넌다 — 이 탭 target 은 비어 있다 (2026-10-26 실측)', async () => {
+test('★ 다른 탭이 녹음 중인 회의도 안 건넌다, 이 탭 target 은 비어 있다 (2026-10-26 실측)', async () => {
   const h = harness([meeting('local_other')], { activeNoteId: null, activeNoteIds: [null, 'local_other'] })
   const r = await reconcilePendingMeetings(h.deps)
   assert.equal(r.deferred, 1)
@@ -148,7 +148,7 @@ test('★ 녹음 임대가 살아 있는 회의는 activeNoteIds 에 없어도 �
   assert.equal(h.created.length, 0)
 })
 
-/** localStorage 흉내 — 녹음 임대는 탭끼리 나누는 칸이라 저장소 하나를 둘이 같이 본다 */
+/** localStorage 흉내, 녹음 임대는 탭끼리 나누는 칸이라 저장소 하나를 둘이 같이 본다 */
 function memStore(): Storage {
   const m = new Map<string, string>()
   return {
@@ -161,7 +161,7 @@ function memStore(): Storage {
   }
 }
 
-test('★ 기한 지난 녹음 임대는 무시하고 건넌다 — 닫힌 탭이 회의를 영영 붙잡지 않는다', async () => {
+test('★ 기한 지난 녹음 임대는 무시하고 건넌다, 닫힌 탭이 회의를 영영 붙잡지 않는다', async () => {
   const store = memStore()
   const t0 = 1_000_000
   writeRecordingLease('local_stale', t0, store)

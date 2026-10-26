@@ -1,5 +1,5 @@
 /**
- * 녹음 임대 — **어느 탭이 지금 이 회의를 녹음하고 있나** 를 기기에 적는다
+ * 녹음 임대, **어느 탭이 지금 이 회의를 녹음하고 있나** 를 기기에 적는다
  *
  * 왜 생겼나 (실측 2026-10-26): 오프라인에서 시작한 녹음이 도는 동안 연결이 돌아오자
  * **다른 탭**의 OfflineBar 가 그 회의를 서버로 건넸다. 그 탭은 녹음을 들고 있지 않아서
@@ -14,7 +14,7 @@ import { HEARTBEAT_MS } from '../meeting/recording-tabs.ts'
 
 export const RECORDING_LEASE_KEY = 'newax.recording-lease'
 
-/** 심장박동 열다섯 번(30초) — 백그라운드 탭은 타이머가 느려지므로 넉넉히 잡는다 */
+/** 심장박동 열다섯 번(30초), 백그라운드 탭은 타이머가 느려지므로 넉넉히 잡는다 */
 export const LEASE_TTL_MS = HEARTBEAT_MS * 15
 
 type LeaseTable = Record<string, number>
@@ -69,7 +69,7 @@ export function clearRecordingLease(noteId: string, store?: Storage): void {
   writeTable(Object.fromEntries(Object.entries(table).filter(([id]) => id !== noteId)), store)
 }
 
-/** 기한 안에 다시 쓰인 임대의 회의 id — 이 회의들은 지금 어딘가에서 녹음 중이다 */
+/** 기한 안에 다시 쓰인 임대의 회의 id, 이 회의들은 지금 어딘가에서 녹음 중이다 */
 export function liveLeasedNoteIds(now: number = Date.now(), store?: Storage): string[] {
   return Object.entries(readTable(store))
     .filter(([, at]) => now - at <= LEASE_TTL_MS)

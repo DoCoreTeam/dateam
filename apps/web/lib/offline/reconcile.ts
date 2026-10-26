@@ -42,7 +42,7 @@ export interface ReconcileDeps {
   list?: (now?: number) => PendingMeeting[]
   markCreated?: (localId: string, serverNoteId: string) => boolean
   forget?: (localId: string) => void
-  /** 지역 id 와 서버 id 짝 — 대기 회의를 지운 뒤에도 남는다 */
+  /** 지역 id 와 서버 id 짝, 대기 회의를 지운 뒤에도 남는다 */
   remember?: (localId: string, serverNoteId: string) => void
   serverIdFor?: (localId: string) => string | null
   rekey?: (fromNoteId: string, toNoteId: string) => Promise<number>
@@ -50,7 +50,7 @@ export interface ReconcileDeps {
   activeNoteId?: string | null
   /** 이 탭과 다른 탭에서 녹음이 붙어 있는 회의들 (target, remote) */
   activeNoteIds?: (string | null | undefined)[]
-  /** 녹음 임대가 살아 있는 회의 — 소식이 끊긴 탭의 녹음도 이걸로 안다 */
+  /** 녹음 임대가 살아 있는 회의, 소식이 끊긴 탭의 녹음도 이걸로 안다 */
   leased?: () => string[]
   isOnline?: () => boolean
 }
@@ -85,7 +85,7 @@ export async function reconcilePendingMeetings(deps: ReconcileDeps = {}): Promis
     if (recording.has(m.localId)) { deferred += 1; continue }
 
     try {
-      // ① 이미 만들었으면 다시 안 만든다 — 대기 회의에 없어도 짝이 남아 있으면 그것을 쓴다
+      // ① 이미 만들었으면 다시 안 만든다, 대기 회의에 없어도 짝이 남아 있으면 그것을 쓴다
       let noteId = m.serverNoteId ?? pairedId(m.localId)
       if (!noteId) {
         /*

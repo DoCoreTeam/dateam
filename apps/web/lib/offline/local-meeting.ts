@@ -148,7 +148,7 @@ export function removePendingMeeting(localId: string, store?: Storage): void {
 }
 
 /**
- * 건넨 짝 — **지역 id 가 어느 서버 회의로 건너갔나** 를 대기 목록과 따로 적는다
+ * 건넨 짝, **지역 id 가 어느 서버 회의로 건너갔나** 를 대기 목록과 따로 적는다
  *
  * 왜 따로 두나 (실측 2026-10-26): 녹음 도중에 회의가 건너가면 대기 회의는 지워지는데
  * 녹음기는 계속 `local_…` 밑에 구간을 쌓는다. 짝이 대기 회의 안에만 있으면 그 구간들은
@@ -212,7 +212,7 @@ export function listHandovers(now: number = Date.now(), store?: Storage): Handov
   return readHandovers(store).filter((h) => !isHandoverExpired(h, now))
 }
 
-/** 이 지역 id 가 건너간 서버 회의 — 없거나 기한이 지났으면 null */
+/** 이 지역 id 가 건너간 서버 회의, 없거나 기한이 지났으면 null */
 export function serverIdFor(localId: string, now: number = Date.now(), store?: Storage): string | null {
   return listHandovers(now, store).find((h) => h.localId === localId)?.serverNoteId ?? null
 }
