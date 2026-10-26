@@ -36,6 +36,34 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.93',
+    date: '2026-10-27',
+    title: 'teamda 0.1.2 에서 설정 명령과 GPU 견적 계산이 돌아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔑',
+        developer: true,
+        headline: '설정 이름을 받는 명령에 --key 를 쓸 수 있어요',
+        detail: 'teamda ci settings set --key 처럼 설정 이름 칸이 key 인 명령 넷이 API 키로 오인돼 막혀 있었어요. 이제 그 명령이 정한 칸이면 받고, auth login 같은 기본 명령에서는 지금처럼 키를 명령줄에 쓰지 못하게 막아요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🧮',
+        developer: true,
+        headline: 'teamda gpu quote 가 품목을 본문으로 보내요',
+        detail: 'gpu quote, gpu pool-stock create-v1, gpu settings update-v1, gpu supplier create-v1 이 teamda sync 를 하기 전에는 값을 주소 뒤에 붙여 서버가 받지 않았어요. 내려받은 그대로 서버와 같은 명세로 돌아요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '📄',
+        developer: true,
+        headline: '견적서 PDF 의 회색 바탕과 「2안」 표지 겹침을 고쳤어요',
+        detail: 'teamda 로 받은 견적서 PDF 의 마지막 쪽 아래에 회색이 깔리던 것과, 화면에서 받은 PDF 에서 견적 번호 옆 「2안」 표지가 아래 줄에 겹치던 것을 고쳤어요.',
+      },
+    ],
+  },
+  {
     version: '0.11.91',
     date: '2026-10-26',
     title: '연결이 끊긴 채 시작한 녹음이 중간에 연결이 돌아와도 빠짐없이 올라가요',
