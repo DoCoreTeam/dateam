@@ -1,0 +1,125 @@
+# PLAN newAX: 녹음 중에 회의가 서버로 건너가도 뒤 구간이 고아가 되지 않는다
+플랜 ID: P0171
+플랜 버전: v0.1.1
+상태: 진행중
+지시: ins_0389
+목표 버전: v0.11.91
+푸시: 즉시
+작성: 2026-10-26
+시작 커밋: 958c8612
+
+## 목표
+- 연결이 없을 때 시작한 녹음이 녹음 도중에 연결이 돌아와도 구간 하나 빠짐없이 서버 회의 하나로 올라간다
+- 이미 고아가 된 구간(대기 회의 없이 local_ 밑에 남은 것)도 다음 접속 때 스스로 서버 회의로 입양되어 올라간다
+- 녹음 중에 다시 눌러 회의가 두 벌 생기지 않고, 못 올라간 녹음은 몇 분인지와 올리기 단추로 말한다
+
+## 범위 밖
+- 사용자 운영 기기에 이미 남은 구간의 수동 구조 (조정 세션이 따로 맡음, 이 플랜의 입양 로직이 다음 접속 때 자동으로 처리)
+- 운영 DB 의 빈 회의 09873487 과 중복 미팅 cmvolmq4 정리 (사용자 데이터라 묻지 않고 지우지 않음)
+- 서버 쪽 창구 변경
+
+## 완료 정의
+- pnpm typecheck, pnpm lint, pnpm test, pnpm build 통과
+- 새 시험은 apps/web/package.json test 스크립트에 따로 등재되어 총 시험 수가 늘고 lib/ui/test-registry.test.ts 통과
+- 사용자 노출 문자열은 lib/terms 또는 기존 문구 파일 경유, 전각 대시와 한자 없음
+- 실브라우저 F-10: 오프라인 녹음 구간과 대기 회의를 앱 방식대로 심고 녹음 중 복귀를 흉내 내어 고아 0개, 구간 전부 서버 회의 하나에 올라감
+- 즉시 플랜이므로 통과 뒤 git push, pnpm deploy:state 가 READY
+
+## 참조
+- LOOP.md 2절 4절 7절 8절 9절 F-N
+- 메모리 project_offline_recording.md (규율 넷, 함정 여섯), feedback_registered_but_never_runs.md
+- 실측 2026-10-26: local_3453c20e 구간 6개 전부 lastError 회의노트를 찾을 수 없습니다, newax.pending-meetings 빈 배열, 서버 회의 09873487(10:49:42, 0구간) 과 f8eee402(10:49:58, 사용자가 쓴 것, 0구간)
+
+## 항목
+
+### I01 녹음 중인 회의는 어느 탭에서 돌아도 건너지 않는다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/offline/reconcile.ts, apps/web/lib/offline/reconcile.test.ts, apps/web/lib/offline/recording-lease.ts (신규), apps/web/components/ui/OfflineBar.tsx, apps/web/package.json
+감사 기준:
+- 실패하는 시험 먼저: 다른 탭이 local_ 회의를 녹음 중일 때(이 탭 target 은 null) reconcile 이 그 회의를 건너지 않고 deferred 1 을 돌려준다, 고치기 전 실패 확인
+- 녹음 임대(localStorage, 심장박동 기한) 가 살아 있는 local id 는 activeNoteIds 에 없어도 미룬다, 기한 지난 임대는 무시한다
+- OfflineBar 가 rec.target 과 rec.remote 의 noteId 를 둘 다 넘긴다 (grep 으로 확인)
+- 보안: 새 창구 없음, 기기 localStorage 에 회의 id 와 시각만 저장, 해당 없음 근거 기록
+의존: 없음
+
+### I02 건넨 회의는 지역 id 와 서버 id 짝을 기기에 남긴다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/offline/local-meeting.ts, apps/web/lib/offline/local-meeting.test.ts, apps/web/lib/offline/reconcile.ts, apps/web/lib/offline/reconcile.test.ts
+감사 기준:
+- 실패하는 시험 먼저: reconcile 이 회의를 만들면 지역 id 와 서버 id 짝이 대기 목록과 별개로 남고, 대기 회의를 지운 뒤에도 serverIdFor(localId) 가 서버 id 를 돌려준다
+- 이미 짝이 있는 지역 id 는 회의를 다시 만들지 않는다 (create 0회)
+- 짝은 MAX_KEEP_DAYS 를 넘기면 정리된다
+- 보안: 해당 없음, id 짝만 저장, 근거 기록
+의존: I01
+
+### I03 녹음 중에 올리는 길이 지역 id 로 404 를 치지 않고 건넌 뒤에는 서버 id 로 올린다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/meeting/recording-context.tsx, apps/web/lib/meeting/part-destination.ts (신규), apps/web/lib/meeting/part-destination.test.ts (신규), apps/web/package.json
+감사 기준:
+- 실패하는 시험 먼저: 지역 id 이고 짝이 없으면 올리지 않고 기기에만 둔다(markTried 안 함), 짝이 있으면 서버 id 로 보관하고 올린다
+- recording-context 의 uploadPart 가 part-destination 을 지나고, 녹음 중 임대를 쓰고 끝나면 놓는다 (grep 으로 호출 자리 확인)
+- 보안: 해당 없음, 기존 recordings 창구만 씀, 근거 기록
+의존: I02
+
+### I04 대기 회의 없이 남은 지역 구간을 서버 회의로 입양한다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/offline/adopt-orphans.ts (신규), apps/web/lib/offline/adopt-orphans.test.ts (신규), apps/web/components/ui/OfflineBar.tsx, apps/web/package.json
+감사 기준:
+- 실패하는 시험 먼저: 사용자 실측 모양(local_ 구간 6개, 대기 회의 없음, 짝 없음)을 넣으면 회의 하나를 첫 구간 savedAt 에서 길이를 뺀 시각으로 만들고 6개를 그 id 로 옮긴다
+- 짝이 있으면 만들지 않고 그 서버 id 로 옮긴다, 녹음 임대가 살아 있는 지역 id 는 건드리지 않는다, 대기 회의가 있는 지역 id 는 reconcile 몫이라 건드리지 않는다
+- 두 번 돌려도 회의는 하나 (멱등)
+- OfflineBar sync 가 reconcile 다음, 올리기 전에 입양을 부른다
+- 보안: 해당 없음, 기존 회의 만들기 창구만 씀, 근거 기록
+의존: I03
+
+### I05 녹음 중에는 새 회의를 만들지 않는다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/meeting/start-guard.ts (신규), apps/web/lib/meeting/start-guard.test.ts (신규), apps/web/components/crm/MeetingIntakeBox.tsx, apps/web/components/meeting/MeetingStartButton.tsx, apps/web/package.json
+감사 기준:
+- 실패하는 시험 먼저: 이 탭이나 다른 탭이 녹음 중이면 가드가 막음을 돌려주고 beginRecording 을 부르지 않는다
+- 두 시작 단추가 가드를 지나 녹음 중이면 회의를 만들지 않고 지금 녹음 중인 회의를 말한다 (grep 호출 자리)
+- 보안: 해당 없음, 근거 기록
+의존: I04
+
+### I06 못 올라간 녹음은 몇 분인지와 올리기 단추로 말한다
+상태: 통과
+모드: 경량
+범위: apps/web/lib/offline/sync-parts.ts, apps/web/components/ui/OfflineBar.tsx, apps/web/lib/offline/ui/ (문구 파일), apps/web/lib/offline/offline.test.ts
+감사 기준:
+- 실패하는 시험 먼저: 문구 함수가 지역 구간 6개 길이 합(3465초) 을 받아 녹음 58분이 서버에 안 올라갔어요 꼴을 돌려준다
+- OfflineBar 가 대기 구간이 남으면 그 문구와 올리기 단추를 그리고, 단추는 sync(건네기, 입양, 올리기) 를 부른다
+- 화면 문구 가드 product-copy, native-dialog, glossary 통과
+- 보안: 해당 없음, 근거 기록
+의존: I05
+
+### I06a I05 가 깬 녹음 입구 소스 가드 둘을 되살린다
+상태: 통과
+모드: 경량
+범위: apps/web/components/crm/MeetingIntakeBox.tsx
+감사 기준:
+- 전체 시험에서 today-meetings.test.ts 「한 번 누르면 곧장 작업대」 와 begin-recording.test.ts 「녹음 입구가 beginRecording 을 실제로 부른다」 가 통과
+- 보안: 해당 없음, 호출 모양만 바뀜
+의존: I06
+
+### I07 실브라우저로 녹음 중 복귀와 고아 입양을 확인한다
+상태: 통과
+모드: 경량
+범위: 변경 파일 없음 (검증 항목, 시험 계정과 격리 서버 :3270 사용)
+감사 기준:
+- ego-browser 로 127.0.0.1:3270 에서 시험 계정 로그인, 오프라인으로 바꾸고 앱 방식대로 지역 회의와 구간을 심고 녹음 임대를 건 채 온라인 복귀, 그 회의가 안 건너감을 확인
+- 임대를 놓고 새로고침하면 서버 회의 하나가 생기고 meeting_recording_part 가 심은 구간 수만큼 쌓이고 IndexedDB 에 local_ 구간 0개
+- 대기 회의 없이 심은 고아 구간도 새로고침 뒤 서버 회의 하나로 입양되어 올라감
+- 보안: 운영 사이트와 사용자 기기를 건드리지 않음, 시험 계정 정리 확인
+의존: I06
+
+## 종합 감사
+- (전 항목 통과 후 기록)
+
+## 변경 이력
+- v0.1.0 (2026-10-26) 최초 작성 (ins_0389)
+- v0.1.1 (2026-10-26) I05 가 beginRecording 을 함수 값으로 넘겨 소스 가드 둘이 깨짐, 전체 시험에서 발견해 I06a 삽입 (audit:I07)
