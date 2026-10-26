@@ -26,6 +26,7 @@ import * as blobStore from '@/lib/offline/blob-store'
 import { syncPendingParts } from '@/lib/offline/sync-parts'
 import { reconcilePendingMeetings } from '@/lib/offline/reconcile'
 import { adoptOrphanParts, withHandoverLock } from '@/lib/offline/adopt-orphans'
+import { stuckRecordingLabel, UPLOAD_NOW_LABEL, ADOPT_FAILED_DETAIL } from '@/lib/offline/ui/sync-status'
 import { useRecordingSession } from '@/lib/meeting/recording-context'
 import { SYNC_STATUS_META, type SyncStatusKey } from '@/lib/offline/ui/sync-status'
 import { pingServer, nextFailureStreak, isUnreachable } from '@/lib/offline/reachable'
@@ -63,6 +64,8 @@ export default function OfflineBar() {
   const [pending, setPending] = useState(0)
   const [status, setStatus] = useState<SyncStatusKey | null>(null)
   const [detail, setDetail] = useState<string | null>(null)
+  /** 서버로 안 건너간 지역 녹음의 길이 합(초). 0 이 아니면 「올리기」 단추를 그린다 */
+  const [stuckSec, setStuckSec] = useState(0)
 
   /**
    * 지금 녹음이 붙어 있는 회의 — 이것만은 서버로 안 건넨다.
@@ -111,18 +114,25 @@ export default function OfflineBar() {
     }
 
     const before = await blobStore.countPending().catch(() => 0)
-    if (before === 0) return
+    if (before === 0) { setStuckSec(0); return }
 
     setStatus('SYNCING')
     setDetail(null)
     const r = await syncPendingParts()
     await refresh()
+    setStuckSec(r.waitingLocal > 0 ? r.waitingLocalSec : 0)
 
     if (r.skipped) { setStatus(null); return }
     if (r.waitingLocal > 0 && r.failed.length === 0) {
-      // 올린 것은 올렸고, 아직 회의가 서버에 안 생긴 구간이 남았다. 「다 됐다」고 말하지 않는다
-      setStatus('QUEUED')
-      setDetail(`아직 서버로 안 건너간 구간 ${r.waitingLocal}개`)
+      /*
+        올린 것은 올렸고, 아직 회의가 서버에 안 생긴 녹음이 남았다. 「다 됐다」고 말하지 않는다.
+        구간 수가 아니라 몇 분인지로 말한다. 회의를 못 만들었으면 그 사실을 사람 말로 (원문은 콘솔에만)
+      */
+      const adoptFailed = !adopted || adopted.failed.length > 0
+      setStatus(adoptFailed ? 'FAILED' : 'QUEUED')
+      setDetail(adoptFailed
+        ? `${stuckRecordingLabel(r.waitingLocalSec)}. ${ADOPT_FAILED_DETAIL}`
+        : stuckRecordingLabel(r.waitingLocalSec))
       return
     }
     if (r.failed.length > 0) {
@@ -244,6 +254,11 @@ export default function OfflineBar() {
       )}
       {key === 'QUEUED' && <span className={styles.detail}>{pending}건</span>}
       {detail && <span className={styles.detail}>{detail}</span>}
+      {stuckSec > 0 && key !== 'FAILED' && key !== 'SYNCING' && (
+        <button type="button" className={styles.retry} onClick={() => void sync()}>
+          {UPLOAD_NOW_LABEL}
+        </button>
+      )}
       {key === 'FAILED' && (
         <button type="button" className={styles.retry} onClick={() => void sync()}>
           다시 시도

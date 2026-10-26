@@ -35,3 +35,18 @@ export const SYNC_STATUS_META: Record<SyncStatusKey, { label: string; status: St
 
 /** 사람이 겪는 순서 — 끊기고 → 쌓이고 → 올라가고 → 끝나거나 실패한다 */
 export const SYNC_STATUS_ORDER: SyncStatusKey[] = ['OFFLINE', 'UNREACHABLE', 'QUEUED', 'SYNCING', 'SYNCED', 'FAILED']
+
+/**
+ * 못 올라간 녹음을 **몇 분인지로** 말한다 (실측 2026-10-26: 구간 6개 3465초가 「6개」로만 보였다)
+ * 사람은 구간 수가 아니라 회의 길이로 잃은 것을 가늠한다. 분은 올림, 1분 아래도 1분이다
+ */
+export function stuckRecordingLabel(totalSec: number): string {
+  const minutes = Math.max(1, Math.ceil(totalSec / 60))
+  return `녹음 ${minutes}분이 서버에 안 올라갔어요`
+}
+
+/** 기다리지 않고 지금 올리는 단추 */
+export const UPLOAD_NOW_LABEL = '올리기'
+
+/** 대기 회의 없이 남은 녹음의 회의를 서버에 못 만들었을 때. 내부 오류 원문은 싣지 않는다 */
+export const ADOPT_FAILED_DETAIL = '서버에 회의를 만들지 못해 녹음을 아직 못 올렸어요'

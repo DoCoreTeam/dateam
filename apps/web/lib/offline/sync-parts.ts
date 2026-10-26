@@ -30,6 +30,16 @@ export interface SyncResult {
    * 「올릴 것 없음」이라고 말하게 되고, 그건 거짓이다.
    */
   waitingLocal: number
+  /** 그 구간들의 길이 합(초). 화면이 「녹음 n분」으로 말한다 */
+  waitingLocalSec: number
+}
+
+/** 아직 서버로 안 건너간 지역 구간의 개수와 길이 합 */
+export function summarizeLocalWaiting(
+  parts: { noteId: string; durationSec: number }[],
+): { count: number; totalSec: number } {
+  const local = parts.filter((p) => isLocalNoteId(p.noteId))
+  return { count: local.length, totalSec: local.reduce((sum, p) => sum + (Number(p.durationSec) || 0), 0) }
 }
 
 /** 구간 하나 올리기 — 녹음 중 경로와 복구 경로가 **같은 요청**을 쓴다 */
@@ -54,16 +64,16 @@ export async function uploadOnePart(
  * 회의 뒷부분이 통째로 안 올라간다.
  */
 export async function syncPendingParts(): Promise<SyncResult> {
-  if (!blobStore.isSupported()) return { uploaded: 0, failed: [], skipped: true, waitingLocal: 0 }
+  if (!blobStore.isSupported()) return { uploaded: 0, failed: [], skipped: true, waitingLocal: 0, waitingLocalSec: 0 }
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return { uploaded: 0, failed: [], skipped: true, waitingLocal: 0 }
+    return { uploaded: 0, failed: [], skipped: true, waitingLocal: 0, waitingLocalSec: 0 }
   }
 
   const pending = await blobStore.listPending().catch(() => [])
-  if (pending.length === 0) return { uploaded: 0, failed: [], skipped: false, waitingLocal: 0 }
+  if (pending.length === 0) return { uploaded: 0, failed: [], skipped: false, waitingLocal: 0, waitingLocalSec: 0 }
 
   let uploaded = 0
-  let waitingLocal = 0
+  const waiting = summarizeLocalWaiting(pending)
   const failed: SyncResult['failed'] = []
 
   for (const p of pending) {
@@ -71,7 +81,7 @@ export async function syncPendingParts(): Promise<SyncResult> {
       아직 서버로 안 건너간 회의다(`reconcile` 이 할 일). 여기서 올리면 없는 주소로 가서
       404 를 받고 시도 횟수만 쌓인다 — 그러면 화면에 뜨는 사유가 거짓이 된다.
     */
-    if (isLocalNoteId(p.noteId)) { waitingLocal += 1; continue }
+    if (isLocalNoteId(p.noteId)) continue
     try {
       await uploadOnePart(p.noteId, p.partIdx, p.durationSec, p.blob)
       await blobStore.remove(p.noteId, p.partIdx)
@@ -83,5 +93,5 @@ export async function syncPendingParts(): Promise<SyncResult> {
     }
   }
 
-  return { uploaded, failed, skipped: false, waitingLocal }
+  return { uploaded, failed, skipped: false, waitingLocal: waiting.count, waitingLocalSec: waiting.totalSec }
 }

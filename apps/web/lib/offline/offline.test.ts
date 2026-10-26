@@ -17,7 +17,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { MAX_KEEP_DAYS, PART_BYTES_ESTIMATE } from './blob-store.ts'
-import { SYNC_STATUS_META, SYNC_STATUS_ORDER, type SyncStatusKey } from './ui/sync-status.ts'
+import {
+  SYNC_STATUS_META, SYNC_STATUS_ORDER, type SyncStatusKey,
+  stuckRecordingLabel, UPLOAD_NOW_LABEL, ADOPT_FAILED_DETAIL,
+} from './ui/sync-status.ts'
+import { summarizeLocalWaiting } from './sync-parts.ts'
 import { STATUS_COLORS } from '../tokens/status-colors.ts'
 
 const STORE = readFileSync(new URL('./blob-store.ts', import.meta.url), 'utf8')
@@ -261,13 +265,17 @@ test('★ 올리기 전에 회의를 서버로 건넨다 — 순서가 뒤집히
 })
 
 test('★ 녹음 중인 회의는 안 건네도록 넘긴다 — 건너면 그 뒤 구간이 고아가 된다', () => {
-  assert.match(BAR, /reconcilePendingMeetings\(\{ activeNoteId: activeNoteIdRef\.current \}\)/,
+  // 이 탭(target) 과 다른 탭(remote) 둘 다 넘긴다 (2026-10-26 실측, 다른 탭이 건넸다)
+  assert.match(BAR, /reconcilePendingMeetings\(\{ activeNoteIds: activeNoteIdsRef\.current \}\)/,
     '지금 녹음 중인 회의를 안 알려 준다')
+  assert.match(BAR, /rec\.target\?\.noteId \?\? null, rec\.remote\?\.noteId \?\? null/,
+    '다른 탭의 녹음을 안 알려 준다')
 })
 
 test('★ 아직 안 건너간 구간이 있으면 「다 됐다」고 말하지 않는다', () => {
   assert.match(BAR, /r\.waitingLocal > 0/, '남은 것을 안 센다')
-  assert.match(BAR, /아직 서버로 안 건너간 구간/, '남은 것을 말하지 않는다')
+  assert.match(BAR, /stuckRecordingLabel\(r\.waitingLocalSec\)/, '남은 녹음을 몇 분인지로 말하지 않는다')
+  assert.match(BAR, /\{UPLOAD_NOW_LABEL\}/, '올리기 단추가 없다')
 })
 
 test('★ 기기가 만든 회의에는 링크를 안 건다 — 누르면 오프라인에서 화면이 죽는다', () => {
@@ -327,4 +335,25 @@ test('★ 등록 컴포넌트가 루트 레이아웃에 실제로 꽂혀 있다 
 test('설치 아이콘 이름은 브랜딩 SSOT 에서 온다 — 화면과 다른 이름을 쓰지 않는다', () => {
   assert.match(MANIFEST, /getBranding\(\)/, '앱 이름을 하드코딩했다')
   assert.ok(!/name: '[A-Za-z]/.test(MANIFEST), '고정 문자열 이름이 남아 있다')
+})
+
+test('★ 못 올라간 지역 구간은 개수와 길이 합을 센다, 서버 id 구간은 안 센다 (2026-10-26 실측 6개 3465초)', () => {
+  const L = 'local_3453c20e-8bae-4c10-bb9b-caa74fa5012a'
+  const parts = [601, 601, 601, 601, 601, 460].map((durationSec) => ({ noteId: L, durationSec }))
+  assert.deepEqual(summarizeLocalWaiting([...parts, { noteId: 'note_real', durationSec: 600 }]), { count: 6, totalSec: 3465 })
+  assert.deepEqual(summarizeLocalWaiting([]), { count: 0, totalSec: 0 })
+})
+
+test('★ 못 올라간 녹음은 몇 분인지로 말한다, 분은 올림이고 1분 아래도 1분이다', () => {
+  assert.equal(stuckRecordingLabel(3465), '녹음 58분이 서버에 안 올라갔어요')
+  assert.equal(stuckRecordingLabel(30), '녹음 1분이 서버에 안 올라갔어요')
+  assert.equal(stuckRecordingLabel(120), '녹음 2분이 서버에 안 올라갔어요')
+})
+
+test('올리기 단추와 입양 실패 문구는 사람 말이다, 전각 대시와 내부 오류를 싣지 않는다', () => {
+  assert.equal(UPLOAD_NOW_LABEL, '올리기')
+  for (const text of [UPLOAD_NOW_LABEL, ADOPT_FAILED_DETAIL, stuckRecordingLabel(3465)]) {
+    assert.ok(!text.includes('—'))
+    assert.ok(!/error|Error|404|null|undefined/.test(text))
+  }
 })
