@@ -14,7 +14,7 @@
 // 라우트를 옮기면 언마운트되면서 진행 중 구간(최대 10분)이 사라졌다.
 // 이제 레코더는 셸의 `RecordingProvider` 가 들고, 이 패널은 **그 상태를 보여 주고 시작/정지만** 시킨다.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Mic, Square, Loader2, Pause, Play } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { ACTION } from '@/lib/terms'
@@ -22,6 +22,8 @@ import InlineError from '@/components/ui/InlineError'
 import EmptyState from '@/components/ui/EmptyState'
 import LevelMeter from './LevelMeter'
 import { useRecordingSession, useBusyWithOther } from '@/lib/meeting/recording-context'
+import { AUTO_RECORD_PARAM } from '@/lib/meeting/start-flow'
+import { shouldAutoRecord, consumedKey, stripAutoRecordParam } from '@/lib/meeting/auto-record'
 import styles from './recording-panel.module.css'
 
 interface ServerProgress {
@@ -85,6 +87,36 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
 
   useEffect(() => { void refresh() }, [refresh])
 
+  /** 단추와 자동 녹음이 같은 길로 켠다, 인자를 두 곳에 적지 않는다 */
+  const startRecording = useCallback(() => rec.start({
+    noteId,
+    title: title?.trim() || '회의',
+    href: href ?? `/meeting-notes/${noteId}`,
+  }), [rec, noteId, title, href])
+
+  /*
+    「녹음 시작」으로 들어온 작업대는 도착하자마자 한 번 켠다(주소 표지 `rec=1`, lib/meeting/auto-record.ts).
+    켜기 전에 「썼음」을 먼저 적고 주소에서 표지를 지운다. 새로고침이나 뒤로 가기로 다시 켜지지 않게.
+    ref 는 개발 모드의 효과 두 번 실행에도 한 번만 지나게 한다. 이 패널은 고칠 수 있는 사람에게만 그려진다.
+  */
+  const autoRecordSeen = useRef<string | null>(null)
+  useEffect(() => {
+    if (autoRecordSeen.current === noteId) return
+    autoRecordSeen.current = noteId
+    const param = new URL(window.location.href).searchParams.get(AUTO_RECORD_PARAM)
+    if (param === null) return
+    const key = consumedKey(noteId)
+    let consumed = false
+    try { consumed = window.sessionStorage.getItem(key) !== null } catch { /* 저장소를 못 쓰면 ref 와 주소 지우기가 막는다 */ }
+    const go = shouldAutoRecord({
+      param, noteId, consumed, supported: rec.supported, canEdit: true,
+      recState: rec.state, otherRecording: Boolean(busyWithOther),
+    })
+    try { window.sessionStorage.setItem(key, '1') } catch { /* 위와 같다 */ }
+    window.history.replaceState(window.history.state, '', stripAutoRecordParam(window.location.href))
+    if (go) void startRecording()
+  }, [noteId, rec.supported, rec.state, busyWithOther, startRecording])
+
   // 구간이 하나 올라갈 때마다 서버 진행률을 다시 읽는다 — 제공자가 tick 을 올린다
   useEffect(() => { if (rec.uploadTick > 0) void refresh() }, [rec.uploadTick, refresh])
 
@@ -135,11 +167,7 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
       {!live ? (
         <div className={styles.idle}>
           <NbButton
-            onClick={() => void rec.start({
-              noteId,
-              title: title?.trim() || '회의',
-              href: href ?? `/meeting-notes/${noteId}`,
-            })}
+            onClick={() => void startRecording()}
             disabled={rec.state === 'requesting' || Boolean(busyWithOther)}
           >
             <Mic size={16} /> {rec.state === 'requesting' ? '마이크 여는 중…' : '녹음 시작'}
