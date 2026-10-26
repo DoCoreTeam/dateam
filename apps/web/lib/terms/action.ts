@@ -213,6 +213,15 @@ export const MEETING_CAPTURE_LABEL = '미팅 기록'
 export const RECORD_START_LABEL = '녹음 시작'
 
 /**
+ * 연결 없이 시작한 녹음에서 기록을 적는 자리, 녹음 바가 연다.
+ *
+ * 이름은 작업대의 「회의 기록」과 같다. 같은 글이 연결되면 그 회의노트 본문으로 올라가기 때문이다.
+ */
+export const LOCAL_MEMO_LABEL = '회의 기록'
+export const LOCAL_MEMO_SAVED = '이 기기에 저장돼요, 연결되면 회의노트로 올라가요'
+export const LOCAL_MEMO_SAVE_FAILED = '이 기기에 저장하지 못했어요, 글을 따로 옮겨 두세요'
+
+/**
  * 쓰지 않는 말 → 대신 쓸 말.
  *
  * 가드(`lib/ui/glossary.test.ts`)가 이 표를 읽어 화면 코드를 스캔한다.

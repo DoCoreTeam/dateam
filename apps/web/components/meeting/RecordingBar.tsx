@@ -12,15 +12,16 @@
  * 모바일에서는 가로로 펴고 Dock 높이(`--dock-safe-area`)만큼 띄운다.
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Square, ArrowUpRight, Pause, Play } from 'lucide-react'
+import { Square, ArrowUpRight, Pause, Play, ChevronDown, ChevronUp } from 'lucide-react'
 import LevelMeter from './LevelMeter'
 import { useRecordingSession } from '@/lib/meeting/recording-context'
 import { isLocalNoteId } from '@/lib/offline/local-meeting'
+import { readLocalMemo, saveLocalMemo } from '@/lib/offline/local-memo'
 import { remoteElapsedSec, type RemoteRecording } from '@/lib/meeting/recording-tabs'
-import { ACTION } from '@/lib/terms'
+import { ACTION, LOCAL_MEMO_LABEL, LOCAL_MEMO_SAVED, LOCAL_MEMO_SAVE_FAILED } from '@/lib/terms'
 import styles from './recording-bar.module.css'
 
 function mmss(sec: number): string {
@@ -57,7 +58,13 @@ export default function RecordingBar() {
   const paused = rec.state === 'paused'
 
   return (
-    <div className={styles.bar} data-paused={paused ? '' : undefined} role="status" aria-live="polite">
+    <div
+      className={styles.bar}
+      data-paused={paused ? '' : undefined}
+      data-memo={local ? '' : undefined}
+      role="status"
+      aria-live="polite"
+    >
       {/* 멈춰 있으면 점도 멈춘다 — 깜박이는 점은 «지금 받아적는 중»이라는 뜻이다 */}
       <span className={styles.dot} data-paused={paused ? '' : undefined} aria-hidden />
 
@@ -77,6 +84,9 @@ export default function RecordingBar() {
           {failed > 0 && <span className={styles.failed}>{failed}개 실패</span>}
         </p>
       </div>
+
+      {/* 연결 없이 시작한 녹음은 갈 화면이 없다, 그래서 기록을 적는 자리를 바가 연다 */}
+      {local && <LocalMemo key={rec.target.noteId} localId={rec.target.noteId} />}
 
       {!local && (
         <Link className={styles.go} href={rec.target.href}>
@@ -106,6 +116,71 @@ export default function RecordingBar() {
         <Square size={14} aria-hidden /> 종료
       </button>
     </div>
+  )
+}
+
+const MEMO_SAVE_DELAY_MS = 800
+
+/**
+ * 기기에 적는 회의 기록. 처음엔 펼쳐 둔다, 단추를 누른 직후 어디에 적는지 보여야 한다.
+ *
+ * 저장은 멈춘 뒤 잠깐, 칸을 떠날 때, 바가 사라질 때(녹음 종료) 한 번 더 한다.
+ * 글은 연결이 돌아오면 회의노트 본문으로 올라간다(`reconcile`).
+ */
+function LocalMemo({ localId }: { localId: string }) {
+  const [open, setOpen] = useState(true)
+  const [text, setText] = useState(() => readLocalMemo(localId))
+  const [failed, setFailed] = useState(false)
+  const latest = useRef(text)
+  const dirty = useRef(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const panelId = useId()
+
+  const flush = useCallback(() => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null }
+    if (!dirty.current) return true
+    const ok = saveLocalMemo(localId, latest.current)
+    if (ok) dirty.current = false
+    return ok
+  }, [localId])
+
+  // 바가 사라질 때 마지막 글을 놓치지 않는다
+  useEffect(() => () => { flush() }, [flush])
+
+  const onChange = (value: string) => {
+    setText(value)
+    latest.current = value
+    dirty.current = true
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => setFailed(!flush()), MEMO_SAVE_DELAY_MS)
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.memoToggle}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? <ChevronDown size={14} aria-hidden /> : <ChevronUp size={14} aria-hidden />}
+        {LOCAL_MEMO_LABEL}
+      </button>
+      <div id={panelId} className={styles.memo} hidden={!open}>
+        <textarea
+          aria-label={LOCAL_MEMO_LABEL}
+          className={`input-field ${styles.memoText}`}
+          value={text}
+          rows={5}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => setFailed(!flush())}
+        />
+        <p className={failed ? styles.memoFailed : styles.memoHint} role={failed ? 'alert' : undefined}>
+          {failed ? LOCAL_MEMO_SAVE_FAILED : LOCAL_MEMO_SAVED}
+        </p>
+      </div>
+    </>
   )
 }
 

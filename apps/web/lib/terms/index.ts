@@ -7,6 +7,7 @@
 
 export {
   ACTION, BANNED_TERMS, MEETING_CAPTURE_LABEL, RECORD_START_LABEL, FILTER_ALL,
+  LOCAL_MEMO_LABEL, LOCAL_MEMO_SAVED, LOCAL_MEMO_SAVE_FAILED,
   createLabel, progress,
   settingFieldState, SETTING_SAVE_LABEL, settingSaveDisabled,
   settingUnknownValue, settingUnknownOptionLabel, SETTING_RECOMMENDED,

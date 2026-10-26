@@ -118,6 +118,55 @@
 }
 .stop:disabled { opacity: 0.6; cursor: default; }
 
+/* 기기에 적는 회의 기록, 바 아래 줄로 내려 바 폭을 다 쓴다 */
+.bar[data-memo] { flex-wrap: wrap; }
+
+.memoToggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+.memoToggle:hover { border-color: var(--brand); color: var(--brand); }
+.memoToggle:focus-visible,
+.memoText:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.memo {
+  order: 1;
+  flex: 1 0 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.memo[hidden] { display: none; }
+
+.memoText {
+  width: 100%;
+  min-height: 88px;
+  max-height: 40vh;
+  padding: var(--space-2);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  resize: vertical;
+}
+
+.memoHint,
+.memoFailed { margin: 0; font-size: var(--fs-2xs); color: var(--text-muted); }
+.memoFailed { color: var(--danger); font-weight: 700; }
+
 /* 모바일: 가로로 펴고 Dock 높이만큼 띄운다 — 좌표를 손으로 계산하지 않는다 */
 @media (max-width: 767px) {
   .bar {
