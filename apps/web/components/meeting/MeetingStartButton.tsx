@@ -16,6 +16,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import { meetingHref } from '@/lib/crm/ui/start-meeting'
 import { beginRecording } from '@/lib/meeting/begin-recording'
 import { useRecordingSession } from '@/lib/meeting/recording-context'
+import { activeRecordingBlock, startBlockedMessage, startUnlessRecording } from '@/lib/meeting/start-guard'
 import { startMeetingNote } from '@/app/(member)/meeting-notes/actions'
 import { RECORD_START_LABEL, progress } from '@/lib/terms'
 import type { MeetingEntry } from '@/lib/crm/auth/meeting-entry'
@@ -37,6 +38,8 @@ export default function MeetingStartButton({ target, variant = 'primary' }: Prop
   const pathname = usePathname()
   const rec = useRecordingSession()
   const [busy, setBusy] = useState(false)
+  /** 녹음이 하나라도 돌면 새 회의를 안 만든다. 다시 눌러 회의가 두 벌 생긴 실측(2026-10-26) */
+  const block = activeRecordingBlock(rec)
   const [message, setMessage] = useState<{ tone: 'error' | 'note'; text: string } | null>(null)
 
   const startNote = useCallback(async () => {
@@ -66,21 +69,32 @@ export default function MeetingStartButton({ target, variant = 'primary' }: Prop
     setBusy(true)
     setMessage(null)
     try {
-      const moved = target === 'crm' ? await startCrm() : await startNote()
+      const guarded = await startUnlessRecording(rec, () => (target === 'crm' ? startCrm() : startNote()))
+      if (guarded.blocked) {
+        setMessage({ tone: 'note', text: startBlockedMessage(guarded.blocked) })
+        setBusy(false)
+        return
+      }
+      const moved = guarded.result
       // 화면을 옮겼으면 단추는 잠근 채로 둔다, 두 번 눌러 기록이 둘 생기지 않게
       if (!moved) setBusy(false)
     } catch (e) {
       setMessage({ tone: 'error', text: e instanceof Error ? e.message : CRM_FAILED })
       setBusy(false)
     }
-  }, [busy, target, startCrm, startNote])
+  }, [busy, target, startCrm, startNote, rec])
 
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)' }}>
-      <NbButton variant={variant} onClick={() => void begin()} disabled={busy} style={{ minHeight: 44, whiteSpace: 'nowrap' }}>
+      <NbButton variant={variant} onClick={() => void begin()} disabled={busy || block !== null} style={{ minHeight: 44, whiteSpace: 'nowrap' }}>
         <Mic size={16} aria-hidden />
         {busy ? progress('여는') : RECORD_START_LABEL}
       </NbButton>
+      {block && !message && (
+        <span role="status" className="field-note" style={{ maxWidth: '22rem', textAlign: 'right' }}>
+          {startBlockedMessage(block)}
+        </span>
+      )}
       {message && (
         <span
           role={message.tone === 'error' ? 'alert' : 'status'}

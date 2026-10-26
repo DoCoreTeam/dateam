@@ -25,6 +25,7 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import { meetingHref } from '@/lib/crm/ui/start-meeting'
 import { beginRecording } from '@/lib/meeting/begin-recording'
 import { useRecordingSession } from '@/lib/meeting/recording-context'
+import { activeRecordingBlock, startBlockedMessage, startUnlessRecording } from '@/lib/meeting/start-guard'
 import { MEETING_CAPTURE_LABEL, progress } from '@/lib/terms'
 import { formatKstTime } from '@/lib/datetime/kst'
 import styles from './meeting-intake.module.css'
@@ -69,6 +70,8 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
   const [error, setError] = useState<string | null>(null)
   /** 화면이 안 바뀌는 경우가 생겼다 — 눌렀는데 아무 말도 없으면 안 된 줄 안다 */
   const [notice, setNotice] = useState<string | null>(null)
+  /** 녹음이 하나라도 돌면 새 회의를 안 만든다. 다시 눌러 회의가 두 벌 생긴 실측(2026-10-26) */
+  const block = activeRecordingBlock(rec)
 
   /**
    * 한 번 누르면 곧장 작업대.
@@ -82,7 +85,13 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
     setError(null)
     setNotice(null)
     try {
-      const out = await beginRecording()
+      const guarded = await startUnlessRecording(rec, beginRecording)
+      if (guarded.blocked) {
+        setNotice(startBlockedMessage(guarded.blocked))
+        setBusy(null)
+        return
+      }
+      const out = guarded.result
 
       if (out.kind === 'server') {
         router.push(`${meetingHref(out.id)}?wb=${ENTRY[entry].wb}`)
@@ -126,7 +135,7 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
             key={k}
             variant={ENTRY[k].primary ? 'primary' : 'ghost'}
             onClick={() => void begin(k)}
-            disabled={busy !== null}
+            disabled={busy !== null || block !== null}
           >
             {ENTRY[k].icon}
             {busy === k ? progress('여는') : ENTRY[k].label}
@@ -136,6 +145,7 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
 
       {/* 화면이 안 바뀌었을 때 무슨 일이 일어났는지 — 이 줄이 없으면 안 된 줄 안다 */}
       {notice && <p className="field-note">{notice}</p>}
+      {block && <p className="field-note" role="status">{startBlockedMessage(block)}</p>}
 
       {/*
         오늘 잡혀 있는 미팅이 있으면 후보로 보여 준다.
