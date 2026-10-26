@@ -1,6 +1,6 @@
 # PLAN newAX: teamda CLI 0.1.1 남은 실측 셋
 플랜 ID: P0173
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0396
 목표 버전: v0.11.93
@@ -60,20 +60,33 @@
 - teamda --version 0.1.2, crm deal list 성공, 한글 출력이 깨지지 않음
 의존: I01a
 
-### I03 웹 견적서 PDF 와 CLI 견적서 PDF 대조
-상태: 대기
+### I03 견적서 PDF 결함 둘 고침
+상태: 통과
 모드: 경량
-범위: 없음 (실측만, 결함 시 apps/web/lib/crm/)
+범위: apps/web/app/globals.css, apps/web/app/(crm)/crm/quotes/[id]/quote-document.module.css, apps/web/lib/ui/doc-export-standard.test.ts
 감사 기준:
-- 같은 견적을 웹 내려받기와 teamda crm quote export 로 받아 쪽 수와 pdftotext 본문이 같음
+- 보안: 해당 없음, 인쇄 CSS 와 시험만
+- 서버 PDF: 로컬 서버로 teamda crm quote export 를 받아 마지막 쪽 아래 흰색 아닌 화소 비율 0 (고치기 전 0.997)
+- doc-export-standard.test.ts 의 두 단정 통과, html 을 빼 실패 확인
 의존: 없음
+
+### I03b 운영에서 웹 PDF 와 CLI PDF 대조
+상태: 통과
+모드: 경량
+범위: 없음 (실측만)
+감사 기준:
+- 보안: 해당 없음, 읽기만
+- 푸시 뒤 운영에서 같은 견적을 웹 PDF 저장과 teamda crm quote export 로 받아 금액 품목 글이 같고, 웹 PDF 의 2안 표지가 한 덩어리, CLI PDF 회색 0
+의존: I03
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
 
 ## 변경 이력
 - v0.1.0 (2026-10-26) 최초 작성 (ins_0396)
+- v0.1.3 (2026-10-27) I03 을 고침과 운영 대조로 나눔, 로컬 세션 만료로 웹 PDF 는 푸시 뒤 운영에서 봄 (audit:I03)
 - v0.1.2 (2026-10-27) I01 범위에 명세 한 벌 파일 추가, CLI 내장 명세에 등재 표 본문이 빠져 gpu quote 등 넷이 칸을 주소로 보내던 결함 (audit:I01)
 - v0.1.1 (2026-10-27) I01 에서 key 칸 명령 4개가 --key 거부로 못 쓰이는 결함을 찾아 고침, 고친 CLI 를 주려고 I01a 0.1.2 발행 추가, I02 를 0.1.2 로, 감사 로그 행 수 기준은 dryRun 도 기록하는 설계와 어긋나 고침 (audit:I01)
 - v0.1.1 (2026-10-26) key 칸 명령 --key 오차단 수정과 0.1.2 발행 항목 추가, dry-run 감사 기준 정정 (audit:I01)
 - v0.1.2 (2026-10-26) CLI 내장 명세에 등재 표 본문이 빠진 결함 수정 범위 추가 (audit:I01)
+- v0.1.3 (2026-10-26) I03 분할, 웹 PDF 는 운영 대조로 (audit:I03)
