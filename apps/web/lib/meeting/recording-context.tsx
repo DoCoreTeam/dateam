@@ -32,6 +32,9 @@ import {
   type RemoteRecording, type RecordingTabMessage,
 } from './recording-tabs.ts'
 import { uploadOnePart } from '../offline/sync-parts.ts'
+import { resolvePartDestination } from './part-destination.ts'
+import { isLocalNoteId } from '../offline/local-meeting.ts'
+import { writeRecordingLease, clearRecordingLease } from '../offline/recording-lease.ts'
 
 /** 지금 녹음이 붙어 있는 회의 — 화면이 바뀌어도 이건 안 바뀐다 */
 export interface RecordingTarget {
@@ -131,12 +134,17 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const uploadPart = useCallback(async (blob: Blob, partIdx: number, durationSec: number) => {
     const t = targetRef.current
     if (!t) throw new Error('녹음 대상이 없어요')
+    /*
+      지역 id 는 서버에 없는 주소다. 건넨 짝이 있으면 서버 id 로, 없으면 기기에만 둔다.
+      녹음 중에 회의가 건너간 뒤 지역 주소로 올려 404 를 치던 구멍(2026-10-26 실측)
+    */
+    const dest = resolvePartDestination(t.noteId)
 
     // ① 기기에 먼저. 여기서 실패해도 업로드는 해 본다 — 둘 다 못 하는 것보다 낫다
     let savedLocally = false
     if (blobStore.isSupported()) {
       try {
-        await blobStore.put({ noteId: t.noteId, partIdx, durationSec, blob })
+        await blobStore.put({ noteId: dest.noteId, partIdx, durationSec, blob })
         savedLocally = true
       } catch {
         // 로컬 보관 없이 도는 중이라는 뜻 — 화면이 "이 기기에 저장 중"이라고 말하면 안 된다
@@ -144,12 +152,22 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    /*
+      올릴 곳이 아직 없다. 시도로 세지 않고(markTried 안 함) 기기에 둔다.
+      정상 반환하면 구간이 「올라감」으로 보이므로, 기기에 둔 사실을 말하며 던진다
+    */
+    if (!dest.upload) {
+      throw new Error(savedLocally
+        ? '이 기기에 저장해 뒀어요. 연결되면 자동으로 올립니다.'
+        : '녹음을 이 기기에 저장하지 못했어요')
+    }
+
     // ② 올린다
     try {
-      await uploadOnePart(t.noteId, partIdx, durationSec, blob)
+      await uploadOnePart(dest.noteId, partIdx, durationSec, blob)
     } catch (e) {
       const msg = e instanceof Error ? e.message : '녹음을 올리지 못했어요'
-      if (savedLocally) await blobStore.markTried(t.noteId, partIdx, msg).catch(() => {})
+      if (savedLocally) await blobStore.markTried(dest.noteId, partIdx, msg).catch(() => {})
       throw new Error(
         savedLocally
           ? `${msg} — 이 기기에 저장해 뒀어요. 연결되면 자동으로 올립니다.`
@@ -158,7 +176,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
 
     // ③ 올라간 것은 기기에서 지운다 — 남기면 회의 음성이 노트북에 쌓인다(결정 5)
-    if (savedLocally) await blobStore.remove(t.noteId, partIdx).catch(() => {})
+    if (savedLocally) await blobStore.remove(dest.noteId, partIdx).catch(() => {})
     setUploadTick((n) => n + 1)
   }, [])
 
@@ -224,6 +242,21 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     const t = setInterval(send, HEARTBEAT_MS)
     return () => clearInterval(t)
   }, [localBusy, rec.state, target])
+
+  /*
+    지역 회의를 녹음하는 동안 녹음 임대를 건다(`recording-lease.ts`).
+    다른 탭의 건네기가 소식을 못 받았어도 이 회의는 녹음 중인 줄 안다. 끝나면 놓는다
+  */
+  const leaseNoteId = localBusy && target && isLocalNoteId(target.noteId) ? target.noteId : null
+  useEffect(() => {
+    if (!leaseNoteId) return undefined
+    writeRecordingLease(leaseNoteId)
+    const t = setInterval(() => writeRecordingLease(leaseNoteId), HEARTBEAT_MS)
+    return () => {
+      clearInterval(t)
+      clearRecordingLease(leaseNoteId)
+    }
+  }, [leaseNoteId])
 
   /* 소식이 끊긴 탭을 걸러 내려면 시계가 흘러야 한다 — 다른 탭 소식이 있을 때만 돈다 */
   useEffect(() => {
