@@ -85,7 +85,7 @@ export default function MeetingIntakeBox({ todayMeetings = [] }: Props) {
     setError(null)
     setNotice(null)
     try {
-      const guarded = await startUnlessRecording(rec, beginRecording)
+      const guarded = await startUnlessRecording(rec, async () => await beginRecording())
       if (guarded.blocked) {
         setNotice(startBlockedMessage(guarded.blocked))
         setBusy(null)
